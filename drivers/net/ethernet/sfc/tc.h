@@ -25,6 +25,8 @@ static inline bool efx_ipv6_addr_all_ones(struct in6_addr *addr)
 }
 #endif
 
+struct efx_tc_encap_action; /* see tc_encap_actions.h */
+
 struct efx_tc_action_set {
 	u16 vlan_push:2;
 	u16 vlan_pop:2;
@@ -33,6 +35,7 @@ struct efx_tc_action_set {
 	__be16 vlan_tci[2]; /* TCIs for vlan_push */
 	__be16 vlan_proto[2]; /* Ethertypes for vlan_push */
 	struct efx_tc_counter_index *count;
+	struct efx_tc_encap_action *encap_md; /* entry in tc_encap_ht table */
 	u32 dest_mport;
 	u32 fw_id; /* index of this entry in firmware actions table */
 	struct list_head list;
@@ -127,6 +130,7 @@ struct efx_tc_flow_rule {
 	struct rhash_head linkage;
 	struct efx_tc_match match;
 	struct efx_tc_action_set_list acts;
+	struct efx_tc_action_set_list *fallback; /* what to use when unready? */
 	u32 fw_id;
 };
 
@@ -144,6 +148,7 @@ enum efx_tc_rule_prios {
  * @mutex: Used to serialise operations on TC hashtables
  * @counter_ht: Hashtable of TC counters (FW IDs and counter values)
  * @counter_id_ht: Hashtable mapping TC counter cookies to counters
+ * @encap_ht: Hashtable of TC encap actions
  * @encap_match_ht: Hashtable of TC encap matches
  * @match_action_ht: Hashtable of TC match-action rules
  * @reps_mport_id: MAE port allocated for representor RX
@@ -173,6 +178,7 @@ struct efx_tc_state {
 	struct mutex mutex;
 	struct rhashtable counter_ht;
 	struct rhashtable counter_id_ht;
+	struct rhashtable encap_ht;
 	struct rhashtable encap_match_ht;
 	struct rhashtable match_action_ht;
 	u32 reps_mport_id, reps_mport_vport_id;
@@ -194,6 +200,7 @@ struct efx_tc_state {
 
 struct efx_rep;
 
+enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev);
 int efx_tc_configure_default_rule_rep(struct efx_rep *efv);
 void efx_tc_deconfigure_default_rule(struct efx_nic *efx,
 				     struct efx_tc_flow_rule *rule);
