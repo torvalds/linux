@@ -767,18 +767,6 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	return 0;
 }
 
-/*
- * The preprocess_sample method will return with reference counts for the
- * in it, when done using (and perhaps getting ref counts if needing to
- * keep a pointer to one of those entries) it must be paired with
- * addr_location__put(), so that the refcounts can be decremented.
- */
-void addr_location__put(struct addr_location *al)
-{
-	map__zput(al->map);
-	thread__zput(al->thread);
-}
-
 bool is_bts_event(struct perf_event_attr *attr)
 {
 	return attr->type == PERF_TYPE_HARDWARE &&
