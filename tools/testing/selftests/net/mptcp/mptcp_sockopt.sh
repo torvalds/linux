@@ -84,6 +84,7 @@ cleanup()
 }
 
 mptcp_lib_check_mptcp
+mptcp_lib_check_kallsyms
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
@@ -247,6 +248,11 @@ make_file()
 do_mptcp_sockopt_tests()
 {
 	local lret=0
+
+	if ! mptcp_lib_kallsyms_has "mptcp_diag_fill_info$"; then
+		echo "INFO: MPTCP sockopt not supported: SKIP"
+		return
+	fi
 
 	ip netns exec "$ns_sbox" ./mptcp_sockopt
 	lret=$?
