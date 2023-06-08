@@ -1857,9 +1857,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	if (!cbss)
 		return;
 
-	if (local->scanning)
-		return;
-
 	current_band = cbss->channel->band;
 	bss = (void *)cbss->priv;
 	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
@@ -5997,6 +5994,10 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_mgmt_assoc_resp(sdata, mgmt, skb->len);
 		break;
 	case IEEE80211_STYPE_ACTION:
+		if (!sdata->u.mgd.associated ||
+		    !ether_addr_equal(mgmt->bssid, sdata->vif.cfg.ap_addr))
+			break;
+
 		if (mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT) {
 			struct ieee802_11_elems *elems;
 
