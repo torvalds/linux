@@ -63,6 +63,7 @@ struct cdrom_device_info {
 	unsigned short mmc3_profile;	/* current MMC3 profile */
 	int (*exit)(struct cdrom_device_info *);
 	int mrw_mode_page;
+	bool opened_for_data;
 	__s64 last_media_change_ms;
 };
 
