@@ -1229,6 +1229,29 @@ int efx_mae_insert_rule(struct efx_nic *efx, const struct efx_tc_match *match,
 	return 0;
 }
 
+int efx_mae_update_rule(struct efx_nic *efx, u32 acts_id, u32 id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ACTION_RULE_UPDATE_IN_LEN);
+	MCDI_DECLARE_STRUCT_PTR(response);
+
+	BUILD_BUG_ON(MC_CMD_MAE_ACTION_RULE_UPDATE_OUT_LEN);
+	response = _MCDI_DWORD(inbuf, MAE_ACTION_RULE_UPDATE_IN_RESPONSE);
+
+	MCDI_SET_DWORD(inbuf, MAE_ACTION_RULE_UPDATE_IN_AR_ID, id);
+	if (efx_mae_asl_id(acts_id)) {
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_ASL_ID, acts_id);
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_AS_ID,
+				      MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL);
+	} else {
+		/* We only had one AS, so we didn't wrap it in an ASL */
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_ASL_ID,
+				      MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_AS_ID, acts_id);
+	}
+	return efx_mcdi_rpc(efx, MC_CMD_MAE_ACTION_RULE_UPDATE, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
 int efx_mae_delete_rule(struct efx_nic *efx, u32 id)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ACTION_RULE_DELETE_OUT_LEN(1));

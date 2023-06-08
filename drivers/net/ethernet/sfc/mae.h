@@ -105,6 +105,7 @@ int efx_mae_unregister_encap_match(struct efx_nic *efx,
 
 int efx_mae_insert_rule(struct efx_nic *efx, const struct efx_tc_match *match,
 			u32 prio, u32 acts_id, u32 *id);
+int efx_mae_update_rule(struct efx_nic *efx, u32 acts_id, u32 id);
 int efx_mae_delete_rule(struct efx_nic *efx, u32 id);
 
 int efx_init_mae(struct efx_nic *efx);
