@@ -1243,7 +1243,7 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 			     const struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(conn_state->crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
@@ -1403,7 +1403,7 @@ static void gen11_dsi_post_disable(struct intel_atomic_state *state,
 				   const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(old_conn_state->crtc);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 
 	intel_crtc_vblank_off(old_crtc_state);
 
