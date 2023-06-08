@@ -243,12 +243,183 @@ static void efx_release_neigh(struct efx_nic *efx,
 	efx_free_neigh(neigh);
 }
 
-static void efx_gen_encap_header(struct efx_tc_encap_action *encap)
+static void efx_gen_tun_header_eth(struct efx_tc_encap_action *encap, u16 proto)
 {
-	/* stub for now */
-	encap->n_valid = false;
-	memset(encap->encap_hdr, 0, sizeof(encap->encap_hdr));
-	encap->encap_hdr_len = ETH_HLEN;
+	struct efx_neigh_binder *neigh = encap->neigh;
+	struct ethhdr *eth;
+
+	encap->encap_hdr_len = sizeof(*eth);
+	eth = (struct ethhdr *)encap->encap_hdr;
+
+	if (encap->neigh->n_valid)
+		ether_addr_copy(eth->h_dest, neigh->ha);
+	else
+		eth_zero_addr(eth->h_dest);
+	ether_addr_copy(eth->h_source, neigh->egdev->dev_addr);
+	eth->h_proto = htons(proto);
+}
+
+static void efx_gen_tun_header_ipv4(struct efx_tc_encap_action *encap, u8 ipproto, u8 len)
+{
+	struct efx_neigh_binder *neigh = encap->neigh;
+	struct ip_tunnel_key *key = &encap->key;
+	struct iphdr *ip;
+
+	ip = (struct iphdr *)(encap->encap_hdr + encap->encap_hdr_len);
+	encap->encap_hdr_len += sizeof(*ip);
+
+	ip->daddr = key->u.ipv4.dst;
+	ip->saddr = key->u.ipv4.src;
+	ip->ttl = neigh->ttl;
+	ip->protocol = ipproto;
+	ip->version = 0x4;
+	ip->ihl = 0x5;
+	ip->tot_len = cpu_to_be16(ip->ihl * 4 + len);
+	ip_send_check(ip);
+}
+
+#ifdef CONFIG_IPV6
+static void efx_gen_tun_header_ipv6(struct efx_tc_encap_action *encap, u8 ipproto, u8 len)
+{
+	struct efx_neigh_binder *neigh = encap->neigh;
+	struct ip_tunnel_key *key = &encap->key;
+	struct ipv6hdr *ip;
+
+	ip = (struct ipv6hdr *)(encap->encap_hdr + encap->encap_hdr_len);
+	encap->encap_hdr_len += sizeof(*ip);
+
+	ip6_flow_hdr(ip, key->tos, key->label);
+	ip->daddr = key->u.ipv6.dst;
+	ip->saddr = key->u.ipv6.src;
+	ip->hop_limit = neigh->ttl;
+	ip->nexthdr = ipproto;
+	ip->version = 0x6;
+	ip->payload_len = cpu_to_be16(len);
+}
+#endif
+
+static void efx_gen_tun_header_udp(struct efx_tc_encap_action *encap, u8 len)
+{
+	struct ip_tunnel_key *key = &encap->key;
+	struct udphdr *udp;
+
+	udp = (struct udphdr *)(encap->encap_hdr + encap->encap_hdr_len);
+	encap->encap_hdr_len += sizeof(*udp);
+
+	udp->dest = key->tp_dst;
+	udp->len = cpu_to_be16(sizeof(*udp) + len);
+}
+
+static void efx_gen_tun_header_vxlan(struct efx_tc_encap_action *encap)
+{
+	struct ip_tunnel_key *key = &encap->key;
+	struct vxlanhdr *vxlan;
+
+	vxlan = (struct vxlanhdr *)(encap->encap_hdr + encap->encap_hdr_len);
+	encap->encap_hdr_len += sizeof(*vxlan);
+
+	vxlan->vx_flags = VXLAN_HF_VNI;
+	vxlan->vx_vni = vxlan_vni_field(tunnel_id_to_key32(key->tun_id));
+}
+
+static void efx_gen_tun_header_geneve(struct efx_tc_encap_action *encap)
+{
+	struct ip_tunnel_key *key = &encap->key;
+	struct genevehdr *geneve;
+	u32 vni;
+
+	geneve = (struct genevehdr *)(encap->encap_hdr + encap->encap_hdr_len);
+	encap->encap_hdr_len += sizeof(*geneve);
+
+	geneve->proto_type = htons(ETH_P_TEB);
+	/* convert tun_id to host-endian so we can use host arithmetic to
+	 * extract individual bytes.
+	 */
+	vni = ntohl(tunnel_id_to_key32(key->tun_id));
+	geneve->vni[0] = vni >> 16;
+	geneve->vni[1] = vni >> 8;
+	geneve->vni[2] = vni;
+}
+
+#define vxlan_header_l4_len	(sizeof(struct udphdr) + sizeof(struct vxlanhdr))
+#define vxlan4_header_len	(sizeof(struct ethhdr) + sizeof(struct iphdr) + vxlan_header_l4_len)
+static void efx_gen_vxlan_header_ipv4(struct efx_tc_encap_action *encap)
+{
+	BUILD_BUG_ON(sizeof(encap->encap_hdr) < vxlan4_header_len);
+	efx_gen_tun_header_eth(encap, ETH_P_IP);
+	efx_gen_tun_header_ipv4(encap, IPPROTO_UDP, vxlan_header_l4_len);
+	efx_gen_tun_header_udp(encap, sizeof(struct vxlanhdr));
+	efx_gen_tun_header_vxlan(encap);
+}
+
+#define geneve_header_l4_len	(sizeof(struct udphdr) + sizeof(struct genevehdr))
+#define geneve4_header_len	(sizeof(struct ethhdr) + sizeof(struct iphdr) + geneve_header_l4_len)
+static void efx_gen_geneve_header_ipv4(struct efx_tc_encap_action *encap)
+{
+	BUILD_BUG_ON(sizeof(encap->encap_hdr) < geneve4_header_len);
+	efx_gen_tun_header_eth(encap, ETH_P_IP);
+	efx_gen_tun_header_ipv4(encap, IPPROTO_UDP, geneve_header_l4_len);
+	efx_gen_tun_header_udp(encap, sizeof(struct genevehdr));
+	efx_gen_tun_header_geneve(encap);
+}
+
+#ifdef CONFIG_IPV6
+#define vxlan6_header_len	(sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + vxlan_header_l4_len)
+static void efx_gen_vxlan_header_ipv6(struct efx_tc_encap_action *encap)
+{
+	BUILD_BUG_ON(sizeof(encap->encap_hdr) < vxlan6_header_len);
+	efx_gen_tun_header_eth(encap, ETH_P_IPV6);
+	efx_gen_tun_header_ipv6(encap, IPPROTO_UDP, vxlan_header_l4_len);
+	efx_gen_tun_header_udp(encap, sizeof(struct vxlanhdr));
+	efx_gen_tun_header_vxlan(encap);
+}
+
+#define geneve6_header_len	(sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + geneve_header_l4_len)
+static void efx_gen_geneve_header_ipv6(struct efx_tc_encap_action *encap)
+{
+	BUILD_BUG_ON(sizeof(encap->encap_hdr) < geneve6_header_len);
+	efx_gen_tun_header_eth(encap, ETH_P_IPV6);
+	efx_gen_tun_header_ipv6(encap, IPPROTO_UDP, geneve_header_l4_len);
+	efx_gen_tun_header_udp(encap, sizeof(struct genevehdr));
+	efx_gen_tun_header_geneve(encap);
+}
+#endif
+
+static void efx_gen_encap_header(struct efx_nic *efx,
+				 struct efx_tc_encap_action *encap)
+{
+	encap->n_valid = encap->neigh->n_valid;
+
+	/* GCC stupidly thinks that only values explicitly listed in the enum
+	 * definition can _possibly_ be sensible case values, so without this
+	 * cast it complains about the IPv6 versions.
+	 */
+	switch ((int)encap->type) {
+	case EFX_ENCAP_TYPE_VXLAN:
+		efx_gen_vxlan_header_ipv4(encap);
+		break;
+	case EFX_ENCAP_TYPE_GENEVE:
+		efx_gen_geneve_header_ipv4(encap);
+		break;
+#ifdef CONFIG_IPV6
+	case EFX_ENCAP_TYPE_VXLAN | EFX_ENCAP_FLAG_IPV6:
+		efx_gen_vxlan_header_ipv6(encap);
+		break;
+	case EFX_ENCAP_TYPE_GENEVE | EFX_ENCAP_FLAG_IPV6:
+		efx_gen_geneve_header_ipv6(encap);
+		break;
+#endif
+	default:
+		/* unhandled encap type, can't happen */
+		if (net_ratelimit())
+			netif_err(efx, drv, efx->net_dev,
+				  "Bogus encap type %d, can't generate\n",
+				  encap->type);
+
+		/* Use fallback action. */
+		encap->n_valid = false;
+		break;
+	}
 }
 
 static void efx_tc_update_encap(struct efx_nic *efx,
@@ -282,14 +453,19 @@ static void efx_tc_update_encap(struct efx_nic *efx,
 		}
 	}
 
+	/* Make sure we don't leak arbitrary bytes on the wire;
+	 * set an all-0s ethernet header.  A successful call to
+	 * efx_gen_encap_header() will overwrite this.
+	 */
+	memset(encap->encap_hdr, 0, sizeof(encap->encap_hdr));
+	encap->encap_hdr_len = ETH_HLEN;
+
 	if (encap->neigh) {
 		read_lock_bh(&encap->neigh->lock);
-		efx_gen_encap_header(encap);
+		efx_gen_encap_header(efx, encap);
 		read_unlock_bh(&encap->neigh->lock);
 	} else {
 		encap->n_valid = false;
-		memset(encap->encap_hdr, 0, sizeof(encap->encap_hdr));
-		encap->encap_hdr_len = ETH_HLEN;
 	}
 
 	rc = efx_mae_update_encap_md(efx, encap);
@@ -486,7 +662,7 @@ struct efx_tc_encap_action *efx_tc_flower_create_encap_md(
 	}
 	encap->dest_mport = rc;
 	read_lock_bh(&encap->neigh->lock);
-	efx_gen_encap_header(encap);
+	efx_gen_encap_header(efx, encap);
 	read_unlock_bh(&encap->neigh->lock);
 
 	rc = efx_mae_allocate_encap_md(efx, encap);
