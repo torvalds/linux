@@ -1041,7 +1041,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (IS_ERR(child)) {
 			ret = PTR_ERR(child);
 			btrfs_handle_fs_error(fs_info, ret, NULL);
-			goto enospc;
+			goto out;
 		}
 
 		btrfs_tree_lock(child);
@@ -1050,7 +1050,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (ret) {
 			btrfs_tree_unlock(child);
 			free_extent_buffer(child);
-			goto enospc;
+			goto out;
 		}
 
 		ret = btrfs_tree_mod_log_insert_root(root->node, child, true);
@@ -1058,7 +1058,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			btrfs_tree_unlock(child);
 			free_extent_buffer(child);
 			btrfs_abort_transaction(trans, ret);
-			goto enospc;
+			goto out;
 		}
 		rcu_assign_pointer(root->node, child);
 
@@ -1087,7 +1087,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (IS_ERR(left)) {
 			ret = PTR_ERR(left);
 			left = NULL;
-			goto enospc;
+			goto out;
 		}
 
 		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
@@ -1096,7 +1096,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 				       BTRFS_NESTING_LEFT_COW);
 		if (wret) {
 			ret = wret;
-			goto enospc;
+			goto out;
 		}
 	}
 
@@ -1105,7 +1105,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (IS_ERR(right)) {
 			ret = PTR_ERR(right);
 			right = NULL;
-			goto enospc;
+			goto out;
 		}
 
 		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
@@ -1114,7 +1114,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 				       BTRFS_NESTING_RIGHT_COW);
 		if (wret) {
 			ret = wret;
-			goto enospc;
+			goto out;
 		}
 	}
 
@@ -1149,7 +1149,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 					BTRFS_MOD_LOG_KEY_REPLACE);
 			if (ret < 0) {
 				btrfs_abort_transaction(trans, ret);
-				goto enospc;
+				goto out;
 			}
 			btrfs_set_node_key(parent, &right_key, pslot + 1);
 			btrfs_mark_buffer_dirty(parent);
@@ -1168,12 +1168,12 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (!left) {
 			ret = -EROFS;
 			btrfs_handle_fs_error(fs_info, ret, NULL);
-			goto enospc;
+			goto out;
 		}
 		wret = balance_node_right(trans, mid, left);
 		if (wret < 0) {
 			ret = wret;
-			goto enospc;
+			goto out;
 		}
 		if (wret == 1) {
 			wret = push_node_left(trans, left, mid, 1);
@@ -1198,7 +1198,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 						    BTRFS_MOD_LOG_KEY_REPLACE);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);
-			goto enospc;
+			goto out;
 		}
 		btrfs_set_node_key(parent, &mid_key, pslot);
 		btrfs_mark_buffer_dirty(parent);
@@ -1225,7 +1225,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	if (orig_ptr !=
 	    btrfs_node_blockptr(path->nodes[level], path->slots[level]))
 		BUG();
-enospc:
+out:
 	if (right) {
 		btrfs_tree_unlock(right);
 		free_extent_buffer(right);
