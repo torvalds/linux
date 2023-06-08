@@ -337,9 +337,8 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 
 			/* handle if never test done */
 			if (++counter > 10000) {
-				dev_info(afe->dev, "%s(), test fail, cycle_1 %d, cycle_2 %d, monitor 0x%x\n",
-					 __func__,
-					 cycle_1, cycle_2, monitor);
+				dev_err(afe->dev, "%s(), test fail, cycle_1 %d, cycle_2 %d, monitor 0x%x\n",
+					__func__, cycle_1, cycle_2, monitor);
 				mtkaif_calibration_ok = false;
 				break;
 			}
@@ -398,8 +397,8 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	for (i = 0; i < MT8188_MTKAIF_MISO_NUM; i++)
 		param->mtkaif_phase_cycle[i] = mtkaif_phase_cycle[i];
 
-	dev_info(afe->dev, "%s(), end, calibration ok %d\n",
-		 __func__, param->mtkaif_calibration_ok);
+	dev_dbg(afe->dev, "%s(), end, calibration ok %d\n",
+		__func__, param->mtkaif_calibration_ok);
 
 	return 0;
 }
@@ -486,14 +485,14 @@ static int mt8188_hdmi_codec_init(struct snd_soc_pcm_runtime *rtd)
 					 mt8188_hdmi_jack_pins,
 					 ARRAY_SIZE(mt8188_hdmi_jack_pins));
 	if (ret) {
-		dev_info(rtd->dev, "%s, new jack failed: %d\n", __func__, ret);
+		dev_err(rtd->dev, "%s, new jack failed: %d\n", __func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_component_set_jack(component, &priv->hdmi_jack, NULL);
 	if (ret) {
-		dev_info(rtd->dev, "%s, set jack failed on %s (ret=%d)\n",
-			 __func__, component->name, ret);
+		dev_err(rtd->dev, "%s, set jack failed on %s (ret=%d)\n",
+			__func__, component->name, ret);
 		return ret;
 	}
 
@@ -510,14 +509,14 @@ static int mt8188_dptx_codec_init(struct snd_soc_pcm_runtime *rtd)
 					 &priv->dp_jack, mt8188_dp_jack_pins,
 					 ARRAY_SIZE(mt8188_dp_jack_pins));
 	if (ret) {
-		dev_info(rtd->dev, "%s, new jack failed: %d\n", __func__, ret);
+		dev_err(rtd->dev, "%s, new jack failed: %d\n", __func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_component_set_jack(component, &priv->dp_jack, NULL);
 	if (ret) {
-		dev_info(rtd->dev, "%s, set jack failed on %s (ret=%d)\n",
-			 __func__, component->name, ret);
+		dev_err(rtd->dev, "%s, set jack failed on %s (ret=%d)\n",
+			__func__, component->name, ret);
 		return ret;
 	}
 
