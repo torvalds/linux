@@ -2589,7 +2589,7 @@ static void release_journal_dev(struct super_block *super,
 			       struct reiserfs_journal *journal)
 {
 	if (journal->j_dev_bd != NULL) {
-		blkdev_put(journal->j_dev_bd, journal->j_dev_mode);
+		blkdev_put(journal->j_dev_bd, journal);
 		journal->j_dev_bd = NULL;
 	}
 }
@@ -2598,9 +2598,10 @@ static int journal_init_dev(struct super_block *super,
 			    struct reiserfs_journal *journal,
 			    const char *jdev_name)
 {
+	fmode_t blkdev_mode = FMODE_READ;
+	void *holder = journal;
 	int result;
 	dev_t jdev;
-	fmode_t blkdev_mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
 
 	result = 0;
 
@@ -2608,16 +2609,15 @@ static int journal_init_dev(struct super_block *super,
 	jdev = SB_ONDISK_JOURNAL_DEVICE(super) ?
 	    new_decode_dev(SB_ONDISK_JOURNAL_DEVICE(super)) : super->s_dev;
 
-	if (bdev_read_only(super->s_bdev))
-		blkdev_mode = FMODE_READ;
+	if (!bdev_read_only(super->s_bdev))
+		blkdev_mode |= FMODE_WRITE;
 
 	/* there is no "jdev" option and journal is on separate device */
 	if ((!jdev_name || !jdev_name[0])) {
 		if (jdev == super->s_dev)
-			blkdev_mode &= ~FMODE_EXCL;
-		journal->j_dev_bd = blkdev_get_by_dev(jdev, blkdev_mode,
-						      journal, NULL);
-		journal->j_dev_mode = blkdev_mode;
+			holder = NULL;
+		journal->j_dev_bd = blkdev_get_by_dev(jdev, blkdev_mode, holder,
+						      NULL);
 		if (IS_ERR(journal->j_dev_bd)) {
 			result = PTR_ERR(journal->j_dev_bd);
 			journal->j_dev_bd = NULL;
@@ -2631,8 +2631,7 @@ static int journal_init_dev(struct super_block *super,
 		return 0;
 	}
 
-	journal->j_dev_mode = blkdev_mode;
-	journal->j_dev_bd = blkdev_get_by_path(jdev_name, blkdev_mode, journal,
+	journal->j_dev_bd = blkdev_get_by_path(jdev_name, blkdev_mode, holder,
 					       NULL);
 	if (IS_ERR(journal->j_dev_bd)) {
 		result = PTR_ERR(journal->j_dev_bd);

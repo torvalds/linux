@@ -365,12 +365,11 @@ int disk_scan_partitions(struct gendisk *disk, fmode_t mode)
 	}
 
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	bdev = blkdev_get_by_dev(disk_devt(disk), mode & ~FMODE_EXCL, NULL,
-				 NULL);
+	bdev = blkdev_get_by_dev(disk_devt(disk), mode, NULL, NULL);
 	if (IS_ERR(bdev))
 		ret =  PTR_ERR(bdev);
 	else
-		blkdev_put(bdev, mode & ~FMODE_EXCL);
+		blkdev_put(bdev, NULL);
 
 	/*
 	 * If blkdev_get_by_dev() failed early, GD_NEED_PART_SCAN is still set,

@@ -688,22 +688,18 @@ static int load_image_and_restore(bool snapshot_test)
 {
 	int error;
 	unsigned int flags;
-	fmode_t mode = FMODE_READ;
-
-	if (snapshot_test)
-		mode |= FMODE_EXCL;
 
 	pm_pr_dbg("Loading hibernation image.\n");
 
 	lock_device_hotplug();
 	error = create_basic_memory_bitmaps();
 	if (error) {
-		swsusp_close(mode);
+		swsusp_close(snapshot_test);
 		goto Unlock;
 	}
 
 	error = swsusp_read(&flags);
-	swsusp_close(mode);
+	swsusp_close(snapshot_test);
 	if (!error)
 		error = hibernation_restore(flags & SF_PLATFORM_MODE);
 
@@ -956,7 +952,7 @@ static int software_resume(void)
 	/* The snapshot device should not be opened while we're running */
 	if (!hibernate_acquire()) {
 		error = -EBUSY;
-		swsusp_close(FMODE_READ | FMODE_EXCL);
+		swsusp_close(false);
 		goto Unlock;
 	}
 
@@ -991,7 +987,7 @@ static int software_resume(void)
 	pm_pr_dbg("Hibernation image not present or could not be loaded.\n");
 	return error;
  Close_Finish:
-	swsusp_close(FMODE_READ | FMODE_EXCL);
+	swsusp_close(false);
 	goto Finish;
 }
 

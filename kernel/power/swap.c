@@ -363,7 +363,7 @@ static int swsusp_swap_check(void)
 
 	res = set_blocksize(hib_resume_bdev, PAGE_SIZE);
 	if (res < 0)
-		blkdev_put(hib_resume_bdev, FMODE_WRITE);
+		blkdev_put(hib_resume_bdev, NULL);
 
 	return res;
 }
@@ -443,7 +443,7 @@ static int get_swap_writer(struct swap_map_handle *handle)
 err_rel:
 	release_swap_writer(handle);
 err_close:
-	swsusp_close(FMODE_WRITE);
+	swsusp_close(false);
 	return ret;
 }
 
@@ -508,7 +508,7 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 	if (error)
 		free_all_swap_pages(root_swap);
 	release_swap_writer(handle);
-	swsusp_close(FMODE_WRITE);
+	swsusp_close(false);
 
 	return error;
 }
@@ -1518,14 +1518,11 @@ static void *swsusp_holder;
 
 int swsusp_check(bool snapshot_test)
 {
+	void *holder = snapshot_test ? &swsusp_holder : NULL;
 	int error;
-	fmode_t mode = FMODE_READ;
 
-	if (snapshot_test)
-		mode |= FMODE_EXCL;
-
-	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device,
-					    mode, &swsusp_holder, NULL);
+	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device, FMODE_READ,
+					    holder, NULL);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
 		clear_page(swsusp_header);
@@ -1552,7 +1549,7 @@ int swsusp_check(bool snapshot_test)
 
 put:
 		if (error)
-			blkdev_put(hib_resume_bdev, mode);
+			blkdev_put(hib_resume_bdev, holder);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {
@@ -1569,14 +1566,14 @@ put:
  *	swsusp_close - close swap device.
  */
 
-void swsusp_close(fmode_t mode)
+void swsusp_close(bool snapshot_test)
 {
 	if (IS_ERR(hib_resume_bdev)) {
 		pr_debug("Image device not initialised\n");
 		return;
 	}
 
-	blkdev_put(hib_resume_bdev, mode);
+	blkdev_put(hib_resume_bdev, snapshot_test ? &swsusp_holder : NULL);
 }
 
 /**

@@ -1503,7 +1503,7 @@ static void o2hb_region_release(struct config_item *item)
 	}
 
 	if (reg->hr_bdev)
-		blkdev_put(reg->hr_bdev, FMODE_READ|FMODE_WRITE);
+		blkdev_put(reg->hr_bdev, NULL);
 
 	kfree(reg->hr_slots);
 
@@ -1893,7 +1893,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 
 out3:
 	if (ret < 0) {
-		blkdev_put(reg->hr_bdev, FMODE_READ | FMODE_WRITE);
+		blkdev_put(reg->hr_bdev, NULL);
 		reg->hr_bdev = NULL;
 	}
 out2:

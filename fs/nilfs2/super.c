@@ -1278,7 +1278,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 {
 	struct nilfs_super_data sd;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ | FMODE_EXCL;
+	fmode_t mode = FMODE_READ;
 	struct dentry *root_dentry;
 	int err, s_new = false;
 
@@ -1357,7 +1357,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	if (!s_new)
-		blkdev_put(sd.bdev, mode);
+		blkdev_put(sd.bdev, fs_type);
 
 	return root_dentry;
 
@@ -1366,7 +1366,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 
  failed:
 	if (!s_new)
-		blkdev_put(sd.bdev, mode);
+		blkdev_put(sd.bdev, fs_type);
 	return ERR_PTR(err);
 }
 

@@ -35,7 +35,7 @@ bl_free_device(struct pnfs_block_dev *dev)
 		}
 
 		if (dev->bdev)
-			blkdev_put(dev->bdev, FMODE_READ | FMODE_WRITE);
+			blkdev_put(dev->bdev, NULL);
 	}
 }
 
@@ -374,7 +374,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 	return 0;
 
 out_blkdev_put:
-	blkdev_put(d->bdev, FMODE_READ | FMODE_WRITE);
+	blkdev_put(d->bdev, NULL);
 	return error;
 }
 

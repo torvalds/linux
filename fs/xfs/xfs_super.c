@@ -396,8 +396,8 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*bdevp = blkdev_get_by_path(name, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
-				    mp, &xfs_holder_ops);
+	*bdevp = blkdev_get_by_path(name, FMODE_READ | FMODE_WRITE, mp,
+				    &xfs_holder_ops);
 	if (IS_ERR(*bdevp)) {
 		error = PTR_ERR(*bdevp);
 		xfs_warn(mp, "Invalid device [%s], error=%d", name, error);
@@ -408,10 +408,11 @@ xfs_blkdev_get(
 
 STATIC void
 xfs_blkdev_put(
+	struct xfs_mount	*mp,
 	struct block_device	*bdev)
 {
 	if (bdev)
-		blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+		blkdev_put(bdev, mp);
 }
 
 STATIC void
@@ -422,13 +423,13 @@ xfs_close_devices(
 		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
 
 		xfs_free_buftarg(mp->m_logdev_targp);
-		xfs_blkdev_put(logdev);
+		xfs_blkdev_put(mp, logdev);
 	}
 	if (mp->m_rtdev_targp) {
 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
 
 		xfs_free_buftarg(mp->m_rtdev_targp);
-		xfs_blkdev_put(rtdev);
+		xfs_blkdev_put(mp, rtdev);
 	}
 	xfs_free_buftarg(mp->m_ddev_targp);
 }
@@ -503,10 +504,10 @@ xfs_open_devices(
  out_free_ddev_targ:
 	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
-	xfs_blkdev_put(rtdev);
+	xfs_blkdev_put(mp, rtdev);
  out_close_logdev:
 	if (logdev && logdev != ddev)
-		xfs_blkdev_put(logdev);
+		xfs_blkdev_put(mp, logdev);
 	return error;
 }
 

@@ -604,7 +604,7 @@ void bd_abort_claiming(struct block_device *bdev, void *holder)
 }
 EXPORT_SYMBOL(bd_abort_claiming);
 
-static void bd_end_claim(struct block_device *bdev)
+static void bd_end_claim(struct block_device *bdev, void *holder)
 {
 	struct block_device *whole = bdev_whole(bdev);
 	bool unblock = false;
@@ -614,6 +614,7 @@ static void bd_end_claim(struct block_device *bdev)
 	 * bdev_lock.  open_mutex is used to synchronize disk_holder unlinking.
 	 */
 	mutex_lock(&bdev_lock);
+	WARN_ON_ONCE(bdev->bd_holder != holder);
 	WARN_ON_ONCE(--bdev->bd_holders < 0);
 	WARN_ON_ONCE(--whole->bd_holders < 0);
 	if (!bdev->bd_holders) {
@@ -750,10 +751,9 @@ void blkdev_put_no_open(struct block_device *bdev)
  * @holder: exclusive holder identifier
  * @hops: holder operations
  *
- * Open the block device described by device number @dev. If @mode includes
- * %FMODE_EXCL, the block device is opened with exclusive access.  Specifying
- * %FMODE_EXCL with a %NULL @holder is invalid.  Exclusive opens may nest for
- * the same @holder.
+ * Open the block device described by device number @dev. If @holder is not
+ * %NULL, the block device is opened with exclusive access.  Exclusive opens may
+ * nest for the same @holder.
  *
  * Use this interface ONLY if you really do not have anything better - i.e. when
  * you are behind a truly sucky interface and all you are given is a device
@@ -785,10 +785,16 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
 		return ERR_PTR(-ENXIO);
 	disk = bdev->bd_disk;
 
-	if (mode & FMODE_EXCL) {
+	if (holder) {
+		mode |= FMODE_EXCL;
 		ret = bd_prepare_to_claim(bdev, holder, hops);
 		if (ret)
 			goto put_blkdev;
+	} else {
+		if (WARN_ON_ONCE(mode & FMODE_EXCL)) {
+			ret = -EIO;
+			goto put_blkdev;
+		}
 	}
 
 	disk_block_events(disk);
@@ -805,7 +811,7 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
 		ret = blkdev_get_whole(bdev, mode);
 	if (ret)
 		goto put_module;
-	if (mode & FMODE_EXCL) {
+	if (holder) {
 		bd_finish_claiming(bdev, holder, hops);
 
 		/*
@@ -829,7 +835,7 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
 put_module:
 	module_put(disk->fops->owner);
 abort_claiming:
-	if (mode & FMODE_EXCL)
+	if (holder)
 		bd_abort_claiming(bdev, holder);
 	mutex_unlock(&disk->open_mutex);
 	disk_unblock_events(disk);
@@ -845,10 +851,9 @@ EXPORT_SYMBOL(blkdev_get_by_dev);
  * @mode: FMODE_* mask
  * @holder: exclusive holder identifier
  *
- * Open the block device described by the device file at @path.  If @mode
- * includes %FMODE_EXCL, the block device is opened with exclusive access.
- * Specifying %FMODE_EXCL with a %NULL @holder is invalid.  Exclusive opens may
- * nest for the same @holder.
+ * Open the block device described by the device file at @path.  If @holder is
+ * not %NULL, the block device is opened with exclusive access.  Exclusive opens
+ * may nest for the same @holder.
  *
  * CONTEXT:
  * Might sleep.
@@ -869,7 +874,7 @@ struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 
 	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
 	if (!IS_ERR(bdev) && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
-		blkdev_put(bdev, mode);
+		blkdev_put(bdev, holder);
 		return ERR_PTR(-EACCES);
 	}
 
@@ -877,7 +882,7 @@ struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 }
 EXPORT_SYMBOL(blkdev_get_by_path);
 
-void blkdev_put(struct block_device *bdev, fmode_t mode)
+void blkdev_put(struct block_device *bdev, void *holder)
 {
 	struct gendisk *disk = bdev->bd_disk;
 
@@ -892,8 +897,8 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 		sync_blockdev(bdev);
 
 	mutex_lock(&disk->open_mutex);
-	if (mode & FMODE_EXCL)
-		bd_end_claim(bdev);
+	if (holder)
+		bd_end_claim(bdev, holder);
 
 	/*
 	 * Trigger event checking and tell drivers to flush MEDIA_CHANGE

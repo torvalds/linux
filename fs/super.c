@@ -1255,7 +1255,7 @@ int get_tree_bdev(struct fs_context *fc,
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ | FMODE_EXCL;
+	fmode_t mode = FMODE_READ;
 	int error = 0;
 
 	if (!(fc->sb_flags & SB_RDONLY))
@@ -1279,7 +1279,7 @@ int get_tree_bdev(struct fs_context *fc,
 	if (bdev->bd_fsfreeze_count > 0) {
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
 		warnf(fc, "%pg: Can't mount, blockdev is frozen", bdev);
-		blkdev_put(bdev, mode);
+		blkdev_put(bdev, fc->fs_type);
 		return -EBUSY;
 	}
 
@@ -1288,7 +1288,7 @@ int get_tree_bdev(struct fs_context *fc,
 	s = sget_fc(fc, test_bdev_super_fc, set_bdev_super_fc);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	if (IS_ERR(s)) {
-		blkdev_put(bdev, mode);
+		blkdev_put(bdev, fc->fs_type);
 		return PTR_ERR(s);
 	}
 
@@ -1297,7 +1297,7 @@ int get_tree_bdev(struct fs_context *fc,
 		if ((fc->sb_flags ^ s->s_flags) & SB_RDONLY) {
 			warnf(fc, "%pg: Can't mount, would change RO state", bdev);
 			deactivate_locked_super(s);
-			blkdev_put(bdev, mode);
+			blkdev_put(bdev, fc->fs_type);
 			return -EBUSY;
 		}
 
@@ -1309,7 +1309,7 @@ int get_tree_bdev(struct fs_context *fc,
 		 * holding an active reference.
 		 */
 		up_write(&s->s_umount);
-		blkdev_put(bdev, mode);
+		blkdev_put(bdev, fc->fs_type);
 		down_write(&s->s_umount);
 	} else {
 		s->s_mode = mode;
@@ -1344,7 +1344,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ | FMODE_EXCL;
+	fmode_t mode = FMODE_READ;
 	int error = 0;
 
 	if (!(flags & SB_RDONLY))
@@ -1386,7 +1386,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 		 * holding an active reference.
 		 */
 		up_write(&s->s_umount);
-		blkdev_put(bdev, mode);
+		blkdev_put(bdev, fs_type);
 		down_write(&s->s_umount);
 	} else {
 		s->s_mode = mode;
@@ -1409,7 +1409,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
-	blkdev_put(bdev, mode);
+	blkdev_put(bdev, fs_type);
 error:
 	return ERR_PTR(error);
 }
@@ -1418,13 +1418,11 @@ EXPORT_SYMBOL(mount_bdev);
 void kill_block_super(struct super_block *sb)
 {
 	struct block_device *bdev = sb->s_bdev;
-	fmode_t mode = sb->s_mode;
 
 	bdev->bd_super = NULL;
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
-	WARN_ON_ONCE(!(mode & FMODE_EXCL));
-	blkdev_put(bdev, mode | FMODE_EXCL);
+	blkdev_put(bdev, sb->s_type);
 }
 
 EXPORT_SYMBOL(kill_block_super);

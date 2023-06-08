@@ -473,7 +473,7 @@ static void xenvbd_sysfs_delif(struct xenbus_device *dev)
 static void xen_vbd_free(struct xen_vbd *vbd)
 {
 	if (vbd->bdev)
-		blkdev_put(vbd->bdev, vbd->readonly ? FMODE_READ : FMODE_WRITE);
+		blkdev_put(vbd->bdev, NULL);
 	vbd->bdev = NULL;
 }
 

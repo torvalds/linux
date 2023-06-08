@@ -1100,7 +1100,7 @@ int lmLogOpen(struct super_block *sb)
 	 * file systems to log may have n-to-1 relationship;
 	 */
 
-	bdev = blkdev_get_by_dev(sbi->logdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
+	bdev = blkdev_get_by_dev(sbi->logdev, FMODE_READ | FMODE_WRITE,
 				 log, NULL);
 	if (IS_ERR(bdev)) {
 		rc = PTR_ERR(bdev);
@@ -1141,7 +1141,7 @@ journal_found:
 	lbmLogShutdown(log);
 
       close:		/* close external log device */
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+	blkdev_put(bdev, log);
 
       free:		/* free log descriptor */
 	mutex_unlock(&jfs_log_mutex);
@@ -1485,7 +1485,7 @@ int lmLogClose(struct super_block *sb)
 	bdev = log->bdev;
 	rc = lmLogShutdown(log);
 
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+	blkdev_put(bdev, log);
 
 	kfree(log);
 

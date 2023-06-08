@@ -179,7 +179,7 @@ void dasd_destroy_partitions(struct dasd_block *block)
 	mutex_unlock(&bdev->bd_disk->open_mutex);
 
 	/* Matching blkdev_put to the blkdev_get in dasd_scan_partitions. */
-	blkdev_put(bdev, FMODE_READ);
+	blkdev_put(bdev, NULL);
 }
 
 int dasd_gendisk_init(void)

@@ -2167,8 +2167,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 	 * to read/write from/to it. It is already opened in O_NONBLOCK mode
 	 * so open should not fail.
 	 */
-	bdev = blkdev_get_by_dev(pd->bdev->bd_dev, FMODE_READ | FMODE_EXCL, pd,
-				 NULL);
+	bdev = blkdev_get_by_dev(pd->bdev->bd_dev, FMODE_READ, pd, NULL);
 	if (IS_ERR(bdev)) {
 		ret = PTR_ERR(bdev);
 		goto out;
@@ -2215,7 +2214,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 	return 0;
 
 out_putdev:
-	blkdev_put(bdev, FMODE_READ | FMODE_EXCL);
+	blkdev_put(bdev, pd);
 out:
 	return ret;
 }
@@ -2234,7 +2233,7 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 	pkt_lock_door(pd, 0);
 
 	pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
-	blkdev_put(pd->bdev, FMODE_READ | FMODE_EXCL);
+	blkdev_put(pd->bdev, pd);
 
 	pkt_shrink_pktlist(pd);
 }
@@ -2520,7 +2519,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 		return PTR_ERR(bdev);
 	sdev = scsi_device_from_queue(bdev->bd_disk->queue);
 	if (!sdev) {
-		blkdev_put(bdev, FMODE_READ | FMODE_NDELAY);
+		blkdev_put(bdev, NULL);
 		return -EINVAL;
 	}
 	put_device(&sdev->sdev_gendev);
@@ -2545,7 +2544,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	return 0;
 
 out_mem:
-	blkdev_put(bdev, FMODE_READ | FMODE_NDELAY);
+	blkdev_put(bdev, NULL);
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
 	return -ENOMEM;
@@ -2751,7 +2750,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 	pkt_debugfs_dev_remove(pd);
 	pkt_sysfs_dev_remove(pd);
 
-	blkdev_put(pd->bdev, FMODE_READ | FMODE_NDELAY);
+	blkdev_put(pd->bdev, NULL);
 
 	remove_proc_entry(pd->disk->disk_name, pkt_proc);
 	dev_notice(ddev, "writer unmapped\n");

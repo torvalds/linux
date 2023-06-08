@@ -1480,7 +1480,7 @@ struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 int bd_prepare_to_claim(struct block_device *bdev, void *holder,
 		const struct blk_holder_ops *hops);
 void bd_abort_claiming(struct block_device *bdev, void *holder);
-void blkdev_put(struct block_device *bdev, fmode_t mode);
+void blkdev_put(struct block_device *bdev, void *holder);
 
 /* just for blk-cgroup, don't use elsewhere */
 struct block_device *blkdev_get_no_open(dev_t dev);

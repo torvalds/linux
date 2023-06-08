@@ -490,7 +490,9 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 	if ((filp->f_flags & O_ACCMODE) == 3)
 		filp->f_mode |= FMODE_WRITE_IOCTL;
 
-	bdev = blkdev_get_by_dev(inode->i_rdev, filp->f_mode, filp, NULL);
+	bdev = blkdev_get_by_dev(inode->i_rdev, filp->f_mode,
+				 (filp->f_mode & FMODE_EXCL) ? filp : NULL,
+				 NULL);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
@@ -504,7 +506,7 @@ static int blkdev_release(struct inode *inode, struct file *filp)
 {
 	struct block_device *bdev = filp->private_data;
 
-	blkdev_put(bdev, filp->f_mode);
+	blkdev_put(bdev, (filp->f_mode & FMODE_EXCL) ? filp : NULL);
 	return 0;
 }
 

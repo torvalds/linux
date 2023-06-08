@@ -209,7 +209,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	if (dev->blkdev) {
 		invalidate_mapping_pages(dev->blkdev->bd_inode->i_mapping,
 					0, -1);
-		blkdev_put(dev->blkdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+		blkdev_put(dev->blkdev, NULL);
 	}
 
 	kfree(dev);
@@ -261,7 +261,7 @@ static struct block_device __ref *mdtblock_early_get_bdev(const char *devname,
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		char *label, int timeout)
 {
-	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
+	const fmode_t mode = FMODE_READ | FMODE_WRITE;
 	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;
