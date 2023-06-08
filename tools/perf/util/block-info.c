@@ -305,8 +305,8 @@ static int block_range_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			  bi->start, bi->end);
 	}
 
-	free_srcline(start_line);
-	free_srcline(end_line);
+	zfree_srcline(&start_line);
+	zfree_srcline(&end_line);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width, buf);
 }

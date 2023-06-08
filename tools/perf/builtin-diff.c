@@ -1387,8 +1387,8 @@ static int cycles_printf(struct hist_entry *he, struct hist_entry *pair,
 			  bi->start, bi->end, block_he->diff.cycles);
 	}
 
-	free_srcline(start_line);
-	free_srcline(end_line);
+	zfree_srcline(&start_line);
+	zfree_srcline(&end_line);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, buf);
 }

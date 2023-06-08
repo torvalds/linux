@@ -1218,7 +1218,7 @@ static void annotation_line__init(struct annotation_line *al,
 
 static void annotation_line__exit(struct annotation_line *al)
 {
-	free_srcline(al->path);
+	zfree_srcline(&al->path);
 	zfree(&al->line);
 }
 

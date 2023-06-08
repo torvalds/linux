@@ -1323,8 +1323,8 @@ void hist_entry__delete(struct hist_entry *he)
 	if (he->branch_info) {
 		map__zput(he->branch_info->from.ms.map);
 		map__zput(he->branch_info->to.ms.map);
-		free_srcline(he->branch_info->srcline_from);
-		free_srcline(he->branch_info->srcline_to);
+		zfree_srcline(&he->branch_info->srcline_from);
+		zfree_srcline(&he->branch_info->srcline_to);
 		zfree(&he->branch_info);
 	}
 
@@ -1342,7 +1342,7 @@ void hist_entry__delete(struct hist_entry *he)
 
 	zfree(&he->res_samples);
 	zfree(&he->stat_acc);
-	free_srcline(he->srcline);
+	zfree_srcline(&he->srcline);
 	if (he->srcfile && he->srcfile[0])
 		zfree(&he->srcfile);
 	free_callchain(he->callchain);

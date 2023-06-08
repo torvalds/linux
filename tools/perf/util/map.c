@@ -498,7 +498,7 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 		char *srcline = map__srcline(map, addr, NULL);
 		if (strncmp(srcline, SRCLINE_UNKNOWN, strlen(SRCLINE_UNKNOWN)) != 0)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
-		free_srcline(srcline);
+		zfree_srcline(&srcline);
 	}
 	return ret;
 }
