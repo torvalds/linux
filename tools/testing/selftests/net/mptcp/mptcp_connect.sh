@@ -144,6 +144,7 @@ cleanup()
 }
 
 mptcp_lib_check_mptcp
+mptcp_lib_check_kallsyms
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
@@ -694,6 +695,15 @@ run_test_transparent()
 	# skip if we don't want v6
 	if ! $ipv6 && is_v6 "${connect_addr}"; then
 		return 0
+	fi
+
+	# IP(V6)_TRANSPARENT has been added after TOS support which came with
+	# the required infrastructure in MPTCP sockopt code. To support TOS, the
+	# following function has been exported (T). Not great but better than
+	# checking for a specific kernel version.
+	if ! mptcp_lib_kallsyms_has "T __ip_sock_set_tos$"; then
+		echo "INFO: ${msg} not supported by the kernel: SKIP"
+		return
 	fi
 
 ip netns exec "$listener_ns" nft -f /dev/stdin <<"EOF"
