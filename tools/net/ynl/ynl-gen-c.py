@@ -957,13 +957,12 @@ class Family(SpecFamily):
 
 
 class RenderInfo:
-    def __init__(self, cw, family, ku_space, op, op_name, op_mode, attr_set=None):
+    def __init__(self, cw, family, ku_space, op, op_mode, attr_set=None):
         self.family = family
         self.nl = cw.nlib
         self.ku_space = ku_space
         self.op_mode = op_mode
         self.op = op
-        self.op_name = op_name
 
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
@@ -978,7 +977,7 @@ class RenderInfo:
             self.attr_set = op['attribute-set']
 
         if op:
-            self.type_name = c_lower(op_name)
+            self.type_name = c_lower(op.name)
         else:
             self.type_name = c_lower(attr_set)
 
@@ -2197,16 +2196,16 @@ def render_user_family(family, cw, prototype):
         for ntf_op_name, ntf_op in family.ntfs.items():
             if 'notify' in ntf_op:
                 op = family.ops[ntf_op['notify']]
-                ri = RenderInfo(cw, family, "user", op, op.name, "notify")
+                ri = RenderInfo(cw, family, "user", op, "notify")
             elif 'event' in ntf_op:
-                ri = RenderInfo(cw, family, "user", ntf_op, ntf_op_name, "event")
+                ri = RenderInfo(cw, family, "user", ntf_op, "event")
             else:
                 raise Exception('Invalid notification ' + ntf_op_name)
             _render_user_ntf_entry(ri, ntf_op)
         for op_name, op in family.ops.items():
             if 'event' not in op:
                 continue
-            ri = RenderInfo(cw, family, "user", op, op_name, "event")
+            ri = RenderInfo(cw, family, "user", op, "event")
             _render_user_ntf_entry(ri, op)
         cw.block_end(line=";")
         cw.nl()
@@ -2343,7 +2342,7 @@ def main():
             if parsed.kernel_policy in {'per-op', 'split'}:
                 for op_name, op in parsed.ops.items():
                     if 'do' in op and 'event' not in op:
-                        ri = RenderInfo(cw, parsed, args.mode, op, op_name, "do")
+                        ri = RenderInfo(cw, parsed, args.mode, op, "do")
                         print_req_policy_fwd(cw, ri.struct['request'], ri=ri)
                         cw.nl()
 
@@ -2372,7 +2371,7 @@ def main():
                     for op_mode in ['do', 'dump']:
                         if op_mode in op and 'request' in op[op_mode]:
                             cw.p(f"/* {op.enum_name} - {op_mode} */")
-                            ri = RenderInfo(cw, parsed, args.mode, op, op_name, op_mode)
+                            ri = RenderInfo(cw, parsed, args.mode, op, op_mode)
                             print_req_policy(cw, ri.struct['request'], ri=ri)
                             cw.nl()
 
@@ -2392,7 +2391,7 @@ def main():
 
             cw.p('/* Common nested types */')
             for attr_set, struct in parsed.pure_nested_structs.items():
-                ri = RenderInfo(cw, parsed, args.mode, "", "", "", attr_set)
+                ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
                 print_type_full(ri, struct)
 
             for op_name, op in parsed.ops.items():
@@ -2400,7 +2399,7 @@ def main():
 
                 if 'do' in op and 'event' not in op:
                     cw.p(f"/* {op.enum_name} - do */")
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, "do")
+                    ri = RenderInfo(cw, parsed, args.mode, op, "do")
                     print_req_type(ri)
                     print_req_type_helpers(ri)
                     cw.nl()
@@ -2412,7 +2411,7 @@ def main():
 
                 if 'dump' in op:
                     cw.p(f"/* {op.enum_name} - dump */")
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'dump')
+                    ri = RenderInfo(cw, parsed, args.mode, op, 'dump')
                     if 'request' in op['dump']:
                         print_req_type(ri)
                         print_req_type_helpers(ri)
@@ -2424,14 +2423,14 @@ def main():
 
                 if op.has_ntf:
                     cw.p(f"/* {op.enum_name} - notify */")
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'notify')
+                    ri = RenderInfo(cw, parsed, args.mode, op, 'notify')
                     if not ri.type_consistent:
                         raise Exception(f'Only notifications with consistent types supported ({op.name})')
                     print_wrapped_type(ri)
 
             for op_name, op in parsed.ntfs.items():
                 if 'event' in op:
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'event')
+                    ri = RenderInfo(cw, parsed, args.mode, op, 'event')
                     cw.p(f"/* {op.enum_name} - event */")
                     print_rsp_type(ri)
                     cw.nl()
@@ -2456,7 +2455,7 @@ def main():
 
             cw.p('/* Common nested types */')
             for attr_set, struct in parsed.pure_nested_structs.items():
-                ri = RenderInfo(cw, parsed, args.mode, "", "", "", attr_set)
+                ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
 
                 free_rsp_nested(ri, struct)
                 if struct.request:
@@ -2468,7 +2467,7 @@ def main():
                 cw.p(f"/* ============== {op.enum_name} ============== */")
                 if 'do' in op and 'event' not in op:
                     cw.p(f"/* {op.enum_name} - do */")
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, "do")
+                    ri = RenderInfo(cw, parsed, args.mode, op, "do")
                     print_req_free(ri)
                     print_rsp_free(ri)
                     parse_rsp_msg(ri)
@@ -2477,7 +2476,7 @@ def main():
 
                 if 'dump' in op:
                     cw.p(f"/* {op.enum_name} - dump */")
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, "dump")
+                    ri = RenderInfo(cw, parsed, args.mode, op, "dump")
                     if not ri.type_consistent:
                         parse_rsp_msg(ri, deref=True)
                     print_dump_type_free(ri)
@@ -2486,7 +2485,7 @@ def main():
 
                 if op.has_ntf:
                     cw.p(f"/* {op.enum_name} - notify */")
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'notify')
+                    ri = RenderInfo(cw, parsed, args.mode, op, 'notify')
                     if not ri.type_consistent:
                         raise Exception(f'Only notifications with consistent types supported ({op.name})')
                     print_ntf_type_free(ri)
@@ -2495,10 +2494,10 @@ def main():
                 if 'event' in op:
                     cw.p(f"/* {op.enum_name} - event */")
 
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, "do")
+                    ri = RenderInfo(cw, parsed, args.mode, op, "do")
                     parse_rsp_msg(ri)
 
-                    ri = RenderInfo(cw, parsed, args.mode, op, op_name, "event")
+                    ri = RenderInfo(cw, parsed, args.mode, op, "event")
                     print_ntf_type_free(ri)
             cw.nl()
             render_user_family(parsed, cw, False)
