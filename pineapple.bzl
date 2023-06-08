@@ -270,11 +270,21 @@ def define_pineapple():
         "lib/test_user_copy.ko",
     ]
 
+    kernel_vendor_cmdline_extras = [
+        # do not sort
+        "console=ttyMSM0,115200n8",
+        "qcom_geni_serial.con_enabled=1",
+        "bootconfig",
+    ]
+
     for variant in la_variants:
         if variant == "consolidate":
             mod_list = _pineapple_consolidate_in_tree_modules
+            board_kernel_cmdline_extras = ["androidboot.console=1"]
         else:
             mod_list = _pineapple_in_tree_modules
+            board_kernel_cmdline_extras = ["nosoftlockup", "androidboot.console=0"]
+            kernel_vendor_cmdline_extras += ["nosoftlockup"]
 
         define_msm_la(
             msm_target = target_name,
@@ -282,11 +292,7 @@ def define_pineapple():
             in_tree_module_list = mod_list,
             boot_image_opts = boot_image_opts(
                 earlycon_addr = "qcom_geni,0x00a9C000",
-                kernel_vendor_cmdline_extras = [
-                    # do not sort
-                    "console=ttyMSM0,115200n8",
-                    "qcom_geni_serial.con_enabled=1",
-                    "bootconfig",
-                ],
+                kernel_vendor_cmdline_extras = kernel_vendor_cmdline_extras,
+                board_kernel_cmdline_extras = board_kernel_cmdline_extras,
             ),
         )
