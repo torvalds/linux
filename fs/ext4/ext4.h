@@ -128,47 +128,52 @@ enum SHIFT_DIRECTION {
 };
 
 /*
- * Number of criterias defined. For each criteria, mballoc has slightly
- * different way of finding the required blocks nad usually, higher the
- * criteria the slower the allocation. We start at lower criterias and keep
- * falling back to higher ones if we are not able to find any blocks.
- */
-#define EXT4_MB_NUM_CRS 5
-/*
- * All possible allocation criterias for mballoc. Lower are faster.
+ * For each criteria, mballoc has slightly different way of finding
+ * the required blocks nad usually, higher the criteria the slower the
+ * allocation.  We start at lower criterias and keep falling back to
+ * higher ones if we are not able to find any blocks.  Lower (earlier)
+ * criteria are faster.
  */
 enum criteria {
 	/*
-	 * Used when number of blocks needed is a power of 2. This doesn't
-	 * trigger any disk IO except prefetch and is the fastest criteria.
+	 * Used when number of blocks needed is a power of 2. This
+	 * doesn't trigger any disk IO except prefetch and is the
+	 * fastest criteria.
 	 */
 	CR_POWER2_ALIGNED,
 
 	/*
-	 * Tries to lookup in-memory data structures to find the most suitable
-	 * group that satisfies goal request. No disk IO except block prefetch.
+	 * Tries to lookup in-memory data structures to find the most
+	 * suitable group that satisfies goal request. No disk IO
+	 * except block prefetch.
 	 */
 	CR_GOAL_LEN_FAST,
 
         /*
-	 * Same as CR_GOAL_LEN_FAST but is allowed to reduce the goal length to
-         * the best available length for faster allocation.
+	 * Same as CR_GOAL_LEN_FAST but is allowed to reduce the goal
+         * length to the best available length for faster allocation.
 	 */
 	CR_BEST_AVAIL_LEN,
 
 	/*
-	 * Reads each block group sequentially, performing disk IO if necessary, to
-	 * find find_suitable block group. Tries to allocate goal length but might trim
-	 * the request if nothing is found after enough tries.
+	 * Reads each block group sequentially, performing disk IO if
+	 * necessary, to find find_suitable block group. Tries to
+	 * allocate goal length but might trim the request if nothing
+	 * is found after enough tries.
 	 */
 	CR_GOAL_LEN_SLOW,
 
 	/*
-	 * Finds the first free set of blocks and allocates those. This is only
-	 * used in rare cases when CR_GOAL_LEN_SLOW also fails to allocate
-	 * anything.
+	 * Finds the first free set of blocks and allocates
+	 * those. This is only used in rare cases when
+	 * CR_GOAL_LEN_SLOW also fails to allocate anything.
 	 */
 	CR_ANY_FREE,
+
+	/*
+	 * Number of criterias defined.
+	 */
+	EXT4_MB_NUM_CRS
 };
 
 /* criteria below which we use fast block scanning and avoid unnecessary IO */

@@ -1035,11 +1035,9 @@ static void ext4_mb_choose_next_group_best_avail(struct ext4_allocation_context 
 
 		if (num_stripe_clusters > 0) {
 			/*
-			 * Try to round up the adjusted goal to stripe size
-			 * (in cluster units) multiple for efficiency.
-			 *
-			 * XXX: Is s->stripe always a power of 2? In that case
-			 * we can use the faster round_up() variant.
+			 * Try to round up the adjusted goal length to
+			 * stripe size (in cluster units) multiple for
+			 * efficiency.
 			 */
 			ac->ac_g_ex.fe_len = roundup(ac->ac_g_ex.fe_len,
 						     num_stripe_clusters);
@@ -2758,7 +2756,7 @@ static noinline_for_stack int
 ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 {
 	ext4_group_t prefetch_grp = 0, ngroups, group, i;
-	enum criteria cr, new_cr;
+	enum criteria new_cr, cr = CR_GOAL_LEN_FAST;
 	int err = 0, first_err = 0;
 	unsigned int nr = 0, prefetch_ios = 0;
 	struct ext4_sb_info *sbi;
@@ -2815,12 +2813,13 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 		spin_unlock(&sbi->s_md_lock);
 	}
 
-	/* Let's just scan groups to find more-less suitable blocks */
-	cr = ac->ac_2order ? CR_POWER2_ALIGNED : CR_GOAL_LEN_FAST;
 	/*
-	 * cr == CR_POWER2_ALIGNED try to get exact allocation,
-	 * cr == CR_ANY_FREE try to get anything
+	 * Let's just scan groups to find more-less suitable blocks We
+	 * start with CR_GOAL_LEN_FAST, unless it is power of 2
+	 * aligned, in which case let's do that faster approach first.
 	 */
+	if (ac->ac_2order)
+		cr = CR_POWER2_ALIGNED;
 repeat:
 	for (; cr < EXT4_MB_NUM_CRS && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
 		ac->ac_criteria = cr;
