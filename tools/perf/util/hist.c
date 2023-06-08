@@ -484,7 +484,7 @@ static int hist_entry__init(struct hist_entry *he,
 			goto err_infos;
 	}
 
-	if (he->srcline) {
+	if (he->srcline && strcmp(he->srcline, SRCLINE_UNKNOWN)) {
 		he->srcline = strdup(he->srcline);
 		if (he->srcline == NULL)
 			goto err_rawdata;
