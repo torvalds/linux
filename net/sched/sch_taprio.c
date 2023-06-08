@@ -797,6 +797,9 @@ static struct sk_buff *taprio_dequeue_tc_priority(struct Qdisc *sch,
 
 			taprio_next_tc_txq(dev, tc, &q->cur_txq[tc]);
 
+			if (q->cur_txq[tc] >= dev->num_tx_queues)
+				q->cur_txq[tc] = first_txq;
+
 			if (skb)
 				return skb;
 		} while (q->cur_txq[tc] != first_txq);
