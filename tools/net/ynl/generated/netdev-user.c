@@ -48,8 +48,6 @@ const char *netdev_xdp_act_str(enum netdev_xdp_act value)
 }
 
 /* Policies */
-extern struct ynl_policy_nest netdev_dev_nest;
-
 struct ynl_policy_attr netdev_dev_policy[NETDEV_A_DEV_MAX + 1] = {
 	[NETDEV_A_DEV_IFINDEX] = { .name = "ifindex", .type = YNL_PT_U32, },
 	[NETDEV_A_DEV_PAD] = { .name = "pad", .type = YNL_PT_IGNORE, },
