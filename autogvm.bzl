@@ -109,6 +109,7 @@ def define_autogvm():
             variant = variant,
             in_tree_module_list = mod_list,
             boot_image_opts = boot_image_opts(
+                boot_partition_size = 0x4000000,
                 earlycon_addr = "pl011,0x1c090000",
                 kernel_vendor_cmdline_extras = [
                     # do not sort
