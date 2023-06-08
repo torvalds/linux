@@ -6,7 +6,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 
 #include <linux/jiffies.h>
@@ -1732,7 +1732,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		if (ether_addr_equal(bssid, rx->sdata->u.ibss.bssid) &&
 		    test_sta_flag(sta, WLAN_STA_AUTHORIZED)) {
 			link_sta->rx_stats.last_rx = jiffies;
-			if (ieee80211_is_data(hdr->frame_control) &&
+			if (ieee80211_is_data_present(hdr->frame_control) &&
 			    !is_multicast_ether_addr(hdr->addr1))
 				link_sta->rx_stats.last_rate =
 					sta_stats_encode_rate(status);
@@ -1746,7 +1746,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		 * match the current local configuration when processed.
 		 */
 		link_sta->rx_stats.last_rx = jiffies;
-		if (ieee80211_is_data(hdr->frame_control))
+		if (ieee80211_is_data_present(hdr->frame_control))
 			link_sta->rx_stats.last_rate = sta_stats_encode_rate(status);
 	}
 
