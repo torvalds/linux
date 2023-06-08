@@ -491,11 +491,13 @@ static int mt8188_hdmi_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	ret = snd_soc_component_set_jack(component, &priv->hdmi_jack, NULL);
-	if (ret)
+	if (ret) {
 		dev_info(rtd->dev, "%s, set jack failed on %s (ret=%d)\n",
 			 __func__, component->name, ret);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int mt8188_dptx_codec_init(struct snd_soc_pcm_runtime *rtd)
@@ -513,11 +515,13 @@ static int mt8188_dptx_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	ret = snd_soc_component_set_jack(component, &priv->dp_jack, NULL);
-	if (ret)
+	if (ret) {
 		dev_info(rtd->dev, "%s, set jack failed on %s (ret=%d)\n",
 			 __func__, component->name, ret);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int mt8188_dumb_amp_init(struct snd_soc_pcm_runtime *rtd)
@@ -539,7 +543,7 @@ static int mt8188_dumb_amp_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mt8188_max98390_hw_params(struct snd_pcm_substream *substream,
@@ -612,7 +616,7 @@ static int mt8188_max98390_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mt8188_nau8825_codec_init(struct snd_soc_pcm_runtime *rtd)
@@ -660,7 +664,7 @@ static int mt8188_nau8825_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return ret;
+	return 0;
 };
 
 static void mt8188_nau8825_codec_exit(struct snd_soc_pcm_runtime *rtd)
@@ -697,7 +701,7 @@ static int mt8188_nau8825_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct snd_soc_ops mt8188_nau8825_ops = {
