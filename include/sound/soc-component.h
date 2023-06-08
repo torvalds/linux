@@ -159,6 +159,15 @@ struct snd_soc_component_driver {
 	int remove_order;
 
 	/*
+	 * soc_pcm_trigger() start/stop sequence.
+	 * see also
+	 *	snd_soc_dai_link
+	 *	soc_pcm_trigger()
+	 */
+	enum snd_soc_trigger_order trigger_start;
+	enum snd_soc_trigger_order trigger_stop;
+
+	/*
 	 * signal if the module handling the component should not be removed
 	 * if a pcm is open. Setting this would prevent the module
 	 * refcount being incremented in probe() but allow it be incremented
