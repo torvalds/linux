@@ -15,6 +15,7 @@
 
 #include "io_uring.h"
 #include "refs.h"
+#include "napi.h"
 #include "opdef.h"
 #include "kbuf.h"
 #include "poll.h"
@@ -649,6 +650,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 		__io_poll_execute(req, mask);
 		return 0;
 	}
+	io_napi_add(req);
 
 	if (ipt->owning) {
 		/*

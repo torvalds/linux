@@ -2,6 +2,7 @@
 #define IO_URING_TYPES_H
 
 #include <linux/blkdev.h>
+#include <linux/hashtable.h>
 #include <linux/task_work.h>
 #include <linux/bitmap.h>
 #include <linux/llist.h>
@@ -247,6 +248,7 @@ struct io_ring_ctx {
 		struct percpu_ref	refs;
 
 		enum task_work_notify_mode	notify_method;
+		unsigned			sq_thread_idle;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -410,7 +412,18 @@ struct io_ring_ctx {
 
 	struct callback_head		poll_wq_task_work;
 	struct list_head		defer_list;
-	unsigned			sq_thread_idle;
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	struct list_head	napi_list;	/* track busy poll napi_id */
+	spinlock_t		napi_lock;	/* napi_list lock */
+
+	/* napi busy poll default timeout */
+	unsigned int		napi_busy_poll_to;
+	bool			napi_prefer_busy_poll;
+
+	DECLARE_HASHTABLE(napi_ht, 4);
+#endif
+
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
 

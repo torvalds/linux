@@ -42,6 +42,10 @@ struct io_wait_queue {
 	unsigned nr_timeouts;
 	ktime_t timeout;
 
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int napi_busy_poll_to;
+	bool napi_prefer_busy_poll;
+#endif
 };
 
 static inline bool io_should_wake(struct io_wait_queue *iowq)

@@ -11,3 +11,4 @@ obj-$(CONFIG_IO_URING)		+= io_uring.o xattr.o nop.o fs.o splice.o \
 					notif.o waitid.o register.o truncate.o
 obj-$(CONFIG_IO_WQ)		+= io-wq.o
 obj-$(CONFIG_FUTEX)		+= futex.o
+obj-$(CONFIG_NET_RX_BUSY_POLL) += napi.o
