@@ -2990,10 +2990,10 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
  * slot and level indicate where you want the key to go, and
  * blocknr is the block the key points to.
  */
-static void insert_ptr(struct btrfs_trans_handle *trans,
-		       struct btrfs_path *path,
-		       struct btrfs_disk_key *key, u64 bytenr,
-		       int slot, int level)
+static int insert_ptr(struct btrfs_trans_handle *trans,
+		      struct btrfs_path *path,
+		      struct btrfs_disk_key *key, u64 bytenr,
+		      int slot, int level)
 {
 	struct extent_buffer *lower;
 	int nritems;
@@ -3009,7 +3009,10 @@ static void insert_ptr(struct btrfs_trans_handle *trans,
 		if (level) {
 			ret = btrfs_tree_mod_log_insert_move(lower, slot + 1,
 					slot, nritems - slot);
-			BUG_ON(ret < 0);
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
+				return ret;
+			}
 		}
 		memmove_extent_buffer(lower,
 			      btrfs_node_key_ptr_offset(lower, slot + 1),
@@ -3019,7 +3022,10 @@ static void insert_ptr(struct btrfs_trans_handle *trans,
 	if (level) {
 		ret = btrfs_tree_mod_log_insert_key(lower, slot,
 						    BTRFS_MOD_LOG_KEY_ADD);
-		BUG_ON(ret < 0);
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
 	}
 	btrfs_set_node_key(lower, key, slot);
 	btrfs_set_node_blockptr(lower, slot, bytenr);
@@ -3027,6 +3033,8 @@ static void insert_ptr(struct btrfs_trans_handle *trans,
 	btrfs_set_node_ptr_generation(lower, slot, trans->transid);
 	btrfs_set_header_nritems(lower, nritems + 1);
 	btrfs_mark_buffer_dirty(lower);
+
+	return 0;
 }
 
 /*
@@ -3106,8 +3114,13 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(c);
 	btrfs_mark_buffer_dirty(split);
 
-	insert_ptr(trans, path, &disk_key, split->start,
-		   path->slots[level + 1] + 1, level + 1);
+	ret = insert_ptr(trans, path, &disk_key, split->start,
+			 path->slots[level + 1] + 1, level + 1);
+	if (ret < 0) {
+		btrfs_tree_unlock(split);
+		free_extent_buffer(split);
+		return ret;
+	}
 
 	if (path->slots[level] >= mid) {
 		path->slots[level] -= mid;
@@ -3584,16 +3597,17 @@ out:
  * split the path's leaf in two, making sure there is at least data_size
  * available for the resulting leaf level of the path.
  */
-static noinline void copy_for_split(struct btrfs_trans_handle *trans,
-				    struct btrfs_path *path,
-				    struct extent_buffer *l,
-				    struct extent_buffer *right,
-				    int slot, int mid, int nritems)
+static noinline int copy_for_split(struct btrfs_trans_handle *trans,
+				   struct btrfs_path *path,
+				   struct extent_buffer *l,
+				   struct extent_buffer *right,
+				   int slot, int mid, int nritems)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int data_copy_size;
 	int rt_data_off;
 	int i;
+	int ret;
 	struct btrfs_disk_key disk_key;
 	struct btrfs_map_token token;
 
@@ -3618,7 +3632,9 @@ static noinline void copy_for_split(struct btrfs_trans_handle *trans,
 
 	btrfs_set_header_nritems(l, mid);
 	btrfs_item_key(right, &disk_key, 0);
-	insert_ptr(trans, path, &disk_key, right->start, path->slots[1] + 1, 1);
+	ret = insert_ptr(trans, path, &disk_key, right->start, path->slots[1] + 1, 1);
+	if (ret < 0)
+		return ret;
 
 	btrfs_mark_buffer_dirty(right);
 	btrfs_mark_buffer_dirty(l);
@@ -3636,6 +3652,8 @@ static noinline void copy_for_split(struct btrfs_trans_handle *trans,
 	}
 
 	BUG_ON(path->slots[0] < 0);
+
+	return 0;
 }
 
 /*
@@ -3834,8 +3852,13 @@ again:
 	if (split == 0) {
 		if (mid <= slot) {
 			btrfs_set_header_nritems(right, 0);
-			insert_ptr(trans, path, &disk_key,
-				   right->start, path->slots[1] + 1, 1);
+			ret = insert_ptr(trans, path, &disk_key,
+					 right->start, path->slots[1] + 1, 1);
+			if (ret < 0) {
+				btrfs_tree_unlock(right);
+				free_extent_buffer(right);
+				return ret;
+			}
 			btrfs_tree_unlock(path->nodes[0]);
 			free_extent_buffer(path->nodes[0]);
 			path->nodes[0] = right;
@@ -3843,8 +3866,13 @@ again:
 			path->slots[1] += 1;
 		} else {
 			btrfs_set_header_nritems(right, 0);
-			insert_ptr(trans, path, &disk_key,
-				   right->start, path->slots[1], 1);
+			ret = insert_ptr(trans, path, &disk_key,
+					 right->start, path->slots[1], 1);
+			if (ret < 0) {
+				btrfs_tree_unlock(right);
+				free_extent_buffer(right);
+				return ret;
+			}
 			btrfs_tree_unlock(path->nodes[0]);
 			free_extent_buffer(path->nodes[0]);
 			path->nodes[0] = right;
@@ -3860,7 +3888,12 @@ again:
 		return ret;
 	}
 
-	copy_for_split(trans, path, l, right, slot, mid, nritems);
+	ret = copy_for_split(trans, path, l, right, slot, mid, nritems);
+	if (ret < 0) {
+		btrfs_tree_unlock(right);
+		free_extent_buffer(right);
+		return ret;
+	}
 
 	if (split == 2) {
 		BUG_ON(num_doubles != 0);
