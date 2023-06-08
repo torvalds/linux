@@ -227,10 +227,16 @@ class TypePad(Type):
     def _attr_typol(self):
         return '.type = YNL_PT_IGNORE, '
 
+    def attr_put(self, ri, var):
+        pass
+
     def attr_get(self, ri, var, first):
         pass
 
     def attr_policy(self, cw):
+        pass
+
+    def setter(self, ri, space, direction, deref=False, ref=None):
         pass
 
 
