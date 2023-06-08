@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 /* Bus-Access-Manager (BAM) Hardware manager. */
 
@@ -1610,71 +1610,6 @@ u32 bam_pipe_get_desc_read_offset(void *base, u32 pipe)
 	return bam_read_reg_field(base, P_SW_OFSTS, pipe, SW_DESC_OFST);
 }
 
-/**
- * Configure inactivity timer count for a BAM pipe
- *
- */
-void bam_pipe_timer_config(void *base, u32 pipe, enum bam_pipe_timer_mode mode,
-			 u32 timeout_count)
-{
-	u32 for_all_pipes = 0;
-
-#ifdef CONFIG_SPS_SUPPORT_NDP_BAM
-	for_all_pipes = bam_read_reg_field(base, REVISION, 0,
-						BAM_NUM_INACTIV_TMRS);
-#endif
-
-	if (for_all_pipes) {
-#ifdef CONFIG_SPS_SUPPORT_NDP_BAM
-		bam_write_reg_field(base, TIMER_CTRL, 0, TIMER_MODE, mode);
-		bam_write_reg_field(base, TIMER_CTRL, 0, TIMER_TRSHLD,
-				    timeout_count);
-#endif
-	} else {
-		bam_write_reg_field(base, P_TIMER_CTRL, pipe, P_TIMER_MODE,
-					mode);
-		bam_write_reg_field(base, P_TIMER_CTRL, pipe, P_TIMER_TRSHLD,
-				    timeout_count);
-	}
-}
-
-/**
- * Reset inactivity timer for a BAM pipe
- *
- */
-void bam_pipe_timer_reset(void *base, u32 pipe)
-{
-	u32 for_all_pipes = 0;
-
-#ifdef CONFIG_SPS_SUPPORT_NDP_BAM
-	for_all_pipes = bam_read_reg_field(base, REVISION, 0,
-						BAM_NUM_INACTIV_TMRS);
-#endif
-
-	if (for_all_pipes) {
-#ifdef CONFIG_SPS_SUPPORT_NDP_BAM
-		/* reset */
-		bam_write_reg_field(base, TIMER_CTRL, 0, TIMER_RST, 0);
-		/* active */
-		bam_write_reg_field(base, TIMER_CTRL, 0, TIMER_RST, 1);
-#endif
-	} else {
-		/* reset */
-		bam_write_reg_field(base, P_TIMER_CTRL, pipe, P_TIMER_RST, 0);
-		/* active */
-		bam_write_reg_field(base, P_TIMER_CTRL, pipe, P_TIMER_RST, 1);
-	}
-}
-
-/**
- * Get inactivity timer count for a BAM pipe
- *
- */
-u32 bam_pipe_timer_get_count(void *base, u32 pipe)
-{
-	return bam_read_reg(base, P_TIMER, pipe);
-}
-
 /* halt and un-halt a pipe */
 void bam_pipe_halt(void *base, u32 pipe, bool halt)
 {
@@ -1875,8 +1810,6 @@ void print_bam_selected_reg(void *virt_addr, u32 ee)
 
 #ifdef CONFIG_SPS_SUPPORT_NDP_BAM
 	bam_sw_rev = bam_read_reg(base, SW_REVISION, 0);
-	bam_timer = bam_read_reg(base, TIMER, 0);
-	bam_timer_ctrl = bam_read_reg(base, TIMER_CTRL, 0);
 	bam_ahb_err_addr_msb = SPS_LPAE ?
 		bam_read_reg(base, AHB_MASTER_ERR_ADDR_MSB, 0) : 0;
 	if (ee < BAM_MAX_EES)
@@ -1985,8 +1918,8 @@ void print_bam_pipe_selected_reg(void *virt_addr, u32 pipe_index)
 	u32 p_psm_ct4;
 	u32 p_psm_ct5;
 
-	u32 p_timer;
-	u32 p_timer_ctrl;
+	u32 p_timer = 0;
+	u32 p_timer_ctrl = 0;
 
 	if (base == NULL)
 		return;
@@ -2058,9 +1991,6 @@ void print_bam_pipe_selected_reg(void *virt_addr, u32 pipe_index)
 	p_psm_ct3 = bam_read_reg(base, P_PSM_CNTXT_3, pipe);
 	p_psm_ct4 = bam_read_reg(base, P_PSM_CNTXT_4, pipe);
 	p_psm_ct5 = bam_read_reg(base, P_PSM_CNTXT_5, pipe);
-
-	p_timer = bam_read_reg(base, P_TIMER, pipe);
-	p_timer_ctrl = bam_read_reg(base, P_TIMER_CTRL, pipe);
 
 #ifdef CONFIG_SPS_SUPPORT_NDP_BAM
 	p_evnt_dest_msb = SPS_LPAE ?
