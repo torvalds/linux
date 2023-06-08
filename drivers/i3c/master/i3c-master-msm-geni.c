@@ -1330,6 +1330,7 @@ static int geni_i3c_master_priv_xfers
 	for (i = 0; i < nxfers; i++) {
 		bool stall = (i < (nxfers - 1));
 		struct i3c_xfer_params xfer = { GENI_SE_FIFO };
+		xfer.mode = xfers[i].len > 64 ? GENI_SE_DMA : GENI_SE_FIFO;
 
 		xfer.m_param  = (stall ? STOP_STRETCH : 0);
 		xfer.m_param |= ((dev->info.dyn_addr & I3C_ADDR_MASK)
