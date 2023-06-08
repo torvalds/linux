@@ -100,6 +100,7 @@ static int config_load(void)
 		perror("config buf malloc");
 		return -1;
 	}
+	memset(buf, 0, len * sizeof(char) + 1);
 	ret = read(fd, buf, len);
 	if (ret < 0) {
 		perror("config file read");
