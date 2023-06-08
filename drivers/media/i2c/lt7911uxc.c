@@ -628,7 +628,7 @@ static int lt7911uxc_get_detected_timings(struct v4l2_subdev *sd,
 
 	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%d, fps:%d\n",
 			hact, vact, htotal, vtotal, pixel_clock, fps);
-	v4l2_info(sd, "byte_clk:%u, mipi_clk:%u, mipi_data_rate:%u\n",
+	v4l2_info(sd, "byte_clk:%llu, mipi_clk:%llu, mipi_data_rate:%llu\n",
 			byte_clk, mipi_clk, mipi_data_rate);
 	v4l2_info(sd, "inerlaced:%d\n", bt->interlaced);
 
