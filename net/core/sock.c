@@ -1246,6 +1246,13 @@ set_sndbuf:
 			clear_bit(SOCK_PASSCRED, &sock->flags);
 		break;
 
+	case SO_PASSPIDFD:
+		if (valbool)
+			set_bit(SOCK_PASSPIDFD, &sock->flags);
+		else
+			clear_bit(SOCK_PASSPIDFD, &sock->flags);
+		break;
+
 	case SO_TIMESTAMP_OLD:
 	case SO_TIMESTAMP_NEW:
 	case SO_TIMESTAMPNS_OLD:
@@ -1730,6 +1737,10 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 
 	case SO_PASSCRED:
 		v.val = !!test_bit(SOCK_PASSCRED, &sock->flags);
+		break;
+
+	case SO_PASSPIDFD:
+		v.val = !!test_bit(SOCK_PASSPIDFD, &sock->flags);
 		break;
 
 	case SO_PEERCRED:
