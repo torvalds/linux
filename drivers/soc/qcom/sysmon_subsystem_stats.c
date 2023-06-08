@@ -141,14 +141,20 @@ static int add_delta_time(
 				pc_time -= lpi_time;
 
 			for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
-				if (stats->powerstats.clk_arr[j] == stats->powerstats.current_clk)
+				if (stats->powerstats.clk_arr[j] == stats->powerstats.current_clk) {
+					stats->powerstats.active_time[j] += active_time;
+					stats->powerstats.island_time[j] += lpi_time;
 					break;
+				}
 			}
 
+			if (j >= SYSMON_POWER_STATS_MAX_CLK_LEVELS) {
+				pr_err("%s: Current clock level %u KHz didn't match with any clock level\n",
+					__func__, stats->powerstats.current_clk);
+				return -EINVAL;
+			}
 			stats->powerstats.pc_time += pc_time;
 			stats->powerstats.lpi_time += lpi_time;
-			stats->powerstats.active_time[j] += active_time;
-			stats->powerstats.island_time[j] += lpi_time;
 		}
 	}
 
@@ -706,11 +712,13 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 	}
 
 	if (ret == 0) {
-		add_delta_time((ptr->powerstats.version) & 0xFF, lpi_accumulated,
+		ret = add_delta_time((ptr->powerstats.version) & 0xFF, lpi_accumulated,
 				lpm_accumulated, &smem_sysmon_power_stats_l);
-		memcpy(sysmon_power_stats, &smem_sysmon_power_stats_l.powerstats,
-			sizeof(struct sysmon_smem_power_stats));
-		sysmon_power_stats->version = (ptr->powerstats.version) & 0xFF;
+		if (ret == 0) {
+			memcpy(sysmon_power_stats, &smem_sysmon_power_stats_l.powerstats,
+				sizeof(struct sysmon_smem_power_stats));
+			sysmon_power_stats->version = (ptr->powerstats.version) & 0xFF;
+		}
 	}
 
 	return ret;
@@ -1004,7 +1012,7 @@ EXPORT_SYMBOL(sysmon_stats_query_sleep);
 
 static int master_adsp_stats_show(struct seq_file *s, void *d)
 {
-	int i = 0, j = 0;
+	int i = 0, j = 0, ret = 0;
 	u64 lpi_accumulated = 0;
 	u64 lpm_accumulated = 0;
 	u32 q6_load;
@@ -1085,8 +1093,12 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 		ptr = g_sysmon_stats.sysmon_power_stats_adsp;
 		ver = (ptr->powerstats.version) & 0xFF;
 
-		add_delta_time(ver, lpi_accumulated,
+		ret = add_delta_time(ver, lpi_accumulated,
 				lpm_accumulated, &sysmon_power_stats);
+
+		if (ret != 0)
+			seq_puts(s, "\nWarning: Power Stats are might be Invalid\n");
+
 		seq_puts(s, "\nPower Stats:\n\n");
 		for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
 			if (sysmon_power_stats.powerstats.clk_arr[j]) {
@@ -1191,7 +1203,11 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 				sizeof(struct sysmon_smem_power_stats_extended));
 		ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
 		ver = (ptr->powerstats.version) & 0xFF;
-		add_delta_time(ver, 0, lpm_accumulated, &sysmon_power_stats);
+		ret = add_delta_time(ver, 0, lpm_accumulated, &sysmon_power_stats);
+
+		if (ret)
+			seq_puts(s, "\nWarning: Power Stats might be Invalid\n");
+
 		seq_puts(s, "\nPower Stats:\n\n");
 		for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
 			if (sysmon_power_stats.powerstats.clk_arr[j])
@@ -1208,6 +1224,10 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 		if (ver >= 2)
 			seq_printf(s, "Current core clock(KHz) = %u\n",
 				sysmon_power_stats.powerstats.current_clk);
+
+		if (ret)
+			return ret;
+
 	}
 
 	if (g_sysmon_stats.q6_avg_load_cdsp) {
