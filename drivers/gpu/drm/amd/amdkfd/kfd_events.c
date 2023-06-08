@@ -865,22 +865,29 @@ static int copy_signaled_event_data(uint32_t num_events,
 		struct kfd_event_waiter *event_waiters,
 		struct kfd_event_data __user *data)
 {
-	struct kfd_hsa_memory_exception_data *src;
-	struct kfd_hsa_memory_exception_data __user *dst;
+	void *src;
+	void __user *dst;
 	struct kfd_event_waiter *waiter;
 	struct kfd_event *event;
-	uint32_t i;
+	uint32_t i, size = 0;
 
 	for (i = 0; i < num_events; i++) {
 		waiter = &event_waiters[i];
 		event = waiter->event;
 		if (!event)
 			return -EINVAL; /* event was destroyed */
-		if (waiter->activated && event->type == KFD_EVENT_TYPE_MEMORY) {
-			dst = &data[i].memory_exception_data;
-			src = &event->memory_exception_data;
-			if (copy_to_user(dst, src,
-				sizeof(struct kfd_hsa_memory_exception_data)))
+		if (waiter->activated) {
+			if (event->type == KFD_EVENT_TYPE_MEMORY) {
+				dst = &data[i].memory_exception_data;
+				src = &event->memory_exception_data;
+				size = sizeof(struct kfd_hsa_memory_exception_data);
+			} else if (event->type == KFD_EVENT_TYPE_SIGNAL &&
+				waiter->event_age_enabled) {
+				dst = &data[i].signal_event_data.last_event_age;
+				src = &event->event_age;
+				size = sizeof(u64);
+			}
+			if (size && copy_to_user(dst, src, size))
 				return -EFAULT;
 		}
 	}
