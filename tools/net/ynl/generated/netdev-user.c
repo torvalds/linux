@@ -79,13 +79,14 @@ int netdev_dev_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 	dst = yarg->data;
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == NETDEV_A_DEV_IFINDEX) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == NETDEV_A_DEV_IFINDEX) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.ifindex = 1;
 			dst->ifindex = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == NETDEV_A_DEV_XDP_FEATURES) {
+		} else if (type == NETDEV_A_DEV_XDP_FEATURES) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.xdp_features = 1;

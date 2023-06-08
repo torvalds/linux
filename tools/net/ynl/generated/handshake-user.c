@@ -116,13 +116,14 @@ int handshake_x509_parse(struct ynl_parse_arg *yarg,
 	const struct nlattr *attr;
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == HANDSHAKE_A_X509_CERT) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == HANDSHAKE_A_X509_CERT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.cert = 1;
 			dst->cert = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_X509_PRIVKEY) {
+		} else if (type == HANDSHAKE_A_X509_PRIVKEY) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.privkey = 1;
@@ -171,37 +172,33 @@ int handshake_accept_rsp_parse(const struct nlmsghdr *nlh, void *data)
 		return ynl_error_parse(yarg, "attribute already present (accept.peer-identity)");
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_SOCKFD) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == HANDSHAKE_A_ACCEPT_SOCKFD) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.sockfd = 1;
 			dst->sockfd = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_MESSAGE_TYPE) {
+		} else if (type == HANDSHAKE_A_ACCEPT_MESSAGE_TYPE) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.message_type = 1;
 			dst->message_type = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_TIMEOUT) {
+		} else if (type == HANDSHAKE_A_ACCEPT_TIMEOUT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.timeout = 1;
 			dst->timeout = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_AUTH_MODE) {
+		} else if (type == HANDSHAKE_A_ACCEPT_AUTH_MODE) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.auth_mode = 1;
 			dst->auth_mode = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_PEER_IDENTITY) {
+		} else if (type == HANDSHAKE_A_ACCEPT_PEER_IDENTITY) {
 			n_peer_identity++;
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_CERTIFICATE) {
+		} else if (type == HANDSHAKE_A_ACCEPT_CERTIFICATE) {
 			n_certificate++;
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_PEERNAME) {
+		} else if (type == HANDSHAKE_A_ACCEPT_PEERNAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
