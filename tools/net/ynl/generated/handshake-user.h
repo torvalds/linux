@@ -142,7 +142,4 @@ __handshake_done_req_set_remote_auth(struct handshake_done_req *req,
  */
 int handshake_done(struct ynl_sock *ys, struct handshake_done_req *req);
 
-/* --------------- Common notification parsing --------------- */
-struct ynl_ntf_base_type *handshake_ntf_parse(struct ynl_sock *ys);
-
 #endif /* _LINUX_HANDSHAKE_GEN_H */

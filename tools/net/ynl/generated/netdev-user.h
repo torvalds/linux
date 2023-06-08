@@ -82,7 +82,4 @@ struct netdev_dev_get_ntf {
 
 void netdev_dev_get_ntf_free(struct netdev_dev_get_ntf *rsp);
 
-/* --------------- Common notification parsing --------------- */
-struct ynl_ntf_base_type *netdev_ntf_parse(struct ynl_sock *ys);
-
 #endif /* _LINUX_NETDEV_GEN_H */

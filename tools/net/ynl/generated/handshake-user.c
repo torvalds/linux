@@ -315,51 +315,6 @@ int handshake_done(struct ynl_sock *ys, struct handshake_done_req *req)
 	return 0;
 }
 
-/* --------------- Common notification parsing --------------- */
-struct ynl_ntf_base_type *handshake_ntf_parse(struct ynl_sock *ys)
-{
-	struct ynl_parse_arg yarg = { .ys = ys, };
-	struct ynl_ntf_base_type *rsp;
-	struct genlmsghdr *genlh;
-	struct nlmsghdr *nlh;
-	mnl_cb_t parse;
-	int len, err;
-
-	len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
-	if (len < (ssize_t)(sizeof(*nlh) + sizeof(*genlh)))
-		return NULL;
-
-	nlh = (struct nlmsghdr *)ys->rx_buf;
-	genlh = mnl_nlmsg_get_payload(nlh);
-
-	switch (genlh->cmd) {
-	case HANDSHAKE_CMD_READY:
-		rsp = calloc(1, sizeof(struct handshake_accept_ntf));
-		parse = handshake_accept_rsp_parse;
-		yarg.rsp_policy = &handshake_accept_nest;
-		rsp->free = (void *)handshake_accept_ntf_free;
-		break;
-	default:
-		ynl_error_unknown_notification(ys, genlh->cmd);
-		return NULL;
-	}
-
-	yarg.data = rsp->data;
-
-	err = mnl_cb_run2(ys->rx_buf, len, 0, 0, parse, &yarg,
-			 ynl_cb_array, NLMSG_MIN_TYPE);
-	if (err < 0)
-		goto err_free;
-
-	rsp->family = nlh->nlmsg_type;
-	rsp->cmd = genlh->cmd;
-	return rsp;
-
-err_free:
-	free(rsp);
-	return NULL;
-}
-
 static const struct ynl_ntf_info handshake_ntf_info[] =  {
 	[HANDSHAKE_CMD_READY] =  {
 		.alloc_sz	= sizeof(struct handshake_accept_ntf),
