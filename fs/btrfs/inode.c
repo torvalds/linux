@@ -11011,7 +11011,6 @@ static const struct address_space_operations btrfs_aops = {
 	.read_folio	= btrfs_read_folio,
 	.writepages	= btrfs_writepages,
 	.readahead	= btrfs_readahead,
-	.direct_IO	= noop_direct_IO,
 	.invalidate_folio = btrfs_invalidate_folio,
 	.release_folio	= btrfs_release_folio,
 	.migrate_folio	= btrfs_migrate_folio,
