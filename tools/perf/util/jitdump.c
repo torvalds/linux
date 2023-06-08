@@ -800,6 +800,7 @@ static void jit_add_pid(struct machine *machine, pid_t pid)
 	}
 
 	thread__set_priv(thread, (void *)true);
+	thread__put(thread);
 }
 
 static bool jit_has_pid(struct machine *machine, pid_t pid)
@@ -811,6 +812,7 @@ static bool jit_has_pid(struct machine *machine, pid_t pid)
 		return false;
 
 	priv = thread__priv(thread);
+	thread__put(thread);
 	return (bool)priv;
 }
 
