@@ -12,6 +12,9 @@
 void io_napi_init(struct io_ring_ctx *ctx);
 void io_napi_free(struct io_ring_ctx *ctx);
 
+int io_register_napi(struct io_ring_ctx *ctx, void __user *arg);
+int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg);
+
 void __io_napi_add(struct io_ring_ctx *ctx, struct socket *sock);
 
 void __io_napi_adjust_timeout(struct io_ring_ctx *ctx,
@@ -67,6 +70,14 @@ static inline void io_napi_init(struct io_ring_ctx *ctx)
 }
 static inline void io_napi_free(struct io_ring_ctx *ctx)
 {
+}
+static inline int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
+{
+	return -EOPNOTSUPP;
+}
+static inline int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
+{
+	return -EOPNOTSUPP;
 }
 static inline bool io_napi(struct io_ring_ctx *ctx)
 {
