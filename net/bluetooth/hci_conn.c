@@ -2075,10 +2075,10 @@ static int create_big_sync(struct hci_dev *hdev, void *data)
 		flags |= MGMT_ADV_FLAG_SEC_2M;
 
 	/* Align intervals */
-	interval = qos->bcast.out.interval / 1250;
+	interval = (qos->bcast.out.interval / 1250) * qos->bcast.sync_factor;
 
 	if (qos->bcast.bis)
-		sync_interval = qos->bcast.sync_interval * 1600;
+		sync_interval = interval * 4;
 
 	err = hci_start_per_adv_sync(hdev, qos->bcast.bis, conn->le_per_adv_data_len,
 				     conn->le_per_adv_data, flags, interval,
