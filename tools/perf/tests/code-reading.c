@@ -721,7 +721,6 @@ out_err:
 	evlist__delete(evlist);
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);
-	machine__delete_threads(machine);
 	machine__delete(machine);
 
 	return err;

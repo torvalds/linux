@@ -208,7 +208,6 @@ static int mmap_events(synth_cb synth)
 		addr_location__exit(&al);
 	}
 
-	machine__delete_threads(machine);
 	machine__delete(machine);
 	return err;
 }
