@@ -844,6 +844,27 @@ enum acpi_backlight_type __acpi_video_get_backlight_type(bool native, bool *auto
 	if (native_available)
 		return acpi_backlight_native;
 
+	/*
+	 * The vendor specific BIOS interfaces are only necessary for
+	 * laptops from before ~2008.
+	 *
+	 * For laptops from ~2008 till ~2023 this point is never reached
+	 * because on those (video_caps & ACPI_VIDEO_BACKLIGHT) above is true.
+	 *
+	 * Laptops from after ~2023 no longer support ACPI_VIDEO_BACKLIGHT,
+	 * if this point is reached on those, this likely means that
+	 * the GPU kms driver which sets native_available has not loaded yet.
+	 *
+	 * Returning acpi_backlight_vendor in this case is known to sometimes
+	 * cause a non working vendor specific /sys/class/backlight device to
+	 * get registered.
+	 *
+	 * Return acpi_backlight_none on laptops with ACPI tables written
+	 * for Windows 8 (laptops from after ~2012) to avoid this problem.
+	 */
+	if (acpi_osi_is_win8())
+		return acpi_backlight_none;
+
 	/* No ACPI video/native (old hw), use vendor specific fw methods. */
 	return acpi_backlight_vendor;
 }
