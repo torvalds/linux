@@ -6,7 +6,6 @@
 #include <linux/kallsyms.h>
 #include <linux/security.h>
 
-#ifdef CONFIG_KALLSYMS
 static inline int kallsyms_for_perf(void)
 {
 #ifdef CONFIG_PERF_EVENTS
@@ -42,4 +41,3 @@ bool kallsyms_show_value(const struct cred *cred)
 		return false;
 	}
 }
-#endif
