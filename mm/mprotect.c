@@ -630,7 +630,7 @@ success:
 	 * vm_flags and vm_page_prot are protected by the mmap_lock
 	 * held in write mode.
 	 */
-	vma->vm_flags = newflags;
+	vm_flags_reset(vma, newflags);
 	/*
 	 * We want to check manually if we can change individual PTEs writable
 	 * if we can't do that automatically for all PTEs in a mapping. For

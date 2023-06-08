@@ -1057,6 +1057,7 @@
   dma_buf_unmap_attachment
   dma_get_sgtable_attrs
   down_read
+  down_write
   find_vma
   __mmap_lock_do_trace_acquire_returned
   __mmap_lock_do_trace_released
@@ -1068,6 +1069,7 @@
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
   up_read
+  up_write
 
 # required by gpi.ko
   krealloc
@@ -2043,7 +2045,7 @@
   ufshcd_init_pwr_dev_param
   ufshcd_mcq_config_esi
   ufshcd_mcq_enable_esi
-  ufshcd_mcq_poll_cqe_nolock
+  ufshcd_mcq_poll_cqe_lock
   ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init
   ufshcd_pltfrm_shutdown
@@ -2101,3 +2103,4 @@
   fwnode_get_name
   icc_provider_add
   icc_provider_del
+  ufshcd_mcq_poll_cqe_nolock

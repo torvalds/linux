@@ -1687,6 +1687,7 @@ static void cpu_prepare_hyp_mode(int cpu)
 	else
 		params->hcr_el2 = HCR_HOST_NVHE_FLAGS;
 	params->vttbr = params->vtcr = 0;
+	params->hfgwtr_el2 = HFGxTR_EL2_nSMPRI_EL1_MASK | HFGxTR_EL2_nTPIDR2_EL0_MASK;
 
 	/*
 	 * Flush the init params from the data cache because the struct will

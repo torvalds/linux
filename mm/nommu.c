@@ -173,7 +173,7 @@ static void *__vmalloc_user_flags(unsigned long size, gfp_t flags)
 		mmap_write_lock(current->mm);
 		vma = find_vma(current->mm, (unsigned long)ret);
 		if (vma)
-			vma->vm_flags |= VM_USERMAP;
+			vm_flags_set(vma, VM_USERMAP);
 		mmap_write_unlock(current->mm);
 	}
 
@@ -991,7 +991,8 @@ static int do_mmap_private(struct vm_area_struct *vma,
 
 	atomic_long_add(total, &mmap_pages_allocated);
 
-	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
+	vm_flags_set(vma, VM_MAPPED_COPY);
+	region->vm_flags = vma->vm_flags;
 	region->vm_start = (unsigned long) base;
 	region->vm_end   = region->vm_start + len;
 	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
@@ -1088,7 +1089,7 @@ unsigned long do_mmap(struct file *file,
 	region->vm_flags = vm_flags;
 	region->vm_pgoff = pgoff;
 
-	vma->vm_flags = vm_flags;
+	vm_flags_init(vma, vm_flags);
 	vma->vm_pgoff = pgoff;
 
 	if (file) {
@@ -1152,7 +1153,7 @@ unsigned long do_mmap(struct file *file,
 			vma->vm_end = start + len;
 
 			if (pregion->vm_flags & VM_MAPPED_COPY)
-				vma->vm_flags |= VM_MAPPED_COPY;
+				vm_flags_set(vma, VM_MAPPED_COPY);
 			else {
 				ret = do_mmap_shared_file(vma);
 				if (ret < 0) {
@@ -1635,7 +1636,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	if (addr != (pfn << PAGE_SHIFT))
 		return -EINVAL;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
 	return 0;
 }
 EXPORT_SYMBOL(remap_pfn_range);

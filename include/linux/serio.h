@@ -13,6 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/android_kabi.h>
 #include <uapi/linux/serio.h>
 
 extern struct bus_type serio_bus;
@@ -61,6 +62,8 @@ struct serio {
 	 * may get indigestion when exposed to concurrent access (i8042).
 	 */
 	struct mutex *ps2_cmd_mutex;
+
+	ANDROID_KABI_RESERVE(1);
 };
 #define to_serio_port(d)	container_of(d, struct serio, dev)
 
@@ -79,6 +82,8 @@ struct serio_driver {
 	void (*cleanup)(struct serio *);
 
 	struct device_driver driver;
+
+	ANDROID_KABI_RESERVE(1);
 };
 #define to_serio_driver(d)	container_of(d, struct serio_driver, driver)
 

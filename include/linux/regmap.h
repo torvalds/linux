@@ -19,6 +19,7 @@
 #include <linux/lockdep.h>
 #include <linux/iopoll.h>
 #include <linux/fwnode.h>
+#include <linux/android_kabi.h>
 
 struct module;
 struct clk;
@@ -437,6 +438,8 @@ struct regmap_config {
 	unsigned int hwlock_mode;
 
 	bool can_sleep;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -474,6 +477,8 @@ struct regmap_range_cfg {
 	/* Data window (per each page) */
 	unsigned int window_start;
 	unsigned int window_len;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct regmap_async;
@@ -560,6 +565,8 @@ struct regmap_bus {
 	size_t max_raw_read;
 	size_t max_raw_write;
 	bool free_on_exit;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /*

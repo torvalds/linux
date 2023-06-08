@@ -8,6 +8,7 @@
 #include <linux/pm.h>
 #include <linux/mm.h>
 #include <linux/freezer.h>
+#include <linux/android_kabi.h>
 #include <asm/errno.h>
 
 #ifdef CONFIG_VT
@@ -185,6 +186,8 @@ struct platform_suspend_ops {
 	bool (*suspend_again)(void);
 	void (*end)(void);
 	void (*recover)(void);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct platform_s2idle_ops {
@@ -196,6 +199,8 @@ struct platform_s2idle_ops {
 	void (*restore_early)(void);
 	void (*restore)(void);
 	void (*end)(void);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #ifdef CONFIG_SUSPEND
@@ -427,6 +432,8 @@ struct platform_hibernation_ops {
 	int (*pre_restore)(void);
 	void (*restore_cleanup)(void);
 	void (*recover)(void);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #ifdef CONFIG_HIBERNATION
