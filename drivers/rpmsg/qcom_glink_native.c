@@ -1639,8 +1639,6 @@ static struct glink_channel *qcom_glink_create_local(struct qcom_glink *glink,
 	if (!ret)
 		goto err_timeout;
 
-	qcom_glink_send_open_ack(glink, channel);
-
 	return channel;
 
 err_timeout:
@@ -1668,8 +1666,6 @@ static int qcom_glink_create_remote(struct qcom_glink *glink,
 	int ret;
 
 	CH_INFO(channel, "\n");
-
-	qcom_glink_send_open_ack(glink, channel);
 
 	ret = qcom_glink_send_open_req(glink, channel);
 	if (ret)
@@ -1811,9 +1807,6 @@ static void qcom_glink_destroy_ept(struct rpmsg_endpoint *ept)
 	}
 	channel->ept.cb = NULL;
 	spin_unlock_irqrestore(&channel->recv_lock, flags);
-
-	/* Decouple the potential rpdev from the channel */
-	channel->rpdev = NULL;
 
 	qcom_glink_send_close_req(glink, channel);
 }
@@ -2131,12 +2124,12 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	struct rpmsg_device *rpdev;
 	bool create_device = false;
 	struct device_node *node;
-	int lcid;
+	int cid;
 	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&glink->idr_lock, flags);
-	idr_for_each_entry(&glink->lcids, channel, lcid) {
+	idr_for_each_entry(&glink->rcids, channel, cid) {
 		if (!strcmp(channel->name, name))
 			break;
 	}
@@ -2162,6 +2155,12 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
 	complete_all(&channel->open_req);
+
+	/*
+	 * Acknowledge the open request to establish the channel
+	 * before initializing the rpmsg device.
+	 */
+	qcom_glink_send_open_ack(glink, channel);
 
 	if (create_device) {
 		rpdev = kzalloc(sizeof(*rpdev), GFP_KERNEL);
@@ -2243,7 +2242,6 @@ static void qcom_glink_rx_close(struct qcom_glink *glink, unsigned int rcid)
 
 static void qcom_glink_rx_close_ack(struct qcom_glink *glink, unsigned int lcid)
 {
-	struct rpmsg_channel_info chinfo;
 	struct glink_channel *channel;
 	unsigned long flags;
 
@@ -2262,15 +2260,9 @@ static void qcom_glink_rx_close_ack(struct qcom_glink *glink, unsigned int lcid)
 	channel->lcid = 0;
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
-	/* Decouple the potential rpdev from the channel */
-	if (channel->rpdev) {
-		strscpy(chinfo.name, channel->name, sizeof(chinfo.name));
-		chinfo.src = RPMSG_ADDR_ANY;
-		chinfo.dst = RPMSG_ADDR_ANY;
-
-		rpmsg_unregister_device(glink->dev, &chinfo);
-	}
-	channel->rpdev = NULL;
+	/* Reinit any variables that are important to endpoint creation */
+	reinit_completion(&channel->open_ack);
+	channel->channel_ready = false;
 
 	kref_put(&channel->refcount, qcom_glink_channel_release);
 }
