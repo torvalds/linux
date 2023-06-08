@@ -6,6 +6,7 @@
  * Author: Trevor Wu <trevor.wu@mediatek.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -18,6 +19,15 @@
 #include "../../codecs/mt6359.h"
 #include "../common/mtk-afe-platform-driver.h"
 #include "../common/mtk-soundcard-driver.h"
+
+#define CKSYS_AUD_TOP_CFG	0x032c
+ #define RG_TEST_ON		BIT(0)
+ #define RG_TEST_TYPE		BIT(2)
+#define CKSYS_AUD_TOP_MON	0x0330
+ #define TEST_MISO_COUNT_1	GENMASK(3, 0)
+ #define TEST_MISO_COUNT_2	GENMASK(7, 4)
+ #define TEST_MISO_DONE_1	BIT(28)
+ #define TEST_MISO_DONE_2	BIT(29)
 
 #define NAU8825_HS_PRESENT	BIT(0)
 
@@ -251,9 +261,6 @@ static const struct snd_kcontrol_new mt8188_nau8825_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 };
 
-#define CKSYS_AUD_TOP_CFG 0x032c
-#define CKSYS_AUD_TOP_MON 0x0330
-
 static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *cmpnt_afe =
@@ -265,13 +272,13 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	struct mtkaif_param *param;
 	int chosen_phase_1, chosen_phase_2;
 	int prev_cycle_1, prev_cycle_2;
-	int test_done_1, test_done_2;
+	u8 test_done_1, test_done_2;
 	int cycle_1, cycle_2;
 	int mtkaif_chosen_phase[MT8188_MTKAIF_MISO_NUM];
 	int mtkaif_phase_cycle[MT8188_MTKAIF_MISO_NUM];
 	int mtkaif_calibration_num_phase;
 	bool mtkaif_calibration_ok;
-	unsigned int monitor = 0;
+	u32 monitor = 0;
 	int counter;
 	int phase;
 	int i;
@@ -303,8 +310,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	mt6359_mtkaif_calibration_enable(cmpnt_codec);
 
 	/* set test type to synchronizer pulse */
-	regmap_update_bits(afe_priv->topckgen,
-			   CKSYS_AUD_TOP_CFG, 0xffff, 0x4);
+	regmap_write(afe_priv->topckgen, CKSYS_AUD_TOP_CFG, RG_TEST_TYPE);
 	mtkaif_calibration_num_phase = 42;	/* mt6359: 0 ~ 42 */
 	mtkaif_calibration_ok = true;
 
@@ -314,7 +320,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 		mt6359_set_mtkaif_calibration_phase(cmpnt_codec,
 						    phase, phase, phase);
 
-		regmap_set_bits(afe_priv->topckgen, CKSYS_AUD_TOP_CFG, 0x1);
+		regmap_set_bits(afe_priv->topckgen, CKSYS_AUD_TOP_CFG, RG_TEST_ON);
 
 		test_done_1 = 0;
 		test_done_2 = 0;
@@ -326,14 +332,14 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 		while (!(test_done_1 & test_done_2)) {
 			regmap_read(afe_priv->topckgen,
 				    CKSYS_AUD_TOP_MON, &monitor);
-			test_done_1 = (monitor >> 28) & 0x1;
-			test_done_2 = (monitor >> 29) & 0x1;
+			test_done_1 = FIELD_GET(TEST_MISO_DONE_1, monitor);
+			test_done_2 = FIELD_GET(TEST_MISO_DONE_2, monitor);
 
 			if (test_done_1 == 1)
-				cycle_1 = monitor & 0xf;
+				cycle_1 = FIELD_GET(TEST_MISO_COUNT_1, monitor);
 
 			if (test_done_2 == 1)
-				cycle_2 = (monitor >> 4) & 0xf;
+				cycle_2 = FIELD_GET(TEST_MISO_COUNT_2, monitor);
 
 			/* handle if never test done */
 			if (++counter > 10000) {
@@ -361,7 +367,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 			mtkaif_phase_cycle[MT8188_MTKAIF_MISO_1] = prev_cycle_2;
 		}
 
-		regmap_clear_bits(afe_priv->topckgen, CKSYS_AUD_TOP_CFG, 0x1);
+		regmap_clear_bits(afe_priv->topckgen, CKSYS_AUD_TOP_CFG, RG_TEST_ON);
 
 		if (mtkaif_chosen_phase[MT8188_MTKAIF_MISO_0] >= 0 &&
 		    mtkaif_chosen_phase[MT8188_MTKAIF_MISO_1] >= 0)
