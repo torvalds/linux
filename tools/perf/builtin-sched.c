@@ -2760,7 +2760,7 @@ struct total_run_stats {
 	u64  total_run_time;
 };
 
-static int __show_thread_runtime(struct thread *t, void *priv)
+static int show_thread_runtime(struct thread *t, void *priv)
 {
 	struct total_run_stats *stats = priv;
 	struct thread_runtime *r;
@@ -2781,22 +2781,6 @@ static int __show_thread_runtime(struct thread *t, void *priv)
 	}
 
 	return 0;
-}
-
-static int show_thread_runtime(struct thread *t, void *priv)
-{
-	if (t->dead)
-		return 0;
-
-	return __show_thread_runtime(t, priv);
-}
-
-static int show_deadthread_runtime(struct thread *t, void *priv)
-{
-	if (!t->dead)
-		return 0;
-
-	return __show_thread_runtime(t, priv);
 }
 
 static size_t callchain__fprintf_folded(FILE *fp, struct callchain_node *node)
@@ -2889,11 +2873,6 @@ static void timehist_print_summary(struct perf_sched *sched,
 	task_count = totals.task_count;
 	if (!task_count)
 		printf("<no still running tasks>\n");
-
-	printf("\nTerminated tasks:\n");
-	machine__for_each_thread(m, show_deadthread_runtime, &totals);
-	if (task_count == totals.task_count)
-		printf("<no terminated tasks>\n");
 
 	/* CPU idle stats not tracked when samples were skipped */
 	if (sched->skipped_samples && !sched->idle_hist)

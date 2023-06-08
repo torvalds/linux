@@ -3292,12 +3292,6 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 		goto err_free_queues;
 	}
 
-	/*
-	 * Initialize list node so that at thread__zput() we can avoid
-	 * segmentation fault at list_del_init().
-	 */
-	INIT_LIST_HEAD(&etm->unknown_thread->node);
-
 	err = thread__set_comm(etm->unknown_thread, "unknown", 0);
 	if (err)
 		goto err_delete_thread;

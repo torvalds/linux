@@ -30,10 +30,7 @@ struct lbr_stitch {
 };
 
 struct thread {
-	union {
-		struct rb_node	 rb_node;
-		struct list_head node;
-	};
+	struct rb_node		rb_node;
 	struct maps		*maps;
 	pid_t			pid_; /* Not all tools update this */
 	pid_t			tid;
@@ -43,7 +40,6 @@ struct thread {
 	refcount_t		refcnt;
 	bool			comm_set;
 	int			comm_len;
-	bool			dead; /* if set thread has exited */
 	struct list_head	namespaces_list;
 	struct rw_semaphore	namespaces_lock;
 	struct list_head	comm_list;
@@ -80,11 +76,6 @@ static inline void __thread__zput(struct thread **thread)
 }
 
 #define thread__zput(thread) __thread__zput(&thread)
-
-static inline void thread__exited(struct thread *thread)
-{
-	thread->dead = true;
-}
 
 struct namespaces *thread__namespaces(struct thread *thread);
 int thread__set_namespaces(struct thread *thread, u64 timestamp,

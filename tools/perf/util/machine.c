@@ -241,17 +241,6 @@ void machine__exit(struct machine *machine)
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		struct threads *threads = &machine->threads[i];
-		struct thread *thread, *n;
-		/*
-		 * Forget about the dead, at this point whatever threads were
-		 * left in the dead lists better have a reference count taken
-		 * by who is using them, and then, when they drop those references
-		 * and it finally hits zero, thread__put() will check and see that
-		 * its not in the dead threads list and will not try to remove it
-		 * from there, just calling thread__delete() straight away.
-		 */
-		list_for_each_entry_safe(thread, n, &threads->dead, node)
-			list_del_init(&thread->node);
 
 		exit_rwsem(&threads->lock);
 	}
@@ -2046,18 +2035,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	rb_erase_cached(&th->rb_node, &threads->entries);
 	RB_CLEAR_NODE(&th->rb_node);
 	--threads->nr;
-	/*
-	 * Move it first to the dead_threads list, then drop the reference,
-	 * if this is the last reference, then the thread__delete destructor
-	 * will be called and we will remove it from the dead_threads list.
-	 */
-	list_add_tail(&th->node, &threads->dead);
 
-	/*
-	 * We need to do the put here because if this is the last refcount,
-	 * then we will be touching the threads->dead head when removing the
-	 * thread.
-	 */
 	thread__put(th);
 
 	if (lock)
@@ -2145,10 +2123,8 @@ int machine__process_exit_event(struct machine *machine, union perf_event *event
 	if (dump_trace)
 		perf_event__fprintf_task(event, stdout);
 
-	if (thread != NULL) {
-		thread__exited(thread);
+	if (thread != NULL)
 		thread__put(thread);
-	}
 
 	return 0;
 }
@@ -3200,12 +3176,6 @@ int machine__for_each_thread(struct machine *machine,
 		for (nd = rb_first_cached(&threads->entries); nd;
 		     nd = rb_next(nd)) {
 			thread = rb_entry(nd, struct thread, rb_node);
-			rc = fn(thread, priv);
-			if (rc != 0)
-				return rc;
-		}
-
-		list_for_each_entry(thread, &threads->dead, node) {
 			rc = fn(thread, priv);
 			if (rc != 0)
 				return rc;
