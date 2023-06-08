@@ -954,31 +954,21 @@ static void ipc3_trace_message(struct snd_sof_dev *sdev, void *msg_buf)
 	}
 }
 
-/* DSP firmware has sent host a message  */
-static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
+void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, void *msg_buf)
 {
 	ipc3_rx_callback rx_callback = NULL;
-	struct sof_ipc_cmd_hdr hdr;
-	void *msg_buf;
 	u32 cmd;
 	int err;
 
-	/* read back header */
-	err = snd_sof_ipc_msg_data(sdev, NULL, &hdr, sizeof(hdr));
-	if (err < 0) {
-		dev_warn(sdev->dev, "failed to read IPC header: %d\n", err);
-		return;
-	}
+	ipc3_log_header(sdev->dev, "ipc rx", hdr->cmd);
 
-	if (hdr.size < sizeof(hdr) || hdr.size > SOF_IPC_MSG_MAX_SIZE) {
+	if (hdr->size < sizeof(hdr) || hdr->size > SOF_IPC_MSG_MAX_SIZE) {
 		dev_err(sdev->dev, "The received message size is invalid: %u\n",
-			hdr.size);
+			hdr->size);
 		return;
 	}
 
-	ipc3_log_header(sdev->dev, "ipc rx", hdr.cmd);
-
-	cmd = hdr.cmd & SOF_GLB_TYPE_MASK;
+	cmd = hdr->cmd & SOF_GLB_TYPE_MASK;
 
 	/* check message type */
 	switch (cmd) {
@@ -1016,6 +1006,36 @@ static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
 		break;
 	}
 
+	/* Call local handler for the message */
+	if (rx_callback)
+		rx_callback(sdev, msg_buf);
+
+	/* Notify registered clients */
+	sof_client_ipc_rx_dispatcher(sdev, msg_buf);
+
+	ipc3_log_header(sdev->dev, "ipc rx done", hdr->cmd);
+}
+EXPORT_SYMBOL(sof_ipc3_do_rx_work);
+
+/* DSP firmware has sent host a message  */
+static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc_cmd_hdr hdr;
+	void *msg_buf;
+	int err;
+
+	/* read back header */
+	err = snd_sof_ipc_msg_data(sdev, NULL, &hdr, sizeof(hdr));
+	if (err < 0) {
+		dev_warn(sdev->dev, "failed to read IPC header: %d\n", err);
+		return;
+	}
+
+	if (hdr.size < sizeof(hdr)) {
+		dev_err(sdev->dev, "The received message size is invalid\n");
+		return;
+	}
+
 	/* read the full message */
 	msg_buf = kmalloc(hdr.size, GFP_KERNEL);
 	if (!msg_buf)
@@ -1024,18 +1044,13 @@ static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
 	err = snd_sof_ipc_msg_data(sdev, NULL, msg_buf, hdr.size);
 	if (err < 0) {
 		dev_err(sdev->dev, "%s: Failed to read message: %d\n", __func__, err);
-	} else {
-		/* Call local handler for the message */
-		if (rx_callback)
-			rx_callback(sdev, msg_buf);
-
-		/* Notify registered clients */
-		sof_client_ipc_rx_dispatcher(sdev, msg_buf);
+		kfree(msg_buf);
+		return;
 	}
 
-	kfree(msg_buf);
+	sof_ipc3_do_rx_work(sdev, &hdr, msg_buf);
 
-	ipc3_log_header(sdev->dev, "ipc rx done", hdr.cmd);
+	kfree(msg_buf);
 }
 
 static int sof_ipc3_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool on)
