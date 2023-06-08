@@ -17,6 +17,7 @@
 #include <linux/if_vlan.h>
 
 #include <net/dst.h>
+#include <net/gso.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>

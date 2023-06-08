@@ -452,5 +452,6 @@ static inline void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb,
 		gro_normal_list(napi);
 }
 
+extern struct list_head offload_base;
 
 #endif /* _NET_IPV6_GRO_H */

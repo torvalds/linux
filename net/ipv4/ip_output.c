@@ -73,6 +73,7 @@
 #include <net/arp.h>
 #include <net/icmp.h>
 #include <net/checksum.h>
+#include <net/gso.h>
 #include <net/inetpeer.h>
 #include <net/inet_ecn.h>
 #include <net/lwtunnel.h>
