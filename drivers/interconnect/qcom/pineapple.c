@@ -226,8 +226,8 @@ static struct qcom_icc_qosbox qxm_ipa_qos = {
 	.num_ports = 1,
 	.offsets = { 0x16000 },
 	.config = &(struct qos_config) {
-		.prio = 0,
-		.urg_fwd = 0,
+		.prio = 2,
+		.urg_fwd = 1,
 		.prio_fwd_disable = 0,
 	},
 };
@@ -454,9 +454,9 @@ static struct qcom_icc_qosbox alm_ubwc_p_tcu_qos = {
 	.num_ports = 1,
 	.offsets = { 0xc5000 },
 	.config = &(struct qos_config) {
-		.prio = 0,
+		.prio = 1,
 		.urg_fwd = 0,
-		.prio_fwd_disable = 0,
+		.prio_fwd_disable = 1,
 	},
 };
 
@@ -610,8 +610,8 @@ static struct qcom_icc_qosbox qnm_pcie_qos = {
 	.num_ports = 1,
 	.offsets = { 0xb7000 },
 	.config = &(struct qos_config) {
-		.prio = 0,
-		.urg_fwd = 0,
+		.prio = 2,
+		.urg_fwd = 1,
 		.prio_fwd_disable = 0,
 	},
 };
@@ -655,9 +655,9 @@ static struct qcom_icc_qosbox qnm_ubwc_p_qos = {
 	.num_ports = 1,
 	.offsets = { 0xc3000 },
 	.config = &(struct qos_config) {
-		.prio = 0,
-		.urg_fwd = 0,
-		.prio_fwd_disable = 0,
+		.prio = 1,
+		.urg_fwd = 1,
+		.prio_fwd_disable = 1,
 	},
 };
 
@@ -680,9 +680,9 @@ static struct qcom_icc_qosbox xm_gic_qos = {
 	.num_ports = 1,
 	.offsets = { 0xb9000 },
 	.config = &(struct qos_config) {
-		.prio = 0,
+		.prio = 4,
 		.urg_fwd = 0,
-		.prio_fwd_disable = 0,
+		.prio_fwd_disable = 1,
 	},
 };
 
