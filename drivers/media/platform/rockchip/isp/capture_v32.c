@@ -1052,15 +1052,24 @@ static void update_mi(struct rkisp_stream *stream)
 				/* isp no start and mi close, force to enable it */
 				if (!ISP3X_ISP_OUT_LINE(rkisp_read(dev, ISP3X_ISP_DEBUG2, true))) {
 					stream->ops->enable_mi(stream);
-					stream->is_pause = false;
 					stream_self_update(stream);
 					if (!stream->curr_buf) {
 						stream->curr_buf = stream->next_buf;
 						stream->next_buf = NULL;
 					}
+					/* maybe no next buf to preclose mi */
+					stream->ops->disable_mi(stream);
+				} else if (stream->is_pause) {
+					/* isp working and mi closed
+					 * config buf and enable mi, capture at next frame
+					 */
+					stream->ops->enable_mi(stream);
+					stream->is_pause = false;
 				}
-			}
-			if (stream->is_pause) {
+			} else if (stream->is_pause) {
+				/* isp working and mi no to close
+				 * config buf will auto update at frame end
+				 */
 				stream->ops->enable_mi(stream);
 				stream->is_pause = false;
 			}
@@ -1098,6 +1107,7 @@ static void update_mi(struct rkisp_stream *stream)
 			dev->tb_addr_idx++;
 	} else if (!stream->is_pause) {
 		stream->is_pause = true;
+		/* no next buf to preclose mi */
 		stream->ops->disable_mi(stream);
 		/* no buf, force to close mi */
 		if (!stream->curr_buf)
