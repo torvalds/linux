@@ -2964,7 +2964,12 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	old = root->node;
 	ret = btrfs_tree_mod_log_insert_root(root->node, c, false);
-	BUG_ON(ret < 0);
+	if (ret < 0) {
+		btrfs_free_tree_block(trans, btrfs_root_id(root), c, 0, 1);
+		btrfs_tree_unlock(c);
+		free_extent_buffer(c);
+		return ret;
+	}
 	rcu_assign_pointer(root->node, c);
 
 	/* the super has an extra ref to root->node */
