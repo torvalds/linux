@@ -1110,6 +1110,8 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	/* enable DDI buffer */
 	gen11_dsi_enable_ddi_buffer(encoder);
 
+	gen11_dsi_gate_clocks(encoder);
+
 	gen11_dsi_setup_timings(encoder, crtc_state);
 
 	/* Since transcoder is configured to take events from GPIO */
@@ -1120,9 +1122,6 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 
 	/* Step (4h, 4i, 4j, 4k): Configure transcoder */
 	gen11_dsi_configure_transcoder(encoder, crtc_state);
-
-	/* Step 4l: Gate DDI clocks */
-	gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
