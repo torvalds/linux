@@ -230,7 +230,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
 		.thread		= thread,
-		.machine	= RC_CHK_ACCESS(thread->maps)->machine,
+		.machine	= RC_CHK_ACCESS(thread__maps(thread))->machine,
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,
@@ -260,11 +260,11 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		goto out;
 
-	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread->tid, &callbacks, ui);
+	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread__tid(thread), &callbacks, ui);
 	if (err)
 		goto out;
 
-	err = dwfl_getthread_frames(ui->dwfl, thread->tid, frame_callback, ui);
+	err = dwfl_getthread_frames(ui->dwfl, thread__tid(thread), frame_callback, ui);
 
 	if (err && ui->max_stack != max_stack)
 		err = 0;

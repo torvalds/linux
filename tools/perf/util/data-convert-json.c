@@ -172,13 +172,13 @@ static int process_sample_event(struct perf_tool *tool,
 	output_json_format(out, false, 2, "{");
 
 	output_json_key_format(out, false, 3, "timestamp", "%" PRIi64, sample->time);
-	output_json_key_format(out, true, 3, "pid", "%i", al.thread->pid_);
-	output_json_key_format(out, true, 3, "tid", "%i", al.thread->tid);
+	output_json_key_format(out, true, 3, "pid", "%i", thread__pid(al.thread));
+	output_json_key_format(out, true, 3, "tid", "%i", thread__tid(al.thread));
 
 	if ((sample_type & PERF_SAMPLE_CPU))
 		output_json_key_format(out, true, 3, "cpu", "%i", sample->cpu);
-	else if (al.thread->cpu >= 0)
-		output_json_key_format(out, true, 3, "cpu", "%i", al.thread->cpu);
+	else if (thread__cpu(al.thread) >= 0)
+		output_json_key_format(out, true, 3, "cpu", "%i", thread__cpu(al.thread));
 
 	output_json_key_string(out, true, 3, "comm", thread__comm_str(al.thread));
 

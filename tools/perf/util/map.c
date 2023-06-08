@@ -137,7 +137,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		no_dso = is_no_dso_memory(filename);
 		map->prot = prot;
 		map->flags = flags;
-		nsi = nsinfo__get(thread->nsinfo);
+		nsi = nsinfo__get(thread__nsinfo(thread));
 
 		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),

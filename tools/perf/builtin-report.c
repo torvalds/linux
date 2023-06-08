@@ -292,7 +292,7 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (rep->stitch_lbr)
-		al.thread->lbr_stitch_enable = true;
+		thread__set_lbr_stitch_enable(al.thread, true);
 
 	if (symbol_conf.hide_unresolved && al.sym == NULL)
 		goto out_put;
@@ -829,10 +829,10 @@ static struct task *tasks_list(struct task *task, struct machine *machine)
 		return NULL;
 
 	/* Last one in the chain. */
-	if (thread->ppid == -1)
+	if (thread__ppid(thread) == -1)
 		return task;
 
-	parent_thread = machine__find_thread(machine, -1, thread->ppid);
+	parent_thread = machine__find_thread(machine, -1, thread__ppid(thread));
 	if (!parent_thread)
 		return ERR_PTR(-ENOENT);
 
@@ -869,12 +869,12 @@ static void task__print_level(struct task *task, FILE *fp, int level)
 	struct thread *thread = task->thread;
 	struct task *child;
 	int comm_indent = fprintf(fp, "  %8d %8d %8d |%*s",
-				  thread->pid_, thread->tid, thread->ppid,
-				  level, "");
+				  thread__pid(thread), thread__tid(thread),
+				  thread__ppid(thread), level, "");
 
 	fprintf(fp, "%s\n", thread__comm_str(thread));
 
-	maps__fprintf_task(thread->maps, comm_indent, fp);
+	maps__fprintf_task(thread__maps(thread), comm_indent, fp);
 
 	if (!list_empty(&task->children)) {
 		list_for_each_entry(child, &task->children, list)

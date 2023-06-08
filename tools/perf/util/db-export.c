@@ -64,13 +64,13 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 {
 	u64 main_thread_db_id = 0;
 
-	if (thread->db_id)
+	if (thread__db_id(thread))
 		return 0;
 
-	thread->db_id = ++dbe->thread_last_db_id;
+	thread__set_db_id(thread, ++dbe->thread_last_db_id);
 
 	if (main_thread)
-		main_thread_db_id = main_thread->db_id;
+		main_thread_db_id = thread__db_id(main_thread);
 
 	if (dbe->export_thread)
 		return dbe->export_thread(dbe, thread, main_thread_db_id,
@@ -251,7 +251,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		 */
 		al.sym = node->ms.sym;
 		al.map = node->ms.map;
-		al.maps = thread->maps;
+		al.maps = thread__maps(thread);
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
@@ -321,7 +321,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 		 * For a non-main thread, db_export__comm_thread() must be
 		 * called only if thread has not previously been exported.
 		 */
-		bool export_comm_thread = comm && !thread->db_id;
+		bool export_comm_thread = comm && !thread__db_id(thread);
 
 		err = db_export__thread(dbe, thread, machine, main_thread);
 		if (err)
@@ -529,16 +529,16 @@ static int db_export__pid_tid(struct db_export *dbe, struct machine *machine,
 	struct thread *main_thread;
 	int err = 0;
 
-	if (!thread || !thread->comm_set)
+	if (!thread || !thread__comm_set(thread))
 		goto out_put;
 
-	*is_idle = !thread->pid_ && !thread->tid;
+	*is_idle = !thread__pid(thread) && !thread__tid(thread);
 
 	main_thread = thread__main_thread(machine, thread);
 
 	err = db_export__threads(dbe, thread, main_thread, machine, comm_ptr);
 
-	*db_id = thread->db_id;
+	*db_id = thread__db_id(thread);
 
 	thread__put(main_thread);
 out_put:

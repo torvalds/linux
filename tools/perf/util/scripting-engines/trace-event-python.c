@@ -1163,11 +1163,11 @@ static int python_export_thread(struct db_export *dbe, struct thread *thread,
 
 	t = tuple_new(5);
 
-	tuple_set_d64(t, 0, thread->db_id);
+	tuple_set_d64(t, 0, thread__db_id(thread));
 	tuple_set_d64(t, 1, machine->db_id);
 	tuple_set_d64(t, 2, main_thread_db_id);
-	tuple_set_s32(t, 3, thread->pid_);
-	tuple_set_s32(t, 4, thread->tid);
+	tuple_set_s32(t, 3, thread__pid(thread));
+	tuple_set_s32(t, 4, thread__tid(thread));
 
 	call_object(tables->thread_handler, t, "thread_table");
 
@@ -1186,7 +1186,7 @@ static int python_export_comm(struct db_export *dbe, struct comm *comm,
 
 	tuple_set_d64(t, 0, comm->db_id);
 	tuple_set_string(t, 1, comm__str(comm));
-	tuple_set_d64(t, 2, thread->db_id);
+	tuple_set_d64(t, 2, thread__db_id(thread));
 	tuple_set_d64(t, 3, comm->start);
 	tuple_set_s32(t, 4, comm->exec);
 
@@ -1207,7 +1207,7 @@ static int python_export_comm_thread(struct db_export *dbe, u64 db_id,
 
 	tuple_set_d64(t, 0, db_id);
 	tuple_set_d64(t, 1, comm->db_id);
-	tuple_set_d64(t, 2, thread->db_id);
+	tuple_set_d64(t, 2, thread__db_id(thread));
 
 	call_object(tables->comm_thread_handler, t, "comm_thread_table");
 
@@ -1292,7 +1292,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
 	tuple_set_d64(t, 2, maps__machine(es->al->maps)->db_id);
-	tuple_set_d64(t, 3, es->al->thread->db_id);
+	tuple_set_d64(t, 3, thread__db_id(es->al->thread));
 	tuple_set_d64(t, 4, es->comm_db_id);
 	tuple_set_d64(t, 5, es->dso_db_id);
 	tuple_set_d64(t, 6, es->sym_db_id);
@@ -1382,7 +1382,7 @@ static int python_export_call_return(struct db_export *dbe,
 	t = tuple_new(14);
 
 	tuple_set_d64(t, 0, cr->db_id);
-	tuple_set_d64(t, 1, cr->thread->db_id);
+	tuple_set_d64(t, 1, thread__db_id(cr->thread));
 	tuple_set_d64(t, 2, comm_db_id);
 	tuple_set_d64(t, 3, cr->cp->db_id);
 	tuple_set_d64(t, 4, cr->call_time);

@@ -1142,7 +1142,7 @@ static int print_srccode(struct thread *thread, u8 cpumode, uint64_t addr)
 	if (!al.map)
 		return 0;
 	ret = map__fprintf_srccode(al.map, al.addr, stdout,
-		    &thread->srccode_state);
+				   thread__srccode_state(thread));
 	if (ret)
 		ret += printf("\n");
 	return ret;
@@ -1439,7 +1439,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 	 * The 'return' has already been popped off the stack so the depth has
 	 * to be adjusted to match the 'call'.
 	 */
-	if (thread->ts && sample->flags & PERF_IP_FLAG_RETURN)
+	if (thread__ts(thread) && sample->flags & PERF_IP_FLAG_RETURN)
 		depth += 1;
 
 	name = resolve_branch_sym(sample, evsel, thread, al, addr_al, &ip);
@@ -1577,7 +1577,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 	printed += fprintf(fp, "\n");
 	if (PRINT_FIELD(SRCCODE)) {
 		int ret = map__fprintf_srccode(al->map, al->addr, stdout,
-					 &thread->srccode_state);
+					       thread__srccode_state(thread));
 		if (ret) {
 			printed += ret;
 			printed += printf("\n");
@@ -2086,9 +2086,9 @@ static bool show_event(struct perf_sample *sample,
 	if (!symbol_conf.graph_function)
 		return true;
 
-	if (thread->filter) {
-		if (depth <= thread->filter_entry_depth) {
-			thread->filter = false;
+	if (thread__filter(thread)) {
+		if (depth <= thread__filter_entry_depth(thread)) {
+			thread__set_filter(thread, false);
 			return false;
 		}
 		return true;
@@ -2105,8 +2105,8 @@ static bool show_event(struct perf_sample *sample,
 		while (*s) {
 			unsigned len = strcspn(s, ",");
 			if (nlen == len && !strncmp(name, s, len)) {
-				thread->filter = true;
-				thread->filter_entry_depth = depth;
+				thread__set_filter(thread, true);
+				thread__set_filter_entry_depth(thread, depth);
 				return true;
 			}
 			s += len;
@@ -2186,7 +2186,7 @@ static void process_event(struct perf_script *script,
 		struct callchain_cursor *cursor = NULL;
 
 		if (script->stitch_lbr)
-			al->thread->lbr_stitch_enable = true;
+			thread__set_lbr_stitch_enable(al->thread, true);
 
 		if (symbol_conf.use_callchain && sample->callchain &&
 		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
@@ -2241,7 +2241,7 @@ static void process_event(struct perf_script *script,
 
 	if (PRINT_FIELD(SRCCODE)) {
 		if (map__fprintf_srccode(al->map, al->addr, stdout,
-					 &thread->srccode_state))
+					 thread__srccode_state(thread)))
 			printf("\n");
 	}
 

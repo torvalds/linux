@@ -293,7 +293,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	}
 
 	if (c2c.stitch_lbr)
-		al.thread->lbr_stitch_enable = true;
+		thread__set_lbr_stitch_enable(al.thread, true);
 
 	ret = sample__resolve_callchain(sample, &callchain_cursor, NULL,
 					evsel, &al, sysctl_perf_event_max_stack);
@@ -1149,14 +1149,14 @@ pid_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 {
 	int width = c2c_width(fmt, hpp, he->hists);
 
-	return scnprintf(hpp->buf, hpp->size, "%*d", width, he->thread->pid_);
+	return scnprintf(hpp->buf, hpp->size, "%*d", width, thread__pid(he->thread));
 }
 
 static int64_t
 pid_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	struct hist_entry *left, struct hist_entry *right)
 {
-	return left->thread->pid_ - right->thread->pid_;
+	return thread__pid(left->thread) - thread__pid(right->thread);
 }
 
 static int64_t

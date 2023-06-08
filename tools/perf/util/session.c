@@ -2807,7 +2807,7 @@ static int perf_session__set_guest_cpu(struct perf_session *session, pid_t pid,
 
 	if (!thread)
 		return -ENOMEM;
-	thread->guest_cpu = guest_cpu;
+	thread__set_guest_cpu(thread, guest_cpu);
 	thread__put(thread);
 
 	return 0;

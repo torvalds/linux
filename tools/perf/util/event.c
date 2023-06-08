@@ -573,7 +573,7 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
-	struct maps *maps = thread->maps;
+	struct maps *maps = thread__maps(thread);
 	struct machine *machine = maps__machine(maps);
 	bool load_map = false;
 
@@ -639,7 +639,7 @@ struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
 				struct addr_location *al)
 {
 	struct map *map = thread__find_map(thread, cpumode, addr, al);
-	struct machine *machine = maps__machine(thread->maps);
+	struct machine *machine = maps__machine(thread__maps(thread));
 	u8 addr_cpumode = machine__addr_cpumode(machine, cpumode, addr);
 
 	if (map || addr_cpumode == cpumode)
@@ -696,7 +696,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	if (thread == NULL)
 		return -1;
 
-	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
+	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread__tid(thread));
 	thread__find_map(thread, sample->cpumode, sample->ip, al);
 	dso = al->map ? map__dso(al->map) : NULL;
 	dump_printf(" ...... dso: %s\n",

@@ -21,19 +21,20 @@
 
 int thread__init_maps(struct thread *thread, struct machine *machine)
 {
-	pid_t pid = thread->pid_;
+	pid_t pid = thread__pid(thread);
 
-	if (pid == thread->tid || pid == -1) {
-		thread->maps = maps__new(machine);
+	if (pid == thread__tid(thread) || pid == -1) {
+		thread__set_maps(thread, maps__new(machine));
 	} else {
 		struct thread *leader = __machine__findnew_thread(machine, pid, pid);
+
 		if (leader) {
-			thread->maps = maps__get(leader->maps);
+			thread__set_maps(thread, maps__get(thread__maps(leader)));
 			thread__put(leader);
 		}
 	}
 
-	return thread->maps ? 0 : -1;
+	return thread__maps(thread) ? 0 : -1;
 }
 
 struct thread *thread__new(pid_t pid, pid_t tid)
@@ -43,16 +44,16 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 	struct thread *thread = zalloc(sizeof(*thread));
 
 	if (thread != NULL) {
-		thread->pid_ = pid;
-		thread->tid = tid;
-		thread->ppid = -1;
-		thread->cpu = -1;
-		thread->guest_cpu = -1;
-		thread->lbr_stitch_enable = false;
-		INIT_LIST_HEAD(&thread->namespaces_list);
-		INIT_LIST_HEAD(&thread->comm_list);
-		init_rwsem(&thread->namespaces_lock);
-		init_rwsem(&thread->comm_lock);
+		thread__set_pid(thread, pid);
+		thread__set_tid(thread, tid);
+		thread__set_ppid(thread, -1);
+		thread__set_cpu(thread, -1);
+		thread__set_guest_cpu(thread, -1);
+		thread__set_lbr_stitch_enable(thread, false);
+		INIT_LIST_HEAD(thread__namespaces_list(thread));
+		INIT_LIST_HEAD(thread__comm_list(thread));
+		init_rwsem(thread__namespaces_lock(thread));
+		init_rwsem(thread__comm_lock(thread));
 
 		comm_str = malloc(32);
 		if (!comm_str)
@@ -64,11 +65,11 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 		if (!comm)
 			goto err_thread;
 
-		list_add(&comm->list, &thread->comm_list);
-		refcount_set(&thread->refcnt, 1);
+		list_add(&comm->list, thread__comm_list(thread));
+		refcount_set(thread__refcnt(thread), 1);
 		/* Thread holds first ref to nsdata. */
 		thread->nsinfo = nsinfo__new(pid);
-		srccode_state_init(&thread->srccode_state);
+		srccode_state_init(thread__srccode_state(thread));
 	}
 
 	return thread;
@@ -85,30 +86,30 @@ void thread__delete(struct thread *thread)
 
 	thread_stack__free(thread);
 
-	if (thread->maps) {
-		maps__put(thread->maps);
-		thread->maps = NULL;
+	if (thread__maps(thread)) {
+		maps__put(thread__maps(thread));
+		thread__set_maps(thread, NULL);
 	}
-	down_write(&thread->namespaces_lock);
+	down_write(thread__namespaces_lock(thread));
 	list_for_each_entry_safe(namespaces, tmp_namespaces,
-				 &thread->namespaces_list, list) {
+				 thread__namespaces_list(thread), list) {
 		list_del_init(&namespaces->list);
 		namespaces__free(namespaces);
 	}
-	up_write(&thread->namespaces_lock);
+	up_write(thread__namespaces_lock(thread));
 
-	down_write(&thread->comm_lock);
-	list_for_each_entry_safe(comm, tmp_comm, &thread->comm_list, list) {
+	down_write(thread__comm_lock(thread));
+	list_for_each_entry_safe(comm, tmp_comm, thread__comm_list(thread), list) {
 		list_del_init(&comm->list);
 		comm__free(comm);
 	}
-	up_write(&thread->comm_lock);
+	up_write(thread__comm_lock(thread));
 
 	nsinfo__zput(thread->nsinfo);
-	srccode_state_free(&thread->srccode_state);
+	srccode_state_free(thread__srccode_state(thread));
 
-	exit_rwsem(&thread->namespaces_lock);
-	exit_rwsem(&thread->comm_lock);
+	exit_rwsem(thread__namespaces_lock(thread));
+	exit_rwsem(thread__comm_lock(thread));
 	thread__free_stitch_list(thread);
 	free(thread);
 }
@@ -116,31 +117,31 @@ void thread__delete(struct thread *thread)
 struct thread *thread__get(struct thread *thread)
 {
 	if (thread)
-		refcount_inc(&thread->refcnt);
+		refcount_inc(thread__refcnt(thread));
 	return thread;
 }
 
 void thread__put(struct thread *thread)
 {
-	if (thread && refcount_dec_and_test(&thread->refcnt))
+	if (thread && refcount_dec_and_test(thread__refcnt(thread)))
 		thread__delete(thread);
 }
 
-static struct namespaces *__thread__namespaces(const struct thread *thread)
+static struct namespaces *__thread__namespaces(struct thread *thread)
 {
-	if (list_empty(&thread->namespaces_list))
+	if (list_empty(thread__namespaces_list(thread)))
 		return NULL;
 
-	return list_first_entry(&thread->namespaces_list, struct namespaces, list);
+	return list_first_entry(thread__namespaces_list(thread), struct namespaces, list);
 }
 
 struct namespaces *thread__namespaces(struct thread *thread)
 {
 	struct namespaces *ns;
 
-	down_read(&thread->namespaces_lock);
+	down_read(thread__namespaces_lock(thread));
 	ns = __thread__namespaces(thread);
-	up_read(&thread->namespaces_lock);
+	up_read(thread__namespaces_lock(thread));
 
 	return ns;
 }
@@ -154,7 +155,7 @@ static int __thread__set_namespaces(struct thread *thread, u64 timestamp,
 	if (!new)
 		return -ENOMEM;
 
-	list_add(&new->list, &thread->namespaces_list);
+	list_add(&new->list, thread__namespaces_list(thread));
 
 	if (timestamp && curr) {
 		/*
@@ -174,25 +175,25 @@ int thread__set_namespaces(struct thread *thread, u64 timestamp,
 {
 	int ret;
 
-	down_write(&thread->namespaces_lock);
+	down_write(thread__namespaces_lock(thread));
 	ret = __thread__set_namespaces(thread, timestamp, event);
-	up_write(&thread->namespaces_lock);
+	up_write(thread__namespaces_lock(thread));
 	return ret;
 }
 
-struct comm *thread__comm(const struct thread *thread)
+struct comm *thread__comm(struct thread *thread)
 {
-	if (list_empty(&thread->comm_list))
+	if (list_empty(thread__comm_list(thread)))
 		return NULL;
 
-	return list_first_entry(&thread->comm_list, struct comm, list);
+	return list_first_entry(thread__comm_list(thread), struct comm, list);
 }
 
-struct comm *thread__exec_comm(const struct thread *thread)
+struct comm *thread__exec_comm(struct thread *thread)
 {
 	struct comm *comm, *last = NULL, *second_last = NULL;
 
-	list_for_each_entry(comm, &thread->comm_list, list) {
+	list_for_each_entry(comm, thread__comm_list(thread), list) {
 		if (comm->exec)
 			return comm;
 		second_last = last;
@@ -205,7 +206,7 @@ struct comm *thread__exec_comm(const struct thread *thread)
 	 * thread, that is very probably wrong. Prefer a later comm to avoid
 	 * that case.
 	 */
-	if (second_last && !last->start && thread->pid_ == thread->tid)
+	if (second_last && !last->start && thread__pid(thread) == thread__tid(thread))
 		return second_last;
 
 	return last;
@@ -217,7 +218,7 @@ static int ____thread__set_comm(struct thread *thread, const char *str,
 	struct comm *new, *curr = thread__comm(thread);
 
 	/* Override the default :tid entry */
-	if (!thread->comm_set) {
+	if (!thread__comm_set(thread)) {
 		int err = comm__override(curr, str, timestamp, exec);
 		if (err)
 			return err;
@@ -225,13 +226,13 @@ static int ____thread__set_comm(struct thread *thread, const char *str,
 		new = comm__new(str, timestamp, exec);
 		if (!new)
 			return -ENOMEM;
-		list_add(&new->list, &thread->comm_list);
+		list_add(&new->list, thread__comm_list(thread));
 
 		if (exec)
-			unwind__flush_access(thread->maps);
+			unwind__flush_access(thread__maps(thread));
 	}
 
-	thread->comm_set = true;
+	thread__set_comm_set(thread, true);
 
 	return 0;
 }
@@ -241,9 +242,9 @@ int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 {
 	int ret;
 
-	down_write(&thread->comm_lock);
+	down_write(thread__comm_lock(thread));
 	ret = ____thread__set_comm(thread, str, timestamp, exec);
-	up_write(&thread->comm_lock);
+	up_write(thread__comm_lock(thread));
 	return ret;
 }
 
@@ -255,7 +256,7 @@ int thread__set_comm_from_proc(struct thread *thread)
 	int err = -1;
 
 	if (!(snprintf(path, sizeof(path), "%d/task/%d/comm",
-		       thread->pid_, thread->tid) >= (int)sizeof(path)) &&
+		       thread__pid(thread), thread__tid(thread)) >= (int)sizeof(path)) &&
 	    procfs__read_str(path, &comm, &sz) == 0) {
 		comm[sz - 1] = '\0';
 		err = thread__set_comm(thread, comm, 0);
@@ -264,7 +265,7 @@ int thread__set_comm_from_proc(struct thread *thread)
 	return err;
 }
 
-static const char *__thread__comm_str(const struct thread *thread)
+static const char *__thread__comm_str(struct thread *thread)
 {
 	const struct comm *comm = thread__comm(thread);
 
@@ -278,9 +279,9 @@ const char *thread__comm_str(struct thread *thread)
 {
 	const char *str;
 
-	down_read(&thread->comm_lock);
+	down_read(thread__comm_lock(thread));
 	str = __thread__comm_str(thread);
-	up_read(&thread->comm_lock);
+	up_read(thread__comm_lock(thread));
 
 	return str;
 }
@@ -289,23 +290,23 @@ static int __thread__comm_len(struct thread *thread, const char *comm)
 {
 	if (!comm)
 		return 0;
-	thread->comm_len = strlen(comm);
+	thread__set_comm_len(thread, strlen(comm));
 
-	return thread->comm_len;
+	return thread__var_comm_len(thread);
 }
 
 /* CHECKME: it should probably better return the max comm len from its comm list */
 int thread__comm_len(struct thread *thread)
 {
-	int comm_len = thread->comm_len;
+	int comm_len = thread__var_comm_len(thread);
 
 	if (!comm_len) {
 		const char *comm;
 
-		down_read(&thread->comm_lock);
+		down_read(thread__comm_lock(thread));
 		comm = __thread__comm_str(thread);
 		comm_len = __thread__comm_len(thread, comm);
-		up_read(&thread->comm_lock);
+		up_read(thread__comm_lock(thread));
 	}
 
 	return comm_len;
@@ -313,33 +314,33 @@ int thread__comm_len(struct thread *thread)
 
 size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
-	return fprintf(fp, "Thread %d %s\n", thread->tid, thread__comm_str(thread)) +
-	       maps__fprintf(thread->maps, fp);
+	return fprintf(fp, "Thread %d %s\n", thread__tid(thread), thread__comm_str(thread)) +
+	       maps__fprintf(thread__maps(thread), fp);
 }
 
 int thread__insert_map(struct thread *thread, struct map *map)
 {
 	int ret;
 
-	ret = unwind__prepare_access(thread->maps, map, NULL);
+	ret = unwind__prepare_access(thread__maps(thread), map, NULL);
 	if (ret)
 		return ret;
 
-	maps__fixup_overlappings(thread->maps, map, stderr);
-	return maps__insert(thread->maps, map);
+	maps__fixup_overlappings(thread__maps(thread), map, stderr);
+	return maps__insert(thread__maps(thread), map);
 }
 
 static int __thread__prepare_access(struct thread *thread)
 {
 	bool initialized = false;
 	int err = 0;
-	struct maps *maps = thread->maps;
+	struct maps *maps = thread__maps(thread);
 	struct map_rb_node *rb_node;
 
 	down_read(maps__lock(maps));
 
 	maps__for_each_entry(maps, rb_node) {
-		err = unwind__prepare_access(thread->maps, rb_node->map, &initialized);
+		err = unwind__prepare_access(thread__maps(thread), rb_node->map, &initialized);
 		if (err || initialized)
 			break;
 	}
@@ -362,21 +363,22 @@ static int thread__prepare_access(struct thread *thread)
 static int thread__clone_maps(struct thread *thread, struct thread *parent, bool do_maps_clone)
 {
 	/* This is new thread, we share map groups for process. */
-	if (thread->pid_ == parent->pid_)
+	if (thread__pid(thread) == thread__pid(parent))
 		return thread__prepare_access(thread);
 
-	if (thread->maps == parent->maps) {
+	if (thread__maps(thread) == thread__maps(parent)) {
 		pr_debug("broken map groups on thread %d/%d parent %d/%d\n",
-			 thread->pid_, thread->tid, parent->pid_, parent->tid);
+			 thread__pid(thread), thread__tid(thread),
+			 thread__pid(parent), thread__tid(parent));
 		return 0;
 	}
 	/* But this one is new process, copy maps. */
-	return do_maps_clone ? maps__clone(thread, parent->maps) : 0;
+	return do_maps_clone ? maps__clone(thread, thread__maps(parent)) : 0;
 }
 
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bool do_maps_clone)
 {
-	if (parent->comm_set) {
+	if (thread__comm_set(parent)) {
 		const char *comm = thread__comm_str(parent);
 		int err;
 		if (!comm)
@@ -386,7 +388,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bo
 			return err;
 	}
 
-	thread->ppid = parent->tid;
+	thread__set_ppid(thread, thread__tid(parent));
 	return thread__clone_maps(thread, parent, do_maps_clone);
 }
 
@@ -410,13 +412,13 @@ void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 
 struct thread *thread__main_thread(struct machine *machine, struct thread *thread)
 {
-	if (thread->pid_ == thread->tid)
+	if (thread__pid(thread) == thread__tid(thread))
 		return thread__get(thread);
 
-	if (thread->pid_ == -1)
+	if (thread__pid(thread) == -1)
 		return NULL;
 
-	return machine__find_thread(machine, thread->pid_, thread->pid_);
+	return machine__find_thread(machine, thread__pid(thread), thread__pid(thread));
 }
 
 int thread__memcpy(struct thread *thread, struct machine *machine,
@@ -447,7 +449,7 @@ int thread__memcpy(struct thread *thread, struct machine *machine,
 
 void thread__free_stitch_list(struct thread *thread)
 {
-	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
+	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
 	struct stitch_list *pos, *tmp;
 
 	if (!lbr_stitch)
@@ -464,5 +466,6 @@ void thread__free_stitch_list(struct thread *thread)
 	}
 
 	zfree(&lbr_stitch->prev_lbr_cursor);
-	zfree(&thread->lbr_stitch);
+	free(thread__lbr_stitch(thread));
+	thread__set_lbr_stitch(thread, NULL);
 }

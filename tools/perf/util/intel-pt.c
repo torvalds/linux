@@ -1428,13 +1428,13 @@ static int intel_pt_get_guest_from_sideband(struct intel_pt_queue *ptq)
 		ptq->guest_machine = machine;
 	}
 
-	vcpu = ptq->thread ? ptq->thread->guest_cpu : -1;
+	vcpu = ptq->thread ? thread__guest_cpu(ptq->thread) : -1;
 	if (vcpu < 0)
 		return -1;
 
 	tid = machine__get_current_tid(machine, vcpu);
 
-	if (ptq->guest_thread && ptq->guest_thread->tid != tid)
+	if (ptq->guest_thread && thread__tid(ptq->guest_thread) != tid)
 		thread__zput(ptq->guest_thread);
 
 	if (!ptq->guest_thread) {
@@ -1444,7 +1444,7 @@ static int intel_pt_get_guest_from_sideband(struct intel_pt_queue *ptq)
 	}
 
 	ptq->guest_machine_pid = machine_pid;
-	ptq->guest_pid = ptq->guest_thread->pid_;
+	ptq->guest_pid = thread__pid(ptq->guest_thread);
 	ptq->guest_tid = tid;
 	ptq->vcpu = vcpu;
 
@@ -1467,9 +1467,9 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 		ptq->thread = machine__find_thread(pt->machine, -1, ptq->tid);
 
 	if (ptq->thread) {
-		ptq->pid = ptq->thread->pid_;
+		ptq->pid = thread__pid(ptq->thread);
 		if (queue->cpu == -1)
-			ptq->cpu = ptq->thread->cpu;
+			ptq->cpu = thread__cpu(ptq->thread);
 	}
 
 	if (pt->have_guest_sideband && intel_pt_get_guest_from_sideband(ptq)) {
@@ -3074,7 +3074,7 @@ static void intel_pt_sample_set_pid_tid_cpu(struct intel_pt_queue *ptq,
 	if (ptq->pid == -1) {
 		ptq->thread = machine__find_thread(m, -1, ptq->tid);
 		if (ptq->thread)
-			ptq->pid = ptq->thread->pid_;
+			ptq->pid = thread__pid(ptq->thread);
 		return;
 	}
 

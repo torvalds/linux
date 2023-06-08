@@ -2778,12 +2778,12 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 		if (hists__has(hists, thread)) {
 			printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
-				     (thread->comm_set ? thread__comm_str(thread) : ""),
-				    thread->tid);
+				    (thread__comm_set(thread) ? thread__comm_str(thread) : ""),
+					thread__tid(thread));
 		} else {
 			printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s",
-				     (thread->comm_set ? thread__comm_str(thread) : ""));
+				    (thread__comm_set(thread) ? thread__comm_str(thread) : ""));
 		}
 	}
 	if (dso)

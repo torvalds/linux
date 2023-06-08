@@ -384,7 +384,7 @@ put_map:
  */
 int maps__clone(struct thread *thread, struct maps *parent)
 {
-	struct maps *maps = thread->maps;
+	struct maps *maps = thread__maps(thread);
 	int err;
 	struct map_rb_node *rb_node;
 

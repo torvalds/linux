@@ -108,7 +108,7 @@ static int64_t cmp_null(const void *l, const void *r)
 static int64_t
 sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->tid - left->thread->tid;
+	return thread__tid(right->thread) - thread__tid(left->thread);
 }
 
 static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
@@ -117,7 +117,7 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 	const char *comm = thread__comm_str(he->thread);
 
 	width = max(7U, width) - 8;
-	return repsep_snprintf(bf, size, "%7d:%-*.*s", he->thread->tid,
+	return repsep_snprintf(bf, size, "%7d:%-*.*s", thread__tid(he->thread),
 			       width, width, comm ?: "");
 }
 
@@ -1543,8 +1543,10 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	    !l_dso->id.ino && !l_dso->id.ino_generation) {
 		/* userspace anonymous */
 
-		if (left->thread->pid_ > right->thread->pid_) return -1;
-		if (left->thread->pid_ < right->thread->pid_) return 1;
+		if (thread__pid(left->thread) > thread__pid(right->thread))
+			return -1;
+		if (thread__pid(left->thread) < thread__pid(right->thread))
+			return 1;
 	}
 
 addr:

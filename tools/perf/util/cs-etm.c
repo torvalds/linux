@@ -1311,7 +1311,7 @@ static void cs_etm__set_pid_tid_cpu(struct cs_etm_auxtrace *etm,
 						    tidq->tid);
 
 	if (tidq->thread)
-		tidq->pid = tidq->thread->pid_;
+		tidq->pid = thread__pid(tidq->thread);
 }
 
 int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,

@@ -128,7 +128,7 @@ typedef int (*test_fn_t)(struct evsel *, struct machine *);
 #define DSO(he)   (map__dso(he->ms.map)->short_name)
 #define SYM(he)   (he->ms.sym->name)
 #define CPU(he)   (he->cpu)
-#define PID(he)   (he->thread->tid)
+#define PID(he)   (thread__tid(he->thread))
 
 /* default sort keys (no field) */
 static int test1(struct evsel *evsel, struct machine *machine)

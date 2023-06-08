@@ -916,12 +916,12 @@ static int replay_fork_event(struct perf_sched *sched,
 
 	if (verbose > 0) {
 		printf("fork event\n");
-		printf("... parent: %s/%d\n", thread__comm_str(parent), parent->tid);
-		printf("...  child: %s/%d\n", thread__comm_str(child), child->tid);
+		printf("... parent: %s/%d\n", thread__comm_str(parent), thread__tid(parent));
+		printf("...  child: %s/%d\n", thread__comm_str(child), thread__tid(child));
 	}
 
-	register_pid(sched, parent->tid, thread__comm_str(parent));
-	register_pid(sched, child->tid, thread__comm_str(child));
+	register_pid(sched, thread__tid(parent), thread__comm_str(parent));
+	register_pid(sched, thread__tid(child), thread__comm_str(child));
 out_put:
 	thread__put(child);
 	thread__put(parent);
@@ -1316,7 +1316,7 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 	if (!atoms) {
 		if (thread_atoms_insert(sched, migrant))
 			goto out_put;
-		register_pid(sched, migrant->tid, thread__comm_str(migrant));
+		register_pid(sched, thread__tid(migrant), thread__comm_str(migrant));
 		atoms = thread_atoms_search(&sched->atom_root, migrant, &sched->cmp_pid);
 		if (!atoms) {
 			pr_err("migration-event: Internal tree error");
@@ -1359,10 +1359,13 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 	sched->all_runtime += work_list->total_runtime;
 	sched->all_count   += work_list->nb_atoms;
 
-	if (work_list->num_merged > 1)
-		ret = printf("  %s:(%d) ", thread__comm_str(work_list->thread), work_list->num_merged);
-	else
-		ret = printf("  %s:%d ", thread__comm_str(work_list->thread), work_list->thread->tid);
+	if (work_list->num_merged > 1) {
+		ret = printf("  %s:(%d) ", thread__comm_str(work_list->thread),
+			     work_list->num_merged);
+	} else {
+		ret = printf("  %s:%d ", thread__comm_str(work_list->thread),
+			     thread__tid(work_list->thread));
+	}
 
 	for (i = 0; i < 24 - ret; i++)
 		printf(" ");
@@ -1380,11 +1383,15 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 
 static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
 {
+	pid_t l_tid, r_tid;
+
 	if (l->thread == r->thread)
 		return 0;
-	if (l->thread->tid < r->thread->tid)
+	l_tid = thread__tid(l->thread);
+	r_tid = thread__tid(r->thread);
+	if (l_tid < r_tid)
 		return -1;
-	if (l->thread->tid > r->thread->tid)
+	if (l_tid > r_tid)
 		return 1;
 	return (int)(l->thread - r->thread);
 }
@@ -1679,14 +1686,14 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 
 	timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
 	color_fprintf(stdout, color, "  %12s secs ", stimestamp);
-	if (new_shortname || tr->comm_changed || (verbose > 0 && sched_in->tid)) {
+	if (new_shortname || tr->comm_changed || (verbose > 0 && thread__tid(sched_in))) {
 		const char *pid_color = color;
 
 		if (thread__has_color(sched_in))
 			pid_color = COLOR_PIDS;
 
 		color_fprintf(stdout, pid_color, "%s => %s:%d",
-		       tr->shortname, thread__comm_str(sched_in), sched_in->tid);
+			tr->shortname, thread__comm_str(sched_in), thread__tid(sched_in));
 		tr->comm_changed = false;
 	}
 
@@ -1948,8 +1955,8 @@ static char *timehist_get_commstr(struct thread *thread)
 {
 	static char str[32];
 	const char *comm = thread__comm_str(thread);
-	pid_t tid = thread->tid;
-	pid_t pid = thread->pid_;
+	pid_t tid = thread__tid(thread);
+	pid_t pid = thread__pid(thread);
 	int n;
 
 	if (pid == 0)
@@ -2032,7 +2039,7 @@ static char task_state_char(struct thread *thread, int state)
 	unsigned bit = state ? ffs(state) : 0;
 
 	/* 'I' for idle */
-	if (thread->tid == 0)
+	if (thread__tid(thread) == 0)
 		return 'I';
 
 	return bit < sizeof(state_to_char) - 1 ? state_to_char[bit] : '?';
@@ -2067,7 +2074,7 @@ static void timehist_print_sample(struct perf_sched *sched,
 		for (i = 0; i < max_cpus; ++i) {
 			/* flag idle times with 'i'; others are sched events */
 			if (i == sample->cpu)
-				c = (thread->tid == 0) ? 'i' : 's';
+				c = (thread__tid(thread) == 0) ? 'i' : 's';
 			else
 				c = ' ';
 			printf("%c", c);
@@ -2094,7 +2101,7 @@ static void timehist_print_sample(struct perf_sched *sched,
 	if (sched->show_wakeups && !sched->show_next)
 		printf("  %-*s", comm_width, "");
 
-	if (thread->tid == 0)
+	if (thread__tid(thread) == 0)
 		goto out;
 
 	if (sched->show_callchain)
@@ -2626,7 +2633,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 			t = ptime->end;
 	}
 
-	if (!sched->idle_hist || thread->tid == 0) {
+	if (!sched->idle_hist || thread__tid(thread) == 0) {
 		if (!cpu_list || test_bit(sample->cpu, cpu_bitmap))
 			timehist_update_runtime_stats(tr, t, tprev);
 
@@ -2634,7 +2641,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 			struct idle_thread_runtime *itr = (void *)tr;
 			struct thread_runtime *last_tr;
 
-			BUG_ON(thread->tid != 0);
+			BUG_ON(thread__tid(thread) != 0);
 
 			if (itr->last_thread == NULL)
 				goto out;
@@ -2719,7 +2726,7 @@ static void print_thread_runtime(struct thread *t,
 	float stddev;
 
 	printf("%*s   %5d  %9" PRIu64 " ",
-	       comm_width, timehist_get_commstr(t), t->ppid,
+	       comm_width, timehist_get_commstr(t), thread__ppid(t),
 	       (u64) r->run_stats.n);
 
 	print_sched_time(r->total_run_time, 8);
@@ -2739,7 +2746,7 @@ static void print_thread_waittime(struct thread *t,
 				  struct thread_runtime *r)
 {
 	printf("%*s   %5d  %9" PRIu64 " ",
-	       comm_width, timehist_get_commstr(t), t->ppid,
+	       comm_width, timehist_get_commstr(t), thread__ppid(t),
 	       (u64) r->run_stats.n);
 
 	print_sched_time(r->total_run_time, 8);

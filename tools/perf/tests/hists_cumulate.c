@@ -162,7 +162,6 @@ typedef int (*test_fn_t)(struct evsel *, struct machine *);
 #define DSO(he)   (map__dso(he->ms.map)->short_name)
 #define SYM(he)   (he->ms.sym->name)
 #define CPU(he)   (he->cpu)
-#define PID(he)   (he->thread->tid)
 #define DEPTH(he) (he->callchain->max_depth)
 #define CDSO(cl)  (map__dso(cl->ms.map)->short_name)
 #define CSYM(cl)  (cl->ms.sym->name)

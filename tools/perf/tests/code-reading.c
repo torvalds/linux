@@ -269,7 +269,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		len = map__end(al.map) - addr;
 
 	/* Read the object code using perf */
-	ret_len = dso__data_read_offset(dso, maps__machine(thread->maps),
+	ret_len = dso__data_read_offset(dso, maps__machine(thread__maps(thread)),
 					al.addr, buf1, len);
 	if (ret_len != len) {
 		pr_debug("dso__data_read_offset failed\n");

@@ -77,13 +77,14 @@ static int thread_rb_node__cmp_tid(const void *key, const struct rb_node *nd)
 {
 	int to_find = (int) *((pid_t *)key);
 
-	return to_find - (int)rb_entry(nd, struct thread_rb_node, rb_node)->thread->tid;
+	return to_find - (int)thread__tid(rb_entry(nd, struct thread_rb_node, rb_node)->thread);
 }
 
 static struct thread_rb_node *thread_rb_node__find(const struct thread *th,
 						   struct rb_root *tree)
 {
-	struct rb_node *nd = rb_find(&th->tid, tree, thread_rb_node__cmp_tid);
+	pid_t to_find = thread__tid(th);
+	struct rb_node *nd = rb_find(&to_find, tree, thread_rb_node__cmp_tid);
 
 	return rb_entry(nd, struct thread_rb_node, rb_node);
 }
@@ -440,7 +441,7 @@ static struct thread *findnew_guest_code(struct machine *machine,
 		return NULL;
 
 	/* Assume maps are set up if there are any */
-	if (maps__nr_maps(thread->maps))
+	if (maps__nr_maps(thread__maps(thread)))
 		return thread;
 
 	host_thread = machine__find_thread(host_machine, -1, pid);
@@ -453,7 +454,7 @@ static struct thread *findnew_guest_code(struct machine *machine,
 	 * Guest code can be found in hypervisor process at the same address
 	 * so copy host maps.
 	 */
-	err = maps__clone(thread, host_thread->maps);
+	err = maps__clone(thread, thread__maps(host_thread));
 	thread__put(host_thread);
 	if (err)
 		goto out_err;
@@ -518,45 +519,45 @@ static void machine__update_thread_pid(struct machine *machine,
 {
 	struct thread *leader;
 
-	if (pid == th->pid_ || pid == -1 || th->pid_ != -1)
+	if (pid == thread__pid(th) || pid == -1 || thread__pid(th) != -1)
 		return;
 
-	th->pid_ = pid;
+	thread__set_pid(th, pid);
 
-	if (th->pid_ == th->tid)
+	if (thread__pid(th) == thread__tid(th))
 		return;
 
-	leader = __machine__findnew_thread(machine, th->pid_, th->pid_);
+	leader = __machine__findnew_thread(machine, thread__pid(th), thread__pid(th));
 	if (!leader)
 		goto out_err;
 
-	if (!leader->maps)
-		leader->maps = maps__new(machine);
+	if (!thread__maps(leader))
+		thread__set_maps(leader, maps__new(machine));
 
-	if (!leader->maps)
+	if (!thread__maps(leader))
 		goto out_err;
 
-	if (th->maps == leader->maps)
+	if (thread__maps(th) == thread__maps(leader))
 		return;
 
-	if (th->maps) {
+	if (thread__maps(th)) {
 		/*
 		 * Maps are created from MMAP events which provide the pid and
 		 * tid.  Consequently there never should be any maps on a thread
 		 * with an unknown pid.  Just print an error if there are.
 		 */
-		if (!maps__empty(th->maps))
+		if (!maps__empty(thread__maps(th)))
 			pr_err("Discarding thread maps for %d:%d\n",
-			       th->pid_, th->tid);
-		maps__put(th->maps);
+				thread__pid(th), thread__tid(th));
+		maps__put(thread__maps(th));
 	}
 
-	th->maps = maps__get(leader->maps);
+	thread__set_maps(th, maps__get(thread__maps(leader)));
 out_put:
 	thread__put(leader);
 	return;
 out_err:
-	pr_err("Failed to join map groups for %d:%d\n", th->pid_, th->tid);
+	pr_err("Failed to join map groups for %d:%d\n", thread__pid(th), thread__tid(th));
 	goto out_put;
 }
 
@@ -573,7 +574,7 @@ __threads__get_last_match(struct threads *threads, struct machine *machine,
 
 	th = threads->last_match;
 	if (th != NULL) {
-		if (th->tid == tid) {
+		if (thread__tid(th) == tid) {
 			machine__update_thread_pid(machine, th, pid);
 			return thread__get(th);
 		}
@@ -632,13 +633,13 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		parent = *p;
 		th = rb_entry(parent, struct thread_rb_node, rb_node)->thread;
 
-		if (th->tid == tid) {
+		if (thread__tid(th) == tid) {
 			threads__set_last_match(threads, th);
 			machine__update_thread_pid(machine, th, pid);
 			return thread__get(th);
 		}
 
-		if (tid < th->tid)
+		if (tid < thread__tid(th))
 			p = &(*p)->rb_left;
 		else {
 			p = &(*p)->rb_right;
@@ -2049,7 +2050,7 @@ out_problem:
 static void __machine__remove_thread(struct machine *machine, struct thread_rb_node *nd,
 				     struct thread *th, bool lock)
 {
-	struct threads *threads = machine__threads(machine, th->tid);
+	struct threads *threads = machine__threads(machine, thread__tid(th));
 
 	if (!nd)
 		nd = thread_rb_node__find(th, &threads->entries.rb_root);
@@ -2060,7 +2061,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread_rb_n
 	if (lock)
 		down_write(&threads->lock);
 
-	BUG_ON(refcount_read(&th->refcnt) == 0);
+	BUG_ON(refcount_read(thread__refcnt(th)) == 0);
 
 	thread__put(nd->thread);
 	rb_erase_cached(&nd->rb_node, &threads->entries);
@@ -2099,9 +2100,9 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	 * (fork) event that would have removed the thread was lost. Assume the
 	 * latter case and continue on as best we can.
 	 */
-	if (parent->pid_ != (pid_t)event->fork.ppid) {
+	if (thread__pid(parent) != (pid_t)event->fork.ppid) {
 		dump_printf("removing erroneous parent thread %d/%d\n",
-			    parent->pid_, parent->tid);
+			    thread__pid(parent), thread__tid(parent));
 		machine__remove_thread(machine, parent);
 		thread__put(parent);
 		parent = machine__findnew_thread(machine, event->fork.ppid,
@@ -2511,7 +2512,7 @@ static void save_lbr_cursor_node(struct thread *thread,
 				 struct callchain_cursor *cursor,
 				 int idx)
 {
-	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
+	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
 
 	if (!lbr_stitch)
 		return;
@@ -2553,7 +2554,7 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 	 * in callchain_cursor_commit() when the writing session is closed.
 	 * Using curr and pos to track the current cursor node.
 	 */
-	if (thread->lbr_stitch) {
+	if (thread__lbr_stitch(thread)) {
 		cursor->curr = NULL;
 		cursor->pos = cursor->nr;
 		if (cursor->nr) {
@@ -2581,7 +2582,7 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 		 * But does not need to save current cursor node for entry 0.
 		 * It's impossible to stitch the whole LBRs of previous sample.
 		 */
-		if (thread->lbr_stitch && (cursor->pos != cursor->nr)) {
+		if (thread__lbr_stitch(thread) && (cursor->pos != cursor->nr)) {
 			if (!cursor->curr)
 				cursor->curr = cursor->first;
 			else
@@ -2634,7 +2635,7 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 static int lbr_callchain_add_stitched_lbr_ip(struct thread *thread,
 					     struct callchain_cursor *cursor)
 {
-	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
+	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
 	struct callchain_cursor_node *cnode;
 	struct stitch_list *stitch_node;
 	int err;
@@ -2658,7 +2659,7 @@ static int lbr_callchain_add_stitched_lbr_ip(struct thread *thread,
 
 static struct stitch_list *get_stitch_node(struct thread *thread)
 {
-	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
+	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
 	struct stitch_list *stitch_node;
 
 	if (!list_empty(&lbr_stitch->free_lists)) {
@@ -2682,7 +2683,7 @@ static bool has_stitched_lbr(struct thread *thread,
 	struct branch_entry *cur_entries = perf_sample__branch_entries(cur);
 	struct branch_stack *prev_stack = prev->branch_stack;
 	struct branch_entry *prev_entries = perf_sample__branch_entries(prev);
-	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
+	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
 	int i, j, nr_identical_branches = 0;
 	struct stitch_list *stitch_node;
 	u64 cur_base, distance;
@@ -2746,27 +2747,29 @@ static bool has_stitched_lbr(struct thread *thread,
 
 static bool alloc_lbr_stitch(struct thread *thread, unsigned int max_lbr)
 {
-	if (thread->lbr_stitch)
+	if (thread__lbr_stitch(thread))
 		return true;
 
-	thread->lbr_stitch = zalloc(sizeof(*thread->lbr_stitch));
-	if (!thread->lbr_stitch)
+	thread__set_lbr_stitch(thread, zalloc(sizeof(struct lbr_stitch)));
+	if (!thread__lbr_stitch(thread))
 		goto err;
 
-	thread->lbr_stitch->prev_lbr_cursor = calloc(max_lbr + 1, sizeof(struct callchain_cursor_node));
-	if (!thread->lbr_stitch->prev_lbr_cursor)
+	thread__lbr_stitch(thread)->prev_lbr_cursor =
+		calloc(max_lbr + 1, sizeof(struct callchain_cursor_node));
+	if (!thread__lbr_stitch(thread)->prev_lbr_cursor)
 		goto free_lbr_stitch;
 
-	INIT_LIST_HEAD(&thread->lbr_stitch->lists);
-	INIT_LIST_HEAD(&thread->lbr_stitch->free_lists);
+	INIT_LIST_HEAD(&thread__lbr_stitch(thread)->lists);
+	INIT_LIST_HEAD(&thread__lbr_stitch(thread)->free_lists);
 
 	return true;
 
 free_lbr_stitch:
-	zfree(&thread->lbr_stitch);
+	free(thread__lbr_stitch(thread));
+	thread__set_lbr_stitch(thread, NULL);
 err:
 	pr_warning("Failed to allocate space for stitched LBRs. Disable LBR stitch\n");
-	thread->lbr_stitch_enable = false;
+	thread__set_lbr_stitch_enable(thread, false);
 	return false;
 }
 
@@ -2802,9 +2805,9 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	if (i == chain_nr)
 		return 0;
 
-	if (thread->lbr_stitch_enable && !sample->no_hw_idx &&
+	if (thread__lbr_stitch_enable(thread) && !sample->no_hw_idx &&
 	    (max_lbr > 0) && alloc_lbr_stitch(thread, max_lbr)) {
-		lbr_stitch = thread->lbr_stitch;
+		lbr_stitch = thread__lbr_stitch(thread);
 
 		stitched_lbr = has_stitched_lbr(thread, sample,
 						&lbr_stitch->prev_sample,
@@ -2884,7 +2887,7 @@ static int find_prev_cpumode(struct ip_callchain *chain, struct thread *thread,
 static u64 get_leaf_frame_caller(struct perf_sample *sample,
 		struct thread *thread, int usr_idx)
 {
-	if (machine__normalized_is(maps__machine(thread->maps), "arm64"))
+	if (machine__normalized_is(maps__machine(thread__maps(thread)), "arm64"))
 		return get_leaf_frame_caller_aarch64(sample, thread, usr_idx);
 	else
 		return 0;
@@ -3265,7 +3268,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 	if (!thread)
 		return -ENOMEM;
 
-	thread->cpu = cpu;
+	thread__set_cpu(thread, cpu);
 	thread__put(thread);
 
 	return 0;
