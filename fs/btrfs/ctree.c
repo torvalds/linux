@@ -1164,9 +1164,13 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		 * otherwise we would have pulled some pointers from the
 		 * right
 		 */
-		if (!left) {
-			ret = -EROFS;
-			btrfs_handle_fs_error(fs_info, ret, NULL);
+		if (unlikely(!left)) {
+			btrfs_crit(fs_info,
+"missing left child when middle child only has 1 item, parent bytenr %llu level %d mid bytenr %llu root %llu",
+				   parent->start, btrfs_header_level(parent),
+				   mid->start, btrfs_root_id(root));
+			ret = -EUCLEAN;
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 		wret = balance_node_right(trans, mid, left);
