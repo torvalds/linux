@@ -90,6 +90,13 @@ int efx_mae_check_encap_type_supported(struct efx_nic *efx,
 int efx_mae_allocate_counter(struct efx_nic *efx, struct efx_tc_counter *cnt);
 int efx_mae_free_counter(struct efx_nic *efx, struct efx_tc_counter *cnt);
 
+int efx_mae_allocate_encap_md(struct efx_nic *efx,
+			      struct efx_tc_encap_action *encap);
+int efx_mae_update_encap_md(struct efx_nic *efx,
+			    struct efx_tc_encap_action *encap);
+int efx_mae_free_encap_md(struct efx_nic *efx,
+			  struct efx_tc_encap_action *encap);
+
 int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act);
 int efx_mae_free_action_set(struct efx_nic *efx, u32 fw_id);
 
