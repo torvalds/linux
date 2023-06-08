@@ -1494,3 +1494,7 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cp
                      int fd, int group_fd, unsigned long flags)
 {
 }
+
+void evlist__free_stats(struct evlist *evlist)
+{
+}
