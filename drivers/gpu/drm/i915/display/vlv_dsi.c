@@ -929,13 +929,6 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 }
 
-static void intel_dsi_shutdown(struct intel_encoder *encoder)
-{
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-
-	intel_dsi_wait_panel_power_cycle(intel_dsi);
-}
-
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {

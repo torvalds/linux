@@ -174,5 +174,6 @@ struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 					   const struct mipi_dsi_host_ops *funcs,
 					   enum port port);
 void intel_dsi_wait_panel_power_cycle(struct intel_dsi *intel_dsi);
+void intel_dsi_shutdown(struct intel_encoder *encoder);
 
 #endif /* _INTEL_DSI_H */

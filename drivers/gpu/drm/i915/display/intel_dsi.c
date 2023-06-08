@@ -22,6 +22,13 @@ void intel_dsi_wait_panel_power_cycle(struct intel_dsi *intel_dsi)
 		msleep(intel_dsi->panel_pwr_cycle_delay - panel_power_off_duration);
 }
 
+void intel_dsi_shutdown(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
+}
+
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi)
 {
 	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
