@@ -2049,8 +2049,6 @@ void TsStartAddBaProcess(struct rtllib_device *ieee,
 void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr);
 void RemoveAllTS(struct rtllib_device *ieee);
 
-extern const long rtllib_wlan_frequencies[];
-
 static inline const char *escape_essid(const char *essid, u8 essid_len)
 {
 	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];

@@ -15,15 +15,6 @@
 
 #include "rtllib.h"
 #include "dot11d.h"
-/* FIXME: add A freqs */
-
-const long rtllib_wlan_frequencies[] = {
-	2412, 2417, 2422, 2427,
-	2432, 2437, 2442, 2447,
-	2452, 2457, 2462, 2467,
-	2472, 2484
-};
-EXPORT_SYMBOL(rtllib_wlan_frequencies);
 
 int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -83,8 +74,8 @@ int rtllib_wx_get_freq(struct rtllib_device *ieee,
 
 	if (ieee->current_network.channel == 0)
 		return -1;
-	fwrq->m = rtllib_wlan_frequencies[ieee->current_network.channel - 1] *
-		  100000;
+	fwrq->m = ieee80211_channel_to_freq_khz(ieee->current_network.channel,
+						NL80211_BAND_2GHZ) * 100;
 	fwrq->e = 1;
 	return 0;
 }

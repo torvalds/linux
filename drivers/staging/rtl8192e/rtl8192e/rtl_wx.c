@@ -342,9 +342,11 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 
 	for (i = 0, val = 0; i < 14; i++) {
 		if ((priv->rtllib->active_channel_map)[i + 1]) {
+			s32 freq_khz;
+
 			range->freq[val].i = i + 1;
-			range->freq[val].m = rtllib_wlan_frequencies[i] *
-					     100000;
+			freq_khz = ieee80211_channel_to_freq_khz(i + 1, NL80211_BAND_2GHZ);
+			range->freq[val].m = freq_khz * 100;
 			range->freq[val].e = 1;
 			val++;
 		}
