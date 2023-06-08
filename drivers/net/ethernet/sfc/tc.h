@@ -36,6 +36,8 @@ struct efx_tc_action_set {
 	__be16 vlan_proto[2]; /* Ethertypes for vlan_push */
 	struct efx_tc_counter_index *count;
 	struct efx_tc_encap_action *encap_md; /* entry in tc_encap_ht table */
+	struct list_head encap_user; /* entry on encap_md->users list */
+	struct efx_tc_action_set_list *user; /* Only populated if encap_md */
 	u32 dest_mport;
 	u32 fw_id; /* index of this entry in firmware actions table */
 	struct list_head list;
@@ -151,6 +153,7 @@ enum efx_tc_rule_prios {
  * @encap_ht: Hashtable of TC encap actions
  * @encap_match_ht: Hashtable of TC encap matches
  * @match_action_ht: Hashtable of TC match-action rules
+ * @neigh_ht: Hashtable of neighbour watches (&struct efx_neigh_binder)
  * @reps_mport_id: MAE port allocated for representor RX
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
  * @reps_filter_mc: VNIC filter for representor multicast RX (allmulti)
@@ -181,6 +184,7 @@ struct efx_tc_state {
 	struct rhashtable encap_ht;
 	struct rhashtable encap_match_ht;
 	struct rhashtable match_action_ht;
+	struct rhashtable neigh_ht;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;
 	bool flush_counters;
@@ -201,6 +205,9 @@ struct efx_tc_state {
 struct efx_rep;
 
 enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev);
+struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
+					 struct net_device *dev);
+s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv);
 int efx_tc_configure_default_rule_rep(struct efx_rep *efv);
 void efx_tc_deconfigure_default_rule(struct efx_nic *efx,
 				     struct efx_tc_flow_rule *rule);

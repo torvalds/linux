@@ -34,8 +34,8 @@ enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
  * May return NULL for the PF (us), or an error pointer for a device that
  * isn't supported as a TC offload endpoint
  */
-static struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
-						struct net_device *dev)
+struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
+					 struct net_device *dev)
 {
 	struct efx_rep *efv;
 
@@ -71,7 +71,7 @@ static s64 efx_tc_flower_internal_mport(struct efx_nic *efx, struct efx_rep *efv
 }
 
 /* Convert a driver-internal vport ID into an external device (wire or VF) */
-static s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv)
+s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv)
 {
 	u32 mport;
 
@@ -112,8 +112,10 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 	}
 	if (act->count)
 		efx_tc_flower_put_counter_index(efx, act->count);
-	if (act->encap_md)
+	if (act->encap_md) {
+		list_del(&act->encap_user);
 		efx_tc_flower_release_encap_md(efx, act->encap_md);
+	}
 	kfree(act);
 }
 
@@ -1115,6 +1117,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 					goto release;
 				}
 				act->encap_md = encap;
+				list_add_tail(&act->encap_user, &encap->users);
 				act->dest_mport = encap->dest_mport;
 				act->deliver = 1;
 				rc = efx_mae_alloc_action_set(efx, act);
@@ -1123,6 +1126,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 					goto release;
 				}
 				list_add_tail(&act->list, &rule->acts.list);
+				act->user = &rule->acts;
 				act = NULL;
 				if (fa->id == FLOW_ACTION_REDIRECT)
 					break; /* end of the line */
