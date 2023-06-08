@@ -1111,16 +1111,6 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	    stop  < 0 || stop  >= SND_SOC_TRIGGER_ORDER_MAX)
 		return -EINVAL;
 
-	/* REMOVE ME */
-	for_each_rtd_components(rtd, i, component) {
-		if (component->driver->start_dma_last) {
-			start = SND_SOC_TRIGGER_ORDER_LDC;
-			break;
-		}
-	}
-	if (rtd->dai_link->stop_dma_first)
-		stop = SND_SOC_TRIGGER_ORDER_LDC;
-
 	/*
 	 * START
 	 */
