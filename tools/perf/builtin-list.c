@@ -15,6 +15,7 @@
 #include "util/pmu.h"
 #include "util/debug.h"
 #include "util/metricgroup.h"
+#include "util/pfm.h"
 #include "util/string2.h"
 #include "util/strlist.h"
 #include "util/strbuf.h"
@@ -457,7 +458,11 @@ int cmd_list(int argc, const char **argv)
 		OPT_END()
 	};
 	const char * const list_usage[] = {
+#ifdef HAVE_LIBPFM
+		"perf list [<options>] [hw|sw|cache|tracepoint|pmu|sdt|metric|metricgroup|event_glob|pfm]",
+#else
 		"perf list [<options>] [hw|sw|cache|tracepoint|pmu|sdt|metric|metricgroup|event_glob]",
+#endif
 		NULL
 	};
 
@@ -539,7 +544,12 @@ int cmd_list(int argc, const char **argv)
 			default_ps.metricgroups = true;
 			default_ps.metrics = false;
 			metricgroup__print(&print_cb, ps);
-		} else if ((sep = strchr(argv[i], ':')) != NULL) {
+		}
+#ifdef HAVE_LIBPFM
+		else if (strcmp(argv[i], "pfm") == 0)
+			print_libpfm_events(&print_cb, ps);
+#endif
+		else if ((sep = strchr(argv[i], ':')) != NULL) {
 			char *old_pmu_glob = default_ps.pmu_glob;
 
 			default_ps.event_glob = strdup(argv[i]);
