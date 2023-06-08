@@ -328,7 +328,7 @@ static int jh7110_tdm_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 
-	dai_link->stop_dma_first = 1;
+	dai_link->trigger_stop = SND_SOC_TRIGGER_ORDER_LDC;
 
 	return 0;
 }
