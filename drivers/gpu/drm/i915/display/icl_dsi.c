@@ -1291,12 +1291,6 @@ static void gen11_dsi_powerdown_panel(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
-
-	msleep(intel_dsi->panel_off_delay);
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
-
-	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
 	/* ensure cmds dispatched to panel */
 	wait_for_cmds_dispatched_to_panel(encoder);
@@ -1408,6 +1402,7 @@ static void gen11_dsi_post_disable(struct intel_atomic_state *state,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_conn_state->crtc);
 
 	intel_crtc_vblank_off(old_crtc_state);
@@ -1434,6 +1429,13 @@ static void gen11_dsi_post_disable(struct intel_atomic_state *state,
 
 	/* step4: disable IO power */
 	gen11_dsi_disable_io_power(encoder);
+
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
+
+	msleep(intel_dsi->panel_off_delay);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
+
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 }
 
 static enum drm_mode_status gen11_dsi_mode_valid(struct drm_connector *connector,
