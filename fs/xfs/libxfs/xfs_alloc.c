@@ -628,6 +628,25 @@ xfs_alloc_fixup_trees(
 	return 0;
 }
 
+/*
+ * We do not verify the AGFL contents against AGF-based index counters here,
+ * even though we may have access to the perag that contains shadow copies. We
+ * don't know if the AGF based counters have been checked, and if they have they
+ * still may be inconsistent because they haven't yet been reset on the first
+ * allocation after the AGF has been read in.
+ *
+ * This means we can only check that all agfl entries contain valid or null
+ * values because we can't reliably determine the active range to exclude
+ * NULLAGBNO as a valid value.
+ *
+ * However, we can't even do that for v4 format filesystems because there are
+ * old versions of mkfs out there that does not initialise the AGFL to known,
+ * verifiable values. HEnce we can't tell the difference between a AGFL block
+ * allocated by mkfs and a corrupted AGFL block here on v4 filesystems.
+ *
+ * As a result, we can only fully validate AGFL block numbers when we pull them
+ * from the freelist in xfs_alloc_get_freelist().
+ */
 static xfs_failaddr_t
 xfs_agfl_verify(
 	struct xfs_buf	*bp)
@@ -637,12 +656,6 @@ xfs_agfl_verify(
 	__be32		*agfl_bno = xfs_buf_to_agfl_bno(bp);
 	int		i;
 
-	/*
-	 * There is no verification of non-crc AGFLs because mkfs does not
-	 * initialise the AGFL to zero or NULL. Hence the only valid part of the
-	 * AGFL is what the AGF says is active. We can't get to the AGF, so we
-	 * can't verify just those entries are valid.
-	 */
 	if (!xfs_has_crc(mp))
 		return NULL;
 
@@ -2321,12 +2334,16 @@ xfs_free_agfl_block(
 }
 
 /*
- * Check the agfl fields of the agf for inconsistency or corruption. The purpose
- * is to detect an agfl header padding mismatch between current and early v5
- * kernels. This problem manifests as a 1-slot size difference between the
- * on-disk flcount and the active [first, last] range of a wrapped agfl. This
- * may also catch variants of agfl count corruption unrelated to padding. Either
- * way, we'll reset the agfl and warn the user.
+ * Check the agfl fields of the agf for inconsistency or corruption.
+ *
+ * The original purpose was to detect an agfl header padding mismatch between
+ * current and early v5 kernels. This problem manifests as a 1-slot size
+ * difference between the on-disk flcount and the active [first, last] range of
+ * a wrapped agfl.
+ *
+ * However, we need to use these same checks to catch agfl count corruptions
+ * unrelated to padding. This could occur on any v4 or v5 filesystem, so either
+ * way, we need to reset the agfl and warn the user.
  *
  * Return true if a reset is required before the agfl can be used, false
  * otherwise.
@@ -2341,10 +2358,6 @@ xfs_agfl_needs_reset(
 	uint32_t		c = be32_to_cpu(agf->agf_flcount);
 	int			agfl_size = xfs_agfl_size(mp);
 	int			active;
-
-	/* no agfl header on v4 supers */
-	if (!xfs_has_crc(mp))
-		return false;
 
 	/*
 	 * The agf read verifier catches severe corruption of these fields.
@@ -2418,7 +2431,7 @@ xfs_agfl_reset(
  * the real allocation can proceed. Deferring the free disconnects freeing up
  * the AGFL slot from freeing the block.
  */
-STATIC void
+static int
 xfs_defer_agfl_block(
 	struct xfs_trans		*tp,
 	xfs_agnumber_t			agno,
@@ -2437,17 +2450,21 @@ xfs_defer_agfl_block(
 	xefi->xefi_blockcount = 1;
 	xefi->xefi_owner = oinfo->oi_owner;
 
+	if (XFS_IS_CORRUPT(mp, !xfs_verify_fsbno(mp, xefi->xefi_startblock)))
+		return -EFSCORRUPTED;
+
 	trace_xfs_agfl_free_defer(mp, agno, 0, agbno, 1);
 
 	xfs_extent_free_get_group(mp, xefi);
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_AGFL_FREE, &xefi->xefi_list);
+	return 0;
 }
 
 /*
  * Add the extent to the list of extents to be free at transaction end.
  * The list is maintained sorted (by block number).
  */
-void
+int
 __xfs_free_extent_later(
 	struct xfs_trans		*tp,
 	xfs_fsblock_t			bno,
@@ -2474,6 +2491,9 @@ __xfs_free_extent_later(
 #endif
 	ASSERT(xfs_extfree_item_cache != NULL);
 
+	if (XFS_IS_CORRUPT(mp, !xfs_verify_fsbext(mp, bno, len)))
+		return -EFSCORRUPTED;
+
 	xefi = kmem_cache_zalloc(xfs_extfree_item_cache,
 			       GFP_KERNEL | __GFP_NOFAIL);
 	xefi->xefi_startblock = bno;
@@ -2497,6 +2517,7 @@ __xfs_free_extent_later(
 
 	xfs_extent_free_get_group(mp, xefi);
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_FREE, &xefi->xefi_list);
+	return 0;
 }
 
 #ifdef DEBUG
@@ -2657,7 +2678,9 @@ xfs_alloc_fix_freelist(
 			goto out_agbp_relse;
 
 		/* defer agfl frees */
-		xfs_defer_agfl_block(tp, args->agno, bno, &targs.oinfo);
+		error = xfs_defer_agfl_block(tp, args->agno, bno, &targs.oinfo);
+		if (error)
+			goto out_agbp_relse;
 	}
 
 	targs.tp = tp;
@@ -2767,6 +2790,9 @@ xfs_alloc_get_freelist(
 	 */
 	agfl_bno = xfs_buf_to_agfl_bno(agflbp);
 	bno = be32_to_cpu(agfl_bno[be32_to_cpu(agf->agf_flfirst)]);
+	if (XFS_IS_CORRUPT(tp->t_mountp, !xfs_verify_agbno(pag, bno)))
+		return -EFSCORRUPTED;
+
 	be32_add_cpu(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
 	if (be32_to_cpu(agf->agf_flfirst) == xfs_agfl_size(mp))
@@ -2889,6 +2915,19 @@ xfs_alloc_put_freelist(
 	return 0;
 }
 
+/*
+ * Verify the AGF is consistent.
+ *
+ * We do not verify the AGFL indexes in the AGF are fully consistent here
+ * because of issues with variable on-disk structure sizes. Instead, we check
+ * the agfl indexes for consistency when we initialise the perag from the AGF
+ * information after a read completes.
+ *
+ * If the index is inconsistent, then we mark the perag as needing an AGFL
+ * reset. The first AGFL update performed then resets the AGFL indexes and
+ * refills the AGFL with known good free blocks, allowing the filesystem to
+ * continue operating normally at the cost of a few leaked free space blocks.
+ */
 static xfs_failaddr_t
 xfs_agf_verify(
 	struct xfs_buf		*bp)
@@ -2962,7 +3001,6 @@ xfs_agf_verify(
 		return __this_address;
 
 	return NULL;
-
 }
 
 static void
@@ -3187,7 +3225,8 @@ xfs_alloc_vextent_check_args(
  */
 static int
 xfs_alloc_vextent_prepare_ag(
-	struct xfs_alloc_arg	*args)
+	struct xfs_alloc_arg	*args,
+	uint32_t		flags)
 {
 	bool			need_pag = !args->pag;
 	int			error;
@@ -3196,7 +3235,7 @@ xfs_alloc_vextent_prepare_ag(
 		args->pag = xfs_perag_get(args->mp, args->agno);
 
 	args->agbp = NULL;
-	error = xfs_alloc_fix_freelist(args, 0);
+	error = xfs_alloc_fix_freelist(args, flags);
 	if (error) {
 		trace_xfs_alloc_vextent_nofix(args);
 		if (need_pag)
@@ -3336,7 +3375,7 @@ xfs_alloc_vextent_this_ag(
 		return error;
 	}
 
-	error = xfs_alloc_vextent_prepare_ag(args);
+	error = xfs_alloc_vextent_prepare_ag(args, 0);
 	if (!error && args->agbp)
 		error = xfs_alloc_ag_vextent_size(args);
 
@@ -3380,7 +3419,7 @@ restart:
 	for_each_perag_wrap_range(mp, start_agno, restart_agno,
 			mp->m_sb.sb_agcount, agno, args->pag) {
 		args->agno = agno;
-		error = xfs_alloc_vextent_prepare_ag(args);
+		error = xfs_alloc_vextent_prepare_ag(args, flags);
 		if (error)
 			break;
 		if (!args->agbp) {
@@ -3546,7 +3585,7 @@ xfs_alloc_vextent_exact_bno(
 		return error;
 	}
 
-	error = xfs_alloc_vextent_prepare_ag(args);
+	error = xfs_alloc_vextent_prepare_ag(args, 0);
 	if (!error && args->agbp)
 		error = xfs_alloc_ag_vextent_exact(args);
 
@@ -3587,7 +3626,7 @@ xfs_alloc_vextent_near_bno(
 	if (needs_perag)
 		args->pag = xfs_perag_grab(mp, args->agno);
 
-	error = xfs_alloc_vextent_prepare_ag(args);
+	error = xfs_alloc_vextent_prepare_ag(args, 0);
 	if (!error && args->agbp)
 		error = xfs_alloc_ag_vextent_near(args);
 
