@@ -329,8 +329,8 @@ class SpecFamily(SpecElement):
 
         attr_sets  dict of attribute sets
         msgs       dict of all messages (index by name)
-        msgs_by_value  dict of all messages (indexed by name)
         ops        dict of all valid requests / responses
+        ntfs       dict of all async events
         consts     dict of all constants/enums
         fixed_header  string, optional name of family default fixed header struct
     """
@@ -370,6 +370,7 @@ class SpecFamily(SpecElement):
         self.req_by_value = collections.OrderedDict()
         self.rsp_by_value = collections.OrderedDict()
         self.ops = collections.OrderedDict()
+        self.ntfs = collections.OrderedDict()
         self.consts = collections.OrderedDict()
 
         last_exception = None
@@ -491,3 +492,5 @@ class SpecFamily(SpecElement):
                 self.rsp_by_value[op.rsp_value] = op
             if not op.is_async and 'attribute-set' in op:
                 self.ops[op.name] = op
+            elif op.is_async:
+                self.ntfs[op.name] = op

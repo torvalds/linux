@@ -714,6 +714,8 @@ class Operation(SpecOperation):
         self.dual_policy = ('do' in yaml and 'request' in yaml['do']) and \
                          ('dump' in yaml and 'request' in yaml['dump'])
 
+        self.has_ntf = False
+
         # Added by resolve:
         self.enum_name = None
         delattr(self, "enum_name")
@@ -726,12 +728,8 @@ class Operation(SpecOperation):
         else:
             self.enum_name = self.family.async_op_prefix + c_upper(self.name)
 
-    def add_notification(self, op):
-        if 'notify' not in self.yaml:
-            self.yaml['notify'] = dict()
-            self.yaml['notify']['reply'] = self.yaml['do']['reply']
-            self.yaml['notify']['cmds'] = []
-        self.yaml['notify']['cmds'].append(op)
+    def mark_has_ntf(self):
+        self.has_ntf = True
 
 
 class Family(SpecFamily):
@@ -793,14 +791,12 @@ class Family(SpecFamily):
         self.root_sets = dict()
         # dict space-name -> set('request', 'reply')
         self.pure_nested_structs = dict()
-        self.all_notify = dict()
 
+        self._mark_notify()
         self._mock_up_events()
 
-        self._dictify()
         self._load_root_sets()
         self._load_nested_sets()
-        self._load_all_notify()
         self._load_hooks()
 
         self.kernel_policy = self.yaml.get('kernel-policy', 'split')
@@ -816,6 +812,11 @@ class Family(SpecFamily):
     def new_operation(self, elem, req_value, rsp_value):
         return Operation(self, elem, req_value, rsp_value)
 
+    def _mark_notify(self):
+        for op in self.msgs.values():
+            if 'notify' in op:
+                self.ops[op['notify']].mark_has_ntf()
+
     # Fake a 'do' equivalent of all events, so that we can render their response parsing
     def _mock_up_events(self):
         for op in self.yaml['operations']['list']:
@@ -825,14 +826,6 @@ class Family(SpecFamily):
                         'attributes': op['event']['attributes']
                     }
                 }
-
-    def _dictify(self):
-        ntf = []
-        for msg in self.msgs.values():
-            if 'notify' in msg:
-                ntf.append(msg)
-        for n in ntf:
-            self.ops[n['notify']].add_notification(n)
 
     def _load_root_sets(self):
         for op_name, op in self.ops.items():
@@ -922,14 +915,6 @@ class Family(SpecFamily):
                         child.request |= struct.request
                         child.reply |= struct.reply
 
-    def _load_all_notify(self):
-        for op_name, op in self.ops.items():
-            if not op:
-                continue
-
-            if 'notify' in op:
-                self.all_notify[op_name] = op['notify']['cmds']
-
     def _load_global_policy(self):
         global_set = set()
         attr_set_name = None
@@ -968,21 +953,15 @@ class Family(SpecFamily):
                     self.hooks[when][op_mode]['set'].add(name)
                     self.hooks[when][op_mode]['list'].append(name)
 
-    def has_notifications(self):
-        for op in self.ops.values():
-            if 'notify' in op or 'event' in op:
-                return True
-        return False
-
 
 class RenderInfo:
     def __init__(self, cw, family, ku_space, op, op_name, op_mode, attr_set=None):
         self.family = family
         self.nl = cw.nlib
         self.ku_space = ku_space
+        self.op_mode = op_mode
         self.op = op
         self.op_name = op_name
-        self.op_mode = op_mode
 
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
@@ -1004,6 +983,8 @@ class RenderInfo:
         self.cw = cw
 
         self.struct = dict()
+        if op_mode == 'notify':
+            op_mode = 'do'
         for op_dir in ['request', 'reply']:
             if op and op_dir in op[op_mode]:
                 self.struct[op_dir] = Struct(family, self.attr_set,
@@ -2209,14 +2190,14 @@ def render_user_family(family, cw, prototype):
         cw.p(f'extern {symbol};')
         return
 
-    ntf = family.has_notifications()
-    if ntf:
+    if family.ntfs:
         cw.block_start(line=f"static const struct ynl_ntf_info {family['name']}_ntf_info[] = ")
-        for ntf_op in sorted(family.all_notify.keys()):
-            op = family.ops[ntf_op]
-            ri = RenderInfo(cw, family, "user", op, ntf_op, "notify")
-            for ntf in op['notify']['cmds']:
-                _render_user_ntf_entry(ri, ntf)
+        for ntf_op_name, ntf_op in family.ntfs.items():
+            if 'notify' not in ntf_op:
+                continue
+            op = family.ops[ntf_op['notify']]
+            ri = RenderInfo(cw, family, "user", op, op.name, "notify")
+            _render_user_ntf_entry(ri, ntf_op)
         for op_name, op in family.ops.items():
             if 'event' not in op:
                 continue
@@ -2227,7 +2208,7 @@ def render_user_family(family, cw, prototype):
 
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.name}",')
-    if ntf:
+    if family.ntfs:
         cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
         cw.p(f".ntf_info_size\t= MNL_ARRAY_SIZE({family['name']}_ntf_info),")
     cw.block_end(line=';')
@@ -2436,7 +2417,7 @@ def main():
                     print_dump_prototype(ri)
                     cw.nl()
 
-                if 'notify' in op:
+                if op.has_ntf:
                     cw.p(f"/* {op.enum_name} - notify */")
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'notify')
                     if not ri.type_consistent:
@@ -2497,7 +2478,7 @@ def main():
                     print_dump(ri)
                     cw.nl()
 
-                if 'notify' in op:
+                if op.has_ntf:
                     cw.p(f"/* {op.enum_name} - notify */")
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'notify')
                     if not ri.type_consistent:
