@@ -483,8 +483,14 @@ struct extcon_nb {
 #define WAIT_FOR_LPM		3
 #define CONN_DONE		4
 
-#define PM_QOS_SAMPLE_SEC	2
-#define PM_QOS_THRESHOLD	400
+/* reduce interval which allow device enter perf mode quickly for KPI test */
+#define PM_QOS_DEFAULT_SAMPLE_MS	100
+/* better choose high speed data which will cover super speed, ignore low/full */
+#define PM_QOS_DEFAULT_SAMPLE_THRESHOLD	200
+
+/* below setting will be used after device enters perf mode */
+#define PM_QOS_PERF_SAMPLE_MS	2000
+#define PM_QOS_PERF_SAMPLE_THRESHOLD	400
 
 struct dwc3_msm {
 	struct device *dev;
@@ -6353,18 +6359,27 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 						perf_vote_work.work);
 	struct irq_desc *irq_desc = irq_to_desc(mdwc->core_irq);
 	unsigned int new = irq_desc->tot_count;
+	unsigned int count = new - mdwc->irq_cnt;
+	unsigned int threshold = PM_QOS_DEFAULT_SAMPLE_THRESHOLD;
+	unsigned long delay = PM_QOS_DEFAULT_SAMPLE_MS;
 	bool in_perf_mode = false;
 
-	if (new - mdwc->irq_cnt >= PM_QOS_THRESHOLD)
+	if (mdwc->perf_mode)
+		threshold = PM_QOS_PERF_SAMPLE_THRESHOLD;
+
+	if (count >= threshold)
 		in_perf_mode = true;
 
 	pr_debug("%s: in_perf_mode:%u, interrupts in last sample:%u\n",
-		 __func__, in_perf_mode, new - mdwc->irq_cnt);
+		 __func__, in_perf_mode, count);
 
 	mdwc->irq_cnt = new;
 	msm_dwc3_perf_vote_update(mdwc, in_perf_mode);
-	schedule_delayed_work(&mdwc->perf_vote_work,
-			msecs_to_jiffies(1000 * PM_QOS_SAMPLE_SEC));
+
+	if (in_perf_mode)
+		delay = PM_QOS_PERF_SAMPLE_MS;
+
+	schedule_delayed_work(&mdwc->perf_vote_work, msecs_to_jiffies(delay));
 }
 
 static void msm_dwc3_perf_vote_enable(struct dwc3_msm *mdwc, bool enable)
@@ -6375,12 +6390,12 @@ static void msm_dwc3_perf_vote_enable(struct dwc3_msm *mdwc, bool enable)
 		/* make sure when enable work, save a valid start irq count */
 		mdwc->irq_cnt = irq_desc->tot_count;
 
+		/* start default mode intially */
+		mdwc->perf_mode = false;
 		cpu_latency_qos_add_request(&mdwc->pm_qos_req_dma,
 					    PM_QOS_DEFAULT_VALUE);
-		/* start in perf mode for better performance initially for host/device mode */
-		msm_dwc3_perf_vote_update(mdwc, true);
 		schedule_delayed_work(&mdwc->perf_vote_work,
-				msecs_to_jiffies(1000 * PM_QOS_SAMPLE_SEC));
+				msecs_to_jiffies(PM_QOS_DEFAULT_SAMPLE_MS));
 	} else {
 		cancel_delayed_work_sync(&mdwc->perf_vote_work);
 		msm_dwc3_perf_vote_update(mdwc, false);
