@@ -711,6 +711,9 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	if (thread__is_filtered(thread))
 		al->filtered |= (1 << HIST_FILTER__THREAD);
 
+	thread__put(thread);
+	thread = NULL;
+
 	al->sym = NULL;
 	al->cpu = sample->cpu;
 	al->socket = -1;

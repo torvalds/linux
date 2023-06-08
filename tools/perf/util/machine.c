@@ -539,7 +539,7 @@ static void machine__update_thread_pid(struct machine *machine,
 		goto out_err;
 
 	if (thread__maps(th) == thread__maps(leader))
-		return;
+		goto out_put;
 
 	if (thread__maps(th)) {
 		/*
@@ -579,7 +579,7 @@ __threads__get_last_match(struct threads *threads, struct machine *machine,
 			machine__update_thread_pid(machine, th, pid);
 			return thread__get(th);
 		}
-
+		thread__put(threads->last_match);
 		threads->last_match = NULL;
 	}
 
@@ -601,7 +601,8 @@ threads__get_last_match(struct threads *threads, struct machine *machine,
 static void
 __threads__set_last_match(struct threads *threads, struct thread *th)
 {
-	threads->last_match = th;
+	thread__put(threads->last_match);
+	threads->last_match = thread__get(th);
 }
 
 static void
@@ -664,7 +665,6 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 
 	rb_link_node(&nd->rb_node, parent, p);
 	rb_insert_color_cached(&nd->rb_node, &threads->entries, leftmost);
-
 	/*
 	 * We have to initialize maps separately after rb tree is updated.
 	 *
@@ -673,6 +673,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	 * the rb tree.
 	 */
 	if (thread__init_maps(th, machine)) {
+		pr_err("Thread init failed thread %d\n", pid);
 		rb_erase_cached(&nd->rb_node, &threads->entries);
 		RB_CLEAR_NODE(&nd->rb_node);
 		free(nd);
@@ -682,11 +683,10 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	/*
 	 * It is now in the rbtree, get a ref
 	 */
-	thread__get(th);
 	threads__set_last_match(threads, th);
 	++threads->nr;
 
-	return th;
+	return thread__get(th);
 }
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid)
@@ -2321,7 +2321,7 @@ static int add_callchain_ip(struct thread *thread,
 			    struct iterations *iter,
 			    u64 branch_from)
 {
-	struct map_symbol ms;
+	struct map_symbol ms = {};
 	struct addr_location al;
 	int nr_loop_iter = 0, err = 0;
 	u64 iter_cycles = 0;
@@ -2395,6 +2395,8 @@ static int add_callchain_ip(struct thread *thread,
 				      iter_cycles, branch_from, srcline);
 out:
 	addr_location__exit(&al);
+	maps__put(ms.maps);
+	map__put(ms.map);
 	return err;
 }
 
@@ -3089,6 +3091,7 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 	struct dso *dso;
 	u64 addr;
 	int ret = 1;
+	struct map_symbol ilist_ms;
 
 	if (!symbol_conf.inline_name || !map || !sym)
 		return ret;
@@ -3105,18 +3108,20 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 		inlines__tree_insert(&dso->inlined_nodes, inline_node);
 	}
 
+	ilist_ms = (struct map_symbol) {
+		.maps = maps__get(ms->maps),
+		.map = map__get(map),
+	};
 	list_for_each_entry(ilist, &inline_node->val, list) {
-		struct map_symbol ilist_ms = {
-			.maps = ms->maps,
-			.map = map,
-			.sym = ilist->symbol,
-		};
+		ilist_ms.sym = ilist->symbol;
 		ret = callchain_cursor_append(cursor, ip, &ilist_ms, false,
 					      NULL, 0, 0, 0, ilist->srcline);
 
 		if (ret != 0)
 			return ret;
 	}
+	map__put(ilist_ms.map);
+	maps__put(ilist_ms.maps);
 
 	return ret;
 }

@@ -590,6 +590,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		call->ip = cursor_node->ip;
 		call->ms = cursor_node->ms;
 		call->ms.map = map__get(call->ms.map);
+		call->ms.maps = maps__get(call->ms.maps);
 		call->srcline = cursor_node->srcline;
 
 		if (cursor_node->branch) {
@@ -649,6 +650,7 @@ add_child(struct callchain_node *parent,
 		list_for_each_entry_safe(call, tmp, &new->val, list) {
 			list_del_init(&call->list);
 			map__zput(call->ms.map);
+			maps__zput(call->ms.maps);
 			free(call);
 		}
 		free(new);
@@ -1010,10 +1012,16 @@ merge_chain_branch(struct callchain_cursor *cursor,
 	int err = 0;
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
-		callchain_cursor_append(cursor, list->ip, &list->ms,
-					false, NULL, 0, 0, 0, list->srcline);
+		struct map_symbol ms = {
+			.maps = maps__get(list->ms.maps),
+			.map = map__get(list->ms.map),
+		};
+		callchain_cursor_append(cursor, list->ip, &ms, false, NULL, 0, 0, 0, list->srcline);
 		list_del_init(&list->list);
+		map__zput(ms.map);
+		maps__zput(ms.maps);
 		map__zput(list->ms.map);
+		maps__zput(list->ms.maps);
 		free(list);
 	}
 
@@ -1065,9 +1073,11 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	}
 
 	node->ip = ip;
+	maps__zput(node->ms.maps);
 	map__zput(node->ms.map);
 	node->ms = *ms;
-	node->ms.map = map__get(node->ms.map);
+	node->ms.maps = maps__get(ms->maps);
+	node->ms.map = map__get(ms->map);
 	node->branch = branch;
 	node->nr_loop_iter = nr_loop_iter;
 	node->iter_cycles = iter_cycles;
@@ -1114,7 +1124,8 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 {
 	struct machine *machine = maps__machine(node->ms.maps);
 
-	al->maps = node->ms.maps;
+	maps__put(al->maps);
+	al->maps = maps__get(node->ms.maps);
 	map__put(al->map);
 	al->map = map__get(node->ms.map);
 	al->sym = node->ms.sym;
@@ -1127,7 +1138,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 		if (al->map == NULL)
 			goto out;
 	}
-	if (al->maps == machine__kernel_maps(machine)) {
+	if (RC_CHK_ACCESS(al->maps) == RC_CHK_ACCESS(machine__kernel_maps(machine))) {
 		if (machine__is_host(machine)) {
 			al->cpumode = PERF_RECORD_MISC_KERNEL;
 			al->level = 'k';
@@ -1460,12 +1471,14 @@ static void free_callchain_node(struct callchain_node *node)
 	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
 		list_del_init(&list->list);
 		map__zput(list->ms.map);
+		maps__zput(list->ms.maps);
 		free(list);
 	}
 
 	list_for_each_entry_safe(list, tmp, &node->val, list) {
 		list_del_init(&list->list);
 		map__zput(list->ms.map);
+		maps__zput(list->ms.maps);
 		free(list);
 	}
 
@@ -1551,6 +1564,7 @@ out:
 	list_for_each_entry_safe(chain, new, &head, list) {
 		list_del_init(&chain->list);
 		map__zput(chain->ms.map);
+		maps__zput(chain->ms.maps);
 		free(chain);
 	}
 	return -ENOMEM;
@@ -1596,8 +1610,10 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 	cursor->nr = 0;
 	cursor->last = &cursor->first;
 
-	for (node = cursor->first; node != NULL; node = node->next)
+	for (node = cursor->first; node != NULL; node = node->next) {
 		map__zput(node->ms.map);
+		maps__zput(node->ms.maps);
+	}
 }
 
 void callchain_param_setup(u64 sample_type, const char *arch)

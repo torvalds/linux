@@ -450,6 +450,7 @@ static int hist_entry__init(struct hist_entry *he,
 			memset(&he->stat, 0, sizeof(he->stat));
 	}
 
+	he->ms.maps = maps__get(he->ms.maps);
 	he->ms.map = map__get(he->ms.map);
 
 	if (he->branch_info) {
@@ -497,7 +498,7 @@ static int hist_entry__init(struct hist_entry *he,
 	}
 
 	INIT_LIST_HEAD(&he->pairs.node);
-	thread__get(he->thread);
+	he->thread = thread__get(he->thread);
 	he->hroot_in  = RB_ROOT_CACHED;
 	he->hroot_out = RB_ROOT_CACHED;
 
@@ -523,6 +524,7 @@ err_infos:
 		map__put(he->mem_info->daddr.ms.map);
 	}
 err:
+	maps__zput(he->ms.maps);
 	map__zput(he->ms.map);
 	zfree(&he->stat_acc);
 	return -ENOMEM;
@@ -611,7 +613,6 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		 * keys were used.
 		 */
 		cmp = hist_entry__cmp(he, entry);
-
 		if (!cmp) {
 			if (sample_self) {
 				he_stat__add_period(&he->stat, period);
@@ -1309,6 +1310,7 @@ void hist_entry__delete(struct hist_entry *he)
 	struct hist_entry_ops *ops = he->ops;
 
 	thread__zput(he->thread);
+	maps__zput(he->ms.maps);
 	map__zput(he->ms.map);
 
 	if (he->branch_info) {
