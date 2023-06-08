@@ -1389,6 +1389,14 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 	return 0;
 }
 
+static void memory_node__delete_nodes(struct memory_node *nodesp, u64 cnt)
+{
+	for (u64 i = 0; i < cnt; i++)
+		bitmap_free(nodesp[i].set);
+
+	free(nodesp);
+}
+
 static int memory_node__sort(const void *a, const void *b)
 {
 	const struct memory_node *na = a;
@@ -1449,7 +1457,7 @@ out:
 		*nodesp = nodes;
 		qsort(nodes, cnt, sizeof(nodes[0]), memory_node__sort);
 	} else
-		free(nodes);
+		memory_node__delete_nodes(nodes, cnt);
 
 	return ret;
 }
@@ -1516,7 +1524,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	}
 
 out:
-	free(nodes);
+	memory_node__delete_nodes(nodes, nr);
 	return ret;
 }
 
