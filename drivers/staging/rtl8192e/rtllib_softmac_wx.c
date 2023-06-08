@@ -42,15 +42,8 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 	if (fwrq->e == 1) {
 		if ((fwrq->m >= (int)2.412e8 &&
 		     fwrq->m <= (int)2.487e8)) {
-			int f = fwrq->m / 100000;
-			int c = 0;
-
-			while ((c < 14) && (f != rtllib_wlan_frequencies[c]))
-				c++;
-
-			/* hack to fall through */
+			fwrq->m = ieee80211_freq_khz_to_channel(fwrq->m / 100);
 			fwrq->e = 0;
-			fwrq->m = c + 1;
 		}
 	}
 
