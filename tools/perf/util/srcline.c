@@ -21,6 +21,8 @@
 #include "symbol.h"
 #include "subcmd/run-command.h"
 
+/* If addr2line doesn't return data for 1 second then timeout. */
+int addr2line_timeout_ms = 1 * 1000;
 bool srcline_full_filename;
 
 char *srcline__unknown = (char *)"??:0";
@@ -631,7 +633,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	int len;
 	char buf[128];
 	ssize_t written;
-	struct io io;
+	struct io io = { .eof = false };
 	enum a2l_style a2l_style;
 
 	if (!a2l) {
@@ -670,7 +672,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		goto out;
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
-
+	io.timeout_ms = addr2line_timeout_ms;
 	switch (read_addr2line_record(&io, a2l_style,
 				      &record_function, &record_filename, &record_line_nr)) {
 	case -1:
@@ -741,6 +743,10 @@ static int addr2line(const char *dso_name, u64 addr,
 out:
 	free(record_function);
 	free(record_filename);
+	if (io.eof) {
+		dso->a2l = NULL;
+		addr2line_subprocess_cleanup(a2l);
+	}
 	return ret;
 }
 
