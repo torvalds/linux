@@ -29,8 +29,12 @@ struct lbr_stitch {
 	struct callchain_cursor_node	*prev_lbr_cursor;
 };
 
+struct thread_rb_node {
+	struct rb_node rb_node;
+	struct thread *thread;
+};
+
 struct thread {
-	struct rb_node		rb_node;
 	struct maps		*maps;
 	pid_t			pid_; /* Not all tools update this */
 	pid_t			tid;

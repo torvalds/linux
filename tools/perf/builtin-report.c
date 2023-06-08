@@ -911,7 +911,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 		     nd = rb_next(nd)) {
 			task = tasks + itask++;
 
-			task->thread = rb_entry(nd, struct thread, rb_node);
+			task->thread = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
 			INIT_LIST_HEAD(&task->children);
 			INIT_LIST_HEAD(&task->list);
 			thread__set_priv(task->thread, task);

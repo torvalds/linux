@@ -66,7 +66,6 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 
 		list_add(&comm->list, &thread->comm_list);
 		refcount_set(&thread->refcnt, 1);
-		RB_CLEAR_NODE(&thread->rb_node);
 		/* Thread holds first ref to nsdata. */
 		thread->nsinfo = nsinfo__new(pid);
 		srccode_state_init(&thread->srccode_state);
@@ -83,8 +82,6 @@ void thread__delete(struct thread *thread)
 {
 	struct namespaces *namespaces, *tmp_namespaces;
 	struct comm *comm, *tmp_comm;
-
-	BUG_ON(!RB_EMPTY_NODE(&thread->rb_node));
 
 	thread_stack__free(thread);
 
