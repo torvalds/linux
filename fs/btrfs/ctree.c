@@ -1040,7 +1040,6 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		child = btrfs_read_node_slot(mid, 0);
 		if (IS_ERR(child)) {
 			ret = PTR_ERR(child);
-			btrfs_handle_fs_error(fs_info, ret, NULL);
 			goto out;
 		}
 
