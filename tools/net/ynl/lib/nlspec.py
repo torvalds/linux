@@ -423,7 +423,7 @@ class SpecFamily(SpecElement):
         self.fixed_header = self.yaml['operations'].get('fixed-header')
         req_val = rsp_val = 1
         for elem in self.yaml['operations']['list']:
-            if 'notify' in elem:
+            if 'notify' in elem or 'event' in elem:
                 if 'value' in elem:
                     rsp_val = elem['value']
                 req_val_next = req_val
