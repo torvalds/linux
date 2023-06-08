@@ -671,20 +671,6 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 		intel_de_posting_read(dev_priv, port_ctrl);
 	}
 }
-
-static void intel_dsi_wait_panel_power_cycle(struct intel_dsi *intel_dsi)
-{
-	ktime_t panel_power_on_time;
-	s64 panel_power_off_duration;
-
-	panel_power_on_time = ktime_get_boottime();
-	panel_power_off_duration = ktime_ms_delta(panel_power_on_time,
-						  intel_dsi->panel_power_off_time);
-
-	if (panel_power_off_duration < (s64)intel_dsi->panel_pwr_cycle_delay)
-		msleep(intel_dsi->panel_pwr_cycle_delay - panel_power_off_duration);
-}
-
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      const struct intel_crtc_state *pipe_config);
 static void intel_dsi_unprepare(struct intel_encoder *encoder);

@@ -1166,6 +1166,8 @@ static void gen11_dsi_pre_pll_enable(struct intel_atomic_state *state,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
+
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
 	msleep(intel_dsi->panel_on_delay);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
@@ -1291,6 +1293,8 @@ static void gen11_dsi_powerdown_panel(struct intel_encoder *encoder)
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
+
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
 	/* ensure cmds dispatched to panel */
 	wait_for_cmds_dispatched_to_panel(encoder);
@@ -1985,6 +1989,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 
 	/* attach connector to encoder */
 	intel_connector_attach_encoder(intel_connector, encoder);
+
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
 	encoder->devdata = intel_bios_encoder_data_lookup(dev_priv, port);
 	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata, NULL);
