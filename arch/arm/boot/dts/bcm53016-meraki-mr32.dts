@@ -125,8 +125,6 @@
 };
 
 &nandcs {
-	nand-ecc-algo = "hw";
-
 	partitions {
 		/*
 		 * The partition autodetection does not work for this device.

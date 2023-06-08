@@ -72,8 +72,6 @@
 };
 
 &nandcs {
-	nand-ecc-algo = "hw";
-
 	partitions {
 		compatible = "fixed-partitions";
 		#address-cells = <0x1>;
