@@ -15638,7 +15638,7 @@ F:	Documentation/devicetree/bindings/media/i2c/ovti,ov5647.yaml
 F:	drivers/media/i2c/ov5647.c
 
 OMNIVISION OV5670 SENSOR DRIVER
-M:	Chiranjeevi Rapolu <chiranjeevi.rapolu@intel.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
