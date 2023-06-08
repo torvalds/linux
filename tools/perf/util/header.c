@@ -2844,7 +2844,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 
 	i = nr = 0;
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->core.idx == (int) desc[i].leader_idx) {
+		if (i < nr_groups && evsel->core.idx == (int) desc[i].leader_idx) {
 			evsel__set_leader(evsel, evsel);
 			/* {anon_group} is a dummy name */
 			if (strcmp(desc[i].name, "{anon_group}")) {
