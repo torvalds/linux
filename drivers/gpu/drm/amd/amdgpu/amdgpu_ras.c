@@ -35,6 +35,7 @@
 #include "amdgpu_xgmi.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include "nbio_v4_3.h"
+#include "nbio_v7_9.h"
 #include "atom.h"
 #include "amdgpu_reset.h"
 
@@ -2643,6 +2644,10 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			 * enable nbio ras in such case. Instead,
 			 * check DF RAS */
 			adev->nbio.ras = &nbio_v4_3_ras;
+		break;
+	case IP_VERSION(7, 9, 0):
+		if (!adev->gmc.is_app_apu)
+			adev->nbio.ras = &nbio_v7_9_ras;
 		break;
 	default:
 		/* nbio ras is not available */
