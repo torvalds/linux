@@ -1141,7 +1141,7 @@ static Elf_Sym *find_tosym(struct elf_info *elf, Elf_Addr addr, Elf_Sym *sym)
 
 static bool is_executable_section(struct elf_info *elf, unsigned int secndx)
 {
-	if (secndx > elf->num_sections)
+	if (secndx >= elf->num_sections)
 		return false;
 
 	return (elf->sechdrs[secndx].sh_flags & SHF_EXECINSTR) != 0;
