@@ -184,3 +184,6 @@ static struct platform_driver fsl8250_platform_driver = {
 
 module_platform_driver(fsl8250_platform_driver);
 #endif
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Handling of Freescale specific 8250 variants");
