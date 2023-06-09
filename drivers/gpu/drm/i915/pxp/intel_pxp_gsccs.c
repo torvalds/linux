@@ -143,7 +143,7 @@ gsccs_send_message(struct intel_pxp *pxp,
 
 	reply_size = header->message_size - sizeof(*header);
 	if (reply_size > msg_out_size_max) {
-		drm_warn(&i915->drm, "caller with insufficient PXP reply size %u (%ld)\n",
+		drm_warn(&i915->drm, "caller with insufficient PXP reply size %u (%zu)\n",
 			 reply_size, msg_out_size_max);
 		reply_size = msg_out_size_max;
 	}
@@ -196,7 +196,7 @@ bool intel_pxp_gsccs_is_ready_for_sessions(struct intel_pxp *pxp)
 	 * gsc-proxy init flow (the last set of dependencies that
 	 * are out of order) will suffice.
 	 */
-	if (intel_huc_is_authenticated(&pxp->ctrl_gt->uc.huc) &&
+	if (intel_huc_is_authenticated(&pxp->ctrl_gt->uc.huc, INTEL_HUC_AUTH_BY_GSC) &&
 	    intel_gsc_uc_fw_proxy_init_done(&pxp->ctrl_gt->uc.gsc))
 		return true;
 

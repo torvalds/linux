@@ -941,6 +941,9 @@
 #define HECI_H_GS1(base)	_MMIO((base) + 0xc4c)
 #define   HECI_H_GS1_ER_PREP	REG_BIT(0)
 
+#define HECI_FWSTS5(base)		_MMIO((base) + 0xc68)
+#define   HECI_FWSTS5_HUC_AUTH_DONE	(1 << 19)
+
 #define HSW_GTT_CACHE_EN	_MMIO(0x4024)
 #define   GTT_CACHE_EN_ALL	0xF0007FFF
 #define GEN7_WR_WATERMARK	_MMIO(0x4028)

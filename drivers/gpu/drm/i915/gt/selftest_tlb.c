@@ -190,11 +190,18 @@ out:
 
 static struct drm_i915_gem_object *create_lmem(struct intel_gt *gt)
 {
+	struct intel_memory_region *mr = gt->i915->mm.regions[INTEL_REGION_LMEM_0];
+	resource_size_t size = SZ_1G;
+
 	/*
 	 * Allocation of largest possible page size allows to test all types
-	 * of pages.
+	 * of pages. To succeed with both allocations, especially in case of Small
+	 * BAR, try to allocate no more than quarter of mappable memory.
 	 */
-	return i915_gem_object_create_lmem(gt->i915, SZ_1G, I915_BO_ALLOC_CONTIGUOUS);
+	if (mr && size > mr->io_size / 4)
+		size = mr->io_size / 4;
+
+	return i915_gem_object_create_lmem(gt->i915, size, I915_BO_ALLOC_CONTIGUOUS);
 }
 
 static struct drm_i915_gem_object *create_smem(struct intel_gt *gt)

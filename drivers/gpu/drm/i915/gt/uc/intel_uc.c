@@ -538,7 +538,7 @@ static int __uc_init_hw(struct intel_uc *uc)
 	if (intel_huc_is_loaded_by_gsc(huc))
 		intel_huc_update_auth_status(huc);
 	else
-		intel_huc_auth(huc);
+		intel_huc_auth(huc, INTEL_HUC_AUTH_BY_GUC);
 
 	if (intel_uc_uses_guc_submission(uc)) {
 		ret = intel_guc_submission_enable(guc);
@@ -700,6 +700,12 @@ void intel_uc_suspend(struct intel_uc *uc)
 	}
 }
 
+static void __uc_resume_mappings(struct intel_uc *uc)
+{
+	intel_uc_fw_resume_mapping(&uc->guc.fw);
+	intel_uc_fw_resume_mapping(&uc->huc.fw);
+}
+
 static int __uc_resume(struct intel_uc *uc, bool enable_communication)
 {
 	struct intel_guc *guc = &uc->guc;
@@ -767,4 +773,6 @@ static const struct intel_uc_ops uc_ops_on = {
 
 	.init_hw = __uc_init_hw,
 	.fini_hw = __uc_fini_hw,
+
+	.resume_mappings = __uc_resume_mappings,
 };

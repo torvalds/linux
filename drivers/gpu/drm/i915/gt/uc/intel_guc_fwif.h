@@ -35,13 +35,6 @@
 #define GUC_MAX_CONTEXT_ID		65535
 #define	GUC_INVALID_CONTEXT_ID		GUC_MAX_CONTEXT_ID
 
-#define GUC_RENDER_ENGINE		0
-#define GUC_VIDEO_ENGINE		1
-#define GUC_BLITTER_ENGINE		2
-#define GUC_VIDEOENHANCE_ENGINE		3
-#define GUC_VIDEO_ENGINE2		4
-#define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
-
 #define GUC_RENDER_CLASS		0
 #define GUC_VIDEO_CLASS			1
 #define GUC_VIDEOENHANCE_CLASS		2
@@ -497,32 +490,6 @@ struct guc_log_buffer_state {
 		u32 flags;
 	};
 	u32 version;
-} __packed;
-
-struct guc_ctx_report {
-	u32 report_return_status;
-	u32 reserved1[64];
-	u32 affected_count;
-	u32 reserved2[2];
-} __packed;
-
-/* GuC Shared Context Data Struct */
-struct guc_shared_ctx_data {
-	u32 addr_of_last_preempted_data_low;
-	u32 addr_of_last_preempted_data_high;
-	u32 addr_of_last_preempted_data_high_tmp;
-	u32 padding;
-	u32 is_mapped_to_proxy;
-	u32 proxy_ctx_id;
-	u32 engine_reset_ctx_id;
-	u32 media_reset_count;
-	u32 reserved1[8];
-	u32 uk_last_ctx_switch_reason;
-	u32 was_reset;
-	u32 lrca_gpu_addr;
-	u64 execlist_ctx;
-	u32 reserved2[66];
-	struct guc_ctx_report preempt_ctx_report[GUC_MAX_ENGINES_NUM];
 } __packed;
 
 /* This action will be programmed in C1BC - SOFT_SCRATCH_15_REG */

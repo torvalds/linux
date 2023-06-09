@@ -132,14 +132,14 @@ static u32 frequency_enabled_mask(void)
 	unsigned int i;
 	u32 mask = 0;
 
-	for (i = 0; i < I915_PMU_MAX_GTS; i++)
+	for (i = 0; i < I915_PMU_MAX_GT; i++)
 		mask |= config_mask(__I915_PMU_ACTUAL_FREQUENCY(i)) |
 			config_mask(__I915_PMU_REQUESTED_FREQUENCY(i));
 
 	return mask;
 }
 
-static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
+static bool pmu_needs_timer(struct i915_pmu *pmu)
 {
 	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
 	u32 enable;
@@ -158,16 +158,10 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	enable &= frequency_enabled_mask() | ENGINE_SAMPLE_MASK;
 
 	/*
-	 * When the GPU is idle per-engine counters do not need to be
-	 * running so clear those bits out.
-	 */
-	if (!gpu_active)
-		enable &= ~ENGINE_SAMPLE_MASK;
-	/*
 	 * Also there is software busyness tracking available we do not
 	 * need the timer for I915_SAMPLE_BUSY counter.
 	 */
-	else if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
+	if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
 		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*
@@ -197,31 +191,21 @@ static inline s64 ktime_since_raw(const ktime_t kt)
 	return ktime_to_ns(ktime_sub(ktime_get_raw(), kt));
 }
 
-static unsigned int
-__sample_idx(struct i915_pmu *pmu, unsigned int gt_id, int sample)
-{
-	unsigned int idx = gt_id * __I915_NUM_PMU_SAMPLERS + sample;
-
-	GEM_BUG_ON(idx >= ARRAY_SIZE(pmu->sample));
-
-	return idx;
-}
-
 static u64 read_sample(struct i915_pmu *pmu, unsigned int gt_id, int sample)
 {
-	return pmu->sample[__sample_idx(pmu, gt_id, sample)].cur;
+	return pmu->sample[gt_id][sample].cur;
 }
 
 static void
 store_sample(struct i915_pmu *pmu, unsigned int gt_id, int sample, u64 val)
 {
-	pmu->sample[__sample_idx(pmu, gt_id, sample)].cur = val;
+	pmu->sample[gt_id][sample].cur = val;
 }
 
 static void
 add_sample_mult(struct i915_pmu *pmu, unsigned int gt_id, int sample, u32 val, u32 mul)
 {
-	pmu->sample[__sample_idx(pmu, gt_id, sample)].cur += mul_u32_u32(val, mul);
+	pmu->sample[gt_id][sample].cur += mul_u32_u32(val, mul);
 }
 
 static u64 get_rc6(struct intel_gt *gt)
@@ -295,7 +279,7 @@ static void park_rc6(struct intel_gt *gt)
 
 static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 {
-	if (!pmu->timer_enabled && pmu_needs_timer(pmu, true)) {
+	if (!pmu->timer_enabled && pmu_needs_timer(pmu)) {
 		pmu->timer_enabled = true;
 		pmu->timer_last = ktime_get();
 		hrtimer_start_range_ns(&pmu->timer,
@@ -321,7 +305,7 @@ void i915_pmu_gt_parked(struct intel_gt *gt)
 	 */
 	pmu->unparked &= ~BIT(gt->info.id);
 	if (pmu->unparked == 0)
-		pmu->timer_enabled = pmu_needs_timer(pmu, false);
+		pmu->timer_enabled = false;
 
 	spin_unlock_irq(&pmu->lock);
 }
@@ -827,7 +811,7 @@ static void i915_pmu_disable(struct perf_event *event)
 	 */
 	if (--pmu->enable_count[bit] == 0) {
 		pmu->enable &= ~BIT(bit);
-		pmu->timer_enabled &= pmu_needs_timer(pmu, true);
+		pmu->timer_enabled &= pmu_needs_timer(pmu);
 	}
 
 	spin_unlock_irqrestore(&pmu->lock, flags);

@@ -29,13 +29,32 @@ static void gsc_work(struct work_struct *work)
 
 	if (actions & GSC_ACTION_FW_LOAD) {
 		ret = intel_gsc_uc_fw_upload(gsc);
-		if (ret == -EEXIST) /* skip proxy if not a new load */
-			actions &= ~GSC_ACTION_FW_LOAD;
-		else if (ret)
+		if (!ret)
+			/* setup proxy on a new load */
+			actions |= GSC_ACTION_SW_PROXY;
+		else if (ret != -EEXIST)
 			goto out_put;
+
+		/*
+		 * The HuC auth can be done both before or after the proxy init;
+		 * if done after, a proxy request will be issued and must be
+		 * serviced before the authentication can complete.
+		 * Since this worker also handles proxy requests, we can't
+		 * perform an action that requires the proxy from within it and
+		 * then stall waiting for it, because we'd be blocking the
+		 * service path. Therefore, it is easier for us to load HuC
+		 * first and do proxy later. The GSC will ack the HuC auth and
+		 * then send the HuC proxy request as part of the proxy init
+		 * flow.
+		 * Note that we can only do the GSC auth if the GuC auth was
+		 * successful.
+		 */
+		if (intel_uc_uses_huc(&gt->uc) &&
+		    intel_huc_is_authenticated(&gt->uc.huc, INTEL_HUC_AUTH_BY_GUC))
+			intel_huc_auth(&gt->uc.huc, INTEL_HUC_AUTH_BY_GSC);
 	}
 
-	if (actions & (GSC_ACTION_FW_LOAD | GSC_ACTION_SW_PROXY)) {
+	if (actions & GSC_ACTION_SW_PROXY) {
 		if (!intel_gsc_uc_fw_init_done(gsc)) {
 			gt_err(gt, "Proxy request received with GSC not loaded!\n");
 			goto out_put;
@@ -90,7 +109,12 @@ void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc)
 {
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 
-	intel_uc_fw_init_early(&gsc->fw, INTEL_UC_FW_TYPE_GSC);
+	/*
+	 * GSC FW needs to be copied to a dedicated memory allocations for
+	 * loading (see gsc->local), so we don't need to GGTT map the FW image
+	 * itself into GGTT.
+	 */
+	intel_uc_fw_init_early(&gsc->fw, INTEL_UC_FW_TYPE_GSC, false);
 	INIT_WORK(&gsc->work, gsc_work);
 
 	/* we can arrive here from i915_driver_early_probe for primary
