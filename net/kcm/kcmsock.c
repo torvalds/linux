@@ -641,6 +641,10 @@ do_frag_list:
 
 		for (fragidx = 0; fragidx < skb_shinfo(skb)->nr_frags;
 		     fragidx++) {
+			struct bio_vec bvec;
+			struct msghdr msg = {
+				.msg_flags = MSG_DONTWAIT | MSG_SPLICE_PAGES,
+			};
 			skb_frag_t *frag;
 
 			frag_offset = 0;
@@ -651,11 +655,13 @@ do_frag:
 				goto out;
 			}
 
-			ret = kernel_sendpage(psock->sk->sk_socket,
-					      skb_frag_page(frag),
-					      skb_frag_off(frag) + frag_offset,
-					      skb_frag_size(frag) - frag_offset,
-					      MSG_DONTWAIT);
+			bvec_set_page(&bvec,
+				      skb_frag_page(frag),
+				      skb_frag_size(frag) - frag_offset,
+				      skb_frag_off(frag) + frag_offset);
+			iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1,
+				      bvec.bv_len);
+			ret = sock_sendmsg(psock->sk->sk_socket, &msg);
 			if (ret <= 0) {
 				if (ret == -EAGAIN) {
 					/* Save state to try again when there's
