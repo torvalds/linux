@@ -4,13 +4,11 @@
 /* YNL-GEN user source */
 
 #include <stdlib.h>
+#include <string.h>
 #include "fou-user.h"
 #include "ynl.h"
 #include <linux/fou.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
 
@@ -174,42 +172,38 @@ int fou_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 	dst = yarg->data;
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == FOU_ATTR_PORT) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == FOU_ATTR_PORT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.port = 1;
 			dst->port = mnl_attr_get_u16(attr);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_IPPROTO) {
+		} else if (type == FOU_ATTR_IPPROTO) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.ipproto = 1;
 			dst->ipproto = mnl_attr_get_u8(attr);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_TYPE) {
+		} else if (type == FOU_ATTR_TYPE) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.type = 1;
 			dst->type = mnl_attr_get_u8(attr);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_REMCSUM_NOPARTIAL) {
+		} else if (type == FOU_ATTR_REMCSUM_NOPARTIAL) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.remcsum_nopartial = 1;
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_LOCAL_V4) {
+		} else if (type == FOU_ATTR_LOCAL_V4) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.local_v4 = 1;
 			dst->local_v4 = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_PEER_V4) {
+		} else if (type == FOU_ATTR_PEER_V4) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.peer_v4 = 1;
 			dst->peer_v4 = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_LOCAL_V6) {
+		} else if (type == FOU_ATTR_LOCAL_V6) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -219,8 +213,7 @@ int fou_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->_present.local_v6_len = len;
 			dst->local_v6 = malloc(len);
 			memcpy(dst->local_v6, mnl_attr_get_payload(attr), len);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_PEER_V6) {
+		} else if (type == FOU_ATTR_PEER_V6) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -230,14 +223,12 @@ int fou_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->_present.peer_v6_len = len;
 			dst->peer_v6 = malloc(len);
 			memcpy(dst->peer_v6, mnl_attr_get_payload(attr), len);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_PEER_PORT) {
+		} else if (type == FOU_ATTR_PEER_PORT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.peer_port = 1;
 			dst->peer_port = mnl_attr_get_u16(attr);
-		}
-		else if (mnl_attr_get_type(attr) == FOU_ATTR_IFINDEX) {
+		} else if (type == FOU_ATTR_IFINDEX) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.ifindex = 1;

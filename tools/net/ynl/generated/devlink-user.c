@@ -4,13 +4,11 @@
 /* YNL-GEN user source */
 
 #include <stdlib.h>
+#include <string.h>
 #include "devlink-user.h"
 #include "ynl.h"
 #include <linux/devlink.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
 
@@ -128,7 +126,9 @@ int devlink_dl_info_version_parse(struct ynl_parse_arg *yarg,
 	const struct nlattr *attr;
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_VERSION_NAME) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_INFO_VERSION_NAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -139,8 +139,7 @@ int devlink_dl_info_version_parse(struct ynl_parse_arg *yarg,
 			dst->info_version_name = malloc(len + 1);
 			memcpy(dst->info_version_name, mnl_attr_get_str(attr), len);
 			dst->info_version_name[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_VERSION_VALUE) {
+		} else if (type == DEVLINK_ATTR_INFO_VERSION_VALUE) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -169,13 +168,14 @@ int devlink_dl_reload_stats_entry_parse(struct ynl_parse_arg *yarg,
 	const struct nlattr *attr;
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_STATS_LIMIT) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_RELOAD_STATS_LIMIT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.reload_stats_limit = 1;
 			dst->reload_stats_limit = mnl_attr_get_u8(attr);
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_STATS_VALUE) {
+		} else if (type == DEVLINK_ATTR_RELOAD_STATS_VALUE) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.reload_stats_value = 1;
@@ -210,7 +210,9 @@ int devlink_dl_reload_act_stats_parse(struct ynl_parse_arg *yarg,
 		return ynl_error_parse(yarg, "attribute already present (dl-reload-act-stats.reload-stats-entry)");
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_STATS_ENTRY) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_RELOAD_STATS_ENTRY) {
 			n_reload_stats_entry++;
 		}
 	}
@@ -257,13 +259,14 @@ int devlink_dl_reload_act_info_parse(struct ynl_parse_arg *yarg,
 		return ynl_error_parse(yarg, "attribute already present (dl-reload-act-info.reload-action-stats)");
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_ACTION) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_RELOAD_ACTION) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.reload_action = 1;
 			dst->reload_action = mnl_attr_get_u8(attr);
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_ACTION_STATS) {
+		} else if (type == DEVLINK_ATTR_RELOAD_ACTION_STATS) {
 			n_reload_action_stats++;
 		}
 	}
@@ -310,7 +313,9 @@ int devlink_dl_reload_stats_parse(struct ynl_parse_arg *yarg,
 		return ynl_error_parse(yarg, "attribute already present (dl-reload-stats.reload-action-info)");
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_ACTION_INFO) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_RELOAD_ACTION_INFO) {
 			n_reload_action_info++;
 		}
 	}
@@ -349,7 +354,9 @@ int devlink_dl_dev_stats_parse(struct ynl_parse_arg *yarg,
 	parg.ys = yarg->ys;
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_STATS) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_RELOAD_STATS) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.reload_stats = 1;
@@ -358,8 +365,7 @@ int devlink_dl_dev_stats_parse(struct ynl_parse_arg *yarg,
 			parg.data = &dst->reload_stats;
 			if (devlink_dl_reload_stats_parse(&parg, attr))
 				return MNL_CB_ERROR;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_REMOTE_RELOAD_STATS) {
+		} else if (type == DEVLINK_ATTR_REMOTE_RELOAD_STATS) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.remote_reload_stats = 1;
@@ -402,7 +408,9 @@ int devlink_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 	parg.ys = yarg->ys;
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_BUS_NAME) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_BUS_NAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -413,8 +421,7 @@ int devlink_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->bus_name = malloc(len + 1);
 			memcpy(dst->bus_name, mnl_attr_get_str(attr), len);
 			dst->bus_name[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_DEV_NAME) {
+		} else if (type == DEVLINK_ATTR_DEV_NAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -425,20 +432,17 @@ int devlink_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->dev_name = malloc(len + 1);
 			memcpy(dst->dev_name, mnl_attr_get_str(attr), len);
 			dst->dev_name[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_FAILED) {
+		} else if (type == DEVLINK_ATTR_RELOAD_FAILED) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.reload_failed = 1;
 			dst->reload_failed = mnl_attr_get_u8(attr);
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_RELOAD_ACTION) {
+		} else if (type == DEVLINK_ATTR_RELOAD_ACTION) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.reload_action = 1;
 			dst->reload_action = mnl_attr_get_u8(attr);
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_DEV_STATS) {
+		} else if (type == DEVLINK_ATTR_DEV_STATS) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.dev_stats = 1;
@@ -578,7 +582,9 @@ int devlink_info_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 		return ynl_error_parse(yarg, "attribute already present (devlink.info-version-stored)");
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == DEVLINK_ATTR_BUS_NAME) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == DEVLINK_ATTR_BUS_NAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -589,8 +595,7 @@ int devlink_info_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->bus_name = malloc(len + 1);
 			memcpy(dst->bus_name, mnl_attr_get_str(attr), len);
 			dst->bus_name[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_DEV_NAME) {
+		} else if (type == DEVLINK_ATTR_DEV_NAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -601,8 +606,7 @@ int devlink_info_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->dev_name = malloc(len + 1);
 			memcpy(dst->dev_name, mnl_attr_get_str(attr), len);
 			dst->dev_name[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_DRIVER_NAME) {
+		} else if (type == DEVLINK_ATTR_INFO_DRIVER_NAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -613,8 +617,7 @@ int devlink_info_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->info_driver_name = malloc(len + 1);
 			memcpy(dst->info_driver_name, mnl_attr_get_str(attr), len);
 			dst->info_driver_name[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_SERIAL_NUMBER) {
+		} else if (type == DEVLINK_ATTR_INFO_SERIAL_NUMBER) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -625,14 +628,11 @@ int devlink_info_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 			dst->info_serial_number = malloc(len + 1);
 			memcpy(dst->info_serial_number, mnl_attr_get_str(attr), len);
 			dst->info_serial_number[len] = 0;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_VERSION_FIXED) {
+		} else if (type == DEVLINK_ATTR_INFO_VERSION_FIXED) {
 			n_info_version_fixed++;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_VERSION_RUNNING) {
+		} else if (type == DEVLINK_ATTR_INFO_VERSION_RUNNING) {
 			n_info_version_running++;
-		}
-		else if (mnl_attr_get_type(attr) == DEVLINK_ATTR_INFO_VERSION_STORED) {
+		} else if (type == DEVLINK_ATTR_INFO_VERSION_STORED) {
 			n_info_version_stored++;
 		}
 	}

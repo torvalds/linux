@@ -4,13 +4,11 @@
 /* YNL-GEN user source */
 
 #include <stdlib.h>
+#include <string.h>
 #include "handshake-user.h"
 #include "ynl.h"
 #include <linux/handshake.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
 
@@ -118,13 +116,14 @@ int handshake_x509_parse(struct ynl_parse_arg *yarg,
 	const struct nlattr *attr;
 
 	mnl_attr_for_each_nested(attr, nested) {
-		if (mnl_attr_get_type(attr) == HANDSHAKE_A_X509_CERT) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == HANDSHAKE_A_X509_CERT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.cert = 1;
 			dst->cert = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_X509_PRIVKEY) {
+		} else if (type == HANDSHAKE_A_X509_PRIVKEY) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.privkey = 1;
@@ -173,37 +172,33 @@ int handshake_accept_rsp_parse(const struct nlmsghdr *nlh, void *data)
 		return ynl_error_parse(yarg, "attribute already present (accept.peer-identity)");
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_SOCKFD) {
+		unsigned int type = mnl_attr_get_type(attr);
+
+		if (type == HANDSHAKE_A_ACCEPT_SOCKFD) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.sockfd = 1;
 			dst->sockfd = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_MESSAGE_TYPE) {
+		} else if (type == HANDSHAKE_A_ACCEPT_MESSAGE_TYPE) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.message_type = 1;
 			dst->message_type = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_TIMEOUT) {
+		} else if (type == HANDSHAKE_A_ACCEPT_TIMEOUT) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.timeout = 1;
 			dst->timeout = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_AUTH_MODE) {
+		} else if (type == HANDSHAKE_A_ACCEPT_AUTH_MODE) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;
 			dst->_present.auth_mode = 1;
 			dst->auth_mode = mnl_attr_get_u32(attr);
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_PEER_IDENTITY) {
+		} else if (type == HANDSHAKE_A_ACCEPT_PEER_IDENTITY) {
 			n_peer_identity++;
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_CERTIFICATE) {
+		} else if (type == HANDSHAKE_A_ACCEPT_CERTIFICATE) {
 			n_certificate++;
-		}
-		else if (mnl_attr_get_type(attr) == HANDSHAKE_A_ACCEPT_PEERNAME) {
+		} else if (type == HANDSHAKE_A_ACCEPT_PEERNAME) {
 			unsigned int len;
 
 			if (ynl_attr_validate(yarg, attr))
@@ -318,51 +313,6 @@ int handshake_done(struct ynl_sock *ys, struct handshake_done_req *req)
 		return -1;
 
 	return 0;
-}
-
-/* --------------- Common notification parsing --------------- */
-struct ynl_ntf_base_type *handshake_ntf_parse(struct ynl_sock *ys)
-{
-	struct ynl_parse_arg yarg = { .ys = ys, };
-	struct ynl_ntf_base_type *rsp;
-	struct genlmsghdr *genlh;
-	struct nlmsghdr *nlh;
-	mnl_cb_t parse;
-	int len, err;
-
-	len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
-	if (len < (ssize_t)(sizeof(*nlh) + sizeof(*genlh)))
-		return NULL;
-
-	nlh = (struct nlmsghdr *)ys->rx_buf;
-	genlh = mnl_nlmsg_get_payload(nlh);
-
-	switch (genlh->cmd) {
-	case HANDSHAKE_CMD_READY:
-		rsp = calloc(1, sizeof(struct handshake_accept_ntf));
-		parse = handshake_accept_rsp_parse;
-		yarg.rsp_policy = &handshake_accept_nest;
-		rsp->free = (void *)handshake_accept_ntf_free;
-		break;
-	default:
-		ynl_error_unknown_notification(ys, genlh->cmd);
-		return NULL;
-	}
-
-	yarg.data = rsp->data;
-
-	err = mnl_cb_run2(ys->rx_buf, len, 0, 0, parse, &yarg,
-			 ynl_cb_array, NLMSG_MIN_TYPE);
-	if (err < 0)
-		goto err_free;
-
-	rsp->family = nlh->nlmsg_type;
-	rsp->cmd = genlh->cmd;
-	return rsp;
-
-err_free:
-	free(rsp);
-	return NULL;
 }
 
 static const struct ynl_ntf_info handshake_ntf_info[] =  {
