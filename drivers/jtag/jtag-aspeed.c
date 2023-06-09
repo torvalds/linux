@@ -1555,6 +1555,7 @@ static const struct of_device_id aspeed_jtag_of_match[] = {
 	{ .compatible = "aspeed,ast2400-jtag", .data = &ast25xx_functions },
 	{ .compatible = "aspeed,ast2500-jtag", .data = &ast25xx_functions },
 	{ .compatible = "aspeed,ast2600-jtag", .data = &ast26xx_functions },
+	{ .compatible = "aspeed,ast2700-jtag", .data = &ast26xx_functions },
 	{}
 };
 
