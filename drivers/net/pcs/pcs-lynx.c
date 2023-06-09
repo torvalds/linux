@@ -6,6 +6,7 @@
 #include <linux/mdio.h>
 #include <linux/phylink.h>
 #include <linux/pcs-lynx.h>
+#include <linux/property.h>
 
 #define SGMII_CLOCK_PERIOD_NS		8 /* PCS is clocked at 125 MHz */
 #define LINK_TIMER_VAL(ns)		((u32)((ns) / SGMII_CLOCK_PERIOD_NS))
@@ -33,14 +34,6 @@ enum sgmii_speed {
 
 #define phylink_pcs_to_lynx(pl_pcs) container_of((pl_pcs), struct lynx_pcs, pcs)
 #define lynx_to_phylink_pcs(lynx) (&(lynx)->pcs)
-
-struct mdio_device *lynx_get_mdio_device(struct phylink_pcs *pcs)
-{
-	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
-
-	return lynx->mdio;
-}
-EXPORT_SYMBOL(lynx_get_mdio_device);
 
 static void lynx_pcs_get_state_usxgmii(struct mdio_device *pcs,
 				       struct phylink_link_state *state)
@@ -315,13 +308,13 @@ static const struct phylink_pcs_ops lynx_pcs_phylink_ops = {
 	.pcs_link_up = lynx_pcs_link_up,
 };
 
-struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
+static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 {
 	struct lynx_pcs *lynx;
 
 	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
 	if (!lynx)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	mdio_device_get(mdio);
 	lynx->mdio = mdio;
@@ -330,7 +323,6 @@ struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 
 	return lynx_to_phylink_pcs(lynx);
 }
-EXPORT_SYMBOL(lynx_pcs_create);
 
 struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 {
@@ -343,12 +335,6 @@ struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 
 	pcs = lynx_pcs_create(mdio);
 
-	/* Convert failure to create the PCS to an error pointer, so this
-	 * function has a consistent return value strategy.
-	 */
-	if (!pcs)
-		pcs = ERR_PTR(-ENOMEM);
-
 	/* lynx_create() has taken a refcount on the mdiodev if it was
 	 * successful. If lynx_create() fails, this will free the mdio
 	 * device here. In any case, we don't need to hold our reference
@@ -360,6 +346,42 @@ struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 	return pcs;
 }
 EXPORT_SYMBOL(lynx_pcs_create_mdiodev);
+
+/*
+ * lynx_pcs_create_fwnode() creates a lynx PCS instance from the fwnode
+ * device indicated by node.
+ *
+ * Returns:
+ *  -ENODEV if the fwnode is marked unavailable
+ *  -EPROBE_DEFER if we fail to find the device
+ *  -ENOMEM if we fail to allocate memory
+ *  pointer to a phylink_pcs on success
+ */
+struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node)
+{
+	struct mdio_device *mdio;
+	struct phylink_pcs *pcs;
+
+	if (!fwnode_device_is_available(node))
+		return ERR_PTR(-ENODEV);
+
+	mdio = fwnode_mdio_find_device(node);
+	if (!mdio)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	pcs = lynx_pcs_create(mdio);
+
+	/* lynx_create() has taken a refcount on the mdiodev if it was
+	 * successful. If lynx_create() fails, this will free the mdio
+	 * device here. In any case, we don't need to hold our reference
+	 * anymore, and putting it here will allow mdio_device_put() in
+	 * lynx_destroy() to automatically free the mdio device.
+	 */
+	mdio_device_put(mdio);
+
+	return pcs;
+}
+EXPORT_SYMBOL_GPL(lynx_pcs_create_fwnode);
 
 void lynx_pcs_destroy(struct phylink_pcs *pcs)
 {
