@@ -1213,23 +1213,25 @@ PAGE_SIZE multiple when read back.
 	A read-write single value file which exists on non-root
 	cgroups.  The default is "max".
 
-	Memory usage throttle limit.  This is the main mechanism to
-	control memory usage of a cgroup.  If a cgroup's usage goes
+	Memory usage throttle limit.  If a cgroup's usage goes
 	over the high boundary, the processes of the cgroup are
 	throttled and put under heavy reclaim pressure.
 
 	Going over the high limit never invokes the OOM killer and
-	under extreme conditions the limit may be breached.
+	under extreme conditions the limit may be breached. The high
+	limit should be used in scenarios where an external process
+	monitors the limited cgroup to alleviate heavy reclaim
+	pressure.
 
   memory.max
 	A read-write single value file which exists on non-root
 	cgroups.  The default is "max".
 
-	Memory usage hard limit.  This is the final protection
-	mechanism.  If a cgroup's memory usage reaches this limit and
-	can't be reduced, the OOM killer is invoked in the cgroup.
-	Under certain circumstances, the usage may go over the limit
-	temporarily.
+	Memory usage hard limit.  This is the main mechanism to limit
+	memory usage of a cgroup.  If a cgroup's memory usage reaches
+	this limit and can't be reduced, the OOM killer is invoked in
+	the cgroup. Under certain circumstances, the usage may go
+	over the limit temporarily.
 
 	In default configuration regular 0-order allocations always
 	succeed unless OOM killer chooses current task as a victim.
@@ -1237,10 +1239,6 @@ PAGE_SIZE multiple when read back.
 	Some kinds of allocations don't invoke the OOM killer.
 	Caller could retry them differently, return into userspace
 	as -ENOMEM or silently ignore in cases like disk readahead.
-
-	This is the ultimate protection mechanism.  As long as the
-	high limit is used and monitored properly, this limit's
-	utility is limited to providing the final safety net.
 
   memory.reclaim
 	A write-only nested-keyed file which exists for all cgroups.
