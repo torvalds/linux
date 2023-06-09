@@ -9,6 +9,7 @@ doc: Partial family for Ethtool Netlink.
 definitions:
   -
     name: udp-tunnel-type
+    enum-name:
     type: enum
     entries: [ vxlan, geneve, vxlan-gpe ]
 
@@ -836,12 +837,15 @@ attribute-sets:
       -
         name: admin-state
         type: u32
+        name-prefix: ethtool-a-podl-pse-
       -
         name: admin-control
         type: u32
+        name-prefix: ethtool-a-podl-pse-
       -
         name: pw-d-status
         type: u32
+        name-prefix: ethtool-a-podl-pse-
   -
     name: rss
     attributes:
@@ -895,6 +899,7 @@ attribute-sets:
 
 operations:
   enum-model: directional
+  name-prefix: ethtool-msg-
   list:
     -
       name: strset-get
