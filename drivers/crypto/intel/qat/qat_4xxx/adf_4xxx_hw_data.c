@@ -214,9 +214,9 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		return capabilities_cy;
 	case SVC_DC:
 		return capabilities_dc;
+	default:
+		return 0;
 	}
-
-	return 0;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
@@ -231,9 +231,9 @@ static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 		return thrd_to_arb_map_cy;
 	case SVC_DC:
 		return thrd_to_arb_map_dc;
+	default:
+		return NULL;
 	}
-
-	return NULL;
 }
 
 static void get_arb_info(struct arb_info *arb_info)
@@ -318,9 +318,9 @@ static char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
 		return adf_4xxx_fw_cy_config[obj_num].obj_name;
 	case SVC_DC:
 		return adf_4xxx_fw_dc_config[obj_num].obj_name;
+	default:
+		return NULL;
 	}
-
-	return NULL;
 }
 
 static char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
@@ -330,9 +330,9 @@ static char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
 		return adf_402xx_fw_cy_config[obj_num].obj_name;
 	case SVC_DC:
 		return adf_402xx_fw_dc_config[obj_num].obj_name;
+	default:
+		return NULL;
 	}
-
-	return NULL;
 }
 
 static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
@@ -342,9 +342,9 @@ static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 		return adf_4xxx_fw_cy_config[obj_num].ae_mask;
 	case SVC_DC:
 		return adf_4xxx_fw_dc_config[obj_num].ae_mask;
+	default:
+		return 0;
 	}
-
-	return 0;
 }
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
