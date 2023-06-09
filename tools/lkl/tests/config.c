@@ -11,6 +11,7 @@ static const char *config_json =
 "{\n"
 "	\"gateway\":\"192.168.113.1\",\n"
 "	\"gateway6\":\"fc03::1\",\n"
+"	\"nameserver\":\"2001:4860:4860::8888\",\n"
 "	\"debug\":\"1\",\n"
 "	\"interfaces\": [\n"
 "		{\n"
@@ -53,6 +54,11 @@ int lkl_test_config_load_json(void)
 
 	if (strcmp(cfg->gateway6, "fc03::1") != 0) {
 		lkl_test_logf("bad gateway6\n");
+		return TEST_FAILURE;
+	}
+
+	if (strcmp(cfg->nameserver, "2001:4860:4860::8888") != 0) {
+		lkl_test_logf("bad nameserver\n");
 		return TEST_FAILURE;
 	}
 

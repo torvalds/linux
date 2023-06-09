@@ -178,6 +178,8 @@ int lkl_load_config_json(struct lkl_config *cfg, const char *jstr)
 			cfgptr = &cfg->dump;
 		} else if (jsoneq(jstr, &toks[pos], "delay_main") == 0) {
 			cfgptr = &cfg->delay_main;
+		} else if (jsoneq(jstr, &toks[pos], "nameserver") == 0) {
+			cfgptr = &cfg->nameserver;
 		} else {
 			lkl_printf("unexpected key in json %.*s\n",
 					toks[pos].end-toks[pos].start,
@@ -218,6 +220,7 @@ void lkl_show_config(struct lkl_config *cfg)
 		return;
 	lkl_printf("gateway: %s\n", cfg->gateway);
 	lkl_printf("gateway6: %s\n", cfg->gateway6);
+	lkl_printf("nameserver: %s\n", cfg->nameserver);
 	lkl_printf("debug: %s\n", cfg->debug);
 	lkl_printf("mount: %s\n", cfg->mount);
 	lkl_printf("singlecpu: %s\n", cfg->single_cpu);
@@ -689,6 +692,7 @@ static int lkl_clean_config(struct lkl_config *cfg)
 	free_cfgparam(cfg->boot_cmdline);
 	free_cfgparam(cfg->dump);
 	free_cfgparam(cfg->delay_main);
+	free_cfgparam(cfg->nameserver);
 	return 0;
 }
 
@@ -775,6 +779,20 @@ int lkl_load_config_post(struct lkl_config *cfg)
 			lkl_printf("sleeping %lu usec\n", delay);
 			usleep(delay);
 		}
+	}
+
+	if (cfg->nameserver) {
+		int fd;
+		char ns[32] = "nameserver ";
+
+		/* ignore error */
+		lkl_sys_mkdir("/etc", 0xff);
+		lkl_sys_chdir("/etc");
+		fd = lkl_sys_open("/etc/resolv.conf", LKL_O_CREAT | LKL_O_RDWR, 0);
+
+		strcat(ns, cfg->nameserver);
+		lkl_sys_write(fd, ns, sizeof(ns));
+		lkl_sys_close(fd);
 	}
 
 	return 0;

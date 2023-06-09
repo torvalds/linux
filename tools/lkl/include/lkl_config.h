@@ -50,6 +50,7 @@ struct lkl_config {
 	char *boot_cmdline;
 	char *dump;
 	char *delay_main;
+	char *nameserver;
 };
 
 #ifdef LKL_HOST_CONFIG_JSMN
