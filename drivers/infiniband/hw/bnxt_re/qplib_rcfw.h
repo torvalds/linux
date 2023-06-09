@@ -152,8 +152,10 @@ struct bnxt_qplib_crsqe {
 	u32			req_size;
 	/* Free slots at the time of submission */
 	u32			free_slots;
+	u8			opcode;
 	bool			is_waiter_alive;
 	bool			is_internal_cmd;
+	bool			is_in_used;
 };
 
 struct bnxt_qplib_rcfw_sbuf {
@@ -185,7 +187,6 @@ struct bnxt_qplib_cmdq_ctx {
 	struct bnxt_qplib_cmdq_mbox	cmdq_mbox;
 	wait_queue_head_t		waitq;
 	unsigned long			flags;
-	unsigned long			*cmdq_bitmap;
 	unsigned long			last_seen;
 	u32				seq_num;
 };
