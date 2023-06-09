@@ -22,7 +22,7 @@ enum ath11k_debug_mask {
 	ATH11K_DBG_MGMT		= 0x00000100,
 	ATH11K_DBG_REG		= 0x00000200,
 	ATH11K_DBG_TESTMODE	= 0x00000400,
-	ATH11k_DBG_HAL		= 0x00000800,
+	ATH11K_DBG_HAL		= 0x00000800,
 	ATH11K_DBG_PCI		= 0x00001000,
 	ATH11K_DBG_DP_TX	= 0x00002000,
 	ATH11K_DBG_DP_RX	= 0x00004000,
@@ -53,7 +53,7 @@ static inline const char *ath11k_dbg_str(enum ath11k_debug_mask mask)
 		return "reg";
 	case ATH11K_DBG_TESTMODE:
 		return "testmode";
-	case ATH11k_DBG_HAL:
+	case ATH11K_DBG_HAL:
 		return "hal";
 	case ATH11K_DBG_PCI:
 		return "pci";
