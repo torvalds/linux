@@ -1226,7 +1226,7 @@ static void ceph_async_unlink_cb(struct ceph_mds_client *mdsc,
 	if (result) {
 		int pathlen = 0;
 		u64 base = 0;
-		char *path = ceph_mdsc_build_path(dentry, &pathlen,
+		char *path = ceph_mdsc_build_path(mdsc, dentry, &pathlen,
 						  &base, 0);
 
 		/* mark error on parent + clear complete */

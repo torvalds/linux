@@ -114,7 +114,8 @@ bad:
  * Ignore any fields we don't care about (there are quite a few of
  * them).
  */
-struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
+struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
+				       void *end, bool msgr2)
 {
 	struct ceph_mdsmap *m;
 	const void *start = *p;

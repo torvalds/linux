@@ -329,7 +329,8 @@ static int cmpu64_rev(const void *a, const void *b)
 /*
  * build the snap context for a given realm.
  */
-static int build_snap_context(struct ceph_snap_realm *realm,
+static int build_snap_context(struct ceph_mds_client *mdsc,
+			      struct ceph_snap_realm *realm,
 			      struct list_head *realm_queue,
 			      struct list_head *dirty_realms)
 {
@@ -425,7 +426,8 @@ fail:
 /*
  * rebuild snap context for the given realm and all of its children.
  */
-static void rebuild_snap_realms(struct ceph_snap_realm *realm,
+static void rebuild_snap_realms(struct ceph_mds_client *mdsc,
+				struct ceph_snap_realm *realm,
 				struct list_head *dirty_realms)
 {
 	LIST_HEAD(realm_queue);
@@ -451,7 +453,8 @@ static void rebuild_snap_realms(struct ceph_snap_realm *realm,
 			continue;
 		}
 
-		last = build_snap_context(_realm, &realm_queue, dirty_realms);
+		last = build_snap_context(mdsc, _realm, &realm_queue,
+					  dirty_realms);
 		dout("%s %llx %p, %s\n", __func__, _realm->ino, _realm,
 		     last > 0 ? "is deferred" : !last ? "succeeded" : "failed");
 
@@ -708,7 +711,8 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
  * Queue cap_snaps for snap writeback for this realm and its children.
  * Called under snap_rwsem, so realm topology won't change.
  */
-static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
+static void queue_realm_cap_snaps(struct ceph_mds_client *mdsc,
+				  struct ceph_snap_realm *realm)
 {
 	struct ceph_inode_info *ci;
 	struct inode *lastinode = NULL;
@@ -855,7 +859,7 @@ more:
 
 	/* rebuild_snapcs when we reach the _end_ (root) of the trace */
 	if (realm_to_rebuild && p >= e)
-		rebuild_snap_realms(realm_to_rebuild, &dirty_realms);
+		rebuild_snap_realms(mdsc, realm_to_rebuild, &dirty_realms);
 
 	if (!first_realm)
 		first_realm = realm;
@@ -873,7 +877,7 @@ more:
 		realm = list_first_entry(&dirty_realms, struct ceph_snap_realm,
 					 dirty_item);
 		list_del_init(&realm->dirty_item);
-		queue_realm_cap_snaps(realm);
+		queue_realm_cap_snaps(mdsc, realm);
 	}
 
 	if (realm_ret)

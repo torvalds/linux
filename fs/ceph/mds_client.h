@@ -581,7 +581,8 @@ static inline void ceph_mdsc_free_path(char *path, int len)
 		__putname(path - (PATH_MAX - 1 - len));
 }
 
-extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
+extern char *ceph_mdsc_build_path(struct ceph_mds_client *mdsc,
+				  struct dentry *dentry, int *plen, u64 *base,
 				  int for_wire);
 
 extern void __ceph_mdsc_drop_dentry_lease(struct dentry *dentry);
