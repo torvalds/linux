@@ -2178,6 +2178,7 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 				   "Failed setting eswitch to offloads");
 		esw->mode = MLX5_ESWITCH_LEGACY;
 		mlx5_rescan_drivers(esw->dev);
+		return err;
 	}
 	if (esw->offloads.inline_mode == MLX5_INLINE_MODE_NONE) {
 		if (mlx5_eswitch_inline_mode_get(esw,
@@ -2187,7 +2188,7 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 					   "Inline mode is different between vports");
 		}
 	}
-	return err;
+	return 0;
 }
 
 static void mlx5_esw_offloads_rep_mark_set(struct mlx5_eswitch *esw,

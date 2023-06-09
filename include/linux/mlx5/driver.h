@@ -1174,7 +1174,13 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 u64 *values,
 				 int num_counters,
 				 size_t *offsets);
-struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev);
+struct mlx5_core_dev *mlx5_lag_get_next_peer_mdev(struct mlx5_core_dev *dev, int *i);
+
+#define mlx5_lag_for_each_peer_mdev(dev, peer, i)				\
+	for (i = 0, peer = mlx5_lag_get_next_peer_mdev(dev, &i);		\
+	     peer;								\
+	     peer = mlx5_lag_get_next_peer_mdev(dev, &i))
+
 u8 mlx5_lag_get_num_ports(struct mlx5_core_dev *dev);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);

@@ -75,13 +75,14 @@ struct mlx5_devcom *mlx5_devcom_register_device(struct mlx5_core_dev *dev)
 
 	if (!mlx5_core_is_pf(dev))
 		return NULL;
-	if (MLX5_CAP_GEN(dev, num_lag_ports) != MLX5_DEVCOM_PORTS_SUPPORTED)
+	if (MLX5_CAP_GEN(dev, num_lag_ports) > MLX5_DEVCOM_PORTS_SUPPORTED)
 		return NULL;
 
 	mlx5_dev_list_lock();
 	sguid0 = mlx5_query_nic_system_image_guid(dev);
 	list_for_each_entry(iter, &devcom_list, list) {
-		struct mlx5_core_dev *tmp_dev = NULL;
+		/* There is at least one device in iter */
+		struct mlx5_core_dev *tmp_dev;
 
 		idx = -1;
 		for (i = 0; i < MLX5_DEVCOM_PORTS_SUPPORTED; i++) {
