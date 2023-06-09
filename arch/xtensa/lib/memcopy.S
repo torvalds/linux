@@ -275,21 +275,6 @@ WEAK(memcpy)
 ENDPROC(__memcpy)
 
 /*
- * void bcopy(const void *src, void *dest, size_t n);
- */
-
-ENTRY(bcopy)
-
-	abi_entry_default
-	# a2=src, a3=dst, a4=len
-	mov	a5, a3
-	mov	a3, a2
-	mov	a2, a5
-	j	.Lmovecommon	# go to common code for memmove+bcopy
-
-ENDPROC(bcopy)
-
-/*
  * void *memmove(void *dst, const void *src, size_t len);
  *
  * This function is intended to do the same thing as the standard
