@@ -968,6 +968,19 @@ out_error:
 	return err;
 }
 
+static void kcm_splice_eof(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	struct kcm_sock *kcm = kcm_sk(sk);
+
+	if (skb_queue_empty_lockless(&sk->sk_write_queue))
+		return;
+
+	lock_sock(sk);
+	kcm_write_msgs(kcm);
+	release_sock(sk);
+}
+
 static ssize_t kcm_sendpage(struct socket *sock, struct page *page,
 			    int offset, size_t size, int flags)
 
@@ -1773,6 +1786,7 @@ static const struct proto_ops kcm_dgram_ops = {
 	.sendmsg =	kcm_sendmsg,
 	.recvmsg =	kcm_recvmsg,
 	.mmap =		sock_no_mmap,
+	.splice_eof =	kcm_splice_eof,
 	.sendpage =	kcm_sendpage,
 };
 
@@ -1794,6 +1808,7 @@ static const struct proto_ops kcm_seqpacket_ops = {
 	.sendmsg =	kcm_sendmsg,
 	.recvmsg =	kcm_recvmsg,
 	.mmap =		sock_no_mmap,
+	.splice_eof =	kcm_splice_eof,
 	.sendpage =	kcm_sendpage,
 	.splice_read =	kcm_splice_read,
 };
