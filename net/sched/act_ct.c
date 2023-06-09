@@ -606,6 +606,7 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	struct flow_offload_tuple tuple = {};
 	enum ip_conntrack_info ctinfo;
 	struct tcphdr *tcph = NULL;
+	bool force_refresh = false;
 	struct flow_offload *flow;
 	struct nf_conn *ct;
 	u8 dir;
@@ -643,6 +644,7 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 			 * established state, then don't refresh.
 			 */
 			return false;
+		force_refresh = true;
 	}
 
 	if (tcph && (unlikely(tcph->fin || tcph->rst))) {
@@ -656,7 +658,12 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	else
 		ctinfo = IP_CT_ESTABLISHED_REPLY;
 
-	flow_offload_refresh(nf_ft, flow);
+	flow_offload_refresh(nf_ft, flow, force_refresh);
+	if (!test_bit(IPS_ASSURED_BIT, &ct->status)) {
+		/* Process this flow in SW to allow promoting to ASSURED */
+		return false;
+	}
+
 	nf_conntrack_get(&ct->ct_general);
 	nf_ct_set(skb, ct, ctinfo);
 	if (nf_ft->flags & NF_FLOWTABLE_COUNTER)
