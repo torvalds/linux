@@ -210,21 +210,8 @@ static inline int shrinker_defer_size(int nr_items)
 static struct shrinker_info *shrinker_info_protected(struct mem_cgroup *memcg,
 						     int nid)
 {
-	return srcu_dereference_check(memcg->nodeinfo[nid]->shrinker_info,
-				      &shrinker_srcu,
-				      lockdep_is_held(&shrinker_rwsem));
-}
-
-static struct shrinker_info *shrinker_info_srcu(struct mem_cgroup *memcg,
-						     int nid)
-{
-	return srcu_dereference(memcg->nodeinfo[nid]->shrinker_info,
-				&shrinker_srcu);
-}
-
-static void free_shrinker_info_rcu(struct rcu_head *head)
-{
-	kvfree(container_of(head, struct shrinker_info, rcu));
+	return rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_info,
+					 lockdep_is_held(&shrinker_rwsem));
 }
 
 static int expand_one_shrinker_info(struct mem_cgroup *memcg,
@@ -265,7 +252,7 @@ static int expand_one_shrinker_info(struct mem_cgroup *memcg,
 		       defer_size - old_defer_size);
 
 		rcu_assign_pointer(pn->shrinker_info, new);
-		call_srcu(&shrinker_srcu, &old->rcu, free_shrinker_info_rcu);
+		kvfree_rcu(old, rcu);
 	}
 
 	return 0;
@@ -351,16 +338,15 @@ void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id)
 {
 	if (shrinker_id >= 0 && memcg && !mem_cgroup_is_root(memcg)) {
 		struct shrinker_info *info;
-		int srcu_idx;
 
-		srcu_idx = srcu_read_lock(&shrinker_srcu);
-		info = shrinker_info_srcu(memcg, nid);
+		rcu_read_lock();
+		info = rcu_dereference(memcg->nodeinfo[nid]->shrinker_info);
 		if (!WARN_ON_ONCE(shrinker_id >= info->map_nr_max)) {
 			/* Pairs with smp mb in shrink_slab() */
 			smp_mb__before_atomic();
 			set_bit(shrinker_id, info->map);
 		}
-		srcu_read_unlock(&shrinker_srcu, srcu_idx);
+		rcu_read_unlock();
 	}
 }
 
@@ -374,6 +360,7 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
 		return -ENOSYS;
 
 	down_write(&shrinker_rwsem);
+	/* This may call shrinker, so it must use down_read_trylock() */
 	id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
 	if (id < 0)
 		goto unlock;
@@ -407,7 +394,7 @@ static long xchg_nr_deferred_memcg(int nid, struct shrinker *shrinker,
 {
 	struct shrinker_info *info;
 
-	info = shrinker_info_srcu(memcg, nid);
+	info = shrinker_info_protected(memcg, nid);
 	return atomic_long_xchg(&info->nr_deferred[shrinker->id], 0);
 }
 
@@ -416,7 +403,7 @@ static long add_nr_deferred_memcg(long nr, int nid, struct shrinker *shrinker,
 {
 	struct shrinker_info *info;
 
-	info = shrinker_info_srcu(memcg, nid);
+	info = shrinker_info_protected(memcg, nid);
 	return atomic_long_add_return(nr, &info->nr_deferred[shrinker->id]);
 }
 
@@ -947,14 +934,15 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 {
 	struct shrinker_info *info;
 	unsigned long ret, freed = 0;
-	int srcu_idx;
 	int i;
 
 	if (!mem_cgroup_online(memcg))
 		return 0;
 
-	srcu_idx = srcu_read_lock(&shrinker_srcu);
-	info = shrinker_info_srcu(memcg, nid);
+	if (!down_read_trylock(&shrinker_rwsem))
+		return 0;
+
+	info = shrinker_info_protected(memcg, nid);
 	if (unlikely(!info))
 		goto unlock;
 
@@ -1004,9 +992,14 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 				set_shrinker_bit(memcg, nid, i);
 		}
 		freed += ret;
+
+		if (rwsem_is_contended(&shrinker_rwsem)) {
+			freed = freed ? : 1;
+			break;
+		}
 	}
 unlock:
-	srcu_read_unlock(&shrinker_srcu, srcu_idx);
+	up_read(&shrinker_rwsem);
 	return freed;
 }
 #else /* CONFIG_MEMCG */
