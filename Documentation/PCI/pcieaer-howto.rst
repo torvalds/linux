@@ -160,8 +160,8 @@ when performing error recovery actions.
 Data struct pci_driver has a pointer, err_handler, to point to
 pci_error_handlers who consists of a couple of callback function
 pointers. AER driver follows the rules defined in
-pci-error-recovery.txt except pci express specific parts (e.g.
-reset_link). Pls. refer to pci-error-recovery.txt for detailed
+pci-error-recovery.rst except pci express specific parts (e.g.
+reset_link). Pls. refer to pci-error-recovery.rst for detailed
 definitions of the callbacks.
 
 Below sections specify when to call the error callback functions.
