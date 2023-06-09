@@ -316,9 +316,10 @@ static void mpc_i2c_setup_512x(struct device_node *node,
 	if (node_ctrl) {
 		ctrl = of_iomap(node_ctrl, 0);
 		if (ctrl) {
+			u64 addr;
 			/* Interrupt enable bits for i2c-0/1/2: bit 24/26/28 */
-			pval = of_get_property(node, "reg", NULL);
-			idx = (*pval & 0xff) / 0x20;
+			of_property_read_reg(node, 0, &addr, NULL);
+			idx = (addr & 0xff) / 0x20;
 			setbits32(ctrl, 1 << (24 + idx * 2));
 			iounmap(ctrl);
 		}
