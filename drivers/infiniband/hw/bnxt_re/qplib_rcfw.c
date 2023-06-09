@@ -93,9 +93,6 @@ static int bnxt_qplib_map_rc(u8 opcode)
  * bnxt_re_is_fw_stalled   -	Check firmware health
  * @rcfw      -   rcfw channel instance of rdev
  * @cookie    -   cookie to track the command
- * @opcode    -   rcfw submitted for given opcode
- * @cbit      -   bitmap entry of cookie
- * @in_used   -   command is in used or freed
  *
  * If firmware has not responded any rcfw command within
  * rcfw->max_timeout, consider firmware as stalled.
@@ -105,20 +102,22 @@ static int bnxt_qplib_map_rc(u8 opcode)
  * -ENODEV if firmware is not responding
  */
 static int bnxt_re_is_fw_stalled(struct bnxt_qplib_rcfw *rcfw,
-				 u16 cookie, u8 opcode, bool in_used)
+				 u16 cookie)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq;
+	struct bnxt_qplib_crsqe *crsqe;
 
+	crsqe = &rcfw->crsqe_tbl[cookie];
 	cmdq = &rcfw->cmdq;
 
 	if (time_after(jiffies, cmdq->last_seen +
 		      (rcfw->max_timeout * HZ))) {
 		dev_warn_ratelimited(&rcfw->pdev->dev,
 				     "%s: FW STALL Detected. cmdq[%#x]=%#x waited (%d > %d) msec active %d ",
-				     __func__, cookie, opcode,
+				     __func__, cookie, crsqe->opcode,
 				     jiffies_to_msecs(jiffies - cmdq->last_seen),
 				     rcfw->max_timeout * 1000,
-				     in_used);
+				     crsqe->is_in_used);
 		return -ENODEV;
 	}
 
@@ -129,7 +128,6 @@ static int bnxt_re_is_fw_stalled(struct bnxt_qplib_rcfw *rcfw,
  * __wait_for_resp   -	Don't hold the cpu context and wait for response
  * @rcfw      -   rcfw channel instance of rdev
  * @cookie    -   cookie to track the command
- * @opcode    -   rcfw submitted for given opcode
  *
  * Wait for command completion in sleepable context.
  *
@@ -137,7 +135,7 @@ static int bnxt_re_is_fw_stalled(struct bnxt_qplib_rcfw *rcfw,
  * 0 if command is completed by firmware.
  * Non zero error code for rest of the case.
  */
-static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
+static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq;
 	struct bnxt_qplib_crsqe *crsqe;
@@ -148,7 +146,7 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 
 	do {
 		if (test_bit(ERR_DEVICE_DETACHED, &cmdq->flags))
-			return bnxt_qplib_map_rc(opcode);
+			return bnxt_qplib_map_rc(crsqe->opcode);
 		if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
 			return -ETIMEDOUT;
 
@@ -165,7 +163,7 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 		if (!crsqe->is_in_used)
 			return 0;
 
-		ret = bnxt_re_is_fw_stalled(rcfw, cookie, opcode, crsqe->is_in_used);
+		ret = bnxt_re_is_fw_stalled(rcfw, cookie);
 		if (ret)
 			return ret;
 
@@ -176,7 +174,6 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
  * __block_for_resp   -	hold the cpu context and wait for response
  * @rcfw      -   rcfw channel instance of rdev
  * @cookie    -   cookie to track the command
- * @opcode    -   rcfw submitted for given opcode
  *
  * This function will hold the cpu (non-sleepable context) and
  * wait for command completion. Maximum holding interval is 8 second.
@@ -185,7 +182,7 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
  * -ETIMEOUT if command is not completed in specific time interval.
  * 0 if command is completed by firmware.
  */
-static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
+static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
 	struct bnxt_qplib_crsqe *crsqe;
@@ -196,7 +193,7 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 
 	do {
 		if (test_bit(ERR_DEVICE_DETACHED, &cmdq->flags))
-			return bnxt_qplib_map_rc(opcode);
+			return bnxt_qplib_map_rc(crsqe->opcode);
 		if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
 			return -ETIMEDOUT;
 
@@ -372,7 +369,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
  * __poll_for_resp   -	self poll completion for rcfw command
  * @rcfw      -   rcfw channel instance of rdev
  * @cookie    -   cookie to track the command
- * @opcode    -   rcfw submitted for given opcode
  *
  * It works same as __wait_for_resp except this function will
  * do self polling in sort interval since interrupt is disabled.
@@ -382,8 +378,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
  * -ETIMEOUT if command is not completed in specific time interval.
  * 0 if command is completed by firmware.
  */
-static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
-			   u8 opcode)
+static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
 	struct bnxt_qplib_crsqe *crsqe;
@@ -395,7 +390,7 @@ static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
 
 	do {
 		if (test_bit(ERR_DEVICE_DETACHED, &cmdq->flags))
-			return bnxt_qplib_map_rc(opcode);
+			return bnxt_qplib_map_rc(crsqe->opcode);
 		if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
 			return -ETIMEDOUT;
 
@@ -406,7 +401,7 @@ static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
 			return 0;
 		if (jiffies_to_msecs(jiffies - issue_time) >
 		    (rcfw->max_timeout * 1000)) {
-			ret = bnxt_re_is_fw_stalled(rcfw, cookie, opcode, crsqe->is_in_used);
+			ret = bnxt_re_is_fw_stalled(rcfw, cookie);
 			if (ret)
 				return ret;
 		}
@@ -414,13 +409,12 @@ static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
 };
 
 static int __send_message_basic_sanity(struct bnxt_qplib_rcfw *rcfw,
-				       struct bnxt_qplib_cmdqmsg *msg)
+				       struct bnxt_qplib_cmdqmsg *msg,
+				       u8 opcode)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq;
-	u32 opcode;
 
 	cmdq = &rcfw->cmdq;
-	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
 
 	/* Prevent posting if f/w is not in a state to process */
 	if (test_bit(ERR_DEVICE_DETACHED, &rcfw->cmdq.flags))
@@ -492,7 +486,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 
 	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
 
-	rc = __send_message_basic_sanity(rcfw, msg);
+	rc = __send_message_basic_sanity(rcfw, msg, opcode);
 	if (rc)
 		return rc == -ENXIO ? bnxt_qplib_map_rc(opcode) : rc;
 
@@ -504,11 +498,11 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 				& RCFW_MAX_COOKIE_VALUE;
 
 	if (msg->block)
-		rc = __block_for_resp(rcfw, cookie, opcode);
+		rc = __block_for_resp(rcfw, cookie);
 	else if (atomic_read(&rcfw->rcfw_intr_enabled))
-		rc = __wait_for_resp(rcfw, cookie, opcode);
+		rc = __wait_for_resp(rcfw, cookie);
 	else
-		rc = __poll_for_resp(rcfw, cookie, opcode);
+		rc = __poll_for_resp(rcfw, cookie);
 	if (rc) {
 		/* timed out */
 		dev_err(&rcfw->pdev->dev, "cmdq[%#x]=%#x timedout (%d)msec\n",
