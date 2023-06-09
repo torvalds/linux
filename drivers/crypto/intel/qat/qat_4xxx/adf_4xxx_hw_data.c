@@ -11,34 +11,45 @@
 #include "adf_4xxx_hw_data.h"
 #include "icp_qat_hw.h"
 
+enum adf_fw_objs {
+	ADF_FW_SYM_OBJ,
+	ADF_FW_ASYM_OBJ,
+	ADF_FW_DC_OBJ,
+	ADF_FW_ADMIN_OBJ,
+};
+
+static const char * const adf_4xxx_fw_objs[] = {
+	[ADF_FW_SYM_OBJ] =  ADF_4XXX_SYM_OBJ,
+	[ADF_FW_ASYM_OBJ] =  ADF_4XXX_ASYM_OBJ,
+	[ADF_FW_DC_OBJ] =  ADF_4XXX_DC_OBJ,
+	[ADF_FW_ADMIN_OBJ] = ADF_4XXX_ADMIN_OBJ,
+};
+
+static const char * const adf_402xx_fw_objs[] = {
+	[ADF_FW_SYM_OBJ] =  ADF_402XX_SYM_OBJ,
+	[ADF_FW_ASYM_OBJ] =  ADF_402XX_ASYM_OBJ,
+	[ADF_FW_DC_OBJ] =  ADF_402XX_DC_OBJ,
+	[ADF_FW_ADMIN_OBJ] = ADF_402XX_ADMIN_OBJ,
+};
+
 struct adf_fw_config {
 	u32 ae_mask;
-	const char *obj_name;
+	enum adf_fw_objs obj;
 };
 
-static struct adf_fw_config adf_4xxx_fw_cy_config[] = {
-	{0xF0, ADF_4XXX_SYM_OBJ},
-	{0xF, ADF_4XXX_ASYM_OBJ},
-	{0x100, ADF_4XXX_ADMIN_OBJ},
+static const struct adf_fw_config adf_fw_cy_config[] = {
+	{0xF0, ADF_FW_SYM_OBJ},
+	{0xF, ADF_FW_ASYM_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
 };
 
-static struct adf_fw_config adf_4xxx_fw_dc_config[] = {
-	{0xF0, ADF_4XXX_DC_OBJ},
-	{0xF, ADF_4XXX_DC_OBJ},
-	{0x100, ADF_4XXX_ADMIN_OBJ},
+static const struct adf_fw_config adf_fw_dc_config[] = {
+	{0xF0, ADF_FW_DC_OBJ},
+	{0xF, ADF_FW_DC_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
 };
 
-static struct adf_fw_config adf_402xx_fw_cy_config[] = {
-	{0xF0, ADF_402XX_SYM_OBJ},
-	{0xF, ADF_402XX_ASYM_OBJ},
-	{0x100, ADF_402XX_ADMIN_OBJ},
-};
-
-static struct adf_fw_config adf_402xx_fw_dc_config[] = {
-	{0xF0, ADF_402XX_DC_OBJ},
-	{0xF, ADF_402XX_DC_OBJ},
-	{0x100, ADF_402XX_ADMIN_OBJ},
-};
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_dc_config));
 
 /* Worker thread to service arbiter mappings */
 static const u32 thrd_to_arb_map_cy[ADF_4XXX_MAX_ACCELENGINES] = {
@@ -304,44 +315,53 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 
 static u32 uof_get_num_objs(void)
 {
-	BUILD_BUG_ON_MSG(ARRAY_SIZE(adf_4xxx_fw_cy_config) !=
-			 ARRAY_SIZE(adf_4xxx_fw_dc_config),
-			 "Size mismatch between adf_4xxx_fw_*_config arrays");
+	return ARRAY_SIZE(adf_fw_cy_config);
+}
 
-	return ARRAY_SIZE(adf_4xxx_fw_cy_config);
+static const char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num,
+				const char * const fw_objs[], int num_objs)
+{
+	int id;
+
+	switch (get_service_enabled(accel_dev)) {
+	case SVC_CY:
+		id = adf_fw_cy_config[obj_num].obj;
+		break;
+	case SVC_DC:
+		id = adf_fw_dc_config[obj_num].obj;
+		break;
+	default:
+		id = -EINVAL;
+		break;
+	}
+
+	if (id < 0 || id > num_objs)
+		return NULL;
+
+	return fw_objs[id];
 }
 
 static const char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	switch (get_service_enabled(accel_dev)) {
-	case SVC_CY:
-		return adf_4xxx_fw_cy_config[obj_num].obj_name;
-	case SVC_DC:
-		return adf_4xxx_fw_dc_config[obj_num].obj_name;
-	default:
-		return NULL;
-	}
+	int num_fw_objs = ARRAY_SIZE(adf_4xxx_fw_objs);
+
+	return uof_get_name(accel_dev, obj_num, adf_4xxx_fw_objs, num_fw_objs);
 }
 
 static const char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	switch (get_service_enabled(accel_dev)) {
-	case SVC_CY:
-		return adf_402xx_fw_cy_config[obj_num].obj_name;
-	case SVC_DC:
-		return adf_402xx_fw_dc_config[obj_num].obj_name;
-	default:
-		return NULL;
-	}
+	int num_fw_objs = ARRAY_SIZE(adf_402xx_fw_objs);
+
+	return uof_get_name(accel_dev, obj_num, adf_402xx_fw_objs, num_fw_objs);
 }
 
 static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
-		return adf_4xxx_fw_cy_config[obj_num].ae_mask;
+		return adf_fw_cy_config[obj_num].ae_mask;
 	case SVC_DC:
-		return adf_4xxx_fw_dc_config[obj_num].ae_mask;
+		return adf_fw_dc_config[obj_num].ae_mask;
 	default:
 		return 0;
 	}
