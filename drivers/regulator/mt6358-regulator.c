@@ -35,7 +35,7 @@ struct mt6358_regulator_info {
 };
 
 #define MT6358_BUCK(match, vreg, min, max, step,		\
-	volt_ranges, vosel_mask, _da_vsel_reg, _da_vsel_mask,	\
+	vosel_mask, _da_vsel_reg, _da_vsel_mask,	\
 	_modeset_reg, _modeset_shift)		\
 [MT6358_ID_##vreg] = {	\
 	.desc = {	\
@@ -46,8 +46,8 @@ struct mt6358_regulator_info {
 		.id = MT6358_ID_##vreg,		\
 		.owner = THIS_MODULE,		\
 		.n_voltages = ((max) - (min)) / (step) + 1,	\
-		.linear_ranges = volt_ranges,		\
-		.n_linear_ranges = ARRAY_SIZE(volt_ranges),	\
+		.min_uV = (min),		\
+		.uV_step = (step),		\
 		.vsel_reg = MT6358_BUCK_##vreg##_ELR0,	\
 		.vsel_mask = vosel_mask,	\
 		.enable_reg = MT6358_BUCK_##vreg##_CON0,	\
@@ -87,7 +87,7 @@ struct mt6358_regulator_info {
 }
 
 #define MT6358_LDO1(match, vreg, min, max, step,	\
-	volt_ranges, _da_vsel_reg, _da_vsel_mask,	\
+	_da_vsel_reg, _da_vsel_mask,	\
 	vosel, vosel_mask)	\
 [MT6358_ID_##vreg] = {	\
 	.desc = {	\
@@ -98,8 +98,8 @@ struct mt6358_regulator_info {
 		.id = MT6358_ID_##vreg,	\
 		.owner = THIS_MODULE,	\
 		.n_voltages = ((max) - (min)) / (step) + 1,	\
-		.linear_ranges = volt_ranges,	\
-		.n_linear_ranges = ARRAY_SIZE(volt_ranges),	\
+		.min_uV = (min),		\
+		.uV_step = (step),		\
 		.vsel_reg = vosel,	\
 		.vsel_mask = vosel_mask,	\
 		.enable_reg = MT6358_LDO_##vreg##_CON0,	\
@@ -131,7 +131,7 @@ struct mt6358_regulator_info {
 }
 
 #define MT6366_BUCK(match, vreg, min, max, step,		\
-	volt_ranges, vosel_mask, _da_vsel_reg, _da_vsel_mask,	\
+	vosel_mask, _da_vsel_reg, _da_vsel_mask,	\
 	_modeset_reg, _modeset_shift)		\
 [MT6366_ID_##vreg] = {	\
 	.desc = {	\
@@ -142,8 +142,8 @@ struct mt6358_regulator_info {
 		.id = MT6366_ID_##vreg,		\
 		.owner = THIS_MODULE,		\
 		.n_voltages = ((max) - (min)) / (step) + 1,	\
-		.linear_ranges = volt_ranges,		\
-		.n_linear_ranges = ARRAY_SIZE(volt_ranges),	\
+		.min_uV = (min),		\
+		.uV_step = (step),		\
 		.vsel_reg = MT6358_BUCK_##vreg##_ELR0,	\
 		.vsel_mask = vosel_mask,	\
 		.enable_reg = MT6358_BUCK_##vreg##_CON0,	\
@@ -183,7 +183,7 @@ struct mt6358_regulator_info {
 }
 
 #define MT6366_LDO1(match, vreg, min, max, step,	\
-	volt_ranges, _da_vsel_reg, _da_vsel_mask,	\
+	_da_vsel_reg, _da_vsel_mask,	\
 	vosel, vosel_mask)	\
 [MT6366_ID_##vreg] = {	\
 	.desc = {	\
@@ -194,8 +194,8 @@ struct mt6358_regulator_info {
 		.id = MT6366_ID_##vreg,	\
 		.owner = THIS_MODULE,	\
 		.n_voltages = ((max) - (min)) / (step) + 1,	\
-		.linear_ranges = volt_ranges,	\
-		.n_linear_ranges = ARRAY_SIZE(volt_ranges),	\
+		.min_uV = (min),		\
+		.uV_step = (step),		\
 		.vsel_reg = vosel,	\
 		.vsel_mask = vosel_mask,	\
 		.enable_reg = MT6358_LDO_##vreg##_CON0,	\
@@ -226,21 +226,6 @@ struct mt6358_regulator_info {
 	.qi = BIT(15),							\
 }
 
-static const struct linear_range buck_volt_range1[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0, 0x7f, 6250),
-};
-
-static const struct linear_range buck_volt_range2[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0, 0x7f, 12500),
-};
-
-static const struct linear_range buck_volt_range3[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0, 0x3f, 50000),
-};
-
-static const struct linear_range buck_volt_range4[] = {
-	REGULATOR_LINEAR_RANGE(1000000, 0, 0x7f, 12500),
-};
 
 static const unsigned int vdram2_voltages[] = {
 	600000, 1800000,
@@ -464,8 +449,8 @@ static unsigned int mt6358_regulator_get_mode(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops mt6358_volt_range_ops = {
-	.list_voltage = regulator_list_voltage_linear_range,
-	.map_voltage = regulator_map_voltage_linear_range,
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = mt6358_get_buck_voltage_sel,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
@@ -500,32 +485,23 @@ static const struct regulator_ops mt6358_volt_fixed_ops = {
 /* The array is indexed by id(MT6358_ID_XXX) */
 static struct mt6358_regulator_info mt6358_regulators[] = {
 	MT6358_BUCK("buck_vdram1", VDRAM1, 500000, 2087500, 12500,
-		    buck_volt_range2, 0x7f, MT6358_BUCK_VDRAM1_DBG0, 0x7f,
-		    MT6358_VDRAM1_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VDRAM1_DBG0, 0x7f, MT6358_VDRAM1_ANA_CON0, 8),
 	MT6358_BUCK("buck_vcore", VCORE, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VCORE_DBG0, 0x7f,
-		    MT6358_VCORE_VGPU_ANA_CON0, 1),
+		    0x7f, MT6358_BUCK_VCORE_DBG0, 0x7f, MT6358_VCORE_VGPU_ANA_CON0, 1),
 	MT6358_BUCK("buck_vpa", VPA, 500000, 3650000, 50000,
-		    buck_volt_range3, 0x3f, MT6358_BUCK_VPA_DBG0, 0x3f,
-		    MT6358_VPA_ANA_CON0, 3),
+		    0x3f, MT6358_BUCK_VPA_DBG0, 0x3f, MT6358_VPA_ANA_CON0, 3),
 	MT6358_BUCK("buck_vproc11", VPROC11, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VPROC11_DBG0, 0x7f,
-		    MT6358_VPROC_ANA_CON0, 1),
+		    0x7f, MT6358_BUCK_VPROC11_DBG0, 0x7f, MT6358_VPROC_ANA_CON0, 1),
 	MT6358_BUCK("buck_vproc12", VPROC12, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VPROC12_DBG0, 0x7f,
-		    MT6358_VPROC_ANA_CON0, 2),
+		    0x7f, MT6358_BUCK_VPROC12_DBG0, 0x7f, MT6358_VPROC_ANA_CON0, 2),
 	MT6358_BUCK("buck_vgpu", VGPU, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VGPU_ELR0, 0x7f,
-		    MT6358_VCORE_VGPU_ANA_CON0, 2),
+		    0x7f, MT6358_BUCK_VGPU_ELR0, 0x7f, MT6358_VCORE_VGPU_ANA_CON0, 2),
 	MT6358_BUCK("buck_vs2", VS2, 500000, 2087500, 12500,
-		    buck_volt_range2, 0x7f, MT6358_BUCK_VS2_DBG0, 0x7f,
-		    MT6358_VS2_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VS2_DBG0, 0x7f, MT6358_VS2_ANA_CON0, 8),
 	MT6358_BUCK("buck_vmodem", VMODEM, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VMODEM_DBG0, 0x7f,
-		    MT6358_VMODEM_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VMODEM_DBG0, 0x7f, MT6358_VMODEM_ANA_CON0, 8),
 	MT6358_BUCK("buck_vs1", VS1, 1000000, 2587500, 12500,
-		    buck_volt_range4, 0x7f, MT6358_BUCK_VS1_DBG0, 0x7f,
-		    MT6358_VS1_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VS1_DBG0, 0x7f, MT6358_VS1_ANA_CON0, 8),
 	MT6358_REG_FIXED("ldo_vrf12", VRF12,
 			 MT6358_LDO_VRF12_CON0, 0, 1200000),
 	MT6358_REG_FIXED("ldo_vio18", VIO18,
@@ -579,48 +555,35 @@ static struct mt6358_regulator_info mt6358_regulators[] = {
 	MT6358_LDO("ldo_vsim2", VSIM2, vsim_voltages, vsim_idx,
 		   MT6358_LDO_VSIM2_CON0, 0, MT6358_VSIM2_ANA_CON0, 0xf00),
 	MT6358_LDO1("ldo_vsram_proc11", VSRAM_PROC11, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_PROC11_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON0, 0x7f),
+		    MT6358_LDO_VSRAM_PROC11_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON0, 0x7f),
 	MT6358_LDO1("ldo_vsram_others", VSRAM_OTHERS, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_OTHERS_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON2, 0x7f),
+		    MT6358_LDO_VSRAM_OTHERS_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON2, 0x7f),
 	MT6358_LDO1("ldo_vsram_gpu", VSRAM_GPU, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_GPU_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON3, 0x7f),
+		    MT6358_LDO_VSRAM_GPU_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON3, 0x7f),
 	MT6358_LDO1("ldo_vsram_proc12", VSRAM_PROC12, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_PROC12_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON1, 0x7f),
+		    MT6358_LDO_VSRAM_PROC12_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON1, 0x7f),
 };
 
 /* The array is indexed by id(MT6366_ID_XXX) */
 static struct mt6358_regulator_info mt6366_regulators[] = {
 	MT6366_BUCK("buck_vdram1", VDRAM1, 500000, 2087500, 12500,
-		    buck_volt_range2, 0x7f, MT6358_BUCK_VDRAM1_DBG0, 0x7f,
-		    MT6358_VDRAM1_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VDRAM1_DBG0, 0x7f, MT6358_VDRAM1_ANA_CON0, 8),
 	MT6366_BUCK("buck_vcore", VCORE, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VCORE_DBG0, 0x7f,
-		    MT6358_VCORE_VGPU_ANA_CON0, 1),
+		    0x7f, MT6358_BUCK_VCORE_DBG0, 0x7f, MT6358_VCORE_VGPU_ANA_CON0, 1),
 	MT6366_BUCK("buck_vpa", VPA, 500000, 3650000, 50000,
-		    buck_volt_range3, 0x3f, MT6358_BUCK_VPA_DBG0, 0x3f,
-		    MT6358_VPA_ANA_CON0, 3),
+		    0x3f, MT6358_BUCK_VPA_DBG0, 0x3f, MT6358_VPA_ANA_CON0, 3),
 	MT6366_BUCK("buck_vproc11", VPROC11, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VPROC11_DBG0, 0x7f,
-		    MT6358_VPROC_ANA_CON0, 1),
+		    0x7f, MT6358_BUCK_VPROC11_DBG0, 0x7f, MT6358_VPROC_ANA_CON0, 1),
 	MT6366_BUCK("buck_vproc12", VPROC12, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VPROC12_DBG0, 0x7f,
-		    MT6358_VPROC_ANA_CON0, 2),
+		    0x7f, MT6358_BUCK_VPROC12_DBG0, 0x7f, MT6358_VPROC_ANA_CON0, 2),
 	MT6366_BUCK("buck_vgpu", VGPU, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VGPU_ELR0, 0x7f,
-		    MT6358_VCORE_VGPU_ANA_CON0, 2),
+		    0x7f, MT6358_BUCK_VGPU_ELR0, 0x7f, MT6358_VCORE_VGPU_ANA_CON0, 2),
 	MT6366_BUCK("buck_vs2", VS2, 500000, 2087500, 12500,
-		    buck_volt_range2, 0x7f, MT6358_BUCK_VS2_DBG0, 0x7f,
-		    MT6358_VS2_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VS2_DBG0, 0x7f, MT6358_VS2_ANA_CON0, 8),
 	MT6366_BUCK("buck_vmodem", VMODEM, 500000, 1293750, 6250,
-		    buck_volt_range1, 0x7f, MT6358_BUCK_VMODEM_DBG0, 0x7f,
-		    MT6358_VMODEM_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VMODEM_DBG0, 0x7f, MT6358_VMODEM_ANA_CON0, 8),
 	MT6366_BUCK("buck_vs1", VS1, 1000000, 2587500, 12500,
-		    buck_volt_range4, 0x7f, MT6358_BUCK_VS1_DBG0, 0x7f,
-		    MT6358_VS1_ANA_CON0, 8),
+		    0x7f, MT6358_BUCK_VS1_DBG0, 0x7f, MT6358_VS1_ANA_CON0, 8),
 	MT6366_REG_FIXED("ldo_vrf12", VRF12,
 			 MT6358_LDO_VRF12_CON0, 0, 1200000),
 	MT6366_REG_FIXED("ldo_vio18", VIO18,
@@ -663,17 +626,13 @@ static struct mt6358_regulator_info mt6366_regulators[] = {
 	MT6366_LDO("ldo_vsim2", VSIM2, vsim_voltages, vsim_idx,
 		   MT6358_LDO_VSIM2_CON0, 0, MT6358_VSIM2_ANA_CON0, 0xf00),
 	MT6366_LDO1("ldo_vsram_proc11", VSRAM_PROC11, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_PROC11_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON0, 0x7f),
+		    MT6358_LDO_VSRAM_PROC11_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON0, 0x7f),
 	MT6366_LDO1("ldo_vsram_others", VSRAM_OTHERS, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_OTHERS_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON2, 0x7f),
+		    MT6358_LDO_VSRAM_OTHERS_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON2, 0x7f),
 	MT6366_LDO1("ldo_vsram_gpu", VSRAM_GPU, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_GPU_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON3, 0x7f),
+		    MT6358_LDO_VSRAM_GPU_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON3, 0x7f),
 	MT6366_LDO1("ldo_vsram_proc12", VSRAM_PROC12, 500000, 1293750, 6250,
-		    buck_volt_range1, MT6358_LDO_VSRAM_PROC12_DBG0, 0x7f00,
-		    MT6358_LDO_VSRAM_CON1, 0x7f),
+		    MT6358_LDO_VSRAM_PROC12_DBG0, 0x7f00, MT6358_LDO_VSRAM_CON1, 0x7f),
 };
 
 static int mt6358_regulator_probe(struct platform_device *pdev)
