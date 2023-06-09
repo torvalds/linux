@@ -316,11 +316,20 @@ static struct rcu_scale_ops tasks_ops = {
  * Definitions for RCU-tasks-rude scalability testing.
  */
 
+static int tasks_rude_scale_read_lock(void)
+{
+	return 0;
+}
+
+static void tasks_rude_scale_read_unlock(int idx)
+{
+}
+
 static struct rcu_scale_ops tasks_rude_ops = {
 	.ptype		= RCU_TASKS_RUDE_FLAVOR,
 	.init		= rcu_sync_scale_init,
-	.readlock	= tasks_scale_read_lock,
-	.readunlock	= tasks_scale_read_unlock,
+	.readlock	= tasks_rude_scale_read_lock,
+	.readunlock	= tasks_rude_scale_read_unlock,
 	.get_gp_seq	= rcu_no_completed,
 	.gp_diff	= rcu_seq_diff,
 	.async		= call_rcu_tasks_rude,
