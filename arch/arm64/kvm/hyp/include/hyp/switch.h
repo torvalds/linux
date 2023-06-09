@@ -75,6 +75,9 @@ static inline bool __hfgxtr_traps_required(void)
 	if (cpus_have_final_cap(ARM64_SME))
 		return true;
 
+	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
+		return true;
+
 	return false;
 }
 
@@ -88,6 +91,12 @@ static inline void __activate_traps_hfgxtr(void)
 		r_clr |= tmp;
 		w_clr |= tmp;
 	}
+
+	/*
+	 * Trap guest writes to TCR_EL1 to prevent it from enabling HA or HD.
+	 */
+	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
+		w_set |= HFGxTR_EL2_TCR_EL1_MASK;
 
 	sysreg_clear_set_s(SYS_HFGRTR_EL2, r_clr, r_set);
 	sysreg_clear_set_s(SYS_HFGWTR_EL2, w_clr, w_set);
@@ -103,6 +112,9 @@ static inline void __deactivate_traps_hfgxtr(void)
 		r_set |= tmp;
 		w_set |= tmp;
 	}
+
+	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
+		w_clr |= HFGxTR_EL2_TCR_EL1_MASK;
 
 	sysreg_clear_set_s(SYS_HFGRTR_EL2, r_clr, r_set);
 	sysreg_clear_set_s(SYS_HFGWTR_EL2, w_clr, w_set);
@@ -408,10 +420,37 @@ static bool kvm_hyp_handle_cntpct(struct kvm_vcpu *vcpu)
 	return true;
 }
 
+static bool handle_ampere1_tcr(struct kvm_vcpu *vcpu)
+{
+	u32 sysreg = esr_sys64_to_sysreg(kvm_vcpu_get_esr(vcpu));
+	int rt = kvm_vcpu_sys_get_rt(vcpu);
+	u64 val = vcpu_get_reg(vcpu, rt);
+
+	if (sysreg != SYS_TCR_EL1)
+		return false;
+
+	/*
+	 * Affected parts do not advertise support for hardware Access Flag /
+	 * Dirty state management in ID_AA64MMFR1_EL1.HAFDBS, but the underlying
+	 * control bits are still functional. The architecture requires these be
+	 * RES0 on systems that do not implement FEAT_HAFDBS.
+	 *
+	 * Uphold the requirements of the architecture by masking guest writes
+	 * to TCR_EL1.{HA,HD} here.
+	 */
+	val &= ~(TCR_HD | TCR_HA);
+	write_sysreg_el1(val, SYS_TCR);
+	return true;
+}
+
 static bool kvm_hyp_handle_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	if (cpus_have_final_cap(ARM64_WORKAROUND_CAVIUM_TX2_219_TVM) &&
 	    handle_tx2_tvm(vcpu))
+		return true;
+
+	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38) &&
+	    handle_ampere1_tcr(vcpu))
 		return true;
 
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) &&
