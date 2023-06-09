@@ -70,6 +70,44 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	}
 }
 
+static inline bool __hfgxtr_traps_required(void)
+{
+	if (cpus_have_final_cap(ARM64_SME))
+		return true;
+
+	return false;
+}
+
+static inline void __activate_traps_hfgxtr(void)
+{
+	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0, tmp;
+
+	if (cpus_have_final_cap(ARM64_SME)) {
+		tmp = HFGxTR_EL2_nSMPRI_EL1_MASK | HFGxTR_EL2_nTPIDR2_EL0_MASK;
+
+		r_clr |= tmp;
+		w_clr |= tmp;
+	}
+
+	sysreg_clear_set_s(SYS_HFGRTR_EL2, r_clr, r_set);
+	sysreg_clear_set_s(SYS_HFGWTR_EL2, w_clr, w_set);
+}
+
+static inline void __deactivate_traps_hfgxtr(void)
+{
+	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0, tmp;
+
+	if (cpus_have_final_cap(ARM64_SME)) {
+		tmp = HFGxTR_EL2_nSMPRI_EL1_MASK | HFGxTR_EL2_nTPIDR2_EL0_MASK;
+
+		r_set |= tmp;
+		w_set |= tmp;
+	}
+
+	sysreg_clear_set_s(SYS_HFGRTR_EL2, r_clr, r_set);
+	sysreg_clear_set_s(SYS_HFGWTR_EL2, w_clr, w_set);
+}
+
 static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 {
 	/* Trap on AArch32 cp15 c15 (impdef sysregs) accesses (EL1 or EL0) */
@@ -89,16 +127,8 @@ static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 	vcpu->arch.mdcr_el2_host = read_sysreg(mdcr_el2);
 	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 
-	if (cpus_have_final_cap(ARM64_SME)) {
-		sysreg_clear_set_s(SYS_HFGRTR_EL2,
-				   HFGxTR_EL2_nSMPRI_EL1_MASK |
-				   HFGxTR_EL2_nTPIDR2_EL0_MASK,
-				   0);
-		sysreg_clear_set_s(SYS_HFGWTR_EL2,
-				   HFGxTR_EL2_nSMPRI_EL1_MASK |
-				   HFGxTR_EL2_nTPIDR2_EL0_MASK,
-				   0);
-	}
+	if (__hfgxtr_traps_required())
+		__activate_traps_hfgxtr();
 }
 
 static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
@@ -109,14 +139,8 @@ static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
 	if (kvm_arm_support_pmu_v3())
 		write_sysreg(0, pmuserenr_el0);
 
-	if (cpus_have_final_cap(ARM64_SME)) {
-		sysreg_clear_set_s(SYS_HFGRTR_EL2, 0,
-				   HFGxTR_EL2_nSMPRI_EL1_MASK |
-				   HFGxTR_EL2_nTPIDR2_EL0_MASK);
-		sysreg_clear_set_s(SYS_HFGWTR_EL2, 0,
-				   HFGxTR_EL2_nSMPRI_EL1_MASK |
-				   HFGxTR_EL2_nTPIDR2_EL0_MASK);
-	}
+	if (__hfgxtr_traps_required())
+		__deactivate_traps_hfgxtr();
 }
 
 static inline void ___activate_traps(struct kvm_vcpu *vcpu)
