@@ -302,6 +302,15 @@
 			status = "disabled";
 		};
 
+		jtag0: jtag@12c20000 {
+			compatible = "aspeed,ast2700-jtag";
+			reg= <0x0 0x12c20000 0x0 0x40>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+			resets = <&cpu_clk ASPEED_RESET_JTAG0>;
+			status = "disabled";
+		};
+
 		pcie1_vuart0: serial@1a2c18200 {
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18200 0x0 0x40>;
@@ -703,6 +712,14 @@
 			resets = <&io_clk ASPEED_RESET_ESPI1>;
 			pinctrl-names = "default";
 			pinctrl-1 = <&pinctrl_espi1_default>;
+		};
+
+		jtag1: jtag@14c09000 {
+			compatible = "aspeed,ast2700-jtag";
+			reg= <0x0 0x14c09000 0x0 0x40>;
+			interrupts-extended = <&intc5 2>;
+			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			resets = <&io_clk ASPEED_RESET_JTAG1>;
 			status = "disabled";
 		};
 
