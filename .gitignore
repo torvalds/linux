@@ -168,3 +168,7 @@ sphinx_*/
 
 # Rust analyzer configuration
 /rust-project.json
+
+# Android ABI build files
+abi_gki_protected_exports
+all_kmi_symbols
