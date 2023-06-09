@@ -288,6 +288,24 @@ static i915_reg_t psr_iir_reg(struct drm_i915_private *dev_priv,
 		return EDP_PSR_IIR;
 }
 
+static i915_reg_t psr_aux_ctl_reg(struct drm_i915_private *dev_priv,
+				  enum transcoder cpu_transcoder)
+{
+	if (DISPLAY_VER(dev_priv) >= 8)
+		return EDP_PSR_AUX_CTL(cpu_transcoder);
+	else
+		return HSW_SRD_AUX_CTL;
+}
+
+static i915_reg_t psr_aux_data_reg(struct drm_i915_private *dev_priv,
+				   enum transcoder cpu_transcoder, int i)
+{
+	if (DISPLAY_VER(dev_priv) >= 8)
+		return EDP_PSR_AUX_DATA(cpu_transcoder, i);
+	else
+		return HSW_SRD_AUX_DATA(i);
+}
+
 static void psr_irq_control(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -510,6 +528,43 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 			intel_dp_get_su_granularity(intel_dp);
 		}
 	}
+}
+
+static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
+	u32 aux_clock_divider, aux_ctl;
+	/* write DP_SET_POWER=D0 */
+	static const u8 aux_msg[] = {
+		[0] = (DP_AUX_NATIVE_WRITE << 4) | ((DP_SET_POWER >> 16) & 0xf),
+		[1] = (DP_SET_POWER >> 8) & 0xff,
+		[2] = DP_SET_POWER & 0xff,
+		[3] = 1 - 1,
+		[4] = DP_SET_POWER_D0,
+	};
+	int i;
+
+	BUILD_BUG_ON(sizeof(aux_msg) > 20);
+	for (i = 0; i < sizeof(aux_msg); i += 4)
+		intel_de_write(dev_priv,
+			       psr_aux_data_reg(dev_priv, cpu_transcoder, i >> 2),
+			       intel_dp_aux_pack(&aux_msg[i], sizeof(aux_msg) - i));
+
+	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
+
+	/* Start with bits set for DDI_AUX_CTL register */
+	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, sizeof(aux_msg),
+					     aux_clock_divider);
+
+	/* Select only valid bits for SRD_AUX_CTL */
+	aux_ctl &= EDP_PSR_AUX_CTL_TIME_OUT_MASK |
+		EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK |
+		EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK |
+		EDP_PSR_AUX_CTL_BIT_CLOCK_2X_MASK;
+
+	intel_de_write(dev_priv, psr_aux_ctl_reg(dev_priv, cpu_transcoder),
+		       aux_ctl);
 }
 
 static void intel_psr_enable_sink(struct intel_dp *intel_dp)
@@ -1317,6 +1372,13 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	u32 mask;
+
+	/*
+	 * Only HSW and BDW have PSR AUX registers that need to be setup.
+	 * SKL+ use hardcoded values PSR AUX transactions
+	 */
+	if (DISPLAY_VER(dev_priv) < 9)
+		hsw_psr_setup_aux(intel_dp);
 
 	/*
 	 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD also
