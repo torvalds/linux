@@ -39,6 +39,12 @@ properties:
   power-domains:
     maxItems: 1
 
+  vref-supply:
+    description: |
+      External ADC reference voltage supply on VREFH pad. If VERID[MVI] is
+      set, there are additional, internal reference voltages selectable.
+      VREFH1 is always from VREFH pad.
+
   "#io-channel-cells":
     const: 1
 
@@ -72,6 +78,7 @@ examples:
             assigned-clocks = <&clk IMX_SC_R_ADC_0>;
             assigned-clock-rates = <24000000>;
             power-domains = <&pd IMX_SC_R_ADC_0>;
+            vref-supply = <&reg_1v8>;
             #io-channel-cells = <1>;
         };
     };

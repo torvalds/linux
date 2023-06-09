@@ -799,8 +799,11 @@ menu "Power management options"
 
 source "kernel/power/Kconfig"
 
+# Hibernation is only possible on systems where the SBI implementation has
+# marked its reserved memory as not accessible from, or does not run
+# from the same memory as, Linux
 config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
+	def_bool NONPORTABLE
 
 config ARCH_HIBERNATION_HEADER
 	def_bool HIBERNATION

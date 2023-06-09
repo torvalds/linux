@@ -2566,12 +2566,6 @@ static inline int deny_write_access(struct file *file)
 	struct inode *inode = file_inode(file);
 	return atomic_dec_unless_positive(&inode->i_writecount) ? 0 : -ETXTBSY;
 }
-static inline int exclusive_deny_write_access(struct file *file)
-{
-	int old = 0;
-	struct inode *inode = file_inode(file);
-	return atomic_try_cmpxchg(&inode->i_writecount, &old, -1) ? 0 : -ETXTBSY;
-}
 static inline void put_write_access(struct inode * inode)
 {
 	atomic_dec(&inode->i_writecount);

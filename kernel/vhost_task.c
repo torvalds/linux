@@ -12,58 +12,88 @@ enum vhost_task_flags {
 	VHOST_TASK_FLAGS_STOP,
 };
 
+struct vhost_task {
+	bool (*fn)(void *data);
+	void *data;
+	struct completion exited;
+	unsigned long flags;
+	struct task_struct *task;
+};
+
 static int vhost_task_fn(void *data)
 {
 	struct vhost_task *vtsk = data;
-	int ret;
+	bool dead = false;
 
-	ret = vtsk->fn(vtsk->data);
+	for (;;) {
+		bool did_work;
+
+		/* mb paired w/ vhost_task_stop */
+		if (test_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags))
+			break;
+
+		if (!dead && signal_pending(current)) {
+			struct ksignal ksig;
+			/*
+			 * Calling get_signal will block in SIGSTOP,
+			 * or clear fatal_signal_pending, but remember
+			 * what was set.
+			 *
+			 * This thread won't actually exit until all
+			 * of the file descriptors are closed, and
+			 * the release function is called.
+			 */
+			dead = get_signal(&ksig);
+			if (dead)
+				clear_thread_flag(TIF_SIGPENDING);
+		}
+
+		did_work = vtsk->fn(vtsk->data);
+		if (!did_work) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule();
+		}
+	}
+
 	complete(&vtsk->exited);
-	do_exit(ret);
+	do_exit(0);
 }
+
+/**
+ * vhost_task_wake - wakeup the vhost_task
+ * @vtsk: vhost_task to wake
+ *
+ * wake up the vhost_task worker thread
+ */
+void vhost_task_wake(struct vhost_task *vtsk)
+{
+	wake_up_process(vtsk->task);
+}
+EXPORT_SYMBOL_GPL(vhost_task_wake);
 
 /**
  * vhost_task_stop - stop a vhost_task
  * @vtsk: vhost_task to stop
  *
- * Callers must call vhost_task_should_stop and return from their worker
- * function when it returns true;
+ * vhost_task_fn ensures the worker thread exits after
+ * VHOST_TASK_FLAGS_SOP becomes true.
  */
 void vhost_task_stop(struct vhost_task *vtsk)
 {
-	pid_t pid = vtsk->task->pid;
-
 	set_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags);
-	wake_up_process(vtsk->task);
+	vhost_task_wake(vtsk);
 	/*
 	 * Make sure vhost_task_fn is no longer accessing the vhost_task before
-	 * freeing it below. If userspace crashed or exited without closing,
-	 * then the vhost_task->task could already be marked dead so
-	 * kernel_wait will return early.
+	 * freeing it below.
 	 */
 	wait_for_completion(&vtsk->exited);
-	/*
-	 * If we are just closing/removing a device and the parent process is
-	 * not exiting then reap the task.
-	 */
-	kernel_wait4(pid, NULL, __WCLONE, NULL);
 	kfree(vtsk);
 }
 EXPORT_SYMBOL_GPL(vhost_task_stop);
 
 /**
- * vhost_task_should_stop - should the vhost task return from the work function
- * @vtsk: vhost_task to stop
- */
-bool vhost_task_should_stop(struct vhost_task *vtsk)
-{
-	return test_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags);
-}
-EXPORT_SYMBOL_GPL(vhost_task_should_stop);
-
-/**
- * vhost_task_create - create a copy of a process to be used by the kernel
- * @fn: thread stack
+ * vhost_task_create - create a copy of a task to be used by the kernel
+ * @fn: vhost worker function
  * @arg: data to be passed to fn
  * @name: the thread's name
  *
@@ -71,17 +101,17 @@ EXPORT_SYMBOL_GPL(vhost_task_should_stop);
  * failure. The returned task is inactive, and the caller must fire it up
  * through vhost_task_start().
  */
-struct vhost_task *vhost_task_create(int (*fn)(void *), void *arg,
+struct vhost_task *vhost_task_create(bool (*fn)(void *), void *arg,
 				     const char *name)
 {
 	struct kernel_clone_args args = {
-		.flags		= CLONE_FS | CLONE_UNTRACED | CLONE_VM,
+		.flags		= CLONE_FS | CLONE_UNTRACED | CLONE_VM |
+				  CLONE_THREAD | CLONE_SIGHAND,
 		.exit_signal	= 0,
 		.fn		= vhost_task_fn,
 		.name		= name,
 		.user_worker	= 1,
 		.no_files	= 1,
-		.ignore_signals	= 1,
 	};
 	struct vhost_task *vtsk;
 	struct task_struct *tsk;
