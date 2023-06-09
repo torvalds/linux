@@ -331,6 +331,8 @@ struct amdgpu_gmc {
 	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_LO32[16];
 	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_HI32[16];
 	u64 MC_VM_MX_L1_TLB_CNTL;
+
+	u64 noretry_flags;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))

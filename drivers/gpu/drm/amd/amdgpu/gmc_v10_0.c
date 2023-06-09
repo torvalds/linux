@@ -751,6 +751,7 @@ static int gmc_v10_0_early_init(void *handle)
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
+	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_TF;
 
 	return 0;
 }
