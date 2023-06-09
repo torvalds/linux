@@ -30,9 +30,8 @@ struct csi_hw_ops {
 	int (*csi_power_on)(struct stf_csi_dev *csi_dev, u8 on);
 	int (*csi_clk_enable)(struct stf_csi_dev *csi_dev);
 	int (*csi_clk_disable)(struct stf_csi_dev *csi_dev);
-	int (*csi_set_format)(struct stf_csi_dev *csi_dev,
-			u32 vsize, u8 bpp, int is_raw10);
-	int (*csi_stream_set)(struct stf_csi_dev *csi_dev, int on, u32 dt, u32 width);
+	int (*csi_stream_set)(struct stf_csi_dev *csi_dev, int on,
+			      u32 dt, u32 width, u8 bpp);
 };
 
 struct stf_csi_dev {

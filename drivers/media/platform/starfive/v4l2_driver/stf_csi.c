@@ -97,6 +97,7 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 	u32 code, width, dt;
+	u8 bpp;
 
 	format = __csi_get_format(csi_dev, NULL, STF_CSI_PAD_SINK,
 				V4L2_SUBDEV_FORMAT_ACTIVE);
@@ -112,20 +113,21 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 		return ret;
 
 	code = csi_dev->formats_sink[ret].code;
+	bpp = csi_dev->formats_src[ret].bpp;
 	dt = code_to_data_type(code);
 
 	mutex_lock(&csi_dev->stream_lock);
 	if (enable) {
 		if (csi_dev->stream_count == 0) {
 			csi_dev->hw_ops->csi_clk_enable(csi_dev);
-			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width);
+			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width, bpp);
 		}
 		csi_dev->stream_count++;
 	} else {
 		if (csi_dev->stream_count == 0)
 			goto exit;
 		if (csi_dev->stream_count == 1) {
-			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width);
+			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width, bpp);
 			csi_dev->hw_ops->csi_clk_disable(csi_dev);
 		}
 		csi_dev->stream_count--;
