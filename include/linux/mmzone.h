@@ -94,7 +94,7 @@ static inline bool is_migrate_movable(int mt)
  */
 static inline bool migratetype_is_mergeable(int mt)
 {
-	return mt < MIGRATE_PCPTYPES;
+	return mt <= MIGRATE_RECLAIMABLE;
 }
 
 #define for_each_migratetype_order(order, type) \
