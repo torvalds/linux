@@ -49,6 +49,11 @@ class Type(SpecAttr):
             else:
                 self.nested_render_name = f"{family.name}_{c_lower(self.nested_attrs)}"
 
+            if self.nested_attrs in self.family.consts:
+                self.nested_struct_type = 'struct ' + self.nested_render_name + '_'
+            else:
+                self.nested_struct_type = 'struct ' + self.nested_render_name
+
         self.c_name = c_lower(self.name)
         if self.c_name in _C_KW:
             self.c_name += '_'
@@ -425,7 +430,7 @@ class TypeBinary(Type):
 
 class TypeNest(Type):
     def _complex_member_type(self, ri):
-        return f"struct {self.nested_render_name}"
+        return self.nested_struct_type
 
     def free(self, ri, var, ref):
         ri.cw.p(f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name});')
@@ -470,7 +475,7 @@ class TypeMultiAttr(Type):
 
     def _complex_member_type(self, ri):
         if 'type' not in self.attr or self.attr['type'] == 'nest':
-            return f"struct {self.nested_render_name}"
+            return self.nested_struct_type
         elif self.attr['type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
             return scalar_pfx + self.attr['type']
@@ -530,7 +535,7 @@ class TypeArrayNest(Type):
 
     def _complex_member_type(self, ri):
         if 'sub-type' not in self.attr or self.attr['sub-type'] == 'nest':
-            return f"struct {self.nested_render_name}"
+            return self.nested_struct_type
         elif self.attr['sub-type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
             return scalar_pfx + self.attr['sub-type']
@@ -550,7 +555,7 @@ class TypeArrayNest(Type):
 
 class TypeNestTypeValue(Type):
     def _complex_member_type(self, ri):
-        return f"struct {self.nested_render_name}"
+        return self.nested_struct_type
 
     def _attr_typol(self):
         return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
@@ -593,6 +598,8 @@ class Struct:
         else:
             self.render_name = f"{family.name}_{c_lower(space_name)}"
         self.struct_name = 'struct ' + self.render_name
+        if self.nested and space_name in family.consts:
+            self.struct_name += '_'
         self.ptr_name = self.struct_name + ' *'
 
         self.request = False
@@ -994,10 +1001,13 @@ class RenderInfo:
         if not self.attr_set:
             self.attr_set = op['attribute-set']
 
+        self.type_name_conflict = False
         if op:
             self.type_name = c_lower(op.name)
         else:
             self.type_name = c_lower(attr_set)
+            if attr_set in family.consts:
+                self.type_name_conflict = True
 
         self.cw = cw
 
@@ -1634,12 +1644,17 @@ def print_alloc_wrapper(ri, direction):
 
 def print_free_prototype(ri, direction, suffix=';'):
     name = op_prefix(ri, direction)
+    struct_name = name
+    if ri.type_name_conflict:
+        struct_name += '_'
     arg = free_arg_name(direction)
-    ri.cw.write_func_prot('void', f"{name}_free", [f"struct {name} *{arg}"], suffix=suffix)
+    ri.cw.write_func_prot('void', f"{name}_free", [f"struct {struct_name} *{arg}"], suffix=suffix)
 
 
 def _print_type(ri, direction, struct):
     suffix = f'_{ri.type_name}{direction_to_suffix[direction]}'
+    if not direction and ri.type_name_conflict:
+        suffix += '_'
 
     if ri.op_mode == 'dump':
         suffix += '_dump'
