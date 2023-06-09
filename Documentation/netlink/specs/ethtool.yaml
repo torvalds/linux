@@ -793,16 +793,29 @@ attribute-sets:
         type: u32
       -
         name: stat
-        type: nest
-        nested-attributes: u64
+        type: u64
+        type-value: [ id ]
       -
         name: hist-rx
         type: nest
-        nested-attributes: u64
+        nested-attributes: stats-grp-hist
       -
         name: hist-tx
         type: nest
-        nested-attributes: u64
+        nested-attributes: stats-grp-hist
+      -
+        name: hist-bkt-low
+        type: u32
+      -
+        name: hist-bkt-hi
+        type: u32
+      -
+        name: hist-val
+        type: u64
+  -
+    name: stats-grp-hist
+    subset-of: stats-grp
+    attributes:
       -
         name: hist-bkt-low
         type: u32
