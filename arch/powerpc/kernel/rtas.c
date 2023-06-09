@@ -1587,6 +1587,7 @@ static bool ibm_extended_os_term;
 void rtas_os_term(char *str)
 {
 	s32 token = rtas_function_token(RTAS_FN_IBM_OS_TERM);
+	static struct rtas_args args;
 	int status;
 
 	/*
@@ -1607,7 +1608,8 @@ void rtas_os_term(char *str)
 	 * schedules.
 	 */
 	do {
-		status = rtas_call(token, 1, 1, NULL, __pa(rtas_os_term_buf));
+		rtas_call_unlocked(&args, token, 1, 1, NULL, __pa(rtas_os_term_buf));
+		status = be32_to_cpu(args.rets[0]);
 	} while (rtas_busy_delay_time(status));
 
 	if (status != 0)
