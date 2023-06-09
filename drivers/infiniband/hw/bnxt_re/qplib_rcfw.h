@@ -152,6 +152,7 @@ struct bnxt_qplib_crsqe {
 	u32			req_size;
 	/* Free slots at the time of submission */
 	u32			free_slots;
+	bool			is_waiter_alive;
 };
 
 struct bnxt_qplib_rcfw_sbuf {

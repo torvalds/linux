@@ -105,7 +105,6 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq;
 	u16 cbit;
-	int ret;
 
 	cmdq = &rcfw->cmdq;
 	cbit = cookie % rcfw->cmdq_depth;
@@ -115,9 +114,9 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 			return bnxt_qplib_map_rc(opcode);
 
 		/* Non zero means command completed */
-		ret = wait_event_timeout(cmdq->waitq,
-					 !test_bit(cbit, cmdq->cmdq_bitmap),
-					 msecs_to_jiffies(10000));
+		wait_event_timeout(cmdq->waitq,
+				   !test_bit(cbit, cmdq->cmdq_bitmap),
+				   msecs_to_jiffies(10000));
 
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
@@ -170,7 +169,7 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 			  struct bnxt_qplib_cmdqmsg *msg)
 {
-	u32 bsize, opcode, free_slots, required_slots;
+	u32 bsize, free_slots, required_slots;
 	struct bnxt_qplib_cmdq_ctx *cmdq;
 	struct bnxt_qplib_crsqe *crsqe;
 	struct bnxt_qplib_cmdqe *cmdqe;
@@ -184,8 +183,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	cmdq = &rcfw->cmdq;
 	hwq = &cmdq->hwq;
 	pdev = rcfw->pdev;
-
-	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
 
 	if (test_bit(FIRMWARE_TIMED_OUT, &cmdq->flags))
 		return -ETIMEDOUT;
@@ -216,6 +213,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	crsqe->free_slots = free_slots;
 	crsqe->resp = (struct creq_qp_event *)msg->resp;
 	crsqe->resp->cookie = cpu_to_le16(cookie);
+	crsqe->is_waiter_alive = true;
 	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
 	if (__get_cmdq_base_resp_size(msg->req, msg->req_sz) && msg->sb) {
 		struct bnxt_qplib_rcfw_sbuf *sbuf = msg->sb;
@@ -347,7 +345,9 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 					  struct bnxt_qplib_cmdqmsg *msg)
 {
 	struct creq_qp_event *evnt = (struct creq_qp_event *)msg->resp;
-	u16 cookie;
+	struct bnxt_qplib_crsqe *crsqe;
+	unsigned long flags;
+	u16 cookie, cbit;
 	int rc = 0;
 	u8 opcode;
 
@@ -363,6 +363,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 
 	cookie = le16_to_cpu(__get_cmdq_base_cookie(msg->req, msg->req_sz))
 				& RCFW_MAX_COOKIE_VALUE;
+	cbit = cookie % rcfw->cmdq_depth;
 
 	if (msg->block)
 		rc = __block_for_resp(rcfw, cookie, opcode);
@@ -376,6 +377,14 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 			cookie, opcode, RCFW_CMD_WAIT_TIME_MS);
 		set_bit(FIRMWARE_TIMED_OUT, &rcfw->cmdq.flags);
 		return rc;
+	}
+
+	if (rc) {
+		spin_lock_irqsave(&rcfw->cmdq.hwq.lock, flags);
+		crsqe = &rcfw->crsqe_tbl[cbit];
+		crsqe->is_waiter_alive = false;
+		spin_unlock_irqrestore(&rcfw->cmdq.hwq.lock, flags);
+		return -ETIMEDOUT;
 	}
 
 	if (evnt->status) {
@@ -480,15 +489,15 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 	struct creq_qp_error_notification *err_event;
 	struct bnxt_qplib_hwq *hwq = &rcfw->cmdq.hwq;
 	struct bnxt_qplib_crsqe *crsqe;
+	u32 qp_id, tbl_indx, req_size;
 	struct bnxt_qplib_qp *qp;
 	u16 cbit, blocked = 0;
+	bool is_waiter_alive;
 	struct pci_dev *pdev;
 	unsigned long flags;
 	u32 wait_cmds = 0;
-	__le16  mcookie;
 	u16 cookie;
 	int rc = 0;
-	u32 qp_id, tbl_indx;
 
 	pdev = rcfw->pdev;
 	switch (qp_event->event) {
@@ -520,31 +529,29 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		spin_lock_irqsave_nested(&hwq->lock, flags,
 					 SINGLE_DEPTH_NESTING);
 		cookie = le16_to_cpu(qp_event->cookie);
-		mcookie = qp_event->cookie;
 		blocked = cookie & RCFW_CMD_IS_BLOCKING;
 		cookie &= RCFW_MAX_COOKIE_VALUE;
 		cbit = cookie % rcfw->cmdq_depth;
 		crsqe = &rcfw->crsqe_tbl[cbit];
-		if (crsqe->resp &&
-		    crsqe->resp->cookie  == mcookie) {
-			memcpy(crsqe->resp, qp_event, sizeof(*qp_event));
-			crsqe->resp = NULL;
-		} else {
-			if (crsqe->resp && crsqe->resp->cookie)
-				dev_err(&pdev->dev,
-					"CMD %s cookie sent=%#x, recd=%#x\n",
-					crsqe->resp ? "mismatch" : "collision",
-					crsqe->resp ? crsqe->resp->cookie : 0,
-					mcookie);
-		}
 		if (!test_and_clear_bit(cbit, rcfw->cmdq.cmdq_bitmap))
 			dev_warn(&pdev->dev,
 				 "CMD bit %d was not requested\n", cbit);
-		hwq->cons += crsqe->req_size;
-		crsqe->req_size = 0;
 
-		if (!blocked)
-			wait_cmds++;
+		if (crsqe->is_waiter_alive) {
+			if (crsqe->resp)
+				memcpy(crsqe->resp, qp_event, sizeof(*qp_event));
+			if (!blocked)
+				wait_cmds++;
+		}
+
+		req_size = crsqe->req_size;
+		is_waiter_alive = crsqe->is_waiter_alive;
+
+		crsqe->req_size = 0;
+		if (!is_waiter_alive)
+			crsqe->resp = NULL;
+
+		hwq->cons += req_size;
 		spin_unlock_irqrestore(&hwq->lock, flags);
 	}
 	*num_wait += wait_cmds;
