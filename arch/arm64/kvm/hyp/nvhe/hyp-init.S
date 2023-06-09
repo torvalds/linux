@@ -95,6 +95,15 @@ SYM_CODE_START_LOCAL(___kvm_hyp_init)
 	ldr	x1, [x0, #NVHE_INIT_HCR_EL2]
 	msr	hcr_el2, x1
 
+	mov	x2, #HCR_E2H
+	and	x2, x1, x2
+	cbz	x2, 1f
+
+	mrs	x1, cnthctl_el2
+	and	x1, x1, #~(BIT(0) | BIT(1))
+	orr	x1, x1, #(BIT(10) | BIT(11))
+	msr	cnthctl_el2, x1
+1:
 	ldr	x1, [x0, #NVHE_INIT_VTTBR]
 	msr	vttbr_el2, x1
 
