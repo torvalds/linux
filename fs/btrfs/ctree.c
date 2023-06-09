@@ -4000,7 +4000,12 @@ static noinline int split_item(struct btrfs_path *path,
 	struct btrfs_disk_key disk_key;
 
 	leaf = path->nodes[0];
-	BUG_ON(btrfs_leaf_free_space(leaf) < sizeof(struct btrfs_item));
+	/*
+	 * Shouldn't happen because the caller must have previously called
+	 * setup_leaf_for_split() to make room for the new item in the leaf.
+	 */
+	if (WARN_ON(btrfs_leaf_free_space(leaf) < sizeof(struct btrfs_item)))
+		return -ENOSPC;
 
 	orig_slot = path->slots[0];
 	orig_offset = btrfs_item_offset(leaf, path->slots[0]);
