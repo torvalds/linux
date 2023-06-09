@@ -34,6 +34,8 @@ struct mt6358_regulator_info {
 	u32 modeset_mask;
 };
 
+#define to_regulator_info(x) container_of((x), struct mt6358_regulator_info, desc)
+
 #define MT6358_BUCK(match, vreg, min, max, step,		\
 	volt_ranges, vosel_mask, _da_vsel_reg, _da_vsel_mask,	\
 	_modeset_reg, _modeset_shift)		\
@@ -342,9 +344,9 @@ static unsigned int mt6358_map_mode(unsigned int mode)
 static int mt6358_set_voltage_sel(struct regulator_dev *rdev,
 				  unsigned int selector)
 {
+	const struct mt6358_regulator_info *info = to_regulator_info(rdev->desc);
 	int idx, ret;
 	const u32 *pvol;
-	struct mt6358_regulator_info *info = rdev_get_drvdata(rdev);
 
 	pvol = info->index_table;
 
@@ -358,9 +360,9 @@ static int mt6358_set_voltage_sel(struct regulator_dev *rdev,
 
 static int mt6358_get_voltage_sel(struct regulator_dev *rdev)
 {
+	const struct mt6358_regulator_info *info = to_regulator_info(rdev->desc);
 	int idx, ret;
 	u32 selector;
-	struct mt6358_regulator_info *info = rdev_get_drvdata(rdev);
 	const u32 *pvol;
 
 	ret = regmap_read(rdev->regmap, info->desc.vsel_reg, &selector);
@@ -384,8 +386,8 @@ static int mt6358_get_voltage_sel(struct regulator_dev *rdev)
 
 static int mt6358_get_buck_voltage_sel(struct regulator_dev *rdev)
 {
+	const struct mt6358_regulator_info *info = to_regulator_info(rdev->desc);
 	int ret, regval;
-	struct mt6358_regulator_info *info = rdev_get_drvdata(rdev);
 
 	ret = regmap_read(rdev->regmap, info->da_vsel_reg, &regval);
 	if (ret != 0) {
@@ -402,9 +404,9 @@ static int mt6358_get_buck_voltage_sel(struct regulator_dev *rdev)
 
 static int mt6358_get_status(struct regulator_dev *rdev)
 {
+	const struct mt6358_regulator_info *info = to_regulator_info(rdev->desc);
 	int ret;
 	u32 regval;
-	struct mt6358_regulator_info *info = rdev_get_drvdata(rdev);
 
 	ret = regmap_read(rdev->regmap, info->status_reg, &regval);
 	if (ret != 0) {
@@ -418,7 +420,7 @@ static int mt6358_get_status(struct regulator_dev *rdev)
 static int mt6358_regulator_set_mode(struct regulator_dev *rdev,
 				     unsigned int mode)
 {
-	struct mt6358_regulator_info *info = rdev_get_drvdata(rdev);
+	const struct mt6358_regulator_info *info = to_regulator_info(rdev->desc);
 	int val;
 
 	switch (mode) {
@@ -443,7 +445,7 @@ static int mt6358_regulator_set_mode(struct regulator_dev *rdev,
 
 static unsigned int mt6358_regulator_get_mode(struct regulator_dev *rdev)
 {
-	struct mt6358_regulator_info *info = rdev_get_drvdata(rdev);
+	const struct mt6358_regulator_info *info = to_regulator_info(rdev->desc);
 	int ret, regval;
 
 	ret = regmap_read(rdev->regmap, info->modeset_reg, &regval);
@@ -498,7 +500,7 @@ static const struct regulator_ops mt6358_volt_fixed_ops = {
 };
 
 /* The array is indexed by id(MT6358_ID_XXX) */
-static struct mt6358_regulator_info mt6358_regulators[] = {
+static const struct mt6358_regulator_info mt6358_regulators[] = {
 	MT6358_BUCK("buck_vdram1", VDRAM1, 500000, 2087500, 12500,
 		    buck_volt_range2, 0x7f, MT6358_BUCK_VDRAM1_DBG0, 0x7f,
 		    MT6358_VDRAM1_ANA_CON0, 8),
@@ -589,7 +591,7 @@ static struct mt6358_regulator_info mt6358_regulators[] = {
 };
 
 /* The array is indexed by id(MT6366_ID_XXX) */
-static struct mt6358_regulator_info mt6366_regulators[] = {
+static const struct mt6358_regulator_info mt6366_regulators[] = {
 	MT6366_BUCK("buck_vdram1", VDRAM1, 500000, 2087500, 12500,
 		    buck_volt_range2, 0x7f, MT6358_BUCK_VDRAM1_DBG0, 0x7f,
 		    MT6358_VDRAM1_ANA_CON0, 8),
@@ -712,7 +714,7 @@ static int mt6358_regulator_probe(struct platform_device *pdev)
 	struct mt6397_chip *mt6397 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = {};
 	struct regulator_dev *rdev;
-	struct mt6358_regulator_info *mt6358_info;
+	const struct mt6358_regulator_info *mt6358_info;
 	int i, max_regulator, ret;
 
 	ret = mt6358_sync_vcn33_setting(&pdev->dev);
@@ -729,7 +731,6 @@ static int mt6358_regulator_probe(struct platform_device *pdev)
 
 	for (i = 0; i < max_regulator; i++) {
 		config.dev = &pdev->dev;
-		config.driver_data = &mt6358_info[i];
 		config.regmap = mt6397->regmap;
 
 		rdev = devm_regulator_register(&pdev->dev,
