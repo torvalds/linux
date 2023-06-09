@@ -240,7 +240,7 @@ patch_paravirt_call_sites(struct paravirt_patch_site *start,
 	struct paravirt_patch_site *p;
 
 	for (p = start; p < end; p++)
-		patch_call(p->instr, ct);
+		patch_call((void *)&p->instr_offset + p->instr_offset, ct);
 }
 
 static __init_or_module void
