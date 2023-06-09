@@ -25,11 +25,8 @@
 #include <sound/soc-dai.h>
 
 #define TDM_PCMGBCR			0x00
-	#define PCMGBCR_MASK		0x1e
 	#define PCMGBCR_ENABLE		BIT(0)
-	#define PCMGBCR_TRITXEN		BIT(4)
 	#define CLKPOL_BIT		5
-	#define TRITXEN_BIT		4
 	#define ELM_BIT			3
 	#define SYNCM_BIT		2
 	#define MS_BIT			1
@@ -42,11 +39,6 @@
 	#define LRJ_BIT			1
 #define TDM_PCMRXCR			0x08
 	#define PCMRXCR_RXEN		BIT(0)
-	#define PCMRXCR_RXSL_MASK	0xc
-	#define PCMRXCR_RXSL_16BIT	0x4
-	#define PCMRXCR_RXSL_32BIT	0x8
-	#define PCMRXCR_SCALE_MASK	0xf0
-	#define PCMRXCR_SCALE_1CH	0x10
 #define TDM_PCMDIV			0x0c
 
 #define JH7110_TDM_FIFO			0x170c0000
@@ -580,10 +572,9 @@ static int jh7110_tdm_clk_reset_get(struct platform_device *pdev,
 	}
 
 	tdm->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
-	if (IS_ERR_OR_NULL(tdm->resets)) {
-		ret = PTR_ERR(tdm->resets);
-		dev_err(&pdev->dev, "Failed to get tdm resets");
-		return ret;
+	if (IS_ERR(tdm->resets)) {
+		dev_err(&pdev->dev, "Failed to get tdm resets\n");
+		return PTR_ERR(tdm->resets);
 	}
 
 	return 0;
