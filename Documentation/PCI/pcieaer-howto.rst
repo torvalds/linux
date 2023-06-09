@@ -96,8 +96,8 @@ Documentation/ABI/testing/sysfs-bus-pci-devices-aer_stats
 Developer Guide
 ===============
 
-To enable AER aware support requires a software driver to configure
-the AER capability structure within its device and to provide callbacks.
+To enable AER aware support requires a software driver to provide
+callbacks.
 
 To support AER better, developers need understand how AER does work
 firstly.
@@ -134,15 +134,6 @@ Note that the errors as described above are related to the PCI Express
 hierarchy and links. These errors do not include any device specific
 errors because device specific errors will still get sent directly to
 the device driver.
-
-Configure the AER capability structure
---------------------------------------
-
-AER aware drivers of PCI Express component need change the device
-control registers to enable AER. They also could change AER registers,
-including mask and severity registers. Helper function
-pci_enable_pcie_error_reporting could be used to enable AER. See
-section 3.3.
 
 Provide callbacks
 -----------------
@@ -212,31 +203,6 @@ to reset the link. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER
 and reset_link returns PCI_ERS_RESULT_RECOVERED, the error handling goes
 to mmio_enabled.
 
-helper functions
-----------------
-::
-
-  int pci_enable_pcie_error_reporting(struct pci_dev *dev);
-
-pci_enable_pcie_error_reporting enables the device to send error
-messages to root port when an error is detected. Note that devices
-don't enable the error reporting by default, so device drivers need
-call this function to enable it.
-
-::
-
-  int pci_disable_pcie_error_reporting(struct pci_dev *dev);
-
-pci_disable_pcie_error_reporting disables the device to send error
-messages to root port when an error is detected.
-
-::
-
-  int pci_aer_clear_nonfatal_status(struct pci_dev *dev);`
-
-pci_aer_clear_nonfatal_status clears non-fatal errors in the uncorrectable
-error status register.
-
 Frequent Asked Questions
 ------------------------
 
@@ -256,24 +222,6 @@ Q:
 A:
   Fatal error recovery will fail if the errors are reported by the
   upstream ports who are attached by the service driver.
-
-Q:
-  How does this infrastructure deal with driver that is not PCI
-  Express aware?
-
-A:
-  This infrastructure calls the error callback functions of the
-  driver when an error happens. But if the driver is not aware of
-  PCI Express, the device might not report its own errors to root
-  port.
-
-Q:
-  What modifications will that driver need to make it compatible
-  with the PCI Express AER Root driver?
-
-A:
-  It could call the helper functions to enable AER in devices and
-  cleanup uncorrectable status register. Pls. refer to section 3.3.
 
 
 Software error injection
