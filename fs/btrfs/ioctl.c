@@ -443,7 +443,9 @@ void btrfs_exclop_balance(struct btrfs_fs_info *fs_info,
 	case BTRFS_EXCLOP_BALANCE_PAUSED:
 		spin_lock(&fs_info->super_lock);
 		ASSERT(fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE ||
-		       fs_info->exclusive_operation == BTRFS_EXCLOP_DEV_ADD);
+		       fs_info->exclusive_operation == BTRFS_EXCLOP_DEV_ADD ||
+		       fs_info->exclusive_operation == BTRFS_EXCLOP_NONE ||
+		       fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE_PAUSED);
 		fs_info->exclusive_operation = BTRFS_EXCLOP_BALANCE_PAUSED;
 		spin_unlock(&fs_info->super_lock);
 		break;

@@ -328,9 +328,8 @@ int find_pch_pic(u32 gsi)
 	return -1;
 }
 
-static int __init
-pch_lpc_parse_madt(union acpi_subtable_headers *header,
-		       const unsigned long end)
+static int __init pch_lpc_parse_madt(union acpi_subtable_headers *header,
+					const unsigned long end)
 {
 	struct acpi_madt_lpc_pic *pchlpc_entry = (struct acpi_madt_lpc_pic *)header;
 
@@ -339,8 +338,12 @@ pch_lpc_parse_madt(union acpi_subtable_headers *header,
 
 static int __init acpi_cascade_irqdomain_init(void)
 {
-	acpi_table_parse_madt(ACPI_MADT_TYPE_LPC_PIC,
-			      pch_lpc_parse_madt, 0);
+	int r;
+
+	r = acpi_table_parse_madt(ACPI_MADT_TYPE_LPC_PIC, pch_lpc_parse_madt, 0);
+	if (r < 0)
+		return r;
+
 	return 0;
 }
 
@@ -349,6 +352,9 @@ int __init pch_pic_acpi_init(struct irq_domain *parent,
 {
 	int ret, vec_base;
 	struct fwnode_handle *domain_handle;
+
+	if (find_pch_pic(acpi_pchpic->gsi_base) >= 0)
+		return 0;
 
 	vec_base = acpi_pchpic->gsi_base - GSI_MIN_PCH_IRQ;
 
@@ -367,7 +373,7 @@ int __init pch_pic_acpi_init(struct irq_domain *parent,
 	}
 
 	if (acpi_pchpic->id == 0)
-		acpi_cascade_irqdomain_init();
+		ret = acpi_cascade_irqdomain_init();
 
 	return ret;
 }
