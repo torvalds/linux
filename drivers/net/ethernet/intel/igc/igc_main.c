@@ -1575,16 +1575,9 @@ done:
 	if (adapter->qbv_transition || tx_ring->oper_gate_closed)
 		goto out_drop;
 
-	if (tx_ring->max_sdu > 0) {
-		u32 max_sdu = 0;
-
-		max_sdu = tx_ring->max_sdu +
-			  (skb_vlan_tagged(first->skb) ? VLAN_HLEN : 0);
-
-		if (first->bytecount > max_sdu) {
-			adapter->stats.txdrop++;
-			goto out_drop;
-		}
+	if (tx_ring->max_sdu > 0 && first->bytecount > tx_ring->max_sdu) {
+		adapter->stats.txdrop++;
+		goto out_drop;
 	}
 
 	if (unlikely(test_bit(IGC_RING_FLAG_TX_HWTSTAMP, &tx_ring->flags) &&
@@ -6231,7 +6224,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 		struct net_device *dev = adapter->netdev;
 
 		if (qopt->max_sdu[i])
-			ring->max_sdu = qopt->max_sdu[i] + dev->hard_header_len;
+			ring->max_sdu = qopt->max_sdu[i] + dev->hard_header_len - ETH_TLEN;
 		else
 			ring->max_sdu = 0;
 	}
