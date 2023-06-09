@@ -12,6 +12,10 @@ definitions:
     enum-name:
     type: enum
     entries: [ vxlan, geneve, vxlan-gpe ]
+  -
+    name: stringset
+    type: enum
+    entries: []
 
 attribute-sets:
   -
