@@ -161,6 +161,7 @@
 #define BCM_LED_SRC_OPENSHORT	0xb
 #define BCM_LED_SRC_OFF		0xe	/* Tied high */
 #define BCM_LED_SRC_ON		0xf	/* Tied low */
+#define BCM_LED_SRC_MASK	GENMASK(3, 0)
 
 /*
  * Broadcom Multicolor LED configurations (expansion register 4)
@@ -206,11 +207,13 @@
 #define  BCM_NO_ANEG_APD_EN		0x0060 /* bits 5 & 6 */
 #define  BCM_APD_SINGLELP_EN	0x0100 /* Bit 8 */
 
-#define BCM5482_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
+#define BCM54XX_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
 					/* LED3 / ~LINKSPD[2] selector */
-#define BCM5482_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
+#define BCM54XX_SHD_LEDS_SHIFT(led)	(4 * (led))
+#define BCM54XX_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
 					/* LED1 / ~LINKSPD[1] selector */
-#define BCM5482_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_LEDS2	0x0e	/* 01110: LED Selector 2 */
 #define BCM54XX_SHD_RGMII_MODE	0x0b	/* 01011: RGMII Mode Selector */
 #define BCM5482_SHD_SSD		0x14	/* 10100: Secondary SerDes control */
 #define BCM5482_SHD_SSD_LEDM	0x0008	/* SSD LED Mode enable */
