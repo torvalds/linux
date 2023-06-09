@@ -33,7 +33,7 @@
 };
 
 &omap3_pmx_wkup {
-	dss_dpi_pins_cm_t3730: pinmux_dss_dpi_pins_cm_t3730 {
+	dss_dpi_pins_cm_t3730: dss-dpi-cm-t3730-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a08, PIN_OUTPUT | MUX_MODE3)   /* sys_boot0.dss_data18 */
 			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE3)   /* sys_boot1.dss_data19 */
@@ -47,7 +47,7 @@
 
 &omap3_pmx_core {
 
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk.sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_cmd.sdmmc2_cmd */
@@ -58,7 +58,7 @@
 		>;
 	};
 
-	wl12xx_gpio: pinmux_wl12xx_gpio {
+	wl12xx_gpio: wl12xx-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20e2, PIN_OUTPUT | MUX_MODE4)	/* dss_data3.gpio_73 */
 			OMAP3_CORE1_IOPAD(0x2164, PIN_INPUT | MUX_MODE4)	/* sdmmc2_dat4.gpio_136 */

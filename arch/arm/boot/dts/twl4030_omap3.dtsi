@@ -14,7 +14,7 @@
 	 * to the SYS_NIRQ line on OMAP.  Therefore, configure the
 	 * defaults for the SYS_NIRQ pin here.
 	 */
-	twl4030_pins: pinmux_twl4030_pins {
+	twl4030_pins: twl4030-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21e0, PIN_INPUT_PULLUP | PIN_OFF_WAKEUPENABLE | MUX_MODE0) /* sys_nirq.sys_nirq */
 		>;
@@ -28,7 +28,7 @@
  * sys_nvmode2 signaling.
  */
 &omap3_pmx_wkup {
-	twl4030_vpins: pinmux_twl4030_vpins {
+	twl4030_vpins: twl4030-vpins-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a00, PIN_INPUT | MUX_MODE0)		/* i2c4_scl.i2c4_scl */
 			OMAP3_WKUP_IOPAD(0x2a02, PIN_INPUT | MUX_MODE0)		/* i2c4_sda.i2c4_sda */

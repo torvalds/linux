@@ -22,14 +22,14 @@
 
 &omap3_pmx_core {
 
-	smsc1_pins: pinmux_smsc1_pins {
+	smsc1_pins: smsc1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20b8, PIN_OUTPUT | MUX_MODE0)	/* gpmc_ncs5.gpmc_ncs5 */
 			OMAP3_CORE1_IOPAD(0x219a, PIN_INPUT_PULLUP | MUX_MODE4)	/* uart3_cts_rctx.gpio_163 */
 		>;
 	};
 
- 	hsusb0_pins: pinmux_hsusb0_pins {
+ 	hsusb0_pins: hsusb0-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21a2, PIN_OUTPUT | MUX_MODE0)		/* hsusb0_clk.hsusb0_clk */
 			OMAP3_CORE1_IOPAD(0x21a4, PIN_OUTPUT | MUX_MODE0)		/* hsusb0_stp.hsusb0_stp */

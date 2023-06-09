@@ -56,27 +56,27 @@
 };
 
 &omap3_pmx_core {
-	smsc2_pins: pinmux_smsc2_pins {
+	smsc2_pins: smsc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20b6, PIN_OUTPUT | MUX_MODE0)	/* gpmc_ncs4.gpmc_ncs4 */
 			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT_PULLUP | MUX_MODE4)	/* gpmc_wait3.gpio_65 */
 		>;
 	};
 
-	tfp410_pins: pinmux_tfp410_pins {
+	tfp410_pins: tfp410-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20b4, PIN_OUTPUT | MUX_MODE4)	/* gpmc_ncs3.gpio_54 */
 		>;
 	};
 
-	i2c3_pins: pinmux_i2c3_pins {
+	i2c3_pins: i2c3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21c2, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_scl */
 			OMAP3_CORE1_IOPAD(0x21c4, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_sda */
 		>;
 	};
 
-	sb_t35_audio_amp: pinmux_sb_t35_audio_amp {
+	sb_t35_audio_amp: sb-t35-audio-amp-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20c8, PIN_OUTPUT | MUX_MODE4) /* gpmc_nbe1.gpio_61 */
 		>;

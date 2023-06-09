@@ -88,14 +88,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&bluetooth_pins>;
 
-	i2c0_pins: pinmux_i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT_PULLUP, MUX_MODE0)
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			/* uart0_ctsn.i2c1_sda */
 			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_INPUT_PULLUP, MUX_MODE2)
@@ -104,14 +104,14 @@
 		>;
 	};
 
-	gpio_led_pins: pinmux_gpio_led_pins {
+	gpio_led_pins: gpio-led-pins {
 		pinctrl-single,pins = <
 			/* gpmc_csn3.gpio2_0 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN3, PIN_OUTPUT, MUX_MODE7)
 		>;
 	};
 
-	nandflash_pins: pinmux_nandflash_pins {
+	nandflash_pins: nandflash-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -132,14 +132,14 @@
 		>;
 	};
 
-	uart0_pins: pinmux_uart0_pins {
+	uart0_pins: uart0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_CTSN, PIN_INPUT, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
@@ -148,7 +148,7 @@
 		>;
 	};
 
-	dcan0_pins: pinmux_dcan0_pins {
+	dcan0_pins: dcan0-pins {
 		pinctrl-single,pins = <
 			/* uart1_ctsn.dcan0_tx */
 			AM33XX_PADCONF(AM335X_PIN_UART1_CTSN, PIN_OUTPUT, MUX_MODE2)
@@ -157,7 +157,7 @@
 		>;
 	};
 
-	dcan1_pins: pinmux_dcan1_pins {
+	dcan1_pins: dcan1-pins {
 		pinctrl-single,pins = <
 			/* uart1_rxd.dcan1_tx */
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_OUTPUT, MUX_MODE2)
@@ -166,13 +166,13 @@
 		>;
 	};
 
-	ecap0_pins: pinmux_ecap0_pins {
+	ecap0_pins: ecap0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_ECAP0_IN_PWM0_OUT, 0x0, MUX_MODE0)
 		>;
 	};
 
-	cpsw_default: cpsw_default {
+	cpsw_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 */
 			/* mii1_tx_en.rgmii1_tctl */
@@ -202,7 +202,7 @@
 		>;
 	};
 
-	cpsw_sleep: cpsw_sleep {
+	cpsw_sleep: cpsw-sleep-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 reset value */
 			AM33XX_PADCONF(AM335X_PIN_MII1_TX_EN, PIN_INPUT_PULLDOWN, MUX_MODE7)
@@ -220,14 +220,14 @@
 		>;
 	};
 
-	davinci_mdio_default: davinci_mdio_default {
+	davinci_mdio_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MDC, PIN_OUTPUT_PULLUP, MUX_MODE0)
 		>;
 	};
 
-	davinci_mdio_sleep: davinci_mdio_sleep {
+	davinci_mdio_sleep: davinci-mdio-sleep-pins {
 		pinctrl-single,pins = <
 			/* MDIO reset value */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLDOWN, MUX_MODE7)
@@ -235,7 +235,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -246,7 +246,7 @@
 		>;
 	};
 
-	spi0_pins: pinmux_spi0_pins {
+	spi0_pins: spi0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_OUTPUT_PULLUP, MUX_MODE0)
@@ -257,7 +257,7 @@
 	};
 
 	/* wl1271 bluetooth */
-	bluetooth_pins: pinmux_bluetooth_pins {
+	bluetooth_pins: bluetooth-pins {
 		pinctrl-single,pins = <
 			/* XDMA_EVENT_INTR0.gpio0_19 - bluetooth enable */
 			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_OUTPUT_PULLUP, MUX_MODE7)
@@ -265,7 +265,7 @@
 	};
 
 	/* TLV320AIC23B codec */
-	mcasp1_pins: pinmux_mcasp1_pins {
+	mcasp1_pins: mcasp1-pins {
 		pinctrl-single,pins = <
 			/* MII1_CRS.mcasp1_aclkx */
 			AM33XX_PADCONF(AM335X_PIN_MII1_CRS, PIN_INPUT_PULLDOWN, MUX_MODE4)
@@ -279,7 +279,7 @@
 	};
 
 	/* wl1271 WiFi */
-	wifi_pins: pinmux_wifi_pins {
+	wifi_pins: wifi-pins {
 		pinctrl-single,pins = <
 			/* EMU1.gpio3_8 - WiFi IRQ */
 			AM33XX_PADCONF(AM335X_PIN_EMU1, PIN_INPUT_PULLUP, MUX_MODE7)

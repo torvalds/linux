@@ -38,20 +38,20 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&cm_t43_led_pins>;
 
-	cm_t43_led_pins: cm_t43_led_pins {
+	cm_t43_led_pins: cm-t43-led-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa78, MUX_MODE7)
 		>;
 	};
 
-	i2c0_pins: i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x988, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)  /* i2c0_sda.i2c0_sda */
 			AM4372_IOPAD(0x98c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)  /* i2c0_scl.i2c0_scl */
 		>;
 	};
 
-	emmc_pins: emmc_pins {
+	emmc_pins: emmc-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x820, PIN_INPUT_PULLUP | MUX_MODE2) /* gpmc_ad8.mmc1_dat0 */
 			AM4372_IOPAD(0x824, PIN_INPUT_PULLUP | MUX_MODE2) /* gpmc_ad9.mmc1_dat1 */
@@ -66,7 +66,7 @@
 		>;
 	};
 
-	spi0_pins: pinmux_spi0_pins {
+	spi0_pins: spi0-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x950, PIN_INPUT | MUX_MODE0) /* spi0_sclk.spi0_sclk */
 			AM4372_IOPAD(0x954, PIN_INPUT | MUX_MODE0) /* spi0_d0.spi0_d0 */
@@ -75,7 +75,7 @@
 		>;
 	};
 
-	nand_flash_x8: nand_flash_x8 {
+	nand_flash_x8: nand-flash-x8-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x800, PIN_INPUT | PULL_DISABLE | MUX_MODE0)
 			AM4372_IOPAD(0x804, PIN_INPUT | PULL_DISABLE | MUX_MODE0)
@@ -95,7 +95,7 @@
 		>;
 	};
 
-	cpsw_default: cpsw_default {
+	cpsw_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 */
 			AM4372_IOPAD(0x914, PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* mii1_txen.rgmii1_txen */
@@ -128,7 +128,7 @@
 		>;
 	};
 
-	davinci_mdio_default: davinci_mdio_default {
+	davinci_mdio_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			/* MDIO */
 			AM4372_IOPAD(0x948, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* mdio_data.mdio_data */

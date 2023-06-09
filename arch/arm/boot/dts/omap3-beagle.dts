@@ -57,7 +57,7 @@
 	};
 
 	/* HS USB Host PHY on PORT 2 */
-	hsusb2_phy: hsusb2_phy {
+	hsusb2_phy: hsusb2-phy-pins {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio5 19 GPIO_ACTIVE_LOW>;	/* gpio_147 */
 		vcc-supply = <&hsusb2_power>;
@@ -170,7 +170,7 @@
 };
 
 &omap3_pmx_wkup {
-	gpio1_pins: pinmux_gpio1_pins {
+	gpio1_pins: gpio1-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a14, PIN_INPUT | PIN_OFF_WAKEUPENABLE | MUX_MODE4) /* sys_boot5.gpio_7 */
 		>;
@@ -183,7 +183,7 @@
 			&hsusb2_pins
 	>;
 
-	hsusb2_pins: pinmux_hsusb2_pins {
+	hsusb2_pins: hsusb2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d4, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcspi1_cs3.hsusb2_data2 */
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcspi2_clk.hsusb2_data7 */
@@ -194,20 +194,20 @@
 		>;
 	};
 
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x219e, PIN_INPUT | PIN_OFF_WAKEUPENABLE | MUX_MODE0) /* uart3_rx_irrx.uart3_rx_irrx */
 			OMAP3_CORE1_IOPAD(0x21a0, PIN_OUTPUT | MUX_MODE0) /* uart3_tx_irtx.uart3_tx_irtx */
 		>;
 	};
 
-	tfp410_pins: pinmux_tfp410_pins {
+	tfp410_pins: tfp410-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21c6, PIN_OUTPUT | MUX_MODE4)	/* hdq_sio.gpio_170 */
 		>;
 	};
 
-	dss_dpi_pins: pinmux_dss_dpi_pins {
+	dss_dpi_pins: dss-dpi-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d4, PIN_OUTPUT | MUX_MODE0)   /* dss_pclk.dss_pclk */
 			OMAP3_CORE1_IOPAD(0x20d6, PIN_OUTPUT | MUX_MODE0)   /* dss_hsync.dss_hsync */
@@ -247,7 +247,7 @@
 			&hsusb2_2_pins
 	>;
 
-	hsusb2_2_pins: pinmux_hsusb2_2_pins {
+	hsusb2_2_pins: hsusb2-2-pins {
 		pinctrl-single,pins = <
 			OMAP3430_CORE2_IOPAD(0x25f0, PIN_OUTPUT | MUX_MODE3)		/* etk_d10.hsusb2_clk */
 			OMAP3430_CORE2_IOPAD(0x25f2, PIN_OUTPUT | MUX_MODE3)		/* etk_d11.hsusb2_stp */

@@ -36,13 +36,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&misc_pins>;
 
-	misc_pins: misc_pins {
+	misc_pins: misc-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_SPI0_CS0, PIN_OUTPUT, MUX_MODE7)	/* spi0_cs0.gpio0_5 */
 		>;
 	};
 
-	gpmc_pins: gpmc_pins {
+	gpmc_pins: gpmc-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -86,21 +86,21 @@
 		>;
 	};
 
-	i2c0_pins: i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLDOWN, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	uart0_pins: uart0_pins {
+	uart0_pins: uart0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT, MUX_MODE0)
 		>;
 	};
 
-	uart1_pins: uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_CTSN, PIN_OUTPUT, MUX_MODE7)
 			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT, MUX_MODE7)
@@ -109,7 +109,7 @@
 		>;
 	};
 
-	uart2_pins: uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA8, PIN_INPUT_PULLUP, MUX_MODE7)	/* lcd_data8.gpio2[14] */
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA9, PIN_OUTPUT, MUX_MODE7)		/* lcd_data9.gpio2[15] */
@@ -118,7 +118,7 @@
 		>;
 	};
 
-	uart3_pins: uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA10, PIN_INPUT_PULLUP, MUX_MODE7)	/* lcd_data10.gpio2[16] */
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA11, PIN_OUTPUT, MUX_MODE7)		/* lcd_data11.gpio2[17] */
@@ -127,7 +127,7 @@
 		>;
 	};
 
-	uart4_pins: uart4_pins {
+	uart4_pins: uart4-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA12, PIN_INPUT_PULLUP, MUX_MODE7)	/* lcd_data12.gpio0[8] */
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA13, PIN_OUTPUT, MUX_MODE7)		/* lcd_data13.gpio0[9] */
@@ -136,14 +136,14 @@
 		>;
 	};
 
-	uart5_pins: uart5_pins {
+	uart5_pins: uart5-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA14, PIN_INPUT, MUX_MODE4)		/* lcd_data14.uart5_rxd */
 			AM33XX_PADCONF(AM335X_PIN_RMII1_REF_CLK, PIN_OUTPUT, MUX_MODE3)		/* rmiii1_refclk.uart5_txd */
 		>;
 	};
 
-	mmc1_pins: mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT_PULLUP, MUX_MODE0)

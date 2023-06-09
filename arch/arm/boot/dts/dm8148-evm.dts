@@ -116,7 +116,7 @@
 };
 
 &pincntl {
-	sd1_pins: pinmux_sd1_pins {
+	sd1_pins: sd1-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0800, PIN_INPUT | 0x1)	/* SD1_CLK */
 			DM814X_IOPAD(0x0804, PIN_INPUT_PULLUP |  0x1)	/* SD1_CMD */
@@ -129,13 +129,13 @@
 			>;
 	};
 
-	usb0_pins: pinmux_usb0_pins {
+	usb0_pins: usb0-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0c34, PIN_OUTPUT | 0x1)	/* USB0_DRVVBUS */
 			>;
 	};
 
-	usb1_pins: pinmux_usb1_pins {
+	usb1_pins: usb1-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0834, PIN_OUTPUT | 0x80)	/* USB1_DRVVBUS */
 			>;

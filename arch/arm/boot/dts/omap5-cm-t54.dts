@@ -60,7 +60,7 @@
 	};
 
 	/* HS USB Host PHY on PORT 2 */
-	hsusb2_phy: hsusb2_phy {
+	hsusb2_phy: hsusb2-phy-pins {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>; /* gpio3_76 HUB_RESET */
 		#phy-cells = <0>;
@@ -176,13 +176,13 @@
 
 &omap5_pmx_wkup {
 
-	ads7846_pins: pinmux_ads7846_pins {
+	ads7846_pins: ads7846-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
 		>;
 	};
 
-	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
+	palmas_sys_nirq_pins: palmas-sys-nirq-pins {
 		pinctrl-single,pins = <
 			/* sys_nirq1 is pulled down as the SoC is inverting it for GIC */
 			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0)
@@ -197,27 +197,27 @@
 			&usbhost_pins
 	>;
 
-	led_gpio_pins: pinmux_led_gpio_pins {
+	led_gpio_pins: led-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x00b0, PIN_OUTPUT | MUX_MODE6) /* hsi2_caflag.gpio3_80 */
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x01f2, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_scl */
 			OMAP5_IOPAD(0x01f4, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_sda */
 		>;
 	};
 
-	i2c2_pins: pinmux_i2c2_pins {
+	i2c2_pins: i2c2-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x01b8, PIN_INPUT | MUX_MODE0) /* i2c2_scl */
 			OMAP5_IOPAD(0x01ba, PIN_INPUT | MUX_MODE0) /* i2c2_sda */
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x01e2, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_clk */
 			OMAP5_IOPAD(0x01e4, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_cmd */
@@ -228,7 +228,7 @@
 		>;
 	};
 
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0040, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_clk */
 			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_cmd */
@@ -243,7 +243,7 @@
 		>;
 	};
 
-	mmc3_pins: pinmux_mmc3_pins {
+	mmc3_pins: mmc3-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x01a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
 			OMAP5_IOPAD(0x01a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
@@ -254,14 +254,14 @@
 		>;
 	};
 
-	wlan_gpios_pins: pinmux_wlan_gpios_pins {
+	wlan_gpios_pins: wlan-gpios-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x019c, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* abemcpdm_ul_data.gpio4_109 */
 			OMAP5_IOPAD(0x019e, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* abemcpdm_dl_data.gpio4_110 */
 		>;
 	};
 
-	usbhost_pins: pinmux_usbhost_pins {
+	usbhost_pins: usbhost-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x00c4, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_strobe */
 			OMAP5_IOPAD(0x00c6, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_data */
@@ -274,7 +274,7 @@
 		>;
 	};
 
-	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+	dss_hdmi_pins: dss-hdmi-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x013c, PIN_INPUT | MUX_MODE0) /* hdmi_cec */
 			OMAP5_IOPAD(0x0140, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_scl */
@@ -282,19 +282,19 @@
 		>;
 	};
 
-	lcd_pins: pinmux_lcd_pins {
+	lcd_pins: lcd-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0172, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* timer11_pwm_evt.gpio8_227 */
 		>;
 	};
 
-	hdmi_conn_pins: pinmux_hdmi_conn_pins {
+	hdmi_conn_pins: hdmi-conn-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x013e, PIN_INPUT | MUX_MODE6) /* hdmi_hpd.gpio7_193 */
 		>;
 	};
 
-	dss_dpi_pins: pinmux_dss_dpi_pins {
+	dss_dpi_pins: dss-dpi-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0104, PIN_OUTPUT | MUX_MODE3) /* rfbi_data15.dispc_data15 */
 			OMAP5_IOPAD(0x0106, PIN_OUTPUT | MUX_MODE3) /* rfbi_data14.dispc_data14 */
@@ -327,7 +327,7 @@
 		>;
 	};
 
-	mcspi2_pins: pinmux_mcspi1_pins {
+	mcspi2_pins: mcspi1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x00fc, PIN_INPUT | MUX_MODE0) /* mcspi2_clk */
 			OMAP5_IOPAD(0x00fe, PIN_INPUT | MUX_MODE0) /* mcspi2_simo */

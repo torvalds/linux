@@ -28,7 +28,7 @@
 };
 
 &am33xx_pinmux {
-	mmc3_pins: pinmux_mmc3_pins {
+	mmc3_pins: mmc3-pins {
 		pinctrl-single,pins = <
 			/* gpmc_a9.gpio1_25: RADIO_EN */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A9, PIN_OUTPUT_PULLUP, MUX_MODE7)
@@ -53,14 +53,14 @@
 		>;
 	};
 
-	bluetooth_pins: pinmux_bluetooth_pins {
+	bluetooth_pins: bluetooth-pins {
 		pinctrl-single,pins = <
 			/* event_intr0.gpio0_19 */
 			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_INPUT_PULLUP, MUX_MODE7)
 		>;
 	};
 
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 			/* uart1_rxd */
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT, MUX_MODE0)

@@ -5,10 +5,12 @@
 
 #include "omap3-gta04a5.dts"
 
-&omap3_pmx_core {
+/ {
 	model = "Goldelico GTA04A5/Letux 2804 with OneNAND";
+};
 
-	gpmc_pins: pinmux_gpmc_pins {
+&omap3_pmx_core {
+	gpmc_pins: gpmc-pins {
 		pinctrl-single,pins = <
 
 			/* address lines */

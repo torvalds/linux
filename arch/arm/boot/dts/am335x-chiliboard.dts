@@ -36,14 +36,14 @@
 };
 
 &am33xx_pinmux {
-	uart0_pins: pinmux_uart0_pins {
+	uart0_pins: uart0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	cpsw_default: cpsw_default {
+	cpsw_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 */
 			AM33XX_PADCONF(AM335X_PIN_MII1_CRS, PIN_INPUT_PULLDOWN, MUX_MODE1)
@@ -57,7 +57,7 @@
 		>;
 	};
 
-	cpsw_sleep: cpsw_sleep {
+	cpsw_sleep: cpsw-sleep-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 reset value */
 			AM33XX_PADCONF(AM335X_PIN_MII1_CRS, PIN_INPUT_PULLDOWN, MUX_MODE7)
@@ -72,7 +72,7 @@
 		>;
 	};
 
-	davinci_mdio_default: davinci_mdio_default {
+	davinci_mdio_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			/* mdio_data.mdio_data */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)
@@ -81,7 +81,7 @@
 		>;
 	};
 
-	davinci_mdio_sleep: davinci_mdio_sleep {
+	davinci_mdio_sleep: davinci-mdio-sleep-pins {
 		pinctrl-single,pins = <
 			/* MDIO reset value */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLDOWN, MUX_MODE7)
@@ -89,13 +89,13 @@
 		>;
 	};
 
-	usb1_drvvbus: usb1_drvvbus {
+	usb1_drvvbus: usb1-drvvbus-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_USB1_DRVVBUS, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	sd_pins: pinmux_sd_card {
+	sd_pins: sd-card-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT, MUX_MODE0)
@@ -107,7 +107,7 @@
 		>;
 	};
 
-	led_gpio_pins: led_gpio_pins {
+	led_gpio_pins: led-gpio-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_EMU0, PIN_OUTPUT, MUX_MODE7) /* emu0.gpio3_7 */
 			AM33XX_PADCONF(AM335X_PIN_EMU1, PIN_OUTPUT, MUX_MODE7) /* emu1.gpio3_8 */

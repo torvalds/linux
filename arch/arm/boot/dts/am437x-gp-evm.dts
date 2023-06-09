@@ -153,45 +153,45 @@
 	pinctrl-0 = <&wlan_pins_default &ddr3_vtt_toggle_default &unused_pins &debugss_pins>;
 	pinctrl-1 = <&wlan_pins_sleep>;
 
-	ddr3_vtt_toggle_default: ddr_vtt_toggle_default {
+	ddr3_vtt_toggle_default: ddr-vtt-toggle-default-pins {
 		pinctrl-single,pins = <
 			0x25C (DS0_PULL_UP_DOWN_EN | PIN_OUTPUT_PULLUP | DS0_FORCE_OFF_MODE | MUX_MODE7) /* spi0_cs0.gpio5_7 */
 		>;
 	};
 
-	i2c0_pins: i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x988, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)  /* i2c0_sda.i2c0_sda */
 			AM4372_IOPAD(0x98c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)  /* i2c0_scl.i2c0_scl */
 		>;
 	};
 
-	i2c1_pins: i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x95c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE2)  /* spi0_cs0.i2c1_scl */
 			AM4372_IOPAD(0x958, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE2)  /* spi0_d1.i2c1_sda  */
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x960, PIN_INPUT | MUX_MODE7) /* spi0_cs1.gpio0_6 */
 		>;
 	};
 
-	ecap0_pins: backlight_pins {
+	ecap0_pins: backlight-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x964, MUX_MODE0)       /* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
 		>;
 	};
 
-	pixcir_ts_pins: pixcir_ts_pins {
+	pixcir_ts_pins: pixcir-ts-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa64, PIN_INPUT_PULLUP | MUX_MODE7)  /* spi2_d0.gpio3_22 */
 		>;
 	};
 
-	cpsw_default: cpsw_default {
+	cpsw_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 */
 			AM4372_IOPAD(0x914, PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* mii1_txen.rgmii1_txen */
@@ -209,7 +209,7 @@
 		>;
 	};
 
-	cpsw_sleep: cpsw_sleep {
+	cpsw_sleep: cpsw-sleep-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 reset value */
 			AM4372_IOPAD(0x914, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -227,7 +227,7 @@
 		>;
 	};
 
-	davinci_mdio_default: davinci_mdio_default {
+	davinci_mdio_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			/* MDIO */
 			AM4372_IOPAD(0x948, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* mdio_data.mdio_data */
@@ -235,7 +235,7 @@
 		>;
 	};
 
-	davinci_mdio_sleep: davinci_mdio_sleep {
+	davinci_mdio_sleep: davinci-mdio-sleep-pins {
 		pinctrl-single,pins = <
 			/* MDIO reset value */
 			AM4372_IOPAD(0x948, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -243,7 +243,7 @@
 		>;
 	};
 
-	nand_flash_x8: nand_flash_x8 {
+	nand_flash_x8: nand-flash-x8-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x800, PIN_INPUT  | MUX_MODE0)	/* gpmc_ad0.gpmc_ad0 */
 			AM4372_IOPAD(0x804, PIN_INPUT  | MUX_MODE0)	/* gpmc_ad1.gpmc_ad1 */
@@ -263,7 +263,7 @@
 		>;
 	};
 
-	dss_pins: dss_pins {
+	dss_pins: dss-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x820, PIN_OUTPUT_PULLUP | MUX_MODE1) /*gpmc ad 8 -> DSS DATA 23 */
 			AM4372_IOPAD(0x824, PIN_OUTPUT_PULLUP | MUX_MODE1)
@@ -297,42 +297,42 @@
 		>;
 	};
 
-	display_mux_pins: display_mux_pins {
+	display_mux_pins: display-mux-pins {
 		pinctrl-single,pins = <
 			/* GPIO 5_8 to select LCD / HDMI */
 			AM4372_IOPAD(0xa38, PIN_OUTPUT_PULLUP | MUX_MODE7)
 		>;
 	};
 
-	dcan0_default: dcan0_default_pins {
+	dcan0_default: dcan0-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x978, PIN_OUTPUT | MUX_MODE2)		/* uart1_ctsn.d_can0_tx */
 			AM4372_IOPAD(0x97c, PIN_INPUT_PULLUP | MUX_MODE2)	/* uart1_rtsn.d_can0_rx */
 		>;
 	};
 
-	dcan0_sleep: dcan0_sleep_pins {
+	dcan0_sleep: dcan0-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x978, PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_ctsn.gpio0_12 */
 			AM4372_IOPAD(0x97c, PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_rtsn.gpio0_13 */
 		>;
 	};
 
-	dcan1_default: dcan1_default_pins {
+	dcan1_default: dcan1-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x980, PIN_OUTPUT | MUX_MODE2)		/* uart1_rxd.d_can1_tx */
 			AM4372_IOPAD(0x984, PIN_INPUT_PULLUP | MUX_MODE2)	/* uart1_txd.d_can1_rx */
 		>;
 	};
 
-	dcan1_sleep: dcan1_sleep_pins {
+	dcan1_sleep: dcan1-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x980, PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_rxd.gpio0_14 */
 			AM4372_IOPAD(0x984, PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_txd.gpio0_15 */
 		>;
 	};
 
-	vpfe0_pins_default: vpfe0_pins_default {
+	vpfe0_pins_default: vpfe0-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9b0, PIN_INPUT_PULLUP | MUX_MODE0)  /* cam0_hd mode 0*/
 			AM4372_IOPAD(0x9b4, PIN_INPUT_PULLUP | MUX_MODE0)  /* cam0_vd mode 0*/
@@ -350,7 +350,7 @@
 		>;
 	};
 
-	vpfe0_pins_sleep: vpfe0_pins_sleep {
+	vpfe0_pins_sleep: vpfe0-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9b0, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)  /* cam0_hd mode 0*/
 			AM4372_IOPAD(0x9b4, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)  /* cam0_vd mode 0*/
@@ -368,7 +368,7 @@
 		>;
 	};
 
-	vpfe1_pins_default: vpfe1_pins_default {
+	vpfe1_pins_default: vpfe1-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9cc, PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data9 mode 0*/
 			AM4372_IOPAD(0x9d0, PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data8 mode 0*/
@@ -386,7 +386,7 @@
 		>;
 	};
 
-	vpfe1_pins_sleep: vpfe1_pins_sleep {
+	vpfe1_pins_sleep: vpfe1-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9cc, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)  /* cam1_data9 mode 0*/
 			AM4372_IOPAD(0x9d0, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)  /* cam1_data8 mode 0*/
@@ -404,7 +404,7 @@
 		>;
 	};
 
-	mmc3_pins_default: pinmux_mmc3_pins_default {
+	mmc3_pins_default: mmc3-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x88c, PIN_INPUT_PULLUP | MUX_MODE3)      /* gpmc_clk.mmc2_clk */
 			AM4372_IOPAD(0x888, PIN_INPUT_PULLUP | MUX_MODE3)      /* gpmc_csn3.mmc2_cmd */
@@ -415,7 +415,7 @@
 		>;
 	};
 
-	mmc3_pins_sleep: pinmux_mmc3_pins_sleep {
+	mmc3_pins_sleep: mmc3-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x88c, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_clk.mmc2_clk */
 			AM4372_IOPAD(0x888, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_csn3.mmc2_cmd */
@@ -426,7 +426,7 @@
 		>;
 	};
 
-	wlan_pins_default: pinmux_wlan_pins_default {
+	wlan_pins_default: wlan-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x850, PIN_OUTPUT_PULLDOWN | MUX_MODE7)		/* gpmc_a4.gpio1_20 WL_EN */
 			AM4372_IOPAD(0x85c, PIN_INPUT | WAKEUP_ENABLE | MUX_MODE7)	/* gpmc_a7.gpio1_23 WL_IRQ*/
@@ -434,7 +434,7 @@
 		>;
 	};
 
-	wlan_pins_sleep: pinmux_wlan_pins_sleep {
+	wlan_pins_sleep: wlan-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x850, PIN_OUTPUT_PULLDOWN | MUX_MODE7)		/* gpmc_a4.gpio1_20 WL_EN */
 			AM4372_IOPAD(0x85c, PIN_INPUT | WAKEUP_ENABLE | MUX_MODE7)	/* gpmc_a7.gpio1_23 WL_IRQ*/
@@ -442,7 +442,7 @@
 		>;
 	};
 
-	uart3_pins: uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa28, PIN_INPUT | MUX_MODE0)		/* uart3_rxd.uart3_rxd */
 			AM4372_IOPAD(0xa2c, PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* uart3_txd.uart3_txd */
@@ -451,7 +451,7 @@
 		>;
 	};
 
-	mcasp1_pins: mcasp1_pins {
+	mcasp1_pins: mcasp1-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x908, PIN_OUTPUT_PULLDOWN | MUX_MODE4)	/* mii1_col.mcasp1_axr2 */
 			AM4372_IOPAD(0x90c, PIN_INPUT_PULLDOWN | MUX_MODE4)	/* mii1_crs.mcasp1_aclkx */
@@ -460,7 +460,7 @@
 		>;
 	};
 
-	mcasp1_sleep_pins: mcasp1_sleep_pins {
+	mcasp1_sleep_pins: mcasp1-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x908, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x90c, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -469,13 +469,13 @@
 		>;
 	};
 
-	gpio0_pins: gpio0_pins {
+	gpio0_pins: gpio0-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa6c, PIN_OUTPUT | MUX_MODE9) /* spi2_cs0.gpio0_23 SEL_eMMCorNANDn */
 		>;
 	};
 
-	emmc_pins_default: emmc_pins_default {
+	emmc_pins_default: emmc-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x800, PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad0.mmc1_dat0 */
 			AM4372_IOPAD(0x804, PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad1.mmc1_dat1 */
@@ -490,7 +490,7 @@
 		>;
 	};
 
-	emmc_pins_sleep: emmc_pins_sleep {
+	emmc_pins_sleep: emmc-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x800, PIN_INPUT_PULLDOWN | MUX_MODE7) /* gpmc_ad0.gpio1_0 */
 			AM4372_IOPAD(0x804, PIN_INPUT_PULLDOWN | MUX_MODE7) /* gpmc_ad1.gpio1_1 */
@@ -505,19 +505,19 @@
 		>;
 	};
 
-	beeper_pins_default: beeper_pins_default {
+	beeper_pins_default: beeper-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9e0, PIN_OUTPUT_PULLUP | MUX_MODE7)	/* cam1_field.gpio4_12 */
 		>;
 	};
 
-	beeper_pins_sleep: beeper_pins_sleep {
+	beeper_pins_sleep: beeper-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9e0, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* cam1_field.gpio4_12 */
 		>;
 	};
 
-	unused_pins: unused_pins {
+	unused_pins: unused-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x854, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x858, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -566,7 +566,7 @@
 		>;
 	};
 
-	debugss_pins: pinmux_debugss_pins {
+	debugss_pins: debugss-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa90, PIN_INPUT_PULLDOWN)
 			AM4372_IOPAD(0xa94, PIN_INPUT_PULLDOWN)
@@ -578,7 +578,7 @@
 		>;
 	};
 
-	uart0_pins_default: uart0_pins_default {
+	uart0_pins_default: uart0-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0) /* uart0_ctsn.uart0_ctsn */
 			AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0) /* uart0_rtsn.uart0_rtsn */
@@ -587,7 +587,7 @@
 		>;
 	};
 
-	uart0_pins_sleep: uart0_pins_sleep {
+	uart0_pins_sleep: uart0-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7) /* uart0_ctsn.uart0_ctsn */
 			AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7) /* uart0_rtsn.uart0_rtsn */
@@ -596,7 +596,7 @@
 		>;
 	};
 
-	matrix_keypad_default: matrix_keypad_default {
+	matrix_keypad_default: matrix-keypad-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9a4, PIN_OUTPUT | MUX_MODE7)
 			AM4372_IOPAD(0x9a8, PIN_OUTPUT | MUX_MODE7)
@@ -605,7 +605,7 @@
 		>;
 	};
 
-	matrix_keypad_sleep: matrix_keypad_sleep {
+	matrix_keypad_sleep: matrix-keypad-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9a4, PULL_UP | MUX_MODE7)
 			AM4372_IOPAD(0x9a8, PULL_UP | MUX_MODE7)

@@ -45,31 +45,31 @@
 };
 
 &omap3_pmx_core {
-	bt_pins: pinmux_bt_pins {
+	bt_pins: bt-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE4)	/* mmc2_dat5 = mmc3_dat1 = gpio137 */
 		>;
 	};
 
-	wlan_pins: pinmux_wlan_pins {
+	wlan_pins: wlan-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* mmc2_dat6 = mmc3_dat2 = gpio138 */
 		>;
 	};
 
-	wlan_irq_pin: pinmux_wlan_irq_pin {
+	wlan_irq_pin: wlan-irq-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE4)	/* mmc2_dat7 = mmc3_dat3 = gpio139 */
 		>;
 	};
 
-	irda_pins: pinmux_irda {
+	irda_pins: irda-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d0, PIN_OUTPUT_PULLUP | MUX_MODE4)	/* mcspi1_cs1 = gpio175 */
 		>;
 	};
 
-	pps_pins: pinmux_pps_pins {
+	pps_pins: pps-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2138, PIN_INPUT | MUX_MODE4) /* gpin114 */
 		>;

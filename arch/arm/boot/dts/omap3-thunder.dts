@@ -12,7 +12,7 @@
 };
 
 &omap3_pmx_core {
-	dss_dpi_pins: pinmux_dss_dpi_pins {
+	dss_dpi_pins: dss-dpi-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d4, PIN_OUTPUT | MUX_MODE0)	/* dss_pclk.dss_pclk */
 			OMAP3_CORE1_IOPAD(0x20d6, PIN_OUTPUT | MUX_MODE0)	/* dss_hsync.dss_hsync */
@@ -45,13 +45,13 @@
 		>;
 	};
 
-	lte430_pins: pinmux_lte430_pins {
+	lte430_pins: lte430-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat6.gpio_138 */
 		>;
 	};
 
-	backlight_pins: pinmux_backlight_pins {
+	backlight_pins: backlight-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x216a, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat7.gpio_139 */
 		>;

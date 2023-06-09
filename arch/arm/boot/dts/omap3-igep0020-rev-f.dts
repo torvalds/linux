@@ -24,7 +24,7 @@
 };
 
 &omap3_pmx_core {
-	lbep5clwmc_pins: pinmux_lbep5clwmc_pins {
+	lbep5clwmc_pins: lbep5clwmc-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d4, PIN_INPUT | MUX_MODE4)	/* mcspi1_cs3.gpio_177 - W_IRQ */
 			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat5.gpio_137 - BT_EN */

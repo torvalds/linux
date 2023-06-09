@@ -171,41 +171,41 @@
 };
 
 &am43xx_pinmux {
-	gpio_keys_pins_default: gpio_keys_pins_default {
+	gpio_keys_pins_default: gpio-keys-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9b8, PIN_INPUT | MUX_MODE7)	/* cam0_field.gpio4_2 */
 		>;
 	};
 
-	i2c0_pins_default: i2c0_pins_default {
+	i2c0_pins_default: i2c0-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x988, PIN_INPUT | SLEWCTRL_FAST | MUX_MODE0) /* i2c0_sda.i2c0_sda */
 			AM4372_IOPAD(0x98c, PIN_INPUT | SLEWCTRL_FAST | MUX_MODE0) /* i2c0_scl.i2c0_scl */
 		>;
 	};
 
-	i2c0_pins_sleep: i2c0_pins_sleep {
+	i2c0_pins_sleep: i2c0-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x988, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x98c, PIN_INPUT_PULLDOWN | MUX_MODE7)
 		>;
 	};
 
-	i2c2_pins_default: i2c2_pins_default {
+	i2c2_pins_default: i2c2-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9e8, PIN_INPUT | SLEWCTRL_FAST | MUX_MODE3) /* cam1_data1.i2c2_scl */
 			AM4372_IOPAD(0x9ec, PIN_INPUT | SLEWCTRL_FAST | MUX_MODE3) /* cam1_data0.i2c2_sda */
 		>;
 	};
 
-	i2c2_pins_sleep: i2c2_pins_sleep {
+	i2c2_pins_sleep: i2c2-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9e8, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x9ec, PIN_INPUT_PULLDOWN | MUX_MODE7)
 		>;
 	};
 
-	mmc1_pins_default: pinmux_mmc1_pins_default {
+	mmc1_pins_default: mmc1-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x900, PIN_INPUT | MUX_MODE0) /* mmc0_clk.mmc0_clk */
 			AM4372_IOPAD(0x904, PIN_INPUT | MUX_MODE0) /* mmc0_cmd.mmc0_cmd */
@@ -217,7 +217,7 @@
 		>;
 	};
 
-	mmc1_pins_sleep: pinmux_mmc1_pins_sleep {
+	mmc1_pins_sleep: mmc1-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x900, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x904, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -229,7 +229,7 @@
 		>;
 	};
 
-	spi1_pins_default: spi1_pins_default {
+	spi1_pins_default: spi1-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x908, PIN_INPUT | MUX_MODE2)	/* mii1_col.spi1_sclk */
 			AM4372_IOPAD(0x910, PIN_INPUT | MUX_MODE2)	/* mii1_rx_er.spi1_d1 */
@@ -238,7 +238,7 @@
 		>;
 	};
 
-	spi1_pins_sleep: spi1_pins_sleep {
+	spi1_pins_sleep: spi1-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x908, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x910, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -247,13 +247,13 @@
 		>;
 	};
 
-	ecap0_pins_default: backlight_pins_default {
+	ecap0_pins_default: backlight-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x964, PIN_OUTPUT | MUX_MODE0) /* ecap0_in_pwm0_out.ecap0_in_pwm0_out */
 		>;
 	};
 
-	cpsw_default: cpsw_default {
+	cpsw_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x92c, PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* mii1_txclk.rgmii1_tclk */
 			AM4372_IOPAD(0x914, PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* mii1_txen.rgmii1_tctl */
@@ -270,7 +270,7 @@
 		>;
 	};
 
-	cpsw_sleep: cpsw_sleep {
+	cpsw_sleep: cpsw-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x92c, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x914, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -287,7 +287,7 @@
 		>;
 	};
 
-	davinci_mdio_default: davinci_mdio_default {
+	davinci_mdio_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			/* MDIO */
 			AM4372_IOPAD(0x948, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* mdio_data.mdio_data */
@@ -295,7 +295,7 @@
 		>;
 	};
 
-	davinci_mdio_sleep: davinci_mdio_sleep {
+	davinci_mdio_sleep: davinci-mdio-sleep-pins {
 		pinctrl-single,pins = <
 			/* MDIO reset value */
 			AM4372_IOPAD(0x948, PIN_INPUT_PULLDOWN | MUX_MODE7)
@@ -303,7 +303,7 @@
 		>;
 	};
 
-	qspi_pins_default: qspi_pins_default {
+	qspi_pins_default: qspi-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x87c, PIN_OUTPUT_PULLUP | MUX_MODE3)	/* gpmc_csn0.qspi_csn */
 			AM4372_IOPAD(0x888, PIN_OUTPUT | MUX_MODE2)		/* gpmc_csn3.qspi_clk */
@@ -314,7 +314,7 @@
 		>;
 	};
 
-	qspi_pins_sleep: qspi_pins_sleep{
+	qspi_pins_sleep: qspi-sleep-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x87c, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x888, PIN_INPUT_PULLDOWN | MUX_MODE7)

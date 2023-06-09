@@ -54,19 +54,19 @@
 &omap3_pmx_wkup {
 	pinctrl-names = "default";
 
-	lan9221_pins: pinmux_lan9221_pins {
+	lan9221_pins: lan9221-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a5a, PIN_INPUT | MUX_MODE4)   /* reserved.gpio_129 */
 		>;
 	};
 
-	tsc2048_pins: pinmux_tsc2048_pins {
+	tsc2048_pins: tsc2048-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a16, PIN_INPUT_PULLUP | MUX_MODE4)   /* sys_boot6.gpio_8 */
 		>;
 	};
 
-	mmc1cd_pins: pinmux_mmc1cd_pins {
+	mmc1cd_pins: mmc1cd-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a56, PIN_INPUT | MUX_MODE4)   /* reserved.gpio_126 */
 		>;
@@ -76,7 +76,7 @@
 &omap3_pmx_core {
 	pinctrl-names = "default";
 
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE0)   /* uart1_tx.uart1_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE0)   /* uart1_rts.uart1_rts */
@@ -85,42 +85,42 @@
 		>;
 	};
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2170, PIN_OUTPUT | MUX_MODE1)   /* mcbsp3_clkx.uart2_tx */
 			OMAP3_CORE1_IOPAD(0x2172, PIN_INPUT | MUX_MODE1)    /* mcbsp3_fsx.uart2_rx */
 		>;
 	};
 
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x219e, PIN_INPUT | MUX_MODE0)    /* uart3_rx_irrx.uart3_rx_irrx */
 			OMAP3_CORE1_IOPAD(0x21a0, PIN_OUTPUT | MUX_MODE0)   /* uart3_tx_irtx.uart3_tx_irtx */
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21ba ,PIN_INPUT_PULLUP | MUX_MODE0)    /* i2c1_scl.i2c1_scl */
 			OMAP3_CORE1_IOPAD(0x21bc ,PIN_INPUT_PULLUP | MUX_MODE0)    /* i2c1_sda.i2c1_sda */
 		>;
 	};
 
-	i2c2_pins: pinmux_i2c2_pins {
+	i2c2_pins: i2c2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21be, PIN_INPUT | MUX_MODE0)   /* i2c2_scl.i2c2_scl */
 			OMAP3_CORE1_IOPAD(0x21c0, PIN_INPUT | MUX_MODE0)   /* i2c2_sda.i2c2_sda */
 		>;
 	};
 
-	i2c3_pins: pinmux_i2c3_pins {
+	i2c3_pins: i2c3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21c2, PIN_INPUT | MUX_MODE0)   /* i2c3_scl.i2c3_scl */
 			OMAP3_CORE1_IOPAD(0x21c4, PIN_INPUT | MUX_MODE0)   /* i2c3_sda.i2c3_sda */
 		>;
 	};
 
-	hsusb1_pins: pinmux_hsusb1_pins {
+	hsusb1_pins: hsusb1-pins {
 		pinctrl-single,pins = <
 
 			/* GPIO 182 controls USB-Hub reset. But USB-Phy its
@@ -132,7 +132,7 @@
 		>;
 	};
 
-	hsusb_otg_pins: pinmux_hsusb_otg_pins {
+	hsusb_otg_pins: hsusb-otg-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21a2, PIN_INPUT | MUX_MODE0)   /* hsusb0_clk.hsusb0_clk */
 			OMAP3_CORE1_IOPAD(0x21a4, PIN_OUTPUT | MUX_MODE0)  /* hsusb0_stp.hsusb0_stp */
@@ -149,7 +149,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2144, PIN_INPUT_PULLUP | MUX_MODE0)   /* sdmmc1_clk.sdmmc1_clk */
 			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)   /* sdmmc1_cmd.sdmmc1_cmd */
@@ -160,7 +160,7 @@
 		>;
 	};
 
-	spi2_pins: pinmux_spi2_pins {
+	spi2_pins: spi2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLDOWN | MUX_MODE0)   /* mcspi2_clk.mcspi2_clk */
 			OMAP3_CORE1_IOPAD(0x21d8, PIN_INPUT_PULLDOWN | MUX_MODE0)   /* mcspi2_simo.mcspi2_simo */
@@ -173,7 +173,7 @@
 &omap3_pmx_core2 {
 	pinctrl-names = "default";
 
-	hsusb1_2_pins: pinmux_hsusb1_2_pins {
+	hsusb1_2_pins: hsusb1-2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25d8, PIN_OUTPUT | MUX_MODE3)  /* etk_clk.hsusb1_stp */
 			OMAP3630_CORE2_IOPAD(0x25da, PIN_INPUT | MUX_MODE3)   /* etk_ctl.hsusb1_clk */
@@ -190,7 +190,7 @@
 		>;
 	};
 
-	gpio1_pins: pinmux_gpio1_pins {
+	gpio1_pins: gpio1-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25fa, PIN_OUTPUT_PULLDOWN | MUX_MODE4)   /* etk_d15.gpio_29 */
 		>;

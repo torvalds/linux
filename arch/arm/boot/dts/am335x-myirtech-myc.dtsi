@@ -160,21 +160,21 @@
 };
 
 &am33xx_pinmux {
-	mdio_pins_default: pinmux_mdio_pins_default {
+	mdio_pins_default: mdio-default-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)	/* mdio_data */
 			AM33XX_PADCONF(AM335X_PIN_MDC, PIN_OUTPUT_PULLUP, MUX_MODE0)			/* mdio_clk */
 		>;
 	};
 
-	mdio_pins_sleep: pinmux_mdio_pins_sleep {
+	mdio_pins_sleep: mdio-sleep-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLDOWN, MUX_MODE7)
 			AM33XX_PADCONF(AM335X_PIN_MDC, PIN_INPUT_PULLDOWN, MUX_MODE7)
 		>;
 	};
 
-	eth_slave1_pins_default: pinmux_eth_slave1_pins_default {
+	eth_slave1_pins_default: eth-slave1-default-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_TX_EN, PIN_OUTPUT_PULLDOWN, MUX_MODE2)		/* rgmii1_tctl */
 			AM33XX_PADCONF(AM335X_PIN_MII1_RX_DV, PIN_INPUT_PULLDOWN, MUX_MODE2)		/* rgmii1_rctl */
@@ -191,7 +191,7 @@
 		>;
 	};
 
-	eth_slave1_pins_sleep: pinmux_eth_slave1_pins_sleep {
+	eth_slave1_pins_sleep: eth-slave1-sleep-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_TX_EN, PIN_INPUT_PULLDOWN, MUX_MODE7)
 			AM33XX_PADCONF(AM335X_PIN_MII1_RX_DV, PIN_INPUT_PULLDOWN, MUX_MODE7)
@@ -208,34 +208,34 @@
 		>;
 	};
 
-	i2c0_pins_default: pinmux_i2c0_pins_default {
+	i2c0_pins_default: i2c0-default-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT | SLEWCTRL_FAST, MUX_MODE0)	/* I2C0_SDA */
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT | SLEWCTRL_FAST, MUX_MODE0)	/* I2C0_SCL */
 		>;
 	};
 
-	i2c0_pins_gpio: pinmux_i2c0_pins_gpio {
+	i2c0_pins_gpio: i2c0-gpio-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT, MUX_MODE7)			/* gpio3[5] */
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT, MUX_MODE7)			/* gpio3[6] */
 		>;
 	};
 
-	i2c0_pins_sleep: pinmux_i2c0_pins_sleep {
+	i2c0_pins_sleep: i2c0-sleep-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLDOWN, MUX_MODE7)
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT_PULLDOWN, MUX_MODE7)
 		>;
 	};
 
-	led_mod_pins: pinmux_led_mod_pins {
+	led_mod_pins: led-mod-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKR, PIN_OUTPUT_PULLDOWN, MUX_MODE7)		/* gpio3[18] */
 		>;
 	};
 
-	nand_pins_default: pinmux_nand_pins_default {
+	nand_pins_default: nand-default-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLUP, MUX_MODE0)		/* gpmc_ad0 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLUP, MUX_MODE0)		/* gpmc_ad1 */
@@ -255,7 +255,7 @@
 		>;
 	};
 
-	nand_pins_sleep: pinmux_nand_pins_sleep {
+	nand_pins_sleep: nand-sleep-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLDOWN, MUX_MODE7)
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLDOWN, MUX_MODE7)

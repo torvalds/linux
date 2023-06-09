@@ -33,7 +33,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&on_board_gpio_61 &hsusb2_pins>;
 
-	dss_dpi_pins1: pinmux_dss_dpi_pins2 {
+	dss_dpi_pins1: dss-dpi2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d4, PIN_OUTPUT | MUX_MODE0)   /* dss_pclk.dss_pclk */
 			OMAP3_CORE1_IOPAD(0x20d6, PIN_OUTPUT | MUX_MODE0)   /* dss_hsync.dss_hsync */
@@ -62,7 +62,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2144, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
 			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc1_cmd.sdmmc1_cmd */
@@ -78,7 +78,7 @@
 	};
 
 	/* NOTE: Clocked externally, needs INPUT also for sdmmc2_clk.sdmmc2_clk */
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk.sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_cmd.sdmmc2_cmd */
@@ -93,7 +93,7 @@
 		>;
 	};
 
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x219e, WAKEUP_EN | PIN_INPUT | MUX_MODE0) /* uart3_rx_irrx.uart3_rx_irrx */
 			OMAP3_CORE1_IOPAD(0x21a0, PIN_OUTPUT | MUX_MODE0)		/* uart3_tx_irtx.uart3_tx_irtx */
@@ -101,14 +101,14 @@
 	};
 
 	/* Devices are routed with gpmc_nbe1.gpio_61 to on-board devices */
-	on_board_gpio_61: pinmux_ehci_port_select_pins {
+	on_board_gpio_61: ehci-port-select-pins {
 		pinctrl-single,pins = <
 		OMAP3_CORE1_IOPAD(0x20c8, PIN_OUTPUT | MUX_MODE4)
 		>;
 	};
 
 	/* Used by OHCI and EHCI. OHCI won't work without external phy */
-	hsusb2_pins: pinmux_hsusb2_pins {
+	hsusb2_pins: hsusb2-pins {
 		pinctrl-single,pins = <
 
 		/* mcspi1_cs3.hsusb2_data2 */
@@ -135,14 +135,14 @@
 	 * Note that gpio_150 pulled high with internal pull to prevent wlcore
 	 * reset on return from off mode in idle.
 	 */
-	wl12xx_gpio: pinmux_wl12xx_gpio {
+	wl12xx_gpio: wl12xx-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLUP | MUX_MODE7)		/* uart1_cts.gpio_150 */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_INPUT | MUX_MODE4)		/* uart1_rts.gpio_149 */
 		>;
 	};
 
-	smsc911x_pins: pinmux_smsc911x_pins {
+	smsc911x_pins: smsc911x-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d2, PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
 		>;
@@ -150,7 +150,7 @@
 };
 
 &omap3_pmx_wkup {
-	dss_dpi_pins2: pinmux_dss_dpi_pins1 {
+	dss_dpi_pins2: dss-dpi1-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0a, PIN_OUTPUT | MUX_MODE3)   /* sys_boot0.dss_data18 */
 			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE3)   /* sys_boot1.dss_data19 */

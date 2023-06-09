@@ -27,7 +27,7 @@
 };
 
 &omap3_pmx_core {
-	lbee1usjyc_pins: pinmux_lbee1usjyc_pins {
+	lbee1usjyc_pins: lbee1usjyc-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat5.gpio_137 - RESET_N_W */
 			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat6.gpio_138 - WIFI_PDN */

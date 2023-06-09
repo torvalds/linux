@@ -17,13 +17,13 @@
 };
 
 &am33xx_pinmux {
-	mpu6050_pins: pinmux_mpu6050_pins {
+	mpu6050_pins: mpu6050-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_INPUT, MUX_MODE7)    /* uart0_ctsn.gpio1_8 */
 		>;
 	};
 
-	lps3331ap_pins: pinmux_lps3331ap_pins {
+	lps3331ap_pins: lps3331ap-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A10, PIN_INPUT, MUX_MODE7)     /* gpmc_a10.gpio1_26 */
 		>;

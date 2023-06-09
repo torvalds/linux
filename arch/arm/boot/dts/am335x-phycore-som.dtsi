@@ -76,7 +76,7 @@
 
 /* Ethernet */
 &am33xx_pinmux {
-	ethernet0_pins: pinmux_ethernet0 {
+	ethernet0_pins: ethernet0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_CRS, PIN_INPUT_PULLDOWN, MUX_MODE1)
 			AM33XX_PADCONF(AM335X_PIN_MII1_RX_ER, PIN_INPUT_PULLDOWN, MUX_MODE1)
@@ -89,7 +89,7 @@
 		>;
 	};
 
-	mdio_pins: pinmux_mdio {
+	mdio_pins: mdio-pins {
 		pinctrl-single,pins = <
 			/* MDIO */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)
@@ -125,7 +125,7 @@
 
 /* I2C Busses */
 &am33xx_pinmux {
-	i2c0_pins: pinmux-i2c0 {
+	i2c0_pins: pinmux-i2c0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT, MUX_MODE0)
@@ -165,7 +165,7 @@
 
 /* NAND memory */
 &am33xx_pinmux {
-		nandflash_pins: pinmux-nandflash {
+		nandflash_pins: pinmux-nandflash-pins {
 			pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -316,7 +316,7 @@
 
 /* SPI Busses */
 &am33xx_pinmux {
-	spi0_pins: pinmux-spi0 {
+	spi0_pins: pinmux-spi0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT_PULLDOWN, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_INPUT_PULLDOWN, MUX_MODE0)

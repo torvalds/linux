@@ -181,20 +181,20 @@
 
 &omap3_pmx_core {
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21ba, PIN_INPUT_PULLUP | MUX_MODE0)  /* i2c1_scl */
 			OMAP3_CORE1_IOPAD(0x21bc, PIN_INPUT_PULLUP | MUX_MODE0)  /* i2c1_sda */
 		>;
 	};
 
-	wl12xx_buffer_pins: pinmux_wl12xx_buffer_pins {
+	wl12xx_buffer_pins: wl12xx-buffer-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2156, PIN_OUTPUT | MUX_MODE4)  /* mmc1_dat7.gpio_129 */
 		>;
 	};
 
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_clk.mmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_cmd.mmc2_cmd */
@@ -210,19 +210,19 @@
 		>;
 	};
 
-	rtc_pins: pinmux_rtc_pins {
+	rtc_pins: rtc-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20b6, PIN_INPUT_PULLUP | MUX_MODE4) /* gpmc_ncs4.gpio_55 */
 		>;
 	};
 
-	tsc2004_pins: pinmux_tsc2004_pins {
+	tsc2004_pins: tsc2004-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT | MUX_MODE4) /* gpmc_wait3.gpio_65 */
 		>;
 	};
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT_PULLUP | MUX_MODE0)		/* uart2_cts */
 			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* uart2_rts */
@@ -235,7 +235,7 @@
 
 &omap3_pmx_wkup {
 
-	wl12xx_wkup_pins: pinmux_wl12xx_wkup_pins {
+	wl12xx_wkup_pins: wl12xx-wkup-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE4)	/* sys_boot1.gpio_3 */
 		>;

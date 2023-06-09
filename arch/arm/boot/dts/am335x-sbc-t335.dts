@@ -64,7 +64,7 @@
 
 &am33xx_pinmux {
 	/* Display */
-	lcd_pins_default: lcd_pins_default {
+	lcd_pins_default: lcd-default-pins {
 		pinctrl-single,pins = <
 			/* gpmc_ad8.lcd_data23 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD8, PIN_OUTPUT, MUX_MODE1)
@@ -105,7 +105,7 @@
 		>;
 	};
 
-	lcd_pins_sleep: lcd_pins_sleep {
+	lcd_pins_sleep: lcd-sleep-pins {
 		pinctrl-single,pins = <
 			/* gpmc_ad8.lcd_data23 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD8, PIN_INPUT_PULLDOWN, MUX_MODE7)

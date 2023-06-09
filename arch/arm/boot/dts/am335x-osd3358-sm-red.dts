@@ -239,25 +239,25 @@
 		>;
 	};
 
-	flash_enable: flash-enable {
+	flash_enable: flash-enable-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_RMII1_REF_CLK, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* rmii1_ref_clk.gpio0_29 */
 		>;
 	};
 
-	imu_interrupt: imu-interrupt {
+	imu_interrupt: imu-interrupt-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_RX_ER, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* mii1_rx_er.gpio3_2 */
 		>;
 	};
 
-	ethernet_interrupt: ethernet-interrupt{
+	ethernet_interrupt: ethernet-interrupt-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_COL, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* mii1_col.gpio3_0 */
 		>;
 	};
 
-	user_leds_s0: user-leds-s0 {
+	user_leds_s0: user-leds-s0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A5, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* gpmc_a5.gpio1_21 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A6, PIN_OUTPUT_PULLUP, MUX_MODE7)	/* gpmc_a6.gpio1_22 */
@@ -280,13 +280,13 @@
 		>;
 	};
 
-	clkout2_pin: pinmux-clkout2-pin {
+	clkout2_pin: pinmux-clkout2-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR1, PIN_OUTPUT_PULLDOWN, MUX_MODE3)	/* xdma_event_intr1.clkout2 */
 		>;
 	};
 
-	cpsw_default: cpsw-default {
+	cpsw_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 */
 			AM33XX_PADCONF(AM335X_PIN_MII1_TX_EN, PIN_OUTPUT_PULLDOWN, MUX_MODE2)	/* mii1_txen.rgmii1_tctl */
@@ -304,7 +304,7 @@
 		>;
 	};
 
-	cpsw_sleep: cpsw-sleep {
+	cpsw_sleep: cpsw-sleep-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 reset value */
 			AM33XX_PADCONF(AM335X_PIN_MII1_TX_EN, PIN_INPUT_PULLDOWN, MUX_MODE7)
@@ -322,7 +322,7 @@
 		>;
 	};
 
-	davinci_mdio_default: davinci-mdio-default {
+	davinci_mdio_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			/* MDIO */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)
@@ -330,7 +330,7 @@
 		>;
 	};
 
-	davinci_mdio_sleep: davinci-mdio-sleep {
+	davinci_mdio_sleep: davinci-mdio-sleep-pins {
 		pinctrl-single,pins = <
 			/* MDIO reset value */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLDOWN, MUX_MODE7)

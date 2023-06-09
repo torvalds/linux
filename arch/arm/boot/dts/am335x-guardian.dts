@@ -481,14 +481,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&clkout2_pin &guardian_interface_pins>;
 
-	clkout2_pin: pinmux_clkout2_pin {
+	clkout2_pin: clkout2-pins {
 		pinctrl-single,pins = <
 			/* xdma_event_intr1.clkout2 */
 			AM33XX_IOPAD(0x9b4, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
 		>;
 	};
 
-	guardian_interface_pins: pinmux_interface_pins {
+	guardian_interface_pins: interface-pins {
 		pinctrl-single,pins = <
 			/* ADC_BATSENSE_EN */
 			/* (A14) MCASP0_AHCLKx.gpio3[21] */
@@ -518,13 +518,13 @@
 		>;
 	};
 
-	guardian_beeper_pins: pinmux_dmtimer7_pins {
+	guardian_beeper_pins: dmtimer7-pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x968, PIN_OUTPUT | MUX_MODE5) /* (E18) timer7 */
 		>;
 	};
 
-	guardian_button_pins: pinmux_guardian_button_pins {
+	guardian_button_pins: guardian-button-pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x940, PIN_INPUT | MUX_MODE7) /* (M16) gmii1_rxd0.gpio2[21] */
 			AM33XX_IOPAD(0x884, PIN_INPUT | MUX_MODE7) /* (V9)  gpmc_csn2.gpio1[31] */
@@ -532,28 +532,28 @@
 	};
 
 
-	i2c0_pins: pinmux_i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x988, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c0_sda.i2c0_sda */
 			AM33XX_IOPAD(0x98c, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c0_scl.i2c0_scl */
 		>;
 	};
 
-	led_bl_pins: gpio_led_bl_pins {
+	led_bl_pins: gpio-led-bl-pins {
 		pinctrl-single,pins = <
 			/* P9_14, gpmc_a[2].GPIO1[18] (backlight control) */
 			AM33XX_IOPAD(0x848, PIN_OUTPUT | MUX_MODE7)
 		>;
 	};
 
-	lcd_disen_pins: pinmux_lcd_disen_pins {
+	lcd_disen_pins: lcd-disen-pins {
 		pinctrl-single,pins = <
 			/* P9_27, mcasp0_fsr.gpio3[19] (lcd_disen) */
 			AM33XX_IOPAD(0x9a4, PIN_OUTPUT_PULLUP | SLEWCTRL_SLOW | MUX_MODE7)
 		>;
 	};
 
-	lcd_pins_default: pinmux_lcd_pins_default {
+	lcd_pins_default: lcd-default-pins {
 		pinctrl-single,pins = <
 			/* (U10) gpmc_ad8.lcd_data23 */
 			AM33XX_IOPAD(0x820, PIN_OUTPUT | SLEWCTRL_SLOW | MUX_MODE1)
@@ -614,7 +614,7 @@
 		>;
 	};
 
-	lcd_pins_sleep: pinmux_lcd_pins_sleep {
+	lcd_pins_sleep: lcd-sleep-pins {
 		pinctrl-single,pins = <
 			/* lcd_data0.lcd_data0 */
 			AM33XX_IOPAD(0x8a0, PULL_DISABLE | SLEWCTRL_SLOW | MUX_MODE7)
@@ -659,13 +659,13 @@
 		>;
 	};
 
-	guardian_led_pins: pinmux_guardian_led_pins {
+	guardian_led_pins: guardian-led-pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x868, PIN_OUTPUT | MUX_MODE7) /* (T16) gpmc_a10.gpio1[26] */
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x8f0, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc0_dat3.mmc0_dat3 */
 			AM33XX_IOPAD(0x8f4, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc0_dat2.mmc0_dat2 */
@@ -677,7 +677,7 @@
 		>;
 	};
 
-	spi0_pins: pinmux_spi0_pins {
+	spi0_pins: spi0-pins {
 		pinctrl-single,pins = <
 			/* SPI0_CLK  - spi0_clk.spi */
 			AM33XX_IOPAD(0x950, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
@@ -690,7 +690,7 @@
 		>;
 	};
 
-	uart0_pins: pinmux_uart0_pins {
+	uart0_pins: uart0-pins {
 		pinctrl-single,pins = <
 			/* uart0_rxd.uart0_rxd */
 			AM33XX_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)
@@ -699,7 +699,7 @@
 		>;
 	};
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			/* K18 uart2_rxd.mirx_txd */
 			AM33XX_IOPAD(0x92c, PIN_INPUT_PULLUP | MUX_MODE1)
@@ -708,7 +708,7 @@
 		>;
 	};
 
-	nandflash_pins: pinmux_nandflash_pins {
+	nandflash_pins: nandflash-pins {
 		pinctrl-single,pins = <
 			/* (U7) gpmc_ad0.gpmc_ad0 */
 			AM33XX_IOPAD(0x800, PIN_INPUT | MUX_MODE0)

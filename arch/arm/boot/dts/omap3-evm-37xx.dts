@@ -17,7 +17,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&hsusb2_2_pins>;
 
-	ehci_phy_pins: pinmux_ehci_phy_pins {
+	ehci_phy_pins: ehci-phy-pins {
 		pinctrl-single,pins = <
 
 		/* EHCI PHY reset GPIO etk_d7.gpio_21 */
@@ -29,7 +29,7 @@
 	};
 
 	/* Used by OHCI and EHCI. OHCI won't work without external phy */
-	hsusb2_2_pins: pinmux_hsusb2_2_pins {
+	hsusb2_2_pins: hsusb2-2-pins {
 		pinctrl-single,pins = <
 
 		/* etk_d10.hsusb2_clk */

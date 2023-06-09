@@ -13,7 +13,7 @@
 };
 
 &omap3_pmx_core {
-	isp1763_pins: pinmux_isp1763_pins {
+	isp1763_pins: isp1763-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2154,  PIN_INPUT_PULLUP | MUX_MODE4)	/* sdmmc1_dat6.gpio_128 */
 		>;

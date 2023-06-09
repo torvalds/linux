@@ -12,7 +12,7 @@
 			&hsusb2_2_pins
 	>;
 
-	hsusb2_2_pins: pinmux_hsusb2_2_pins {
+	hsusb2_2_pins: hsusb2-2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25f0, PIN_OUTPUT | MUX_MODE3)		/* etk_d10.hsusb2_clk */
 			OMAP3630_CORE2_IOPAD(0x25f2, PIN_OUTPUT | MUX_MODE3)		/* etk_d11.hsusb2_stp */
@@ -23,7 +23,7 @@
 		>;
 	};
 
-	w3cbw003c_2_pins: pinmux_w3cbw003c_2_pins {
+	w3cbw003c_2_pins: w3cbw003c-2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4)		/* etk_d2.gpio_16 */
 		>;

@@ -31,7 +31,7 @@
 		};
 	};
 
-	hsusb2_phy: hsusb2_phy {
+	hsusb2_phy: hsusb2-phy-pins {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;		/* gpio_54 */
 		#phy-cells = <0>;
@@ -42,7 +42,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&hsusb2_pins>;
 
-	hsusb2_pins: pinmux_hsusb2_pins {
+	hsusb2_pins: hsusb2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d4, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcspi1_cs3.hsusb2_data2 */
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcspi2_clk.hsusb2_data7 */
@@ -53,7 +53,7 @@
 		>;
 	};
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x216c, PIN_INPUT | MUX_MODE1)	/* mcbsp3_dx.uart2_cts */
 			OMAP3_CORE1_IOPAD(0x216e, PIN_OUTPUT | MUX_MODE1)	/* mcbsp3_dr.uart2_rts */
@@ -67,7 +67,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&hsusb2_core2_pins>;
 
-	hsusb2_core2_pins: pinmux_hsusb2_core2_pins {
+	hsusb2_core2_pins: hsusb2-core2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25f0, PIN_OUTPUT | MUX_MODE3)		      /* etk_d10.hsusb2_clk */
 			OMAP3630_CORE2_IOPAD(0x25f2, PIN_OUTPUT | MUX_MODE3)		      /* etk_d11.hsusb2_stp */
@@ -78,7 +78,7 @@
 		>;
 	};
 
-	leds_core2_pins: pinmux_leds_core2_pins {
+	leds_core2_pins: leds-core2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4)	/* etk_d2.gpio_16 */
 		>;

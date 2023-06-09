@@ -209,7 +209,7 @@
 &omap3_pmx_core {
 	pinctrl-names = "default";
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT_PULLUP | MUX_MODE0)		/* uart2_cts */
 			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT | MUX_MODE0)		/* uart2_rts */
@@ -218,14 +218,14 @@
 		>;
 	};
 
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x219e, PIN_INPUT | MUX_MODE0)		/* uart3_rx */
 			OMAP3_CORE1_IOPAD(0x21a0, PIN_OUTPUT | MUX_MODE0)		/* uart3_tx */
 		>;
 	};
 
-	ethernet_pins: pinmux_ethernet_pins {
+	ethernet_pins: ethernet-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20b4, PIN_INPUT_PULLDOWN | MUX_MODE4)	/* gpmc_ncs3.gpio_54 */
 			OMAP3_CORE1_IOPAD(0x20fc, PIN_OUTPUT | MUX_MODE4)		/* dss_data16.gpio_86 */
@@ -233,7 +233,7 @@
 		>;
 	};
 
-	gpmc_pins: pinmux_gpmc_pins {
+	gpmc_pins: gpmc-pins {
 		pinctrl-single,pins = <
 
 			/* address lines */
@@ -260,34 +260,34 @@
 			>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21ba, PIN_INPUT | MUX_MODE0)		/* i2c1_scl */
 			OMAP3_CORE1_IOPAD(0x21bc, PIN_INPUT | MUX_MODE0)		/* i2c1_sda */
 		>;
 	};
 
-	i2c2_pins: pinmux_i2c2_pins {
+	i2c2_pins: i2c2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21be, PIN_INPUT | MUX_MODE0)		/* i2c2_scl */
 			OMAP3_CORE1_IOPAD(0x21c0, PIN_INPUT | MUX_MODE0)		/* i2c2_sda */
 		>;
 	};
 
-	i2c3_pins: pinmux_i2c3_pins {
+	i2c3_pins: i2c3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21c2, PIN_INPUT | MUX_MODE0)		/* i2c3_scl */
 			OMAP3_CORE1_IOPAD(0x21c4, PIN_INPUT | MUX_MODE0)		/* i2c3_sda */
 		>;
 	};
 
-	debug_leds: pinmux_debug_led_pins {
+	debug_leds: debug-led-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2198, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_clkx.gpio_162 */
 		>;
 	};
 
-	mcspi4_pins: pinmux_mcspi4_pins {
+	mcspi4_pins: mcspi4-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x218c, PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_clk */
 			OMAP3_CORE1_IOPAD(0x2192, PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_somi */
@@ -296,7 +296,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2144, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk */
 			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_cmd */
@@ -307,7 +307,7 @@
 		>;
 	};
 
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_cmd */
@@ -322,13 +322,13 @@
 		>;
 	};
 
-	acx565akm_pins: pinmux_acx565akm_pins {
+	acx565akm_pins: acx565akm-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2104, PIN_OUTPUT | MUX_MODE4)		/* RX51_LCD_RESET_GPIO */
 		>;
 	};
 
-	dss_sdi_pins: pinmux_dss_sdi_pins {
+	dss_sdi_pins: dss-sdi-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20f0, PIN_OUTPUT | MUX_MODE1)   /* dss_data10.sdi_dat1n */
 			OMAP3_CORE1_IOPAD(0x20f2, PIN_OUTPUT | MUX_MODE1)   /* dss_data11.sdi_dat1p */
@@ -340,14 +340,14 @@
 		>;
 	};
 
-	wl1251_pins: pinmux_wl1251 {
+	wl1251_pins: wl1251-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20fe, PIN_OUTPUT | MUX_MODE4)		/* gpio 87 => wl1251 enable */
 			OMAP3_CORE1_IOPAD(0x208a, PIN_INPUT | MUX_MODE4)		/* gpio 42 => wl1251 irq */
 		>;
 	};
 
-	ssi_pins: pinmux_ssi {
+	ssi_pins: ssi-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLUP | MUX_MODE1)	/* ssi1_rdy_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE1)		/* ssi1_flag_tx */
@@ -360,7 +360,7 @@
 		>;
 	};
 
-	modem_pins: pinmux_modem {
+	modem_pins: modem-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20dc, PIN_OUTPUT | MUX_MODE4)		/* gpio 70 => cmt_apeslpx */
 			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | MUX_MODE4)		/* gpio 72 => ape_rst_rq */
@@ -371,7 +371,7 @@
 		>;
 	};
 
-	camera_pins: pinmux_camera {
+	camera_pins: camera-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x210c, PIN_OUTPUT | MUX_MODE7)       /* cam_hs */
 			OMAP3_CORE1_IOPAD(0x210e, PIN_OUTPUT | MUX_MODE7)       /* cam_vs */

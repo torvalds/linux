@@ -30,7 +30,7 @@
 };
 
 &dm816x_pinmux {
-	mcspi1_pins: pinmux_mcspi1_pins {
+	mcspi1_pins: mcspi1-pins {
 		pinctrl-single,pins = <
 			DM816X_IOPAD(0x0a94, MUX_MODE0)			/* SPI_SCLK */
 			DM816X_IOPAD(0x0a98, MUX_MODE0)			/* SPI_SCS0 */
@@ -39,7 +39,7 @@
 		>;
 	};
 
-	mmc_pins: pinmux_mmc_pins {
+	mmc_pins: mmc-pins {
 		pinctrl-single,pins = <
 			DM816X_IOPAD(0x0a70, MUX_MODE0)			/* SD_POW */
 			DM816X_IOPAD(0x0a74, MUX_MODE0)			/* SD_CLK */
@@ -53,19 +53,19 @@
 		>;
 	};
 
-	usb0_pins: pinmux_usb0_pins {
+	usb0_pins: usb0-pins {
 		pinctrl-single,pins = <
 			DM816X_IOPAD(0x0d04, MUX_MODE0)			/* USB0_DRVVBUS */
 		>;
 	};
 
-	usb1_pins: pinmux_usb1_pins {
+	usb1_pins: usb1-pins {
 		pinctrl-single,pins = <
 			DM816X_IOPAD(0x0d08, MUX_MODE0)			/* USB1_DRVVBUS */
 		>;
 	};
 
-	nandflash_pins: nandflash_pins {
+	nandflash_pins: nandflash-pins {
 		pinctrl-single,pins = <
 			DM816X_IOPAD(0x0b38, PULL_UP | MUX_MODE0)		/* PINCTRL207 GPMC_CS0*/
 			DM816X_IOPAD(0x0b60, PULL_ENA | MUX_MODE0)		/* PINCTRL217 GPMC_ADV_ALE */

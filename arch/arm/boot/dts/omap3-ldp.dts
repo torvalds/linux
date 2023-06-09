@@ -223,7 +223,7 @@
 };
 
 &omap3_pmx_core {
-	gpio_key_pins: pinmux_gpio_key_pins {
+	gpio_key_pins: gpio-key-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x211a, PIN_INPUT | MUX_MODE4)	/* cam_d2.gpio_101 */
 			OMAP3_CORE1_IOPAD(0x211c, PIN_INPUT | MUX_MODE4)	/* cam_d3.gpio_102 */
@@ -237,7 +237,7 @@
 		>;
 	};
 
-	musb_pins: pinmux_musb_pins {
+	musb_pins: musb-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21a2, PIN_INPUT | MUX_MODE0)	/* hsusb0_clk.hsusb0_clk */
 			OMAP3_CORE1_IOPAD(0x21aa, PIN_INPUT | MUX_MODE0)	/* hsusb0_data0.hsusb0_data0 */
@@ -254,7 +254,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2144, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_clk.mmc1_clk */
 			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_cmd.mmc1_cmd */

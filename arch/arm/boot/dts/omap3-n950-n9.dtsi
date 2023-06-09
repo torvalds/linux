@@ -57,20 +57,20 @@
 };
 
 &omap3_pmx_core {
-	accelerator_pins: pinmux_accelerator_pins {
+	accelerator_pins: accelerator-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21da, PIN_INPUT | MUX_MODE4)	/* mcspi2_somi.gpio_180 -> LIS302 INT1 */
 			OMAP3_CORE1_IOPAD(0x21dc, PIN_INPUT | MUX_MODE4)	/* mcspi2_cs0.gpio_181 -> LIS302 INT2 */
 		>;
 	};
 
-	debug_leds: pinmux_debug_led_pins {
+	debug_leds: debug-led-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2108, PIN_OUTPUT | MUX_MODE4)       /* dss_data22.gpio_92 */
 		>;
 	};
 
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_cmd */
@@ -81,14 +81,14 @@
 		>;
 	};
 
-	wlan_pins: pinmux_wlan_pins {
+	wlan_pins: wlan-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x207c, PIN_OUTPUT | MUX_MODE4) /* gpio 35 - wlan enable */
 			OMAP3_CORE1_IOPAD(0x208a, PIN_INPUT | MUX_MODE4) /* gpio 42 - wlan irq */
 		>;
 	};
 
-	ssi_pins: pinmux_ssi_pins {
+	ssi_pins: ssi-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE1)            /* ssi1_dat_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE1)            /* ssi1_flag_tx */
@@ -101,7 +101,7 @@
 		>;
 	};
 
-	ssi_pins_idle: pinmux_ssi_pins_idle {
+	ssi_pins_idle: ssi-idle-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE7)            /* ssi1_dat_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE7)            /* ssi1_flag_tx */
@@ -114,7 +114,7 @@
 		>;
 	};
 
-	modem_pins1: pinmux_modem_core1_pins {
+	modem_pins1: modem-core1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x207a, PIN_INPUT | MUX_MODE4)	/* gpio_34 (ape_rst_rq) */
 			OMAP3_CORE1_IOPAD(0x2100, PIN_OUTPUT | MUX_MODE4)            /* gpio_88 (cmt_rst_rq) */
@@ -122,7 +122,7 @@
 		>;
 	};
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT_PULLUP | MUX_MODE0)		/* uart2_cts */
 			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT | MUX_MODE0)		/* uart2_rts */
@@ -133,7 +133,7 @@
 };
 
 &omap3_pmx_core2 {
-	modem_pins2: pinmux_modem_core2_pins {
+	modem_pins2: modem-core2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25ec, PIN_OUTPUT | MUX_MODE4)         /* gpio_23 (cmt_en) */
 		>;

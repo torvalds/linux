@@ -16,7 +16,7 @@
 };
 
 &am43xx_pinmux {
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x900, PIN_INPUT_PULLUP | MUX_MODE0) /* mmc0_clk.mmc0_clk */
 			AM4372_IOPAD(0x904, PIN_INPUT_PULLUP | MUX_MODE0) /* mmc0_cmd.mmc0_cmd */
@@ -29,7 +29,7 @@
 		>;
 	};
 
-	dss_pinctrl_default: dss_pinctrl_default {
+	dss_pinctrl_default: dss-pinctrl-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9b0, PIN_OUTPUT_PULLUP | MUX_MODE2) /* cam0 hd -> DSS DATA 23 */
 			AM4372_IOPAD(0x9b4, PIN_OUTPUT_PULLUP | MUX_MODE2)
@@ -64,7 +64,7 @@
 		>;
 	};
 
-	uart0_pins_default: uart0_pins_default {
+	uart0_pins_default: uart0-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0)
 			AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0)
@@ -73,27 +73,27 @@
 		>;
 	};
 
-	i2c1_pins: i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa6c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE1)  /* spi2_cs0.i2c1_sda  */
 			AM4372_IOPAD(0xa60, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE1)  /* spi2_sclk.i2c1_scl */
 		>;
 	};
 
-	i2c2_pins: i2c2_pins {
+	i2c2_pins: i2c2-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x978, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE3)  /* uart1_ctsn.i2c2_sda  */
 			AM4372_IOPAD(0x97c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE3)  /* uart1_rtsn.i2c2_scl */
 		>;
 	};
 
-	usb2_phy1_default: usb2_phy1_default {
+	usb2_phy1_default: usb2-phy1-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xac0, DS0_PULL_UP_DOWN_EN | PIN_INPUT_PULLDOWN | MUX_MODE0)
 		>;
 	};
 
-	usb2_phy2_default: usb2_phy2_default {
+	usb2_phy2_default: usb2-phy2-default-pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xac4, DS0_PULL_UP_DOWN_EN | PIN_INPUT_PULLDOWN | MUX_MODE0)
 		>;
