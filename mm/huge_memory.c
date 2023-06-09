@@ -1760,9 +1760,10 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 
 	/*
 	 * The destination pmd shouldn't be established, free_pgtables()
-	 * should have release it.
+	 * should have released it; but move_page_tables() might have already
+	 * inserted a page table, if racing against shmem/file collapse.
 	 */
-	if (WARN_ON(!pmd_none(*new_pmd))) {
+	if (!pmd_none(*new_pmd)) {
 		VM_BUG_ON(pmd_trans_huge(*new_pmd));
 		return false;
 	}
