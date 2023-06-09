@@ -286,7 +286,6 @@ int adf_init_admin_pm(struct adf_accel_dev *accel_dev, u32 idle_delay)
 
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
-EXPORT_SYMBOL_GPL(adf_init_admin_pm);
 
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
