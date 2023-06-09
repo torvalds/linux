@@ -1167,42 +1167,40 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 	return -EINVAL;
 }
 
-static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
-			       const struct kvm_vcpu_init *init)
+static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
+					const struct kvm_vcpu_init *init)
 {
-	unsigned int i, ret;
-	u32 phys_target = kvm_target_cpu();
+	unsigned long features = init->features[0];
+	int i;
 
-	if (init->target != phys_target)
-		return -EINVAL;
+	if (features & ~KVM_VCPU_VALID_FEATURES)
+		return -ENOENT;
 
-	/*
-	 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
-	 * use the same target.
-	 */
-	if (vcpu->arch.target != -1 && vcpu->arch.target != init->target)
-		return -EINVAL;
-
-	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
-	for (i = 0; i < sizeof(init->features) * 8; i++) {
-		bool set = (init->features[i / 32] & (1 << (i % 32)));
-
-		if (set && i >= KVM_VCPU_MAX_FEATURES)
+	for (i = 1; i < ARRAY_SIZE(init->features); i++) {
+		if (init->features[i])
 			return -ENOENT;
-
-		/*
-		 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
-		 * use the same feature set.
-		 */
-		if (vcpu->arch.target != -1 && i < KVM_VCPU_MAX_FEATURES &&
-		    test_bit(i, vcpu->arch.features) != set)
-			return -EINVAL;
-
-		if (set)
-			set_bit(i, vcpu->arch.features);
 	}
 
-	vcpu->arch.target = phys_target;
+	return 0;
+}
+
+static bool kvm_vcpu_init_changed(struct kvm_vcpu *vcpu,
+				  const struct kvm_vcpu_init *init)
+{
+	unsigned long features = init->features[0];
+
+	return !bitmap_equal(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES) ||
+			vcpu->arch.target != init->target;
+}
+
+static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+				 const struct kvm_vcpu_init *init)
+{
+	unsigned long features = init->features[0];
+	int ret;
+
+	vcpu->arch.target = init->target;
+	bitmap_copy(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
 
 	/* Now we know what it is, we can reset it. */
 	ret = kvm_reset_vcpu(vcpu);
@@ -1212,6 +1210,27 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	}
 
 	return ret;
+}
+
+static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+			       const struct kvm_vcpu_init *init)
+{
+	int ret;
+
+	if (init->target != kvm_target_cpu())
+		return -EINVAL;
+
+	ret = kvm_vcpu_init_check_features(vcpu, init);
+	if (ret)
+		return ret;
+
+	if (vcpu->arch.target == -1)
+		return __kvm_vcpu_set_target(vcpu, init);
+
+	if (kvm_vcpu_init_changed(vcpu, init))
+		return -EINVAL;
+
+	return kvm_reset_vcpu(vcpu);
 }
 
 static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
