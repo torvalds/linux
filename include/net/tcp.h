@@ -333,6 +333,7 @@ int tcp_sendpage(struct sock *sk, struct page *page, int offset, size_t size,
 int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
 			size_t size, int flags);
 int tcp_send_mss(struct sock *sk, int *size_goal, int flags);
+int tcp_wmem_schedule(struct sock *sk, int copy);
 void tcp_push(struct sock *sk, int flags, int mss_now, int nonagle,
 	      int size_goal);
 void tcp_release_cb(struct sock *sk);
