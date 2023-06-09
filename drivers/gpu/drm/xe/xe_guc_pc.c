@@ -31,7 +31,7 @@
 #define GEN10_FREQ_INFO_REC	XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
 
-#define GEN12_RPSTAT1		XE_REG(0x1381b4)
+#define GT_PERF_STATUS		XE_REG(0x1381b4)
 #define   GEN12_CAGF_MASK	REG_GENMASK(19, 11)
 
 #define MTL_MIRROR_TARGET_WP1	XE_REG(0xc60)
@@ -371,26 +371,18 @@ static ssize_t freq_act_show(struct device *dev,
 	ssize_t ret;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
-	/*
-	 * When in RC6, actual frequency is 0. Let's block RC6 so we are able
-	 * to verify that our freq requests are really happening.
-	 */
-	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (ret)
-		goto out;
 
+	/* When in RC6, actual frequency reported will be 0. */
 	if (xe->info.platform == XE_METEORLAKE) {
 		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
 		freq = REG_FIELD_GET(MTL_CAGF_MASK, freq);
 	} else {
-		freq = xe_mmio_read32(gt, GEN12_RPSTAT1);
+		freq = xe_mmio_read32(gt, GT_PERF_STATUS);
 		freq = REG_FIELD_GET(GEN12_CAGF_MASK, freq);
 	}
 
 	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
 
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
-out:
 	xe_device_mem_access_put(gt_to_xe(gt));
 	return ret;
 }
