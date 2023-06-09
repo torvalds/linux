@@ -10,6 +10,7 @@
 #include "i915_reg.h"
 #include "intel_backlight_regs.h"
 #include "intel_cdclk.h"
+#include "intel_clock_gating.h"
 #include "intel_combo_phy.h"
 #include "intel_de.h"
 #include "intel_display_power.h"
@@ -1385,9 +1386,8 @@ static void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	hsw_restore_lcpll(dev_priv);
 	intel_init_pch_refclk(dev_priv);
 
-	if (HAS_PCH_LPT_LP(dev_priv))
-		intel_de_rmw(dev_priv, SOUTH_DSPCLK_GATE_D,
-			     0, PCH_LP_PARTITION_LEVEL_DISABLE);
+	/* Many display registers don't survive PC8+ */
+	intel_clock_gating_init(dev_priv);
 }
 
 static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
