@@ -69,8 +69,7 @@ static inline void bnxt_qplib_rcfw_cmd_prep(struct cmdq_base *req,
 #define RCFW_CMD_WAIT_TIME_MS		20000 /* 20 Seconds timeout */
 
 /* CMDQ elements */
-#define BNXT_QPLIB_CMDQE_MAX_CNT_256	256
-#define BNXT_QPLIB_CMDQE_MAX_CNT_8192	8192
+#define BNXT_QPLIB_CMDQE_MAX_CNT	8192
 #define BNXT_QPLIB_CMDQE_BYTES(depth)	((depth) * BNXT_QPLIB_CMDQE_UNITS)
 
 static inline u32 bnxt_qplib_cmdqe_npages(u32 depth)
@@ -105,11 +104,9 @@ static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 	return cmd_byte;
 }
 
-#define RCFW_MAX_COOKIE_VALUE		0x7FFF
+#define RCFW_MAX_COOKIE_VALUE		(BNXT_QPLIB_CMDQE_MAX_CNT - 1)
 #define RCFW_CMD_IS_BLOCKING		0x8000
 #define RCFW_BLOCKED_CMD_WAIT_COUNT	20000000UL /* 20 sec */
-
-#define HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK 0x1000900020011ULL
 
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {

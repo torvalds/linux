@@ -600,10 +600,8 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 			"HW channel CREQ allocation failed\n");
 		goto fail;
 	}
-	if (ctx->hwrm_intf_ver < HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK)
-		rcfw->cmdq_depth = BNXT_QPLIB_CMDQE_MAX_CNT_256;
-	else
-		rcfw->cmdq_depth = BNXT_QPLIB_CMDQE_MAX_CNT_8192;
+
+	rcfw->cmdq_depth = BNXT_QPLIB_CMDQE_MAX_CNT;
 
 	sginfo.pgsize = bnxt_qplib_cmdqe_page_size(rcfw->cmdq_depth);
 	hwq_attr.depth = rcfw->cmdq_depth & 0x7FFFFFFF;
