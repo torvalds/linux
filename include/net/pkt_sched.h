@@ -191,7 +191,7 @@ enum tc_taprio_qopt_cmd {
 	TAPRIO_CMD_REPLACE,
 	TAPRIO_CMD_DESTROY,
 	TAPRIO_CMD_STATS,
-	TAPRIO_CMD_TC_STATS,
+	TAPRIO_CMD_QUEUE_STATS,
 };
 
 /**
@@ -208,8 +208,8 @@ struct tc_taprio_qopt_stats {
 	u64 tx_overruns;
 };
 
-struct tc_taprio_qopt_tc_stats {
-	int tc;
+struct tc_taprio_qopt_queue_stats {
+	int queue;
 	struct tc_taprio_qopt_stats stats;
 };
 
@@ -227,8 +227,8 @@ struct tc_taprio_qopt_offload {
 	union {
 		/* TAPRIO_CMD_STATS */
 		struct tc_taprio_qopt_stats stats;
-		/* TAPRIO_CMD_TC_STATS */
-		struct tc_taprio_qopt_tc_stats tc_stats;
+		/* TAPRIO_CMD_QUEUE_STATS */
+		struct tc_taprio_qopt_queue_stats queue_stats;
 		/* TAPRIO_CMD_REPLACE */
 		struct {
 			struct tc_mqprio_qopt_offload mqprio;
