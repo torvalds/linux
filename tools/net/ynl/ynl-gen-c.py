@@ -2281,6 +2281,11 @@ def main():
     cw.p("/* Do not edit directly, auto-generated from: */")
     cw.p(f"/*\t{spec_kernel} */")
     cw.p(f"/* YNL-GEN {args.mode} {'header' if args.header else 'source'} */")
+    if args.exclude_op or args.user_header:
+        line = ''
+        line += ' --user-header '.join([''] + args.user_header)
+        line += ' --exclude-op '.join([''] + args.exclude_op)
+        cw.p(f'/* YNL-ARG{line} */')
     cw.nl()
 
     if args.mode == 'uapi':
