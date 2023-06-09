@@ -58,8 +58,11 @@ class Type(SpecAttr):
         delattr(self, "enum_name")
 
     def resolve(self):
-        self.enum_name = f"{self.attr_set.name_prefix}{self.name}"
-        self.enum_name = c_upper(self.enum_name)
+        if 'name-prefix' in self.attr:
+            enum_name = f"{self.attr['name-prefix']}{self.name}"
+        else:
+            enum_name = f"{self.attr_set.name_prefix}{self.name}"
+        self.enum_name = c_upper(enum_name)
 
     def is_multi_val(self):
         return None

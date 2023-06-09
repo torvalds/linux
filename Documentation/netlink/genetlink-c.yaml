@@ -195,6 +195,10 @@ properties:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
+              # Start genetlink-c
+              name-prefix:
+                type: string
+              # End genetlink-c
 
       # Make sure name-prefix does not appear in subsets (subsets inherit naming)
       dependencies:
