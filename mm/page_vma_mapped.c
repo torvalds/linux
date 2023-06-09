@@ -275,10 +275,6 @@ next_pte:
 				goto restart;
 			}
 			pvmw->pte++;
-			if ((pvmw->flags & PVMW_SYNC) && !pvmw->ptl) {
-				pvmw->ptl = pte_lockptr(mm, pvmw->pmd);
-				spin_lock(pvmw->ptl);
-			}
 		} while (pte_none(*pvmw->pte));
 
 		if (!pvmw->ptl) {
