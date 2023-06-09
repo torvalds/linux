@@ -327,6 +327,9 @@ static void free_pasid_states(struct device_state *dev_state)
 
 		put_pasid_state(pasid_state);
 
+		/* Clear the pasid state so that the pasid can be re-used */
+		clear_pasid_state(dev_state, pasid_state->pasid);
+
 		/*
 		 * This will call the mn_release function and
 		 * unbind the PASID
