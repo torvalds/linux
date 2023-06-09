@@ -2748,13 +2748,11 @@ static void mlxsw_sp_router_update_priority_work(struct work_struct *work)
 }
 
 static int mlxsw_sp_router_schedule_work(struct net *net,
-					 struct notifier_block *nb,
+					 struct mlxsw_sp_router *router,
 					 void (*cb)(struct work_struct *))
 {
 	struct mlxsw_sp_netevent_work *net_work;
-	struct mlxsw_sp_router *router;
 
-	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
 	if (!net_eq(net, mlxsw_sp_net(router->mlxsw_sp)))
 		return NOTIFY_DONE;
 
@@ -2773,10 +2771,13 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 {
 	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_router *router;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
+
+	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
 
 	switch (event) {
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -2830,11 +2831,11 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		break;
 	case NETEVENT_IPV4_MPATH_HASH_UPDATE:
 	case NETEVENT_IPV6_MPATH_HASH_UPDATE:
-		return mlxsw_sp_router_schedule_work(ptr, nb,
+		return mlxsw_sp_router_schedule_work(ptr, router,
 				mlxsw_sp_router_mp_hash_event_work);
 
 	case NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE:
-		return mlxsw_sp_router_schedule_work(ptr, nb,
+		return mlxsw_sp_router_schedule_work(ptr, router,
 				mlxsw_sp_router_update_priority_work);
 	}
 
