@@ -8,6 +8,7 @@
 #include "ynl.h"
 #include <linux/handshake.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <libmnl/libmnl.h>
