@@ -720,7 +720,7 @@ int mlxsw_sp_mr_rif_add(struct mlxsw_sp_mr_table *mr_table,
 	const struct net_device *rif_dev = mlxsw_sp_rif_dev(rif);
 	struct mlxsw_sp_mr_vif *mr_vif;
 
-	if (!rif_dev)
+	if (!mlxsw_sp_rif_has_dev(rif))
 		return 0;
 
 	mr_vif = mlxsw_sp_mr_dev_vif_lookup(mr_table, rif_dev);
@@ -736,7 +736,7 @@ void mlxsw_sp_mr_rif_del(struct mlxsw_sp_mr_table *mr_table,
 	const struct net_device *rif_dev = mlxsw_sp_rif_dev(rif);
 	struct mlxsw_sp_mr_vif *mr_vif;
 
-	if (!rif_dev)
+	if (!mlxsw_sp_rif_has_dev(rif))
 		return;
 
 	mr_vif = mlxsw_sp_mr_dev_vif_lookup(mr_table, rif_dev);
@@ -754,7 +754,7 @@ void mlxsw_sp_mr_rif_mtu_update(struct mlxsw_sp_mr_table *mr_table,
 	struct mlxsw_sp_mr *mr = mlxsw_sp->mr;
 	struct mlxsw_sp_mr_vif *mr_vif;
 
-	if (!rif_dev)
+	if (!mlxsw_sp_rif_has_dev(rif))
 		return;
 
 	/* Search for a VIF that use that RIF */

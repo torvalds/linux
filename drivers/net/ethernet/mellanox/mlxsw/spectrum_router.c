@@ -8080,6 +8080,11 @@ const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
 	return rif->dev;
 }
 
+bool mlxsw_sp_rif_has_dev(const struct mlxsw_sp_rif *rif)
+{
+	return !!mlxsw_sp_rif_dev(rif);
+}
+
 static void mlxsw_sp_rif_push_l3_stats(struct mlxsw_sp_rif *rif)
 {
 	struct rtnl_hw_stats64 stats = {};
