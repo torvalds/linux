@@ -1481,22 +1481,14 @@ again:
 			continue;
 
 		if (!(inode->v.i_state & I_DONTCACHE) &&
-		    !(inode->v.i_state & I_FREEING)) {
+		    !(inode->v.i_state & I_FREEING) &&
+		    igrab(&inode->v)) {
 			this_pass_clean = false;
 
-			d_mark_dontcache(&inode->v);
-			d_prune_aliases(&inode->v);
-
-			/*
-			 * If i_count was zero, we have to take and release a
-			 * ref in order for I_DONTCACHE to be noticed and the
-			 * inode to be dropped;
-			 */
-
-			if (!atomic_read(&inode->v.i_count) &&
-			    igrab(&inode->v) &&
-			    darray_push_gfp(&grabbed, inode, GFP_ATOMIC|__GFP_NOWARN))
+			if (darray_push_gfp(&grabbed, inode, GFP_ATOMIC|__GFP_NOWARN)) {
+				iput(&inode->v);
 				break;
+			}
 		} else if (clean_pass && this_pass_clean) {
 			wait_queue_head_t *wq = bit_waitqueue(&inode->v.i_state, __I_NEW);
 			DEFINE_WAIT_BIT(wait, &inode->v.i_state, __I_NEW);
@@ -1511,8 +1503,12 @@ again:
 	}
 	mutex_unlock(&c->vfs_inodes_lock);
 
-	darray_for_each(grabbed, i)
-		iput(&(*i)->v);
+	darray_for_each(grabbed, i) {
+		inode = *i;
+		d_mark_dontcache(&inode->v);
+		d_prune_aliases(&inode->v);
+		iput(&inode->v);
+	}
 	grabbed.nr = 0;
 
 	if (!clean_pass || !this_pass_clean) {
