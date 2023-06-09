@@ -613,12 +613,20 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	struct bnxt_re_dev *rdev = ah->rdev;
+	bool block = true;
+	int rc = 0;
 
-	bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah,
-			      !(flags & RDMA_DESTROY_AH_SLEEPABLE));
+	block = !(flags & RDMA_DESTROY_AH_SLEEPABLE);
+	rc = bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah, block);
+	if (BNXT_RE_CHECK_RC(rc)) {
+		if (rc == -ETIMEDOUT)
+			rc = 0;
+		else
+			goto fail;
+	}
 	atomic_dec(&rdev->ah_count);
-
-	return 0;
+fail:
+	return rc;
 }
 
 static u8 bnxt_re_stack_to_dev_nw_type(enum rdma_network_type ntype)
