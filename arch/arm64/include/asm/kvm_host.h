@@ -215,24 +215,20 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_MTE_ENABLED			1
 	/* At least one vCPU has ran in the VM */
 #define KVM_ARCH_FLAG_HAS_RAN_ONCE			2
-	/*
-	 * The following two bits are used to indicate the guest's EL1
-	 * register width configuration. A value of KVM_ARCH_FLAG_EL1_32BIT
-	 * bit is valid only when KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED is set.
-	 * Otherwise, the guest's EL1 register width has not yet been
-	 * determined yet.
-	 */
-#define KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED		3
-#define KVM_ARCH_FLAG_EL1_32BIT				4
+	/* The vCPU feature set for the VM is configured */
+#define KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED		3
 	/* PSCI SYSTEM_SUSPEND enabled for the guest */
-#define KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED		5
+#define KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED		4
 	/* VM counter offset */
-#define KVM_ARCH_FLAG_VM_COUNTER_OFFSET			6
+#define KVM_ARCH_FLAG_VM_COUNTER_OFFSET			5
 	/* Timer PPIs made immutable */
-#define KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE		7
+#define KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE		6
 	/* SMCCC filter initialized for the VM */
-#define KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED		8
+#define KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED		7
 	unsigned long flags;
+
+	/* VM-wide vCPU feature set */
+	DECLARE_BITMAP(vcpu_features, KVM_VCPU_MAX_FEATURES);
 
 	/*
 	 * VM-wide PMU filter, implemented as a bitmap and big enough for
