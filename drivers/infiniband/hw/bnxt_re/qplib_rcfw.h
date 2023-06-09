@@ -153,6 +153,7 @@ struct bnxt_qplib_crsqe {
 	/* Free slots at the time of submission */
 	u32			free_slots;
 	bool			is_waiter_alive;
+	bool			is_internal_cmd;
 };
 
 struct bnxt_qplib_rcfw_sbuf {
@@ -225,6 +226,7 @@ struct bnxt_qplib_rcfw {
 	u32 cmdq_depth;
 	atomic_t rcfw_intr_enabled;
 	struct semaphore rcfw_inflight;
+	atomic_t timeout_send;
 };
 
 struct bnxt_qplib_cmdqmsg {

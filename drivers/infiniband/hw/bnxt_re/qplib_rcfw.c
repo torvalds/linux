@@ -175,6 +175,73 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 	return -ETIMEDOUT;
 };
 
+/*  __send_message_no_waiter -	get cookie and post the message.
+ * @rcfw      -   rcfw channel instance of rdev
+ * @msg      -    qplib message internal
+ *
+ * This function will just post and don't bother about completion.
+ * Current design of this function is -
+ * user must hold the completion queue hwq->lock.
+ * user must have used existing completion and free the resources.
+ * this function will not check queue full condition.
+ * this function will explicitly set is_waiter_alive=false.
+ * current use case is - send destroy_ah if create_ah is return
+ * after waiter of create_ah is lost. It can be extended for other
+ * use case as well.
+ *
+ * Returns: Nothing
+ *
+ */
+static void __send_message_no_waiter(struct bnxt_qplib_rcfw *rcfw,
+				     struct bnxt_qplib_cmdqmsg *msg)
+{
+	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
+	struct bnxt_qplib_hwq *hwq = &cmdq->hwq;
+	struct bnxt_qplib_crsqe *crsqe;
+	struct bnxt_qplib_cmdqe *cmdqe;
+	u32 sw_prod, cmdq_prod;
+	u16 cookie, cbit;
+	u32 bsize;
+	u8 *preq;
+
+	cookie = cmdq->seq_num & RCFW_MAX_COOKIE_VALUE;
+	cbit = cookie % rcfw->cmdq_depth;
+
+	set_bit(cbit, cmdq->cmdq_bitmap);
+	__set_cmdq_base_cookie(msg->req, msg->req_sz, cpu_to_le16(cookie));
+	crsqe = &rcfw->crsqe_tbl[cbit];
+
+	/* Set cmd_size in terms of 16B slots in req. */
+	bsize = bnxt_qplib_set_cmd_slots(msg->req);
+	/* GET_CMD_SIZE would return number of slots in either case of tlv
+	 * and non-tlv commands after call to bnxt_qplib_set_cmd_slots()
+	 */
+	crsqe->is_internal_cmd = true;
+	crsqe->is_waiter_alive = false;
+	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
+
+	preq = (u8 *)msg->req;
+	do {
+		/* Locate the next cmdq slot */
+		sw_prod = HWQ_CMP(hwq->prod, hwq);
+		cmdqe = bnxt_qplib_get_qe(hwq, sw_prod, NULL);
+		/* Copy a segment of the req cmd to the cmdq */
+		memset(cmdqe, 0, sizeof(*cmdqe));
+		memcpy(cmdqe, preq, min_t(u32, bsize, sizeof(*cmdqe)));
+		preq += min_t(u32, bsize, sizeof(*cmdqe));
+		bsize -= min_t(u32, bsize, sizeof(*cmdqe));
+		hwq->prod++;
+	} while (bsize > 0);
+	cmdq->seq_num++;
+
+	cmdq_prod = hwq->prod;
+	atomic_inc(&rcfw->timeout_send);
+	/* ring CMDQ DB */
+	wmb();
+	writel(cmdq_prod, cmdq->cmdq_mbox.prod);
+	writel(RCFW_CMDQ_TRIG_VAL, cmdq->cmdq_mbox.db);
+}
+
 static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 			  struct bnxt_qplib_cmdqmsg *msg)
 {
@@ -219,6 +286,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	crsqe->free_slots = free_slots;
 	crsqe->resp = (struct creq_qp_event *)msg->resp;
 	crsqe->resp->cookie = cpu_to_le16(cookie);
+	crsqe->is_internal_cmd = false;
 	crsqe->is_waiter_alive = true;
 	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
 	if (__get_cmdq_base_resp_size(msg->req, msg->req_sz) && msg->sb) {
@@ -341,6 +409,26 @@ static int __send_message_basic_sanity(struct bnxt_qplib_rcfw *rcfw,
 	}
 
 	return 0;
+}
+
+/* This function will just post and do not bother about completion */
+static void __destroy_timedout_ah(struct bnxt_qplib_rcfw *rcfw,
+				  struct creq_create_ah_resp *create_ah_resp)
+{
+	struct bnxt_qplib_cmdqmsg msg = {};
+	struct cmdq_destroy_ah req = {};
+
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_DESTROY_AH,
+				 sizeof(req));
+	req.ah_cid = create_ah_resp->xid;
+	msg.req = (struct cmdq_base *)&req;
+	msg.req_sz = sizeof(req);
+	__send_message_no_waiter(rcfw, &msg);
+	dev_info_ratelimited(&rcfw->pdev->dev,
+			     "From %s: ah_cid = %d timeout_send %d\n",
+			     __func__, req.ah_cid,
+			     atomic_read(&rcfw->timeout_send));
 }
 
 /**
@@ -563,6 +651,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		if (!test_and_clear_bit(cbit, rcfw->cmdq.cmdq_bitmap))
 			dev_warn(&pdev->dev,
 				 "CMD bit %d was not requested\n", cbit);
+		if (crsqe->is_internal_cmd && !qp_event->status)
+			atomic_dec(&rcfw->timeout_send);
 
 		if (crsqe->is_waiter_alive) {
 			if (crsqe->resp)
@@ -579,6 +669,24 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			crsqe->resp = NULL;
 
 		hwq->cons += req_size;
+
+		/* This is a case to handle below scenario -
+		 * Create AH is completed successfully by firmware,
+		 * but completion took more time and driver already lost
+		 * the context of create_ah from caller.
+		 * We have already return failure for create_ah verbs,
+		 * so let's destroy the same address vector since it is
+		 * no more used in stack. We don't care about completion
+		 * in __send_message_no_waiter.
+		 * If destroy_ah is failued by firmware, there will be AH
+		 * resource leak and relatively not critical +  unlikely
+		 * scenario. Current design is not to handle such case.
+		 */
+		if (!is_waiter_alive && !qp_event->status &&
+		    qp_event->event == CREQ_QP_EVENT_EVENT_CREATE_AH)
+			__destroy_timedout_ah(rcfw,
+					      (struct creq_create_ah_resp *)
+					      qp_event);
 		spin_unlock_irqrestore(&hwq->lock, flags);
 	}
 	*num_wait += wait_cmds;
