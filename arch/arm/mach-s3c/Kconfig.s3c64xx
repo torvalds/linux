@@ -69,11 +69,6 @@ config S3C64XX_SETUP_I2C1
 	help
 	  Common setup code for i2c bus 1.
 
-config S3C64XX_SETUP_IDE
-	bool
-	help
-	  Common setup code for S3C64XX IDE.
-
 config S3C64XX_SETUP_FB_24BPP
 	bool
 	help
@@ -110,7 +105,6 @@ config MACH_WLF_CRAGG_6410
 	select S3C64XX_DEV_SPI0
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_I2C1
-	select S3C64XX_SETUP_IDE
 	select S3C64XX_SETUP_KEYPAD
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_SPI
