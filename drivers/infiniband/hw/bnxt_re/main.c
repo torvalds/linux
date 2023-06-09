@@ -1495,6 +1495,7 @@ static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 	 */
 	set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
 	set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
+	wake_up_all(&rdev->rcfw.cmdq.waitq);
 	mutex_unlock(&bnxt_re_mutex);
 
 	return 0;

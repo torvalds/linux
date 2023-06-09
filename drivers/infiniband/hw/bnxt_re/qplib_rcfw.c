@@ -116,10 +116,10 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 			return -ETIMEDOUT;
 
 		wait_event_timeout(cmdq->waitq,
-				   !test_bit(cbit, cmdq->cmdq_bitmap),
+				   !test_bit(cbit, cmdq->cmdq_bitmap) ||
+				   test_bit(ERR_DEVICE_DETACHED, &cmdq->flags),
 				   msecs_to_jiffies(RCFW_FW_STALL_TIMEOUT_SEC
 						    * 1000));
-
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
 
