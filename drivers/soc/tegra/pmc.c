@@ -2992,7 +2992,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	 */
 	if (pmc->clk) {
 		pmc->clk_nb.notifier_call = tegra_pmc_clk_notify_cb;
-		err = clk_notifier_register(pmc->clk, &pmc->clk_nb);
+		err = devm_clk_notifier_register(&pdev->dev, pmc->clk,
+						 &pmc->clk_nb);
 		if (err) {
 			dev_err(&pdev->dev,
 				"failed to register clk notifier\n");
@@ -3052,7 +3053,6 @@ cleanup_powergates:
 cleanup_sysfs:
 	device_remove_file(&pdev->dev, &dev_attr_reset_reason);
 	device_remove_file(&pdev->dev, &dev_attr_reset_level);
-	clk_notifier_unregister(pmc->clk, &pmc->clk_nb);
 
 	return err;
 }
