@@ -748,11 +748,9 @@ void native_pv_lock_init(void) __init;
 	ops;					\
 772:;						\
 	.pushsection .parainstructions,"a";	\
-	 .align	4;				\
 	 .long 771b-.;				\
 	 .byte ptype;				\
 	 .byte 772b-771b;			\
-	 .align 4;				\
 	.popsection
 
 
