@@ -214,7 +214,7 @@ properties:
         patternProperties:
           '^regulator@[0-9a-f]+$':
             type: object
-            $ref: "../regulator/regulator.yaml#"
+            $ref: /schemas/regulator/regulator.yaml#
             unevaluatedProperties: false
 
             properties:
