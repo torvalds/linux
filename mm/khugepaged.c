@@ -944,10 +944,6 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
 	return SCAN_SUCCEED;
 }
 
-/*
- * See pmd_trans_unstable() for how the result may change out from
- * underneath us, even if we hold mmap_lock in read.
- */
 static int find_pmd_or_thp_or_none(struct mm_struct *mm,
 				   unsigned long address,
 				   pmd_t **pmd)
