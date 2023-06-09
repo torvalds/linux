@@ -277,7 +277,7 @@ static const unsigned int vcama_voltages[] = {
 	2800000, 2900000, 3000000,
 };
 
-static const unsigned int vcn33_bt_wifi_voltages[] = {
+static const unsigned int vcn33_voltages[] = {
 	3300000, 3400000, 3500000,
 };
 
@@ -321,7 +321,7 @@ static const u32 vcama_idx[] = {
 	0, 7, 9, 10, 11, 12,
 };
 
-static const u32 vcn33_bt_wifi_idx[] = {
+static const u32 vcn33_idx[] = {
 	1, 2, 3,
 };
 
@@ -566,12 +566,8 @@ static struct mt6358_regulator_info mt6358_regulators[] = {
 		   MT6358_LDO_VCAMA1_CON0, 0, MT6358_VCAMA1_ANA_CON0, 0xf00),
 	MT6358_LDO("ldo_vemc", VEMC, vmch_vemc_voltages, vmch_vemc_idx,
 		   MT6358_LDO_VEMC_CON0, 0, MT6358_VEMC_ANA_CON0, 0x700),
-	MT6358_LDO("ldo_vcn33_bt", VCN33_BT, vcn33_bt_wifi_voltages,
-		   vcn33_bt_wifi_idx, MT6358_LDO_VCN33_CON0_0,
-		   0, MT6358_VCN33_ANA_CON0, 0x300),
-	MT6358_LDO("ldo_vcn33_wifi", VCN33_WIFI, vcn33_bt_wifi_voltages,
-		   vcn33_bt_wifi_idx, MT6358_LDO_VCN33_CON0_1,
-		   0, MT6358_VCN33_ANA_CON0, 0x300),
+	MT6358_LDO("ldo_vcn33", VCN33, vcn33_voltages, vcn33_idx,
+		   MT6358_LDO_VCN33_CON0_0, 0, MT6358_VCN33_ANA_CON0, 0x300),
 	MT6358_LDO("ldo_vcama2", VCAMA2, vcama_voltages, vcama_idx,
 		   MT6358_LDO_VCAMA2_CON0, 0, MT6358_VCAMA2_ANA_CON0, 0xf00),
 	MT6358_LDO("ldo_vmc", VMC, vmc_voltages, vmc_idx,
@@ -662,12 +658,8 @@ static struct mt6358_regulator_info mt6366_regulators[] = {
 		   MT6358_LDO_VMCH_CON0, 0, MT6358_VMCH_ANA_CON0, 0x700),
 	MT6366_LDO("ldo_vemc", VEMC, vmch_vemc_voltages, vmch_vemc_idx,
 		   MT6358_LDO_VEMC_CON0, 0, MT6358_VEMC_ANA_CON0, 0x700),
-	MT6366_LDO("ldo_vcn33_bt", VCN33_BT, vcn33_bt_wifi_voltages,
-		   vcn33_bt_wifi_idx, MT6358_LDO_VCN33_CON0_0,
-		   0, MT6358_VCN33_ANA_CON0, 0x300),
-	MT6366_LDO("ldo_vcn33_wifi", VCN33_WIFI, vcn33_bt_wifi_voltages,
-		   vcn33_bt_wifi_idx, MT6358_LDO_VCN33_CON0_1,
-		   0, MT6358_VCN33_ANA_CON0, 0x300),
+	MT6366_LDO("ldo_vcn33", VCN33, vcn33_voltages, vcn33_idx,
+		   MT6358_LDO_VCN33_CON0_0, 0, MT6358_VCN33_ANA_CON0, 0x300),
 	MT6366_LDO("ldo_vmc", VMC, vmc_voltages, vmc_idx,
 		   MT6358_LDO_VMC_CON0, 0, MT6358_VMC_ANA_CON0, 0xf00),
 	MT6366_LDO("ldo_vsim2", VSIM2, vsim_voltages, vsim_idx,
@@ -690,13 +682,56 @@ static struct mt6358_regulator_info mt6366_regulators[] = {
 		    MT6358_LDO_VSRAM_CON1, 0x7f),
 };
 
+static int mt6358_sync_vcn33_setting(struct device *dev)
+{
+	struct mt6397_chip *mt6397 = dev_get_drvdata(dev->parent);
+	unsigned int val;
+	int ret;
+
+	/*
+	 * VCN33_WIFI and VCN33_BT are two separate enable bits for the same
+	 * regulator. They share the same voltage setting and output pin.
+	 * Instead of having two potentially conflicting regulators, just have
+	 * one VCN33 regulator. Sync the two enable bits and only use one in
+	 * the regulator device.
+	 */
+	ret = regmap_read(mt6397->regmap, MT6358_LDO_VCN33_CON0_1, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read VCN33_WIFI setting\n");
+		return ret;
+	}
+
+	if (!(val & BIT(0)))
+		return 0;
+
+	/* Sync VCN33_WIFI enable status to VCN33_BT */
+	ret = regmap_update_bits(mt6397->regmap, MT6358_LDO_VCN33_CON0_0, BIT(0), BIT(0));
+	if (ret) {
+		dev_err(dev, "Failed to sync VCN33_WIFI setting to VCN33_BT\n");
+		return ret;
+	}
+
+	/* Disable VCN33_WIFI */
+	ret = regmap_update_bits(mt6397->regmap, MT6358_LDO_VCN33_CON0_1, BIT(0), 0);
+	if (ret) {
+		dev_err(dev, "Failed to disable VCN33_BT\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int mt6358_regulator_probe(struct platform_device *pdev)
 {
 	struct mt6397_chip *mt6397 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = {};
 	struct regulator_dev *rdev;
 	struct mt6358_regulator_info *mt6358_info;
-	int i, max_regulator;
+	int i, max_regulator, ret;
+
+	ret = mt6358_sync_vcn33_setting(&pdev->dev);
+	if (ret)
+		return ret;
 
 	if (mt6397->chip_id == MT6366_CHIP_ID) {
 		max_regulator = MT6366_MAX_REGULATOR;
