@@ -170,34 +170,22 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 			  struct bnxt_qplib_cmdqmsg *msg)
 {
-	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
-	struct bnxt_qplib_hwq *hwq = &cmdq->hwq;
+	u32 bsize, opcode, free_slots, required_slots;
+	struct bnxt_qplib_cmdq_ctx *cmdq;
 	struct bnxt_qplib_crsqe *crsqe;
 	struct bnxt_qplib_cmdqe *cmdqe;
+	struct bnxt_qplib_hwq *hwq;
 	u32 sw_prod, cmdq_prod;
 	struct pci_dev *pdev;
 	unsigned long flags;
-	u32 bsize, opcode;
 	u16 cookie, cbit;
 	u8 *preq;
 
+	cmdq = &rcfw->cmdq;
+	hwq = &cmdq->hwq;
 	pdev = rcfw->pdev;
 
 	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
-	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
-	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
-	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
-	     opcode != CMDQ_BASE_OPCODE_QUERY_VERSION)) {
-		dev_err(&pdev->dev,
-			"RCFW not initialized, reject opcode 0x%x\n", opcode);
-		return -EINVAL;
-	}
-
-	if (test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
-	    opcode == CMDQ_BASE_OPCODE_INITIALIZE_FW) {
-		dev_err(&pdev->dev, "RCFW already initialized!\n");
-		return -EINVAL;
-	}
 
 	if (test_bit(FIRMWARE_TIMED_OUT, &cmdq->flags))
 		return -ETIMEDOUT;
@@ -206,40 +194,37 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	 * cmdqe
 	 */
 	spin_lock_irqsave(&hwq->lock, flags);
-	if (msg->req->cmd_size >= HWQ_FREE_SLOTS(hwq)) {
-		dev_err(&pdev->dev, "RCFW: CMDQ is full!\n");
+	required_slots = bnxt_qplib_get_cmd_slots(msg->req);
+	free_slots = HWQ_FREE_SLOTS(hwq);
+	cookie = cmdq->seq_num & RCFW_MAX_COOKIE_VALUE;
+	cbit = cookie % rcfw->cmdq_depth;
+
+	if (required_slots >= free_slots ||
+	    test_bit(cbit, cmdq->cmdq_bitmap)) {
+		dev_info_ratelimited(&pdev->dev,
+				     "CMDQ is full req/free %d/%d!",
+				     required_slots, free_slots);
 		spin_unlock_irqrestore(&hwq->lock, flags);
 		return -EAGAIN;
 	}
-
-
-	cookie = cmdq->seq_num & RCFW_MAX_COOKIE_VALUE;
-	cbit = cookie % rcfw->cmdq_depth;
 	if (msg->block)
 		cookie |= RCFW_CMD_IS_BLOCKING;
-
 	set_bit(cbit, cmdq->cmdq_bitmap);
 	__set_cmdq_base_cookie(msg->req, msg->req_sz, cpu_to_le16(cookie));
 	crsqe = &rcfw->crsqe_tbl[cbit];
-	if (crsqe->resp) {
-		spin_unlock_irqrestore(&hwq->lock, flags);
-		return -EBUSY;
-	}
-
-	/* change the cmd_size to the number of 16byte cmdq unit.
-	 * req->cmd_size is modified here
-	 */
 	bsize = bnxt_qplib_set_cmd_slots(msg->req);
-
-	memset(msg->resp, 0, sizeof(*msg->resp));
+	crsqe->free_slots = free_slots;
 	crsqe->resp = (struct creq_qp_event *)msg->resp;
 	crsqe->resp->cookie = cpu_to_le16(cookie);
 	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
 	if (__get_cmdq_base_resp_size(msg->req, msg->req_sz) && msg->sb) {
 		struct bnxt_qplib_rcfw_sbuf *sbuf = msg->sb;
-		__set_cmdq_base_resp_addr(msg->req, msg->req_sz, cpu_to_le64(sbuf->dma_addr));
+
+		__set_cmdq_base_resp_addr(msg->req, msg->req_sz,
+					  cpu_to_le64(sbuf->dma_addr));
 		__set_cmdq_base_resp_size(msg->req, msg->req_sz,
-					  ALIGN(sbuf->size, BNXT_QPLIB_CMDQE_UNITS));
+					  ALIGN(sbuf->size,
+						BNXT_QPLIB_CMDQE_UNITS));
 	}
 
 	preq = (u8 *)msg->req;
@@ -247,11 +232,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 		/* Locate the next cmdq slot */
 		sw_prod = HWQ_CMP(hwq->prod, hwq);
 		cmdqe = bnxt_qplib_get_qe(hwq, sw_prod, NULL);
-		if (!cmdqe) {
-			dev_err(&pdev->dev,
-				"RCFW request failed with no cmdqe!\n");
-			goto done;
-		}
 		/* Copy a segment of the req cmd to the cmdq */
 		memset(cmdqe, 0, sizeof(*cmdqe));
 		memcpy(cmdqe, preq, min_t(u32, bsize, sizeof(*cmdqe)));
@@ -275,9 +255,40 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	wmb();
 	writel(cmdq_prod, cmdq->cmdq_mbox.prod);
 	writel(RCFW_CMDQ_TRIG_VAL, cmdq->cmdq_mbox.db);
-done:
 	spin_unlock_irqrestore(&hwq->lock, flags);
 	/* Return the CREQ response pointer */
+	return 0;
+}
+
+static int __send_message_basic_sanity(struct bnxt_qplib_rcfw *rcfw,
+				       struct bnxt_qplib_cmdqmsg *msg)
+{
+	struct bnxt_qplib_cmdq_ctx *cmdq;
+	u32 opcode;
+
+	cmdq = &rcfw->cmdq;
+	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
+
+	/* Prevent posting if f/w is not in a state to process */
+	if (test_bit(ERR_DEVICE_DETACHED, &rcfw->cmdq.flags))
+		return -ENXIO;
+
+	if (test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
+	    opcode == CMDQ_BASE_OPCODE_INITIALIZE_FW) {
+		dev_err(&rcfw->pdev->dev, "QPLIB: RCFW already initialized!");
+		return -EINVAL;
+	}
+
+	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
+	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
+	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
+	     opcode != CMDQ_BASE_OPCODE_QUERY_VERSION)) {
+		dev_err(&rcfw->pdev->dev,
+			"QPLIB: RCFW not initialized, reject opcode 0x%x",
+			opcode);
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -299,29 +310,21 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 {
 	struct creq_qp_event *evnt = (struct creq_qp_event *)msg->resp;
 	u16 cookie;
-	u8 opcode, retry_cnt = 0xFF;
 	int rc = 0;
+	u8 opcode;
 
-	/* Prevent posting if f/w is not in a state to process */
-	if (test_bit(ERR_DEVICE_DETACHED, &rcfw->cmdq.flags))
-		return 0;
+	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
 
-	do {
-		opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
-		rc = __send_message(rcfw, msg);
-		cookie = le16_to_cpu(__get_cmdq_base_cookie(msg->req, msg->req_sz)) &
-				RCFW_MAX_COOKIE_VALUE;
-		if (!rc)
-			break;
-		if (!retry_cnt || (rc != -EAGAIN && rc != -EBUSY)) {
-			/* send failed */
-			dev_err(&rcfw->pdev->dev, "cmdq[%#x]=%#x send failed\n",
-				cookie, opcode);
-			return rc;
-		}
-		msg->block ? mdelay(1) : usleep_range(500, 1000);
+	rc = __send_message_basic_sanity(rcfw, msg);
+	if (rc)
+		return rc == -ENXIO ? bnxt_qplib_map_rc(opcode) : rc;
 
-	} while (retry_cnt--);
+	rc = __send_message(rcfw, msg);
+	if (rc)
+		return rc;
+
+	cookie = le16_to_cpu(__get_cmdq_base_cookie(msg->req, msg->req_sz))
+				& RCFW_MAX_COOKIE_VALUE;
 
 	if (msg->block)
 		rc = __block_for_resp(rcfw, cookie, opcode);
