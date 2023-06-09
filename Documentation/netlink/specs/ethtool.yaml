@@ -582,7 +582,7 @@ attribute-sets:
         name: phc-index
         type: u32
   -
-    name: cable-test-ntf-nest-result
+    name: cable-result
     attributes:
       -
         name: pair
@@ -591,7 +591,7 @@ attribute-sets:
         name: code
         type: u8
   -
-    name: cable-test-ntf-nest-fault-length
+    name: cable-fault-length
     attributes:
       -
         name: pair
@@ -600,18 +600,25 @@ attribute-sets:
         name: cm
         type: u32
   -
-    name: cable-test-ntf-nest
+    name: cable-nest
     attributes:
       -
         name: result
         type: nest
-        nested-attributes: cable-test-ntf-nest-result
+        nested-attributes: cable-result
       -
         name: fault-length
         type: nest
-        nested-attributes: cable-test-ntf-nest-fault-length
+        nested-attributes: cable-fault-length
   -
     name: cable-test
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+  -
+    name: cable-test-ntf
     attributes:
       -
         name: header
@@ -623,7 +630,7 @@ attribute-sets:
       -
         name: nest
         type: nest
-        nested-attributes: cable-test-ntf-nest
+        nested-attributes: cable-nest
   -
     name: cable-test-tdr-cfg
     attributes:
@@ -637,8 +644,22 @@ attribute-sets:
         name: step
         type: u32
       -
-        name: pari
+        name: pair
         type: u8
+  -
+    name: cable-test-tdr-ntf
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: status
+        type: u8
+      -
+        name: nest
+        type: nest
+        nested-attributes: cable-nest
   -
     name: cable-test-tdr
     attributes:
@@ -651,7 +672,7 @@ attribute-sets:
         type: nest
         nested-attributes: cable-test-tdr-cfg
   -
-    name: tunnel-info-udp-entry
+    name: tunnel-udp-entry
     attributes:
       -
         name: port
@@ -662,7 +683,7 @@ attribute-sets:
         type: u32
         enum: udp-tunnel-type
   -
-    name: tunnel-info-udp-table
+    name: tunnel-udp-table
     attributes:
       -
         name: size
@@ -672,9 +693,17 @@ attribute-sets:
         type: nest
         nested-attributes: bitset
       -
-        name: udp-ports
+        name: entry
         type: nest
-        nested-attributes: tunnel-info-udp-entry
+        multi-attr: true
+        nested-attributes: tunnel-udp-entry
+  -
+    name: tunnel-udp
+    attributes:
+      -
+        name: table
+        type: nest
+        nested-attributes: tunnel-udp-table
   -
     name: tunnel-info
     attributes:
@@ -685,7 +714,7 @@ attribute-sets:
       -
         name: udp-ports
         type: nest
-        nested-attributes: tunnel-info-udp-table
+        nested-attributes: tunnel-udp
   -
     name: fec-stat
     attributes:
@@ -1357,10 +1386,16 @@ operations:
         request:
           attributes:
             - header
-        reply:
-          attributes:
-            - header
-            - cable-test-ntf-nest
+    -
+      name: cable-test-ntf
+      doc: Cable test notification.
+
+      attribute-set: cable-test-ntf
+
+      event:
+        attributes:
+          - header
+          - status
     -
       name: cable-test-tdr-act
       doc: Cable test TDR.
@@ -1371,10 +1406,17 @@ operations:
         request:
           attributes:
             - header
-        reply:
-          attributes:
-            - header
-            - cable-test-tdr-cfg
+    -
+      name: cable-test-tdr-ntf
+      doc: Cable test TDR notification.
+
+      attribute-set: cable-test-tdr-ntf
+
+      event:
+        attributes:
+          - header
+          - status
+          - nest
     -
       name: tunnel-info-get
       doc: Get tsinfo params.
