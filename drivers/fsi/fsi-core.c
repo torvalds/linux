@@ -16,6 +16,7 @@
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/cdev.h>
@@ -415,28 +416,18 @@ EXPORT_SYMBOL_GPL(fsi_slave_release_range);
 static bool fsi_device_node_matches(struct device *dev, struct device_node *np,
 		uint32_t addr, uint32_t size)
 {
-	unsigned int len, na, ns;
-	const __be32 *prop;
-	uint32_t psize;
+	u64 paddr, psize;
 
-	na = of_n_addr_cells(np);
-	ns = of_n_size_cells(np);
-
-	if (na != 1 || ns != 1)
+	if (of_property_read_reg(np, 0, &paddr, &psize))
 		return false;
 
-	prop = of_get_property(np, "reg", &len);
-	if (!prop || len != 8)
+	if (paddr != addr)
 		return false;
 
-	if (of_read_number(prop, 1) != addr)
-		return false;
-
-	psize = of_read_number(prop + 1, 1);
 	if (psize != size) {
 		dev_warn(dev,
-			"node %s matches probed address, but not size (got 0x%x, expected 0x%x)",
-			of_node_full_name(np), psize, size);
+			"node %pOF matches probed address, but not size (got 0x%llx, expected 0x%x)",
+			np, psize, size);
 	}
 
 	return true;
@@ -653,24 +644,12 @@ static void fsi_slave_release(struct device *dev)
 static bool fsi_slave_node_matches(struct device_node *np,
 		int link, uint8_t id)
 {
-	unsigned int len, na, ns;
-	const __be32 *prop;
+	u64 addr;
 
-	na = of_n_addr_cells(np);
-	ns = of_n_size_cells(np);
-
-	/* Ensure we have the correct format for addresses and sizes in
-	 * reg properties
-	 */
-	if (na != 2 || ns != 0)
+	if (of_property_read_reg(np, 0, &addr, NULL))
 		return false;
 
-	prop = of_get_property(np, "reg", &len);
-	if (!prop || len != 8)
-		return false;
-
-	return (of_read_number(prop, 1) == link) &&
-		(of_read_number(prop + 1, 1) == id);
+	return addr == (((u64)link << 32) | id);
 }
 
 /* Find a matching node for the slave at (link, id). Returns NULL if none
