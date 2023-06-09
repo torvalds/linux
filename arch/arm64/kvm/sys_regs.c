@@ -1177,9 +1177,9 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 static u8 vcpu_pmuver(const struct kvm_vcpu *vcpu)
 {
 	if (kvm_vcpu_has_pmu(vcpu))
-		return vcpu->kvm->arch.dfr0_pmuver.imp;
+		return vcpu->kvm->arch.dfr0_pmuver;
 
-	return vcpu->kvm->arch.dfr0_pmuver.unimp;
+	return 0;
 }
 
 static u8 perfmon_to_pmuver(u8 perfmon)
@@ -1384,18 +1384,35 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 	bool valid_pmu;
 
 	host_pmuver = kvm_arm_pmu_get_pmuver_limit();
+	pmuver = SYS_FIELD_GET(ID_AA64DFR0_EL1, PMUVer, val);
+
+	/*
+	 * Prior to commit 3d0dba5764b9 ("KVM: arm64: PMU: Move the
+	 * ID_AA64DFR0_EL1.PMUver limit to VM creation"), KVM erroneously
+	 * exposed an IMP_DEF PMU to userspace and the guest on systems w/
+	 * non-architectural PMUs. Of course, PMUv3 is the only game in town for
+	 * PMU virtualization, so the IMP_DEF value was rather user-hostile.
+	 *
+	 * At minimum, we're on the hook to allow values that were given to
+	 * userspace by KVM. Cover our tracks here and replace the IMP_DEF value
+	 * with a more sensible NI. The value of an ID register changing under
+	 * the nose of the guest is unfortunate, but is certainly no more
+	 * surprising than an ill-guided PMU driver poking at impdef system
+	 * registers that end in an UNDEF...
+	 */
+	if (pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF) {
+		val &= ~ID_AA64DFR0_EL1_PMUVer_MASK;
+		pmuver = 0;
+	}
 
 	/*
 	 * Allow AA64DFR0_EL1.PMUver to be set from userspace as long
-	 * as it doesn't promise more than what the HW gives us. We
-	 * allow an IMPDEF PMU though, only if no PMU is supported
-	 * (KVM backward compatibility handling).
+	 * as it doesn't promise more than what the HW gives us.
 	 */
-	pmuver = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_PMUVer), val);
-	if ((pmuver != ID_AA64DFR0_EL1_PMUVer_IMP_DEF && pmuver > host_pmuver))
+	if (pmuver > host_pmuver)
 		return -EINVAL;
 
-	valid_pmu = (pmuver != 0 && pmuver != ID_AA64DFR0_EL1_PMUVer_IMP_DEF);
+	valid_pmu = pmuver;
 
 	/* Make sure view register and PMU support do match */
 	if (kvm_vcpu_has_pmu(vcpu) != valid_pmu)
@@ -1407,11 +1424,7 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 	if (val)
 		return -EINVAL;
 
-	if (valid_pmu)
-		vcpu->kvm->arch.dfr0_pmuver.imp = pmuver;
-	else
-		vcpu->kvm->arch.dfr0_pmuver.unimp = pmuver;
-
+	vcpu->kvm->arch.dfr0_pmuver = pmuver;
 	return 0;
 }
 
@@ -1423,6 +1436,12 @@ static int set_id_dfr0_el1(struct kvm_vcpu *vcpu,
 	bool valid_pmu;
 
 	host_perfmon = pmuver_to_perfmon(kvm_arm_pmu_get_pmuver_limit());
+	perfmon = SYS_FIELD_GET(ID_DFR0_EL1, PerfMon, val);
+
+	if (perfmon == ID_DFR0_EL1_PerfMon_IMPDEF) {
+		val &= ~ID_DFR0_EL1_PerfMon_MASK;
+		perfmon = 0;
+	}
 
 	/*
 	 * Allow DFR0_EL1.PerfMon to be set from userspace as long as
@@ -1430,12 +1449,11 @@ static int set_id_dfr0_el1(struct kvm_vcpu *vcpu,
 	 * AArch64 side (as everything is emulated with that), and
 	 * that this is a PMUv3.
 	 */
-	perfmon = FIELD_GET(ARM64_FEATURE_MASK(ID_DFR0_EL1_PerfMon), val);
-	if ((perfmon != ID_DFR0_EL1_PerfMon_IMPDEF && perfmon > host_perfmon) ||
+	if (perfmon > host_perfmon ||
 	    (perfmon != 0 && perfmon < ID_DFR0_EL1_PerfMon_PMUv3))
 		return -EINVAL;
 
-	valid_pmu = (perfmon != 0 && perfmon != ID_DFR0_EL1_PerfMon_IMPDEF);
+	valid_pmu = perfmon;
 
 	/* Make sure view register and PMU support do match */
 	if (kvm_vcpu_has_pmu(vcpu) != valid_pmu)
@@ -1447,11 +1465,7 @@ static int set_id_dfr0_el1(struct kvm_vcpu *vcpu,
 	if (val)
 		return -EINVAL;
 
-	if (valid_pmu)
-		vcpu->kvm->arch.dfr0_pmuver.imp = perfmon_to_pmuver(perfmon);
-	else
-		vcpu->kvm->arch.dfr0_pmuver.unimp = perfmon_to_pmuver(perfmon);
-
+	vcpu->kvm->arch.dfr0_pmuver = perfmon_to_pmuver(perfmon);
 	return 0;
 }
 

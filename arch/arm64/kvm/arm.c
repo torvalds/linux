@@ -168,7 +168,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	 * Initialise the default PMUver before there is a chance to
 	 * create an actual PMU.
 	 */
-	kvm->arch.dfr0_pmuver.imp = kvm_arm_pmu_get_pmuver_limit();
+	kvm->arch.dfr0_pmuver = kvm_arm_pmu_get_pmuver_limit();
 
 	bitmap_zero(kvm->arch.vcpu_features, KVM_VCPU_MAX_FEATURES);
 

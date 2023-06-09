@@ -93,7 +93,7 @@ void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu);
  * Evaluates as true when emulating PMUv3p5, and false otherwise.
  */
 #define kvm_pmu_is_3p5(vcpu)						\
-	(vcpu->kvm->arch.dfr0_pmuver.imp >= ID_AA64DFR0_EL1_PMUVer_V3P5)
+	(vcpu->kvm->arch.dfr0_pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P5)
 
 u8 kvm_arm_pmu_get_pmuver_limit(void);
 
