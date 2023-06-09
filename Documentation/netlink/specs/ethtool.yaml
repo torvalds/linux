@@ -502,7 +502,7 @@ attribute-sets:
     attributes:
       -
         name: pad
-        type: u32
+        type: pad
       -
         name: tx-frames
         type: u64
@@ -720,7 +720,7 @@ attribute-sets:
     attributes:
       -
         name: pad
-        type: u8
+        type: pad
       -
         name: corrected
         type: binary
@@ -784,7 +784,7 @@ attribute-sets:
     attributes:
       -
         name: pad
-        type: u32
+        type: pad
       -
         name: id
         type: u32
@@ -830,7 +830,7 @@ attribute-sets:
     attributes:
       -
         name: pad
-        type: u32
+        type: pad
       -
         name: header
         type: nest
