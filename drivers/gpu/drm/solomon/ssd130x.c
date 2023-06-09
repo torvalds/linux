@@ -150,9 +150,16 @@ static int ssd130x_buf_alloc(struct ssd130x_device *ssd130x)
 {
 	unsigned int page_height = ssd130x->device_info->page_height;
 	unsigned int pages = DIV_ROUND_UP(ssd130x->height, page_height);
+	const struct drm_format_info *fi;
+	unsigned int pitch;
 
-	ssd130x->buffer = kcalloc(DIV_ROUND_UP(ssd130x->width, 8),
-				  ssd130x->height, GFP_KERNEL);
+	fi = drm_format_info(DRM_FORMAT_C1);
+	if (!fi)
+		return -EINVAL;
+
+	pitch = drm_format_info_min_pitch(fi, 0, ssd130x->width);
+
+	ssd130x->buffer = kcalloc(pitch, ssd130x->height, GFP_KERNEL);
 	if (!ssd130x->buffer)
 		return -ENOMEM;
 
