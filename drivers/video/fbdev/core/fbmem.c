@@ -1468,7 +1468,7 @@ __releases(&info->lock)
 }
 
 #if defined(CONFIG_FB_PROVIDE_GET_FB_UNMAPPED_AREA) && !defined(CONFIG_MMU)
-unsigned long get_fb_unmapped_area(struct file *filp,
+static unsigned long get_fb_unmapped_area(struct file *filp,
 				   unsigned long addr, unsigned long len,
 				   unsigned long pgoff, unsigned long flags)
 {

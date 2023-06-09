@@ -14,6 +14,7 @@
 
 #include "i810_regs.h"
 #include "i810.h"
+#include "i810_main.h"
 
 struct mode_registers std_modes[] = {
 	/* 640x480 @ 60Hz */
@@ -276,7 +277,7 @@ void i810fb_fill_var_timings(struct fb_var_screeninfo *var)
 	var->upper_margin = total - (yres + var->lower_margin + var->vsync_len);
 }
 
-u32 i810_get_watermark(struct fb_var_screeninfo *var,
+u32 i810_get_watermark(const struct fb_var_screeninfo *var,
 		       struct i810fb_par *par)
 {
 	struct mode_registers *params = &par->regs;

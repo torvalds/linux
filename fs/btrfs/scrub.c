@@ -1137,6 +1137,35 @@ static void scrub_write_endio(struct btrfs_bio *bbio)
 		wake_up(&stripe->io_wait);
 }
 
+static void scrub_submit_write_bio(struct scrub_ctx *sctx,
+				   struct scrub_stripe *stripe,
+				   struct btrfs_bio *bbio, bool dev_replace)
+{
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	u32 bio_len = bbio->bio.bi_iter.bi_size;
+	u32 bio_off = (bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT) -
+		      stripe->logical;
+
+	fill_writer_pointer_gap(sctx, stripe->physical + bio_off);
+	atomic_inc(&stripe->pending_io);
+	btrfs_submit_repair_write(bbio, stripe->mirror_num, dev_replace);
+	if (!btrfs_is_zoned(fs_info))
+		return;
+	/*
+	 * For zoned writeback, queue depth must be 1, thus we must wait for
+	 * the write to finish before the next write.
+	 */
+	wait_scrub_stripe_io(stripe);
+
+	/*
+	 * And also need to update the write pointer if write finished
+	 * successfully.
+	 */
+	if (!test_bit(bio_off >> fs_info->sectorsize_bits,
+		      &stripe->write_error_bitmap))
+		sctx->write_pointer += bio_len;
+}
+
 /*
  * Submit the write bio(s) for the sectors specified by @write_bitmap.
  *
@@ -1155,7 +1184,6 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct btrfs_bio *bbio = NULL;
-	const bool zoned = btrfs_is_zoned(fs_info);
 	int sector_nr;
 
 	for_each_set_bit(sector_nr, &write_bitmap, stripe->nr_sectors) {
@@ -1168,13 +1196,7 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 
 		/* Cannot merge with previous sector, submit the current one. */
 		if (bbio && sector_nr && !test_bit(sector_nr - 1, &write_bitmap)) {
-			fill_writer_pointer_gap(sctx, stripe->physical +
-					(sector_nr << fs_info->sectorsize_bits));
-			atomic_inc(&stripe->pending_io);
-			btrfs_submit_repair_write(bbio, stripe->mirror_num, dev_replace);
-			/* For zoned writeback, queue depth must be 1. */
-			if (zoned)
-				wait_scrub_stripe_io(stripe);
+			scrub_submit_write_bio(sctx, stripe, bbio, dev_replace);
 			bbio = NULL;
 		}
 		if (!bbio) {
@@ -1187,14 +1209,8 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 		ret = bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
 		ASSERT(ret == fs_info->sectorsize);
 	}
-	if (bbio) {
-		fill_writer_pointer_gap(sctx, bbio->bio.bi_iter.bi_sector <<
-					SECTOR_SHIFT);
-		atomic_inc(&stripe->pending_io);
-		btrfs_submit_repair_write(bbio, stripe->mirror_num, dev_replace);
-		if (zoned)
-			wait_scrub_stripe_io(stripe);
-	}
+	if (bbio)
+		scrub_submit_write_bio(sctx, stripe, bbio, dev_replace);
 }
 
 /*
@@ -2518,13 +2534,20 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		if (ret == 0) {
 			ro_set = 1;
-		} else if (ret == -ENOSPC && !sctx->is_dev_replace) {
+		} else if (ret == -ENOSPC && !sctx->is_dev_replace &&
+			   !(cache->flags & BTRFS_BLOCK_GROUP_RAID56_MASK)) {
 			/*
 			 * btrfs_inc_block_group_ro return -ENOSPC when it
 			 * failed in creating new chunk for metadata.
 			 * It is not a problem for scrub, because
 			 * metadata are always cowed, and our scrub paused
 			 * commit_transactions.
+			 *
+			 * For RAID56 chunks, we have to mark them read-only
+			 * for scrub, as later we would use our own cache
+			 * out of RAID56 realm.
+			 * Thus we want the RAID56 bg to be marked RO to
+			 * prevent RMW from screwing up out cache.
 			 */
 			ro_set = 0;
 		} else if (ret == -ETXTBSY) {

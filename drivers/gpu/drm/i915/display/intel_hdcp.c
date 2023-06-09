@@ -204,8 +204,6 @@ bool intel_hdcp2_capable(struct intel_connector *connector)
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
-	struct intel_gt *gt = dev_priv->media_gt;
-	struct intel_gsc_uc *gsc = &gt->uc.gsc;
 	bool capable = false;
 
 	/* I915 support for HDCP2.2 */
@@ -213,9 +211,13 @@ bool intel_hdcp2_capable(struct intel_connector *connector)
 		return false;
 
 	/* If MTL+ make sure gsc is loaded and proxy is setup */
-	if (intel_hdcp_gsc_cs_required(dev_priv))
-		if (!intel_uc_fw_is_running(&gsc->fw))
+	if (intel_hdcp_gsc_cs_required(dev_priv)) {
+		struct intel_gt *gt = dev_priv->media_gt;
+		struct intel_gsc_uc *gsc = gt ? &gt->uc.gsc : NULL;
+
+		if (!gsc || !intel_uc_fw_is_running(&gsc->fw))
 			return false;
+	}
 
 	/* MEI/GSC interface is solid depending on which is used */
 	mutex_lock(&dev_priv->display.hdcp.comp_mutex);

@@ -59,6 +59,10 @@ static int regmap_sdw_config_check(const struct regmap_config *config)
 	if (config->pad_bits != 0)
 		return -ENOTSUPP;
 
+	/* Only bulk writes are supported not multi-register writes */
+	if (config->can_multi_write)
+		return -ENOTSUPP;
+
 	return 0;
 }
 

@@ -95,7 +95,7 @@ config CAN_AT91
 
 config CAN_BXCAN
 	tristate "STM32 Basic Extended CAN (bxCAN) devices"
-	depends on OF || ARCH_STM32 || COMPILE_TEST
+	depends on ARCH_STM32 || COMPILE_TEST
 	depends on HAS_IOMEM
 	select CAN_RX_OFFLOAD
 	help

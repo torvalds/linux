@@ -2336,16 +2336,16 @@ __latent_entropy struct task_struct *copy_process(
 	p->flags &= ~PF_KTHREAD;
 	if (args->kthread)
 		p->flags |= PF_KTHREAD;
-	if (args->user_worker)
-		p->flags |= PF_USER_WORKER;
-	if (args->io_thread) {
+	if (args->user_worker) {
 		/*
-		 * Mark us an IO worker, and block any signal that isn't
+		 * Mark us a user worker, and block any signal that isn't
 		 * fatal or STOP
 		 */
-		p->flags |= PF_IO_WORKER;
+		p->flags |= PF_USER_WORKER;
 		siginitsetinv(&p->blocked, sigmask(SIGKILL)|sigmask(SIGSTOP));
 	}
+	if (args->io_thread)
+		p->flags |= PF_IO_WORKER;
 
 	if (args->name)
 		strscpy_pad(p->comm, args->name, sizeof(p->comm));
@@ -2516,9 +2516,6 @@ __latent_entropy struct task_struct *copy_process(
 	retval = copy_thread(p, args);
 	if (retval)
 		goto bad_fork_cleanup_io;
-
-	if (args->ignore_signals)
-		ignore_signals(p);
 
 	stackleak_task_init(p);
 

@@ -1336,6 +1336,10 @@ static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
 {
 	struct bnxt_qplib_cc_param cc_param = {};
 
+	/* Do not enable congestion control on VFs */
+	if (rdev->is_virtfn)
+		return;
+
 	/* Currently enabling only for GenP5 adapters */
 	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
 		return;

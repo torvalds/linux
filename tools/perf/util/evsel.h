@@ -95,6 +95,7 @@ struct evsel {
 		bool			weak_group;
 		bool			bpf_counter;
 		bool			use_config_name;
+		bool			skippable;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
 		struct list_head	config_terms;
@@ -150,10 +151,8 @@ struct evsel {
 	 */
 	struct bpf_counter_ops	*bpf_counter_ops;
 
-	union {
-		struct list_head	bpf_counter_list; /* for perf-stat -b */
-		struct list_head	bpf_filters; /* for perf-record --filter */
-	};
+	struct list_head	bpf_counter_list; /* for perf-stat -b */
+	struct list_head	bpf_filters; /* for perf-record --filter */
 
 	/* for perf-stat --use-bpf */
 	int			bperf_leader_prog_fd;

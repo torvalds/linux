@@ -124,7 +124,7 @@ config FB_PROVIDE_GET_FB_UNMAPPED_AREA
 	depends on FB
 	help
 	  Allow generic frame-buffer to provide get_fb_unmapped_area
-	  function.
+	  function to provide shareable character device support on nommu.
 
 menuconfig FB_FOREIGN_ENDIAN
 	bool "Framebuffer foreign endianness support"

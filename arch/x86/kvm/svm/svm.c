@@ -3510,7 +3510,7 @@ static bool svm_is_vnmi_pending(struct kvm_vcpu *vcpu)
 	if (!is_vnmi_enabled(svm))
 		return false;
 
-	return !!(svm->vmcb->control.int_ctl & V_NMI_BLOCKING_MASK);
+	return !!(svm->vmcb->control.int_ctl & V_NMI_PENDING_MASK);
 }
 
 static bool svm_set_vnmi_pending(struct kvm_vcpu *vcpu)

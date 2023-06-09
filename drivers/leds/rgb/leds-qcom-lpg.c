@@ -312,14 +312,14 @@ static int lpg_calc_freq(struct lpg_channel *chan, uint64_t period)
 		max_res = LPG_RESOLUTION_9BIT;
 	}
 
-	min_period = (u64)NSEC_PER_SEC *
-			div64_u64((1 << pwm_resolution_arr[0]), clk_rate_arr[clk_len - 1]);
+	min_period = div64_u64((u64)NSEC_PER_SEC * (1 << pwm_resolution_arr[0]),
+			       clk_rate_arr[clk_len - 1]);
 	if (period <= min_period)
 		return -EINVAL;
 
 	/* Limit period to largest possible value, to avoid overflows */
-	max_period = (u64)NSEC_PER_SEC * max_res * LPG_MAX_PREDIV *
-			div64_u64((1 << LPG_MAX_M), 1024);
+	max_period = div64_u64((u64)NSEC_PER_SEC * max_res * LPG_MAX_PREDIV * (1 << LPG_MAX_M),
+			       1024);
 	if (period > max_period)
 		period = max_period;
 
