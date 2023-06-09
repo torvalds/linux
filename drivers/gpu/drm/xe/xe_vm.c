@@ -3455,9 +3455,13 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 		if (is_userptr) {
 			struct xe_res_cursor cur;
 
-			xe_res_first_sg(vma->userptr.sg, 0, XE_PAGE_SIZE,
-					&cur);
-			addr = xe_res_dma(&cur);
+			if (vma->userptr.sg) {
+				xe_res_first_sg(vma->userptr.sg, 0, XE_PAGE_SIZE,
+						&cur);
+				addr = xe_res_dma(&cur);
+			} else {
+				addr = 0;
+			}
 		} else {
 			addr = __xe_bo_addr(vma->bo, 0, XE_PAGE_SIZE, &is_vram);
 		}
