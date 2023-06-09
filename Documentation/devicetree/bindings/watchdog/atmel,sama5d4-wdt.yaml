@@ -65,13 +65,13 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     watchdog@fc068640 {
-      compatible = "atmel,sama5d4-wdt";
-      reg = <0xfc068640 0x10>;
-      interrupts = <4 IRQ_TYPE_LEVEL_HIGH 5>;
-      timeout-sec = <10>;
-      atmel,watchdog-type = "hardware";
-      atmel,dbg-halt;
-      atmel,idle-halt;
+        compatible = "atmel,sama5d4-wdt";
+        reg = <0xfc068640 0x10>;
+        interrupts = <4 IRQ_TYPE_LEVEL_HIGH 5>;
+        timeout-sec = <10>;
+        atmel,watchdog-type = "hardware";
+        atmel,dbg-halt;
+        atmel,idle-halt;
     };
 
 ...

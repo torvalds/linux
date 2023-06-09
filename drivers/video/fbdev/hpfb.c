@@ -92,7 +92,7 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	if (regno >= info->cmap.len)
 		return 1;
-	
+
 	while (in_be16(fb_regs + 0x6002) & 0x4) udelay(1);
 
 	out_be16(fb_regs + 0x60ba, 0xff);
@@ -143,7 +143,7 @@ static void topcat_blit(int x0, int y0, int x1, int y1, int w, int h, int rr)
 	out_8(fb_regs + WMOVE, fb_bitmask);
 }
 
-static void hpfb_copyarea(struct fb_info *info, const struct fb_copyarea *area) 
+static void hpfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	topcat_blit(area->sx, area->sy, area->dx, area->dy, area->width, area->height, RR_COPY);
 }
@@ -315,7 +315,7 @@ unmap_screen_base:
 	return ret;
 }
 
-/* 
+/*
  * Check that the secondary ID indicates that we have some hope of working with this
  * framebuffer.  The catseye boards are pretty much like topcats and we can muddle through.
  */
@@ -323,7 +323,7 @@ unmap_screen_base:
 #define topcat_sid_ok(x)  (((x) == DIO_ID2_LRCATSEYE) || ((x) == DIO_ID2_HRCCATSEYE)    \
 			   || ((x) == DIO_ID2_HRMCATSEYE) || ((x) == DIO_ID2_TOPCAT))
 
-/* 
+/*
  * Initialise the framebuffer
  */
 static int hpfb_dio_probe(struct dio_dev *d, const struct dio_device_id *ent)

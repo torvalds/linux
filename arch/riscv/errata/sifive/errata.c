@@ -82,11 +82,9 @@ static void __init_or_module warn_miss_errata(u32 miss_errata)
 	pr_warn("----------------------------------------------------------------\n");
 }
 
-void __init_or_module sifive_errata_patch_func(struct alt_entry *begin,
-					       struct alt_entry *end,
-					       unsigned long archid,
-					       unsigned long impid,
-					       unsigned int stage)
+void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
+			      unsigned long archid, unsigned long impid,
+			      unsigned int stage)
 {
 	struct alt_entry *alt;
 	u32 cpu_req_errata;

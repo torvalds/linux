@@ -224,6 +224,13 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 	if (cp->exclusive)
 		__set_bit(RXRPC_CALL_EXCLUSIVE, &call->flags);
 
+	if (p->timeouts.normal)
+		call->next_rx_timo = min(msecs_to_jiffies(p->timeouts.normal), 1UL);
+	if (p->timeouts.idle)
+		call->next_req_timo = min(msecs_to_jiffies(p->timeouts.idle), 1UL);
+	if (p->timeouts.hard)
+		call->hard_timo = p->timeouts.hard * HZ;
+
 	ret = rxrpc_init_client_call_security(call);
 	if (ret < 0) {
 		rxrpc_prefail_call(call, RXRPC_CALL_LOCAL_ERROR, ret);
@@ -255,7 +262,7 @@ void rxrpc_start_call_timer(struct rxrpc_call *call)
 	call->keepalive_at = j;
 	call->expect_rx_by = j;
 	call->expect_req_by = j;
-	call->expect_term_by = j;
+	call->expect_term_by = j + call->hard_timo;
 	call->timer.expires = now;
 }
 

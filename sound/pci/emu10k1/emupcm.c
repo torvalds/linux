@@ -352,8 +352,8 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	snd_emu10k1_ptr_write(emu, MAPA, voice, silent_page);
 	snd_emu10k1_ptr_write(emu, MAPB, voice, silent_page);
 	/* modulation envelope */
-	snd_emu10k1_ptr_write(emu, CVCF, voice, 0xffff);
-	snd_emu10k1_ptr_write(emu, VTFT, voice, 0xffff);
+	snd_emu10k1_ptr_write(emu, VTFT, voice, VTFT_FILTERTARGET_MASK);
+	snd_emu10k1_ptr_write(emu, CVCF, voice, CVCF_CURRENTFILTER_MASK);
 	snd_emu10k1_ptr_write(emu, ATKHLDM, voice, 0);
 	snd_emu10k1_ptr_write(emu, DCYSUSM, voice, 0x007f);
 	snd_emu10k1_ptr_write(emu, LFOVAL1, voice, 0x8000);
@@ -621,8 +621,8 @@ static void snd_emu10k1_playback_prepare_voice(struct snd_emu10k1 *emu, struct s
 	tmp = runtime->channels == 2 ? (master ? 1 : 2) : 0;
 	vattn = mix != NULL ? (mix->attn[tmp] << 16) : 0;
 	snd_emu10k1_ptr_write(emu, IFATN, voice, attn);
-	snd_emu10k1_ptr_write(emu, VTFT, voice, vattn | 0xffff);
-	snd_emu10k1_ptr_write(emu, CVCF, voice, vattn | 0xffff);
+	snd_emu10k1_ptr_write(emu, VTFT, voice, vattn | VTFT_FILTERTARGET_MASK);
+	snd_emu10k1_ptr_write(emu, CVCF, voice, vattn | CVCF_CURRENTFILTER_MASK);
 	snd_emu10k1_ptr_write(emu, DCYSUSV, voice, 0x7f7f);
 	snd_emu10k1_voice_clear_loop_stop(emu, voice);
 }	
@@ -663,8 +663,8 @@ static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu, struct snd_
 	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, 0);
 	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, 0);
 	snd_emu10k1_ptr_write(emu, IFATN, voice, 0xffff);
-	snd_emu10k1_ptr_write(emu, VTFT, voice, 0xffff);
-	snd_emu10k1_ptr_write(emu, CVCF, voice, 0xffff);
+	snd_emu10k1_ptr_write(emu, VTFT, voice, VTFT_FILTERTARGET_MASK);
+	snd_emu10k1_ptr_write(emu, CVCF, voice, CVCF_CURRENTFILTER_MASK);
 	snd_emu10k1_ptr_write(emu, IP, voice, 0);
 }
 

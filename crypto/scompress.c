@@ -240,7 +240,7 @@ static const struct crypto_type crypto_scomp_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_scomp_show,
 #endif
-#ifdef CONFIG_CRYPTO_USER
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_scomp_report,
 #endif
 #ifdef CONFIG_CRYPTO_STATS

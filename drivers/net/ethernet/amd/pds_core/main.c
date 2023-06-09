@@ -244,11 +244,16 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	set_bit(PDSC_S_FW_DEAD, &pdsc->state);
 
 	err = pdsc_setup(pdsc, PDSC_SETUP_INIT);
-	if (err)
+	if (err) {
+		mutex_unlock(&pdsc->config_lock);
 		goto err_out_unmap_bars;
+	}
+
 	err = pdsc_start(pdsc);
-	if (err)
+	if (err) {
+		mutex_unlock(&pdsc->config_lock);
 		goto err_out_teardown;
+	}
 
 	mutex_unlock(&pdsc->config_lock);
 
@@ -257,13 +262,15 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	err = devl_params_register(dl, pdsc_dl_params,
 				   ARRAY_SIZE(pdsc_dl_params));
 	if (err) {
+		devl_unlock(dl);
 		dev_warn(pdsc->dev, "Failed to register devlink params: %pe\n",
 			 ERR_PTR(err));
-		goto err_out_unlock_dl;
+		goto err_out_stop;
 	}
 
 	hr = devl_health_reporter_create(dl, &pdsc_fw_reporter_ops, 0, pdsc);
 	if (IS_ERR(hr)) {
+		devl_unlock(dl);
 		dev_warn(pdsc->dev, "Failed to create fw reporter: %pe\n", hr);
 		err = PTR_ERR(hr);
 		goto err_out_unreg_params;
@@ -279,15 +286,13 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	return 0;
 
 err_out_unreg_params:
-	devl_params_unregister(dl, pdsc_dl_params,
-			       ARRAY_SIZE(pdsc_dl_params));
-err_out_unlock_dl:
-	devl_unlock(dl);
+	devlink_params_unregister(dl, pdsc_dl_params,
+				  ARRAY_SIZE(pdsc_dl_params));
+err_out_stop:
 	pdsc_stop(pdsc);
 err_out_teardown:
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
 err_out_unmap_bars:
-	mutex_unlock(&pdsc->config_lock);
 	del_timer_sync(&pdsc->wdtimer);
 	if (pdsc->wq)
 		destroy_workqueue(pdsc->wq);

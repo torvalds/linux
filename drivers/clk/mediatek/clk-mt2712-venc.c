@@ -18,14 +18,8 @@ static const struct mtk_gate_regs venc_cg_regs = {
 	.sta_ofs = 0x0,
 };
 
-#define GATE_VENC(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &venc_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr_inv,	\
-	}
+#define GATE_VENC(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &venc_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
 static const struct mtk_gate venc_clks[] = {
 	GATE_VENC(CLK_VENC_SMI_COMMON_CON, "venc_smi", "mm_sel", 0),
@@ -46,6 +40,7 @@ static const struct of_device_id of_match_clk_mt2712_venc[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt2712_venc);
 
 static struct platform_driver clk_mt2712_venc_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -55,5 +50,5 @@ static struct platform_driver clk_mt2712_venc_drv = {
 		.of_match_table = of_match_clk_mt2712_venc,
 	},
 };
-
-builtin_platform_driver(clk_mt2712_venc_drv);
+module_platform_driver(clk_mt2712_venc_drv);
+MODULE_LICENSE("GPL");

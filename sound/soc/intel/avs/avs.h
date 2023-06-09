@@ -283,8 +283,8 @@ void avs_release_firmwares(struct avs_dev *adev);
 
 int avs_dsp_init_module(struct avs_dev *adev, u16 module_id, u8 ppl_instance_id,
 			u8 core_id, u8 domain, void *param, u32 param_size,
-			u16 *instance_id);
-void avs_dsp_delete_module(struct avs_dev *adev, u16 module_id, u16 instance_id,
+			u8 *instance_id);
+void avs_dsp_delete_module(struct avs_dev *adev, u16 module_id, u8 instance_id,
 			   u8 ppl_instance_id, u8 core_id);
 int avs_dsp_create_pipeline(struct avs_dev *adev, u16 req_size, u8 priority,
 			    bool lp, u16 attributes, u8 *instance_id);

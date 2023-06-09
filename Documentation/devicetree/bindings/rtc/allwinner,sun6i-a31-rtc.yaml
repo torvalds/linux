@@ -61,7 +61,7 @@ properties:
         - the Internal Oscillator, at index 2.
 
 allOf:
-  - $ref: "rtc.yaml#"
+  - $ref: rtc.yaml#
   - if:
       properties:
         compatible:

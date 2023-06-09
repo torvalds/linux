@@ -269,6 +269,8 @@ cat <<EOF > debian/rules
 srctree ?= .
 KERNELRELEASE = ${KERNELRELEASE}
 
+.PHONY: clean build build-arch build-indep binary binary-arch binary-indep
+
 build-indep:
 build-arch:
 	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \

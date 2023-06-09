@@ -40,6 +40,7 @@ static const struct of_device_id of_match_clk_mt8173_imgsys[] = {
 	{ .compatible = "mediatek,mt8173-imgsys", .data = &img_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_imgsys);
 
 static struct platform_driver clk_mt8173_vdecsys_drv = {
 	.probe = mtk_clk_simple_probe,

@@ -6,6 +6,7 @@
 ALL_TESTS="
 	prio
 	arp_validate
+	num_grat_arp
 "
 
 REQUIRE_MZ=no
@@ -253,6 +254,55 @@ arp_validate()
 {
 	arp_validate_arp "active-backup"
 	arp_validate_ns "active-backup"
+}
+
+garp_test()
+{
+	local param="$1"
+	local active_slave exp_num real_num i
+	RET=0
+
+	# create bond
+	bond_reset "${param}"
+
+	bond_check_connection
+	[ $RET -ne 0 ] && log_test "num_grat_arp" "$retmsg"
+
+
+	# Add tc rules to count GARP number
+	for i in $(seq 0 2); do
+		tc -n ${g_ns} filter add dev s$i ingress protocol arp pref 1 handle 101 \
+			flower skip_hw arp_op request arp_sip ${s_ip4} arp_tip ${s_ip4} action pass
+	done
+
+	# Do failover
+	active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" ".[].linkinfo.info_data.active_slave")
+	ip -n ${s_ns} link set ${active_slave} down
+
+	exp_num=$(echo "${param}" | cut -f6 -d ' ')
+	sleep $((exp_num + 2))
+
+	active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" ".[].linkinfo.info_data.active_slave")
+
+	# check result
+	real_num=$(tc_rule_handle_stats_get "dev s${active_slave#eth} ingress" 101 ".packets" "-n ${g_ns}")
+	if [ "${real_num}" -ne "${exp_num}" ]; then
+		echo "$real_num garp packets sent on active slave ${active_slave}"
+		RET=1
+	fi
+
+	for i in $(seq 0 2); do
+		tc -n ${g_ns} filter del dev s$i ingress
+	done
+}
+
+num_grat_arp()
+{
+	local val
+	for val in 10 20 30 50; do
+		garp_test "mode active-backup miimon 100 num_grat_arp $val peer_notify_delay 1000"
+		log_test "num_grat_arp" "active-backup miimon num_grat_arp $val"
+	done
 }
 
 trap cleanup EXIT

@@ -86,6 +86,12 @@ properties:
       User-Level ISA document, available from
       https://riscv.org/specifications/
 
+      Due to revisions of the ISA specification, some deviations
+      have arisen over time.
+      Notably, riscv,isa was defined prior to the creation of the
+      Zicsr and Zifencei extensions and thus "i" implies
+      "zicsr_zifencei".
+
       While the isa strings in ISA specification are case
       insensitive, letters in the riscv,isa string must be all
       lowercase to simplify parsing.

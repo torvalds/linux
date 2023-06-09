@@ -532,7 +532,7 @@ manutentori che qualche verifica è stata fatta, fornisce un mezzo per trovare
 persone che possano verificare il codice in futuro, e garantisce che queste
 stesse persone ricevano credito per il loro lavoro.
 
-Reviewd-by:, invece, indica che la patch è stata revisionata ed è stata
+Reviewed-by:, invece, indica che la patch è stata revisionata ed è stata
 considerata accettabile in accordo con la dichiarazione dei revisori:
 
 Dichiarazione di svista dei revisori
@@ -563,13 +563,13 @@ una modifica che si ritiene appropriata e senza alcun problema tecnico
 importante.  Qualsiasi revisore interessato (quelli che lo hanno fatto)
 possono offrire il proprio Reviewed-by per la patch.  Questa etichetta serve
 a dare credito ai revisori e a informare i manutentori sul livello di revisione
-che è stato fatto sulla patch.  L'etichetta Reviewd-by, quando fornita da
+che è stato fatto sulla patch.  L'etichetta Reviewed-by, quando fornita da
 revisori conosciuti per la loro conoscenza sulla materia in oggetto e per la
 loro serietà nella revisione, accrescerà le probabilità che la vostra patch
 venga integrate nel kernel.
 
 Quando si riceve una email sulla lista di discussione da un tester o
-un revisore, le etichette Tested-by o Reviewd-by devono essere
+un revisore, le etichette Tested-by o Reviewed-by devono essere
 aggiunte dall'autore quando invierà nuovamente la patch. Tuttavia, se
 la patch è cambiata in modo significativo, queste etichette potrebbero
 non avere più senso e quindi andrebbero rimosse. Solitamente si tiene traccia

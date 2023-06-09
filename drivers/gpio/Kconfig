@@ -897,7 +897,7 @@ config GPIO_F7188X
 	help
 	  This option enables support for GPIOs found on Fintek Super-I/O
 	  chips F71869, F71869A, F71882FG, F71889F and F81866.
-	  As well as Nuvoton Super-I/O chip NCT6116D.
+	  As well as Nuvoton Super-I/O chip NCT6126D.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called f7188x-gpio.
@@ -1291,6 +1291,18 @@ config GPIO_KEMPLD
 
 	  This driver can also be built as a module. If so, the module will be
 	  called gpio-kempld.
+
+config GPIO_LJCA
+	tristate "INTEL La Jolla Cove Adapter GPIO support"
+	depends on MFD_LJCA
+	select GPIOLIB_IRQCHIP
+	default MFD_LJCA
+	help
+	  Select this option to enable GPIO driver for the INTEL
+	  La Jolla Cove Adapter (LJCA) board.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-ljca.
 
 config GPIO_LP3943
 	tristate "TI/National Semiconductor LP3943 GPIO expander"

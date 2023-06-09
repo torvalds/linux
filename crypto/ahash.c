@@ -509,7 +509,7 @@ static const struct crypto_type crypto_ahash_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_ahash_show,
 #endif
-#ifdef CONFIG_CRYPTO_USER
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_ahash_report,
 #endif
 #ifdef CONFIG_CRYPTO_STATS

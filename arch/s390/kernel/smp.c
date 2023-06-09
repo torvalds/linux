@@ -280,9 +280,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 
 	cpu = pcpu - pcpu_devices;
 	lc = lowcore_ptr[cpu];
-	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
-		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->current_task = (unsigned long) tsk;
+	lc->kernel_stack = (unsigned long)task_stack_page(tsk) + STACK_INIT_OFFSET;
+	lc->current_task = (unsigned long)tsk;
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
 	lc->user_timer = tsk->thread.user_timer;
@@ -348,7 +347,6 @@ static void pcpu_delegate(struct pcpu *pcpu,
 		abs_lc->restart_source = source_cpu;
 		put_abs_lowcore(abs_lc);
 	}
-	__bpon();
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
@@ -986,7 +984,6 @@ void __cpu_die(unsigned int cpu)
 void __noreturn cpu_die(void)
 {
 	idle_task_exit();
-	__bpon();
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
@@ -1302,9 +1299,9 @@ int __init smp_reinit_ipl_cpu(void)
 	local_mcck_enable();
 	local_irq_restore(flags);
 
-	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
 	memblock_free_late(__pa(lc_ipl->mcck_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->async_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->nodat_stack - STACK_INIT_OFFSET), THREAD_SIZE);
 	memblock_free_late(__pa(lc_ipl), sizeof(*lc_ipl));
-
 	return 0;
 }

@@ -8,6 +8,7 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "MEMORY_DISAMBIGUATION.HISTORY_RESET",
         "EventCode": "0x09",
         "EventName": "MEMORY_DISAMBIGUATION.HISTORY_RESET",
         "SampleAfterValue": "2000003",

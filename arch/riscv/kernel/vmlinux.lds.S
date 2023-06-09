@@ -84,11 +84,8 @@ SECTIONS
 	__init_data_begin = .;
 	INIT_DATA_SECTION(16)
 
-	/* Those sections result from the compilation of kernel/pi/string.c */
-	.init.pidata : {
-		*(.init.srodata.cst8*)
-		*(.init__bug_table*)
-		*(.init.sdata*)
+	.init.pi : {
+		*(.init.pi*)
 	}
 
 	.init.bss : {
@@ -102,6 +99,12 @@ SECTIONS
 
 	.rel.dyn : {
 		*(.rel.dyn*)
+	}
+
+	.rela.dyn : ALIGN(8) {
+		__rela_dyn_start = .;
+		*(.rela .rela*)
+		__rela_dyn_end = .;
 	}
 
 	__init_data_end = .;
@@ -128,12 +131,6 @@ SECTIONS
 	.sdata : {
 		__global_pointer$ = . + 0x800;
 		*(.sdata*)
-	}
-
-	.rela.dyn : ALIGN(8) {
-		__rela_dyn_start = .;
-		*(.rela .rela*)
-		__rela_dyn_end = .;
 	}
 
 	.got : { *(.got*) }

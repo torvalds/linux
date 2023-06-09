@@ -109,10 +109,9 @@ static int stmp3xxx_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int stmp3xxx_wdt_remove(struct platform_device *pdev)
+static void stmp3xxx_wdt_remove(struct platform_device *pdev)
 {
 	unregister_reboot_notifier(&wdt_notifier);
-	return 0;
 }
 
 static int __maybe_unused stmp3xxx_wdt_suspend(struct device *dev)
@@ -144,7 +143,7 @@ static struct platform_driver stmp3xxx_wdt_driver = {
 		.pm = &stmp3xxx_wdt_pm_ops,
 	},
 	.probe = stmp3xxx_wdt_probe,
-	.remove = stmp3xxx_wdt_remove,
+	.remove_new = stmp3xxx_wdt_remove,
 };
 module_platform_driver(stmp3xxx_wdt_driver);
 

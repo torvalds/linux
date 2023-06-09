@@ -60,14 +60,8 @@ static void vfio_ap_matrix_dev_release(struct device *dev)
 	kfree(matrix_dev);
 }
 
-static int matrix_bus_match(struct device *dev, struct device_driver *drv)
-{
-	return 1;
-}
-
 static struct bus_type matrix_bus = {
 	.name = "matrix",
-	.match = &matrix_bus_match,
 };
 
 static struct device_driver matrix_driver = {

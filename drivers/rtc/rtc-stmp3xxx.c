@@ -232,17 +232,15 @@ static const struct rtc_class_ops stmp3xxx_rtc_ops = {
 	.set_alarm	= stmp3xxx_rtc_set_alarm,
 };
 
-static int stmp3xxx_rtc_remove(struct platform_device *pdev)
+static void stmp3xxx_rtc_remove(struct platform_device *pdev)
 {
 	struct stmp3xxx_rtc_data *rtc_data = platform_get_drvdata(pdev);
 
 	if (!rtc_data)
-		return 0;
+		return;
 
 	writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
 		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
-
-	return 0;
 }
 
 static int stmp3xxx_rtc_probe(struct platform_device *pdev)
@@ -406,7 +404,7 @@ MODULE_DEVICE_TABLE(of, rtc_dt_ids);
 
 static struct platform_driver stmp3xxx_rtcdrv = {
 	.probe		= stmp3xxx_rtc_probe,
-	.remove		= stmp3xxx_rtc_remove,
+	.remove_new	= stmp3xxx_rtc_remove,
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
 		.pm	= &stmp3xxx_rtc_pm_ops,

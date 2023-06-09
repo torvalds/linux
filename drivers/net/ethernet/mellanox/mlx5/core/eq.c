@@ -824,7 +824,7 @@ static int comp_irqs_request_pci(struct mlx5_core_dev *dev)
 	ncomp_eqs = table->num_comp_eqs;
 	cpus = kcalloc(ncomp_eqs, sizeof(*cpus), GFP_KERNEL);
 	if (!cpus)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
 	i = 0;
 	rcu_read_lock();
@@ -1104,7 +1104,7 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 
 	mutex_lock(&table->lock); /* sync with create/destroy_async_eq */
-	mlx5_irq_table_destroy(dev);
+	mlx5_irq_table_free_irqs(dev);
 	mutex_unlock(&table->lock);
 }
 

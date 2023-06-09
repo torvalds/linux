@@ -248,7 +248,7 @@ static struct platform_driver rockchip_mbox_driver = {
 	.probe	= rockchip_mbox_probe,
 	.driver = {
 		.name = "rockchip-mailbox",
-		.of_match_table = of_match_ptr(rockchip_mbox_of_match),
+		.of_match_table = rockchip_mbox_of_match,
 	},
 };
 

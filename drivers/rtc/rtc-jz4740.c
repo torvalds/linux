@@ -414,7 +414,8 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, ret,
 					     "Unable to register clk32k clock\n");
 
-		ret = of_clk_add_hw_provider(np, of_clk_hw_simple_get, &rtc->clk32k);
+		ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
+						  &rtc->clk32k);
 		if (ret)
 			return dev_err_probe(dev, ret,
 					     "Unable to register clk32k clock provider\n");

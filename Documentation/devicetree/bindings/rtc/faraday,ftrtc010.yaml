@@ -38,8 +38,8 @@ properties:
 
   clock-names:
     items:
-      - const: "PCLK"
-      - const: "EXTCLK"
+      - const: PCLK
+      - const: EXTCLK
 
 required:
   - compatible

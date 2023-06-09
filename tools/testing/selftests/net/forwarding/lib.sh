@@ -791,8 +791,9 @@ tc_rule_handle_stats_get()
 	local id=$1; shift
 	local handle=$1; shift
 	local selector=${1:-.packets}; shift
+	local netns=${1:-""}; shift
 
-	tc -j -s filter show $id \
+	tc $netns -j -s filter show $id \
 	    | jq ".[] | select(.options.handle == $handle) | \
 		  .options.actions[0].stats$selector"
 }

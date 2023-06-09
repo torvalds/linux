@@ -91,9 +91,10 @@ static int ksm_merge(void)
 	return 0;
 }
 
-static char *mmap_and_merge_range(char val, unsigned long size)
+static char *mmap_and_merge_range(char val, unsigned long size, bool use_prctl)
 {
 	char *map;
+	int ret;
 
 	map = mmap(NULL, size, PROT_READ|PROT_WRITE,
 		   MAP_PRIVATE|MAP_ANON, -1, 0);
@@ -110,7 +111,17 @@ static char *mmap_and_merge_range(char val, unsigned long size)
 
 	/* Make sure each page contains the same values to merge them. */
 	memset(map, val, size);
-	if (madvise(map, size, MADV_MERGEABLE)) {
+
+	if (use_prctl) {
+		ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
+		if (ret < 0 && errno == EINVAL) {
+			ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+			goto unmap;
+		} else if (ret) {
+			ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
+			goto unmap;
+		}
+	} else if (madvise(map, size, MADV_MERGEABLE)) {
 		ksft_test_result_fail("MADV_MERGEABLE failed\n");
 		goto unmap;
 	}
@@ -133,7 +144,7 @@ static void test_unmerge(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size);
+	map = mmap_and_merge_range(0xcf, size, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -155,7 +166,7 @@ static void test_unmerge_discarded(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size);
+	map = mmap_and_merge_range(0xcf, size, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -187,7 +198,7 @@ static void test_unmerge_uffd_wp(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size);
+	map = mmap_and_merge_range(0xcf, size, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -323,9 +334,31 @@ static void test_prctl_fork(void)
 	ksft_test_result_pass("PR_SET_MEMORY_MERGE value is inherited\n");
 }
 
+static void test_prctl_unmerge(void)
+{
+	const unsigned int size = 2 * MiB;
+	char *map;
+
+	ksft_print_msg("[RUN] %s\n", __func__);
+
+	map = mmap_and_merge_range(0xcf, size, true);
+	if (map == MAP_FAILED)
+		return;
+
+	if (prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0)) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 failed\n");
+		goto unmap;
+	}
+
+	ksft_test_result(!range_maps_duplicates(map, size),
+			 "Pages were unmerged\n");
+unmap:
+	munmap(map, size);
+}
+
 int main(int argc, char **argv)
 {
-	unsigned int tests = 4;
+	unsigned int tests = 5;
 	int err;
 
 #ifdef __NR_userfaultfd
@@ -355,6 +388,7 @@ int main(int argc, char **argv)
 
 	test_prctl();
 	test_prctl_fork();
+	test_prctl_unmerge();
 
 	err = ksft_get_fail_cnt();
 	if (err)

@@ -149,16 +149,6 @@ MODULE_FIRMWARE("amdgpu/aldebaran_sjt_mec2.bin");
 #define mmGOLDEN_TSC_COUNT_LOWER_Renoir                0x0026
 #define mmGOLDEN_TSC_COUNT_LOWER_Renoir_BASE_IDX       1
 
-#define mmGOLDEN_TSC_COUNT_UPPER_Raven   0x007a
-#define mmGOLDEN_TSC_COUNT_UPPER_Raven_BASE_IDX 0
-#define mmGOLDEN_TSC_COUNT_LOWER_Raven   0x007b
-#define mmGOLDEN_TSC_COUNT_LOWER_Raven_BASE_IDX 0
-
-#define mmGOLDEN_TSC_COUNT_UPPER_Raven2   0x0068
-#define mmGOLDEN_TSC_COUNT_UPPER_Raven2_BASE_IDX 0
-#define mmGOLDEN_TSC_COUNT_LOWER_Raven2   0x0069
-#define mmGOLDEN_TSC_COUNT_LOWER_Raven2_BASE_IDX 0
-
 enum ta_ras_gfx_subblock {
 	/*CPC*/
 	TA_RAS_BLOCK__GFX_CPC_INDEX_START = 0,
@@ -3617,8 +3607,10 @@ static int gfx_v9_0_kiq_resume(struct amdgpu_device *adev)
 		return r;
 
 	r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr);
-	if (unlikely(r != 0))
+	if (unlikely(r != 0)) {
+		amdgpu_bo_unreserve(ring->mqd_obj);
 		return r;
+	}
 
 	gfx_v9_0_kiq_init_queue(ring);
 	amdgpu_bo_kunmap(ring->mqd_obj);
@@ -3764,7 +3756,8 @@ static int gfx_v9_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_irq_put(adev, &adev->gfx.cp_ecc_error_irq, 0);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		amdgpu_irq_put(adev, &adev->gfx.cp_ecc_error_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 
@@ -3996,36 +3989,6 @@ static uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 		 */
 		if (hi_check != clock_hi) {
 			clock_lo = RREG32_SOC15_NO_KIQ(SMUIO, 0, mmGOLDEN_TSC_COUNT_LOWER_Renoir);
-			clock_hi = hi_check;
-		}
-		preempt_enable();
-		clock = clock_lo | (clock_hi << 32ULL);
-		break;
-	case IP_VERSION(9, 1, 0):
-		preempt_disable();
-		clock_hi = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven);
-		clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven);
-		hi_check = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven);
-		/* The PWR TSC clock frequency is 100MHz, which sets 32-bit carry over
-		 * roughly every 42 seconds.
-		 */
-		if (hi_check != clock_hi) {
-			clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven);
-			clock_hi = hi_check;
-		}
-		preempt_enable();
-		clock = clock_lo | (clock_hi << 32ULL);
-		break;
-	case IP_VERSION(9, 2, 2):
-		preempt_disable();
-		clock_hi = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven2);
-		clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven2);
-		hi_check = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven2);
-		/* The PWR TSC clock frequency is 100MHz, which sets 32-bit carry over
-		 * roughly every 42 seconds.
-		 */
-		if (hi_check != clock_hi) {
-			clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven2);
 			clock_hi = hi_check;
 		}
 		preempt_enable();

@@ -960,16 +960,16 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 		merge_next = true;
 	}
 
+	/* Verify some invariant that must be enforced by the caller. */
+	VM_WARN_ON(prev && addr <= prev->vm_start);
+	VM_WARN_ON(curr && (addr != curr->vm_start || end > curr->vm_end));
+	VM_WARN_ON(addr >= end);
+
 	if (!merge_prev && !merge_next)
 		return NULL; /* Not mergeable. */
 
 	res = vma = prev;
 	remove = remove2 = adjust = NULL;
-
-	/* Verify some invariant that must be enforced by the caller. */
-	VM_WARN_ON(prev && addr <= prev->vm_start);
-	VM_WARN_ON(curr && (addr != curr->vm_start || end > curr->vm_end));
-	VM_WARN_ON(addr >= end);
 
 	/* Can we merge both the predecessor and the successor? */
 	if (merge_prev && merge_next &&

@@ -480,25 +480,6 @@ config PINCTRL_TB10X
 	depends on OF && ARC_PLAT_TB10X
 	select GPIOLIB
 
-config PINCTRL_THUNDERBAY
-	tristate "Generic pinctrl and GPIO driver for Intel Thunder Bay SoC"
-	depends on ARCH_THUNDERBAY || (ARM64 && COMPILE_TEST)
-	depends on HAS_IOMEM
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
-	select GPIO_GENERIC
-	help
-	  This selects pin control driver for the Intel Thunder Bay SoC.
-	  It provides pin config functions such as pull-up, pull-down,
-	  interrupt, drive strength, sec lock, Schmitt trigger, slew
-	  rate control and direction control. This module will be
-	  called as pinctrl-thunderbay.
-
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"
 	depends on ARCH_ZYNQ
@@ -523,6 +504,19 @@ config PINCTRL_ZYNQMP
 	  This driver can also be built as a module. If so, the module
 	  will be called pinctrl-zynqmp.
 
+config PINCTRL_MLXBF3
+	tristate "NVIDIA BlueField-3 SoC Pinctrl driver"
+	depends on (MELLANOX_PLATFORM && ARM64) || COMPILE_TEST
+	select PINMUX
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GPIO_MLXBF3
+	help
+	  Say Y to select the pinctrl driver for BlueField-3 SoCs.
+	  This pin controller allows selecting the mux function for
+	  each pin. This driver can also be built as a module called
+	  pinctrl-mlxbf3.
+
 source "drivers/pinctrl/actions/Kconfig"
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
@@ -535,9 +529,9 @@ source "drivers/pinctrl/meson/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/nomadik/Kconfig"
 source "drivers/pinctrl/nuvoton/Kconfig"
+source "drivers/pinctrl/nxp/Kconfig"
 source "drivers/pinctrl/pxa/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
-source "drivers/pinctrl/ralink/Kconfig"
 source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
