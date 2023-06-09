@@ -4297,19 +4297,27 @@ void walt_rotation_checkpoint(int nr_big)
 
 }
 
-void fmax_uncap_checkpoint(int nr_big)
+#define FMAX_CAP_HYSTERESIS 1000000000
+
+void fmax_uncap_checkpoint(int nr_big, u64 window_start)
 {
 	bool fmax_uncap_load_detected = nr_big >= 7 || is_full_throttle_boost();
+	static u64 fmax_uncap_timestamp;
 	int i;
 
 	if (fmax_uncap_load_detected) {
-		for (i = 0; i < num_sched_clusters; i++)
-			add_max_freq_qos_request(sched_cluster[i]->cpus, FREQ_QOS_MAX_DEFAULT_VALUE,
-					QOS_FMAX_CAP);
-	} else {
+		if (!fmax_uncap_timestamp)
+			for (i = 0; i < num_sched_clusters; i++)
+				add_max_freq_qos_request(sched_cluster[i]->cpus,
+						FREQ_QOS_MAX_DEFAULT_VALUE,
+						QOS_FMAX_CAP);
+		fmax_uncap_timestamp = window_start;
+	} else if (fmax_uncap_timestamp &&
+			(window_start > fmax_uncap_timestamp + FMAX_CAP_HYSTERESIS)) {
 		for (int i = 0; i < num_sched_clusters; i++)
 			add_max_freq_qos_request(sched_cluster[i]->cpus, (s32) sysctl_fmax_cap[i],
 					QOS_FMAX_CAP);
+		fmax_uncap_timestamp = 0;
 	}
 }
 

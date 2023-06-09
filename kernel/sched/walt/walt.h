@@ -177,7 +177,7 @@ extern int cpu_l2_sibling[WALT_NR_CPUS];
 extern void sched_update_nr_prod(int cpu, int enq);
 extern unsigned int walt_big_tasks(int cpu);
 extern void walt_rotation_checkpoint(int nr_big);
-extern void fmax_uncap_checkpoint(int nr_big);
+extern void fmax_uncap_checkpoint(int nr_big, u64 window_start);
 extern void walt_fill_ta_data(struct core_ctl_notif_data *data);
 extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
 extern unsigned int sched_get_group_id(struct task_struct *p);
