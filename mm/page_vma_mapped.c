@@ -15,38 +15,41 @@ static inline bool not_found(struct page_vma_mapped_walk *pvmw)
 
 static bool map_pte(struct page_vma_mapped_walk *pvmw)
 {
-	pvmw->pte = pte_offset_map(pvmw->pmd, pvmw->address);
-	if (!(pvmw->flags & PVMW_SYNC)) {
-		if (pvmw->flags & PVMW_MIGRATION) {
-			if (!is_swap_pte(*pvmw->pte))
-				return false;
-		} else {
-			/*
-			 * We get here when we are trying to unmap a private
-			 * device page from the process address space. Such
-			 * page is not CPU accessible and thus is mapped as
-			 * a special swap entry, nonetheless it still does
-			 * count as a valid regular mapping for the page (and
-			 * is accounted as such in page maps count).
-			 *
-			 * So handle this special case as if it was a normal
-			 * page mapping ie lock CPU page table and returns
-			 * true.
-			 *
-			 * For more details on device private memory see HMM
-			 * (include/linux/hmm.h or mm/hmm.c).
-			 */
-			if (is_swap_pte(*pvmw->pte)) {
-				swp_entry_t entry;
+	if (pvmw->flags & PVMW_SYNC) {
+		/* Use the stricter lookup */
+		pvmw->pte = pte_offset_map_lock(pvmw->vma->vm_mm, pvmw->pmd,
+						pvmw->address, &pvmw->ptl);
+		return true;
+	}
 
-				/* Handle un-addressable ZONE_DEVICE memory */
-				entry = pte_to_swp_entry(*pvmw->pte);
-				if (!is_device_private_entry(entry) &&
-				    !is_device_exclusive_entry(entry))
-					return false;
-			} else if (!pte_present(*pvmw->pte))
-				return false;
-		}
+	pvmw->pte = pte_offset_map(pvmw->pmd, pvmw->address);
+	if (pvmw->flags & PVMW_MIGRATION) {
+		if (!is_swap_pte(*pvmw->pte))
+			return false;
+	} else if (is_swap_pte(*pvmw->pte)) {
+		swp_entry_t entry;
+		/*
+		 * Handle un-addressable ZONE_DEVICE memory.
+		 *
+		 * We get here when we are trying to unmap a private
+		 * device page from the process address space. Such
+		 * page is not CPU accessible and thus is mapped as
+		 * a special swap entry, nonetheless it still does
+		 * count as a valid regular mapping for the page
+		 * (and is accounted as such in page maps count).
+		 *
+		 * So handle this special case as if it was a normal
+		 * page mapping ie lock CPU page table and return true.
+		 *
+		 * For more details on device private memory see HMM
+		 * (include/linux/hmm.h or mm/hmm.c).
+		 */
+		entry = pte_to_swp_entry(*pvmw->pte);
+		if (!is_device_private_entry(entry) &&
+		    !is_device_exclusive_entry(entry))
+			return false;
+	} else if (!pte_present(*pvmw->pte)) {
+		return false;
 	}
 	pvmw->ptl = pte_lockptr(pvmw->vma->vm_mm, pvmw->pmd);
 	spin_lock(pvmw->ptl);
