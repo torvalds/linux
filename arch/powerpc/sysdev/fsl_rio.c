@@ -448,13 +448,11 @@ int fsl_rio_setup(struct platform_device *dev)
 	struct rio_mport *port;
 	struct rio_priv *priv;
 	int rc = 0;
-	const u32 *dt_range, *port_index;
+	const u32 *port_index;
 	u32 active_ports = 0;
 	struct device_node *np, *rmu_node;
-	int rlen;
 	u32 ccsr;
 	u64 range_start;
-	int aw;
 	u32 i;
 	static int tmp;
 	struct device_node *rmu_np[MAX_MSG_UNIT_NUM] = {NULL};
@@ -528,15 +526,12 @@ int fsl_rio_setup(struct platform_device *dev)
 	dbell->bellirq = irq_of_parse_and_map(np, 1);
 	dev_info(&dev->dev, "bellirq: %d\n", dbell->bellirq);
 
-	aw = of_n_addr_cells(np);
-	dt_range = of_get_property(np, "reg", &rlen);
-	if (!dt_range) {
+	if (of_property_read_reg(np, 0, &range_start, NULL)) {
 		pr_err("%pOF: unable to find 'reg' property\n",
 			np);
 		rc = -ENOMEM;
 		goto err_pw;
 	}
-	range_start = of_read_number(dt_range, aw);
 	dbell->dbell_regs = (struct rio_dbell_regs *)(rmu_regs_win +
 				(u32)range_start);
 
@@ -556,15 +551,12 @@ int fsl_rio_setup(struct platform_device *dev)
 	pw->dev = &dev->dev;
 	pw->pwirq = irq_of_parse_and_map(np, 0);
 	dev_info(&dev->dev, "pwirq: %d\n", pw->pwirq);
-	aw = of_n_addr_cells(np);
-	dt_range = of_get_property(np, "reg", &rlen);
-	if (!dt_range) {
+	if (of_property_read_reg(np, 0, &range_start, NULL)) {
 		pr_err("%pOF: unable to find 'reg' property\n",
 			np);
 		rc = -ENOMEM;
 		goto err;
 	}
-	range_start = of_read_number(dt_range, aw);
 	pw->pw_regs = (struct rio_pw_regs *)(rmu_regs_win + (u32)range_start);
 
 	/*set up ports node*/
