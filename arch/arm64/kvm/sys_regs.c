@@ -1311,6 +1311,17 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu, const struct sys_reg_desc *r
 	return __kvm_read_sanitised_id_reg(vcpu, r);
 }
 
+/*
+ * Return true if the register's (Op0, Op1, CRn, CRm, Op2) is
+ * (3, 0, 0, crm, op2), where 1<=crm<8, 0<=op2<8.
+ */
+static inline bool is_id_reg(u32 id)
+{
+	return (sys_reg_Op0(id) == 3 && sys_reg_Op1(id) == 0 &&
+		sys_reg_CRn(id) == 0 && sys_reg_CRm(id) >= 1 &&
+		sys_reg_CRm(id) < 8);
+}
+
 static unsigned int id_visibility(const struct kvm_vcpu *vcpu,
 				  const struct sys_reg_desc *r)
 {
@@ -2303,6 +2314,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(SP_EL2, NULL, reset_unknown, 0),
 };
 
+static const struct sys_reg_desc *first_idreg;
+
 static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
@@ -2993,6 +3006,28 @@ static bool emulate_sys_reg(struct kvm_vcpu *vcpu,
 	return false;
 }
 
+static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
+{
+	const struct sys_reg_desc *idreg = first_idreg;
+	u32 id = reg_to_encoding(idreg);
+	struct kvm *kvm = vcpu->kvm;
+
+	if (test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags))
+		return;
+
+	lockdep_assert_held(&kvm->arch.config_lock);
+
+	/* Initialize all idregs */
+	while (is_id_reg(id)) {
+		IDREG(kvm, id) = idreg->reset(vcpu, idreg);
+
+		idreg++;
+		id = reg_to_encoding(idreg);
+	}
+
+	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
+}
+
 /**
  * kvm_reset_sys_regs - sets system registers to reset value
  * @vcpu: The VCPU pointer
@@ -3004,9 +3039,17 @@ void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 {
 	unsigned long i;
 
-	for (i = 0; i < ARRAY_SIZE(sys_reg_descs); i++)
-		if (sys_reg_descs[i].reset)
-			sys_reg_descs[i].reset(vcpu, &sys_reg_descs[i]);
+	kvm_reset_id_regs(vcpu);
+
+	for (i = 0; i < ARRAY_SIZE(sys_reg_descs); i++) {
+		const struct sys_reg_desc *r = &sys_reg_descs[i];
+
+		if (is_id_reg(reg_to_encoding(r)))
+			continue;
+
+		if (r->reset)
+			r->reset(vcpu, r);
+	}
 }
 
 /**
@@ -3413,6 +3456,7 @@ int kvm_arm_copy_sys_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 
 int __init kvm_sys_reg_table_init(void)
 {
+	struct sys_reg_params params;
 	bool valid = true;
 	unsigned int i;
 
@@ -3430,6 +3474,12 @@ int __init kvm_sys_reg_table_init(void)
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++)
 		invariant_sys_regs[i].reset(NULL, &invariant_sys_regs[i]);
+
+	/* Find the first idreg (SYS_ID_PFR0_EL1) in sys_reg_descs. */
+	params = encoding_to_params(SYS_ID_PFR0_EL1);
+	first_idreg = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
+	if (!first_idreg)
+		return -EINVAL;
 
 	return 0;
 }
