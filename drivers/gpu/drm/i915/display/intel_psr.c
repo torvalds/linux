@@ -1393,7 +1393,11 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	       EDP_PSR_DEBUG_MASK_LPSP |
 	       EDP_PSR_DEBUG_MASK_MAX_SLEEP;
 
-	if (DISPLAY_VER(dev_priv) < 11)
+	/*
+	 * No separate pipe reg write mask on hsw/bdw, so have to unmask all
+	 * registers in order to keep the CURSURFLIVE tricks working :(
+	 */
+	if (IS_DISPLAY_VER(dev_priv, 9, 10))
 		mask |= EDP_PSR_DEBUG_MASK_DISP_REG_WRITE;
 
 	intel_de_write(dev_priv, psr_debug_reg(dev_priv, cpu_transcoder), mask);
