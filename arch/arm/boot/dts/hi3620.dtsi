@@ -545,10 +545,9 @@
 			compatible = "pinctrl-single";
 			reg = <0x803000 0x188>;
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			#pinctrl-cells = <1>;
 			#gpio-range-cells = <3>;
-			ranges;
 
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <7>;
@@ -567,9 +566,8 @@
 			compatible = "pinconf-single";
 			reg = <0x803800 0x2dc>;
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			#pinctrl-cells = <1>;
-			ranges;
 
 			pinctrl-single,register-width = <32>;
 		};
