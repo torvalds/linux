@@ -203,10 +203,10 @@ static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
 
 	/* read cookie */
 	val = ath11k_pcic_read32(ab, PCIE_Q6_COOKIE_ADDR);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "cookie:0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pcie_q6_cookie_addr 0x%x\n", val);
 
 	val = ath11k_pcic_read32(ab, WLAON_WARM_SW_ENTRY);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "WLAON_WARM_SW_ENTRY 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "wlaon_warm_sw_entry 0x%x\n", val);
 
 	/* TODO: exact time to sleep is uncertain */
 	mdelay(10);
@@ -218,13 +218,13 @@ static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
 	mdelay(10);
 
 	val = ath11k_pcic_read32(ab, WLAON_WARM_SW_ENTRY);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "WLAON_WARM_SW_ENTRY 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "wlaon_warm_sw_entry 0x%x\n", val);
 
 	/* A read clear register. clear the register to prevent
 	 * Q6 from entering wrong code path.
 	 */
 	val = ath11k_pcic_read32(ab, WLAON_SOC_RESET_CAUSE_REG);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause:%d\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause %d\n", val);
 }
 
 static int ath11k_pci_set_link_reg(struct ath11k_base *ab,
@@ -433,7 +433,7 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 		}
 		clear_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags);
 		ab->pci.msi.config = &msi_config_one_msi;
-		ath11k_dbg(ab, ATH11K_DBG_PCI, "request MSI one vector\n");
+		ath11k_dbg(ab, ATH11K_DBG_PCI, "request one msi vector\n");
 	}
 	ath11k_info(ab, "MSI vectors: %d\n", num_vectors);
 
