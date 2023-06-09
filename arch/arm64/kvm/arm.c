@@ -1236,7 +1236,18 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 					 struct kvm_vcpu_init *init)
 {
+	bool power_off = false;
 	int ret;
+
+	/*
+	 * Treat the power-off vCPU feature as ephemeral. Clear the bit to avoid
+	 * reflecting it in the finalized feature set, thus limiting its scope
+	 * to a single KVM_ARM_VCPU_INIT call.
+	 */
+	if (init->features[0] & KVM_ARM_VCPU_POWER_OFF) {
+		init->features[0] &= ~KVM_ARM_VCPU_POWER_OFF;
+		power_off = true;
+	}
 
 	ret = kvm_vcpu_set_target(vcpu, init);
 	if (ret)
@@ -1266,7 +1277,7 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	 */
 	spin_lock(&vcpu->arch.mp_state_lock);
 
-	if (test_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
+	if (power_off)
 		__kvm_arm_vcpu_power_off(vcpu);
 	else
 		WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_RUNNABLE);
