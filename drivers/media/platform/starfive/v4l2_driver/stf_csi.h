@@ -41,8 +41,10 @@ struct stf_csi_dev {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[STF_CSI_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[STF_CSI_PADS_NUM];
-	const struct csi_format *formats;
-	unsigned int nformats;
+	const struct csi_format *formats_sink;
+	unsigned int nformats_sink;
+	const struct csi_format *formats_src;
+	unsigned int nformats_src;
 	struct csi_hw_ops *hw_ops;
 	struct mutex stream_lock;
 	int stream_count;
