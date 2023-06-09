@@ -51,6 +51,7 @@
 
 #define RCFW_DBR_PCI_BAR_REGION		2
 #define RCFW_DBR_BASE_PAGE_SHIFT	12
+#define RCFW_FW_STALL_TIMEOUT_SEC	40
 
 /* Cmdq contains a fix number of a 16-Byte slots */
 struct bnxt_qplib_cmdqe {
@@ -128,7 +129,6 @@ static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 
 #define RCFW_MAX_COOKIE_VALUE		(BNXT_QPLIB_CMDQE_MAX_CNT - 1)
 #define RCFW_CMD_IS_BLOCKING		0x8000
-#define RCFW_BLOCKED_CMD_WAIT_COUNT	20000000UL /* 20 sec */
 
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {
@@ -170,7 +170,7 @@ struct bnxt_qplib_qp_node {
 
 #define FIRMWARE_INITIALIZED_FLAG	(0)
 #define FIRMWARE_FIRST_FLAG		(31)
-#define FIRMWARE_TIMED_OUT		(3)
+#define FIRMWARE_STALL_DETECTED		(3)
 #define ERR_DEVICE_DETACHED             (4)
 
 struct bnxt_qplib_cmdq_mbox {
@@ -185,6 +185,7 @@ struct bnxt_qplib_cmdq_ctx {
 	wait_queue_head_t		waitq;
 	unsigned long			flags;
 	unsigned long			*cmdq_bitmap;
+	unsigned long			last_seen;
 	u32				seq_num;
 };
 

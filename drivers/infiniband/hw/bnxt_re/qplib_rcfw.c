@@ -112,11 +112,13 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 	do {
 		if (test_bit(ERR_DEVICE_DETACHED, &cmdq->flags))
 			return bnxt_qplib_map_rc(opcode);
+		if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
+			return -ETIMEDOUT;
 
-		/* Non zero means command completed */
 		wait_event_timeout(cmdq->waitq,
 				   !test_bit(cbit, cmdq->cmdq_bitmap),
-				   msecs_to_jiffies(10000));
+				   msecs_to_jiffies(RCFW_FW_STALL_TIMEOUT_SEC
+						    * 1000));
 
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
@@ -125,6 +127,11 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
+
+		/* Firmware stall is detected */
+		if (time_after(jiffies, cmdq->last_seen +
+			      (RCFW_FW_STALL_TIMEOUT_SEC * HZ)))
+			return -ENODEV;
 
 	} while (true);
 };
@@ -154,6 +161,8 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 	do {
 		if (test_bit(ERR_DEVICE_DETACHED, &cmdq->flags))
 			return bnxt_qplib_map_rc(opcode);
+		if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
+			return -ETIMEDOUT;
 
 		udelay(1);
 
@@ -183,9 +192,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	cmdq = &rcfw->cmdq;
 	hwq = &cmdq->hwq;
 	pdev = rcfw->pdev;
-
-	if (test_bit(FIRMWARE_TIMED_OUT, &cmdq->flags))
-		return -ETIMEDOUT;
 
 	/* Cmdq are in 16-byte units, each request can consume 1 or more
 	 * cmdqe
@@ -285,14 +291,21 @@ static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
 	do {
 		if (test_bit(ERR_DEVICE_DETACHED, &cmdq->flags))
 			return bnxt_qplib_map_rc(opcode);
+		if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
+			return -ETIMEDOUT;
 
 		usleep_range(1000, 1001);
 
 		bnxt_qplib_service_creq(&rcfw->creq.creq_tasklet);
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
-		if (jiffies_to_msecs(jiffies - issue_time) > 10000)
-			return -ETIMEDOUT;
+		if (jiffies_to_msecs(jiffies - issue_time) >
+		    (RCFW_FW_STALL_TIMEOUT_SEC * 1000)) {
+			/* Firmware stall is detected */
+			if (time_after(jiffies, cmdq->last_seen +
+				      (RCFW_FW_STALL_TIMEOUT_SEC * HZ)))
+				return -ENODEV;
+		}
 	} while (true);
 };
 
@@ -308,6 +321,8 @@ static int __send_message_basic_sanity(struct bnxt_qplib_rcfw *rcfw,
 	/* Prevent posting if f/w is not in a state to process */
 	if (test_bit(ERR_DEVICE_DETACHED, &rcfw->cmdq.flags))
 		return -ENXIO;
+	if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
+		return -ETIMEDOUT;
 
 	if (test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
 	    opcode == CMDQ_BASE_OPCODE_INITIALIZE_FW) {
@@ -375,7 +390,6 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 		/* timed out */
 		dev_err(&rcfw->pdev->dev, "cmdq[%#x]=%#x timedout (%d)msec\n",
 			cookie, opcode, RCFW_CMD_WAIT_TIME_MS);
-		set_bit(FIRMWARE_TIMED_OUT, &rcfw->cmdq.flags);
 		return rc;
 	}
 
@@ -383,6 +397,8 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 		spin_lock_irqsave(&rcfw->cmdq.hwq.lock, flags);
 		crsqe = &rcfw->crsqe_tbl[cbit];
 		crsqe->is_waiter_alive = false;
+		if (rc == -ENODEV)
+			set_bit(FIRMWARE_STALL_DETECTED, &rcfw->cmdq.flags);
 		spin_unlock_irqrestore(&rcfw->cmdq.hwq.lock, flags);
 		return -ETIMEDOUT;
 	}
@@ -533,6 +549,17 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		cookie &= RCFW_MAX_COOKIE_VALUE;
 		cbit = cookie % rcfw->cmdq_depth;
 		crsqe = &rcfw->crsqe_tbl[cbit];
+
+		if (WARN_ONCE(test_bit(FIRMWARE_STALL_DETECTED,
+				       &rcfw->cmdq.flags),
+		    "QPLIB: Unreponsive rcfw channel detected.!!")) {
+			dev_info(&pdev->dev,
+				 "rcfw timedout: cookie = %#x, free_slots = %d",
+				 cookie, crsqe->free_slots);
+			spin_unlock_irqrestore(&hwq->lock, flags);
+			return rc;
+		}
+
 		if (!test_and_clear_bit(cbit, rcfw->cmdq.cmdq_bitmap))
 			dev_warn(&pdev->dev,
 				 "CMD bit %d was not requested\n", cbit);
@@ -582,6 +609,7 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t)
 		 * reading any further.
 		 */
 		dma_rmb();
+		rcfw->cmdq.last_seen = jiffies;
 
 		type = creqe->type & CREQ_BASE_TYPE_MASK;
 		switch (type) {
