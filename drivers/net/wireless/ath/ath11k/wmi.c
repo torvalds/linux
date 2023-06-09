@@ -3181,10 +3181,12 @@ int ath11k_wmi_send_twt_enable_cmd(struct ath11k *ar, u32 pdev_id,
 	if (ret) {
 		ath11k_warn(ab, "Failed to send WMI_TWT_ENABLE_CMDID");
 		dev_kfree_skb(skb);
-	} else {
-		ar->twt_enabled = 1;
+		return ret;
 	}
-	return ret;
+
+	ar->twt_enabled = 1;
+
+	return 0;
 }
 
 int
@@ -3211,10 +3213,12 @@ ath11k_wmi_send_twt_disable_cmd(struct ath11k *ar, u32 pdev_id)
 	if (ret) {
 		ath11k_warn(ab, "Failed to send WMI_TWT_DISABLE_CMDID");
 		dev_kfree_skb(skb);
-	} else {
-		ar->twt_enabled = 0;
+		return ret;
 	}
-	return ret;
+
+	ar->twt_enabled = 0;
+
+	return 0;
 }
 
 int ath11k_wmi_send_twt_add_dialog_cmd(struct ath11k *ar,
@@ -3266,8 +3270,10 @@ int ath11k_wmi_send_twt_add_dialog_cmd(struct ath11k *ar,
 			    "failed to send wmi command to add twt dialog: %d",
 			    ret);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_send_twt_del_dialog_cmd(struct ath11k *ar,
@@ -3303,8 +3309,10 @@ int ath11k_wmi_send_twt_del_dialog_cmd(struct ath11k *ar,
 			    "failed to send wmi command to delete twt dialog: %d",
 			    ret);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_send_twt_pause_dialog_cmd(struct ath11k *ar,
@@ -3341,8 +3349,10 @@ int ath11k_wmi_send_twt_pause_dialog_cmd(struct ath11k *ar,
 			    "failed to send wmi command to pause twt dialog: %d",
 			    ret);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_send_twt_resume_dialog_cmd(struct ath11k *ar,
@@ -3382,8 +3392,10 @@ int ath11k_wmi_send_twt_resume_dialog_cmd(struct ath11k *ar,
 			    "failed to send wmi command to resume twt dialog: %d",
 			    ret);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int
@@ -3417,8 +3429,10 @@ ath11k_wmi_send_obss_spr_cmd(struct ath11k *ar, u32 vdev_id,
 		ath11k_warn(ab,
 			    "Failed to send WMI_PDEV_OBSS_PD_SPATIAL_REUSE_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int
@@ -3453,9 +3467,10 @@ ath11k_wmi_pdev_set_srg_bss_color_bitmap(struct ath11k *ar, u32 *bitmap)
 		ath11k_warn(ab,
 			    "failed to send WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -3491,9 +3506,10 @@ ath11k_wmi_pdev_set_srg_patial_bssid_bitmap(struct ath11k *ar, u32 *bitmap)
 		ath11k_warn(ab,
 			    "failed to send WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -3529,9 +3545,10 @@ ath11k_wmi_pdev_srg_obss_color_enable_bitmap(struct ath11k *ar, u32 *bitmap)
 		ath11k_warn(ab,
 			    "failed to send WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -3567,9 +3584,10 @@ ath11k_wmi_pdev_srg_obss_bssid_enable_bitmap(struct ath11k *ar, u32 *bitmap)
 		ath11k_warn(ab,
 			    "failed to send WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -3605,9 +3623,10 @@ ath11k_wmi_pdev_non_srg_obss_color_enable_bitmap(struct ath11k *ar, u32 *bitmap)
 		ath11k_warn(ab,
 			    "failed to send WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -3643,9 +3662,10 @@ ath11k_wmi_pdev_non_srg_obss_bssid_enable_bitmap(struct ath11k *ar, u32 *bitmap)
 		ath11k_warn(ab,
 			    "failed to send WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -3688,8 +3708,10 @@ ath11k_wmi_send_obss_color_collision_cfg_cmd(struct ath11k *ar, u32 vdev_id,
 	if (ret) {
 		ath11k_warn(ab, "Failed to send WMI_OBSS_COLOR_COLLISION_DET_CONFIG_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
@@ -3722,8 +3744,10 @@ int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
 	if (ret) {
 		ath11k_warn(ab, "Failed to send WMI_BSS_COLOR_CHANGE_ENABLE_CMDID");
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_fils_discovery_tmpl(struct ath11k *ar, u32 vdev_id,
@@ -3765,8 +3789,10 @@ int ath11k_wmi_fils_discovery_tmpl(struct ath11k *ar, u32 vdev_id,
 			    "WMI vdev %i failed to send FILS discovery template command\n",
 			    vdev_id);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_probe_resp_tmpl(struct ath11k *ar, u32 vdev_id,
@@ -3818,8 +3844,10 @@ int ath11k_wmi_probe_resp_tmpl(struct ath11k *ar, u32 vdev_id,
 			    "WMI vdev %i failed to send probe response template command\n",
 			    vdev_id);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
@@ -3853,8 +3881,10 @@ int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
 			    "WMI vdev %i failed to send FILS discovery enable/disable command\n",
 			    vdev_id);
 		dev_kfree_skb(skb);
+		return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
 static void
@@ -4122,9 +4152,10 @@ static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
 	if (ret) {
 		ath11k_warn(ab, "failed to send WMI_INIT_CMDID\n");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int ath11k_wmi_pdev_lro_cfg(struct ath11k *ar,
@@ -4213,9 +4244,10 @@ int ath11k_wmi_set_hw_mode(struct ath11k_base *ab,
 	if (ret) {
 		ath11k_warn(ab, "failed to send WMI_PDEV_SET_HW_MODE_CMDID\n");
 		dev_kfree_skb(skb);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int ath11k_wmi_cmd_init(struct ath11k_base *ab)
