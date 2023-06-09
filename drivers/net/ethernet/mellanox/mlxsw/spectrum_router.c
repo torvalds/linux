@@ -10664,15 +10664,16 @@ err_router_ops_init:
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
+
 	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
-					  &mlxsw_sp->router->netdevice_nb);
-	unregister_fib_notifier(mlxsw_sp_net(mlxsw_sp),
-				&mlxsw_sp->router->fib_nb);
+					  &router->netdevice_nb);
+	unregister_fib_notifier(mlxsw_sp_net(mlxsw_sp), &router->fib_nb);
 	unregister_nexthop_notifier(mlxsw_sp_net(mlxsw_sp),
-				    &mlxsw_sp->router->nexthop_nb);
-	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
-	unregister_inet6addr_notifier(&mlxsw_sp->router->inet6addr_nb);
-	unregister_inetaddr_notifier(&mlxsw_sp->router->inetaddr_nb);
+				    &router->nexthop_nb);
+	unregister_netevent_notifier(&router->netevent_nb);
+	unregister_inet6addr_notifier(&router->inet6addr_nb);
+	unregister_inetaddr_notifier(&router->inetaddr_nb);
 	mlxsw_core_flush_owq();
 	mlxsw_sp_mp_hash_fini(mlxsw_sp);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
@@ -10680,12 +10681,12 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	mlxsw_sp_mr_fini(mlxsw_sp);
 	mlxsw_sp_lpm_fini(mlxsw_sp);
-	rhashtable_destroy(&mlxsw_sp->router->nexthop_group_ht);
-	rhashtable_destroy(&mlxsw_sp->router->nexthop_ht);
+	rhashtable_destroy(&router->nexthop_group_ht);
+	rhashtable_destroy(&router->nexthop_ht);
 	mlxsw_sp_ipips_fini(mlxsw_sp);
 	mlxsw_sp_rifs_fini(mlxsw_sp);
 	__mlxsw_sp_router_fini(mlxsw_sp);
-	cancel_delayed_work_sync(&mlxsw_sp->router->nh_grp_activity_dw);
-	mutex_destroy(&mlxsw_sp->router->lock);
-	kfree(mlxsw_sp->router);
+	cancel_delayed_work_sync(&router->nh_grp_activity_dw);
+	mutex_destroy(&router->lock);
+	kfree(router);
 }
