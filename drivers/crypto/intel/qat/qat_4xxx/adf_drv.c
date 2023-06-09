@@ -25,11 +25,25 @@ MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
 enum configs {
 	DEV_CFG_CY = 0,
 	DEV_CFG_DC,
+	DEV_CFG_SYM,
+	DEV_CFG_ASYM,
+	DEV_CFG_ASYM_SYM,
+	DEV_CFG_ASYM_DC,
+	DEV_CFG_DC_ASYM,
+	DEV_CFG_SYM_DC,
+	DEV_CFG_DC_SYM,
 };
 
 static const char * const services_operations[] = {
 	ADF_CFG_CY,
 	ADF_CFG_DC,
+	ADF_CFG_SYM,
+	ADF_CFG_ASYM,
+	ADF_CFG_ASYM_SYM,
+	ADF_CFG_ASYM_DC,
+	ADF_CFG_DC_ASYM,
+	ADF_CFG_SYM_DC,
+	ADF_CFG_DC_SYM,
 };
 
 static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
@@ -242,6 +256,21 @@ err:
 	return ret;
 }
 
+static int adf_no_dev_config(struct adf_accel_dev *accel_dev)
+{
+	unsigned long val;
+	int ret;
+
+	val = 0;
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
+					  &val, ADF_DEC);
+	if (ret)
+		return ret;
+
+	return adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
+					  &val, ADF_DEC);
+}
+
 int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
@@ -266,10 +295,14 @@ int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
 
 	switch (ret) {
 	case DEV_CFG_CY:
+	case DEV_CFG_ASYM_SYM:
 		ret = adf_crypto_dev_config(accel_dev);
 		break;
 	case DEV_CFG_DC:
 		ret = adf_comp_dev_config(accel_dev);
+		break;
+	default:
+		ret = adf_no_dev_config(accel_dev);
 		break;
 	}
 

@@ -27,7 +27,18 @@ Description:	(RW) Reports the current configuration of the QAT device.
 
 		* sym;asym: the device is configured for running crypto
 		  services
+		* asym;sym: identical to sym;asym
 		* dc: the device is configured for running compression services
+		* sym: the device is configured for running symmetric crypto
+		  services
+		* asym: the device is configured for running asymmetric crypto
+		  services
+		* asym;dc: the device is configured for running asymmetric
+		  crypto services and compression services
+		* dc;asym: identical to asym;dc
+		* sym;dc: the device is configured for running symmetric crypto
+		  services and compression services
+		* dc;sym: identical to sym;dc
 
 		It is possible to set the configuration only if the device
 		is in the `down` state (see /sys/bus/pci/devices/<BDF>/qat/state)

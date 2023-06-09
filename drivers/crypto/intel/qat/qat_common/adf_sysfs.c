@@ -78,6 +78,13 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 static const char * const services_operations[] = {
 	ADF_CFG_CY,
 	ADF_CFG_DC,
+	ADF_CFG_SYM,
+	ADF_CFG_ASYM,
+	ADF_CFG_ASYM_SYM,
+	ADF_CFG_ASYM_DC,
+	ADF_CFG_DC_ASYM,
+	ADF_CFG_SYM_DC,
+	ADF_CFG_DC_SYM,
 };
 
 static ssize_t cfg_services_show(struct device *dev, struct device_attribute *attr,
