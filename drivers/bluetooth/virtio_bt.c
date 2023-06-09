@@ -79,6 +79,7 @@ static int virtbt_close_vdev(struct virtio_bluetooth *vbt)
 
 		while ((skb = virtqueue_detach_unused_buf(vq)))
 			kfree_skb(skb);
+		cond_resched();
 	}
 
 	return 0;
