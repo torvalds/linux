@@ -99,6 +99,13 @@
 #define  SDHCI_POWER_180	0x0A
 #define  SDHCI_POWER_300	0x0C
 #define  SDHCI_POWER_330	0x0E
+/*
+ * VDD2 - UHS2 or PCIe/NVMe
+ * VDD2 power on/off and voltage select
+ */
+#define  SDHCI_VDD2_POWER_ON	0x10
+#define  SDHCI_VDD2_POWER_120	0x80
+#define  SDHCI_VDD2_POWER_180	0xA0
 
 #define SDHCI_BLOCK_GAP_CONTROL	0x2A
 
