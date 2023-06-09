@@ -14,7 +14,7 @@ description: |+
   for multiple SoCs to control a single SPMI master.
 
 allOf:
-  - $ref: "spmi.yaml"
+  - $ref: spmi.yaml
 
 properties:
   compatible:
