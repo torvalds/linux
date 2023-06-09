@@ -703,11 +703,10 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	if (WARN_ON_ONCE(pmd_bad(*pmd)))
 		return NULL;
 
-	ptep = pte_offset_map(pmd, addr);
+	ptep = pte_offset_kernel(pmd, addr);
 	pte = *ptep;
 	if (pte_present(pte))
 		page = pte_page(pte);
-	pte_unmap(ptep);
 
 	return page;
 }
