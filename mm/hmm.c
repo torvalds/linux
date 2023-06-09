@@ -381,6 +381,8 @@ again:
 	}
 
 	ptep = pte_offset_map(pmdp, addr);
+	if (!ptep)
+		goto again;
 	for (; addr < end; addr += PAGE_SIZE, ptep++, hmm_pfns++) {
 		int r;
 
