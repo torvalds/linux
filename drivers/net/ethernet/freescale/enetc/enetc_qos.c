@@ -127,6 +127,14 @@ static int enetc_setup_taprio(struct enetc_ndev_priv *priv,
 	return 0;
 }
 
+static void enetc_reset_taprio_stats(struct enetc_ndev_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		priv->tx_ring[i]->stats.win_drop = 0;
+}
+
 static void enetc_reset_taprio(struct enetc_ndev_priv *priv)
 {
 	struct enetc_hw *hw = &priv->si->hw;
@@ -145,6 +153,7 @@ static void enetc_taprio_destroy(struct net_device *ndev)
 
 	enetc_reset_taprio(priv);
 	enetc_reset_tc_mqprio(ndev);
+	enetc_reset_taprio_stats(priv);
 }
 
 static void enetc_taprio_stats(struct net_device *ndev,
