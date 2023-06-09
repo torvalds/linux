@@ -356,7 +356,7 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 			 * enabled as the periodic tick based timers are
 			 * automatically aligned to the next tick.
 			 */
-			if (IS_ENABLED(CONFIG_HIGHRES_TIMERS)) {
+			if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS)) {
 				ktime_t kj = TICK_NSEC;
 
 				if (timr->it_interval < kj)
