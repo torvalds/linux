@@ -74,11 +74,15 @@ jobs:
         run: pip install yamlish junit-xml
       - name: Install openvpn
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: pwsh
         run: |
           curl -L -O https://swupdate.openvpn.org/community/releases/OpenVPN-2.5.3-I601-amd64.msi
-          cmd.exe /c "start /wait msiexec /i OpenVPN-2.5.3-I601-amd64.msi ADDLOCAL=OpenVPN,Drivers.TAPWindows6,Drivers /qn /l*v c:\\msilog.txt"
-          cat c:\\msilog.txt
+          $file = "OpenVPN-2.5.3-I601-amd64.msi"
+          $log = "install.log"
+          $procMain = Start-Process "msiexec" "/i `"$file`" /qn /l*! `"$log`"" -NoNewWindow -PassThru
+          $procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru
+          $procMain.WaitForExit()
+          $procLog.Kill()
       - name: Partial Clone
         if: runner.os == 'Windows'
         shell: msys2 {0}
