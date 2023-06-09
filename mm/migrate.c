@@ -305,6 +305,9 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 	swp_entry_t entry;
 
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+	if (!ptep)
+		return;
+
 	pte = *ptep;
 	pte_unmap(ptep);
 
