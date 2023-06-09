@@ -1357,6 +1357,6 @@ static struct i2c_driver hi556_i2c_driver = {
 
 module_i2c_driver(hi556_i2c_driver);
 
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_DESCRIPTION("Hynix HI556 sensor driver");
 MODULE_LICENSE("GPL v2");

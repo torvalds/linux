@@ -3320,6 +3320,6 @@ static struct i2c_driver ov08x40_i2c_driver = {
 module_i2c_driver(ov08x40_i2c_driver);
 
 MODULE_AUTHOR("Jason Chen <jason.z.chen@intel.com>");
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_DESCRIPTION("OmniVision OV08X40 sensor driver");
 MODULE_LICENSE("GPL");

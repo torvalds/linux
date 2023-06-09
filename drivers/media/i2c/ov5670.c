@@ -2860,7 +2860,7 @@ static struct i2c_driver ov5670_i2c_driver = {
 
 module_i2c_driver(ov5670_i2c_driver);
 
-MODULE_AUTHOR("Rapolu, Chiranjeevi <chiranjeevi.rapolu@intel.com>");
+MODULE_AUTHOR("Rapolu, Chiranjeevi");
 MODULE_AUTHOR("Yang, Hyungwoo");
 MODULE_DESCRIPTION("Omnivision ov5670 sensor driver");
 MODULE_LICENSE("GPL v2");
