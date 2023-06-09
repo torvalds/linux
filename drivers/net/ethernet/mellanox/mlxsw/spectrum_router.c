@@ -2749,6 +2749,7 @@ static void mlxsw_sp_router_update_priority_work(struct work_struct *work)
 
 static int mlxsw_sp_router_schedule_work(struct net *net,
 					 struct mlxsw_sp_router *router,
+					 struct neighbour *n,
 					 void (*cb)(struct work_struct *))
 {
 	struct mlxsw_sp_netevent_work *net_work;
@@ -2762,6 +2763,7 @@ static int mlxsw_sp_router_schedule_work(struct net *net,
 
 	INIT_WORK(&net_work->work, cb);
 	net_work->mlxsw_sp = router->mlxsw_sp;
+	net_work->n = n;
 	mlxsw_core_schedule_work(&net_work->work);
 	return NOTIFY_DONE;
 }
@@ -2779,12 +2781,11 @@ static bool mlxsw_sp_dev_lower_is_port(struct net_device *dev)
 static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 					  unsigned long event, void *ptr)
 {
-	struct mlxsw_sp_netevent_work *net_work;
-	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp_router *router;
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
+	struct net *net;
 
 	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
 
@@ -2808,39 +2809,29 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		break;
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
+		net = neigh_parms_net(n->parms);
 
 		if (n->tbl->family != AF_INET && n->tbl->family != AF_INET6)
 			return NOTIFY_DONE;
 
-		mlxsw_sp_port = mlxsw_sp_port_lower_dev_hold(n->dev);
-		if (!mlxsw_sp_port)
+		if (!mlxsw_sp_dev_lower_is_port(n->dev))
 			return NOTIFY_DONE;
-
-		net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
-		if (!net_work) {
-			mlxsw_sp_port_dev_put(mlxsw_sp_port);
-			return NOTIFY_BAD;
-		}
-
-		INIT_WORK(&net_work->work, mlxsw_sp_router_neigh_event_work);
-		net_work->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-		net_work->n = n;
 
 		/* Take a reference to ensure the neighbour won't be
 		 * destructed until we drop the reference in delayed
 		 * work.
 		 */
 		neigh_clone(n);
-		mlxsw_core_schedule_work(&net_work->work);
-		mlxsw_sp_port_dev_put(mlxsw_sp_port);
-		break;
+		return mlxsw_sp_router_schedule_work(net, router, n,
+				mlxsw_sp_router_neigh_event_work);
+
 	case NETEVENT_IPV4_MPATH_HASH_UPDATE:
 	case NETEVENT_IPV6_MPATH_HASH_UPDATE:
-		return mlxsw_sp_router_schedule_work(ptr, router,
+		return mlxsw_sp_router_schedule_work(ptr, router, NULL,
 				mlxsw_sp_router_mp_hash_event_work);
 
 	case NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE:
-		return mlxsw_sp_router_schedule_work(ptr, router,
+		return mlxsw_sp_router_schedule_work(ptr, router, NULL,
 				mlxsw_sp_router_update_priority_work);
 	}
 
