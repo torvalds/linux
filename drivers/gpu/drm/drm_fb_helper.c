@@ -1545,17 +1545,19 @@ static void drm_fb_helper_fill_pixel_fmt(struct fb_var_screeninfo *var,
 	}
 }
 
-static void __fill_var(struct fb_var_screeninfo *var,
+static void __fill_var(struct fb_var_screeninfo *var, struct fb_info *info,
 		       struct drm_framebuffer *fb)
 {
 	int i;
 
 	var->xres_virtual = fb->width;
 	var->yres_virtual = fb->height;
-	var->accel_flags = FB_ACCELF_TEXT;
+	var->accel_flags = 0;
 	var->bits_per_pixel = drm_format_info_bpp(fb->format, 0);
 
-	var->height = var->width = 0;
+	var->height = info->var.height;
+	var->width = info->var.width;
+
 	var->left_margin = var->right_margin = 0;
 	var->upper_margin = var->lower_margin = 0;
 	var->hsync_len = var->vsync_len = 0;
@@ -1618,7 +1620,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	__fill_var(var, fb);
+	__fill_var(var, info, fb);
 
 	/*
 	 * fb_pan_display() validates this, but fb_set_par() doesn't and just
@@ -2074,7 +2076,7 @@ static void drm_fb_helper_fill_var(struct fb_info *info,
 	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
-	__fill_var(&info->var, fb);
+	__fill_var(&info->var, info, fb);
 	info->var.activate = FB_ACTIVATE_NOW;
 
 	drm_fb_helper_fill_pixel_fmt(&info->var, format);
