@@ -491,8 +491,7 @@ static int do_gt_restart(struct xe_gt *gt)
 
 	for_each_hw_engine(hwe, gt, id) {
 		xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
-		xe_reg_sr_apply_whitelist(&hwe->reg_whitelist,
-					  hwe->mmio_base, gt);
+		xe_reg_sr_apply_whitelist(hwe);
 	}
 
 	return 0;

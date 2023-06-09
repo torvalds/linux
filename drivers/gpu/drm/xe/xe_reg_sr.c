@@ -20,6 +20,7 @@
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
+#include "xe_hw_engine_types.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_reg_whitelist.h"
@@ -211,12 +212,14 @@ err_force_wake:
 	drm_err(&xe->drm, "Failed to apply, err=%d\n", err);
 }
 
-void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
-			       struct xe_gt *gt)
+void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 {
+	struct xe_reg_sr *sr = &hwe->reg_whitelist;
+	struct xe_gt *gt = hwe->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_reg_sr_entry *entry;
 	struct drm_printer p;
+	u32 mmio_base = hwe->mmio_base;
 	unsigned long reg;
 	unsigned int slot = 0;
 	int err;
