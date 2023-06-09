@@ -90,6 +90,41 @@ static int bnxt_qplib_map_rc(u8 opcode)
 }
 
 /**
+ * bnxt_re_is_fw_stalled   -	Check firmware health
+ * @rcfw      -   rcfw channel instance of rdev
+ * @cookie    -   cookie to track the command
+ * @opcode    -   rcfw submitted for given opcode
+ * @cbit      -   bitmap entry of cookie
+ *
+ * If firmware has not responded any rcfw command within
+ * rcfw->max_timeout, consider firmware as stalled.
+ *
+ * Returns:
+ * 0 if firmware is responding
+ * -ENODEV if firmware is not responding
+ */
+static int bnxt_re_is_fw_stalled(struct bnxt_qplib_rcfw *rcfw,
+				 u16 cookie, u8 opcode, u16 cbit)
+{
+	struct bnxt_qplib_cmdq_ctx *cmdq;
+
+	cmdq = &rcfw->cmdq;
+
+	if (time_after(jiffies, cmdq->last_seen +
+		      (rcfw->max_timeout * HZ))) {
+		dev_warn_ratelimited(&rcfw->pdev->dev,
+				     "%s: FW STALL Detected. cmdq[%#x]=%#x waited (%d > %d) msec active %d ",
+				     __func__, cookie, opcode,
+				     jiffies_to_msecs(jiffies - cmdq->last_seen),
+				     rcfw->max_timeout * 1000,
+				     test_bit(cbit, cmdq->cmdq_bitmap));
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+/**
  * __wait_for_resp   -	Don't hold the cpu context and wait for response
  * @rcfw      -   rcfw channel instance of rdev
  * @cookie    -   cookie to track the command
@@ -105,6 +140,7 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq;
 	u16 cbit;
+	int ret;
 
 	cmdq = &rcfw->cmdq;
 	cbit = cookie % rcfw->cmdq_depth;
@@ -118,8 +154,8 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 		wait_event_timeout(cmdq->waitq,
 				   !test_bit(cbit, cmdq->cmdq_bitmap) ||
 				   test_bit(ERR_DEVICE_DETACHED, &cmdq->flags),
-				   msecs_to_jiffies(RCFW_FW_STALL_TIMEOUT_SEC
-						    * 1000));
+				   msecs_to_jiffies(rcfw->max_timeout * 1000));
+
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
 
@@ -128,10 +164,9 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie, u8 opcode)
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
 
-		/* Firmware stall is detected */
-		if (time_after(jiffies, cmdq->last_seen +
-			      (RCFW_FW_STALL_TIMEOUT_SEC * HZ)))
-			return -ENODEV;
+		ret = bnxt_re_is_fw_stalled(rcfw, cookie, opcode, cbit);
+		if (ret)
+			return ret;
 
 	} while (true);
 };
@@ -352,6 +387,7 @@ static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
 	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
 	unsigned long issue_time;
 	u16 cbit;
+	int ret;
 
 	cbit = cookie % rcfw->cmdq_depth;
 	issue_time = jiffies;
@@ -368,11 +404,10 @@ static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie,
 		if (!test_bit(cbit, cmdq->cmdq_bitmap))
 			return 0;
 		if (jiffies_to_msecs(jiffies - issue_time) >
-		    (RCFW_FW_STALL_TIMEOUT_SEC * 1000)) {
-			/* Firmware stall is detected */
-			if (time_after(jiffies, cmdq->last_seen +
-				      (RCFW_FW_STALL_TIMEOUT_SEC * HZ)))
-				return -ENODEV;
+		    (rcfw->max_timeout * 1000)) {
+			ret = bnxt_re_is_fw_stalled(rcfw, cookie, opcode, cbit);
+			if (ret)
+				return ret;
 		}
 	} while (true);
 };
@@ -950,6 +985,8 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 			       GFP_KERNEL);
 	if (!rcfw->qp_tbl)
 		goto fail;
+
+	rcfw->max_timeout = res->cctx->hwrm_cmd_max_timeout;
 
 	return 0;
 

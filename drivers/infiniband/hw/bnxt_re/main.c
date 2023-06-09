@@ -1041,6 +1041,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
 	struct hwrm_ver_get_output resp = {0};
 	struct hwrm_ver_get_input req = {0};
+	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_fw_msg fw_msg;
 	int rc = 0;
 
@@ -1058,11 +1059,18 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 			  rc);
 		return;
 	}
+
+	cctx = rdev->chip_ctx;
 	rdev->qplib_ctx.hwrm_intf_ver =
 		(u64)le16_to_cpu(resp.hwrm_intf_major) << 48 |
 		(u64)le16_to_cpu(resp.hwrm_intf_minor) << 32 |
 		(u64)le16_to_cpu(resp.hwrm_intf_build) << 16 |
 		le16_to_cpu(resp.hwrm_intf_patch);
+
+	cctx->hwrm_cmd_max_timeout = le16_to_cpu(resp.max_req_timeout);
+
+	if (!cctx->hwrm_cmd_max_timeout)
+		cctx->hwrm_cmd_max_timeout = RCFW_FW_STALL_MAX_TIMEOUT;
 }
 
 static int bnxt_re_ib_init(struct bnxt_re_dev *rdev)

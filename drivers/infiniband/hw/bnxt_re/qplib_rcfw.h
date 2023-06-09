@@ -51,7 +51,7 @@
 
 #define RCFW_DBR_PCI_BAR_REGION		2
 #define RCFW_DBR_BASE_PAGE_SHIFT	12
-#define RCFW_FW_STALL_TIMEOUT_SEC	40
+#define RCFW_FW_STALL_MAX_TIMEOUT	40
 
 /* Cmdq contains a fix number of a 16-Byte slots */
 struct bnxt_qplib_cmdqe {
@@ -227,6 +227,8 @@ struct bnxt_qplib_rcfw {
 	atomic_t rcfw_intr_enabled;
 	struct semaphore rcfw_inflight;
 	atomic_t timeout_send;
+	/* cached from chip cctx for quick reference in slow path */
+	u16 max_timeout;
 };
 
 struct bnxt_qplib_cmdqmsg {

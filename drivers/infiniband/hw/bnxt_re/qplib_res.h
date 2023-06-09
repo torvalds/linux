@@ -55,6 +55,7 @@ struct bnxt_qplib_chip_ctx {
 	u8	chip_rev;
 	u8	chip_metal;
 	u16	hw_stats_size;
+	u16	hwrm_cmd_max_timeout;
 	struct bnxt_qplib_drv_modes modes;
 };
 
