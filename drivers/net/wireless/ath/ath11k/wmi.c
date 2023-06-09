@@ -2866,21 +2866,25 @@ ath11k_wmi_send_init_country_cmd(struct ath11k *ar,
 		cmd->cc_info.regdom_id = init_cc_params.cc_info.regdom_id;
 		break;
 	default:
+		ath11k_warn(ar->ab, "unknown cc params flags: 0x%x",
+			    init_cc_params.flags);
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	ret = ath11k_wmi_cmd_send(wmi, skb,
 				  WMI_SET_INIT_COUNTRY_CMDID);
-
-out:
 	if (ret) {
 		ath11k_warn(ar->ab,
 			    "failed to send WMI_SET_INIT_COUNTRY CMD :%d\n",
 			    ret);
-		dev_kfree_skb(skb);
+		goto err;
 	}
 
+	return 0;
+
+err:
+	dev_kfree_skb(skb);
 	return ret;
 }
 
