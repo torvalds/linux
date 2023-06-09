@@ -301,10 +301,11 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 	u32 reference_clock = adev->clock.spll.reference_freq;
 
 	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 0) ||
-	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 1) ||
-	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 0) ||
-	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 1))
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 1))
 		return 10000;
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 0) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 1))
+		return reference_clock / 4;
 
 	return reference_clock;
 }
