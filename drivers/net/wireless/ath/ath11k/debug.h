@@ -26,7 +26,6 @@ enum ath11k_debug_mask {
 	ATH11K_DBG_PCI		= 0x00001000,
 	ATH11K_DBG_DP_TX	= 0x00002000,
 	ATH11K_DBG_DP_RX	= 0x00004000,
-	ATH11K_DBG_ANY		= 0xffffffff,
 };
 
 __printf(2, 3) void ath11k_info(struct ath11k_base *ab, const char *fmt, ...);
