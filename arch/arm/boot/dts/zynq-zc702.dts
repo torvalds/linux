@@ -5,6 +5,7 @@
  */
 /dts-v1/;
 #include "zynq-7000.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Xilinx ZC702 board";
@@ -106,8 +107,11 @@
 &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0_default>;
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	scl-gpios = <&gpio0 50 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio0 51 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
 	i2c-mux@74 {
 		compatible = "nxp,pca9548";
@@ -293,6 +297,19 @@
 		conf {
 			groups = "i2c0_10_grp";
 			bias-pull-up;
+			slew-rate = <0>;
+			io-standard = <1>;
+		};
+	};
+
+	pinctrl_i2c0_gpio: i2c0-gpio {
+		mux {
+			groups = "gpio0_50_grp", "gpio0_51_grp";
+			function = "gpio0";
+		};
+
+		conf {
+			groups = "gpio0_50_grp", "gpio0_51_grp";
 			slew-rate = <0>;
 			io-standard = <1>;
 		};
