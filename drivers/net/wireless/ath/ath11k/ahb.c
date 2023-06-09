@@ -734,7 +734,7 @@ static int ath11k_ahb_hif_suspend(struct ath11k_base *ab)
 		return ret;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_AHB, "ahb device suspended\n");
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "device suspended\n");
 
 	return ret;
 }
@@ -777,7 +777,7 @@ static int ath11k_ahb_hif_resume(struct ath11k_base *ab)
 		return -ETIMEDOUT;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_AHB, "ahb device resumed\n");
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "device resumed\n");
 
 	return 0;
 }

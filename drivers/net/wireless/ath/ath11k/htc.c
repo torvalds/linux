@@ -96,7 +96,7 @@ int ath11k_htc_send(struct ath11k_htc *htc,
 		spin_lock_bh(&htc->tx_lock);
 		if (ep->tx_credits < credits) {
 			ath11k_dbg(ab, ATH11K_DBG_HTC,
-				   "htc insufficient credits ep %d required %d available %d\n",
+				   "insufficient credits ep %d required %d available %d\n",
 				   eid, credits, ep->tx_credits);
 			spin_unlock_bh(&htc->tx_lock);
 			ret = -EAGAIN;
@@ -104,7 +104,7 @@ int ath11k_htc_send(struct ath11k_htc *htc,
 		}
 		ep->tx_credits -= credits;
 		ath11k_dbg(ab, ATH11K_DBG_HTC,
-			   "htc ep %d consumed %d credits (total %d)\n",
+			   "ep %d consumed %d credits (total %d)\n",
 			   eid, credits, ep->tx_credits);
 		spin_unlock_bh(&htc->tx_lock);
 	}
@@ -132,7 +132,7 @@ err_credits:
 		spin_lock_bh(&htc->tx_lock);
 		ep->tx_credits += credits;
 		ath11k_dbg(ab, ATH11K_DBG_HTC,
-			   "htc ep %d reverted %d credits back (total %d)\n",
+			   "ep %d reverted %d credits back (total %d)\n",
 			   eid, credits, ep->tx_credits);
 		spin_unlock_bh(&htc->tx_lock);
 
@@ -167,7 +167,7 @@ ath11k_htc_process_credit_report(struct ath11k_htc *htc,
 		ep = &htc->endpoint[report->eid];
 		ep->tx_credits += report->credits;
 
-		ath11k_dbg(ab, ATH11K_DBG_HTC, "htc ep %d got %d credits (total %d)\n",
+		ath11k_dbg(ab, ATH11K_DBG_HTC, "ep %d got %d credits (total %d)\n",
 			   report->eid, report->credits, ep->tx_credits);
 
 		if (ep->ep_ops.ep_tx_credits) {
@@ -239,7 +239,7 @@ static int ath11k_htc_process_trailer(struct ath11k_htc *htc,
 
 static void ath11k_htc_suspend_complete(struct ath11k_base *ab, bool ack)
 {
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot suspend complete %d\n", ack);
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "suspend complete %d\n", ack);
 
 	if (ack)
 		set_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
@@ -276,7 +276,7 @@ void ath11k_htc_tx_completion_handler(struct ath11k_base *ab,
 
 static void ath11k_htc_wakeup_from_suspend(struct ath11k_base *ab)
 {
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot wakeup from suspend is received\n");
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "wakeup from suspend is received\n");
 }
 
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
@@ -393,7 +393,7 @@ void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 		goto out;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_HTC, "htc rx completion ep %d skb %pK\n",
+	ath11k_dbg(ab, ATH11K_DBG_HTC, "rx completion ep %d skb %pK\n",
 		   eid, skb);
 	ep->ep_ops.ep_rx_complete(ab, skb);
 
@@ -615,7 +615,7 @@ int ath11k_htc_connect_service(struct ath11k_htc *htc,
 						    conn_req->service_id);
 	if (!tx_alloc)
 		ath11k_dbg(ab, ATH11K_DBG_BOOT,
-			   "boot htc service %s does not allocate target credits\n",
+			   "htc service %s does not allocate target credits\n",
 			   htc_service_name(conn_req->service_id));
 
 	skb = ath11k_htc_build_tx_ctrl_skb(htc->ab);
@@ -740,14 +740,14 @@ setup:
 		return status;
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT,
-		   "boot htc service '%s' ul pipe %d dl pipe %d eid %d ready\n",
+		   "htc service '%s' ul pipe %d dl pipe %d eid %d ready\n",
 		   htc_service_name(ep->service_id), ep->ul_pipe_id,
 		   ep->dl_pipe_id, ep->eid);
 
 	if (disable_credit_flow_ctrl && ep->tx_credit_flow_enabled) {
 		ep->tx_credit_flow_enabled = false;
 		ath11k_dbg(ab, ATH11K_DBG_BOOT,
-			   "boot htc service '%s' eid %d TX flow control disabled\n",
+			   "htc service '%s' eid %d TX flow control disabled\n",
 			   htc_service_name(ep->service_id), assigned_eid);
 	}
 

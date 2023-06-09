@@ -1010,7 +1010,7 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 				(u32 *)((unsigned long)ab->mem + reg_base);
 			else
 				ath11k_dbg(ab, ATH11k_DBG_HAL,
-					   "hal type %d ring_num %d reg_base 0x%x shadow 0x%lx\n",
+					   "type %d ring_num %d reg_base 0x%x shadow 0x%lx\n",
 					   type, ring_num,
 					   reg_base,
 					   (unsigned long)srng->u.src_ring.hp_addr -

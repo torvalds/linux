@@ -312,14 +312,14 @@ static void ath11k_pci_enable_ltssm(struct ath11k_base *ab)
 		val = ath11k_pcic_read32(ab, PCIE_PCIE_PARF_LTSSM);
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci ltssm 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "ltssm 0x%x\n", val);
 
 	val = ath11k_pcic_read32(ab, GCC_GCC_PCIE_HOT_RST);
 	val |= GCC_GCC_PCIE_HOT_RST_VAL;
 	ath11k_pcic_write32(ab, GCC_GCC_PCIE_HOT_RST, val);
 	val = ath11k_pcic_read32(ab, GCC_GCC_PCIE_HOT_RST);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci pcie_hot_rst 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pcie_hot_rst 0x%x\n", val);
 
 	mdelay(5);
 }
@@ -487,7 +487,7 @@ static int ath11k_pci_config_msi_data(struct ath11k_pci *ab_pci)
 
 	ab_pci->ab->pci.msi.ep_base_data = msi_desc->msg.data;
 
-	ath11k_dbg(ab_pci->ab, ATH11K_DBG_PCI, "pci after request_irq msi_ep_base_data %d\n",
+	ath11k_dbg(ab_pci->ab, ATH11K_DBG_PCI, "after request_irq msi_ep_base_data %d\n",
 		   ab_pci->ab->pci.msi.ep_base_data);
 
 	return 0;
@@ -545,7 +545,7 @@ static int ath11k_pci_claim(struct ath11k_pci *ab_pci, struct pci_dev *pdev)
 
 	ab->mem_ce = ab->mem;
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot pci_mem 0x%pK\n", ab->mem);
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "pci_mem 0x%pK\n", ab->mem);
 	return 0;
 
 release_region:
@@ -575,7 +575,7 @@ static void ath11k_pci_aspm_disable(struct ath11k_pci *ab_pci)
 	pcie_capability_read_word(ab_pci->pdev, PCI_EXP_LNKCTL,
 				  &ab_pci->link_ctl);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci link_ctl 0x%04x L0s %d L1 %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "link_ctl 0x%04x L0s %d L1 %d\n",
 		   ab_pci->link_ctl,
 		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L0S),
 		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L1));
@@ -709,7 +709,7 @@ static void ath11k_pci_read_hw_version(struct ath11k_base *ab, u32 *major, u32 *
 	*minor = FIELD_GET(TCSR_SOC_HW_VERSION_MINOR_MASK,
 			   soc_hw_version);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci tcsr_soc_hw_version major %d minor %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "tcsr_soc_hw_version major %d minor %d\n",
 		   *major, *minor);
 }
 

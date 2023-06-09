@@ -878,16 +878,16 @@ static void ath11k_core_check_cc_code_bdfext(const struct dmi_header *hdr, void 
 	case ATH11K_SMBIOS_CC_ISO:
 		ab->new_alpha2[0] = (smbios->cc_code >> 8) & 0xff;
 		ab->new_alpha2[1] = smbios->cc_code & 0xff;
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot smbios cc_code %c%c\n",
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "smbios cc_code %c%c\n",
 			   ab->new_alpha2[0], ab->new_alpha2[1]);
 		break;
 	case ATH11K_SMBIOS_CC_WW:
 		ab->new_alpha2[0] = '0';
 		ab->new_alpha2[1] = '0';
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot smbios worldwide regdomain\n");
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "smbios worldwide regdomain\n");
 		break;
 	default:
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot ignore smbios country code setting %d\n",
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "ignore smbios country code setting %d\n",
 			   smbios->country_code_flag);
 		break;
 	}
@@ -1001,7 +1001,7 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 		break;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot using board name '%s'\n", name);
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board name '%s'\n", name);
 
 	return 0;
 }
@@ -1040,7 +1040,7 @@ const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot firmware request %s size %zu\n",
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "firmware request %s size %zu\n",
 		   path, fw->size);
 
 	return fw;
@@ -1101,7 +1101,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 
 			name_match_found = true;
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "boot found match %s for name '%s'",
+				   "found match %s for name '%s'",
 				   ath11k_bd_ie_type_str(ie_id),
 				   boardname);
 		} else if (board_ie_id == data_id) {
@@ -1110,7 +1110,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 				goto next;
 
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "boot found %s for '%s'",
+				   "found %s for '%s'",
 				   ath11k_bd_ie_type_str(ie_id),
 				   boardname);
 

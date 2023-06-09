@@ -1651,7 +1651,7 @@ static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
 
 	backpressure_time = *data;
 
-	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt backpressure event, pdev %d, ring type %d,ring id %d, hp %d tp %d, backpressure time %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "backpressure event, pdev %d, ring type %d,ring id %d, hp %d tp %d, backpressure time %d\n",
 		   pdev_id, ring_type, ring_id, hp, tp, backpressure_time);
 
 	if (ring_type == HTT_BACKPRESSURE_UMAC_RING_TYPE) {
