@@ -886,7 +886,7 @@ extern int amd_iommu_max_glx_val;
  * This function flushes all internal caches of
  * the IOMMU used by this driver.
  */
-extern void iommu_flush_all_caches(struct amd_iommu *iommu);
+void iommu_flush_all_caches(struct amd_iommu *iommu);
 
 static inline int get_ioapic_devid(int id)
 {
