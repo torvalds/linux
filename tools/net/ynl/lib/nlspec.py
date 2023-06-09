@@ -334,7 +334,7 @@ class SpecFamily(SpecElement):
         consts     dict of all constants/enums
         fixed_header  string, optional name of family default fixed header struct
     """
-    def __init__(self, spec_path, schema_path=None):
+    def __init__(self, spec_path, schema_path=None, exclude_ops=None):
         with open(spec_path, "r") as stream:
             prefix = '# SPDX-License-Identifier: '
             first = stream.readline().strip()
@@ -348,6 +348,8 @@ class SpecFamily(SpecElement):
         self._resolution_list = []
 
         super().__init__(self, spec)
+
+        self._exclude_ops = exclude_ops if exclude_ops else []
 
         self.proto = self.yaml.get('protocol', 'genetlink')
         self.msg_id_model = self.yaml['operations'].get('enum-model', 'unified')
@@ -449,7 +451,13 @@ class SpecFamily(SpecElement):
                 req_val = None
             if rsp_val == rsp_val_next:
                 rsp_val = None
-            op = self.new_operation(elem, req_val, rsp_val)
+
+            skip = False
+            for exclude in self._exclude_ops:
+                skip |= bool(exclude.match(elem['name']))
+            if not skip:
+                op = self.new_operation(elem, req_val, rsp_val)
+
             req_val = req_val_next
             rsp_val = rsp_val_next
 

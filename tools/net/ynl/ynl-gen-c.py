@@ -4,6 +4,7 @@
 import argparse
 import collections
 import os
+import re
 import yaml
 
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
@@ -739,7 +740,7 @@ class Operation(SpecOperation):
 
 
 class Family(SpecFamily):
-    def __init__(self, file_name):
+    def __init__(self, file_name, exclude_ops):
         # Added by resolve:
         self.c_name = None
         delattr(self, "c_name")
@@ -754,7 +755,7 @@ class Family(SpecFamily):
         self.hooks = None
         delattr(self, "hooks")
 
-        super().__init__(file_name)
+        super().__init__(file_name, exclude_ops=exclude_ops)
 
         self.fam_key = c_upper(self.yaml.get('c-family-name', self.yaml["name"] + '_FAMILY_NAME'))
         self.ver_key = c_upper(self.yaml.get('c-version-name', self.yaml["name"] + '_FAMILY_VERSION'))
@@ -2241,6 +2242,7 @@ def main():
     parser.add_argument('--header', dest='header', action='store_true', default=None)
     parser.add_argument('--source', dest='header', action='store_false')
     parser.add_argument('--user-header', nargs='+', default=[])
+    parser.add_argument('--exclude-op', action='append', default=[])
     parser.add_argument('-o', dest='out_file', type=str)
     args = parser.parse_args()
 
@@ -2249,8 +2251,10 @@ def main():
     if args.header is None:
         parser.error("--header or --source is required")
 
+    exclude_ops = [re.compile(expr) for expr in args.exclude_op]
+
     try:
-        parsed = Family(args.spec)
+        parsed = Family(args.spec, exclude_ops)
         if parsed.license != '((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)':
             print('Spec license:', parsed.license)
             print('License must be: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
