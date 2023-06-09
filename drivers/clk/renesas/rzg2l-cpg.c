@@ -903,9 +903,9 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	unsigned int reg = clock->off;
 	struct device *dev = priv->dev;
 	unsigned long flags;
-	unsigned int i;
 	u32 bitmask = BIT(clock->bit);
 	u32 value;
+	int error;
 
 	if (!clock->off) {
 		dev_dbg(dev, "%pC does not support ON/OFF\n",  hw->clk);
@@ -930,19 +930,13 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	if (!priv->info->has_clk_mon_regs)
 		return 0;
 
-	for (i = 1000; i > 0; --i) {
-		if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
-			break;
-		cpu_relax();
-	}
-
-	if (!i) {
+	error = readl_poll_timeout_atomic(priv->base + CLK_MON_R(reg), value,
+					  value & bitmask, 0, 10);
+	if (error)
 		dev_err(dev, "Failed to enable CLK_ON %p\n",
 			priv->base + CLK_ON_R(reg));
-		return -ETIMEDOUT;
-	}
 
-	return 0;
+	return error;
 }
 
 static int rzg2l_mod_clock_enable(struct clk_hw *hw)
