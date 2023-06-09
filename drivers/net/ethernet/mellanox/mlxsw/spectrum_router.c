@@ -7705,7 +7705,7 @@ mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 
 	for (i = 0; i < max_rifs; i++)
 		if (mlxsw_sp->router->rifs[i] &&
-		    mlxsw_sp->router->rifs[i]->dev == dev)
+		    mlxsw_sp_rif_dev_is(mlxsw_sp->router->rifs[i], dev))
 			return mlxsw_sp->router->rifs[i];
 
 	return NULL;
@@ -8083,6 +8083,12 @@ const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
 bool mlxsw_sp_rif_has_dev(const struct mlxsw_sp_rif *rif)
 {
 	return !!mlxsw_sp_rif_dev(rif);
+}
+
+bool mlxsw_sp_rif_dev_is(const struct mlxsw_sp_rif *rif,
+			 const struct net_device *dev)
+{
+	return mlxsw_sp_rif_dev(rif) == dev;
 }
 
 static void mlxsw_sp_rif_push_l3_stats(struct mlxsw_sp_rif *rif)
