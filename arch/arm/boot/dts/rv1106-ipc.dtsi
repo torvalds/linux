@@ -288,8 +288,9 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	pinctrl-names = "default";
+	pinctrl-names = "normal", "idle";
 	pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+	pinctrl-1 = <&sdmmc0_idle_pins &sdmmc0_det>;
 	status = "okay";
 };
 

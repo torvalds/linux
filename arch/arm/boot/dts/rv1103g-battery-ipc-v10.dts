@@ -286,8 +286,9 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	non-removable;
-	pinctrl-names = "default";
+	pinctrl-names = "normal", "idle";
 	pinctrl-0 = <&sdmmc1m1_cmd &sdmmc1m1_clk &sdmmc1m1_bus4>;
+	pinctrl-1 = <&sdmmc1m1_idle_pins>;
 	no-prescan-powerup;
 	post-power-on-delay-ms = <0>;
 	status = "okay";
