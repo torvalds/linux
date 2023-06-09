@@ -392,7 +392,11 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		handle_host_smc(host_ctxt);
 		break;
 	case ESR_ELx_EC_SVE:
-		sysreg_clear_set(cptr_el2, CPTR_EL2_TZ, 0);
+		if (has_hvhe())
+			sysreg_clear_set(cpacr_el1, 0, (CPACR_EL1_ZEN_EL1EN |
+							CPACR_EL1_ZEN_EL0EN));
+		else
+			sysreg_clear_set(cptr_el2, CPTR_EL2_TZ, 0);
 		isb();
 		sve_cond_update_zcr_vq(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
 		break;
