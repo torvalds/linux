@@ -99,29 +99,39 @@ const struct ssd130x_deviceinfo ssd130x_variants[] = {
 		.default_vcomh = 0x40,
 		.default_dclk_div = 1,
 		.default_dclk_frq = 5,
+		.default_width = 132,
+		.default_height = 64,
 		.page_mode_only = 1,
 	},
 	[SSD1305_ID] = {
 		.default_vcomh = 0x34,
 		.default_dclk_div = 1,
 		.default_dclk_frq = 7,
+		.default_width = 132,
+		.default_height = 64,
 	},
 	[SSD1306_ID] = {
 		.default_vcomh = 0x20,
 		.default_dclk_div = 1,
 		.default_dclk_frq = 8,
 		.need_chargepump = 1,
+		.default_width = 128,
+		.default_height = 64,
 	},
 	[SSD1307_ID] = {
 		.default_vcomh = 0x20,
 		.default_dclk_div = 2,
 		.default_dclk_frq = 12,
 		.need_pwm = 1,
+		.default_width = 128,
+		.default_height = 39,
 	},
 	[SSD1309_ID] = {
 		.default_vcomh = 0x34,
 		.default_dclk_div = 1,
 		.default_dclk_frq = 10,
+		.default_width = 128,
+		.default_height = 64,
 	}
 };
 EXPORT_SYMBOL_NS_GPL(ssd130x_variants, DRM_SSD130X);
@@ -798,10 +808,10 @@ static void ssd130x_parse_properties(struct ssd130x_device *ssd130x)
 	struct device *dev = ssd130x->dev;
 
 	if (device_property_read_u32(dev, "solomon,width", &ssd130x->width))
-		ssd130x->width = 96;
+		ssd130x->width = ssd130x->device_info->default_width;
 
 	if (device_property_read_u32(dev, "solomon,height", &ssd130x->height))
-		ssd130x->height = 16;
+		ssd130x->height = ssd130x->device_info->default_height;
 
 	if (device_property_read_u32(dev, "solomon,page-offset", &ssd130x->page_offset))
 		ssd130x->page_offset = 1;
