@@ -277,13 +277,14 @@ def define_pineapple():
         "bootconfig",
     ]
 
+    board_kernel_cmdline_extras = []
+
     for variant in la_variants:
         if variant == "consolidate":
             mod_list = _pineapple_consolidate_in_tree_modules
-            board_kernel_cmdline_extras = ["androidboot.console=1"]
         else:
             mod_list = _pineapple_in_tree_modules
-            board_kernel_cmdline_extras = ["nosoftlockup", "androidboot.console=0"]
+            board_kernel_cmdline_extras += ["nosoftlockup", "androidboot.console=0"]
             kernel_vendor_cmdline_extras += ["nosoftlockup"]
 
         define_msm_la(

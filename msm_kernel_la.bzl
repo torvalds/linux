@@ -111,13 +111,15 @@ EOF
         ],
     )
 
-    native.genrule(
-        name = "{}_extra_cmdline".format(target),
-        outs = ["board_extra_cmdline_{}".format(target)],
-        cmd_bash = """
-            echo {} > "$@"
-        """.format(" ".join(boot_image_opts.board_kernel_cmdline_extras)),
-    )
+    board_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
+    if board_extras:
+        native.genrule(
+            name = "{}_extra_cmdline".format(target),
+            outs = ["board_extra_cmdline_{}".format(target)],
+            cmd_bash = """
+                echo {} > "$@"
+            """.format(board_extras),
+        )
 
 def _define_kernel_build(
         target,
@@ -294,7 +296,13 @@ def _define_image_build(
         ],
     )
 
-def _define_kernel_dist(target, msm_target, variant, base_kernel, define_abi_targets):
+def _define_kernel_dist(
+        target,
+        msm_target,
+        variant,
+        base_kernel,
+        define_abi_targets,
+        boot_image_opts = boot_image_opts()):
     """Creates distribution targets for kernel builds
 
     When Bazel builds everything, the outputs end up buried in `bazel-bin`.
@@ -329,7 +337,9 @@ def _define_kernel_dist(target, msm_target, variant, base_kernel, define_abi_tar
 
     msm_dist_targets.append("{}_avb_sign_boot_image".format(target))
 
-    msm_dist_targets.append("{}_extra_cmdline".format(target))
+    board_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
+    if board_extras:
+        msm_dist_targets.append("{}_extra_cmdline".format(target))
 
     if define_abi_targets:
         kernel_abi_dist(
@@ -471,7 +481,14 @@ def define_msm_la(
         in_tree_module_list = in_tree_module_list,
     )
 
-    _define_kernel_dist(target, msm_target, variant, base_kernel, define_abi_targets)
+    _define_kernel_dist(
+        target,
+        msm_target,
+        variant,
+        base_kernel,
+        define_abi_targets,
+        boot_image_opts = boot_image_opts,
+    )
 
     _define_uapi_library(target)
 
