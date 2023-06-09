@@ -724,13 +724,11 @@ int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 	return 0;
 }
 
-static int bnxt_qplib_map_cmdq_mbox(struct bnxt_qplib_rcfw *rcfw, bool is_vf)
+static int bnxt_qplib_map_cmdq_mbox(struct bnxt_qplib_rcfw *rcfw)
 {
 	struct bnxt_qplib_cmdq_mbox *mbox;
 	resource_size_t bar_reg;
 	struct pci_dev *pdev;
-	u16 prod_offt;
-	int rc = 0;
 
 	pdev = rcfw->pdev;
 	mbox = &rcfw->cmdq.cmdq_mbox;
@@ -755,11 +753,10 @@ static int bnxt_qplib_map_cmdq_mbox(struct bnxt_qplib_rcfw *rcfw, bool is_vf)
 		return -ENOMEM;
 	}
 
-	prod_offt = is_vf ? RCFW_VF_COMM_PROD_OFFSET :
-			    RCFW_PF_COMM_PROD_OFFSET;
-	mbox->prod = (void  __iomem *)(mbox->reg.bar_reg + prod_offt);
+	mbox->prod = (void  __iomem *)(mbox->reg.bar_reg +
+			RCFW_PF_VF_COMM_PROD_OFFSET);
 	mbox->db = (void __iomem *)(mbox->reg.bar_reg + RCFW_COMM_TRIG_OFFSET);
-	return rc;
+	return 0;
 }
 
 static int bnxt_qplib_map_creq_db(struct bnxt_qplib_rcfw *rcfw, u32 reg_offt)
@@ -820,7 +817,7 @@ static void bnxt_qplib_start_rcfw(struct bnxt_qplib_rcfw *rcfw)
 
 int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,
-				   int cp_bar_reg_off, int virt_fn,
+				   int cp_bar_reg_off,
 				   aeq_handler_t aeq_handler)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq;
@@ -840,7 +837,7 @@ int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 	creq->stats.creq_func_event_processed = 0;
 	creq->aeq_handler = aeq_handler;
 
-	rc = bnxt_qplib_map_cmdq_mbox(rcfw, virt_fn);
+	rc = bnxt_qplib_map_cmdq_mbox(rcfw);
 	if (rc)
 		return rc;
 

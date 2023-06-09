@@ -45,8 +45,7 @@
 #define RCFW_COMM_PCI_BAR_REGION	0
 #define RCFW_COMM_CONS_PCI_BAR_REGION	2
 #define RCFW_COMM_BASE_OFFSET		0x600
-#define RCFW_PF_COMM_PROD_OFFSET	0xc
-#define RCFW_VF_COMM_PROD_OFFSET	0xc
+#define RCFW_PF_VF_COMM_PROD_OFFSET	0xc
 #define RCFW_COMM_TRIG_OFFSET		0x100
 #define RCFW_COMM_SIZE			0x104
 
@@ -235,7 +234,7 @@ int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 			      bool need_init);
 int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,
-				   int cp_bar_reg_off, int virt_fn,
+				   int cp_bar_reg_off,
 				   aeq_handler_t aeq_handler);
 
 struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
