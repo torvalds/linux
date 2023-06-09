@@ -111,4 +111,10 @@ static inline bool icmpv6_is_err(int type)
 	return false;
 }
 
+static inline int sk_is_icmpv6(struct sock *sk)
+{
+	return sk->sk_family == AF_INET6 &&
+		inet_sk(sk)->inet_num == IPPROTO_ICMPV6;
+}
+
 #endif
