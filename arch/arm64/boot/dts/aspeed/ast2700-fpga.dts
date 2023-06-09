@@ -41,6 +41,14 @@
 	};
 };
 
+&jtag0 {
+	status = "okay";
+};
+
+&jtag1 {
+	status = "okay";
+};
+
 &uart4 {
 	status = "okay";
 };
