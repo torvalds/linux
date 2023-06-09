@@ -172,9 +172,11 @@ def define_gen3auto():
         "drivers/virt/gunyah/gh_rm_drv.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
+        "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",
+        "net/wireless/cfg80211.ko",
     ]
 
     _gen3auto_consolidate_in_tree_modules = _gen3auto_in_tree_modules + [

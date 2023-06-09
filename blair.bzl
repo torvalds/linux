@@ -134,8 +134,10 @@ def define_blair():
         "drivers/usb/phy/phy-qcom-emu.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
+        "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
+        "net/wireless/cfg80211.ko",
     ]
 
     _blair_consolidate_in_tree_modules = _blair_in_tree_modules + [

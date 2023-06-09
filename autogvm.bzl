@@ -89,8 +89,10 @@ def define_autogvm():
         "drivers/virtio/virtio_mmio.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "net/core/failover.ko",
+        "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-mhi.ko",
+        "net/wireless/cfg80211.ko",
     ]
 
     _autogvm_consolidate_in_tree_modules = _autogvm_in_tree_modules + [
