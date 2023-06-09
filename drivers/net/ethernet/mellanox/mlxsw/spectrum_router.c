@@ -8075,7 +8075,7 @@ int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
 	return rif->dev->ifindex;
 }
 
-const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
+static const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
 {
 	return rif->dev;
 }

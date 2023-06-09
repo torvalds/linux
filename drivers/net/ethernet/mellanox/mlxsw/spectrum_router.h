@@ -93,7 +93,6 @@ u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_rif_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif);
 u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev);
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
-const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif);
 bool mlxsw_sp_rif_has_dev(const struct mlxsw_sp_rif *rif);
 bool mlxsw_sp_rif_dev_is(const struct mlxsw_sp_rif *rif,
 			 const struct net_device *dev);
