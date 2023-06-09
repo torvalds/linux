@@ -23,23 +23,11 @@ static const struct mtk_gate_regs mm1_cg_regs = {
 	.sta_ofs = 0x0110,
 };
 
-#define GATE_MM0(_id, _name, _parent, _shift) {			\
-	.id = _id,					\
-	.name = _name,					\
-	.parent_name = _parent,				\
-	.regs = &mm0_cg_regs,				\
-	.shift = _shift,				\
-	.ops = &mtk_clk_gate_ops_setclr,		\
-}
+#define GATE_MM0(_id, _name, _parent, _shift)	\
+	GATE_MTK(_id, _name, _parent, &mm0_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_MM1(_id, _name, _parent, _shift) {			\
-	.id = _id,					\
-	.name = _name,					\
-	.parent_name = _parent,				\
-	.regs = &mm1_cg_regs,				\
-	.shift = _shift,				\
-	.ops = &mtk_clk_gate_ops_setclr,		\
-}
+#define GATE_MM1(_id, _name, _parent, _shift)	\
+	GATE_MTK(_id, _name, _parent, &mm1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static const struct mtk_gate mm_clks[] = {
 	GATE_MM0(CLK_MM_SMI_COMMON, "mm_smi_common", "mm_sel", 0),

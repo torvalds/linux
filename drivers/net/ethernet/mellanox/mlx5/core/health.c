@@ -699,7 +699,7 @@ static void mlx5_fw_fatal_reporter_err_work(struct work_struct *work)
 		 * requests from the kernel.
 		 */
 		mlx5_core_err(dev, "Driver is in error state. Unloading\n");
-		mlx5_unload_one(dev);
+		mlx5_unload_one(dev, false);
 	}
 }
 

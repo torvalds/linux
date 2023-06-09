@@ -1641,7 +1641,8 @@ noinline bool dcn30_internal_validate_bw(
 		display_e2e_pipe_params_st *pipes,
 		int *pipe_cnt_out,
 		int *vlevel_out,
-		bool fast_validate)
+		bool fast_validate,
+		bool allow_self_refresh_only)
 {
 	bool out = false;
 	bool repopulate_pipes = false;
@@ -1668,7 +1669,7 @@ noinline bool dcn30_internal_validate_bw(
 
 	dml_log_pipe_params(&context->bw_ctx.dml, pipes, pipe_cnt);
 
-	if (!fast_validate) {
+	if (!fast_validate || !allow_self_refresh_only) {
 		/*
 		 * DML favors voltage over p-state, but we're more interested in
 		 * supporting p-state over voltage. We can't support p-state in
@@ -1681,11 +1682,12 @@ noinline bool dcn30_internal_validate_bw(
 		if (vlevel < context->bw_ctx.dml.soc.num_states)
 			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
 	}
-	if (fast_validate || vlevel == context->bw_ctx.dml.soc.num_states ||
-			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported) {
+	if (allow_self_refresh_only &&
+	    (fast_validate || vlevel == context->bw_ctx.dml.soc.num_states ||
+			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported)) {
 		/*
-		 * If mode is unsupported or there's still no p-state support then
-		 * fall back to favoring voltage.
+		 * If mode is unsupported or there's still no p-state support
+		 * then fall back to favoring voltage.
 		 *
 		 * We don't actually support prefetch mode 2, so require that we
 		 * at least support prefetch mode 1.
@@ -2056,7 +2058,7 @@ bool dcn30_validate_bandwidth(struct dc *dc,
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
-	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
+	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate, true);
 	DC_FP_END();
 
 	if (pipe_cnt == 0)

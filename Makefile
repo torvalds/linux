@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
 PATCHLEVEL = 1
-SUBLEVEL = 27
+SUBLEVEL = 28
 EXTRAVERSION =
-NAME = Hurr durr I'ma ninja sloth
+NAME = Curry Ramen
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

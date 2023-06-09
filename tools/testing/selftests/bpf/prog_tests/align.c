@@ -565,14 +565,14 @@ static struct bpf_align_test tests[] = {
 			/* New unknown value in R7 is (4n), >= 76 */
 			{14, "R7_w=scalar(umin=76,umax=1096,var_off=(0x0; 0x7fc))"},
 			/* Adding it to packet pointer gives nice bounds again */
-			{16, "R5_w=pkt(id=3,off=0,r=0,umin=2,umax=1082,var_off=(0x2; 0xfffffffc)"},
+			{16, "R5_w=pkt(id=3,off=0,r=0,umin=2,umax=1082,var_off=(0x2; 0x7fc)"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off (0)
 			 * which is 2.  Then the variable offset is (4n+2), so
 			 * the total offset is 4-byte aligned and meets the
 			 * load's requirements.
 			 */
-			{20, "R5=pkt(id=3,off=0,r=4,umin=2,umax=1082,var_off=(0x2; 0xfffffffc)"},
+			{20, "R5=pkt(id=3,off=0,r=4,umin=2,umax=1082,var_off=(0x2; 0x7fc)"},
 		},
 	},
 };

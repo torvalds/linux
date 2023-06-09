@@ -539,7 +539,8 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 	if (txwi[2] & cpu_to_le32(MT_TXD2_FIX_RATE)) {
 		/* Fixed rata is available just for 802.11 txd */
 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-		bool multicast = is_multicast_ether_addr(hdr->addr1);
+		bool multicast = ieee80211_is_data(hdr->frame_control) &&
+				 is_multicast_ether_addr(hdr->addr1);
 		u16 rate = mt76_connac2_mac_tx_rate_val(mphy, vif, beacon,
 							multicast);
 		u32 val = MT_TXD6_FIXED_BW;
