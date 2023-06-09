@@ -72,7 +72,7 @@
 /* Bad GPU tag ‘BADG’ */
 #define RAS_TABLE_HDR_BAD       0x42414447
 
-/**
+/*
  * EEPROM Table structure v1
  * ---------------------------------
  * |                               |
@@ -94,7 +94,7 @@
 #define RAS_MAX_RECORD_COUNT    ((RAS_TBL_SIZE_BYTES - RAS_TABLE_HEADER_SIZE) \
 				 / RAS_TABLE_RECORD_SIZE)
 
-/**
+/*
  * EEPROM Table structrue v2.1
  * ---------------------------------
  * |                               |
