@@ -146,6 +146,31 @@ static inline struct ssd130x_device *drm_to_ssd130x(struct drm_device *drm)
 	return container_of(drm, struct ssd130x_device, drm);
 }
 
+static int ssd130x_buf_alloc(struct ssd130x_device *ssd130x)
+{
+	unsigned int page_height = ssd130x->device_info->page_height;
+	unsigned int pages = DIV_ROUND_UP(ssd130x->height, page_height);
+
+	ssd130x->buffer = kcalloc(DIV_ROUND_UP(ssd130x->width, 8),
+				  ssd130x->height, GFP_KERNEL);
+	if (!ssd130x->buffer)
+		return -ENOMEM;
+
+	ssd130x->data_array = kcalloc(ssd130x->width, pages, GFP_KERNEL);
+	if (!ssd130x->data_array) {
+		kfree(ssd130x->buffer);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void ssd130x_buf_free(struct ssd130x_device *ssd130x)
+{
+	kfree(ssd130x->data_array);
+	kfree(ssd130x->buffer);
+}
+
 /*
  * Helper to write data (SSD130X_DATA) to the device.
  */
@@ -434,11 +459,12 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 				 SSD130X_SET_ADDRESS_MODE_HORIZONTAL);
 }
 
-static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
-			       struct drm_rect *rect)
+static int ssd130x_update_rect(struct ssd130x_device *ssd130x, struct drm_rect *rect)
 {
 	unsigned int x = rect->x1;
 	unsigned int y = rect->y1;
+	u8 *buf = ssd130x->buffer;
+	u8 *data_array = ssd130x->data_array;
 	unsigned int width = drm_rect_width(rect);
 	unsigned int height = drm_rect_height(rect);
 	unsigned int line_length = DIV_ROUND_UP(width, 8);
@@ -447,13 +473,8 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	struct drm_device *drm = &ssd130x->drm;
 	u32 array_idx = 0;
 	int ret, i, j, k;
-	u8 *data_array = NULL;
 
 	drm_WARN_ONCE(drm, y % 8 != 0, "y must be aligned to screen page\n");
-
-	data_array = kcalloc(width, pages, GFP_KERNEL);
-	if (!data_array)
-		return -ENOMEM;
 
 	/*
 	 * The screen is divided in pages, each having a height of 8
@@ -488,11 +509,11 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 		/* Set address range for horizontal addressing mode */
 		ret = ssd130x_set_col_range(ssd130x, ssd130x->col_offset + x, width);
 		if (ret < 0)
-			goto out_free;
+			return ret;
 
 		ret = ssd130x_set_page_range(ssd130x, ssd130x->page_offset + y / 8, pages);
 		if (ret < 0)
-			goto out_free;
+			return ret;
 	}
 
 	for (i = 0; i < pages; i++) {
@@ -522,11 +543,11 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 						   ssd130x->page_offset + i,
 						   ssd130x->col_offset + x);
 			if (ret < 0)
-				goto out_free;
+				return ret;
 
 			ret = ssd130x_write_data(ssd130x, data_array, width);
 			if (ret < 0)
-				goto out_free;
+				return ret;
 
 			array_idx = 0;
 		}
@@ -536,14 +557,11 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	if (!ssd130x->page_address_mode)
 		ret = ssd130x_write_data(ssd130x, data_array, width * pages);
 
-out_free:
-	kfree(data_array);
 	return ret;
 }
 
 static void ssd130x_clear_screen(struct ssd130x_device *ssd130x)
 {
-	u8 *buf = NULL;
 	struct drm_rect fullscreen = {
 		.x1 = 0,
 		.x2 = ssd130x->width,
@@ -551,14 +569,7 @@ static void ssd130x_clear_screen(struct ssd130x_device *ssd130x)
 		.y2 = ssd130x->height,
 	};
 
-	buf = kcalloc(DIV_ROUND_UP(ssd130x->width, 8), ssd130x->height,
-		      GFP_KERNEL);
-	if (!buf)
-		return;
-
-	ssd130x_update_rect(ssd130x, buf, &fullscreen);
-
-	kfree(buf);
+	ssd130x_update_rect(ssd130x, &fullscreen);
 }
 
 static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct iosys_map *vmap,
@@ -569,30 +580,27 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct iosys_m
 	struct iosys_map dst;
 	unsigned int dst_pitch;
 	int ret = 0;
-	u8 *buf = NULL;
+	u8 *buf = ssd130x->buffer;
+
+	if (!buf)
+		return 0;
 
 	/* Align y to display page boundaries */
 	rect->y1 = round_down(rect->y1, page_height);
 	rect->y2 = min_t(unsigned int, round_up(rect->y2, page_height), ssd130x->height);
 
 	dst_pitch = DIV_ROUND_UP(drm_rect_width(rect), page_height);
-	buf = kcalloc(dst_pitch, drm_rect_height(rect), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
 	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	iosys_map_set_vaddr(&dst, buf);
 	drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, vmap, fb, rect);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
-	ssd130x_update_rect(ssd130x, buf, rect);
-
-out_free:
-	kfree(buf);
+	ssd130x_update_rect(ssd130x, rect);
 
 	return ret;
 }
@@ -701,14 +709,22 @@ static void ssd130x_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 		return;
 
 	ret = ssd130x_init(ssd130x);
-	if (ret) {
-		ssd130x_power_off(ssd130x);
-		return;
-	}
+	if (ret)
+		goto power_off;
+
+	ret = ssd130x_buf_alloc(ssd130x);
+	if (ret)
+		goto power_off;
 
 	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_ON);
 
 	backlight_enable(ssd130x->bl_dev);
+
+	return;
+
+power_off:
+	ssd130x_power_off(ssd130x);
+	return;
 }
 
 static void ssd130x_encoder_helper_atomic_disable(struct drm_encoder *encoder,
@@ -720,6 +736,8 @@ static void ssd130x_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 	backlight_disable(ssd130x->bl_dev);
 
 	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_OFF);
+
+	ssd130x_buf_free(ssd130x);
 
 	ssd130x_power_off(ssd130x);
 }
