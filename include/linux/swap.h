@@ -337,25 +337,6 @@ struct swap_info_struct {
 					   */
 };
 
-#ifdef CONFIG_64BIT
-#define SWAP_RA_ORDER_CEILING	5
-#else
-/* Avoid stack overflow, because we need to save part of page table */
-#define SWAP_RA_ORDER_CEILING	3
-#define SWAP_RA_PTE_CACHE_SIZE	(1 << SWAP_RA_ORDER_CEILING)
-#endif
-
-struct vma_swap_readahead {
-	unsigned short win;
-	unsigned short offset;
-	unsigned short nr_pte;
-#ifdef CONFIG_64BIT
-	pte_t *ptes;
-#else
-	pte_t ptes[SWAP_RA_PTE_CACHE_SIZE];
-#endif
-};
-
 static inline swp_entry_t folio_swap_entry(struct folio *folio)
 {
 	swp_entry_t entry = { .val = page_private(&folio->page) };
