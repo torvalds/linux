@@ -13,16 +13,28 @@ static inline bool not_found(struct page_vma_mapped_walk *pvmw)
 	return false;
 }
 
-static bool map_pte(struct page_vma_mapped_walk *pvmw)
+static bool map_pte(struct page_vma_mapped_walk *pvmw, spinlock_t **ptlp)
 {
 	if (pvmw->flags & PVMW_SYNC) {
 		/* Use the stricter lookup */
 		pvmw->pte = pte_offset_map_lock(pvmw->vma->vm_mm, pvmw->pmd,
 						pvmw->address, &pvmw->ptl);
-		return true;
+		*ptlp = pvmw->ptl;
+		return !!pvmw->pte;
 	}
 
-	pvmw->pte = pte_offset_map(pvmw->pmd, pvmw->address);
+	/*
+	 * It is important to return the ptl corresponding to pte,
+	 * in case *pvmw->pmd changes underneath us; so we need to
+	 * return it even when choosing not to lock, in case caller
+	 * proceeds to loop over next ptes, and finds a match later.
+	 * Though, in most cases, page lock already protects this.
+	 */
+	pvmw->pte = pte_offset_map_nolock(pvmw->vma->vm_mm, pvmw->pmd,
+					  pvmw->address, ptlp);
+	if (!pvmw->pte)
+		return false;
+
 	if (pvmw->flags & PVMW_MIGRATION) {
 		if (!is_swap_pte(*pvmw->pte))
 			return false;
@@ -51,7 +63,7 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
 	} else if (!pte_present(*pvmw->pte)) {
 		return false;
 	}
-	pvmw->ptl = pte_lockptr(pvmw->vma->vm_mm, pvmw->pmd);
+	pvmw->ptl = *ptlp;
 	spin_lock(pvmw->ptl);
 	return true;
 }
@@ -156,6 +168,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 	struct vm_area_struct *vma = pvmw->vma;
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long end;
+	spinlock_t *ptl;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -257,8 +270,11 @@ restart:
 			step_forward(pvmw, PMD_SIZE);
 			continue;
 		}
-		if (!map_pte(pvmw))
+		if (!map_pte(pvmw, &ptl)) {
+			if (!pvmw->pte)
+				goto restart;
 			goto next_pte;
+		}
 this_pte:
 		if (check_pte(pvmw))
 			return true;
@@ -281,7 +297,7 @@ next_pte:
 		} while (pte_none(*pvmw->pte));
 
 		if (!pvmw->ptl) {
-			pvmw->ptl = pte_lockptr(mm, pvmw->pmd);
+			pvmw->ptl = ptl;
 			spin_lock(pvmw->ptl);
 		}
 		goto this_pte;
