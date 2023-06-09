@@ -2766,13 +2766,22 @@ static int mlxsw_sp_router_schedule_work(struct net *net,
 	return NOTIFY_DONE;
 }
 
+static bool mlxsw_sp_dev_lower_is_port(struct net_device *dev)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+
+	rcu_read_lock();
+	mlxsw_sp_port = mlxsw_sp_port_dev_lower_find_rcu(dev);
+	rcu_read_unlock();
+	return !!mlxsw_sp_port;
+}
+
 static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 					  unsigned long event, void *ptr)
 {
 	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp_router *router;
-	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
@@ -2791,15 +2800,11 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		/* We are in atomic context and can't take RTNL mutex,
 		 * so use RCU variant to walk the device chain.
 		 */
-		mlxsw_sp_port = mlxsw_sp_port_lower_dev_hold(p->dev);
-		if (!mlxsw_sp_port)
+		if (!mlxsw_sp_dev_lower_is_port(p->dev))
 			return NOTIFY_DONE;
 
-		mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 		interval = jiffies_to_msecs(NEIGH_VAR(p, DELAY_PROBE_TIME));
-		mlxsw_sp->router->neighs_update.interval = interval;
-
-		mlxsw_sp_port_dev_put(mlxsw_sp_port);
+		router->neighs_update.interval = interval;
 		break;
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
