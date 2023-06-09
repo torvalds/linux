@@ -797,8 +797,10 @@ transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder cpu_trans
 		return cpu_transcoder == TRANSCODER_A || cpu_transcoder == TRANSCODER_B;
 	else if (DISPLAY_VER(dev_priv) >= 12)
 		return cpu_transcoder == TRANSCODER_A;
-	else
+	else if (DISPLAY_VER(dev_priv) >= 9)
 		return cpu_transcoder == TRANSCODER_EDP;
+	else
+		return false;
 }
 
 static u32 intel_get_frame_time_us(const struct intel_crtc_state *cstate)
