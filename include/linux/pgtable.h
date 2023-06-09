@@ -96,9 +96,9 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
 
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address)				\
-	((pte_t *)kmap_atomic(pmd_page(*(dir))) +		\
+	((pte_t *)kmap_local_page(pmd_page(*(dir))) +		\
 	 pte_index((address)))
-#define pte_unmap(pte) kunmap_atomic((pte))
+#define pte_unmap(pte) kunmap_local((pte))
 #else
 #define pte_offset_map(dir, address)	pte_offset_kernel((dir), (address))
 #define pte_unmap(pte) ((void)(pte))	/* NOP */
