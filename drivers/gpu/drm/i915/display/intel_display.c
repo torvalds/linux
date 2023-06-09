@@ -3153,6 +3153,10 @@ static void bdw_set_pipe_misc(const struct intel_crtc_state *crtc_state)
 	if (DISPLAY_VER(dev_priv) >= 12)
 		val |= PIPE_MISC_PIXEL_ROUNDING_TRUNC;
 
+	/* allow PSR with sprite enabled */
+	if (IS_BROADWELL(dev_priv))
+		val |= PIPE_MISC_PSR_MASK_SPRITE_ENABLE;
+
 	intel_de_write(dev_priv, PIPE_MISC(crtc->pipe), val);
 }
 
