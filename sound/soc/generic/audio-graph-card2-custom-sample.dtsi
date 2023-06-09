@@ -42,6 +42,15 @@
 	 * [Normal]
 	 *	cpu0 <-@-----------------> codec0
 	 *
+	 * [Semi-Multi]
+	 *
+	 * CPU:Codec = 1:N
+	 *
+	 *			+-+
+	 *	cpu7 <-@------->| |-> codec12
+	 *			| |-> codec13
+	 *			+-+
+	 *
 	 * [Multi-CPU/Codec]
 	 *		+-+		+-+
 	 *	cpu1 <--| |<-@--------->| |-> codec1
@@ -128,6 +137,9 @@
 			 */
 			 &cpu0
 
+			/* [Semi-Multi] */
+			&sm0
+
 			/*
 			 * [Multi-CPU/Codec]: cpu side only
 			 * cpu1/cpu2/codec1/codec2
@@ -193,6 +205,13 @@
 				port@0 { mc2c1_ep:  endpoint { remote-endpoint = <&c2cmb_ep>;  }; };
 				port@1 { mc2c10_ep: endpoint { remote-endpoint = <&codec10_ep>; }; };
 				port@2 { mc2c11_ep: endpoint { remote-endpoint = <&codec11_ep>; }; };
+			};
+
+			/* [Semi-Multi] */
+			ports@5 {
+				port@0 { smcodec0_ep: endpoint { remote-endpoint = <&cpu7_ep>;    }; };
+				port@1 { smcodec1_ep: endpoint { remote-endpoint = <&codec12_ep>; }; };
+				port@2 { smcodec2_ep: endpoint { remote-endpoint = <&codec13_ep>; }; };
 			};
 		};
 
@@ -261,6 +280,9 @@
 			/* [DPCM-Multi]::FE */
 			      port@5 { cpu5_ep: endpoint { remote-endpoint = <&fe10_ep>; }; };
 			      port@6 { cpu6_ep: endpoint { remote-endpoint = <&fe11_ep>; }; };
+
+			/* [Semi-Multi] */
+			sm0:  port@7 { cpu7_ep: endpoint { remote-endpoint = <&smcodec0_ep>; }; };
 		};
 	};
 
@@ -311,6 +333,10 @@
 			port@9  { codec9_ep:  endpoint { remote-endpoint = <&mc2c01_ep>; }; };
 			port@10 { codec10_ep: endpoint { remote-endpoint = <&mc2c10_ep>; }; };
 			port@11 { codec11_ep: endpoint { remote-endpoint = <&mc2c11_ep>; }; };
+
+			/* [Semi-Multi] */
+			port@12 { codec12_ep: endpoint { remote-endpoint = <&smcodec1_ep>; }; };
+			port@13 { codec13_ep: endpoint { remote-endpoint = <&smcodec2_ep>; }; };
 		};
 	};
 };
