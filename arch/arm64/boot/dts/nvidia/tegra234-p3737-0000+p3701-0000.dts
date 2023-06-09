@@ -2345,9 +2345,8 @@
 	};
 
 	sound {
-		status = "okay";
-
 		compatible = "nvidia,tegra186-audio-graph-card";
+		status = "okay";
 
 		dais = /* ADMAIF (FE) Ports */
 		       <&admaif0_port>, <&admaif1_port>, <&admaif2_port>, <&admaif3_port>,
