@@ -332,7 +332,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 	pmd_t pmd;
 
 again:
-	pmd = READ_ONCE(*pmdp);
+	pmd = pmdp_get_lockless(pmdp);
 	if (pmd_none(pmd))
 		return hmm_vma_walk_hole(start, end, -1, walk);
 

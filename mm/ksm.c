@@ -1194,8 +1194,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	 * without holding anon_vma lock for write.  So when looking for a
 	 * genuine pmde (in which to find pte), test present and !THP together.
 	 */
-	pmde = *pmd;
-	barrier();
+	pmde = pmdp_get_lockless(pmd);
 	if (!pmd_present(pmde) || pmd_trans_huge(pmde))
 		goto out;
 

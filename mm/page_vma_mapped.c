@@ -210,7 +210,7 @@ restart:
 		 * compiler and used as a stale value after we've observed a
 		 * subsequent update.
 		 */
-		pmde = READ_ONCE(*pvmw->pmd);
+		pmde = pmdp_get_lockless(pvmw->pmd);
 
 		if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde) ||
 		    (pmd_present(pmde) && pmd_devmap(pmde))) {

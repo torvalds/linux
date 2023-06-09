@@ -959,11 +959,6 @@ static int find_pmd_or_thp_or_none(struct mm_struct *mm,
 		return SCAN_PMD_NULL;
 
 	pmde = pmdp_get_lockless(*pmd);
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	/* See comments in pmd_none_or_trans_huge_or_clear_bad() */
-	barrier();
-#endif
 	if (pmd_none(pmde))
 		return SCAN_PMD_NONE;
 	if (!pmd_present(pmde))

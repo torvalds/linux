@@ -349,15 +349,7 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
 	if (!pud_present(*pud))
 		goto out;
 	pmd = pmd_offset(pud, address);
-	/*
-	 * READ_ONCE must function as a barrier with narrower scope
-	 * and it must be equivalent to:
-	 *	_pmd = *pmd; barrier();
-	 *
-	 * This is to deal with the instability (as in
-	 * pmd_trans_unstable) of the pmd.
-	 */
-	_pmd = READ_ONCE(*pmd);
+	_pmd = pmdp_get_lockless(pmd);
 	if (pmd_none(_pmd))
 		goto out;
 

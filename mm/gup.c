@@ -654,11 +654,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
 	struct mm_struct *mm = vma->vm_mm;
 
 	pmd = pmd_offset(pudp, address);
-	/*
-	 * The READ_ONCE() will stabilize the pmdval in a register or
-	 * on the stack so that it will stop changing under the code.
-	 */
-	pmdval = READ_ONCE(*pmd);
+	pmdval = pmdp_get_lockless(pmd);
 	if (pmd_none(pmdval))
 		return no_page_table(vma, flags);
 	if (!pmd_present(pmdval))

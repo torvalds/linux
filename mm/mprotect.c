@@ -309,11 +309,6 @@ static inline int pmd_none_or_clear_bad_unless_trans_huge(pmd_t *pmd)
 {
 	pmd_t pmdval = pmdp_get_lockless(pmd);
 
-	/* See pmd_none_or_trans_huge_or_clear_bad for info on barrier */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	barrier();
-#endif
-
 	if (pmd_none(pmdval))
 		return 1;
 	if (pmd_trans_huge(pmdval))
