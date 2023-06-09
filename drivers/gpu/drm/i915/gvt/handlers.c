@@ -1562,7 +1562,7 @@ static int pf_write(struct intel_vgpu *vgpu,
 
 	if ((offset == _PS_1A_CTRL || offset == _PS_2A_CTRL ||
 	   offset == _PS_1B_CTRL || offset == _PS_2B_CTRL ||
-	   offset == _PS_1C_CTRL) && (val & PS_PLANE_SEL_MASK) != 0) {
+	   offset == _PS_1C_CTRL) && (val & PS_BINDING_MASK) != PS_BINDING_PIPE) {
 		drm_WARN_ONCE(&i915->drm, true,
 			      "VM(%d): guest is trying to scaling a plane\n",
 			      vgpu->id);

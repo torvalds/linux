@@ -50,6 +50,7 @@
 #include "i915_debugfs_params.h"
 #include "i915_driver.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "i915_scheduler.h"
 #include "intel_mchbar_regs.h"
 

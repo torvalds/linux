@@ -11,6 +11,7 @@
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_cx0_phy.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
@@ -34,27 +35,28 @@ static void intel_connector_verify_state(struct intel_crtc_state *crtc_state,
 	if (connector->get_hw_state(connector)) {
 		struct intel_encoder *encoder = intel_attached_encoder(connector);
 
-		I915_STATE_WARN(!crtc_state,
+		I915_STATE_WARN(i915, !crtc_state,
 				"connector enabled without attached crtc\n");
 
 		if (!crtc_state)
 			return;
 
-		I915_STATE_WARN(!crtc_state->hw.active,
+		I915_STATE_WARN(i915, !crtc_state->hw.active,
 				"connector is active, but attached crtc isn't\n");
 
 		if (!encoder || encoder->type == INTEL_OUTPUT_DP_MST)
 			return;
 
-		I915_STATE_WARN(conn_state->best_encoder != &encoder->base,
+		I915_STATE_WARN(i915,
+				conn_state->best_encoder != &encoder->base,
 				"atomic encoder doesn't match attached encoder\n");
 
-		I915_STATE_WARN(conn_state->crtc != encoder->base.crtc,
+		I915_STATE_WARN(i915, conn_state->crtc != encoder->base.crtc,
 				"attached encoder crtc differs from connector crtc\n");
 	} else {
-		I915_STATE_WARN(crtc_state && crtc_state->hw.active,
+		I915_STATE_WARN(i915, crtc_state && crtc_state->hw.active,
 				"attached crtc is active, but connector isn't\n");
-		I915_STATE_WARN(!crtc_state && conn_state->best_encoder,
+		I915_STATE_WARN(i915, !crtc_state && conn_state->best_encoder,
 				"best encoder set without crtc!\n");
 	}
 }
@@ -79,7 +81,7 @@ verify_connector_state(struct intel_atomic_state *state,
 
 		intel_connector_verify_state(crtc_state, new_conn_state);
 
-		I915_STATE_WARN(new_conn_state->best_encoder != encoder,
+		I915_STATE_WARN(to_i915(connector->dev), new_conn_state->best_encoder != encoder,
 				"connector's atomic encoder doesn't match legacy encoder\n");
 	}
 }
@@ -130,15 +132,15 @@ verify_encoder_state(struct drm_i915_private *dev_priv, struct intel_atomic_stat
 			found = true;
 			enabled = true;
 
-			I915_STATE_WARN(new_conn_state->crtc !=
-					encoder->base.crtc,
+			I915_STATE_WARN(dev_priv,
+					new_conn_state->crtc != encoder->base.crtc,
 					"connector's crtc doesn't match encoder crtc\n");
 		}
 
 		if (!found)
 			continue;
 
-		I915_STATE_WARN(!!encoder->base.crtc != enabled,
+		I915_STATE_WARN(dev_priv, !!encoder->base.crtc != enabled,
 				"encoder's enabled state mismatch (expected %i, found %i)\n",
 				!!encoder->base.crtc, enabled);
 
@@ -146,7 +148,7 @@ verify_encoder_state(struct drm_i915_private *dev_priv, struct intel_atomic_stat
 			bool active;
 
 			active = encoder->get_hw_state(encoder, &pipe);
-			I915_STATE_WARN(active,
+			I915_STATE_WARN(dev_priv, active,
 					"encoder detached but still enabled on pipe %c.\n",
 					pipe_name(pipe));
 		}
@@ -181,11 +183,12 @@ verify_crtc_state(struct intel_crtc *crtc,
 	if (IS_I830(dev_priv) && pipe_config->hw.active)
 		pipe_config->hw.active = new_crtc_state->hw.active;
 
-	I915_STATE_WARN(new_crtc_state->hw.active != pipe_config->hw.active,
+	I915_STATE_WARN(dev_priv,
+			new_crtc_state->hw.active != pipe_config->hw.active,
 			"crtc active state doesn't match with hw state (expected %i, found %i)\n",
 			new_crtc_state->hw.active, pipe_config->hw.active);
 
-	I915_STATE_WARN(crtc->active != new_crtc_state->hw.active,
+	I915_STATE_WARN(dev_priv, crtc->active != new_crtc_state->hw.active,
 			"transitional active state does not match atomic hw state (expected %i, found %i)\n",
 			new_crtc_state->hw.active, crtc->active);
 
@@ -196,12 +199,12 @@ verify_crtc_state(struct intel_crtc *crtc,
 		bool active;
 
 		active = encoder->get_hw_state(encoder, &pipe);
-		I915_STATE_WARN(active != new_crtc_state->hw.active,
+		I915_STATE_WARN(dev_priv, active != new_crtc_state->hw.active,
 				"[ENCODER:%i] active %i with crtc active %i\n",
 				encoder->base.base.id, active,
 				new_crtc_state->hw.active);
 
-		I915_STATE_WARN(active && master_crtc->pipe != pipe,
+		I915_STATE_WARN(dev_priv, active && master_crtc->pipe != pipe,
 				"Encoder connected to wrong pipe %c\n",
 				pipe_name(pipe));
 
@@ -216,7 +219,7 @@ verify_crtc_state(struct intel_crtc *crtc,
 
 	if (!intel_pipe_config_compare(new_crtc_state,
 				       pipe_config, false)) {
-		I915_STATE_WARN(1, "pipe state doesn't match!\n");
+		I915_STATE_WARN(dev_priv, 1, "pipe state doesn't match!\n");
 		intel_crtc_state_dump(pipe_config, NULL, "hw state");
 		intel_crtc_state_dump(new_crtc_state, NULL, "sw state");
 	}
@@ -236,6 +239,7 @@ void intel_modeset_verify_crtc(struct intel_crtc *crtc,
 	verify_crtc_state(crtc, old_crtc_state, new_crtc_state);
 	intel_shared_dpll_state_verify(crtc, old_crtc_state, new_crtc_state);
 	intel_mpllb_state_verify(state, new_crtc_state);
+	intel_c10pll_state_verify(state, new_crtc_state);
 }
 
 void intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,

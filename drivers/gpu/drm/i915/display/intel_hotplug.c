@@ -27,6 +27,7 @@
 #include "i915_irq.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
+#include "intel_hotplug_irq.h"
 
 /**
  * DOC: Hotplug

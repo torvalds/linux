@@ -8,12 +8,12 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 
-#include "i915_irq.h"
 #include "i915_reg.h"
 #include "i9xx_plane.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_de.h"
+#include "intel_display_irq.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fbc.h"

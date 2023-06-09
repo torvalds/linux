@@ -82,5 +82,6 @@ intel_atomic_get_cdclk_state(struct intel_atomic_state *state);
 	to_intel_cdclk_state(intel_atomic_get_new_global_obj_state(state, &to_i915(state->base.dev)->display.cdclk.obj))
 
 int intel_cdclk_init(struct drm_i915_private *dev_priv);
+void intel_cdclk_debugfs_register(struct drm_i915_private *i915);
 
 #endif /* __INTEL_CDCLK_H__ */
