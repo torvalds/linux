@@ -13,7 +13,7 @@
 
 struct adf_fw_config {
 	u32 ae_mask;
-	char *obj_name;
+	const char *obj_name;
 };
 
 static struct adf_fw_config adf_4xxx_fw_cy_config[] = {
@@ -311,7 +311,7 @@ static u32 uof_get_num_objs(void)
 	return ARRAY_SIZE(adf_4xxx_fw_cy_config);
 }
 
-static char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
+static const char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
@@ -323,7 +323,7 @@ static char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
 	}
 }
 
-static char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
+static const char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
