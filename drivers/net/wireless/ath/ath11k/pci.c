@@ -545,7 +545,7 @@ static int ath11k_pci_claim(struct ath11k_pci *ab_pci, struct pci_dev *pdev)
 
 	ab->mem_ce = ab->mem;
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "pci_mem 0x%pK\n", ab->mem);
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "pci_mem 0x%p\n", ab->mem);
 	return 0;
 
 release_region:

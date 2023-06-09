@@ -46,7 +46,7 @@ static struct sk_buff *ath11k_htc_build_tx_ctrl_skb(void *ab)
 	skb_cb = ATH11K_SKB_CB(skb);
 	memset(skb_cb, 0, sizeof(*skb_cb));
 
-	ath11k_dbg(ab, ATH11K_DBG_HTC, "%s: skb %pK\n", __func__, skb);
+	ath11k_dbg(ab, ATH11K_DBG_HTC, "%s: skb %p\n", __func__, skb);
 	return skb;
 }
 
@@ -393,7 +393,7 @@ void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 		goto out;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_HTC, "rx completion ep %d skb %pK\n",
+	ath11k_dbg(ab, ATH11K_DBG_HTC, "rx completion ep %d skb %p\n",
 		   eid, skb);
 	ep->ep_ops.ep_rx_complete(ab, skb);
 
