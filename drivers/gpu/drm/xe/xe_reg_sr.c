@@ -235,6 +235,13 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 
 	p = drm_debug_printer(KBUILD_MODNAME);
 	xa_for_each(&sr->xa, reg, entry) {
+		if (slot == RING_MAX_NONPRIV_SLOTS) {
+			xe_gt_err(gt,
+				  "hwe %s: maximum register whitelist slots (%d) reached, refusing to add more\n",
+				  hwe->name, RING_MAX_NONPRIV_SLOTS);
+			break;
+		}
+
 		xe_reg_whitelist_print_entry(&p, 0, reg, entry);
 		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot),
 				reg | entry->set_bits);
