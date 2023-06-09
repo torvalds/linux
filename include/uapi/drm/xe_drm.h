@@ -119,8 +119,18 @@ struct xe_user_extension {
 #define XE_MEM_REGION_CLASS_SYSMEM	0
 #define XE_MEM_REGION_CLASS_VRAM	1
 
+/**
+ * struct drm_xe_query_mem_usage - describe memory regions and usage
+ *
+ * If a query is made with a struct drm_xe_device_query where .query
+ * is equal to DRM_XE_DEVICE_QUERY_MEM_USAGE, then the reply uses
+ * struct drm_xe_query_mem_usage in .data.
+ */
 struct drm_xe_query_mem_usage {
+	/** @num_params: number of memory regions returned in regions */
 	__u32 num_regions;
+
+	/** @pad: MBZ */
 	__u32 pad;
 
 	struct drm_xe_query_mem_region {
@@ -135,9 +145,20 @@ struct drm_xe_query_mem_usage {
 	} regions[];
 };
 
+/**
+ * struct drm_xe_query_config - describe the device configuration
+ *
+ * If a query is made with a struct drm_xe_device_query where .query
+ * is equal to DRM_XE_DEVICE_QUERY_CONFIG, then the reply uses
+ * struct drm_xe_query_config in .data.
+ */
 struct drm_xe_query_config {
+	/** @num_params: number of parameters returned in info */
 	__u32 num_params;
+
+	/** @pad: MBZ */
 	__u32 pad;
+
 #define XE_QUERY_CONFIG_REV_AND_DEVICE_ID	0
 #define XE_QUERY_CONFIG_FLAGS			1
 	#define XE_QUERY_CONFIG_FLAGS_HAS_VRAM		(0x1 << 0)
@@ -148,11 +169,22 @@ struct drm_xe_query_config {
 #define XE_QUERY_CONFIG_MEM_REGION_COUNT	5
 #define XE_QUERY_CONFIG_MAX_ENGINE_PRIORITY	6
 #define XE_QUERY_CONFIG_NUM_PARAM		(XE_QUERY_CONFIG_MAX_ENGINE_PRIORITY + 1)
+	/** @info: array of elements containing the config info */
 	__u64 info[];
 };
 
+/**
+ * struct drm_xe_query_gts - describe GTs
+ *
+ * If a query is made with a struct drm_xe_device_query where .query
+ * is equal to DRM_XE_DEVICE_QUERY_GTS, then the reply uses struct
+ * drm_xe_query_gts in .data.
+ */
 struct drm_xe_query_gts {
+	/** @num_gt: number of GTs returned in gts */
 	__u32 num_gt;
+
+	/** @pad: MBZ */
 	__u32 pad;
 
 	/*
@@ -175,6 +207,13 @@ struct drm_xe_query_gts {
 	} gts[];
 };
 
+/**
+ * struct drm_xe_query_topology_mask - describe the topology mask of a GT
+ *
+ * If a query is made with a struct drm_xe_device_query where .query
+ * is equal to DRM_XE_DEVICE_QUERY_GT_TOPOLOGY, then the reply uses
+ * struct drm_xe_query_topology_mask in .data.
+ */
 struct drm_xe_query_topology_mask {
 	/** @gt_id: GT ID the mask is associated with */
 	__u16 gt_id;
@@ -192,6 +231,41 @@ struct drm_xe_query_topology_mask {
 	__u8 mask[];
 };
 
+/**
+ * struct drm_xe_device_query - main structure to query device information
+ *
+ * If size is set to 0, the driver fills it with the required size for the
+ * requested type of data to query. If size is equal to the required size,
+ * the queried information is copied into data.
+ *
+ * For example the following code snippet allows retrieving and printing
+ * information about the device engines with DRM_XE_DEVICE_QUERY_ENGINES:
+ *
+ * .. code-block:: C
+ *
+ *	struct drm_xe_engine_class_instance *hwe;
+ *	struct drm_xe_device_query query = {
+ *		.extensions = 0,
+ *		.query = DRM_XE_DEVICE_QUERY_ENGINES,
+ *		.size = 0,
+ *		.data = 0,
+ *	};
+ *	ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query);
+ *	hwe = malloc(query.size);
+ *	query.data = (uintptr_t)hwe;
+ *	ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query);
+ *	int num_engines = query.size / sizeof(*hwe);
+ *	for (int i = 0; i < num_engines; i++) {
+ *		printf("Engine %d: %s\n", i,
+ *			hwe[i].engine_class == DRM_XE_ENGINE_CLASS_RENDER ? "RENDER":
+ *			hwe[i].engine_class == DRM_XE_ENGINE_CLASS_COPY ? "COPY":
+ *			hwe[i].engine_class == DRM_XE_ENGINE_CLASS_VIDEO_DECODE ? "VIDEO_DECODE":
+ *			hwe[i].engine_class == DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE ? "VIDEO_ENHANCE":
+ *			hwe[i].engine_class == DRM_XE_ENGINE_CLASS_COMPUTE ? "COMPUTE":
+ *			"UNKNOWN");
+ *	}
+ *	free(hwe);
+ */
 struct drm_xe_device_query {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
@@ -526,6 +600,7 @@ struct drm_xe_engine_set_property {
 	__u64 reserved[2];
 };
 
+/** struct drm_xe_engine_class_instance - instance of an engine class */
 struct drm_xe_engine_class_instance {
 	__u16 engine_class;
 
