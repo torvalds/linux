@@ -33,6 +33,7 @@
 #define ADF_CFG_SYM_DC "sym;dc"
 #define ADF_CFG_DC_SYM "dc;sym"
 #define ADF_SERVICES_ENABLED "ServicesEnabled"
+#define ADF_PM_IDLE_SUPPORT "PmIdleSupport"
 #define ADF_ETRMGR_COALESCING_ENABLED "InterruptCoalescingEnabled"
 #define ADF_ETRMGR_COALESCING_ENABLED_FORMAT \
 	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_COALESCING_ENABLED

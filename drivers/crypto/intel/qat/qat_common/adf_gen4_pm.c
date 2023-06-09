@@ -23,15 +23,25 @@ struct adf_gen4_pm_data {
 
 static int send_host_msg(struct adf_accel_dev *accel_dev)
 {
+	char pm_idle_support_cfg[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {};
 	void __iomem *pmisc = adf_get_pmisc_base(accel_dev);
+	bool pm_idle_support;
 	u32 msg;
+	int ret;
 
 	msg = ADF_CSR_RD(pmisc, ADF_GEN4_PM_HOST_MSG);
 	if (msg & ADF_GEN4_PM_MSG_PENDING)
 		return -EBUSY;
 
+	adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
+				ADF_PM_IDLE_SUPPORT, pm_idle_support_cfg);
+	ret = kstrtobool(pm_idle_support_cfg, &pm_idle_support);
+	if (ret)
+		pm_idle_support = true;
+
 	/* Send HOST_MSG */
-	msg = FIELD_PREP(ADF_GEN4_PM_MSG_PAYLOAD_BIT_MASK, PM_SET_MIN);
+	msg = FIELD_PREP(ADF_GEN4_PM_MSG_PAYLOAD_BIT_MASK,
+			 pm_idle_support ? PM_SET_MIN : PM_NO_CHANGE);
 	msg |= ADF_GEN4_PM_MSG_PENDING;
 	ADF_CSR_WR(pmisc, ADF_GEN4_PM_HOST_MSG, msg);
 
