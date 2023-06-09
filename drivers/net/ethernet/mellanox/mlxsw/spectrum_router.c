@@ -8879,8 +8879,8 @@ out:
 	return notifier_from_errno(err);
 }
 
-int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
-				  unsigned long event, void *ptr)
+static int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
+					 unsigned long event, void *ptr)
 {
 	struct in_validator_info *ivi = (struct in_validator_info *) ptr;
 	struct net_device *dev = ivi->ivi_dev->dev;
@@ -8962,8 +8962,8 @@ static int mlxsw_sp_inet6addr_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
-				   unsigned long event, void *ptr)
+static int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
+					  unsigned long event, void *ptr)
 {
 	struct in6_validator_info *i6vi = (struct in6_validator_info *) ptr;
 	struct net_device *dev = i6vi->i6vi_dev->dev;
@@ -10510,6 +10510,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_router *router;
+	struct notifier_block *nb;
 	int err;
 
 	router = kzalloc(sizeof(*mlxsw_sp->router), GFP_KERNEL);
@@ -10588,6 +10589,17 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_register_inet6addr_notifier;
 
+	router->inetaddr_valid_nb.notifier_call = mlxsw_sp_inetaddr_valid_event;
+	err = register_inetaddr_validator_notifier(&router->inetaddr_valid_nb);
+	if (err)
+		goto err_register_inetaddr_valid_notifier;
+
+	nb = &router->inet6addr_valid_nb;
+	nb->notifier_call = mlxsw_sp_inet6addr_valid_event;
+	err = register_inet6addr_validator_notifier(nb);
+	if (err)
+		goto err_register_inet6addr_valid_notifier;
+
 	mlxsw_sp->router->netevent_nb.notifier_call =
 		mlxsw_sp_router_netevent_event;
 	err = register_netevent_notifier(&mlxsw_sp->router->netevent_nb);
@@ -10627,6 +10639,10 @@ err_register_fib_notifier:
 err_register_nexthop_notifier:
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 err_register_netevent_notifier:
+	unregister_inet6addr_validator_notifier(&router->inet6addr_valid_nb);
+err_register_inet6addr_valid_notifier:
+	unregister_inetaddr_validator_notifier(&router->inetaddr_valid_nb);
+err_register_inetaddr_valid_notifier:
 	unregister_inet6addr_notifier(&router->inet6addr_nb);
 err_register_inet6addr_notifier:
 	unregister_inetaddr_notifier(&router->inetaddr_nb);
@@ -10672,6 +10688,8 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	unregister_nexthop_notifier(mlxsw_sp_net(mlxsw_sp),
 				    &router->nexthop_nb);
 	unregister_netevent_notifier(&router->netevent_nb);
+	unregister_inet6addr_validator_notifier(&router->inet6addr_valid_nb);
+	unregister_inetaddr_validator_notifier(&router->inetaddr_valid_nb);
 	unregister_inet6addr_notifier(&router->inet6addr_nb);
 	unregister_inetaddr_notifier(&router->inetaddr_nb);
 	mlxsw_core_flush_owq();
