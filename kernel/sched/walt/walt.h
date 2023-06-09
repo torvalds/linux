@@ -181,6 +181,7 @@ extern int sched_pause_cpus(struct cpumask *pause_cpus);
 extern int sched_unpause_cpus(struct cpumask *unpause_cpus);
 extern void walt_kick_cpu(int cpu);
 extern void walt_smp_call_newidle_balance(int cpu);
+extern bool cpus_halted_by_client(struct cpumask *cpu, enum pause_client client);
 
 extern unsigned int sched_get_cpu_util_pct(int cpu);
 extern void sched_update_hyst_times(void);

@@ -722,10 +722,10 @@ TRACE_EVENT(waltgov_util_update,
 TRACE_EVENT(waltgov_next_freq,
 	    TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max, unsigned int raw_freq,
 		     unsigned int freq, unsigned int policy_min_freq, unsigned int policy_max_freq,
-		     unsigned int cached_raw_freq, bool need_freq_update, unsigned int driving_cpu,
-		     unsigned int reason),
+		     unsigned int cached_raw_freq, bool need_freq_update, bool thermal_isolated,
+		     unsigned int driving_cpu, unsigned int reason),
 	    TP_ARGS(cpu, util, max, raw_freq, freq, policy_min_freq, policy_max_freq,
-		    cached_raw_freq, need_freq_update, driving_cpu, reason),
+		    cached_raw_freq, need_freq_update, thermal_isolated, driving_cpu, reason),
 	    TP_STRUCT__entry(
 		    __field(unsigned int, cpu)
 		    __field(unsigned long, util)
@@ -736,6 +736,7 @@ TRACE_EVENT(waltgov_next_freq,
 		    __field(unsigned int, policy_max_freq)
 		    __field(unsigned int, cached_raw_freq)
 		    __field(bool, need_freq_update)
+		    __field(bool, thermal_isolated)
 		    __field(unsigned int, rt_util)
 		    __field(unsigned int, driving_cpu)
 		    __field(unsigned int, reason)
@@ -750,11 +751,12 @@ TRACE_EVENT(waltgov_next_freq,
 		    __entry->policy_max_freq	= policy_max_freq;
 		    __entry->cached_raw_freq	= cached_raw_freq;
 		    __entry->need_freq_update	= need_freq_update;
+		    __entry->thermal_isolated	= thermal_isolated;
 		    __entry->rt_util		= cpu_util_rt(cpu_rq(cpu));
 		    __entry->driving_cpu	= driving_cpu;
 		    __entry->reason		= reason;
 	    ),
-	    TP_printk("cpu=%u util=%lu max=%lu raw_freq=%lu freq=%u policy_min_freq=%u policy_max_freq=%u cached_raw_freq=%u need_update=%d rt_util=%u driv_cpu=%u reason=0x%x",
+	    TP_printk("cpu=%u util=%lu max=%lu raw_freq=%lu freq=%u policy_min_freq=%u policy_max_freq=%u cached_raw_freq=%u need_update=%d thermal_isolated=%d rt_util=%u driv_cpu=%u reason=0x%x",
 		      __entry->cpu,
 		      __entry->util,
 		      __entry->max,
@@ -764,6 +766,7 @@ TRACE_EVENT(waltgov_next_freq,
 		      __entry->policy_max_freq,
 		      __entry->cached_raw_freq,
 		      __entry->need_freq_update,
+		      __entry->thermal_isolated,
 		      __entry->rt_util,
 		      __entry->driving_cpu,
 		      __entry->reason)
