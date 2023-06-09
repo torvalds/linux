@@ -1119,7 +1119,7 @@ int ath11k_hal_srng_update_shadow_config(struct ath11k_base *ab,
 					  ring_num);
 
 	ath11k_dbg(ab, ATH11K_DBG_HAL,
-		   "target_reg %x, shadow reg 0x%x shadow_idx 0x%x, ring_type %d, ring num %d",
+		   "update shadow config target_reg %x shadow reg 0x%x shadow_idx 0x%x ring_type %d ring num %d",
 		  target_reg,
 		  HAL_SHADOW_REG(ab, shadow_cfg_idx),
 		  shadow_cfg_idx,
