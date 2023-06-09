@@ -96,6 +96,8 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	int ret;
 
 	if (!header) {
+		if (!require_dev)
+			return 0;
 		NL_SET_ERR_MSG(extack, "request header missing");
 		return -EINVAL;
 	}
