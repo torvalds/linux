@@ -124,6 +124,12 @@ int xe_vma_userptr_pin_pages(struct xe_vma *vma);
 
 int xe_vma_userptr_check_repin(struct xe_vma *vma);
 
+static inline void xe_vm_queue_rebind_worker(struct xe_vm *vm)
+{
+	XE_WARN_ON(!xe_vm_in_compute_mode(vm));
+	queue_work(vm->xe->ordered_wq, &vm->preempt.rebind_work);
+}
+
 /*
  * XE_ONSTACK_TV is used to size the tv_onstack array that is input
  * to xe_vm_lock_dma_resv() and xe_vm_unlock_dma_resv().

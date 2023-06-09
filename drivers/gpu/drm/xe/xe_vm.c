@@ -3086,8 +3086,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 			/* Rebinds may have been blocked, give worker a kick */
 			if (xe_vm_in_compute_mode(vm))
-				queue_work(vm->xe->ordered_wq,
-					   &vm->preempt.rebind_work);
+				xe_vm_queue_rebind_worker(vm);
 		}
 
 		goto put_engine;

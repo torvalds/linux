@@ -25,7 +25,7 @@ static void preempt_fence_work_func(struct work_struct *w)
 	dma_fence_signal(&pfence->base);
 	dma_fence_end_signalling(cookie);
 
-	queue_work(system_unbound_wq, &e->vm->preempt.rebind_work);
+	xe_vm_queue_rebind_worker(e->vm);
 
 	xe_engine_put(e);
 }
