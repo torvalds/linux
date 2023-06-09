@@ -26,6 +26,7 @@ enum ath11k_debug_mask {
 	ATH11K_DBG_PCI		= 0x00001000,
 	ATH11K_DBG_DP_TX	= 0x00002000,
 	ATH11K_DBG_DP_RX	= 0x00004000,
+	ATH11K_DBG_CE		= 0x00008000,
 };
 
 static inline const char *ath11k_dbg_str(enum ath11k_debug_mask mask)
@@ -61,6 +62,8 @@ static inline const char *ath11k_dbg_str(enum ath11k_debug_mask mask)
 		return "dp_tx";
 	case ATH11K_DBG_DP_RX:
 		return "dp_rx";
+	case ATH11K_DBG_CE:
+		return "ce";
 
 	/* no default handler to allow compiler to check that the
 	 * enum is fully handled
