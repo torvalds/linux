@@ -84,21 +84,21 @@
 
 
 /* Extended Feature Bits */
-#define FEATURE_PREFETCH	(1ULL<<0)
-#define FEATURE_PPR		(1ULL<<1)
-#define FEATURE_X2APIC		(1ULL<<2)
-#define FEATURE_NX		(1ULL<<3)
-#define FEATURE_GT		(1ULL<<4)
-#define FEATURE_IA		(1ULL<<6)
-#define FEATURE_GA		(1ULL<<7)
-#define FEATURE_HE		(1ULL<<8)
-#define FEATURE_PC		(1ULL<<9)
+#define FEATURE_PREFETCH	BIT_ULL(0)
+#define FEATURE_PPR		BIT_ULL(1)
+#define FEATURE_X2APIC		BIT_ULL(2)
+#define FEATURE_NX		BIT_ULL(3)
+#define FEATURE_GT		BIT_ULL(4)
+#define FEATURE_IA		BIT_ULL(6)
+#define FEATURE_GA		BIT_ULL(7)
+#define FEATURE_HE		BIT_ULL(8)
+#define FEATURE_PC		BIT_ULL(9)
 #define FEATURE_GATS_SHIFT	(12)
 #define FEATURE_GATS_MASK	(3ULL)
-#define FEATURE_GAM_VAPIC	(1ULL<<21)
-#define FEATURE_GIOSUP		(1ULL<<48)
-#define FEATURE_EPHSUP		(1ULL<<50)
-#define FEATURE_SNP		(1ULL<<63)
+#define FEATURE_GAM_VAPIC	BIT_ULL(21)
+#define FEATURE_GIOSUP		BIT_ULL(48)
+#define FEATURE_EPHSUP		BIT_ULL(50)
+#define FEATURE_SNP		BIT_ULL(63)
 
 #define FEATURE_PASID_SHIFT	32
 #define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
@@ -120,13 +120,13 @@
 #define PASID_MASK		0x0000ffff
 
 /* MMIO status bits */
-#define MMIO_STATUS_EVT_OVERFLOW_INT_MASK	(1 << 0)
-#define MMIO_STATUS_EVT_INT_MASK	(1 << 1)
-#define MMIO_STATUS_COM_WAIT_INT_MASK	(1 << 2)
-#define MMIO_STATUS_PPR_INT_MASK	(1 << 6)
-#define MMIO_STATUS_GALOG_RUN_MASK	(1 << 8)
-#define MMIO_STATUS_GALOG_OVERFLOW_MASK	(1 << 9)
-#define MMIO_STATUS_GALOG_INT_MASK	(1 << 10)
+#define MMIO_STATUS_EVT_OVERFLOW_INT_MASK	BIT(0)
+#define MMIO_STATUS_EVT_INT_MASK		BIT(1)
+#define MMIO_STATUS_COM_WAIT_INT_MASK		BIT(2)
+#define MMIO_STATUS_PPR_INT_MASK		BIT(6)
+#define MMIO_STATUS_GALOG_RUN_MASK		BIT(8)
+#define MMIO_STATUS_GALOG_OVERFLOW_MASK		BIT(9)
+#define MMIO_STATUS_GALOG_INT_MASK		BIT(10)
 
 /* event logging constants */
 #define EVENT_ENTRY_SIZE	0x10
@@ -370,23 +370,23 @@
 /*
  * Bit value definition for I/O PTE fields
  */
-#define IOMMU_PTE_PR (1ULL << 0)
-#define IOMMU_PTE_U  (1ULL << 59)
-#define IOMMU_PTE_FC (1ULL << 60)
-#define IOMMU_PTE_IR (1ULL << 61)
-#define IOMMU_PTE_IW (1ULL << 62)
+#define IOMMU_PTE_PR	BIT_ULL(0)
+#define IOMMU_PTE_U	BIT_ULL(59)
+#define IOMMU_PTE_FC	BIT_ULL(60)
+#define IOMMU_PTE_IR	BIT_ULL(61)
+#define IOMMU_PTE_IW	BIT_ULL(62)
 
 /*
  * Bit value definition for DTE fields
  */
-#define DTE_FLAG_V  (1ULL << 0)
-#define DTE_FLAG_TV (1ULL << 1)
-#define DTE_FLAG_IR (1ULL << 61)
-#define DTE_FLAG_IW (1ULL << 62)
+#define DTE_FLAG_V	BIT_ULL(0)
+#define DTE_FLAG_TV	BIT_ULL(1)
+#define DTE_FLAG_IR	BIT_ULL(61)
+#define DTE_FLAG_IW	BIT_ULL(62)
 
-#define DTE_FLAG_IOTLB	(1ULL << 32)
-#define DTE_FLAG_GIOV	(1ULL << 54)
-#define DTE_FLAG_GV	(1ULL << 55)
+#define DTE_FLAG_IOTLB	BIT_ULL(32)
+#define DTE_FLAG_GIOV	BIT_ULL(54)
+#define DTE_FLAG_GV	BIT_ULL(55)
 #define DTE_FLAG_MASK	(0x3ffULL << 32)
 #define DTE_GLX_SHIFT	(56)
 #define DTE_GLX_MASK	(3)
@@ -440,13 +440,13 @@
 #define MAX_DOMAIN_ID 65536
 
 /* Protection domain flags */
-#define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
-#define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
+#define PD_DMA_OPS_MASK		BIT(0) /* domain used for dma_ops */
+#define PD_DEFAULT_MASK		BIT(1) /* domain is a default dma_ops
 					      domain for an IOMMU */
-#define PD_PASSTHROUGH_MASK	(1UL << 2) /* domain has no page
+#define PD_PASSTHROUGH_MASK	BIT(2) /* domain has no page
 					      translation */
-#define PD_IOMMUV2_MASK		(1UL << 3) /* domain has gcr3 table */
-#define PD_GIOV_MASK		(1UL << 4) /* domain enable GIOV support */
+#define PD_IOMMUV2_MASK		BIT(3) /* domain has gcr3 table */
+#define PD_GIOV_MASK		BIT(4) /* domain enable GIOV support */
 
 extern bool amd_iommu_dump;
 #define DUMP_printk(format, arg...)				\
