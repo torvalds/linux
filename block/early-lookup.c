@@ -181,7 +181,7 @@ static int __init devt_from_devname(const char *name, dev_t *devt)
 	*p = '\0';
 	*devt = blk_lookup_devt(s, part);
 	if (*devt)
-		return -ENODEV;
+		return 0;
 
 	/* try disk name without p<part number> */
 	if (p < s + 2 || !isdigit(p[-2]) || p[-1] != 'p')
