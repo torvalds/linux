@@ -8663,19 +8663,6 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 	case WMI_TWT_ADD_DIALOG_EVENTID:
 		ath11k_wmi_twt_add_dialog_event(ab, skb);
 		break;
-	/* add Unsupported events here */
-	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:
-	case WMI_PEER_OPER_MODE_CHANGE_EVENTID:
-	case WMI_TWT_ENABLE_EVENTID:
-	case WMI_TWT_DISABLE_EVENTID:
-	case WMI_TWT_DEL_DIALOG_EVENTID:
-	case WMI_TWT_PAUSE_DIALOG_EVENTID:
-	case WMI_TWT_RESUME_DIALOG_EVENTID:
-	case WMI_PDEV_DMA_RING_CFG_RSP_EVENTID:
-	case WMI_PEER_CREATE_CONF_EVENTID:
-		ath11k_dbg(ab, ATH11K_DBG_WMI,
-			   "ignoring unsupported event 0x%x\n", id);
-		break;
 	case WMI_PDEV_DFS_RADAR_DETECTION_EVENTID:
 		ath11k_wmi_pdev_dfs_radar_detected_event(ab, skb);
 		break;
@@ -8697,9 +8684,8 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 	case WMI_GTK_OFFLOAD_STATUS_EVENTID:
 		ath11k_wmi_gtk_offload_status_event(ab, skb);
 		break;
-	/* TODO: Add remaining events */
 	default:
-		ath11k_dbg(ab, ATH11K_DBG_WMI, "Unknown eventid: 0x%x\n", id);
+		ath11k_dbg(ab, ATH11K_DBG_WMI, "unsupported event id 0x%x\n", id);
 		break;
 	}
 
