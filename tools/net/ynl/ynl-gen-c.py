@@ -268,7 +268,8 @@ class TypeScalar(Type):
         else:
             self.is_bitfield = False
 
-        if 'enum' in self.attr and not self.is_bitfield:
+        maybe_enum = not self.is_bitfield and 'enum' in self.attr
+        if maybe_enum and self.family.consts[self.attr['enum']].enum_name:
             self.type_name = f"enum {self.family.name}_{c_lower(self.attr['enum'])}"
         else:
             self.type_name = '__' + self.type
@@ -652,7 +653,14 @@ class EnumEntry(SpecEnumEntry):
 class EnumSet(SpecEnumSet):
     def __init__(self, family, yaml):
         self.render_name = c_lower(family.name + '-' + yaml['name'])
-        self.enum_name = 'enum ' + self.render_name
+
+        if 'enum-name' in yaml:
+            if yaml['enum-name']:
+                self.enum_name = 'enum ' + c_lower(yaml['enum-name'])
+            else:
+                self.enum_name = None
+        else:
+            self.enum_name = 'enum ' + self.render_name
 
         self.value_pfx = yaml.get('name-prefix', f"{family.name}-{yaml['name']}-")
 
