@@ -1530,7 +1530,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
-	int nsize, old_factor;
+	int old_factor;
 	long limit;
 	int nlen;
 	u8 flags;
@@ -1538,9 +1538,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 	if (WARN_ON(len > skb->len))
 		return -EINVAL;
 
-	nsize = skb_headlen(skb) - len;
-	if (nsize < 0)
-		nsize = 0;
+	DEBUG_NET_WARN_ON_ONCE(skb_headlen(skb));
 
 	/* tcp_sendmsg() can overshoot sk_wmem_queued by one full size skb.
 	 * We need some allowance to not penalize applications setting small
@@ -1560,7 +1558,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 		return -ENOMEM;
 
 	/* Get a new skb... force flag on. */
-	buff = tcp_stream_alloc_skb(sk, nsize, gfp, true);
+	buff = tcp_stream_alloc_skb(sk, 0, gfp, true);
 	if (!buff)
 		return -ENOMEM; /* We'll just try again later. */
 	skb_copy_decrypted(buff, skb);
@@ -1568,7 +1566,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 
 	sk_wmem_queued_add(sk, buff->truesize);
 	sk_mem_charge(sk, buff->truesize);
-	nlen = skb->len - len - nsize;
+	nlen = skb->len - len;
 	buff->truesize += nlen;
 	skb->truesize -= nlen;
 
@@ -1626,13 +1624,7 @@ static int __pskb_trim_head(struct sk_buff *skb, int len)
 	struct skb_shared_info *shinfo;
 	int i, k, eat;
 
-	eat = min_t(int, len, skb_headlen(skb));
-	if (eat) {
-		__skb_pull(skb, eat);
-		len -= eat;
-		if (!len)
-			return 0;
-	}
+	DEBUG_NET_WARN_ON_ONCE(skb_headlen(skb));
 	eat = len;
 	k = 0;
 	shinfo = skb_shinfo(skb);
@@ -1671,12 +1663,10 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 
 	TCP_SKB_CB(skb)->seq += len;
 
-	if (delta_truesize) {
-		skb->truesize	   -= delta_truesize;
-		sk_wmem_queued_add(sk, -delta_truesize);
-		if (!skb_zcopy_pure(skb))
-			sk_mem_uncharge(sk, delta_truesize);
-	}
+	skb->truesize	   -= delta_truesize;
+	sk_wmem_queued_add(sk, -delta_truesize);
+	if (!skb_zcopy_pure(skb))
+		sk_mem_uncharge(sk, delta_truesize);
 
 	/* Any change of skb->len requires recalculation of tso factor. */
 	if (tcp_skb_pcount(skb) > 1)
@@ -2126,9 +2116,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 	u8 flags;
 
 	/* All of a TSO frame must be composed of paged data.  */
-	if (skb->len != skb->data_len)
-		return tcp_fragment(sk, TCP_FRAG_IN_WRITE_QUEUE,
-				    skb, len, mss_now, gfp);
+	DEBUG_NET_WARN_ON_ONCE(skb->len != skb->data_len);
 
 	buff = tcp_stream_alloc_skb(sk, 0, gfp, true);
 	if (unlikely(!buff))
@@ -2487,12 +2475,8 @@ static int tcp_mtu_probe(struct sock *sk)
 		} else {
 			TCP_SKB_CB(nskb)->tcp_flags |= TCP_SKB_CB(skb)->tcp_flags &
 						   ~(TCPHDR_FIN|TCPHDR_PSH);
-			if (!skb_shinfo(skb)->nr_frags) {
-				skb_pull(skb, copy);
-			} else {
-				__pskb_trim_head(skb, copy);
-				tcp_set_skb_tso_segs(skb, mss_now);
-			}
+			__pskb_trim_head(skb, copy);
+			tcp_set_skb_tso_segs(skb, mss_now);
 			TCP_SKB_CB(skb)->seq += copy;
 		}
 
