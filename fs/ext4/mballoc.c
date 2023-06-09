@@ -1006,13 +1006,10 @@ static void ext4_mb_choose_next_group_best_avail(struct ext4_allocation_context 
 	 * fls() instead since we need to know the actual length while modifying
 	 * goal length.
 	 */
-	order = fls(ac->ac_g_ex.fe_len);
+	order = fls(ac->ac_g_ex.fe_len) - 1;
 	min_order = order - sbi->s_mb_best_avail_max_trim_order;
 	if (min_order < 0)
 		min_order = 0;
-
-	if (1 << min_order < ac->ac_o_ex.fe_len)
-		min_order = fls(ac->ac_o_ex.fe_len) + 1;
 
 	if (sbi->s_stripe > 0) {
 		/*
@@ -1021,8 +1018,15 @@ static void ext4_mb_choose_next_group_best_avail(struct ext4_allocation_context 
 		 */
 		num_stripe_clusters = EXT4_NUM_B2C(sbi, sbi->s_stripe);
 		if (1 << min_order < num_stripe_clusters)
-			min_order = fls(num_stripe_clusters);
+			/*
+			 * We consider 1 order less because later we round
+			 * up the goal len to num_stripe_clusters
+			 */
+			min_order = fls(num_stripe_clusters) - 1;
 	}
+
+	if (1 << min_order < ac->ac_o_ex.fe_len)
+		min_order = fls(ac->ac_o_ex.fe_len);
 
 	for (i = order; i >= min_order; i--) {
 		int frag_order;
