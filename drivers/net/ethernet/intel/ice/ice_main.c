@@ -5739,6 +5739,13 @@ ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
 	q_handle = vsi->tx_rings[queue_index]->q_handle;
 	tc = ice_dcb_get_tc(vsi, queue_index);
 
+	vsi = ice_locate_vsi_using_queue(vsi, queue_index);
+	if (!vsi) {
+		netdev_err(netdev, "Invalid VSI for given queue %d\n",
+			   queue_index);
+		return -EINVAL;
+	}
+
 	/* Set BW back to default, when user set maxrate to 0 */
 	if (!maxrate)
 		status = ice_cfg_q_bw_dflt_lmt(vsi->port_info, vsi->idx, tc,
