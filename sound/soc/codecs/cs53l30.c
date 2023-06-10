@@ -911,7 +911,7 @@ static struct regmap_config cs53l30_regmap = {
 	.volatile_reg = cs53l30_volatile_register,
 	.writeable_reg = cs53l30_writeable_register,
 	.readable_reg = cs53l30_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.use_single_read = true,
 	.use_single_write = true,
