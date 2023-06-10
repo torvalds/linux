@@ -337,7 +337,7 @@ static const struct regmap_config rt1318_sdw_regmap = {
 	.max_register = 0x41081488,
 	.reg_defaults = rt1318_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt1318_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
