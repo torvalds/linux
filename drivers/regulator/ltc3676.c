@@ -261,7 +261,7 @@ static const struct regmap_config ltc3676_regmap_config = {
 	.max_register = LTC3676_CLIRQ,
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3676_isr(int irq, void *dev_id)
