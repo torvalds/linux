@@ -1515,6 +1515,7 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 				mall_size += mall_size_per_umc;
 		}
 		adev->gmc.mall_size = mall_size;
+		adev->gmc.m_half_use = half_use;
 		break;
 	default:
 		dev_err(adev->dev,
