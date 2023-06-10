@@ -158,7 +158,7 @@ static const struct regmap_config cs42l83_regmap = {
 	.max_register = CS42L42_MAX_REGISTER,
 	.reg_defaults = cs42l83_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(cs42l83_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.use_single_read = true,
 	.use_single_write = true,
