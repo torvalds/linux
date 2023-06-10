@@ -37,12 +37,10 @@
 #include <linux/sched/deadline.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/task.h>
-#include <linux/seq_file.h>
 #include <linux/security.h>
 #include <linux/spinlock.h>
 #include <linux/oom.h>
 #include <linux/sched/isolation.h>
-#include <linux/mutex.h>
 #include <linux/cgroup.h>
 #include <linux/wait.h>
 
