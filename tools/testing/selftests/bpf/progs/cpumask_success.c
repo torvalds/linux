@@ -344,13 +344,13 @@ int BPF_PROG(test_copy_any_anyand, struct task_struct *task, u64 clone_flags)
 	bpf_cpumask_set_cpu(1, mask2);
 	bpf_cpumask_or(dst1, cast(mask1), cast(mask2));
 
-	cpu = bpf_cpumask_any(cast(mask1));
+	cpu = bpf_cpumask_any_distribute(cast(mask1));
 	if (cpu != 0) {
 		err = 6;
 		goto release_exit;
 	}
 
-	cpu = bpf_cpumask_any(cast(dst2));
+	cpu = bpf_cpumask_any_distribute(cast(dst2));
 	if (cpu < nr_cpus) {
 		err = 7;
 		goto release_exit;
@@ -362,13 +362,13 @@ int BPF_PROG(test_copy_any_anyand, struct task_struct *task, u64 clone_flags)
 		goto release_exit;
 	}
 
-	cpu = bpf_cpumask_any(cast(dst2));
+	cpu = bpf_cpumask_any_distribute(cast(dst2));
 	if (cpu > 1) {
 		err = 9;
 		goto release_exit;
 	}
 
-	cpu = bpf_cpumask_any_and(cast(mask1), cast(mask2));
+	cpu = bpf_cpumask_any_and_distribute(cast(mask1), cast(mask2));
 	if (cpu < nr_cpus) {
 		err = 10;
 		goto release_exit;
