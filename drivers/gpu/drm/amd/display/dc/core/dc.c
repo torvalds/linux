@@ -4763,15 +4763,17 @@ static void blank_and_force_memclk(struct dc *dc, bool apply, unsigned int memcl
  */
 void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable)
 {
-	uint32_t hw_internal_rev = dc->ctx->asic_id.hw_internal_rev;
-	unsigned int softMax, maxDPM, funcMin;
+	unsigned int softMax = 0, maxDPM = 0, funcMin = 0, i;
 	bool p_state_change_support;
 
-	if (!ASICREV_IS_BEIGE_GOBY_P(hw_internal_rev))
+	if (!dc->config.dc_mode_clk_limit_support)
 		return;
 
 	softMax = dc->clk_mgr->bw_params->dc_mode_softmax_memclk;
-	maxDPM = dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz;
+	for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries; i++) {
+		if (dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz > maxDPM)
+			maxDPM = dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz;
+	}
 	funcMin = (dc->clk_mgr->clks.dramclk_khz + 999) / 1000;
 	p_state_change_support = dc->clk_mgr->clks.p_state_change_support;
 
