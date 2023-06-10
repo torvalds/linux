@@ -1195,7 +1195,7 @@ static const struct regmap_config rt5514_regmap = {
 	.reg_read = rt5514_i2c_read,
 	.reg_write = rt5514_i2c_write,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5514_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5514_reg),
 	.use_single_read = true,
