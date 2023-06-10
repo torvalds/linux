@@ -852,7 +852,7 @@ static const struct regmap_config cs35l33_regmap = {
 	.volatile_reg = cs35l33_volatile_register,
 	.readable_reg = cs35l33_readable_register,
 	.writeable_reg = cs35l33_writeable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
