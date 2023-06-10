@@ -787,7 +787,7 @@ static const struct of_device_id lt9211_match_table[] = {
 MODULE_DEVICE_TABLE(of, lt9211_match_table);
 
 static struct i2c_driver lt9211_driver = {
-	.probe_new = lt9211_probe,
+	.probe = lt9211_probe,
 	.remove = lt9211_remove,
 	.id_table = lt9211_id,
 	.driver = {

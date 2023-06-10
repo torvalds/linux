@@ -674,7 +674,7 @@ static int device_init_cdev(struct hl_device *hdev, struct class *class,
 	return 0;
 }
 
-static int device_cdev_sysfs_add(struct hl_device *hdev)
+static int cdev_sysfs_debugfs_add(struct hl_device *hdev)
 {
 	int rc;
 
@@ -699,7 +699,9 @@ static int device_cdev_sysfs_add(struct hl_device *hdev)
 		goto delete_ctrl_cdev_device;
 	}
 
-	hdev->cdev_sysfs_created = true;
+	hl_debugfs_add_device(hdev);
+
+	hdev->cdev_sysfs_debugfs_created = true;
 
 	return 0;
 
@@ -710,11 +712,12 @@ delete_cdev_device:
 	return rc;
 }
 
-static void device_cdev_sysfs_del(struct hl_device *hdev)
+static void cdev_sysfs_debugfs_remove(struct hl_device *hdev)
 {
-	if (!hdev->cdev_sysfs_created)
+	if (!hdev->cdev_sysfs_debugfs_created)
 		goto put_devices;
 
+	hl_debugfs_remove_device(hdev);
 	hl_sysfs_fini(hdev);
 	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
 	cdev_device_del(&hdev->cdev, hdev->dev);
@@ -981,6 +984,18 @@ static void device_early_fini(struct hl_device *hdev)
 		hdev->asic_funcs->early_fini(hdev);
 }
 
+static bool is_pci_link_healthy(struct hl_device *hdev)
+{
+	u16 vendor_id;
+
+	if (!hdev->pdev)
+		return false;
+
+	pci_read_config_word(hdev->pdev, PCI_VENDOR_ID, &vendor_id);
+
+	return (vendor_id == PCI_VENDOR_ID_HABANALABS);
+}
+
 static void hl_device_heartbeat(struct work_struct *work)
 {
 	struct hl_device *hdev = container_of(work, struct hl_device,
@@ -995,7 +1010,8 @@ static void hl_device_heartbeat(struct work_struct *work)
 		goto reschedule;
 
 	if (hl_device_operational(hdev, NULL))
-		dev_err(hdev->dev, "Device heartbeat failed!\n");
+		dev_err(hdev->dev, "Device heartbeat failed! PCI link is %s\n",
+			is_pci_link_healthy(hdev) ? "healthy" : "broken");
 
 	info.err_type = HL_INFO_FW_HEARTBEAT_ERR;
 	info.event_mask = &event_mask;
@@ -1157,6 +1173,16 @@ static void take_release_locks(struct hl_device *hdev)
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
+static void hl_abort_waiting_for_completions(struct hl_device *hdev)
+{
+	hl_abort_waiting_for_cs_completions(hdev);
+
+	/* Release all pending user interrupts, each pending user interrupt
+	 * holds a reference to a user context.
+	 */
+	hl_release_pending_user_interrupts(hdev);
+}
+
 static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_reset,
 				bool skip_wq_flush)
 {
@@ -1176,10 +1202,7 @@ static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_r
 	/* flush the MMU prefetch workqueue */
 	flush_workqueue(hdev->prefetch_wq);
 
-	/* Release all pending user interrupts, each pending user interrupt
-	 * holds a reference to user context
-	 */
-	hl_release_pending_user_interrupts(hdev);
+	hl_abort_waiting_for_completions(hdev);
 }
 
 /*
@@ -1921,7 +1944,7 @@ out:
 
 	hl_ctx_put(ctx);
 
-	hl_abort_waitings_for_completion(hdev);
+	hl_abort_waiting_for_completions(hdev);
 
 	return 0;
 
@@ -2034,7 +2057,7 @@ out_err:
 int hl_device_init(struct hl_device *hdev)
 {
 	int i, rc, cq_cnt, user_interrupt_cnt, cq_ready_cnt;
-	bool add_cdev_sysfs_on_err = false;
+	bool expose_interfaces_on_err = false;
 
 	rc = create_cdev(hdev);
 	if (rc)
@@ -2150,16 +2173,22 @@ int hl_device_init(struct hl_device *hdev)
 	hdev->device_release_watchdog_timeout_sec = HL_DEVICE_RELEASE_WATCHDOG_TIMEOUT_SEC;
 
 	hdev->memory_scrub_val = MEM_SCRUB_DEFAULT_VAL;
-	hl_debugfs_add_device(hdev);
 
-	/* debugfs nodes are created in hl_ctx_init so it must be called after
-	 * hl_debugfs_add_device.
+	rc = hl_debugfs_device_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize debugfs entry structure\n");
+		kfree(hdev->kernel_ctx);
+		goto mmu_fini;
+	}
+
+	/* The debugfs entry structure is accessed in hl_ctx_init(), so it must be called after
+	 * hl_debugfs_device_init().
 	 */
 	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize kernel context\n");
 		kfree(hdev->kernel_ctx);
-		goto remove_device_from_debugfs;
+		goto debugfs_device_fini;
 	}
 
 	rc = hl_cb_pool_init(hdev);
@@ -2175,11 +2204,10 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	/*
-	 * From this point, override rc (=0) in case of an error to allow
-	 * debugging (by adding char devices and create sysfs nodes as part of
-	 * the error flow).
+	 * From this point, override rc (=0) in case of an error to allow debugging
+	 * (by adding char devices and creating sysfs/debugfs files as part of the error flow).
 	 */
-	add_cdev_sysfs_on_err = true;
+	expose_interfaces_on_err = true;
 
 	/* Device is now enabled as part of the initialization requires
 	 * communication with the device firmware to get information that
@@ -2221,15 +2249,13 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	/*
-	 * Expose devices and sysfs nodes to user.
-	 * From here there is no need to add char devices and create sysfs nodes
-	 * in case of an error.
+	 * Expose devices and sysfs/debugfs files to user.
+	 * From here there is no need to expose them in case of an error.
 	 */
-	add_cdev_sysfs_on_err = false;
-	rc = device_cdev_sysfs_add(hdev);
+	expose_interfaces_on_err = false;
+	rc = cdev_sysfs_debugfs_add(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to add char devices and sysfs nodes\n");
+		dev_err(hdev->dev, "Failed to add char devices and sysfs/debugfs files\n");
 		rc = 0;
 		goto out_disabled;
 	}
@@ -2275,8 +2301,8 @@ release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
 			"kernel ctx is still alive on initialization failure\n");
-remove_device_from_debugfs:
-	hl_debugfs_remove_device(hdev);
+debugfs_device_fini:
+	hl_debugfs_device_fini(hdev);
 mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
@@ -2300,15 +2326,11 @@ free_dev:
 	put_device(hdev->dev);
 out_disabled:
 	hdev->disabled = true;
-	if (add_cdev_sysfs_on_err)
-		device_cdev_sysfs_add(hdev);
-	if (hdev->pdev)
-		dev_err(&hdev->pdev->dev,
-			"Failed to initialize hl%d. Device %s is NOT usable !\n",
-			hdev->cdev_idx, dev_name(&(hdev)->pdev->dev));
-	else
-		pr_err("Failed to initialize hl%d. Device %s is NOT usable !\n",
-			hdev->cdev_idx, dev_name(&(hdev)->pdev->dev));
+	if (expose_interfaces_on_err)
+		cdev_sysfs_debugfs_add(hdev);
+	dev_err(&hdev->pdev->dev,
+		"Failed to initialize hl%d. Device %s is NOT usable !\n",
+		hdev->cdev_idx, dev_name(&hdev->pdev->dev));
 
 	return rc;
 }
@@ -2427,8 +2449,6 @@ void hl_device_fini(struct hl_device *hdev)
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
 
-	hl_debugfs_remove_device(hdev);
-
 	hl_dec_fini(hdev);
 
 	hl_vm_fini(hdev);
@@ -2453,8 +2473,10 @@ void hl_device_fini(struct hl_device *hdev)
 
 	device_early_fini(hdev);
 
-	/* Hide devices and sysfs nodes from user */
-	device_cdev_sysfs_del(hdev);
+	/* Hide devices and sysfs/debugfs files from user */
+	cdev_sysfs_debugfs_remove(hdev);
+
+	hl_debugfs_device_fini(hdev);
 
 	pr_info("removed device successfully\n");
 }
@@ -2666,4 +2688,12 @@ void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info)
 
 	if (info->event_mask)
 		*info->event_mask |= HL_NOTIFIER_EVENT_CRITICL_FW_ERR;
+}
+
+void hl_enable_err_info_capture(struct hl_error_info *captured_err_info)
+{
+	vfree(captured_err_info->page_fault_info.user_mappings);
+	memset(captured_err_info, 0, sizeof(struct hl_error_info));
+	atomic_set(&captured_err_info->cs_timeout.write_enable, 1);
+	captured_err_info->undef_opcode.write_enable = true;
 }

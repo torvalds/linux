@@ -1034,30 +1034,6 @@ static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 	}
 }
 
-static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
-					u64 *paddr)
-{
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm *vm = &hdev->vm;
-	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	u32 handle;
-
-	handle = lower_32_bits(args->map_device.handle);
-	spin_lock(&vm->idr_lock);
-	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
-	if (!phys_pg_pack) {
-		spin_unlock(&vm->idr_lock);
-		dev_err(hdev->dev, "no match for handle %u\n", handle);
-		return -EINVAL;
-	}
-
-	*paddr = phys_pg_pack->pages[0];
-
-	spin_unlock(&vm->idr_lock);
-
-	return 0;
-}
-
 /**
  * map_device_va() - map the given memory.
  * @ctx: pointer to the context structure.
@@ -2094,76 +2070,6 @@ err_free_dmabuf_wrapper:
 	return rc;
 }
 
-static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
-{
-	struct hl_device *hdev = hpriv->hdev;
-	u64 block_handle, device_addr = 0;
-	struct hl_ctx *ctx = hpriv->ctx;
-	u32 handle = 0, block_size;
-	int rc;
-
-	switch (args->in.op) {
-	case HL_MEM_OP_ALLOC:
-		if (args->in.alloc.mem_size == 0) {
-			dev_err(hdev->dev, "alloc size must be larger than 0\n");
-			rc = -EINVAL;
-			goto out;
-		}
-
-		/* Force contiguous as there are no real MMU
-		 * translations to overcome physical memory gaps
-		 */
-		args->in.flags |= HL_MEM_CONTIGUOUS;
-		rc = alloc_device_memory(ctx, &args->in, &handle);
-
-		memset(args, 0, sizeof(*args));
-		args->out.handle = (__u64) handle;
-		break;
-
-	case HL_MEM_OP_FREE:
-		rc = free_device_memory(ctx, &args->in);
-		break;
-
-	case HL_MEM_OP_MAP:
-		if (args->in.flags & HL_MEM_USERPTR) {
-			dev_err(hdev->dev, "Failed to map host memory when MMU is disabled\n");
-			rc = -EPERM;
-		} else {
-			rc = get_paddr_from_handle(ctx, &args->in, &device_addr);
-			memset(args, 0, sizeof(*args));
-			args->out.device_virt_addr = device_addr;
-		}
-
-		break;
-
-	case HL_MEM_OP_UNMAP:
-		rc = 0;
-		break;
-
-	case HL_MEM_OP_MAP_BLOCK:
-		rc = map_block(hdev, args->in.map_block.block_addr, &block_handle, &block_size);
-		args->out.block_handle = block_handle;
-		args->out.block_size = block_size;
-		break;
-
-	case HL_MEM_OP_EXPORT_DMABUF_FD:
-		dev_err(hdev->dev, "Failed to export dma-buf object when MMU is disabled\n");
-		rc = -EPERM;
-		break;
-
-	case HL_MEM_OP_TS_ALLOC:
-		rc = allocate_timestamps_buffers(hpriv, &args->in, &args->out.handle);
-		break;
-	default:
-		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-		rc = -EINVAL;
-		break;
-	}
-
-out:
-	return rc;
-}
-
 static void ts_buff_release(struct hl_mmap_mem_buf *buf)
 {
 	struct hl_ts_buff *ts_buff = buf->private;
@@ -2281,9 +2187,6 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 			hdev->status[status]);
 		return -EBUSY;
 	}
-
-	if (!hdev->mmu_enable)
-		return mem_ioctl_no_mmu(hpriv, args);
 
 	switch (args->in.op) {
 	case HL_MEM_OP_ALLOC:
@@ -2779,13 +2682,10 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 	atomic64_set(&ctx->dram_phys_mem, 0);
 
 	/*
-	 * - If MMU is enabled, init the ranges as usual.
-	 * - If MMU is disabled, in case of host mapping, the returned address
-	 *   is the given one.
 	 *   In case of DRAM mapping, the returned address is the physical
 	 *   address of the memory related to the given handle.
 	 */
-	if (!ctx->hdev->mmu_enable)
+	if (ctx->hdev->mmu_disable)
 		return 0;
 
 	dram_range_start = prop->dmmu.start_addr;
@@ -2835,7 +2735,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	struct hl_mem_in args;
 	int i;
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return;
 
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
