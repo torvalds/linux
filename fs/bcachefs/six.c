@@ -870,6 +870,11 @@ void __six_lock_init(struct six_lock *lock, const char *name,
 	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 
+	/*
+	 * Don't assume that we have real percpu variables available in
+	 * userspace:
+	 */
+#ifdef __KERNEL__
 	if (flags & SIX_LOCK_INIT_PCPU) {
 		/*
 		 * We don't return an error here on memory allocation failure
@@ -880,5 +885,6 @@ void __six_lock_init(struct six_lock *lock, const char *name,
 		 */
 		lock->readers = alloc_percpu(unsigned);
 	}
+#endif
 }
 EXPORT_SYMBOL_GPL(__six_lock_init);
