@@ -24,6 +24,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -1485,9 +1486,7 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 		}
 		quot--;
 
-		calc_deviation = req_baud - baud;
-		if (calc_deviation < 0)
-			calc_deviation = -calc_deviation;
+		calc_deviation = abs(req_baud - baud);
 
 		if (calc_deviation < deviation) {
 			/*
