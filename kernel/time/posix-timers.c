@@ -846,10 +846,6 @@ static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 	rcu_read_lock();
 	unlock_timer(timer, *flags);
 
-	/*
-	 * kc->timer_wait_running() might drop RCU lock. So @timer
-	 * cannot be touched anymore after the function returns!
-	 */
 	if (!WARN_ON_ONCE(!kc->timer_wait_running))
 		kc->timer_wait_running(timer);
 
