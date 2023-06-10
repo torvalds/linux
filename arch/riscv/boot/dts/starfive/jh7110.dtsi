@@ -39,6 +39,25 @@
 					opp-hz = /bits/ 64 <1500000000>;
 					opp-microvolt = <1040000>;
 			};
+
+			/* CPU opp table for 1.25GHz */
+			opp-312500000 {
+					opp-hz = /bits/ 64 <312500000>;
+					opp-microvolt = <800000>;
+			};
+			opp-417000000 {
+					opp-hz = /bits/ 64 <417000000>;
+					opp-microvolt = <800000>;
+			};
+			opp-625000000 {
+					opp-hz = /bits/ 64 <625000000>;
+					opp-microvolt = <800000>;
+					opp-suspend;
+			};
+			opp-1250000000 {
+					opp-hz = /bits/ 64 <1250000000>;
+					opp-microvolt = <1000000>;
+			};
 	};
 
 	cpus {
