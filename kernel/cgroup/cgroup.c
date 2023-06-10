@@ -2365,45 +2365,6 @@ int cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
 EXPORT_SYMBOL_GPL(cgroup_path_ns);
 
 /**
- * task_cgroup_path - cgroup path of a task in the first cgroup hierarchy
- * @task: target task
- * @buf: the buffer to write the path into
- * @buflen: the length of the buffer
- *
- * Determine @task's cgroup on the first (the one with the lowest non-zero
- * hierarchy_id) cgroup hierarchy and copy its path into @buf.  This
- * function grabs cgroup_mutex and shouldn't be used inside locks used by
- * cgroup controller callbacks.
- *
- * Return value is the same as kernfs_path().
- */
-int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
-{
-	struct cgroup_root *root;
-	struct cgroup *cgrp;
-	int hierarchy_id = 1;
-	int ret;
-
-	cgroup_lock();
-	spin_lock_irq(&css_set_lock);
-
-	root = idr_get_next(&cgroup_hierarchy_idr, &hierarchy_id);
-
-	if (root) {
-		cgrp = task_cgroup_from_root(task, root);
-		ret = cgroup_path_ns_locked(cgrp, buf, buflen, &init_cgroup_ns);
-	} else {
-		/* if no hierarchy exists, everyone is in "/" */
-		ret = strscpy(buf, "/", buflen);
-	}
-
-	spin_unlock_irq(&css_set_lock);
-	cgroup_unlock();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(task_cgroup_path);
-
-/**
  * cgroup_attach_lock - Lock for ->attach()
  * @lock_threadgroup: whether to down_write cgroup_threadgroup_rwsem
  *
