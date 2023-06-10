@@ -85,7 +85,7 @@ static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
 	struct kvm *kvm = s->private;
 	struct vgic_state_iter *iter;
 
-	mutex_lock(&kvm->arch.config_lock);
+	mutex_lock(&kvm->lock);
 	iter = kvm->arch.vgic.iter;
 	if (iter) {
 		iter = ERR_PTR(-EBUSY);
@@ -104,7 +104,7 @@ static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
 	if (end_of_vgic(iter))
 		iter = NULL;
 out:
-	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->lock);
 	return iter;
 }
 
@@ -132,12 +132,12 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 	if (IS_ERR(v))
 		return;
 
-	mutex_lock(&kvm->arch.config_lock);
+	mutex_lock(&kvm->lock);
 	iter = kvm->arch.vgic.iter;
 	kfree(iter->lpi_array);
 	kfree(iter);
 	kvm->arch.vgic.iter = NULL;
-	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->lock);
 }
 
 static void print_dist_state(struct seq_file *s, struct vgic_dist *dist)
