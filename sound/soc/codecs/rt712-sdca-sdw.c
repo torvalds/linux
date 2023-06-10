@@ -116,7 +116,7 @@ static const struct regmap_config rt712_sdca_regmap = {
 	.max_register = 0x44ffffff,
 	.reg_defaults = rt712_sdca_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt712_sdca_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -130,7 +130,7 @@ static const struct regmap_config rt712_sdca_mbq_regmap = {
 	.max_register = 0x41000312,
 	.reg_defaults = rt712_sdca_mbq_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt712_sdca_mbq_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
