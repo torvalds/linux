@@ -348,7 +348,7 @@ static const struct regmap_config ltc3589_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ltc3589_reg_defaults),
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3589_isr(int irq, void *dev_id)
