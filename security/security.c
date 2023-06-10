@@ -31,8 +31,6 @@
 #include <linux/msg.h>
 #include <net/flow.h>
 
-#define MAX_LSM_EVM_XATTR	2
-
 /* How many LSMs were built into the kernel? */
 #define LSM_COUNT (__end_lsm_info - __start_lsm_info)
 
@@ -212,6 +210,8 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 	lsm_set_blob_size(&needed->lbs_msg_msg, &blob_sizes.lbs_msg_msg);
 	lsm_set_blob_size(&needed->lbs_superblock, &blob_sizes.lbs_superblock);
 	lsm_set_blob_size(&needed->lbs_task, &blob_sizes.lbs_task);
+	lsm_set_blob_size(&needed->lbs_xattr_count,
+			  &blob_sizes.lbs_xattr_count);
 }
 
 /* Prepare LSM for initialization. */
@@ -378,6 +378,7 @@ static void __init ordered_lsm_init(void)
 	init_debug("msg_msg blob size    = %d\n", blob_sizes.lbs_msg_msg);
 	init_debug("superblock blob size = %d\n", blob_sizes.lbs_superblock);
 	init_debug("task blob size       = %d\n", blob_sizes.lbs_task);
+	init_debug("xattr slots          = %d\n", blob_sizes.lbs_xattr_count);
 
 	/*
 	 * Create any kmem_caches needed for blobs
@@ -1591,11 +1592,17 @@ EXPORT_SYMBOL(security_dentry_create_files_as);
  * created inode and set up the incore security field for the new inode.  This
  * hook is called by the fs code as part of the inode creation transaction and
  * provides for atomic labeling of the inode, unlike the post_create/mkdir/...
- * hooks called by the VFS.  The hook function is expected to allocate the name
- * and value via kmalloc, with the caller being responsible for calling kfree
- * after using them.  If the security module does not use security attributes
- * or does not wish to put a security attribute on this particular inode, then
- * it should return -EOPNOTSUPP to skip this processing.
+ * hooks called by the VFS.
+ *
+ * The hook function is expected to populate the xattrs array, by calling
+ * lsm_get_xattr_slot() to retrieve the slots reserved by the security module
+ * with the lbs_xattr_count field of the lsm_blob_sizes structure.  For each
+ * slot, the hook function should set ->name to the attribute name suffix
+ * (e.g. selinux), to allocate ->value (will be freed by the caller) and set it
+ * to the attribute value, to set ->value_len to the length of the value.  If
+ * the security module does not use security attributes or does not wish to put
+ * a security attribute on this particular inode, then it should return
+ * -EOPNOTSUPP to skip this processing.
  *
  * Return: Returns 0 on success, -EOPNOTSUPP if no security attribute is
  * needed, or -ENOMEM on memory allocation failure.
@@ -1604,33 +1611,51 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
 				 const initxattrs initxattrs, void *fs_data)
 {
-	struct xattr new_xattrs[MAX_LSM_EVM_XATTR + 1];
-	struct xattr *lsm_xattr, *evm_xattr, *xattr;
-	int ret;
+	struct security_hook_list *hp;
+	struct xattr *new_xattrs = NULL;
+	int ret = -EOPNOTSUPP, xattr_count = 0;
 
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 
-	if (!initxattrs)
-		return call_int_hook(inode_init_security, -EOPNOTSUPP, inode,
-				     dir, qstr, NULL, NULL, NULL);
-	memset(new_xattrs, 0, sizeof(new_xattrs));
-	lsm_xattr = new_xattrs;
-	ret = call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir, qstr,
-			    &lsm_xattr->name,
-			    &lsm_xattr->value,
-			    &lsm_xattr->value_len);
-	if (ret)
+	if (!blob_sizes.lbs_xattr_count)
+		return 0;
+
+	if (initxattrs) {
+		/* Allocate +1 for EVM and +1 as terminator. */
+		new_xattrs = kcalloc(blob_sizes.lbs_xattr_count + 2,
+				     sizeof(*new_xattrs), GFP_NOFS);
+		if (!new_xattrs)
+			return -ENOMEM;
+	}
+
+	hlist_for_each_entry(hp, &security_hook_heads.inode_init_security,
+			     list) {
+		ret = hp->hook.inode_init_security(inode, dir, qstr, new_xattrs,
+						  &xattr_count);
+		if (ret && ret != -EOPNOTSUPP)
+			goto out;
+		/*
+		 * As documented in lsm_hooks.h, -EOPNOTSUPP in this context
+		 * means that the LSM is not willing to provide an xattr, not
+		 * that it wants to signal an error. Thus, continue to invoke
+		 * the remaining LSMs.
+		 */
+	}
+
+	/* If initxattrs() is NULL, xattr_count is zero, skip the call. */
+	if (!xattr_count)
 		goto out;
 
-	evm_xattr = lsm_xattr + 1;
-	ret = evm_inode_init_security(inode, lsm_xattr, evm_xattr);
+	ret = evm_inode_init_security(inode, new_xattrs,
+				      &new_xattrs[xattr_count]);
 	if (ret)
 		goto out;
 	ret = initxattrs(inode, new_xattrs, fs_data);
 out:
-	for (xattr = new_xattrs; xattr->value != NULL; xattr++)
-		kfree(xattr->value);
+	for (; xattr_count > 0; xattr_count--)
+		kfree(new_xattrs[xattr_count - 1].value);
+	kfree(new_xattrs);
 	return (ret == -EOPNOTSUPP) ? 0 : ret;
 }
 EXPORT_SYMBOL(security_inode_init_security);
