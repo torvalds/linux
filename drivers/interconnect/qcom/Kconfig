@@ -274,3 +274,16 @@ config INTERCONNECT_QCOM_DEBUG
           This driver provides QCOM-specific interconnect debug features. These
           features include optionally printing all enabled interconnect votes
           when entering suspend.
+
+config INTERCONNECT_QCOM_MONACO_AUTO
+	tristate "MONACO_AUTO interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_RPMH && QCOM_COMMAND_DB && OF
+	select INTERCONNECT_QCOM_BCM_VOTER
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_QOS
+	help
+	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
+	  on monaco_auto-based platforms. The interconnect provider collects and
+	  aggregates the consumer bandwidth requests to satisfy constraints
+	  placed on Network-on-Chip performance states.
