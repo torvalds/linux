@@ -608,7 +608,7 @@ static const struct regmap_config twl6040_regmap_config = {
 	.volatile_reg = twl6040_volatile_reg,
 	.writeable_reg = twl6040_writeable_reg,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
