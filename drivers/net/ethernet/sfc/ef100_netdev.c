@@ -24,6 +24,7 @@
 #include "rx_common.h"
 #include "ef100_sriov.h"
 #include "tc_bindings.h"
+#include "tc_encap_actions.h"
 #include "efx_devlink.h"
 
 static void ef100_update_name(struct efx_nic *efx)
@@ -300,13 +301,37 @@ int ef100_netdev_event(struct notifier_block *this,
 {
 	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_notifier);
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	int err;
 
 	if (efx->net_dev == net_dev &&
 	    (event == NETDEV_CHANGENAME || event == NETDEV_REGISTER))
 		ef100_update_name(efx);
 
+	if (!nic_data->grp_mae)
+		return NOTIFY_DONE;
+	err = efx_tc_netdev_event(efx, event, net_dev);
+	if (err & NOTIFY_STOP_MASK)
+		return err;
+
 	return NOTIFY_DONE;
 }
+
+static int ef100_netevent_event(struct notifier_block *this,
+				unsigned long event, void *ptr)
+{
+	struct efx_nic *efx = container_of(this, struct efx_nic, netevent_notifier);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	int err;
+
+	if (!nic_data->grp_mae)
+		return NOTIFY_DONE;
+	err = efx_tc_netevent_event(efx, event, ptr);
+	if (err & NOTIFY_STOP_MASK)
+		return err;
+
+	return NOTIFY_DONE;
+};
 
 static int ef100_register_netdev(struct efx_nic *efx)
 {
@@ -367,6 +392,7 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	rtnl_unlock();
 
 	unregister_netdevice_notifier(&efx->netdev_notifier);
+	unregister_netevent_notifier(&efx->netevent_notifier);
 #if defined(CONFIG_SFC_SRIOV)
 	if (!efx->type->is_vf)
 		efx_ef100_pci_sriov_disable(efx, true);
@@ -484,6 +510,14 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "Failed to register netdevice notifier, rc=%d\n", rc);
+		goto fail;
+	}
+
+	efx->netevent_notifier.notifier_call = ef100_netevent_event;
+	rc = register_netevent_notifier(&efx->netevent_notifier);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "Failed to register netevent notifier, rc=%d\n", rc);
 		goto fail;
 	}
 

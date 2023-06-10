@@ -14,11 +14,12 @@
 #include <net/geneve.h>
 #include "tc.h"
 #include "tc_bindings.h"
+#include "tc_encap_actions.h"
 #include "mae.h"
 #include "ef100_rep.h"
 #include "efx.h"
 
-static enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
+enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
 {
 	if (netif_is_vxlan(net_dev))
 		return EFX_ENCAP_TYPE_VXLAN;
@@ -33,8 +34,8 @@ static enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
  * May return NULL for the PF (us), or an error pointer for a device that
  * isn't supported as a TC offload endpoint
  */
-static struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
-						struct net_device *dev)
+struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
+					 struct net_device *dev)
 {
 	struct efx_rep *efv;
 
@@ -70,7 +71,7 @@ static s64 efx_tc_flower_internal_mport(struct efx_nic *efx, struct efx_rep *efv
 }
 
 /* Convert a driver-internal vport ID into an external device (wire or VF) */
-static s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv)
+s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv)
 {
 	u32 mport;
 
@@ -111,6 +112,10 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 	}
 	if (act->count)
 		efx_tc_flower_put_counter_index(efx, act->count);
+	if (act->encap_md) {
+		list_del(&act->encap_user);
+		efx_tc_flower_release_encap_md(efx, act->encap_md);
+	}
 	kfree(act);
 }
 
@@ -594,6 +599,7 @@ enum efx_tc_action_order {
 	EFX_TC_AO_VLAN_POP,
 	EFX_TC_AO_VLAN_PUSH,
 	EFX_TC_AO_COUNT,
+	EFX_TC_AO_ENCAP,
 	EFX_TC_AO_DELIVER
 };
 /* Determine whether we can add @new action without violating order */
@@ -621,6 +627,10 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 		fallthrough;
 	case EFX_TC_AO_COUNT:
 		if (act->count)
+			return false;
+		fallthrough;
+	case EFX_TC_AO_ENCAP:
+		if (act->encap_md)
 			return false;
 		fallthrough;
 	case EFX_TC_AO_DELIVER:
@@ -918,11 +928,13 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 {
 	struct flow_rule *fr = flow_cls_offload_flow_rule(tc);
 	struct netlink_ext_ack *extack = tc->common.extack;
+	const struct ip_tunnel_info *encap_info = NULL;
 	struct efx_tc_flow_rule *rule = NULL, *old;
 	struct efx_tc_action_set *act = NULL;
 	const struct flow_action_entry *fa;
 	struct efx_rep *from_efv, *to_efv;
 	struct efx_tc_match match;
+	u32 acts_id;
 	s64 rc;
 	int i;
 
@@ -1087,6 +1099,48 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		case FLOW_ACTION_MIRRED:
 			save = *act;
 
+			if (encap_info) {
+				struct efx_tc_encap_action *encap;
+
+				if (!efx_tc_flower_action_order_ok(act,
+								   EFX_TC_AO_ENCAP)) {
+					rc = -EOPNOTSUPP;
+					NL_SET_ERR_MSG_MOD(extack, "Encap action violates action order");
+					goto release;
+				}
+				encap = efx_tc_flower_create_encap_md(
+						efx, encap_info, fa->dev, extack);
+				if (IS_ERR_OR_NULL(encap)) {
+					rc = PTR_ERR(encap);
+					if (!rc)
+						rc = -EIO; /* arbitrary */
+					goto release;
+				}
+				act->encap_md = encap;
+				list_add_tail(&act->encap_user, &encap->users);
+				act->dest_mport = encap->dest_mport;
+				act->deliver = 1;
+				rc = efx_mae_alloc_action_set(efx, act);
+				if (rc) {
+					NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (encap)");
+					goto release;
+				}
+				list_add_tail(&act->list, &rule->acts.list);
+				act->user = &rule->acts;
+				act = NULL;
+				if (fa->id == FLOW_ACTION_REDIRECT)
+					break; /* end of the line */
+				/* Mirror, so continue on with saved act */
+				save.count = NULL;
+				act = kzalloc(sizeof(*act), GFP_USER);
+				if (!act) {
+					rc = -ENOMEM;
+					goto release;
+				}
+				*act = save;
+				break;
+			}
+
 			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
 				/* can't happen */
 				rc = -EOPNOTSUPP;
@@ -1150,6 +1204,37 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			act->vlan_proto[act->vlan_push] = fa->vlan.proto;
 			act->vlan_push++;
 			break;
+		case FLOW_ACTION_TUNNEL_ENCAP:
+			if (encap_info) {
+				/* Can't specify encap multiple times.
+				 * If you want to overwrite an existing
+				 * encap_info, use an intervening
+				 * FLOW_ACTION_TUNNEL_DECAP to clear it.
+				 */
+				NL_SET_ERR_MSG_MOD(extack, "Tunnel key set when already set");
+				rc = -EINVAL;
+				goto release;
+			}
+			if (!fa->tunnel) {
+				NL_SET_ERR_MSG_MOD(extack, "Tunnel key set is missing key");
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+			encap_info = fa->tunnel;
+			break;
+		case FLOW_ACTION_TUNNEL_DECAP:
+			if (encap_info) {
+				encap_info = NULL;
+				break;
+			}
+			/* Since we don't support enc_key matches on ingress
+			 * (and if we did there'd be no tunnel-device to give
+			 * us a type), we can't offload a decap that's not
+			 * just undoing a previous encap action.
+			 */
+			NL_SET_ERR_MSG_MOD(extack, "Cannot offload tunnel decap action without tunnel device");
+			rc = -EOPNOTSUPP;
+			goto release;
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
 					       fa->id);
@@ -1193,8 +1278,21 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		NL_SET_ERR_MSG_MOD(extack, "Failed to write action set list to hw");
 		goto release;
 	}
+	if (from_efv == EFX_EFV_PF)
+		/* PF netdev, so rule applies to traffic from wire */
+		rule->fallback = &efx->tc->facts.pf;
+	else
+		/* repdev, so rule applies to traffic from representee */
+		rule->fallback = &efx->tc->facts.reps;
+	if (!efx_tc_check_ready(efx, rule)) {
+		netif_dbg(efx, drv, efx->net_dev, "action not ready for hw\n");
+		acts_id = rule->fallback->fw_id;
+	} else {
+		netif_dbg(efx, drv, efx->net_dev, "ready for hw\n");
+		acts_id = rule->acts.fw_id;
+	}
 	rc = efx_mae_insert_rule(efx, &rule->match, EFX_TC_PRIO_TC,
-				 rule->acts.fw_id, &rule->fw_id);
+				 acts_id, &rule->fw_id);
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to insert rule in hw");
 		goto release_acts;
@@ -1391,6 +1489,58 @@ void efx_tc_deconfigure_default_rule(struct efx_nic *efx,
 	rule->fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 }
 
+static int efx_tc_configure_fallback_acts(struct efx_nic *efx, u32 eg_port,
+					  struct efx_tc_action_set_list *acts)
+{
+	struct efx_tc_action_set *act;
+	int rc;
+
+	act = kzalloc(sizeof(*act), GFP_KERNEL);
+	if (!act)
+		return -ENOMEM;
+	act->deliver = 1;
+	act->dest_mport = eg_port;
+	rc = efx_mae_alloc_action_set(efx, act);
+	if (rc)
+		goto fail1;
+	EFX_WARN_ON_PARANOID(!list_empty(&acts->list));
+	list_add_tail(&act->list, &acts->list);
+	rc = efx_mae_alloc_action_set_list(efx, acts);
+	if (rc)
+		goto fail2;
+	return 0;
+fail2:
+	list_del(&act->list);
+	efx_mae_free_action_set(efx, act->fw_id);
+fail1:
+	kfree(act);
+	return rc;
+}
+
+static int efx_tc_configure_fallback_acts_pf(struct efx_nic *efx)
+{
+	struct efx_tc_action_set_list *acts = &efx->tc->facts.pf;
+	u32 eg_port;
+
+	efx_mae_mport_uplink(efx, &eg_port);
+	return efx_tc_configure_fallback_acts(efx, eg_port, acts);
+}
+
+static int efx_tc_configure_fallback_acts_reps(struct efx_nic *efx)
+{
+	struct efx_tc_action_set_list *acts = &efx->tc->facts.reps;
+	u32 eg_port;
+
+	efx_mae_mport_mport(efx, efx->tc->reps_mport_id, &eg_port);
+	return efx_tc_configure_fallback_acts(efx, eg_port, acts);
+}
+
+static void efx_tc_deconfigure_fallback_acts(struct efx_nic *efx,
+					     struct efx_tc_action_set_list *acts)
+{
+	efx_tc_free_action_set_list(efx, acts, true);
+}
+
 static int efx_tc_configure_rep_mport(struct efx_nic *efx)
 {
 	u32 rep_mport_label;
@@ -1483,6 +1633,12 @@ int efx_init_tc(struct efx_nic *efx)
 	rc = efx_tc_configure_rep_mport(efx);
 	if (rc)
 		return rc;
+	rc = efx_tc_configure_fallback_acts_pf(efx);
+	if (rc)
+		return rc;
+	rc = efx_tc_configure_fallback_acts_reps(efx);
+	if (rc)
+		return rc;
 	efx->tc->up = true;
 	rc = flow_indr_dev_register(efx_tc_indr_setup_cb, efx);
 	if (rc)
@@ -1500,6 +1656,8 @@ void efx_fini_tc(struct efx_nic *efx)
 	efx_tc_deconfigure_rep_mport(efx);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.pf);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.wire);
+	efx_tc_deconfigure_fallback_acts(efx, &efx->tc->facts.pf);
+	efx_tc_deconfigure_fallback_acts(efx, &efx->tc->facts.reps);
 	efx->tc->up = false;
 }
 
@@ -1549,6 +1707,9 @@ int efx_init_struct_tc(struct efx_nic *efx)
 
 	mutex_init(&efx->tc->mutex);
 	init_waitqueue_head(&efx->tc->flush_wq);
+	rc = efx_tc_init_encap_actions(efx);
+	if (rc < 0)
+		goto fail_encap_actions;
 	rc = efx_tc_init_counters(efx);
 	if (rc < 0)
 		goto fail_counters;
@@ -1564,6 +1725,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc->dflt.pf.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 	INIT_LIST_HEAD(&efx->tc->dflt.wire.acts.list);
 	efx->tc->dflt.wire.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
+	INIT_LIST_HEAD(&efx->tc->facts.pf.list);
+	efx->tc->facts.pf.fw_id = MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL;
+	INIT_LIST_HEAD(&efx->tc->facts.reps.list);
+	efx->tc->facts.reps.fw_id = MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL;
 	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
 fail_match_action_ht:
@@ -1571,6 +1736,8 @@ fail_match_action_ht:
 fail_encap_match_ht:
 	efx_tc_destroy_counters(efx);
 fail_counters:
+	efx_tc_destroy_encap_actions(efx);
+fail_encap_actions:
 	mutex_destroy(&efx->tc->mutex);
 	kfree(efx->tc->caps);
 fail_alloc_caps:
@@ -1589,11 +1756,16 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
 	EFX_WARN_ON_PARANOID(efx->tc->dflt.wire.fw_id !=
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
+	EFX_WARN_ON_PARANOID(efx->tc->facts.pf.fw_id !=
+			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+	EFX_WARN_ON_PARANOID(efx->tc->facts.reps.fw_id !=
+			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,
 				    efx);
 	rhashtable_free_and_destroy(&efx->tc->encap_match_ht,
 				    efx_tc_encap_match_free, NULL);
 	efx_tc_fini_counters(efx);
+	efx_tc_fini_encap_actions(efx);
 	mutex_unlock(&efx->tc->mutex);
 	mutex_destroy(&efx->tc->mutex);
 	kfree(efx->tc->caps);

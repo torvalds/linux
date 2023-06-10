@@ -26,4 +26,6 @@ int efx_tc_indr_setup_cb(struct net_device *net_dev, struct Qdisc *sch,
 			 void *cb_priv, enum tc_setup_type type,
 			 void *type_data, void *data,
 			 void (*cleanup)(struct flow_block_cb *block_cb));
+int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
+			struct net_device *net_dev);
 #endif /* EFX_TC_BINDINGS_H */
