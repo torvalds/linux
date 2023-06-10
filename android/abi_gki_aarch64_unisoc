@@ -1204,6 +1204,16 @@
   sock_common_recvmsg
   sock_common_setsockopt
 
+# required by kfifo_buf.ko
+  devres_add
+  __devres_alloc_node
+  devres_free
+  iio_buffer_init
+  iio_buffer_put
+  iio_device_attach_buffer
+  __kfifo_from_user
+  __kfifo_to_user
+
 # required by l2tp_core.ko
   idr_alloc_u32
   idr_get_next_ul
@@ -1469,6 +1479,25 @@
   sdhci_runtime_suspend_host
   sdhci_set_bus_width
   sdhci_setup_host
+
+# required by sensorhub.ko
+  debugfs_create_symlink
+  iio_alloc_pollfunc
+  iio_dealloc_pollfunc
+  iio_device_alloc
+  iio_device_free
+  iio_device_id
+  iio_device_unregister
+  iio_pollfunc_store_time
+  iio_push_to_buffers
+  __iio_trigger_alloc
+  iio_trigger_free
+  iio_trigger_notify_done
+  iio_trigger_poll
+  iio_trigger_register
+  iio_trigger_unregister
+  pm_wakeup_ws_event
+  sysfs_create_link
 
 # required by sipc-core.ko
   mbox_free_channel
