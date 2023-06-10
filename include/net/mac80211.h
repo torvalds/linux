@@ -1790,6 +1790,9 @@ enum ieee80211_offload_flags {
  * @ps: power-save mode (STA only). This flag is NOT affected by
  *	offchannel/dynamic_ps operations.
  * @aid: association ID number, valid only when @assoc is true
+ * @eml_cap: EML capabilities as described in P802.11be_D2.2 Figure 9-1002k.
+ * @eml_med_sync_delay: Medium Synchronization delay as described in
+ *	P802.11be_D2.2 Figure 9-1002j.
  * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
  *	may filter ARP queries targeted for other addresses than listed here.
  *	The driver must allow ARP queries targeted for all address listed here
@@ -1812,6 +1815,8 @@ struct ieee80211_vif_cfg {
 	bool ibss_creator;
 	bool ps;
 	u16 aid;
+	u16 eml_cap;
+	u16 eml_med_sync_delay;
 
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
 	int arp_addr_cnt;

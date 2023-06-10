@@ -1031,12 +1031,12 @@ static int rtl8710bu_iqk_path_a(struct rtl8xxxu_priv *priv, u32 *lok_result)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G2, 0x07ff7);
 
 	/* PA,PAD gain adjust */
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 	val32 |= BIT(11);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, val32);
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, val32);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_PAD_TXG);
 	u32p_replace_bits(&val32, 0x1ed, 0x00fff);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_PAD_TXG, val32);
 
 	/* enter IQK mode */
 	val32 = rtl8xxxu_read32(priv, REG_FPGA0_IQK);
@@ -1068,9 +1068,9 @@ static int rtl8710bu_iqk_path_a(struct rtl8xxxu_priv *priv, u32 *lok_result)
 	u32p_replace_bits(&val32, 0, 0xffffff00);
 	rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
 
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 	val32 &= ~BIT(11);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, val32);
 
 	/* save LOK result */
 	*lok_result = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_TXM_IDAC);
@@ -1113,12 +1113,12 @@ static int rtl8710bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G2, 0xf1173);
 
 	/* PA,PAD gain adjust */
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 	val32 |= BIT(11);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, val32);
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, val32);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_PAD_TXG);
 	u32p_replace_bits(&val32, 0xf, 0x003e0);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_PAD_TXG, val32);
 
 	/*
 	 * Enter IQK mode
@@ -1170,9 +1170,9 @@ static int rtl8710bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 		u32p_replace_bits(&val32, 0, 0xffffff00);
 		rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
 
-		val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+		val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 		val32 &= ~BIT(11);
-		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, val32);
+		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, val32);
 
 		return result;
 	}
@@ -1197,12 +1197,12 @@ static int rtl8710bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	/*
 	 * PA, PAD setting
 	 */
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 	val32 |= BIT(11);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, val32);
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, val32);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_PAD_TXG);
 	u32p_replace_bits(&val32, 0x2a, 0x00fff);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_PAD_TXG, val32);
 
 	/*
 	 * Enter IQK mode
@@ -1241,9 +1241,9 @@ static int rtl8710bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	u32p_replace_bits(&val32, 0, 0xffffff00);
 	rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
 
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 	val32 &= ~BIT(11);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, val32);
 
 	/* reload LOK value */
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXM_IDAC, lok_result);
@@ -1874,6 +1874,7 @@ struct rtl8xxxu_fileops rtl8710bu_fops = {
 	 * but in rtl8xxxu 0x50 causes slow upload and random packet loss. Why?
 	 */
 	.ustime_tsf_edca = 0x28,
+	.max_aggr_num = 0x0c14,
 	.adda_1t_init = 0x03c00016,
 	.adda_1t_path_on = 0x03c00016,
 	.trxff_boundary = 0x3f7f,

@@ -39,6 +39,7 @@
 #define TX_TOTAL_PAGE_NUM_8188E		0xa9
 #define TX_TOTAL_PAGE_NUM_8192E		0xf3
 #define TX_TOTAL_PAGE_NUM_8723B		0xf7
+#define TX_TOTAL_PAGE_NUM_8192F		0xf7
 /* (HPQ + LPQ + NPQ + PUBQ) = TX_TOTAL_PAGE_NUM */
 #define TX_PAGE_NUM_PUBQ		0xe7
 #define TX_PAGE_NUM_HI_PQ		0x0c
@@ -65,6 +66,11 @@
 #define TX_PAGE_NUM_LO_PQ_8723B		0x02
 #define TX_PAGE_NUM_NORM_PQ_8723B	0x02
 
+#define TX_PAGE_NUM_PUBQ_8192F		0xde
+#define TX_PAGE_NUM_HI_PQ_8192F		0x08
+#define TX_PAGE_NUM_LO_PQ_8192F		0x08
+#define TX_PAGE_NUM_NORM_PQ_8192F	0x08
+
 #define RTL_FW_PAGE_SIZE		4096
 #define RTL8XXXU_FIRMWARE_POLL_MAX	1000
 
@@ -81,6 +87,7 @@
 #define EFUSE_REAL_CONTENT_LEN_8723A	512
 #define EFUSE_BT_MAP_LEN_8723A		1024
 #define EFUSE_MAX_WORD_UNIT		4
+#define EFUSE_UNDEFINED			0xff
 
 enum rtl8xxxu_rtl_chip {
 	RTL8192S = 0x81920,
@@ -105,6 +112,7 @@ enum rtl8xxxu_rtl_chip {
 	RTL8195A = 0x8195a,
 	RTL8188F = 0x8188f,
 	RTL8710B = 0x8710b,
+	RTL8192F = 0x8192f,
 };
 
 enum rtl8xxxu_rx_type {
@@ -1246,6 +1254,40 @@ struct rtl8710bu_efuse {
 	u8 res7[0x3c];
 } __packed;
 
+struct rtl8192fu_efuse {
+	__le16 rtl_id;
+	u8 res0[0x0e];
+	struct rtl8192eu_efuse_tx_power tx_power_index_A;	/* 0x10 */
+	struct rtl8192eu_efuse_tx_power tx_power_index_B;	/* 0x3a */
+	u8 res2[0x54];
+	u8 channel_plan;		/* 0xb8 */
+	u8 xtal_k;			/* 0xb9 */
+	u8 thermal_meter;		/* 0xba */
+	u8 iqk_lck;			/* 0xbb */
+	u8 pa_type;			/* 0xbc */
+	u8 lna_type_2g;			/* 0xbd */
+	u8 res3[1];
+	u8 lna_type_5g;			/* 0xbf */
+	u8 res4[1];
+	u8 rf_board_option;		/* 0xc1 */
+	u8 rf_feature_option;		/* 0xc2 */
+	u8 rf_bt_setting;		/* 0xc3 */
+	u8 eeprom_version;		/* 0xc4 */
+	u8 eeprom_customer_id;		/* 0xc5 */
+	u8 res5[3];
+	u8 rf_antenna_option;		/* 0xc9 */
+	u8 rfe_option;			/* 0xca */
+	u8 country_code;		/* 0xcb */
+	u8 res6[52];
+	u8 vid[2];			/* 0x100 */
+	u8 pid[2];			/* 0x102 */
+	u8 usb_optional_function;	/* 0x104 */
+	u8 res7[2];
+	u8 mac_addr[ETH_ALEN];		/* 0x107 */
+	u8 device_info[80];		/* 0x10d */
+	u8 res9[163];
+} __packed;
+
 struct rtl8xxxu_reg8val {
 	u16 reg;
 	u8 val;
@@ -1796,6 +1838,7 @@ struct rtl8xxxu_priv {
 	u32 cck_agc_report_type:1;
 	u32 cck_new_agc:1;
 	u8 default_crystal_cap;
+	u8 rfe_type;
 	unsigned int pipe_interrupt;
 	unsigned int pipe_in;
 	unsigned int pipe_out[TXDESC_QUEUE_MAX];
@@ -1836,6 +1879,7 @@ struct rtl8xxxu_priv {
 		struct rtl8188fu_efuse efuse8188fu;
 		struct rtl8188eu_efuse efuse8188eu;
 		struct rtl8710bu_efuse efuse8710bu;
+		struct rtl8192fu_efuse efuse8192fu;
 	} efuse_wifi;
 	u32 adda_backup[RTL8XXXU_ADDA_REGS];
 	u32 mac_backup[RTL8XXXU_MAC_REGS];
@@ -1944,6 +1988,7 @@ struct rtl8xxxu_fileops {
 	u8 init_reg_hmtfr:1;
 	u8 ampdu_max_time;
 	u8 ustime_tsf_edca;
+	u16 max_aggr_num;
 	u8 supports_ap:1;
 	u16 max_macid_num;
 	u32 adda_1t_init;
@@ -2032,6 +2077,7 @@ void rtl8xxxu_gen1_phy_iq_calibrate(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_init_phy_bb(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv,
 				int channel, bool ht40);
+void rtl8188f_channel_to_group(int channel, int *group, int *cck_group);
 void rtl8188f_set_tx_power(struct rtl8xxxu_priv *priv,
 			   int channel, bool ht40);
 void rtl8xxxu_gen1_config_channel(struct ieee80211_hw *hw);
@@ -2096,6 +2142,7 @@ void rtl8xxxu_update_ra_report(struct rtl8xxxu_ra_report *rarpt,
 void rtl8188e_ra_info_init_all(struct rtl8xxxu_ra_info *ra);
 void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 
+extern struct rtl8xxxu_fileops rtl8192fu_fops;
 extern struct rtl8xxxu_fileops rtl8710bu_fops;
 extern struct rtl8xxxu_fileops rtl8188fu_fops;
 extern struct rtl8xxxu_fileops rtl8188eu_fops;

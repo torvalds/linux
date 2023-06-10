@@ -303,6 +303,7 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
 	rtwvif->net_type = RTW89_NET_TYPE_NO_LINK;
 	rtwvif->trigger = false;
+	rtwvif->tdls_peer = 0;
 }
 
 static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
@@ -341,6 +342,8 @@ static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
 	rtw89_core_release_all_bits_map(rtwdev->mac_id_map, RTW89_MAX_MAC_ID_NUM);
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		ser_reset_vif(rtwdev, rtwvif);
+
+	rtwdev->total_sta_assoc = 0;
 }
 
 /* hal function */
@@ -406,6 +409,7 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		rtw89_hci_recovery_complete(rtwdev);
+		clear_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
 		break;
 	case SER_EV_L1_RESET_PREPARE:
@@ -418,6 +422,7 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 		ser_state_goto(ser, SER_L2_RESET_ST);
 		break;
 	case SER_EV_STATE_OUT:
+		set_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		rtw89_hci_recovery_start(rtwdev);
 		break;
 	default:

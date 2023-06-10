@@ -2034,7 +2034,6 @@ static u32
 iwl_dump_ini_imr_get_size(struct iwl_fw_runtime *fwrt,
 			  struct iwl_dump_ini_region_data *reg_data)
 {
-	u32 size = 0;
 	u32 ranges = 0;
 	u32 imr_enable = fwrt->trans->dbg.imr_data.imr_enable;
 	u32 imr_size = fwrt->trans->dbg.imr_data.imr_size;
@@ -2044,17 +2043,16 @@ iwl_dump_ini_imr_get_size(struct iwl_fw_runtime *fwrt,
 		IWL_DEBUG_INFO(fwrt,
 			       "WRT: Invalid imr data enable: %d, imr_size: %d, sram_size: %d\n",
 			       imr_enable, imr_size, sram_size);
-		return size;
-	}
-	size = imr_size;
-	ranges = iwl_dump_ini_imr_ranges(fwrt, reg_data);
-	if (!size && !ranges) {
-		IWL_ERR(fwrt, "WRT: imr_size :=%d, ranges :=%d\n", size, ranges);
 		return 0;
 	}
-	size += sizeof(struct iwl_fw_ini_error_dump) +
+	ranges = iwl_dump_ini_imr_ranges(fwrt, reg_data);
+	if (!ranges) {
+		IWL_ERR(fwrt, "WRT: ranges :=%d\n", ranges);
+		return 0;
+	}
+	imr_size += sizeof(struct iwl_fw_ini_error_dump) +
 		ranges * sizeof(struct iwl_fw_ini_error_dump_range);
-	return size;
+	return imr_size;
 }
 
 /**

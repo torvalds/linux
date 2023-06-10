@@ -1118,6 +1118,8 @@ enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_PWR_CUT = 0x10,
 #define XTAL_SI_SMALL_PWR_CUT	BIT(0)
 #define XTAL_SI_BIG_PWR_CUT	BIT(1)
+	XTAL_SI_XTAL_DRV = 0x15,
+#define XTAL_SI_DRV_LATCH	BIT(4)
 	XTAL_SI_XTAL_XMD_2 = 0x24,
 #define XTAL_SI_LDO_LPS		GENMASK(6, 4)
 	XTAL_SI_XTAL_XMD_4 = 0x26,

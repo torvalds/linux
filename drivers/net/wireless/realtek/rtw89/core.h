@@ -488,6 +488,15 @@ enum rtw89_regulation_type {
 	RTW89_REGD_NUM,
 };
 
+enum rtw89_reg_6ghz_power {
+	RTW89_REG_6GHZ_POWER_VLP = 0,
+	RTW89_REG_6GHZ_POWER_LPI = 1,
+	RTW89_REG_6GHZ_POWER_STD = 2,
+
+	NUM_OF_RTW89_REG_6GHZ_POWER,
+	RTW89_REG_6GHZ_POWER_DFLT = RTW89_REG_6GHZ_POWER_VLP,
+};
+
 enum rtw89_fw_pkt_ofld_type {
 	RTW89_PKT_OFLD_TYPE_PROBE_RSP = 0,
 	RTW89_PKT_OFLD_TYPE_PS_POLL = 1,
@@ -550,7 +559,7 @@ struct rtw89_rate_desc {
 #define RF_PATH_MAX 4
 #define RTW89_MAX_PPDU_CNT 8
 struct rtw89_rx_phy_ppdu {
-	u8 *buf;
+	void *buf;
 	u32 len;
 	u8 rssi_avg;
 	u8 rssi[RF_PATH_MAX];
@@ -776,6 +785,7 @@ struct rtw89_rx_desc_info {
 	u8 sec_cam_id;
 	u8 mac_id;
 	u16 offset;
+	u16 rxd_len;
 	bool ready;
 };
 
@@ -2681,6 +2691,7 @@ struct rtw89_vif {
 	struct rtw89_dev *rtwdev;
 	struct rtw89_roc roc;
 	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_reg_6ghz_power reg_6ghz_power;
 
 	u8 mac_id;
 	u8 port;
@@ -2799,6 +2810,7 @@ struct rtw89_chip_ops {
 	int (*read_efuse)(struct rtw89_dev *rtwdev, u8 *log_map);
 	int (*read_phycap)(struct rtw89_dev *rtwdev, u8 *phycap_map);
 	void (*fem_setup)(struct rtw89_dev *rtwdev);
+	void (*rfe_gpio)(struct rtw89_dev *rtwdev);
 	void (*rfk_init)(struct rtw89_dev *rtwdev);
 	void (*rfk_channel)(struct rtw89_dev *rtwdev);
 	void (*rfk_band_changed)(struct rtw89_dev *rtwdev,
@@ -2823,6 +2835,9 @@ struct rtw89_chip_ops {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
+	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
+			     struct rtw89_rx_desc_info *desc_info,
+			     u8 *data, u32 data_offset);
 	void (*fill_txdesc)(struct rtw89_dev *rtwdev,
 			    struct rtw89_tx_desc_info *desc_info,
 			    void *txdesc);
@@ -3031,9 +3046,11 @@ struct rtw89_txpwr_rule_5ghz {
 struct rtw89_txpwr_rule_6ghz {
 	const s8 (*lmt)[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
 		       [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
-		       [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
+		       [RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER]
+		       [RTW89_6G_CH_NUM];
 	const s8 (*lmt_ru)[RTW89_RU_NUM][RTW89_NTX_NUM]
-			  [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
+			  [RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER]
+			  [RTW89_6G_CH_NUM];
 };
 
 struct rtw89_rfe_parms {
@@ -3504,6 +3521,7 @@ enum rtw89_flags {
 	RTW89_FLAG_LOW_POWER_MODE,
 	RTW89_FLAG_INACTIVE_PS,
 	RTW89_FLAG_CRASH_SIMULATING,
+	RTW89_FLAG_SER_HANDLING,
 	RTW89_FLAG_WOWLAN,
 	RTW89_FLAG_FORBIDDEN_TRACK_WROK,
 	RTW89_FLAG_CHANGING_INTERFACE,
@@ -3801,9 +3819,14 @@ struct rtw89_power_trim_info {
 	u8 pa_bias_trim[RF_PATH_MAX];
 };
 
-struct rtw89_regulatory {
+struct rtw89_regd {
 	char alpha2[3];
 	u8 txpwr_regd[RTW89_BAND_MAX];
+};
+
+struct rtw89_regulatory_info {
+	const struct rtw89_regd *regd;
+	enum rtw89_reg_6ghz_power reg_6ghz_power;
 };
 
 enum rtw89_ifs_clm_application {
@@ -4155,7 +4178,7 @@ struct rtw89_dev {
 	u8 total_sta_assoc;
 	bool scanning;
 
-	const struct rtw89_regulatory *regd;
+	struct rtw89_regulatory_info regulatory;
 	struct rtw89_sar_info sar;
 
 	struct rtw89_btc btc;
@@ -4700,6 +4723,14 @@ static inline void rtw89_chip_fem_setup(struct rtw89_dev *rtwdev)
 		chip->ops->fem_setup(rtwdev);
 }
 
+static inline void rtw89_chip_rfe_gpio(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->rfe_gpio)
+		chip->ops->rfe_gpio(rtwdev);
+}
+
 static inline void rtw89_chip_bb_sethw(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -4834,7 +4865,9 @@ static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,
 
 static inline u8 rtw89_regd_get(struct rtw89_dev *rtwdev, u8 band)
 {
-	return rtwdev->regd->txpwr_regd[band];
+	const struct rtw89_regd *regd = rtwdev->regulatory.regd;
+
+	return regd->txpwr_regd[band];
 }
 
 static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
@@ -4843,6 +4876,16 @@ static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
 
 	if (chip->ops->ctrl_btg)
 		chip->ops->ctrl_btg(rtwdev, btg);
+}
+
+static inline
+void rtw89_chip_query_rxdesc(struct rtw89_dev *rtwdev,
+			     struct rtw89_rx_desc_info *desc_info,
+			     u8 *data, u32 data_offset)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->query_rxdesc(rtwdev, desc_info, data, data_offset);
 }
 
 static inline
@@ -5066,5 +5109,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan);
 void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
+void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif, bool active);
 
 #endif

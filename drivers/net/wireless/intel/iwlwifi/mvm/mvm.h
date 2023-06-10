@@ -1003,6 +1003,8 @@ struct iwl_mvm {
 
 	struct ieee80211_vif __rcu *vif_id_to_mac[NUM_MAC_INDEX_DRIVER];
 
+	struct ieee80211_bss_conf __rcu *link_id_to_link_conf[IWL_MVM_FW_MAX_LINK_ID + 1];
+
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 fw_restart;
 	u8 *error_recovery_buf;
@@ -1299,6 +1301,19 @@ iwl_mvm_rcu_dereference_vif_id(struct iwl_mvm *mvm, u8 vif_id, bool rcu)
 		return rcu_dereference(mvm->vif_id_to_mac[vif_id]);
 
 	return rcu_dereference_protected(mvm->vif_id_to_mac[vif_id],
+					 lockdep_is_held(&mvm->mutex));
+}
+
+static inline struct ieee80211_bss_conf *
+iwl_mvm_rcu_fw_link_id_to_link_conf(struct iwl_mvm *mvm, u8 link_id, bool rcu)
+{
+	if (WARN_ON(link_id >= ARRAY_SIZE(mvm->link_id_to_link_conf)))
+		return NULL;
+
+	if (rcu)
+		return rcu_dereference(mvm->link_id_to_link_conf[link_id]);
+
+	return rcu_dereference_protected(mvm->link_id_to_link_conf[link_id],
 					 lockdep_is_held(&mvm->mutex));
 }
 
@@ -1774,8 +1789,8 @@ void iwl_mvm_mac_ctxt_cmd_ap_set_filter_flags(struct iwl_mvm *mvm,
 int iwl_mvm_get_mac_type(struct ieee80211_vif *vif);
 __le32 iwl_mvm_mac_ctxt_cmd_p2p_sta_get_oppps_ctwin(struct iwl_mvm *mvm,
 						    struct ieee80211_vif *vif);
-__le32 iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(struct iwl_mvm *mvm,
-					       struct ieee80211_vif *vif);
+u32 iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif);
 int iwl_mvm_mld_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 bool force_assoc_off);
@@ -1873,7 +1888,7 @@ void
 iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,
-				struct iwl_mvm_bss_info_changed_ops *callbacks,
+				const struct iwl_mvm_bss_info_changed_ops *callbacks,
 				u64 changes);
 void
 iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
@@ -1907,7 +1922,7 @@ struct iwl_mvm_roc_ops {
 int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel, int duration,
 		       enum ieee80211_roc_type type,
-		       struct iwl_mvm_roc_ops *ops);
+		       const struct iwl_mvm_roc_ops *ops);
 int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif);
 /*Session Protection */
@@ -2346,6 +2361,12 @@ int iwl_mvm_mld_update_sta_keys(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta,
 				u32 old_sta_mask,
 				u32 new_sta_mask);
+int iwl_mvm_mld_send_key(struct iwl_mvm *mvm, u32 sta_mask, u32 key_flags,
+			 struct ieee80211_key_conf *keyconf);
+u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta,
+			  struct ieee80211_key_conf *keyconf);
 
 bool iwl_rfi_supported(struct iwl_mvm *mvm);
 int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm,
@@ -2406,7 +2427,7 @@ iwl_mvm_switch_vif_chanctx_common(struct ieee80211_hw *hw,
 				  struct ieee80211_vif_chanctx_switch *vifs,
 				  int n_vifs,
 				  enum ieee80211_chanctx_switch_mode mode,
-				  struct iwl_mvm_switch_vif_chanctx_ops *ops);
+				  const struct iwl_mvm_switch_vif_chanctx_ops *ops);
 
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)

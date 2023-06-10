@@ -308,6 +308,54 @@ static u32 iwl_mvm_get_tx_ant(struct iwl_mvm *mvm,
 	return BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 }
 
+static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
+				      struct ieee80211_tx_info *info)
+{
+	struct ieee80211_tx_rate *rate = &info->control.rates[0];
+	u32 result;
+
+	/*
+	 * we only care about legacy/HT/VHT so far, so we can
+	 * build in v1 and use iwl_new_rate_from_v1()
+	 */
+
+	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
+		u8 mcs = ieee80211_rate_get_vht_mcs(rate);
+		u8 nss = ieee80211_rate_get_vht_nss(rate);
+
+		result = RATE_MCS_VHT_MSK_V1;
+		result |= u32_encode_bits(mcs, RATE_VHT_MCS_RATE_CODE_MSK);
+		result |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+			result |= RATE_MCS_SGI_MSK_V1;
+		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+		else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+			result |= u32_encode_bits(2, RATE_MCS_CHAN_WIDTH_MSK_V1);
+		else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+			result |= u32_encode_bits(3, RATE_MCS_CHAN_WIDTH_MSK_V1);
+	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
+		result = RATE_MCS_HT_MSK_V1;
+		result |= u32_encode_bits(rate->idx,
+					  RATE_HT_MCS_RATE_CODE_MSK_V1 |
+					  RATE_HT_MCS_NSS_MSK_V1);
+		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+			result |= RATE_MCS_SGI_MSK_V1;
+		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+		if (rate->flags & IEEE80211_TX_CTL_LDPC)
+			result |= RATE_MCS_LDPC_MSK_V1;
+		if (u32_get_bits(rate->flags, IEEE80211_TX_CTL_STBC))
+			result |= RATE_MCS_STBC_MSK;
+	} else {
+		return 0;
+	}
+
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
+		return iwl_new_rate_from_v1(result);
+	return result;
+}
+
 static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 			       struct ieee80211_tx_info *info,
 			       struct ieee80211_sta *sta, __le16 fc)
@@ -317,8 +365,15 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 	u32 rate_flags = 0;
 	bool is_cck;
 
-	/* info->control is only relevant for non HW rate control */
-	if (!ieee80211_hw_check(mvm->hw, HAS_RATE_CONTROL)) {
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)) {
+		u32 result = iwl_mvm_get_inject_tx_rate(mvm, info);
+
+		if (result)
+			return result;
+		rate_idx = info->control.rates[0].idx;
+	} else if (!ieee80211_hw_check(mvm->hw, HAS_RATE_CONTROL)) {
+		/* info->control is only relevant for non HW rate control */
+
 		/* HT rate doesn't make sense for a non data frame */
 		WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS &&
 			  !ieee80211_is_data(fc),
@@ -398,7 +453,8 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 	 * table is controlled by LINK_QUALITY commands
 	 */
 
-	if (ieee80211_is_data(fc) && sta) {
+	if (likely(ieee80211_is_data(fc) && sta &&
+		   !(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		if (mvmsta->sta_state >= IEEE80211_STA_AUTHORIZED) {

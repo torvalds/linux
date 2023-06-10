@@ -1349,8 +1349,11 @@ struct ieee80211_mgmt {
 /* Supported rates membership selectors */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
 #define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
-#define BSS_MEMBERSHIP_SELECTOR_HE_PHY	122
+#define BSS_MEMBERSHIP_SELECTOR_GLK	125
+#define BSS_MEMBERSHIP_SELECTOR_EPS	124
 #define BSS_MEMBERSHIP_SELECTOR_SAE_H2E 123
+#define BSS_MEMBERSHIP_SELECTOR_HE_PHY	122
+#define BSS_MEMBERSHIP_SELECTOR_EHT_PHY	121
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -4630,6 +4633,76 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 	}
 
 	return sizeof(*mle) + common + mle->variable[0];
+}
+
+/**
+ * ieee80211_mle_get_eml_sync_delay - returns the medium sync delay
+ * @data: pointer to the multi link EHT IE
+ *
+ * The element is assumed to be big enough. This must be checked by
+ * ieee80211_mle_size_ok().
+ * If the medium synchronization can't be found (the type is not basic, or
+ * the medium sync presence bit is clear), 0 will be returned.
+ */
+static inline u16 ieee80211_mle_get_eml_med_sync_delay(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) !=
+	    IEEE80211_ML_CONTROL_TYPE_BASIC)
+		return 0;
+
+	/* common points now at the beginning of
+	 * ieee80211_mle_basic_common_info
+	 */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY))
+		return 0;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+		common += 1;
+
+	return get_unaligned_le16(common);
+}
+
+/**
+ * ieee80211_mle_get_eml_cap - returns the EML capability
+ * @data: pointer to the multi link EHT IE
+ *
+ * The element is assumed to be big enough. This must be checked by
+ * ieee80211_mle_size_ok().
+ * If the EML capability can't be found (the type is not basic, or
+ * the EML capability presence bit is clear), 0 will be returned.
+ */
+static inline u16 ieee80211_mle_get_eml_cap(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) !=
+	    IEEE80211_ML_CONTROL_TYPE_BASIC)
+		return 0;
+
+	/* common points now at the beginning of ieee80211_mle_basic_common_info */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_EML_CAPA))
+		return 0;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY)
+		common += 2;
+
+	return get_unaligned_le16(common);
 }
 
 /**

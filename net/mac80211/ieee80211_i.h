@@ -466,8 +466,8 @@ struct ieee80211_if_managed {
 	struct timer_list conn_mon_timer;
 	struct timer_list bcn_mon_timer;
 	struct work_struct monitor_work;
-	struct work_struct beacon_connection_loss_work;
-	struct work_struct csa_connection_drop_work;
+	struct wiphy_work beacon_connection_loss_work;
+	struct wiphy_work csa_connection_drop_work;
 
 	unsigned long beacon_timeout;
 	unsigned long probe_timeout;
@@ -553,7 +553,7 @@ struct ieee80211_if_managed {
 
 struct ieee80211_if_ibss {
 	struct timer_list timer;
-	struct work_struct csa_connection_drop_work;
+	struct wiphy_work csa_connection_drop_work;
 
 	unsigned long last_scan_completed;
 
@@ -918,10 +918,9 @@ struct ieee80211_link_data_managed {
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
-	struct timer_list chswitch_timer;
-	struct work_struct chswitch_work;
+	struct wiphy_delayed_work chswitch_work;
 
-	struct work_struct request_smps_work;
+	struct wiphy_work request_smps_work;
 	bool beacon_crc_valid;
 	u32 beacon_crc;
 	struct ewma_beacon_signal ave_beacon_signal;
@@ -1061,7 +1060,7 @@ struct ieee80211_sub_if_data {
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
 
-	struct work_struct work;
+	struct wiphy_work work;
 	struct sk_buff_head skb_queue;
 	struct sk_buff_head status_queue;
 
@@ -1393,6 +1392,9 @@ struct ieee80211_local {
 
 	/* device is during a HW reconfig */
 	bool in_reconfig;
+
+	/* reconfiguration failed ... suppress some warnings etc. */
+	bool reconfig_failure;
 
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
@@ -1827,7 +1829,7 @@ void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_link_data *link,
 				       u64 changed);
 void ieee80211_configure_filter(struct ieee80211_local *local);
-u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
+u64 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 
 u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local);
 int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
@@ -1887,8 +1889,10 @@ void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb);
 int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_csa_settings *csa_settings);
-int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata);
+			      struct cfg80211_csa_settings *csa_settings,
+			      u64 *changed);
+int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata,
+			      u64 *changed);
 void ieee80211_ibss_stop(struct ieee80211_sub_if_data *sdata);
 
 /* OCB code */
@@ -1905,8 +1909,10 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb);
 int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_csa_settings *csa_settings);
-int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata);
+			      struct cfg80211_csa_settings *csa_settings,
+			      u64 *changed);
+int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata,
+			      u64 *changed);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);
@@ -2269,8 +2275,6 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  *	(or re-association) response frame if this is given
  * @from_ap: frame is received from an AP (currently used only
  *	for EHT capabilities parsing)
- * @scratch_len: if non zero, specifies the requested length of the scratch
- *      buffer; otherwise, 'len' is used.
  */
 struct ieee80211_elems_parse_params {
 	const u8 *start;
@@ -2281,7 +2285,6 @@ struct ieee80211_elems_parse_params {
 	struct cfg80211_bss *bss;
 	int link_id;
 	bool from_ap;
-	size_t scratch_len;
 };
 
 struct ieee802_11_elems *

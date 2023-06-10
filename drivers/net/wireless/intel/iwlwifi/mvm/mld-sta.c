@@ -71,6 +71,11 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 
 	cmd.station_type = cpu_to_le32(sta->type);
 
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_STA_EXP_MFP_SUPPORT) &&
+	    sta->type == STATION_TYPE_BCAST_MGMT)
+		cmd.mfp = cpu_to_le32(1);
+
 	if (addr) {
 		memcpy(cmd.peer_mld_address, addr, ETH_ALEN);
 		memcpy(cmd.peer_link_address, addr, ETH_ALEN);
@@ -128,11 +133,11 @@ static int iwl_mvm_add_aux_sta_to_fw(struct iwl_mvm *mvm,
 /*
  * Adds an internal sta to the FW table with its queues
  */
-static int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
-					      struct iwl_mvm_int_sta *sta,
-					      const u8 *addr, int link_id,
-					      u16 *queue, u8 tid,
-					      unsigned int *_wdg_timeout)
+int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
+				       struct iwl_mvm_int_sta *sta,
+				       const u8 *addr, int link_id,
+				       u16 *queue, u8 tid,
+				       unsigned int *_wdg_timeout)
 {
 	int ret, txq;
 	unsigned int wdg_timeout = _wdg_timeout ? *_wdg_timeout :
@@ -441,6 +446,11 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	if (mvm_sta->sta_state >= IEEE80211_STA_ASSOC)
 		cmd.assoc_id = cpu_to_le32(sta->aid);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_STA_EXP_MFP_SUPPORT) &&
+	    (sta->mfp || mvm_sta->sta_state < IEEE80211_STA_AUTHORIZED))
+		cmd.mfp = cpu_to_le32(1);
 
 	switch (link_sta->rx_nss) {
 	case 1:

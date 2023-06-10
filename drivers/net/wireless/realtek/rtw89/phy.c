@@ -1626,8 +1626,10 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
 	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
 	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
+	u8 reg6 = regulatory->reg_6ghz_power;
 	s8 lmt = 0, sar;
 
 	switch (band) {
@@ -1646,11 +1648,13 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
-		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][regd][reg6][ch_idx];
 		if (lmt)
 			break;
 
-		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
+		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][RTW89_WW]
+				       [RTW89_REG_6GHZ_POWER_DFLT]
+				       [ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1877,8 +1881,10 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
 	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
 	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
+	u8 reg6 = regulatory->reg_6ghz_power;
 	s8 lmt_ru = 0, sar;
 
 	switch (band) {
@@ -1897,11 +1903,13 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
-		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][regd][reg6][ch_idx];
 		if (lmt_ru)
 			break;
 
-		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
+		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][RTW89_WW]
+					     [RTW89_REG_6GHZ_POWER_DFLT]
+					     [ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -4399,6 +4407,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_phy_cfo_init(rtwdev);
 	rtw89_phy_ul_tb_info_init(rtwdev);
 	rtw89_phy_antdiv_init(rtwdev);
+	rtw89_chip_rfe_gpio(rtwdev);
 	rtw89_phy_antdiv_set_ant(rtwdev);
 
 	rtw89_phy_init_rf_nctl(rtwdev);

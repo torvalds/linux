@@ -17,7 +17,12 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
 
 	/**
-	 * @LARI_CONFIG_CHANGE: &struct iwl_lari_config_change_cmd
+	 * @LARI_CONFIG_CHANGE: &struct iwl_lari_config_change_cmd_v1,
+	 *	&struct iwl_lari_config_change_cmd_v2,
+	 *	&struct iwl_lari_config_change_cmd_v3,
+	 *	&struct iwl_lari_config_change_cmd_v4,
+	 *	&struct iwl_lari_config_change_cmd_v5 or
+	 *	&struct iwl_lari_config_change_cmd_v6
 	 */
 	LARI_CONFIG_CHANGE = 0x1,
 
@@ -29,12 +34,12 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_GET_INFO = 0x2,
 
 	/**
-	 * @TAS_CONFIG: &struct iwl_tas_config_cmd
+	 * @TAS_CONFIG: &union iwl_tas_config_cmd
 	 */
 	TAS_CONFIG = 0x3,
 
 	/**
-	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &iwl_sar_offset_mapping_cmd
+	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &struct iwl_sar_offset_mapping_cmd
 	 */
 	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
 

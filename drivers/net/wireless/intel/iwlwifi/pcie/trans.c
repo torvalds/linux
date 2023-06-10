@@ -131,13 +131,15 @@ static int iwl_trans_pcie_sw_reset(struct iwl_trans *trans,
 				   bool retake_ownership)
 {
 	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		iwl_set_bit(trans, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
-	else
+		usleep_range(10000, 20000);
+	} else {
 		iwl_set_bit(trans, CSR_RESET,
 			    CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(5000, 6000);
+		usleep_range(5000, 6000);
+	}
 
 	if (retake_ownership)
 		return iwl_pcie_prepare_card_hw(trans);
@@ -475,7 +477,7 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
 				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
 				   100);
-		msleep(100);
+		usleep_range(10000, 20000);
 	} else {
 		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
@@ -1993,6 +1995,29 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->fw_reset_handshake = trans_cfg->fw_reset_handshake;
 }
 
+void iwl_trans_pcie_free_pnvm_dram_regions(struct iwl_dram_regions *dram_regions,
+					   struct device *dev)
+{
+	u8 i;
+	struct iwl_dram_data *desc_dram = &dram_regions->prph_scratch_mem_desc;
+
+	/* free DRAM payloads */
+	for (i = 0; i < dram_regions->n_regions; i++) {
+		dma_free_coherent(dev, dram_regions->drams[i].size,
+				  dram_regions->drams[i].block,
+				  dram_regions->drams[i].physical);
+	}
+	dram_regions->n_regions = 0;
+
+	/* free DRAM addresses array */
+	if (desc_dram->block) {
+		dma_free_coherent(dev, desc_dram->size,
+				  desc_dram->block,
+				  desc_dram->physical);
+	}
+	memset(desc_dram, 0, sizeof(*desc_dram));
+}
+
 void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -2025,16 +2050,10 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 
 	iwl_pcie_free_fw_monitor(trans);
 
-	if (trans_pcie->pnvm_dram.size)
-		dma_free_coherent(trans->dev, trans_pcie->pnvm_dram.size,
-				  trans_pcie->pnvm_dram.block,
-				  trans_pcie->pnvm_dram.physical);
-
-	if (trans_pcie->reduce_power_dram.size)
-		dma_free_coherent(trans->dev,
-				  trans_pcie->reduce_power_dram.size,
-				  trans_pcie->reduce_power_dram.block,
-				  trans_pcie->reduce_power_dram.physical);
+	iwl_trans_pcie_free_pnvm_dram_regions(&trans_pcie->pnvm_data,
+					      trans->dev);
+	iwl_trans_pcie_free_pnvm_dram_regions(&trans_pcie->reduced_tables_data,
+					      trans->dev);
 
 	mutex_destroy(&trans_pcie->mutex);
 	iwl_trans_free(trans);
@@ -3534,7 +3553,9 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 	.txq_free = iwl_txq_dyn_free,
 	.wait_txq_empty = iwl_trans_pcie_wait_txq_empty,
 	.rxq_dma_data = iwl_trans_pcie_rxq_dma_data,
+	.load_pnvm = iwl_trans_pcie_ctx_info_gen3_load_pnvm,
 	.set_pnvm = iwl_trans_pcie_ctx_info_gen3_set_pnvm,
+	.load_reduce_power = iwl_trans_pcie_ctx_info_gen3_load_reduce_power,
 	.set_reduce_power = iwl_trans_pcie_ctx_info_gen3_set_reduce_power,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.debugfs_cleanup = iwl_trans_pcie_debugfs_cleanup,

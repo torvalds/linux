@@ -1302,7 +1302,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	u8 u1btmp;
 
-	if (rtlhal->driver_going2unload)
+	if (rtlhal->driver_is_goingto_unload)
 		rtl_write_byte(rtlpriv, 0x560, 0x0);
 
 	/* Power save for BB/RF */
@@ -1323,7 +1323,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, CMDR, 0x57FC);
 	rtl_write_word(rtlpriv, CMDR, 0x0000);
 
-	if (rtlhal->driver_going2unload) {
+	if (rtlhal->driver_is_goingto_unload) {
 		u1btmp = rtl_read_byte(rtlpriv, (REG_SYS_FUNC_EN + 1));
 		u1btmp &= ~(BIT(0));
 		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, u1btmp);
@@ -1345,7 +1345,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 
 	/* Power save for MAC */
 	if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS  &&
-		!rtlhal->driver_going2unload) {
+		!rtlhal->driver_is_goingto_unload) {
 		/* enable LED function */
 		rtl_write_byte(rtlpriv, 0x03, 0xF9);
 	/* SW/HW radio off or halt adapter!! For example S3/S4 */

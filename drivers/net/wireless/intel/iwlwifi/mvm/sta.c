@@ -2070,13 +2070,6 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		cancel_delayed_work(&mvm->tdls_cs.dwork);
 	}
 
-	/*
-	 * Make sure that the tx response code sees the station as -EBUSY and
-	 * calls the drain worker.
-	 */
-	spin_lock_bh(&mvm_sta->lock);
-	spin_unlock_bh(&mvm_sta->lock);
-
 	return false;
 }
 
@@ -4306,16 +4299,27 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	u16 queue;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_key_conf *keyconf;
+	unsigned int wdg_timeout =
+		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+	bool mld = iwl_mvm_has_mld_api(mvm->fw);
+	u32 type = mld ? STATION_TYPE_PEER : IWL_STA_LINK;
 
 	ret = iwl_mvm_allocate_int_sta(mvm, sta, 0,
-				       NL80211_IFTYPE_UNSPECIFIED,
-				       IWL_STA_LINK);
+				       NL80211_IFTYPE_UNSPECIFIED, type);
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_add_int_sta_with_queue(mvm, mvmvif->id, mvmvif->color,
-					     addr, sta, &queue,
-					     IWL_MVM_TX_FIFO_BE);
+	if (mld)
+		ret = iwl_mvm_mld_add_int_sta_with_queue(mvm, sta, addr,
+							 mvmvif->deflink.fw_link_id,
+							 &queue,
+							 IWL_MAX_TID_COUNT,
+							 &wdg_timeout);
+	else
+		ret = iwl_mvm_add_int_sta_with_queue(mvm, mvmvif->id,
+						     mvmvif->color, addr, sta,
+						     &queue,
+						     IWL_MVM_TX_FIFO_BE);
 	if (ret)
 		goto out;
 
@@ -4328,9 +4332,23 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	keyconf->cipher = cipher;
 	memcpy(keyconf->key, key, key_len);
 	keyconf->keylen = key_len;
+	keyconf->flags = IEEE80211_KEY_FLAG_PAIRWISE;
 
-	ret = iwl_mvm_send_sta_key(mvm, sta->sta_id, keyconf, false,
-				   0, NULL, 0, 0, true);
+	if (mld) {
+		/* The MFP flag is set according to the station mfp field. Since
+		 * we don't have a station, set it manually.
+		 */
+		u32 key_flags =
+			iwl_mvm_get_sec_flags(mvm, vif, NULL, keyconf) |
+			IWL_SEC_KEY_FLAG_MFP;
+		u32 sta_mask = BIT(sta->sta_id);
+
+		ret = iwl_mvm_mld_send_key(mvm, sta_mask, key_flags, keyconf);
+	} else {
+		ret = iwl_mvm_send_sta_key(mvm, sta->sta_id, keyconf, false,
+					   0, NULL, 0, 0, true);
+	}
+
 	kfree(keyconf);
 	return 0;
 out:
@@ -4340,10 +4358,10 @@ out:
 
 void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
-				   u32 mac_id)
+				   u32 id)
 {
 	struct iwl_cancel_channel_switch_cmd cancel_channel_switch_cmd = {
-		.mac_id = cpu_to_le32(mac_id),
+		.id = cpu_to_le32(id),
 	};
 	int ret;
 

@@ -265,7 +265,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 			goto err_sync_device;
 		}
 
-		rtw89_core_query_rxdesc(rtwdev, desc_info, skb->data, rxinfo_size);
+		rtw89_chip_query_rxdesc(rtwdev, desc_info, skb->data, rxinfo_size);
 
 		new = rtw89_alloc_skb_for_rx(rtwdev, desc_info->pkt_size);
 		if (!new)
@@ -274,9 +274,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 		rx_ring->diliver_skb = new;
 
 		/* first segment has RX desc */
-		offset = desc_info->offset;
-		offset += desc_info->long_rxdesc ? sizeof(struct rtw89_rxdesc_long) :
-			  sizeof(struct rtw89_rxdesc_short);
+		offset = desc_info->offset + desc_info->rxd_len;
 	} else {
 		offset = sizeof(struct rtw89_pci_rxbd_info);
 		if (!new) {
@@ -546,12 +544,10 @@ static u32 rtw89_pci_release_tx_skbs(struct rtw89_dev *rtwdev,
 		return cnt;
 	}
 
-	rtw89_core_query_rxdesc(rtwdev, &desc_info, skb->data, rxinfo_size);
+	rtw89_chip_query_rxdesc(rtwdev, &desc_info, skb->data, rxinfo_size);
 
 	/* first segment has RX desc */
-	offset = desc_info.offset;
-	offset += desc_info.long_rxdesc ? sizeof(struct rtw89_rxdesc_long) :
-					  sizeof(struct rtw89_rxdesc_short);
+	offset = desc_info.offset + desc_info.rxd_len;
 	for (; offset + rpp_size <= rx_info->len; offset += rpp_size) {
 		rpp = (struct rtw89_pci_rpp_fmt *)(skb->data + offset);
 		rtw89_pci_release_rpp(rtwdev, rpp);

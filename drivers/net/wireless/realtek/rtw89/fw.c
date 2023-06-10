@@ -256,6 +256,9 @@ struct __fw_feat_cfg {
 	}
 
 static const struct __fw_feat_cfg fw_feat_tbl[] = {
+	__CFG_FW_FEAT(RTL8851B, ge, 0, 29, 37, 1, TX_WAKE),
+	__CFG_FW_FEAT(RTL8851B, ge, 0, 29, 37, 1, SCAN_OFFLOAD),
+	__CFG_FW_FEAT(RTL8851B, ge, 0, 29, 41, 0, CRASH_TRIGGER),
 	__CFG_FW_FEAT(RTL8852A, le, 0, 13, 29, 0, OLD_HT_RA_FORMAT),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, TX_WAKE),
@@ -2467,7 +2470,7 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(id, RTW89_PKT_OFLD_OP_DEL);
 
 	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
-	if (ret) {
+	if (ret < 0) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "failed to del pkt ofld: id %d, ret %d\n",
 			    id, ret);
@@ -2517,7 +2520,7 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(alloc_id, RTW89_PKT_OFLD_OP_ADD);
 
 	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
-	if (ret) {
+	if (ret < 0) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "failed to add pkt ofld: id %d, ret %d\n",
 			    alloc_id, ret);
@@ -2916,12 +2919,13 @@ static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 	}
 
 	len = DIV_ROUND_UP(info->content_len + RTW89_H2CREG_HDR_LEN,
-			   sizeof(info->h2creg[0]));
+			   sizeof(info->u.h2creg[0]));
 
-	RTW89_SET_H2CREG_HDR_FUNC(&info->h2creg[0], info->id);
-	RTW89_SET_H2CREG_HDR_LEN(&info->h2creg[0], len);
+	u32p_replace_bits(&info->u.hdr.w0, info->id, RTW89_H2CREG_HDR_FUNC_MASK);
+	u32p_replace_bits(&info->u.hdr.w0, len, RTW89_H2CREG_HDR_LEN_MASK);
+
 	for (i = 0; i < RTW89_H2CREG_MAX; i++)
-		rtw89_write32(rtwdev, h2c_reg[i], info->h2creg[i]);
+		rtw89_write32(rtwdev, h2c_reg[i], info->u.h2creg[i]);
 
 	fw_info->h2c_counter++;
 	rtw89_write8_mask(rtwdev, chip->h2c_counter_reg.addr,
@@ -2951,13 +2955,14 @@ static int rtw89_fw_read_c2h_reg(struct rtw89_dev *rtwdev,
 	}
 
 	for (i = 0; i < RTW89_C2HREG_MAX; i++)
-		info->c2hreg[i] = rtw89_read32(rtwdev, c2h_reg[i]);
+		info->u.c2hreg[i] = rtw89_read32(rtwdev, c2h_reg[i]);
 
 	rtw89_write8(rtwdev, chip->c2h_ctrl_reg, 0);
 
-	info->id = RTW89_GET_C2H_HDR_FUNC(*info->c2hreg);
-	info->content_len = (RTW89_GET_C2H_HDR_LEN(*info->c2hreg) << 2) -
-				RTW89_C2HREG_HDR_LEN;
+	info->id = u32_get_bits(info->u.hdr.w0, RTW89_C2HREG_HDR_FUNC_MASK);
+	info->content_len =
+		(u32_get_bits(info->u.hdr.w0, RTW89_C2HREG_HDR_LEN_MASK) << 2) -
+		RTW89_C2HREG_HDR_LEN;
 
 	fw_info->c2h_counter++;
 	rtw89_write8_mask(rtwdev, chip->c2h_counter_reg.addr,
@@ -3792,6 +3797,11 @@ fail:
 	return ret;
 }
 
+/* Return < 0, if failures happen during waiting for the condition.
+ * Return 0, when waiting for the condition succeeds.
+ * Return > 0, if the wait is considered unreachable due to driver/FW design,
+ * where 1 means during SER.
+ */
 static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 				 struct rtw89_wait_info *wait, unsigned int cond)
 {
@@ -3803,6 +3813,9 @@ static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 		return -EBUSY;
 	}
+
+	if (test_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags))
+		return 1;
 
 	return rtw89_wait_for_cond(wait, cond);
 }

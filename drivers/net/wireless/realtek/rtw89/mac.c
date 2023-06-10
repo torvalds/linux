@@ -2650,6 +2650,7 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_mac_c2h_info c2h_info = {0};
+	const struct rtw89_c2hreg_phycap *phycap;
 	u8 tx_nss;
 	u8 rx_nss;
 	u8 tx_ant;
@@ -2660,10 +2661,12 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	tx_nss = RTW89_GET_C2H_PHYCAP_TX_NSS(c2h_info.c2hreg);
-	rx_nss = RTW89_GET_C2H_PHYCAP_RX_NSS(c2h_info.c2hreg);
-	tx_ant = RTW89_GET_C2H_PHYCAP_ANT_TX_NUM(c2h_info.c2hreg);
-	rx_ant = RTW89_GET_C2H_PHYCAP_ANT_RX_NUM(c2h_info.c2hreg);
+	phycap = &c2h_info.u.phycap;
+
+	tx_nss = u32_get_bits(phycap->w1, RTW89_C2HREG_PHYCAP_W1_TX_NSS);
+	rx_nss = u32_get_bits(phycap->w0, RTW89_C2HREG_PHYCAP_W0_RX_NSS);
+	tx_ant = u32_get_bits(phycap->w3, RTW89_C2HREG_PHYCAP_W3_ANT_TX_NUM);
+	rx_ant = u32_get_bits(phycap->w3, RTW89_C2HREG_PHYCAP_W3_ANT_RX_NUM);
 
 	hal->tx_nss = tx_nss ? min_t(u8, tx_nss, chip->tx_nss) : chip->tx_nss;
 	hal->rx_nss = rx_nss ? min_t(u8, rx_nss, chip->rx_nss) : chip->rx_nss;
@@ -2704,14 +2707,14 @@ static int rtw89_hw_sch_tx_en_h2c(struct rtw89_dev *rtwdev, u8 band,
 	u32 ret;
 	struct rtw89_mac_c2h_info c2h_info = {0};
 	struct rtw89_mac_h2c_info h2c_info = {0};
-	struct rtw89_h2creg_sch_tx_en *h2creg =
-		(struct rtw89_h2creg_sch_tx_en *)h2c_info.h2creg;
+	struct rtw89_h2creg_sch_tx_en *sch_tx_en = &h2c_info.u.sch_tx_en;
 
 	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_SCH_TX_EN;
-	h2c_info.content_len = sizeof(*h2creg) - RTW89_H2CREG_HDR_LEN;
-	h2creg->tx_en = tx_en_u16;
-	h2creg->mask = mask_u16;
-	h2creg->band = band;
+	h2c_info.content_len = sizeof(*sch_tx_en) - RTW89_H2CREG_HDR_LEN;
+
+	u32p_replace_bits(&sch_tx_en->w0, tx_en_u16, RTW89_H2CREG_SCH_TX_EN_W0_EN);
+	u32p_replace_bits(&sch_tx_en->w1, mask_u16, RTW89_H2CREG_SCH_TX_EN_W1_MASK);
+	u32p_replace_bits(&sch_tx_en->w1, band, RTW89_H2CREG_SCH_TX_EN_W1_BAND);
 
 	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
 	if (ret)
@@ -4459,6 +4462,9 @@ rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h,
 	u8 pkt_op = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_OP);
 	struct rtw89_completion_data data = {};
 	unsigned int cond;
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "pkt ofld rsp: id %d op %d len %d\n",
+		    pkt_id, pkt_op, pkt_len);
 
 	data.err = !pkt_len;
 	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(pkt_id, pkt_op);
