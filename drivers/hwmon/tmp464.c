@@ -644,7 +644,7 @@ static const struct regmap_config tmp464_regmap_config = {
 	.max_register = TMP464_DEVICE_ID_REG,
 	.volatile_reg = tmp464_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
