@@ -68,7 +68,7 @@ static const struct regmap_config rt1308_sdw_regmap = {
 	.max_register = 0xcfff,
 	.reg_defaults = rt1308_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt1308_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
