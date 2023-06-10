@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    ECBDIC -> ASCII, ASCII -> ECBDIC,
+ *    EBCDIC -> ASCII, ASCII -> EBCDIC,
  *    upper to lower case (EBCDIC) conversion tables.
  *
  *  S390 version
