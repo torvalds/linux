@@ -53,8 +53,9 @@
 			#cooling-cells = <2>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -83,8 +84,9 @@
 			#cooling-cells = <2>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
