@@ -1146,6 +1146,7 @@ err:
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_del(&s->list);
 	mutex_unlock(&c->ec_stripe_new_lock);
+	wake_up(&c->ec_stripe_new_wait);
 
 	ec_stripe_buf_exit(&s->existing_stripe);
 	ec_stripe_buf_exit(&s->new_stripe);
