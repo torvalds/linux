@@ -137,6 +137,7 @@ struct elf_info {
 	Elf_Shdr     *sechdrs;
 	Elf_Sym      *symtab_start;
 	Elf_Sym      *symtab_stop;
+	unsigned int export_symbol_secndx;	/* .export_symbol section */
 	char         *strtab;
 	char	     *modinfo;
 	unsigned int modinfo_len;

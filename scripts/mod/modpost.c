@@ -217,6 +217,7 @@ struct symbol {
 	unsigned int crc;
 	bool crc_valid;
 	bool weak;
+	bool is_func;
 	bool is_gpl_only;	/* exported by EXPORT_SYMBOL_GPL */
 	char name[];
 };
@@ -533,6 +534,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 				fatal("%s has NOBITS .modinfo\n", filename);
 			info->modinfo = (void *)hdr + sechdrs[i].sh_offset;
 			info->modinfo_len = sechdrs[i].sh_size;
+		} else if (!strcmp(secname, ".export_symbol")) {
+			info->export_symbol_secndx = i;
 		}
 
 		if (sechdrs[i].sh_type == SHT_SYMTAB) {
@@ -655,18 +658,6 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 				   ELF_ST_BIND(sym->st_info) == STB_WEAK);
 		break;
 	default:
-		/* All exported symbols */
-		if (strstarts(symname, "__ksymtab_")) {
-			const char *name, *secname;
-
-			name = symname + strlen("__ksymtab_");
-			secname = sec_name(info, get_secindex(info, sym));
-
-			if (strstarts(secname, "___ksymtab_gpl+"))
-				sym_add_exported(name, mod, true);
-			else if (strstarts(secname, "___ksymtab+"))
-				sym_add_exported(name, mod, false);
-		}
 		if (strcmp(symname, "init_module") == 0)
 			mod->has_init = true;
 		if (strcmp(symname, "cleanup_module") == 0)
@@ -848,7 +839,6 @@ enum mismatch {
 	XXXEXIT_TO_SOME_EXIT,
 	ANY_INIT_TO_ANY_EXIT,
 	ANY_EXIT_TO_ANY_INIT,
-	EXPORT_TO_INIT_EXIT,
 	EXTABLE_TO_NON_TEXT,
 };
 
@@ -919,12 +909,6 @@ static const struct sectioncheck sectioncheck[] = {
 	.fromsec = { ALL_PCI_INIT_SECTIONS, NULL },
 	.bad_tosec = { INIT_SECTIONS, NULL },
 	.mismatch = ANY_INIT_TO_ANY_EXIT,
-},
-/* Do not export init/exit functions or data */
-{
-	.fromsec = { "___ksymtab*", NULL },
-	.bad_tosec = { INIT_SECTIONS, EXIT_SECTIONS, NULL },
-	.mismatch = EXPORT_TO_INIT_EXIT,
 },
 {
 	.fromsec = { "__ex_table", NULL },
@@ -1180,10 +1164,6 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 		warn("%s: section mismatch in reference: %s (section: %s) -> %s (section: %s)\n",
 		     modname, fromsym, fromsec, tosym, tosec);
 		break;
-	case EXPORT_TO_INIT_EXIT:
-		warn("%s: EXPORT_SYMBOL used for init/exit symbol: %s (section: %s)\n",
-		     modname, tosym, tosec);
-		break;
 	case EXTABLE_TO_NON_TEXT:
 		warn("%s(%s+0x%lx): Section mismatch in reference to the %s:%s\n",
 		     modname, fromsec, (long)faddr, tosec, tosym);
@@ -1211,14 +1191,75 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	}
 }
 
+static void check_export_symbol(struct module *mod, struct elf_info *elf,
+				Elf_Addr faddr, const char *secname,
+				Elf_Sym *sym)
+{
+	static const char *prefix = "__export_symbol_";
+	const char *label_name, *name, *data;
+	Elf_Sym *label;
+	struct symbol *s;
+	bool is_gpl;
+
+	label = find_fromsym(elf, faddr, elf->export_symbol_secndx);
+	label_name = sym_name(elf, label);
+
+	if (!strstarts(label_name, prefix)) {
+		error("%s: .export_symbol section contains strange symbol '%s'\n",
+		      mod->name, label_name);
+		return;
+	}
+
+	name = sym_name(elf, sym);
+	if (strcmp(label_name + strlen(prefix), name)) {
+		error("%s: .export_symbol section references '%s', but it does not seem to be an export symbol\n",
+		      mod->name, name);
+		return;
+	}
+
+	data = sym_get_data(elf, label);	/* license */
+	if (!strcmp(data, "GPL")) {
+		is_gpl = true;
+	} else if (!strcmp(data, "")) {
+		is_gpl = false;
+	} else {
+		error("%s: unknown license '%s' was specified for '%s'\n",
+		      mod->name, data, name);
+		return;
+	}
+
+	data += strlen(data) + 1;	/* namespace */
+	s = sym_add_exported(name, mod, is_gpl);
+	sym_update_namespace(name, data);
+
+	/*
+	 * We need to be aware whether we are exporting a function or
+	 * a data on some architectures.
+	 */
+	s->is_func = (ELF_ST_TYPE(sym->st_info) == STT_FUNC);
+
+	if (match(secname, PATTERNS(INIT_SECTIONS)))
+		warn("%s: %s: EXPORT_SYMBOL used for init symbol. Remove __init or EXPORT_SYMBOL.\n",
+		     mod->name, name);
+	else if (match(secname, PATTERNS(EXIT_SECTIONS)))
+		warn("%s: %s: EXPORT_SYMBOL used for exit symbol. Remove __exit or EXPORT_SYMBOL.\n",
+		     mod->name, name);
+}
+
 static void check_section_mismatch(struct module *mod, struct elf_info *elf,
 				   Elf_Sym *sym,
 				   unsigned int fsecndx, const char *fromsec,
 				   Elf_Addr faddr, Elf_Addr taddr)
 {
 	const char *tosec = sec_name(elf, get_secindex(elf, sym));
-	const struct sectioncheck *mismatch = section_mismatch(fromsec, tosec);
+	const struct sectioncheck *mismatch;
 
+	if (elf->export_symbol_secndx == fsecndx) {
+		check_export_symbol(mod, elf, faddr, tosec, sym);
+		return;
+	}
+
+	mismatch = section_mismatch(fromsec, tosec);
 	if (!mismatch)
 		return;
 
@@ -1698,15 +1739,6 @@ static void read_symbols(const char *modname)
 		handle_moddevtable(mod, &info, sym, symname);
 	}
 
-	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
-		symname = remove_dot(info.strtab + sym->st_name);
-
-		/* Apply symbol namespaces from __kstrtabns_<symbol> entries. */
-		if (strstarts(symname, "__kstrtabns_"))
-			sym_update_namespace(symname + strlen("__kstrtabns_"),
-					     sym_get_data(&info, sym));
-	}
-
 	check_sec_ref(mod, &info);
 
 	if (!mod->is_vmlinux) {
@@ -1889,6 +1921,14 @@ static void add_header(struct buffer *b, struct module *mod)
 static void add_exported_symbols(struct buffer *buf, struct module *mod)
 {
 	struct symbol *sym;
+
+	/* generate struct for exported symbols */
+	buf_printf(buf, "\n");
+	list_for_each_entry(sym, &mod->exported_symbols, list)
+		buf_printf(buf, "KSYMTAB_%s(%s, \"%s\", \"%s\");\n",
+			   sym->is_func ? "FUNC" : "DATA", sym->name,
+			   sym->is_gpl_only ? "_gpl" : "",
+			   sym->namespace ?: "");
 
 	if (!modversions)
 		return;

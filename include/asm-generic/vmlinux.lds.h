@@ -1006,6 +1006,7 @@
 	PATCHABLE_DISCARDS						\
 	*(.discard)							\
 	*(.discard.*)							\
+	*(.export_symbol)						\
 	*(.modinfo)							\
 	/* ld.bfd warns about .gnu.version* even when not emitted */	\
 	*(.gnu.version*)						\

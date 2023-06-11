@@ -46,9 +46,9 @@ BEGIN {
 { symbol_types[$3]=$2 }
 
 # append the exported symbol to the array
-($3 ~ /^__ksymtab_/) {
+($3 ~ /^__export_symbol_.*/) {
 	export_symbols[i] = $3
-	sub(/^__ksymtab_/, "", export_symbols[i])
+	sub(/^__export_symbol_/, "", export_symbols[i])
 	i++
 }
 
