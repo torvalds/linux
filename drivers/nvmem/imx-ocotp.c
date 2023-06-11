@@ -596,7 +596,7 @@ static void imx_ocotp_fixup_cell_info(struct nvmem_device *nvmem,
 	cell->read_post_process = imx_ocotp_cell_pp;
 }
 
-struct nvmem_layout imx_ocotp_layout = {
+static struct nvmem_layout imx_ocotp_layout = {
 	.fixup_cell_info = imx_ocotp_fixup_cell_info,
 };
 
