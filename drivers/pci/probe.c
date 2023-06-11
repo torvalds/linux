@@ -2550,6 +2550,8 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	dma_set_max_seg_size(&dev->dev, 65536);
 	dma_set_seg_boundary(&dev->dev, 0xffffffff);
 
+	pcie_failed_link_retrain(dev);
+
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
 

@@ -4951,6 +4951,8 @@ static bool pcie_wait_for_link_delay(struct pci_dev *pdev, bool active,
 	if (active)
 		msleep(20);
 	ret = pcie_wait_for_link_status(pdev, false, active);
+	if (active && !ret)
+		ret = pcie_failed_link_retrain(pdev);
 	if (active && ret)
 		msleep(delay);
 
