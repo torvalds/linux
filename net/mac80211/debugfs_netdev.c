@@ -693,6 +693,19 @@ IEEE80211_IF_FILE(dot11MeshConnectedToAuthServer,
 	debugfs_create_file(#name, mode, sdata->vif.debugfs_dir, \
 			    sdata, &name##_ops)
 
+#define DEBUGFS_ADD_X(_bits, _name, _mode) \
+	debugfs_create_x##_bits(#_name, _mode, sdata->vif.debugfs_dir, \
+				&sdata->vif._name)
+
+#define DEBUGFS_ADD_X8(_name, _mode) \
+	DEBUGFS_ADD_X(8, _name, _mode)
+
+#define DEBUGFS_ADD_X16(_name, _mode) \
+	DEBUGFS_ADD_X(16, _name, _mode)
+
+#define DEBUGFS_ADD_X32(_name, _mode) \
+	DEBUGFS_ADD_X(32, _name, _mode)
+
 #define DEBUGFS_ADD(name) DEBUGFS_ADD_MODE(name, 0400)
 
 static void add_common_files(struct ieee80211_sub_if_data *sdata)
@@ -722,6 +735,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD_MODE(tdls_wider_bw, 0600);
 	DEBUGFS_ADD_MODE(valid_links, 0400);
 	DEBUGFS_ADD_MODE(active_links, 0600);
+	DEBUGFS_ADD_X16(dormant_links, 0400);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
