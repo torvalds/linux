@@ -78,6 +78,7 @@ trans_commit:
 	return  bch2_trans_update(trans, iter, &wb->k, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  commit_flags|
+				  BTREE_INSERT_NOCHECK_RW|
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_JOURNAL_RECLAIM);
 }
