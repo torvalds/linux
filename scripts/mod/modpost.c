@@ -1210,6 +1210,13 @@ static void check_export_symbol(struct module *mod, struct elf_info *elf,
 		return;
 	}
 
+	if (ELF_ST_BIND(sym->st_info) != STB_GLOBAL &&
+	    ELF_ST_BIND(sym->st_info) != STB_WEAK) {
+		error("%s: local symbol '%s' was exported\n", mod->name,
+		      label_name + strlen(prefix));
+		return;
+	}
+
 	name = sym_name(elf, sym);
 	if (strcmp(label_name + strlen(prefix), name)) {
 		error("%s: .export_symbol section references '%s', but it does not seem to be an export symbol\n",
