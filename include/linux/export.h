@@ -42,31 +42,13 @@ extern struct module __this_module;
 	.long sym
 #endif
 
-#define ____EXPORT_SYMBOL(sym, license, ns)		\
+#define ___EXPORT_SYMBOL(sym, license, ns)		\
 	.section ".export_symbol","a"		ASM_NL	\
 	__export_symbol_##sym:			ASM_NL	\
 		.asciz license			ASM_NL	\
 		.asciz ns			ASM_NL	\
 		__EXPORT_SYMBOL_REF(sym)	ASM_NL	\
 	.previous
-
-#ifdef __GENKSYMS__
-
-#define ___EXPORT_SYMBOL(sym, sec, ns)	__GENKSYMS_EXPORT_SYMBOL(sym)
-
-#elif defined(__ASSEMBLY__)
-
-#define ___EXPORT_SYMBOL(sym, license, ns) \
-	____EXPORT_SYMBOL(sym, license, ns)
-
-#else
-
-#define ___EXPORT_SYMBOL(sym, license, ns)			\
-	extern typeof(sym) sym;					\
-	__ADDRESSABLE(sym)					\
-	asm(__stringify(____EXPORT_SYMBOL(sym, license, ns)))
-
-#endif
 
 #if !defined(CONFIG_MODULES) || defined(__DISABLE_EXPORTS)
 
@@ -77,50 +59,21 @@ extern struct module __this_module;
  */
 #define __EXPORT_SYMBOL(sym, sec, ns)
 
-#elif defined(CONFIG_TRIM_UNUSED_KSYMS)
+#elif defined(__GENKSYMS__)
 
-#include <generated/autoksyms.h>
+#define __EXPORT_SYMBOL(sym, sec, ns)	__GENKSYMS_EXPORT_SYMBOL(sym)
 
-/*
- * For fine grained build dependencies, we want to tell the build system
- * about each possible exported symbol even if they're not actually exported.
- * We use a symbol pattern __ksym_marker_<symbol> that the build system filters
- * from the $(NM) output (see scripts/gen_ksymdeps.sh). These symbols are
- * discarded in the final link stage.
- */
+#elif defined(__ASSEMBLY__)
 
-#ifdef __ASSEMBLY__
-
-#define __ksym_marker(sym)					\
-	.section ".discard.ksym","a" ;				\
-__ksym_marker_##sym: ;						\
-	.previous
+#define __EXPORT_SYMBOL(sym, license, ns) \
+	___EXPORT_SYMBOL(sym, license, ns)
 
 #else
 
-#define __ksym_marker(sym)	\
-	static int __ksym_marker_##sym[0] __section(".discard.ksym") __used
-
-#endif
-
-#define __EXPORT_SYMBOL(sym, sec, ns)					\
-	__ksym_marker(sym);						\
-	__cond_export_sym(sym, sec, ns, __is_defined(__KSYM_##sym))
-#define __cond_export_sym(sym, sec, ns, conf)				\
-	___cond_export_sym(sym, sec, ns, conf)
-#define ___cond_export_sym(sym, sec, ns, enabled)			\
-	__cond_export_sym_##enabled(sym, sec, ns)
-#define __cond_export_sym_1(sym, sec, ns) ___EXPORT_SYMBOL(sym, sec, ns)
-
-#ifdef __GENKSYMS__
-#define __cond_export_sym_0(sym, sec, ns) __GENKSYMS_EXPORT_SYMBOL(sym)
-#else
-#define __cond_export_sym_0(sym, sec, ns) /* nothing */
-#endif
-
-#else
-
-#define __EXPORT_SYMBOL(sym, sec, ns)	___EXPORT_SYMBOL(sym, sec, ns)
+#define __EXPORT_SYMBOL(sym, license, ns)			\
+	extern typeof(sym) sym;					\
+	__ADDRESSABLE(sym)					\
+	asm(__stringify(___EXPORT_SYMBOL(sym, license, ns)))
 
 #endif /* CONFIG_MODULES */
 

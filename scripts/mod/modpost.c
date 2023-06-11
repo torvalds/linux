@@ -35,6 +35,9 @@ static bool warn_unresolved;
 
 static int sec_mismatch_count;
 static bool sec_mismatch_warn_only = true;
+/* Trim EXPORT_SYMBOLs that are unused by in-tree modules */
+static bool trim_unused_exports;
+
 /* ignore missing files */
 static bool ignore_missing_files;
 /* If set to 1, only warn (instead of error) about missing ns imports */
@@ -219,6 +222,7 @@ struct symbol {
 	bool weak;
 	bool is_func;
 	bool is_gpl_only;	/* exported by EXPORT_SYMBOL_GPL */
+	bool used;		/* there exists a user of this symbol */
 	char name[];
 };
 
@@ -1826,6 +1830,7 @@ static void check_exports(struct module *mod)
 			continue;
 		}
 
+		exp->used = true;
 		s->module = exp->module;
 		s->crc_valid = exp->crc_valid;
 		s->crc = exp->crc;
@@ -1847,6 +1852,23 @@ static void check_exports(struct module *mod)
 			error("GPL-incompatible module %s.ko uses GPL-only symbol '%s'\n",
 			      basename, exp->name);
 	}
+}
+
+static void handle_white_list_exports(const char *white_list)
+{
+	char *buf, *p, *name;
+
+	buf = read_text_file(white_list);
+	p = buf;
+
+	while ((name = strsep(&p, "\n"))) {
+		struct symbol *sym = find_symbol(name);
+
+		if (sym)
+			sym->used = true;
+	}
+
+	free(buf);
 }
 
 static void check_modname_len(struct module *mod)
@@ -1919,10 +1941,14 @@ static void add_exported_symbols(struct buffer *buf, struct module *mod)
 
 	/* generate struct for exported symbols */
 	buf_printf(buf, "\n");
-	list_for_each_entry(sym, &mod->exported_symbols, list)
+	list_for_each_entry(sym, &mod->exported_symbols, list) {
+		if (trim_unused_exports && !sym->used)
+			continue;
+
 		buf_printf(buf, "KSYMTAB_%s(%s, \"%s\", \"%s\");\n",
 			   sym->is_func ? "FUNC" : "DATA", sym->name,
 			   sym->is_gpl_only ? "_gpl" : "", sym->namespace);
+	}
 
 	if (!modversions)
 		return;
@@ -1930,6 +1956,9 @@ static void add_exported_symbols(struct buffer *buf, struct module *mod)
 	/* record CRCs for exported symbols */
 	buf_printf(buf, "\n");
 	list_for_each_entry(sym, &mod->exported_symbols, list) {
+		if (trim_unused_exports && !sym->used)
+			continue;
+
 		if (!sym->crc_valid)
 			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n"
 			     "Is \"%s\" prototyped in <asm/asm-prototypes.h>?\n",
@@ -2093,9 +2122,6 @@ static void write_mod_c_file(struct module *mod)
 	char fname[PATH_MAX];
 	int ret;
 
-	check_modname_len(mod);
-	check_exports(mod);
-
 	add_header(&buf, mod);
 	add_exported_symbols(&buf, mod);
 	add_versions(&buf, mod);
@@ -2187,6 +2213,9 @@ static void write_dump(const char *fname)
 		if (mod->from_dump)
 			continue;
 		list_for_each_entry(sym, &mod->exported_symbols, list) {
+			if (trim_unused_exports && !sym->used)
+				continue;
+
 			buf_printf(&buf, "0x%08x\t%s\t%s\tEXPORT_SYMBOL%s\t%s\n",
 				   sym->crc, sym->name, mod->name,
 				   sym->is_gpl_only ? "_GPL" : "",
@@ -2229,12 +2258,13 @@ int main(int argc, char **argv)
 {
 	struct module *mod;
 	char *missing_namespace_deps = NULL;
+	char *unused_exports_white_list = NULL;
 	char *dump_write = NULL, *files_source = NULL;
 	int opt;
 	LIST_HEAD(dump_lists);
 	struct dump_list *dl, *dl2;
 
-	while ((opt = getopt(argc, argv, "ei:mnT:o:aWwENd:")) != -1) {
+	while ((opt = getopt(argc, argv, "ei:mnT:to:au:WwENd:")) != -1) {
 		switch (opt) {
 		case 'e':
 			external_module = true;
@@ -2258,6 +2288,12 @@ int main(int argc, char **argv)
 			break;
 		case 'T':
 			files_source = optarg;
+			break;
+		case 't':
+			trim_unused_exports = true;
+			break;
+		case 'u':
+			unused_exports_white_list = optarg;
 			break;
 		case 'W':
 			extra_warn = true;
@@ -2290,6 +2326,17 @@ int main(int argc, char **argv)
 
 	if (files_source)
 		read_symbols_from_files(files_source);
+
+	list_for_each_entry(mod, &modules, list) {
+		if (mod->from_dump || mod->is_vmlinux)
+			continue;
+
+		check_modname_len(mod);
+		check_exports(mod);
+	}
+
+	if (unused_exports_white_list)
+		handle_white_list_exports(unused_exports_white_list);
 
 	list_for_each_entry(mod, &modules, list) {
 		if (mod->from_dump)
