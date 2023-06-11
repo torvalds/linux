@@ -3861,6 +3861,9 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
+	if (iter->flags & FTRACE_ITER_ADDRS)
+		seq_printf(m, "%lx ", rec->ip);
+
 	if (print_rec(m, rec->ip)) {
 		/* This should only happen when a rec is disabled */
 		WARN_ON_ONCE(!(rec->flags & FTRACE_FL_DISABLED));
@@ -3991,6 +3994,30 @@ ftrace_touched_open(struct inode *inode, struct file *file)
 
 	iter->pg = ftrace_pages_start;
 	iter->flags = FTRACE_ITER_TOUCHED;
+	iter->ops = &global_ops;
+
+	return 0;
+}
+
+static int
+ftrace_avail_addrs_open(struct inode *inode, struct file *file)
+{
+	struct ftrace_iterator *iter;
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	if (ret)
+		return ret;
+
+	if (unlikely(ftrace_disabled))
+		return -ENODEV;
+
+	iter = __seq_open_private(file, &show_ftrace_seq_ops, sizeof(*iter));
+	if (!iter)
+		return -ENOMEM;
+
+	iter->pg = ftrace_pages_start;
+	iter->flags = FTRACE_ITER_ADDRS;
 	iter->ops = &global_ops;
 
 	return 0;
@@ -5916,6 +5943,13 @@ static const struct file_operations ftrace_touched_fops = {
 	.release = seq_release_private,
 };
 
+static const struct file_operations ftrace_avail_addrs_fops = {
+	.open = ftrace_avail_addrs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_private,
+};
+
 static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = seq_read,
@@ -6376,6 +6410,9 @@ static __init int ftrace_init_dyn_tracefs(struct dentry *d_tracer)
 
 	trace_create_file("available_filter_functions", TRACE_MODE_READ,
 			d_tracer, NULL, &ftrace_avail_fops);
+
+	trace_create_file("available_filter_functions_addrs", TRACE_MODE_READ,
+			d_tracer, NULL, &ftrace_avail_addrs_fops);
 
 	trace_create_file("enabled_functions", TRACE_MODE_READ,
 			d_tracer, NULL, &ftrace_enabled_fops);

@@ -324,6 +324,12 @@ of ftrace. Here is a list of some of the key files:
 	"set_graph_function", or "set_graph_notrace".
 	(See the section "dynamic ftrace" below for more details.)
 
+  available_filter_functions_addrs:
+
+	Similar to available_filter_functions, but with address displayed
+	for each function. The displayed address is the patch-site address
+	and can differ from /proc/kallsyms address.
+
   dyn_ftrace_total_info:
 
 	This file is for debugging purposes. The number of functions that
