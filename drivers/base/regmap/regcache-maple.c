@@ -186,6 +186,55 @@ out_unlocked:
 	return ret;
 }
 
+static int regcache_maple_sync_block(struct regmap *map, unsigned long *entry,
+				     struct ma_state *mas,
+				     unsigned int min, unsigned int max)
+{
+	void *buf;
+	unsigned long r;
+	size_t val_bytes = map->format.val_bytes;
+	int ret = 0;
+
+	mas_pause(mas);
+	rcu_read_unlock();
+
+	/*
+	 * Use a raw write if writing more than one register to a
+	 * device that supports raw writes to reduce transaction
+	 * overheads.
+	 */
+	if (max - min > 1 && regmap_can_raw_write(map)) {
+		buf = kmalloc(val_bytes * (max - min), map->alloc_flags);
+		if (!buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		/* Render the data for a raw write */
+		for (r = min; r < max; r++) {
+			regcache_set_val(map, buf, r - min,
+					 entry[r - mas->index]);
+		}
+
+		ret = _regmap_raw_write(map, min, buf, (max - min) * val_bytes,
+					false);
+
+		kfree(buf);
+	} else {
+		for (r = min; r < max; r++) {
+			ret = _regmap_write(map, r,
+					    entry[r - mas->index]);
+			if (ret != 0)
+				goto out;
+		}
+	}
+
+out:
+	rcu_read_lock();
+
+	return ret;
+}
+
 static int regcache_maple_sync(struct regmap *map, unsigned int min,
 			       unsigned int max)
 {
@@ -194,8 +243,9 @@ static int regcache_maple_sync(struct regmap *map, unsigned int min,
 	MA_STATE(mas, mt, min, max);
 	unsigned long lmin = min;
 	unsigned long lmax = max;
-	unsigned int r;
+	unsigned int r, v, sync_start;
 	int ret;
+	bool sync_needed = false;
 
 	map->cache_bypass = true;
 
@@ -203,18 +253,38 @@ static int regcache_maple_sync(struct regmap *map, unsigned int min,
 
 	mas_for_each(&mas, entry, max) {
 		for (r = max(mas.index, lmin); r <= min(mas.last, lmax); r++) {
-			mas_pause(&mas);
-			rcu_read_unlock();
-			ret = regcache_sync_val(map, r, entry[r - mas.index]);
+			v = entry[r - mas.index];
+
+			if (regcache_reg_needs_sync(map, r, v)) {
+				if (!sync_needed) {
+					sync_start = r;
+					sync_needed = true;
+				}
+				continue;
+			}
+
+			if (!sync_needed)
+				continue;
+
+			ret = regcache_maple_sync_block(map, entry, &mas,
+							sync_start, r);
 			if (ret != 0)
 				goto out;
-			rcu_read_lock();
+			sync_needed = false;
+		}
+
+		if (sync_needed) {
+			ret = regcache_maple_sync_block(map, entry, &mas,
+							sync_start, r);
+			if (ret != 0)
+				goto out;
+			sync_needed = false;
 		}
 	}
 
+out:
 	rcu_read_unlock();
 
-out:
 	map->cache_bypass = false;
 
 	return ret;

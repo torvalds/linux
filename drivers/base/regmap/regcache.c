@@ -279,8 +279,8 @@ int regcache_write(struct regmap *map,
 	return 0;
 }
 
-static bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
-				    unsigned int val)
+bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
+			     unsigned int val)
 {
 	int ret;
 
