@@ -66,22 +66,18 @@ static int pasemi_platform_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_u32(dev->of_node, "clock-frequency", &frequency))
 		frequency = I2C_MAX_STANDARD_MODE_FREQ;
 
-	data->clk_ref = devm_clk_get(dev, NULL);
+	data->clk_ref = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(data->clk_ref))
 		return PTR_ERR(data->clk_ref);
 
-	error = clk_prepare_enable(data->clk_ref);
-	if (error)
-		return error;
-
 	error = pasemi_platform_i2c_calc_clk_div(data, frequency);
 	if (error)
-		goto out_clk_disable;
+		return error;
 
 	smbus->adapter.dev.of_node = pdev->dev.of_node;
 	error = pasemi_i2c_common_probe(smbus);
 	if (error)
-		goto out_clk_disable;
+		return error;
 
 	irq_num = platform_get_irq(pdev, 0);
 	error = devm_request_irq(smbus->dev, irq_num, pasemi_irq_handler, 0, "pasemi_apple_i2c", (void *)smbus);
@@ -91,19 +87,9 @@ static int pasemi_platform_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	return 0;
-
-out_clk_disable:
-	clk_disable_unprepare(data->clk_ref);
-
-	return error;
 }
 
-static void pasemi_platform_i2c_remove(struct platform_device *pdev)
-{
-	struct pasemi_platform_i2c_data *data = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(data->clk_ref);
-}
+static void pasemi_platform_i2c_remove(struct platform_device *pdev) { }
 
 static const struct of_device_id pasemi_platform_i2c_of_match[] = {
 	{ .compatible = "apple,t8103-i2c" },
