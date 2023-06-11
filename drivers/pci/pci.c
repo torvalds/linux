@@ -4928,16 +4928,14 @@ bool pcie_retrain_link(struct pci_dev *pdev, bool use_lt)
 static bool pcie_wait_for_link_delay(struct pci_dev *pdev, bool active,
 				     int delay)
 {
-	int timeout = PCIE_LINK_RETRAIN_TIMEOUT_MS;
 	bool ret;
-	u16 lnk_status;
 
 	/*
 	 * Some controllers might not implement link active reporting. In this
 	 * case, we wait for 1000 ms + any delay requested by the caller.
 	 */
 	if (!pdev->link_active_reporting) {
-		msleep(timeout + delay);
+		msleep(PCIE_LINK_RETRAIN_TIMEOUT_MS + delay);
 		return true;
 	}
 
@@ -4952,20 +4950,11 @@ static bool pcie_wait_for_link_delay(struct pci_dev *pdev, bool active,
 	 */
 	if (active)
 		msleep(20);
-	for (;;) {
-		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
-		ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
-		if (ret == active)
-			break;
-		if (timeout <= 0)
-			break;
-		msleep(10);
-		timeout -= 10;
-	}
+	ret = pcie_wait_for_link_status(pdev, false, active);
 	if (active && ret)
 		msleep(delay);
 
-	return ret == active;
+	return ret;
 }
 
 /**
