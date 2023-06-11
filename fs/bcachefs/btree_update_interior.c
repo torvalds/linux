@@ -1674,9 +1674,6 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	BUG_ON(!as || as->b);
 	bch2_verify_keylist_sorted(keys);
 
-	if ((local_clock() & 63) == 63)
-		return btree_trans_restart(trans, BCH_ERR_transaction_restart_split_race);
-
 	ret = bch2_btree_node_lock_write(trans, path, &b->c);
 	if (ret)
 		return ret;
