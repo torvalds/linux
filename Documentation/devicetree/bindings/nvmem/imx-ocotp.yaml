@@ -47,12 +47,6 @@ properties:
   reg:
     maxItems: 1
 
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 1
-
   clocks:
     maxItems: 1
 
@@ -61,21 +55,6 @@ required:
   - "#size-cells"
   - compatible
   - reg
-
-patternProperties:
-  "^.*@[0-9a-f]+$":
-    type: object
-
-    properties:
-      reg:
-        maxItems: 1
-        description:
-          Offset and size in bytes within the storage device.
-
-    required:
-      - reg
-
-    additionalProperties: false
 
 unevaluatedProperties: false
 
