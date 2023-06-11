@@ -2129,6 +2129,11 @@ mlx5dr_action_create_aso(struct mlx5dr_domain *dmn, u32 obj_id,
 	return action;
 }
 
+u32 mlx5dr_action_get_pkt_reformat_id(struct mlx5dr_action *action)
+{
+	return action->reformat->id;
+}
+
 int mlx5dr_action_destroy(struct mlx5dr_action *action)
 {
 	if (WARN_ON_ONCE(refcount_read(&action->refcount) > 1))
