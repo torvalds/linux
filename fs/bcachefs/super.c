@@ -302,6 +302,11 @@ void bch2_fs_read_only(struct bch_fs *c)
 	    test_bit(BCH_FS_STARTED, &c->flags) &&
 	    test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags) &&
 	    !c->opts.norecovery) {
+		BUG_ON(c->journal.last_empty_seq != journal_cur_seq(&c->journal));
+		BUG_ON(atomic_read(&c->btree_cache.dirty));
+		BUG_ON(atomic_long_read(&c->btree_key_cache.nr_dirty));
+		BUG_ON(c->btree_write_buffer.state.nr);
+
 		bch_verbose(c, "marking filesystem clean");
 		bch2_fs_mark_clean(c);
 	}
