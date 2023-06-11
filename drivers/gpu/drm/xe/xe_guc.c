@@ -647,7 +647,7 @@ retry:
 			     GUC_HXG_MSG_0_ORIGIN, 50000, &reply, false);
 	if (ret) {
 timeout:
-		drm_err(&xe->drm, "mmio request 0x%08x: no reply 0x%08x\n",
+		drm_err(&xe->drm, "mmio request %#x: no reply %#x\n",
 			request[0], reply);
 		return ret;
 	}
@@ -673,7 +673,7 @@ timeout:
 	    GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
 		u32 reason = FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, header);
 
-		drm_dbg(&xe->drm, "mmio request %#x: retrying, reason %u\n",
+		drm_dbg(&xe->drm, "mmio request %#x: retrying, reason %#x\n",
 			request[0], reason);
 		goto retry;
 	}
@@ -683,7 +683,7 @@ timeout:
 		u32 hint = FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, header);
 		u32 error = FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, header);
 
-		drm_err(&xe->drm, "mmio request %#x: failure %x/%u\n",
+		drm_err(&xe->drm, "mmio request %#x: failure %#x/%#x\n",
 			request[0], error, hint);
 		return -ENXIO;
 	}
