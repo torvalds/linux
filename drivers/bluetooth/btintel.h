@@ -166,12 +166,14 @@ enum {
 	INTEL_BROKEN_SHUTDOWN_LED,
 	INTEL_ROM_LEGACY,
 	INTEL_ROM_LEGACY_NO_WBS_SUPPORT,
+	INTEL_ACPI_RESET_ACTIVE,
 
 	__INTEL_NUM_FLAGS,
 };
 
 struct btintel_data {
 	DECLARE_BITMAP(flags, __INTEL_NUM_FLAGS);
+	int (*acpi_reset_method)(struct hci_dev *hdev);
 };
 
 #define btintel_set_flag(hdev, nr)					\
