@@ -420,12 +420,11 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "cannot enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
-	clk_prepare_enable(priv->clk);
 
 	strscpy(priv->adap.name, "hix5hd2-i2c", sizeof(priv->adap.name));
 	priv->dev = &pdev->dev;
@@ -446,7 +445,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), priv);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n", irq);
-		goto err_clk;
+		return ret;
 	}
 
 	pm_runtime_set_autosuspend_delay(priv->dev, MSEC_PER_SEC);
@@ -463,8 +462,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 err_runtime:
 	pm_runtime_disable(priv->dev);
 	pm_runtime_set_suspended(priv->dev);
-err_clk:
-	clk_disable_unprepare(priv->clk);
+
 	return ret;
 }
 
@@ -475,7 +473,6 @@ static void hix5hd2_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&priv->adap);
 	pm_runtime_disable(priv->dev);
 	pm_runtime_set_suspended(priv->dev);
-	clk_disable_unprepare(priv->clk);
 }
 
 #ifdef CONFIG_PM
