@@ -15,6 +15,16 @@
 	compatible = "ti,j7200-evm", "ti,j7200";
 	model = "Texas Instruments J7200 EVM";
 
+	aliases {
+		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
+		serial2 = &main_uart0;
+		serial3 = &main_uart1;
+		serial5 = &main_uart3;
+		mmc0 = &main_sdhci0;
+		mmc1 = &main_sdhci1;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
