@@ -178,7 +178,7 @@ static struct i2c_driver tps6287x_regulator_driver = {
 		.name = "tps6287x",
 		.of_match_table = tps6287x_dt_ids,
 	},
-	.probe_new = tps6287x_i2c_probe,
+	.probe = tps6287x_i2c_probe,
 	.id_table = tps6287x_i2c_id,
 };
 
