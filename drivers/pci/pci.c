@@ -4857,35 +4857,47 @@ static int pci_pm_reset(struct pci_dev *dev, bool probe)
 }
 
 /**
- * pcie_wait_for_link_status - Wait for link training end
+ * pcie_wait_for_link_status - Wait for link status change
  * @pdev: Device whose link to wait for.
+ * @use_lt: Use the LT bit if TRUE, or the DLLLA bit if FALSE.
+ * @active: Waiting for active or inactive?
  *
- * Return TRUE if successful, or FALSE if training has not completed
- * within PCIE_LINK_RETRAIN_TIMEOUT_MS milliseconds.
+ * Return TRUE if successful, or FALSE if status has not changed within
+ * PCIE_LINK_RETRAIN_TIMEOUT_MS milliseconds.
  */
-static bool pcie_wait_for_link_status(struct pci_dev *pdev)
+static bool pcie_wait_for_link_status(struct pci_dev *pdev,
+				      bool use_lt, bool active)
 {
+	u16 lnksta_mask, lnksta_match;
 	unsigned long end_jiffies;
 	u16 lnksta;
+
+	lnksta_mask = use_lt ? PCI_EXP_LNKSTA_LT : PCI_EXP_LNKSTA_DLLLA;
+	lnksta_match = active ? lnksta_mask : 0;
 
 	end_jiffies = jiffies + msecs_to_jiffies(PCIE_LINK_RETRAIN_TIMEOUT_MS);
 	do {
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnksta);
-		if (!(lnksta & PCI_EXP_LNKSTA_LT))
+		if ((lnksta & lnksta_mask) == lnksta_match)
 			break;
 		msleep(1);
 	} while (time_before(jiffies, end_jiffies));
-	return !(lnksta & PCI_EXP_LNKSTA_LT);
+	return (lnksta & lnksta_mask) == lnksta_match;
 }
 
 /**
  * pcie_retrain_link - Request a link retrain and wait for it to complete
  * @pdev: Device whose link to retrain.
+ * @use_lt: Use the LT bit if TRUE, or the DLLLA bit if FALSE, for status.
+ *
+ * Retrain completion status is retrieved from the Link Status Register
+ * according to @use_lt.  It is not verified whether the use of the DLLLA
+ * bit is valid.
  *
  * Return TRUE if successful, or FALSE if training has not completed
  * within PCIE_LINK_RETRAIN_TIMEOUT_MS milliseconds.
  */
-bool pcie_retrain_link(struct pci_dev *pdev)
+bool pcie_retrain_link(struct pci_dev *pdev, bool use_lt)
 {
 	u16 lnkctl;
 
@@ -4902,7 +4914,7 @@ bool pcie_retrain_link(struct pci_dev *pdev)
 		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnkctl);
 	}
 
-	return pcie_wait_for_link_status(pdev);
+	return pcie_wait_for_link_status(pdev, use_lt, !use_lt);
 }
 
 /**
