@@ -77,7 +77,7 @@ struct audio_payload {
 
 MODULE_DESCRIPTION("iSight audio driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 static struct fw_iso_packet audio_packet = {
 	.payload_length = sizeof(struct audio_payload),
