@@ -300,7 +300,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	/* First part of the test, are we updating our pagetable bo with a new entry? */
 	xe_map_wr(xe, &bo->vmap, XE_PAGE_SIZE * (NUM_KERNEL_PDE - 1), u64,
 		  0xdeaddeadbeefbeef);
-	expected = gen8_pte_encode(NULL, pt, 0, XE_CACHE_WB, 0, 0);
+	expected = xe_pte_encode(NULL, pt, 0, XE_CACHE_WB, 0, 0);
 	if (m->eng->vm->flags & XE_VM_FLAGS_64K)
 		expected |= XE_PTE_PS64;
 	if (xe_bo_is_vram(pt))

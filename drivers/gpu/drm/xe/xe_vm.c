@@ -1530,8 +1530,8 @@ struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id)
 
 u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile)
 {
-	return gen8_pde_encode(vm->pt_root[tile->id]->bo, 0,
-			       XE_CACHE_WB);
+	return xe_pde_encode(vm->pt_root[tile->id]->bo, 0,
+			     XE_CACHE_WB);
 }
 
 static struct dma_fence *

@@ -47,7 +47,7 @@ static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
 }
 
 /**
- * gen8_pde_encode() - Encode a page-table directory entry pointing to
+ * xe_pde_encode() - Encode a page-table directory entry pointing to
  * another page-table.
  * @bo: The page-table bo of the page-table to point to.
  * @bo_offset: Offset in the page-table bo to point to.
@@ -57,8 +57,8 @@ static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
  *
  * Return: An encoded page directory entry. No errors.
  */
-u64 gen8_pde_encode(struct xe_bo *bo, u64 bo_offset,
-		    const enum xe_cache_level level)
+u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
+		  const enum xe_cache_level level)
 {
 	u64 pde;
 	bool is_vram;
@@ -97,8 +97,8 @@ static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 	}
 }
 
-static u64 __gen8_pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
-			     u32 pt_level)
+static u64 __pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
+			u32 pt_level)
 {
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
 
@@ -131,7 +131,7 @@ static u64 __gen8_pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
 }
 
 /**
- * gen8_pte_encode() - Encode a page-table entry pointing to memory.
+ * xe_pte_encode() - Encode a page-table entry pointing to memory.
  * @vma: The vma representing the memory to point to.
  * @bo: If @vma is NULL, representing the memory to point to.
  * @offset: The offset into @vma or @bo.
@@ -140,13 +140,11 @@ static u64 __gen8_pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
  * @pt_level: The page-table level of the page-table into which the entry
  * is to be inserted.
  *
- * TODO: Rename.
- *
  * Return: An encoded page-table entry. No errors.
  */
-u64 gen8_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
-		    u64 offset, enum xe_cache_level cache,
-		    u32 flags, u32 pt_level)
+u64 xe_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
+		  u64 offset, enum xe_cache_level cache,
+		  u32 flags, u32 pt_level)
 {
 	u64 pte;
 	bool is_vram;
@@ -162,7 +160,7 @@ u64 gen8_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
 			pte |= XE_USM_PPGTT_PTE_AE;
 	}
 
-	return __gen8_pte_encode(pte, cache, flags, pt_level);
+	return __pte_encode(pte, cache, flags, pt_level);
 }
 
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
@@ -174,13 +172,13 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 		return 0;
 
 	if (level == 0) {
-		u64 empty = gen8_pte_encode(NULL, vm->scratch_bo[id], 0,
-					    XE_CACHE_WB, 0, 0);
+		u64 empty = xe_pte_encode(NULL, vm->scratch_bo[id], 0,
+					  XE_CACHE_WB, 0, 0);
 
 		return empty;
 	} else {
-		return gen8_pde_encode(vm->scratch_pt[id][level - 1]->bo, 0,
-				       XE_CACHE_WB);
+		return xe_pde_encode(vm->scratch_pt[id][level - 1]->bo, 0,
+				     XE_CACHE_WB);
 	}
 }
 
@@ -634,9 +632,9 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 
 		XE_WARN_ON(xe_walk->va_curs_start != addr);
 
-		pte = __gen8_pte_encode(xe_res_dma(curs) + xe_walk->dma_offset,
-					xe_walk->cache, xe_walk->pte_flags,
-					level);
+		pte = __pte_encode(xe_res_dma(curs) + xe_walk->dma_offset,
+				   xe_walk->cache, xe_walk->pte_flags,
+				   level);
 		pte |= xe_walk->default_pte;
 
 		/*
@@ -699,7 +697,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 			xe_child->is_compact = true;
 		}
 
-		pte = gen8_pde_encode(xe_child->bo, 0, xe_walk->cache) | flags;
+		pte = xe_pde_encode(xe_child->bo, 0, xe_walk->cache) | flags;
 		ret = xe_pt_insert_entry(xe_walk, xe_parent, offset, xe_child,
 					 pte);
 	}

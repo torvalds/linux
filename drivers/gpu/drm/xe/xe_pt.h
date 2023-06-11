@@ -45,10 +45,10 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 
 bool xe_pt_zap_ptes(struct xe_tile *tile, struct xe_vma *vma);
 
-u64 gen8_pde_encode(struct xe_bo *bo, u64 bo_offset,
-		    const enum xe_cache_level level);
+u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
+		  const enum xe_cache_level level);
 
-u64 gen8_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
-		    u64 offset, enum xe_cache_level cache,
-		    u32 flags, u32 pt_level);
+u64 xe_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
+		  u64 offset, enum xe_cache_level cache,
+		  u32 flags, u32 pt_level);
 #endif

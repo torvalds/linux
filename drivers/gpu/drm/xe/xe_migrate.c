@@ -189,15 +189,15 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		return ret;
 	}
 
-	entry = gen8_pde_encode(bo, bo->size - XE_PAGE_SIZE, XE_CACHE_WB);
+	entry = xe_pde_encode(bo, bo->size - XE_PAGE_SIZE, XE_CACHE_WB);
 	xe_pt_write(xe, &vm->pt_root[id]->bo->vmap, 0, entry);
 
 	map_ofs = (num_entries - num_level) * XE_PAGE_SIZE;
 
 	/* Map the entire BO in our level 0 pt */
 	for (i = 0, level = 0; i < num_entries; level++) {
-		entry = gen8_pte_encode(NULL, bo, i * XE_PAGE_SIZE,
-					XE_CACHE_WB, 0, 0);
+		entry = xe_pte_encode(NULL, bo, i * XE_PAGE_SIZE,
+				      XE_CACHE_WB, 0, 0);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64, entry);
 
@@ -215,8 +215,8 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		for (i = 0; i < batch->size;
 		     i += vm->flags & XE_VM_FLAGS_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
-			entry = gen8_pte_encode(NULL, batch, i,
-						XE_CACHE_WB, 0, 0);
+			entry = xe_pte_encode(NULL, batch, i,
+					      XE_CACHE_WB, 0, 0);
 
 			xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64,
 				  entry);
@@ -242,7 +242,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		if (vm->flags & XE_VM_FLAGS_64K && level == 1)
 			flags = XE_PDE_64K;
 
-		entry = gen8_pde_encode(bo, map_ofs + (level - 1) *
+		entry = xe_pde_encode(bo, map_ofs + (level - 1) *
 					XE_PAGE_SIZE, XE_CACHE_WB);
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE * level, u64,
 			  entry | flags);
@@ -250,8 +250,8 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 	/* Write PDE's that point to our BO. */
 	for (i = 0; i < num_entries - num_level; i++) {
-		entry = gen8_pde_encode(bo, i * XE_PAGE_SIZE,
-					XE_CACHE_WB);
+		entry = xe_pde_encode(bo, i * XE_PAGE_SIZE,
+				      XE_CACHE_WB);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE +
 			  (i + 1) * 8, u64, entry);
@@ -1231,8 +1231,8 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 			BUG_ON(pt_bo->size != SZ_4K);
 
-			addr = gen8_pte_encode(NULL, pt_bo, 0, XE_CACHE_WB,
-					       0, 0);
+			addr = xe_pte_encode(NULL, pt_bo, 0, XE_CACHE_WB,
+					     0, 0);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 		}
