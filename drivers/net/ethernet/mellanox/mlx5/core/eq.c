@@ -64,6 +64,7 @@ struct mlx5_eq_table {
 	struct mlx5_irq         **comp_irqs;
 	struct mlx5_irq         *ctrl_irq;
 	struct cpu_rmap		*rmap;
+	struct cpumask          used_cpus;
 };
 
 #define MLX5_ASYNC_EVENT_MASK ((1ull << MLX5_EVENT_TYPE_PATH_MIG)	    | \
@@ -453,6 +454,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 		ATOMIC_INIT_NOTIFIER_HEAD(&eq_table->nh[i]);
 
 	eq_table->irq_table = mlx5_irq_table_get(dev);
+	cpumask_clear(&eq_table->used_cpus);
 	eq_table->curr_comp_eqs = 0;
 	return 0;
 }
@@ -808,8 +810,10 @@ EXPORT_SYMBOL(mlx5_eq_update_ci);
 static void comp_irqs_release_pci(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
+	int i;
 
-	mlx5_irqs_release_vectors(table->comp_irqs, table->max_comp_eqs);
+	for (i = 0; i < table->max_comp_eqs; i++)
+		mlx5_irq_release_vector(table->comp_irqs[i]);
 }
 
 static int comp_irqs_request_pci(struct mlx5_core_dev *dev)
@@ -817,9 +821,9 @@ static int comp_irqs_request_pci(struct mlx5_core_dev *dev)
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	const struct cpumask *prev = cpu_none_mask;
 	const struct cpumask *mask;
+	struct mlx5_irq *irq;
 	int ncomp_eqs;
 	u16 *cpus;
-	int ret;
 	int cpu;
 	int i;
 
@@ -840,24 +844,42 @@ static int comp_irqs_request_pci(struct mlx5_core_dev *dev)
 	}
 spread_done:
 	rcu_read_unlock();
-	ret = mlx5_irqs_request_vectors(dev, cpus, ncomp_eqs, table->comp_irqs, &table->rmap);
+	for (i = 0; i < ncomp_eqs; i++) {
+		irq = mlx5_irq_request_vector(dev, cpus[i], i, &table->rmap);
+		if (IS_ERR(irq))
+			break;
+
+		table->comp_irqs[i] = irq;
+	}
+
 	kfree(cpus);
-	return ret;
+	return i ? i : PTR_ERR(irq);
 }
 
 static void comp_irqs_release_sf(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
+	int i;
 
-	mlx5_irq_affinity_irqs_release(dev, table->comp_irqs, table->max_comp_eqs);
+	for (i = 0; i < table->max_comp_eqs; i++)
+		mlx5_irq_affinity_irq_release(dev, table->comp_irqs[i]);
 }
 
 static int comp_irqs_request_sf(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	int ncomp_eqs = table->max_comp_eqs;
+	struct mlx5_irq *irq;
+	int i;
 
-	return mlx5_irq_affinity_irqs_request_auto(dev, ncomp_eqs, table->comp_irqs);
+	for (i = 0; i < table->max_comp_eqs; i++) {
+		irq = mlx5_irq_affinity_irq_request_auto(dev, &table->used_cpus, i);
+		if (IS_ERR(irq))
+			break;
+
+		table->comp_irqs[i] = irq;
+	}
+
+	return i ? i : PTR_ERR(irq);
 }
 
 static void comp_irqs_release(struct mlx5_core_dev *dev)
