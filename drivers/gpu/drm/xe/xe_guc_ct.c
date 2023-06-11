@@ -312,7 +312,7 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	return 0;
 
 err_out:
-	drm_err(&xe->drm, "Failed to enabled CT (%d)\n", err);
+	drm_err(&xe->drm, "Failed to enable CT (%d)\n", err);
 
 	return err;
 }
