@@ -5280,7 +5280,8 @@ struct ieee80211_mutable_offsets {
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @offs: &struct ieee80211_mutable_offsets pointer to struct that will
  *	receive the offsets that may be updated by the driver.
- * @link_id: the link id to which the beacon belongs (or 0 for a non-MLD AP)
+ * @link_id: the link id to which the beacon belongs (or 0 for an AP STA
+ *	that is not associated with AP MLD).
  *
  * If the driver implements beaconing modes, it must use this function to
  * obtain the beacon template.
@@ -5377,7 +5378,8 @@ void ieee80211_beacon_free_ema_list(struct ieee80211_ema_beacons *ema_beacons);
  * @tim_length: pointer to variable that will receive the TIM IE length,
  *	(including the ID and length bytes!).
  *	Set to 0 if invalid (in non-AP modes).
- * @link_id: the link id to which the beacon belongs (or 0 for a non-MLD AP)
+ * @link_id: the link id to which the beacon belongs (or 0 for an AP STA
+ *	that is not associated with AP MLD).
  *
  * If the driver implements beaconing modes, it must use this function to
  * obtain the beacon frame.
@@ -5400,7 +5402,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
  * ieee80211_beacon_get - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- * @link_id: the link id to which the beacon belongs (or 0 for a non-MLD AP)
+ * @link_id: the link id to which the beacon belongs (or 0 for an AP STA
+ *	that is not associated with AP MLD).
  *
  * See ieee80211_beacon_get_tim().
  *
