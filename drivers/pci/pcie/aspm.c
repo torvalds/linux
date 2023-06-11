@@ -193,11 +193,31 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 	link->clkpm_disable = blacklist ? 1 : 0;
 }
 
-static bool pcie_retrain_link(struct pci_dev *pdev)
+/**
+ * pcie_wait_for_link_status - Wait for link training end
+ * @pdev: Device whose link to wait for.
+ *
+ * Return TRUE if successful, or FALSE if training has not completed
+ * within LINK_RETRAIN_TIMEOUT jiffies.
+ */
+static bool pcie_wait_for_link_status(struct pci_dev *pdev)
 {
 	unsigned long end_jiffies;
-	u16 lnkctl;
 	u16 lnksta;
+
+	end_jiffies = jiffies + LINK_RETRAIN_TIMEOUT;
+	do {
+		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnksta);
+		if (!(lnksta & PCI_EXP_LNKSTA_LT))
+			break;
+		msleep(1);
+	} while (time_before(jiffies, end_jiffies));
+	return !(lnksta & PCI_EXP_LNKSTA_LT);
+}
+
+static bool pcie_retrain_link(struct pci_dev *pdev)
+{
+	u16 lnkctl;
 
 	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &lnkctl);
 	lnkctl |= PCI_EXP_LNKCTL_RL;
@@ -212,15 +232,7 @@ static bool pcie_retrain_link(struct pci_dev *pdev)
 		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnkctl);
 	}
 
-	/* Wait for link training end. Break out after waiting for timeout */
-	end_jiffies = jiffies + LINK_RETRAIN_TIMEOUT;
-	do {
-		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnksta);
-		if (!(lnksta & PCI_EXP_LNKSTA_LT))
-			break;
-		msleep(1);
-	} while (time_before(jiffies, end_jiffies));
-	return !(lnksta & PCI_EXP_LNKSTA_LT);
+	return pcie_wait_for_link_status(pdev);
 }
 
 /*
