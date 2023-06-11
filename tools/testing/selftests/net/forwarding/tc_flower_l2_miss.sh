@@ -78,11 +78,11 @@ test_l2_miss_unicast()
 
 	# Unknown unicast.
 	tc filter add dev $swp2 egress protocol ipv4 handle 101 pref 1 \
-	   flower indev $swp1 l2_miss true dst_mac $dmac src_ip $sip \
+	   flower indev $swp1 l2_miss 1 dst_mac $dmac src_ip $sip \
 	   dst_ip $dip action pass
 	# Known unicast.
 	tc filter add dev $swp2 egress protocol ipv4 handle 102 pref 1 \
-	   flower indev $swp1 l2_miss false dst_mac $dmac src_ip $sip \
+	   flower indev $swp1 l2_miss 0 dst_mac $dmac src_ip $sip \
 	   dst_ip $dip action pass
 
 	# Before adding FDB entry.
@@ -134,11 +134,11 @@ test_l2_miss_multicast_common()
 
 	# Unregistered multicast.
 	tc filter add dev $swp2 egress protocol $proto handle 101 pref 1 \
-	   flower indev $swp1 l2_miss true src_ip $sip dst_ip $dip \
+	   flower indev $swp1 l2_miss 1 src_ip $sip dst_ip $dip \
 	   action pass
 	# Registered multicast.
 	tc filter add dev $swp2 egress protocol $proto handle 102 pref 1 \
-	   flower indev $swp1 l2_miss false src_ip $sip dst_ip $dip \
+	   flower indev $swp1 l2_miss 0 src_ip $sip dst_ip $dip \
 	   action pass
 
 	# Before adding MDB entry.
@@ -245,7 +245,7 @@ test_l2_miss_ll_multicast_common()
 	RET=0
 
 	tc filter add dev $swp2 egress protocol $proto handle 101 pref 1 \
-	   flower indev $swp1 l2_miss true dst_mac $dmac src_ip $sip \
+	   flower indev $swp1 l2_miss 1 dst_mac $dmac src_ip $sip \
 	   dst_ip $dip action pass
 
 	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
@@ -296,10 +296,10 @@ test_l2_miss_broadcast()
 	RET=0
 
 	tc filter add dev $swp2 egress protocol all handle 101 pref 1 \
-	   flower l2_miss true dst_mac $dmac src_mac $smac \
+	   flower l2_miss 1 dst_mac $dmac src_mac $smac \
 	   action pass
 	tc filter add dev $swp2 egress protocol all handle 102 pref 1 \
-	   flower l2_miss false dst_mac $dmac src_mac $smac \
+	   flower l2_miss 0 dst_mac $dmac src_mac $smac \
 	   action pass
 
 	$MZ $h1 -a $smac -b $dmac -c 1 -p 100 -q
