@@ -63,3 +63,6 @@ phy-qcom-ufs.ko
 phy-qcom-ufs-qmp-v4-blair.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
+spmi-pmic-arb.ko
+nvmem_qcom-spmi-sdam.ko
+qcom-reboot-reason.ko
