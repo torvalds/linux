@@ -242,7 +242,6 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 		retval =  PTR_ERR(file);
 	} else {
 		retval = fd;
-		fsnotify_open(file);
 		fd_install(fd, file);
 	}
 	path_put(&path);
