@@ -4867,7 +4867,7 @@ static int pci_pm_reset(struct pci_dev *dev, bool probe)
 static bool pcie_wait_for_link_delay(struct pci_dev *pdev, bool active,
 				     int delay)
 {
-	int timeout = 1000;
+	int timeout = PCIE_LINK_RETRAIN_TIMEOUT_MS;
 	bool ret;
 	u16 lnk_status;
 

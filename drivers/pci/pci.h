@@ -11,6 +11,8 @@
 
 #define PCI_VSEC_ID_INTEL_TBT	0x1234	/* Thunderbolt */
 
+#define PCIE_LINK_RETRAIN_TIMEOUT_MS	1000
+
 extern const unsigned char pcie_link_speed[];
 extern bool pci_early_dump;
 

@@ -90,8 +90,6 @@ static const char *policy_str[] = {
 	[POLICY_POWER_SUPERSAVE] = "powersupersave"
 };
 
-#define LINK_RETRAIN_TIMEOUT HZ
-
 /*
  * The L1 PM substate capability is only implemented in function 0 in a
  * multi function device.
@@ -198,14 +196,14 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
  * @pdev: Device whose link to wait for.
  *
  * Return TRUE if successful, or FALSE if training has not completed
- * within LINK_RETRAIN_TIMEOUT jiffies.
+ * within PCIE_LINK_RETRAIN_TIMEOUT_MS milliseconds.
  */
 static bool pcie_wait_for_link_status(struct pci_dev *pdev)
 {
 	unsigned long end_jiffies;
 	u16 lnksta;
 
-	end_jiffies = jiffies + LINK_RETRAIN_TIMEOUT;
+	end_jiffies = jiffies + msecs_to_jiffies(PCIE_LINK_RETRAIN_TIMEOUT_MS);
 	do {
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnksta);
 		if (!(lnksta & PCI_EXP_LNKSTA_LT))
