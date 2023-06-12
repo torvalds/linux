@@ -1093,7 +1093,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.abort_pmsr = iwl_mvm_abort_pmsr,
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
+	.link_sta_add_debugfs = iwl_mvm_link_sta_add_debugfs,
 #endif
 	.set_hw_timestamp = iwl_mvm_set_hw_timestamp,
 
