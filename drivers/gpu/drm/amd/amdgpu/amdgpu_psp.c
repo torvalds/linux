@@ -1673,7 +1673,7 @@ int psp_ras_initialize(struct psp_context *psp)
 
 	if (amdgpu_ras_is_poison_mode_supported(adev))
 		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
-	if (!adev->gmc.xgmi.connected_to_cpu)
+	if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu)
 		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
 	ras_cmd->ras_in_message.init_flags.xcc_mask =
 		adev->gfx.xcc_mask;
