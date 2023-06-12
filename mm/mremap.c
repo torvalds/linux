@@ -914,7 +914,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	 * mapping address intact. A non-zero tag will cause the subsequent
 	 * range checks to reject the address as invalid.
 	 *
-	 * See Documentation/arm64/tagged-address-abi.rst for more information.
+	 * See Documentation/arch/arm64/tagged-address-abi.rst for more
+	 * information.
 	 */
 	addr = untagged_addr(addr);
 
