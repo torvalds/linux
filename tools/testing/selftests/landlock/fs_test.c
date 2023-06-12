@@ -213,7 +213,26 @@ out:
 	return err;
 }
 
-static void prepare_layout(struct __test_metadata *const _metadata)
+struct mnt_opt {
+	const char *const source;
+	const char *const type;
+	const unsigned long flags;
+	const char *const data;
+};
+
+const struct mnt_opt mnt_tmp = {
+	.type = "tmpfs",
+	.data = "size=4m,mode=700",
+};
+
+static int mount_opt(const struct mnt_opt *const mnt, const char *const target)
+{
+	return mount(mnt->source ?: mnt->type, target, mnt->type, mnt->flags,
+		     mnt->data);
+}
+
+static void prepare_layout_opt(struct __test_metadata *const _metadata,
+			       const struct mnt_opt *const mnt)
 {
 	disable_caps(_metadata);
 	umask(0077);
@@ -225,9 +244,25 @@ static void prepare_layout(struct __test_metadata *const _metadata)
 	 */
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(0, unshare(CLONE_NEWNS));
-	ASSERT_EQ(0, mount("tmp", TMP_DIR, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(mnt, TMP_DIR))
+	{
+		TH_LOG("Failed to mount the %s filesystem: %s", mnt->type,
+		       strerror(errno));
+		/*
+		 * FIXTURE_TEARDOWN() is not called when FIXTURE_SETUP()
+		 * failed, so we need to explicitly do a minimal cleanup to
+		 * avoid cascading errors with other tests that don't depend on
+		 * the same filesystem.
+		 */
+		remove_path(TMP_DIR);
+	}
 	ASSERT_EQ(0, mount(NULL, TMP_DIR, NULL, MS_PRIVATE | MS_REC, NULL));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+static void prepare_layout(struct __test_metadata *const _metadata)
+{
+	prepare_layout_opt(_metadata, &mnt_tmp);
 }
 
 static void cleanup_layout(struct __test_metadata *const _metadata)
@@ -269,7 +304,7 @@ static void create_layout1(struct __test_metadata *const _metadata)
 	create_file(_metadata, file1_s3d1);
 	create_directory(_metadata, dir_s3d2);
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	ASSERT_EQ(0, mount("tmp", dir_s3d2, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s3d2));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 
 	ASSERT_EQ(0, mkdir(dir_s3d3, 0700));
@@ -4068,7 +4103,7 @@ FIXTURE_SETUP(layout2_overlay)
 	create_directory(_metadata, LOWER_BASE);
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	/* Creates tmpfs mount points to get deterministic overlayfs. */
-	ASSERT_EQ(0, mount("tmp", LOWER_BASE, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, LOWER_BASE));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	create_file(_metadata, lower_fl1);
 	create_file(_metadata, lower_dl1_fl2);
@@ -4078,7 +4113,7 @@ FIXTURE_SETUP(layout2_overlay)
 
 	create_directory(_metadata, UPPER_BASE);
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	ASSERT_EQ(0, mount("tmp", UPPER_BASE, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, UPPER_BASE));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	create_file(_metadata, upper_fu1);
 	create_file(_metadata, upper_du1_fu2);
