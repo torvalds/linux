@@ -236,7 +236,7 @@ struct iwl_mac_low_latency_cmd {
  *	Available only from version 2 of the command.
  *	This values comes from the EMLSR transition delay in the EML
  *	Capabilities subfield.
- * @reserved: alignment
+ * @medium_sync_delay: the value as it appeasr in P802.11be_D2.2 Figure 9-1002j.
  * @assoc_id: unique ID assigned by the AP during association
  * @reserved1: alignment
  * @data_policy: see &enum iwl_mac_data_policy
@@ -247,7 +247,7 @@ struct iwl_mac_low_latency_cmd {
 struct iwl_mac_client_data {
 	u8 is_assoc;
 	u8 esr_transition_timeout;
-	__le16 reserved;
+	__le16 medium_sync_delay;
 
 	__le16 assoc_id;
 	__le16 reserved1;

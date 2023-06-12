@@ -245,12 +245,21 @@ static const u8 tm_if_types_ext_capa_sta[] = {
 /* Additional interface types for which extended capabilities are
  * specified separately
  */
+
+#define IWL_MVM_EMLSR_CAPA	(IEEE80211_EML_CAP_EMLSR_SUPP | \
+				 IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_32US << \
+					__bf_shf(IEEE80211_EML_CAP_EMLSR_PADDING_DELAY) | \
+				 IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_64US << \
+					__bf_shf(IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY))
+
 static const struct wiphy_iftype_ext_capab add_iftypes_ext_capa[] = {
 	{
 		.iftype = NL80211_IFTYPE_STATION,
 		.extended_capabilities = he_if_types_ext_capa_sta,
 		.extended_capabilities_mask = he_if_types_ext_capa_sta,
 		.extended_capabilities_len = sizeof(he_if_types_ext_capa_sta),
+		/* relevant only if EHT is supported */
+		.eml_capabilities = IWL_MVM_EMLSR_CAPA,
 	},
 	{
 		.iftype = NL80211_IFTYPE_STATION,
@@ -258,7 +267,7 @@ static const struct wiphy_iftype_ext_capab add_iftypes_ext_capa[] = {
 		.extended_capabilities_mask = tm_if_types_ext_capa_sta,
 		.extended_capabilities_len = sizeof(tm_if_types_ext_capa_sta),
 		/* relevant only if EHT is supported */
-		.eml_capabilities = IEEE80211_EML_CAP_EMLSR_SUPP,
+		.eml_capabilities = IWL_MVM_EMLSR_CAPA,
 	},
 };
 
