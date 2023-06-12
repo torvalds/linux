@@ -88,7 +88,7 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
  * guaranteed to cover the kernel Image.
  *
  * Since the EFI stub is part of the kernel Image, we can relax the
- * usual requirements in Documentation/arm64/booting.rst, which still
+ * usual requirements in Documentation/arch/arm64/booting.rst, which still
  * apply to other bootloaders, and are required for some kernel
  * configurations.
  */
