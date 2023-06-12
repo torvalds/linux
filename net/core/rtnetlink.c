@@ -2383,45 +2383,43 @@ static	int rtnl_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[],
 			    struct netlink_ext_ack *extack)
 {
-	if (dev) {
-		if (tb[IFLA_ADDRESS] &&
-		    nla_len(tb[IFLA_ADDRESS]) < dev->addr_len)
-			return -EINVAL;
+	if (tb[IFLA_ADDRESS] &&
+	    nla_len(tb[IFLA_ADDRESS]) < dev->addr_len)
+		return -EINVAL;
 
-		if (tb[IFLA_BROADCAST] &&
-		    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
-			return -EINVAL;
+	if (tb[IFLA_BROADCAST] &&
+	    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
+		return -EINVAL;
 
-		if (tb[IFLA_GSO_MAX_SIZE] &&
-		    nla_get_u32(tb[IFLA_GSO_MAX_SIZE]) > dev->tso_max_size) {
-			NL_SET_ERR_MSG(extack, "too big gso_max_size");
-			return -EINVAL;
-		}
+	if (tb[IFLA_GSO_MAX_SIZE] &&
+	    nla_get_u32(tb[IFLA_GSO_MAX_SIZE]) > dev->tso_max_size) {
+		NL_SET_ERR_MSG(extack, "too big gso_max_size");
+		return -EINVAL;
+	}
 
-		if (tb[IFLA_GSO_MAX_SEGS] &&
-		    (nla_get_u32(tb[IFLA_GSO_MAX_SEGS]) > GSO_MAX_SEGS ||
-		     nla_get_u32(tb[IFLA_GSO_MAX_SEGS]) > dev->tso_max_segs)) {
-			NL_SET_ERR_MSG(extack, "too big gso_max_segs");
-			return -EINVAL;
-		}
+	if (tb[IFLA_GSO_MAX_SEGS] &&
+	    (nla_get_u32(tb[IFLA_GSO_MAX_SEGS]) > GSO_MAX_SEGS ||
+	     nla_get_u32(tb[IFLA_GSO_MAX_SEGS]) > dev->tso_max_segs)) {
+		NL_SET_ERR_MSG(extack, "too big gso_max_segs");
+		return -EINVAL;
+	}
 
-		if (tb[IFLA_GRO_MAX_SIZE] &&
-		    nla_get_u32(tb[IFLA_GRO_MAX_SIZE]) > GRO_MAX_SIZE) {
-			NL_SET_ERR_MSG(extack, "too big gro_max_size");
-			return -EINVAL;
-		}
+	if (tb[IFLA_GRO_MAX_SIZE] &&
+	    nla_get_u32(tb[IFLA_GRO_MAX_SIZE]) > GRO_MAX_SIZE) {
+		NL_SET_ERR_MSG(extack, "too big gro_max_size");
+		return -EINVAL;
+	}
 
-		if (tb[IFLA_GSO_IPV4_MAX_SIZE] &&
-		    nla_get_u32(tb[IFLA_GSO_IPV4_MAX_SIZE]) > dev->tso_max_size) {
-			NL_SET_ERR_MSG(extack, "too big gso_ipv4_max_size");
-			return -EINVAL;
-		}
+	if (tb[IFLA_GSO_IPV4_MAX_SIZE] &&
+	    nla_get_u32(tb[IFLA_GSO_IPV4_MAX_SIZE]) > dev->tso_max_size) {
+		NL_SET_ERR_MSG(extack, "too big gso_ipv4_max_size");
+		return -EINVAL;
+	}
 
-		if (tb[IFLA_GRO_IPV4_MAX_SIZE] &&
-		    nla_get_u32(tb[IFLA_GRO_IPV4_MAX_SIZE]) > GRO_MAX_SIZE) {
-			NL_SET_ERR_MSG(extack, "too big gro_ipv4_max_size");
-			return -EINVAL;
-		}
+	if (tb[IFLA_GRO_IPV4_MAX_SIZE] &&
+	    nla_get_u32(tb[IFLA_GRO_IPV4_MAX_SIZE]) > GRO_MAX_SIZE) {
+		NL_SET_ERR_MSG(extack, "too big gro_ipv4_max_size");
+		return -EINVAL;
 	}
 
 	if (tb[IFLA_AF_SPEC]) {
@@ -2741,10 +2739,6 @@ static int do_setlink(const struct sk_buff *skb,
 	const struct net_device_ops *ops = dev->netdev_ops;
 	char ifname[IFNAMSIZ];
 	int err;
-
-	err = validate_linkmsg(dev, tb, extack);
-	if (err < 0)
-		return err;
 
 	if (tb[IFLA_IFNAME])
 		nla_strscpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
@@ -3162,6 +3156,10 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
+	err = validate_linkmsg(dev, tb, extack);
+	if (err < 0)
+		goto errout;
+
 	err = do_setlink(skb, dev, ifm, extack, tb, 0);
 errout:
 	return err;
@@ -3405,6 +3403,9 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 
 	for_each_netdev_safe(net, dev, aux) {
 		if (dev->group == group) {
+			err = validate_linkmsg(dev, tb, extack);
+			if (err < 0)
+				return err;
 			err = do_setlink(skb, dev, ifm, extack, tb, 0);
 			if (err < 0)
 				return err;
@@ -3562,10 +3563,6 @@ replay:
 			m_ops = master_dev->rtnl_link_ops;
 	}
 
-	err = validate_linkmsg(dev, tb, extack);
-	if (err < 0)
-		return err;
-
 	if (tb[IFLA_LINKINFO]) {
 		err = nla_parse_nested_deprecated(linkinfo, IFLA_INFO_MAX,
 						  tb[IFLA_LINKINFO],
@@ -3628,6 +3625,10 @@ replay:
 			return -EEXIST;
 		if (nlh->nlmsg_flags & NLM_F_REPLACE)
 			return -EOPNOTSUPP;
+
+		err = validate_linkmsg(dev, tb, extack);
+		if (err < 0)
+			return err;
 
 		if (linkinfo[IFLA_INFO_DATA]) {
 			if (!ops || ops != dev->rtnl_link_ops ||
