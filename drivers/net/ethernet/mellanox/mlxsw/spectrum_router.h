@@ -52,6 +52,8 @@ struct mlxsw_sp_router {
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inet6addr_nb;
 	struct notifier_block netdevice_nb;
+	struct notifier_block inetaddr_valid_nb;
+	struct notifier_block inet6addr_valid_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
@@ -91,7 +93,9 @@ u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_rif_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif);
 u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev);
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
-const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif);
+bool mlxsw_sp_rif_has_dev(const struct mlxsw_sp_rif *rif);
+bool mlxsw_sp_rif_dev_is(const struct mlxsw_sp_rif *rif,
+			 const struct net_device *dev);
 int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_rif *rif,
 				   enum mlxsw_sp_rif_counter_dir dir,
