@@ -887,15 +887,79 @@ static const struct snd_emu1010_pads_info emu1010_pads_info[] = {
 	},
 };
 
+static const char * const emu1010_clock_texts[] = {
+	"44100", "48000", "SPDIF", "ADAT", "Dock", "BNC"
+};
+
+static const u8 emu1010_clock_vals[] = {
+	EMU_HANA_WCLOCK_INT_44_1K,
+	EMU_HANA_WCLOCK_INT_48K,
+	EMU_HANA_WCLOCK_HANA_SPDIF_IN,
+	EMU_HANA_WCLOCK_HANA_ADAT_IN,
+	EMU_HANA_WCLOCK_2ND_HANA,
+	EMU_HANA_WCLOCK_SYNC_BNC,
+};
+
+static const char * const emu0404_clock_texts[] = {
+	"44100", "48000", "SPDIF", "BNC"
+};
+
+static const u8 emu0404_clock_vals[] = {
+	EMU_HANA_WCLOCK_INT_44_1K,
+	EMU_HANA_WCLOCK_INT_48K,
+	EMU_HANA_WCLOCK_HANA_SPDIF_IN,
+	EMU_HANA_WCLOCK_SYNC_BNC,
+};
+
+struct snd_emu1010_clock_info {
+	const char * const *texts;
+	const u8 *vals;
+	unsigned num;
+};
+
+static const struct snd_emu1010_clock_info emu1010_clock_info[] = {
+	{
+		// rev1 1010
+		.texts = emu1010_clock_texts,
+		.vals = emu1010_clock_vals,
+		.num = ARRAY_SIZE(emu1010_clock_vals),
+	},
+	{
+		// rev2 1010
+		.texts = emu1010_clock_texts,
+		.vals = emu1010_clock_vals,
+		.num = ARRAY_SIZE(emu1010_clock_vals) - 1,
+	},
+	{
+		// 1616(m) CardBus
+		.texts = emu1010_clock_texts,
+		// TODO: determine what is actually available.
+		// Pedantically, *every* source comes from the 2nd FPGA, as the
+		// card itself has no own (digital) audio ports. The user manual
+		// claims that ADAT and S/PDIF clock sources are separate, which
+		// can mean two things: either E-MU mapped the dock's sources to
+		// the primary ones, or they determine the meaning of the "Dock"
+		// source depending on how the ports are actually configured
+		// (which the 2nd FPGA must be doing anyway).
+		.vals = emu1010_clock_vals,
+		.num = ARRAY_SIZE(emu1010_clock_vals),
+	},
+	{
+		// 0404
+		.texts = emu0404_clock_texts,
+		.vals = emu0404_clock_vals,
+		.num = ARRAY_SIZE(emu0404_clock_vals),
+	},
+};
 
 static int snd_emu1010_clock_source_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	static const char * const texts[4] = {
-		"44100", "48000", "SPDIF", "ADAT"
-	};
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	const struct snd_emu1010_clock_info *emu_ci =
+		&emu1010_clock_info[emu1010_idx(emu)];
 		
-	return snd_ctl_enum_info(uinfo, 1, 4, texts);
+	return snd_ctl_enum_info(uinfo, 1, emu_ci->num, emu_ci->texts);
 }
 
 static int snd_emu1010_clock_source_get(struct snd_kcontrol *kcontrol,
@@ -911,84 +975,27 @@ static int snd_emu1010_clock_source_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	const struct snd_emu1010_clock_info *emu_ci =
+		&emu1010_clock_info[emu1010_idx(emu)];
 	unsigned int val;
 	int change = 0;
 
 	val = ucontrol->value.enumerated.item[0] ;
-	/* Limit: uinfo->value.enumerated.items = 4; */
-	if (val >= 4)
+	if (val >= emu_ci->num)
 		return -EINVAL;
 	change = (emu->emu1010.clock_source != val);
 	if (change) {
 		emu->emu1010.clock_source = val;
-		switch (val) {
-		case 0:
-			/* 44100 */
-			/* Mute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Word Clock source, Internal 44.1kHz x1 */
-			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
-			EMU_HANA_WCLOCK_INT_44_1K | EMU_HANA_WCLOCK_1X );
-			/* Set LEDs on Audio Dock */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
-				EMU_HANA_DOCK_LEDS_2_44K | EMU_HANA_DOCK_LEDS_2_LOCK );
-			/* Allow DLL to settle */
-			msleep(10);
-			/* Unmute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
-			break;
-		case 1:
-			/* 48000 */
-			/* Mute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Word Clock source, Internal 48kHz x1 */
-			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
-				EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_1X );
-			/* Set LEDs on Audio Dock */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
-				EMU_HANA_DOCK_LEDS_2_48K | EMU_HANA_DOCK_LEDS_2_LOCK );
-			/* Allow DLL to settle */
-			msleep(10);
-			/* Unmute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
-			break;
-			
-		case 2: /* Take clock from S/PDIF IN */
-			/* Mute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Word Clock source, sync to S/PDIF input */
-			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
-				EMU_HANA_WCLOCK_HANA_SPDIF_IN | EMU_HANA_WCLOCK_1X );
-			/* Set LEDs on Audio Dock */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
-				EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_LOCK );
-			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */	
-			/* Allow DLL to settle */
-			msleep(10);
-			/* Unmute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
-			break;
-		
-		case 3: 			
-			/* Take clock from ADAT IN */
-			/* Mute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Word Clock source, sync to ADAT input */
-			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
-				EMU_HANA_WCLOCK_HANA_ADAT_IN | EMU_HANA_WCLOCK_1X );
-			/* Set LEDs on Audio Dock */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_LOCK );
-			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */	
-			/* Allow DLL to settle */
-			msleep(10);
-			/*   Unmute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
-			 
-			
-			break;		
-		}
+		emu->emu1010.wclock = emu_ci->vals[val];
+
+		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE);
+		snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, emu->emu1010.wclock);
+		msleep(10);  // Allow DLL to settle
+		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+
+		snd_emu1010_update_clock(emu);
 	}
-        return change;
+	return change;
 }
 
 static const struct snd_kcontrol_new snd_emu1010_clock_source =

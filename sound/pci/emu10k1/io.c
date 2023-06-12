@@ -357,6 +357,29 @@ u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst)
 	return (hi << 8) | lo;
 }
 
+void snd_emu1010_update_clock(struct snd_emu10k1 *emu)
+{
+	u32 leds;
+
+	switch (emu->emu1010.wclock) {
+	case EMU_HANA_WCLOCK_INT_44_1K | EMU_HANA_WCLOCK_1X:
+		leds = EMU_HANA_DOCK_LEDS_2_44K;
+		break;
+	case EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_1X:
+		leds = EMU_HANA_DOCK_LEDS_2_48K;
+		break;
+	default:
+		leds = EMU_HANA_DOCK_LEDS_2_EXT;
+		break;
+	}
+
+	// FIXME: this should probably represent the AND of all currently
+	// used sources' lock status. But we don't know how to get that ...
+	leds |= EMU_HANA_DOCK_LEDS_2_LOCK;
+
+	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, leds);
+}
+
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
