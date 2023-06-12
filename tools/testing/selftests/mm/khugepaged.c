@@ -11,6 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <linux/mman.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/types.h>

@@ -20,13 +20,6 @@
 #include "../kselftest.h"
 #include "vm_util.h"
 
-#ifndef MADV_POPULATE_READ
-#define MADV_POPULATE_READ	22
-#endif /* MADV_POPULATE_READ */
-#ifndef MADV_POPULATE_WRITE
-#define MADV_POPULATE_WRITE	23
-#endif /* MADV_POPULATE_WRITE */
-
 /*
  * For now, we're using 2 MiB of private anonymous memory for all tests.
  */
