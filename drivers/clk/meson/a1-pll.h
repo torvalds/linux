@@ -42,6 +42,5 @@
 #define CLKID_FCLK_DIV3_DIV	3
 #define CLKID_FCLK_DIV5_DIV	4
 #define CLKID_FCLK_DIV7_DIV	5
-#define NR_PLL_CLKS		11
 
 #endif /* __A1_PLL_H */

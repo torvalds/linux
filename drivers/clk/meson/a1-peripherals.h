@@ -108,6 +108,5 @@
 #define CLKID_DMC_SEL		151
 #define CLKID_DMC_DIV		152
 #define CLKID_DMC_SEL2		153
-#define NR_CLKS			154
 
 #endif /* __A1_PERIPHERALS_H */

@@ -108,6 +108,7 @@ config COMMON_CLK_A1_PLL
 	tristate "Amlogic A1 SoC PLL controller support"
 	depends on ARM64
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select COMMON_CLK_MESON_PLL
 	help
 	  Support for the PLL clock controller on Amlogic A113L based
@@ -119,6 +120,7 @@ config COMMON_CLK_A1_PERIPHERALS
 	depends on ARM64
 	select COMMON_CLK_MESON_DUALDIV
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	help
 	  Support for the Peripherals clock controller on Amlogic A113L based
 	  device, A1 SoC Family. Say Y if you want A1 Peripherals clock
