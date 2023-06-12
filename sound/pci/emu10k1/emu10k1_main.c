@@ -900,7 +900,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	/* IRQ Enable: All off */
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
 
-	emu->emu1010.internal_clock = 1; /* 48000 */
+	emu->emu1010.clock_source = 1;  /* 48000 */
+	emu->emu1010.clock_fallback = 1;  /* 48000 */
 	/* Default WCLK set to 48kHz. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K);
 	/* Word Clock source, Internal 48kHz x1 */

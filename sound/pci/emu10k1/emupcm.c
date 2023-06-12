@@ -1185,7 +1185,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 		kfree(epcm);
 		return err;
 	}
-	if (emu->card_capabilities->emu_model && emu->emu1010.internal_clock == 0)
+	if (emu->card_capabilities->emu_model && emu->emu1010.clock_source == 0)
 		sample_rate = 44100;
 	else
 		sample_rate = 48000;
@@ -1335,7 +1335,7 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		 * but we don't exceed 16 channels anyway.
 		 */
 #if 1
-		switch (emu->emu1010.internal_clock) {
+		switch (emu->emu1010.clock_source) {
 		case 0:
 			/* For 44.1kHz */
 			runtime->hw.rates = SNDRV_PCM_RATE_44100;

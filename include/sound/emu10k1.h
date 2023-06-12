@@ -1668,7 +1668,8 @@ struct snd_emu1010 {
 	unsigned char input_source[NUM_INPUT_DESTS];
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
-	unsigned int internal_clock; /* 44100 or 48000 */
+	unsigned int clock_source;
+	unsigned int clock_fallback;
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
 	struct delayed_work firmware_work;

@@ -888,7 +888,7 @@ static const struct snd_emu1010_pads_info emu1010_pads_info[] = {
 };
 
 
-static int snd_emu1010_internal_clock_info(struct snd_kcontrol *kcontrol,
+static int snd_emu1010_clock_source_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts[4] = {
@@ -898,16 +898,16 @@ static int snd_emu1010_internal_clock_info(struct snd_kcontrol *kcontrol,
 	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
 
-static int snd_emu1010_internal_clock_get(struct snd_kcontrol *kcontrol,
+static int snd_emu1010_clock_source_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 
-	ucontrol->value.enumerated.item[0] = emu->emu1010.internal_clock;
+	ucontrol->value.enumerated.item[0] = emu->emu1010.clock_source;
 	return 0;
 }
 
-static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
+static int snd_emu1010_clock_source_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
@@ -918,16 +918,14 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 	/* Limit: uinfo->value.enumerated.items = 4; */
 	if (val >= 4)
 		return -EINVAL;
-	change = (emu->emu1010.internal_clock != val);
+	change = (emu->emu1010.clock_source != val);
 	if (change) {
-		emu->emu1010.internal_clock = val;
+		emu->emu1010.clock_source = val;
 		switch (val) {
 		case 0:
 			/* 44100 */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Default fallback clock 44.1kHz */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_44_1K );
 			/* Word Clock source, Internal 44.1kHz x1 */
 			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
 			EMU_HANA_WCLOCK_INT_44_1K | EMU_HANA_WCLOCK_1X );
@@ -943,8 +941,6 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* 48000 */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Default fallback clock 48kHz */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K );
 			/* Word Clock source, Internal 48kHz x1 */
 			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
 				EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_1X );
@@ -960,8 +956,6 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 		case 2: /* Take clock from S/PDIF IN */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Default fallback clock 48kHz */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K );
 			/* Word Clock source, sync to S/PDIF input */
 			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
 				EMU_HANA_WCLOCK_HANA_SPDIF_IN | EMU_HANA_WCLOCK_1X );
@@ -979,8 +973,6 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* Take clock from ADAT IN */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Default fallback clock 48kHz */
-			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K );
 			/* Word Clock source, sync to ADAT input */
 			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
 				EMU_HANA_WCLOCK_HANA_ADAT_IN | EMU_HANA_WCLOCK_1X );
@@ -999,15 +991,62 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
         return change;
 }
 
-static const struct snd_kcontrol_new snd_emu1010_internal_clock =
+static const struct snd_kcontrol_new snd_emu1010_clock_source =
 {
-	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =         "Clock Internal Rate",
-	.count =	1,
-	.info =         snd_emu1010_internal_clock_info,
-	.get =          snd_emu1010_internal_clock_get,
-	.put =          snd_emu1010_internal_clock_put
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Clock Source",
+	.count = 1,
+	.info = snd_emu1010_clock_source_info,
+	.get = snd_emu1010_clock_source_get,
+	.put = snd_emu1010_clock_source_put
+};
+
+static int snd_emu1010_clock_fallback_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[2] = {
+		"44100", "48000"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
+}
+
+static int snd_emu1010_clock_fallback_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->emu1010.clock_fallback;
+	return 0;
+}
+
+static int snd_emu1010_clock_fallback_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int val = ucontrol->value.enumerated.item[0];
+	int change;
+
+	if (val >= 2)
+		return -EINVAL;
+	change = (emu->emu1010.clock_fallback != val);
+	if (change) {
+		emu->emu1010.clock_fallback = val;
+		snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 1 - val);
+	}
+	return change;
+}
+
+static const struct snd_kcontrol_new snd_emu1010_clock_fallback =
+{
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Clock Fallback",
+	.count = 1,
+	.info = snd_emu1010_clock_fallback_info,
+	.get = snd_emu1010_clock_fallback_get,
+	.put = snd_emu1010_clock_fallback_put
 };
 
 static int snd_emu1010_optical_out_info(struct snd_kcontrol *kcontrol,
@@ -2297,7 +2336,11 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		snd_emu1010_apply_sources(emu);
 
 		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
+			snd_ctl_new1(&snd_emu1010_clock_source, emu));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_clock_fallback, emu));
 		if (err < 0)
 			return err;
 
