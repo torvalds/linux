@@ -498,16 +498,39 @@ static const struct aspeed_sdhci_phase_desc ast2600_sdhci_phase[] = {
 	},
 };
 
+static const struct aspeed_sdhci_phase_desc ast2600_emmc_phase[] = {
+	/* eMMC slot 0 */
+	[0] = {
+		.in = {
+			.tap_mask = ASPEED_SDC_S0_PHASE_IN,
+			.enable_mask = ASPEED_SDC_S0_PHASE_IN_EN,
+			.enable_value = 1,
+		},
+	.out = {
+			.tap_mask = ASPEED_SDC_S0_PHASE_OUT,
+			.enable_mask = ASPEED_SDC_S0_PHASE_OUT_EN,
+			.enable_value = 3,
+		},
+	},
+};
+
 static const struct aspeed_sdhci_pdata ast2600_sdhci_pdata = {
 	.clk_div_start = 1,
 	.phase_desc = ast2600_sdhci_phase,
 	.nr_phase_descs = ARRAY_SIZE(ast2600_sdhci_phase),
 };
 
+static const struct aspeed_sdhci_pdata ast2600_emmc_pdata = {
+	.clk_div_start = 1,
+	.phase_desc = ast2600_emmc_phase,
+	.nr_phase_descs = ARRAY_SIZE(ast2600_emmc_phase),
+};
+
 static const struct of_device_id aspeed_sdhci_of_match[] = {
 	{ .compatible = "aspeed,ast2400-sdhci", .data = &ast2400_sdhci_pdata, },
 	{ .compatible = "aspeed,ast2500-sdhci", .data = &ast2400_sdhci_pdata, },
 	{ .compatible = "aspeed,ast2600-sdhci", .data = &ast2600_sdhci_pdata, },
+	{ .compatible = "aspeed,ast2600-emmc", .data = &ast2600_emmc_pdata, },
 	{ }
 };
 
