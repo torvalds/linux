@@ -3,6 +3,7 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "gem/i915_gem_lmem.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
@@ -115,38 +116,21 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 {
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 	struct drm_i915_private *i915 = gt->i915;
-	struct drm_i915_gem_object *obj;
-	void *src, *dst;
+	void *src;
 
 	if (!gsc->local)
 		return -ENODEV;
 
-	obj = gsc->local->obj;
-
-	if (obj->base.size < gsc->fw.size)
+	if (gsc->local->size < gsc->fw.size)
 		return -ENOSPC;
-
-	/*
-	 * Wa_22016122933: For MTL the shared memory needs to be mapped
-	 * as WC on CPU side and UC (PAT index 2) on GPU side
-	 */
-	if (IS_METEORLAKE(i915))
-		i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
-
-	dst = i915_gem_object_pin_map_unlocked(obj,
-					       i915_coherent_map_type(i915, obj, true));
-	if (IS_ERR(dst))
-		return PTR_ERR(dst);
 
 	src = i915_gem_object_pin_map_unlocked(gsc->fw.obj,
 					       i915_coherent_map_type(i915, gsc->fw.obj, true));
-	if (IS_ERR(src)) {
-		i915_gem_object_unpin_map(obj);
+	if (IS_ERR(src))
 		return PTR_ERR(src);
-	}
 
-	memset(dst, 0, obj->base.size);
-	memcpy(dst, src, gsc->fw.size);
+	memcpy_toio(gsc->local_vaddr, src, gsc->fw.size);
+	memset_io(gsc->local_vaddr + gsc->fw.size, 0, gsc->local->size - gsc->fw.size);
 
 	/*
 	 * Wa_22016122933: Making sure the data in dst is
@@ -155,7 +139,6 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 	intel_guc_write_barrier(&gt->uc.guc);
 
 	i915_gem_object_unpin_map(gsc->fw.obj);
-	i915_gem_object_unpin_map(obj);
 
 	return 0;
 }

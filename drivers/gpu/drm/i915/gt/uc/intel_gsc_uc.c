@@ -133,26 +133,85 @@ void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc)
 	}
 }
 
+static int gsc_allocate_and_map_vma(struct intel_gsc_uc *gsc, u32 size)
+{
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	void __iomem *vaddr;
+	int ret = 0;
+
+	/*
+	 * The GSC FW doesn't immediately suspend after becoming idle, so there
+	 * is a chance that it could still be awake after we successfully
+	 * return from the  pci suspend function, even if there are no pending
+	 * operations.
+	 * The FW might therefore try to access memory for its suspend operation
+	 * after the kernel has completed the HW suspend flow; this can cause
+	 * issues if the FW is mapped in normal RAM memory, as some of the
+	 * involved HW units might've already lost power.
+	 * The driver must therefore avoid this situation and the recommended
+	 * way to do so is to use stolen memory for the GSC memory allocation,
+	 * because stolen memory takes a different path in HW and it is
+	 * guaranteed to always work as long as the GPU itself is awake (which
+	 * it must be if the GSC is awake).
+	 */
+	obj = i915_gem_object_create_stolen(gt->i915, size);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
+
+	vaddr = i915_vma_pin_iomap(vma);
+	i915_vma_unpin(vma);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err;
+	}
+
+	i915_vma_make_unshrinkable(vma);
+
+	gsc->local = vma;
+	gsc->local_vaddr = vaddr;
+
+	return 0;
+
+err:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
+static void gsc_unmap_and_free_vma(struct intel_gsc_uc *gsc)
+{
+	struct i915_vma *vma = fetch_and_zero(&gsc->local);
+
+	if (!vma)
+		return;
+
+	gsc->local_vaddr = NULL;
+	i915_vma_unpin_iomap(vma);
+	i915_gem_object_put(vma->obj);
+}
+
 int intel_gsc_uc_init(struct intel_gsc_uc *gsc)
 {
 	static struct lock_class_key gsc_lock;
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 	struct intel_engine_cs *engine = gt->engine[GSC0];
 	struct intel_context *ce;
-	struct i915_vma *vma;
 	int err;
 
 	err = intel_uc_fw_init(&gsc->fw);
 	if (err)
 		goto out;
 
-	vma = intel_guc_allocate_vma(&gt->uc.guc, SZ_8M);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
+	err = gsc_allocate_and_map_vma(gsc, SZ_4M);
+	if (err)
 		goto out_fw;
-	}
-
-	gsc->local = vma;
 
 	ce = intel_engine_create_pinned_context(engine, engine->gt->vm, SZ_4K,
 						I915_GEM_HWS_GSC_ADDR,
@@ -173,7 +232,7 @@ int intel_gsc_uc_init(struct intel_gsc_uc *gsc)
 	return 0;
 
 out_vma:
-	i915_vma_unpin_and_release(&gsc->local, 0);
+	gsc_unmap_and_free_vma(gsc);
 out_fw:
 	intel_uc_fw_fini(&gsc->fw);
 out:
@@ -197,7 +256,7 @@ void intel_gsc_uc_fini(struct intel_gsc_uc *gsc)
 	if (gsc->ce)
 		intel_engine_destroy_pinned_context(fetch_and_zero(&gsc->ce));
 
-	i915_vma_unpin_and_release(&gsc->local, 0);
+	gsc_unmap_and_free_vma(gsc);
 
 	intel_uc_fw_fini(&gsc->fw);
 }

@@ -18,6 +18,7 @@ struct intel_gsc_uc {
 
 	/* GSC-specific additions */
 	struct i915_vma *local; /* private memory for GSC usage */
+	void __iomem *local_vaddr; /* pointer to access the private memory */
 	struct intel_context *ce; /* for submission to GSC FW via GSC engine */
 
 	/* for delayed load and proxy handling */
