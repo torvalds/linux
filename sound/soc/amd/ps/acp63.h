@@ -99,6 +99,9 @@
  * manager instance combination.
  */
 #define ACP63_SDW_PDM_DEV_CONFIG	GENMASK(1, 0)
+#define ACP_SDW0_STAT			BIT(21)
+#define ACP_SDW1_STAT			BIT(2)
+#define ACP_ERROR_IRQ			BIT(29)
 
 enum acp_config {
 	ACP_CONFIG_0 = 0,
