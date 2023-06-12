@@ -1058,7 +1058,7 @@ unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_comp_vectors_count);
 
-struct cpumask *
+static struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
@@ -1068,10 +1068,23 @@ mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 	if (eq)
 		return mlx5_irq_get_affinity_mask(eq->core.irq);
 
-	WARN_ON_ONCE(1);
 	return NULL;
 }
-EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
+
+int mlx5_comp_vector_get_cpu(struct mlx5_core_dev *dev, int vector)
+{
+	struct cpumask *mask;
+	int cpu;
+
+	mask = mlx5_comp_irq_get_affinity_mask(dev, vector);
+	if (mask)
+		cpu = cpumask_first(mask);
+	else
+		cpu = mlx5_cpumask_default_spread(dev->priv.numa_node, vector);
+
+	return cpu;
+}
+EXPORT_SYMBOL(mlx5_comp_vector_get_cpu);
 
 #ifdef CONFIG_RFS_ACCEL
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev)

@@ -2445,7 +2445,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 			      struct xsk_buff_pool *xsk_pool,
 			      struct mlx5e_channel **cp)
 {
-	int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(priv->mdev, ix));
+	int cpu = mlx5_comp_vector_get_cpu(priv->mdev, ix);
 	struct net_device *netdev = priv->netdev;
 	struct mlx5e_xsk_param xsk;
 	struct mlx5e_channel *c;
@@ -2862,7 +2862,7 @@ static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
 		cpumask_clear(priv->scratchpad.cpumask);
 
 		for (irq = ix; irq < num_comp_vectors; irq += params->num_channels) {
-			int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(mdev, irq));
+			int cpu = mlx5_comp_vector_get_cpu(mdev, irq);
 
 			cpumask_set_cpu(cpu, priv->scratchpad.cpumask);
 		}

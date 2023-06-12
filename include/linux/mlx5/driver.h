@@ -1109,8 +1109,7 @@ int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
 void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
 
 unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev);
-struct cpumask *
-mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector);
+int mlx5_comp_vector_get_cpu(struct mlx5_core_dev *dev, int vector);
 unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
 int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 			   u8 roce_version, u8 roce_l3_type, const u8 *gid,
