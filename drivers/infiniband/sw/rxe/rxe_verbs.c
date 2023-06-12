@@ -1181,9 +1181,7 @@ static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&cq->cq_lock, irq_flags);
-	if (cq->notify != IB_CQ_NEXT_COMP)
-		cq->notify = flags & IB_CQ_SOLICITED_MASK;
-
+	cq->notify |= flags & IB_CQ_SOLICITED_MASK;
 	empty = queue_empty(cq->queue, QUEUE_TYPE_TO_ULP);
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !empty)
