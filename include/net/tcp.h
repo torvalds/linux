@@ -333,6 +333,7 @@ int tcp_sendpage(struct sock *sk, struct page *page, int offset, size_t size,
 int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
 			size_t size, int flags);
 int tcp_send_mss(struct sock *sk, int *size_goal, int flags);
+int tcp_wmem_schedule(struct sock *sk, int copy);
 void tcp_push(struct sock *sk, int flags, int mss_now, int nonagle,
 	      int size_goal);
 void tcp_release_cb(struct sock *sk);
@@ -349,7 +350,7 @@ void tcp_twsk_purge(struct list_head *net_exit_list, int family);
 ssize_t tcp_splice_read(struct socket *sk, loff_t *ppos,
 			struct pipe_inode_info *pipe, size_t len,
 			unsigned int flags);
-struct sk_buff *tcp_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
+struct sk_buff *tcp_stream_alloc_skb(struct sock *sk, gfp_t gfp,
 				     bool force_schedule);
 
 void tcp_enter_quickack_mode(struct sock *sk, unsigned int max_quickacks);

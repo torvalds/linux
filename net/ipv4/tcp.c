@@ -858,12 +858,12 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 }
 EXPORT_SYMBOL(tcp_splice_read);
 
-struct sk_buff *tcp_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
+struct sk_buff *tcp_stream_alloc_skb(struct sock *sk, gfp_t gfp,
 				     bool force_schedule)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb_fclone(size + MAX_TCP_HEADER, gfp);
+	skb = alloc_skb_fclone(MAX_TCP_HEADER, gfp);
 	if (likely(skb)) {
 		bool mem_scheduled;
 
@@ -957,7 +957,7 @@ static int tcp_downgrade_zcopy_pure(struct sock *sk, struct sk_buff *skb)
 }
 
 
-static int tcp_wmem_schedule(struct sock *sk, int copy)
+int tcp_wmem_schedule(struct sock *sk, int copy)
 {
 	int left;
 
@@ -1178,7 +1178,7 @@ new_segment:
 					goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
-			skb = tcp_stream_alloc_skb(sk, 0, sk->sk_allocation,
+			skb = tcp_stream_alloc_skb(sk, sk->sk_allocation,
 						   first_skb);
 			if (!skb)
 				goto wait_for_space;
