@@ -669,24 +669,28 @@ disable_pci:
 static int __maybe_unused snd_acp63_suspend(struct device *dev)
 {
 	struct acp63_dev_data *adata;
-	int ret;
+	int ret = 0;
 
 	adata = dev_get_drvdata(dev);
-	ret = acp63_deinit(adata->acp63_base, dev);
-	if (ret)
-		dev_err(dev, "ACP de-init failed\n");
+	if (adata->acp_reset) {
+		ret = acp63_deinit(adata->acp63_base, dev);
+		if (ret)
+			dev_err(dev, "ACP de-init failed\n");
+	}
 	return ret;
 }
 
 static int __maybe_unused snd_acp63_resume(struct device *dev)
 {
 	struct acp63_dev_data *adata;
-	int ret;
+	int ret = 0;
 
 	adata = dev_get_drvdata(dev);
-	ret = acp63_init(adata->acp63_base, dev);
-	if (ret)
-		dev_err(dev, "ACP init failed\n");
+	if (adata->acp_reset) {
+		ret = acp63_init(adata->acp63_base, dev);
+		if (ret)
+			dev_err(dev, "ACP init failed\n");
+	}
 	return ret;
 }
 
