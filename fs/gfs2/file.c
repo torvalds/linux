@@ -630,6 +630,9 @@ int gfs2_open_common(struct inode *inode, struct file *file)
 		ret = generic_file_open(inode, file);
 		if (ret)
 			return ret;
+
+		if (!gfs2_is_jdata(GFS2_I(inode)))
+			file->f_mode |= FMODE_CAN_ODIRECT;
 	}
 
 	fp = kzalloc(sizeof(struct gfs2_file), GFP_NOFS);
