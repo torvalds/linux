@@ -44,8 +44,6 @@ static const struct snd_soc_dapm_widget card_widgets[] = {
 
 static const struct snd_soc_dapm_route card_routes[] = {
 	{"DMic", NULL, "SoC DMIC"},
-	{"DMIC Rx", NULL, "Capture"},
-	{"DMIC WoV Rx", NULL, "Capture"},
 };
 
 static int avs_dmic_probe(struct platform_device *pdev)
