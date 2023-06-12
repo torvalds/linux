@@ -122,3 +122,16 @@ Supported hardware
           - LPF settings (bandwidth, phase limiting, automatic holdover, physical layer assist (per ITU-T G.8273.2))
           - Programmable output PTP clocks, any frequency up to 1GHz (to other PHY/MAC time stampers, refclk to ASSPs/SoCs/FPGAs)
           - Lock to GNSS input, automatic switching between GNSS and user-space PHC control (optional)
+
+   * NVIDIA Mellanox
+
+     - GPIO
+          - Certain variants of ConnectX-6 Dx and later products support one
+            GPIO which can time stamp external triggers and one GPIO to produce
+            periodic signals.
+          - Certain variants of ConnectX-5 and older products support one GPIO,
+            configured to either time stamp external triggers or produce
+            periodic signals.
+     - PHC instances
+          - All ConnectX devices have a free-running counter
+          - ConnectX-6 Dx and later devices have a UTC format counter
