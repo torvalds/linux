@@ -391,7 +391,7 @@ static inline void prep_compound_head(struct page *page, unsigned int order)
 {
 	struct folio *folio = (struct folio *)page;
 
-	set_compound_page_dtor(page, COMPOUND_PAGE_DTOR);
+	folio_set_compound_dtor(folio, COMPOUND_PAGE_DTOR);
 	set_compound_order(page, order);
 	atomic_set(&folio->_entire_mapcount, -1);
 	atomic_set(&folio->_nr_pages_mapped, 0);

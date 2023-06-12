@@ -583,7 +583,7 @@ void prep_transhuge_page(struct page *page)
 
 	VM_BUG_ON_FOLIO(folio_order(folio) < 2, folio);
 	INIT_LIST_HEAD(&folio->_deferred_list);
-	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+	folio_set_compound_dtor(folio, TRANSHUGE_PAGE_DTOR);
 }
 
 static inline bool is_transparent_hugepage(struct page *page)
