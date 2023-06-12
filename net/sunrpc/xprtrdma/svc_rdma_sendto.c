@@ -315,6 +315,8 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 	struct ib_send_wr *wr = &ctxt->sc_send_wr;
 	int ret;
 
+	might_sleep();
+
 	/* Sync the transport header buffer */
 	ib_dma_sync_single_for_device(rdma->sc_pd->device,
 				      wr->sg_list[0].addr,

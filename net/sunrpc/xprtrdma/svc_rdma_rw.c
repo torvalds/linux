@@ -353,8 +353,7 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	return;
 }
 
-/* This function sleeps when the transport's Send Queue is congested.
- *
+/*
  * Assumptions:
  * - If ib_post_send() succeeds, only one completion is expected,
  *   even if one or more WRs are flushed. This is true when posting
@@ -368,6 +367,8 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 	struct list_head *tmp;
 	struct ib_cqe *cqe;
 	int ret;
+
+	might_sleep();
 
 	if (cc->cc_sqecount > rdma->sc_sq_depth)
 		return -EINVAL;
