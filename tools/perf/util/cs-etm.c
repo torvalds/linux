@@ -951,7 +951,8 @@ static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address,
 }
 
 static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
-			      u64 address, size_t size, u8 *buffer)
+			      u64 address, size_t size, u8 *buffer,
+			      const ocsd_mem_space_acc_t mem_space)
 {
 	u8  cpumode;
 	u64 offset;
@@ -968,6 +969,24 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 	tidq = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
 	if (!tidq)
 		goto out;
+
+	/*
+	 * We've already tracked EL along side the PID in cs_etm__set_thread()
+	 * so double check that it matches what OpenCSD thinks as well. It
+	 * doesn't distinguish between EL0 and EL1 for this mem access callback
+	 * so we had to do the extra tracking. Skip validation if it's any of
+	 * the 'any' values.
+	 */
+	if (!(mem_space == OCSD_MEM_SPACE_ANY ||
+	      mem_space == OCSD_MEM_SPACE_N || mem_space == OCSD_MEM_SPACE_S)) {
+		if (mem_space & OCSD_MEM_SPACE_EL1N) {
+			/* Includes both non secure EL1 and EL0 */
+			assert(tidq->el == ocsd_EL1 || tidq->el == ocsd_EL0);
+		} else if (mem_space & OCSD_MEM_SPACE_EL2)
+			assert(tidq->el == ocsd_EL2);
+		else if (mem_space & OCSD_MEM_SPACE_EL3)
+			assert(tidq->el == ocsd_EL3);
+	}
 
 	cpumode = cs_etm__cpu_mode(etmq, address, tidq->el);
 
@@ -1219,8 +1238,8 @@ static inline int cs_etm__t32_instr_size(struct cs_etm_queue *etmq,
 {
 	u8 instrBytes[2];
 
-	cs_etm__mem_access(etmq, trace_chan_id, addr,
-			   ARRAY_SIZE(instrBytes), instrBytes);
+	cs_etm__mem_access(etmq, trace_chan_id, addr, ARRAY_SIZE(instrBytes),
+			   instrBytes, 0);
 	/*
 	 * T32 instruction size is indicated by bits[15:11] of the first
 	 * 16-bit word of the instruction: 0b11101, 0b11110 and 0b11111
@@ -1411,8 +1430,8 @@ static void cs_etm__copy_insn(struct cs_etm_queue *etmq,
 	else
 		sample->insn_len = 4;
 
-	cs_etm__mem_access(etmq, trace_chan_id, sample->ip,
-			   sample->insn_len, (void *)sample->insn);
+	cs_etm__mem_access(etmq, trace_chan_id, sample->ip, sample->insn_len,
+			   (void *)sample->insn, 0);
 }
 
 u64 cs_etm__convert_sample_time(struct cs_etm_queue *etmq, u64 cs_timestamp)
@@ -1965,8 +1984,8 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		 * so below only read 2 bytes as instruction size for T32.
 		 */
 		addr = end_addr - 2;
-		cs_etm__mem_access(etmq, trace_chan_id, addr,
-				   sizeof(instr16), (u8 *)&instr16);
+		cs_etm__mem_access(etmq, trace_chan_id, addr, sizeof(instr16),
+				   (u8 *)&instr16, 0);
 		if ((instr16 & 0xFF00) == 0xDF00)
 			return true;
 
@@ -1981,8 +2000,8 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		 * +---------+---------+-------------------------+
 		 */
 		addr = end_addr - 4;
-		cs_etm__mem_access(etmq, trace_chan_id, addr,
-				   sizeof(instr32), (u8 *)&instr32);
+		cs_etm__mem_access(etmq, trace_chan_id, addr, sizeof(instr32),
+				   (u8 *)&instr32, 0);
 		if ((instr32 & 0x0F000000) == 0x0F000000 &&
 		    (instr32 & 0xF0000000) != 0xF0000000)
 			return true;
@@ -1998,8 +2017,8 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		 * +-----------------------+---------+-----------+
 		 */
 		addr = end_addr - 4;
-		cs_etm__mem_access(etmq, trace_chan_id, addr,
-				   sizeof(instr32), (u8 *)&instr32);
+		cs_etm__mem_access(etmq, trace_chan_id, addr, sizeof(instr32),
+				   (u8 *)&instr32, 0);
 		if ((instr32 & 0xFFE0001F) == 0xd4000001)
 			return true;
 

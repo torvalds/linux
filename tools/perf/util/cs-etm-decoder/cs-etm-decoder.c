@@ -52,15 +52,15 @@ struct cs_etm_decoder {
 static u32
 cs_etm_decoder__mem_access(const void *context,
 			   const ocsd_vaddr_t address,
-			   const ocsd_mem_space_acc_t mem_space __maybe_unused,
+			   const ocsd_mem_space_acc_t mem_space,
 			   const u8 trace_chan_id,
 			   const u32 req_size,
 			   u8 *buffer)
 {
 	struct cs_etm_decoder *decoder = (struct cs_etm_decoder *) context;
 
-	return decoder->mem_access(decoder->data, trace_chan_id,
-				   address, req_size, buffer);
+	return decoder->mem_access(decoder->data, trace_chan_id, address,
+				   req_size, buffer, mem_space);
 }
 
 int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
