@@ -154,7 +154,6 @@ struct svc_rdma_send_ctxt {
 
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
-	struct completion	sc_done;
 	struct xdr_buf		sc_hdrbuf;
 	struct xdr_stream	sc_stream;
 	void			*sc_xprt_buf;

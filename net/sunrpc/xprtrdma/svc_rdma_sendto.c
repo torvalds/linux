@@ -147,7 +147,6 @@ svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 	ctxt->sc_send_wr.wr_cqe = &ctxt->sc_cqe;
 	ctxt->sc_send_wr.sg_list = ctxt->sc_sges;
 	ctxt->sc_send_wr.send_flags = IB_SEND_SIGNALED;
-	init_completion(&ctxt->sc_done);
 	ctxt->sc_cqe.done = svc_rdma_wc_send;
 	ctxt->sc_xprt_buf = buffer;
 	xdr_buf_init(&ctxt->sc_hdrbuf, ctxt->sc_xprt_buf,
@@ -286,12 +285,12 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 
 	svc_rdma_wake_send_waiters(rdma, 1);
-	complete(&ctxt->sc_done);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		goto flushed;
 
 	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
+	svc_rdma_send_ctxt_put(rdma, ctxt);
 	return;
 
 flushed:
@@ -299,6 +298,7 @@ flushed:
 		trace_svcrdma_wc_send_err(wc, &ctxt->sc_cid);
 	else
 		trace_svcrdma_wc_send_flush(wc, &ctxt->sc_cid);
+	svc_rdma_send_ctxt_put(rdma, ctxt);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 }
 
@@ -314,8 +314,6 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 {
 	struct ib_send_wr *wr = &ctxt->sc_send_wr;
 	int ret;
-
-	reinit_completion(&ctxt->sc_done);
 
 	/* Sync the transport header buffer */
 	ib_dma_sync_single_for_device(rdma->sc_pd->device,
@@ -808,8 +806,8 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
  * svc_rdma_sendto returns. Transfer pages under I/O to the ctxt
  * so they are released by the Send completion handler.
  */
-static inline void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
-					  struct svc_rdma_send_ctxt *ctxt)
+static void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
+				   struct svc_rdma_send_ctxt *ctxt)
 {
 	int i, pages = rqstp->rq_next_page - rqstp->rq_respages;
 
@@ -852,6 +850,8 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	if (ret < 0)
 		return ret;
 
+	svc_rdma_save_io_pages(rqstp, sctxt);
+
 	if (rctxt->rc_inv_rkey) {
 		sctxt->sc_send_wr.opcode = IB_WR_SEND_WITH_INV;
 		sctxt->sc_send_wr.ex.invalidate_rkey = rctxt->rc_inv_rkey;
@@ -859,13 +859,7 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 		sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	}
 
-	ret = svc_rdma_send(rdma, sctxt);
-	if (ret < 0)
-		return ret;
-
-	ret = wait_for_completion_killable(&sctxt->sc_done);
-	svc_rdma_send_ctxt_put(rdma, sctxt);
-	return ret;
+	return svc_rdma_send(rdma, sctxt);
 }
 
 /**
@@ -931,8 +925,7 @@ void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
 	if (svc_rdma_send(rdma, sctxt))
 		goto put_ctxt;
-
-	wait_for_completion_killable(&sctxt->sc_done);
+	return;
 
 put_ctxt:
 	svc_rdma_send_ctxt_put(rdma, sctxt);
@@ -1006,6 +999,10 @@ reply_chunk:
 	if (ret != -E2BIG && ret != -EINVAL)
 		goto put_ctxt;
 
+	/* Send completion releases payload pages that were part
+	 * of previously posted RDMA Writes.
+	 */
+	svc_rdma_save_io_pages(rqstp, sctxt);
 	svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
 	return 0;
 
