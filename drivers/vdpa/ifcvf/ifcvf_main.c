@@ -853,7 +853,9 @@ static struct pci_device_id ifcvf_pci_ids[] = {
 			 N3000_DEVICE_ID,
 			 PCI_VENDOR_ID_INTEL,
 			 N3000_SUBSYS_DEVICE_ID) },
-	/* C5000X-PL network device */
+	/* C5000X-PL network device
+	 * F2000X-PL network device
+	 */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REDHAT_QUMRANET,
 			 VIRTIO_TRANS_ID_NET,
 			 PCI_VENDOR_ID_INTEL,

@@ -24,14 +24,9 @@
 #define N3000_DEVICE_ID		0x1041
 #define N3000_SUBSYS_DEVICE_ID	0x001A
 
-/* Max 8 data queue pairs(16 queues) and one control vq for now. */
-#define IFCVF_MAX_QUEUES	17
-
 #define IFCVF_QUEUE_ALIGNMENT	PAGE_SIZE
 #define IFCVF_PCI_MAX_RESOURCE	6
 
-#define IFCVF_LM_CFG_SIZE		0x40
-#define IFCVF_LM_RING_STATE_OFFSET	0x20
 #define IFCVF_LM_BAR			4
 
 #define IFCVF_ERR(pdev, fmt, ...)	dev_err(&pdev->dev, fmt, ##__VA_ARGS__)
@@ -54,10 +49,18 @@ struct vring_info {
 	char msix_name[256];
 };
 
+struct ifcvf_lm_cfg {
+	__le64 control;
+	__le64 status;
+	__le64 lm_mem_log_start_addr;
+	__le64 lm_mem_log_end_addr;
+	__le16 vq_state_region;
+};
+
 struct ifcvf_hw {
 	u8 __iomem *isr;
 	/* Live migration */
-	u8 __iomem *lm_cfg;
+	struct ifcvf_lm_cfg  __iomem *lm_cfg;
 	/* Notification bar number */
 	u8 notify_bar;
 	u8 msix_vector_status;
@@ -90,16 +93,6 @@ struct ifcvf_adapter {
 	struct vdpa_device vdpa;
 	struct pci_dev *pdev;
 	struct ifcvf_hw *vf;
-};
-
-struct ifcvf_vring_lm_cfg {
-	u32 idx_addr[2];
-	u8 reserved[IFCVF_LM_CFG_SIZE - 8];
-};
-
-struct ifcvf_lm_cfg {
-	u8 reserved[IFCVF_LM_RING_STATE_OFFSET];
-	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUES];
 };
 
 struct ifcvf_vdpa_mgmt_dev {

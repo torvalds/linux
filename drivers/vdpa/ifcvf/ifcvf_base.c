@@ -328,30 +328,19 @@ void ifcvf_set_driver_features(struct ifcvf_hw *hw, u64 features)
 
 u16 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid)
 {
-	struct ifcvf_lm_cfg __iomem *ifcvf_lm;
-	void __iomem *avail_idx_addr;
+	struct ifcvf_lm_cfg  __iomem *lm_cfg = hw->lm_cfg;
 	u16 last_avail_idx;
-	u32 q_pair_id;
 
-	ifcvf_lm = (struct ifcvf_lm_cfg __iomem *)hw->lm_cfg;
-	q_pair_id = qid / 2;
-	avail_idx_addr = &ifcvf_lm->vring_lm_cfg[q_pair_id].idx_addr[qid % 2];
-	last_avail_idx = vp_ioread16(avail_idx_addr);
+	last_avail_idx = vp_ioread16(&lm_cfg->vq_state_region + qid * 2);
 
 	return last_avail_idx;
 }
 
 int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u16 num)
 {
-	struct ifcvf_lm_cfg __iomem *ifcvf_lm;
-	void __iomem *avail_idx_addr;
-	u32 q_pair_id;
+	struct ifcvf_lm_cfg  __iomem *lm_cfg = hw->lm_cfg;
 
-	ifcvf_lm = (struct ifcvf_lm_cfg __iomem *)hw->lm_cfg;
-	q_pair_id = qid / 2;
-	avail_idx_addr = &ifcvf_lm->vring_lm_cfg[q_pair_id].idx_addr[qid % 2];
-	hw->vring[qid].last_avail_idx = num;
-	vp_iowrite16(num, avail_idx_addr);
+	vp_iowrite16(num, &lm_cfg->vq_state_region + qid * 2);
 
 	return 0;
 }
