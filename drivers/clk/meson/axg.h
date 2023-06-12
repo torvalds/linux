@@ -160,8 +160,6 @@
 #define CLKID_VDIN_MEAS_SEL			134
 #define CLKID_VDIN_MEAS_DIV			135
 
-#define NR_CLKS					137
-
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/axg-clkc.h>
 
