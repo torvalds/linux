@@ -86,8 +86,6 @@ int svc_reg_xprt_class(struct svc_xprt_class *xcl)
 	struct svc_xprt_class *cl;
 	int res = -EEXIST;
 
-	dprintk("svc: Adding svc transport class '%s'\n", xcl->xcl_name);
-
 	INIT_LIST_HEAD(&xcl->xcl_list);
 	spin_lock(&svc_xprt_class_lock);
 	/* Make sure there isn't already a class with the same name */
@@ -110,7 +108,6 @@ EXPORT_SYMBOL_GPL(svc_reg_xprt_class);
  */
 void svc_unreg_xprt_class(struct svc_xprt_class *xcl)
 {
-	dprintk("svc: Removing svc transport class '%s'\n", xcl->xcl_name);
 	spin_lock(&svc_xprt_class_lock);
 	list_del_init(&xcl->xcl_list);
 	spin_unlock(&svc_xprt_class_lock);
