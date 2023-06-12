@@ -343,9 +343,9 @@ static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
 			result |= RATE_MCS_SGI_MSK_V1;
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
-		if (rate->flags & IEEE80211_TX_CTL_LDPC)
+		if (info->flags & IEEE80211_TX_CTL_LDPC)
 			result |= RATE_MCS_LDPC_MSK_V1;
-		if (u32_get_bits(rate->flags, IEEE80211_TX_CTL_STBC))
+		if (u32_get_bits(info->flags, IEEE80211_TX_CTL_STBC))
 			result |= RATE_MCS_STBC_MSK;
 	} else {
 		return 0;
