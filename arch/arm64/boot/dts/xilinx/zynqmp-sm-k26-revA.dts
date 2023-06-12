@@ -50,6 +50,17 @@
 		reg = <0x0 0x0 0x0 0x80000000>, <0x8 0x00000000 0x0 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		pmu_region: pmu@7ff00000 {
+			reg = <0x0 0x7ff00000 0x0 0x100000>;
+			no-map;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
