@@ -292,6 +292,7 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 
 void intel_uc_fw_version_from_gsc_manifest(struct intel_uc_fw_ver *ver,
 					   const void *data);
+int intel_uc_check_file_version(struct intel_uc_fw *uc_fw, bool *old_ver);
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 			    enum intel_uc_fw_type type,
 			    bool needs_ggtt_mapping);

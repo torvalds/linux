@@ -11,6 +11,7 @@
 #include "gt/intel_ring.h"
 #include "intel_gsc_binary_headers.h"
 #include "intel_gsc_fw.h"
+#include "intel_gsc_uc_heci_cmd_submit.h"
 
 #define GSC_FW_STATUS_REG			_MMIO(0x116C40)
 #define GSC_FW_CURRENT_STATE			REG_GENMASK(3, 0)
@@ -303,6 +304,88 @@ static int gsc_fw_wait(struct intel_gt *gt)
 				       500);
 }
 
+struct intel_gsc_mkhi_header {
+	u8  group_id;
+#define MKHI_GROUP_ID_GFX_SRV 0x30
+
+	u8  command;
+#define MKHI_GFX_SRV_GET_HOST_COMPATIBILITY_VERSION (0x42)
+
+	u8  reserved;
+	u8  result;
+} __packed;
+
+struct mtl_gsc_ver_msg_in {
+	struct intel_gsc_mtl_header header;
+	struct intel_gsc_mkhi_header mkhi;
+} __packed;
+
+struct mtl_gsc_ver_msg_out {
+	struct intel_gsc_mtl_header header;
+	struct intel_gsc_mkhi_header mkhi;
+	u16 proj_major;
+	u16 compat_major;
+	u16 compat_minor;
+	u16 reserved[5];
+} __packed;
+
+#define GSC_VER_PKT_SZ SZ_4K
+
+static int gsc_fw_query_compatibility_version(struct intel_gsc_uc *gsc)
+{
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+	struct mtl_gsc_ver_msg_in *msg_in;
+	struct mtl_gsc_ver_msg_out *msg_out;
+	struct i915_vma *vma;
+	u64 offset;
+	void *vaddr;
+	int err;
+
+	err = intel_guc_allocate_and_map_vma(&gt->uc.guc, GSC_VER_PKT_SZ * 2,
+					     &vma, &vaddr);
+	if (err) {
+		gt_err(gt, "failed to allocate vma for GSC version query\n");
+		return err;
+	}
+
+	offset = i915_ggtt_offset(vma);
+	msg_in = vaddr;
+	msg_out = vaddr + GSC_VER_PKT_SZ;
+
+	intel_gsc_uc_heci_cmd_emit_mtl_header(&msg_in->header,
+					      HECI_MEADDRESS_MKHI,
+					      sizeof(*msg_in), 0);
+	msg_in->mkhi.group_id = MKHI_GROUP_ID_GFX_SRV;
+	msg_in->mkhi.command = MKHI_GFX_SRV_GET_HOST_COMPATIBILITY_VERSION;
+
+	err = intel_gsc_uc_heci_cmd_submit_packet(&gt->uc.gsc,
+						  offset,
+						  sizeof(*msg_in),
+						  offset + GSC_VER_PKT_SZ,
+						  GSC_VER_PKT_SZ);
+	if (err) {
+		gt_err(gt,
+		       "failed to submit GSC request for compatibility version: %d\n",
+		       err);
+		goto out_vma;
+	}
+
+	if (msg_out->header.message_size != sizeof(*msg_out)) {
+		gt_err(gt, "invalid GSC reply length %u [expected %zu], s=0x%x, f=0x%x, r=0x%x\n",
+		       msg_out->header.message_size, sizeof(*msg_out),
+		       msg_out->header.status, msg_out->header.flags, msg_out->mkhi.result);
+		err = -EPROTO;
+		goto out_vma;
+	}
+
+	gsc->fw.file_selected.ver.major = msg_out->compat_major;
+	gsc->fw.file_selected.ver.minor = msg_out->compat_minor;
+
+out_vma:
+	i915_vma_unpin_and_release(&vma, I915_VMA_RELEASE_MAP);
+	return err;
+}
+
 int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 {
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
@@ -360,11 +443,21 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	if (err)
 		goto fail;
 
+	err = gsc_fw_query_compatibility_version(gsc);
+	if (err)
+		goto fail;
+
+	/* we only support compatibility version 1.0 at the moment */
+	err = intel_uc_check_file_version(gsc_fw, NULL);
+	if (err)
+		goto fail;
+
 	/* FW is not fully operational until we enable SW proxy */
 	intel_uc_fw_change_status(gsc_fw, INTEL_UC_FIRMWARE_TRANSFERRED);
 
-	gt_info(gt, "Loaded GSC firmware %s (r%u.%u.%u.%u, svn%u)\n",
+	gt_info(gt, "Loaded GSC firmware %s (cv%u.%u, r%u.%u.%u.%u, svn %u)\n",
 		gsc_fw->file_selected.path,
+		gsc_fw->file_selected.ver.major, gsc_fw->file_selected.ver.minor,
 		gsc->release.major, gsc->release.minor,
 		gsc->release.patch, gsc->release.build,
 		gsc->security_version);

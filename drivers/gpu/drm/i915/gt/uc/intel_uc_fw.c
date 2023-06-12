@@ -787,6 +787,34 @@ static int try_firmware_load(struct intel_uc_fw *uc_fw, const struct firmware **
 	return 0;
 }
 
+int intel_uc_check_file_version(struct intel_uc_fw *uc_fw, bool *old_ver)
+{
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+	struct intel_uc_fw_file *wanted = &uc_fw->file_wanted;
+	struct intel_uc_fw_file *selected = &uc_fw->file_selected;
+
+	if (!wanted->ver.major || !selected->ver.major)
+		return 0;
+
+	/* Check the file's major version was as it claimed */
+	if (selected->ver.major != wanted->ver.major) {
+		UNEXPECTED(gt, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+			   intel_uc_fw_type_repr(uc_fw->type), selected->path,
+			   selected->ver.major, selected->ver.minor,
+			   wanted->ver.major, wanted->ver.minor);
+		if (!intel_uc_fw_is_overridden(uc_fw))
+			return -ENOEXEC;
+	} else if (old_ver) {
+		if (selected->ver.minor < wanted->ver.minor)
+			*old_ver = true;
+		else if ((selected->ver.minor == wanted->ver.minor) &&
+			 (selected->ver.patch < wanted->ver.patch))
+			*old_ver = true;
+	}
+
+	return 0;
+}
+
 /**
  * intel_uc_fw_fetch - fetch uC firmware
  * @uc_fw: uC firmware
@@ -854,25 +882,9 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			goto fail;
 	}
 
-	if (uc_fw->file_wanted.ver.major && uc_fw->file_selected.ver.major) {
-		/* Check the file's major version was as it claimed */
-		if (uc_fw->file_selected.ver.major != uc_fw->file_wanted.ver.major) {
-			UNEXPECTED(gt, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
-				   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-				   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor,
-				   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor);
-			if (!intel_uc_fw_is_overridden(uc_fw)) {
-				err = -ENOEXEC;
-				goto fail;
-			}
-		} else {
-			if (uc_fw->file_selected.ver.minor < uc_fw->file_wanted.ver.minor)
-				old_ver = true;
-			else if ((uc_fw->file_selected.ver.minor == uc_fw->file_wanted.ver.minor) &&
-				 (uc_fw->file_selected.ver.patch < uc_fw->file_wanted.ver.patch))
-				old_ver = true;
-		}
-	}
+	err = intel_uc_check_file_version(uc_fw, &old_ver);
+	if (err)
+		goto fail;
 
 	if (old_ver && uc_fw->file_selected.ver.major) {
 		/* Preserve the version that was really wanted */
