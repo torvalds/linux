@@ -468,6 +468,9 @@ static int ufshcd_mcq_sq_stop(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
 	u32 id = hwq->id, val;
 	int err;
 
+	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_RTC)
+		return -ETIMEDOUT;
+
 	writel(SQ_STOP, mcq_opr_base(hba, OPR_SQD, id) + REG_SQRTC);
 	reg = mcq_opr_base(hba, OPR_SQD, id) + REG_SQRTS;
 	err = read_poll_timeout(readl, val, val & SQ_STS, 20,
@@ -483,6 +486,9 @@ static int ufshcd_mcq_sq_start(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
 	void __iomem *reg;
 	u32 id = hwq->id, val;
 	int err;
+
+	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_RTC)
+		return -ETIMEDOUT;
 
 	writel(SQ_START, mcq_opr_base(hba, OPR_SQD, id) + REG_SQRTC);
 	reg = mcq_opr_base(hba, OPR_SQD, id) + REG_SQRTS;
@@ -510,6 +516,9 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 	void __iomem *reg, *opr_sqd_base;
 	u32 nexus, id, val;
 	int err;
+
+	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_RTC)
+		return -ETIMEDOUT;
 
 	if (task_tag != hba->nutrs - UFSHCD_NUM_RESERVED) {
 		if (!cmd)
@@ -592,6 +601,9 @@ static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 	bool ret = false;
 	u64 addr, match;
 	u32 sq_head_slot;
+
+	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_RTC)
+		return true;
 
 	mutex_lock(&hwq->sq_mutex);
 
