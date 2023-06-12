@@ -971,17 +971,12 @@ static int sbefifo_read_timeout(struct sbefifo_user *user, void __user *argp)
 
 	if (timeout == 0) {
 		user->read_timeout_ms = SBEFIFO_TIMEOUT_START_RSP;
-		dev_dbg(dev, "Timeout reset to %d\n", user->read_timeout_ms);
+		dev_dbg(dev, "Timeout reset to %us\n", user->read_timeout_ms / 1000);
 		return 0;
 	}
 
-	if (timeout < 10 || timeout > 120)
-		return -EINVAL;
-
 	user->read_timeout_ms = timeout * 1000; /* user timeout is in sec */
-
-	dev_dbg(dev, "Timeout set to %d\n", user->read_timeout_ms);
-
+	dev_dbg(dev, "Timeout set to %us\n", timeout);
 	return 0;
 }
 
