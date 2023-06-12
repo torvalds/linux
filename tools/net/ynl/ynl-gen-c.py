@@ -462,6 +462,11 @@ class TypeNest(Type):
 
 
 class TypeMultiAttr(Type):
+    def __init__(self, family, attr_set, attr, value, base_type):
+        super().__init__(family, attr_set, attr, value)
+
+        self.base_type = base_type
+
     def is_multi_val(self):
         return True
 
@@ -497,13 +502,11 @@ class TypeMultiAttr(Type):
         else:
             raise Exception(f"Free of MultiAttr sub-type {self.attr['type']} not supported yet")
 
+    def _attr_policy(self, policy):
+        return self.base_type._attr_policy(policy)
+
     def _attr_typol(self):
-        if 'type' not in self.attr or self.attr['type'] == 'nest':
-            return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
-        elif self.attr['type'] in scalars:
-            return f".type = YNL_PT_U{self.attr['type'][1:]}, "
-        else:
-            raise Exception(f"Sub-type {self.attr['type']} not supported yet")
+        return self.base_type._attr_typol()
 
     def _attr_get(self, ri, var):
         return f'n_{self.c_name}++;', None, None
@@ -717,28 +720,31 @@ class AttrSet(SpecAttrSet):
             self.c_name = ''
 
     def new_attr(self, elem, value):
-        if 'multi-attr' in elem and elem['multi-attr']:
-            return TypeMultiAttr(self.family, self, elem, value)
-        elif elem['type'] in scalars:
-            return TypeScalar(self.family, self, elem, value)
+        if elem['type'] in scalars:
+            t = TypeScalar(self.family, self, elem, value)
         elif elem['type'] == 'unused':
-            return TypeUnused(self.family, self, elem, value)
+            t = TypeUnused(self.family, self, elem, value)
         elif elem['type'] == 'pad':
-            return TypePad(self.family, self, elem, value)
+            t = TypePad(self.family, self, elem, value)
         elif elem['type'] == 'flag':
-            return TypeFlag(self.family, self, elem, value)
+            t = TypeFlag(self.family, self, elem, value)
         elif elem['type'] == 'string':
-            return TypeString(self.family, self, elem, value)
+            t = TypeString(self.family, self, elem, value)
         elif elem['type'] == 'binary':
-            return TypeBinary(self.family, self, elem, value)
+            t = TypeBinary(self.family, self, elem, value)
         elif elem['type'] == 'nest':
-            return TypeNest(self.family, self, elem, value)
+            t = TypeNest(self.family, self, elem, value)
         elif elem['type'] == 'array-nest':
-            return TypeArrayNest(self.family, self, elem, value)
+            t = TypeArrayNest(self.family, self, elem, value)
         elif elem['type'] == 'nest-type-value':
-            return TypeNestTypeValue(self.family, self, elem, value)
+            t = TypeNestTypeValue(self.family, self, elem, value)
         else:
             raise Exception(f"No typed class for type {elem['type']}")
+
+        if 'multi-attr' in elem and elem['multi-attr']:
+            t = TypeMultiAttr(self.family, self, elem, value, t)
+
+        return t
 
 
 class Operation(SpecOperation):
