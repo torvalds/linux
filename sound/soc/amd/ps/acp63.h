@@ -10,7 +10,7 @@
 #define ACP_DEVICE_ID 0x15E2
 #define ACP63_REG_START		0x1240000
 #define ACP63_REG_END		0x1250200
-#define ACP63_DEVS		3
+#define ACP63_DEVS		5
 
 #define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
 #define ACP_PGFSM_CNTL_POWER_ON_MASK	1
@@ -53,13 +53,52 @@
 /* time in ms for runtime suspend delay */
 #define ACP_SUSPEND_DELAY_MS	2000
 
-#define ACP63_DMIC_ADDR		2
-#define ACP63_PDM_MODE_DEVS		3
-#define ACP63_PDM_DEV_MASK		1
 #define ACP_DMIC_DEV	2
+
+/* ACP63_PDM_MODE_DEVS corresponds to platform devices count for ACP PDM configuration */
+#define ACP63_PDM_MODE_DEVS		3
+
+/*
+ * ACP63_SDW0_MODE_DEVS corresponds to platform devices count for
+ * SW0 SoundWire manager instance configuration
+ */
+#define ACP63_SDW0_MODE_DEVS		2
+
+/*
+ * ACP63_SDW0_SDW1_MODE_DEVS corresponds to platform devices count for SW0 + SW1 SoundWire manager
+ * instances configuration
+ */
+#define ACP63_SDW0_SDW1_MODE_DEVS	3
+
+/*
+ * ACP63_SDW0_PDM_MODE_DEVS corresponds to platform devices count for SW0 manager
+ * instance + ACP PDM controller configuration
+ */
+#define ACP63_SDW0_PDM_MODE_DEVS	4
+
+/*
+ * ACP63_SDW0_SDW1_PDM_MODE_DEVS corresponds to platform devices count for
+ * SW0 + SW1 SoundWire manager instances + ACP PDM controller configuration
+ */
+#define ACP63_SDW0_SDW1_PDM_MODE_DEVS   5
+#define ACP63_DMIC_ADDR			2
+#define ACP63_SDW_ADDR			5
+#define AMD_SDW_MAX_MANAGERS		2
 
 /* time in ms for acp timeout */
 #define ACP_TIMEOUT		500
+
+/* ACP63_PDM_DEV_CONFIG corresponds to platform device configuration for ACP PDM controller */
+#define ACP63_PDM_DEV_CONFIG		BIT(0)
+
+/* ACP63_SDW_DEV_CONFIG corresponds to platform device configuration for SDW manager instances */
+#define ACP63_SDW_DEV_CONFIG		BIT(1)
+
+/*
+ * ACP63_SDW_PDM_DEV_CONFIG corresponds to platform device configuration for ACP PDM + SoundWire
+ * manager instance combination.
+ */
+#define ACP63_SDW_PDM_DEV_CONFIG	GENMASK(1, 0)
 
 enum acp_config {
 	ACP_CONFIG_0 = 0,
@@ -95,14 +134,38 @@ struct pdm_dev_data {
 	struct snd_pcm_substream *capture_stream;
 };
 
+/**
+ * struct acp63_dev_data - acp pci driver context
+ * @acp63_base: acp mmio base
+ * @res: resource
+ * @pdev: array of child platform device node structures
+ * @acp_lock: used to protect acp common registers
+ * @sdw_fw_node: SoundWire controller fw node handle
+ * @pdev_config: platform device configuration
+ * @pdev_count: platform devices count
+ * @pdm_dev_index: pdm platform device index
+ * @sdw_manager_count: SoundWire manager instance count
+ * @sdw0_dev_index: SoundWire Manager-0 platform device index
+ * @sdw1_dev_index: SoundWire Manager-1 platform device index
+ * @sdw_dma_dev_index: SoundWire DMA controller platform device index
+ * @acp_reset: flag set to true when bus reset is applied across all
+ * the active SoundWire manager instances
+ */
+
 struct acp63_dev_data {
 	void __iomem *acp63_base;
 	struct resource *res;
 	struct platform_device *pdev[ACP63_DEVS];
 	struct mutex acp_lock; /* protect shared registers */
-	u16 pdev_mask;
+	struct fwnode_handle *sdw_fw_node;
+	u16 pdev_config;
 	u16 pdev_count;
 	u16 pdm_dev_index;
+	u8 sdw_manager_count;
+	u16 sdw0_dev_index;
+	u16 sdw1_dev_index;
+	u16 sdw_dma_dev_index;
+	bool acp_reset;
 };
 
 int snd_amd_acp_find_config(struct pci_dev *pci);
