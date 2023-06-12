@@ -243,7 +243,6 @@ int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu[3];
-	unsigned int exit_reason;
 	vm_vaddr_t hcall_page;
 	pthread_t threads[2];
 	int stage = 1, r;
@@ -283,10 +282,7 @@ int main(int argc, char *argv[])
 	while (true) {
 		vcpu_run(vcpu[0]);
 
-		exit_reason = vcpu[0]->run->exit_reason;
-		TEST_ASSERT(exit_reason == KVM_EXIT_IO,
-			    "unexpected exit reason: %u (%s)",
-			    exit_reason, exit_reason_str(exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu[0], KVM_EXIT_IO);
 
 		switch (get_ucall(vcpu[0], &uc)) {
 		case UCALL_SYNC:

@@ -115,7 +115,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 		do {
 			struct page *page;
 
-			GEM_BUG_ON(order >= MAX_ORDER);
+			GEM_BUG_ON(order > MAX_ORDER);
 			page = alloc_pages(GFP | __GFP_ZERO, order);
 			if (!page)
 				goto err;
@@ -354,7 +354,7 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
-	obj->cache_level = I915_CACHE_NONE;
+	obj->pat_index = i915_gem_get_pat_index(i915, I915_CACHE_NONE);
 
 	return obj;
 }
@@ -695,8 +695,7 @@ out_put:
 	return err;
 }
 
-static void close_object_list(struct list_head *objects,
-			      struct i915_ppgtt *ppgtt)
+static void close_object_list(struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj, *on;
 
@@ -710,16 +709,35 @@ static void close_object_list(struct list_head *objects,
 	}
 }
 
-static int igt_mock_ppgtt_huge_fill(void *arg)
+static int igt_ppgtt_huge_fill(void *arg)
 {
-	struct i915_ppgtt *ppgtt = arg;
-	struct drm_i915_private *i915 = ppgtt->vm.i915;
-	unsigned long max_pages = ppgtt->vm.total >> PAGE_SHIFT;
+	struct drm_i915_private *i915 = arg;
+	unsigned int supported = RUNTIME_INFO(i915)->page_sizes;
+	bool has_pte64 = GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50);
+	struct i915_address_space *vm;
+	struct i915_gem_context *ctx;
+	unsigned long max_pages;
 	unsigned long page_num;
+	struct file *file;
 	bool single = false;
 	LIST_HEAD(objects);
 	IGT_TIMEOUT(end_time);
 	int err = -ENODEV;
+
+	if (supported == I915_GTT_PAGE_SIZE_4K)
+		return 0;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	ctx = hugepage_ctx(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out;
+	}
+	vm = i915_gem_context_get_eb_vm(ctx);
+	max_pages = vm->total >> PAGE_SHIFT;
 
 	for_each_prime_number_from(page_num, 1, max_pages) {
 		struct drm_i915_gem_object *obj;
@@ -750,13 +768,14 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 
 		list_add(&obj->st_link, &objects);
 
-		vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
+		vma = i915_vma_instance(obj, vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			break;
 		}
 
-		err = i915_vma_pin(vma, 0, 0, PIN_USER);
+		/* vma start must be aligned to BIT(21) to allow 2M PTEs */
+		err = i915_vma_pin(vma, 0, BIT(21), PIN_USER);
 		if (err)
 			break;
 
@@ -784,12 +803,13 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 		GEM_BUG_ON(!expected_gtt);
 		GEM_BUG_ON(size);
 
-		if (expected_gtt & I915_GTT_PAGE_SIZE_4K)
+		if (!has_pte64 && (obj->base.size < I915_GTT_PAGE_SIZE_2M ||
+				   expected_gtt & I915_GTT_PAGE_SIZE_2M))
 			expected_gtt &= ~I915_GTT_PAGE_SIZE_64K;
 
 		i915_vma_unpin(vma);
 
-		if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K) {
+		if (!has_pte64 && vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K) {
 			if (!IS_ALIGNED(vma->node.start,
 					I915_GTT_PAGE_SIZE_2M)) {
 				pr_err("node.start(%llx) not aligned to 2M\n",
@@ -808,7 +828,7 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 		}
 
 		if (vma->resource->page_sizes_gtt != expected_gtt) {
-			pr_err("gtt=%u, expected=%u, size=%zd, single=%s\n",
+			pr_err("gtt=%#x, expected=%#x, size=0x%zx, single=%s\n",
 			       vma->resource->page_sizes_gtt, expected_gtt,
 			       obj->base.size, str_yes_no(!!single));
 			err = -EINVAL;
@@ -823,19 +843,25 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 		single = !single;
 	}
 
-	close_object_list(&objects, ppgtt);
+	close_object_list(&objects);
 
 	if (err == -ENOMEM || err == -ENOSPC)
 		err = 0;
 
+	i915_vm_put(vm);
+out:
+	fput(file);
 	return err;
 }
 
-static int igt_mock_ppgtt_64K(void *arg)
+static int igt_ppgtt_64K(void *arg)
 {
-	struct i915_ppgtt *ppgtt = arg;
-	struct drm_i915_private *i915 = ppgtt->vm.i915;
+	struct drm_i915_private *i915 = arg;
+	bool has_pte64 = GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50);
 	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm;
+	struct i915_gem_context *ctx;
+	struct file *file;
 	const struct object_info {
 		unsigned int size;
 		unsigned int gtt;
@@ -907,16 +933,41 @@ static int igt_mock_ppgtt_64K(void *arg)
 	if (!HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_64K))
 		return 0;
 
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	ctx = hugepage_ctx(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out;
+	}
+	vm = i915_gem_context_get_eb_vm(ctx);
+
 	for (i = 0; i < ARRAY_SIZE(objects); ++i) {
 		unsigned int size = objects[i].size;
 		unsigned int expected_gtt = objects[i].gtt;
 		unsigned int offset = objects[i].offset;
 		unsigned int flags = PIN_USER;
 
+		/*
+		 * For modern GTT models, the requirements for marking a page-table
+		 * as 64K have been relaxed.  Account for this.
+		 */
+		if (has_pte64) {
+			expected_gtt = 0;
+			if (size >= SZ_64K)
+				expected_gtt |= I915_GTT_PAGE_SIZE_64K;
+			if (size & (SZ_64K - 1))
+				expected_gtt |= I915_GTT_PAGE_SIZE_4K;
+		}
+
 		for (single = 0; single <= 1; single++) {
 			obj = fake_huge_pages_object(i915, size, !!single);
-			if (IS_ERR(obj))
-				return PTR_ERR(obj);
+			if (IS_ERR(obj)) {
+				err = PTR_ERR(obj);
+				goto out_vm;
+			}
 
 			err = i915_gem_object_pin_pages_unlocked(obj);
 			if (err)
@@ -928,7 +979,7 @@ static int igt_mock_ppgtt_64K(void *arg)
 			 */
 			obj->mm.page_sizes.sg &= ~I915_GTT_PAGE_SIZE_2M;
 
-			vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
+			vma = i915_vma_instance(obj, vm, NULL);
 			if (IS_ERR(vma)) {
 				err = PTR_ERR(vma);
 				goto out_object_unpin;
@@ -945,7 +996,8 @@ static int igt_mock_ppgtt_64K(void *arg)
 			if (err)
 				goto out_vma_unpin;
 
-			if (!offset && vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K) {
+			if (!has_pte64 && !offset &&
+			    vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K) {
 				if (!IS_ALIGNED(vma->node.start,
 						I915_GTT_PAGE_SIZE_2M)) {
 					pr_err("node.start(%llx) not aligned to 2M\n",
@@ -964,9 +1016,10 @@ static int igt_mock_ppgtt_64K(void *arg)
 			}
 
 			if (vma->resource->page_sizes_gtt != expected_gtt) {
-				pr_err("gtt=%u, expected=%u, i=%d, single=%s\n",
+				pr_err("gtt=%#x, expected=%#x, i=%d, single=%s offset=%#x size=%#x\n",
 				       vma->resource->page_sizes_gtt,
-				       expected_gtt, i, str_yes_no(!!single));
+				       expected_gtt, i, str_yes_no(!!single),
+				       offset, size);
 				err = -EINVAL;
 				goto out_vma_unpin;
 			}
@@ -982,7 +1035,7 @@ static int igt_mock_ppgtt_64K(void *arg)
 		}
 	}
 
-	return 0;
+	goto out_vm;
 
 out_vma_unpin:
 	i915_vma_unpin(vma);
@@ -992,7 +1045,10 @@ out_object_unpin:
 	i915_gem_object_unlock(obj);
 out_object_put:
 	i915_gem_object_put(obj);
-
+out_vm:
+	i915_vm_put(vm);
+out:
+	fput(file);
 	return err;
 }
 
@@ -1910,8 +1966,6 @@ int i915_gem_huge_page_mock_selftests(void)
 		SUBTEST(igt_mock_exhaust_device_supported_pages),
 		SUBTEST(igt_mock_memory_region_huge_pages),
 		SUBTEST(igt_mock_ppgtt_misaligned_dma),
-		SUBTEST(igt_mock_ppgtt_huge_fill),
-		SUBTEST(igt_mock_ppgtt_64K),
 	};
 	struct drm_i915_private *dev_priv;
 	struct i915_ppgtt *ppgtt;
@@ -1962,6 +2016,8 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_sanity_check),
 		SUBTEST(igt_ppgtt_compact),
 		SUBTEST(igt_ppgtt_mixed),
+		SUBTEST(igt_ppgtt_huge_fill),
+		SUBTEST(igt_ppgtt_64K),
 	};
 
 	if (!HAS_PPGTT(i915)) {

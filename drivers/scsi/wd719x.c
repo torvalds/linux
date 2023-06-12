@@ -878,7 +878,7 @@ fail_free_params:
 	return ret;
 }
 
-static struct scsi_host_template wd719x_template = {
+static const struct scsi_host_template wd719x_template = {
 	.module				= THIS_MODULE,
 	.name				= "Western Digital 719x",
 	.cmd_size			= sizeof(struct wd719x_scb),

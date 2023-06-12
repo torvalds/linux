@@ -20,7 +20,7 @@ description: |
   - if it contains "cfi-flash", then HyperFlash is used.
 
 allOf:
-  - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:

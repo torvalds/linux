@@ -141,17 +141,6 @@
 /*#define CMX_DELAY_DEBUG * gives rx-buffer delay overview */
 /*#define CMX_TX_DEBUG * massive read/write on tx-buffer with content */
 
-static inline int
-count_list_member(struct list_head *head)
-{
-	int			cnt = 0;
-	struct list_head	*m;
-
-	list_for_each(m, head)
-		cnt++;
-	return cnt;
-}
-
 /*
  * debug cmx memory structure
  */
@@ -1672,7 +1661,7 @@ dsp_cmx_send(void *arg)
 		mustmix = 0;
 		members = 0;
 		if (conf) {
-			members = count_list_member(&conf->mlist);
+			members = list_count_nodes(&conf->mlist);
 #ifdef CMX_CONF_DEBUG
 			if (conf->software && members > 1)
 #else
@@ -1695,7 +1684,7 @@ dsp_cmx_send(void *arg)
 	/* loop all members that require conference mixing */
 	list_for_each_entry(conf, &conf_ilist, list) {
 		/* count members and check hardware */
-		members = count_list_member(&conf->mlist);
+		members = list_count_nodes(&conf->mlist);
 #ifdef CMX_CONF_DEBUG
 		if (conf->software && members > 1) {
 #else

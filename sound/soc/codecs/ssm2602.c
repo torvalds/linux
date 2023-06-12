@@ -280,9 +280,12 @@ static inline int ssm2602_get_coeff(int mclk, int rate)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ssm2602_coeff_table); i++) {
-		if (ssm2602_coeff_table[i].rate == rate &&
-			ssm2602_coeff_table[i].mclk == mclk)
-			return ssm2602_coeff_table[i].srate;
+		if (ssm2602_coeff_table[i].rate == rate) {
+			if (ssm2602_coeff_table[i].mclk == mclk)
+				return ssm2602_coeff_table[i].srate;
+			if (ssm2602_coeff_table[i].mclk == mclk / 2)
+				return ssm2602_coeff_table[i].srate | SRATE_CORECLK_DIV2;
+		}
 	}
 	return -EINVAL;
 }
@@ -365,18 +368,24 @@ static int ssm2602_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		switch (freq) {
 		case 12288000:
 		case 18432000:
+		case 24576000:
+		case 36864000:
 			ssm2602->sysclk_constraints = &ssm2602_constraints_12288000;
 			break;
 		case 11289600:
 		case 16934400:
+		case 22579200:
+		case 33868800:
 			ssm2602->sysclk_constraints = &ssm2602_constraints_11289600;
 			break;
 		case 12000000:
+		case 24000000:
 			ssm2602->sysclk_constraints = NULL;
 			break;
 		default:
 			return -EINVAL;
 		}
+
 		ssm2602->sysclk = freq;
 	} else {
 		unsigned int mask;

@@ -803,7 +803,7 @@ EXPORT_SYMBOL(__host1x_client_register);
  * Removes a host1x client from its host1x controller instance. If a logical
  * device has already been initialized, it will be torn down.
  */
-int host1x_client_unregister(struct host1x_client *client)
+void host1x_client_unregister(struct host1x_client *client)
 {
 	struct host1x_client *c;
 	struct host1x *host1x;
@@ -815,7 +815,7 @@ int host1x_client_unregister(struct host1x_client *client)
 		err = host1x_del_client(host1x, client);
 		if (!err) {
 			mutex_unlock(&devices_lock);
-			return 0;
+			return;
 		}
 	}
 
@@ -832,8 +832,6 @@ int host1x_client_unregister(struct host1x_client *client)
 	mutex_unlock(&clients_lock);
 
 	host1x_bo_cache_destroy(&client->cache);
-
-	return 0;
 }
 EXPORT_SYMBOL(host1x_client_unregister);
 

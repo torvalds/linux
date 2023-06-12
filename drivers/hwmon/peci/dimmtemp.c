@@ -300,7 +300,7 @@ static int create_dimm_temp_label(struct peci_dimmtemp *priv, int chan)
 	return 0;
 }
 
-static const struct hwmon_channel_info *peci_dimmtemp_temp_info[] = {
+static const struct hwmon_channel_info * const peci_dimmtemp_temp_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   [0 ... DIMM_NUMS_MAX - 1] = HWMON_T_LABEL |
 				HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT),

@@ -820,7 +820,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	}
 
 	hfi1_cdbg(PIO,
-		  "Send context %u(%u) %s group %u credits %u credit_ctrl 0x%llx threshold %u\n",
+		  "Send context %u(%u) %s group %u credits %u credit_ctrl 0x%llx threshold %u",
 		  sw_index,
 		  hw_context,
 		  sc_type_name(type),

@@ -38,6 +38,5 @@ static void __exit unregister_react_panic(void)
 module_init(register_react_panic);
 module_exit(unregister_react_panic);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Bristot de Oliveira");
 MODULE_DESCRIPTION("panic rv reactor: panic if an exception is found.");

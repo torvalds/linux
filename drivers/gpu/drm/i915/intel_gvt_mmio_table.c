@@ -7,8 +7,12 @@
 #include "display/intel_backlight_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
+#include "display/intel_dp_aux_regs.h"
 #include "display/intel_dpio_phy.h"
+#include "display/intel_fdi_regs.h"
 #include "display/intel_lvds_regs.h"
+#include "display/intel_psr_regs.h"
+#include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
 #include "gt/intel_gt_regs.h"
 #include "gvt/gvt.h"
@@ -789,9 +793,9 @@ static int iterate_bdw_plus_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_RING_D(RING_REG);
 #undef RING_REG
 
-	MMIO_D(PIPEMISC(PIPE_A));
-	MMIO_D(PIPEMISC(PIPE_B));
-	MMIO_D(PIPEMISC(PIPE_C));
+	MMIO_D(PIPE_MISC(PIPE_A));
+	MMIO_D(PIPE_MISC(PIPE_B));
+	MMIO_D(PIPE_MISC(PIPE_C));
 	MMIO_D(_MMIO(0x1c1d0));
 	MMIO_D(GEN6_MBCUNIT_SNPCR);
 	MMIO_D(GEN7_MISCCPCTL);

@@ -8,8 +8,8 @@
  * numbers.
  *
  * When using the privilege state SPR, the instructions such as
- * mfspr or mtspr are priviledged and the kernel emulates them
- * for us. Instructions using problem state SPR can be exuecuted
+ * mfspr or mtspr are privileged and the kernel emulates them
+ * for us. Instructions using problem state SPR can be executed
  * directly without any emulation if the HW supports them. Else
  * they also get emulated by the kernel.
  *

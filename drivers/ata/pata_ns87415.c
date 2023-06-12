@@ -320,7 +320,7 @@ static struct ata_port_operations ns87560_pata_ops = {
 };
 #endif
 
-static struct scsi_host_template ns87415_sht = {
+static const struct scsi_host_template ns87415_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

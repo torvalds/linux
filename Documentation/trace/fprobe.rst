@@ -87,14 +87,16 @@ returns as same as unregister_ftrace_function().
 The fprobe entry/exit handler
 =============================
 
-The prototype of the entry/exit callback function is as follows:
+The prototype of the entry/exit callback function are as follows:
 
 .. code-block:: c
 
- void callback_func(struct fprobe *fp, unsigned long entry_ip, struct pt_regs *regs);
+ int entry_callback(struct fprobe *fp, unsigned long entry_ip, struct pt_regs *regs, void *entry_data);
 
-Note that both entry and exit callbacks have same ptototype. The @entry_ip is
-saved at function entry and passed to exit handler.
+ void exit_callback(struct fprobe *fp, unsigned long entry_ip, struct pt_regs *regs, void *entry_data);
+
+Note that the @entry_ip is saved at function entry and passed to exit handler.
+If the entry callback function returns !0, the corresponding exit callback will be cancelled.
 
 @fp
         This is the address of `fprobe` data structure related to this handler.
@@ -112,6 +114,12 @@ saved at function entry and passed to exit handler.
         in the entry_handler. If you need traced instruction pointer, you need
         to use @entry_ip. On the other hand, in the exit_handler, the instruction
         pointer of @regs is set to the currect return address.
+
+@entry_data
+        This is a local storage to share the data between entry and exit handlers.
+        This storage is NULL by default. If the user specify `exit_handler` field
+        and `entry_data_size` field when registering the fprobe, the storage is
+        allocated and passed to both `entry_handler` and `exit_handler`.
 
 Share the callbacks with kprobes
 ================================

@@ -194,6 +194,13 @@ enum i915_cache_level {
 	 * engine.
 	 */
 	I915_CACHE_WT,
+	/**
+	 * @I915_MAX_CACHE_LEVEL:
+	 *
+	 * Mark the last entry in the enum. Used for defining cachelevel_to_pat
+	 * array for cache_level to pat translation table.
+	 */
+	I915_MAX_CACHE_LEVEL,
 };
 
 enum i915_map_type {
@@ -328,6 +335,12 @@ struct drm_i915_gem_object {
  */
 #define I915_BO_ALLOC_GPU_ONLY	  BIT(6)
 #define I915_BO_ALLOC_CCS_AUX	  BIT(7)
+/*
+ * Object is allowed to retain its initial data and will not be cleared on first
+ * access if used along with I915_BO_ALLOC_USER. This is mainly to keep
+ * preallocated framebuffer data intact while transitioning it to i915drmfb.
+ */
+#define I915_BO_PREALLOC	  BIT(8)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
 			     I915_BO_ALLOC_CPU_CLEAR | \
@@ -335,10 +348,11 @@ struct drm_i915_gem_object {
 			     I915_BO_ALLOC_PM_VOLATILE | \
 			     I915_BO_ALLOC_PM_EARLY | \
 			     I915_BO_ALLOC_GPU_ONLY | \
-			     I915_BO_ALLOC_CCS_AUX)
-#define I915_BO_READONLY          BIT(8)
-#define I915_TILING_QUIRK_BIT     9 /* unknown swizzling; do not release! */
-#define I915_BO_PROTECTED         BIT(10)
+			     I915_BO_ALLOC_CCS_AUX | \
+			     I915_BO_PREALLOC)
+#define I915_BO_READONLY          BIT(9)
+#define I915_TILING_QUIRK_BIT     10 /* unknown swizzling; do not release! */
+#define I915_BO_PROTECTED         BIT(11)
 	/**
 	 * @mem_flags - Mutable placement-related flags
 	 *
@@ -350,14 +364,42 @@ struct drm_i915_gem_object {
 #define I915_BO_FLAG_STRUCT_PAGE BIT(0) /* Object backed by struct pages */
 #define I915_BO_FLAG_IOMEM       BIT(1) /* Object backed by IO memory */
 	/**
-	 * @cache_level: The desired GTT caching level.
+	 * @pat_index: The desired PAT index.
 	 *
-	 * See enum i915_cache_level for possible values, along with what
-	 * each does.
+	 * See hardware specification for valid PAT indices for each platform.
+	 * This field replaces the @cache_level that contains a value of enum
+	 * i915_cache_level since PAT indices are being used by both userspace
+	 * and kernel mode driver for caching policy control after GEN12.
+	 * In the meantime platform specific tables are created to translate
+	 * i915_cache_level into pat index, for more details check the macros
+	 * defined i915/i915_pci.c, e.g. PVC_CACHELEVEL.
+	 * For backward compatibility, this field contains values exactly match
+	 * the entries of enum i915_cache_level for pre-GEN12 platforms (See
+	 * LEGACY_CACHELEVEL), so that the PTE encode functions for these
+	 * legacy platforms can stay the same.
 	 */
-	unsigned int cache_level:3;
+	unsigned int pat_index:6;
+	/**
+	 * @pat_set_by_user: Indicate whether pat_index is set by user space
+	 *
+	 * This field is set to false by default, only set to true if the
+	 * pat_index is set by user space. By design, user space is capable of
+	 * managing caching behavior by setting pat_index, in which case this
+	 * kernel mode driver should never touch the pat_index.
+	 */
+	unsigned int pat_set_by_user:1;
 	/**
 	 * @cache_coherent:
+	 *
+	 * Note: with the change above which replaced @cache_level with pat_index,
+	 * the use of @cache_coherent is limited to the objects created by kernel
+	 * or by userspace without pat index specified.
+	 * Check for @pat_set_by_user to find out if an object has pat index set
+	 * by userspace. The ioctl's to change cache settings have also been
+	 * disabled for the objects with pat index set by userspace. Please don't
+	 * assume @cache_coherent having the flags set as describe here. A helper
+	 * function i915_gem_object_has_cache_level() provides one way to bypass
+	 * the use of this field.
 	 *
 	 * Track whether the pages are coherent with the GPU if reading or
 	 * writing through the CPU caches. The largely depends on the
@@ -432,6 +474,16 @@ struct drm_i915_gem_object {
 	/**
 	 * @cache_dirty:
 	 *
+	 * Note: with the change above which replaced cache_level with pat_index,
+	 * the use of @cache_dirty is limited to the objects created by kernel
+	 * or by userspace without pat index specified.
+	 * Check for @pat_set_by_user to find out if an object has pat index set
+	 * by userspace. The ioctl's to change cache settings have also been
+	 * disabled for the objects with pat_index set by userspace. Please don't
+	 * assume @cache_dirty is set as describe here. Also see helper function
+	 * i915_gem_object_has_cache_level() for possible ways to bypass the use
+	 * of this field.
+	 *
 	 * Track if we are we dirty with writes through the CPU cache for this
 	 * object. As a result reading directly from main memory might yield
 	 * stale data.
@@ -490,6 +542,9 @@ struct drm_i915_gem_object {
 	 *   critical, i.e userspace is free to race against itself.
 	 */
 	unsigned int cache_dirty:1;
+
+	/* @is_dpt: Object houses a display page table (DPT) */
+	unsigned int is_dpt:1;
 
 	/**
 	 * @read_domains: Read memory domains.

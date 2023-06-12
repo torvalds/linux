@@ -56,6 +56,7 @@
 #define LVDS_CTRL_VBG_ADJ_MASK			GENMASK(19, 17)
 
 enum fsl_ldb_devtype {
+	IMX6SX_LDB,
 	IMX8MP_LDB,
 	IMX93_LDB,
 };
@@ -64,9 +65,14 @@ struct fsl_ldb_devdata {
 	u32 ldb_ctrl;
 	u32 lvds_ctrl;
 	bool lvds_en_bit;
+	bool single_ctrl_reg;
 };
 
 static const struct fsl_ldb_devdata fsl_ldb_devdata[] = {
+	[IMX6SX_LDB] = {
+		.ldb_ctrl = 0x18,
+		.single_ctrl_reg = true,
+	},
 	[IMX8MP_LDB] = {
 		.ldb_ctrl = 0x5c,
 		.lvds_ctrl = 0x128,
@@ -84,9 +90,15 @@ struct fsl_ldb {
 	struct drm_bridge *panel_bridge;
 	struct clk *clk;
 	struct regmap *regmap;
-	bool lvds_dual_link;
 	const struct fsl_ldb_devdata *devdata;
+	bool ch0_enabled;
+	bool ch1_enabled;
 };
+
+static bool fsl_ldb_is_dual(const struct fsl_ldb *fsl_ldb)
+{
+	return (fsl_ldb->ch0_enabled && fsl_ldb->ch1_enabled);
+}
 
 static inline struct fsl_ldb *to_fsl_ldb(struct drm_bridge *bridge)
 {
@@ -95,7 +107,7 @@ static inline struct fsl_ldb *to_fsl_ldb(struct drm_bridge *bridge)
 
 static unsigned long fsl_ldb_link_frequency(struct fsl_ldb *fsl_ldb, int clock)
 {
-	if (fsl_ldb->lvds_dual_link)
+	if (fsl_ldb_is_dual(fsl_ldb))
 		return clock * 3500;
 	else
 		return clock * 7000;
@@ -170,37 +182,33 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 
 	configured_link_freq = clk_get_rate(fsl_ldb->clk);
 	if (configured_link_freq != requested_link_freq)
-		dev_warn(fsl_ldb->dev, "Configured LDB clock (%lu Hz) does not match requested LVDS clock: %lu Hz",
+		dev_warn(fsl_ldb->dev, "Configured LDB clock (%lu Hz) does not match requested LVDS clock: %lu Hz\n",
 			 configured_link_freq,
 			 requested_link_freq);
 
 	clk_prepare_enable(fsl_ldb->clk);
 
 	/* Program LDB_CTRL */
-	reg = LDB_CTRL_CH0_ENABLE;
+	reg =	(fsl_ldb->ch0_enabled ? LDB_CTRL_CH0_ENABLE : 0) |
+		(fsl_ldb->ch1_enabled ? LDB_CTRL_CH1_ENABLE : 0) |
+		(fsl_ldb_is_dual(fsl_ldb) ? LDB_CTRL_SPLIT_MODE : 0);
 
-	if (fsl_ldb->lvds_dual_link)
-		reg |= LDB_CTRL_CH1_ENABLE | LDB_CTRL_SPLIT_MODE;
+	if (lvds_format_24bpp)
+		reg |=	(fsl_ldb->ch0_enabled ? LDB_CTRL_CH0_DATA_WIDTH : 0) |
+			(fsl_ldb->ch1_enabled ? LDB_CTRL_CH1_DATA_WIDTH : 0);
 
-	if (lvds_format_24bpp) {
-		reg |= LDB_CTRL_CH0_DATA_WIDTH;
-		if (fsl_ldb->lvds_dual_link)
-			reg |= LDB_CTRL_CH1_DATA_WIDTH;
-	}
+	if (lvds_format_jeida)
+		reg |=	(fsl_ldb->ch0_enabled ? LDB_CTRL_CH0_BIT_MAPPING : 0) |
+			(fsl_ldb->ch1_enabled ? LDB_CTRL_CH1_BIT_MAPPING : 0);
 
-	if (lvds_format_jeida) {
-		reg |= LDB_CTRL_CH0_BIT_MAPPING;
-		if (fsl_ldb->lvds_dual_link)
-			reg |= LDB_CTRL_CH1_BIT_MAPPING;
-	}
-
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC) {
-		reg |= LDB_CTRL_DI0_VSYNC_POLARITY;
-		if (fsl_ldb->lvds_dual_link)
-			reg |= LDB_CTRL_DI1_VSYNC_POLARITY;
-	}
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+		reg |=	(fsl_ldb->ch0_enabled ? LDB_CTRL_DI0_VSYNC_POLARITY : 0) |
+			(fsl_ldb->ch1_enabled ? LDB_CTRL_DI1_VSYNC_POLARITY : 0);
 
 	regmap_write(fsl_ldb->regmap, fsl_ldb->devdata->ldb_ctrl, reg);
+
+	if (fsl_ldb->devdata->single_ctrl_reg)
+		return;
 
 	/* Program LVDS_CTRL */
 	reg = LVDS_CTRL_CC_ADJ(2) | LVDS_CTRL_PRE_EMPH_EN |
@@ -210,9 +218,8 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 	/* Wait for VBG to stabilize. */
 	usleep_range(15, 20);
 
-	reg |= LVDS_CTRL_CH0_EN;
-	if (fsl_ldb->lvds_dual_link)
-		reg |= LVDS_CTRL_CH1_EN;
+	reg |=	(fsl_ldb->ch0_enabled ? LVDS_CTRL_CH0_EN : 0) |
+		(fsl_ldb->ch1_enabled ? LVDS_CTRL_CH1_EN : 0);
 
 	regmap_write(fsl_ldb->regmap, fsl_ldb->devdata->lvds_ctrl, reg);
 }
@@ -228,7 +235,8 @@ static void fsl_ldb_atomic_disable(struct drm_bridge *bridge,
 		regmap_write(fsl_ldb->regmap, fsl_ldb->devdata->lvds_ctrl,
 			     LVDS_CTRL_LVDS_EN);
 	else
-		regmap_write(fsl_ldb->regmap, fsl_ldb->devdata->lvds_ctrl, 0);
+		if (!fsl_ldb->devdata->single_ctrl_reg)
+			regmap_write(fsl_ldb->regmap, fsl_ldb->devdata->lvds_ctrl, 0);
 	regmap_write(fsl_ldb->regmap, fsl_ldb->devdata->ldb_ctrl, 0);
 
 	clk_disable_unprepare(fsl_ldb->clk);
@@ -265,7 +273,7 @@ fsl_ldb_mode_valid(struct drm_bridge *bridge,
 {
 	struct fsl_ldb *fsl_ldb = to_fsl_ldb(bridge);
 
-	if (mode->clock > (fsl_ldb->lvds_dual_link ? 160000 : 80000))
+	if (mode->clock > (fsl_ldb_is_dual(fsl_ldb) ? 160000 : 80000))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -286,7 +294,7 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *panel_node;
-	struct device_node *port1, *port2;
+	struct device_node *remote1, *remote2;
 	struct drm_panel *panel;
 	struct fsl_ldb *fsl_ldb;
 	int dual_link;
@@ -311,10 +319,23 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 	if (IS_ERR(fsl_ldb->regmap))
 		return PTR_ERR(fsl_ldb->regmap);
 
-	/* Locate the panel DT node. */
-	panel_node = of_graph_get_remote_node(dev->of_node, 1, 0);
-	if (!panel_node)
-		return -ENXIO;
+	/* Locate the remote ports and the panel node */
+	remote1 = of_graph_get_remote_node(dev->of_node, 1, 0);
+	remote2 = of_graph_get_remote_node(dev->of_node, 2, 0);
+	fsl_ldb->ch0_enabled = (remote1 != NULL);
+	fsl_ldb->ch1_enabled = (remote2 != NULL);
+	panel_node = of_node_get(remote1 ? remote1 : remote2);
+	of_node_put(remote1);
+	of_node_put(remote2);
+
+	if (!fsl_ldb->ch0_enabled && !fsl_ldb->ch1_enabled) {
+		of_node_put(panel_node);
+		return dev_err_probe(dev, -ENXIO, "No panel node found");
+	}
+
+	dev_dbg(dev, "Using %s\n",
+		fsl_ldb_is_dual(fsl_ldb) ? "dual-link mode" :
+		fsl_ldb->ch0_enabled ? "channel 0" : "channel 1");
 
 	panel = of_drm_find_panel(panel_node);
 	of_node_put(panel_node);
@@ -325,20 +346,26 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 	if (IS_ERR(fsl_ldb->panel_bridge))
 		return PTR_ERR(fsl_ldb->panel_bridge);
 
-	/* Determine whether this is dual-link configuration */
-	port1 = of_graph_get_port_by_id(dev->of_node, 1);
-	port2 = of_graph_get_port_by_id(dev->of_node, 2);
-	dual_link = drm_of_lvds_get_dual_link_pixel_order(port1, port2);
-	of_node_put(port1);
-	of_node_put(port2);
 
-	if (dual_link == DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS) {
-		dev_err(dev, "LVDS channel pixel swap not supported.\n");
-		return -EINVAL;
+	if (fsl_ldb_is_dual(fsl_ldb)) {
+		struct device_node *port1, *port2;
+
+		port1 = of_graph_get_port_by_id(dev->of_node, 1);
+		port2 = of_graph_get_port_by_id(dev->of_node, 2);
+		dual_link = drm_of_lvds_get_dual_link_pixel_order(port1, port2);
+		of_node_put(port1);
+		of_node_put(port2);
+
+		if (dual_link < 0)
+			return dev_err_probe(dev, dual_link,
+					     "Error getting dual link configuration\n");
+
+		/* Only DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS is supported */
+		if (dual_link == DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS) {
+			dev_err(dev, "LVDS channel pixel swap not supported.\n");
+			return -EINVAL;
+		}
 	}
-
-	if (dual_link == DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS)
-		fsl_ldb->lvds_dual_link = true;
 
 	platform_set_drvdata(pdev, fsl_ldb);
 
@@ -347,16 +374,16 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int fsl_ldb_remove(struct platform_device *pdev)
+static void fsl_ldb_remove(struct platform_device *pdev)
 {
 	struct fsl_ldb *fsl_ldb = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&fsl_ldb->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id fsl_ldb_match[] = {
+	{ .compatible = "fsl,imx6sx-ldb",
+	  .data = &fsl_ldb_devdata[IMX6SX_LDB], },
 	{ .compatible = "fsl,imx8mp-ldb",
 	  .data = &fsl_ldb_devdata[IMX8MP_LDB], },
 	{ .compatible = "fsl,imx93-ldb",
@@ -367,7 +394,7 @@ MODULE_DEVICE_TABLE(of, fsl_ldb_match);
 
 static struct platform_driver fsl_ldb_driver = {
 	.probe	= fsl_ldb_probe,
-	.remove	= fsl_ldb_remove,
+	.remove_new = fsl_ldb_remove,
 	.driver		= {
 		.name		= "fsl-ldb",
 		.of_match_table	= fsl_ldb_match,

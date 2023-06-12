@@ -704,13 +704,18 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_adda_priv *adda_priv = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_adda_priv *adda_priv;
 	unsigned int rate = params_rate(params);
-	int id = dai->id;
-	int ret = 0;
+	int ret;
+
+	if (dai->id != MT8195_AFE_IO_DL_SRC &&
+	    dai->id != MT8195_AFE_IO_UL_SRC1 &&
+	    dai->id != MT8195_AFE_IO_UL_SRC2)
+		return -EINVAL;
+	adda_priv = afe_priv->dai_priv[dai->id];
 
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, rate %d\n",
-		__func__, id, substream->stream, rate);
+		__func__, dai->id, substream->stream, rate);
 
 	if (rate > ADDA_HIRES_THRES)
 		adda_priv->hires_required = 1;
@@ -718,9 +723,9 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 		adda_priv->hires_required = 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = mtk_dai_da_configure(afe, rate, id);
+		ret = mtk_dai_da_configure(afe, rate, dai->id);
 	else
-		ret = mtk_dai_ad_configure(afe, rate, id);
+		ret = mtk_dai_ad_configure(afe, rate, dai->id);
 
 	return ret;
 }

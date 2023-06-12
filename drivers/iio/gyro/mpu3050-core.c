@@ -939,7 +939,7 @@ static irqreturn_t mpu3050_irq_thread(int irq, void *p)
 	if (!(val & MPU3050_INT_STATUS_RAW_RDY))
 		return IRQ_NONE;
 
-	iio_trigger_poll_chained(p);
+	iio_trigger_poll_nested(p);
 
 	return IRQ_HANDLED;
 }

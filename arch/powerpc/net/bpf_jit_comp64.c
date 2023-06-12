@@ -126,8 +126,10 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 {
 	int i;
 
+#ifndef CONFIG_PPC_KERNEL_PCREL
 	if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V2))
 		EMIT(PPC_RAW_LD(_R2, _R13, offsetof(struct paca_struct, kernel_toc)));
+#endif
 
 	/*
 	 * Initialize tail_call_cnt if we do tail calls.
@@ -208,16 +210,32 @@ static int bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx, u
 	if (WARN_ON_ONCE(!core_kernel_text(func_addr)))
 		return -EINVAL;
 
-	reladdr = func_addr - kernel_toc_addr();
-	if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
-		pr_err("eBPF: address of %ps out of range of kernel_toc.\n", (void *)func);
-		return -ERANGE;
-	}
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PCREL)) {
+		reladdr = func_addr - CTX_NIA(ctx);
 
-	EMIT(PPC_RAW_ADDIS(_R12, _R2, PPC_HA(reladdr)));
-	EMIT(PPC_RAW_ADDI(_R12, _R12, PPC_LO(reladdr)));
-	EMIT(PPC_RAW_MTCTR(_R12));
-	EMIT(PPC_RAW_BCTRL());
+		if (reladdr >= (long)SZ_8G || reladdr < -(long)SZ_8G) {
+			pr_err("eBPF: address of %ps out of range of pcrel address.\n",
+				(void *)func);
+			return -ERANGE;
+		}
+		/* pla r12,addr */
+		EMIT(PPC_PREFIX_MLS | __PPC_PRFX_R(1) | IMM_H18(reladdr));
+		EMIT(PPC_INST_PADDI | ___PPC_RT(_R12) | IMM_L(reladdr));
+		EMIT(PPC_RAW_MTCTR(_R12));
+		EMIT(PPC_RAW_BCTR());
+
+	} else {
+		reladdr = func_addr - kernel_toc_addr();
+		if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
+			pr_err("eBPF: address of %ps out of range of kernel_toc.\n", (void *)func);
+			return -ERANGE;
+		}
+
+		EMIT(PPC_RAW_ADDIS(_R12, _R2, PPC_HA(reladdr)));
+		EMIT(PPC_RAW_ADDI(_R12, _R12, PPC_LO(reladdr)));
+		EMIT(PPC_RAW_MTCTR(_R12));
+		EMIT(PPC_RAW_BCTRL());
+	}
 
 	return 0;
 }

@@ -694,7 +694,7 @@ static int __init rpmsg_init(void)
 {
 	int ret;
 
-	rpmsg_class = class_create(THIS_MODULE, "rpmsg");
+	rpmsg_class = class_create("rpmsg");
 	if (IS_ERR(rpmsg_class)) {
 		pr_err("failed to create rpmsg class\n");
 		return PTR_ERR(rpmsg_class);

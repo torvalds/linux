@@ -115,6 +115,15 @@ __queue_and_release_pm(struct i915_request *rq,
 	ENGINE_TRACE(engine, "parking\n");
 
 	/*
+	 * Open coded one half of intel_context_enter, which we have to omit
+	 * here (see the large comment below) and because the other part must
+	 * not be called due constructing directly with __i915_request_create
+	 * which increments active count via intel_context_mark_active.
+	 */
+	GEM_BUG_ON(rq->context->active_count != 1);
+	__intel_gt_pm_get(engine->gt);
+
+	/*
 	 * We have to serialise all potential retirement paths with our
 	 * submission, as we don't want to underflow either the
 	 * engine->wakeref.counter or our timeline->active_count.

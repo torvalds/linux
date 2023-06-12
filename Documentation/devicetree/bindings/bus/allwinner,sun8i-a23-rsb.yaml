@@ -45,6 +45,7 @@ properties:
 patternProperties:
   "^.*@[0-9a-fA-F]+$":
     type: object
+    additionalProperties: true
     properties:
       reg:
         maxItems: 1

@@ -2235,11 +2235,8 @@ static int __init dm_multipath_init(void)
 	}
 
 	r = dm_register_target(&multipath_target);
-	if (r < 0) {
-		DMERR("request-based register failed %d", r);
-		r = -EINVAL;
+	if (r < 0)
 		goto bad_register_target;
-	}
 
 	return 0;
 

@@ -418,7 +418,7 @@ static int d53e6ea8966_probe(struct spi_device *spi)
 	if (IS_ERR(db->dsi_dev)) {
 		dev_err(dev, "failed to register dsi device: %ld\n",
 			PTR_ERR(db->dsi_dev));
-		ret = PTR_ERR(db->dsi_dev);
+		return PTR_ERR(db->dsi_dev);
 	}
 
 	db->dsi_dev->lanes = 2;

@@ -163,9 +163,9 @@ static int skb_get_type(struct __sk_buff *skb)
 		ip6h = data + sizeof(struct ethhdr);
 		if (ip6h + 1 > data_end)
 			return -1;
-		if (v6_equal(ip6h->saddr, (struct in6_addr)ip6_src))
+		if (v6_equal(ip6h->saddr, (struct in6_addr){{ip6_src}}))
 			ns = SRC_NS;
-		else if (v6_equal(ip6h->saddr, (struct in6_addr)ip6_dst))
+		else if (v6_equal(ip6h->saddr, (struct in6_addr){{ip6_dst}}))
 			ns = DST_NS;
 		inet_proto = ip6h->nexthdr;
 		trans = ip6h + 1;

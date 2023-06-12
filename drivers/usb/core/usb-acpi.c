@@ -81,15 +81,11 @@ int usb_acpi_port_lpm_incapable(struct usb_device *hdev, int index)
 		return -ENODEV;
 	}
 
-	obj = acpi_evaluate_dsm(port_handle, &guid, 0,
-				USB_DSM_DISABLE_U1_U2_FOR_PORT, NULL);
-
-	if (!obj)
-		return -ENODEV;
-
-	if (obj->type != ACPI_TYPE_INTEGER) {
+	obj = acpi_evaluate_dsm_typed(port_handle, &guid, 0,
+				      USB_DSM_DISABLE_U1_U2_FOR_PORT, NULL,
+				      ACPI_TYPE_INTEGER);
+	if (!obj) {
 		dev_dbg(&hdev->dev, "evaluate port-%d _DSM failed\n", port1);
-		ACPI_FREE(obj);
 		return -EINVAL;
 	}
 

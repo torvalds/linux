@@ -2,11 +2,12 @@
 config DRM_EXYNOS
 	tristate "DRM Support for Samsung SoC Exynos Series"
 	depends on OF && DRM && COMMON_CLK
-	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || ARCH_MULTIPLATFORM || COMPILE_TEST
+	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on MMU
 	select DRM_DISPLAY_HELPER if DRM_EXYNOS_DP
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
+	select FB_IO_HELPERS if DRM_FBDEV_EMULATION
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	help
 	  Choose this option if you have a Samsung SoC Exynos chipset.
@@ -59,6 +60,7 @@ config DRM_EXYNOS_DSI
 	depends on DRM_EXYNOS_FIMD || DRM_EXYNOS5433_DECON || DRM_EXYNOS7_DECON
 	select DRM_MIPI_DSI
 	select DRM_PANEL
+	select DRM_SAMSUNG_DSIM
 	default n
 	help
 	  This enables support for Exynos MIPI-DSI device.

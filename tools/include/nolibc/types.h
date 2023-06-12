@@ -9,6 +9,7 @@
 
 #include "std.h"
 #include <linux/time.h>
+#include <linux/stat.h>
 
 
 /* Only the generic macros and types may be defined here. The arch-specific
@@ -16,7 +17,11 @@
  * the layout of sys_stat_struct must not be defined here.
  */
 
-/* stat flags (WARNING, octal here) */
+/* stat flags (WARNING, octal here). We need to check for an existing
+ * definition because linux/stat.h may omit to define those if it finds
+ * that any glibc header was already included.
+ */
+#if !defined(S_IFMT)
 #define S_IFDIR        0040000
 #define S_IFCHR        0020000
 #define S_IFBLK        0060000
@@ -33,6 +38,22 @@
 #define S_ISFIFO(mode) (((mode) & S_IFMT) == S_IFIFO)
 #define S_ISLNK(mode)  (((mode) & S_IFMT) == S_IFLNK)
 #define S_ISSOCK(mode) (((mode) & S_IFMT) == S_IFSOCK)
+
+#define S_IRWXU 00700
+#define S_IRUSR 00400
+#define S_IWUSR 00200
+#define S_IXUSR 00100
+
+#define S_IRWXG 00070
+#define S_IRGRP 00040
+#define S_IWGRP 00020
+#define S_IXGRP 00010
+
+#define S_IRWXO 00007
+#define S_IROTH 00004
+#define S_IWOTH 00002
+#define S_IXOTH 00001
+#endif
 
 /* dirent types */
 #define DT_UNKNOWN     0x0
@@ -60,11 +81,6 @@
 #define MAXPATHLEN     (PATH_MAX)
 #endif
 
-/* Special FD used by all the *at functions */
-#ifndef AT_FDCWD
-#define AT_FDCWD       (-100)
-#endif
-
 /* whence values for lseek() */
 #define SEEK_SET       0
 #define SEEK_CUR       1
@@ -81,6 +97,8 @@
 /* Macros used on waitpid()'s return status */
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #define WIFEXITED(status)   (((status) & 0x7f) == 0)
+#define WTERMSIG(status)    ((status) & 0x7f)
+#define WIFSIGNALED(status) ((status) - 1 < 0xff)
 
 /* waitpid() flags */
 #define WNOHANG      1

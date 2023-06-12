@@ -33,9 +33,6 @@ int vidioc_enum_fmt_vid_overlay(struct file *file, void  *priv, struct v4l2_fmtd
 int vidioc_g_fmt_vid_overlay(struct file *file, void *priv, struct v4l2_format *f);
 int vidioc_try_fmt_vid_overlay(struct file *file, void *priv, struct v4l2_format *f);
 int vidioc_s_fmt_vid_overlay(struct file *file, void *priv, struct v4l2_format *f);
-int vivid_vid_cap_overlay(struct file *file, void *fh, unsigned i);
-int vivid_vid_cap_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *a);
-int vivid_vid_cap_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuffer *a);
 int vidioc_enum_input(struct file *file, void *priv, struct v4l2_input *inp);
 int vidioc_g_input(struct file *file, void *priv, unsigned *i);
 int vidioc_s_input(struct file *file, void *priv, unsigned i);

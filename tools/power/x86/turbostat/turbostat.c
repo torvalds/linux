@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2022 Intel Corporation.
+ * Copyright (c) 2023 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -670,7 +670,7 @@ static int perf_instr_count_open(int cpu_num)
 	/* counter for cpu_num, including user + kernel and all processes */
 	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
 	if (fd == -1) {
-		warn("cpu%d: perf instruction counter", cpu_num);
+		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
 		BIC_NOT_PRESENT(BIC_IPC);
 	}
 
@@ -2538,7 +2538,7 @@ static void dump_turbo_ratio_limits(int trl_msr_offset, int family, int model)
 
 	get_msr(base_cpu, trl_msr_offset, &msr);
 	fprintf(outf, "cpu%d: MSR_%sTURBO_RATIO_LIMIT: 0x%08llx\n",
-		base_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY" : "", msr);
+		base_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY_" : "", msr);
 
 	if (has_turbo_ratio_group_limits(family, model)) {
 		get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT1, &core_counts);
@@ -3502,9 +3502,6 @@ release_msr:
 /*
  * set_my_sched_priority(pri)
  * return previous
- *
- * if non-root, do this:
- * # /sbin/setcap cap_sys_rawio,cap_sys_nice=+ep /usr/bin/turbostat
  */
 int set_my_sched_priority(int priority)
 {
@@ -3518,7 +3515,7 @@ int set_my_sched_priority(int priority)
 
 	retval = setpriority(PRIO_PROCESS, 0, priority);
 	if (retval)
-		err(retval, "setpriority(%d)", priority);
+		errx(retval, "capget(CAP_SYS_NICE) failed,try \"# setcap cap_sys_nice=ep %s\"", progname);
 
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
@@ -4426,7 +4423,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	fprintf(outf, "cpu%d: MSR_HWP_STATUS: 0x%08llx "
 		"(%sGuaranteed_Perf_Change, %sExcursion_Min)\n",
-		cpu, msr, ((msr) & 0x1) ? "" : "No-", ((msr) & 0x2) ? "" : "No-");
+		cpu, msr, ((msr) & 0x1) ? "" : "No-", ((msr) & 0x4) ? "" : "No-");
 
 	return 0;
 }
@@ -5463,6 +5460,9 @@ unsigned int intel_model_duplicates(unsigned int model)
 
 	case INTEL_FAM6_ICELAKE_D:
 		return INTEL_FAM6_ICELAKE_X;
+
+	case INTEL_FAM6_EMERALDRAPIDS_X:
+		return INTEL_FAM6_SAPPHIRERAPIDS_X;
 	}
 	return model;
 }
@@ -5476,13 +5476,13 @@ void print_dev_latency(void)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		warn("fopen %s\n", path);
+		warnx("capget(CAP_SYS_ADMIN) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
 		return;
 	}
 
 	retval = read(fd, (void *)&value, sizeof(int));
 	if (retval != sizeof(int)) {
-		warn("read %s\n", path);
+		warn("read failed %s", path);
 		close(fd);
 		return;
 	}
@@ -5543,7 +5543,7 @@ void process_cpuid()
 	edx_flags = edx;
 
 	if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
-		warnx("get_msr(UCODE)\n");
+		warnx("get_msr(UCODE)");
 
 	/*
 	 * check max extended function levels of CPUID.
@@ -6225,7 +6225,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2022.10.04 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2023.03.17 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048

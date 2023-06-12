@@ -225,8 +225,10 @@ enum link_training_result perform_8b_10b_clock_recovery_sequence(
 				offset);
 
 		/* 5. check CR done*/
-		if (dp_is_cr_done(lane_count, dpcd_lane_status))
+		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			DC_LOG_HW_LINK_TRAINING("%s: Clock recovery OK\n", __func__);
 			return LINK_TRAINING_SUCCESS;
+		}
 
 		/* 6. max VS reached*/
 		if ((link_dp_get_encoding_format(&lt_settings->link_settings) ==

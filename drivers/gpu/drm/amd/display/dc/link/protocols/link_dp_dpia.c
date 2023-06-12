@@ -26,7 +26,6 @@
 
 #include "dc.h"
 #include "inc/core_status.h"
-#include "dc_link.h"
 #include "dpcd_defs.h"
 
 #include "link_dp_dpia.h"
@@ -79,7 +78,7 @@ enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 	return status;
 }
 
-bool dc_link_dpia_query_hpd_status(struct dc_link *link)
+bool dpia_query_hpd_status(struct dc_link *link)
 {
 	union dmub_rb_cmd cmd = {0};
 	struct dc_dmub_srv *dmub_srv = link->ctx->dmub_srv;

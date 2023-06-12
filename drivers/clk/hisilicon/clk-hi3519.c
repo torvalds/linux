@@ -162,13 +162,12 @@ static int hi3519_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hi3519_clk_remove(struct platform_device *pdev)
+static void hi3519_clk_remove(struct platform_device *pdev)
 {
 	struct hi3519_crg_data *crg = platform_get_drvdata(pdev);
 
 	hisi_reset_exit(crg->rstc);
 	hi3519_clk_unregister(pdev);
-	return 0;
 }
 
 
@@ -180,7 +179,7 @@ MODULE_DEVICE_TABLE(of, hi3519_clk_match_table);
 
 static struct platform_driver hi3519_clk_driver = {
 	.probe          = hi3519_clk_probe,
-	.remove		= hi3519_clk_remove,
+	.remove_new	= hi3519_clk_remove,
 	.driver         = {
 		.name   = "hi3519-clk",
 		.of_match_table = hi3519_clk_match_table,

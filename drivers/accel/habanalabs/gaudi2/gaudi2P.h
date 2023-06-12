@@ -98,7 +98,7 @@
 #define GAUDI2_DEFAULT_CARD_NAME		"HL225"
 
 #define QMAN_STREAMS				4
-#define PQ_FETCHER_CACHE_SIZE			8
+
 #define NUM_OF_MME_SBTE_PORTS			5
 #define NUM_OF_MME_WB_PORTS			2
 
@@ -239,6 +239,8 @@
 
 #define GAUDI2_SOB_INCREMENT_BY_ONE	(FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_VAL_MASK, 1) | \
 					FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_INC_MASK, 1))
+
+#define GAUDI2_NUM_TESTED_QS (GAUDI2_QUEUE_ID_CPU_PQ - GAUDI2_QUEUE_ID_PDMA_0_0)
 
 #define GAUDI2_NUM_OF_GLBL_ERR_CAUSE		8
 
@@ -387,6 +389,8 @@ enum gaudi2_edma_id {
  * We have 64 CQ's per dcore, CQ0 in dcore 0 is reserved for legacy mode
  */
 #define GAUDI2_NUM_USER_INTERRUPTS 255
+#define GAUDI2_NUM_RESERVED_INTERRUPTS 1
+#define GAUDI2_TOTAL_USER_INTERRUPTS (GAUDI2_NUM_USER_INTERRUPTS + GAUDI2_NUM_RESERVED_INTERRUPTS)
 
 enum gaudi2_irq_num {
 	GAUDI2_IRQ_NUM_EVENT_QUEUE = GAUDI2_EVENT_QUEUE_MSIX_IDX,
@@ -410,12 +414,15 @@ enum gaudi2_irq_num {
 	GAUDI2_IRQ_NUM_SHARED_DEC0_ABNRM,
 	GAUDI2_IRQ_NUM_SHARED_DEC1_NRM,
 	GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM,
+	GAUDI2_IRQ_NUM_DEC_LAST = GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM,
 	GAUDI2_IRQ_NUM_COMPLETION,
 	GAUDI2_IRQ_NUM_NIC_PORT_FIRST,
 	GAUDI2_IRQ_NUM_NIC_PORT_LAST = (GAUDI2_IRQ_NUM_NIC_PORT_FIRST + NIC_NUMBER_OF_PORTS - 1),
+	GAUDI2_IRQ_NUM_TPC_ASSERT,
 	GAUDI2_IRQ_NUM_RESERVED_FIRST,
-	GAUDI2_IRQ_NUM_RESERVED_LAST = (GAUDI2_MSIX_ENTRIES - GAUDI2_NUM_USER_INTERRUPTS - 1),
-	GAUDI2_IRQ_NUM_USER_FIRST,
+	GAUDI2_IRQ_NUM_RESERVED_LAST = (GAUDI2_MSIX_ENTRIES - GAUDI2_TOTAL_USER_INTERRUPTS - 1),
+	GAUDI2_IRQ_NUM_UNEXPECTED_ERROR = RESERVED_MSIX_UNEXPECTED_USER_ERROR_INTERRUPT,
+	GAUDI2_IRQ_NUM_USER_FIRST = GAUDI2_IRQ_NUM_UNEXPECTED_ERROR + 1,
 	GAUDI2_IRQ_NUM_USER_LAST = (GAUDI2_IRQ_NUM_USER_FIRST + GAUDI2_NUM_USER_INTERRUPTS - 1),
 	GAUDI2_IRQ_NUM_LAST = (GAUDI2_MSIX_ENTRIES - 1)
 };
@@ -445,6 +452,17 @@ struct dup_block_ctx {
 	u64 enabled_mask;
 	unsigned int blocks;
 	unsigned int instances;
+};
+
+/**
+ * struct gaudi2_queues_test_info - Holds the address of a the messages used for testing the
+ *                                  device queues.
+ * @dma_addr: the address used by the HW for accessing the message.
+ * @kern_addr: The address used by the driver for accessing the message.
+ */
+struct gaudi2_queues_test_info {
+	dma_addr_t dma_addr;
+	void *kern_addr;
 };
 
 /**
@@ -505,6 +523,7 @@ struct dup_block_ctx {
  * @flush_db_fifo: flag to force flush DB FIFO after a write.
  * @hbm_cfg: HBM subsystem settings
  * @hw_queues_lock_mutex: used by simulator instead of hw_queues_lock.
+ * @queues_test_info: information used by the driver when testing the HW queues.
  */
 struct gaudi2_device {
 	int (*cpucp_info_get)(struct hl_device *hdev);
@@ -532,6 +551,9 @@ struct gaudi2_device {
 	u32				events_stat[GAUDI2_EVENT_SIZE];
 	u32				events_stat_aggregate[GAUDI2_EVENT_SIZE];
 	u32				num_of_valid_hw_events;
+
+	/* Queue testing */
+	struct gaudi2_queues_test_info	queues_test_info[GAUDI2_NUM_TESTED_QS];
 };
 
 /*

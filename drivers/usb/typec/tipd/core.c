@@ -16,6 +16,7 @@
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/role.h>
+#include <linux/workqueue.h>
 
 #include "tps6598x.h"
 #include "trace.h"
@@ -97,6 +98,8 @@ struct tps6598x {
 
 	int wakeup;
 	u16 pwr_status;
+	struct delayed_work	wq_poll;
+	irq_handler_t irq_handler;
 };
 
 static enum power_supply_property tps6598x_psy_props[] = {
@@ -175,16 +178,6 @@ static inline int tps6598x_read32(struct tps6598x *tps, u8 reg, u32 *val)
 static inline int tps6598x_read64(struct tps6598x *tps, u8 reg, u64 *val)
 {
 	return tps6598x_block_read(tps, reg, val, sizeof(u64));
-}
-
-static inline int tps6598x_write16(struct tps6598x *tps, u8 reg, u16 val)
-{
-	return tps6598x_block_write(tps, reg, &val, sizeof(u16));
-}
-
-static inline int tps6598x_write32(struct tps6598x *tps, u8 reg, u32 val)
-{
-	return tps6598x_block_write(tps, reg, &val, sizeof(u32));
 }
 
 static inline int tps6598x_write64(struct tps6598x *tps, u8 reg, u64 val)
@@ -568,6 +561,18 @@ err_unlock:
 	return IRQ_NONE;
 }
 
+/* Time interval for Polling */
+#define POLL_INTERVAL	500 /* msecs */
+static void tps6598x_poll_work(struct work_struct *work)
+{
+	struct tps6598x *tps = container_of(to_delayed_work(work),
+					    struct tps6598x, wq_poll);
+
+	tps->irq_handler(0, tps);
+	queue_delayed_work(system_power_efficient_wq,
+			   &tps->wq_poll, msecs_to_jiffies(POLL_INTERVAL));
+}
+
 static int tps6598x_check_mode(struct tps6598x *tps)
 {
 	char mode[5] = { };
@@ -746,6 +751,7 @@ static int tps6598x_probe(struct i2c_client *client)
 			TPS_REG_INT_PLUG_EVENT;
 	}
 
+	tps->irq_handler = irq_handler;
 	/* Make sure the controller has application firmware running */
 	ret = tps6598x_check_mode(tps);
 	if (ret)
@@ -837,10 +843,18 @@ static int tps6598x_probe(struct i2c_client *client)
 			dev_err(&client->dev, "failed to register partner\n");
 	}
 
-	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					irq_handler,
-					IRQF_SHARED | IRQF_ONESHOT,
-					dev_name(&client->dev), tps);
+	if (client->irq) {
+		ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+						irq_handler,
+						IRQF_SHARED | IRQF_ONESHOT,
+						dev_name(&client->dev), tps);
+	} else {
+		dev_warn(tps->dev, "Unable to find the interrupt, switching to polling\n");
+		INIT_DELAYED_WORK(&tps->wq_poll, tps6598x_poll_work);
+		queue_delayed_work(system_power_efficient_wq, &tps->wq_poll,
+				   msecs_to_jiffies(POLL_INTERVAL));
+	}
+
 	if (ret)
 		goto err_disconnect;
 
@@ -848,7 +862,7 @@ static int tps6598x_probe(struct i2c_client *client)
 	fwnode_handle_put(fwnode);
 
 	tps->wakeup = device_property_read_bool(tps->dev, "wakeup-source");
-	if (tps->wakeup) {
+	if (tps->wakeup && client->irq) {
 		device_init_wakeup(&client->dev, true);
 		enable_irq_wake(client->irq);
 	}
@@ -887,6 +901,9 @@ static int __maybe_unused tps6598x_suspend(struct device *dev)
 		enable_irq_wake(client->irq);
 	}
 
+	if (!client->irq)
+		cancel_delayed_work_sync(&tps->wq_poll);
+
 	return 0;
 }
 
@@ -899,6 +916,10 @@ static int __maybe_unused tps6598x_resume(struct device *dev)
 		disable_irq_wake(client->irq);
 		enable_irq(client->irq);
 	}
+
+	if (client->irq)
+		queue_delayed_work(system_power_efficient_wq, &tps->wq_poll,
+				   msecs_to_jiffies(POLL_INTERVAL));
 
 	return 0;
 }

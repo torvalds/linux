@@ -221,7 +221,7 @@ static int mtx1_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtx1_wdt_remove(struct platform_device *pdev)
+static void mtx1_wdt_remove(struct platform_device *pdev)
 {
 	/* FIXME: do we need to lock this test ? */
 	if (mtx1_wdt_device.queue) {
@@ -230,12 +230,11 @@ static int mtx1_wdt_remove(struct platform_device *pdev)
 	}
 
 	misc_deregister(&mtx1_wdt_misc);
-	return 0;
 }
 
 static struct platform_driver mtx1_wdt_driver = {
 	.probe = mtx1_wdt_probe,
-	.remove = mtx1_wdt_remove,
+	.remove_new = mtx1_wdt_remove,
 	.driver.name = "mtx1-wdt",
 	.driver.owner = THIS_MODULE,
 };

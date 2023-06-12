@@ -34,13 +34,26 @@
 /* Internal sampling clock frequency */
 #define HW_TIMER_HZ				19200000
 
-#define BWMON_V4_GLOBAL_IRQ_CLEAR		0x008
-#define BWMON_V4_GLOBAL_IRQ_ENABLE		0x00c
+#define BWMON_V4_GLOBAL_IRQ_CLEAR		0x108
+#define BWMON_V4_GLOBAL_IRQ_ENABLE		0x10c
 /*
  * All values here and further are matching regmap fields, so without absolute
  * register offsets.
  */
 #define BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE	BIT(0)
+
+/*
+ * Starting with SDM845, the BWMON4 register space has changed a bit:
+ * the global registers were jammed into the beginning of the monitor region.
+ * To keep the proper offsets, one would have to map <GLOBAL_BASE 0x200> and
+ * <GLOBAL_BASE+0x100 0x300>, which is straight up wrong.
+ * To facilitate for that, while allowing the older, arguably more proper
+ * implementations to work, offset the global registers by -0x100 to avoid
+ * having to map half of the global registers twice.
+ */
+#define BWMON_V4_845_OFFSET			0x100
+#define BWMON_V4_GLOBAL_IRQ_CLEAR_845		(BWMON_V4_GLOBAL_IRQ_CLEAR - BWMON_V4_845_OFFSET)
+#define BWMON_V4_GLOBAL_IRQ_ENABLE_845		(BWMON_V4_GLOBAL_IRQ_ENABLE - BWMON_V4_845_OFFSET)
 
 #define BWMON_V4_IRQ_STATUS			0x100
 #define BWMON_V4_IRQ_CLEAR			0x108
@@ -118,9 +131,13 @@
 #define BWMON_NEEDS_FORCE_CLEAR			BIT(1)
 
 enum bwmon_fields {
+	/* Global region fields, keep them at the top */
 	F_GLOBAL_IRQ_CLEAR,
 	F_GLOBAL_IRQ_ENABLE,
-	F_IRQ_STATUS,
+	F_NUM_GLOBAL_FIELDS,
+
+	/* Monitor region fields */
+	F_IRQ_STATUS = F_NUM_GLOBAL_FIELDS,
 	F_IRQ_CLEAR,
 	F_IRQ_ENABLE,
 	F_ENABLE,
@@ -157,6 +174,9 @@ struct icc_bwmon_data {
 
 	const struct regmap_config *regmap_cfg;
 	const struct reg_field *regmap_fields;
+
+	const struct regmap_config *global_regmap_cfg;
+	const struct reg_field *global_regmap_fields;
 };
 
 struct icc_bwmon {
@@ -164,8 +184,8 @@ struct icc_bwmon {
 	const struct icc_bwmon_data *data;
 	int irq;
 
-	struct regmap *regmap;
 	struct regmap_field *regs[F_NUM_FIELDS];
+	struct regmap_field *global_regs[F_NUM_GLOBAL_FIELDS];
 
 	unsigned int max_bw_kbps;
 	unsigned int min_bw_kbps;
@@ -175,8 +195,8 @@ struct icc_bwmon {
 
 /* BWMON v4 */
 static const struct reg_field msm8998_bwmon_reg_fields[] = {
-	[F_GLOBAL_IRQ_CLEAR]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_CLEAR, 0, 0),
-	[F_GLOBAL_IRQ_ENABLE]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_ENABLE, 0, 0),
+	[F_GLOBAL_IRQ_CLEAR]	= {},
+	[F_GLOBAL_IRQ_ENABLE]	= {},
 	[F_IRQ_STATUS]		= REG_FIELD(BWMON_V4_IRQ_STATUS, 4, 7),
 	[F_IRQ_CLEAR]		= REG_FIELD(BWMON_V4_IRQ_CLEAR, 4, 7),
 	[F_IRQ_ENABLE]		= REG_FIELD(BWMON_V4_IRQ_ENABLE, 4, 7),
@@ -202,7 +222,6 @@ static const struct reg_field msm8998_bwmon_reg_fields[] = {
 };
 
 static const struct regmap_range msm8998_bwmon_reg_noread_ranges[] = {
-	regmap_reg_range(BWMON_V4_GLOBAL_IRQ_CLEAR, BWMON_V4_GLOBAL_IRQ_CLEAR),
 	regmap_reg_range(BWMON_V4_IRQ_CLEAR, BWMON_V4_IRQ_CLEAR),
 	regmap_reg_range(BWMON_V4_CLEAR, BWMON_V4_CLEAR),
 };
@@ -222,14 +241,31 @@ static const struct regmap_access_table msm8998_bwmon_reg_volatile_table = {
 	.n_yes_ranges	= ARRAY_SIZE(msm8998_bwmon_reg_volatile_ranges),
 };
 
+static const struct reg_field msm8998_bwmon_global_reg_fields[] = {
+	[F_GLOBAL_IRQ_CLEAR]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_CLEAR, 0, 0),
+	[F_GLOBAL_IRQ_ENABLE]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_ENABLE, 0, 0),
+};
+
+static const struct regmap_range msm8998_bwmon_global_reg_noread_ranges[] = {
+	regmap_reg_range(BWMON_V4_GLOBAL_IRQ_CLEAR, BWMON_V4_GLOBAL_IRQ_CLEAR),
+};
+
+static const struct regmap_access_table msm8998_bwmon_global_reg_read_table = {
+	.no_ranges	= msm8998_bwmon_global_reg_noread_ranges,
+	.n_no_ranges	= ARRAY_SIZE(msm8998_bwmon_global_reg_noread_ranges),
+};
+
 /*
  * Fill the cache for non-readable registers only as rest does not really
  * matter and can be read from the device.
  */
 static const struct reg_default msm8998_bwmon_reg_defaults[] = {
-	{ BWMON_V4_GLOBAL_IRQ_CLEAR, 0x0 },
 	{ BWMON_V4_IRQ_CLEAR, 0x0 },
 	{ BWMON_V4_CLEAR, 0x0 },
+};
+
+static const struct reg_default msm8998_bwmon_global_reg_defaults[] = {
+	{ BWMON_V4_GLOBAL_IRQ_CLEAR, 0x0 },
 };
 
 static const struct regmap_config msm8998_bwmon_regmap_cfg = {
@@ -245,6 +281,93 @@ static const struct regmap_config msm8998_bwmon_regmap_cfg = {
 	.volatile_table		= &msm8998_bwmon_reg_volatile_table,
 	.reg_defaults		= msm8998_bwmon_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(msm8998_bwmon_reg_defaults),
+	/*
+	 * Cache is necessary for using regmap fields with non-readable
+	 * registers.
+	 */
+	.cache_type		= REGCACHE_RBTREE,
+};
+
+static const struct regmap_config msm8998_bwmon_global_regmap_cfg = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	/*
+	 * No concurrent access expected - driver has one interrupt handler,
+	 * regmap is not shared, no driver or user-space API.
+	 */
+	.disable_locking	= true,
+	.rd_table		= &msm8998_bwmon_global_reg_read_table,
+	.reg_defaults		= msm8998_bwmon_global_reg_defaults,
+	.num_reg_defaults	= ARRAY_SIZE(msm8998_bwmon_global_reg_defaults),
+	/*
+	 * Cache is necessary for using regmap fields with non-readable
+	 * registers.
+	 */
+	.cache_type		= REGCACHE_RBTREE,
+};
+
+static const struct reg_field sdm845_cpu_bwmon_reg_fields[] = {
+	[F_GLOBAL_IRQ_CLEAR]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_CLEAR_845, 0, 0),
+	[F_GLOBAL_IRQ_ENABLE]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_ENABLE_845, 0, 0),
+	[F_IRQ_STATUS]		= REG_FIELD(BWMON_V4_IRQ_STATUS, 4, 7),
+	[F_IRQ_CLEAR]		= REG_FIELD(BWMON_V4_IRQ_CLEAR, 4, 7),
+	[F_IRQ_ENABLE]		= REG_FIELD(BWMON_V4_IRQ_ENABLE, 4, 7),
+	/* F_ENABLE covers entire register to disable other features */
+	[F_ENABLE]		= REG_FIELD(BWMON_V4_ENABLE, 0, 31),
+	[F_CLEAR]		= REG_FIELD(BWMON_V4_CLEAR, 0, 1),
+	[F_SAMPLE_WINDOW]	= REG_FIELD(BWMON_V4_SAMPLE_WINDOW, 0, 23),
+	[F_THRESHOLD_HIGH]	= REG_FIELD(BWMON_V4_THRESHOLD_HIGH, 0, 11),
+	[F_THRESHOLD_MED]	= REG_FIELD(BWMON_V4_THRESHOLD_MED, 0, 11),
+	[F_THRESHOLD_LOW]	= REG_FIELD(BWMON_V4_THRESHOLD_LOW, 0, 11),
+	[F_ZONE_ACTIONS_ZONE0]	= REG_FIELD(BWMON_V4_ZONE_ACTIONS, 0, 7),
+	[F_ZONE_ACTIONS_ZONE1]	= REG_FIELD(BWMON_V4_ZONE_ACTIONS, 8, 15),
+	[F_ZONE_ACTIONS_ZONE2]	= REG_FIELD(BWMON_V4_ZONE_ACTIONS, 16, 23),
+	[F_ZONE_ACTIONS_ZONE3]	= REG_FIELD(BWMON_V4_ZONE_ACTIONS, 24, 31),
+	[F_THRESHOLD_COUNT_ZONE0]	= REG_FIELD(BWMON_V4_THRESHOLD_COUNT, 0, 7),
+	[F_THRESHOLD_COUNT_ZONE1]	= REG_FIELD(BWMON_V4_THRESHOLD_COUNT, 8, 15),
+	[F_THRESHOLD_COUNT_ZONE2]	= REG_FIELD(BWMON_V4_THRESHOLD_COUNT, 16, 23),
+	[F_THRESHOLD_COUNT_ZONE3]	= REG_FIELD(BWMON_V4_THRESHOLD_COUNT, 24, 31),
+	[F_ZONE0_MAX]		= REG_FIELD(BWMON_V4_ZONE_MAX(0), 0, 11),
+	[F_ZONE1_MAX]		= REG_FIELD(BWMON_V4_ZONE_MAX(1), 0, 11),
+	[F_ZONE2_MAX]		= REG_FIELD(BWMON_V4_ZONE_MAX(2), 0, 11),
+	[F_ZONE3_MAX]		= REG_FIELD(BWMON_V4_ZONE_MAX(3), 0, 11),
+};
+
+static const struct regmap_range sdm845_cpu_bwmon_reg_noread_ranges[] = {
+	regmap_reg_range(BWMON_V4_GLOBAL_IRQ_CLEAR_845, BWMON_V4_GLOBAL_IRQ_CLEAR_845),
+	regmap_reg_range(BWMON_V4_IRQ_CLEAR, BWMON_V4_IRQ_CLEAR),
+	regmap_reg_range(BWMON_V4_CLEAR, BWMON_V4_CLEAR),
+};
+
+static const struct regmap_access_table sdm845_cpu_bwmon_reg_read_table = {
+	.no_ranges	= sdm845_cpu_bwmon_reg_noread_ranges,
+	.n_no_ranges	= ARRAY_SIZE(sdm845_cpu_bwmon_reg_noread_ranges),
+};
+
+/*
+ * Fill the cache for non-readable registers only as rest does not really
+ * matter and can be read from the device.
+ */
+static const struct reg_default sdm845_cpu_bwmon_reg_defaults[] = {
+	{ BWMON_V4_GLOBAL_IRQ_CLEAR_845, 0x0 },
+	{ BWMON_V4_IRQ_CLEAR, 0x0 },
+	{ BWMON_V4_CLEAR, 0x0 },
+};
+
+static const struct regmap_config sdm845_cpu_bwmon_regmap_cfg = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	/*
+	 * No concurrent access expected - driver has one interrupt handler,
+	 * regmap is not shared, no driver or user-space API.
+	 */
+	.disable_locking	= true,
+	.rd_table		= &sdm845_cpu_bwmon_reg_read_table,
+	.volatile_table		= &msm8998_bwmon_reg_volatile_table,
+	.reg_defaults		= sdm845_cpu_bwmon_reg_defaults,
+	.num_reg_defaults	= ARRAY_SIZE(sdm845_cpu_bwmon_reg_defaults),
 	/*
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
@@ -350,6 +473,13 @@ static void bwmon_clear_counters(struct icc_bwmon *bwmon, bool clear_all)
 
 static void bwmon_clear_irq(struct icc_bwmon *bwmon)
 {
+	struct regmap_field *global_irq_clr;
+
+	if (bwmon->data->global_regmap_fields)
+		global_irq_clr = bwmon->global_regs[F_GLOBAL_IRQ_CLEAR];
+	else
+		global_irq_clr = bwmon->regs[F_GLOBAL_IRQ_CLEAR];
+
 	/*
 	 * Clear zone and global interrupts. The order and barriers are
 	 * important. Quoting downstream Qualcomm msm-4.9 tree:
@@ -370,15 +500,22 @@ static void bwmon_clear_irq(struct icc_bwmon *bwmon)
 	if (bwmon->data->quirks & BWMON_NEEDS_FORCE_CLEAR)
 		regmap_field_force_write(bwmon->regs[F_IRQ_CLEAR], 0);
 	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
-		regmap_field_force_write(bwmon->regs[F_GLOBAL_IRQ_CLEAR],
+		regmap_field_force_write(global_irq_clr,
 					 BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
 }
 
 static void bwmon_disable(struct icc_bwmon *bwmon)
 {
+	struct regmap_field *global_irq_en;
+
+	if (bwmon->data->global_regmap_fields)
+		global_irq_en = bwmon->global_regs[F_GLOBAL_IRQ_ENABLE];
+	else
+		global_irq_en = bwmon->regs[F_GLOBAL_IRQ_ENABLE];
+
 	/* Disable interrupts. Strict ordering, see bwmon_clear_irq(). */
 	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
-		regmap_field_write(bwmon->regs[F_GLOBAL_IRQ_ENABLE], 0x0);
+		regmap_field_write(global_irq_en, 0x0);
 	regmap_field_write(bwmon->regs[F_IRQ_ENABLE], 0x0);
 
 	/*
@@ -390,10 +527,18 @@ static void bwmon_disable(struct icc_bwmon *bwmon)
 
 static void bwmon_enable(struct icc_bwmon *bwmon, unsigned int irq_enable)
 {
+	struct regmap_field *global_irq_en;
+
+	if (bwmon->data->global_regmap_fields)
+		global_irq_en = bwmon->global_regs[F_GLOBAL_IRQ_ENABLE];
+	else
+		global_irq_en = bwmon->regs[F_GLOBAL_IRQ_ENABLE];
+
 	/* Enable interrupts */
 	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
-		regmap_field_write(bwmon->regs[F_GLOBAL_IRQ_ENABLE],
+		regmap_field_write(global_irq_en,
 				   BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
+
 	regmap_field_write(bwmon->regs[F_IRQ_ENABLE], irq_enable);
 
 	/* Enable bwmon */
@@ -556,7 +701,9 @@ static int bwmon_init_regmap(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
 	struct regmap *map;
+	int ret;
 
+	/* Map the monitor base */
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return dev_err_probe(dev, PTR_ERR(base),
@@ -567,12 +714,35 @@ static int bwmon_init_regmap(struct platform_device *pdev,
 		return dev_err_probe(dev, PTR_ERR(map),
 				     "failed to initialize regmap\n");
 
+	BUILD_BUG_ON(ARRAY_SIZE(msm8998_bwmon_global_reg_fields) != F_NUM_GLOBAL_FIELDS);
 	BUILD_BUG_ON(ARRAY_SIZE(msm8998_bwmon_reg_fields) != F_NUM_FIELDS);
+	BUILD_BUG_ON(ARRAY_SIZE(sdm845_cpu_bwmon_reg_fields) != F_NUM_FIELDS);
 	BUILD_BUG_ON(ARRAY_SIZE(sdm845_llcc_bwmon_reg_fields) != F_NUM_FIELDS);
 
-	return devm_regmap_field_bulk_alloc(dev, map, bwmon->regs,
+	ret = devm_regmap_field_bulk_alloc(dev, map, bwmon->regs,
 					   bwmon->data->regmap_fields,
 					   F_NUM_FIELDS);
+	if (ret)
+		return ret;
+
+	if (bwmon->data->global_regmap_cfg) {
+		/* Map the global base, if separate */
+		base = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(base))
+			return dev_err_probe(dev, PTR_ERR(base),
+					     "failed to map bwmon global registers\n");
+
+		map = devm_regmap_init_mmio(dev, base, bwmon->data->global_regmap_cfg);
+		if (IS_ERR(map))
+			return dev_err_probe(dev, PTR_ERR(map),
+					     "failed to initialize global regmap\n");
+
+		ret = devm_regmap_field_bulk_alloc(dev, map, bwmon->global_regs,
+						   bwmon->data->global_regmap_fields,
+						   F_NUM_GLOBAL_FIELDS);
+	}
+
+	return ret;
 }
 
 static int bwmon_probe(struct platform_device *pdev)
@@ -645,6 +815,21 @@ static const struct icc_bwmon_data msm8998_bwmon_data = {
 	.quirks = BWMON_HAS_GLOBAL_IRQ,
 	.regmap_fields = msm8998_bwmon_reg_fields,
 	.regmap_cfg = &msm8998_bwmon_regmap_cfg,
+	.global_regmap_fields = msm8998_bwmon_global_reg_fields,
+	.global_regmap_cfg = &msm8998_bwmon_global_regmap_cfg,
+};
+
+static const struct icc_bwmon_data sdm845_cpu_bwmon_data = {
+	.sample_ms = 4,
+	.count_unit_kb = 64,
+	.default_highbw_kbps = 4800 * 1024, /* 4.8 GBps */
+	.default_medbw_kbps = 512 * 1024, /* 512 MBps */
+	.default_lowbw_kbps = 0,
+	.zone1_thres_count = 16,
+	.zone3_thres_count = 1,
+	.quirks = BWMON_HAS_GLOBAL_IRQ,
+	.regmap_fields = sdm845_cpu_bwmon_reg_fields,
+	.regmap_cfg = &sdm845_cpu_bwmon_regmap_cfg,
 };
 
 static const struct icc_bwmon_data sdm845_llcc_bwmon_data = {
@@ -673,16 +858,18 @@ static const struct icc_bwmon_data sc7280_llcc_bwmon_data = {
 };
 
 static const struct of_device_id bwmon_of_match[] = {
-	{
-		.compatible = "qcom,msm8998-bwmon",
-		.data = &msm8998_bwmon_data
-	}, {
-		.compatible = "qcom,sdm845-llcc-bwmon",
-		.data = &sdm845_llcc_bwmon_data
-	}, {
-		.compatible = "qcom,sc7280-llcc-bwmon",
-		.data = &sc7280_llcc_bwmon_data
-	},
+	/* BWMONv4, separate monitor and global register spaces */
+	{ .compatible = "qcom,msm8998-bwmon", .data = &msm8998_bwmon_data },
+	/* BWMONv4, unified register space */
+	{ .compatible = "qcom,sdm845-bwmon", .data = &sdm845_cpu_bwmon_data },
+	/* BWMONv5 */
+	{ .compatible = "qcom,sdm845-llcc-bwmon", .data = &sdm845_llcc_bwmon_data },
+	{ .compatible = "qcom,sc7280-llcc-bwmon", .data = &sc7280_llcc_bwmon_data },
+
+	/* Compatibles kept for legacy reasons */
+	{ .compatible = "qcom,sc7280-cpu-bwmon", .data = &sdm845_cpu_bwmon_data },
+	{ .compatible = "qcom,sc8280xp-cpu-bwmon", .data = &sdm845_cpu_bwmon_data },
+	{ .compatible = "qcom,sm8550-cpu-bwmon", .data = &sdm845_cpu_bwmon_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, bwmon_of_match);

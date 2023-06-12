@@ -182,19 +182,9 @@ static inline void portman_write_command(struct portman *pm, u8 value)
 	parport_write_control(pm->pardev->port, value);
 }
 
-static inline u8 portman_read_command(struct portman *pm)
-{
-	return parport_read_control(pm->pardev->port);
-}
-
 static inline u8 portman_read_status(struct portman *pm)
 {
 	return parport_read_status(pm->pardev->port);
-}
-
-static inline u8 portman_read_data(struct portman *pm)
-{
-	return parport_read_data(pm->pardev->port);
 }
 
 static inline void portman_write_data(struct portman *pm, u8 value)
@@ -795,20 +785,18 @@ __err:
 	return err;
 }
 
-static int snd_portman_remove(struct platform_device *pdev)
+static void snd_portman_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 
 	if (card)
 		snd_card_free(card);
-
-	return 0;
 }
 
 
 static struct platform_driver snd_portman_driver = {
 	.probe  = snd_portman_probe,
-	.remove = snd_portman_remove,
+	.remove_new = snd_portman_remove,
 	.driver = {
 		.name = PLATFORM_DRIVER,
 	}

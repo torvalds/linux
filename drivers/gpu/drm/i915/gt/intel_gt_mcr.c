@@ -35,7 +35,7 @@
  * ignored.
  */
 
-#define HAS_MSLICE_STEERING(dev_priv)	(INTEL_INFO(dev_priv)->has_mslice_steering)
+#define HAS_MSLICE_STEERING(i915)	(INTEL_INFO(i915)->has_mslice_steering)
 
 static const char * const intel_steering_types[] = {
 	"L3BANK",
@@ -364,6 +364,7 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
  *          function call.
  */
 void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
+	__acquires(&gt->mcr_lock)
 {
 	unsigned long __flags;
 	int err = 0;
@@ -410,6 +411,7 @@ void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
  * Context: Releases gt->mcr_lock
  */
 void intel_gt_mcr_unlock(struct intel_gt *gt, unsigned long flags)
+	__releases(&gt->mcr_lock)
 {
 	spin_unlock_irqrestore(&gt->mcr_lock, flags);
 

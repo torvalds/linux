@@ -215,6 +215,14 @@
         "UMask": "0xc4"
     },
     {
+        "BriefDescription": "Speculative mispredicted indirect branches",
+        "EventCode": "0x89",
+        "EventName": "BR_MISP_EXEC.INDIRECT",
+        "PublicDescription": "Counts speculatively miss-predicted indirect branches at execution time. Counts for indirect near CALL or JMP instructions (RET excluded).",
+        "SampleAfterValue": "200003",
+        "UMask": "0xe4"
+    },
+    {
         "BriefDescription": "Not taken speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.NONTAKEN_CONDITIONAL",
@@ -500,7 +508,7 @@
         "BriefDescription": "Stalls caused by changing prefix length of the instruction.",
         "EventCode": "0x87",
         "EventName": "ILD_STALL.LCP",
-        "PublicDescription": "This event counts stalls occured due to changing prefix length (66, 67 or REX.W when they change the length of the decoded instruction). Occurrences counting is proportional to the number of prefixes in a 16B-line. This may result in the following penalties: three-cycle penalty for each LCP in a 16-byte chunk.",
+        "PublicDescription": "This event counts stalls occurred due to changing prefix length (66, 67 or REX.W when they change the length of the decoded instruction). Occurrences counting is proportional to the number of prefixes in a 16B-line. This may result in the following penalties: three-cycle penalty for each LCP in a 16-byte chunk.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -909,7 +917,7 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 0.",
+        "BriefDescription": "Cycles per core when uops are executed in port 0.",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_0_CORE",
         "SampleAfterValue": "2000003",
@@ -925,7 +933,7 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 1.",
+        "BriefDescription": "Cycles per core when uops are executed in port 1.",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_1_CORE",
         "SampleAfterValue": "2000003",
@@ -973,7 +981,7 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 4.",
+        "BriefDescription": "Cycles per core when uops are executed in port 4.",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_4_CORE",
         "SampleAfterValue": "2000003",
@@ -989,7 +997,7 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 5.",
+        "BriefDescription": "Cycles per core when uops are executed in port 5.",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_5_CORE",
         "SampleAfterValue": "2000003",
@@ -1005,7 +1013,7 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 6.",
+        "BriefDescription": "Cycles per core when uops are executed in port 6.",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_6_CORE",
         "SampleAfterValue": "2000003",
@@ -1097,7 +1105,7 @@
     },
     {
         "BriefDescription": "Cycles with less than 10 actually retired uops.",
-        "CounterMask": "10",
+        "CounterMask": "16",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "Invert": "1",

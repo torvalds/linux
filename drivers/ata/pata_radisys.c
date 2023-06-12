@@ -183,7 +183,7 @@ static unsigned int radisys_qc_issue(struct ata_queued_cmd *qc)
 }
 
 
-static struct scsi_host_template radisys_sht = {
+static const struct scsi_host_template radisys_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

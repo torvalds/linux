@@ -460,15 +460,14 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_msic, msic_get, msic_set, "%llu\n");
 void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic)
 {
 	char name[8];
-	u64 addr;
+	struct resource res;
 
-	addr = of_translate_address(dn, of_get_property(dn, "reg", NULL));
-	if (addr == OF_BAD_ADDR) {
-		pr_devel("axon_msi: couldn't translate reg property\n");
+	if (of_address_to_resource(dn, 0, &res)) {
+		pr_devel("axon_msi: couldn't get reg property\n");
 		return;
 	}
 
-	msic->trigger = ioremap(addr, 0x4);
+	msic->trigger = ioremap(res.start, 0x4);
 	if (!msic->trigger) {
 		pr_devel("axon_msi: ioremap failed\n");
 		return;

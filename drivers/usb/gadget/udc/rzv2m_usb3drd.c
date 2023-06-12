@@ -6,7 +6,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -126,7 +126,7 @@ MODULE_DEVICE_TABLE(of, rzv2m_usb3drd_of_match);
 static struct platform_driver rzv2m_usb3drd_driver = {
 	.driver = {
 		.name = "rzv2m-usb3drd",
-		.of_match_table = of_match_ptr(rzv2m_usb3drd_of_match),
+		.of_match_table = rzv2m_usb3drd_of_match,
 	},
 	.probe = rzv2m_usb3drd_probe,
 	.remove = rzv2m_usb3drd_remove,

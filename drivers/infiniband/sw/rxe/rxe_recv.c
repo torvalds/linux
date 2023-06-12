@@ -38,12 +38,19 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		return -EINVAL;
 	}
 
+	spin_lock_bh(&qp->state_lock);
 	if (pkt->mask & RXE_REQ_MASK) {
-		if (unlikely(qp->resp.state != QP_STATE_READY))
+		if (unlikely(qp_state(qp) < IB_QPS_RTR)) {
+			spin_unlock_bh(&qp->state_lock);
 			return -EINVAL;
-	} else if (unlikely(qp->req.state < QP_STATE_READY ||
-				qp->req.state > QP_STATE_DRAINED))
-		return -EINVAL;
+		}
+	} else {
+		if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
+			spin_unlock_bh(&qp->state_lock);
+			return -EINVAL;
+		}
+	}
+	spin_unlock_bh(&qp->state_lock);
 
 	return 0;
 }

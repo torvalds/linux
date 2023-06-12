@@ -12,7 +12,7 @@
 #include <linux/thermal.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/thermal_power_allocator.h>
+#include "thermal_trace_ipa.h"
 
 #include "thermal_core.h"
 

@@ -278,11 +278,10 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static int sof_wm8804_remove(struct platform_device *pdev)
+static void sof_wm8804_remove(struct platform_device *pdev)
 {
 	if (sof_wm8804_quirk & SOF_WM8804_UP2_QUIRK)
 		gpiod_remove_lookup_table(&up2_gpios_table);
-	return 0;
 }
 
 static struct platform_driver sof_wm8804_driver = {
@@ -291,7 +290,7 @@ static struct platform_driver sof_wm8804_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = sof_wm8804_probe,
-	.remove = sof_wm8804_remove,
+	.remove_new = sof_wm8804_remove,
 };
 module_platform_driver(sof_wm8804_driver);
 

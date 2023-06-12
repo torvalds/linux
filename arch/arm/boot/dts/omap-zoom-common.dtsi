@@ -14,7 +14,7 @@
 	 * they probably share the same GPIO IRQ
 	 * REVISIT: Add timing support from slls644g.pdf
 	 */
-	uart@3,0 {
+	serial@3,0 {
 		compatible = "ns16550a";
 		reg = <3 0 8>;	/* CS3, offset 0, IO size 8 */
 		bank-width = <2>;
@@ -50,7 +50,7 @@
 		gpmc,wr-data-mux-bus-ns = <45>;
 		gpmc,wr-access-ns = <145>;
 	};
-	uart@3,1 {
+	serial@3,1 {
 		compatible = "ns16550a";
 		reg = <3 0x100 8>;	/* CS3, offset 0x100, IO size 8 */
 		bank-width = <2>;
@@ -61,7 +61,7 @@
 		clock-frequency = <1843200>;
 		current-speed = <115200>;
 	};
-	uart@3,2 {
+	serial@3,2 {
 		compatible = "ns16550a";
 		reg = <3 0x200 8>;	/* CS3, offset 0x200, IO size 8 */
 		bank-width = <2>;
@@ -72,7 +72,7 @@
 		clock-frequency = <1843200>;
 		current-speed = <115200>;
 	};
-	uart@3,3 {
+	serial@3,3 {
 		compatible = "ns16550a";
 		reg = <3 0x300 8>;	/* CS3, offset 0x300, IO size 8 */
 		bank-width = <2>;

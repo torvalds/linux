@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
+#include "vm_util.h"
 
 #define err(x) perror(x), exit(1)
 
@@ -72,24 +73,6 @@ void find_pagesizes(void)
 	}
 	num_page_sizes = g.gl_pathc;
 	globfree(&g);
-}
-
-unsigned long default_huge_page_size(void)
-{
-	unsigned long hps = 0;
-	char *line = NULL;
-	size_t linelen = 0;
-	FILE *f = fopen("/proc/meminfo", "r");
-	if (!f)
-		return 0;
-	while (getline(&line, &linelen, f) > 0) {
-		if (sscanf(line, "Hugepagesize:       %lu kB", &hps) == 1) {
-			hps <<= 10;
-			break;
-		}
-	}
-	free(line);
-	return hps;
 }
 
 void show(unsigned long ps)

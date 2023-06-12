@@ -12,6 +12,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
+#include "intel_fdi_regs.h"
 
 struct intel_fdi_funcs {
 	void (*fdi_link_train)(struct intel_crtc *crtc,
@@ -35,7 +36,7 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 	} else {
 		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
 	}
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(dev_priv, cur_state != state,
 			"FDI TX state assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));
 }
@@ -56,7 +57,7 @@ static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 	bool cur_state;
 
 	cur_state = intel_de_read(dev_priv, FDI_RX_CTL(pipe)) & FDI_RX_ENABLE;
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(dev_priv, cur_state != state,
 			"FDI RX state assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));
 }
@@ -85,7 +86,8 @@ void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
 		return;
 
 	cur_state = intel_de_read(i915, FDI_TX_CTL(pipe)) & FDI_TX_PLL_ENABLE;
-	I915_STATE_WARN(!cur_state, "FDI TX PLL assertion failure, should be active but is disabled\n");
+	I915_STATE_WARN(i915, !cur_state,
+			"FDI TX PLL assertion failure, should be active but is disabled\n");
 }
 
 static void assert_fdi_rx_pll(struct drm_i915_private *i915,
@@ -94,7 +96,7 @@ static void assert_fdi_rx_pll(struct drm_i915_private *i915,
 	bool cur_state;
 
 	cur_state = intel_de_read(i915, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(i915, cur_state != state,
 			"FDI RX PLL assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));
 }
@@ -845,9 +847,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
 
 		/* Disable DP_TP_CTL and FDI_RX_CTL and retry */
-		intel_de_rmw(dev_priv, DP_TP_CTL(PORT_E),
-			     DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK,
-			     DP_TP_CTL_LINK_TRAIN_PAT1);
+		intel_de_rmw(dev_priv, DP_TP_CTL(PORT_E), DP_TP_CTL_ENABLE, 0);
 		intel_de_posting_read(dev_priv, DP_TP_CTL(PORT_E));
 
 		intel_wait_ddi_buf_idle(dev_priv, PORT_E);

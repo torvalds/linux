@@ -50,6 +50,7 @@
 #include "i915_debugfs_params.h"
 #include "i915_driver.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "i915_scheduler.h"
 #include "intel_mchbar_regs.h"
 
@@ -138,21 +139,54 @@ static const char *stringify_vma_type(const struct i915_vma *vma)
 	return "ppgtt";
 }
 
-static const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
+static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 {
-	switch (type) {
-	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
-	case I915_CACHE_L3_LLC: return " L3+LLC";
-	case I915_CACHE_WT: return " WT";
-	default: return "";
+	struct drm_i915_private *i915 = obj_to_i915(obj);
+
+	if (IS_METEORLAKE(i915)) {
+		switch (obj->pat_index) {
+		case 0: return " WB";
+		case 1: return " WT";
+		case 2: return " UC";
+		case 3: return " WB (1-Way Coh)";
+		case 4: return " WB (2-Way Coh)";
+		default: return " not defined";
+		}
+	} else if (IS_PONTEVECCHIO(i915)) {
+		switch (obj->pat_index) {
+		case 0: return " UC";
+		case 1: return " WC";
+		case 2: return " WT";
+		case 3: return " WB";
+		case 4: return " WT (CLOS1)";
+		case 5: return " WB (CLOS1)";
+		case 6: return " WT (CLOS2)";
+		case 7: return " WT (CLOS2)";
+		default: return " not defined";
+		}
+	} else if (GRAPHICS_VER(i915) >= 12) {
+		switch (obj->pat_index) {
+		case 0: return " WB";
+		case 1: return " WC";
+		case 2: return " WT";
+		case 3: return " UC";
+		default: return " not defined";
+		}
+	} else {
+		switch (obj->pat_index) {
+		case 0: return " UC";
+		case 1: return HAS_LLC(i915) ?
+			       " LLC" : " snooped";
+		case 2: return " L3+LLC";
+		case 3: return " WT";
+		default: return " not defined";
+		}
 	}
 }
 
 void
 i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int pin_count = 0;
 
@@ -164,7 +198,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.size / 1024,
 		   obj->read_domains,
 		   obj->write_domain,
-		   i915_cache_level_str(dev_priv, obj->cache_level),
+		   i915_cache_level_str(obj),
 		   obj->mm.dirty ? " dirty" : "",
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
@@ -574,14 +608,34 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 static int i915_wedged_get(void *data, u64 *val)
 {
 	struct drm_i915_private *i915 = data;
+	struct intel_gt *gt;
+	unsigned int i;
 
-	return intel_gt_debugfs_reset_show(to_gt(i915), val);
+	*val = 0;
+
+	for_each_gt(gt, i915, i) {
+		int ret;
+
+		ret = intel_gt_debugfs_reset_show(gt, val);
+		if (ret)
+			return ret;
+
+		/* at least one tile should be wedged */
+		if (*val)
+			break;
+	}
+
+	return 0;
 }
 
 static int i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	intel_gt_debugfs_reset_store(to_gt(i915), val);
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i)
+		intel_gt_debugfs_reset_store(gt, val);
 
 	return 0;
 }
@@ -732,7 +786,11 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	intel_gt_pm_debugfs_forcewake_user_open(to_gt(i915));
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i)
+		intel_gt_pm_debugfs_forcewake_user_open(gt);
 
 	return 0;
 }
@@ -740,7 +798,11 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	intel_gt_pm_debugfs_forcewake_user_release(to_gt(i915));
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i)
+		intel_gt_pm_debugfs_forcewake_user_release(gt);
 
 	return 0;
 }

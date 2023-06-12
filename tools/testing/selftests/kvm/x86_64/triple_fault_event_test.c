@@ -89,9 +89,7 @@ int main(void)
 	run = vcpu->run;
 	vcpu_run(vcpu);
 
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-		    "Expected KVM_EXIT_IO, got: %u (%s)\n",
-		    run->exit_reason, exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 	TEST_ASSERT(run->io.port == ARBITRARY_IO_PORT,
 		    "Expected IN from port %d from L2, got port %d",
 		    ARBITRARY_IO_PORT, run->io.port);
@@ -111,10 +109,7 @@ int main(void)
 
 
 	if (has_svm) {
-		TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
-			    "Got exit_reason other than KVM_EXIT_SHUTDOWN: %u (%s)\n",
-			    run->exit_reason,
-			    exit_reason_str(run->exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_SHUTDOWN);
 	} else {
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_DONE:

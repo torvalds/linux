@@ -70,7 +70,6 @@ xdp_process_echo_packet(struct xdp_md *xdp, bool dut)
 	struct tlv_hdr *tlv;
 	struct udphdr *uh;
 	__be16 port;
-	__u8 *cmd;
 
 	if (eh + 1 > (struct ethhdr *)data_end)
 		return -EINVAL;

@@ -255,7 +255,7 @@ static int spi_nor_mtd_otp_info(struct mtd_info *mtd, size_t len,
 	if (len < n_regions * sizeof(*buf))
 		return -ENOSPC;
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock(nor);
 	if (ret)
 		return ret;
 
@@ -325,7 +325,7 @@ static int spi_nor_mtd_otp_read_write(struct mtd_info *mtd, loff_t ofs,
 	if (!total_len)
 		return 0;
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock(nor);
 	if (ret)
 		return ret;
 
@@ -415,7 +415,7 @@ static int spi_nor_mtd_otp_erase(struct mtd_info *mtd, loff_t from, size_t len)
 	if (!IS_ALIGNED(len, rlen) || !IS_ALIGNED(from, rlen))
 		return -EINVAL;
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock(nor);
 	if (ret)
 		return ret;
 
@@ -460,7 +460,7 @@ static int spi_nor_mtd_otp_lock(struct mtd_info *mtd, loff_t from, size_t len)
 	if (!IS_ALIGNED(len, rlen) || !IS_ALIGNED(from, rlen))
 		return -EINVAL;
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock(nor);
 	if (ret)
 		return ret;
 

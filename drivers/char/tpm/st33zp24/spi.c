@@ -255,13 +255,13 @@ static const struct spi_device_id st33zp24_spi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, st33zp24_spi_id);
 
-static const struct of_device_id of_st33zp24_spi_match[] = {
+static const struct of_device_id of_st33zp24_spi_match[] __maybe_unused = {
 	{ .compatible = "st,st33zp24-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st33zp24_spi_match);
 
-static const struct acpi_device_id st33zp24_spi_acpi_match[] = {
+static const struct acpi_device_id st33zp24_spi_acpi_match[] __maybe_unused = {
 	{"SMO3324"},
 	{}
 };

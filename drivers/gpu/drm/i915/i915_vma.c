@@ -315,7 +315,7 @@ struct i915_vma_work {
 	struct i915_vma_resource *vma_res;
 	struct drm_i915_gem_object *obj;
 	struct i915_sw_dma_fence_cb cb;
-	enum i915_cache_level cache_level;
+	unsigned int pat_index;
 	unsigned int flags;
 };
 
@@ -334,7 +334,7 @@ static void __vma_bind(struct dma_fence_work *work)
 		return;
 
 	vma_res->ops->bind_vma(vma_res->vm, &vw->stash,
-			       vma_res, vw->cache_level, vw->flags);
+			       vma_res, vw->pat_index, vw->flags);
 }
 
 static void __vma_release(struct dma_fence_work *work)
@@ -426,7 +426,7 @@ i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
 /**
  * i915_vma_bind - Sets up PTEs for an VMA in it's corresponding address space.
  * @vma: VMA to map
- * @cache_level: mapping cache level
+ * @pat_index: PAT index to set in PTE
  * @flags: flags like global or local mapping
  * @work: preallocated worker for allocating and binding the PTE
  * @vma_res: pointer to a preallocated vma resource. The resource is either
@@ -437,7 +437,7 @@ i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
  * Note that DMA addresses are also the only part of the SG table we care about.
  */
 int i915_vma_bind(struct i915_vma *vma,
-		  enum i915_cache_level cache_level,
+		  unsigned int pat_index,
 		  u32 flags,
 		  struct i915_vma_work *work,
 		  struct i915_vma_resource *vma_res)
@@ -507,7 +507,7 @@ int i915_vma_bind(struct i915_vma *vma,
 		struct dma_fence *prev;
 
 		work->vma_res = i915_vma_resource_get(vma->resource);
-		work->cache_level = cache_level;
+		work->pat_index = pat_index;
 		work->flags = bind_flags;
 
 		/*
@@ -537,7 +537,7 @@ int i915_vma_bind(struct i915_vma *vma,
 
 			return ret;
 		}
-		vma->ops->bind_vma(vma->vm, NULL, vma->resource, cache_level,
+		vma->ops->bind_vma(vma->vm, NULL, vma->resource, pat_index,
 				   bind_flags);
 	}
 
@@ -739,6 +739,7 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color)
 /**
  * i915_vma_insert - finds a slot for the vma in its address space
  * @vma: the vma
+ * @ww: An optional struct i915_gem_ww_ctx
  * @size: requested size in bytes (can be larger than the VMA)
  * @alignment: required alignment
  * @flags: mask of PIN_* flags to use
@@ -813,7 +814,7 @@ i915_vma_insert(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	color = 0;
 
 	if (i915_vm_has_cache_coloring(vma->vm))
-		color = vma->obj->cache_level;
+		color = vma->obj->pat_index;
 
 	if (flags & PIN_OFFSET_FIXED) {
 		u64 offset = flags & PIN_OFFSET_MASK;
@@ -1517,7 +1518,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 
 	GEM_BUG_ON(!vma->pages);
 	err = i915_vma_bind(vma,
-			    vma->obj->cache_level,
+			    vma->obj->pat_index,
 			    flags, work, vma_res);
 	vma_res = NULL;
 	if (err)
@@ -1709,12 +1710,14 @@ static void release_references(struct i915_vma *vma, struct intel_gt *gt,
 	if (vm_ddestroy)
 		i915_vm_resv_put(vma->vm);
 
+	/* Wait for async active retire */
+	i915_active_wait(&vma->active);
 	i915_active_fini(&vma->active);
 	GEM_WARN_ON(vma->resource);
 	i915_vma_free(vma);
 }
 
-/**
+/*
  * i915_vma_destroy_locked - Remove all weak reference to the vma and put
  * the initial reference.
  *

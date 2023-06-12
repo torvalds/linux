@@ -199,6 +199,11 @@ enum drm_connector_tv_mode {
 	 */
 	DRM_MODE_TV_MODE_SECAM,
 
+	/**
+	 * @DRM_MODE_TV_MODE_MAX: Number of analog TV output modes.
+	 *
+	 * Internal implementation detail; this is not uABI.
+	 */
 	DRM_MODE_TV_MODE_MAX,
 };
 
@@ -652,6 +657,14 @@ struct drm_display_info {
 	 * drm_detect_hdmi_monitor() when possible.
 	 */
 	bool is_hdmi;
+
+	/**
+	 * @has_audio: True if the sink supports audio.
+	 *
+	 * This field shall be used instead of calling
+	 * drm_detect_monitor_audio() when possible.
+	 */
+	bool has_audio;
 
 	/**
 	 * @has_hdmi_infoframe: Does the sink support the HDMI infoframe?

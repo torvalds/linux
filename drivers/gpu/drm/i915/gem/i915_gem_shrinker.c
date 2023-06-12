@@ -460,8 +460,6 @@ void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 	fs_reclaim_release(GFP_KERNEL);
 }
 
-#define obj_to_i915(obj__) to_i915((obj__)->base.dev)
-
 /**
  * i915_gem_object_make_unshrinkable - Hide the object from the shrinker. By
  * default all object types that support shrinking(see IS_SHRINKABLE), will also

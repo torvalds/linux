@@ -30,12 +30,29 @@
 #include <linux/export.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>
+#include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/gfp.h>
 #include <linux/socket.h>
 #include <linux/sched/signal.h>
 
 #include "internal.h"
+
+/*
+ * Splice doesn't support FMODE_NOWAIT. Since pipes may set this flag to
+ * indicate they support non-blocking reads or writes, we must clear it
+ * here if set to avoid blocking other users of this pipe if splice is
+ * being done on it.
+ */
+static noinline void noinline pipe_clear_nowait(struct file *file)
+{
+	fmode_t fmode = READ_ONCE(file->f_mode);
+
+	do {
+		if (!(fmode & FMODE_NOWAIT))
+			break;
+	} while (!try_cmpxchg(&file->f_mode, &fmode, fmode & ~FMODE_NOWAIT));
+}
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -1165,6 +1182,9 @@ long do_splice(struct file *in, loff_t *off_in, struct file *out,
 		ret = do_splice_from(ipipe, out, &offset, len, flags);
 		file_end_write(out);
 
+		if (ret > 0)
+			fsnotify_modify(out);
+
 		if (!off_out)
 			out->f_pos = offset;
 		else
@@ -1188,6 +1208,10 @@ long do_splice(struct file *in, loff_t *off_in, struct file *out,
 			flags |= SPLICE_F_NONBLOCK;
 
 		ret = splice_file_to_pipe(in, opipe, &offset, len, flags);
+
+		if (ret > 0)
+			fsnotify_access(in);
+
 		if (!off_in)
 			in->f_pos = offset;
 		else
@@ -1211,10 +1235,16 @@ static long __do_splice(struct file *in, loff_t __user *off_in,
 	ipipe = get_pipe_info(in, true);
 	opipe = get_pipe_info(out, true);
 
-	if (ipipe && off_in)
-		return -ESPIPE;
-	if (opipe && off_out)
-		return -ESPIPE;
+	if (ipipe) {
+		if (off_in)
+			return -ESPIPE;
+		pipe_clear_nowait(in);
+	}
+	if (opipe) {
+		if (off_out)
+			return -ESPIPE;
+		pipe_clear_nowait(out);
+	}
 
 	if (off_out) {
 		if (copy_from_user(&offset, off_out, sizeof(loff_t)))
@@ -1311,6 +1341,8 @@ static long vmsplice_to_user(struct file *file, struct iov_iter *iter,
 	if (!pipe)
 		return -EBADF;
 
+	pipe_clear_nowait(file);
+
 	if (sd.total_len) {
 		pipe_lock(pipe);
 		ret = __splice_from_pipe(pipe, &sd, pipe_to_user);
@@ -1338,6 +1370,8 @@ static long vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	pipe = get_pipe_info(file, true);
 	if (!pipe)
 		return -EBADF;
+
+	pipe_clear_nowait(file);
 
 	pipe_lock(pipe);
 	ret = wait_for_space(pipe, flags);

@@ -475,7 +475,7 @@ EXPORT_SYMBOL_GPL(devm_rtc_device_register);
 
 static int __init rtc_init(void)
 {
-	rtc_class = class_create(THIS_MODULE, "rtc");
+	rtc_class = class_create("rtc");
 	if (IS_ERR(rtc_class)) {
 		pr_err("couldn't create class\n");
 		return PTR_ERR(rtc_class);

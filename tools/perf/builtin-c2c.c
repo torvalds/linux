@@ -41,10 +41,10 @@
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
-#include "../perf.h"
 #include "pmu.h"
 #include "pmu-hybrid.h"
 #include "string2.h"
+#include "util/util.h"
 
 struct c2c_hists {
 	struct hists		hists;
@@ -165,8 +165,8 @@ static void *c2c_he_zalloc(size_t size)
 	return &c2c_he->he;
 
 out_free:
-	free(c2c_he->nodeset);
-	free(c2c_he->cpuset);
+	zfree(&c2c_he->nodeset);
+	zfree(&c2c_he->cpuset);
 	free(c2c_he);
 	return NULL;
 }
@@ -178,13 +178,13 @@ static void c2c_he_free(void *he)
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 	if (c2c_he->hists) {
 		hists__delete_entries(&c2c_he->hists->hists);
-		free(c2c_he->hists);
+		zfree(&c2c_he->hists);
 	}
 
-	free(c2c_he->cpuset);
-	free(c2c_he->nodeset);
-	free(c2c_he->nodestr);
-	free(c2c_he->node_stats);
+	zfree(&c2c_he->cpuset);
+	zfree(&c2c_he->nodeset);
+	zfree(&c2c_he->nodestr);
+	zfree(&c2c_he->node_stats);
 	free(c2c_he);
 }
 
@@ -315,7 +315,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	c2c_decode_stats(&stats, mi);
 
 	he = hists__add_entry_ops(&c2c_hists->hists, &c2c_entry_ops,
-				  &al, NULL, NULL, mi,
+				  &al, NULL, NULL, mi, NULL,
 				  sample, true);
 	if (he == NULL)
 		goto free_mi;
@@ -349,7 +349,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 			goto free_mi;
 
 		he = hists__add_entry_ops(&c2c_hists->hists, &c2c_entry_ops,
-					  &al, NULL, NULL, mi,
+					  &al, NULL, NULL, mi, NULL,
 					  sample, true);
 		if (he == NULL)
 			goto free_mi;

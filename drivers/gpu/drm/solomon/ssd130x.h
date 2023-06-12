@@ -10,8 +10,8 @@
  * Copyright 2012 Free Electrons
  */
 
-#ifndef __SSD1307X_H__
-#define __SSD1307X_H__
+#ifndef __SSD130X_H__
+#define __SSD130X_H__
 
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
@@ -94,4 +94,4 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap);
 void ssd130x_remove(struct ssd130x_device *ssd130x);
 void ssd130x_shutdown(struct ssd130x_device *ssd130x);
 
-#endif /* __SSD1307X_H__ */
+#endif /* __SSD130X_H__ */

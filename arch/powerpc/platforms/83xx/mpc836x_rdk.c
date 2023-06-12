@@ -28,23 +28,14 @@ static void __init mpc836x_rdk_setup_arch(void)
 	mpc83xx_setup_arch();
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened.
- */
-static int __init mpc836x_rdk_probe(void)
-{
-	return of_machine_is_compatible("fsl,mpc8360rdk");
-}
-
 define_machine(mpc836x_rdk) {
 	.name		= "MPC836x RDK",
-	.probe		= mpc836x_rdk_probe,
+	.compatible	= "fsl,mpc8360rdk",
 	.setup_arch	= mpc836x_rdk_setup_arch,
 	.discover_phbs  = mpc83xx_setup_pci,
 	.init_IRQ	= mpc83xx_ipic_init_IRQ,
 	.get_irq	= ipic_get_irq,
 	.restart	= mpc83xx_restart,
 	.time_init	= mpc83xx_time_init,
-	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
 };

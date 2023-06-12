@@ -16,14 +16,10 @@
 #include <linux/errno.h>
 #include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
-#include <linux/spinlock.h>
-#include <linux/topology.h>
-#include <linux/notifier.h>
 #include <linux/property.h>
 #include <linux/list.h>
 
 #include <asm/byteorder.h>
-#include <asm/errno.h>
 
 typedef u32 phandle;
 typedef u32 ihandle;
@@ -145,7 +141,6 @@ extern struct device_node *of_root;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
 extern struct device_node *of_stdout;
-extern raw_spinlock_t devtree_lock;
 
 /*
  * struct device_node flag descriptions
@@ -361,6 +356,8 @@ extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
 extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
+extern struct device_node *of_cpu_device_node_get(int cpu);
+extern int of_cpu_node_to_id(struct device_node *np);
 extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
 extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
 						 int index);
@@ -373,7 +370,9 @@ extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
 extern const struct of_device_id *of_match_node(
 	const struct of_device_id *matches, const struct device_node *node);
-extern int of_modalias_node(struct device_node *node, char *modalias, int len);
+extern const void *of_device_get_match_data(const struct device *dev);
+extern int of_alias_from_compatible(const struct device_node *node, char *alias,
+				    int len);
 extern void of_print_phandle_args(const char *msg, const struct of_phandle_args *args);
 extern int __of_parse_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name, int cell_count,
@@ -383,6 +382,10 @@ extern int of_parse_phandle_with_args_map(const struct device_node *np,
 	struct of_phandle_args *out_args);
 extern int of_count_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name);
+
+/* module functions */
+extern ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len);
+extern int of_request_module(const struct device_node *np);
 
 /* phandle iterator functions */
 extern int of_phandle_iterator_init(struct of_phandle_iterator *it,
@@ -438,8 +441,6 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
 const char *of_prop_next_string(struct property *prop, const char *cur);
 
 bool of_console_check(struct device_node *dn, char *name, int index);
-
-extern int of_cpu_node_to_id(struct device_node *np);
 
 int of_map_id(struct device_node *np, u32 id,
 	       const char *map_name, const char *map_mask_name,
@@ -635,6 +636,16 @@ static inline struct device_node *of_get_cpu_node(int cpu,
 	return NULL;
 }
 
+static inline struct device_node *of_cpu_device_node_get(int cpu)
+{
+	return NULL;
+}
+
+static inline int of_cpu_node_to_id(struct device_node *np)
+{
+	return -ENODEV;
+}
+
 static inline struct device_node *of_get_next_cpu_node(struct device_node *prev)
 {
 	return NULL;
@@ -741,6 +752,17 @@ static inline int of_count_phandle_with_args(const struct device_node *np,
 	return -ENOSYS;
 }
 
+static inline ssize_t of_modalias(const struct device_node *np, char *str,
+				  ssize_t len)
+{
+	return -ENODEV;
+}
+
+static inline int of_request_module(const struct device_node *np)
+{
+	return -ENODEV;
+}
+
 static inline int of_phandle_iterator_init(struct of_phandle_iterator *it,
 					   const struct device_node *np,
 					   const char *list_name,
@@ -837,11 +859,6 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 {
 }
 
-static inline int of_cpu_node_to_id(struct device_node *np)
-{
-	return -ENODEV;
-}
-
 static inline int of_map_id(struct device_node *np, u32 id,
 			     const char *map_name, const char *map_mask_name,
 			     struct device_node **target, u32 *id_out)
@@ -852,6 +869,11 @@ static inline int of_map_id(struct device_node *np, u32 id,
 static inline phys_addr_t of_dma_get_max_cpu_address(struct device_node *np)
 {
 	return PHYS_ADDR_MAX;
+}
+
+static inline const void *of_device_get_match_data(const struct device *dev)
+{
+	return NULL;
 }
 
 #define of_match_ptr(_ptr)	NULL
@@ -1511,6 +1533,8 @@ enum of_reconfig_change {
 	OF_RECONFIG_CHANGE_ADD,
 	OF_RECONFIG_CHANGE_REMOVE,
 };
+
+struct notifier_block;
 
 #ifdef CONFIG_OF_DYNAMIC
 extern int of_reconfig_notifier_register(struct notifier_block *);

@@ -380,82 +380,37 @@ out:
 	return err;
 }
 
-static int br_mdb_valid_dump_req(const struct nlmsghdr *nlh,
-				 struct netlink_ext_ack *extack)
+int br_mdb_dump(struct net_device *dev, struct sk_buff *skb,
+		struct netlink_callback *cb)
 {
+	struct net_bridge *br = netdev_priv(dev);
 	struct br_port_msg *bpm;
+	struct nlmsghdr *nlh;
+	int err;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*bpm))) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid header for mdb dump request");
-		return -EINVAL;
-	}
+	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+			cb->nlh->nlmsg_seq, RTM_GETMDB, sizeof(*bpm),
+			NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
 
 	bpm = nlmsg_data(nlh);
-	if (bpm->ifindex) {
-		NL_SET_ERR_MSG_MOD(extack, "Filtering by device index is not supported for mdb dump request");
-		return -EINVAL;
-	}
-	if (nlmsg_attrlen(nlh, sizeof(*bpm))) {
-		NL_SET_ERR_MSG(extack, "Invalid data after header in mdb dump request");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	struct net_device *dev;
-	struct net *net = sock_net(skb->sk);
-	struct nlmsghdr *nlh = NULL;
-	int idx = 0, s_idx;
-
-	if (cb->strict_check) {
-		int err = br_mdb_valid_dump_req(cb->nlh, cb->extack);
-
-		if (err < 0)
-			return err;
-	}
-
-	s_idx = cb->args[0];
+	memset(bpm, 0, sizeof(*bpm));
+	bpm->ifindex = dev->ifindex;
 
 	rcu_read_lock();
 
-	for_each_netdev_rcu(net, dev) {
-		if (netif_is_bridge_master(dev)) {
-			struct net_bridge *br = netdev_priv(dev);
-			struct br_port_msg *bpm;
-
-			if (idx < s_idx)
-				goto skip;
-
-			nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid,
-					cb->nlh->nlmsg_seq, RTM_GETMDB,
-					sizeof(*bpm), NLM_F_MULTI);
-			if (nlh == NULL)
-				break;
-
-			bpm = nlmsg_data(nlh);
-			memset(bpm, 0, sizeof(*bpm));
-			bpm->ifindex = dev->ifindex;
-			if (br_mdb_fill_info(skb, cb, dev) < 0)
-				goto out;
-			if (br_rports_fill_info(skb, &br->multicast_ctx) < 0)
-				goto out;
-
-			cb->args[1] = 0;
-			nlmsg_end(skb, nlh);
-		skip:
-			idx++;
-		}
-	}
+	err = br_mdb_fill_info(skb, cb, dev);
+	if (err)
+		goto out;
+	err = br_rports_fill_info(skb, &br->multicast_ctx);
+	if (err)
+		goto out;
 
 out:
-	if (nlh)
-		nlmsg_end(skb, nlh);
 	rcu_read_unlock();
-	cb->args[0] = idx;
-	return skb->len;
+	nlmsg_end(skb, nlh);
+	return err;
 }
 
 static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
@@ -682,60 +637,6 @@ static const struct nla_policy br_mdbe_attrs_pol[MDBE_ATTR_MAX + 1] = {
 	[MDBE_ATTR_SRC_LIST] = NLA_POLICY_NESTED(br_mdbe_src_list_pol),
 	[MDBE_ATTR_RTPROT] = NLA_POLICY_MIN(NLA_U8, RTPROT_STATIC),
 };
-
-static int validate_mdb_entry(const struct nlattr *attr,
-			      struct netlink_ext_ack *extack)
-{
-	struct br_mdb_entry *entry = nla_data(attr);
-
-	if (nla_len(attr) != sizeof(struct br_mdb_entry)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid MDBA_SET_ENTRY attribute length");
-		return -EINVAL;
-	}
-
-	if (entry->ifindex == 0) {
-		NL_SET_ERR_MSG_MOD(extack, "Zero entry ifindex is not allowed");
-		return -EINVAL;
-	}
-
-	if (entry->addr.proto == htons(ETH_P_IP)) {
-		if (!ipv4_is_multicast(entry->addr.u.ip4)) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv4 entry group address is not multicast");
-			return -EINVAL;
-		}
-		if (ipv4_is_local_multicast(entry->addr.u.ip4)) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv4 entry group address is local multicast");
-			return -EINVAL;
-		}
-#if IS_ENABLED(CONFIG_IPV6)
-	} else if (entry->addr.proto == htons(ETH_P_IPV6)) {
-		if (ipv6_addr_is_ll_all_nodes(&entry->addr.u.ip6)) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv6 entry group address is link-local all nodes");
-			return -EINVAL;
-		}
-#endif
-	} else if (entry->addr.proto == 0) {
-		/* L2 mdb */
-		if (!is_multicast_ether_addr(entry->addr.u.mac_addr)) {
-			NL_SET_ERR_MSG_MOD(extack, "L2 entry group is not multicast");
-			return -EINVAL;
-		}
-	} else {
-		NL_SET_ERR_MSG_MOD(extack, "Unknown entry protocol");
-		return -EINVAL;
-	}
-
-	if (entry->state != MDB_PERMANENT && entry->state != MDB_TEMPORARY) {
-		NL_SET_ERR_MSG_MOD(extack, "Unknown entry state");
-		return -EINVAL;
-	}
-	if (entry->vid >= VLAN_VID_MASK) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid entry VLAN id");
-		return -EINVAL;
-	}
-
-	return 0;
-}
 
 static bool is_valid_mdb_source(struct nlattr *attr, __be16 proto,
 				struct netlink_ext_ack *extack)
@@ -1299,49 +1200,16 @@ static int br_mdb_config_attrs_init(struct nlattr *set_attrs,
 	return 0;
 }
 
-static const struct nla_policy mdba_policy[MDBA_SET_ENTRY_MAX + 1] = {
-	[MDBA_SET_ENTRY_UNSPEC] = { .strict_start_type = MDBA_SET_ENTRY_ATTRS + 1 },
-	[MDBA_SET_ENTRY] = NLA_POLICY_VALIDATE_FN(NLA_BINARY,
-						  validate_mdb_entry,
-						  sizeof(struct br_mdb_entry)),
-	[MDBA_SET_ENTRY_ATTRS] = { .type = NLA_NESTED },
-};
-
-static int br_mdb_config_init(struct net *net, const struct nlmsghdr *nlh,
-			      struct br_mdb_config *cfg,
+static int br_mdb_config_init(struct br_mdb_config *cfg, struct net_device *dev,
+			      struct nlattr *tb[], u16 nlmsg_flags,
 			      struct netlink_ext_ack *extack)
 {
-	struct nlattr *tb[MDBA_SET_ENTRY_MAX + 1];
-	struct br_port_msg *bpm;
-	struct net_device *dev;
-	int err;
-
-	err = nlmsg_parse_deprecated(nlh, sizeof(*bpm), tb,
-				     MDBA_SET_ENTRY_MAX, mdba_policy, extack);
-	if (err)
-		return err;
+	struct net *net = dev_net(dev);
 
 	memset(cfg, 0, sizeof(*cfg));
 	cfg->filter_mode = MCAST_EXCLUDE;
 	cfg->rt_protocol = RTPROT_STATIC;
-	cfg->nlflags = nlh->nlmsg_flags;
-
-	bpm = nlmsg_data(nlh);
-	if (!bpm->ifindex) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid bridge ifindex");
-		return -EINVAL;
-	}
-
-	dev = __dev_get_by_index(net, bpm->ifindex);
-	if (!dev) {
-		NL_SET_ERR_MSG_MOD(extack, "Bridge device doesn't exist");
-		return -ENODEV;
-	}
-
-	if (!netif_is_bridge_master(dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Device is not a bridge");
-		return -EOPNOTSUPP;
-	}
+	cfg->nlflags = nlmsg_flags;
 
 	cfg->br = netdev_priv(dev);
 
@@ -1352,11 +1220,6 @@ static int br_mdb_config_init(struct net *net, const struct nlmsghdr *nlh,
 
 	if (!br_opt_get(cfg->br, BROPT_MULTICAST_ENABLED)) {
 		NL_SET_ERR_MSG_MOD(extack, "Bridge's multicast processing is disabled");
-		return -EINVAL;
-	}
-
-	if (NL_REQ_ATTR_CHECK(extack, NULL, tb, MDBA_SET_ENTRY)) {
-		NL_SET_ERR_MSG_MOD(extack, "Missing MDBA_SET_ENTRY attribute");
 		return -EINVAL;
 	}
 
@@ -1383,6 +1246,12 @@ static int br_mdb_config_init(struct net *net, const struct nlmsghdr *nlh,
 		}
 	}
 
+	if (cfg->entry->addr.proto == htons(ETH_P_IP) &&
+	    ipv4_is_zeronet(cfg->entry->addr.u.ip4)) {
+		NL_SET_ERR_MSG_MOD(extack, "IPv4 entry group address 0.0.0.0 is not allowed");
+		return -EINVAL;
+	}
+
 	if (tb[MDBA_SET_ENTRY_ATTRS])
 		return br_mdb_config_attrs_init(tb[MDBA_SET_ENTRY_ATTRS], cfg,
 						extack);
@@ -1397,16 +1266,15 @@ static void br_mdb_config_fini(struct br_mdb_config *cfg)
 	br_mdb_config_src_list_fini(cfg);
 }
 
-static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
-		      struct netlink_ext_ack *extack)
+int br_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
+	       struct netlink_ext_ack *extack)
 {
-	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *v;
 	struct br_mdb_config cfg;
 	int err;
 
-	err = br_mdb_config_init(net, nlh, &cfg, extack);
+	err = br_mdb_config_init(&cfg, dev, tb, nlmsg_flags, extack);
 	if (err)
 		return err;
 
@@ -1500,16 +1368,15 @@ unlock:
 	return err;
 }
 
-static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
-		      struct netlink_ext_ack *extack)
+int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
+	       struct netlink_ext_ack *extack)
 {
-	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *v;
 	struct br_mdb_config cfg;
 	int err;
 
-	err = br_mdb_config_init(net, nlh, &cfg, extack);
+	err = br_mdb_config_init(&cfg, dev, tb, 0, extack);
 	if (err)
 		return err;
 
@@ -1533,18 +1400,4 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	br_mdb_config_fini(&cfg);
 	return err;
-}
-
-void br_mdb_init(void)
-{
-	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, 0);
-	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, 0);
-	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, 0);
-}
-
-void br_mdb_uninit(void)
-{
-	rtnl_unregister(PF_BRIDGE, RTM_GETMDB);
-	rtnl_unregister(PF_BRIDGE, RTM_NEWMDB);
-	rtnl_unregister(PF_BRIDGE, RTM_DELMDB);
 }

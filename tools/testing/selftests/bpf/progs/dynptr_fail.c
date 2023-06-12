@@ -5,7 +5,9 @@
 #include <string.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <linux/if_ether.h>
 #include "bpf_misc.h"
+#include "bpf_kfuncs.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -244,11 +246,32 @@ done:
 	return 0;
 }
 
+/* A data slice can't be accessed out of bounds */
+SEC("?tc")
+__failure __msg("value is outside of the allowed memory range")
+int data_slice_out_of_bounds_skb(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	/* this should fail */
+	*(__u8*)(hdr + 1) = 1;
+
+	return SK_PASS;
+}
+
 SEC("?raw_tp")
 __failure __msg("value is outside of the allowed memory range")
 int data_slice_out_of_bounds_map_value(void *ctx)
 {
-	__u32 key = 0, map_val;
+	__u32 map_val;
 	struct bpf_dynptr ptr;
 	void *data;
 
@@ -365,7 +388,6 @@ int data_slice_missing_null_check2(void *ctx)
 		/* this should fail */
 		*data2 = 3;
 
-done:
 	bpf_ringbuf_discard_dynptr(&ptr, 0);
 	return 0;
 }
@@ -399,7 +421,6 @@ int invalid_helper2(void *ctx)
 
 	/* this should fail */
 	bpf_dynptr_read(read_data, sizeof(read_data), (void *)&ptr + 8, 0, 0);
-
 	return 0;
 }
 
@@ -418,6 +439,7 @@ int invalid_write1(void *ctx)
 
 	/* this should fail */
 	data = bpf_dynptr_data(&ptr, 0, 1);
+	__sink(data);
 
 	return 0;
 }
@@ -1044,6 +1066,193 @@ int dynptr_read_into_slot(void *ctx)
 	return 0;
 }
 
+/* bpf_dynptr_slice()s are read-only and cannot be written to */
+SEC("?tc")
+__failure __msg("R0 cannot write into rdonly_mem")
+int skb_invalid_slice_write(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	hdr = bpf_dynptr_slice(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	/* this should fail */
+	hdr->h_proto = 1;
+
+	return SK_PASS;
+}
+
+/* The read-only data slice is invalidated whenever a helper changes packet data */
+SEC("?tc")
+__failure __msg("invalid mem access 'scalar'")
+int skb_invalid_data_slice1(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	hdr = bpf_dynptr_slice(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	val = hdr->h_proto;
+
+	if (bpf_skb_pull_data(skb, skb->len))
+		return SK_DROP;
+
+	/* this should fail */
+	val = hdr->h_proto;
+
+	return SK_PASS;
+}
+
+/* The read-write data slice is invalidated whenever a helper changes packet data */
+SEC("?tc")
+__failure __msg("invalid mem access 'scalar'")
+int skb_invalid_data_slice2(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	hdr->h_proto = 123;
+
+	if (bpf_skb_pull_data(skb, skb->len))
+		return SK_DROP;
+
+	/* this should fail */
+	hdr->h_proto = 1;
+
+	return SK_PASS;
+}
+
+/* The read-only data slice is invalidated whenever bpf_dynptr_write() is called */
+SEC("?tc")
+__failure __msg("invalid mem access 'scalar'")
+int skb_invalid_data_slice3(struct __sk_buff *skb)
+{
+	char write_data[64] = "hello there, world!!";
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	hdr = bpf_dynptr_slice(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	val = hdr->h_proto;
+
+	bpf_dynptr_write(&ptr, 0, write_data, sizeof(write_data), 0);
+
+	/* this should fail */
+	val = hdr->h_proto;
+
+	return SK_PASS;
+}
+
+/* The read-write data slice is invalidated whenever bpf_dynptr_write() is called */
+SEC("?tc")
+__failure __msg("invalid mem access 'scalar'")
+int skb_invalid_data_slice4(struct __sk_buff *skb)
+{
+	char write_data[64] = "hello there, world!!";
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+	hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	hdr->h_proto = 123;
+
+	bpf_dynptr_write(&ptr, 0, write_data, sizeof(write_data), 0);
+
+	/* this should fail */
+	hdr->h_proto = 1;
+
+	return SK_PASS;
+}
+
+/* The read-only data slice is invalidated whenever a helper changes packet data */
+SEC("?xdp")
+__failure __msg("invalid mem access 'scalar'")
+int xdp_invalid_data_slice1(struct xdp_md *xdp)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_xdp(xdp, 0, &ptr);
+	hdr = bpf_dynptr_slice(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	val = hdr->h_proto;
+
+	if (bpf_xdp_adjust_head(xdp, 0 - (int)sizeof(*hdr)))
+		return XDP_DROP;
+
+	/* this should fail */
+	val = hdr->h_proto;
+
+	return XDP_PASS;
+}
+
+/* The read-write data slice is invalidated whenever a helper changes packet data */
+SEC("?xdp")
+__failure __msg("invalid mem access 'scalar'")
+int xdp_invalid_data_slice2(struct xdp_md *xdp)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_xdp(xdp, 0, &ptr);
+	hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, sizeof(buffer));
+	if (!hdr)
+		return SK_DROP;
+
+	hdr->h_proto = 9;
+
+	if (bpf_xdp_adjust_head(xdp, 0 - (int)sizeof(*hdr)))
+		return XDP_DROP;
+
+	/* this should fail */
+	hdr->h_proto = 1;
+
+	return XDP_PASS;
+}
+
+/* Only supported prog type can create skb-type dynptrs */
+SEC("?raw_tp")
+__failure __msg("calling kernel function bpf_dynptr_from_skb is not allowed")
+int skb_invalid_ctx(void *ctx)
+{
+	struct bpf_dynptr ptr;
+
+	/* this should fail */
+	bpf_dynptr_from_skb(ctx, 0, &ptr);
+
+	return 0;
+}
+
 /* Reject writes to dynptr slot for uninit arg */
 SEC("?raw_tp")
 __failure __msg("potential write to dynptr at off=-16")
@@ -1059,6 +1268,61 @@ int uninit_write_into_slot(void *ctx)
 	bpf_get_current_comm(data.buf, 80);
 
 	return 0;
+}
+
+/* Only supported prog type can create xdp-type dynptrs */
+SEC("?raw_tp")
+__failure __msg("calling kernel function bpf_dynptr_from_xdp is not allowed")
+int xdp_invalid_ctx(void *ctx)
+{
+	struct bpf_dynptr ptr;
+
+	/* this should fail */
+	bpf_dynptr_from_xdp(ctx, 0, &ptr);
+
+	return 0;
+}
+
+__u32 hdr_size = sizeof(struct ethhdr);
+/* Can't pass in variable-sized len to bpf_dynptr_slice */
+SEC("?tc")
+__failure __msg("unbounded memory access")
+int dynptr_slice_var_len1(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+	char buffer[sizeof(*hdr)] = {};
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	/* this should fail */
+	hdr = bpf_dynptr_slice(&ptr, 0, buffer, hdr_size);
+	if (!hdr)
+		return SK_DROP;
+
+	return SK_PASS;
+}
+
+/* Can't pass in variable-sized len to bpf_dynptr_slice */
+SEC("?tc")
+__failure __msg("must be a known constant")
+int dynptr_slice_var_len2(struct __sk_buff *skb)
+{
+	char buffer[sizeof(struct ethhdr)] = {};
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	if (hdr_size <= sizeof(buffer)) {
+		/* this should fail */
+		hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, hdr_size);
+		if (!hdr)
+			return SK_DROP;
+		hdr->h_proto = 12;
+	}
+
+	return SK_PASS;
 }
 
 static int callback(__u32 index, void *data)
@@ -1089,6 +1353,28 @@ int invalid_data_slices(void *ctx)
 
 	/* this should fail */
 	*slice = 1;
+
+	return 0;
+}
+
+/* Program types that don't allow writes to packet data should fail if
+ * bpf_dynptr_slice_rdwr is called
+ */
+SEC("cgroup_skb/ingress")
+__failure __msg("the prog does not allow writes to packet data")
+int invalid_slice_rdwr_rdonly(struct __sk_buff *skb)
+{
+	char buffer[sizeof(struct ethhdr)] = {};
+	struct bpf_dynptr ptr;
+	struct ethhdr *hdr;
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	/* this should fail since cgroup_skb doesn't allow
+	 * changing packet data
+	 */
+	hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, sizeof(buffer));
+	__sink(hdr);
 
 	return 0;
 }

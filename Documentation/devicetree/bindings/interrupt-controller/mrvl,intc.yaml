@@ -53,8 +53,8 @@ allOf:
           maxItems: 1
         reg-names:
           items:
-            - const: 'mux status'
-            - const: 'mux mask'
+            - const: mux status
+            - const: mux mask
       required:
         - interrupts
     else:

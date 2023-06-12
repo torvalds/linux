@@ -292,7 +292,7 @@ r_free:
 	return result;
 }
 
-static int sar_remove(struct platform_device *device)
+static void sar_remove(struct platform_device *device)
 {
 	struct wwan_sar_context *context = dev_get_drvdata(&device->dev);
 	int reg;
@@ -304,12 +304,11 @@ static int sar_remove(struct platform_device *device)
 		kfree(context->config_data[reg].device_mode_info);
 
 	kfree(context);
-	return 0;
 }
 
 static struct platform_driver sar_driver = {
 	.probe = sar_probe,
-	.remove = sar_remove,
+	.remove_new = sar_remove,
 	.driver = {
 		.name = DRVNAME,
 		.acpi_match_table = ACPI_PTR(sar_device_ids)

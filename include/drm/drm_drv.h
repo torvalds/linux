@@ -401,6 +401,13 @@ struct drm_driver {
 			       struct drm_device *dev, uint32_t handle,
 			       uint64_t *offset);
 
+	/**
+	 * @show_fdinfo:
+	 *
+	 * Print device specific fdinfo.  See Documentation/gpu/drm-usage-stats.rst.
+	 */
+	void (*show_fdinfo)(struct drm_printer *p, struct drm_file *f);
+
 	/** @major: driver major number */
 	int major;
 	/** @minor: driver minor number */
@@ -583,8 +590,6 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 		(dev->mode_config.funcs && dev->mode_config.funcs->atomic_commit != NULL);
 }
 
-
-int drm_dev_set_unique(struct drm_device *dev, const char *name);
 
 /* TODO: Inline drm_firmware_drivers_only() in all its callers. */
 static inline bool drm_firmware_drivers_only(void)

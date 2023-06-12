@@ -2488,8 +2488,7 @@ static int nl802154_del_llsec_seclevel(struct sk_buff *skb,
 	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
-	if (!info->attrs[NL802154_ATTR_SEC_LEVEL] ||
-	    llsec_parse_seclevel(info->attrs[NL802154_ATTR_SEC_LEVEL],
+	if (llsec_parse_seclevel(info->attrs[NL802154_ATTR_SEC_LEVEL],
 				 &sl) < 0)
 		return -EINVAL;
 

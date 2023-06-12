@@ -239,7 +239,7 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 }
 
 /* Known sensors in the OXP EC controllers */
-static const struct hwmon_channel_info *oxp_platform_sensors[] = {
+static const struct hwmon_channel_info * const oxp_platform_sensors[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT),
 	HWMON_CHANNEL_INFO(pwm,

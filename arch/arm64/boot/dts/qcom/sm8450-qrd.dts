@@ -282,7 +282,6 @@
 			regulator-max-microvolt = <912000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
-
 	};
 
 	regulators-3 {

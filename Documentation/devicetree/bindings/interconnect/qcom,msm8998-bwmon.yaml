@@ -22,14 +22,14 @@ description: |
 properties:
   compatible:
     oneOf:
+      - const: qcom,msm8998-bwmon       # BWMON v4
       - items:
           - enum:
               - qcom,sc7280-cpu-bwmon
               - qcom,sc8280xp-cpu-bwmon
-              - qcom,sdm845-bwmon
+              - qcom,sdm845-cpu-bwmon
               - qcom,sm8550-cpu-bwmon
-          - const: qcom,msm8998-bwmon
-      - const: qcom,msm8998-bwmon       # BWMON v4
+          - const: qcom,sdm845-bwmon    # BWMON v4, unified register space
       - items:
           - enum:
               - qcom,sc8280xp-llcc-bwmon
@@ -49,9 +49,13 @@ properties:
     type: object
 
   reg:
-    # BWMON v4 (currently described) and BWMON v5 use one register address
-    # space.  BWMON v2 uses two register spaces - not yet described.
-    maxItems: 1
+    # BWMON v5 uses one register address space, v1-v4 use one or two.
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    maxItems: 2
 
 required:
   - compatible
@@ -63,13 +67,36 @@ required:
 
 additionalProperties: false
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: qcom,msm8998-bwmon
+    then:
+      properties:
+        reg:
+          minItems: 2
+
+        reg-names:
+          items:
+            - const: monitor
+            - const: global
+
+    else:
+      properties:
+        reg:
+          maxItems: 1
+
+        reg-names:
+          maxItems: 1
+
 examples:
   - |
     #include <dt-bindings/interconnect/qcom,sdm845.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     pmu@1436400 {
-        compatible = "qcom,sdm845-bwmon", "qcom,msm8998-bwmon";
+        compatible = "qcom,sdm845-cpu-bwmon", "qcom,sdm845-bwmon";
         reg = <0x01436400 0x600>;
         interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
         interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_LLCC 3>;

@@ -909,7 +909,7 @@ err_disable_clk:
 	return err;
 }
 
-static int vf610_nfc_remove(struct platform_device *pdev)
+static void vf610_nfc_remove(struct platform_device *pdev)
 {
 	struct vf610_nfc *nfc = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &nfc->chip;
@@ -919,7 +919,6 @@ static int vf610_nfc_remove(struct platform_device *pdev)
 	WARN_ON(ret);
 	nand_cleanup(chip);
 	clk_disable_unprepare(nfc->clk);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -955,7 +954,7 @@ static struct platform_driver vf610_nfc_driver = {
 		.pm	= &vf610_nfc_pm_ops,
 	},
 	.probe		= vf610_nfc_probe,
-	.remove		= vf610_nfc_remove,
+	.remove_new	= vf610_nfc_remove,
 };
 
 module_platform_driver(vf610_nfc_driver);

@@ -43,8 +43,13 @@
 #include "intel_mchbar_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
+#include "display/intel_dp_aux_regs.h"
 #include "display/intel_dpio_phy.h"
 #include "display/intel_fbc.h"
+#include "display/intel_fdi_regs.h"
+#include "display/intel_pps_regs.h"
+#include "display/intel_psr_regs.h"
+#include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
 #include "gt/intel_gt_regs.h"
 
@@ -1557,7 +1562,7 @@ static int pf_write(struct intel_vgpu *vgpu,
 
 	if ((offset == _PS_1A_CTRL || offset == _PS_2A_CTRL ||
 	   offset == _PS_1B_CTRL || offset == _PS_2B_CTRL ||
-	   offset == _PS_1C_CTRL) && (val & PS_PLANE_SEL_MASK) != 0) {
+	   offset == _PS_1C_CTRL) && (val & PS_BINDING_MASK) != PS_BINDING_PIPE) {
 		drm_WARN_ONCE(&i915->drm, true,
 			      "VM(%d): guest is trying to scaling a plane\n",
 			      vgpu->id);

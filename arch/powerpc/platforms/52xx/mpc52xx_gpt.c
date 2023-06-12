@@ -735,8 +735,8 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 	mutex_unlock(&mpc52xx_gpt_list_mutex);
 
 	/* check if this device could be a watchdog */
-	if (of_get_property(ofdev->dev.of_node, "fsl,has-wdt", NULL) ||
-	    of_get_property(ofdev->dev.of_node, "has-wdt", NULL)) {
+	if (of_property_read_bool(ofdev->dev.of_node, "fsl,has-wdt") ||
+	    of_property_read_bool(ofdev->dev.of_node, "has-wdt")) {
 		const u32 *on_boot_wdt;
 
 		gpt->wdt_mode = MPC52xx_GPT_CAN_WDT;

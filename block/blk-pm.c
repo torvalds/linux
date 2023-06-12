@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/blk-mq.h>
 #include <linux/blk-pm.h>
 #include <linux/blkdev.h>
 #include <linux/pm_runtime.h>
 #include "blk-mq.h"
-#include "blk-mq-tag.h"
 
 /**
  * blk_pm_runtime_init - Block layer runtime PM initialization routine

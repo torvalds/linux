@@ -7,6 +7,7 @@
  *
  **************************************************************************/
 
+#include <linux/aperture.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
@@ -19,9 +20,7 @@
 #include <acpi/video.h>
 
 #include <drm/drm.h>
-#include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_pciids.h>
@@ -387,7 +386,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
 	psb_modeset_init(dev);
-	psb_fbdev_init(dev);
 	drm_kms_helper_poll_init(dev);
 
 	/* Only add backlight support if we have LVDS or MIPI output */
@@ -416,20 +414,45 @@ out_err:
 	return ret;
 }
 
+/*
+ * Hardware for gma500 is a hybrid device, which both acts as a PCI
+ * device (for legacy vga functionality) but also more like an
+ * integrated display on a SoC where the framebuffer simply
+ * resides in main memory and not in a special PCI bar (that
+ * internally redirects to a stolen range of main memory) like all
+ * other integrated PCI display devices implement it.
+ *
+ * To catch all cases we need to remove conflicting firmware devices
+ * for the stolen system memory and for the VGA functionality. As we
+ * currently cannot easily find the framebuffer's location in stolen
+ * memory, we remove all framebuffers here.
+ *
+ * TODO: Refactor psb_driver_load() to map vdc_reg earlier. Then
+ *       we might be able to read the framebuffer range from the
+ *       device.
+ */
+static int gma_remove_conflicting_framebuffers(struct pci_dev *pdev,
+					       const struct drm_driver *req_driver)
+{
+	resource_size_t base = 0;
+	resource_size_t size = U32_MAX; /* 4 GiB HW limit */
+	const char *name = req_driver->name;
+	int ret;
+
+	ret = aperture_remove_conflicting_devices(base, size, name);
+	if (ret)
+		return ret;
+
+	return __aperture_remove_legacy_vga_devices(pdev);
+}
+
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct drm_psb_private *dev_priv;
 	struct drm_device *dev;
 	int ret;
 
-	/*
-	 * We cannot yet easily find the framebuffer's location in memory. So
-	 * remove all framebuffers here.
-	 *
-	 * TODO: Refactor psb_driver_load() to map vdc_reg earlier. Then we
-	 *       might be able to read the framebuffer range from the device.
-	 */
-	ret = drm_aperture_remove_framebuffers(true, &driver);
+	ret = gma_remove_conflicting_framebuffers(pdev, &driver);
 	if (ret)
 		return ret;
 
@@ -451,6 +474,8 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
 		return ret;
+
+	psb_fbdev_setup(dev_priv);
 
 	return 0;
 }
@@ -477,7 +502,6 @@ static const struct file_operations psb_gem_fops = {
 
 static const struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
-	.lastclose = drm_fb_helper_lastclose,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 

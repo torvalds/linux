@@ -23,6 +23,7 @@ struct PGPKT_STRUCT {
 	u8 word_en;
 	u8 data[PGPKT_DATA_SIZE];
 };
+
 /*--------------------------------------------------------------------------*/
 u8 r8712_efuse_reg_init(struct _adapter *padapter);
 void r8712_efuse_reg_uninit(struct _adapter *padapter);

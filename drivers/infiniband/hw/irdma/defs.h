@@ -36,6 +36,7 @@ enum irdma_protocol_used {
 #define IRDMA_QP_STATE_ERROR		6
 
 #define IRDMA_MAX_TRAFFIC_CLASS		8
+#define	IRDMA_MAX_STATS_COUNT_GEN_1	12
 #define IRDMA_MAX_USER_PRIORITY		8
 #define IRDMA_MAX_APPS			8
 #define IRDMA_MAX_STATS_COUNT		128
@@ -365,9 +366,11 @@ enum irdma_cqp_op_type {
 #define FLD_RS_32(dev, val, field)	\
 	((u64)((val) & (dev)->hw_masks[field ## _M]) >> (dev)->hw_shifts[field ## _S])
 
-#define IRDMA_STATS_DELTA(a, b, c) ((a) >= (b) ? (a) - (b) : (a) + (c) - (b))
-#define IRDMA_MAX_STATS_32	0xFFFFFFFFULL
-#define IRDMA_MAX_STATS_48	0xFFFFFFFFFFFFULL
+#define IRDMA_MAX_STATS_24	0xffffffULL
+#define IRDMA_MAX_STATS_32	0xffffffffULL
+#define IRDMA_MAX_STATS_48	0xffffffffffffULL
+#define IRDMA_MAX_STATS_56	0xffffffffffffffULL
+#define IRDMA_MAX_STATS_64	0xffffffffffffffffULL
 
 #define IRDMA_MAX_CQ_READ_THRESH 0x3FFFF
 #define IRDMA_CQPSQ_QHASH_VLANID GENMASK_ULL(43, 32)

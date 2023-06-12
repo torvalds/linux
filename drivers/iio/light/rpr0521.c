@@ -431,7 +431,7 @@ static irqreturn_t rpr0521_drdy_irq_thread(int irq, void *private)
 	struct rpr0521_data *data = iio_priv(indio_dev);
 
 	if (rpr0521_is_triggered(data)) {
-		iio_trigger_poll_chained(data->drdy_trigger0);
+		iio_trigger_poll_nested(data->drdy_trigger0);
 		return IRQ_HANDLED;
 	}
 

@@ -84,9 +84,9 @@ struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 	}
 
 	err = -EINVAL;
-	if (WARN_ON(alg->digest_size != crypto_ahash_digestsize(tfm)))
+	if (WARN_ON_ONCE(alg->digest_size != crypto_ahash_digestsize(tfm)))
 		goto err_free_tfm;
-	if (WARN_ON(alg->block_size != crypto_ahash_blocksize(tfm)))
+	if (WARN_ON_ONCE(alg->block_size != crypto_ahash_blocksize(tfm)))
 		goto err_free_tfm;
 
 	err = mempool_init_kmalloc_pool(&alg->req_pool, 1,

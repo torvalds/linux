@@ -1122,7 +1122,7 @@ config HID_TOPRE
 	tristate "Topre REALFORCE keyboards"
 	depends on HID
 	help
-	  Say Y for N-key rollover support on Topre REALFORCE R2 108 key keyboards.
+	  Say Y for N-key rollover support on Topre REALFORCE R2 108/87 key keyboards.
 
 config HID_THINGM
 	tristate "ThingM blink(1) USB RGB LED"

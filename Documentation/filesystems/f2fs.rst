@@ -264,7 +264,7 @@ checkpoint=%s[:%u[%]]	 Set to "disable" to turn off checkpointing. Set to "enabl
 			 disabled, any unmounting or unexpected shutdowns will cause
 			 the filesystem contents to appear as they did when the
 			 filesystem was mounted with that option.
-			 While mounting with checkpoint=disabled, the filesystem must
+			 While mounting with checkpoint=disable, the filesystem must
 			 run garbage collection to ensure that all available space can
 			 be used. If this takes too much time, the mount may return
 			 EAGAIN. You may optionally add a value to indicate how much

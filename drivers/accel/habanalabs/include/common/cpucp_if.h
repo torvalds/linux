@@ -357,8 +357,9 @@ struct hl_eq_addr_dec_intr_data {
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
+		__le64 data_placeholder;
 		struct hl_eq_ecc_data ecc_data;
-		struct hl_eq_hbm_ecc_data hbm_ecc_data;	/* Gaudi1 HBM */
+		struct hl_eq_hbm_ecc_data hbm_ecc_data;	/* Obsolete */
 		struct hl_eq_sm_sei_data sm_sei_data;
 		struct cpucp_pkt_sync_err pkt_sync_err;
 		struct hl_eq_fw_alive fw_alive;
@@ -652,7 +653,7 @@ enum pq_init_status {
  *       which address is passed via the CpuCp packet. In addition, the host's driver
  *       passes the max size it allows the CpuCP to write to the structure, to prevent
  *       data corruption in case of mismatched driver/FW versions.
- *       Relevant only to Gaudi.
+ *       Obsolete.
  *
  * CPUCP_PACKET_GENERIC_PASSTHROUGH -
  *      Generic opcode for all firmware info that is only passed to host
@@ -661,6 +662,12 @@ enum pq_init_status {
  * CPUCP_PACKET_ACTIVE_STATUS_SET -
  *       LKD sends FW indication whether device is free or in use, this indication is reported
  *       also to the BMC.
+ *
+ * CPUCP_PACKET_REGISTER_INTERRUPTS -
+ *       Packet to register interrupts indicating LKD is ready to receive events from FW.
+ *
+ * CPUCP_PACKET_SOFT_RESET -
+ *	 Packet to perform soft-reset.
  */
 
 enum cpucp_packet_id {
@@ -725,6 +732,9 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED9,			/* not used */
 	CPUCP_PACKET_RESERVED10,		/* not used */
 	CPUCP_PACKET_RESERVED11,		/* not used */
+	CPUCP_PACKET_RESERVED12,		/* internal */
+	CPUCP_PACKET_REGISTER_INTERRUPTS,	/* internal */
+	CPUCP_PACKET_SOFT_RESET,		/* internal */
 	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
@@ -858,19 +868,19 @@ struct cpucp_array_data_packet {
 enum cpucp_led_index {
 	CPUCP_LED0_INDEX = 0,
 	CPUCP_LED1_INDEX,
-	CPUCP_LED2_INDEX
+	CPUCP_LED2_INDEX,
+	CPUCP_LED_MAX_INDEX = CPUCP_LED2_INDEX
 };
 
 /*
  * enum cpucp_packet_rc - Error return code
  * @cpucp_packet_success	-> in case of success.
- * @cpucp_packet_invalid	-> this is to support Goya and Gaudi platform.
+ * @cpucp_packet_invalid	-> this is to support first generation platforms.
  * @cpucp_packet_fault		-> in case of processing error like failing to
  *                                 get device binding or semaphore etc.
- * @cpucp_packet_invalid_pkt	-> when cpucp packet is un-supported. This is
- *                                 supported Greco onwards.
+ * @cpucp_packet_invalid_pkt	-> when cpucp packet is un-supported.
  * @cpucp_packet_invalid_params	-> when checking parameter like length of buffer
- *				   or attribute value etc. Supported Greco onwards.
+ *				   or attribute value etc.
  * @cpucp_packet_rc_max		-> It indicates size of enum so should be at last.
  */
 enum cpucp_packet_rc {
@@ -1127,6 +1137,7 @@ struct cpucp_security_info {
  *                     (0 = functional 1 = binned)
  * @interposer_version: Interposer version programmed in eFuse
  * @substrate_version: Substrate version programmed in eFuse
+ * @fw_hbm_region_size: Size in bytes of FW reserved region in HBM.
  * @fw_os_version: Firmware OS Version
  */
 struct cpucp_info {
@@ -1154,7 +1165,7 @@ struct cpucp_info {
 	__u8 substrate_version;
 	__u8 reserved2;
 	struct cpucp_security_info sec_info;
-	__le32 reserved3;
+	__le32 fw_hbm_region_size;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
 	__u8 fw_os_version[VERSION_MAX_LEN];
@@ -1354,7 +1365,7 @@ struct cpucp_dev_info_signed {
 #define DCORE_MON_REGS_SZ	512
 /*
  * struct dcore_monitor_regs_data - DCORE monitor regs data.
- * the structure follows sync manager block layout. relevant only to Gaudi.
+ * the structure follows sync manager block layout. Obsolete.
  * @mon_pay_addrl: array of payload address low bits.
  * @mon_pay_addrh: array of payload address high bits.
  * @mon_pay_data: array of payload data.
@@ -1369,7 +1380,7 @@ struct dcore_monitor_regs_data {
 	__le32 mon_status[DCORE_MON_REGS_SZ];
 };
 
-/* contains SM data for each SYNC_MNGR (relevant only to Gaudi) */
+/* contains SM data for each SYNC_MNGR (Obsolete) */
 struct cpucp_monitor_dump {
 	struct dcore_monitor_regs_data sync_mngr_w_s;
 	struct dcore_monitor_regs_data sync_mngr_e_s;

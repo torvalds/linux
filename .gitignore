@@ -78,6 +78,7 @@ modules.order
 # RPM spec file (make rpm-pkg)
 #
 /*.spec
+/rpmbuild/
 
 #
 # Debian directory (make deb-pkg)
@@ -102,6 +103,7 @@ modules.order
 !.get_maintainer.ignore
 !.gitattributes
 !.gitignore
+!.kunitconfig
 !.mailmap
 !.rustfmt.toml
 

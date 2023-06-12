@@ -472,6 +472,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
 
 	prop->first_available_user_interrupt = USHRT_MAX;
+	prop->tpc_interrupt_id = USHRT_MAX;
+	prop->eq_interrupt_id = GOYA_EVENT_QUEUE_MSIX_IDX;
 
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;
@@ -668,13 +670,18 @@ pci_init:
 	rc = hl_fw_read_preboot_status(hdev);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
+			/* we are already on failure flow, so don't check if hw_fini fails. */
 			hdev->asic_funcs->hw_fini(hdev, true, false);
 		goto pci_fini;
 	}
 
 	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
 		dev_dbg(hdev->dev, "H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true, false);
+		rc = hdev->asic_funcs->hw_fini(hdev, true, false);
+		if (rc) {
+			dev_err(hdev->dev, "failed to reset HW in dirty state (%d)\n", rc);
+			goto pci_fini;
+		}
 	}
 
 	if (!hdev->pldm) {
@@ -2664,9 +2671,6 @@ int goya_mmu_init(struct hl_device *hdev)
 	u64 hop0_addr;
 	int rc, i;
 
-	if (!hdev->mmu_enable)
-		return 0;
-
 	if (goya->hw_cap_initialized & HW_CAP_MMU)
 		return 0;
 
@@ -2782,7 +2786,7 @@ disable_queues:
 	return rc;
 }
 
-static void goya_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
+static int goya_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 reset_timeout_ms, cpu_timeout_ms, status;
@@ -2828,17 +2832,17 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 	msleep(reset_timeout_ms);
 
 	status = RREG32(mmPSOC_GLOBAL_CONF_BTM_FSM);
-	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK)
-		dev_err(hdev->dev,
-			"Timeout while waiting for device to reset 0x%x\n",
-			status);
+	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK) {
+		dev_err(hdev->dev, "Timeout while waiting for device to reset 0x%x\n", status);
+		return -ETIMEDOUT;
+	}
 
 	if (!hard_reset && goya) {
 		goya->hw_cap_initialized &= ~(HW_CAP_DMA | HW_CAP_MME |
 						HW_CAP_GOLDEN | HW_CAP_TPC);
 		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
 				GOYA_ASYNC_EVENT_ID_SOFT_RESET);
-		return;
+		return 0;
 	}
 
 	/* Chicken bit to re-initiate boot sequencer flow */
@@ -2857,6 +2861,7 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 
 		memset(goya->events_stat, 0, sizeof(goya->events_stat));
 	}
+	return 0;
 }
 
 int goya_suspend(struct hl_device *hdev)

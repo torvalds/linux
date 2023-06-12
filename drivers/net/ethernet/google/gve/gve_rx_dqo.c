@@ -568,7 +568,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 
 	if (eop && buf_len <= priv->rx_copybreak) {
 		rx->ctx.skb_head = gve_rx_copy(priv->dev, napi,
-					       &buf_state->page_info, buf_len, 0);
+					       &buf_state->page_info, buf_len);
 		if (unlikely(!rx->ctx.skb_head))
 			goto error;
 		rx->ctx.skb_tail = rx->ctx.skb_head;

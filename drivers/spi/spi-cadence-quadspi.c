@@ -791,6 +791,21 @@ failrd:
 	return ret;
 }
 
+static void cqspi_controller_enable(struct cqspi_st *cqspi, bool enable)
+{
+	void __iomem *reg_base = cqspi->iobase;
+	unsigned int reg;
+
+	reg = readl(reg_base + CQSPI_REG_CONFIG);
+
+	if (enable)
+		reg |= CQSPI_REG_CONFIG_ENABLE_MASK;
+	else
+		reg &= ~CQSPI_REG_CONFIG_ENABLE_MASK;
+
+	writel(reg, reg_base + CQSPI_REG_CONFIG);
+}
+
 static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 					  u_char *rxbuf, loff_t from_addr,
 					  size_t n_rx)
@@ -815,9 +830,13 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	if (ret)
 		return ret;
 
+	cqspi_controller_enable(cqspi, 0);
+
 	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 	reg |= CQSPI_REG_CONFIG_DMA_MASK;
 	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	cqspi_controller_enable(cqspi, 1);
 
 	dma_addr = dma_map_single(dev, rxbuf, bytes_to_dma, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
@@ -863,7 +882,7 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	reinit_completion(&cqspi->transfer_complete);
 
 	if (!wait_for_completion_timeout(&cqspi->transfer_complete,
-					 msecs_to_jiffies(CQSPI_READ_TIMEOUT_MS))) {
+					 msecs_to_jiffies(max_t(size_t, bytes_to_dma, 500)))) {
 		ret = -ETIMEDOUT;
 		goto failrd;
 	}
@@ -876,9 +895,13 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	       cqspi->iobase + CQSPI_REG_INDIRECTRD);
 	dma_unmap_single(dev, dma_addr, bytes_to_dma, DMA_FROM_DEVICE);
 
+	cqspi_controller_enable(cqspi, 0);
+
 	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 	reg &= ~CQSPI_REG_CONFIG_DMA_MASK;
 	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	cqspi_controller_enable(cqspi, 1);
 
 	ret = zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id,
 					PM_OSPI_MUX_SEL_LINEAR);
@@ -1182,21 +1205,6 @@ static void cqspi_readdata_capture(struct cqspi_st *cqspi,
 	writel(reg, reg_base + CQSPI_REG_READCAPTURE);
 }
 
-static void cqspi_controller_enable(struct cqspi_st *cqspi, bool enable)
-{
-	void __iomem *reg_base = cqspi->iobase;
-	unsigned int reg;
-
-	reg = readl(reg_base + CQSPI_REG_CONFIG);
-
-	if (enable)
-		reg |= CQSPI_REG_CONFIG_ENABLE_MASK;
-	else
-		reg &= ~CQSPI_REG_CONFIG_ENABLE_MASK;
-
-	writel(reg, reg_base + CQSPI_REG_CONFIG);
-}
-
 static void cqspi_configure(struct cqspi_flash_pdata *f_pdata,
 			    unsigned long sclk)
 {
@@ -1355,7 +1363,7 @@ static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
 	struct cqspi_flash_pdata *f_pdata;
 
-	f_pdata = &cqspi->f_pdata[mem->spi->chip_select];
+	f_pdata = &cqspi->f_pdata[spi_get_chipselect(mem->spi, 0)];
 	cqspi_configure(f_pdata, mem->spi->max_speed_hz);
 
 	if (op->data.dir == SPI_MEM_DATA_IN && op->data.buf.in) {
@@ -1561,7 +1569,8 @@ static const char *cqspi_get_name(struct spi_mem *mem)
 	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
 	struct device *dev = &cqspi->pdev->dev;
 
-	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev), mem->spi->chip_select);
+	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev),
+			      spi_get_chipselect(mem->spi, 0));
 }
 
 static const struct spi_controller_mem_ops cqspi_mem_ops = {
@@ -1615,7 +1624,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 static int cqspi_probe(struct platform_device *pdev)
 {
 	const struct cqspi_driver_platdata *ddata;
-	struct reset_control *rstc, *rstc_ocp;
+	struct reset_control *rstc, *rstc_ocp, *rstc_ref;
 	struct device *dev = &pdev->dev;
 	struct spi_master *master;
 	struct resource *res_ahb;
@@ -1705,6 +1714,17 @@ static int cqspi_probe(struct platform_device *pdev)
 		goto probe_reset_failed;
 	}
 
+	if (of_device_is_compatible(pdev->dev.of_node, "starfive,jh7110-qspi")) {
+		rstc_ref = devm_reset_control_get_optional_exclusive(dev, "rstc_ref");
+		if (IS_ERR(rstc_ref)) {
+			ret = PTR_ERR(rstc_ref);
+			dev_err(dev, "Cannot get QSPI REF reset.\n");
+			goto probe_reset_failed;
+		}
+		reset_control_assert(rstc_ref);
+		reset_control_deassert(rstc_ref);
+	}
+
 	reset_control_assert(rstc);
 	reset_control_deassert(rstc);
 
@@ -1784,7 +1804,7 @@ probe_pm_failed:
 	return ret;
 }
 
-static int cqspi_remove(struct platform_device *pdev)
+static void cqspi_remove(struct platform_device *pdev)
 {
 	struct cqspi_st *cqspi = platform_get_drvdata(pdev);
 
@@ -1798,36 +1818,38 @@ static int cqspi_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int cqspi_suspend(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
+	struct spi_master *master = dev_get_drvdata(dev);
+	int ret;
 
+	ret = spi_master_suspend(master);
 	cqspi_controller_enable(cqspi, 0);
-	return 0;
+
+	clk_disable_unprepare(cqspi->clk);
+
+	return ret;
 }
 
 static int cqspi_resume(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
+	struct spi_master *master = dev_get_drvdata(dev);
 
-	cqspi_controller_enable(cqspi, 1);
-	return 0;
+	clk_prepare_enable(cqspi->clk);
+	cqspi_wait_idle(cqspi);
+	cqspi_controller_init(cqspi);
+
+	cqspi->current_cs = -1;
+	cqspi->sclk = 0;
+
+	return spi_master_resume(master);
 }
 
-static const struct dev_pm_ops cqspi__dev_pm_ops = {
-	.suspend = cqspi_suspend,
-	.resume = cqspi_resume,
-};
-
-#define CQSPI_DEV_PM_OPS	(&cqspi__dev_pm_ops)
-#else
-#define CQSPI_DEV_PM_OPS	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(cqspi_dev_pm_ops, cqspi_suspend, cqspi_resume);
 
 static const struct cqspi_driver_platdata cdns_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE,
@@ -1859,6 +1881,10 @@ static const struct cqspi_driver_platdata versal_ospi = {
 	.get_dma_status = cqspi_get_versal_dma_status,
 };
 
+static const struct cqspi_driver_platdata jh7110_qspi = {
+	.quirks = CQSPI_DISABLE_DAC_MODE,
+};
+
 static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "cdns,qspi-nor",
@@ -1884,6 +1910,10 @@ static const struct of_device_id cqspi_dt_ids[] = {
 		.compatible = "intel,socfpga-qspi",
 		.data = &socfpga_qspi,
 	},
+	{
+		.compatible = "starfive,jh7110-qspi",
+		.data = &jh7110_qspi,
+	},
 	{ /* end of table */ }
 };
 
@@ -1891,10 +1921,10 @@ MODULE_DEVICE_TABLE(of, cqspi_dt_ids);
 
 static struct platform_driver cqspi_platform_driver = {
 	.probe = cqspi_probe,
-	.remove = cqspi_remove,
+	.remove_new = cqspi_remove,
 	.driver = {
 		.name = CQSPI_NAME,
-		.pm = CQSPI_DEV_PM_OPS,
+		.pm = &cqspi_dev_pm_ops,
 		.of_match_table = cqspi_dt_ids,
 	},
 };

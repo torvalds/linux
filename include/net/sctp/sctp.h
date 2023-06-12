@@ -425,11 +425,11 @@ static inline bool sctp_chunk_pending(const struct sctp_chunk *chunk)
  * the chunk length to indicate when to stop.  Make sure
  * there is room for a param header too.
  */
-#define sctp_walk_params(pos, chunk, member)\
-_sctp_walk_params((pos), (chunk), ntohs((chunk)->chunk_hdr.length), member)
+#define sctp_walk_params(pos, chunk)\
+_sctp_walk_params((pos), (chunk), ntohs((chunk)->chunk_hdr.length))
 
-#define _sctp_walk_params(pos, chunk, end, member)\
-for (pos.v = chunk->member;\
+#define _sctp_walk_params(pos, chunk, end)\
+for (pos.v = (u8 *)(chunk + 1);\
      (pos.v + offsetof(struct sctp_paramhdr, length) + sizeof(pos.p->length) <=\
       (void *)chunk + end) &&\
      pos.v <= (void *)chunk + end - ntohs(pos.p->length) &&\
@@ -452,8 +452,8 @@ for (err = (struct sctp_errhdr *)((void *)chunk_hdr + \
 _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(struct sctp_fwdtsn_chunk))
 
 #define _sctp_walk_fwdtsn(pos, chunk, end)\
-for (pos = chunk->subh.fwdtsn_hdr->skip;\
-     (void *)pos <= (void *)chunk->subh.fwdtsn_hdr->skip + end - sizeof(struct sctp_fwdtsn_skip);\
+for (pos = (void *)(chunk->subh.fwdtsn_hdr + 1);\
+     (void *)pos <= (void *)(chunk->subh.fwdtsn_hdr + 1) + end - sizeof(struct sctp_fwdtsn_skip);\
      pos++)
 
 /* External references. */

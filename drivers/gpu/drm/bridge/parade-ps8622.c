@@ -496,7 +496,7 @@ static int ps8622_probe(struct i2c_client *client)
 		ps8622->lane_count = ps8622->max_lane_count;
 	}
 
-	if (!of_find_property(dev->of_node, "use-external-pwm", NULL)) {
+	if (!of_property_read_bool(dev->of_node, "use-external-pwm")) {
 		ps8622->bl = backlight_device_register("ps8622-backlight",
 				dev, ps8622, &ps8622_backlight_ops,
 				NULL);
@@ -538,7 +538,7 @@ MODULE_DEVICE_TABLE(i2c, ps8622_i2c_table);
 
 static struct i2c_driver ps8622_driver = {
 	.id_table	= ps8622_i2c_table,
-	.probe_new	= ps8622_probe,
+	.probe		= ps8622_probe,
 	.remove		= ps8622_remove,
 	.driver		= {
 		.name	= "ps8622",

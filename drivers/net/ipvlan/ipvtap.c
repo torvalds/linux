@@ -38,7 +38,6 @@ static const void *ipvtap_net_namespace(const struct device *d)
 
 static struct class ipvtap_class = {
 	 .name = "ipvtap",
-	 .owner = THIS_MODULE,
 	 .ns_type = &net_ns_type_operations,
 	 .namespace = ipvtap_net_namespace,
 };

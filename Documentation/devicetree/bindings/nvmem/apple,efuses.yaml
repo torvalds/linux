@@ -15,7 +15,7 @@ maintainers:
   - Sven Peter <sven@svenpeter.dev>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:

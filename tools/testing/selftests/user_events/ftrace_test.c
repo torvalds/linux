@@ -12,20 +12,16 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include "../kselftest_harness.h"
 
-const char *data_file = "/sys/kernel/debug/tracing/user_events_data";
-const char *status_file = "/sys/kernel/debug/tracing/user_events_status";
-const char *enable_file = "/sys/kernel/debug/tracing/events/user_events/__test_event/enable";
-const char *trace_file = "/sys/kernel/debug/tracing/trace";
-const char *fmt_file = "/sys/kernel/debug/tracing/events/user_events/__test_event/format";
-
-static inline int status_check(char *status_page, int status_bit)
-{
-	return status_page[status_bit >> 3] & (1 << (status_bit & 7));
-}
+const char *data_file = "/sys/kernel/tracing/user_events_data";
+const char *status_file = "/sys/kernel/tracing/user_events_status";
+const char *enable_file = "/sys/kernel/tracing/events/user_events/__test_event/enable";
+const char *trace_file = "/sys/kernel/tracing/trace";
+const char *fmt_file = "/sys/kernel/tracing/events/user_events/__test_event/format";
 
 static int trace_bytes(void)
 {
@@ -106,12 +102,22 @@ err:
 	return -1;
 }
 
-static int clear(void)
+static int clear(int *check)
 {
+	struct user_unreg unreg = {0};
+
+	unreg.size = sizeof(unreg);
+	unreg.disable_bit = 31;
+	unreg.disable_addr = (__u64)check;
+
 	int fd = open(data_file, O_RDWR);
 
 	if (fd == -1)
 		return -1;
+
+	if (ioctl(fd, DIAG_IOCSUNREG, &unreg) == -1)
+		if (errno != ENOENT)
+			return -1;
 
 	if (ioctl(fd, DIAG_IOCSDEL, "__test_event") == -1)
 		if (errno != ENOENT)
@@ -122,7 +128,7 @@ static int clear(void)
 	return 0;
 }
 
-static int check_print_fmt(const char *event, const char *expected)
+static int check_print_fmt(const char *event, const char *expected, int *check)
 {
 	struct user_reg reg = {0};
 	char print_fmt[256];
@@ -130,7 +136,7 @@ static int check_print_fmt(const char *event, const char *expected)
 	int fd;
 
 	/* Ensure cleared */
-	ret = clear();
+	ret = clear(check);
 
 	if (ret != 0)
 		return ret;
@@ -142,14 +148,19 @@ static int check_print_fmt(const char *event, const char *expected)
 
 	reg.size = sizeof(reg);
 	reg.name_args = (__u64)event;
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)check;
+	reg.enable_size = sizeof(*check);
 
 	/* Register should work */
 	ret = ioctl(fd, DIAG_IOCSREG, &reg);
 
 	close(fd);
 
-	if (ret != 0)
+	if (ret != 0) {
+		printf("Reg failed in fmt\n");
 		return ret;
+	}
 
 	/* Ensure correct print_fmt */
 	ret = get_print_fmt(print_fmt, sizeof(print_fmt));
@@ -164,6 +175,7 @@ FIXTURE(user) {
 	int status_fd;
 	int data_fd;
 	int enable_fd;
+	int check;
 };
 
 FIXTURE_SETUP(user) {
@@ -185,59 +197,63 @@ FIXTURE_TEARDOWN(user) {
 		close(self->enable_fd);
 	}
 
-	ASSERT_EQ(0, clear());
+	if (clear(&self->check) != 0)
+		printf("WARNING: Clear didn't work!\n");
 }
 
 TEST_F(user, register_events) {
 	struct user_reg reg = {0};
-	int page_size = sysconf(_SC_PAGESIZE);
-	char *status_page;
+	struct user_unreg unreg = {0};
 
 	reg.size = sizeof(reg);
 	reg.name_args = (__u64)"__test_event u32 field1; u32 field2";
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)&self->check;
+	reg.enable_size = sizeof(self->check);
 
-	status_page = mmap(NULL, page_size, PROT_READ, MAP_SHARED,
-			   self->status_fd, 0);
+	unreg.size = sizeof(unreg);
+	unreg.disable_bit = 31;
+	unreg.disable_addr = (__u64)&self->check;
 
 	/* Register should work */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
-	ASSERT_NE(0, reg.status_bit);
 
-	/* Multiple registers should result in same index */
+	/* Multiple registers to the same addr + bit should fail */
+	ASSERT_EQ(-1, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
+	ASSERT_EQ(EADDRINUSE, errno);
+
+	/* Multiple registers to same name should result in same index */
+	reg.enable_bit = 30;
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
-	ASSERT_NE(0, reg.status_bit);
 
 	/* Ensure disabled */
 	self->enable_fd = open(enable_file, O_RDWR);
 	ASSERT_NE(-1, self->enable_fd);
 	ASSERT_NE(-1, write(self->enable_fd, "0", sizeof("0")))
 
-	/* MMAP should work and be zero'd */
-	ASSERT_NE(MAP_FAILED, status_page);
-	ASSERT_NE(NULL, status_page);
-	ASSERT_EQ(0, status_check(status_page, reg.status_bit));
-
 	/* Enable event and ensure bits updated in status */
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
-	ASSERT_NE(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(1 << reg.enable_bit, self->check);
 
 	/* Disable event and ensure bits updated in status */
 	ASSERT_NE(-1, write(self->enable_fd, "0", sizeof("0")))
-	ASSERT_EQ(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(0, self->check);
 
 	/* File still open should return -EBUSY for delete */
 	ASSERT_EQ(-1, ioctl(self->data_fd, DIAG_IOCSDEL, "__test_event"));
 	ASSERT_EQ(EBUSY, errno);
 
-	/* Delete should work only after close */
+	/* Unregister */
+	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
+	unreg.disable_bit = 30;
+	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
+
+	/* Delete should work only after close and unregister */
 	close(self->data_fd);
 	self->data_fd = open(data_file, O_RDWR);
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSDEL, "__test_event"));
-
-	/* Unmap should work */
-	ASSERT_EQ(0, munmap(status_page, page_size));
 }
 
 TEST_F(user, write_events) {
@@ -245,11 +261,12 @@ TEST_F(user, write_events) {
 	struct iovec io[3];
 	__u32 field1, field2;
 	int before = 0, after = 0;
-	int page_size = sysconf(_SC_PAGESIZE);
-	char *status_page;
 
 	reg.size = sizeof(reg);
 	reg.name_args = (__u64)"__test_event u32 field1; u32 field2";
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)&self->check;
+	reg.enable_size = sizeof(self->check);
 
 	field1 = 1;
 	field2 = 2;
@@ -261,18 +278,10 @@ TEST_F(user, write_events) {
 	io[2].iov_base = &field2;
 	io[2].iov_len = sizeof(field2);
 
-	status_page = mmap(NULL, page_size, PROT_READ, MAP_SHARED,
-			   self->status_fd, 0);
-
 	/* Register should work */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
-	ASSERT_NE(0, reg.status_bit);
-
-	/* MMAP should work and be zero'd */
-	ASSERT_NE(MAP_FAILED, status_page);
-	ASSERT_NE(NULL, status_page);
-	ASSERT_EQ(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(0, self->check);
 
 	/* Write should fail on invalid slot with ENOENT */
 	io[0].iov_base = &field2;
@@ -287,13 +296,18 @@ TEST_F(user, write_events) {
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
 
 	/* Event should now be enabled */
-	ASSERT_NE(0, status_check(status_page, reg.status_bit));
+	ASSERT_NE(1 << reg.enable_bit, self->check);
 
 	/* Write should make it out to ftrace buffers */
 	before = trace_bytes();
 	ASSERT_NE(-1, writev(self->data_fd, (const struct iovec *)io, 3));
 	after = trace_bytes();
 	ASSERT_GT(after, before);
+
+	/* Negative index should fail with EINVAL */
+	reg.write_index = -1;
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	ASSERT_EQ(EINVAL, errno);
 }
 
 TEST_F(user, write_fault) {
@@ -304,6 +318,9 @@ TEST_F(user, write_fault) {
 
 	reg.size = sizeof(reg);
 	reg.name_args = (__u64)"__test_event u64 anon";
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)&self->check;
+	reg.enable_size = sizeof(self->check);
 
 	anon = mmap(NULL, l, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	ASSERT_NE(MAP_FAILED, anon);
@@ -316,7 +333,6 @@ TEST_F(user, write_fault) {
 	/* Register should work */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
-	ASSERT_NE(0, reg.status_bit);
 
 	/* Write should work normally */
 	ASSERT_NE(-1, writev(self->data_fd, (const struct iovec *)io, 2));
@@ -333,24 +349,17 @@ TEST_F(user, write_validator) {
 	int loc, bytes;
 	char data[8];
 	int before = 0, after = 0;
-	int page_size = sysconf(_SC_PAGESIZE);
-	char *status_page;
-
-	status_page = mmap(NULL, page_size, PROT_READ, MAP_SHARED,
-			   self->status_fd, 0);
 
 	reg.size = sizeof(reg);
 	reg.name_args = (__u64)"__test_event __rel_loc char[] data";
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)&self->check;
+	reg.enable_size = sizeof(self->check);
 
 	/* Register should work */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
-	ASSERT_NE(0, reg.status_bit);
-
-	/* MMAP should work and be zero'd */
-	ASSERT_NE(MAP_FAILED, status_page);
-	ASSERT_NE(NULL, status_page);
-	ASSERT_EQ(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(0, self->check);
 
 	io[0].iov_base = &reg.write_index;
 	io[0].iov_len = sizeof(reg.write_index);
@@ -369,7 +378,7 @@ TEST_F(user, write_validator) {
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
 
 	/* Event should now be enabled */
-	ASSERT_NE(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(1 << reg.enable_bit, self->check);
 
 	/* Full in-bounds write should work */
 	before = trace_bytes();
@@ -409,71 +418,88 @@ TEST_F(user, print_fmt) {
 	int ret;
 
 	ret = check_print_fmt("__test_event __rel_loc char[] data",
-			      "print fmt: \"data=%s\", __get_rel_str(data)");
+			      "print fmt: \"data=%s\", __get_rel_str(data)",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event __data_loc char[] data",
-			      "print fmt: \"data=%s\", __get_str(data)");
+			      "print fmt: \"data=%s\", __get_str(data)",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event s64 data",
-			      "print fmt: \"data=%lld\", REC->data");
+			      "print fmt: \"data=%lld\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event u64 data",
-			      "print fmt: \"data=%llu\", REC->data");
+			      "print fmt: \"data=%llu\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event s32 data",
-			      "print fmt: \"data=%d\", REC->data");
+			      "print fmt: \"data=%d\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event u32 data",
-			      "print fmt: \"data=%u\", REC->data");
+			      "print fmt: \"data=%u\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event int data",
-			      "print fmt: \"data=%d\", REC->data");
+			      "print fmt: \"data=%d\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event unsigned int data",
-			      "print fmt: \"data=%u\", REC->data");
+			      "print fmt: \"data=%u\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event s16 data",
-			      "print fmt: \"data=%d\", REC->data");
+			      "print fmt: \"data=%d\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event u16 data",
-			      "print fmt: \"data=%u\", REC->data");
+			      "print fmt: \"data=%u\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event short data",
-			      "print fmt: \"data=%d\", REC->data");
+			      "print fmt: \"data=%d\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event unsigned short data",
-			      "print fmt: \"data=%u\", REC->data");
+			      "print fmt: \"data=%u\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event s8 data",
-			      "print fmt: \"data=%d\", REC->data");
+			      "print fmt: \"data=%d\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event u8 data",
-			      "print fmt: \"data=%u\", REC->data");
+			      "print fmt: \"data=%u\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event char data",
-			      "print fmt: \"data=%d\", REC->data");
+			      "print fmt: \"data=%d\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event unsigned char data",
-			      "print fmt: \"data=%u\", REC->data");
+			      "print fmt: \"data=%u\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 
 	ret = check_print_fmt("__test_event char[4] data",
-			      "print fmt: \"data=%s\", REC->data");
+			      "print fmt: \"data=%s\", REC->data",
+			      &self->check);
 	ASSERT_EQ(0, ret);
 }
 

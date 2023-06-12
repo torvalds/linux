@@ -68,6 +68,9 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L41_I2C
 	imply SND_SOC_CS35L45_I2C
 	imply SND_SOC_CS35L45_SPI
+	imply SND_SOC_CS35L56_I2C
+	imply SND_SOC_CS35L56_SPI
+	imply SND_SOC_CS35L56_SDW
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L42_SDW
 	imply SND_SOC_CS42L51_I2C
@@ -130,6 +133,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98925
 	imply SND_SOC_MAX98926
 	imply SND_SOC_MAX98927
+	imply SND_SOC_MAX98363
 	imply SND_SOC_MAX98373_I2C
 	imply SND_SOC_MAX98373_SDW
 	imply SND_SOC_MAX98390
@@ -200,6 +204,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT711_SDCA_SDW
 	imply SND_SOC_RT712_SDCA_SDW
+	imply SND_SOC_RT712_SDCA_DMIC_SDW
 	imply SND_SOC_RT715_SDW
 	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
@@ -364,6 +369,9 @@ config SND_SOC_WM_ADSP
 	default y if SND_SOC_WM2200=y
 	default y if SND_SOC_CS35L41_SPI=y
 	default y if SND_SOC_CS35L41_I2C=y
+	default y if SND_SOC_CS35L45_SPI=y
+	default y if SND_SOC_CS35L45_I2C=y
+	default y if SND_SOC_CS35L56=y
 	default m if SND_SOC_MADERA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
@@ -371,6 +379,9 @@ config SND_SOC_WM_ADSP
 	default m if SND_SOC_WM2200=m
 	default m if SND_SOC_CS35L41_SPI=m
 	default m if SND_SOC_CS35L41_I2C=m
+	default m if SND_SOC_CS35L45_SPI=m
+	default m if SND_SOC_CS35L45_I2C=m
+	default m if SND_SOC_CS35L56=m
 
 config SND_SOC_AB8500_CODEC
 	tristate
@@ -711,6 +722,41 @@ config SND_SOC_CS35L45_I2C
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
 	  with I2C control.
 
+config SND_SOC_CS35L56
+	tristate
+
+config SND_SOC_CS35L56_SHARED
+	tristate
+
+config SND_SOC_CS35L56_I2C
+	tristate "Cirrus Logic CS35L56 CODEC (I2C)"
+	depends on I2C
+	depends on SOUNDWIRE || !SOUNDWIRE
+	select REGMAP_I2C
+	select SND_SOC_CS35L56
+	select SND_SOC_CS35L56_SHARED
+	help
+	  Enable support for Cirrus Logic CS35L56 boosted amplifier with I2C control
+
+config SND_SOC_CS35L56_SPI
+	tristate "Cirrus Logic CS35L56 CODEC (SPI)"
+	depends on SPI_MASTER
+	depends on SOUNDWIRE || !SOUNDWIRE
+	select REGMAP_SPI
+	select SND_SOC_CS35L56
+	select SND_SOC_CS35L56_SHARED
+	help
+	  Enable support for Cirrus Logic CS35L56 boosted amplifier with SPI control
+
+config SND_SOC_CS35L56_SDW
+	tristate "Cirrus Logic CS35L56 CODEC (SDW)"
+	depends on SOUNDWIRE
+	select REGMAP
+	select SND_SOC_CS35L56
+	select SND_SOC_CS35L56_SHARED
+	help
+	  Enable support for Cirrus Logic CS35L56 boosted amplifier with SoundWire control
+
 config SND_SOC_CS42L42_CORE
 	tristate
 
@@ -1044,7 +1090,7 @@ config SND_SOC_MAX98088
 	depends on I2C
 
 config SND_SOC_MAX98090
-	tristate
+	tristate "Maxim MAX98090 CODEC"
 	depends on I2C
 
 config SND_SOC_MAX98095
@@ -1088,6 +1134,16 @@ config SND_SOC_MAX98520
 	  8KHz to 192KHz.
 
 	  To compile this driver as a module, choose M here.
+
+config SND_SOC_MAX98363
+	tristate "Analog Devices MAX98363 Soundwire Speaker Amplifier"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  Enable support for Analog Devices MAX98363 Soundwire
+	  amplifier. MAX98363 supports the MIPI SoundWire v1.2
+	  compatible interface for audio and control data.
+	  This amplifier does not support I2C and I2S.
 
 config SND_SOC_MAX98373
 	tristate
@@ -1473,6 +1529,12 @@ config SND_SOC_RT711_SDCA_SDW
 
 config SND_SOC_RT712_SDCA_SDW
 	tristate "Realtek RT712 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+
+config SND_SOC_RT712_SDCA_DMIC_SDW
+	tristate "Realtek RT712 SDCA DMIC Codec - SDW"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ

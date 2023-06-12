@@ -601,7 +601,7 @@ static void lowcomms_error_report(struct sock *sk)
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
 				   con->nodeid, &inet->inet_daddr,
 				   ntohs(inet->inet_dport), sk->sk_err,
-				   sk->sk_err_soft);
+				   READ_ONCE(sk->sk_err_soft));
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
@@ -610,14 +610,15 @@ static void lowcomms_error_report(struct sock *sk)
 				   "dport %d, sk_err=%d/%d\n", dlm_our_nodeid(),
 				   con->nodeid, &sk->sk_v6_daddr,
 				   ntohs(inet->inet_dport), sk->sk_err,
-				   sk->sk_err_soft);
+				   READ_ONCE(sk->sk_err_soft));
 		break;
 #endif
 	default:
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "invalid socket family %d set, "
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
-				   sk->sk_family, sk->sk_err, sk->sk_err_soft);
+				   sk->sk_family, sk->sk_err,
+				   READ_ONCE(sk->sk_err_soft));
 		break;
 	}
 
@@ -1717,8 +1718,8 @@ static void work_stop(void)
 
 static int work_start(void)
 {
-	io_workqueue = alloc_workqueue("dlm_io", WQ_HIGHPRI | WQ_MEM_RECLAIM,
-				       0);
+	io_workqueue = alloc_workqueue("dlm_io", WQ_HIGHPRI | WQ_MEM_RECLAIM |
+				       WQ_UNBOUND, 0);
 	if (!io_workqueue) {
 		log_print("can't start dlm_io");
 		return -ENOMEM;
@@ -1814,7 +1815,7 @@ static int dlm_listen_for_all(void)
 	sock->sk->sk_data_ready = lowcomms_listen_data_ready;
 	release_sock(sock->sk);
 
-	result = sock->ops->listen(sock, 5);
+	result = sock->ops->listen(sock, 128);
 	if (result < 0) {
 		dlm_close_sock(&listen_con.sock);
 		return result;

@@ -19,7 +19,7 @@ int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 	struct intel_gt *gt;
 	struct intel_huc *huc;
 	struct pxp43_start_huc_auth_in huc_in = {0};
-	struct pxp43_start_huc_auth_out huc_out = {0};
+	struct pxp43_huc_auth_out huc_out = {0};
 	dma_addr_t huc_phys_addr;
 	u8 client_id = 0;
 	u8 fence_id = 0;
@@ -38,7 +38,7 @@ int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 	huc_in.header.command_id  = PXP43_CMDID_START_HUC_AUTH;
 	huc_in.header.status      = 0;
 	huc_in.header.buffer_len  = sizeof(huc_in.huc_base_address);
-	huc_in.huc_base_address   = huc_phys_addr;
+	huc_in.huc_base_address   = cpu_to_le64(huc_phys_addr);
 
 	err = intel_pxp_tee_stream_message(pxp, client_id, fence_id,
 					   &huc_in, sizeof(huc_in),

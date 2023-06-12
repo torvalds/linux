@@ -22,11 +22,6 @@
 #define OF_CHECK_ADDR_COUNT(na)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS)
 #define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
 
-static struct of_bus *of_match_bus(struct device_node *np);
-static int __of_address_to_resource(struct device_node *dev, int index,
-		int bar_no, struct resource *r);
-static bool of_mmio_is_nonposted(struct device_node *np);
-
 /* Debug utility */
 #ifdef DEBUG
 static void of_dump_addr(const char *s, const __be32 *addr, int na)
@@ -95,10 +90,16 @@ static int of_bus_default_translate(__be32 *addr, u64 offset, int na)
 	return 0;
 }
 
+static unsigned int of_bus_default_flags_get_flags(const __be32 *addr)
+{
+	return of_read_number(addr, 1);
+}
+
 static unsigned int of_bus_default_get_flags(const __be32 *addr)
 {
 	return IORESOURCE_MEM;
 }
+
 
 #ifdef CONFIG_PCI
 static unsigned int of_bus_pci_get_flags(const __be32 *addr)
@@ -195,17 +196,6 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 }
 #endif /* CONFIG_PCI */
 
-int of_pci_address_to_resource(struct device_node *dev, int bar,
-			       struct resource *r)
-{
-
-	if (!IS_ENABLED(CONFIG_PCI))
-		return -ENOSYS;
-
-	return __of_address_to_resource(dev, -1, bar, r);
-}
-EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
-
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
  * @range:	the PCI range that describes the resource
@@ -213,7 +203,7 @@ EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
  * @res:	pointer to a valid resource that will be updated to
  *              reflect the values contained in the range.
  *
- * Returns EINVAL if the range cannot be converted to resource.
+ * Returns -EINVAL if the range cannot be converted to resource.
  *
  * Note that if the range is an IO range, the resource will be converted
  * using pci_address_to_pio() which can fail if it is called too early or
@@ -228,9 +218,6 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 	res->flags = range->flags;
 	res->parent = res->child = res->sibling = NULL;
 	res->name = np->full_name;
-
-	if (!IS_ENABLED(CONFIG_PCI))
-		return -ENOSYS;
 
 	if (res->flags & IORESOURCE_IO) {
 		unsigned long port;
@@ -262,6 +249,34 @@ invalid_range:
 	return err;
 }
 EXPORT_SYMBOL(of_pci_range_to_resource);
+
+/*
+ * of_range_to_resource - Create a resource from a ranges entry
+ * @np:		device node where the range belongs to
+ * @index:	the 'ranges' index to convert to a resource
+ * @res:	pointer to a valid resource that will be updated to
+ *              reflect the values contained in the range.
+ *
+ * Returns ENOENT if the entry is not found or EINVAL if the range cannot be
+ * converted to resource.
+ */
+int of_range_to_resource(struct device_node *np, int index, struct resource *res)
+{
+	int ret, i = 0;
+	struct of_range_parser parser;
+	struct of_range range;
+
+	ret = of_range_parser_init(&parser, np);
+	if (ret)
+		return ret;
+
+	for_each_of_range(&parser, &range)
+		if (i++ == index)
+			return of_pci_range_to_resource(&range, np, res);
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(of_range_to_resource);
 
 /*
  * ISA bus specific translator
@@ -319,6 +334,11 @@ static unsigned int of_bus_isa_get_flags(const __be32 *addr)
 	return flags;
 }
 
+static int of_bus_default_flags_match(struct device_node *np)
+{
+	return of_bus_n_addr_cells(np) == 3;
+}
+
 /*
  * Array of bus specific translators
  */
@@ -347,6 +367,17 @@ static struct of_bus of_busses[] = {
 		.translate = of_bus_isa_translate,
 		.has_flags = true,
 		.get_flags = of_bus_isa_get_flags,
+	},
+	/* Default with flags cell */
+	{
+		.name = "default-flags",
+		.addresses = "reg",
+		.match = of_bus_default_flags_match,
+		.count_cells = of_bus_default_count_cells,
+		.map = of_bus_default_map,
+		.translate = of_bus_default_translate,
+		.has_flags = true,
+		.get_flags = of_bus_default_flags_get_flags,
 	},
 	/* Default */
 	{
@@ -713,6 +744,29 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 }
 EXPORT_SYMBOL(__of_get_address);
 
+/**
+ * of_property_read_reg - Retrieve the specified "reg" entry index without translating
+ * @np: device tree node for which to retrieve "reg" from
+ * @idx: "reg" entry index to read
+ * @addr: return value for the untranslated address
+ * @size: return value for the entry size
+ *
+ * Returns -EINVAL if "reg" is not found. Returns 0 on success with addr and
+ * size values filled in.
+ */
+int of_property_read_reg(struct device_node *np, int idx, u64 *addr, u64 *size)
+{
+	const __be32 *prop = of_get_address(np, idx, size, NULL);
+
+	if (!prop)
+		return -EINVAL;
+
+	*addr = of_read_number(prop, of_n_addr_cells(np));
+
+	return 0;
+}
+EXPORT_SYMBOL(of_property_read_reg);
+
 static int parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node, const char *name)
 {
@@ -833,126 +887,6 @@ static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
 
 	return port;
 }
-
-static int __of_address_to_resource(struct device_node *dev, int index, int bar_no,
-		struct resource *r)
-{
-	u64 taddr;
-	const __be32	*addrp;
-	u64		size;
-	unsigned int	flags;
-	const char	*name = NULL;
-
-	addrp = __of_get_address(dev, index, bar_no, &size, &flags);
-	if (addrp == NULL)
-		return -EINVAL;
-
-	/* Get optional "reg-names" property to add a name to a resource */
-	if (index >= 0)
-		of_property_read_string_index(dev, "reg-names",	index, &name);
-
-	if (flags & IORESOURCE_MEM)
-		taddr = of_translate_address(dev, addrp);
-	else if (flags & IORESOURCE_IO)
-		taddr = of_translate_ioport(dev, addrp, size);
-	else
-		return -EINVAL;
-
-	if (taddr == OF_BAD_ADDR)
-		return -EINVAL;
-	memset(r, 0, sizeof(struct resource));
-
-	if (of_mmio_is_nonposted(dev))
-		flags |= IORESOURCE_MEM_NONPOSTED;
-
-	r->start = taddr;
-	r->end = taddr + size - 1;
-	r->flags = flags;
-	r->name = name ? name : dev->full_name;
-
-	return 0;
-}
-
-/**
- * of_address_to_resource - Translate device tree address and return as resource
- * @dev:	Caller's Device Node
- * @index:	Index into the array
- * @r:		Pointer to resource array
- *
- * Note that if your address is a PIO address, the conversion will fail if
- * the physical address can't be internally converted to an IO token with
- * pci_address_to_pio(), that is because it's either called too early or it
- * can't be matched to any host bridge IO space
- */
-int of_address_to_resource(struct device_node *dev, int index,
-			   struct resource *r)
-{
-	return __of_address_to_resource(dev, index, -1, r);
-}
-EXPORT_SYMBOL_GPL(of_address_to_resource);
-
-/**
- * of_iomap - Maps the memory mapped IO for a given device_node
- * @np:		the device whose io range will be mapped
- * @index:	index of the io range
- *
- * Returns a pointer to the mapped memory
- */
-void __iomem *of_iomap(struct device_node *np, int index)
-{
-	struct resource res;
-
-	if (of_address_to_resource(np, index, &res))
-		return NULL;
-
-	if (res.flags & IORESOURCE_MEM_NONPOSTED)
-		return ioremap_np(res.start, resource_size(&res));
-	else
-		return ioremap(res.start, resource_size(&res));
-}
-EXPORT_SYMBOL(of_iomap);
-
-/*
- * of_io_request_and_map - Requests a resource and maps the memory mapped IO
- *			   for a given device_node
- * @device:	the device whose io range will be mapped
- * @index:	index of the io range
- * @name:	name "override" for the memory region request or NULL
- *
- * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
- * error code on failure. Usage example:
- *
- *	base = of_io_request_and_map(node, 0, "foo");
- *	if (IS_ERR(base))
- *		return PTR_ERR(base);
- */
-void __iomem *of_io_request_and_map(struct device_node *np, int index,
-				    const char *name)
-{
-	struct resource res;
-	void __iomem *mem;
-
-	if (of_address_to_resource(np, index, &res))
-		return IOMEM_ERR_PTR(-EINVAL);
-
-	if (!name)
-		name = res.name;
-	if (!request_mem_region(res.start, resource_size(&res), name))
-		return IOMEM_ERR_PTR(-EBUSY);
-
-	if (res.flags & IORESOURCE_MEM_NONPOSTED)
-		mem = ioremap_np(res.start, resource_size(&res));
-	else
-		mem = ioremap(res.start, resource_size(&res));
-
-	if (!mem) {
-		release_mem_region(res.start, resource_size(&res));
-		return IOMEM_ERR_PTR(-ENOMEM);
-	}
-
-	return mem;
-}
-EXPORT_SYMBOL(of_io_request_and_map);
 
 #ifdef CONFIG_HAS_DMA
 /**
@@ -1103,7 +1037,7 @@ phys_addr_t __init of_dma_get_max_cpu_address(struct device_node *np)
 bool of_dma_is_coherent(struct device_node *np)
 {
 	struct device_node *node;
-	bool is_coherent = IS_ENABLED(CONFIG_OF_DMA_DEFAULT_COHERENT);
+	bool is_coherent = dma_default_coherent;
 
 	node = of_node_get(np);
 
@@ -1150,3 +1084,136 @@ static bool of_mmio_is_nonposted(struct device_node *np)
 	of_node_put(parent);
 	return nonposted;
 }
+
+static int __of_address_to_resource(struct device_node *dev, int index, int bar_no,
+		struct resource *r)
+{
+	u64 taddr;
+	const __be32	*addrp;
+	u64		size;
+	unsigned int	flags;
+	const char	*name = NULL;
+
+	addrp = __of_get_address(dev, index, bar_no, &size, &flags);
+	if (addrp == NULL)
+		return -EINVAL;
+
+	/* Get optional "reg-names" property to add a name to a resource */
+	if (index >= 0)
+		of_property_read_string_index(dev, "reg-names",	index, &name);
+
+	if (flags & IORESOURCE_MEM)
+		taddr = of_translate_address(dev, addrp);
+	else if (flags & IORESOURCE_IO)
+		taddr = of_translate_ioport(dev, addrp, size);
+	else
+		return -EINVAL;
+
+	if (taddr == OF_BAD_ADDR)
+		return -EINVAL;
+	memset(r, 0, sizeof(struct resource));
+
+	if (of_mmio_is_nonposted(dev))
+		flags |= IORESOURCE_MEM_NONPOSTED;
+
+	r->start = taddr;
+	r->end = taddr + size - 1;
+	r->flags = flags;
+	r->name = name ? name : dev->full_name;
+
+	return 0;
+}
+
+/**
+ * of_address_to_resource - Translate device tree address and return as resource
+ * @dev:	Caller's Device Node
+ * @index:	Index into the array
+ * @r:		Pointer to resource array
+ *
+ * Returns -EINVAL if the range cannot be converted to resource.
+ *
+ * Note that if your address is a PIO address, the conversion will fail if
+ * the physical address can't be internally converted to an IO token with
+ * pci_address_to_pio(), that is because it's either called too early or it
+ * can't be matched to any host bridge IO space
+ */
+int of_address_to_resource(struct device_node *dev, int index,
+			   struct resource *r)
+{
+	return __of_address_to_resource(dev, index, -1, r);
+}
+EXPORT_SYMBOL_GPL(of_address_to_resource);
+
+int of_pci_address_to_resource(struct device_node *dev, int bar,
+			       struct resource *r)
+{
+
+	if (!IS_ENABLED(CONFIG_PCI))
+		return -ENOSYS;
+
+	return __of_address_to_resource(dev, -1, bar, r);
+}
+EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
+
+/**
+ * of_iomap - Maps the memory mapped IO for a given device_node
+ * @np:		the device whose io range will be mapped
+ * @index:	index of the io range
+ *
+ * Returns a pointer to the mapped memory
+ */
+void __iomem *of_iomap(struct device_node *np, int index)
+{
+	struct resource res;
+
+	if (of_address_to_resource(np, index, &res))
+		return NULL;
+
+	if (res.flags & IORESOURCE_MEM_NONPOSTED)
+		return ioremap_np(res.start, resource_size(&res));
+	else
+		return ioremap(res.start, resource_size(&res));
+}
+EXPORT_SYMBOL(of_iomap);
+
+/*
+ * of_io_request_and_map - Requests a resource and maps the memory mapped IO
+ *			   for a given device_node
+ * @device:	the device whose io range will be mapped
+ * @index:	index of the io range
+ * @name:	name "override" for the memory region request or NULL
+ *
+ * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
+ * error code on failure. Usage example:
+ *
+ *	base = of_io_request_and_map(node, 0, "foo");
+ *	if (IS_ERR(base))
+ *		return PTR_ERR(base);
+ */
+void __iomem *of_io_request_and_map(struct device_node *np, int index,
+				    const char *name)
+{
+	struct resource res;
+	void __iomem *mem;
+
+	if (of_address_to_resource(np, index, &res))
+		return IOMEM_ERR_PTR(-EINVAL);
+
+	if (!name)
+		name = res.name;
+	if (!request_mem_region(res.start, resource_size(&res), name))
+		return IOMEM_ERR_PTR(-EBUSY);
+
+	if (res.flags & IORESOURCE_MEM_NONPOSTED)
+		mem = ioremap_np(res.start, resource_size(&res));
+	else
+		mem = ioremap(res.start, resource_size(&res));
+
+	if (!mem) {
+		release_mem_region(res.start, resource_size(&res));
+		return IOMEM_ERR_PTR(-ENOMEM);
+	}
+
+	return mem;
+}
+EXPORT_SYMBOL(of_io_request_and_map);

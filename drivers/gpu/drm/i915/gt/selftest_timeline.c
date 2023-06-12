@@ -825,7 +825,8 @@ static bool cmp_gte(u32 a, u32 b)
 	return a >= b;
 }
 
-static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt)
+static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt,
+			 struct intel_timeline *tl)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
@@ -834,7 +835,10 @@ static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	w->map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
+	/* keep the same cache settings as timeline */
+	i915_gem_object_set_pat_index(obj, tl->hwsp_ggtt->obj->pat_index);
+	w->map = i915_gem_object_pin_map_unlocked(obj,
+						  page_unmask_bits(tl->hwsp_ggtt->obj->mm.mapping));
 	if (IS_ERR(w->map)) {
 		i915_gem_object_put(obj);
 		return PTR_ERR(w->map);
@@ -1004,8 +1008,10 @@ static int live_hwsp_read(void *arg)
 	if (!tl->has_initial_breadcrumb)
 		goto out_free;
 
+	selftest_tl_pin(tl);
+
 	for (i = 0; i < ARRAY_SIZE(watcher); i++) {
-		err = setup_watcher(&watcher[i], gt);
+		err = setup_watcher(&watcher[i], gt, tl);
 		if (err)
 			goto out;
 	}
@@ -1159,6 +1165,8 @@ static int live_hwsp_read(void *arg)
 out:
 	for (i = 0; i < ARRAY_SIZE(watcher); i++)
 		cleanup_watcher(&watcher[i]);
+
+	intel_timeline_unpin(tl);
 
 	if (igt_flush_test(gt->i915))
 		err = -EIO;

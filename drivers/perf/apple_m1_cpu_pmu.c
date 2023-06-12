@@ -559,7 +559,21 @@ static int m1_pmu_fire_init(struct arm_pmu *cpu_pmu)
 	return m1_pmu_init(cpu_pmu);
 }
 
+static int m2_pmu_avalanche_init(struct arm_pmu *cpu_pmu)
+{
+	cpu_pmu->name = "apple_avalanche_pmu";
+	return m1_pmu_init(cpu_pmu);
+}
+
+static int m2_pmu_blizzard_init(struct arm_pmu *cpu_pmu)
+{
+	cpu_pmu->name = "apple_blizzard_pmu";
+	return m1_pmu_init(cpu_pmu);
+}
+
 static const struct of_device_id m1_pmu_of_device_ids[] = {
+	{ .compatible = "apple,avalanche-pmu",	.data = m2_pmu_avalanche_init, },
+	{ .compatible = "apple,blizzard-pmu",	.data = m2_pmu_blizzard_init, },
 	{ .compatible = "apple,icestorm-pmu",	.data = m1_pmu_ice_init, },
 	{ .compatible = "apple,firestorm-pmu",	.data = m1_pmu_fire_init, },
 	{ },
@@ -581,4 +595,3 @@ static struct platform_driver m1_pmu_driver = {
 };
 
 module_platform_driver(m1_pmu_driver);
-MODULE_LICENSE("GPL v2");

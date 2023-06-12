@@ -120,7 +120,7 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 
 	dst = inet6_csk_route_socket(sk, &fl6);
 	if (IS_ERR(dst)) {
-		sk->sk_err_soft = -PTR_ERR(dst);
+		WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
 		sk->sk_route_caps = 0;
 		kfree_skb(skb);
 		return PTR_ERR(dst);

@@ -69,12 +69,12 @@ properties:
   # Tegra186 and later
   nvidia,interface:
     description: index of the SOR interface
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,ddc-i2c-bus:
     description: phandle of an I2C controller used for DDC EDID
       probing
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   nvidia,hpd-gpio:
     description: specifies a GPIO used for hotplug detection
@@ -82,23 +82,23 @@ properties:
 
   nvidia,edid:
     description: supplies a binary EDID blob
-    $ref: "/schemas/types.yaml#/definitions/uint8-array"
+    $ref: /schemas/types.yaml#/definitions/uint8-array
 
   nvidia,panel:
     description: phandle of a display panel, required for eDP
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   nvidia,xbar-cfg:
     description: 5 cells containing the crossbar configuration.
       Each lane of the SOR, identified by the cell's index, is
       mapped via the crossbar to the pad specified by the cell's
       value.
-    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   # optional when driving an eDP output
   nvidia,dpaux:
     description: phandle to a DispayPort AUX interface
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
   - if:

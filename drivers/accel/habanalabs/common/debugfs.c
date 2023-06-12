@@ -255,10 +255,7 @@ static int vm_show(struct seq_file *s, void *data)
 	u64 j;
 	int i;
 
-	if (!dev_entry->hdev->mmu_enable)
-		return 0;
-
-	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_lock(&dev_entry->ctx_mem_hash_mutex);
 
 	list_for_each_entry(ctx, &dev_entry->ctx_mem_hash_list, debugfs_list) {
 		once = false;
@@ -329,7 +326,7 @@ static int vm_show(struct seq_file *s, void *data)
 
 	}
 
-	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_unlock(&dev_entry->ctx_mem_hash_mutex);
 
 	ctx = hl_get_compute_ctx(dev_entry->hdev);
 	if (ctx) {
@@ -436,9 +433,6 @@ static int mmu_show(struct seq_file *s, void *data)
 	u64 virt_addr = dev_entry->mmu_addr, phys_addr;
 	int i;
 
-	if (!hdev->mmu_enable)
-		return 0;
-
 	if (dev_entry->mmu_asid == HL_KERNEL_ASID_ID)
 		ctx = hdev->kernel_ctx;
 	else
@@ -496,9 +490,6 @@ static ssize_t mmu_asid_va_write(struct file *file, const char __user *buf,
 	char *c;
 	ssize_t rc;
 
-	if (!hdev->mmu_enable)
-		return count;
-
 	if (count > sizeof(kbuf) - 1)
 		goto err;
 	if (copy_from_user(kbuf, buf, count))
@@ -535,9 +526,6 @@ static int mmu_ack_error(struct seq_file *s, void *data)
 	struct hl_device *hdev = dev_entry->hdev;
 	int rc;
 
-	if (!hdev->mmu_enable)
-		return 0;
-
 	if (!dev_entry->mmu_cap_mask) {
 		dev_err(hdev->dev, "mmu_cap_mask is not set\n");
 		goto err;
@@ -562,9 +550,6 @@ static ssize_t mmu_ack_error_value_write(struct file *file,
 	struct hl_device *hdev = dev_entry->hdev;
 	char kbuf[MMU_KBUF_SIZE];
 	ssize_t rc;
-
-	if (!hdev->mmu_enable)
-		return count;
 
 	if (count > sizeof(kbuf) - 1)
 		goto err;
@@ -661,9 +646,6 @@ static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	if (!hdev->mmu_enable)
-		goto out;
-
 	if (prop->dram_supports_virtual_memory &&
 		(addr >= prop->dmmu.start_addr && addr < prop->dmmu.end_addr))
 		return true;
@@ -675,7 +657,7 @@ static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 	if (addr >= prop->pmmu_huge.start_addr &&
 		addr < prop->pmmu_huge.end_addr)
 		return true;
-out:
+
 	return false;
 }
 
@@ -684,9 +666,6 @@ static bool hl_is_device_internal_memory_va(struct hl_device *hdev, u64 addr,
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 dram_start_addr, dram_end_addr;
-
-	if (!hdev->mmu_enable)
-		return false;
 
 	if (prop->dram_supports_virtual_memory) {
 		dram_start_addr = prop->dmmu.start_addr;
@@ -1583,66 +1562,188 @@ static const struct file_operations hl_debugfs_fops = {
 	.release = single_release,
 };
 
-static void add_secured_nodes(struct hl_dbg_device_entry *dev_entry)
+static void add_secured_nodes(struct hl_dbg_device_entry *dev_entry, struct dentry *root)
 {
 	debugfs_create_u8("i2c_bus",
 				0644,
-				dev_entry->root,
+				root,
 				&dev_entry->i2c_bus);
 
 	debugfs_create_u8("i2c_addr",
 				0644,
-				dev_entry->root,
+				root,
 				&dev_entry->i2c_addr);
 
 	debugfs_create_u8("i2c_reg",
 				0644,
-				dev_entry->root,
+				root,
 				&dev_entry->i2c_reg);
 
 	debugfs_create_u8("i2c_len",
 				0644,
-				dev_entry->root,
+				root,
 				&dev_entry->i2c_len);
 
 	debugfs_create_file("i2c_data",
 				0644,
-				dev_entry->root,
+				root,
 				dev_entry,
 				&hl_i2c_data_fops);
 
 	debugfs_create_file("led0",
 				0200,
-				dev_entry->root,
+				root,
 				dev_entry,
 				&hl_led0_fops);
 
 	debugfs_create_file("led1",
 				0200,
-				dev_entry->root,
+				root,
 				dev_entry,
 				&hl_led1_fops);
 
 	debugfs_create_file("led2",
 				0200,
-				dev_entry->root,
+				root,
 				dev_entry,
 				&hl_led2_fops);
 }
 
-void hl_debugfs_add_device(struct hl_device *hdev)
+static void add_files_to_device(struct hl_device *hdev, struct hl_dbg_device_entry *dev_entry,
+				struct dentry *root)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 	int count = ARRAY_SIZE(hl_debugfs_list);
 	struct hl_debugfs_entry *entry;
 	int i;
 
+	debugfs_create_x64("memory_scrub_val",
+				0644,
+				root,
+				&hdev->memory_scrub_val);
+
+	debugfs_create_file("memory_scrub",
+				0200,
+				root,
+				dev_entry,
+				&hl_mem_scrub_fops);
+
+	debugfs_create_x64("addr",
+				0644,
+				root,
+				&dev_entry->addr);
+
+	debugfs_create_file("data32",
+				0644,
+				root,
+				dev_entry,
+				&hl_data32b_fops);
+
+	debugfs_create_file("data64",
+				0644,
+				root,
+				dev_entry,
+				&hl_data64b_fops);
+
+	debugfs_create_file("set_power_state",
+				0200,
+				root,
+				dev_entry,
+				&hl_power_fops);
+
+	debugfs_create_file("device",
+				0200,
+				root,
+				dev_entry,
+				&hl_device_fops);
+
+	debugfs_create_file("clk_gate",
+				0200,
+				root,
+				dev_entry,
+				&hl_clk_gate_fops);
+
+	debugfs_create_file("stop_on_err",
+				0644,
+				root,
+				dev_entry,
+				&hl_stop_on_err_fops);
+
+	debugfs_create_file("dump_security_violations",
+				0644,
+				root,
+				dev_entry,
+				&hl_security_violations_fops);
+
+	debugfs_create_file("dump_razwi_events",
+				0644,
+				root,
+				dev_entry,
+				&hl_razwi_check_fops);
+
+	debugfs_create_file("dma_size",
+				0200,
+				root,
+				dev_entry,
+				&hl_dma_size_fops);
+
+	debugfs_create_blob("data_dma",
+				0400,
+				root,
+				&dev_entry->data_dma_blob_desc);
+
+	debugfs_create_file("monitor_dump_trig",
+				0200,
+				root,
+				dev_entry,
+				&hl_monitor_dump_fops);
+
+	debugfs_create_blob("monitor_dump",
+				0400,
+				root,
+				&dev_entry->mon_dump_blob_desc);
+
+	debugfs_create_x8("skip_reset_on_timeout",
+				0644,
+				root,
+				&hdev->reset_info.skip_reset_on_timeout);
+
+	debugfs_create_file("state_dump",
+				0600,
+				root,
+				dev_entry,
+				&hl_state_dump_fops);
+
+	debugfs_create_file("timeout_locked",
+				0644,
+				root,
+				dev_entry,
+				&hl_timeout_locked_fops);
+
+	debugfs_create_u32("device_release_watchdog_timeout",
+				0644,
+				root,
+				&hdev->device_release_watchdog_timeout_sec);
+
+	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
+		debugfs_create_file(hl_debugfs_list[i].name,
+					0444,
+					root,
+					entry,
+					&hl_debugfs_fops);
+		entry->info_ent = &hl_debugfs_list[i];
+		entry->dev_entry = dev_entry;
+	}
+}
+
+int hl_debugfs_device_init(struct hl_device *hdev)
+{
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	int count = ARRAY_SIZE(hl_debugfs_list);
+
 	dev_entry->hdev = hdev;
-	dev_entry->entry_arr = kmalloc_array(count,
-					sizeof(struct hl_debugfs_entry),
-					GFP_KERNEL);
+	dev_entry->entry_arr = kmalloc_array(count, sizeof(struct hl_debugfs_entry), GFP_KERNEL);
 	if (!dev_entry->entry_arr)
-		return;
+		return -ENOMEM;
 
 	dev_entry->data_dma_blob_desc.size = 0;
 	dev_entry->data_dma_blob_desc.data = NULL;
@@ -1661,140 +1762,17 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	spin_lock_init(&dev_entry->cs_spinlock);
 	spin_lock_init(&dev_entry->cs_job_spinlock);
 	spin_lock_init(&dev_entry->userptr_spinlock);
-	spin_lock_init(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_init(&dev_entry->ctx_mem_hash_mutex);
 
-	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
-						hl_debug_root);
-
-	debugfs_create_x64("memory_scrub_val",
-				0644,
-				dev_entry->root,
-				&hdev->memory_scrub_val);
-
-	debugfs_create_file("memory_scrub",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_mem_scrub_fops);
-
-	debugfs_create_x64("addr",
-				0644,
-				dev_entry->root,
-				&dev_entry->addr);
-
-	debugfs_create_file("data32",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_data32b_fops);
-
-	debugfs_create_file("data64",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_data64b_fops);
-
-	debugfs_create_file("set_power_state",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_power_fops);
-
-	debugfs_create_file("device",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_device_fops);
-
-	debugfs_create_file("clk_gate",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_clk_gate_fops);
-
-	debugfs_create_file("stop_on_err",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_stop_on_err_fops);
-
-	debugfs_create_file("dump_security_violations",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_security_violations_fops);
-
-	debugfs_create_file("dump_razwi_events",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_razwi_check_fops);
-
-	debugfs_create_file("dma_size",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_dma_size_fops);
-
-	debugfs_create_blob("data_dma",
-				0400,
-				dev_entry->root,
-				&dev_entry->data_dma_blob_desc);
-
-	debugfs_create_file("monitor_dump_trig",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_monitor_dump_fops);
-
-	debugfs_create_blob("monitor_dump",
-				0400,
-				dev_entry->root,
-				&dev_entry->mon_dump_blob_desc);
-
-	debugfs_create_x8("skip_reset_on_timeout",
-				0644,
-				dev_entry->root,
-				&hdev->reset_info.skip_reset_on_timeout);
-
-	debugfs_create_file("state_dump",
-				0600,
-				dev_entry->root,
-				dev_entry,
-				&hl_state_dump_fops);
-
-	debugfs_create_file("timeout_locked",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_timeout_locked_fops);
-
-	debugfs_create_u32("device_release_watchdog_timeout",
-				0644,
-				dev_entry->root,
-				&hdev->device_release_watchdog_timeout_sec);
-
-	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
-		debugfs_create_file(hl_debugfs_list[i].name,
-					0444,
-					dev_entry->root,
-					entry,
-					&hl_debugfs_fops);
-		entry->info_ent = &hl_debugfs_list[i];
-		entry->dev_entry = dev_entry;
-	}
-
-	if (!hdev->asic_prop.fw_security_enabled)
-		add_secured_nodes(dev_entry);
+	return 0;
 }
 
-void hl_debugfs_remove_device(struct hl_device *hdev)
+void hl_debugfs_device_fini(struct hl_device *hdev)
 {
 	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
 	int i;
 
-	debugfs_remove_recursive(entry->root);
-
+	mutex_destroy(&entry->ctx_mem_hash_mutex);
 	mutex_destroy(&entry->file_mutex);
 
 	vfree(entry->data_dma_blob_desc.data);
@@ -1804,6 +1782,24 @@ void hl_debugfs_remove_device(struct hl_device *hdev)
 		vfree(entry->state_dump[i]);
 
 	kfree(entry->entry_arr);
+}
+
+void hl_debugfs_add_device(struct hl_device *hdev)
+{
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+
+	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev), hl_debug_root);
+
+	add_files_to_device(hdev, dev_entry, dev_entry->root);
+	if (!hdev->asic_prop.fw_security_enabled)
+		add_secured_nodes(dev_entry, dev_entry->root);
+}
+
+void hl_debugfs_remove_device(struct hl_device *hdev)
+{
+	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
+
+	debugfs_remove_recursive(entry->root);
 }
 
 void hl_debugfs_add_file(struct hl_fpriv *hpriv)
@@ -1901,18 +1897,18 @@ void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 {
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 
-	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_lock(&dev_entry->ctx_mem_hash_mutex);
 	list_add(&ctx->debugfs_list, &dev_entry->ctx_mem_hash_list);
-	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_unlock(&dev_entry->ctx_mem_hash_mutex);
 }
 
 void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 {
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 
-	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_lock(&dev_entry->ctx_mem_hash_mutex);
 	list_del(&ctx->debugfs_list);
-	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_unlock(&dev_entry->ctx_mem_hash_mutex);
 }
 
 /**

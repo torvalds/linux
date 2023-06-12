@@ -148,6 +148,8 @@ struct vsp1_pipeline {
 	unsigned int partitions;
 	struct vsp1_partition *partition;
 	struct vsp1_partition *part_table;
+
+	u32 underrun_count;
 };
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);

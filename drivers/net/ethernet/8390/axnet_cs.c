@@ -650,7 +650,6 @@ static void block_input(struct net_device *dev, int count,
 {
     unsigned int nic_base = dev->base_addr;
     struct ei_device *ei_local = netdev_priv(dev);
-    int xfer_count = count;
     char *buf = skb->data;
 
     if ((netif_msg_rx_status(ei_local)) && (count != 4))
@@ -662,9 +661,7 @@ static void block_input(struct net_device *dev, int count,
     insw(nic_base + AXNET_DATAPORT,buf,count>>1);
     if (count & 0x01) {
 	buf[count-1] = inb(nic_base + AXNET_DATAPORT);
-	xfer_count++;
     }
-
 }
 
 /*====================================================================*/

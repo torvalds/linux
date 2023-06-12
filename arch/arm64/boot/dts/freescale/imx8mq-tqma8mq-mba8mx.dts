@@ -169,8 +169,6 @@
 	hnp-disable;
 	srp-disable;
 	adp-disable;
-	/* OC not supported due to non matching active polarity */
-	disable-over-current;
 	dr_mode = "otg";
 	status = "okay";
 };

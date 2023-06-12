@@ -9,6 +9,8 @@
  * Copyright The Asahi Linux Contributors
  */
 
+#include <dt-bindings/leds/common.h>
+
 / {
 	aliases {
 		serial0 = &serial0;
@@ -33,6 +35,18 @@
 	memory@10000000000 {
 		device_type = "memory";
 		reg = <0x100 0 0x2 0>; /* To be filled by loader */
+	};
+
+	led-controller {
+		compatible = "pwm-leds";
+		led-0 {
+			pwms = <&fpwm0 0 40000>;
+			label = "kbd_backlight";
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			color = <LED_COLOR_ID_WHITE>;
+			max-brightness = <255>;
+			default-state = "keep";
+		};
 	};
 };
 
@@ -102,13 +116,6 @@
 	};
 };
 
-&pcie0_dart_2 {
-	status = "disabled";
+&fpwm0 {
+	status = "okay";
 };
-
-&pcie0_dart_3 {
-	status = "disabled";
-};
-
-/delete-node/ &port02;
-/delete-node/ &port03;

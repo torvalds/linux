@@ -385,7 +385,7 @@ static const struct hwmon_ops ccp_hwmon_ops = {
 	.write = ccp_write,
 };
 
-static const struct hwmon_channel_info *ccp_info[] = {
+static const struct hwmon_channel_info * const ccp_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,

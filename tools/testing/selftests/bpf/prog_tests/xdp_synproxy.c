@@ -8,11 +8,6 @@
 
 #define CMD_OUT_BUF_SIZE 1023
 
-#define SYS(cmd) ({ \
-	if (!ASSERT_OK(system(cmd), (cmd))) \
-		goto out; \
-})
-
 #define SYS_OUT(cmd, ...) ({ \
 	char buf[1024]; \
 	snprintf(buf, sizeof(buf), (cmd), ##__VA_ARGS__); \
@@ -69,37 +64,37 @@ static void test_synproxy(bool xdp)
 	char buf[CMD_OUT_BUF_SIZE];
 	size_t size;
 
-	SYS("ip netns add synproxy");
+	SYS(out, "ip netns add synproxy");
 
-	SYS("ip link add tmp0 type veth peer name tmp1");
-	SYS("ip link set tmp1 netns synproxy");
-	SYS("ip link set tmp0 up");
-	SYS("ip addr replace 198.18.0.1/24 dev tmp0");
+	SYS(out, "ip link add tmp0 type veth peer name tmp1");
+	SYS(out, "ip link set tmp1 netns synproxy");
+	SYS(out, "ip link set tmp0 up");
+	SYS(out, "ip addr replace 198.18.0.1/24 dev tmp0");
 
 	/* When checksum offload is enabled, the XDP program sees wrong
 	 * checksums and drops packets.
 	 */
-	SYS("ethtool -K tmp0 tx off");
+	SYS(out, "ethtool -K tmp0 tx off");
 	if (xdp)
 		/* Workaround required for veth. */
-		SYS("ip link set tmp0 xdp object xdp_dummy.bpf.o section xdp 2> /dev/null");
+		SYS(out, "ip link set tmp0 xdp object xdp_dummy.bpf.o section xdp 2> /dev/null");
 
 	ns = open_netns("synproxy");
 	if (!ASSERT_OK_PTR(ns, "setns"))
 		goto out;
 
-	SYS("ip link set lo up");
-	SYS("ip link set tmp1 up");
-	SYS("ip addr replace 198.18.0.2/24 dev tmp1");
-	SYS("sysctl -w net.ipv4.tcp_syncookies=2");
-	SYS("sysctl -w net.ipv4.tcp_timestamps=1");
-	SYS("sysctl -w net.netfilter.nf_conntrack_tcp_loose=0");
-	SYS("iptables-legacy -t raw -I PREROUTING \
+	SYS(out, "ip link set lo up");
+	SYS(out, "ip link set tmp1 up");
+	SYS(out, "ip addr replace 198.18.0.2/24 dev tmp1");
+	SYS(out, "sysctl -w net.ipv4.tcp_syncookies=2");
+	SYS(out, "sysctl -w net.ipv4.tcp_timestamps=1");
+	SYS(out, "sysctl -w net.netfilter.nf_conntrack_tcp_loose=0");
+	SYS(out, "iptables-legacy -t raw -I PREROUTING \
 	    -i tmp1 -p tcp -m tcp --syn --dport 8080 -j CT --notrack");
-	SYS("iptables-legacy -t filter -A INPUT \
+	SYS(out, "iptables-legacy -t filter -A INPUT \
 	    -i tmp1 -p tcp -m tcp --dport 8080 -m state --state INVALID,UNTRACKED \
 	    -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460");
-	SYS("iptables-legacy -t filter -A INPUT \
+	SYS(out, "iptables-legacy -t filter -A INPUT \
 	    -i tmp1 -m state --state INVALID -j DROP");
 
 	ctrl_file = SYS_OUT("./xdp_synproxy --iface tmp1 --ports 8080 \
@@ -170,8 +165,8 @@ out:
 	if (ns)
 		close_netns(ns);
 
-	system("ip link del tmp0");
-	system("ip netns del synproxy");
+	SYS_NOFAIL("ip link del tmp0");
+	SYS_NOFAIL("ip netns del synproxy");
 }
 
 void test_xdp_synproxy(void)

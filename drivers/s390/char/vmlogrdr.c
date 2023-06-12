@@ -699,7 +699,7 @@ static int vmlogrdr_register_driver(void)
 	if (ret)
 		goto out_iucv;
 
-	vmlogrdr_class = class_create(THIS_MODULE, "vmlogrdr");
+	vmlogrdr_class = class_create("vmlogrdr");
 	if (IS_ERR(vmlogrdr_class)) {
 		ret = PTR_ERR(vmlogrdr_class);
 		vmlogrdr_class = NULL;

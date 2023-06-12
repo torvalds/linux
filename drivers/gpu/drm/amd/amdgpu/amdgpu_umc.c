@@ -208,6 +208,36 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
 }
 
+int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_umc_ras *ras;
+
+	if (!adev->umc.ras)
+		return 0;
+
+	ras = adev->umc.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register umc ras block!\n");
+		return err;
+	}
+
+	strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->umc.ras_if = &ras->ras_block.ras_comm;
+
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
+
+	if (!ras->ras_block.ras_cb)
+		ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
+
+	return 0;
+}
+
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;
@@ -271,4 +301,35 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 	err_rec->mcumc_id = umc_inst;
 
 	err_data->err_addr_cnt++;
+}
+
+int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
+			umc_func func, void *data)
+{
+	uint32_t node_inst       = 0;
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	int ret = 0;
+
+	if (adev->umc.node_inst_num) {
+		LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
+			ret = func(adev, node_inst, umc_inst, ch_inst, data);
+			if (ret) {
+				dev_err(adev->dev, "Node %d umc %d ch %d func returns %d\n",
+					node_inst, umc_inst, ch_inst, ret);
+				return ret;
+			}
+		}
+	} else {
+		LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
+			ret = func(adev, 0, umc_inst, ch_inst, data);
+			if (ret) {
+				dev_err(adev->dev, "Umc %d ch %d func returns %d\n",
+					umc_inst, ch_inst, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
 }

@@ -355,6 +355,9 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	bool ret = false;
 	u32 irq_status;
 
+	if (sdev->dspless_mode_selected)
+		return false;
+
 	/* store status */
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
 	trace_sof_intel_hda_irq_ipc_check(sdev, irq_status);

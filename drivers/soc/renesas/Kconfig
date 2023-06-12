@@ -206,13 +206,6 @@ config ARCH_R8A77990
 	  This enables support for the Renesas R-Car E3 SoC.
 	  This includes different gradings like R-Car E3e.
 
-config ARCH_R8A77950
-	bool "ARM64 Platform support for R-Car H3 ES1.x"
-	select ARCH_RCAR_GEN3
-	select SYSC_R8A7795
-	help
-	  This enables support for the Renesas R-Car H3 SoC (revision 1.x).
-
 config ARCH_R8A77951
 	bool "ARM64 Platform support for R-Car H3 ES2.0+"
 	select ARCH_RCAR_GEN3

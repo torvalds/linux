@@ -86,6 +86,15 @@ enum opal_response_token {
 #define OPAL_MSID_KEYLEN 15
 #define OPAL_UID_LENGTH_HALF 4
 
+/*
+ * Boolean operators from TCG Core spec 2.01 Section:
+ * 5.1.3.11
+ * Table 61
+ */
+#define OPAL_BOOLEAN_AND 0
+#define OPAL_BOOLEAN_OR  1
+#define OPAL_BOOLEAN_NOT 2
+
 /* Enum to index OPALUID array */
 enum opal_uid {
 	/* users */
@@ -105,6 +114,7 @@ enum opal_uid {
 	/* tables */
 	OPAL_TABLE_TABLE,
 	OPAL_LOCKINGRANGE_GLOBAL,
+	OPAL_LOCKINGRANGE_ACE_START_TO_KEY,
 	OPAL_LOCKINGRANGE_ACE_RDLOCKED,
 	OPAL_LOCKINGRANGE_ACE_WRLOCKED,
 	OPAL_MBRCONTROL,

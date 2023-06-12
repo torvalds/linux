@@ -12,6 +12,7 @@
 	compatible = "realtek,rt5682s";
 	realtek,dmic1-clk-pin = <2>;
 	realtek,dmic-clk-rate-hz = <2048000>;
+	/delete-property/ VBAT-supply;
 };
 
 ap_ts_pen_1v8: &i2c4 {

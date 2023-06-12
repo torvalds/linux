@@ -506,6 +506,15 @@
 			};
 		};
 
+		sdxc_a_pins: sdxc-a {
+			mux {
+				groups = "sdxc_d0_a", "sdxc_d13_a",
+					 "sdxc_clk_a", "sdxc_cmd_a";
+				function = "sdxc_a";
+				bias-pull-up;
+			};
+		};
+
 		sdxc_b_pins: sdxc-b {
 			mux {
 				groups = "sdxc_d0_b", "sdxc_d13_b",
@@ -565,6 +574,14 @@
 				groups = "uart_cts_a1",
 				       "uart_rts_a1";
 				function = "uart_a";
+				bias-disable;
+			};
+		};
+
+		xtal_32k_out_pins: xtal-32k-out {
+			mux {
+				groups = "xtal_32k_out";
+				function = "xtal";
 				bias-disable;
 			};
 		};

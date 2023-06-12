@@ -1118,7 +1118,9 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	struct v4l2_mbus_framefmt *format;
 	const struct v4l2_rect *crop;
 	const struct isp_format_info *fmt_info;
-	struct v4l2_subdev_format fmt_src;
+	struct v4l2_subdev_format fmt_src = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	unsigned int depth_out;
 	unsigned int depth_in = 0;
 	struct media_pad *pad;
@@ -1150,7 +1152,6 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	 * input format is a non-BT.656 YUV variant.
 	 */
 	fmt_src.pad = pad->index;
-	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	if (!v4l2_subdev_call(sensor, pad, get_fmt, NULL, &fmt_src)) {
 		fmt_info = omap3isp_video_format_info(fmt_src.format.code);
 		depth_in = fmt_info->width;

@@ -148,6 +148,7 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 10):
 		adev->virt.autoload_ucode_id = AMDGPU_UCODE_ID_CP_MES1_DATA;
+		ret = psp_init_cap_microcode(psp, ucode_prefix);
 		break;
 	default:
 		return -EINVAL;
@@ -191,6 +192,7 @@ static int psp_early_init(void *handle)
 		psp_v12_0_set_psp_funcs(psp);
 		break;
 	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
 		psp_v13_0_set_psp_funcs(psp);
 		break;
 	case IP_VERSION(13, 0, 1):
@@ -837,7 +839,15 @@ static void psp_prep_tmr_unload_cmd_buf(struct psp_context *psp,
 static int psp_tmr_unload(struct psp_context *psp)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
+	struct psp_gfx_cmd_resp *cmd;
+
+	/* skip TMR unload for Navi12 and CHIP_SIENNA_CICHLID SRIOV,
+	 * as TMR is not loaded at all
+	 */
+	if (amdgpu_sriov_vf(psp->adev) && psp_skip_tmr(psp))
+		return 0;
+
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_tmr_unload_cmd_buf(psp, cmd);
 	dev_dbg(psp->adev->dev, "free PSP TMR buffer\n");

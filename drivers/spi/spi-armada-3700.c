@@ -437,9 +437,9 @@ static void a3700_spi_set_cs(struct spi_device *spi, bool enable)
 	struct a3700_spi *a3700_spi = spi_controller_get_devdata(spi->controller);
 
 	if (!enable)
-		a3700_spi_activate_cs(a3700_spi, spi->chip_select);
+		a3700_spi_activate_cs(a3700_spi, spi_get_chipselect(spi, 0));
 	else
-		a3700_spi_deactivate_cs(a3700_spi, spi->chip_select);
+		a3700_spi_deactivate_cs(a3700_spi, spi_get_chipselect(spi, 0));
 }
 
 static void a3700_spi_header_set(struct a3700_spi *a3700_spi)
@@ -908,14 +908,12 @@ out:
 	return ret;
 }
 
-static int a3700_spi_remove(struct platform_device *pdev)
+static void a3700_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct a3700_spi *spi = spi_controller_get_devdata(host);
 
 	clk_unprepare(spi->clk);
-
-	return 0;
 }
 
 static struct platform_driver a3700_spi_driver = {
@@ -924,7 +922,7 @@ static struct platform_driver a3700_spi_driver = {
 		.of_match_table = of_match_ptr(a3700_spi_dt_ids),
 	},
 	.probe		= a3700_spi_probe,
-	.remove		= a3700_spi_remove,
+	.remove_new	= a3700_spi_remove,
 };
 
 module_platform_driver(a3700_spi_driver);

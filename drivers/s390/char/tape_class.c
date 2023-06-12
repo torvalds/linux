@@ -117,7 +117,7 @@ EXPORT_SYMBOL(unregister_tape_dev);
 
 static int __init tape_init(void)
 {
-	tape_class = class_create(THIS_MODULE, "tape390");
+	tape_class = class_create("tape390");
 
 	return 0;
 }

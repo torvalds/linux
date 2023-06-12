@@ -15,6 +15,14 @@
 #include <internal/cpumap.h>
 #endif
 
+extern const char perf_usage_string[];
+extern const char perf_more_info_string[];
+
+extern const char *input_name;
+
+extern bool perf_host;
+extern bool perf_guest;
+
 /* General helper functions */
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);

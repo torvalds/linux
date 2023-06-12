@@ -496,7 +496,7 @@ static int fdomain_biosparam(struct scsi_device *sdev,
 	return 0;
 }
 
-static struct scsi_host_template fdomain_template = {
+static const struct scsi_host_template fdomain_template = {
 	.module			= THIS_MODULE,
 	.name			= "Future Domain TMC-16x0",
 	.proc_name		= "fdomain",

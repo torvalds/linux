@@ -8,6 +8,7 @@
 
 #include <dt-bindings/sound/microchip,pdmc.h>
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -49,8 +50,6 @@
 #define MCHP_PDMC_MR_OSR256		(3 << 16)
 
 #define MCHP_PDMC_MR_SINCORDER_MASK	GENMASK(23, 20)
-#define MCHP_PDMC_MR_SINCORDER(order)	(((order) << 20) & \
-					 MCHP_PDMC_MR_SINCORDER_MASK)
 
 #define MCHP_PDMC_MR_SINC_OSR_MASK	GENMASK(27, 24)
 #define MCHP_PDMC_MR_SINC_OSR_DIS	(0 << 24)
@@ -62,8 +61,6 @@
 #define MCHP_PDMC_MR_SINC_OSR_256	(6 << 24)
 
 #define MCHP_PDMC_MR_CHUNK_MASK		GENMASK(31, 28)
-#define MCHP_PDMC_MR_CHUNK(chunk)	(((chunk) << 28) & \
-					 MCHP_PDMC_MR_CHUNK_MASK)
 
 /*
  * ---- Configuration Register (Read/Write) ----
@@ -617,10 +614,10 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 
 	mr_val |= mchp_pdmc_mr_set_osr(dd->audio_filter_en, osr);
 
-	mr_val |= MCHP_PDMC_MR_SINCORDER(dd->sinc_order);
+	mr_val |= FIELD_PREP(MCHP_PDMC_MR_SINCORDER_MASK, dd->sinc_order);
 
 	dd->addr.maxburst = mchp_pdmc_period_to_maxburst(snd_pcm_lib_period_bytes(substream));
-	mr_val |= MCHP_PDMC_MR_CHUNK(dd->addr.maxburst);
+	mr_val |= FIELD_PREP(MCHP_PDMC_MR_CHUNK_MASK, dd->addr.maxburst);
 	dev_dbg(comp->dev, "maxburst set to %d\n", dd->addr.maxburst);
 
 	snd_soc_component_update_bits(comp, MCHP_PDMC_MR,
@@ -762,12 +759,10 @@ static int mchp_pdmc_pcm_new(struct snd_soc_pcm_runtime *rtd,
 	int ret;
 
 	ret = mchp_pdmc_add_chmap_ctls(rtd->pcm, dd);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dd->dev, "failed to add channel map controls: %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
@@ -788,7 +783,7 @@ static struct snd_soc_dai_driver mchp_pdmc_dai = {
 /* PDMC interrupt handler */
 static irqreturn_t mchp_pdmc_interrupt(int irq, void *dev_id)
 {
-	struct mchp_pdmc *dd = (struct mchp_pdmc *)dev_id;
+	struct mchp_pdmc *dd = dev_id;
 	u32 isr, msr, pending;
 	irqreturn_t ret = IRQ_NONE;
 
@@ -1082,7 +1077,7 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, irq, mchp_pdmc_interrupt, 0,
-			       dev_name(&pdev->dev), (void *)dd);
+			       dev_name(&pdev->dev), dd);
 	if (ret < 0) {
 		dev_err(dev, "can't register ISR for IRQ %u (ret=%i)\n",
 			irq, ret);
@@ -1134,7 +1129,7 @@ pm_runtime_suspend:
 	return ret;
 }
 
-static int mchp_pdmc_remove(struct platform_device *pdev)
+static void mchp_pdmc_remove(struct platform_device *pdev)
 {
 	struct mchp_pdmc *dd = platform_get_drvdata(pdev);
 
@@ -1142,8 +1137,6 @@ static int mchp_pdmc_remove(struct platform_device *pdev)
 		mchp_pdmc_runtime_suspend(dd->dev);
 
 	pm_runtime_disable(dd->dev);
-
-	return 0;
 }
 
 static const struct of_device_id mchp_pdmc_of_match[] = {
@@ -1168,7 +1161,7 @@ static struct platform_driver mchp_pdmc_driver = {
 		.pm		= pm_ptr(&mchp_pdmc_pm_ops),
 	},
 	.probe	= mchp_pdmc_probe,
-	.remove = mchp_pdmc_remove,
+	.remove_new = mchp_pdmc_remove,
 };
 module_platform_driver(mchp_pdmc_driver);
 

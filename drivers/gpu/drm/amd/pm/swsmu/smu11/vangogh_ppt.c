@@ -203,6 +203,8 @@ static struct cmn2asic_mapping vangogh_workload_map[PP_SMC_POWER_PROFILE_COUNT] 
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CAPPED,		WORKLOAD_PPLIB_CAPPED_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_UNCAPPED,		WORKLOAD_PPLIB_UNCAPPED_BIT),
 };
 
 static const uint8_t vangogh_throttler_map[] = {
@@ -1046,7 +1048,7 @@ static int vangogh_get_power_profile_mode(struct smu_context *smu,
 	if (!buf)
 		return -EINVAL;
 
-	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+	for (i = 0; i < PP_SMC_POWER_PROFILE_COUNT; i++) {
 		/*
 		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
 		 * Not all profile modes are supported on vangogh.
@@ -1070,7 +1072,7 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 	int workload_type, ret;
 	uint32_t profile_mode = input[size];
 
-	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+	if (profile_mode >= PP_SMC_POWER_PROFILE_COUNT) {
 		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", profile_mode);
 		return -EINVAL;
 	}
@@ -1589,6 +1591,21 @@ static int vangogh_read_sensor(struct smu_context *smu,
 
 	return ret;
 }
+
+static int vangogh_get_apu_thermal_limit(struct smu_context *smu, uint32_t *limit)
+{
+	return smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_GetThermalLimit,
+					      0, limit);
+}
+
+static int vangogh_set_apu_thermal_limit(struct smu_context *smu, uint32_t limit)
+{
+	return smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_SetReducedThermalLimit,
+					      limit, NULL);
+}
+
 
 static int vangogh_set_watermarks_table(struct smu_context *smu,
 				       struct pp_smu_wm_range_sets *clock_ranges)
@@ -2372,6 +2389,7 @@ static u32 vangogh_set_gfxoff_residency(struct smu_context *smu, bool start)
  * vangogh_get_gfxoff_residency
  *
  * @smu: amdgpu_device pointer
+ * @residency: placeholder for return value
  *
  * This function will be used to get gfxoff residency.
  *
@@ -2390,6 +2408,7 @@ static u32 vangogh_get_gfxoff_residency(struct smu_context *smu, uint32_t *resid
  * vangogh_get_gfxoff_entrycount - get gfxoff entry count
  *
  * @smu: amdgpu_device pointer
+ * @entrycount: placeholder for return value
  *
  * This function will be used to get gfxoff entry count
  *
@@ -2425,6 +2444,8 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.dpm_set_jpeg_enable = vangogh_dpm_set_jpeg_enable,
 	.is_dpm_running = vangogh_is_dpm_running,
 	.read_sensor = vangogh_read_sensor,
+	.get_apu_thermal_limit = vangogh_get_apu_thermal_limit,
+	.set_apu_thermal_limit = vangogh_set_apu_thermal_limit,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_watermarks_table = vangogh_set_watermarks_table,

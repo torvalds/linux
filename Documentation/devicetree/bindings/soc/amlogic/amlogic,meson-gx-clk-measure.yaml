@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/amlogic/amlogic,meson-gx-clk-measure.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic Internal Clock Measurer
+
+description:
+  The Amlogic SoCs contains an IP to measure the internal clocks.
+  The precision is multiple of MHz, useful to debug the clock states.
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+
+properties:
+  compatible:
+    enum:
+      - amlogic,meson-gx-clk-measure
+      - amlogic,meson8-clk-measure
+      - amlogic,meson8b-clk-measure
+      - amlogic,meson-axg-clk-measure
+      - amlogic,meson-g12a-clk-measure
+      - amlogic,meson-sm1-clk-measure
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    clock-measure@8758 {
+        compatible = "amlogic,meson-gx-clk-measure";
+        reg = <0x8758 0x10>;
+    };

@@ -193,7 +193,7 @@ static int session_config(struct daemon *daemon, const char *var, const char *va
 
 		if (!same) {
 			if (session->run) {
-				free(session->run);
+				zfree(&session->run);
 				pr_debug("reconfig: session %s is changed\n", name);
 			}
 
@@ -924,9 +924,9 @@ static void daemon__signal(struct daemon *daemon, int sig)
 
 static void daemon_session__delete(struct daemon_session *session)
 {
-	free(session->base);
-	free(session->name);
-	free(session->run);
+	zfree(&session->base);
+	zfree(&session->name);
+	zfree(&session->run);
 	free(session);
 }
 
@@ -975,9 +975,9 @@ static void daemon__exit(struct daemon *daemon)
 	list_for_each_entry_safe(session, h, &daemon->sessions, list)
 		daemon_session__remove(session);
 
-	free(daemon->config_real);
-	free(daemon->config_base);
-	free(daemon->base);
+	zfree(&daemon->config_real);
+	zfree(&daemon->config_base);
+	zfree(&daemon->base);
 }
 
 static int daemon__reconfig(struct daemon *daemon)

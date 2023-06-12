@@ -1774,7 +1774,7 @@ out:
 	return err;
 }
 
-static int uvesafb_remove(struct platform_device *dev)
+static void uvesafb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
@@ -1793,13 +1793,11 @@ static int uvesafb_remove(struct platform_device *dev)
 	kfree(par->vbe_state_saved);
 
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static struct platform_driver uvesafb_driver = {
 	.probe  = uvesafb_probe,
-	.remove = uvesafb_remove,
+	.remove_new = uvesafb_remove,
 	.driver = {
 		.name = "uvesafb",
 	},

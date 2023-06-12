@@ -47,6 +47,10 @@
 #define LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) \
 		LOOP_UMC_NODE_INST((node_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
 
+
+typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t node_inst,
+			uint32_t umc_inst, uint32_t ch_inst, void *data);
+
 struct amdgpu_umc_ras {
 	struct amdgpu_ras_block_object ras_block;
 	void (*err_cnt_init)(struct amdgpu_device *adev);
@@ -87,6 +91,7 @@ struct amdgpu_umc {
 	unsigned long active_mask;
 };
 
+int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
@@ -103,4 +108,7 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		struct amdgpu_iv_entry *entry);
 int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 			uint64_t err_addr, uint32_t ch_inst, uint32_t umc_inst);
+
+int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
+			umc_func func, void *data);
 #endif

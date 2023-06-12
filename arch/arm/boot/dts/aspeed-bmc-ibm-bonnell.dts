@@ -552,14 +552,14 @@
 &i2c3 {
 	status = "okay";
 
-	power-supply@58 {
-		compatible = "ibm,cffps";
-		reg = <0x58>;
+	power-supply@5a {
+		compatible = "acbel,fsg032";
+		reg = <0x5a>;
 	};
 
-	power-supply@59 {
-		compatible = "ibm,cffps";
-		reg = <0x59>;
+	power-supply@5b {
+		compatible = "acbel,fsg032";
+		reg = <0x5b>;
 	};
 };
 
@@ -686,7 +686,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "atmel,24c64";
+		compatible = "atmel,24c128";
 		reg = <0x50>;
 	};
 
@@ -880,16 +880,6 @@
 	pinctrl-0 = <&pinctrl_rmii3_default>;
 	clocks = <&syscon ASPEED_CLK_GATE_MAC3CLK>,
 		 <&syscon ASPEED_CLK_MAC3RCLK>;
-	clock-names = "MACCLK", "RCLK";
-	use-ncsi;
-};
-
-&mac3 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rmii4_default>;
-	clocks = <&syscon ASPEED_CLK_GATE_MAC4CLK>,
-		 <&syscon ASPEED_CLK_MAC4RCLK>;
 	clock-names = "MACCLK", "RCLK";
 	use-ncsi;
 };

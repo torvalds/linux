@@ -1035,7 +1035,7 @@ static int sahara_sha_process(struct ahash_request *req)
 
 static int sahara_queue_manage(void *data)
 {
-	struct sahara_dev *dev = (struct sahara_dev *)data;
+	struct sahara_dev *dev = data;
 	struct crypto_async_request *async_req;
 	struct crypto_async_request *backlog;
 	int ret = 0;
@@ -1270,7 +1270,7 @@ static struct ahash_alg sha_v4_algs[] = {
 
 static irqreturn_t sahara_irq_handler(int irq, void *data)
 {
-	struct sahara_dev *dev = (struct sahara_dev *)data;
+	struct sahara_dev *dev = data;
 	unsigned int stat = sahara_read(dev, SAHARA_REG_STATUS);
 	unsigned int err = sahara_read(dev, SAHARA_REG_ERRSTATUS);
 

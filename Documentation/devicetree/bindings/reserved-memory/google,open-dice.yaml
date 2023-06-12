@@ -16,7 +16,7 @@ maintainers:
   - David Brazdil <dbrazdil@google.com>
 
 allOf:
-  - $ref: "reserved-memory.yaml"
+  - $ref: reserved-memory.yaml
 
 properties:
   compatible:

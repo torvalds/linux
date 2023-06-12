@@ -796,7 +796,7 @@ static int has_fsl_hypervisor(void)
 	if (!node)
 		return 0;
 
-	ret = of_find_property(node, "fsl,hv-version", NULL) != NULL;
+	ret = of_property_present(node, "fsl,hv-version");
 
 	of_node_put(node);
 

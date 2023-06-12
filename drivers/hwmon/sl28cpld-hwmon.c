@@ -67,7 +67,7 @@ static int sl28cpld_hwmon_read(struct device *dev,
 	return 0;
 }
 
-static const struct hwmon_channel_info *sl28cpld_hwmon_info[] = {
+static const struct hwmon_channel_info * const sl28cpld_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT),
 	NULL
 };

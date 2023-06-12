@@ -26,11 +26,11 @@ properties:
 
 patternProperties:
   "^buck[12]$":
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
     unevaluatedProperties: false
 
   "^ldo[123567]$":
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
     unevaluatedProperties: false
 
 required:

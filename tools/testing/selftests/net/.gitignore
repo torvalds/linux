@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 bind_bhash
 bind_timewait
+bind_wildcard
 csum
 cmsg_sender
 diag_uid

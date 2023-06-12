@@ -983,11 +983,7 @@ void intel_audio_cdclk_change_pre(struct drm_i915_private *i915)
 
 static void get_aud_ts_cdclk_m_n(int refclk, int cdclk, struct aud_ts_cdclk_m_n *aud_ts)
 {
-	if (refclk == 24000)
-		aud_ts->m = 12;
-	else
-		aud_ts->m = 15;
-
+	aud_ts->m = 60;
 	aud_ts->n = cdclk * aud_ts->m / 24000;
 }
 
@@ -1043,6 +1039,7 @@ static void glk_force_audio_cdclk(struct drm_i915_private *i915,
 		return;
 
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
 retry:
 	ret = glk_force_audio_cdclk_commit(to_intel_atomic_state(state), crtc,

@@ -668,7 +668,7 @@ ATTRIBUTE_GROUPS(SYM53C500_shost);
 /*
 *  scsi_host_template initializer
 */
-static struct scsi_host_template sym53c500_driver_template = {
+static const struct scsi_host_template sym53c500_driver_template = {
      .module			= THIS_MODULE,
      .name			= "SYM53C500",
      .info			= SYM53C500_info,
@@ -702,7 +702,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	int ret;
 	int irq_level, port_base;
 	struct Scsi_Host *host;
-	struct scsi_host_template *tpnt = &sym53c500_driver_template;
+	const struct scsi_host_template *tpnt = &sym53c500_driver_template;
 	struct sym53c500_data *data;
 
 	dev_dbg(&link->dev, "SYM53C500_config\n");

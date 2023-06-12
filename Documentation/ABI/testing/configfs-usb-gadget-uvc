@@ -76,7 +76,7 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Default camera terminal descriptors
 
-		All attributes read only:
+		All attributes read only except bmControls, which is read/write:
 
 		========================  ====================================
 		bmControls		  bitmap specifying which controls are
@@ -101,7 +101,7 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Default processing unit descriptors
 
-		All attributes read only:
+		All attributes read only except bmControls, which is read/write:
 
 		===============	========================================
 		iProcessing	index of string descriptor

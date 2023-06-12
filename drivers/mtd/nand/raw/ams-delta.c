@@ -397,7 +397,7 @@ err_nand_cleanup:
 /*
  * Clean up routine
  */
-static int gpio_nand_remove(struct platform_device *pdev)
+static void gpio_nand_remove(struct platform_device *pdev)
 {
 	struct gpio_nand *priv = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = nand_to_mtd(&priv->nand_chip);
@@ -410,8 +410,6 @@ static int gpio_nand_remove(struct platform_device *pdev)
 	ret = mtd_device_unregister(mtd);
 	WARN_ON(ret);
 	nand_cleanup(mtd_to_nand(mtd));
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -434,7 +432,7 @@ MODULE_DEVICE_TABLE(platform, gpio_nand_plat_id_table);
 
 static struct platform_driver gpio_nand_driver = {
 	.probe		= gpio_nand_probe,
-	.remove		= gpio_nand_remove,
+	.remove_new	= gpio_nand_remove,
 	.id_table	= gpio_nand_plat_id_table,
 	.driver		= {
 		.name	= "ams-delta-nand",

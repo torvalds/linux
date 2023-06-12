@@ -584,13 +584,6 @@ DECLARE_EVENT_CLASS(ext4__page_op,
 		  (unsigned long) __entry->index)
 );
 
-DEFINE_EVENT(ext4__page_op, ext4_writepage,
-
-	TP_PROTO(struct page *page),
-
-	TP_ARGS(page)
-);
-
 DEFINE_EVENT(ext4__page_op, ext4_readpage,
 
 	TP_PROTO(struct page *page),

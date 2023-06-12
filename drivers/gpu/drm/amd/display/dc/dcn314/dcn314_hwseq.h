@@ -43,4 +43,8 @@ void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx);
 
 void dcn314_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on);
 
+void dcn314_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, bool clock_on);
+
+void dcn314_disable_link_output(struct dc_link *link, const struct link_resource *link_res, enum signal_type signal);
+
 #endif /* __DC_HWSS_DCN314_H__ */

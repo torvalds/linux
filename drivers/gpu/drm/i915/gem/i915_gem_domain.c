@@ -27,8 +27,15 @@ static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (IS_DGFX(i915))
 		return false;
 
-	return !(obj->cache_level == I915_CACHE_NONE ||
-		 obj->cache_level == I915_CACHE_WT);
+	/*
+	 * For objects created by userspace through GEM_CREATE with pat_index
+	 * set by set_pat extension, i915_gem_object_has_cache_level() will
+	 * always return true, because the coherency of such object is managed
+	 * by userspace. Othereise the call here would fall back to checking
+	 * whether the object is un-cached or write-through.
+	 */
+	return !(i915_gem_object_has_cache_level(obj, I915_CACHE_NONE) ||
+		 i915_gem_object_has_cache_level(obj, I915_CACHE_WT));
 }
 
 bool i915_gem_cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
@@ -116,7 +123,8 @@ void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj)
 }
 
 /**
- * Moves a single object to the WC read, and possibly write domain.
+ * i915_gem_object_set_to_wc_domain - Moves a single object to the WC read, and
+ *                                    possibly write domain.
  * @obj: object to act on
  * @write: ask for write access or read only
  *
@@ -177,7 +185,8 @@ i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
 }
 
 /**
- * Moves a single object to the GTT read, and possibly write domain.
+ * i915_gem_object_set_to_gtt_domain - Moves a single object to the GTT read,
+ *                                     and possibly write domain.
  * @obj: object to act on
  * @write: ask for write access or read only
  *
@@ -246,7 +255,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 }
 
 /**
- * Changes the cache-level of an object across all VMA.
+ * i915_gem_object_set_cache_level - Changes the cache-level of an object across all VMA.
  * @obj: object to act on
  * @cache_level: new cache level to set for the object
  *
@@ -265,7 +274,13 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	if (obj->cache_level == cache_level)
+	/*
+	 * For objects created by userspace through GEM_CREATE with pat_index
+	 * set by set_pat extension, simply return 0 here without touching
+	 * the cache setting, because such objects should have an immutable
+	 * cache setting by desgin and always managed by userspace.
+	 */
+	if (i915_gem_object_has_cache_level(obj, cache_level))
 		return 0;
 
 	ret = i915_gem_object_wait(obj,
@@ -276,10 +291,8 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		return ret;
 
 	/* Always invalidate stale cachelines */
-	if (obj->cache_level != cache_level) {
-		i915_gem_object_set_cache_coherency(obj, cache_level);
-		obj->cache_dirty = true;
-	}
+	i915_gem_object_set_cache_coherency(obj, cache_level);
+	obj->cache_dirty = true;
 
 	/* The cache-level will be applied when each vma is rebound. */
 	return i915_gem_object_unbind(obj,
@@ -304,20 +317,22 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	switch (obj->cache_level) {
-	case I915_CACHE_LLC:
-	case I915_CACHE_L3_LLC:
-		args->caching = I915_CACHING_CACHED;
-		break;
-
-	case I915_CACHE_WT:
-		args->caching = I915_CACHING_DISPLAY;
-		break;
-
-	default:
-		args->caching = I915_CACHING_NONE;
-		break;
+	/*
+	 * This ioctl should be disabled for the objects with pat_index
+	 * set by user space.
+	 */
+	if (obj->pat_set_by_user) {
+		err = -EOPNOTSUPP;
+		goto out;
 	}
+
+	if (i915_gem_object_has_cache_level(obj, I915_CACHE_LLC) ||
+	    i915_gem_object_has_cache_level(obj, I915_CACHE_L3_LLC))
+		args->caching = I915_CACHING_CACHED;
+	else if (i915_gem_object_has_cache_level(obj, I915_CACHE_WT))
+		args->caching = I915_CACHING_DISPLAY;
+	else
+		args->caching = I915_CACHING_NONE;
 out:
 	rcu_read_unlock();
 	return err;
@@ -334,6 +349,9 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 
 	if (IS_DGFX(i915))
 		return -ENODEV;
+
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
+		return -EOPNOTSUPP;
 
 	switch (args->caching) {
 	case I915_CACHING_NONE:
@@ -361,6 +379,15 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
+
+	/*
+	 * This ioctl should be disabled for the objects with pat_index
+	 * set by user space.
+	 */
+	if (obj->pat_set_by_user) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	/*
 	 * The caching mode of proxy object is handled by its generator, and
@@ -467,7 +494,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 }
 
 /**
- * Moves a single object to the CPU read, and possibly write domain.
+ * i915_gem_object_set_to_cpu_domain - Moves a single object to the CPU read,
+ *                                     and possibly write domain.
  * @obj: object to act on
  * @write: requesting write or read-only access
  *
@@ -511,7 +539,8 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 }
 
 /**
- * Called when user space prepares to use an object with the CPU, either
+ * i915_gem_set_domain_ioctl - Called when user space prepares to use an
+ *                             object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
  * @dev: drm device
  * @data: ioctl data blob

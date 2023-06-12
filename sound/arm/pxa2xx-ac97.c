@@ -262,7 +262,7 @@ err_dev:
 	return ret;
 }
 
-static int pxa2xx_ac97_remove(struct platform_device *dev)
+static void pxa2xx_ac97_remove(struct platform_device *dev)
 {
 	struct snd_card *card = platform_get_drvdata(dev);
 
@@ -270,13 +270,11 @@ static int pxa2xx_ac97_remove(struct platform_device *dev)
 		snd_card_free(card);
 		pxa2xx_ac97_hw_remove(dev);
 	}
-
-	return 0;
 }
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_probe,
-	.remove		= pxa2xx_ac97_remove,
+	.remove_new	= pxa2xx_ac97_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
 #ifdef CONFIG_PM_SLEEP

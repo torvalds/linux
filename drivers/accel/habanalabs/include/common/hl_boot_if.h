@@ -35,6 +35,7 @@ enum cpu_boot_err {
 	CPU_BOOT_ERR_TPM_FAIL = 20,
 	CPU_BOOT_ERR_TMP_THRESH_INIT_FAIL = 21,
 	CPU_BOOT_ERR_EEPROM_FAIL = 22,
+	CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL = 23,
 	CPU_BOOT_ERR_ENABLED = 31,
 	CPU_BOOT_ERR_SCND_EN = 63,
 	CPU_BOOT_ERR_LAST = 64 /* we have 2 registers of 32 bits */
@@ -51,6 +52,7 @@ enum cpu_boot_err {
 		 (1 << CPU_BOOT_ERR_DEVICE_UNUSABLE_FAIL) |	\
 		 (1 << CPU_BOOT_ERR_BINNING_FAIL) |		\
 		 (1 << CPU_BOOT_ERR_DRAM_SKIPPED) |		\
+		 (1 << CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL) |	\
 		 (1 << CPU_BOOT_ERR_EEPROM_FAIL))
 
 /*
@@ -132,6 +134,9 @@ enum cpu_boot_err {
  * CPU_BOOT_ERR_EEPROM_FAIL		Failed reading EEPROM data. Defaults
  *					are used.
  *
+ * CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL	Failed scrubbing the Engines/ARCFarm
+ *					memories. Boot disabled until reset.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -157,6 +162,7 @@ enum cpu_boot_err {
 #define CPU_BOOT_ERR0_TPM_FAIL			(1 << CPU_BOOT_ERR_TPM_FAIL)
 #define CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL	(1 << CPU_BOOT_ERR_TMP_THRESH_INIT_FAIL)
 #define CPU_BOOT_ERR0_EEPROM_FAIL		(1 << CPU_BOOT_ERR_EEPROM_FAIL)
+#define CPU_BOOT_ERR0_ENG_ARC_MEM_SCRUB_FAIL	(1 << CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL)
 #define CPU_BOOT_ERR0_ENABLED			(1 << CPU_BOOT_ERR_ENABLED)
 #define CPU_BOOT_ERR1_ENABLED			(1 << CPU_BOOT_ERR_ENABLED)
 
@@ -744,33 +750,10 @@ struct comms_status {
 	};
 };
 
-/**
- * HL_MODULES_MAX_NUM is determined by the size of modules_mask in struct
- *      hl_component_versions
- */
-enum hl_modules {
-	HL_MODULES_BOOT_INFO = 0,
-	HL_MODULES_EEPROM,
-	HL_MODULES_FDT,
-	HL_MODULES_I2C,
-	HL_MODULES_LZ4,
-	HL_MODULES_MBEDTLS,
-	HL_MODULES_MAX_NUM = 16
-};
-
-/**
- * HL_COMPONENTS_MAX_NUM is determined by the size of components_mask in
- *      struct cpucp_versions
- */
-enum hl_components {
-	HL_COMPONENTS_PID = 0,
-	HL_COMPONENTS_MGMT,
-	HL_COMPONENTS_PREBOOT,
-	HL_COMPONENTS_PPBOOT,
-	HL_COMPONENTS_ARMCP,
-	HL_COMPONENTS_CPLD,
-	HL_COMPONENTS_UBOOT,
-	HL_COMPONENTS_MAX_NUM = 16
+#define NAME_MAX_LEN	32 /* bytes */
+struct hl_module_data {
+	__u8 name[NAME_MAX_LEN];
+	__u8 version[VERSION_MAX_LEN];
 };
 
 /**
@@ -779,8 +762,7 @@ enum hl_components {
  * @modules_offset: offset of the modules field in this struct.
  * @component: version of the component itself.
  * @fw_os: Firmware OS Version.
- * @modules_mask: i'th bit (from LSB) is a flag - on if module i in enum
- *              hl_modules is used.
+ * @comp_name: Name of the component.
  * @modules_counter: number of set bits in modules_mask.
  * @reserved: reserved for future use.
  * @modules: versions of the component's modules. Elborated explanation in
@@ -791,45 +773,13 @@ struct hl_component_versions {
 	__le16 modules_offset;
 	__u8 component[VERSION_MAX_LEN];
 	__u8 fw_os[VERSION_MAX_LEN];
-	__le16 modules_mask;
+	__u8 comp_name[NAME_MAX_LEN];
 	__u8 modules_counter;
-	__u8 reserved[1];
-	__u8 modules[][VERSION_MAX_LEN];
+	__u8 reserved[3];
+	struct hl_module_data modules[];
 };
 
-/**
- * struct hl_fw_versions - all versions (fuse, cpucp's components with their
- *              modules)
- * @struct_size: size of all the struct (including dynamic size of components).
- * @components_offset: offset of the components field in this struct.
- * @fuse: silicon production FUSE information.
- * @components_mask: i'th bit (from LSB) is a flag - on if component i in enum
- *              hl_components is used.
- * @components_counter: number of set bits in components_mask.
- * @reserved: reserved for future use.
- * @components: versions of hl components. Index i corresponds to the i'th bit
- *              that is *on* in components_mask. For example, if
- *              components_mask=0b101, then *components represents arcpid and
- *              *(hl_component_versions*)((char*)components + 1') represents
- *              preboot, where 1' = components[0].struct_size.
- */
-struct hl_fw_versions {
-	__le16 struct_size;
-	__le16 components_offset;
-	__u8 fuse[VERSION_MAX_LEN];
-	__le16 components_mask;
-	__u8 components_counter;
-	__u8 reserved[1];
-	struct hl_component_versions components[];
-};
-
-/* Max size of struct hl_component_versions */
-#define HL_COMPONENT_VERSIONS_MAX_SIZE \
-	(sizeof(struct hl_component_versions) + HL_MODULES_MAX_NUM * \
-	 VERSION_MAX_LEN)
-
-/* Max size of struct hl_fw_versions */
-#define HL_FW_VERSIONS_MAX_SIZE (sizeof(struct hl_fw_versions) + \
-		HL_COMPONENTS_MAX_NUM * HL_COMPONENT_VERSIONS_MAX_SIZE)
+/* Max size of fit size */
+#define HL_FW_VERSIONS_FIT_SIZE	4096
 
 #endif /* HL_BOOT_IF_H */

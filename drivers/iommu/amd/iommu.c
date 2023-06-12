@@ -1611,6 +1611,11 @@ static void set_dte_entry(struct amd_iommu *iommu, u16 devid,
 		tmp = DTE_GCR3_VAL_C(gcr3) << DTE_GCR3_SHIFT_C;
 		flags    |= tmp;
 
+		if (amd_iommu_gpt_level == PAGE_MODE_5_LEVEL) {
+			dev_table[devid].data[2] |=
+				((u64)GUEST_PGTABLE_5_LEVEL << DTE_GPT_LEVEL_SHIFT);
+		}
+
 		if (domain->flags & PD_GIOV_MASK)
 			pte_root |= DTE_FLAG_GIOV;
 	}
@@ -1662,13 +1667,13 @@ static void do_attach(struct iommu_dev_data *dev_data,
 	dev_data->domain = domain;
 	list_add(&dev_data->list, &domain->dev_list);
 
+	/* Update NUMA Node ID */
+	if (domain->nid == NUMA_NO_NODE)
+		domain->nid = dev_to_node(dev_data->dev);
+
 	/* Do reference counting */
 	domain->dev_iommu[iommu->index] += 1;
 	domain->dev_cnt                 += 1;
-
-	/* Override supported page sizes */
-	if (domain->flags & PD_GIOV_MASK)
-		domain->domain.pgsize_bitmap = AMD_IOMMU_PGSIZES_V2;
 
 	/* Update device table */
 	set_dte_entry(iommu, dev_data->devid, domain,
@@ -2048,6 +2053,8 @@ static int protection_domain_init_v2(struct protection_domain *domain)
 
 	domain->flags |= PD_GIOV_MASK;
 
+	domain->domain.pgsize_bitmap = AMD_IOMMU_PGSIZES_V2;
+
 	if (domain_enable_v2(domain, 1)) {
 		domain_id_free(domain->id);
 		return -ENOMEM;
@@ -2096,6 +2103,8 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 	/* No need to allocate io pgtable ops in passthrough mode */
 	if (type == IOMMU_DOMAIN_IDENTITY)
 		return domain;
+
+	domain->nid = NUMA_NO_NODE;
 
 	pgtbl_ops = alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl_cfg, domain);
 	if (!pgtbl_ops) {

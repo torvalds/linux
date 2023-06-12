@@ -204,7 +204,7 @@ simplefb_get_memory_of(struct drm_device *dev, struct device_node *of_node)
 	if (err)
 		return ERR_PTR(err);
 
-	if (of_get_property(of_node, "reg", NULL))
+	if (of_property_present(of_node, "reg"))
 		drm_warn(dev, "preferring \"memory-region\" over \"reg\" property\n");
 
 	return res;

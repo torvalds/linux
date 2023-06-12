@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/hardirq.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -546,7 +546,7 @@ static int pmac_cpufreq_init_7447A(struct device_node *cpunode)
 {
 	struct device_node *volt_gpio_np;
 
-	if (of_get_property(cpunode, "dynamic-power-step", NULL) == NULL)
+	if (!of_property_read_bool(cpunode, "dynamic-power-step"))
 		return 1;
 
 	volt_gpio_np = of_find_node_by_name(NULL, "cpu-vcore-select");
@@ -576,7 +576,7 @@ static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 	u32 pvr;
 	const u32 *value;
 
-	if (of_get_property(cpunode, "dynamic-power-step", NULL) == NULL)
+	if (!of_property_read_bool(cpunode, "dynamic-power-step"))
 		return 1;
 
 	hi_freq = cur_freq;
@@ -632,7 +632,7 @@ static int __init pmac_cpufreq_setup(void)
 
 	/*  Check for 7447A based MacRISC3 */
 	if (of_machine_is_compatible("MacRISC3") &&
-	    of_get_property(cpunode, "dynamic-power-step", NULL) &&
+	    of_property_read_bool(cpunode, "dynamic-power-step") &&
 	    PVR_VER(mfspr(SPRN_PVR)) == 0x8003) {
 		pmac_cpufreq_init_7447A(cpunode);
 

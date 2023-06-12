@@ -1118,14 +1118,11 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct dma_fence *f = NULL;
+	uint32_t offset, data[4];
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
-	uint32_t data[4];
 	uint64_t addr;
-	long r;
-	int i;
-	unsigned offset_idx = 0;
-	unsigned offset[3] = { UVD_BASE_SI, 0, 0 };
+	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->uvd.entity,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
@@ -1134,16 +1131,15 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	if (r)
 		return r;
 
-	if (adev->asic_type >= CHIP_VEGA10) {
-		offset_idx = 1 + ring->me;
-		offset[1] = adev->reg_offset[UVD_HWIP][0][1];
-		offset[2] = adev->reg_offset[UVD_HWIP][1][1];
-	}
+	if (adev->asic_type >= CHIP_VEGA10)
+		offset = adev->reg_offset[UVD_HWIP][ring->me][1];
+	else
+		offset = UVD_BASE_SI;
 
-	data[0] = PACKET0(offset[offset_idx] + UVD_GPCOM_VCPU_DATA0, 0);
-	data[1] = PACKET0(offset[offset_idx] + UVD_GPCOM_VCPU_DATA1, 0);
-	data[2] = PACKET0(offset[offset_idx] + UVD_GPCOM_VCPU_CMD, 0);
-	data[3] = PACKET0(offset[offset_idx] + UVD_NO_OP, 0);
+	data[0] = PACKET0(offset + UVD_GPCOM_VCPU_DATA0, 0);
+	data[1] = PACKET0(offset + UVD_GPCOM_VCPU_DATA1, 0);
+	data[2] = PACKET0(offset + UVD_GPCOM_VCPU_CMD, 0);
+	data[3] = PACKET0(offset + UVD_NO_OP, 0);
 
 	ib = &job->ibs[0];
 	addr = amdgpu_bo_gpu_offset(bo);
@@ -1160,14 +1156,6 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
-		r = dma_resv_wait_timeout(bo->tbo.base.resv,
-					  DMA_RESV_USAGE_KERNEL, false,
-					  msecs_to_jiffies(10));
-		if (r == 0)
-			r = -ETIMEDOUT;
-		if (r < 0)
-			goto err_free;
-
 		r = amdgpu_job_submit_direct(job, ring, &f);
 		if (r)
 			goto err_free;

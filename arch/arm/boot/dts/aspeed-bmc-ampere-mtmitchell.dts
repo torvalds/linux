@@ -251,6 +251,14 @@
 	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
+&mac3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii4_default>;
+	clock-names = "MACCLK", "RCLK";
+	use-ncsi;
+};
+
 &fmc {
 	status = "okay";
 	flash@0 {
@@ -439,6 +447,26 @@
 	status = "okay";
 };
 
+&i2c8 {
+	status = "okay";
+
+	gpio@77 {
+		compatible = "nxp,pca9539";
+		reg = <0x77>;
+		gpio-controller;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+
+		bmc-ocp0-en-hog {
+			gpio-hog;
+			gpios = <7 GPIO_ACTIVE_LOW>;
+			output-high;
+			line-name = "bmc-ocp0-en-n";
+		};
+	};
+};
+
 &i2c9 {
 	status = "okay";
 };
@@ -530,13 +558,20 @@
 	/*V0-V7*/	"s0-hightemp-n","s0-fault-alert","s0-sys-auth-failure-n",
 			"host0-reboot-ack-n","host0-ready","host0-shd-req-n",
 			"host0-shd-ack-n","s0-overtemp-n",
-	/*W0-W7*/	"ocp-aux-pwren","ocp-main-pwren","ocp-pgood","",
+	/*W0-W7*/	"","ocp-main-pwren","ocp-pgood","",
 			"bmc-ok","bmc-ready","spi0-program-sel","spi0-backup-sel",
 	/*X0-X7*/	"i2c-backup-sel","s1-fault-alert","s1-fw-boot-ok",
 			"s1-hightemp-n","s0-spi-auth-fail-n","s1-sys-auth-failure-n",
 			"s1-overtemp-n","s1-spi-auth-fail-n",
 	/*Y0-Y7*/	"","","","","","","","host0-special-boot",
 	/*Z0-Z7*/	"reset-button","ps0-pgood","ps1-pgood","","","","","";
+
+	ocp-aux-pwren-hog {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(W, 0) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "ocp-aux-pwren";
+	};
 };
 
 &gpio1 {

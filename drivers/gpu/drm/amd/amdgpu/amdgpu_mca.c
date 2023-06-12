@@ -70,3 +70,75 @@ void amdgpu_mca_query_ras_error_count(struct amdgpu_device *adev,
 
 	amdgpu_mca_reset_error_count(adev, mc_status_addr);
 }
+
+int amdgpu_mca_mp0_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_mca_ras_block *ras;
+
+	if (!adev->mca.mp0.ras)
+		return 0;
+
+	ras = adev->mca.mp0.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register mca.mp0 ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "mca.mp0");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__MCA;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->mca.mp0.ras_if = &ras->ras_block.ras_comm;
+
+	return 0;
+}
+
+int amdgpu_mca_mp1_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_mca_ras_block *ras;
+
+	if (!adev->mca.mp1.ras)
+		return 0;
+
+	ras = adev->mca.mp1.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register mca.mp1 ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "mca.mp1");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__MCA;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->mca.mp1.ras_if = &ras->ras_block.ras_comm;
+
+	return 0;
+}
+
+int amdgpu_mca_mpio_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_mca_ras_block *ras;
+
+	if (!adev->mca.mpio.ras)
+		return 0;
+
+	ras = adev->mca.mpio.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register mca.mpio ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "mca.mpio");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__MCA;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->mca.mpio.ras_if = &ras->ras_block.ras_comm;
+
+	return 0;
+}

@@ -71,41 +71,124 @@ free_fw_ver:
 	return NULL;
 }
 
-static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
+/**
+ * extract_u32_until_given_char() - given a string of the format "<u32><char>*", extract the u32.
+ * @str: the given string
+ * @ver_num: the pointer to the extracted u32 to be returned to the caller.
+ * @given_char: the given char at the end of the u32 in the string
+ *
+ * Return: Upon success, return a pointer to the given_char in the string. Upon failure, return NULL
+ */
+static char *extract_u32_until_given_char(char *str, u32 *ver_num, char given_char)
 {
-	char major[8], minor[8], *first_dot, *second_dot;
-	int rc;
+	char num_str[8] = {}, *ch;
 
-	first_dot = strnstr(preboot_ver, ".", 10);
-	if (first_dot) {
-		strscpy(major, preboot_ver, first_dot - preboot_ver + 1);
-		rc = kstrtou32(major, 10, &hdev->fw_major_version);
-	} else {
-		rc = -EINVAL;
+	ch = strchrnul(str, given_char);
+	if (*ch == '\0' || ch == str || ch - str >= sizeof(num_str))
+		return NULL;
+
+	memcpy(num_str, str, ch - str);
+	if (kstrtou32(num_str, 10, ver_num))
+		return NULL;
+	return ch;
+}
+
+/**
+ * hl_get_sw_major_minor_subminor() - extract the FW's SW version major, minor, sub-minor
+ *				      from the version string
+ * @hdev: pointer to the hl_device
+ * @fw_str: the FW's version string
+ *
+ * The extracted version is set in the hdev fields: fw_sw_{major/minor/sub_minor}_ver.
+ *
+ * fw_str is expected to have one of two possible formats, examples:
+ * 1) 'Preboot version hl-gaudi2-1.9.0-fw-42.0.1-sec-3'
+ * 2) 'Preboot version hl-gaudi2-1.9.0-rc-fw-42.0.1-sec-3'
+ * In those examples, the SW major,minor,subminor are correspondingly: 1,9,0.
+ *
+ * Return: 0 for success or a negative error code for failure.
+ */
+static int hl_get_sw_major_minor_subminor(struct hl_device *hdev, const char *fw_str)
+{
+	char *end, *start;
+
+	end = strnstr(fw_str, "-rc-", VERSION_MAX_LEN);
+	if (end == fw_str)
+		return -EINVAL;
+
+	if (!end)
+		end = strnstr(fw_str, "-fw-", VERSION_MAX_LEN);
+
+	if (end == fw_str)
+		return -EINVAL;
+
+	if (!end)
+		return -EINVAL;
+
+	for (start = end - 1; start != fw_str; start--) {
+		if (*start == '-')
+			break;
 	}
 
-	if (rc) {
-		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
-		goto out;
+	if (start == fw_str)
+		return -EINVAL;
+
+	/* start/end point each to the starting and ending hyphen of the sw version e.g. -1.9.0- */
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_major_ver, '.');
+	if (!start)
+		goto err_zero_ver;
+
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_minor_ver, '.');
+	if (!start)
+		goto err_zero_ver;
+
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_sub_minor_ver, '-');
+	if (!start)
+		goto err_zero_ver;
+
+	return 0;
+
+err_zero_ver:
+	hdev->fw_sw_major_ver = 0;
+	hdev->fw_sw_minor_ver = 0;
+	hdev->fw_sw_sub_minor_ver = 0;
+	return -EINVAL;
+}
+
+/**
+ * hl_get_preboot_major_minor() - extract the FW's version major, minor from the version string.
+ * @hdev: pointer to the hl_device
+ * @preboot_ver: the FW's version string
+ *
+ * preboot_ver is expected to be the format of <major>.<minor>.<sub minor>*, e.g: 42.0.1-sec-3
+ * The extracted version is set in the hdev fields: fw_inner_{major/minor}_ver.
+ *
+ * Return: 0 on success, negative error code for failure.
+ */
+static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
+{
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_major_ver, '.');
+	if (!preboot_ver) {
+		dev_err(hdev->dev, "Error parsing preboot major version\n");
+		goto err_zero_ver;
 	}
 
-	/* skip the first dot */
-	first_dot++;
+	preboot_ver++;
 
-	second_dot = strnstr(first_dot, ".", 10);
-	if (second_dot) {
-		strscpy(minor, first_dot, second_dot - first_dot + 1);
-		rc = kstrtou32(minor, 10, &hdev->fw_minor_version);
-	} else {
-		rc = -EINVAL;
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_minor_ver, '.');
+	if (!preboot_ver) {
+		dev_err(hdev->dev, "Error parsing preboot minor version\n");
+		goto err_zero_ver;
 	}
+	return 0;
 
-	if (rc)
-		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
-
-out:
-	kfree(preboot_ver);
-	return rc;
+err_zero_ver:
+	hdev->fw_inner_major_ver = 0;
+	hdev->fw_inner_minor_ver = 0;
+	return -EINVAL;
 }
 
 static int hl_request_fw(struct hl_device *hdev,
@@ -506,6 +589,20 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 {
 	gen_pool_free(hdev->cpu_accessible_dma_pool, (u64) (uintptr_t) vaddr,
 			size);
+}
+
+int hl_fw_send_soft_reset(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_SOFT_RESET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+	if (rc)
+		dev_err(hdev->dev, "failed to send soft-reset msg (err = %d)\n", rc);
+
+	return rc;
 }
 
 int hl_fw_send_device_activity(struct hl_device *hdev, bool open)
@@ -1263,7 +1360,7 @@ void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 				COMMS_RST_DEV, 0, false,
 				hdev->fw_loader.cpu_timeout);
 		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_RST_DEV\n");
+			dev_err(hdev->dev, "Failed sending COMMS_RST_DEV\n");
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_RST_DEV);
 	}
@@ -1271,8 +1368,10 @@ void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 
 void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 {
-	struct static_fw_load_mgr *static_loader =
-			&hdev->fw_loader.static_loader;
+	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
+	u32 status, cpu_boot_status_reg, cpu_timeout;
+	struct static_fw_load_mgr *static_loader;
+	struct pre_fw_load_props *pre_fw_load;
 	int rc;
 
 	if (hdev->device_cpu_is_halted)
@@ -1280,12 +1379,28 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 
 	/* Stop device CPU to make sure nothing bad happens */
 	if (hdev->asic_prop.dynamic_fw_load) {
+		pre_fw_load = &fw_loader->pre_fw_load;
+		cpu_timeout = fw_loader->cpu_timeout;
+		cpu_boot_status_reg = pre_fw_load->cpu_boot_status_reg;
+
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_GOTO_WFE, 0, true,
-				hdev->fw_loader.cpu_timeout);
-		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+				COMMS_GOTO_WFE, 0, false, cpu_timeout);
+		if (rc) {
+			dev_err(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+		} else {
+			rc = hl_poll_timeout(
+				hdev,
+				cpu_boot_status_reg,
+				status,
+				status == CPU_BOOT_STATUS_IN_WFE,
+				hdev->fw_poll_interval_usec,
+				cpu_timeout);
+			if (rc)
+				dev_err(hdev->dev, "Current status=%u. Timed-out updating to WFE\n",
+						status);
+		}
 	} else {
+		static_loader = &hdev->fw_loader.static_loader;
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
 
@@ -2154,6 +2269,7 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	char *preboot_ver, *boot_ver;
 	char btl_ver[32];
+	int rc;
 
 	switch (fwc) {
 	case FW_COMP_BOOT_FIT:
@@ -2167,22 +2283,22 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 		break;
 	case FW_COMP_PREBOOT:
 		strscpy(prop->preboot_ver, fw_version, VERSION_MAX_LEN);
-		preboot_ver = strnstr(prop->preboot_ver, "Preboot",
-						VERSION_MAX_LEN);
+		preboot_ver = strnstr(prop->preboot_ver, "Preboot", VERSION_MAX_LEN);
+		dev_info(hdev->dev, "preboot full version: '%s'\n", preboot_ver);
+
 		if (preboot_ver && preboot_ver != prop->preboot_ver) {
 			strscpy(btl_ver, prop->preboot_ver,
 				min((int) (preboot_ver - prop->preboot_ver), 31));
 			dev_info(hdev->dev, "%s\n", btl_ver);
 		}
 
+		rc = hl_get_sw_major_minor_subminor(hdev, preboot_ver);
+		if (rc)
+			return rc;
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			int rc;
-
-			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
-
-			/* This function takes care of freeing preboot_ver */
-			rc = extract_fw_sub_versions(hdev, preboot_ver);
+			rc = hl_get_preboot_major_minor(hdev, preboot_ver);
+			kfree(preboot_ver);
 			if (rc)
 				return rc;
 		}
@@ -2369,16 +2485,6 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
 	if (rc)
 		goto release_fw;
-
-	/* update state according to boot stage */
-	if (cur_fwc == FW_COMP_BOOT_FIT) {
-		struct cpu_dyn_regs *dyn_regs;
-
-		dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
-		hl_fw_boot_fit_update_state(hdev,
-				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
-				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
-	}
 
 	/* copy boot fit to space allocated by FW */
 	rc = hl_fw_dynamic_copy_image(hdev, fw, fw_loader);
@@ -2682,6 +2788,14 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 		goto protocol_err;
 	}
 
+	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
+	if (rc)
+		goto protocol_err;
+
+	hl_fw_boot_fit_update_state(hdev,
+			le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+			le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
+
 	/*
 	 * when testing FW load (without Linux) on PLDM we don't want to
 	 * wait until boot fit is active as it may take several hours.
@@ -2690,10 +2804,6 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 */
 	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
 		return 0;
-
-	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
-	if (rc)
-		goto protocol_err;
 
 	/* Enable DRAM scrambling before Linux boot and after successful
 	 *  UBoot
@@ -2728,7 +2838,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (rc)
 		goto protocol_err;
 
-	hl_fw_linux_update_state(hdev, le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+	hl_fw_linux_update_state(hdev,
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
 
 	hl_fw_dynamic_update_linux_interrupt_if(hdev);
@@ -3152,7 +3263,7 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,
 						dma_addr_t buff, u32 *size)
 {
-	struct cpucp_packet pkt = {0};
+	struct cpucp_packet pkt = {};
 	u64 result;
 	int rc = 0;
 

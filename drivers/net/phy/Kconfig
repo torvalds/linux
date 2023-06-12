@@ -44,6 +44,12 @@ config LED_TRIGGER_PHY
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
 		for any speed known to the PHY.
 
+config PHYLIB_LEDS
+	def_bool OF
+	depends on LEDS_CLASS=y || LEDS_CLASS=PHYLIB
+	help
+	  When LED class support is enabled, phylib can automatically
+	  probe LED setting from device tree.
 
 config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
@@ -70,6 +76,7 @@ config AMD_PHY
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	depends on ARCH_MESON || COMPILE_TEST
+	select SMSC_PHY
 	help
 	  Currently has a driver for the Amlogic Meson GXL Internal PHY
 
@@ -235,6 +242,11 @@ config MICREL_PHY
 	help
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
+config MICROCHIP_T1S_PHY
+	tristate "Microchip 10BASE-T1S Ethernet PHY"
+	help
+	  Currently supports the LAN8670, LAN8671, LAN8672
+
 config MICROCHIP_PHY
 	tristate "Microchip PHYs"
 	help
@@ -263,6 +275,12 @@ config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
 	help
 	  Currently supports the DP83865 PHY.
+
+config NXP_CBTX_PHY
+	tristate "NXP 100BASE-TX PHYs"
+	help
+	  Support the 100BASE-TX PHY integrated on the SJA1110 automotive
+	  switch family.
 
 config NXP_C45_TJA11XX_PHY
 	tristate "NXP C45 TJA11XX PHYs"

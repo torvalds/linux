@@ -105,7 +105,6 @@ static void setup_clock(struct kvm_vm *vm, struct test_case *test_case)
 static void enter_guest(struct kvm_vcpu *vcpu)
 {
 	struct kvm_clock_data start, end;
-	struct kvm_run *run = vcpu->run;
 	struct kvm_vm *vm = vcpu->vm;
 	struct ucall uc;
 	int i;
@@ -118,9 +117,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 		vcpu_run(vcpu);
 		vm_ioctl(vm, KVM_GET_CLOCK, &end);
 
-		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "unexpected exit reason: %u (%s)",
-			    run->exit_reason, exit_reason_str(run->exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:

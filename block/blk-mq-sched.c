@@ -6,7 +6,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/blk-mq.h>
 #include <linux/list_sort.h>
 
 #include <trace/events/block.h>
@@ -15,7 +14,6 @@
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
-#include "blk-mq-tag.h"
 #include "blk-wbt.h"
 
 /*
@@ -271,9 +269,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 
 static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
-	struct request_queue *q = hctx->queue;
-	const bool has_sched = q->elevator;
-	int ret = 0;
+	bool need_dispatch = false;
 	LIST_HEAD(rq_list);
 
 	/*
@@ -302,23 +298,22 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
-		if (blk_mq_dispatch_rq_list(hctx, &rq_list, 0)) {
-			if (has_sched)
-				ret = blk_mq_do_dispatch_sched(hctx);
-			else
-				ret = blk_mq_do_dispatch_ctx(hctx);
-		}
-	} else if (has_sched) {
-		ret = blk_mq_do_dispatch_sched(hctx);
-	} else if (hctx->dispatch_busy) {
-		/* dequeue request one by one from sw queue if queue is busy */
-		ret = blk_mq_do_dispatch_ctx(hctx);
+		if (!blk_mq_dispatch_rq_list(hctx, &rq_list, 0))
+			return 0;
+		need_dispatch = true;
 	} else {
-		blk_mq_flush_busy_ctxs(hctx, &rq_list);
-		blk_mq_dispatch_rq_list(hctx, &rq_list, 0);
+		need_dispatch = hctx->dispatch_busy;
 	}
 
-	return ret;
+	if (hctx->queue->elevator)
+		return blk_mq_do_dispatch_sched(hctx);
+
+	/* dequeue request one by one from sw queue if queue is busy */
+	if (need_dispatch)
+		return blk_mq_do_dispatch_ctx(hctx);
+	blk_mq_flush_busy_ctxs(hctx, &rq_list);
+	blk_mq_dispatch_rq_list(hctx, &rq_list, 0);
+	return 0;
 }
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
@@ -383,116 +378,6 @@ bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq,
 	return rq_mergeable(rq) && elv_attempt_insert_merge(q, rq, free);
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_insert_merge);
-
-static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
-				       struct request *rq)
-{
-	/*
-	 * dispatch flush and passthrough rq directly
-	 *
-	 * passthrough request has to be added to hctx->dispatch directly.
-	 * For some reason, device may be in one situation which can't
-	 * handle FS request, so STS_RESOURCE is always returned and the
-	 * FS request will be added to hctx->dispatch. However passthrough
-	 * request may be required at that time for fixing the problem. If
-	 * passthrough request is added to scheduler queue, there isn't any
-	 * chance to dispatch it given we prioritize requests in hctx->dispatch.
-	 */
-	if ((rq->rq_flags & RQF_FLUSH_SEQ) || blk_rq_is_passthrough(rq))
-		return true;
-
-	return false;
-}
-
-void blk_mq_sched_insert_request(struct request *rq, bool at_head,
-				 bool run_queue, bool async)
-{
-	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
-	struct blk_mq_ctx *ctx = rq->mq_ctx;
-	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-
-	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
-
-	if (blk_mq_sched_bypass_insert(hctx, rq)) {
-		/*
-		 * Firstly normal IO request is inserted to scheduler queue or
-		 * sw queue, meantime we add flush request to dispatch queue(
-		 * hctx->dispatch) directly and there is at most one in-flight
-		 * flush request for each hw queue, so it doesn't matter to add
-		 * flush request to tail or front of the dispatch queue.
-		 *
-		 * Secondly in case of NCQ, flush request belongs to non-NCQ
-		 * command, and queueing it will fail when there is any
-		 * in-flight normal IO request(NCQ command). When adding flush
-		 * rq to the front of hctx->dispatch, it is easier to introduce
-		 * extra time to flush rq's latency because of S_SCHED_RESTART
-		 * compared with adding to the tail of dispatch queue, then
-		 * chance of flush merge is increased, and less flush requests
-		 * will be issued to controller. It is observed that ~10% time
-		 * is saved in blktests block/004 on disk attached to AHCI/NCQ
-		 * drive when adding flush rq to the front of hctx->dispatch.
-		 *
-		 * Simply queue flush rq to the front of hctx->dispatch so that
-		 * intensive flush workloads can benefit in case of NCQ HW.
-		 */
-		at_head = (rq->rq_flags & RQF_FLUSH_SEQ) ? true : at_head;
-		blk_mq_request_bypass_insert(rq, at_head, false);
-		goto run;
-	}
-
-	if (e) {
-		LIST_HEAD(list);
-
-		list_add(&rq->queuelist, &list);
-		e->type->ops.insert_requests(hctx, &list, at_head);
-	} else {
-		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq, at_head);
-		spin_unlock(&ctx->lock);
-	}
-
-run:
-	if (run_queue)
-		blk_mq_run_hw_queue(hctx, async);
-}
-
-void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
-				  struct blk_mq_ctx *ctx,
-				  struct list_head *list, bool run_queue_async)
-{
-	struct elevator_queue *e;
-	struct request_queue *q = hctx->queue;
-
-	/*
-	 * blk_mq_sched_insert_requests() is called from flush plug
-	 * context only, and hold one usage counter to prevent queue
-	 * from being released.
-	 */
-	percpu_ref_get(&q->q_usage_counter);
-
-	e = hctx->queue->elevator;
-	if (e) {
-		e->type->ops.insert_requests(hctx, list, false);
-	} else {
-		/*
-		 * try to issue requests directly if the hw queue isn't
-		 * busy in case of 'none' scheduler, and this way may save
-		 * us one extra enqueue & dequeue to sw queue.
-		 */
-		if (!hctx->dispatch_busy && !run_queue_async) {
-			blk_mq_run_dispatch_ops(hctx->queue,
-				blk_mq_try_issue_list_directly(hctx, list));
-			if (list_empty(list))
-				goto out;
-		}
-		blk_mq_insert_requests(hctx, ctx, list);
-	}
-
-	blk_mq_run_hw_queue(hctx, run_queue_async);
- out:
-	percpu_ref_put(&q->q_usage_counter);
-}
 
 static int blk_mq_sched_alloc_map_and_rqs(struct request_queue *q,
 					  struct blk_mq_hw_ctx *hctx,

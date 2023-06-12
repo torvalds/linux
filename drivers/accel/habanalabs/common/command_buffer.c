@@ -27,12 +27,6 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		return -EINVAL;
 	}
 
-	if (!hdev->mmu_enable) {
-		dev_err_ratelimited(hdev->dev,
-				"Cannot map CB because MMU is disabled\n");
-		return -EINVAL;
-	}
-
 	if (cb->is_mmu_mapped)
 		return 0;
 
@@ -45,20 +39,29 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 	}
 
 	mutex_lock(&hdev->mmu_lock);
+
 	rc = hl_mmu_map_contiguous(ctx, cb->virtual_addr, cb->bus_address, cb->roundup_size);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to map VA %#llx to CB\n", cb->virtual_addr);
-		goto err_va_umap;
+		goto err_va_pool_free;
 	}
+
 	rc = hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV);
+	if (rc)
+		goto err_mmu_unmap;
+
 	mutex_unlock(&hdev->mmu_lock);
 
 	cb->is_mmu_mapped = true;
-	return rc;
 
-err_va_umap:
+	return 0;
+
+err_mmu_unmap:
+	hl_mmu_unmap_contiguous(ctx, cb->virtual_addr, cb->roundup_size);
+err_va_pool_free:
 	mutex_unlock(&hdev->mmu_lock);
 	gen_pool_free(ctx->cb_va_pool, cb->virtual_addr, cb->roundup_size);
+
 	return rc;
 }
 

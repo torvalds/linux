@@ -25,6 +25,10 @@
 		reg = <0x40000000 0x80000000>;
 	};
 
+	aliases {
+		mmc0 = &sdhci_2;
+	};
+
 	chosen {
 		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M init=/linuxrc";
 		stdout-path = "serial1:115200n8";

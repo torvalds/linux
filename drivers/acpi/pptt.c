@@ -536,16 +536,19 @@ static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
 static struct acpi_table_header *acpi_get_pptt(void)
 {
 	static struct acpi_table_header *pptt;
+	static bool is_pptt_checked;
 	acpi_status status;
 
 	/*
 	 * PPTT will be used at runtime on every CPU hotplug in path, so we
 	 * don't need to call acpi_put_table() to release the table mapping.
 	 */
-	if (!pptt) {
+	if (!pptt && !is_pptt_checked) {
 		status = acpi_get_table(ACPI_SIG_PPTT, 0, &pptt);
 		if (ACPI_FAILURE(status))
 			acpi_pptt_warn_missing();
+
+		is_pptt_checked = true;
 	}
 
 	return pptt;

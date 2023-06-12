@@ -162,13 +162,9 @@ static bool display_get_big_endian_of(struct drm_device *dev, struct device_node
 	bool big_endian;
 
 #ifdef __BIG_ENDIAN
-	big_endian = true;
-	if (of_get_property(of_node, "little-endian", NULL))
-		big_endian = false;
+	big_endian = !of_property_read_bool(of_node, "little-endian");
 #else
-	big_endian = false;
-	if (of_get_property(of_node, "big-endian", NULL))
-		big_endian = true;
+	big_endian = of_property_read_bool(of_node, "big-endian");
 #endif
 
 	return big_endian;

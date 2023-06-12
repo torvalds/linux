@@ -30,7 +30,7 @@ struct drm_i915_private;
 struct drm_property;
 struct drm_property_blob;
 struct i915_audio_component;
-struct i915_hdcp_comp_master;
+struct i915_hdcp_arbiter;
 struct intel_atomic_state;
 struct intel_audio_funcs;
 struct intel_bios_encoder_data;
@@ -183,6 +183,17 @@ struct intel_hotplug {
 	 * blocked behind the non-DP one.
 	 */
 	struct workqueue_struct *dp_wq;
+
+	/*
+	 * Flag to track if long HPDs need not to be processed
+	 *
+	 * Some panels generate long HPDs while keep connected to the port.
+	 * This can cause issues with CI tests results. In CI systems we
+	 * don't expect to disconnect the panels and could ignore the long
+	 * HPDs generated from the faulty panels. This flag can be used as
+	 * cue to ignore the long HPDs and can be set / unset using debugfs.
+	 */
+	bool ignore_long_hpd;
 };
 
 struct intel_vbt_data {
@@ -384,11 +395,17 @@ struct intel_display {
 	} gmbus;
 
 	struct {
-		struct i915_hdcp_comp_master *master;
+		struct i915_hdcp_arbiter *arbiter;
 		bool comp_added;
 
-		/* Mutex to protect the above hdcp component related values. */
-		struct mutex comp_mutex;
+		/*
+		 * HDCP message struct for allocation of memory which can be
+		 * reused when sending message to gsc cs.
+		 * this is only populated post Meteorlake
+		 */
+		struct intel_hdcp_gsc_message *hdcp_message;
+		/* Mutex to protect the above hdcp related values. */
+		struct mutex hdcp_mutex;
 	} hdcp;
 
 	struct {
@@ -400,6 +417,10 @@ struct intel_display {
 		 */
 		u32 state;
 	} hti;
+
+	struct {
+		bool false_color;
+	} ips;
 
 	struct {
 		struct i915_power_domains domains;

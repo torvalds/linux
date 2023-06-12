@@ -83,8 +83,26 @@ static int gfs2_dhash(const struct dentry *dentry, struct qstr *str)
 	return 0;
 }
 
+static int gfs2_dentry_delete(const struct dentry *dentry)
+{
+	struct gfs2_inode *ginode;
+
+	if (d_really_is_negative(dentry))
+		return 0;
+
+	ginode = GFS2_I(d_inode(dentry));
+	if (!gfs2_holder_initialized(&ginode->i_iopen_gh))
+		return 0;
+
+	if (test_bit(GLF_DEMOTE, &ginode->i_iopen_gh.gh_gl->gl_flags))
+		return 1;
+
+	return 0;
+}
+
 const struct dentry_operations gfs2_dops = {
 	.d_revalidate = gfs2_drevalidate,
 	.d_hash = gfs2_dhash,
+	.d_delete = gfs2_dentry_delete,
 };
 

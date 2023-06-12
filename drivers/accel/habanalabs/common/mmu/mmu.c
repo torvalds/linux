@@ -44,7 +44,7 @@ int hl_mmu_init(struct hl_device *hdev)
 {
 	int rc = -EOPNOTSUPP;
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return 0;
 
 	mutex_init(&hdev->mmu_lock);
@@ -82,7 +82,7 @@ fini_dr_mmu:
  */
 void hl_mmu_fini(struct hl_device *hdev)
 {
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return;
 
 	if (hdev->mmu_func[MMU_DR_PGT].fini != NULL)
@@ -107,7 +107,7 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
 	struct hl_device *hdev = ctx->hdev;
 	int rc = -EOPNOTSUPP;
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return 0;
 
 	if (hdev->mmu_func[MMU_DR_PGT].ctx_init != NULL) {
@@ -145,7 +145,7 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return;
 
 	if (hdev->mmu_func[MMU_DR_PGT].ctx_fini != NULL)
@@ -233,7 +233,7 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size, bool flu
 	u64 real_virt_addr;
 	bool is_dram_addr;
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return 0;
 
 	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
@@ -301,7 +301,7 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_s
 	bool is_dram_addr;
 
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return 0;
 
 	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
@@ -472,46 +472,6 @@ int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size)
 	return rc;
 }
 
-/*
- * hl_mmu_swap_out - marks all mapping of the given ctx as swapped out
- *
- * @ctx: pointer to the context structure
- *
- */
-void hl_mmu_swap_out(struct hl_ctx *ctx)
-{
-	struct hl_device *hdev = ctx->hdev;
-
-	if (!hdev->mmu_enable)
-		return;
-
-	if (hdev->mmu_func[MMU_DR_PGT].swap_out != NULL)
-		hdev->mmu_func[MMU_DR_PGT].swap_out(ctx);
-
-	if (hdev->mmu_func[MMU_HR_PGT].swap_out != NULL)
-		hdev->mmu_func[MMU_HR_PGT].swap_out(ctx);
-}
-
-/*
- * hl_mmu_swap_in - marks all mapping of the given ctx as swapped in
- *
- * @ctx: pointer to the context structure
- *
- */
-void hl_mmu_swap_in(struct hl_ctx *ctx)
-{
-	struct hl_device *hdev = ctx->hdev;
-
-	if (!hdev->mmu_enable)
-		return;
-
-	if (hdev->mmu_func[MMU_DR_PGT].swap_in != NULL)
-		hdev->mmu_func[MMU_DR_PGT].swap_in(ctx);
-
-	if (hdev->mmu_func[MMU_HR_PGT].swap_in != NULL)
-		hdev->mmu_func[MMU_HR_PGT].swap_in(ctx);
-}
-
 static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 						struct hl_mmu_hop_info *hops,
 						u64 *phys_addr)
@@ -540,8 +500,8 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		u32 page_off;
 
 		/*
-		 * Bit arithmetics cannot be used for non power of two page
-		 * sizes. In addition, since bit arithmetics is not used,
+		 * Bit arithmetic cannot be used for non power of two page
+		 * sizes. In addition, since bit arithmetic is not used,
 		 * we cannot ignore dram base. All that shall be considered.
 		 */
 
@@ -594,7 +554,7 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 	int pgt_residency, rc;
 	bool is_dram_addr;
 
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return -EOPNOTSUPP;
 
 	prop = &hdev->asic_prop;
@@ -625,7 +585,7 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 
 int hl_mmu_if_set_funcs(struct hl_device *hdev)
 {
-	if (!hdev->mmu_enable)
+	if (hdev->mmu_disable)
 		return 0;
 
 	switch (hdev->asic_type) {
@@ -679,7 +639,9 @@ int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags)
 
 	rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
 	if (rc)
-		dev_err_ratelimited(hdev->dev, "MMU cache invalidation failed\n");
+		dev_err_ratelimited(hdev->dev,
+				"%s cache invalidation failed, rc=%d\n",
+				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", rc);
 
 	return rc;
 }
@@ -692,7 +654,9 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, is_hard, flags,
 								asid, va, size);
 	if (rc)
-		dev_err_ratelimited(hdev->dev, "MMU cache range invalidation failed\n");
+		dev_err_ratelimited(hdev->dev,
+				"%s cache range invalidation failed: va=%#llx, size=%llu, rc=%d",
+				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", va, size, rc);
 
 	return rc;
 }
@@ -757,7 +721,7 @@ u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
  * @mmu_prop: MMU properties.
  * @hop_idx: HOP index.
  * @hop_addr: HOP address.
- * @virt_addr: virtual address fro the translation.
+ * @virt_addr: virtual address for the translation.
  *
  * @return the matching PTE value on success, otherwise U64_MAX.
  */

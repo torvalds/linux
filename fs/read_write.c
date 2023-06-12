@@ -749,15 +749,14 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 		return -EOPNOTSUPP;
 
 	while (iov_iter_count(iter)) {
-		struct iovec iovec = iov_iter_iovec(iter);
 		ssize_t nr;
 
 		if (type == READ) {
-			nr = filp->f_op->read(filp, iovec.iov_base,
-					      iovec.iov_len, ppos);
+			nr = filp->f_op->read(filp, iter_iov_addr(iter),
+						iter_iov_len(iter), ppos);
 		} else {
-			nr = filp->f_op->write(filp, iovec.iov_base,
-					       iovec.iov_len, ppos);
+			nr = filp->f_op->write(filp, iter_iov_addr(iter),
+						iter_iov_len(iter), ppos);
 		}
 
 		if (nr < 0) {
@@ -766,7 +765,7 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 			break;
 		}
 		ret += nr;
-		if (nr != iovec.iov_len)
+		if (nr != iter_iov_len(iter))
 			break;
 		iov_iter_advance(iter, nr);
 	}
