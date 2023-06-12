@@ -1989,7 +1989,7 @@ static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	int eqn;
 	int err;
 
-	err = mlx5_vector2eqn(mdev, param->eq_ix, &eqn);
+	err = mlx5_comp_eqn_get(mdev, param->eq_ix, &eqn);
 	if (err)
 		return err;
 
@@ -2452,7 +2452,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	unsigned int irq;
 	int err;
 
-	err = mlx5_vector2irqn(priv->mdev, ix, &irq);
+	err = mlx5_comp_irqn_get(priv->mdev, ix, &irq);
 	if (err)
 		return err;
 

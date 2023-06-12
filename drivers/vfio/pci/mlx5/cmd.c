@@ -1026,7 +1026,7 @@ static int mlx5vf_create_cq(struct mlx5_core_dev *mdev,
 	}
 
 	vector = raw_smp_processor_id() % mlx5_comp_vectors_max(mdev);
-	err = mlx5_vector2eqn(mdev, vector, &eqn);
+	err = mlx5_comp_eqn_get(mdev, vector, &eqn);
 	if (err)
 		goto err_vec;
 

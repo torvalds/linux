@@ -580,7 +580,7 @@ static int cq_create(struct mlx5_vdpa_net *ndev, u16 idx, u32 num_ent)
 	/* Use vector 0 by default. Consider adding code to choose least used
 	 * vector.
 	 */
-	err = mlx5_vector2eqn(mdev, 0, &eqn);
+	err = mlx5_comp_eqn_get(mdev, 0, &eqn);
 	if (err)
 		goto err_vec;
 

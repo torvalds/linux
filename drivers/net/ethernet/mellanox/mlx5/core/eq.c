@@ -58,6 +58,7 @@ struct mlx5_eq_table {
 	struct mlx5_nb          cq_err_nb;
 
 	struct mutex            lock; /* sync async eqs creations */
+	struct mutex            comp_lock; /* sync comp eqs creations */
 	int			curr_comp_eqs;
 	int			max_comp_eqs;
 	struct mlx5_irq_table	*irq_table;
@@ -457,6 +458,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 	cpumask_clear(&eq_table->used_cpus);
 	xa_init(&eq_table->comp_eqs);
 	xa_init(&eq_table->comp_irqs);
+	mutex_init(&eq_table->comp_lock);
 	eq_table->curr_comp_eqs = 0;
 	return 0;
 }
@@ -985,6 +987,7 @@ static u16 comp_eq_depth_devlink_param_get(struct mlx5_core_dev *dev)
 	return MLX5_COMP_EQ_SIZE;
 }
 
+/* Must be called with EQ table comp_lock held */
 static int create_comp_eq(struct mlx5_core_dev *dev, u16 vecidx)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
@@ -993,6 +996,13 @@ static int create_comp_eq(struct mlx5_core_dev *dev, u16 vecidx)
 	struct mlx5_irq *irq;
 	int nent;
 	int err;
+
+	lockdep_assert_held(&table->comp_lock);
+	if (table->curr_comp_eqs == table->max_comp_eqs) {
+		mlx5_core_err(dev, "maximum number of vectors is allocated, %d\n",
+			      table->max_comp_eqs);
+		return -ENOMEM;
+	}
 
 	err = comp_irq_request(dev, vecidx);
 	if (err)
@@ -1033,7 +1043,7 @@ static int create_comp_eq(struct mlx5_core_dev *dev, u16 vecidx)
 		goto disable_eq;
 
 	table->curr_comp_eqs++;
-	return 0;
+	return eq->core.eqn;
 
 disable_eq:
 	mlx5_eq_disable(dev, &eq->core, &eq->irq_nb);
@@ -1044,32 +1054,47 @@ clean_irq:
 	return err;
 }
 
-static int vector2eqnirqn(struct mlx5_core_dev *dev, int vector, int *eqn,
-			  unsigned int *irqn)
+int mlx5_comp_eqn_get(struct mlx5_core_dev *dev, u16 vecidx, int *eqn)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	struct mlx5_eq_comp *eq;
+	int ret = 0;
 
-	eq = xa_load(&table->comp_eqs, vector);
-	if (!eq)
-		return -ENOENT;
-
-	if (irqn)
-		*irqn = eq->core.irqn;
-	if (eqn)
+	mutex_lock(&table->comp_lock);
+	eq = xa_load(&table->comp_eqs, vecidx);
+	if (eq) {
 		*eqn = eq->core.eqn;
+		goto out;
+	}
+
+	ret = create_comp_eq(dev, vecidx);
+	if (ret < 0) {
+		mutex_unlock(&table->comp_lock);
+		return ret;
+	}
+
+	*eqn = ret;
+out:
+	mutex_unlock(&table->comp_lock);
 	return 0;
 }
+EXPORT_SYMBOL(mlx5_comp_eqn_get);
 
-int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn)
+int mlx5_comp_irqn_get(struct mlx5_core_dev *dev, int vector, unsigned int *irqn)
 {
-	return vector2eqnirqn(dev, vector, eqn, NULL);
-}
-EXPORT_SYMBOL(mlx5_vector2eqn);
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+	struct mlx5_eq_comp *eq;
+	int eqn;
+	int err;
 
-int mlx5_vector2irqn(struct mlx5_core_dev *dev, int vector, unsigned int *irqn)
-{
-	return vector2eqnirqn(dev, vector, NULL, irqn);
+	/* Allocate the EQ if not allocated yet */
+	err = mlx5_comp_eqn_get(dev, vector, &eqn);
+	if (err)
+		return err;
+
+	eq = xa_load(&table->comp_eqs, vector);
+	*irqn = eq->core.irqn;
+	return 0;
 }
 
 unsigned int mlx5_comp_vectors_max(struct mlx5_core_dev *dev)
@@ -1119,10 +1144,9 @@ struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn)
 	struct mlx5_eq_comp *eq;
 	unsigned long index;
 
-	xa_for_each(&table->comp_eqs, index, eq) {
+	xa_for_each(&table->comp_eqs, index, eq)
 		if (eq->core.eqn == eqn)
 			return eq;
-	}
 
 	return ERR_PTR(-ENOENT);
 }
@@ -1130,11 +1154,7 @@ struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn)
 /* This function should only be called after mlx5_cmd_force_teardown_hca */
 void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 {
-	struct mlx5_eq_table *table = dev->priv.eq_table;
-
-	mutex_lock(&table->lock); /* sync with create/destroy_async_eq */
 	mlx5_irq_table_free_irqs(dev);
-	mutex_unlock(&table->lock);
 }
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
@@ -1176,7 +1196,6 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int err;
-	int i;
 
 	eq_table->max_comp_eqs = get_num_eqs(dev);
 	err = create_async_eqs(dev);
@@ -1191,21 +1210,8 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 		goto err_rmap;
 	}
 
-	for (i = 0; i < eq_table->max_comp_eqs; i++) {
-		err = create_comp_eq(dev, i);
-		if (err < 0)
-			break;
-	}
-
-	if (!i) {
-		mlx5_core_err(dev, "Failed to create completion EQs\n");
-		goto err_comp_eqs;
-	}
-
 	return 0;
 
-err_comp_eqs:
-	free_rmap(dev);
 err_rmap:
 	destroy_async_eqs(dev);
 err_async_eqs:
