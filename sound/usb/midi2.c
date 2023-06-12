@@ -27,6 +27,10 @@ static bool midi2_enable = true;
 module_param(midi2_enable, bool, 0444);
 MODULE_PARM_DESC(midi2_enable, "Enable MIDI 2.0 support.");
 
+static bool midi2_ump_probe = true;
+module_param(midi2_ump_probe, bool, 0444);
+MODULE_PARM_DESC(midi2_ump_probe, "Probe UMP v1.1 support at first.");
+
 /* stream direction; just shorter names */
 enum {
 	STR_OUT = SNDRV_RAWMIDI_STREAM_OUTPUT,
@@ -1136,10 +1140,12 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 		goto error;
 	}
 
-	err = parse_ump_endpoints(umidi);
-	if (err < 0) {
-		usb_audio_err(chip, "Failed to parse UMP endpoint\n");
-		goto error;
+	if (midi2_ump_probe) {
+		err = parse_ump_endpoints(umidi);
+		if (err < 0) {
+			usb_audio_err(chip, "Failed to parse UMP endpoint\n");
+			goto error;
+		}
 	}
 
 	err = create_blocks_from_gtb(umidi);
