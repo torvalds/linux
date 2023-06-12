@@ -94,4 +94,12 @@ config FSI_OCC
 	provide the raw sensor data as well as perform thermal and power
 	management on the system.
 
+config I2CR_SCOM
+	tristate "IBM I2C Responder SCOM driver"
+	depends on FSI_MASTER_I2CR
+	help
+	  This option enables an I2C Responder based SCOM device driver. The
+	  I2CR has the capability to directly perform SCOM operations instead
+	  of using the FSI2PIB engine.
+
 endif
