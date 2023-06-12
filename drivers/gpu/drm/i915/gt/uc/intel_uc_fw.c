@@ -12,6 +12,8 @@
 
 #include "gem/i915_gem_lmem.h"
 #include "gt/intel_gt_print.h"
+#include "intel_gsc_binary_headers.h"
+#include "intel_gsc_fw.h"
 #include "intel_uc_fw.h"
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
@@ -468,6 +470,17 @@ static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc
 	}
 }
 
+void intel_uc_fw_version_from_gsc_manifest(struct intel_uc_fw_ver *ver,
+					   const void *data)
+{
+	const struct intel_gsc_manifest_header *manifest = data;
+
+	ver->major = manifest->fw_version.major;
+	ver->minor = manifest->fw_version.minor;
+	ver->patch = manifest->fw_version.hotfix;
+	ver->build = manifest->fw_version.build;
+}
+
 /**
  * intel_uc_fw_init_early - initialize the uC object and select the firmware
  * @uc_fw: uC firmware
@@ -668,12 +681,17 @@ static int check_gsc_manifest(struct intel_gt *gt,
 			      const struct firmware *fw,
 			      struct intel_uc_fw *uc_fw)
 {
-	if (uc_fw->type != INTEL_UC_FW_TYPE_HUC) {
-		gt_err(gt, "trying to GSC-parse a non-HuC binary");
+	switch (uc_fw->type) {
+	case INTEL_UC_FW_TYPE_HUC:
+		intel_huc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		break;
+	case INTEL_UC_FW_TYPE_GSC:
+		intel_gsc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		break;
+	default:
+		MISSING_CASE(uc_fw->type);
 		return -EINVAL;
 	}
-
-	intel_huc_fw_get_binary_info(uc_fw, fw->data, fw->size);
 
 	if (uc_fw->dma_start_offset) {
 		u32 delta = uc_fw->dma_start_offset;
@@ -733,10 +751,6 @@ static int check_fw_header(struct intel_gt *gt,
 			   struct intel_uc_fw *uc_fw)
 {
 	int err = 0;
-
-	/* GSC FW version is queried after the FW is loaded */
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GSC)
-		return 0;
 
 	if (uc_fw->has_gsc_headers)
 		err = check_gsc_manifest(gt, fw, uc_fw);

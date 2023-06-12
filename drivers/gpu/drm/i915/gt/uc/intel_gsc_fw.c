@@ -9,6 +9,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"
 #include "gt/intel_ring.h"
+#include "intel_gsc_binary_headers.h"
 #include "intel_gsc_fw.h"
 
 #define GSC_FW_STATUS_REG			_MMIO(0x116C40)
@@ -46,6 +47,156 @@ bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc)
 bool intel_gsc_uc_fw_init_done(struct intel_gsc_uc *gsc)
 {
 	return gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore) & GSC_FW_INIT_COMPLETE_BIT;
+}
+
+static inline u32 cpd_entry_offset(const struct intel_gsc_cpd_entry *entry)
+{
+	return entry->offset & INTEL_GSC_CPD_ENTRY_OFFSET_MASK;
+}
+
+int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, size_t size)
+{
+	struct intel_gsc_uc *gsc = container_of(gsc_fw, struct intel_gsc_uc, fw);
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+	const struct intel_gsc_layout_pointers *layout = data;
+	const struct intel_gsc_bpdt_header *bpdt_header = NULL;
+	const struct intel_gsc_bpdt_entry *bpdt_entry = NULL;
+	const struct intel_gsc_cpd_header_v2 *cpd_header = NULL;
+	const struct intel_gsc_cpd_entry *cpd_entry = NULL;
+	const struct intel_gsc_manifest_header *manifest;
+	size_t min_size = sizeof(*layout);
+	int i;
+
+	if (size < min_size) {
+		gt_err(gt, "GSC FW too small! %zu < %zu\n", size, min_size);
+		return -ENODATA;
+	}
+
+	/*
+	 * The GSC binary starts with the pointer layout, which contains the
+	 * locations of the various partitions of the binary. The one we're
+	 * interested in to get the version is the boot1 partition, where we can
+	 * find a BPDT header followed by entries, one of which points to the
+	 * RBE sub-section of the partition. From here, we can parse the CPD
+	 * header and the following entries to find the manifest location
+	 * (entry identified by the "RBEP.man" name), from which we can finally
+	 * extract the version.
+	 *
+	 * --------------------------------------------------
+	 * [  intel_gsc_layout_pointers                     ]
+	 * [      ...                                       ]
+	 * [      boot1.offset  >---------------------------]------o
+	 * [      ...                                       ]      |
+	 * --------------------------------------------------      |
+	 *                                                         |
+	 * --------------------------------------------------      |
+	 * [  intel_gsc_bpdt_header                         ]<-----o
+	 * --------------------------------------------------
+	 * [  intel_gsc_bpdt_entry[]                        ]
+	 * [      entry1                                    ]
+	 * [      ...                                       ]
+	 * [      entryX                                    ]
+	 * [          type == GSC_RBE                       ]
+	 * [          offset  >-----------------------------]------o
+	 * [      ...                                       ]      |
+	 * --------------------------------------------------      |
+	 *                                                         |
+	 * --------------------------------------------------      |
+	 * [  intel_gsc_cpd_header_v2                       ]<-----o
+	 * --------------------------------------------------
+	 * [  intel_gsc_cpd_entry[]                         ]
+	 * [      entry1                                    ]
+	 * [      ...                                       ]
+	 * [      entryX                                    ]
+	 * [          "RBEP.man"                            ]
+	 * [           ...                                  ]
+	 * [           offset  >----------------------------]------o
+	 * [      ...                                       ]      |
+	 * --------------------------------------------------      |
+	 *                                                         |
+	 * --------------------------------------------------      |
+	 * [ intel_gsc_manifest_header                      ]<-----o
+	 * [  ...                                           ]
+	 * [  intel_gsc_version     fw_version              ]
+	 * [  ...                                           ]
+	 * --------------------------------------------------
+	 */
+
+	min_size = layout->boot1.offset + layout->boot1.size;
+	if (size < min_size) {
+		gt_err(gt, "GSC FW too small for boot section! %zu < %zu\n",
+		       size, min_size);
+		return -ENODATA;
+	}
+
+	min_size = sizeof(*bpdt_header);
+	if (layout->boot1.size < min_size) {
+		gt_err(gt, "GSC FW boot section too small for BPDT header: %u < %zu\n",
+		       layout->boot1.size, min_size);
+		return -ENODATA;
+	}
+
+	bpdt_header = data + layout->boot1.offset;
+	if (bpdt_header->signature != INTEL_GSC_BPDT_HEADER_SIGNATURE) {
+		gt_err(gt, "invalid signature for BPDT header: 0x%08x!\n",
+		       bpdt_header->signature);
+		return -EINVAL;
+	}
+
+	min_size += sizeof(*bpdt_entry) * bpdt_header->descriptor_count;
+	if (layout->boot1.size < min_size) {
+		gt_err(gt, "GSC FW boot section too small for BPDT entries: %u < %zu\n",
+		       layout->boot1.size, min_size);
+		return -ENODATA;
+	}
+
+	bpdt_entry = (void *)bpdt_header + sizeof(*bpdt_header);
+	for (i = 0; i < bpdt_header->descriptor_count; i++, bpdt_entry++) {
+		if ((bpdt_entry->type & INTEL_GSC_BPDT_ENTRY_TYPE_MASK) !=
+		    INTEL_GSC_BPDT_ENTRY_TYPE_GSC_RBE)
+			continue;
+
+		cpd_header = (void *)bpdt_header + bpdt_entry->sub_partition_offset;
+		min_size = bpdt_entry->sub_partition_offset + sizeof(*cpd_header);
+		break;
+	}
+
+	if (!cpd_header) {
+		gt_err(gt, "couldn't find CPD header in GSC binary!\n");
+		return -ENODATA;
+	}
+
+	if (layout->boot1.size < min_size) {
+		gt_err(gt, "GSC FW boot section too small for CPD header: %u < %zu\n",
+		       layout->boot1.size, min_size);
+		return -ENODATA;
+	}
+
+	if (cpd_header->header_marker != INTEL_GSC_CPD_HEADER_MARKER) {
+		gt_err(gt, "invalid marker for CPD header in GSC bin: 0x%08x!\n",
+		       cpd_header->header_marker);
+		return -EINVAL;
+	}
+
+	min_size += sizeof(*cpd_entry) * cpd_header->num_of_entries;
+	if (layout->boot1.size < min_size) {
+		gt_err(gt, "GSC FW boot section too small for CPD entries: %u < %zu\n",
+		       layout->boot1.size, min_size);
+		return -ENODATA;
+	}
+
+	cpd_entry = (void *)cpd_header + cpd_header->header_length;
+	for (i = 0; i < cpd_header->num_of_entries; i++, cpd_entry++) {
+		if (strcmp(cpd_entry->name, "RBEP.man") == 0) {
+			manifest = (void *)cpd_header + cpd_entry_offset(cpd_entry);
+			intel_uc_fw_version_from_gsc_manifest(&gsc->release,
+							      manifest);
+			gsc->security_version = manifest->security_version;
+			break;
+		}
+	}
+
+	return 0;
 }
 
 static int emit_gsc_fw_load(struct i915_request *rq, struct intel_gsc_uc *gsc)
@@ -212,7 +363,11 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	/* FW is not fully operational until we enable SW proxy */
 	intel_uc_fw_change_status(gsc_fw, INTEL_UC_FIRMWARE_TRANSFERRED);
 
-	gt_info(gt, "Loaded GSC firmware %s\n", gsc_fw->file_selected.path);
+	gt_info(gt, "Loaded GSC firmware %s (r%u.%u.%u.%u, svn%u)\n",
+		gsc_fw->file_selected.path,
+		gsc->release.major, gsc->release.minor,
+		gsc->release.patch, gsc->release.build,
+		gsc->security_version);
 
 	return 0;
 

@@ -107,15 +107,6 @@ out_unpin:
 	return err;
 }
 
-static void get_version_from_gsc_manifest(struct intel_uc_fw_ver *ver, const void *data)
-{
-	const struct intel_gsc_manifest_header *manifest = data;
-
-	ver->major = manifest->fw_version.major;
-	ver->minor = manifest->fw_version.minor;
-	ver->patch = manifest->fw_version.hotfix;
-}
-
 static bool css_valid(const void *data, size_t size)
 {
 	const struct uc_css_header *css = data;
@@ -227,8 +218,8 @@ int intel_huc_fw_get_binary_info(struct intel_uc_fw *huc_fw, const void *data, s
 
 	for (i = 0; i < header->num_of_entries; i++, entry++) {
 		if (strcmp(entry->name, "HUCP.man") == 0)
-			get_version_from_gsc_manifest(&huc_fw->file_selected.ver,
-						      data + entry_offset(entry));
+			intel_uc_fw_version_from_gsc_manifest(&huc_fw->file_selected.ver,
+							      data + entry_offset(entry));
 
 		if (strcmp(entry->name, "huc_fw") == 0) {
 			u32 offset = entry_offset(entry);
