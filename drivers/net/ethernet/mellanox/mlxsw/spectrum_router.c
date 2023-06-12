@@ -10643,13 +10643,13 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_router_init;
 
-	err = mlxsw_sp_rifs_init(mlxsw_sp);
-	if (err)
-		goto err_rifs_init;
-
 	err = mlxsw_sp->router_ops->ipips_init(mlxsw_sp);
 	if (err)
 		goto err_ipips_init;
+
+	err = mlxsw_sp_rifs_init(mlxsw_sp);
+	if (err)
+		goto err_rifs_init;
 
 	err = rhashtable_init(&mlxsw_sp->router->nexthop_ht,
 			      &mlxsw_sp_nexthop_ht_params);
@@ -10776,10 +10776,10 @@ err_lpm_init:
 err_nexthop_group_ht_init:
 	rhashtable_destroy(&mlxsw_sp->router->nexthop_ht);
 err_nexthop_ht_init:
-	mlxsw_sp_ipips_fini(mlxsw_sp);
-err_ipips_init:
 	mlxsw_sp_rifs_fini(mlxsw_sp);
 err_rifs_init:
+	mlxsw_sp_ipips_fini(mlxsw_sp);
+err_ipips_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
 	cancel_delayed_work_sync(&mlxsw_sp->router->nh_grp_activity_dw);
@@ -10812,8 +10812,8 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_lpm_fini(mlxsw_sp);
 	rhashtable_destroy(&router->nexthop_group_ht);
 	rhashtable_destroy(&router->nexthop_ht);
-	mlxsw_sp_ipips_fini(mlxsw_sp);
 	mlxsw_sp_rifs_fini(mlxsw_sp);
+	mlxsw_sp_ipips_fini(mlxsw_sp);
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	cancel_delayed_work_sync(&router->nh_grp_activity_dw);
 	mutex_destroy(&router->lock);
