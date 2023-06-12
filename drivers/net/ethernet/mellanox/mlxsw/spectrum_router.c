@@ -8138,7 +8138,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		err = -ENOMEM;
 		goto err_rif_alloc;
 	}
-	dev_hold(rif->dev);
+	dev_hold(params->dev);
 	mlxsw_sp->router->rifs[rif_index] = rif;
 	rif->mlxsw_sp = mlxsw_sp;
 	rif->ops = ops;
@@ -8166,12 +8166,12 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 			goto err_mr_rif_add;
 	}
 
-	if (netdev_offload_xstats_enabled(rif->dev,
+	if (netdev_offload_xstats_enabled(params->dev,
 					  NETDEV_OFFLOAD_XSTATS_TYPE_L3)) {
 		err = mlxsw_sp_router_port_l3_stats_enable(rif);
 		if (err)
 			goto err_stats_enable;
-		mlxsw_sp_router_hwstats_notify_schedule(rif->dev);
+		mlxsw_sp_router_hwstats_notify_schedule(params->dev);
 	} else {
 		mlxsw_sp_rif_counters_alloc(rif);
 	}
@@ -8189,7 +8189,7 @@ err_configure:
 		mlxsw_sp_fid_put(fid);
 err_fid_get:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
-	dev_put(rif->dev);
+	dev_put(params->dev);
 	kfree(rif);
 err_rif_alloc:
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
