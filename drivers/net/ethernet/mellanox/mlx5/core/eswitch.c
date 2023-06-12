@@ -41,6 +41,7 @@
 #include "esw/qos.h"
 #include "mlx5_core.h"
 #include "lib/eq.h"
+#include "lag/lag.h"
 #include "eswitch.h"
 #include "fs_core.h"
 #include "devlink.h"
@@ -1051,6 +1052,18 @@ static void mlx5_eswitch_clear_vf_vports_info(struct mlx5_eswitch *esw)
 	}
 }
 
+static void mlx5_eswitch_clear_ec_vf_vports_info(struct mlx5_eswitch *esw)
+{
+	struct mlx5_vport *vport;
+	unsigned long i;
+
+	mlx5_esw_for_each_ec_vf_vport(esw, i, vport, esw->esw_funcs.num_ec_vfs) {
+		memset(&vport->qos, 0, sizeof(vport->qos));
+		memset(&vport->info, 0, sizeof(vport->info));
+		vport->info.link_state = MLX5_VPORT_ADMIN_STATE_AUTO;
+	}
+}
+
 /* Public E-Switch API */
 int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
 			    enum mlx5_eswitch_vport_event enabled_events)
@@ -1090,6 +1103,19 @@ void mlx5_eswitch_unload_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs)
 	}
 }
 
+static void mlx5_eswitch_unload_ec_vf_vports(struct mlx5_eswitch *esw,
+					     u16 num_ec_vfs)
+{
+	struct mlx5_vport *vport;
+	unsigned long i;
+
+	mlx5_esw_for_each_ec_vf_vport(esw, i, vport, num_ec_vfs) {
+		if (!vport->enabled)
+			continue;
+		mlx5_eswitch_unload_vport(esw, vport->vport);
+	}
+}
+
 int mlx5_eswitch_load_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs,
 				enum mlx5_eswitch_vport_event enabled_events)
 {
@@ -1107,6 +1133,26 @@ int mlx5_eswitch_load_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs,
 
 vf_err:
 	mlx5_eswitch_unload_vf_vports(esw, num_vfs);
+	return err;
+}
+
+static int mlx5_eswitch_load_ec_vf_vports(struct mlx5_eswitch *esw, u16 num_ec_vfs,
+					  enum mlx5_eswitch_vport_event enabled_events)
+{
+	struct mlx5_vport *vport;
+	unsigned long i;
+	int err;
+
+	mlx5_esw_for_each_ec_vf_vport(esw, i, vport, num_ec_vfs) {
+		err = mlx5_eswitch_load_vport(esw, vport->vport, enabled_events);
+		if (err)
+			goto vf_err;
+	}
+
+	return 0;
+
+vf_err:
+	mlx5_eswitch_unload_ec_vf_vports(esw, num_ec_vfs);
 	return err;
 }
 
@@ -1154,6 +1200,12 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 		ret = mlx5_eswitch_load_vport(esw, MLX5_VPORT_ECPF, enabled_events);
 		if (ret)
 			goto ecpf_err;
+		if (mlx5_core_ec_sriov_enabled(esw->dev)) {
+			ret = mlx5_eswitch_load_ec_vf_vports(esw, esw->esw_funcs.num_ec_vfs,
+							     enabled_events);
+			if (ret)
+				goto ec_vf_err;
+		}
 	}
 
 	/* Enable VF vports */
@@ -1164,6 +1216,9 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 	return 0;
 
 vf_err:
+	if (mlx5_core_ec_sriov_enabled(esw->dev))
+		mlx5_eswitch_unload_ec_vf_vports(esw, esw->esw_funcs.num_ec_vfs);
+ec_vf_err:
 	if (mlx5_ecpf_vport_exists(esw->dev))
 		mlx5_eswitch_unload_vport(esw, MLX5_VPORT_ECPF);
 ecpf_err:
@@ -1180,8 +1235,11 @@ void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
 {
 	mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
 
-	if (mlx5_ecpf_vport_exists(esw->dev))
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		if (mlx5_core_ec_sriov_enabled(esw->dev))
+			mlx5_eswitch_unload_ec_vf_vports(esw, esw->esw_funcs.num_vfs);
 		mlx5_eswitch_unload_vport(esw, MLX5_VPORT_ECPF);
+	}
 
 	host_pf_disable_hca(esw->dev);
 	mlx5_eswitch_unload_vport(esw, MLX5_VPORT_PF);
@@ -1225,6 +1283,9 @@ mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, int num_vfs)
 
 	esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
 					  host_params_context.host_num_of_vfs);
+	if (mlx5_core_ec_sriov_enabled(esw->dev))
+		esw->esw_funcs.num_ec_vfs = num_vfs;
+
 	kvfree(out);
 }
 
@@ -1332,9 +1393,9 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int num_vfs)
 
 	mlx5_eswitch_event_handlers_register(esw);
 
-	esw_info(esw->dev, "Enable: mode(%s), nvfs(%d), active vports(%d)\n",
+	esw_info(esw->dev, "Enable: mode(%s), nvfs(%d), necvfs(%d), active vports(%d)\n",
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
-		 esw->esw_funcs.num_vfs, esw->enabled_vports);
+		 esw->esw_funcs.num_vfs, esw->esw_funcs.num_ec_vfs, esw->enabled_vports);
 
 	mlx5_esw_mode_change_notify(esw, esw->mode);
 
@@ -1356,7 +1417,7 @@ abort:
 int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 {
 	bool toggle_lag;
-	int ret;
+	int ret = 0;
 
 	if (!mlx5_esw_allowed(esw))
 		return 0;
@@ -1376,10 +1437,21 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 
 		vport_events = (esw->mode == MLX5_ESWITCH_LEGACY) ?
 					MLX5_LEGACY_SRIOV_VPORT_EVENTS : MLX5_VPORT_UC_ADDR_CHANGE;
-		ret = mlx5_eswitch_load_vf_vports(esw, num_vfs, vport_events);
-		if (!ret)
-			esw->esw_funcs.num_vfs = num_vfs;
+		/* If this is the ECPF the number of host VFs is managed via the
+		 * eswitch function change event handler, and any num_vfs provided
+		 * here are intended to be EC VFs.
+		 */
+		if (!mlx5_core_is_ecpf(esw->dev)) {
+			ret = mlx5_eswitch_load_vf_vports(esw, num_vfs, vport_events);
+			if (!ret)
+				esw->esw_funcs.num_vfs = num_vfs;
+		} else if (mlx5_core_ec_sriov_enabled(esw->dev)) {
+			ret = mlx5_eswitch_load_ec_vf_vports(esw, num_vfs, vport_events);
+			if (!ret)
+				esw->esw_funcs.num_ec_vfs = num_vfs;
+		}
 	}
+
 	up_write(&esw->mode_lock);
 
 	if (toggle_lag)
@@ -1399,16 +1471,22 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 	/* If driver is unloaded, this function is called twice by remove_one()
 	 * and mlx5_unload(). Prevent the second call.
 	 */
-	if (!esw->esw_funcs.num_vfs && !clear_vf)
+	if (!esw->esw_funcs.num_vfs && !esw->esw_funcs.num_ec_vfs && !clear_vf)
 		goto unlock;
 
-	esw_info(esw->dev, "Unload vfs: mode(%s), nvfs(%d), active vports(%d)\n",
+	esw_info(esw->dev, "Unload vfs: mode(%s), nvfs(%d), necvfs(%d), active vports(%d)\n",
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
-		 esw->esw_funcs.num_vfs, esw->enabled_vports);
+		 esw->esw_funcs.num_vfs, esw->esw_funcs.num_ec_vfs, esw->enabled_vports);
 
-	mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
-	if (clear_vf)
-		mlx5_eswitch_clear_vf_vports_info(esw);
+	if (!mlx5_core_is_ecpf(esw->dev)) {
+		mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
+		if (clear_vf)
+			mlx5_eswitch_clear_vf_vports_info(esw);
+	} else if (mlx5_core_ec_sriov_enabled(esw->dev)) {
+		mlx5_eswitch_unload_ec_vf_vports(esw, esw->esw_funcs.num_ec_vfs);
+		if (clear_vf)
+			mlx5_eswitch_clear_ec_vf_vports_info(esw);
+	}
 
 	if (esw->mode == MLX5_ESWITCH_OFFLOADS) {
 		struct devlink *devlink = priv_to_devlink(esw->dev);
@@ -1419,7 +1497,10 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
 		mlx5_eswitch_disable_locked(esw);
 
-	esw->esw_funcs.num_vfs = 0;
+	if (!mlx5_core_is_ecpf(esw->dev))
+		esw->esw_funcs.num_vfs = 0;
+	else
+		esw->esw_funcs.num_ec_vfs = 0;
 
 unlock:
 	up_write(&esw->mode_lock);
@@ -1439,9 +1520,9 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw)
 
 	mlx5_eswitch_event_handlers_unregister(esw);
 
-	esw_info(esw->dev, "Disable: mode(%s), nvfs(%d), active vports(%d)\n",
+	esw_info(esw->dev, "Disable: mode(%s), nvfs(%d), necvfs(%d), active vports(%d)\n",
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
-		 esw->esw_funcs.num_vfs, esw->enabled_vports);
+		 esw->esw_funcs.num_vfs, esw->esw_funcs.num_ec_vfs, esw->enabled_vports);
 
 	if (esw->fdb_table.flags & MLX5_ESW_FDB_CREATED) {
 		esw->fdb_table.flags &= ~MLX5_ESW_FDB_CREATED;
@@ -1601,6 +1682,17 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 		idx++;
 	}
 
+	if (mlx5_core_ec_sriov_enabled(esw->dev)) {
+		int ec_vf_base_num = mlx5_core_ec_vf_vport_base(dev);
+
+		for (i = 0; i < mlx5_core_max_ec_vfs(esw->dev); i++) {
+			err = mlx5_esw_vport_alloc(esw, idx, ec_vf_base_num + i);
+			if (err)
+				goto err;
+			idx++;
+		}
+	}
+
 	if (mlx5_ecpf_vport_exists(dev) ||
 	    mlx5_core_is_ecpf_esw_manager(dev)) {
 		err = mlx5_esw_vport_alloc(esw, idx, MLX5_VPORT_ECPF);
@@ -1618,6 +1710,38 @@ err:
 	return err;
 }
 
+static int mlx5_devlink_esw_multiport_set(struct devlink *devlink, u32 id,
+					  struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!MLX5_ESWITCH_MANAGER(dev))
+		return -EOPNOTSUPP;
+
+	if (ctx->val.vbool)
+		return mlx5_lag_mpesw_enable(dev);
+
+	mlx5_lag_mpesw_disable(dev);
+	return 0;
+}
+
+static int mlx5_devlink_esw_multiport_get(struct devlink *devlink, u32 id,
+					  struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	ctx->val.vbool = mlx5_lag_is_mpesw(dev);
+	return 0;
+}
+
+static const struct devlink_param mlx5_eswitch_params[] = {
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_ESW_MULTIPORT,
+			     "esw_multiport", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     mlx5_devlink_esw_multiport_get,
+			     mlx5_devlink_esw_multiport_set, NULL),
+};
+
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eswitch *esw;
@@ -1626,9 +1750,16 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (!MLX5_VPORT_MANAGER(dev) && !MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
+	err = devl_params_register(priv_to_devlink(dev), mlx5_eswitch_params,
+				   ARRAY_SIZE(mlx5_eswitch_params));
+	if (err)
+		return err;
+
 	esw = kzalloc(sizeof(*esw), GFP_KERNEL);
-	if (!esw)
-		return -ENOMEM;
+	if (!esw) {
+		err = -ENOMEM;
+		goto unregister_param;
+	}
 
 	esw->dev = dev;
 	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
@@ -1688,6 +1819,9 @@ abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
 	kfree(esw);
+unregister_param:
+	devl_params_unregister(priv_to_devlink(dev), mlx5_eswitch_params,
+			       ARRAY_SIZE(mlx5_eswitch_params));
 	return err;
 }
 
@@ -1711,6 +1845,8 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw_offloads_cleanup(esw);
 	mlx5_esw_vports_cleanup(esw);
 	kfree(esw);
+	devl_params_unregister(priv_to_devlink(esw->dev), mlx5_eswitch_params,
+			       ARRAY_SIZE(mlx5_eswitch_params));
 }
 
 /* Vport Administration */

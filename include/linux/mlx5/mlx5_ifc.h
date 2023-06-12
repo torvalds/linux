@@ -1992,7 +1992,10 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   ts_cqe_metadata_size2wqe_counter[0x5];
 	u8	   reserved_at_250[0x10];
 
-	u8	   reserved_at_260[0x5a0];
+	u8	   reserved_at_260[0x120];
+	u8	   reserved_at_380[0x10];
+	u8	   ec_vf_vport_base[0x10];
+	u8	   reserved_at_3a0[0x460];
 };
 
 enum mlx5_ifc_flow_destination_type {
@@ -4805,7 +4808,8 @@ struct mlx5_ifc_set_hca_cap_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_function[0x1];
-	u8         reserved_at_41[0xf];
+	u8         ec_vf_function[0x1];
+	u8         reserved_at_42[0xe];
 	u8         function_id[0x10];
 
 	u8         reserved_at_60[0x20];
@@ -5956,7 +5960,8 @@ struct mlx5_ifc_query_hca_cap_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_function[0x1];
-	u8         reserved_at_41[0xf];
+	u8         ec_vf_function[0x1];
+	u8         reserved_at_42[0xe];
 	u8         function_id[0x10];
 
 	u8         reserved_at_60[0x20];

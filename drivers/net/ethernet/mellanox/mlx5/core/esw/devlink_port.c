@@ -18,7 +18,8 @@ static bool mlx5_esw_devlink_port_supported(struct mlx5_eswitch *esw, u16 vport_
 {
 	return vport_num == MLX5_VPORT_UPLINK ||
 	       (mlx5_core_is_ecpf(esw->dev) && vport_num == MLX5_VPORT_PF) ||
-	       mlx5_eswitch_is_vf_vport(esw, vport_num);
+	       mlx5_eswitch_is_vf_vport(esw, vport_num) ||
+	       mlx5_core_is_ec_vf_vport(esw->dev, vport_num);
 }
 
 static struct devlink_port *mlx5_esw_dl_port_alloc(struct mlx5_eswitch *esw, u16 vport_num)
@@ -56,6 +57,11 @@ static struct devlink_port *mlx5_esw_dl_port_alloc(struct mlx5_eswitch *esw, u16
 		dl_port->attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_vf_set(dl_port, controller_num, pfnum,
 					      vport_num - 1, external);
+	}  else if (mlx5_core_is_ec_vf_vport(esw->dev, vport_num)) {
+		memcpy(dl_port->attrs.switch_id.id, ppid.id, ppid.id_len);
+		dl_port->attrs.switch_id.id_len = ppid.id_len;
+		devlink_port_attrs_pci_vf_set(dl_port, controller_num, pfnum,
+					      vport_num - 1, false);
 	}
 	return dl_port;
 }
