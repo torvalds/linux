@@ -830,7 +830,7 @@ static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
  */
 int ceph_wait_on_conflict_unlink(struct dentry *dentry)
 {
-	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
+	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(dentry->d_sb);
 	struct dentry *pdentry = dentry->d_parent;
 	struct dentry *udentry, *found = NULL;
 	struct ceph_dentry_info *di;

@@ -129,7 +129,7 @@ static bool ceph_crypt_empty_dir(struct inode *inode)
 
 static const union fscrypt_policy *ceph_get_dummy_policy(struct super_block *sb)
 {
-	return ceph_sb_to_client(sb)->fsc_dummy_enc_policy.policy;
+	return ceph_sb_to_fs_client(sb)->fsc_dummy_enc_policy.policy;
 }
 
 static struct fscrypt_operations ceph_fscrypt_ops = {
