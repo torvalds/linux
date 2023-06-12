@@ -181,7 +181,6 @@ const struct address_space_operations zonefs_file_aops = {
 	.migrate_folio		= filemap_migrate_folio,
 	.is_partially_uptodate	= iomap_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
-	.direct_IO		= noop_direct_IO,
 	.swap_activate		= zonefs_swap_activate,
 };
 
@@ -815,6 +814,7 @@ static int zonefs_file_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
+	file->f_mode |= FMODE_CAN_ODIRECT;
 	ret = generic_file_open(inode, file);
 	if (ret)
 		return ret;
