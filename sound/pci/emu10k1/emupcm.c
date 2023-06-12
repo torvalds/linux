@@ -177,12 +177,22 @@ static unsigned int snd_emu10k1_capture_rate_reg(unsigned int rate)
 	}
 }
 
+static const unsigned int audigy_capture_rates[9] = {
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
+};
+
+static const struct snd_pcm_hw_constraint_list hw_constraints_audigy_capture_rates = {
+	.count = 9,
+	.list = audigy_capture_rates,
+	.mask = 0
+};
+
 static unsigned int snd_emu10k1_audigy_capture_rate_reg(unsigned int rate)
 {
 	switch (rate) {
 	case 8000:	return A_ADCCR_SAMPLERATE_8;
 	case 11025:	return A_ADCCR_SAMPLERATE_11;
-	case 12000:	return A_ADCCR_SAMPLERATE_12; /* really supported? */
+	case 12000:	return A_ADCCR_SAMPLERATE_12;
 	case 16000:	return ADCCR_SAMPLERATE_16;
 	case 22050:	return ADCCR_SAMPLERATE_22;
 	case 24000:	return ADCCR_SAMPLERATE_24;
@@ -209,7 +219,8 @@ static void snd_emu10k1_constrain_capture_rates(struct snd_emu10k1 *emu,
 		return;
 	}
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				   &hw_constraints_capture_rates);
+				   emu->audigy ? &hw_constraints_audigy_capture_rates :
+						 &hw_constraints_capture_rates);
 }
 
 static void snd_emu1010_constrain_efx_rate(struct snd_emu10k1 *emu,
