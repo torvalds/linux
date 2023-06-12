@@ -261,6 +261,15 @@ struct cxl_poison_state {
 };
 
 /**
+ * struct cxl_security_state - Device security state
+ *
+ * @state: state of last security operation
+ */
+struct cxl_security_state {
+	unsigned long state;
+};
+
+/**
  * struct cxl_dev_state - The driver device state
  *
  * cxl_dev_state represents the CXL driver/device state.  It provides an
@@ -336,6 +345,7 @@ struct cxl_dev_state {
 
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
+	struct cxl_security_state security;
 
 	struct rcuwait mbox_wait;
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);

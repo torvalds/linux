@@ -58,6 +58,16 @@ Description:
 		affinity for this device.
 
 
+What:		/sys/bus/cxl/devices/memX/security/state
+Date:		June, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Reading this file will display the CXL security state for
+		that device. Such states can be: 'disabled', or those available
+		only for persistent memory: 'locked', 'unlocked' or 'frozen'.
+
+
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
 KernelVersion:	v5.14
