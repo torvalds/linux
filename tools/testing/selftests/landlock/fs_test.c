@@ -231,6 +231,20 @@ static void cleanup_layout(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, remove_path(TMP_DIR));
 }
 
+/* clang-format off */
+FIXTURE(layout0) {};
+/* clang-format on */
+
+FIXTURE_SETUP(layout0)
+{
+	prepare_layout(_metadata);
+}
+
+FIXTURE_TEARDOWN(layout0)
+{
+	cleanup_layout(_metadata);
+}
+
 static void create_layout1(struct __test_metadata *const _metadata)
 {
 	create_file(_metadata, file1_s1d1);
@@ -510,7 +524,7 @@ TEST_F_FORK(layout1, file_and_dir_access_rights)
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST_F_FORK(layout1, unknown_access_rights)
+TEST_F_FORK(layout0, unknown_access_rights)
 {
 	__u64 access_mask;
 
@@ -608,7 +622,7 @@ static void enforce_ruleset(struct __test_metadata *const _metadata,
 	}
 }
 
-TEST_F_FORK(layout1, proc_nsfs)
+TEST_F_FORK(layout0, proc_nsfs)
 {
 	const struct rule rules[] = {
 		{
@@ -657,11 +671,11 @@ TEST_F_FORK(layout1, proc_nsfs)
 	ASSERT_EQ(0, close(path_beneath.parent_fd));
 }
 
-TEST_F_FORK(layout1, unpriv)
+TEST_F_FORK(layout0, unpriv)
 {
 	const struct rule rules[] = {
 		{
-			.path = dir_s1d2,
+			.path = TMP_DIR,
 			.access = ACCESS_RO,
 		},
 		{},
@@ -1301,12 +1315,12 @@ TEST_F_FORK(layout1, inherit_superset)
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDONLY));
 }
 
-TEST_F_FORK(layout1, max_layers)
+TEST_F_FORK(layout0, max_layers)
 {
 	int i, err;
 	const struct rule rules[] = {
 		{
-			.path = dir_s1d2,
+			.path = TMP_DIR,
 			.access = ACCESS_RO,
 		},
 		{},
