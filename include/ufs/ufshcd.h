@@ -610,6 +610,13 @@ enum ufshcd_quirks {
 	 * to reinit the device after switching to maximum gear.
 	 */
 	UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH       = 1 << 19,
+
+	/*
+	 * Some host raises interrupt (per queue) in addition to
+	 * CQES (traditional) when ESI is disabled.
+	 * Enable this quirk will disable CQES and use per queue interrupt.
+	 */
+	UFSHCD_QUIRK_MCQ_BROKEN_INTR			= 1 << 20,
 };
 
 enum ufshcd_caps {
