@@ -1613,6 +1613,11 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 int iwl_trans_init(struct iwl_trans *trans);
 void iwl_trans_free(struct iwl_trans *trans);
 
+static inline bool iwl_trans_is_hw_error_value(u32 val)
+{
+	return ((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50);
+}
+
 /*****************************************************
 * driver (transport) register/unregister functions
 ******************************************************/

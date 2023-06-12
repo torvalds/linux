@@ -1873,7 +1873,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (unlikely(inta == 0xFFFFFFFF || (inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
+	if (unlikely(inta == 0xFFFFFFFF || iwl_trans_is_hw_error_value(inta))) {
 		/*
 		 * Hardware disappeared. It might have
 		 * already raised an interrupt.
