@@ -451,6 +451,7 @@ static struct clk_branch gpu_cc_gx_gfx3d_clk = {
 		.hw.init = &(const struct clk_init_data){
 			.name = "gpu_cc_gx_gfx3d_clk",
 			.ops = &clk_branch2_ops,
+			.flags = CLK_DONT_HOLD_STATE,
 		},
 	},
 };
