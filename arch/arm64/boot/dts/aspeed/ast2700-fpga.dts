@@ -80,6 +80,24 @@
 	};
 };
 
+&emmc_controller {
+	status = "okay";
+	mmc-hs200-1_8v;
+};
+
+&emmc {
+	status = "okay";
+#if 1
+	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+	non-removable;
+	max-frequency = <100000000>;
+};
+
 &spi0 {
 	fmc-spi-user-mode;
 	status = "okay";
