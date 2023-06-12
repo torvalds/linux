@@ -134,6 +134,9 @@ next:
 	}
 
 	hw->nr_vring = vp_ioread16(&hw->common_cfg->num_queues);
+	hw->vring = kzalloc(sizeof(struct vring_info) * hw->nr_vring, GFP_KERNEL);
+	if (!hw->vring)
+		return -ENOMEM;
 
 	for (i = 0; i < hw->nr_vring; i++) {
 		vp_iowrite16(i, &hw->common_cfg->queue_select);

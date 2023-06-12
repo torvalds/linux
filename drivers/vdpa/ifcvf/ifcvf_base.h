@@ -74,7 +74,7 @@ struct ifcvf_hw {
 	u64 dev_features;
 	struct virtio_pci_common_cfg __iomem *common_cfg;
 	void __iomem *dev_cfg;
-	struct vring_info vring[IFCVF_MAX_QUEUES];
+	struct vring_info *vring;
 	void __iomem * const *base;
 	char config_msix_name[256];
 	struct vdpa_callback config_cb;

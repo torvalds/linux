@@ -830,6 +830,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err:
+	kfree(ifcvf_mgmt_dev->vf.vring);
 	kfree(ifcvf_mgmt_dev);
 	return ret;
 }
@@ -840,6 +841,7 @@ static void ifcvf_remove(struct pci_dev *pdev)
 
 	ifcvf_mgmt_dev = pci_get_drvdata(pdev);
 	vdpa_mgmtdev_unregister(&ifcvf_mgmt_dev->mdev);
+	kfree(ifcvf_mgmt_dev->vf.vring);
 	kfree(ifcvf_mgmt_dev);
 }
 
