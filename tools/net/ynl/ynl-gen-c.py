@@ -4,6 +4,7 @@
 import argparse
 import collections
 import os
+import re
 import yaml
 
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
@@ -48,6 +49,11 @@ class Type(SpecAttr):
             else:
                 self.nested_render_name = f"{family.name}_{c_lower(self.nested_attrs)}"
 
+            if self.nested_attrs in self.family.consts:
+                self.nested_struct_type = 'struct ' + self.nested_render_name + '_'
+            else:
+                self.nested_struct_type = 'struct ' + self.nested_render_name
+
         self.c_name = c_lower(self.name)
         if self.c_name in _C_KW:
             self.c_name += '_'
@@ -57,8 +63,11 @@ class Type(SpecAttr):
         delattr(self, "enum_name")
 
     def resolve(self):
-        self.enum_name = f"{self.attr_set.name_prefix}{self.name}"
-        self.enum_name = c_upper(self.enum_name)
+        if 'name-prefix' in self.attr:
+            enum_name = f"{self.attr['name-prefix']}{self.name}"
+        else:
+            enum_name = f"{self.attr_set.name_prefix}{self.name}"
+        self.enum_name = c_upper(enum_name)
 
     def is_multi_val(self):
         return None
@@ -264,7 +273,8 @@ class TypeScalar(Type):
         else:
             self.is_bitfield = False
 
-        if 'enum' in self.attr and not self.is_bitfield:
+        maybe_enum = not self.is_bitfield and 'enum' in self.attr
+        if maybe_enum and self.family.consts[self.attr['enum']].enum_name:
             self.type_name = f"enum {self.family.name}_{c_lower(self.attr['enum'])}"
         else:
             self.type_name = '__' + self.type
@@ -420,7 +430,7 @@ class TypeBinary(Type):
 
 class TypeNest(Type):
     def _complex_member_type(self, ri):
-        return f"struct {self.nested_render_name}"
+        return self.nested_struct_type
 
     def free(self, ri, var, ref):
         ri.cw.p(f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name});')
@@ -465,7 +475,7 @@ class TypeMultiAttr(Type):
 
     def _complex_member_type(self, ri):
         if 'type' not in self.attr or self.attr['type'] == 'nest':
-            return f"struct {self.nested_render_name}"
+            return self.nested_struct_type
         elif self.attr['type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
             return scalar_pfx + self.attr['type']
@@ -525,7 +535,7 @@ class TypeArrayNest(Type):
 
     def _complex_member_type(self, ri):
         if 'sub-type' not in self.attr or self.attr['sub-type'] == 'nest':
-            return f"struct {self.nested_render_name}"
+            return self.nested_struct_type
         elif self.attr['sub-type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
             return scalar_pfx + self.attr['sub-type']
@@ -545,7 +555,7 @@ class TypeArrayNest(Type):
 
 class TypeNestTypeValue(Type):
     def _complex_member_type(self, ri):
-        return f"struct {self.nested_render_name}"
+        return self.nested_struct_type
 
     def _attr_typol(self):
         return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
@@ -588,6 +598,8 @@ class Struct:
         else:
             self.render_name = f"{family.name}_{c_lower(space_name)}"
         self.struct_name = 'struct ' + self.render_name
+        if self.nested and space_name in family.consts:
+            self.struct_name += '_'
         self.ptr_name = self.struct_name + ' *'
 
         self.request = False
@@ -648,7 +660,14 @@ class EnumEntry(SpecEnumEntry):
 class EnumSet(SpecEnumSet):
     def __init__(self, family, yaml):
         self.render_name = c_lower(family.name + '-' + yaml['name'])
-        self.enum_name = 'enum ' + self.render_name
+
+        if 'enum-name' in yaml:
+            if yaml['enum-name']:
+                self.enum_name = 'enum ' + c_lower(yaml['enum-name'])
+            else:
+                self.enum_name = None
+        else:
+            self.enum_name = 'enum ' + self.render_name
 
         self.value_pfx = yaml.get('name-prefix', f"{family.name}-{yaml['name']}-")
 
@@ -739,7 +758,7 @@ class Operation(SpecOperation):
 
 
 class Family(SpecFamily):
-    def __init__(self, file_name):
+    def __init__(self, file_name, exclude_ops):
         # Added by resolve:
         self.c_name = None
         delattr(self, "c_name")
@@ -754,7 +773,7 @@ class Family(SpecFamily):
         self.hooks = None
         delattr(self, "hooks")
 
-        super().__init__(file_name)
+        super().__init__(file_name, exclude_ops=exclude_ops)
 
         self.fam_key = c_upper(self.yaml.get('c-family-name', self.yaml["name"] + '_FAMILY_NAME'))
         self.ver_key = c_upper(self.yaml.get('c-version-name', self.yaml["name"] + '_FAMILY_VERSION'))
@@ -982,10 +1001,13 @@ class RenderInfo:
         if not self.attr_set:
             self.attr_set = op['attribute-set']
 
+        self.type_name_conflict = False
         if op:
             self.type_name = c_lower(op.name)
         else:
             self.type_name = c_lower(attr_set)
+            if attr_set in family.consts:
+                self.type_name_conflict = True
 
         self.cw = cw
 
@@ -1622,12 +1644,17 @@ def print_alloc_wrapper(ri, direction):
 
 def print_free_prototype(ri, direction, suffix=';'):
     name = op_prefix(ri, direction)
+    struct_name = name
+    if ri.type_name_conflict:
+        struct_name += '_'
     arg = free_arg_name(direction)
-    ri.cw.write_func_prot('void', f"{name}_free", [f"struct {name} *{arg}"], suffix=suffix)
+    ri.cw.write_func_prot('void', f"{name}_free", [f"struct {struct_name} *{arg}"], suffix=suffix)
 
 
 def _print_type(ri, direction, struct):
     suffix = f'_{ri.type_name}{direction_to_suffix[direction]}'
+    if not direction and ri.type_name_conflict:
+        suffix += '_'
 
     if ri.op_mode == 'dump':
         suffix += '_dump'
@@ -2241,6 +2268,7 @@ def main():
     parser.add_argument('--header', dest='header', action='store_true', default=None)
     parser.add_argument('--source', dest='header', action='store_false')
     parser.add_argument('--user-header', nargs='+', default=[])
+    parser.add_argument('--exclude-op', action='append', default=[])
     parser.add_argument('-o', dest='out_file', type=str)
     args = parser.parse_args()
 
@@ -2249,8 +2277,10 @@ def main():
     if args.header is None:
         parser.error("--header or --source is required")
 
+    exclude_ops = [re.compile(expr) for expr in args.exclude_op]
+
     try:
-        parsed = Family(args.spec)
+        parsed = Family(args.spec, exclude_ops)
         if parsed.license != '((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)':
             print('Spec license:', parsed.license)
             print('License must be: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
@@ -2277,6 +2307,11 @@ def main():
     cw.p("/* Do not edit directly, auto-generated from: */")
     cw.p(f"/*\t{spec_kernel} */")
     cw.p(f"/* YNL-GEN {args.mode} {'header' if args.header else 'source'} */")
+    if args.exclude_op or args.user_header:
+        line = ''
+        line += ' --user-header '.join([''] + args.user_header)
+        line += ' --exclude-op '.join([''] + args.exclude_op)
+        cw.p(f'/* YNL-ARG{line} */')
     cw.nl()
 
     if args.mode == 'uapi':

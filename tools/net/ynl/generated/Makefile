@@ -7,9 +7,12 @@ ifeq ("$(DEBUG)","1")
   CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
 endif
 
+YNL_GEN_ARG_ethtool:=--user-header linux/ethtool_netlink.h \
+	--exclude-op stats-get
+
 TOOL:=../ynl-gen-c.py
 
-GENS:=devlink handshake fou netdev
+GENS:=ethtool devlink handshake fou netdev
 SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
@@ -22,11 +25,11 @@ protos.a: $(OBJS)
 
 %-user.h: ../../../../Documentation/netlink/specs/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"
-	@$(TOOL) --mode user --header --spec $< > $@
+	@$(TOOL) --mode user --header --spec $< $(YNL_GEN_ARG_$*) > $@
 
 %-user.c: ../../../../Documentation/netlink/specs/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"
-	@$(TOOL) --mode user --source --spec $< > $@
+	@$(TOOL) --mode user --source --spec $< $(YNL_GEN_ARG_$*) > $@
 
 %-user.o: %-user.c %-user.h
 	@echo -e "\tCC $@"

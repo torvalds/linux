@@ -226,6 +226,10 @@ properties:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
+              # Start genetlink-c
+              name-prefix:
+                type: string
+              # End genetlink-c
               # Start genetlink-legacy
               struct:
                 description: Name of the struct type used for the attribute.
