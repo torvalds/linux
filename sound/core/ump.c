@@ -30,6 +30,8 @@ static void snd_ump_rawmidi_trigger(struct snd_rawmidi_substream *substream,
 				    int up);
 static void snd_ump_rawmidi_drain(struct snd_rawmidi_substream *substream);
 
+static void ump_handle_stream_msg(struct snd_ump_endpoint *ump,
+				  const u32 *buf, int size);
 #if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 static int process_legacy_output(struct snd_ump_endpoint *ump,
 				 u32 *buffer, int count);
@@ -133,6 +135,7 @@ int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ump->block_list);
 	mutex_init(&ump->open_mutex);
+	init_waitqueue_head(&ump->stream_wait);
 #if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	spin_lock_init(&ump->legacy_locks[0]);
 	spin_lock_init(&ump->legacy_locks[1]);
@@ -302,6 +305,7 @@ int snd_ump_receive(struct snd_ump_endpoint *ump, const u32 *buffer, int count)
 		n = snd_ump_receive_ump_val(ump, *p++);
 		if (!n)
 			continue;
+		ump_handle_stream_msg(ump, ump->input_buf, n);
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 		if (ump->seq_ops)
 			ump->seq_ops->input_receive(ump, ump->input_buf, n);
@@ -512,6 +516,378 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "\n");
 	}
 }
+
+/*
+ * UMP endpoint and function block handling
+ */
+
+/* open / close UMP streams for the internal stream msg communication */
+static int ump_request_open(struct snd_ump_endpoint *ump)
+{
+	return snd_rawmidi_kernel_open(&ump->core, 0,
+				       SNDRV_RAWMIDI_LFLG_OUTPUT,
+				       &ump->stream_rfile);
+}
+
+static void ump_request_close(struct snd_ump_endpoint *ump)
+{
+	snd_rawmidi_kernel_release(&ump->stream_rfile);
+}
+
+/* request a command and wait for the given response;
+ * @req1 and @req2 are u32 commands
+ * @reply is the expected UMP stream status
+ */
+static int ump_req_msg(struct snd_ump_endpoint *ump, u32 req1, u32 req2,
+		       u32 reply)
+{
+	u32 buf[4];
+
+	ump_dbg(ump, "%s: request %08x %08x, wait-for %08x\n",
+		__func__, req1, req2, reply);
+	memset(buf, 0, sizeof(buf));
+	buf[0] = req1;
+	buf[1] = req2;
+	ump->stream_finished = 0;
+	ump->stream_wait_for = reply;
+	snd_rawmidi_kernel_write(ump->stream_rfile.output,
+				 (unsigned char *)&buf, 16);
+	wait_event_timeout(ump->stream_wait, ump->stream_finished,
+			   msecs_to_jiffies(500));
+	if (!READ_ONCE(ump->stream_finished)) {
+		ump_dbg(ump, "%s: request timed out\n", __func__);
+		return -ETIMEDOUT;
+	}
+	ump->stream_finished = 0;
+	ump_dbg(ump, "%s: reply: %08x %08x %08x %08x\n",
+		__func__, buf[0], buf[1], buf[2], buf[3]);
+	return 0;
+}
+
+/* append the received letters via UMP packet to the given string buffer;
+ * return 1 if the full string is received or 0 to continue
+ */
+static int ump_append_string(struct snd_ump_endpoint *ump, char *dest,
+			     int maxsize, const u32 *buf, int offset)
+{
+	unsigned char format;
+	int c;
+
+	format = ump_stream_message_format(buf[0]);
+	if (format == UMP_STREAM_MSG_FORMAT_SINGLE ||
+	    format == UMP_STREAM_MSG_FORMAT_START) {
+		c = 0;
+	} else {
+		c = strlen(dest);
+		if (c >= maxsize - 1)
+			return 1;
+	}
+
+	for (; offset < 16; offset++) {
+		dest[c] = buf[offset / 4] >> (3 - (offset % 4)) * 8;
+		if (!dest[c])
+			break;
+		if (++c >= maxsize - 1)
+			break;
+	}
+	dest[c] = 0;
+	return (format == UMP_STREAM_MSG_FORMAT_SINGLE ||
+		format == UMP_STREAM_MSG_FORMAT_END);
+}
+
+/* handle EP info stream message; update the UMP attributes */
+static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
+				  const union snd_ump_stream_msg *buf)
+{
+	ump->info.version = (buf->ep_info.ump_version_major << 8) |
+		buf->ep_info.ump_version_minor;
+	ump->info.num_blocks = buf->ep_info.num_function_blocks;
+	if (ump->info.num_blocks > SNDRV_UMP_MAX_BLOCKS) {
+		ump_info(ump, "Invalid function blocks %d, fallback to 1\n",
+			 ump->info.num_blocks);
+		ump->info.num_blocks = 1;
+	}
+
+	ump->info.protocol_caps = (buf->ep_info.protocol << 8) |
+		buf->ep_info.jrts;
+
+	ump_dbg(ump, "EP info: version=%x, num_blocks=%x, proto_caps=%x\n",
+		ump->info.version, ump->info.num_blocks, ump->info.protocol_caps);
+	return 1; /* finished */
+}
+
+/* handle EP device info stream message; update the UMP attributes */
+static int ump_handle_device_info_msg(struct snd_ump_endpoint *ump,
+				      const union snd_ump_stream_msg *buf)
+{
+	ump->info.manufacturer_id = buf->device_info.manufacture_id & 0x7f7f7f;
+	ump->info.family_id = (buf->device_info.family_msb << 8) |
+		buf->device_info.family_lsb;
+	ump->info.model_id = (buf->device_info.model_msb << 8) |
+		buf->device_info.model_lsb;
+	ump->info.sw_revision[0] = (buf->device_info.sw_revision >> 24) & 0x7f;
+	ump->info.sw_revision[1] = (buf->device_info.sw_revision >> 16) & 0x7f;
+	ump->info.sw_revision[2] = (buf->device_info.sw_revision >> 8) & 0x7f;
+	ump->info.sw_revision[3] = buf->device_info.sw_revision & 0x7f;
+	ump_dbg(ump, "EP devinfo: manid=%08x, family=%04x, model=%04x, sw=%02x%02x%02x%02x\n",
+		ump->info.manufacturer_id,
+		ump->info.family_id,
+		ump->info.model_id,
+		ump->info.sw_revision[0],
+		ump->info.sw_revision[1],
+		ump->info.sw_revision[2],
+		ump->info.sw_revision[3]);
+	return 1; /* finished */
+}
+
+/* handle EP name stream message; update the UMP name string */
+static int ump_handle_ep_name_msg(struct snd_ump_endpoint *ump,
+				  const union snd_ump_stream_msg *buf)
+{
+	return ump_append_string(ump, ump->info.name, sizeof(ump->info.name),
+				 buf->raw, 2);
+}
+
+/* handle EP product id stream message; update the UMP product_id string */
+static int ump_handle_product_id_msg(struct snd_ump_endpoint *ump,
+				     const union snd_ump_stream_msg *buf)
+{
+	return ump_append_string(ump, ump->info.product_id,
+				 sizeof(ump->info.product_id),
+				 buf->raw, 2);
+}
+
+/* handle EP stream config message; update the UMP protocol */
+static int ump_handle_stream_cfg_msg(struct snd_ump_endpoint *ump,
+				     const union snd_ump_stream_msg *buf)
+{
+	ump->info.protocol =
+		(buf->stream_cfg.protocol << 8) | buf->stream_cfg.jrts;
+	ump_dbg(ump, "Current protocol = %x (caps = %x)\n",
+		ump->info.protocol, ump->info.protocol_caps);
+	return 1; /* finished */
+}
+
+/* Extract Function Block info from UMP packet */
+static void fill_fb_info(struct snd_ump_endpoint *ump,
+			 struct snd_ump_block_info *info,
+			 const union snd_ump_stream_msg *buf)
+{
+	info->direction = buf->fb_info.direction;
+	info->ui_hint = buf->fb_info.ui_hint;
+	info->first_group = buf->fb_info.first_group;
+	info->num_groups = buf->fb_info.num_groups;
+	info->flags = buf->fb_info.midi_10;
+	info->active = buf->fb_info.active;
+	info->midi_ci_version = buf->fb_info.midi_ci_version;
+	info->sysex8_streams = buf->fb_info.sysex8_streams;
+
+	ump_dbg(ump, "FB %d: dir=%d, active=%d, first_gp=%d, num_gp=%d, midici=%d, sysex8=%d, flags=0x%x\n",
+		info->block_id, info->direction, info->active,
+		info->first_group, info->num_groups, info->midi_ci_version,
+		info->sysex8_streams, info->flags);
+}
+
+/* handle FB info message; update FB info if the block is present */
+static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
+				  const union snd_ump_stream_msg *buf)
+{
+	unsigned char blk;
+	struct snd_ump_block *fb;
+
+	blk = buf->fb_info.function_block_id;
+	fb = snd_ump_get_block(ump, blk);
+	if (fb) {
+		fill_fb_info(ump, &fb->info, buf);
+	} else if (ump->parsed) {
+		/* complain only if updated after parsing */
+		ump_info(ump, "Function Block Info Update for non-existing block %d\n",
+			 blk);
+		return -ENODEV;
+	}
+	return 1; /* finished */
+}
+
+/* handle FB name message; update the FB name string */
+static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
+				  const union snd_ump_stream_msg *buf)
+{
+	unsigned char blk;
+	struct snd_ump_block *fb;
+
+	blk = buf->fb_name.function_block_id;
+	fb = snd_ump_get_block(ump, blk);
+	if (!fb)
+		return -ENODEV;
+
+	return ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
+				 buf->raw, 3);
+}
+
+static int create_block_from_fb_info(struct snd_ump_endpoint *ump, int blk)
+{
+	struct snd_ump_block *fb;
+	unsigned char direction, first_group, num_groups;
+	const union snd_ump_stream_msg *buf =
+		(const union snd_ump_stream_msg *)ump->input_buf;
+	u32 msg;
+	int err;
+
+	/* query the FB info once */
+	msg = ump_stream_compose(UMP_STREAM_MSG_STATUS_FB_DISCOVERY, 0) |
+		(blk << 8) | UMP_STREAM_MSG_REQUEST_FB_INFO;
+	err = ump_req_msg(ump, msg, 0, UMP_STREAM_MSG_STATUS_FB_INFO);
+	if (err < 0) {
+		ump_dbg(ump, "Unable to get FB info for block %d\n", blk);
+		return err;
+	}
+
+	/* the last input must be the FB info */
+	if (buf->fb_info.status != UMP_STREAM_MSG_STATUS_FB_INFO) {
+		ump_dbg(ump, "Inconsistent input: 0x%x\n", *buf->raw);
+		return -EINVAL;
+	}
+
+	direction = buf->fb_info.direction;
+	first_group = buf->fb_info.first_group;
+	num_groups = buf->fb_info.num_groups;
+
+	err = snd_ump_block_new(ump, blk, direction, first_group, num_groups,
+				&fb);
+	if (err < 0)
+		return err;
+
+	fill_fb_info(ump, &fb->info, buf);
+
+	msg = ump_stream_compose(UMP_STREAM_MSG_STATUS_FB_DISCOVERY, 0) |
+		(blk << 8) | UMP_STREAM_MSG_REQUEST_FB_NAME;
+	err = ump_req_msg(ump, msg, 0, UMP_STREAM_MSG_STATUS_FB_NAME);
+	if (err)
+		ump_dbg(ump, "Unable to get UMP FB name string #%d\n", blk);
+
+	return 0;
+}
+
+/* handle stream messages, called from snd_ump_receive() */
+static void ump_handle_stream_msg(struct snd_ump_endpoint *ump,
+				  const u32 *buf, int size)
+{
+	const union snd_ump_stream_msg *msg;
+	unsigned int status;
+	int ret;
+
+	BUILD_BUG_ON(sizeof(*msg) != 16);
+	ump_dbg(ump, "Stream msg: %08x %08x %08x %08x\n",
+		buf[0], buf[1], buf[2], buf[3]);
+
+	if (size != 4 || ump_message_type(*buf) != UMP_MSG_TYPE_STREAM)
+		return;
+
+	msg = (const union snd_ump_stream_msg *)buf;
+	status = ump_stream_message_status(*buf);
+	switch (status) {
+	case UMP_STREAM_MSG_STATUS_EP_INFO:
+		ret = ump_handle_ep_info_msg(ump, msg);
+		break;
+	case UMP_STREAM_MSG_STATUS_DEVICE_INFO:
+		ret = ump_handle_device_info_msg(ump, msg);
+		break;
+	case UMP_STREAM_MSG_STATUS_EP_NAME:
+		ret = ump_handle_ep_name_msg(ump, msg);
+		break;
+	case UMP_STREAM_MSG_STATUS_PRODUCT_ID:
+		ret = ump_handle_product_id_msg(ump, msg);
+		break;
+	case UMP_STREAM_MSG_STATUS_STREAM_CFG:
+		ret = ump_handle_stream_cfg_msg(ump, msg);
+		break;
+	case UMP_STREAM_MSG_STATUS_FB_INFO:
+		ret = ump_handle_fb_info_msg(ump, msg);
+		break;
+	case UMP_STREAM_MSG_STATUS_FB_NAME:
+		ret = ump_handle_fb_name_msg(ump, msg);
+		break;
+	default:
+		return;
+	}
+
+	/* when the message has been processed fully, wake up */
+	if (ret > 0 && ump->stream_wait_for == status) {
+		WRITE_ONCE(ump->stream_finished, 1);
+		wake_up(&ump->stream_wait);
+	}
+}
+
+/**
+ * snd_ump_parse_endpoint - parse endpoint and create function blocks
+ * @ump: UMP object
+ *
+ * Returns 0 for successful parse, -ENODEV if device doesn't respond
+ * (or the query is unsupported), or other error code for serious errors.
+ */
+int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
+{
+	int blk, err;
+	u32 msg;
+
+	if (!(ump->core.info_flags & SNDRV_RAWMIDI_INFO_DUPLEX))
+		return -ENODEV;
+
+	err = ump_request_open(ump);
+	if (err < 0) {
+		ump_dbg(ump, "Unable to open rawmidi device: %d\n", err);
+		return err;
+	}
+
+	/* Check Endpoint Information */
+	msg = ump_stream_compose(UMP_STREAM_MSG_STATUS_EP_DISCOVERY, 0) |
+		0x0101; /* UMP version 1.1 */
+	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_EP_INFO,
+			  UMP_STREAM_MSG_STATUS_EP_INFO);
+	if (err < 0) {
+		ump_dbg(ump, "Unable to get UMP EP info\n");
+		goto error;
+	}
+
+	/* Request Endpoint Device Info */
+	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_DEVICE_INFO,
+			  UMP_STREAM_MSG_STATUS_DEVICE_INFO);
+	if (err < 0)
+		ump_dbg(ump, "Unable to get UMP EP device info\n");
+
+	/* Request Endpoint Name */
+	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_EP_NAME,
+			  UMP_STREAM_MSG_STATUS_EP_NAME);
+	if (err < 0)
+		ump_dbg(ump, "Unable to get UMP EP name string\n");
+
+	/* Request Endpoint Product ID */
+	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_PRODUCT_ID,
+			  UMP_STREAM_MSG_STATUS_PRODUCT_ID);
+	if (err < 0)
+		ump_dbg(ump, "Unable to get UMP EP product ID string\n");
+
+	/* Get the current stream configuration */
+	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_STREAM_CFG,
+			  UMP_STREAM_MSG_STATUS_STREAM_CFG);
+	if (err < 0)
+		ump_dbg(ump, "Unable to get UMP EP stream config\n");
+
+	/* Query and create blocks from Function Blocks */
+	for (blk = 0; blk < ump->info.num_blocks; blk++) {
+		err = create_block_from_fb_info(ump, blk);
+		if (err < 0)
+			continue;
+	}
+
+ error:
+	ump->parsed = true;
+	ump_request_close(ump);
+	if (err == -ETIMEDOUT)
+		err = -ENODEV;
+	return err;
+}
+EXPORT_SYMBOL_GPL(snd_ump_parse_endpoint);
 
 #if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 /*

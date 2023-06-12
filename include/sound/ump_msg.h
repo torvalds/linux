@@ -537,4 +537,229 @@ union snd_ump_midi2_msg {
 	u32 raw[2];
 };
 
+/* UMP Stream Message: Endpoint Discovery (128bit) */
+struct snd_ump_stream_msg_ep_discovery {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u32 type:4;
+	u32 format:2;
+	u32 status:10;
+	u32 ump_version_major:8;
+	u32 ump_version_minor:8;
+	/* 1 */
+	u32 reserved:24;
+	u32 filter_bitmap:8;
+	/* 2-3 */
+	u32 reserved2[2];
+#else
+	/* 0 */
+	u32 ump_version_minor:8;
+	u32 ump_version_major:8;
+	u32 status:10;
+	u32 format:2;
+	u32 type:4;
+	/* 1 */
+	u32 filter_bitmap:8;
+	u32 reserved:24;
+	/* 2-3 */
+	u32 reserved2[2];
+#endif
+} __packed;
+
+/* UMP Stream Message: Endpoint Info Notification (128bit) */
+struct snd_ump_stream_msg_ep_info {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u32 type:4;
+	u32 format:2;
+	u32 status:10;
+	u32 ump_version_major:8;
+	u32 ump_version_minor:8;
+	/* 1 */
+	u32 static_function_block:1;
+	u32 num_function_blocks:7;
+	u32 reserved:8;
+	u32 protocol:8;
+	u32 reserved2:6;
+	u32 jrts:2;
+	/* 2-3 */
+	u32 reserved3[2];
+#else
+	/* 0 */
+	u32 ump_version_minor:8;
+	u32 ump_version_major:8;
+	u32 status:10;
+	u32 format:2;
+	u32 type:4;
+	/* 1 */
+	u32 jrts:2;
+	u32 reserved2:6;
+	u32 protocol:8;
+	u32 reserved:8;
+	u32 num_function_blocks:7;
+	u32 static_function_block:1;
+	/* 2-3 */
+	u32 reserved3[2];
+#endif
+} __packed;
+
+/* UMP Stream Message: Device Info Notification (128bit) */
+struct snd_ump_stream_msg_devince_info {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u32 type:4;
+	u32 format:2;
+	u32 status:10;
+	u32 reserved:16;
+	/* 1 */
+	u32 manufacture_id;
+	/* 2 */
+	u8 family_lsb;
+	u8 family_msb;
+	u8 model_lsb;
+	u8 model_msb;
+	/* 3 */
+	u32 sw_revision;
+#else
+	/* 0 */
+	u32 reserved:16;
+	u32 status:10;
+	u32 format:2;
+	u32 type:4;
+	/* 1 */
+	u32 manufacture_id;
+	/* 2 */
+	u8 model_msb;
+	u8 model_lsb;
+	u8 family_msb;
+	u8 family_lsb;
+	/* 3 */
+	u32 sw_revision;
+#endif
+} __packed;
+
+/* UMP Stream Message: Stream Config Request / Notification (128bit) */
+struct snd_ump_stream_msg_stream_cfg {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u32 type:4;
+	u32 format:2;
+	u32 status:10;
+	u32 protocol:8;
+	u32 reserved:6;
+	u32 jrts:2;
+	/* 1-3 */
+	u32 reserved2[3];
+#else
+	/* 0 */
+	u32 jrts:2;
+	u32 reserved:6;
+	u32 protocol:8;
+	u32 status:10;
+	u32 format:2;
+	u32 type:4;
+	/* 1-3 */
+	u32 reserved2[3];
+#endif
+} __packed;
+
+/* UMP Stream Message: Function Block Discovery (128bit) */
+struct snd_ump_stream_msg_fb_discovery {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u32 type:4;
+	u32 format:2;
+	u32 status:10;
+	u32 function_block_id:8;
+	u32 filter:8;
+	/* 1-3 */
+	u32 reserved[3];
+#else
+	/* 0 */
+	u32 filter:8;
+	u32 function_block_id:8;
+	u32 status:10;
+	u32 format:2;
+	u32 type:4;
+	/* 1-3 */
+	u32 reserved[3];
+#endif
+} __packed;
+
+/* UMP Stream Message: Function Block Info Notification (128bit) */
+struct snd_ump_stream_msg_fb_info {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u32 type:4;
+	u32 format:2;
+	u32 status:10;
+	u32 active:1;
+	u32 function_block_id:7;
+	u32 reserved:2;
+	u32 ui_hint:2;
+	u32 midi_10:2;
+	u32 direction:2;
+	/* 1 */
+	u32 first_group:8;
+	u32 num_groups:8;
+	u32 midi_ci_version:8;
+	u32 sysex8_streams:8;
+	/* 2-3 */
+	u32 reserved2[2];
+#else
+	/* 0 */
+	u32 direction:2;
+	u32 midi_10:2;
+	u32 ui_hint:2;
+	u32 reserved:2;
+	u32 function_block_id:7;
+	u32 active:1;
+	u32 status:10;
+	u32 format:2;
+	u32 type:4;
+	/* 1 */
+	u32 sysex8_streams:8;
+	u32 midi_ci_version:8;
+	u32 num_groups:8;
+	u32 first_group:8;
+	/* 2-3 */
+	u32 reserved2[2];
+#endif
+} __packed;
+
+/* UMP Stream Message: Function Block Name Notification (128bit) */
+struct snd_ump_stream_msg_fb_name {
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* 0 */
+	u16 type:4;
+	u16 format:2;
+	u16 status:10;
+	u8 function_block_id;
+	u8 name0;
+	/* 1-3 */
+	u8 name[12];
+#else
+	/* 0 */
+	u8 name0;
+	u8 function_block_id;
+	u16 status:10;
+	u16 format:2;
+	u16 type:4;
+	/* 1-3 */
+	u8 name[12]; // FIXME: byte order
+#endif
+} __packed;
+
+/* MIDI 2.0 Stream Messages (128bit) */
+union snd_ump_stream_msg {
+	struct snd_ump_stream_msg_ep_discovery ep_discovery;
+	struct snd_ump_stream_msg_ep_info ep_info;
+	struct snd_ump_stream_msg_devince_info device_info;
+	struct snd_ump_stream_msg_stream_cfg stream_cfg;
+	struct snd_ump_stream_msg_fb_discovery fb_discovery;
+	struct snd_ump_stream_msg_fb_info fb_info;
+	struct snd_ump_stream_msg_fb_name fb_name;
+	u32 raw[4];
+};
+
 #endif /* __SOUND_UMP_MSG_H */

@@ -24,6 +24,13 @@ struct snd_ump_endpoint {
 	void *private_data;
 	void (*private_free)(struct snd_ump_endpoint *ump);
 
+	/* UMP Stream message processing */
+	u32 stream_wait_for;	/* expected stream message status */
+	bool stream_finished;	/* set when message has been processed */
+	bool parsed;		/* UMP / FB parse finished? */
+	wait_queue_head_t stream_wait;
+	struct snd_rawmidi_file stream_rfile;
+
 	struct list_head block_list;	/* list of snd_ump_block objects */
 
 	/* intermediate buffer for UMP input */
@@ -80,6 +87,7 @@ struct snd_ump_block {
 int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 			 int output, int input,
 			 struct snd_ump_endpoint **ump_ret);
+int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump);
 int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 		      unsigned int direction, unsigned int first_group,
 		      unsigned int num_groups, struct snd_ump_block **blk_ret);
@@ -109,6 +117,8 @@ enum {
 	UMP_MSG_TYPE_DATA			= 0x03,
 	UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE	= 0x04,
 	UMP_MSG_TYPE_EXTENDED_DATA		= 0x05,
+	UMP_MSG_TYPE_FLEX_DATA			= 0x0d,
+	UMP_MSG_TYPE_STREAM			= 0x0f,
 };
 
 /* MIDI 2.0 SysEx / Data Status; same values for both 7-bit and 8-bit SysEx */
@@ -117,6 +127,62 @@ enum {
 	UMP_SYSEX_STATUS_START			= 1,
 	UMP_SYSEX_STATUS_CONTINUE		= 2,
 	UMP_SYSEX_STATUS_END			= 3,
+};
+
+/* UMP Utility Type Status (type 0x0) */
+enum {
+	UMP_UTILITY_MSG_STATUS_NOOP		= 0x00,
+	UMP_UTILITY_MSG_STATUS_JR_CLOCK		= 0x01,
+	UMP_UTILITY_MSG_STATUS_JR_TSTAMP	= 0x02,
+	UMP_UTILITY_MSG_STATUS_DCTPQ		= 0x03,
+	UMP_UTILITY_MSG_STATUS_DC		= 0x04,
+};
+
+/* UMP Stream Message Status (type 0xf) */
+enum {
+	UMP_STREAM_MSG_STATUS_EP_DISCOVERY	= 0x00,
+	UMP_STREAM_MSG_STATUS_EP_INFO		= 0x01,
+	UMP_STREAM_MSG_STATUS_DEVICE_INFO	= 0x02,
+	UMP_STREAM_MSG_STATUS_EP_NAME		= 0x03,
+	UMP_STREAM_MSG_STATUS_PRODUCT_ID	= 0x04,
+	UMP_STREAM_MSG_STATUS_STREAM_CFG_REQUEST = 0x05,
+	UMP_STREAM_MSG_STATUS_STREAM_CFG	= 0x06,
+	UMP_STREAM_MSG_STATUS_FB_DISCOVERY	= 0x10,
+	UMP_STREAM_MSG_STATUS_FB_INFO		= 0x11,
+	UMP_STREAM_MSG_STATUS_FB_NAME		= 0x12,
+	UMP_STREAM_MSG_STATUS_START_CLIP	= 0x20,
+	UMP_STREAM_MSG_STATUS_END_CLIP		= 0x21,
+};
+
+/* UMP Endpoint Discovery filter bitmap */
+enum {
+	UMP_STREAM_MSG_REQUEST_EP_INFO		= (1U << 0),
+	UMP_STREAM_MSG_REQUEST_DEVICE_INFO	= (1U << 1),
+	UMP_STREAM_MSG_REQUEST_EP_NAME		= (1U << 2),
+	UMP_STREAM_MSG_REQUEST_PRODUCT_ID	= (1U << 3),
+	UMP_STREAM_MSG_REQUEST_STREAM_CFG	= (1U << 4),
+};
+
+/* UMP Function Block Discovery filter bitmap */
+enum {
+	UMP_STREAM_MSG_REQUEST_FB_INFO		= (1U << 0),
+	UMP_STREAM_MSG_REQUEST_FB_NAME		= (1U << 1),
+};
+
+/* UMP Endpoint Info capability bits (used for protocol request/notify, too) */
+enum {
+	UMP_STREAM_MSG_EP_INFO_CAP_TXJR		= (1U << 0), /* Sending JRTS */
+	UMP_STREAM_MSG_EP_INFO_CAP_RXJR		= (1U << 1), /* Receiving JRTS */
+	UMP_STREAM_MSG_EP_INFO_CAP_MIDI1	= (1U << 8), /* MIDI 1.0 */
+	UMP_STREAM_MSG_EP_INFO_CAP_MIDI2	= (1U << 9), /* MIDI 2.0 */
+};
+
+/* UMP EP / FB name string format; same as SysEx string handling */
+enum {
+	UMP_STREAM_MSG_FORMAT_SINGLE		= 0,
+	UMP_STREAM_MSG_FORMAT_START		= 1,
+	UMP_STREAM_MSG_FORMAT_CONTINUE		= 2,
+	UMP_STREAM_MSG_FORMAT_END		= 3,
 };
 
 /*
@@ -170,6 +236,23 @@ static inline unsigned char ump_sysex_message_status(u32 data)
 static inline unsigned char ump_sysex_message_length(u32 data)
 {
 	return (data >> 16) & 0xf;
+}
+
+/* For Stream Messages */
+static inline unsigned char ump_stream_message_format(u32 data)
+{
+	return (data >> 26) & 0x03;
+}
+
+static inline unsigned int ump_stream_message_status(u32 data)
+{
+	return (data >> 16) & 0x3ff;
+}
+
+static inline u32 ump_stream_compose(unsigned char status, unsigned short form)
+{
+	return (UMP_MSG_TYPE_STREAM << 28) | ((u32)form << 26) |
+		((u32)status << 16);
 }
 
 #endif /* __SOUND_UMP_H */
