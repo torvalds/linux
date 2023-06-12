@@ -78,6 +78,7 @@ struct cs_etm_auxtrace {
 	u64 instructions_id;
 	u64 **metadata;
 	unsigned int pmu_type;
+	enum cs_etm_pid_fmt pid_fmt;
 };
 
 struct cs_etm_traceid_queue {
@@ -170,44 +171,46 @@ int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
 }
 
 /*
- * The returned PID format is presented by two bits:
+ * The returned PID format is presented as an enum:
  *
- *   Bit ETM_OPT_CTXTID: CONTEXTIDR or CONTEXTIDR_EL1 is traced;
- *   Bit ETM_OPT_CTXTID2: CONTEXTIDR_EL2 is traced.
+ *   CS_ETM_PIDFMT_CTXTID: CONTEXTIDR or CONTEXTIDR_EL1 is traced.
+ *   CS_ETM_PIDFMT_CTXTID2: CONTEXTIDR_EL2 is traced.
+ *   CS_ETM_PIDFMT_NONE: No context IDs
  *
  * It's possible that the two bits ETM_OPT_CTXTID and ETM_OPT_CTXTID2
  * are enabled at the same time when the session runs on an EL2 kernel.
  * This means the CONTEXTIDR_EL1 and CONTEXTIDR_EL2 both will be
  * recorded in the trace data, the tool will selectively use
  * CONTEXTIDR_EL2 as PID.
+ *
+ * The result is cached in etm->pid_fmt so this function only needs to be called
+ * when processing the aux info.
  */
-int cs_etm__get_pid_fmt(u8 trace_chan_id, u64 *pid_fmt)
+static enum cs_etm_pid_fmt cs_etm__init_pid_fmt(u64 *metadata)
 {
-	struct int_node *inode;
-	u64 *metadata, val;
-
-	inode = intlist__find(traceid_list, trace_chan_id);
-	if (!inode)
-		return -EINVAL;
-
-	metadata = inode->priv;
+	u64 val;
 
 	if (metadata[CS_ETM_MAGIC] == __perf_cs_etmv3_magic) {
 		val = metadata[CS_ETM_ETMCR];
 		/* CONTEXTIDR is traced */
 		if (val & BIT(ETM_OPT_CTXTID))
-			*pid_fmt = BIT(ETM_OPT_CTXTID);
+			return CS_ETM_PIDFMT_CTXTID;
 	} else {
 		val = metadata[CS_ETMV4_TRCCONFIGR];
 		/* CONTEXTIDR_EL2 is traced */
 		if (val & (BIT(ETM4_CFG_BIT_VMID) | BIT(ETM4_CFG_BIT_VMID_OPT)))
-			*pid_fmt = BIT(ETM_OPT_CTXTID2);
+			return CS_ETM_PIDFMT_CTXTID2;
 		/* CONTEXTIDR_EL1 is traced */
 		else if (val & BIT(ETM4_CFG_BIT_CTXTID))
-			*pid_fmt = BIT(ETM_OPT_CTXTID);
+			return CS_ETM_PIDFMT_CTXTID;
 	}
 
-	return 0;
+	return CS_ETM_PIDFMT_NONE;
+}
+
+enum cs_etm_pid_fmt cs_etm__get_pid_fmt(struct cs_etm_queue *etmq)
+{
+	return etmq->etm->pid_fmt;
 }
 
 static int cs_etm__map_trace_id(u8 trace_chan_id, u64 *cpu_metadata)
@@ -3238,6 +3241,13 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 		err = -ENOMEM;
 		goto err_free_metadata;
 	}
+
+	/*
+	 * As all the ETMs run at the same exception level, the system should
+	 * have the same PID format crossing CPUs.  So cache the PID format
+	 * and reuse it for sequential decoding.
+	 */
+	etm->pid_fmt = cs_etm__init_pid_fmt(metadata[0]);
 
 	err = auxtrace_queues__init(&etm->queues);
 	if (err)
