@@ -245,6 +245,7 @@ static long ceph_ioctl_lazyio(struct file *file)
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_client *mdsc = ceph_inode_to_fs_client(inode)->mdsc;
+	struct ceph_client *cl = mdsc->fsc->client;
 
 	if ((fi->fmode & CEPH_FILE_MODE_LAZY) == 0) {
 		spin_lock(&ci->i_ceph_lock);
@@ -252,11 +253,13 @@ static long ceph_ioctl_lazyio(struct file *file)
 		ci->i_nr_by_mode[ffs(CEPH_FILE_MODE_LAZY)]++;
 		__ceph_touch_fmode(ci, mdsc, fi->fmode);
 		spin_unlock(&ci->i_ceph_lock);
-		dout("ioctl_layzio: file %p marked lazy\n", file);
+		doutc(cl, "file %p %p %llx.%llx marked lazy\n", file, inode,
+		      ceph_vinop(inode));
 
 		ceph_check_caps(ci, 0);
 	} else {
-		dout("ioctl_layzio: file %p already lazy\n", file);
+		doutc(cl, "file %p %p %llx.%llx already lazy\n", file, inode,
+		      ceph_vinop(inode));
 	}
 	return 0;
 }
@@ -355,10 +358,12 @@ static const char *ceph_ioctl_cmd_name(const unsigned int cmd)
 
 long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = file_inode(file);
+	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
 	int ret;
 
-	dout("ioctl file %p cmd %s arg %lu\n", file,
-	     ceph_ioctl_cmd_name(cmd), arg);
+	doutc(fsc->client, "file %p %p %llx.%llx cmd %s arg %lu\n", file,
+	      inode, ceph_vinop(inode), ceph_ioctl_cmd_name(cmd), arg);
 	switch (cmd) {
 	case CEPH_IOC_GET_LAYOUT:
 		return ceph_ioctl_get_layout(file, (void __user *)arg);

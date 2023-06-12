@@ -46,9 +46,10 @@ static void ceph_put_super(struct super_block *s)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(s);
 
-	dout("put_super\n");
+	doutc(fsc->client, "begin\n");
 	ceph_fscrypt_free_dummy_policy(fsc);
 	ceph_mdsc_close_sessions(fsc->mdsc);
+	doutc(fsc->client, "done\n");
 }
 
 static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -59,13 +60,13 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	int i, err;
 	u64 data_pool;
 
+	doutc(fsc->client, "begin\n");
 	if (fsc->mdsc->mdsmap->m_num_data_pg_pools == 1) {
 		data_pool = fsc->mdsc->mdsmap->m_data_pg_pools[0];
 	} else {
 		data_pool = CEPH_NOPOOL;
 	}
 
-	dout("statfs\n");
 	err = ceph_monc_do_statfs(monc, data_pool, &st);
 	if (err < 0)
 		return err;
@@ -113,24 +114,26 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	/* fold the fs_cluster_id into the upper bits */
 	buf->f_fsid.val[1] = monc->fs_cluster_id;
 
+	doutc(fsc->client, "done\n");
 	return 0;
 }
 
 static int ceph_sync_fs(struct super_block *sb, int wait)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(sb);
+	struct ceph_client *cl = fsc->client;
 
 	if (!wait) {
-		dout("sync_fs (non-blocking)\n");
+		doutc(cl, "(non-blocking)\n");
 		ceph_flush_dirty_caps(fsc->mdsc);
-		dout("sync_fs (non-blocking) done\n");
+		doutc(cl, "(non-blocking) done\n");
 		return 0;
 	}
 
-	dout("sync_fs (blocking)\n");
+	doutc(cl, "(blocking)\n");
 	ceph_osdc_sync(&fsc->client->osdc);
 	ceph_mdsc_sync(fsc->mdsc);
-	dout("sync_fs (blocking) done\n");
+	doutc(cl, "(blocking) done\n");
 	return 0;
 }
 
@@ -341,7 +344,7 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 	char *dev_name = param->string, *dev_name_end;
 	int ret;
 
-	dout("%s '%s'\n", __func__, dev_name);
+	dout("'%s'\n", dev_name);
 	if (!dev_name || !*dev_name)
 		return invalfc(fc, "Empty source");
 
@@ -413,7 +416,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		return ret;
 
 	token = fs_parse(fc, ceph_mount_parameters, param, &result);
-	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
+	dout("%s: fs_parse '%s' token %d\n",__func__, param->key, token);
 	if (token < 0)
 		return token;
 
@@ -881,7 +884,7 @@ static void flush_fs_workqueues(struct ceph_fs_client *fsc)
 
 static void destroy_fs_client(struct ceph_fs_client *fsc)
 {
-	dout("destroy_fs_client %p\n", fsc);
+	doutc(fsc->client, "%p\n", fsc);
 
 	spin_lock(&ceph_fsc_lock);
 	list_del(&fsc->metric_wakeup);
@@ -896,7 +899,7 @@ static void destroy_fs_client(struct ceph_fs_client *fsc)
 	ceph_destroy_client(fsc->client);
 
 	kfree(fsc);
-	dout("destroy_fs_client %p done\n", fsc);
+	dout("%s: %p done\n", __func__, fsc);
 }
 
 /*
@@ -1017,7 +1020,7 @@ void ceph_umount_begin(struct super_block *sb)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(sb);
 
-	dout("ceph_umount_begin - starting forced umount\n");
+	doutc(fsc->client, "starting forced umount\n");
 	if (!fsc)
 		return;
 	fsc->mount_state = CEPH_MOUNT_SHUTDOWN;
@@ -1045,13 +1048,14 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 				       const char *path,
 				       unsigned long started)
 {
+	struct ceph_client *cl = fsc->client;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req = NULL;
 	int err;
 	struct dentry *root;
 
 	/* open dir */
-	dout("open_root_inode opening '%s'\n", path);
+	doutc(cl, "opening '%s'\n", path);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
 	if (IS_ERR(req))
 		return ERR_CAST(req);
@@ -1071,13 +1075,13 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 	if (err == 0) {
 		struct inode *inode = req->r_target_inode;
 		req->r_target_inode = NULL;
-		dout("open_root_inode success\n");
+		doutc(cl, "success\n");
 		root = d_make_root(inode);
 		if (!root) {
 			root = ERR_PTR(-ENOMEM);
 			goto out;
 		}
-		dout("open_root_inode success, root dentry is %p\n", root);
+		doutc(cl, "success, root dentry is %p\n", root);
 	} else {
 		root = ERR_PTR(err);
 	}
@@ -1136,11 +1140,12 @@ static int ceph_apply_test_dummy_encryption(struct super_block *sb,
 static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 				      struct fs_context *fc)
 {
+	struct ceph_client *cl = fsc->client;
 	int err;
 	unsigned long started = jiffies;  /* note the start time */
 	struct dentry *root;
 
-	dout("mount start %p\n", fsc);
+	doutc(cl, "mount start %p\n", fsc);
 	mutex_lock(&fsc->client->mount_mutex);
 
 	if (!fsc->sb->s_root) {
@@ -1163,7 +1168,7 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 		if (err)
 			goto out;
 
-		dout("mount opening path '%s'\n", path);
+		doutc(cl, "mount opening path '%s'\n", path);
 
 		ceph_fs_debugfs_init(fsc);
 
@@ -1178,7 +1183,7 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 	}
 
 	fsc->mount_state = CEPH_MOUNT_MOUNTED;
-	dout("mount success\n");
+	doutc(cl, "mount success\n");
 	mutex_unlock(&fsc->client->mount_mutex);
 	return root;
 
@@ -1191,9 +1196,10 @@ out:
 static int ceph_set_super(struct super_block *s, struct fs_context *fc)
 {
 	struct ceph_fs_client *fsc = s->s_fs_info;
+	struct ceph_client *cl = fsc->client;
 	int ret;
 
-	dout("set_super %p\n", s);
+	doutc(cl, "%p\n", s);
 
 	s->s_maxbytes = MAX_LFS_FILESIZE;
 
@@ -1227,30 +1233,31 @@ static int ceph_compare_super(struct super_block *sb, struct fs_context *fc)
 	struct ceph_mount_options *fsopt = new->mount_options;
 	struct ceph_options *opt = new->client->options;
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(sb);
+	struct ceph_client *cl = fsc->client;
 
-	dout("ceph_compare_super %p\n", sb);
+	doutc(cl, "%p\n", sb);
 
 	if (compare_mount_options(fsopt, opt, fsc)) {
-		dout("monitor(s)/mount options don't match\n");
+		doutc(cl, "monitor(s)/mount options don't match\n");
 		return 0;
 	}
 	if ((opt->flags & CEPH_OPT_FSID) &&
 	    ceph_fsid_compare(&opt->fsid, &fsc->client->fsid)) {
-		dout("fsid doesn't match\n");
+		doutc(cl, "fsid doesn't match\n");
 		return 0;
 	}
 	if (fc->sb_flags != (sb->s_flags & ~SB_BORN)) {
-		dout("flags differ\n");
+		doutc(cl, "flags differ\n");
 		return 0;
 	}
 
 	if (fsc->blocklisted && !ceph_test_mount_opt(fsc, CLEANRECOVER)) {
-		dout("client is blocklisted (and CLEANRECOVER is not set)\n");
+		doutc(cl, "client is blocklisted (and CLEANRECOVER is not set)\n");
 		return 0;
 	}
 
 	if (fsc->mount_state == CEPH_MOUNT_SHUTDOWN) {
-		dout("client has been forcibly unmounted\n");
+		doutc(cl, "client has been forcibly unmounted\n");
 		return 0;
 	}
 
@@ -1338,8 +1345,9 @@ static int ceph_get_tree(struct fs_context *fc)
 		err = PTR_ERR(res);
 		goto out_splat;
 	}
-	dout("root %p inode %p ino %llx.%llx\n", res,
-	     d_inode(res), ceph_vinop(d_inode(res)));
+
+	doutc(fsc->client, "root %p inode %p ino %llx.%llx\n", res,
+		    d_inode(res), ceph_vinop(d_inode(res)));
 	fc->root = fsc->sb->s_root;
 	return 0;
 
@@ -1397,7 +1405,8 @@ static int ceph_reconfigure_fc(struct fs_context *fc)
 		kfree(fsc->mount_options->mon_addr);
 		fsc->mount_options->mon_addr = fsopt->mon_addr;
 		fsopt->mon_addr = NULL;
-		pr_notice("ceph: monitor addresses recorded, but not used for reconnection");
+		pr_notice_client(fsc->client,
+			"monitor addresses recorded, but not used for reconnection");
 	}
 
 	sync_filesystem(sb);
@@ -1517,10 +1526,11 @@ void ceph_dec_osd_stopping_blocker(struct ceph_mds_client *mdsc)
 static void ceph_kill_sb(struct super_block *s)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(s);
+	struct ceph_client *cl = fsc->client;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	bool wait;
 
-	dout("kill_sb %p\n", s);
+	doutc(cl, "%p\n", s);
 
 	ceph_mdsc_pre_umount(mdsc);
 	flush_fs_workqueues(fsc);
@@ -1551,9 +1561,9 @@ static void ceph_kill_sb(struct super_block *s)
 					&mdsc->stopping_waiter,
 					fsc->client->options->mount_timeout);
 		if (!timeleft) /* timed out */
-			pr_warn("umount timed out, %ld\n", timeleft);
+			pr_warn_client(cl, "umount timed out, %ld\n", timeleft);
 		else if (timeleft < 0) /* killed */
-			pr_warn("umount was killed, %ld\n", timeleft);
+			pr_warn_client(cl, "umount was killed, %ld\n", timeleft);
 	}
 
 	mdsc->stopping = CEPH_MDSC_STOPPING_FLUSHED;
