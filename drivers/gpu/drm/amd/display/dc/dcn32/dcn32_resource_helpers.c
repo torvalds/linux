@@ -273,9 +273,9 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
  *    among those pipes.
  * 4. Assign the DET override to the DML pipes.
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
- * @param [in]: pipes: Array of DML pipes
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @pipes: Array of DML pipes
  *
  * Return: void
  */
@@ -621,11 +621,10 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
 }
 
 /**
- * ************************************************************************************************
- * dcn32_subvp_drr_admissable: Determine if SubVP + DRR config is admissible
+ * dcn32_subvp_drr_admissable() - Determine if SubVP + DRR config is admissible
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
  *
  * SubVP + DRR is admissible under the following conditions:
  * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
@@ -633,9 +632,7 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
  * - Other display must have Freesync enabled
  * - The potential DRR display must not be PSR capable
  *
- * @return: True if admissible, false otherwise
- *
- * ************************************************************************************************
+ * Return: True if admissible, false otherwise
  */
 bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 {
@@ -673,11 +670,11 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 }
 
 /**
- * ************************************************************************************************
- * dcn32_subvp_vblank_admissable: Determine if SubVP + Vblank config is admissible
+ * dcn32_subvp_vblank_admissable() - Determine if SubVP + Vblank config is admissible
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @vlevel: Voltage level calculated by DML
  *
  * SubVP + Vblank is admissible under the following conditions:
  * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
@@ -686,9 +683,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
  * - DML must have output DRAM clock change support as SubVP + Vblank
  * - The potential vblank display must not be PSR capable
  *
- * @return: True if admissible, false otherwise
- *
- * ************************************************************************************************
+ * Return: True if admissible, false otherwise
  */
 bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel)
 {
