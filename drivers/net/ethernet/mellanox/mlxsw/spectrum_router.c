@@ -7903,6 +7903,13 @@ static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
 	return rif;
 }
 
+static void mlxsw_sp_rif_free(struct mlxsw_sp_rif *rif)
+{
+	WARN_ON(!list_empty(&rif->neigh_list));
+	WARN_ON(!list_empty(&rif->nexthop_list));
+	kfree(rif);
+}
+
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index)
 {
@@ -8209,7 +8216,7 @@ err_configure:
 err_fid_get:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
 	dev_put(params->dev);
-	kfree(rif);
+	mlxsw_sp_rif_free(rif);
 err_rif_alloc:
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 err_rif_index_alloc:
@@ -8249,7 +8256,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 		mlxsw_sp_fid_put(fid);
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	dev_put(dev);
-	kfree(rif);
+	mlxsw_sp_rif_free(rif);
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
@@ -9902,7 +9909,7 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 
 ul_rif_op_err:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
-	kfree(ul_rif);
+	mlxsw_sp_rif_free(ul_rif);
 err_rif_alloc:
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	return ERR_PTR(err);
@@ -9917,7 +9924,7 @@ static void mlxsw_sp_ul_rif_destroy(struct mlxsw_sp_rif *ul_rif)
 	atomic_sub(rif_entries, &mlxsw_sp->router->rifs_count);
 	mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, false);
 	mlxsw_sp->router->rifs[ul_rif->rif_index] = NULL;
-	kfree(ul_rif);
+	mlxsw_sp_rif_free(ul_rif);
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 }
 
