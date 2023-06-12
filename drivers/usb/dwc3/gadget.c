@@ -4081,7 +4081,6 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 
 static void dwc3_gadget_wakeup_interrupt(struct dwc3 *dwc)
 {
-
 	dwc->suspended = false;
 
 	/*
