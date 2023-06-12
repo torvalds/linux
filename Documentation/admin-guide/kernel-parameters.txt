@@ -304,7 +304,7 @@
 			EL0 is indicated by /sys/devices/system/cpu/aarch32_el0
 			and hot-unplug operations may be restricted.
 
-			See Documentation/arm64/asymmetric-32bit.rst for more
+			See Documentation/arch/arm64/asymmetric-32bit.rst for more
 			information.
 
 	amd_iommu=	[HW,X86-64]

@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/arm64/hugetlbpage.rst <hugetlbpage_index>`
+:Original: :ref:`Documentation/arch/arm64/hugetlbpage.rst <hugetlbpage_index>`
 
 Translator: Bailu Lin <bailu.lin@vivo.com>
 

@@ -102,7 +102,7 @@ HWCAP_ASIMDHP
 
 HWCAP_CPUID
     EL0 access to certain ID registers is available, to the extent
-    described by Documentation/arm64/cpu-feature-registers.rst.
+    described by Documentation/arch/arm64/cpu-feature-registers.rst.
 
     These ID registers may imply the availability of features.
 
@@ -163,12 +163,12 @@ HWCAP_SB
 HWCAP_PACA
     Functionality implied by ID_AA64ISAR1_EL1.APA == 0b0001 or
     ID_AA64ISAR1_EL1.API == 0b0001, as described by
-    Documentation/arm64/pointer-authentication.rst.
+    Documentation/arch/arm64/pointer-authentication.rst.
 
 HWCAP_PACG
     Functionality implied by ID_AA64ISAR1_EL1.GPA == 0b0001 or
     ID_AA64ISAR1_EL1.GPI == 0b0001, as described by
-    Documentation/arm64/pointer-authentication.rst.
+    Documentation/arch/arm64/pointer-authentication.rst.
 
 HWCAP2_DCPODP
     Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0010.
@@ -226,7 +226,7 @@ HWCAP2_BTI
 
 HWCAP2_MTE
     Functionality implied by ID_AA64PFR1_EL1.MTE == 0b0010, as described
-    by Documentation/arm64/memory-tagging-extension.rst.
+    by Documentation/arch/arm64/memory-tagging-extension.rst.
 
 HWCAP2_ECV
     Functionality implied by ID_AA64MMFR0_EL1.ECV == 0b0001.
@@ -239,11 +239,11 @@ HWCAP2_RPRES
 
 HWCAP2_MTE3
     Functionality implied by ID_AA64PFR1_EL1.MTE == 0b0011, as described
-    by Documentation/arm64/memory-tagging-extension.rst.
+    by Documentation/arch/arm64/memory-tagging-extension.rst.
 
 HWCAP2_SME
     Functionality implied by ID_AA64PFR1_EL1.SME == 0b0001, as described
-    by Documentation/arm64/sme.rst.
+    by Documentation/arch/arm64/sme.rst.
 
 HWCAP2_SME_I16I64
     Functionality implied by ID_AA64SMFR0_EL1.I16I64 == 0b1111.

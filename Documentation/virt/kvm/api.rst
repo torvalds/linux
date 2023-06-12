@@ -2613,7 +2613,7 @@ follows::
        this vcpu, and determines which register slices are visible through
        this ioctl interface.
 
-(See Documentation/arm64/sve.rst for an explanation of the "vq"
+(See Documentation/arch/arm64/sve.rst for an explanation of the "vq"
 nomenclature.)
 
 KVM_REG_ARM64_SVE_VLS is only accessible after KVM_ARM_VCPU_INIT.
