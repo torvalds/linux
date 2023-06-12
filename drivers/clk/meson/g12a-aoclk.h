@@ -24,8 +24,6 @@
 #define CLKID_AO_CEC_DIV	25
 #define CLKID_AO_CEC_SEL	26
 
-#define NR_CLKS	29
-
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/reset/g12a-aoclkc.h>
 
