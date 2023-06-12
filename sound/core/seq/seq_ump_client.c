@@ -439,9 +439,19 @@ static int seq_ump_notify_fb_change(struct snd_ump_endpoint *ump,
 	return 0;
 }
 
+/* UMP protocol change notification; just update the midi_version field */
+static int seq_ump_switch_protocol(struct snd_ump_endpoint *ump)
+{
+	if (!ump->seq_client)
+		return -ENODEV;
+	setup_client_midi_version(ump->seq_client);
+	return 0;
+}
+
 static const struct snd_seq_ump_ops seq_ump_ops = {
 	.input_receive = seq_ump_input_receive,
 	.notify_fb_change = seq_ump_notify_fb_change,
+	.switch_protocol = seq_ump_switch_protocol,
 };
 
 /* create a sequencer client and ports for the given UMP endpoint */

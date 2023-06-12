@@ -657,14 +657,27 @@ static int ump_handle_product_id_msg(struct snd_ump_endpoint *ump,
 				 buf->raw, 2);
 }
 
+/* notify the protocol change to sequencer */
+static void seq_notify_protocol(struct snd_ump_endpoint *ump)
+{
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+	if (ump->seq_ops && ump->seq_ops->switch_protocol)
+		ump->seq_ops->switch_protocol(ump);
+#endif /* CONFIG_SND_SEQUENCER */
+}
+
 /* handle EP stream config message; update the UMP protocol */
 static int ump_handle_stream_cfg_msg(struct snd_ump_endpoint *ump,
 				     const union snd_ump_stream_msg *buf)
 {
+	unsigned int old_protocol = ump->info.protocol;
+
 	ump->info.protocol =
 		(buf->stream_cfg.protocol << 8) | buf->stream_cfg.jrts;
 	ump_dbg(ump, "Current protocol = %x (caps = %x)\n",
 		ump->info.protocol, ump->info.protocol_caps);
+	if (ump->parsed && ump->info.protocol != old_protocol)
+		seq_notify_protocol(ump);
 	return 1; /* finished */
 }
 
