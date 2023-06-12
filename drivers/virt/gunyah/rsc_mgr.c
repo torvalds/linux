@@ -123,7 +123,7 @@ struct gh_rm_connection {
 
 /**
  * struct gh_rm - private data for communicating w/Gunyah resource manager
- * @dev: pointer to device
+ * @dev: pointer to RM platform device
  * @tx_ghrsc: message queue resource to TX to RM
  * @rx_ghrsc: message queue resource to RX from RM
  * @msgq: mailbox instance of TX/RX resources above

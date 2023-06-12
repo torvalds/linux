@@ -617,7 +617,7 @@ static int gh_vm_ensure_started(struct gh_vm *ghvm)
 		if (ret)
 			return ret;
 		/** gh_vm_start() is guaranteed to bring status out of
-		 * GH_RM_VM_STATUS_LOAD, thus inifitely recursive call is not
+		 * GH_RM_VM_STATUS_LOAD, thus infinitely recursive call is not
 		 * possible
 		 */
 		return gh_vm_ensure_started(ghvm);
