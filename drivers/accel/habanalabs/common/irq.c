@@ -233,7 +233,8 @@ static void hl_ts_free_objects(struct work_struct *work)
  * list to a dedicated workqueue to do the actual put.
  */
 static int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
-						struct list_head **free_list, ktime_t now)
+						struct list_head **free_list, ktime_t now,
+						u32 interrupt_id)
 {
 	struct timestamp_reg_free_node *free_node;
 	u64 timestamp;
@@ -255,14 +256,12 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 
 	*pend->ts_reg_info.timestamp_kernel_addr = timestamp;
 
-	dev_dbg(hdev->dev, "Timestamp is set to ts cb address (%p), ts: 0x%llx\n",
-			pend->ts_reg_info.timestamp_kernel_addr,
-			*(u64 *)pend->ts_reg_info.timestamp_kernel_addr);
-
-	list_del(&pend->wait_list_node);
+	dev_dbg(hdev->dev, "Irq handle: Timestamp record (%p) ts cb address (%p), interrupt_id: %u\n",
+			pend, pend->ts_reg_info.timestamp_kernel_addr, interrupt_id);
 
 	/* Mark kernel CB node as free */
-	pend->ts_reg_info.in_use = 0;
+	pend->ts_reg_info.in_use = false;
+	list_del(&pend->wait_list_node);
 
 	/* Putting the refcount for ts_buff and cq_cb objects will be handled
 	 * in workqueue context, just add job to free_list.
@@ -296,13 +295,15 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 		return;
 
 	spin_lock(&intr->wait_list_lock);
+
 	list_for_each_entry_safe(pend, temp_pend, &intr->wait_list_head, wait_list_node) {
 		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
 			if (pend->ts_reg_info.buf) {
 				if (!reg_node_handle_fail) {
 					rc = handle_registration_node(hdev, pend,
-							&ts_reg_free_list_head, intr->timestamp);
+							&ts_reg_free_list_head, intr->timestamp,
+							intr->interrupt_id);
 					if (rc)
 						reg_node_handle_fail = true;
 				}

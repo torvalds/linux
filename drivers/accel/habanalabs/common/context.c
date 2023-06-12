@@ -119,6 +119,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
 		hl_encaps_sig_mgr_fini(hdev, &ctx->sig_mgr);
+		mutex_destroy(&ctx->ts_reg_lock);
 	} else {
 		dev_dbg(hdev->dev, "closing kernel context\n");
 		hdev->asic_funcs->ctx_fini(ctx);
@@ -267,6 +268,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 		}
 
 		hl_encaps_sig_mgr_init(&ctx->sig_mgr);
+
+		mutex_init(&ctx->ts_reg_lock);
 
 		dev_dbg(hdev->dev, "create user context, comm=\"%s\", asid=%u\n",
 			get_task_comm(task_comm, current), ctx->asid);

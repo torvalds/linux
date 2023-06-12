@@ -1144,6 +1144,7 @@ struct timestamp_reg_work_obj {
  * @buf: pointer to the timestamp buffer which include both user/kernel buffers.
  *       relevant only when doing timestamps records registration.
  * @cq_cb: pointer to CQ counter CB.
+ * @interrupt: interrupt that the node hanged on it's wait list.
  * @timestamp_kernel_addr: timestamp handle address, where to set timestamp
  *                         relevant only when doing timestamps records
  *                         registration.
@@ -1153,10 +1154,11 @@ struct timestamp_reg_work_obj {
  *          allocating records dynamically.
  */
 struct timestamp_reg_info {
-	struct hl_mmap_mem_buf	*buf;
-	struct hl_cb		*cq_cb;
-	u64			*timestamp_kernel_addr;
-	u8			in_use;
+	struct hl_mmap_mem_buf		*buf;
+	struct hl_cb			*cq_cb;
+	struct hl_user_interrupt	*interrupt;
+	u64				*timestamp_kernel_addr;
+	bool				in_use;
 };
 
 /**
@@ -1835,6 +1837,7 @@ struct hl_cs_outcome_store {
  * @va_range: holds available virtual addresses for host and dram mappings.
  * @mem_hash_lock: protects the mem_hash.
  * @hw_block_list_lock: protects the HW block memory list.
+ * @ts_reg_lock: timestamp registration ioctls lock.
  * @debugfs_list: node in debugfs list of contexts.
  * @hw_block_mem_list: list of HW block virtual mapped addresses.
  * @cs_counters: context command submission counters.
@@ -1871,6 +1874,7 @@ struct hl_ctx {
 	struct hl_va_range		*va_range[HL_VA_RANGE_TYPE_MAX];
 	struct mutex			mem_hash_lock;
 	struct mutex			hw_block_list_lock;
+	struct mutex			ts_reg_lock;
 	struct list_head		debugfs_list;
 	struct list_head		hw_block_mem_list;
 	struct hl_cs_counters_atomic	cs_counters;
