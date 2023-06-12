@@ -35,6 +35,7 @@ static void terminate_voice(struct snd_emux_voice *vp);
 static void free_voice(struct snd_emux_voice *vp);
 static u32 make_fmmod(struct snd_emux_voice *vp);
 static u32 make_fm2frq2(struct snd_emux_voice *vp);
+static int get_pitch_shift(struct snd_emux *emu);
 
 /*
  * Ensure a value is between two points
@@ -58,6 +59,7 @@ static const struct snd_emux_operators emu10k1_ops = {
 	.free_voice =	free_voice,
 	.sample_new =	snd_emu10k1_sample_new,
 	.sample_free =	snd_emu10k1_sample_free,
+	.get_pitch_shift = get_pitch_shift,
 };
 
 void
@@ -507,4 +509,12 @@ make_fm2frq2(struct snd_emux_voice *vp)
 	pitch += (MOD_SENSE * modulation) / 1200;
 	LIMITVALUE(pitch, -128, 127);
 	return ((unsigned char)pitch << 8) | freq;
+}
+
+static int get_pitch_shift(struct snd_emux *emu)
+{
+	struct snd_emu10k1 *hw = emu->hw;
+
+	return (hw->card_capabilities->emu_model &&
+			hw->emu1010.word_clock == 44100) ? 0 : -501;
 }
