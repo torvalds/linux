@@ -490,6 +490,8 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 			    ump->info.sw_revision[2],
 			    ump->info.sw_revision[3]);
 	}
+	snd_iprintf(buffer, "Static Blocks: %s\n",
+		    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) ? "Yes" : "No");
 	snd_iprintf(buffer, "Num Blocks: %d\n\n", ump->info.num_blocks);
 
 	list_for_each_entry(fb, &ump->block_list, list) {
@@ -608,6 +610,9 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 		ump->info.num_blocks = 1;
 	}
 
+	if (buf->ep_info.static_function_block)
+		ump->info.flags |= SNDRV_UMP_EP_INFO_STATIC_BLOCKS;
+
 	ump->info.protocol_caps = (buf->ep_info.protocol << 8) |
 		buf->ep_info.jrts;
 
@@ -707,6 +712,12 @@ static bool is_fb_info_updated(struct snd_ump_endpoint *ump,
 			       const union snd_ump_stream_msg *buf)
 {
 	char tmpbuf[offsetof(struct snd_ump_block_info, name)];
+
+	if (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) {
+		ump_info(ump, "Skipping static FB info update (blk#%d)\n",
+			 fb->info.block_id);
+		return 0;
+	}
 
 	memcpy(tmpbuf, &fb->info, sizeof(tmpbuf));
 	fill_fb_info(ump, (struct snd_ump_block_info *)tmpbuf, buf);

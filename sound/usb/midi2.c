@@ -888,6 +888,8 @@ static int create_blocks_from_gtb(struct snd_usb_midi2_interface *umidi)
 		/* Blocks have been already created? */
 		if (rmidi->ump_parsed || rmidi->ump->info.num_blocks)
 			continue;
+		/* GTB is static-only */
+		rmidi->ump->info.flags |= SNDRV_UMP_EP_INFO_STATIC_BLOCKS;
 		/* loop over GTBs */
 		for (dir = 0; dir < 2; dir++) {
 			if (!rmidi->eps[dir])
