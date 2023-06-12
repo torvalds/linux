@@ -91,6 +91,24 @@ struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
 		gfp_t gfp_mask);
 void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs);
 
+/* Number of DMA segments required to transfer @bytes data. */
+static inline unsigned int blk_segments(const struct queue_limits *limits,
+					unsigned int bytes)
+{
+	if (!blk_queue_sub_page_limits(limits))
+		return 1;
+
+	{
+		const unsigned int mss = limits->max_segment_size;
+
+		if (bytes <= mss)
+			return 1;
+		if (is_power_of_2(mss))
+			return round_up(bytes, mss) >> ilog2(mss);
+		return (bytes + mss - 1) / mss;
+	}
+}
+
 static inline bool biovec_phys_mergeable(struct request_queue *q,
 		struct bio_vec *vec1, struct bio_vec *vec2)
 {
