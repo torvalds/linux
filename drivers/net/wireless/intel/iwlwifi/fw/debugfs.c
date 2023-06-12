@@ -354,9 +354,18 @@ static int iwl_dbgfs_fw_info_seq_show(struct seq_file *seq, void *v)
 	const struct iwl_fw *fw = priv->fwrt->fw;
 	const struct iwl_fw_cmd_version *ver;
 	u32 cmd_id;
+	int has_capa;
 
-	if (!state->pos)
+	if (!state->pos) {
+		seq_puts(seq, "fw_capa:\n");
+		has_capa = fw_has_capa(&fw->ucode_capa,
+				       IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT) ? 1 : 0;
+		seq_printf(seq,
+			   "    %d: %d\n",
+			   IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT,
+			   has_capa);
 		seq_puts(seq, "fw_api_ver:\n");
+	}
 
 	ver = &fw->ucode_capa.cmd_versions[state->pos];
 
