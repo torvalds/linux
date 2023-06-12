@@ -1440,6 +1440,8 @@ struct compress_data {
 
 #define F2FS_COMPRESSED_PAGE_MAGIC	0xF5F2C000
 
+#define F2FS_ZSTD_DEFAULT_CLEVEL	1
+
 #define	COMPRESS_LEVEL_OFFSET	8
 
 /* compress context */
