@@ -264,9 +264,15 @@ struct cxl_poison_state {
  * struct cxl_security_state - Device security state
  *
  * @state: state of last security operation
+ * @poll: polling for sanitization is enabled, device has no mbox irq support
+ * @poll_tmo_secs: polling timeout
+ * @poll_dwork: polling work item
  */
 struct cxl_security_state {
 	unsigned long state;
+	bool poll;
+	int poll_tmo_secs;
+	struct delayed_work poll_dwork;
 };
 
 /**
@@ -379,6 +385,7 @@ enum cxl_opcode {
 	CXL_MBOX_OP_GET_SCAN_MEDIA_CAPS	= 0x4303,
 	CXL_MBOX_OP_SCAN_MEDIA		= 0x4304,
 	CXL_MBOX_OP_GET_SCAN_MEDIA	= 0x4305,
+	CXL_MBOX_OP_SANITIZE		= 0x4400,
 	CXL_MBOX_OP_GET_SECURITY_STATE	= 0x4500,
 	CXL_MBOX_OP_SET_PASSPHRASE	= 0x4501,
 	CXL_MBOX_OP_DISABLE_PASSPHRASE	= 0x4502,

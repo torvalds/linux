@@ -115,16 +115,50 @@ static bool cxl_mbox_background_complete(struct cxl_dev_state *cxlds)
 
 static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
 {
+	u64 reg;
+	u16 opcode;
 	struct cxl_dev_id *dev_id = id;
 	struct cxl_dev_state *cxlds = dev_id->cxlds;
 
 	if (!cxl_mbox_background_complete(cxlds))
 		return IRQ_NONE;
 
-	/* short-circuit the wait in __cxl_pci_mbox_send_cmd() */
-	rcuwait_wake_up(&cxlds->mbox_wait);
+	reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
+	opcode = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
+	if (opcode == CXL_MBOX_OP_SANITIZE) {
+		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
+	} else {
+		/* short-circuit the wait in __cxl_pci_mbox_send_cmd() */
+		rcuwait_wake_up(&cxlds->mbox_wait);
+	}
 
 	return IRQ_HANDLED;
+}
+
+/*
+ * Sanitization operation polling mode.
+ */
+static void cxl_mbox_sanitize_work(struct work_struct *work)
+{
+	struct cxl_dev_state *cxlds;
+
+	cxlds = container_of(work,
+			     struct cxl_dev_state, security.poll_dwork.work);
+
+	mutex_lock(&cxlds->mbox_mutex);
+	if (cxl_mbox_background_complete(cxlds)) {
+		cxlds->security.poll_tmo_secs = 0;
+		put_device(cxlds->dev);
+
+		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
+	} else {
+		int timeout = cxlds->security.poll_tmo_secs + 10;
+
+		cxlds->security.poll_tmo_secs = min(15 * 60, timeout);
+		queue_delayed_work(system_wq, &cxlds->security.poll_dwork,
+				   timeout * HZ);
+	}
+	mutex_unlock(&cxlds->mbox_mutex);
 }
 
 /**
@@ -187,6 +221,16 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 		return -EBUSY;
 	}
 
+	/*
+	 * With sanitize polling, hardware might be done and the poller still
+	 * not be in sync. Ensure no new command comes in until so. Keep the
+	 * hardware semantics and only allow device health status.
+	 */
+	if (cxlds->security.poll_tmo_secs > 0) {
+		if (mbox_cmd->opcode != CXL_MBOX_OP_GET_HEALTH_INFO)
+			return -EBUSY;
+	}
+
 	cmd_reg = FIELD_PREP(CXLDEV_MBOX_CMD_COMMAND_OPCODE_MASK,
 			     mbox_cmd->opcode);
 	if (mbox_cmd->size_in) {
@@ -235,11 +279,34 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 	 */
 	if (mbox_cmd->return_code == CXL_MBOX_CMD_RC_BACKGROUND) {
 		u64 bg_status_reg;
-		int i, timeout = mbox_cmd->poll_interval_ms;
+		int i, timeout;
+
+		/*
+		 * Sanitization is a special case which monopolizes the device
+		 * and cannot be timesliced. Handle asynchronously instead,
+		 * and allow userspace to poll(2) for completion.
+		 */
+		if (mbox_cmd->opcode == CXL_MBOX_OP_SANITIZE) {
+			if (cxlds->security.poll_tmo_secs != -1) {
+				/* hold the device throughout */
+				get_device(cxlds->dev);
+
+				/* give first timeout a second */
+				timeout = 1;
+				cxlds->security.poll_tmo_secs = timeout;
+				queue_delayed_work(system_wq,
+						   &cxlds->security.poll_dwork,
+						   timeout * HZ);
+			}
+
+			dev_dbg(dev, "Sanitization operation started\n");
+			goto success;
+		}
 
 		dev_dbg(dev, "Mailbox background operation (0x%04x) started\n",
 			mbox_cmd->opcode);
 
+		timeout = mbox_cmd->poll_interval_ms;
 		for (i = 0; i < mbox_cmd->poll_count; i++) {
 			if (rcuwait_wait_event_timeout(&cxlds->mbox_wait,
 				       cxl_mbox_background_complete(cxlds),
@@ -270,6 +337,7 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 		return 0; /* completed but caller must check return_code */
 	}
 
+success:
 	/* #7 */
 	cmd_reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
 	out_len = FIELD_GET(CXLDEV_MBOX_CMD_PAYLOAD_LENGTH_MASK, cmd_reg);
@@ -382,6 +450,9 @@ static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 	}
 
 mbox_poll:
+	cxlds->security.poll = true;
+	INIT_DELAYED_WORK(&cxlds->security.poll_dwork, cxl_mbox_sanitize_work);
+
 	dev_dbg(cxlds->dev, "Mailbox interrupts are unsupported");
 	return 0;
 }
