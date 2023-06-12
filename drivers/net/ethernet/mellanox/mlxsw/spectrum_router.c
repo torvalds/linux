@@ -8562,24 +8562,35 @@ __mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 	mlxsw_sp_rif_subport_put(rif);
 }
 
+static int
+mlxsw_sp_port_vlan_router_join_existing(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
+					struct net_device *l3_dev,
+					struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port_vlan->mlxsw_sp_port->mlxsw_sp;
+
+	lockdep_assert_held(&mlxsw_sp->router->lock);
+
+	if (!mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev))
+		return 0;
+
+	return __mlxsw_sp_port_vlan_router_join(mlxsw_sp_port_vlan, l3_dev,
+						extack);
+}
+
 int
 mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 			       struct net_device *l3_dev,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port_vlan->mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_rif *rif;
-	int err = 0;
+	int err;
 
 	mutex_lock(&mlxsw_sp->router->lock);
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
-	if (!rif)
-		goto out;
-
-	err = __mlxsw_sp_port_vlan_router_join(mlxsw_sp_port_vlan, l3_dev,
-					       extack);
-out:
+	err = mlxsw_sp_port_vlan_router_join_existing(mlxsw_sp_port_vlan,
+						      l3_dev, extack);
 	mutex_unlock(&mlxsw_sp->router->lock);
+
 	return err;
 }
 
