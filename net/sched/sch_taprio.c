@@ -2458,9 +2458,9 @@ static int taprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 {
 	struct netdev_queue *dev_queue = taprio_queue_get(sch, cl);
 	struct tc_taprio_qopt_offload offload = {
-		.cmd = TAPRIO_CMD_TC_STATS,
-		.tc_stats = {
-			.tc = cl - 1,
+		.cmd = TAPRIO_CMD_QUEUE_STATS,
+		.queue_stats = {
+			.queue = cl - 1,
 		},
 	};
 	struct Qdisc *child;
@@ -2470,7 +2470,7 @@ static int taprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	    qdisc_qstats_copy(d, child) < 0)
 		return -1;
 
-	return taprio_dump_xstats(sch, d, &offload, &offload.tc_stats.stats);
+	return taprio_dump_xstats(sch, d, &offload, &offload.queue_stats.stats);
 }
 
 static void taprio_walk(struct Qdisc *sch, struct qdisc_walker *arg)

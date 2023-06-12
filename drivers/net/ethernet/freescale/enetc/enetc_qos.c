@@ -127,6 +127,14 @@ static int enetc_setup_taprio(struct enetc_ndev_priv *priv,
 	return 0;
 }
 
+static void enetc_reset_taprio_stats(struct enetc_ndev_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		priv->tx_ring[i]->stats.win_drop = 0;
+}
+
 static void enetc_reset_taprio(struct enetc_ndev_priv *priv)
 {
 	struct enetc_hw *hw = &priv->si->hw;
@@ -145,6 +153,7 @@ static void enetc_taprio_destroy(struct net_device *ndev)
 
 	enetc_reset_taprio(priv);
 	enetc_reset_tc_mqprio(ndev);
+	enetc_reset_taprio_stats(priv);
 }
 
 static void enetc_taprio_stats(struct net_device *ndev,
@@ -160,20 +169,14 @@ static void enetc_taprio_stats(struct net_device *ndev,
 	stats->window_drops = window_drops;
 }
 
-static void enetc_taprio_tc_stats(struct net_device *ndev,
-				  struct tc_taprio_qopt_tc_stats *tc_stats)
+static void enetc_taprio_queue_stats(struct net_device *ndev,
+				     struct tc_taprio_qopt_queue_stats *queue_stats)
 {
-	struct tc_taprio_qopt_stats *stats = &tc_stats->stats;
+	struct tc_taprio_qopt_stats *stats = &queue_stats->stats;
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	int tc = tc_stats->tc;
-	u64 window_drops = 0;
-	int i;
+	int queue = queue_stats->queue;
 
-	for (i = 0; i < priv->num_tx_rings; i++)
-		if (priv->tx_ring[i]->prio == tc)
-			window_drops += priv->tx_ring[i]->stats.win_drop;
-
-	stats->window_drops = window_drops;
+	stats->window_drops = priv->tx_ring[queue]->stats.win_drop;
 }
 
 static int enetc_taprio_replace(struct net_device *ndev,
@@ -208,8 +211,8 @@ int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
 	case TAPRIO_CMD_STATS:
 		enetc_taprio_stats(ndev, &offload->stats);
 		break;
-	case TAPRIO_CMD_TC_STATS:
-		enetc_taprio_tc_stats(ndev, &offload->tc_stats);
+	case TAPRIO_CMD_QUEUE_STATS:
+		enetc_taprio_queue_stats(ndev, &offload->queue_stats);
 		break;
 	default:
 		err = -EOPNOTSUPP;
