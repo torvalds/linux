@@ -177,7 +177,6 @@ struct scrub_ctx {
 	struct btrfs_fs_info	*fs_info;
 	int			first_free;
 	int			cur_stripe;
-	struct list_head	csum_list;
 	atomic_t		cancel_req;
 	int			readonly;
 	int			sectors_per_bio;
@@ -309,17 +308,6 @@ static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 	scrub_pause_off(fs_info);
 }
 
-static void scrub_free_csums(struct scrub_ctx *sctx)
-{
-	while (!list_empty(&sctx->csum_list)) {
-		struct btrfs_ordered_sum *sum;
-		sum = list_first_entry(&sctx->csum_list,
-				       struct btrfs_ordered_sum, list);
-		list_del(&sum->list);
-		kfree(sum);
-	}
-}
-
 static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 {
 	int i;
@@ -330,7 +318,6 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++)
 		release_scrub_stripe(&sctx->stripes[i]);
 
-	scrub_free_csums(sctx);
 	kfree(sctx);
 }
 
@@ -352,7 +339,6 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->fs_info = fs_info;
-	INIT_LIST_HEAD(&sctx->csum_list);
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++) {
 		int ret;
 
