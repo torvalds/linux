@@ -163,6 +163,33 @@ static ssize_t security_sanitize_store(struct device *dev,
 static struct device_attribute dev_attr_security_sanitize =
 	__ATTR(sanitize, 0200, NULL, security_sanitize_store);
 
+static ssize_t security_erase_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t len)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_port *port = dev_get_drvdata(&cxlmd->dev);
+	ssize_t rc;
+	bool erase;
+
+	if (kstrtobool(buf, &erase) || !erase)
+		return -EINVAL;
+
+	if (!port || !is_cxl_endpoint(port))
+		return -EINVAL;
+
+	/* ensure no regions are mapped to this memdev */
+	if (port->commit_end != -1)
+		return -EBUSY;
+
+	rc = cxl_mem_sanitize(cxlds, CXL_MBOX_OP_SECURE_ERASE);
+
+	return rc ? rc : len;
+}
+static struct device_attribute dev_attr_security_erase =
+	__ATTR(erase, 0200, NULL, security_erase_store);
+
 static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
@@ -411,6 +438,7 @@ static struct attribute *cxl_memdev_ram_attributes[] = {
 static struct attribute *cxl_memdev_security_attributes[] = {
 	&dev_attr_security_state.attr,
 	&dev_attr_security_sanitize.attr,
+	&dev_attr_security_erase.attr,
 	NULL,
 };
 

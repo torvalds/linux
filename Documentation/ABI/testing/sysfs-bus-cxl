@@ -85,6 +85,16 @@ Description:
 		the device to be not be actively decoding any HPA ranges.
 
 
+What            /sys/bus/cxl/devices/memX/security/erase
+Date:           June, 2023
+KernelVersion:  v6.5
+Contact:        linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a boolean 'true' string value to this attribute to
+		secure erase user data by changing the media encryption keys for
+		all user data areas of the device.
+
+
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
 KernelVersion:	v5.14
