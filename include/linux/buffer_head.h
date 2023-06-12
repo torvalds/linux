@@ -263,7 +263,7 @@ extern int buffer_heads_over_limit;
 void block_invalidate_folio(struct folio *folio, size_t offset, size_t length);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 				struct writeback_control *wbc);
-int __block_write_full_page(struct inode *inode, struct page *page,
+int __block_write_full_folio(struct inode *inode, struct folio *folio,
 			get_block_t *get_block, struct writeback_control *wbc,
 			bh_end_io_t *handler);
 int block_read_full_folio(struct folio *, get_block_t *);

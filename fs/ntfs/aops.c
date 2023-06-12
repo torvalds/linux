@@ -526,7 +526,7 @@ err_out:
  *
  * Return 0 on success and -errno on error.
  *
- * Based on ntfs_read_block() and __block_write_full_page().
+ * Based on ntfs_read_block() and __block_write_full_folio().
  */
 static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 {

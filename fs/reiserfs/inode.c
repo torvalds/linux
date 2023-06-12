@@ -2506,7 +2506,7 @@ out:
 
 /*
  * mason@suse.com: updated in 2.5.54 to follow the same general io
- * start/recovery path as __block_write_full_page, along with special
+ * start/recovery path as __block_write_full_folio, along with special
  * code to handle reiserfs tails.
  */
 static int reiserfs_write_full_page(struct page *page,

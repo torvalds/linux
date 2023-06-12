@@ -1764,7 +1764,7 @@ static struct buffer_head *folio_create_buffers(struct folio *folio,
  * WB_SYNC_ALL, the writes are posted using REQ_SYNC; this
  * causes the writes to be flagged as synchronous writes.
  */
-int __block_write_full_page(struct inode *inode, struct page *page,
+int __block_write_full_folio(struct inode *inode, struct folio *folio,
 			get_block_t *get_block, struct writeback_control *wbc,
 			bh_end_io_t *handler)
 {
@@ -1776,14 +1776,14 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	int nr_underway = 0;
 	blk_opf_t write_flags = wbc_to_write_flags(wbc);
 
-	head = folio_create_buffers(page_folio(page), inode,
+	head = folio_create_buffers(folio, inode,
 				    (1 << BH_Dirty) | (1 << BH_Uptodate));
 
 	/*
 	 * Be very careful.  We have no exclusion from block_dirty_folio
 	 * here, and the (potentially unmapped) buffers may become dirty at
 	 * any time.  If a buffer becomes dirty here after we've inspected it
-	 * then we just miss that fact, and the page stays dirty.
+	 * then we just miss that fact, and the folio stays dirty.
 	 *
 	 * Buffers outside i_size may be dirtied by block_dirty_folio;
 	 * handle that here by just cleaning them.
@@ -1793,7 +1793,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	blocksize = bh->b_size;
 	bbits = block_size_bits(blocksize);
 
-	block = (sector_t)page->index << (PAGE_SHIFT - bbits);
+	block = (sector_t)folio->index << (PAGE_SHIFT - bbits);
 	last_block = (i_size_read(inode) - 1) >> bbits;
 
 	/*
@@ -1804,7 +1804,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 		if (block > last_block) {
 			/*
 			 * mapped buffers outside i_size will occur, because
-			 * this page can be outside i_size when there is a
+			 * this folio can be outside i_size when there is a
 			 * truncate in progress.
 			 */
 			/*
@@ -1834,7 +1834,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 			continue;
 		/*
 		 * If it's a fully non-blocking write attempt and we cannot
-		 * lock the buffer then redirty the page.  Note that this can
+		 * lock the buffer then redirty the folio.  Note that this can
 		 * potentially cause a busy-wait loop from writeback threads
 		 * and kswapd activity, but those code paths have their own
 		 * higher-level throttling.
@@ -1842,7 +1842,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 		if (wbc->sync_mode != WB_SYNC_NONE) {
 			lock_buffer(bh);
 		} else if (!trylock_buffer(bh)) {
-			redirty_page_for_writepage(wbc, page);
+			folio_redirty_for_writepage(wbc, folio);
 			continue;
 		}
 		if (test_clear_buffer_dirty(bh)) {
@@ -1853,11 +1853,11 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	} while ((bh = bh->b_this_page) != head);
 
 	/*
-	 * The page and its buffers are protected by PageWriteback(), so we can
-	 * drop the bh refcounts early.
+	 * The folio and its buffers are protected by the writeback flag,
+	 * so we can drop the bh refcounts early.
 	 */
-	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
+	BUG_ON(folio_test_writeback(folio));
+	folio_start_writeback(folio);
 
 	do {
 		struct buffer_head *next = bh->b_this_page;
@@ -1867,20 +1867,20 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 		}
 		bh = next;
 	} while (bh != head);
-	unlock_page(page);
+	folio_unlock(folio);
 
 	err = 0;
 done:
 	if (nr_underway == 0) {
 		/*
-		 * The page was marked dirty, but the buffers were
+		 * The folio was marked dirty, but the buffers were
 		 * clean.  Someone wrote them back by hand with
 		 * write_dirty_buffer/submit_bh.  A rare case.
 		 */
-		end_page_writeback(page);
+		folio_end_writeback(folio);
 
 		/*
-		 * The page and buffer_heads can be released at any time from
+		 * The folio and buffer_heads can be released at any time from
 		 * here on.
 		 */
 	}
@@ -1891,7 +1891,7 @@ recover:
 	 * ENOSPC, or some other error.  We may already have added some
 	 * blocks to the file, so we need to write these out to avoid
 	 * exposing stale data.
-	 * The page is currently locked and not marked for writeback
+	 * The folio is currently locked and not marked for writeback
 	 */
 	bh = head;
 	/* Recovery: lock and submit the mapped buffers */
@@ -1903,15 +1903,15 @@ recover:
 		} else {
 			/*
 			 * The buffer may have been set dirty during
-			 * attachment to a dirty page.
+			 * attachment to a dirty folio.
 			 */
 			clear_buffer_dirty(bh);
 		}
 	} while ((bh = bh->b_this_page) != head);
-	SetPageError(page);
-	BUG_ON(PageWriteback(page));
-	mapping_set_error(page->mapping, err);
-	set_page_writeback(page);
+	folio_set_error(folio);
+	BUG_ON(folio_test_writeback(folio));
+	mapping_set_error(folio->mapping, err);
+	folio_start_writeback(folio);
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
@@ -1921,10 +1921,10 @@ recover:
 		}
 		bh = next;
 	} while (bh != head);
-	unlock_page(page);
+	folio_unlock(folio);
 	goto done;
 }
-EXPORT_SYMBOL(__block_write_full_page);
+EXPORT_SYMBOL(__block_write_full_folio);
 
 /*
  * If a page has any new buffers, zero them out here, and mark them uptodate
@@ -2677,6 +2677,7 @@ EXPORT_SYMBOL(block_truncate_page);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 			struct writeback_control *wbc)
 {
+	struct folio *folio = page_folio(page);
 	struct inode * const inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
 	const pgoff_t end_index = i_size >> PAGE_SHIFT;
@@ -2684,13 +2685,13 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 
 	/* Is the page fully inside i_size? */
 	if (page->index < end_index)
-		return __block_write_full_page(inode, page, get_block, wbc,
+		return __block_write_full_folio(inode, folio, get_block, wbc,
 					       end_buffer_async_write);
 
 	/* Is the page fully outside i_size? (truncate in progress) */
 	offset = i_size & (PAGE_SIZE-1);
 	if (page->index >= end_index+1 || !offset) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return 0; /* don't care */
 	}
 
@@ -2702,7 +2703,7 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 	 * writes to that region are not written out to the file."
 	 */
 	zero_user_segment(page, offset, PAGE_SIZE);
-	return __block_write_full_page(inode, page, get_block, wbc,
+	return __block_write_full_folio(inode, folio, get_block, wbc,
 							end_buffer_async_write);
 }
 EXPORT_SYMBOL(block_write_full_page);
