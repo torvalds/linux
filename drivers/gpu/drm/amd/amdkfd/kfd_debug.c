@@ -344,11 +344,10 @@ unwind:
 	return r;
 }
 
-int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd)
+int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en)
 {
 	uint32_t spi_dbg_cntl = pdd->spi_dbg_override | pdd->spi_dbg_launch_mode;
 	uint32_t flags = pdd->process->dbg_flags;
-	bool sq_trap_en = !!spi_dbg_cntl || !kfd_dbg_has_cwsr_workaround(pdd->dev);
 
 	if (!kfd_dbg_is_per_vmid_supported(pdd->dev))
 		return 0;
@@ -432,7 +431,7 @@ int kfd_dbg_trap_clear_dev_address_watch(struct kfd_process_device *pdd,
 	if (!pdd->dev->kfd->shared_resources.enable_mes)
 		r = debug_map_and_unlock(pdd->dev->dqm);
 	else
-		r = kfd_dbg_set_mes_debug_mode(pdd);
+		r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
 	kfd_dbg_clear_dev_watch_id(pdd, watch_id);
 
@@ -474,7 +473,7 @@ int kfd_dbg_trap_set_dev_address_watch(struct kfd_process_device *pdd,
 	if (!pdd->dev->kfd->shared_resources.enable_mes)
 		r = debug_map_and_unlock(pdd->dev->dqm);
 	else
-		r = kfd_dbg_set_mes_debug_mode(pdd);
+		r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
 	/* HWS is broken so no point in HW rollback but release the watchpoint anyways */
 	if (r)
@@ -516,7 +515,7 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 		if (!pdd->dev->kfd->shared_resources.enable_mes)
 			r = debug_refresh_runlist(pdd->dev->dqm);
 		else
-			r = kfd_dbg_set_mes_debug_mode(pdd);
+			r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
 		if (r) {
 			target->dbg_flags = prev_flags;
@@ -539,7 +538,7 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 			if (!pdd->dev->kfd->shared_resources.enable_mes)
 				debug_refresh_runlist(pdd->dev->dqm);
 			else
-				kfd_dbg_set_mes_debug_mode(pdd);
+				kfd_dbg_set_mes_debug_mode(pdd, true);
 		}
 	}
 
@@ -601,7 +600,7 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 		if (!pdd->dev->kfd->shared_resources.enable_mes)
 			debug_refresh_runlist(pdd->dev->dqm);
 		else
-			kfd_dbg_set_mes_debug_mode(pdd);
+			kfd_dbg_set_mes_debug_mode(pdd, !kfd_dbg_has_cwsr_workaround(pdd->dev));
 	}
 
 	kfd_dbg_set_workaround(target, false);
@@ -717,7 +716,7 @@ int kfd_dbg_trap_activate(struct kfd_process *target)
 		if (!pdd->dev->kfd->shared_resources.enable_mes)
 			r = debug_refresh_runlist(pdd->dev->dqm);
 		else
-			r = kfd_dbg_set_mes_debug_mode(pdd);
+			r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
 		if (r) {
 			target->runtime_info.runtime_state =
@@ -851,7 +850,7 @@ int kfd_dbg_trap_set_wave_launch_override(struct kfd_process *target,
 		if (!pdd->dev->kfd->shared_resources.enable_mes)
 			r = debug_refresh_runlist(pdd->dev->dqm);
 		else
-			r = kfd_dbg_set_mes_debug_mode(pdd);
+			r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
 		if (r)
 			break;
@@ -883,7 +882,7 @@ int kfd_dbg_trap_set_wave_launch_mode(struct kfd_process *target,
 		if (!pdd->dev->kfd->shared_resources.enable_mes)
 			r = debug_refresh_runlist(pdd->dev->dqm);
 		else
-			r = kfd_dbg_set_mes_debug_mode(pdd);
+			r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
 		if (r)
 			break;

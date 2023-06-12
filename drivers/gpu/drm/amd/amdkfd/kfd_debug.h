@@ -126,5 +126,14 @@ static inline bool kfd_dbg_has_gws_support(struct kfd_node *dev)
 	return true;
 }
 
-int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd);
+int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en);
+
+static inline bool kfd_dbg_has_ttmps_always_setup(struct kfd_node *dev)
+{
+	return (KFD_GC_VERSION(dev) < IP_VERSION(11, 0, 0) &&
+			KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 2)) ||
+	       (KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
+			KFD_GC_VERSION(dev) < IP_VERSION(12, 0, 0) &&
+			(dev->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 70);
+}
 #endif

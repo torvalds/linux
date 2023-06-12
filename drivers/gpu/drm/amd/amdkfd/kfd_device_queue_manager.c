@@ -228,6 +228,8 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	queue_input.tma_addr = qpd->tma_addr;
 	queue_input.trap_en = !kfd_dbg_has_cwsr_workaround(q->device);
 	queue_input.skip_process_ctx_clear = qpd->pqm->process->debug_trap_enabled;
+	queue_input.skip_process_ctx_clear = qpd->pqm->process->debug_trap_enabled ||
+					     kfd_dbg_has_ttmps_always_setup(q->device);
 
 	queue_type = convert_to_mes_queue_type(q->properties.type);
 	if (queue_type < 0) {
