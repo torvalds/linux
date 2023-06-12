@@ -1097,7 +1097,7 @@ void kfd_dbg_set_enabled_debug_exception_mask(struct kfd_process *target,
 
 	pqm = &target->pqm;
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
-		if (!pqn)
+		if (!pqn->q)
 			continue;
 
 		found_mask |= pqn->q->properties.exception_status;
