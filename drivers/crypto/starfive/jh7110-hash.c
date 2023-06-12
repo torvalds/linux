@@ -39,6 +39,7 @@
 #define STARFIVE_HASH_SHAWKLEN		(STARFIVE_HASH_REGS_OFFSET + 0x24)
 
 #define STARFIVE_HASH_BUFLEN		SHA512_BLOCK_SIZE
+#define STARFIVE_HASH_RESET		0x2
 
 static inline int starfive_hash_wait_busy(struct starfive_cryp_ctx *ctx)
 {
@@ -95,6 +96,7 @@ static void starfive_hash_start(void *param)
 	struct starfive_cryp_dev *cryp = ctx->cryp;
 	union starfive_alg_cr alg_cr;
 	union starfive_hash_csr csr;
+	u32 stat;
 
 	dma_unmap_sg(cryp->dev, rctx->in_sg, rctx->in_sg_len, DMA_TO_DEVICE);
 
@@ -107,7 +109,9 @@ static void starfive_hash_start(void *param)
 	csr.firstb = 0;
 	csr.final = 1;
 
-	writel(~STARFIVE_IE_MASK_HASH_DONE, cryp->base + STARFIVE_IE_MASK_OFFSET);
+	stat = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
+	stat &= ~STARFIVE_IE_MASK_HASH_DONE;
+	writel(stat, cryp->base + STARFIVE_IE_MASK_OFFSET);
 	writel(csr.v, cryp->base + STARFIVE_HASH_SHACSR);
 }
 
@@ -222,6 +226,9 @@ void starfive_hash_done_task(unsigned long param)
 
 	if (!err)
 		err = starfive_hash_copy_hash(cryp->req.hreq);
+
+	/* Reset to clear hash_done in irq register*/
+	writel(STARFIVE_HASH_RESET, cryp->base + STARFIVE_HASH_SHACSR);
 
 	crypto_finalize_hash_request(cryp->engine, cryp->req.hreq, err);
 }
