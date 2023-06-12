@@ -96,17 +96,28 @@ static const struct dpu_sspp_cfg sdm845_sspp[] = {
 
 static const struct dpu_lm_cfg sdm845_lm[] = {
 	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_0, LM_1, 0),
+		&sdm845_lm_sblk, PINGPONG_0, LM_1, DSPP_0),
 	LM_BLK("lm_1", LM_1, 0x45000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_1, LM_0, 0),
+		&sdm845_lm_sblk, PINGPONG_1, LM_0, DSPP_1),
 	LM_BLK("lm_2", LM_2, 0x46000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_2, LM_5, 0),
+		&sdm845_lm_sblk, PINGPONG_2, LM_5, DSPP_2),
 	LM_BLK("lm_3", LM_3, 0x0, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_NONE, 0, 0),
+		&sdm845_lm_sblk, PINGPONG_NONE, 0, DSPP_3),
 	LM_BLK("lm_4", LM_4, 0x0, MIXER_SDM845_MASK,
 		&sdm845_lm_sblk, PINGPONG_NONE, 0, 0),
 	LM_BLK("lm_5", LM_5, 0x49000, MIXER_SDM845_MASK,
 		&sdm845_lm_sblk, PINGPONG_3, LM_2, 0),
+};
+
+static const struct dpu_dspp_cfg sdm845_dspp[] = {
+	DSPP_BLK("dspp_0", DSPP_0, 0x54000, DSPP_SC7180_MASK,
+		 &sm8150_dspp_sblk),
+	DSPP_BLK("dspp_1", DSPP_1, 0x56000, DSPP_SC7180_MASK,
+		 &sm8150_dspp_sblk),
+	DSPP_BLK("dspp_2", DSPP_2, 0x58000, DSPP_SC7180_MASK,
+		 &sm8150_dspp_sblk),
+	DSPP_BLK("dspp_3", DSPP_3, 0x5a000, DSPP_SC7180_MASK,
+		 &sm8150_dspp_sblk),
 };
 
 static const struct dpu_pingpong_cfg sdm845_pp[] = {
@@ -193,6 +204,8 @@ const struct dpu_mdss_cfg dpu_sdm845_cfg = {
 	.sspp = sdm845_sspp,
 	.mixer_count = ARRAY_SIZE(sdm845_lm),
 	.mixer = sdm845_lm,
+	.dspp_count = ARRAY_SIZE(sdm845_dspp),
+	.dspp = sdm845_dspp,
 	.pingpong_count = ARRAY_SIZE(sdm845_pp),
 	.pingpong = sdm845_pp,
 	.dsc_count = ARRAY_SIZE(sdm845_dsc),
