@@ -642,7 +642,6 @@ struct btrfs_fs_info {
 	 */
 	refcount_t scrub_workers_refcnt;
 	struct workqueue_struct *scrub_workers;
-	struct workqueue_struct *scrub_wr_completion_workers;
 	struct btrfs_subpage_info *subpage_info;
 
 	struct btrfs_discard_ctl discard_ctl;

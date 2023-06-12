@@ -2698,17 +2698,12 @@ static void scrub_workers_put(struct btrfs_fs_info *fs_info)
 	if (refcount_dec_and_mutex_lock(&fs_info->scrub_workers_refcnt,
 					&fs_info->scrub_lock)) {
 		struct workqueue_struct *scrub_workers = fs_info->scrub_workers;
-		struct workqueue_struct *scrub_wr_comp =
-						fs_info->scrub_wr_completion_workers;
 
 		fs_info->scrub_workers = NULL;
-		fs_info->scrub_wr_completion_workers = NULL;
 		mutex_unlock(&fs_info->scrub_lock);
 
 		if (scrub_workers)
 			destroy_workqueue(scrub_workers);
-		if (scrub_wr_comp)
-			destroy_workqueue(scrub_wr_comp);
 	}
 }
 
@@ -2719,7 +2714,6 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
 	struct workqueue_struct *scrub_workers = NULL;
-	struct workqueue_struct *scrub_wr_comp = NULL;
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 	int ret = -ENOMEM;
@@ -2732,18 +2726,12 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	else
 		scrub_workers = alloc_workqueue("btrfs-scrub", flags, max_active);
 	if (!scrub_workers)
-		goto fail_scrub_workers;
-
-	scrub_wr_comp = alloc_workqueue("btrfs-scrubwrc", flags, max_active);
-	if (!scrub_wr_comp)
-		goto fail_scrub_wr_completion_workers;
+		return -ENOMEM;
 
 	mutex_lock(&fs_info->scrub_lock);
 	if (refcount_read(&fs_info->scrub_workers_refcnt) == 0) {
-		ASSERT(fs_info->scrub_workers == NULL &&
-		       fs_info->scrub_wr_completion_workers == NULL);
+		ASSERT(fs_info->scrub_workers == NULL);
 		fs_info->scrub_workers = scrub_workers;
-		fs_info->scrub_wr_completion_workers = scrub_wr_comp;
 		refcount_set(&fs_info->scrub_workers_refcnt, 1);
 		mutex_unlock(&fs_info->scrub_lock);
 		return 0;
@@ -2754,10 +2742,7 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 
 	ret = 0;
 
-	destroy_workqueue(scrub_wr_comp);
-fail_scrub_wr_completion_workers:
 	destroy_workqueue(scrub_workers);
-fail_scrub_workers:
 	return ret;
 }
 
