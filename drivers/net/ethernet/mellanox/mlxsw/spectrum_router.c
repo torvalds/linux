@@ -2941,6 +2941,14 @@ struct mlxsw_sp_nexthop {
 	bool counter_valid;
 };
 
+static struct net_device *
+mlxsw_sp_nexthop_dev(const struct mlxsw_sp_nexthop *nh)
+{
+	if (nh->rif)
+		return mlxsw_sp_rif_dev(nh->rif);
+	return NULL;
+}
+
 enum mlxsw_sp_nexthop_group_type {
 	MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4,
 	MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6,
@@ -4014,16 +4022,18 @@ mlxsw_sp_nexthop_dead_neigh_replace(struct mlxsw_sp *mlxsw_sp,
 {
 	struct neighbour *n, *old_n = neigh_entry->key.n;
 	struct mlxsw_sp_nexthop *nh;
+	struct net_device *dev;
 	bool entry_connected;
 	u8 nud_state, dead;
 	int err;
 
 	nh = list_first_entry(&neigh_entry->nexthop_list,
 			      struct mlxsw_sp_nexthop, neigh_list_node);
+	dev = mlxsw_sp_nexthop_dev(nh);
 
-	n = neigh_lookup(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
+	n = neigh_lookup(nh->neigh_tbl, &nh->gw_addr, dev);
 	if (!n) {
-		n = neigh_create(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
+		n = neigh_create(nh->neigh_tbl, &nh->gw_addr, dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
 		neigh_event_send(n, NULL);
@@ -4110,21 +4120,23 @@ static int mlxsw_sp_nexthop_neigh_init(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry;
+	struct net_device *dev;
 	struct neighbour *n;
 	u8 nud_state, dead;
 	int err;
 
 	if (!nh->nhgi->gateway || nh->neigh_entry)
 		return 0;
+	dev = mlxsw_sp_nexthop_dev(nh);
 
 	/* Take a reference of neigh here ensuring that neigh would
 	 * not be destructed before the nexthop entry is finished.
 	 * The reference is taken either in neigh_lookup() or
 	 * in neigh_create() in case n is not found.
 	 */
-	n = neigh_lookup(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
+	n = neigh_lookup(nh->neigh_tbl, &nh->gw_addr, dev);
 	if (!n) {
-		n = neigh_create(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
+		n = neigh_create(nh->neigh_tbl, &nh->gw_addr, dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
 		neigh_event_send(n, NULL);
@@ -5516,9 +5528,10 @@ mlxsw_sp_rt6_nexthop(struct mlxsw_sp_nexthop_group *nh_grp,
 
 	for (i = 0; i < nh_grp->nhgi->count; i++) {
 		struct mlxsw_sp_nexthop *nh = &nh_grp->nhgi->nexthops[i];
+		struct net_device *dev = mlxsw_sp_nexthop_dev(nh);
 		struct fib6_info *rt = mlxsw_sp_rt6->rt;
 
-		if (nh->rif && nh->rif->dev == rt->fib6_nh->fib_nh_dev &&
+		if (dev && dev == rt->fib6_nh->fib_nh_dev &&
 		    ipv6_addr_equal((const struct in6_addr *) &nh->gw_addr,
 				    &rt->fib6_nh->fib_nh_gw6))
 			return nh;
