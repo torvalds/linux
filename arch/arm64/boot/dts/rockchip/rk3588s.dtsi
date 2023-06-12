@@ -3409,9 +3409,9 @@
 		interrupt-names = "irq_rkvenc1";
 		clocks = <&cru ACLK_RKVENC1>, <&cru HCLK_RKVENC1>, <&cru CLK_RKVENC1_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <600000000>, <0>, <800000000>;
+		rockchip,normal-rates = <500000000>, <0>, <800000000>;
 		assigned-clocks = <&cru ACLK_RKVENC1>, <&cru CLK_RKVENC1_CORE>;
-		assigned-clock-rates = <600000000>, <800000000>;
+		assigned-clock-rates = <500000000>, <800000000>;
 		resets = <&cru SRST_A_RKVENC1>, <&cru SRST_H_RKVENC1>, <&cru SRST_RKVENC1_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
 		rockchip,skip-pmu-idle-request;
