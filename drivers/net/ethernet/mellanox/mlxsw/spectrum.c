@@ -4337,8 +4337,8 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
 	/* Join a router interface configured on the LAG, if exists */
-	err = mlxsw_sp_port_vlan_router_join(mlxsw_sp_port->default_vlan,
-					     lag_dev, extack);
+	err = mlxsw_sp_router_port_join_lag(mlxsw_sp_port, lag_dev,
+					    extack);
 	if (err)
 		goto err_router_join;
 
