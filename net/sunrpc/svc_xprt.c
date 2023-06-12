@@ -849,7 +849,6 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 			len = svc_deferred_recv(rqstp);
 		else
 			len = xprt->xpt_ops->xpo_recvfrom(rqstp);
-		rqstp->rq_stime = ktime_get();
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 	} else
@@ -892,6 +891,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	err = -EAGAIN;
 	if (len <= 0)
 		goto out_release;
+
 	trace_svc_xdr_recvfrom(&rqstp->rq_arg);
 
 	clear_bit(XPT_OLD, &xprt->xpt_flags);
@@ -900,6 +900,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	if (serv->sv_stats)
 		serv->sv_stats->netcnt++;
+	rqstp->rq_stime = ktime_get();
 	return len;
 out_release:
 	rqstp->rq_res.len = 0;
