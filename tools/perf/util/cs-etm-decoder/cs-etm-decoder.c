@@ -561,11 +561,12 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 		break;
 	}
 
+	if (cs_etm__etmq_set_tid_el(etmq, tid, trace_chan_id,
+				    elem->context.exception_level))
+		return OCSD_RESP_FATAL_SYS_ERR;
+
 	if (tid == -1)
 		return OCSD_RESP_CONT;
-
-	if (cs_etm__etmq_set_tid(etmq, tid, trace_chan_id))
-		return OCSD_RESP_FATAL_SYS_ERR;
 
 	/*
 	 * A timestamp is generated after a PE_CONTEXT element so make sure

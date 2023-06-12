@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/zalloc.h>
 
-#include <opencsd/ocsd_if_types.h>
 #include <stdlib.h>
 
 #include "auxtrace.h"
@@ -88,6 +87,8 @@ struct cs_etm_traceid_queue {
 	union perf_event *event_buf;
 	struct thread *thread;
 	struct thread *prev_packet_thread;
+	ocsd_ex_level prev_packet_el;
+	ocsd_ex_level el;
 	struct branch_stack *last_branch;
 	struct branch_stack *last_branch_rb;
 	struct cs_etm_packet *prev_packet;
@@ -482,6 +483,7 @@ static int cs_etm__init_traceid_queue(struct cs_etm_queue *etmq,
 
 	queue = &etmq->etm->queues.queue_array[etmq->queue_nr];
 	tidq->trace_chan_id = trace_chan_id;
+	tidq->el = tidq->prev_packet_el = ocsd_EL_unknown;
 	tidq->thread = machine__findnew_thread(&etm->session->machines.host, -1,
 					       queue->tid);
 	tidq->prev_packet_thread = machine__idle_thread(&etm->session->machines.host);
@@ -629,6 +631,7 @@ static void cs_etm__packet_swap(struct cs_etm_auxtrace *etm,
 		tmp = tidq->packet;
 		tidq->packet = tidq->prev_packet;
 		tidq->prev_packet = tmp;
+		tidq->prev_packet_el = tidq->el;
 		thread__put(tidq->prev_packet_thread);
 		tidq->prev_packet_thread = thread__get(tidq->thread);
 	}
@@ -890,11 +893,43 @@ static bool cs_etm__evsel_is_auxtrace(struct perf_session *session,
 	return evsel->core.attr.type == aux->pmu_type;
 }
 
-static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
+static struct machine *cs_etm__get_machine(struct cs_etm_queue *etmq,
+					   ocsd_ex_level el)
 {
-	struct machine *machine;
+	enum cs_etm_pid_fmt pid_fmt = cs_etm__get_pid_fmt(etmq);
 
-	machine = &etmq->etm->session->machines.host;
+	/*
+	 * For any virtualisation based on nVHE (e.g. pKVM), or host kernels
+	 * running at EL1 assume everything is the host.
+	 */
+	if (pid_fmt == CS_ETM_PIDFMT_CTXTID)
+		return &etmq->etm->session->machines.host;
+
+	/*
+	 * Not perfect, but otherwise assume anything in EL1 is the default
+	 * guest, and everything else is the host. Distinguishing between guest
+	 * and host userspaces isn't currently supported either. Neither is
+	 * multiple guest support. All this does is reduce the likeliness of
+	 * decode errors where we look into the host kernel maps when it should
+	 * have been the guest maps.
+	 */
+	switch (el) {
+	case ocsd_EL1:
+		return machines__find_guest(&etmq->etm->session->machines,
+					    DEFAULT_GUEST_KERNEL_ID);
+	case ocsd_EL3:
+	case ocsd_EL2:
+	case ocsd_EL0:
+	case ocsd_EL_unknown:
+	default:
+		return &etmq->etm->session->machines.host;
+	}
+}
+
+static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address,
+			   ocsd_ex_level el)
+{
+	struct machine *machine = cs_etm__get_machine(etmq, el);
 
 	if (address >= machine__kernel_start(machine)) {
 		if (machine__is_host(machine))
@@ -904,10 +939,14 @@ static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
 	} else {
 		if (machine__is_host(machine))
 			return PERF_RECORD_MISC_USER;
-		else if (perf_guest)
+		else {
+			/*
+			 * Can't really happen at the moment because
+			 * cs_etm__get_machine() will always return
+			 * machines.host for any non EL1 trace.
+			 */
 			return PERF_RECORD_MISC_GUEST_USER;
-		else
-			return PERF_RECORD_MISC_HYPERVISOR;
+		}
 	}
 }
 
@@ -926,10 +965,11 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		return 0;
 
 	addr_location__init(&al);
-	cpumode = cs_etm__cpu_mode(etmq, address);
 	tidq = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
 	if (!tidq)
 		goto out;
+
+	cpumode = cs_etm__cpu_mode(etmq, address, tidq->el);
 
 	if (!thread__find_map(tidq->thread, cpumode, address, &al))
 		goto out;
@@ -1310,10 +1350,11 @@ cs_etm__get_trace(struct cs_etm_queue *etmq)
 	return etmq->buf_len;
 }
 
-static void cs_etm__set_thread(struct cs_etm_auxtrace *etm,
-			       struct cs_etm_traceid_queue *tidq, pid_t tid)
+static void cs_etm__set_thread(struct cs_etm_queue *etmq,
+			       struct cs_etm_traceid_queue *tidq, pid_t tid,
+			       ocsd_ex_level el)
 {
-	struct machine *machine = &etm->session->machines.host;
+	struct machine *machine = cs_etm__get_machine(etmq, el);
 
 	if (tid != -1) {
 		thread__zput(tidq->thread);
@@ -1323,10 +1364,12 @@ static void cs_etm__set_thread(struct cs_etm_auxtrace *etm,
 	/* Couldn't find a known thread */
 	if (!tidq->thread)
 		tidq->thread = machine__idle_thread(machine);
+
+	tidq->el = el;
 }
 
-int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
-			 pid_t tid, u8 trace_chan_id)
+int cs_etm__etmq_set_tid_el(struct cs_etm_queue *etmq, pid_t tid,
+			    u8 trace_chan_id, ocsd_ex_level el)
 {
 	struct cs_etm_traceid_queue *tidq;
 
@@ -1334,7 +1377,7 @@ int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
 	if (!tidq)
 		return -EINVAL;
 
-	cs_etm__set_thread(etmq->etm, tidq, tid);
+	cs_etm__set_thread(etmq, tidq, tid, el);
 	return 0;
 }
 
@@ -1404,7 +1447,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	struct perf_sample sample = {.ip = 0,};
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
-	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
+	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr, tidq->el);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
 	/* Set time field based on etm auxtrace config. */
@@ -1463,7 +1506,8 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
 	ip = cs_etm__last_executed_instr(tidq->prev_packet);
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
-	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
+	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip,
+						     tidq->prev_packet_el);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
 	/* Set time field based on etm auxtrace config. */
