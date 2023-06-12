@@ -643,7 +643,7 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 
 	sf = __get_srcline(map__dso(map), map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true, true, e->ip);
-	if (!strcmp(sf, SRCLINE_UNKNOWN))
+	if (sf == SRCLINE_UNKNOWN)
 		return no_srcfile;
 	p = strchr(sf, ':');
 	if (p && *sf) {

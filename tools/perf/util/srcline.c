@@ -23,6 +23,8 @@
 
 bool srcline_full_filename;
 
+char *srcline__unknown = (char *)"??:0";
+
 static const char *dso__name(struct dso *dso)
 {
 	const char *dso_name;
@@ -809,7 +811,7 @@ void zfree_srcline(char **srcline)
 	if (*srcline == NULL)
 		return;
 
-	if (strcmp(*srcline, SRCLINE_UNKNOWN))
+	if (*srcline != SRCLINE_UNKNOWN)
 		free(*srcline);
 
 	*srcline = NULL;

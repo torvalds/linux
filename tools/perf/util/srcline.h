@@ -25,7 +25,8 @@ char *srcline__tree_find(struct rb_root_cached *tree, u64 addr);
 /* delete all srclines within the tree */
 void srcline__tree_delete(struct rb_root_cached *tree);
 
-#define SRCLINE_UNKNOWN  ((char *) "??:0")
+extern char *srcline__unknown;
+#define SRCLINE_UNKNOWN srcline__unknown
 
 struct inline_list {
 	struct symbol		*symbol;
