@@ -1458,16 +1458,18 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		list_del_init(&new_node->node);
 
 		if (RC_CHK_ACCESS(new_map) == RC_CHK_ACCESS(replacement_map)) {
+			struct map *map_ref;
+
 			map__set_start(map, map__start(new_map));
 			map__set_end(map, map__end(new_map));
 			map__set_pgoff(map, map__pgoff(new_map));
 			map__set_map_ip(map, map__map_ip_ptr(new_map));
 			map__set_unmap_ip(map, map__unmap_ip_ptr(new_map));
 			/* Ensure maps are correctly ordered */
-			map__get(map);
-			maps__remove(kmaps, map);
-			err = maps__insert(kmaps, map);
-			map__put(map);
+			map_ref = map__get(map);
+			maps__remove(kmaps, map_ref);
+			err = maps__insert(kmaps, map_ref);
+			map__put(map_ref);
 			map__put(new_map);
 			if (err)
 				goto out_err;
