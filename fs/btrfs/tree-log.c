@@ -4056,14 +4056,14 @@ static int drop_inode_items(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		ret = btrfs_search_slot(trans, log, &key, path, -1, 1);
-		BUG_ON(ret == 0); /* Logic error */
-		if (ret < 0)
+		if (ret < 0) {
 			break;
+		} else if (ret > 0) {
+			if (path->slots[0] == 0)
+				break;
+			path->slots[0]--;
+		}
 
-		if (path->slots[0] == 0)
-			break;
-
-		path->slots[0]--;
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 				      path->slots[0]);
 
