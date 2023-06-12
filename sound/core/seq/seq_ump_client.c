@@ -13,6 +13,7 @@
 #include <sound/seq_kernel.h>
 #include <sound/seq_device.h>
 #include "seq_clientmgr.h"
+#include "seq_system.h"
 
 struct seq_ump_client;
 struct seq_ump_group;
@@ -273,6 +274,8 @@ static void update_port_infos(struct seq_ump_client *client)
 						new);
 		if (err < 0)
 			goto error;
+		/* notify to system port */
+		snd_seq_system_client_ev_port_change(client->seq_client, i);
 	}
  error:
 	kfree(new);
