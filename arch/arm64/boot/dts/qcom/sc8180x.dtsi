@@ -2310,7 +2310,8 @@
 		};
 
 		adreno_smmu: iommu@2ca0000 {
-			compatible = "qcom,sc8180x-smmu-500", "arm,mmu-500";
+			compatible = "qcom,sc8180x-smmu-500", "qcom,adreno-smmu",
+				     "qcom,smmu-500", "arm,mmu-500";
 			reg = <0 0x02ca0000 0 0x10000>;
 			#iommu-cells = <2>;
 			#global-interrupts = <1>;
