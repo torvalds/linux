@@ -221,9 +221,6 @@ static void io_worker_exit(struct io_worker *worker)
 	raw_spin_unlock(&wq->lock);
 	io_wq_dec_running(worker);
 	worker->flags = 0;
-	preempt_disable();
-	current->flags &= ~PF_IO_WORKER;
-	preempt_enable();
 
 	kfree_rcu(worker, rcu);
 	io_worker_ref_put(wq);
