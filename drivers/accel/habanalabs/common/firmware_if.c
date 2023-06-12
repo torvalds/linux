@@ -724,6 +724,11 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_exists = true;
 	}
 
+	if (err_val & CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL) {
+		dev_err(hdev->dev, "Device boot error - Failed to set threshold for temperature sensor\n");
+		err_exists = true;
+	}
+
 	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
 		/* Ignore this bit, don't prevent driver loading */
 		dev_dbg(hdev->dev, "device unusable status is set\n");
