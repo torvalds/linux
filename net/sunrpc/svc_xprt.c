@@ -74,6 +74,13 @@ static LIST_HEAD(svc_xprt_class_list);
  *		  that no other thread will be using the transport or will
  *		  try to set XPT_DEAD.
  */
+
+/**
+ * svc_reg_xprt_class - Register a server-side RPC transport class
+ * @xcl: New transport class to be registered
+ *
+ * Returns zero on success; otherwise a negative errno is returned.
+ */
 int svc_reg_xprt_class(struct svc_xprt_class *xcl)
 {
 	struct svc_xprt_class *cl;
@@ -96,6 +103,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(svc_reg_xprt_class);
 
+/**
+ * svc_unreg_xprt_class - Unregister a server-side RPC transport class
+ * @xcl: Transport class to be unregistered
+ *
+ */
 void svc_unreg_xprt_class(struct svc_xprt_class *xcl)
 {
 	dprintk("svc: Removing svc transport class '%s'\n", xcl->xcl_name);
