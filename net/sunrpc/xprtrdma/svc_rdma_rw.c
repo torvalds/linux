@@ -84,8 +84,7 @@ out_noctx:
 	return NULL;
 }
 
-static void __svc_rdma_put_rw_ctxt(struct svcxprt_rdma *rdma,
-				   struct svc_rdma_rw_ctxt *ctxt,
+static void __svc_rdma_put_rw_ctxt(struct svc_rdma_rw_ctxt *ctxt,
 				   struct llist_head *list)
 {
 	sg_free_table_chained(&ctxt->rw_sg_table, SG_CHUNK_SIZE);
@@ -95,7 +94,7 @@ static void __svc_rdma_put_rw_ctxt(struct svcxprt_rdma *rdma,
 static void svc_rdma_put_rw_ctxt(struct svcxprt_rdma *rdma,
 				 struct svc_rdma_rw_ctxt *ctxt)
 {
-	__svc_rdma_put_rw_ctxt(rdma, ctxt, &rdma->sc_rw_ctxts);
+	__svc_rdma_put_rw_ctxt(ctxt, &rdma->sc_rw_ctxts);
 }
 
 /**
@@ -200,7 +199,7 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
 		rdma_rw_ctx_destroy(&ctxt->rw_ctx, rdma->sc_qp,
 				    rdma->sc_port_num, ctxt->rw_sg_table.sgl,
 				    ctxt->rw_nents, dir);
-		__svc_rdma_put_rw_ctxt(rdma, ctxt, &free);
+		__svc_rdma_put_rw_ctxt(ctxt, &free);
 
 		ctxt->rw_node.next = first;
 		first = &ctxt->rw_node;
