@@ -3449,7 +3449,15 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	completion_rc = wait_for_completion_interruptible_timeout(&pend->fence.completion,
 								timeout);
 	if (completion_rc > 0) {
-		*status = HL_WAIT_CS_STATUS_COMPLETED;
+		if (pend->fence.error == -EIO) {
+			dev_err_ratelimited(hdev->dev,
+					"interrupt based wait ioctl aborted(error:%d) due to a reset cycle initiated\n",
+					pend->fence.error);
+			rc = -EIO;
+			*status = HL_WAIT_CS_STATUS_ABORTED;
+		} else {
+			*status = HL_WAIT_CS_STATUS_COMPLETED;
+		}
 	} else {
 		if (completion_rc == -ERESTARTSYS) {
 			dev_err_ratelimited(hdev->dev,
@@ -3458,21 +3466,13 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 			rc = -EINTR;
 			*status = HL_WAIT_CS_STATUS_ABORTED;
 		} else {
-			if (pend->fence.error == -EIO) {
-				dev_err_ratelimited(hdev->dev,
-						"interrupt based wait ioctl aborted(error:%d) due to a reset cycle initiated\n",
-						pend->fence.error);
-				rc = -EIO;
-				*status = HL_WAIT_CS_STATUS_ABORTED;
-			} else {
-				/* The wait has timed-out. We don't know anything beyond that
-				 * because the workload wasn't submitted through the driver.
-				 * Therefore, from driver's perspective, the workload is still
-				 * executing.
-				 */
-				rc = 0;
-				*status = HL_WAIT_CS_STATUS_BUSY;
-			}
+			/* The wait has timed-out. We don't know anything beyond that
+			 * because the workload was not submitted through the driver.
+			 * Therefore, from driver's perspective, the workload is still
+			 * executing.
+			 */
+			rc = 0;
+			*status = HL_WAIT_CS_STATUS_BUSY;
 		}
 	}
 
