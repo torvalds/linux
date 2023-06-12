@@ -172,6 +172,7 @@
   __const_udelay
   consume_skb
   contig_page_data
+  copy_highpage
   __cpu_active_mask
   cpu_all_bits
   cpu_bit_bitmap
@@ -2114,7 +2115,9 @@
   ttm_bo_move_ttm
   ttm_bo_put
   ttm_bo_unlock_delayed_workqueue
+  ttm_bo_unmap_virtual
   ttm_bo_validate
+  ttm_bo_wait
   ttm_dma_page_alloc_debugfs
   ttm_dma_populate
   ttm_dma_tt_fini
