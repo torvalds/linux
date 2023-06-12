@@ -451,7 +451,9 @@ static int ifcvf_vdpa_reset(struct vdpa_device *vdpa_dev)
 
 static u16 ifcvf_vdpa_get_vq_num_max(struct vdpa_device *vdpa_dev)
 {
-	return IFCVF_QUEUE_MAX;
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	return ifcvf_get_max_vq_size(vf);
 }
 
 static int ifcvf_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
