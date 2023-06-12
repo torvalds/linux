@@ -21,6 +21,11 @@
 #include "blk.h"
 #include "blk-wbt.h"
 
+/* Protects blk_nr_sub_page_limit_queues and blk_sub_page_limits changes. */
+static DEFINE_MUTEX(blk_sub_page_limit_lock);
+static uint32_t blk_nr_sub_page_limit_queues;
+DEFINE_STATIC_KEY_FALSE(blk_sub_page_limits);
+
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 {
 	q->rq_timeout = timeout;
@@ -61,6 +66,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->zoned = BLK_ZONED_NONE;
 	lim->zone_write_granularity = 0;
 	lim->dma_alignment = 511;
+	lim->sub_page_limits = false;
 }
 
 /**
@@ -104,6 +110,50 @@ void blk_queue_bounce_limit(struct request_queue *q, enum blk_bounce bounce)
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
 /**
+ * blk_enable_sub_page_limits - enable support for limits below the page size
+ * @lim: request queue limits for which to enable support of these features.
+ *
+ * Enable support for max_segment_size values smaller than PAGE_SIZE and for
+ * max_hw_sectors values below PAGE_SIZE >> SECTOR_SHIFT. Support for these
+ * features is not enabled all the time because of the runtime overhead of these
+ * features.
+ */
+static void blk_enable_sub_page_limits(struct queue_limits *lim)
+{
+	if (lim->sub_page_limits)
+		return;
+
+	lim->sub_page_limits = true;
+
+	mutex_lock(&blk_sub_page_limit_lock);
+	if (++blk_nr_sub_page_limit_queues == 1)
+		static_branch_enable(&blk_sub_page_limits);
+	mutex_unlock(&blk_sub_page_limit_lock);
+}
+
+/**
+ * blk_disable_sub_page_limits - disable support for limits below the page size
+ * @lim: request queue limits for which to enable support of these features.
+ *
+ * max_segment_size values smaller than PAGE_SIZE and for max_hw_sectors values
+ * below PAGE_SIZE >> SECTOR_SHIFT. Support for these features is not enabled
+ * all the time because of the runtime overhead of these features.
+ */
+void blk_disable_sub_page_limits(struct queue_limits *lim)
+{
+	if (!lim->sub_page_limits)
+		return;
+
+	lim->sub_page_limits = false;
+
+	mutex_lock(&blk_sub_page_limit_lock);
+	WARN_ON_ONCE(blk_nr_sub_page_limit_queues <= 0);
+	if (--blk_nr_sub_page_limit_queues == 0)
+		static_branch_disable(&blk_sub_page_limits);
+	mutex_unlock(&blk_sub_page_limit_lock);
+}
+
+/**
  * blk_queue_max_hw_sectors - set max sectors for a request for this queue
  * @q:  the request queue for the device
  * @max_hw_sectors:  max hardware sectors in the usual 512b unit
@@ -127,6 +177,11 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 	struct queue_limits *limits = &q->limits;
 	unsigned int min_max_hw_sectors = PAGE_SIZE >> SECTOR_SHIFT;
 	unsigned int max_sectors;
+
+	if (max_hw_sectors < min_max_hw_sectors) {
+		blk_enable_sub_page_limits(limits);
+		min_max_hw_sectors = 1;
+	}
 
 	if (max_hw_sectors < min_max_hw_sectors) {
 		max_hw_sectors = min_max_hw_sectors;
@@ -280,6 +335,11 @@ EXPORT_SYMBOL_GPL(blk_queue_max_discard_segments);
 void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 {
 	unsigned int min_max_segment_size = PAGE_SIZE;
+
+	if (max_size < min_max_segment_size) {
+		blk_enable_sub_page_limits(&q->limits);
+		min_max_segment_size = SECTOR_SIZE;
+	}
 
 	if (max_size < min_max_segment_size) {
 		max_size = min_max_segment_size;
