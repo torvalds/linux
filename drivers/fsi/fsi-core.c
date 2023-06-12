@@ -913,8 +913,12 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 
 	/* Check if we qualify for legacy numbering */
 	if (cid >= 0 && cid < 16 && type < 4) {
-		/* Try reserving the legacy number */
-		id = (cid << 4) | type;
+		/*
+		 * Try reserving the legacy number, which has 0 - 0x3f reserved
+		 * in the ida range. cid goes up to 0xf and type contains two
+		 * bits, so construct the id with the below two bit shift.
+		 */
+		id = (cid << 2) | type;
 		id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
 		if (id >= 0) {
 			*out_index = fsi_adjust_index(cid);
@@ -949,7 +953,8 @@ int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
 		int aid = of_alias_get_id(fdev->dev.of_node, fsi_dev_type_names[type]);
 
 		if (aid >= 0) {
-			int id = (aid << 4) | type;
+			/* Use the same scheme as the legacy numbers. */
+			int id = (aid << 2) | type;
 
 			id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
 			if (id >= 0) {
