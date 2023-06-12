@@ -105,7 +105,7 @@ static void vmemmap_pte_range(pmd_t *pmd, unsigned long addr,
 	 * remapping (which is calling @walk->remap_pte).
 	 */
 	if (!walk->reuse_page) {
-		walk->reuse_page = pte_page(*pte);
+		walk->reuse_page = pte_page(ptep_get(pte));
 		/*
 		 * Because the reuse address is part of the range that we are
 		 * walking, skip the reuse address range.
@@ -239,7 +239,7 @@ static void vmemmap_remap_pte(pte_t *pte, unsigned long addr,
 	 * to the tail pages.
 	 */
 	pgprot_t pgprot = PAGE_KERNEL_RO;
-	struct page *page = pte_page(*pte);
+	struct page *page = pte_page(ptep_get(pte));
 	pte_t entry;
 
 	/* Remapping the head page requires r/w */
@@ -286,7 +286,7 @@ static void vmemmap_restore_pte(pte_t *pte, unsigned long addr,
 	struct page *page;
 	void *to;
 
-	BUG_ON(pte_page(*pte) != walk->reuse_page);
+	BUG_ON(pte_page(ptep_get(pte)) != walk->reuse_page);
 
 	page = list_first_entry(walk->vmemmap_pages, struct page, lru);
 	list_del(&page->lru);

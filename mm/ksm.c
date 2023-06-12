@@ -429,15 +429,17 @@ static int break_ksm_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long nex
 	struct page *page = NULL;
 	spinlock_t *ptl;
 	pte_t *pte;
+	pte_t ptent;
 	int ret;
 
 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
 	if (!pte)
 		return 0;
-	if (pte_present(*pte)) {
-		page = vm_normal_page(walk->vma, addr, *pte);
-	} else if (!pte_none(*pte)) {
-		swp_entry_t entry = pte_to_swp_entry(*pte);
+	ptent = ptep_get(pte);
+	if (pte_present(ptent)) {
+		page = vm_normal_page(walk->vma, addr, ptent);
+	} else if (!pte_none(ptent)) {
+		swp_entry_t entry = pte_to_swp_entry(ptent);
 
 		/*
 		 * As KSM pages remain KSM pages until freed, no need to wait
@@ -1085,6 +1087,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 	int err = -EFAULT;
 	struct mmu_notifier_range range;
 	bool anon_exclusive;
+	pte_t entry;
 
 	pvmw.address = page_address_in_vma(page, vma);
 	if (pvmw.address == -EFAULT)
@@ -1102,10 +1105,9 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		goto out_unlock;
 
 	anon_exclusive = PageAnonExclusive(page);
-	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
+	entry = ptep_get(pvmw.pte);
+	if (pte_write(entry) || pte_dirty(entry) ||
 	    anon_exclusive || mm_tlb_flush_pending(mm)) {
-		pte_t entry;
-
 		swapped = PageSwapCache(page);
 		flush_cache_page(vma, pvmw.address, page_to_pfn(page));
 		/*
@@ -1147,7 +1149,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 
 		set_pte_at_notify(mm, pvmw.address, pvmw.pte, entry);
 	}
-	*orig_pte = *pvmw.pte;
+	*orig_pte = entry;
 	err = 0;
 
 out_unlock:
@@ -1204,7 +1206,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	if (!ptep)
 		goto out_mn;
-	if (!pte_same(*ptep, orig_pte)) {
+	if (!pte_same(ptep_get(ptep), orig_pte)) {
 		pte_unmap_unlock(ptep, ptl);
 		goto out_mn;
 	}
@@ -1231,7 +1233,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		dec_mm_counter(mm, MM_ANONPAGES);
 	}
 
-	flush_cache_page(vma, addr, pte_pfn(*ptep));
+	flush_cache_page(vma, addr, pte_pfn(ptep_get(ptep)));
 	/*
 	 * No need to notify as we are replacing a read only page with another
 	 * read only page with the same content.

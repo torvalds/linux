@@ -207,7 +207,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 				break;
 		}
 
-		pte = *ptep;
+		pte = ptep_get(ptep);
 		if (!is_swap_pte(pte))
 			continue;
 		entry = pte_to_swp_entry(pte);
@@ -438,7 +438,7 @@ regular_folio:
 	flush_tlb_batched_pending(mm);
 	arch_enter_lazy_mmu_mode();
 	for (; addr < end; pte++, addr += PAGE_SIZE) {
-		ptent = *pte;
+		ptent = ptep_get(pte);
 
 		if (pte_none(ptent))
 			continue;
@@ -642,7 +642,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 	flush_tlb_batched_pending(mm);
 	arch_enter_lazy_mmu_mode();
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
-		ptent = *pte;
+		ptent = ptep_get(pte);
 
 		if (pte_none(ptent))
 			continue;

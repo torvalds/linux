@@ -226,7 +226,7 @@ static bool shadow_mapped(unsigned long addr)
 	if (pmd_bad(*pmd))
 		return true;
 	pte = pte_offset_kernel(pmd, addr);
-	return !pte_none(*pte);
+	return !pte_none(ptep_get(pte));
 }
 
 static int __meminit kasan_mem_notifier(struct notifier_block *nb,
@@ -317,7 +317,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 	unsigned long page;
 	pte_t pte;
 
-	if (likely(!pte_none(*ptep)))
+	if (likely(!pte_none(ptep_get(ptep))))
 		return 0;
 
 	page = __get_free_page(GFP_KERNEL);
@@ -328,7 +328,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 	pte = pfn_pte(PFN_DOWN(__pa(page)), PAGE_KERNEL);
 
 	spin_lock(&init_mm.page_table_lock);
-	if (likely(pte_none(*ptep))) {
+	if (likely(pte_none(ptep_get(ptep)))) {
 		set_pte_at(&init_mm, addr, ptep, pte);
 		page = 0;
 	}
@@ -418,11 +418,11 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 {
 	unsigned long page;
 
-	page = (unsigned long)__va(pte_pfn(*ptep) << PAGE_SHIFT);
+	page = (unsigned long)__va(pte_pfn(ptep_get(ptep)) << PAGE_SHIFT);
 
 	spin_lock(&init_mm.page_table_lock);
 
-	if (likely(!pte_none(*ptep))) {
+	if (likely(!pte_none(ptep_get(ptep)))) {
 		pte_clear(&init_mm, addr, ptep);
 		free_page(page);
 	}

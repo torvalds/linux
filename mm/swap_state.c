@@ -275,9 +275,9 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
 	}
 }
 
-/* 
- * If we are the only user, then try to free up the swap cache. 
- * 
+/*
+ * If we are the only user, then try to free up the swap cache.
+ *
  * Its ok to check the swapcache flag without the folio lock
  * here because we are going to recheck again inside
  * folio_free_swap() _with_ the lock.
@@ -294,7 +294,7 @@ void free_swap_cache(struct page *page)
 	}
 }
 
-/* 
+/*
  * Perform a free_page(), also freeing any swap cache associated with
  * this page if it is the last user of the page.
  */

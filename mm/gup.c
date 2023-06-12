@@ -477,13 +477,14 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
 		pte_t *pte, unsigned int flags)
 {
 	if (flags & FOLL_TOUCH) {
-		pte_t entry = *pte;
+		pte_t orig_entry = ptep_get(pte);
+		pte_t entry = orig_entry;
 
 		if (flags & FOLL_WRITE)
 			entry = pte_mkdirty(entry);
 		entry = pte_mkyoung(entry);
 
-		if (!pte_same(*pte, entry)) {
+		if (!pte_same(orig_entry, entry)) {
 			set_pte_at(vma->vm_mm, address, pte, entry);
 			update_mmu_cache(vma, address, pte);
 		}
@@ -549,7 +550,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (!ptep)
 		return no_page_table(vma, flags);
-	pte = *ptep;
+	pte = ptep_get(ptep);
 	if (!pte_present(pte))
 		goto no_page;
 	if (pte_protnone(pte) && !gup_can_follow_protnone(flags))
@@ -821,6 +822,7 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	pte_t entry;
 	int ret = -EFAULT;
 
 	/* user gate pages are read-only */
@@ -844,16 +846,17 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 	pte = pte_offset_map(pmd, address);
 	if (!pte)
 		return -EFAULT;
-	if (pte_none(*pte))
+	entry = ptep_get(pte);
+	if (pte_none(entry))
 		goto unmap;
 	*vma = get_gate_vma(mm);
 	if (!page)
 		goto out;
-	*page = vm_normal_page(*vma, address, *pte);
+	*page = vm_normal_page(*vma, address, entry);
 	if (!*page) {
-		if ((gup_flags & FOLL_DUMP) || !is_zero_pfn(pte_pfn(*pte)))
+		if ((gup_flags & FOLL_DUMP) || !is_zero_pfn(pte_pfn(entry)))
 			goto unmap;
-		*page = pte_page(*pte);
+		*page = pte_page(entry);
 	}
 	ret = try_grab_page(*page, gup_flags);
 	if (unlikely(ret))
@@ -2496,7 +2499,7 @@ static int gup_pte_range(pmd_t pmd, pmd_t *pmdp, unsigned long addr,
 		}
 
 		if (unlikely(pmd_val(pmd) != pmd_val(*pmdp)) ||
-		    unlikely(pte_val(pte) != pte_val(*ptep))) {
+		    unlikely(pte_val(pte) != pte_val(ptep_get(ptep)))) {
 			gup_put_folio(folio, 1, flags);
 			goto pte_unmap;
 		}
@@ -2693,7 +2696,7 @@ static int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 	if (!folio)
 		return 0;
 
-	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
+	if (unlikely(pte_val(pte) != pte_val(ptep_get(ptep)))) {
 		gup_put_folio(folio, refs, flags);
 		return 0;
 	}

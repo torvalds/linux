@@ -188,6 +188,7 @@ static bool remove_migration_pte(struct folio *folio,
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		rmap_t rmap_flags = RMAP_NONE;
+		pte_t old_pte;
 		pte_t pte;
 		swp_entry_t entry;
 		struct page *new;
@@ -210,17 +211,18 @@ static bool remove_migration_pte(struct folio *folio,
 
 		folio_get(folio);
 		pte = mk_pte(new, READ_ONCE(vma->vm_page_prot));
-		if (pte_swp_soft_dirty(*pvmw.pte))
+		old_pte = ptep_get(pvmw.pte);
+		if (pte_swp_soft_dirty(old_pte))
 			pte = pte_mksoft_dirty(pte);
 
-		entry = pte_to_swp_entry(*pvmw.pte);
+		entry = pte_to_swp_entry(old_pte);
 		if (!is_migration_entry_young(entry))
 			pte = pte_mkold(pte);
 		if (folio_test_dirty(folio) && is_migration_entry_dirty(entry))
 			pte = pte_mkdirty(pte);
 		if (is_writable_migration_entry(entry))
 			pte = pte_mkwrite(pte);
-		else if (pte_swp_uffd_wp(*pvmw.pte))
+		else if (pte_swp_uffd_wp(old_pte))
 			pte = pte_mkuffd_wp(pte);
 
 		if (folio_test_anon(folio) && !is_readable_migration_entry(entry))
@@ -234,9 +236,9 @@ static bool remove_migration_pte(struct folio *folio,
 				entry = make_readable_device_private_entry(
 							page_to_pfn(new));
 			pte = swp_entry_to_pte(entry);
-			if (pte_swp_soft_dirty(*pvmw.pte))
+			if (pte_swp_soft_dirty(old_pte))
 				pte = pte_swp_mksoft_dirty(pte);
-			if (pte_swp_uffd_wp(*pvmw.pte))
+			if (pte_swp_uffd_wp(old_pte))
 				pte = pte_swp_mkuffd_wp(pte);
 		}
 
@@ -308,7 +310,7 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 	if (!ptep)
 		return;
 
-	pte = *ptep;
+	pte = ptep_get(ptep);
 	pte_unmap(ptep);
 
 	if (!is_swap_pte(pte))

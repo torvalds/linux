@@ -39,7 +39,7 @@ struct folio *damon_get_folio(unsigned long pfn)
 
 void damon_ptep_mkold(pte_t *pte, struct vm_area_struct *vma, unsigned long addr)
 {
-	struct folio *folio = damon_get_folio(pte_pfn(*pte));
+	struct folio *folio = damon_get_folio(pte_pfn(ptep_get(pte)));
 
 	if (!folio)
 		return;

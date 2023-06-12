@@ -105,7 +105,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 	flush_tlb_batched_pending(vma->vm_mm);
 	arch_enter_lazy_mmu_mode();
 	do {
-		oldpte = *pte;
+		oldpte = ptep_get(pte);
 		if (pte_present(oldpte)) {
 			pte_t ptent;
 
@@ -544,7 +544,8 @@ long change_protection(struct mmu_gather *tlb,
 static int prot_none_pte_entry(pte_t *pte, unsigned long addr,
 			       unsigned long next, struct mm_walk *walk)
 {
-	return pfn_modify_allowed(pte_pfn(*pte), *(pgprot_t *)(walk->private)) ?
+	return pfn_modify_allowed(pte_pfn(ptep_get(pte)),
+				  *(pgprot_t *)(walk->private)) ?
 		0 : -EACCES;
 }
 
@@ -552,7 +553,8 @@ static int prot_none_hugetlb_entry(pte_t *pte, unsigned long hmask,
 				   unsigned long addr, unsigned long next,
 				   struct mm_walk *walk)
 {
-	return pfn_modify_allowed(pte_pfn(*pte), *(pgprot_t *)(walk->private)) ?
+	return pfn_modify_allowed(pte_pfn(ptep_get(pte)),
+				  *(pgprot_t *)(walk->private)) ?
 		0 : -EACCES;
 }
 

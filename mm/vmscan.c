@@ -4037,15 +4037,16 @@ restart:
 	for (i = pte_index(start), addr = start; addr != end; i++, addr += PAGE_SIZE) {
 		unsigned long pfn;
 		struct folio *folio;
+		pte_t ptent = ptep_get(pte + i);
 
 		total++;
 		walk->mm_stats[MM_LEAF_TOTAL]++;
 
-		pfn = get_pte_pfn(pte[i], args->vma, addr);
+		pfn = get_pte_pfn(ptent, args->vma, addr);
 		if (pfn == -1)
 			continue;
 
-		if (!pte_young(pte[i])) {
+		if (!pte_young(ptent)) {
 			walk->mm_stats[MM_LEAF_OLD]++;
 			continue;
 		}
@@ -4060,7 +4061,7 @@ restart:
 		young++;
 		walk->mm_stats[MM_LEAF_YOUNG]++;
 
-		if (pte_dirty(pte[i]) && !folio_test_dirty(folio) &&
+		if (pte_dirty(ptent) && !folio_test_dirty(folio) &&
 		    !(folio_test_anon(folio) && folio_test_swapbacked(folio) &&
 		      !folio_test_swapcache(folio)))
 			folio_mark_dirty(folio);
@@ -4703,12 +4704,13 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 
 	for (i = 0, addr = start; addr != end; i++, addr += PAGE_SIZE) {
 		unsigned long pfn;
+		pte_t ptent = ptep_get(pte + i);
 
-		pfn = get_pte_pfn(pte[i], pvmw->vma, addr);
+		pfn = get_pte_pfn(ptent, pvmw->vma, addr);
 		if (pfn == -1)
 			continue;
 
-		if (!pte_young(pte[i]))
+		if (!pte_young(ptent))
 			continue;
 
 		folio = get_pfn_folio(pfn, memcg, pgdat, !walk || walk->can_swap);
@@ -4720,7 +4722,7 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 
 		young++;
 
-		if (pte_dirty(pte[i]) && !folio_test_dirty(folio) &&
+		if (pte_dirty(ptent) && !folio_test_dirty(folio) &&
 		    !(folio_test_anon(folio) && folio_test_swapbacked(folio) &&
 		      !folio_test_swapcache(folio)))
 			folio_mark_dirty(folio);

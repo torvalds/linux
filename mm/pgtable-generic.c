@@ -68,7 +68,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 			  unsigned long address, pte_t *ptep,
 			  pte_t entry, int dirty)
 {
-	int changed = !pte_same(*ptep, entry);
+	int changed = !pte_same(ptep_get(ptep), entry);
 	if (changed) {
 		set_pte_at(vma->vm_mm, address, ptep, entry);
 		flush_tlb_fix_spurious_fault(vma, address, ptep);

@@ -6025,7 +6025,7 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
 	if (!pte)
 		return 0;
 	for (; addr != end; pte++, addr += PAGE_SIZE)
-		if (get_mctgt_type(vma, addr, *pte, NULL))
+		if (get_mctgt_type(vma, addr, ptep_get(pte), NULL))
 			mc.precharge++;	/* increment precharge temporarily */
 	pte_unmap_unlock(pte - 1, ptl);
 	cond_resched();
@@ -6246,7 +6246,7 @@ retry:
 	if (!pte)
 		return 0;
 	for (; addr != end; addr += PAGE_SIZE) {
-		pte_t ptent = *(pte++);
+		pte_t ptent = ptep_get(pte++);
 		bool device = false;
 		swp_entry_t ent;
 

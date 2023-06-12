@@ -511,7 +511,7 @@ static void release_pte_pages(pte_t *pte, pte_t *_pte,
 	struct folio *folio, *tmp;
 
 	while (--_pte >= pte) {
-		pte_t pteval = *_pte;
+		pte_t pteval = ptep_get(_pte);
 		unsigned long pfn;
 
 		if (pte_none(pteval))
@@ -555,7 +555,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 
 	for (_pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, address += PAGE_SIZE) {
-		pte_t pteval = *_pte;
+		pte_t pteval = ptep_get(_pte);
 		if (pte_none(pteval) || (pte_present(pteval) &&
 				is_zero_pfn(pte_pfn(pteval)))) {
 			++none_or_zero;
@@ -699,7 +699,7 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 
 	for (_pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, address += PAGE_SIZE) {
-		pteval = *_pte;
+		pteval = ptep_get(_pte);
 		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
 			if (is_zero_pfn(pte_pfn(pteval))) {
@@ -797,7 +797,7 @@ static int __collapse_huge_page_copy(pte_t *pte,
 	 */
 	for (_pte = pte, _address = address; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, page++, _address += PAGE_SIZE) {
-		pteval = *_pte;
+		pteval = ptep_get(_pte);
 		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
 			clear_user_highpage(page, _address);
 			continue;
@@ -1274,7 +1274,7 @@ static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 
 	for (_address = address, _pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, _address += PAGE_SIZE) {
-		pte_t pteval = *_pte;
+		pte_t pteval = ptep_get(_pte);
 		if (is_swap_pte(pteval)) {
 			++unmapped;
 			if (!cc->is_khugepaged ||
@@ -1650,18 +1650,19 @@ int collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
 	for (i = 0, addr = haddr, pte = start_pte;
 	     i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE, pte++) {
 		struct page *page;
+		pte_t ptent = ptep_get(pte);
 
 		/* empty pte, skip */
-		if (pte_none(*pte))
+		if (pte_none(ptent))
 			continue;
 
 		/* page swapped out, abort */
-		if (!pte_present(*pte)) {
+		if (!pte_present(ptent)) {
 			result = SCAN_PTE_NON_PRESENT;
 			goto abort;
 		}
 
-		page = vm_normal_page(vma, addr, *pte);
+		page = vm_normal_page(vma, addr, ptent);
 		if (WARN_ON_ONCE(page && is_zone_device_page(page)))
 			page = NULL;
 		/*
@@ -1677,10 +1678,11 @@ int collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
 	for (i = 0, addr = haddr, pte = start_pte;
 	     i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE, pte++) {
 		struct page *page;
+		pte_t ptent = ptep_get(pte);
 
-		if (pte_none(*pte))
+		if (pte_none(ptent))
 			continue;
-		page = vm_normal_page(vma, addr, *pte);
+		page = vm_normal_page(vma, addr, ptent);
 		if (WARN_ON_ONCE(page && is_zone_device_page(page)))
 			goto abort;
 		page_remove_rmap(page, vma, false);

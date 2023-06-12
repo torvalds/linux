@@ -508,6 +508,7 @@ static int queue_folios_pte_range(pmd_t *pmd, unsigned long addr,
 	unsigned long flags = qp->flags;
 	bool has_unmovable = false;
 	pte_t *pte, *mapped_pte;
+	pte_t ptent;
 	spinlock_t *ptl;
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
@@ -520,9 +521,10 @@ static int queue_folios_pte_range(pmd_t *pmd, unsigned long addr,
 		return 0;
 	}
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
-		if (!pte_present(*pte))
+		ptent = ptep_get(pte);
+		if (!pte_present(ptent))
 			continue;
-		folio = vm_normal_folio(vma, addr, *pte);
+		folio = vm_normal_folio(vma, addr, ptent);
 		if (!folio || folio_is_zone_device(folio))
 			continue;
 		/*

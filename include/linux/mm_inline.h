@@ -555,7 +555,7 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 	bool arm_uffd_pte = false;
 
 	/* The current status of the pte should be "cleared" before calling */
-	WARN_ON_ONCE(!pte_none(*pte));
+	WARN_ON_ONCE(!pte_none(ptep_get(pte)));
 
 	/*
 	 * NOTE: userfaultfd_wp_unpopulated() doesn't need this whole

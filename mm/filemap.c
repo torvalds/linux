@@ -3523,7 +3523,7 @@ again:
 		 * handled in the specific fault path, and it'll prohibit the
 		 * fault-around logic.
 		 */
-		if (!pte_none(*vmf->pte))
+		if (!pte_none(ptep_get(vmf->pte)))
 			goto unlock;
 
 		/* We're about to handle the fault */

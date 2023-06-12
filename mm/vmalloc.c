@@ -103,7 +103,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	if (!pte)
 		return -ENOMEM;
 	do {
-		BUG_ON(!pte_none(*pte));
+		BUG_ON(!pte_none(ptep_get(pte)));
 
 #ifdef CONFIG_HUGETLB_PAGE
 		size = arch_vmap_pte_range_map_size(addr, end, pfn, max_page_shift);
@@ -472,7 +472,7 @@ static int vmap_pages_pte_range(pmd_t *pmd, unsigned long addr,
 	do {
 		struct page *page = pages[*nr];
 
-		if (WARN_ON(!pte_none(*pte)))
+		if (WARN_ON(!pte_none(ptep_get(pte))))
 			return -EBUSY;
 		if (WARN_ON(!page))
 			return -ENOMEM;
@@ -704,7 +704,7 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 		return NULL;
 
 	ptep = pte_offset_kernel(pmd, addr);
-	pte = *ptep;
+	pte = ptep_get(ptep);
 	if (pte_present(pte))
 		page = pte_page(pte);
 

@@ -97,7 +97,7 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	 * registered, we firstly wr-protect a none pte which has no page cache
 	 * page backing it, then access the page.
 	 */
-	if (!pte_none_mostly(*dst_pte))
+	if (!pte_none_mostly(ptep_get(dst_pte)))
 		goto out_unlock;
 
 	folio = page_folio(page);
@@ -230,7 +230,7 @@ static int mfill_atomic_pte_zeropage(pmd_t *dst_pmd,
 			goto out_unlock;
 	}
 	ret = -EEXIST;
-	if (!pte_none(*dst_pte))
+	if (!pte_none(ptep_get(dst_pte)))
 		goto out_unlock;
 	set_pte_at(dst_vma->vm_mm, dst_addr, dst_pte, _dst_pte);
 	/* No need to invalidate - it was non-present before */

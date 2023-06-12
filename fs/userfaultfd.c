@@ -335,6 +335,7 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
 	pud_t *pud;
 	pmd_t *pmd, _pmd;
 	pte_t *pte;
+	pte_t ptent;
 	bool ret = true;
 
 	mmap_assert_locked(mm);
@@ -374,9 +375,10 @@ again:
 	 * changes under us.  PTE markers should be handled the same as none
 	 * ptes here.
 	 */
-	if (pte_none_mostly(*pte))
+	ptent = ptep_get(pte);
+	if (pte_none_mostly(ptent))
 		ret = true;
-	if (!pte_write(*pte) && (reason & VM_UFFD_WP))
+	if (!pte_write(ptent) && (reason & VM_UFFD_WP))
 		ret = true;
 	pte_unmap(pte);
 

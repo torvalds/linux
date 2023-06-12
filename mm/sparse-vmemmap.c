@@ -133,7 +133,7 @@ static void * __meminit altmap_alloc_block_buf(unsigned long size,
 void __meminit vmemmap_verify(pte_t *pte, int node,
 				unsigned long start, unsigned long end)
 {
-	unsigned long pfn = pte_pfn(*pte);
+	unsigned long pfn = pte_pfn(ptep_get(pte));
 	int actual_node = early_pfn_to_nid(pfn);
 
 	if (node_distance(actual_node, node) > LOCAL_DISTANCE)
@@ -146,7 +146,7 @@ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node,
 				       struct page *reuse)
 {
 	pte_t *pte = pte_offset_kernel(pmd, addr);
-	if (pte_none(*pte)) {
+	if (pte_none(ptep_get(pte))) {
 		pte_t entry;
 		void *p;
 
@@ -414,7 +414,7 @@ static int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 		 * with just tail struct pages.
 		 */
 		return vmemmap_populate_range(start, end, node, NULL,
-					      pte_page(*pte));
+					      pte_page(ptep_get(pte)));
 	}
 
 	size = min(end - start, pgmap_vmemmap_nr(pgmap) * sizeof(struct page));
@@ -438,7 +438,7 @@ static int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 		 */
 		next += PAGE_SIZE;
 		rc = vmemmap_populate_range(next, last, node, NULL,
-					    pte_page(*pte));
+					    pte_page(ptep_get(pte)));
 		if (rc)
 			return -ENOMEM;
 	}

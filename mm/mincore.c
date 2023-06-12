@@ -119,7 +119,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		return 0;
 	}
 	for (; addr != end; ptep++, addr += PAGE_SIZE) {
-		pte_t pte = *ptep;
+		pte_t pte = ptep_get(ptep);
 
 		/* We need to do cache lookup too for pte markers */
 		if (pte_none_mostly(pte))

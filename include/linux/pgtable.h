@@ -231,7 +231,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long address,
 					    pte_t *ptep)
 {
-	pte_t pte = *ptep;
+	pte_t pte = ptep_get(ptep);
 	int r = 1;
 	if (!pte_young(pte))
 		r = 0;
@@ -318,7 +318,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address,
 				       pte_t *ptep)
 {
-	pte_t pte = *ptep;
+	pte_t pte = ptep_get(ptep);
 	pte_clear(mm, address, ptep);
 	page_table_check_pte_clear(mm, address, pte);
 	return pte;
@@ -519,7 +519,7 @@ extern pud_t pudp_huge_clear_flush(struct vm_area_struct *vma,
 struct mm_struct;
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long address, pte_t *ptep)
 {
-	pte_t old_pte = *ptep;
+	pte_t old_pte = ptep_get(ptep);
 	set_pte_at(mm, address, ptep, pte_wrprotect(old_pte));
 }
 #endif

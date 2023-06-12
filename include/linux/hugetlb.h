@@ -1185,7 +1185,11 @@ static inline void hugetlb_count_sub(long l, struct mm_struct *mm)
 static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 					  unsigned long addr, pte_t *ptep)
 {
+#ifdef CONFIG_MMU
+	return ptep_get(ptep);
+#else
 	return *ptep;
+#endif
 }
 
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,

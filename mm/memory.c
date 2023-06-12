@@ -699,15 +699,17 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 				  struct page *page, unsigned long address,
 				  pte_t *ptep)
 {
+	pte_t orig_pte;
 	pte_t pte;
 	swp_entry_t entry;
 
+	orig_pte = ptep_get(ptep);
 	pte = pte_mkold(mk_pte(page, READ_ONCE(vma->vm_page_prot)));
-	if (pte_swp_soft_dirty(*ptep))
+	if (pte_swp_soft_dirty(orig_pte))
 		pte = pte_mksoft_dirty(pte);
 
-	entry = pte_to_swp_entry(*ptep);
-	if (pte_swp_uffd_wp(*ptep))
+	entry = pte_to_swp_entry(orig_pte);
+	if (pte_swp_uffd_wp(orig_pte))
 		pte = pte_mkuffd_wp(pte);
 	else if (is_writable_device_exclusive_entry(entry))
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
@@ -744,7 +746,7 @@ static int
 try_restore_exclusive_pte(pte_t *src_pte, struct vm_area_struct *vma,
 			unsigned long addr)
 {
-	swp_entry_t entry = pte_to_swp_entry(*src_pte);
+	swp_entry_t entry = pte_to_swp_entry(ptep_get(src_pte));
 	struct page *page = pfn_swap_entry_to_page(entry);
 
 	if (trylock_page(page)) {
@@ -768,9 +770,10 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		struct vm_area_struct *src_vma, unsigned long addr, int *rss)
 {
 	unsigned long vm_flags = dst_vma->vm_flags;
-	pte_t pte = *src_pte;
+	pte_t orig_pte = ptep_get(src_pte);
+	pte_t pte = orig_pte;
 	struct page *page;
-	swp_entry_t entry = pte_to_swp_entry(pte);
+	swp_entry_t entry = pte_to_swp_entry(orig_pte);
 
 	if (likely(!non_swap_entry(entry))) {
 		if (swap_duplicate(entry) < 0)
@@ -785,8 +788,8 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			spin_unlock(&mmlist_lock);
 		}
 		/* Mark the swap entry as shared. */
-		if (pte_swp_exclusive(*src_pte)) {
-			pte = pte_swp_clear_exclusive(*src_pte);
+		if (pte_swp_exclusive(orig_pte)) {
+			pte = pte_swp_clear_exclusive(orig_pte);
 			set_pte_at(src_mm, addr, src_pte, pte);
 		}
 		rss[MM_SWAPENTS]++;
@@ -805,9 +808,9 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			entry = make_readable_migration_entry(
 							swp_offset(entry));
 			pte = swp_entry_to_pte(entry);
-			if (pte_swp_soft_dirty(*src_pte))
+			if (pte_swp_soft_dirty(orig_pte))
 				pte = pte_swp_mksoft_dirty(pte);
-			if (pte_swp_uffd_wp(*src_pte))
+			if (pte_swp_uffd_wp(orig_pte))
 				pte = pte_swp_mkuffd_wp(pte);
 			set_pte_at(src_mm, addr, src_pte, pte);
 		}
@@ -840,7 +843,7 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			entry = make_readable_device_private_entry(
 							swp_offset(entry));
 			pte = swp_entry_to_pte(entry);
-			if (pte_swp_uffd_wp(*src_pte))
+			if (pte_swp_uffd_wp(orig_pte))
 				pte = pte_swp_mkuffd_wp(pte);
 			set_pte_at(src_mm, addr, src_pte, pte);
 		}
@@ -904,7 +907,7 @@ copy_present_page(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma
 	/* All done, just insert the new page copy in the child */
 	pte = mk_pte(&new_folio->page, dst_vma->vm_page_prot);
 	pte = maybe_mkwrite(pte_mkdirty(pte), dst_vma);
-	if (userfaultfd_pte_wp(dst_vma, *src_pte))
+	if (userfaultfd_pte_wp(dst_vma, ptep_get(src_pte)))
 		/* Uffd-wp needs to be delivered to dest pte as well */
 		pte = pte_mkuffd_wp(pte);
 	set_pte_at(dst_vma->vm_mm, addr, dst_pte, pte);
@@ -922,7 +925,7 @@ copy_present_pte(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
 {
 	struct mm_struct *src_mm = src_vma->vm_mm;
 	unsigned long vm_flags = src_vma->vm_flags;
-	pte_t pte = *src_pte;
+	pte_t pte = ptep_get(src_pte);
 	struct page *page;
 	struct folio *folio;
 
@@ -1002,6 +1005,7 @@ copy_pte_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
 	struct mm_struct *src_mm = src_vma->vm_mm;
 	pte_t *orig_src_pte, *orig_dst_pte;
 	pte_t *src_pte, *dst_pte;
+	pte_t ptent;
 	spinlock_t *src_ptl, *dst_ptl;
 	int progress, ret = 0;
 	int rss[NR_MM_COUNTERS];
@@ -1047,17 +1051,18 @@ again:
 			    spin_needbreak(src_ptl) || spin_needbreak(dst_ptl))
 				break;
 		}
-		if (pte_none(*src_pte)) {
+		ptent = ptep_get(src_pte);
+		if (pte_none(ptent)) {
 			progress++;
 			continue;
 		}
-		if (unlikely(!pte_present(*src_pte))) {
+		if (unlikely(!pte_present(ptent))) {
 			ret = copy_nonpresent_pte(dst_mm, src_mm,
 						  dst_pte, src_pte,
 						  dst_vma, src_vma,
 						  addr, rss);
 			if (ret == -EIO) {
-				entry = pte_to_swp_entry(*src_pte);
+				entry = pte_to_swp_entry(ptep_get(src_pte));
 				break;
 			} else if (ret == -EBUSY) {
 				break;
@@ -1407,7 +1412,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 	flush_tlb_batched_pending(mm);
 	arch_enter_lazy_mmu_mode();
 	do {
-		pte_t ptent = *pte;
+		pte_t ptent = ptep_get(pte);
 		struct page *page;
 
 		if (pte_none(ptent))
@@ -1822,7 +1827,7 @@ static int validate_page_before_insert(struct page *page)
 static int insert_page_into_pte_locked(struct vm_area_struct *vma, pte_t *pte,
 			unsigned long addr, struct page *page, pgprot_t prot)
 {
-	if (!pte_none(*pte))
+	if (!pte_none(ptep_get(pte)))
 		return -EBUSY;
 	/* Ok, finally just insert the thing.. */
 	get_page(page);
@@ -2116,7 +2121,8 @@ static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
 		return VM_FAULT_OOM;
-	if (!pte_none(*pte)) {
+	entry = ptep_get(pte);
+	if (!pte_none(entry)) {
 		if (mkwrite) {
 			/*
 			 * For read faults on private mappings the PFN passed
@@ -2128,11 +2134,11 @@ static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			 * allocation and mapping invalidation so just skip the
 			 * update.
 			 */
-			if (pte_pfn(*pte) != pfn_t_to_pfn(pfn)) {
-				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
+			if (pte_pfn(entry) != pfn_t_to_pfn(pfn)) {
+				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(entry)));
 				goto out_unlock;
 			}
-			entry = pte_mkyoung(*pte);
+			entry = pte_mkyoung(entry);
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 			if (ptep_set_access_flags(vma, addr, pte, entry, 1))
 				update_mmu_cache(vma, addr, pte);
@@ -2344,7 +2350,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		return -ENOMEM;
 	arch_enter_lazy_mmu_mode();
 	do {
-		BUG_ON(!pte_none(*pte));
+		BUG_ON(!pte_none(ptep_get(pte)));
 		if (!pfn_modify_allowed(pfn, prot)) {
 			err = -EACCES;
 			break;
@@ -2585,7 +2591,7 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 
 	if (fn) {
 		do {
-			if (create || !pte_none(*pte)) {
+			if (create || !pte_none(ptep_get(pte))) {
 				err = fn(pte++, addr, data);
 				if (err)
 					break;
@@ -2787,7 +2793,7 @@ static inline int pte_unmap_same(struct vm_fault *vmf)
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPTION)
 	if (sizeof(pte_t) > sizeof(unsigned long)) {
 		spin_lock(vmf->ptl);
-		same = pte_same(*vmf->pte, vmf->orig_pte);
+		same = pte_same(ptep_get(vmf->pte), vmf->orig_pte);
 		spin_unlock(vmf->ptl);
 	}
 #endif
@@ -2838,7 +2844,7 @@ static inline int __wp_page_copy_user(struct page *dst, struct page *src,
 		pte_t entry;
 
 		vmf->pte = pte_offset_map_lock(mm, vmf->pmd, addr, &vmf->ptl);
-		if (unlikely(!vmf->pte || !pte_same(*vmf->pte, vmf->orig_pte))) {
+		if (unlikely(!vmf->pte || !pte_same(ptep_get(vmf->pte), vmf->orig_pte))) {
 			/*
 			 * Other thread has already handled the fault
 			 * and update local tlb only
@@ -2866,7 +2872,7 @@ static inline int __wp_page_copy_user(struct page *dst, struct page *src,
 
 		/* Re-validate under PTL if the page is still mapped */
 		vmf->pte = pte_offset_map_lock(mm, vmf->pmd, addr, &vmf->ptl);
-		if (unlikely(!vmf->pte || !pte_same(*vmf->pte, vmf->orig_pte))) {
+		if (unlikely(!vmf->pte || !pte_same(ptep_get(vmf->pte), vmf->orig_pte))) {
 			/* The PTE changed under us, update local tlb */
 			if (vmf->pte)
 				update_mmu_tlb(vma, addr, vmf->pte);
@@ -3114,7 +3120,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 	 * Re-check the pte - we dropped the lock
 	 */
 	vmf->pte = pte_offset_map_lock(mm, vmf->pmd, vmf->address, &vmf->ptl);
-	if (likely(vmf->pte && pte_same(*vmf->pte, vmf->orig_pte))) {
+	if (likely(vmf->pte && pte_same(ptep_get(vmf->pte), vmf->orig_pte))) {
 		if (old_folio) {
 			if (!folio_test_anon(old_folio)) {
 				dec_mm_counter(mm, mm_counter_file(&old_folio->page));
@@ -3241,7 +3247,7 @@ vm_fault_t finish_mkwrite_fault(struct vm_fault *vmf)
 	 * We might have raced with another page fault while we released the
 	 * pte_offset_map_lock.
 	 */
-	if (!pte_same(*vmf->pte, vmf->orig_pte)) {
+	if (!pte_same(ptep_get(vmf->pte), vmf->orig_pte)) {
 		update_mmu_tlb(vmf->vma, vmf->address, vmf->pte);
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
 		return VM_FAULT_NOPAGE;
@@ -3336,7 +3342,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	struct folio *folio = NULL;
 
 	if (likely(!unshare)) {
-		if (userfaultfd_pte_wp(vma, *vmf->pte)) {
+		if (userfaultfd_pte_wp(vma, ptep_get(vmf->pte))) {
 			pte_unmap_unlock(vmf->pte, vmf->ptl);
 			return handle_userfault(vmf, VM_UFFD_WP);
 		}
@@ -3598,7 +3604,7 @@ static vm_fault_t remove_device_exclusive_entry(struct vm_fault *vmf)
 
 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
 				&vmf->ptl);
-	if (likely(vmf->pte && pte_same(*vmf->pte, vmf->orig_pte)))
+	if (likely(vmf->pte && pte_same(ptep_get(vmf->pte), vmf->orig_pte)))
 		restore_exclusive_pte(vma, vmf->page, vmf->address, vmf->pte);
 
 	if (vmf->pte)
@@ -3643,7 +3649,7 @@ static vm_fault_t pte_marker_clear(struct vm_fault *vmf)
 	 * quickly from a PTE_MARKER_UFFD_WP into PTE_MARKER_SWAPIN_ERROR.
 	 * So is_pte_marker() check is not enough to safely drop the pte.
 	 */
-	if (pte_same(vmf->orig_pte, *vmf->pte))
+	if (pte_same(vmf->orig_pte, ptep_get(vmf->pte)))
 		pte_clear(vmf->vma->vm_mm, vmf->address, vmf->pte);
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 	return 0;
@@ -3739,7 +3745,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 			vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
 					vmf->address, &vmf->ptl);
 			if (unlikely(!vmf->pte ||
-				     !pte_same(*vmf->pte, vmf->orig_pte)))
+				     !pte_same(ptep_get(vmf->pte),
+							vmf->orig_pte)))
 				goto unlock;
 
 			/*
@@ -3816,7 +3823,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 			 */
 			vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
 					vmf->address, &vmf->ptl);
-			if (likely(vmf->pte && pte_same(*vmf->pte, vmf->orig_pte)))
+			if (likely(vmf->pte &&
+				   pte_same(ptep_get(vmf->pte), vmf->orig_pte)))
 				ret = VM_FAULT_OOM;
 			goto unlock;
 		}
@@ -3886,7 +3894,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	 */
 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
 			&vmf->ptl);
-	if (unlikely(!vmf->pte || !pte_same(*vmf->pte, vmf->orig_pte)))
+	if (unlikely(!vmf->pte || !pte_same(ptep_get(vmf->pte), vmf->orig_pte)))
 		goto out_nomap;
 
 	if (unlikely(!folio_test_uptodate(folio))) {
@@ -4331,9 +4339,9 @@ void do_set_pte(struct vm_fault *vmf, struct page *page, unsigned long addr)
 static bool vmf_pte_changed(struct vm_fault *vmf)
 {
 	if (vmf->flags & FAULT_FLAG_ORIG_PTE_VALID)
-		return !pte_same(*vmf->pte, vmf->orig_pte);
+		return !pte_same(ptep_get(vmf->pte), vmf->orig_pte);
 
-	return !pte_none(*vmf->pte);
+	return !pte_none(ptep_get(vmf->pte));
 }
 
 /**
@@ -4643,7 +4651,7 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
 			 * we don't have concurrent modification by hardware
 			 * followed by an update.
 			 */
-			if (unlikely(pte_none(*vmf->pte)))
+			if (unlikely(pte_none(ptep_get(vmf->pte))))
 				ret = VM_FAULT_SIGBUS;
 			else
 				ret = VM_FAULT_NOPAGE;
@@ -4699,7 +4707,7 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
 	 * the pfn may be screwed if the read is non atomic.
 	 */
 	spin_lock(vmf->ptl);
-	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte))) {
+	if (unlikely(!pte_same(ptep_get(vmf->pte), vmf->orig_pte))) {
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
 		goto out;
 	}
@@ -4772,7 +4780,7 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
 					       vmf->address, &vmf->ptl);
 		if (unlikely(!vmf->pte))
 			goto out;
-		if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte))) {
+		if (unlikely(!pte_same(ptep_get(vmf->pte), vmf->orig_pte))) {
 			pte_unmap_unlock(vmf->pte, vmf->ptl);
 			goto out;
 		}
@@ -4930,7 +4938,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 
 	spin_lock(vmf->ptl);
 	entry = vmf->orig_pte;
-	if (unlikely(!pte_same(*vmf->pte, entry))) {
+	if (unlikely(!pte_same(ptep_get(vmf->pte), entry))) {
 		update_mmu_tlb(vmf->vma, vmf->address, vmf->pte);
 		goto unlock;
 	}
@@ -5416,7 +5424,7 @@ int follow_pte(struct mm_struct *mm, unsigned long address,
 	ptep = pte_offset_map_lock(mm, pmd, address, ptlp);
 	if (!ptep)
 		goto out;
-	if (!pte_present(*ptep))
+	if (!pte_present(ptep_get(ptep)))
 		goto unlock;
 	*ptepp = ptep;
 	return 0;
@@ -5453,7 +5461,7 @@ int follow_pfn(struct vm_area_struct *vma, unsigned long address,
 	ret = follow_pte(vma->vm_mm, address, &ptep, &ptl);
 	if (ret)
 		return ret;
-	*pfn = pte_pfn(*ptep);
+	*pfn = pte_pfn(ptep_get(ptep));
 	pte_unmap_unlock(ptep, ptl);
 	return 0;
 }
@@ -5473,7 +5481,7 @@ int follow_phys(struct vm_area_struct *vma,
 
 	if (follow_pte(vma->vm_mm, address, &ptep, &ptl))
 		goto out;
-	pte = *ptep;
+	pte = ptep_get(ptep);
 
 	if ((flags & FOLL_WRITE) && !pte_write(pte))
 		goto unlock;
@@ -5517,7 +5525,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 retry:
 	if (follow_pte(vma->vm_mm, addr, &ptep, &ptl))
 		return -EINVAL;
-	pte = *ptep;
+	pte = ptep_get(ptep);
 	pte_unmap_unlock(ptep, ptl);
 
 	prot = pgprot_val(pte_pgprot(pte));
@@ -5533,7 +5541,7 @@ retry:
 	if (follow_pte(vma->vm_mm, addr, &ptep, &ptl))
 		goto out_unmap;
 
-	if (!pte_same(pte, *ptep)) {
+	if (!pte_same(pte, ptep_get(ptep))) {
 		pte_unmap_unlock(ptep, ptl);
 		iounmap(maddr);
 

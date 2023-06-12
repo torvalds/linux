@@ -188,7 +188,7 @@ static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 
 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
 				   new_pte++, new_addr += PAGE_SIZE) {
-		if (pte_none(*old_pte))
+		if (pte_none(ptep_get(old_pte)))
 			continue;
 
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);

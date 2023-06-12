@@ -323,7 +323,7 @@ static int damon_mkold_pmd_entry(pmd_t *pmd, unsigned long addr,
 		walk->action = ACTION_AGAIN;
 		return 0;
 	}
-	if (!pte_present(*pte))
+	if (!pte_present(ptep_get(pte)))
 		goto out;
 	damon_ptep_mkold(pte, walk->vma, addr);
 out:
@@ -433,6 +433,7 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
 		unsigned long next, struct mm_walk *walk)
 {
 	pte_t *pte;
+	pte_t ptent;
 	spinlock_t *ptl;
 	struct folio *folio;
 	struct damon_young_walk_private *priv = walk->private;
@@ -471,12 +472,13 @@ regular_page:
 		walk->action = ACTION_AGAIN;
 		return 0;
 	}
-	if (!pte_present(*pte))
+	ptent = ptep_get(pte);
+	if (!pte_present(ptent))
 		goto out;
-	folio = damon_get_folio(pte_pfn(*pte));
+	folio = damon_get_folio(pte_pfn(ptent));
 	if (!folio)
 		goto out;
-	if (pte_young(*pte) || !folio_test_idle(folio) ||
+	if (pte_young(ptent) || !folio_test_idle(folio) ||
 			mmu_notifier_test_young(walk->mm, addr))
 		priv->young = true;
 	*priv->folio_sz = folio_size(folio);
