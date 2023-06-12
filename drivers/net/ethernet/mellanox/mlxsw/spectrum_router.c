@@ -1651,6 +1651,17 @@ static void mlxsw_sp_netdevice_ipip_ol_down_event(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_nexthop_rif_migrate(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_rif *old_rif,
 					 struct mlxsw_sp_rif *new_rif);
+static void mlxsw_sp_rif_migrate_destroy(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_rif *old_rif,
+					 struct mlxsw_sp_rif *new_rif,
+					 bool migrate_nhs)
+{
+	if (migrate_nhs)
+		mlxsw_sp_nexthop_rif_migrate(mlxsw_sp, old_rif, new_rif);
+
+	mlxsw_sp_rif_destroy(old_rif);
+}
+
 static int
 mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_ipip_entry *ipip_entry,
@@ -1668,12 +1679,8 @@ mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
 		return PTR_ERR(new_lb_rif);
 	ipip_entry->ol_lb = new_lb_rif;
 
-	if (keep_encap)
-		mlxsw_sp_nexthop_rif_migrate(mlxsw_sp, &old_lb_rif->common,
-					     &new_lb_rif->common);
-
-	mlxsw_sp_rif_destroy(&old_lb_rif->common);
-
+	mlxsw_sp_rif_migrate_destroy(mlxsw_sp, &old_lb_rif->common,
+				     &new_lb_rif->common, keep_encap);
 	return 0;
 }
 
