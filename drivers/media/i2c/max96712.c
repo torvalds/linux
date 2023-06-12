@@ -15,12 +15,15 @@
  *         mipi dpll predef rate set api.
  * V1.4.00 i2c read/write api update.
  *         support for GMSL1 Link.
+ * V1.5.00 only check max96712 chipid when probe.
+ *         enable stream out if not all link are locked.
  *
  */
 
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/i2c.h>
@@ -42,7 +45,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x04, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x05, 0x00)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -76,7 +79,7 @@
 #define MAX96712_LOCK_STATE_LINK_D	BIT(3)
 #define MAX96712_LOCK_STATE_MASK	0x0F /* bit[3:0], GMSL link mask: 1 = disable, 1 = enable */
 
-#define MAX96712_FORCE_ALL_CLOCK_EN	0 /* 1: enable, 0: disable */
+#define MAX96712_FORCE_ALL_CLOCK_EN	1 /* 1: enable, 0: disable */
 
 #define REG_NULL			0xFFFF
 
@@ -473,6 +476,62 @@ static int max96712_write_array(struct i2c_client *client,
 	return ret;
 }
 
+static int max96712_check_local_chipid(struct max96712 *max96712)
+{
+	struct i2c_client *client = max96712->client;
+	struct device *dev = &max96712->client->dev;
+	int ret;
+	u8 id = 0;
+
+	ret = max96712_read_reg(client, MAX96712_I2C_ADDR,
+				MAX96712_REG_CHIP_ID, MAX96712_REG_LENGTH_16BIT,
+				MAX96712_REG_VALUE_08BIT, &id);
+	if ((ret != 0) || (id != MAX96712_CHIP_ID)) {
+		dev_err(dev, "Unexpected MAX96712 chip id(%02x), ret(%d)\n", id, ret);
+		return -ENODEV;
+	}
+
+	dev_info(dev, "Detected MAX96712 chipid: %02x\n", id);
+
+	return 0;
+}
+
+static int __maybe_unused max96712_check_remote_chipid(struct max96712 *max96712)
+{
+	struct device *dev = &max96712->client->dev;
+	int ret = 0;
+	u8 id;
+
+	dev_info(dev, "Check remote chipid\n");
+
+	id = 0;
+#if 0
+	// max96717
+	ret = max96712_read_reg(max96712->client, MAX96717_I2C_ADDR,
+				MAX96717_REG_CHIP_ID, MAX96712_REG_LENGTH_16BIT,
+				MAX96712_REG_VALUE_08BIT, &id);
+	if ((ret != 0) || (id != MAX96717_CHIP_ID)) {
+		dev_err(dev, "Unexpected MAX96717 chip id(%02x), ret(%d)\n", id, ret);
+		return -ENODEV;
+	}
+	dev_info(dev, "Detected MAX96717 chipid: 0x%02x\n", id);
+#endif
+
+#if 0
+	// max96715
+	ret = max96712_read_reg(max96712->client, MAX96715_I2C_ADDR,
+				MAX96715_REG_CHIP_ID, MAX96712_REG_LENGTH_08BIT,
+				MAX96712_REG_VALUE_08BIT, &id);
+	if ((ret != 0) || (id != MAX96715_CHIP_ID)) {
+		dev_err(dev, "Unexpected MAX96715 chip id(%02x), ret(%d)\n", id, ret);
+		return -ENODEV;
+	}
+	dev_info(dev, "Detected MAX96715 chipid: 0x%02x\n", id);
+#endif
+
+	return ret;
+}
+
 static u8 max96712_get_link_lock_state(struct max96712 *max96712, u8 link_mask)
 {
 	struct i2c_client *client = max96712->client;
@@ -577,18 +636,12 @@ static int max96712_check_link_lock_state(struct max96712 *max96712)
 {
 	struct i2c_client *client = max96712->client;
 	struct device *dev = &max96712->client->dev;
-	u8 id = 0, lock_state = 0, link_mask = 0, link_type = 0;
+	u8 lock_state = 0, link_mask = 0, link_type = 0;
 	int ret, i, time_ms;
 
-	ret = max96712_read_reg(client, MAX96712_I2C_ADDR,
-				MAX96712_REG_CHIP_ID, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, &id);
-	if (id != MAX96712_CHIP_ID) {
-		dev_err(dev, "Unexpected MAX96712 chip id(%02x), ret(%d)\n", id, ret);
-		return -ENODEV;
-	}
-
-	dev_info(dev, "Detected MAX96712 chipid: %02x\n", id);
+	ret = max96712_check_local_chipid(max96712);
+	if (ret)
+		return ret;
 
 	/* IF VDD = 1.2V: Enable REG_ENABLE and REG_MNL
 	 *	CTRL0: Enable REG_ENABLE
@@ -691,26 +744,9 @@ static int max96712_check_link_lock_state(struct max96712 *max96712)
 			}
 
 		if ((lock_state & link_mask) == link_mask) {
-			dev_info(dev, "All Links are locked: 0x%x\n", lock_state);
+			dev_info(dev, "All Links are locked: 0x%x, time_ms = %d\n", lock_state, time_ms);
 #if 0
-			ret = max96712_read_reg(client, MAX96717_I2C_ADDR,
-						MAX96717_REG_CHIP_ID, MAX96712_REG_LENGTH_16BIT,
-						MAX96712_REG_VALUE_08BIT, &id);
-			if (id != MAX96717_CHIP_ID) {
-				dev_err(dev, "Unexpected MAX96717 chip id(%02x), ret(%d)\n", id, ret);
-				return -ENODEV;
-			}
-			dev_info(dev, "Detected MAX96717 chipid: 0x%02x\n", id);
-#endif
-#if 0
-			ret = max96712_read_reg(client, MAX96715_I2C_ADDR,
-						MAX96715_REG_CHIP_ID, MAX96712_REG_LENGTH_08BIT,
-						MAX96712_REG_VALUE_08BIT, &id);
-			if (id != MAX96715_CHIP_ID) {
-				dev_err(dev, "Unexpected MAX96715 chip id(%02x), ret(%d)\n", id, ret);
-				return -ENODEV;
-			}
-			dev_info(dev, "Detected MAX96715 chipid: 0x%02x\n", id);
+			max96712_check_remote_chipid(max96712);
 #endif
 			return 0;
 		}
@@ -719,8 +755,13 @@ static int max96712_check_link_lock_state(struct max96712 *max96712)
 		time_ms += 10;
 	}
 
-	dev_err(dev, "Failed to detect camera link!\n");
-	return -ENODEV;
+	if ((lock_state & link_mask) != 0) {
+		dev_info(dev, "Partial links are locked: 0x%x, time_ms = %d\n", lock_state, time_ms);
+		return 0;
+	} else {
+		dev_err(dev, "Failed to detect camera link, time_ms = %d!\n", time_ms);
+		return -ENODEV;
+	}
 }
 
 static irqreturn_t max96712_hot_plug_detect_irq_handler(int irq, void *dev_id)
@@ -828,15 +869,24 @@ static int __maybe_unused max96712_dphy_dpll_predef_set(struct i2c_client *clien
 			MAX96712_REG_VALUE_08BIT, 0xf5);
 	}
 
-	ret |= max96712_read_reg(client, MAX96712_I2C_ADDR,
-			0x0400, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, &dpll_lock);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "DPLL predef set error!\n");
 		return ret;
+	}
 
-	dev_info(&client->dev, "DPLL predef set: dpll_lock = 0x%02x\n", dpll_lock);
-
-	return ret;
+	ret = read_poll_timeout(max96712_read_reg, ret,
+				!(ret < 0) && (dpll_lock & 0xF0),
+				1000, 10000, false,
+				client, MAX96712_I2C_ADDR,
+				0x0400, MAX96712_REG_LENGTH_16BIT,
+				MAX96712_REG_VALUE_08BIT, &dpll_lock);
+	if (ret < 0) {
+		dev_err(&client->dev, "DPLL is not locked, dpll_lock = 0x%02x\n", dpll_lock);
+		return ret;
+	} else {
+		dev_err(&client->dev, "DPLL is locked, dpll_lock = 0x%02x\n", dpll_lock);
+		return 0;
+	}
 }
 
 static int max96712_auto_init_deskew(struct i2c_client *client, u32 deskew_mask)
@@ -1363,18 +1413,18 @@ static int __max96712_start_stream(struct max96712 *max96712)
 	if (ret)
 		return ret;
 
+	link_freq_idx = max96712->cur_mode->link_freq_idx;
+	link_freq_mhz = (u32)div_s64(link_freq_items[link_freq_idx], 1000000L);
+	ret = max96712_dphy_dpll_predef_set(max96712->client, link_freq_mhz);
+	if (ret)
+		return ret;
+
 	if (max96712->auto_init_deskew_mask != 0) {
 		ret = max96712_auto_init_deskew(max96712->client,
 					max96712->auto_init_deskew_mask);
 		if (ret)
 			return ret;
 	}
-
-	link_freq_idx = max96712->cur_mode->link_freq_idx;
-	link_freq_mhz = (u32)div_s64(link_freq_items[link_freq_idx], 1000000L);
-	ret = max96712_dphy_dpll_predef_set(max96712->client, link_freq_mhz);
-	if (ret)
-		return ret;
 
 	if (max96712->frame_sync_period != 0) {
 		ret = max96712_frame_sync_period(max96712->client,
@@ -1938,7 +1988,7 @@ static int max96712_probe(struct i2c_client *client,
 	if (ret)
 		goto err_free_handler;
 
-	ret = max96712_check_link_lock_state(max96712);
+	ret = max96712_check_local_chipid(max96712);
 	if (ret)
 		goto err_power_off;
 
