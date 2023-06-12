@@ -456,7 +456,10 @@ static int parse_btf_arg(const char *varname, struct fetch_insn *code,
 
 		if (name && !strcmp(name, varname)) {
 			code->op = FETCH_OP_ARG;
-			code->param = i;
+			if (ctx->flags & TPARG_FL_TPOINT)
+				code->param = i + 1;
+			else
+				code->param = i;
 			return 0;
 		}
 	}
@@ -470,8 +473,11 @@ static const struct fetch_type *parse_btf_arg_type(int arg_idx,
 	struct btf *btf = traceprobe_get_btf();
 	const char *typestr = NULL;
 
-	if (btf && ctx->params)
+	if (btf && ctx->params) {
+		if (ctx->flags & TPARG_FL_TPOINT)
+			arg_idx--;
 		typestr = type_from_btf_id(btf, ctx->params[arg_idx].type);
+	}
 
 	return find_fetch_type(typestr, ctx->flags);
 }
