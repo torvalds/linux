@@ -126,6 +126,9 @@ static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
 	reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
 	opcode = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
 	if (opcode == CXL_MBOX_OP_SANITIZE) {
+		if (cxlds->security.sanitize_node)
+			sysfs_notify_dirent(cxlds->security.sanitize_node);
+
 		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
 	} else {
 		/* short-circuit the wait in __cxl_pci_mbox_send_cmd() */
@@ -149,6 +152,9 @@ static void cxl_mbox_sanitize_work(struct work_struct *work)
 	if (cxl_mbox_background_complete(cxlds)) {
 		cxlds->security.poll_tmo_secs = 0;
 		put_device(cxlds->dev);
+
+		if (cxlds->security.sanitize_node)
+			sysfs_notify_dirent(cxlds->security.sanitize_node);
 
 		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
 	} else {

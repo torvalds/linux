@@ -64,8 +64,25 @@ KernelVersion:	v6.5
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RO) Reading this file will display the CXL security state for
-		that device. Such states can be: 'disabled', or those available
-		only for persistent memory: 'locked', 'unlocked' or 'frozen'.
+		that device. Such states can be: 'disabled', 'sanitize', when
+		a sanitization is currently underway; or those available only
+		for persistent memory: 'locked', 'unlocked' or 'frozen'. This
+		sysfs entry is select/poll capable from userspace to notify
+		upon completion of a sanitize operation.
+
+
+What:           /sys/bus/cxl/devices/memX/security/sanitize
+Date:           June, 2023
+KernelVersion:  v6.5
+Contact:        linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a boolean 'true' string value to this attribute to
+		sanitize the device to securely re-purpose or decommission it.
+		This is done by ensuring that all user data and meta-data,
+		whether it resides in persistent capacity, volatile capacity,
+		or the LSA, is made permanently unavailable by whatever means
+		is appropriate for the media type. This functionality requires
+		the device to be not be actively decoding any HPA ranges.
 
 
 What:		/sys/bus/cxl/devices/*/devtype

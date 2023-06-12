@@ -267,12 +267,14 @@ struct cxl_poison_state {
  * @poll: polling for sanitization is enabled, device has no mbox irq support
  * @poll_tmo_secs: polling timeout
  * @poll_dwork: polling work item
+ * @sanitize_node: sanitation sysfs file to notify
  */
 struct cxl_security_state {
 	unsigned long state;
 	bool poll;
 	int poll_tmo_secs;
 	struct delayed_work poll_dwork;
+	struct kernfs_node *sanitize_node;
 };
 
 /**
@@ -745,6 +747,8 @@ static inline void cxl_mem_active_dec(void)
 {
 }
 #endif
+
+int cxl_mem_sanitize(struct cxl_dev_state *cxlds, u16 cmd);
 
 struct cxl_hdm {
 	struct cxl_component_regs regs;
