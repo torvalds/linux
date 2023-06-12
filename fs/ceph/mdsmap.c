@@ -7,10 +7,10 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include <linux/ceph/mdsmap.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/decode.h>
 
+#include "mdsmap.h"
 #include "mds_client.h"
 #include "super.h"
 
