@@ -358,7 +358,7 @@ static void kick_trng(struct device *dev, int ent_delay)
 	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
 	struct caam_ctrl __iomem *ctrl;
 	struct rng4tst __iomem *r4tst;
-	u32 val;
+	u32 val, rtsdctl;
 
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 	r4tst = &ctrl->r4tst[0];
@@ -374,26 +374,38 @@ static void kick_trng(struct device *dev, int ent_delay)
 	 * Performance-wise, it does not make sense to
 	 * set the delay to a value that is lower
 	 * than the last one that worked (i.e. the state handles
-	 * were instantiated properly. Thus, instead of wasting
-	 * time trying to set the values controlling the sample
-	 * frequency, the function simply returns.
+	 * were instantiated properly).
 	 */
-	val = (rd_reg32(&r4tst->rtsdctl) & RTSDCTL_ENT_DLY_MASK)
-	      >> RTSDCTL_ENT_DLY_SHIFT;
-	if (ent_delay <= val)
-		goto start_rng;
+	rtsdctl = rd_reg32(&r4tst->rtsdctl);
+	val = (rtsdctl & RTSDCTL_ENT_DLY_MASK) >> RTSDCTL_ENT_DLY_SHIFT;
+	if (ent_delay > val) {
+		val = ent_delay;
+		/* min. freq. count, equal to 1/4 of the entropy sample length */
+		wr_reg32(&r4tst->rtfrqmin, val >> 2);
+		/* max. freq. count, equal to 16 times the entropy sample length */
+		wr_reg32(&r4tst->rtfrqmax, val << 4);
+	}
 
-	val = rd_reg32(&r4tst->rtsdctl);
-	val = (val & ~RTSDCTL_ENT_DLY_MASK) |
-	      (ent_delay << RTSDCTL_ENT_DLY_SHIFT);
-	wr_reg32(&r4tst->rtsdctl, val);
-	/* min. freq. count, equal to 1/4 of the entropy sample length */
-	wr_reg32(&r4tst->rtfrqmin, ent_delay >> 2);
-	/* max. freq. count, equal to 16 times the entropy sample length */
-	wr_reg32(&r4tst->rtfrqmax, ent_delay << 4);
-	/* read the control register */
-	val = rd_reg32(&r4tst->rtmctl);
-start_rng:
+	wr_reg32(&r4tst->rtsdctl, (val << RTSDCTL_ENT_DLY_SHIFT) |
+		 RTSDCTL_SAMP_SIZE_VAL);
+
+	/*
+	 * To avoid reprogramming the self-test parameters over and over again,
+	 * use RTSDCTL[SAMP_SIZE] as an indicator.
+	 */
+	if ((rtsdctl & RTSDCTL_SAMP_SIZE_MASK) != RTSDCTL_SAMP_SIZE_VAL) {
+		wr_reg32(&r4tst->rtscmisc, (2 << 16) | 32);
+		wr_reg32(&r4tst->rtpkrrng, 570);
+		wr_reg32(&r4tst->rtpkrmax, 1600);
+		wr_reg32(&r4tst->rtscml, (122 << 16) | 317);
+		wr_reg32(&r4tst->rtscrl[0], (80 << 16) | 107);
+		wr_reg32(&r4tst->rtscrl[1], (57 << 16) | 62);
+		wr_reg32(&r4tst->rtscrl[2], (39 << 16) | 39);
+		wr_reg32(&r4tst->rtscrl[3], (27 << 16) | 26);
+		wr_reg32(&r4tst->rtscrl[4], (19 << 16) | 18);
+		wr_reg32(&r4tst->rtscrl[5], (18 << 16) | 17);
+	}
+
 	/*
 	 * select raw sampling in both entropy shifter
 	 * and statistical checker; ; put RNG4 into run mode
