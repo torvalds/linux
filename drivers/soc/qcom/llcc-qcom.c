@@ -244,6 +244,13 @@ static const struct llcc_slice_config sm8150_data[] =  {
 	{ LLCC_WRTCH,    31, 128,  1, 1, 0xfff, 0x0,   0, 0, 0, 0, 0 },
 };
 
+static const struct llcc_slice_config sm6150_data[] =  {
+	{ LLCC_CPUSS,    1, 128, 1, 0, 0xF, 0x0, 0, 0, 0, 0, 1, 1 },
+	{ LLCC_MDM,      8, 256, 0, 1, 0xF, 0x0, 0, 0, 0, 0, 1, 0 },
+	{ LLCC_GPUHTW,   11, 128, 1, 1, 0xF, 0x0, 0, 0, 0, 0, 1, 0 },
+	{ LLCC_GPU,      12, 128, 1, 0, 0xF, 0x0, 0, 0, 0, 0, 1, 0 },
+};
+
 static struct llcc_slice_config sdmshrike_data[] =  {
 	{ LLCC_CPUSS,    1,  6144, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 1 },
 	{ LLCC_VIDSC0,   2,  512,  2, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0 },
@@ -455,6 +462,11 @@ static const struct qcom_llcc_config sdm845_cfg = {
 static const struct qcom_llcc_config sm8150_cfg = {
 	.sct_data       = sm8150_data,
 	.size           = ARRAY_SIZE(sm8150_data),
+};
+
+static const struct qcom_llcc_config sm6150_cfg = {
+	.sct_data       = sm6150_data,
+	.size           = ARRAY_SIZE(sm6150_data),
 };
 
 static const struct qcom_llcc_config sdmshrike_cfg = {
@@ -1219,6 +1231,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,sc7180-llcc", .data = &sc7180_cfg },
 	{ .compatible = "qcom,sdm845-llcc", .data = &sdm845_cfg },
 	{ .compatible = "qcom,sm8150-llcc", .data = &sm8150_cfg },
+	{ .compatible = "qcom,sm6150-llcc", .data = &sm6150_cfg },
 	{ .compatible = "qcom,sdmshrike-llcc", .data = &sdmshrike_cfg },
 	{ .compatible = "qcom,lahaina-llcc", .data = &lahaina_cfg },
 	{ .compatible = "qcom,shima-llcc", .data = &shima_cfg },
