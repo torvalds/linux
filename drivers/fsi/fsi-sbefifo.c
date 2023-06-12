@@ -127,6 +127,7 @@ struct sbefifo {
 	bool			dead;
 	bool			async_ffdc;
 	bool			timed_out;
+	u32			timeout_in_cmd_ms;
 	u32			timeout_start_rsp_ms;
 };
 
@@ -136,6 +137,7 @@ struct sbefifo_user {
 	void			*cmd_page;
 	void			*pending_cmd;
 	size_t			pending_len;
+	u32			cmd_timeout_ms;
 	u32			read_timeout_ms;
 };
 
@@ -508,7 +510,7 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 		rc = sbefifo_wait(sbefifo, true, &status, timeout);
 		if (rc < 0)
 			return rc;
-		timeout = msecs_to_jiffies(SBEFIFO_TIMEOUT_IN_CMD);
+		timeout = msecs_to_jiffies(sbefifo->timeout_in_cmd_ms);
 
 		vacant = sbefifo_vacant(status);
 		len = chunk = min(vacant, remaining);
@@ -802,6 +804,7 @@ static int sbefifo_user_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 	mutex_init(&user->file_lock);
+	user->cmd_timeout_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	user->read_timeout_ms = SBEFIFO_TIMEOUT_START_RSP;
 
 	return 0;
@@ -845,9 +848,11 @@ static ssize_t sbefifo_user_read(struct file *file, char __user *buf,
 	rc = mutex_lock_interruptible(&sbefifo->lock);
 	if (rc)
 		goto bail;
+	sbefifo->timeout_in_cmd_ms = user->cmd_timeout_ms;
 	sbefifo->timeout_start_rsp_ms = user->read_timeout_ms;
 	rc = __sbefifo_submit(sbefifo, user->pending_cmd, cmd_len, &resp_iter);
 	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
+	sbefifo->timeout_in_cmd_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	mutex_unlock(&sbefifo->lock);
 	if (rc < 0)
 		goto bail;
@@ -937,6 +942,25 @@ static int sbefifo_user_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int sbefifo_cmd_timeout(struct sbefifo_user *user, void __user *argp)
+{
+	struct device *dev = &user->sbefifo->dev;
+	u32 timeout;
+
+	if (get_user(timeout, (__u32 __user *)argp))
+		return -EFAULT;
+
+	if (timeout == 0) {
+		user->cmd_timeout_ms = SBEFIFO_TIMEOUT_IN_CMD;
+		dev_dbg(dev, "Command timeout reset to %us\n", user->cmd_timeout_ms / 1000);
+		return 0;
+	}
+
+	user->cmd_timeout_ms = timeout * 1000; /* user timeout is in sec */
+	dev_dbg(dev, "Command timeout set to %us\n", timeout);
+	return 0;
+}
+
 static int sbefifo_read_timeout(struct sbefifo_user *user, void __user *argp)
 {
 	struct device *dev = &user->sbefifo->dev;
@@ -971,6 +995,9 @@ static long sbefifo_user_ioctl(struct file *file, unsigned int cmd, unsigned lon
 
 	mutex_lock(&user->file_lock);
 	switch (cmd) {
+	case FSI_SBEFIFO_CMD_TIMEOUT_SECONDS:
+		rc = sbefifo_cmd_timeout(user, (void __user *)arg);
+		break;
 	case FSI_SBEFIFO_READ_TIMEOUT_SECONDS:
 		rc = sbefifo_read_timeout(user, (void __user *)arg);
 		break;
@@ -1025,6 +1052,7 @@ static int sbefifo_probe(struct device *dev)
 	sbefifo->fsi_dev = fsi_dev;
 	dev_set_drvdata(dev, sbefifo);
 	mutex_init(&sbefifo->lock);
+	sbefifo->timeout_in_cmd_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
 
 	/* Create chardev for userspace access */
