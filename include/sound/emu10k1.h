@@ -1110,6 +1110,9 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_DOCK_BOARD_ID0		0x00	/* ID bit 0 */
 #define EMU_DOCK_BOARD_ID1		0x03	/* ID bit 1 */
 
+// The actual code disagrees about the bit width of the registers -
+// the formula used is freq = 0x1770000 / (((X_HI << 5) | X_LO) + 1)
+
 #define EMU_HANA_WC_SPDIF_HI	0x28	/* 0xxxxxx  6 bit  SPDIF IN Word clock, upper 6 bits */
 #define EMU_HANA_WC_SPDIF_LO	0x29	/* 0xxxxxx  6 bit  SPDIF IN Word clock, lower 6 bits */
 
@@ -1669,6 +1672,7 @@ struct snd_emu1010 {
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
 	unsigned int wclock;  /* Cached register value */
+	unsigned int word_clock;  /* Cached effective value */
 	unsigned int clock_source;
 	unsigned int clock_fallback;
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
@@ -1825,6 +1829,7 @@ void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value);
 void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src);
 u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst);
+int snd_emu1010_get_raw_rate(struct snd_emu10k1 *emu, u8 src);
 void snd_emu1010_update_clock(struct snd_emu10k1 *emu);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);

@@ -357,21 +357,70 @@ u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst)
 	return (hi << 8) | lo;
 }
 
+int snd_emu1010_get_raw_rate(struct snd_emu10k1 *emu, u8 src)
+{
+	u32 reg_lo, reg_hi, value, value2;
+
+	switch (src) {
+	case EMU_HANA_WCLOCK_HANA_SPDIF_IN:
+		snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &value);
+		if (value & EMU_HANA_SPDIF_MODE_RX_INVALID)
+			return 0;
+		reg_lo = EMU_HANA_WC_SPDIF_LO;
+		reg_hi = EMU_HANA_WC_SPDIF_HI;
+		break;
+	case EMU_HANA_WCLOCK_HANA_ADAT_IN:
+		reg_lo = EMU_HANA_WC_ADAT_LO;
+		reg_hi = EMU_HANA_WC_ADAT_HI;
+		break;
+	case EMU_HANA_WCLOCK_SYNC_BNC:
+		reg_lo = EMU_HANA_WC_BNC_LO;
+		reg_hi = EMU_HANA_WC_BNC_HI;
+		break;
+	case EMU_HANA_WCLOCK_2ND_HANA:
+		reg_lo = EMU_HANA2_WC_SPDIF_LO;
+		reg_hi = EMU_HANA2_WC_SPDIF_HI;
+		break;
+	default:
+		return 0;
+	}
+	snd_emu1010_fpga_read(emu, reg_hi, &value);
+	snd_emu1010_fpga_read(emu, reg_lo, &value2);
+	// FIXME: The /4 is valid for 0404b, but contradicts all other info.
+	return 0x1770000 / 4 / (((value << 5) | value2) + 1);
+}
+
 void snd_emu1010_update_clock(struct snd_emu10k1 *emu)
 {
+	int clock;
 	u32 leds;
 
 	switch (emu->emu1010.wclock) {
 	case EMU_HANA_WCLOCK_INT_44_1K | EMU_HANA_WCLOCK_1X:
+		clock = 44100;
 		leds = EMU_HANA_DOCK_LEDS_2_44K;
 		break;
 	case EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_1X:
+		clock = 48000;
 		leds = EMU_HANA_DOCK_LEDS_2_48K;
 		break;
 	default:
-		leds = EMU_HANA_DOCK_LEDS_2_EXT;
+		clock = snd_emu1010_get_raw_rate(
+				emu, emu->emu1010.wclock & EMU_HANA_WCLOCK_SRC_MASK);
+		// The raw rate reading is rather coarse (it cannot accurately
+		// represent 44.1 kHz) and fluctuates slightly. Luckily, the
+		// clock comes from digital inputs, which use standardized rates.
+		// So we round to the closest standard rate and ignore discrepancies.
+		if (clock < 46000) {
+			clock = 44100;
+			leds = EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_44K;
+		} else {
+			clock = 48000;
+			leds = EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_48K;
+		}
 		break;
 	}
+	emu->emu1010.word_clock = clock;
 
 	// FIXME: this should probably represent the AND of all currently
 	// used sources' lock status. But we don't know how to get that ...

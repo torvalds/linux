@@ -168,29 +168,32 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 	struct snd_emu10k1 *emu = entry->private_data;
 	u32 value;
 	u32 value2;
-	u32 rate;
 
 	if (emu->card_capabilities->emu_model) {
-		if (!emu->card_capabilities->no_adat) {
-			snd_emu1010_fpga_read(emu, 0x38, &value);
-			if ((value & 0x1) == 0) {
-				snd_emu1010_fpga_read(emu, 0x2a, &value);
-				snd_emu1010_fpga_read(emu, 0x2b, &value2);
-				rate = 0x1770000 / (((value << 5) | value2)+1);
-				snd_iprintf(buffer, "ADAT Locked : %u\n", rate);
-			} else {
-				snd_iprintf(buffer, "ADAT Unlocked\n");
-			}
+		// This represents the S/PDIF lock status on 0404b, which is
+		// kinda weird and unhelpful, because monitoring it via IRQ is
+		// impractical (one gets an IRQ flood as long as it is desynced).
+		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &value);
+		snd_iprintf(buffer, "Lock status 1: %#x\n", value & 0x10);
+
+		// Bit 0x1 in LO being 0 is supposedly for ADAT lock.
+		// The registers are always all zero on 0404b.
+		snd_emu1010_fpga_read(emu, EMU_HANA_LOCK_STS_LO, &value);
+		snd_emu1010_fpga_read(emu, EMU_HANA_LOCK_STS_HI, &value2);
+		snd_iprintf(buffer, "Lock status 2: %#x %#x\n", value, value2);
+
+		snd_iprintf(buffer, "S/PDIF rate: %dHz\n",
+			    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_HANA_SPDIF_IN));
+		if (emu->card_capabilities->emu_model != EMU_MODEL_EMU0404) {
+			snd_iprintf(buffer, "ADAT rate: %dHz\n",
+				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_HANA_ADAT_IN));
+			snd_iprintf(buffer, "Dock rate: %dHz\n",
+				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_2ND_HANA));
 		}
-		snd_emu1010_fpga_read(emu, 0x20, &value);
-		if ((value & 0x4) == 0) {
-			snd_emu1010_fpga_read(emu, 0x28, &value);
-			snd_emu1010_fpga_read(emu, 0x29, &value2);
-			rate = 0x1770000 / (((value << 5) | value2)+1);	
-			snd_iprintf(buffer, "SPDIF Locked : %d\n", rate);
-		} else {
-			snd_iprintf(buffer, "SPDIF Unlocked\n");
-		}
+		if (emu->card_capabilities->emu_model == EMU_MODEL_EMU0404 ||
+		    emu->card_capabilities->emu_model == EMU_MODEL_EMU1010)
+			snd_iprintf(buffer, "BNC rate: %dHz\n",
+				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_SYNC_BNC));
 	} else {
 		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
