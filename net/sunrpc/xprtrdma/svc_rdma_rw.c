@@ -191,6 +191,8 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
 	struct svc_rdma_rw_ctxt *ctxt;
 	LLIST_HEAD(free);
 
+	trace_svcrdma_cc_release(&cc->cc_cid, cc->cc_sqecount);
+
 	first = last = NULL;
 	while ((ctxt = svc_rdma_next_ctxt(&cc->cc_rwctxts)) != NULL) {
 		list_del(&ctxt->rw_list);
