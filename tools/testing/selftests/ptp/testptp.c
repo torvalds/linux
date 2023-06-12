@@ -110,7 +110,7 @@ static long ppb_to_scaled_ppm(int ppb)
 
 static int64_t pctns(struct ptp_clock_time *t)
 {
-	return t->sec * 1000000000LL + t->nsec;
+	return t->sec * NSEC_PER_SEC + t->nsec;
 }
 
 static void usage(char *progname)
@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
 		tx.time.tv_usec = adjns;
 		while (tx.time.tv_usec < 0) {
 			tx.time.tv_sec  -= 1;
-			tx.time.tv_usec += 1000000000;
+			tx.time.tv_usec += NSEC_PER_SEC;
 		}
 
 		if (clock_adjtime(clkid, &tx) < 0) {
