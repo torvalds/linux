@@ -77,8 +77,10 @@ struct ptp_system_timestamp {
  *            nominal frequency in parts per million, but with a
  *            16 bit binary fractional field.
  *
- * @adjphase:  Adjusts the phase offset of the hardware clock.
- *             parameter delta: Desired change in nanoseconds.
+ * @adjphase:  Indicates that the PHC should use an internal servo
+ *             algorithm to correct the provided phase offset.
+ *             parameter delta: PHC servo phase adjustment target
+ *                              in nanoseconds.
  *
  * @adjtime:  Shifts the time of the hardware clock.
  *            parameter delta: Desired change in nanoseconds.

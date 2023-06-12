@@ -73,6 +73,22 @@ Writing clock drivers
    class driver, since the lock may also be needed by the clock
    driver's interrupt service routine.
 
+PTP hardware clock requirements for '.adjphase'
+-----------------------------------------------
+
+   The 'struct ptp_clock_info' interface has a '.adjphase' function.
+   This function has a set of requirements from the PHC in order to be
+   implemented.
+
+     * The PHC implements a servo algorithm internally that is used to
+       correct the offset passed in the '.adjphase' call.
+     * When other PTP adjustment functions are called, the PHC servo
+       algorithm is disabled.
+
+   **NOTE:** '.adjphase' is not a simple time adjustment functionality
+   that 'jumps' the PHC clock time based on the provided offset. It
+   should correct the offset provided using an internal algorithm.
+
 Supported hardware
 ==================
 
