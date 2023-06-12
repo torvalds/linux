@@ -53,6 +53,7 @@ config COMMON_CLK_MESON8B
 	depends on ARM
 	default y
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select COMMON_CLK_MESON_MPLL
 	select COMMON_CLK_MESON_PLL
 	select MFD_SYSCON
