@@ -8,6 +8,7 @@
 
 #include "intel_uc_fw.h"
 
+struct drm_printer;
 struct i915_vma;
 struct intel_context;
 struct i915_gsc_proxy_component;
@@ -63,6 +64,7 @@ void intel_gsc_uc_suspend(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_resume(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_flush_work(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc);
+void intel_gsc_uc_load_status(struct intel_gsc_uc *gsc, struct drm_printer *p);
 
 static inline bool intel_gsc_uc_is_supported(struct intel_gsc_uc *gsc)
 {

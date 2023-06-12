@@ -7,10 +7,11 @@
 
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"
-#include "intel_gsc_uc.h"
 #include "intel_gsc_fw.h"
-#include "i915_drv.h"
 #include "intel_gsc_proxy.h"
+#include "intel_gsc_uc.h"
+#include "i915_drv.h"
+#include "i915_reg.h"
 
 static void gsc_work(struct work_struct *work)
 {
@@ -303,4 +304,46 @@ void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc)
 	spin_unlock_irq(gt->irq_lock);
 
 	queue_work(gsc->wq, &gsc->work);
+}
+
+void intel_gsc_uc_load_status(struct intel_gsc_uc *gsc, struct drm_printer *p)
+{
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+	struct intel_uncore *uncore = gt->uncore;
+	intel_wakeref_t wakeref;
+
+	if (!intel_gsc_uc_is_supported(gsc)) {
+		drm_printf(p, "GSC not supported\n");
+		return;
+	}
+
+	if (!intel_gsc_uc_is_wanted(gsc)) {
+		drm_printf(p, "GSC disabled\n");
+		return;
+	}
+
+	drm_printf(p, "GSC firmware: %s\n", gsc->fw.file_selected.path);
+	if (gsc->fw.file_selected.path != gsc->fw.file_wanted.path)
+		drm_printf(p, "GSC firmware wanted: %s\n", gsc->fw.file_wanted.path);
+	drm_printf(p, "\tstatus: %s\n", intel_uc_fw_status_repr(gsc->fw.status));
+
+	drm_printf(p, "Release: %u.%u.%u.%u\n",
+		   gsc->release.major, gsc->release.minor,
+		   gsc->release.patch, gsc->release.build);
+
+	drm_printf(p, "Compatibility Version: %u.%u [min expected %u.%u]\n",
+		   gsc->fw.file_selected.ver.major, gsc->fw.file_selected.ver.minor,
+		   gsc->fw.file_wanted.ver.major, gsc->fw.file_wanted.ver.minor);
+
+	drm_printf(p, "SVN: %u\n", gsc->security_version);
+
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		u32 i;
+
+		for (i = 1; i <= 6; i++) {
+			u32 status = intel_uncore_read(uncore,
+						       HECI_FWSTS(MTL_GSC_HECI1_BASE, i));
+			drm_printf(p, "HECI1 FWSTST%u = 0x%08x\n", i, status);
+		}
+	}
 }

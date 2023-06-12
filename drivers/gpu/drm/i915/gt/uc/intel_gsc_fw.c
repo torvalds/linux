@@ -12,19 +12,14 @@
 #include "intel_gsc_binary_headers.h"
 #include "intel_gsc_fw.h"
 #include "intel_gsc_uc_heci_cmd_submit.h"
-
-#define GSC_FW_STATUS_REG			_MMIO(0x116C40)
-#define GSC_FW_CURRENT_STATE			REG_GENMASK(3, 0)
-#define   GSC_FW_CURRENT_STATE_RESET		0
-#define   GSC_FW_PROXY_STATE_NORMAL		5
-#define GSC_FW_INIT_COMPLETE_BIT		REG_BIT(9)
+#include "i915_reg.h"
 
 static bool gsc_is_in_reset(struct intel_uncore *uncore)
 {
-	u32 fw_status = intel_uncore_read(uncore, GSC_FW_STATUS_REG);
+	u32 fw_status = intel_uncore_read(uncore, HECI_FWSTS(MTL_GSC_HECI1_BASE, 1));
 
-	return REG_FIELD_GET(GSC_FW_CURRENT_STATE, fw_status) ==
-	       GSC_FW_CURRENT_STATE_RESET;
+	return REG_FIELD_GET(HECI1_FWSTS1_CURRENT_STATE, fw_status) ==
+			HECI1_FWSTS1_CURRENT_STATE_RESET;
 }
 
 static u32 gsc_uc_get_fw_status(struct intel_uncore *uncore)
@@ -33,21 +28,22 @@ static u32 gsc_uc_get_fw_status(struct intel_uncore *uncore)
 	u32 fw_status = 0;
 
 	with_intel_runtime_pm(uncore->rpm, wakeref)
-		fw_status = intel_uncore_read(uncore, GSC_FW_STATUS_REG);
+		fw_status = intel_uncore_read(uncore, HECI_FWSTS(MTL_GSC_HECI1_BASE, 1));
 
 	return fw_status;
 }
 
 bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc)
 {
-	return REG_FIELD_GET(GSC_FW_CURRENT_STATE,
+	return REG_FIELD_GET(HECI1_FWSTS1_CURRENT_STATE,
 			     gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore)) ==
-	       GSC_FW_PROXY_STATE_NORMAL;
+	       HECI1_FWSTS1_PROXY_STATE_NORMAL;
 }
 
 bool intel_gsc_uc_fw_init_done(struct intel_gsc_uc *gsc)
 {
-	return gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore) & GSC_FW_INIT_COMPLETE_BIT;
+	return gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore) &
+	       HECI1_FWSTS1_INIT_COMPLETE;
 }
 
 static inline u32 cpd_entry_offset(const struct intel_gsc_cpd_entry *entry)
@@ -298,9 +294,9 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 static int gsc_fw_wait(struct intel_gt *gt)
 {
 	return intel_wait_for_register(gt->uncore,
-				       GSC_FW_STATUS_REG,
-				       GSC_FW_INIT_COMPLETE_BIT,
-				       GSC_FW_INIT_COMPLETE_BIT,
+				       HECI_FWSTS(MTL_GSC_HECI1_BASE, 1),
+				       HECI1_FWSTS1_INIT_COMPLETE,
+				       HECI1_FWSTS1_INIT_COMPLETE,
 				       500);
 }
 
