@@ -572,4 +572,10 @@ void cper_print_proc_ia(const char *pfx,
 int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg);
 int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg);
 
+struct acpi_hest_generic_status;
+void cper_estatus_print(const char *pfx,
+			const struct acpi_hest_generic_status *estatus);
+int cper_estatus_check_header(const struct acpi_hest_generic_status *estatus);
+int cper_estatus_check(const struct acpi_hest_generic_status *estatus);
+
 #endif

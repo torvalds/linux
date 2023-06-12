@@ -135,7 +135,7 @@ static inline int iio_gts_find_int_time_by_sel(struct iio_gts *gts, int sel)
 /**
  * iio_gts_find_sel_by_int_time - find selector matching integration time
  * @gts:	Gain time scale descriptor
- * @gain:	HW-gain for which matching selector is searched for
+ * @time:	Integration time for which matching selector is searched for
  *
  * Return:	a selector matching given integration time or -EINVAL if
  *		selector was not found.

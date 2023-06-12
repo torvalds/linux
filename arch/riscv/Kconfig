@@ -26,6 +26,7 @@ config RISCV
 	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_MMIOWB
+	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PMEM_API
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SET_DIRECT_MAP if MMU
@@ -799,8 +800,11 @@ menu "Power management options"
 
 source "kernel/power/Kconfig"
 
+# Hibernation is only possible on systems where the SBI implementation has
+# marked its reserved memory as not accessible from, or does not run
+# from the same memory as, Linux
 config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
+	def_bool NONPORTABLE
 
 config ARCH_HIBERNATION_HEADER
 	def_bool HIBERNATION

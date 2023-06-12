@@ -166,6 +166,12 @@ properties:
   resets:
     maxItems: 1
 
+  mediatek,broken-save-restore-fw:
+    type: boolean
+    description:
+      Asserts that the firmware on this device has issues saving and restoring
+      GICR registers when the GIC redistributors are powered off.
+
 dependencies:
   mbi-ranges: [ msi-controller ]
   msi-controller: [ mbi-ranges ]

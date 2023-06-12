@@ -3834,6 +3834,11 @@ static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 	index = fec_enet_get_bd_index(last_bdp, &txq->bd);
 	txq->tx_skbuff[index] = NULL;
 
+	/* Make sure the updates to rest of the descriptor are performed before
+	 * transferring ownership.
+	 */
+	dma_wmb();
+
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
 	 * it's the last BD of the frame, and to put the CRC on the end.
 	 */
@@ -3843,7 +3848,13 @@ static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 	/* If this was the last BD in the ring, start at the beginning again. */
 	bdp = fec_enet_get_nextdesc(last_bdp, &txq->bd);
 
+	/* Make sure the update to bdp are performed before txq->bd.cur. */
+	dma_wmb();
+
 	txq->bd.cur = bdp;
+
+	/* Trigger transmission start */
+	writel(0, txq->bd.reg_desc_active);
 
 	return 0;
 }
@@ -3872,12 +3883,6 @@ static int fec_enet_xdp_xmit(struct net_device *dev,
 			break;
 		sent_frames++;
 	}
-
-	/* Make sure the update to bdp and tx_skbuff are performed. */
-	wmb();
-
-	/* Trigger transmission start */
-	writel(0, txq->bd.reg_desc_active);
 
 	__netif_tx_unlock(nq);
 

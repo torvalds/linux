@@ -1040,6 +1040,57 @@ void iscsit_stop_nopin_timer(struct iscsit_conn *conn)
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
+void iscsit_login_timeout(struct timer_list *t)
+{
+	struct iscsit_conn *conn = from_timer(conn, t, login_timer);
+	struct iscsi_login *login = conn->login;
+
+	pr_debug("Entering iscsi_target_login_timeout >>>>>>>>>>>>>>>>>>>\n");
+
+	spin_lock_bh(&conn->login_timer_lock);
+	login->login_failed = 1;
+
+	if (conn->login_kworker) {
+		pr_debug("Sending SIGINT to conn->login_kworker %s/%d\n",
+			 conn->login_kworker->comm, conn->login_kworker->pid);
+		send_sig(SIGINT, conn->login_kworker, 1);
+	} else {
+		schedule_delayed_work(&conn->login_work, 0);
+	}
+	spin_unlock_bh(&conn->login_timer_lock);
+}
+
+void iscsit_start_login_timer(struct iscsit_conn *conn, struct task_struct *kthr)
+{
+	pr_debug("Login timer started\n");
+
+	conn->login_kworker = kthr;
+	mod_timer(&conn->login_timer, jiffies + TA_LOGIN_TIMEOUT * HZ);
+}
+
+int iscsit_set_login_timer_kworker(struct iscsit_conn *conn, struct task_struct *kthr)
+{
+	struct iscsi_login *login = conn->login;
+	int ret = 0;
+
+	spin_lock_bh(&conn->login_timer_lock);
+	if (login->login_failed) {
+		/* The timer has already expired */
+		ret = -1;
+	} else {
+		conn->login_kworker = kthr;
+	}
+	spin_unlock_bh(&conn->login_timer_lock);
+
+	return ret;
+}
+
+void iscsit_stop_login_timer(struct iscsit_conn *conn)
+{
+	pr_debug("Login timer stopped\n");
+	timer_delete_sync(&conn->login_timer);
+}
+
 int iscsit_send_tx_data(
 	struct iscsit_cmd *cmd,
 	struct iscsit_conn *conn,

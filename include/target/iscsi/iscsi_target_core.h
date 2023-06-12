@@ -562,12 +562,13 @@ struct iscsit_conn {
 #define LOGIN_FLAGS_READ_ACTIVE		2
 #define LOGIN_FLAGS_WRITE_ACTIVE	3
 #define LOGIN_FLAGS_CLOSED		4
+#define LOGIN_FLAGS_WORKER_RUNNING	5
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
 	struct iscsi_login	*login;
 	struct timer_list	nopin_timer;
 	struct timer_list	nopin_response_timer;
-	struct timer_list	transport_timer;
+	struct timer_list	login_timer;
 	struct task_struct	*login_kworker;
 	/* Spinlock used for add/deleting cmd's from conn_cmd_list */
 	spinlock_t		cmd_lock;
@@ -576,6 +577,8 @@ struct iscsit_conn {
 	spinlock_t		nopin_timer_lock;
 	spinlock_t		response_queue_lock;
 	spinlock_t		state_lock;
+	spinlock_t		login_timer_lock;
+	spinlock_t		login_worker_lock;
 	/* libcrypto RX and TX contexts for crc32c */
 	struct ahash_request	*conn_rx_hash;
 	struct ahash_request	*conn_tx_hash;
@@ -792,7 +795,6 @@ struct iscsi_np {
 	enum np_thread_state_table np_thread_state;
 	bool                    enabled;
 	atomic_t		np_reset_count;
-	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;
 	spinlock_t		np_thread_lock;
@@ -800,7 +802,6 @@ struct iscsi_np {
 	struct socket		*np_socket;
 	struct sockaddr_storage np_sockaddr;
 	struct task_struct	*np_thread;
-	struct timer_list	np_login_timer;
 	void			*np_context;
 	struct iscsit_transport *np_transport;
 	struct list_head	np_list;

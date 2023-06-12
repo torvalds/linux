@@ -920,7 +920,7 @@ static int __maybe_unused tps6598x_resume(struct device *dev)
 		enable_irq(client->irq);
 	}
 
-	if (client->irq)
+	if (!client->irq)
 		queue_delayed_work(system_power_efficient_wq, &tps->wq_poll,
 				   msecs_to_jiffies(POLL_INTERVAL));
 
