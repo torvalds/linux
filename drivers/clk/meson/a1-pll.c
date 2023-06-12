@@ -14,6 +14,8 @@
 #include "clk-regmap.h"
 #include "meson-clkc-utils.h"
 
+#include <dt-bindings/clock/amlogic,a1-pll-clkc.h>
+
 static struct clk_regmap fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
