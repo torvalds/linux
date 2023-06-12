@@ -236,8 +236,8 @@ void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 	struct ib_device *device = rdma->sc_cm_id->device;
 	unsigned int i;
 
-	for (i = 0; i < ctxt->sc_page_count; ++i)
-		put_page(ctxt->sc_pages[i]);
+	if (ctxt->sc_page_count)
+		release_pages(ctxt->sc_pages, ctxt->sc_page_count);
 
 	/* The first SGE contains the transport header, which
 	 * remains mapped until @ctxt is destroyed.
