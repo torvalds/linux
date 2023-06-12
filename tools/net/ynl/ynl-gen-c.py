@@ -300,8 +300,10 @@ class TypeScalar(Type):
             return f"NLA_POLICY_MIN({policy}, {self.checks['min']})"
         elif 'enum' in self.attr:
             enum = self.family.consts[self.attr['enum']]
-            cnt = len(enum['entries'])
-            return f"NLA_POLICY_MAX({policy}, {cnt - 1})"
+            low, high = enum.value_range()
+            if low == 0:
+                return f"NLA_POLICY_MAX({policy}, {high})"
+            return f"NLA_POLICY_RANGE({policy}, {low}, {high})"
         return super()._attr_policy(policy)
 
     def _attr_typol(self):
@@ -675,6 +677,15 @@ class EnumSet(SpecEnumSet):
 
     def new_entry(self, entry, prev_entry, value_start):
         return EnumEntry(self, entry, prev_entry, value_start)
+
+    def value_range(self):
+        low = min([x.value for x in self.entries.values()])
+        high = max([x.value for x in self.entries.values()])
+
+        if high - low + 1 != len(self.entries):
+            raise Exception("Can't get value range for a noncontiguous enum")
+
+        return low, high
 
 
 class AttrSet(SpecAttrSet):
