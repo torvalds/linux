@@ -138,6 +138,4 @@
 /* include the CLKIDs which are part of the DT bindings */
 #include <dt-bindings/clock/axg-audio-clkc.h>
 
-#define NR_CLKS	178
-
 #endif /*__AXG_AUDIO_CLKC_H */

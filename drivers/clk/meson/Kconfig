@@ -100,6 +100,7 @@ config COMMON_CLK_AXG_AUDIO
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_PHASE
 	select COMMON_CLK_MESON_SCLK_DIV
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select REGMAP_MMIO
 	help
 	  Support for the audio clock controller on AmLogic A113D devices,
