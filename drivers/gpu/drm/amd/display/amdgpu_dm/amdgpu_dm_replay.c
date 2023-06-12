@@ -46,6 +46,9 @@ static bool link_supports_replay(struct dc_link *link, struct amdgpu_dm_connecto
 	if (!state->freesync_capable)
 		return false;
 
+	if (!aconnector->vsdb_info.replay_mode)
+		return false;
+
 	// Check the eDP version
 	if (dpcd_caps->edp_rev < EDP_REVISION_13)
 		return false;
@@ -70,6 +73,10 @@ bool amdgpu_dm_setup_replay(struct dc_link *link, struct amdgpu_dm_connector *ac
 {
 	struct replay_config pr_config;
 	union replay_debug_flags *debug_flags = NULL;
+
+	// For eDP, if Replay is supported, return true to skip checks
+	if (link->replay_settings.config.replay_supported)
+		return true;
 
 	if (!dc_is_embedded_signal(link->connector_signal))
 		return false;
