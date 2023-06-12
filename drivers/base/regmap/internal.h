@@ -314,6 +314,7 @@ struct regmap_ram_data {
 	unsigned int *vals;  /* Allocatd by caller */
 	bool *read;
 	bool *written;
+	enum regmap_endian reg_endian;
 };
 
 /*
@@ -328,5 +329,12 @@ struct regmap *__regmap_init_ram(const struct regmap_config *config,
 #define regmap_init_ram(config, data)					\
 	__regmap_lockdep_wrapper(__regmap_init_ram, #config, config, data)
 
+struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
+				     struct regmap_ram_data *data,
+				     struct lock_class_key *lock_key,
+				     const char *lock_name);
+
+#define regmap_init_raw_ram(config, data)				\
+	__regmap_lockdep_wrapper(__regmap_init_raw_ram, #config, config, data)
 
 #endif
