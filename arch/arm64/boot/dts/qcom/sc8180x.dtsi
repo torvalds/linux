@@ -2465,6 +2465,23 @@
 
 			status = "disabled";
 
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_prim_qmpphy_out: endpoint {};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_prim_qmpphy_dp_in: endpoint {};
+				};
+			};
+
 			usb_prim_ssphy: usb3-phy@88e9200 {
 				reg = <0 0x088e9200 0 0x200>,
 				      <0 0x088e9400 0 0x200>,
@@ -2513,6 +2530,23 @@
 			ranges;
 
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_sec_qmpphy_out: endpoint {};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_sec_qmpphy_dp_in: endpoint {};
+				};
+			};
 
 			usb_sec_ssphy: usb3-phy@88e9200 {
 				reg = <0 0x088ee200 0 0x200>,
@@ -2605,6 +2639,11 @@
 				snps,dis_enblslpm_quirk;
 				phys = <&usb_prim_hsphy>, <&usb_prim_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
+
+				port {
+					usb_prim_role_switch: endpoint {
+					};
+				};
 			};
 		};
 
@@ -2657,6 +2696,11 @@
 				snps,dis_enblslpm_quirk;
 				phys = <&usb_sec_hsphy>, <&usb_sec_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
+
+				port {
+					usb_sec_role_switch: endpoint {
+					};
+				};
 			};
 		};
 
@@ -2984,6 +3028,8 @@
 
 					port@1 {
 						reg = <1>;
+						mdss_dp0_out: endpoint {
+						};
 					};
 				};
 
@@ -3058,6 +3104,8 @@
 
 					port@1 {
 						reg = <1>;
+						mdss_dp1_out: endpoint {
+						};
 					};
 				};
 
