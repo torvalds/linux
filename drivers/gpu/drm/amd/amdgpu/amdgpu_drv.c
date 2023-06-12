@@ -2402,8 +2402,10 @@ static int amdgpu_pmops_suspend(struct device *dev)
 
 	if (amdgpu_acpi_is_s0ix_active(adev))
 		adev->in_s0ix = true;
-	else
+	else if (amdgpu_acpi_is_s3_active(adev))
 		adev->in_s3 = true;
+	if (!adev->in_s0ix && !adev->in_s3)
+		return 0;
 	return amdgpu_device_suspend(drm_dev, true);
 }
 
@@ -2423,6 +2425,9 @@ static int amdgpu_pmops_resume(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int r;
+
+	if (!adev->in_s0ix && !adev->in_s3)
+		return 0;
 
 	/* Avoids registers access if device is physically gone */
 	if (!pci_device_is_present(adev->pdev))

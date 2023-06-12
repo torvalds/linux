@@ -2011,6 +2011,12 @@ static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
 {
 	u32 i;
 
+	if (!data) {
+		IWL_ERR(mvm, "iwl_wowlan_info_notif data is NULL\n");
+		status = NULL;
+		return;
+	}
+
 	if (len < sizeof(*data)) {
 		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
 		status = NULL;
@@ -2698,10 +2704,15 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_d3_data *d3_data = data;
 	u32 len;
 	int ret;
+	int wowlan_info_ver = iwl_fw_lookup_notif_ver(mvm->fw,
+						      PROT_OFFLOAD_GROUP,
+						      WOWLAN_INFO_NOTIFICATION,
+						      IWL_FW_CMD_VER_UNKNOWN);
+
 
 	switch (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd)) {
 	case WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION): {
-		struct iwl_wowlan_info_notif *notif = (void *)pkt->data;
+		struct iwl_wowlan_info_notif *notif;
 
 		if (d3_data->notif_received & IWL_D3_NOTIF_WOWLAN_INFO) {
 			/* We might get two notifications due to dual bss */
@@ -2710,10 +2721,32 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 			break;
 		}
 
+		if (wowlan_info_ver < 2) {
+			struct iwl_wowlan_info_notif_v1 *notif_v1 = (void *)pkt->data;
+
+			notif = kmemdup(notif_v1,
+					offsetofend(struct iwl_wowlan_info_notif,
+						    received_beacons),
+					GFP_ATOMIC);
+
+			if (!notif)
+				return false;
+
+			notif->tid_tear_down = notif_v1->tid_tear_down;
+			notif->station_id = notif_v1->station_id;
+
+		} else {
+			notif = (void *)pkt->data;
+		}
+
 		d3_data->notif_received |= IWL_D3_NOTIF_WOWLAN_INFO;
 		len = iwl_rx_packet_payload_len(pkt);
 		iwl_mvm_parse_wowlan_info_notif(mvm, notif, d3_data->status,
 						len);
+
+		if (wowlan_info_ver < 2)
+			kfree(notif);
+
 		if (d3_data->status &&
 		    d3_data->status->wakeup_reasons & IWL_WOWLAN_WAKEUP_REASON_HAS_WAKEUP_PKT)
 			/* We are supposed to get also wake packet notif */
