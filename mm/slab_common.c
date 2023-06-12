@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/dma-mapping.h>
+#include <linux/swiotlb.h>
 #include <linux/proc_fs.h>
 #include <linux/debugfs.h>
 #include <linux/kasan.h>
@@ -865,6 +866,10 @@ void __init setup_kmalloc_cache_index_table(void)
 
 static unsigned int __kmalloc_minalign(void)
 {
+#ifdef CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC
+	if (io_tlb_default_mem.nslabs)
+		return ARCH_KMALLOC_MINALIGN;
+#endif
 	return dma_get_cache_alignment();
 }
 
