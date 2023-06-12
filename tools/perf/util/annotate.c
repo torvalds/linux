@@ -579,7 +579,7 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 	if (ops->source.raw == NULL)
 		return -1;
 
-	target = ++s;
+	target = skip_spaces(++s);
 	comment = strchr(s, arch->objdump.comment_char);
 
 	if (comment != NULL)
