@@ -1199,6 +1199,7 @@ static int fsi_master_scan(struct fsi_master *master)
 {
 	int link, rc;
 
+	trace_fsi_master_scan(master, true);
 	for (link = 0; link < master->n_links; link++) {
 		rc = fsi_master_link_enable(master, link);
 		if (rc) {
@@ -1240,6 +1241,7 @@ static int fsi_master_remove_slave(struct device *dev, void *arg)
 
 static void fsi_master_unscan(struct fsi_master *master)
 {
+	trace_fsi_master_scan(master, false);
 	device_for_each_child(&master->dev, NULL, fsi_master_remove_slave);
 }
 
@@ -1328,6 +1330,8 @@ EXPORT_SYMBOL_GPL(fsi_master_register);
 
 void fsi_master_unregister(struct fsi_master *master)
 {
+	trace_fsi_master_unregister(master);
+
 	if (master->idx >= 0) {
 		ida_simple_remove(&master_ida, master->idx);
 		master->idx = -1;
