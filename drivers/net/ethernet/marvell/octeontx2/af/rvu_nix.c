@@ -4196,6 +4196,11 @@ int rvu_mbox_handler_nix_set_rx_cfg(struct rvu *rvu, struct nix_rx_cfg *req,
 	else
 		cfg &= ~BIT_ULL(40);
 
+	if (req->len_verify & NIX_RX_DROP_RE)
+		cfg |= BIT_ULL(32);
+	else
+		cfg &= ~BIT_ULL(32);
+
 	if (req->csum_verify & BIT(0))
 		cfg |= BIT_ULL(37);
 	else
