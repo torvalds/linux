@@ -291,10 +291,6 @@
 	};
 };
 
-&dispcc {
-	status = "okay";
-};
-
 &gpu {
 	status = "okay";
 
