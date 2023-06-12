@@ -191,6 +191,18 @@ struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
 	return NULL;
 }
 
+int nix_get_dwrr_mtu_reg(struct rvu_hwinfo *hw, int smq_link_type)
+{
+	if (hw->cap.nix_multiple_dwrr_mtu)
+		return NIX_AF_DWRR_MTUX(smq_link_type);
+
+	if (smq_link_type == SMQ_LINK_TYPE_SDP)
+		return NIX_AF_DWRR_SDP_MTU;
+
+	/* Here it's same reg for RPM and LBK */
+	return NIX_AF_DWRR_RPM_MTU;
+}
+
 u32 convert_dwrr_mtu_to_bytes(u8 dwrr_mtu)
 {
 	dwrr_mtu &= 0x1FULL;
@@ -3191,10 +3203,16 @@ static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	}
 
 	/* Setup a default value of 8192 as DWRR MTU */
-	if (rvu->hw->cap.nix_common_dwrr_mtu) {
-		rvu_write64(rvu, blkaddr, NIX_AF_DWRR_RPM_MTU,
+	if (rvu->hw->cap.nix_common_dwrr_mtu ||
+	    rvu->hw->cap.nix_multiple_dwrr_mtu) {
+		rvu_write64(rvu, blkaddr,
+			    nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM),
 			    convert_bytes_to_dwrr_mtu(8192));
-		rvu_write64(rvu, blkaddr, NIX_AF_DWRR_SDP_MTU,
+		rvu_write64(rvu, blkaddr,
+			    nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_LBK),
+			    convert_bytes_to_dwrr_mtu(8192));
+		rvu_write64(rvu, blkaddr,
+			    nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_SDP),
 			    convert_bytes_to_dwrr_mtu(8192));
 	}
 
@@ -3292,18 +3310,27 @@ int rvu_mbox_handler_nix_get_hw_info(struct rvu *rvu, struct msg_req *req,
 
 	rsp->min_mtu = NIC_HW_MIN_FRS;
 
-	if (!rvu->hw->cap.nix_common_dwrr_mtu) {
+	if (!rvu->hw->cap.nix_common_dwrr_mtu &&
+	    !rvu->hw->cap.nix_multiple_dwrr_mtu) {
 		/* Return '1' on OTx2 */
 		rsp->rpm_dwrr_mtu = 1;
 		rsp->sdp_dwrr_mtu = 1;
+		rsp->lbk_dwrr_mtu = 1;
 		return 0;
 	}
 
-	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU);
+	/* Return DWRR_MTU for TLx_SCHEDULE[RR_WEIGHT] config */
+	dwrr_mtu = rvu_read64(rvu, blkaddr,
+			      nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM));
 	rsp->rpm_dwrr_mtu = convert_dwrr_mtu_to_bytes(dwrr_mtu);
 
-	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_SDP_MTU);
+	dwrr_mtu = rvu_read64(rvu, blkaddr,
+			      nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_SDP));
 	rsp->sdp_dwrr_mtu = convert_dwrr_mtu_to_bytes(dwrr_mtu);
+
+	dwrr_mtu = rvu_read64(rvu, blkaddr,
+			      nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_LBK));
+	rsp->lbk_dwrr_mtu = convert_dwrr_mtu_to_bytes(dwrr_mtu);
 
 	return 0;
 }
@@ -4371,8 +4398,11 @@ static void rvu_nix_setup_capabilities(struct rvu *rvu, int blkaddr)
 	 * Check if HW uses a common MTU for all DWRR quantum configs.
 	 * On OcteonTx2 this register field is '0'.
 	 */
-	if (((hw_const >> 56) & 0x10) == 0x10)
+	if ((((hw_const >> 56) & 0x10) == 0x10) && !(hw_const & BIT_ULL(61)))
 		hw->cap.nix_common_dwrr_mtu = true;
+
+	if (hw_const & BIT_ULL(61))
+		hw->cap.nix_multiple_dwrr_mtu = true;
 }
 
 static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)

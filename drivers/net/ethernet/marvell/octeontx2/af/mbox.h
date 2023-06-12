@@ -1245,7 +1245,9 @@ struct nix_hw_info {
 	u16 min_mtu;
 	u32 rpm_dwrr_mtu;
 	u32 sdp_dwrr_mtu;
-	u64 rsvd[16]; /* Add reserved fields for future expansion */
+	u32 lbk_dwrr_mtu;
+	u32 rsvd32[1];
+	u64 rsvd[15]; /* Add reserved fields for future expansion */
 };
 
 struct nix_bandprof_alloc_req {

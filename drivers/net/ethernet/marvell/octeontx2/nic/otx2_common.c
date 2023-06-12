@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <net/tso.h>
+#include <linux/bitfield.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
@@ -642,6 +643,10 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl, int prio, bool txschq_for
 		req->regval[0] = ((u64)pfvf->tx_max_pktlen << 8) | OTX2_MIN_MTU;
 		req->regval[0] |= (0x20ULL << 51) | (0x80ULL << 39) |
 				  (0x2ULL << 36);
+		/* Set link type for DWRR MTU selection on CN10K silicons */
+		if (!is_dev_otx2(pfvf->pdev))
+			req->regval[0] |= FIELD_PREP(GENMASK_ULL(58, 57),
+						(u64)hw->smq_link_type);
 		req->num_regs++;
 		/* MDQ config */
 		parent = schq_list[NIX_TXSCH_LVL_TL4][prio];
@@ -1824,6 +1829,17 @@ void otx2_set_cints_affinity(struct otx2_nic *pfvf)
 	}
 }
 
+static u32 get_dwrr_mtu(struct otx2_nic *pfvf, struct nix_hw_info *hw)
+{
+	if (is_otx2_lbkvf(pfvf->pdev)) {
+		pfvf->hw.smq_link_type = SMQ_LINK_TYPE_LBK;
+		return hw->lbk_dwrr_mtu;
+	}
+
+	pfvf->hw.smq_link_type = SMQ_LINK_TYPE_RPM;
+	return hw->rpm_dwrr_mtu;
+}
+
 u16 otx2_get_max_mtu(struct otx2_nic *pfvf)
 {
 	struct nix_hw_info *rsp;
@@ -1853,7 +1869,7 @@ u16 otx2_get_max_mtu(struct otx2_nic *pfvf)
 		max_mtu = rsp->max_mtu - 8 - OTX2_ETH_HLEN;
 
 		/* Also save DWRR MTU, needed for DWRR weight calculation */
-		pfvf->hw.dwrr_mtu = rsp->rpm_dwrr_mtu;
+		pfvf->hw.dwrr_mtu = get_dwrr_mtu(pfvf, rsp);
 		if (!pfvf->hw.dwrr_mtu)
 			pfvf->hw.dwrr_mtu = 1;
 	}

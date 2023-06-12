@@ -1413,7 +1413,8 @@ static int rvu_af_dl_dwrr_mtu_set(struct devlink *devlink, u32 id,
 	u64 dwrr_mtu;
 
 	dwrr_mtu = convert_bytes_to_dwrr_mtu(ctx->val.vu32);
-	rvu_write64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU, dwrr_mtu);
+	rvu_write64(rvu, BLKADDR_NIX0,
+		    nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM), dwrr_mtu);
 
 	return 0;
 }
@@ -1428,7 +1429,8 @@ static int rvu_af_dl_dwrr_mtu_get(struct devlink *devlink, u32 id,
 	if (!rvu->hw->cap.nix_common_dwrr_mtu)
 		return -EOPNOTSUPP;
 
-	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU);
+	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0,
+			      nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM));
 	ctx->val.vu32 = convert_dwrr_mtu_to_bytes(dwrr_mtu);
 
 	return 0;
