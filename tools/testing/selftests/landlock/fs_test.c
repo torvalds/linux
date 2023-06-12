@@ -10,6 +10,7 @@
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <linux/landlock.h>
+#include <linux/magic.h>
 #include <sched.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,6 +20,7 @@
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/vfs.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -133,6 +135,19 @@ static bool supports_filesystem(const char *const filesystem)
 	res = fgrep(inf, str);
 	fclose(inf);
 	return res;
+}
+
+static bool cwd_matches_fs(unsigned int fs_magic)
+{
+	struct statfs statfs_buf;
+
+	if (!fs_magic)
+		return true;
+
+	if (statfs(".", &statfs_buf))
+		return true;
+
+	return statfs_buf.f_type == fs_magic;
 }
 
 static void mkdir_parents(struct __test_metadata *const _metadata,
@@ -4500,6 +4515,7 @@ FIXTURE_VARIANT(layout3_fs)
 {
 	const struct mnt_opt mnt;
 	const char *const file_path;
+	unsigned int cwd_fs_magic;
 };
 
 /* clang-format off */
@@ -4538,13 +4554,23 @@ FIXTURE_VARIANT_ADD(layout3_fs, sysfs) {
 	.file_path = TMP_DIR "/kernel/notes",
 };
 
+FIXTURE_VARIANT_ADD(layout3_fs, hostfs) {
+	.mnt = {
+		.source = TMP_DIR,
+		.flags = MS_BIND,
+	},
+	.file_path = TMP_DIR "/dir/file",
+	.cwd_fs_magic = HOSTFS_SUPER_MAGIC,
+};
+
 FIXTURE_SETUP(layout3_fs)
 {
 	struct stat statbuf;
 	const char *slash;
 	size_t dir_len;
 
-	if (!supports_filesystem(variant->mnt.type)) {
+	if (!supports_filesystem(variant->mnt.type) ||
+	    !cwd_matches_fs(variant->cwd_fs_magic)) {
 		self->skip_test = true;
 		SKIP(return, "this filesystem is not supported (setup)");
 	}
