@@ -2966,7 +2966,7 @@
 				#sound-dai-cells = <0>;
 
 				operating-points-v2 = <&dp0_opp_table>;
-				power-domains = <&rpmhpd SC8180X_CX>;
+				power-domains = <&rpmhpd SC8180X_MMCX>;
 
 				status = "disabled";
 
@@ -3040,7 +3040,7 @@
 				#sound-dai-cells = <0>;
 
 				operating-points-v2 = <&dp0_opp_table>;
-				power-domains = <&rpmhpd SC8180X_CX>;
+				power-domains = <&rpmhpd SC8180X_MMCX>;
 
 				status = "disabled";
 
@@ -3114,7 +3114,7 @@
 				#sound-dai-cells = <0>;
 
 				operating-points-v2 = <&edp_opp_table>;
-				power-domains = <&rpmhpd SC8180X_CX>;
+				power-domains = <&rpmhpd SC8180X_MMCX>;
 
 				status = "disabled";
 
