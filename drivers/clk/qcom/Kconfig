@@ -1220,6 +1220,15 @@ config SM_SCC_6150
 	  the sensor processor.  However, on some systems it is instead owned
 	  by the application processor.
 
+config SM_DEBUGCC_6150
+	tristate "SM6150 Debug Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc
+	  SM6150 devices.
+	  Say Y if you want to support the debug clocks such as
+	  clock measurement functionality.
+
 endif
 
 config VIRTIO_CLK
