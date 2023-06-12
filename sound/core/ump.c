@@ -688,6 +688,28 @@ static void fill_fb_info(struct snd_ump_endpoint *ump,
 		info->sysex8_streams, info->flags);
 }
 
+/* check whether the FB info gets updated by the current message */
+static bool is_fb_info_updated(struct snd_ump_endpoint *ump,
+			       struct snd_ump_block *fb,
+			       const union snd_ump_stream_msg *buf)
+{
+	char tmpbuf[offsetof(struct snd_ump_block_info, name)];
+
+	memcpy(tmpbuf, &fb->info, sizeof(tmpbuf));
+	fill_fb_info(ump, (struct snd_ump_block_info *)tmpbuf, buf);
+	return memcmp(&fb->info, tmpbuf, sizeof(tmpbuf)) != 0;
+}
+
+/* notify the FB info/name change to sequencer */
+static void seq_notify_fb_change(struct snd_ump_endpoint *ump,
+				 struct snd_ump_block *fb)
+{
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+	if (ump->seq_ops && ump->seq_ops->notify_fb_change)
+		ump->seq_ops->notify_fb_change(ump, fb);
+#endif
+}
+
 /* handle FB info message; update FB info if the block is present */
 static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -697,14 +719,24 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 
 	blk = buf->fb_info.function_block_id;
 	fb = snd_ump_get_block(ump, blk);
-	if (fb) {
-		fill_fb_info(ump, &fb->info, buf);
-	} else if (ump->parsed) {
-		/* complain only if updated after parsing */
+
+	/* complain only if updated after parsing */
+	if (!fb && ump->parsed) {
 		ump_info(ump, "Function Block Info Update for non-existing block %d\n",
 			 blk);
 		return -ENODEV;
 	}
+
+	/* When updated after the initial parse, check the FB info update */
+	if (ump->parsed && !is_fb_info_updated(ump, fb, buf))
+		return 1; /* no content change */
+
+	if (fb) {
+		fill_fb_info(ump, &fb->info, buf);
+		if (ump->parsed)
+			seq_notify_fb_change(ump, fb);
+	}
+
 	return 1; /* finished */
 }
 
@@ -714,14 +746,19 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 {
 	unsigned char blk;
 	struct snd_ump_block *fb;
+	int ret;
 
 	blk = buf->fb_name.function_block_id;
 	fb = snd_ump_get_block(ump, blk);
 	if (!fb)
 		return -ENODEV;
 
-	return ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
-				 buf->raw, 3);
+	ret = ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
+				buf->raw, 3);
+	/* notify the FB name update to sequencer, too */
+	if (ret > 0 && ump->parsed)
+		seq_notify_fb_change(ump, fb);
+	return ret;
 }
 
 static int create_block_from_fb_info(struct snd_ump_endpoint *ump, int blk)
