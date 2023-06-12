@@ -255,4 +255,7 @@ static inline u32 ump_stream_compose(unsigned char status, unsigned short form)
 		((u32)status << 16);
 }
 
+#define ump_is_groupless_msg(type) \
+	((type) == UMP_MSG_TYPE_UTILITY || (type) == UMP_MSG_TYPE_STREAM)
+
 #endif /* __SOUND_UMP_H */

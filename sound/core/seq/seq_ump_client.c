@@ -73,7 +73,10 @@ static void seq_ump_input_receive(struct snd_ump_endpoint *ump,
 	if (!client->opened[STR_IN])
 		return;
 
-	ev.source.port = ump_group_to_seq_port(ump_message_group(*val));
+	if (ump_is_groupless_msg(ump_message_type(*val)))
+		ev.source.port = 0; /* UMP EP port */
+	else
+		ev.source.port = ump_group_to_seq_port(ump_message_group(*val));
 	ev.dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
 	ev.flags = SNDRV_SEQ_EVENT_UMP;
 	memcpy(ev.ump, val, words << 2);
