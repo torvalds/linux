@@ -1199,19 +1199,31 @@ static ssize_t arm_cmn_cpumask_show(struct device *dev,
 static struct device_attribute arm_cmn_cpumask_attr =
 		__ATTR(cpumask, 0444, arm_cmn_cpumask_show, NULL);
 
-static struct attribute *arm_cmn_cpumask_attrs[] = {
+static ssize_t arm_cmn_identifier_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct arm_cmn *cmn = to_cmn(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%03x%02x\n", cmn->part, cmn->rev);
+}
+
+static struct device_attribute arm_cmn_identifier_attr =
+		__ATTR(identifier, 0444, arm_cmn_identifier_show, NULL);
+
+static struct attribute *arm_cmn_other_attrs[] = {
 	&arm_cmn_cpumask_attr.attr,
+	&arm_cmn_identifier_attr.attr,
 	NULL,
 };
 
-static const struct attribute_group arm_cmn_cpumask_attr_group = {
-	.attrs = arm_cmn_cpumask_attrs,
+static const struct attribute_group arm_cmn_other_attrs_group = {
+	.attrs = arm_cmn_other_attrs,
 };
 
 static const struct attribute_group *arm_cmn_attr_groups[] = {
 	&arm_cmn_event_attrs_group,
 	&arm_cmn_format_attrs_group,
-	&arm_cmn_cpumask_attr_group,
+	&arm_cmn_other_attrs_group,
 	NULL
 };
 
