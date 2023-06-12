@@ -258,7 +258,7 @@ static inline void sg_unmark_end(struct scatterlist *sg)
 #define SG_DMA_BUS_ADDRESS (1 << 0)
 
 /**
- * sg_dma_is_bus address - Return whether a given segment was marked
+ * sg_dma_is_bus_address - Return whether a given segment was marked
  *			   as a bus address
  * @sg:		 SG entry
  *
@@ -266,13 +266,13 @@ static inline void sg_unmark_end(struct scatterlist *sg)
  *   Returns true if sg_dma_mark_bus_address() has been called on
  *   this segment.
  **/
-static inline bool sg_is_dma_bus_address(struct scatterlist *sg)
+static inline bool sg_dma_is_bus_address(struct scatterlist *sg)
 {
 	return sg->dma_flags & SG_DMA_BUS_ADDRESS;
 }
 
 /**
- * sg_dma_mark_bus address - Mark the scatterlist entry as a bus address
+ * sg_dma_mark_bus_address - Mark the scatterlist entry as a bus address
  * @sg:		 SG entry
  *
  * Description:
@@ -300,7 +300,7 @@ static inline void sg_dma_unmark_bus_address(struct scatterlist *sg)
 
 #else
 
-static inline bool sg_is_dma_bus_address(struct scatterlist *sg)
+static inline bool sg_dma_is_bus_address(struct scatterlist *sg)
 {
 	return false;
 }
