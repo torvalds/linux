@@ -448,6 +448,20 @@ static const char *ump_direction_string(int dir)
 	}
 }
 
+static const char *ump_ui_hint_string(int dir)
+{
+	switch (dir) {
+	case  SNDRV_UMP_BLOCK_UI_HINT_RECEIVER:
+		return "receiver";
+	case SNDRV_UMP_BLOCK_UI_HINT_SENDER:
+		return "sender";
+	case SNDRV_UMP_BLOCK_UI_HINT_BOTH:
+		return "both";
+	default:
+		return "unknown";
+	}
+}
+
 /* Additional proc file output */
 static void snd_ump_proc_read(struct snd_info_entry *entry,
 			      struct snd_info_buffer *buffer)
@@ -461,6 +475,17 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "UMP Version: 0x%04x\n", ump->info.version);
 	snd_iprintf(buffer, "Protocol Caps: 0x%08x\n", ump->info.protocol_caps);
 	snd_iprintf(buffer, "Protocol: 0x%08x\n", ump->info.protocol);
+	if (ump->info.version) {
+		snd_iprintf(buffer, "Manufacturer ID: 0x%08x\n",
+			    ump->info.manufacturer_id);
+		snd_iprintf(buffer, "Family ID: 0x%04x\n", ump->info.family_id);
+		snd_iprintf(buffer, "Model ID: 0x%04x\n", ump->info.model_id);
+		snd_iprintf(buffer, "SW Revision: 0x%02x%02x%02x%02x\n",
+			    ump->info.sw_revision[0],
+			    ump->info.sw_revision[1],
+			    ump->info.sw_revision[2],
+			    ump->info.sw_revision[3]);
+	}
 	snd_iprintf(buffer, "Num Blocks: %d\n\n", ump->info.num_blocks);
 
 	list_for_each_entry(fb, &ump->block_list, list) {
@@ -476,6 +501,14 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "  Is MIDI1: %s%s\n",
 			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_MIDI1) ? "Yes" : "No",
 			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_LOWSPEED) ? " (Low Speed)" : "");
+		if (ump->info.version) {
+			snd_iprintf(buffer, "  MIDI-CI Version: %d\n",
+				    fb->info.midi_ci_version);
+			snd_iprintf(buffer, "  Sysex8 Streams: %d\n",
+				    fb->info.sysex8_streams);
+			snd_iprintf(buffer, "  UI Hint: %s\n",
+				    ump_ui_hint_string(fb->info.ui_hint));
+		}
 		snd_iprintf(buffer, "\n");
 	}
 }
