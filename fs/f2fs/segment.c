@@ -4888,8 +4888,12 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 			break;
 	}
 
-	// The write pointer matches with the valid blocks
-	if (last_valid_block + 1 == wp_block)
+	/*
+	 * The write pointer matches with the valid blocks or
+	 * already points to the end of the zone.
+	 */
+	if ((last_valid_block + 1 == wp_block) ||
+			(zone->wp == zone->start + zone->len))
 		return 0;
 
 	if (last_valid_block + 1 == zone_block) {
