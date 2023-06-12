@@ -218,7 +218,7 @@ static struct clk_regmap rtc_32k_sel = {
 	},
 };
 
-struct clk_regmap rtc = {
+static struct clk_regmap rtc = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = RTC_BY_OSCIN_CTRL0,
 		.bit_idx = 30,
