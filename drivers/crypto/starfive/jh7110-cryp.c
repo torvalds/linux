@@ -86,8 +86,17 @@ static irqreturn_t starfive_cryp_irq(int irq, void *priv)
 
 	status = readl(cryp->base + STARFIVE_IE_FLAG_OFFSET);
 	if (status & STARFIVE_IE_FLAG_HASH_DONE) {
-		writel(STARFIVE_IE_MASK_HASH_DONE, cryp->base + STARFIVE_IE_MASK_OFFSET);
+		status = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
+		status |= STARFIVE_IE_MASK_HASH_DONE;
+		writel(status, cryp->base + STARFIVE_IE_MASK_OFFSET);
 		tasklet_schedule(&cryp->hash_done);
+	}
+
+	if (status & STARFIVE_IE_FLAG_PKA_DONE) {
+		status = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
+		status |= STARFIVE_IE_MASK_PKA_DONE;
+		writel(status, cryp->base + STARFIVE_IE_MASK_OFFSET);
+		complete(&cryp->pka_done);
 	}
 
 	return IRQ_HANDLED;
@@ -132,6 +141,8 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->rst),
 				     "Error getting hardware reset line\n");
 
+	init_completion(&cryp->pka_done);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -173,8 +184,14 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_algs_hash;
 
+	ret = starfive_rsa_register_algs();
+	if (ret)
+		goto err_algs_rsa;
+
 	return 0;
 
+err_algs_rsa:
+	starfive_hash_unregister_algs();
 err_algs_hash:
 	crypto_engine_stop(cryp->engine);
 err_engine_start:
@@ -200,6 +217,7 @@ static int starfive_cryp_remove(struct platform_device *pdev)
 	struct starfive_cryp_dev *cryp = platform_get_drvdata(pdev);
 
 	starfive_hash_unregister_algs();
+	starfive_rsa_unregister_algs();
 
 	tasklet_kill(&cryp->hash_done);
 

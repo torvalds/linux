@@ -18,7 +18,9 @@
 #define STARFIVE_DMA_OUT_LEN_OFFSET		0x14
 
 #define STARFIVE_IE_MASK_HASH_DONE		0x4
+#define STARFIVE_IE_MASK_PKA_DONE		0x8
 #define STARFIVE_IE_FLAG_HASH_DONE		0x4
+#define STARFIVE_IE_FLAG_PKA_DONE		0x8
 
 #define STARFIVE_MSG_BUFFER_SIZE		SZ_16K
 #define MAX_KEY_SIZE				SHA512_BLOCK_SIZE
@@ -54,6 +56,39 @@ union starfive_hash_csr {
 	};
 };
 
+union starfive_pka_cacr {
+	u32 v;
+	struct {
+		u32 start			:1;
+		u32 reset			:1;
+		u32 ie				:1;
+		u32 rsvd_0			:1;
+		u32 fifo_mode			:1;
+		u32 not_r2			:1;
+		u32 ecc_sub			:1;
+		u32 pre_expf			:1;
+		u32 cmd				:4;
+		u32 rsvd_1			:1;
+		u32 ctrl_dummy			:1;
+		u32 ctrl_false			:1;
+		u32 cln_done			:1;
+		u32 opsize			:6;
+		u32 rsvd_2			:2;
+		u32 exposize			:6;
+		u32 rsvd_3			:1;
+		u32 bigendian			:1;
+	};
+};
+
+struct starfive_rsa_key {
+	u8	*n;
+	u8	*e;
+	u8	*d;
+	int	e_bitlen;
+	int	d_bitlen;
+	int	bitlen;
+	size_t	key_sz;
+};
 
 union starfive_alg_cr {
 	u32 v;
@@ -78,6 +113,8 @@ struct starfive_cryp_ctx {
 	u8					key[MAX_KEY_SIZE];
 	int					keylen;
 	bool					is_hmac;
+	struct starfive_rsa_key			rsa_key;
+	struct crypto_akcipher			*akcipher_fbk;
 	struct crypto_ahash			*ahash_fbk;
 };
 
@@ -98,6 +135,7 @@ struct starfive_cryp_dev {
 	struct dma_slave_config			cfg_out;
 	struct crypto_engine			*engine;
 	struct tasklet_struct			hash_done;
+	struct completion			pka_done;
 	int					err;
 	union starfive_alg_cr			alg_cr;
 	union {
@@ -108,20 +146,27 @@ struct starfive_cryp_dev {
 struct starfive_cryp_request_ctx {
 	union {
 		union starfive_hash_csr		hash;
+		union starfive_pka_cacr		pka;
 	} csr;
 
 	struct scatterlist			*in_sg;
+	struct scatterlist			*out_sg;
 	struct ahash_request			ahash_fbk_req;
 	size_t					total;
+	size_t					nents;
 	unsigned int				blksize;
 	unsigned int				digsize;
 	unsigned long				in_sg_len;
+	u8 rsa_data[] __aligned(sizeof(u32));
 };
 
 struct starfive_cryp_dev *starfive_cryp_find_dev(struct starfive_cryp_ctx *ctx);
 
 int starfive_hash_register_algs(void);
 void starfive_hash_unregister_algs(void);
+
+int starfive_rsa_register_algs(void);
+void starfive_rsa_unregister_algs(void);
 
 void starfive_hash_done_task(unsigned long param);
 #endif
