@@ -2966,8 +2966,13 @@ struct mlxsw_sp_nexthop_group_info {
 	   is_resilient:1;
 	struct list_head list; /* member in nh_res_grp_list */
 	struct mlxsw_sp_nexthop nexthops[];
-#define nh_rif	nexthops[0].rif
 };
+
+static struct mlxsw_sp_rif *
+mlxsw_sp_nhgi_rif(const struct mlxsw_sp_nexthop_group_info *nhgi)
+{
+	return nhgi->nexthops[0].rif;
+}
 
 struct mlxsw_sp_nexthop_group_vr_key {
 	u16 vr_id;
@@ -5510,7 +5515,7 @@ mlxsw_sp_fib_entry_should_offload(const struct mlxsw_sp_fib_entry *fib_entry)
 	case MLXSW_SP_FIB_ENTRY_TYPE_REMOTE:
 		return !!nh_group->nhgi->adj_index_valid;
 	case MLXSW_SP_FIB_ENTRY_TYPE_LOCAL:
-		return !!nh_group->nhgi->nh_rif;
+		return !!mlxsw_sp_nhgi_rif(nh_group->nhgi);
 	case MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE:
 	case MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP:
 	case MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP:
@@ -5772,7 +5777,8 @@ static int mlxsw_sp_fib_entry_op_remote(struct mlxsw_sp *mlxsw_sp,
 		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
 		adjacency_index = nhgi->adj_index;
 		ecmp_size = nhgi->ecmp_size;
-	} else if (!nhgi->adj_index_valid && nhgi->count && nhgi->nh_rif) {
+	} else if (!nhgi->adj_index_valid && nhgi->count &&
+		   mlxsw_sp_nhgi_rif(nhgi)) {
 		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
 		adjacency_index = mlxsw_sp->router->adj_trap_index;
 		ecmp_size = 1;
@@ -5791,7 +5797,7 @@ static int mlxsw_sp_fib_entry_op_local(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_fib_entry *fib_entry,
 				       enum mlxsw_reg_ralue_op op)
 {
-	struct mlxsw_sp_rif *rif = fib_entry->nh_group->nhgi->nh_rif;
+	struct mlxsw_sp_rif *rif = mlxsw_sp_nhgi_rif(fib_entry->nh_group->nhgi);
 	enum mlxsw_reg_ralue_trap_action trap_action;
 	char ralue_pl[MLXSW_REG_RALUE_LEN];
 	u16 trap_id = 0;
