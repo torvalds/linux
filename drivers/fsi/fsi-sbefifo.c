@@ -1027,14 +1027,6 @@ static int sbefifo_probe(struct device *dev)
 	mutex_init(&sbefifo->lock);
 	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
 
-	/*
-	 * Try cleaning up the FIFO. If this fails, we still register the
-	 * driver and will try cleaning things up again on the next access.
-	 */
-	rc = sbefifo_cleanup_hw(sbefifo);
-	if (rc && rc != -ESHUTDOWN)
-		dev_err(dev, "Initial HW cleanup failed, will retry later\n");
-
 	/* Create chardev for userspace access */
 	sbefifo->dev.type = &fsi_cdev_type;
 	sbefifo->dev.parent = dev;
