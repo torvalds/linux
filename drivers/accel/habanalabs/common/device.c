@@ -454,8 +454,10 @@ static void hpriv_release(struct kref *ref)
 		/* Scrubbing is handled within hl_device_reset(), so here need to do it directly */
 		int rc = hdev->asic_funcs->scrub_device_mem(hdev);
 
-		if (rc)
+		if (rc) {
 			dev_err(hdev->dev, "failed to scrub memory from hpriv release (%d)\n", rc);
+			hl_device_reset(hdev, HL_DRV_RESET_HARD);
+		}
 	}
 
 	/* Now we can mark the compute_ctx as not active. Even if a reset is running in a different
