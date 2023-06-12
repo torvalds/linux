@@ -3124,6 +3124,10 @@ struct net_device *netdev_sk_get_lowest_dev(struct net_device *dev,
 					    struct sock *sk);
 struct net_device *dev_get_by_index(struct net *net, int ifindex);
 struct net_device *__dev_get_by_index(struct net *net, int ifindex);
+struct net_device *netdev_get_by_index(struct net *net, int ifindex,
+				       netdevice_tracker *tracker, gfp_t gfp);
+struct net_device *netdev_get_by_name(struct net *net, const char *name,
+				      netdevice_tracker *tracker, gfp_t gfp);
 struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex);
 struct net_device *dev_get_by_napi_id(unsigned int napi_id);
 int dev_restart(struct net_device *dev);

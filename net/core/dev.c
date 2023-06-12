@@ -758,18 +758,7 @@ struct net_device *dev_get_by_name_rcu(struct net *net, const char *name)
 }
 EXPORT_SYMBOL(dev_get_by_name_rcu);
 
-/**
- *	dev_get_by_name		- find a device by its name
- *	@net: the applicable net namespace
- *	@name: name to find
- *
- *	Find an interface by name. This can be called from any
- *	context and does its own locking. The returned handle has
- *	the usage count incremented and the caller must use dev_put() to
- *	release it when it is no longer needed. %NULL is returned if no
- *	matching device is found.
- */
-
+/* Deprecated for new users, call netdev_get_by_name() instead */
 struct net_device *dev_get_by_name(struct net *net, const char *name)
 {
 	struct net_device *dev;
@@ -781,6 +770,31 @@ struct net_device *dev_get_by_name(struct net *net, const char *name)
 	return dev;
 }
 EXPORT_SYMBOL(dev_get_by_name);
+
+/**
+ *	netdev_get_by_name() - find a device by its name
+ *	@net: the applicable net namespace
+ *	@name: name to find
+ *	@tracker: tracking object for the acquired reference
+ *	@gfp: allocation flags for the tracker
+ *
+ *	Find an interface by name. This can be called from any
+ *	context and does its own locking. The returned handle has
+ *	the usage count incremented and the caller must use netdev_put() to
+ *	release it when it is no longer needed. %NULL is returned if no
+ *	matching device is found.
+ */
+struct net_device *netdev_get_by_name(struct net *net, const char *name,
+				      netdevice_tracker *tracker, gfp_t gfp)
+{
+	struct net_device *dev;
+
+	dev = dev_get_by_name(net, name);
+	if (dev)
+		netdev_tracker_alloc(dev, tracker, gfp);
+	return dev;
+}
+EXPORT_SYMBOL(netdev_get_by_name);
 
 /**
  *	__dev_get_by_index - find a device by its ifindex
@@ -831,18 +845,7 @@ struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex)
 }
 EXPORT_SYMBOL(dev_get_by_index_rcu);
 
-
-/**
- *	dev_get_by_index - find a device by its ifindex
- *	@net: the applicable net namespace
- *	@ifindex: index of device
- *
- *	Search for an interface by index. Returns NULL if the device
- *	is not found or a pointer to the device. The device returned has
- *	had a reference added and the pointer is safe until the user calls
- *	dev_put to indicate they have finished with it.
- */
-
+/* Deprecated for new users, call netdev_get_by_index() instead */
 struct net_device *dev_get_by_index(struct net *net, int ifindex)
 {
 	struct net_device *dev;
@@ -854,6 +857,30 @@ struct net_device *dev_get_by_index(struct net *net, int ifindex)
 	return dev;
 }
 EXPORT_SYMBOL(dev_get_by_index);
+
+/**
+ *	netdev_get_by_index() - find a device by its ifindex
+ *	@net: the applicable net namespace
+ *	@ifindex: index of device
+ *	@tracker: tracking object for the acquired reference
+ *	@gfp: allocation flags for the tracker
+ *
+ *	Search for an interface by index. Returns NULL if the device
+ *	is not found or a pointer to the device. The device returned has
+ *	had a reference added and the pointer is safe until the user calls
+ *	netdev_put() to indicate they have finished with it.
+ */
+struct net_device *netdev_get_by_index(struct net *net, int ifindex,
+				       netdevice_tracker *tracker, gfp_t gfp)
+{
+	struct net_device *dev;
+
+	dev = dev_get_by_index(net, ifindex);
+	if (dev)
+		netdev_tracker_alloc(dev, tracker, gfp);
+	return dev;
+}
+EXPORT_SYMBOL(netdev_get_by_index);
 
 /**
  *	dev_get_by_napi_id - find a device by napi_id
