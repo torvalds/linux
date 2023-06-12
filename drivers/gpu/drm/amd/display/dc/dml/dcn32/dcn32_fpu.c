@@ -854,10 +854,9 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 }
 
 /**
- * subvp_drr_schedulable - Determine if SubVP + DRR config is schedulable
+ * subvp_drr_schedulable() - Determine if SubVP + DRR config is schedulable
  * @dc: current dc state
  * @context: new dc state
- * @drr_pipe: DRR pipe_ctx for the SubVP + DRR config
  *
  * High level algorithm:
  * 1. Get timing for SubVP pipe, phantom pipe, and DRR pipe
@@ -1027,19 +1026,16 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 }
 
 /**
- * ************************************************************************************************
- * subvp_subvp_admissable: Determine if subvp + subvp config is admissible
+ * subvp_subvp_admissable() - Determine if subvp + subvp config is admissible
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
  *
  * SubVP + SubVP is admissible under the following conditions:
  * - All SubVP pipes are < 120Hz OR
  * - All SubVP pipes are >= 120hz
  *
- * @return: True if admissible, false otherwise
- *
- * ************************************************************************************************
+ * Return: True if admissible, false otherwise
  */
 static bool subvp_subvp_admissable(struct dc *dc,
 				struct dc_state *context)
