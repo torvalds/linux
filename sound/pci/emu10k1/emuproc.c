@@ -194,6 +194,14 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 		    emu->card_capabilities->emu_model == EMU_MODEL_EMU1010)
 			snd_iprintf(buffer, "BNC rate: %dHz\n",
 				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_SYNC_BNC));
+
+		snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &value);
+		if (value & EMU_HANA_SPDIF_MODE_RX_INVALID)
+			snd_iprintf(buffer, "\nS/PDIF input invalid\n");
+		else
+			snd_iprintf(buffer, "\nS/PDIF mode: %s%s\n",
+				    value & EMU_HANA_SPDIF_MODE_RX_PRO ? "professional" : "consumer",
+				    value & EMU_HANA_SPDIF_MODE_RX_NOCOPY ? ", no copy" : "");
 	} else {
 		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
