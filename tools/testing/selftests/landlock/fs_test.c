@@ -107,8 +107,10 @@ static bool fgrep(FILE *const inf, const char *const str)
 	return false;
 }
 
-static bool supports_overlayfs(void)
+static bool supports_filesystem(const char *const filesystem)
 {
+	char str[32];
+	int len;
 	bool res;
 	FILE *const inf = fopen("/proc/filesystems", "r");
 
@@ -119,7 +121,12 @@ static bool supports_overlayfs(void)
 	if (!inf)
 		return true;
 
-	res = fgrep(inf, "nodev\toverlay\n");
+	len = snprintf(str, sizeof(str), "nodev\t%s\n", filesystem);
+	if (len >= sizeof(str))
+		/* Ignores too-long filesystem names. */
+		return true;
+
+	res = fgrep(inf, str);
 	fclose(inf);
 	return res;
 }
@@ -4044,14 +4051,17 @@ static const char (*merge_sub_files[])[] = {
  *         └── work
  */
 
-/* clang-format off */
-FIXTURE(layout2_overlay) {};
-/* clang-format on */
+FIXTURE(layout2_overlay)
+{
+	bool skip_test;
+};
 
 FIXTURE_SETUP(layout2_overlay)
 {
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (!supports_filesystem("overlay")) {
+		self->skip_test = true;
+		SKIP(return, "overlayfs is not supported (setup)");
+	}
 
 	prepare_layout(_metadata);
 
@@ -4089,8 +4099,8 @@ FIXTURE_SETUP(layout2_overlay)
 
 FIXTURE_TEARDOWN(layout2_overlay)
 {
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (teardown)");
 
 	EXPECT_EQ(0, remove_path(lower_do1_fl3));
 	EXPECT_EQ(0, remove_path(lower_dl1_fl2));
@@ -4123,8 +4133,8 @@ FIXTURE_TEARDOWN(layout2_overlay)
 
 TEST_F_FORK(layout2_overlay, no_restriction)
 {
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (test)");
 
 	ASSERT_EQ(0, test_open(lower_fl1, O_RDONLY));
 	ASSERT_EQ(0, test_open(lower_dl1, O_RDONLY));
@@ -4289,8 +4299,8 @@ TEST_F_FORK(layout2_overlay, same_content_different_file)
 	size_t i;
 	const char *path_entry;
 
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (test)");
 
 	/* Sets rules on base directories (i.e. outside overlay scope). */
 	ruleset_fd = create_ruleset(_metadata, ACCESS_RW, layer1_base);
