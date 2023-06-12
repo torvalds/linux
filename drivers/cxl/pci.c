@@ -118,9 +118,11 @@ static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
 	struct cxl_dev_id *dev_id = id;
 	struct cxl_dev_state *cxlds = dev_id->cxlds;
 
+	if (!cxl_mbox_background_complete(cxlds))
+		return IRQ_NONE;
+
 	/* short-circuit the wait in __cxl_pci_mbox_send_cmd() */
-	if (cxl_mbox_background_complete(cxlds))
-		rcuwait_wake_up(&cxlds->mbox_wait);
+	rcuwait_wake_up(&cxlds->mbox_wait);
 
 	return IRQ_HANDLED;
 }
