@@ -258,10 +258,6 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle);
 static int zswap_pool_get(struct zswap_pool *pool);
 static void zswap_pool_put(struct zswap_pool *pool);
 
-static const struct zpool_ops zswap_zpool_ops = {
-	.evict = zswap_writeback_entry
-};
-
 static bool zswap_is_full(void)
 {
 	return totalram_pages() * zswap_max_pool_percent / 100 <
@@ -379,12 +375,9 @@ static void zswap_free_entry(struct zswap_entry *entry)
 	if (!entry->length)
 		atomic_dec(&zswap_same_filled_pages);
 	else {
-		/* zpool_evictable will be removed once all 3 backends have migrated */
-		if (!zpool_evictable(entry->pool->zpool)) {
-			spin_lock(&entry->pool->lru_lock);
-			list_del(&entry->lru);
-			spin_unlock(&entry->pool->lru_lock);
-		}
+		spin_lock(&entry->pool->lru_lock);
+		list_del(&entry->lru);
+		spin_unlock(&entry->pool->lru_lock);
 		zpool_free(entry->pool->zpool, entry->handle);
 		zswap_pool_put(entry->pool);
 	}
@@ -665,12 +658,8 @@ static void shrink_worker(struct work_struct *w)
 						shrink_work);
 	int ret, failures = 0;
 
-	/* zpool_evictable will be removed once all 3 backends have migrated */
 	do {
-		if (zpool_evictable(pool->zpool))
-			ret = zpool_shrink(pool->zpool, 1, NULL);
-		else
-			ret = zswap_reclaim_entry(pool);
+		ret = zswap_reclaim_entry(pool);
 		if (ret) {
 			zswap_reject_reclaim_fail++;
 			if (ret != -EAGAIN)
@@ -708,7 +697,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	/* unique name for each pool specifically required by zsmalloc */
 	snprintf(name, 38, "zswap%x", atomic_inc_return(&zswap_pools_count));
 
-	pool->zpool = zpool_create_pool(type, name, gfp, &zswap_zpool_ops);
+	pool->zpool = zpool_create_pool(type, name, gfp);
 	if (!pool->zpool) {
 		pr_err("%s zpool not available\n", type);
 		goto error;
@@ -1394,8 +1383,7 @@ insert_entry:
 			zswap_entry_put(tree, dupentry);
 		}
 	} while (ret == -EEXIST);
-	/* zpool_evictable will be removed once all 3 backends have migrated */
-	if (entry->length && !zpool_evictable(entry->pool->zpool)) {
+	if (entry->length) {
 		spin_lock(&entry->pool->lru_lock);
 		list_add(&entry->lru, &entry->pool->lru);
 		spin_unlock(&entry->pool->lru_lock);
@@ -1514,8 +1502,7 @@ freeentry:
 	if (!ret && zswap_exclusive_loads_enabled) {
 		zswap_invalidate_entry(tree, entry);
 		*exclusive = true;
-	} else if (entry->length && !zpool_evictable(entry->pool->zpool)) {
-		/* zpool_evictable will be removed once all 3 backends have migrated */
+	} else if (entry->length) {
 		spin_lock(&entry->pool->lru_lock);
 		list_move(&entry->lru, &entry->pool->lru);
 		spin_unlock(&entry->pool->lru_lock);
