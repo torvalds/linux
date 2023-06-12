@@ -919,7 +919,7 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 		 * bits, so construct the id with the below two bit shift.
 		 */
 		id = (cid << 2) | type;
-		id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
+		id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
 		if (id >= 0) {
 			*out_index = fsi_adjust_index(cid);
 			*out_dev = fsi_base_dev + id;
@@ -930,8 +930,8 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 			return id;
 		/* Fallback to non-legacy allocation */
 	}
-	id = ida_simple_get(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
-			    FSI_CHAR_MAX_DEVICES, GFP_KERNEL);
+	id = ida_alloc_range(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
+			     FSI_CHAR_MAX_DEVICES - 1, GFP_KERNEL);
 	if (id < 0)
 		return id;
 	*out_index = fsi_adjust_index(id);
@@ -956,7 +956,7 @@ int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
 			/* Use the same scheme as the legacy numbers. */
 			int id = (aid << 2) | type;
 
-			id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
+			id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
 			if (id >= 0) {
 				*out_index = aid;
 				*out_dev = fsi_base_dev + id;
@@ -974,7 +974,7 @@ EXPORT_SYMBOL_GPL(fsi_get_new_minor);
 
 void fsi_free_minor(dev_t dev)
 {
-	ida_simple_remove(&fsi_minor_ida, MINOR(dev));
+	ida_free(&fsi_minor_ida, MINOR(dev));
 }
 EXPORT_SYMBOL_GPL(fsi_free_minor);
 
@@ -1309,7 +1309,7 @@ int fsi_master_register(struct fsi_master *master)
 	struct device_node *np;
 
 	mutex_init(&master->scan_lock);
-	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
+	master->idx = ida_alloc(&master_ida, GFP_KERNEL);
 	if (master->idx < 0)
 		return master->idx;
 
@@ -1318,7 +1318,7 @@ int fsi_master_register(struct fsi_master *master)
 
 	rc = device_register(&master->dev);
 	if (rc) {
-		ida_simple_remove(&master_ida, master->idx);
+		ida_free(&master_ida, master->idx);
 		return rc;
 	}
 
@@ -1338,7 +1338,7 @@ void fsi_master_unregister(struct fsi_master *master)
 	trace_fsi_master_unregister(master);
 
 	if (master->idx >= 0) {
-		ida_simple_remove(&master_ida, master->idx);
+		ida_free(&master_ida, master->idx);
 		master->idx = -1;
 	}
 
