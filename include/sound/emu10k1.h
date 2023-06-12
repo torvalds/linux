@@ -1495,6 +1495,7 @@ struct snd_emu10k1_pcm {
 	unsigned short first_ptr;
 	snd_pcm_uframes_t resume_pos;
 	struct snd_util_memblk *memblk;
+	unsigned int pitch_target;
 	unsigned int start_addr;
 	unsigned int ccca_start_addr;
 	unsigned int capture_ipr;	/* interrupt acknowledge mask */

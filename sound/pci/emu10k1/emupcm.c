@@ -195,6 +195,33 @@ static unsigned int snd_emu10k1_audigy_capture_rate_reg(unsigned int rate)
 	}
 }
 
+static void snd_emu10k1_constrain_capture_rates(struct snd_emu10k1 *emu,
+						struct snd_pcm_runtime *runtime)
+{
+	if (emu->card_capabilities->emu_model &&
+	    emu->emu1010.word_clock == 44100) {
+		// This also sets the rate constraint by deleting SNDRV_PCM_RATE_KNOT
+		runtime->hw.rates = SNDRV_PCM_RATE_11025 | \
+				    SNDRV_PCM_RATE_22050 | \
+				    SNDRV_PCM_RATE_44100;
+		runtime->hw.rate_min = 11025;
+		runtime->hw.rate_max = 44100;
+		return;
+	}
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &hw_constraints_capture_rates);
+}
+
+static void snd_emu1010_constrain_efx_rate(struct snd_emu10k1 *emu,
+					   struct snd_pcm_runtime *runtime)
+{
+	int rate;
+
+	rate = emu->emu1010.word_clock;
+	runtime->hw.rate_min = runtime->hw.rate_max = rate;
+	runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
+}
+
 static unsigned int emu10k1_calc_pitch_target(unsigned int rate)
 {
 	unsigned int pitch_target;
@@ -251,18 +278,11 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 				       const unsigned char *send_routing,
 				       const unsigned char *send_amount)
 {
-	struct snd_pcm_substream *substream = evoice->epcm->substream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int silent_page;
 	int voice;
-	unsigned int pitch_target;
 
 	voice = evoice->number;
 
-	if (emu->card_capabilities->emu_model)
-		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
-	else
-		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
 	silent_page = ((unsigned int)emu->silent_page.addr << emu->address_mode) |
 		      (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 	snd_emu10k1_ptr_write_multiple(emu, voice,
@@ -273,7 +293,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		// Stereo slaves don't need to have the addresses set, but it doesn't hurt
 		DSL, end_addr | (send_amount[3] << 24),
 		PSST, start_addr | (send_amount[2] << 24),
-		CCCA, emu10k1_select_interprom(pitch_target) |
+		CCCA, emu10k1_select_interprom(evoice->epcm->pitch_target) |
 		      (w_16 ? 0 : CCCA_8BITSELECT),
 		// Clear filter delay memory
 		Z1, 0,
@@ -419,6 +439,13 @@ static int snd_emu10k1_playback_prepare(struct snd_pcm_substream *substream)
 	bool w_16 = snd_pcm_format_width(runtime->format) == 16;
 	bool stereo = runtime->channels == 2;
 	unsigned int start_addr, end_addr;
+	unsigned int rate;
+
+	rate = runtime->rate;
+	if (emu->card_capabilities->emu_model &&
+	    emu->emu1010.word_clock == 44100)
+		rate = rate * 480 / 441;
+	epcm->pitch_target = emu10k1_calc_pitch_target(rate);
 
 	start_addr = epcm->start_addr >> w_16;
 	end_addr = start_addr + runtime->period_size;
@@ -442,6 +469,8 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 	unsigned int start_addr;
 	unsigned int extra_size, channel_size;
 	unsigned int i;
+
+	epcm->pitch_target = PITCH_48000;
 
 	start_addr = epcm->start_addr >> 1;  // 16-bit voices
 
@@ -526,12 +555,16 @@ static int snd_emu10k1_capture_prepare(struct snd_pcm_substream *substream)
 		epcm->capture_bs_val++;
 	}
 	if (epcm->type == CAPTURE_AC97ADC) {
+		unsigned rate = runtime->rate;
+		if (!(runtime->hw.rates & SNDRV_PCM_RATE_48000))
+			rate = rate * 480 / 441;
+
 		epcm->capture_cr_val = emu->audigy ? A_ADCCR_LCHANENABLE : ADCCR_LCHANENABLE;
 		if (runtime->channels > 1)
 			epcm->capture_cr_val |= emu->audigy ? A_ADCCR_RCHANENABLE : ADCCR_RCHANENABLE;
 		epcm->capture_cr_val |= emu->audigy ?
-			snd_emu10k1_audigy_capture_rate_reg(runtime->rate) :
-			snd_emu10k1_capture_rate_reg(runtime->rate);
+			snd_emu10k1_audigy_capture_rate_reg(rate) :
+			snd_emu10k1_capture_rate_reg(rate);
 	}
 	return 0;
 }
@@ -670,19 +703,10 @@ static void snd_emu10k1_playback_commit_pitch(struct snd_emu10k1 *emu,
 static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu,
 					       struct snd_emu10k1_voice *evoice)
 {
-	struct snd_pcm_substream *substream;
-	struct snd_pcm_runtime *runtime;
-	unsigned int voice, pitch_target;
+	unsigned int voice;
 
-	substream = evoice->epcm->substream;
-	runtime = substream->runtime;
 	voice = evoice->number;
-
-	if (emu->card_capabilities->emu_model)
-		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
-	else 
-		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
-	snd_emu10k1_playback_commit_pitch(emu, voice, pitch_target << 16);
+	snd_emu10k1_playback_commit_pitch(emu, voice, evoice->epcm->pitch_target << 16);
 }
 
 static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu,
@@ -1043,11 +1067,9 @@ static const struct snd_pcm_hardware snd_emu10k1_capture_efx =
 				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | 
-				 SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | 
-				 SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000,
-	.rate_min =		44100,
-	.rate_max =		192000,
+	.rates =		SNDRV_PCM_RATE_48000,
+	.rate_min =		48000,
+	.rate_max =		48000,
 	.channels_min =		1,
 	.channels_max =		16,
 	.buffer_bytes_max =	(64*1024),
@@ -1144,6 +1166,8 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_efx_playback;
+	if (emu->card_capabilities->emu_model)
+		snd_emu1010_constrain_efx_rate(emu, runtime);
 	err = snd_emu10k1_playback_set_constraints(runtime);
 	if (err < 0) {
 		kfree(epcm);
@@ -1185,8 +1209,8 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 		kfree(epcm);
 		return err;
 	}
-	if (emu->card_capabilities->emu_model && emu->emu1010.clock_source == 0)
-		sample_rate = 44100;
+	if (emu->card_capabilities->emu_model)
+		sample_rate = emu->emu1010.word_clock;
 	else
 		sample_rate = 48000;
 	err = snd_pcm_hw_rule_noresample(runtime, sample_rate);
@@ -1236,11 +1260,11 @@ static int snd_emu10k1_capture_open(struct snd_pcm_substream *substream)
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_capture;
+	snd_emu10k1_constrain_capture_rates(emu, runtime);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   &hw_constraints_capture_buffer_sizes);
 	emu->capture_interrupt = snd_emu10k1_pcm_ac97adc_interrupt;
 	emu->pcm_capture_substream = substream;
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_capture_rates);
 	return 0;
 }
 
@@ -1313,17 +1337,9 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 	substream->runtime->private_data = epcm;
 	substream->runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_capture_efx;
-	runtime->hw.rates = SNDRV_PCM_RATE_48000;
-	runtime->hw.rate_min = runtime->hw.rate_max = 48000;
 	if (emu->card_capabilities->emu_model) {
-		/* TODO
-		 * SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
-		 * SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
-		 * SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000
-		 * rate_min = 44100,
-		 * rate_max = 192000,
-		 * Need to add mixer control to fix sample rate
-		 *                 
+		snd_emu1010_constrain_efx_rate(emu, runtime);
+		/*
 		 * There are 32 mono channels of 16bits each.
 		 * 24bit Audio uses 2x channels over 16bit,
 		 * 96kHz uses 2x channels over 48kHz,
@@ -1334,30 +1350,12 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		 * 1010rev2 and 1616(m) cards have double that,
 		 * but we don't exceed 16 channels anyway.
 		 */
-#if 1
-		switch (emu->emu1010.clock_source) {
-		case 0:
-			/* For 44.1kHz */
-			runtime->hw.rates = SNDRV_PCM_RATE_44100;
-			runtime->hw.rate_min = runtime->hw.rate_max = 44100;
-			break;
-		case 1:
-			/* For 48kHz */
-			runtime->hw.rates = SNDRV_PCM_RATE_48000;
-			runtime->hw.rate_min = runtime->hw.rate_max = 48000;
-			break;
-		}
-#endif
 #if 0
 		/* For 96kHz */
-		runtime->hw.rates = SNDRV_PCM_RATE_96000;
-		runtime->hw.rate_min = runtime->hw.rate_max = 96000;
 		runtime->hw.channels_min = runtime->hw.channels_max = 4;
 #endif
 #if 0
 		/* For 192kHz */
-		runtime->hw.rates = SNDRV_PCM_RATE_192000;
-		runtime->hw.rate_min = runtime->hw.rate_max = 192000;
 		runtime->hw.channels_min = runtime->hw.channels_max = 2;
 #endif
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
