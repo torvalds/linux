@@ -13,15 +13,8 @@ static int sprd_comp_determine_rate(struct clk_hw *hw,
 				    struct clk_rate_request *req)
 {
 	struct sprd_comp *cc = hw_to_sprd_comp(hw);
-	unsigned long rate;
 
-	rate = sprd_div_helper_round_rate(&cc->common, &cc->div,
-					  req->rate, &req->best_parent_rate);
-	if (rate < 0)
-		return rate;
-
-	req->rate = rate;
-	return 0;
+	return divider_determine_rate(hw, req, NULL, cc->div.width, 0);
 }
 
 static unsigned long sprd_comp_recalc_rate(struct clk_hw *hw,
