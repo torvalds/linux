@@ -428,9 +428,11 @@ static int rk_serdes_link_tx_ctrl_enable(struct rk_serdes *serdes,
 {
 	struct hwclk *hwclk = serdes->chip[remote_id].hwclk;
 	struct i2c_client *client;
+	struct videomode *vm = &route->vm;
 	u32 ctrl_val, val;
 	u32 rx_src;
 	u32 stream_type;
+	u32 length;
 
 	if (route->stream_type == STREAM_DISPLAY) {
 		client = serdes->chip[DEVICE_LOCAL].client;
@@ -459,6 +461,18 @@ static int rk_serdes_link_tx_ctrl_enable(struct rk_serdes *serdes,
 	serdes->i2c_read_reg(client, RKLINK_TX_VIDEO_CTRL, &val);
 	rx_src = rk_serdes_get_stream_source(serdes, route->local_port0);
 	val |= rx_src;
+	if (serdes->version == SERDES_V1) {
+		/*
+		 * The serdes v1 have a bug when enable video suspend function, which
+		 * is used to enhance the i2c frequency. A workaround ways to do it is
+		 * reducing the video packet length:
+		 * length = ((hactive x 24 / 32 / 16) + 15) / 16 * 16
+		 */
+		length = vm->hactive * 24 / 32 / 16;
+		length = (length + 15) / 16 * 16;
+		val &= ~VIDEO_REPKT_LENGTH(0xffff);
+		val |= VIDEO_REPKT_LENGTH(length);
+	}
 	serdes->i2c_write_reg(client, RKLINK_TX_VIDEO_CTRL, val);
 
 	if (route->local_port0 & RK_SERDES_DUAL_LVDS_RX) {

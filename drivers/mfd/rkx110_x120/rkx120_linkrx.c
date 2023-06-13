@@ -104,6 +104,9 @@
  #define LANE0_LANE_ID(x)		UPDATE(x, 1, 1)
  #define LNAE0_ID_SEL(x)		UPDATE(x, 0, 0)
 
+#define DES_RKLINK_REC01_PKT_LENGTH	LINK_REG(0x0028)
+#define E1_REPKT_LENGTH(x)		UPDATE(x, 29, 16)
+#define E0_REPKT_LENGTH(x)		UPDATE(x, 13, 0)
 #define RKLINK_DES_REG01_ENGIN_DEL	0x0030
 #define E1_ENGINE_DELAY(x)		UPDATE(x, 31, 16)
 #define E0_ENGINE_DELAY(x)		UPDATE(x, 15, 0)
@@ -476,12 +479,14 @@ static int rk120_link_rx_cfg(struct rk_serdes *serdes, struct rk_serdes_route *r
 {
 	struct hwclk *hwclk = serdes->chip[remote_id].hwclk;
 	struct i2c_client *client;
+	struct videomode *vm = &route->vm;
 	u32 stream_type;
 	u32 rx_src;
 	u32 ctrl_val, mask, val;
 	u32 lane0_dsource_id, lane1_dsource_id;
 	bool is_rx_dual_lanes;
 	bool is_rx_dual_channels;
+	u32 length;
 
 	if (route->stream_type == STREAM_DISPLAY) {
 		client = serdes->chip[remote_id].client;
@@ -529,6 +534,19 @@ static int rk120_link_rx_cfg(struct rk_serdes *serdes, struct rk_serdes_route *r
 	}
 
 	serdes->i2c_update_bits(client, RKLINK_DES_LANE_ENGINE_DST, mask, val);
+
+	if (serdes->version == SERDES_V1) {
+		/*
+		 * The serdes v1 have a bug when enable video suspend function, which
+		 * is used to enhance the i2c frequency. A workaround ways to do it is
+		 * reducing the video packet length:
+		 * length = ((hactive x 24 / 32 / 16) + 15) / 16 * 16
+		 */
+		length = vm->hactive * 24 / 32 / 16;
+		length = (length + 15) / 16 * 16;
+		serdes->i2c_write_reg(client, DES_RKLINK_REC01_PKT_LENGTH, E0_REPKT_LENGTH(length) |
+				      E1_REPKT_LENGTH(length));
+	}
 
 	serdes->i2c_read_reg(client, RKLINK_DES_SOURCE_CFG, &val);
 
