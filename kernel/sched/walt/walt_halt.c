@@ -557,7 +557,11 @@ static void android_rvh_set_cpus_allowed_by_task(void *unused,
 
 		/* remove halted cpus from the valid mask, and store locally */
 		cpumask_andnot(&allowed_cpus, cpu_valid_mask, cpu_halt_mask);
-		*dest_cpu = cpumask_any_and_distribute(&allowed_cpus, new_mask);
+		cpumask_and(&allowed_cpus, &allowed_cpus, new_mask);
+
+		/* do not modify dest_cpu if there are no cpus to choose from */
+		if (!cpumask_empty(&allowed_cpus))
+			*dest_cpu = cpumask_any_and_distribute(&allowed_cpus, new_mask);
 	}
 }
 
@@ -589,7 +593,7 @@ static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int 
 		return;
 
 	if (cpumask_test_cpu(cpu, cpu_halt_mask)) {
-		cpumask_t cpus_to_avoid;
+		cpumask_t cpus_allowed;
 
 		/* default reject for any halted cpu */
 		*allowed = false;
@@ -600,21 +604,31 @@ static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int 
 			return;
 		}
 
-		cpumask_complement(&cpus_to_avoid, cpu_active_mask);
-		cpumask_or(&cpus_to_avoid, &cpus_to_avoid, cpu_halt_mask);
+		/*
+		 * for cfs threads, active cpus in the affinity are allowed
+		 * but halted cpus are not allowed
+		 */
+		cpumask_and(&cpus_allowed, cpu_active_mask, p->cpus_ptr);
+		cpumask_andnot(&cpus_allowed, &cpus_allowed, cpu_halt_mask);
 
 		if (!(p->flags & PF_KTHREAD)) {
-			if (cpumask_weight(&cpus_to_avoid) == WALT_NR_CPUS) {
-				/* all cpus are inactive or halted. allow for userspace threads */
+			if (cpumask_empty(&cpus_allowed)) {
+				/*
+				 * All affined cpus are inactive or halted.
+				 * Allow this cpu for user threads
+				 */
 				*allowed = true;
 			}
 			return;
 		}
 
-		/* kthreads. extend avoided cpus to include the dying mask */
-		cpumask_or(&cpus_to_avoid, &cpus_to_avoid, cpu_dying_mask);
-		if (cpumask_weight(&cpus_to_avoid) == WALT_NR_CPUS) {
-			/* all cpus inactive or halted or dying. allow for kthreads */
+		/* for kthreads, dying cpus are not allowed */
+		cpumask_andnot(&cpus_allowed, &cpus_allowed, cpu_dying_mask);
+		if (cpumask_empty(&cpus_allowed)) {
+			/*
+			 * All affined cpus inactive or halted or dying.
+			 * Allow this cpu for kthreads
+			 */
 			*allowed = true;
 		}
 	}
