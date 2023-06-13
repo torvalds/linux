@@ -143,12 +143,13 @@ config CRYPTO_MANAGER
 
 config CRYPTO_MANAGER2
 	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
-	select CRYPTO_AEAD2
-	select CRYPTO_HASH2
-	select CRYPTO_SKCIPHER2
-	select CRYPTO_AKCIPHER2
-	select CRYPTO_KPP2
 	select CRYPTO_ACOMP2
+	select CRYPTO_AEAD2
+	select CRYPTO_AKCIPHER2
+	select CRYPTO_HASH2
+	select CRYPTO_KPP2
+	select CRYPTO_RNG2
+	select CRYPTO_SKCIPHER2
 
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
