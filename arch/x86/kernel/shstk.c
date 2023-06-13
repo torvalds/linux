@@ -252,6 +252,9 @@ static int shstk_pop_sigframe(unsigned long *ssp)
 	unsigned long token_addr;
 	int err;
 
+	if (!IS_ALIGNED(*ssp, 8))
+		return -EINVAL;
+
 	err = get_shstk_data(&token_addr, (unsigned long __user *)*ssp);
 	if (unlikely(err))
 		return err;
