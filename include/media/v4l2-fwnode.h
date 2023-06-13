@@ -21,8 +21,6 @@
 
 #include <media/v4l2-mediabus.h>
 
-struct fwnode_handle;
-
 /**
  * struct v4l2_fwnode_endpoint - the endpoint data structure
  * @base: fwnode endpoint of the v4l2_fwnode
