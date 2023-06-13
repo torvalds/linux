@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2007-2015, 2018-2022 Intel Corporation
+ * Copyright (C) 2007-2015, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -171,8 +171,10 @@ static void iwl_pcie_alloc_fw_monitor_block(struct iwl_trans *trans,
 	u32 size = 0;
 	u8 power;
 
-	if (fw_mon->size)
+	if (fw_mon->size) {
+		memset(fw_mon->block, 0, fw_mon->size);
 		return;
+	}
 
 	for (power = max_power; power >= min_power; power--) {
 		size = BIT(power);
@@ -213,9 +215,6 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 	if (WARN(max_power > 26,
 		 "External buffer size for monitor is too big %d, check the FW TLV\n",
 		 max_power))
-		return;
-
-	if (trans->dbg.fw_mon.size)
 		return;
 
 	iwl_pcie_alloc_fw_monitor_block(trans, max_power, 11);
