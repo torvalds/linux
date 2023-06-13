@@ -846,7 +846,7 @@ bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	tls_ctx = tls_get_ctx(skb->sk);
 	tls_netdev = rcu_dereference_bh(tls_ctx->netdev);
 	/* Don't WARN on NULL: if tls_device_down is running in parallel,
-	 * netdev might become NULL, even if tls_is_sk_tx_device_offloaded was
+	 * netdev might become NULL, even if tls_is_skb_tx_device_offloaded was
 	 * true. Rather continue processing this packet.
 	 */
 	if (WARN_ON_ONCE(tls_netdev && tls_netdev != netdev))
