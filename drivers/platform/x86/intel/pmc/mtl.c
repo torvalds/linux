@@ -467,7 +467,12 @@ const struct pmc_reg_map mtl_socm_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 };
 
+#define PMC_DEVID_SOCM	0x7e7f
 static struct pmc_info mtl_pmc_info_list[] = {
+	{
+		.devid = PMC_DEVID_SOCM,
+		.map = &mtl_socm_reg_map,
+	},
 	{}
 };
 
@@ -513,9 +518,7 @@ static int mtl_resume(struct pmc_dev *pmcdev)
 int mtl_core_init(struct pmc_dev *pmcdev)
 {
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
-	int ret;
-
-	pmc->map = &mtl_socm_reg_map;
+	int ret = 0;
 
 	mtl_d3_fixup();
 
@@ -524,9 +527,13 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 	pmcdev->regmap_list = mtl_pmc_info_list;
 	pmc_core_ssram_init(pmcdev);
 
-	ret = get_primary_reg_base(pmc);
-	if (ret)
-		return ret;
+	/* If regbase not assigned, set map and discover using legacy method */
+	if (!pmc->regbase) {
+		pmc->map = &mtl_socm_reg_map;
+		ret = get_primary_reg_base(pmc);
+		if (ret)
+			return ret;
+	}
 
 	/* Due to a hardware limitation, the GBE LTR blocks PC10
 	 * when a cable is attached. Tell the PMC to ignore it.
