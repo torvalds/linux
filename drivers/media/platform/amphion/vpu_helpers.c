@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include "vpu.h"
+#include "vpu_defs.h"
 #include "vpu_core.h"
 #include "vpu_rpc.h"
 #include "vpu_helpers.h"
@@ -411,4 +412,64 @@ int vpu_find_src_by_dst(struct vpu_pair *pairs, u32 cnt, u32 dst)
 	}
 
 	return -EINVAL;
+}
+
+const char *vpu_id_name(u32 id)
+{
+	switch (id) {
+	case VPU_CMD_ID_NOOP: return "noop";
+	case VPU_CMD_ID_CONFIGURE_CODEC: return "configure codec";
+	case VPU_CMD_ID_START: return "start";
+	case VPU_CMD_ID_STOP: return "stop";
+	case VPU_CMD_ID_ABORT: return "abort";
+	case VPU_CMD_ID_RST_BUF: return "reset buf";
+	case VPU_CMD_ID_SNAPSHOT: return "snapshot";
+	case VPU_CMD_ID_FIRM_RESET: return "reset firmware";
+	case VPU_CMD_ID_UPDATE_PARAMETER: return "update parameter";
+	case VPU_CMD_ID_FRAME_ENCODE: return "encode frame";
+	case VPU_CMD_ID_SKIP: return "skip";
+	case VPU_CMD_ID_FS_ALLOC: return "alloc fb";
+	case VPU_CMD_ID_FS_RELEASE: return "release fb";
+	case VPU_CMD_ID_TIMESTAMP: return "timestamp";
+	case VPU_CMD_ID_DEBUG: return "debug";
+	case VPU_MSG_ID_RESET_DONE: return "reset done";
+	case VPU_MSG_ID_START_DONE: return "start done";
+	case VPU_MSG_ID_STOP_DONE: return "stop done";
+	case VPU_MSG_ID_ABORT_DONE: return "abort done";
+	case VPU_MSG_ID_BUF_RST: return "buf reset done";
+	case VPU_MSG_ID_MEM_REQUEST: return "mem request";
+	case VPU_MSG_ID_PARAM_UPD_DONE: return "param upd done";
+	case VPU_MSG_ID_FRAME_INPUT_DONE: return "frame input done";
+	case VPU_MSG_ID_ENC_DONE: return "encode done";
+	case VPU_MSG_ID_DEC_DONE: return "frame display";
+	case VPU_MSG_ID_FRAME_REQ: return "fb request";
+	case VPU_MSG_ID_FRAME_RELEASE: return "fb release";
+	case VPU_MSG_ID_SEQ_HDR_FOUND: return "seq hdr found";
+	case VPU_MSG_ID_RES_CHANGE: return "resolution change";
+	case VPU_MSG_ID_PIC_HDR_FOUND: return "pic hdr found";
+	case VPU_MSG_ID_PIC_DECODED: return "picture decoded";
+	case VPU_MSG_ID_PIC_EOS: return "eos";
+	case VPU_MSG_ID_FIFO_LOW: return "fifo low";
+	case VPU_MSG_ID_BS_ERROR: return "bs error";
+	case VPU_MSG_ID_UNSUPPORTED: return "unsupported";
+	case VPU_MSG_ID_FIRMWARE_XCPT: return "exception";
+	case VPU_MSG_ID_PIC_SKIPPED: return "skipped";
+	}
+	return "<unknown>";
+}
+
+const char *vpu_codec_state_name(enum vpu_codec_state state)
+{
+	switch (state) {
+	case VPU_CODEC_STATE_DEINIT: return "initialization";
+	case VPU_CODEC_STATE_CONFIGURED: return "configured";
+	case VPU_CODEC_STATE_START: return "start";
+	case VPU_CODEC_STATE_STARTED: return "started";
+	case VPU_CODEC_STATE_ACTIVE: return "active";
+	case VPU_CODEC_STATE_SEEK: return "seek";
+	case VPU_CODEC_STATE_STOP: return "stop";
+	case VPU_CODEC_STATE_DRAIN: return "drain";
+	case VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE: return "resolution change";
+	}
+	return "<unknown>";
 }
