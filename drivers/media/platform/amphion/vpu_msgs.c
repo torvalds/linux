@@ -210,7 +210,7 @@ static int vpu_session_handle_msg(struct vpu_inst *inst, struct vpu_rpc_event *m
 		return -EINVAL;
 
 	msg_id = ret;
-	dev_dbg(inst->dev, "[%d] receive event(0x%x)\n", inst->id, msg_id);
+	dev_dbg(inst->dev, "[%d] receive event(%s)\n", inst->id, vpu_id_name(msg_id));
 
 	for (i = 0; i < ARRAY_SIZE(handlers); i++) {
 		if (handlers[i].id == msg_id) {

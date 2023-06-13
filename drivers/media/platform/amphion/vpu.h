@@ -355,6 +355,9 @@ void vpu_inst_record_flow(struct vpu_inst *inst, u32 flow);
 int vpu_core_driver_init(void);
 void vpu_core_driver_exit(void);
 
+const char *vpu_id_name(u32 id);
+const char *vpu_codec_state_name(enum vpu_codec_state state);
+
 extern bool debug;
 #define vpu_trace(dev, fmt, arg...)					\
 	do {								\

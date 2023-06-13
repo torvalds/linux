@@ -299,7 +299,8 @@ static int vdec_update_state(struct vpu_inst *inst, enum vpu_codec_state state, 
 		vdec->state = VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE;
 
 	if (inst->state != pre_state)
-		vpu_trace(inst->dev, "[%d] %d -> %d\n", inst->id, pre_state, inst->state);
+		vpu_trace(inst->dev, "[%d] %s -> %s\n", inst->id,
+			  vpu_codec_state_name(pre_state), vpu_codec_state_name(inst->state));
 
 	if (inst->state == VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE)
 		vdec_handle_resolution_change(inst);
@@ -1037,8 +1038,8 @@ static int vdec_response_frame(struct vpu_inst *inst, struct vb2_v4l2_buffer *vb
 		return -EINVAL;
 	}
 
-	dev_dbg(inst->dev, "[%d] state = %d, alloc fs %d, tag = 0x%x\n",
-		inst->id, inst->state, vbuf->vb2_buf.index, vdec->seq_tag);
+	dev_dbg(inst->dev, "[%d] state = %s, alloc fs %d, tag = 0x%x\n",
+		inst->id, vpu_codec_state_name(inst->state), vbuf->vb2_buf.index, vdec->seq_tag);
 	vpu_buf = to_vpu_vb2_buffer(vbuf);
 
 	memset(&info, 0, sizeof(info));
@@ -1400,7 +1401,7 @@ static void vdec_abort(struct vpu_inst *inst)
 	struct vpu_rpc_buffer_desc desc;
 	int ret;
 
-	vpu_trace(inst->dev, "[%d] state = %d\n", inst->id, inst->state);
+	vpu_trace(inst->dev, "[%d] state = %s\n", inst->id, vpu_codec_state_name(inst->state));
 
 	vdec->aborting = true;
 	vpu_iface_add_scode(inst, SCODE_PADDING_ABORT);

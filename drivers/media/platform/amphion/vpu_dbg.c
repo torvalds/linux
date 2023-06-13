@@ -67,7 +67,7 @@ static int vpu_dbg_instance(struct seq_file *s, void *data)
 	num = scnprintf(str, sizeof(str), "tgig = %d,pid = %d\n", inst->tgid, inst->pid);
 	if (seq_write(s, str, num))
 		return 0;
-	num = scnprintf(str, sizeof(str), "state = %d\n", inst->state);
+	num = scnprintf(str, sizeof(str), "state = %s\n", vpu_codec_state_name(inst->state));
 	if (seq_write(s, str, num))
 		return 0;
 	num = scnprintf(str, sizeof(str),
@@ -188,9 +188,9 @@ static int vpu_dbg_instance(struct seq_file *s, void *data)
 
 		if (!inst->flows[idx])
 			continue;
-		num = scnprintf(str, sizeof(str), "\t[%s]0x%x\n",
+		num = scnprintf(str, sizeof(str), "\t[%s] %s\n",
 				inst->flows[idx] >= VPU_MSG_ID_NOOP ? "M" : "C",
-				inst->flows[idx]);
+				vpu_id_name(inst->flows[idx]));
 		if (seq_write(s, str, num)) {
 			mutex_unlock(&inst->core->cmd_lock);
 			return 0;
