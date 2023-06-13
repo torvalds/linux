@@ -109,6 +109,7 @@
 	pinctrl_usb2ahp_default: usb2ahp_default {
 		function = "USB2A";
 		groups = "USB2AHP";
+	};
 
 	pinctrl_usb3bxhd_default: usb3bxhd_default {
 		function = "USB3B";
