@@ -26,6 +26,12 @@ int ksm_disable(struct mm_struct *mm);
 
 int __ksm_enter(struct mm_struct *mm);
 void __ksm_exit(struct mm_struct *mm);
+/*
+ * To identify zeropages that were mapped by KSM, we reuse the dirty bit
+ * in the PTE. If the PTE is dirty, the zeropage was mapped by KSM when
+ * deduplicating memory.
+ */
+#define is_ksm_zero_pte(pte)	(is_zero_pfn(pte_pfn(pte)) && pte_dirty(pte))
 
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
