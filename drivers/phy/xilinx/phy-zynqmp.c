@@ -572,6 +572,10 @@ static int xpsgtr_phy_init(struct phy *phy)
 
 	mutex_lock(&gtr_dev->gtr_mutex);
 
+	/* Configure and enable the clock when peripheral phy_init call */
+	if (clk_prepare_enable(gtr_dev->clk[gtr_phy->lane]))
+		goto out;
+
 	/* Skip initialization if not required. */
 	if (!xpsgtr_phy_init_required(gtr_phy))
 		goto out;
@@ -616,8 +620,12 @@ out:
 static int xpsgtr_phy_exit(struct phy *phy)
 {
 	struct xpsgtr_phy *gtr_phy = phy_get_drvdata(phy);
+	struct xpsgtr_dev *gtr_dev = gtr_phy->dev;
 
 	gtr_phy->skip_phy_init = false;
+
+	/* Ensure that disable clock only, which configure for lane */
+	clk_disable_unprepare(gtr_dev->clk[gtr_phy->lane]);
 
 	return 0;
 }
@@ -824,14 +832,10 @@ static struct phy *xpsgtr_xlate(struct device *dev,
 static int xpsgtr_runtime_suspend(struct device *dev)
 {
 	struct xpsgtr_dev *gtr_dev = dev_get_drvdata(dev);
-	unsigned int i;
 
 	/* Save the snapshot ICM_CFG registers. */
 	gtr_dev->saved_icm_cfg0 = xpsgtr_read(gtr_dev, ICM_CFG0);
 	gtr_dev->saved_icm_cfg1 = xpsgtr_read(gtr_dev, ICM_CFG1);
-
-	for (i = 0; i < ARRAY_SIZE(gtr_dev->clk); i++)
-		clk_disable_unprepare(gtr_dev->clk[i]);
 
 	return 0;
 }
@@ -842,13 +846,6 @@ static int xpsgtr_runtime_resume(struct device *dev)
 	unsigned int icm_cfg0, icm_cfg1;
 	unsigned int i;
 	bool skip_phy_init;
-	int err;
-
-	for (i = 0; i < ARRAY_SIZE(gtr_dev->clk); i++) {
-		err = clk_prepare_enable(gtr_dev->clk[i]);
-		if (err)
-			goto err_clk_put;
-	}
 
 	icm_cfg0 = xpsgtr_read(gtr_dev, ICM_CFG0);
 	icm_cfg1 = xpsgtr_read(gtr_dev, ICM_CFG1);
@@ -869,12 +866,6 @@ static int xpsgtr_runtime_resume(struct device *dev)
 		gtr_dev->phys[i].skip_phy_init = skip_phy_init;
 
 	return 0;
-
-err_clk_put:
-	while (i--)
-		clk_disable_unprepare(gtr_dev->clk[i]);
-
-	return err;
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(xpsgtr_pm_ops, xpsgtr_runtime_suspend,
@@ -886,7 +877,6 @@ static DEFINE_RUNTIME_DEV_PM_OPS(xpsgtr_pm_ops, xpsgtr_runtime_suspend,
 static int xpsgtr_get_ref_clocks(struct xpsgtr_dev *gtr_dev)
 {
 	unsigned int refclk;
-	int ret;
 
 	for (refclk = 0; refclk < ARRAY_SIZE(gtr_dev->refclk_sscs); ++refclk) {
 		unsigned long rate;
@@ -897,18 +887,13 @@ static int xpsgtr_get_ref_clocks(struct xpsgtr_dev *gtr_dev)
 		snprintf(name, sizeof(name), "ref%u", refclk);
 		clk = devm_clk_get_optional(gtr_dev->dev, name);
 		if (IS_ERR(clk)) {
-			ret = dev_err_probe(gtr_dev->dev, PTR_ERR(clk),
-					    "Failed to get reference clock %u\n",
-					    refclk);
-			goto err_clk_put;
+			return dev_err_probe(gtr_dev->dev, PTR_ERR(clk),
+					     "Failed to get ref clock %u\n",
+					     refclk);
 		}
 
 		if (!clk)
 			continue;
-
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			goto err_clk_put;
 
 		gtr_dev->clk[refclk] = clk;
 
@@ -929,18 +914,11 @@ static int xpsgtr_get_ref_clocks(struct xpsgtr_dev *gtr_dev)
 			dev_err(gtr_dev->dev,
 				"Invalid rate %lu for reference clock %u\n",
 				rate, refclk);
-			ret = -EINVAL;
-			goto err_clk_put;
+			return -EINVAL;
 		}
 	}
 
 	return 0;
-
-err_clk_put:
-	while (refclk--)
-		clk_disable_unprepare(gtr_dev->clk[refclk]);
-
-	return ret;
 }
 
 static int xpsgtr_probe(struct platform_device *pdev)
@@ -949,7 +927,6 @@ static int xpsgtr_probe(struct platform_device *pdev)
 	struct xpsgtr_dev *gtr_dev;
 	struct phy_provider *provider;
 	unsigned int port;
-	unsigned int i;
 	int ret;
 
 	gtr_dev = devm_kzalloc(&pdev->dev, sizeof(*gtr_dev), GFP_KERNEL);
@@ -989,8 +966,7 @@ static int xpsgtr_probe(struct platform_device *pdev)
 		phy = devm_phy_create(&pdev->dev, np, &xpsgtr_phyops);
 		if (IS_ERR(phy)) {
 			dev_err(&pdev->dev, "failed to create PHY\n");
-			ret = PTR_ERR(phy);
-			goto err_clk_put;
+			return PTR_ERR(phy);
 		}
 
 		gtr_phy->phy = phy;
@@ -1001,8 +977,7 @@ static int xpsgtr_probe(struct platform_device *pdev)
 	provider = devm_of_phy_provider_register(&pdev->dev, xpsgtr_xlate);
 	if (IS_ERR(provider)) {
 		dev_err(&pdev->dev, "registering provider failed\n");
-		ret = PTR_ERR(provider);
-		goto err_clk_put;
+		return PTR_ERR(provider);
 	}
 
 	pm_runtime_set_active(gtr_dev->dev);
@@ -1011,16 +986,10 @@ static int xpsgtr_probe(struct platform_device *pdev)
 	ret = pm_runtime_resume_and_get(gtr_dev->dev);
 	if (ret < 0) {
 		pm_runtime_disable(gtr_dev->dev);
-		goto err_clk_put;
+		return ret;
 	}
 
 	return 0;
-
-err_clk_put:
-	for (i = 0; i < ARRAY_SIZE(gtr_dev->clk); i++)
-		clk_disable_unprepare(gtr_dev->clk[i]);
-
-	return ret;
 }
 
 static int xpsgtr_remove(struct platform_device *pdev)
