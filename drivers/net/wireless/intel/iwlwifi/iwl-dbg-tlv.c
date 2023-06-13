@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include <linux/firmware.h>
 #include "iwl-drv.h"
@@ -795,8 +795,7 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 			 IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT))
 		return;
 
-	dram_info->first_word = cpu_to_le32(DRAM_INFO_FIRST_MAGIC_WORD);
-	dram_info->second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
+	memset(dram_info, 0, sizeof(*dram_info));
 
 	for (i = IWL_FW_INI_ALLOCATION_ID_DBGC1;
 	     i < IWL_FW_INI_ALLOCATION_NUM; i++) {
@@ -813,11 +812,10 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 				 i, ret);
 	}
 
-	if (dram_alloc)
-		IWL_DEBUG_FW(fwrt, "block data after  %08x\n",
-			     dram_info->first_word);
-	else
-		memset(frags->block, 0, sizeof(*dram_info));
+	if (dram_alloc) {
+		dram_info->first_word = cpu_to_le32(DRAM_INFO_FIRST_MAGIC_WORD);
+		dram_info->second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
+	}
 }
 
 static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
