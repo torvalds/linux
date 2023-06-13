@@ -48,6 +48,9 @@ PTE Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pte_mkwrite               | Creates a writable PTE                           |
 +---------------------------+--------------------------------------------------+
+| pte_mkwrite_novma         | Creates a writable PTE, of the conventional type |
+|                           | of writable.                                     |
++---------------------------+--------------------------------------------------+
 | pte_wrprotect             | Creates a write protected PTE                    |
 +---------------------------+--------------------------------------------------+
 | pte_mkspecial             | Creates a special PTE                            |
@@ -119,6 +122,9 @@ PMD Page Table Helpers
 | pmd_mkclean               | Creates a clean PMD                              |
 +---------------------------+--------------------------------------------------+
 | pmd_mkwrite               | Creates a writable PMD                           |
++---------------------------+--------------------------------------------------+
+| pmd_mkwrite_novma         | Creates a writable PMD, of the conventional type |
+|                           | of writable.                                     |
 +---------------------------+--------------------------------------------------+
 | pmd_wrprotect             | Creates a write protected PMD                    |
 +---------------------------+--------------------------------------------------+

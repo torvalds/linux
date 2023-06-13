@@ -22,7 +22,7 @@ static inline unsigned long huge_pte_dirty(pte_t pte)
 
 static inline pte_t huge_pte_mkwrite(pte_t pte)
 {
-	return pte_mkwrite(pte);
+	return pte_mkwrite_novma(pte);
 }
 
 #ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT

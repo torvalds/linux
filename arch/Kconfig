@@ -939,6 +939,14 @@ config HAVE_ARCH_HUGE_VMALLOC
 config ARCH_WANT_HUGE_PMD_SHARE
 	bool
 
+# Archs that want to use pmd_mkwrite on kernel memory need it defined even
+# if there are no userspace memory management features that use it
+config ARCH_WANT_KERNEL_PMD_MKWRITE
+	bool
+
+config ARCH_WANT_PMD_MKWRITE
+	def_bool TRANSPARENT_HUGEPAGE || ARCH_WANT_KERNEL_PMD_MKWRITE
+
 config HAVE_ARCH_SOFT_DIRTY
 	bool
 
