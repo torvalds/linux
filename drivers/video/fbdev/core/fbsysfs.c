@@ -8,6 +8,9 @@
 #include <linux/console.h>
 #include <linux/fb.h>
 #include <linux/fbcon.h>
+#include <linux/major.h>
+
+#include "fb_internal.h"
 
 #define FB_SYSFS_FLAG_ATTR 1
 
@@ -435,7 +438,7 @@ static struct device_attribute device_attrs[] = {
 #endif
 };
 
-int fb_init_device(struct fb_info *fb_info)
+static int fb_init_device(struct fb_info *fb_info)
 {
 	int i, error = 0;
 
@@ -459,7 +462,7 @@ int fb_init_device(struct fb_info *fb_info)
 	return 0;
 }
 
-void fb_cleanup_device(struct fb_info *fb_info)
+static void fb_cleanup_device(struct fb_info *fb_info)
 {
 	unsigned int i;
 
@@ -469,4 +472,35 @@ void fb_cleanup_device(struct fb_info *fb_info)
 
 		fb_info->class_flag &= ~FB_SYSFS_FLAG_ATTR;
 	}
+}
+
+int fb_device_create(struct fb_info *fb_info)
+{
+	int node = fb_info->node;
+	dev_t devt = MKDEV(FB_MAJOR, node);
+	int ret;
+
+	fb_info->dev = device_create(fb_class, fb_info->device, devt, NULL, "fb%d", node);
+	if (IS_ERR(fb_info->dev)) {
+		/* Not fatal */
+		ret = PTR_ERR(fb_info->dev);
+		pr_warn("Unable to create device for framebuffer %d; error %d\n", node, ret);
+		fb_info->dev = NULL;
+	} else {
+		fb_init_device(fb_info);
+	}
+
+	return 0;
+}
+
+void fb_device_destroy(struct fb_info *fb_info)
+{
+	dev_t devt = MKDEV(FB_MAJOR, fb_info->node);
+
+	if (!fb_info->dev)
+		return;
+
+	fb_cleanup_device(fb_info);
+	device_destroy(fb_class, devt);
+	fb_info->dev = NULL;
 }

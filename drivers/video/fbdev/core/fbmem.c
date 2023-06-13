@@ -40,6 +40,8 @@
 #include <video/nomodeset.h>
 #include <video/vga.h>
 
+#include "fb_internal.h"
+
     /*
      *  Frame buffer device initialization and setup routines
      */
@@ -1447,14 +1449,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
 
-	fb_info->dev = device_create(fb_class, fb_info->device,
-				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
-	if (IS_ERR(fb_info->dev)) {
-		/* Not fatal */
-		printk(KERN_WARNING "Unable to create device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->dev));
-		fb_info->dev = NULL;
-	} else
-		fb_init_device(fb_info);
+	fb_device_create(fb_info);
 
 	if (fb_info->pixmap.addr == NULL) {
 		fb_info->pixmap.addr = kmalloc(FBPIXMAPSIZE, GFP_KERNEL);
@@ -1515,16 +1510,9 @@ static void unlink_framebuffer(struct fb_info *fb_info)
 	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
 		return;
 
-	if (!fb_info->dev)
-		return;
-
-	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
-
+	fb_device_destroy(fb_info);
 	pm_vt_switch_unregister(fb_info->device);
-
 	unbind_console(fb_info);
-
-	fb_info->dev = NULL;
 }
 
 static void do_unregister_framebuffer(struct fb_info *fb_info)
@@ -1539,7 +1527,6 @@ static void do_unregister_framebuffer(struct fb_info *fb_info)
 	fb_destroy_modelist(&fb_info->modelist);
 	registered_fb[fb_info->node] = NULL;
 	num_registered_fb--;
-	fb_cleanup_device(fb_info);
 #ifdef CONFIG_GUMSTIX_AM200EPD
 	{
 		struct fb_event event;
