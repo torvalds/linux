@@ -633,7 +633,7 @@ static int bu27008_try_find_new_time_gain(struct bu27008_data *data, int val,
 	for (i = 0; i < data->gts.num_itime; i++) {
 		new_time_sel = data->gts.itime_table[i].sel;
 		ret = iio_gts_find_gain_sel_for_scale_using_time(&data->gts,
-					new_time_sel, val, val2 * 1000, gain_sel);
+					new_time_sel, val, val2, gain_sel);
 		if (!ret)
 			break;
 	}
@@ -662,7 +662,7 @@ static int bu27008_set_scale(struct bu27008_data *data,
 		goto unlock_out;
 
 	ret = iio_gts_find_gain_sel_for_scale_using_time(&data->gts, time_sel,
-						val, val2 * 1000, &gain_sel);
+						val, val2, &gain_sel);
 	if (ret) {
 		ret = bu27008_try_find_new_time_gain(data, val, val2, &gain_sel);
 		if (ret)
@@ -675,6 +675,21 @@ unlock_out:
 	mutex_unlock(&data->mutex);
 
 	return ret;
+}
+
+static int bu27008_write_raw_get_fmt(struct iio_dev *indio_dev,
+				     struct iio_chan_spec const *chan,
+				     long mask)
+{
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_INT_TIME:
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int bu27008_write_raw(struct iio_dev *idev,
@@ -756,6 +771,7 @@ static int bu27008_update_scan_mode(struct iio_dev *idev,
 static const struct iio_info bu27008_info = {
 	.read_raw = &bu27008_read_raw,
 	.write_raw = &bu27008_write_raw,
+	.write_raw_get_fmt = &bu27008_write_raw_get_fmt,
 	.read_avail = &bu27008_read_avail,
 	.update_scan_mode = bu27008_update_scan_mode,
 	.validate_trigger = iio_validate_own_trigger,
