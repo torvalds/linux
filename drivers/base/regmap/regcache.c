@@ -284,6 +284,9 @@ static bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
+	if (!regmap_writeable(map, reg))
+		return false;
+
 	/* If we don't know the chip just got reset, then sync everything. */
 	if (!map->no_sync_defaults)
 		return true;
