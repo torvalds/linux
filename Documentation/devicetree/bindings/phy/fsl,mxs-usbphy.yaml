@@ -29,7 +29,10 @@ properties:
           - const: fsl,imx6ul-usbphy
           - const: fsl,imx23-usbphy
       - items:
-          - const: fsl,imx8dxl-usbphy
+          - enum:
+              - fsl,imx8dxl-usbphy
+              - fsl,imx8qm-usbphy
+              - fsl,imx8ulp-usbphy
           - const: fsl,imx7ulp-usbphy
 
   reg:
