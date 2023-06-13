@@ -3480,23 +3480,21 @@ static void build_dmub_update_dirty_rect(
 
 
 /**
- * ************************************************************************************************
- * build_dmub_cmd_list: Build an array of DMCUB commands to be sent to DMCUB
+ * build_dmub_cmd_list() - Build an array of DMCUB commands to be sent to DMCUB
  *
- * @param [in]: dc: Current DC state
- * @param [in]: srf_updates: Array of surface updates
- * @param [in]: surface_count: Number of surfaces that have an updated
- * @param [in]: stream: Correponding stream to be updated in the current flip
- * @param [in]: context: New DC state to be programmed
+ * @dc: Current DC state
+ * @srf_updates: Array of surface updates
+ * @surface_count: Number of surfaces that have an updated
+ * @stream: Corresponding stream to be updated in the current flip
+ * @context: New DC state to be programmed
  *
- * @param [out]: dc_dmub_cmd: Array of DMCUB commands to be sent to DMCUB
- * @param [out]: dmub_cmd_count: Count indicating the number of DMCUB commands in dc_dmub_cmd array
+ * @dc_dmub_cmd: Array of DMCUB commands to be sent to DMCUB
+ * @dmub_cmd_count: Count indicating the number of DMCUB commands in dc_dmub_cmd array
  *
  * This function builds an array of DMCUB commands to be sent to DMCUB. This function is required
  * to build an array of commands and have them sent while the OTG lock is acquired.
  *
- * @return: void
- * ************************************************************************************************
+ * Return: void
  */
 static void build_dmub_cmd_list(struct dc *dc,
 		struct dc_surface_update *srf_updates,
@@ -4201,20 +4199,18 @@ static bool commit_minimal_transition_state(struct dc *dc,
 }
 
 /**
- * *******************************************************************************
- * update_seamless_boot_flags: Helper function for updating seamless boot flags
+ * update_seamless_boot_flags() - Helper function for updating seamless boot flags
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
- * @param [in]: surface_count: Number of surfaces that have an updated
- * @param [in]: stream: Correponding stream to be updated in the current flip
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @surface_count: Number of surfaces that have an updated
+ * @stream: Corresponding stream to be updated in the current flip
  *
  * Updating seamless boot flags do not need to be part of the commit sequence. This
  * helper function will update the seamless boot flags on each flip (if required)
  * outside of the HW commit sequence (fast or slow).
  *
- * @return: void
- * *******************************************************************************
+ * Return: void
  */
 static void update_seamless_boot_flags(struct dc *dc,
 		struct dc_state *context,
