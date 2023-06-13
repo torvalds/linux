@@ -2357,7 +2357,7 @@ static const struct regmap_config cs43130_regmap = {
 	.readable_reg		= cs43130_readable_register,
 	.precious_reg		= cs43130_precious_register,
 	.volatile_reg		= cs43130_volatile_register,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 	/* needed for regcache_sync */
 	.use_single_read	= true,
 	.use_single_write	= true,

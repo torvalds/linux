@@ -675,7 +675,7 @@ static const struct regmap_config cs4234_regmap = {
 	.writeable_reg = cs4234_writeable_register,
 	.reg_defaults = cs4234_default_reg,
 	.num_reg_defaults = ARRAY_SIZE(cs4234_default_reg),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };

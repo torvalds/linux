@@ -799,7 +799,7 @@ static struct regmap_config cs35l34_regmap = {
 	.volatile_reg = cs35l34_volatile_register,
 	.readable_reg = cs35l34_readable_register,
 	.precious_reg = cs35l34_precious_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.use_single_read = true,
 	.use_single_write = true,

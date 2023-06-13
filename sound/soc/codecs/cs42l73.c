@@ -1267,7 +1267,7 @@ static const struct regmap_config cs42l73_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs42l73_reg_defaults),
 	.volatile_reg = cs42l73_volatile_register,
 	.readable_reg = cs42l73_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.use_single_read = true,
 	.use_single_write = true,
