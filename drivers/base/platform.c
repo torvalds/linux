@@ -1416,9 +1416,7 @@ static void platform_remove(struct device *_dev)
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 
-	if (drv->remove_new) {
-		drv->remove_new(dev);
-	} else if (drv->remove) {
+	if (drv->remove) {
 		int ret = drv->remove(dev);
 
 		if (ret)
