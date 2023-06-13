@@ -93,7 +93,7 @@ do_steps: &do_steps
 jobs:
   x86_64:
    docker:
-     - image: lkldocker/circleci-x86_64:0.7
+     - image: lkldocker/circleci-x86_64:v1.3
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=no"
@@ -101,21 +101,21 @@ jobs:
 
   i386:
    docker:
-     - image: lkldocker/circleci-i386:0.1
+     - image: lkldocker/circleci-i386:v1.3
    environment:
      CROSS_COMPILE: ""
    <<: *do_steps
 
   mingw32:
    docker:
-     - image: lkldocker/circleci-mingw:0.6
+     - image: lkldocker/circleci-mingw:v1.3
    environment:
      CROSS_COMPILE: "i686-w64-mingw32-"
    <<: *do_steps
 
   android-arm32:
    docker:
-     - image: lkldocker/circleci-android-arm32:0.6
+     - image: lkldocker/circleci-android-arm32:v1.3
    environment:
      CROSS_COMPILE: "arm-linux-androideabi-"
      LKL_ANDROID_TEST: 1
@@ -124,7 +124,7 @@ jobs:
 
   android-aarch64:
    docker:
-     - image: lkldocker/circleci-android-arm64:0.6
+     - image: lkldocker/circleci-android-arm64:v1.3
    environment:
      CROSS_COMPILE: "aarch64-linux-android-"
      LKL_ANDROID_TEST: 1
@@ -133,14 +133,14 @@ jobs:
 
   freebsd11_x86_64:
    docker:
-     - image: lkldocker/circleci-freebsd11-x86_64:0.4
+     - image: lkldocker/circleci-freebsd11-x86_64:v1.3
    environment:
      CROSS_COMPILE: "x86_64-pc-freebsd11-"
    <<: *do_steps
 
   x86_64_valgrind:
    docker:
-     - image: lkldocker/circleci-x86_64:0.7
+     - image: lkldocker/circleci-x86_64:v1.3
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=no"
@@ -149,7 +149,7 @@ jobs:
 
   x86_64_qemu:
    docker:
-     - image: lkldocker/circleci-qemu-x86_64:v1.2
+     - image: lkldocker/circleci-qemu-x86_64:v1.3
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=no"
