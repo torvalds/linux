@@ -467,6 +467,10 @@ const struct pmc_reg_map mtl_socm_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 };
 
+static struct pmc_info mtl_pmc_info_list[] = {
+	{}
+};
+
 #define MTL_GNA_PCI_DEV	0x7e4c
 #define MTL_IPU_PCI_DEV	0x7d19
 #define MTL_VPU_PCI_DEV	0x7d1d
@@ -516,6 +520,9 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 	mtl_d3_fixup();
 
 	pmcdev->resume = mtl_resume;
+
+	pmcdev->regmap_list = mtl_pmc_info_list;
+	pmc_core_ssram_init(pmcdev);
 
 	ret = get_primary_reg_base(pmc);
 	if (ret)

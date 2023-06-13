@@ -1183,6 +1183,26 @@ static void pmc_core_do_dmi_quirks(struct pmc *pmc)
 		pmc_core_xtal_ignore(pmc);
 }
 
+static void pmc_core_clean_structure(struct platform_device *pdev)
+{
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
+		struct pmc *pmc = pmcdev->pmcs[i];
+
+		if (pmc)
+			iounmap(pmc->regbase);
+	}
+
+	if (pmcdev->ssram_pcidev) {
+		pci_dev_put(pmcdev->ssram_pcidev);
+		pci_disable_device(pmcdev->ssram_pcidev);
+	}
+	platform_set_drvdata(pdev, NULL);
+	mutex_destroy(&pmcdev->lock);
+}
+
 static int pmc_core_probe(struct platform_device *pdev)
 {
 	static bool device_initialized;
@@ -1225,7 +1245,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	mutex_init(&pmcdev->lock);
 	ret = core_init(pmcdev);
 	if (ret) {
-		mutex_destroy(&pmcdev->lock);
+		pmc_core_clean_structure(pdev);
 		return ret;
 	}
 
@@ -1246,18 +1266,8 @@ static int pmc_core_probe(struct platform_device *pdev)
 static void pmc_core_remove(struct platform_device *pdev)
 {
 	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
-		struct pmc *pmc = pmcdev->pmcs[i];
-
-		if (pmc)
-			iounmap(pmc->regbase);
-	}
-
 	pmc_core_dbgfs_unregister(pmcdev);
-	platform_set_drvdata(pdev, NULL);
-	mutex_destroy(&pmcdev->lock);
+	pmc_core_clean_structure(pdev);
 }
 
 static bool warn_on_s0ix_failures;

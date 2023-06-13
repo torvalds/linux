@@ -320,6 +320,17 @@ struct pmc_reg_map {
 };
 
 /**
+ * struct pmc_info - Structure to keep pmc info
+ * @devid:		device id of the pmc device
+ * @map:		pointer to a pmc_reg_map struct that contains platform
+ *			specific attributes
+ */
+struct pmc_info {
+	u16 devid;
+	const struct pmc_reg_map *map;
+};
+
+/**
  * struct pmc - pmc private info structure
  * @base_addr:		contains pmc base address
  * @regbase:		pointer to io-remapped memory location
@@ -340,6 +351,7 @@ struct pmc {
  * struct pmc_dev - pmc device structure
  * @devs:		pointer to an array of pmc pointers
  * @pdev:		pointer to platform_device struct
+ * @ssram_pcidev:	pointer to pci device struct for the PMC SSRAM
  * @dbgfs_dir:		path to debugfs interface
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
  *			used to read MPHY PG and PLL status are available
@@ -356,6 +368,7 @@ struct pmc_dev {
 	struct pmc *pmcs[MAX_NUM_PMC];
 	struct dentry *dbgfs_dir;
 	struct platform_device *pdev;
+	struct pci_dev *ssram_pcidev;
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
 
@@ -368,6 +381,7 @@ struct pmc_dev {
 	bool has_die_c6;
 	u32 die_c6_offset;
 	struct telem_endpoint *punit_ep;
+	struct pmc_info *regmap_list;
 };
 
 enum pmc_index {
@@ -449,6 +463,8 @@ extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
+
+extern void pmc_core_ssram_init(struct pmc_dev *pmcdev);
 
 int spt_core_init(struct pmc_dev *pmcdev);
 int cnp_core_init(struct pmc_dev *pmcdev);
