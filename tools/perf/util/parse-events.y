@@ -80,8 +80,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <str> PE_LEGACY_CACHE
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
-%type <str> PE_BP_COLON
-%type <str> PE_BP_SLASH
 %type <str> PE_EVENT_NAME
 %type <str> PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
 %type <str> PE_DRV_CFG_TERM
@@ -510,9 +508,6 @@ PE_PREFIX_MEM PE_VALUE PE_BP_SLASH PE_VALUE PE_BP_COLON PE_MODIFIER_BP opt_event
 	struct list_head *list;
 	int err;
 
-	parse_events_unused_value(&$3);
-	parse_events_unused_value(&$5);
-
 	list = alloc_list();
 	ABORT_ON(!list);
 	err = parse_events_add_breakpoint(_parse_state, list,
@@ -531,8 +526,6 @@ PE_PREFIX_MEM PE_VALUE PE_BP_SLASH PE_VALUE opt_event_config
 	struct list_head *list;
 	int err;
 
-	parse_events_unused_value(&$3);
-
 	list = alloc_list();
 	ABORT_ON(!list);
 	err = parse_events_add_breakpoint(_parse_state, list,
@@ -549,8 +542,6 @@ PE_PREFIX_MEM PE_VALUE PE_BP_COLON PE_MODIFIER_BP opt_event_config
 {
 	struct list_head *list;
 	int err;
-
-	parse_events_unused_value(&$3);
 
 	list = alloc_list();
 	ABORT_ON(!list);

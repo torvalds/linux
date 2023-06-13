@@ -315,13 +315,13 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 	 * are the same, so trailing context can be used disambiguate the two
 	 * cases.
 	 */
-":"/{modifier_bp}	{ return str(yyscanner, PE_BP_COLON); }
+":"/{modifier_bp}	{ return PE_BP_COLON; }
 	/*
 	 * The slash before memory length can get mixed up with the slash before
 	 * config terms. Fortunately config terms do not start with a numeric
 	 * digit, so trailing context can be used disambiguate the two cases.
 	 */
-"/"/{digit}		{ return str(yyscanner, PE_BP_SLASH); }
+"/"/{digit}		{ return PE_BP_SLASH; }
 "/"/{non_digit}		{ BEGIN(config); return '/'; }
 {num_dec}		{ return value(yyscanner, 10); }
 {num_hex}		{ return value(yyscanner, 16); }

@@ -228,10 +228,6 @@ void parse_events_error__handle(struct parse_events_error *err, int idx,
 void parse_events_error__print(struct parse_events_error *err,
 			       const char *event);
 
-static inline void parse_events_unused_value(const void *x __maybe_unused)
-{
-}
-
 #ifdef HAVE_LIBELF_SUPPORT
 /*
  * If the probe point starts with '%',
