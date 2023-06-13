@@ -124,6 +124,15 @@ static const int vcnl4040_ps_it_times[][2] = {
 	{0, 800},
 };
 
+static const int vcnl4200_ps_it_times[][2] = {
+	{0, 96},
+	{0, 144},
+	{0, 192},
+	{0, 384},
+	{0, 768},
+	{0, 864},
+};
+
 #define VCNL4000_SLEEP_DELAY_MS	2000 /* before we enter pm_runtime_suspend */
 
 enum vcnl4000_device_ids {
@@ -167,6 +176,8 @@ struct vcnl4000_chip_spec {
 	irqreturn_t (*trig_buffer_func)(int irq, void *priv);
 
 	u8 int_reg;
+	const int(*ps_it_times)[][2];
+	const int num_ps_it_times;
 };
 
 static const struct i2c_device_id vcnl4000_id[] = {
@@ -509,11 +520,11 @@ static int vcnl4040_read_ps_it(struct vcnl4000_data *data, int *val, int *val2)
 
 	ret = FIELD_GET(VCNL4040_PS_CONF2_PS_IT, ret);
 
-	if (ret >= ARRAY_SIZE(vcnl4040_ps_it_times))
+	if (ret >= data->chip_spec->num_ps_it_times)
 		return -EINVAL;
 
-	*val = vcnl4040_ps_it_times[ret][0];
-	*val2 = vcnl4040_ps_it_times[ret][1];
+	*val = (*data->chip_spec->ps_it_times)[ret][0];
+	*val2 = (*data->chip_spec->ps_it_times)[ret][1];
 
 	return 0;
 }
@@ -524,8 +535,8 @@ static ssize_t vcnl4040_write_ps_it(struct vcnl4000_data *data, int val)
 	int ret, index = -1;
 	u16 regval;
 
-	for (i = 0; i < ARRAY_SIZE(vcnl4040_ps_it_times); i++) {
-		if (val == vcnl4040_ps_it_times[i][1]) {
+	for (i = 0; i < data->chip_spec->num_ps_it_times; i++) {
+		if (val == (*data->chip_spec->ps_it_times)[i][1]) {
 			index = i;
 			break;
 		}
@@ -533,6 +544,8 @@ static ssize_t vcnl4040_write_ps_it(struct vcnl4000_data *data, int val)
 
 	if (index < 0)
 		return -EINVAL;
+
+	data->vcnl4200_ps.sampling_rate = ktime_set(0, val * 60 * NSEC_PER_USEC);
 
 	mutex_lock(&data->vcnl4000_lock);
 
@@ -621,11 +634,13 @@ static int vcnl4040_read_avail(struct iio_dev *indio_dev,
 			       const int **vals, int *type, int *length,
 			       long mask)
 {
+	struct vcnl4000_data *data = iio_priv(indio_dev);
+
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		*vals = (int *)vcnl4040_ps_it_times;
+		*vals = (int *)(*data->chip_spec->ps_it_times);
 		*type = IIO_VAL_INT_PLUS_MICRO;
-		*length = 2 * ARRAY_SIZE(vcnl4040_ps_it_times);
+		*length = 2 * data->chip_spec->num_ps_it_times;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
@@ -1318,6 +1333,8 @@ static const struct vcnl4000_chip_spec vcnl4000_chip_spec_cfg[] = {
 		.info = &vcnl4040_info,
 		.irq_thread = vcnl4040_irq_thread,
 		.int_reg = VCNL4040_INT_FLAGS,
+		.ps_it_times = &vcnl4040_ps_it_times,
+		.num_ps_it_times = ARRAY_SIZE(vcnl4040_ps_it_times),
 	},
 	[VCNL4200] = {
 		.prod = "VCNL4200",
@@ -1330,6 +1347,8 @@ static const struct vcnl4000_chip_spec vcnl4000_chip_spec_cfg[] = {
 		.info = &vcnl4040_info,
 		.irq_thread = vcnl4040_irq_thread,
 		.int_reg = VCNL4200_INT_FLAGS,
+		.ps_it_times = &vcnl4200_ps_it_times,
+		.num_ps_it_times = ARRAY_SIZE(vcnl4200_ps_it_times),
 	},
 };
 
