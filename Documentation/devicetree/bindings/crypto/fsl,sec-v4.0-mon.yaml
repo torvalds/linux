@@ -103,6 +103,7 @@ properties:
       wakeup-source: true
 
       linux,keycode:
+        $ref: /schemas/types.yaml#/definitions/uint32
         default: 116
 
     required:
