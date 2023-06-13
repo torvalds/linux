@@ -1094,49 +1094,67 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+#define TRIGGER_MAX 3
+static int (* const trigger[][TRIGGER_MAX])(struct snd_pcm_substream *substream, int cmd, int rollback) = {
+	[SND_SOC_TRIGGER_ORDER_DEFAULT] = {
+		snd_soc_link_trigger,
+		snd_soc_pcm_component_trigger,
+		snd_soc_pcm_dai_trigger,
+	},
+	[SND_SOC_TRIGGER_ORDER_LDC] = {
+		snd_soc_link_trigger,
+		snd_soc_pcm_dai_trigger,
+		snd_soc_pcm_component_trigger,
+	},
+};
+
 static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
-	int ret = -EINVAL, _ret = 0, start_dma_last = 0, i;
+	int ret = 0, r = 0, i;
 	int rollback = 0;
+	int start = 0, stop = 0;
 
+	/*
+	 * select START/STOP sequence
+	 */
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->trigger_start)
+			start = component->driver->trigger_start;
+		if (component->driver->trigger_stop)
+			stop = component->driver->trigger_stop;
+	}
+	if (rtd->dai_link->trigger_start)
+		start = rtd->dai_link->trigger_start;
+	if (rtd->dai_link->trigger_stop)
+		stop  = rtd->dai_link->trigger_stop;
+
+	if (start < 0 || start >= SND_SOC_TRIGGER_ORDER_MAX ||
+	    stop  < 0 || stop  >= SND_SOC_TRIGGER_ORDER_MAX)
+		return -EINVAL;
+
+	/*
+	 * START
+	 */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		/* Do we need to start dma last? */
-		for_each_rtd_components(rtd, i, component) {
-			if (component->driver->start_dma_last) {
-				start_dma_last = 1;
+		for (i = 0; i < TRIGGER_MAX; i++) {
+			r = trigger[start][i](substream, cmd, 0);
+			if (r < 0)
 				break;
-			}
 		}
-
-		ret = snd_soc_link_trigger(substream, cmd, 0);
-		if (ret < 0)
-			goto start_err;
-
-		if (start_dma_last) {
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
-			if (ret < 0)
-				goto start_err;
-
-			ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
-		} else {
-			ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
-			if (ret < 0)
-				goto start_err;
-
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
-		}
-start_err:
-		if (ret < 0)
-			rollback = 1;
 	}
 
-	if (rollback) {
-		_ret = ret;
+	/*
+	 * Rollback if START failed
+	 * find correspond STOP command
+	 */
+	if (r < 0) {
+		rollback = 1;
+		ret = r;
 		switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 			cmd = SNDRV_PCM_TRIGGER_STOP;
@@ -1150,33 +1168,19 @@ start_err:
 		}
 	}
 
+	/*
+	 * STOP
+	 */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (rtd->dai_link->stop_dma_first) {
-			ret = snd_soc_pcm_component_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
-
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
-		} else {
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
-
-			ret = snd_soc_pcm_component_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
+		for (i = TRIGGER_MAX; i > 0; i--) {
+			r = trigger[stop][i - 1](substream, cmd, rollback);
+			if (r < 0)
+				ret = r;
 		}
-		ret = snd_soc_link_trigger(substream, cmd, rollback);
-		break;
 	}
-
-	if (_ret)
-		ret = _ret;
 
 	return ret;
 }
