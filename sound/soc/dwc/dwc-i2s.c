@@ -150,18 +150,50 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
+static void i2s_enable_dma(struct dw_i2s_dev *dev, u32 stream)
+{
+	u32 dma_reg = i2s_read_reg(dev->i2s_base, I2S_DMACR);
+
+	/* Enable DMA handshake for stream */
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dma_reg |= I2S_DMAEN_TXBLOCK;
+	else
+		dma_reg |= I2S_DMAEN_RXBLOCK;
+
+	i2s_write_reg(dev->i2s_base, I2S_DMACR, dma_reg);
+}
+
+static void i2s_disable_dma(struct dw_i2s_dev *dev, u32 stream)
+{
+	u32 dma_reg = i2s_read_reg(dev->i2s_base, I2S_DMACR);
+
+	/* Disable DMA handshake for stream */
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		dma_reg &= ~I2S_DMAEN_TXBLOCK;
+		i2s_write_reg(dev->i2s_base, I2S_RTXDMA, 1);
+	} else {
+		dma_reg &= ~I2S_DMAEN_RXBLOCK;
+		i2s_write_reg(dev->i2s_base, I2S_RRXDMA, 1);
+	}
+	i2s_write_reg(dev->i2s_base, I2S_DMACR, dma_reg);
+}
+
 static void i2s_start(struct dw_i2s_dev *dev,
 		      struct snd_pcm_substream *substream)
 {
 	struct i2s_clk_config_data *config = &dev->config;
 
 	i2s_write_reg(dev->i2s_base, IER, 1);
-	i2s_enable_irqs(dev, substream->stream, config->chan_nr);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		i2s_write_reg(dev->i2s_base, ITER, 1);
 	else
 		i2s_write_reg(dev->i2s_base, IRER, 1);
+
+	if (dev->use_pio)
+		i2s_enable_irqs(dev, substream->stream, config->chan_nr);
+	else
+		i2s_enable_dma(dev, substream->stream);
 
 	i2s_write_reg(dev->i2s_base, CER, 1);
 }
@@ -176,7 +208,10 @@ static void i2s_stop(struct dw_i2s_dev *dev,
 	else
 		i2s_write_reg(dev->i2s_base, IRER, 0);
 
-	i2s_disable_irqs(dev, substream->stream, 8);
+	if (dev->use_pio)
+		i2s_disable_irqs(dev, substream->stream, 8);
+	else
+		i2s_disable_dma(dev, substream->stream);
 
 	if (!dev->active) {
 		i2s_write_reg(dev->i2s_base, CER, 0);

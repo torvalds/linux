@@ -53,6 +53,12 @@
 #define I2S_COMP_VERSION	0x01F8
 #define I2S_COMP_TYPE		0x01FC
 
+#define I2S_RRXDMA		0x01C4
+#define I2S_RTXDMA		0x01CC
+#define I2S_DMACR		0x0200
+#define I2S_DMAEN_RXBLOCK	(1 << 16)
+#define I2S_DMAEN_TXBLOCK	(1 << 17)
+
 /*
  * Component parameter register fields - define the I2S block's
  * configuration.
