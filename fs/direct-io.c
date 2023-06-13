@@ -459,6 +459,7 @@ static inline void dio_cleanup(struct dio *dio, struct dio_submit *sdio)
 	if (dio->is_pinned)
 		unpin_user_pages(dio->pages + sdio->head,
 				 sdio->tail - sdio->head);
+	sdio->head = sdio->tail;
 }
 
 /*
