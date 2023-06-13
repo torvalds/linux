@@ -206,10 +206,11 @@ const struct pmc_reg_map cnp_reg_map = {
 
 int cnp_core_init(struct pmc_dev *pmcdev)
 {
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
-	pmcdev->map = &cnp_reg_map;
-	ret = get_primary_reg_base(pmcdev);
+	pmc->map = &cnp_reg_map;
+	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
 

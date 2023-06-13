@@ -136,6 +136,8 @@ const struct pmc_reg_map spt_reg_map = {
 
 int spt_core_init(struct pmc_dev *pmcdev)
 {
-	pmcdev->map = &spt_reg_map;
-	return get_primary_reg_base(pmcdev);
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+
+	pmc->map = &spt_reg_map;
+	return get_primary_reg_base(pmc);
 }

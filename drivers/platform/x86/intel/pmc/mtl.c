@@ -508,15 +508,16 @@ static int mtl_resume(struct pmc_dev *pmcdev)
 
 int mtl_core_init(struct pmc_dev *pmcdev)
 {
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
 	int ret;
 
-	pmcdev->map = &mtl_socm_reg_map;
+	pmc->map = &mtl_socm_reg_map;
 
 	mtl_d3_fixup();
 
 	pmcdev->resume = mtl_resume;
 
-	ret = get_primary_reg_base(pmcdev);
+	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
 

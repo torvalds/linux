@@ -208,7 +208,8 @@ const struct pmc_reg_map tgl_reg_map = {
 void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
 {
 	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
-	const int num_maps = pmcdev->map->lpm_num_maps;
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+	const int num_maps = pmc->map->lpm_num_maps;
 	u32 lpm_size = LPM_MAX_NUM_MODES * num_maps * 4;
 	union acpi_object *out_obj;
 	struct acpi_device *adev;
@@ -246,7 +247,7 @@ void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
 		goto free_acpi_obj;
 
 	memcpy(lpm_req_regs, addr, lpm_size);
-	pmcdev->lpm_req_regs = lpm_req_regs;
+	pmc->lpm_req_regs = lpm_req_regs;
 
 free_acpi_obj:
 	ACPI_FREE(out_obj);
@@ -254,10 +255,11 @@ free_acpi_obj:
 
 int tgl_core_init(struct pmc_dev *pmcdev)
 {
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
-	pmcdev->map = &tgl_reg_map;
-	ret = get_primary_reg_base(pmcdev);
+	pmc->map = &tgl_reg_map;
+	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
 

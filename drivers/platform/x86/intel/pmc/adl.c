@@ -311,10 +311,11 @@ const struct pmc_reg_map adl_reg_map = {
 
 int adl_core_init(struct pmc_dev *pmcdev)
 {
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
-	pmcdev->map = &adl_reg_map;
-	ret = get_primary_reg_base(pmcdev);
+	pmc->map = &adl_reg_map;
+	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
 

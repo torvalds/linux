@@ -19,6 +19,7 @@
 #define SLP_S0_RES_COUNTER_MASK			GENMASK(31, 0)
 
 #define PMC_BASE_ADDR_DEFAULT			0xFE000000
+#define MAX_NUM_PMC			3
 
 /* Sunrise Point Power Management Controller PCI Device ID */
 #define SPT_PMC_PCI_DEVICE_ID			0x9d21
@@ -319,11 +320,25 @@ struct pmc_reg_map {
 };
 
 /**
- * struct pmc_dev - pmc device structure
+ * struct pmc - pmc private info structure
  * @base_addr:		contains pmc base address
  * @regbase:		pointer to io-remapped memory location
  * @map:		pointer to pmc_reg_map struct that contains platform
  *			specific attributes
+ * @lpm_req_regs:	List of substate requirements
+ *
+ * pmc contains info about one power management controller device.
+ */
+struct pmc {
+	u64 base_addr;
+	void __iomem *regbase;
+	const struct pmc_reg_map *map;
+	u32 *lpm_req_regs;
+};
+
+/**
+ * struct pmc_dev - pmc device structure
+ * @devs:		pointer to an array of pmc pointers
  * @pdev:		pointer to platform_device struct
  * @dbgfs_dir:		path to debugfs interface
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
@@ -333,15 +348,12 @@ struct pmc_reg_map {
  * @s0ix_counter:	S0ix residency (step adjusted)
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
- * @lpm_req_regs:	List of substate requirements
  * @resume:		Function to perform platform specific resume
  *
  * pmc_dev contains info about power management controller device.
  */
 struct pmc_dev {
-	u32 base_addr;
-	void __iomem *regbase;
-	const struct pmc_reg_map *map;
+	struct pmc *pmcs[MAX_NUM_PMC];
 	struct dentry *dbgfs_dir;
 	struct platform_device *pdev;
 	int pmc_xram_read_bit;
@@ -351,8 +363,19 @@ struct pmc_dev {
 	u64 s0ix_counter;
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
-	u32 *lpm_req_regs;
 	int (*resume)(struct pmc_dev *pmcdev);
+
+	bool has_die_c6;
+	u32 die_c6_offset;
+	struct telem_endpoint *punit_ep;
+};
+
+enum pmc_index {
+	PMC_IDX_MAIN,
+	PMC_IDX_SOC = PMC_IDX_MAIN,
+	PMC_IDX_IOE,
+	PMC_IDX_PCH,
+	PMC_IDX_MAX
 };
 
 extern const struct pmc_bit_map msr_map[];
@@ -425,7 +448,7 @@ extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
-int get_primary_reg_base(struct pmc_dev *pmcdev);
+int get_primary_reg_base(struct pmc *pmc);
 
 int spt_core_init(struct pmc_dev *pmcdev);
 int cnp_core_init(struct pmc_dev *pmcdev);

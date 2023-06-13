@@ -52,6 +52,8 @@ const struct pmc_reg_map icl_reg_map = {
 
 int icl_core_init(struct pmc_dev *pmcdev)
 {
-	pmcdev->map = &icl_reg_map;
-	return get_primary_reg_base(pmcdev);
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+
+	pmc->map = &icl_reg_map;
+	return get_primary_reg_base(pmc);
 }
