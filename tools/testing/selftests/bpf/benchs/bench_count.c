@@ -40,7 +40,7 @@ static void count_local_setup(void)
 {
 	struct count_local_ctx *ctx = &count_local_ctx;
 
-	ctx->hits = calloc(env.consumer_cnt, sizeof(*ctx->hits));
+	ctx->hits = calloc(env.producer_cnt, sizeof(*ctx->hits));
 	if (!ctx->hits)
 		exit(1);
 }
