@@ -163,10 +163,6 @@ struct pnv_phb {
 		unsigned int		*m32_segmap;
 		unsigned int		*io_segmap;
 
-		/* DMA32 segment maps - IODA1 only */
-		unsigned int		dma32_count;
-		unsigned int		*dma32_segmap;
-
 		/* IRQ chip */
 		int			irq_chip_init;
 		struct irq_chip		irq_chip;
