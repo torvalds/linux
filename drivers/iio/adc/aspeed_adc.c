@@ -95,6 +95,7 @@ struct aspeed_adc_model_data {
 	bool wait_init_sequence;
 	bool need_prescaler;
 	bool bat_sense_sup;
+	bool require_extra_eoc;
 	u8 scaler_bit_width;
 	unsigned int num_channels;
 	const struct aspeed_adc_trim_locate *trim_locate;
@@ -120,7 +121,7 @@ struct aspeed_adc_data {
 	int			cv;
 	bool			battery_sensing;
 	struct adc_gain		battery_mode_gain;
-	unsigned int		enabled_channels_num;
+	unsigned int		required_eoc_num;
 	u16			*upper_bound;
 	u16			*lower_bound;
 	bool			*upper_en;
@@ -302,18 +303,18 @@ static int aspeed_adc_get_voltage_raw(struct aspeed_adc_data *data, struct iio_c
 		chan->channel, data->upper_en[chan->channel],
 		data->upper_bound[chan->channel], data->lower_en[chan->channel],
 		data->lower_bound[chan->channel], data->sample_period_ns,
-		data->enabled_channels_num);
+		data->required_eoc_num);
 	if (data->upper_en[chan->channel]) {
 		if (val >= data->upper_bound[chan->channel]) {
 			ndelay(data->sample_period_ns *
-			       data->enabled_channels_num);
+			       data->required_eoc_num);
 			val = readw(data->base + chan->address);
 		}
 	}
 	if (data->lower_en[chan->channel]) {
 		if (val <= data->lower_bound[chan->channel]) {
 			ndelay(data->sample_period_ns *
-			       data->enabled_channels_num);
+			       data->required_eoc_num);
 			val = readw(data->base + chan->address);
 		}
 	}
@@ -800,7 +801,11 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	adc_engine_control_reg_val =
 		FIELD_GET(ASPEED_ADC_CTRL_CHANNEL,
 			  readl(data->base + ASPEED_REG_ENGINE_CONTROL));
-	data->enabled_channels_num = hweight_long(adc_engine_control_reg_val);
+	data->required_eoc_num = hweight_long(adc_engine_control_reg_val);
+	if (data->model_data->require_extra_eoc &&
+	    (adc_engine_control_reg_val &
+	     BIT(data->model_data->num_channels - 1)))
+		data->required_eoc_num += 12;
 	indio_dev->name = data->model_data->model_name;
 	indio_dev->info = &aspeed_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -846,6 +851,7 @@ static const struct aspeed_adc_model_data ast2400_model_data = {
 	.need_prescaler = true,
 	.scaler_bit_width = 10,
 	.num_channels = 16,
+	.require_extra_eoc = 0,
 };
 
 static const struct aspeed_adc_model_data ast2500_model_data = {
@@ -858,6 +864,7 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 	.scaler_bit_width = 10,
 	.num_channels = 16,
 	.trim_locate = &ast2500_adc_trim,
+	.require_extra_eoc = 0,
 };
 
 static const struct aspeed_adc_model_data ast2600_adc0_model_data = {
@@ -869,6 +876,7 @@ static const struct aspeed_adc_model_data ast2600_adc0_model_data = {
 	.scaler_bit_width = 16,
 	.num_channels = 8,
 	.trim_locate = &ast2600_adc0_trim,
+	.require_extra_eoc = 1,
 };
 
 static const struct aspeed_adc_model_data ast2600_adc1_model_data = {
@@ -880,6 +888,7 @@ static const struct aspeed_adc_model_data ast2600_adc1_model_data = {
 	.scaler_bit_width = 16,
 	.num_channels = 8,
 	.trim_locate = &ast2600_adc1_trim,
+	.require_extra_eoc = 1,
 };
 
 static const struct aspeed_adc_model_data ast2700_adc0_model_data = {
