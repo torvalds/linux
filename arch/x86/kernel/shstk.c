@@ -249,15 +249,38 @@ static int shstk_push_sigframe(unsigned long *ssp)
 
 static int shstk_pop_sigframe(unsigned long *ssp)
 {
+	struct vm_area_struct *vma;
 	unsigned long token_addr;
-	int err;
+	bool need_to_check_vma;
+	int err = 1;
 
+	/*
+	 * It is possible for the SSP to be off the end of a shadow stack by 4
+	 * or 8 bytes. If the shadow stack is at the start of a page or 4 bytes
+	 * before it, it might be this case, so check that the address being
+	 * read is actually shadow stack.
+	 */
 	if (!IS_ALIGNED(*ssp, 8))
 		return -EINVAL;
 
+	need_to_check_vma = PAGE_ALIGN(*ssp) == *ssp;
+
+	if (need_to_check_vma)
+		mmap_read_lock_killable(current->mm);
+
 	err = get_shstk_data(&token_addr, (unsigned long __user *)*ssp);
 	if (unlikely(err))
-		return err;
+		goto out_err;
+
+	if (need_to_check_vma) {
+		vma = find_vma(current->mm, *ssp);
+		if (!vma || !(vma->vm_flags & VM_SHADOW_STACK)) {
+			err = -EFAULT;
+			goto out_err;
+		}
+
+		mmap_read_unlock(current->mm);
+	}
 
 	/* Restore SSP aligned? */
 	if (unlikely(!IS_ALIGNED(token_addr, 8)))
@@ -270,6 +293,10 @@ static int shstk_pop_sigframe(unsigned long *ssp)
 	*ssp = token_addr;
 
 	return 0;
+out_err:
+	if (need_to_check_vma)
+		mmap_read_unlock(current->mm);
+	return err;
 }
 
 int setup_signal_shadow_stack(struct ksignal *ksig)
