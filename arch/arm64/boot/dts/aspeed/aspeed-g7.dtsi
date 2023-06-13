@@ -244,7 +244,7 @@
 
 		cpu_clk: clock-controller@12c02200 {
 			compatible = "aspeed,ast2700_cpu-clk";
-			reg = <0 0x12c02200 0 0x400>;
+			reg = <0 0x12c02200 0 0x200>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 		};
@@ -673,7 +673,7 @@
 
 		io_clk: clock-controller@14c02200 {
 			compatible = "aspeed,ast2700_io-clk";
-			reg = <0 0x14c02200 0 0x400>;
+			reg = <0 0x14c02200 0 0x200>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 		};
