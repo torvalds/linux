@@ -122,6 +122,25 @@
 		#size-cells = <2>;
 		ranges;
 
+		emmc_controller: sdc@12090000 {
+			compatible = "aspeed,ast2600-sd-controller";
+			reg = <0 0x12090000 0 0x100>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0 0 0 0x12090000 0 0x10000>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_EMMCCLK>;
+			resets = <&cpu_clk ASPEED_RESET_EMMC>;
+			status = "disable";
+
+			emmc: sdhci@12090100 {
+				compatible = "aspeed,ast2600-emmc";
+				reg = <0 0x100 0 0x100>;
+				sdhci,auto-cmd12;
+				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpu_clk AST2700_CPU_CLK_GATE_EMMCCLK>;
+			};
+		};
+
 		intc: interrupt-controller@12100000 {
 			compatible = "simple-mfd";
 			#address-cells = <2>;
