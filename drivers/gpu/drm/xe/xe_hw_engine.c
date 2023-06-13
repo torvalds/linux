@@ -492,6 +492,9 @@ static void read_copy_fuses(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 bcs_mask;
 
+	if (GRAPHICS_VERx100(xe) < 1260 || GRAPHICS_VERx100(xe) >= 1270)
+		return;
+
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
 	bcs_mask = xe_mmio_read32(gt, MIRROR_FUSE3);
