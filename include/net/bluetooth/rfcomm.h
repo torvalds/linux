@@ -22,6 +22,7 @@
 */
 
 #include <linux/refcount.h>
+#include <linux/android_kabi.h>
 
 #ifndef __RFCOMM_H
 #define __RFCOMM_H
@@ -164,6 +165,8 @@ struct rfcomm_session {
 	uint   mtu;
 
 	struct list_head dlcs;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct rfcomm_dlc {
@@ -197,6 +200,9 @@ struct rfcomm_dlc {
 	void (*data_ready)(struct rfcomm_dlc *d, struct sk_buff *skb);
 	void (*state_change)(struct rfcomm_dlc *d, int err);
 	void (*modem_status)(struct rfcomm_dlc *d, u8 v24_sig);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 /* DLC and session flags */

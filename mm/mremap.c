@@ -622,6 +622,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 			return -ENOMEM;
 	}
 
+	vma_start_write(vma);
 	new_pgoff = vma->vm_pgoff + ((old_addr - vma->vm_start) >> PAGE_SHIFT);
 	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff,
 			   &need_rmap_locks);
@@ -661,7 +662,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 
 	/* Conceal VM_ACCOUNT so old reservation is not undone */
 	if (vm_flags & VM_ACCOUNT && !(flags & MREMAP_DONTUNMAP)) {
-		vma->vm_flags &= ~VM_ACCOUNT;
+		vm_flags_clear(vma, VM_ACCOUNT);
 		excess = vma->vm_end - vma->vm_start - old_len;
 		if (old_addr > vma->vm_start &&
 		    old_addr + old_len < vma->vm_end)
@@ -686,7 +687,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 
 	if (unlikely(!err && (flags & MREMAP_DONTUNMAP))) {
 		/* We always clear VM_LOCKED[ONFAULT] on the old vma */
-		vma->vm_flags &= VM_LOCKED_CLEAR_MASK;
+		vm_flags_clear(vma, VM_LOCKED_MASK);
 
 		/*
 		 * anon_vma links of the old vma is no longer needed after its page
@@ -716,9 +717,9 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 
 	/* Restore VM_ACCOUNT if one or two pieces of vma left */
 	if (excess) {
-		vma->vm_flags |= VM_ACCOUNT;
+		vm_flags_set(vma, VM_ACCOUNT);
 		if (split)
-			find_vma(mm, vma->vm_end)->vm_flags |= VM_ACCOUNT;
+			vm_flags_set(find_vma(mm, vma->vm_end), VM_ACCOUNT);
 	}
 
 	return new_addr;

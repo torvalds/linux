@@ -1040,6 +1040,9 @@ struct sk_buff {
 	u64			kcov_handle;
 #endif
 
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+
 	); /* end headers group */
 
 	/* These elements must be at the end, see alloc_skb() for details.  */

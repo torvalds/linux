@@ -406,6 +406,8 @@ int pkvm_iommu_resume(struct device *dev);
  */
 int pkvm_iommu_finalize(int err);
 
+bool pkvm_iommu_finalized(void);
+
 struct vcpu_reset_state {
 	unsigned long	pc;
 	unsigned long	r0;
