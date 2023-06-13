@@ -746,6 +746,44 @@ bool amd_mce_is_memory_error(struct mce *m)
 		return legacy_mce_is_memory_error(m);
 }
 
+/*
+ * AMD systems do not have an explicit indicator that the value in MCA_ADDR is
+ * a system physical address. Therefore, individual cases need to be detected.
+ * Future cases and checks will be added as needed.
+ *
+ * 1) General case
+ *	a) Assume address is not usable.
+ * 2) Poison errors
+ *	a) Indicated by MCA_STATUS[43]: poison. Defined for all banks except legacy
+ *	   northbridge (bank 4).
+ *	b) Refers to poison consumption in the core. Does not include "no action",
+ *	   "action optional", or "deferred" error severities.
+ *	c) Will include a usable address so that immediate action can be taken.
+ * 3) Northbridge DRAM ECC errors
+ *	a) Reported in legacy bank 4 with extended error code (XEC) 8.
+ *	b) MCA_STATUS[43] is *not* defined as poison in legacy bank 4. Therefore,
+ *	   this bit should not be checked.
+ *
+ * NOTE: SMCA UMC memory errors fall into case #1.
+ */
+bool amd_mce_usable_address(struct mce *m)
+{
+	/* Check special northbridge case 3) first. */
+	if (!mce_flags.smca) {
+		if (legacy_mce_is_memory_error(m))
+			return true;
+		else if (m->bank == 4)
+			return false;
+	}
+
+	/* Check poison bit for all other bank types. */
+	if (m->status & MCI_STATUS_POISON)
+		return true;
+
+	/* Assume address is not usable for all others. */
+	return false;
+}
+
 static void __log_error(unsigned int bank, u64 status, u64 addr, u64 misc)
 {
 	struct mce m;
