@@ -56,7 +56,7 @@ but a version with an additional memory barrier (smp_rmb())
     struct hlist_node *node, *next;
     for (pos = rcu_dereference((head)->first);
          pos && ({ next = pos->next; smp_rmb(); prefetch(next); 1; }) &&
-         ({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; });
+         ({ obj = hlist_entry(pos, typeof(*obj), member); 1; });
          pos = rcu_dereference(next))
       if (obj->key == key)
         return obj;
@@ -68,7 +68,7 @@ And note the traditional hlist_for_each_entry_rcu() misses this smp_rmb()::
   struct hlist_node *node;
   for (pos = rcu_dereference((head)->first);
        pos && ({ prefetch(pos->next); 1; }) &&
-       ({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; });
+       ({ obj = hlist_entry(pos, typeof(*obj), member); 1; });
        pos = rcu_dereference(pos->next))
     if (obj->key == key)
       return obj;
