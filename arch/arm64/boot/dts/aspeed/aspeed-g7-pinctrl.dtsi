@@ -1,0 +1,202 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+&pinctrl0 {
+	pinctrl_emmc_default: emmc_default {
+		function = "EMMC";
+		groups = "EMMCG1";
+	};
+
+	pinctrl_emmc_default: emmc_default {
+		function = "EMMC";
+		groups = "EMMCG4";
+	};
+
+	pinctrl_emmcg8_default: emmcg8_default {
+		function = "EMMC";
+		groups = "EMMCG8";
+	};
+
+	pinctrl_vgaddc_default: vgaddc_default {
+		function = "VGADDC";
+		groups = "VGADDC";
+	};
+
+	pinctrl_usb3axhd_default: usb3axhd_default {
+		function = "USB3A";
+		groups = "USB3AXHD";
+	};
+
+	pinctrl_usb3axhpd_default: usb3axhpd_default {
+		function = "USB3A";
+		groups = "USB3AXHPD";
+	};
+
+	pinctrl_usb3ad_default: usb3ad_default {
+		function = "USB3A";
+		groups = "USB3AD";
+	};
+
+	pinctrl_usb3axh_default: usb3axh_default {
+		function = "USB3A";
+		groups = "USB3AXH";
+	};
+
+	pinctrl_usb3axhp_default: usb3axhp_default {
+		function = "USB3A";
+		groups = "USB3AXHP";
+	};
+
+	pinctrl_usb3a2bh_default: usb3a2bh_default {
+		function = "USB3A";
+		groups = "USB3A2BH";
+	};
+
+	pinctrl_usb3a2bhp_default: usb3a2bhp_default {
+		function = "USB3A";
+		groups = "USB3A2BHP";
+	};
+
+	pinctrl_usb2axd1_default: usb2axd1_default {
+		function = "USB2A";
+		groups = "USB2AXD1";
+	};
+
+	pinctrl_usb2axhpd1_default: usb2axhpd1_default {
+		function = "USB2A";
+		groups = "USB2AXHPD1";
+	};
+
+	pinctrl_usb2ad1_default: usb2ad1_default {
+		function = "USB2A";
+		groups = "USB2AD1";
+	};
+
+	pinctrl_usb2axh_default: usb2axh_default {
+		function = "USB2A";
+		groups = "USB2AXH";
+	};
+
+	pinctrl_usb2axhp_default: usb2axhp_default {
+		function = "USB2A";
+		groups = "USB2AXHP";
+	};
+
+	pinctrl_usb2a2bxh_default: usb2a2bxh_default {
+		function = "USB2A";
+		groups = "USB2A2BXH";
+	};
+
+	pinctrl_usb2a2bxhp_default: usb2a2bxhp_default {
+		function = "USB2A";
+		groups = "USB2A2BXHP";
+	};
+
+	pinctrl_usb2ahpd0_default: usb2ahpd0_default {
+		function = "USB2A";
+		groups = "USB2AHPD0";
+	};
+
+	pinctrl_usb2ad0_default: usb2ad0_default {
+		function = "USB2A";
+		groups = "USB2AD0";
+	};
+
+	pinctrl_usb2ah_default: usb2ah_default {
+		function = "USB2A";
+		groups = "USB2AH";
+	};
+
+	pinctrl_usb2ahp_default: usb2ahp_default {
+		function = "USB2A";
+		groups = "USB2AHP";
+
+	pinctrl_usb3bxhd_default: usb3bxhd_default {
+		function = "USB3B";
+		groups = "USB3BXHD";
+	};
+
+	pinctrl_usb3bxhpd_default: usb3bxhpd_default {
+		function = "USB3B";
+		groups = "USB3BXHPD";
+	};
+
+	pinctrl_usb3bd_default: usb3bd_default {
+		function = "USB3B";
+		groups = "USB3BD";
+	};
+
+	pinctrl_usb3bxh_default: usb3bxh_default {
+		function = "USB3B";
+		groups = "USB3BXH";
+	};
+
+	pinctrl_usb3bxhp_default: usb3bxhp_default {
+		function = "USB3B";
+		groups = "USB3BXHP";
+	};
+
+	pinctrl_usb3b2ah_default: usb3b2ah_default {
+		function = "USB3B";
+		groups = "USB3B2AH";
+	};
+
+	pinctrl_usb3b2ahp_default: usb3b2ahp_default {
+		function = "USB3B";
+		groups = "USB3B2AHP";
+	};
+
+	pinctrl_usb2bxd1_default: usb2bxd1_default {
+		function = "USB2B";
+		groups = "USB2BXD1";
+	};
+
+	pinctrl_usb2bxhpd1_default: usb2bxhpd1_default {
+		function = "USB2B";
+		groups = "USB2BXHPD1";
+	};
+
+	pinctrl_usb2bd1_default: usb2bd1_default {
+		function = "USB2B";
+		groups = "USB2BD1";
+	};
+
+	pinctrl_usb2bxh_default: usb2bxh_default {
+		function = "USB2B";
+		groups = "USB2BXH";
+	};
+
+	pinctrl_usb2bxhp_default: usb2bxhp_default {
+		function = "USB2B";
+		groups = "USB2BXHP";
+	};
+
+	pinctrl_usb2b2axh_default: usb2b2axh_default {
+		function = "USB2B";
+		groups = "USB2B2AXH";
+	};
+
+	pinctrl_usb2b2axhp_default: usb2b2axhp_default {
+		function = "USB2B";
+		groups = "USB2B2AXHP";
+	};
+
+	pinctrl_usb2bhpd0_default: usb2bhpd0_default {
+		function = "USB2B";
+		groups = "USB2BHPD0";
+	};
+
+	pinctrl_usb2bd0_default: usb2bd0_default {
+		function = "USB2B";
+		groups = "USB2BD0";
+	};
+
+	pinctrl_usb2bh_default: usb2bh_default {
+		function = "USB2B";
+		groups = "USB2BH";
+	};
+
+	pinctrl_usb2bhp_default: usb2bhp_default {
+		function = "USB2B";
+		groups = "USB2BHP";
+	};
+};
