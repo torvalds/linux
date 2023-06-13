@@ -1418,8 +1418,6 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	cpu_set_core_cap_bits(c);
 
-	fpu__init_system();
-
 #ifdef CONFIG_X86_32
 	/*
 	 * Regardless of whether PCID is enumerated, the SDM says
@@ -2114,8 +2112,6 @@ void cpu_init(void)
 
 	doublefault_init_cpu_tss();
 
-	fpu__init_cpu();
-
 	if (is_uv_system())
 		uv_cpu_init();
 
@@ -2131,6 +2127,7 @@ void cpu_init_secondary(void)
 	 */
 	cpu_init_exception_handling();
 	cpu_init();
+	fpu__init_cpu();
 }
 #endif
 
@@ -2224,6 +2221,13 @@ void __init arch_cpu_finalize_init(void)
 		init_utsname()->machine[1] =
 			'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	}
+
+	/*
+	 * Must be before alternatives because it might set or clear
+	 * feature bits.
+	 */
+	fpu__init_system();
+	fpu__init_cpu();
 
 	alternative_instructions();
 
