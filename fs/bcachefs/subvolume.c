@@ -86,13 +86,14 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(k);
 
-	prt_printf(out, "is_subvol %llu deleted %llu parent %10u children %10u %10u subvol %u",
+	prt_printf(out, "is_subvol %llu deleted %llu parent %10u children %10u %10u subvol %u tree %u",
 	       BCH_SNAPSHOT_SUBVOL(s.v),
 	       BCH_SNAPSHOT_DELETED(s.v),
 	       le32_to_cpu(s.v->parent),
 	       le32_to_cpu(s.v->children[0]),
 	       le32_to_cpu(s.v->children[1]),
-	       le32_to_cpu(s.v->subvol));
+	       le32_to_cpu(s.v->subvol),
+	       le32_to_cpu(s.v->tree));
 }
 
 int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
