@@ -1233,6 +1233,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		 */
 		newpte = pte_mkdirty(pte_mkspecial(pfn_pte(page_to_pfn(kpage), vma->vm_page_prot)));
 		ksm_zero_pages++;
+		mm->ksm_zero_pages++;
 		/*
 		 * We're replacing an anonymous page with a zero page, which is
 		 * not anonymous. We need to do proper accounting otherwise we

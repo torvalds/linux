@@ -1434,7 +1434,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 			zap_install_uffd_wp_if_needed(vma, addr, pte, details,
 						      ptent);
 			if (unlikely(!page)) {
-				ksm_might_unmap_zero_page(ptent);
+				ksm_might_unmap_zero_page(mm, ptent);
 				continue;
 			}
 
@@ -3130,7 +3130,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 				inc_mm_counter(mm, MM_ANONPAGES);
 			}
 		} else {
-			ksm_might_unmap_zero_page(vmf->orig_pte);
+			ksm_might_unmap_zero_page(mm, vmf->orig_pte);
 			inc_mm_counter(mm, MM_ANONPAGES);
 		}
 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));

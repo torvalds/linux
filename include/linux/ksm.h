@@ -35,10 +35,12 @@ void __ksm_exit(struct mm_struct *mm);
 
 extern unsigned long ksm_zero_pages;
 
-static inline void ksm_might_unmap_zero_page(pte_t pte)
+static inline void ksm_might_unmap_zero_page(struct mm_struct *mm, pte_t pte)
 {
-	if (is_ksm_zero_pte(pte))
+	if (is_ksm_zero_pte(pte)) {
 		ksm_zero_pages--;
+		mm->ksm_zero_pages--;
+	}
 }
 
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
@@ -109,7 +111,7 @@ static inline void ksm_exit(struct mm_struct *mm)
 {
 }
 
-static inline void ksm_might_unmap_zero_page(pte_t pte)
+static inline void ksm_might_unmap_zero_page(struct mm_struct *mm, pte_t pte)
 {
 }
 
