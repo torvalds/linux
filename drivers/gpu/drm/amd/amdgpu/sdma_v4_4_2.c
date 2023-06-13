@@ -1434,9 +1434,11 @@ static int sdma_v4_4_2_hw_fini(void *handle)
 		return 0;
 
 	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
-			       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
+				       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+		}
 	}
 
 	sdma_v4_4_2_inst_ctx_switch_enable(adev, false, inst_mask);
@@ -2073,9 +2075,11 @@ static int sdma_v4_4_2_xcp_suspend(void *handle, uint32_t inst_mask)
 	uint32_t tmp_mask = inst_mask;
 	int i;
 
-	for_each_inst(i, tmp_mask) {
-		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
-			       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for_each_inst(i, tmp_mask) {
+			amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
+				       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+		}
 	}
 
 	sdma_v4_4_2_inst_ctx_switch_enable(adev, false, inst_mask);
