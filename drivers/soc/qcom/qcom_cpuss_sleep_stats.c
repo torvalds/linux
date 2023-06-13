@@ -2,9 +2,10 @@
 
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <asm/cputype.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -142,6 +143,7 @@ struct qcom_target_info {
 	phys_addr_t l3_seq_lpm_cfg;
 	u32 l3_seq_lpm_size;
 	u32 *offsets;
+	u8 cpu_pcpu_map[MAX_POSSIBLE_CPUS];
 	struct qcom_cpuss_stats complete_stats;
 
 	struct dentry *stats_rootdir;
@@ -374,7 +376,8 @@ static ssize_t qcom_cpuss_stats_reset_write(struct file *file,
 {
 	struct inode *in = file->f_inode;
 	struct qcom_target_info *t_info;
-	int ncpu, i;
+	int ncpu;
+	u8 i, j;
 	ssize_t ret;
 	struct platform_device *pdev;
 
@@ -387,8 +390,12 @@ static ssize_t qcom_cpuss_stats_reset_write(struct file *file,
 
 	/* Reset cpu LPM/Residencies */
 	mutex_lock(&t_info->stats_reset_lock);
-	for (i = 0; i < ncpu; i++) {
-		ret = qcom_cpuss_reset_clear_lpm_residency(t_info->per_cpu_lpm_cfg[i],
+	for (j = 0; j < ncpu; j++) {
+		i = t_info->cpu_pcpu_map[j];
+		if (i == U8_MAX)
+			continue;
+
+		ret = qcom_cpuss_reset_clear_lpm_residency(t_info->per_cpu_lpm_cfg[j],
 							   RESET_ALL_CPU_LPM);
 		if (ret)
 			goto error;
@@ -444,7 +451,7 @@ static int store_stats_data(struct qcom_target_info *t_info, char *str,
 }
 
 static int qcom_cpuss_sleep_stats_create_cpu_debugfs(struct qcom_target_info *t_info,
-					     int cpu, u32 lpm_cfg)
+					     u8 cpu, u32 lpm_cfg)
 {
 	void __iomem *reg, *base;
 	struct platform_device *pdev = t_info->pdev;
@@ -528,7 +535,7 @@ static int qcom_cpuss_sleep_stats_create_cluster_debugfs(struct qcom_target_info
 }
 
 static int qcom_cpuss_sleep_stats_create_cpu_residency_debugfs(struct qcom_target_info *t_info,
-						int cpu, u32 residency_cfg)
+						u8 cpu, u32 residency_cfg)
 {
 	void __iomem *reg, *base;
 	struct platform_device *pdev = t_info->pdev;
@@ -604,12 +611,17 @@ static int qcom_cpuss_sleep_stats_create_cl_residency_debugfs(struct qcom_target
 static int qcom_cpuss_read_lpm_and_residency_cfg_informaion(struct qcom_target_info *t_info)
 {
 	u32 val;
-	int i, ret;
+	u8 i, j;
+	int ret;
 	phys_addr_t addr;
 
 	/* per cpu lpm and residency */
-	for (i = 0; i < t_info->ncpu; i++) {
-		addr = t_info->per_cpu_lpm_cfg[i];
+	for (j = 0; j < t_info->ncpu; j++) {
+		i = t_info->cpu_pcpu_map[j];
+		if (i == U8_MAX)
+			continue;
+
+		addr = t_info->per_cpu_lpm_cfg[j];
 		ret = qcom_scm_io_readl(addr, &val);
 		if (ret)
 			return -EINVAL;
@@ -650,12 +662,20 @@ static int qcom_cpuss_read_lpm_and_residency_cfg_informaion(struct qcom_target_i
 	return ret;
 }
 
+static void get_mpidr_cpu(void *cpu)
+{
+	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+
+	*((uint32_t *)cpu) = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+}
+
 static int qcom_cpuss_sleep_stats_probe(struct platform_device *pdev)
 {
-	int ret, i;
+	int ret;
 	struct dentry *root_dir;
 	struct qcom_target_info *t_info;
 	struct resource *res;
+	int cpu, pcpu;
 
 	t_info = devm_kzalloc(&pdev->dev, sizeof(struct qcom_target_info),
 			      GFP_KERNEL);
@@ -668,18 +688,22 @@ static int qcom_cpuss_sleep_stats_probe(struct platform_device *pdev)
 	t_info->stats_rootdir = root_dir;
 	t_info->pdev = pdev;
 
+	memset(t_info->cpu_pcpu_map, U8_MAX, MAX_POSSIBLE_CPUS);
 	/* Get cfg address for cpu/cluster */
-	for (i = 0; i < MAX_POSSIBLE_CPUS; i++) {
+	for_each_possible_cpu(cpu) {
 		char reg_name[SEQ_LPM_STR_SZ] = {0};
 
-		snprintf(reg_name, sizeof(reg_name), "seq_lpm_cntr_cfg_cpu%u", i);
+		smp_call_function_single(cpu, get_mpidr_cpu, &pcpu, true);
+		snprintf(reg_name, sizeof(reg_name), "seq_lpm_cntr_cfg_cpu%u",
+			 pcpu);
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   reg_name);
 		if (!res)
 			continue;
 
-		t_info->per_cpu_lpm_cfg[i] = res->start;
-		t_info->per_cpu_lpm_cfg_size[i] = resource_size(res);
+		t_info->cpu_pcpu_map[cpu] = pcpu;
+		t_info->per_cpu_lpm_cfg[cpu] = res->start;
+		t_info->per_cpu_lpm_cfg_size[cpu] = resource_size(res);
 	}
 
 	res =  platform_get_resource_byname(pdev, IORESOURCE_MEM,
