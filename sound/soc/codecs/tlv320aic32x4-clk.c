@@ -208,18 +208,14 @@ static int clk_aic32x4_pll_determine_rate(struct clk_hw *hw,
 					  struct clk_rate_request *req)
 {
 	struct clk_aic32x4_pll_muldiv settings;
-	unsigned long rate;
 	int ret;
 
 	ret = clk_aic32x4_pll_calc_muldiv(&settings, req->rate, req->best_parent_rate);
 	if (ret < 0)
 		return -EINVAL;
 
-	rate = clk_aic32x4_pll_calc_rate(&settings, req->best_parent_rate);
-	if (rate < 0)
-		return rate;
+	req->rate = clk_aic32x4_pll_calc_rate(&settings, req->best_parent_rate);
 
-	req->rate = rate;
 	return 0;
 }
 
