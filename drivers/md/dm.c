@@ -597,7 +597,8 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	if (blk_queue_io_stat(md->queue))
 		dm_io_set_flag(io, DM_IO_BLK_STAT);
 
-	if (static_branch_unlikely(&stats_enabled))
+	if (static_branch_unlikely(&stats_enabled) &&
+	    unlikely(dm_stats_used(&md->stats)))
 		dm_stats_record_start(&md->stats, &io->stats_aux);
 
 	return io;
