@@ -2,6 +2,7 @@
 obj-$(CONFIG_FB_NOTIFY)           += fb_notify.o
 obj-$(CONFIG_FB)                  += fb.o
 fb-y                              := fb_backlight.o \
+                                     fb_chrdev.o \
                                      fb_info.o \
                                      fb_procfs.o \
                                      fbmem.o fbmon.o fbcmap.o fbsysfs.o \
