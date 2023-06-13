@@ -10,7 +10,6 @@
 struct pci_dn;
 
 enum pnv_phb_type {
-	PNV_PHB_IODA1,
 	PNV_PHB_IODA2,
 	PNV_PHB_NPU_OCAPI,
 };

@@ -45,7 +45,8 @@
 #include "pci.h"
 #include "../../../../drivers/pci/pci.h"
 
-static const char * const pnv_phb_names[] = { "IODA1", "IODA2", "NPU_OCAPI" };
+/* This array is indexed with enum pnv_phb_type */
+static const char * const pnv_phb_names[] = { "IODA2", "NPU_OCAPI" };
 
 static void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable);
 static void pnv_pci_configure_bus(struct pci_bus *bus);
@@ -359,7 +360,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	const __be32 *r;
 	u64 pci_addr;
 
-	if (phb->type != PNV_PHB_IODA1 && phb->type != PNV_PHB_IODA2) {
+	if (phb->type != PNV_PHB_IODA2) {
 		pr_info("  Not support M64 window\n");
 		return;
 	}
