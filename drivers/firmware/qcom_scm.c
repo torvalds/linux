@@ -2420,6 +2420,20 @@ int qcom_scm_lmh_dcvsh(u32 payload_fn, u32 payload_reg, u32 payload_val,
 }
 EXPORT_SYMBOL(qcom_scm_lmh_dcvsh);
 
+int qcom_scm_prefetch_tgt_ctrl(bool en)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_APP_MGR,
+		.cmd = QCOM_SCM_PREFETCH_TGT_CTRL,
+		.owner = ARM_SMCCC_OWNER_TRUSTED_OS,
+		.args[0] = en,
+		.arginfo = QCOM_SCM_ARGS(1),
+	};
+
+	return qcom_scm_call_atomic(__scm->dev, &desc, NULL);
+}
+EXPORT_SYMBOL(qcom_scm_prefetch_tgt_ctrl);
+
 int qcom_scm_get_tz_log_feat_id(u64 *version)
 {
 	return __qcom_scm_get_feat_version(__scm->dev, QCOM_SCM_FEAT_LOG_ID,
