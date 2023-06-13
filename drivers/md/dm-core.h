@@ -306,7 +306,8 @@ struct dm_io {
  */
 enum {
 	DM_IO_ACCOUNTED,
-	DM_IO_WAS_SPLIT
+	DM_IO_WAS_SPLIT,
+	DM_IO_BLK_STAT
 };
 
 static inline bool dm_io_flagged(struct dm_io *io, unsigned int bit)
