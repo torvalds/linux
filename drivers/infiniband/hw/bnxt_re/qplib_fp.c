@@ -668,7 +668,7 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 	srq->dbinfo.xid = srq->id;
 	srq->dbinfo.db = srq->dpi->dbr;
 	srq->dbinfo.max_slot = 1;
-	srq->dbinfo.priv_db = res->dpi_tbl.dbr_bar_reg_iomem;
+	srq->dbinfo.priv_db = res->dpi_tbl.priv_db;
 	if (srq->threshold)
 		bnxt_qplib_armen_db(&srq->dbinfo, DBC_DBC_TYPE_SRQ_ARMENA);
 	srq->arm_req = false;
@@ -2104,7 +2104,7 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	cq->dbinfo.hwq = &cq->hwq;
 	cq->dbinfo.xid = cq->id;
 	cq->dbinfo.db = cq->dpi->dbr;
-	cq->dbinfo.priv_db = res->dpi_tbl.dbr_bar_reg_iomem;
+	cq->dbinfo.priv_db = res->dpi_tbl.priv_db;
 
 	bnxt_qplib_armen_db(&cq->dbinfo, DBC_DBC_TYPE_CQ_ARMENA);
 

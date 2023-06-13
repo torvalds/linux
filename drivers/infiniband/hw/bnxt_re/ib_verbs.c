@@ -618,8 +618,8 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 			 * ibv_devinfo and family of application when DPIs
 			 * are depleted.
 			 */
-			if (bnxt_qplib_alloc_dpi(&rdev->qplib_res.dpi_tbl,
-						 &ucntx->dpi, ucntx)) {
+			if (bnxt_qplib_alloc_dpi(&rdev->qplib_res,
+						 &ucntx->dpi, ucntx, BNXT_QPLIB_DPI_TYPE_UC)) {
 				rc = -ENOMEM;
 				goto dbfail;
 			}
@@ -4095,8 +4095,7 @@ void bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 		/* Free DPI only if this is the first PD allocated by the
 		 * application and mark the context dpi as NULL
 		 */
-		bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
-				       &rdev->qplib_res.dpi_tbl, &uctx->dpi);
+		bnxt_qplib_dealloc_dpi(&rdev->qplib_res, &uctx->dpi);
 		uctx->dpi.dbr = NULL;
 	}
 }

@@ -60,6 +60,9 @@ struct bnxt_qplib_chip_ctx {
 	u64	hwrm_intf_ver;
 };
 
+#define BNXT_QPLIB_DBR_PF_DB_OFFSET     0x10000
+#define BNXT_QPLIB_DBR_VF_DB_OFFSET     0x4000
+
 #define PTR_CNT_PER_PG		(PAGE_SIZE / sizeof(void *))
 #define PTR_MAX_IDX_PER_PG	(PTR_CNT_PER_PG - 1)
 #define PTR_PG(x)		(((x) & ~PTR_MAX_IDX_PER_PG) / PTR_CNT_PER_PG)
@@ -111,6 +114,7 @@ enum bnxt_qplib_hwrm_pg_size {
 struct bnxt_qplib_reg_desc {
 	u8		bar_id;
 	resource_size_t	bar_base;
+	unsigned long	offset;
 	void __iomem	*bar_reg;
 	size_t		len;
 };
@@ -187,18 +191,26 @@ struct bnxt_qplib_sgid_tbl {
 	u8				*vlan;
 };
 
+enum {
+	BNXT_QPLIB_DPI_TYPE_KERNEL      = 0,
+	BNXT_QPLIB_DPI_TYPE_UC          = 1,
+};
+
 struct bnxt_qplib_dpi {
 	u32				dpi;
+	u32				bit;
 	void __iomem			*dbr;
 	u64				umdbr;
+	u8				type;
 };
 
 struct bnxt_qplib_dpi_tbl {
 	void				**app_tbl;
 	unsigned long			*tbl;
 	u16				max;
-	void __iomem			*dbr_bar_reg_iomem;
-	u64				unmapped_dbr;
+	struct bnxt_qplib_reg_desc	ucreg; /* Hold entire DB bar. */
+	struct bnxt_qplib_reg_desc	wcreg;
+	void __iomem			*priv_db;
 };
 
 struct bnxt_qplib_stats {
@@ -254,6 +266,8 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_pd_tbl	pd_tbl;
 	struct bnxt_qplib_sgid_tbl	sgid_tbl;
 	struct bnxt_qplib_dpi_tbl	dpi_tbl;
+	/* To protect the dpi table bit map */
+	struct mutex                    dpi_tbl_lock;
 	bool				prio;
 	bool                            is_vf;
 };
@@ -345,11 +359,10 @@ int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pd_tbl,
 int bnxt_qplib_dealloc_pd(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_pd_tbl *pd_tbl,
 			  struct bnxt_qplib_pd *pd);
-int bnxt_qplib_alloc_dpi(struct bnxt_qplib_dpi_tbl *dpit,
-			 struct bnxt_qplib_dpi     *dpi,
-			 void                      *app);
+int bnxt_qplib_alloc_dpi(struct bnxt_qplib_res *res,
+			 struct bnxt_qplib_dpi *dpi,
+			 void *app, u8 type);
 int bnxt_qplib_dealloc_dpi(struct bnxt_qplib_res *res,
-			   struct bnxt_qplib_dpi_tbl *dpi_tbl,
 			   struct bnxt_qplib_dpi *dpi);
 void bnxt_qplib_cleanup_res(struct bnxt_qplib_res *res);
 int bnxt_qplib_init_res(struct bnxt_qplib_res *res);
@@ -362,6 +375,9 @@ void bnxt_qplib_free_ctx(struct bnxt_qplib_res *res,
 int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5);
+int bnxt_qplib_map_db_bar(struct bnxt_qplib_res *res);
+void bnxt_qplib_unmap_db_bar(struct bnxt_qplib_res *res);
+
 int bnxt_qplib_determine_atomics(struct pci_dev *dev);
 
 static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_hwq *hwq, u32 cnt)

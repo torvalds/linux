@@ -130,6 +130,8 @@ static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 #define RCFW_MAX_COOKIE_VALUE		(BNXT_QPLIB_CMDQE_MAX_CNT - 1)
 #define RCFW_CMD_IS_BLOCKING		0x8000
 
+#define HWRM_VERSION_DEV_ATTR_MAX_DPI  0x1000A0000000DULL
+
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {
 	u8			data[1024];

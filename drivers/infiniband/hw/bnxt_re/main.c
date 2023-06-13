@@ -85,6 +85,40 @@ static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev);
 static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev);
 static int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev);
 
+static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
+			     u32 *offset);
+static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_chip_ctx *cctx;
+	struct bnxt_en_dev *en_dev;
+	struct bnxt_qplib_res *res;
+	u32 l2db_len = 0;
+	u32 offset = 0;
+	u32 barlen;
+	int rc;
+
+	res = &rdev->qplib_res;
+	en_dev = rdev->en_dev;
+	cctx = rdev->chip_ctx;
+
+	/* Issue qcfg */
+	rc = bnxt_re_hwrm_qcfg(rdev, &l2db_len, &offset);
+	if (rc)
+		dev_info(rdev_to_dev(rdev),
+			 "Couldn't get DB bar size, Low latency framework is disabled\n");
+	/* set register offsets for both UC and WC */
+	res->dpi_tbl.ucreg.offset = res->is_vf ? BNXT_QPLIB_DBR_VF_DB_OFFSET :
+						 BNXT_QPLIB_DBR_PF_DB_OFFSET;
+	res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+
+	/* If WC mapping is disabled by L2 driver then en_dev->l2_db_size
+	 * is equal to the DB-Bar actual size. This indicates that L2
+	 * is mapping entire bar as UC-. RoCE driver can't enable WC mapping
+	 * in such cases and DB-push will be disabled.
+	 */
+	barlen = pci_resource_len(res->pdev, RCFW_DBR_PCI_BAR_REGION);
+}
+
 static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
@@ -116,6 +150,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	struct bnxt_en_dev *en_dev;
+	int rc;
 
 	en_dev = rdev->en_dev;
 
@@ -134,6 +169,12 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 	rdev->qplib_res.is_vf = BNXT_EN_VF(en_dev);
 
 	bnxt_re_set_drv_mode(rdev, wqe_mode);
+
+	bnxt_re_set_db_offset(rdev);
+	rc = bnxt_qplib_map_db_bar(&rdev->qplib_res);
+	if (rc)
+		return rc;
+
 	if (bnxt_qplib_determine_atomics(en_dev->pdev))
 		ibdev_info(&rdev->ibdev,
 			   "platform doesn't support global atomics.");
@@ -341,6 +382,30 @@ static void bnxt_re_fill_fw_msg(struct bnxt_fw_msg *fw_msg, void *msg,
 	fw_msg->resp = resp;
 	fw_msg->resp_max_len = resp_max_len;
 	fw_msg->timeout = timeout;
+}
+
+/* Query device config using common hwrm */
+static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
+			     u32 *offset)
+{
+	struct bnxt_en_dev *en_dev = rdev->en_dev;
+	struct hwrm_func_qcfg_output resp = {0};
+	struct hwrm_func_qcfg_input req = {0};
+	struct bnxt_fw_msg fw_msg;
+	int rc;
+
+	memset(&fw_msg, 0, sizeof(fw_msg));
+	bnxt_re_init_hwrm_hdr(rdev, (void *)&req,
+			      HWRM_FUNC_QCFG, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnxt_send_msg(en_dev, &fw_msg);
+	if (!rc) {
+		*db_len = PAGE_ALIGN(le16_to_cpu(resp.l2_doorbell_bar_size_kb) * 1024);
+		*offset = PAGE_ALIGN(le16_to_cpu(resp.legacy_l2_db_size_kb) * 1024);
+	}
+	return rc;
 }
 
 /* Query function capabilities using common hwrm */
@@ -847,7 +912,6 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev)
 
 	if (rdev->qplib_res.dpi_tbl.max) {
 		bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
-				       &rdev->qplib_res.dpi_tbl,
 				       &rdev->dpi_privileged);
 	}
 	if (rdev->qplib_res.rcfw) {
@@ -875,9 +939,9 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 	if (rc)
 		goto fail;
 
-	rc = bnxt_qplib_alloc_dpi(&rdev->qplib_res.dpi_tbl,
+	rc = bnxt_qplib_alloc_dpi(&rdev->qplib_res,
 				  &rdev->dpi_privileged,
-				  rdev);
+				  rdev, BNXT_QPLIB_DPI_TYPE_KERNEL);
 	if (rc)
 		goto dealloc_res;
 
@@ -917,7 +981,6 @@ free_nq:
 		bnxt_qplib_free_nq(&rdev->nq[i]);
 	}
 	bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
-			       &rdev->qplib_res.dpi_tbl,
 			       &rdev->dpi_privileged);
 dealloc_res:
 	bnxt_qplib_free_res(&rdev->qplib_res);
