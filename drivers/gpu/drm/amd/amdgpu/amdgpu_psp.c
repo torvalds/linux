@@ -569,6 +569,26 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	return -ETIME;
 }
 
+int psp_wait_for_spirom_update(struct psp_context *psp, uint32_t reg_index,
+			       uint32_t reg_val, uint32_t mask, uint32_t msec_timeout)
+{
+	uint32_t val;
+	int i;
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp->adev->no_hw_access)
+		return 0;
+
+	for (i = 0; i < msec_timeout; i++) {
+		val = RREG32(reg_index);
+		if ((val & mask) == reg_val)
+			return 0;
+		msleep(1);
+	}
+
+	return -ETIME;
+}
+
 static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 {
 	switch (cmd_id) {
