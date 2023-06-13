@@ -92,6 +92,11 @@ static struct regmap *gen_regmap(struct regmap_config *config,
 	return ret;
 }
 
+static bool reg_5_false(struct device *context, unsigned int reg)
+{
+	return reg != 5;
+}
+
 static void basic_read_write(struct kunit *test)
 {
 	struct regcache_types *t = (struct regcache_types *)test->param_value;
@@ -187,6 +192,41 @@ static void bulk_read(struct kunit *test)
 	/* If using a cache the cache satisfied the read */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
 		KUNIT_EXPECT_EQ(test, t->type == REGCACHE_NONE, data->read[i]);
+
+	regmap_exit(map);
+}
+
+static void write_readonly(struct kunit *test)
+{
+	struct regcache_types *t = (struct regcache_types *)test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = test_regmap_config;
+	config.cache_type = t->type;
+	config.num_reg_defaults = BLOCK_TEST_SIZE;
+	config.writeable_reg = reg_5_false;
+
+	map = gen_regmap(&config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	get_random_bytes(&val, sizeof(val));
+
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->written[i] = false;
+
+	/* Change the value of all registers, readonly should fail */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, i != 5, regmap_write(map, i, val) == 0);
+
+	/* Did that match what we see on the device? */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, i != 5, data->written[i]);
 
 	regmap_exit(map);
 }
@@ -1037,6 +1077,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(basic_read_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_read, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(write_readonly, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(reg_defaults, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(reg_defaults_read_dev, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(register_patch, regcache_types_gen_params),
