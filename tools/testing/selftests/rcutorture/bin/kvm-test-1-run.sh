@@ -57,7 +57,6 @@ config_override_param () {
 		cat $T/Kconfig_args >> $resdir/ConfigFragment.input
 		config_override.sh $T/$2 $T/Kconfig_args > $T/$2.tmp
 		mv $T/$2.tmp $T/$2
-		# Note that "#CHECK#" is not permitted on commandline.
 	fi
 }
 
