@@ -17,7 +17,7 @@ struct env env = {
 	.duration_sec = 5,
 	.affinity = false,
 	.quiet = false,
-	.consumer_cnt = 1,
+	.consumer_cnt = 0,
 	.producer_cnt = 1,
 };
 
