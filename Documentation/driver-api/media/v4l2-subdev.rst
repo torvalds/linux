@@ -234,8 +234,8 @@ These functions allocate an async sub-device descriptor which is of type struct
 						 struct my_async_subdev);
 	fwnode_handle_put(ep);
 
-	if (IS_ERR(asd))
-		return PTR_ERR(asd);
+	if (IS_ERR(my_asd))
+		return PTR_ERR(my_asd);
 
 The V4L2 core will then use these descriptors to match asynchronously
 registered subdevices to them. If a match is detected the ``.bound()``
