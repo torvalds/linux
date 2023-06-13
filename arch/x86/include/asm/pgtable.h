@@ -1033,7 +1033,14 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  * (Currently stuck as a macro because of indirect forward reference
  * to linux/mm.h:page_to_nid())
  */
-#define mk_pte(page, pgprot)   pfn_pte(page_to_pfn(page), (pgprot))
+#define mk_pte(page, pgprot)						  \
+({									  \
+	pgprot_t __pgprot = pgprot;					  \
+									  \
+	WARN_ON_ONCE((pgprot_val(__pgprot) & (_PAGE_DIRTY | _PAGE_RW)) == \
+		    _PAGE_DIRTY);					  \
+	pfn_pte(page_to_pfn(page), __pgprot);				  \
+})
 
 static inline int pmd_bad(pmd_t pmd)
 {
