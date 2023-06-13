@@ -143,7 +143,7 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 
 		if (XE_IOCTL_ERR(xe, !vm->async_ops.error_capture.addr)) {
 			xe_vm_put(vm);
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 		}
 
 		addr = vm->async_ops.error_capture.addr;

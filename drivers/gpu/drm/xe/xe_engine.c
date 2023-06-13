@@ -612,7 +612,7 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 
 	if (XE_IOCTL_ERR(xe, e->vm && xe_vm_in_compute_mode(e->vm) !=
 			 !!(e->flags & ENGINE_FLAG_COMPUTE_MODE))) {
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto put_engine;
 	}
 

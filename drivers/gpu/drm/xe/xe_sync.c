@@ -120,7 +120,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 	switch (sync_in.flags & SYNC_FLAGS_TYPE_MASK) {
 	case DRM_XE_SYNC_SYNCOBJ:
 		if (XE_IOCTL_ERR(xe, no_dma_fences && signal))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 
 		if (XE_IOCTL_ERR(xe, upper_32_bits(sync_in.addr)))
 			return -EINVAL;
@@ -138,7 +138,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 	case DRM_XE_SYNC_TIMELINE_SYNCOBJ:
 		if (XE_IOCTL_ERR(xe, no_dma_fences && signal))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 
 		if (XE_IOCTL_ERR(xe, upper_32_bits(sync_in.addr)))
 			return -EINVAL;
@@ -173,7 +173,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 	case DRM_XE_SYNC_USER_FENCE:
 		if (XE_IOCTL_ERR(xe, !signal))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 
 		if (XE_IOCTL_ERR(xe, sync_in.addr & 0x7))
 			return -EINVAL;

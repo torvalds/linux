@@ -1819,10 +1819,10 @@ static int vm_set_error_capture_address(struct xe_device *xe, struct xe_vm *vm,
 		return -EINVAL;
 
 	if (XE_IOCTL_ERR(xe, !(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS)))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (XE_IOCTL_ERR(xe, vm->async_ops.error_capture.addr))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	vm->async_ops.error_capture.mm = current->mm;
 	vm->async_ops.error_capture.addr = value;
@@ -3072,7 +3072,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	if (VM_BIND_OP(bind_ops[0].op) == XE_VM_BIND_OP_RESTART) {
 		if (XE_IOCTL_ERR(xe, !(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS)))
-			err = -ENOTSUPP;
+			err = -EOPNOTSUPP;
 		if (XE_IOCTL_ERR(xe, !err && args->num_syncs))
 			err = EINVAL;
 		if (XE_IOCTL_ERR(xe, !err && !vm->async_ops.error))
@@ -3096,7 +3096,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	if (XE_IOCTL_ERR(xe, !vm->async_ops.error &&
 			 async != !!(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS))) {
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto put_engine;
 	}
 

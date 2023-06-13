@@ -495,7 +495,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 			fallthrough;
 		case DRM_XE_MMIO_8BIT: /* TODO */
 		case DRM_XE_MMIO_16BIT: /* TODO */
-			ret = -ENOTSUPP;
+			ret = -EOPNOTSUPP;
 			goto exit;
 		}
 	}
@@ -513,7 +513,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 			fallthrough;
 		case DRM_XE_MMIO_8BIT: /* TODO */
 		case DRM_XE_MMIO_16BIT: /* TODO */
-			ret = -ENOTSUPP;
+			ret = -EOPNOTSUPP;
 		}
 	}
 
