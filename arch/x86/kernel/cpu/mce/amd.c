@@ -713,17 +713,37 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
-bool amd_mce_is_memory_error(struct mce *m)
+/*
+ * DRAM ECC errors are reported in the Northbridge (bank 4) with
+ * Extended Error Code 8.
+ */
+static bool legacy_mce_is_memory_error(struct mce *m)
+{
+	return m->bank == 4 && XEC(m->status, 0x1f) == 8;
+}
+
+/*
+ * DRAM ECC errors are reported in Unified Memory Controllers with
+ * Extended Error Code 0.
+ */
+static bool smca_mce_is_memory_error(struct mce *m)
 {
 	enum smca_bank_types bank_type;
-	/* ErrCodeExt[20:16] */
-	u8 xec = (m->status >> 16) & 0x1f;
+
+	if (XEC(m->status, 0x3f))
+		return false;
 
 	bank_type = smca_get_bank_type(m->extcpu, m->bank);
-	if (mce_flags.smca)
-		return (bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2) && xec == 0x0;
 
-	return m->bank == 4 && xec == 0x8;
+	return bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2;
+}
+
+bool amd_mce_is_memory_error(struct mce *m)
+{
+	if (mce_flags.smca)
+		return smca_mce_is_memory_error(m);
+	else
+		return legacy_mce_is_memory_error(m);
 }
 
 static void __log_error(unsigned int bank, u64 status, u64 addr, u64 misc)
