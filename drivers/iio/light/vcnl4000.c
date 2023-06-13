@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
+#include <linux/units.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
@@ -84,8 +85,10 @@
 #define VCNL4040_ALS_CONF_ALS_SHUTDOWN	BIT(0)
 #define VCNL4040_ALS_CONF_IT		GENMASK(7, 6) /* Ambient integration time */
 #define VCNL4040_ALS_CONF_INT_EN	BIT(1) /* Ambient light Interrupt enable */
+#define VCNL4040_ALS_CONF_PERS	GENMASK(3, 2) /* Ambient interrupt persistence setting */
 #define VCNL4040_PS_CONF1_PS_SHUTDOWN	BIT(0)
 #define VCNL4040_PS_CONF2_PS_IT	GENMASK(3, 1) /* Proximity integration time */
+#define VCNL4040_CONF1_PS_PERS	GENMASK(5, 4) /* Proximity interrupt persistence setting */
 #define VCNL4040_PS_CONF2_PS_INT	GENMASK(9, 8) /* Proximity interrupt mode */
 #define VCNL4040_PS_IF_AWAY		BIT(8) /* Proximity event cross low threshold */
 #define VCNL4040_PS_IF_CLOSE		BIT(9) /* Proximity event cross high threshold */
@@ -152,6 +155,9 @@ static const int vcnl4200_als_it_times[][2] = {
 	{0, 200000},
 	{0, 400000},
 };
+
+static const int vcnl4040_als_persistence[] = {1, 2, 4, 8};
+static const int vcnl4040_ps_persistence[] = {1, 2, 3, 4};
 
 #define VCNL4000_SLEEP_DELAY_MS	2000 /* before we enter pm_runtime_suspend */
 
@@ -641,6 +647,129 @@ out:
 	return ret;
 }
 
+static ssize_t vcnl4040_read_als_period(struct vcnl4000_data *data, int *val, int *val2)
+{
+	int ret, ret_pers, it;
+	int64_t val_c;
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_AL_CONF);
+	if (ret < 0)
+		return ret;
+
+	ret_pers = FIELD_GET(VCNL4040_ALS_CONF_PERS, ret);
+	if (ret_pers >= ARRAY_SIZE(vcnl4040_als_persistence))
+		return -EINVAL;
+
+	it = FIELD_GET(VCNL4040_ALS_CONF_IT, ret);
+	if (it >= data->chip_spec->num_als_it_times)
+		return -EINVAL;
+
+	val_c = mul_u32_u32((*data->chip_spec->als_it_times)[it][1],
+			    vcnl4040_als_persistence[ret_pers]);
+	*val = div_u64_rem(val_c, MICRO, val2);
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static ssize_t vcnl4040_write_als_period(struct vcnl4000_data *data, int val, int val2)
+{
+	unsigned int i;
+	int ret, it;
+	u16 regval;
+	u64 val_n = mul_u32_u32(val, MICRO) + val2;
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_AL_CONF);
+	if (ret < 0)
+		return ret;
+
+	it = FIELD_GET(VCNL4040_ALS_CONF_IT, ret);
+	if (it >= data->chip_spec->num_als_it_times)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(vcnl4040_als_persistence) - 1; i++) {
+		if (val_n < mul_u32_u32(vcnl4040_als_persistence[i],
+					(*data->chip_spec->als_it_times)[it][1]))
+			break;
+	}
+
+	mutex_lock(&data->vcnl4000_lock);
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_AL_CONF);
+	if (ret < 0)
+		goto out_unlock;
+
+	regval = FIELD_PREP(VCNL4040_ALS_CONF_PERS, i);
+	regval |= (ret & ~VCNL4040_ALS_CONF_PERS);
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_AL_CONF,
+					regval);
+
+out_unlock:
+	mutex_unlock(&data->vcnl4000_lock);
+	return ret;
+}
+
+static ssize_t vcnl4040_read_ps_period(struct vcnl4000_data *data, int *val, int *val2)
+{
+	int ret, ret_pers, it;
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		return ret;
+
+	ret_pers = FIELD_GET(VCNL4040_CONF1_PS_PERS, ret);
+	if (ret_pers >= ARRAY_SIZE(vcnl4040_ps_persistence))
+		return -EINVAL;
+
+	it = FIELD_GET(VCNL4040_PS_CONF2_PS_IT, ret);
+	if (it >= data->chip_spec->num_ps_it_times)
+		return -EINVAL;
+
+	*val = (*data->chip_spec->ps_it_times)[it][0];
+	*val2 = (*data->chip_spec->ps_it_times)[it][1] *
+		vcnl4040_ps_persistence[ret_pers];
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static ssize_t vcnl4040_write_ps_period(struct vcnl4000_data *data, int val, int val2)
+{
+	int ret, it, i;
+	u16 regval;
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		return ret;
+
+	it = FIELD_GET(VCNL4040_PS_CONF2_PS_IT, ret);
+	if (it >= data->chip_spec->num_ps_it_times)
+		return -EINVAL;
+
+	if (val > 0)
+		i = ARRAY_SIZE(vcnl4040_ps_persistence) - 1;
+	else {
+		for (i = 0; i < ARRAY_SIZE(vcnl4040_ps_persistence) - 1; i++) {
+			if (val2 <= vcnl4040_ps_persistence[i] *
+					(*data->chip_spec->ps_it_times)[it][1])
+				break;
+		}
+	}
+
+	mutex_lock(&data->vcnl4000_lock);
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		goto out_unlock;
+
+	regval = FIELD_PREP(VCNL4040_CONF1_PS_PERS, i);
+	regval |= (ret & ~VCNL4040_CONF1_PS_PERS);
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF1,
+					regval);
+
+out_unlock:
+	mutex_unlock(&data->vcnl4000_lock);
+	return ret;
+}
+
 static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val, int *val2, long mask)
@@ -939,6 +1068,8 @@ static int vcnl4040_read_event(struct iio_dev *indio_dev,
 	switch (chan->type) {
 	case IIO_LIGHT:
 		switch (info) {
+		case IIO_EV_INFO_PERIOD:
+			return vcnl4040_read_als_period(data, val, val2);
 		case IIO_EV_INFO_VALUE:
 			switch (dir) {
 			case IIO_EV_DIR_RISING:
@@ -959,6 +1090,8 @@ static int vcnl4040_read_event(struct iio_dev *indio_dev,
 		break;
 	case IIO_PROXIMITY:
 		switch (info) {
+		case IIO_EV_INFO_PERIOD:
+			return vcnl4040_read_ps_period(data, val, val2);
 		case IIO_EV_INFO_VALUE:
 			switch (dir) {
 			case IIO_EV_DIR_RISING:
@@ -999,6 +1132,8 @@ static int vcnl4040_write_event(struct iio_dev *indio_dev,
 	switch (chan->type) {
 	case IIO_LIGHT:
 		switch (info) {
+		case IIO_EV_INFO_PERIOD:
+			return vcnl4040_write_als_period(data, val, val2);
 		case IIO_EV_INFO_VALUE:
 			switch (dir) {
 			case IIO_EV_DIR_RISING:
@@ -1021,6 +1156,8 @@ static int vcnl4040_write_event(struct iio_dev *indio_dev,
 		break;
 	case IIO_PROXIMITY:
 		switch (info) {
+		case IIO_EV_INFO_PERIOD:
+			return vcnl4040_write_ps_period(data, val, val2);
 		case IIO_EV_INFO_VALUE:
 			switch (dir) {
 			case IIO_EV_DIR_RISING:
@@ -1425,6 +1562,22 @@ static const struct iio_event_spec vcnl4000_event_spec[] = {
 	}
 };
 
+static const struct iio_event_spec vcnl4040_als_event_spec[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_EITHER,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE) | BIT(IIO_EV_INFO_PERIOD),
+	},
+};
+
 static const struct iio_event_spec vcnl4040_event_spec[] = {
 	{
 		.type = IIO_EV_TYPE_THRESH,
@@ -1434,6 +1587,10 @@ static const struct iio_event_spec vcnl4040_event_spec[] = {
 		.type = IIO_EV_TYPE_THRESH,
 		.dir = IIO_EV_DIR_FALLING,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_EITHER,
+		.mask_separate = BIT(IIO_EV_INFO_PERIOD),
 	},
 };
 
@@ -1481,8 +1638,8 @@ static const struct iio_chan_spec vcnl4040_channels[] = {
 			BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_INT_TIME),
 		.info_mask_separate_available = BIT(IIO_CHAN_INFO_INT_TIME),
-		.event_spec = vcnl4000_event_spec,
-		.num_event_specs = ARRAY_SIZE(vcnl4000_event_spec),
+		.event_spec = vcnl4040_als_event_spec,
+		.num_event_specs = ARRAY_SIZE(vcnl4040_als_event_spec),
 	}, {
 		.type = IIO_PROXIMITY,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
