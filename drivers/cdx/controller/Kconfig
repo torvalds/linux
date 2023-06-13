@@ -18,14 +18,4 @@ config CDX_CONTROLLER
 
 	  If unsure, say N.
 
-config MCDI_LOGGING
-	bool "MCDI Logging for the CDX controller"
-	depends on CDX_CONTROLLER
-	help
-	  Enable MCDI Logging for
-	  the CDX Controller for debug
-	  purpose.
-
-	  If unsure, say N.
-
 endif
