@@ -19,6 +19,8 @@
 #include <linux/thermal.h>
 #include <dt-bindings/thermal/mediatek,lvts-thermal.h>
 
+#include "../thermal_hwmon.h"
+
 #define LVTS_MONCTL0(__base)	(__base + 0x0000)
 #define LVTS_MONCTL1(__base)	(__base + 0x0004)
 #define LVTS_MONCTL2(__base)	(__base + 0x0008)
@@ -995,6 +997,9 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 
 			return PTR_ERR(tz);
 		}
+
+		if (devm_thermal_add_hwmon_sysfs(dev, tz))
+			dev_warn(dev, "zone %d: Failed to add hwmon sysfs attributes\n", dt_id);
 
 		/*
 		 * The thermal zone pointer will be needed in the
