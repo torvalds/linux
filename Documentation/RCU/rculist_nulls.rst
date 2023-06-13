@@ -29,8 +29,10 @@ algorithms:
   rcu_read_lock()
   obj = lockless_lookup(key);
   if (obj) {
-    if (!try_get_ref(obj)) // might fail for free objects
+    if (!try_get_ref(obj)) { // might fail for free objects
+      rcu_read_unlock();
       goto begin;
+    }
     /*
     * Because a writer could delete object, and a writer could
     * reuse these object before the RCU grace period, we
