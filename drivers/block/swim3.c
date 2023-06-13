@@ -882,7 +882,7 @@ static int fd_eject(struct floppy_state *fs)
 static struct floppy_struct floppy_type =
 	{ 2880,18,2,80,0,0x1B,0x00,0xCF,0x6C,NULL };	/*  7 1.44MB 3.5"   */
 
-static int floppy_locked_ioctl(struct block_device *bdev,
+static int floppy_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 			unsigned int cmd, unsigned long param)
 {
 	struct floppy_state *fs = bdev->bd_disk->private_data;
