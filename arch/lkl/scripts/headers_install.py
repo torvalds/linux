@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import re, os, sys, argparse, multiprocessing, fnmatch
 
 srctree = os.environ["srctree"]
