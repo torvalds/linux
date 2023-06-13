@@ -24,9 +24,7 @@
 #include <linux/vt.h>
 #include <linux/init.h>
 #include <linux/linux_logo.h>
-#include <linux/proc_fs.h>
 #include <linux/platform_device.h>
-#include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/kmod.h>
 #include <linux/err.h>
@@ -48,8 +46,7 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
-static DEFINE_MUTEX(registration_lock);
-
+DEFINE_MUTEX(registration_lock);
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
 int num_registered_fb __read_mostly;
 #define for_each_registered_fb(i)		\
@@ -704,40 +701,6 @@ int fb_show_logo(struct fb_info *info, int rotate) { return 0; }
 #endif /* CONFIG_LOGO */
 EXPORT_SYMBOL(fb_prepare_logo);
 EXPORT_SYMBOL(fb_show_logo);
-
-static void *fb_seq_start(struct seq_file *m, loff_t *pos)
-{
-	mutex_lock(&registration_lock);
-	return (*pos < FB_MAX) ? pos : NULL;
-}
-
-static void *fb_seq_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	(*pos)++;
-	return (*pos < FB_MAX) ? pos : NULL;
-}
-
-static void fb_seq_stop(struct seq_file *m, void *v)
-{
-	mutex_unlock(&registration_lock);
-}
-
-static int fb_seq_show(struct seq_file *m, void *v)
-{
-	int i = *(loff_t *)v;
-	struct fb_info *fi = registered_fb[i];
-
-	if (fi)
-		seq_printf(m, "%d %s\n", fi->node, fi->fix.id);
-	return 0;
-}
-
-static const struct seq_operations __maybe_unused proc_fb_seq_ops = {
-	.start	= fb_seq_start,
-	.next	= fb_seq_next,
-	.stop	= fb_seq_stop,
-	.show	= fb_seq_show,
-};
 
 /*
  * We hold a reference to the fb_info in file->private_data,
@@ -1624,8 +1587,9 @@ fbmem_init(void)
 {
 	int ret;
 
-	if (!proc_create_seq("fb", 0, NULL, &proc_fb_seq_ops))
-		return -ENOMEM;
+	ret = fb_init_procfs();
+	if (ret)
+		return ret;
 
 	ret = register_chrdev(FB_MAJOR, "fb", &fb_fops);
 	if (ret) {
@@ -1648,7 +1612,7 @@ fbmem_init(void)
 err_class:
 	unregister_chrdev(FB_MAJOR, "fb");
 err_chrdev:
-	remove_proc_entry("fb", NULL);
+	fb_cleanup_procfs();
 	return ret;
 }
 
@@ -1659,7 +1623,7 @@ fbmem_exit(void)
 {
 	fb_console_exit();
 
-	remove_proc_entry("fb", NULL);
+	fb_cleanup_procfs();
 	class_destroy(fb_class);
 	unregister_chrdev(FB_MAJOR, "fb");
 }
