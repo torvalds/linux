@@ -474,7 +474,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 			if (crc_is_compressed(p.crc))
 				reserve_sectors += k.k->size;
 
-			m->op.nr_replicas += bch2_extent_ptr_durability(c, &p);
+			m->op.nr_replicas += bch2_extent_ptr_desired_durability(c, &p);
 		} else if (!p.ptr.cached) {
 			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
 		}

@@ -641,9 +641,8 @@ unsigned bch2_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 	return replicas;
 }
 
-unsigned bch2_extent_ptr_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
+unsigned bch2_extent_ptr_desired_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
 {
-	unsigned durability = 0;
 	struct bch_dev *ca;
 
 	if (p->ptr.cached)
@@ -651,13 +650,28 @@ unsigned bch2_extent_ptr_durability(struct bch_fs *c, struct extent_ptr_decoded 
 
 	ca = bch_dev_bkey_exists(c, p->ptr.dev);
 
-	if (ca->mi.state != BCH_MEMBER_STATE_failed)
-		durability = max_t(unsigned, durability, ca->mi.durability);
+	return ca->mi.durability +
+		(p->has_ec
+		 ? p->ec.redundancy
+		 : 0);
+}
 
-	if (p->has_ec)
-		durability += p->ec.redundancy;
+unsigned bch2_extent_ptr_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
+{
+	struct bch_dev *ca;
 
-	return durability;
+	if (p->ptr.cached)
+		return 0;
+
+	ca = bch_dev_bkey_exists(c, p->ptr.dev);
+
+	if (ca->mi.state == BCH_MEMBER_STATE_failed)
+		return 0;
+
+	return ca->mi.durability +
+		(p->has_ec
+		 ? p->ec.redundancy
+		 : 0);
 }
 
 unsigned bch2_bkey_durability(struct bch_fs *c, struct bkey_s_c k)
