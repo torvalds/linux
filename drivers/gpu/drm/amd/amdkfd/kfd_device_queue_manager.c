@@ -2089,8 +2089,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	list_del(&q->list);
 	qpd->queue_count--;
 	if (q->properties.is_active) {
+		decrement_queue_count(dqm, qpd, q);
 		if (!dqm->dev->kfd->shared_resources.enable_mes) {
-			decrement_queue_count(dqm, qpd, q);
 			retval = execute_queues_cpsch(dqm,
 						      KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0,
 						      USE_DEFAULT_GRACE_PERIOD);
