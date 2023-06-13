@@ -443,6 +443,19 @@ Contact: Thomas Zimmermann <tzimmermann@suse.de>
 
 Level: Starter
 
+Remove driver dependencies on FB_DEVICE
+---------------------------------------
+
+A number of fbdev drivers provide attributes via sysfs and therefore depend
+on CONFIG_FB_DEVICE to be selected. Review each driver and attempt to make
+any dependencies on CONFIG_FB_DEVICE optional. At the minimum, the respective
+code in the driver could be conditionalized via ifdef CONFIG_FB_DEVICE. Not
+all drivers might be able to drop CONFIG_FB_DEVICE.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Starter
+
 
 Core refactorings
 =================

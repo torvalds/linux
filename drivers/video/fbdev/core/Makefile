@@ -2,12 +2,13 @@
 obj-$(CONFIG_FB_NOTIFY)           += fb_notify.o
 obj-$(CONFIG_FB)                  += fb.o
 fb-y                              := fb_backlight.o \
-                                     fb_chrdev.o \
                                      fb_info.o \
-                                     fb_procfs.o \
-                                     fbmem.o fbmon.o fbcmap.o fbsysfs.o \
+                                     fbmem.o fbmon.o fbcmap.o \
                                      modedb.o fbcvt.o fb_cmdline.o fb_io_fops.o
 fb-$(CONFIG_FB_DEFERRED_IO)       += fb_defio.o
+fb-$(CONFIG_FB_DEVICE)            += fb_chrdev.o \
+                                     fb_procfs.o \
+                                     fbsysfs.o
 
 ifeq ($(CONFIG_FRAMEBUFFER_CONSOLE),y)
 fb-y				  += fbcon.o bitblit.o softcursor.o
