@@ -1432,8 +1432,33 @@ static int rockchip_sai_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rockchip_sai_suspend(struct device *dev)
+{
+	struct rk_sai_dev *sai = dev_get_drvdata(dev);
+
+	regcache_mark_dirty(sai->regmap);
+
+	return 0;
+}
+
+static int rockchip_sai_resume(struct device *dev)
+{
+	struct rk_sai_dev *sai = dev_get_drvdata(dev);
+	int ret = pm_runtime_resume_and_get(dev);
+
+	if (ret < 0)
+		return ret;
+	ret = regcache_sync(sai->regmap);
+	pm_runtime_put(dev);
+
+	return ret;
+}
+#endif /* CONFIG_PM_SLEEP */
+
 static const struct dev_pm_ops rockchip_sai_pm_ops = {
 	SET_RUNTIME_PM_OPS(sai_runtime_suspend, sai_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_sai_suspend, rockchip_sai_resume)
 };
 
 static struct platform_driver rockchip_sai_driver = {
