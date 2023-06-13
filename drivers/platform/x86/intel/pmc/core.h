@@ -478,6 +478,12 @@ extern const struct pmc_bit_map mtl_ioep_vnn_req_status_3_map[];
 extern const struct pmc_bit_map mtl_ioep_vnn_misc_status_map[];
 extern const struct pmc_bit_map *mtl_ioep_lpm_maps[];
 extern const struct pmc_reg_map mtl_ioep_reg_map;
+extern const struct pmc_bit_map mtl_ioem_pfear_map[];
+extern const struct pmc_bit_map *ext_mtl_ioem_pfear_map[];
+extern const struct pmc_bit_map mtl_ioem_power_gating_status_1_map[];
+extern const struct pmc_bit_map mtl_ioem_vnn_req_status_1_map[];
+extern const struct pmc_bit_map *mtl_ioem_lpm_maps[];
+extern const struct pmc_reg_map mtl_ioem_reg_map;
 
 extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
