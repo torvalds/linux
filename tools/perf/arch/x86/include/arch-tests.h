@@ -6,7 +6,9 @@ struct test_suite;
 
 /* Tests */
 int test__rdpmc(struct test_suite *test, int subtest);
+#ifdef HAVE_EXTRA_TESTS
 int test__insn_x86(struct test_suite *test, int subtest);
+#endif
 int test__intel_pt_pkt_decoder(struct test_suite *test, int subtest);
 int test__intel_pt_hybrid_compat(struct test_suite *test, int subtest);
 int test__bp_modify(struct test_suite *test, int subtest);

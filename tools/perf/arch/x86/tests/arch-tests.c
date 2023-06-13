@@ -4,7 +4,9 @@
 #include "arch-tests.h"
 
 #ifdef HAVE_AUXTRACE_SUPPORT
+#ifdef HAVE_EXTRA_TESTS
 DEFINE_SUITE("x86 instruction decoder - new instructions", insn_x86);
+#endif
 
 static struct test_case intel_pt_tests[] = {
 	TEST_CASE("Intel PT packet decoder", intel_pt_pkt_decoder),
@@ -37,7 +39,9 @@ struct test_suite *arch_tests[] = {
 	&suite__dwarf_unwind,
 #endif
 #ifdef HAVE_AUXTRACE_SUPPORT
+#ifdef HAVE_EXTRA_TESTS
 	&suite__insn_x86,
+#endif
 	&suite__intel_pt,
 #endif
 #if defined(__x86_64__)
