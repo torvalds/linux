@@ -137,6 +137,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98363
 	imply SND_SOC_MAX98373_I2C
 	imply SND_SOC_MAX98373_SDW
+	imply SND_SOC_MAX98388
 	imply SND_SOC_MAX98390
 	imply SND_SOC_MAX98396
 	imply SND_SOC_MAX9850
@@ -1174,6 +1175,15 @@ config SND_SOC_MAX98373_SDW
 	  the PCM interface for audio data and a standard I2C
 	  interface for control data. Select this if MAX98373 is
 	  connected via soundwire.
+
+config SND_SOC_MAX98388
+	tristate "Analog Devices MAX98388 Speaker Amplifier"
+	depends on I2C
+	help
+	  Enable support for Analog Devices MAX98388 audio
+	  amplifier. The device provides a PCM interface for
+	  audio data and a standard I2C interface for control
+	  data communication.
 
 config SND_SOC_MAX98390
 	tristate "Maxim Integrated MAX98390 Speaker Amplifier"
