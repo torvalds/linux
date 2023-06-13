@@ -71,7 +71,6 @@ static const struct dpu_dsc_cfg sm6375_dsc[] = {
 };
 
 static const struct dpu_intf_cfg sm6375_intf[] = {
-	INTF_BLK("intf_0", INTF_0, 0x00000, 0x280, INTF_NONE, 0, 0, 0, 0, 0),
 	INTF_BLK_DSI_TE("intf_1", INTF_1, 0x6a800, 0x2c0, INTF_DSI, 0, 24, INTF_SC7180_MASK,
 		DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 26),
 		DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 27),
