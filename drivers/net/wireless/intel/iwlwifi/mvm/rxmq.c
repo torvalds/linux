@@ -2642,6 +2642,8 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	phy_data.energy_b = u32_get_bits(rssi, RX_NO_DATA_CHAIN_B_MSK);
 	phy_data.channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
 	phy_data.with_data = false;
+	phy_data.rx_vec[0] = desc->rx_vec[0];
+	phy_data.rx_vec[1] = desc->rx_vec[1];
 
 	if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
 				    RX_NO_DATA_NOTIF, 0) < 2) {
@@ -2660,7 +2662,8 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		    sizeof(struct iwl_rx_no_data_ver_3)))
 		/* invalid len for ver 3 */
 			return;
-		memcpy(phy_data.rx_vec, desc->rx_vec, sizeof(phy_data.rx_vec));
+		phy_data.rx_vec[2] = desc->rx_vec[2];
+		phy_data.rx_vec[3] = desc->rx_vec[3];
 	} else {
 		if (format == RATE_MCS_EHT_MSK)
 			/* no support for EHT before version 3 API */
