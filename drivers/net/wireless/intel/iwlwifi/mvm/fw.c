@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1637,7 +1637,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	 * internal aux station for all aux activities that don't
 	 * requires a dedicated data queue.
 	 */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
+	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		 /*
 		  * In old version the aux station uses mac id like other
 		  * station and not lmac id
@@ -1806,7 +1806,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
 	}
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
+	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		/*
 		 * Add auxiliary station for scanning.
 		 * Newer versions of this command implies that the fw uses

@@ -1433,6 +1433,12 @@ static inline bool iwl_mvm_has_mld_api(const struct iwl_fw *fw)
 			   IWL_UCODE_TLV_CAPA_MLD_API_SUPPORT);
 }
 
+static inline bool iwl_mvm_has_new_station_api(const struct iwl_fw *fw)
+{
+	return iwl_mvm_has_mld_api(fw) ||
+	       iwl_fw_lookup_cmd_ver(fw, ADD_STA, 0) >= 12;
+}
+
 static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 {
 	/* TODO - replace with TLV once defined */
