@@ -302,6 +302,53 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
 	return native_make_pte(v & ~clear);
 }
 
+/*
+ * Write protection operations can result in Dirty=1,Write=0 PTEs. But in the
+ * case of X86_FEATURE_USER_SHSTK, these PTEs denote shadow stack memory. So
+ * when creating dirty, write-protected memory, a software bit is used:
+ * _PAGE_BIT_SAVED_DIRTY. The following functions take a PTE and transition the
+ * Dirty bit to SavedDirty, and vice-vesra.
+ *
+ * This shifting is only done if needed. In the case of shifting
+ * Dirty->SavedDirty, the condition is if the PTE is Write=0. In the case of
+ * shifting SavedDirty->Dirty, the condition is Write=1.
+ */
+static inline pgprotval_t mksaveddirty_shift(pgprotval_t v)
+{
+	pgprotval_t cond = (~v >> _PAGE_BIT_RW) & 1;
+
+	v |= ((v >> _PAGE_BIT_DIRTY) & cond) << _PAGE_BIT_SAVED_DIRTY;
+	v &= ~(cond << _PAGE_BIT_DIRTY);
+
+	return v;
+}
+
+static inline pgprotval_t clear_saveddirty_shift(pgprotval_t v)
+{
+	pgprotval_t cond = (v >> _PAGE_BIT_RW) & 1;
+
+	v |= ((v >> _PAGE_BIT_SAVED_DIRTY) & cond) << _PAGE_BIT_DIRTY;
+	v &= ~(cond << _PAGE_BIT_SAVED_DIRTY);
+
+	return v;
+}
+
+static inline pte_t pte_mksaveddirty(pte_t pte)
+{
+	pteval_t v = native_pte_val(pte);
+
+	v = mksaveddirty_shift(v);
+	return native_make_pte(v);
+}
+
+static inline pte_t pte_clear_saveddirty(pte_t pte)
+{
+	pteval_t v = native_pte_val(pte);
+
+	v = clear_saveddirty_shift(v);
+	return native_make_pte(v);
+}
+
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	return pte_clear_flags(pte, _PAGE_RW);
@@ -414,6 +461,24 @@ static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
 	return native_make_pmd(v & ~clear);
 }
 
+/* See comments above mksaveddirty_shift() */
+static inline pmd_t pmd_mksaveddirty(pmd_t pmd)
+{
+	pmdval_t v = native_pmd_val(pmd);
+
+	v = mksaveddirty_shift(v);
+	return native_make_pmd(v);
+}
+
+/* See comments above mksaveddirty_shift() */
+static inline pmd_t pmd_clear_saveddirty(pmd_t pmd)
+{
+	pmdval_t v = native_pmd_val(pmd);
+
+	v = clear_saveddirty_shift(v);
+	return native_make_pmd(v);
+}
+
 static inline pmd_t pmd_wrprotect(pmd_t pmd)
 {
 	return pmd_clear_flags(pmd, _PAGE_RW);
@@ -483,6 +548,24 @@ static inline pud_t pud_clear_flags(pud_t pud, pudval_t clear)
 	pudval_t v = native_pud_val(pud);
 
 	return native_make_pud(v & ~clear);
+}
+
+/* See comments above mksaveddirty_shift() */
+static inline pud_t pud_mksaveddirty(pud_t pud)
+{
+	pudval_t v = native_pud_val(pud);
+
+	v = mksaveddirty_shift(v);
+	return native_make_pud(v);
+}
+
+/* See comments above mksaveddirty_shift() */
+static inline pud_t pud_clear_saveddirty(pud_t pud)
+{
+	pudval_t v = native_pud_val(pud);
+
+	v = clear_saveddirty_shift(v);
+	return native_make_pud(v);
 }
 
 static inline pud_t pud_mkold(pud_t pud)
