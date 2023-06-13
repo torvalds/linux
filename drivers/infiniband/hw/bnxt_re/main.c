@@ -472,6 +472,10 @@ static int bnxt_re_net_stats_ctx_alloc(struct bnxt_re_dev *rdev,
 	return rc;
 }
 
+static void bnxt_re_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+}
+
 /* Device */
 
 static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev)
@@ -538,6 +542,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.destroy_qp = bnxt_re_destroy_qp,
 	.destroy_srq = bnxt_re_destroy_srq,
 	.device_group = &bnxt_re_dev_attr_group,
+	.disassociate_ucontext = bnxt_re_disassociate_ucontext,
 	.get_dev_fw_str = bnxt_re_query_fw_str,
 	.get_dma_mr = bnxt_re_get_dma_mr,
 	.get_hw_stats = bnxt_re_ib_get_hw_stats,
