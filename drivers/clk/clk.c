@@ -629,6 +629,7 @@ clk_core_determine_rate_no_reparent(struct clk_hw *hw,
 		best = clk_core_get_rate_nolock(core);
 	}
 
+	req->best_parent_rate = best;
 	req->rate = best;
 
 	return 0;
