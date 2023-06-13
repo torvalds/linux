@@ -1572,7 +1572,7 @@ retry:
 	gap = mas.index;
 	gap += (info->align_offset - gap) & info->align_mask;
 	tmp = mas_next(&mas, ULONG_MAX);
-	if (tmp && (tmp->vm_flags & VM_GROWSDOWN)) { /* Avoid prev check if possible */
+	if (tmp && (tmp->vm_flags & VM_STARTGAP_FLAGS)) { /* Avoid prev check if possible */
 		if (vm_start_gap(tmp) < gap + length - 1) {
 			low_limit = tmp->vm_end;
 			mas_reset(&mas);
@@ -1624,7 +1624,7 @@ retry:
 	gap -= (gap - info->align_offset) & info->align_mask;
 	gap_end = mas.last;
 	tmp = mas_next(&mas, ULONG_MAX);
-	if (tmp && (tmp->vm_flags & VM_GROWSDOWN)) { /* Avoid prev check if possible */
+	if (tmp && (tmp->vm_flags & VM_STARTGAP_FLAGS)) { /* Avoid prev check if possible */
 		if (vm_start_gap(tmp) <= gap_end) {
 			high_limit = vm_start_gap(tmp);
 			mas_reset(&mas);
