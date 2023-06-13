@@ -274,7 +274,7 @@ static void __send_message_no_waiter(struct bnxt_qplib_rcfw *rcfw,
 }
 
 static int __send_message(struct bnxt_qplib_rcfw *rcfw,
-			  struct bnxt_qplib_cmdqmsg *msg)
+			  struct bnxt_qplib_cmdqmsg *msg, u8 opcode)
 {
 	u32 bsize, free_slots, required_slots;
 	struct bnxt_qplib_cmdq_ctx *cmdq;
@@ -285,7 +285,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	struct pci_dev *pdev;
 	unsigned long flags;
 	u16 cookie;
-	u8 opcode;
 	u8 *preq;
 
 	cmdq = &rcfw->cmdq;
@@ -490,7 +489,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 	if (rc)
 		return rc == -ENXIO ? bnxt_qplib_map_rc(opcode) : rc;
 
-	rc = __send_message(rcfw, msg);
+	rc = __send_message(rcfw, msg, opcode);
 	if (rc)
 		return rc;
 
