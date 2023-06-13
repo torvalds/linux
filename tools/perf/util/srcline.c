@@ -408,7 +408,7 @@ static struct child_process *addr2line_subprocess_init(const char *addr2line_pat
 	const char *argv[] = {
 		addr2line_path ?: "addr2line",
 		"-e", binary_path,
-		"-i", "-f", NULL
+		"-a", "-i", "-f", NULL
 	};
 	struct child_process *a2l = zalloc(sizeof(*a2l));
 	int start_command_status = 0;
@@ -463,10 +463,10 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 			style = LLVM;
 			cached = true;
 			lines = 1;
-		} else if (ch == '?') {
+		} else if (ch == '0') {
 			style = GNU_BINUTILS;
 			cached = true;
-			lines = 2;
+			lines = 3;
 		} else {
 			if (!symbol_conf.disable_add2line_warn) {
 				char *output = NULL;
@@ -518,13 +518,56 @@ static int read_addr2line_record(struct io *io,
 	if (line_nr != NULL)
 		*line_nr = 0;
 
+	/*
+	 * Read the first line. Without an error this will be either an address
+	 * like 0x1234 or for llvm-addr2line the sentinal ',' character.
+	 */
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
-	if (style == LLVM && line_len == 2 && line[0] == ',') {
-		zfree(&line);
-		return 0;
+	if (style == LLVM) {
+		if (line_len == 2 && line[0] == ',') {
+			zfree(&line);
+			return 0;
+		}
+	} else {
+		int zero_count = 0, non_zero_count = 0;
+
+		/* The address should always start 0x. */
+		if (line_len < 2 || line[0] != '0' || line[1] != 'x')
+			goto error;
+
+		for (size_t i = 2; i < line_len; i++) {
+			if (line[i] == '0')
+				zero_count++;
+			else if (line[i] != '\n')
+				non_zero_count++;
+		}
+		if (!non_zero_count) {
+			int ch;
+
+			if (!zero_count) {
+				/* Line was erroneous just '0x'. */
+				goto error;
+			}
+			/*
+			 * Line was 0x0..0, the sentinel for binutils. Remove
+			 * the function and filename lines.
+			 */
+			zfree(&line);
+			do {
+				ch = io__get_char(io);
+			} while (ch > 0 && ch != '\n');
+			do {
+				ch = io__get_char(io);
+			} while (ch > 0 && ch != '\n');
+			return 0;
+		}
 	}
+
+	/* Read the second function name line. */
+	if (io__getline(io, &line, &line_len) < 0 || !line_len)
+		goto error;
 
 	if (function != NULL)
 		*function = strdup(strim(line));
@@ -532,6 +575,7 @@ static int read_addr2line_record(struct io *io,
 	zfree(&line);
 	line_len = 0;
 
+	/* Read the third filename and line number line. */
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
@@ -635,8 +679,9 @@ static int addr2line(const char *dso_name, u64 addr,
 		goto out;
 	case 0:
 		/*
-		 * The first record was invalid, so return failure, but first read another
-		 * record, since we asked a junk question and have to clear the answer out.
+		 * The first record was invalid, so return failure, but first
+		 * read another record, since we sent a sentinel ',' for the
+		 * sake of detected the last inlined function.
 		 */
 		switch (read_addr2line_record(&io, a2l_style, NULL, NULL, NULL)) {
 		case -1:
