@@ -713,7 +713,7 @@ static int rockchip_cpufreq_add_monitor(struct cluster_info *cluster,
 	if (!mdevp)
 		return -ENOMEM;
 
-	mdevp->type = MONITOR_TPYE_CPU;
+	mdevp->type = MONITOR_TYPE_CPU;
 	mdevp->low_temp_adjust = rockchip_monitor_cpu_low_temp_adjust;
 	mdevp->high_temp_adjust = rockchip_monitor_cpu_high_temp_adjust;
 	mdevp->update_volt = rockchip_monitor_check_rate_volt;

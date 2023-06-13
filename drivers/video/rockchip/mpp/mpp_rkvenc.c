@@ -969,7 +969,7 @@ static struct devfreq_cooling_power venc_cooling_power_data = {
 };
 
 static struct monitor_dev_profile enc_mdevp = {
-	.type = MONITOR_TPYE_DEV,
+	.type = MONITOR_TYPE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 };

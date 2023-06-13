@@ -882,7 +882,7 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 
 #ifndef FPGA_PLATFORM
 static struct monitor_dev_profile npu_mdevp = {
-	.type = MONITOR_TPYE_DEV,
+	.type = MONITOR_TYPE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE

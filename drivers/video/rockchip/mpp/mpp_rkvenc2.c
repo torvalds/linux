@@ -1713,7 +1713,7 @@ static const struct of_device_id rockchip_rkvenc_of_match[] = {
 };
 
 static struct monitor_dev_profile venc_mdevp = {
-	.type = MONITOR_TPYE_DEV,
+	.type = MONITOR_TYPE_DEV,
 	.update_volt = rockchip_monitor_check_rate_volt,
 };
 

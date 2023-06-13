@@ -708,7 +708,7 @@ static int monitor_device_parse_status_config(struct device_node *np,
 				   &info->video_4k_freq);
 	ret &= of_property_read_u32(np, "rockchip,reboot-freq",
 				    &info->reboot_freq);
-	if (info->devp->type == MONITOR_TPYE_CPU) {
+	if (info->devp->type == MONITOR_TYPE_CPU) {
 		if (!info->reboot_freq) {
 			info->reboot_freq = CPU_REBOOT_FREQ;
 			ret = 0;
@@ -960,7 +960,7 @@ int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 	struct monitor_dev_info *info = NULL, *tmp;
 
 	list_for_each_entry(tmp, &monitor_dev_list, node) {
-		if (tmp->devp->type != MONITOR_TPYE_CPU)
+		if (tmp->devp->type != MONITOR_TYPE_CPU)
 			continue;
 		if (cpumask_test_cpu(cpu, &tmp->devp->allowed_cpus)) {
 			info = tmp;
@@ -1103,7 +1103,7 @@ rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 	else if (info->is_high_temp && info->high_limit)
 		max_default_value = info->high_limit / 1000;
 
-	if (info->devp->type == MONITOR_TPYE_CPU) {
+	if (info->devp->type == MONITOR_TYPE_CPU) {
 		policy = (struct cpufreq_policy *)info->devp->data;
 		ret = freq_qos_add_request(&policy->constraints,
 					   &info->max_temp_freq_req,
@@ -1135,7 +1135,7 @@ rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 			freq_qos_remove_request(&info->min_sta_freq_req);
 			return ret;
 		}
-	} else if (info->devp->type == MONITOR_TPYE_DEV) {
+	} else if (info->devp->type == MONITOR_TYPE_DEV) {
 		devfreq = (struct devfreq *)info->devp->data;
 		ret = dev_pm_qos_add_request(devfreq->dev.parent,
 					     &info->dev_max_freq_req,
@@ -1320,7 +1320,7 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 
 	if (opp_info && opp_info->data && opp_info->data->set_read_margin) {
 		is_set_rm = true;
-		if (info->devp->type == MONITOR_TPYE_DEV) {
+		if (info->devp->type == MONITOR_TYPE_DEV) {
 			if (!pm_runtime_active(dev)) {
 				is_set_rm = false;
 				if (opp_info->scmi_clk)
@@ -1458,7 +1458,7 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 	list_del(&info->node);
 	up_write(&mdev_list_sem);
 
-	if (info->devp->type == MONITOR_TPYE_CPU) {
+	if (info->devp->type == MONITOR_TYPE_CPU) {
 		if (freq_qos_request_active(&info->max_temp_freq_req))
 			freq_qos_remove_request(&info->max_temp_freq_req);
 		if (freq_qos_request_active(&info->min_sta_freq_req))
@@ -1690,7 +1690,7 @@ static void rockchip_system_status_limit_freq(unsigned long status)
 
 	down_read(&mdev_list_sem);
 	list_for_each_entry(info, &monitor_dev_list, node) {
-		if (info->devp->type == MONITOR_TPYE_CPU)
+		if (info->devp->type == MONITOR_TYPE_CPU)
 			rockchip_system_status_cpu_limit_freq(info, status);
 	}
 	up_read(&mdev_list_sem);
@@ -1730,7 +1730,7 @@ static int rockchip_system_monitor_set_cpu_uevent_suppress(bool is_suppress)
 	struct cpufreq_policy *policy;
 
 	list_for_each_entry(info, &monitor_dev_list, node) {
-		if (info->devp->type != MONITOR_TPYE_CPU)
+		if (info->devp->type != MONITOR_TYPE_CPU)
 			continue;
 		policy = (struct cpufreq_policy *)info->devp->data;
 		if (!policy || !policy->cdev)

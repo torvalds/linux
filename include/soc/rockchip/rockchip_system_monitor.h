@@ -11,8 +11,8 @@
 #include <linux/regulator/consumer.h>
 
 enum monitor_dev_type {
-	MONITOR_TPYE_CPU = 0,	/* CPU */
-	MONITOR_TPYE_DEV,	/* GPU, NPU, DMC, and so on */
+	MONITOR_TYPE_CPU = 0,	/* CPU */
+	MONITOR_TYPE_DEV,	/* GPU, NPU, DMC, and so on */
 };
 
 enum system_monitor_event_type {
