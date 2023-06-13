@@ -1056,14 +1056,19 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	if (cq->sq.next_to_use == cq->sq.count)
 		cq->sq.next_to_use = 0;
 	wr32(hw, cq->sq.tail, cq->sq.next_to_use);
+	ice_flush(hw);
+
+	/* Wait a short time before initial ice_sq_done() check, to allow
+	 * hardware time for completion.
+	 */
+	udelay(5);
 
 	timeout = jiffies + ICE_CTL_Q_SQ_CMD_TIMEOUT;
 	do {
 		if (ice_sq_done(hw, cq))
 			break;
 
-		usleep_range(ICE_CTL_Q_SQ_CMD_USEC,
-			     ICE_CTL_Q_SQ_CMD_USEC * 3 / 2);
+		usleep_range(100, 150);
 	} while (time_before(jiffies, timeout));
 
 	/* if ready, copy the desc back to temp */
