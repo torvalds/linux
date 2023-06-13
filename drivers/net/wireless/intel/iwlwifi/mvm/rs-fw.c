@@ -591,6 +591,21 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	int cmd_ver;
 	int ret;
 
+	/* Enable external EHT LTF only for GL device and if there's
+	 * mutual support by AP and client
+	 */
+	if (CSR_HW_REV_TYPE(mvm->trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	    sband->iftype_data->eht_cap.has_eht &&
+	    sband->iftype_data->eht_cap.eht_cap_elem.phy_cap_info[5] &
+	    IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF &&
+	    link_sta->eht_cap.has_eht &&
+	    link_sta->eht_cap.eht_cap_elem.phy_cap_info[5] &
+	    IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF) {
+		IWL_DEBUG_RATE(mvm, "Set support for Extra EHT LTF\n");
+		cfg_cmd.flags |=
+			cpu_to_le16(IWL_TLC_MNG_CFG_FLAGS_EHT_EXTRA_LTF_MSK);
+	}
+
 	rcu_read_lock();
 	mvm_link_sta = rcu_dereference(mvmsta->link[link_id]);
 	if (WARN_ON_ONCE(!mvm_link_sta)) {

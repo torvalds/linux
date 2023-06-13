@@ -2859,6 +2859,7 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 
 /* Maximum number of supported EHT LTF is split */
 #define IEEE80211_EHT_PHY_CAP5_MAX_NUM_SUPP_EHT_LTF_MASK	0xc0
+#define IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF		0x40
 #define IEEE80211_EHT_PHY_CAP6_MAX_NUM_SUPP_EHT_LTF_MASK	0x07
 
 #define IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK			0x78

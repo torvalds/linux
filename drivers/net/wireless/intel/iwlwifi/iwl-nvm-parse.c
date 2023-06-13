@@ -1012,6 +1012,8 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[6] &=
 			~(IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK |
 			  IEEE80211_EHT_PHY_CAP6_EHT_DUP_6GHZ_SUPP);
+		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[5] |=
+			IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF;
 	}
 
 	if (fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_BROADCAST_TWT))
