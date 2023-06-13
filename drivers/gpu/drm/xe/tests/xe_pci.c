@@ -139,9 +139,6 @@ int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
 		if (subplatform_desc->subplatform == subplatform)
 			break;
 
-	if (subplatform == XE_SUBPLATFORM_NONE && subplatform_desc)
-		return -ENODEV;
-
 	if (subplatform != XE_SUBPLATFORM_NONE && !subplatform_desc)
 		return -ENODEV;
 
