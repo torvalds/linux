@@ -542,7 +542,6 @@ static const struct drm_driver panfrost_drm_driver = {
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
-	.gem_prime_mmap		= drm_gem_prime_mmap,
 };
 
 static int panfrost_probe(struct platform_device *pdev)

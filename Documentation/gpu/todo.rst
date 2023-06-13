@@ -319,15 +319,6 @@ Contact: Daniel Vetter, Noralf Tronnes
 
 Level: Advanced
 
-struct drm_gem_object_funcs
----------------------------
-
-GEM objects can now have a function table instead of having the callbacks on the
-DRM driver struct. This is now the preferred way. Callbacks in drivers have been
-converted, except for struct drm_driver.gem_prime_mmap.
-
-Level: Intermediate
-
 connector register/unregister fixes
 -----------------------------------
 

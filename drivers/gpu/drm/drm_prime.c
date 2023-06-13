@@ -715,8 +715,6 @@ EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
  * the same codepath that is used for regular GEM buffer mapping on the DRM fd.
  * The fake GEM offset is added to vma->vm_pgoff and &drm_driver->fops->mmap is
  * called to set up the mapping.
- *
- * Drivers can use this as their &drm_driver.gem_prime_mmap callback.
  */
 int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
@@ -772,25 +770,17 @@ EXPORT_SYMBOL(drm_gem_prime_mmap);
  * @vma: virtual address range
  *
  * Provides memory mapping for the buffer. This can be used as the
- * &dma_buf_ops.mmap callback. It just forwards to &drm_driver.gem_prime_mmap,
- * which should be set to drm_gem_prime_mmap().
- *
- * FIXME: There's really no point to this wrapper, drivers which need anything
- * else but drm_gem_prime_mmap can roll their own &dma_buf_ops.mmap callback.
+ * &dma_buf_ops.mmap callback. It just forwards to drm_gem_prime_mmap().
  *
  * Returns 0 on success or a negative error code on failure.
  */
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
 
 	dma_resv_assert_held(dma_buf->resv);
 
-	if (!dev->driver->gem_prime_mmap)
-		return -ENOSYS;
-
-	return dev->driver->gem_prime_mmap(obj, vma);
+	return drm_gem_prime_mmap(obj, vma);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_mmap);
 

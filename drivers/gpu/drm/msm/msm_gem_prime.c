@@ -11,11 +11,6 @@
 #include "msm_drv.h"
 #include "msm_gem.h"
 
-int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
-{
-	return drm_gem_prime_mmap(obj, vma);
-}
-
 struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
