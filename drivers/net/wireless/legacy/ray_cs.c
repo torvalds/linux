@@ -627,7 +627,7 @@ static void init_startup_params(ray_dev_t *local)
 	local->sparm.b4.a_acting_as_ap_status = TYPE_STA;
 
 	if (essid != NULL)
-		strncpy(local->sparm.b4.a_current_ess_id, essid, ESSID_SIZE);
+		strscpy(local->sparm.b4.a_current_ess_id, essid, ESSID_SIZE);
 } /* init_startup_params */
 
 /*===========================================================================*/
