@@ -668,6 +668,7 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 			  index,					\
 			  vport,					\
 			  MLX5_CAP_GEN_2((esw->dev), ec_vf_vport_base),	\
+			  MLX5_CAP_GEN_2((esw->dev), ec_vf_vport_base) +\
 			  (last) - 1)
 
 struct mlx5_eswitch *mlx5_devlink_eswitch_get(struct devlink *devlink);
