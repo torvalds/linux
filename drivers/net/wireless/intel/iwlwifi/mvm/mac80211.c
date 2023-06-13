@@ -1038,6 +1038,7 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 		mvmvif->link[link_id]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
 		mvmvif->link[link_id]->phy_ctxt = NULL;
 		mvmvif->link[link_id]->active = 0;
+		mvmvif->link[link_id]->igtk = NULL;
 	}
 
 	probe_data = rcu_dereference_protected(mvmvif->deflink.probe_resp_data,
