@@ -56,6 +56,7 @@ enum task_event {
 enum qos_clients {
 	QOS_PARTIAL_HALT,
 	QOS_FMAX_CAP,
+	QOS_HIGH_PERF_CAP,
 };
 
 /* Note: this need to be in sync with migrate_type_names array */
@@ -261,6 +262,7 @@ extern unsigned int sysctl_sched_dynamic_tp_enable;
 extern unsigned int sysctl_panic_on_walt_bug;
 extern unsigned int sysctl_max_freq_partial_halt;
 extern unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
+extern unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
 extern int sched_dynamic_tp_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 

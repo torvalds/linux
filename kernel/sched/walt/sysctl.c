@@ -86,6 +86,8 @@ unsigned int sysctl_max_freq_partial_halt = FREQ_QOS_MAX_DEFAULT_VALUE;
 unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_sbt_pause_cpus;
 unsigned int sysctl_sched_sbt_delay_windows;
+unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
+
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
 
@@ -1234,6 +1236,13 @@ struct ctl_table walt_table[] = {
 		.mode		= 0644,
 		.proc_handler	= sched_fmax_cap_handler,
 	},
+	{
+		.procname	= "sched_high_perf_cluster_freq_cap",
+		.data		= &high_perf_cluster_freq_cap,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_fmax_cap_handler,
+	},
 	{ }
 };
 
@@ -1291,6 +1300,8 @@ void walt_tunables(void)
 	for (i = 0; i < 8; i++)
 		sysctl_input_boost_freq[i] = 0;
 
-	for (i = 0; i < MAX_CLUSTERS; i++)
+	for (i = 0; i < MAX_CLUSTERS; i++) {
 		sysctl_fmax_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+		high_perf_cluster_freq_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+	}
 }

@@ -53,6 +53,7 @@ DEFINE_PER_CPU(int, cpus_taken_refcount);
 DEFINE_PER_CPU(struct walt_rq, walt_rq);
 DEFINE_PER_CPU(struct freq_qos_request, qos_req_max);
 DEFINE_PER_CPU(struct freq_qos_request, qos_req_fmax_cap);
+DEFINE_PER_CPU(struct freq_qos_request, qos_req_high_perf);
 
 unsigned int sysctl_sched_user_hint;
 static u64 sched_clock_last;
@@ -4285,6 +4286,8 @@ static void walt_irq_work(struct irq_work *irq_work)
 
 void walt_rotation_checkpoint(int nr_big)
 {
+	int i;
+	bool prev = walt_rotation_enabled;
 	if (!hmp_capable())
 		return;
 
@@ -4295,6 +4298,14 @@ void walt_rotation_checkpoint(int nr_big)
 
 	walt_rotation_enabled = nr_big >= num_possible_cpus();
 
+	for (i = 0; i < num_sched_clusters; i++) {
+		if (walt_rotation_enabled && !prev)
+			add_max_freq_qos_request(sched_cluster[i]->cpus,
+					high_perf_cluster_freq_cap[i], QOS_HIGH_PERF_CAP);
+		else if (!walt_rotation_enabled && prev)
+			add_max_freq_qos_request(sched_cluster[i]->cpus,
+					FREQ_QOS_MAX_DEFAULT_VALUE, QOS_HIGH_PERF_CAP);
+	}
 }
 
 #define FMAX_CAP_HYSTERESIS 1000000000
@@ -4990,6 +5001,9 @@ struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
 	case QOS_FMAX_CAP:
 		req = &per_cpu(qos_req_fmax_cap, cpu);
 		break;
+	case QOS_HIGH_PERF_CAP:
+		req = &per_cpu(qos_req_high_perf, cpu);
+		break;
 	default:
 		pr_debug("unsupported qos client=%d\n", client);
 		break;
@@ -5172,6 +5186,7 @@ static void walt_init(struct work_struct *work)
 	walt_halt_init();
 	init_max_freq_qos_request(QOS_PARTIAL_HALT);
 	init_max_freq_qos_request(QOS_FMAX_CAP);
+	init_max_freq_qos_request(QOS_HIGH_PERF_CAP);
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
 
 	if (!rcu_dereference(rd->pd)) {
