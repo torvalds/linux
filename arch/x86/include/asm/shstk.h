@@ -15,11 +15,16 @@ struct thread_shstk {
 
 long shstk_prctl(struct task_struct *task, int option, unsigned long features);
 void reset_thread_features(void);
+unsigned long shstk_alloc_thread_stack(struct task_struct *p, unsigned long clone_flags,
+				       unsigned long stack_size);
 void shstk_free(struct task_struct *p);
 #else
 static inline long shstk_prctl(struct task_struct *task, int option,
 			       unsigned long arg2) { return -EINVAL; }
 static inline void reset_thread_features(void) {}
+static inline unsigned long shstk_alloc_thread_stack(struct task_struct *p,
+						     unsigned long clone_flags,
+						     unsigned long stack_size) { return 0; }
 static inline void shstk_free(struct task_struct *p) {}
 #endif /* CONFIG_X86_USER_SHADOW_STACK */
 
