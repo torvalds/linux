@@ -203,6 +203,18 @@ config XTENSA_UNALIGNED_USER
 
 	  Say Y here to enable unaligned memory access in user space.
 
+config XTENSA_LOAD_STORE
+	bool "Load/store exception handler for memory only readable with l32"
+	help
+	  The Xtensa architecture only allows reading memory attached to its
+	  instruction bus with l32r and l32i instructions, all other
+	  instructions raise an exception with the LoadStoreErrorCause code.
+	  This makes it hard to use some configurations, e.g. store string
+	  literals in FLASH memory attached to the instruction bus.
+
+	  Say Y here to enable exception handler that allows transparent
+	  byte and 2-byte access to memory attached to instruction bus.
+
 config HAVE_SMP
 	bool "System Supports SMP (MX)"
 	depends on XTENSA_VARIANT_CUSTOM

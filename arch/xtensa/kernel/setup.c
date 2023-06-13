@@ -245,7 +245,8 @@ void __init init_arch(bp_tag_t *bp_start)
 {
 	/* Initialize basic exception handling if configuration may need it */
 
-	if (IS_ENABLED(CONFIG_KASAN))
+	if (IS_ENABLED(CONFIG_KASAN) ||
+	    IS_ENABLED(CONFIG_XTENSA_LOAD_STORE))
 		early_trap_init();
 
 	/* Initialize MMU. */

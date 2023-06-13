@@ -22,7 +22,17 @@
 #include <asm/asmmacro.h>
 #include <asm/processor.h>
 
-#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
+#if XCHAL_UNALIGNED_LOAD_EXCEPTION || defined CONFIG_XTENSA_LOAD_STORE
+#define LOAD_EXCEPTION_HANDLER
+#endif
+
+#if XCHAL_UNALIGNED_STORE_EXCEPTION || defined LOAD_EXCEPTION_HANDLER
+#define ANY_EXCEPTION_HANDLER
+#endif
+
+#if XCHAL_HAVE_WINDOWED
+#define UNALIGNED_USER_EXCEPTION
+#endif
 
 /*  First-level exception handler for unaligned exceptions.
  *
@@ -57,10 +67,6 @@
  *  LE  mask 0 0 X X / shift left
  *  BE  shift left / mask 0 0 X X
  */
-
-#if XCHAL_HAVE_WINDOWED
-#define UNALIGNED_USER_EXCEPTION
-#endif
 
 #if XCHAL_HAVE_BE
 
@@ -103,7 +109,7 @@
  *
  *	       23			    0
  *		-----------------------------
- *	res	          0000           0010
+ *	L8UI	xxxx xxxx 0000 ssss tttt 0010
  *	L16UI	xxxx xxxx 0001 ssss tttt 0010
  *	L32I	xxxx xxxx 0010 ssss tttt 0010
  *	XXX	          0011 ssss tttt 0010
@@ -128,9 +134,11 @@
 
 #define OP0_L32I_N	0x8		/* load immediate narrow */
 #define OP0_S32I_N	0x9		/* store immediate narrow */
+#define OP0_LSAI	0x2		/* load/store */
 #define OP1_SI_MASK	0x4		/* OP1 bit set for stores */
 #define OP1_SI_BIT	2		/* OP1 bit number for stores */
 
+#define OP1_L8UI	0x0
 #define OP1_L32I	0x2
 #define OP1_L16UI	0x1
 #define OP1_L16SI	0x9
@@ -155,7 +163,72 @@
  */
 
 	.literal_position
+#ifdef CONFIG_XTENSA_LOAD_STORE
+ENTRY(fast_load_store)
+
+	call0	.Lsave_and_load_instruction
+
+	/* Analyze the instruction (load or store?). */
+
+	extui	a0, a4, INSN_OP0, 4	# get insn.op0 nibble
+
+#if XCHAL_HAVE_DENSITY
+	_beqi	a0, OP0_L32I_N, 1f	# L32I.N, jump
+#endif
+	bnei	a0, OP0_LSAI, .Linvalid_instruction
+	/* 'store indicator bit' set, jump */
+	bbsi.l	a4, OP1_SI_BIT + INSN_OP1, .Linvalid_instruction
+
+1:
+	movi	a3, ~3
+	and	a3, a3, a8		# align memory address
+
+	__ssa8	a8
+
+#ifdef CONFIG_MMU
+	/* l32e can't be used here even when it's available. */
+	/* TODO access_ok(a3) could be used here */
+	j	.Linvalid_instruction
+#endif
+	l32i	a5, a3, 0
+	l32i	a6, a3, 4
+	__src_b	a3, a5, a6		# a3 has the data word
+
+#if XCHAL_HAVE_DENSITY
+	addi	a7, a7, 2		# increment PC (assume 16-bit insn)
+	_beqi	a0, OP0_L32I_N, .Lload_w# l32i.n: jump
+	addi	a7, a7, 1
+#else
+	addi	a7, a7, 3
+#endif
+
+	extui	a5, a4, INSN_OP1, 4
+	_beqi	a5, OP1_L32I, .Lload_w
+	bnei	a5, OP1_L8UI, .Lload16
+	extui	a3, a3, 0, 8
+	j	.Lload_w
+
+ENDPROC(fast_load_store)
+#endif
+
+/*
+ * Entry condition:
+ *
+ *   a0:	trashed, original value saved on stack (PT_AREG0)
+ *   a1:	a1
+ *   a2:	new stack pointer, original in DEPC
+ *   a3:	a3
+ *   depc:	a2, original value saved on stack (PT_DEPC)
+ *   excsave_1:	dispatch table
+ *
+ *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
+ *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
+ */
+
+#ifdef ANY_EXCEPTION_HANDLER
 ENTRY(fast_unaligned)
+
+#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
 
 	call0	.Lsave_and_load_instruction
 
@@ -171,12 +244,17 @@ ENTRY(fast_unaligned)
 	/* 'store indicator bit' not set, jump */
 	_bbci.l	a4, OP1_SI_BIT + INSN_OP1, .Lload
 
+#endif
+#if XCHAL_UNALIGNED_STORE_EXCEPTION
+
 	/* Store: Jump to table entry to get the value in the source register.*/
 
 .Lstore:movi	a5, .Lstore_table	# table
 	extui	a6, a4, INSN_T, 4	# get source register
 	addx8	a5, a6, a5
 	jx	a5			# jump into table
+#endif
+#if XCHAL_UNALIGNED_LOAD_EXCEPTION
 
 	/* Load: Load memory address. */
 
@@ -207,7 +285,9 @@ ENTRY(fast_unaligned)
 
 	extui	a5, a4, INSN_OP1, 4
 	_beqi	a5, OP1_L32I, .Lload_w	# l32i: jump
-
+#endif
+#ifdef LOAD_EXCEPTION_HANDLER
+.Lload16:
 	extui	a3, a3, 0, 16		# extract lower 16 bits
 	_beqi	a5, OP1_L16UI, .Lload_w
 	addi	a5, a5, -OP1_L16SI
@@ -247,7 +327,8 @@ ENTRY(fast_unaligned)
 	mov	a13, a3		;	_j .Lexit;	.align 8
 	mov	a14, a3		;	_j .Lexit;	.align 8
 	mov	a15, a3		;	_j .Lexit;	.align 8
-
+#endif
+#if XCHAL_UNALIGNED_STORE_EXCEPTION
 .Lstore_table:
 	l32i	a3, a2, PT_AREG0;	_j .Lstore_w;	.align 8
 	mov	a3, a1;			_j .Lstore_w;	.align 8	# fishy??
@@ -265,7 +346,9 @@ ENTRY(fast_unaligned)
 	mov	a3, a13		;	_j .Lstore_w;	.align 8
 	mov	a3, a14		;	_j .Lstore_w;	.align 8
 	mov	a3, a15		;	_j .Lstore_w;	.align 8
+#endif
 
+#ifdef ANY_EXCEPTION_HANDLER
 	/* We cannot handle this exception. */
 
 	.extern _kernel_exception
@@ -294,6 +377,8 @@ ENTRY(fast_unaligned)
 
 2:	movi	a0, _user_exception
 	jx	a0
+#endif
+#if XCHAL_UNALIGNED_STORE_EXCEPTION
 
 	# a7: instruction pointer, a4: instruction, a3: value
 .Lstore_w:
@@ -358,7 +443,8 @@ ENTRY(fast_unaligned)
 #else
 	s32i	a6, a4, 4
 #endif
-
+#endif
+#ifdef ANY_EXCEPTION_HANDLER
 .Lexit:
 #if XCHAL_HAVE_LOOPS
 	rsr	a4, lend		# check if we reached LEND
@@ -453,7 +539,7 @@ ENTRY(fast_unaligned)
 	__src_b	a4, a4, a5	# a4 has the instruction
 
 	ret
-
+#endif
 ENDPROC(fast_unaligned)
 
 ENTRY(fast_unaligned_fixup)
@@ -490,5 +576,4 @@ ENTRY(fast_unaligned_fixup)
 	jx	a0
 
 ENDPROC(fast_unaligned_fixup)
-
-#endif /* XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION */
+#endif

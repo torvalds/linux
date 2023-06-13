@@ -54,6 +54,9 @@ static void do_interrupt(struct pt_regs *regs);
 #if XTENSA_FAKE_NMI
 static void do_nmi(struct pt_regs *regs);
 #endif
+#ifdef CONFIG_XTENSA_LOAD_STORE
+static void do_load_store(struct pt_regs *regs);
+#endif
 static void do_unaligned_user(struct pt_regs *regs);
 static void do_multihit(struct pt_regs *regs);
 #if XTENSA_HAVE_COPROCESSORS
@@ -89,7 +92,10 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 { EXCCAUSE_SYSTEM_CALL,		USER,	   fast_syscall_user },
 { EXCCAUSE_SYSTEM_CALL,		0,	   system_call },
 /* EXCCAUSE_INSTRUCTION_FETCH unhandled */
-/* EXCCAUSE_LOAD_STORE_ERROR unhandled*/
+#ifdef CONFIG_XTENSA_LOAD_STORE
+{ EXCCAUSE_LOAD_STORE_ERROR,	USER|KRNL, fast_load_store },
+{ EXCCAUSE_LOAD_STORE_ERROR,	0,	   do_load_store },
+#endif
 { EXCCAUSE_LEVEL1_INTERRUPT,	0,	   do_interrupt },
 #ifdef SUPPORT_WINDOWED
 { EXCCAUSE_ALLOCA,		USER|KRNL, fast_alloca },
@@ -346,6 +352,19 @@ static void do_div0(struct pt_regs *regs)
 	__die_if_kernel("Unhandled division by 0 in kernel", regs, SIGKILL);
 	force_sig_fault(SIGFPE, FPE_INTDIV, (void __user *)regs->pc);
 }
+
+#ifdef CONFIG_XTENSA_LOAD_STORE
+static void do_load_store(struct pt_regs *regs)
+{
+	__die_if_kernel("Unhandled load/store exception in kernel",
+			regs, SIGKILL);
+
+	pr_info_ratelimited("Load/store error to %08lx in '%s' (pid = %d, pc = %#010lx)\n",
+			    regs->excvaddr, current->comm,
+			    task_pid_nr(current), regs->pc);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void *)regs->excvaddr);
+}
+#endif
 
 /*
  * Handle unaligned memory accesses from user space. Kill task.
