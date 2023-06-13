@@ -293,18 +293,8 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 	clk |= host->clk_reg_add;
 	clk |= ddr;
 
-	/*
-	 * SDMMC_FBCK is selected when an external Delay Block is needed
-	 * with SDR104 or HS200.
-	 */
-	if (host->mmc->ios.timing >= MMC_TIMING_UHS_SDR50) {
+	if (host->mmc->ios.timing >= MMC_TIMING_UHS_SDR50)
 		clk |= MCI_STM32_CLK_BUSSPEED;
-		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
-		    host->mmc->ios.timing == MMC_TIMING_MMC_HS200) {
-			clk &= ~MCI_STM32_CLK_SEL_MSK;
-			clk |= MCI_STM32_CLK_SELFBCK;
-		}
-	}
 
 	mmci_write_clkreg(host, clk);
 }
@@ -511,9 +501,26 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct mmci_host *host = mmc_priv(mmc);
 	struct sdmmc_dlyb *dlyb = host->variant_priv;
+	u32 clk;
+
+	if ((host->mmc->ios.timing != MMC_TIMING_UHS_SDR104 &&
+	     host->mmc->ios.timing != MMC_TIMING_MMC_HS200) ||
+	    host->mmc->actual_clock <= 50000000)
+		return 0;
 
 	if (!dlyb || !dlyb->base)
 		return -EINVAL;
+
+	writel_relaxed(DLYB_CR_DEN, dlyb->base + DLYB_CR);
+
+	/*
+	 * SDMMC_FBCK is selected when an external Delay Block is needed
+	 * with SDR104 or HS200.
+	 */
+	clk = host->clk_reg;
+	clk &= ~MCI_STM32_CLK_SEL_MSK;
+	clk |= MCI_STM32_CLK_SELFBCK;
+	mmci_write_clkreg(host, clk);
 
 	if (sdmmc_dlyb_lng_tuning(host))
 		return -EINVAL;
