@@ -469,7 +469,7 @@ static int next_cpu(struct cpu_set *cpu_set)
 		exit(1);
 	}
 
-	return cpu_set->next_cpu++;
+	return cpu_set->next_cpu++ % env.nr_cpus;
 }
 
 static struct bench_state {
@@ -659,6 +659,7 @@ static void collect_measurements(long delta_ns) {
 
 int main(int argc, char **argv)
 {
+	env.nr_cpus = get_nprocs();
 	parse_cmdline_args_init(argc, argv);
 
 	if (env.list) {
