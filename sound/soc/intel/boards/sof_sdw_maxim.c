@@ -123,6 +123,7 @@ static const struct snd_soc_ops max_98373_sdw_ops = {
 	.startup = sdw_startup,
 	.prepare = mx8373_sdw_prepare,
 	.trigger = sdw_trigger,
+	.hw_params = sdw_hw_params,
 	.hw_free = mx8373_sdw_hw_free,
 	.shutdown = sdw_shutdown,
 };

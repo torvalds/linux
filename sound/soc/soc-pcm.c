@@ -1034,6 +1034,10 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
+		struct snd_pcm_hw_params cpu_params;
+		unsigned int ch_mask = 0;
+		int j;
+
 		/*
 		 * Skip CPUs which don't support the current stream
 		 * type. See soc_pcm_init_runtime_hw() for more details
@@ -1041,13 +1045,32 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
 			continue;
 
-		ret = snd_soc_dai_hw_params(cpu_dai, substream, params);
+		/* copy params for each cpu */
+		cpu_params = *params;
+
+		if (!rtd->dai_link->codec_ch_maps)
+			goto hw_params;
+		/*
+		 * construct cpu channel mask by combining ch_mask of each
+		 * codec which maps to the cpu.
+		 */
+		for_each_rtd_codec_dais(rtd, j, codec_dai) {
+			if (rtd->dai_link->codec_ch_maps[j].connected_cpu_id == i)
+				ch_mask |= rtd->dai_link->codec_ch_maps[j].ch_mask;
+		}
+
+		/* fixup cpu channel number */
+		if (ch_mask)
+			soc_pcm_codec_params_fixup(&cpu_params, ch_mask);
+
+hw_params:
+		ret = snd_soc_dai_hw_params(cpu_dai, substream, &cpu_params);
 		if (ret < 0)
 			goto out;
 
 		/* store the parameters for each DAI */
-		soc_pcm_set_dai_params(cpu_dai, params);
-		snd_soc_dapm_update_dai(substream, params, cpu_dai);
+		soc_pcm_set_dai_params(cpu_dai, &cpu_params);
+		snd_soc_dapm_update_dai(substream, &cpu_params, cpu_dai);
 	}
 
 	ret = snd_soc_pcm_component_hw_params(substream, params);
@@ -2789,9 +2812,22 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 				cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 			} else if (dai_link->num_cpus == dai_link->num_codecs) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, i);
+			} else if (rtd->dai_link->num_codecs > rtd->dai_link->num_cpus) {
+				int cpu_id;
+
+				if (!rtd->dai_link->codec_ch_maps) {
+					dev_err(rtd->card->dev, "%s: no codec channel mapping table provided\n",
+						__func__);
+					return -EINVAL;
+				}
+
+				cpu_id = rtd->dai_link->codec_ch_maps[i].connected_cpu_id;
+				cpu_dai = asoc_rtd_to_cpu(rtd, cpu_id);
 			} else {
 				dev_err(rtd->card->dev,
-					"N cpus to M codecs link is not supported yet\n");
+					"%s codec number %d < cpu number %d is not supported\n",
+					__func__, rtd->dai_link->num_codecs,
+					rtd->dai_link->num_cpus);
 				return -EINVAL;
 			}
 

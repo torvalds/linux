@@ -645,6 +645,11 @@ struct snd_soc_dai_link_component {
 	const char *dai_name;
 };
 
+struct snd_soc_dai_link_codec_ch_map {
+	unsigned int connected_cpu_id;
+	unsigned int ch_mask;
+};
+
 struct snd_soc_dai_link {
 	/* config - must be set by machine driver */
 	const char *name;			/* Codec name */
@@ -673,6 +678,7 @@ struct snd_soc_dai_link {
 	struct snd_soc_dai_link_component *codecs;
 	unsigned int num_codecs;
 
+	struct snd_soc_dai_link_codec_ch_map *codec_ch_maps;
 	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
 	 * device name, or by DT/OF node, but not both. Some forms of link
