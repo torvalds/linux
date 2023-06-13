@@ -872,3 +872,17 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 
 #endif /* CONFIG_X86_64 */
 #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+
+pte_t pte_mkwrite(pte_t pte, struct vm_area_struct *vma)
+{
+	pte = pte_mkwrite_novma(pte);
+
+	return pte_clear_saveddirty(pte);
+}
+
+pmd_t pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+{
+	pmd = pmd_mkwrite_novma(pmd);
+
+	return pmd_clear_saveddirty(pmd);
+}
