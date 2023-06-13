@@ -680,6 +680,47 @@ static void cache_sync_defaults(struct kunit *test)
 	regmap_exit(map);
 }
 
+static void cache_sync_readonly(struct kunit *test)
+{
+	struct regcache_types *t = (struct regcache_types *)test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = test_regmap_config;
+	config.cache_type = t->type;
+	config.writeable_reg = reg_5_false;
+
+	map = gen_regmap(&config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	/* Read all registers to fill the cache */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &val));
+
+	/* Change the value of all registers, readonly should fail */
+	get_random_bytes(&val, sizeof(val));
+	regcache_cache_only(map, true);
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, i != 5, regmap_write(map, i, val) == 0);
+	regcache_cache_only(map, false);
+
+	/* Resync */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->written[i] = false;
+	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
+
+	/* Did that match what we see on the device? */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, i != 5, data->written[i]);
+
+	regmap_exit(map);
+}
+
 static void cache_sync_patch(struct kunit *test)
 {
 	struct regcache_types *t = (struct regcache_types *)test->param_value;
@@ -1119,6 +1160,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(cache_bypass, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_sync, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_sync_defaults, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_sync_readonly, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_sync_patch, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_drop, sparse_cache_types_gen_params),
 
