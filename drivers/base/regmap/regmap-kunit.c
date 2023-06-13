@@ -231,6 +231,37 @@ static void write_readonly(struct kunit *test)
 	regmap_exit(map);
 }
 
+static void read_writeonly(struct kunit *test)
+{
+	struct regcache_types *t = (struct regcache_types *)test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = test_regmap_config;
+	config.cache_type = t->type;
+	config.readable_reg = reg_5_false;
+
+	map = gen_regmap(&config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->read[i] = false;
+
+	/* Try to read all the registers, the writeonly one should fail */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, i != 5, regmap_read(map, i, &val) == 0);
+
+	/* Did we trigger a hardware access? */
+	KUNIT_EXPECT_FALSE(test, data->read[5]);
+
+	regmap_exit(map);
+}
+
 static void reg_defaults(struct kunit *test)
 {
 	struct regcache_types *t = (struct regcache_types *)test->param_value;
@@ -1078,6 +1109,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(bulk_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_read, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(write_readonly, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(read_writeonly, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(reg_defaults, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(reg_defaults_read_dev, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(register_patch, regcache_types_gen_params),
