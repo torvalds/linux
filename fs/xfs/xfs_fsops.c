@@ -140,9 +140,13 @@ xfs_growfs_data_private(
 		return -EINVAL;
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
-			(delta > 0 ? XFS_GROWFS_SPACE_RES(mp) : -delta), 0,
-			XFS_TRANS_RESERVE, &tp);
+	if (delta > 0)
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
+				XFS_GROWFS_SPACE_RES(mp), 0, XFS_TRANS_RESERVE,
+				&tp);
+	else
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata, -delta, 0,
+				0, &tp);
 	if (error)
 		return error;
 
