@@ -55,7 +55,7 @@ patternProperties:
 
       interrupt-names: true
 
-      linux-keycodes:
+      linux,keycodes:
         maxItems: 1
 
       wakeup-source: true
