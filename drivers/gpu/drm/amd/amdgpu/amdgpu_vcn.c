@@ -58,6 +58,7 @@
 #define FIRMWARE_VCN4_0_2		"amdgpu/vcn_4_0_2.bin"
 #define FIRMWARE_VCN4_0_3		"amdgpu/vcn_4_0_3.bin"
 #define FIRMWARE_VCN4_0_4		"amdgpu/vcn_4_0_4.bin"
+#define FIRMWARE_VCN4_0_5		"amdgpu/vcn_4_0_5.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
@@ -80,6 +81,7 @@ MODULE_FIRMWARE(FIRMWARE_VCN4_0_0);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_2);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_3);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_4);
+MODULE_FIRMWARE(FIRMWARE_VCN4_0_5);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
