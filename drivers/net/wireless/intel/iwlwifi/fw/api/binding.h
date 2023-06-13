@@ -59,14 +59,6 @@ struct iwl_binding_cmd {
 #define IWL_LMAC_24G_INDEX		0
 #define IWL_LMAC_5G_INDEX		1
 
-static inline u32 iwl_mvm_get_lmac_id(const struct iwl_fw *fw,
-				      enum nl80211_band band){
-	if (!fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_CDB_SUPPORT) ||
-	    band == NL80211_BAND_2GHZ)
-		return IWL_LMAC_24G_INDEX;
-	return IWL_LMAC_5G_INDEX;
-}
-
 /* The maximal number of fragments in the FW's schedule session */
 #define IWL_MVM_MAX_QUOTA 128
 

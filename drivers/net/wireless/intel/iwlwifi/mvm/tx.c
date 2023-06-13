@@ -896,7 +896,7 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 			band = mvmsta->vif->bss_conf.chandef.chan->band;
 		}
 
-		lmac = iwl_mvm_get_lmac_id(mvm->fw, band);
+		lmac = iwl_mvm_get_lmac_id(mvm, band);
 	} else if (fw_has_capa(&mvm->fw->ucode_capa,
 			       IWL_UCODE_TLV_CAPA_CDB_SUPPORT)) {
 		/* for real MLO restrict to both LMACs if they exist */
