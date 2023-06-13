@@ -533,11 +533,54 @@ fail:
 	return rc;
 }
 
+static struct bnxt_re_user_mmap_entry*
+bnxt_re_mmap_entry_insert(struct bnxt_re_ucontext *uctx, u64 mem_offset,
+			  enum bnxt_re_mmap_flag mmap_flag, u64 *offset)
+{
+	struct bnxt_re_user_mmap_entry *entry;
+	int ret;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return NULL;
+
+	entry->mem_offset = mem_offset;
+	entry->mmap_flag = mmap_flag;
+
+	switch (mmap_flag) {
+	case BNXT_RE_MMAP_SH_PAGE:
+		ret = rdma_user_mmap_entry_insert_exact(&uctx->ib_uctx,
+							&entry->rdma_entry, PAGE_SIZE, 0);
+		break;
+	case BNXT_RE_MMAP_UC_DB:
+		ret = rdma_user_mmap_entry_insert(&uctx->ib_uctx,
+						  &entry->rdma_entry, PAGE_SIZE);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret) {
+		kfree(entry);
+		return NULL;
+	}
+	if (offset)
+		*offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+
+	return entry;
+}
+
 /* Protection Domains */
 int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
+
+	if (udata) {
+		rdma_user_mmap_entry_remove(pd->pd_db_mmap);
+		pd->pd_db_mmap = NULL;
+	}
 
 	bnxt_re_destroy_fence_mr(pd);
 
@@ -557,7 +600,8 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct bnxt_re_ucontext *ucntx = rdma_udata_to_drv_context(
 		udata, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_re_pd *pd = container_of(ibpd, struct bnxt_re_pd, ib_pd);
-	int rc;
+	struct bnxt_re_user_mmap_entry *entry = NULL;
+	int rc = 0;
 
 	pd->rdev = rdev;
 	if (bnxt_qplib_alloc_pd(&rdev->qplib_res.pd_tbl, &pd->qplib_pd)) {
@@ -567,7 +611,7 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	}
 
 	if (udata) {
-		struct bnxt_re_pd_resp resp;
+		struct bnxt_re_pd_resp resp = {};
 
 		if (!ucntx->dpi.dbr) {
 			/* Allocate DPI in alloc_pd to avoid failing of
@@ -584,12 +628,21 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 		resp.pdid = pd->qplib_pd.id;
 		/* Still allow mapping this DBR to the new user PD. */
 		resp.dpi = ucntx->dpi.dpi;
-		resp.dbr = (u64)ucntx->dpi.umdbr;
 
-		rc = ib_copy_to_udata(udata, &resp, sizeof(resp));
+		entry = bnxt_re_mmap_entry_insert(ucntx, (u64)ucntx->dpi.umdbr,
+						  BNXT_RE_MMAP_UC_DB, &resp.dbr);
+
+		if (!entry) {
+			rc = -ENOMEM;
+			goto dbfail;
+		}
+
+		pd->pd_db_mmap = &entry->rdma_entry;
+
+		rc = ib_copy_to_udata(udata, &resp, min(sizeof(resp), udata->outlen));
 		if (rc) {
-			ibdev_err(&rdev->ibdev,
-				  "Failed to copy user response\n");
+			rdma_user_mmap_entry_remove(pd->pd_db_mmap);
+			rc = -EFAULT;
 			goto dbfail;
 		}
 	}
@@ -3964,6 +4017,7 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 		container_of(ctx, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
+	struct bnxt_re_user_mmap_entry *entry;
 	struct bnxt_re_uctx_resp resp = {};
 	u32 chip_met_rev_num = 0;
 	int rc;
@@ -4002,6 +4056,13 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 	resp.comp_mask |= BNXT_RE_UCNTX_CMASK_HAVE_MODE;
 	resp.mode = rdev->chip_ctx->modes.wqe_mode;
 
+	entry = bnxt_re_mmap_entry_insert(uctx, 0, BNXT_RE_MMAP_SH_PAGE, NULL);
+	if (!entry) {
+		rc = -ENOMEM;
+		goto cfail;
+	}
+	uctx->shpage_mmap = &entry->rdma_entry;
+
 	rc = ib_copy_to_udata(udata, &resp, min(udata->outlen, sizeof(resp)));
 	if (rc) {
 		ibdev_err(ibdev, "Failed to copy user context");
@@ -4025,6 +4086,8 @@ void bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 
 	struct bnxt_re_dev *rdev = uctx->rdev;
 
+	rdma_user_mmap_entry_remove(uctx->shpage_mmap);
+	uctx->shpage_mmap = NULL;
 	if (uctx->shpg)
 		free_page((unsigned long)uctx->shpg);
 
@@ -4044,27 +4107,43 @@ int bnxt_re_mmap(struct ib_ucontext *ib_uctx, struct vm_area_struct *vma)
 	struct bnxt_re_ucontext *uctx = container_of(ib_uctx,
 						   struct bnxt_re_ucontext,
 						   ib_uctx);
-	struct bnxt_re_dev *rdev = uctx->rdev;
+	struct bnxt_re_user_mmap_entry *bnxt_entry;
+	struct rdma_user_mmap_entry *rdma_entry;
+	int ret = 0;
 	u64 pfn;
 
-	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+	rdma_entry = rdma_user_mmap_entry_get(&uctx->ib_uctx, vma);
+	if (!rdma_entry)
 		return -EINVAL;
 
-	if (vma->vm_pgoff) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-				       PAGE_SIZE, vma->vm_page_prot)) {
-			ibdev_err(&rdev->ibdev, "Failed to map DPI");
-			return -EAGAIN;
-		}
-	} else {
-		pfn = virt_to_phys(uctx->shpg) >> PAGE_SHIFT;
-		if (remap_pfn_range(vma, vma->vm_start,
-				    pfn, PAGE_SIZE, vma->vm_page_prot)) {
-			ibdev_err(&rdev->ibdev, "Failed to map shared page");
-			return -EAGAIN;
-		}
+	bnxt_entry = container_of(rdma_entry, struct bnxt_re_user_mmap_entry,
+				  rdma_entry);
+
+	switch (bnxt_entry->mmap_flag) {
+	case BNXT_RE_MMAP_UC_DB:
+		pfn = bnxt_entry->mem_offset >> PAGE_SHIFT;
+		ret = rdma_user_mmap_io(ib_uctx, vma, pfn, PAGE_SIZE,
+					pgprot_noncached(vma->vm_page_prot),
+				rdma_entry);
+		break;
+	case BNXT_RE_MMAP_SH_PAGE:
+		ret = vm_insert_page(vma, vma->vm_start, virt_to_page(uctx->shpg));
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
-	return 0;
+	rdma_user_mmap_entry_put(rdma_entry);
+	return ret;
+}
+
+void bnxt_re_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
+{
+	struct bnxt_re_user_mmap_entry *bnxt_entry;
+
+	bnxt_entry = container_of(rdma_entry, struct bnxt_re_user_mmap_entry,
+				  rdma_entry);
+
+	kfree(bnxt_entry);
 }
