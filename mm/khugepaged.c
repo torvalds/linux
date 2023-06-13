@@ -19,6 +19,7 @@
 #include <linux/page_table_check.h>
 #include <linux/swapops.h>
 #include <linux/shmem_fs.h>
+#include <linux/ksm.h>
 
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
@@ -709,6 +710,7 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 				spin_lock(ptl);
 				ptep_clear(vma->vm_mm, address, _pte);
 				spin_unlock(ptl);
+				ksm_might_unmap_zero_page(pteval);
 			}
 		} else {
 			src_page = pte_page(pteval);
