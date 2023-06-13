@@ -569,7 +569,7 @@ static int xe_info_init(struct xe_device *xe,
 		 * up with platforms that support both together.
 		 */
 		drm_WARN_ON(&xe->drm, id != 0);
-		gt->info.id = 1;
+		gt->info.id = xe->info.gt_count++;
 	}
 
 	return 0;
