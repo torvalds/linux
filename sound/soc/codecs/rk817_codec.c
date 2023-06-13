@@ -67,7 +67,10 @@ struct rk817_codec_priv {
 	struct regmap *regmap;
 	struct rk808 *rk817;
 	struct clk *mclk;
+	struct mutex clk_lock;
 
+	unsigned int clk_capture;
+	unsigned int clk_playback;
 	unsigned int stereo_sysclk;
 	unsigned int rate;
 
@@ -539,10 +542,19 @@ static int rk817_playback_path_config(struct snd_soc_component *component,
 	DBG("%s : set playback_path %ld, pre_path %ld\n",
 	    __func__, rk817->playback_path, pre_path);
 
-	if (rk817->playback_path != OFF)
-		clk_prepare_enable(rk817->mclk);
-	else
-		clk_disable_unprepare(rk817->mclk);
+	mutex_lock(&rk817->clk_lock);
+	if (rk817->playback_path != OFF) {
+		if (rk817->clk_playback == 0) {
+			clk_prepare_enable(rk817->mclk);
+			rk817->clk_playback++;
+		}
+	} else {
+		if (rk817->clk_playback > 0) {
+			clk_disable_unprepare(rk817->mclk);
+			rk817->clk_playback--;
+		}
+	}
+	mutex_unlock(&rk817->clk_lock);
 
 	switch (rk817->playback_path) {
 	case OFF:
@@ -726,10 +738,19 @@ static int rk817_capture_path_config(struct snd_soc_component *component,
 	DBG("%s : set capture_path %ld, pre_path %ld\n", __func__,
 	    rk817->capture_path, pre_path);
 
-	if (rk817->capture_path != MIC_OFF)
-		clk_prepare_enable(rk817->mclk);
-	else
-		clk_disable_unprepare(rk817->mclk);
+	mutex_lock(&rk817->clk_lock);
+	if (rk817->capture_path != MIC_OFF) {
+		if (rk817->clk_capture == 0) {
+			clk_prepare_enable(rk817->mclk);
+			rk817->clk_capture++;
+		}
+	} else {
+		if (rk817->clk_capture > 0) {
+			clk_disable_unprepare(rk817->mclk);
+			rk817->clk_capture--;
+		}
+	}
+	mutex_unlock(&rk817->clk_lock);
 
 	switch (rk817->capture_path) {
 	case MIC_OFF:
@@ -1223,6 +1244,9 @@ static int rk817_probe(struct snd_soc_component *component)
 	clk_prepare_enable(rk817->mclk);
 	rk817_reset(component);
 	clk_disable_unprepare(rk817->mclk);
+	mutex_init(&rk817->clk_lock);
+	rk817->clk_capture = 0;
+	rk817->clk_playback = 0;
 
 	snd_soc_add_component_controls(component, rk817_snd_path_controls,
 				       ARRAY_SIZE(rk817_snd_path_controls));
@@ -1243,6 +1267,7 @@ static void rk817_remove(struct snd_soc_component *component)
 
 	rk817_codec_power_down(component, RK817_CODEC_ALL);
 	snd_soc_component_exit_regmap(component);
+	mutex_destroy(&rk817->clk_lock);
 	mdelay(10);
 
 }
