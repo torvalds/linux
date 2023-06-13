@@ -390,7 +390,7 @@ static int nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
 	px = REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
 			   PARTITION_MODE);
 
-	return ffs(px);
+	return px;
 }
 
 static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
@@ -398,12 +398,10 @@ static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	/* Each bit represents DPX,TPX,QPX,CPX mode. No bit set means default
-	 * SPX mode.
-	 */
+	/* SPX=0, DPX=1, TPX=2, QPX=3, CPX=4 */
 	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS);
 	tmp = REG_SET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
-			    PARTITION_MODE, mode ? BIT(mode - 1) : mode);
+			    PARTITION_MODE, mode);
 
 	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS, tmp);
 }
