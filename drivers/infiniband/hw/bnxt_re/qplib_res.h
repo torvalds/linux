@@ -57,6 +57,7 @@ struct bnxt_qplib_chip_ctx {
 	u16	hw_stats_size;
 	u16	hwrm_cmd_max_timeout;
 	struct bnxt_qplib_drv_modes modes;
+	u64	hwrm_intf_ver;
 };
 
 #define PTR_CNT_PER_PG		(PAGE_SIZE / sizeof(void *))
@@ -242,7 +243,6 @@ struct bnxt_qplib_ctx {
 	struct bnxt_qplib_tqm_ctx	tqm_ctx;
 	struct bnxt_qplib_stats		stats;
 	struct bnxt_qplib_vf_res	vf_res;
-	u64				hwrm_intf_ver;
 };
 
 struct bnxt_qplib_res {
