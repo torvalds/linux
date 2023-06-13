@@ -71,8 +71,6 @@ config CRYPTO_AEAD
 config CRYPTO_AEAD2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_NULL2
-	select CRYPTO_RNG2
 
 config CRYPTO_SKCIPHER
 	tristate
@@ -82,7 +80,6 @@ config CRYPTO_SKCIPHER
 config CRYPTO_SKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_RNG2
 
 config CRYPTO_HASH
 	tristate
@@ -834,13 +831,16 @@ config CRYPTO_GCM
 
 	  This is required for IPSec ESP (XFRM_ESP).
 
+config CRYPTO_GENIV
+	tristate
+	select CRYPTO_AEAD
+	select CRYPTO_NULL
+	select CRYPTO_MANAGER
+	select CRYPTO_RNG_DEFAULT
+
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_SKCIPHER
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
+	select CRYPTO_GENIV
 	help
 	  Sequence Number IV generator
 
@@ -851,10 +851,7 @@ config CRYPTO_SEQIV
 
 config CRYPTO_ECHAINIV
 	tristate "Encrypted Chain IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
+	select CRYPTO_GENIV
 	help
 	  Encrypted Chain IV generator
 
