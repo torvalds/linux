@@ -249,6 +249,11 @@
 			#reset-cells = <1>;
 		};
 
+		pinctrl0: pinctrl@12c02400 {
+			compatible = "aspeed,ast2700-cpu-pinctrl";
+			reg = <0 0x12c02400 0 0x100>;
+		};
+
 		pcie_config0: pcie_config@12c02960 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0 0x12c02960 0 0x40>;
@@ -678,6 +683,11 @@
 			#reset-cells = <1>;
 		};
 
+		pinctrl1: pinctrl@14c02400 {
+			compatible = "aspeed,ast2700-io-pinctrl";
+			reg = <0x0 0x14c02400 0x0 0x100>;
+		};
+
 		i2c: bus@14c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -866,6 +876,8 @@
 		};
 	};
 };
+
+#include "aspeed-g7-pinctrl.dtsi"
 
 &i2c {
 	i2c_global: i2c-global-regs@0 {
