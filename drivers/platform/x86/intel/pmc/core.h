@@ -252,12 +252,15 @@ enum ppfear_regs {
 #define MTL_LPM_LIVE_STATUS_OFFSET		0x175C
 #define MTL_PMC_LTR_IOE_PMC			0x1C0C
 #define MTL_PMC_LTR_ESE				0x1BAC
+#define MTL_PMC_LTR_RESERVED			0x1BA4
+#define MTL_IOE_PMC_MMIO_REG_LEN		0x23A4
 #define MTL_SOCM_NUM_IP_IGN_ALLOWED		25
 #define MTL_SOC_PMC_MMIO_REG_LEN		0x2708
 #define MTL_PMC_LTR_SPG				0x1B74
 
 /* Meteor Lake PGD PFET Enable Ack Status */
 #define MTL_SOCM_PPFEAR_NUM_ENTRIES		8
+#define MTL_IOE_PPFEAR_NUM_ENTRIES		10
 
 extern const char *pmc_lpm_modes[];
 
@@ -457,6 +460,24 @@ extern const struct pmc_bit_map mtl_socm_vnn_misc_status_map[];
 extern const struct pmc_bit_map mtl_socm_signal_status_map[];
 extern const struct pmc_bit_map *mtl_socm_lpm_maps[];
 extern const struct pmc_reg_map mtl_socm_reg_map;
+extern const struct pmc_bit_map mtl_ioep_pfear_map[];
+extern const struct pmc_bit_map *ext_mtl_ioep_pfear_map[];
+extern const struct pmc_bit_map mtl_ioep_ltr_show_map[];
+extern const struct pmc_bit_map mtl_ioep_clocksource_status_map[];
+extern const struct pmc_bit_map mtl_ioep_power_gating_status_0_map[];
+extern const struct pmc_bit_map mtl_ioep_power_gating_status_1_map[];
+extern const struct pmc_bit_map mtl_ioep_power_gating_status_2_map[];
+extern const struct pmc_bit_map mtl_ioep_d3_status_0_map[];
+extern const struct pmc_bit_map mtl_ioep_d3_status_1_map[];
+extern const struct pmc_bit_map mtl_ioep_d3_status_2_map[];
+extern const struct pmc_bit_map mtl_ioep_d3_status_3_map[];
+extern const struct pmc_bit_map mtl_ioep_vnn_req_status_0_map[];
+extern const struct pmc_bit_map mtl_ioep_vnn_req_status_1_map[];
+extern const struct pmc_bit_map mtl_ioep_vnn_req_status_2_map[];
+extern const struct pmc_bit_map mtl_ioep_vnn_req_status_3_map[];
+extern const struct pmc_bit_map mtl_ioep_vnn_misc_status_map[];
+extern const struct pmc_bit_map *mtl_ioep_lpm_maps[];
+extern const struct pmc_reg_map mtl_ioep_reg_map;
 
 extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
