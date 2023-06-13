@@ -13,7 +13,6 @@
 #include "util/pmus.h"
 #include "util/pfm.h"
 #include "util/strbuf.h"
-#include "util/cpumap.h"
 #include "util/thread_map.h"
 
 #include <string.h>
