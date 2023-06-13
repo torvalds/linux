@@ -441,12 +441,14 @@ static void setup_timer()
 static void set_thread_affinity(pthread_t thread, int cpu)
 {
 	cpu_set_t cpuset;
+	int err;
 
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
-	if (pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset)) {
+	err = pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
+	if (err) {
 		fprintf(stderr, "setting affinity to CPU #%d failed: %d\n",
-			cpu, errno);
+			cpu, -err);
 		exit(1);
 	}
 }
@@ -605,7 +607,7 @@ static void setup_benchmark(void)
 				     bench->consumer_thread, (void *)(long)i);
 		if (err) {
 			fprintf(stderr, "failed to create consumer thread #%d: %d\n",
-				i, -errno);
+				i, -err);
 			exit(1);
 		}
 		if (env.affinity)
@@ -624,7 +626,7 @@ static void setup_benchmark(void)
 				     bench->producer_thread, (void *)(long)i);
 		if (err) {
 			fprintf(stderr, "failed to create producer thread #%d: %d\n",
-				i, -errno);
+				i, -err);
 			exit(1);
 		}
 		if (env.affinity)
