@@ -125,6 +125,9 @@ struct regmap {
 	int reg_stride;
 	int reg_stride_order;
 
+	/* If set, will always write field to HW. */
+	bool force_write_field;
+
 	/* regcache specific members */
 	const struct regcache_ops *cache_ops;
 	enum regcache_type cache_type;
