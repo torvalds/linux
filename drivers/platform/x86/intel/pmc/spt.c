@@ -134,7 +134,8 @@ const struct pmc_reg_map spt_reg_map = {
 	.pm_vric1_offset = SPT_PMC_VRIC1_OFFSET,
 };
 
-void spt_core_init(struct pmc_dev *pmcdev)
+int spt_core_init(struct pmc_dev *pmcdev)
 {
 	pmcdev->map = &spt_reg_map;
+	return get_primary_reg_base(pmcdev);
 }

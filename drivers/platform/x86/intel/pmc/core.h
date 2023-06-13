@@ -334,7 +334,6 @@ struct pmc_reg_map {
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
  * @lpm_req_regs:	List of substate requirements
- * @core_configure:	Function pointer to configure the platform
  * @resume:		Function to perform platform specific resume
  *
  * pmc_dev contains info about power management controller device.
@@ -353,7 +352,6 @@ struct pmc_dev {
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
 	u32 *lpm_req_regs;
-	void (*core_configure)(struct pmc_dev *pmcdev);
 	int (*resume)(struct pmc_dev *pmcdev);
 };
 
@@ -427,15 +425,14 @@ extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
-void spt_core_init(struct pmc_dev *pmcdev);
-void cnp_core_init(struct pmc_dev *pmcdev);
-void icl_core_init(struct pmc_dev *pmcdev);
-void tgl_core_init(struct pmc_dev *pmcdev);
-void adl_core_init(struct pmc_dev *pmcdev);
-void mtl_core_init(struct pmc_dev *pmcdev);
-void tgl_core_configure(struct pmc_dev *pmcdev);
-void adl_core_configure(struct pmc_dev *pmcdev);
-void mtl_core_configure(struct pmc_dev *pmcdev);
+int get_primary_reg_base(struct pmc_dev *pmcdev);
+
+int spt_core_init(struct pmc_dev *pmcdev);
+int cnp_core_init(struct pmc_dev *pmcdev);
+int icl_core_init(struct pmc_dev *pmcdev);
+int tgl_core_init(struct pmc_dev *pmcdev);
+int adl_core_init(struct pmc_dev *pmcdev);
+int mtl_core_init(struct pmc_dev *pmcdev);
 
 #define pmc_for_each_mode(i, mode, pmcdev)		\
 	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\

@@ -948,6 +948,25 @@ static void pmc_core_get_low_power_modes(struct platform_device *pdev)
 	}
 }
 
+int get_primary_reg_base(struct pmc_dev *pmcdev)
+{
+	u64 slp_s0_addr;
+
+	if (lpit_read_residency_count_address(&slp_s0_addr)) {
+		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
+
+		if (page_is_ram(PHYS_PFN(pmcdev->base_addr)))
+			return -ENODEV;
+	} else {
+		pmcdev->base_addr = slp_s0_addr - pmcdev->map->slp_s0_offset;
+	}
+
+	pmcdev->regbase = ioremap(pmcdev->base_addr, pmcdev->map->regmap_length);
+	if (!pmcdev->regbase)
+		return -ENOMEM;
+	return 0;
+}
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
@@ -1099,8 +1118,8 @@ static int pmc_core_probe(struct platform_device *pdev)
 	static bool device_initialized;
 	struct pmc_dev *pmcdev;
 	const struct x86_cpu_id *cpu_id;
-	void (*core_init)(struct pmc_dev *pmcdev);
-	u64 slp_s0_addr;
+	int (*core_init)(struct pmc_dev *pmcdev);
+	int ret;
 
 	if (device_initialized)
 		return -ENODEV;
@@ -1116,7 +1135,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!cpu_id)
 		return -ENODEV;
 
-	core_init = (void  (*)(struct pmc_dev *))cpu_id->driver_data;
+	core_init = (int (*)(struct pmc_dev *))cpu_id->driver_data;
 
 	/*
 	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
@@ -1127,25 +1146,11 @@ static int pmc_core_probe(struct platform_device *pdev)
 		core_init = cnp_core_init;
 
 	mutex_init(&pmcdev->lock);
-	core_init(pmcdev);
-
-
-	if (lpit_read_residency_count_address(&slp_s0_addr)) {
-		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
-
-		if (page_is_ram(PHYS_PFN(pmcdev->base_addr)))
-			return -ENODEV;
-	} else {
-		pmcdev->base_addr = slp_s0_addr - pmcdev->map->slp_s0_offset;
+	ret = core_init(pmcdev);
+	if (ret) {
+		mutex_destroy(&pmcdev->lock);
+		return ret;
 	}
-
-	pmcdev->regbase = ioremap(pmcdev->base_addr,
-				  pmcdev->map->regmap_length);
-	if (!pmcdev->regbase)
-		return -ENOMEM;
-
-	if (pmcdev->core_configure)
-		pmcdev->core_configure(pmcdev);
 
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
 	pmc_core_get_low_power_modes(pdev);

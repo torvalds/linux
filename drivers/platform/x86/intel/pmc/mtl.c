@@ -467,15 +467,6 @@ const struct pmc_reg_map mtl_socm_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 };
 
-void mtl_core_configure(struct pmc_dev *pmcdev)
-{
-	/* Due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
-}
-
 #define MTL_GNA_PCI_DEV	0x7e4c
 #define MTL_IPU_PCI_DEV	0x7d19
 #define MTL_VPU_PCI_DEV	0x7d1d
@@ -515,12 +506,25 @@ static int mtl_resume(struct pmc_dev *pmcdev)
 	return pmc_core_resume_common(pmcdev);
 }
 
-void mtl_core_init(struct pmc_dev *pmcdev)
+int mtl_core_init(struct pmc_dev *pmcdev)
 {
+	int ret;
+
 	pmcdev->map = &mtl_socm_reg_map;
-	pmcdev->core_configure = mtl_core_configure;
 
 	mtl_d3_fixup();
 
 	pmcdev->resume = mtl_resume;
+
+	ret = get_primary_reg_base(pmcdev);
+	if (ret)
+		return ret;
+
+	/* Due to a hardware limitation, the GBE LTR blocks PC10
+	 * when a cable is attached. Tell the PMC to ignore it.
+	 */
+	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
+	pmc_core_send_ltr_ignore(pmcdev, 3);
+
+	return 0;
 }
