@@ -5928,7 +5928,6 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		}
 
 		arvif->is_started = false;
-		mutex_unlock(&ar->conf_mutex);
 	}
 
 	ret = ath12k_mac_vdev_stop(arvif);
