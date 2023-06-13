@@ -1773,6 +1773,15 @@ static void iwl_mvm_decode_eht_phy_data(struct iwl_mvm *mvm,
 					     IEEE80211_RADIOTAP_EHT_USIG_COMMON_BSS_COLOR);
 	}
 
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SNIFF_VALIDATE_SUPPORT)) {
+		usig->common |=
+			cpu_to_le32(IEEE80211_RADIOTAP_EHT_USIG_COMMON_VALIDATE_BITS_CHECKED);
+		usig->common |=
+			LE32_DEC_ENC(data0, IWL_RX_PHY_DATA0_EHT_VALIDATE,
+				     IEEE80211_RADIOTAP_EHT_USIG_COMMON_VALIDATE_BITS_OK);
+	}
+
 	eht->known |= cpu_to_le32(IEEE80211_RADIOTAP_EHT_KNOWN_SPATIAL_REUSE);
 	eht->data[0] |= LE32_DEC_ENC(data0,
 				     IWL_RX_PHY_DATA0_ETH_SPATIAL_REUSE_MASK,

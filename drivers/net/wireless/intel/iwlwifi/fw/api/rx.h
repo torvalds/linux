@@ -292,7 +292,7 @@ enum iwl_rx_phy_he_data0 {
 /* TSF overload low dword */
 enum iwl_rx_phy_eht_data0 {
 	/* info type: EHT any */
-	/* 1 bits reserved */
+	IWL_RX_PHY_DATA0_EHT_VALIDATE				= BIT(0),
 	IWL_RX_PHY_DATA0_EHT_UPLINK				= BIT(1),
 	IWL_RX_PHY_DATA0_EHT_BSS_COLOR_MASK			= 0x000000fc,
 	IWL_RX_PHY_DATA0_ETH_SPATIAL_REUSE_MASK			= 0x00000f00,
