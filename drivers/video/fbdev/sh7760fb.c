@@ -118,7 +118,7 @@ static int sh7760_setcolreg (u_int regno,
 	return 0;
 }
 
-static int sh7760fb_get_color_info(struct device *dev,
+static int sh7760fb_get_color_info(struct fb_info *info,
 				   u16 lddfr, int *bpp, int *gray)
 {
 	int lbpp, lgray;
@@ -150,7 +150,7 @@ static int sh7760fb_get_color_info(struct device *dev,
 		lgray = 0;
 		break;
 	default:
-		dev_dbg(dev, "unsupported LDDFR bit depth.\n");
+		fb_dbg(info, "unsupported LDDFR bit depth.\n");
 		return -EINVAL;
 	}
 
@@ -170,7 +170,7 @@ static int sh7760fb_check_var(struct fb_var_screeninfo *var,
 	int ret, bpp;
 
 	/* get color info from register value */
-	ret = sh7760fb_get_color_info(info->dev, par->pd->lddfr, &bpp, NULL);
+	ret = sh7760fb_get_color_info(info, par->pd->lddfr, &bpp, NULL);
 	if (ret)
 		return ret;
 
@@ -222,7 +222,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 	vdln = vm->yres;
 
 	/* get color info from register value */
-	ret = sh7760fb_get_color_info(info->dev, par->pd->lddfr, &bpp, &gray);
+	ret = sh7760fb_get_color_info(info, par->pd->lddfr, &bpp, &gray);
 	if (ret)
 		return ret;
 
@@ -381,7 +381,7 @@ static int sh7760fb_alloc_mem(struct fb_info *info)
 		return 0;
 
 	/* get color info from register value */
-	ret = sh7760fb_get_color_info(info->dev, par->pd->lddfr, &bpp, NULL);
+	ret = sh7760fb_get_color_info(info, par->pd->lddfr, &bpp, NULL);
 	if (ret) {
 		printk(KERN_ERR "colinfo\n");
 		return ret;
