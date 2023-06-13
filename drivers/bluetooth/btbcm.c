@@ -6,7 +6,9 @@
  *  Copyright (C) 2015  Intel Corporation
  */
 
+#ifndef __GENKSYMS__	// ANDROID CRC kabi preservation hack due to commit 76dd7893bd10
 #include <linux/efi.h>
+#endif
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <asm/unaligned.h>
