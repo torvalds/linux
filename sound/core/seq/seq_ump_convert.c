@@ -534,6 +534,8 @@ static bool ump_event_filtered(struct snd_seq_client *dest,
 	unsigned char group;
 
 	group = ump_message_group(ev->ump[0]);
+	if (ump_is_groupless_msg(ump_message_type(ev->ump[0])))
+		return dest->group_filter & (1U << 0);
 	/* check the bitmap for 1-based group number */
 	return dest->group_filter & (1U << (group + 1));
 }
@@ -565,6 +567,7 @@ int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 						      event, atomic, hop);
 		/* non-EP port and different group is set? */
 		if (dest_port->ump_group &&
+		    !ump_is_groupless_msg(type) &&
 		    ump_message_group(*ump_ev->ump) + 1 != dest_port->ump_group)
 			return deliver_with_group_convert(dest, dest_port,
 							  ump_ev, atomic, hop);

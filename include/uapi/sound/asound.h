@@ -712,7 +712,7 @@ enum {
  *  Raw MIDI section - /dev/snd/midi??
  */
 
-#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 3)
+#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 4)
 
 enum {
 	SNDRV_RAWMIDI_STREAM_OUTPUT = 0,
@@ -784,6 +784,9 @@ struct snd_rawmidi_status {
 };
 #endif
 
+/* UMP EP info flags */
+#define SNDRV_UMP_EP_INFO_STATIC_BLOCKS		0x01
+
 /* UMP EP Protocol / JRTS capability bits */
 #define SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK	0x0300
 #define SNDRV_UMP_EP_INFO_PROTO_MIDI1		0x0100 /* MIDI 1.0 */
@@ -801,7 +804,11 @@ struct snd_ump_endpoint_info {
 	unsigned int protocol;		/* current protocol */
 	unsigned int num_blocks;	/* # of function blocks */
 	unsigned short version;		/* UMP major/minor version */
-	unsigned short padding[7];
+	unsigned short family_id;	/* MIDI device family ID */
+	unsigned short model_id;	/* MIDI family model ID */
+	unsigned int manufacturer_id;	/* MIDI manufacturer ID */
+	unsigned char sw_revision[4];	/* software revision */
+	unsigned short padding;
 	unsigned char name[128];	/* endpoint name string */
 	unsigned char product_id[128];	/* unique product id string */
 	unsigned char reserved[32];
@@ -816,6 +823,12 @@ struct snd_ump_endpoint_info {
 #define SNDRV_UMP_BLOCK_IS_MIDI1	(1U << 0) /* MIDI 1.0 port w/o restrict */
 #define SNDRV_UMP_BLOCK_IS_LOWSPEED	(1U << 1) /* 31.25Kbps B/W MIDI1 port */
 
+/* UMP block user-interface hint */
+#define SNDRV_UMP_BLOCK_UI_HINT_UNKNOWN		0x00
+#define SNDRV_UMP_BLOCK_UI_HINT_RECEIVER	0x01
+#define SNDRV_UMP_BLOCK_UI_HINT_SENDER		0x02
+#define SNDRV_UMP_BLOCK_UI_HINT_BOTH		0x03
+
 /* UMP groups and blocks */
 #define SNDRV_UMP_MAX_GROUPS		16
 #define SNDRV_UMP_MAX_BLOCKS		32
@@ -829,7 +842,9 @@ struct snd_ump_block_info {
 	unsigned char active;		/* Activeness */
 	unsigned char first_group;	/* first group ID */
 	unsigned char num_groups;	/* number of groups */
-	unsigned char padding[3];
+	unsigned char midi_ci_version;	/* MIDI-CI support version */
+	unsigned char sysex8_streams;	/* max number of sysex8 streams */
+	unsigned char ui_hint;		/* user interface hint */
 	unsigned int flags;		/* various info flags */
 	unsigned char name[128];	/* block name string */
 	unsigned char reserved[32];

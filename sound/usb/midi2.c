@@ -27,6 +27,10 @@ static bool midi2_enable = true;
 module_param(midi2_enable, bool, 0444);
 MODULE_PARM_DESC(midi2_enable, "Enable MIDI 2.0 support.");
 
+static bool midi2_ump_probe = true;
+module_param(midi2_ump_probe, bool, 0444);
+MODULE_PARM_DESC(midi2_ump_probe, "Probe UMP v1.1 support at first.");
+
 /* stream direction; just shorter names */
 enum {
 	STR_OUT = SNDRV_RAWMIDI_STREAM_OUTPUT,
@@ -80,6 +84,7 @@ struct snd_usb_midi2_ump {
 	struct snd_usb_midi2_endpoint *eps[2];	/* USB MIDI endpoints */
 	int index;				/* rawmidi device index */
 	unsigned char usb_block_id;		/* USB GTB id used for finding a pair */
+	bool ump_parsed;			/* Parsed UMP 1.1 EP/FB info*/
 	struct list_head list;		/* list to umidi->rawmidi_list */
 };
 
@@ -786,6 +791,31 @@ static int find_matching_ep_partner(struct snd_usb_midi2_interface *umidi,
 	return 0;
 }
 
+/* Call UMP helper to parse UMP endpoints;
+ * this needs to be called after starting the input streams for bi-directional
+ * communications
+ */
+static int parse_ump_endpoints(struct snd_usb_midi2_interface *umidi)
+{
+	struct snd_usb_midi2_ump *rmidi;
+	int err;
+
+	list_for_each_entry(rmidi, &umidi->rawmidi_list, list) {
+		if (!rmidi->ump ||
+		    !(rmidi->ump->core.info_flags & SNDRV_RAWMIDI_INFO_DUPLEX))
+			continue;
+		err = snd_ump_parse_endpoint(rmidi->ump);
+		if (!err) {
+			rmidi->ump_parsed = true;
+		} else {
+			if (err == -ENOMEM)
+				return err;
+			/* fall back to GTB later */
+		}
+	}
+	return 0;
+}
+
 /* create a UMP block from a GTB entry */
 static int create_gtb_block(struct snd_usb_midi2_ump *rmidi, int dir, int blk)
 {
@@ -856,8 +886,10 @@ static int create_blocks_from_gtb(struct snd_usb_midi2_interface *umidi)
 		if (!rmidi->ump)
 			continue;
 		/* Blocks have been already created? */
-		if (rmidi->ump->info.num_blocks)
+		if (rmidi->ump_parsed || rmidi->ump->info.num_blocks)
 			continue;
+		/* GTB is static-only */
+		rmidi->ump->info.flags |= SNDRV_UMP_EP_INFO_STATIC_BLOCKS;
 		/* loop over GTBs */
 		for (dir = 0; dir < 2; dir++) {
 			if (!rmidi->eps[dir])
@@ -1108,6 +1140,14 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 	if (err < 0) {
 		usb_audio_err(chip, "Failed to start input streams\n");
 		goto error;
+	}
+
+	if (midi2_ump_probe) {
+		err = parse_ump_endpoints(umidi);
+		if (err < 0) {
+			usb_audio_err(chip, "Failed to parse UMP endpoint\n");
+			goto error;
+		}
 	}
 
 	err = create_blocks_from_gtb(umidi);

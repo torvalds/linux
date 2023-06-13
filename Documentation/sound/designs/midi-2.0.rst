@@ -68,6 +68,15 @@ default instead of the MIDI 1.0 interface (at altset 0).  You can
 switch back to the binding with the old MIDI 1.0 interface by passing
 `midi2_enable=0` option to snd-usb-audio driver module, too.
 
+The USB audio driver tries to query the UMP Endpoint and UMP Function
+Block information that are provided since UMP v1.1, and builds up the
+topology based on those information.  When the device is older and
+doesn't respond to the new UMP inquiries, the driver falls back and
+builds the topology based on Group Terminal Block (GTB) information
+from the USB descriptor.  Some device might be screwed up by the
+unexpected UMP command; in such a case, pass `midi2_probe=0` option to
+snd-usb-audio driver for skipping the UMP v1.1 inquiries.
+
 When the MIDI 2.0 device is probed, the kernel creates a rawmidi
 device for each UMP Endpoint of the device.  Its device name is
 `/dev/snd/umpC*D*` and different from the standard rawmidi device name
@@ -101,11 +110,15 @@ opening `/dev/snd/midiC*D*` will end up with opening the first
 substream.
 
 Each UMP Endpoint can provide the additional information, constructed
-from USB MIDI 2.0 descriptors.  And a UMP Endpoint may contain one or
-more UMP Blocks, where UMP Block is an abstraction introduced in the
-ALSA UMP implementations to represent the associations among UMP
-Groups.  UMP Block corresponds to Group Terminal Block (GTB) in USB
-MIDI 2.0 specifications but provide a few more generic information.
+from the information inquired via UMP 1.1 Stream messages or USB MIDI
+2.0 descriptors.  And a UMP Endpoint may contain one or more UMP
+Blocks, where UMP Block is an abstraction introduced in the ALSA UMP
+implementations to represent the associations among UMP Groups.  UMP
+Block corresponds to Function Block in UMP 1.1 specification.  When
+UMP 1.1 Function Block information isn't available, it's filled
+partially from Group Terminal Block (GTB) as defined in USB MIDI 2.0
+specifications.
+
 The information of UMP Endpoints and UMP Blocks are found in the proc
 file `/proc/asound/card*/midi*`.  For example::
 
@@ -207,6 +220,8 @@ The "MIDI 2.0" port is for a UMP Endpoint, and its difference from
 other UMP Group ports is that UMP Endpoint port sends the events from
 the all ports on the device ("catch-all"), while each UMP Group port
 sends only the events from the given UMP Group.
+Also, UMP groupless messages (such as the UMP message type 0x0f) are
+sent only to the UMP Endpoint port.
 
 Note that, although each UMP sequencer client usually creates 16
 ports, those ports that don't belong to any UMP Blocks (or belonging
@@ -273,6 +288,11 @@ Rawmidi API Extensions
   The direction is either `SNDRV_UMP_DIR_INPUT`,
   `SNDRV_UMP_DIR_OUTPUT` or `SNDRV_UMP_DIR_BIDIRECTION`.
 
+* For the device supports UMP v1.1, the UMP MIDI protocol can be
+  switched via "Stream Configuration Request" message (UMP type 0x0f,
+  status 0x05).  When UMP core receives such a message, it updates the
+  UMP EP info and the corresponding sequencer clients as well.
+
 
 Control API Extensions
 ======================
@@ -337,7 +357,7 @@ Sequencer API Extensions
   `group_filter` bitmap.  The filter consists of bitmap from 1-based
   Group numbers.  For example, when the bit 1 is set, messages from
   Group 1 (i.e. the very first group) are filtered and not delivered.
-  The bit 0 is reserved for future use.
+  The bit 0 is used for filtering UMP groupless messages.
 
 * Two new ioctls are added for UMP-capable clients:
   `SNDRV_SEQ_IOCTL_GET_CLIENT_UMP_INFO` and
@@ -349,3 +369,10 @@ Sequencer API Extensions
   For an Endpoint data, pass 0 to the `type` field, while for a Block
   data, pass the block number + 1 to the `type` field.
   Setting the data for a kernel client shall result in an error.
+
+* With UMP 1.1, Function Block information may be changed
+  dynamically.  When the update of Function Block is received from the
+  device, ALSA sequencer core changes the corresponding sequencer port
+  name and attributes accordingly, and notifies the changes via the
+  announcement to the ALSA sequencer system port, similarly like the
+  normal port change notification.
