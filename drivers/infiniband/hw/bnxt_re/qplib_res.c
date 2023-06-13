@@ -740,6 +740,9 @@ int bnxt_qplib_alloc_dpi(struct bnxt_qplib_res *res,
 		dpi->dbr = dpit->priv_db;
 		dpi->dpi = dpi->bit;
 		break;
+	case BNXT_QPLIB_DPI_TYPE_WC:
+		dpi->dbr = ioremap_wc(umaddr, PAGE_SIZE);
+		break;
 	default:
 		dpi->dbr = ioremap(umaddr, PAGE_SIZE);
 		break;

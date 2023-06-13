@@ -61,6 +61,7 @@ struct bnxt_re_pd {
 	struct bnxt_qplib_pd	qplib_pd;
 	struct bnxt_re_fence_data fence;
 	struct rdma_user_mmap_entry *pd_db_mmap;
+	struct rdma_user_mmap_entry *pd_wcdb_mmap;
 };
 
 struct bnxt_re_ah {
@@ -135,6 +136,7 @@ struct bnxt_re_ucontext {
 	struct ib_ucontext      ib_uctx;
 	struct bnxt_re_dev	*rdev;
 	struct bnxt_qplib_dpi	dpi;
+	struct bnxt_qplib_dpi   wcdpi;
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
 	struct rdma_user_mmap_entry *shpage_mmap;
@@ -143,10 +145,12 @@ struct bnxt_re_ucontext {
 enum bnxt_re_mmap_flag {
 	BNXT_RE_MMAP_SH_PAGE,
 	BNXT_RE_MMAP_UC_DB,
+	BNXT_RE_MMAP_WC_DB,
 };
 
 struct bnxt_re_user_mmap_entry {
 	struct rdma_user_mmap_entry rdma_entry;
+	struct bnxt_re_ucontext *uctx;
 	u64 mem_offset;
 	u8 mmap_flag;
 };

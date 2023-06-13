@@ -47,7 +47,7 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
-	/* Other modes to follow here */
+	bool db_push;
 };
 
 struct bnxt_qplib_chip_ctx {
@@ -194,6 +194,7 @@ struct bnxt_qplib_sgid_tbl {
 enum {
 	BNXT_QPLIB_DPI_TYPE_KERNEL      = 0,
 	BNXT_QPLIB_DPI_TYPE_UC          = 1,
+	BNXT_QPLIB_DPI_TYPE_WC          = 2
 };
 
 struct bnxt_qplib_dpi {

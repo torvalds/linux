@@ -41,6 +41,7 @@
 #define __BNXT_RE_UVERBS_ABI_H__
 
 #include <linux/types.h>
+#include <rdma/ib_user_ioctl_cmds.h>
 
 #define BNXT_RE_ABI_VERSION	1
 
@@ -51,6 +52,7 @@
 enum {
 	BNXT_RE_UCNTX_CMASK_HAVE_CCTX = 0x1ULL,
 	BNXT_RE_UCNTX_CMASK_HAVE_MODE = 0x02ULL,
+	BNXT_RE_UCNTX_CMASK_WC_DPI_ENABLED = 0x04ULL,
 };
 
 enum bnxt_re_wqe_mode {
@@ -125,6 +127,31 @@ enum bnxt_re_shpg_offt {
 	BNXT_RE_AVID_OFFT	= 0x10,
 	BNXT_RE_AVID_SIZE	= 0x04,
 	BNXT_RE_END_RESV_OFFT	= 0xFF0
+};
+
+enum bnxt_re_objects {
+	BNXT_RE_OBJECT_ALLOC_PAGE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum bnxt_re_alloc_page_type {
+	BNXT_RE_ALLOC_WC_PAGE = 0,
+};
+
+enum bnxt_re_var_alloc_page_attrs {
+	BNXT_RE_ALLOC_PAGE_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_ALLOC_PAGE_TYPE,
+	BNXT_RE_ALLOC_PAGE_DPI,
+	BNXT_RE_ALLOC_PAGE_MMAP_OFFSET,
+	BNXT_RE_ALLOC_PAGE_MMAP_LENGTH,
+};
+
+enum bnxt_re_alloc_page_attrs {
+	BNXT_RE_DESTROY_PAGE_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum bnxt_re_alloc_page_methods {
+	BNXT_RE_METHOD_ALLOC_PAGE = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_METHOD_DESTROY_PAGE,
 };
 
 #endif /* __BNXT_RE_UVERBS_ABI_H__*/
