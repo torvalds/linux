@@ -19,8 +19,8 @@ load(
     "get_dtb_list",
     "get_dtbo_list",
     "get_dtstree",
-    "get_vendor_ramdisk_binaries",
     "get_gki_ramdisk_prebuilt_binary",
+    "get_vendor_ramdisk_binaries",
 )
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
@@ -235,7 +235,7 @@ def _define_image_build(
           for module in {mod_list}; do
             basename "$$module" >> "$@"
           done
-        """.format(mod_list = " ".join(in_tree_module_list))
+        """.format(mod_list = " ".join(in_tree_module_list)),
     )
 
     kernel_images(
