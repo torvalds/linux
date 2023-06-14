@@ -86,6 +86,12 @@ config PHY_QCOM_UFS_QRBTC_SDM845
 	  No low power mode support is present.
 	  Doesn't restrict number of lanes.
 
+config PHY_QCOM_UFS_V4_SM6375
+	tristate "Qualcomm Technologies, Inc. UFS Blair Phy Driver"
+	depends on PHY_QCOM_UFS
+	help
+	  Support for UFS phy present on QCOM Blair chipsets.
+
 endif
 
 config PHY_QCOM_QUSB2
