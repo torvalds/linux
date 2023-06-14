@@ -101,6 +101,12 @@ enum rockchip_hdcp_encrypted {
 	RK_IF_HDCP_ENCRYPTED_LEVEL2,
 };
 
+enum rockchip_color_bar_mode {
+	ROCKCHIP_COLOR_BAR_OFF = 0,
+	ROCKCHIP_COLOR_BAR_HORIZONTAL = 1,
+	ROCKCHIP_COLOR_BAR_VERTICAL = 2,
+};
+
 struct rockchip_drm_sub_dev {
 	struct list_head list;
 	struct drm_connector *connector;
@@ -413,6 +419,7 @@ struct rockchip_crtc_funcs {
 	void (*te_handler)(struct drm_crtc *crtc);
 	int (*wait_vact_end)(struct drm_crtc *crtc, unsigned int mstimeout);
 	void (*crtc_standby)(struct drm_crtc *crtc, bool standby);
+	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
 };
 
 struct rockchip_dclk_pll {

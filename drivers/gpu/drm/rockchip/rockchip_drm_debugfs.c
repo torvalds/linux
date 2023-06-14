@@ -216,3 +216,68 @@ int rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
 
 	return 0;
 }
+
+static int rockchip_drm_debugfs_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable horizontal color bar:\n");
+	seq_puts(s, "      echo 1 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Enable vertical color bar:\n");
+	seq_puts(s, "      echo 2 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      echo 0 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+
+	return 0;
+}
+
+static int rockchip_drm_debugfs_color_bar_open(struct inode *inode, struct file *file)
+{
+	struct drm_crtc *crtc = inode->i_private;
+
+	return single_open(file, rockchip_drm_debugfs_color_bar_show, crtc);
+}
+
+static ssize_t rockchip_drm_debugfs_color_bar_write(struct file *file, const char __user *ubuf,
+						    size_t len, loff_t *offp)
+{
+	struct seq_file *s = file->private_data;
+	struct drm_crtc *crtc = s->private;
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	u8 mode;
+
+	if (len != 2) {
+		DRM_INFO("Unsupported color bar mode\n");
+		return -EINVAL;
+	}
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	if (priv->crtc_funcs[pipe]->crtc_set_color_bar) {
+		if (priv->crtc_funcs[pipe]->crtc_set_color_bar(crtc, mode))
+			return -EINVAL;
+	}
+
+	return len;
+}
+
+static const struct file_operations rockchip_drm_debugfs_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_drm_debugfs_color_bar_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = rockchip_drm_debugfs_color_bar_write,
+};
+
+int rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root)
+{
+	struct dentry *ent;
+
+	ent = debugfs_create_file("color_bar", 0644, root, crtc,
+				  &rockchip_drm_debugfs_color_bar_fops);
+	if (!ent)
+		DRM_ERROR("Failed to add color_bar for debugfs\n");
+
+	return 0;
+}
