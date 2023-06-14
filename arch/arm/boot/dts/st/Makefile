@@ -56,6 +56,8 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157c-ev1.dtb \
 	stm32mp157c-ev1-scmi.dtb \
 	stm32mp157c-lxa-mc1.dtb \
+	stm32mp157c-lxa-tac-gen1.dtb \
+	stm32mp157c-lxa-tac-gen2.dtb \
 	stm32mp157c-odyssey.dtb \
 	stm32mp157c-phycore-stm32mp1-3.dtb
 dtb-$(CONFIG_ARCH_U8500) += \
