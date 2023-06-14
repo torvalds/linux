@@ -124,58 +124,58 @@ retry:
  */
 struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags)
 {
+	struct folio *folio;
+
+	if (WARN_ON_ONCE((flags & (FOLL_GET | FOLL_PIN)) == 0))
+		return NULL;
+
 	if (unlikely(!(flags & FOLL_PCI_P2PDMA) && is_pci_p2pdma_page(page)))
 		return NULL;
 
+	folio = try_get_folio(page, refs);
+
 	if (flags & FOLL_GET)
-		return try_get_folio(page, refs);
-	else if (flags & FOLL_PIN) {
-		struct folio *folio;
-
-		/*
-		 * Can't do FOLL_LONGTERM + FOLL_PIN gup fast path if not in a
-		 * right zone, so fail and let the caller fall back to the slow
-		 * path.
-		 */
-		if (unlikely((flags & FOLL_LONGTERM) &&
-			     !is_longterm_pinnable_page(page)))
-			return NULL;
-
-		/*
-		 * CAUTION: Don't use compound_head() on the page before this
-		 * point, the result won't be stable.
-		 */
-		folio = try_get_folio(page, refs);
-		if (!folio)
-			return NULL;
-
-		/*
-		 * When pinning a large folio, use an exact count to track it.
-		 *
-		 * However, be sure to *also* increment the normal folio
-		 * refcount field at least once, so that the folio really
-		 * is pinned.  That's why the refcount from the earlier
-		 * try_get_folio() is left intact.
-		 */
-		if (folio_test_large(folio))
-			atomic_add(refs, &folio->_pincount);
-		else
-			folio_ref_add(folio,
-					refs * (GUP_PIN_COUNTING_BIAS - 1));
-		/*
-		 * Adjust the pincount before re-checking the PTE for changes.
-		 * This is essentially a smp_mb() and is paired with a memory
-		 * barrier in page_try_share_anon_rmap().
-		 */
-		smp_mb__after_atomic();
-
-		node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, refs);
-
 		return folio;
+
+	/* FOLL_PIN is set */
+	if (!folio)
+		return NULL;
+
+	/*
+	 * Can't do FOLL_LONGTERM + FOLL_PIN gup fast path if not in a
+	 * right zone, so fail and let the caller fall back to the slow
+	 * path.
+	 */
+	if (unlikely((flags & FOLL_LONGTERM) &&
+		     !folio_is_longterm_pinnable(folio))) {
+		if (!put_devmap_managed_page_refs(&folio->page, refs))
+			folio_put_refs(folio, refs);
+		return NULL;
 	}
 
-	WARN_ON_ONCE(1);
-	return NULL;
+	/*
+	 * When pinning a large folio, use an exact count to track it.
+	 *
+	 * However, be sure to *also* increment the normal folio
+	 * refcount field at least once, so that the folio really
+	 * is pinned.  That's why the refcount from the earlier
+	 * try_get_folio() is left intact.
+	 */
+	if (folio_test_large(folio))
+		atomic_add(refs, &folio->_pincount);
+	else
+		folio_ref_add(folio,
+				refs * (GUP_PIN_COUNTING_BIAS - 1));
+	/*
+	 * Adjust the pincount before re-checking the PTE for changes.
+	 * This is essentially a smp_mb() and is paired with a memory
+	 * barrier in page_try_share_anon_rmap().
+	 */
+	smp_mb__after_atomic();
+
+	node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, refs);
+
+	return folio;
 }
 
 static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
