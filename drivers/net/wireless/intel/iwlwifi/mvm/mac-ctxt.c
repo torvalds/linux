@@ -470,19 +470,24 @@ void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       struct iwl_ac_qos *ac, __le32 *qos_flags)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *mvm_link =
+		mvmvif->link[link_conf->link_id];
 	int i;
+
+	if (!mvm_link)
+		return;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		u8 txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, i);
 		u8 ucode_ac = iwl_mvm_mac80211_ac_to_ucode_ac(i);
 
 		ac[ucode_ac].cw_min =
-			cpu_to_le16(mvmvif->deflink.queue_params[i].cw_min);
+			cpu_to_le16(mvm_link->queue_params[i].cw_min);
 		ac[ucode_ac].cw_max =
-			cpu_to_le16(mvmvif->deflink.queue_params[i].cw_max);
+			cpu_to_le16(mvm_link->queue_params[i].cw_max);
 		ac[ucode_ac].edca_txop =
-			cpu_to_le16(mvmvif->deflink.queue_params[i].txop * 32);
-		ac[ucode_ac].aifsn = mvmvif->deflink.queue_params[i].aifs;
+			cpu_to_le16(mvm_link->queue_params[i].txop * 32);
+		ac[ucode_ac].aifsn = mvm_link->queue_params[i].aifs;
 		ac[ucode_ac].fifos_mask = BIT(txf);
 	}
 

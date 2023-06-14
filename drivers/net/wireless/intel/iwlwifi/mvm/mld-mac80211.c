@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2023 Intel Corporation
  */
 #include "mvm.h"
 
@@ -820,8 +820,12 @@ iwl_mvm_mld_mac_conf_tx(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *mvm_link = mvmvif->link[link_id];
 
-	mvmvif->deflink.queue_params[ac] = *params;
+	if (!mvm_link)
+		return -EINVAL;
+
+	mvm_link->queue_params[ac] = *params;
 
 	/* No need to update right away, we'll get BSS_CHANGED_QOS
 	 * The exception is P2P_DEVICE interface which needs immediate update.
