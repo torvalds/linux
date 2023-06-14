@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2023 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -1026,6 +1026,9 @@ int iwl_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
 		trans->trans_cfg->base_params->max_tfd_queue_size;
 	size_t tb0_buf_sz;
 	int i;
+
+	if (WARN_ONCE(slots_num <= 0, "Invalid slots num:%d\n", slots_num))
+		return -EINVAL;
 
 	if (WARN_ON(txq->entries || txq->tfds))
 		return -EINVAL;
