@@ -2273,3 +2273,7 @@ Enum	2:1	FM
 EndEnum
 Field	0	E
 EndSysreg
+
+Sysreg	TRBPTR_EL1	3	0	9	11	1
+Field	63:0	PTR
+EndSysreg
