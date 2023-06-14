@@ -321,18 +321,13 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	ocmem->config = device_get_match_data(dev);
 
 	ret = devm_clk_bulk_get(dev, ARRAY_SIZE(ocmem_clks), ocmem_clks);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Unable to get clocks\n");
-
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Unable to get clocks\n");
 
 	ocmem->mmio = devm_platform_ioremap_resource_byname(pdev, "ctrl");
-	if (IS_ERR(ocmem->mmio)) {
-		dev_err(&pdev->dev, "Failed to ioremap ocmem_ctrl resource\n");
-		return PTR_ERR(ocmem->mmio);
-	}
+	if (IS_ERR(ocmem->mmio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ocmem->mmio),
+				     "Failed to ioremap ocmem_ctrl resource\n");
 
 	ocmem->memory = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						     "mem");
@@ -345,16 +340,14 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	WARN_ON(clk_set_rate(ocmem_clks[OCMEM_CLK_CORE_IDX].clk, 1000) < 0);
 
 	ret = clk_bulk_prepare_enable(ARRAY_SIZE(ocmem_clks), ocmem_clks);
-	if (ret) {
-		dev_info(ocmem->dev, "Failed to enable clocks\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(ocmem->dev, ret, "Failed to enable clocks\n");
 
 	if (qcom_scm_restore_sec_cfg_available()) {
 		dev_dbg(dev, "configuring scm\n");
 		ret = qcom_scm_restore_sec_cfg(QCOM_SCM_OCMEM_DEV_ID, 0);
 		if (ret) {
-			dev_err(dev, "Could not enable secure configuration\n");
+			dev_err_probe(dev, ret, "Could not enable secure configuration\n");
 			goto err_clk_disable;
 		}
 	}
