@@ -39,7 +39,7 @@ static inline bool is_trbe_enabled(void)
 
 static inline int get_trbe_ec(u64 trbsr)
 {
-	return (trbsr >> TRBSR_EC_SHIFT) & TRBSR_EC_MASK;
+	return (trbsr & TRBSR_EL1_EC_MASK) >> TRBSR_EL1_EC_SHIFT;
 }
 
 #define TRBE_BSC_NOT_STOPPED 0
@@ -48,40 +48,40 @@ static inline int get_trbe_ec(u64 trbsr)
 
 static inline int get_trbe_bsc(u64 trbsr)
 {
-	return (trbsr >> TRBSR_BSC_SHIFT) & TRBSR_BSC_MASK;
+	return (trbsr & TRBSR_EL1_BSC_MASK) >> TRBSR_EL1_BSC_SHIFT;
 }
 
 static inline void clr_trbe_irq(void)
 {
 	u64 trbsr = read_sysreg_s(SYS_TRBSR_EL1);
 
-	trbsr &= ~TRBSR_IRQ;
+	trbsr &= ~TRBSR_EL1_IRQ;
 	write_sysreg_s(trbsr, SYS_TRBSR_EL1);
 }
 
 static inline bool is_trbe_irq(u64 trbsr)
 {
-	return trbsr & TRBSR_IRQ;
+	return trbsr & TRBSR_EL1_IRQ;
 }
 
 static inline bool is_trbe_trg(u64 trbsr)
 {
-	return trbsr & TRBSR_TRG;
+	return trbsr & TRBSR_EL1_TRG;
 }
 
 static inline bool is_trbe_wrap(u64 trbsr)
 {
-	return trbsr & TRBSR_WRAP;
+	return trbsr & TRBSR_EL1_WRAP;
 }
 
 static inline bool is_trbe_abort(u64 trbsr)
 {
-	return trbsr & TRBSR_ABORT;
+	return trbsr & TRBSR_EL1_EA;
 }
 
 static inline bool is_trbe_running(u64 trbsr)
 {
-	return !(trbsr & TRBSR_STOP);
+	return !(trbsr & TRBSR_EL1_S);
 }
 
 #define TRBE_TRIG_MODE_STOP		0
