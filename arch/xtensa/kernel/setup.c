@@ -47,6 +47,7 @@
 #include <asm/smp.h>
 #include <asm/sysmem.h>
 #include <asm/timex.h>
+#include <asm/traps.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = {
@@ -242,6 +243,11 @@ void __init early_init_devtree(void *params)
 
 void __init init_arch(bp_tag_t *bp_start)
 {
+	/* Initialize basic exception handling if configuration may need it */
+
+	if (IS_ENABLED(CONFIG_KASAN))
+		early_trap_init();
+
 	/* Initialize MMU. */
 
 	init_mmu();

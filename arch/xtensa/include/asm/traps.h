@@ -64,8 +64,10 @@ void do_unhandled(struct pt_regs *regs);
 static inline void __init early_trap_init(void)
 {
 	static struct exc_table init_exc_table __initdata = {
+#ifdef CONFIG_MMU
 		.fast_kernel_handler[EXCCAUSE_DTLB_MISS] =
 			fast_second_level_miss,
+#endif
 	};
 	xtensa_set_sr(&init_exc_table, excsave1);
 }
