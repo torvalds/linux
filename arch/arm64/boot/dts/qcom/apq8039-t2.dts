@@ -164,13 +164,13 @@
 	vdd_l7-supply = <&pm8916_s4>;
 
 	pm8916_s3: s3 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1300000>;
+		regulator-min-microvolt = <1250000>;
+		regulator-max-microvolt = <1350000>;
 	};
 
 	pm8916_s4: s4 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2100000>;
+		regulator-min-microvolt = <1850000>;
+		regulator-max-microvolt = <2150000>;
 	};
 
 	/* l1 is fixed to 1225000, but not connected in schematic */
@@ -201,7 +201,7 @@
 	};
 
 	pm8916_l8: l8 {
-		regulator-min-microvolt = <2850000>;
+		regulator-min-microvolt = <2900000>;
 		regulator-max-microvolt = <2900000>;
 	};
 
@@ -216,7 +216,7 @@
 	};
 
 	pm8916_l11: l11 {
-		regulator-min-microvolt = <1800000>;
+		regulator-min-microvolt = <2950000>;
 		regulator-max-microvolt = <2950000>;
 	};
 
