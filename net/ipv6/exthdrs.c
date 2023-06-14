@@ -440,9 +440,9 @@ looped_back:
 			kfree_skb(skb);
 			return -1;
 		}
-	}
 
-	hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
+		hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
+	}
 
 	hdr->segments_left--;
 	addr = hdr->segments + hdr->segments_left;
