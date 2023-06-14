@@ -70,7 +70,7 @@ static const struct sai_of_quirks {
 	},
 };
 
-static int sai_runtime_suspend(struct device *dev)
+static int rockchip_sai_runtime_suspend(struct device *dev)
 {
 	struct rk_sai_dev *sai = dev_get_drvdata(dev);
 	unsigned int val;
@@ -110,7 +110,7 @@ static int sai_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int sai_runtime_resume(struct device *dev)
+static int rockchip_sai_runtime_resume(struct device *dev)
 {
 	struct rk_sai_dev *sai = dev_get_drvdata(dev);
 	int ret;
@@ -1388,7 +1388,7 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
-		ret = sai_runtime_resume(&pdev->dev);
+		ret = rockchip_sai_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_runtime_disable;
 	}
@@ -1416,7 +1416,7 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 
 err_runtime_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		sai_runtime_suspend(&pdev->dev);
+		rockchip_sai_runtime_suspend(&pdev->dev);
 err_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
 
@@ -1427,7 +1427,7 @@ static int rockchip_sai_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		sai_runtime_suspend(&pdev->dev);
+		rockchip_sai_runtime_suspend(&pdev->dev);
 
 	return 0;
 }
@@ -1457,7 +1457,7 @@ static int rockchip_sai_resume(struct device *dev)
 #endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops rockchip_sai_pm_ops = {
-	SET_RUNTIME_PM_OPS(sai_runtime_suspend, sai_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(rockchip_sai_runtime_suspend, rockchip_sai_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_sai_suspend, rockchip_sai_resume)
 };
 
