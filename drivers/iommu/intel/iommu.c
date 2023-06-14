@@ -1897,8 +1897,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	struct context_entry *context;
 	int ret;
 
-	WARN_ON(did == 0);
-
 	if (hw_pass_through && domain_type_is_si(domain))
 		translation = CONTEXT_TT_PASS_THROUGH;
 
@@ -1943,8 +1941,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 
 	if (sm_supported(iommu)) {
 		unsigned long pds;
-
-		WARN_ON(!table);
 
 		/* Setup the PASID DIR pointer: */
 		pds = context_get_sm_pds(table);
