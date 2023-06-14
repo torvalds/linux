@@ -227,10 +227,6 @@
 
 /*** End of Statistical Profiling Extension ***/
 
-/*
- * TRBE Registers
- */
-#define SYS_TRBLIMITR_EL1		sys_reg(3, 0, 9, 11, 0)
 #define SYS_TRBPTR_EL1			sys_reg(3, 0, 9, 11, 1)
 #define SYS_TRBBASER_EL1		sys_reg(3, 0, 9, 11, 2)
 #define SYS_TRBSR_EL1			sys_reg(3, 0, 9, 11, 3)
@@ -238,14 +234,6 @@
 #define SYS_TRBTRG_EL1			sys_reg(3, 0, 9, 11, 6)
 #define SYS_TRBIDR_EL1			sys_reg(3, 0, 9, 11, 7)
 
-#define TRBLIMITR_EL1_LIMIT_MASK	GENMASK_ULL(63, 12)
-#define TRBLIMITR_EL1_LIMIT_SHIFT	12
-#define TRBLIMITR_EL1_nVM		BIT(5)
-#define TRBLIMITR_EL1_TM_MASK		GENMASK(4, 3)
-#define TRBLIMITR_EL1_TM_SHIFT		3
-#define TRBLIMITR_EL1_FM_MASK		GENMASK(2, 1)
-#define TRBLIMITR_EL1_FM_SHIFT		1
-#define TRBLIMITR_EL1_E			BIT(0)
 #define TRBPTR_EL1_PTR_MASK		GENMASK_ULL(63, 0)
 #define TRBPTR_EL1_PTR_SHIFT		0
 #define TRBBASER_EL1_BASE_MASK		GENMASK_ULL(63, 12)

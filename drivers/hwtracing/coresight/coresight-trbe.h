@@ -84,15 +84,6 @@ static inline bool is_trbe_running(u64 trbsr)
 	return !(trbsr & TRBSR_EL1_S);
 }
 
-#define TRBE_TRIG_MODE_STOP		0
-#define TRBE_TRIG_MODE_IRQ		1
-#define TRBLIMITR_EL1_TM_IGNR		3
-
-#define TRBLIMITR_EL1_FM_FILL		0
-#define TRBE_FILL_MODE_FILL		0
-#define TRBE_FILL_MODE_WRAP		1
-#define TRBE_FILL_MODE_CIRCULAR_BUFFER	3
-
 static inline bool get_trbe_flag_update(u64 trbidr)
 {
 	return trbidr & TRBIDR_EL1_F;
