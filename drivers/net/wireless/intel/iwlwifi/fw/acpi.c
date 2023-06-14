@@ -1248,3 +1248,40 @@ bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 	return true;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_is_ppag_approved);
+
+void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
+			      struct iwl_phy_specific_cfg *filters)
+{
+	struct iwl_phy_specific_cfg tmp = {};
+	union acpi_object *wifi_pkg, *data;
+	int tbl_rev, i;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WPFC_METHOD);
+	if (IS_ERR(data))
+		return;
+
+	/* try to read wtas table revision 1 or revision 0*/
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WPFC_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg))
+		goto out_free;
+
+	if (tbl_rev != 0)
+		goto out_free;
+
+	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) != ACPI_WPFC_WIFI_DATA_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
+		if (wifi_pkg->package.elements[i].type != ACPI_TYPE_INTEGER)
+			return;
+		tmp.filter_cfg_chains[i] =
+			cpu_to_le32(wifi_pkg->package.elements[i].integer.value);
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC filter config from ACPI\n");
+	*filters = tmp;
+out_free:
+	kfree(data);
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_phy_filters);

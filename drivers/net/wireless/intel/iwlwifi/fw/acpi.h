@@ -11,6 +11,7 @@
 #include "fw/api/power.h"
 #include "fw/api/phy.h"
 #include "fw/api/nvm-reg.h"
+#include "fw/api/config.h"
 #include "fw/img.h"
 #include "iwl-trans.h"
 
@@ -23,6 +24,7 @@
 #define ACPI_ECKV_METHOD	"ECKV"
 #define ACPI_PPAG_METHOD	"PPAG"
 #define ACPI_WTAS_METHOD	"WTAS"
+#define ACPI_WPFC_METHOD	"WPFC"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -54,6 +56,7 @@
 #define ACPI_EWRD_WIFI_DATA_SIZE_REV2	((ACPI_SAR_PROFILE_NUM - 1) * \
 					 ACPI_SAR_NUM_CHAINS_REV2 * \
 					 ACPI_SAR_NUM_SUB_BANDS_REV2 + 3)
+#define ACPI_WPFC_WIFI_DATA_SIZE	4 /* 4 filter config words */
 
 /* revision 0 and 1 are identical, except for the semantics in the FW */
 #define ACPI_GEO_NUM_BANDS_REV0		2
@@ -225,6 +228,9 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
 
 bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
+void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
+			      struct iwl_phy_specific_cfg *filters);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
@@ -312,6 +318,11 @@ static inline int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt,
 static inline bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 {
 	return false;
+}
+
+static inline void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
+					    struct iwl_phy_specific_cfg *filters)
+{
 }
 
 #endif /* CONFIG_ACPI */
