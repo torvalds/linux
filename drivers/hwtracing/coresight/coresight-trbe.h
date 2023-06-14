@@ -95,17 +95,17 @@ static inline bool is_trbe_running(u64 trbsr)
 
 static inline bool get_trbe_flag_update(u64 trbidr)
 {
-	return trbidr & TRBIDR_FLAG;
+	return trbidr & TRBIDR_EL1_F;
 }
 
 static inline bool is_trbe_programmable(u64 trbidr)
 {
-	return !(trbidr & TRBIDR_PROG);
+	return !(trbidr & TRBIDR_EL1_P);
 }
 
 static inline int get_trbe_address_align(u64 trbidr)
 {
-	return (trbidr >> TRBIDR_ALIGN_SHIFT) & TRBIDR_ALIGN_MASK;
+	return (trbidr & TRBIDR_EL1_Align_MASK) >> TRBIDR_EL1_Align_SHIFT;
 }
 
 static inline unsigned long get_trbe_write_pointer(void)

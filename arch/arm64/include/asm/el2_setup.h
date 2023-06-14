@@ -69,7 +69,7 @@
 	cbz	x0, .Lskip_trace_\@		// Skip if TraceBuffer is not present
 
 	mrs_s	x0, SYS_TRBIDR_EL1
-	and	x0, x0, TRBIDR_PROG
+	and	x0, x0, TRBIDR_EL1_P
 	cbnz	x0, .Lskip_trace_\@		// If TRBE is available at EL2
 
 	mov	x0, #(MDCR_EL2_E2TB_MASK << MDCR_EL2_E2TB_SHIFT)
