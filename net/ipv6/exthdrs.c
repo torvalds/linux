@@ -402,11 +402,7 @@ looped_back:
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
-
-			if (!pskb_pull(skb, offset)) {
-				kfree_skb(skb);
-				return -1;
-			}
+			skb_pull(skb, offset);
 			skb_postpull_rcsum(skb, skb_transport_header(skb),
 					   offset);
 
