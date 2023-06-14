@@ -30,7 +30,7 @@ static inline bool is_trbe_enabled(void)
 {
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
 
-	return trblimitr & TRBLIMITR_ENABLE;
+	return trblimitr & TRBLIMITR_EL1_E;
 }
 
 #define TRBE_EC_OTHERS		0
@@ -86,8 +86,9 @@ static inline bool is_trbe_running(u64 trbsr)
 
 #define TRBE_TRIG_MODE_STOP		0
 #define TRBE_TRIG_MODE_IRQ		1
-#define TRBE_TRIG_MODE_IGNORE		3
+#define TRBLIMITR_EL1_TM_IGNR		3
 
+#define TRBLIMITR_EL1_FM_FILL		0
 #define TRBE_FILL_MODE_FILL		0
 #define TRBE_FILL_MODE_WRAP		1
 #define TRBE_FILL_MODE_CIRCULAR_BUFFER	3
@@ -121,7 +122,7 @@ static inline void set_trbe_write_pointer(unsigned long addr)
 static inline unsigned long get_trbe_limit_pointer(void)
 {
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
-	unsigned long addr = trblimitr & (TRBLIMITR_LIMIT_MASK << TRBLIMITR_LIMIT_SHIFT);
+	unsigned long addr = trblimitr & TRBLIMITR_EL1_LIMIT_MASK;
 
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	return addr;
