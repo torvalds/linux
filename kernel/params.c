@@ -847,7 +847,7 @@ static void __init param_sysfs_builtin(void)
 			name_len = 0;
 		} else {
 			name_len = dot - kp->name + 1;
-			strlcpy(modname, kp->name, name_len);
+			strscpy(modname, kp->name, name_len);
 		}
 		kernel_add_sysfs_param(modname, kp, name_len);
 	}
