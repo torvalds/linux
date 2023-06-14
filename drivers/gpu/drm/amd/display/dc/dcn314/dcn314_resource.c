@@ -1883,13 +1883,6 @@ static bool dcn314_resource_construct(
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
 
-	/* Disable pipe power gating when unsupported */
-	if (ctx->asic_id.hw_internal_rev == 0x01 ||
-			ctx->asic_id.hw_internal_rev == 0x80) {
-		dc->debug.disable_dpp_power_gate = true;
-		dc->debug.disable_hubp_power_gate = true;
-	}
-
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {
@@ -1910,6 +1903,11 @@ static bool dcn314_resource_construct(
 		dc->debug = debug_defaults_drv;
 	else
 		dc->debug = debug_defaults_diags;
+
+	/* Disable pipe power gating */
+	dc->debug.disable_dpp_power_gate = true;
+	dc->debug.disable_hubp_power_gate = true;
+
 	// Init the vm_helper
 	if (dc->vm_helper)
 		vm_helper_init(dc->vm_helper, 16);
