@@ -24,6 +24,9 @@
 #define MTL_GGTT_PTE_PAT0	BIT_ULL(52)
 #define MTL_GGTT_PTE_PAT1	BIT_ULL(53)
 
+/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
+#define GUC_GGTT_TOP	0xFEE00000
+
 u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
 {
 	struct xe_device *xe = xe_bo_device(bo);
@@ -111,12 +114,18 @@ int xe_ggtt_init_noalloc(struct xe_ggtt *ggtt)
 	/*
 	 * 8B per entry, each points to a 4KB page.
 	 *
-	 * The GuC owns the WOPCM space, thus we can't allocate GGTT address in
-	 * this area. Even though we likely configure the WOPCM to less than the
-	 * maximum value, to simplify the driver load (no need to fetch HuC +
-	 * GuC firmwares and determine there sizes before initializing the GGTT)
-	 * just start the GGTT allocation above the max WOPCM size. This might
-	 * waste space in the GGTT (WOPCM is 2MB on modern platforms) but we can
+	 * The GuC address space is limited on both ends of the GGTT, because
+	 * the GuC shim HW redirects accesses to those addresses to other HW
+	 * areas instead of going through the GGTT. On the bottom end, the GuC
+	 * can't access offsets below the WOPCM size, while on the top side the
+	 * limit is fixed at GUC_GGTT_TOP. To keep things simple, instead of
+	 * checking each object to see if they are accessed by GuC or not, we
+	 * just exclude those areas from the allocator. Additionally, to
+	 * simplify the driver load, we use the maximum WOPCM size in this logic
+	 * instead of the programmed one, so we don't need to wait until the
+	 * actual size to be programmed is determined (which requires FW fetch)
+	 * before initializing the GGTT. These simplifications might waste space
+	 * in the GGTT (about 20-25 MBs depending on the platform) but we can
 	 * live with this.
 	 *
 	 * Another benifit of this is the GuC bootrom can't access anything
@@ -125,6 +134,9 @@ int xe_ggtt_init_noalloc(struct xe_ggtt *ggtt)
 	 * Starting the GGTT allocations above the WOPCM max give us the correct
 	 * placement for free.
 	 */
+	if (ggtt->size > GUC_GGTT_TOP)
+		ggtt->size = GUC_GGTT_TOP;
+
 	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
 		    ggtt->size - xe_wopcm_size(xe));
 	mutex_init(&ggtt->lock);
