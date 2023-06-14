@@ -629,7 +629,6 @@ void hci_cmd_sync_init(struct hci_dev *hdev)
 	INIT_WORK(&hdev->cmd_sync_work, hci_cmd_sync_work);
 	INIT_LIST_HEAD(&hdev->cmd_sync_work_list);
 	mutex_init(&hdev->cmd_sync_work_lock);
-	mutex_init(&hdev->unregister_lock);
 
 	INIT_WORK(&hdev->cmd_sync_cancel_work, hci_cmd_sync_cancel_work);
 	INIT_WORK(&hdev->reenable_adv_work, reenable_adv);
@@ -689,19 +688,14 @@ int hci_cmd_sync_queue(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 		       void *data, hci_cmd_sync_work_destroy_t destroy)
 {
 	struct hci_cmd_sync_work_entry *entry;
-	int err = 0;
 
-	mutex_lock(&hdev->unregister_lock);
-	if (hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
-		err = -ENODEV;
-		goto unlock;
-	}
+	if (hci_dev_test_flag(hdev, HCI_UNREGISTER))
+		return -ENODEV;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		err = -ENOMEM;
-		goto unlock;
-	}
+	if (!entry)
+		return -ENOMEM;
+
 	entry->func = func;
 	entry->data = data;
 	entry->destroy = destroy;
@@ -712,9 +706,7 @@ int hci_cmd_sync_queue(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 
 	queue_work(hdev->req_workqueue, &hdev->cmd_sync_work);
 
-unlock:
-	mutex_unlock(&hdev->unregister_lock);
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(hci_cmd_sync_queue);
 
