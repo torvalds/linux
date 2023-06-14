@@ -418,7 +418,7 @@ struct iwl_mvm_vif {
 #endif
 
 	/* FW identified misbehaving AP */
-	u8 uapsd_misbehaving_bssid[ETH_ALEN];
+	u8 uapsd_misbehaving_ap_addr[ETH_ALEN] __aligned(2);
 	struct delayed_work uapsd_nonagg_detected_wk;
 
 	bool csa_countdown;
