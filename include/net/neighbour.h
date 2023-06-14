@@ -186,7 +186,7 @@ struct pneigh_entry {
 	netdevice_tracker	dev_tracker;
 	u32			flags;
 	u8			protocol;
-	u32			key[];
+	u8			key[];
 };
 
 /*
