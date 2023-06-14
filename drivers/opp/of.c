@@ -1034,14 +1034,6 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 		goto remove_static_opp;
 	}
 
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		/* Any non-zero performance state would enable the feature */
-		if (opp->pstate) {
-			opp_table->genpd_performance_state = true;
-			break;
-		}
-	}
-
 	lazy_link_required_opp_table(opp_table);
 
 	return 0;

@@ -182,7 +182,6 @@ enum opp_table_access {
  * @paths: Interconnect path handles
  * @path_count: Number of interconnect paths
  * @enabled: Set to true if the device's resources are enabled/configured.
- * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_required_opps: Helper responsible to set required OPPs.
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
@@ -233,7 +232,6 @@ struct opp_table {
 	struct icc_path **paths;
 	unsigned int path_count;
 	bool enabled;
-	bool genpd_performance_state;
 	bool is_genpd;
 	int (*set_required_opps)(struct device *dev,
 		struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down);
