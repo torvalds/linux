@@ -368,7 +368,6 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 	if (ret > 0) {
 		keep = DIV_ROUND_UP(ret, PAGE_SIZE);
 		*ppos = kiocb.ki_pos;
-		file_accessed(in);
 	} else if (ret < 0) {
 		/*
 		 * callers of ->splice_read() expect -EAGAIN on
