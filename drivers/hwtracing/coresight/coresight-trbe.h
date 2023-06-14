@@ -131,7 +131,7 @@ static inline unsigned long get_trbe_limit_pointer(void)
 static inline unsigned long get_trbe_base_pointer(void)
 {
 	u64 trbbaser = read_sysreg_s(SYS_TRBBASER_EL1);
-	unsigned long addr = trbbaser & (TRBBASER_BASE_MASK << TRBBASER_BASE_SHIFT);
+	unsigned long addr = trbbaser & TRBBASER_EL1_BASE_MASK;
 
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	return addr;
@@ -140,7 +140,7 @@ static inline unsigned long get_trbe_base_pointer(void)
 static inline void set_trbe_base_pointer(unsigned long addr)
 {
 	WARN_ON(is_trbe_enabled());
-	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBBASER_BASE_SHIFT)));
+	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBBASER_EL1_BASE_SHIFT)));
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	write_sysreg_s(addr, SYS_TRBBASER_EL1);
 }
