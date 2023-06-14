@@ -1,7 +1,9 @@
 [abi_symbol_list]
 # commonly used symbols
+  add_cpu
   add_wait_queue
   add_wait_queue_exclusive
+  activate_task
   alloc_chrdev_region
   alloc_etherdev_mqs
   alloc_netdev_mqs
@@ -12,6 +14,7 @@
   __alloc_skb
   alloc_workqueue
   alt_cb_patch_nops
+  arch_freq_scale
   __arch_copy_from_user
   __arch_copy_to_user
   arm64_use_ng_mappings
@@ -19,7 +22,10 @@
   atomic_notifier_call_chain
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
+  available_idle_cpu
+  balance_push_callback
   bcmp
+  blockdev_superblock
   bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
@@ -33,6 +39,7 @@
   cdev_add
   cdev_del
   cdev_init
+  check_preempt_curr
   __check_object_size
   __class_create
   class_destroy
@@ -55,10 +62,21 @@
   __cpuhp_setup_state
   __cpuhp_state_add_instance
   __cpuhp_state_remove_instance
+  __cpufreq_driver_target
+  cpufreq_disable_fast_switch
+  cpufreq_driver_fast_switch
+  cpufreq_driver_resolve_freq
+  cpufreq_enable_fast_switch
+  cpufreq_policy_transition_delay_us
+  cpufreq_this_cpu_can_update
+  cpufreq_register_governor
+  cpufreq_unregister_governor
   cpu_hwcaps
   cpu_number
+  __cpu_active_mask
   __cpu_online_mask
   __cpu_possible_mask
+  __cpu_present_mask
   crc32_le
   crypto_aead_decrypt
   crypto_aead_encrypt
@@ -68,7 +86,9 @@
   crypto_alloc_shash
   crypto_destroy_tfm
   crypto_has_alg
+  css_next_child
   datagram_poll
+  deactivate_task
   debugfs_create_dir
   debugfs_create_file
   debugfs_create_u8
@@ -150,6 +170,7 @@
   dma_sync_single_for_device
   dma_unmap_page_attrs
   do_trace_netlink_extack
+  double_rq_lock
   down_read
   down_write
   driver_unregister
@@ -160,6 +181,7 @@
   __dynamic_dev_dbg
   __dynamic_netdev_dbg
   __dynamic_pr_debug
+  init_task
   enable_irq
   eth_mac_addr
   eth_platform_get_mac_address
@@ -266,10 +288,12 @@
   kmemdup
   kobject_uevent
   kobject_uevent_env
+  ksoftirqd
   kstrtobool
   kstrtoint
   kstrtouint
   kstrtoull
+  kthread_cancel_work_sync
   kthread_create_on_node
   kthread_should_stop
   kthread_stop
@@ -292,6 +316,7 @@
   memmove
   memset
   memstart_addr
+  migrate_swap
   misc_deregister
   misc_register
   mod_timer
@@ -350,6 +375,7 @@
   of_find_device_by_node
   of_find_node_opts_by_path
   of_find_property
+  of_get_cpu_node
   of_get_next_child
   of_get_parent
   of_get_property
@@ -367,6 +393,7 @@
   param_ops_bool
   param_ops_int
   param_ops_uint
+  pcpu_nr_pages
   __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
@@ -397,9 +424,11 @@
   preempt_schedule_notrace
   prepare_to_wait_event
   _printk
+  _printk_deferred
   proc_create
   proc_create_net_data
   proc_create_net_single
+  proc_dointvec_minmax
   proc_doulongvec_minmax
   _proc_mkdir
   proc_mkdir
@@ -431,6 +460,8 @@
   _raw_write_lock_bh
   _raw_write_unlock
   _raw_write_unlock_bh
+  raw_spin_rq_lock_nested
+  raw_spin_rq_unlock
   rcu_barrier
   __rcu_read_lock
   __rcu_read_unlock
@@ -443,6 +474,7 @@
   register_pernet_subsys
   register_pm_notifier
   register_syscore_ops
+  register_sysctl_table
   regmap_read
   regmap_update_bits_base
   regmap_write
@@ -464,29 +496,37 @@
   request_firmware
   __request_module
   request_threaded_irq
+  return_address
+  root_task_group
   rtc_time64_to_tm
   rtnl_is_locked
   rtnl_link_register
   rtnl_link_unregister
   rtnl_lock
   rtnl_unlock
+  runqueues
   sched_setscheduler
+  sched_uclamp_used
   schedule
   schedule_timeout
   schedule_timeout_uninterruptible
   scnprintf
   security_sk_clone
   security_sock_graft
+  seq_buf_printf
   seq_lseek
   seq_printf
   seq_putc
   seq_puts
   seq_read
   setup_udp_tunnel_sock
+  set_task_cpu
   set_user_nice
   sg_init_one
   sg_init_table
   sg_next
+  si_mem_available
+  si_swapinfo
   simple_attr_open
   simple_attr_release
   simple_read_from_buffer
@@ -542,7 +582,11 @@
   __spi_alloc_controller
   sprintf
   sscanf
+  static_key_disable
   __stack_chk_fail
+  stop_machine
+  stop_one_cpu
+  stop_one_cpu_nowait
   strcmp
   strcpy
   strlcat
@@ -556,9 +600,12 @@
   synchronize_rcu
   syscon_regmap_lookup_by_phandle
   syscon_regmap_lookup_by_phandle_args
+  sysctl_vals
+  sysfs_create_files
   sysfs_create_group
   sysfs_create_groups
   sysfs_notify
+  sysfs_remove_files
   sysfs_remove_group
   sysfs_remove_groups
   sysfs_streq
@@ -567,29 +614,172 @@
   __tasklet_schedule
   tasklet_setup
   tasklet_unlock_wait
+  tasklist_lock
+  tick_nohz_get_idle_calls_cpu
+  topology_clear_scale_freq_source
+  topology_update_done
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_printf
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __trace_bprintk
+  __traceiter_android_rvh_account_irq
+  __traceiter_android_rvh_after_dequeue_task
+  __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_build_perf_domains
+  __traceiter_android_rvh_can_migrate_task
+  __traceiter_android_rvh_check_preempt_tick
+  __traceiter_android_rvh_check_preempt_wakeup
+  __traceiter_android_rvh_check_preempt_wakeup_ignore
+  __traceiter_android_rvh_cpu_cgroup_attach
+  __traceiter_android_rvh_cpu_cgroup_online
+  __traceiter_android_rvh_cpu_overutilized
+  __traceiter_android_rvh_dequeue_entity
+  __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_dequeue_task_fair
+  __traceiter_android_rvh_do_sched_yield
+  __traceiter_android_rvh_effective_cpu_util
+  __traceiter_android_rvh_enqueue_entity
+  __traceiter_android_rvh_enqueue_task
+  __traceiter_android_rvh_enqueue_task_fair
+  __traceiter_android_rvh_entity_tick
+  __traceiter_android_rvh_find_busiest_group
+  __traceiter_android_rvh_find_busiest_queue
+  __traceiter_android_rvh_find_lowest_rq
+  __traceiter_android_rvh_is_cpu_allowed
+  __traceiter_android_rvh_migrate_queued_task
+  __traceiter_android_rvh_new_task_stats
+  __traceiter_android_rvh_pick_next_entity
+  __traceiter_android_rvh_place_entity
+  __traceiter_android_rvh_replace_next_task_fair
+  __traceiter_android_rvh_rto_next_cpu
+  __traceiter_android_rvh_sched_balance_rt
+  __traceiter_android_rvh_sched_cpu_dying
+  __traceiter_android_rvh_sched_cpu_starting
+  __traceiter_android_rvh_sched_exec
+  __traceiter_android_rvh_sched_fork
+  __traceiter_android_rvh_sched_fork_init
+  __traceiter_android_rvh_sched_newidle_balance
+  __traceiter_android_rvh_sched_nohz_balancer_kick
+  __traceiter_android_rvh_sched_rebalance_domains
+  __traceiter_android_rvh_sched_setaffinity
+  __traceiter_android_rvh_schedule
+  __traceiter_android_rvh_select_fallback_rq
+  __traceiter_android_rvh_select_task_rq_fair
+  __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_set_cpus_allowed_by_task
+  __traceiter_android_rvh_setscheduler
+  __traceiter_android_rvh_set_task_cpu
+  __traceiter_android_rvh_tick_entry
+  __traceiter_android_rvh_try_to_wake_up
+  __traceiter_android_rvh_try_to_wake_up_success
+  __traceiter_android_rvh_update_misfit_status
+  __traceiter_android_rvh_update_thermal_stats
+  __traceiter_android_rvh_wake_up_new_task
   __traceiter_android_rvh_psci_cpu_suspend
   __traceiter_android_rvh_psci_tos_resident_on
+  __traceiter_android_vh_build_sched_domains
+  __traceiter_android_vh_check_uninterrupt_tasks
+  __traceiter_android_vh_check_uninterrupt_tasks_done
+  __traceiter_android_vh_cpufreq_fast_switch
+  __traceiter_android_vh_cpufreq_resolve_freq
+  __traceiter_android_vh_cpufreq_target
+  __traceiter_android_vh_cpu_idle_enter
+  __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_get_thermal_zone_device
   __traceiter_android_vh_modify_thermal_request_freq
   __traceiter_android_vh_modify_thermal_target_freq
+  __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_thermal_power_cap
   __traceiter_android_vh_thermal_register
   __traceiter_android_vh_thermal_unregister
+  __traceiter_android_vh_update_topology_flags_workfn
+  __traceiter_clock_set_rate
+  __traceiter_cpu_frequency
+  __traceiter_cpu_frequency_limits
+  __traceiter_sched_overutilized_tp
+  __traceiter_sched_switch
   trace_output_call
+  __tracepoint_android_rvh_account_irq
+  __tracepoint_android_rvh_after_dequeue_task
+  __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_build_perf_domains
+  __tracepoint_android_rvh_can_migrate_task
+  __tracepoint_android_rvh_check_preempt_tick
+  __tracepoint_android_rvh_check_preempt_wakeup
+  __tracepoint_android_rvh_check_preempt_wakeup_ignore
+  __tracepoint_android_rvh_cpu_cgroup_attach
+  __tracepoint_android_rvh_cpu_cgroup_online
+  __tracepoint_android_rvh_cpu_overutilized
+  __tracepoint_android_rvh_dequeue_entity
+  __tracepoint_android_rvh_dequeue_task
+  __tracepoint_android_rvh_dequeue_task_fair
+  __tracepoint_android_rvh_do_sched_yield
+  __tracepoint_android_rvh_effective_cpu_util
+  __tracepoint_android_rvh_enqueue_entity
+  __tracepoint_android_rvh_enqueue_task
+  __tracepoint_android_rvh_enqueue_task_fair
+  __tracepoint_android_rvh_entity_tick
+  __tracepoint_android_rvh_find_busiest_group
+  __tracepoint_android_rvh_find_busiest_queue
+  __tracepoint_android_rvh_find_lowest_rq
+  __tracepoint_android_rvh_is_cpu_allowed
+  __tracepoint_android_rvh_migrate_queued_task
+  __tracepoint_android_rvh_new_task_stats
+  __tracepoint_android_rvh_pick_next_entity
+  __tracepoint_android_rvh_place_entity
+  __tracepoint_android_rvh_replace_next_task_fair
+  __tracepoint_android_rvh_rto_next_cpu
+  __tracepoint_android_rvh_sched_balance_rt
+  __tracepoint_android_rvh_sched_cpu_dying
+  __tracepoint_android_rvh_sched_cpu_starting
+  __tracepoint_android_rvh_sched_exec
+  __tracepoint_android_rvh_sched_fork
+  __tracepoint_android_rvh_sched_fork_init
+  __tracepoint_android_rvh_sched_newidle_balance
+  __tracepoint_android_rvh_sched_nohz_balancer_kick
+  __tracepoint_android_rvh_sched_rebalance_domains
+  __tracepoint_android_rvh_sched_setaffinity
+  __tracepoint_android_rvh_schedule
+  __tracepoint_android_rvh_select_fallback_rq
+  __tracepoint_android_rvh_select_task_rq_fair
+  __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_set_cpus_allowed_by_task
+  __tracepoint_android_rvh_setscheduler
+  __tracepoint_android_rvh_set_task_cpu
+  __tracepoint_android_rvh_tick_entry
+  __tracepoint_android_rvh_try_to_wake_up
+  __tracepoint_android_rvh_try_to_wake_up_success
+  __tracepoint_android_rvh_update_misfit_status
+  __tracepoint_android_rvh_update_thermal_stats
+  __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_rvh_psci_cpu_suspend
   __tracepoint_android_rvh_psci_tos_resident_on
+  __tracepoint_android_vh_build_sched_domains
+  __tracepoint_android_vh_check_uninterrupt_tasks
+  __tracepoint_android_vh_check_uninterrupt_tasks_done
+  __tracepoint_android_vh_cpufreq_fast_switch
+  __tracepoint_android_vh_cpufreq_resolve_freq
+  __tracepoint_android_vh_cpufreq_target
+  __tracepoint_android_vh_cpu_idle_enter
+  __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_get_thermal_zone_device
   __tracepoint_android_vh_modify_thermal_request_freq
   __tracepoint_android_vh_modify_thermal_target_freq
+  __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_thermal_power_cap
   __tracepoint_android_vh_thermal_register
   __tracepoint_android_vh_thermal_unregister
+  __tracepoint_android_vh_update_topology_flags_workfn
+  __tracepoint_clock_set_rate
+  __tracepoint_cpu_frequency
+  __tracepoint_cpu_frequency_limits
+  __tracepoint_sched_overutilized_tp
+  __tracepoint_sched_switch
+  tracepoint_probe_register
+  tracepoint_probe_unregister
   trace_print_symbols_seq
   trace_raw_output_prep
   __trace_trigger_soft_disabled
@@ -631,6 +821,7 @@
   unregister_pm_notifier
   up_read
   up_write
+  update_rq_clock
   usb_alloc_urb
   usb_anchor_urb
   usb_autopm_get_interface
@@ -665,7 +856,11 @@
   usleep_range_state
   vfree
   vmalloc
+  vmalloc_nr_pages
   vmap
+  vm_memory_committed
+  vm_node_stat
+  vm_zone_stat
   vsnprintf
   vunmap
   vzalloc
@@ -1009,6 +1204,16 @@
   sock_common_recvmsg
   sock_common_setsockopt
 
+# required by kfifo_buf.ko
+  devres_add
+  __devres_alloc_node
+  devres_free
+  iio_buffer_init
+  iio_buffer_put
+  iio_device_attach_buffer
+  __kfifo_from_user
+  __kfifo_to_user
+
 # required by l2tp_core.ko
   idr_alloc_u32
   idr_get_next_ul
@@ -1274,6 +1479,25 @@
   sdhci_runtime_suspend_host
   sdhci_set_bus_width
   sdhci_setup_host
+
+# required by sensorhub.ko
+  debugfs_create_symlink
+  iio_alloc_pollfunc
+  iio_dealloc_pollfunc
+  iio_device_alloc
+  iio_device_free
+  iio_device_id
+  iio_device_unregister
+  iio_pollfunc_store_time
+  iio_push_to_buffers
+  __iio_trigger_alloc
+  iio_trigger_free
+  iio_trigger_notify_done
+  iio_trigger_poll
+  iio_trigger_register
+  iio_trigger_unregister
+  pm_wakeup_ws_event
+  sysfs_create_link
 
 # required by sipc-core.ko
   mbox_free_channel

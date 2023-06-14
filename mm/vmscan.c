@@ -6359,8 +6359,10 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 	if (can_reclaim_anon_pages(NULL, pgdat->node_id, sc))
 		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
 
+#ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 	trace_android_vh_should_continue_reclaim(&sc->android_vendor_data1,
 		&sc->nr_to_reclaim, &sc->nr_reclaimed, &continue_reclaim);
+#endif
 	if (!continue_reclaim)
 		return false;
 
@@ -6722,9 +6724,11 @@ static void modify_scan_control(struct scan_control *sc)
 {
 	bool file_is_tiny = false, may_writepage = true;
 
+#ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 	trace_android_vh_modify_scan_control(&sc->android_vendor_data1,
 		&sc->nr_to_reclaim, sc->target_mem_cgroup, &file_is_tiny,
 		&may_writepage);
+#endif
 
 	if (file_is_tiny)
 		sc->file_is_tiny = true;

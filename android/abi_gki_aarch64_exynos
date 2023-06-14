@@ -904,6 +904,7 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_show_mem
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
   __traceiter_suspend_resume
@@ -911,6 +912,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_show_mem
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
   tracepoint_probe_register
@@ -1464,6 +1466,9 @@
 # required by exynos-reboot.ko
   pm_power_off
 
+# required by exynos-s2i.ko
+  smp_call_function_many
+
 # required by exynos-ssld.ko
   driver_register
 
@@ -1930,8 +1935,6 @@
   dma_heap_get_name
   is_dma_buf_file
   iterate_fd
-  __traceiter_android_vh_show_mem
-  __tracepoint_android_vh_show_mem
 
 # required by samsung_iommu_v9.ko
   device_link_add
