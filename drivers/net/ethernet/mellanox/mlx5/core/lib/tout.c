@@ -119,7 +119,8 @@ u64 _mlx5_tout_ms(struct mlx5_core_dev *dev, enum mlx5_timeouts_types type)
 #define MLX5_TIMEOUT_FILL(fld, reg_out, dev, to_type, to_extra) \
 	({ \
 	u64 fw_to = MLX5_TIMEOUT_QUERY(fld, reg_out); \
-	tout_set(dev, fw_to + (to_extra), to_type); \
+	if (fw_to) \
+		tout_set(dev, fw_to + (to_extra), to_type); \
 	fw_to; \
 	})
 
