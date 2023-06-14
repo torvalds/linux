@@ -101,10 +101,15 @@ struct crypto_cipher *crypto_clone_cipher(struct crypto_cipher *cipher)
 	if (alg->cra_init)
 		return ERR_PTR(-ENOSYS);
 
+	if (unlikely(!crypto_mod_get(alg)))
+		return ERR_PTR(-ESTALE);
+
 	ntfm = __crypto_alloc_tfmgfp(alg, CRYPTO_ALG_TYPE_CIPHER,
 				     CRYPTO_ALG_TYPE_MASK, GFP_ATOMIC);
-	if (IS_ERR(ntfm))
+	if (IS_ERR(ntfm)) {
+		crypto_mod_put(alg);
 		return ERR_CAST(ntfm);
+	}
 
 	ntfm->crt_flags = tfm->crt_flags;
 
