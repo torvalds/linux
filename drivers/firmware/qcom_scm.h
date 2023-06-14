@@ -106,6 +106,7 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_BOOT_SWITCH_MODE		0x0f
 #define QCOM_SCM_BOOT_SET_DLOAD_MODE	0x10
 #define QCOM_SCM_BOOT_CONFIG_CPU_ERRATA		0x12
+#define QCOM_SCM_QUSB2PHY_LVL_SHIFTER_CMD_ID    0x1B
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3
 
 #define QCOM_SCM_SVC_PIL		0x02

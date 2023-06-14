@@ -619,6 +619,29 @@ int qcom_scm_config_cpu_errata(void)
 }
 EXPORT_SYMBOL(qcom_scm_config_cpu_errata);
 
+void qcom_scm_phy_update_scm_level_shifter(u32 val)
+{
+	struct device *dev = __scm ? __scm->dev : NULL;
+
+	int ret;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_BOOT,
+		.cmd = QCOM_SCM_QUSB2PHY_LVL_SHIFTER_CMD_ID,
+		.owner = ARM_SMCCC_OWNER_SIP
+	};
+
+	desc.args[0] = val;
+	desc.args[1] = 0;
+	desc.arginfo = QCOM_SCM_ARGS(2);
+
+	ret = qcom_scm_call(dev, &desc, NULL);
+	if (ret)
+		pr_err("Failed to update scm level shifter=0x%x\n", ret);
+
+}
+EXPORT_SYMBOL(qcom_scm_phy_update_scm_level_shifter);
+
+
 /**
  * qcom_scm_pas_init_image() - Initialize peripheral authentication service
  *			       state machine for a given peripheral, using the
