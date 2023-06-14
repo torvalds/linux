@@ -235,7 +235,7 @@ struct xe_step_info xe_step_gmdid_get(struct xe_device *xe,
 	if (step.media >= STEP_FUTURE) {
 		step.media = STEP_FUTURE;
 		drm_dbg(&xe->drm, "Media GMD_ID revid value %d treated as future stepping\n",
-			graphics_gmdid_revid);
+			media_gmdid_revid);
 	}
 
 	return step;
