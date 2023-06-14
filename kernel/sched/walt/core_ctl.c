@@ -309,17 +309,11 @@ static ssize_t show_active_cpus(const struct cluster_data *state, char *buf)
 static unsigned int cluster_paused_cpus(const struct cluster_data *cluster)
 {
 	cpumask_t cluster_paused_cpus;
-	cpumask_t cluster_part_paused_cpus;
 
-	unsigned int total_paused_cpus;
+	cpumask_or(&cluster_paused_cpus, &cpus_paused_by_us, &cpus_part_paused_by_us);
+	cpumask_and(&cluster_paused_cpus, &cluster->cpu_mask, &cluster_paused_cpus);
 
-	cpumask_and(&cluster_paused_cpus, &cluster->cpu_mask, &cpus_paused_by_us);
-	cpumask_and(&cluster_part_paused_cpus, &cluster->cpu_mask, &cpus_part_paused_by_us);
-
-	total_paused_cpus = cpumask_weight(&cluster_paused_cpus) +
-		cpumask_weight(&cluster_part_paused_cpus);
-
-	return min(total_paused_cpus, cpumask_weight(&cluster->cpu_mask));
+	return cpumask_weight(&cluster_paused_cpus);
 }
 
 static ssize_t show_global_state(const struct cluster_data *state, char *buf)
