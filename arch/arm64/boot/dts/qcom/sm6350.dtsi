@@ -634,11 +634,6 @@
 			no-map;
 		};
 
-		pil_gpu_mem: memory@8b715400 {
-			reg = <0 0x8b715400 0 0x2000>;
-			no-map;
-		};
-
 		pil_modem_mem: memory@8b800000 {
 			reg = <0 0x8b800000 0 0xf800000>;
 			no-map;
@@ -656,6 +651,11 @@
 
 		removed_region: memory@c0000000 {
 			reg = <0 0xc0000000 0 0x3900000>;
+			no-map;
+		};
+
+		pil_gpu_mem: memory@f0d00000 {
+			reg = <0 0xf0d00000 0 0x1000>;
 			no-map;
 		};
 
