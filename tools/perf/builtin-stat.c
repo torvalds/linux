@@ -1596,7 +1596,7 @@ static int perf_stat_init_aggr_mode(void)
 		stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
 							 get_id, /*data=*/NULL, needs_sort);
 		if (!stat_config.aggr_map) {
-			pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+			pr_err("cannot build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
 			return -1;
 		}
 		stat_config.aggr_get_id = aggr_mode__get_id(stat_config.aggr_mode);
@@ -1912,7 +1912,7 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
 						 get_id, env, needs_sort);
 	if (!stat_config.aggr_map) {
-		pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+		pr_err("cannot build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
 		return -1;
 	}
 	stat_config.aggr_get_id = aggr_mode__get_id_file(stat_config.aggr_mode);
@@ -2052,7 +2052,7 @@ static int add_default_attributes(void)
 		 * on an architecture test for such a metric name.
 		 */
 		if (!metricgroup__has_metric(pmu, "transaction")) {
-			pr_err("Missing transaction metrics");
+			pr_err("Missing transaction metrics\n");
 			return -1;
 		}
 		return metricgroup__parse_groups(evsel_list, pmu, "transaction",
@@ -2068,7 +2068,7 @@ static int add_default_attributes(void)
 		int smi;
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
-			pr_err("freeze_on_smi is not supported.");
+			pr_err("freeze_on_smi is not supported.\n");
 			return -1;
 		}
 
@@ -2081,7 +2081,7 @@ static int add_default_attributes(void)
 		}
 
 		if (!metricgroup__has_metric(pmu, "smi")) {
-			pr_err("Missing smi metrics");
+			pr_err("Missing smi metrics\n");
 			return -1;
 		}
 
@@ -2106,7 +2106,7 @@ static int add_default_attributes(void)
 
 		if (!max_level) {
 			pr_err("Topdown requested but the topdown metric groups aren't present.\n"
-				"(See perf list the metric groups have names like TopdownL1)");
+				"(See perf list the metric groups have names like TopdownL1)\n");
 			return -1;
 		}
 		if (stat_config.topdown_level > max_level) {
