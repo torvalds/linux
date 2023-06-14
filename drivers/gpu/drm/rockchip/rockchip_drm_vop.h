@@ -31,11 +31,15 @@
 #define VOP_VERSION_RK3568	VOP2_VERSION(0x40, 0x15, 0x8023)
 #define VOP_VERSION_RK3588	VOP2_VERSION(0x40, 0x17, 0x6786)
 
+/* register one connector */
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE	BIT(0)
+/* register one connector */
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE	BIT(1)
 #define ROCKCHIP_OUTPUT_DATA_SWAP			BIT(2)
 /* MIPI DSI DataStream(cmd) mode on rk3588 */
 #define ROCKCHIP_OUTPUT_MIPI_DS_MODE			BIT(3)
+/* register two connector */
+#define ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE	BIT(4)
 
 #define AFBDC_FMT_RGB565	0x0
 #define AFBDC_FMT_U8U8U8U8	0x5

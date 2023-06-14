@@ -264,6 +264,7 @@ struct rockchip_crtc_state {
 	int afbdc_win_yoffset;
 	int dsp_layer_sel;
 	u32 output_if;
+	u32 output_if_left_panel;
 	u32 bus_format;
 	u32 bus_flags;
 	int yuv_overlay;
