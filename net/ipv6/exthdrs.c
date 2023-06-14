@@ -571,8 +571,7 @@ looped_back:
 	ipv6_rpl_srh_decompress(ohdr, hdr, &ipv6_hdr(skb)->daddr, n);
 	chdr = (struct ipv6_rpl_sr_hdr *)(buf + ((ohdr->hdrlen + 1) << 3));
 
-	if ((ipv6_addr_type(&ipv6_hdr(skb)->daddr) & IPV6_ADDR_MULTICAST) ||
-	    (ipv6_addr_type(&ohdr->rpl_segaddr[i]) & IPV6_ADDR_MULTICAST)) {
+	if (ipv6_addr_is_multicast(&ohdr->rpl_segaddr[i])) {
 		kfree_skb(skb);
 		kfree(buf);
 		return -1;
