@@ -142,8 +142,10 @@ static int internal_create_group(struct kobject *kobj, int update,
 				return PTR_ERR(kn);
 			}
 		}
-	} else
+	} else {
 		kn = kobj->sd;
+	}
+
 	kernfs_get(kn);
 	error = create_files(kn, kobj, uid, gid, grp, update);
 	if (error) {
