@@ -21,42 +21,56 @@
 
 static unsigned int poison_inject_dev_max = MOCK_INJECT_DEV_MAX;
 
+enum cxl_command_effects {
+	CONF_CHANGE_COLD_RESET = 0,
+	CONF_CHANGE_IMMEDIATE,
+	DATA_CHANGE_IMMEDIATE,
+	POLICY_CHANGE_IMMEDIATE,
+	LOG_CHANGE_IMMEDIATE,
+	SECURITY_CHANGE_IMMEDIATE,
+	BACKGROUND_OP,
+	SECONDARY_MBOX_SUPPORTED,
+};
+
+#define CXL_CMD_EFFECT_NONE cpu_to_le16(0)
+
 static struct cxl_cel_entry mock_cel[] = {
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_SUPPORTED_LOGS),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_IDENTIFY),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_LSA),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_PARTITION_INFO),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_SET_LSA),
-		.effect = cpu_to_le16(EFFECT(1) | EFFECT(2)),
+		.effect = cpu_to_le16(EFFECT(CONF_CHANGE_IMMEDIATE) |
+				      EFFECT(DATA_CHANGE_IMMEDIATE)),
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_HEALTH_INFO),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_POISON),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_INJECT_POISON),
-		.effect = cpu_to_le16(EFFECT(2)),
+		.effect = cpu_to_le16(EFFECT(DATA_CHANGE_IMMEDIATE)),
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_CLEAR_POISON),
-		.effect = cpu_to_le16(EFFECT(2)),
+		.effect = cpu_to_le16(EFFECT(DATA_CHANGE_IMMEDIATE)),
 	},
 };
 
