@@ -304,7 +304,8 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 	stat->private_data = NULL;
 
 #if MALI_USE_CSF && defined CONFIG_DEVFREQ_THERMAL
-	kbase_ipa_reset_data(kbdev);
+	if (!kbdev->dfc_power.dyn_power_coeff)
+		kbase_ipa_reset_data(kbdev);
 #endif
 
 	return 0;
