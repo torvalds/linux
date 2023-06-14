@@ -1392,6 +1392,12 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 		goto put_required_np;
 	}
 
+	/* The OPP tables must belong to a genpd */
+	if (unlikely(!opp_table->is_genpd)) {
+		pr_err("%s: Performance state is only valid for genpds.\n", __func__);
+		goto put_required_np;
+	}
+
 	opp = _find_opp_of_np(opp_table, required_np);
 	if (opp) {
 		pstate = opp->pstate;
