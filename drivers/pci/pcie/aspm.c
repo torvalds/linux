@@ -193,30 +193,29 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 	link->clkpm_disable = blacklist ? 1 : 0;
 }
 
-static bool pcie_retrain_link(struct pcie_link_state *link)
+static bool pcie_retrain_link(struct pci_dev *pdev)
 {
-	struct pci_dev *parent = link->pdev;
 	unsigned long end_jiffies;
 	u16 lnkctl;
 	u16 lnksta;
 
-	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &lnkctl);
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &lnkctl);
 	lnkctl |= PCI_EXP_LNKCTL_RL;
-	pcie_capability_write_word(parent, PCI_EXP_LNKCTL, lnkctl);
-	if (parent->clear_retrain_link) {
+	pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnkctl);
+	if (pdev->clear_retrain_link) {
 		/*
 		 * Due to an erratum in some devices the Retrain Link bit
 		 * needs to be cleared again manually to allow the link
 		 * training to succeed.
 		 */
 		lnkctl &= ~PCI_EXP_LNKCTL_RL;
-		pcie_capability_write_word(parent, PCI_EXP_LNKCTL, lnkctl);
+		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnkctl);
 	}
 
 	/* Wait for link training end. Break out after waiting for timeout */
 	end_jiffies = jiffies + LINK_RETRAIN_TIMEOUT;
 	do {
-		pcie_capability_read_word(parent, PCI_EXP_LNKSTA, &lnksta);
+		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnksta);
 		if (!(lnksta & PCI_EXP_LNKSTA_LT))
 			break;
 		msleep(1);
@@ -290,7 +289,7 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 		reg16 &= ~PCI_EXP_LNKCTL_CCC;
 	pcie_capability_write_word(parent, PCI_EXP_LNKCTL, reg16);
 
-	if (pcie_retrain_link(link))
+	if (pcie_retrain_link(link->pdev))
 		return;
 
 	/* Training failed. Restore common clock configurations */
