@@ -2277,3 +2277,8 @@ EndSysreg
 Sysreg	TRBPTR_EL1	3	0	9	11	1
 Field	63:0	PTR
 EndSysreg
+
+Sysreg	TRBBASER_EL1	3	0	9	11	2
+Field	63:12	BASE
+Res0	11:0
+EndSysreg
