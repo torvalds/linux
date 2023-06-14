@@ -423,12 +423,18 @@ static int ocmem_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct ocmem_config ocmem_8226_config = {
+	.num_regions = 1,
+	.macro_size = SZ_128K,
+};
+
 static const struct ocmem_config ocmem_8974_config = {
 	.num_regions = 3,
 	.macro_size = SZ_128K,
 };
 
 static const struct of_device_id ocmem_of_match[] = {
+	{ .compatible = "qcom,msm8226-ocmem", .data = &ocmem_8226_config },
 	{ .compatible = "qcom,msm8974-ocmem", .data = &ocmem_8974_config },
 	{ }
 };
