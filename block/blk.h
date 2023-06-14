@@ -445,8 +445,6 @@ static inline void bio_release_page(struct bio *bio, struct page *page)
 {
 	if (bio_flagged(bio, BIO_PAGE_PINNED))
 		unpin_user_page(page);
-	else if (bio_flagged(bio, BIO_PAGE_REFFED))
-		put_page(page);
 }
 
 struct request_queue *blk_alloc_queue(int node_id);

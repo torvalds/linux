@@ -326,7 +326,6 @@ struct bio {
  */
 enum {
 	BIO_PAGE_PINNED,	/* Unpin pages in bio_release_pages() */
-	BIO_PAGE_REFFED,	/* put pages in bio_release_pages() */
 	BIO_CLONED,		/* doesn't own data */
 	BIO_BOUNCED,		/* bio is a bounce bio */
 	BIO_QUIET,		/* Make BIO Quiet */
