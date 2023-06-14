@@ -599,6 +599,16 @@ static struct zswap_pool *zswap_pool_find_get(char *type, char *compressor)
 	return NULL;
 }
 
+static void zswap_invalidate_entry(struct zswap_tree *tree,
+				   struct zswap_entry *entry)
+{
+	/* remove from rbtree */
+	zswap_rb_erase(&tree->rbroot, entry);
+
+	/* drop the initial reference from entry creation */
+	zswap_entry_put(tree, entry);
+}
+
 static int zswap_reclaim_entry(struct zswap_pool *pool)
 {
 	struct zswap_entry *entry;
@@ -644,12 +654,13 @@ static int zswap_reclaim_entry(struct zswap_pool *pool)
 		goto put_unlock;
 	}
 
-	/* Check for invalidate() race */
-	if (entry != zswap_rb_search(&tree->rbroot, swpoffset))
-		goto put_unlock;
-
-	/* Drop base reference */
-	zswap_entry_put(tree, entry);
+	/*
+	 * Writeback started successfully, the page now belongs to the
+	 * swapcache. Drop the entry from zswap - unless invalidate already
+	 * took it out while we had the tree->lock released for IO.
+	 */
+	if (entry == zswap_rb_search(&tree->rbroot, swpoffset))
+		zswap_invalidate_entry(tree, entry);
 
 put_unlock:
 	/* Drop local reference */
@@ -1374,16 +1385,6 @@ shrink:
 		queue_work(shrink_wq, &pool->shrink_work);
 	ret = -ENOMEM;
 	goto reject;
-}
-
-static void zswap_invalidate_entry(struct zswap_tree *tree,
-				   struct zswap_entry *entry)
-{
-	/* remove from rbtree */
-	zswap_rb_erase(&tree->rbroot, entry);
-
-	/* drop the initial reference from entry creation */
-	zswap_entry_put(tree, entry);
 }
 
 /*
