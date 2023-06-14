@@ -25,15 +25,24 @@
 #define FSA4480_DELAY_L_MIC	0x0e
 #define FSA4480_DELAY_L_SENSE	0x0f
 #define FSA4480_DELAY_L_AGND	0x10
+#define FSA4480_FUNCTION_ENABLE	0x12
 #define FSA4480_RESET		0x1e
 #define FSA4480_MAX_REGISTER	0x1f
 
 #define FSA4480_ENABLE_DEVICE	BIT(7)
 #define FSA4480_ENABLE_SBU	GENMASK(6, 5)
 #define FSA4480_ENABLE_USB	GENMASK(4, 3)
+#define FSA4480_ENABLE_SENSE	BIT(2)
+#define FSA4480_ENABLE_MIC	BIT(1)
+#define FSA4480_ENABLE_AGND	BIT(0)
 
 #define FSA4480_SEL_SBU_REVERSE	GENMASK(6, 5)
 #define FSA4480_SEL_USB		GENMASK(4, 3)
+#define FSA4480_SEL_SENSE	BIT(2)
+#define FSA4480_SEL_MIC		BIT(1)
+#define FSA4480_SEL_AGND	BIT(0)
+
+#define FSA4480_ENABLE_AUTO_JACK_DETECT	BIT(0)
 
 struct fsa4480 {
 	struct i2c_client *client;
@@ -95,6 +104,9 @@ static int fsa4480_set(struct fsa4480 *fsa)
 		default:
 			return -EOPNOTSUPP;
 		}
+	} else if (fsa->mode == TYPEC_MODE_AUDIO) {
+		/* Audio Accessory Mode, setup to auto Jack Detection */
+		enable |= FSA4480_ENABLE_USB | FSA4480_ENABLE_AGND;
 	} else
 		return -EOPNOTSUPP;
 
@@ -109,6 +121,11 @@ static int fsa4480_set(struct fsa4480 *fsa)
 
 	regmap_write(fsa->regmap, FSA4480_SWITCH_SELECT, sel);
 	regmap_write(fsa->regmap, FSA4480_SWITCH_ENABLE, enable);
+
+	/* Start AUDIO JACK DETECTION to setup MIC, AGND & Sense muxes */
+	if (enable & FSA4480_ENABLE_AGND)
+		regmap_write(fsa->regmap, FSA4480_FUNCTION_ENABLE,
+			     FSA4480_ENABLE_AUTO_JACK_DETECT);
 
 	if (enable & FSA4480_ENABLE_SBU) {
 		/* 15us to allow the SBU switch to turn on again */
