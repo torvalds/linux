@@ -957,7 +957,9 @@
   int_to_scsilun
   iomem_resource
   iommu_alloc_resv_region
+  iommu_attach_device_pasid
   iommu_attach_group
+  iommu_detach_device_pasid
   iommu_device_register
   iommu_device_sysfs_add
   iommu_device_sysfs_remove
@@ -968,6 +970,7 @@
   iommu_fwspec_add_ids
   iommu_fwspec_free
   iommu_get_domain_for_dev
+  iommu_get_domain_for_dev_pasid
   iommu_group_alloc
   iommu_group_for_each_dev
   iommu_group_get

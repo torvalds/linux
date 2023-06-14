@@ -1570,14 +1570,3 @@ bool kvm_hyp_handle_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	return false;
 }
-
-/*
- * Notify pKVM about events that can undermine pKVM security.
- */
-void pkvm_handle_system_misconfiguration(enum pkvm_system_misconfiguration event)
-{
-	if (event == NO_DMA_ISOLATION)
-		pkvm_poison_pvmfw_pages();
-	else
-		BUG();
-}

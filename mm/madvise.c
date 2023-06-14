@@ -183,7 +183,7 @@ success:
 	/*
 	 * vm_flags is protected by the mmap_lock held in write mode.
 	 */
-	vma->vm_flags = new_flags;
+	vm_flags_reset(vma, new_flags);
 	if (!vma->vm_file) {
 		error = replace_anon_vma_name(vma, anon_name);
 		if (error)
@@ -438,6 +438,8 @@ regular_page:
 	flush_tlb_batched_pending(mm);
 	arch_enter_lazy_mmu_mode();
 	for (; addr < end; pte++, addr += PAGE_SIZE) {
+		bool need_skip = false;
+
 		ptent = *pte;
 
 		if (pte_none(ptent))
@@ -452,6 +454,12 @@ regular_page:
 
 		page = vm_normal_page(vma, addr, ptent);
 		if (!page || is_zone_device_page(page))
+			continue;
+
+		trace_android_vh_madvise_cold_pageout_skip(vma, page, pageout,
+			&need_skip);
+
+		if (need_skip)
 			continue;
 
 		/*

@@ -180,7 +180,7 @@ static int check_mmap_afu_irq(struct ocxl_context *ctx,
 	if ((vma->vm_flags & VM_READ) || (vma->vm_flags & VM_EXEC) ||
 		!(vma->vm_flags & VM_WRITE))
 		return -EINVAL;
-	vma->vm_flags &= ~(VM_MAYREAD | VM_MAYEXEC);
+	vm_flags_clear(vma, VM_MAYREAD | VM_MAYEXEC);
 	return 0;
 }
 
@@ -204,7 +204,7 @@ int ocxl_context_mmap(struct ocxl_context *ctx, struct vm_area_struct *vma)
 	if (rc)
 		return rc;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vma->vm_ops = &ocxl_vmops;
 	return 0;

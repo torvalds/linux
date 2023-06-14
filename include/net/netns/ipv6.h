@@ -7,6 +7,7 @@
 
 #ifndef __NETNS_IPV6_H__
 #define __NETNS_IPV6_H__
+#include <linux/android_kabi.h>
 #include <net/dst_ops.h>
 #include <uapi/linux/icmpv6.h>
 
@@ -55,6 +56,7 @@ struct netns_sysctl_ipv6 {
 	u64 ioam6_id_wide;
 	bool skip_notify_on_dev_down;
 	u8 fib_notify_on_flag_change;
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct netns_ipv6 {
@@ -118,6 +120,8 @@ struct netns_ipv6 {
 		u32		seq;
 	} ip6addrlbl_table;
 	struct ioam6_pernet_data *ioam6_data;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
