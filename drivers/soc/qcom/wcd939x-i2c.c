@@ -218,15 +218,17 @@ int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
 EXPORT_SYMBOL(wcd_usbss_set_linearizer_sw_tap);
 
 /*
- * wcd_usbss_is_in_reset_state - routine for using captured state to reset WCD USB-SS after surge
+ * wcd_usbss_is_in_reset_state() - Check whether a negative surge ESD event has occurred.
  *
- * Checks:
+ * This function has a series of three checks to determine whether a negative surge ESD event has
+ * occurred. If any of the three check conditions is met, it is concluded that a negative surge
+ * ESD event has occurred. The checks include the following:
  * 1. Register WCD_USBSS_CPLDO_CTL2 reads 0xFF
  * 2. Register WCD_USBSS_RCO_MISC2 Bit<1> reads 0 at least once in NUM_RCO_MISC2_READ reads
- * 3. Register 0x06 Bit<0> reads 1 after toggling
- *    register WCD_USBSS_PMP_MISC1 Bit<0> from 0 --> 1 --> 0
+ * 3. Register 0x06 Bit<0> reads 1 after toggling register WCD_USBSS_PMP_MISC1 Bit<0> from
+ *    0 --> 1 --> 0
  *
- * Returns true if any checks fail (indicates OVP and reset needed), false otherwise
+ * Return: Returns true if any check(s) fail, false otherwise.
  */
 static bool wcd_usbss_is_in_reset_state(void)
 {
@@ -257,14 +259,14 @@ static bool wcd_usbss_is_in_reset_state(void)
 	if ((read_val & 0x1) == 0)
 		return true;
 
-	/* All checks passed, so a reset has not occurred */
+	/* All checks passed, so a negative surge ESD event has not occurred */
 	return false;
 }
 
 /*
- * wcd_usbss_reset_routine - routine for using captured state to reset WCD after surge
+ * wcd_usbss_reset_routine - Uses cached state to restore USB-SS registers after a negative surge.
  *
- * Returns return value from wcd_usbss_switch_update
+ * Return: Returns int return value from wcd_usbss_switch_update()
  */
 static int wcd_usbss_reset_routine(void)
 {
@@ -279,15 +281,16 @@ static int wcd_usbss_reset_routine(void)
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x0);
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x8);
 
-	/* replay each connected switch type individually */
+	/* Replay each connected switch type individually */
 	for (i = 0; i < WCD_USBSS_CABLE_TYPE_MAX; i++) {
 		if (!(wcd_usbss_ctxt_->cable_status & BIT(i)))
 			continue;
 
 		ret = wcd_usbss_switch_update(i, WCD_USBSS_CABLE_CONNECT);
 		if (ret) {
-			dev_err(wcd_usbss_ctxt_->dev, "%s: switch_update cable_type:%d failed ret:%d\n",
-					__func__, i, ret);
+			dev_err(wcd_usbss_ctxt_->dev,
+				"%s: switch_update cable_type: %d failed ret: %d\n",
+				__func__, i, ret);
 			return ret;
 		}
 	}
