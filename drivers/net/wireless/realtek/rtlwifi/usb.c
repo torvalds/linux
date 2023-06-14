@@ -1068,7 +1068,7 @@ int rtl_usb_probe(struct usb_interface *intf,
 		pr_err("Can't init_sw_vars\n");
 		goto error_out;
 	}
-	rtlpriv->cfg->ops->init_sw_leds(hw);
+	rtl_init_sw_leds(hw);
 
 	err = ieee80211_register_hw(hw);
 	if (err) {
@@ -1117,7 +1117,6 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	rtl_usb_deinit(hw);
 	rtl_deinit_core(hw);
 	kfree(rtlpriv->usb_data);
-	rtlpriv->cfg->ops->deinit_sw_leds(hw);
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(rtlusb->udev);
