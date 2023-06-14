@@ -126,9 +126,6 @@ static bool ip6_parse_tlv(bool hopbyhop,
 		max_count = -max_count;
 	}
 
-	if (skb_transport_offset(skb) + len > skb_headlen(skb))
-		goto bad;
-
 	off += 2;
 	len -= 2;
 
