@@ -886,7 +886,6 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 			}
 
 			seg = min_t(size_t, remain, buf->len);
-			seg = min_t(size_t, seg, PAGE_SIZE);
 
 			ret = pipe_buf_confirm(pipe, buf);
 			if (unlikely(ret)) {
@@ -897,10 +896,9 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 
 			bvec_set_page(&bvec[bc++], buf->page, seg, buf->offset);
 			remain -= seg;
-			if (seg >= buf->len)
-				tail++;
-			if (bc >= ARRAY_SIZE(bvec))
+			if (remain == 0 || bc >= ARRAY_SIZE(bvec))
 				break;
+			tail++;
 		}
 
 		if (!bc)
