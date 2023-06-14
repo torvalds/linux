@@ -1601,7 +1601,9 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 		if (rx_h->cmd_id != WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd))
 			continue;
 
-		if (unlikely(pkt_len < rx_h->min_size))
+		if (IWL_FW_CHECK(mvm, pkt_len < rx_h->min_size,
+				 "unexpected notification 0x%04x size %d, need %d\n",
+				 rx_h->cmd_id, pkt_len, rx_h->min_size))
 			return;
 
 		if (rx_h->context == RX_HANDLER_SYNC) {
