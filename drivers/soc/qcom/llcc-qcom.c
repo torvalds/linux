@@ -275,7 +275,7 @@ static struct llcc_slice_config sdmshrike_data[] =  {
 	{ LLCC_PIMEM,    25, 1024, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0 },
 };
 
-static const struct llcc_slice_config lahaina_data[] =  {
+static const struct llcc_slice_config sm8350_data[] =  {
 	{LLCC_CPUSS,     1, 3072, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 1, 0 },
 	{LLCC_VIDSC0,    2,  512, 3, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
 	{LLCC_AUDIO,     6, 1024, 1, 1, 0xFFF, 0x0,   0, 0, 0, 0, 0, 0 },
@@ -298,22 +298,7 @@ static const struct llcc_slice_config lahaina_data[] =  {
 	{LLCC_CPUSS1,    3, 1024, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
 };
 
-static const struct llcc_slice_config shima_data[] =  {
-	{LLCC_CPUSS,     1, 1536, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 1, 0 },
-	{LLCC_AUDIO,     6, 1024, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_MDM,       8,  512, 2, 0, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_CMPT,     10, 1536, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_GPUHTW,   11,  256, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_GPU,      12, 1024, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 1 },
-	{LLCC_MMUHWT,   13,  256, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 1, 0 },
-	{LLCC_DISP,     16, 1536, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_MDMPNG,   21, 1536, 0, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_AUDHW,    22, 1024, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_MDMVPE,   29,  128, 1, 1, 0xFFF, 0x0,   0, 0, 0, 1, 0, 0 },
-	{LLCC_WRTCH,    31,  256, 1, 1, 0xFFF, 0x0,   0, 0, 0, 0, 1, 0 },
-};
-
-static const struct llcc_slice_config waipio_data[] =  {
+static const struct llcc_slice_config sm8450_data[] =  {
 	{LLCC_CPUSS,     1, 3072, 1, 0, 0xFFFF, 0x0,   0, 0, 0, 1, 1, 0, 0 },
 	{LLCC_VIDSC0,    2,  512, 3, 1, 0xFFFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_AUDIO,     6, 1024, 1, 1, 0xFFFF, 0x0,   0, 0, 0, 0, 0, 0, 0 },
@@ -339,21 +324,7 @@ static const struct llcc_slice_config waipio_data[] =  {
 	{LLCC_AENPU,     8, 2048, 1, 1, 0xFFFF, 0x0,   0, 0, 0, 0, 0, 0, 0 },
 };
 
-static const struct llcc_slice_config diwali_data[] =  {
-	{LLCC_CPUSS,     1, 1536, 0, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 1, 1, 0 },
-	{LLCC_VIDSC0,    2,  512, 3, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
-	{LLCC_MDMHPGRW,  7,  512, 3, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
-	{LLCC_GPUHTW,   11,  256, 1, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
-	{LLCC_GPU,      12,  512, 1, 0, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 1, 0 },
-	{LLCC_MMUHWT,   13,  256, 1, 1, 0x0FFF, 0x0,   0, 0, 0, 0, 1, 0, 0 },
-	{LLCC_DISP,     16, 1536, 2, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
-	{LLCC_MDMPNG,   21, 1024, 0, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
-	{LLCC_MDMVPE,   29,   64, 1, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 0, 0, 0 },
-	{LLCC_WRTCH,    31,  256, 1, 1, 0x0FFF, 0x0,   0, 0, 0, 0, 1, 0, 0 },
-	{LLCC_CPUMTE,   23,  256, 1, 1, 0x0FFF, 0x0,   0, 0, 0, 1, 1, 0, 0 },
-};
-
-static const struct llcc_slice_config kalama_data[] =  {
+static const struct llcc_slice_config sm8550_data[] =  {
 	{LLCC_CPUSS,     1, 3096, 1, 1, 0xFFFFFF, 0x0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{LLCC_VIDSC0,    2,  512, 4, 1, 0xFFFFFF, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{LLCC_AUDIO,     6, 1024, 1, 1, 0xFFFFFF, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -413,7 +384,7 @@ static const struct llcc_slice_config pineapple_data[] = {
 	{LLCC_VIDVSP,   28,  256, 3, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
-static const struct llcc_slice_config cinder_data_2ch[] =  {
+static const struct llcc_slice_config qdu1000_data_2ch[] =  {
 	{LLCC_MDMHPGRW, 7, 512, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMHW,    9, 256, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMPNG,  21, 256, 0, 1,   0x3, 0x0, 0, 0, 0, 1, 0, 0, 0 },
@@ -423,7 +394,7 @@ static const struct llcc_slice_config cinder_data_2ch[] =  {
 	{LLCC_WRTCH,   31, 128, 1, 1,   0x3, 0x0, 0, 0, 0, 0, 1, 0, 0 },
 };
 
-static const struct llcc_slice_config cinder_data_4ch[] =  {
+static const struct llcc_slice_config qdu1000_data_4ch[] =  {
 	{LLCC_MDMHPGRW, 7, 1024, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMHW,    9, 512,  1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMPNG,  21, 512,  0, 1,   0x3, 0x0, 0, 0, 0, 1, 0, 0, 0 },
@@ -434,7 +405,7 @@ static const struct llcc_slice_config cinder_data_4ch[] =  {
 
 };
 
-static const struct llcc_slice_config cinder_data_8ch[] =  {
+static const struct llcc_slice_config qdu1000_data_8ch[] =  {
 	{LLCC_MDMHPGRW, 7, 2048, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMHW,    9, 1024, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMPNG,  21, 1024, 0, 1,   0x3, 0x0, 0, 0, 0, 1, 0, 0, 0 },
@@ -442,11 +413,6 @@ static const struct llcc_slice_config cinder_data_8ch[] =  {
 	{LLCC_MDMVPE,  29, 1024, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_APTCM,   30, 1024, 3, 1,   0x0, 0xC, 1, 0, 0, 1, 0, 0, 0 },
 	{LLCC_WRTCH,   31, 512,  1, 1,   0x3, 0x0, 0, 0, 0, 0, 1, 0, 0 },
-};
-
-static const struct qcom_llcc_config diwali_cfg = {
-	.sct_data       = diwali_data,
-	.size           = ARRAY_SIZE(diwali_data),
 };
 
 static const struct qcom_llcc_config sc7180_cfg = {
@@ -474,24 +440,19 @@ static const struct qcom_llcc_config sdmshrike_cfg = {
 	.size           = ARRAY_SIZE(sdmshrike_data),
 };
 
-static const struct qcom_llcc_config lahaina_cfg = {
-	.sct_data	= lahaina_data,
-	.size		= ARRAY_SIZE(lahaina_data),
+static const struct qcom_llcc_config sm8350_cfg = {
+	.sct_data	= sm8350_data,
+	.size		= ARRAY_SIZE(sm8350_data),
 };
 
-static const struct qcom_llcc_config shima_cfg = {
-	.sct_data	= shima_data,
-	.size		= ARRAY_SIZE(shima_data),
+static const struct qcom_llcc_config sm8450_cfg = {
+	.sct_data	= sm8450_data,
+	.size		= ARRAY_SIZE(sm8450_data),
 };
 
-static const struct qcom_llcc_config waipio_cfg = {
-	.sct_data	= waipio_data,
-	.size		= ARRAY_SIZE(waipio_data),
-};
-
-static const struct qcom_llcc_config kalama_cfg = {
-	.sct_data	= kalama_data,
-	.size		= ARRAY_SIZE(kalama_data),
+static const struct qcom_llcc_config sm8550_cfg = {
+	.sct_data	= sm8550_data,
+	.size		= ARRAY_SIZE(sm8550_data),
 };
 
 static const struct qcom_llcc_config pineapple_cfg = {
@@ -499,22 +460,22 @@ static const struct qcom_llcc_config pineapple_cfg = {
 	.size		= ARRAY_SIZE(pineapple_data),
 };
 
-static const struct qcom_llcc_config cinder_cfg[] = {
+static const struct qcom_llcc_config qdu1000_cfg[] = {
 	{
-		.sct_data	= cinder_data_8ch,
-		.size		= ARRAY_SIZE(cinder_data_8ch),
+		.sct_data	= qdu1000_data_8ch,
+		.size		= ARRAY_SIZE(qdu1000_data_8ch),
 	},
 	{
-		.sct_data	= cinder_data_4ch,
-		.size		= ARRAY_SIZE(cinder_data_4ch),
+		.sct_data	= qdu1000_data_4ch,
+		.size		= ARRAY_SIZE(qdu1000_data_4ch),
 	},
 	{
-		.sct_data	= cinder_data_2ch,
-		.size		= ARRAY_SIZE(cinder_data_2ch),
+		.sct_data	= qdu1000_data_2ch,
+		.size		= ARRAY_SIZE(qdu1000_data_2ch),
 	},
 	{
-		.sct_data	= cinder_data_4ch,
-		.size		= ARRAY_SIZE(cinder_data_4ch),
+		.sct_data	= qdu1000_data_4ch,
+		.size		= ARRAY_SIZE(qdu1000_data_4ch),
 	},
 };
 
@@ -1233,13 +1194,11 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,sm8150-llcc", .data = &sm8150_cfg },
 	{ .compatible = "qcom,sm6150-llcc", .data = &sm6150_cfg },
 	{ .compatible = "qcom,sdmshrike-llcc", .data = &sdmshrike_cfg },
-	{ .compatible = "qcom,lahaina-llcc", .data = &lahaina_cfg },
-	{ .compatible = "qcom,shima-llcc", .data = &shima_cfg },
-	{ .compatible = "qcom,waipio-llcc", .data = &waipio_cfg },
-	{ .compatible = "qcom,diwali-llcc", .data = &diwali_cfg },
-	{ .compatible = "qcom,kalama-llcc", .data = &kalama_cfg },
+	{ .compatible = "qcom,sm8350-llcc", .data = &sm8350_cfg },
+	{ .compatible = "qcom,sm8450-llcc", .data = &sm8450_cfg },
+	{ .compatible = "qcom,sm8550-llcc", .data = &sm8550_cfg },
 	{ .compatible = "qcom,pineapple-llcc", .data = &pineapple_cfg },
-	{ .compatible = "qcom,cinder-llcc", .data = &cinder_cfg },
+	{ .compatible = "qcom,qdu1000-llcc", .data = &qdu1000_cfg },
 	{ }
 };
 
