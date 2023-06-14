@@ -169,9 +169,12 @@ void text_poke_early(void *addr, const void *opcode, size_t len);
  */
 static bool insn_is_nop(struct insn *insn)
 {
-	if (insn->opcode.bytes[0] == 0x90)
+	/* Anything NOP, but no REP NOP */
+	if (insn->opcode.bytes[0] == 0x90 &&
+	    (!insn->prefixes.nbytes || insn->prefixes.bytes[0] != 0xF3))
 		return true;
 
+	/* NOPL */
 	if (insn->opcode.bytes[0] == 0x0F && insn->opcode.bytes[1] == 0x1F)
 		return true;
 
