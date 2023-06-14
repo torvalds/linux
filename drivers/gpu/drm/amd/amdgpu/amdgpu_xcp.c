@@ -132,6 +132,9 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 	for (i = 0; i < MAX_XCP; ++i)
 		xcp_mgr->xcp[i].valid = false;
 
+	/* This is needed for figuring out memory id of xcp */
+	xcp_mgr->num_xcp_per_mem_partition = num_xcps / xcp_mgr->adev->gmc.num_mem_partitions;
+
 	for (i = 0; i < num_xcps; ++i) {
 		for (j = AMDGPU_XCP_GFXHUB; j < AMDGPU_XCP_MAX_BLOCKS; ++j) {
 			ret = xcp_mgr->funcs->get_ip_details(xcp_mgr, i, j,
@@ -157,7 +160,6 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 	xcp_mgr->num_xcps = num_xcps;
 	amdgpu_xcp_update_partition_sched_list(adev);
 
-	xcp_mgr->num_xcp_per_mem_partition = num_xcps / xcp_mgr->adev->gmc.num_mem_partitions;
 	return 0;
 }
 
