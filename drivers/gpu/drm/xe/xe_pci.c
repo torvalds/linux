@@ -374,23 +374,27 @@ find_subplatform(const struct xe_device *xe, const struct xe_device_desc *desc)
 	return NULL;
 }
 
-static u32 peek_gmdid(struct xe_device *xe, u32 gmdid_offset)
+static void peek_gmdid(struct xe_device *xe, u32 gmdid_offset, u32 *ver, u32 *revid)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	void __iomem *map = pci_iomap_range(pdev, 0, gmdid_offset, sizeof(u32));
-	u32 ver;
+	u32 val;
 
 	if (!map) {
 		drm_err(&xe->drm, "Failed to read GMD_ID (%#x) from PCI BAR.\n",
 			gmdid_offset);
-		return 0;
+		*ver = 0;
+		*revid = 0;
+
+		return;
 	}
 
-	ver = ioread32(map);
+	val = ioread32(map);
 	pci_iounmap(pdev, map);
 
-	return REG_FIELD_GET(GMD_ID_ARCH_MASK, ver) * 100 +
-		REG_FIELD_GET(GMD_ID_RELEASE_MASK, ver);
+	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val) * 100 +
+		REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
+	*revid = REG_FIELD_GET(GMD_ID_REVID, val);
 }
 
 /*
@@ -426,8 +430,7 @@ static void handle_gmdid(struct xe_device *xe,
 {
 	u32 ver;
 
-	ver = peek_gmdid(xe, GMD_ID.addr);
-	*graphics_revid = REG_FIELD_GET(GMD_ID_REVID, ver);
+	peek_gmdid(xe, GMD_ID.addr, &ver, graphics_revid);
 	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
 		if (ver == graphics_ip_map[i].ver) {
 			xe->info.graphics_verx100 = ver;
@@ -442,8 +445,8 @@ static void handle_gmdid(struct xe_device *xe,
 			ver / 100, ver % 100);
 	}
 
-	ver = peek_gmdid(xe, GMD_ID.addr + 0x380000);
-	*media_revid = REG_FIELD_GET(GMD_ID_REVID, ver);
+	peek_gmdid(xe, GMD_ID.addr + 0x380000, &ver, media_revid);
+
 	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
 		if (ver == media_ip_map[i].ver) {
 			xe->info.media_verx100 = ver;
