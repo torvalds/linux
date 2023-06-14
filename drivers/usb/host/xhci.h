@@ -1966,6 +1966,11 @@ struct xhci_driver_overrides {
 	int (*address_device)(struct usb_hcd *hcd, struct usb_device *udev);
 	int (*bus_suspend)(struct usb_hcd *hcd);
 	int (*bus_resume)(struct usb_hcd *hcd);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 #define	XHCI_CFC_DELAY		10
