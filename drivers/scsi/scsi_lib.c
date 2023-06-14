@@ -2890,20 +2890,26 @@ target_block(struct device *dev, void *data)
 	return 0;
 }
 
+/**
+ * scsi_block_targets - transition all SCSI child devices to SDEV_BLOCK state
+ * @dev: a parent device of one or more scsi_target devices
+ * @shost: the Scsi_Host to which this device belongs
+ *
+ * Iterate over all children of @dev, which should be scsi_target devices,
+ * and switch all subordinate scsi devices to SDEV_BLOCK state. Wait for
+ * ongoing scsi_queue_rq() calls to finish. May sleep.
+ *
+ * Note:
+ * @dev must not itself be a scsi_target device.
+ */
 void
-scsi_target_block(struct device *dev)
+scsi_block_targets(struct Scsi_Host *shost, struct device *dev)
 {
-	struct Scsi_Host *shost = dev_to_shost(dev);
-
-	if (scsi_is_target_device(dev))
-		starget_for_each_device(to_scsi_target(dev), NULL,
-					scsi_device_block);
-	else
-		device_for_each_child(dev, NULL, target_block);
-
+	WARN_ON_ONCE(scsi_is_target_device(dev));
+	device_for_each_child(dev, NULL, target_block);
 	blk_mq_wait_quiesce_done(&shost->tag_set);
 }
-EXPORT_SYMBOL_GPL(scsi_target_block);
+EXPORT_SYMBOL_GPL(scsi_block_targets);
 
 static void
 device_unblock(struct scsi_device *sdev, void *data)
