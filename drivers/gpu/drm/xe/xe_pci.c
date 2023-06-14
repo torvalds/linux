@@ -627,9 +627,19 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	xe_pm_assert_unbounded_bridge(xe);
 	subplatform_desc = find_subplatform(xe, desc);
 
-	err = xe_info_init(xe, desc, subplatform_desc);
+	pci_set_drvdata(pdev, xe);
+	err = pci_enable_device(pdev);
 	if (err)
 		goto err_drm_put;
+
+	pci_set_master(pdev);
+
+	if (pci_enable_msi(pdev) < 0)
+		drm_dbg(&xe->drm, "can't enable MSI");
+
+	err = xe_info_init(xe, desc, subplatform_desc);
+	if (err)
+		goto err_pci_disable;
 
 	drm_dbg(&xe->drm, "%s %s %04x:%04x dgfx:%d gfx:%s (%d.%02d) media:%s (%d.%02d) dma_m_s:%d tc:%d",
 		desc->platform_name,
@@ -649,16 +659,6 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		xe_step_name(xe->info.step.media),
 		xe_step_name(xe->info.step.display),
 		xe_step_name(xe->info.step.basedie));
-
-	pci_set_drvdata(pdev, xe);
-	err = pci_enable_device(pdev);
-	if (err)
-		goto err_drm_put;
-
-	pci_set_master(pdev);
-
-	if (pci_enable_msi(pdev) < 0)
-		drm_dbg(&xe->drm, "can't enable MSI");
 
 	err = xe_device_probe(xe);
 	if (err)
