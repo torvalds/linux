@@ -55,6 +55,7 @@ do_kasan=yes
 do_kcsan=no
 do_clocksourcewd=yes
 do_rt=yes
+do_rcutasksflavors=yes
 
 # doyesno - Helper function for yes/no arguments
 function doyesno () {
@@ -81,6 +82,7 @@ usage () {
 	echo "       --do-locktorture / --do-no-locktorture / --no-locktorture"
 	echo "       --do-none"
 	echo "       --do-rcuscale / --do-no-rcuscale / --no-rcuscale"
+	echo "       --do-rcutasksflavors / --do-no-rcutasksflavors / --no-rcutasksflavors"
 	echo "       --do-rcutorture / --do-no-rcutorture / --no-rcutorture"
 	echo "       --do-refscale / --do-no-refscale / --no-refscale"
 	echo "       --do-rt / --do-no-rt / --no-rt"
@@ -115,6 +117,7 @@ do
 		;;
 	--do-all|--doall)
 		do_allmodconfig=yes
+		do_rcutasksflavor=yes
 		do_rcutorture=yes
 		do_locktorture=yes
 		do_scftorture=yes
@@ -146,6 +149,7 @@ do
 		;;
 	--do-none|--donone)
 		do_allmodconfig=no
+		do_rcutasksflavors=no
 		do_rcutorture=no
 		do_locktorture=no
 		do_scftorture=no
@@ -159,6 +163,9 @@ do
 		;;
 	--do-rcuscale|--do-no-rcuscale|--no-rcuscale)
 		do_rcuscale=`doyesno "$1" --do-rcuscale`
+		;;
+	--do-rcutasksflavors|--do-no-rcutasksflavors|--no-rcutasksflavors)
+		do_rcutasksflavors=`doyesno "$1" --do-rcutasksflavors`
 		;;
 	--do-rcutorture|--do-no-rcutorture|--no-rcutorture)
 		do_rcutorture=`doyesno "$1" --do-rcutorture`
@@ -358,6 +365,40 @@ then
 		echo "allmodconfig($retcode)" $amcdir >> $T/failures
 		echo " --- allmodconfig Test summary:" >> $amcdir/log
 		echo " --- Summary: Exit code $retcode from $buildphase, see Make.out" >> $amcdir/log
+	fi
+fi
+
+# Test building RCU Tasks flavors in isolation, both SMP and !SMP
+if test "$do_rcutasksflavors" = "yes"
+then
+	echo " --- rcutasksflavors:" Start `date` | tee -a $T/log
+	rtfdir="tools/testing/selftests/rcutorture/res/$ds/results-rcutasksflavors"
+	mkdir -p "$rtfdir"
+	cat > $T/rcutasksflavors << __EOF__
+#CHECK#CONFIG_TASKS_RCU=n
+#CHECK#CONFIG_TASKS_RUDE_RCU=n
+#CHECK#CONFIG_TASKS_TRACE_RCU=n
+__EOF__
+	for flavor in CONFIG_TASKS_RCU CONFIG_TASKS_RUDE_RCU CONFIG_TASKS_TRACE_RCU
+	do
+		forceflavor="`echo $flavor | sed -e 's/^CONFIG/CONFIG_FORCE/'`"
+		deselectedflavors="`grep -v $flavor $T/rcutasksflavors | tr '\012' ' ' | tr -s ' ' | sed -e 's/ *$//'`"
+		echo " --- Running RCU Tasks Trace flavor $flavor `date`" >> $rtfdir/log
+		tools/testing/selftests/rcutorture/bin/kvm.sh --datestamp "$ds/results-rcutasksflavors/$flavor" --buildonly --configs "TINY01 TREE04" --kconfig "CONFIG_RCU_EXPERT=y CONFIG_RCU_SCALE_TEST=y $forceflavor=y $deselectedflavors" --trust-make > $T/$flavor.out 2>&1
+		retcode=$?
+		if test "$retcode" -ne 0
+		then
+			break
+		fi
+	done
+	if test "$retcode" -eq 0
+	then
+		echo "rcutasksflavors($retcode)" $rtfdir >> $T/successes
+		echo Success >> $rtfdir/log
+	else
+		echo "rcutasksflavors($retcode)" $rtfdir >> $T/failures
+		echo " --- rcutasksflavors Test summary:" >> $rtfdir/log
+		echo " --- Summary: Exit code $retcode from $flavor, see Make.out" >> $rtfdir/log
 	fi
 fi
 
