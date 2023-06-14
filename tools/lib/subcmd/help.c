@@ -16,6 +16,8 @@
 void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {
 	struct cmdname *ent = malloc(sizeof(*ent) + len + 1);
+	if (!ent)
+		return;
 
 	ent->len = len;
 	memcpy(ent->name, name, len);
