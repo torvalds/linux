@@ -589,12 +589,12 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	profile->label.flags |= FLAG_NULL;
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
 	rules->file.dfa = aa_get_dfa(nulldfa);
-	rules->file.perms = kcalloc(2, sizeof(struct aa_perms), GFP_KERNEL);
+	rules->file.perms = kcalloc(2, sizeof(struct aa_perms), gfp);
 	if (!rules->file.perms)
 		goto fail;
 	rules->file.size = 2;
 	rules->policy.dfa = aa_get_dfa(nulldfa);
-	rules->policy.perms = kcalloc(2, sizeof(struct aa_perms), GFP_KERNEL);
+	rules->policy.perms = kcalloc(2, sizeof(struct aa_perms), gfp);
 	if (!rules->policy.perms)
 		goto fail;
 	rules->policy.size = 2;
