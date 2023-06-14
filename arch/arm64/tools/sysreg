@@ -2319,3 +2319,16 @@ Sysreg	TRBTRG_EL1	3	0	9	11	6
 Res0	63:32
 Field	31:0	TRG
 EndSysreg
+
+Sysreg	TRBIDR_EL1	3	0	9	11	7
+Res0	63:12
+Enum	11:8	EA
+	0b0000	NON_DESC
+	0b0001	IGNORE
+	0b0010	SERROR
+EndEnum
+Res0	7:6
+Field	5	F
+Field	4	P
+Field	3:0	Align
+EndSysreg
