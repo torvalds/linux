@@ -54,6 +54,8 @@ struct ocmem {
 	const struct ocmem_config *config;
 	struct resource *memory;
 	void __iomem *mmio;
+	struct clk *core_clk;
+	struct clk *iface_clk;
 	unsigned int num_ports;
 	unsigned int num_macros;
 	bool interleaved;
@@ -94,16 +96,6 @@ struct ocmem {
 #define OCMEM_PSGSC_CTL_MACRO1_MODE(val)	FIELD_PREP(0x00000070, (val))
 #define OCMEM_PSGSC_CTL_MACRO2_MODE(val)	FIELD_PREP(0x00000700, (val))
 #define OCMEM_PSGSC_CTL_MACRO3_MODE(val)	FIELD_PREP(0x00007000, (val))
-
-#define OCMEM_CLK_CORE_IDX			0
-static struct clk_bulk_data ocmem_clks[] = {
-	{
-		.id = "core",
-	},
-	{
-		.id = "iface",
-	},
-};
 
 static inline void ocmem_write(struct ocmem *ocmem, u32 reg, u32 data)
 {
@@ -320,9 +312,15 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	ocmem->dev = dev;
 	ocmem->config = device_get_match_data(dev);
 
-	ret = devm_clk_bulk_get(dev, ARRAY_SIZE(ocmem_clks), ocmem_clks);
-	if (ret)
-		return dev_err_probe(dev, ret, "Unable to get clocks\n");
+	ocmem->core_clk = devm_clk_get(dev, "core");
+	if (IS_ERR(ocmem->core_clk))
+		return dev_err_probe(dev, PTR_ERR(ocmem->core_clk),
+				     "Unable to get core clock\n");
+
+	ocmem->iface_clk = devm_clk_get_optional(dev, "iface");
+	if (IS_ERR(ocmem->iface_clk))
+		return dev_err_probe(dev, PTR_ERR(ocmem->iface_clk),
+				     "Unable to get iface clock\n");
 
 	ocmem->mmio = devm_platform_ioremap_resource_byname(pdev, "ctrl");
 	if (IS_ERR(ocmem->mmio))
@@ -337,11 +335,15 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	}
 
 	/* The core clock is synchronous with graphics */
-	WARN_ON(clk_set_rate(ocmem_clks[OCMEM_CLK_CORE_IDX].clk, 1000) < 0);
+	WARN_ON(clk_set_rate(ocmem->core_clk, 1000) < 0);
 
-	ret = clk_bulk_prepare_enable(ARRAY_SIZE(ocmem_clks), ocmem_clks);
+	ret = clk_prepare_enable(ocmem->core_clk);
 	if (ret)
-		return dev_err_probe(ocmem->dev, ret, "Failed to enable clocks\n");
+		return dev_err_probe(ocmem->dev, ret, "Failed to enable core clock\n");
+
+	ret = clk_prepare_enable(ocmem->iface_clk);
+	if (ret)
+		return dev_err_probe(ocmem->dev, ret, "Failed to enable iface clock\n");
 
 	if (qcom_scm_restore_sec_cfg_available()) {
 		dev_dbg(dev, "configuring scm\n");
@@ -406,13 +408,17 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk_disable:
-	clk_bulk_disable_unprepare(ARRAY_SIZE(ocmem_clks), ocmem_clks);
+	clk_disable_unprepare(ocmem->core_clk);
+	clk_disable_unprepare(ocmem->iface_clk);
 	return ret;
 }
 
 static int ocmem_dev_remove(struct platform_device *pdev)
 {
-	clk_bulk_disable_unprepare(ARRAY_SIZE(ocmem_clks), ocmem_clks);
+	struct ocmem *ocmem = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(ocmem->core_clk);
+	clk_disable_unprepare(ocmem->iface_clk);
 
 	return 0;
 }
