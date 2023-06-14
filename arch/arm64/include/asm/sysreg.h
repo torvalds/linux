@@ -227,13 +227,10 @@
 
 /*** End of Statistical Profiling Extension ***/
 
-#define SYS_TRBTRG_EL1			sys_reg(3, 0, 9, 11, 6)
 #define SYS_TRBIDR_EL1			sys_reg(3, 0, 9, 11, 7)
 
 #define TRBSR_EL1_BSC_MASK		GENMASK(5, 0)
 #define TRBSR_EL1_BSC_SHIFT		0
-#define TRBTRG_EL1_TRG_MASK		GENMASK(31, 0)
-#define TRBTRG_EL1_TRG_SHIFT		0
 #define TRBIDR_EL1_F			BIT(5)
 #define TRBIDR_EL1_P			BIT(4)
 #define TRBIDR_EL1_Align_MASK		GENMASK(3, 0)

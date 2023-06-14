@@ -2314,3 +2314,8 @@ Enum	9:8	SH
 EndEnum
 Field	7:0	Attr
 EndSysreg
+
+Sysreg	TRBTRG_EL1	3	0	9	11	6
+Res0	63:32
+Field	31:0	TRG
+EndSysreg
