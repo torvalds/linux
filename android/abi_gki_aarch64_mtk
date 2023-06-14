@@ -2813,6 +2813,9 @@
   ufshcd_init_pwr_dev_param
   ufshcd_link_recovery
   ufshcd_make_hba_operational
+  ufshcd_mcq_config_mac
+  ufshcd_mcq_make_queues_operational
+  ufshcd_mcq_read_cqis
   ufshcd_pltfrm_init
   ufshcd_query_attr
   ufshcd_query_descriptor_retry
