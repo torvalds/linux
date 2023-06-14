@@ -1790,17 +1790,6 @@ static int fuse_dir_open(struct inode *inode, struct file *file)
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
 {
-#ifdef CONFIG_FUSE_BPF
-	struct fuse_err_ret fer;
-
-	fer = fuse_bpf_backing(inode, struct fuse_release_in,
-		       fuse_releasedir_initialize, fuse_release_backing,
-		       fuse_release_finalize,
-		       inode, file);
-	if (fer.ret)
-		return PTR_ERR(fer.result);
-#endif
-
 	fuse_release_common(file, true);
 	return 0;
 }
