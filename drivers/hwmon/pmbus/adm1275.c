@@ -27,7 +27,10 @@ enum chips { adm1075, adm1272, adm1275, adm1276, adm1278, adm1293, adm1294 };
 #define ADM1275_PEAK_IOUT		0xd0
 #define ADM1275_PEAK_VIN		0xd1
 #define ADM1275_PEAK_VOUT		0xd2
+#define ADM1275_PMON_CONTROL		0xd3
 #define ADM1275_PMON_CONFIG		0xd4
+
+#define ADM1275_CONVERT_EN		BIT(0)
 
 #define ADM1275_VIN_VOUT_SELECT		BIT(6)
 #define ADM1275_VRANGE			BIT(5)
@@ -202,7 +205,11 @@ static int adm1275_read_samples(const struct adm1275_data *data,
 static int adm1275_write_pmon_config(const struct adm1275_data *data,
 				     struct i2c_client *client, u16 word)
 {
-	int ret;
+	int ret, ret2;
+
+	ret = i2c_smbus_write_byte_data(client, ADM1275_PMON_CONTROL, 0);
+	if (ret)
+		return ret;
 
 	if (data->have_power_sampling)
 		ret = i2c_smbus_write_word_data(client, ADM1275_PMON_CONFIG,
@@ -210,6 +217,15 @@ static int adm1275_write_pmon_config(const struct adm1275_data *data,
 	else
 		ret = i2c_smbus_write_byte_data(client, ADM1275_PMON_CONFIG,
 						word);
+
+	/*
+	 * We still want to re-enable conversions if writing into
+	 * ADM1275_PMON_CONFIG failed.
+	 */
+	ret2 = i2c_smbus_write_byte_data(client, ADM1275_PMON_CONTROL,
+					 ADM1275_CONVERT_EN);
+	if (!ret)
+		ret = ret2;
 
 	return ret;
 }
