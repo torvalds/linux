@@ -27,7 +27,7 @@
 
 #include "internal.h"
 
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 #include <linux/fscrypt.h>
 #endif
 
@@ -291,7 +291,7 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	struct address_space *mapping = ractl->mapping;
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages, index;
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	bool force_lookahead = false;
 #endif
 
@@ -305,7 +305,7 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	 */
 	index = readahead_index(ractl);
 	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	/* For files with fscrypt enabled, to allow IO and the encryption
 	 * or decryption process to ping-pong, lookahead is forcibly enabled.
 	 */
@@ -319,7 +319,7 @@ void force_page_cache_ra(struct readahead_control *ractl,
 		if (this_chunk > nr_to_read)
 			this_chunk = nr_to_read;
 		ractl->_index = index;
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 		if (force_lookahead)
 			do_page_cache_ra(ractl, this_chunk, this_chunk / 2);
 		else
