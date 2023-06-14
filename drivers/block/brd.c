@@ -111,7 +111,7 @@ static void brd_free_pages(struct brd_device *brd)
 
 	xa_for_each(&brd->brd_pages, idx, page) {
 		__free_page(page);
-		cond_resched_rcu();
+		cond_resched();
 	}
 
 	xa_destroy(&brd->brd_pages);
