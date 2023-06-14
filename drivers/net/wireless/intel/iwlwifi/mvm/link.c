@@ -183,7 +183,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 					&cmd.protection_flags,
 					ht_flag, LINK_PROT_FLG_TGG_PROTECT);
 
-	iwl_mvm_set_fw_qos_params(mvm, vif, link_conf, &cmd.ac[0],
+	iwl_mvm_set_fw_qos_params(mvm, vif, link_conf, cmd.ac,
 				  &cmd.qos_flags);
 
 
