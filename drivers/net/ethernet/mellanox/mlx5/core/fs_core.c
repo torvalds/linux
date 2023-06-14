@@ -3621,7 +3621,7 @@ void mlx5_destroy_match_definer(struct mlx5_core_dev *dev,
 
 int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_root_namespace *peer_ns,
-				 u8 peer_idx)
+				 u16 peer_vhca_id)
 {
 	if (peer_ns && ns->mode != peer_ns->mode) {
 		mlx5_core_err(ns->dev,
@@ -3629,7 +3629,7 @@ int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
 		return -EINVAL;
 	}
 
-	return ns->cmds->set_peer(ns, peer_ns, peer_idx);
+	return ns->cmds->set_peer(ns, peer_ns, peer_vhca_id);
 }
 
 /* This function should be called only at init stage of the namespace.
