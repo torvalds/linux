@@ -71,6 +71,7 @@ struct sk_psock_link {
 };
 
 struct sk_psock_work_state {
+	struct sk_buff			*skb;
 	u32				len;
 	u32				off;
 };
