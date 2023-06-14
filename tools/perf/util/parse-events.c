@@ -1478,7 +1478,7 @@ static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 	if (extended_type && (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE)) {
 		assert(perf_pmus__supports_extended_type());
 		attr.config |= (u64)extended_type << PERF_PMU_TYPE_SHIFT;
-	};
+	}
 
 	if (head_config) {
 		if (config_attr(&attr, head_config, parse_state->error,
