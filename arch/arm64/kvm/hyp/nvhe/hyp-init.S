@@ -83,9 +83,6 @@ SYM_CODE_END(__kvm_hyp_init)
  * x0: struct kvm_nvhe_init_params PA
  */
 SYM_CODE_START_LOCAL(___kvm_hyp_init)
-	ldr	x1, [x0, #NVHE_INIT_TPIDR_EL2]
-	msr	tpidr_el2, x1
-
 	ldr	x1, [x0, #NVHE_INIT_STACK_HYP_VA]
 	mov	sp, x1
 
@@ -99,11 +96,18 @@ SYM_CODE_START_LOCAL(___kvm_hyp_init)
 	and	x2, x1, x2
 	cbz	x2, 1f
 
-	mrs	x1, cnthctl_el2
-	and	x1, x1, #~(BIT(0) | BIT(1))
-	orr	x1, x1, #(BIT(10) | BIT(11))
-	msr	cnthctl_el2, x1
+	// hVHE: Replay the EL2 setup to account for the E2H bit
+	// TPIDR_EL2 is used to preserve x0 across the macro maze...
+	isb
+	msr	tpidr_el2, x0
+	init_el2_state
+	finalise_el2_state
+	mrs	x0, tpidr_el2
+
 1:
+	ldr	x1, [x0, #NVHE_INIT_TPIDR_EL2]
+	msr	tpidr_el2, x1
+
 	ldr	x1, [x0, #NVHE_INIT_VTTBR]
 	msr	vttbr_el2, x1
 
@@ -193,6 +197,7 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	/* Initialize EL2 CPU state to sane values. */
 	init_el2_state				// Clobbers x0..x2
 	finalise_el2_state
+	__init_el2_nvhe_prepare_eret
 
 	/* Enable MMU, set vectors and stack. */
 	mov	x0, x28

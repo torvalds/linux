@@ -205,7 +205,6 @@
 	__init_el2_nvhe_idregs
 	__init_el2_cptr
 	__init_el2_fgt
-	__init_el2_nvhe_prepare_eret
 .endm
 
 #ifndef __KVM_NVHE_HYPERVISOR__
