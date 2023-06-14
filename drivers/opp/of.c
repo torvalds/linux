@@ -945,9 +945,6 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (ret)
 		goto free_required_opps;
 
-	if (opp_table->is_genpd)
-		new_opp->pstate = pm_genpd_opp_to_performance_state(dev, new_opp);
-
 	ret = _opp_add(dev, new_opp, opp_table);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
@@ -1400,7 +1397,7 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 
 	opp = _find_opp_of_np(opp_table, required_np);
 	if (opp) {
-		pstate = opp->pstate;
+		pstate = opp->level;
 		dev_pm_opp_put(opp);
 	}
 

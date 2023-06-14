@@ -245,7 +245,7 @@ unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
 		return 0;
 	}
 
-	return opp->required_opps[index]->pstate;
+	return opp->required_opps[index]->level;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_required_pstate);
 
@@ -943,7 +943,7 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 static int _set_performance_state(struct device *dev, struct device *pd_dev,
 				  struct dev_pm_opp *opp, int i)
 {
-	unsigned int pstate = likely(opp) ? opp->required_opps[i]->pstate : 0;
+	unsigned int pstate = likely(opp) ? opp->required_opps[i]->level: 0;
 	int ret;
 
 	if (!pd_dev)
@@ -2728,8 +2728,8 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	mutex_lock(&src_table->lock);
 
 	list_for_each_entry(opp, &src_table->opp_list, node) {
-		if (opp->pstate == pstate) {
-			dest_pstate = opp->required_opps[i]->pstate;
+		if (opp->level == pstate) {
+			dest_pstate = opp->required_opps[i]->level;
 			goto unlock;
 		}
 	}

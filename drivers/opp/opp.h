@@ -78,7 +78,6 @@ struct opp_config_data {
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @removed:	flag indicating that OPP's reference is dropped by OPP core.
- * @pstate: Device's power domain's performance state.
  * @rates:	Frequencies in hertz
  * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
@@ -101,7 +100,6 @@ struct dev_pm_opp {
 	bool turbo;
 	bool suspend;
 	bool removed;
-	unsigned int pstate;
 	unsigned long *rates;
 	unsigned int level;
 
