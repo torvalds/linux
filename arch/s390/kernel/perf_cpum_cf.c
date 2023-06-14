@@ -1213,7 +1213,7 @@ static int cfset_release(struct inode *inode, struct file *file)
 
 static int cfset_open(struct inode *inode, struct file *file)
 {
-	if (!capable(CAP_SYS_ADMIN))
+	if (!perfmon_capable())
 		return -EPERM;
 	mutex_lock(&cfset_ctrset_mutex);
 	if (atomic_inc_return(&cfset_opencnt) == 1)
@@ -1502,6 +1502,7 @@ static struct miscdevice cfset_dev = {
 	.name	= S390_HWCTR_DEVICE,
 	.minor	= MISC_DYNAMIC_MINOR,
 	.fops	= &cfset_fops,
+	.mode	= 0666,
 };
 
 /* Hotplug add of a CPU. Scan through all active processes and add
