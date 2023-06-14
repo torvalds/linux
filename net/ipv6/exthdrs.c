@@ -517,11 +517,7 @@ looped_back:
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
-
-			if (!pskb_pull(skb, offset)) {
-				kfree_skb(skb);
-				return -1;
-			}
+			skb_pull(skb, offset);
 			skb_postpull_rcsum(skb, skb_transport_header(skb),
 					   offset);
 
@@ -543,11 +539,6 @@ looped_back:
 		return 1;
 	}
 
-	if (!pskb_may_pull(skb, sizeof(*hdr))) {
-		kfree_skb(skb);
-		return -1;
-	}
-
 	n = (hdr->hdrlen << 3) - hdr->pad - (16 - hdr->cmpre);
 	r = do_div(n, (16 - hdr->cmpri));
 	/* checks if calculation was without remainder and n fits into
@@ -564,12 +555,6 @@ looped_back:
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 				  ((&hdr->segments_left) -
 				   skb_network_header(skb)));
-		return -1;
-	}
-
-	if (!pskb_may_pull(skb, ipv6_rpl_srh_size(n, hdr->cmpri,
-						  hdr->cmpre))) {
-		kfree_skb(skb);
 		return -1;
 	}
 
