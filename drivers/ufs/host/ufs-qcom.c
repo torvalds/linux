@@ -193,7 +193,7 @@ static int ufs_qcom_ber_threshold_set(const char *val, const struct kernel_param
 	int ret;
 
 	ret = kstrtou32(val, 0, &n);
-	if (ret != 0 || n > UFS_QCOM_EVT_LEN)
+	if (ret != 0 || n > (UFS_QCOM_EVT_LEN - 1))
 		return -EINVAL;
 	if (n)
 		override_ber_threshold = true;
@@ -3887,7 +3887,7 @@ static bool ufs_qcom_cal_ber(struct ufs_qcom_host *host, struct ufs_qcom_ber_his
 	int idx_start, idx_end, i;
 	s64 total_run_time = 0;
 	s64 total_full_time = 0;
-	u32 gear = h->gear[h->pos-1];
+	u32 gear = h->gear[(h->pos + UFS_QCOM_EVT_LEN - 1) % UFS_QCOM_EVT_LEN];
 
 	if (!override_ber_threshold)
 		ber_threshold = ber_table[gear].ber_threshold;
@@ -4016,7 +4016,7 @@ static void ufs_qcom_event_notify(struct ufs_hba *hba,
 		}
 
 		if (host->ber_th_exceeded)
-			dev_err(hba->dev, "Warning: BER exceed threshold !!!\n");
+			dev_warn_ratelimited(hba->dev, "Warning: UFS BER exceeds threshold !!!\n");
 
 		break;
 	default:
