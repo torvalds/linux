@@ -67,6 +67,7 @@ properties:
     items:
       - enum:
           - sainsmart18
+          - shineworld,lh133k
       - const: panel-mipi-dbi-spi
 
   write-only:
