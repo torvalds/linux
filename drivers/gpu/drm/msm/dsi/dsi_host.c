@@ -705,18 +705,18 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 	}
 }
 
-static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
+static void dsi_ctrl_disable(struct msm_dsi_host *msm_host)
+{
+	dsi_write(msm_host, REG_DSI_CTRL, 0);
+}
+
+static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 			struct msm_dsi_phy_shared_timings *phy_shared_timings, struct msm_dsi_phy *phy)
 {
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	u32 data = 0, lane_ctrl = 0;
-
-	if (!enable) {
-		dsi_write(msm_host, REG_DSI_CTRL, 0);
-		return;
-	}
 
 	if (flags & MIPI_DSI_MODE_VIDEO) {
 		if (flags & MIPI_DSI_MODE_VIDEO_HSE)
@@ -802,7 +802,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)) {
 		lane_ctrl = dsi_read(msm_host, REG_DSI_LANE_CTRL);
 
-		if (msm_dsi_phy_set_continuous_clock(phy, enable))
+		if (msm_dsi_phy_set_continuous_clock(phy, true))
 			lane_ctrl &= ~DSI_LANE_CTRL_HS_REQ_SEL_PHY;
 
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
@@ -2358,7 +2358,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 
 	dsi_timing_setup(msm_host, is_bonded_dsi);
 	dsi_sw_reset(msm_host);
-	dsi_ctrl_config(msm_host, true, phy_shared_timings, phy);
+	dsi_ctrl_enable(msm_host, phy_shared_timings, phy);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 1);
@@ -2390,7 +2390,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 		goto unlock_ret;
 	}
 
-	dsi_ctrl_config(msm_host, false, NULL, NULL);
+	dsi_ctrl_disable(msm_host);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 0);
