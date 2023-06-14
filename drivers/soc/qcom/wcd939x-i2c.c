@@ -547,7 +547,8 @@ static int wcd_usbss_usbc_analog_setup_switches(struct wcd_usbss_ctxt *priv)
 		 */
 		if (priv->cable_status & (BIT(WCD_USBSS_AATC) |
 					  BIT(WCD_USBSS_GND_MIC_SWAP_AATC) |
-					  BIT(WCD_USBSS_HSJ_CONNECT)))
+					  BIT(WCD_USBSS_HSJ_CONNECT) |
+					  BIT(WCD_USBSS_GND_MIC_SWAP_HSJ)))
 			cable_status_cache = true;
 		/* notify call chain on event */
 		blocking_notifier_call_chain(&priv->wcd_usbss_notifier,
@@ -614,6 +615,7 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	regmap_update_bits(priv->regmap, WCD_USBSS_EQUALIZER1,
 			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
 	regmap_update_bits(priv->regmap, WCD_USBSS_USB_SS_CNTL, 0x07, 0x05); /* Mode5: USB*/
+	regmap_write(priv->regmap, WCD_USBSS_PMP_EN, 0x0);
 	if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
 		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_OUT1,
 				0x40, 0x00);
@@ -751,13 +753,18 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 
 	if (!(wcd_usbss_ctxt_->cable_status & (BIT(WCD_USBSS_AATC) |
 					       BIT(WCD_USBSS_GND_MIC_SWAP_AATC) |
-					       BIT(WCD_USBSS_HSJ_CONNECT))))
+					       BIT(WCD_USBSS_HSJ_CONNECT) |
+					       BIT(WCD_USBSS_GND_MIC_SWAP_HSJ))))
 		return 0;
 
 	switch (config_type) {
 	case WCD_USBSS_CONFIG_TYPE_POWER_MODE:
 		regmap_update_bits(wcd_usbss_ctxt_->regmap,
 			WCD_USBSS_USB_SS_CNTL, 0x07, power_mode);
+		if (power_mode == 0x1) /* MBHC Mode */
+			regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_EN, 0xF);
+		else
+			regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_EN, 0x0);
 		break;
 	default:
 		pr_err("%s Invalid config type %d\n", __func__, config_type);
@@ -849,6 +856,7 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
+			regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_EN, 0xF);
 			if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
 				regmap_update_bits(wcd_usbss_ctxt_->regmap,
 						WCD_USBSS_PMP_OUT1, 0x40, 0x40);
@@ -902,6 +910,7 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
+			regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_EN, 0xF);
 			if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
 				regmap_update_bits(wcd_usbss_ctxt_->regmap,
 						WCD_USBSS_PMP_OUT1, 0x40, 0x40);
@@ -935,6 +944,7 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
+			regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_EN, 0xF);
 			if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
 				regmap_update_bits(wcd_usbss_ctxt_->regmap,
 						WCD_USBSS_PMP_OUT1, 0x40, 0x40);
