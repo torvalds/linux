@@ -1116,6 +1116,11 @@ static inline bool is_zone_movable_page(const struct page *page)
 {
 	return page_zonenum(page) == ZONE_MOVABLE;
 }
+
+static inline bool folio_is_zone_movable(const struct folio *folio)
+{
+	return folio_zonenum(folio) == ZONE_MOVABLE;
+}
 #endif
 
 /*
