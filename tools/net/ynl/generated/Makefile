@@ -2,10 +2,12 @@
 
 CC=gcc
 CFLAGS=-std=gnu11 -O2 -W -Wall -Wextra -Wno-unused-parameter -Wshadow \
-	-I../lib/
+	-I../lib/ -idirafter $(UAPI_PATH)
 ifeq ("$(DEBUG)","1")
   CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
 endif
+
+include ../Makefile.deps
 
 YNL_GEN_ARG_ethtool:=--user-header linux/ethtool_netlink.h \
 	--exclude-op stats-get
@@ -33,7 +35,7 @@ protos.a: $(OBJS)
 
 %-user.o: %-user.c %-user.h
 	@echo -e "\tCC $@"
-	@$(COMPILE.c) -c -o $@ $<
+	@$(COMPILE.c) $(CFLAGS_$*) -o $@ $<
 
 clean:
 	rm -f *.o

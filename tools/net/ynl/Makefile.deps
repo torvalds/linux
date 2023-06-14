@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Try to include uAPI headers from the kernel uapi/ path.
+# Most code under tools/ requires the respective kernel uAPI headers
+# to be copied to tools/include. The duplication is annoying.
+# All the family headers should be self-contained. We avoid the copying
+# by selectively including just the uAPI header of the family directly
+# from the kernel sources.
+
+UAPI_PATH:=../../../../include/uapi/
+
+# If the header does not exist at all in the system path - let the
+# compiler fall back to the kernel header via -Idirafter.
+# GCC seems to ignore header guard if the header is different, so we need
+# to specify the -D$(hdr_guard).
+# And we need to define HASH indirectly because GNU Make 4.2 wants it escaped
+# and Gnu Make 4.4 wants it without escaping.
+
+HASH := \#
+
+get_hdr_inc=$(if $(shell echo "$(HASH)include <linux/$(2)>" | \
+			 cpp >>/dev/null 2>/dev/null && echo yes),\
+		-D$(1) -include $(UAPI_PATH)/linux/$(2))
+
+CFLAGS_devlink:=$(call get_hdr_inc,_UAPI_LINUX_DEVLINK_H_,devlink.h)
+CFLAGS_ethtool:=$(call get_hdr_inc,_LINUX_ETHTOOL_NETLINK_H_,ethtool_netlink.h)
+CFLAGS_handshake:=$(call get_hdr_inc,_UAPI_LINUX_HANDSHAKE_H,handshake.h)
+CFLAGS_netdev:=$(call get_hdr_inc,_UAPI_LINUX_NETDEV_H,netdev.h)
