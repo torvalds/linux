@@ -19,7 +19,6 @@ static inline void imx_register_uart_clocks(void)
 }
 #endif
 void imx_mmdc_mask_handshake(void __iomem *ccm_base, unsigned int chn);
-void imx_unregister_clocks(struct clk *clks[], unsigned int count);
 void imx_unregister_hw_clocks(struct clk_hw *hws[], unsigned int count);
 
 extern void imx_cscmr1_fixup(u32 *val);
