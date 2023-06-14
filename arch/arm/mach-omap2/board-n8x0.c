@@ -158,7 +158,7 @@ static struct gpiod_lookup_table nokia810_mmc_gpio_table = {
 				"vsd", 1, GPIO_ACTIVE_HIGH),
 		/* Slot index 1, VIO power, GPIO 9 */
 		GPIO_LOOKUP_IDX("gpio-0-15", 9,
-				"vsd", 1, GPIO_ACTIVE_HIGH),
+				"vio", 1, GPIO_ACTIVE_HIGH),
 		{ }
 	},
 };
