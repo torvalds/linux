@@ -25,6 +25,12 @@
 	pll-supply = <&pm8916_l7>;
 };
 
+&pm8916_codec {
+	vdd-cdc-io-supply = <&pm8916_l5>;
+	vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
+	vdd-micbias-supply = <&pm8916_l13>;
+};
+
 &rpm_requests {
 	smd_rpm_regulators: regulators {
 		compatible = "qcom,rpm-pm8916-regulators";
