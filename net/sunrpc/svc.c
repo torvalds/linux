@@ -109,15 +109,15 @@ param_get_pool_mode(char *buf, const struct kernel_param *kp)
 	switch (*ip)
 	{
 	case SVC_POOL_AUTO:
-		return strlcpy(buf, "auto\n", 20);
+		return sysfs_emit(buf, "auto\n");
 	case SVC_POOL_GLOBAL:
-		return strlcpy(buf, "global\n", 20);
+		return sysfs_emit(buf, "global\n");
 	case SVC_POOL_PERCPU:
-		return strlcpy(buf, "percpu\n", 20);
+		return sysfs_emit(buf, "percpu\n");
 	case SVC_POOL_PERNODE:
-		return strlcpy(buf, "pernode\n", 20);
+		return sysfs_emit(buf, "pernode\n");
 	default:
-		return sprintf(buf, "%d\n", *ip);
+		return sysfs_emit(buf, "%d\n", *ip);
 	}
 }
 
