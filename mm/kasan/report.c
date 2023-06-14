@@ -43,6 +43,7 @@ enum kasan_arg_fault {
 	KASAN_ARG_FAULT_DEFAULT,
 	KASAN_ARG_FAULT_REPORT,
 	KASAN_ARG_FAULT_PANIC,
+	KASAN_ARG_FAULT_PANIC_ON_WRITE,
 };
 
 static enum kasan_arg_fault kasan_arg_fault __ro_after_init = KASAN_ARG_FAULT_DEFAULT;
@@ -57,6 +58,8 @@ static int __init early_kasan_fault(char *arg)
 		kasan_arg_fault = KASAN_ARG_FAULT_REPORT;
 	else if (!strcmp(arg, "panic"))
 		kasan_arg_fault = KASAN_ARG_FAULT_PANIC;
+	else if (!strcmp(arg, "panic_on_write"))
+		kasan_arg_fault = KASAN_ARG_FAULT_PANIC_ON_WRITE;
 	else
 		return -EINVAL;
 
@@ -211,7 +214,7 @@ static void start_report(unsigned long *flags, bool sync)
 	pr_err("==================================================================\n");
 }
 
-static void end_report(unsigned long *flags, const void *addr)
+static void end_report(unsigned long *flags, const void *addr, bool is_write)
 {
 	if (addr)
 		trace_error_report_end(ERROR_DETECTOR_KASAN,
@@ -220,8 +223,18 @@ static void end_report(unsigned long *flags, const void *addr)
 	spin_unlock_irqrestore(&report_lock, *flags);
 	if (!test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags))
 		check_panic_on_warn("KASAN");
-	if (kasan_arg_fault == KASAN_ARG_FAULT_PANIC)
+	switch (kasan_arg_fault) {
+	case KASAN_ARG_FAULT_DEFAULT:
+	case KASAN_ARG_FAULT_REPORT:
+		break;
+	case KASAN_ARG_FAULT_PANIC:
 		panic("kasan.fault=panic set ...\n");
+		break;
+	case KASAN_ARG_FAULT_PANIC_ON_WRITE:
+		if (is_write)
+			panic("kasan.fault=panic_on_write set ...\n");
+		break;
+	}
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 	lockdep_on();
 	report_suppress_stop();
@@ -536,7 +549,11 @@ void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_ty
 
 	print_report(&info);
 
-	end_report(&flags, ptr);
+	/*
+	 * Invalid free is considered a "write" since the allocator's metadata
+	 * updates involves writes.
+	 */
+	end_report(&flags, ptr, true);
 }
 
 /*
@@ -570,7 +587,7 @@ bool kasan_report(const void *addr, size_t size, bool is_write,
 
 	print_report(&info);
 
-	end_report(&irq_flags, (void *)addr);
+	end_report(&irq_flags, (void *)addr, is_write);
 
 out:
 	user_access_restore(ua_flags);
@@ -596,7 +613,11 @@ void kasan_report_async(void)
 	pr_err("Asynchronous fault: no details available\n");
 	pr_err("\n");
 	dump_stack_lvl(KERN_ERR);
-	end_report(&flags, NULL);
+	/*
+	 * Conservatively set is_write=true, because no details are available.
+	 * In this mode, kasan.fault=panic_on_write is like kasan.fault=panic.
+	 */
+	end_report(&flags, NULL, true);
 }
 #endif /* CONFIG_KASAN_HW_TAGS */
 
