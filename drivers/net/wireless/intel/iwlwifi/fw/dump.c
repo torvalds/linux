@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -467,6 +467,10 @@ static void iwl_fwrt_dump_fseq_regs(struct iwl_fw_runtime *fwrt)
 		FSEQ_REG(CNVR_AUX_MISC_CHIP),
 		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_DIG_DCDC_VTRIM),
 		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_ACTIVE_VDIG_MIRROR),
+		FSEQ_REG(FSEQ_PREV_CNVIO_INIT_VERSION),
+		FSEQ_REG(FSEQ_WIFI_FSEQ_VERSION),
+		FSEQ_REG(FSEQ_BT_FSEQ_VERSION),
+		FSEQ_REG(FSEQ_CLASS_TP_VERSION),
 	};
 
 	if (!iwl_trans_grab_nic_access(trans))
