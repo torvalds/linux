@@ -447,6 +447,10 @@ static void handle_gmdid(struct xe_device *xe,
 
 	peek_gmdid(xe, GMD_ID.addr + 0x380000, &ver, media_revid);
 
+	/* Media may legitimately be fused off / not present */
+	if (ver == 0)
+		return;
+
 	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
 		if (ver == media_ip_map[i].ver) {
 			xe->info.media_verx100 = ver;
