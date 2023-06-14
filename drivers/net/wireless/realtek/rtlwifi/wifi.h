@@ -1457,8 +1457,6 @@ struct rtl_io {
 	void (*write8_async)(struct rtl_priv *rtlpriv, u32 addr, u8 val);
 	void (*write16_async)(struct rtl_priv *rtlpriv, u32 addr, u16 val);
 	void (*write32_async)(struct rtl_priv *rtlpriv, u32 addr, u32 val);
-	void (*writen_sync)(struct rtl_priv *rtlpriv, u32 addr, void *buf,
-			    u16 len);
 
 	u8 (*read8_sync)(struct rtl_priv *rtlpriv, u32 addr);
 	u16 (*read16_sync)(struct rtl_priv *rtlpriv, u32 addr);
