@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #ifndef __iwl_fw_acpi__
 #define __iwl_fw_acpi__
@@ -168,19 +168,12 @@ struct iwl_fw_runtime;
 extern const guid_t iwl_guid;
 extern const guid_t iwl_rfi_guid;
 
-void *iwl_acpi_get_object(struct device *dev, acpi_string method);
-
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 			const guid_t *guid, u8 *value);
 
 int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 			 const guid_t *guid, u32 *value);
 
-union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
-					       union acpi_object *data,
-					       int min_data_size,
-					       int max_data_size,
-					       int *tbl_rev);
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
  *
@@ -234,11 +227,6 @@ bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
 #else /* CONFIG_ACPI */
 
-static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
-{
-	return ERR_PTR(-ENOENT);
-}
-
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 					    int func, union acpi_object *args)
 {
@@ -255,15 +243,6 @@ static inline int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 				       const guid_t *guid, u32 *value)
 {
 	return -ENOENT;
-}
-
-static inline union acpi_object *
-iwl_acpi_get_wifi_pkg_range(struct device *dev,
-			    union acpi_object *data,
-			    int min_data_size, int max_data_size,
-			    int *tbl_rev)
-{
-	return ERR_PTR(-ENOENT);
 }
 
 static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
@@ -336,14 +315,5 @@ static inline bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 }
 
 #endif /* CONFIG_ACPI */
-
-static inline union acpi_object *
-iwl_acpi_get_wifi_pkg(struct device *dev,
-		      union acpi_object *data,
-		      int data_size, int *tbl_rev)
-{
-	return iwl_acpi_get_wifi_pkg_range(dev, data, data_size, data_size,
-					   tbl_rev);
-}
 
 #endif /* __iwl_fw_acpi__ */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2022 Intel Corporation
+ * Copyright (C) 2019-2023 Intel Corporation
  */
 #include <linux/uuid.h>
 #include <linux/dmi.h>
@@ -94,7 +94,7 @@ static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 	return 0;
 }
 
-void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+static void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 {
 	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_handle handle;
@@ -115,7 +115,6 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 	}
 	return buf.pointer;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
 
 /*
  * Generic function for evaluating a method defined in the device specific
@@ -237,11 +236,12 @@ int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u32);
 
-union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
-					       union acpi_object *data,
-					       int min_data_size,
-					       int max_data_size,
-					       int *tbl_rev)
+static union acpi_object *
+iwl_acpi_get_wifi_pkg_range(struct device *dev,
+			    union acpi_object *data,
+			    int min_data_size,
+			    int max_data_size,
+			    int *tbl_rev)
 {
 	int i;
 	union acpi_object *wifi_pkg;
@@ -292,7 +292,16 @@ union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
 found:
 	return wifi_pkg;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg_range);
+
+static union acpi_object *
+iwl_acpi_get_wifi_pkg(struct device *dev,
+		      union acpi_object *data,
+		      int data_size, int *tbl_rev)
+{
+	return iwl_acpi_get_wifi_pkg_range(dev, data, data_size, data_size,
+					   tbl_rev);
+}
+
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		     union iwl_tas_config_cmd *cmd, int fw_ver)
