@@ -954,10 +954,8 @@ static int __init erofs_module_init(void)
 					       sizeof(struct erofs_inode), 0,
 					       SLAB_RECLAIM_ACCOUNT,
 					       erofs_inode_init_once);
-	if (!erofs_inode_cachep) {
-		err = -ENOMEM;
-		goto icache_err;
-	}
+	if (!erofs_inode_cachep)
+		return -ENOMEM;
 
 	err = erofs_init_shrinker();
 	if (err)
@@ -992,7 +990,6 @@ lzma_err:
 	erofs_exit_shrinker();
 shrinker_err:
 	kmem_cache_destroy(erofs_inode_cachep);
-icache_err:
 	return err;
 }
 
