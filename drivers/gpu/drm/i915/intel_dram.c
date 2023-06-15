@@ -5,6 +5,7 @@
 
 #include "i915_drv.h"
 #include "intel_dram.h"
+#include "intel_sideband.h"
 
 struct dram_dimm_info {
 	u8 size, width, ranks;
@@ -433,6 +434,81 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 	return 0;
 }
 
+static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	u32 val = 0;
+	int ret;
+
+	ret = sandybridge_pcode_read(dev_priv,
+				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+				     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO,
+				     &val, NULL);
+	if (ret)
+		return ret;
+
+	if (IS_GEN(dev_priv, 12)) {
+		switch (val & 0xf) {
+		case 0:
+			dram_info->type = INTEL_DRAM_DDR4;
+			break;
+		case 3:
+			dram_info->type = INTEL_DRAM_LPDDR4;
+			break;
+		case 4:
+			dram_info->type = INTEL_DRAM_DDR3;
+			break;
+		case 5:
+			dram_info->type = INTEL_DRAM_LPDDR3;
+			break;
+		default:
+			MISSING_CASE(val & 0xf);
+			return -1;
+		}
+	} else {
+		switch (val & 0xf) {
+		case 0:
+			dram_info->type = INTEL_DRAM_DDR4;
+			break;
+		case 1:
+			dram_info->type = INTEL_DRAM_DDR3;
+			break;
+		case 2:
+			dram_info->type = INTEL_DRAM_LPDDR3;
+			break;
+		case 3:
+			dram_info->type = INTEL_DRAM_LPDDR4;
+			break;
+		default:
+			MISSING_CASE(val & 0xf);
+			return -1;
+		}
+	}
+
+	dram_info->num_channels = (val & 0xf0) >> 4;
+	dram_info->num_qgv_points = (val & 0xf00) >> 8;
+
+	return 0;
+}
+
+static int gen11_get_dram_info(struct drm_i915_private *i915)
+{
+	int ret = skl_get_dram_info(i915);
+
+	if (ret)
+		return ret;
+
+	return icl_pcode_read_mem_global_info(i915);
+}
+
+static int gen12_get_dram_info(struct drm_i915_private *i915)
+{
+	/* Always needed for GEN12+ */
+	i915->dram_info.is_16gb_dimm = true;
+
+	return icl_pcode_read_mem_global_info(i915);
+}
+
 void intel_dram_detect(struct drm_i915_private *i915)
 {
 	struct dram_info *dram_info = &i915->dram_info;
@@ -448,7 +524,11 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	if (INTEL_GEN(i915) < 9 || !HAS_DISPLAY(i915))
 		return;
 
-	if (IS_GEN9_LP(i915))
+	if (INTEL_GEN(i915) >= 12)
+		ret = gen12_get_dram_info(i915);
+	else if (INTEL_GEN(i915) >= 11)
+		ret = gen11_get_dram_info(i915);
+	else if (IS_GEN9_LP(i915))
 		ret = bxt_get_dram_info(i915);
 	else
 		ret = skl_get_dram_info(i915);
