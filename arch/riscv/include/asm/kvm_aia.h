@@ -129,20 +129,9 @@ static inline void kvm_riscv_vcpu_aia_imsic_cleanup(struct kvm_vcpu *vcpu)
 {
 }
 
-static inline int kvm_riscv_aia_aplic_inject(struct kvm *kvm,
-					     u32 source, bool level)
-{
-	return 0;
-}
-
-static inline int kvm_riscv_aia_aplic_init(struct kvm *kvm)
-{
-	return 0;
-}
-
-static inline void kvm_riscv_aia_aplic_cleanup(struct kvm *kvm)
-{
-}
+int kvm_riscv_aia_aplic_inject(struct kvm *kvm, u32 source, bool level);
+int kvm_riscv_aia_aplic_init(struct kvm *kvm);
+void kvm_riscv_aia_aplic_cleanup(struct kvm *kvm);
 
 #ifdef CONFIG_32BIT
 void kvm_riscv_vcpu_aia_flush_interrupts(struct kvm_vcpu *vcpu);
