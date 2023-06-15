@@ -903,7 +903,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	for (i = 0; i < li->link; i++) {
 		if (li->num[i].cpus) {
 			/* Normal CPU */
-			dai_props[i].cpus	=
 			dai_link[i].cpus	= dlcs;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= li->num[i].cpus;
@@ -913,7 +912,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dais += li->num[i].cpus;
 		} else {
 			/* DPCM Be's CPU = dummy */
-			dai_props[i].cpus	=
 			dai_link[i].cpus	= &asoc_dummy_dlc;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= 1;
@@ -921,7 +919,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 		if (li->num[i].codecs) {
 			/* Normal Codec */
-			dai_props[i].codecs	=
 			dai_link[i].codecs	= dlcs;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= li->num[i].codecs;
@@ -937,7 +934,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			}
 		} else {
 			/* DPCM Fe's Codec = dummy */
-			dai_props[i].codecs	=
 			dai_link[i].codecs	= &asoc_dummy_dlc;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= 1;
@@ -945,7 +941,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 		if (li->num[i].platforms) {
 			/* Have Platform */
-			dai_props[i].platforms		=
 			dai_link[i].platforms		= dlcs;
 			dai_props[i].num.platforms	=
 			dai_link[i].num_platforms	= li->num[i].platforms;
@@ -953,7 +948,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dlcs += li->num[i].platforms;
 		} else {
 			/* Doesn't have Platform */
-			dai_props[i].platforms		=
 			dai_link[i].platforms		= NULL;
 			dai_props[i].num.platforms	=
 			dai_link[i].num_platforms	= 0;

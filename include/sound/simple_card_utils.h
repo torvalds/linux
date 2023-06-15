@@ -59,9 +59,6 @@ struct asoc_simple_priv {
 	struct simple_dai_props {
 		struct asoc_simple_dai *cpu_dai;
 		struct asoc_simple_dai *codec_dai;
-		struct snd_soc_dai_link_component *cpus;
-		struct snd_soc_dai_link_component *codecs;
-		struct snd_soc_dai_link_component *platforms;
 		struct asoc_simple_data adata;
 		struct snd_soc_codec_conf *codec_conf;
 		struct prop_nums num;
