@@ -468,13 +468,13 @@ EXPORT_SYMBOL_GPL(arch_make_page_accessible);
 
 #if defined(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) || IS_ENABLED(CONFIG_KVM)
 static ssize_t uv_query_facilities(struct kobject *kobj,
-				   struct kobj_attribute *attr, char *page)
+				   struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n%lx\n%lx\n%lx\n",
-			uv_info.inst_calls_list[0],
-			uv_info.inst_calls_list[1],
-			uv_info.inst_calls_list[2],
-			uv_info.inst_calls_list[3]);
+	return sysfs_emit(buf, "%lx\n%lx\n%lx\n%lx\n",
+			  uv_info.inst_calls_list[0],
+			  uv_info.inst_calls_list[1],
+			  uv_info.inst_calls_list[2],
+			  uv_info.inst_calls_list[3]);
 }
 
 static struct kobj_attribute uv_query_facilities_attr =
@@ -499,30 +499,27 @@ static struct kobj_attribute uv_query_supp_se_hdr_pcf_attr =
 	__ATTR(supp_se_hdr_pcf, 0444, uv_query_supp_se_hdr_pcf, NULL);
 
 static ssize_t uv_query_dump_cpu_len(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *page)
+				     struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n",
-			uv_info.guest_cpu_stor_len);
+	return sysfs_emit(buf, "%lx\n", uv_info.guest_cpu_stor_len);
 }
 
 static struct kobj_attribute uv_query_dump_cpu_len_attr =
 	__ATTR(uv_query_dump_cpu_len, 0444, uv_query_dump_cpu_len, NULL);
 
 static ssize_t uv_query_dump_storage_state_len(struct kobject *kobj,
-					       struct kobj_attribute *attr, char *page)
+					       struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n",
-			uv_info.conf_dump_storage_state_len);
+	return sysfs_emit(buf, "%lx\n", uv_info.conf_dump_storage_state_len);
 }
 
 static struct kobj_attribute uv_query_dump_storage_state_len_attr =
 	__ATTR(dump_storage_state_len, 0444, uv_query_dump_storage_state_len, NULL);
 
 static ssize_t uv_query_dump_finalize_len(struct kobject *kobj,
-					  struct kobj_attribute *attr, char *page)
+					  struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n",
-			uv_info.conf_dump_finalize_len);
+	return sysfs_emit(buf, "%lx\n", uv_info.conf_dump_finalize_len);
 }
 
 static struct kobj_attribute uv_query_dump_finalize_len_attr =
@@ -538,48 +535,45 @@ static struct kobj_attribute uv_query_feature_indications_attr =
 	__ATTR(feature_indications, 0444, uv_query_feature_indications, NULL);
 
 static ssize_t uv_query_max_guest_cpus(struct kobject *kobj,
-				       struct kobj_attribute *attr, char *page)
+				       struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%d\n",
-			uv_info.max_guest_cpu_id + 1);
+	return sysfs_emit(buf, "%d\n", uv_info.max_guest_cpu_id + 1);
 }
 
 static struct kobj_attribute uv_query_max_guest_cpus_attr =
 	__ATTR(max_cpus, 0444, uv_query_max_guest_cpus, NULL);
 
 static ssize_t uv_query_max_guest_vms(struct kobject *kobj,
-				      struct kobj_attribute *attr, char *page)
+				      struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%d\n",
-			uv_info.max_num_sec_conf);
+	return sysfs_emit(buf, "%d\n", uv_info.max_num_sec_conf);
 }
 
 static struct kobj_attribute uv_query_max_guest_vms_attr =
 	__ATTR(max_guests, 0444, uv_query_max_guest_vms, NULL);
 
 static ssize_t uv_query_max_guest_addr(struct kobject *kobj,
-				       struct kobj_attribute *attr, char *page)
+				       struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n",
-			uv_info.max_sec_stor_addr);
+	return sysfs_emit(buf, "%lx\n", uv_info.max_sec_stor_addr);
 }
 
 static struct kobj_attribute uv_query_max_guest_addr_attr =
 	__ATTR(max_address, 0444, uv_query_max_guest_addr, NULL);
 
 static ssize_t uv_query_supp_att_req_hdr_ver(struct kobject *kobj,
-					     struct kobj_attribute *attr, char *page)
+					     struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n", uv_info.supp_att_req_hdr_ver);
+	return sysfs_emit(buf, "%lx\n", uv_info.supp_att_req_hdr_ver);
 }
 
 static struct kobj_attribute uv_query_supp_att_req_hdr_ver_attr =
 	__ATTR(supp_att_req_hdr_ver, 0444, uv_query_supp_att_req_hdr_ver, NULL);
 
 static ssize_t uv_query_supp_att_pflags(struct kobject *kobj,
-					struct kobj_attribute *attr, char *page)
+					struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "%lx\n", uv_info.supp_att_pflags);
+	return sysfs_emit(buf, "%lx\n", uv_info.supp_att_pflags);
 }
 
 static struct kobj_attribute uv_query_supp_att_pflags_attr =
@@ -606,18 +600,18 @@ static struct attribute_group uv_query_attr_group = {
 };
 
 static ssize_t uv_is_prot_virt_guest(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *page)
+				     struct kobj_attribute *attr, char *buf)
 {
 	int val = 0;
 
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 	val = prot_virt_guest;
 #endif
-	return scnprintf(page, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t uv_is_prot_virt_host(struct kobject *kobj,
-				    struct kobj_attribute *attr, char *page)
+				    struct kobj_attribute *attr, char *buf)
 {
 	int val = 0;
 
@@ -625,7 +619,7 @@ static ssize_t uv_is_prot_virt_host(struct kobject *kobj,
 	val = prot_virt_host;
 #endif
 
-	return scnprintf(page, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static struct kobj_attribute uv_prot_virt_guest =
