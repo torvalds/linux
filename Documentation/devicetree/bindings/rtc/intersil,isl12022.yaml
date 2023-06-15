@@ -19,6 +19,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  '#clock-cells':
+    const: 0
+
   isil,battery-trip-levels-microvolt:
     description:
       The battery voltages at which the first alarm and second alarm
@@ -33,6 +36,13 @@ required:
 
 allOf:
   - $ref: rtc.yaml#
+  # If #clock-cells is present, interrupts must not be present
+  - if:
+      required:
+        - '#clock-cells'
+    then:
+      properties:
+        interrupts: false
 
 unevaluatedProperties: false
 
