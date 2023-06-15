@@ -243,8 +243,6 @@ static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 		if (!vbus)
 			role = USB_ROLE_NONE;
 		break;
-	default:
-		break;
 	}
 
 	dev_dbg(cdns->dev, "role %d -> %d\n", cdns->role, role);
