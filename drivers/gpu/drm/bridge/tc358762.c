@@ -126,7 +126,7 @@ static int tc358762_init(struct tc358762 *ctx)
 	return tc358762_clear_error(ctx);
 }
 
-static void tc358762_post_disable(struct drm_bridge *bridge)
+static void tc358762_post_disable(struct drm_bridge *bridge, struct drm_bridge_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;
@@ -148,7 +148,7 @@ static void tc358762_post_disable(struct drm_bridge *bridge)
 		dev_err(ctx->dev, "error disabling regulators (%d)\n", ret);
 }
 
-static void tc358762_pre_enable(struct drm_bridge *bridge)
+static void tc358762_pre_enable(struct drm_bridge *bridge, struct drm_bridge_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;
@@ -165,7 +165,7 @@ static void tc358762_pre_enable(struct drm_bridge *bridge)
 	ctx->pre_enabled = true;
 }
 
-static void tc358762_enable(struct drm_bridge *bridge)
+static void tc358762_enable(struct drm_bridge *bridge, struct drm_bridge_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;
@@ -185,9 +185,12 @@ static int tc358762_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs tc358762_bridge_funcs = {
-	.post_disable = tc358762_post_disable,
-	.pre_enable = tc358762_pre_enable,
-	.enable = tc358762_enable,
+	.atomic_post_disable = tc358762_post_disable,
+	.atomic_pre_enable = tc358762_pre_enable,
+	.atomic_enable = tc358762_enable,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.attach = tc358762_attach,
 };
 
