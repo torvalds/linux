@@ -1465,6 +1465,25 @@ void arch_thaw_secondary_cpus_end(void)
 	cache_aps_init();
 }
 
+bool smp_park_other_cpus_in_init(void)
+{
+	unsigned int cpu, this_cpu = smp_processor_id();
+	unsigned int apicid;
+
+	if (apic->wakeup_secondary_cpu_64 || apic->wakeup_secondary_cpu)
+		return false;
+
+	for_each_present_cpu(cpu) {
+		if (cpu == this_cpu)
+			continue;
+		apicid = apic->cpu_present_to_apicid(cpu);
+		if (apicid == BAD_APICID)
+			continue;
+		send_init_sequence(apicid);
+	}
+	return true;
+}
+
 /*
  * Early setup to make printk work.
  */
