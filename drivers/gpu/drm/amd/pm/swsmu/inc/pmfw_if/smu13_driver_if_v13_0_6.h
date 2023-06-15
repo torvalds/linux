@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version if
 // anything is changed in this file
-#define SMU13_0_6_DRIVER_IF_VERSION 0x08042022
+#define SMU13_0_6_DRIVER_IF_VERSION 0x08042024
 
 //I2C Interface
 #define NUM_I2C_CONTROLLERS                8
@@ -106,7 +106,7 @@ typedef enum {
 } UCLK_DPM_MODE_e;
 
 typedef struct {
-  //0-26 SOC, 27-29 SOCIO
+  //0-23 SOC, 24-26 SOCIO, 27-29 SOC
   uint16_t avgPsmCount[30];
   uint16_t minPsmCount[30];
   float    avgPsmVoltage[30];
@@ -120,6 +120,17 @@ typedef struct {
   float    avgPsmVoltage[30];
   float    minPsmVoltage[30];
 } AvfsDebugTableXcd_t;
+
+// Defines used for IH-based thermal interrupts to GFX driver - A/X only
+#define IH_INTERRUPT_ID_TO_DRIVER                   0xFE
+#define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
+
+//thermal over-temp mask defines for IH interrupt to host
+#define THROTTLER_PROCHOT_BIT           0
+#define THROTTLER_PPT_BIT               1
+#define THROTTLER_THERMAL_SOCKET_BIT    2//AID, XCD, CCD throttling
+#define THROTTLER_THERMAL_VR_BIT        3//VRHOT
+#define THROTTLER_THERMAL_HBM_BIT       4
 
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu

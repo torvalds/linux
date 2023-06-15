@@ -96,16 +96,16 @@
  */
 struct amdgpu_uvd_cs_ctx {
 	struct amdgpu_cs_parser *parser;
-	unsigned reg, count;
-	unsigned data0, data1;
-	unsigned idx;
+	unsigned int reg, count;
+	unsigned int data0, data1;
+	unsigned int idx;
 	struct amdgpu_ib *ib;
 
 	/* does the IB has a msg command */
 	bool has_msg_cmd;
 
 	/* minimum buffer sizes */
-	unsigned *buf_sizes;
+	unsigned int *buf_sizes;
 };
 
 #ifdef CONFIG_DRM_AMDGPU_SI
@@ -186,7 +186,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
-	unsigned family_id;
+	unsigned int family_id;
 	int i, j, r;
 
 	INIT_DELAYED_WORK(&adev->uvd.idle_work, amdgpu_uvd_idle_work_handler);
@@ -275,7 +275,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 
 	if (adev->asic_type < CHIP_VEGA20) {
-		unsigned version_major, version_minor;
+		unsigned int version_major, version_minor;
 
 		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
 		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
@@ -420,7 +420,7 @@ int amdgpu_uvd_entity_init(struct amdgpu_device *adev)
 
 int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 {
-	unsigned size;
+	unsigned int size;
 	void *ptr;
 	int i, j, idx;
 	bool in_ras_intr = amdgpu_ras_intr_triggered();
@@ -469,7 +469,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 
 int amdgpu_uvd_resume(struct amdgpu_device *adev)
 {
-	unsigned size;
+	unsigned int size;
 	void *ptr;
 	int i, idx;
 
@@ -491,7 +491,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 			adev->uvd.inst[i].saved_bo = NULL;
 		} else {
 			const struct common_firmware_header *hdr;
-			unsigned offset;
+			unsigned int offset;
 
 			hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
@@ -542,6 +542,7 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 static void amdgpu_uvd_force_into_uvd_segment(struct amdgpu_bo *abo)
 {
 	int i;
+
 	for (i = 0; i < abo->placement.num_placement; ++i) {
 		abo->placements[i].fpfn = 0 >> PAGE_SHIFT;
 		abo->placements[i].lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
@@ -579,7 +580,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 
 	r = amdgpu_cs_find_mapping(ctx->parser, addr, &bo, &mapping);
 	if (r) {
-		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
+		DRM_ERROR("Can't find BO for addr 0x%08llx\n", addr);
 		return r;
 	}
 
@@ -589,6 +590,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 		if (cmd == 0x0 || cmd == 0x3) {
 			/* yes, force it into VRAM */
 			uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
+
 			amdgpu_bo_placement_from_domain(bo, domain);
 		}
 		amdgpu_uvd_force_into_uvd_segment(bo);
@@ -609,21 +611,21 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
  * Peek into the decode message and calculate the necessary buffer sizes.
  */
 static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
-	unsigned buf_sizes[])
+	unsigned int buf_sizes[])
 {
-	unsigned stream_type = msg[4];
-	unsigned width = msg[6];
-	unsigned height = msg[7];
-	unsigned dpb_size = msg[9];
-	unsigned pitch = msg[28];
-	unsigned level = msg[57];
+	unsigned int stream_type = msg[4];
+	unsigned int width = msg[6];
+	unsigned int height = msg[7];
+	unsigned int dpb_size = msg[9];
+	unsigned int pitch = msg[28];
+	unsigned int level = msg[57];
 
-	unsigned width_in_mb = width / 16;
-	unsigned height_in_mb = ALIGN(height / 16, 2);
-	unsigned fs_in_mb = width_in_mb * height_in_mb;
+	unsigned int width_in_mb = width / 16;
+	unsigned int height_in_mb = ALIGN(height / 16, 2);
+	unsigned int fs_in_mb = width_in_mb * height_in_mb;
 
-	unsigned image_size, tmp, min_dpb_size, num_dpb_buffer;
-	unsigned min_ctx_size = ~0;
+	unsigned int image_size, tmp, min_dpb_size, num_dpb_buffer;
+	unsigned int min_ctx_size = ~0;
 
 	image_size = width * height;
 	image_size += image_size / 2;
@@ -631,7 +633,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 
 	switch (stream_type) {
 	case 0: /* H264 */
-		switch(level) {
+		switch (level) {
 		case 30:
 			num_dpb_buffer = 8100 / fs_in_mb;
 			break;
@@ -709,7 +711,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		break;
 
 	case 7: /* H264 Perf */
-		switch(level) {
+		switch (level) {
 		case 30:
 			num_dpb_buffer = 8100 / fs_in_mb;
 			break;
@@ -742,7 +744,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		/* reference picture buffer */
 		min_dpb_size = image_size * num_dpb_buffer;
 
-		if (!adev->uvd.use_ctx_buf){
+		if (!adev->uvd.use_ctx_buf) {
 			/* macroblock context buffer */
 			min_dpb_size +=
 				width_in_mb * height_in_mb * num_dpb_buffer * 192;
@@ -805,7 +807,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
  * Make sure that we don't open up to many sessions.
  */
 static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
-			     struct amdgpu_bo *bo, unsigned offset)
+			     struct amdgpu_bo *bo, unsigned int offset)
 {
 	struct amdgpu_device *adev = ctx->parser->adev;
 	int32_t *msg, msg_type, handle;
@@ -911,7 +913,7 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 
 	r = amdgpu_cs_find_mapping(ctx->parser, addr, &bo, &mapping);
 	if (r) {
-		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
+		DRM_ERROR("Can't find BO for addr 0x%08llx\n", addr);
 		return r;
 	}
 
@@ -930,7 +932,7 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 	if (cmd < 0x4) {
 		if ((end - start) < ctx->buf_sizes[cmd]) {
 			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
-				  (unsigned)(end - start),
+				  (unsigned int)(end - start),
 				  ctx->buf_sizes[cmd]);
 			return -EINVAL;
 		}
@@ -938,7 +940,7 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 	} else if (cmd == 0x206) {
 		if ((end - start) < ctx->buf_sizes[4]) {
 			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
-					  (unsigned)(end - start),
+					  (unsigned int)(end - start),
 					  ctx->buf_sizes[4]);
 			return -EINVAL;
 		}
@@ -949,14 +951,14 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 
 	if (!ctx->parser->adev->uvd.address_64_bit) {
 		if ((start >> 28) != ((end - 1) >> 28)) {
-			DRM_ERROR("reloc %LX-%LX crossing 256MB boundary!\n",
+			DRM_ERROR("reloc %llx-%llx crossing 256MB boundary!\n",
 				  start, end);
 			return -EINVAL;
 		}
 
 		if ((cmd == 0 || cmd == 0x3) &&
 		    (start >> 28) != (ctx->parser->adev->uvd.inst->gpu_addr >> 28)) {
-			DRM_ERROR("msg/fb buffer %LX-%LX out of 256MB segment!\n",
+			DRM_ERROR("msg/fb buffer %llx-%llx out of 256MB segment!\n",
 				  start, end);
 			return -EINVAL;
 		}
@@ -990,7 +992,7 @@ static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 
 	ctx->idx++;
 	for (i = 0; i <= ctx->count; ++i) {
-		unsigned reg = ctx->reg + i;
+		unsigned int reg = ctx->reg + i;
 
 		if (ctx->idx >= ctx->ib->length_dw) {
 			DRM_ERROR("Register command after end of CS!\n");
@@ -1036,7 +1038,8 @@ static int amdgpu_uvd_cs_packets(struct amdgpu_uvd_cs_ctx *ctx,
 
 	for (ctx->idx = 0 ; ctx->idx < ctx->ib->length_dw; ) {
 		uint32_t cmd = amdgpu_ib_get_value(ctx->ib, ctx->idx);
-		unsigned type = CP_PACKET_GET_TYPE(cmd);
+		unsigned int type = CP_PACKET_GET_TYPE(cmd);
+
 		switch (type) {
 		case PACKET_TYPE0:
 			ctx->reg = CP_PACKET0_GET_REG(cmd);
@@ -1070,7 +1073,7 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser,
 			     struct amdgpu_ib *ib)
 {
 	struct amdgpu_uvd_cs_ctx ctx = {};
-	unsigned buf_sizes[] = {
+	unsigned int buf_sizes[] = {
 		[0x00000000]	=	2048,
 		[0x00000001]	=	0xFFFFFFFF,
 		[0x00000002]	=	0xFFFFFFFF,
@@ -1185,8 +1188,9 @@ err_free:
 }
 
 /* multiple fence commands without any stream commands in between can
-   crash the vcpu so just try to emmit a dummy create/destroy msg to
-   avoid this */
+ * crash the vcpu so just try to emmit a dummy create/destroy msg to
+ * avoid this
+ */
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			      struct dma_fence **fence)
 {
@@ -1252,15 +1256,14 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, uvd.idle_work.work);
-	unsigned fences = 0, i, j;
+	unsigned int fences = 0, i, j;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
 		if (adev->uvd.harvest_config & (1 << i))
 			continue;
 		fences += amdgpu_fence_count_emitted(&adev->uvd.inst[i].ring);
-		for (j = 0; j < adev->uvd.num_enc_rings; ++j) {
+		for (j = 0; j < adev->uvd.num_enc_rings; ++j)
 			fences += amdgpu_fence_count_emitted(&adev->uvd.inst[i].ring_enc[j]);
-		}
 	}
 
 	if (fences == 0) {
@@ -1356,7 +1359,7 @@ error:
  */
 uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev)
 {
-	unsigned i;
+	unsigned int i;
 	uint32_t used_handles = 0;
 
 	for (i = 0; i < adev->uvd.max_handles; ++i) {

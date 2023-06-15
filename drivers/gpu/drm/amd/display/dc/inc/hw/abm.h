@@ -55,6 +55,10 @@ struct abm_funcs {
 			unsigned int bytes,
 			unsigned int inst);
 	bool (*set_abm_pause)(struct abm *abm, bool pause, unsigned int panel_inst, unsigned int otg_inst);
+	bool (*set_pipe_ex)(struct abm *abm,
+			unsigned int otg_inst,
+			unsigned int option,
+			unsigned int panel_inst);
 };
 
 #endif

@@ -1014,7 +1014,8 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 }
 
 /* Trigger XGMI/WAFL error */
-static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *inject_if)
+static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
+			void *inject_if, uint32_t instance_mask)
 {
 	int ret = 0;
 	struct ta_ras_trigger_error_input *block_info =
@@ -1026,7 +1027,7 @@ static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *injec
 	if (amdgpu_dpm_allow_xgmi_power_down(adev, false))
 		dev_warn(adev->dev, "Failed to disallow XGMI power down");
 
-	ret = psp_ras_trigger_error(&adev->psp, block_info);
+	ret = psp_ras_trigger_error(&adev->psp, block_info, instance_mask);
 
 	if (amdgpu_ras_intr_triggered())
 		return ret;

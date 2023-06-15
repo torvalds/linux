@@ -111,11 +111,14 @@ struct amdgpu_mem_stats;
 /* Reserve 4MB VRAM for page tables */
 #define AMDGPU_VM_RESERVED_VRAM		(8ULL << 20)
 
-/* max number of VMHUB */
-#define AMDGPU_MAX_VMHUBS			3
-#define AMDGPU_GFXHUB_0				0
-#define AMDGPU_MMHUB_0				1
-#define AMDGPU_MMHUB_1				2
+/*
+ * max number of VMHUB
+ * layout: max 8 GFXHUB + 4 MMHUB0 + 1 MMHUB1
+ */
+#define AMDGPU_MAX_VMHUBS			13
+#define AMDGPU_GFXHUB(x)			(x)
+#define AMDGPU_MMHUB0(x)			(8 + x)
+#define AMDGPU_MMHUB1(x)			(8 + 4 + x)
 
 /* Reserve 2MB at top/bottom of address space for kernel use */
 #define AMDGPU_VA_RESERVED_SIZE			(2ULL << 20)
@@ -326,6 +329,9 @@ struct amdgpu_vm {
 	struct ttm_lru_bulk_move lru_bulk_move;
 	/* Flag to indicate if VM is used for compute */
 	bool			is_compute_context;
+
+	/* Memory partition number, -1 means any partition */
+	int8_t			mem_id;
 };
 
 struct amdgpu_vm_manager {
@@ -452,7 +458,8 @@ void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
 void amdgpu_vm_get_task_info(struct amdgpu_device *adev, u32 pasid,
 			     struct amdgpu_task_info *task_info);
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    uint64_t addr, bool write_fault);
+			    u32 vmid, u32 node_id, uint64_t addr,
+			    bool write_fault);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 

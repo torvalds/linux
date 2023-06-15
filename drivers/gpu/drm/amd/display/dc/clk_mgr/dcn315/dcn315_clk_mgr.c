@@ -184,12 +184,10 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < MIN_DPP_DISP_CLK)
-			new_clocks->dppclk_khz = MIN_DPP_DISP_CLK;
-		if (new_clocks->dispclk_khz < MIN_DPP_DISP_CLK)
-			new_clocks->dispclk_khz = MIN_DPP_DISP_CLK;
-	}
+	if (new_clocks->dppclk_khz < MIN_DPP_DISP_CLK)
+		new_clocks->dppclk_khz = MIN_DPP_DISP_CLK;
+	if (new_clocks->dispclk_khz < MIN_DPP_DISP_CLK)
+		new_clocks->dispclk_khz = MIN_DPP_DISP_CLK;
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
 		if (clk_mgr->base.clks.dppclk_khz > new_clocks->dppclk_khz)
@@ -234,9 +232,7 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static void dcn315_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
@@ -602,6 +598,7 @@ void dcn315_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	struct dcn315_smu_dpm_clks smu_dpm_clks = { 0 };
+	struct clk_log_info log_info = {0};
 
 	clk_mgr->base.base.ctx = ctx;
 	clk_mgr->base.base.funcs = &dcn315_funcs;
@@ -641,26 +638,19 @@ void dcn315_clk_mgr_construct(
 
 	ASSERT(smu_dpm_clks.dpm_clks);
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		clk_mgr->base.base.funcs = &dcn3_fpga_funcs;
+	clk_mgr->base.smu_ver = dcn315_smu_get_smu_version(&clk_mgr->base);
+
+	if (clk_mgr->base.smu_ver > 0)
+		clk_mgr->base.smu_present = true;
+
+	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
+		dcn315_bw_params.wm_table = lpddr5_wm_table;
 	} else {
-		struct clk_log_info log_info = {0};
-
-		clk_mgr->base.smu_ver = dcn315_smu_get_smu_version(&clk_mgr->base);
-
-		if (clk_mgr->base.smu_ver > 0)
-			clk_mgr->base.smu_present = true;
-
-		if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
-			dcn315_bw_params.wm_table = lpddr5_wm_table;
-		} else {
-			dcn315_bw_params.wm_table = ddr5_wm_table;
-		}
-		/* Saved clocks configured at boot for debug purposes */
-		dcn315_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
-					  &clk_mgr->base.base, &log_info);
-
+		dcn315_bw_params.wm_table = ddr5_wm_table;
 	}
+	/* Saved clocks configured at boot for debug purposes */
+	dcn315_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
+				  &clk_mgr->base.base, &log_info);
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	clk_mgr->base.base.dprefclk_khz = dcn315_smu_get_dpref_clk(&clk_mgr->base);

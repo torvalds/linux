@@ -1653,10 +1653,19 @@ bool perform_link_training_with_retries(
 				break;
 		}
 
-		DC_LOG_WARNING("%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
-			       __func__, link->link_index, (unsigned int)j + 1, attempts,
-			      cur_link_settings.link_rate, cur_link_settings.lane_count,
-			      cur_link_settings.link_spread, status);
+		if (j == (attempts - 1)) {
+			DC_LOG_WARNING(
+				"%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
+				__func__, link->link_index, (unsigned int)j + 1, attempts,
+				cur_link_settings.link_rate, cur_link_settings.lane_count,
+				cur_link_settings.link_spread, status);
+		} else {
+			DC_LOG_HW_LINK_TRAINING(
+				"%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
+				__func__, link->link_index, (unsigned int)j + 1, attempts,
+				cur_link_settings.link_rate, cur_link_settings.lane_count,
+				cur_link_settings.link_spread, status);
+		}
 
 		dp_disable_link_phy(link, &pipe_ctx->link_res, signal);
 
