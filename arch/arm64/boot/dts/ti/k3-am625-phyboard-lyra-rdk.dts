@@ -81,33 +81,33 @@
 };
 
 &main_pmx0 {
-	gpio_keys_pins_default: gpio-keys-pins-default {
+	gpio_keys_pins_default: gpio-keys-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1d4, PIN_INPUT, 7) /* (B15) UART0_RTSn.GPIO1_23 */
 		>;
 	};
 
-	gpio_exp_int_pins_default: gpio-exp-int-pins-default {
+	gpio_exp_int_pins_default: gpio-exp-int-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x244, PIN_INPUT, 7) /* (C17) MMC1_SDWP.GPIO1_49 */
 		>;
 	};
 
-	main_i2c1_pins_default: main-i2c1-pins-default {
+	main_i2c1_pins_default: main-i2c1-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1e8, PIN_INPUT_PULLUP, 0) /* (B17) I2C1_SCL */
 			AM62X_IOPAD(0x1ec, PIN_INPUT_PULLUP, 0) /* (A17) I2C1_SDA */
 		>;
 	};
 
-	main_mcan0_pins_default: main-mcan0-pins-default {
+	main_mcan0_pins_default: main-mcan0-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1dc, PIN_INPUT, 0) /* (E15) MCAN0_RX */
 			AM62X_IOPAD(0x1d8, PIN_OUTPUT, 0) /* (C15) MCAN0_TX */
 		>;
 	};
 
-	main_mmc1_pins_default: main-mmc1-pins-default {
+	main_mmc1_pins_default: main-mmc1-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x23c, PIN_INPUT_PULLUP, 0) /* (A21) MMC1_CMD */
 			AM62X_IOPAD(0x234, PIN_INPUT_PULLDOWN, 0) /* (B22) MMC1_CLK */
@@ -119,7 +119,7 @@
 		>;
 	};
 
-	main_rgmii2_pins_default: main-rgmii2-pins-default {
+	main_rgmii2_pins_default: main-rgmii2-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x184, PIN_INPUT, 0) /* (AE23) RGMII2_RD0 */
 			AM62X_IOPAD(0x188, PIN_INPUT, 0) /* (AB20) RGMII2_RD1 */
@@ -136,14 +136,14 @@
 		>;
 	};
 
-	main_uart0_pins_default: main-uart0-pins-default {
+	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1c8, PIN_INPUT, 0) /* (D14) UART0_RXD */
 			AM62X_IOPAD(0x1cc, PIN_OUTPUT, 0) /* (E14) UART0_TXD */
 		>;
 	};
 
-	main_uart1_pins_default: main-uart1-pins-default {
+	main_uart1_pins_default: main-uart1-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x194, PIN_INPUT, 2) /* (B19) MCASP0_AXR3.UART1_CTSn */
 			AM62X_IOPAD(0x198, PIN_OUTPUT, 2) /* (A19) MCASP0_AXR2.UART1_RTSn */
@@ -152,13 +152,13 @@
 		>;
 	};
 
-	main_usb1_pins_default: main-usb1-pins-default {
+	main_usb1_pins_default: main-usb1-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x258, PIN_OUTPUT, 0) /* (F18) USB1_DRVVBUS */
 		>;
 	};
 
-	user_leds_pins_default: user-leds-pins-default {
+	user_leds_pins_default: user-leds-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x084, PIN_OUTPUT, 7) /* (L23) GPMC0_ADVn_ALE.GPIO0_32 */
 		>;
