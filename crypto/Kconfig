@@ -72,6 +72,15 @@ config CRYPTO_AEAD2
 	tristate
 	select CRYPTO_ALGAPI2
 
+config CRYPTO_SIG
+	tristate
+	select CRYPTO_SIG2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_SIG2
+	tristate
+	select CRYPTO_ALGAPI2
+
 config CRYPTO_SKCIPHER
 	tristate
 	select CRYPTO_SKCIPHER2
@@ -143,6 +152,7 @@ config CRYPTO_MANAGER2
 	select CRYPTO_ACOMP2
 	select CRYPTO_AEAD2
 	select CRYPTO_AKCIPHER2
+	select CRYPTO_SIG2
 	select CRYPTO_HASH2
 	select CRYPTO_KPP2
 	select CRYPTO_RNG2

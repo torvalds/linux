@@ -18,18 +18,7 @@
 
 #include "internal.h"
 
-struct crypto_akcipher_sync_data {
-	struct crypto_akcipher *tfm;
-	const void *src;
-	void *dst;
-	unsigned int slen;
-	unsigned int dlen;
-
-	struct akcipher_request *req;
-	struct crypto_wait cwait;
-	struct scatterlist sg;
-	u8 *buf;
-};
+#define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 
 static int __maybe_unused crypto_akcipher_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
@@ -119,7 +108,7 @@ static const struct crypto_type crypto_akcipher_type = {
 	.report_stat = crypto_akcipher_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
-	.maskset = CRYPTO_ALG_TYPE_MASK,
+	.maskset = CRYPTO_ALG_TYPE_AHASH_MASK,
 	.type = CRYPTO_ALG_TYPE_AKCIPHER,
 	.tfmsize = offsetof(struct crypto_akcipher, base),
 };
@@ -200,7 +189,7 @@ int akcipher_register_instance(struct crypto_template *tmpl,
 }
 EXPORT_SYMBOL_GPL(akcipher_register_instance);
 
-static int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
+int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 {
 	unsigned int reqsize = crypto_akcipher_reqsize(data->tfm);
 	unsigned int mlen = max(data->slen, data->dlen);
@@ -223,7 +212,7 @@ static int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 	data->buf = buf;
 	memcpy(buf, data->src, data->slen);
 
-	sg = &data->sg;
+	sg = data->sg;
 	sg_init_one(sg, buf, mlen);
 	akcipher_request_set_crypt(req, sg, sg, data->slen, data->dlen);
 
@@ -233,9 +222,9 @@ static int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(crypto_akcipher_sync_prep);
 
-static int crypto_akcipher_sync_post(struct crypto_akcipher_sync_data *data,
-				     int err)
+int crypto_akcipher_sync_post(struct crypto_akcipher_sync_data *data, int err)
 {
 	err = crypto_wait_req(err, &data->cwait);
 	memcpy(data->dst, data->buf, data->dlen);
@@ -243,6 +232,7 @@ static int crypto_akcipher_sync_post(struct crypto_akcipher_sync_data *data,
 	kfree_sensitive(data->req);
 	return err;
 }
+EXPORT_SYMBOL_GPL(crypto_akcipher_sync_post);
 
 int crypto_akcipher_sync_encrypt(struct crypto_akcipher *tfm,
 				 const void *src, unsigned int slen,
@@ -280,6 +270,35 @@ int crypto_akcipher_sync_decrypt(struct crypto_akcipher *tfm,
 	       data.dlen;
 }
 EXPORT_SYMBOL_GPL(crypto_akcipher_sync_decrypt);
+
+static void crypto_exit_akcipher_ops_sig(struct crypto_tfm *tfm)
+{
+	struct crypto_akcipher **ctx = crypto_tfm_ctx(tfm);
+
+	crypto_free_akcipher(*ctx);
+}
+
+int crypto_init_akcipher_ops_sig(struct crypto_tfm *tfm)
+{
+	struct crypto_akcipher **ctx = crypto_tfm_ctx(tfm);
+	struct crypto_alg *calg = tfm->__crt_alg;
+	struct crypto_akcipher *akcipher;
+
+	if (!crypto_mod_get(calg))
+		return -EAGAIN;
+
+	akcipher = crypto_create_tfm(calg, &crypto_akcipher_type);
+	if (IS_ERR(akcipher)) {
+		crypto_mod_put(calg);
+		return PTR_ERR(akcipher);
+	}
+
+	*ctx = akcipher;
+	tfm->exit = crypto_exit_akcipher_ops_sig;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_init_akcipher_ops_sig);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic public key cipher type");
