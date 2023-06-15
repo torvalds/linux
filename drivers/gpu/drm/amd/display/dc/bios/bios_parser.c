@@ -2593,11 +2593,10 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	return NULL;
 }
 
-static enum bp_result update_slot_layout_info(
-	struct dc_bios *dcb,
-	unsigned int i,
-	struct slot_layout_info *slot_layout_info,
-	unsigned int record_offset)
+static enum bp_result update_slot_layout_info(struct dc_bios *dcb,
+					      unsigned int i,
+					      struct slot_layout_info *slot_layout_info,
+					      unsigned int record_offset)
 {
 	unsigned int j;
 	struct bios_parser *bp;
@@ -2696,10 +2695,9 @@ static enum bp_result update_slot_layout_info(
 }
 
 
-static enum bp_result get_bracket_layout_record(
-	struct dc_bios *dcb,
-	unsigned int bracket_layout_id,
-	struct slot_layout_info *slot_layout_info)
+static enum bp_result get_bracket_layout_record(struct dc_bios *dcb,
+						unsigned int bracket_layout_id,
+						struct slot_layout_info *slot_layout_info)
 {
 	unsigned int i;
 	unsigned int record_offset;
