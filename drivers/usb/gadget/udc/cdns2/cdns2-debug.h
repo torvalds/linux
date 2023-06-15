@@ -36,7 +36,7 @@ static inline const char *cdns2_decode_usb_irq(char *str, size_t size,
 	ret += snprintf(str + ret, size - ret, ", EXT: 0x%02x - ", ext_irq);
 
 	if (ext_irq & EXTIRQ_WAKEUP)
-		ret += snprintf(str + ret, size - ret, "Wakupe ");
+		ret += snprintf(str + ret, size - ret, "Wakeup ");
 	if (ext_irq & EXTIRQ_VBUSFAULT_FALL)
 		ret += snprintf(str + ret, size - ret, "VBUS_FALL ");
 	if (ext_irq & EXTIRQ_VBUSFAULT_RISE)
