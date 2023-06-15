@@ -451,9 +451,9 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0) {
-		file = vfs_tmpfile_open(&nop_mnt_idmap, &parentpath, S_IFREG,
-					O_RDWR | O_LARGEFILE | O_DIRECT,
-					cache->cache_cred);
+		file = kernel_tmpfile_open(&nop_mnt_idmap, &parentpath, S_IFREG,
+					   O_RDWR | O_LARGEFILE | O_DIRECT,
+					   cache->cache_cred);
 		ret = PTR_ERR_OR_ZERO(file);
 	}
 	if (ret) {
