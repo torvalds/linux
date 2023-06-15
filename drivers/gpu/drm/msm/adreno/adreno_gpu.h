@@ -115,6 +115,7 @@ struct adreno_gpu {
 	 * code (a3xx_gpu.c) and stored in this common location.
 	 */
 	const unsigned int *reg_offsets;
+	bool gmu_is_wrapper;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -150,6 +151,11 @@ static inline bool adreno_is_revn(const struct adreno_gpu *gpu, uint32_t revn)
 	WARN_ON_ONCE(!gpu->revn);
 
 	return gpu->revn == revn;
+}
+
+static inline bool adreno_has_gmu_wrapper(const struct adreno_gpu *gpu)
+{
+	return gpu->gmu_is_wrapper;
 }
 
 static inline bool adreno_is_a2xx(const struct adreno_gpu *gpu)
