@@ -208,6 +208,25 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&hdmi_hpd_active &hdmi_ddc_active>;
+	pinctrl-1 = <&hdmi_hpd_suspend &hdmi_ddc_suspend>;
+
+	core-vdda-supply = <&vreg_l12a_1p8>;
+	core-vcc-supply = <&vreg_s4a_1p8>;
+};
+
+&hdmi_phy {
+	status = "okay";
+
+	vddio-supply = <&vreg_l12a_1p8>;
+	vcca-supply = <&vreg_l28a_0p925>;
+	#phy-cells = <0>;
+};
+
 &hsusb_phy1 {
 	status = "okay";
 
@@ -230,25 +249,6 @@
 
 &mdss {
 	status = "okay";
-};
-
-&mdss_hdmi {
-	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&mdss_hdmi_hpd_active &mdss_hdmi_ddc_active>;
-	pinctrl-1 = <&mdss_hdmi_hpd_suspend &mdss_hdmi_ddc_suspend>;
-
-	core-vdda-supply = <&vreg_l12a_1p8>;
-	core-vcc-supply = <&vreg_s4a_1p8>;
-};
-
-&mdss_hdmi_phy {
-	status = "okay";
-
-	vddio-supply = <&vreg_l12a_1p8>;
-	vcca-supply = <&vreg_l28a_0p925>;
-	#phy-cells = <0>;
 };
 
 &mmcc {
@@ -433,28 +433,28 @@
 		drive-strength = <2>;
 	};
 
-	mdss_hdmi_hpd_active: mdss_hdmi-hpd-active-state {
+	hdmi_hpd_active: hdmi-hpd-active-state {
 		pins = "gpio34";
 		function = "hdmi_hot";
 		bias-pull-down;
 		drive-strength = <16>;
 	};
 
-	mdss_hdmi_hpd_suspend: mdss_hdmi-hpd-suspend-state {
+	hdmi_hpd_suspend: hdmi-hpd-suspend-state {
 		pins = "gpio34";
 		function = "hdmi_hot";
 		bias-pull-down;
 		drive-strength = <2>;
 	};
 
-	mdss_hdmi_ddc_active: mdss_hdmi-ddc-active-state {
+	hdmi_ddc_active: hdmi-ddc-active-state {
 		pins = "gpio32", "gpio33";
 		function = "hdmi_ddc";
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	mdss_hdmi_ddc_suspend: mdss_hdmi-ddc-suspend-state {
+	hdmi_ddc_suspend: hdmi-ddc-suspend-state {
 		pins = "gpio32", "gpio33";
 		function = "hdmi_ddc";
 		drive-strength = <2>;
@@ -1043,7 +1043,7 @@
 		};
 	};
 
-	mdss_hdmi-dai-link {
+	hdmi-dai-link {
 		link-name = "HDMI";
 		cpu {
 			sound-dai = <&q6afedai HDMI_RX>;
@@ -1054,7 +1054,7 @@
 		};
 
 		codec {
-			sound-dai = <&mdss_hdmi 0>;
+			sound-dai = <&hdmi 0>;
 		};
 	};
 

@@ -24,10 +24,10 @@
 	status = "okay";
 };
 
-&mdss_hdmi {
+&hdmi {
 	status = "okay";
 };
 
-&mdss_hdmi_phy {
+&hdmi_phy {
 	status = "okay";
 };

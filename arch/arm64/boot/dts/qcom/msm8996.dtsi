@@ -895,7 +895,7 @@
 				 <&mdss_dsi0_phy 0>,
 				 <&mdss_dsi1_phy 1>,
 				 <&mdss_dsi1_phy 0>,
-				 <&mdss_hdmi_phy>;
+				 <&hdmi_phy>;
 			clock-names = "xo",
 				      "gpll0",
 				      "gcc_mmss_noc_cfg_ahb_clk",
@@ -980,7 +980,7 @@
 					port@0 {
 						reg = <0>;
 						mdp5_intf3_out: endpoint {
-							remote-endpoint = <&mdss_hdmi_in>;
+							remote-endpoint = <&hdmi_in>;
 						};
 					};
 
@@ -1136,8 +1136,8 @@
 				status = "disabled";
 			};
 
-			mdss_hdmi: mdss_hdmi-tx@9a0000 {
-				compatible = "qcom,mdss_hdmi-tx-8996";
+			hdmi: hdmi-tx@9a0000 {
+				compatible = "qcom,hdmi-tx-8996";
 				reg =	<0x009a0000 0x50c>,
 					<0x00070000 0x6158>,
 					<0x009e0000 0xfff>;
@@ -1160,7 +1160,7 @@
 					"alt_iface",
 					"extp";
 
-				phys = <&mdss_hdmi_phy>;
+				phys = <&hdmi_phy>;
 				#sound-dai-cells = <1>;
 
 				status = "disabled";
@@ -1171,16 +1171,16 @@
 
 					port@0 {
 						reg = <0>;
-						mdss_hdmi_in: endpoint {
+						hdmi_in: endpoint {
 							remote-endpoint = <&mdp5_intf3_out>;
 						};
 					};
 				};
 			};
 
-			mdss_hdmi_phy: phy@9a0600 {
+			hdmi_phy: phy@9a0600 {
 				#phy-cells = <0>;
-				compatible = "qcom,mdss_hdmi-phy-8996";
+				compatible = "qcom,hdmi-phy-8996";
 				reg = <0x009a0600 0x1c4>,
 				      <0x009a0a00 0x124>,
 				      <0x009a0c00 0x124>,
