@@ -295,6 +295,7 @@ static void write_sb_page(struct bitmap *bitmap, unsigned long pg_index,
 
 static void md_bitmap_file_kick(struct bitmap *bitmap);
 
+#ifdef CONFIG_MD_BITMAP_FILE
 static void write_file_page(struct bitmap *bitmap, struct page *page, int wait)
 {
 	struct buffer_head *bh = page_buffers(page);
@@ -408,6 +409,20 @@ out:
 		       ret);
 	return ret;
 }
+#else /* CONFIG_MD_BITMAP_FILE */
+static void write_file_page(struct bitmap *bitmap, struct page *page, int wait)
+{
+}
+static int read_file_page(struct file *file, unsigned long index,
+		struct bitmap *bitmap, unsigned long count, struct page *page)
+{
+	return -EIO;
+}
+static void free_buffers(struct page *page)
+{
+	put_page(page);
+}
+#endif /* CONFIG_MD_BITMAP_FILE */
 
 /*
  * bitmap file superblock operations

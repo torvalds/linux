@@ -7043,6 +7043,13 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 
 		if (mddev->bitmap || mddev->bitmap_info.file)
 			return -EEXIST; /* cannot add when bitmap is present */
+
+		if (!IS_ENABLED(CONFIG_MD_BITMAP_FILE)) {
+			pr_warn("%s: bitmap files not supported by this kernel\n",
+				mdname(mddev));
+			return -EINVAL;
+		}
+
 		f = fget(fd);
 
 		if (f == NULL) {
