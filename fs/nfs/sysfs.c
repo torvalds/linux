@@ -217,6 +217,17 @@ void nfs_netns_sysfs_destroy(struct nfs_net *netns)
 	}
 }
 
+static bool shutdown_match_client(const struct rpc_task *task, const void *data)
+{
+	return true;
+}
+
+static void shutdown_client(struct rpc_clnt *clnt)
+{
+	clnt->cl_shutdown = 1;
+	rpc_cancel_tasks(clnt, -EIO, shutdown_match_client, NULL);
+}
+
 static ssize_t
 shutdown_show(struct kobject *kobj, struct kobj_attribute *attr,
 				char *buf)
@@ -247,14 +258,14 @@ shutdown_store(struct kobject *kobj, struct kobj_attribute *attr,
 		goto out;
 
 	server->flags |= NFS_MOUNT_SHUTDOWN;
-	server->client->cl_shutdown = 1;
-	server->nfs_client->cl_rpcclient->cl_shutdown = 1;
+	shutdown_client(server->client);
+	shutdown_client(server->nfs_client->cl_rpcclient);
 
 	if (!IS_ERR(server->client_acl))
-		server->client_acl->cl_shutdown = 1;
+		shutdown_client(server->client_acl);
 
 	if (server->nlm_host)
-		server->nlm_host->h_rpcclnt->cl_shutdown = 1;
+		shutdown_client(server->nlm_host->h_rpcclnt);
 out:
 	return count;
 }
