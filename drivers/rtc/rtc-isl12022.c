@@ -9,6 +9,7 @@
  */
 
 #include <linux/bcd.h>
+#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
@@ -31,6 +32,8 @@
 #define ISL12022_REG_SR		0x07
 #define ISL12022_REG_INT	0x08
 
+#define ISL12022_REG_PWR_VBAT	0x0a
+
 #define ISL12022_REG_BETA	0x0d
 #define ISL12022_REG_TEMP_L	0x28
 
@@ -41,6 +44,9 @@
 #define ISL12022_SR_LBAT75	(1 << 1)
 
 #define ISL12022_INT_WRTC	(1 << 6)
+
+#define ISL12022_REG_VB85_MASK	GENMASK(5, 3)
+#define ISL12022_REG_VB75_MASK	GENMASK(2, 0)
 
 #define ISL12022_BETA_TSE	(1 << 7)
 
@@ -209,6 +215,38 @@ static const struct regmap_config regmap_config = {
 	.use_single_write = true,
 };
 
+static const u32 trip_levels[2][7] = {
+	{ 2125000, 2295000, 2550000, 2805000, 3060000, 4250000, 4675000 },
+	{ 1875000, 2025000, 2250000, 2475000, 2700000, 3750000, 4125000 },
+};
+
+static void isl12022_set_trip_levels(struct device *dev)
+{
+	struct regmap *regmap = dev_get_drvdata(dev);
+	u32 levels[2] = {0, 0};
+	int ret, i, j, x[2];
+	u8 val, mask;
+
+	device_property_read_u32_array(dev, "isil,battery-trip-levels-microvolt",
+				       levels, 2);
+
+	for (i = 0; i < 2; i++) {
+		for (j = 0; j < ARRAY_SIZE(trip_levels[i]) - 1; j++) {
+			if (levels[i] <= trip_levels[i][j])
+				break;
+		}
+		x[i] = j;
+	}
+
+	val = FIELD_PREP(ISL12022_REG_VB85_MASK, x[0]) |
+		FIELD_PREP(ISL12022_REG_VB75_MASK, x[1]);
+	mask = ISL12022_REG_VB85_MASK | ISL12022_REG_VB75_MASK;
+
+	ret = regmap_update_bits(regmap, ISL12022_REG_PWR_VBAT, mask, val);
+	if (ret)
+		dev_warn(dev, "unable to set battery alarm levels: %d\n", ret);
+}
+
 static int isl12022_probe(struct i2c_client *client)
 {
 	struct rtc_device *rtc;
@@ -225,6 +263,7 @@ static int isl12022_probe(struct i2c_client *client)
 
 	dev_set_drvdata(&client->dev, regmap);
 
+	isl12022_set_trip_levels(&client->dev);
 	isl12022_hwmon_register(&client->dev);
 
 	rtc = devm_rtc_allocate_device(&client->dev);
