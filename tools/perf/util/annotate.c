@@ -32,6 +32,7 @@
 #include "block-range.h"
 #include "string2.h"
 #include "util/event.h"
+#include "util/sharded_mutex.h"
 #include "arch/common.h"
 #include "namespaces.h"
 #include <regex.h>
@@ -856,7 +857,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
-	mutex_lock(&notes->lock);
+	annotation__lock(notes);
 	if (notes->src != NULL) {
 		memset(notes->src->histograms, 0,
 		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
@@ -864,7 +865,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 			memset(notes->src->cycles_hist, 0,
 				symbol__size(sym) * sizeof(struct cyc_hist));
 	}
-	mutex_unlock(&notes->lock);
+	annotation__unlock(notes);
 }
 
 static int __symbol__account_cycles(struct cyc_hist *ch,
@@ -1121,7 +1122,7 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 	notes->hit_insn = 0;
 	notes->cover_insn = 0;
 
-	mutex_lock(&notes->lock);
+	annotation__lock(notes);
 	for (offset = size - 1; offset >= 0; --offset) {
 		struct cyc_hist *ch;
 
@@ -1140,7 +1141,7 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 			notes->have_cycles = true;
 		}
 	}
-	mutex_unlock(&notes->lock);
+	annotation__unlock(notes);
 }
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
@@ -1291,16 +1292,63 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 	return ins__scnprintf(&dl->ins, bf, size, &dl->ops, max_ins_name);
 }
 
-void annotation__init(struct annotation *notes)
-{
-	mutex_init(&notes->lock);
-}
-
 void annotation__exit(struct annotation *notes)
 {
 	annotated_source__delete(notes->src);
-	mutex_destroy(&notes->lock);
 }
+
+static struct sharded_mutex *sharded_mutex;
+
+static void annotation__init_sharded_mutex(void)
+{
+	/* As many mutexes as there are CPUs. */
+	sharded_mutex = sharded_mutex__new(cpu__max_present_cpu().cpu);
+}
+
+static size_t annotation__hash(const struct annotation *notes)
+{
+	return (size_t)notes;
+}
+
+static struct mutex *annotation__get_mutex(const struct annotation *notes)
+{
+	static pthread_once_t once = PTHREAD_ONCE_INIT;
+
+	pthread_once(&once, annotation__init_sharded_mutex);
+	if (!sharded_mutex)
+		return NULL;
+
+	return sharded_mutex__get_mutex(sharded_mutex, annotation__hash(notes));
+}
+
+void annotation__lock(struct annotation *notes)
+	NO_THREAD_SAFETY_ANALYSIS
+{
+	struct mutex *mutex = annotation__get_mutex(notes);
+
+	if (mutex)
+		mutex_lock(mutex);
+}
+
+void annotation__unlock(struct annotation *notes)
+	NO_THREAD_SAFETY_ANALYSIS
+{
+	struct mutex *mutex = annotation__get_mutex(notes);
+
+	if (mutex)
+		mutex_unlock(mutex);
+}
+
+bool annotation__trylock(struct annotation *notes)
+{
+	struct mutex *mutex = annotation__get_mutex(notes);
+
+	if (!mutex)
+		return false;
+
+	return mutex_trylock(mutex);
+}
+
 
 static void annotation_line__add(struct annotation_line *al, struct list_head *head)
 {
