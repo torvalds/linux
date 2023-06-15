@@ -296,33 +296,22 @@ static void write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 }
 
 static void md_bitmap_file_kick(struct bitmap *bitmap);
-/*
- * write out a page to a file
- */
-static void write_page(struct bitmap *bitmap, struct page *page, int wait)
+
+static void write_file_page(struct bitmap *bitmap, struct page *page, int wait)
 {
-	struct buffer_head *bh;
+	struct buffer_head *bh = page_buffers(page);
 
-	if (bitmap->storage.file == NULL) {
-		write_sb_page(bitmap, page, wait);
-	} else {
-
-		bh = page_buffers(page);
-
-		while (bh && bh->b_blocknr) {
-			atomic_inc(&bitmap->pending_writes);
-			set_buffer_locked(bh);
-			set_buffer_mapped(bh);
-			submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
-			bh = bh->b_this_page;
-		}
-
-		if (wait)
-			wait_event(bitmap->write_wait,
-				   atomic_read(&bitmap->pending_writes)==0);
+	while (bh && bh->b_blocknr) {
+		atomic_inc(&bitmap->pending_writes);
+		set_buffer_locked(bh);
+		set_buffer_mapped(bh);
+		submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
+		bh = bh->b_this_page;
 	}
-	if (test_bit(BITMAP_WRITE_ERROR, &bitmap->flags))
-		md_bitmap_file_kick(bitmap);
+
+	if (wait)
+		wait_event(bitmap->write_wait,
+			   atomic_read(&bitmap->pending_writes) == 0);
 }
 
 static void end_bitmap_write(struct buffer_head *bh, int uptodate)
@@ -428,6 +417,17 @@ out:
 /*
  * bitmap file superblock operations
  */
+
+/*
+ * write out a page to a file
+ */
+static void write_page(struct bitmap *bitmap, struct page *page, int wait)
+{
+	if (bitmap->storage.file)
+		write_file_page(bitmap, page, wait);
+	else
+		write_sb_page(bitmap, page, wait);
+}
 
 /*
  * md_bitmap_wait_writes() should be called before writing any bitmap
