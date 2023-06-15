@@ -216,6 +216,26 @@ void nfs_netns_sysfs_destroy(struct nfs_net *netns)
 	}
 }
 
+#define RPC_CLIENT_NAME_SIZE 64
+
+void nfs_sysfs_link_rpc_client(struct nfs_server *server,
+			struct rpc_clnt *clnt, const char *uniq)
+{
+	char name[RPC_CLIENT_NAME_SIZE];
+	int ret;
+
+	strcpy(name, clnt->cl_program->name);
+	strcat(name, uniq ? uniq : "");
+	strcat(name, "_client");
+
+	ret = sysfs_create_link_nowarn(&server->kobj,
+						&clnt->cl_sysfs->kobject, name);
+	if (ret < 0)
+		pr_warn("NFS: can't create link to %s in sysfs (%d)\n",
+			name, ret);
+}
+EXPORT_SYMBOL_GPL(nfs_sysfs_link_rpc_client);
+
 static void nfs_sysfs_sb_release(struct kobject *kobj)
 {
 	/* no-op: why? see lib/kobject.c kobject_cleanup() */

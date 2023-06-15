@@ -628,6 +628,7 @@ int nfs_init_server_rpcclient(struct nfs_server *server,
 	if (server->flags & NFS_MOUNT_SOFT)
 		server->client->cl_softrtry = 1;
 
+	nfs_sysfs_link_rpc_client(server, server->client, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs_init_server_rpcclient);
@@ -699,6 +700,7 @@ static int nfs_init_server(struct nfs_server *server,
 
 	server->nfs_client = clp;
 	nfs_sysfs_add_server(server);
+	nfs_sysfs_link_rpc_client(server, clp->cl_rpcclient, "_state");
 
 	/* Initialise the client representation from the mount data */
 	server->flags = ctx->flags;
@@ -1124,6 +1126,9 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 	server->fsid = fattr->fsid;
 
 	nfs_sysfs_add_server(server);
+
+	nfs_sysfs_link_rpc_client(server,
+		server->nfs_client->cl_rpcclient, "_state");
 
 	error = nfs_init_server_rpcclient(server,
 			source->client->cl_timeout,

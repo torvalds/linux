@@ -954,6 +954,7 @@ static int nfs4_set_client(struct nfs_server *server,
 
 	server->nfs_client = clp;
 	nfs_sysfs_add_server(server);
+	nfs_sysfs_link_rpc_client(server, clp->cl_rpcclient, "_state");
 
 	return 0;
 }
