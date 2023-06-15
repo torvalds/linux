@@ -1,13 +1,12 @@
-# The full list of approvers is defined in
-# https://android.googlesource.com/kernel/common/+/refs/meta/config/OWNERS
+set noparent
 
-# The following OWNERS are defined at the top level to improve the OWNERS
-# suggestions through any user interface. Consider those people the ones that
-# can help with finding the best person to review.
-adelva@google.com
-gregkh@google.com
-maennich@google.com
-saravanak@google.com
-smuckle@google.com
-surenb@google.com
-tkjos@google.com
+# GKI Dr. No Enforcement is active on this branch. Approval of one of the Dr.
+# No reviewers is required following a regular CodeReview+2 vote of a code
+# reviewer.
+#
+# See the GKI release documentation (go/gki-dr-no) for further details.
+#
+# The expanded list of reviewers can be found at:
+# https://android.googlesource.com/kernel/common/+/android-mainline/OWNERS_DrNo
+
+include kernel/common:android-mainline:/OWNERS_DrNo
