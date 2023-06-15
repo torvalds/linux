@@ -1009,8 +1009,6 @@ static inline u64 scale_time_to_util(u64 d)
 	return d;
 }
 
-#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && !is_min_cluster_cpu(cpu))
-
 void create_util_to_cost(void);
 struct compute_energy_output {
 	unsigned long	sum_util[MAX_CLUSTERS];
@@ -1031,6 +1029,10 @@ extern struct cpumask __cpu_partial_halt_mask;
 
 /* a partially halted may be used for helping smaller cpus with small tasks */
 #define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
+
+#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && \
+				!is_min_cluster_cpu(cpu) && \
+				!cpu_partial_halted(cpu))
 
 static inline bool cluster_partial_halted(void)
 {
