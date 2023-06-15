@@ -1150,7 +1150,8 @@ static struct sdw_master_runtime
 *sdw_master_rt_alloc(struct sdw_bus *bus,
 		     struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt;
+	struct sdw_master_runtime *m_rt, *walk_m_rt;
+	struct list_head *insert_after;
 
 	m_rt = kzalloc(sizeof(*m_rt), GFP_KERNEL);
 	if (!m_rt)
@@ -1159,7 +1160,20 @@ static struct sdw_master_runtime
 	/* Initialization of Master runtime handle */
 	INIT_LIST_HEAD(&m_rt->port_list);
 	INIT_LIST_HEAD(&m_rt->slave_rt_list);
-	list_add_tail(&m_rt->stream_node, &stream->master_list);
+
+	/*
+	 * Add in order of bus id so that when taking the bus_lock
+	 * of multiple buses they will always be taken in the same
+	 * order to prevent a mutex deadlock.
+	 */
+	insert_after = &stream->master_list;
+	list_for_each_entry_reverse(walk_m_rt, &stream->master_list, stream_node) {
+		if (walk_m_rt->bus->id < bus->id) {
+			insert_after = &walk_m_rt->stream_node;
+			break;
+		}
+	}
+	list_add(&m_rt->stream_node, insert_after);
 
 	list_add_tail(&m_rt->bus_node, &bus->m_rt_list);
 
