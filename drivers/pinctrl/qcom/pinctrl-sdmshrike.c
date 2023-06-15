@@ -2268,6 +2268,7 @@ static struct msm_pinctrl_soc_data sdmshrike_pinctrl = {
 	.wakeirq_map = sdmshrike_pdc_map,
 	.nwakeirq_map = ARRAY_SIZE(sdmshrike_pdc_map),
 	.wakeirq_dual_edge_errata = true,
+	.egpio_func = 9,
 };
 
 static int sdmshrike_pinctrl_probe(struct platform_device *pdev)
