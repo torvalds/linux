@@ -53,26 +53,10 @@
 					 IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
+	rpm: remoteproc {
+		compatible = "qcom,msm8226-rpm-proc", "qcom,rpm-proc";
 
-		smem_region: smem@3000000 {
-			reg = <0x3000000 0x100000>;
-			no-map;
-		};
-
-		adsp_region: adsp@dc00000 {
-			reg = <0x0dc00000 0x1900000>;
-			no-map;
-		};
-	};
-
-	smd {
-		compatible = "qcom,smd";
-
-		rpm {
+		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
@@ -117,6 +101,22 @@
 					};
 				};
 			};
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		smem_region: smem@3000000 {
+			reg = <0x3000000 0x100000>;
+			no-map;
+		};
+
+		adsp_region: adsp@dc00000 {
+			reg = <0x0dc00000 0x1900000>;
+			no-map;
 		};
 	};
 
