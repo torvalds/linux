@@ -10,6 +10,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
@@ -240,6 +241,11 @@ static void __exit gpio_aggregator_remove_all(void)
  *  GPIO Forwarder
  */
 
+struct gpiochip_fwd_timing {
+	u32 ramp_up_us;
+	u32 ramp_down_us;
+};
+
 struct gpiochip_fwd {
 	struct gpio_chip chip;
 	struct gpio_desc **descs;
@@ -247,6 +253,7 @@ struct gpiochip_fwd {
 		struct mutex mlock;	/* protects tmp[] if can_sleep */
 		spinlock_t slock;	/* protects tmp[] if !can_sleep */
 	};
+	struct gpiochip_fwd_timing *delay_timings;
 	unsigned long tmp[];		/* values and descs for multiple ops */
 };
 
@@ -331,6 +338,27 @@ static int gpio_fwd_get_multiple_locked(struct gpio_chip *chip,
 	return error;
 }
 
+static void gpio_fwd_delay(struct gpio_chip *chip, unsigned int offset, int value)
+{
+	struct gpiochip_fwd *fwd = gpiochip_get_data(chip);
+	const struct gpiochip_fwd_timing *delay_timings;
+	bool is_active_low = gpiod_is_active_low(fwd->descs[offset]);
+	u32 delay_us;
+
+	delay_timings = &fwd->delay_timings[offset];
+	if ((!is_active_low && value) || (is_active_low && !value))
+		delay_us = delay_timings->ramp_up_us;
+	else
+		delay_us = delay_timings->ramp_down_us;
+	if (!delay_us)
+		return;
+
+	if (chip->can_sleep)
+		fsleep(delay_us);
+	else
+		udelay(delay_us);
+}
+
 static void gpio_fwd_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct gpiochip_fwd *fwd = gpiochip_get_data(chip);
@@ -339,6 +367,9 @@ static void gpio_fwd_set(struct gpio_chip *chip, unsigned int offset, int value)
 		gpiod_set_value_cansleep(fwd->descs[offset], value);
 	else
 		gpiod_set_value(fwd->descs[offset], value);
+
+	if (fwd->delay_timings)
+		gpio_fwd_delay(chip, offset, value);
 }
 
 static void gpio_fwd_set_multiple(struct gpiochip_fwd *fwd, unsigned long *mask,
