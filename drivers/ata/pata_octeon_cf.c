@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <scsi/scsi_host.h>
