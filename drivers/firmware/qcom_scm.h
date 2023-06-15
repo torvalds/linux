@@ -238,6 +238,9 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_FEAT_LOG_ID			0x0a
 #define QCOM_SCM_MP_CP_FEAT_ID			0x0c
 
+#define QCOM_SCM_SVC_APP_MGR			0x1
+#define QCOM_SCM_PREFETCH_TGT_CTRL		0x10
+
 extern void __qcom_scm_init(void);
 extern void __qcom_scm_qcpe_exit(void);
 
