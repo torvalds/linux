@@ -975,12 +975,14 @@ static int mtd_otp_nvmem_add(struct mtd_info *mtd)
 			void *otp;
 
 			otp = kmalloc(size, GFP_KERNEL);
-			if (!otp)
-				return -ENOMEM;
+			if (!otp) {
+				err = -ENOMEM;
+				goto err;
+			}
 			err = mtd_nvmem_fact_otp_reg_read(mtd, 0, otp, size);
 			if (err < 0) {
 				kfree(otp);
-				return err;
+				goto err;
 			}
 			add_device_randomness(otp, err);
 			kfree(otp);
