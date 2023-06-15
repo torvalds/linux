@@ -66,10 +66,10 @@ def check_json_output(expected_items):
   for item in json.loads(input):
     if expected_items != -1:
       count = len(item)
-      if count != expected_items and count >= 1 and count <= 4 and 'metric-value' in item:
+      if count != expected_items and count >= 1 and count <= 6 and 'metric-value' in item:
         # Events that generate >1 metric may have isolated metric
-        # values and possibly other prefixes like interval, core and
-        # aggregate-number.
+        # values and possibly other prefixes like interval, core,
+        # aggregate-number, or event-runtime/pcnt-running from multiplexing.
         pass
       elif count != expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
         pass
