@@ -536,6 +536,7 @@ struct rkcif_stream {
 	int				last_rx_buf_idx;
 	int				last_frame_idx;
 	int				new_fource_idx;
+	atomic_t			buf_cnt;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;

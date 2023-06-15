@@ -644,12 +644,16 @@ void rkcif_write_register(struct rkcif_device *dev,
 		}
 	}
 	if (index < CIF_REG_INDEX_MAX) {
-		if (index == CIF_REG_DVP_CTRL || reg->offset != 0x0)
+		if (index == CIF_REG_DVP_CTRL || reg->offset != 0x0) {
 			write_cif_reg(base, reg->offset + csi_offset, val);
-		else
+			v4l2_dbg(4, rkcif_debug, &dev->v4l2_dev,
+				 "write reg[0x%x]:0x%x!!!\n",
+				 reg->offset + csi_offset, val);
+		} else {
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x failed, maybe useless!!!\n",
 				 index, val);
+		}
 	}
 }
 
@@ -681,6 +685,9 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 			reg_val = read_cif_reg(base, reg->offset + csi_offset);
 			reg_val |= val;
 			write_cif_reg(base, reg->offset + csi_offset, reg_val);
+			v4l2_dbg(4, rkcif_debug, &dev->v4l2_dev,
+				 "write or reg[0x%x]:0x%x!!!\n",
+				 reg->offset + csi_offset, val);
 		} else {
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x with OR failed, maybe useless!!!\n",
@@ -717,6 +724,9 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 			reg_val = read_cif_reg(base, reg->offset + csi_offset);
 			reg_val &= val;
 			write_cif_reg(base, reg->offset + csi_offset, reg_val);
+			v4l2_dbg(4, rkcif_debug, &dev->v4l2_dev,
+				 "write and reg[0x%x]:0x%x!!!\n",
+				 reg->offset + csi_offset, val);
 		} else {
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x with OR failed, maybe useless!!!\n",

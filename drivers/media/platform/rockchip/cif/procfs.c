@@ -371,6 +371,11 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		seq_printf(f, "dma enable: 0x%x 0x%x 0x%x 0x%x\n",
 			   dev->stream[0].dma_en, dev->stream[1].dma_en,
 			   dev->stream[2].dma_en, dev->stream[3].dma_en);
+		seq_printf(f, "buf_cnt in drv: %d %d %d %d\n",
+			   atomic_read(&dev->stream[0].buf_cnt),
+			   atomic_read(&dev->stream[1].buf_cnt),
+			   atomic_read(&dev->stream[2].buf_cnt),
+			   atomic_read(&dev->stream[3].buf_cnt));
 	}
 }
 
