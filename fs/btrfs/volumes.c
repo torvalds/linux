@@ -1928,7 +1928,7 @@ static void update_dev_time(const char *device_path)
 		return;
 
 	now = current_time(d_inode(path.dentry));
-	inode_update_time(d_inode(path.dentry), &now, S_MTIME | S_CTIME);
+	inode_update_time(d_inode(path.dentry), &now, S_MTIME | S_CTIME | S_VERSION);
 	path_put(&path);
 }
 
