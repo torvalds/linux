@@ -11,15 +11,9 @@
 #ifndef _CRYPTO_SM2_H
 #define _CRYPTO_SM2_H
 
-#include <crypto/sm3.h>
-#include <crypto/akcipher.h>
+struct shash_desc;
 
-/* The default user id as specified in GM/T 0009-2012 */
-#define SM2_DEFAULT_USERID "1234567812345678"
-#define SM2_DEFAULT_USERID_LEN 16
-
-extern int sm2_compute_z_digest(struct crypto_akcipher *tfm,
-			const unsigned char *id, size_t id_len,
-			unsigned char dgst[SM3_DIGEST_SIZE]);
+int sm2_compute_z_digest(struct shash_desc *desc,
+			 const void *key, unsigned int keylen, void *dgst);
 
 #endif /* _CRYPTO_SM2_H */
