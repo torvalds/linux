@@ -3834,6 +3834,7 @@
 #define RR_LCKST_BIN BIT(0)
 #define RR_LCK_TRG 0xd3
 #define RR_LCK_TRGSEL BIT(8)
+#define RR_LCK_ST BIT(4)
 #define RR_MMD 0xd5
 #define RR_MMD_RST_EN BIT(8)
 #define RR_MMD_RST_SYN BIT(6)

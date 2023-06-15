@@ -1546,6 +1546,7 @@ static void rtw8851b_rfk_init(struct rtw89_dev *rtwdev)
 {
 	rtwdev->is_tssi_mode[RF_PATH_A] = false;
 	rtwdev->is_tssi_mode[RF_PATH_B] = false;
+	rtw8851b_lck_init(rtwdev);
 
 	rtw8851b_dpk_init(rtwdev);
 	rtw8851b_aack(rtwdev);
@@ -1578,6 +1579,7 @@ static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, bool start)
 static void rtw8851b_rfk_track(struct rtw89_dev *rtwdev)
 {
 	rtw8851b_dpk_track(rtwdev);
+	rtw8851b_lck_track(rtwdev);
 }
 
 static u32 rtw8851b_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,

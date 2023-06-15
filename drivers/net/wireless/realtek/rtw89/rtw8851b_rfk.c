@@ -118,6 +118,8 @@ static const u32 dpk_kip_reg[DPK_KIP_REG_NUM_8851B] = {
 	0x813c, 0x8124, 0xc0ec, 0xc0e8, 0xc0c4, 0xc0d4, 0xc0d8};
 static const u32 dpk_rf_reg[DPK_RF_REG_NUM_8851B] = {0xde, 0x8f, 0x5, 0x10005};
 
+static void _set_ch(struct rtw89_dev *rtwdev, u32 val);
+
 static u8 _kpath(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	return RF_A;
@@ -3133,7 +3135,7 @@ void rtw8851b_dpk_init(struct rtw89_dev *rtwdev)
 
 void rtw8851b_aack(struct rtw89_dev *rtwdev)
 {
-	u32 tmp05, ib[4];
+	u32 tmp05, tmpd3, ib[4];
 	u32 tmp;
 	int ret;
 	int rek;
@@ -3142,8 +3144,10 @@ void rtw8851b_aack(struct rtw89_dev *rtwdev)
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[LCK]DO AACK\n");
 
 	tmp05 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK);
+	tmpd3 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_LCK_TRG, RFREG_MASK);
 	rtw89_write_rf(rtwdev, RF_PATH_A, RR_MOD, RR_MOD_MASK, 0x3);
 	rtw89_write_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_LCK_TRG, RR_LCK_ST, 0x0);
 
 	for (rek = 0; rek < 4; rek++) {
 		rtw89_write_rf(rtwdev, RF_PATH_A, RR_AACK, RFREG_MASK, 0x8201e);
@@ -3171,6 +3175,65 @@ void rtw8851b_aack(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[LCK]AACK rek = %d\n", rek);
 
 	rtw89_write_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK, tmp05);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_LCK_TRG, RFREG_MASK, tmpd3);
+}
+
+static void _lck_keep_thermal(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+
+	lck->thermal[RF_PATH_A] =
+		ewma_thermal_read(&rtwdev->phystat.avg_thermal[RF_PATH_A]);
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+		    "[LCK] path=%d thermal=0x%x", RF_PATH_A, lck->thermal[RF_PATH_A]);
+}
+
+static void rtw8851b_lck(struct rtw89_dev *rtwdev)
+{
+	u32 tmp05, tmp18, tmpd3;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[LCK]DO LCK\n");
+
+	tmp05 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK);
+	tmp18 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_CFGCH, RFREG_MASK);
+	tmpd3 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_LCK_TRG, RFREG_MASK);
+
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_MOD, RR_MOD_MASK, 0x3);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_LCK_TRG, RR_LCK_TRGSEL, 0x1);
+
+	_set_ch(rtwdev, tmp18);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_LCK_TRG, RFREG_MASK, tmpd3);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK, tmp05);
+
+	_lck_keep_thermal(rtwdev);
+}
+
+#define RTW8851B_LCK_TH 8
+
+void rtw8851b_lck_track(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+	u8 cur_thermal;
+	int delta;
+
+	cur_thermal =
+		ewma_thermal_read(&rtwdev->phystat.avg_thermal[RF_PATH_A]);
+	delta = abs((int)cur_thermal - lck->thermal[RF_PATH_A]);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+		    "[LCK] path=%d current thermal=0x%x delta=0x%x\n",
+		    RF_PATH_A, cur_thermal, delta);
+
+	if (delta >= RTW8851B_LCK_TH) {
+		rtw8851b_aack(rtwdev);
+		rtw8851b_lck(rtwdev);
+	}
+}
+
+void rtw8851b_lck_init(struct rtw89_dev *rtwdev)
+{
+	_lck_keep_thermal(rtwdev);
 }
 
 void rtw8851b_rck(struct rtw89_dev *rtwdev)
