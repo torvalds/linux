@@ -249,7 +249,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap_sfr))
 		regmap_sfr = NULL;
 
-	hw = at91_clk_register_utmi(regmap, regmap_sfr, "utmick", "mainck");
+	hw = at91_clk_register_utmi(regmap, regmap_sfr, "utmick", "mainck", NULL);
 	if (IS_ERR(hw))
 		goto err_free;
 

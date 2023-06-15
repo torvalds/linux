@@ -1035,7 +1035,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 			sama7g5_pmc->chws[sama7g5_mckx[i].eid] = hw;
 	}
 
-	hw = at91_clk_sama7g5_register_utmi(regmap, "utmick", "main_xtal");
+	hw = at91_clk_sama7g5_register_utmi(regmap, "utmick", "main_xtal", NULL);
 	if (IS_ERR(hw))
 		goto err_free;
 

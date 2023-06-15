@@ -269,10 +269,11 @@ at91rm9200_clk_register_usb(struct regmap *regmap, const char *name,
 
 struct clk_hw * __init
 at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
-		       const char *name, const char *parent_name);
+		       const char *name, const char *parent_name,
+		       struct clk_hw *parent_hw);
 
 struct clk_hw * __init
 at91_clk_sama7g5_register_utmi(struct regmap *regmap, const char *name,
-			       const char *parent_name);
+			       const char *parent_name, struct clk_hw *parent_hw);
 
 #endif /* __PMC_H_ */

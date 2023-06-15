@@ -187,7 +187,7 @@ static void __init sama5d4_pmc_setup(struct device_node *np)
 
 	sama5d4_pmc->chws[PMC_PLLACK] = hw;
 
-	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
+	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck", NULL);
 	if (IS_ERR(hw))
 		goto err_free;
 

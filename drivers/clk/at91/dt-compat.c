@@ -1055,7 +1055,7 @@ static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
 			regmap_sfr = NULL;
 	}
 
-	hw = at91_clk_register_utmi(regmap_pmc, regmap_sfr, name, parent_name);
+	hw = at91_clk_register_utmi(regmap_pmc, regmap_sfr, name, parent_name, NULL);
 	if (IS_ERR(hw))
 		return;
 
