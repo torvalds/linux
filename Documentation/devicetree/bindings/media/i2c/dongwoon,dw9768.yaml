@@ -38,7 +38,7 @@ properties:
   dongwoon,aac-mode:
     description:
       Indication of AAC mode select.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 1    #  AAC2 mode(operation time# 0.48 x Tvib)
       - 2    #  AAC3 mode(operation time# 0.70 x Tvib)
@@ -50,7 +50,7 @@ properties:
     description:
       Number of AAC Timing count that controlled by one 6-bit period of
       vibration register AACT[5:0], the unit of which is 100 us.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 0x20
     minimum: 0x00
     maximum: 0x3f
@@ -59,7 +59,7 @@ properties:
     description:
       Indication of VCM internal clock dividing rate select, as one multiple
       factor to calculate VCM ring periodic time Tvib.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0    #  Dividing Rate -  2
       - 1    #  Dividing Rate -  1

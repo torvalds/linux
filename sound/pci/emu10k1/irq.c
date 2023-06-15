@@ -18,7 +18,7 @@
 irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 {
 	struct snd_emu10k1 *emu = dev_id;
-	unsigned int status, status2, orig_status, orig_status2;
+	unsigned int status, orig_status;
 	int handled = 0;
 	int timeout = 0;
 
@@ -139,32 +139,10 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 			status &= ~IPR_FXDSP;
 		}
 		if (status & IPR_P16V) {
-			while ((status2 = inl(emu->port + IPR2)) != 0) {
-				u32 mask = INTE2_PLAYBACK_CH_0_LOOP;  /* Full Loop */
-				struct snd_emu10k1_voice *pvoice = &(emu->p16v_voices[0]);
-				struct snd_emu10k1_voice *cvoice = &(emu->p16v_capture_voice);
-
-				/* dev_dbg(emu->card->dev, "status2=0x%x\n", status2); */
-				orig_status2 = status2;
-				if(status2 & mask) {
-					if(pvoice->use) {
-						snd_pcm_period_elapsed(pvoice->epcm->substream);
-					} else { 
-						dev_err(emu->card->dev,
-							"p16v: status: 0x%08x, mask=0x%08x, pvoice=%p, use=%d\n",
-							status2, mask, pvoice,
-							pvoice->use);
-					}
-				}
-				if(status2 & 0x110000) {
-					/* dev_info(emu->card->dev, "capture int found\n"); */
-					if(cvoice->use) {
-						/* dev_info(emu->card->dev, "capture period_elapsed\n"); */
-						snd_pcm_period_elapsed(cvoice->epcm->substream);
-					}
-				}
-				outl(orig_status2, emu->port + IPR2); /* ack all */
-			}
+			if (emu->p16v_interrupt)
+				emu->p16v_interrupt(emu);
+			else
+				outl(0, emu->port + INTE2);
 			status &= ~IPR_P16V;
 		}
 

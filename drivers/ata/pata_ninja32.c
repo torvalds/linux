@@ -77,7 +77,7 @@ static void ninja32_dev_select(struct ata_port *ap, unsigned int device)
 	}
 }
 
-static struct scsi_host_template ninja32_sht = {
+static const struct scsi_host_template ninja32_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

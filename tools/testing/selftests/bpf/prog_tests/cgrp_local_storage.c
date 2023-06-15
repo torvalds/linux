@@ -193,7 +193,7 @@ out:
 	cgrp_ls_sleepable__destroy(skel);
 }
 
-static void test_no_rcu_lock(__u64 cgroup_id)
+static void test_yes_rcu_lock(__u64 cgroup_id)
 {
 	struct cgrp_ls_sleepable *skel;
 	int err;
@@ -204,7 +204,7 @@ static void test_no_rcu_lock(__u64 cgroup_id)
 
 	skel->bss->target_pid = syscall(SYS_gettid);
 
-	bpf_program__set_autoload(skel->progs.no_rcu_lock, true);
+	bpf_program__set_autoload(skel->progs.yes_rcu_lock, true);
 	err = cgrp_ls_sleepable__load(skel);
 	if (!ASSERT_OK(err, "skel_load"))
 		goto out;
@@ -220,7 +220,7 @@ out:
 	cgrp_ls_sleepable__destroy(skel);
 }
 
-static void test_rcu_lock(void)
+static void test_no_rcu_lock(void)
 {
 	struct cgrp_ls_sleepable *skel;
 	int err;
@@ -229,7 +229,7 @@ static void test_rcu_lock(void)
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
 		return;
 
-	bpf_program__set_autoload(skel->progs.yes_rcu_lock, true);
+	bpf_program__set_autoload(skel->progs.no_rcu_lock, true);
 	err = cgrp_ls_sleepable__load(skel);
 	ASSERT_ERR(err, "skel_load");
 
@@ -256,10 +256,10 @@ void test_cgrp_local_storage(void)
 		test_negative();
 	if (test__start_subtest("cgroup_iter_sleepable"))
 		test_cgroup_iter_sleepable(cgroup_fd, cgroup_id);
+	if (test__start_subtest("yes_rcu_lock"))
+		test_yes_rcu_lock(cgroup_id);
 	if (test__start_subtest("no_rcu_lock"))
-		test_no_rcu_lock(cgroup_id);
-	if (test__start_subtest("rcu_lock"))
-		test_rcu_lock();
+		test_no_rcu_lock();
 
 	close(cgroup_fd);
 }

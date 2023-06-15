@@ -239,7 +239,7 @@ static int cifs_dump_full_key(struct cifs_tcon *tcon, struct smb3_full_key_debug
 					 * section, we need to make sure it won't be released
 					 * so increment its refcount
 					 */
-					ses->ses_count++;
+					cifs_smb_ses_inc_refcount(ses);
 					found = true;
 					goto search_end;
 				}

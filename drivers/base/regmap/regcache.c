@@ -17,9 +17,7 @@
 
 static const struct regcache_ops *cache_types[] = {
 	&regcache_rbtree_ops,
-#if IS_ENABLED(CONFIG_REGCACHE_COMPRESSED)
-	&regcache_lzo_ops,
-#endif
+	&regcache_maple_ops,
 	&regcache_flat_ops,
 };
 
@@ -148,7 +146,7 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 			break;
 
 	if (i == ARRAY_SIZE(cache_types)) {
-		dev_err(map->dev, "Could not match compress type: %d\n",
+		dev_err(map->dev, "Could not match cache type: %d\n",
 			map->cache_type);
 		return -EINVAL;
 	}
@@ -242,7 +240,7 @@ int regcache_read(struct regmap *map,
 	int ret;
 
 	if (map->cache_type == REGCACHE_NONE)
-		return -ENOSYS;
+		return -EINVAL;
 
 	BUG_ON(!map->cache_ops);
 
@@ -311,6 +309,8 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 			continue;
 
 		ret = regcache_read(map, reg, &val);
+		if (ret == -ENOENT)
+			continue;
 		if (ret)
 			return ret;
 
@@ -348,6 +348,9 @@ int regcache_sync(struct regmap *map)
 	unsigned int i;
 	const char *name;
 	bool bypass;
+
+	if (WARN_ON(map->cache_type == REGCACHE_NONE))
+		return -EINVAL;
 
 	BUG_ON(!map->cache_ops);
 
@@ -417,6 +420,9 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 	int ret = 0;
 	const char *name;
 	bool bypass;
+
+	if (WARN_ON(map->cache_type == REGCACHE_NONE))
+		return -EINVAL;
 
 	BUG_ON(!map->cache_ops);
 
@@ -672,6 +678,30 @@ static bool regcache_reg_present(unsigned long *cache_present, unsigned int idx)
 	return test_bit(idx, cache_present);
 }
 
+int regcache_sync_val(struct regmap *map, unsigned int reg, unsigned int val)
+{
+	int ret;
+
+	if (!regcache_reg_needs_sync(map, reg, val))
+		return 0;
+
+	map->cache_bypass = true;
+
+	ret = _regmap_write(map, reg, val);
+
+	map->cache_bypass = false;
+
+	if (ret != 0) {
+		dev_err(map->dev, "Unable to sync register %#x. %d\n",
+			reg, ret);
+		return ret;
+	}
+	dev_dbg(map->dev, "Synced register %#x, value %#x\n",
+		reg, val);
+
+	return 0;
+}
+
 static int regcache_sync_block_single(struct regmap *map, void *block,
 				      unsigned long *cache_present,
 				      unsigned int block_base,
@@ -688,21 +718,9 @@ static int regcache_sync_block_single(struct regmap *map, void *block,
 			continue;
 
 		val = regcache_get_val(map, block, i);
-		if (!regcache_reg_needs_sync(map, regtmp, val))
-			continue;
-
-		map->cache_bypass = true;
-
-		ret = _regmap_write(map, regtmp, val);
-
-		map->cache_bypass = false;
-		if (ret != 0) {
-			dev_err(map->dev, "Unable to sync register %#x. %d\n",
-				regtmp, ret);
+		ret = regcache_sync_val(map, regtmp, val);
+		if (ret != 0)
 			return ret;
-		}
-		dev_dbg(map->dev, "Synced register %#x, value %#x\n",
-			regtmp, val);
 	}
 
 	return 0;

@@ -31,7 +31,7 @@ struct qcom_rmtfs_mem {
 
 	unsigned int client_id;
 
-	unsigned int perms;
+	u64 perms;
 };
 
 static ssize_t qcom_rmtfs_mem_show(struct device *dev,
@@ -126,7 +126,6 @@ static int qcom_rmtfs_mem_release(struct inode *inode, struct file *filp)
 }
 
 static struct class rmtfs_class = {
-	.owner          = THIS_MODULE,
 	.name           = "rmtfs",
 };
 

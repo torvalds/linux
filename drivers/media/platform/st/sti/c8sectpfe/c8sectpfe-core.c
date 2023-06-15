@@ -878,7 +878,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int c8sectpfe_remove(struct platform_device *pdev)
+static void c8sectpfe_remove(struct platform_device *pdev)
 {
 	struct c8sectpfei *fei = platform_get_drvdata(pdev);
 	struct channel_info *channel;
@@ -910,8 +910,6 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 		writel(0, fei->io + SYS_OTHER_CLKEN);
 
 	clk_disable_unprepare(fei->c8sectpfeclk);
-
-	return 0;
 }
 
 
@@ -1178,7 +1176,7 @@ static struct platform_driver c8sectpfe_driver = {
 		.of_match_table = of_match_ptr(c8sectpfe_match),
 	},
 	.probe	= c8sectpfe_probe,
-	.remove	= c8sectpfe_remove,
+	.remove_new = c8sectpfe_remove,
 };
 
 module_platform_driver(c8sectpfe_driver);

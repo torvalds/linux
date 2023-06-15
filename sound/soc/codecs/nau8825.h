@@ -517,6 +517,7 @@ struct nau8825 {
 	int xtalk_enable;
 	bool xtalk_baktab_initialized; /* True if initialized. */
 	bool adcout_ds;
+	int adc_delay;
 };
 
 int nau8825_enable_jack_detect(struct snd_soc_component *component,

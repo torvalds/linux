@@ -176,6 +176,8 @@ properties:
     description: Child nodes are just another property from a json-schema
       perspective.
     type: object  # DT nodes are json objects
+    # Child nodes also need additionalProperties or unevaluatedProperties
+    additionalProperties: false
     properties:
       vendor,a-child-node-property:
         description: Child node properties have all the same schema

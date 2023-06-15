@@ -244,11 +244,11 @@ noinstr void pentium_machine_check(struct pt_regs *regs);
 noinstr void winchip_machine_check(struct pt_regs *regs);
 static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
 #else
-static inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline void enable_p5_mce(void) {}
-static inline void pentium_machine_check(struct pt_regs *regs) {}
-static inline void winchip_machine_check(struct pt_regs *regs) {}
+static __always_inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
+static __always_inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
+static __always_inline void enable_p5_mce(void) {}
+static __always_inline void pentium_machine_check(struct pt_regs *regs) {}
+static __always_inline void winchip_machine_check(struct pt_regs *regs) {}
 #endif
 
 noinstr u64 mce_rdmsrl(u32 msr);

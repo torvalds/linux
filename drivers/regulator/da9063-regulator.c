@@ -83,6 +83,9 @@ struct da9063_regulator_info {
 
 	/* DA9063 event detection bit */
 	struct reg_field oc_event;
+
+	/* DA9063 voltage monitor bit */
+	struct reg_field vmon;
 };
 
 /* Macros for LDO */
@@ -148,6 +151,7 @@ struct da9063_regulator {
 	struct regmap_field			*suspend;
 	struct regmap_field			*sleep;
 	struct regmap_field			*suspend_sleep;
+	struct regmap_field			*vmon;
 };
 
 /* Encapsulates all information for the regulators driver */
@@ -202,6 +206,24 @@ static const unsigned int da9063_bmem_bio_merged_limits[] = {
 	3000000, 3200000, 3400000, 3600000, 3800000, 4000000, 4200000, 4400000,
 	4600000, 4800000, 5000000, 5200000, 5400000, 5600000, 5800000, 6000000
 };
+
+static int da9063_set_xvp(struct regulator_dev *rdev, int lim_uV, int severity, bool enable)
+{
+	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
+	struct device *dev = regl->hw->dev;
+
+	dev_dbg(dev, "%s: lim: %d, sev: %d, en: %d\n", regl->desc.name, lim_uV, severity, enable);
+
+	/*
+	 * only support enable and disable.
+	 * the da9063 offers a GPIO (GP_FB2) which is unasserted if an XV happens.
+	 * therefore ignore severity here, as there might be handlers in hardware.
+	 */
+	if (lim_uV)
+		return -EINVAL;
+
+	return regmap_field_write(regl->vmon, enable ? 1 : 0);
+}
 
 static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
@@ -541,37 +563,41 @@ static int da9063_buck_get_current_limit(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops da9063_buck_ops = {
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
-	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_linear,
-	.set_current_limit	= da9063_buck_set_current_limit,
-	.get_current_limit	= da9063_buck_get_current_limit,
-	.set_mode		= da9063_buck_set_mode,
-	.get_mode		= da9063_buck_get_mode,
-	.get_status		= da9063_buck_get_status,
-	.set_suspend_voltage	= da9063_set_suspend_voltage,
-	.set_suspend_enable	= da9063_suspend_enable,
-	.set_suspend_disable	= da9063_suspend_disable,
-	.set_suspend_mode	= da9063_buck_set_suspend_mode,
+	.enable				= regulator_enable_regmap,
+	.disable			= regulator_disable_regmap,
+	.is_enabled			= regulator_is_enabled_regmap,
+	.get_voltage_sel		= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel		= regulator_set_voltage_sel_regmap,
+	.list_voltage			= regulator_list_voltage_linear,
+	.set_current_limit		= da9063_buck_set_current_limit,
+	.get_current_limit		= da9063_buck_get_current_limit,
+	.set_mode			= da9063_buck_set_mode,
+	.get_mode			= da9063_buck_get_mode,
+	.get_status			= da9063_buck_get_status,
+	.set_suspend_voltage		= da9063_set_suspend_voltage,
+	.set_suspend_enable		= da9063_suspend_enable,
+	.set_suspend_disable		= da9063_suspend_disable,
+	.set_suspend_mode		= da9063_buck_set_suspend_mode,
+	.set_over_voltage_protection	= da9063_set_xvp,
+	.set_under_voltage_protection	= da9063_set_xvp,
 };
 
 static const struct regulator_ops da9063_ldo_ops = {
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
-	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_linear,
-	.set_mode		= da9063_ldo_set_mode,
-	.get_mode		= da9063_ldo_get_mode,
-	.get_status		= da9063_ldo_get_status,
-	.set_suspend_voltage	= da9063_set_suspend_voltage,
-	.set_suspend_enable	= da9063_suspend_enable,
-	.set_suspend_disable	= da9063_suspend_disable,
-	.set_suspend_mode	= da9063_ldo_set_suspend_mode,
+	.enable				= regulator_enable_regmap,
+	.disable			= regulator_disable_regmap,
+	.is_enabled			= regulator_is_enabled_regmap,
+	.get_voltage_sel		= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel		= regulator_set_voltage_sel_regmap,
+	.list_voltage			= regulator_list_voltage_linear,
+	.set_mode			= da9063_ldo_set_mode,
+	.get_mode			= da9063_ldo_get_mode,
+	.get_status			= da9063_ldo_get_status,
+	.set_suspend_voltage		= da9063_set_suspend_voltage,
+	.set_suspend_enable		= da9063_suspend_enable,
+	.set_suspend_disable		= da9063_suspend_disable,
+	.set_suspend_mode		= da9063_ldo_set_suspend_mode,
+	.set_over_voltage_protection	= da9063_set_xvp,
+	.set_under_voltage_protection	= da9063_set_xvp,
 };
 
 /* Info of regulators for DA9063 */
@@ -581,36 +607,42 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 			    da9063_buck_a_limits,
 			    DA9063_REG_BUCK_ILIM_C, DA9063_BCORE1_ILIM_MASK),
 		DA9063_BUCK_COMMON_FIELDS(BCORE1),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BCORE1_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BCORE2, 300, 10, 1570,
 			    da9063_buck_a_limits,
 			    DA9063_REG_BUCK_ILIM_C, DA9063_BCORE2_ILIM_MASK),
 		DA9063_BUCK_COMMON_FIELDS(BCORE2),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BCORE2_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BPRO, 530, 10, 1800,
 			    da9063_buck_a_limits,
 			    DA9063_REG_BUCK_ILIM_B, DA9063_BPRO_ILIM_MASK),
 		DA9063_BUCK_COMMON_FIELDS(BPRO),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BPRO_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BMEM, 800, 20, 3340,
 			    da9063_buck_b_limits,
 			    DA9063_REG_BUCK_ILIM_A, DA9063_BMEM_ILIM_MASK),
 		DA9063_BUCK_COMMON_FIELDS(BMEM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BMEM_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BIO, 800, 20, 3340,
 			    da9063_buck_b_limits,
 			    DA9063_REG_BUCK_ILIM_A, DA9063_BIO_ILIM_MASK),
 		DA9063_BUCK_COMMON_FIELDS(BIO),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BIO_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BPERI, 800, 20, 3340,
 			    da9063_buck_b_limits,
 			    DA9063_REG_BUCK_ILIM_B, DA9063_BPERI_ILIM_MASK),
 		DA9063_BUCK_COMMON_FIELDS(BPERI),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BPERI_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BCORES_MERGED, 300, 10, 1570,
@@ -618,6 +650,7 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 			    DA9063_REG_BUCK_ILIM_C, DA9063_BCORE1_ILIM_MASK),
 		/* BCORES_MERGED uses the same register fields as BCORE1 */
 		DA9063_BUCK_COMMON_FIELDS(BCORE1),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BCORE1_MON_EN),
 	},
 	{
 		DA9063_BUCK(DA9063, BMEM_BIO_MERGED, 800, 20, 3340,
@@ -625,47 +658,59 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 			    DA9063_REG_BUCK_ILIM_A, DA9063_BMEM_ILIM_MASK),
 		/* BMEM_BIO_MERGED uses the same register fields as BMEM */
 		DA9063_BUCK_COMMON_FIELDS(BMEM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_4, DA9063_BMEM_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO3, 900, 20, 3440),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO3_LIM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO3_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO7, 900, 50, 3600),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO7_LIM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO7_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO8, 900, 50, 3600),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO8_LIM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO8_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO9, 950, 50, 3600),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_3, DA9063_LDO9_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO11, 900, 50, 3600),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO11_LIM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_3, DA9063_LDO11_MON_EN),
 	},
 
 	/* The following LDOs are present only on DA9063, not on DA9063L */
 	{
 		DA9063_LDO(DA9063, LDO1, 600, 20, 1860),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO1_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO2, 600, 20, 1860),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO2_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO4, 900, 20, 3440),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO4_LIM),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO4_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO5, 900, 50, 3600),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO5_MON_EN),
 	},
 	{
 		DA9063_LDO(DA9063, LDO6, 900, 50, 3600),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO6_MON_EN),
 	},
 
 	{
 		DA9063_LDO(DA9063, LDO10, 900, 50, 3600),
+		.vmon = BFIELD(DA9063_BB_REG_MON_REG_3, DA9063_LDO10_MON_EN),
 	},
 };
 
@@ -724,6 +769,41 @@ static const struct regulator_init_data *da9063_get_regulator_initdata(
 	}
 
 	return NULL;
+}
+
+static int da9063_check_xvp_constraints(struct regulator_config *config)
+{
+	struct da9063_regulator *regl = config->driver_data;
+	const struct regulation_constraints *constr = &config->init_data->constraints;
+	const struct notification_limit *uv_l = &constr->under_voltage_limits;
+	const struct notification_limit *ov_l = &constr->over_voltage_limits;
+
+	/* make sure that only one severity is used to clarify if unchanged, enabled or disabled */
+	if ((!!uv_l->prot + !!uv_l->err + !!uv_l->warn) > 1) {
+		dev_err(config->dev, "%s: at most one voltage monitoring severity allowed!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+
+	/* make sure that UV and OV monitoring is set to the same severity and value */
+	if (uv_l->prot != ov_l->prot) {
+		dev_err(config->dev,
+			"%s: protection-microvolt: value must be equal for uv and ov!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+	if (uv_l->err != ov_l->err) {
+		dev_err(config->dev, "%s: error-microvolt: value must be equal for uv and ov!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+	if (uv_l->warn != ov_l->warn) {
+		dev_err(config->dev, "%s: warn-microvolt: value must be equal for uv and ov!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static struct of_regulator_match da9063_matches[] = {
@@ -932,6 +1012,12 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 			if (IS_ERR(regl->suspend_sleep))
 				return PTR_ERR(regl->suspend_sleep);
 		}
+		if (regl->info->vmon.reg) {
+			regl->vmon = devm_regmap_field_alloc(&pdev->dev,
+				da9063->regmap, regl->info->vmon);
+			if (IS_ERR(regl->vmon))
+				return PTR_ERR(regl->vmon);
+		}
 
 		/* Register regulator */
 		memset(&config, 0, sizeof(config));
@@ -941,6 +1027,11 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		if (da9063_reg_matches)
 			config.of_node = da9063_reg_matches[id].of_node;
 		config.regmap = da9063->regmap;
+
+		ret = da9063_check_xvp_constraints(&config);
+		if (ret)
+			return ret;
+
 		regl->rdev = devm_regulator_register(&pdev->dev, &regl->desc,
 						     &config);
 		if (IS_ERR(regl->rdev)) {
@@ -971,6 +1062,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 static struct platform_driver da9063_regulator_driver = {
 	.driver = {
 		.name = DA9063_DRVNAME_REGULATORS,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = da9063_regulator_probe,
 };

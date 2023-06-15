@@ -678,15 +678,14 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 	/* Pick next descriptor and fill from buffer */
 	bdp = pinfo->tx_cur;
 
-	while (!(in_be16(&bdp->cbd_sc) & BD_SC_READY) &&
-	       xmit->tail != xmit->head) {
+	while (!(in_be16(&bdp->cbd_sc) & BD_SC_READY) && !uart_circ_empty(xmit)) {
 		count = 0;
 		p = cpm2cpu_addr(in_be32(&bdp->cbd_bufaddr), pinfo);
 		while (count < pinfo->tx_fifosize) {
 			*p++ = xmit->buf[xmit->tail];
 			uart_xmit_advance(port, 1);
 			count++;
-			if (xmit->head == xmit->tail)
+			if (uart_circ_empty(xmit))
 				break;
 		}
 		out_be16(&bdp->cbd_datlen, count);

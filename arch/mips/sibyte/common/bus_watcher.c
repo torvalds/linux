@@ -24,7 +24,7 @@
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_int.h>
 #include <asm/sibyte/sb1250_scd.h>
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 #include <asm/sibyte/bcm1480_regs.h>
 #endif
 
@@ -71,7 +71,7 @@ void check_bus_watcher(void)
 #if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
 	/* Use non-destructive register */
 	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS_DEBUG));
-#elif defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#elif defined(CONFIG_SIBYTE_BCM1x80)
 	/* Use non-destructive register */
 	/* Same as 1250 except BUS_ERR_STATUS_DEBUG is in a different place. */
 	status = csr_in32(IOADDR(A_BCM1480_BUS_ERR_STATUS_DEBUG));

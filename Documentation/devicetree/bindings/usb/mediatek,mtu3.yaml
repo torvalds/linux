@@ -11,7 +11,7 @@ maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
 
 allOf:
-  - $ref: "usb-drd.yaml"
+  - $ref: usb-drd.yaml
 
 description: |
   The DRD controller has a glue layer IPPC (IP Port Control), and its host is
@@ -66,6 +66,8 @@ properties:
       - description: Reference clock used by low power mode etc
       - description: Mcu bus clock for register access
       - description: DMA bus clock for data transfer
+      - description: DRD controller clock
+      - description: Frame count clock
 
   clock-names:
     minItems: 1
@@ -74,6 +76,8 @@ properties:
       - const: ref_ck
       - const: mcu_ck
       - const: dma_ck
+      - const: xhci_ck
+      - const: frmcnt_ck
 
   phys:
     description:
@@ -204,9 +208,9 @@ patternProperties:
       example if the host mode is enabled.
 
 dependencies:
-  connector: [ 'usb-role-switch' ]
-  port: [ 'usb-role-switch' ]
-  role-switch-default-mode: [ 'usb-role-switch' ]
+  connector: [ usb-role-switch ]
+  port: [ usb-role-switch ]
+  role-switch-default-mode: [ usb-role-switch ]
   wakeup-source: [ 'mediatek,syscon-wakeup' ]
 
 required:

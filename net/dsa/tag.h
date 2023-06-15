@@ -229,7 +229,7 @@ static inline void *dsa_etype_header_pos_rx(struct sk_buff *skb)
 	return skb->data - 2;
 }
 
-/* On TX, skb->data points to skb_mac_header(skb), which means that EtherType
+/* On TX, skb->data points to the MAC header, which means that EtherType
  * header taggers start exactly where the EtherType is (the EtherType is
  * treated as part of the DSA header).
  */

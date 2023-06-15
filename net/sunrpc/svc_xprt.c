@@ -427,7 +427,7 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 
 	if (xpt_flags & BIT(XPT_BUSY))
 		return false;
-	if (xpt_flags & (BIT(XPT_CONN) | BIT(XPT_CLOSE)))
+	if (xpt_flags & (BIT(XPT_CONN) | BIT(XPT_CLOSE) | BIT(XPT_HANDSHAKE)))
 		return true;
 	if (xpt_flags & (BIT(XPT_DATA) | BIT(XPT_DEFERRED))) {
 		if (xprt->xpt_ops->xpo_has_wspace(xprt) &&
@@ -541,8 +541,7 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
 	kfree(rqstp->rq_deferred);
 	rqstp->rq_deferred = NULL;
 
-	pagevec_release(&rqstp->rq_pvec);
-	svc_free_res_pages(rqstp);
+	svc_rqst_release_pages(rqstp);
 	rqstp->rq_res.page_len = 0;
 	rqstp->rq_res.page_base = 0;
 
@@ -667,8 +666,6 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	struct xdr_buf *arg = &rqstp->rq_arg;
 	unsigned long pages, filled, ret;
 
-	pagevec_init(&rqstp->rq_pvec);
-
 	pages = (serv->sv_max_mesg + 2 * PAGE_SIZE) >> PAGE_SHIFT;
 	if (pages > RPCSVC_MAXPAGES) {
 		pr_warn_once("svc: warning: pages=%lu > RPCSVC_MAXPAGES=%lu\n",
@@ -704,6 +701,8 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	arg->page_len = (pages-2)*PAGE_SIZE;
 	arg->len = (pages-1)*PAGE_SIZE;
 	arg->tail[0].iov_len = 0;
+
+	rqstp->rq_xid = xdr_zero;
 	return 0;
 }
 
@@ -829,6 +828,9 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 			module_put(xprt->xpt_class->xcl_owner);
 		}
 		svc_xprt_received(xprt);
+	} else if (test_bit(XPT_HANDSHAKE, &xprt->xpt_flags)) {
+		xprt->xpt_ops->xpo_handshake(xprt);
+		svc_xprt_received(xprt);
 	} else if (svc_xprt_reserve_slot(rqstp, xprt)) {
 		/* XPT_DATA|XPT_DEFERRED case: */
 		dprintk("svc: server %p, pool %u, transport %p, inuse=%d\n",
@@ -909,18 +911,20 @@ void svc_drop(struct svc_rqst *rqstp)
 }
 EXPORT_SYMBOL_GPL(svc_drop);
 
-/*
- * Return reply to client.
+/**
+ * svc_send - Return reply to client
+ * @rqstp: RPC transaction context
+ *
  */
-int svc_send(struct svc_rqst *rqstp)
+void svc_send(struct svc_rqst *rqstp)
 {
 	struct svc_xprt	*xprt;
-	int		len = -EFAULT;
 	struct xdr_buf	*xb;
+	int status;
 
 	xprt = rqstp->rq_xprt;
 	if (!xprt)
-		goto out;
+		return;
 
 	/* calculate over-all length */
 	xb = &rqstp->rq_res;
@@ -930,15 +934,10 @@ int svc_send(struct svc_rqst *rqstp)
 	trace_svc_xdr_sendto(rqstp->rq_xid, xb);
 	trace_svc_stats_latency(rqstp);
 
-	len = xprt->xpt_ops->xpo_sendto(rqstp);
+	status = xprt->xpt_ops->xpo_sendto(rqstp);
 
-	trace_svc_send(rqstp, len);
+	trace_svc_send(rqstp, status);
 	svc_xprt_release(rqstp);
-
-	if (len == -ECONNREFUSED || len == -ENOTCONN || len == -EAGAIN)
-		len = 0;
-out:
-	return len;
 }
 
 /*

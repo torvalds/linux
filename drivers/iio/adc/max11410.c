@@ -414,13 +414,17 @@ static int max11410_sample(struct max11410_state *st, int *sample_raw,
 		if (!ret)
 			return -ETIMEDOUT;
 	} else {
+		int ret2;
+
 		/* Wait for status register Conversion Ready flag */
-		ret = read_poll_timeout(max11410_read_reg, ret,
-					ret || (val & MAX11410_STATUS_CONV_READY_BIT),
+		ret = read_poll_timeout(max11410_read_reg, ret2,
+					ret2 || (val & MAX11410_STATUS_CONV_READY_BIT),
 					5000, MAX11410_CONVERSION_TIMEOUT_MS * 1000,
 					true, st, MAX11410_REG_STATUS, &val);
 		if (ret)
 			return ret;
+		if (ret2)
+			return ret2;
 	}
 
 	/* Read ADC Data */
@@ -678,7 +682,7 @@ static irqreturn_t max11410_interrupt(int irq, void *dev_id)
 	struct max11410_state *st = iio_priv(indio_dev);
 
 	if (iio_buffer_enabled(indio_dev))
-		iio_trigger_poll_chained(st->trig);
+		iio_trigger_poll_nested(st->trig);
 	else
 		complete(&st->completion);
 
@@ -851,17 +855,21 @@ static int max11410_init_vref(struct device *dev,
 
 static int max11410_calibrate(struct max11410_state *st, u32 cal_type)
 {
-	int ret, val;
+	int ret, ret2, val;
 
 	ret = max11410_write_reg(st, MAX11410_REG_CAL_START, cal_type);
 	if (ret)
 		return ret;
 
 	/* Wait for status register Calibration Ready flag */
-	return read_poll_timeout(max11410_read_reg, ret,
-				 ret || (val & MAX11410_STATUS_CAL_READY_BIT),
-				 50000, MAX11410_CALIB_TIMEOUT_MS * 1000, true,
-				 st, MAX11410_REG_STATUS, &val);
+	ret = read_poll_timeout(max11410_read_reg, ret2,
+				ret2 || (val & MAX11410_STATUS_CAL_READY_BIT),
+				50000, MAX11410_CALIB_TIMEOUT_MS * 1000, true,
+				st, MAX11410_REG_STATUS, &val);
+	if (ret)
+		return ret;
+
+	return ret2;
 }
 
 static int max11410_self_calibrate(struct max11410_state *st)

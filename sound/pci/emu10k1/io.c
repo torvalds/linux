@@ -95,8 +95,8 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu,
 	regptr = (reg << 16) | chn;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(regptr, emu->port + 0x20 + PTR);
-	val = inl(emu->port + 0x20 + DATA);
+	outl(regptr, emu->port + PTR2);
+	val = inl(emu->port + DATA2);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 	return val;
 }
@@ -112,8 +112,8 @@ void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu,
 	regptr = (reg << 16) | chn;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(regptr, emu->port + 0x20 + PTR);
-	outl(data, emu->port + 0x20 + DATA);
+	outl(regptr, emu->port + PTR2);
+	outl(data, emu->port + DATA2);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
@@ -128,7 +128,7 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	/* This function is not re-entrant, so protect against it. */
 	spin_lock(&emu->spi_lock);
 	if (emu->card_capabilities->ca0108_chip)
-		reg = 0x3c; /* PTR20, reg 0x3c */
+		reg = P17V_SPI;
 	else {
 		/* For other chip types the SPI register
 		 * is currently unknown. */
@@ -233,56 +233,57 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 	return err;
 }
 
-int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value)
+void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 {
 	unsigned long flags;
 
-	if (reg > 0x3f)
-		return 1;
+	if (snd_BUG_ON(reg > 0x3f))
+		return;
 	reg += 0x40; /* 0x40 upwards are registers. */
-	if (value > 0x3f) /* 0 to 0x3f are values */
-		return 1;
+	if (snd_BUG_ON(value > 0x3f)) /* 0 to 0x3f are values */
+		return;
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(reg, emu->port + A_IOCFG);
+	outw(reg, emu->port + A_GPIO);
 	udelay(10);
-	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outw(reg | 0x80, emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	udelay(10);
-	outl(value, emu->port + A_IOCFG);
+	outw(value, emu->port + A_GPIO);
 	udelay(10);
-	outl(value | 0x80 , emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outw(value | 0x80 , emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
-
-	return 0;
 }
 
-int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, u32 reg, u32 *value)
+void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
 {
+	// The higest input pin is used as the designated interrupt trigger,
+	// so it needs to be masked out.
+	u32 mask = emu->card_capabilities->ca0108_chip ? 0x1f : 0x7f;
 	unsigned long flags;
-	if (reg > 0x3f)
-		return 1;
+	if (snd_BUG_ON(reg > 0x3f))
+		return;
 	reg += 0x40; /* 0x40 upwards are registers. */
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(reg, emu->port + A_IOCFG);
+	outw(reg, emu->port + A_GPIO);
 	udelay(10);
-	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outw(reg | 0x80, emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	udelay(10);
-	*value = ((inl(emu->port + A_IOCFG) >> 8) & 0x7f);
+	*value = ((inw(emu->port + A_GPIO) >> 8) & mask);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
-
-	return 0;
 }
 
 /* Each Destination has one and only one Source,
  * but one Source can feed any number of Destinations simultaneously.
  */
-int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, u32 dst, u32 src)
+void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src)
 {
-	snd_emu1010_fpga_write(emu, 0x00, ((dst >> 8) & 0x3f) );
-	snd_emu1010_fpga_write(emu, 0x01, (dst & 0x3f) );
-	snd_emu1010_fpga_write(emu, 0x02, ((src >> 8) & 0x3f) );
-	snd_emu1010_fpga_write(emu, 0x03, (src & 0x3f) );
-
-	return 0;
+	if (snd_BUG_ON(dst & ~0x71f))
+		return;
+	if (snd_BUG_ON(src & ~0x71f))
+		return;
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTHI, dst >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTLO, dst & 0x1f);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SRCHI, src >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SRCLO, src & 0x1f);
 }
 
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
@@ -313,7 +314,6 @@ void snd_emu10k1_voice_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenu
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(CLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -333,7 +333,6 @@ void snd_emu10k1_voice_intr_disable(struct snd_emu10k1 *emu, unsigned int voicen
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(CLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -352,7 +351,6 @@ void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(CLIPH << 16, emu->port + PTR);
 		voicenum = 1 << (voicenum - 32);
@@ -370,7 +368,6 @@ void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned i
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(HLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -390,7 +387,6 @@ void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned 
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(HLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -409,7 +405,6 @@ void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int 
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(HLIPH << 16, emu->port + PTR);
 		voicenum = 1 << (voicenum - 32);
@@ -427,7 +422,6 @@ void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voice
 	unsigned int sol;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(SOLEH << 16, emu->port + PTR);
 		sol = inl(emu->port + DATA);
@@ -447,7 +441,6 @@ void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voi
 	unsigned int sol;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(SOLEH << 16, emu->port + PTR);
 		sol = inl(emu->port + DATA);

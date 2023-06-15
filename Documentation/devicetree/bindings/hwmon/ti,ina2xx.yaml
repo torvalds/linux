@@ -57,6 +57,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 4, 8]
 
+  vs-supply:
+    description: phandle to the regulator that provides the VS supply typically
+      in range from 2.7 V to 5.5 V.
+
 required:
   - compatible
   - reg
@@ -73,5 +77,6 @@ examples:
             compatible = "ti,ina220";
             reg = <0x44>;
             shunt-resistor = <1000>;
+            vs-supply = <&vdd_3v0>;
         };
     };

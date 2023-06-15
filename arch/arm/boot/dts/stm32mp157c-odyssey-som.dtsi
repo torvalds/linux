@@ -62,11 +62,6 @@
 			reg = <0x38000000 0x10000>;
 			no-map;
 		};
-
-		gpu_reserved: gpu@d4000000 {
-			reg = <0xd4000000 0x4000000>;
-			no-map;
-		};
 	};
 
 	led {
@@ -78,11 +73,6 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
-};
-
-&gpu {
-	contiguous-area = <&gpu_reserved>;
-	status = "okay";
 };
 
 &i2c2 {

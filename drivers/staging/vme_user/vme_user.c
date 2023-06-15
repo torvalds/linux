@@ -614,7 +614,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	}
 
 	/* Create sysfs entries - on udev systems this creates the dev files */
-	vme_user_sysfs_class = class_create(THIS_MODULE, driver_name);
+	vme_user_sysfs_class = class_create(driver_name);
 	if (IS_ERR(vme_user_sysfs_class)) {
 		dev_err(&vdev->dev, "Error creating vme_user class.\n");
 		err = PTR_ERR(vme_user_sysfs_class);

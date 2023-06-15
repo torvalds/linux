@@ -1552,7 +1552,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			blsp2_i2c1_default: blsp2-i2c1-state {
@@ -1851,8 +1850,8 @@
 
 				#address-cells = <3>;
 				#size-cells = <2>;
-				ranges = <0x01000000 0x0 0x0c200000 0x0c200000 0x0 0x100000>,
-					<0x02000000 0x0 0x0c300000 0x0c300000 0x0 0xd00000>;
+				ranges = <0x01000000 0x0 0x00000000 0x0c200000 0x0 0x100000>,
+					 <0x02000000 0x0 0x0c300000 0x0c300000 0x0 0xd00000>;
 
 				device_type = "pci";
 
@@ -1882,7 +1881,6 @@
 						"cfg",
 						"bus_master",
 						"bus_slave";
-
 			};
 
 			pcie1: pcie@608000 {
@@ -1905,8 +1903,8 @@
 
 				#address-cells = <3>;
 				#size-cells = <2>;
-				ranges = <0x01000000 0x0 0x0d200000 0x0d200000 0x0 0x100000>,
-					<0x02000000 0x0 0x0d300000 0x0d300000 0x0 0xd00000>;
+				ranges = <0x01000000 0x0 0x00000000 0x0d200000 0x0 0x100000>,
+					 <0x02000000 0x0 0x0d300000 0x0d300000 0x0 0xd00000>;
 
 				device_type = "pci";
 
@@ -1956,8 +1954,8 @@
 
 				#address-cells = <3>;
 				#size-cells = <2>;
-				ranges = <0x01000000 0x0 0x0e200000 0x0e200000 0x0 0x100000>,
-					<0x02000000 0x0 0x0e300000 0x0e300000 0x0 0x1d00000>;
+				ranges = <0x01000000 0x0 0x00000000 0x0e200000 0x0 0x100000>,
+					 <0x02000000 0x0 0x0e300000 0x0e300000 0x0 0x1d00000>;
 
 				device_type = "pci";
 
@@ -3006,8 +3004,11 @@
 				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy1>, <&ssusb_phy_0>;
 				phy-names = "usb2-phy", "usb3-phy";
+				snps,hird-threshold = /bits/ 8 <0>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
+				snps,is-utmi-l1-suspend;
+				tx-fifo-resize;
 			};
 		};
 
@@ -3383,36 +3384,8 @@
 			dma-names = "rx", "tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			slim@1 {
-				reg = <1>;
-				#address-cells = <2>;
-				#size-cells = <0>;
 
-				tasha_ifd: tas-ifd@0,0 {
-					compatible = "slim217,1a0";
-					reg = <0 0>;
-				};
-
-				wcd9335: codec@1,0 {
-					pinctrl-0 = <&cdc_reset_active &wcd_intr_default>;
-					pinctrl-names = "default";
-
-					compatible = "slim217,1a0";
-					reg = <1 0>;
-
-					interrupt-parent = <&tlmm>;
-					interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
-						     <53 IRQ_TYPE_LEVEL_HIGH>;
-					interrupt-names = "intr1", "intr2";
-					interrupt-controller;
-					#interrupt-cells = <1>;
-					reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
-
-					slim-ifc-dev = <&tasha_ifd>;
-
-					#sound-dai-cells = <1>;
-				};
-			};
+			status = "disabled";
 		};
 
 		adsp_pil: remoteproc@9300000 {
@@ -3496,7 +3469,6 @@
 						};
 					};
 				};
-
 			};
 		};
 

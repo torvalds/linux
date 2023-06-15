@@ -6,7 +6,6 @@ config LAN966X_SWITCH
 	depends on NET_SWITCHDEV
 	depends on BRIDGE || BRIDGE=n
 	select PHYLINK
-	select PACKING
 	select PAGE_POOL
 	select VCAP
 	help

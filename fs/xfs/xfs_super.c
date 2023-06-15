@@ -1095,6 +1095,9 @@ xfs_inodegc_init_percpu(
 
 	for_each_possible_cpu(cpu) {
 		gc = per_cpu_ptr(mp->m_inodegc, cpu);
+#if defined(DEBUG) || defined(XFS_WARN)
+		gc->cpu = cpu;
+#endif
 		init_llist_head(&gc->list);
 		gc->items = 0;
 		INIT_DELAYED_WORK(&gc->work, xfs_inodegc_worker);
@@ -1543,6 +1546,19 @@ xfs_fs_fill_super(
 #else
 		xfs_warn(mp,
 	"Deprecated V4 format (crc=0) not supported by kernel.");
+		error = -EINVAL;
+		goto out_free_sb;
+#endif
+	}
+
+	/* ASCII case insensitivity is undergoing deprecation. */
+	if (xfs_has_asciici(mp)) {
+#ifdef CONFIG_XFS_SUPPORT_ASCII_CI
+		xfs_warn_once(mp,
+	"Deprecated ASCII case-insensitivity feature (ascii-ci=1) will not be supported after September 2030.");
+#else
+		xfs_warn(mp,
+	"Deprecated ASCII case-insensitivity feature (ascii-ci=1) not supported by kernel.");
 		error = -EINVAL;
 		goto out_free_sb;
 #endif

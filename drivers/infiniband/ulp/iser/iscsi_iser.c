@@ -78,7 +78,7 @@ MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Alex Nezhinsky, Dan Bar Dov, Or Gerlitz");
 
-static struct scsi_host_template iscsi_iser_sht;
+static const struct scsi_host_template iscsi_iser_sht;
 static struct iscsi_transport iscsi_iser_transport;
 static struct scsi_transport_template *iscsi_iser_scsi_transport;
 static struct workqueue_struct *release_wq;
@@ -956,7 +956,7 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 	return 0;
 }
 
-static struct scsi_host_template iscsi_iser_sht = {
+static const struct scsi_host_template iscsi_iser_sht = {
 	.module                 = THIS_MODULE,
 	.name                   = "iSCSI Initiator over iSER",
 	.queuecommand           = iscsi_queuecommand,

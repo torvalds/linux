@@ -538,14 +538,12 @@ error_release_mem_region:
 	return ret;
 }
 
-static int simplefb_remove(struct platform_device *pdev)
+static void simplefb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 
 	/* simplefb_destroy takes care of info cleanup */
 	unregister_framebuffer(info);
-
-	return 0;
 }
 
 static const struct of_device_id simplefb_of_match[] = {
@@ -560,7 +558,7 @@ static struct platform_driver simplefb_driver = {
 		.of_match_table = simplefb_of_match,
 	},
 	.probe = simplefb_probe,
-	.remove = simplefb_remove,
+	.remove_new = simplefb_remove,
 };
 
 module_platform_driver(simplefb_driver);

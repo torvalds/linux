@@ -198,5 +198,4 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 }
 EXPORT_SYMBOL(packing);
 
-MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Generic bitfield packing and unpacking");

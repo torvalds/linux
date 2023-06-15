@@ -181,7 +181,7 @@ b) ORC (Oops Rewind Capability) unwind table generation
    band.  So it doesn't affect runtime performance and it can be
    reliable even when interrupts or exceptions are involved.
 
-   For more details, see Documentation/x86/orc-unwinder.rst.
+   For more details, see Documentation/arch/x86/orc-unwinder.rst.
 
 c) Higher live patching compatibility rate
 

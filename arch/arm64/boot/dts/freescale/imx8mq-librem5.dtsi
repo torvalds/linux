@@ -20,6 +20,8 @@
 	backlight_dsi: backlight-dsi {
 		compatible = "led-backlight";
 		leds = <&led_backlight>;
+		brightness-levels = <255>;
+		default-brightness-level = <190>;
 	};
 
 	pmic_osc: clock-pmic {
@@ -84,11 +86,19 @@
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_audiopwr>;
-		regulator-name = "AUDIO_PWR_EN";
+		regulator-name = "AUD_1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		gpio = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	reg_mic_2v4: regulator-mic-2v4 {
+		compatible = "regulator-fixed";
+		regulator-name = "MIC_2V4";
+		regulator-min-microvolt = <2400000>;
+		regulator-max-microvolt = <2400000>;
+		vin-supply = <&reg_aud_1v8>;
 	};
 
 	/*
@@ -319,6 +329,10 @@
 			opp-hz = /bits/ 64 <100000000>;
 		};
 
+		opp-166000000 {
+			opp-hz = /bits/ 64 <166935483>;
+		};
+
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 		};
@@ -371,6 +385,16 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	pinctrl_hog: hoggrp {
+		fsl,pins = <
+			/* CLKO2 for cameras on both CSI1 and CSI2 */
+			MX8MQ_IOMUXC_GPIO1_IO15_CCMSRCGPCMIX_CLKO2      0x1f
+		>;
+	};
+
 	pinctrl_audiopwr: audiopwrgrp {
 		fsl,pins = <
 			/* AUDIO_POWER_EN_3V3 */
@@ -662,7 +686,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SD1_CLK_USDHC1_CLK			0x8d
 			MX8MQ_IOMUXC_SD1_CMD_USDHC1_CMD			0xcd
@@ -679,7 +703,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SD1_CLK_USDHC1_CLK			0x9f
 			MX8MQ_IOMUXC_SD1_CMD_USDHC1_CMD			0xdf
@@ -709,7 +733,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_100mhz: usdhc2grp100mhz {
+	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SD2_CD_B_GPIO2_IO12	0x80
 			MX8MQ_IOMUXC_SD2_CLK_USDHC2_CLK		0x8d
@@ -722,7 +746,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_200mhz: usdhc2grp200mhz {
+	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SD2_CD_B_GPIO2_IO12	0x80
 			MX8MQ_IOMUXC_SD2_CLK_USDHC2_CLK		0x9f
@@ -758,7 +782,7 @@
 };
 
 &i2c1 {
-	clock-frequency = <387000>;
+	clock-frequency = <384000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
@@ -806,6 +830,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>, <&pinctrl_camera_pwr>;
 		clocks = <&pmic_osc>;
+		#clock-cells = <0>;
 		clock-names = "osc";
 		clock-output-names = "pmic_clk";
 		interrupt-parent = <&gpio1>;
@@ -819,9 +844,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-boot-on;
 				regulator-ramp-delay = <1250>;
-				rohm,dvs-run-voltage = <900000>;
-				rohm,dvs-idle-voltage = <850000>;
-				rohm,dvs-suspend-voltage = <800000>;
+				rohm,dvs-run-voltage = <880000>;
+				rohm,dvs-idle-voltage = <820000>;
+				rohm,dvs-suspend-voltage = <810000>;
 				regulator-always-on;
 			};
 
@@ -831,8 +856,8 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-boot-on;
 				regulator-ramp-delay = <1250>;
-				rohm,dvs-run-voltage = <1000000>;
-				rohm,dvs-idle-voltage = <900000>;
+				rohm,dvs-run-voltage = <950000>;
+				rohm,dvs-idle-voltage = <850000>;
 				regulator-always-on;
 			};
 
@@ -841,14 +866,14 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-boot-on;
-				rohm,dvs-run-voltage = <900000>;
+				rohm,dvs-run-voltage = <850000>;
 			};
 
 			buck4_reg: BUCK4 {
 				regulator-name = "buck4";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				rohm,dvs-run-voltage = <1000000>;
+				rohm,dvs-run-voltage = <930000>;
 			};
 
 			buck5_reg: BUCK5 {
@@ -956,12 +981,12 @@
 };
 
 &i2c2 {
-	clock-frequency = <387000>;
+	clock-frequency = <384000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	magnetometer@1e	{
+	magnetometer: magnetometer@1e	{
 		compatible = "st,lsm9ds1-magn";
 		reg = <0x1e>;
 		pinctrl-names = "default";
@@ -1005,7 +1030,7 @@
 };
 
 &i2c3 {
-	clock-frequency = <387000>;
+	clock-frequency = <384000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
@@ -1023,7 +1048,7 @@
 		DBVDD-supply = <&reg_aud_1v8>;
 		AVDD-supply = <&reg_aud_1v8>;
 		CPVDD-supply = <&reg_aud_1v8>;
-		MICVDD-supply = <&reg_aud_1v8>;
+		MICVDD-supply = <&reg_mic_2v4>;
 		PLLVDD-supply = <&reg_aud_1v8>;
 		SPKVDD1-supply = <&reg_vsys_3v4>;
 		SPKVDD2-supply = <&reg_vsys_3v4>;
@@ -1095,7 +1120,7 @@
 };
 
 &i2c4 {
-	clock-frequency = <387000>;
+	clock-frequency = <384000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
@@ -1127,7 +1152,9 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		phys = <&usb3_phy0>;
-		ti,precharge-current = <130000>; /* uA */
+		ti,battery-regulation-voltage = <4208000>; /* uV */
+		ti,termination-current = <128000>;  /* uA */
+		ti,precharge-current = <128000>; /* uA */
 		ti,minimum-sys-voltage = <3700000>; /* uV */
 		ti,boost-voltage = <5000000>; /* uV */
 		ti,boost-max-current = <1500000>; /* uA */
@@ -1143,6 +1170,7 @@
 };
 
 &mipi_csi1 {
+	assigned-clock-rates = <266000000>, <200000000>, <66000000>;
 	status = "okay";
 
 	ports {
@@ -1299,7 +1327,6 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	dr_mode = "otg";
-	snps,dis_u3_susphy_quirk;
 	usb-role-switch;
 	status = "okay";
 
@@ -1366,7 +1393,7 @@
 	mmc-pwrseq = <&usdhc2_pwrseq>;
 	post-power-on-delay-ms = <1000>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
-	max-frequency = <50000000>;
+	max-frequency = <100000000>;
 	disable-wp;
 	cap-sdio-irq;
 	keep-power-in-suspend;
@@ -1379,4 +1406,14 @@
 	pinctrl-0 = <&pinctrl_wdog>;
 	fsl,ext-reset-output;
 	status = "okay";
+};
+
+&a53_opp_table {
+	opp-1000000000 {
+		opp-microvolt = <850000>;
+	};
+
+	opp-1500000000 {
+		opp-microvolt = <950000>;
+	};
 };

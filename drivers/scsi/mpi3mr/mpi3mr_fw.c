@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2022 Broadcom Inc.
+ * Copyright (C) 2017-2023 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -1098,7 +1098,7 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 	ioc_config &= ~MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
 
-	timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
+	timeout = MPI3MR_MUR_TIMEOUT * 10;
 	do {
 		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)) {
@@ -2526,7 +2526,7 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 		mrioc->unrecoverable = 1;
 		goto schedule_work;
 	case MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS:
-		return;
+		goto schedule_work;
 	case MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET:
 		reset_reason = MPI3MR_RESET_FROM_CIACTIV_FAULT;
 		break;
@@ -2620,14 +2620,12 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc)
 	mrioc->num_admin_req = mrioc->admin_req_q_sz /
 	    MPI3MR_ADMIN_REQ_FRAME_SZ;
 	mrioc->admin_req_ci = mrioc->admin_req_pi = 0;
-	mrioc->admin_req_base = NULL;
 
 	mrioc->admin_reply_q_sz = MPI3MR_ADMIN_REPLY_Q_SIZE;
 	mrioc->num_admin_replies = mrioc->admin_reply_q_sz /
 	    MPI3MR_ADMIN_REPLY_FRAME_SZ;
 	mrioc->admin_reply_ci = 0;
 	mrioc->admin_reply_ephase = 1;
-	mrioc->admin_reply_base = NULL;
 	atomic_set(&mrioc->admin_reply_q_in_use, 0);
 
 	if (!mrioc->admin_req_base) {

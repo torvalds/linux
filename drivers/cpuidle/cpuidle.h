@@ -30,7 +30,7 @@ extern int cpuidle_switch_governor(struct cpuidle_governor *gov);
 
 struct device;
 
-extern int cpuidle_add_interface(struct device *dev);
+extern int cpuidle_add_interface(void);
 extern void cpuidle_remove_interface(struct device *dev);
 extern int cpuidle_add_device_sysfs(struct cpuidle_device *device);
 extern void cpuidle_remove_device_sysfs(struct cpuidle_device *device);

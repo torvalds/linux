@@ -882,10 +882,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 		SAMPL_FLAGS(hwc) |= PERF_CPUM_SF_DIAG_MODE;
 	}
 
-	/* Check and set other sampling flags */
-	if (attr->config1 & PERF_CPUM_SF_FULL_BLOCKS)
-		SAMPL_FLAGS(hwc) |= PERF_CPUM_SF_FULL_BLOCKS;
-
 	err =  __hw_perf_event_init_rate(event, &si);
 	if (err)
 		goto out;
@@ -1293,11 +1289,8 @@ static inline __uint128_t __cdsg(__uint128_t *ptr, __uint128_t old, __uint128_t 
  * The sampling buffer position are retrieved and saved in the TEAR_REG
  * register of the specified perf event.
  *
- * Only full sample-data-blocks are processed.	Specify the flash_all flag
- * to also walk through partially filled sample-data-blocks.  It is ignored
- * if PERF_CPUM_SF_FULL_BLOCKS is set.	The PERF_CPUM_SF_FULL_BLOCKS flag
- * enforces the processing of full sample-data-blocks only (trailer entries
- * with the block-full-indicator bit set).
+ * Only full sample-data-blocks are processed.	Specify the flush_all flag
+ * to also walk through partially filled sample-data-blocks.
  */
 static void hw_perf_event_update(struct perf_event *event, int flush_all)
 {
@@ -1314,9 +1307,6 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	 */
 	if (SAMPL_DIAG_MODE(&event->hw))
 		return;
-
-	if (flush_all && SDB_FULL_BLOCKS(hwc))
-		flush_all = 0;
 
 	sdbt = (unsigned long *) TEAR_REG(hwc);
 	done = event_overflow = sampl_overflow = num_sdb = 0;

@@ -6,23 +6,22 @@
  * Copyright (c) 2016, Intel Corporation
  * Author: Giovanni Cabiddu <giovanni.cabiddu@intel.com>
  */
-#include <linux/errno.h>
+
+#include <crypto/internal/acompress.h>
+#include <crypto/internal/scompress.h>
+#include <crypto/scatterwalk.h>
+#include <linux/cryptouser.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/crypto.h>
-#include <linux/compiler.h>
 #include <linux/vmalloc.h>
-#include <crypto/algapi.h>
-#include <linux/cryptouser.h>
 #include <net/netlink.h>
-#include <linux/scatterlist.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/internal/acompress.h>
-#include <crypto/internal/scompress.h>
-#include "internal.h"
+
+#include "compress.h"
 
 struct scomp_scratch {
 	spinlock_t	lock;
@@ -38,8 +37,8 @@ static const struct crypto_type crypto_scomp_type;
 static int scomp_scratch_users;
 static DEFINE_MUTEX(scomp_lock);
 
-#ifdef CONFIG_NET
-static int crypto_scomp_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_scomp_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_comp rscomp;
 
@@ -50,12 +49,6 @@ static int crypto_scomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 	return nla_put(skb, CRYPTOCFGA_REPORT_COMPRESS,
 		       sizeof(rscomp), &rscomp);
 }
-#else
-static int crypto_scomp_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static void crypto_scomp_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
@@ -247,7 +240,12 @@ static const struct crypto_type crypto_scomp_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_scomp_show,
 #endif
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_scomp_report,
+#endif
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_acomp_report_stat,
+#endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SCOMPRESS,
@@ -256,10 +254,11 @@ static const struct crypto_type crypto_scomp_type = {
 
 int crypto_register_scomp(struct scomp_alg *alg)
 {
-	struct crypto_alg *base = &alg->base;
+	struct crypto_alg *base = &alg->calg.base;
+
+	comp_prepare_alg(&alg->calg);
 
 	base->cra_type = &crypto_scomp_type;
-	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SCOMPRESS;
 
 	return crypto_register_alg(base);

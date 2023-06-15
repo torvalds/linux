@@ -84,13 +84,6 @@ config MXM_WMI
           MXM is a standard for laptop graphics cards, the WMI interface
 	  is required for switchable nvidia graphics machines
 
-config PEAQ_WMI
-	tristate "PEAQ 2-in-1 WMI hotkey driver"
-	depends on ACPI_WMI
-	depends on INPUT
-	help
-	 Say Y here if you want to support WMI-based hotkeys on PEAQ 2-in-1s.
-
 config NVIDIA_WMI_EC_BACKLIGHT
 	tristate "EC Backlight Driver for Hybrid Graphics Notebook Systems"
 	depends on ACPI_VIDEO
@@ -213,7 +206,6 @@ config APPLE_GMUX
 	depends on ACPI && PCI
 	depends on PNP
 	depends on BACKLIGHT_CLASS_DEVICE
-	depends on BACKLIGHT_APPLE=n || BACKLIGHT_APPLE
 	help
 	  This driver provides support for the gmux device found on many
 	  Apple laptops, which controls the display mux for the hybrid
@@ -469,6 +461,15 @@ config IDEAPAD_LAPTOP
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
 
+config LENOVO_YMC
+	tristate "Lenovo Yoga Tablet Mode Control"
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  This driver maps the Tablet Mode Control switch to SW_TABLET_MODE input
+	  events for Lenovo Yoga notebooks.
+
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT
@@ -642,6 +643,14 @@ config THINKPAD_LMI
 	  be called think-lmi.
 
 source "drivers/platform/x86/intel/Kconfig"
+
+config MSI_EC
+	tristate "MSI EC Extras"
+	depends on ACPI
+	depends on ACPI_BATTERY
+	help
+	  This driver allows various MSI laptops' functionalities to be
+	  controlled from userspace, including battery charge threshold.
 
 config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
@@ -978,22 +987,7 @@ config TOUCHSCREEN_DMI
 	  the OS-image for the device. This option supplies the missing info.
 	  Enable this for x86 tablets with Silead or Chipone touchscreens.
 
-config X86_ANDROID_TABLETS
-	tristate "X86 Android tablet support"
-	depends on I2C && SPI && SERIAL_DEV_BUS && ACPI && EFI && GPIOLIB
-	help
-	  X86 tablets which ship with Android as (part of) the factory image
-	  typically have various problems with their DSDTs. The factory kernels
-	  shipped on these devices typically have device addresses and GPIOs
-	  hardcoded in the kernel, rather than specified in their DSDT.
-
-	  With the DSDT containing a random collection of devices which may or
-	  may not actually be present. This driver contains various fixes for
-	  such tablets, including instantiating kernel devices for devices which
-	  are missing from the DSDT.
-
-	  If you have a x86 Android tablet say Y or M here, for a generic x86
-	  distro config say M here.
+source "drivers/platform/x86/x86-android-tablets/Kconfig"
 
 config FW_ATTR_CLASS
 	tristate

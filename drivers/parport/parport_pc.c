@@ -305,9 +305,15 @@ static size_t parport_pc_epp_read_data(struct parport *port, void *buf,
 		}
 		return got;
 	}
-	if ((flags & PARPORT_EPP_FAST) && (length > 1)) {
-		if (!(((long)buf | length) & 0x03))
+	if ((length > 1) && ((flags & PARPORT_EPP_FAST_32)
+			   || flags & PARPORT_EPP_FAST_16
+			   || flags & PARPORT_EPP_FAST_8)) {
+		if ((flags & PARPORT_EPP_FAST_32)
+		    && !(((long)buf | length) & 0x03))
 			insl(EPPDATA(port), buf, (length >> 2));
+		else if ((flags & PARPORT_EPP_FAST_16)
+			 && !(((long)buf | length) & 0x01))
+			insw(EPPDATA(port), buf, length >> 1);
 		else
 			insb(EPPDATA(port), buf, length);
 		if (inb(STATUS(port)) & 0x01) {
@@ -334,9 +340,15 @@ static size_t parport_pc_epp_write_data(struct parport *port, const void *buf,
 {
 	size_t written = 0;
 
-	if ((flags & PARPORT_EPP_FAST) && (length > 1)) {
-		if (!(((long)buf | length) & 0x03))
+	if ((length > 1) && ((flags & PARPORT_EPP_FAST_32)
+			   || flags & PARPORT_EPP_FAST_16
+			   || flags & PARPORT_EPP_FAST_8)) {
+		if ((flags & PARPORT_EPP_FAST_32)
+		    && !(((long)buf | length) & 0x03))
 			outsl(EPPDATA(port), buf, (length >> 2));
+		else if ((flags & PARPORT_EPP_FAST_16)
+			 && !(((long)buf | length) & 0x01))
+			outsw(EPPDATA(port), buf, length >> 1);
 		else
 			outsb(EPPDATA(port), buf, length);
 		if (inb(STATUS(port)) & 0x01) {

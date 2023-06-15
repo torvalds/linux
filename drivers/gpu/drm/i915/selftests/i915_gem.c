@@ -57,7 +57,10 @@ static void trash_stolen(struct drm_i915_private *i915)
 		u32 __iomem *s;
 		int x;
 
-		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
+		ggtt->vm.insert_page(&ggtt->vm, dma, slot,
+				     i915_gem_get_pat_index(i915,
+							    I915_CACHE_NONE),
+				     0);
 
 		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
 		for (x = 0; x < PAGE_SIZE / sizeof(u32); x++) {

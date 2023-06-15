@@ -4526,13 +4526,6 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 	trace_ext4_zero_range(inode, offset, len, mode);
 
-	/* Call ext4_force_commit to flush all data in case of data=journal. */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		if (ret)
-			return ret;
-	}
-
 	/*
 	 * Round up offset. This is not fallocate, we need to zero out
 	 * blocks, so convert interior block aligned part of the range to
@@ -4616,6 +4609,20 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 			filemap_invalidate_unlock(mapping);
 			goto out_mutex;
 		}
+
+		/*
+		 * For journalled data we need to write (and checkpoint) pages
+		 * before discarding page cache to avoid inconsitent data on
+		 * disk in case of crash before zeroing trans is committed.
+		 */
+		if (ext4_should_journal_data(inode)) {
+			ret = filemap_write_and_wait_range(mapping, start, end);
+			if (ret) {
+				filemap_invalidate_unlock(mapping);
+				goto out_mutex;
+			}
+		}
+
 		/* Now release the pages and zero block aligned part of pages */
 		truncate_pagecache_range(inode, start, end - 1);
 		inode->i_mtime = inode->i_ctime = current_time(inode);
@@ -5290,13 +5297,6 @@ static int ext4_collapse_range(struct file *file, loff_t offset, loff_t len)
 	punch_start = offset >> EXT4_BLOCK_SIZE_BITS(sb);
 	punch_stop = (offset + len) >> EXT4_BLOCK_SIZE_BITS(sb);
 
-	/* Call ext4_force_commit to flush all data in case of data=journal. */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		if (ret)
-			return ret;
-	}
-
 	inode_lock(inode);
 	/*
 	 * There is no need to overlap collapse range with EOF, in which case
@@ -5442,13 +5442,6 @@ static int ext4_insert_range(struct file *file, loff_t offset, loff_t len)
 
 	offset_lblk = offset >> EXT4_BLOCK_SIZE_BITS(sb);
 	len_lblk = len >> EXT4_BLOCK_SIZE_BITS(sb);
-
-	/* Call ext4_force_commit to flush all data in case of data=journal */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		if (ret)
-			return ret;
-	}
 
 	inode_lock(inode);
 	/* Currently just for extent based files */
@@ -5802,7 +5795,8 @@ int ext4_clu_mapped(struct inode *inode, ext4_lblk_t lclu)
 	 * mapped - no physical clusters have been allocated, and the
 	 * file has no extents
 	 */
-	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA))
+	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA) ||
+	    ext4_has_inline_data(inode))
 		return 0;
 
 	/* search for the extent closest to the first block in the cluster */

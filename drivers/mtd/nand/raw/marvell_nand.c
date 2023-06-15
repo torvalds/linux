@@ -3004,7 +3004,7 @@ unprepare_core_clk:
 	return ret;
 }
 
-static int marvell_nfc_remove(struct platform_device *pdev)
+static void marvell_nfc_remove(struct platform_device *pdev)
 {
 	struct marvell_nfc *nfc = platform_get_drvdata(pdev);
 
@@ -3017,8 +3017,6 @@ static int marvell_nfc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(nfc->reg_clk);
 	clk_disable_unprepare(nfc->core_clk);
-
-	return 0;
 }
 
 static int __maybe_unused marvell_nfc_suspend(struct device *dev)
@@ -3154,7 +3152,7 @@ static struct platform_driver marvell_nfc_driver = {
 	},
 	.id_table = marvell_nfc_platform_ids,
 	.probe = marvell_nfc_probe,
-	.remove	= marvell_nfc_remove,
+	.remove_new = marvell_nfc_remove,
 };
 module_platform_driver(marvell_nfc_driver);
 

@@ -931,13 +931,11 @@ free:
 	return err;
 }
 
-static int ti_adpll_remove(struct platform_device *pdev)
+static void ti_adpll_remove(struct platform_device *pdev)
 {
 	struct ti_adpll_data *d = dev_get_drvdata(&pdev->dev);
 
 	ti_adpll_free_resources(d);
-
-	return 0;
 }
 
 static struct platform_driver ti_adpll_driver = {
@@ -946,7 +944,7 @@ static struct platform_driver ti_adpll_driver = {
 		.of_match_table = ti_adpll_match,
 	},
 	.probe = ti_adpll_probe,
-	.remove = ti_adpll_remove,
+	.remove_new = ti_adpll_remove,
 };
 
 static int __init ti_adpll_init(void)

@@ -943,13 +943,11 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int s3c_onenand_remove(struct platform_device *pdev)
+static void s3c_onenand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 
 	onenand_release(mtd);
-
-	return 0;
 }
 
 static int s3c_pm_ops_suspend(struct device *dev)
@@ -996,7 +994,7 @@ static struct platform_driver s3c_onenand_driver = {
 	},
 	.id_table	= s3c_onenand_driver_ids,
 	.probe          = s3c_onenand_probe,
-	.remove         = s3c_onenand_remove,
+	.remove_new     = s3c_onenand_remove,
 };
 
 module_platform_driver(s3c_onenand_driver);

@@ -313,5 +313,4 @@ define_machine(fsp2) {
 	.init_IRQ		= fsp2_irq_init,
 	.get_irq		= uic_get_irq,
 	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
 };

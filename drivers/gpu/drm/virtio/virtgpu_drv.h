@@ -486,4 +486,8 @@ void virtio_gpu_vram_unmap_dma_buf(struct device *dev,
 				   struct sg_table *sgt,
 				   enum dma_data_direction dir);
 
+/* virtgpu_submit.c */
+int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file);
+
 #endif

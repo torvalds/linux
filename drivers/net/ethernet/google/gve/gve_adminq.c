@@ -516,12 +516,12 @@ static int gve_adminq_create_tx_queue(struct gve_priv *priv, u32 queue_index)
 	return gve_adminq_issue_cmd(priv, &cmd);
 }
 
-int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 num_queues)
+int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues)
 {
 	int err;
 	int i;
 
-	for (i = 0; i < num_queues; i++) {
+	for (i = start_id; i < start_id + num_queues; i++) {
 		err = gve_adminq_create_tx_queue(priv, i);
 		if (err)
 			return err;
@@ -604,12 +604,12 @@ static int gve_adminq_destroy_tx_queue(struct gve_priv *priv, u32 queue_index)
 	return 0;
 }
 
-int gve_adminq_destroy_tx_queues(struct gve_priv *priv, u32 num_queues)
+int gve_adminq_destroy_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues)
 {
 	int err;
 	int i;
 
-	for (i = 0; i < num_queues; i++) {
+	for (i = start_id; i < start_id + num_queues; i++) {
 		err = gve_adminq_destroy_tx_queue(priv, i);
 		if (err)
 			return err;

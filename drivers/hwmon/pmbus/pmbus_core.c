@@ -81,6 +81,7 @@ struct pmbus_label {
 struct pmbus_data {
 	struct device *dev;
 	struct device *hwmon_dev;
+	struct regulator_dev **rdevs;
 
 	u32 flags;		/* from platform data */
 
@@ -1272,7 +1273,7 @@ struct pmbus_thermal_data {
 
 static int pmbus_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct pmbus_thermal_data *tdata = tz->devdata;
+	struct pmbus_thermal_data *tdata = thermal_zone_device_priv(tz);
 	struct pmbus_sensor *sensor = tdata->sensor;
 	struct pmbus_data *pmbus_data = tdata->pmbus_data;
 	struct i2c_client *client = to_i2c_client(pmbus_data->dev);
@@ -2692,23 +2693,212 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_REGULATOR)
-static int pmbus_regulator_is_enabled(struct regulator_dev *rdev)
+/* A PMBus status flag and the corresponding REGULATOR_ERROR_* and REGULATOR_EVENTS_* flag */
+struct pmbus_status_assoc {
+	int pflag, rflag, eflag;
+};
+
+/* PMBus->regulator bit mappings for a PMBus status register */
+struct pmbus_status_category {
+	int func;
+	int reg;
+	const struct pmbus_status_assoc *bits; /* zero-terminated */
+};
+
+static const struct pmbus_status_category __maybe_unused pmbus_status_flag_map[] = {
+	{
+		.func = PMBUS_HAVE_STATUS_VOUT,
+		.reg = PMBUS_STATUS_VOUT,
+		.bits = (const struct pmbus_status_assoc[]) {
+			{ PB_VOLTAGE_UV_WARNING, REGULATOR_ERROR_UNDER_VOLTAGE_WARN,
+			REGULATOR_EVENT_UNDER_VOLTAGE_WARN },
+			{ PB_VOLTAGE_UV_FAULT,   REGULATOR_ERROR_UNDER_VOLTAGE,
+			REGULATOR_EVENT_UNDER_VOLTAGE },
+			{ PB_VOLTAGE_OV_WARNING, REGULATOR_ERROR_OVER_VOLTAGE_WARN,
+			REGULATOR_EVENT_OVER_VOLTAGE_WARN },
+			{ PB_VOLTAGE_OV_FAULT,   REGULATOR_ERROR_REGULATION_OUT,
+			REGULATOR_EVENT_OVER_VOLTAGE_WARN },
+			{ },
+		},
+	}, {
+		.func = PMBUS_HAVE_STATUS_IOUT,
+		.reg = PMBUS_STATUS_IOUT,
+		.bits = (const struct pmbus_status_assoc[]) {
+			{ PB_IOUT_OC_WARNING,   REGULATOR_ERROR_OVER_CURRENT_WARN,
+			REGULATOR_EVENT_OVER_CURRENT_WARN },
+			{ PB_IOUT_OC_FAULT,     REGULATOR_ERROR_OVER_CURRENT,
+			REGULATOR_EVENT_OVER_CURRENT },
+			{ PB_IOUT_OC_LV_FAULT,  REGULATOR_ERROR_OVER_CURRENT,
+			REGULATOR_EVENT_OVER_CURRENT },
+			{ },
+		},
+	}, {
+		.func = PMBUS_HAVE_STATUS_TEMP,
+		.reg = PMBUS_STATUS_TEMPERATURE,
+		.bits = (const struct pmbus_status_assoc[]) {
+			{ PB_TEMP_OT_WARNING,    REGULATOR_ERROR_OVER_TEMP_WARN,
+			REGULATOR_EVENT_OVER_TEMP_WARN },
+			{ PB_TEMP_OT_FAULT,      REGULATOR_ERROR_OVER_TEMP,
+			REGULATOR_EVENT_OVER_TEMP },
+			{ },
+		},
+	},
+};
+
+static int _pmbus_is_enabled(struct device *dev, u8 page)
 {
-	struct device *dev = rdev_get_dev(rdev);
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct pmbus_data *data = i2c_get_clientdata(client);
-	u8 page = rdev_get_id(rdev);
 	int ret;
 
-	mutex_lock(&data->update_lock);
 	ret = _pmbus_read_byte_data(client, page, PMBUS_OPERATION);
-	mutex_unlock(&data->update_lock);
 
 	if (ret < 0)
 		return ret;
 
 	return !!(ret & PB_OPERATION_CONTROL_ON);
+}
+
+static int __maybe_unused pmbus_is_enabled(struct device *dev, u8 page)
+{
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	int ret;
+
+	mutex_lock(&data->update_lock);
+	ret = _pmbus_is_enabled(dev, page);
+	mutex_unlock(&data->update_lock);
+
+	return !!(ret & PB_OPERATION_CONTROL_ON);
+}
+
+#define to_dev_attr(_dev_attr) \
+	container_of(_dev_attr, struct device_attribute, attr)
+
+static void pmbus_notify(struct pmbus_data *data, int page, int reg, int flags)
+{
+	int i;
+
+	for (i = 0; i < data->num_attributes; i++) {
+		struct device_attribute *da = to_dev_attr(data->group.attrs[i]);
+		struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+		int index = attr->index;
+		u16 smask = pb_index_to_mask(index);
+		u8 spage = pb_index_to_page(index);
+		u16 sreg = pb_index_to_reg(index);
+
+		if (reg == sreg && page == spage && (smask & flags)) {
+			dev_dbg(data->dev, "sysfs notify: %s", da->attr.name);
+			sysfs_notify(&data->dev->kobj, NULL, da->attr.name);
+			kobject_uevent(&data->dev->kobj, KOBJ_CHANGE);
+			flags &= ~smask;
+		}
+
+		if (!flags)
+			break;
+	}
+}
+
+static int _pmbus_get_flags(struct pmbus_data *data, u8 page, unsigned int *flags,
+			   unsigned int *event, bool notify)
+{
+	int i, status;
+	const struct pmbus_status_category *cat;
+	const struct pmbus_status_assoc *bit;
+	struct device *dev = data->dev;
+	struct i2c_client *client = to_i2c_client(dev);
+	int func = data->info->func[page];
+
+	*flags = 0;
+	*event = 0;
+
+	for (i = 0; i < ARRAY_SIZE(pmbus_status_flag_map); i++) {
+		cat = &pmbus_status_flag_map[i];
+		if (!(func & cat->func))
+			continue;
+
+		status = _pmbus_read_byte_data(client, page, cat->reg);
+		if (status < 0)
+			return status;
+
+		for (bit = cat->bits; bit->pflag; bit++)
+			if (status & bit->pflag) {
+				*flags |= bit->rflag;
+				*event |= bit->eflag;
+			}
+
+		if (notify && status)
+			pmbus_notify(data, page, cat->reg, status);
+
+	}
+
+	/*
+	 * Map what bits of STATUS_{WORD,BYTE} we can to REGULATOR_ERROR_*
+	 * bits.  Some of the other bits are tempting (especially for cases
+	 * where we don't have the relevant PMBUS_HAVE_STATUS_*
+	 * functionality), but there's an unfortunate ambiguity in that
+	 * they're defined as indicating a fault *or* a warning, so we can't
+	 * easily determine whether to report REGULATOR_ERROR_<foo> or
+	 * REGULATOR_ERROR_<foo>_WARN.
+	 */
+	status = pmbus_get_status(client, page, PMBUS_STATUS_WORD);
+	if (status < 0)
+		return status;
+
+	if (_pmbus_is_enabled(dev, page)) {
+		if (status & PB_STATUS_OFF) {
+			*flags |= REGULATOR_ERROR_FAIL;
+			*event |= REGULATOR_EVENT_FAIL;
+		}
+
+		if (status & PB_STATUS_POWER_GOOD_N) {
+			*flags |= REGULATOR_ERROR_REGULATION_OUT;
+			*event |= REGULATOR_EVENT_REGULATION_OUT;
+		}
+	}
+	/*
+	 * Unlike most other status bits, PB_STATUS_{IOUT_OC,VOUT_OV} are
+	 * defined strictly as fault indicators (not warnings).
+	 */
+	if (status & PB_STATUS_IOUT_OC) {
+		*flags |= REGULATOR_ERROR_OVER_CURRENT;
+		*event |= REGULATOR_EVENT_OVER_CURRENT;
+	}
+	if (status & PB_STATUS_VOUT_OV) {
+		*flags |= REGULATOR_ERROR_REGULATION_OUT;
+		*event |= REGULATOR_EVENT_FAIL;
+	}
+
+	/*
+	 * If we haven't discovered any thermal faults or warnings via
+	 * PMBUS_STATUS_TEMPERATURE, map PB_STATUS_TEMPERATURE to a warning as
+	 * a (conservative) best-effort interpretation.
+	 */
+	if (!(*flags & (REGULATOR_ERROR_OVER_TEMP | REGULATOR_ERROR_OVER_TEMP_WARN)) &&
+	    (status & PB_STATUS_TEMPERATURE)) {
+		*flags |= REGULATOR_ERROR_OVER_TEMP_WARN;
+		*event |= REGULATOR_EVENT_OVER_TEMP_WARN;
+	}
+
+
+	return 0;
+}
+
+static int __maybe_unused pmbus_get_flags(struct pmbus_data *data, u8 page, unsigned int *flags,
+					  unsigned int *event, bool notify)
+{
+	int ret;
+
+	mutex_lock(&data->update_lock);
+	ret = _pmbus_get_flags(data, page, flags, event, notify);
+	mutex_unlock(&data->update_lock);
+
+	return ret;
+}
+
+#if IS_ENABLED(CONFIG_REGULATOR)
+static int pmbus_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	return pmbus_is_enabled(rdev_get_dev(rdev), rdev_get_id(rdev));
 }
 
 static int _pmbus_regulator_on_off(struct regulator_dev *rdev, bool enable)
@@ -2738,121 +2928,14 @@ static int pmbus_regulator_disable(struct regulator_dev *rdev)
 	return _pmbus_regulator_on_off(rdev, 0);
 }
 
-/* A PMBus status flag and the corresponding REGULATOR_ERROR_* flag */
-struct pmbus_regulator_status_assoc {
-	int pflag, rflag;
-};
-
-/* PMBus->regulator bit mappings for a PMBus status register */
-struct pmbus_regulator_status_category {
-	int func;
-	int reg;
-	const struct pmbus_regulator_status_assoc *bits; /* zero-terminated */
-};
-
-static const struct pmbus_regulator_status_category pmbus_regulator_flag_map[] = {
-	{
-		.func = PMBUS_HAVE_STATUS_VOUT,
-		.reg = PMBUS_STATUS_VOUT,
-		.bits = (const struct pmbus_regulator_status_assoc[]) {
-			{ PB_VOLTAGE_UV_WARNING, REGULATOR_ERROR_UNDER_VOLTAGE_WARN },
-			{ PB_VOLTAGE_UV_FAULT,   REGULATOR_ERROR_UNDER_VOLTAGE },
-			{ PB_VOLTAGE_OV_WARNING, REGULATOR_ERROR_OVER_VOLTAGE_WARN },
-			{ PB_VOLTAGE_OV_FAULT,   REGULATOR_ERROR_REGULATION_OUT },
-			{ },
-		},
-	}, {
-		.func = PMBUS_HAVE_STATUS_IOUT,
-		.reg = PMBUS_STATUS_IOUT,
-		.bits = (const struct pmbus_regulator_status_assoc[]) {
-			{ PB_IOUT_OC_WARNING,    REGULATOR_ERROR_OVER_CURRENT_WARN },
-			{ PB_IOUT_OC_FAULT,      REGULATOR_ERROR_OVER_CURRENT },
-			{ PB_IOUT_OC_LV_FAULT,   REGULATOR_ERROR_OVER_CURRENT },
-			{ },
-		},
-	}, {
-		.func = PMBUS_HAVE_STATUS_TEMP,
-		.reg = PMBUS_STATUS_TEMPERATURE,
-		.bits = (const struct pmbus_regulator_status_assoc[]) {
-			{ PB_TEMP_OT_WARNING,    REGULATOR_ERROR_OVER_TEMP_WARN },
-			{ PB_TEMP_OT_FAULT,      REGULATOR_ERROR_OVER_TEMP },
-			{ },
-		},
-	},
-};
-
 static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned int *flags)
 {
-	int i, status;
-	const struct pmbus_regulator_status_category *cat;
-	const struct pmbus_regulator_status_assoc *bit;
 	struct device *dev = rdev_get_dev(rdev);
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_data *data = i2c_get_clientdata(client);
-	u8 page = rdev_get_id(rdev);
-	int func = data->info->func[page];
+	int event;
 
-	*flags = 0;
-
-	mutex_lock(&data->update_lock);
-
-	for (i = 0; i < ARRAY_SIZE(pmbus_regulator_flag_map); i++) {
-		cat = &pmbus_regulator_flag_map[i];
-		if (!(func & cat->func))
-			continue;
-
-		status = _pmbus_read_byte_data(client, page, cat->reg);
-		if (status < 0) {
-			mutex_unlock(&data->update_lock);
-			return status;
-		}
-
-		for (bit = cat->bits; bit->pflag; bit++) {
-			if (status & bit->pflag)
-				*flags |= bit->rflag;
-		}
-	}
-
-	/*
-	 * Map what bits of STATUS_{WORD,BYTE} we can to REGULATOR_ERROR_*
-	 * bits.  Some of the other bits are tempting (especially for cases
-	 * where we don't have the relevant PMBUS_HAVE_STATUS_*
-	 * functionality), but there's an unfortunate ambiguity in that
-	 * they're defined as indicating a fault *or* a warning, so we can't
-	 * easily determine whether to report REGULATOR_ERROR_<foo> or
-	 * REGULATOR_ERROR_<foo>_WARN.
-	 */
-	status = pmbus_get_status(client, page, PMBUS_STATUS_WORD);
-	mutex_unlock(&data->update_lock);
-	if (status < 0)
-		return status;
-
-	if (pmbus_regulator_is_enabled(rdev)) {
-		if (status & PB_STATUS_OFF)
-			*flags |= REGULATOR_ERROR_FAIL;
-
-		if (status & PB_STATUS_POWER_GOOD_N)
-			*flags |= REGULATOR_ERROR_REGULATION_OUT;
-	}
-	/*
-	 * Unlike most other status bits, PB_STATUS_{IOUT_OC,VOUT_OV} are
-	 * defined strictly as fault indicators (not warnings).
-	 */
-	if (status & PB_STATUS_IOUT_OC)
-		*flags |= REGULATOR_ERROR_OVER_CURRENT;
-	if (status & PB_STATUS_VOUT_OV)
-		*flags |= REGULATOR_ERROR_REGULATION_OUT;
-
-	/*
-	 * If we haven't discovered any thermal faults or warnings via
-	 * PMBUS_STATUS_TEMPERATURE, map PB_STATUS_TEMPERATURE to a warning as
-	 * a (conservative) best-effort interpretation.
-	 */
-	if (!(*flags & (REGULATOR_ERROR_OVER_TEMP | REGULATOR_ERROR_OVER_TEMP_WARN)) &&
-	    (status & PB_STATUS_TEMPERATURE))
-		*flags |= REGULATOR_ERROR_OVER_TEMP_WARN;
-
-	return 0;
+	return pmbus_get_flags(data, rdev_get_id(rdev), flags, &event, false);
 }
 
 static int pmbus_regulator_get_status(struct regulator_dev *rdev)
@@ -3050,8 +3133,12 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 	struct device *dev = data->dev;
 	const struct pmbus_driver_info *info = data->info;
 	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
-	struct regulator_dev *rdev;
 	int i;
+
+	data->rdevs = devm_kzalloc(dev, sizeof(struct regulator_dev *) * info->num_regulators,
+				   GFP_KERNEL);
+	if (!data->rdevs)
+		return -ENOMEM;
 
 	for (i = 0; i < info->num_regulators; i++) {
 		struct regulator_config config = { };
@@ -3062,22 +3149,112 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 		if (pdata && pdata->reg_init_data)
 			config.init_data = &pdata->reg_init_data[i];
 
-		rdev = devm_regulator_register(dev, &info->reg_desc[i],
-					       &config);
-		if (IS_ERR(rdev))
-			return dev_err_probe(dev, PTR_ERR(rdev),
+		data->rdevs[i] = devm_regulator_register(dev, &info->reg_desc[i],
+							 &config);
+		if (IS_ERR(data->rdevs[i]))
+			return dev_err_probe(dev, PTR_ERR(data->rdevs[i]),
 					     "Failed to register %s regulator\n",
 					     info->reg_desc[i].name);
 	}
 
 	return 0;
 }
+
+static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
+{
+		int j;
+
+		for (j = 0; j < data->info->num_regulators; j++) {
+			if (page == rdev_get_id(data->rdevs[j])) {
+				regulator_notifier_call_chain(data->rdevs[j], event, NULL);
+				break;
+			}
+		}
+		return 0;
+}
 #else
 static int pmbus_regulator_register(struct pmbus_data *data)
 {
 	return 0;
 }
+
+static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
+{
+		return 0;
+}
 #endif
+
+static int pmbus_write_smbalert_mask(struct i2c_client *client, u8 page, u8 reg, u8 val)
+{
+	return pmbus_write_word_data(client, page, PMBUS_SMBALERT_MASK, reg | (val << 8));
+}
+
+static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
+{
+	struct pmbus_data *data = pdata;
+	struct i2c_client *client = to_i2c_client(data->dev);
+
+	int i, status, event;
+	mutex_lock(&data->update_lock);
+	for (i = 0; i < data->info->pages; i++) {
+		_pmbus_get_flags(data, i, &status, &event, true);
+
+		if (event)
+			pmbus_regulator_notify(data, i, event);
+	}
+
+	pmbus_clear_faults(client);
+	mutex_unlock(&data->update_lock);
+
+	return IRQ_HANDLED;
+}
+
+static int pmbus_irq_setup(struct i2c_client *client, struct pmbus_data *data)
+{
+	struct device *dev = &client->dev;
+	const struct pmbus_status_category *cat;
+	const struct pmbus_status_assoc *bit;
+	int i, j, err, func;
+	u8 mask;
+
+	static const u8 misc_status[] = {PMBUS_STATUS_CML, PMBUS_STATUS_OTHER,
+					 PMBUS_STATUS_MFR_SPECIFIC, PMBUS_STATUS_FAN_12,
+					 PMBUS_STATUS_FAN_34};
+
+	if (!client->irq)
+		return 0;
+
+	for (i = 0; i < data->info->pages; i++) {
+		func = data->info->func[i];
+
+		for (j = 0; j < ARRAY_SIZE(pmbus_status_flag_map); j++) {
+			cat = &pmbus_status_flag_map[j];
+			if (!(func & cat->func))
+				continue;
+			mask = 0;
+			for (bit = cat->bits; bit->pflag; bit++)
+				mask |= bit->pflag;
+
+			err = pmbus_write_smbalert_mask(client, i, cat->reg, ~mask);
+			if (err)
+				dev_dbg_once(dev, "Failed to set smbalert for reg 0x%02x\n",
+					     cat->reg);
+		}
+
+		for (j = 0; j < ARRAY_SIZE(misc_status); j++)
+			pmbus_write_smbalert_mask(client, i, misc_status[j], 0xff);
+	}
+
+	/* Register notifiers */
+	err = devm_request_threaded_irq(dev, client->irq, NULL, pmbus_fault_handler,
+					IRQF_ONESHOT, "pmbus-irq", data);
+	if (err) {
+		dev_err(dev, "failed to request an irq %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
 
 static struct dentry *pmbus_debugfs_dir;	/* pmbus debugfs directory */
 
@@ -3086,8 +3263,13 @@ static int pmbus_debugfs_get(void *data, u64 *val)
 {
 	int rc;
 	struct pmbus_debugfs_entry *entry = data;
+	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
 
+	rc = mutex_lock_interruptible(&pdata->update_lock);
+	if (rc)
+		return rc;
 	rc = _pmbus_read_byte_data(entry->client, entry->page, entry->reg);
+	mutex_unlock(&pdata->update_lock);
 	if (rc < 0)
 		return rc;
 
@@ -3104,7 +3286,11 @@ static int pmbus_debugfs_get_status(void *data, u64 *val)
 	struct pmbus_debugfs_entry *entry = data;
 	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
 
+	rc = mutex_lock_interruptible(&pdata->update_lock);
+	if (rc)
+		return rc;
 	rc = pdata->read_status(entry->client, entry->page);
+	mutex_unlock(&pdata->update_lock);
 	if (rc < 0)
 		return rc;
 
@@ -3120,10 +3306,15 @@ static ssize_t pmbus_debugfs_mfr_read(struct file *file, char __user *buf,
 {
 	int rc;
 	struct pmbus_debugfs_entry *entry = file->private_data;
+	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
 	char data[I2C_SMBUS_BLOCK_MAX + 2] = { 0 };
 
+	rc = mutex_lock_interruptible(&pdata->update_lock);
+	if (rc)
+		return rc;
 	rc = pmbus_read_block_data(entry->client, entry->page, entry->reg,
 				   data);
+	mutex_unlock(&pdata->update_lock);
 	if (rc < 0)
 		return rc;
 
@@ -3441,6 +3632,10 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	if (ret)
 		return ret;
 
+	ret = pmbus_irq_setup(client, data);
+	if (ret)
+		return ret;
+
 	ret = pmbus_init_debugfs(client, data);
 	if (ret)
 		dev_warn(dev, "Failed to register debugfs\n");
@@ -3456,6 +3651,22 @@ struct dentry *pmbus_get_debugfs_dir(struct i2c_client *client)
 	return data->debugfs;
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_get_debugfs_dir, PMBUS);
+
+int pmbus_lock_interruptible(struct i2c_client *client)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+
+	return mutex_lock_interruptible(&data->update_lock);
+}
+EXPORT_SYMBOL_NS_GPL(pmbus_lock_interruptible, PMBUS);
+
+void pmbus_unlock(struct i2c_client *client)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+
+	mutex_unlock(&data->update_lock);
+}
+EXPORT_SYMBOL_NS_GPL(pmbus_unlock, PMBUS);
 
 static int __init pmbus_core_init(void)
 {

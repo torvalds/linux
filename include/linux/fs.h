@@ -168,6 +168,9 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 #define	FMODE_NOREUSE		((__force fmode_t)0x800000)
 
+/* File supports non-exclusive O_DIRECT writes from multiple threads */
+#define FMODE_DIO_PARALLEL_WRITE	((__force fmode_t)0x1000000)
+
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
 
@@ -339,6 +342,20 @@ enum rw_hint {
 #define IOCB_NOIO		(1 << 20)
 /* can use bio alloc cache */
 #define IOCB_ALLOC_CACHE	(1 << 21)
+
+/* for use in trace events */
+#define TRACE_IOCB_STRINGS \
+	{ IOCB_HIPRI,		"HIPRI" }, \
+	{ IOCB_DSYNC,		"DSYNC" }, \
+	{ IOCB_SYNC,		"SYNC" }, \
+	{ IOCB_NOWAIT,		"NOWAIT" }, \
+	{ IOCB_APPEND,		"APPEND" }, \
+	{ IOCB_EVENTFD,		"EVENTFD"}, \
+	{ IOCB_DIRECT,		"DIRECT" }, \
+	{ IOCB_WRITE,		"WRITE" }, \
+	{ IOCB_WAITQ,		"WAITQ" }, \
+	{ IOCB_NOIO,		"NOIO" }, \
+	{ IOCB_ALLOC_CACHE,	"ALLOC_CACHE" }
 
 struct kiocb {
 	struct file		*ki_filp;
@@ -2675,6 +2692,8 @@ extern struct inode *new_inode(struct super_block *sb);
 extern void free_inode_nonrcu(struct inode *inode);
 extern int setattr_should_drop_suidgid(struct mnt_idmap *, struct inode *);
 extern int file_remove_privs(struct file *);
+int setattr_should_drop_sgid(struct mnt_idmap *idmap,
+			     const struct inode *inode);
 
 /*
  * This must be used for allocating filesystems specific inodes to set
@@ -2778,7 +2797,7 @@ enum {
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,
 			     get_block_t get_block,
-			     dio_iodone_t end_io, dio_submit_t submit_io,
+			     dio_iodone_t end_io,
 			     int flags);
 
 static inline ssize_t blockdev_direct_IO(struct kiocb *iocb,
@@ -2787,7 +2806,7 @@ static inline ssize_t blockdev_direct_IO(struct kiocb *iocb,
 					 get_block_t get_block)
 {
 	return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
-			get_block, NULL, NULL, DIO_LOCKING | DIO_SKIP_HOLES);
+			get_block, NULL, DIO_LOCKING | DIO_SKIP_HOLES);
 }
 #endif
 

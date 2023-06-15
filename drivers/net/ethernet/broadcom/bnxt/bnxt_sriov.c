@@ -825,7 +825,23 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	if (rc)
 		goto err_out2;
 
+	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return 0;
+
+	/* Create representors for VFs in switchdev mode */
+	devl_lock(bp->dl);
+	rc = bnxt_vf_reps_create(bp);
+	devl_unlock(bp->dl);
+	if (rc) {
+		netdev_info(bp->dev, "Cannot enable VFS as representors cannot be created\n");
+		goto err_out3;
+	}
+
 	return 0;
+
+err_out3:
+	/* Disable SR-IOV */
+	pci_disable_sriov(bp->pdev);
 
 err_out2:
 	/* Free the resources reserved for various VF's */

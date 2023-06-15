@@ -358,13 +358,9 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	wfx_bh_poll_irq(wdev);
 	err = wait_for_completion_timeout(&wdev->firmware_ready, 1 * HZ);
-	if (err <= 0) {
-		if (err == 0) {
-			dev_err(wdev->dev, "timeout while waiting for startup indication\n");
-			err = -ETIMEDOUT;
-		} else if (err == -ERESTARTSYS) {
-			dev_info(wdev->dev, "probe interrupted by user\n");
-		}
+	if (err == 0) {
+		dev_err(wdev->dev, "timeout while waiting for startup indication\n");
+		err = -ETIMEDOUT;
 		goto bh_unregister;
 	}
 

@@ -486,7 +486,7 @@ out_err:
 	return err;
 }
 
-static int tcx_remove(struct platform_device *op)
+static void tcx_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct tcx_par *par = info->par;
@@ -497,8 +497,6 @@ static int tcx_remove(struct platform_device *op)
 	tcx_unmap_regs(op, info, par);
 
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static const struct of_device_id tcx_match[] = {
@@ -515,7 +513,7 @@ static struct platform_driver tcx_driver = {
 		.of_match_table = tcx_match,
 	},
 	.probe		= tcx_probe,
-	.remove		= tcx_remove,
+	.remove_new	= tcx_remove,
 };
 
 static int __init tcx_init(void)

@@ -17,6 +17,10 @@ int err, pid;
  *         TP_PROTO(struct task_struct *p, u64 clone_flags)
  */
 
+struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym __weak;
+void invalid_kfunc(void) __ksym __weak;
+void bpf_testmod_test_mod_kfunc(int i) __ksym __weak;
+
 static bool is_test_kfunc_task(void)
 {
 	int cur_pid = bpf_get_current_pid_tgid() >> 32;
@@ -26,10 +30,27 @@ static bool is_test_kfunc_task(void)
 
 static int test_acquire_release(struct task_struct *task)
 {
-	struct task_struct *acquired;
+	struct task_struct *acquired = NULL;
+
+	if (!bpf_ksym_exists(bpf_task_acquire)) {
+		err = 3;
+		return 0;
+	}
+	if (!bpf_ksym_exists(bpf_testmod_test_mod_kfunc)) {
+		err = 4;
+		return 0;
+	}
+	if (bpf_ksym_exists(invalid_kfunc)) {
+		/* the verifier's dead code elimination should remove this */
+		err = 5;
+		asm volatile ("goto -1"); /* for (;;); */
+	}
 
 	acquired = bpf_task_acquire(task);
-	bpf_task_release(acquired);
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 6;
 
 	return 0;
 }
@@ -101,7 +122,7 @@ int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
-int BPF_PROG(test_task_get_release, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_task_map_acquire_release, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr;
 	struct __tasks_kfunc_map_value *v;
@@ -122,18 +143,18 @@ int BPF_PROG(test_task_get_release, struct task_struct *task, u64 clone_flags)
 		return 0;
 	}
 
-	kptr = bpf_task_kptr_get(&v->task);
-	if (kptr) {
-		/* Until we resolve the issues with using task->rcu_users, we
-		 * expect bpf_task_kptr_get() to return a NULL task. See the
-		 * comment at the definition of bpf_task_acquire_not_zero() for
-		 * more details.
-		 */
-		bpf_task_release(kptr);
+	bpf_rcu_read_lock();
+	kptr = v->task;
+	if (!kptr) {
 		err = 3;
-		return 0;
+	} else {
+		kptr = bpf_task_acquire(kptr);
+		if (!kptr)
+			err = 4;
+		else
+			bpf_task_release(kptr);
 	}
-
+	bpf_rcu_read_unlock();
 
 	return 0;
 }
@@ -148,7 +169,10 @@ int BPF_PROG(test_task_current_acquire_release, struct task_struct *task, u64 cl
 
 	current = bpf_get_current_task_btf();
 	acquired = bpf_task_acquire(current);
-	bpf_task_release(acquired);
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 1;
 
 	return 0;
 }
@@ -171,8 +195,6 @@ static void lookup_compare_pid(const struct task_struct *p)
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_from_pid_arg, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *acquired;
-
 	if (!is_test_kfunc_task())
 		return 0;
 
@@ -183,8 +205,6 @@ int BPF_PROG(test_task_from_pid_arg, struct task_struct *task, u64 clone_flags)
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_from_pid_current, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *current, *acquired;
-
 	if (!is_test_kfunc_task())
 		return 0;
 
@@ -208,10 +228,12 @@ static int is_pid_lookup_valid(s32 pid)
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_from_pid_invalid, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *acquired;
-
 	if (!is_test_kfunc_task())
 		return 0;
+
+	bpf_strncmp(task->comm, 12, "foo");
+	bpf_strncmp(task->comm, 16, "foo");
+	bpf_strncmp(&task->comm[8], 4, "foo");
 
 	if (is_pid_lookup_valid(-1)) {
 		err = 1;
@@ -222,6 +244,22 @@ int BPF_PROG(test_task_from_pid_invalid, struct task_struct *task, u64 clone_fla
 		err = 2;
 		return 0;
 	}
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired;
+
+	/* task->group_leader is listed as a trusted, non-NULL field of task struct. */
+	acquired = bpf_task_acquire(task->group_leader);
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 1;
+
 
 	return 0;
 }

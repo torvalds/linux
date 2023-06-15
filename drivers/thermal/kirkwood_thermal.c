@@ -27,17 +27,14 @@ static int kirkwood_get_temp(struct thermal_zone_device *thermal,
 			  int *temp)
 {
 	unsigned long reg;
-	struct kirkwood_thermal_priv *priv = thermal->devdata;
+	struct kirkwood_thermal_priv *priv = thermal_zone_device_priv(thermal);
 
 	reg = readl_relaxed(priv->sensor);
 
 	/* Valid check */
 	if (!((reg >> KIRKWOOD_THERMAL_VALID_OFFSET) &
-	    KIRKWOOD_THERMAL_VALID_MASK)) {
-		dev_err(&thermal->device,
-			"Temperature sensor reading not valid\n");
+	    KIRKWOOD_THERMAL_VALID_MASK))
 		return -EIO;
-	}
 
 	/*
 	 * Calculate temperature. According to Marvell internal

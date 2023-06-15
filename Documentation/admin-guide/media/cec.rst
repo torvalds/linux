@@ -55,6 +55,15 @@ Miscellaneous:
   you can control the CEC line through this driver. This supports error
   injection as well.
 
+- cec-gpio and Allwinner A10 (or any other driver that uses the CEC pin
+  framework to drive the CEC pin directly): the CEC pin framework uses
+  high-resolution timers. These timers are affected by NTP daemons that
+  speed up or slow down the clock to sync with the official time. The
+  chronyd server will by default increase or decrease the clock by
+  1/12th. This will cause the CEC timings to go out of spec. To fix this,
+  add a 'maxslewrate 40000' line to chronyd.conf. This limits the clock
+  frequency change to 1/25th, which keeps the CEC timings within spec.
+
 
 Utilities
 =========
@@ -296,68 +305,70 @@ broadcast messages twice to reduce the chance of them being lost. Specifically
 Making a CEC debugger
 =====================
 
-By using a Raspberry Pi 2B/3/4 and some cheap components you can make
+By using a Raspberry Pi 4B and some cheap components you can make
 your own low-level CEC debugger.
 
-Here is a picture of my setup:
-
-https://hverkuil.home.xs4all.nl/rpi3-cec.jpg
-
-It's a Raspberry Pi 3 together with a breadboard and some breadboard wires:
-
-http://www.dx.com/p/diy-40p-male-to-female-male-to-male-female-to-female-dupont-line-wire-3pcs-356089#.WYLOOXWGN7I
-
-Finally on of these HDMI female-female passthrough connectors (full soldering type 1):
+The critical component is one of these HDMI female-female passthrough connectors
+(full soldering type 1):
 
 https://elabbay.myshopify.com/collections/camera/products/hdmi-af-af-v1a-hdmi-type-a-female-to-hdmi-type-a-female-pass-through-adapter-breakout-board?variant=45533926147
 
-We've tested this and it works up to 4kp30 (297 MHz). The quality is not high
-enough to pass-through 4kp60 (594 MHz).
+The video quality is variable and certainly not enough to pass-through 4kp60
+(594 MHz) video. You might be able to support 4kp30, but more likely you will
+be limited to 1080p60 (148.5 MHz). But for CEC testing that is fine.
 
-I also added an RTC and a breakout shield:
+You need a breadboard and some breadboard wires:
 
-https://www.amazon.com/Makerfire%C2%AE-Raspberry-Module-DS1307-Battery/dp/B00ZOXWHK4
+http://www.dx.com/p/diy-40p-male-to-female-male-to-male-female-to-female-dupont-line-wire-3pcs-356089#.WYLOOXWGN7I
 
-https://www.dx.com/p/raspberry-pi-gpio-expansion-board-breadboard-easy-multiplexing-board-one-to-three-with-screw-for-raspberry-pi-2-3-b-b-2729992.html#.YGRCG0MzZ7I
-
-These two are not needed but they make life a bit easier.
-
-If you want to monitor the HPD line as well, then you need one of these
-level shifters:
+If you want to monitor the HPD and/or 5V lines as well, then you need one of
+these 5V to 3.3V level shifters:
 
 https://www.adafruit.com/product/757
 
 (This is just where I got these components, there are many other places you
 can get similar things).
 
-The CEC pin of the HDMI connector needs to be connected to these pins:
-CE0/IO8 and CE1/IO7 (pull-up GPIOs). The (optional) HPD pin of the HDMI
-connector should be connected (via a level shifter to convert the 5V
-to 3.3V) to these pins: IO17 and IO27. The (optional) 5V pin of the HDMI
-connector should be connected (via a level shifter) to these pins: IO22
-and IO24. Monitoring the HPD an 5V lines is not necessary, but it is helpful.
+The ground pin of the HDMI connector needs to be connected to a ground
+pin of the Raspberry Pi, of course.
 
-This kernel patch will hook up the cec-gpio driver correctly to
-e.g. ``arch/arm/boot/dts/bcm2837-rpi-3-b-plus.dts``::
+The CEC pin of the HDMI connector needs to be connected to these pins:
+GPIO 6 and GPIO 7. The optional HPD pin of the HDMI connector should
+be connected via the level shifter to these pins: GPIO 23 and GPIO 12.
+The optional 5V pin of the HDMI connector should be connected via the
+level shifter to these pins: GPIO 25 and GPIO 22. Monitoring the HPD and
+5V lines is not necessary, but it is helpful.
+
+This device tree addition in ``arch/arm/boot/dts/bcm2711-rpi-4-b.dts``
+will hook up the cec-gpio driver correctly::
+
+	cec@6 {
+		compatible = "cec-gpio";
+		cec-gpios = <&gpio 6 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		hpd-gpios = <&gpio 23 GPIO_ACTIVE_HIGH>;
+		v5-gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
+	};
 
 	cec@7 {
 		compatible = "cec-gpio";
 		cec-gpios = <&gpio 7 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		hpd-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
+		hpd-gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
 		v5-gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
 	};
 
-	cec@8 {
-		compatible = "cec-gpio";
-		cec-gpios = <&gpio 8 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		hpd-gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
-		v5-gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
-	};
+If you haven't hooked up the HPD and/or 5V lines, then just delete those
+lines.
 
 This dts change will enable two cec GPIO devices: I typically use one to
 send/receive CEC commands and the other to monitor. If you monitor using
 an unconfigured CEC adapter then it will use GPIO interrupts which makes
 monitoring very accurate.
+
+If you just want to monitor traffic, then a single instance is sufficient.
+The minimum configuration is one HDMI female-female passthrough connector
+and two female-female breadboard wires: one for connecting the HDMI ground
+pin to a ground pin on the Raspberry Pi, and the other to connect the HDMI
+CEC pin to GPIO 6 on the Raspberry Pi.
 
 The documentation on how to use the error injection is here: :ref:`cec_pin_error_inj`.
 

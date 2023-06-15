@@ -282,7 +282,7 @@ static void tpm_dev_release(struct device *dev)
  *
  * Return: always 0 (i.e. success)
  */
-static int tpm_class_shutdown(struct device *dev)
+int tpm_class_shutdown(struct device *dev)
 {
 	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
 
@@ -337,7 +337,6 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 	device_initialize(&chip->dev);
 
 	chip->dev.class = tpm_class;
-	chip->dev.class->shutdown_pre = tpm_class_shutdown;
 	chip->dev.release = tpm_dev_release;
 	chip->dev.parent = pdev;
 	chip->dev.groups = chip->groups;
@@ -606,6 +605,42 @@ static int tpm_get_pcr_allocation(struct tpm_chip *chip)
 }
 
 /*
+ * tpm_chip_bootstrap() - Boostrap TPM chip after power on
+ * @chip: TPM chip to use.
+ *
+ * Initialize TPM chip after power on. This a one-shot function: subsequent
+ * calls will have no effect.
+ */
+int tpm_chip_bootstrap(struct tpm_chip *chip)
+{
+	int rc;
+
+	if (chip->flags & TPM_CHIP_FLAG_BOOTSTRAPPED)
+		return 0;
+
+	rc = tpm_chip_start(chip);
+	if (rc)
+		return rc;
+
+	rc = tpm_auto_startup(chip);
+	if (rc)
+		goto stop;
+
+	rc = tpm_get_pcr_allocation(chip);
+stop:
+	tpm_chip_stop(chip);
+
+	/*
+	 * Unconditionally set, as driver initialization should cease, when the
+	 * boostrapping process fails.
+	 */
+	chip->flags |= TPM_CHIP_FLAG_BOOTSTRAPPED;
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_chip_bootstrap);
+
+/*
  * tpm_chip_register() - create a character device for the TPM chip
  * @chip: TPM chip to use.
  *
@@ -620,17 +655,7 @@ int tpm_chip_register(struct tpm_chip *chip)
 {
 	int rc;
 
-	rc = tpm_chip_start(chip);
-	if (rc)
-		return rc;
-	rc = tpm_auto_startup(chip);
-	if (rc) {
-		tpm_chip_stop(chip);
-		return rc;
-	}
-
-	rc = tpm_get_pcr_allocation(chip);
-	tpm_chip_stop(chip);
+	rc = tpm_chip_bootstrap(chip);
 	if (rc)
 		return rc;
 
@@ -682,7 +707,8 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
 void tpm_chip_unregister(struct tpm_chip *chip)
 {
 	tpm_del_legacy_sysfs(chip);
-	if (IS_ENABLED(CONFIG_HW_RANDOM_TPM) && !tpm_is_firmware_upgrade(chip))
+	if (IS_ENABLED(CONFIG_HW_RANDOM_TPM) && !tpm_is_firmware_upgrade(chip) &&
+	    !tpm_amd_is_rng_defective(chip))
 		hwrng_unregister(&chip->hwrng);
 	tpm_bios_log_teardown(chip);
 	if (chip->flags & TPM_CHIP_FLAG_TPM2 && !tpm_is_firmware_upgrade(chip))

@@ -1252,13 +1252,11 @@ err_pm_disable:
 	return ret;
 }
 
-static int fsl_asrc_remove(struct platform_device *pdev)
+static void fsl_asrc_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		fsl_asrc_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static int fsl_asrc_runtime_resume(struct device *dev)
@@ -1394,7 +1392,7 @@ MODULE_DEVICE_TABLE(of, fsl_asrc_ids);
 
 static struct platform_driver fsl_asrc_driver = {
 	.probe = fsl_asrc_probe,
-	.remove = fsl_asrc_remove,
+	.remove_new = fsl_asrc_remove,
 	.driver = {
 		.name = "fsl-asrc",
 		.of_match_table = fsl_asrc_ids,

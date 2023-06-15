@@ -17,7 +17,7 @@ struct sfp_bus {
 	/* private: */
 	struct kref kref;
 	struct list_head node;
-	struct fwnode_handle *fwnode;
+	const struct fwnode_handle *fwnode;
 
 	const struct sfp_socket_ops *socket_ops;
 	struct device *sfp_dev;
@@ -150,6 +150,10 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 {
 	unsigned int br_min, br_nom, br_max;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
+
+	phylink_set(modes, Autoneg);
+	phylink_set(modes, Pause);
+	phylink_set(modes, Asym_Pause);
 
 	/* Decode the bitrate information to MBd */
 	br_min = br_nom = br_max = 0;
@@ -329,10 +333,6 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		bus->sfp_quirk->modes(id, modes, interfaces);
 
 	linkmode_or(support, support, modes);
-
-	phylink_set(support, Autoneg);
-	phylink_set(support, Pause);
-	phylink_set(support, Asym_Pause);
 }
 EXPORT_SYMBOL_GPL(sfp_parse_support);
 
@@ -390,7 +390,7 @@ static const struct sfp_upstream_ops *sfp_get_upstream_ops(struct sfp_bus *bus)
 	return bus->registered ? bus->upstream_ops : NULL;
 }
 
-static struct sfp_bus *sfp_bus_get(struct fwnode_handle *fwnode)
+static struct sfp_bus *sfp_bus_get(const struct fwnode_handle *fwnode)
 {
 	struct sfp_bus *sfp, *new, *found = NULL;
 
@@ -593,7 +593,7 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
  *	- %-ENOMEM if we failed to allocate the bus.
  *	- an error from the upstream's connect_phy() method.
  */
-struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
+struct sfp_bus *sfp_bus_find_fwnode(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_reference_args ref;
 	struct sfp_bus *bus;

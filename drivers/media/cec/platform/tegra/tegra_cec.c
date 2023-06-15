@@ -421,7 +421,7 @@ err_clk:
 	return ret;
 }
 
-static int tegra_cec_remove(struct platform_device *pdev)
+static void tegra_cec_remove(struct platform_device *pdev)
 {
 	struct tegra_cec *cec = platform_get_drvdata(pdev);
 
@@ -429,8 +429,6 @@ static int tegra_cec_remove(struct platform_device *pdev)
 
 	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -467,7 +465,7 @@ static struct platform_driver tegra_cec_driver = {
 		.of_match_table = of_match_ptr(tegra_cec_of_match),
 	},
 	.probe = tegra_cec_probe,
-	.remove = tegra_cec_remove,
+	.remove_new = tegra_cec_remove,
 
 #ifdef CONFIG_PM
 	.suspend = tegra_cec_suspend,

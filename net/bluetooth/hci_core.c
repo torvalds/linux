@@ -2544,6 +2544,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	INIT_DELAYED_WORK(&hdev->cmd_timer, hci_cmd_timeout);
 	INIT_DELAYED_WORK(&hdev->ncmd_timer, hci_ncmd_timeout);
 
+	hci_devcd_setup(hdev);
 	hci_request_setup(hdev);
 
 	hci_init_sysfs(hdev);
@@ -2801,6 +2802,9 @@ int hci_suspend_dev(struct hci_dev *hdev)
 	/* If powering down don't attempt to suspend */
 	if (mgmt_powering_down(hdev))
 		return 0;
+
+	/* Cancel potentially blocking sync operation before suspend */
+	__hci_cmd_sync_cancel(hdev, -EHOSTDOWN);
 
 	hci_req_sync_lock(hdev);
 	ret = hci_suspend_sync(hdev);

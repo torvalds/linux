@@ -2,8 +2,8 @@
 # Copyright 2019 Ondrej Jirman <megous@megous.com>
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/phy/allwinner,sun50i-h6-usb3-phy.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/phy/allwinner,sun50i-h6-usb3-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Allwinner H6 USB3 PHY
 

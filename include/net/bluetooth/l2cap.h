@@ -694,7 +694,7 @@ struct l2cap_conn {
 	struct sk_buff_head	pending_rx;
 	struct work_struct	pending_rx_work;
 
-	struct work_struct	id_addr_update_work;
+	struct delayed_work	id_addr_timer;
 
 	__u8			disc_reason;
 

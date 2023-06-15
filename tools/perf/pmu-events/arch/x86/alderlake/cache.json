@@ -92,19 +92,19 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_RQSTS.REFERENCES]",
+        "BriefDescription": "All accesses to L2 cache [This event is alias to L2_RQSTS.REFERENCES]",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.ALL",
-        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.[This event is alias to L2_RQSTS.REFERENCES]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.REFERENCES]",
         "SampleAfterValue": "200003",
         "UMask": "0xff",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Read requests with true-miss in L2 cache.[This event is alias to L2_RQSTS.MISS]",
+        "BriefDescription": "Read requests with true-miss in L2 cache. [This event is alias to L2_RQSTS.MISS]",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.MISS",
-        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.[This event is alias to L2_RQSTS.MISS]",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.MISS]",
         "SampleAfterValue": "200003",
         "UMask": "0x3f",
         "Unit": "cpu_core"
@@ -198,19 +198,19 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Read requests with true-miss in L2 cache.[This event is alias to L2_REQUEST.MISS]",
+        "BriefDescription": "Read requests with true-miss in L2 cache. [This event is alias to L2_REQUEST.MISS]",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
-        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.[This event is alias to L2_REQUEST.MISS]",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.MISS]",
         "SampleAfterValue": "200003",
         "UMask": "0x3f",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_REQUEST.ALL]",
+        "BriefDescription": "All accesses to L2 cache [This event is alias to L2_REQUEST.ALL]",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
-        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.[This event is alias to L2_REQUEST.ALL]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.ALL]",
         "SampleAfterValue": "200003",
         "UMask": "0xff",
         "Unit": "cpu_core"
@@ -895,7 +895,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "BriefDescription": "Counts demand data reads that resulted in a snoop hit in another cores caches which forwarded the unmodified data to the requesting core.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -981,6 +981,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Cycles where at least 1 outstanding demand data read request is pending.",
+        "CounterMask": "1",
+        "EventCode": "0x20",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "For every cycle where the core is waiting on at least 1 outstanding Demand RFO request, increments by 1.",
         "CounterMask": "1",
         "EventCode": "0x20",
@@ -997,6 +1006,15 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "SampleAfterValue": "1000003",
         "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.",
+        "EventCode": "0x20",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD",
+        "PublicDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.   Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {

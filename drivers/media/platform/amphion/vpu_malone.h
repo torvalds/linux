@@ -41,5 +41,6 @@ int vpu_malone_post_cmd(struct vpu_shared_addr *shared, u32 instance);
 int vpu_malone_init_instance(struct vpu_shared_addr *shared, u32 instance);
 u32 vpu_malone_get_max_instance_count(struct vpu_shared_addr *shared);
 bool vpu_malone_check_fmt(enum vpu_core_type type, u32 pixelfmt);
+void vpu_malone_enable_format(u32 pixelformat, int enable);
 
 #endif

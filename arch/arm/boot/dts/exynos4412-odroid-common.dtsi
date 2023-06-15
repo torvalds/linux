@@ -13,6 +13,11 @@
 #include "exynos-mfc-reserved-memory.dtsi"
 
 / {
+	aliases {
+		mmc0 = &mshc_0;
+		mmc2 = &sdhci_2;
+	};
+
 	chosen {
 		stdout-path = &serial_1;
 	};
@@ -533,6 +538,7 @@
 
 	broken-cd;
 	card-detect-delay = <200>;
+	mmc-ddr-1_8v;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;

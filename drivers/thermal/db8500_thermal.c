@@ -53,6 +53,7 @@ static const unsigned long db8500_thermal_points[] = {
 
 struct db8500_thermal_zone {
 	struct thermal_zone_device *tz;
+	struct device *dev;
 	unsigned long interpolated_temp;
 	unsigned int cur_index;
 };
@@ -60,7 +61,7 @@ struct db8500_thermal_zone {
 /* Callback to get current temperature */
 static int db8500_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct db8500_thermal_zone *th = tz->devdata;
+	struct db8500_thermal_zone *th = thermal_zone_device_priv(tz);
 
 	/*
 	 * TODO: There is no PRCMU interface to get temperature data currently,
@@ -114,7 +115,7 @@ static irqreturn_t prcmu_low_irq_handler(int irq, void *irq_data)
 	idx -= 1;
 
 	db8500_thermal_update_config(th, idx, next_low, next_high);
-	dev_dbg(&th->tz->device,
+	dev_dbg(th->dev,
 		"PRCMU set max %ld, min %ld\n", next_high, next_low);
 
 	thermal_zone_device_update(th->tz, THERMAL_EVENT_UNSPECIFIED);
@@ -136,7 +137,7 @@ static irqreturn_t prcmu_high_irq_handler(int irq, void *irq_data)
 
 		db8500_thermal_update_config(th, idx, next_low, next_high);
 
-		dev_dbg(&th->tz->device,
+		dev_dbg(th->dev,
 			"PRCMU set max %ld, min %ld\n", next_high, next_low);
 	} else if (idx == num_points - 1)
 		/* So we roof out 1 degree over the max point */
@@ -156,6 +157,8 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	th = devm_kzalloc(dev, sizeof(*th), GFP_KERNEL);
 	if (!th)
 		return -ENOMEM;
+
+	th->dev = dev;
 
 	low_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_LOW");
 	if (low_irq < 0)

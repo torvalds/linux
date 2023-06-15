@@ -30,7 +30,6 @@
 #define arm_iommu_create_mapping(...)	NULL
 #define arm_iommu_attach_device(...)	-ENODEV
 #define arm_iommu_release_mapping(...)	do {} while (0)
-#define arm_iommu_detach_device(...)	do {} while (0)
 #endif
 
 #define IPMMU_CTX_MAX		16U
@@ -697,7 +696,6 @@ static const struct soc_device_attribute soc_needs_opt_in[] = {
 
 static const struct soc_device_attribute soc_denylist[] = {
 	{ .soc_id = "r8a774a1", },
-	{ .soc_id = "r8a7795", .revision = "ES1.*" },
 	{ .soc_id = "r8a7795", .revision = "ES2.*" },
 	{ .soc_id = "r8a7796", },
 	{ /* sentinel */ }
@@ -820,7 +818,18 @@ static void ipmmu_probe_finalize(struct device *dev)
 
 static void ipmmu_release_device(struct device *dev)
 {
-	arm_iommu_detach_device(dev);
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct ipmmu_vmsa_device *mmu = to_ipmmu(dev);
+	unsigned int i;
+
+	for (i = 0; i < fwspec->num_ids; ++i) {
+		unsigned int utlb = fwspec->ids[i];
+
+		ipmmu_imuctr_write(mmu, utlb, 0);
+		mmu->utlb_ctx[utlb] = IPMMU_CTX_INVALID;
+	}
+
+	arm_iommu_release_mapping(mmu->mapping);
 }
 
 static struct iommu_group *ipmmu_find_group(struct device *dev)
@@ -1014,7 +1023,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	 * the lack of has_cache_leaf_nodes flag or renesas,ipmmu-main property.
 	 */
 	if (!mmu->features->has_cache_leaf_nodes ||
-	    !of_find_property(pdev->dev.of_node, "renesas,ipmmu-main", NULL))
+	    !of_property_present(pdev->dev.of_node, "renesas,ipmmu-main"))
 		mmu->root = mmu;
 	else
 		mmu->root = ipmmu_find_root();
@@ -1073,7 +1082,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipmmu_remove(struct platform_device *pdev)
+static void ipmmu_remove(struct platform_device *pdev)
 {
 	struct ipmmu_vmsa_device *mmu = platform_get_drvdata(pdev);
 
@@ -1083,8 +1092,6 @@ static int ipmmu_remove(struct platform_device *pdev)
 	arm_iommu_release_mapping(mmu->mapping);
 
 	ipmmu_device_reset(mmu);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1131,6 +1138,6 @@ static struct platform_driver ipmmu_driver = {
 		.pm = DEV_PM_OPS,
 	},
 	.probe = ipmmu_probe,
-	.remove	= ipmmu_remove,
+	.remove_new = ipmmu_remove,
 };
 builtin_platform_driver(ipmmu_driver);

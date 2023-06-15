@@ -33,6 +33,7 @@
  *
  * - klp_ftrace_handler()
  * - klp_update_patch_state()
+ * - __klp_sched_try_switch()
  */
 DEFINE_MUTEX(klp_mutex);
 
@@ -142,8 +143,7 @@ static int klp_match_callback(void *data, unsigned long addr)
 	return 0;
 }
 
-static int klp_find_callback(void *data, const char *name,
-			     struct module *mod, unsigned long addr)
+static int klp_find_callback(void *data, const char *name, unsigned long addr)
 {
 	struct klp_find_arg *args = data;
 
@@ -596,7 +596,7 @@ static void klp_kobj_release_patch(struct kobject *kobj)
 	complete(&patch->finish);
 }
 
-static struct kobj_type klp_ktype_patch = {
+static const struct kobj_type klp_ktype_patch = {
 	.release = klp_kobj_release_patch,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = klp_patch_groups,
@@ -612,7 +612,7 @@ static void klp_kobj_release_object(struct kobject *kobj)
 		klp_free_object_dynamic(obj);
 }
 
-static struct kobj_type klp_ktype_object = {
+static const struct kobj_type klp_ktype_object = {
 	.release = klp_kobj_release_object,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = klp_object_groups,
@@ -628,7 +628,7 @@ static void klp_kobj_release_func(struct kobject *kobj)
 		klp_free_func_nop(func);
 }
 
-static struct kobj_type klp_ktype_func = {
+static const struct kobj_type klp_ktype_func = {
 	.release = klp_kobj_release_func,
 	.sysfs_ops = &kobj_sysfs_ops,
 };

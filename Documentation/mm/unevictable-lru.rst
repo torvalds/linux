@@ -42,6 +42,8 @@ The unevictable list addresses the following classes of unevictable pages:
 
  * Those owned by ramfs.
 
+ * Those owned by tmpfs with the noswap mount option.
+
  * Those mapped into SHM_LOCK'd shared memory regions.
 
  * Those mapped into VM_LOCKED [mlock()ed] VMAs.

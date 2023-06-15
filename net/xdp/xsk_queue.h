@@ -133,16 +133,12 @@ static inline bool xskq_cons_read_addr_unchecked(struct xsk_queue *q, u64 *addr)
 static inline bool xp_aligned_validate_desc(struct xsk_buff_pool *pool,
 					    struct xdp_desc *desc)
 {
-	u64 chunk, chunk_end;
+	u64 offset = desc->addr & (pool->chunk_size - 1);
 
-	chunk = xp_aligned_extract_addr(pool, desc->addr);
-	if (likely(desc->len)) {
-		chunk_end = xp_aligned_extract_addr(pool, desc->addr + desc->len - 1);
-		if (chunk != chunk_end)
-			return false;
-	}
+	if (offset + desc->len > pool->chunk_size)
+		return false;
 
-	if (chunk >= pool->addrs_cnt)
+	if (desc->addr >= pool->addrs_cnt)
 		return false;
 
 	if (desc->options)
@@ -153,15 +149,12 @@ static inline bool xp_aligned_validate_desc(struct xsk_buff_pool *pool,
 static inline bool xp_unaligned_validate_desc(struct xsk_buff_pool *pool,
 					      struct xdp_desc *desc)
 {
-	u64 addr, base_addr;
-
-	base_addr = xp_unaligned_extract_addr(desc->addr);
-	addr = xp_unaligned_add_offset_to_addr(desc->addr);
+	u64 addr = xp_unaligned_add_offset_to_addr(desc->addr);
 
 	if (desc->len > pool->chunk_size)
 		return false;
 
-	if (base_addr >= pool->addrs_cnt || addr >= pool->addrs_cnt ||
+	if (addr >= pool->addrs_cnt || addr + desc->len > pool->addrs_cnt ||
 	    xp_desc_crosses_non_contig_pg(pool, addr, desc->len))
 		return false;
 

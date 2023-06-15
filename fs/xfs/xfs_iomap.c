@@ -1006,8 +1006,9 @@ xfs_buffered_write_iomap_begin(
 	if (eof)
 		imap.br_startoff = end_fsb; /* fake hole until the end */
 
-	/* We never need to allocate blocks for zeroing a hole. */
-	if ((flags & IOMAP_ZERO) && imap.br_startoff > offset_fsb) {
+	/* We never need to allocate blocks for zeroing or unsharing a hole. */
+	if ((flags & (IOMAP_UNSHARE | IOMAP_ZERO)) &&
+	    imap.br_startoff > offset_fsb) {
 		xfs_hole_to_iomap(ip, iomap, offset_fsb, imap.br_startoff);
 		goto out_unlock;
 	}

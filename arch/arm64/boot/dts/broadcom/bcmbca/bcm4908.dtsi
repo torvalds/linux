@@ -107,6 +107,12 @@
 			clock-frequency = <50000000>;
 			clock-output-names = "periph";
 		};
+
+		hsspi_pll: hsspi-pll {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <400000000>;
+		};
 	};
 
 	soc {
@@ -142,6 +148,19 @@
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb_phy PHY_TYPE_USB2>;
 			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ehci_port1: port@1 {
+				reg = <1>;
+				#trigger-source-cells = <0>;
+			};
+
+			ehci_port2: port@2 {
+				reg = <2>;
+				#trigger-source-cells = <0>;
+			};
 		};
 
 		ohci: usb@c400 {
@@ -150,6 +169,19 @@
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb_phy PHY_TYPE_USB2>;
 			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ohci_port1: port@1 {
+				reg = <1>;
+				#trigger-source-cells = <0>;
+			};
+
+			ohci_port2: port@2 {
+				reg = <2>;
+				#trigger-source-cells = <0>;
+			};
 		};
 
 		xhci: usb@d000 {
@@ -158,6 +190,19 @@
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb_phy PHY_TYPE_USB3>;
 			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			xhci_port1: port@1 {
+				reg = <1>;
+				#trigger-source-cells = <0>;
+			};
+
+			xhci_port2: port@2 {
+				reg = <2>;
+				#trigger-source-cells = <0>;
+			};
 		};
 
 		bus@80000 {
@@ -254,7 +299,7 @@
 			};
 		};
 
-		procmon: syscon@280000 {
+		procmon: bus@280000 {
 			compatible = "simple-bus";
 			reg = <0x280000 0x1000>;
 			ranges;
@@ -531,6 +576,18 @@
 			#size-cells = <0>;
 		};
 
+		hsspi: spi@1000{
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,bcm4908-hsspi", "brcm,bcmbca-hsspi-v1.0";
+			reg = <0x1000 0x600>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsspi_pll &hsspi_pll>;
+			clock-names = "hsspi", "pll";
+			num-cs = <8>;
+			status = "disabled";
+		};
+
 		nand-controller@1800 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -538,7 +595,7 @@
 			reg = <0x1800 0x600>, <0x2000 0x10>;
 			reg-names = "nand", "nand-int-base";
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "nand";
+			interrupt-names = "nand_ctlrdy";
 			status = "okay";
 
 			nandcs: nand@0 {

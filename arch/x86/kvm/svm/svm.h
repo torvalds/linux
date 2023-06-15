@@ -36,6 +36,7 @@ extern bool npt_enabled;
 extern int vgif;
 extern bool intercept_smi;
 extern bool x2avic_enabled;
+extern bool vnmi;
 
 /*
  * Clean bits in VMCB.
@@ -265,6 +266,7 @@ struct vcpu_svm {
 	bool pause_filter_enabled         : 1;
 	bool pause_threshold_enabled      : 1;
 	bool vgif_enabled                 : 1;
+	bool vnmi_enabled                 : 1;
 
 	u32 ldr_reg;
 	u32 dfr_reg;
@@ -539,6 +541,12 @@ static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 	return svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE;
 }
 
+static inline bool nested_vnmi_enabled(struct vcpu_svm *svm)
+{
+	return svm->vnmi_enabled &&
+	       (svm->nested.ctl.int_ctl & V_NMI_ENABLE_MASK);
+}
+
 static inline bool is_x2apic_msrpm_offset(u32 offset)
 {
 	/* 4 msrs per u8, and 4 u8 in u32 */
@@ -546,6 +554,27 @@ static inline bool is_x2apic_msrpm_offset(u32 offset)
 
 	return (msr >= APIC_BASE_MSR) &&
 	       (msr < (APIC_BASE_MSR + 0x100));
+}
+
+static inline struct vmcb *get_vnmi_vmcb_l1(struct vcpu_svm *svm)
+{
+	if (!vnmi)
+		return NULL;
+
+	if (is_guest_mode(&svm->vcpu))
+		return NULL;
+	else
+		return svm->vmcb01.ptr;
+}
+
+static inline bool is_vnmi_enabled(struct vcpu_svm *svm)
+{
+	struct vmcb *vmcb = get_vnmi_vmcb_l1(svm);
+
+	if (vmcb)
+		return !!(vmcb->control.int_ctl & V_NMI_ENABLE_MASK);
+	else
+		return false;
 }
 
 /* svm.c */

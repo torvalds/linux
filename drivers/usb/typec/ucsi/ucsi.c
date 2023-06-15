@@ -1444,11 +1444,13 @@ static void ucsi_init_work(struct work_struct *work)
 
 	ret = ucsi_init(ucsi);
 	if (ret)
-		dev_err(ucsi->dev, "PPM init failed (%d)\n", ret);
+		dev_err_probe(ucsi->dev, ret, "PPM init failed\n");
 
 	if (ret == -EPROBE_DEFER) {
-		if (ucsi->work_count++ > UCSI_ROLE_SWITCH_WAIT_COUNT)
+		if (ucsi->work_count++ > UCSI_ROLE_SWITCH_WAIT_COUNT) {
+			dev_err(ucsi->dev, "PPM init failed, stop trying\n");
 			return;
+		}
 
 		queue_delayed_work(system_long_wq, &ucsi->work,
 				   UCSI_ROLE_SWITCH_INTERVAL);

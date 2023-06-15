@@ -160,6 +160,8 @@ struct hwseq_private_funcs {
 			unsigned int *k1_div,
 			unsigned int *k2_div);
 	void (*set_pixels_per_cycle)(struct pipe_ctx *pipe_ctx);
+	void (*resync_fifo_dccg_dio)(struct dce_hwseq *hws, struct dc *dc,
+			struct dc_state *context);
 	bool (*is_dp_dig_pixel_rate_div_policy)(struct pipe_ctx *pipe_ctx);
 #endif
 };

@@ -15,7 +15,7 @@ description: |
   SoCs and others.
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:
@@ -52,16 +52,16 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
     watchdog@41000000 {
-      compatible = "faraday,ftwdt010";
-      reg = <0x41000000 0x1000>;
-      interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
-      timeout-sec = <5>;
+        compatible = "faraday,ftwdt010";
+        reg = <0x41000000 0x1000>;
+        interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+        timeout-sec = <5>;
     };
   - |
     watchdog: watchdog@98500000 {
-      compatible = "moxa,moxart-watchdog", "faraday,ftwdt010";
-      reg = <0x98500000 0x10>;
-      clocks = <&clk_apb>;
-      clock-names = "PCLK";
+        compatible = "moxa,moxart-watchdog", "faraday,ftwdt010";
+        reg = <0x98500000 0x10>;
+        clocks = <&clk_apb>;
+        clock-names = "PCLK";
     };
 ...

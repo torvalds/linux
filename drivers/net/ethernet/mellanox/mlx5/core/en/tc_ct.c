@@ -83,12 +83,6 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_tc_ct_debugfs debugfs;
 };
 
-struct mlx5_ct_flow {
-	struct mlx5_flow_attr *pre_ct_attr;
-	struct mlx5_flow_handle *pre_ct_rule;
-	struct mlx5_ct_ft *ft;
-};
-
 struct mlx5_ct_zone_rule {
 	struct mlx5_ct_fs_rule *rule;
 	struct mlx5e_mod_hdr_handle *mh;
@@ -598,12 +592,6 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 	return 0;
 }
 
-int mlx5_tc_ct_set_ct_clear_regs(struct mlx5_tc_ct_priv *priv,
-				 struct mlx5e_tc_mod_hdr_acts *mod_acts)
-{
-		return mlx5_tc_ct_entry_set_registers(priv, mod_acts, 0, 0, 0, 0);
-}
-
 static int
 mlx5_tc_ct_parse_mangle_to_mod_act(struct flow_action_entry *act,
 				   char *modact)
@@ -920,6 +908,7 @@ mlx5_tc_ct_entry_replace_rule(struct mlx5_tc_ct_priv *ct_priv,
 	zone_rule->rule = rule;
 	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, old_attr, zone_rule->mh);
 	zone_rule->mh = mh;
+	mlx5_put_label_mapping(ct_priv, old_attr->ct_attr.ct_labels_id);
 
 	kfree(old_attr);
 	kvfree(spec);
@@ -1545,7 +1534,6 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 int
 mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 			struct mlx5_flow_attr *attr,
-			struct mlx5e_tc_mod_hdr_acts *mod_acts,
 			const struct flow_action_entry *act,
 			struct netlink_ext_ack *extack)
 {
@@ -1555,8 +1543,8 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
+	attr->ct_attr.ct_action |= act->ct.action; /* So we can have clear + ct */
 	attr->ct_attr.zone = act->ct.zone;
-	attr->ct_attr.ct_action = act->ct.action;
 	attr->ct_attr.nf_ft = act->ct.flow_table;
 	attr->ct_attr.act_miss_cookie = act->miss_cookie;
 
@@ -1892,14 +1880,14 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 
 /* We translate the tc filter with CT action to the following HW model:
  *
- *	+---------------------+
- *	+ ft prio (tc chain)  +
- *	+ original match      +
- *	+---------------------+
+ *	+-----------------------+
+ *	+ rule (either original +
+ *	+ or post_act rule)     +
+ *	+-----------------------+
  *		 | set act_miss_cookie mapping
  *		 | set fte_id
  *		 | set tunnel_id
- *		 | do decap
+ *		 | rest of actions before the CT action (for this orig/post_act rule)
  *		 |
  * +-------------+
  * | Chain 0	 |
@@ -1924,31 +1912,20 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
  *		 | do nat (if needed)
  *		 v
  *	+--------------+
- *	+ post_act     + original filter actions
+ *	+ post_act     + rest of parsed filter's actions
  *	+ fte_id match +------------------------>
  *	+--------------+
  *
  */
-static struct mlx5_flow_handle *
+static int
 __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
-			  struct mlx5_flow_spec *orig_spec,
 			  struct mlx5_flow_attr *attr)
 {
 	bool nat = attr->ct_attr.ct_action & TCA_CT_ACT_NAT;
 	struct mlx5e_priv *priv = netdev_priv(ct_priv->netdev);
-	struct mlx5e_tc_mod_hdr_acts *pre_mod_acts;
-	u32 attr_sz = ns_to_attr_sz(ct_priv->ns_type);
-	struct mlx5_flow_attr *pre_ct_attr;
-	struct mlx5_modify_hdr *mod_hdr;
-	struct mlx5_ct_flow *ct_flow;
 	int act_miss_mapping = 0, err;
 	struct mlx5_ct_ft *ft;
 	u16 zone;
-
-	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
-	if (!ct_flow) {
-		return ERR_PTR(-ENOMEM);
-	}
 
 	/* Register for CT established events */
 	ft = mlx5_tc_ct_add_ft_cb(ct_priv, attr->ct_attr.zone,
@@ -1958,23 +1935,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 		ct_dbg("Failed to register to ft callback");
 		goto err_ft;
 	}
-	ct_flow->ft = ft;
-
-	/* Base flow attributes of both rules on original rule attribute */
-	ct_flow->pre_ct_attr = mlx5_alloc_flow_attr(ct_priv->ns_type);
-	if (!ct_flow->pre_ct_attr) {
-		err = -ENOMEM;
-		goto err_alloc_pre;
-	}
-
-	pre_ct_attr = ct_flow->pre_ct_attr;
-	memcpy(pre_ct_attr, attr, attr_sz);
-	pre_mod_acts = &pre_ct_attr->parse_attr->mod_hdr_acts;
-
-	/* Modify the original rule's action to fwd and modify, leave decap */
-	pre_ct_attr->action = attr->action & MLX5_FLOW_CONTEXT_ACTION_DECAP;
-	pre_ct_attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			       MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	attr->ct_attr.ft = ft;
 
 	err = mlx5e_tc_action_miss_mapping_get(ct_priv->priv, attr, attr->ct_attr.act_miss_cookie,
 					       &act_miss_mapping);
@@ -1982,136 +1943,89 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 		ct_dbg("Failed to get register mapping for act miss");
 		goto err_get_act_miss;
 	}
-	attr->ct_attr.act_miss_mapping = act_miss_mapping;
 
-	err = mlx5e_tc_match_to_reg_set(priv->mdev, pre_mod_acts, ct_priv->ns_type,
-					MAPPED_OBJ_TO_REG, act_miss_mapping);
+	err = mlx5e_tc_match_to_reg_set(priv->mdev, &attr->parse_attr->mod_hdr_acts,
+					ct_priv->ns_type, MAPPED_OBJ_TO_REG, act_miss_mapping);
 	if (err) {
 		ct_dbg("Failed to set act miss register mapping");
 		goto err_mapping;
 	}
 
-	/* If original flow is decap, we do it before going into ct table
-	 * so add a rewrite for the tunnel match_id.
-	 */
-	if ((pre_ct_attr->action & MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
-	    attr->chain == 0) {
-		err = mlx5e_tc_match_to_reg_set(priv->mdev, pre_mod_acts,
-						ct_priv->ns_type,
-						TUNNEL_TO_REG,
-						attr->tunnel_id);
-		if (err) {
-			ct_dbg("Failed to set tunnel register mapping");
-			goto err_mapping;
-		}
-	}
-
-	/* Change original rule point to ct table
-	 * Chain 0 sets the zone and jumps to ct table
+	/* Chain 0 sets the zone and jumps to ct table
 	 * Other chains jump to pre_ct table to align with act_ct cached logic
 	 */
-	pre_ct_attr->dest_chain = 0;
 	if (!attr->chain) {
 		zone = ft->zone & MLX5_CT_ZONE_MASK;
-		err = mlx5e_tc_match_to_reg_set(priv->mdev, pre_mod_acts, ct_priv->ns_type,
-						ZONE_TO_REG, zone);
+		err = mlx5e_tc_match_to_reg_set(priv->mdev, &attr->parse_attr->mod_hdr_acts,
+						ct_priv->ns_type, ZONE_TO_REG, zone);
 		if (err) {
 			ct_dbg("Failed to set zone register mapping");
 			goto err_mapping;
 		}
 
-		pre_ct_attr->dest_ft = nat ? ct_priv->ct_nat : ct_priv->ct;
+		attr->dest_ft = nat ? ct_priv->ct_nat : ct_priv->ct;
 	} else {
-		pre_ct_attr->dest_ft = nat ? ft->pre_ct_nat.ft : ft->pre_ct.ft;
+		attr->dest_ft = nat ? ft->pre_ct_nat.ft : ft->pre_ct.ft;
 	}
 
-	mod_hdr = mlx5_modify_header_alloc(priv->mdev, ct_priv->ns_type,
-					   pre_mod_acts->num_actions,
-					   pre_mod_acts->actions);
-	if (IS_ERR(mod_hdr)) {
-		err = PTR_ERR(mod_hdr);
-		ct_dbg("Failed to create pre ct mod hdr");
-		goto err_mapping;
-	}
-	pre_ct_attr->modify_hdr = mod_hdr;
-	ct_flow->pre_ct_rule = mlx5_tc_rule_insert(priv, orig_spec,
-						   pre_ct_attr);
-	if (IS_ERR(ct_flow->pre_ct_rule)) {
-		err = PTR_ERR(ct_flow->pre_ct_rule);
-		ct_dbg("Failed to add pre ct rule");
-		goto err_insert_orig;
-	}
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	attr->ct_attr.act_miss_mapping = act_miss_mapping;
 
-	attr->ct_attr.ct_flow = ct_flow;
-	mlx5e_mod_hdr_dealloc(pre_mod_acts);
+	return 0;
 
-	return ct_flow->pre_ct_rule;
-
-err_insert_orig:
-	mlx5_modify_header_dealloc(priv->mdev, pre_ct_attr->modify_hdr);
 err_mapping:
-	mlx5e_mod_hdr_dealloc(pre_mod_acts);
 	mlx5e_tc_action_miss_mapping_put(ct_priv->priv, attr, act_miss_mapping);
 err_get_act_miss:
-	kfree(ct_flow->pre_ct_attr);
-err_alloc_pre:
 	mlx5_tc_ct_del_ft_cb(ct_priv, ft);
 err_ft:
-	kfree(ct_flow);
 	netdev_warn(priv->netdev, "Failed to offload ct flow, err %d\n", err);
-	return ERR_PTR(err);
+	return err;
 }
 
-struct mlx5_flow_handle *
-mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv,
-			struct mlx5_flow_spec *spec,
-			struct mlx5_flow_attr *attr,
-			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
+int
+mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv, struct mlx5_flow_attr *attr)
 {
-	struct mlx5_flow_handle *rule;
+	int err;
 
 	if (!priv)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
+
+	if (attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR) {
+		err = mlx5_tc_ct_entry_set_registers(priv, &attr->parse_attr->mod_hdr_acts,
+						     0, 0, 0, 0);
+		if (err)
+			return err;
+
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	}
+
+	if (!attr->ct_attr.nf_ft) /* means only ct clear action, and not ct_clear,ct() */
+		return 0;
 
 	mutex_lock(&priv->control_lock);
-	rule = __mlx5_tc_ct_flow_offload(priv, spec, attr);
+	err = __mlx5_tc_ct_flow_offload(priv, attr);
 	mutex_unlock(&priv->control_lock);
 
-	return rule;
+	return err;
 }
 
 static void
 __mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *ct_priv,
-			 struct mlx5_ct_flow *ct_flow,
 			 struct mlx5_flow_attr *attr)
 {
-	struct mlx5_flow_attr *pre_ct_attr = ct_flow->pre_ct_attr;
-	struct mlx5e_priv *priv = netdev_priv(ct_priv->netdev);
-
-	mlx5_tc_rule_delete(priv, ct_flow->pre_ct_rule, pre_ct_attr);
-	mlx5_modify_header_dealloc(priv->mdev, pre_ct_attr->modify_hdr);
-
 	mlx5e_tc_action_miss_mapping_put(ct_priv->priv, attr, attr->ct_attr.act_miss_mapping);
-	mlx5_tc_ct_del_ft_cb(ct_priv, ct_flow->ft);
-
-	kfree(ct_flow->pre_ct_attr);
-	kfree(ct_flow);
+	mlx5_tc_ct_del_ft_cb(ct_priv, attr->ct_attr.ft);
 }
 
 void
 mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *priv,
 		       struct mlx5_flow_attr *attr)
 {
-	struct mlx5_ct_flow *ct_flow = attr->ct_attr.ct_flow;
-
-	/* We are called on error to clean up stuff from parsing
-	 * but we don't have anything for now
-	 */
-	if (!ct_flow)
+	if (!attr->ct_attr.nf_ft) /* means only ct clear action, and not ct_clear,ct() */
 		return;
 
 	mutex_lock(&priv->control_lock);
-	__mlx5_tc_ct_delete_flow(priv, ct_flow, attr);
+	__mlx5_tc_ct_delete_flow(priv, attr);
 	mutex_unlock(&priv->control_lock);
 }
 

@@ -659,13 +659,13 @@ static u8 mv_sff_check_status(struct ata_port *ap);
  * PRDs for 64K boundaries in mv_fill_sg().
  */
 #ifdef CONFIG_PCI
-static struct scsi_host_template mv5_sht = {
+static const struct scsi_host_template mv5_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= MV_MAX_SG_CT / 2,
 	.dma_boundary		= MV_DMA_BOUNDARY,
 };
 #endif
-static struct scsi_host_template mv6_sht = {
+static const struct scsi_host_template mv6_sht = {
 	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= MV_MAX_Q_DEPTH - 1,
 	.sg_tablesize		= MV_MAX_SG_CT / 2,

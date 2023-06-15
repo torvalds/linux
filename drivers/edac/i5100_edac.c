@@ -909,7 +909,7 @@ static void i5100_do_inject(struct mem_ctl_info *mci)
 	 *
 	 * The injection code don't work without setting this register.
 	 * The register needs to be flipped off then on else the hardware
-	 * will only preform the first injection.
+	 * will only perform the first injection.
 	 *
 	 * Stop condition bits 7:4
 	 * 1010 - Stop after one injection
@@ -1220,6 +1220,5 @@ module_init(i5100_init);
 module_exit(i5100_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR
-    ("Arthur Jones <ajones@riverbed.com>");
+MODULE_AUTHOR("Arthur Jones <ajones@riverbed.com>");
 MODULE_DESCRIPTION("MC Driver for Intel I5100 memory controllers");

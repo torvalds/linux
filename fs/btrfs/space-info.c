@@ -537,13 +537,25 @@ again:
 	up_read(&info->groups_sem);
 }
 
-static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
+static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
 					u64 to_reclaim)
 {
 	u64 bytes;
 	u64 nr;
 
 	bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
+	nr = div64_u64(to_reclaim, bytes);
+	if (!nr)
+		nr = 1;
+	return nr;
+}
+
+static inline u64 calc_delayed_refs_nr(const struct btrfs_fs_info *fs_info,
+				       u64 to_reclaim)
+{
+	const u64 bytes = btrfs_calc_delayed_ref_bytes(fs_info, 1);
+	u64 nr;
+
 	nr = div64_u64(to_reclaim, bytes);
 	if (!nr)
 		nr = 1;
@@ -727,7 +739,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 			break;
 		}
 		if (state == FLUSH_DELAYED_REFS_NR)
-			nr = calc_reclaim_items_nr(fs_info, num_bytes);
+			nr = calc_delayed_refs_nr(fs_info, num_bytes);
 		else
 			nr = 0;
 		btrfs_run_delayed_refs(trans, nr);
@@ -1599,11 +1611,22 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	struct reserve_ticket ticket;
 	u64 start_ns = 0;
 	u64 used;
-	int ret = 0;
+	int ret = -ENOSPC;
 	bool pending_tickets;
 
 	ASSERT(orig_bytes);
-	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_ALL);
+	/*
+	 * If have a transaction handle (current->journal_info != NULL), then
+	 * the flush method can not be neither BTRFS_RESERVE_FLUSH_ALL* nor
+	 * BTRFS_RESERVE_FLUSH_EVICT, as we could deadlock because those
+	 * flushing methods can trigger transaction commits.
+	 */
+	if (current->journal_info) {
+		/* One assert per line for easier debugging. */
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL_STEAL);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_EVICT);
+	}
 
 	if (flush == BTRFS_RESERVE_FLUSH_DATA)
 		async_work = &fs_info->async_data_reclaim_work;
@@ -1611,7 +1634,6 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		async_work = &fs_info->async_reclaim_work;
 
 	spin_lock(&space_info->lock);
-	ret = -ENOSPC;
 	used = btrfs_space_info_used(space_info, true);
 
 	/*

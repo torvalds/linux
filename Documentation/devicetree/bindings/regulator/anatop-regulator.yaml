@@ -10,7 +10,7 @@ maintainers:
   - Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org>
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:
@@ -19,43 +19,43 @@ properties:
   regulator-name: true
 
   anatop-reg-offset:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the anatop MFD register offset.
 
   anatop-vol-bit-shift:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the bit shift for the register.
 
   anatop-vol-bit-width:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the number of bits used in the register.
 
   anatop-min-bit-val:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the minimum value of this register.
 
   anatop-min-voltage:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the minimum voltage of this regulator.
 
   anatop-max-voltage:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the maximum voltage of this regulator.
 
   anatop-delay-reg-offset:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the anatop MFD step time register offset.
 
   anatop-delay-bit-shift:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the bit shift for the step time register.
 
   anatop-delay-bit-width:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the number of bits used in the step time register.
 
   anatop-enable-bit:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing regulator enable bit offset.
 
   vin-supply:

@@ -2626,13 +2626,11 @@ static int atmel_nand_controller_probe(struct platform_device *pdev)
 	return caps->ops->probe(pdev, caps);
 }
 
-static int atmel_nand_controller_remove(struct platform_device *pdev)
+static void atmel_nand_controller_remove(struct platform_device *pdev)
 {
 	struct atmel_nand_controller *nc = platform_get_drvdata(pdev);
 
 	WARN_ON(nc->caps->ops->remove(nc));
-
-	return 0;
 }
 
 static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
@@ -2663,7 +2661,7 @@ static struct platform_driver atmel_nand_controller_driver = {
 		.pm = &atmel_nand_controller_pm_ops,
 	},
 	.probe = atmel_nand_controller_probe,
-	.remove = atmel_nand_controller_remove,
+	.remove_new = atmel_nand_controller_remove,
 };
 module_platform_driver(atmel_nand_controller_driver);
 

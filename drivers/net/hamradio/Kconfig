@@ -47,7 +47,7 @@ config BPQETHER
 
 config SCC
 	tristate "Z8530 SCC driver"
-	depends on ISA && AX25 && ISA_DMA_API
+	depends on ISA && AX25
 	help
 	  These cards are used to connect your Linux box to an amateur radio
 	  in order to communicate with other computers. If you want to use

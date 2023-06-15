@@ -1065,7 +1065,7 @@ static irqreturn_t inia100_intr(int irqno, void *devid)
 	return res;
 }
 
-static struct scsi_host_template inia100_template = {
+static const struct scsi_host_template inia100_template = {
 	.proc_name		= "inia100",
 	.name			= inia100_REVID,
 	.queuecommand		= inia100_queue,

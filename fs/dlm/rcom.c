@@ -415,7 +415,7 @@ static void pack_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	rl->rl_ownpid = cpu_to_le32(lkb->lkb_ownpid);
 	rl->rl_lkid = cpu_to_le32(lkb->lkb_id);
 	rl->rl_exflags = cpu_to_le32(lkb->lkb_exflags);
-	rl->rl_flags = cpu_to_le32(lkb->lkb_flags);
+	rl->rl_flags = cpu_to_le32(dlm_dflags_val(lkb));
 	rl->rl_lvbseq = cpu_to_le32(lkb->lkb_lvbseq);
 	rl->rl_rqmode = lkb->lkb_rqmode;
 	rl->rl_grmode = lkb->lkb_grmode;

@@ -280,9 +280,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 
 	cpu = pcpu - pcpu_devices;
 	lc = lowcore_ptr[cpu];
-	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
-		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->current_task = (unsigned long) tsk;
+	lc->kernel_stack = (unsigned long)task_stack_page(tsk) + STACK_INIT_OFFSET;
+	lc->current_task = (unsigned long)tsk;
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
 	lc->user_timer = tsk->thread.user_timer;
@@ -348,7 +347,6 @@ static void pcpu_delegate(struct pcpu *pcpu,
 		abs_lc->restart_source = source_cpu;
 		put_abs_lowcore(abs_lc);
 	}
-	__bpon();
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
@@ -553,7 +551,7 @@ void arch_send_call_function_single_ipi(int cpu)
  * it goes straight through and wastes no time serializing
  * anything. Worst case is that we lose a reschedule ...
  */
-void smp_send_reschedule(int cpu)
+void arch_smp_send_reschedule(int cpu)
 {
 	pcpu_ec_call(pcpu_devices + cpu, ec_schedule);
 }
@@ -986,7 +984,6 @@ void __cpu_die(unsigned int cpu)
 void __noreturn cpu_die(void)
 {
 	idle_task_exit();
-	__bpon();
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
@@ -1227,11 +1224,17 @@ static DEVICE_ATTR_WO(rescan);
 
 static int __init s390_smp_init(void)
 {
+	struct device *dev_root;
 	int cpu, rc = 0;
 
-	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
-	if (rc)
-		return rc;
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_rescan);
+		put_device(dev_root);
+		if (rc)
+			return rc;
+	}
+
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)
@@ -1296,9 +1299,9 @@ int __init smp_reinit_ipl_cpu(void)
 	local_mcck_enable();
 	local_irq_restore(flags);
 
-	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
 	memblock_free_late(__pa(lc_ipl->mcck_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->async_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->nodat_stack - STACK_INIT_OFFSET), THREAD_SIZE);
 	memblock_free_late(__pa(lc_ipl), sizeof(*lc_ipl));
-
 	return 0;
 }

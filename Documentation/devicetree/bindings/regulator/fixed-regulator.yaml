@@ -17,7 +17,7 @@ description:
   to be the same.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
   - if:
       properties:
         compatible:

@@ -511,7 +511,7 @@ err_clk_unprepare:
 	return ret;
 }
 
-static int ehrpwm_pwm_remove(struct platform_device *pdev)
+static void ehrpwm_pwm_remove(struct platform_device *pdev)
 {
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
 
@@ -520,8 +520,6 @@ static int ehrpwm_pwm_remove(struct platform_device *pdev)
 	clk_unprepare(pc->tbclk);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -604,7 +602,7 @@ static struct platform_driver ehrpwm_pwm_driver = {
 		.pm = &ehrpwm_pwm_pm_ops,
 	},
 	.probe = ehrpwm_pwm_probe,
-	.remove = ehrpwm_pwm_remove,
+	.remove_new = ehrpwm_pwm_remove,
 };
 module_platform_driver(ehrpwm_pwm_driver);
 

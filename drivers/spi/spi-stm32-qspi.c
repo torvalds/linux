@@ -359,7 +359,7 @@ static int stm32_qspi_get_mode(u8 buswidth)
 static int stm32_qspi_send(struct spi_device *spi, const struct spi_mem_op *op)
 {
 	struct stm32_qspi *qspi = spi_controller_get_devdata(spi->master);
-	struct stm32_qspi_flash *flash = &qspi->flash[spi->chip_select];
+	struct stm32_qspi_flash *flash = &qspi->flash[spi_get_chipselect(spi, 0)];
 	u32 ccr, cr;
 	int timeout, err = 0, err_poll_status = 0;
 
@@ -564,7 +564,7 @@ static int stm32_qspi_transfer_one_message(struct spi_controller *ctrl,
 	struct spi_mem_op op;
 	int ret = 0;
 
-	if (!spi->cs_gpiod)
+	if (!spi_get_csgpiod(spi, 0))
 		return -EOPNOTSUPP;
 
 	ret = pm_runtime_resume_and_get(qspi->dev);
@@ -573,7 +573,7 @@ static int stm32_qspi_transfer_one_message(struct spi_controller *ctrl,
 
 	mutex_lock(&qspi->lock);
 
-	gpiod_set_value_cansleep(spi->cs_gpiod, true);
+	gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), true);
 
 	list_for_each_entry(transfer, &msg->transfers, transfer_list) {
 		u8 dummy_bytes = 0;
@@ -626,7 +626,7 @@ static int stm32_qspi_transfer_one_message(struct spi_controller *ctrl,
 	}
 
 end_of_transfer:
-	gpiod_set_value_cansleep(spi->cs_gpiod, false);
+	gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), false);
 
 	mutex_unlock(&qspi->lock);
 
@@ -669,8 +669,8 @@ static int stm32_qspi_setup(struct spi_device *spi)
 
 	presc = DIV_ROUND_UP(qspi->clk_rate, spi->max_speed_hz) - 1;
 
-	flash = &qspi->flash[spi->chip_select];
-	flash->cs = spi->chip_select;
+	flash = &qspi->flash[spi_get_chipselect(spi, 0)];
+	flash->cs = spi_get_chipselect(spi, 0);
 	flash->presc = presc;
 
 	mutex_lock(&qspi->lock);
@@ -888,7 +888,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int stm32_qspi_remove(struct platform_device *pdev)
+static void stm32_qspi_remove(struct platform_device *pdev)
 {
 	struct stm32_qspi *qspi = platform_get_drvdata(pdev);
 
@@ -903,8 +903,6 @@ static int stm32_qspi_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(qspi->dev);
 	pm_runtime_dont_use_autosuspend(qspi->dev);
 	clk_disable_unprepare(qspi->clk);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_qspi_runtime_suspend(struct device *dev)
@@ -968,7 +966,7 @@ MODULE_DEVICE_TABLE(of, stm32_qspi_match);
 
 static struct platform_driver stm32_qspi_driver = {
 	.probe	= stm32_qspi_probe,
-	.remove	= stm32_qspi_remove,
+	.remove_new = stm32_qspi_remove,
 	.driver	= {
 		.name = "stm32-qspi",
 		.of_match_table = stm32_qspi_match,

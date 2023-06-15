@@ -21,12 +21,12 @@ properties:
     maxItems: 1
 
   samsung,pmu-syscon:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle for PMU system controller interface, used to
                  control PMU registers bits for PCIe PHY
 
   samsung,fsys-sysreg:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle for FSYS sysreg interface, used to control
                  sysreg registers bits for PCIe PHY
 

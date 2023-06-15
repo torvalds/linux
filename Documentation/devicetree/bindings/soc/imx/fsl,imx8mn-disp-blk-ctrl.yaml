@@ -71,7 +71,7 @@ examples:
     #include <dt-bindings/clock/imx8mn-clock.h>
     #include <dt-bindings/power/imx8mn-power.h>
 
-    disp_blk_ctl: blk_ctrl@32e28000 {
+    blk-ctrl@32e28000 {
       compatible = "fsl,imx8mn-disp-blk-ctrl", "syscon";
       reg = <0x32e28000 0x100>;
       power-domains = <&pgc_dispmix>, <&pgc_dispmix>,

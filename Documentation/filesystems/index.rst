@@ -123,4 +123,5 @@ Documentation for filesystem implementations.
    vfat
    xfs-delayed-logging-design
    xfs-self-describing-metadata
+   xfs-online-fsck-design
    zonefs

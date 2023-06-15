@@ -368,7 +368,9 @@ void dcn30_fpu_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 	dc_assert_fp_enabled();
 
 	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
-		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
+		if (!context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching ||
+				context->bw_ctx.dml.soc.dram_clock_change_latency_us == 0)
+			context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
 	}
@@ -563,6 +565,20 @@ void dcn30_fpu_calculate_wm_and_dlg(
 		pipe_idx++;
 	}
 
+	// WA: restrict FPO to use first non-strobe mode (NV24 BW issue)
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching &&
+			dc->dml.soc.num_chans <= 4 &&
+			context->bw_ctx.dml.vba.DRAMSpeed <= 1700 &&
+			context->bw_ctx.dml.vba.DRAMSpeed >= 1500) {
+
+		for (i = 0; i < dc->dml.soc.num_states; i++) {
+			if (dc->dml.soc.clock_limits[i].dram_speed_mts > 1700) {
+				context->bw_ctx.dml.vba.DRAMSpeed = dc->dml.soc.clock_limits[i].dram_speed_mts;
+				break;
+			}
+		}
+	}
+
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
 
 	if (!pstate_en)
@@ -658,10 +674,19 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 }
 
 /**
- * Finds dummy_latency_index when MCLK switching using firmware based
- * vblank stretch is enabled. This function will iterate through the
- * table of dummy pstate latencies until the lowest value that allows
+ * dcn30_find_dummy_latency_index_for_fw_based_mclk_switch() - Finds
+ * dummy_latency_index when MCLK switching using firmware based vblank stretch
+ * is enabled. This function will iterate through the table of dummy pstate
+ * latencies until the lowest value that allows
  * dm_allow_self_refresh_and_mclk_switch to happen is found
+ *
+ * @dc: Current DC state
+ * @context: new dc state
+ * @pipes: DML pipe params
+ * @pipe_cnt: number of DML pipes
+ * @vlevel: Voltage level calculated by DML
+ *
+ * Return: lowest dummy_latency_index value
  */
 int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 							    struct dc_state *context,

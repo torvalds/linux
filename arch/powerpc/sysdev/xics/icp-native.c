@@ -259,7 +259,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 	unsigned int ilen;
 	const __be32 *ireg;
 	int i;
-	int reg_tuple_size;
+	int num_reg;
 	int num_servers = 0;
 
 	/* This code does the theorically broken assumption that the interrupt
@@ -280,21 +280,14 @@ static int __init icp_native_init_one_node(struct device_node *np,
 			num_servers = of_read_number(ireg + 1, 1);
 	}
 
-	ireg = of_get_property(np, "reg", &ilen);
-	if (!ireg) {
-		pr_err("icp_native: Can't find interrupt reg property");
-		return -1;
-	}
-
-	reg_tuple_size = (of_n_addr_cells(np) + of_n_size_cells(np)) * 4;
-	if (((ilen % reg_tuple_size) != 0)
-	    || (num_servers && (num_servers != (ilen / reg_tuple_size)))) {
+	num_reg = of_address_count(np);
+	if (num_servers && (num_servers != num_reg)) {
 		pr_err("icp_native: ICP reg len (%d) != num servers (%d)",
-		       ilen / reg_tuple_size, num_servers);
+		       num_reg, num_servers);
 		return -1;
 	}
 
-	for (i = 0; i < (ilen / reg_tuple_size); i++) {
+	for (i = 0; i < num_reg; i++) {
 		struct resource r;
 		int err;
 

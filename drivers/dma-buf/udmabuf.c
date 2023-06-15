@@ -430,4 +430,3 @@ module_init(udmabuf_dev_init)
 module_exit(udmabuf_dev_exit)
 
 MODULE_AUTHOR("Gerd Hoffmann <kraxel@redhat.com>");
-MODULE_LICENSE("GPL v2");

@@ -587,7 +587,6 @@ ATTRIBUTE_GROUPS(sd_disk);
 
 static struct class sd_disk_class = {
 	.name		= "scsi_disk",
-	.owner		= THIS_MODULE,
 	.dev_release	= scsi_disk_release,
 	.dev_groups	= sd_disk_groups,
 };

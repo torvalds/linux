@@ -209,9 +209,6 @@ static bool dce110_enable_display_power_gating(
 	struct dc_context *ctx = dc->ctx;
 	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-		return true;
-
 	if (power_gating == PIPE_GATING_CONTROL_INIT)
 		cntl = ASIC_PIPE_INIT;
 	else if (power_gating == PIPE_GATING_CONTROL_ENABLE)
@@ -1219,7 +1216,8 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 	struct dce_hwseq *hws = link->dc->hwseq;
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-		hws->funcs.edp_backlight_control(link, false);
+		if (!stream->skip_edp_power_down)
+			hws->funcs.edp_backlight_control(link, false);
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
@@ -2291,6 +2289,11 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 		if (DC_OK != status)
 			return status;
+
+#ifdef CONFIG_DRM_AMD_DC_FP
+		if (hws->funcs.resync_fifo_dccg_dio)
+			hws->funcs.resync_fifo_dccg_dio(hws, dc, context);
+#endif
 	}
 
 	if (dc->fbc_compressor)
@@ -3031,10 +3034,12 @@ void dce110_enable_dp_link_output(
 	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 	unsigned int i;
 
-
+	/*
+	 * Add the logic to extract BOTH power up and power down sequences
+	 * from enable/disable link output and only call edp panel control
+	 * in enable_link_dp and disable_link_dp once.
+	 */
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		if (!link->dc->config.edp_no_power_sequencing)
-			link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
@@ -3096,11 +3101,12 @@ void dce110_disable_link_output(struct dc_link *link,
 
 	link_hwss->disable_link_output(link, link_res, signal);
 	link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
-
-	if (signal == SIGNAL_TYPE_EDP &&
-			link->dc->hwss.edp_backlight_control)
-		link->dc->hwss.edp_power_control(link, false);
-	else if (dmcu != NULL && dmcu->funcs->lock_phy)
+	/*
+	 * Add the logic to extract BOTH power up and power down sequences
+	 * from enable/disable link output and only call edp panel control
+	 * in enable_link_dp and disable_link_dp once.
+	 */
+	if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }

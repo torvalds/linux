@@ -55,6 +55,7 @@ enum brcmf_bus_protocol_type {
 /* Firmware blobs that may be available */
 enum brcmf_blob_type {
 	BRCMF_BLOB_CLM,
+	BRCMF_BLOB_TXCAP,
 };
 
 struct brcmf_mp_device;

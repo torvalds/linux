@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2019 Mellanox Technologies. */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/mlx5/driver.h>
@@ -9,6 +10,7 @@
 #include "mlx5_irq.h"
 #include "pci_irq.h"
 #include "lib/sf.h"
+#include "lib/eq.h"
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
@@ -29,12 +31,11 @@ struct mlx5_irq {
 	char name[MLX5_MAX_IRQ_NAME];
 	struct mlx5_irq_pool *pool;
 	int refcount;
-	u32 index;
-	int irqn;
+	struct msi_map map;
 };
 
 struct mlx5_irq_table {
-	struct mlx5_irq_pool *pf_pool;
+	struct mlx5_irq_pool *pcif_pool;
 	struct mlx5_irq_pool *sf_ctrl_pool;
 	struct mlx5_irq_pool *sf_comp_pool;
 };
@@ -127,15 +128,26 @@ out:
 static void irq_release(struct mlx5_irq *irq)
 {
 	struct mlx5_irq_pool *pool = irq->pool;
+#ifdef CONFIG_RFS_ACCEL
+	struct cpu_rmap *rmap;
+#endif
 
-	xa_erase(&pool->irqs, irq->index);
-	/* free_irq requires that affinity_hint and rmap will be cleared
-	 * before calling it. This is why there is asymmetry with set_rmap
-	 * which should be called after alloc_irq but before request_irq.
+	xa_erase(&pool->irqs, irq->map.index);
+	/* free_irq requires that affinity_hint and rmap will be cleared before
+	 * calling it. To satisfy this requirement, we call
+	 * irq_cpu_rmap_remove() to remove the notifier
 	 */
-	irq_update_affinity_hint(irq->irqn, NULL);
+	irq_update_affinity_hint(irq->map.virq, NULL);
+#ifdef CONFIG_RFS_ACCEL
+	rmap = mlx5_eq_table_get_rmap(pool->dev);
+	if (rmap && irq->map.index)
+		irq_cpu_rmap_remove(rmap, irq->map.virq);
+#endif
+
 	free_cpumask_var(irq->mask);
-	free_irq(irq->irqn, &irq->nh);
+	free_irq(irq->map.virq, &irq->nh);
+	if (irq->map.index && pci_msix_can_alloc_dyn(pool->dev->pdev))
+		pci_msix_free_irq(pool->dev->pdev, irq->map);
 	kfree(irq);
 }
 
@@ -198,7 +210,7 @@ static void irq_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 		return;
 	}
 
-	if (vecidx == pool->xa_num_irqs.max) {
+	if (!vecidx) {
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_async%d", vecidx);
 		return;
 	}
@@ -207,7 +219,8 @@ static void irq_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 }
 
 struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
-				const struct cpumask *affinity)
+				struct irq_affinity_desc *af_desc,
+				struct cpu_rmap **rmap)
 {
 	struct mlx5_core_dev *dev = pool->dev;
 	char name[MLX5_MAX_IRQ_NAME];
@@ -217,7 +230,28 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
-	irq->irqn = pci_irq_vector(dev->pdev, i);
+	if (!i || !pci_msix_can_alloc_dyn(dev->pdev)) {
+		/* The vector at index 0 was already allocated.
+		 * Just get the irq number. If dynamic irq is not supported
+		 * vectors have also been allocated.
+		 */
+		irq->map.virq = pci_irq_vector(dev->pdev, i);
+		irq->map.index = 0;
+	} else {
+		irq->map = pci_msix_alloc_irq_at(dev->pdev, MSI_ANY_INDEX, af_desc);
+		if (!irq->map.virq) {
+			err = irq->map.index;
+			goto err_alloc_irq;
+		}
+	}
+
+	if (i && rmap && *rmap) {
+#ifdef CONFIG_RFS_ACCEL
+		err = irq_cpu_rmap_add(*rmap, irq->map.virq);
+		if (err)
+			goto err_irq_rmap;
+#endif
+	}
 	if (!mlx5_irq_pool_is_sf_pool(pool))
 		irq_set_name(pool, name, i);
 	else
@@ -225,7 +259,7 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
 	snprintf(irq->name, MLX5_MAX_IRQ_NAME,
 		 "%s@pci:%s", name, pci_name(dev->pdev));
-	err = request_irq(irq->irqn, irq_int_handler, 0, irq->name,
+	err = request_irq(irq->map.virq, irq_int_handler, 0, irq->name,
 			  &irq->nh);
 	if (err) {
 		mlx5_core_err(dev, "Failed to request irq. err = %d\n", err);
@@ -236,26 +270,37 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 		err = -ENOMEM;
 		goto err_cpumask;
 	}
-	if (affinity) {
-		cpumask_copy(irq->mask, affinity);
-		irq_set_affinity_and_hint(irq->irqn, irq->mask);
+	if (af_desc) {
+		cpumask_copy(irq->mask, &af_desc->mask);
+		irq_set_affinity_and_hint(irq->map.virq, irq->mask);
 	}
 	irq->pool = pool;
 	irq->refcount = 1;
-	irq->index = i;
-	err = xa_err(xa_store(&pool->irqs, irq->index, irq, GFP_KERNEL));
+	irq->map.index = i;
+	err = xa_err(xa_store(&pool->irqs, irq->map.index, irq, GFP_KERNEL));
 	if (err) {
 		mlx5_core_err(dev, "Failed to alloc xa entry for irq(%u). err = %d\n",
-			      irq->index, err);
+			      irq->map.index, err);
 		goto err_xa;
 	}
 	return irq;
 err_xa:
-	irq_update_affinity_hint(irq->irqn, NULL);
+	if (af_desc)
+		irq_update_affinity_hint(irq->map.virq, NULL);
 	free_cpumask_var(irq->mask);
 err_cpumask:
-	free_irq(irq->irqn, &irq->nh);
+	free_irq(irq->map.virq, &irq->nh);
 err_req_irq:
+#ifdef CONFIG_RFS_ACCEL
+	if (i && rmap && *rmap) {
+		free_irq_cpu_rmap(*rmap);
+		*rmap = NULL;
+	}
+err_irq_rmap:
+#endif
+	if (i && pci_msix_can_alloc_dyn(dev->pdev))
+		pci_msix_free_irq(dev->pdev, irq->map);
+err_alloc_irq:
 	kfree(irq);
 	return ERR_PTR(err);
 }
@@ -292,7 +337,7 @@ struct cpumask *mlx5_irq_get_affinity_mask(struct mlx5_irq *irq)
 
 int mlx5_irq_get_index(struct mlx5_irq *irq)
 {
-	return irq->index;
+	return irq->map.index;
 }
 
 /* irq_pool API */
@@ -300,7 +345,8 @@ int mlx5_irq_get_index(struct mlx5_irq *irq)
 /* requesting an irq from a given pool according to given index */
 static struct mlx5_irq *
 irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
-			struct cpumask *affinity)
+			struct irq_affinity_desc *af_desc,
+			struct cpu_rmap **rmap)
 {
 	struct mlx5_irq *irq;
 
@@ -310,7 +356,7 @@ irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
 		mlx5_irq_get_locked(irq);
 		goto unlock;
 	}
-	irq = mlx5_irq_alloc(pool, vecidx, affinity);
+	irq = mlx5_irq_alloc(pool, vecidx, af_desc, rmap);
 unlock:
 	mutex_unlock(&pool->lock);
 	return irq;
@@ -337,7 +383,7 @@ struct mlx5_irq_pool *mlx5_irq_pool_get(struct mlx5_core_dev *dev)
 	/* In some configs, there won't be a pool of SFs IRQs. Hence, returning
 	 * the PF IRQs pool in case the SF pool doesn't exist.
 	 */
-	return pool ? pool : irq_table->pf_pool;
+	return pool ? pool : irq_table->pcif_pool;
 }
 
 static struct mlx5_irq_pool *ctrl_irq_pool_get(struct mlx5_core_dev *dev)
@@ -351,7 +397,7 @@ static struct mlx5_irq_pool *ctrl_irq_pool_get(struct mlx5_core_dev *dev)
 	/* In some configs, there won't be a pool of SFs IRQs. Hence, returning
 	 * the PF IRQs pool in case the SF pool doesn't exist.
 	 */
-	return pool ? pool : irq_table->pf_pool;
+	return pool ? pool : irq_table->pcif_pool;
 }
 
 /**
@@ -364,7 +410,7 @@ static void mlx5_irqs_release(struct mlx5_irq **irqs, int nirqs)
 	int i;
 
 	for (i = 0; i < nirqs; i++) {
-		synchronize_irq(irqs[i]->irqn);
+		synchronize_irq(irqs[i]->map.virq);
 		mlx5_irq_put(irqs[i]);
 	}
 }
@@ -387,26 +433,26 @@ void mlx5_ctrl_irq_release(struct mlx5_irq *ctrl_irq)
 struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
 {
 	struct mlx5_irq_pool *pool = ctrl_irq_pool_get(dev);
-	cpumask_var_t req_mask;
+	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
 
-	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
-		return ERR_PTR(-ENOMEM);
-	cpumask_copy(req_mask, cpu_online_mask);
+	cpumask_copy(&af_desc.mask, cpu_online_mask);
+	af_desc.is_managed = false;
 	if (!mlx5_irq_pool_is_sf_pool(pool)) {
-		/* In case we are allocating a control IRQ for PF/VF */
+		/* In case we are allocating a control IRQ from a pci device's pool.
+		 * This can happen also for a SF if the SFs pool is empty.
+		 */
 		if (!pool->xa_num_irqs.max) {
-			cpumask_clear(req_mask);
+			cpumask_clear(&af_desc.mask);
 			/* In case we only have a single IRQ for PF/VF */
-			cpumask_set_cpu(cpumask_first(cpu_online_mask), req_mask);
+			cpumask_set_cpu(cpumask_first(cpu_online_mask), &af_desc.mask);
 		}
-		/* Allocate the IRQ in the last index of the pool */
-		irq = irq_pool_request_vector(pool, pool->xa_num_irqs.max, req_mask);
+		/* Allocate the IRQ in index 0. The vector was already allocated */
+		irq = irq_pool_request_vector(pool, 0, &af_desc, NULL);
 	} else {
-		irq = mlx5_irq_affinity_request(pool, req_mask);
+		irq = mlx5_irq_affinity_request(pool, &af_desc);
 	}
 
-	free_cpumask_var(req_mask);
 	return irq;
 }
 
@@ -415,26 +461,80 @@ struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
  * @dev: mlx5 device that requesting the IRQ.
  * @vecidx: vector index of the IRQ. This argument is ignore if affinity is
  * provided.
- * @affinity: cpumask requested for this IRQ.
+ * @af_desc: affinity descriptor for this IRQ.
+ * @rmap: pointer to reverse map pointer for completion interrupts
  *
  * This function returns a pointer to IRQ, or ERR_PTR in case of error.
  */
 struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
-				  struct cpumask *affinity)
+				  struct irq_affinity_desc *af_desc,
+				  struct cpu_rmap **rmap)
 {
 	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
 	struct mlx5_irq_pool *pool;
 	struct mlx5_irq *irq;
 
-	pool = irq_table->pf_pool;
-	irq = irq_pool_request_vector(pool, vecidx, affinity);
+	pool = irq_table->pcif_pool;
+	irq = irq_pool_request_vector(pool, vecidx, af_desc, rmap);
 	if (IS_ERR(irq))
 		return irq;
 	mlx5_core_dbg(dev, "irq %u mapped to cpu %*pbl, %u EQs on this irq\n",
-		      irq->irqn, cpumask_pr_args(affinity),
+		      irq->map.virq, cpumask_pr_args(&af_desc->mask),
 		      irq->refcount / MLX5_EQ_REFS_PER_IRQ);
 	return irq;
 }
+
+/**
+ * mlx5_msix_alloc - allocate msix interrupt
+ * @dev: mlx5 device from which to request
+ * @handler: interrupt handler
+ * @affdesc: affinity descriptor
+ * @name: interrupt name
+ *
+ * Returns: struct msi_map with result encoded.
+ * Note: the caller must make sure to release the irq by calling
+ *       mlx5_msix_free() if shutdown was initiated.
+ */
+struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
+			       irqreturn_t (*handler)(int, void *),
+			       const struct irq_affinity_desc *affdesc,
+			       const char *name)
+{
+	struct msi_map map;
+	int err;
+
+	if (!dev->pdev) {
+		map.virq = 0;
+		map.index = -EINVAL;
+		return map;
+	}
+
+	map = pci_msix_alloc_irq_at(dev->pdev, MSI_ANY_INDEX, affdesc);
+	if (!map.virq)
+		return map;
+
+	err = request_irq(map.virq, handler, 0, name, NULL);
+	if (err) {
+		mlx5_core_warn(dev, "err %d\n", err);
+		pci_msix_free_irq(dev->pdev, map);
+		map.virq = 0;
+		map.index = -ENOMEM;
+	}
+	return map;
+}
+EXPORT_SYMBOL(mlx5_msix_alloc);
+
+/**
+ * mlx5_msix_free - free a previously allocated msix interrupt
+ * @dev: mlx5 device associated with interrupt
+ * @map: map previously returned by mlx5_msix_alloc()
+ */
+void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map)
+{
+	free_irq(map.virq, NULL);
+	pci_msix_free_irq(dev->pdev, map);
+}
+EXPORT_SYMBOL(mlx5_msix_free);
 
 /**
  * mlx5_irqs_release_vectors - release one or more IRQs back to the system.
@@ -452,6 +552,7 @@ void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
  * @cpus: CPUs array for binding the IRQs
  * @nirqs: number of IRQs to request.
  * @irqs: an output array of IRQs pointers.
+ * @rmap: pointer to reverse map pointer for completion interrupts
  *
  * Each IRQ is bound to at most 1 CPU.
  * This function is requests nirqs IRQs, starting from @vecidx.
@@ -460,24 +561,22 @@ void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
  * @nirqs), if successful, or a negative error code in case of an error.
  */
 int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
-			      struct mlx5_irq **irqs)
+			      struct mlx5_irq **irqs, struct cpu_rmap **rmap)
 {
-	cpumask_var_t req_mask;
+	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
 	int i;
 
-	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
-		return -ENOMEM;
+	af_desc.is_managed = 1;
 	for (i = 0; i < nirqs; i++) {
-		cpumask_set_cpu(cpus[i], req_mask);
-		irq = mlx5_irq_request(dev, i, req_mask);
+		cpumask_set_cpu(cpus[i], &af_desc.mask);
+		irq = mlx5_irq_request(dev, i + 1, &af_desc, rmap);
 		if (IS_ERR(irq))
 			break;
-		cpumask_clear(req_mask);
+		cpumask_clear(&af_desc.mask);
 		irqs[i] = irq;
 	}
 
-	free_cpumask_var(req_mask);
 	return i ? i : PTR_ERR(irq);
 }
 
@@ -521,7 +620,7 @@ static void irq_pool_free(struct mlx5_irq_pool *pool)
 	kvfree(pool);
 }
 
-static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pf_vec)
+static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pcif_vec)
 {
 	struct mlx5_irq_table *table = dev->priv.irq_table;
 	int num_sf_ctrl_by_msix;
@@ -529,12 +628,12 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pf_vec)
 	int num_sf_ctrl;
 	int err;
 
-	/* init pf_pool */
-	table->pf_pool = irq_pool_alloc(dev, 0, pf_vec, NULL,
-					MLX5_EQ_SHARE_IRQ_MIN_COMP,
-					MLX5_EQ_SHARE_IRQ_MAX_COMP);
-	if (IS_ERR(table->pf_pool))
-		return PTR_ERR(table->pf_pool);
+	/* init pcif_pool */
+	table->pcif_pool = irq_pool_alloc(dev, 0, pcif_vec, NULL,
+					  MLX5_EQ_SHARE_IRQ_MIN_COMP,
+					  MLX5_EQ_SHARE_IRQ_MAX_COMP);
+	if (IS_ERR(table->pcif_pool))
+		return PTR_ERR(table->pcif_pool);
 	if (!mlx5_sf_max_functions(dev))
 		return 0;
 	if (sf_vec < MLX5_IRQ_VEC_COMP_BASE_SF) {
@@ -548,7 +647,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pf_vec)
 					  MLX5_SFS_PER_CTRL_IRQ);
 	num_sf_ctrl = min_t(int, num_sf_ctrl_by_msix, num_sf_ctrl_by_sfs);
 	num_sf_ctrl = min_t(int, MLX5_IRQ_CTRL_SF_MAX, num_sf_ctrl);
-	table->sf_ctrl_pool = irq_pool_alloc(dev, pf_vec, num_sf_ctrl,
+	table->sf_ctrl_pool = irq_pool_alloc(dev, pcif_vec, num_sf_ctrl,
 					     "mlx5_sf_ctrl",
 					     MLX5_EQ_SHARE_IRQ_MIN_CTRL,
 					     MLX5_EQ_SHARE_IRQ_MAX_CTRL);
@@ -557,7 +656,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pf_vec)
 		goto err_pf;
 	}
 	/* init sf_comp_pool */
-	table->sf_comp_pool = irq_pool_alloc(dev, pf_vec + num_sf_ctrl,
+	table->sf_comp_pool = irq_pool_alloc(dev, pcif_vec + num_sf_ctrl,
 					     sf_vec - num_sf_ctrl, "mlx5_sf_comp",
 					     MLX5_EQ_SHARE_IRQ_MIN_COMP,
 					     MLX5_EQ_SHARE_IRQ_MAX_COMP);
@@ -579,7 +678,7 @@ err_irqs_per_cpu:
 err_sf_ctrl:
 	irq_pool_free(table->sf_ctrl_pool);
 err_pf:
-	irq_pool_free(table->pf_pool);
+	irq_pool_free(table->pcif_pool);
 	return err;
 }
 
@@ -589,7 +688,7 @@ static void irq_pools_destroy(struct mlx5_irq_table *table)
 		irq_pool_free(table->sf_comp_pool);
 		irq_pool_free(table->sf_ctrl_pool);
 	}
-	irq_pool_free(table->pf_pool);
+	irq_pool_free(table->pcif_pool);
 }
 
 /* irq_table API */
@@ -620,9 +719,9 @@ void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev)
 
 int mlx5_irq_table_get_num_comp(struct mlx5_irq_table *table)
 {
-	if (!table->pf_pool->xa_num_irqs.max)
+	if (!table->pcif_pool->xa_num_irqs.max)
 		return 1;
-	return table->pf_pool->xa_num_irqs.max - table->pf_pool->xa_num_irqs.min;
+	return table->pcif_pool->xa_num_irqs.max - table->pcif_pool->xa_num_irqs.min;
 }
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
@@ -631,26 +730,30 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 		      MLX5_CAP_GEN(dev, max_num_eqs) :
 		      1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int total_vec;
-	int pf_vec;
+	int pcif_vec;
+	int req_vec;
 	int err;
+	int n;
 
 	if (mlx5_core_is_sf(dev))
 		return 0;
 
-	pf_vec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() + 1;
-	pf_vec = min_t(int, pf_vec, num_eqs);
+	pcif_vec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() + 1;
+	pcif_vec = min_t(int, pcif_vec, num_eqs);
 
-	total_vec = pf_vec;
+	total_vec = pcif_vec;
 	if (mlx5_sf_max_functions(dev))
 		total_vec += MLX5_IRQ_CTRL_SF_MAX +
 			MLX5_COMP_EQS_PER_SF * mlx5_sf_max_functions(dev);
+	total_vec = min_t(int, total_vec, pci_msix_vec_count(dev->pdev));
+	pcif_vec = min_t(int, pcif_vec, pci_msix_vec_count(dev->pdev));
 
-	total_vec = pci_alloc_irq_vectors(dev->pdev, 1, total_vec, PCI_IRQ_MSIX);
-	if (total_vec < 0)
-		return total_vec;
-	pf_vec = min(pf_vec, total_vec);
+	req_vec = pci_msix_can_alloc_dyn(dev->pdev) ? 1 : total_vec;
+	n = pci_alloc_irq_vectors(dev->pdev, 1, req_vec, PCI_IRQ_MSIX);
+	if (n < 0)
+		return n;
 
-	err = irq_pools_init(dev, total_vec - pf_vec, pf_vec);
+	err = irq_pools_init(dev, total_vec - pcif_vec, pcif_vec);
 	if (err)
 		pci_free_irq_vectors(dev->pdev);
 

@@ -91,9 +91,9 @@ Short descriptions to the page flags
    The page is being locked for exclusive access, e.g. by undergoing read/write
    IO.
 7 - SLAB
-   The page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator.
-   When compound page is used, SLUB/SLQB will only set this flag on the head
-   page; SLOB will not flag it at all.
+   The page is managed by the SLAB/SLUB kernel memory allocator.
+   When compound page is used, either will only set this flag on the head
+   page.
 10 - BUDDY
     A free memory block managed by the buddy system allocator.
     The buddy system organizes free memory in blocks of various orders.

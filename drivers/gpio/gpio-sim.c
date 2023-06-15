@@ -953,9 +953,9 @@ static void gpio_sim_device_deactivate_unlocked(struct gpio_sim_device *dev)
 
 	swnode = dev_fwnode(&dev->pdev->dev);
 	platform_device_unregister(dev->pdev);
+	gpio_sim_remove_hogs(dev);
 	gpio_sim_remove_swnode_recursive(swnode);
 	dev->pdev = NULL;
-	gpio_sim_remove_hogs(dev);
 }
 
 static ssize_t

@@ -1,10 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (c) 2022 Meta Platforms, Inc. and affiliates. */
 #define _GNU_SOURCE
 #include <argp.h>
 #include <string.h>
 #include <stdlib.h>
-#include <linux/compiler.h>
 #include <sched.h>
 #include <pthread.h>
 #include <dirent.h>
@@ -15,9 +14,14 @@
 #include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <bpf/libbpf.h>
+#include <bpf/btf.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
 
 enum stat_id {
 	VERDICT,
@@ -135,11 +139,16 @@ static struct env {
 	char **filenames;
 	int filename_cnt;
 	bool verbose;
+	bool debug;
 	bool quiet;
-	int log_level;
 	enum resfmt out_fmt;
+	bool show_version;
 	bool comparison_mode;
 	bool replay_mode;
+
+	int log_level;
+	int log_size;
+	bool log_fixed;
 
 	struct verif_stats *prog_stats;
 	int prog_stat_cnt;
@@ -169,23 +178,37 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 {
 	if (!env.verbose)
 		return 0;
-	if (level == LIBBPF_DEBUG /* && !env.verbose */)
+	if (level == LIBBPF_DEBUG  && !env.debug)
 		return 0;
 	return vfprintf(stderr, format, args);
 }
 
-const char *argp_program_version = "veristat";
+#ifndef VERISTAT_VERSION
+#define VERISTAT_VERSION "<kernel>"
+#endif
+
+const char *argp_program_version = "veristat v" VERISTAT_VERSION;
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] =
 "veristat    BPF verifier stats collection and comparison tool.\n"
 "\n"
 "USAGE: veristat <obj-file> [<obj-file>...]\n"
-"   OR: veristat -C <baseline.csv> <comparison.csv>\n";
+"   OR: veristat -C <baseline.csv> <comparison.csv>\n"
+"   OR: veristat -R <results.csv>\n";
+
+enum {
+	OPT_LOG_FIXED = 1000,
+	OPT_LOG_SIZE = 1001,
+};
 
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
+	{ "version", 'V', NULL, 0, "Print version" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
+	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
 	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
+	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -209,7 +232,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'h':
 		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
 		break;
+	case 'V':
+		env.show_version = true;
+		break;
 	case 'v':
+		env.verbose = true;
+		break;
+	case 'd':
+		env.debug = true;
 		env.verbose = true;
 		break;
 	case 'q':
@@ -240,6 +270,17 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.log_level = strtol(arg, NULL, 10);
 		if (errno) {
 			fprintf(stderr, "invalid log level: %s\n", arg);
+			argp_usage(state);
+		}
+		break;
+	case OPT_LOG_FIXED:
+		env.log_fixed = true;
+		break;
+	case OPT_LOG_SIZE:
+		errno = 0;
+		env.log_size = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid log size: %s\n", arg);
 			argp_usage(state);
 		}
 		break;
@@ -772,7 +813,62 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 	return 0;
 }
 
-static void fixup_obj(struct bpf_object *obj)
+static int guess_prog_type_by_ctx_name(const char *ctx_name,
+				       enum bpf_prog_type *prog_type,
+				       enum bpf_attach_type *attach_type)
+{
+	/* We need to guess program type based on its declared context type.
+	 * This guess can't be perfect as many different program types might
+	 * share the same context type.  So we can only hope to reasonably
+	 * well guess this and get lucky.
+	 *
+	 * Just in case, we support both UAPI-side type names and
+	 * kernel-internal names.
+	 */
+	static struct {
+		const char *uapi_name;
+		const char *kern_name;
+		enum bpf_prog_type prog_type;
+		enum bpf_attach_type attach_type;
+	} ctx_map[] = {
+		/* __sk_buff is most ambiguous, we assume TC program */
+		{ "__sk_buff", "sk_buff", BPF_PROG_TYPE_SCHED_CLS },
+		{ "bpf_sock", "sock", BPF_PROG_TYPE_CGROUP_SOCK, BPF_CGROUP_INET4_POST_BIND },
+		{ "bpf_sock_addr", "bpf_sock_addr_kern",  BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_BIND },
+		{ "bpf_sock_ops", "bpf_sock_ops_kern", BPF_PROG_TYPE_SOCK_OPS, BPF_CGROUP_SOCK_OPS },
+		{ "sk_msg_md", "sk_msg", BPF_PROG_TYPE_SK_MSG, BPF_SK_MSG_VERDICT },
+		{ "bpf_cgroup_dev_ctx", "bpf_cgroup_dev_ctx", BPF_PROG_TYPE_CGROUP_DEVICE, BPF_CGROUP_DEVICE },
+		{ "bpf_sysctl", "bpf_sysctl_kern", BPF_PROG_TYPE_CGROUP_SYSCTL, BPF_CGROUP_SYSCTL },
+		{ "bpf_sockopt", "bpf_sockopt_kern", BPF_PROG_TYPE_CGROUP_SOCKOPT, BPF_CGROUP_SETSOCKOPT },
+		{ "sk_reuseport_md", "sk_reuseport_kern", BPF_PROG_TYPE_SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE },
+		{ "bpf_sk_lookup", "bpf_sk_lookup_kern", BPF_PROG_TYPE_SK_LOOKUP, BPF_SK_LOOKUP },
+		{ "xdp_md", "xdp_buff", BPF_PROG_TYPE_XDP, BPF_XDP },
+		/* tracing types with no expected attach type */
+		{ "bpf_user_pt_regs_t", "pt_regs", BPF_PROG_TYPE_KPROBE },
+		{ "bpf_perf_event_data", "bpf_perf_event_data_kern", BPF_PROG_TYPE_PERF_EVENT },
+		/* raw_tp programs use u64[] from kernel side, we don't want
+		 * to match on that, probably; so NULL for kern-side type
+		 */
+		{ "bpf_raw_tracepoint_args", NULL, BPF_PROG_TYPE_RAW_TRACEPOINT },
+	};
+	int i;
+
+	if (!ctx_name)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(ctx_map); i++) {
+		if (strcmp(ctx_map[i].uapi_name, ctx_name) == 0 ||
+		    (ctx_map[i].kern_name && strcmp(ctx_map[i].kern_name, ctx_name) == 0)) {
+			*prog_type = ctx_map[i].prog_type;
+			*attach_type = ctx_map[i].attach_type;
+			return 0;
+		}
+	}
+
+	return -ESRCH;
+}
+
+static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const char *filename)
 {
 	struct bpf_map *map;
 
@@ -792,18 +888,75 @@ static void fixup_obj(struct bpf_object *obj)
 				bpf_map__set_max_entries(map, 1);
 		}
 	}
+
+	/* SEC(freplace) programs can't be loaded with veristat as is,
+	 * but we can try guessing their target program's expected type by
+	 * looking at the type of program's first argument and substituting
+	 * corresponding program type
+	 */
+	if (bpf_program__type(prog) == BPF_PROG_TYPE_EXT) {
+		const struct btf *btf = bpf_object__btf(obj);
+		const char *prog_name = bpf_program__name(prog);
+		enum bpf_prog_type prog_type;
+		enum bpf_attach_type attach_type;
+		const struct btf_type *t;
+		const char *ctx_name;
+		int id;
+
+		if (!btf)
+			goto skip_freplace_fixup;
+
+		id = btf__find_by_name_kind(btf, prog_name, BTF_KIND_FUNC);
+		t = btf__type_by_id(btf, id);
+		t = btf__type_by_id(btf, t->type);
+		if (!btf_is_func_proto(t) || btf_vlen(t) != 1)
+			goto skip_freplace_fixup;
+
+		/* context argument is a pointer to a struct/typedef */
+		t = btf__type_by_id(btf, btf_params(t)[0].type);
+		while (t && btf_is_mod(t))
+			t = btf__type_by_id(btf, t->type);
+		if (!t || !btf_is_ptr(t))
+			goto skip_freplace_fixup;
+		t = btf__type_by_id(btf, t->type);
+		while (t && btf_is_mod(t))
+			t = btf__type_by_id(btf, t->type);
+		if (!t)
+			goto skip_freplace_fixup;
+
+		ctx_name = btf__name_by_offset(btf, t->name_off);
+
+		if (guess_prog_type_by_ctx_name(ctx_name, &prog_type, &attach_type) == 0) {
+			bpf_program__set_type(prog, prog_type);
+			bpf_program__set_expected_attach_type(prog, attach_type);
+
+			if (!env.quiet) {
+				printf("Using guessed program type '%s' for %s/%s...\n",
+					libbpf_bpf_prog_type_str(prog_type),
+					filename, prog_name);
+			}
+		} else {
+			if (!env.quiet) {
+				printf("Failed to guess program type for freplace program with context type name '%s' for %s/%s. Consider using canonical type names to help veristat...\n",
+					ctx_name, filename, prog_name);
+			}
+		}
+	}
+skip_freplace_fixup:
+	return;
 }
 
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *prog_name = bpf_program__name(prog);
-	size_t buf_sz = sizeof(verif_log_buf);
-	char *buf = verif_log_buf;
+	const char *base_filename = basename(filename);
+	char *buf;
+	int buf_sz, log_level;
 	struct verif_stats *stats;
 	int err = 0;
 	void *tmp;
 
-	if (!should_process_file_prog(basename(filename), bpf_program__name(prog))) {
+	if (!should_process_file_prog(base_filename, bpf_program__name(prog))) {
 		env.progs_skipped++;
 		return 0;
 	}
@@ -816,25 +969,30 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	memset(stats, 0, sizeof(*stats));
 
 	if (env.verbose) {
-		buf_sz = 16 * 1024 * 1024;
+		buf_sz = env.log_size ? env.log_size : 16 * 1024 * 1024;
 		buf = malloc(buf_sz);
 		if (!buf)
 			return -ENOMEM;
-		bpf_program__set_log_buf(prog, buf, buf_sz);
-		bpf_program__set_log_level(prog, env.log_level | 4); /* stats + log */
+		/* ensure we always request stats */
+		log_level = env.log_level | 4 | (env.log_fixed ? 8 : 0);
 	} else {
-		bpf_program__set_log_buf(prog, buf, buf_sz);
-		bpf_program__set_log_level(prog, 4); /* only verifier stats */
+		buf = verif_log_buf;
+		buf_sz = sizeof(verif_log_buf);
+		/* request only verifier stats */
+		log_level = 4 | (env.log_fixed ? 8 : 0);
 	}
 	verif_log_buf[0] = '\0';
 
+	bpf_program__set_log_buf(prog, buf, buf_sz);
+	bpf_program__set_log_level(prog, log_level);
+
 	/* increase chances of successful BPF object loading */
-	fixup_obj(obj);
+	fixup_obj(obj, prog, base_filename);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
 
-	stats->file_name = strdup(basename(filename));
+	stats->file_name = strdup(base_filename);
 	stats->prog_name = strdup(bpf_program__name(prog));
 	stats->stats[VERDICT] = err == 0; /* 1 - success, 0 - failure */
 	parse_verif_log(buf, buf_sz, stats);
@@ -913,6 +1071,7 @@ static int process_obj(const char *filename)
 			goto cleanup;
 		}
 
+		lprog = NULL;
 		bpf_object__for_each_program(tprog, tobj) {
 			const char *tprog_name = bpf_program__name(tprog);
 
@@ -1691,18 +1850,22 @@ static int handle_comparison_mode(void)
 			join->stats_b = comp;
 			i++;
 			j++;
-		} else if (comp == &fallback_stats || r < 0) {
+		} else if (base != &fallback_stats && (comp == &fallback_stats || r < 0)) {
 			join->file_name = base->file_name;
 			join->prog_name = base->prog_name;
 			join->stats_a = base;
 			join->stats_b = NULL;
 			i++;
-		} else {
+		} else if (comp != &fallback_stats && (base == &fallback_stats || r > 0)) {
 			join->file_name = comp->file_name;
 			join->prog_name = comp->prog_name;
 			join->stats_a = NULL;
 			join->stats_b = comp;
 			j++;
+		} else {
+			fprintf(stderr, "%s:%d: should never reach here i=%i, j=%i",
+				__FILE__, __LINE__, i, j);
+			return -EINVAL;
 		}
 		env.join_stat_cnt += 1;
 	}
@@ -1723,6 +1886,7 @@ static int handle_comparison_mode(void)
 one_more_time:
 	output_comp_headers(cur_fmt);
 
+	last_idx = -1;
 	for (i = 0; i < env.join_stat_cnt; i++) {
 		const struct verif_stats_join *join = &env.join_stats[i];
 
@@ -1871,6 +2035,11 @@ int main(int argc, char **argv)
 
 	if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
 		return 1;
+
+	if (env.show_version) {
+		printf("%s\n", argp_program_version);
+		return 0;
+	}
 
 	if (env.verbose && env.quiet) {
 		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n\n");

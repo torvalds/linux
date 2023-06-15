@@ -151,14 +151,8 @@ void iio_trigger_unregister(struct iio_trigger *trig_info);
  **/
 int iio_trigger_set_immutable(struct iio_dev *indio_dev, struct iio_trigger *trig);
 
-/**
- * iio_trigger_poll() - called on a trigger occurring
- * @trig:	trigger which occurred
- *
- * Typically called in relevant hardware interrupt handler.
- **/
 void iio_trigger_poll(struct iio_trigger *trig);
-void iio_trigger_poll_chained(struct iio_trigger *trig);
+void iio_trigger_poll_nested(struct iio_trigger *trig);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 

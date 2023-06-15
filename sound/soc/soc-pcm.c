@@ -49,19 +49,6 @@ static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
 	return ret;
 }
 
-static inline void snd_soc_dpcm_mutex_lock(struct snd_soc_pcm_runtime *rtd)
-{
-	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
-}
-
-static inline void snd_soc_dpcm_mutex_unlock(struct snd_soc_pcm_runtime *rtd)
-{
-	mutex_unlock(&rtd->card->pcm_mutex);
-}
-
-#define snd_soc_dpcm_mutex_assert_held(rtd) \
-	lockdep_assert_held(&(rtd)->card->pcm_mutex)
-
 static inline void snd_soc_dpcm_stream_lock_irq(struct snd_soc_pcm_runtime *rtd,
 						int stream)
 {
@@ -1230,7 +1217,6 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 
 	dpcm->be = be;
 	dpcm->fe = fe;
-	be->dpcm[stream].runtime = fe->dpcm[stream].runtime;
 	dpcm->state = SND_SOC_DPCM_LINK_STATE_NEW;
 	snd_soc_dpcm_stream_lock_irq(fe, stream);
 	list_add(&dpcm->list_be, &fe->dpcm[stream].be_clients);
@@ -1465,10 +1451,11 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	struct snd_soc_dapm_widget_list *list = *list_;
 	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dapm_widget *widget;
+	struct snd_pcm_substream *fe_substream = snd_soc_dpcm_get_substream(fe, stream);
 	int i, new = 0, err;
 
 	/* don't connect if FE is not running */
-	if (!fe->dpcm[stream].runtime && !fe->fe_compr)
+	if (!fe_substream->runtime && !fe->fe_compr)
 		return new;
 
 	/* Create any new FE <--> BE connections */
@@ -1590,6 +1577,7 @@ void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
 
 int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 {
+	struct snd_pcm_substream *fe_substream = snd_soc_dpcm_get_substream(fe, stream);
 	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dpcm *dpcm;
 	int err, count = 0;
@@ -1629,7 +1617,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 		dev_dbg(be->dev, "ASoC: open %s BE %s\n",
 			stream ? "capture" : "playback", be->dai_link->name);
 
-		be_substream->runtime = be->dpcm[stream].runtime;
+		be_substream->runtime = fe_substream->runtime;
 		err = __soc_pcm_open(be, be_substream);
 		if (err < 0) {
 			be->dpcm[stream].users--;
@@ -1661,9 +1649,13 @@ static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dai *dai;
 	int stream = substream->stream;
+	u64 formats = hw->formats;
 	int i;
 
 	soc_pcm_hw_init(hw);
+
+	if (formats)
+		hw->formats &= formats;
 
 	for_each_rtd_cpu_dais(fe, i, dai) {
 		struct snd_soc_pcm_stream *cpu_stream;
@@ -2659,7 +2651,7 @@ int snd_soc_dpcm_runtime_update(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *fe;
 	int ret = 0;
 
-	mutex_lock_nested(&card->pcm_mutex, card->pcm_subclass);
+	snd_soc_dpcm_mutex_lock(card);
 	/* shutdown all old paths first */
 	for_each_card_rtds(card, fe) {
 		ret = soc_dpcm_fe_runtime_update(fe, 0);
@@ -2675,7 +2667,7 @@ int snd_soc_dpcm_runtime_update(struct snd_soc_card *card)
 	}
 
 out:
-	mutex_unlock(&card->pcm_mutex);
+	snd_soc_dpcm_mutex_unlock(card);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_runtime_update);
@@ -2693,8 +2685,6 @@ static void dpcm_fe_dai_cleanup(struct snd_pcm_substream *fe_substream)
 		dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
 
 	dpcm_be_disconnect(fe, stream);
-
-	fe->dpcm[stream].runtime = NULL;
 }
 
 static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
@@ -2719,7 +2709,6 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	int stream = fe_substream->stream;
 
 	snd_soc_dpcm_mutex_lock(fe);
-	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	ret = dpcm_path_get(fe, stream, &list);
 	if (ret < 0)
@@ -2791,9 +2780,9 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		struct snd_soc_dai *codec_dai;
 
 		/* Adapt stream for codec2codec links */
-		int cpu_capture = rtd->dai_link->params ?
+		int cpu_capture = rtd->dai_link->c2c_params ?
 			SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;
-		int cpu_playback = rtd->dai_link->params ?
+		int cpu_playback = rtd->dai_link->c2c_params ?
 			SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
 
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
@@ -2837,7 +2826,7 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 	int ret;
 
 	/* create the PCM */
-	if (rtd->dai_link->params) {
+	if (rtd->dai_link->c2c_params) {
 		snprintf(new_name, sizeof(new_name), "codec2codec(%s)",
 			 rtd->dai_link->stream_name);
 
@@ -2894,7 +2883,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	 * don't interface with the outside world or application layer
 	 * we don't have to do any special handling on close.
 	 */
-	if (!rtd->dai_link->params)
+	if (!rtd->dai_link->c2c_params)
 		rtd->close_delayed_work_func = snd_soc_close_delayed_work;
 
 	rtd->pcm = pcm;
@@ -2902,7 +2891,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	pcm->private_data = rtd;
 	pcm->no_device_suspend = true;
 
-	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
+	if (rtd->dai_link->no_pcm || rtd->dai_link->c2c_params) {
 		if (playback)
 			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->private_data = rtd;
 		if (capture)

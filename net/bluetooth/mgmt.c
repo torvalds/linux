@@ -1399,8 +1399,16 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	err = hci_cmd_sync_queue(hdev, set_powered_sync, cmd,
-				 mgmt_set_powered_complete);
+	/* Cancel potentially blocking sync operation before power off */
+	if (cp->val == 0x00) {
+		__hci_cmd_sync_cancel(hdev, -EHOSTDOWN);
+		err = hci_cmd_sync_queue(hdev, set_powered_sync, cmd,
+					 mgmt_set_powered_complete);
+	} else {
+		/* Use hci_cmd_sync_submit since hdev might not be running */
+		err = hci_cmd_sync_submit(hdev, set_powered_sync, cmd,
+					  mgmt_set_powered_complete);
+	}
 
 	if (err < 0)
 		mgmt_pending_remove(cmd);
@@ -8393,10 +8401,10 @@ static u32 get_supported_adv_flags(struct hci_dev *hdev)
 		flags |= MGMT_ADV_FLAG_HW_OFFLOAD;
 		flags |= MGMT_ADV_FLAG_CAN_SET_TX_POWER;
 
-		if (hdev->le_features[1] & HCI_LE_PHY_2M)
+		if (le_2m_capable(hdev))
 			flags |= MGMT_ADV_FLAG_SEC_2M;
 
-		if (hdev->le_features[1] & HCI_LE_PHY_CODED)
+		if (le_coded_capable(hdev))
 			flags |= MGMT_ADV_FLAG_SEC_CODED;
 	}
 

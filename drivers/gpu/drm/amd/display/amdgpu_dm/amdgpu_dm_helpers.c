@@ -687,7 +687,6 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 		return;
 
 	data[0] |= (1 << 1); // set bit 1 to 1
-		return;
 
 	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x221198, data))
 		return;
@@ -886,10 +885,34 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		DRM_ERROR("EDID err: %d, on connector: %s",
 				edid_status,
 				aconnector->base.name);
+	if (link->aux_mode) {
+		union test_request test_request = {0};
+		union test_response test_response = {0};
 
-	/* DP Compliance Test 4.2.2.3 */
-	if (link->aux_mode)
-		drm_dp_send_real_edid_checksum(&aconnector->dm_dp_aux.aux, sink->dc_edid.raw_edid[sink->dc_edid.length-1]);
+		dm_helpers_dp_read_dpcd(ctx,
+					link,
+					DP_TEST_REQUEST,
+					&test_request.raw,
+					sizeof(union test_request));
+
+		if (!test_request.bits.EDID_READ)
+			return edid_status;
+
+		test_response.bits.EDID_CHECKSUM_WRITE = 1;
+
+		dm_helpers_dp_write_dpcd(ctx,
+					link,
+					DP_TEST_EDID_CHECKSUM,
+					&sink->dc_edid.raw_edid[sink->dc_edid.length-1],
+					1);
+
+		dm_helpers_dp_write_dpcd(ctx,
+					link,
+					DP_TEST_RESPONSE,
+					&test_response.raw,
+					sizeof(test_response));
+
+	}
 
 	return edid_status;
 }

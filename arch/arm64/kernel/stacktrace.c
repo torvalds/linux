@@ -25,8 +25,9 @@
  *
  * The regs must be on a stack currently owned by the calling task.
  */
-static __always_inline void unwind_init_from_regs(struct unwind_state *state,
-						  struct pt_regs *regs)
+static __always_inline void
+unwind_init_from_regs(struct unwind_state *state,
+		      struct pt_regs *regs)
 {
 	unwind_init_common(state, current);
 
@@ -42,7 +43,8 @@ static __always_inline void unwind_init_from_regs(struct unwind_state *state,
  *
  * The function which invokes this must be noinline.
  */
-static __always_inline void unwind_init_from_caller(struct unwind_state *state)
+static __always_inline void
+unwind_init_from_caller(struct unwind_state *state)
 {
 	unwind_init_common(state, current);
 
@@ -60,13 +62,40 @@ static __always_inline void unwind_init_from_caller(struct unwind_state *state)
  * duration of the unwind, or the unwind will be bogus. It is never valid to
  * call this for the current task.
  */
-static __always_inline void unwind_init_from_task(struct unwind_state *state,
-						  struct task_struct *task)
+static __always_inline void
+unwind_init_from_task(struct unwind_state *state,
+		      struct task_struct *task)
 {
 	unwind_init_common(state, task);
 
 	state->fp = thread_saved_fp(task);
 	state->pc = thread_saved_pc(task);
+}
+
+static __always_inline int
+unwind_recover_return_address(struct unwind_state *state)
+{
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	if (state->task->ret_stack &&
+	    (state->pc == (unsigned long)return_to_handler)) {
+		unsigned long orig_pc;
+		orig_pc = ftrace_graph_ret_addr(state->task, NULL, state->pc,
+						(void *)state->fp);
+		if (WARN_ON_ONCE(state->pc == orig_pc))
+			return -EINVAL;
+		state->pc = orig_pc;
+	}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_KRETPROBES
+	if (is_kretprobe_trampoline(state->pc)) {
+		state->pc = kretprobe_find_ret_addr(state->task,
+						    (void *)state->fp,
+						    &state->kr_cur);
+	}
+#endif /* CONFIG_KRETPROBES */
+
+	return 0;
 }
 
 /*
@@ -76,7 +105,8 @@ static __always_inline void unwind_init_from_task(struct unwind_state *state,
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-static int notrace unwind_next(struct unwind_state *state)
+static __always_inline int
+unwind_next(struct unwind_state *state)
 {
 	struct task_struct *tsk = state->task;
 	unsigned long fp = state->fp;
@@ -90,37 +120,18 @@ static int notrace unwind_next(struct unwind_state *state)
 	if (err)
 		return err;
 
-	state->pc = ptrauth_strip_insn_pac(state->pc);
+	state->pc = ptrauth_strip_kernel_insn_pac(state->pc);
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (tsk->ret_stack &&
-		(state->pc == (unsigned long)return_to_handler)) {
-		unsigned long orig_pc;
-		/*
-		 * This is a case where function graph tracer has
-		 * modified a return address (LR) in a stack frame
-		 * to hook a function return.
-		 * So replace it to an original value.
-		 */
-		orig_pc = ftrace_graph_ret_addr(tsk, NULL, state->pc,
-						(void *)state->fp);
-		if (WARN_ON_ONCE(state->pc == orig_pc))
-			return -EINVAL;
-		state->pc = orig_pc;
-	}
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-#ifdef CONFIG_KRETPROBES
-	if (is_kretprobe_trampoline(state->pc))
-		state->pc = kretprobe_find_ret_addr(tsk, (void *)state->fp, &state->kr_cur);
-#endif
-
-	return 0;
+	return unwind_recover_return_address(state);
 }
-NOKPROBE_SYMBOL(unwind_next);
 
-static void notrace unwind(struct unwind_state *state,
-			   stack_trace_consume_fn consume_entry, void *cookie)
+static __always_inline void
+unwind(struct unwind_state *state, stack_trace_consume_fn consume_entry,
+       void *cookie)
 {
+	if (unwind_recover_return_address(state))
+		return;
+
 	while (1) {
 		int ret;
 
@@ -130,40 +141,6 @@ static void notrace unwind(struct unwind_state *state,
 		if (ret < 0)
 			break;
 	}
-}
-NOKPROBE_SYMBOL(unwind);
-
-static bool dump_backtrace_entry(void *arg, unsigned long where)
-{
-	char *loglvl = arg;
-	printk("%s %pSb\n", loglvl, (void *)where);
-	return true;
-}
-
-void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
-		    const char *loglvl)
-{
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
-
-	if (regs && user_mode(regs))
-		return;
-
-	if (!tsk)
-		tsk = current;
-
-	if (!try_get_task_stack(tsk))
-		return;
-
-	printk("%sCall trace:\n", loglvl);
-	arch_stack_walk(dump_backtrace_entry, (void *)loglvl, tsk, regs);
-
-	put_task_stack(tsk);
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
-{
-	dump_backtrace(NULL, tsk, loglvl);
-	barrier();
 }
 
 /*
@@ -229,4 +206,37 @@ noinline noinstr void arch_stack_walk(stack_trace_consume_fn consume_entry,
 	}
 
 	unwind(&state, consume_entry, cookie);
+}
+
+static bool dump_backtrace_entry(void *arg, unsigned long where)
+{
+	char *loglvl = arg;
+	printk("%s %pSb\n", loglvl, (void *)where);
+	return true;
+}
+
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
+{
+	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+
+	if (regs && user_mode(regs))
+		return;
+
+	if (!tsk)
+		tsk = current;
+
+	if (!try_get_task_stack(tsk))
+		return;
+
+	printk("%sCall trace:\n", loglvl);
+	arch_stack_walk(dump_backtrace_entry, (void *)loglvl, tsk, regs);
+
+	put_task_stack(tsk);
+}
+
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
+{
+	dump_backtrace(NULL, tsk, loglvl);
+	barrier();
 }

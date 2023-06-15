@@ -12,7 +12,6 @@
 #include <linux/cpu.h>
 #include <linux/group_cpus.h>
 
-#include <linux/blk-mq.h>
 #include "blk.h"
 #include "blk-mq.h"
 

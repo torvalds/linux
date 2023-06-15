@@ -44,6 +44,7 @@ enum intel_guc_load_status {
 enum intel_bootrom_load_status {
 	INTEL_BOOTROM_STATUS_NO_KEY_FOUND                 = 0x13,
 	INTEL_BOOTROM_STATUS_AES_PROD_KEY_FOUND           = 0x1A,
+	INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE       = 0x2B,
 	INTEL_BOOTROM_STATUS_RSA_FAILED                   = 0x50,
 	INTEL_BOOTROM_STATUS_PAVPC_FAILED                 = 0x73,
 	INTEL_BOOTROM_STATUS_WOPCM_FAILED                 = 0x74,

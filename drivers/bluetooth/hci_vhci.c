@@ -278,6 +278,104 @@ static int vhci_setup(struct hci_dev *hdev)
 	return 0;
 }
 
+static void vhci_coredump(struct hci_dev *hdev)
+{
+	/* No need to do anything */
+}
+
+static void vhci_coredump_hdr(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	char buf[80];
+
+	snprintf(buf, sizeof(buf), "Controller Name: vhci_ctrl\n");
+	skb_put_data(skb, buf, strlen(buf));
+
+	snprintf(buf, sizeof(buf), "Firmware Version: vhci_fw\n");
+	skb_put_data(skb, buf, strlen(buf));
+
+	snprintf(buf, sizeof(buf), "Driver: vhci_drv\n");
+	skb_put_data(skb, buf, strlen(buf));
+
+	snprintf(buf, sizeof(buf), "Vendor: vhci\n");
+	skb_put_data(skb, buf, strlen(buf));
+}
+
+#define MAX_COREDUMP_LINE_LEN	40
+
+struct devcoredump_test_data {
+	enum devcoredump_state state;
+	unsigned int timeout;
+	char data[MAX_COREDUMP_LINE_LEN];
+};
+
+static inline void force_devcd_timeout(struct hci_dev *hdev,
+				       unsigned int timeout)
+{
+#ifdef CONFIG_DEV_COREDUMP
+	hdev->dump.timeout = msecs_to_jiffies(timeout * 1000);
+#endif
+}
+
+static ssize_t force_devcd_write(struct file *file, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	struct hci_dev *hdev = data->hdev;
+	struct sk_buff *skb = NULL;
+	struct devcoredump_test_data dump_data;
+	size_t data_size;
+	int ret;
+
+	if (count < offsetof(struct devcoredump_test_data, data) ||
+	    count > sizeof(dump_data))
+		return -EINVAL;
+
+	if (copy_from_user(&dump_data, user_buf, count))
+		return -EFAULT;
+
+	data_size = count - offsetof(struct devcoredump_test_data, data);
+	skb = alloc_skb(data_size, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+	skb_put_data(skb, &dump_data.data, data_size);
+
+	hci_devcd_register(hdev, vhci_coredump, vhci_coredump_hdr, NULL);
+
+	/* Force the devcoredump timeout */
+	if (dump_data.timeout)
+		force_devcd_timeout(hdev, dump_data.timeout);
+
+	ret = hci_devcd_init(hdev, skb->len);
+	if (ret) {
+		BT_ERR("Failed to generate devcoredump");
+		kfree_skb(skb);
+		return ret;
+	}
+
+	hci_devcd_append(hdev, skb);
+
+	switch (dump_data.state) {
+	case HCI_DEVCOREDUMP_DONE:
+		hci_devcd_complete(hdev);
+		break;
+	case HCI_DEVCOREDUMP_ABORT:
+		hci_devcd_abort(hdev);
+		break;
+	case HCI_DEVCOREDUMP_TIMEOUT:
+		/* Do nothing */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static const struct file_operations force_devcoredump_fops = {
+	.open		= simple_open,
+	.write		= force_devcd_write,
+};
+
 static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 {
 	struct hci_dev *hdev;
@@ -354,6 +452,9 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	if (IS_ENABLED(CONFIG_BT_AOSPEXT))
 		debugfs_create_file("aosp_capable", 0644, hdev->debugfs, data,
 				    &aosp_capable_fops);
+
+	debugfs_create_file("force_devcoredump", 0644, hdev->debugfs, data,
+			    &force_devcoredump_fops);
 
 	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 

@@ -213,20 +213,15 @@ static bool remove_migration_pte(struct folio *folio,
 		if (pte_swp_soft_dirty(*pvmw.pte))
 			pte = pte_mksoft_dirty(pte);
 
-		/*
-		 * Recheck VMA as permissions can change since migration started
-		 */
 		entry = pte_to_swp_entry(*pvmw.pte);
 		if (!is_migration_entry_young(entry))
 			pte = pte_mkold(pte);
 		if (folio_test_dirty(folio) && is_migration_entry_dirty(entry))
 			pte = pte_mkdirty(pte);
 		if (is_writable_migration_entry(entry))
-			pte = maybe_mkwrite(pte, vma);
+			pte = pte_mkwrite(pte);
 		else if (pte_swp_uffd_wp(*pvmw.pte))
 			pte = pte_mkuffd_wp(pte);
-		else
-			pte = pte_wrprotect(pte);
 
 		if (folio_test_anon(folio) && !is_readable_migration_entry(entry))
 			rmap_flags |= RMAP_EXCLUSIVE;
@@ -249,7 +244,6 @@ static bool remove_migration_pte(struct folio *folio,
 		if (folio_test_hugetlb(folio)) {
 			unsigned int shift = huge_page_shift(hstate_vma(vma));
 
-			pte = pte_mkhuge(pte);
 			pte = arch_make_huge_pte(pte, shift, vma->vm_flags);
 			if (folio_test_anon(folio))
 				hugepage_add_anon_rmap(new, vma, pvmw.address,
@@ -1713,6 +1707,9 @@ static int migrate_pages_batch(struct list_head *from, new_page_t get_new_page,
 							large_retry++;
 							thp_retry += is_thp;
 							nr_retry_pages += nr_pages;
+							/* Undo duplicated failure counting. */
+							nr_large_failed--;
+							stats->nr_thp_failed -= is_thp;
 							break;
 						}
 					}
@@ -2102,15 +2099,18 @@ static int do_move_pages_to_node(struct mm_struct *mm,
  *         target node
  *     1 - when it has been queued
  */
-static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
 		int node, struct list_head *pagelist, bool migrate_all)
 {
 	struct vm_area_struct *vma;
+	unsigned long addr;
 	struct page *page;
 	int err;
 	bool isolated;
 
 	mmap_read_lock(mm);
+	addr = (unsigned long)untagged_addr_remote(mm, p);
+
 	err = -EFAULT;
 	vma = vma_lookup(mm, addr);
 	if (!vma || !vma_migratable(vma))
@@ -2216,7 +2216,6 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 
 	for (i = start = 0; i < nr_pages; i++) {
 		const void __user *p;
-		unsigned long addr;
 		int node;
 
 		err = -EFAULT;
@@ -2224,7 +2223,6 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 			goto out_flush;
 		if (get_user(node, nodes + i))
 			goto out_flush;
-		addr = (unsigned long)untagged_addr(p);
 
 		err = -ENODEV;
 		if (node < 0 || node >= MAX_NUMNODES)
@@ -2252,8 +2250,8 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 		 * Errors in the page lookup or isolation are not fatal and we simply
 		 * report them via status
 		 */
-		err = add_page_for_migration(mm, addr, current_node,
-				&pagelist, flags & MPOL_MF_MOVE_ALL);
+		err = add_page_for_migration(mm, p, current_node, &pagelist,
+					     flags & MPOL_MF_MOVE_ALL);
 
 		if (err > 0) {
 			/* The page is successfully queued for migration */

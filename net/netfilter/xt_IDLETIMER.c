@@ -490,7 +490,7 @@ static int __init idletimer_tg_init(void)
 {
 	int err;
 
-	idletimer_tg_class = class_create(THIS_MODULE, "xt_idletimer");
+	idletimer_tg_class = class_create("xt_idletimer");
 	err = PTR_ERR(idletimer_tg_class);
 	if (IS_ERR(idletimer_tg_class)) {
 		pr_debug("couldn't register device class\n");

@@ -193,6 +193,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_board_id[] __initconst = {
 /* boardtype, boardnum, boardrev */
 static const
 struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
+	{{BCM47XX_BOARD_HUAWEI_B593U_12, "Huawei B593u-12"}, "0x053d", "1234", "0x1301"},
 	{{BCM47XX_BOARD_HUAWEI_E970, "Huawei E970"}, "0x048e", "0x5347", "0x11"},
 	{{BCM47XX_BOARD_PHICOMM_M1, "Phicomm M1"}, "0x0590", "80", "0x1104"},
 	{{BCM47XX_BOARD_ZTE_H218N, "ZTE H218N"}, "0x053d", "1234", "0x1305"},

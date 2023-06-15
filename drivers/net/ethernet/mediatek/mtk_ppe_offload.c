@@ -235,7 +235,8 @@ out:
 }
 
 static int
-mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+			 int ppe_index)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_action_entry *act;
@@ -452,6 +453,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 	entry->cookie = f->cookie;
 	memcpy(&entry->data, &foe, sizeof(entry->data));
 	entry->wed_index = wed_index;
+	entry->ppe_index = ppe_index;
 
 	err = mtk_foe_entry_commit(eth->ppe[entry->ppe_index], entry);
 	if (err < 0)
@@ -497,6 +499,7 @@ static int
 mtk_flow_offload_stats(struct mtk_eth *eth, struct flow_cls_offload *f)
 {
 	struct mtk_flow_entry *entry;
+	struct mtk_foe_accounting diff;
 	u32 idle;
 
 	entry = rhashtable_lookup(&eth->flow_table, &f->cookie,
@@ -507,30 +510,27 @@ mtk_flow_offload_stats(struct mtk_eth *eth, struct flow_cls_offload *f)
 	idle = mtk_foe_entry_idle_time(eth->ppe[entry->ppe_index], entry);
 	f->stats.lastused = jiffies - idle * HZ;
 
+	if (entry->hash != 0xFFFF &&
+	    mtk_foe_entry_get_mib(eth->ppe[entry->ppe_index], entry->hash,
+				  &diff)) {
+		f->stats.pkts += diff.packets;
+		f->stats.bytes += diff.bytes;
+	}
+
 	return 0;
 }
 
 static DEFINE_MUTEX(mtk_flow_offload_mutex);
 
-static int
-mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+int mtk_flow_offload_cmd(struct mtk_eth *eth, struct flow_cls_offload *cls,
+			 int ppe_index)
 {
-	struct flow_cls_offload *cls = type_data;
-	struct net_device *dev = cb_priv;
-	struct mtk_mac *mac = netdev_priv(dev);
-	struct mtk_eth *eth = mac->hw;
 	int err;
-
-	if (!tc_can_offload(dev))
-		return -EOPNOTSUPP;
-
-	if (type != TC_SETUP_CLSFLOWER)
-		return -EOPNOTSUPP;
 
 	mutex_lock(&mtk_flow_offload_mutex);
 	switch (cls->command) {
 	case FLOW_CLS_REPLACE:
-		err = mtk_flow_offload_replace(eth, cls);
+		err = mtk_flow_offload_replace(eth, cls, ppe_index);
 		break;
 	case FLOW_CLS_DESTROY:
 		err = mtk_flow_offload_destroy(eth, cls);
@@ -545,6 +545,26 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
 	mutex_unlock(&mtk_flow_offload_mutex);
 
 	return err;
+}
+
+static int
+mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+{
+	struct flow_cls_offload *cls = type_data;
+	struct net_device *dev = cb_priv;
+	struct mtk_mac *mac;
+	struct mtk_eth *eth;
+
+	mac = netdev_priv(dev);
+	eth = mac->hw;
+
+	if (!tc_can_offload(dev))
+		return -EOPNOTSUPP;
+
+	if (type != TC_SETUP_CLSFLOWER)
+		return -EOPNOTSUPP;
+
+	return mtk_flow_offload_cmd(eth, cls, 0);
 }
 
 static int
@@ -576,6 +596,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
+		flow_block_cb_incref(block_cb);
 		flow_block_cb_add(block_cb, f);
 		list_add_tail(&block_cb->driver_list, &block_cb_list);
 		return 0;
@@ -584,7 +605,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
 		if (!block_cb)
 			return -ENOENT;
 
-		if (flow_block_cb_decref(block_cb)) {
+		if (!flow_block_cb_decref(block_cb)) {
 			flow_block_cb_remove(block_cb, f);
 			list_del(&block_cb->driver_list);
 		}

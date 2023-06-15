@@ -283,18 +283,119 @@ err_out:
 	return BAD_PROT_ID;
 }
 
-int ksmbd_init_smb_server(struct ksmbd_work *work)
-{
-	struct ksmbd_conn *conn = work->conn;
+#define SMB_COM_NEGOTIATE_EX	0x0
 
-	if (conn->need_neg == false)
+/**
+ * get_smb1_cmd_val() - get smb command value from smb header
+ * @work:	smb work containing smb header
+ *
+ * Return:      smb command value
+ */
+static u16 get_smb1_cmd_val(struct ksmbd_work *work)
+{
+	return SMB_COM_NEGOTIATE_EX;
+}
+
+/**
+ * init_smb1_rsp_hdr() - initialize smb negotiate response header
+ * @work:	smb work containing smb request
+ *
+ * Return:      0 on success, otherwise -EINVAL
+ */
+static int init_smb1_rsp_hdr(struct ksmbd_work *work)
+{
+	struct smb_hdr *rsp_hdr = (struct smb_hdr *)work->response_buf;
+	struct smb_hdr *rcv_hdr = (struct smb_hdr *)work->request_buf;
+
+	/*
+	 * Remove 4 byte direct TCP header.
+	 */
+	*(__be32 *)work->response_buf =
+		cpu_to_be32(sizeof(struct smb_hdr) - 4);
+
+	rsp_hdr->Command = SMB_COM_NEGOTIATE;
+	*(__le32 *)rsp_hdr->Protocol = SMB1_PROTO_NUMBER;
+	rsp_hdr->Flags = SMBFLG_RESPONSE;
+	rsp_hdr->Flags2 = SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS |
+		SMBFLG2_EXT_SEC | SMBFLG2_IS_LONG_NAME;
+	rsp_hdr->Pid = rcv_hdr->Pid;
+	rsp_hdr->Mid = rcv_hdr->Mid;
+	return 0;
+}
+
+/**
+ * smb1_check_user_session() - check for valid session for a user
+ * @work:	smb work containing smb request buffer
+ *
+ * Return:      0 on success, otherwise error
+ */
+static int smb1_check_user_session(struct ksmbd_work *work)
+{
+	unsigned int cmd = work->conn->ops->get_cmd_val(work);
+
+	if (cmd == SMB_COM_NEGOTIATE_EX)
 		return 0;
 
-	init_smb3_11_server(conn);
+	return -EINVAL;
+}
 
-	if (conn->ops->get_cmd_val(work) != SMB_COM_NEGOTIATE)
-		conn->need_neg = false;
+/**
+ * smb1_allocate_rsp_buf() - allocate response buffer for a command
+ * @work:	smb work containing smb request
+ *
+ * Return:      0 on success, otherwise -ENOMEM
+ */
+static int smb1_allocate_rsp_buf(struct ksmbd_work *work)
+{
+	work->response_buf = kmalloc(MAX_CIFS_SMALL_BUFFER_SIZE,
+			GFP_KERNEL | __GFP_ZERO);
+	work->response_sz = MAX_CIFS_SMALL_BUFFER_SIZE;
+
+	if (!work->response_buf) {
+		pr_err("Failed to allocate %u bytes buffer\n",
+				MAX_CIFS_SMALL_BUFFER_SIZE);
+		return -ENOMEM;
+	}
+
 	return 0;
+}
+
+static struct smb_version_ops smb1_server_ops = {
+	.get_cmd_val = get_smb1_cmd_val,
+	.init_rsp_hdr = init_smb1_rsp_hdr,
+	.allocate_rsp_buf = smb1_allocate_rsp_buf,
+	.check_user_session = smb1_check_user_session,
+};
+
+static int smb1_negotiate(struct ksmbd_work *work)
+{
+	return ksmbd_smb_negotiate_common(work, SMB_COM_NEGOTIATE);
+}
+
+static struct smb_version_cmds smb1_server_cmds[1] = {
+	[SMB_COM_NEGOTIATE_EX]	= { .proc = smb1_negotiate, },
+};
+
+static void init_smb1_server(struct ksmbd_conn *conn)
+{
+	conn->ops = &smb1_server_ops;
+	conn->cmds = smb1_server_cmds;
+	conn->max_cmds = ARRAY_SIZE(smb1_server_cmds);
+}
+
+void ksmbd_init_smb_server(struct ksmbd_work *work)
+{
+	struct ksmbd_conn *conn = work->conn;
+	__le32 proto;
+
+	if (conn->need_neg == false)
+		return;
+
+	proto = *(__le32 *)((struct smb_hdr *)work->request_buf)->Protocol;
+	if (proto == SMB1_PROTO_NUMBER)
+		init_smb1_server(conn);
+	else
+		init_smb3_11_server(conn);
 }
 
 int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work, int info_level,
@@ -444,19 +545,9 @@ static int smb_handle_negotiate(struct ksmbd_work *work)
 
 	ksmbd_debug(SMB, "Unsupported SMB1 protocol\n");
 
-	/*
-	 * Remove 4 byte direct TCP header, add 2 byte bcc and
-	 * 2 byte DialectIndex.
-	 */
-	*(__be32 *)work->response_buf =
-		cpu_to_be32(sizeof(struct smb_hdr) - 4 + 2 + 2);
+	/* Add 2 byte bcc and 2 byte DialectIndex. */
+	inc_rfc1001_len(work->response_buf, 4);
 	neg_rsp->hdr.Status.CifsError = STATUS_SUCCESS;
-
-	neg_rsp->hdr.Command = SMB_COM_NEGOTIATE;
-	*(__le32 *)neg_rsp->hdr.Protocol = SMB1_PROTO_NUMBER;
-	neg_rsp->hdr.Flags = SMBFLG_RESPONSE;
-	neg_rsp->hdr.Flags2 = SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS |
-		SMBFLG2_EXT_SEC | SMBFLG2_IS_LONG_NAME;
 
 	neg_rsp->hdr.WordCount = 1;
 	neg_rsp->DialectIndex = cpu_to_le16(work->conn->dialect);
@@ -474,23 +565,12 @@ int ksmbd_smb_negotiate_common(struct ksmbd_work *work, unsigned int command)
 	ksmbd_debug(SMB, "conn->dialect 0x%x\n", conn->dialect);
 
 	if (command == SMB2_NEGOTIATE_HE) {
-		struct smb2_hdr *smb2_hdr = smb2_get_msg(work->request_buf);
-
-		if (smb2_hdr->ProtocolId != SMB2_PROTO_NUMBER) {
-			ksmbd_debug(SMB, "Downgrade to SMB1 negotiation\n");
-			command = SMB_COM_NEGOTIATE;
-		}
-	}
-
-	if (command == SMB2_NEGOTIATE_HE) {
 		ret = smb2_handle_negotiate(work);
-		init_smb2_neg_rsp(work);
 		return ret;
 	}
 
 	if (command == SMB_COM_NEGOTIATE) {
 		if (__smb2_negotiate(conn)) {
-			conn->need_neg = true;
 			init_smb3_11_server(conn);
 			init_smb2_neg_rsp(work);
 			ksmbd_debug(SMB, "Upgrade to SMB2 negotiation\n");

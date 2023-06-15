@@ -3298,7 +3298,7 @@ fw_crash_buffer_show(struct device *cdev,
 
 	spin_lock_irqsave(&instance->crashdump_lock, flags);
 	buff_offset = instance->fw_crash_buffer_offset;
-	if (!instance->crash_dump_buf &&
+	if (!instance->crash_dump_buf ||
 		!((instance->fw_crash_state == AVAILABLE) ||
 		(instance->fw_crash_state == COPYING))) {
 		dev_err(&instance->pdev->dev,
@@ -3505,7 +3505,7 @@ ATTRIBUTE_GROUPS(megaraid_host);
 /*
  * Scsi host template for megaraid_sas driver
  */
-static struct scsi_host_template megasas_template = {
+static const struct scsi_host_template megasas_template = {
 
 	.module = THIS_MODULE,
 	.name = "Avago SAS based MegaRAID driver",

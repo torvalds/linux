@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/uuid.h>
+#include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
 #include <linux/component.h>
 #include <drm/drm_connector.h>

@@ -421,7 +421,7 @@ static int au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	return 0;
 }
 
-static int au1xpsc_ac97_drvremove(struct platform_device *pdev)
+static void au1xpsc_ac97_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
 
@@ -434,8 +434,6 @@ static int au1xpsc_ac97_drvremove(struct platform_device *pdev)
 	wmb(); /* drain writebuffer */
 
 	au1xpsc_ac97_workdata = NULL;	/* MDEV */
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -488,7 +486,7 @@ static struct platform_driver au1xpsc_ac97_driver = {
 		.pm	= AU1XPSCAC97_PMOPS,
 	},
 	.probe		= au1xpsc_ac97_drvprobe,
-	.remove		= au1xpsc_ac97_drvremove,
+	.remove_new	= au1xpsc_ac97_drvremove,
 };
 
 module_platform_driver(au1xpsc_ac97_driver);

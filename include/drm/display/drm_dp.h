@@ -286,9 +286,8 @@
 
 #define DP_DSC_MAX_BITS_PER_PIXEL_HI        0x068   /* eDP 1.4 */
 # define DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK  (0x3 << 0)
-# define DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT 8
-# define DP_DSC_MAX_BPP_DELTA_VERSION_MASK  0x06
-# define DP_DSC_MAX_BPP_DELTA_AVAILABILITY  0x08
+# define DP_DSC_MAX_BPP_DELTA_VERSION_MASK  (0x3 << 5)	/* eDP 1.5 & DP 2.0 */
+# define DP_DSC_MAX_BPP_DELTA_AVAILABILITY  (1 << 7)	/* eDP 1.5 & DP 2.0 */
 
 #define DP_DSC_DEC_COLOR_FORMAT_CAP         0x069
 # define DP_DSC_RGB                         (1 << 0)
@@ -983,6 +982,7 @@
 
 #define DP_EDP_GENERAL_CAP_2		    0x703
 # define DP_EDP_OVERDRIVE_ENGINE_ENABLED		(1 << 0)
+# define DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE		(1 << 4)
 
 #define DP_EDP_GENERAL_CAP_3		    0x704    /* eDP 1.4 */
 # define DP_EDP_X_REGION_CAP_MASK			(0xf << 0)
@@ -1008,6 +1008,7 @@
 # define DP_EDP_DYNAMIC_BACKLIGHT_ENABLE		(1 << 4)
 # define DP_EDP_REGIONAL_BACKLIGHT_ENABLE		(1 << 5)
 # define DP_EDP_UPDATE_REGION_BRIGHTNESS		(1 << 6) /* eDP 1.4 */
+# define DP_EDP_PANEL_LUMINANCE_CONTROL_ENABLE		(1 << 7)
 
 #define DP_EDP_BACKLIGHT_BRIGHTNESS_MSB     0x722
 #define DP_EDP_BACKLIGHT_BRIGHTNESS_LSB     0x723
@@ -1032,6 +1033,7 @@
 
 #define DP_EDP_DBC_MINIMUM_BRIGHTNESS_SET   0x732
 #define DP_EDP_DBC_MAXIMUM_BRIGHTNESS_SET   0x733
+#define DP_EDP_PANEL_TARGET_LUMINANCE_VALUE 0x734
 
 #define DP_EDP_REGIONAL_BACKLIGHT_BASE      0x740    /* eDP 1.4 */
 #define DP_EDP_REGIONAL_BACKLIGHT_0	    0x741    /* eDP 1.4 */
@@ -1633,7 +1635,7 @@ enum dp_pixelformat {
  *
  * This enum is used to indicate DP VSC SDP Colorimetry formats.
  * It is based on DP 1.4 spec [Table 2-117: VSC SDP Payload for DB16 through
- * DB18] and a name of enum member follows DRM_MODE_COLORIMETRY definition.
+ * DB18] and a name of enum member follows enum drm_colorimetry definition.
  *
  * @DP_COLORIMETRY_DEFAULT: sRGB (IEC 61966-2-1) or
  *                          ITU-R BT.601 colorimetry format

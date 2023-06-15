@@ -5,6 +5,7 @@
 
 #include "mt7996.h"
 #include "mcu.h"
+#include "mac.h"
 
 static bool mt7996_dev_running(struct mt7996_dev *dev)
 {
@@ -22,16 +23,12 @@ static bool mt7996_dev_running(struct mt7996_dev *dev)
 	return phy && test_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 }
 
-static int mt7996_start(struct ieee80211_hw *hw)
+int mt7996_run(struct ieee80211_hw *hw)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	bool running;
 	int ret;
-
-	flush_work(&dev->init_work);
-
-	mutex_lock(&dev->mt76.mutex);
 
 	running = mt7996_dev_running(dev);
 	if (!running) {
@@ -52,10 +49,6 @@ static int mt7996_start(struct ieee80211_hw *hw)
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	ieee80211_iterate_interfaces(dev->mt76.hw,
-				     IEEE80211_IFACE_ITER_RESUME_ALL,
-				     mt7996_mcu_set_pm, dev->mt76.hw);
-
 	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7996_WATCHDOG_TIME);
 
@@ -63,6 +56,18 @@ static int mt7996_start(struct ieee80211_hw *hw)
 		mt7996_mac_reset_counters(phy);
 
 out:
+	return ret;
+}
+
+static int mt7996_start(struct ieee80211_hw *hw)
+{
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	int ret;
+
+	flush_work(&dev->init_work);
+
+	mutex_lock(&dev->mt76.mutex);
+	ret = mt7996_run(hw);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
@@ -78,10 +83,6 @@ static void mt7996_stop(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
-
-	ieee80211_iterate_interfaces(dev->mt76.hw,
-				     IEEE80211_IFACE_ITER_RESUME_ALL,
-				     mt7996_mcu_set_pm, dev->mt76.hw);
 
 	mutex_unlock(&dev->mt76.mutex);
 }
@@ -219,8 +220,12 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 		vif->offload_flags = 0;
 	vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
 
+	if (phy->mt76->chandef.chan->band != NL80211_BAND_2GHZ)
+		mvif->basic_rates_idx = MT7996_BASIC_RATES_TBL + 4;
+	else
+		mvif->basic_rates_idx = MT7996_BASIC_RATES_TBL;
+
 	mt7996_init_bitrate_mask(vif);
-	memset(&mvif->cap, -1, sizeof(mvif->cap));
 
 	mt7996_mcu_add_bss_info(phy, vif, true);
 	mt7996_mcu_add_sta(dev, vif, NULL, true);
@@ -351,16 +356,15 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		mt7996_mcu_add_bss_info(phy, vif, true);
 	}
 
-	if (cmd == SET_KEY)
+	if (cmd == SET_KEY) {
 		*wcid_keyidx = idx;
-	else if (idx == *wcid_keyidx)
-		*wcid_keyidx = -1;
-	else
+	} else {
+		if (idx == *wcid_keyidx)
+			*wcid_keyidx = -1;
 		goto out;
+	}
 
-	mt76_wcid_key_setup(&dev->mt76, wcid,
-			    cmd == SET_KEY ? key : NULL);
-
+	mt76_wcid_key_setup(&dev->mt76, wcid, key);
 	err = mt7996_mcu_add_key(&dev->mt76, vif, &msta->bip,
 				 key, MCU_WMWA_UNI_CMD(STA_REC_UPDATE),
 				 &msta->wcid, cmd);
@@ -497,11 +501,41 @@ mt7996_update_bss_color(struct ieee80211_hw *hw,
 	}
 }
 
+static u8
+mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       bool beacon, bool mcast)
+{
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt76_phy *mphy = hw->priv;
+	u16 rate;
+	u8 i, idx, ht;
+
+	rate = mt76_connac2_mac_tx_rate_val(mphy, vif, beacon, mcast);
+	ht = FIELD_GET(MT_TX_RATE_MODE, rate) > MT_PHY_TYPE_OFDM;
+
+	if (beacon && ht) {
+		struct mt7996_dev *dev = mt7996_hw_dev(hw);
+
+		/* must odd index */
+		idx = MT7996_BEACON_RATES_TBL + 2 * (mvif->mt76.idx % 20);
+		mt7996_mac_set_fixed_rate_table(dev, idx, rate);
+		return idx;
+	}
+
+	idx = FIELD_GET(MT_TX_RATE_IDX, rate);
+	for (i = 0; i < ARRAY_SIZE(mt76_rates); i++)
+		if ((mt76_rates[i].hw_value & GENMASK(7, 0)) == idx)
+			return MT7996_BASIC_RATES_TBL + i;
+
+	return mvif->basic_rates_idx;
+}
+
 static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
 				    u64 changed)
 {
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 
@@ -533,6 +567,14 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if (changed & BSS_CHANGED_MCAST_RATE)
+		mvif->mcast_rates_idx =
+			mt7996_get_rates_table(hw, vif, false, true);
+
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		mvif->basic_rates_idx =
+			mt7996_get_rates_table(hw, vif, false, false);
+
 	if (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon) {
 		mt7996_mcu_add_bss_info(phy, vif, true);
 		mt7996_mcu_add_sta(dev, vif, NULL, true);
@@ -549,8 +591,12 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 		mt7996_update_bss_color(hw, vif, &info->he_bss_color);
 
 	if (changed & (BSS_CHANGED_BEACON |
-		       BSS_CHANGED_BEACON_ENABLED))
+		       BSS_CHANGED_BEACON_ENABLED)) {
+		mvif->beacon_rates_idx =
+			mt7996_get_rates_table(hw, vif, true, false);
+
 		mt7996_mcu_add_beacon(hw, vif, info->enable_beacon);
+	}
 
 	if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP ||
 	    changed & BSS_CHANGED_FILS_DISCOVERY)
@@ -892,6 +938,7 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	mt7996_set_stream_vht_txbf_caps(phy);
 	mt7996_set_stream_he_eht_caps(phy);
 
+	/* TODO: update bmc_wtbl spe_idx when antenna changes */
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;

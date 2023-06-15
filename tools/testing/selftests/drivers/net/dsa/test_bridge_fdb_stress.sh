@@ -31,7 +31,7 @@ trap 'cleanup' EXIT
 
 eth=${NETIFS[p1]}
 
-ip link del br0 2&>1 >/dev/null || :
+ip link del br0 2>&1 >/dev/null || :
 ip link add br0 type bridge && ip link set $eth master br0
 
 (while :; do

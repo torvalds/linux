@@ -26,6 +26,7 @@
 #include <asm/facility.h>
 #include <asm/ftrace.lds.h>
 #include <asm/set_memory.h>
+#include <asm/setup.h>
 
 #if 0
 #define DEBUGP printk
@@ -35,6 +36,24 @@
 
 #define PLT_ENTRY_SIZE 22
 
+static unsigned long get_module_load_offset(void)
+{
+	static DEFINE_MUTEX(module_kaslr_mutex);
+	static unsigned long module_load_offset;
+
+	if (!kaslr_enabled())
+		return 0;
+	/*
+	 * Calculate the module_load_offset the first time this code
+	 * is called. Once calculated it stays the same until reboot.
+	 */
+	mutex_lock(&module_kaslr_mutex);
+	if (!module_load_offset)
+		module_load_offset = get_random_u32_inclusive(1, 1024) * PAGE_SIZE;
+	mutex_unlock(&module_kaslr_mutex);
+	return module_load_offset;
+}
+
 void *module_alloc(unsigned long size)
 {
 	gfp_t gfp_mask = GFP_KERNEL;
@@ -42,9 +61,11 @@ void *module_alloc(unsigned long size)
 
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
-	p = __vmalloc_node_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
-				 gfp_mask, PAGE_KERNEL_EXEC, VM_DEFER_KMEMLEAK, NUMA_NO_NODE,
-				 __builtin_return_address(0));
+	p = __vmalloc_node_range(size, MODULE_ALIGN,
+				 MODULES_VADDR + get_module_load_offset(),
+				 MODULES_END, gfp_mask, PAGE_KERNEL,
+				 VM_FLUSH_RESET_PERMS | VM_DEFER_KMEMLEAK,
+				 NUMA_NO_NODE, __builtin_return_address(0));
 	if (p && (kasan_alloc_module_shadow(p, size, gfp_mask) < 0)) {
 		vfree(p);
 		return NULL;
@@ -126,6 +147,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	Elf_Rela *rela;
 	char *strings;
 	int nrela, i, j;
+	struct module_memory *mod_mem;
 
 	/* Find symbol table and string table. */
 	symtab = NULL;
@@ -173,14 +195,15 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 
 	/* Increase core size by size of got & plt and set start
 	   offsets for got and plt. */
-	me->core_layout.size = ALIGN(me->core_layout.size, 4);
-	me->arch.got_offset = me->core_layout.size;
-	me->core_layout.size += me->arch.got_size;
-	me->arch.plt_offset = me->core_layout.size;
+	mod_mem = &me->mem[MOD_TEXT];
+	mod_mem->size = ALIGN(mod_mem->size, 4);
+	me->arch.got_offset = mod_mem->size;
+	mod_mem->size += me->arch.got_size;
+	me->arch.plt_offset = mod_mem->size;
 	if (me->arch.plt_size) {
 		if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable)
 			me->arch.plt_size += PLT_ENTRY_SIZE;
-		me->core_layout.size += me->arch.plt_size;
+		mod_mem->size += me->arch.plt_size;
 	}
 	return 0;
 }
@@ -304,7 +327,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_GOTPLT64:	/* 64 bit offset to jump slot.	*/
 	case R_390_GOTPLTENT:	/* 32 bit rel. offset to jump slot >> 1. */
 		if (info->got_initialized == 0) {
-			Elf_Addr *gotent = me->core_layout.base +
+			Elf_Addr *gotent = me->mem[MOD_TEXT].base +
 					   me->arch.got_offset +
 					   info->got_offset;
 
@@ -329,7 +352,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			rc = apply_rela_bits(loc, val, 0, 64, 0, write);
 		else if (r_type == R_390_GOTENT ||
 			 r_type == R_390_GOTPLTENT) {
-			val += (Elf_Addr) me->core_layout.base - loc;
+			val += (Elf_Addr) me->mem[MOD_TEXT].base - loc;
 			rc = apply_rela_bits(loc, val, 1, 32, 1, write);
 		}
 		break;
@@ -345,7 +368,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			char *plt_base;
 			char *ip;
 
-			plt_base = me->core_layout.base + me->arch.plt_offset;
+			plt_base = me->mem[MOD_TEXT].base + me->arch.plt_offset;
 			ip = plt_base + info->plt_offset;
 			*(int *)insn = 0x0d10e310;	/* basr 1,0  */
 			*(int *)&insn[4] = 0x100c0004;	/* lg	1,12(1) */
@@ -375,7 +398,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			       val - loc + 0xffffUL < 0x1ffffeUL) ||
 			      (r_type == R_390_PLT32DBL &&
 			       val - loc + 0xffffffffULL < 0x1fffffffeULL)))
-				val = (Elf_Addr) me->core_layout.base +
+				val = (Elf_Addr) me->mem[MOD_TEXT].base +
 					me->arch.plt_offset +
 					info->plt_offset;
 			val += rela->r_addend - loc;
@@ -397,7 +420,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_GOTOFF32:	/* 32 bit offset to GOT.  */
 	case R_390_GOTOFF64:	/* 64 bit offset to GOT. */
 		val = val + rela->r_addend -
-			((Elf_Addr) me->core_layout.base + me->arch.got_offset);
+			((Elf_Addr) me->mem[MOD_TEXT].base + me->arch.got_offset);
 		if (r_type == R_390_GOTOFF16)
 			rc = apply_rela_bits(loc, val, 0, 16, 0, write);
 		else if (r_type == R_390_GOTOFF32)
@@ -407,7 +430,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 		break;
 	case R_390_GOTPC:	/* 32 bit PC relative offset to GOT. */
 	case R_390_GOTPCDBL:	/* 32 bit PC rel. off. to GOT shifted by 1. */
-		val = (Elf_Addr) me->core_layout.base + me->arch.got_offset +
+		val = (Elf_Addr) me->mem[MOD_TEXT].base + me->arch.got_offset +
 			rela->r_addend - loc;
 		if (r_type == R_390_GOTPC)
 			rc = apply_rela_bits(loc, val, 1, 32, 0, write);
@@ -489,7 +512,7 @@ static int module_alloc_ftrace_hotpatch_trampolines(struct module *me,
 	start = module_alloc(numpages * PAGE_SIZE);
 	if (!start)
 		return -ENOMEM;
-	set_memory_ro((unsigned long)start, numpages);
+	set_memory_rox((unsigned long)start, numpages);
 	end = start + size;
 
 	me->arch.trampolines_start = (struct ftrace_hotpatch_trampoline *)start;
@@ -515,7 +538,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	    !nospec_disable && me->arch.plt_size) {
 		unsigned int *ij;
 
-		ij = me->core_layout.base + me->arch.plt_offset +
+		ij = me->mem[MOD_TEXT].base + me->arch.plt_offset +
 			me->arch.plt_size - PLT_ENTRY_SIZE;
 		ij[0] = 0xc6000000;	/* exrl	%r0,.+10	*/
 		ij[1] = 0x0005a7f4;	/* j	.		*/

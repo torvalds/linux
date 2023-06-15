@@ -781,28 +781,21 @@ void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 				fnic_dbgfs_t *fnic_dbgfs_prt, int *orig_len,
 				u8 rdata_flag)
 {
-	struct tm tm;
 	int j, i = 1, len;
-	char *fc_trace, *fmt;
 	int ethhdr_len = sizeof(struct ethhdr) - 1;
 	int fcoehdr_len = sizeof(struct fcoe_hdr);
 	int fchdr_len = sizeof(struct fc_frame_header);
 	int max_size = fnic_fc_trace_max_pages * PAGE_SIZE * 3;
+	char *fc_trace;
 
 	tdata->frame_type = tdata->frame_type & 0x7F;
 
 	len = *orig_len;
 
-	time64_to_tm(tdata->time_stamp.tv_sec, 0, &tm);
-
-	fmt = "%02d:%02d:%04ld %02d:%02d:%02d.%09lu ns%8x       %c%8x\t";
-	len += scnprintf(fnic_dbgfs_prt->buffer + len,
-		max_size - len,
-		fmt,
-		tm.tm_mon + 1, tm.tm_mday, tm.tm_year + 1900,
-		tm.tm_hour, tm.tm_min, tm.tm_sec,
-		tdata->time_stamp.tv_nsec, tdata->host_no,
-		tdata->frame_type, tdata->frame_len);
+	len += scnprintf(fnic_dbgfs_prt->buffer + len, max_size - len,
+			 "%ptTs.%09lu ns%8x       %c%8x\t",
+			 &tdata->time_stamp.tv_sec, tdata->time_stamp.tv_nsec,
+			 tdata->host_no, tdata->frame_type, tdata->frame_len);
 
 	fc_trace = (char *)FC_TRACE_ADDRESS(tdata);
 

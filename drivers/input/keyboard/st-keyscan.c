@@ -259,7 +259,7 @@ static struct platform_driver keyscan_device_driver = {
 	.driver		= {
 		.name	= "st-keyscan",
 		.pm	= pm_sleep_ptr(&keyscan_dev_pm_ops),
-		.of_match_table = of_match_ptr(keyscan_of_match),
+		.of_match_table = keyscan_of_match,
 	}
 };
 

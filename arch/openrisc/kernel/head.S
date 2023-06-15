@@ -424,9 +424,9 @@ _dispatch_do_ipage_fault:
     .org 0xc00
 	EXCEPTION_HANDLE(_sys_call_handler)
 
-/* ---[ 0xd00: Trap exception ]------------------------------------------ */
+/* ---[ 0xd00: Floating point exception ]--------------------------------- */
     .org 0xd00
-	UNHANDLED_EXCEPTION(_vector_0xd00)
+	EXCEPTION_HANDLE(_fpe_trap_handler)
 
 /* ---[ 0xe00: Trap exception ]------------------------------------------ */
     .org 0xe00

@@ -24,7 +24,7 @@ enum io_uring_cmd_flags {
 
 struct io_uring_cmd {
 	struct file	*file;
-	const void	*cmd;
+	const struct io_uring_sqe *sqe;
 	union {
 		/* callback to defer completions to task context */
 		void (*task_work_cb)(struct io_uring_cmd *cmd, unsigned);
@@ -35,6 +35,11 @@ struct io_uring_cmd {
 	u32		flags;
 	u8		pdu[32]; /* available inline for free use */
 };
+
+static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
+{
+	return sqe->cmd;
+}
 
 #if defined(CONFIG_IO_URING)
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,

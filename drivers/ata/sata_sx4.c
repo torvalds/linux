@@ -226,7 +226,7 @@ static void pdc_post_internal_cmd(struct ata_queued_cmd *qc);
 static int pdc_check_atapi_dma(struct ata_queued_cmd *qc);
 
 
-static struct scsi_host_template pdc_sata_sht = {
+static const struct scsi_host_template pdc_sata_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	.dma_boundary		= ATA_DMA_BOUNDARY,

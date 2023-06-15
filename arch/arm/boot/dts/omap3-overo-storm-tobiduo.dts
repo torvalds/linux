@@ -14,5 +14,5 @@
 
 / {
 	model = "OMAP36xx/AM37xx/DM37xx Gumstix Overo on TobiDuo";
-	compatible = "gumstix,omap3-overo-tobiduo", "gumstix,omap3-overo", "ti,omap3630", "ti,omap36xx", "ti,omap3";
+	compatible = "gumstix,omap3-overo-tobiduo", "gumstix,omap3-overo", "ti,omap3630", "ti,omap3";
 };

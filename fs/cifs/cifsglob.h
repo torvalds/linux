@@ -736,17 +736,23 @@ struct TCP_Server_Info {
 #endif
 	struct mutex refpath_lock; /* protects leaf_fullpath */
 	/*
-	 * Canonical DFS full paths that were used to chase referrals in mount and reconnect.
+	 * origin_fullpath: Canonical copy of smb3_fs_context::source.
+	 *                  It is used for matching existing DFS tcons.
 	 *
-	 * origin_fullpath: first or original referral path
-	 * leaf_fullpath: last referral path (might be changed due to nested links in reconnect)
+	 * leaf_fullpath: Canonical DFS referral path related to this
+	 *                connection.
+	 *                It is used in DFS cache refresher, reconnect and may
+	 *                change due to nested DFS links.
 	 *
-	 * current_fullpath: pointer to either origin_fullpath or leaf_fullpath
-	 * NOTE: cannot be accessed outside cifs_reconnect() and smb2_reconnect()
+	 * Both protected by @refpath_lock and @srv_lock.  The @refpath_lock is
+	 * mosly used for not requiring a copy of @leaf_fullpath when getting
+	 * cached or new DFS referrals (which might also sleep during I/O).
+	 * While @srv_lock is held for making string and NULL comparions against
+	 * both fields as in mount(2) and cache refresh.
 	 *
-	 * format: \\HOST\SHARE\[OPTIONAL PATH]
+	 * format: \\HOST\SHARE[\OPTIONAL PATH]
 	 */
-	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
+	char *origin_fullpath, *leaf_fullpath;
 };
 
 static inline bool is_smb1(struct TCP_Server_Info *server)
@@ -1232,8 +1238,8 @@ struct cifs_tcon {
 	struct cached_fids *cfids;
 	/* BB add field for back pointer to sb struct(s)? */
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	struct list_head ulist; /* cache update list */
 	struct list_head dfs_ses_list;
+	struct delayed_work dfs_cache_work;
 #endif
 	struct delayed_work	query_interfaces; /* query interfaces workqueue job */
 };
@@ -1750,7 +1756,6 @@ struct cifs_mount_ctx {
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	char *origin_fullpath, *leaf_fullpath;
 	struct list_head dfs_ses_list;
 };
 

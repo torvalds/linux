@@ -824,8 +824,10 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 static void isc_try_fse(struct isc_device *isc,
 			struct v4l2_subdev_state *sd_state)
 {
+	struct v4l2_subdev_frame_size_enum fse = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
 	int ret;
-	struct v4l2_subdev_frame_size_enum fse = {};
 
 	/*
 	 * If we do not know yet which format the subdev is using, we cannot
@@ -835,7 +837,6 @@ static void isc_try_fse(struct isc_device *isc,
 		return;
 
 	fse.code = isc->try_config.sd_format->mbus_code;
-	fse.which = V4L2_SUBDEV_FORMAT_TRY;
 
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
 			       sd_state, &fse);
@@ -860,8 +861,8 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};

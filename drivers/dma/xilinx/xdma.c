@@ -277,7 +277,7 @@ failed:
 
 /**
  * xdma_xfer_start - Start DMA transfer
- * @xdma_chan: DMA channel pointer
+ * @xchan: DMA channel pointer
  */
 static int xdma_xfer_start(struct xdma_chan *xchan)
 {

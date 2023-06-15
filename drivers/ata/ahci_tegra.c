@@ -506,7 +506,7 @@ static const struct of_device_id tegra_ahci_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_ahci_of_match);
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 

@@ -914,7 +914,7 @@ void hl_hwmon_fini(struct hl_device *hdev)
 
 void hl_hwmon_release_resources(struct hl_device *hdev)
 {
-	const struct hwmon_channel_info **channel_info_arr;
+	const struct hwmon_channel_info * const *channel_info_arr;
 	int i = 0;
 
 	if (!hdev->hl_chip_info->info)

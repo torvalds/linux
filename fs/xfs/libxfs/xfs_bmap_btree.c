@@ -382,10 +382,13 @@ STATIC int64_t
 xfs_bmbt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
 	uint64_t			a = be64_to_cpu(k1->bmbt.br_startoff);
 	uint64_t			b = be64_to_cpu(k2->bmbt.br_startoff);
+
+	ASSERT(!mask || mask->bmbt.br_startoff);
 
 	/*
 	 * Note: This routine previously casted a and b to int64 and subtracted
@@ -500,6 +503,19 @@ xfs_bmbt_recs_inorder(
 		xfs_bmbt_disk_get_startoff(&r2->bmbt);
 }
 
+STATIC enum xbtree_key_contig
+xfs_bmbt_keys_contiguous(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	ASSERT(!mask || mask->bmbt.br_startoff);
+
+	return xbtree_key_contig(be64_to_cpu(key1->bmbt.br_startoff),
+				 be64_to_cpu(key2->bmbt.br_startoff));
+}
+
 static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.rec_len		= sizeof(xfs_bmbt_rec_t),
 	.key_len		= sizeof(xfs_bmbt_key_t),
@@ -520,6 +536,7 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.buf_ops		= &xfs_bmbt_buf_ops,
 	.keys_inorder		= xfs_bmbt_keys_inorder,
 	.recs_inorder		= xfs_bmbt_recs_inorder,
+	.keys_contiguous	= xfs_bmbt_keys_contiguous,
 };
 
 /*

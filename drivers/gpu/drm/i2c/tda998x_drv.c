@@ -2099,7 +2099,7 @@ static const struct i2c_device_id tda998x_ids[] = {
 MODULE_DEVICE_TABLE(i2c, tda998x_ids);
 
 static struct i2c_driver tda998x_driver = {
-	.probe_new = tda998x_probe,
+	.probe = tda998x_probe,
 	.remove = tda998x_remove,
 	.driver = {
 		.name = "tda998x",

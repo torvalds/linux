@@ -590,20 +590,15 @@ static int sr_open(struct cdrom_device_info *cdi, int purpose)
 {
 	struct scsi_cd *cd = cdi->handle;
 	struct scsi_device *sdev = cd->device;
-	int retval;
 
 	/*
 	 * If the device is in error recovery, wait until it is done.
 	 * If the device is offline, then disallow any access to it.
 	 */
-	retval = -ENXIO;
 	if (!scsi_block_when_processing_errors(sdev))
-		goto error_out;
+		return -ENXIO;
 
 	return 0;
-
-error_out:
-	return retval;	
 }
 
 static void sr_release(struct cdrom_device_info *cdi)

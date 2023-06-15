@@ -650,7 +650,7 @@ static umode_t ina3221_is_visible(const void *drvdata,
 				   HWMON_C_CRIT | HWMON_C_CRIT_ALARM | \
 				   HWMON_C_MAX | HWMON_C_MAX_ALARM)
 
-static const struct hwmon_channel_info *ina3221_info[] = {
+static const struct hwmon_channel_info * const ina3221_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_SAMPLES,
 			   HWMON_C_UPDATE_INTERVAL),

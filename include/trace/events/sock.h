@@ -158,7 +158,7 @@ TRACE_EVENT(inet_sock_set_state,
 	),
 
 	TP_fast_assign(
-		struct inet_sock *inet = inet_sk(sk);
+		const struct inet_sock *inet = inet_sk(sk);
 		struct in6_addr *pin6;
 		__be32 *p32;
 
@@ -222,7 +222,7 @@ TRACE_EVENT(inet_sk_error_report,
 	),
 
 	TP_fast_assign(
-		struct inet_sock *inet = inet_sk(sk);
+		const struct inet_sock *inet = inet_sk(sk);
 		struct in6_addr *pin6;
 		__be32 *p32;
 

@@ -121,6 +121,5 @@ ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
 int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
 			     struct platform_device *pdev);
 
-void hisi_pmu_init(struct hisi_pmu *hisi_pmu, const char *name,
-		   struct module *module);
+void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module);
 #endif /* __HISI_UNCORE_PMU_H__ */

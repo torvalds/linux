@@ -143,6 +143,16 @@ static const struct override_status_id override_status_ids[] = {
 		DMI_EXACT_MATCH(DMI_BOARD_SERIAL, "Default string"),
 		DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Default string"),
 	      }),
+
+	/*
+	 * The LSM303D on the Lenovo Yoga Tablet 2 series is present
+	 * as both ACCL0001 and MAGN0001. As we can only ever register an
+	 * i2c client for one of them, ignore MAGN0001.
+	 */
+	NOT_PRESENT_ENTRY_HID("MAGN0001", "1", ATOM_SILVERMONT, {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_FAMILY, "YOGATablet2"),
+	      }),
 };
 
 bool acpi_device_override_status(struct acpi_device *adev, unsigned long long *status)
@@ -213,6 +223,7 @@ bool acpi_device_override_status(struct acpi_device *adev, unsigned long long *s
       disk in the system.
  */
 static const struct x86_cpu_id storage_d3_cpu_ids[] = {
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 23, 24, NULL),  /* Picasso */
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 23, 96, NULL),	/* Renoir */
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 23, 104, NULL),	/* Lucienne */
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 25, 80, NULL),	/* Cezanne */

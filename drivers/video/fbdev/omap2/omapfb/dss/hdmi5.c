@@ -797,10 +797,9 @@ static int hdmi5_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &hdmi5_component_ops);
 }
 
-static int hdmi5_remove(struct platform_device *pdev)
+static void hdmi5_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &hdmi5_component_ops);
-	return 0;
 }
 
 static int hdmi_runtime_suspend(struct device *dev)
@@ -834,7 +833,7 @@ static const struct of_device_id hdmi_of_match[] = {
 
 static struct platform_driver omapdss_hdmihw_driver = {
 	.probe		= hdmi5_probe,
-	.remove		= hdmi5_remove,
+	.remove_new	= hdmi5_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi5",
 		.pm	= &hdmi_pm_ops,
