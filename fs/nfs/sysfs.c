@@ -25,11 +25,22 @@ static void nfs_netns_object_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
+static void nfs_kset_release(struct kobject *kobj)
+{
+	struct kset *kset = container_of(kobj, struct kset, kobj);
+	kfree(kset);
+}
+
 static const struct kobj_ns_type_operations *nfs_netns_object_child_ns_type(
 		const struct kobject *kobj)
 {
 	return &net_ns_type_operations;
 }
+
+static struct kobj_type nfs_kset_type = {
+	.release = nfs_kset_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+};
 
 static struct kobj_type nfs_netns_object_type = {
 	.release = nfs_netns_object_release,
@@ -55,13 +66,32 @@ static struct kobject *nfs_netns_object_alloc(const char *name,
 
 int nfs_sysfs_init(void)
 {
-	nfs_kset = kset_create_and_add("nfs", NULL, fs_kobj);
+	int ret;
+
+	nfs_kset = kzalloc(sizeof(*nfs_kset), GFP_KERNEL);
 	if (!nfs_kset)
 		return -ENOMEM;
+
+	ret = kobject_set_name(&nfs_kset->kobj, "nfs");
+	if (ret) {
+		kfree(nfs_kset);
+		return ret;
+	}
+
+	nfs_kset->kobj.parent = fs_kobj;
+	nfs_kset->kobj.ktype = &nfs_kset_type;
+	nfs_kset->kobj.kset = NULL;
+
+	ret = kset_register(nfs_kset);
+	if (ret) {
+		kfree(nfs_kset);
+		return ret;
+	}
+
 	nfs_net_kobj = nfs_netns_object_alloc("net", nfs_kset, NULL);
 	if (!nfs_net_kobj) {
 		kset_unregister(nfs_kset);
-		nfs_kset = NULL;
+		kfree(nfs_kset);
 		return -ENOMEM;
 	}
 	return 0;
