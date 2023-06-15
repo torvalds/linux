@@ -43,9 +43,15 @@
 		return FIELD_GET(GENMASK_ULL(hi, lo), event->attr.config);  \
 	}
 
+#define HISI_GET_EVENTID(ev) (ev->hw.config_base & 0xff)
+
+#define HISI_PMU_EVTYPE_BITS		8
+#define HISI_PMU_EVTYPE_SHIFT(idx)	((idx) % 4 * HISI_PMU_EVTYPE_BITS)
+
 struct hisi_pmu;
 
 struct hisi_uncore_ops {
+	int (*check_filter)(struct perf_event *event);
 	void (*write_evtype)(struct hisi_pmu *, int, u32);
 	int (*get_event_idx)(struct perf_event *);
 	u64 (*read_counter)(struct hisi_pmu *, struct hw_perf_event *);
