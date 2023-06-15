@@ -558,7 +558,7 @@ void dcn31_link_encoder_disable_output(
 		struct dmub_cmd_dig_dpia_control_data dpia_control = { 0 };
 		struct dc_link *link;
 
-		if (!dcn10_is_dig_enabled(enc))
+		if (enc->funcs->is_dig_enabled && !enc->funcs->is_dig_enabled(enc))
 			return;
 
 		link = link_enc_cfg_get_link_using_link_enc(enc->ctx->dc, enc->preferred_engine);
