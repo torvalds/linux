@@ -3559,6 +3559,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 
 	/* QCOM Additions */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		err = -ENXIO;
+		dev_err(dev, "Failed to get mem resource\n");
+		goto out_power_off;
+	}
 	smmu->phys_addr = res->start;
 	err = arm_smmu_handoff_cbs(smmu);
 	if (err)
