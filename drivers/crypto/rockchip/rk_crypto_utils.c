@@ -72,14 +72,18 @@ static int check_scatter_align(struct scatterlist *sg_src,
 {
 	int in, out, align;
 
+	/* The last piece has no need for length alignment */
 	in = IS_ALIGNED((u32)sg_src->offset, 4) &&
-	     IS_ALIGNED((u32)sg_src->length, align_mask) &&
+	     (!sg_next(sg_src) ||
+	      IS_ALIGNED((u32)sg_src->length, align_mask)) &&
 	     (sg_phys(sg_src) < SZ_4G);
 	if (!sg_dst)
 		return in;
 
+	/* The last piece has no need for length alignment */
 	out = IS_ALIGNED((u32)sg_dst->offset, 4) &&
-	      IS_ALIGNED((u32)sg_dst->length, align_mask) &&
+	      (!sg_next(sg_dst) ||
+	       IS_ALIGNED((u32)sg_dst->length, align_mask)) &&
 	      (sg_phys(sg_dst) < SZ_4G);
 	align = in && out;
 
