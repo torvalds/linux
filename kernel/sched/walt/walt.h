@@ -315,7 +315,6 @@ extern unsigned int __read_mostly sysctl_sched_window_stats_policy;
 extern unsigned int sysctl_sched_ravg_window_nr_ticks;
 extern unsigned int sysctl_sched_walt_rotate_big_tasks;
 extern unsigned int sysctl_sched_task_unfilter_period;
-extern unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 extern unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 extern unsigned int sysctl_sched_sync_hint_enable;
 extern unsigned int sysctl_sched_suppress_region2;
@@ -607,34 +606,6 @@ static inline int asym_cap_siblings(int cpu1, int cpu2)
 {
 	return (cpumask_test_cpu(cpu1, &asym_cap_sibling_cpus) &&
 		cpumask_test_cpu(cpu2, &asym_cap_sibling_cpus));
-}
-
-static inline bool asym_cap_sibling_group_has_capacity(int dst_cpu, int margin)
-{
-	int sib1, sib2;
-	int nr_running;
-	unsigned long total_util, total_capacity;
-
-	if (cpumask_empty(&asym_cap_sibling_cpus) ||
-			cpumask_test_cpu(dst_cpu, &asym_cap_sibling_cpus))
-		return false;
-
-	sib1 = cpumask_first(&asym_cap_sibling_cpus);
-	sib2 = cpumask_last(&asym_cap_sibling_cpus);
-
-	if (!cpu_active(sib1) || !cpu_active(sib2))
-		return false;
-
-	nr_running = cpu_rq(sib1)->cfs.h_nr_running +
-			cpu_rq(sib2)->cfs.h_nr_running;
-
-	if (nr_running <= 2)
-		return true;
-
-	total_capacity = capacity_of(sib1) + capacity_of(sib2);
-	total_util = cpu_util(sib1) + cpu_util(sib2);
-
-	return ((total_capacity * 100) > (total_util * margin));
 }
 
 /* Is frequency of two cpus synchronized with each other? */

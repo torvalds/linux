@@ -60,7 +60,6 @@ unsigned int __read_mostly sysctl_sched_window_stats_policy;
 unsigned int sysctl_sched_ravg_window_nr_ticks;
 unsigned int sysctl_sched_walt_rotate_big_tasks;
 unsigned int sysctl_sched_task_unfilter_period;
-unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 unsigned int sysctl_sched_conservative_pl;
 unsigned int sysctl_sched_min_task_util_for_boost = 51;
@@ -824,15 +823,6 @@ struct ctl_table walt_table[] = {
 		.extra2		= &one_thousand,
 	},
 	{
-		.procname	= "sched_asym_cap_sibling_freq_match_pct",
-		.data		= &sysctl_sched_asym_cap_sibling_freq_match_pct,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= &one_hundred,
-	},
-	{
 		.procname	= "sched_coloc_downmigrate_ns",
 		.data		= &sysctl_sched_coloc_downmigrate_ns,
 		.maxlen		= sizeof(unsigned int),
@@ -1269,8 +1259,6 @@ void walt_tunables(void)
 	sysctl_sched_group_upmigrate_pct = 100;
 
 	sysctl_sched_group_downmigrate_pct = 95;
-
-	sysctl_sched_asym_cap_sibling_freq_match_pct = 100;
 
 	sysctl_sched_task_unfilter_period = 100000000;
 
