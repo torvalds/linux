@@ -4245,48 +4245,64 @@ static void update_seamless_boot_flags(struct dc *dc,
 
 static void populate_fast_updates(struct dc_fast_update *fast_update,
 		struct dc_surface_update *srf_updates,
+		int surface_count,
 		struct dc_stream_update *stream_update)
 {
-	if (srf_updates) {
-		fast_update->flip_addr = srf_updates->flip_addr;
-		fast_update->gamma = srf_updates->gamma;
-		fast_update->gamut_remap_matrix = srf_updates->gamut_remap_matrix;
-		fast_update->input_csc_color_matrix = srf_updates->input_csc_color_matrix;
-		fast_update->coeff_reduction_factor = srf_updates->coeff_reduction_factor;
-	}
+	int i = 0;
+
 	if (stream_update) {
-		fast_update->out_transfer_func = stream_update->out_transfer_func;
-		fast_update->output_csc_transform = stream_update->output_csc_transform;
+		fast_update[0].out_transfer_func = stream_update->out_transfer_func;
+		fast_update[0].output_csc_transform = stream_update->output_csc_transform;
+	}
+
+	for (i = 0; i < surface_count; i++) {
+		fast_update[i].flip_addr = srf_updates[i].flip_addr;
+		fast_update[i].gamma = srf_updates[i].gamma;
+		fast_update[i].gamut_remap_matrix = srf_updates[i].gamut_remap_matrix;
+		fast_update[i].input_csc_color_matrix = srf_updates[i].input_csc_color_matrix;
+		fast_update[i].coeff_reduction_factor = srf_updates[i].coeff_reduction_factor;
 	}
 }
 
-static bool fast_updates_exist(struct dc_fast_update *fast_update)
+static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_count)
 {
-	if (fast_update->flip_addr ||
-			fast_update->gamma ||
-			fast_update->gamut_remap_matrix ||
-			fast_update->input_csc_color_matrix ||
-			fast_update->coeff_reduction_factor ||
-			fast_update->out_transfer_func ||
-			fast_update->output_csc_transform)
+	int i;
+
+	if (fast_update[0].out_transfer_func ||
+		fast_update[0].output_csc_transform)
 		return true;
+
+	for (i = 0; i < surface_count; i++) {
+		if (fast_update[i].flip_addr ||
+				fast_update[i].gamma ||
+				fast_update[i].gamut_remap_matrix ||
+				fast_update[i].input_csc_color_matrix ||
+				fast_update[i].coeff_reduction_factor)
+			return true;
+	}
 
 	return false;
 }
 
 static bool full_update_required(struct dc_surface_update *srf_updates,
+		int surface_count,
 		struct dc_stream_update *stream_update)
 {
-	if (srf_updates &&
-			(srf_updates->plane_info ||
-			srf_updates->scaling_info ||
-			(srf_updates->hdr_mult.value &&
-			srf_updates->hdr_mult.value != srf_updates->surface->hdr_mult.value) ||
-			srf_updates->in_transfer_func ||
-			srf_updates->func_shaper ||
-			srf_updates->lut3d_func ||
-			srf_updates->blend_tf))
-		return true;
+
+	int i;
+
+	for (i = 0; i < surface_count; i++) {
+		if (srf_updates &&
+				(srf_updates[i].plane_info ||
+				srf_updates[i].scaling_info ||
+				(srf_updates[i].hdr_mult.value &&
+				srf_updates[i].hdr_mult.value != srf_updates->surface->hdr_mult.value) ||
+				srf_updates[i].in_transfer_func ||
+				srf_updates[i].func_shaper ||
+				srf_updates[i].lut3d_func ||
+				srf_updates[i].blend_tf))
+			return true;
+	}
 
 	if (stream_update &&
 			(((stream_update->src.height != 0 && stream_update->src.width != 0) ||
@@ -4322,9 +4338,11 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 
 static bool fast_update_only(struct dc_fast_update *fast_update,
 		struct dc_surface_update *srf_updates,
+		int surface_count,
 		struct dc_stream_update *stream_update)
 {
-	return fast_updates_exist(fast_update) && !full_update_required(srf_updates, stream_update);
+	return fast_updates_exist(fast_update, surface_count)
+			&& !full_update_required(srf_updates, surface_count, stream_update);
 }
 
 bool dc_update_planes_and_stream(struct dc *dc,
@@ -4336,7 +4354,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	enum surface_update_type update_type;
 	int i;
 	struct mall_temp_config mall_temp_config;
-	struct dc_fast_update fast_update = {0};
+	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
 	/* In cases where MPO and split or ODM are used transitions can
 	 * cause underflow. Apply stream configuration with minimal pipe
@@ -4345,7 +4363,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	bool force_minimal_pipe_splitting;
 	bool is_plane_addition;
 
-	populate_fast_updates(&fast_update, srf_updates, stream_update);
+	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(
 			dc,
 			stream,
@@ -4396,7 +4414,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(&fast_update, srf_updates, stream_update) &&
+	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
@@ -4454,9 +4472,9 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	struct dc_state *context;
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, j;
-	struct dc_fast_update fast_update = {0};
+	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
-	populate_fast_updates(&fast_update, srf_updates, stream_update);
+	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	stream_status = dc_stream_get_status(stream);
 	context = dc->current_state;
 
@@ -4542,7 +4560,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(&fast_update, srf_updates, stream_update) &&
+	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
