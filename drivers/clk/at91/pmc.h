@@ -144,7 +144,8 @@ struct clk_hw * __init
 at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 			    const struct clk_pcr_layout *layout,
 			    const char *name, const char **parent_names,
-			    u32 *mux_table, u8 num_parents, u8 id,
+			    struct clk_hw **parent_hws, u32 *mux_table,
+			    u8 num_parents, u8 id,
 			    const struct clk_range *range, int chg_pid);
 
 struct clk_hw * __init
