@@ -12,6 +12,7 @@
 #include <linux/ctype.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/overflow.h>
@@ -500,23 +501,21 @@ static int gpio_aggregator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id gpio_aggregator_dt_ids[] = {
 	/*
 	 * Add GPIO-operated devices controlled from userspace below,
-	 * or use "driver_override" in sysfs
+	 * or use "driver_override" in sysfs.
 	 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, gpio_aggregator_dt_ids);
-#endif
 
 static struct platform_driver gpio_aggregator_driver = {
 	.probe = gpio_aggregator_probe,
 	.driver = {
 		.name = DRV_NAME,
 		.groups = gpio_aggregator_groups,
-		.of_match_table = of_match_ptr(gpio_aggregator_dt_ids),
+		.of_match_table = gpio_aggregator_dt_ids,
 	},
 };
 
