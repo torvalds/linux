@@ -1720,6 +1720,8 @@ static void read_symbols(const char *modname)
 		}
 	}
 
+	if (extra_warn && !get_modinfo(&info, "description"))
+		warn("missing MODULE_DESCRIPTION() in %s\n", modname);
 	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
 		symname = remove_dot(info.strtab + sym->st_name);
 
