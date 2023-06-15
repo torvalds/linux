@@ -631,6 +631,14 @@ int kvm_riscv_aia_init(void)
 	if (rc)
 		return rc;
 
+	/* Register device operations */
+	rc = kvm_register_device_ops(&kvm_riscv_aia_device_ops,
+				     KVM_DEV_TYPE_RISCV_AIA);
+	if (rc) {
+		aia_hgei_exit();
+		return rc;
+	}
+
 	/* Enable KVM AIA support */
 	static_branch_enable(&kvm_riscv_aia_available);
 
@@ -641,6 +649,9 @@ void kvm_riscv_aia_exit(void)
 {
 	if (!kvm_riscv_aia_available())
 		return;
+
+	/* Unregister device operations */
+	kvm_unregister_device_ops(KVM_DEV_TYPE_RISCV_AIA);
 
 	/* Cleanup the HGEI state */
 	aia_hgei_exit();
