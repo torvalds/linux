@@ -61,6 +61,7 @@ struct pmu_metric {
 	const char *desc;
 	const char *long_desc;
 	const char *metricgroup_no_group;
+	const char *default_metricgroup_name;
 	enum aggr_mode_class aggr_mode;
 	enum metric_event_groups event_grouping;
 };
