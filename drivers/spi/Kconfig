@@ -936,6 +936,7 @@ config SPI_SPRD_ADI
 config SPI_STM32
 	tristate "STMicroelectronics STM32 SPI controller"
 	depends on ARCH_STM32 || COMPILE_TEST
+	select SPI_SLAVE
 	help
 	  SPI driver for STMicroelectronics STM32 SoCs.
 
