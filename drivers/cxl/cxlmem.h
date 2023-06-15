@@ -254,6 +254,20 @@ struct cxl_poison_state {
 	struct mutex lock;  /* Protect reads of poison list */
 };
 
+/*
+ * enum cxl_devtype - delineate type-2 from a generic type-3 device
+ * @CXL_DEVTYPE_DEVMEM - Vendor specific CXL Type-2 device implementing HDM-D or
+ *			 HDM-DB, no requirement that this device implements a
+ *			 mailbox, or other memory-device-standard manageability
+ *			 flows.
+ * @CXL_DEVTYPE_CLASSMEM - Common class definition of a CXL Type-3 device with
+ *			   HDM-H and class-mandatory memory device registers
+ */
+enum cxl_devtype {
+	CXL_DEVTYPE_DEVMEM,
+	CXL_DEVTYPE_CLASSMEM,
+};
+
 /**
  * struct cxl_dev_state - The driver device state
  *
@@ -272,6 +286,7 @@ struct cxl_poison_state {
  * @ram_res: Active Volatile memory capacity configuration
  * @component_reg_phys: register base of component registers
  * @serial: PCIe Device Serial Number
+ * @type: Generic Memory Class device or Vendor Specific Memory device
  */
 struct cxl_dev_state {
 	struct device *dev;
@@ -285,6 +300,7 @@ struct cxl_dev_state {
 	struct resource ram_res;
 	resource_size_t component_reg_phys;
 	u64 serial;
+	enum cxl_devtype type;
 };
 
 /**
@@ -343,6 +359,8 @@ struct cxl_memdev_state {
 static inline struct cxl_memdev_state *
 to_cxl_memdev_state(struct cxl_dev_state *cxlds)
 {
+	if (cxlds->type != CXL_DEVTYPE_CLASSMEM)
+		return NULL;
 	return container_of(cxlds, struct cxl_memdev_state, cxlds);
 }
 

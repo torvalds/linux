@@ -41,6 +41,8 @@ static ssize_t firmware_version_show(struct device *dev,
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
+	if (!mds)
+		return sysfs_emit(buf, "\n");
 	return sysfs_emit(buf, "%.16s\n", mds->firmware_version);
 }
 static DEVICE_ATTR_RO(firmware_version);
@@ -52,6 +54,8 @@ static ssize_t payload_max_show(struct device *dev,
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
+	if (!mds)
+		return sysfs_emit(buf, "\n");
 	return sysfs_emit(buf, "%zu\n", mds->payload_size);
 }
 static DEVICE_ATTR_RO(payload_max);
@@ -63,6 +67,8 @@ static ssize_t label_storage_size_show(struct device *dev,
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
+	if (!mds)
+		return sysfs_emit(buf, "\n");
 	return sysfs_emit(buf, "%zu\n", mds->lsa_size);
 }
 static DEVICE_ATTR_RO(label_storage_size);
@@ -517,10 +523,12 @@ static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	struct cxl_memdev *cxlmd = file->private_data;
+	struct cxl_dev_state *cxlds;
 	int rc = -ENXIO;
 
 	down_read(&cxl_memdev_rwsem);
-	if (cxlmd->cxlds)
+	cxlds = cxlmd->cxlds;
+	if (cxlds && cxlds->type == CXL_DEVTYPE_CLASSMEM)
 		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
 	up_read(&cxl_memdev_rwsem);
 

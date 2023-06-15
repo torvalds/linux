@@ -1272,6 +1272,7 @@ struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev)
 	mutex_init(&mds->mbox_mutex);
 	mutex_init(&mds->event.log_lock);
 	mds->cxlds.dev = dev;
+	mds->cxlds.type = CXL_DEVTYPE_CLASSMEM;
 
 	return mds;
 }
