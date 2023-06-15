@@ -386,15 +386,15 @@ void crypto_shoot_alg(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
-struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
-				      u32 mask)
+struct crypto_tfm *__crypto_alloc_tfmgfp(struct crypto_alg *alg, u32 type,
+					 u32 mask, gfp_t gfp)
 {
 	struct crypto_tfm *tfm = NULL;
 	unsigned int tfm_size;
 	int err = -ENOMEM;
 
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, type, mask);
-	tfm = kzalloc(tfm_size, GFP_KERNEL);
+	tfm = kzalloc(tfm_size, gfp);
 	if (tfm == NULL)
 		goto out_err;
 
@@ -415,6 +415,13 @@ out_err:
 	tfm = ERR_PTR(err);
 out:
 	return tfm;
+}
+EXPORT_SYMBOL_GPL(__crypto_alloc_tfmgfp);
+
+struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
+				      u32 mask)
+{
+	return __crypto_alloc_tfmgfp(alg, type, mask, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
 

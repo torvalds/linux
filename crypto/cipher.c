@@ -101,8 +101,8 @@ struct crypto_cipher *crypto_clone_cipher(struct crypto_cipher *cipher)
 	if (alg->cra_init)
 		return ERR_PTR(-ENOSYS);
 
-	ntfm = __crypto_alloc_tfm(alg, CRYPTO_ALG_TYPE_CIPHER,
-				  CRYPTO_ALG_TYPE_MASK);
+	ntfm = __crypto_alloc_tfmgfp(alg, CRYPTO_ALG_TYPE_CIPHER,
+				     CRYPTO_ALG_TYPE_MASK, GFP_ATOMIC);
 	if (IS_ERR(ntfm))
 		return ERR_CAST(ntfm);
 
