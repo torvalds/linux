@@ -995,7 +995,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	}
 
 	parent_names[0] = "cpupll_divpmcck";
-	hw = at91_clk_register_master_div(regmap, "mck0", "cpupll_divpmcck",
+	hw = at91_clk_register_master_div(regmap, "mck0", "cpupll_divpmcck", NULL,
 					  &mck0_layout, &mck0_characteristics,
 					  &pmc_mck0_lock, CLK_GET_RATE_NOCACHE, 5);
 	if (IS_ERR(hw))
@@ -1022,7 +1022,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 				   sama7g5_mckx[i].ep_count);
 
 		hw = at91_clk_sama7g5_register_master(regmap, sama7g5_mckx[i].n,
-				   num_parents, parent_names, mux_table,
+				   num_parents, parent_names, NULL, mux_table,
 				   &pmc_mckX_lock, sama7g5_mckx[i].id,
 				   sama7g5_mckx[i].c,
 				   sama7g5_mckx[i].ep_chg_id);

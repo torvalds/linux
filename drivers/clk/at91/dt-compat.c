@@ -420,12 +420,12 @@ of_at91_clk_master_setup(struct device_node *np,
 		return;
 
 	hw = at91_clk_register_master_pres(regmap, "masterck_pres", num_parents,
-					   parent_names, layout,
+					   parent_names, NULL, layout,
 					   characteristics, &mck_lock);
 	if (IS_ERR(hw))
 		goto out_free_characteristics;
 
-	hw = at91_clk_register_master_div(regmap, name, "masterck_pres",
+	hw = at91_clk_register_master_div(regmap, name, "masterck_pres", NULL,
 					  layout, characteristics,
 					  &mck_lock, CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))

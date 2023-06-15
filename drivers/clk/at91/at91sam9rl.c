@@ -120,7 +120,7 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 	parent_names[2] = "pllack";
 	parent_names[3] = "utmick";
 	hw = at91_clk_register_master_pres(regmap, "masterck_pres", 4,
-					   parent_names,
+					   parent_names, NULL,
 					   &at91rm9200_master_layout,
 					   &sam9rl_mck_characteristics,
 					   &sam9rl_mck_lock);
@@ -128,7 +128,7 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 		goto err_free;
 
 	hw = at91_clk_register_master_div(regmap, "masterck_div",
-					  "masterck_pres",
+					  "masterck_pres", NULL,
 					  &at91rm9200_master_layout,
 					  &sam9rl_mck_characteristics,
 					  &sam9rl_mck_lock, CLK_SET_RATE_GATE, 0);
