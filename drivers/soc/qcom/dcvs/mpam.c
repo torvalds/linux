@@ -25,31 +25,45 @@ enum mpam_profiling_param_ids {
 struct mpam_cache_portion {
 	uint32_t part_id;
 	uint32_t cache_portion;
+	uint64_t config_ctrl;
 };
 
-static struct mpam_cache_portion cur_cache_portion;
 static struct scmi_protocol_handle *ph;
 static const struct qcom_scmi_vendor_ops *ops;
 static struct scmi_device *sdev;
 
-int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion)
+int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion, u64 config_ctrl)
 {
 	int ret = -EPERM;
 	struct mpam_cache_portion msg;
 
 	msg.part_id = part_id;
 	msg.cache_portion = cache_portion;
+	msg.config_ctrl = config_ctrl;
 
 	if (ops)
 		ret = ops->set_param(ph, &msg, MPAM_ALGO_STR, PARAM_CACHE_PORTION,
 				sizeof(msg));
 
-	if (!ret)
-		memcpy(&cur_cache_portion, &msg, sizeof(msg));
-
 	return ret;
 }
 EXPORT_SYMBOL(qcom_mpam_set_cache_portion);
+
+int qcom_mpam_get_cache_portion(u32 part_id, u64 *config_ctrl)
+{
+	int ret = -EPERM;
+	u64 buf = part_id;
+
+	if (ops)
+		ret = ops->get_param(ph, &buf, MPAM_ALGO_STR, PARAM_CACHE_PORTION,
+				sizeof(part_id), sizeof(buf));
+
+	if (!ret)
+		*config_ctrl = buf;
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_mpam_get_cache_portion);
 
 static int mpam_dev_probe(struct platform_device *pdev)
 {
