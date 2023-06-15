@@ -17,7 +17,7 @@
 #include "netns.h"
 #include "sysfs.h"
 
-struct kobject *nfs_client_kobj;
+struct kobject *nfs_net_kobj;
 static struct kset *nfs_kset;
 
 static void nfs_netns_object_release(struct kobject *kobj)
@@ -58,8 +58,8 @@ int nfs_sysfs_init(void)
 	nfs_kset = kset_create_and_add("nfs", NULL, fs_kobj);
 	if (!nfs_kset)
 		return -ENOMEM;
-	nfs_client_kobj = nfs_netns_object_alloc("net", nfs_kset, NULL);
-	if  (!nfs_client_kobj) {
+	nfs_net_kobj = nfs_netns_object_alloc("net", nfs_kset, NULL);
+	if (!nfs_net_kobj) {
 		kset_unregister(nfs_kset);
 		nfs_kset = NULL;
 		return -ENOMEM;
@@ -69,7 +69,7 @@ int nfs_sysfs_init(void)
 
 void nfs_sysfs_exit(void)
 {
-	kobject_put(nfs_client_kobj);
+	kobject_put(nfs_net_kobj);
 	kset_unregister(nfs_kset);
 }
 
@@ -172,7 +172,7 @@ void nfs_netns_sysfs_setup(struct nfs_net *netns, struct net *net)
 {
 	struct nfs_netns_client *clp;
 
-	clp = nfs_netns_client_alloc(nfs_client_kobj, net);
+	clp = nfs_netns_client_alloc(nfs_net_kobj, net);
 	if (clp) {
 		netns->nfs_client = clp;
 		kobject_uevent(&clp->kobject, KOBJ_ADD);

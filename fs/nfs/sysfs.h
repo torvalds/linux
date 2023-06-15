@@ -14,7 +14,7 @@ struct nfs_netns_client {
 	const char __rcu *identifier;
 };
 
-extern struct kobject *nfs_client_kobj;
+extern struct kobject *nfs_net_kobj;
 
 extern int nfs_sysfs_init(void);
 extern void nfs_sysfs_exit(void);
