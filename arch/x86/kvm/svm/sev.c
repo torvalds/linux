@@ -2997,6 +2997,17 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR7_READ);
 		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR7_WRITE);
 		recalc_intercepts(svm);
+	} else {
+		/*
+		 * Disable #DB intercept iff DebugSwap is enabled.  KVM doesn't
+		 * allow debugging SEV-ES guests, and enables DebugSwap iff
+		 * NO_NESTED_DATA_BP is supported, so there's no reason to
+		 * intercept #DB when DebugSwap is enabled.  For simplicity
+		 * with respect to guest debug, intercept #DB for other VMs
+		 * even if NO_NESTED_DATA_BP is supported, i.e. even if the
+		 * guest can't DoS the CPU with infinite #DB vectoring.
+		 */
+		clr_exception_intercept(svm, DB_VECTOR);
 	}
 
 	/* Can't intercept XSETBV, HV can't modify XCR0 directly */
