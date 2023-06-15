@@ -26,6 +26,7 @@ static DEFINE_PER_CPU(struct aia_hgei_control, aia_hgei);
 static int hgei_parent_irq;
 
 unsigned int kvm_riscv_aia_nr_hgei;
+unsigned int kvm_riscv_aia_max_ids;
 DEFINE_STATIC_KEY_FALSE(kvm_riscv_aia_available);
 
 static int aia_find_hgei(struct kvm_vcpu *owner)
@@ -617,6 +618,13 @@ int kvm_riscv_aia_init(void)
 	 * TODO: To be updated later by AIA IMSIC HW guest file support
 	 */
 	kvm_riscv_aia_nr_hgei = 0;
+
+	/*
+	 * Find number of guest MSI IDs
+	 *
+	 * TODO: To be updated later by AIA IMSIC HW guest file support
+	 */
+	kvm_riscv_aia_max_ids = IMSIC_MAX_ID;
 
 	/* Initialize guest external interrupt line management */
 	rc = aia_hgei_init();
