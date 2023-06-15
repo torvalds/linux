@@ -72,7 +72,7 @@ static void gsc_work(struct work_struct *work)
 			 * complete the request handling cleanly, so we need to check the
 			 * status register to check if the proxy init was actually successful
 			 */
-			if (intel_gsc_uc_fw_proxy_init_done(gsc)) {
+			if (intel_gsc_uc_fw_proxy_init_done(gsc, false)) {
 				drm_dbg(&gt->i915->drm, "GSC Proxy initialized\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_RUNNING);
 			} else {

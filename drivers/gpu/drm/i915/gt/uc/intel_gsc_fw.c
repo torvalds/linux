@@ -22,27 +22,32 @@ static bool gsc_is_in_reset(struct intel_uncore *uncore)
 			HECI1_FWSTS1_CURRENT_STATE_RESET;
 }
 
-static u32 gsc_uc_get_fw_status(struct intel_uncore *uncore)
+static u32 gsc_uc_get_fw_status(struct intel_uncore *uncore, bool needs_wakeref)
 {
 	intel_wakeref_t wakeref;
 	u32 fw_status = 0;
 
-	with_intel_runtime_pm(uncore->rpm, wakeref)
-		fw_status = intel_uncore_read(uncore, HECI_FWSTS(MTL_GSC_HECI1_BASE, 1));
+	if (needs_wakeref)
+		wakeref = intel_runtime_pm_get(uncore->rpm);
 
+	fw_status = intel_uncore_read(uncore, HECI_FWSTS(MTL_GSC_HECI1_BASE, 1));
+
+	if (needs_wakeref)
+		intel_runtime_pm_put(uncore->rpm, wakeref);
 	return fw_status;
 }
 
-bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc)
+bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc, bool needs_wakeref)
 {
 	return REG_FIELD_GET(HECI1_FWSTS1_CURRENT_STATE,
-			     gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore)) ==
+			     gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore,
+						  needs_wakeref)) ==
 	       HECI1_FWSTS1_PROXY_STATE_NORMAL;
 }
 
 bool intel_gsc_uc_fw_init_done(struct intel_gsc_uc *gsc)
 {
-	return gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore) &
+	return gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore, false) &
 	       HECI1_FWSTS1_INIT_COMPLETE;
 }
 
