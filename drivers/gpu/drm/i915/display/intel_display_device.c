@@ -9,6 +9,8 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_de.h"
+#include "intel_display.h"
 #include "intel_display_device.h"
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
@@ -222,7 +224,6 @@ static const struct intel_display_device_info i865g_display = {
 	.has_overlay = 1, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
 	\
 	.__runtime_defaults.ip.ver = 3, \
 	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
@@ -231,12 +232,14 @@ static const struct intel_display_device_info i865g_display = {
 
 static const struct intel_display_device_info i915g_display = {
 	GEN3_DISPLAY,
+	I845_COLORS,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
 };
 
 static const struct intel_display_device_info i915gm_display = {
 	GEN3_DISPLAY,
+	I9XX_COLORS,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
 	.supports_tv = 1,
@@ -246,6 +249,7 @@ static const struct intel_display_device_info i915gm_display = {
 
 static const struct intel_display_device_info i945g_display = {
 	GEN3_DISPLAY,
+	I845_COLORS,
 	.has_hotplug = 1,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
@@ -253,6 +257,7 @@ static const struct intel_display_device_info i945g_display = {
 
 static const struct intel_display_device_info i945gm_display = {
 	GEN3_DISPLAY,
+	I9XX_COLORS,
 	.has_hotplug = 1,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
@@ -263,6 +268,13 @@ static const struct intel_display_device_info i945gm_display = {
 
 static const struct intel_display_device_info g33_display = {
 	GEN3_DISPLAY,
+	I845_COLORS,
+	.has_hotplug = 1,
+};
+
+static const struct intel_display_device_info pnv_display = {
+	GEN3_DISPLAY,
+	I9XX_COLORS,
 	.has_hotplug = 1,
 };
 
@@ -677,8 +689,8 @@ static const struct {
 	INTEL_I965GM_IDS(&i965gm_display),
 	INTEL_GM45_IDS(&gm45_display),
 	INTEL_G45_IDS(&g45_display),
-	INTEL_PINEVIEW_G_IDS(&g33_display),
-	INTEL_PINEVIEW_M_IDS(&g33_display),
+	INTEL_PINEVIEW_G_IDS(&pnv_display),
+	INTEL_PINEVIEW_M_IDS(&pnv_display),
 	INTEL_IRONLAKE_D_IDS(&ilk_d_display),
 	INTEL_IRONLAKE_M_IDS(&ilk_m_display),
 	INTEL_SNB_D_IDS(&snb_display),
@@ -777,4 +789,129 @@ intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
 		pdev->device);
 
 	return &no_display;
+}
+
+void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+{
+	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
+	enum pipe pipe;
+
+	/* Wa_14011765242: adl-s A0,A1 */
+	if (IS_ADLS_DISPLAY_STEP(i915, STEP_A0, STEP_A2))
+		for_each_pipe(i915, pipe)
+			display_runtime->num_scalers[pipe] = 0;
+	else if (DISPLAY_VER(i915) >= 11) {
+		for_each_pipe(i915, pipe)
+			display_runtime->num_scalers[pipe] = 2;
+	} else if (DISPLAY_VER(i915) >= 9) {
+		display_runtime->num_scalers[PIPE_A] = 2;
+		display_runtime->num_scalers[PIPE_B] = 2;
+		display_runtime->num_scalers[PIPE_C] = 1;
+	}
+
+	if (DISPLAY_VER(i915) >= 13 || HAS_D12_PLANE_MINIMIZATION(i915))
+		for_each_pipe(i915, pipe)
+			display_runtime->num_sprites[pipe] = 4;
+	else if (DISPLAY_VER(i915) >= 11)
+		for_each_pipe(i915, pipe)
+			display_runtime->num_sprites[pipe] = 6;
+	else if (DISPLAY_VER(i915) == 10)
+		for_each_pipe(i915, pipe)
+			display_runtime->num_sprites[pipe] = 3;
+	else if (IS_BROXTON(i915)) {
+		/*
+		 * Skylake and Broxton currently don't expose the topmost plane as its
+		 * use is exclusive with the legacy cursor and we only want to expose
+		 * one of those, not both. Until we can safely expose the topmost plane
+		 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
+		 * we don't expose the topmost plane at all to prevent ABI breakage
+		 * down the line.
+		 */
+
+		display_runtime->num_sprites[PIPE_A] = 2;
+		display_runtime->num_sprites[PIPE_B] = 2;
+		display_runtime->num_sprites[PIPE_C] = 1;
+	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		for_each_pipe(i915, pipe)
+			display_runtime->num_sprites[pipe] = 2;
+	} else if (DISPLAY_VER(i915) >= 5 || IS_G4X(i915)) {
+		for_each_pipe(i915, pipe)
+			display_runtime->num_sprites[pipe] = 1;
+	}
+
+	if ((IS_DGFX(i915) || DISPLAY_VER(i915) >= 14) &&
+	    !(intel_de_read(i915, GU_CNTL_PROTECTED) & DEPRESENT)) {
+		drm_info(&i915->drm, "Display not present, disabling\n");
+		goto display_fused_off;
+	}
+
+	if (IS_GRAPHICS_VER(i915, 7, 8) && HAS_PCH_SPLIT(i915)) {
+		u32 fuse_strap = intel_de_read(i915, FUSE_STRAP);
+		u32 sfuse_strap = intel_de_read(i915, SFUSE_STRAP);
+
+		/*
+		 * SFUSE_STRAP is supposed to have a bit signalling the display
+		 * is fused off. Unfortunately it seems that, at least in
+		 * certain cases, fused off display means that PCH display
+		 * reads don't land anywhere. In that case, we read 0s.
+		 *
+		 * On CPT/PPT, we can detect this case as SFUSE_STRAP_FUSE_LOCK
+		 * should be set when taking over after the firmware.
+		 */
+		if (fuse_strap & ILK_INTERNAL_DISPLAY_DISABLE ||
+		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
+		    (HAS_PCH_CPT(i915) &&
+		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
+			drm_info(&i915->drm,
+				 "Display fused off, disabling\n");
+			goto display_fused_off;
+		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
+			drm_info(&i915->drm, "PipeC fused off\n");
+			display_runtime->pipe_mask &= ~BIT(PIPE_C);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+		}
+	} else if (DISPLAY_VER(i915) >= 9) {
+		u32 dfsm = intel_de_read(i915, SKL_DFSM);
+
+		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
+			display_runtime->pipe_mask &= ~BIT(PIPE_A);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
+			display_runtime->fbc_mask &= ~BIT(INTEL_FBC_A);
+		}
+		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
+			display_runtime->pipe_mask &= ~BIT(PIPE_B);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
+		}
+		if (dfsm & SKL_DFSM_PIPE_C_DISABLE) {
+			display_runtime->pipe_mask &= ~BIT(PIPE_C);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+		}
+
+		if (DISPLAY_VER(i915) >= 12 &&
+		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
+			display_runtime->pipe_mask &= ~BIT(PIPE_D);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
+		}
+
+		if (!display_runtime->pipe_mask)
+			goto display_fused_off;
+
+		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
+			display_runtime->has_hdcp = 0;
+
+		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
+			display_runtime->fbc_mask = 0;
+
+		if (DISPLAY_VER(i915) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
+			display_runtime->has_dmc = 0;
+
+		if (IS_DISPLAY_VER(i915, 10, 12) &&
+		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
+			display_runtime->has_dsc = 0;
+	}
+
+	return;
+
+display_fused_off:
+	memset(display_runtime, 0, sizeof(*display_runtime));
 }

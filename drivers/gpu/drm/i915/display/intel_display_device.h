@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-#include "display/intel_display_limits.h"
+#include "intel_display_limits.h"
 
 struct drm_i915_private;
 
@@ -124,5 +124,6 @@ struct intel_display_device_info {
 const struct intel_display_device_info *
 intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
 			   u16 *ver, u16 *rel, u16 *step);
+void intel_display_device_info_runtime_init(struct drm_i915_private *i915);
 
 #endif

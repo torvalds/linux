@@ -260,6 +260,16 @@ struct drm_i915_private {
 	 */
 	struct workqueue_struct *wq;
 
+	/**
+	 * unordered_wq - internal workqueue for unordered work
+	 *
+	 * This workqueue should be used for all unordered work
+	 * scheduling within i915, which used to be scheduled on the
+	 * system_wq before moving to a driver instance due
+	 * deprecation of flush_scheduled_work().
+	 */
+	struct workqueue_struct *unordered_wq;
+
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
 

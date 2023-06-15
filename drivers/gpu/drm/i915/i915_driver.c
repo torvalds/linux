@@ -132,8 +132,20 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	if (dev_priv->display.hotplug.dp_wq == NULL)
 		goto out_free_wq;
 
+	/*
+	 * The unordered i915 workqueue should be used for all work
+	 * scheduling that do not require running in order, which used
+	 * to be scheduled on the system_wq before moving to a driver
+	 * instance due deprecation of flush_scheduled_work().
+	 */
+	dev_priv->unordered_wq = alloc_workqueue("i915-unordered", 0, 0);
+	if (dev_priv->unordered_wq == NULL)
+		goto out_free_dp_wq;
+
 	return 0;
 
+out_free_dp_wq:
+	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
 out_free_wq:
 	destroy_workqueue(dev_priv->wq);
 out_err:
@@ -144,6 +156,7 @@ out_err:
 
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
+	destroy_workqueue(dev_priv->unordered_wq);
 	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
 	destroy_workqueue(dev_priv->wq);
 }
@@ -759,8 +772,8 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915 = i915_driver_create(pdev, ent);
 	if (IS_ERR(i915)) {
-		ret = PTR_ERR(i915);
-		goto out_pci_disable;
+		pci_disable_device(pdev);
+		return PTR_ERR(i915);
 	}
 
 	ret = i915_driver_early_probe(i915);

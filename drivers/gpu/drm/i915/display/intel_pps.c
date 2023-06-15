@@ -867,6 +867,7 @@ static void edp_panel_vdd_work(struct work_struct *__work)
 
 static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	unsigned long delay;
 
 	/*
@@ -882,7 +883,8 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 	 * operations.
 	 */
 	delay = msecs_to_jiffies(intel_dp->pps.panel_power_cycle_delay * 5);
-	schedule_delayed_work(&intel_dp->pps.panel_vdd_work, delay);
+	queue_delayed_work(i915->unordered_wq,
+			   &intel_dp->pps.panel_vdd_work, delay);
 }
 
 /*

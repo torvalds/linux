@@ -99,6 +99,7 @@
 #include "intel_pcode.h"
 #include "intel_pipe_crc.h"
 #include "intel_plane_initial.h"
+#include "intel_pmdemand.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_sdvo.h"
@@ -971,7 +972,7 @@ static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	u8 update_planes = crtc_state->update_planes;
-	const struct intel_plane_state *plane_state;
+	const struct intel_plane_state __maybe_unused *plane_state;
 	struct intel_plane *plane;
 	int i;
 
@@ -988,7 +989,7 @@ static void intel_crtc_disable_flip_done(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	u8 update_planes = crtc_state->update_planes;
-	const struct intel_plane_state *plane_state;
+	const struct intel_plane_state __maybe_unused *plane_state;
 	struct intel_plane *plane;
 	int i;
 
@@ -5617,7 +5618,7 @@ static int intel_crtc_add_bigjoiner_planes(struct intel_atomic_state *state,
 					   struct intel_crtc *crtc,
 					   struct intel_crtc *other)
 {
-	const struct intel_plane_state *plane_state;
+	const struct intel_plane_state __maybe_unused *plane_state;
 	struct intel_plane *plane;
 	u8 plane_ids = 0;
 	int i;
@@ -5660,7 +5661,7 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
-	struct intel_plane_state *plane_state;
+	struct intel_plane_state __maybe_unused *plane_state;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 	int i, ret;
@@ -5715,7 +5716,7 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 
 static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
 {
-	struct intel_crtc_state *crtc_state;
+	struct intel_crtc_state __maybe_unused *crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
@@ -6012,8 +6013,9 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 			 */
 			if (DISPLAY_VER(i915) < 12) {
 				drm_dbg_kms(&i915->drm,
-					    "[PLANE:%d:%s] Modifier does not support async flips\n",
-					    plane->base.base.id, plane->base.name);
+					    "[PLANE:%d:%s] Modifier 0x%llx does not support async flip on display ver %d\n",
+					    plane->base.base.id, plane->base.name,
+					    new_plane_state->hw.fb->modifier, DISPLAY_VER(i915));
 				return -EINVAL;
 			}
 			break;
@@ -6025,8 +6027,9 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 			break;
 		default:
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Modifier does not support async flips\n",
-				    plane->base.base.id, plane->base.name);
+				    "[PLANE:%d:%s] Modifier 0x%llx does not support async flip\n",
+				    plane->base.base.id, plane->base.name,
+				    new_plane_state->hw.fb->modifier);
 			return -EINVAL;
 		}
 
@@ -6351,6 +6354,10 @@ int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
+
+	ret = intel_pmdemand_atomic_check(state);
+	if (ret)
+		goto fail;
 
 	ret = intel_atomic_check_crtcs(state);
 	if (ret)
@@ -6997,6 +7004,14 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
 		crtc->config = new_crtc_state;
 
+	/*
+	 * In XE_LPD+ Pmdemand combines many parameters such as voltage index,
+	 * plls, cdclk frequency, QGV point selection parameter etc. Voltage
+	 * index, cdclk/ddiclk frequencies are supposed to be configured before
+	 * the cdclk config is set.
+	 */
+	intel_pmdemand_pre_plane_update(state);
+
 	if (state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(dev, &state->base);
 
@@ -7116,6 +7131,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		intel_verify_planes(state);
 
 	intel_sagv_post_plane_update(state);
+	intel_pmdemand_post_plane_update(state);
 
 	drm_atomic_helper_commit_hw_done(&state->base);
 
@@ -7164,11 +7180,12 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 		break;
 	case FENCE_FREE:
 		{
+			struct drm_i915_private *i915 = to_i915(state->base.dev);
 			struct intel_atomic_helper *helper =
-				&to_i915(state->base.dev)->display.atomic_helper;
+				&i915->display.atomic_helper;
 
 			if (llist_add(&state->freed, &helper->free_list))
-				schedule_work(&helper->free_work);
+				queue_work(i915->unordered_wq, &helper->free_work);
 			break;
 		}
 	}

@@ -27,9 +27,7 @@
 #include <drm/drm_print.h>
 #include <drm/i915_pciids.h>
 
-#include "display/intel_cdclk.h"
-#include "display/intel_de.h"
-#include "display/intel_display.h"
+#include "display/intel_display_device.h"
 #include "gt/intel_gt_regs.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -411,125 +409,23 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
-	struct intel_display_runtime_info *display_runtime =
-		DISPLAY_RUNTIME_INFO(dev_priv);
-	enum pipe pipe;
 
-	/* Wa_14011765242: adl-s A0,A1 */
-	if (IS_ADLS_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A2))
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_scalers[pipe] = 0;
-	else if (DISPLAY_VER(dev_priv) >= 11) {
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_scalers[pipe] = 2;
-	} else if (DISPLAY_VER(dev_priv) >= 9) {
-		display_runtime->num_scalers[PIPE_A] = 2;
-		display_runtime->num_scalers[PIPE_B] = 2;
-		display_runtime->num_scalers[PIPE_C] = 1;
+	if (HAS_DISPLAY(dev_priv))
+		intel_display_device_info_runtime_init(dev_priv);
+
+	/* Display may have been disabled by runtime init */
+	if (!HAS_DISPLAY(dev_priv)) {
+		dev_priv->drm.driver_features &= ~(DRIVER_MODESET |
+						   DRIVER_ATOMIC);
+		info->display = &no_display;
 	}
+
+	/* Disable nuclear pageflip by default on pre-g4x */
+	if (!dev_priv->params.nuclear_pageflip &&
+	    DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
+		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
-
-	if (DISPLAY_VER(dev_priv) >= 13 || HAS_D12_PLANE_MINIMIZATION(dev_priv))
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_sprites[pipe] = 4;
-	else if (DISPLAY_VER(dev_priv) >= 11)
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_sprites[pipe] = 6;
-	else if (DISPLAY_VER(dev_priv) == 10)
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_sprites[pipe] = 3;
-	else if (IS_BROXTON(dev_priv)) {
-		/*
-		 * Skylake and Broxton currently don't expose the topmost plane as its
-		 * use is exclusive with the legacy cursor and we only want to expose
-		 * one of those, not both. Until we can safely expose the topmost plane
-		 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
-		 * we don't expose the topmost plane at all to prevent ABI breakage
-		 * down the line.
-		 */
-
-		display_runtime->num_sprites[PIPE_A] = 2;
-		display_runtime->num_sprites[PIPE_B] = 2;
-		display_runtime->num_sprites[PIPE_C] = 1;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_sprites[pipe] = 2;
-	} else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) {
-		for_each_pipe(dev_priv, pipe)
-			display_runtime->num_sprites[pipe] = 1;
-	}
-
-	if (HAS_DISPLAY(dev_priv) &&
-	    (IS_DGFX(dev_priv) || DISPLAY_VER(dev_priv) >= 14) &&
-	    !(intel_de_read(dev_priv, GU_CNTL_PROTECTED) & DEPRESENT)) {
-		drm_info(&dev_priv->drm, "Display not present, disabling\n");
-
-		display_runtime->pipe_mask = 0;
-	}
-
-	if (HAS_DISPLAY(dev_priv) && IS_GRAPHICS_VER(dev_priv, 7, 8) &&
-	    HAS_PCH_SPLIT(dev_priv)) {
-		u32 fuse_strap = intel_de_read(dev_priv, FUSE_STRAP);
-		u32 sfuse_strap = intel_de_read(dev_priv, SFUSE_STRAP);
-
-		/*
-		 * SFUSE_STRAP is supposed to have a bit signalling the display
-		 * is fused off. Unfortunately it seems that, at least in
-		 * certain cases, fused off display means that PCH display
-		 * reads don't land anywhere. In that case, we read 0s.
-		 *
-		 * On CPT/PPT, we can detect this case as SFUSE_STRAP_FUSE_LOCK
-		 * should be set when taking over after the firmware.
-		 */
-		if (fuse_strap & ILK_INTERNAL_DISPLAY_DISABLE ||
-		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
-		    (HAS_PCH_CPT(dev_priv) &&
-		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
-			drm_info(&dev_priv->drm,
-				 "Display fused off, disabling\n");
-			display_runtime->pipe_mask = 0;
-		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
-			drm_info(&dev_priv->drm, "PipeC fused off\n");
-			display_runtime->pipe_mask &= ~BIT(PIPE_C);
-			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
-		}
-	} else if (HAS_DISPLAY(dev_priv) && DISPLAY_VER(dev_priv) >= 9) {
-		u32 dfsm = intel_de_read(dev_priv, SKL_DFSM);
-
-		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
-			display_runtime->pipe_mask &= ~BIT(PIPE_A);
-			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
-			display_runtime->fbc_mask &= ~BIT(INTEL_FBC_A);
-		}
-		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
-			display_runtime->pipe_mask &= ~BIT(PIPE_B);
-			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
-		}
-		if (dfsm & SKL_DFSM_PIPE_C_DISABLE) {
-			display_runtime->pipe_mask &= ~BIT(PIPE_C);
-			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
-		}
-
-		if (DISPLAY_VER(dev_priv) >= 12 &&
-		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
-			display_runtime->pipe_mask &= ~BIT(PIPE_D);
-			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
-		}
-
-		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
-			display_runtime->has_hdcp = 0;
-
-		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
-			display_runtime->fbc_mask = 0;
-
-		if (DISPLAY_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
-			display_runtime->has_dmc = 0;
-
-		if (IS_DISPLAY_VER(dev_priv, 10, 12) &&
-		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
-			display_runtime->has_dsc = 0;
-	}
 
 	if (GRAPHICS_VER(dev_priv) == 6 && i915_vtd_active(dev_priv)) {
 		drm_info(&dev_priv->drm,
@@ -540,24 +436,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	runtime->rawclk_freq = intel_read_rawclk(dev_priv);
 	drm_dbg(&dev_priv->drm, "rawclk rate: %d kHz\n", runtime->rawclk_freq);
 
-	if (!HAS_DISPLAY(dev_priv)) {
-		dev_priv->drm.driver_features &= ~(DRIVER_MODESET |
-						   DRIVER_ATOMIC);
-		info->display = &no_display;
-
-		display_runtime->cpu_transcoder_mask = 0;
-		memset(display_runtime->num_sprites, 0, sizeof(display_runtime->num_sprites));
-		memset(display_runtime->num_scalers, 0, sizeof(display_runtime->num_scalers));
-		display_runtime->fbc_mask = 0;
-		display_runtime->has_hdcp = false;
-		display_runtime->has_dmc = false;
-		display_runtime->has_dsc = false;
-	}
-
-	/* Disable nuclear pageflip by default on pre-g4x */
-	if (!dev_priv->params.nuclear_pageflip &&
-	    DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
-		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 }
 
 /*

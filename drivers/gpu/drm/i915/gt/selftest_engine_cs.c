@@ -27,7 +27,7 @@ static void perf_begin(struct intel_gt *gt)
 
 	/* Boost gpufreq to max [waitboost] and keep it fixed */
 	atomic_inc(&gt->rps.num_waiters);
-	schedule_work(&gt->rps.work);
+	queue_work(gt->i915->unordered_wq, &gt->rps.work);
 	flush_work(&gt->rps.work);
 }
 
