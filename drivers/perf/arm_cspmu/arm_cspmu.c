@@ -1213,6 +1213,12 @@ static int arm_cspmu_device_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id arm_cspmu_id[] = {
+	{DRVNAME, 0},
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, arm_cspmu_id);
+
 static struct platform_driver arm_cspmu_driver = {
 	.driver = {
 			.name = DRVNAME,
@@ -1220,6 +1226,7 @@ static struct platform_driver arm_cspmu_driver = {
 		},
 	.probe = arm_cspmu_device_probe,
 	.remove = arm_cspmu_device_remove,
+	.id_table = arm_cspmu_id,
 };
 
 static void arm_cspmu_set_active_cpu(int cpu, struct arm_cspmu *cspmu)
