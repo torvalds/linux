@@ -74,6 +74,7 @@ struct tc358762 {
 	struct regulator *regulator;
 	struct drm_bridge *panel_bridge;
 	struct gpio_desc *reset_gpio;
+	struct drm_display_mode mode;
 	bool pre_enabled;
 	int error;
 };
@@ -114,6 +115,8 @@ static inline struct tc358762 *bridge_to_tc358762(struct drm_bridge *bridge)
 
 static int tc358762_init(struct tc358762 *ctx)
 {
+	u32 lcdctrl;
+
 	tc358762_write(ctx, DSI_LANEENABLE,
 		       LANEENABLE_L0EN | LANEENABLE_CLEN);
 	tc358762_write(ctx, PPI_D0S_CLRSIPOCOUNT, 5);
@@ -123,8 +126,18 @@ static int tc358762_init(struct tc358762 *ctx)
 	tc358762_write(ctx, PPI_LPTXTIMECNT, LPX_PERIOD);
 
 	tc358762_write(ctx, SPICMR, 0x00);
-	tc358762_write(ctx, LCDCTRL, LCDCTRL_VSDELAY(1) | LCDCTRL_RGB888 |
-				     LCDCTRL_UNK6 | LCDCTRL_VTGEN);
+
+	lcdctrl = LCDCTRL_VSDELAY(1) | LCDCTRL_RGB888 |
+		  LCDCTRL_UNK6 | LCDCTRL_VTGEN;
+
+	if (ctx->mode.flags & DRM_MODE_FLAG_NHSYNC)
+		lcdctrl |= LCDCTRL_HSPOL;
+
+	if (ctx->mode.flags & DRM_MODE_FLAG_NVSYNC)
+		lcdctrl |= LCDCTRL_VSPOL;
+
+	tc358762_write(ctx, LCDCTRL, lcdctrl);
+
 	tc358762_write(ctx, SYSCTRL, 0x040f);
 	msleep(100);
 
@@ -194,6 +207,15 @@ static int tc358762_attach(struct drm_bridge *bridge,
 				 bridge, flags);
 }
 
+static void tc358762_bridge_mode_set(struct drm_bridge *bridge,
+				     const struct drm_display_mode *mode,
+				     const struct drm_display_mode *adj)
+{
+	struct tc358762 *ctx = bridge_to_tc358762(bridge);
+
+	drm_mode_copy(&ctx->mode, mode);
+}
+
 static const struct drm_bridge_funcs tc358762_bridge_funcs = {
 	.atomic_post_disable = tc358762_post_disable,
 	.atomic_pre_enable = tc358762_pre_enable,
@@ -202,6 +224,7 @@ static const struct drm_bridge_funcs tc358762_bridge_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.attach = tc358762_attach,
+	.mode_set = tc358762_bridge_mode_set,
 };
 
 static int tc358762_parse_dt(struct tc358762 *ctx)
