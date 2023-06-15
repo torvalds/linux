@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/poll.h>
+#include <linux/delay.h>
 
 #include "ast2600-espi.h"
 
@@ -528,6 +529,8 @@ static long ast2600_espi_perif_ioctl(struct file *fp, unsigned int cmd, unsigned
 		return ast2600_espi_perif_pc_put_tx(fp, perif, &ioc);
 	case ASPEED_ESPI_PERIF_NP_PUT_TX:
 		return ast2600_espi_perif_np_put_tx(fp, perif, &ioc);
+	default:
+		break;
 	};
 
 	return -EINVAL;
@@ -865,14 +868,12 @@ static long ast2600_espi_vw_ioctl(struct file *fp, unsigned int cmd, unsigned lo
 		if (put_user(gpio, (uint32_t __user *)arg))
 			return -EFAULT;
 		break;
-
 	case ASPEED_ESPI_VW_PUT_GPIO_VAL:
 		if (get_user(gpio, (uint32_t __user *)arg))
 			return -EFAULT;
 
 		writel(gpio, espi->regs + ESPI_VW_GPIO_VAL);
 		break;
-
 	default:
 		return -EINVAL;
 	};
@@ -968,7 +969,7 @@ static long ast2600_espi_oob_dma_get_rx(struct file *fp,
 	if (!d->dirty)
 		return -EFAULT;
 
-	pkt_len = ((d->len) ? d->len : 0x1000) + sizeof(struct espi_comm_hdr);
+	pkt_len = ((d->len) ? d->len : ESPI_MAX_PLD_LEN) + sizeof(struct espi_comm_hdr);
 
 	if (ioc->pkt_len < pkt_len)
 		return -EINVAL;
@@ -994,8 +995,8 @@ static long ast2600_espi_oob_dma_get_rx(struct file *fp,
 	/* make current descriptor available again */
 	d->dirty = 0;
 
-	wptr = ((wptr + 1) % OOB_DMA_DESC_NUM) | ESPI_OOB_RX_DESC_WPTR_RECV_EN;
-	writel(wptr, espi->regs + ESPI_OOB_RX_DESC_WPTR);
+	wptr = (wptr + 1) % OOB_DMA_DESC_NUM;
+	writel(wptr | ESPI_OOB_RX_DESC_WPTR_RECV_EN, espi->regs + ESPI_OOB_RX_DESC_WPTR);
 
 	/* set ready flag base on the next RX descriptor */
 	oob->rx_ready = oob->dma.rxd_virt[wptr].dirty;
@@ -1082,10 +1083,8 @@ static long ast2600_espi_oob_get_rx(struct file *fp,
 	hdr->len_h = len >> 8;
 	hdr->len_l = len & 0xff;
 
-	for (i = sizeof(*hdr); i < pkt_len; ++i) {
-		reg = readl(espi->regs + ESPI_OOB_RX_DATA);
-		pkt[i] = reg & 0xff;
-	}
+	for (i = sizeof(*hdr); i < pkt_len; ++i)
+		pkt[i] = readl(espi->regs + ESPI_OOB_RX_DATA) & 0xff;
 
 	if (copy_to_user((void __user *)ioc->pkt, pkt, pkt_len)) {
 		rc = -EFAULT;
@@ -1155,8 +1154,8 @@ static long ast2600_espi_oob_dma_put_tx(struct file *fp,
 
 	dma_wmb();
 
-	wptr = ((wptr + 1) % OOB_DMA_DESC_NUM) | ESPI_OOB_TX_DESC_WPTR_SEND_EN;
-	writel(wptr, espi->regs + ESPI_OOB_TX_DESC_WPTR);
+	wptr = (wptr + 1) % OOB_DMA_DESC_NUM;
+	writel(wptr | ESPI_OOB_TX_DESC_WPTR_SEND_EN, espi->regs + ESPI_OOB_TX_DESC_WPTR);
 
 	rc = 0;
 
@@ -1225,7 +1224,7 @@ static long ast2600_espi_oob_put_tx(struct file *fp,
 	      | FIELD_PREP(ESPI_OOB_TX_CTRL_TAG, tag)
 	      | FIELD_PREP(ESPI_OOB_TX_CTRL_LEN, len)
 	      | ESPI_OOB_TX_CTRL_TRIG_PEND;
-	writel(reg, espi->regs + ESPI_OOB_TX_CTRL_TRIG_PEND);
+	writel(reg, espi->regs + ESPI_OOB_TX_CTRL);
 
 	rc = 0;
 
@@ -1289,22 +1288,36 @@ static void ast2600_espi_oob_isr(struct ast2600_espi *espi)
 
 static void ast2600_espi_oob_reset(struct ast2600_espi *espi)
 {
-	int i;
+	struct ast2600_espi_oob *oob;
+	dma_addr_t tx_addr, rx_addr;
 	uint32_t reg;
-	struct ast2600_espi_oob *oob = &espi->oob;
+	int i;
 
+	oob = &espi->oob;
 	if (oob->dma.enable) {
-		for (i = 0; i < OOB_DMA_DESC_NUM; ++i) {
-			oob->dma.txd_virt[i].data_addr = oob->dma.tx_addr;
+		tx_addr = oob->dma.tx_addr;
+		rx_addr = oob->dma.rx_addr;
 
-			oob->dma.rxd_virt[i].data_addr = oob->dma.rx_addr;
+		for (i = 0; i < OOB_DMA_DESC_NUM; ++i) {
+			oob->dma.txd_virt[i].data_addr = tx_addr;
+			tx_addr += PAGE_SIZE;
+
+			oob->dma.rxd_virt[i].data_addr = rx_addr;
 			oob->dma.rxd_virt[i].dirty = 0;
+			rx_addr += PAGE_SIZE;
 		}
 
+		reg = readl(espi->regs + ESPI_CTRL);
+		writel(reg & ~ESPI_CTRL_OOB_RX_SW_RST, espi->regs + ESPI_CTRL);
+		udelay(1);
+		writel(reg, espi->regs + ESPI_CTRL);
+
 		writel(oob->dma.txd_addr, espi->regs + ESPI_OOB_TX_DMA);
+		writel(0x0, espi->regs + ESPI_OOB_TX_DESC_WPTR);
 		writel(OOB_DMA_DESC_NUM, espi->regs + ESPI_OOB_TX_DESC_NUM);
 
 		writel(oob->dma.rxd_addr, espi->regs + ESPI_OOB_RX_DMA);
+		writel(0x0, espi->regs + ESPI_OOB_RX_DESC_WPTR);
 		writel(OOB_DMA_DESC_NUM, espi->regs + ESPI_OOB_RX_DESC_NUM);
 
 		reg = readl(espi->regs + ESPI_CTRL)
@@ -1588,6 +1601,8 @@ static long ast2600_espi_flash_ioctl(struct file *fp, unsigned int cmd, unsigned
 		return ast2600_espi_flash_get_rx(fp, flash, &ioc);
 	case ASPEED_ESPI_FLASH_PUT_TX:
 		return ast2600_espi_flash_put_tx(fp, flash, &ioc);
+	default:
+		break;
 	};
 
 	return -EINVAL;

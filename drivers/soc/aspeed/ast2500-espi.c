@@ -452,13 +452,13 @@ static void ast2500_espi_perif_isr(struct ast2500_espi *espi)
 	sts = readl(espi->regs + ESPI_INT_STS);
 
 	if (sts & ESPI_INT_STS_PERIF_PC_RX_CMPLT) {
+		writel(ESPI_INT_STS_PERIF_PC_RX_CMPLT, espi->regs + ESPI_INT_STS);
+
 		spin_lock_irqsave(&perif->lock, flags);
 		perif->rx_ready = true;
 		spin_unlock_irqrestore(&perif->lock, flags);
 
 		wake_up_interruptible(&perif->wq);
-
-		writel(ESPI_INT_STS_PERIF_PC_RX_CMPLT, espi->regs + ESPI_INT_STS);
 	}
 }
 
@@ -602,10 +602,10 @@ static long ast2500_espi_vw_ioctl(struct file *fp, unsigned int cmd, unsigned lo
 		writel(gpio, espi->regs + ESPI_VW_GPIO_VAL);
 		break;
 	default:
-		break;
+		return -EINVAL;
 	};
 
-	return -EINVAL;
+	return 0;
 }
 
 static const struct file_operations ast2500_espi_vw_fops = {
@@ -891,7 +891,7 @@ static long ast2500_espi_oob_put_tx(struct file *fp,
 	      | FIELD_PREP(ESPI_OOB_TX_CTRL_TAG, tag)
 	      | FIELD_PREP(ESPI_OOB_TX_CTRL_LEN, len)
 	      | ESPI_OOB_TX_CTRL_TRIG_PEND;
-	writel(reg, espi->regs + ESPI_OOB_TX_CTRL_TRIG_PEND);
+	writel(reg, espi->regs + ESPI_OOB_TX_CTRL);
 
 	rc = 0;
 
@@ -945,20 +945,22 @@ static void ast2500_espi_oob_isr(struct ast2500_espi *espi)
 	sts = readl(espi->regs + ESPI_INT_STS);
 
 	if (sts & ESPI_INT_STS_OOB_RX_CMPLT) {
+		writel(ESPI_INT_STS_OOB_RX_CMPLT, espi->regs + ESPI_INT_STS);
+
 		spin_lock_irqsave(&oob->lock, flags);
 		oob->rx_ready = true;
 		spin_unlock_irqrestore(&oob->lock, flags);
 
 		wake_up_interruptible(&oob->wq);
-
-		writel(ESPI_INT_STS_OOB_RX_CMPLT, espi->regs + ESPI_INT_STS);
 	}
 }
 
 static void ast2500_espi_oob_reset(struct ast2500_espi *espi)
 {
+	struct ast2500_espi_oob *oob;
 	uint32_t reg;
-	struct ast2500_espi_oob *oob = &espi->oob;
+
+	oob = &espi->oob;
 
 	if (oob->dma.enable) {
 		writel(oob->dma.tx_addr, espi->regs + ESPI_OOB_TX_DMA);
