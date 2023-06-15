@@ -603,6 +603,16 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		goto out;
 	}
 
+	/*
+	 * Failed multi-hop where the old_mem is still marked as
+	 * TTM_PL_FLAG_TEMPORARY, should just be a dummy move.
+	 */
+	if (old_mem->mem_type == XE_PL_TT &&
+	    new_mem->mem_type == XE_PL_TT) {
+		ttm_bo_move_null(ttm_bo, new_mem);
+		goto out;
+	}
+
 	if (!move_lacks_source && !xe_bo_is_pinned(bo)) {
 		ret = xe_bo_move_notify(bo, ctx);
 		if (ret)
