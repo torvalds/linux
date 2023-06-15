@@ -1442,6 +1442,9 @@ static void rtw8851b_bb_sethw(struct rtw89_dev *rtwdev)
 	rtw8851b_bb_macid_ctrl_init(rtwdev, RTW89_PHY_0);
 	rtw8851b_bb_gpio_init(rtwdev);
 
+	rtw89_write32_clr(rtwdev, R_AX_PWR_NORM_FORCE1, B_AX_FORCE_NTX_VALUE);
+	rtw89_write32_set(rtwdev, R_AX_PWR_NORM_FORCE1, B_AX_FORCE_NTX_EN);
+
 	/* read these registers after loading BB parameters */
 	gain->offset_base[RTW89_PHY_0] =
 		rtw89_phy_read32_mask(rtwdev, R_P0_RPL1, B_P0_RPL1_BIAS_MASK);
