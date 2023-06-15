@@ -5524,10 +5524,8 @@
 		resets = <&cru SRST_M_I2S0_8CH_TX>, <&cru SRST_M_I2S0_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,clk-trcm = <1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_lrck
-			     &i2s0_sclk
-			     &i2s0_sdi0
+		pinctrl-names = "default", "idle", "clk";
+		pinctrl-0 = <&i2s0_sdi0
 			     &i2s0_sdi1
 			     &i2s0_sdi2
 			     &i2s0_sdi3
@@ -5535,6 +5533,9 @@
 			     &i2s0_sdo1
 			     &i2s0_sdo2
 			     &i2s0_sdo3>;
+		pinctrl-1 = <&i2s0_idle>;
+		pinctrl-2 = <&i2s0_lrck
+			     &i2s0_sclk>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -5577,11 +5578,12 @@
 		dma-names = "tx", "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
 		rockchip,clk-trcm = <1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s2m1_lrck
-			     &i2s2m1_sclk
-			     &i2s2m1_sdi
+		pinctrl-names = "default", "idle", "clk";
+		pinctrl-0 = <&i2s2m1_sdi
 			     &i2s2m1_sdo>;
+		pinctrl-1 = <&i2s2m1_idle>;
+		pinctrl-2 = <&i2s2m1_lrck
+			     &i2s2m1_sclk>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -5598,11 +5600,12 @@
 		dma-names = "tx", "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
 		rockchip,clk-trcm = <1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s3_lrck
-			     &i2s3_sclk
-			     &i2s3_sdi
+		pinctrl-names = "default", "idle", "clk";
+		pinctrl-0 = <&i2s3_sdi
 			     &i2s3_sdo>;
+		pinctrl-1 = <&i2s3_idle>;
+		pinctrl-2 = <&i2s3_lrck
+			     &i2s3_sclk>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};

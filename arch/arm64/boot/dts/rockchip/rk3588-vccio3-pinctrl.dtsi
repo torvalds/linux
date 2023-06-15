@@ -261,6 +261,15 @@
 
 	i2s2 {
 		/omit-if-no-ref/
+		i2s2m0_idle: i2s2m0-idle {
+			rockchip,pins =
+				/* i2s2m0_lrck_gpio */
+				<2 RK_PC0 0 &pcfg_pull_none>,
+				/* i2s2m0_sclk_gpio */
+				<2 RK_PB7 0 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
 		i2s2m0_lrck: i2s2m0-lrck {
 			rockchip,pins =
 				/* i2s2m0_lrck */

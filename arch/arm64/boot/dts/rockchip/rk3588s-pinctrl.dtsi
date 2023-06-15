@@ -1130,6 +1130,15 @@
 
 	i2s0 {
 		/omit-if-no-ref/
+		i2s0_idle: i2s0-idle {
+			rockchip,pins =
+				/* i2s0_lrck_gpio */
+				<1 RK_PC5 0 &pcfg_pull_none>,
+				/* i2s0_sclk_gpio */
+				<1 RK_PC3 0 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
 		i2s0_lrck: i2s0-lrck {
 			rockchip,pins =
 				/* i2s0_lrck */
@@ -1364,6 +1373,15 @@
 
 	i2s2 {
 		/omit-if-no-ref/
+		i2s2m1_idle: i2s2m1-idle {
+			rockchip,pins =
+				/* i2s2m1_lrck_gpio */
+				<3 RK_PB6 0 &pcfg_pull_none>,
+				/* i2s2m1_sclk_gpio */
+				<3 RK_PB5 0 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
 		i2s2m1_lrck: i2s2m1-lrck {
 			rockchip,pins =
 				/* i2s2m1_lrck */
@@ -1400,6 +1418,15 @@
 	};
 
 	i2s3 {
+		/omit-if-no-ref/
+		i2s3_idle: i2s3-idle {
+			rockchip,pins =
+				/* i2s3_lrck_gpio */
+				<3 RK_PA2 0 &pcfg_pull_none>,
+				/* i2s3_sclk_gpio */
+				<3 RK_PA1 0 &pcfg_pull_none>;
+		};
+
 		/omit-if-no-ref/
 		i2s3_lrck: i2s3-lrck {
 			rockchip,pins =
