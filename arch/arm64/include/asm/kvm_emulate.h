@@ -74,7 +74,7 @@ static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
-	if (is_kernel_in_hyp_mode())
+	if (has_vhe() || has_hvhe())
 		vcpu->arch.hcr_el2 |= HCR_E2H;
 	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN)) {
 		/* route synchronous external abort exceptions to EL2 */
@@ -570,4 +570,35 @@ static inline bool vcpu_has_feature(struct kvm_vcpu *vcpu, int feature)
 	return test_bit(feature, vcpu->arch.features);
 }
 
+static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
+{
+	u64 val;
+
+	if (has_vhe()) {
+		val = (CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN |
+		       CPACR_EL1_ZEN_EL1EN);
+	} else if (has_hvhe()) {
+		val = (CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN);
+	} else {
+		val = CPTR_NVHE_EL2_RES1;
+
+		if (vcpu_has_sve(vcpu) &&
+		    (vcpu->arch.fp_state == FP_STATE_GUEST_OWNED))
+			val |= CPTR_EL2_TZ;
+		if (cpus_have_final_cap(ARM64_SME))
+			val &= ~CPTR_EL2_TSM;
+	}
+
+	return val;
+}
+
+static __always_inline void kvm_reset_cptr_el2(struct kvm_vcpu *vcpu)
+{
+	u64 val = kvm_get_reset_cptr_el2(vcpu);
+
+	if (has_vhe() || has_hvhe())
+		write_sysreg(val, cpacr_el1);
+	else
+		write_sysreg(val, cptr_el2);
+}
 #endif /* __ARM64_KVM_EMULATE_H__ */
