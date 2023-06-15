@@ -69,8 +69,17 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		return -EINVAL;
 	}
 
-	mutex_init(&bus->msg_lock);
-	mutex_init(&bus->bus_lock);
+	/*
+	 * Give each bus_lock and msg_lock a unique key so that lockdep won't
+	 * trigger a deadlock warning when the locks of several buses are
+	 * grabbed during configuration of a multi-bus stream.
+	 */
+	lockdep_register_key(&bus->msg_lock_key);
+	__mutex_init(&bus->msg_lock, "msg_lock", &bus->msg_lock_key);
+
+	lockdep_register_key(&bus->bus_lock_key);
+	__mutex_init(&bus->bus_lock, "bus_lock", &bus->bus_lock_key);
+
 	INIT_LIST_HEAD(&bus->slaves);
 	INIT_LIST_HEAD(&bus->m_rt_list);
 
@@ -181,6 +190,8 @@ void sdw_bus_master_delete(struct sdw_bus *bus)
 	sdw_master_device_del(bus);
 
 	sdw_bus_debugfs_exit(bus);
+	lockdep_unregister_key(&bus->bus_lock_key);
+	lockdep_unregister_key(&bus->msg_lock_key);
 	ida_free(&sdw_bus_ida, bus->id);
 }
 EXPORT_SYMBOL(sdw_bus_master_delete);

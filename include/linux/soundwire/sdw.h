@@ -5,6 +5,7 @@
 #define __SOUNDWIRE_H
 
 #include <linux/bug.h>
+#include <linux/lockdep_types.h>
 #include <linux/mod_devicetable.h>
 #include <linux/bitfield.h>
 
@@ -907,7 +908,9 @@ struct sdw_bus {
 	struct list_head slaves;
 	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
 	struct mutex bus_lock;
+	struct lock_class_key bus_lock_key;
 	struct mutex msg_lock;
+	struct lock_class_key msg_lock_key;
 	int (*compute_params)(struct sdw_bus *bus);
 	const struct sdw_master_ops *ops;
 	const struct sdw_master_port_ops *port_ops;
