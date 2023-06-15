@@ -4,6 +4,8 @@
 #include <linux/sunrpc/addr.h>
 #include "internal.h"
 #include "nfs3_fs.h"
+#include "netns.h"
+#include "sysfs.h"
 
 #ifdef CONFIG_NFS_V3_ACL
 static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };
@@ -30,6 +32,8 @@ static void nfs_init_server_aclclient(struct nfs_server *server)
 	server->client_acl = rpc_bind_new_program(server->client, &nfsacl_program, 3);
 	if (IS_ERR(server->client_acl))
 		goto out_noacl;
+
+	nfs_sysfs_link_rpc_client(server, server->client_acl, NULL);
 
 	/* No errors! Assume that Sun nfsacls are supported */
 	server->caps |= NFS_CAP_ACLS;
