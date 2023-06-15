@@ -179,19 +179,19 @@
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			partition@u-boot {
+			partition@0 {
 				reg = <0x00000000 0x00100000>;
 				label = "u-boot";
 			};
-			partition@u-boot-env {
+			partition@100000 {
 				reg = <0x00100000 0x00040000>;
 				label = "u-boot-env";
 			};
-			partition@unused {
+			partition@140000 {
 				reg = <0x00140000 0x00e80000>;
 				label = "unused";
 			};
-			partition@idprom {
+			partition@fc0000 {
 				reg = <0x00fc0000 0x00040000>;
 				label = "idprom";
 			};
@@ -216,16 +216,16 @@
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			partition@user {
+			partition@0 {
 				reg = <0x00000000 0x0f000000>;
 				label = "user";
 			};
-			partition@errlog {
+			partition@f000000 {
 				/* Maximum mtdoops size is 8MB, so set to that. */
 				reg = <0x0f000000 0x00800000>;
 				label = "errlog";
 			};
-			partition@nand-bbt {
+			partition@f800000 {
 				reg = <0x0f800000 0x00800000>;
 				label = "nand-bbt";
 			};
