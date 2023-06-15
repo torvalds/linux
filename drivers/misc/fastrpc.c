@@ -2030,6 +2030,9 @@ static int fastrpc_device_register(struct device *dev, struct fastrpc_channel_ct
 	fdev->miscdev.fops = &fastrpc_fops;
 	fdev->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "fastrpc-%s%s",
 					    domain, is_secured ? "-secure" : "");
+	if (!fdev->miscdev.name)
+		return -ENOMEM;
+
 	err = misc_register(&fdev->miscdev);
 	if (!err) {
 		if (is_secured)
