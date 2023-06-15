@@ -195,7 +195,7 @@ static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
  */
 #define CXL_CAPACITY_MULTIPLIER SZ_256M
 
-/**
+/*
  * Event Interrupt Policy
  *
  * CXL rev 3.0 section 8.2.9.2.4; Table 8-52
@@ -215,8 +215,8 @@ struct cxl_event_interrupt_policy {
 /**
  * struct cxl_event_state - Event log driver state
  *
- * @event_buf: Buffer to receive event data
- * @event_log_lock: Serialize event_buf and log use
+ * @buf: Buffer to receive event data
+ * @log_lock: Serialize event_buf and log use
  */
 struct cxl_event_state {
 	struct cxl_get_event_payload *buf;
