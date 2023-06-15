@@ -345,7 +345,7 @@ static void nbio_v2_3_init_registers(struct amdgpu_device *adev)
 }
 
 #define NAVI10_PCIE__LC_L0S_INACTIVITY_DEFAULT		0x00000000 // off by default, no gains over L1
-#define NAVI10_PCIE__LC_L1_INACTIVITY_DEFAULT		0x00000009 // 1=1us, 9=1ms
+#define NAVI10_PCIE__LC_L1_INACTIVITY_DEFAULT		0x0000000A // 1=1us, 9=1ms, 10=4ms
 #define NAVI10_PCIE__LC_L1_INACTIVITY_TBT_DEFAULT	0x0000000E // 400ms
 
 static void nbio_v2_3_enable_aspm(struct amdgpu_device *adev,
