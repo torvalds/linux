@@ -4243,6 +4243,90 @@ static void update_seamless_boot_flags(struct dc *dc,
 	}
 }
 
+static void populate_fast_updates(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		struct dc_stream_update *stream_update)
+{
+	if (srf_updates) {
+		fast_update->flip_addr = srf_updates->flip_addr;
+		fast_update->gamma = srf_updates->gamma;
+		fast_update->gamut_remap_matrix = srf_updates->gamut_remap_matrix;
+		fast_update->input_csc_color_matrix = srf_updates->input_csc_color_matrix;
+		fast_update->coeff_reduction_factor = srf_updates->coeff_reduction_factor;
+	}
+	if (stream_update) {
+		fast_update->out_transfer_func = stream_update->out_transfer_func;
+		fast_update->output_csc_transform = stream_update->output_csc_transform;
+	}
+}
+
+static bool fast_updates_exist(struct dc_fast_update *fast_update)
+{
+	if (fast_update->flip_addr ||
+			fast_update->gamma ||
+			fast_update->gamut_remap_matrix ||
+			fast_update->input_csc_color_matrix ||
+			fast_update->coeff_reduction_factor ||
+			fast_update->out_transfer_func ||
+			fast_update->output_csc_transform)
+		return true;
+
+	return false;
+}
+
+static bool full_update_required(struct dc_surface_update *srf_updates,
+		struct dc_stream_update *stream_update)
+{
+	if (srf_updates &&
+			(srf_updates->plane_info ||
+			srf_updates->scaling_info ||
+			(srf_updates->hdr_mult.value &&
+			srf_updates->hdr_mult.value != srf_updates->surface->hdr_mult.value) ||
+			srf_updates->in_transfer_func ||
+			srf_updates->func_shaper ||
+			srf_updates->lut3d_func ||
+			srf_updates->blend_tf))
+		return true;
+
+	if (stream_update &&
+			(((stream_update->src.height != 0 && stream_update->src.width != 0) ||
+			(stream_update->dst.height != 0 && stream_update->dst.width != 0) ||
+			stream_update->integer_scaling_update) ||
+			stream_update->hdr_static_metadata ||
+			stream_update->abm_level ||
+			stream_update->periodic_interrupt ||
+			stream_update->vrr_infopacket ||
+			stream_update->vsc_infopacket ||
+			stream_update->vsp_infopacket ||
+			stream_update->hfvsif_infopacket ||
+			stream_update->vtem_infopacket ||
+			stream_update->adaptive_sync_infopacket ||
+			stream_update->dpms_off ||
+			stream_update->allow_freesync ||
+			stream_update->vrr_active_variable ||
+			stream_update->vrr_active_fixed ||
+			stream_update->gamut_remap ||
+			stream_update->output_color_space ||
+			stream_update->dither_option ||
+			stream_update->wb_update ||
+			stream_update->dsc_config ||
+			stream_update->mst_bw_update ||
+			stream_update->func_shaper ||
+			stream_update->lut3d_func ||
+			stream_update->pending_test_pattern ||
+			stream_update->crtc_timing_adjust))
+		return true;
+
+	return false;
+}
+
+static bool fast_update_only(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		struct dc_stream_update *stream_update)
+{
+	return fast_updates_exist(fast_update) && !full_update_required(srf_updates, stream_update);
+}
+
 bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -4252,6 +4336,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	enum surface_update_type update_type;
 	int i;
 	struct mall_temp_config mall_temp_config;
+	struct dc_fast_update fast_update = {0};
 
 	/* In cases where MPO and split or ODM are used transitions can
 	 * cause underflow. Apply stream configuration with minimal pipe
@@ -4260,6 +4345,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	bool force_minimal_pipe_splitting;
 	bool is_plane_addition;
 
+	populate_fast_updates(&fast_update, srf_updates, stream_update);
 	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(
 			dc,
 			stream,
@@ -4310,7 +4396,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (!dc->debug.enable_legacy_fast_update && update_type == UPDATE_TYPE_FAST) {
+	if (fast_update_only(&fast_update, srf_updates, stream_update) &&
+			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
 				surface_count,
@@ -4367,7 +4454,9 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	struct dc_state *context;
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, j;
+	struct dc_fast_update fast_update = {0};
 
+	populate_fast_updates(&fast_update, srf_updates, stream_update);
 	stream_status = dc_stream_get_status(stream);
 	context = dc->current_state;
 
@@ -4453,7 +4542,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (!dc->debug.enable_legacy_fast_update && update_type == UPDATE_TYPE_FAST) {
+	if (fast_update_only(&fast_update, srf_updates, stream_update) &&
+			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
 				surface_count,
