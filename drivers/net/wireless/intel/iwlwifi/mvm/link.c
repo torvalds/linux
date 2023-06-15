@@ -118,24 +118,6 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		if (!link_info->phy_ctxt)
 			return 0;
 
-		/* check there aren't too many active links */
-		if (!link_info->active && active) {
-			int i, count = 0;
-
-			/* link with phy_ctxt is active in FW */
-			for_each_mvm_vif_valid_link(mvmvif, i)
-				if (mvmvif->link[i]->phy_ctxt)
-					count++;
-
-			if (vif->type == NL80211_IFTYPE_AP) {
-				if (count > mvm->fw->ucode_capa.num_beacons)
-					return -EOPNOTSUPP;
-			/* this should be per HW or such */
-			} else if (count >= IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM) {
-				return -EOPNOTSUPP;
-			}
-		}
-
 		/* Catch early if driver tries to activate or deactivate a link
 		 * twice.
 		 */

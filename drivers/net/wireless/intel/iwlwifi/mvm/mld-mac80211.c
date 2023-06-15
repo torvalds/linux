@@ -900,9 +900,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 	u16 added = new_links & ~old_links;
 	int err, i;
 
-	if (hweight16(new_links) > 2) {
-		return -EOPNOTSUPP;
-	} else if (hweight16(new_links) > 1) {
+	if (hweight16(new_links) > 1) {
 		unsigned int n_active = 0;
 
 		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
@@ -917,7 +915,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 		if (vif->type == NL80211_IFTYPE_AP) {
 			if (n_active > mvm->fw->ucode_capa.num_beacons)
 				return -EOPNOTSUPP;
-		} else if (n_active > 1) {
+		} else if (n_active > iwl_mvm_max_active_links(mvm)) {
 			return -EOPNOTSUPP;
 		}
 	}
