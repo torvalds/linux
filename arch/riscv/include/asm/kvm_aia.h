@@ -90,44 +90,18 @@ DECLARE_STATIC_KEY_FALSE(kvm_riscv_aia_available);
 
 extern struct kvm_device_ops kvm_riscv_aia_device_ops;
 
-static inline void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
-{
-}
-
-static inline int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
-{
-	return 1;
-}
+void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu);
+int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu);
 
 #define KVM_RISCV_AIA_IMSIC_TOPEI	(ISELECT_MASK + 1)
-static inline int kvm_riscv_vcpu_aia_imsic_rmw(struct kvm_vcpu *vcpu,
-					       unsigned long isel,
-					       unsigned long *val,
-					       unsigned long new_val,
-					       unsigned long wr_mask)
-{
-	return 0;
-}
-
-static inline void kvm_riscv_vcpu_aia_imsic_reset(struct kvm_vcpu *vcpu)
-{
-}
-
-static inline int kvm_riscv_vcpu_aia_imsic_inject(struct kvm_vcpu *vcpu,
-						  u32 guest_index, u32 offset,
-						  u32 iid)
-{
-	return 0;
-}
-
-static inline int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
-static inline void kvm_riscv_vcpu_aia_imsic_cleanup(struct kvm_vcpu *vcpu)
-{
-}
+int kvm_riscv_vcpu_aia_imsic_rmw(struct kvm_vcpu *vcpu, unsigned long isel,
+				 unsigned long *val, unsigned long new_val,
+				 unsigned long wr_mask);
+void kvm_riscv_vcpu_aia_imsic_reset(struct kvm_vcpu *vcpu);
+int kvm_riscv_vcpu_aia_imsic_inject(struct kvm_vcpu *vcpu,
+				    u32 guest_index, u32 offset, u32 iid);
+int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu);
+void kvm_riscv_vcpu_aia_imsic_cleanup(struct kvm_vcpu *vcpu);
 
 int kvm_riscv_aia_aplic_set_attr(struct kvm *kvm, unsigned long type, u32 v);
 int kvm_riscv_aia_aplic_get_attr(struct kvm *kvm, unsigned long type, u32 *v);
