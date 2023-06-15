@@ -1065,33 +1065,31 @@ void md_bitmap_unplug_async(struct bitmap *bitmap)
 EXPORT_SYMBOL(md_bitmap_unplug_async);
 
 static void md_bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int needed);
-/* * bitmap_init_from_disk -- called at bitmap_create time to initialize
- * the in-memory bitmap from the on-disk bitmap -- also, sets up the
- * memory mapping of the bitmap file
- * Special cases:
- *   if there's no bitmap file, or if the bitmap file had been
- *   previously kicked from the array, we mark all the bits as
- *   1's in order to cause a full resync.
+
+/*
+ * Initialize the in-memory bitmap from the on-disk bitmap and set up the memory
+ * mapping of the bitmap file.
+ *
+ * Special case: If there's no bitmap file, or if the bitmap file had been
+ * previously kicked from the array, we mark all the bits as 1's in order to
+ * cause a full resync.
  *
  * We ignore all bits for sectors that end earlier than 'start'.
- * This is used when reading an out-of-date bitmap...
+ * This is used when reading an out-of-date bitmap.
  */
 static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 {
-	unsigned long i, chunks, index, oldindex, bit, node_offset = 0;
-	struct page *page = NULL;
-	unsigned long bit_cnt = 0;
-	struct file *file;
-	unsigned long offset;
-	int outofdate;
-	int ret = -ENOSPC;
-	void *paddr;
+	bool outofdate = test_bit(BITMAP_STALE, &bitmap->flags);
+	struct mddev *mddev = bitmap->mddev;
+	unsigned long chunks = bitmap->counts.chunks;
 	struct bitmap_storage *store = &bitmap->storage;
+	struct file *file = store->file;
+	unsigned long node_offset = 0;
+	unsigned long bit_cnt = 0;
+	unsigned long i;
+	int ret;
 
-	chunks = bitmap->counts.chunks;
-	file = store->file;
-
-	if (!file && !bitmap->mddev->bitmap_info.offset) {
+	if (!file && !mddev->bitmap_info.offset) {
 		/* No permanent bitmap - fill with '1s'. */
 		store->filemap = NULL;
 		store->file_pages = 0;
@@ -1106,77 +1104,79 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 		return 0;
 	}
 
-	outofdate = test_bit(BITMAP_STALE, &bitmap->flags);
-	if (outofdate)
-		pr_warn("%s: bitmap file is out of date, doing full recovery\n", bmname(bitmap));
-
 	if (file && i_size_read(file->f_mapping->host) < store->bytes) {
 		pr_warn("%s: bitmap file too short %lu < %lu\n",
 			bmname(bitmap),
 			(unsigned long) i_size_read(file->f_mapping->host),
 			store->bytes);
+		ret = -ENOSPC;
 		goto err;
 	}
 
-	oldindex = ~0L;
-	offset = 0;
-	if (!bitmap->mddev->bitmap_info.external)
-		offset = sizeof(bitmap_super_t);
-
-	if (mddev_is_clustered(bitmap->mddev))
+	if (mddev_is_clustered(mddev))
 		node_offset = bitmap->cluster_slot * (DIV_ROUND_UP(store->bytes, PAGE_SIZE));
 
-	for (i = 0; i < chunks; i++) {
-		int b;
-		index = file_page_index(&bitmap->storage, i);
-		bit = file_page_offset(&bitmap->storage, i);
-		if (index != oldindex) { /* this is a new page, read it in */
-			int count;
-			/* unmap the old page, we're done with it */
-			if (index == store->file_pages-1)
-				count = store->bytes - index * PAGE_SIZE;
-			else
-				count = PAGE_SIZE;
-			page = store->filemap[index];
-			if (file)
-				ret = read_file_page(file, index, bitmap,
-						count, page);
-			else
-				ret = read_sb_page(
-					bitmap->mddev,
-					bitmap->mddev->bitmap_info.offset,
-					page,
-					index + node_offset, count);
+	for (i = 0; i < store->file_pages; i++) {
+		struct page *page = store->filemap[i];
+		int count;
 
-			if (ret)
-				goto err;
+		/* unmap the old page, we're done with it */
+		if (i == store->file_pages - 1)
+			count = store->bytes - i * PAGE_SIZE;
+		else
+			count = PAGE_SIZE;
 
-			oldindex = index;
+		if (file)
+			ret = read_file_page(file, i, bitmap, count, page);
+		else
+			ret = read_sb_page(mddev, mddev->bitmap_info.offset,
+					   page, i + node_offset, count);
+		if (ret)
+			goto err;
+	}
 
-			if (outofdate) {
-				/*
-				 * if bitmap is out of date, dirty the
-				 * whole page and write it out
-				 */
-				paddr = kmap_atomic(page);
-				memset(paddr + offset, 0xff,
-				       PAGE_SIZE - offset);
-				kunmap_atomic(paddr);
-				write_page(bitmap, page, 1);
+	if (outofdate) {
+		pr_warn("%s: bitmap file is out of date, doing full recovery\n",
+			bmname(bitmap));
 
+		for (i = 0; i < store->file_pages; i++) {
+			struct page *page = store->filemap[i];
+			unsigned long offset = 0;
+			void *paddr;
+
+			if (i == 0 && !mddev->bitmap_info.external)
+				offset = sizeof(bitmap_super_t);
+
+			/*
+			 * If the bitmap is out of date, dirty the whole page
+			 * and write it out
+			 */
+			paddr = kmap_atomic(page);
+			memset(paddr + offset, 0xff, PAGE_SIZE - offset);
+			kunmap_atomic(paddr);
+
+			write_page(bitmap, page, 1);
+			if (test_bit(BITMAP_WRITE_ERROR, &bitmap->flags)) {
 				ret = -EIO;
-				if (test_bit(BITMAP_WRITE_ERROR,
-					     &bitmap->flags))
-					goto err;
+				goto err;
 			}
 		}
+	}
+
+	for (i = 0; i < chunks; i++) {
+		struct page *page = filemap_get_page(&bitmap->storage, i);
+		unsigned long bit = file_page_offset(&bitmap->storage, i);
+		void *paddr;
+		bool was_set;
+
 		paddr = kmap_atomic(page);
 		if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
-			b = test_bit(bit, paddr);
+			was_set = test_bit(bit, paddr);
 		else
-			b = test_bit_le(bit, paddr);
+			was_set = test_bit_le(bit, paddr);
 		kunmap_atomic(paddr);
-		if (b) {
+
+		if (was_set) {
 			/* if the disk bit is set, set the memory bit */
 			int needed = ((sector_t)(i+1) << bitmap->counts.chunkshift
 				      >= start);
@@ -1185,7 +1185,6 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 						  needed);
 			bit_cnt++;
 		}
-		offset = 0;
 	}
 
 	pr_debug("%s: bitmap initialized from disk: read %lu pages, set %lu of %lu bits\n",
