@@ -389,7 +389,7 @@ static int filename_split(char *filename, unsigned int *line_nr)
 		*line_nr = strtoul(sep, NULL, 0);
 		return 1;
 	}
-
+	pr_debug("addr2line missing ':' in filename split\n");
 	return 0;
 }
 
@@ -465,10 +465,12 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 			style = LLVM;
 			cached = true;
 			lines = 1;
+			pr_debug("Detected LLVM addr2line style\n");
 		} else if (ch == '0') {
 			style = GNU_BINUTILS;
 			cached = true;
 			lines = 3;
+			pr_debug("Detected binutils addr2line style\n");
 		} else {
 			if (!symbol_conf.disable_add2line_warn) {
 				char *output = NULL;
@@ -479,6 +481,7 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 					   __func__, dso_name);
 				pr_warning("\t%c%s", ch, output);
 			}
+			pr_debug("Unknown/broken addr2line style\n");
 			return BROKEN;
 		}
 		while (lines) {
@@ -496,6 +499,9 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 
 static int read_addr2line_record(struct io *io,
 				 enum a2l_style style,
+				 const char *dso_name,
+				 u64 addr,
+				 bool first,
 				 char **function,
 				 char **filename,
 				 unsigned int *line_nr)
@@ -521,56 +527,62 @@ static int read_addr2line_record(struct io *io,
 		*line_nr = 0;
 
 	/*
-	 * Read the first line. Without an error this will be either an address
-	 * like 0x1234 or for llvm-addr2line the sentinal ',' character.
+	 * Read the first line. Without an error this will be:
+	 * - for the first line an address like 0x1234,
+	 * - the binutils sentinel 0x0000000000000000,
+	 * - the llvm-addr2line the sentinel ',' character,
+	 * - the function name line for an inlined function.
 	 */
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
-	if (style == LLVM) {
-		if (line_len == 2 && line[0] == ',') {
-			zfree(&line);
-			return 0;
-		}
-	} else {
+	pr_debug("%s %s: addr2line read address for sentinel: %s", __func__, dso_name, line);
+	if (style == LLVM && line_len == 2 && line[0] == ',') {
+		/* Found the llvm-addr2line sentinel character. */
+		zfree(&line);
+		return 0;
+	} else if (style == GNU_BINUTILS && (!first || addr != 0)) {
 		int zero_count = 0, non_zero_count = 0;
+		/*
+		 * Check for binutils sentinel ignoring it for the case the
+		 * requested address is 0.
+		 */
 
-		/* The address should always start 0x. */
-		if (line_len < 2 || line[0] != '0' || line[1] != 'x')
-			goto error;
-
-		for (size_t i = 2; i < line_len; i++) {
-			if (line[i] == '0')
-				zero_count++;
-			else if (line[i] != '\n')
-				non_zero_count++;
-		}
-		if (!non_zero_count) {
-			int ch;
-
-			if (!zero_count) {
-				/* Line was erroneous just '0x'. */
-				goto error;
+		/* A given address should always start 0x. */
+		if (line_len >= 2 || line[0] != '0' || line[1] != 'x') {
+			for (size_t i = 2; i < line_len; i++) {
+				if (line[i] == '0')
+					zero_count++;
+				else if (line[i] != '\n')
+					non_zero_count++;
 			}
-			/*
-			 * Line was 0x0..0, the sentinel for binutils. Remove
-			 * the function and filename lines.
-			 */
-			zfree(&line);
-			do {
-				ch = io__get_char(io);
-			} while (ch > 0 && ch != '\n');
-			do {
-				ch = io__get_char(io);
-			} while (ch > 0 && ch != '\n');
-			return 0;
+			if (!non_zero_count) {
+				int ch;
+
+				if (first && !zero_count) {
+					/* Line was erroneous just '0x'. */
+					goto error;
+				}
+				/*
+				 * Line was 0x0..0, the sentinel for binutils. Remove
+				 * the function and filename lines.
+				 */
+				zfree(&line);
+				do {
+					ch = io__get_char(io);
+				} while (ch > 0 && ch != '\n');
+				do {
+					ch = io__get_char(io);
+				} while (ch > 0 && ch != '\n');
+				return 0;
+			}
 		}
 	}
-
-	/* Read the second function name line. */
-	if (io__getline(io, &line, &line_len) < 0 || !line_len)
+	/* Read the second function name line (if inline data then this is the first line). */
+	if (first && (io__getline(io, &line, &line_len) < 0 || !line_len))
 		goto error;
 
+	pr_debug("%s %s: addr2line read line: %s", __func__, dso_name, line);
 	if (function != NULL)
 		*function = strdup(strim(line));
 
@@ -581,6 +593,7 @@ static int read_addr2line_record(struct io *io,
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
+	pr_debug("%s %s: addr2line filename:number : %s", __func__, dso_name, line);
 	if (filename_split(line, line_nr == NULL ? &dummy_line_nr : line_nr) == 0 &&
 	    style == GNU_BINUTILS) {
 		ret = 0;
@@ -640,8 +653,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		if (!filename__has_section(dso_name, ".debug_line"))
 			goto out;
 
-		dso->a2l = addr2line_subprocess_init(symbol_conf.addr2line_path,
-						     dso_name);
+		dso->a2l = addr2line_subprocess_init(symbol_conf.addr2line_path, dso_name);
 		a2l = dso->a2l;
 	}
 
@@ -655,14 +667,13 @@ static int addr2line(const char *dso_name, u64 addr,
 		goto out;
 
 	/*
-	 * Send our request and then *deliberately* send something that can't be interpreted as
-	 * a valid address to ask addr2line about (namely, ","). This causes addr2line to first
-	 * write out the answer to our request, in an unbounded/unknown number of records, and
-	 * then to write out the lines "??" and "??:0", for GNU binutils, or "," for
-	 * llvm-addr2line, so that we can detect when it has finished giving us anything
-	 * useful. With GNU binutils, we have to be careful about the first record, though,
-	 * because it may be genuinely unknown, in which case we'll get two sets of "??"/"??:0"
-	 * lines.
+	 * Send our request and then *deliberately* send something that can't be
+	 * interpreted as a valid address to ask addr2line about (namely,
+	 * ","). This causes addr2line to first write out the answer to our
+	 * request, in an unbounded/unknown number of records, and then to write
+	 * out the lines "0x0...0", "??" and "??:0", for GNU binutils, or ","
+	 * for llvm-addr2line, so that we can detect when it has finished giving
+	 * us anything useful.
 	 */
 	len = snprintf(buf, sizeof(buf), "%016"PRIx64"\n,\n", addr);
 	written = len > 0 ? write(a2l->in, buf, len) : -1;
@@ -673,7 +684,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
 	io.timeout_ms = addr2line_timeout_ms;
-	switch (read_addr2line_record(&io, a2l_style,
+	switch (read_addr2line_record(&io, a2l_style, dso_name, addr, /*first=*/true,
 				      &record_function, &record_filename, &record_line_nr)) {
 	case -1:
 		if (!symbol_conf.disable_add2line_warn)
@@ -683,16 +694,21 @@ static int addr2line(const char *dso_name, u64 addr,
 		/*
 		 * The first record was invalid, so return failure, but first
 		 * read another record, since we sent a sentinel ',' for the
-		 * sake of detected the last inlined function.
+		 * sake of detected the last inlined function. Treat this as the
+		 * first of a record as the ',' generates a new start with GNU
+		 * binutils, also force a non-zero address as we're no longer
+		 * reading that record.
 		 */
-		switch (read_addr2line_record(&io, a2l_style, NULL, NULL, NULL)) {
+		switch (read_addr2line_record(&io, a2l_style, dso_name,
+					      /*addr=*/1, /*first=*/true,
+					      NULL, NULL, NULL)) {
 		case -1:
 			if (!symbol_conf.disable_add2line_warn)
-				pr_warning("%s %s: could not read delimiter record\n",
+				pr_warning("%s %s: could not read sentinel record\n",
 					   __func__, dso_name);
 			break;
 		case 0:
-			/* As expected. */
+			/* The sentinel as expected. */
 			break;
 		default:
 			if (!symbol_conf.disable_add2line_warn)
@@ -702,6 +718,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		}
 		goto out;
 	default:
+		/* First record as expected. */
 		break;
 	}
 
@@ -722,9 +739,16 @@ static int addr2line(const char *dso_name, u64 addr,
 		}
 	}
 
-	/* We have to read the records even if we don't care about the inline info. */
+	/*
+	 * We have to read the records even if we don't care about the inline
+	 * info. This isn't the first record and force the address to non-zero
+	 * as we're reading records beyond the first.
+	 */
 	while ((record_status = read_addr2line_record(&io,
 						      a2l_style,
+						      dso_name,
+						      /*addr=*/1,
+						      /*first=*/false,
 						      &record_function,
 						      &record_filename,
 						      &record_line_nr)) == 1) {
