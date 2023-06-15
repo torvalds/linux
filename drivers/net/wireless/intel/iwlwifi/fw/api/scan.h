@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1003,7 +1003,8 @@ struct iwl_scan_channel_params_v6 {
  * struct iwl_scan_general_params_v11
  * @flags: &enum iwl_umac_scan_general_flags_v2
  * @reserved: reserved for future
- * @scan_start_mac_id: report the scan start TSF time according to this mac TSF
+ * @scan_start_mac_or_link_id: report the scan start TSF time according to this
+ *     mac (up to verion 11) or link (starting with version 12) TSF
  * @active_dwell: dwell time for active scan per LMAC
  * @adwell_default_2g: adaptive dwell default number of APs
  *                        for 2.4GHz channel
@@ -1026,7 +1027,7 @@ struct iwl_scan_channel_params_v6 {
 struct iwl_scan_general_params_v11 {
 	__le16 flags;
 	u8 reserved;
-	u8 scan_start_mac_id;
+	u8 scan_start_mac_or_link_id;
 	u8 active_dwell[SCAN_TWO_LMACS];
 	u8 adwell_default_2g;
 	u8 adwell_default_5g;
@@ -1038,7 +1039,7 @@ struct iwl_scan_general_params_v11 {
 	__le32 scan_priority;
 	u8 passive_dwell[SCAN_TWO_LMACS];
 	u8 num_of_fragments[SCAN_TWO_LMACS];
-} __packed; /* SCAN_GENERAL_PARAMS_API_S_VER_11 and *_VER_10 */
+} __packed; /* SCAN_GENERAL_PARAMS_API_S_VER_12, *_VER_11  and *_VER_10 */
 
 /**
  * struct iwl_scan_periodic_parms_v1
@@ -1067,18 +1068,18 @@ struct iwl_scan_req_params_v12 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_params_v15
+ * struct iwl_scan_req_params_v16
  * @general_params: &struct iwl_scan_general_params_v11
  * @channel_params: &struct iwl_scan_channel_params_v6
  * @periodic_params: &struct iwl_scan_periodic_parms_v1
  * @probe_params: &struct iwl_scan_probe_params_v4
  */
-struct iwl_scan_req_params_v15 {
+struct iwl_scan_req_params_v16 {
 	struct iwl_scan_general_params_v11 general_params;
 	struct iwl_scan_channel_params_v6 channel_params;
 	struct iwl_scan_periodic_parms_v1 periodic_params;
 	struct iwl_scan_probe_params_v4 probe_params;
-} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_15 and *_VER_14 */
+} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_16, *_VER_15 and *_VER_14 */
 
 /**
  * struct iwl_scan_req_umac_v12
@@ -1093,16 +1094,16 @@ struct iwl_scan_req_umac_v12 {
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_umac_v15
+ * struct iwl_scan_req_umac_v16
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
  * @scan_params: scan parameters
  */
-struct iwl_scan_req_umac_v15 {
+struct iwl_scan_req_umac_v16 {
 	__le32 uid;
 	__le32 ooc_priority;
-	struct iwl_scan_req_params_v15 scan_params;
-} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_15 and *_VER_14 */
+	struct iwl_scan_req_params_v16 scan_params;
+} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_16, *_VER_15 and *_VER_14 */
 
 /**
  * struct iwl_umac_scan_abort
