@@ -2520,7 +2520,7 @@ raw_atomic_dec_unless_positive(atomic_t *v)
  *
  * Safe to use in noinstr code; prefer atomic_dec_if_positive() elsewhere.
  *
- * Return: @true if @v was updated, @false otherwise.
+ * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
 static __always_inline int
 raw_atomic_dec_if_positive(atomic_t *v)
@@ -4636,7 +4636,7 @@ raw_atomic64_dec_unless_positive(atomic64_t *v)
  *
  * Safe to use in noinstr code; prefer atomic64_dec_if_positive() elsewhere.
  *
- * Return: @true if @v was updated, @false otherwise.
+ * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
 static __always_inline s64
 raw_atomic64_dec_if_positive(atomic64_t *v)
@@ -4657,4 +4657,4 @@ raw_atomic64_dec_if_positive(atomic64_t *v)
 }
 
 #endif /* _LINUX_ATOMIC_FALLBACK_H */
-// 3916f02c038baa3f5190d275f68b9211667fcc9d
+// 202b45c7db600ce36198eb1f1fc2c2d5268ace2d

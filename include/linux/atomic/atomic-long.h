@@ -1782,7 +1782,7 @@ raw_atomic_long_dec_unless_positive(atomic_long_t *v)
  *
  * Safe to use in noinstr code; prefer atomic_long_dec_if_positive() elsewhere.
  *
- * Return: @true if @v was updated, @false otherwise.
+ * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
 static __always_inline long
 raw_atomic_long_dec_if_positive(atomic_long_t *v)
@@ -1795,4 +1795,4 @@ raw_atomic_long_dec_if_positive(atomic_long_t *v)
 }
 
 #endif /* _LINUX_ATOMIC_LONG_H */
-// 029d2e3a493086671e874a4c2e0e42084be42403
+// 4ef23f98c73cff96d239896175fd26b10b88899e

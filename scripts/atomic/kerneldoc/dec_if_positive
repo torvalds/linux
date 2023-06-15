@@ -7,6 +7,6 @@ cat <<EOF
  *
  * ${desc_noinstr}
  *
- * Return: @true if @v was updated, @false otherwise.
+ * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
 EOF
