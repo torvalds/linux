@@ -10,6 +10,7 @@
 #include <internal/evsel.h>
 #include <perf/evsel.h>
 #include "symbol_conf.h"
+#include "pmus.h"
 
 struct bpf_object;
 struct cgroup;
@@ -350,9 +351,19 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
 
-#define evsel__match(evsel, t, c)		\
-	(evsel->core.attr.type == PERF_TYPE_##t &&	\
-	 evsel->core.attr.config == PERF_COUNT_##c)
+static inline bool __evsel__match(const struct evsel *evsel, u32 type, u64 config)
+{
+	if (evsel->core.attr.type != type)
+		return false;
+
+	if ((type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE)  &&
+	    perf_pmus__supports_extended_type())
+		return (evsel->core.attr.config & PERF_HW_EVENT_MASK) == config;
+
+	return evsel->core.attr.config == config;
+}
+
+#define evsel__match(evsel, t, c) __evsel__match(evsel, PERF_TYPE_##t, PERF_COUNT_##c)
 
 static inline bool evsel__match2(struct evsel *e1, struct evsel *e2)
 {
