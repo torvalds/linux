@@ -354,10 +354,10 @@ static struct sama7g5_pll {
 /*
  * Master clock (MCK[1..4]) description
  * @n:			clock name
- * @ep_chg_chg_id:	index in parents array that specifies the changeable
  * @ep:			extra parents names array (entry formed by PLL components
  *			identifiers (see enum pll_component_id))
  * @hw:			pointer to clk_hw
+ * @ep_chg_id:		index in parents array that specifies the changeable
  *			parent
  * @ep_count:		extra parents count
  * @ep_mux_table:	mux table for extra parents
