@@ -156,6 +156,22 @@
 		method = "smc";
 	};
 
+	rpm: remoteproc {
+		compatible = "qcom,ipq9574-rpm-proc", "qcom,rpm-proc";
+
+		glink-edge {
+			compatible = "qcom,glink-rpm";
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			mboxes = <&apcs_glb 0>;
+
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-ipq9574";
+				qcom,glink-channels = "rpm_requests";
+			};
+		};
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -181,18 +197,6 @@
 			reg = <0x0 0x4aa00000 0x0 0x100000>;
 			hwlocks = <&tcsr_mutex 0>;
 			no-map;
-		};
-	};
-
-	rpm-glink {
-		compatible = "qcom,glink-rpm";
-		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-		qcom,rpm-msg-ram = <&rpm_msg_ram>;
-		mboxes = <&apcs_glb 0>;
-
-		rpm_requests: rpm-requests {
-			compatible = "qcom,rpm-ipq9574";
-			qcom,glink-channels = "rpm_requests";
 		};
 	};
 

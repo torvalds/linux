@@ -621,67 +621,71 @@
 		};
 	};
 
-	rpm-glink {
-		compatible = "qcom,glink-rpm";
-		interrupts-extended = <&ipcc IPCC_CLIENT_AOP
-					     IPCC_MPROC_SIGNAL_GLINK_QMP
-					     IRQ_TYPE_EDGE_RISING>;
-		qcom,rpm-msg-ram = <&rpm_msg_ram>;
-		mboxes = <&ipcc IPCC_CLIENT_AOP IPCC_MPROC_SIGNAL_GLINK_QMP>;
+	rpm: remoteproc {
+		compatible = "qcom,sm6375-rpm-proc", "qcom,rpm-proc";
 
-		rpm_requests: rpm-requests {
-			compatible = "qcom,rpm-sm6375";
-			qcom,glink-channels = "rpm_requests";
+		glink-edge {
+			compatible = "qcom,glink-rpm";
+			interrupts-extended = <&ipcc IPCC_CLIENT_AOP
+						     IPCC_MPROC_SIGNAL_GLINK_QMP
+						     IRQ_TYPE_EDGE_RISING>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			mboxes = <&ipcc IPCC_CLIENT_AOP IPCC_MPROC_SIGNAL_GLINK_QMP>;
 
-			rpmcc: clock-controller {
-				compatible = "qcom,rpmcc-sm6375", "qcom,rpmcc";
-				clocks = <&xo_board_clk>;
-				clock-names = "xo";
-				#clock-cells = <1>;
-			};
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-sm6375";
+				qcom,glink-channels = "rpm_requests";
 
-			rpmpd: power-controller {
-				compatible = "qcom,sm6375-rpmpd";
-				#power-domain-cells = <1>;
-				operating-points-v2 = <&rpmpd_opp_table>;
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-sm6375", "qcom,rpmcc";
+					clocks = <&xo_board_clk>;
+					clock-names = "xo";
+					#clock-cells = <1>;
+				};
 
-				rpmpd_opp_table: opp-table {
-					compatible = "operating-points-v2";
+				rpmpd: power-controller {
+					compatible = "qcom,sm6375-rpmpd";
+					#power-domain-cells = <1>;
+					operating-points-v2 = <&rpmpd_opp_table>;
 
-					rpmpd_opp_ret: opp1 {
-						opp-level = <RPM_SMD_LEVEL_RETENTION>;
-					};
+					rpmpd_opp_table: opp-table {
+						compatible = "operating-points-v2";
 
-					rpmpd_opp_min_svs: opp2 {
-						opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
-					};
+						rpmpd_opp_ret: opp1 {
+							opp-level = <RPM_SMD_LEVEL_RETENTION>;
+						};
 
-					rpmpd_opp_low_svs: opp3 {
-						opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
-					};
+						rpmpd_opp_min_svs: opp2 {
+							opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
+						};
 
-					rpmpd_opp_svs: opp4 {
-						opp-level = <RPM_SMD_LEVEL_SVS>;
-					};
+						rpmpd_opp_low_svs: opp3 {
+							opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
+						};
 
-					rpmpd_opp_svs_plus: opp5 {
-						opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
-					};
+						rpmpd_opp_svs: opp4 {
+							opp-level = <RPM_SMD_LEVEL_SVS>;
+						};
 
-					rpmpd_opp_nom: opp6 {
-						opp-level = <RPM_SMD_LEVEL_NOM>;
-					};
+						rpmpd_opp_svs_plus: opp5 {
+							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
+						};
 
-					rpmpd_opp_nom_plus: opp7 {
-						opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
-					};
+						rpmpd_opp_nom: opp6 {
+							opp-level = <RPM_SMD_LEVEL_NOM>;
+						};
 
-					rpmpd_opp_turbo: opp8 {
-						opp-level = <RPM_SMD_LEVEL_TURBO>;
-					};
+						rpmpd_opp_nom_plus: opp7 {
+							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						};
 
-					rpmpd_opp_turbo_no_cpr: opp9 {
-						opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+						rpmpd_opp_turbo: opp8 {
+							opp-level = <RPM_SMD_LEVEL_TURBO>;
+						};
+
+						rpmpd_opp_turbo_no_cpr: opp9 {
+							opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+						};
 					};
 				};
 			};
