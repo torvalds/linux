@@ -207,7 +207,7 @@ enum geni_i3c_err_code {
 #define KHZ(freq)		(1000 * freq)
 #define I3C_DDR_VOTE_FACTOR		2
 #define PACKING_BYTES_PW	4
-#define XFER_TIMEOUT		HZ
+#define XFER_TIMEOUT		250
 #define DFS_INDEX_MAX		7
 
 #define I3C_DDR_READ_CMD BIT(7)
