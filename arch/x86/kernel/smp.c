@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/gfp.h>
+#include <linux/kexec.h>
 
 #include <asm/mtrr.h>
 #include <asm/tlbflush.h>
@@ -156,6 +157,10 @@ static void native_stop_other_cpus(int wait)
 	/* Only proceed if this is the first CPU to reach this code */
 	if (atomic_cmpxchg(&stopping_cpu, -1, cpu) != -1)
 		return;
+
+	/* For kexec, ensure that offline CPUs are out of MWAIT and in HLT */
+	if (kexec_in_progress)
+		smp_kick_mwait_play_dead();
 
 	/*
 	 * 1) Send an IPI on the reboot vector to all other CPUs.
