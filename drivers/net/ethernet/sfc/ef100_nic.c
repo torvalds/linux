@@ -242,6 +242,8 @@ static void ef100_ev_read_ack(struct efx_channel *channel)
 		   efx_reg(channel->efx, ER_GZ_EVQ_INT_PRIME));
 }
 
+#define EFX_NAPI_MAX_TX 512
+
 static int ef100_ev_process(struct efx_channel *channel, int quota)
 {
 	struct efx_nic *efx = channel->efx;
@@ -249,6 +251,7 @@ static int ef100_ev_process(struct efx_channel *channel, int quota)
 	bool evq_phase, old_evq_phase;
 	unsigned int read_ptr;
 	efx_qword_t *p_event;
+	int spent_tx = 0;
 	int spent = 0;
 	bool ev_phase;
 	int ev_type;
@@ -284,7 +287,9 @@ static int ef100_ev_process(struct efx_channel *channel, int quota)
 			efx_mcdi_process_event(channel, p_event);
 			break;
 		case ESE_GZ_EF100_EV_TX_COMPLETION:
-			ef100_ev_tx(channel, p_event);
+			spent_tx += ef100_ev_tx(channel, p_event);
+			if (spent_tx >= EFX_NAPI_MAX_TX)
+				spent = quota;
 			break;
 		case ESE_GZ_EF100_EV_DRIVER:
 			netif_info(efx, drv, efx->net_dev,
