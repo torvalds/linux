@@ -10,6 +10,7 @@
 
 #include <linux/bcd.h>
 #include <linux/bitfield.h>
+#include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
@@ -44,6 +45,9 @@
 #define ISL12022_SR_LBAT75	(1 << 1)
 
 #define ISL12022_INT_WRTC	(1 << 6)
+#define ISL12022_INT_FO_MASK	GENMASK(3, 0)
+#define ISL12022_INT_FO_OFF	0x0
+#define ISL12022_INT_FO_32K	0x1
 
 #define ISL12022_REG_VB85_MASK	GENMASK(5, 3)
 #define ISL12022_REG_VB75_MASK	GENMASK(2, 0)
@@ -242,6 +246,41 @@ static const struct regmap_config regmap_config = {
 	.use_single_write = true,
 };
 
+static int isl12022_register_clock(struct device *dev)
+{
+	struct regmap *regmap = dev_get_drvdata(dev);
+	struct clk_hw *hw;
+	int ret;
+
+	if (!device_property_present(dev, "#clock-cells")) {
+		/*
+		 * Disabling the F_OUT pin reduces the power
+		 * consumption in battery mode by ~25%.
+		 */
+		regmap_update_bits(regmap, ISL12022_REG_INT, ISL12022_INT_FO_MASK,
+				   ISL12022_INT_FO_OFF);
+
+		return 0;
+	}
+
+	if (!IS_ENABLED(CONFIG_COMMON_CLK))
+		return 0;
+
+	/*
+	 * For now, only support a fixed clock of 32768Hz (the reset default).
+	 */
+	ret = regmap_update_bits(regmap, ISL12022_REG_INT,
+				 ISL12022_INT_FO_MASK, ISL12022_INT_FO_32K);
+	if (ret)
+		return ret;
+
+	hw = devm_clk_hw_register_fixed_rate(dev, "isl12022", NULL, 0, 32768);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, hw);
+}
+
 static const u32 trip_levels[2][7] = {
 	{ 2125000, 2295000, 2550000, 2805000, 3060000, 4250000, 4675000 },
 	{ 1875000, 2025000, 2250000, 2475000, 2700000, 3750000, 4125000 },
@@ -288,6 +327,7 @@ static int isl12022_probe(struct i2c_client *client)
 {
 	struct rtc_device *rtc;
 	struct regmap *regmap;
+	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -299,6 +339,10 @@ static int isl12022_probe(struct i2c_client *client)
 	}
 
 	dev_set_drvdata(&client->dev, regmap);
+
+	ret = isl12022_register_clock(&client->dev);
+	if (ret)
+		return ret;
 
 	isl12022_set_trip_levels(&client->dev);
 	isl12022_hwmon_register(&client->dev);
