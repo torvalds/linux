@@ -138,6 +138,9 @@
 				sdhci,auto-cmd12;
 				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cpu_clk AST2700_CPU_CLK_GATE_EMMCCLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_emmc_default>;
+				status = "disable";
 			};
 		};
 
