@@ -975,7 +975,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 			case PLL_TYPE_DIV:
 				hw = sam9x60_clk_register_div_pll(regmap,
 					&pmc_pll_lock, sama7g5_plls[i][j].n,
-					sama7g5_plls[i][j].p, i,
+					sama7g5_plls[i][j].p, NULL, i,
 					sama7g5_plls[i][j].c,
 					sama7g5_plls[i][j].l,
 					sama7g5_plls[i][j].f,
