@@ -12,6 +12,7 @@
 #define EFX_TC_BINDINGS_H
 #include "net_driver.h"
 
+#if IS_ENABLED(CONFIG_SFC_SRIOV)
 #include <net/sch_generic.h>
 
 struct efx_rep;
@@ -28,4 +29,15 @@ int efx_tc_indr_setup_cb(struct net_device *net_dev, struct Qdisc *sch,
 			 void (*cleanup)(struct flow_block_cb *block_cb));
 int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
 			struct net_device *net_dev);
+
+#else /* CONFIG_SFC_SRIOV */
+
+static inline int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
+				      struct net_device *net_dev)
+{
+	return NOTIFY_DONE;
+}
+
+#endif /* CONFIG_SFC_SRIOV */
+
 #endif /* EFX_TC_BINDINGS_H */

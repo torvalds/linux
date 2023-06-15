@@ -12,6 +12,7 @@
 #define EFX_TC_ENCAP_ACTIONS_H
 #include "net_driver.h"
 
+#if IS_ENABLED(CONFIG_SFC_SRIOV)
 #include <linux/refcount.h>
 #include <net/tc_act/tc_tunnel_key.h>
 
@@ -99,5 +100,15 @@ void efx_tc_flower_release_encap_md(struct efx_nic *efx,
 void efx_tc_unregister_egdev(struct efx_nic *efx, struct net_device *net_dev);
 int efx_tc_netevent_event(struct efx_nic *efx, unsigned long event,
 			  void *ptr);
+
+#else /* CONFIG_SFC_SRIOV */
+
+static inline int efx_tc_netevent_event(struct efx_nic *efx,
+					unsigned long event, void *ptr)
+{
+	return NOTIFY_DONE;
+}
+
+#endif /* CONFIG_SFC_SRIOV */
 
 #endif /* EFX_TC_ENCAP_ACTIONS_H */
