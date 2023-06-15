@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/nfs_fs.h>
 #include <linux/rcupdate.h>
+#include <linux/lockd/lockd.h>
 
 #include "nfs4_fs.h"
 #include "netns.h"
@@ -216,6 +217,50 @@ void nfs_netns_sysfs_destroy(struct nfs_net *netns)
 	}
 }
 
+static ssize_t
+shutdown_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	struct nfs_server *server = container_of(kobj, struct nfs_server, kobj);
+	bool shutdown = server->flags & NFS_MOUNT_SHUTDOWN;
+	return sysfs_emit(buf, "%d\n", shutdown);
+}
+
+static ssize_t
+shutdown_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct nfs_server *server;
+	int ret, val;
+
+	server = container_of(kobj, struct nfs_server, kobj);
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val != 1)
+		return -EINVAL;
+
+	/* already shut down? */
+	if (server->flags & NFS_MOUNT_SHUTDOWN)
+		goto out;
+
+	server->flags |= NFS_MOUNT_SHUTDOWN;
+	server->client->cl_shutdown = 1;
+	server->nfs_client->cl_rpcclient->cl_shutdown = 1;
+
+	if (!IS_ERR(server->client_acl))
+		server->client_acl->cl_shutdown = 1;
+
+	if (server->nlm_host)
+		server->nlm_host->h_rpcclnt->cl_shutdown = 1;
+out:
+	return count;
+}
+
+static struct kobj_attribute nfs_sysfs_attr_shutdown = __ATTR_RW(shutdown);
+
 #define RPC_CLIENT_NAME_SIZE 64
 
 void nfs_sysfs_link_rpc_client(struct nfs_server *server,
@@ -259,9 +304,16 @@ void nfs_sysfs_add_server(struct nfs_server *server)
 
 	ret = kobject_init_and_add(&server->kobj, &nfs_sb_ktype,
 				&nfs_kset->kobj, "server-%d", server->s_sysfs_id);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_warn("NFS: nfs sysfs add server-%d failed (%d)\n",
 					server->s_sysfs_id, ret);
+		return;
+	}
+	ret = sysfs_create_file_ns(&server->kobj, &nfs_sysfs_attr_shutdown.attr,
+				nfs_netns_server_namespace(&server->kobj));
+	if (ret < 0)
+		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
+			server->s_sysfs_id, ret);
 }
 EXPORT_SYMBOL_GPL(nfs_sysfs_add_server);
 
