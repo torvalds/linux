@@ -130,7 +130,12 @@ int perf_mem_events__init(void)
 		if (!e->tag)
 			continue;
 
-		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+		/*
+		 * Scan all PMUs not just core ones, since perf mem/c2c on
+		 * platforms like AMD uses IBS OP PMU which is independent
+		 * of core PMU.
+		 */
+		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 			scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name, pmu->name);
 			e->supported |= perf_mem_event__supported(mnt, sysfs_name);
 		}
@@ -165,7 +170,7 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 	char sysfs_name[100];
 	struct perf_pmu *pmu = NULL;
 
-	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name,
 			  pmu->name);
 		if (!perf_mem_event__supported(mnt, sysfs_name)) {
@@ -188,7 +193,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 		if (!e->record)
 			continue;
 
-		if (perf_pmus__num_core_pmus() == 1) {
+		if (perf_pmus__num_mem_pmus() == 1) {
 			if (!e->supported) {
 				pr_err("failed: event '%s' not supported\n",
 				       perf_mem_events__name(j, NULL));
@@ -203,7 +208,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				return -1;
 			}
 
-			while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 				rec_argv[i++] = "-e";
 				s = perf_mem_events__name(j, pmu->name);
 				if (s) {
