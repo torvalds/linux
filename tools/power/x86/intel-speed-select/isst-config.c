@@ -778,6 +778,7 @@ static void create_cpu_map(void)
 					map.cpu_map[0].logical_cpu);
 			} else {
 				update_punit_cpu_info(map.cpu_map[0].physical_cpu, &cpu_map[i]);
+				punit_id = cpu_map[i].punit_id;
 			}
 		}
 		cpu_map[i].initialized = 1;
