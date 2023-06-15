@@ -809,6 +809,18 @@ static int cxl_rr_alloc_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 		return -EBUSY;
 	}
 
+	/*
+	 * Endpoints should already match the region type, but backstop that
+	 * assumption with an assertion. Switch-decoders change mapping-type
+	 * based on what is mapped when they are assigned to a region.
+	 */
+	dev_WARN_ONCE(&cxlr->dev,
+		      port == cxled_to_port(cxled) &&
+			      cxld->target_type != cxlr->type,
+		      "%s:%s mismatch decoder type %d -> %d\n",
+		      dev_name(&cxled_to_memdev(cxled)->dev),
+		      dev_name(&cxld->dev), cxld->target_type, cxlr->type);
+	cxld->target_type = cxlr->type;
 	cxl_rr->decoder = cxld;
 	return 0;
 }
