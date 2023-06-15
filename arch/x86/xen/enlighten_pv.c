@@ -187,6 +187,8 @@ static void __init xen_pv_init_platform(void)
 
 	if (xen_initial_domain())
 		xen_set_mtrr_data();
+	else
+		mtrr_overwrite_state(NULL, 0, MTRR_TYPE_WRBACK);
 }
 
 static void __init xen_pv_guest_late_init(void)
