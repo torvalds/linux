@@ -84,6 +84,7 @@
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pm.h"
+#include "intel_sideband.h"
 #include "vlv_suspend.h"
 
 static struct drm_driver driver;
@@ -613,6 +614,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	 * dram info. This will be used for memory latency calculation.
 	 */
 	intel_dram_detect(dev_priv);
+
+	intel_pcode_init(dev_priv);
 
 	intel_bw_init_hw(dev_priv);
 
