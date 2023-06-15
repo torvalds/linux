@@ -770,7 +770,7 @@ of_at91_clk_prog_setup(struct device_node *np,
 			name = progclknp->name;
 
 		hw = at91_clk_register_programmable(regmap, name,
-						    parent_names, num_parents,
+						    parent_names, NULL, num_parents,
 						    id, layout, mux_table);
 		if (IS_ERR(hw))
 			continue;

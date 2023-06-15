@@ -313,7 +313,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 		snprintf(name, sizeof(name), "prog%d", i);
 
 		hw = at91_clk_register_programmable(regmap, name,
-						    parent_names, 6, i,
+						    parent_names, NULL, 6, i,
 						    &sam9x60_programmable_layout,
 						    NULL);
 		if (IS_ERR(hw))

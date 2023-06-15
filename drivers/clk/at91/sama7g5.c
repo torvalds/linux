@@ -1056,7 +1056,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 		snprintf(name, sizeof(name), "prog%d", i);
 
 		hw = at91_clk_register_programmable(regmap, name, parent_names,
-						    9, i,
+						    NULL, 9, i,
 						    &programmable_layout,
 						    sama7g5_prog_mux_table);
 		if (IS_ERR(hw))

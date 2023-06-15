@@ -448,7 +448,7 @@ static void __init at91sam926x_pmc_setup(struct device_node *np,
 		snprintf(name, sizeof(name), "prog%d", i);
 
 		hw = at91_clk_register_programmable(regmap, name,
-						    parent_names, 4, i,
+						    parent_names, NULL, 4, i,
 						    &at91rm9200_programmable_layout,
 						    NULL);
 		if (IS_ERR(hw))
