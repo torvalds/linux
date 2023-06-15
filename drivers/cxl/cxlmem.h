@@ -38,6 +38,7 @@
  * @detach_work: active memdev lost a port in its ancestry
  * @cxl_nvb: coordinate removal of @cxl_nvd if present
  * @cxl_nvd: optional bridge to an nvdimm if the device supports pmem
+ * @endpoint: connection to the CXL port topology for this memory device
  * @id: id number of this memdev instance.
  * @depth: endpoint port depth
  */
@@ -48,6 +49,7 @@ struct cxl_memdev {
 	struct work_struct detach_work;
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_nvdimm *cxl_nvd;
+	struct cxl_port *endpoint;
 	int id;
 	int depth;
 };

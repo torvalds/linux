@@ -149,7 +149,7 @@ int cxl_trigger_poison_list(struct cxl_memdev *cxlmd)
 	struct cxl_port *port;
 	int rc;
 
-	port = dev_get_drvdata(&cxlmd->dev);
+	port = cxlmd->endpoint;
 	if (!port || !is_cxl_endpoint(port))
 		return -EINVAL;
 
@@ -207,7 +207,7 @@ static struct cxl_region *cxl_dpa_to_region(struct cxl_memdev *cxlmd, u64 dpa)
 	ctx = (struct cxl_dpa_to_region_context) {
 		.dpa = dpa,
 	};
-	port = dev_get_drvdata(&cxlmd->dev);
+	port = cxlmd->endpoint;
 	if (port && is_cxl_endpoint(port) && port->commit_end != -1)
 		device_for_each_child(&port->dev, &ctx, __cxl_dpa_to_region);
 
