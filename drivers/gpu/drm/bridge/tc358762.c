@@ -41,8 +41,17 @@
 #define DSI_LANEENABLE		0x0210 /* Enables each lane */
 #define DSI_RX_START		1
 
-/* LCDC/DPI Host Registers */
-#define LCDCTRL			0x0420
+/* LCDC/DPI Host Registers, based on guesswork that this matches TC358764 */
+#define LCDCTRL			0x0420 /* Video Path Control */
+#define LCDCTRL_MSF		BIT(0) /* Magic square in RGB666 */
+#define LCDCTRL_VTGEN		BIT(4)/* Use chip clock for timing */
+#define LCDCTRL_UNK6		BIT(6) /* Unknown */
+#define LCDCTRL_EVTMODE		BIT(5) /* Event mode */
+#define LCDCTRL_RGB888		BIT(8) /* RGB888 mode */
+#define LCDCTRL_HSPOL		BIT(17) /* Polarity of HSYNC signal */
+#define LCDCTRL_DEPOL		BIT(18) /* Polarity of DE signal */
+#define LCDCTRL_VSPOL		BIT(19) /* Polarity of VSYNC signal */
+#define LCDCTRL_VSDELAY(v)	(((v) & 0xfff) << 20) /* VSYNC delay */
 
 /* SPI Master Registers */
 #define SPICMR			0x0450
@@ -114,7 +123,8 @@ static int tc358762_init(struct tc358762 *ctx)
 	tc358762_write(ctx, PPI_LPTXTIMECNT, LPX_PERIOD);
 
 	tc358762_write(ctx, SPICMR, 0x00);
-	tc358762_write(ctx, LCDCTRL, 0x00100150);
+	tc358762_write(ctx, LCDCTRL, LCDCTRL_VSDELAY(1) | LCDCTRL_RGB888 |
+				     LCDCTRL_UNK6 | LCDCTRL_VTGEN);
 	tc358762_write(ctx, SYSCTRL, 0x040f);
 	msleep(100);
 
