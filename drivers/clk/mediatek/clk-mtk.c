@@ -469,7 +469,7 @@ static int __mtk_clk_simple_probe(struct platform_device *pdev,
 	const struct platform_device_id *id;
 	const struct mtk_clk_desc *mcd;
 	struct clk_hw_onecell_data *clk_data;
-	void __iomem *base;
+	void __iomem *base = NULL;
 	int num_clks, r;
 
 	mcd = device_get_match_data(&pdev->dev);
@@ -483,8 +483,8 @@ static int __mtk_clk_simple_probe(struct platform_device *pdev,
 			return -EINVAL;
 	}
 
-	/* Composite clocks needs us to pass iomem pointer */
-	if (mcd->composite_clks) {
+	/* Composite and divider clocks needs us to pass iomem pointer */
+	if (mcd->composite_clks || mcd->divider_clks) {
 		if (!mcd->shared_io)
 			base = devm_platform_ioremap_resource(pdev, 0);
 		else
