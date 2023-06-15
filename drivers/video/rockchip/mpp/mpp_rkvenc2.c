@@ -178,6 +178,12 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_REG_SLICE_NUM_BASE	(0x4034)
 #define RKVENC2_REG_SLICE_LEN_BASE	(0x4038)
 
+#define RKVENC2_REG_ST_BSB		(0x402c)
+#define RKVENC2_REG_ADR_BSBT		(0x2b0)
+#define RKVENC2_REG_ADR_BSBB		(0x2b4)
+#define RKVENC2_REG_ADR_BSBR		(0x2b8)
+#define RKVENC2_REG_ADR_BSBS		(0x2bc)
+
 union rkvenc2_slice_len_info {
 	u32 val;
 
@@ -282,6 +288,8 @@ struct rkvenc_dev {
 	dma_addr_t sram_iova;
 	u32 sram_enabled;
 	struct page *rcb_page;
+
+	u32 bs_overflow;
 
 #ifdef CONFIG_PM_DEVFREQ
 	struct rockchip_opp_info opp_info;
@@ -1290,6 +1298,8 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	struct rkvenc_hw_info *hw = enc->hw_info;
 	struct mpp_task *mpp_task = NULL;
 	struct rkvenc_task *task = NULL;
+	u32 int_clear = 1;
+	u32 irq_mask = 0;
 	int ret = IRQ_NONE;
 
 	mpp_debug_enter();
@@ -1311,12 +1321,12 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 			wake_up(&mpp_task->wait);
 		}
 
-		mpp_write(mpp, hw->int_mask_base, 0x100);
-		mpp_write(mpp, hw->int_clr_base, 0xffffffff);
-		udelay(5);
-		mpp_write(mpp, hw->int_sta_base, 0);
-
+		irq_mask = INT_STA_ENC_DONE_STA;
 		ret = IRQ_WAKE_THREAD;
+		if (enc->bs_overflow) {
+			mpp->irq_status |= INT_STA_BSF_OFLW_STA;
+			enc->bs_overflow = 0;
+		}
 	} else if (mpp->irq_status & INT_STA_SLC_DONE_STA) {
 		if (task && task->task_split) {
 			mpp_time_part_diff(mpp_task);
@@ -1325,7 +1335,42 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 			wake_up(&mpp_task->wait);
 		}
 
-		mpp_write(mpp, hw->int_clr_base, INT_STA_SLC_DONE_STA);
+		irq_mask = INT_STA_ENC_DONE_STA;
+		int_clear = 0;
+	} else if (mpp->irq_status & INT_STA_BSF_OFLW_STA) {
+		u32 bs_rd = mpp_read(mpp, RKVENC2_REG_ADR_BSBR);
+		u32 bs_wr = mpp_read(mpp, RKVENC2_REG_ST_BSB);
+		u32 bs_top = mpp_read(mpp, RKVENC2_REG_ADR_BSBT);
+		u32 bs_bot = mpp_read(mpp, RKVENC2_REG_ADR_BSBB);
+
+		if (mpp_task)
+			dev_err(mpp->dev, "task %d found bitstream overflow [%#08x %#08x %#08x %#08x]\n",
+				mpp_task->task_index, bs_top, bs_bot, bs_wr, bs_rd);
+		bs_wr += 128;
+		if (bs_wr >= bs_top)
+			bs_wr = bs_bot;
+		/* clear int first */
+		mpp_write(mpp, hw->int_clr_base, mpp->irq_status);
+		/* update write addr for enc continue */
+		mpp_write(mpp, RKVENC2_REG_ADR_BSBS, bs_wr);
+		enc->bs_overflow = 1;
+		irq_mask = 0;
+		int_clear = 0;
+		ret = IRQ_HANDLED;
+	} else {
+		dev_err(mpp->dev, "found error status %08x\n", mpp->irq_status);
+
+		irq_mask = mpp->irq_status;
+		ret = IRQ_WAKE_THREAD;
+	}
+
+	if (irq_mask)
+		mpp_write(mpp, hw->int_mask_base, irq_mask);
+
+	if (int_clear) {
+		mpp_write(mpp, hw->int_clr_base, mpp->irq_status);
+		udelay(5);
+		mpp_write(mpp, hw->int_sta_base, 0);
 	}
 
 	mpp_debug_leave();

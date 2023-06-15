@@ -2266,7 +2266,7 @@ irqreturn_t mpp_dev_irq(int irq, void *param)
 		irq_ret = mpp->dev_ops->irq(mpp);
 
 	if (task) {
-		if (irq_ret != IRQ_NONE) {
+		if (irq_ret == IRQ_WAKE_THREAD) {
 			/* if wait or delayed work timeout, abort request will turn on,
 			 * isr should not to response, and handle it in delayed work
 			 */
