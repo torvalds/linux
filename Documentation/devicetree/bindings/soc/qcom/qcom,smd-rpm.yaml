@@ -34,10 +34,15 @@ properties:
       - qcom,rpm-apq8084
       - qcom,rpm-ipq6018
       - qcom,rpm-ipq9574
+      - qcom,rpm-mdm9607
       - qcom,rpm-msm8226
+      - qcom,rpm-msm8610
       - qcom,rpm-msm8909
       - qcom,rpm-msm8916
+      - qcom,rpm-msm8917
       - qcom,rpm-msm8936
+      - qcom,rpm-msm8937
+      - qcom,rpm-msm8952
       - qcom,rpm-msm8953
       - qcom,rpm-msm8974
       - qcom,rpm-msm8976
@@ -81,10 +86,15 @@ if:
       contains:
         enum:
           - qcom,rpm-apq8084
+          - qcom,rpm-mdm9607
           - qcom,rpm-msm8226
+          - qcom,rpm-msm8610
           - qcom,rpm-msm8909
           - qcom,rpm-msm8916
+          - qcom,rpm-msm8917
           - qcom,rpm-msm8936
+          - qcom,rpm-msm8937
+          - qcom,rpm-msm8952
           - qcom,rpm-msm8953
           - qcom,rpm-msm8974
           - qcom,rpm-msm8976
