@@ -145,7 +145,8 @@ static int read_sb_page(struct mddev *mddev, loff_t offset,
 		struct page *page, unsigned long index, int size)
 {
 
-	sector_t sector = offset + index * (PAGE_SIZE / SECTOR_SIZE);
+	sector_t sector = mddev->bitmap_info.offset + offset +
+		index * (PAGE_SIZE / SECTOR_SIZE);
 	struct md_rdev *rdev;
 
 	rdev_for_each(rdev, mddev) {
@@ -593,7 +594,7 @@ static int md_bitmap_read_sb(struct bitmap *bitmap)
 	unsigned long sectors_reserved = 0;
 	int err = -EINVAL;
 	struct page *sb_page;
-	loff_t offset = bitmap->mddev->bitmap_info.offset;
+	loff_t offset = 0;
 
 	if (!bitmap->storage.file && !bitmap->mddev->bitmap_info.offset) {
 		chunksize = 128 * 1024 * 1024;
@@ -620,7 +621,7 @@ re_read:
 		bm_blocks = ((bm_blocks+7) >> 3) + sizeof(bitmap_super_t);
 		/* to 4k blocks */
 		bm_blocks = DIV_ROUND_UP_SECTOR_T(bm_blocks, 4096);
-		offset = bitmap->mddev->bitmap_info.offset + (bitmap->cluster_slot * (bm_blocks << 3));
+		offset = bitmap->cluster_slot * (bm_blocks << 3);
 		pr_debug("%s:%d bm slot: %d offset: %llu\n", __func__, __LINE__,
 			bitmap->cluster_slot, offset);
 	}
@@ -632,10 +633,8 @@ re_read:
 		err = read_file_page(bitmap->storage.file, 0,
 				bitmap, bytes, sb_page);
 	} else {
-		err = read_sb_page(bitmap->mddev,
-				   offset,
-				   sb_page,
-				   0, sizeof(bitmap_super_t));
+		err = read_sb_page(bitmap->mddev, offset, sb_page, 0,
+				   sizeof(bitmap_super_t));
 	}
 	if (err)
 		return err;
@@ -1128,8 +1127,8 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 		if (file)
 			ret = read_file_page(file, i, bitmap, count, page);
 		else
-			ret = read_sb_page(mddev, mddev->bitmap_info.offset,
-					   page, i + node_offset, count);
+			ret = read_sb_page(mddev, 0, page, i + node_offset,
+					   count);
 		if (ret)
 			goto err;
 	}
