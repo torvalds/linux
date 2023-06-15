@@ -62,12 +62,7 @@ static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 #else
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vcpu->kvm;
-
-	WARN_ON_ONCE(!test_bit(KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED,
-			       &kvm->arch.flags));
-
-	return test_bit(KVM_ARCH_FLAG_EL1_32BIT, &kvm->arch.flags);
+	return test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features);
 }
 #endif
 
