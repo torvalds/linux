@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/rockchip.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -88,6 +89,8 @@ struct rk_i2s_tdm_dev {
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
 	struct reset_control *tx_reset;
 	struct reset_control *rx_reset;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *clk_state;
 	const struct rk_i2s_soc_data *soc_data;
 #ifdef HAVE_SYNC_RESET
 	void __iomem *cru_base;
@@ -160,6 +163,20 @@ static int i2s_tdm_runtime_suspend(struct device *dev)
 	clk_disable_unprepare(i2s_tdm->mclk_tx);
 	clk_disable_unprepare(i2s_tdm->mclk_rx);
 
+	pinctrl_pm_select_idle_state(dev);
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_pinctrl_select_clk_state(struct device *dev)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
+
+	if (IS_ERR_OR_NULL(i2s_tdm->pinctrl) || !i2s_tdm->clk_state)
+		return 0;
+
+	pinctrl_select_state(i2s_tdm->pinctrl, i2s_tdm->clk_state);
+
 	return 0;
 }
 
@@ -167,6 +184,13 @@ static int i2s_tdm_runtime_resume(struct device *dev)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
 	int ret;
+
+	/*
+	 * pinctrl default state is invoked by ASoC framework, so,
+	 * we just handle clk state here if DT assigned.
+	 */
+	if (i2s_tdm->is_master_mode)
+		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
 
 	ret = clk_prepare_enable(i2s_tdm->mclk_tx);
 	if (ret)
@@ -181,6 +205,13 @@ static int i2s_tdm_runtime_resume(struct device *dev)
 	ret = regcache_sync(i2s_tdm->regmap);
 	if (ret)
 		goto err_regmap;
+
+	/*
+	 * should be placed after regcache sync done to back
+	 * to the slave mode and then enable clk state.
+	 */
+	if (!i2s_tdm->is_master_mode)
+		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
 
 	return 0;
 
@@ -2151,6 +2182,15 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		soc_dai->playback.channels_min = 0;
 
 	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+
+	i2s_tdm->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (!IS_ERR_OR_NULL(i2s_tdm->pinctrl)) {
+		i2s_tdm->clk_state = pinctrl_lookup_state(i2s_tdm->pinctrl, "clk");
+		if (IS_ERR(i2s_tdm->clk_state)) {
+			i2s_tdm->clk_state = NULL;
+			dev_dbg(i2s_tdm->dev, "Have no clk pinctrl state\n");
+		}
+	}
 
 #ifdef HAVE_SYNC_RESET
 	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
