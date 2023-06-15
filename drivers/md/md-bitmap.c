@@ -279,22 +279,20 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 	return 0;
 }
 
-static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
+static void write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
-	struct md_rdev *rdev;
 	struct mddev *mddev = bitmap->mddev;
-	int ret;
 
 	do {
-		rdev = NULL;
+		struct md_rdev *rdev = NULL;
+
 		while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
-			ret = __write_sb_page(rdev, bitmap, page);
-			if (ret)
-				return ret;
+			if (__write_sb_page(rdev, bitmap, page) < 0) {
+				set_bit(BITMAP_WRITE_ERROR, &bitmap->flags);
+				return;
+			}
 		}
 	} while (wait && md_super_wait(mddev) < 0);
-
-	return 0;
 }
 
 static void md_bitmap_file_kick(struct bitmap *bitmap);
@@ -306,10 +304,7 @@ static void write_page(struct bitmap *bitmap, struct page *page, int wait)
 	struct buffer_head *bh;
 
 	if (bitmap->storage.file == NULL) {
-		switch (write_sb_page(bitmap, page, wait)) {
-		case -EINVAL:
-			set_bit(BITMAP_WRITE_ERROR, &bitmap->flags);
-		}
+		write_sb_page(bitmap, page, wait);
 	} else {
 
 		bh = page_buffers(page);
