@@ -1043,7 +1043,7 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			};
 
 			plen = extract_iter_to_sg(&msg->msg_iter, len, &sgtable,
-						  MAX_SGL_ENTS, 0);
+						  MAX_SGL_ENTS - sgl->cur, 0);
 			if (plen < 0) {
 				err = plen;
 				goto unlock;
