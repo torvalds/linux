@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022 - 2023 Intel Corporation
  */
 #include "mvm.h"
 
@@ -50,7 +50,7 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	 * the association response successfully, so just skip all that
 	 * and enable both when we have MLO.
 	 */
-	if (vif->valid_links) {
+	if (ieee80211_vif_is_mld(vif)) {
 		iwl_mvm_mld_set_he_support(mvm, vif, cmd);
 		cmd->eht_support = cpu_to_le32(1);
 		return;

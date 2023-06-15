@@ -42,7 +42,7 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	 * Of course the same can be done during add as well, but we must do
 	 * it during remove, since we don't have the mvmvif->ap_sta pointer.
 	 */
-	if (!sta && (keyconf->link_id >= 0 || !vif->valid_links))
+	if (!sta && (keyconf->link_id >= 0 || !ieee80211_vif_is_mld(vif)))
 		return BIT(link_info->ap_sta_id);
 
 	/* STA should be non-NULL now, but iwl_mvm_sta_fw_id_mask() checks */

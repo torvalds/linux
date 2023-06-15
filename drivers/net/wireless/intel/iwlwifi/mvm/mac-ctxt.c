@@ -893,7 +893,7 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 	u8 rate;
 	u32 i;
 
-	if (link_id == IEEE80211_LINK_UNSPECIFIED && vif->valid_links) {
+	if (link_id == IEEE80211_LINK_UNSPECIFIED && ieee80211_vif_is_mld(vif)) {
 		for (i = 0; i < ARRAY_SIZE(mvmvif->link); i++) {
 			if (!mvmvif->link[i])
 				continue;
