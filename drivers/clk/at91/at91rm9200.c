@@ -193,7 +193,7 @@ static void __init at91rm9200_pmc_setup(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(at91rm9200_periphck); i++) {
 		hw = at91_clk_register_peripheral(regmap,
 						  at91rm9200_periphck[i].n,
-						  "masterck_div",
+						  "masterck_div", NULL,
 						  at91rm9200_periphck[i].id);
 		if (IS_ERR(hw))
 			goto err_free;

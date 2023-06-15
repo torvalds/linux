@@ -1079,7 +1079,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 		hw = at91_clk_register_sam9x5_peripheral(regmap, &pmc_pcr_lock,
 						&sama7g5_pcr_layout,
 						sama7g5_periphck[i].n,
-						sama7g5_periphck[i].p,
+						sama7g5_periphck[i].p, NULL,
 						sama7g5_periphck[i].id,
 						&sama7g5_periphck[i].r,
 						sama7g5_periphck[i].chgp ? 0 :
