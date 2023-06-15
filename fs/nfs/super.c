@@ -70,6 +70,8 @@
 #include "nfs4session.h"
 #include "pnfs.h"
 #include "nfs.h"
+#include "netns.h"
+#include "sysfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -1089,6 +1091,7 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 						 &sb->s_blocksize_bits);
 
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
+	nfs_sysfs_move_server_to_sb(sb);
 	server->has_sec_mnt_opts = ctx->has_sec_mnt_opts;
 }
 
@@ -1331,13 +1334,14 @@ error_splat_super:
 }
 
 /*
- * Destroy an NFS2/3 superblock
+ * Destroy an NFS superblock
  */
 void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
 	dev_t dev = s->s_dev;
 
+	nfs_sysfs_move_sb_to_server(server);
 	generic_shutdown_super(s);
 
 	nfs_fscache_release_super_cookie(s);

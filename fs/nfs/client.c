@@ -698,6 +698,7 @@ static int nfs_init_server(struct nfs_server *server,
 		return PTR_ERR(clp);
 
 	server->nfs_client = clp;
+	nfs_sysfs_add_server(server);
 
 	/* Initialise the client representation from the mount data */
 	server->flags = ctx->flags;
@@ -952,6 +953,8 @@ void nfs_server_remove_lists(struct nfs_server *server)
 }
 EXPORT_SYMBOL_GPL(nfs_server_remove_lists);
 
+static DEFINE_IDA(s_sysfs_ids);
+
 /*
  * Allocate and initialise a server record
  */
@@ -962,6 +965,12 @@ struct nfs_server *nfs_alloc_server(void)
 	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
 	if (!server)
 		return NULL;
+
+	server->s_sysfs_id = ida_alloc(&s_sysfs_ids, GFP_KERNEL);
+	if (server->s_sysfs_id < 0) {
+		kfree(server);
+		return NULL;
+	}
 
 	server->client = server->client_acl = ERR_PTR(-EINVAL);
 
@@ -1008,6 +1017,10 @@ void nfs_free_server(struct nfs_server *server)
 		rpc_shutdown_client(server->client);
 
 	nfs_put_client(server->nfs_client);
+
+	nfs_sysfs_remove_server(server);
+	kobject_put(&server->kobj);
+	ida_free(&s_sysfs_ids, server->s_sysfs_id);
 
 	ida_destroy(&server->lockowner_id);
 	ida_destroy(&server->openowner_id);
@@ -1109,6 +1122,8 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 	nfs_server_copy_userdata(server, source);
 
 	server->fsid = fattr->fsid;
+
+	nfs_sysfs_add_server(server);
 
 	error = nfs_init_server_rpcclient(server,
 			source->client->cl_timeout,
@@ -1393,6 +1408,7 @@ error_0:
 void nfs_fs_proc_exit(void)
 {
 	remove_proc_subtree("fs/nfsfs", NULL);
+	ida_destroy(&s_sysfs_ids);
 }
 
 #endif /* CONFIG_PROC_FS */

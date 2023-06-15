@@ -215,3 +215,62 @@ void nfs_netns_sysfs_destroy(struct nfs_net *netns)
 		netns->nfs_client = NULL;
 	}
 }
+
+static void nfs_sysfs_sb_release(struct kobject *kobj)
+{
+	/* no-op: why? see lib/kobject.c kobject_cleanup() */
+}
+
+static const void *nfs_netns_server_namespace(const struct kobject *kobj)
+{
+	return container_of(kobj, struct nfs_server, kobj)->nfs_client->cl_net;
+}
+
+static struct kobj_type nfs_sb_ktype = {
+	.release = nfs_sysfs_sb_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.namespace = nfs_netns_server_namespace,
+	.child_ns_type = nfs_netns_object_child_ns_type,
+};
+
+void nfs_sysfs_add_server(struct nfs_server *server)
+{
+	int ret;
+
+	ret = kobject_init_and_add(&server->kobj, &nfs_sb_ktype,
+				&nfs_kset->kobj, "server-%d", server->s_sysfs_id);
+	if (ret < 0)
+		pr_warn("NFS: nfs sysfs add server-%d failed (%d)\n",
+					server->s_sysfs_id, ret);
+}
+EXPORT_SYMBOL_GPL(nfs_sysfs_add_server);
+
+void nfs_sysfs_move_server_to_sb(struct super_block *s)
+{
+	struct nfs_server *server = s->s_fs_info;
+	int ret;
+
+	ret = kobject_rename(&server->kobj, s->s_id);
+	if (ret < 0)
+		pr_warn("NFS: rename sysfs %s failed (%d)\n",
+					server->kobj.name, ret);
+}
+
+void nfs_sysfs_move_sb_to_server(struct nfs_server *server)
+{
+	const char *s;
+	int ret = -ENOMEM;
+
+	s = kasprintf(GFP_KERNEL, "server-%d", server->s_sysfs_id);
+	if (s)
+		ret = kobject_rename(&server->kobj, s);
+	if (ret < 0)
+		pr_warn("NFS: rename sysfs %s failed (%d)\n",
+					server->kobj.name, ret);
+}
+
+/* unlink, not dec-ref */
+void nfs_sysfs_remove_server(struct nfs_server *server)
+{
+	kobject_del(&server->kobj);
+}

@@ -184,6 +184,7 @@ struct nfs_server {
 				change_attr_type;/* Description of change attribute */
 
 	struct nfs_fsid		fsid;
+	int			s_sysfs_id;	/* sysfs dentry index */
 	__u64			maxfilesize;	/* maximum file size */
 	struct timespec64	time_delta;	/* smallest time granularity */
 	unsigned long		mount_time;	/* when this fs was mounted */
@@ -260,6 +261,7 @@ struct nfs_server {
 	/* User namespace info */
 	const struct cred	*cred;
 	bool			has_sec_mnt_opts;
+	struct kobject		kobj;
 };
 
 /* Server capabilities */
