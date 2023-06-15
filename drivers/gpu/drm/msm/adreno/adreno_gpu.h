@@ -286,7 +286,7 @@ static inline int adreno_is_a660(const struct adreno_gpu *gpu)
 
 static inline int adreno_is_a690(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 690;
+	return adreno_is_revn(gpu, 690);
 };
 
 /* check for a615, a616, a618, a619 or any derivatives */
