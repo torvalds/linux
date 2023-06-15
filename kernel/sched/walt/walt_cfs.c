@@ -292,16 +292,13 @@ bool select_prev_cpu_fastpath(int prev_cpu, int start_cpu, int order_index,
 	if (cpu_halted(prev_cpu))
 		return false;
 
-	if (!(order_index == 0 || !cpu_partial_halted(prev_cpu)))
-		return false;
-
 	if (is_reserved(prev_cpu))
 		return false;
 
-	valid_part_haltable_prev_cpu = (cpumask_test_cpu(prev_cpu, &part_haltable_cpus) &&
-				(order_index == 0 && cpu_partial_halted(prev_cpu)));
-	valid_prev_cpu = ((prev_wrq->cluster->id == start_wrq->cluster->id) ||
-				asym_cap_siblings(prev_cpu, start_cpu));
+	valid_part_haltable_prev_cpu = cpumask_test_cpu(prev_cpu, &part_haltable_cpus) &&
+					((order_index == 0 && cpu_partial_halted(prev_cpu)) ||
+					 (order_index == 1 && !cpu_partial_halted(prev_cpu)));
+	valid_prev_cpu = (prev_wrq->cluster->id == start_wrq->cluster->id);
 
 	if (!(valid_part_haltable_prev_cpu || valid_prev_cpu))
 		return false;
