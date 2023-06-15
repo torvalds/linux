@@ -165,14 +165,14 @@ static void __init sama5d4_pmc_setup(struct device_node *np)
 
 	bypass = of_property_read_bool(np, "atmel,osc-bypass");
 
-	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name,
+	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name, NULL,
 					bypass);
 	if (IS_ERR(hw))
 		goto err_free;
 
 	parent_names[0] = "main_rc_osc";
 	parent_names[1] = "main_osc";
-	hw = at91_clk_register_sam9x5_main(regmap, "mainck", parent_names, 2);
+	hw = at91_clk_register_sam9x5_main(regmap, "mainck", parent_names, NULL, 2);
 	if (IS_ERR(hw))
 		goto err_free;
 

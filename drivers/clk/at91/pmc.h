@@ -161,14 +161,17 @@ at91_clk_register_main_rc_osc(struct regmap *regmap, const char *name,
 			      u32 frequency, u32 accuracy);
 struct clk_hw * __init
 at91_clk_register_main_osc(struct regmap *regmap, const char *name,
-			   const char *parent_name, bool bypass);
+			   const char *parent_name,
+			   struct clk_parent_data *parent_data, bool bypass);
 struct clk_hw * __init
 at91_clk_register_rm9200_main(struct regmap *regmap,
 			      const char *name,
-			      const char *parent_name);
+			      const char *parent_name,
+			      struct clk_hw *parent_hw);
 struct clk_hw * __init
 at91_clk_register_sam9x5_main(struct regmap *regmap, const char *name,
-			      const char **parent_names, int num_parents);
+			      const char **parent_names,
+			      struct clk_hw **parent_hws, int num_parents);
 
 struct clk_hw * __init
 at91_clk_register_master_pres(struct regmap *regmap, const char *name,

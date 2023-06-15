@@ -363,12 +363,12 @@ static void __init at91sam926x_pmc_setup(struct device_node *np,
 
 	bypass = of_property_read_bool(np, "atmel,osc-bypass");
 
-	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name,
+	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name, NULL,
 					bypass);
 	if (IS_ERR(hw))
 		goto err_free;
 
-	hw = at91_clk_register_rm9200_main(regmap, "mainck", "main_osc");
+	hw = at91_clk_register_rm9200_main(regmap, "mainck", "main_osc", NULL);
 	if (IS_ERR(hw))
 		goto err_free;
 

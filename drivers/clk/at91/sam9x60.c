@@ -219,14 +219,14 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	if (IS_ERR(hw))
 		goto err_free;
 
-	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name, 0);
+	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name, NULL, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 	main_osc_hw = hw;
 
 	parent_names[0] = "main_rc_osc";
 	parent_names[1] = "main_osc";
-	hw = at91_clk_register_sam9x5_main(regmap, "mainck", parent_names, 2);
+	hw = at91_clk_register_sam9x5_main(regmap, "mainck", parent_names, NULL, 2);
 	if (IS_ERR(hw))
 		goto err_free;
 

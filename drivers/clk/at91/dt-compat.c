@@ -269,7 +269,7 @@ static void __init of_at91rm9200_clk_main_osc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	hw = at91_clk_register_main_osc(regmap, name, parent_name, bypass);
+	hw = at91_clk_register_main_osc(regmap, name, parent_name, NULL, bypass);
 	if (IS_ERR(hw))
 		return;
 
@@ -323,7 +323,7 @@ static void __init of_at91rm9200_clk_main_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	hw = at91_clk_register_rm9200_main(regmap, name, parent_name);
+	hw = at91_clk_register_rm9200_main(regmap, name, parent_name, NULL);
 	if (IS_ERR(hw))
 		return;
 
@@ -354,7 +354,7 @@ static void __init of_at91sam9x5_clk_main_setup(struct device_node *np)
 
 	of_property_read_string(np, "clock-output-names", &name);
 
-	hw = at91_clk_register_sam9x5_main(regmap, name, parent_names,
+	hw = at91_clk_register_sam9x5_main(regmap, name, parent_names, NULL,
 					   num_parents);
 	if (IS_ERR(hw))
 		return;

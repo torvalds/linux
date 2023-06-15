@@ -95,7 +95,7 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 	if (!at91sam9rl_pmc)
 		return;
 
-	hw = at91_clk_register_rm9200_main(regmap, "mainck", mainxtal_name);
+	hw = at91_clk_register_rm9200_main(regmap, "mainck", mainxtal_name, NULL);
 	if (IS_ERR(hw))
 		goto err_free;
 
