@@ -16,7 +16,6 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/qcom_scm.h>
 #include <linux/dma-mapping.h>
-#include <soc/qcom/qseecomi.h>
 #include <linux/qtee_shmbridge.h>
 #include <linux/of_platform.h>
 
