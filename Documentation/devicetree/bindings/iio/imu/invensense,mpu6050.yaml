@@ -31,6 +31,9 @@ properties:
           - invensense,mpu9250
           - invensense,mpu9255
       - items:
+          - const: invensense,icm20600
+          - const: invensense,icm20602
+      - items:
           - const: invensense,icm20608d
           - const: invensense,icm20608
 

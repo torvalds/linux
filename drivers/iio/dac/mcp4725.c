@@ -536,7 +536,7 @@ static struct i2c_driver mcp4725_driver = {
 		.of_match_table = mcp4725_of_match,
 		.pm	= pm_sleep_ptr(&mcp4725_pm_ops),
 	},
-	.probe_new	= mcp4725_probe,
+	.probe		= mcp4725_probe,
 	.remove		= mcp4725_remove,
 	.id_table	= mcp4725_id,
 };

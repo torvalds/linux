@@ -1641,7 +1641,7 @@ static struct i2c_driver ltr501_driver = {
 		.pm	= pm_sleep_ptr(&ltr501_pm_ops),
 		.acpi_match_table = ACPI_PTR(ltr_acpi_match),
 	},
-	.probe_new = ltr501_probe,
+	.probe = ltr501_probe,
 	.remove	= ltr501_remove,
 	.id_table = ltr501_id,
 };

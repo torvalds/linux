@@ -103,7 +103,7 @@ static struct i2c_driver ad7091r5_driver = {
 		.name = "ad7091r5",
 		.of_match_table = ad7091r5_dt_ids,
 	},
-	.probe_new = ad7091r5_i2c_probe,
+	.probe = ad7091r5_i2c_probe,
 	.id_table = ad7091r5_i2c_ids,
 };
 module_i2c_driver(ad7091r5_driver);

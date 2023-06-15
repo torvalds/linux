@@ -95,7 +95,7 @@ static struct i2c_driver hmc5843_driver = {
 		.of_match_table = hmc5843_of_match,
 	},
 	.id_table	= hmc5843_id,
-	.probe_new	= hmc5843_i2c_probe,
+	.probe		= hmc5843_i2c_probe,
 	.remove		= hmc5843_i2c_remove,
 };
 module_i2c_driver(hmc5843_driver);

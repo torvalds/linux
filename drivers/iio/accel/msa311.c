@@ -1294,7 +1294,7 @@ static struct i2c_driver msa311_driver = {
 		.of_match_table = msa311_of_match,
 		.pm = pm_ptr(&msa311_pm_ops),
 	},
-	.probe_new	= msa311_probe,
+	.probe		= msa311_probe,
 	.id_table	= msa311_i2c_id,
 };
 module_i2c_driver(msa311_driver);

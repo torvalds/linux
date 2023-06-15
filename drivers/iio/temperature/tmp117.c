@@ -217,7 +217,7 @@ static struct i2c_driver tmp117_driver = {
 		.name	= "tmp117",
 		.of_match_table = tmp117_of_match,
 	},
-	.probe_new	= tmp117_probe,
+	.probe		= tmp117_probe,
 	.id_table	= tmp117_id,
 };
 module_i2c_driver(tmp117_driver);

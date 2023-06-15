@@ -22,6 +22,7 @@
 #include <linux/platform_data/st_sensors_pdata.h>
 
 #define LSM9DS0_IMU_DEV_NAME		"lsm9ds0"
+#define LSM303D_IMU_DEV_NAME		"lsm303d"
 
 /*
  * Buffer size max case: 2bytes per channel, 3 channels in total +

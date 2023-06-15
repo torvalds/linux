@@ -98,7 +98,7 @@ static struct i2c_driver inv_icm42600_driver = {
 		.of_match_table = inv_icm42600_of_matches,
 		.pm = pm_ptr(&inv_icm42600_pm_ops),
 	},
-	.probe_new = inv_icm42600_probe,
+	.probe = inv_icm42600_probe,
 };
 module_i2c_driver(inv_icm42600_driver);
 

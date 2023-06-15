@@ -543,7 +543,7 @@ static struct i2c_driver stk8ba50_driver = {
 		.pm = pm_sleep_ptr(&stk8ba50_pm_ops),
 		.acpi_match_table = ACPI_PTR(stk8ba50_acpi_id),
 	},
-	.probe_new =        stk8ba50_probe,
+	.probe =        stk8ba50_probe,
 	.remove =           stk8ba50_remove,
 	.id_table =         stk8ba50_i2c_id,
 };

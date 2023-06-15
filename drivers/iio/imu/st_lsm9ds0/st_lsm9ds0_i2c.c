@@ -19,6 +19,10 @@
 
 static const struct of_device_id st_lsm9ds0_of_match[] = {
 	{
+		.compatible = "st,lsm303d-imu",
+		.data = LSM303D_IMU_DEV_NAME,
+	},
+	{
 		.compatible = "st,lsm9ds0-imu",
 		.data = LSM9DS0_IMU_DEV_NAME,
 	},
@@ -27,10 +31,17 @@ static const struct of_device_id st_lsm9ds0_of_match[] = {
 MODULE_DEVICE_TABLE(of, st_lsm9ds0_of_match);
 
 static const struct i2c_device_id st_lsm9ds0_id_table[] = {
+	{ LSM303D_IMU_DEV_NAME },
 	{ LSM9DS0_IMU_DEV_NAME },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm9ds0_id_table);
+
+static const struct acpi_device_id st_lsm9ds0_acpi_match[] = {
+	{"ACCL0001", (kernel_ulong_t)LSM303D_IMU_DEV_NAME},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, st_lsm9ds0_acpi_match);
 
 static const struct regmap_config st_lsm9ds0_regmap_config = {
 	.reg_bits	= 8,
@@ -68,8 +79,9 @@ static struct i2c_driver st_lsm9ds0_driver = {
 	.driver = {
 		.name = "st-lsm9ds0-i2c",
 		.of_match_table = st_lsm9ds0_of_match,
+		.acpi_match_table = st_lsm9ds0_acpi_match,
 	},
-	.probe_new = st_lsm9ds0_i2c_probe,
+	.probe = st_lsm9ds0_i2c_probe,
 	.id_table = st_lsm9ds0_id_table,
 };
 module_i2c_driver(st_lsm9ds0_driver);

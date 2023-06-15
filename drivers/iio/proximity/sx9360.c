@@ -896,7 +896,7 @@ static struct i2c_driver sx9360_driver = {
 		 */
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new	= sx9360_probe,
+	.probe		= sx9360_probe,
 	.id_table	= sx9360_id,
 };
 module_i2c_driver(sx9360_driver);

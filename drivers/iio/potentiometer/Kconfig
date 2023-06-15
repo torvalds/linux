@@ -136,4 +136,14 @@ config TPL0102
 	  To compile this driver as a module, choose M here: the
 	  module will be called tpl0102.
 
+config X9250
+	tristate "Renesas X9250 quad controlled potentiometers"
+	depends on SPI
+	help
+	  Enable support for the Renesas X9250 quad controlled
+	  potentiometers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called x9250.
+
 endmenu
