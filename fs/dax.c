@@ -1148,7 +1148,7 @@ static int dax_iomap_copy_around(loff_t pos, uint64_t length, size_t align_size,
 	if (!zero_edge) {
 		ret = dax_iomap_direct_access(srcmap, pos, size, &saddr, NULL);
 		if (ret)
-			return ret;
+			return dax_mem2blk_err(ret);
 	}
 
 	if (copy_all) {
@@ -1310,7 +1310,7 @@ static s64 dax_unshare_iter(struct iomap_iter *iter)
 
 out_unlock:
 	dax_read_unlock(id);
-	return ret;
+	return dax_mem2blk_err(ret);
 }
 
 int dax_file_unshare(struct inode *inode, loff_t pos, loff_t len,
@@ -1342,7 +1342,8 @@ static int dax_memzero(struct iomap_iter *iter, loff_t pos, size_t size)
 	ret = dax_direct_access(iomap->dax_dev, pgoff, 1, DAX_ACCESS, &kaddr,
 				NULL);
 	if (ret < 0)
-		return ret;
+		return dax_mem2blk_err(ret);
+
 	memset(kaddr + offset, 0, size);
 	if (iomap->flags & IOMAP_F_SHARED)
 		ret = dax_iomap_copy_around(pos, size, PAGE_SIZE, srcmap,
@@ -1498,7 +1499,7 @@ static loff_t dax_iomap_iter(const struct iomap_iter *iomi,
 
 		map_len = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size),
 				DAX_ACCESS, &kaddr, NULL);
-		if (map_len == -EIO && iov_iter_rw(iter) == WRITE) {
+		if (map_len == -EHWPOISON && iov_iter_rw(iter) == WRITE) {
 			map_len = dax_direct_access(dax_dev, pgoff,
 					PHYS_PFN(size), DAX_RECOVERY_WRITE,
 					&kaddr, NULL);
@@ -1506,7 +1507,7 @@ static loff_t dax_iomap_iter(const struct iomap_iter *iomi,
 				recovery = true;
 		}
 		if (map_len < 0) {
-			ret = map_len;
+			ret = dax_mem2blk_err(map_len);
 			break;
 		}
 
