@@ -508,9 +508,6 @@ cache_miss_collisions
   cache miss, but raced with a write and data was already present (usually 0
   since the synchronization for cache misses was rewritten)
 
-cache_readaheads
-  Count of times readahead occurred.
-
 Sysfs - cache set
 ~~~~~~~~~~~~~~~~~
 
