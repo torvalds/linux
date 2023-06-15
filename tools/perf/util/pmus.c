@@ -12,6 +12,21 @@
 #include "pmu.h"
 #include "print-events.h"
 
+/*
+ * core_pmus:  A PMU belongs to core_pmus if it's name is "cpu" or it's sysfs
+ *             directory contains "cpus" file. All PMUs belonging to core_pmus
+ *             must have pmu->is_core=1. If there are more than one PMU in
+ *             this list, perf interprets it as a heterogeneous platform.
+ *             (FWIW, certain ARM platforms having heterogeneous cores uses
+ *             homogeneous PMU, and thus they are treated as homogeneous
+ *             platform by perf because core_pmus will have only one entry)
+ * other_pmus: All other PMUs which are not part of core_pmus list. It doesn't
+ *             matter whether PMU is present per SMT-thread or outside of the
+ *             core in the hw. For e.g., an instance of AMD ibs_fetch// and
+ *             ibs_op// PMUs is present in each hw SMT thread, however they
+ *             are captured under other_pmus. PMUs belonging to other_pmus
+ *             must have pmu->is_core=0 but pmu->is_uncore could be 0 or 1.
+ */
 static LIST_HEAD(core_pmus);
 static LIST_HEAD(other_pmus);
 static bool read_sysfs_core_pmus;
