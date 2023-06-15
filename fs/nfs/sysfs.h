@@ -10,6 +10,7 @@
 
 struct nfs_netns_client {
 	struct kobject kobject;
+	struct kobject nfs_net_kobj;
 	struct net *net;
 	const char __rcu *identifier;
 };

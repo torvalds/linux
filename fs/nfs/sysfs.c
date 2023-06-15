@@ -17,13 +17,7 @@
 #include "netns.h"
 #include "sysfs.h"
 
-struct kobject *nfs_net_kobj;
 static struct kset *nfs_kset;
-
-static void nfs_netns_object_release(struct kobject *kobj)
-{
-	kfree(kobj);
-}
 
 static void nfs_kset_release(struct kobject *kobj)
 {
@@ -40,29 +34,8 @@ static const struct kobj_ns_type_operations *nfs_netns_object_child_ns_type(
 static struct kobj_type nfs_kset_type = {
 	.release = nfs_kset_release,
 	.sysfs_ops = &kobj_sysfs_ops,
-};
-
-static struct kobj_type nfs_netns_object_type = {
-	.release = nfs_netns_object_release,
-	.sysfs_ops = &kobj_sysfs_ops,
 	.child_ns_type = nfs_netns_object_child_ns_type,
 };
-
-static struct kobject *nfs_netns_object_alloc(const char *name,
-		struct kset *kset, struct kobject *parent)
-{
-	struct kobject *kobj;
-
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
-	if (kobj) {
-		kobj->kset = kset;
-		if (kobject_init_and_add(kobj, &nfs_netns_object_type,
-					parent, "%s", name) == 0)
-			return kobj;
-		kobject_put(kobj);
-	}
-	return NULL;
-}
 
 int nfs_sysfs_init(void)
 {
@@ -88,18 +61,11 @@ int nfs_sysfs_init(void)
 		return ret;
 	}
 
-	nfs_net_kobj = nfs_netns_object_alloc("net", nfs_kset, NULL);
-	if (!nfs_net_kobj) {
-		kset_unregister(nfs_kset);
-		kfree(nfs_kset);
-		return -ENOMEM;
-	}
 	return 0;
 }
 
 void nfs_sysfs_exit(void)
 {
-	kobject_put(nfs_net_kobj);
 	kset_unregister(nfs_kset);
 }
 
@@ -157,7 +123,6 @@ static void nfs_netns_client_release(struct kobject *kobj)
 			kobject);
 
 	kfree(rcu_dereference_raw(c->identifier));
-	kfree(c);
 }
 
 static const void *nfs_netns_client_namespace(const struct kobject *kobj)
@@ -181,6 +146,25 @@ static struct kobj_type nfs_netns_client_type = {
 	.namespace = nfs_netns_client_namespace,
 };
 
+static void nfs_netns_object_release(struct kobject *kobj)
+{
+	struct nfs_netns_client *c = container_of(kobj,
+			struct nfs_netns_client,
+			nfs_net_kobj);
+	kfree(c);
+}
+
+static const void *nfs_netns_namespace(const struct kobject *kobj)
+{
+	return container_of(kobj, struct nfs_netns_client, nfs_net_kobj)->net;
+}
+
+static struct kobj_type nfs_netns_object_type = {
+	.release = nfs_netns_object_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.namespace =  nfs_netns_namespace,
+};
+
 static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
 		struct net *net)
 {
@@ -190,9 +174,18 @@ static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
 	if (p) {
 		p->net = net;
 		p->kobject.kset = nfs_kset;
+		p->nfs_net_kobj.kset = nfs_kset;
+
+		if (kobject_init_and_add(&p->nfs_net_kobj, &nfs_netns_object_type,
+					parent, "net") != 0) {
+			kobject_put(&p->nfs_net_kobj);
+			return NULL;
+		}
+
 		if (kobject_init_and_add(&p->kobject, &nfs_netns_client_type,
-					parent, "nfs_client") == 0)
+					&p->nfs_net_kobj, "nfs_client") == 0)
 			return p;
+
 		kobject_put(&p->kobject);
 	}
 	return NULL;
@@ -202,7 +195,7 @@ void nfs_netns_sysfs_setup(struct nfs_net *netns, struct net *net)
 {
 	struct nfs_netns_client *clp;
 
-	clp = nfs_netns_client_alloc(nfs_net_kobj, net);
+	clp = nfs_netns_client_alloc(&nfs_kset->kobj, net);
 	if (clp) {
 		netns->nfs_client = clp;
 		kobject_uevent(&clp->kobject, KOBJ_ADD);
@@ -217,6 +210,8 @@ void nfs_netns_sysfs_destroy(struct nfs_net *netns)
 		kobject_uevent(&clp->kobject, KOBJ_REMOVE);
 		kobject_del(&clp->kobject);
 		kobject_put(&clp->kobject);
+		kobject_del(&clp->nfs_net_kobj);
+		kobject_put(&clp->nfs_net_kobj);
 		netns->nfs_client = NULL;
 	}
 }
