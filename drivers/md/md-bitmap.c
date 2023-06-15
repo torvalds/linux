@@ -348,10 +348,8 @@ static void free_buffers(struct page *page)
  * This usage is similar to how swap files are handled, and allows us
  * to write to a file with no concerns of memory allocation failing.
  */
-static int read_page(struct file *file, unsigned long index,
-		     struct bitmap *bitmap,
-		     unsigned long count,
-		     struct page *page)
+static int read_file_page(struct file *file, unsigned long index,
+		struct bitmap *bitmap, unsigned long count, struct page *page)
 {
 	int ret = 0;
 	struct inode *inode = file_inode(file);
@@ -632,7 +630,7 @@ re_read:
 		loff_t isize = i_size_read(bitmap->storage.file->f_mapping->host);
 		int bytes = isize > PAGE_SIZE ? PAGE_SIZE : isize;
 
-		err = read_page(bitmap->storage.file, 0,
+		err = read_file_page(bitmap->storage.file, 0,
 				bitmap, bytes, sb_page);
 	} else {
 		err = read_sb_page(bitmap->mddev,
@@ -1141,7 +1139,7 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 				count = PAGE_SIZE;
 			page = store->filemap[index];
 			if (file)
-				ret = read_page(file, index, bitmap,
+				ret = read_file_page(file, index, bitmap,
 						count, page);
 			else
 				ret = read_sb_page(
