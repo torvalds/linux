@@ -908,8 +908,8 @@ static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 		if (!strcmp(sysclknp->name, "ddrck"))
 			flags = CLK_IS_CRITICAL;
 
-		hw = at91_clk_register_system(regmap, name, parent_name, id,
-					      flags);
+		hw = at91_clk_register_system(regmap, name, parent_name, NULL,
+					      id, flags);
 		if (IS_ERR(hw))
 			continue;
 

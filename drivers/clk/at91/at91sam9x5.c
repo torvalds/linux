@@ -252,7 +252,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 
 	for (i = 0; i < ARRAY_SIZE(at91sam9x5_systemck); i++) {
 		hw = at91_clk_register_system(regmap, at91sam9x5_systemck[i].n,
-					      at91sam9x5_systemck[i].p,
+					      at91sam9x5_systemck[i].p, NULL,
 					      at91sam9x5_systemck[i].id,
 					      at91sam9x5_systemck[i].flags);
 		if (IS_ERR(hw))
@@ -263,7 +263,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 
 	if (has_lcdck) {
 		hw = at91_clk_register_system(regmap, "lcdck", "masterck_div",
-					      3, 0);
+					      NULL, 3, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 

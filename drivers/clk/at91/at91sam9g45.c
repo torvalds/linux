@@ -202,7 +202,7 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 
 	for (i = 0; i < ARRAY_SIZE(at91sam9g45_systemck); i++) {
 		hw = at91_clk_register_system(regmap, at91sam9g45_systemck[i].n,
-					      at91sam9g45_systemck[i].p,
+					      at91sam9g45_systemck[i].p, NULL,
 					      at91sam9g45_systemck[i].id,
 					      at91sam9g45_systemck[i].flags);
 		if (IS_ERR(hw))
