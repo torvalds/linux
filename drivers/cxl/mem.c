@@ -117,6 +117,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct device *endpoint_parent;
 	struct cxl_port *parent_port;
@@ -141,10 +142,10 @@ static int cxl_mem_probe(struct device *dev)
 	dentry = cxl_debugfs_create_dir(dev_name(dev));
 	debugfs_create_devm_seqfile(dev, "dpamem", dentry, cxl_mem_dpa_show);
 
-	if (test_bit(CXL_POISON_ENABLED_INJECT, cxlds->poison.enabled_cmds))
+	if (test_bit(CXL_POISON_ENABLED_INJECT, mds->poison.enabled_cmds))
 		debugfs_create_file("inject_poison", 0200, dentry, cxlmd,
 				    &cxl_poison_inject_fops);
-	if (test_bit(CXL_POISON_ENABLED_CLEAR, cxlds->poison.enabled_cmds))
+	if (test_bit(CXL_POISON_ENABLED_CLEAR, mds->poison.enabled_cmds))
 		debugfs_create_file("clear_poison", 0200, dentry, cxlmd,
 				    &cxl_poison_clear_fops);
 
@@ -227,9 +228,12 @@ static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	if (a == &dev_attr_trigger_poison_list.attr) {
 		struct device *dev = kobj_to_dev(kobj);
+		struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+		struct cxl_memdev_state *mds =
+			to_cxl_memdev_state(cxlmd->cxlds);
 
 		if (!test_bit(CXL_POISON_ENABLED_LIST,
-			      to_cxl_memdev(dev)->cxlds->poison.enabled_cmds))
+			      mds->poison.enabled_cmds))
 			return 0;
 	}
 	return a->mode;

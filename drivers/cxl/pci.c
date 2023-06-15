@@ -86,7 +86,7 @@ static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 
 /**
  * __cxl_pci_mbox_send_cmd() - Execute a mailbox command
- * @cxlds: The device state to communicate with.
+ * @mds: The memory device driver data
  * @mbox_cmd: Command to send to the memory device.
  *
  * Context: Any context. Expects mbox_mutex to be held.
@@ -106,16 +106,17 @@ static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
  * not need to coordinate with each other. The driver only uses the primary
  * mailbox.
  */
-static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
+static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 				   struct cxl_mbox_cmd *mbox_cmd)
 {
+	struct cxl_dev_state *cxlds = &mds->cxlds;
 	void __iomem *payload = cxlds->regs.mbox + CXLDEV_MBOX_PAYLOAD_OFFSET;
 	struct device *dev = cxlds->dev;
 	u64 cmd_reg, status_reg;
 	size_t out_len;
 	int rc;
 
-	lockdep_assert_held(&cxlds->mbox_mutex);
+	lockdep_assert_held(&mds->mbox_mutex);
 
 	/*
 	 * Here are the steps from 8.2.8.4 of the CXL 2.0 spec.
@@ -196,8 +197,9 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 		 * have requested less data than the hardware supplied even
 		 * within spec.
 		 */
-		size_t n = min3(mbox_cmd->size_out, cxlds->payload_size, out_len);
+		size_t n;
 
+		n = min3(mbox_cmd->size_out, mds->payload_size, out_len);
 		memcpy_fromio(mbox_cmd->payload_out, payload, n);
 		mbox_cmd->size_out = n;
 	} else {
@@ -207,20 +209,23 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 	return 0;
 }
 
-static int cxl_pci_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int cxl_pci_mbox_send(struct cxl_memdev_state *mds,
+			     struct cxl_mbox_cmd *cmd)
 {
 	int rc;
 
-	mutex_lock_io(&cxlds->mbox_mutex);
-	rc = __cxl_pci_mbox_send_cmd(cxlds, cmd);
-	mutex_unlock(&cxlds->mbox_mutex);
+	mutex_lock_io(&mds->mbox_mutex);
+	rc = __cxl_pci_mbox_send_cmd(mds, cmd);
+	mutex_unlock(&mds->mbox_mutex);
 
 	return rc;
 }
 
-static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
+static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
 {
+	struct cxl_dev_state *cxlds = &mds->cxlds;
 	const int cap = readl(cxlds->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
+	struct device *dev = cxlds->dev;
 	unsigned long timeout;
 	u64 md_status;
 
@@ -234,8 +239,7 @@ static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 	} while (!time_after(jiffies, timeout));
 
 	if (!(md_status & CXLMDEV_MBOX_IF_READY)) {
-		cxl_err(cxlds->dev, md_status,
-			"timeout awaiting mailbox ready");
+		cxl_err(dev, md_status, "timeout awaiting mailbox ready");
 		return -ETIMEDOUT;
 	}
 
@@ -246,12 +250,12 @@ static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 	 * source for future doorbell busy events.
 	 */
 	if (cxl_pci_mbox_wait_for_doorbell(cxlds) != 0) {
-		cxl_err(cxlds->dev, md_status, "timeout awaiting mailbox idle");
+		cxl_err(dev, md_status, "timeout awaiting mailbox idle");
 		return -ETIMEDOUT;
 	}
 
-	cxlds->mbox_send = cxl_pci_mbox_send;
-	cxlds->payload_size =
+	mds->mbox_send = cxl_pci_mbox_send;
+	mds->payload_size =
 		1 << FIELD_GET(CXLDEV_MBOX_CAP_PAYLOAD_SIZE_MASK, cap);
 
 	/*
@@ -261,15 +265,14 @@ static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 	 * there's no point in going forward. If the size is too large, there's
 	 * no harm is soft limiting it.
 	 */
-	cxlds->payload_size = min_t(size_t, cxlds->payload_size, SZ_1M);
-	if (cxlds->payload_size < 256) {
-		dev_err(cxlds->dev, "Mailbox is too small (%zub)",
-			cxlds->payload_size);
+	mds->payload_size = min_t(size_t, mds->payload_size, SZ_1M);
+	if (mds->payload_size < 256) {
+		dev_err(dev, "Mailbox is too small (%zub)",
+			mds->payload_size);
 		return -ENXIO;
 	}
 
-	dev_dbg(cxlds->dev, "Mailbox payload sized %zu",
-		cxlds->payload_size);
+	dev_dbg(dev, "Mailbox payload sized %zu", mds->payload_size);
 
 	return 0;
 }
@@ -433,18 +436,18 @@ static void free_event_buf(void *buf)
 
 /*
  * There is a single buffer for reading event logs from the mailbox.  All logs
- * share this buffer protected by the cxlds->event_log_lock.
+ * share this buffer protected by the mds->event_log_lock.
  */
-static int cxl_mem_alloc_event_buf(struct cxl_dev_state *cxlds)
+static int cxl_mem_alloc_event_buf(struct cxl_memdev_state *mds)
 {
 	struct cxl_get_event_payload *buf;
 
-	buf = kvmalloc(cxlds->payload_size, GFP_KERNEL);
+	buf = kvmalloc(mds->payload_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	cxlds->event.buf = buf;
+	mds->event.buf = buf;
 
-	return devm_add_action_or_reset(cxlds->dev, free_event_buf, buf);
+	return devm_add_action_or_reset(mds->cxlds.dev, free_event_buf, buf);
 }
 
 static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
@@ -477,6 +480,7 @@ static irqreturn_t cxl_event_thread(int irq, void *id)
 {
 	struct cxl_dev_id *dev_id = id;
 	struct cxl_dev_state *cxlds = dev_id->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	u32 status;
 
 	do {
@@ -489,7 +493,7 @@ static irqreturn_t cxl_event_thread(int irq, void *id)
 		status &= CXLDEV_EVENT_STATUS_ALL;
 		if (!status)
 			break;
-		cxl_mem_get_event_records(cxlds, status);
+		cxl_mem_get_event_records(mds, status);
 		cond_resched();
 	} while (status);
 
@@ -522,7 +526,7 @@ static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 					 dev_id);
 }
 
-static int cxl_event_get_int_policy(struct cxl_dev_state *cxlds,
+static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 				    struct cxl_event_interrupt_policy *policy)
 {
 	struct cxl_mbox_cmd mbox_cmd = {
@@ -532,15 +536,15 @@ static int cxl_event_get_int_policy(struct cxl_dev_state *cxlds,
 	};
 	int rc;
 
-	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 	if (rc < 0)
-		dev_err(cxlds->dev, "Failed to get event interrupt policy : %d",
-			rc);
+		dev_err(mds->cxlds.dev,
+			"Failed to get event interrupt policy : %d", rc);
 
 	return rc;
 }
 
-static int cxl_event_config_msgnums(struct cxl_dev_state *cxlds,
+static int cxl_event_config_msgnums(struct cxl_memdev_state *mds,
 				    struct cxl_event_interrupt_policy *policy)
 {
 	struct cxl_mbox_cmd mbox_cmd;
@@ -559,23 +563,24 @@ static int cxl_event_config_msgnums(struct cxl_dev_state *cxlds,
 		.size_in = sizeof(*policy),
 	};
 
-	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 	if (rc < 0) {
-		dev_err(cxlds->dev, "Failed to set event interrupt policy : %d",
+		dev_err(mds->cxlds.dev, "Failed to set event interrupt policy : %d",
 			rc);
 		return rc;
 	}
 
 	/* Retrieve final interrupt settings */
-	return cxl_event_get_int_policy(cxlds, policy);
+	return cxl_event_get_int_policy(mds, policy);
 }
 
-static int cxl_event_irqsetup(struct cxl_dev_state *cxlds)
+static int cxl_event_irqsetup(struct cxl_memdev_state *mds)
 {
+	struct cxl_dev_state *cxlds = &mds->cxlds;
 	struct cxl_event_interrupt_policy policy;
 	int rc;
 
-	rc = cxl_event_config_msgnums(cxlds, &policy);
+	rc = cxl_event_config_msgnums(mds, &policy);
 	if (rc)
 		return rc;
 
@@ -614,7 +619,7 @@ static bool cxl_event_int_is_fw(u8 setting)
 }
 
 static int cxl_event_config(struct pci_host_bridge *host_bridge,
-			    struct cxl_dev_state *cxlds)
+			    struct cxl_memdev_state *mds)
 {
 	struct cxl_event_interrupt_policy policy;
 	int rc;
@@ -626,11 +631,11 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 	if (!host_bridge->native_cxl_error)
 		return 0;
 
-	rc = cxl_mem_alloc_event_buf(cxlds);
+	rc = cxl_mem_alloc_event_buf(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_event_get_int_policy(cxlds, &policy);
+	rc = cxl_event_get_int_policy(mds, &policy);
 	if (rc)
 		return rc;
 
@@ -638,15 +643,16 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 	    cxl_event_int_is_fw(policy.warn_settings) ||
 	    cxl_event_int_is_fw(policy.failure_settings) ||
 	    cxl_event_int_is_fw(policy.fatal_settings)) {
-		dev_err(cxlds->dev, "FW still in control of Event Logs despite _OSC settings\n");
+		dev_err(mds->cxlds.dev,
+			"FW still in control of Event Logs despite _OSC settings\n");
 		return -EBUSY;
 	}
 
-	rc = cxl_event_irqsetup(cxlds);
+	rc = cxl_event_irqsetup(mds);
 	if (rc)
 		return rc;
 
-	cxl_mem_get_event_records(cxlds, CXLDEV_EVENT_STATUS_ALL);
+	cxl_mem_get_event_records(mds, CXLDEV_EVENT_STATUS_ALL);
 
 	return 0;
 }
@@ -654,9 +660,10 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct pci_host_bridge *host_bridge = pci_find_host_bridge(pdev->bus);
+	struct cxl_memdev_state *mds;
+	struct cxl_dev_state *cxlds;
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
-	struct cxl_dev_state *cxlds;
 	int rc;
 
 	/*
@@ -671,9 +678,10 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 	pci_set_master(pdev);
 
-	cxlds = cxl_dev_state_create(&pdev->dev);
-	if (IS_ERR(cxlds))
-		return PTR_ERR(cxlds);
+	mds = cxl_memdev_state_create(&pdev->dev);
+	if (IS_ERR(mds))
+		return PTR_ERR(mds);
+	cxlds = &mds->cxlds;
 	pci_set_drvdata(pdev, cxlds);
 
 	cxlds->rcd = is_cxl_restricted(pdev);
@@ -714,27 +722,27 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		dev_warn(&pdev->dev, "Media not active (%d)\n", rc);
 
-	rc = cxl_pci_setup_mailbox(cxlds);
+	rc = cxl_pci_setup_mailbox(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_enumerate_cmds(cxlds);
+	rc = cxl_enumerate_cmds(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_set_timestamp(cxlds);
+	rc = cxl_set_timestamp(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_poison_state_init(cxlds);
+	rc = cxl_poison_state_init(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_dev_state_identify(cxlds);
+	rc = cxl_dev_state_identify(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_create_range_info(cxlds);
+	rc = cxl_mem_create_range_info(mds);
 	if (rc)
 		return rc;
 
@@ -746,7 +754,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	rc = cxl_event_config(host_bridge, cxlds);
+	rc = cxl_event_config(host_bridge, mds);
 	if (rc)
 		return rc;
 

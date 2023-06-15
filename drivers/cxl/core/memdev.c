@@ -39,8 +39,9 @@ static ssize_t firmware_version_show(struct device *dev,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%.16s\n", cxlds->firmware_version);
+	return sysfs_emit(buf, "%.16s\n", mds->firmware_version);
 }
 static DEVICE_ATTR_RO(firmware_version);
 
@@ -49,8 +50,9 @@ static ssize_t payload_max_show(struct device *dev,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%zu\n", cxlds->payload_size);
+	return sysfs_emit(buf, "%zu\n", mds->payload_size);
 }
 static DEVICE_ATTR_RO(payload_max);
 
@@ -59,8 +61,9 @@ static ssize_t label_storage_size_show(struct device *dev,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%zu\n", cxlds->lsa_size);
+	return sysfs_emit(buf, "%zu\n", mds->lsa_size);
 }
 static DEVICE_ATTR_RO(label_storage_size);
 
@@ -231,7 +234,7 @@ static int cxl_validate_poison_dpa(struct cxl_memdev *cxlmd, u64 dpa)
 
 int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
 {
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 	struct cxl_mbox_inject_poison inject;
 	struct cxl_poison_record record;
 	struct cxl_mbox_cmd mbox_cmd;
@@ -255,13 +258,13 @@ int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
 		.size_in = sizeof(inject),
 		.payload_in = &inject,
 	};
-	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 	if (rc)
 		goto out;
 
 	cxlr = cxl_dpa_to_region(cxlmd, dpa);
 	if (cxlr)
-		dev_warn_once(cxlds->dev,
+		dev_warn_once(mds->cxlds.dev,
 			      "poison inject dpa:%#llx region: %s\n", dpa,
 			      dev_name(&cxlr->dev));
 
@@ -279,7 +282,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_inject_poison, CXL);
 
 int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa)
 {
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 	struct cxl_mbox_clear_poison clear;
 	struct cxl_poison_record record;
 	struct cxl_mbox_cmd mbox_cmd;
@@ -312,14 +315,15 @@ int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa)
 		.payload_in = &clear,
 	};
 
-	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 	if (rc)
 		goto out;
 
 	cxlr = cxl_dpa_to_region(cxlmd, dpa);
 	if (cxlr)
-		dev_warn_once(cxlds->dev, "poison clear dpa:%#llx region: %s\n",
-			      dpa, dev_name(&cxlr->dev));
+		dev_warn_once(mds->cxlds.dev,
+			      "poison clear dpa:%#llx region: %s\n", dpa,
+			      dev_name(&cxlr->dev));
 
 	record = (struct cxl_poison_record) {
 		.address = cpu_to_le64(dpa),
@@ -397,17 +401,18 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, CXL);
 
 /**
  * set_exclusive_cxl_commands() - atomically disable user cxl commands
- * @cxlds: The device state to operate on
+ * @mds: The device state to operate on
  * @cmds: bitmap of commands to mark exclusive
  *
  * Grab the cxl_memdev_rwsem in write mode to flush in-flight
  * invocations of the ioctl path and then disable future execution of
  * commands with the command ids set in @cmds.
  */
-void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds)
+void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
+				unsigned long *cmds)
 {
 	down_write(&cxl_memdev_rwsem);
-	bitmap_or(cxlds->exclusive_cmds, cxlds->exclusive_cmds, cmds,
+	bitmap_or(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
 		  CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
@@ -415,13 +420,14 @@ EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, CXL);
 
 /**
  * clear_exclusive_cxl_commands() - atomically enable user cxl commands
- * @cxlds: The device state to modify
+ * @mds: The device state to modify
  * @cmds: bitmap of commands to mark available for userspace
  */
-void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds)
+void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
+				  unsigned long *cmds)
 {
 	down_write(&cxl_memdev_rwsem);
-	bitmap_andnot(cxlds->exclusive_cmds, cxlds->exclusive_cmds, cmds,
+	bitmap_andnot(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
 		      CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
