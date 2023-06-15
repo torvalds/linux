@@ -139,26 +139,25 @@ static void md_bitmap_checkfree(struct bitmap_counts *bitmap, unsigned long page
  */
 
 /* IO operations when bitmap is stored near all superblocks */
-static int read_sb_page(struct mddev *mddev, loff_t offset,
-			struct page *page,
-			unsigned long index, int size)
-{
-	/* choose a good rdev and read the page from there */
 
+/* choose a good rdev and read the page from there */
+static int read_sb_page(struct mddev *mddev, loff_t offset,
+		struct page *page, unsigned long index, int size)
+{
+
+	sector_t sector = offset + index * (PAGE_SIZE / SECTOR_SIZE);
 	struct md_rdev *rdev;
-	sector_t target;
 
 	rdev_for_each(rdev, mddev) {
-		if (! test_bit(In_sync, &rdev->flags)
-		    || test_bit(Faulty, &rdev->flags)
-		    || test_bit(Bitmap_sync, &rdev->flags))
+		u32 iosize = roundup(size, bdev_logical_block_size(rdev->bdev));
+
+		if (!test_bit(In_sync, &rdev->flags) ||
+		    test_bit(Faulty, &rdev->flags) ||
+		    test_bit(Bitmap_sync, &rdev->flags))
 			continue;
 
-		target = offset + index * (PAGE_SIZE/512);
-
-		if (sync_page_io(rdev, target,
-				 roundup(size, bdev_logical_block_size(rdev->bdev)),
-				 page, REQ_OP_READ, true)) {
+		if (sync_page_io(rdev, sector, iosize, page, REQ_OP_READ,
+				true)) {
 			page->index = index;
 			return 0;
 		}
