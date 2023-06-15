@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
+#Platform Support
+snd-soc-loongson-i2s-pci-objs := loongson_i2s_pci.o loongson_i2s.o loongson_dma.o
+obj-$(CONFIG_SND_SOC_LOONGSON_I2S_PCI) += snd-soc-loongson-i2s-pci.o
