@@ -51,7 +51,7 @@ config MD_AUTODETECT
 	  If unsure, say Y.
 
 config MD_BITMAP_FILE
-	bool "MD bitmap file support"
+	bool "MD bitmap file support (deprecated)"
 	default y
 	help
 	  If you say Y here, support for write intent bitmaps in files on an
