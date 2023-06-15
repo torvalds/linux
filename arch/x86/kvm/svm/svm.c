@@ -1983,7 +1983,7 @@ static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (vcpu->arch.guest_state_protected)
+	if (WARN_ON_ONCE(sev_es_guest(vcpu->kvm)))
 		return;
 
 	get_debugreg(vcpu->arch.db[0], 0);
@@ -2713,6 +2713,13 @@ static int dr_interception(struct kvm_vcpu *vcpu)
 	int reg, dr;
 	unsigned long val;
 	int err = 0;
+
+	/*
+	 * SEV-ES intercepts DR7 only to disable guest debugging and the guest issues a VMGEXIT
+	 * for DR7 write only. KVM cannot change DR7 (always swapped as type 'A') so return early.
+	 */
+	if (sev_es_guest(vcpu->kvm))
+		return 1;
 
 	if (vcpu->guest_debug == 0) {
 		/*

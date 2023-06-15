@@ -619,6 +619,11 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
 
+	if (vcpu->guest_debug) {
+		pr_warn_once("KVM_SET_GUEST_DEBUG for SEV-ES guest is not supported");
+		return -EINVAL;
+	}
+
 	/* Perform some pre-encryption checks against the VMSA */
 	ret = sev_es_sync_vmsa(svm);
 	if (ret)
