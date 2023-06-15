@@ -8,6 +8,7 @@
 #define _QCOM_BWMON_H
 
 #include <linux/kernel.h>
+#include <linux/notifier.h>
 #include <soc/qcom/dcvs.h>
 
 #define NUM_MBPS_ZONES		10
@@ -83,6 +84,7 @@ struct bw_hwmon {
 	struct hwmon_node	*node;
 	ktime_t			last_update_ts;
 	struct work_struct	work;
+	struct notifier_block	pm_nb;
 	bool			is_active;
 	unsigned long		up_wake_mbps;
 	unsigned long		down_wake_mbps;
