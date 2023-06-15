@@ -454,15 +454,16 @@ static void ipi_raise(void *ignore, const struct cpumask *mask, const char *unus
 {
 	int cpu;
 	struct lpm_cpu *cpu_gov;
+	unsigned long flags;
 
 	if (suspend_in_progress)
 		return;
 
 	for_each_cpu(cpu, mask) {
 		cpu_gov = &(per_cpu(lpm_cpu_data, cpu));
-		spin_lock(&cpu_gov->lock);
+		spin_lock_irqsave(&cpu_gov->lock, flags);
 		cpu_gov->ipi_pending = true;
-		spin_unlock(&cpu_gov->lock);
+		spin_unlock_irqrestore(&cpu_gov->lock, flags);
 		update_ipi_history(cpu);
 	}
 }
@@ -471,6 +472,7 @@ static void ipi_entry(void *ignore, const char *unused)
 {
 	int cpu;
 	struct lpm_cpu *cpu_gov;
+	unsigned long flags;
 
 	if (suspend_in_progress)
 		return;
@@ -478,9 +480,9 @@ static void ipi_entry(void *ignore, const char *unused)
 	cpu = raw_smp_processor_id();
 	cpu_gov = &(per_cpu(lpm_cpu_data, cpu));
 
-	spin_lock(&cpu_gov->lock);
+	spin_lock_irqsave(&cpu_gov->lock, flags);
 	cpu_gov->ipi_pending = false;
-	spin_unlock(&cpu_gov->lock);
+	spin_unlock_irqrestore(&cpu_gov->lock, flags);
 }
 
 /**
@@ -651,18 +653,19 @@ static void lpm_idle_enter(void *unused, int *state, struct cpuidle_device *dev)
 {
 	struct lpm_cpu *cpu_gov = this_cpu_ptr(&lpm_cpu_data);
 	u64 reason = 0;
+	unsigned long flags;
 
 	if (*state == 0)
 		return;
 
 	/* Restrict to WFI state if there is an IPI pending on current CPU */
-	spin_lock(&cpu_gov->lock);
+	spin_lock_irqsave(&cpu_gov->lock, flags);
 	if (cpu_gov->ipi_pending) {
 		reason = UPDATE_REASON(*state, LPM_SELECT_STATE_IPI_PENDING);
 		*state = 0;
 		trace_lpm_gov_select(*state, 0xdeaffeed, 0xdeaffeed, reason);
 	}
-	spin_unlock(&cpu_gov->lock);
+	spin_unlock_irqrestore(&cpu_gov->lock, flags);
 }
 
 /**
