@@ -3,7 +3,7 @@
  * Virtio-mem device driver.
  *
  * Copyright Red Hat, Inc. 2020
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Author(s): David Hildenbrand <david@redhat.com>
  */
@@ -27,6 +27,7 @@
 #include <linux/bitmap.h>
 #include <linux/lockdep.h>
 #include <linux/log2.h>
+#include "qti_virtio_mem.h"
 
 #include <acpi/acpi_numa.h>
 
@@ -278,6 +279,8 @@ struct virtio_mem {
 /* For now, only allow one virtio-mem device */
 static struct virtio_mem *virtio_mem_dev;
 static DEFINE_XARRAY(xa_membuf);
+
+#define NUM_BLOCKS_ADD_STARTUP      16
 
 /*
  * We have to share a single online_page callback among all virtio-mem
@@ -2746,6 +2749,7 @@ static int virtio_mem_init(struct virtio_mem *vm)
 		return -EINVAL;
 	}
 	vm->device_block_size = device_block_size;
+	vm->new_requested_size = vm->device_block_size * NUM_BLOCKS_ADD_STARTUP;
 
 	node_id = NUMA_NO_NODE;
 	vm->nid = virtio_mem_translate_node_id(vm, node_id);
@@ -2843,6 +2847,9 @@ static int virtio_mem_probe(struct platform_device *vdev)
 	BUILD_BUG_ON(sizeof(struct virtio_mem_req) != 24);
 	BUILD_BUG_ON(sizeof(struct virtio_mem_resp) != 10);
 
+	if (!mem_buf_probe_complete())
+		return -EPROBE_DEFER;
+
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
 		return -ENOMEM;
@@ -2871,8 +2878,10 @@ static int virtio_mem_probe(struct platform_device *vdev)
 	if (!vm->in_kdump) {
 		atomic_set(&vm->config_changed, 1);
 		queue_work(system_freezable_wq, &vm->wq);
+		flush_work(&vm->wq);
 	}
 
+	qvm_update_plugged_size(vm->plugged_size);
 	return 0;
 
 out_free_vm:

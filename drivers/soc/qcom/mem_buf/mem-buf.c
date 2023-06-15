@@ -21,6 +21,7 @@
 static dev_t mem_buf_dev_no;
 static struct class *mem_buf_class;
 static struct cdev mem_buf_char_dev;
+static bool mem_buf_ready;
 
 union mem_buf_ioctl_arg {
 	struct mem_buf_alloc_ioctl_arg allocation;
@@ -331,6 +332,11 @@ static const struct file_operations mem_buf_dev_fops = {
 	.compat_ioctl = compat_ptr_ioctl,
 };
 
+bool mem_buf_probe_complete(void)
+{
+	return mem_buf_ready;
+}
+
 static int mem_buf_msgq_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -356,6 +362,7 @@ static int mem_buf_msgq_probe(struct platform_device *pdev)
 		goto err_dev_create;
 	}
 
+	mem_buf_ready = true;
 	return 0;
 
 err_dev_create:

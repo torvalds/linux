@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt) "qti_virtio_mem: %s: " fmt, __func__
 
@@ -31,6 +31,11 @@ static DEFINE_MUTEX(qvm_lock);
 static LIST_HEAD(qvm_list);
 /* Sum of all hints */
 static s64 qvm_hint_total;
+
+void qvm_update_plugged_size(uint64_t size)
+{
+	qvm_hint_total = (s64)size;
+}
 
 static int qti_virtio_mem_hint_update(struct qti_virtio_mem_hint *hint,
 					s64 new_size, bool sync)

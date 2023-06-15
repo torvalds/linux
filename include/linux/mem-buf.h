@@ -118,6 +118,7 @@ void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data);
 void mem_buf_free(void *membuf);
 struct gh_sgl_desc *mem_buf_get_sgl(void *membuf);
 int mem_buf_current_vmid(void);
+bool mem_buf_probe_complete(void);
 #else
 
 static inline void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
@@ -134,6 +135,10 @@ static inline struct gh_sgl_desc *mem_buf_get_sgl(void *membuf)
 static inline int mem_buf_current_vmid(void)
 {
 	return -EINVAL;
+}
+static inline bool mem_buf_probe_complete(void)
+{
+	return false;
 }
 #endif /* CONFIG_QCOM_MEM_BUF */
 
