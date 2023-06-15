@@ -242,7 +242,7 @@ const struct perf_pmu *perf_pmus__pmu_for_pmu_filter(const char *str)
 	return NULL;
 }
 
-int perf_pmus__num_mem_pmus(void)
+int __weak perf_pmus__num_mem_pmus(void)
 {
 	/* All core PMUs are for mem events. */
 	return perf_pmus__num_core_pmus();
