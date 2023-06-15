@@ -81,6 +81,9 @@ u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
 static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 			   size_t page_size, bool *is_vram)
 {
+	if (xe_vma_is_null(vma))
+		return 0;
+
 	if (xe_vma_is_userptr(vma)) {
 		struct xe_res_cursor cur;
 		u64 page;
@@ -104,6 +107,9 @@ static u64 __pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
 
 	if (unlikely(flags & XE_PTE_FLAG_READ_ONLY))
 		pte &= ~XE_PAGE_RW;
+
+	if (unlikely(flags & XE_PTE_FLAG_NULL))
+		pte |= XE_PTE_NULL;
 
 	/* FIXME: I don't think the PPAT handling is correct for MTL */
 
@@ -557,6 +563,10 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	if (next - xe_walk->va_curs_start > xe_walk->curs->size)
 		return false;
 
+	/* null VMA's do not have dma addresses */
+	if (xe_walk->pte_flags & XE_PTE_FLAG_NULL)
+		return true;
+
 	/* Is the DMA address huge PTE size aligned? */
 	size = next - addr;
 	dma = addr - xe_walk->va_curs_start + xe_res_dma(xe_walk->curs);
@@ -578,6 +588,10 @@ xe_pt_scan_64K(u64 addr, u64 next, struct xe_pt_stage_bind_walk *xe_walk)
 
 	if (next > xe_walk->l0_end_addr)
 		return false;
+
+	/* null VMA's do not have dma addresses */
+	if (xe_walk->pte_flags & XE_PTE_FLAG_NULL)
+		return true;
 
 	xe_res_next(&curs, addr - xe_walk->va_curs_start);
 	for (; addr < next; addr += SZ_64K) {
@@ -629,10 +643,12 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 	/* Is this a leaf entry ?*/
 	if (level == 0 || xe_pt_hugepte_possible(addr, next, level, xe_walk)) {
 		struct xe_res_cursor *curs = xe_walk->curs;
+		bool is_null = xe_walk->pte_flags & XE_PTE_FLAG_NULL;
 
 		XE_WARN_ON(xe_walk->va_curs_start != addr);
 
-		pte = __pte_encode(xe_res_dma(curs) + xe_walk->dma_offset,
+		pte = __pte_encode(is_null ? 0 :
+				   xe_res_dma(curs) + xe_walk->dma_offset,
 				   xe_walk->cache, xe_walk->pte_flags,
 				   level);
 		pte |= xe_walk->default_pte;
@@ -652,7 +668,8 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		if (unlikely(ret))
 			return ret;
 
-		xe_res_next(curs, next - addr);
+		if (!is_null)
+			xe_res_next(curs, next - addr);
 		xe_walk->va_curs_start = next;
 		*action = ACTION_CONTINUE;
 
@@ -759,24 +776,29 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);
 		xe_walk.cache = XE_CACHE_WB;
 	} else {
-		if (!xe_vma_is_userptr(vma) && bo->flags & XE_BO_SCANOUT_BIT)
+		if (!xe_vma_has_no_bo(vma) && bo->flags & XE_BO_SCANOUT_BIT)
 			xe_walk.cache = XE_CACHE_WT;
 		else
 			xe_walk.cache = XE_CACHE_WB;
 	}
-	if (!xe_vma_is_userptr(vma) && xe_bo_is_stolen(bo))
+	if (!xe_vma_has_no_bo(vma) && xe_bo_is_stolen(bo))
 		xe_walk.dma_offset = xe_ttm_stolen_gpu_offset(xe_bo_device(bo));
 
 	xe_bo_assert_held(bo);
-	if (xe_vma_is_userptr(vma))
-		xe_res_first_sg(vma->userptr.sg, 0, vma->end - vma->start + 1,
-				&curs);
-	else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
-		xe_res_first(bo->ttm.resource, vma->bo_offset,
-			     vma->end - vma->start + 1, &curs);
-	else
-		xe_res_first_sg(xe_bo_get_sg(bo), vma->bo_offset,
-				vma->end - vma->start + 1, &curs);
+
+	if (!xe_vma_is_null(vma)) {
+		if (xe_vma_is_userptr(vma))
+			xe_res_first_sg(vma->userptr.sg, 0,
+					vma->end - vma->start + 1, &curs);
+		else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
+			xe_res_first(bo->ttm.resource, vma->bo_offset,
+				     vma->end - vma->start + 1, &curs);
+		else
+			xe_res_first_sg(xe_bo_get_sg(bo), vma->bo_offset,
+					vma->end - vma->start + 1, &curs);
+	} else {
+		curs.size = vma->end - vma->start + 1;
+	}
 
 	ret = xe_pt_walk_range(&pt->base, pt->level, vma->start, vma->end + 1,
 				&xe_walk.base);
@@ -965,7 +987,7 @@ static void xe_pt_commit_locks_assert(struct xe_vma *vma)
 
 	if (xe_vma_is_userptr(vma))
 		lockdep_assert_held_read(&vm->userptr.notifier_lock);
-	else
+	else if (!xe_vma_is_null(vma))
 		dma_resv_assert_held(vma->bo->ttm.base.resv);
 
 	dma_resv_assert_held(&vm->resv);
@@ -1341,7 +1363,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 				   DMA_RESV_USAGE_KERNEL :
 				   DMA_RESV_USAGE_BOOKKEEP);
 
-		if (!xe_vma_is_userptr(vma) && !vma->bo->vm)
+		if (!xe_vma_has_no_bo(vma) && !vma->bo->vm)
 			dma_resv_add_fence(vma->bo->ttm.base.resv, fence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_bind(vma, entries, num_entries, rebind,
@@ -1658,7 +1680,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 				   DMA_RESV_USAGE_BOOKKEEP);
 
 		/* This fence will be installed by caller when doing eviction */
-		if (!xe_vma_is_userptr(vma) && !vma->bo->vm)
+		if (!xe_vma_has_no_bo(vma) && !vma->bo->vm)
 			dma_resv_add_fence(vma->bo->ttm.base.resv, fence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_unbind(vma, entries, num_entries,

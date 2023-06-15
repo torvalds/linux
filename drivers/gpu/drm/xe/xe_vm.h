@@ -115,9 +115,19 @@ static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
 	}
 }
 
-static inline bool xe_vma_is_userptr(struct xe_vma *vma)
+static inline bool xe_vma_is_null(struct xe_vma *vma)
+{
+	return vma->pte_flags & XE_PTE_FLAG_NULL;
+}
+
+static inline bool xe_vma_has_no_bo(struct xe_vma *vma)
 {
 	return !vma->bo;
+}
+
+static inline bool xe_vma_is_userptr(struct xe_vma *vma)
+{
+	return xe_vma_has_no_bo(vma) && !xe_vma_is_null(vma);
 }
 
 int xe_vma_userptr_pin_pages(struct xe_vma *vma);

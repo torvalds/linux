@@ -120,6 +120,8 @@ retry:
 	 * to a location where the GPU can access it).
 	 */
 	list_for_each_entry(vma, &vm->rebind_list, rebind_link) {
+		XE_WARN_ON(xe_vma_is_null(vma));
+
 		if (xe_vma_is_userptr(vma))
 			continue;
 

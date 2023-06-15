@@ -31,6 +31,7 @@ struct xe_vma {
 	u64 end;
 	/** @pte_flags: pte flags for this VMA */
 #define XE_PTE_FLAG_READ_ONLY		BIT(0)
+#define XE_PTE_FLAG_NULL		BIT(1)
 	u32 pte_flags;
 
 	/** @bo: BO if not a userptr, must be NULL is userptr */

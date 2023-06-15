@@ -61,6 +61,7 @@
 #define XE_PPGTT_PTE_LM			BIT_ULL(11)
 #define XE_PDE_64K			BIT_ULL(6)
 #define XE_PTE_PS64			BIT_ULL(8)
+#define XE_PTE_NULL			BIT_ULL(9)
 
 #define XE_PAGE_PRESENT			BIT_ULL(0)
 #define XE_PAGE_RW			BIT_ULL(1)

@@ -533,8 +533,8 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 
 	trace_xe_vma_acc(vma);
 
-	/* Userptr can't be migrated, nothing to do */
-	if (xe_vma_is_userptr(vma))
+	/* Userptr or null can't be migrated, nothing to do */
+	if (xe_vma_has_no_bo(vma))
 		goto unlock_vm;
 
 	/* Lock VM and BOs dma-resv */
