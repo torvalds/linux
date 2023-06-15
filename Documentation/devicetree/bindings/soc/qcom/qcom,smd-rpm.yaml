@@ -44,12 +44,12 @@ properties:
       - qcom,rpm-msm8994
       - qcom,rpm-msm8996
       - qcom,rpm-msm8998
+      - qcom,rpm-qcm2290
+      - qcom,rpm-qcs404
       - qcom,rpm-sdm660
       - qcom,rpm-sm6115
       - qcom,rpm-sm6125
       - qcom,rpm-sm6375
-      - qcom,rpm-qcm2290
-      - qcom,rpm-qcs404
 
   clock-controller:
     $ref: /schemas/clock/qcom,rpmcc.yaml#
@@ -84,9 +84,9 @@ if:
           - qcom,rpm-msm8226
           - qcom,rpm-msm8916
           - qcom,rpm-msm8936
+          - qcom,rpm-msm8953
           - qcom,rpm-msm8974
           - qcom,rpm-msm8976
-          - qcom,rpm-msm8953
           - qcom,rpm-msm8994
 then:
   properties:
