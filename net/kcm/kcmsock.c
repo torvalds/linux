@@ -661,6 +661,7 @@ retry:
 				kcm_abort_tx_psock(psock, ret ? -ret : EPIPE,
 						   true);
 				unreserve_psock(kcm);
+				psock = NULL;
 
 				txm->started_tx = false;
 				kcm_report_tx_retry(kcm);
@@ -696,7 +697,8 @@ out:
 	if (!head) {
 		/* Done with all queued messages. */
 		WARN_ON(!skb_queue_empty(&sk->sk_write_queue));
-		unreserve_psock(kcm);
+		if (psock)
+			unreserve_psock(kcm);
 	}
 
 	/* Check if write space is available */
