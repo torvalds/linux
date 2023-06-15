@@ -7,6 +7,33 @@
 
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(csd_queue_cpu,
+
+	TP_PROTO(const unsigned int cpu,
+		unsigned long callsite,
+		smp_call_func_t func,
+		struct __call_single_data *csd),
+
+	TP_ARGS(cpu, callsite, func, csd),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, cpu)
+		__field(void *, callsite)
+		__field(void *, func)
+		__field(void *, csd)
+		),
+
+	    TP_fast_assign(
+		__entry->cpu = cpu;
+		__entry->callsite = (void *)callsite;
+		__entry->func = func;
+		__entry->csd  = csd;
+		),
+
+	TP_printk("cpu=%u callsite=%pS func=%ps csd=%p",
+		__entry->cpu, __entry->callsite, __entry->func, __entry->csd)
+	);
+
 /*
  * Tracepoints for a function which is called as an effect of smp_call_function.*
  */
