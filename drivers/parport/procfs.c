@@ -257,14 +257,16 @@ PARPORT_MAX_SPINTIME_VALUE;
 
 
 struct parport_sysctl_table {
-	struct ctl_table_header *sysctl_header;
+	struct ctl_table_header *port_header;
+	struct ctl_table_header *devices_header;
 	struct ctl_table vars[12];
 	struct ctl_table device_dir[2];
 };
 
 static const struct parport_sysctl_table parport_sysctl_template = {
-	.sysctl_header = NULL,
-        {
+	.port_header = NULL,
+	.devices_header = NULL,
+	{
 		{
 			.procname	= "spintime",
 			.data		= NULL,
@@ -429,7 +431,6 @@ parport_default_sysctl_table = {
 int parport_proc_register(struct parport *port)
 {
 	struct parport_sysctl_table *t;
-	struct ctl_table_header *devices_h;
 	char *tmp_dir_path;
 	size_t tmp_path_len, port_name_len;
 	int bytes_written, i, err = 0;
@@ -464,8 +465,8 @@ int parport_proc_register(struct parport *port)
 		err = -ENOENT;
 		goto exit_free_tmp_dir_path;
 	}
-	devices_h = register_sysctl(tmp_dir_path, t->device_dir);
-	if (devices_h == NULL) {
+	t->devices_header = register_sysctl(tmp_dir_path, t->device_dir);
+	if (t->devices_header == NULL) {
 		err = -ENOENT;
 		goto  exit_free_tmp_dir_path;
 	}
@@ -478,8 +479,8 @@ int parport_proc_register(struct parport *port)
 		goto unregister_devices_h;
 	}
 
-	t->sysctl_header = register_sysctl(tmp_dir_path, t->vars);
-	if (t->sysctl_header == NULL) {
+	t->port_header = register_sysctl(tmp_dir_path, t->vars);
+	if (t->port_header == NULL) {
 		err = -ENOENT;
 		goto unregister_devices_h;
 	}
@@ -490,7 +491,7 @@ int parport_proc_register(struct parport *port)
 	return 0;
 
 unregister_devices_h:
-	unregister_sysctl_table(devices_h);
+	unregister_sysctl_table(t->devices_header);
 
 exit_free_tmp_dir_path:
 	kfree(tmp_dir_path);
@@ -505,7 +506,8 @@ int parport_proc_unregister(struct parport *port)
 	if (port->sysctl_table) {
 		struct parport_sysctl_table *t = port->sysctl_table;
 		port->sysctl_table = NULL;
-		unregister_sysctl_table(t->sysctl_header);
+		unregister_sysctl_table(t->devices_header);
+		unregister_sysctl_table(t->port_header);
 		kfree(t);
 	}
 	return 0;
