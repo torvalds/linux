@@ -370,7 +370,7 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 		usleep_range(10, 20);
 		meson_parm_write(clk->map, &pll->current_en, 1);
 		usleep_range(40, 50);
-	};
+	}
 
 	if (MESON_PARM_APPLICABLE(&pll->l_detect)) {
 		meson_parm_write(clk->map, &pll->l_detect, 1);
