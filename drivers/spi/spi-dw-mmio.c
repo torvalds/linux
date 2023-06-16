@@ -274,7 +274,7 @@ static void dw_spi_elba_set_cs(struct spi_device *spi, bool enable)
 	 */
 	spi_set_chipselect(spi, 0, 0);
 	dw_spi_set_cs(spi, enable);
-	spi_get_chipselect(spi, cs);
+	spi_set_chipselect(spi, 0, cs);
 }
 
 static int dw_spi_elba_init(struct platform_device *pdev,
