@@ -21,10 +21,10 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 
-/* commands (high precision mode) */
+/* commands (high repeatability mode) */
 static const unsigned char sht3x_cmd_measure_single_hpm[] = { 0x24, 0x00 };
 
-/* commands (low power mode) */
+/* commands (low repeatability mode) */
 static const unsigned char sht3x_cmd_measure_single_lpm[] = { 0x24, 0x16 };
 
 /* commands for periodic mode */
@@ -66,9 +66,14 @@ enum sht3x_limits {
 	limit_min_hyst,
 };
 
+enum sht3x_repeatability {
+	low_repeatability,
+	high_repeatability,
+};
+
 DECLARE_CRC8_TABLE(sht3x_crc8_table);
 
-/* periodic measure commands (high precision mode) */
+/* periodic measure commands (high repeatability mode) */
 static const char periodic_measure_commands_hpm[][SHT3X_CMD_LENGTH] = {
 	/* 0.5 measurements per second */
 	{0x20, 0x32},
@@ -82,7 +87,7 @@ static const char periodic_measure_commands_hpm[][SHT3X_CMD_LENGTH] = {
 	{0x27, 0x37},
 };
 
-/* periodic measure commands (low power mode) */
+/* periodic measure commands (low repeatability mode) */
 static const char periodic_measure_commands_lpm[][SHT3X_CMD_LENGTH] = {
 	/* 0.5 measurements per second */
 	{0x20, 0x2f},
@@ -132,7 +137,7 @@ struct sht3x_data {
 	const unsigned char *command;
 	u32 wait_time;			/* in us*/
 	unsigned long last_update;	/* last update in periodic mode*/
-	bool high_precision;
+	enum sht3x_repeatability repeatability;
 
 	/*
 	 * cached values for temperature and humidity and limits
@@ -436,7 +441,7 @@ static void sht3x_select_command(struct sht3x_data *data)
 		data->command = sht3x_cmd_measure_periodic_mode;
 		data->wait_time = 0;
 	} else {
-		if (data->high_precision) {
+		if (data->repeatability == high_repeatability) {
 			data->command = sht3x_cmd_measure_single_hpm;
 			data->wait_time = SHT3X_SINGLE_WAIT_TIME_HPM;
 		} else {
@@ -584,7 +589,7 @@ static ssize_t update_interval_store(struct device *dev,
 	}
 
 	if (mode > 0) {
-		if (data->high_precision)
+		if (data->repeatability == high_repeatability)
 			command = periodic_measure_commands_hpm[mode - 1];
 		else
 			command = periodic_measure_commands_lpm[mode - 1];
@@ -679,7 +684,7 @@ static int sht3x_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	data->high_precision = true;
+	data->repeatability = high_repeatability;
 	data->mode = 0;
 	data->last_update = jiffies - msecs_to_jiffies(3000);
 	data->client = client;

@@ -30,7 +30,7 @@ Documentation/i2c/instantiating-devices.rst for methods to instantiate the devic
 
 There is only one option configurable by means of sht3x_data:
 
-   high or low accuracy. High accuracy is used by default and using it is
+   repeatability: high repeatability is used by default and using it is
    strongly recommended.
 
 Even if sht3x sensor supports clock-strech(blocking mode) and non-strench
