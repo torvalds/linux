@@ -1419,7 +1419,7 @@ void perf_pmu__del_formats(struct list_head *formats)
 
 bool is_pmu_core(const char *name)
 {
-	return !strcmp(name, "cpu") || is_sysfs_pmu_core(name);
+	return !strcmp(name, "cpu") || !strcmp(name, "cpum_cf") || is_sysfs_pmu_core(name);
 }
 
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu)
