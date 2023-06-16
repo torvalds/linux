@@ -63,6 +63,10 @@
 #define GAUDI_LINUX_FW_FILE	"habanalabs/gaudi/gaudi-fit.itb"
 #define GAUDI_TPC_FW_FILE	"habanalabs/gaudi/gaudi_tpc.bin"
 
+MODULE_FIRMWARE(GAUDI_BOOT_FIT_FILE);
+MODULE_FIRMWARE(GAUDI_LINUX_FW_FILE);
+MODULE_FIRMWARE(GAUDI_TPC_FW_FILE);
+
 #define GAUDI_DMA_POOL_BLK_SIZE		0x100 /* 256 bytes */
 
 #define GAUDI_RESET_TIMEOUT_MSEC	2000		/* 2000ms */
