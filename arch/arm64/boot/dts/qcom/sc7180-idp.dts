@@ -393,6 +393,11 @@
 	qcom,spare-regs = <&tcsr_regs_2 0xb3e4>;
 };
 
+&scm {
+	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
+	dma-coherent;
+};
+
 &sdhc_1 {
 	status = "okay";
 
