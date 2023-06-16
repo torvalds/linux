@@ -6677,6 +6677,28 @@ cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 }
 
 /**
+ * cfg80211_defragment_element - Defrag the given element data into a buffer
+ *
+ * @elem: the element to defragment
+ * @ies: elements where @elem is contained
+ * @ieslen: length of @ies
+ * @data: buffer to store element data
+ * @data_len: length of @data
+ * @frag_id: the element ID of fragments
+ *
+ * Return: length of @data, or -EINVAL on error
+ *
+ * Copy out all data from an element that may be fragmented into @data, while
+ * skipping all headers.
+ *
+ * The function uses memmove() internally. It is acceptable to defragment an
+ * element in-place.
+ */
+ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
+				    size_t ieslen, u8 *data, size_t data_len,
+				    u8 frag_id);
+
+/**
  * cfg80211_send_layer2_update - send layer 2 update frame
  *
  * @dev: network device
