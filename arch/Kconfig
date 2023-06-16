@@ -400,32 +400,14 @@ config HAVE_HARDLOCKUP_DETECTOR_PERF
 	  The arch chooses to use the generic perf-NMI-based hardlockup
 	  detector. Must define HAVE_PERF_EVENTS_NMI.
 
-config HAVE_NMI_WATCHDOG
-	depends on HAVE_NMI
-	bool
-	help
-	  The arch provides its own hardlockup detector implementation instead
-	  of the generic ones.
-
-	  Sparc64 defines this variable without HAVE_HARDLOCKUP_DETECTOR_ARCH.
-	  It is the last arch-specific implementation which was developed before
-	  adding the common infrastructure for handling hardlockup detectors.
-	  It is always built. It does _not_ use the common command line
-	  parameters and sysctl interface, except for
-	  /proc/sys/kernel/nmi_watchdog.
-
 config HAVE_HARDLOCKUP_DETECTOR_ARCH
 	bool
-	select HAVE_NMI_WATCHDOG
 	help
 	  The arch provides its own hardlockup detector implementation instead
 	  of the generic ones.
 
 	  It uses the same command line parameters, and sysctl interface,
 	  as the generic hardlockup detectors.
-
-	  HAVE_NMI_WATCHDOG is selected to build the code shared with
-	  the sparc64 specific implementation.
 
 config HAVE_PERF_REGS
 	bool
