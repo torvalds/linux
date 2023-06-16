@@ -657,7 +657,8 @@ int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns, int enable)
 }
 EXPORT_SYMBOL_GPL(xpcs_config_eee);
 
-static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs, unsigned int mode)
+static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
+				      unsigned int neg_mode)
 {
 	int ret, mdio_ctrl;
 
@@ -707,7 +708,7 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs, unsigned int mode)
 	if (ret < 0)
 		return ret;
 
-	if (phylink_autoneg_inband(mode))
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		ret |= DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
 	else
 		ret &= ~DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
@@ -716,14 +717,15 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs, unsigned int mode)
 	if (ret < 0)
 		return ret;
 
-	if (phylink_autoneg_inband(mode))
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
 				 mdio_ctrl | AN_CL37_EN);
 
 	return ret;
 }
 
-static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs, unsigned int mode,
+static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
+					  unsigned int neg_mode,
 					  const unsigned long *advertising)
 {
 	phy_interface_t interface = PHY_INTERFACE_MODE_1000BASEX;
@@ -774,8 +776,7 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs, unsigned int mod
 	if (ret < 0)
 		return ret;
 
-	if (phylink_autoneg_inband(mode) &&
-	    linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, advertising)) {
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
 		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
 				 mdio_ctrl | AN_CL37_EN);
 		if (ret < 0)
@@ -808,7 +809,7 @@ static int xpcs_config_2500basex(struct dw_xpcs *xpcs)
 }
 
 int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
-		   unsigned int mode, const unsigned long *advertising)
+		   const unsigned long *advertising, unsigned int neg_mode)
 {
 	const struct xpcs_compat *compat;
 	int ret;
@@ -821,19 +822,19 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 	case DW_10GBASER:
 		break;
 	case DW_AN_C73:
-		if (test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, advertising)) {
+		if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
 			ret = xpcs_config_aneg_c73(xpcs, compat);
 			if (ret)
 				return ret;
 		}
 		break;
 	case DW_AN_C37_SGMII:
-		ret = xpcs_config_aneg_c37_sgmii(xpcs, mode);
+		ret = xpcs_config_aneg_c37_sgmii(xpcs, neg_mode);
 		if (ret)
 			return ret;
 		break;
 	case DW_AN_C37_1000BASEX:
-		ret = xpcs_config_aneg_c37_1000basex(xpcs, mode,
+		ret = xpcs_config_aneg_c37_1000basex(xpcs, neg_mode,
 						     advertising);
 		if (ret)
 			return ret;
@@ -857,14 +858,14 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 }
 EXPORT_SYMBOL_GPL(xpcs_do_config);
 
-static int xpcs_config(struct phylink_pcs *pcs, unsigned int mode,
+static int xpcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 		       phy_interface_t interface,
 		       const unsigned long *advertising,
 		       bool permit_pause_to_mac)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
-	return xpcs_do_config(xpcs, interface, mode, advertising);
+	return xpcs_do_config(xpcs, interface, advertising, neg_mode);
 }
 
 static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
@@ -898,7 +899,8 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 
 		state->link = 0;
 
-		return xpcs_do_config(xpcs, state->interface, MLO_AN_INBAND, NULL);
+		return xpcs_do_config(xpcs, state->interface, NULL,
+				      PHYLINK_PCS_NEG_INBAND_ENABLED);
 	}
 
 	/* There is no point doing anything else if the link is down. */
@@ -1046,12 +1048,12 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 	}
 }
 
-static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int mode,
+static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int neg_mode,
 			       int speed, int duplex)
 {
 	int val, ret;
 
-	if (phylink_autoneg_inband(mode))
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
 
 	val = mii_bmcr_encode_fixed(speed, duplex);
@@ -1060,12 +1062,12 @@ static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int mode,
 		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
 }
 
-static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int mode,
+static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
 				   int speed, int duplex)
 {
 	int val, ret;
 
-	if (phylink_autoneg_inband(mode))
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
 
 	switch (speed) {
@@ -1089,7 +1091,7 @@ static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int mode,
 		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
 }
 
-void xpcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		  phy_interface_t interface, int speed, int duplex)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
@@ -1097,9 +1099,9 @@ void xpcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 	if (interface == PHY_INTERFACE_MODE_USXGMII)
 		return xpcs_config_usxgmii(xpcs, speed);
 	if (interface == PHY_INTERFACE_MODE_SGMII)
-		return xpcs_link_up_sgmii(xpcs, mode, speed, duplex);
+		return xpcs_link_up_sgmii(xpcs, neg_mode, speed, duplex);
 	if (interface == PHY_INTERFACE_MODE_1000BASEX)
-		return xpcs_link_up_1000basex(xpcs, mode, speed, duplex);
+		return xpcs_link_up_1000basex(xpcs, neg_mode, speed, duplex);
 }
 EXPORT_SYMBOL_GPL(xpcs_link_up);
 
@@ -1283,6 +1285,7 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 		}
 
 		xpcs->pcs.ops = &xpcs_phylink_ops;
+		xpcs->pcs.neg_mode = true;
 		if (compat->an_mode == DW_10GBASER)
 			return xpcs;
 
