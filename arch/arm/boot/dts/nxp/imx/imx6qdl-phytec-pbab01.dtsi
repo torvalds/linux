@@ -10,22 +10,18 @@
 		stdout-path = &uart4;
 	};
 
-	regulators {
-		sound_1v8: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "i2s-audio-1v8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-		};
+	sound_1v8: regulator-sound-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "i2s-audio-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
 
-		sound_3v3: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "i2s-audio-3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-		};
+	sound_3v3: regulator-sound-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "i2s-audio-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	tlv320_mclk: oscillator {

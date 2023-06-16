@@ -28,40 +28,31 @@
 		reg = <0x10000000 0x80000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 
-		reg_3p3v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "3P3V";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
+	reg_usb_otg_switch: regulator-usb-otg-switch {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_otg_switch";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio7 12 0>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 
-		reg_usb_otg_switch: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "usb_otg_switch";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio7 12 0>;
-			regulator-boot-on;
-			regulator-always-on;
-		};
-
-		reg_usb_host1: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "usb_host1_en";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio3 31 0>;
-			enable-active-high;
-		};
+	reg_usb_host1: regulator-usb-host1 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_host1_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 31 0>;
+		enable-active-high;
 	};
 
 	gpio-leds {
