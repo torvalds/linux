@@ -873,7 +873,7 @@ static int max98388_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops max98388_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(max98388_suspend, max98388_resume)
+	SYSTEM_SLEEP_PM_OPS(max98388_suspend, max98388_resume)
 };
 
 static const struct regmap_config max98388_regmap = {
@@ -998,9 +998,9 @@ MODULE_DEVICE_TABLE(acpi, max98388_acpi_match);
 static struct i2c_driver max98388_i2c_driver = {
 	.driver = {
 		.name = "max98388",
-		.of_match_table = of_match_ptr(max98388_of_match),
-		.acpi_match_table = ACPI_PTR(max98388_acpi_match),
-		.pm = &max98388_pm,
+		.of_match_table = max98388_of_match,
+		.acpi_match_table = max98388_acpi_match,
+		.pm = pm_sleep_ptr(&max98388_pm),
 	},
 	.probe = max98388_i2c_probe,
 	.id_table = max98388_i2c_id,
