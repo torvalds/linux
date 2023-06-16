@@ -27,8 +27,6 @@ MODULE_LICENSE("GPL");
 
 struct ovl_dir_cache;
 
-#define OVL_MAX_STACK 500
-
 static bool ovl_redirect_dir_def = IS_ENABLED(CONFIG_OVERLAY_FS_REDIRECT_DIR);
 module_param_named(redirect_dir, ovl_redirect_dir_def, bool, 0644);
 MODULE_PARM_DESC(redirect_dir,
@@ -235,6 +233,7 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	for (i = 0; i < ofs->numlayer; i++) {
 		iput(ofs->layers[i].trap);
 		mounts[i] = ofs->layers[i].mnt;
+		kfree(ofs->layers[i].name);
 	}
 	kern_unmount_array(mounts, ofs->numlayer);
 	kfree(ofs->layers);
@@ -242,7 +241,6 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 		free_anon_bdev(ofs->fs[i].pseudo_dev);
 	kfree(ofs->fs);
 
-	kfree(ofs->config.lowerdir);
 	kfree(ofs->config.upperdir);
 	kfree(ofs->config.workdir);
 	if (ofs->creator_cred)
@@ -380,8 +378,17 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct ovl_fs *ofs = sb->s_fs_info;
+	size_t nr, nr_merged_lower = ofs->numlayer - ofs->numdatalayer;
+	const struct ovl_layer *data_layers = &ofs->layers[nr_merged_lower];
 
-	seq_show_option(m, "lowerdir", ofs->config.lowerdir);
+	/* ofs->layers[0] is the upper layer */
+	seq_printf(m, ",lowerdir=%s", ofs->layers[1].name);
+	/* dump regular lower layers */
+	for (nr = 2; nr < nr_merged_lower; nr++)
+		seq_printf(m, ":%s", ofs->layers[nr].name);
+	/* dump data lower layers */
+	for (nr = 0; nr < ofs->numdatalayer; nr++)
+		seq_printf(m, "::%s", data_layers[nr].name);
 	if (ofs->config.upperdir) {
 		seq_show_option(m, "upperdir", ofs->config.upperdir);
 		seq_show_option(m, "workdir", ofs->config.workdir);
@@ -464,8 +471,11 @@ static const struct constant_table ovl_parameter_bool[] = {
 	{}
 };
 
+#define fsparam_string_empty(NAME, OPT) \
+	__fsparam(fs_param_is_string, NAME, OPT, fs_param_can_be_empty, NULL)
+
 static const struct fs_parameter_spec ovl_parameter_spec[] = {
-	fsparam_string("lowerdir",          Opt_lowerdir),
+	fsparam_string_empty("lowerdir",    Opt_lowerdir),
 	fsparam_string("upperdir",          Opt_upperdir),
 	fsparam_string("workdir",           Opt_workdir),
 	fsparam_flag("default_permissions", Opt_default_permissions),
@@ -480,10 +490,6 @@ static const struct fs_parameter_spec ovl_parameter_spec[] = {
 	{}
 };
 
-struct ovl_fs_context {
-	struct ovl_opt_set set;
-};
-
 static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	int err = 0;
@@ -491,7 +497,6 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct ovl_fs *ofs = fc->s_fs_info;
 	struct ovl_config *config = &ofs->config;
 	struct ovl_fs_context *ctx = fc->fs_private;
-	char *dup;
 	int opt;
 
 	/*
@@ -508,34 +513,13 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	switch (opt) {
 	case Opt_lowerdir:
-		dup = kstrdup(param->string, GFP_KERNEL);
-		if (!dup) {
-			err = -ENOMEM;
-			break;
-		}
-
-		kfree(config->lowerdir);
-		config->lowerdir = dup;
+		err = ovl_parse_param_lowerdir(param->string, fc);
 		break;
 	case Opt_upperdir:
-		dup = kstrdup(param->string, GFP_KERNEL);
-		if (!dup) {
-			err = -ENOMEM;
-			break;
-		}
-
-		kfree(config->upperdir);
-		config->upperdir = dup;
-		break;
+		fallthrough;
 	case Opt_workdir:
-		dup = kstrdup(param->string, GFP_KERNEL);
-		if (!dup) {
-			err = -ENOMEM;
-			break;
-		}
-
-		kfree(config->workdir);
-		config->workdir = dup;
+		err = ovl_parse_param_upperdir(param->string, fc,
+					       (Opt_workdir == opt));
 		break;
 	case Opt_default_permissions:
 		config->default_permissions = true;
@@ -586,6 +570,11 @@ static int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 				struct ovl_config *config)
 {
 	struct ovl_opt_set set = ctx->set;
+
+	if (ctx->nr_data > 0 && !config->metacopy) {
+		pr_err("lower data-only dirs require metacopy support.\n");
+		return -EINVAL;
+	}
 
 	/* Workdir/index are useless in non-upper mount */
 	if (!config->upperdir) {
@@ -799,69 +788,6 @@ out_err:
 	goto out_unlock;
 }
 
-static void ovl_unescape(char *s)
-{
-	char *d = s;
-
-	for (;; s++, d++) {
-		if (*s == '\\')
-			s++;
-		*d = *s;
-		if (!*s)
-			break;
-	}
-}
-
-static int ovl_mount_dir_noesc(const char *name, struct path *path)
-{
-	int err = -EINVAL;
-
-	if (!*name) {
-		pr_err("empty lowerdir\n");
-		goto out;
-	}
-	err = kern_path(name, LOOKUP_FOLLOW, path);
-	if (err) {
-		pr_err("failed to resolve '%s': %i\n", name, err);
-		goto out;
-	}
-	err = -EINVAL;
-	if (ovl_dentry_weird(path->dentry)) {
-		pr_err("filesystem on '%s' not supported\n", name);
-		goto out_put;
-	}
-	if (!d_is_dir(path->dentry)) {
-		pr_err("'%s' not a directory\n", name);
-		goto out_put;
-	}
-	return 0;
-
-out_put:
-	path_put_init(path);
-out:
-	return err;
-}
-
-static int ovl_mount_dir(const char *name, struct path *path)
-{
-	int err = -ENOMEM;
-	char *tmp = kstrdup(name, GFP_KERNEL);
-
-	if (tmp) {
-		ovl_unescape(tmp);
-		err = ovl_mount_dir_noesc(tmp, path);
-
-		if (!err && path->dentry->d_flags & DCACHE_OP_REAL) {
-			pr_err("filesystem on '%s' not supported as upperdir\n",
-			       tmp);
-			path_put_init(path);
-			err = -EINVAL;
-		}
-		kfree(tmp);
-	}
-	return err;
-}
-
 static int ovl_check_namelen(const struct path *path, struct ovl_fs *ofs,
 			     const char *name)
 {
@@ -881,10 +807,6 @@ static int ovl_lower_dir(const char *name, struct path *path,
 {
 	int fh_type;
 	int err;
-
-	err = ovl_mount_dir_noesc(name, path);
-	if (err)
-		return err;
 
 	err = ovl_check_namelen(path, ofs, name);
 	if (err)
@@ -932,26 +854,6 @@ static bool ovl_workdir_ok(struct dentry *workdir, struct dentry *upperdir)
 		unlock_rename(workdir, upperdir);
 	}
 	return ok;
-}
-
-static unsigned int ovl_split_lowerdirs(char *str)
-{
-	unsigned int ctr = 1;
-	char *s, *d;
-
-	for (s = d = str;; s++, d++) {
-		if (*s == '\\') {
-			s++;
-		} else if (*s == ':') {
-			*d = '\0';
-			ctr++;
-			continue;
-		}
-		*d = *s;
-		if (!*s)
-			break;
-	}
-	return ctr;
 }
 
 static int ovl_own_xattr_get(const struct xattr_handler *handler,
@@ -1054,14 +956,11 @@ static int ovl_report_in_use(struct ovl_fs *ofs, const char *name)
 }
 
 static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
-			 struct ovl_layer *upper_layer, struct path *upperpath)
+			 struct ovl_layer *upper_layer,
+			 const struct path *upperpath)
 {
 	struct vfsmount *upper_mnt;
 	int err;
-
-	err = ovl_mount_dir(ofs->config.upperdir, upperpath);
-	if (err)
-		goto out;
 
 	/* Upperdir path should not be r/o */
 	if (__mnt_is_readonly(upperpath->mnt)) {
@@ -1091,6 +990,11 @@ static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 	upper_layer->mnt = upper_mnt;
 	upper_layer->idx = 0;
 	upper_layer->fsid = 0;
+
+	err = -ENOMEM;
+	upper_layer->name = kstrdup(ofs->config.upperdir, GFP_KERNEL);
+	if (!upper_layer->name)
+		goto out;
 
 	/*
 	 * Inherit SB_NOSEC flag from upperdir.
@@ -1356,46 +1260,37 @@ out:
 }
 
 static int ovl_get_workdir(struct super_block *sb, struct ovl_fs *ofs,
-			   const struct path *upperpath)
+			   const struct path *upperpath,
+			   const struct path *workpath)
 {
 	int err;
-	struct path workpath = { };
-
-	err = ovl_mount_dir(ofs->config.workdir, &workpath);
-	if (err)
-		goto out;
 
 	err = -EINVAL;
-	if (upperpath->mnt != workpath.mnt) {
+	if (upperpath->mnt != workpath->mnt) {
 		pr_err("workdir and upperdir must reside under the same mount\n");
-		goto out;
+		return err;
 	}
-	if (!ovl_workdir_ok(workpath.dentry, upperpath->dentry)) {
+	if (!ovl_workdir_ok(workpath->dentry, upperpath->dentry)) {
 		pr_err("workdir and upperdir must be separate subtrees\n");
-		goto out;
+		return err;
 	}
 
-	ofs->workbasedir = dget(workpath.dentry);
+	ofs->workbasedir = dget(workpath->dentry);
 
 	if (ovl_inuse_trylock(ofs->workbasedir)) {
 		ofs->workdir_locked = true;
 	} else {
 		err = ovl_report_in_use(ofs, "workdir");
 		if (err)
-			goto out;
+			return err;
 	}
 
 	err = ovl_setup_trap(sb, ofs->workbasedir, &ofs->workbasedir_trap,
 			     "workdir");
 	if (err)
-		goto out;
+		return err;
 
-	err = ovl_make_workdir(sb, ofs, &workpath);
-
-out:
-	path_put(&workpath);
-
-	return err;
+	return ovl_make_workdir(sb, ofs, workpath);
 }
 
 static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
@@ -1559,13 +1454,13 @@ static int ovl_get_data_fsid(struct ovl_fs *ofs)
 
 
 static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
-			  struct path *stack, unsigned int numlower,
-			  struct ovl_layer *layers)
+			  struct ovl_fs_context *ctx, struct ovl_layer *layers)
 {
 	int err;
 	unsigned int i;
+	size_t nr_merged_lower;
 
-	ofs->fs = kcalloc(numlower + 2, sizeof(struct ovl_sb), GFP_KERNEL);
+	ofs->fs = kcalloc(ctx->nr + 2, sizeof(struct ovl_sb), GFP_KERNEL);
 	if (ofs->fs == NULL)
 		return -ENOMEM;
 
@@ -1592,13 +1487,15 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		ofs->fs[0].is_lower = false;
 	}
 
-	for (i = 0; i < numlower; i++) {
+	nr_merged_lower = ctx->nr - ctx->nr_data;
+	for (i = 0; i < ctx->nr; i++) {
+		struct ovl_fs_context_layer *l = &ctx->lower[i];
 		struct vfsmount *mnt;
 		struct inode *trap;
 		int fsid;
 
-		if (i < numlower - ofs->numdatalayer)
-			fsid = ovl_get_fsid(ofs, &stack[i]);
+		if (i < nr_merged_lower)
+			fsid = ovl_get_fsid(ofs, &l->path);
 		else
 			fsid = ovl_get_data_fsid(ofs);
 		if (fsid < 0)
@@ -1611,11 +1508,11 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		 * the upperdir/workdir is in fact in-use by our
 		 * upperdir/workdir.
 		 */
-		err = ovl_setup_trap(sb, stack[i].dentry, &trap, "lowerdir");
+		err = ovl_setup_trap(sb, l->path.dentry, &trap, "lowerdir");
 		if (err)
 			return err;
 
-		if (ovl_is_inuse(stack[i].dentry)) {
+		if (ovl_is_inuse(l->path.dentry)) {
 			err = ovl_report_in_use(ofs, "lowerdir");
 			if (err) {
 				iput(trap);
@@ -1623,7 +1520,7 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 			}
 		}
 
-		mnt = clone_private_mount(&stack[i]);
+		mnt = clone_private_mount(&l->path);
 		err = PTR_ERR(mnt);
 		if (IS_ERR(mnt)) {
 			pr_err("failed to clone lowerpath\n");
@@ -1642,6 +1539,8 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		layers[ofs->numlayer].idx = ofs->numlayer;
 		layers[ofs->numlayer].fsid = fsid;
 		layers[ofs->numlayer].fs = &ofs->fs[fsid];
+		layers[ofs->numlayer].name = l->name;
+		l->name = NULL;
 		ofs->numlayer++;
 		ofs->fs[fsid].is_lower = true;
 	}
@@ -1682,104 +1581,59 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 }
 
 static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
-				const char *lower, unsigned int numlower,
-				struct ovl_fs *ofs, struct ovl_layer *layers)
+					    struct ovl_fs_context *ctx,
+					    struct ovl_fs *ofs,
+					    struct ovl_layer *layers)
 {
 	int err;
-	struct path *stack = NULL;
-	struct ovl_path *lowerstack;
-	unsigned int numlowerdata = 0;
 	unsigned int i;
+	size_t nr_merged_lower;
 	struct ovl_entry *oe;
+	struct ovl_path *lowerstack;
 
-	if (!ofs->config.upperdir && numlower == 1) {
+	struct ovl_fs_context_layer *l;
+
+	if (!ofs->config.upperdir && ctx->nr == 1) {
 		pr_err("at least 2 lowerdir are needed while upperdir nonexistent\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	stack = kcalloc(numlower, sizeof(struct path), GFP_KERNEL);
-	if (!stack)
-		return ERR_PTR(-ENOMEM);
+	err = -EINVAL;
+	for (i = 0; i < ctx->nr; i++) {
+		l = &ctx->lower[i];
 
-	for (i = 0; i < numlower;) {
-		err = ovl_lower_dir(lower, &stack[i], ofs, &sb->s_stack_depth);
+		err = ovl_lower_dir(l->name, &l->path, ofs, &sb->s_stack_depth);
 		if (err)
-			goto out_err;
-
-		lower = strchr(lower, '\0') + 1;
-
-		i++;
-		if (i == numlower)
-			break;
-
-		err = -EINVAL;
-		/*
-		 * Empty lower layer path could mean :: separator that indicates
-		 * a data-only lower data.
-		 * Several data-only layers are allowed, but they all need to be
-		 * at the bottom of the stack.
-		 */
-		if (*lower) {
-			/* normal lower dir */
-			if (numlowerdata) {
-				pr_err("lower data-only dirs must be at the bottom of the stack.\n");
-				goto out_err;
-			}
-		} else {
-			/* data-only lower dir */
-			if (!ofs->config.metacopy) {
-				pr_err("lower data-only dirs require metacopy support.\n");
-				goto out_err;
-			}
-			if (i == numlower - 1) {
-				pr_err("lowerdir argument must not end with double colon.\n");
-				goto out_err;
-			}
-			lower++;
-			numlower--;
-			numlowerdata++;
-		}
-	}
-
-	if (numlowerdata) {
-		ofs->numdatalayer = numlowerdata;
-		pr_info("using the lowest %d of %d lowerdirs as data layers\n",
-			numlowerdata, numlower);
+			return ERR_PTR(err);
 	}
 
 	err = -EINVAL;
 	sb->s_stack_depth++;
 	if (sb->s_stack_depth > FILESYSTEM_MAX_STACK_DEPTH) {
 		pr_err("maximum fs stacking depth exceeded\n");
-		goto out_err;
+		return ERR_PTR(err);
 	}
 
-	err = ovl_get_layers(sb, ofs, stack, numlower, layers);
+	err = ovl_get_layers(sb, ofs, ctx, layers);
 	if (err)
-		goto out_err;
+		return ERR_PTR(err);
 
 	err = -ENOMEM;
 	/* Data-only layers are not merged in root directory */
-	oe = ovl_alloc_entry(numlower - numlowerdata);
+	nr_merged_lower = ctx->nr - ctx->nr_data;
+	oe = ovl_alloc_entry(nr_merged_lower);
 	if (!oe)
-		goto out_err;
+		return ERR_PTR(err);
 
 	lowerstack = ovl_lowerstack(oe);
-	for (i = 0; i < numlower - numlowerdata; i++) {
-		lowerstack[i].dentry = dget(stack[i].dentry);
-		lowerstack[i].layer = &ofs->layers[i+1];
+	for (i = 0; i < nr_merged_lower; i++) {
+		l = &ctx->lower[i];
+		lowerstack[i].dentry = dget(l->path.dentry);
+		lowerstack[i].layer = &ofs->layers[i + 1];
 	}
-
-out:
-	for (i = 0; i < numlower; i++)
-		path_put(&stack[i]);
-	kfree(stack);
+	ofs->numdatalayer = ctx->nr_data;
 
 	return oe;
-
-out_err:
-	oe = ERR_PTR(err);
-	goto out;
 }
 
 /*
@@ -1897,13 +1751,10 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct ovl_fs_context *ctx = fc->fs_private;
-	struct path upperpath = {};
 	struct dentry *root_dentry;
 	struct ovl_entry *oe;
 	struct ovl_layer *layers;
 	struct cred *cred;
-	char *splitlower = NULL;
-	unsigned int numlower;
 	int err;
 
 	err = -EIO;
@@ -1922,27 +1773,14 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto out_err;
 
 	err = -EINVAL;
-	if (!ofs->config.lowerdir) {
+	if (ctx->nr == 0) {
 		if (!(fc->sb_flags & SB_SILENT))
 			pr_err("missing 'lowerdir'\n");
 		goto out_err;
 	}
 
 	err = -ENOMEM;
-	splitlower = kstrdup(ofs->config.lowerdir, GFP_KERNEL);
-	if (!splitlower)
-		goto out_err;
-
-	err = -EINVAL;
-	numlower = ovl_split_lowerdirs(splitlower);
-	if (numlower > OVL_MAX_STACK) {
-		pr_err("too many lower directories, limit is %d\n",
-		       OVL_MAX_STACK);
-		goto out_err;
-	}
-
-	err = -ENOMEM;
-	layers = kcalloc(numlower + 1, sizeof(struct ovl_layer), GFP_KERNEL);
+	layers = kcalloc(ctx->nr + 1, sizeof(struct ovl_layer), GFP_KERNEL);
 	if (!layers)
 		goto out_err;
 
@@ -1974,7 +1812,7 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 			goto out_err;
 		}
 
-		err = ovl_get_upper(sb, ofs, &layers[0], &upperpath);
+		err = ovl_get_upper(sb, ofs, &layers[0], &ctx->upper);
 		if (err)
 			goto out_err;
 
@@ -1988,7 +1826,7 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 			}
 		}
 
-		err = ovl_get_workdir(sb, ofs, &upperpath);
+		err = ovl_get_workdir(sb, ofs, &ctx->upper, &ctx->work);
 		if (err)
 			goto out_err;
 
@@ -1998,7 +1836,7 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		sb->s_stack_depth = upper_sb->s_stack_depth;
 		sb->s_time_gran = upper_sb->s_time_gran;
 	}
-	oe = ovl_get_lowerstack(sb, splitlower, numlower, ofs, layers);
+	oe = ovl_get_lowerstack(sb, ctx, ofs, layers);
 	err = PTR_ERR(oe);
 	if (IS_ERR(oe))
 		goto out_err;
@@ -2013,7 +1851,7 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	if (!ovl_force_readonly(ofs) && ofs->config.index) {
-		err = ovl_get_indexdir(sb, ofs, oe, &upperpath);
+		err = ovl_get_indexdir(sb, ofs, oe, &ctx->upper);
 		if (err)
 			goto out_free_oe;
 
@@ -2054,12 +1892,9 @@ static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_iflags |= SB_I_SKIP_SYNC;
 
 	err = -ENOMEM;
-	root_dentry = ovl_get_root(sb, upperpath.dentry, oe);
+	root_dentry = ovl_get_root(sb, ctx->upper.dentry, oe);
 	if (!root_dentry)
 		goto out_free_oe;
-
-	path_put(&upperpath);
-	kfree(splitlower);
 
 	sb->s_root = root_dentry;
 
@@ -2080,6 +1915,10 @@ static int ovl_get_tree(struct fs_context *fc)
 
 static inline void ovl_fs_context_free(struct ovl_fs_context *ctx)
 {
+	ovl_parse_param_drop_lowerdir(ctx);
+	path_put(&ctx->upper);
+	path_put(&ctx->work);
+	kfree(ctx->lower);
 	kfree(ctx);
 }
 
@@ -2124,11 +1963,18 @@ static int ovl_init_fs_context(struct fs_context *fc)
 	if (!ctx)
 		return -ENOMEM;
 
+	/*
+	 * By default we allocate for three lower layers. It's likely
+	 * that it'll cover most users.
+	 */
+	ctx->lower = kmalloc_array(3, sizeof(*ctx->lower), GFP_KERNEL_ACCOUNT);
+	if (!ctx->lower)
+		goto out_err;
+	ctx->capacity = 3;
+
 	ofs = kzalloc(sizeof(struct ovl_fs), GFP_KERNEL);
-	if (!ofs) {
-		ovl_fs_context_free(ctx);
-		return -ENOMEM;
-	}
+	if (!ofs)
+		goto out_err;
 
 	ofs->config.redirect_mode = ovl_redirect_mode_def();
 	ofs->config.index	= ovl_index_def;
@@ -2141,6 +1987,11 @@ static int ovl_init_fs_context(struct fs_context *fc)
 	fc->fs_private		= ctx;
 	fc->ops			= &ovl_context_ops;
 	return 0;
+
+out_err:
+	ovl_fs_context_free(ctx);
+	return -ENOMEM;
+
 }
 
 static struct file_system_type ovl_fs_type = {

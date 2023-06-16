@@ -368,6 +368,29 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 }
 
 
+/* params.c */
+#define OVL_MAX_STACK 500
+
+struct ovl_fs_context_layer {
+	char *name;
+	struct path path;
+};
+
+struct ovl_fs_context {
+	struct path upper;
+	struct path work;
+	size_t capacity;
+	size_t nr; /* includes nr_data */
+	size_t nr_data;
+	struct ovl_opt_set set;
+	struct ovl_fs_context_layer *lower;
+};
+
+int ovl_parse_param_upperdir(const char *name, struct fs_context *fc,
+			     bool workdir);
+int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc);
+void ovl_parse_param_drop_lowerdir(struct ovl_fs_context *ctx);
+
 /* util.c */
 int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);

@@ -6,7 +6,6 @@
  */
 
 struct ovl_config {
-	char *lowerdir;
 	char *upperdir;
 	char *workdir;
 	bool default_permissions;
@@ -39,6 +38,7 @@ struct ovl_layer {
 	int idx;
 	/* One fsid per unique underlying sb (upper fsid == 0) */
 	int fsid;
+	char *name;
 };
 
 /*
@@ -98,7 +98,6 @@ struct ovl_fs {
 	/* r/o snapshot of upperdir sb's only taken on volatile mounts */
 	errseq_t errseq;
 };
-
 
 /* Number of lower layers, not including data-only layers */
 static inline unsigned int ovl_numlowerlayer(struct ovl_fs *ofs)
