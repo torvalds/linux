@@ -2124,6 +2124,44 @@ static irqreturn_t rockchip_i2s_tdm_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int rockchip_i2s_tdm_keep_clk_always_on(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+	unsigned int mclk_rate = DEFAULT_FS * DEFAULT_MCLK_FS;
+	unsigned int bclk_rate = i2s_tdm->bclk_fs * DEFAULT_FS;
+	unsigned int div_lrck = i2s_tdm->bclk_fs;
+	unsigned int div_bclk;
+	int ret;
+
+	div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
+
+	/* assign generic freq */
+	clk_set_rate(i2s_tdm->mclk_rx, mclk_rate);
+	clk_set_rate(i2s_tdm->mclk_tx, mclk_rate);
+
+	ret = rockchip_i2s_tdm_mclk_reparent(i2s_tdm);
+	if (ret)
+		return ret;
+
+	regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
+			   I2S_CLKDIV_RXM_MASK | I2S_CLKDIV_TXM_MASK,
+			   I2S_CLKDIV_RXM(div_bclk) | I2S_CLKDIV_TXM(div_bclk));
+	regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
+			   I2S_CKR_RSD_MASK | I2S_CKR_TSD_MASK,
+			   I2S_CKR_RSD(div_lrck) | I2S_CKR_TSD(div_lrck));
+
+	if (i2s_tdm->clk_trcm)
+		rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm);
+	else
+		rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
+
+	pm_runtime_forbid(i2s_tdm->dev);
+
+	dev_info(i2s_tdm->dev, "CLK-ALWAYS-ON: mclk: %d, bclk: %d, fsync: %d\n",
+		 mclk_rate, bclk_rate, DEFAULT_FS);
+
+	return 0;
+}
+
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -2317,36 +2355,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON) {
-		unsigned int rate = DEFAULT_FS * DEFAULT_MCLK_FS;
-		unsigned int div_bclk = DEFAULT_FS * DEFAULT_MCLK_FS;
-		unsigned int div_lrck = i2s_tdm->bclk_fs;
-
-		div_bclk = DIV_ROUND_CLOSEST(rate, div_lrck * DEFAULT_FS);
-
-		/* assign generic freq */
-		clk_set_rate(i2s_tdm->mclk_rx, rate);
-		clk_set_rate(i2s_tdm->mclk_tx, rate);
-
-		ret = rockchip_i2s_tdm_mclk_reparent(i2s_tdm);
-		if (ret)
-			goto err_pm_disable;
-
-		regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
-				   I2S_CLKDIV_RXM_MASK | I2S_CLKDIV_TXM_MASK,
-				   I2S_CLKDIV_RXM(div_bclk) | I2S_CLKDIV_TXM(div_bclk));
-		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
-				   I2S_CKR_RSD_MASK | I2S_CKR_TSD_MASK,
-				   I2S_CKR_RSD(div_lrck) | I2S_CKR_TSD(div_lrck));
-
-		if (i2s_tdm->clk_trcm)
-			rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm);
-		else
-			rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
-
-		pm_runtime_forbid(&pdev->dev);
-	}
-
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
 			   I2S_DMACR_TDL(16));
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
@@ -2356,6 +2364,17 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	if (i2s_tdm->soc_data && i2s_tdm->soc_data->init)
 		i2s_tdm->soc_data->init(&pdev->dev, res->start);
+
+	/*
+	 * CLK_ALWAYS_ON should be placed after all registers write done,
+	 * because this situation will enable XFER bit which will make
+	 * some registers(depend on XFER) write failed.
+	 */
+	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON) {
+		ret = rockchip_i2s_tdm_keep_clk_always_on(i2s_tdm);
+		if (ret)
+			goto err_pm_disable;
+	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_tdm_component,
