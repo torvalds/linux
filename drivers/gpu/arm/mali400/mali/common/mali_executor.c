@@ -1383,7 +1383,7 @@ static mali_bool mali_executor_is_suspended(void *data)
 	return ret;
 }
 
-static mali_bool mali_executor_is_working()
+static mali_bool mali_executor_is_working(void)
 {
 	MALI_DEBUG_ASSERT_EXECUTOR_LOCK_HELD();
 
