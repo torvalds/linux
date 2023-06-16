@@ -139,7 +139,7 @@ scheme of the kdamond.  Writing ``clear_schemes_tried_regions`` to ``state``
 file clears the DAMON-based operating scheme action tried regions directory for
 each DAMON-based operation scheme of the kdamond.  For details of the
 DAMON-based operation scheme action tried regions directory, please refer to
-:ref:tried_regions section <sysfs_schemes_tried_regions>`.
+:ref:`tried_regions section <sysfs_schemes_tried_regions>`.
 
 If the state is ``on``, reading ``pid`` shows the pid of the kdamond thread.
 
@@ -282,7 +282,7 @@ memory regions having specific access pattern of the interest.  The keywords
 that can be written to and read from the file and their meaning are as below.
 
 Note that support of each action depends on the running DAMON operations set
-`implementation <sysfs_contexts>`.
+:ref:`implementation <sysfs_contexts>`.
 
  - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``.
    Supported by ``vaddr`` and ``fvaddr`` operations set.
@@ -432,8 +432,7 @@ starting from ``0`` under this directory.  Each directory contains files
 exposing detailed information about each of the memory region that the
 corresponding scheme's ``action`` has tried to be applied under this directory,
 during next :ref:`aggregation interval <sysfs_monitoring_attrs>`.  The
-information includes address range, ``nr_accesses``, , and ``age`` of the
-region.
+information includes address range, ``nr_accesses``, and ``age`` of the region.
 
 The directories will be removed when another special keyword,
 ``clear_schemes_tried_regions``, is written to the relevant
