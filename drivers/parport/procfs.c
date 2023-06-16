@@ -387,7 +387,6 @@ parport_device_sysctl_template = {
 			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0555,
-			.child		= NULL
 		},
 		{}
 	}

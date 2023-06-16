@@ -29,9 +29,8 @@ static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
 
 /* Support for permanently empty directories */
-
 struct ctl_table sysctl_mount_point[] = {
-	{ }
+	{.type = SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY }
 };
 
 /**
@@ -48,21 +47,14 @@ struct ctl_table_header *register_sysctl_mount_point(const char *path)
 }
 EXPORT_SYMBOL(register_sysctl_mount_point);
 
-static bool is_empty_dir(struct ctl_table_header *head)
-{
-	return head->ctl_table[0].child == sysctl_mount_point;
-}
-
-static void set_empty_dir(struct ctl_dir *dir)
-{
-	dir->header.ctl_table[0].child = sysctl_mount_point;
-}
-
-static void clear_empty_dir(struct ctl_dir *dir)
-
-{
-	dir->header.ctl_table[0].child = NULL;
-}
+#define sysctl_is_perm_empty_ctl_table(tptr)		\
+	(tptr[0].type == SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY)
+#define sysctl_is_perm_empty_ctl_header(hptr)		\
+	(sysctl_is_perm_empty_ctl_table(hptr->ctl_table))
+#define sysctl_set_perm_empty_ctl_header(hptr)		\
+	(hptr->ctl_table[0].type = SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY)
+#define sysctl_clear_perm_empty_ctl_header(hptr)	\
+	(hptr->ctl_table[0].type = SYSCTL_TABLE_TYPE_DEFAULT)
 
 void proc_sys_poll_notify(struct ctl_table_poll *poll)
 {
@@ -230,20 +222,22 @@ static void erase_header(struct ctl_table_header *head)
 static int insert_header(struct ctl_dir *dir, struct ctl_table_header *header)
 {
 	struct ctl_table *entry;
+	struct ctl_table_header *dir_h = &dir->header;
 	int err;
 
+
 	/* Is this a permanently empty directory? */
-	if (is_empty_dir(&dir->header))
+	if (sysctl_is_perm_empty_ctl_header(dir_h))
 		return -EROFS;
 
 	/* Am I creating a permanently empty directory? */
-	if (header->ctl_table == sysctl_mount_point) {
+	if (sysctl_is_perm_empty_ctl_table(header->ctl_table)) {
 		if (!RB_EMPTY_ROOT(&dir->root))
 			return -EINVAL;
-		set_empty_dir(dir);
+		sysctl_set_perm_empty_ctl_header(dir_h);
 	}
 
-	dir->header.nreg++;
+	dir_h->nreg++;
 	header->parent = dir;
 	err = insert_links(header);
 	if (err)
@@ -259,9 +253,9 @@ fail:
 	put_links(header);
 fail_links:
 	if (header->ctl_table == sysctl_mount_point)
-		clear_empty_dir(dir);
+		sysctl_clear_perm_empty_ctl_header(dir_h);
 	header->parent = NULL;
-	drop_sysctl_table(&dir->header);
+	drop_sysctl_table(dir_h);
 	return err;
 }
 
@@ -479,7 +473,7 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 		inode->i_mode |= S_IFDIR;
 		inode->i_op = &proc_sys_dir_operations;
 		inode->i_fop = &proc_sys_dir_file_operations;
-		if (is_empty_dir(head))
+		if (sysctl_is_perm_empty_ctl_header(head))
 			make_empty_dir_inode(inode);
 	}
 
@@ -1136,9 +1130,6 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 	struct ctl_table *entry;
 	int err = 0;
 	list_for_each_table_entry(entry, table) {
-		if (entry->child)
-			err |= sysctl_err(path, entry, "Not a file");
-
 		if ((entry->proc_handler == proc_dostring) ||
 		    (entry->proc_handler == proc_dobool) ||
 		    (entry->proc_handler == proc_dointvec) ||
@@ -1465,25 +1456,6 @@ void __init __register_sysctl_init(const char *path, struct ctl_table *table,
 	kmemleak_not_leak(hdr);
 }
 
-static int count_subheaders(struct ctl_table *table)
-{
-	int has_files = 0;
-	int nr_subheaders = 0;
-	struct ctl_table *entry;
-
-	/* special case: no directory and empty directory */
-	if (!table || !table->procname)
-		return 1;
-
-	list_for_each_table_entry(entry, table) {
-		if (entry->child)
-			nr_subheaders += count_subheaders(entry->child);
-		else
-			has_files = 1;
-	}
-	return nr_subheaders + has_files;
-}
-
 static void put_links(struct ctl_table_header *header)
 {
 	struct ctl_table_set *root_set = &sysctl_table_root.default_set;
@@ -1546,27 +1518,10 @@ static void drop_sysctl_table(struct ctl_table_header *header)
  */
 void unregister_sysctl_table(struct ctl_table_header * header)
 {
-	int nr_subheaders;
 	might_sleep();
 
 	if (header == NULL)
 		return;
-
-	nr_subheaders = count_subheaders(header->ctl_table_arg);
-	if (unlikely(nr_subheaders > 1)) {
-		struct ctl_table_header **subheaders;
-		int i;
-
-		subheaders = (struct ctl_table_header **)(header + 1);
-		for (i = nr_subheaders -1; i >= 0; i--) {
-			struct ctl_table_header *subh = subheaders[i];
-			struct ctl_table *table = subh->ctl_table_arg;
-			unregister_sysctl_table(subh);
-			kfree(table);
-		}
-		kfree(header);
-		return;
-	}
 
 	spin_lock(&sysctl_lock);
 	drop_sysctl_table(header);

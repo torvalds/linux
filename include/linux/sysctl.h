@@ -137,7 +137,17 @@ struct ctl_table {
 	void *data;
 	int maxlen;
 	umode_t mode;
-	struct ctl_table *child;	/* Deprecated */
+	/**
+	 * enum type - Enumeration to differentiate between ctl target types
+	 * @SYSCTL_TABLE_TYPE_DEFAULT: ctl target with no special considerations
+	 * @SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY: Used to identify a permanently
+	 *                                       empty directory target to serve
+	 *                                       as mount point.
+	 */
+	enum {
+		SYSCTL_TABLE_TYPE_DEFAULT,
+		SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY
+	} type;
 	proc_handler *proc_handler;	/* Callback for text formatting */
 	struct ctl_table_poll *poll;
 	void *extra1;
@@ -229,7 +239,7 @@ extern int unaligned_enabled;
 extern int unaligned_dump_stack;
 extern int no_unaligned_warning;
 
-extern struct ctl_table sysctl_mount_point[];
+#define SYSCTL_PERM_EMPTY_DIR	(1 << 0)
 
 #else /* CONFIG_SYSCTL */
 
