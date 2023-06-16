@@ -469,6 +469,9 @@ static u8 rtw_usb_tx_queue_mapping_to_qsel(struct sk_buff *skb)
 
 	if (unlikely(ieee80211_is_mgmt(fc) || ieee80211_is_ctl(fc)))
 		qsel = TX_DESC_QSEL_MGMT;
+	else if (is_broadcast_ether_addr(hdr->addr1) ||
+		 is_multicast_ether_addr(hdr->addr1))
+		qsel = TX_DESC_QSEL_HIGH;
 	else if (skb_get_queue_mapping(skb) <= IEEE80211_AC_BK)
 		qsel = skb->priority;
 	else
