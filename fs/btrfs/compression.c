@@ -37,7 +37,7 @@
 #include "file-item.h"
 #include "super.h"
 
-struct bio_set btrfs_compressed_bioset;
+static struct bio_set btrfs_compressed_bioset;
 
 static const char* const btrfs_compress_types[] = { "", "zlib", "lzo", "zstd" };
 
