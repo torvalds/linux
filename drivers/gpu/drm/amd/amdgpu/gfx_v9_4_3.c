@@ -1072,6 +1072,25 @@ static void gfx_v9_4_3_xcc_unset_safe_mode(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SAFE_MODE, data);
 }
 
+static void gfx_v9_4_3_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
+{
+	int xcc_id;
+	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
+
+	for (xcc_id = 0; xcc_id < AMDGPU_MAX_RLC_INSTANCES; xcc_id++) {
+		if (((1 << xcc_id) & adev->gfx.xcc_mask) == 0)
+			continue;
+		reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[GET_INST(GC, xcc_id)];
+		reg_access_ctrl->scratch_reg0 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG0);
+		reg_access_ctrl->scratch_reg1 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG1);
+		reg_access_ctrl->scratch_reg2 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG2);
+		reg_access_ctrl->scratch_reg3 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG3);
+		reg_access_ctrl->grbm_cntl = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_CNTL);
+		reg_access_ctrl->grbm_idx = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_INDEX);
+		reg_access_ctrl->spare_int = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_SPARE_INT);
+	}
+}
+
 static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
 {
 	/* init spm vmid with 0xf */
@@ -2148,6 +2167,9 @@ static int gfx_v9_4_3_early_init(void *handle)
 	gfx_v9_4_3_set_irq_funcs(adev);
 	gfx_v9_4_3_set_gds_init(adev);
 	gfx_v9_4_3_set_rlc_funcs(adev);
+
+	/* init rlcg reg access ctrl */
+	gfx_v9_4_3_init_rlcg_reg_access_ctrl(adev);
 
 	return gfx_v9_4_3_init_microcode(adev);
 }
