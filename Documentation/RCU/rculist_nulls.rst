@@ -65,7 +65,7 @@ but a version with an additional memory barrier (smp_rmb())
     struct hlist_node *node, *next;
     for (pos = rcu_dereference((head)->first);
          pos && ({ next = pos->next; smp_rmb(); prefetch(next); 1; }) &&
-         ({ obj = hlist_entry(pos, typeof(*obj), member); 1; });
+         ({ obj = hlist_entry(pos, typeof(*obj), obj_node); 1; });
          pos = rcu_dereference(next))
       if (obj->key == key)
         return obj;
@@ -77,7 +77,7 @@ And note the traditional hlist_for_each_entry_rcu() misses this smp_rmb()::
   struct hlist_node *node;
   for (pos = rcu_dereference((head)->first);
        pos && ({ prefetch(pos->next); 1; }) &&
-       ({ obj = hlist_entry(pos, typeof(*obj), member); 1; });
+       ({ obj = hlist_entry(pos, typeof(*obj), obj_node); 1; });
        pos = rcu_dereference(pos->next))
     if (obj->key == key)
       return obj;
@@ -97,7 +97,7 @@ Quoting Corey Minyard::
 2) Insertion algorithm
 ----------------------
 
-We need to make sure a reader cannot read the new 'obj->obj_next' value
+We need to make sure a reader cannot read the new 'obj->obj_node.next' value
 and previous value of 'obj->key'. Otherwise, an item could be deleted
 from a chain, and inserted into another chain. If new chain was empty
 before the move, 'next' pointer is NULL, and lockless reader can not
@@ -165,7 +165,7 @@ Note that using hlist_nulls means the type of 'obj_node' field of
   head = &table[slot];
   begin:
   rcu_read_lock();
-  hlist_nulls_for_each_entry_rcu(obj, node, head, member) {
+  hlist_nulls_for_each_entry_rcu(obj, node, head, obj_node) {
     if (obj->key == key) {
       if (!try_get_ref(obj)) { // might fail for free objects
 	rcu_read_unlock();
