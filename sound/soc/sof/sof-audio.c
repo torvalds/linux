@@ -396,6 +396,9 @@ sof_unprepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widg
 	const struct sof_ipc_tplg_widget_ops *widget_ops;
 	struct snd_soc_dapm_path *p;
 
+	if (is_virtual_widget(sdev, widget, __func__))
+		return;
+
 	/* skip if the widget is in use or if it is already unprepared */
 	if (!swidget || !swidget->prepared || swidget->use_count > 0)
 		goto sink_unprepare;
@@ -432,6 +435,9 @@ sof_prepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget
 	const struct sof_ipc_tplg_widget_ops *widget_ops;
 	struct snd_soc_dapm_path *p;
 	int ret;
+
+	if (is_virtual_widget(sdev, widget, __func__))
+		return 0;
 
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
 	if (!widget_ops)
@@ -488,6 +494,9 @@ static int sof_free_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dap
 	int err;
 	int ret = 0;
 
+	if (is_virtual_widget(sdev, widget, __func__))
+		return 0;
+
 	if (widget->dobj.private) {
 		err = sof_widget_free(sdev, widget->dobj.private);
 		if (err < 0)
@@ -526,6 +535,9 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 	struct snd_sof_pipeline *spipe;
 	struct snd_soc_dapm_path *p;
 	int ret;
+
+	if (is_virtual_widget(sdev, widget, __func__))
+		return 0;
 
 	if (swidget) {
 		int i;
@@ -592,6 +604,9 @@ sof_walk_widgets_in_order(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 		return 0;
 
 	for_each_dapm_widgets(list, i, widget) {
+		if (is_virtual_widget(sdev, widget, __func__))
+			continue;
+
 		/* starting widget for playback is AIF type */
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK && widget->id != snd_soc_dapm_aif_in)
 			continue;
