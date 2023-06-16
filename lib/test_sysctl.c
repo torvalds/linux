@@ -30,6 +30,13 @@ static int i_zero;
 static int i_one_hundred = 100;
 static int match_int_ok = 1;
 
+
+static struct {
+	struct ctl_table_header *test_h_setup_node;
+	struct ctl_table_header *test_h_mnt;
+	struct ctl_table_header *test_h_mnterror;
+} sysctl_test_headers;
+
 struct test_sysctl_data {
 	int int_0001;
 	int int_0002;
@@ -153,16 +160,14 @@ static void test_sysctl_calc_match_int_ok(void)
 			match_int_ok = 0;
 }
 
-static struct ctl_table_header *test_sysctl_header;
-
 static int test_sysctl_setup_node_tests(void)
 {
 	test_sysctl_calc_match_int_ok();
 	test_data.bitmap_0001 = kzalloc(SYSCTL_TEST_BITMAP_SIZE/8, GFP_KERNEL);
 	if (!test_data.bitmap_0001)
 		return -ENOMEM;
-	test_sysctl_header = register_sysctl("debug/test_sysctl", test_table);
-	if (!test_sysctl_header) {
+	sysctl_test_headers.test_h_setup_node = register_sysctl("debug/test_sysctl", test_table);
+	if (!sysctl_test_headers.test_h_setup_node) {
 		kfree(test_data.bitmap_0001);
 		return -ENOMEM;
 	}
@@ -195,6 +200,26 @@ static int test_sysctl_run_unregister_nested(void)
 	return 0;
 }
 
+static int test_sysctl_run_register_mount_point(void)
+{
+	sysctl_test_headers.test_h_mnt
+		= register_sysctl_mount_point("debug/test_sysctl/mnt");
+	if (!sysctl_test_headers.test_h_mnt)
+		return -ENOMEM;
+
+	sysctl_test_headers.test_h_mnterror
+		= register_sysctl("debug/test_sysctl/mnt/mnt_error",
+				  test_table_unregister);
+	/*
+	 * Don't check the result.:
+	 * If it fails (expected behavior), return 0.
+	 * If successful (missbehavior of register mount point), we want to see
+	 * mnt_error when we run the sysctl test script
+	 */
+
+	return 0;
+}
+
 static int __init test_sysctl_init(void)
 {
 	int err;
@@ -204,6 +229,10 @@ static int __init test_sysctl_init(void)
 		goto out;
 
 	err = test_sysctl_run_unregister_nested();
+	if (err)
+		goto out;
+
+	err = test_sysctl_run_register_mount_point();
 
 out:
 	return err;
@@ -213,8 +242,12 @@ module_init(test_sysctl_init);
 static void __exit test_sysctl_exit(void)
 {
 	kfree(test_data.bitmap_0001);
-	if (test_sysctl_header)
-		unregister_sysctl_table(test_sysctl_header);
+	if (sysctl_test_headers.test_h_setup_node)
+		unregister_sysctl_table(sysctl_test_headers.test_h_setup_node);
+	if (sysctl_test_headers.test_h_mnt)
+		unregister_sysctl_table(sysctl_test_headers.test_h_mnt);
+	if (sysctl_test_headers.test_h_mnterror)
+		unregister_sysctl_table(sysctl_test_headers.test_h_mnterror);
 }
 
 module_exit(test_sysctl_exit);

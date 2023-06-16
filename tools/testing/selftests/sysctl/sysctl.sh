@@ -34,6 +34,7 @@ ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001:1"
 ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int:1"
 ALL_TESTS="$ALL_TESTS 0008:1:1:match_int:1"
 ALL_TESTS="$ALL_TESTS 0009:1:1:unregister_error:0"
+ALL_TESTS="$ALL_TESTS 0010:1:1:mnt/mnt_error:0"
 
 function allow_user_defaults()
 {
@@ -813,6 +814,20 @@ sysctl_test_0009()
 	return 0
 }
 
+sysctl_test_0010()
+{
+	TARGET="${SYSCTL}/$(get_test_target 0010)"
+	echo -n "Testing that $TARGET was not created  ..."
+	if [ -d $TARGET ]; then
+		echo "TEST FAILED"
+		rc=1
+		test_rc
+	fi
+
+	echo "ok"
+	return 0
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -830,6 +845,7 @@ list_tests()
 	echo "0007 x $(get_test_count 0007) - tests setting sysctl from kernel boot param"
 	echo "0008 x $(get_test_count 0008) - tests sysctl macro values match"
 	echo "0009 x $(get_test_count 0009) - tests sysct unregister"
+	echo "0010 x $(get_test_count 0010) - tests sysct mount point"
 }
 
 usage()
