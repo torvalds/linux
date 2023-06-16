@@ -47,6 +47,13 @@
 	};
 };
 
+&bt_sound {
+	status = "disabled";
+	simple-audio-card,cpu {
+		sound-dai = <&i2s2_2ch>;
+	};
+};
+
 &audiopwmout_diff {
 	status = "disabled";
 };
@@ -271,6 +278,12 @@
 			};
 		};
 	};
+};
+
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m1_sclktx &i2s2m1_lrcktx &i2s2m1_sdi &i2s2m1_sdo>;
+	rockchip,bclk-fs = <32>;
+	status = "disabled";
 };
 
 &i2s3_2ch {

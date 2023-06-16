@@ -47,6 +47,13 @@
 	status = "disabled";
 };
 
+&bt_sound {
+	status = "disabled";
+	simple-audio-card,cpu {
+		sound-dai = <&i2s2_2ch>;
+	};
+};
+
 &combphy1_usq {
 	status = "okay";
 };
@@ -166,6 +173,12 @@
 };
 
 &i2c5 {
+	status = "disabled";
+};
+
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m0_sclktx &i2s2m0_lrcktx &i2s2m0_sdi &i2s2m0_sdo>;
+	rockchip,bclk-fs = <32>;
 	status = "disabled";
 };
 
