@@ -509,13 +509,18 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 	return 0;
 }
 
+static void qdsb_put(struct gfs2_quota_data *qd)
+{
+	bh_put(qd);
+	slot_put(qd);
+	qd_put(qd);
+}
+
 static void qd_unlock(struct gfs2_quota_data *qd)
 {
 	gfs2_assert_warn(qd->qd_sbd, test_bit(QDF_LOCKED, &qd->qd_flags));
 	clear_bit(QDF_LOCKED, &qd->qd_flags);
-	bh_put(qd);
-	slot_put(qd);
-	qd_put(qd);
+	qdsb_put(qd);
 }
 
 static int qdsb_get(struct gfs2_sbd *sdp, struct kqid qid,
@@ -542,13 +547,6 @@ fail_slot:
 fail:
 	qd_put(*qdp);
 	return error;
-}
-
-static void qdsb_put(struct gfs2_quota_data *qd)
-{
-	bh_put(qd);
-	slot_put(qd);
-	qd_put(qd);
 }
 
 /**
