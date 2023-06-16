@@ -3005,7 +3005,7 @@ static void mt7530_pcs_get_state(struct phylink_pcs *pcs,
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static int mt753x_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+static int mt753x_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			     phy_interface_t interface,
 			     const unsigned long *advertising,
 			     bool permit_pause_to_mac)
@@ -3033,6 +3033,7 @@ mt753x_setup(struct dsa_switch *ds)
 	/* Initialise the PCS devices */
 	for (i = 0; i < priv->ds->num_ports; i++) {
 		priv->pcs[i].pcs.ops = priv->info->pcs_ops;
+		priv->pcs[i].pcs.neg_mode = true;
 		priv->pcs[i].priv = priv;
 		priv->pcs[i].port = i;
 	}
