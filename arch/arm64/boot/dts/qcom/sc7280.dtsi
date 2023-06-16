@@ -656,7 +656,7 @@
 	};
 
 	firmware {
-		scm {
+		scm: scm {
 			compatible = "qcom,scm-sc7280", "qcom,scm";
 		};
 	};
