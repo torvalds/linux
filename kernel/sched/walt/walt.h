@@ -59,6 +59,11 @@ enum qos_clients {
 	QOS_HIGH_PERF_CAP,
 };
 
+enum qos_request_type {
+	MIN_REQUEST,
+	MAX_REQUEST,
+};
+
 /* Note: this need to be in sync with migrate_type_names array */
 enum migrate_types {
 	GROUP_TO_RQ,
@@ -829,8 +834,8 @@ extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					int sync, int sibling_count_hint);
 extern int walt_find_cluster_packing_cpu(int start_cpu);
 extern bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p);
-extern void add_max_freq_qos_request(struct cpumask max_freq_cpus, s32 max_freq,
-		enum qos_clients client);
+extern void add_freq_qos_request(struct cpumask max_freq_cpus, s32 max_freq,
+		enum qos_clients client, enum qos_request_type type);
 
 static inline unsigned int cpu_max_possible_freq(int cpu)
 {

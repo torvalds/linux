@@ -1532,17 +1532,19 @@ TRACE_EVENT(update_cpu_capacity,
 			__entry->rq_cpu_capacity_orig)
 );
 
-TRACE_EVENT(sched_qos_max_freq_request,
+TRACE_EVENT(sched_qos_freq_request,
 
-	TP_PROTO(struct cpumask cpus, s32 max_freq, enum qos_clients client, int ret),
+	TP_PROTO(struct cpumask cpus, s32 max_freq, enum qos_clients client, int ret,
+		enum qos_request_type type),
 
-	TP_ARGS(cpus, max_freq, client, ret),
+	TP_ARGS(cpus, max_freq, client, ret, type),
 
 	TP_STRUCT__entry(
 		__field(int, cpus)
 		__field(s32, max_freq)
 		__field(int, client)
 		__field(int, ret)
+		__field(int, type)
 	),
 
 	TP_fast_assign(
@@ -1550,11 +1552,13 @@ TRACE_EVENT(sched_qos_max_freq_request,
 		__entry->max_freq = max_freq;
 		__entry->client = client;
 		__entry->ret = ret;
+		__entry->type = type;
 	),
 
-	TP_printk("cpus=0x%x max_freq=%d client=%d ret=%d",
+	TP_printk("cpus=0x%x max_freq=%d client=%d ret=%d type=%d",
 			__entry->cpus, __entry->max_freq,
-			__entry->client, __entry->ret)
+			__entry->client, __entry->ret,
+			__entry->type)
 );
 
 #endif /* _TRACE_WALT_H */

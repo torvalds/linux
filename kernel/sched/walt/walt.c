@@ -4260,11 +4260,13 @@ void walt_rotation_checkpoint(int nr_big)
 
 	for (i = 0; i < num_sched_clusters; i++) {
 		if (walt_rotation_enabled && !prev)
-			add_max_freq_qos_request(sched_cluster[i]->cpus,
-					high_perf_cluster_freq_cap[i], QOS_HIGH_PERF_CAP);
+			add_freq_qos_request(sched_cluster[i]->cpus,
+					high_perf_cluster_freq_cap[i],
+					QOS_HIGH_PERF_CAP, MAX_REQUEST);
 		else if (!walt_rotation_enabled && prev)
-			add_max_freq_qos_request(sched_cluster[i]->cpus,
-					FREQ_QOS_MAX_DEFAULT_VALUE, QOS_HIGH_PERF_CAP);
+			add_freq_qos_request(sched_cluster[i]->cpus,
+					FREQ_QOS_MAX_DEFAULT_VALUE,
+					QOS_HIGH_PERF_CAP, MAX_REQUEST);
 	}
 }
 
@@ -4279,15 +4281,15 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start)
 	if (fmax_uncap_load_detected) {
 		if (!fmax_uncap_timestamp)
 			for (i = 0; i < num_sched_clusters; i++)
-				add_max_freq_qos_request(sched_cluster[i]->cpus,
+				add_freq_qos_request(sched_cluster[i]->cpus,
 						FREQ_QOS_MAX_DEFAULT_VALUE,
-						QOS_FMAX_CAP);
+						QOS_FMAX_CAP, MAX_REQUEST);
 		fmax_uncap_timestamp = window_start;
 	} else if (fmax_uncap_timestamp &&
 			(window_start > fmax_uncap_timestamp + FMAX_CAP_HYSTERESIS)) {
 		for (int i = 0; i < num_sched_clusters; i++)
-			add_max_freq_qos_request(sched_cluster[i]->cpus, (s32) sysctl_fmax_cap[i],
-					QOS_FMAX_CAP);
+			add_freq_qos_request(sched_cluster[i]->cpus, (s32) sysctl_fmax_cap[i],
+					QOS_FMAX_CAP, MAX_REQUEST);
 		fmax_uncap_timestamp = 0;
 	}
 }
@@ -4972,8 +4974,8 @@ struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
 	return req;
 }
 
-void add_max_freq_qos_request(struct cpumask cpus, s32 max_freq,
-		enum qos_clients client)
+void add_freq_qos_request(struct cpumask cpus, s32 freq,
+		enum qos_clients client, enum qos_request_type type)
 {
 	struct cpufreq_policy policy;
 	struct freq_qos_request *req;
@@ -4985,13 +4987,13 @@ void add_max_freq_qos_request(struct cpumask cpus, s32 max_freq,
 			continue;
 		if (cpu_online(cpu)) {
 			req = get_req_from_client(cpu, client);
-			ret = freq_qos_update_request(req, max_freq);
-			trace_sched_qos_max_freq_request(cpus, max_freq, client, ret);
+			ret = freq_qos_update_request(req, freq);
+			trace_sched_qos_freq_request(cpus, freq, client, ret, type);
 		}
 	}
 }
 
-void init_max_freq_qos_request(enum qos_clients client)
+void init_freq_qos_request(enum qos_clients client, enum qos_request_type type)
 {
 	struct cpufreq_policy *policy;
 	struct freq_qos_request *req;
@@ -5008,8 +5010,12 @@ void init_max_freq_qos_request(enum qos_clients client)
 		req = get_req_from_client(cpu, client);
 		if (!req)
 			return;
-		ret = freq_qos_add_request(&policy->constraints, req,
-			FREQ_QOS_MAX, FREQ_QOS_MAX_DEFAULT_VALUE);
+		if (type == MIN_REQUEST)
+			ret = freq_qos_add_request(&policy->constraints, req,
+				FREQ_QOS_MIN, FREQ_QOS_MIN_DEFAULT_VALUE);
+		else
+			ret = freq_qos_add_request(&policy->constraints, req,
+				FREQ_QOS_MAX, FREQ_QOS_MAX_DEFAULT_VALUE);
 		if (ret < 0) {
 			pr_err("%s: Failed to add max freq constraint (%d)\n",
 				__func__, ret);
@@ -5144,9 +5150,9 @@ static void walt_init(struct work_struct *work)
 	walt_rt_init();
 	walt_cfs_init();
 	walt_halt_init();
-	init_max_freq_qos_request(QOS_PARTIAL_HALT);
-	init_max_freq_qos_request(QOS_FMAX_CAP);
-	init_max_freq_qos_request(QOS_HIGH_PERF_CAP);
+	init_freq_qos_request(QOS_PARTIAL_HALT, MAX_REQUEST);
+	init_freq_qos_request(QOS_FMAX_CAP, MAX_REQUEST);
+	init_freq_qos_request(QOS_HIGH_PERF_CAP, MAX_REQUEST);
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
 
 	if (!rcu_dereference(rd->pd)) {
