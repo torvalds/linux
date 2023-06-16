@@ -1523,12 +1523,6 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	int num, ret = 0, used_blks = 0;
 	unsigned long used_inos = 0;
 
-	/* This should not happen, but just to be sure check this */
-	if (sb_rdonly(sb)) {
-		ret = 1;
-		goto out;
-	}
-
 	gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
 	if (!gdp || !grp)
 		goto out;
