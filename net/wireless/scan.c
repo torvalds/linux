@@ -1701,10 +1701,10 @@ cfg80211_update_known_bss(struct cfg80211_registered_device *rdev,
 }
 
 /* Returned bss is reference counted and must be cleaned up appropriately. */
-struct cfg80211_internal_bss *
-cfg80211_bss_update(struct cfg80211_registered_device *rdev,
-		    struct cfg80211_internal_bss *tmp,
-		    bool signal_valid, unsigned long ts)
+static struct cfg80211_internal_bss *
+__cfg80211_bss_update(struct cfg80211_registered_device *rdev,
+		      struct cfg80211_internal_bss *tmp,
+		      bool signal_valid, unsigned long ts)
 {
 	struct cfg80211_internal_bss *found = NULL;
 
@@ -1713,10 +1713,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 
 	tmp->ts = ts;
 
-	spin_lock_bh(&rdev->bss_lock);
-
 	if (WARN_ON(!rcu_access_pointer(tmp->pub.ies))) {
-		spin_unlock_bh(&rdev->bss_lock);
 		return NULL;
 	}
 
@@ -1724,7 +1721,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 
 	if (found) {
 		if (!cfg80211_update_known_bss(rdev, found, tmp, signal_valid))
-			goto drop;
+			return NULL;
 	} else {
 		struct cfg80211_internal_bss *new;
 		struct cfg80211_internal_bss *hidden;
@@ -1744,7 +1741,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 			ies = (void *)rcu_dereference(tmp->pub.proberesp_ies);
 			if (ies)
 				kfree_rcu(ies, rcu_head);
-			goto drop;
+			return NULL;
 		}
 		memcpy(new, tmp, sizeof(*new));
 		new->refcount = 1;
@@ -1775,14 +1772,14 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 			 */
 			if (!cfg80211_combine_bsses(rdev, new)) {
 				bss_ref_put(rdev, new);
-				goto drop;
+				return NULL;
 			}
 		}
 
 		if (rdev->bss_entries >= bss_entries_limit &&
 		    !cfg80211_bss_expire_oldest(rdev)) {
 			bss_ref_put(rdev, new);
-			goto drop;
+			return NULL;
 		}
 
 		/* This must be before the call to bss_ref_get */
@@ -1799,12 +1796,22 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 
 	rdev->bss_generation++;
 	bss_ref_get(rdev, found);
-	spin_unlock_bh(&rdev->bss_lock);
 
 	return found;
- drop:
+}
+
+struct cfg80211_internal_bss *
+cfg80211_bss_update(struct cfg80211_registered_device *rdev,
+		    struct cfg80211_internal_bss *tmp,
+		    bool signal_valid, unsigned long ts)
+{
+	struct cfg80211_internal_bss *res;
+
+	spin_lock_bh(&rdev->bss_lock);
+	res = __cfg80211_bss_update(rdev, tmp, signal_valid, ts);
 	spin_unlock_bh(&rdev->bss_lock);
-	return NULL;
+
+	return res;
 }
 
 int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
@@ -2015,15 +2022,15 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	rcu_assign_pointer(tmp.pub.ies, ies);
 
 	signal_valid = data->chan == channel;
-	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid, ts);
+	spin_lock_bh(&rdev->bss_lock);
+	res = __cfg80211_bss_update(rdev, &tmp, signal_valid, ts);
 	if (!res)
-		return NULL;
+		goto drop;
 
 	if (non_tx_data) {
 		/* this is a nontransmitting bss, we need to add it to
 		 * transmitting bss' list if it is not there
 		 */
-		spin_lock_bh(&rdev->bss_lock);
 		if (cfg80211_add_nontrans_list(non_tx_data->tx_bss,
 					       &res->pub)) {
 			if (__cfg80211_unlink_bss(rdev, res)) {
@@ -2031,15 +2038,19 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 				res = NULL;
 			}
 		}
-		spin_unlock_bh(&rdev->bss_lock);
 
 		if (!res)
-			return NULL;
+			goto drop;
 	}
+	spin_unlock_bh(&rdev->bss_lock);
 
 	trace_cfg80211_return_bss(&res->pub);
-	/* cfg80211_bss_update gives us a referenced result */
+	/* __cfg80211_bss_update gives us a referenced result */
 	return &res->pub;
+
+drop:
+	spin_unlock_bh(&rdev->bss_lock);
+	return NULL;
 }
 
 static const struct element
@@ -2376,6 +2387,7 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 				      struct ieee80211_mgmt *mgmt, size_t len,
 				      gfp_t gfp)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_internal_bss tmp = {}, *res;
 	struct cfg80211_bss_ies *ies;
 	struct ieee80211_channel *channel;
@@ -2485,14 +2497,20 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 	ether_addr_copy(tmp.parent_bssid, data->parent_bssid);
 
 	signal_valid = data->chan == channel;
-	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid,
-				  jiffies);
+	spin_lock_bh(&rdev->bss_lock);
+	res = __cfg80211_bss_update(rdev, &tmp, signal_valid, jiffies);
 	if (!res)
-		return NULL;
+		goto drop;
+
+	spin_unlock_bh(&rdev->bss_lock);
 
 	trace_cfg80211_return_bss(&res->pub);
-	/* cfg80211_bss_update gives us a referenced result */
+	/* __cfg80211_bss_update gives us a referenced result */
 	return &res->pub;
+
+drop:
+	spin_unlock_bh(&rdev->bss_lock);
+	return NULL;
 }
 
 struct cfg80211_bss *
