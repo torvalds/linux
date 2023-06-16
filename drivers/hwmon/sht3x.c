@@ -24,6 +24,9 @@
 /* commands (high repeatability mode) */
 static const unsigned char sht3x_cmd_measure_single_hpm[] = { 0x24, 0x00 };
 
+/* commands (medium repeatability mode) */
+static const unsigned char sht3x_cmd_measure_single_mpm[] = { 0x24, 0x0b };
+
 /* commands (low repeatability mode) */
 static const unsigned char sht3x_cmd_measure_single_lpm[] = { 0x24, 0x16 };
 
@@ -41,6 +44,7 @@ static const unsigned char sht3x_cmd_clear_status_reg[]        = { 0x30, 0x41 };
 
 /* delays for single-shot mode i2c commands, both in us */
 #define SHT3X_SINGLE_WAIT_TIME_HPM  15000
+#define SHT3X_SINGLE_WAIT_TIME_MPM   6000
 #define SHT3X_SINGLE_WAIT_TIME_LPM   4000
 
 #define SHT3X_WORD_LEN         2
@@ -68,6 +72,7 @@ enum sht3x_limits {
 
 enum sht3x_repeatability {
 	low_repeatability,
+	medium_repeatability,
 	high_repeatability,
 };
 
@@ -85,6 +90,20 @@ static const char periodic_measure_commands_hpm[][SHT3X_CMD_LENGTH] = {
 	{0x23, 0x34},
 	/* 10 measurements per second */
 	{0x27, 0x37},
+};
+
+/* periodic measure commands (medium repeatability) */
+static const char periodic_measure_commands_mpm[][SHT3X_CMD_LENGTH] = {
+	/* 0.5 measurements per second */
+	{0x20, 0x24},
+	/* 1 measurements per second */
+	{0x21, 0x26},
+	/* 2 measurements per second */
+	{0x22, 0x20},
+	/* 4 measurements per second */
+	{0x23, 0x22},
+	/* 10 measurements per second */
+	{0x27, 0x21},
 };
 
 /* periodic measure commands (low repeatability mode) */
@@ -444,6 +463,9 @@ static void sht3x_select_command(struct sht3x_data *data)
 		if (data->repeatability == high_repeatability) {
 			data->command = sht3x_cmd_measure_single_hpm;
 			data->wait_time = SHT3X_SINGLE_WAIT_TIME_HPM;
+		} else if (data->repeatability ==  medium_repeatability) {
+			data->command = sht3x_cmd_measure_single_mpm;
+			data->wait_time = SHT3X_SINGLE_WAIT_TIME_MPM;
 		} else {
 			data->command = sht3x_cmd_measure_single_lpm;
 			data->wait_time = SHT3X_SINGLE_WAIT_TIME_LPM;
@@ -591,6 +613,8 @@ static ssize_t update_interval_store(struct device *dev,
 	if (mode > 0) {
 		if (data->repeatability == high_repeatability)
 			command = periodic_measure_commands_hpm[mode - 1];
+		else if (data->repeatability == medium_repeatability)
+			command = periodic_measure_commands_mpm[mode - 1];
 		else
 			command = periodic_measure_commands_lpm[mode - 1];
 
