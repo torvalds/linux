@@ -140,6 +140,27 @@
 	};
 };
 
+/* TPM */
+&ecspi2 {
+	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+	fsl,spi-num-chipselects = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	tpm: tpm@0 {
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		interrupt-parent = <&gpio2>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tpm>;
+		reg = <0>;
+		spi-max-frequency = <43000000>;
+	};
+};
+
 &gpio1 {
 	gpio-line-names = "nINT_ETHPHY", "LED_RED", "WDOG_INT", "X_RTC_INT",
 		"", "", "", "RESET_ETHPHY",
@@ -333,6 +354,15 @@
 		>;
 	};
 
+	pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_ECSPI2_MISO_ECSPI2_MISO    0x80
+			MX8MM_IOMUXC_ECSPI2_MOSI_ECSPI2_MOSI    0x80
+			MX8MM_IOMUXC_ECSPI2_SCLK_ECSPI2_SCLK    0x80
+			MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13      0x00
+		>;
+	};
+
 	pinctrl_fan: fan0grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8	0x16
@@ -365,6 +395,12 @@
 	pinctrl_reg_usdhc2_vmmc: regusdhc2vmmcgrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SD2_RESET_B_GPIO2_IO19	0x40
+		>;
+	};
+
+	pinctrl_tpm: tpmgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SD1_STROBE_GPIO2_IO11      0x140
 		>;
 	};
 
