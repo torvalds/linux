@@ -131,6 +131,7 @@ struct evsel {
 	bool			reset_group;
 	bool			errored;
 	bool			needs_auxtrace_mmap;
+	bool			default_metricgroup; /* A member of the Default metricgroup */
 	struct hashmap		*per_pkg_mask;
 	int			err;
 	struct {

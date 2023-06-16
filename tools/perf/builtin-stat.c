@@ -2172,6 +2172,7 @@ static int add_default_attributes(void)
 
 			evlist__for_each_entry(metric_evlist, metric_evsel) {
 				metric_evsel->skippable = true;
+				metric_evsel->default_metricgroup = true;
 			}
 			evlist__splice_list_tail(evsel_list, &metric_evlist->core.entries);
 			evlist__delete(metric_evlist);

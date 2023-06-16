@@ -158,11 +158,16 @@ typedef void (*print_metric_t)(struct perf_stat_config *config,
 			       const char *fmt, double val);
 typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
+/* Used to print the display name of the Default metricgroup for now. */
+typedef void (*print_metricgroup_header_t)(struct perf_stat_config *config,
+					   void *ctx, const char *metricgroup_name);
+
 void perf_stat__reset_shadow_stats(void);
 struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
 	new_line_t new_line;
+	print_metricgroup_header_t print_metricgroup_header;
 	bool force_header;
 };
 
@@ -171,6 +176,16 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   double avg, int aggr_idx,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events);
+bool perf_stat__skip_metric_event(struct evsel *evsel,
+				  struct rblist *metric_events,
+				  u64 ena, u64 run);
+void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
+						struct evsel *evsel,
+						int aggr_idx,
+						int *num,
+						void *from,
+						struct perf_stat_output_ctx *out,
+						struct rblist *metric_events);
 
 int evlist__alloc_stats(struct perf_stat_config *config,
 			struct evlist *evlist, bool alloc_raw);
