@@ -45,6 +45,7 @@
 #include <linux/memcontrol.h>
 #include <linux/bpf-cgroup.h>
 #include <linux/siphash.h>
+#include <linux/net_mm.h>
 
 extern struct inet_hashinfo tcp_hashinfo;
 
