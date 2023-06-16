@@ -16,6 +16,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/exportfs.h>
 #include <linux/file.h>
+#include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include "overlayfs.h"
 
@@ -253,7 +254,8 @@ static void ovl_put_super(struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 
-	ovl_free_fs(ofs);
+	if (ofs)
+		ovl_free_fs(ofs);
 }
 
 /* Sync real dirty inodes in upper filesystem (if it exists) */
@@ -408,16 +410,17 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	return 0;
 }
 
-static int ovl_remount(struct super_block *sb, int *flags, char *data)
+static int ovl_reconfigure(struct fs_context *fc)
 {
+	struct super_block *sb = fc->root->d_sb;
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct super_block *upper_sb;
 	int ret = 0;
 
-	if (!(*flags & SB_RDONLY) && ovl_force_readonly(ofs))
+	if (!(fc->sb_flags & SB_RDONLY) && ovl_force_readonly(ofs))
 		return -EROFS;
 
-	if (*flags & SB_RDONLY && !sb_rdonly(sb)) {
+	if (fc->sb_flags & SB_RDONLY && !sb_rdonly(sb)) {
 		upper_sb = ovl_upper_mnt(ofs)->mnt_sb;
 		if (ovl_should_sync(ofs)) {
 			down_read(&upper_sb->s_umount);
@@ -438,219 +441,151 @@ static const struct super_operations ovl_super_operations = {
 	.sync_fs	= ovl_sync_fs,
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
-	.remount_fs	= ovl_remount,
 };
 
 enum {
-	OPT_LOWERDIR,
-	OPT_UPPERDIR,
-	OPT_WORKDIR,
-	OPT_DEFAULT_PERMISSIONS,
-	OPT_REDIRECT_DIR_ON,
-	OPT_REDIRECT_DIR_OFF,
-	OPT_REDIRECT_DIR_FOLLOW,
-	OPT_REDIRECT_DIR_NOFOLLOW,
-	OPT_INDEX_ON,
-	OPT_INDEX_OFF,
-	OPT_UUID_ON,
-	OPT_UUID_OFF,
-	OPT_NFS_EXPORT_ON,
-	OPT_USERXATTR,
-	OPT_NFS_EXPORT_OFF,
-	OPT_XINO_ON,
-	OPT_XINO_OFF,
-	OPT_XINO_AUTO,
-	OPT_METACOPY_ON,
-	OPT_METACOPY_OFF,
-	OPT_VOLATILE,
-	OPT_ERR,
+	Opt_lowerdir,
+	Opt_upperdir,
+	Opt_workdir,
+	Opt_default_permissions,
+	Opt_redirect_dir,
+	Opt_index,
+	Opt_uuid,
+	Opt_nfs_export,
+	Opt_userxattr,
+	Opt_xino,
+	Opt_metacopy,
+	Opt_volatile,
 };
 
-static const match_table_t ovl_tokens = {
-	{OPT_LOWERDIR,			"lowerdir=%s"},
-	{OPT_UPPERDIR,			"upperdir=%s"},
-	{OPT_WORKDIR,			"workdir=%s"},
-	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
-	{OPT_REDIRECT_DIR_ON,		"redirect_dir=on"},
-	{OPT_REDIRECT_DIR_OFF,		"redirect_dir=off"},
-	{OPT_REDIRECT_DIR_FOLLOW,	"redirect_dir=follow"},
-	{OPT_REDIRECT_DIR_NOFOLLOW,	"redirect_dir=nofollow"},
-	{OPT_INDEX_ON,			"index=on"},
-	{OPT_INDEX_OFF,			"index=off"},
-	{OPT_USERXATTR,			"userxattr"},
-	{OPT_UUID_ON,			"uuid=on"},
-	{OPT_UUID_OFF,			"uuid=off"},
-	{OPT_NFS_EXPORT_ON,		"nfs_export=on"},
-	{OPT_NFS_EXPORT_OFF,		"nfs_export=off"},
-	{OPT_XINO_ON,			"xino=on"},
-	{OPT_XINO_OFF,			"xino=off"},
-	{OPT_XINO_AUTO,			"xino=auto"},
-	{OPT_METACOPY_ON,		"metacopy=on"},
-	{OPT_METACOPY_OFF,		"metacopy=off"},
-	{OPT_VOLATILE,			"volatile"},
-	{OPT_ERR,			NULL}
+static const struct constant_table ovl_parameter_bool[] = {
+	{ "on",		true  },
+	{ "off",	false },
+	{}
 };
 
-static char *ovl_next_opt(char **s)
-{
-	char *sbegin = *s;
-	char *p;
+static const struct fs_parameter_spec ovl_parameter_spec[] = {
+	fsparam_string("lowerdir",          Opt_lowerdir),
+	fsparam_string("upperdir",          Opt_upperdir),
+	fsparam_string("workdir",           Opt_workdir),
+	fsparam_flag("default_permissions", Opt_default_permissions),
+	fsparam_enum("redirect_dir",        Opt_redirect_dir, ovl_parameter_redirect_dir),
+	fsparam_enum("index",               Opt_index, ovl_parameter_bool),
+	fsparam_enum("uuid",                Opt_uuid, ovl_parameter_bool),
+	fsparam_enum("nfs_export",          Opt_nfs_export, ovl_parameter_bool),
+	fsparam_flag("userxattr",           Opt_userxattr),
+	fsparam_enum("xino",                Opt_xino, ovl_parameter_xino),
+	fsparam_enum("metacopy",            Opt_metacopy, ovl_parameter_bool),
+	fsparam_flag("volatile",            Opt_volatile),
+	{}
+};
 
-	if (sbegin == NULL)
-		return NULL;
+struct ovl_fs_context {
+	struct ovl_opt_set set;
+};
 
-	for (p = sbegin; *p; p++) {
-		if (*p == '\\') {
-			p++;
-			if (!*p)
-				break;
-		} else if (*p == ',') {
-			*p = '\0';
-			*s = p + 1;
-			return sbegin;
-		}
-	}
-	*s = NULL;
-	return sbegin;
-}
-
-static int ovl_parse_opt(char *opt, struct ovl_config *config,
-			 struct ovl_opt_set *set)
+static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	int err = 0;
-	int token;
-	substring_t args[MAX_OPT_ARGS];
+	struct fs_parse_result result;
+	struct ovl_fs *ofs = fc->s_fs_info;
+	struct ovl_config *config = &ofs->config;
+	struct ovl_fs_context *ctx = fc->fs_private;
+	char *dup;
+	int opt;
 
-	if (!*opt)
+	/*
+	 * On remount overlayfs has always ignored all mount options no
+	 * matter if malformed or not so for backwards compatibility we
+	 * do the same here.
+	 */
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
 		return 0;
 
-	token = match_token(opt, ovl_tokens, args);
-	switch (token) {
-	case OPT_UPPERDIR:
-		kfree(config->upperdir);
-		config->upperdir = match_strdup(&args[0]);
-		if (!config->upperdir)
-			return -ENOMEM;
-		break;
+	opt = fs_parse(fc, ovl_parameter_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-	case OPT_LOWERDIR:
+	switch (opt) {
+	case Opt_lowerdir:
+		dup = kstrdup(param->string, GFP_KERNEL);
+		if (!dup) {
+			err = -ENOMEM;
+			break;
+		}
+
 		kfree(config->lowerdir);
-		config->lowerdir = match_strdup(&args[0]);
-		if (!config->lowerdir)
-			return -ENOMEM;
+		config->lowerdir = dup;
 		break;
+	case Opt_upperdir:
+		dup = kstrdup(param->string, GFP_KERNEL);
+		if (!dup) {
+			err = -ENOMEM;
+			break;
+		}
 
-	case OPT_WORKDIR:
+		kfree(config->upperdir);
+		config->upperdir = dup;
+		break;
+	case Opt_workdir:
+		dup = kstrdup(param->string, GFP_KERNEL);
+		if (!dup) {
+			err = -ENOMEM;
+			break;
+		}
+
 		kfree(config->workdir);
-		config->workdir = match_strdup(&args[0]);
-		if (!config->workdir)
-			return -ENOMEM;
+		config->workdir = dup;
 		break;
-
-	case OPT_DEFAULT_PERMISSIONS:
+	case Opt_default_permissions:
 		config->default_permissions = true;
 		break;
-
-	case OPT_REDIRECT_DIR_ON:
-		config->redirect_mode = OVL_REDIRECT_ON;
-		set->redirect = true;
+	case Opt_redirect_dir:
+		config->redirect_mode = result.uint_32;
+		if (config->redirect_mode == OVL_REDIRECT_OFF) {
+			config->redirect_mode = ovl_redirect_always_follow ?
+						OVL_REDIRECT_FOLLOW :
+						OVL_REDIRECT_NOFOLLOW;
+		}
+		ctx->set.redirect = true;
 		break;
-
-	case OPT_REDIRECT_DIR_OFF:
-		config->redirect_mode = ovl_redirect_always_follow ?
-			OVL_REDIRECT_FOLLOW :
-			OVL_REDIRECT_NOFOLLOW;
-		set->redirect = true;
+	case Opt_index:
+		config->index = result.uint_32;
+		ctx->set.index = true;
 		break;
-
-	case OPT_REDIRECT_DIR_FOLLOW:
-		config->redirect_mode = OVL_REDIRECT_FOLLOW;
-		set->redirect = true;
+	case Opt_uuid:
+		config->uuid = result.uint_32;
 		break;
-
-	case OPT_REDIRECT_DIR_NOFOLLOW:
-		config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
-		set->redirect = true;
+	case Opt_nfs_export:
+		config->nfs_export = result.uint_32;
+		ctx->set.nfs_export = true;
 		break;
-
-	case OPT_INDEX_ON:
-		config->index = true;
-		set->index = true;
+	case Opt_xino:
+		config->xino = result.uint_32;
 		break;
-
-	case OPT_INDEX_OFF:
-		config->index = false;
-		set->index = true;
+	case Opt_metacopy:
+		config->metacopy = result.uint_32;
+		ctx->set.metacopy = true;
 		break;
-
-	case OPT_UUID_ON:
-		config->uuid = true;
-		break;
-
-	case OPT_UUID_OFF:
-		config->uuid = false;
-		break;
-
-	case OPT_NFS_EXPORT_ON:
-		config->nfs_export = true;
-		set->nfs_export = true;
-		break;
-
-	case OPT_NFS_EXPORT_OFF:
-		config->nfs_export = false;
-		set->nfs_export = true;
-		break;
-
-	case OPT_XINO_ON:
-		config->xino = OVL_XINO_ON;
-		break;
-
-	case OPT_XINO_OFF:
-		config->xino = OVL_XINO_OFF;
-		break;
-
-	case OPT_XINO_AUTO:
-		config->xino = OVL_XINO_AUTO;
-		break;
-
-	case OPT_METACOPY_ON:
-		config->metacopy = true;
-		set->metacopy = true;
-		break;
-
-	case OPT_METACOPY_OFF:
-		config->metacopy = false;
-		set->metacopy = true;
-		break;
-
-	case OPT_VOLATILE:
+	case Opt_volatile:
 		config->ovl_volatile = true;
 		break;
-
-	case OPT_USERXATTR:
+	case Opt_userxattr:
 		config->userxattr = true;
 		break;
-
 	default:
 		pr_err("unrecognized mount option \"%s\" or missing value\n",
-		       opt);
+		       param->key);
 		return -EINVAL;
 	}
 
 	return err;
 }
 
-static int ovl_parse_options(char *opt, struct ovl_config *config)
+static int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
+				struct ovl_config *config)
 {
-	char *p;
-	int err;
-	struct ovl_opt_set set = {};
-
-	while ((p = ovl_next_opt(&opt)) != NULL) {
-		err = ovl_parse_opt(p, config, &set);
-		if (err)
-			return err;
-	}
+	struct ovl_opt_set set = ctx->set;
 
 	/* Workdir/index are useless in non-upper mount */
 	if (!config->upperdir) {
@@ -1958,12 +1893,13 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	return root;
 }
 
-static int ovl_fill_super(struct super_block *sb, void *data, int silent)
+static int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct path upperpath = { };
+	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs_context *ctx = fc->fs_private;
+	struct path upperpath = {};
 	struct dentry *root_dentry;
 	struct ovl_entry *oe;
-	struct ovl_fs *ofs;
 	struct ovl_layer *layers;
 	struct cred *cred;
 	char *splitlower = NULL;
@@ -1971,34 +1907,23 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	int err;
 
 	err = -EIO;
-	if (WARN_ON(sb->s_user_ns != current_user_ns()))
-		goto out;
+	if (WARN_ON(fc->user_ns != current_user_ns()))
+		goto out_err;
 
 	sb->s_d_op = &ovl_dentry_operations;
-
-	err = -ENOMEM;
-	ofs = kzalloc(sizeof(struct ovl_fs), GFP_KERNEL);
-	if (!ofs)
-		goto out;
 
 	err = -ENOMEM;
 	ofs->creator_cred = cred = prepare_creds();
 	if (!cred)
 		goto out_err;
 
-	ofs->config.redirect_mode = ovl_redirect_mode_def();
-	ofs->config.index = ovl_index_def;
-	ofs->config.uuid = true;
-	ofs->config.nfs_export = ovl_nfs_export_def;
-	ofs->config.xino = ovl_xino_def();
-	ofs->config.metacopy = ovl_metacopy_def;
-	err = ovl_parse_options((char *) data, &ofs->config);
+	err = ovl_fs_params_verify(ctx, &ofs->config);
 	if (err)
 		goto out_err;
 
 	err = -EINVAL;
 	if (!ofs->config.lowerdir) {
-		if (!silent)
+		if (!(fc->sb_flags & SB_SILENT))
 			pr_err("missing 'lowerdir'\n");
 		goto out_err;
 	}
@@ -2143,25 +2068,88 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 out_free_oe:
 	ovl_free_entry(oe);
 out_err:
-	kfree(splitlower);
-	path_put(&upperpath);
 	ovl_free_fs(ofs);
-out:
+	sb->s_fs_info = NULL;
 	return err;
 }
 
-static struct dentry *ovl_mount(struct file_system_type *fs_type, int flags,
-				const char *dev_name, void *raw_data)
+static int ovl_get_tree(struct fs_context *fc)
 {
-	return mount_nodev(fs_type, flags, raw_data, ovl_fill_super);
+	return get_tree_nodev(fc, ovl_fill_super);
+}
+
+static inline void ovl_fs_context_free(struct ovl_fs_context *ctx)
+{
+	kfree(ctx);
+}
+
+static void ovl_free(struct fs_context *fc)
+{
+	struct ovl_fs *ofs = fc->s_fs_info;
+	struct ovl_fs_context *ctx = fc->fs_private;
+
+	/*
+	 * ofs is stored in the fs_context when it is initialized.
+	 * ofs is transferred to the superblock on a successful mount,
+	 * but if an error occurs before the transfer we have to free
+	 * it here.
+	 */
+	if (ofs)
+		ovl_free_fs(ofs);
+
+	if (ctx)
+		ovl_fs_context_free(ctx);
+}
+
+static const struct fs_context_operations ovl_context_ops = {
+	.parse_param = ovl_parse_param,
+	.get_tree    = ovl_get_tree,
+	.reconfigure = ovl_reconfigure,
+	.free        = ovl_free,
+};
+
+/*
+ * This is called during fsopen() and will record the user namespace of
+ * the caller in fc->user_ns since we've raised FS_USERNS_MOUNT. We'll
+ * need it when we actually create the superblock to verify that the
+ * process creating the superblock is in the same user namespace as
+ * process that called fsopen().
+ */
+static int ovl_init_fs_context(struct fs_context *fc)
+{
+	struct ovl_fs_context *ctx;
+	struct ovl_fs *ofs;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
+	if (!ctx)
+		return -ENOMEM;
+
+	ofs = kzalloc(sizeof(struct ovl_fs), GFP_KERNEL);
+	if (!ofs) {
+		ovl_fs_context_free(ctx);
+		return -ENOMEM;
+	}
+
+	ofs->config.redirect_mode = ovl_redirect_mode_def();
+	ofs->config.index	= ovl_index_def;
+	ofs->config.uuid	= true;
+	ofs->config.nfs_export	= ovl_nfs_export_def;
+	ofs->config.xino	= ovl_xino_def();
+	ofs->config.metacopy	= ovl_metacopy_def;
+
+	fc->s_fs_info		= ofs;
+	fc->fs_private		= ctx;
+	fc->ops			= &ovl_context_ops;
+	return 0;
 }
 
 static struct file_system_type ovl_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "overlay",
-	.fs_flags	= FS_USERNS_MOUNT,
-	.mount		= ovl_mount,
-	.kill_sb	= kill_anon_super,
+	.owner			= THIS_MODULE,
+	.name			= "overlay",
+	.init_fs_context	= ovl_init_fs_context,
+	.parameters		= ovl_parameter_spec,
+	.fs_flags		= FS_USERNS_MOUNT,
+	.kill_sb		= kill_anon_super,
 };
 MODULE_ALIAS_FS("overlay");
 
