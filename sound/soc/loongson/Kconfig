@@ -16,6 +16,7 @@ config SND_SOC_LOONGSON_I2S_PCI
 config SND_SOC_LOONGSON_CARD
 	tristate "Loongson Sound Card Driver"
 	select SND_SOC_LOONGSON_I2S_PCI
+	depends on PCI
 	help
 	  Say Y or M if you want to add support for SoC audio using
 	  loongson I2S controller.
