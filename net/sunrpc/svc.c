@@ -1164,6 +1164,7 @@ static void __svc_unregister(struct net *net, const u32 program, const u32 versi
  */
 static void svc_unregister(const struct svc_serv *serv, struct net *net)
 {
+	struct sighand_struct *sighand;
 	struct svc_program *progp;
 	unsigned long flags;
 	unsigned int i;
@@ -1180,9 +1181,12 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 		}
 	}
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
+	rcu_read_lock();
+	sighand = rcu_dereference(current->sighand);
+	spin_lock_irqsave(&sighand->siglock, flags);
 	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	spin_unlock_irqrestore(&sighand->siglock, flags);
+	rcu_read_unlock();
 }
 
 /*
