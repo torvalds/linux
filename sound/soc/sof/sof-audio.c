@@ -14,6 +14,20 @@
 #include "sof-of-dev.h"
 #include "ops.h"
 
+static bool is_virtual_widget(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *widget,
+			      const char *func)
+{
+	switch (widget->id) {
+	case snd_soc_dapm_out_drv:
+	case snd_soc_dapm_output:
+	case snd_soc_dapm_input:
+		dev_dbg(sdev->dev, "%s: %s is a virtual widget\n", func, widget->name);
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void sof_reset_route_setup_status(struct snd_sof_dev *sdev, struct snd_sof_widget *widget)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
@@ -231,23 +245,9 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 	bool route_found = false;
 
 	/* ignore routes involving virtual widgets in topology */
-	switch (src_widget->id) {
-	case snd_soc_dapm_out_drv:
-	case snd_soc_dapm_output:
-	case snd_soc_dapm_input:
+	if (is_virtual_widget(sdev, src_widget->widget, __func__) ||
+	    is_virtual_widget(sdev, sink_widget->widget, __func__))
 		return 0;
-	default:
-		break;
-	}
-
-	switch (sink_widget->id) {
-	case snd_soc_dapm_out_drv:
-	case snd_soc_dapm_output:
-	case snd_soc_dapm_input:
-		return 0;
-	default:
-		break;
-	}
 
 	/* find route matching source and sink widgets */
 	list_for_each_entry(sroute, &sdev->route_list, list)
