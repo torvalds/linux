@@ -2146,7 +2146,7 @@ done:
 /*
  * To mmap source memory for test from memory usage.
  * test from memory input mode requires much bigger size because it is
- * uncompressed BGRA format. Thus, We use size to tell it is for test
+ * uncompressed BGRA format. Thus, We use VM_READ to tell it is for test
  * or v4l2 now.
  */
 static int aspeed_video_mmap(struct file *file, struct vm_area_struct *vma)
@@ -2155,9 +2155,8 @@ static int aspeed_video_mmap(struct file *file, struct vm_area_struct *vma)
 	struct aspeed_video *v = video_drvdata(file);
 	const size_t size = vma->vm_end - vma->vm_start;
 	const unsigned long pfn = __phys_to_pfn(v->dbg_src.dma);
-	const unsigned int max_size = MAX_WIDTH * MAX_HEIGHT / 2;
 
-	if ((v->input != VIDEO_INPUT_MEM) || (size <= max_size))
+	if (v->input != VIDEO_INPUT_MEM || vma->vm_flags & VM_READ)
 		return vb2_fop_mmap(file, vma);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
