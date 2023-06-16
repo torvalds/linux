@@ -1485,6 +1485,18 @@ gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 
 	/* Wa_14011059788:tgl,rkl,adl-s,dg1,adl-p */
 	wa_mcr_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
+
+	/*
+	 * Wa_14015795083
+	 *
+	 * Firmware on some gen12 platforms locks the MISCCPCTL register,
+	 * preventing i915 from modifying it for this workaround.  Skip the
+	 * readback verification for this workaround on debug builds; if the
+	 * workaround doesn't stick due to firmware behavior, it's not an error
+	 * that we want CI to flag.
+	 */
+	wa_add(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE,
+	       0, 0, false);
 }
 
 static void
