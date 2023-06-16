@@ -148,58 +148,45 @@ static inline bool checkreqprot_get(void)
 
 static inline bool selinux_policycap_netpeer(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_NETPEER]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_NETPEER]);
 }
 
 static inline bool selinux_policycap_openperm(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_OPENPERM]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_OPENPERM]);
 }
 
 static inline bool selinux_policycap_extsockclass(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_EXTSOCKCLASS]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_EXTSOCKCLASS]);
 }
 
 static inline bool selinux_policycap_alwaysnetwork(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_ALWAYSNETWORK]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_ALWAYSNETWORK]);
 }
 
 static inline bool selinux_policycap_cgroupseclabel(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_CGROUPSECLABEL]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_CGROUPSECLABEL]);
 }
 
 static inline bool selinux_policycap_nnp_nosuid_transition(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_NNP_NOSUID_TRANSITION]);
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_NNP_NOSUID_TRANSITION]);
 }
 
 static inline bool selinux_policycap_genfs_seclabel_symlinks(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_GENFS_SECLABEL_SYMLINKS]);
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_GENFS_SECLABEL_SYMLINKS]);
 }
 
 static inline bool selinux_policycap_ioctl_skip_cloexec(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_IOCTL_SKIP_CLOEXEC]);
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_IOCTL_SKIP_CLOEXEC]);
 }
 
 struct selinux_policy_convert_data;
