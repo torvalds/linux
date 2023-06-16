@@ -2403,10 +2403,13 @@ void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable)
 	if (!rtwdev->ap_active)
 		return;
 
-	if (enable)
+	if (enable) {
 		rtw_write32_set(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
-	else
+		rtw_write32_clr(rtwdev, REG_TXPAUSE, BIT_HIGH_QUEUE);
+	} else {
 		rtw_write32_clr(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
+		rtw_write32_set(rtwdev, REG_TXPAUSE, BIT_HIGH_QUEUE);
+	}
 }
 
 MODULE_AUTHOR("Realtek Corporation");
