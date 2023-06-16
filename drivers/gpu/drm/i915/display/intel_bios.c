@@ -2615,7 +2615,8 @@ intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata)
 /* This is an index in the HDMI/DVI DDI buffer translation table, or -1 */
 int intel_bios_hdmi_level_shift(const struct intel_bios_encoder_data *devdata)
 {
-	if (!devdata || devdata->i915->display.vbt.version < 158)
+	if (!devdata || devdata->i915->display.vbt.version < 158 ||
+	    DISPLAY_VER(devdata->i915) >= 14)
 		return -1;
 
 	return devdata->child.hdmi_level_shifter_value;
