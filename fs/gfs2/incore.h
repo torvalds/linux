@@ -452,7 +452,7 @@ struct gfs2_quota_data {
 	s64 qd_change_sync;
 
 	unsigned int qd_slot;
-	unsigned int qd_slot_count;
+	unsigned int qd_slot_ref;
 
 	struct buffer_head *qd_bh;
 	struct gfs2_quota_change *qd_bh_qc;

@@ -130,7 +130,7 @@ static void gfs2_qd_dispose(struct gfs2_quota_data *qd)
 
 	if (!gfs2_withdrawn(sdp)) {
 		gfs2_assert_warn(sdp, !qd->qd_change);
-		gfs2_assert_warn(sdp, !qd->qd_slot_count);
+		gfs2_assert_warn(sdp, !qd->qd_slot_ref);
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
 	}
 
@@ -342,7 +342,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 	int error = 0;
 
 	spin_lock(&sdp->sd_bitmap_lock);
-	if (qd->qd_slot_count == 0) {
+	if (qd->qd_slot_ref == 0) {
 		bit = find_first_zero_bit(sdp->sd_quota_bitmap,
 					  sdp->sd_quota_slots);
 		if (bit >= sdp->sd_quota_slots) {
@@ -352,7 +352,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 		set_bit(bit, sdp->sd_quota_bitmap);
 		qd->qd_slot = bit;
 	}
-	qd->qd_slot_count++;
+	qd->qd_slot_ref++;
 out:
 	spin_unlock(&sdp->sd_bitmap_lock);
 	return error;
@@ -363,8 +363,8 @@ static void slot_hold(struct gfs2_quota_data *qd)
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
 	spin_lock(&sdp->sd_bitmap_lock);
-	gfs2_assert(sdp, qd->qd_slot_count);
-	qd->qd_slot_count++;
+	gfs2_assert(sdp, qd->qd_slot_ref);
+	qd->qd_slot_ref++;
 	spin_unlock(&sdp->sd_bitmap_lock);
 }
 
@@ -373,8 +373,8 @@ static void slot_put(struct gfs2_quota_data *qd)
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
 	spin_lock(&sdp->sd_bitmap_lock);
-	gfs2_assert(sdp, qd->qd_slot_count);
-	if (!--qd->qd_slot_count) {
+	gfs2_assert(sdp, qd->qd_slot_ref);
+	if (!--qd->qd_slot_ref) {
 		BUG_ON(!test_and_clear_bit(qd->qd_slot, sdp->sd_quota_bitmap));
 		qd->qd_slot = -1;
 	}
@@ -1446,7 +1446,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 			set_bit(QDF_CHANGE, &qd->qd_flags);
 			qd->qd_change = qc_change;
 			qd->qd_slot = slot;
-			qd->qd_slot_count = 1;
+			qd->qd_slot_ref = 1;
 
 			spin_lock(&qd_lock);
 			BUG_ON(test_and_set_bit(slot, sdp->sd_quota_bitmap));
