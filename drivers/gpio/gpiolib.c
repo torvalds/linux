@@ -1669,11 +1669,10 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 		if (ret)
 			return ret;
 	} else {
-		/* Some drivers provide custom irqdomain ops */
 		gc->irq.domain = irq_domain_create_simple(fwnode,
 			gc->ngpio,
 			gc->irq.first,
-			gc->irq.domain_ops ?: &gpiochip_domain_ops,
+			&gpiochip_domain_ops,
 			gc);
 		if (!gc->irq.domain)
 			return -EINVAL;
