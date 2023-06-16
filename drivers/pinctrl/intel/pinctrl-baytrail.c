@@ -1241,30 +1241,30 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	for (i = 0; i < vg->soc->npins; i++) {
 		const struct intel_community *comm;
+		void __iomem *conf_reg, *val_reg;
 		const char *pull_str = NULL;
 		const char *pull = NULL;
-		void __iomem *reg;
 		unsigned long flags;
 		const char *label;
 		unsigned int pin;
 
-		raw_spin_lock_irqsave(&byt_lock, flags);
 		pin = vg->soc->pins[i].number;
-		reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
-		if (!reg) {
-			seq_printf(s, "Pin %i: can't retrieve CONF0\n", pin);
-			raw_spin_unlock_irqrestore(&byt_lock, flags);
-			continue;
-		}
-		conf0 = readl(reg);
 
-		reg = byt_gpio_reg(vg, pin, BYT_VAL_REG);
-		if (!reg) {
-			seq_printf(s, "Pin %i: can't retrieve VAL\n", pin);
-			raw_spin_unlock_irqrestore(&byt_lock, flags);
+		conf_reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
+		if (!conf_reg) {
+			seq_printf(s, "Pin %i: can't retrieve CONF0\n", pin);
 			continue;
 		}
-		val = readl(reg);
+
+		val_reg = byt_gpio_reg(vg, pin, BYT_VAL_REG);
+		if (!val_reg) {
+			seq_printf(s, "Pin %i: can't retrieve VAL\n", pin);
+			continue;
+		}
+
+		raw_spin_lock_irqsave(&byt_lock, flags);
+		conf0 = readl(conf_reg);
+		val = readl(val_reg);
 		raw_spin_unlock_irqrestore(&byt_lock, flags);
 
 		comm = byt_get_community(vg, pin);
