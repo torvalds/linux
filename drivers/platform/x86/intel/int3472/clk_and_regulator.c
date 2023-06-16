@@ -5,6 +5,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
@@ -250,22 +251,54 @@ static const char * const skl_int3472_regulator_map_supplies[] = {
 static_assert(ARRAY_SIZE(skl_int3472_regulator_map_supplies) ==
 	      GPIO_REGULATOR_SUPPLY_MAP_COUNT);
 
+/*
+ * On some models there is a single GPIO regulator which is shared between
+ * sensors and only listed in the ACPI resources of one sensor.
+ * This DMI table contains the name of the second sensor. This is used to add
+ * entries for the second sensor to the supply_map.
+ */
+const struct dmi_system_id skl_int3472_regulator_second_sensor[] = {
+	{
+		/* Lenovo Miix 510-12IKB */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 510-12IKB"),
+		},
+		.driver_data = "i2c-OVTI2680:00",
+	},
+	{ }
+};
+
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
 				   struct acpi_resource_gpio *agpio)
 {
 	char *path = agpio->resource_source.string_ptr;
 	struct regulator_init_data init_data = { };
 	struct regulator_config cfg = { };
-	int i, ret;
+	const char *second_sensor = NULL;
+	const struct dmi_system_id *id;
+	int i, j, ret;
 
-	for (i = 0; i < ARRAY_SIZE(skl_int3472_regulator_map_supplies); i++) {
-		int3472->regulator.supply_map[i].supply = skl_int3472_regulator_map_supplies[i];
-		int3472->regulator.supply_map[i].dev_name = int3472->sensor_name;
+	id = dmi_first_match(skl_int3472_regulator_second_sensor);
+	if (id)
+		second_sensor = id->driver_data;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(skl_int3472_regulator_map_supplies); i++) {
+		int3472->regulator.supply_map[j].supply = skl_int3472_regulator_map_supplies[i];
+		int3472->regulator.supply_map[j].dev_name = int3472->sensor_name;
+		j++;
+
+		if (second_sensor) {
+			int3472->regulator.supply_map[j].supply =
+				skl_int3472_regulator_map_supplies[i];
+			int3472->regulator.supply_map[j].dev_name = second_sensor;
+			j++;
+		}
 	}
 
 	init_data.constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS;
 	init_data.consumer_supplies = int3472->regulator.supply_map;
-	init_data.num_consumer_supplies = GPIO_REGULATOR_SUPPLY_MAP_COUNT;
+	init_data.num_consumer_supplies = j;
 
 	snprintf(int3472->regulator.regulator_name,
 		 sizeof(int3472->regulator.regulator_name), "%s-regulator",

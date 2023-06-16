@@ -79,7 +79,8 @@ struct int3472_discrete_device {
 	const struct int3472_sensor_config *sensor_config;
 
 	struct int3472_gpio_regulator {
-		struct regulator_consumer_supply supply_map[GPIO_REGULATOR_SUPPLY_MAP_COUNT];
+		/* SUPPLY_MAP_COUNT * 2 to make room for second sensor mappings */
+		struct regulator_consumer_supply supply_map[GPIO_REGULATOR_SUPPLY_MAP_COUNT * 2];
 		char regulator_name[GPIO_REGULATOR_NAME_LENGTH];
 		char supply_name[GPIO_REGULATOR_SUPPLY_NAME_LENGTH];
 		struct gpio_desc *gpio;
