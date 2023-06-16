@@ -22,6 +22,7 @@ struct cgroup;
 struct metric_event {
 	struct rb_node nd;
 	struct evsel *evsel;
+	bool is_default; /* the metric evsel from the Default metricgroup */
 	struct list_head head; /* list of metric_expr */
 };
 
@@ -55,6 +56,8 @@ struct metric_expr {
 	 * more human intelligible) and then add "MiB" afterward when displayed.
 	 */
 	const char *metric_unit;
+	/** Displayed metricgroup name of the Default metricgroup */
+	const char *default_metricgroup_name;
 	/** Null terminated array of events used by the metric. */
 	struct evsel **metric_events;
 	/** Null terminated array of referenced metrics. */
