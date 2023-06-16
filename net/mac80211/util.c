@@ -984,9 +984,24 @@ ieee80211_parse_extension_element(u32 *crc,
 		break;
 	case WLAN_EID_EXT_EHT_MULTI_LINK:
 		if (ieee80211_mle_size_ok(data, len)) {
-			elems->ml_basic_elem = (void *)elem;
-			elems->ml_basic = (void *)data;
-			elems->ml_basic_len = len;
+			const struct ieee80211_multi_link_elem *mle =
+				(void *)data;
+
+			switch (le16_get_bits(mle->control,
+					      IEEE80211_ML_CONTROL_TYPE)) {
+			case IEEE80211_ML_CONTROL_TYPE_BASIC:
+				elems->ml_basic_elem = (void *)elem;
+				elems->ml_basic = data;
+				elems->ml_basic_len = len;
+				break;
+			case IEEE80211_ML_CONTROL_TYPE_RECONF:
+				elems->ml_reconf_elem = (void *)elem;
+				elems->ml_reconf = data;
+				elems->ml_reconf_len = len;
+				break;
+			default:
+				break;
+			}
 		}
 		break;
 	}

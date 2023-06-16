@@ -1727,6 +1727,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_eht_cap_elem *eht_cap;
 	const struct ieee80211_eht_operation *eht_operation;
 	const struct ieee80211_multi_link_elem *ml_basic;
+	const struct ieee80211_multi_link_elem *ml_reconf;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1752,9 +1753,13 @@ struct ieee802_11_elems {
 
 	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
 	size_t ml_basic_len;
+	size_t ml_reconf_len;
 
 	/* The basic Multi-Link element in the original IEs */
 	const struct element *ml_basic_elem;
+
+	/* The reconfiguration Multi-Link element in the original IEs */
+	const struct element *ml_reconf_elem;
 
 	/*
 	 * store the per station profile pointer and length in case that the
