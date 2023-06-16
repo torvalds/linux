@@ -502,12 +502,6 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 		rc = __wait_for_resp(rcfw, cookie);
 	else
 		rc = __poll_for_resp(rcfw, cookie);
-	if (rc) {
-		/* timed out */
-		dev_err(&rcfw->pdev->dev, "cmdq[%#x]=%#x timedout (%d)msec\n",
-			cookie, opcode, RCFW_CMD_WAIT_TIME_MS);
-		return rc;
-	}
 
 	if (rc) {
 		spin_lock_irqsave(&rcfw->cmdq.hwq.lock, flags);
