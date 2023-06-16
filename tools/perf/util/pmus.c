@@ -4,6 +4,7 @@
 #include <subcmd/pager.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <pthread.h>
 #include <string.h>
 #include <unistd.h>
 #include "debug.h"
@@ -492,9 +493,35 @@ int perf_pmus__num_core_pmus(void)
 	return count;
 }
 
+static bool __perf_pmus__supports_extended_type(void)
+{
+	struct perf_pmu *pmu = NULL;
+
+	if (perf_pmus__num_core_pmus() <= 1)
+		return false;
+
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+		if (!is_event_supported(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES | ((__u64)pmu->type << PERF_PMU_TYPE_SHIFT)))
+			return false;
+	}
+
+	return true;
+}
+
+static bool perf_pmus__do_support_extended_type;
+
+static void perf_pmus__init_supports_extended_type(void)
+{
+	perf_pmus__do_support_extended_type = __perf_pmus__supports_extended_type();
+}
+
 bool perf_pmus__supports_extended_type(void)
 {
-	return perf_pmus__num_core_pmus() > 1;
+	static pthread_once_t extended_type_once = PTHREAD_ONCE_INIT;
+
+	pthread_once(&extended_type_once, perf_pmus__init_supports_extended_type);
+
+	return perf_pmus__do_support_extended_type;
 }
 
 struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
