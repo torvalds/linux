@@ -62,6 +62,7 @@ struct codec_priv {
  * @sysclk_dir: SYSCLK directions for set_sysclk()
  * @sysclk_id: SYSCLK ids for set_sysclk()
  * @slot_width: Slot width of each frame
+ * @slot_num: Number of slots of each frame
  *
  * Note: [1] for tx and [0] for rx
  */
@@ -70,6 +71,7 @@ struct cpu_priv {
 	u32 sysclk_dir[2];
 	u32 sysclk_id[2];
 	u32 slot_width;
+	u32 slot_num;
 };
 
 /**
@@ -191,7 +193,11 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (cpu_priv->slot_width) {
-		ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2,
+		if (!cpu_priv->slot_num)
+			cpu_priv->slot_num = 2;
+
+		ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0), 0x3, 0x3,
+					       cpu_priv->slot_num,
 					       cpu_priv->slot_width);
 		if (ret && ret != -ENOTSUPP) {
 			dev_err(dev, "failed to set TDM slot for cpu dai\n");
