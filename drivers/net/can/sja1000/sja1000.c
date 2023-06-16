@@ -501,7 +501,8 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 	struct sja1000_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	uint8_t isrc, status;
-	int n = 0;
+	irqreturn_t ret = 0;
+	int n = 0, err;
 
 	if (priv->pre_irq)
 		priv->pre_irq(priv);
@@ -546,19 +547,23 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 		}
 		if (isrc & (IRQ_DOI | IRQ_EI | IRQ_BEI | IRQ_EPI | IRQ_ALI)) {
 			/* error interrupt */
-			if (sja1000_err(dev, isrc, status))
+			err = sja1000_err(dev, isrc, status);
+			if (err)
 				break;
 		}
 		n++;
 	}
 out:
+	if (!ret)
+		ret = (n) ? IRQ_HANDLED : IRQ_NONE;
+
 	if (priv->post_irq)
 		priv->post_irq(priv);
 
 	if (n >= SJA1000_MAX_IRQ)
 		netdev_dbg(dev, "%d messages handled in ISR", n);
 
-	return (n) ? IRQ_HANDLED : IRQ_NONE;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sja1000_interrupt);
 
