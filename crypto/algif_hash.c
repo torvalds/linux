@@ -76,12 +76,29 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	lock_sock(sk);
 	if (!continuing) {
-		if ((msg->msg_flags & MSG_MORE))
-			hash_free_result(sk, ctx);
+		/* Discard a previous request that wasn't marked MSG_MORE. */
+		hash_free_result(sk, ctx);
+		if (!msg_data_left(msg))
+			goto done; /* Zero-length; don't start new req */
 		need_init = true;
+	} else if (!msg_data_left(msg)) {
+		/*
+		 * No data - finalise the prev req if MSG_MORE so any error
+		 * comes out here.
+		 */
+		if (!(msg->msg_flags & MSG_MORE)) {
+			err = hash_alloc_result(sk, ctx);
+			if (err)
+				goto unlock_free;
+			ahash_request_set_crypt(&ctx->req, NULL,
+						ctx->result, 0);
+			err = crypto_wait_req(crypto_ahash_final(&ctx->req),
+					      &ctx->wait);
+			if (err)
+				goto unlock_free;
+		}
+		goto done_more;
 	}
-
-	ctx->more = false;
 
 	while (msg_data_left(msg)) {
 		ctx->sgl.sgt.sgl = ctx->sgl.sgl;
@@ -93,15 +110,6 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (npages == 0)
 			goto unlock_free;
 
-		if (npages > ARRAY_SIZE(ctx->sgl.sgl)) {
-			err = -ENOMEM;
-			ctx->sgl.sgt.sgl =
-				kvmalloc(array_size(npages,
-						    sizeof(*ctx->sgl.sgt.sgl)),
-					 GFP_KERNEL);
-			if (!ctx->sgl.sgt.sgl)
-				goto unlock_free;
-		}
 		sg_init_table(ctx->sgl.sgl, npages);
 
 		ctx->sgl.need_unpin = iov_iter_extract_will_pin(&msg->msg_iter);
@@ -150,7 +158,9 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 		af_alg_free_sg(&ctx->sgl);
 	}
 
+done_more:
 	ctx->more = msg->msg_flags & MSG_MORE;
+done:
 	err = 0;
 unlock:
 	release_sock(sk);
@@ -158,6 +168,8 @@ unlock:
 
 unlock_free:
 	af_alg_free_sg(&ctx->sgl);
+	hash_free_result(sk, ctx);
+	ctx->more = false;
 	goto unlock;
 }
 
