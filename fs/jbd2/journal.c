@@ -1919,15 +1919,15 @@ static int journal_get_superblock(journal_t *journal)
 	bh = journal->j_sb_buffer;
 
 	J_ASSERT(bh != NULL);
+	if (buffer_verified(bh))
+		return 0;
+
 	err = bh_read(bh, 0);
 	if (err < 0) {
 		printk(KERN_ERR
 			"JBD2: IO error reading journal superblock\n");
 		goto out;
 	}
-
-	if (buffer_verified(bh))
-		return 0;
 
 	sb = journal->j_superblock;
 
@@ -2229,7 +2229,6 @@ int jbd2_journal_check_used_features(journal_t *journal, unsigned long compat,
 
 	if (!compat && !ro && !incompat)
 		return 1;
-	/* Load journal superblock if it is not loaded yet. */
 	if (journal_get_superblock(journal))
 		return 0;
 	if (!jbd2_format_support_feature(journal))
