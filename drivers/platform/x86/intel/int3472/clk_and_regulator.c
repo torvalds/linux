@@ -232,32 +232,40 @@ void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472)
 	gpiod_put(int3472->clock.ena_gpio);
 }
 
+/*
+ * The INT3472 device is going to be the only supplier of a regulator for
+ * the sensor device. But unlike the clk framework the regulator framework
+ * does not allow matching by consumer-device-name only.
+ *
+ * Ideally all sensor drivers would use "avdd" as supply-id. But for drivers
+ * where this cannot be changed because another supply-id is already used in
+ * e.g. DeviceTree files an alias for the other supply-id can be added here.
+ *
+ * Do not forget to update GPIO_REGULATOR_SUPPLY_MAP_COUNT when changing this.
+ */
+static const char * const skl_int3472_regulator_map_supplies[] = {
+	"avdd",
+};
+
+static_assert(ARRAY_SIZE(skl_int3472_regulator_map_supplies) ==
+	      GPIO_REGULATOR_SUPPLY_MAP_COUNT);
+
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
 				   struct acpi_resource_gpio *agpio)
 {
-	const struct int3472_sensor_config *sensor_config;
 	char *path = agpio->resource_source.string_ptr;
-	struct regulator_consumer_supply supply_map;
 	struct regulator_init_data init_data = { };
 	struct regulator_config cfg = { };
-	int ret;
+	int i, ret;
 
-	sensor_config = int3472->sensor_config;
-	if (IS_ERR(sensor_config)) {
-		dev_err(int3472->dev, "No sensor module config\n");
-		return PTR_ERR(sensor_config);
-	}
-
-	if (!sensor_config->supply_map.supply) {
-		dev_err(int3472->dev, "No supply name defined\n");
-		return -ENODEV;
+	for (i = 0; i < ARRAY_SIZE(skl_int3472_regulator_map_supplies); i++) {
+		int3472->regulator.supply_map[i].supply = skl_int3472_regulator_map_supplies[i];
+		int3472->regulator.supply_map[i].dev_name = int3472->sensor_name;
 	}
 
 	init_data.constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS;
-	init_data.num_consumer_supplies = 1;
-	supply_map = sensor_config->supply_map;
-	supply_map.dev_name = int3472->sensor_name;
-	init_data.consumer_supplies = &supply_map;
+	init_data.consumer_supplies = int3472->regulator.supply_map;
+	init_data.num_consumer_supplies = GPIO_REGULATOR_SUPPLY_MAP_COUNT;
 
 	snprintf(int3472->regulator.regulator_name,
 		 sizeof(int3472->regulator.regulator_name), "%s-regulator",

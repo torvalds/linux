@@ -28,6 +28,7 @@
 
 #define GPIO_REGULATOR_NAME_LENGTH				21
 #define GPIO_REGULATOR_SUPPLY_NAME_LENGTH			9
+#define GPIO_REGULATOR_SUPPLY_MAP_COUNT				1
 
 #define INT3472_LED_MAX_NAME_LEN				32
 
@@ -69,11 +70,6 @@ struct int3472_cldb {
 	u8 reserved2[17];
 };
 
-struct int3472_sensor_config {
-	const char *sensor_module_name;
-	struct regulator_consumer_supply supply_map;
-};
-
 struct int3472_discrete_device {
 	struct acpi_device *adev;
 	struct device *dev;
@@ -83,6 +79,7 @@ struct int3472_discrete_device {
 	const struct int3472_sensor_config *sensor_config;
 
 	struct int3472_gpio_regulator {
+		struct regulator_consumer_supply supply_map[GPIO_REGULATOR_SUPPLY_MAP_COUNT];
 		char regulator_name[GPIO_REGULATOR_NAME_LENGTH];
 		char supply_name[GPIO_REGULATOR_SUPPLY_NAME_LENGTH];
 		struct gpio_desc *gpio;

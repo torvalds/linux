@@ -34,48 +34,17 @@ static const guid_t cio2_sensor_module_guid =
 	GUID_INIT(0x822ace8f, 0x2814, 0x4174,
 		  0xa5, 0x6b, 0x5f, 0x02, 0x9f, 0xe0, 0x79, 0xee);
 
-/*
- * Here follows platform specific mapping information that we can pass to
- * the functions mapping resources to the sensors. Where the sensors have
- * a power enable pin defined in DSDT we need to provide a supply name so
- * the sensor drivers can find the regulator. The device name will be derived
- * from the sensor's ACPI device within the code.
- */
-static const struct int3472_sensor_config int3472_sensor_configs[] = {
-	/* Lenovo Miix 510-12ISK - OV5648, Rear */
-	{ "GEFF150023R", REGULATOR_SUPPLY("avdd", NULL) },
-	/* Surface Go 1&2 - OV5693, Front */
-	{ "YHCU", REGULATOR_SUPPLY("avdd", NULL) },
-};
-
-static const struct int3472_sensor_config *
-skl_int3472_get_sensor_module_config(struct int3472_discrete_device *int3472)
+static void skl_int3472_log_sensor_module_name(struct int3472_discrete_device *int3472)
 {
 	union acpi_object *obj;
-	unsigned int i;
 
 	obj = acpi_evaluate_dsm_typed(int3472->sensor->handle,
 				      &cio2_sensor_module_guid, 0x00,
 				      0x01, NULL, ACPI_TYPE_STRING);
-
-	if (!obj) {
-		dev_err(int3472->dev,
-			"Failed to get sensor module string from _DSM\n");
-		return ERR_PTR(-ENODEV);
+	if (obj) {
+		dev_dbg(int3472->dev, "Sensor module id: '%s'\n", obj->string.pointer);
+		ACPI_FREE(obj);
 	}
-
-	for (i = 0; i < ARRAY_SIZE(int3472_sensor_configs); i++) {
-		if (!strcmp(int3472_sensor_configs[i].sensor_module_name,
-			    obj->string.pointer))
-			break;
-	}
-
-	ACPI_FREE(obj);
-
-	if (i >= ARRAY_SIZE(int3472_sensor_configs))
-		return ERR_PTR(-EINVAL);
-
-	return &int3472_sensor_configs[i];
 }
 
 static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int3472,
@@ -266,11 +235,7 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	LIST_HEAD(resource_list);
 	int ret;
 
-	/*
-	 * No error check, because not having a sensor config is not necessarily
-	 * a failure mode.
-	 */
-	int3472->sensor_config = skl_int3472_get_sensor_module_config(int3472);
+	skl_int3472_log_sensor_module_name(int3472);
 
 	ret = acpi_dev_get_resources(int3472->adev, &resource_list,
 				     skl_int3472_handle_gpio_resources,
