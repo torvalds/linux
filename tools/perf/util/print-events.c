@@ -229,7 +229,7 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 	strlist__delete(sdtlist);
 }
 
-static bool is_event_supported(u8 type, u64 config)
+bool is_event_supported(u8 type, u64 config)
 {
 	bool ret = true;
 	int open_return;
