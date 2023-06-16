@@ -2222,9 +2222,9 @@ extern int ext4_feature_set_ok(struct super_block *sb, int readonly);
 #define EXT4_FLAGS_SHUTDOWN	1
 #define EXT4_FLAGS_BDEV_IS_DAX	2
 
-static inline int ext4_forced_shutdown(struct ext4_sb_info *sbi)
+static inline int ext4_forced_shutdown(struct super_block *sb)
 {
-	return test_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
+	return test_bit(EXT4_FLAGS_SHUTDOWN, &EXT4_SB(sb)->s_ext4_flags);
 }
 
 /*

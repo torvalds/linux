@@ -950,7 +950,7 @@ struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 	sb = dir->i_sb;
 	sbi = EXT4_SB(sb);
 
-	if (unlikely(ext4_forced_shutdown(sbi)))
+	if (unlikely(ext4_forced_shutdown(sb)))
 		return ERR_PTR(-EIO);
 
 	ngroups = ext4_get_groups_count(sb);

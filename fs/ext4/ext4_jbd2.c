@@ -67,7 +67,7 @@ static int ext4_journal_check_start(struct super_block *sb)
 
 	might_sleep();
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+	if (unlikely(ext4_forced_shutdown(sb)))
 		return -EIO;
 
 	if (sb_rdonly(sb))
