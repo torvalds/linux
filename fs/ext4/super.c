@@ -7072,6 +7072,13 @@ static int ext4_quota_off(struct super_block *sb, int type)
 	err = dquot_quota_off(sb, type);
 	if (err || ext4_has_feature_quota(sb))
 		goto out_put;
+	/*
+	 * When the filesystem was remounted read-only first, we cannot cleanup
+	 * inode flags here. Bad luck but people should be using QUOTA feature
+	 * these days anyway.
+	 */
+	if (sb_rdonly(sb))
+		goto out_put;
 
 	inode_lock(inode);
 	/*
