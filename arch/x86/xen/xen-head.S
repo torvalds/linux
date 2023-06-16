@@ -90,30 +90,35 @@ SYM_CODE_END(xen_cpu_bringup_again)
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")
 	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz "xen-3.0")
-#ifdef CONFIG_X86_32
-	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __PAGE_OFFSET)
-#else
+#ifdef CONFIG_XEN_PV
 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __START_KERNEL_map)
 	/* Map the p2m table to a 512GB-aligned user address. */
 	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad (PUD_SIZE * PTRS_PER_PUD))
-#endif
-#ifdef CONFIG_XEN_PV
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          _ASM_PTR startup_xen)
-#endif
-	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
-	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,
-		.ascii "!writable_page_tables|pae_pgdir_above_4gb")
-	ELFNOTE(Xen, XEN_ELFNOTE_SUPPORTED_FEATURES,
-		.long (1 << XENFEAT_writable_page_tables) |       \
-		      (1 << XENFEAT_dom0) |                       \
-		      (1 << XENFEAT_linux_rsdp_unrestricted))
+	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .ascii "!writable_page_tables")
 	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
-	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,
 		.quad _PAGE_PRESENT; .quad _PAGE_PRESENT)
-	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)
 	ELFNOTE(Xen, XEN_ELFNOTE_MOD_START_PFN,  .long 1)
-	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   _ASM_PTR __HYPERVISOR_VIRT_START)
 	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   _ASM_PTR 0)
+# define FEATURES_PV (1 << XENFEAT_writable_page_tables)
+#else
+# define FEATURES_PV 0
+#endif
+#ifdef CONFIG_XEN_PVH
+# define FEATURES_PVH (1 << XENFEAT_linux_rsdp_unrestricted)
+#else
+# define FEATURES_PVH 0
+#endif
+#ifdef CONFIG_XEN_DOM0
+# define FEATURES_DOM0 (1 << XENFEAT_dom0)
+#else
+# define FEATURES_DOM0 0
+#endif
+	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
+	ELFNOTE(Xen, XEN_ELFNOTE_SUPPORTED_FEATURES,
+		.long FEATURES_PV | FEATURES_PVH | FEATURES_DOM0)
+	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
+	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)
 
 #endif /*CONFIG_XEN */
