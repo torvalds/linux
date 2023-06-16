@@ -740,7 +740,7 @@
 				clocks = <&clk32k>;
 			};
 
-			shutdown_controller: shdwc@fc068610 {
+			shutdown_controller: poweroff@fc068610 {
 				compatible = "atmel,at91sam9x5-shdwc";
 				reg = <0xfc068610 0x10>;
 				clocks = <&clk32k>;

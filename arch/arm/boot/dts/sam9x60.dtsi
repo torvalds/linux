@@ -1297,7 +1297,7 @@
 				clocks = <&clk32k 0>;
 			};
 
-			shutdown_controller: shdwc@fffffe10 {
+			shutdown_controller: poweroff@fffffe10 {
 				compatible = "microchip,sam9x60-shdwc";
 				reg = <0xfffffe10 0x10>;
 				clocks = <&clk32k 0>;

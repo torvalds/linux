@@ -257,7 +257,7 @@
 			clocks = <&clk32k 0>;
 		};
 
-		shdwc: shdwc@e001d010 {
+		shdwc: poweroff@e001d010 {
 			compatible = "microchip,sama7g5-shdwc", "syscon";
 			reg = <0xe001d010 0x10>;
 			clocks = <&clk32k 0>;

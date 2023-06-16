@@ -108,7 +108,7 @@
 				status = "okay";
 			};
 
-			shdwc@fffffd10 {
+			shdwc: poweroff@fffffd10 {
 				atmel,wakeup-counter = <10>;
 				atmel,wakeup-rtt-timer;
 			};

@@ -152,7 +152,7 @@
 			};
 
 
-			shdwc@fffffd10 {
+			poweroff@fffffd10 {
 				compatible = "atmel,at91sam9rl-shdwc";
 				reg = <0xfffffd10 0x10>;
 				clocks = <&clk32k>;
