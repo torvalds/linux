@@ -637,6 +637,37 @@ out:
 	return count;
 }
 
+static ssize_t repeatability_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct sht3x_data *data = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", data->repeatability);
+}
+
+static ssize_t repeatability_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t count)
+{
+	int ret;
+	u8 val;
+
+	struct sht3x_data *data = dev_get_drvdata(dev);
+
+	ret = kstrtou8(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 2)
+		return -EINVAL;
+
+	data->repeatability = val;
+
+	return count;
+}
+
 static SENSOR_DEVICE_ATTR_RO(temp1_input, temp1_input, 0);
 static SENSOR_DEVICE_ATTR_RO(humidity1_input, humidity1_input, 0);
 static SENSOR_DEVICE_ATTR_RW(temp1_max, temp1_limit, limit_max);
@@ -653,6 +684,7 @@ static SENSOR_DEVICE_ATTR_RO(temp1_alarm, temp1_alarm, 0);
 static SENSOR_DEVICE_ATTR_RO(humidity1_alarm, humidity1_alarm, 0);
 static SENSOR_DEVICE_ATTR_RW(heater_enable, heater_enable, 0);
 static SENSOR_DEVICE_ATTR_RW(update_interval, update_interval, 0);
+static SENSOR_DEVICE_ATTR_RW(repeatability, repeatability, 0);
 
 static struct attribute *sht3x_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -669,6 +701,7 @@ static struct attribute *sht3x_attrs[] = {
 	&sensor_dev_attr_humidity1_alarm.dev_attr.attr,
 	&sensor_dev_attr_heater_enable.dev_attr.attr,
 	&sensor_dev_attr_update_interval.dev_attr.attr,
+	&sensor_dev_attr_repeatability.dev_attr.attr,
 	NULL
 };
 

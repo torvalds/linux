@@ -28,11 +28,6 @@ The device communicates with the I2C protocol. Sensors can have the I2C
 addresses 0x44 or 0x45, depending on the wiring. See
 Documentation/i2c/instantiating-devices.rst for methods to instantiate the device.
 
-There is only one option configurable by means of sht3x_data:
-
-   repeatability: high repeatability is used by default and using it is
-   strongly recommended.
-
 Even if sht3x sensor supports clock-strech(blocking mode) and non-strench
 (non-blocking mode) in single-shot mode, this driver only supports the latter.
 
@@ -83,4 +78,11 @@ heater_enable:      heater enable, heating element removes excess humidity from
 update_interval:    update interval, 0 for single shot, interval in msec
 		    for periodic measurement. If the interval is not supported
 		    by the sensor, the next faster interval is chosen
+repeatability:      write or read repeatability, higher repeatability means
+                    longer measurement duration, lower noise level and
+                    larger energy consumption:
+
+                        - 0: low repeatability
+                        - 1: medium repeatability
+                        - 2: high repeatability
 =================== ============================================================
