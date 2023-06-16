@@ -521,6 +521,11 @@ static inline bool is_full_throttle_boost(void)
 	return sched_boost_type == FULL_THROTTLE_BOOST;
 }
 
+static inline bool is_storage_boost(void)
+{
+	return sched_boost_type == STORAGE_BOOST;
+}
+
 static inline bool task_sched_boost(struct task_struct *p)
 {
 	struct cgroup_subsys_state *css;

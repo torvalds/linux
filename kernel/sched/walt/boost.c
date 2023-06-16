@@ -30,6 +30,7 @@ void walt_init_tg(struct task_group *tg)
 	wtg->sched_boost_enable[FULL_THROTTLE_BOOST] = true;
 	wtg->sched_boost_enable[CONSERVATIVE_BOOST] = false;
 	wtg->sched_boost_enable[RESTRAINED_BOOST] = false;
+	wtg->sched_boost_enable[STORAGE_BOOST] = true;
 }
 
 void walt_init_topapp_tg(struct task_group *tg)
@@ -43,6 +44,7 @@ void walt_init_topapp_tg(struct task_group *tg)
 	wtg->sched_boost_enable[FULL_THROTTLE_BOOST] = true;
 	wtg->sched_boost_enable[CONSERVATIVE_BOOST] = true;
 	wtg->sched_boost_enable[RESTRAINED_BOOST] = false;
+	wtg->sched_boost_enable[STORAGE_BOOST] = true;
 }
 
 void walt_init_foreground_tg(struct task_group *tg)
@@ -56,6 +58,7 @@ void walt_init_foreground_tg(struct task_group *tg)
 	wtg->sched_boost_enable[FULL_THROTTLE_BOOST] = true;
 	wtg->sched_boost_enable[CONSERVATIVE_BOOST] = true;
 	wtg->sched_boost_enable[RESTRAINED_BOOST] = false;
+	wtg->sched_boost_enable[STORAGE_BOOST] = true;
 }
 
 /*
@@ -86,7 +89,7 @@ static void set_boost_policy(int type)
 
 static bool verify_boost_params(int type)
 {
-	return type >= RESTRAINED_BOOST_DISABLE && type <= RESTRAINED_BOOST;
+	return type >= STORAGE_BOOST_DISABLE && type <= STORAGE_BOOST;
 }
 
 static void sched_no_boost_nop(void)
@@ -123,6 +126,16 @@ static void sched_restrained_boost_exit(void)
 	walt_enable_frequency_aggregation(false);
 }
 
+static void sched_storage_boost_enter(void)
+{
+	core_ctl_set_boost(true);
+}
+
+static void sched_storage_boost_exit(void)
+{
+	core_ctl_set_boost(false);
+}
+
 struct sched_boost_data {
 	int	refcount;
 	void	(*enter)(void);
@@ -150,10 +163,16 @@ static struct sched_boost_data sched_boosts[] = {
 		.enter		= sched_restrained_boost_enter,
 		.exit		= sched_restrained_boost_exit,
 	},
+	[STORAGE_BOOST] = {
+		.refcount	= 0,
+		.enter		= sched_storage_boost_enter,
+		.exit		= sched_storage_boost_exit,
+	},
+
 };
 
 #define SCHED_BOOST_START FULL_THROTTLE_BOOST
-#define SCHED_BOOST_END (RESTRAINED_BOOST + 1)
+#define SCHED_BOOST_END (STORAGE_BOOST + 1)
 
 static int sched_effective_boost(void)
 {

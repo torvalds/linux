@@ -4274,7 +4274,8 @@ void walt_rotation_checkpoint(int nr_big)
 
 void fmax_uncap_checkpoint(int nr_big, u64 window_start)
 {
-	bool fmax_uncap_load_detected = nr_big >= 7 || is_full_throttle_boost();
+	bool fmax_uncap_load_detected = nr_big >= 7 || is_full_throttle_boost() ||
+					is_storage_boost();
 	static u64 fmax_uncap_timestamp;
 	int i;
 
