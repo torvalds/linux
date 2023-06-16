@@ -22,12 +22,10 @@
 #include <linux/jiffies.h>
 
 /* commands (high precision mode) */
-static const unsigned char sht3x_cmd_measure_blocking_hpm[]    = { 0x2c, 0x06 };
-static const unsigned char sht3x_cmd_measure_nonblocking_hpm[] = { 0x24, 0x00 };
+static const unsigned char sht3x_cmd_measure_single_hpm[] = { 0x24, 0x00 };
 
 /* commands (low power mode) */
-static const unsigned char sht3x_cmd_measure_blocking_lpm[]    = { 0x2c, 0x10 };
-static const unsigned char sht3x_cmd_measure_nonblocking_lpm[] = { 0x24, 0x16 };
+static const unsigned char sht3x_cmd_measure_single_lpm[] = { 0x24, 0x16 };
 
 /* commands for periodic mode */
 static const unsigned char sht3x_cmd_measure_periodic_mode[]   = { 0xe0, 0x00 };
@@ -41,9 +39,9 @@ static const unsigned char sht3x_cmd_heater_off[]              = { 0x30, 0x66 };
 static const unsigned char sht3x_cmd_read_status_reg[]         = { 0xf3, 0x2d };
 static const unsigned char sht3x_cmd_clear_status_reg[]        = { 0x30, 0x41 };
 
-/* delays for non-blocking i2c commands, both in us */
-#define SHT3X_NONBLOCKING_WAIT_TIME_HPM  15000
-#define SHT3X_NONBLOCKING_WAIT_TIME_LPM   4000
+/* delays for single-shot mode i2c commands, both in us */
+#define SHT3X_SINGLE_WAIT_TIME_HPM  15000
+#define SHT3X_SINGLE_WAIT_TIME_LPM   4000
 
 #define SHT3X_WORD_LEN         2
 #define SHT3X_CMD_LENGTH       2
@@ -134,7 +132,6 @@ struct sht3x_data {
 	const unsigned char *command;
 	u32 wait_time;			/* in us*/
 	unsigned long last_update;	/* last update in periodic mode*/
-	bool blocking_io;
 	bool high_precision;
 
 	/*
@@ -432,26 +429,19 @@ static ssize_t humidity1_limit_store(struct device *dev,
 static void sht3x_select_command(struct sht3x_data *data)
 {
 	/*
-	 * In blocking mode (clock stretching mode) the I2C bus
-	 * is blocked for other traffic, thus the call to i2c_master_recv()
-	 * will wait until the data is ready. For non blocking mode, we
-	 * have to wait ourselves.
+	 * For single-shot mode, only non blocking mode is support,
+	 * we have to wait ourselves for result.
 	 */
 	if (data->mode > 0) {
 		data->command = sht3x_cmd_measure_periodic_mode;
 		data->wait_time = 0;
-	} else if (data->blocking_io) {
-		data->command = data->high_precision ?
-				sht3x_cmd_measure_blocking_hpm :
-				sht3x_cmd_measure_blocking_lpm;
-		data->wait_time = 0;
 	} else {
 		if (data->high_precision) {
-			data->command = sht3x_cmd_measure_nonblocking_hpm;
-			data->wait_time = SHT3X_NONBLOCKING_WAIT_TIME_HPM;
+			data->command = sht3x_cmd_measure_single_hpm;
+			data->wait_time = SHT3X_SINGLE_WAIT_TIME_HPM;
 		} else {
-			data->command = sht3x_cmd_measure_nonblocking_lpm;
-			data->wait_time = SHT3X_NONBLOCKING_WAIT_TIME_LPM;
+			data->command = sht3x_cmd_measure_single_lpm;
+			data->wait_time = SHT3X_SINGLE_WAIT_TIME_LPM;
 		}
 	}
 }
@@ -689,7 +679,6 @@ static int sht3x_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	data->blocking_io = false;
 	data->high_precision = true;
 	data->mode = 0;
 	data->last_update = jiffies - msecs_to_jiffies(3000);
