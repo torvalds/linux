@@ -2831,8 +2831,11 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
-	if (!forever && status != -1 && (!interval || stat_config.summary))
+	if (!forever && status != -1 && (!interval || stat_config.summary)) {
+		if (stat_config.run_count > 1)
+			evlist__copy_res_stats(&stat_config, evsel_list);
 		print_counters(NULL, argc, argv);
+	}
 
 	evlist__finalize_ctlfd(evsel_list);
 
