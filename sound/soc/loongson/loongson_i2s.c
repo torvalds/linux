@@ -265,5 +265,5 @@ static int i2s_resume(struct device *dev)
 }
 
 const struct dev_pm_ops loongson_i2s_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(i2s_suspend, i2s_resume)
+	SYSTEM_SLEEP_PM_OPS(i2s_suspend, i2s_resume)
 };
