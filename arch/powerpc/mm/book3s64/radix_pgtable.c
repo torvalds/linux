@@ -912,7 +912,6 @@ int __meminit radix__vmemmap_create_mapping(unsigned long start,
 				      unsigned long phys)
 {
 	/* Create a PTE encoding */
-	unsigned long flags = _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_KERNEL_RW;
 	int nid = early_pfn_to_nid(phys >> PAGE_SHIFT);
 	int ret;
 
@@ -921,7 +920,7 @@ int __meminit radix__vmemmap_create_mapping(unsigned long start,
 		return -1;
 	}
 
-	ret = __map_kernel_page_nid(start, phys, __pgprot(flags), page_size, nid);
+	ret = __map_kernel_page_nid(start, phys, PAGE_KERNEL, page_size, nid);
 	BUG_ON(ret);
 
 	return 0;
