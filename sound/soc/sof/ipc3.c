@@ -223,6 +223,14 @@ static inline void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 }
 #endif
 
+static void sof_ipc3_dump_payload(struct snd_sof_dev *sdev,
+				  void *ipc_data, size_t size)
+{
+	printk(KERN_DEBUG "Size of payload following the header: %zu\n", size);
+	print_hex_dump_debug("Message payload: ", DUMP_PREFIX_OFFSET,
+			     16, 4, ipc_data, size, false);
+}
+
 static int sof_ipc3_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
@@ -374,6 +382,29 @@ static int sof_ipc3_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 
 	ret = ipc3_tx_msg_unlocked(ipc, msg_data, msg_bytes, reply_data, reply_bytes);
 
+	if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD)) {
+		size_t payload_bytes, header_bytes;
+		char *payload = NULL;
+
+		/* payload is indicated by non zero msg/reply_bytes */
+		if (msg_bytes > sizeof(struct sof_ipc_cmd_hdr)) {
+			payload = msg_data;
+
+			header_bytes = sizeof(struct sof_ipc_cmd_hdr);
+			payload_bytes = msg_bytes - header_bytes;
+		} else if (reply_bytes > sizeof(struct sof_ipc_reply)) {
+			payload = reply_data;
+
+			header_bytes = sizeof(struct sof_ipc_reply);
+			payload_bytes = reply_bytes - header_bytes;
+		}
+
+		if (payload) {
+			payload += header_bytes;
+			sof_ipc3_dump_payload(sdev, payload, payload_bytes);
+		}
+	}
+
 	mutex_unlock(&ipc->tx_mutex);
 
 	return ret;
@@ -470,6 +501,14 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 			memcpy(dst + offset, src, send_bytes);
 
 		offset += payload_size;
+	}
+
+	if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD)) {
+		size_t header_bytes = sizeof(struct sof_ipc_reply);
+		char *payload = (char *)cdata;
+
+		payload += header_bytes;
+		sof_ipc3_dump_payload(sdev, payload, data_bytes - header_bytes);
 	}
 
 	mutex_unlock(&sdev->ipc->tx_mutex);
