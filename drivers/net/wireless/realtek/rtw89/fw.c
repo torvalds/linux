@@ -89,9 +89,11 @@ int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev)
 static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 			       struct rtw89_fw_bin_info *info)
 {
+	const struct rtw89_fw_hdr *fw_hdr = (const struct rtw89_fw_hdr *)fw;
 	struct rtw89_fw_hdr_section_info *section_info;
+	const struct rtw89_fw_dynhdr_hdr *fwdynhdr;
+	const struct rtw89_fw_hdr_section *section;
 	const u8 *fw_end = fw + len;
-	const u8 *fwdynhdr;
 	const u8 *bin;
 	u32 base_hdr_len;
 	u32 mssc_len = 0;
@@ -100,16 +102,15 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 	if (!info)
 		return -EINVAL;
 
-	info->section_num = GET_FW_HDR_SEC_NUM(fw);
-	base_hdr_len = RTW89_FW_HDR_SIZE +
-		       info->section_num * RTW89_FW_SECTION_HDR_SIZE;
-	info->dynamic_hdr_en = GET_FW_HDR_DYN_HDR(fw);
+	info->section_num = le32_get_bits(fw_hdr->w6, FW_HDR_W6_SEC_NUM);
+	base_hdr_len = struct_size(fw_hdr, sections, info->section_num);
+	info->dynamic_hdr_en = le32_get_bits(fw_hdr->w7, FW_HDR_W7_DYN_HDR);
 
 	if (info->dynamic_hdr_en) {
-		info->hdr_len = GET_FW_HDR_LEN(fw);
+		info->hdr_len = le32_get_bits(fw_hdr->w3, FW_HDR_W3_LEN);
 		info->dynamic_hdr_len = info->hdr_len - base_hdr_len;
-		fwdynhdr = fw + base_hdr_len;
-		if (GET_FW_DYNHDR_LEN(fwdynhdr) != info->dynamic_hdr_len) {
+		fwdynhdr = (const struct rtw89_fw_dynhdr_hdr *)(fw + base_hdr_len);
+		if (le32_to_cpu(fwdynhdr->hdr_len) != info->dynamic_hdr_len) {
 			rtw89_err(rtwdev, "[ERR]invalid fw dynamic header len\n");
 			return -EINVAL;
 		}
@@ -121,26 +122,27 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 	bin = fw + info->hdr_len;
 
 	/* jump to section header */
-	fw += RTW89_FW_HDR_SIZE;
 	section_info = info->section_info;
 	for (i = 0; i < info->section_num; i++) {
-		section_info->type = GET_FWSECTION_HDR_SECTIONTYPE(fw);
+		section = &fw_hdr->sections[i];
+		section_info->type =
+			le32_get_bits(section->w1, FWSECTION_HDR_W1_SECTIONTYPE);
 		if (section_info->type == FWDL_SECURITY_SECTION_TYPE) {
-			section_info->mssc = GET_FWSECTION_HDR_MSSC(fw);
+			section_info->mssc =
+				le32_get_bits(section->w2, FWSECTION_HDR_W2_MSSC);
 			mssc_len += section_info->mssc * FWDL_SECURITY_SIGLEN;
 		} else {
 			section_info->mssc = 0;
 		}
 
-		section_info->len = GET_FWSECTION_HDR_SEC_SIZE(fw);
-		if (GET_FWSECTION_HDR_CHECKSUM(fw))
+		section_info->len = le32_get_bits(section->w1, FWSECTION_HDR_W1_SEC_SIZE);
+		if (le32_get_bits(section->w1, FWSECTION_HDR_W1_CHECKSUM))
 			section_info->len += FWDL_SECTION_CHKSUM_LEN;
-		section_info->redl = GET_FWSECTION_HDR_REDL(fw);
+		section_info->redl = le32_get_bits(section->w1, FWSECTION_HDR_W1_REDL);
 		section_info->dladdr =
-				GET_FWSECTION_HDR_DL_ADDR(fw) & 0x1fffffff;
+			le32_get_bits(section->w0, FWSECTION_HDR_W0_DL_ADDR) & 0x1fffffff;
 		section_info->addr = bin;
 		bin += section_info->len;
-		fw += RTW89_FW_SECTION_HDR_SIZE;
 		section_info++;
 	}
 
@@ -195,18 +197,18 @@ static void rtw89_fw_update_ver(struct rtw89_dev *rtwdev,
 				enum rtw89_fw_type type,
 				struct rtw89_fw_suit *fw_suit)
 {
-	const u8 *hdr = fw_suit->data;
+	const struct rtw89_fw_hdr *hdr = (const struct rtw89_fw_hdr *)fw_suit->data;
 
-	fw_suit->major_ver = GET_FW_HDR_MAJOR_VERSION(hdr);
-	fw_suit->minor_ver = GET_FW_HDR_MINOR_VERSION(hdr);
-	fw_suit->sub_ver = GET_FW_HDR_SUBVERSION(hdr);
-	fw_suit->sub_idex = GET_FW_HDR_SUBINDEX(hdr);
-	fw_suit->build_year = GET_FW_HDR_YEAR(hdr);
-	fw_suit->build_mon = GET_FW_HDR_MONTH(hdr);
-	fw_suit->build_date = GET_FW_HDR_DATE(hdr);
-	fw_suit->build_hour = GET_FW_HDR_HOUR(hdr);
-	fw_suit->build_min = GET_FW_HDR_MIN(hdr);
-	fw_suit->cmd_ver = GET_FW_HDR_CMD_VERSERION(hdr);
+	fw_suit->major_ver = le32_get_bits(hdr->w1, FW_HDR_W1_MAJOR_VERSION);
+	fw_suit->minor_ver = le32_get_bits(hdr->w1, FW_HDR_W1_MINOR_VERSION);
+	fw_suit->sub_ver = le32_get_bits(hdr->w1, FW_HDR_W1_SUBVERSION);
+	fw_suit->sub_idex = le32_get_bits(hdr->w1, FW_HDR_W1_SUBINDEX);
+	fw_suit->build_year = le32_get_bits(hdr->w5, FW_HDR_W5_YEAR);
+	fw_suit->build_mon = le32_get_bits(hdr->w4, FW_HDR_W4_MONTH);
+	fw_suit->build_date = le32_get_bits(hdr->w4, FW_HDR_W4_DATE);
+	fw_suit->build_hour = le32_get_bits(hdr->w4, FW_HDR_W4_HOUR);
+	fw_suit->build_min = le32_get_bits(hdr->w4, FW_HDR_W4_MIN);
+	fw_suit->cmd_ver = le32_get_bits(hdr->w7, FW_HDR_W7_CMD_VERSERION);
 
 	rtw89_info(rtwdev,
 		   "Firmware version %u.%u.%u.%u, cmd version %u, type %u\n",

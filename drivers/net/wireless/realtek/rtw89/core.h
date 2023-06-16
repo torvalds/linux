@@ -3387,10 +3387,10 @@ struct rtw89_fw_suit {
 			  (mfw_hdr)->ver.idx)
 
 #define RTW89_FW_HDR_VER_CODE(fw_hdr)				\
-	RTW89_FW_VER_CODE(GET_FW_HDR_MAJOR_VERSION(fw_hdr),	\
-			  GET_FW_HDR_MINOR_VERSION(fw_hdr),	\
-			  GET_FW_HDR_SUBVERSION(fw_hdr),	\
-			  GET_FW_HDR_SUBINDEX(fw_hdr))
+	RTW89_FW_VER_CODE(le32_get_bits((fw_hdr)->w1, FW_HDR_W1_MAJOR_VERSION),	\
+			  le32_get_bits((fw_hdr)->w1, FW_HDR_W1_MINOR_VERSION),	\
+			  le32_get_bits((fw_hdr)->w1, FW_HDR_W1_SUBVERSION),	\
+			  le32_get_bits((fw_hdr)->w1, FW_HDR_W1_SUBINDEX))
 
 struct rtw89_fw_req_info {
 	const struct firmware *firmware;
