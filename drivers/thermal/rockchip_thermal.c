@@ -2167,12 +2167,9 @@ static int rockchip_get_trim_configure(struct device *dev,
 	 * The tsadc won't to handle the error in here
 	 * since some SoCs didn't need this property.
 	 */
-	if (rockchip_get_efuse_value(np, "trim_base", &trim_base)) {
-		dev_info(dev, "Missing trim_base property\n");
-		return 0;
-	}
+	rockchip_get_efuse_value(np, "trim_base", &trim_base);
 	if (!trim_base)
-		return 0;
+		trim_base = 30;
 	rockchip_get_efuse_value(np, "trim_base_frac", &trim_base_frac);
 	/*
 	 * If the tsadc node contains trim_h and trim_l property,
