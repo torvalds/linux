@@ -707,6 +707,14 @@ static struct attribute *sht3x_attrs[] = {
 
 static struct attribute *sts3x_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp1_alarm.dev_attr.attr,
+	&sensor_dev_attr_heater_enable.dev_attr.attr,
+	&sensor_dev_attr_update_interval.dev_attr.attr,
+	&sensor_dev_attr_repeatability.dev_attr.attr,
 	NULL
 };
 
