@@ -268,7 +268,6 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
-		input-enable;
 	};
 
 	wlan_hostwake_default_state: wlan-hostwake-default-state {
@@ -276,7 +275,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	wlan_regulator_default_state: wlan-regulator-default-state {

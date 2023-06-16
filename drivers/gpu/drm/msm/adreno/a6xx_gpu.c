@@ -1981,6 +1981,8 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	adreno_gpu = &a6xx_gpu->base;
 	gpu = &adreno_gpu->base;
 
+	mutex_init(&a6xx_gpu->gmu.lock);
+
 	adreno_gpu->registers = NULL;
 
 	/*
