@@ -69,15 +69,9 @@ struct int3472_cldb {
 	u8 reserved2[17];
 };
 
-struct int3472_gpio_function_remap {
-	const char *documented;
-	const char *actual;
-};
-
 struct int3472_sensor_config {
 	const char *sensor_module_name;
 	struct regulator_consumer_supply supply_map;
-	const struct int3472_gpio_function_remap *function_maps;
 };
 
 struct int3472_discrete_device {

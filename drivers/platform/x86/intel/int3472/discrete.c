@@ -39,27 +39,13 @@ static const guid_t cio2_sensor_module_guid =
  * the functions mapping resources to the sensors. Where the sensors have
  * a power enable pin defined in DSDT we need to provide a supply name so
  * the sensor drivers can find the regulator. The device name will be derived
- * from the sensor's ACPI device within the code. Optionally, we can provide a
- * NULL terminated array of function name mappings to deal with any platform
- * specific deviations from the documented behaviour of GPIOs.
- *
- * Map a GPIO function name to NULL to prevent the driver from mapping that
- * GPIO at all.
+ * from the sensor's ACPI device within the code.
  */
-
-static const struct int3472_gpio_function_remap ov2680_gpio_function_remaps[] = {
-	{ "reset", NULL },
-	{ "powerdown", "reset" },
-	{ }
-};
-
 static const struct int3472_sensor_config int3472_sensor_configs[] = {
-	/* Lenovo Miix 510-12ISK - OV2680, Front */
-	{ "GNDF140809R", { 0 }, ov2680_gpio_function_remaps },
 	/* Lenovo Miix 510-12ISK - OV5648, Rear */
-	{ "GEFF150023R", REGULATOR_SUPPLY("avdd", NULL), NULL },
+	{ "GEFF150023R", REGULATOR_SUPPLY("avdd", NULL) },
 	/* Surface Go 1&2 - OV5693, Front */
-	{ "YHCU", REGULATOR_SUPPLY("avdd", NULL), NULL },
+	{ "YHCU", REGULATOR_SUPPLY("avdd", NULL) },
 };
 
 static const struct int3472_sensor_config *
@@ -96,7 +82,6 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 					  struct acpi_resource_gpio *agpio,
 					  const char *func, u32 polarity)
 {
-	const struct int3472_sensor_config *sensor_config;
 	char *path = agpio->resource_source.string_ptr;
 	struct gpiod_lookup *table_entry;
 	struct acpi_device *adev;
@@ -107,22 +92,6 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 		dev_warn(int3472->dev, "Too many GPIOs mapped\n");
 		return -EINVAL;
 	}
-
-	sensor_config = int3472->sensor_config;
-	if (!IS_ERR(sensor_config) && sensor_config->function_maps) {
-		const struct int3472_gpio_function_remap *remap;
-
-		for (remap = sensor_config->function_maps; remap->documented; remap++) {
-			if (!strcmp(func, remap->documented)) {
-				func = remap->actual;
-				break;
-			}
-		}
-	}
-
-	/* Functions mapped to NULL should not be mapped to the sensor */
-	if (!func)
-		return 0;
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status))
