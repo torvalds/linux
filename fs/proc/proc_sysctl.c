@@ -1406,7 +1406,6 @@ fail_put_dir_locked:
 	spin_unlock(&sysctl_lock);
 fail:
 	kfree(header);
-	dump_stack();
 	return NULL;
 }
 
