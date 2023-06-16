@@ -251,7 +251,7 @@ enum rtw89_band {
 	RTW89_BAND_2G = 0,
 	RTW89_BAND_5G = 1,
 	RTW89_BAND_6G = 2,
-	RTW89_BAND_MAX,
+	RTW89_BAND_NUM,
 };
 
 enum rtw89_hw_rate {
@@ -434,27 +434,27 @@ enum rtw89_rate_section {
 	RTW89_RS_MCS, /* for HT/VHT/HE */
 	RTW89_RS_HEDCM,
 	RTW89_RS_OFFSET,
-	RTW89_RS_MAX,
+	RTW89_RS_NUM,
 	RTW89_RS_LMT_NUM = RTW89_RS_MCS + 1,
 	RTW89_RS_TX_SHAPE_NUM = RTW89_RS_OFDM + 1,
 };
 
-enum rtw89_rate_max {
-	RTW89_RATE_CCK_MAX	= 4,
-	RTW89_RATE_OFDM_MAX	= 8,
-	RTW89_RATE_MCS_MAX	= 12,
-	RTW89_RATE_HEDCM_MAX	= 4, /* for HEDCM MCS0/1/3/4 */
-	RTW89_RATE_OFFSET_MAX	= 5, /* for HE(HEDCM)/VHT/HT/OFDM/CCK offset */
+enum rtw89_rate_num {
+	RTW89_RATE_CCK_NUM	= 4,
+	RTW89_RATE_OFDM_NUM	= 8,
+	RTW89_RATE_MCS_NUM	= 12,
+	RTW89_RATE_HEDCM_NUM	= 4, /* for HEDCM MCS0/1/3/4 */
+	RTW89_RATE_OFFSET_NUM	= 5, /* for HE(HEDCM)/VHT/HT/OFDM/CCK offset */
 };
 
 enum rtw89_nss {
 	RTW89_NSS_1		= 0,
 	RTW89_NSS_2		= 1,
 	/* HE DCM only support 1ss and 2ss */
-	RTW89_NSS_HEDCM_MAX	= RTW89_NSS_2 + 1,
+	RTW89_NSS_HEDCM_NUM	= RTW89_NSS_2 + 1,
 	RTW89_NSS_3		= 2,
 	RTW89_NSS_4		= 3,
-	RTW89_NSS_MAX,
+	RTW89_NSS_NUM,
 };
 
 enum rtw89_ntx {
@@ -512,11 +512,11 @@ enum rtw89_fw_pkt_ofld_type {
 };
 
 struct rtw89_txpwr_byrate {
-	s8 cck[RTW89_RATE_CCK_MAX];
-	s8 ofdm[RTW89_RATE_OFDM_MAX];
-	s8 mcs[RTW89_NSS_MAX][RTW89_RATE_MCS_MAX];
-	s8 hedcm[RTW89_NSS_HEDCM_MAX][RTW89_RATE_HEDCM_MAX];
-	s8 offset[RTW89_RATE_OFFSET_MAX];
+	s8 cck[RTW89_RATE_CCK_NUM];
+	s8 ofdm[RTW89_RATE_OFDM_NUM];
+	s8 mcs[RTW89_NSS_NUM][RTW89_RATE_MCS_NUM];
+	s8 hedcm[RTW89_NSS_HEDCM_NUM][RTW89_RATE_HEDCM_NUM];
+	s8 offset[RTW89_RATE_OFFSET_NUM];
 };
 
 enum rtw89_bandwidth_section_num {
@@ -3815,7 +3815,7 @@ struct rtw89_power_trim_info {
 
 struct rtw89_regd {
 	char alpha2[3];
-	u8 txpwr_regd[RTW89_BAND_MAX];
+	u8 txpwr_regd[RTW89_BAND_NUM];
 };
 
 struct rtw89_regulatory_info {
@@ -4111,7 +4111,7 @@ struct rtw89_dev {
 	bool is_bt_iqk_timeout;
 
 	struct rtw89_fem_info fem;
-	struct rtw89_txpwr_byrate byr[RTW89_BAND_MAX];
+	struct rtw89_txpwr_byrate byr[RTW89_BAND_NUM];
 	struct rtw89_tssi_info tssi;
 	struct rtw89_power_trim_info pwr_trim;
 

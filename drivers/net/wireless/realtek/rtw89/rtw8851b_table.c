@@ -3321,7 +3321,7 @@ static const s8 _txpwr_track_delta_swingidx_2g_cck_a_p[] = {
 	 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4
 };
 
-const u8 rtw89_8851b_tx_shape[RTW89_BAND_MAX][RTW89_RS_TX_SHAPE_NUM]
+const u8 rtw89_8851b_tx_shape[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM]
 			     [RTW89_REGD_NUM] = {
 	[0][0][RTW89_ACMA] = 0,
 	[0][0][RTW89_CN] = 0,
