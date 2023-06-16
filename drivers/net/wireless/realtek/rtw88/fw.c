@@ -519,6 +519,23 @@ void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
+void rtw_fw_default_port(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
+{
+	struct rtw_h2c_register h2c = {};
+
+	if (rtwvif->net_type != RTW_NET_MGD_LINKED)
+		return;
+
+	/* Leave LPS before default port H2C so FW timer is correct */
+	rtw_leave_lps(rtwdev);
+
+	h2c.w0 = u32_encode_bits(H2C_CMD_DEFAULT_PORT, RTW_H2C_W0_CMDID) |
+		 u32_encode_bits(rtwvif->port, RTW_H2C_DEFAULT_PORT_W0_PORTID) |
+		 u32_encode_bits(rtwvif->mac_id, RTW_H2C_DEFAULT_PORT_W0_MACID);
+
+	rtw_fw_send_h2c_command_register(rtwdev, &h2c);
+}
+
 void rtw_fw_wl_ch_info(struct rtw_dev *rtwdev, u8 link, u8 ch, u8 bw)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
