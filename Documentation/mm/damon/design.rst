@@ -218,6 +218,8 @@ abstracted monitoring target memory area only for each of a user-specified time
 interval (``update interval``).
 
 
+.. _damon_design_damos:
+
 Operation Schemes
 -----------------
 
@@ -255,6 +257,8 @@ the access pattern of interest, and applies the user-desired operation actions
 to the regions as soon as found.
 
 
+.. _damon_design_damos_action:
+
 Operation Action
 ~~~~~~~~~~~~~~~~
 
@@ -277,6 +281,8 @@ characteristics.  Hence, DAMOS resets the age of regions when an action is
 applied to those.
 
 
+.. _damon_design_damos_access_pattern:
+
 Target Access Pattern
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -287,6 +293,8 @@ interest by setting minimum and maximum values of the three properties.  If a
 region's three properties are in the ranges, DAMOS classifies it as one of the
 regions that the scheme is having an interest in.
 
+
+.. _damon_design_damos_quotas:
 
 Quotas
 ~~~~~~
@@ -304,6 +312,8 @@ feature called quotas.  It lets users specify an upper limit of time that DAMOS
 can use for applying the action, and/or a maximum bytes of memory regions that
 the action can be applied within a user-specified time duration.
 
+
+.. _damon_design_damos_quotas_prioritization:
 
 Prioritization
 ^^^^^^^^^^^^^^
@@ -330,6 +340,8 @@ the weight will be respected are up to the underlying prioritization mechanism
 implementation.
 
 
+.. _damon_design_damos_watermarks:
+
 Watermarks
 ~~~~~~~~~~
 
@@ -349,6 +361,8 @@ is activated.  If all schemes are deactivated by the watermarks, the monitoring
 is also deactivated.  In this case, the DAMON worker thread only periodically
 checks the watermarks and therefore incurs nearly zero overhead.
 
+
+.. _damon_design_damos_filters:
 
 Filters
 ~~~~~~~
