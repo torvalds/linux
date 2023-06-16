@@ -3,28 +3,32 @@
         "MetricExpr": "FETCH_BUBBLE / (4 * CPU_CYCLES)",
         "PublicDescription": "Frontend bound L1 topdown metric",
         "BriefDescription": "Frontend bound L1 topdown metric",
-        "MetricGroup": "TopDownL1",
+        "DefaultMetricgroupName": "TopDownL1",
+        "MetricGroup": "Default;TopDownL1",
         "MetricName": "frontend_bound"
     },
     {
         "MetricExpr": "(INST_SPEC - INST_RETIRED) / (4 * CPU_CYCLES)",
         "PublicDescription": "Bad Speculation L1 topdown metric",
         "BriefDescription": "Bad Speculation L1 topdown metric",
-        "MetricGroup": "TopDownL1",
+        "DefaultMetricgroupName": "TopDownL1",
+        "MetricGroup": "Default;TopDownL1",
         "MetricName": "bad_speculation"
     },
     {
         "MetricExpr": "INST_RETIRED / (CPU_CYCLES * 4)",
         "PublicDescription": "Retiring L1 topdown metric",
         "BriefDescription": "Retiring L1 topdown metric",
-        "MetricGroup": "TopDownL1",
+        "DefaultMetricgroupName": "TopDownL1",
+        "MetricGroup": "Default;TopDownL1",
         "MetricName": "retiring"
     },
     {
         "MetricExpr": "1 - (frontend_bound + bad_speculation + retiring)",
         "PublicDescription": "Backend Bound L1 topdown metric",
         "BriefDescription": "Backend Bound L1 topdown metric",
-        "MetricGroup": "TopDownL1",
+        "DefaultMetricgroupName": "TopDownL1",
+        "MetricGroup": "Default;TopDownL1",
         "MetricName": "backend_bound"
     },
     {
