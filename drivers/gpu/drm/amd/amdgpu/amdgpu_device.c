@@ -2552,7 +2552,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			adev->ip_blocks[i].status.hw = true;
 
 			/* right after GMC hw init, we create CSA */
-			if (amdgpu_mcbp) {
+			if (adev->gfx.mcbp) {
 				r = amdgpu_allocate_static_csa(adev, &adev->virt.csa_obj,
 							       AMDGPU_GEM_DOMAIN_VRAM |
 							       AMDGPU_GEM_DOMAIN_GTT,
@@ -3673,6 +3673,18 @@ static const struct attribute *amdgpu_dev_attributes[] = {
 	NULL
 };
 
+static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
+{
+	if (amdgpu_mcbp == 1)
+		adev->gfx.mcbp = true;
+
+	if (amdgpu_sriov_vf(adev))
+		adev->gfx.mcbp = true;
+
+	if (adev->gfx.mcbp)
+		DRM_INFO("MCBP is enabled\n");
+}
+
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -3824,9 +3836,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	if (amdgpu_mcbp)
-		DRM_INFO("MCBP is enabled\n");
-
 	/*
 	 * Reset domain needs to be present early, before XGMI hive discovered
 	 * (if any) and intitialized to use reset sem and in_gpu reset flag
@@ -3851,6 +3860,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
 		return r;
+
+	amdgpu_device_set_mcbp(adev);
 
 	/* Get rid of things like offb */
 	r = drm_aperture_remove_conflicting_pci_framebuffers(adev->pdev, &amdgpu_kms_driver);
