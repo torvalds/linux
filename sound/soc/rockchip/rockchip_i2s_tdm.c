@@ -102,6 +102,7 @@ struct rk_i2s_tdm_dev {
 	bool mclk_calibrate;
 	bool tdm_mode;
 	bool tdm_fsync_half_frame;
+	bool is_dma_active[SNDRV_PCM_STREAM_LAST + 1];
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int mclk_root0_freq;
@@ -238,6 +239,18 @@ static inline bool is_stream_active(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 		return (val & I2S_XFER_TXS_START);
 	else
 		return (val & I2S_XFER_RXS_START);
+}
+
+static inline bool is_dma_active(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
+{
+	unsigned int val;
+
+	regmap_read(i2s_tdm->regmap, I2S_DMACR, &val);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return (val & I2S_DMACR_TDE_MASK);
+	else
+		return (val & I2S_DMACR_RDE_MASK);
 }
 
 #ifdef HAVE_SYNC_RESET
@@ -624,6 +637,9 @@ static void rockchip_i2s_tdm_trcm_pause(struct snd_pcm_substream *substream,
 	int stream = substream->stream;
 	int bstream = SNDRV_PCM_STREAM_LAST - stream;
 
+	/* store the current state, prepare for resume if necessary */
+	i2s_tdm->is_dma_active[bstream] = is_dma_active(i2s_tdm, bstream);
+
 	/* disable dma for both tx and rx */
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 0);
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 0);
@@ -639,7 +655,8 @@ static void rockchip_i2s_tdm_trcm_resume(struct snd_pcm_substream *substream,
 	 * just resume bstream, because current stream will be
 	 * startup in the trigger-cmd-START
 	 */
-	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
+	if (i2s_tdm->is_dma_active[bstream])
+		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
 	rockchip_i2s_tdm_xfer_start(i2s_tdm, bstream);
 }
 
