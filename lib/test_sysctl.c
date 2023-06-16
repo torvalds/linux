@@ -126,9 +126,7 @@ static struct ctl_table test_table[] = {
 	{ }
 };
 
-static struct ctl_table_header *test_sysctl_header;
-
-static int __init test_sysctl_init(void)
+static void test_sysctl_calc_match_int_ok(void)
 {
 	int i;
 
@@ -153,7 +151,13 @@ static int __init test_sysctl_init(void)
 	for (i = 0; i < ARRAY_SIZE(match_int); i++)
 		if (match_int[i].defined != match_int[i].wanted)
 			match_int_ok = 0;
+}
 
+static struct ctl_table_header *test_sysctl_header;
+
+static int test_sysctl_setup_node_tests(void)
+{
+	test_sysctl_calc_match_int_ok();
 	test_data.bitmap_0001 = kzalloc(SYSCTL_TEST_BITMAP_SIZE/8, GFP_KERNEL);
 	if (!test_data.bitmap_0001)
 		return -ENOMEM;
@@ -162,7 +166,17 @@ static int __init test_sysctl_init(void)
 		kfree(test_data.bitmap_0001);
 		return -ENOMEM;
 	}
+
 	return 0;
+}
+
+static int __init test_sysctl_init(void)
+{
+	int err;
+
+	err = test_sysctl_setup_node_tests();
+
+	return err;
 }
 module_init(test_sysctl_init);
 
