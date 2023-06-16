@@ -2213,8 +2213,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 		if (err < 0) {
 			struct super_block *sb = inode->i_sb;
 
-			if (ext4_forced_shutdown(sb) ||
-			    ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED))
+			if (ext4_forced_shutdown(sb))
 				goto invalidate_dirty_pages;
 			/*
 			 * Let the uper layers retry transient errors.
@@ -2534,14 +2533,13 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 	 * If the filesystem has aborted, it is read-only, so return
 	 * right away instead of dumping stack traces later on that
 	 * will obscure the real source of the problem.  We test
-	 * EXT4_MF_FS_ABORTED instead of sb->s_flag's SB_RDONLY because
+	 * fs shutdown state instead of sb->s_flag's SB_RDONLY because
 	 * the latter could be true if the filesystem is mounted
 	 * read-only, and in that case, ext4_writepages should
 	 * *never* be called, so if that ever happens, we would want
 	 * the stack trace.
 	 */
-	if (unlikely(ext4_forced_shutdown(mapping->host->i_sb) ||
-		     ext4_test_mount_flag(inode->i_sb, EXT4_MF_FS_ABORTED))) {
+	if (unlikely(ext4_forced_shutdown(mapping->host->i_sb))) {
 		ret = -EROFS;
 		goto out_writepages;
 	}
