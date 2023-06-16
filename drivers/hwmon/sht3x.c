@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#include <linux/platform_data/sht3x.h>
 
 /* commands (high precision mode) */
 static const unsigned char sht3x_cmd_measure_blocking_hpm[]    = { 0x2c, 0x06 };
@@ -135,8 +134,8 @@ struct sht3x_data {
 	const unsigned char *command;
 	u32 wait_time;			/* in us*/
 	unsigned long last_update;	/* last update in periodic mode*/
-
-	struct sht3x_platform_data setup;
+	bool blocking_io;
+	bool high_precision;
 
 	/*
 	 * cached values for temperature and humidity and limits
@@ -441,13 +440,13 @@ static void sht3x_select_command(struct sht3x_data *data)
 	if (data->mode > 0) {
 		data->command = sht3x_cmd_measure_periodic_mode;
 		data->wait_time = 0;
-	} else if (data->setup.blocking_io) {
-		data->command = data->setup.high_precision ?
+	} else if (data->blocking_io) {
+		data->command = data->high_precision ?
 				sht3x_cmd_measure_blocking_hpm :
 				sht3x_cmd_measure_blocking_lpm;
 		data->wait_time = 0;
 	} else {
-		if (data->setup.high_precision) {
+		if (data->high_precision) {
 			data->command = sht3x_cmd_measure_nonblocking_hpm;
 			data->wait_time = SHT3X_NONBLOCKING_WAIT_TIME_HPM;
 		} else {
@@ -595,7 +594,7 @@ static ssize_t update_interval_store(struct device *dev,
 	}
 
 	if (mode > 0) {
-		if (data->setup.high_precision)
+		if (data->high_precision)
 			command = periodic_measure_commands_hpm[mode - 1];
 		else
 			command = periodic_measure_commands_lpm[mode - 1];
@@ -690,15 +689,12 @@ static int sht3x_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	data->setup.blocking_io = false;
-	data->setup.high_precision = true;
+	data->blocking_io = false;
+	data->high_precision = true;
 	data->mode = 0;
 	data->last_update = jiffies - msecs_to_jiffies(3000);
 	data->client = client;
 	crc8_populate_msb(sht3x_crc8_table, SHT3X_CRC8_POLYNOMIAL);
-
-	if (client->dev.platform_data)
-		data->setup = *(struct sht3x_platform_data *)dev->platform_data;
 
 	sht3x_select_command(data);
 

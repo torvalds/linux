@@ -28,7 +28,7 @@ The device communicates with the I2C protocol. Sensors can have the I2C
 addresses 0x44 or 0x45, depending on the wiring. See
 Documentation/i2c/instantiating-devices.rst for methods to instantiate the device.
 
-There are two options configurable by means of sht3x_platform_data:
+There are two options configurable by means of sht3x_data:
 
 1. blocking (pull the I2C clock line down while performing the measurement) or
    non-blocking mode. Blocking mode will guarantee the fastest result but
