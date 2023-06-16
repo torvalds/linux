@@ -6084,7 +6084,7 @@ static void ext4_update_super(struct super_block *sb)
 	 * the clock is set in the future, and this will cause e2fsck
 	 * to complain and force a full file system check.
 	 */
-	if (!(sb->s_flags & SB_RDONLY))
+	if (!sb_rdonly(sb))
 		ext4_update_tstamp(es, s_wtime);
 	es->s_kbytes_written =
 		cpu_to_le64(sbi->s_kbytes_written +
@@ -6675,7 +6675,7 @@ restore_opts:
 	 * If there was a failing r/w to ro transition, we may need to
 	 * re-enable quota
 	 */
-	if ((sb->s_flags & SB_RDONLY) && !(old_sb_flags & SB_RDONLY) &&
+	if (sb_rdonly(sb) && !(old_sb_flags & SB_RDONLY) &&
 	    sb_any_quota_suspended(sb))
 		dquot_resume(sb, -1);
 	sb->s_flags = old_sb_flags;
