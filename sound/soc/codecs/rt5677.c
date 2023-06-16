@@ -5712,3 +5712,5 @@ module_i2c_driver(rt5677_i2c_driver);
 MODULE_DESCRIPTION("ASoC RT5677 driver");
 MODULE_AUTHOR("Oder Chiou <oder_chiou@realtek.com>");
 MODULE_LICENSE("GPL v2");
+
+MODULE_FIRMWARE("rt5677_elf_vad");
