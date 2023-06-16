@@ -21,11 +21,11 @@
 			 val); \
 }
 
-#define HANTRO_PP_REG_WRITE_S(vpu, reg_name, val) \
+#define HANTRO_PP_REG_WRITE_RELAXED(vpu, reg_name, val) \
 { \
-	hantro_reg_write_s(vpu, \
-			   &hantro_g1_postproc_regs.reg_name, \
-			   val); \
+	hantro_reg_write_relaxed(vpu, \
+				 &hantro_g1_postproc_regs.reg_name, \
+				 val); \
 }
 
 #define VPU_PP_IN_YUYV			0x0
@@ -72,7 +72,7 @@ static void hantro_postproc_g1_enable(struct hantro_ctx *ctx)
 	dma_addr_t dst_dma;
 
 	/* Turn on pipeline mode. Must be done first. */
-	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x1);
+	HANTRO_PP_REG_WRITE(vpu, pipeline_en, 0x1);
 
 	src_pp_fmt = VPU_PP_IN_NV12;
 
@@ -242,7 +242,7 @@ static void hantro_postproc_g1_disable(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 
-	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x0);
+	HANTRO_PP_REG_WRITE(vpu, pipeline_en, 0x0);
 }
 
 static void hantro_postproc_g2_disable(struct hantro_ctx *ctx)

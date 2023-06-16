@@ -441,14 +441,14 @@ static __always_inline void hantro_reg_write(struct hantro_dev *vpu,
 					     const struct hantro_reg *reg,
 					     u32 val)
 {
-	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
+	vdpu_write(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
 }
 
-static __always_inline void hantro_reg_write_s(struct hantro_dev *vpu,
-					       const struct hantro_reg *reg,
-					       u32 val)
+static __always_inline void hantro_reg_write_relaxed(struct hantro_dev *vpu,
+						     const struct hantro_reg *reg,
+						     u32 val)
 {
-	vdpu_write(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
+	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
 }
 
 void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id);
