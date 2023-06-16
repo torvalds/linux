@@ -3360,6 +3360,7 @@ static int ip6_route_check_nh_onlink(struct net *net,
 static int ip6_route_check_nh(struct net *net,
 			      struct fib6_config *cfg,
 			      struct net_device **_dev,
+			      netdevice_tracker *dev_tracker,
 			      struct inet6_dev **idev)
 {
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
@@ -3404,7 +3405,7 @@ static int ip6_route_check_nh(struct net *net,
 			err = -EHOSTUNREACH;
 	} else {
 		*_dev = dev = res.nh->fib_nh_dev;
-		dev_hold(dev);
+		netdev_hold(dev, dev_tracker, GFP_ATOMIC);
 		*idev = in6_dev_get(dev);
 	}
 
@@ -3412,7 +3413,9 @@ static int ip6_route_check_nh(struct net *net,
 }
 
 static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
-			   struct net_device **_dev, struct inet6_dev **idev,
+			   struct net_device **_dev,
+			   netdevice_tracker *dev_tracker,
+			   struct inet6_dev **idev,
 			   struct netlink_ext_ack *extack)
 {
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
@@ -3453,7 +3456,8 @@ static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
 		if (cfg->fc_flags & RTNH_F_ONLINK)
 			err = ip6_route_check_nh_onlink(net, cfg, dev, extack);
 		else
-			err = ip6_route_check_nh(net, cfg, _dev, idev);
+			err = ip6_route_check_nh(net, cfg, _dev, dev_tracker,
+						 idev);
 
 		rcu_read_unlock();
 
@@ -3571,7 +3575,8 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	}
 
 	if (cfg->fc_flags & RTF_GATEWAY) {
-		err = ip6_validate_gw(net, cfg, &dev, &idev, extack);
+		err = ip6_validate_gw(net, cfg, &dev, dev_tracker,
+				      &idev, extack);
 		if (err)
 			goto out;
 
