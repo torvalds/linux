@@ -43,8 +43,10 @@ properties:
           - const: jedec,spi-nor
       - const: jedec,spi-nor
     description:
-      Must also include "jedec,spi-nor" for any SPI NOR flash that can be
-      identified by the JEDEC READ ID opcode (0x9F).
+      SPI NOR flashes compatible with the JEDEC SFDP standard or which may be
+      identified with the READ ID opcode (0x9F) do not deserve a specific
+      compatible. They should instead only be matched against the generic
+      "jedec,spi-nor" compatible.
 
   reg:
     minItems: 1
