@@ -298,7 +298,7 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused imx_rngc_suspend(struct device *dev)
+static int imx_rngc_suspend(struct device *dev)
 {
 	struct imx_rngc *rngc = dev_get_drvdata(dev);
 
@@ -307,7 +307,7 @@ static int __maybe_unused imx_rngc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx_rngc_resume(struct device *dev)
+static int imx_rngc_resume(struct device *dev)
 {
 	struct imx_rngc *rngc = dev_get_drvdata(dev);
 
@@ -316,7 +316,7 @@ static int __maybe_unused imx_rngc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(imx_rngc_pm_ops, imx_rngc_suspend, imx_rngc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(imx_rngc_pm_ops, imx_rngc_suspend, imx_rngc_resume);
 
 static const struct of_device_id imx_rngc_dt_ids[] = {
 	{ .compatible = "fsl,imx25-rngb" },
@@ -327,7 +327,7 @@ MODULE_DEVICE_TABLE(of, imx_rngc_dt_ids);
 static struct platform_driver imx_rngc_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.pm = &imx_rngc_pm_ops,
+		.pm = pm_sleep_ptr(&imx_rngc_pm_ops),
 		.of_match_table = imx_rngc_dt_ids,
 	},
 };
