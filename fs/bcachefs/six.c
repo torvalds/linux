@@ -409,51 +409,14 @@ EXPORT_SYMBOL_GPL(six_trylock_ip);
 bool six_relock_ip(struct six_lock *lock, enum six_lock_type type,
 		   unsigned seq, unsigned long ip)
 {
-	const struct six_lock_vals l[] = LOCK_VALS;
-	u64 old, v;
+	if (six_lock_seq(lock) != seq || !six_trylock_ip(lock, type, ip))
+		return false;
 
-	EBUG_ON(type == SIX_LOCK_write);
-
-	if (type == SIX_LOCK_read &&
-	    lock->readers) {
-		bool ret;
-
-		preempt_disable();
-		this_cpu_inc(*lock->readers);
-
-		smp_mb();
-
-		old = atomic64_read(&lock->state);
-		ret = !(old & l[type].lock_fail) && six_state_seq(old) == seq;
-
-		this_cpu_sub(*lock->readers, !ret);
-		preempt_enable();
-
-		/*
-		 * Similar to the lock path, we may have caused a spurious write
-		 * lock fail and need to issue a wakeup:
-		 */
-		if (ret)
-			six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
-		else if (old & SIX_STATE_WAITING_WRITE)
-			six_lock_wakeup(lock, old, SIX_LOCK_write);
-
-		return ret;
+	if (six_lock_seq(lock) != seq) {
+		six_unlock_ip(lock, type, ip);
+		return false;
 	}
 
-	v = atomic64_read(&lock->state);
-	do {
-		old = v;
-
-		if ((old & l[type].lock_fail) || six_state_seq(old) != seq)
-			return false;
-	} while ((v = atomic64_cmpxchg_acquire(&lock->state,
-					       old,
-					       old + l[type].lock_val)) != old);
-
-	six_set_owner(lock, type, old, current);
-	if (type != SIX_LOCK_write)
-		six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
 	return true;
 }
 EXPORT_SYMBOL_GPL(six_relock_ip);
