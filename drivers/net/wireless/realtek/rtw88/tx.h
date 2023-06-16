@@ -111,6 +111,7 @@ void rtw_tx(struct rtw_dev *rtwdev,
 void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
 void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
 void rtw_tx_work(struct work_struct *w);
+void __rtw_tx_work(struct rtw_dev *rtwdev);
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 			    struct rtw_tx_pkt_info *pkt_info,
 			    struct ieee80211_sta *sta,

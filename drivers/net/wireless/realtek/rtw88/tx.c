@@ -635,9 +635,8 @@ static void rtw_txq_push(struct rtw_dev *rtwdev,
 	rcu_read_unlock();
 }
 
-void rtw_tx_work(struct work_struct *w)
+void __rtw_tx_work(struct rtw_dev *rtwdev)
 {
-	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
 	struct rtw_txq *rtwtxq, *tmp;
 
 	spin_lock_bh(&rtwdev->txq_lock);
@@ -656,6 +655,13 @@ void rtw_tx_work(struct work_struct *w)
 	rtw_hci_tx_kick_off(rtwdev);
 
 	spin_unlock_bh(&rtwdev->txq_lock);
+}
+
+void rtw_tx_work(struct work_struct *w)
+{
+	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
+
+	__rtw_tx_work(rtwdev);
 }
 
 void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
