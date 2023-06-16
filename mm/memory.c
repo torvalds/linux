@@ -5368,7 +5368,7 @@ struct vm_area_struct *lock_mm_and_find_vma(struct mm_struct *mm,
 			goto fail;
 	}
 
-	if (expand_stack(vma, addr))
+	if (expand_stack_locked(vma, addr, true))
 		goto fail;
 
 success:

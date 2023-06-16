@@ -205,7 +205,8 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 #ifdef CONFIG_STACK_GROWSUP
 	if (write) {
-		ret = expand_downwards(bprm->vma, pos);
+		/* We claim to hold the lock - nobody to race with */
+		ret = expand_downwards(bprm->vma, pos, true);
 		if (ret < 0)
 			return NULL;
 	}
@@ -853,7 +854,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	stack_base = vma->vm_end - stack_expand;
 #endif
 	current->mm->start_stack = bprm->p;
-	ret = expand_stack(vma, stack_base);
+	ret = expand_stack_locked(vma, stack_base, true);
 	if (ret)
 		ret = -EFAULT;
 
