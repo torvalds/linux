@@ -21,7 +21,7 @@ DEFINE_CORESIGHT_DEVLIST(source_devs, "dummy_source");
 DEFINE_CORESIGHT_DEVLIST(sink_devs, "dummy_sink");
 
 static int dummy_source_enable(struct coresight_device *csdev,
-			       struct perf_event *event, u32 mode)
+			       struct perf_event *event, enum cs_mode mode)
 {
 	dev_dbg(csdev->dev.parent, "Dummy source enabled\n");
 
@@ -34,7 +34,7 @@ static void dummy_source_disable(struct coresight_device *csdev,
 	dev_dbg(csdev->dev.parent, "Dummy source disabled\n");
 }
 
-static int dummy_sink_enable(struct coresight_device *csdev, u32 mode,
+static int dummy_sink_enable(struct coresight_device *csdev, enum cs_mode mode,
 				void *data)
 {
 	dev_dbg(csdev->dev.parent, "Dummy sink enabled\n");
