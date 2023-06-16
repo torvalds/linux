@@ -2528,16 +2528,11 @@ static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
 
 /*----------------------------------------------------------------*/
 
-static bool passdown_enabled(struct pool_c *pt)
-{
-	return pt->adjusted_pf.discard_passdown;
-}
-
 static void set_discard_callbacks(struct pool *pool)
 {
 	struct pool_c *pt = pool->ti->private;
 
-	if (passdown_enabled(pt)) {
+	if (pt->adjusted_pf.discard_passdown) {
 		pool->process_discard_cell = process_discard_cell_passdown;
 		pool->process_prepared_discard = process_prepared_discard_passdown_pt1;
 		pool->process_prepared_discard_pt2 = process_prepared_discard_passdown_pt2;
@@ -2846,7 +2841,7 @@ static bool is_factor(sector_t block_size, uint32_t n)
  * If discard_passdown was enabled verify that the data device
  * supports discards.  Disable discard_passdown if not.
  */
-static void disable_passdown_if_not_supported(struct pool_c *pt)
+static void disable_discard_passdown_if_not_supported(struct pool_c *pt)
 {
 	struct pool *pool = pt->pool;
 	struct block_device *data_bdev = pt->data_dev->bdev;
@@ -4100,7 +4095,9 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 
 	if (pt->adjusted_pf.discard_enabled) {
-		disable_passdown_if_not_supported(pt);
+		disable_discard_passdown_if_not_supported(pt);
+		if (!pt->adjusted_pf.discard_passdown)
+			limits->max_discard_sectors = 0;
 		/*
 		 * The pool uses the same discard limits as the underlying data
 		 * device.  DM core has already set this up.
