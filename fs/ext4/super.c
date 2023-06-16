@@ -6347,12 +6347,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 static int ext4_freeze(struct super_block *sb)
 {
 	int error = 0;
-	journal_t *journal;
-
-	if (sb_rdonly(sb))
-		return 0;
-
-	journal = EXT4_SB(sb)->s_journal;
+	journal_t *journal = EXT4_SB(sb)->s_journal;
 
 	if (journal) {
 		/* Now we set up the journal barrier. */
@@ -6386,7 +6381,7 @@ out:
  */
 static int ext4_unfreeze(struct super_block *sb)
 {
-	if (sb_rdonly(sb) || ext4_forced_shutdown(EXT4_SB(sb)))
+	if (ext4_forced_shutdown(EXT4_SB(sb)))
 		return 0;
 
 	if (EXT4_SB(sb)->s_journal) {
