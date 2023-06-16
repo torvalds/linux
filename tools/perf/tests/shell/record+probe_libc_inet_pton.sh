@@ -14,7 +14,7 @@
 . "$(dirname "$0")/lib/probe_vfs_getname.sh"
 
 libc=$(grep -w libc /proc/self/maps | head -1 | sed -r 's/.*[[:space:]](\/.*)/\1/g')
-nm -Dg $libc 2>/dev/null | fgrep -q inet_pton || exit 254
+nm -Dg $libc 2>/dev/null | grep -F -q inet_pton || exit 254
 
 event_pattern='probe_libc:inet_pton(\_[[:digit:]]+)?'
 
@@ -94,7 +94,7 @@ delete_libc_inet_pton_event() {
 }
 
 # Check for IPv6 interface existence
-ip a sh lo | fgrep -q inet6 || exit 2
+ip a sh lo | grep -F -q inet6 || exit 2
 
 skip_if_no_perf_probe && \
 add_libc_inet_pton_event && \
