@@ -15,10 +15,12 @@
 &mdio0 {
 	phy2: ethernet-phy@3 {
 		reg = <3>;
+		interrupts-extended = <&gpio 24 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	phy3: ethernet-phy@4 {
 		reg = <4>;
+		interrupts-extended = <&gpio 24 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
