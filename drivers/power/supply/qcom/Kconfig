@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig QCOM_POWER_SUPPLY
+	bool "Support for Qualcomm Technologies, Inc. power supply"
+	depends on ARCH_QCOM
+	help
+	  Say Y here to enable Qualcomm Technologies, Inc. specific
+	  power supply drivers. This allows adding support for various
+	  charging peripherals and battery management features.
+	  (if selected below).
+
+if QCOM_POWER_SUPPLY
+
+config QPNP_QG
+	tristate "QPNP Qgauge driver"
+	depends on MFD_SPMI_PMIC
+	depends on IIO
+	help
+	  Say Y here to enable the Qualcomm Technologies, Inc. QGauge driver
+	  which uses the periodic sampling of the battery voltage and current
+	  to determine the battery state-of-charge (SOC) and supports other
+	  battery management features.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qcom-qpnp-qg.
+
+config QPNP_SMB5
+	tristate "SMB5 Battery Charger"
+	depends on MFD_SPMI_PMIC && IIO && TYPEC
+	help
+	  Say Y to enables support for the SMB5 charging peripheral.
+	  The QPNP SMB5 charger driver supports the charger peripheral
+	  present in the chip.
+	  The power supply and iio frameworks are used to communicate battery
+	  and usb properties to userspace and other driver consumers such
+	  as fuel gauge, USB, and USB-PD.
+	  VBUS and VCONN regulators are registered for supporting OTG,
+	  and powered Type-C cables respectively.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qpnp-smb5-main.
+
+config SMB1398_CHARGER
+	tristate "SMB1398 power supply framework based driver"
+	depends on MFD_I2C_PMIC && IIO
+	help
+	  Say Y to include the support of SMB1398 Charge driver based on power
+	  supply framework.
+	  SMB1398 is a combo charger chip which can work in different modes:
+	  (1) DIV2 charge pump mode to work as a companion charger to be paired
+	      with Qualcomm Technologies, Inc.’s family of standalone chargers;
+	  (2) DIV2 and 3-level buck combo mode to regulate the output power from
+	      wireless charger receiver and provide the input for downstream
+	      chargers.
+
+config SMB1355_SLAVE_CHARGER
+	tristate "SMB1355 Slave Battery Charger"
+	depends on MFD_I2C_PMIC && IIO
+	help
+	  Say Y to include support for SMB1355 Battery Charger.
+	  SMB1355 is a single phase 5A battery charger.
+	  The driver supports charger enable/disable.
+	  The driver reports the charger status via the power supply framework.
+	  A charger status change triggers an IRQ via the device STAT pin.
+
+endif
+

@@ -938,4 +938,6 @@ config BATTERY_UG3105
 	  device is off or suspended, the functionality of this driver is
 	  limited to reporting capacity only.
 
+source "drivers/power/supply/qcom/Kconfig"
+
 endif # POWER_SUPPLY
