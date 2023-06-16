@@ -694,8 +694,8 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 			return -ENOMEM;
 		}
 		aspeed_video_write(video, VE_BCD_ADDR, video->bcd.dma);
-		v4l2_dbg(1, debug, &video->v4l2_dev, "bcd addr(%#x) size(%d)\n",
-			 video->bcd.dma, video->bcd.size);
+		v4l2_dbg(1, debug, &video->v4l2_dev, "bcd addr(%pad) size(%d)\n",
+			 &video->bcd.dma, video->bcd.size);
 	} else if (!bcd_buf_need && video->bcd.size) {
 		aspeed_video_free_buf(video, &video->bcd);
 	}
@@ -1486,10 +1486,10 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 		if (!aspeed_video_alloc_buf(video, &video->srcs[1], size))
 			goto err_mem;
 
-		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf0 addr(%#x) size(%d)\n",
-			 video->srcs[0].dma, video->srcs[0].size);
-		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf1 addr(%#x) size(%d)\n",
-			 video->srcs[1].dma, video->srcs[1].size);
+		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf0 addr(%pad) size(%d)\n",
+			 &video->srcs[0].dma, video->srcs[0].size);
+		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf1 addr(%pad) size(%d)\n",
+			 &video->srcs[1].dma, video->srcs[1].size);
 		aspeed_video_write(video, VE_SRC0_ADDR, video->srcs[0].dma);
 		aspeed_video_write(video, VE_SRC1_ADDR, video->srcs[1].dma);
 	}
@@ -1758,8 +1758,8 @@ static int aspeed_video_set_input(struct file *file, void *fh, unsigned int i)
 			v4l2_err(&video->v4l2_dev, "Failed to allocate buffer for debug input\n");
 			return -EINVAL;
 		}
-		v4l2_dbg(1, debug, &video->v4l2_dev, "dbg src addr(%#x) size(%d)\n",
-			 video->dbg_src.dma, video->dbg_src.size);
+		v4l2_dbg(1, debug, &video->v4l2_dev, "dbg src addr(%pad) size(%d)\n",
+			 &video->dbg_src.dma, video->dbg_src.size);
 	}
 	if ((i != VIDEO_INPUT_MEM) && video->dbg_src.size)
 		aspeed_video_free_buf(video, &video->dbg_src);
