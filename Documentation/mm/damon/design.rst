@@ -190,6 +190,20 @@ In this way, DAMON provides its best-effort quality and minimal overhead while
 keeping the bounds users set for their trade-off.
 
 
+Age Tracking
+~~~~~~~~~~~~
+
+By analyzing the monitoring results, users can also find how long the current
+access pattern of a region has maintained.  That could be used for good
+understanding of the access pattern.  For example, page placement algorithm
+utilizing both the frequency and the recency could be implemented using that.
+To make such access pattern maintained period analysis easier, DAMON maintains
+yet another counter called ``age`` in each region.  For each ``aggregation
+interval``, DAMON checks if the region's size and access frequency
+(``nr_accesses``) has significantly changed.  If so, the counter is reset to
+zero.  Otherwise, the counter is increased.
+
+
 Dynamic Target Space Updates Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
