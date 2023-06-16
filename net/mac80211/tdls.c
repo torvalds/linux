@@ -499,16 +499,20 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 		offset = noffset;
 	}
 
-	/* build the VHT-cap similarly to the HT-cap */
+	/* add AID if VHT, HE or EHT capabilities supported */
 	memcpy(&vht_cap, &sband->vht_cap, sizeof(vht_cap));
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
+	if ((vht_cap.vht_supported || he_cap || eht_cap) &&
+	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	     action_code == WLAN_TDLS_SETUP_RESPONSE))
+		ieee80211_tdls_add_aid(sdata, skb);
+
+	/* build the VHT-cap similarly to the HT-cap */
 	if ((action_code == WLAN_TDLS_SETUP_REQUEST ||
 	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) &&
 	    vht_cap.vht_supported) {
 		ieee80211_apply_vhtcap_overrides(sdata, &vht_cap);
-
-		/* the AID is present only when VHT is implemented */
-		if (action_code == WLAN_TDLS_SETUP_REQUEST)
-			ieee80211_tdls_add_aid(sdata, skb);
 
 		pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 		ieee80211_ie_build_vht_cap(pos, &vht_cap, vht_cap.cap);
@@ -516,9 +520,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 		   vht_cap.vht_supported && sta->sta.deflink.vht_cap.vht_supported) {
 		/* the peer caps are already intersected with our own */
 		memcpy(&vht_cap, &sta->sta.deflink.vht_cap, sizeof(vht_cap));
-
-		/* the AID is present only when VHT is implemented */
-		ieee80211_tdls_add_aid(sdata, skb);
 
 		pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 		ieee80211_ie_build_vht_cap(pos, &vht_cap, vht_cap.cap);
@@ -547,7 +548,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	}
 
 	/* build the HE-cap from sband */
-	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (he_cap &&
 	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
 	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
@@ -591,7 +591,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	}
 
 	/* build the EHT-cap from sband */
-	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
 	if (he_cap && eht_cap &&
 	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
 	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
