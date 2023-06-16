@@ -4607,9 +4607,10 @@ struct cfg80211_ops {
 				  struct cfg80211_gtk_rekey_data *data);
 
 	int	(*tdls_mgmt)(struct wiphy *wiphy, struct net_device *dev,
-			     const u8 *peer, u8 action_code,  u8 dialog_token,
-			     u16 status_code, u32 peer_capability,
-			     bool initiator, const u8 *buf, size_t len);
+			     const u8 *peer, int link_id,
+			     u8 action_code, u8 dialog_token, u16 status_code,
+			     u32 peer_capability, bool initiator,
+			     const u8 *buf, size_t len);
 	int	(*tdls_oper)(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *peer, enum nl80211_tdls_operation oper);
 

@@ -12262,6 +12262,7 @@ static int nl80211_tdls_mgmt(struct sk_buff *skb, struct genl_info *info)
 	u32 peer_capability = 0;
 	u16 status_code;
 	u8 *peer;
+	int link_id;
 	bool initiator;
 
 	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) ||
@@ -12283,8 +12284,9 @@ static int nl80211_tdls_mgmt(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_TDLS_PEER_CAPABILITY])
 		peer_capability =
 			nla_get_u32(info->attrs[NL80211_ATTR_TDLS_PEER_CAPABILITY]);
+	link_id = nl80211_link_id_or_invalid(info->attrs);
 
-	return rdev_tdls_mgmt(rdev, dev, peer, action_code,
+	return rdev_tdls_mgmt(rdev, dev, peer, link_id, action_code,
 			      dialog_token, status_code, peer_capability,
 			      initiator,
 			      nla_data(info->attrs[NL80211_ATTR_IE]),
@@ -17151,7 +17153,8 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl80211_tdls_mgmt,
 		.flags = GENL_UNS_ADMIN_PERM,
-		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP |
+					 NL80211_FLAG_MLO_VALID_LINK_ID),
 	},
 	{
 		.cmd = NL80211_CMD_TDLS_OPER,

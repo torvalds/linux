@@ -3753,10 +3753,10 @@ static int mwifiex_cfg80211_set_coalesce(struct wiphy *wiphy,
  */
 static int
 mwifiex_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-			   const u8 *peer, u8 action_code, u8 dialog_token,
-			   u16 status_code, u32 peer_capability,
-			   bool initiator, const u8 *extra_ies,
-			   size_t extra_ies_len)
+			   const u8 *peer, int link_id, u8 action_code,
+			   u8 dialog_token, u16 status_code,
+			   u32 peer_capability, bool initiator,
+			   const u8 *extra_ies, size_t extra_ies_len)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int ret;

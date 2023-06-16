@@ -1779,15 +1779,16 @@ DEFINE_EVENT(wiphy_netdev_id_evt, rdev_sched_scan_stop,
 
 TRACE_EVENT(rdev_tdls_mgmt,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 u8 *peer, u8 action_code, u8 dialog_token,
+		 u8 *peer, int link_id, u8 action_code, u8 dialog_token,
 		 u16 status_code, u32 peer_capability,
 		 bool initiator, const u8 *buf, size_t len),
-	TP_ARGS(wiphy, netdev, peer, action_code, dialog_token, status_code,
-		peer_capability, initiator, buf, len),
+	TP_ARGS(wiphy, netdev, peer, link_id, action_code, dialog_token,
+		status_code, peer_capability, initiator, buf, len),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		MAC_ENTRY(peer)
+		__field(int, link_id)
 		__field(u8, action_code)
 		__field(u8, dialog_token)
 		__field(u16, status_code)
@@ -1799,6 +1800,7 @@ TRACE_EVENT(rdev_tdls_mgmt,
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		MAC_ASSIGN(peer, peer);
+		__entry->link_id = link_id;
 		__entry->action_code = action_code;
 		__entry->dialog_token = dialog_token;
 		__entry->status_code = status_code;
@@ -1806,11 +1808,12 @@ TRACE_EVENT(rdev_tdls_mgmt,
 		__entry->initiator = initiator;
 		memcpy(__get_dynamic_array(buf), buf, len);
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", %pM, action_code: %u, "
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", %pM"
+		  ", link_id: %d, action_code: %u "
 		  "dialog_token: %u, status_code: %u, peer_capability: %u "
 		  "initiator: %s buf: %#.2x ",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->peer,
-		  __entry->action_code, __entry->dialog_token,
+		  __entry->link_id, __entry->action_code, __entry->dialog_token,
 		  __entry->status_code, __entry->peer_capability,
 		  BOOL_TO_STR(__entry->initiator),
 		  ((u8 *)__get_dynamic_array(buf))[0])
