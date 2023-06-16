@@ -1971,6 +1971,18 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 		tmp.pub.max_bssid_indicator = non_tx_data->max_bssid_indicator;
 	} else {
 		ts = jiffies;
+
+		if (channel->band == NL80211_BAND_60GHZ) {
+			bss_type = capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
+			if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
+			    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
+				regulatory_hint_found_beacon(wiphy, channel,
+							     gfp);
+		} else {
+			if (capability & WLAN_CAPABILITY_ESS)
+				regulatory_hint_found_beacon(wiphy, channel,
+							     gfp);
+		}
 	}
 
 	/*
@@ -2006,16 +2018,6 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid, ts);
 	if (!res)
 		return NULL;
-
-	if (channel->band == NL80211_BAND_60GHZ) {
-		bss_type = res->pub.capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
-		if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
-		    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
-			regulatory_hint_found_beacon(wiphy, channel, gfp);
-	} else {
-		if (res->pub.capability & WLAN_CAPABILITY_ESS)
-			regulatory_hint_found_beacon(wiphy, channel, gfp);
-	}
 
 	if (non_tx_data) {
 		/* this is a nontransmitting bss, we need to add it to
@@ -2445,6 +2447,16 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 	}
 
+	if (channel->band == NL80211_BAND_60GHZ) {
+		bss_type = capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
+		if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
+		    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
+			regulatory_hint_found_beacon(wiphy, channel, gfp);
+	} else {
+		if (capability & WLAN_CAPABILITY_ESS)
+			regulatory_hint_found_beacon(wiphy, channel, gfp);
+	}
+
 	ies = kzalloc(sizeof(*ies) + ielen, gfp);
 	if (!ies)
 		return NULL;
@@ -2477,16 +2489,6 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 				  jiffies);
 	if (!res)
 		return NULL;
-
-	if (channel->band == NL80211_BAND_60GHZ) {
-		bss_type = res->pub.capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
-		if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
-		    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
-			regulatory_hint_found_beacon(wiphy, channel, gfp);
-	} else {
-		if (res->pub.capability & WLAN_CAPABILITY_ESS)
-			regulatory_hint_found_beacon(wiphy, channel, gfp);
-	}
 
 	trace_cfg80211_return_bss(&res->pub);
 	/* cfg80211_bss_update gives us a referenced result */
