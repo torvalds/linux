@@ -361,7 +361,7 @@
 
 	hdmi1: hdmi@fdea0000 {
 		compatible = "rockchip,rk3588-dw-hdmi";
-		reg = <0x0 0xfdea0000 0x0 0x20000>;
+		reg = <0x0 0xfdea0000 0x0 0x10000>, <0x0 0xfdeb0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
