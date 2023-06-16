@@ -175,13 +175,13 @@ bch2_btree_node_unlock_write_inlined(struct btree_trans *trans, struct btree_pat
 	struct btree_path *linked;
 
 	EBUG_ON(path->l[b->c.level].b != b);
-	EBUG_ON(path->l[b->c.level].lock_seq + 1 != six_lock_seq(&b->c.lock));
+	EBUG_ON(path->l[b->c.level].lock_seq != six_lock_seq(&b->c.lock));
 	EBUG_ON(btree_node_locked_type(path, b->c.level) != SIX_LOCK_write);
 
 	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_intent);
 
 	trans_for_each_path_with_node(trans, b, linked)
-		linked->l[b->c.level].lock_seq += 2;
+		linked->l[b->c.level].lock_seq++;
 
 	six_unlock_write(&b->c.lock);
 }

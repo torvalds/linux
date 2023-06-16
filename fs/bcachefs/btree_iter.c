@@ -652,7 +652,6 @@ void bch2_btree_path_level_init(struct btree_trans *trans,
 	BUG_ON(path->cached);
 
 	EBUG_ON(!btree_path_pos_in_node(path, b));
-	EBUG_ON(six_lock_seq(&b->c.lock) & 1);
 
 	path->l[b->c.level].lock_seq = six_lock_seq(&b->c.lock);
 	path->l[b->c.level].b = b;

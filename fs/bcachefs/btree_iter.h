@@ -42,14 +42,7 @@ static inline struct btree *btree_path_node(struct btree_path *path,
 static inline bool btree_node_lock_seq_matches(const struct btree_path *path,
 					const struct btree *b, unsigned level)
 {
-	/*
-	 * We don't compare the low bits of the lock sequence numbers because
-	 * @path might have taken a write lock on @b, and we don't want to skip
-	 * the linked path if the sequence numbers were equal before taking that
-	 * write lock. The lock sequence number is incremented by taking and
-	 * releasing write locks and is even when unlocked:
-	 */
-	return path->l[level].lock_seq >> 1 == six_lock_seq(&b->c.lock) >> 1;
+	return path->l[level].lock_seq == six_lock_seq(&b->c.lock);
 }
 
 static inline struct btree *btree_node_parent(struct btree_path *path,
