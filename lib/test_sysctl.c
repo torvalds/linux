@@ -170,12 +170,42 @@ static int test_sysctl_setup_node_tests(void)
 	return 0;
 }
 
+/* Used to test that unregister actually removes the directory */
+static struct ctl_table test_table_unregister[] = {
+	{
+		.procname	= "unregister_error",
+		.data		= &test_data.int_0001,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+	},
+	{}
+};
+
+static int test_sysctl_run_unregister_nested(void)
+{
+	struct ctl_table_header *unregister;
+
+	unregister = register_sysctl("debug/test_sysctl/unregister_error",
+				   test_table_unregister);
+	if (!unregister)
+		return -ENOMEM;
+
+	unregister_sysctl_table(unregister);
+	return 0;
+}
+
 static int __init test_sysctl_init(void)
 {
 	int err;
 
 	err = test_sysctl_setup_node_tests();
+	if (err)
+		goto out;
 
+	err = test_sysctl_run_unregister_nested();
+
+out:
 	return err;
 }
 module_init(test_sysctl_init);
