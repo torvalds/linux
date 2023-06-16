@@ -70,26 +70,26 @@ struct six_lock_vals {
 	enum six_lock_type	unlock_wakeup;
 };
 
-#define LOCK_VALS {							\
-	[SIX_LOCK_read] = {						\
-		.lock_val	= 1ULL << SIX_STATE_READ_OFFSET,	\
-		.lock_fail	= SIX_LOCK_HELD_write,			\
-		.held_mask	= SIX_LOCK_HELD_read,			\
-		.unlock_wakeup	= SIX_LOCK_write,			\
-	},								\
-	[SIX_LOCK_intent] = {						\
-		.lock_val	= SIX_STATE_INTENT_HELD,		\
-		.lock_fail	= SIX_LOCK_HELD_intent,			\
-		.held_mask	= SIX_LOCK_HELD_intent,			\
-		.unlock_wakeup	= SIX_LOCK_intent,			\
-	},								\
-	[SIX_LOCK_write] = {						\
-		.lock_val	= SIX_LOCK_HELD_write,			\
-		.lock_fail	= SIX_LOCK_HELD_read,			\
-		.held_mask	= SIX_LOCK_HELD_write,			\
-		.unlock_wakeup	= SIX_LOCK_read,			\
-	},								\
-}
+static const struct six_lock_vals l[] = {
+	[SIX_LOCK_read] = {
+		.lock_val	= 1ULL << SIX_STATE_READ_OFFSET,
+		.lock_fail	= SIX_LOCK_HELD_write,
+		.held_mask	= SIX_LOCK_HELD_read,
+		.unlock_wakeup	= SIX_LOCK_write,
+	},
+	[SIX_LOCK_intent] = {
+		.lock_val	= SIX_STATE_INTENT_HELD,
+		.lock_fail	= SIX_LOCK_HELD_intent,
+		.held_mask	= SIX_LOCK_HELD_intent,
+		.unlock_wakeup	= SIX_LOCK_intent,
+	},
+	[SIX_LOCK_write] = {
+		.lock_val	= SIX_LOCK_HELD_write,
+		.lock_fail	= SIX_LOCK_HELD_read,
+		.held_mask	= SIX_LOCK_HELD_write,
+		.unlock_wakeup	= SIX_LOCK_read,
+	},
+};
 
 static inline u32 six_state_seq(u64 state)
 {
@@ -144,7 +144,6 @@ static inline unsigned pcpu_read_count(struct six_lock *lock)
 static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 			    struct task_struct *task, bool try)
 {
-	const struct six_lock_vals l[] = LOCK_VALS;
 	int ret;
 	u64 old, new, v;
 
@@ -625,7 +624,6 @@ EXPORT_SYMBOL_GPL(six_lock_ip_waiter);
 __always_inline
 static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 {
-	const struct six_lock_vals l[] = LOCK_VALS;
 	u64 state;
 
 	if (type == SIX_LOCK_intent)
@@ -712,7 +710,6 @@ EXPORT_SYMBOL_GPL(six_lock_downgrade);
  */
 bool six_lock_tryupgrade(struct six_lock *lock)
 {
-	const struct six_lock_vals l[] = LOCK_VALS;
 	u64 old, new, v = atomic64_read(&lock->state);
 
 	do {
@@ -780,8 +777,6 @@ EXPORT_SYMBOL_GPL(six_trylock_convert);
  */
 void six_lock_increment(struct six_lock *lock, enum six_lock_type type)
 {
-	const struct six_lock_vals l[] = LOCK_VALS;
-
 	six_acquire(&lock->dep_map, 0, type == SIX_LOCK_read, _RET_IP_);
 
 	/* XXX: assert already locked, and that we don't overflow: */
