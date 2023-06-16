@@ -83,6 +83,7 @@ def define_blair():
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-blair.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-kalama.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-pineapple.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-waipio.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qrbtc-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-blair.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
