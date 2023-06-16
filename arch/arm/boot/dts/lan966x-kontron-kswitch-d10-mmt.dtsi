@@ -41,7 +41,7 @@
 	status = "okay";
 
 	spi3: spi@400 {
-		pinctrl-0 = <&fc3_b_pins>;
+		pinctrl-0 = <&fc3_b_pins>, <&spi3_cs_pins>;
 		pinctrl-names = "default";
 		status = "okay";
 		cs-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
@@ -77,6 +77,12 @@
 		/* LD */
 		pins = "GPIO_64";
 		function = "sgpio_b";
+	};
+
+	spi3_cs_pins: spi3-cs-pins {
+		/* CS# */
+		pins = "GPIO_46";
+		function = "gpio";
 	};
 
 	usart0_pins: usart0-pins {
