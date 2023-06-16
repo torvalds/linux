@@ -61,7 +61,7 @@ BUILD_INITRAMFS=1
 KERNEL_VENDOR_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x99c000 qcom_geni_serial.con_enabled=1 loglevel=8 nokaslr printk.devkmsg=on root=/dev/ram0 rw rootwait'
 EOF
     """ % (
-        " ".join([v.replace("-", "_") for v in lxc_variants]), # VARIANTS
+        " ".join([v.replace("-", "_") for v in lxc_variants]),  # VARIANTS
         msm_target.replace("-", "_"),
         variant.replace("-", "_"),
         boot_image_opts.boot_image_header_version,
@@ -144,7 +144,6 @@ def _define_kernel_build(
         kernel_build = ":{}".format(target),
     )
 
-
     merged_kernel_uapi_headers(
         name = "{}_merged_kernel_uapi_headers".format(target),
         kernel_build = ":{}".format(target),
@@ -154,7 +153,6 @@ def _define_kernel_build(
         name = "{}_compile_commands".format(target),
         kernel_build = ":{}".format(target),
     )
-
 
 def _define_kernel_dist(target, msm_target, variant):
     """Creates distribution targets for kernel builds
@@ -168,7 +166,7 @@ def _define_kernel_dist(target, msm_target, variant):
     """
 
     dist_dir = get_out_dir(msm_target, variant) + "/dist"
-    lxc_target = msm_target.split("-")[0];
+    lxc_target = msm_target.split("-")[0]
 
     msm_dist_targets = [
         # do not sort
@@ -232,12 +230,12 @@ def define_msm_lxc(
     # Enforce format of "//msm-kernel:target-foo_variant-bar" (underscore is the delimeter
     # between target and variant)
     target = msm_target.replace("_", "-") + "_" + variant.replace("_", "-")
-    lxc_target = msm_target.split("-")[0];
+    lxc_target = msm_target.split("-")[0]
 
     dtb_list = get_dtb_list(lxc_target)
     dtbo_list = get_dtbo_list(lxc_target)
     dtstree = get_dtstree(lxc_target)
-    vendor_ramdisk_binaries = None
+    vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(target, flavor = "le")
     build_config_fragments = get_build_config_fragments(lxc_target)
 
     _define_build_config(
