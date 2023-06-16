@@ -2027,6 +2027,8 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	if (!res)
 		goto drop;
 
+	rdev_inform_bss(rdev, &res->pub, ies, data->drv_data);
+
 	if (non_tx_data) {
 		/* this is a nontransmitting bss, we need to add it to
 		 * transmitting bss' list if it is not there
@@ -2501,6 +2503,8 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 	res = __cfg80211_bss_update(rdev, &tmp, signal_valid, jiffies);
 	if (!res)
 		goto drop;
+
+	rdev_inform_bss(rdev, &res->pub, ies, data->drv_data);
 
 	spin_unlock_bh(&rdev->bss_lock);
 
