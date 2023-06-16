@@ -1396,7 +1396,7 @@ void transport_init_se_cmd(
 	cmd->orig_fe_lun = unpacked_lun;
 
 	if (!(cmd->se_cmd_flags & SCF_USE_CPUID))
-		cmd->cpuid = smp_processor_id();
+		cmd->cpuid = raw_smp_processor_id();
 
 	cmd->state_active = false;
 }
