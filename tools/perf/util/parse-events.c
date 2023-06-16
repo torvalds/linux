@@ -2036,7 +2036,7 @@ static int evsel__compute_group_pmu_name(struct evsel *evsel,
 		pmu = perf_pmus__scan_core(NULL);
 	}
 	if (!pmu) {
-		pr_debug("No PMU found for '%s'", evsel__name(evsel));
+		pr_debug("No PMU found for '%s'\n", evsel__name(evsel));
 		return -EINVAL;
 	}
 	group_pmu_name = pmu->name;
