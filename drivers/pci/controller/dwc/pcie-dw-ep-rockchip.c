@@ -81,6 +81,10 @@
 #define PCIE_CLIENT_HOT_RESET_CTRL      0x180
 #define PCIE_CLIENT_LTSSM_STATUS	0x300
 #define PCIE_CLIENT_INTR_MASK		0x24
+#define PCIE_LTSSM_APP_DLY1_EN		BIT(0)
+#define PCIE_LTSSM_APP_DLY2_EN		BIT(1)
+#define PCIE_LTSSM_APP_DLY1_DONE	BIT(2)
+#define PCIE_LTSSM_APP_DLY2_DONE	BIT(3)
 #define PCIE_LTSSM_ENABLE_ENHANCE       BIT(4)
 #define PCIE_CLIENT_MSI_GEN_CON		0x38
 
@@ -106,6 +110,7 @@
 #define PCIE_EP_OBJ_INFO_DRV_VERSION	0x00000001
 
 #define PCIE_BAR_MAX_NUM		6
+#define PCIE_HOTRESET_TMOUT_US		10000
 
 struct rockchip_pcie {
 	struct dw_pcie			pci;
@@ -130,6 +135,8 @@ struct rockchip_pcie {
 	phys_addr_t			dbi_base_physical;
 	struct pcie_ep_obj_info		*obj_info;
 	enum pcie_ep_mmap_resource	cur_mmap_res;
+	struct workqueue_struct		*hot_rst_wq;
+	struct work_struct		hot_rst_work;
 };
 
 struct rockchip_pcie_misc_dev {
@@ -586,7 +593,8 @@ static void rockchip_pcie_fast_link_setup(struct rockchip_pcie *rockchip)
 
 	/* LTSSM EN ctrl mode */
 	val = rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_HOT_RESET_CTRL);
-	val |= PCIE_LTSSM_ENABLE_ENHANCE | (PCIE_LTSSM_ENABLE_ENHANCE << 16);
+	val |= (PCIE_LTSSM_ENABLE_ENHANCE | PCIE_LTSSM_APP_DLY2_EN) |
+		((PCIE_LTSSM_ENABLE_ENHANCE | PCIE_LTSSM_APP_DLY2_EN) << 16);
 	rockchip_pcie_writel_apb(rockchip, val, PCIE_CLIENT_HOT_RESET_CTRL);
 }
 
@@ -642,7 +650,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	u32 chn;
 	union int_status wr_status, rd_status;
 	union int_clear clears;
-	u32 reg, val, mask;
+	u32 reg, mask;
 	bool sigio = false;
 
 	/* ELBI helper, only check the valid bits, and discard the rest interrupts */
@@ -713,14 +721,8 @@ out:
 	}
 
 	reg = rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_INTR_STATUS_MISC);
-	if (reg & BIT(2)) {
-		/* Setup command register */
-		val = dw_pcie_readl_dbi(pci, PCI_COMMAND);
-		val &= 0xffff0000;
-		val |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-		       PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
-		dw_pcie_writel_dbi(pci, PCI_COMMAND, val);
-	}
+	if (reg & BIT(2))
+		queue_work(rockchip->hot_rst_wq, &rockchip->hot_rst_work);
 
 	rockchip_pcie_writel_apb(rockchip, reg, PCIE_CLIENT_INTR_STATUS_MISC);
 
@@ -868,6 +870,23 @@ static void rockchip_pcie_config_dma_dwc(struct dma_table *table)
 	table->weilo.weight0 = 0x0;
 	table->start.stop = 0x0;
 	table->start.chnl = table->chn;
+}
+
+static void rockchip_pcie_hot_rst_work(struct work_struct *work)
+{
+	struct rockchip_pcie *rockchip = container_of(work, struct rockchip_pcie, hot_rst_work);
+	u32 status;
+	int ret;
+
+	if (rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_HOT_RESET_CTRL) & PCIE_LTSSM_APP_DLY2_EN) {
+		ret = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_LTSSM_STATUS,
+			 status, ((status & 0x3F) == 0), 100, PCIE_HOTRESET_TMOUT_US);
+		if (ret)
+			dev_err(rockchip->pci.dev, "wait for detect quiet failed!\n");
+
+		rockchip_pcie_writel_apb(rockchip, (PCIE_LTSSM_APP_DLY2_DONE) | ((PCIE_LTSSM_APP_DLY2_DONE) << 16),
+					PCIE_CLIENT_HOT_RESET_CTRL);
+	}
 }
 
 static int rockchip_pcie_get_dma_status(struct dma_trx_obj *obj, u8 chn, enum dma_dir dir)
@@ -1121,6 +1140,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	struct rockchip_pcie *rockchip;
 	int ret;
 	int retry, i;
+	u32 reg;
 
 	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);
 	if (!rockchip)
@@ -1181,6 +1201,26 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 
 	rockchip_pcie_start_link(&rockchip->pci);
 	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKRDY);
+
+	rockchip->hot_rst_wq = create_singlethread_workqueue("rkep_hot_rst_wq");
+	if (rockchip->hot_rst_wq) {
+		dev_err(dev, "failed to create hot_rst workqueue\n");
+		ret = -ENOMEM;
+		goto deinit_phy;
+	}
+	INIT_WORK(&rockchip->hot_rst_work, rockchip_pcie_hot_rst_work);
+
+	reg = rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_INTR_STATUS_MISC);
+	if ((reg & BIT(2)) &&
+	    (rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_HOT_RESET_CTRL) & PCIE_LTSSM_APP_DLY2_EN)) {
+		rockchip_pcie_writel_apb(rockchip, PCIE_LTSSM_APP_DLY2_DONE | (PCIE_LTSSM_APP_DLY2_DONE << 16),
+					 PCIE_CLIENT_HOT_RESET_CTRL);
+		dev_info(dev, "hot reset ever\n");
+	}
+	rockchip_pcie_writel_apb(rockchip, reg, PCIE_CLIENT_INTR_STATUS_MISC);
+
+	/* Enable client reset or link down interrupt */
+	rockchip_pcie_writel_apb(rockchip, 0x40000, PCIE_CLIENT_INTR_MASK);
 
 	for (retry = 0; retry < 10000; retry++) {
 		if (dw_pcie_link_up(&rockchip->pci)) {
