@@ -372,6 +372,8 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
+	const struct ieee80211_sta_he_cap *he_cap;
+	const struct ieee80211_sta_eht_cap *eht_cap;
 	struct sta_info *sta = NULL;
 	size_t offset = 0, noffset;
 	u8 *pos;
@@ -527,6 +529,83 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 		 */
 		if (test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
 			ieee80211_tdls_chandef_vht_upgrade(sdata, sta);
+	}
+
+	/* add any custom IEs that go before HE capabilities */
+	if (extra_ies_len) {
+		static const u8 before_he_cap[] = {
+			WLAN_EID_EXTENSION,
+			WLAN_EID_EXT_FILS_REQ_PARAMS,
+			WLAN_EID_AP_CSN,
+		};
+		noffset = ieee80211_ie_split(extra_ies, extra_ies_len,
+					     before_he_cap,
+					     ARRAY_SIZE(before_he_cap),
+					     offset);
+		skb_put_data(skb, extra_ies + offset, noffset - offset);
+		offset = noffset;
+	}
+
+	/* build the HE-cap from sband */
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+	if (he_cap &&
+	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
+	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
+		__le16 he_6ghz_capa;
+		u8 cap_size;
+
+		cap_size =
+			2 + 1 + sizeof(he_cap->he_cap_elem) +
+			ieee80211_he_mcs_nss_size(&he_cap->he_cap_elem) +
+			ieee80211_he_ppe_size(he_cap->ppe_thres[0],
+					      he_cap->he_cap_elem.phy_cap_info);
+		pos = skb_put(skb, cap_size);
+		pos = ieee80211_ie_build_he_cap(0, pos, he_cap, pos + cap_size);
+
+		/* Build HE 6Ghz capa IE from sband */
+		if (sband->band == NL80211_BAND_6GHZ) {
+			cap_size = 2 + 1 + sizeof(struct ieee80211_he_6ghz_capa);
+			pos = skb_put(skb, cap_size);
+			he_6ghz_capa =
+				ieee80211_get_he_6ghz_capa_vif(sband, &sdata->vif);
+			pos = ieee80211_write_he_6ghz_cap(pos, he_6ghz_capa,
+							  pos + cap_size);
+		}
+	}
+
+	/* add any custom IEs that go before EHT capabilities */
+	if (extra_ies_len) {
+		static const u8 before_he_cap[] = {
+			WLAN_EID_EXTENSION,
+			WLAN_EID_EXT_FILS_REQ_PARAMS,
+			WLAN_EID_AP_CSN,
+		};
+
+		noffset = ieee80211_ie_split(extra_ies, extra_ies_len,
+					     before_he_cap,
+					     ARRAY_SIZE(before_he_cap),
+					     offset);
+		skb_put_data(skb, extra_ies + offset, noffset - offset);
+		offset = noffset;
+	}
+
+	/* build the EHT-cap from sband */
+	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
+	if (he_cap && eht_cap &&
+	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
+	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
+		u8 cap_size;
+
+		cap_size =
+			2 + 1 + sizeof(eht_cap->eht_cap_elem) +
+			ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
+						   &eht_cap->eht_cap_elem, false) +
+			ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
+					       eht_cap->eht_cap_elem.phy_cap_info);
+		pos = skb_put(skb, cap_size);
+		ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + cap_size, false);
 	}
 
 	/* add any remaining IEs */
@@ -885,6 +964,13 @@ ieee80211_tdls_build_mgmt_packet_data(struct ieee80211_sub_if_data *sdata,
 				       sizeof(struct ieee80211_ht_operation)) +
 			       2 + max(sizeof(struct ieee80211_vht_cap),
 				       sizeof(struct ieee80211_vht_operation)) +
+			       2 + 1 + sizeof(struct ieee80211_he_cap_elem) +
+				       sizeof(struct ieee80211_he_mcs_nss_supp) +
+				       IEEE80211_HE_PPE_THRES_MAX_LEN +
+			       2 + 1 + sizeof(struct ieee80211_he_6ghz_capa) +
+			       2 + 1 + sizeof(struct ieee80211_eht_cap_elem) +
+				       sizeof(struct ieee80211_eht_mcs_nss_supp) +
+				       IEEE80211_EHT_PPE_THRES_MAX_LEN +
 			       50 + /* supported channels */
 			       3 + /* 40/20 BSS coex */
 			       4 + /* AID */
