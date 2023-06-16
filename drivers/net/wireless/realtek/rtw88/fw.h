@@ -81,6 +81,11 @@ struct rtw_c2h_adaptivity {
 	u8 option;
 } __packed;
 
+struct rtw_h2c_register {
+	u32 w0;
+	u32 w1;
+} __packed;
+
 struct rtw_h2c_cmd {
 	__le32 msg;
 	__le32 msg_ext;

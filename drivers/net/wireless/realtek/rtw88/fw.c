@@ -308,6 +308,57 @@ void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
 
+static void rtw_fw_send_h2c_command_register(struct rtw_dev *rtwdev,
+					     struct rtw_h2c_register *h2c)
+{
+	u32 box_reg, box_ex_reg;
+	u8 box_state, box;
+	int ret;
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "send H2C content %08x %08x\n", h2c->w0,
+		h2c->w1);
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	box = rtwdev->h2c.last_box_num;
+	switch (box) {
+	case 0:
+		box_reg = REG_HMEBOX0;
+		box_ex_reg = REG_HMEBOX0_EX;
+		break;
+	case 1:
+		box_reg = REG_HMEBOX1;
+		box_ex_reg = REG_HMEBOX1_EX;
+		break;
+	case 2:
+		box_reg = REG_HMEBOX2;
+		box_ex_reg = REG_HMEBOX2_EX;
+		break;
+	case 3:
+		box_reg = REG_HMEBOX3;
+		box_ex_reg = REG_HMEBOX3_EX;
+		break;
+	default:
+		WARN(1, "invalid h2c mail box number\n");
+		return;
+	}
+
+	ret = read_poll_timeout_atomic(rtw_read8, box_state,
+				       !((box_state >> box) & 0x1), 100, 3000,
+				       false, rtwdev, REG_HMETFR);
+
+	if (ret) {
+		rtw_err(rtwdev, "failed to send h2c command\n");
+		return;
+	}
+
+	rtw_write32(rtwdev, box_ex_reg, h2c->w1);
+	rtw_write32(rtwdev, box_reg, h2c->w0);
+
+	if (++rtwdev->h2c.last_box_num >= 4)
+		rtwdev->h2c.last_box_num = 0;
+}
+
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
 {
