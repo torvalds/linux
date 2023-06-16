@@ -730,7 +730,7 @@ sysctl_test_0005()
 
 sysctl_test_0006()
 {
-	TARGET="${SYSCTL}/bitmap_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0006)"
 	reset_vals
 	ORIG=""
 	run_bitmaptest
@@ -738,7 +738,7 @@ sysctl_test_0006()
 
 sysctl_test_0007()
 {
-	TARGET="${SYSCTL}/boot_int"
+	TARGET="${SYSCTL}/$(get_test_target 0007)"
 	if [ ! -f $TARGET ]; then
 		echo "Skipping test for $TARGET as it is not present ..."
 		return $ksft_skip
@@ -778,7 +778,7 @@ sysctl_test_0007()
 
 sysctl_test_0008()
 {
-	TARGET="${SYSCTL}/match_int"
+	TARGET="${SYSCTL}/$(get_test_target 0008)"
 	if [ ! -f $TARGET ]; then
 		echo "Skipping test for $TARGET as it is not present ..."
 		return $ksft_skip
@@ -857,25 +857,32 @@ function test_num()
 		usage
 	fi
 }
+function remove_leading_zeros()
+{
+	echo $1 | sed 's/^0*//'
+}
 
 function get_test_count()
 {
 	test_num $1
-	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
 	echo ${TEST_DATA} | awk -F":" '{print $2}'
 }
 
 function get_test_enabled()
 {
 	test_num $1
-	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
 	echo ${TEST_DATA} | awk -F":" '{print $3}'
 }
 
 function get_test_target()
 {
 	test_num $1
-	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
 	echo ${TEST_DATA} | awk -F":" '{print $4}'
 }
 
