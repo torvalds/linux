@@ -2,6 +2,7 @@
 /* Author: Dan Scally <djrscally@gmail.com> */
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
@@ -24,6 +25,10 @@
 static const guid_t int3472_gpio_guid =
 	GUID_INIT(0x79234640, 0x9e10, 0x4fea,
 		  0xa5, 0xc1, 0xb5, 0xaa, 0x8b, 0x19, 0x75, 0x6f);
+
+#define INT3472_GPIO_DSM_TYPE				GENMASK(7, 0)
+#define INT3472_GPIO_DSM_PIN				GENMASK(15, 8)
+#define INT3472_GPIO_DSM_SENSOR_ON_VAL			GENMASK(31, 24)
 
 /*
  * 822ace8f-2814-4174-a56b-5f029fe079ee
@@ -174,12 +179,11 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 		return 1;
 	}
 
-	type = obj->integer.value & 0xff;
+	type = FIELD_GET(INT3472_GPIO_DSM_TYPE, obj->integer.value);
 
 	int3472_get_func_and_polarity(type, &func, &polarity);
 
-	/* If bits 31-24 of the _DSM entry are all 0 then the signal is inverted */
-	active_value = obj->integer.value >> 24;
+	active_value = FIELD_GET(INT3472_GPIO_DSM_SENSOR_ON_VAL, obj->integer.value);
 	if (!active_value)
 		polarity ^= GPIO_ACTIVE_LOW;
 
