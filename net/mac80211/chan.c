@@ -802,6 +802,11 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 		}
 	}
 
+	if (WARN_ON_ONCE(!compat)) {
+		rcu_read_unlock();
+		return;
+	}
+
 	/* TDLS peers can sometimes affect the chandef width */
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		if (!sta->uploaded ||
