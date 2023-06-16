@@ -390,9 +390,9 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	 */
 
 	/* do not use win0 src size except fbcd */
-	*bRGA3_WIN0_SRC_SIZE = (msg->win0.src_act_w +
-		msg->win0.x_offset) | ((msg->win0.y_offset +
-		msg->win0.src_act_h) << 16);
+	/* in FBCD, src_width needs to be aligned at 16 */
+	*bRGA3_WIN0_SRC_SIZE = ALIGN(msg->win0.src_act_w + msg->win0.x_offset, 16) |
+			       (ALIGN(msg->win0.y_offset + msg->win0.src_act_h, 16) << 16);
 	*bRGA3_WIN0_ACT_SIZE =
 		msg->win0.src_act_w | (msg->win0.src_act_h << 16);
 	*bRGA3_WIN0_DST_SIZE =
