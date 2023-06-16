@@ -694,7 +694,8 @@ struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
  * expand a stack to a given address
  * - not supported under NOMMU conditions
  */
-int expand_stack(struct vm_area_struct *vma, unsigned long address)
+int expand_stack_locked(struct vm_area_struct *vma, unsigned long address,
+		bool write_locked)
 {
 	return -ENOMEM;
 }
