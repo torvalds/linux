@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+. "$(dirname "${0}")/mptcp_lib.sh"
+
 ksft_skip=4
 ret=0
 
@@ -33,6 +35,8 @@ cleanup()
 	rm -f $err
 	ip netns del $ns1
 }
+
+mptcp_lib_check_mptcp
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
