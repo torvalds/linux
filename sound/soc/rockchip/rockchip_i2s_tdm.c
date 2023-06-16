@@ -2070,6 +2070,9 @@ static irqreturn_t rockchip_i2s_tdm_isr(int irq, void *devid)
 		dev_warn_ratelimited(i2s_tdm->dev, "TX FIFO Underrun\n");
 		regmap_update_bits(i2s_tdm->regmap, I2S_INTCR,
 				   I2S_INTCR_TXUIC, I2S_INTCR_TXUIC);
+		regmap_update_bits(i2s_tdm->regmap, I2S_INTCR,
+				   I2S_INTCR_TXUIE_MASK,
+				   I2S_INTCR_TXUIE(0));
 		substream = i2s_tdm->substreams[SNDRV_PCM_STREAM_PLAYBACK];
 		if (substream)
 			snd_pcm_stop_xrun(substream);
@@ -2079,6 +2082,9 @@ static irqreturn_t rockchip_i2s_tdm_isr(int irq, void *devid)
 		dev_warn_ratelimited(i2s_tdm->dev, "RX FIFO Overrun\n");
 		regmap_update_bits(i2s_tdm->regmap, I2S_INTCR,
 				   I2S_INTCR_RXOIC, I2S_INTCR_RXOIC);
+		regmap_update_bits(i2s_tdm->regmap, I2S_INTCR,
+				   I2S_INTCR_RXOIE_MASK,
+				   I2S_INTCR_RXOIE(0));
 		substream = i2s_tdm->substreams[SNDRV_PCM_STREAM_CAPTURE];
 		if (substream)
 			snd_pcm_stop_xrun(substream);
