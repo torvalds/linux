@@ -106,7 +106,7 @@
 
 	rockchip-key {
 		reset_button_pin: reset-button-pin {
-			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
