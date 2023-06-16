@@ -753,9 +753,7 @@ static void byt_gpio_clear_triggering(struct intel_pinctrl *vg, unsigned int off
 	value = readl(reg);
 
 	/* Do not clear direct-irq enabled IRQs (from gpio_disable_free) */
-	if (value & BYT_DIRECT_IRQ_EN)
-		/* nothing to do */ ;
-	else
+	if (!(value & BYT_DIRECT_IRQ_EN))
 		value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
 
 	writel(value, reg);
