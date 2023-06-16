@@ -246,6 +246,7 @@ void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472)
  */
 static const char * const skl_int3472_regulator_map_supplies[] = {
 	"avdd",
+	"AVDD",
 };
 
 static_assert(ARRAY_SIZE(skl_int3472_regulator_map_supplies) ==
