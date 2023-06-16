@@ -984,9 +984,9 @@ ieee80211_parse_extension_element(u32 *crc,
 		break;
 	case WLAN_EID_EXT_EHT_MULTI_LINK:
 		if (ieee80211_mle_size_ok(data, len)) {
-			elems->multi_link_elem = (void *)elem;
-			elems->multi_link = (void *)data;
-			elems->multi_link_len = len;
+			elems->ml_basic_elem = (void *)elem;
+			elems->ml_basic = (void *)data;
+			elems->ml_basic_len = len;
 		}
 		break;
 	}
@@ -1462,8 +1462,8 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 				       u8 link_id)
 {
-	const struct ieee80211_multi_link_elem *ml = elems->multi_link;
-	ssize_t ml_len = elems->multi_link_len;
+	const struct ieee80211_multi_link_elem *ml = elems->ml_basic;
+	ssize_t ml_len = elems->ml_basic_len;
 	const struct element *sub;
 
 	if (!ml || !ml_len)
@@ -1523,14 +1523,14 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 		.from_ap = params->from_ap,
 		.link_id = -1,
 	};
-	ssize_t ml_len = elems->multi_link_len;
+	ssize_t ml_len = elems->ml_basic_len;
 	const struct element *non_inherit = NULL;
 	const u8 *end;
 
 	if (params->link_id == -1)
 		return;
 
-	ml_len = cfg80211_defragment_element(elems->multi_link_elem,
+	ml_len = cfg80211_defragment_element(elems->ml_basic_elem,
 					     elems->ie_start,
 					     elems->total_len,
 					     elems->scratch_pos,
@@ -1542,9 +1542,8 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 	if (ml_len < 0)
 		return;
 
-	elems->multi_link = (const void *)elems->scratch_pos;
-	elems->multi_link_len = ml_len;
-	elems->scratch_pos += ml_len;
+	elems->ml_basic = (const void *)elems->scratch_pos;
+	elems->ml_basic_len = ml_len;
 
 	ieee80211_mle_get_sta_prof(elems, params->link_id);
 	prof = elems->prof;
