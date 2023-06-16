@@ -1496,7 +1496,8 @@ static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 		if (sub->id != IEEE80211_MLE_SUBELEM_PER_STA_PROFILE)
 			continue;
 
-		if (!ieee80211_mle_sta_prof_size_ok(sub->data, sub->datalen))
+		if (!ieee80211_mle_basic_sta_prof_size_ok(sub->data,
+							  sub->datalen))
 			return;
 
 		control = le16_to_cpu(prof->control);
