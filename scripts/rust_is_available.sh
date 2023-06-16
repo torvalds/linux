@@ -28,10 +28,39 @@ print_docs_reference()
 	echo >&2 "***"
 }
 
+# Print an explanation about the fact that the script is meant to be called from Kbuild.
+print_kbuild_explanation()
+{
+	echo >&2 "***"
+	echo >&2 "*** This script is intended to be called from Kbuild."
+	echo >&2 "*** Please use the 'rustavailable' target to call it instead."
+	echo >&2 "*** Otherwise, the results may not be meaningful."
+	exit 1
+}
+
 # If the script fails for any reason, or if there was any warning, then
 # print a reference to the documentation on exit.
 warning=0
 trap 'if [ $? -ne 0 ] || [ $warning -ne 0 ]; then print_docs_reference; fi' EXIT
+
+# Check that the expected environment variables are set.
+if [ -z "${RUSTC+x}" ]; then
+	echo >&2 "***"
+	echo >&2 "*** Environment variable 'RUSTC' is not set."
+	print_kbuild_explanation
+fi
+
+if [ -z "${BINDGEN+x}" ]; then
+	echo >&2 "***"
+	echo >&2 "*** Environment variable 'BINDGEN' is not set."
+	print_kbuild_explanation
+fi
+
+if [ -z "${CC+x}" ]; then
+	echo >&2 "***"
+	echo >&2 "*** Environment variable 'CC' is not set."
+	print_kbuild_explanation
+fi
 
 # Check that the Rust compiler exists.
 if ! command -v "$RUSTC" >/dev/null; then
