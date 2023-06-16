@@ -57,13 +57,20 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t);
  * bnxt_qplib_map_rc  -  map return type based on opcode
  * @opcode    -  roce slow path opcode
  *
- * In some cases like firmware halt is detected, the driver is supposed to
- * remap the error code of the timed out command.
+ * case #1
+ * Firmware initiated error recovery is a safe state machine and
+ * driver can consider all the underlying rdma resources are free.
+ * In this state, it is safe to return success for opcodes related to
+ * destroying rdma resources (like destroy qp, destroy cq etc.).
  *
- * It is not safe to assume hardware is really inactive so certain opcodes
- * like destroy qp etc are not safe to be returned success, but this function
- * will be called when FW already reports a timeout. This would be possible
- * only when FW crashes and resets. This will clear all the HW resources.
+ * case #2
+ * If driver detect potential firmware stall, it is not safe state machine
+ * and the driver can not consider all the underlying rdma resources are
+ * freed.
+ * In this state, it is not safe to return success for opcodes related to
+ * destroying rdma resources (like destroy qp, destroy cq etc.).
+ *
+ * Scope of this helper function is only for case #1.
  *
  * Returns:
  * 0 to communicate success to caller.
@@ -417,7 +424,7 @@ static int __send_message_basic_sanity(struct bnxt_qplib_rcfw *rcfw,
 
 	/* Prevent posting if f/w is not in a state to process */
 	if (test_bit(ERR_DEVICE_DETACHED, &rcfw->cmdq.flags))
-		return -ENXIO;
+		return bnxt_qplib_map_rc(opcode);
 	if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
 		return -ETIMEDOUT;
 
@@ -487,7 +494,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 
 	rc = __send_message_basic_sanity(rcfw, msg, opcode);
 	if (rc)
-		return rc == -ENXIO ? bnxt_qplib_map_rc(opcode) : rc;
+		return rc;
 
 	rc = __send_message(rcfw, msg, opcode);
 	if (rc)
