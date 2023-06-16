@@ -14,24 +14,26 @@ TEST_FILE=$(mktemp)
 
 # This represents
 #
-# TEST_ID:TEST_COUNT:ENABLED:TARGET
+# TEST_ID:TEST_COUNT:ENABLED:TARGET:SKIP_NO_TARGET
 #
 # TEST_ID: is the test id number
 # TEST_COUNT: number of times we should run the test
 # ENABLED: 1 if enabled, 0 otherwise
 # TARGET: test target file required on the test_sysctl module
+# SKIP_NO_TARGET: 1 skip if TARGET not there
+#                 0 run eventhough TARGET not there
 #
 # Once these are enabled please leave them as-is. Write your own test,
 # we have tons of space.
-ALL_TESTS="0001:1:1:int_0001"
-ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001"
-ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002"
-ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
-ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
-ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
-ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int"
-ALL_TESTS="$ALL_TESTS 0008:1:1:match_int"
-ALL_TESTS="$ALL_TESTS 0009:1:1:unregister_error"
+ALL_TESTS="0001:1:1:int_0001:1"
+ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001:1"
+ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002:1"
+ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001:1"
+ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003:1"
+ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001:1"
+ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int:1"
+ALL_TESTS="$ALL_TESTS 0008:1:1:match_int:1"
+ALL_TESTS="$ALL_TESTS 0009:1:1:unregister_error:0"
 
 function allow_user_defaults()
 {
@@ -614,7 +616,6 @@ target_exists()
 	TEST_ID="$2"
 
 	if [ ! -f ${TARGET} ] ; then
-		echo "Target for test $TEST_ID: $TARGET not exist, skipping test ..."
 		return 0
 	fi
 	return 1
@@ -902,16 +903,36 @@ function get_test_target()
 	echo ${TEST_DATA} | awk -F":" '{print $4}'
 }
 
+function get_test_skip_no_target()
+{
+	test_num $1
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
+	echo ${TEST_DATA} | awk -F":" '{print $5}'
+}
+
+function skip_test()
+{
+	TEST_ID=$1
+	TEST_TARGET=$2
+	if target_exists $TEST_TARGET $TEST_ID; then
+		TEST_SKIP=$(get_test_skip_no_target $TEST_ID)
+		if [[ $TEST_SKIP -eq "1" ]]; then
+			echo "Target for test $TEST_ID: $TEST_TARGET not exist, skipping test ..."
+			return 0
+		fi
+	fi
+	return 1
+}
+
 function run_all_tests()
 {
 	for i in $ALL_TESTS ; do
-		TEST_ID=${i%:*:*:*}
+		TEST_ID=${i%:*:*:*:*}
 		ENABLED=$(get_test_enabled $TEST_ID)
 		TEST_COUNT=$(get_test_count $TEST_ID)
 		TEST_TARGET=$(get_test_target $TEST_ID)
-		if target_exists $TEST_TARGET $TEST_ID; then
-			continue
-		fi
+
 		if [[ $ENABLED -eq "1" ]]; then
 			test_case $TEST_ID $TEST_COUNT $TEST_TARGET
 		fi
@@ -946,18 +967,19 @@ function watch_case()
 
 function test_case()
 {
+	TEST_ID=$1
 	NUM_TESTS=$2
+	TARGET=$3
 
-	i=0
-
-	if target_exists $3 $1; then
-		continue
+	if skip_test $TEST_ID $TARGET; then
+		return
 	fi
 
+	i=0
 	while [ $i -lt $NUM_TESTS ]; do
-		test_num $1
-		watch_log $i ${TEST_NAME}_test_$1 noclear
-		RUN_TEST=${TEST_NAME}_test_$1
+		test_num $TEST_ID
+		watch_log $i ${TEST_NAME}_test_${TEST_ID} noclear
+		RUN_TEST=${TEST_NAME}_test_${TEST_ID}
 		$RUN_TEST
 		let i=$i+1
 	done
