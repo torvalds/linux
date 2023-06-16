@@ -6270,13 +6270,7 @@ static int ext4_clear_journal_err(struct super_block *sb,
  */
 int ext4_force_commit(struct super_block *sb)
 {
-	journal_t *journal;
-
-	if (sb_rdonly(sb))
-		return 0;
-
-	journal = EXT4_SB(sb)->s_journal;
-	return ext4_journal_force_commit(journal);
+	return ext4_journal_force_commit(EXT4_SB(sb)->s_journal);
 }
 
 static int ext4_sync_fs(struct super_block *sb, int wait)
