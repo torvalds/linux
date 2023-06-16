@@ -18,6 +18,8 @@
 
 	gpio-restart {
 		compatible = "gpio-restart";
+		pinctrl-0 = <&reset_pins>;
+		pinctrl-names = "default";
 		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
 		priority = <200>;
 	};
@@ -57,6 +59,12 @@
 		/* MDC, MDIO */
 		pins = "GPIO_59", "GPIO_60";
 		function = "miim_c";
+	};
+
+	reset_pins: reset-pins {
+		/* SYS_RST# */
+		pins = "GPIO_56";
+		function = "gpio";
 	};
 
 	sgpio_a_pins: sgpio-a-pins {
