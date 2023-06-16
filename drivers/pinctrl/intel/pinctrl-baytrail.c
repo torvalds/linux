@@ -1758,6 +1758,10 @@ static int byt_gpio_suspend(struct device *dev)
 		vg->context.pads[i].conf0 = value;
 
 		reg = byt_gpio_reg(vg, pin, BYT_VAL_REG);
+		if (!reg) {
+			dev_warn(vg->dev, "Pin %i: can't retrieve VAL\n", i);
+			continue;
+		}
 		value = readl(reg) & BYT_VAL_RESTORE_MASK;
 		vg->context.pads[i].val = value;
 	}
@@ -1794,6 +1798,10 @@ static int byt_gpio_resume(struct device *dev)
 		}
 
 		reg = byt_gpio_reg(vg, pin, BYT_VAL_REG);
+		if (!reg) {
+			dev_warn(vg->dev, "Pin %i: can't retrieve VAL\n", i);
+			continue;
+		}
 		value = readl(reg);
 		if ((value & BYT_VAL_RESTORE_MASK) !=
 		     vg->context.pads[i].val) {
