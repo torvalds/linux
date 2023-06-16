@@ -1929,6 +1929,9 @@ void ieee80211_scan_cancel(struct ieee80211_local *local);
 void ieee80211_run_deferred_scan(struct ieee80211_local *local);
 void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb);
 
+void ieee80211_inform_bss(struct wiphy *wiphy, struct cfg80211_bss *bss,
+			  const struct cfg80211_bss_ies *ies, void *data);
+
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
