@@ -154,8 +154,8 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 {
 	struct int3472_discrete_device *int3472 = data;
 	struct acpi_resource_gpio *agpio;
+	u8 active_value, pin, type;
 	union acpi_object *obj;
-	u8 active_value, type;
 	const char *err_msg;
 	const char *func;
 	u32 polarity;
@@ -182,6 +182,12 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 	type = FIELD_GET(INT3472_GPIO_DSM_TYPE, obj->integer.value);
 
 	int3472_get_func_and_polarity(type, &func, &polarity);
+
+	pin = FIELD_GET(INT3472_GPIO_DSM_PIN, obj->integer.value);
+	if (pin != agpio->pin_table[0])
+		dev_warn(int3472->dev, "%s %s pin number mismatch _DSM %d resource %d\n",
+			 func, agpio->resource_source.string_ptr, pin,
+			 agpio->pin_table[0]);
 
 	active_value = FIELD_GET(INT3472_GPIO_DSM_SENSOR_ON_VAL, obj->integer.value);
 	if (!active_value)
