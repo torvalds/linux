@@ -4709,7 +4709,6 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
 	struct ieee80211_elems_parse_params parse_params = {
-		.bss = cbss,
 		.link_id = -1,
 		.from_ap = true,
 	};
