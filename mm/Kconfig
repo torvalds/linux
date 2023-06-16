@@ -218,10 +218,17 @@ choice
 	help
 	   This option allows to select a slab allocator.
 
-config SLAB
-	bool "SLAB"
+config SLAB_DEPRECATED
+	bool "SLAB (DEPRECATED)"
 	depends on !PREEMPT_RT
 	help
+	  Deprecated and scheduled for removal in a few cycles. Replaced by
+	  SLUB.
+
+	  If you cannot migrate to SLUB, please contact linux-mm@kvack.org
+	  and the people listed in the SLAB ALLOCATOR section of MAINTAINERS
+	  file, explaining why.
+
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
 	  per cpu and per node queues.
@@ -237,6 +244,11 @@ config SLUB
 	   a slab allocator.
 
 endchoice
+
+config SLAB
+	bool
+	default y
+	depends on SLAB_DEPRECATED
 
 config SLUB_TINY
 	bool "Configure SLUB for minimal memory footprint"
