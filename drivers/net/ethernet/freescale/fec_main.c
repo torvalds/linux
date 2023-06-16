@@ -2789,6 +2789,7 @@ static void fec_enet_get_xdp_stats(struct fec_enet_private *fep, u64 *data)
 
 static void fec_enet_page_pool_stats(struct fec_enet_private *fep, u64 *data)
 {
+#ifdef CONFIG_PAGE_POOL_STATS
 	struct page_pool_stats stats = {};
 	struct fec_enet_priv_rx_q *rxq;
 	int i;
@@ -2803,6 +2804,7 @@ static void fec_enet_page_pool_stats(struct fec_enet_private *fep, u64 *data)
 	}
 
 	page_pool_ethtool_stats_get(data, &stats);
+#endif
 }
 
 static void fec_enet_get_ethtool_stats(struct net_device *dev,
