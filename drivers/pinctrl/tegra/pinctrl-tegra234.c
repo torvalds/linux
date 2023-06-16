@@ -1442,7 +1442,6 @@ static const char * const tegra234_functions[] = {
 		.schmitt_bit = schmitt_b,			\
 		.drvtype_bit = 13,				\
 		.lpdr_bit = e_lpdr,				\
-		.drv_reg = -1,					\
 
 /* main drive pin groups */
 #define	drive_soc_gpio08_pb0			DRV_PINGROUP_ENTRY_Y(0x500c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
