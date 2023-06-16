@@ -10,9 +10,8 @@ DAMON provides below interfaces for different users.
   `This <https://github.com/awslabs/damo>`_ is for privileged people such as
   system administrators who want a just-working human-friendly interface.
   Using this, users can use the DAMON’s major features in a human-friendly way.
-  It may not be highly tuned for special cases, though.  It supports both
-  virtual and physical address spaces monitoring.  For more detail, please
-  refer to its `usage document
+  It may not be highly tuned for special cases, though.  For more detail,
+  please refer to its `usage document
   <https://github.com/awslabs/damo/blob/next/USAGE.md>`_.
 - *sysfs interface.*
   :ref:`This <sysfs_interface>` is for privileged user space programmers who
@@ -20,10 +19,9 @@ DAMON provides below interfaces for different users.
   features by reading from and writing to special sysfs files.  Therefore,
   you can write and use your personalized DAMON sysfs wrapper programs that
   reads/writes the sysfs files instead of you.  The `DAMON user space tool
-  <https://github.com/awslabs/damo>`_ is one example of such programs.  It
-  supports both virtual and physical address spaces monitoring.  Note that this
-  interface provides only simple :ref:`statistics <damos_stats>` for the
-  monitoring results.  For detailed monitoring results, DAMON provides a
+  <https://github.com/awslabs/damo>`_ is one example of such programs.  Note
+  that this interface provides only simple :ref:`statistics <damos_stats>` for
+  the monitoring results.  For detailed monitoring results, DAMON provides a
   :ref:`tracepoint <tracepoint>`.
 - *debugfs interface. (DEPRECATED!)*
   :ref:`This <debugfs_interface>` is almost identical to :ref:`sysfs interface
