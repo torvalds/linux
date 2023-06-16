@@ -1067,7 +1067,7 @@ static int dhd_wifi_platform_load_usb(void)
 }
 #endif /* BCMDBUS */
 
-static int dhd_wifi_platform_load()
+static int dhd_wifi_platform_load(void)
 {
 	int err = 0;
 	printf("%s: Enter\n", __FUNCTION__);
