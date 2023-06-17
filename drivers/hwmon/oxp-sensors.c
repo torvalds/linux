@@ -16,7 +16,6 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/dev_printk.h>
 #include <linux/dmi.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
