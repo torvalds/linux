@@ -1954,9 +1954,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!cred)
 		goto out_err;
 
-	/* Is there a reason anyone would want not to share whiteouts? */
-	ofs->share_whiteout = true;
-
 	ofs->config.index = ovl_index_def;
 	ofs->config.uuid = true;
 	ofs->config.nfs_export = ovl_nfs_export_def;

@@ -83,7 +83,7 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 		ofs->whiteout = whiteout;
 	}
 
-	if (ofs->share_whiteout) {
+	if (!ofs->no_shared_whiteout) {
 		whiteout = ovl_lookup_temp(ofs, workdir);
 		if (IS_ERR(whiteout))
 			goto out;
@@ -95,7 +95,7 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 		if (err != -EMLINK) {
 			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%i)\n",
 				ofs->whiteout->d_inode->i_nlink, err);
-			ofs->share_whiteout = false;
+			ofs->no_shared_whiteout = true;
 		}
 		dput(whiteout);
 	}
