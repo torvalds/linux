@@ -2301,12 +2301,7 @@ static inline int rtllib_network_init(
 	network->CountryIeLen = 0;
 	memset(network->CountryIeBuf, 0, MAX_IE_LEN);
 	HTInitializeBssDesc(&network->bssht);
-	if (stats->freq == RTLLIB_52GHZ_BAND) {
-		/* for A band (No DS info) */
-		network->channel = stats->received_channel;
-	} else {
-		network->flags |= NETWORK_HAS_CCK;
-	}
+	network->flags |= NETWORK_HAS_CCK;
 
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
@@ -2321,14 +2316,10 @@ static inline int rtllib_network_init(
 
 	network->mode = 0;
 
-	if (stats->freq == RTLLIB_52GHZ_BAND) {
-		network->mode = IEEE_A;
-	} else {
-		if (network->flags & NETWORK_HAS_OFDM)
-			network->mode |= IEEE_G;
-		if (network->flags & NETWORK_HAS_CCK)
-			network->mode |= IEEE_B;
-	}
+	if (network->flags & NETWORK_HAS_OFDM)
+		network->mode |= IEEE_G;
+	if (network->flags & NETWORK_HAS_CCK)
+		network->mode |= IEEE_B;
 
 	if (network->mode == 0) {
 		netdev_dbg(ieee->dev, "Filtered out '%s (%pM)' network.\n",

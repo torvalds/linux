@@ -500,9 +500,6 @@ enum _REG_PREAMBLE_MODE {
 #define RTLLIB_CCK_MODULATION    (1<<0)
 #define RTLLIB_OFDM_MODULATION   (1<<1)
 
-#define RTLLIB_24GHZ_BAND     (1<<0)
-#define RTLLIB_52GHZ_BAND     (1<<1)
-
 #define RTLLIB_CCK_RATE_LEN		4
 #define RTLLIB_CCK_RATE_1MB			0x02
 #define RTLLIB_CCK_RATE_2MB			0x04
@@ -549,10 +546,8 @@ struct rtllib_rx_stats {
 	u8  signal;
 	u8  noise;
 	u16 rate; /* in 100 kbps */
-	u8  received_channel;
 	u8  control;
 	u8  mask;
-	u8  freq;
 	u16 len;
 	u64 tsf;
 	u32 beacon_time;

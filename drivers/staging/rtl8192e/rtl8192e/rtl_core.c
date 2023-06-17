@@ -1769,7 +1769,6 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		.signal = 0,
 		.noise = (u8)-98,
 		.rate = 0,
-		.freq = RTLLIB_24GHZ_BAND,
 	};
 	unsigned int count = priv->rxringcount;
 
