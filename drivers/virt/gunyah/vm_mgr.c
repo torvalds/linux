@@ -19,47 +19,27 @@
 
 #include "vm_mgr.h"
 
-static DEFINE_XARRAY(functions);
+static void gh_vm_free(struct work_struct *work);
 
-int gh_vm_function_register(struct gh_vm_function *fn)
+static DEFINE_XARRAY(gh_vm_functions);
+
+static void gh_vm_put_function(struct gh_vm_function *fn)
 {
-	if (!fn->bind || !fn->unbind)
-		return -EINVAL;
-
-	return xa_err(xa_store(&functions, fn->type, fn, GFP_KERNEL));
+	module_put(fn->mod);
 }
-EXPORT_SYMBOL_GPL(gh_vm_function_register);
-
-static void gh_vm_remove_function_instance(struct gh_vm_function_instance *inst)
-	__must_hold(&inst->ghvm->fn_lock)
-{
-	inst->fn->unbind(inst);
-	list_del(&inst->vm_list);
-	module_put(inst->fn->mod);
-	kfree(inst->argp);
-	kfree(inst);
-}
-
-void gh_vm_function_unregister(struct gh_vm_function *fn)
-{
-	/* Expecting unregister to only come when unloading a module */
-	WARN_ON(fn->mod && module_refcount(fn->mod));
-	xa_erase(&functions, fn->type);
-}
-EXPORT_SYMBOL_GPL(gh_vm_function_unregister);
 
 static struct gh_vm_function *gh_vm_get_function(u32 type)
 {
 	struct gh_vm_function *fn;
 	int r;
 
-	fn = xa_load(&functions, type);
+	fn = xa_load(&gh_vm_functions, type);
 	if (!fn) {
 		r = request_module("ghfunc:%d", type);
 		if (r)
-			return ERR_PTR(r);
+			return ERR_PTR(r > 0 ? -r : r);
 
-		fn = xa_load(&functions, type);
+		fn = xa_load(&gh_vm_functions, type);
 	}
 
 	if (!fn || !try_module_get(fn->mod))
@@ -68,14 +48,36 @@ static struct gh_vm_function *gh_vm_get_function(u32 type)
 	return fn;
 }
 
-static long gh_vm_add_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
+static void gh_vm_remove_function_instance(struct gh_vm_function_instance *inst)
+	__must_hold(&inst->ghvm->fn_lock)
+{
+	inst->fn->unbind(inst);
+	list_del(&inst->vm_list);
+	gh_vm_put_function(inst->fn);
+	kfree(inst->argp);
+	kfree(inst);
+}
+
+static void gh_vm_remove_functions(struct gh_vm *ghvm)
+{
+	struct gh_vm_function_instance *inst, *iiter;
+
+	mutex_lock(&ghvm->fn_lock);
+	list_for_each_entry_safe(inst, iiter, &ghvm->functions, vm_list) {
+		gh_vm_remove_function_instance(inst);
+	}
+	mutex_unlock(&ghvm->fn_lock);
+}
+
+static long gh_vm_add_function_instance(struct gh_vm *ghvm, struct gh_fn_desc *f)
 {
 	struct gh_vm_function_instance *inst;
 	void __user *argp;
 	long r = 0;
 
 	if (f->arg_size > GH_FN_MAX_ARG_SIZE) {
-		dev_err(ghvm->parent, "%s: arg_size > %d\n", __func__, GH_FN_MAX_ARG_SIZE);
+		dev_err_ratelimited(ghvm->parent, "%s: arg_size > %d\n",
+					__func__, GH_FN_MAX_ARG_SIZE);
 		return -EINVAL;
 	}
 
@@ -110,7 +112,8 @@ static long gh_vm_add_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
 	mutex_lock(&ghvm->fn_lock);
 	r = inst->fn->bind(inst);
 	if (r < 0) {
-		module_put(inst->fn->mod);
+		mutex_unlock(&ghvm->fn_lock);
+		gh_vm_put_function(inst->fn);
 		goto free_arg;
 	}
 
@@ -125,7 +128,7 @@ free:
 	return r;
 }
 
-static long gh_vm_rm_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
+static long gh_vm_rm_function_instance(struct gh_vm *ghvm, struct gh_fn_desc *f)
 {
 	struct gh_vm_function_instance *inst, *iter;
 	void __user *user_argp;
@@ -150,11 +153,13 @@ static long gh_vm_rm_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
 			goto out;
 		}
 
+		r = -ENOENT;
 		list_for_each_entry_safe(inst, iter, &ghvm->functions, vm_list) {
 			if (inst->fn->type == f->type &&
-			    f->arg_size == inst->arg_size &&
-			    !memcmp(argp, inst->argp, f->arg_size))
+				inst->fn->compare(inst, argp, f->arg_size)) {
 				gh_vm_remove_function_instance(inst);
+				r = 0;
+			}
 		}
 
 		kfree(argp);
@@ -165,14 +170,31 @@ out:
 	return r;
 }
 
+int gh_vm_function_register(struct gh_vm_function *fn)
+{
+	if (!fn->bind || !fn->unbind)
+		return -EINVAL;
+
+	return xa_err(xa_store(&gh_vm_functions, fn->type, fn, GFP_KERNEL));
+}
+EXPORT_SYMBOL_GPL(gh_vm_function_register);
+
+void gh_vm_function_unregister(struct gh_vm_function *fn)
+{
+	/* Expecting unregister to only come when unloading a module */
+	WARN_ON(fn->mod && module_refcount(fn->mod));
+	xa_erase(&gh_vm_functions, fn->type);
+}
+EXPORT_SYMBOL_GPL(gh_vm_function_unregister);
+
 int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *ticket)
 {
 	struct gh_vm_resource_ticket *iter;
-	struct gh_resource *ghrsc;
+	struct gh_resource *ghrsc, *rsc_iter;
 	int ret = 0;
 
 	mutex_lock(&ghvm->resources_lock);
-	list_for_each_entry(iter, &ghvm->resource_tickets, list) {
+	list_for_each_entry(iter, &ghvm->resource_tickets, vm_list) {
 		if (iter->resource_type == ticket->resource_type && iter->label == ticket->label) {
 			ret = -EEXIST;
 			goto out;
@@ -184,12 +206,12 @@ int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *
 		goto out;
 	}
 
-	list_add(&ticket->list, &ghvm->resource_tickets);
+	list_add(&ticket->vm_list, &ghvm->resource_tickets);
 	INIT_LIST_HEAD(&ticket->resources);
 
-	list_for_each_entry(ghrsc, &ghvm->resources, list) {
+	list_for_each_entry_safe(ghrsc, rsc_iter, &ghvm->resources, list) {
 		if (ghrsc->type == ticket->resource_type && ghrsc->rm_label == ticket->label) {
-			if (!ticket->populate(ticket, ghrsc))
+			if (ticket->populate(ticket, ghrsc))
 				list_move(&ghrsc->list, &ticket->resources);
 		}
 	}
@@ -210,7 +232,7 @@ void gh_vm_remove_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_tick
 	}
 
 	module_put(ticket->owner);
-	list_del(&ticket->list);
+	list_del(&ticket->vm_list);
 	mutex_unlock(&ghvm->resources_lock);
 }
 EXPORT_SYMBOL_GPL(gh_vm_remove_resource_ticket);
@@ -220,16 +242,41 @@ static void gh_vm_add_resource(struct gh_vm *ghvm, struct gh_resource *ghrsc)
 	struct gh_vm_resource_ticket *ticket;
 
 	mutex_lock(&ghvm->resources_lock);
-	list_for_each_entry(ticket, &ghvm->resource_tickets, list) {
+	list_for_each_entry(ticket, &ghvm->resource_tickets, vm_list) {
 		if (ghrsc->type == ticket->resource_type && ghrsc->rm_label == ticket->label) {
-			if (!ticket->populate(ticket, ghrsc)) {
+			if (ticket->populate(ticket, ghrsc))
 				list_add(&ghrsc->list, &ticket->resources);
-				goto found;
-			}
+			else
+				list_add(&ghrsc->list, &ghvm->resources);
+			/* unconditonal -- we prevent multiple identical
+			 * resource tickets so there will not be some other
+			 * ticket elsewhere in the list if populate() failed.
+			 */
+			goto found;
 		}
 	}
 	list_add(&ghrsc->list, &ghvm->resources);
 found:
+	mutex_unlock(&ghvm->resources_lock);
+}
+
+static void gh_vm_clean_resources(struct gh_vm *ghvm)
+{
+	struct gh_vm_resource_ticket *ticket, *titer;
+	struct gh_resource *ghrsc, *riter;
+
+	mutex_lock(&ghvm->resources_lock);
+	if (!list_empty(&ghvm->resource_tickets)) {
+		dev_warn(ghvm->parent, "Dangling resource tickets:\n");
+		list_for_each_entry_safe(ticket, titer, &ghvm->resource_tickets, vm_list) {
+			dev_warn(ghvm->parent, "  %pS\n", ticket->populate);
+			gh_vm_remove_resource_ticket(ghvm, ticket);
+		}
+	}
+
+	list_for_each_entry_safe(ghrsc, riter, &ghvm->resources, list) {
+		gh_rm_free_resource(ghrsc);
+	}
 	mutex_unlock(&ghvm->resources_lock);
 }
 
@@ -248,9 +295,16 @@ static int _gh_vm_io_handler_compare(const struct rb_node *node, const struct rb
 		return -1;
 	if (n->len > p->len)
 		return 1;
-	if (n->datamatch < p->datamatch)
+	/* one of the io handlers doesn't have datamatch and the other does.
+	 * For purposes of comparison, that makes them identical since the
+	 * one that doesn't have datamatch will cover the same handler that
+	 * does.
+	 */
+	if (n->datamatch != p->datamatch)
+		return 0;
+	if (n->data < p->data)
 		return -1;
-	if (n->datamatch > p->datamatch)
+	if (n->data > p->data)
 		return 1;
 	return 0;
 }
@@ -273,7 +327,8 @@ static struct gh_vm_io_handler *gh_vm_mgr_find_io_hdlr(struct gh_vm *ghvm, u64 a
 	struct gh_vm_io_handler key = {
 		.addr = addr,
 		.len = len,
-		.datamatch = data,
+		.datamatch = true,
+		.data = data,
 	};
 	struct rb_node *node;
 
@@ -331,7 +386,7 @@ static int gh_vm_rm_notification_status(struct gh_vm *ghvm, void *data)
 {
 	struct gh_rm_vm_status_payload *payload = data;
 
-	if (payload->vmid != ghvm->vmid)
+	if (le16_to_cpu(payload->vmid) != ghvm->vmid)
 		return NOTIFY_OK;
 
 	/* All other state transitions are synchronous to a corresponding RM call */
@@ -349,7 +404,7 @@ static int gh_vm_rm_notification_exited(struct gh_vm *ghvm, void *data)
 {
 	struct gh_rm_vm_exited_payload *payload = data;
 
-	if (payload->vmid != ghvm->vmid)
+	if (le16_to_cpu(payload->vmid) != ghvm->vmid)
 		return NOTIFY_OK;
 
 	down_write(&ghvm->status_lock);
@@ -359,6 +414,7 @@ static int gh_vm_rm_notification_exited(struct gh_vm *ghvm, void *data)
 	memcpy(&ghvm->exit_info.reason, payload->exit_reason,
 		min(GH_VM_MAX_EXIT_REASON_SIZE, ghvm->exit_info.reason_size));
 	up_write(&ghvm->status_lock);
+	wake_up(&ghvm->vm_status_wait);
 
 	return NOTIFY_DONE;
 }
@@ -387,146 +443,38 @@ static void gh_vm_stop(struct gh_vm *ghvm)
 		if (ret)
 			dev_warn(ghvm->parent, "Failed to stop VM: %d\n", ret);
 	}
-
-	ghvm->vm_status = GH_RM_VM_STATUS_EXITED;
 	up_write(&ghvm->status_lock);
+
+	wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_EXITED);
 }
-
-static void gh_vm_free(struct work_struct *work)
-{
-	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
-	struct gh_vm_function_instance *inst, *iiter;
-	struct gh_vm_resource_ticket *ticket, *titer;
-	struct gh_resource *ghrsc, *riter;
-	struct gh_vm_mem *mapping, *tmp;
-	int ret;
-
-	switch (ghvm->vm_status) {
-	case GH_RM_VM_STATUS_RUNNING:
-		gh_vm_stop(ghvm);
-		fallthrough;
-	case GH_RM_VM_STATUS_INIT_FAILED:
-	case GH_RM_VM_STATUS_EXITED:
-		mutex_lock(&ghvm->fn_lock);
-		list_for_each_entry_safe(inst, iiter, &ghvm->functions, vm_list) {
-			gh_vm_remove_function_instance(inst);
-		}
-		mutex_unlock(&ghvm->fn_lock);
-
-		mutex_lock(&ghvm->resources_lock);
-		if (!list_empty(&ghvm->resource_tickets)) {
-			dev_warn(ghvm->parent, "Dangling resource tickets:\n");
-			list_for_each_entry_safe(ticket, titer, &ghvm->resource_tickets, list) {
-				dev_warn(ghvm->parent, "  %pS\n", ticket->populate);
-				gh_vm_remove_resource_ticket(ghvm, ticket);
-			}
-		}
-
-		list_for_each_entry_safe(ghrsc, riter, &ghvm->resources, list) {
-			gh_rm_free_resource(ghrsc);
-		}
-		mutex_unlock(&ghvm->resources_lock);
-
-		/* vm_status == LOAD if user creates VM, but then destroys it
-		 * without ever trying to start it. In that case, we have only
-		 * allocated VMID. Clean up functions (above), memory (below),
-		 * and dealloc vmid (below), but no call gh_rm_vm_reset().
-		 */
-		if (ghvm->vm_status != GH_RM_VM_STATUS_LOAD) {
-			ret = gh_rm_vm_reset(ghvm->rm, ghvm->vmid);
-			if (ret)
-				dev_err(ghvm->parent, "Failed to reset the vm: %d\n", ret);
-			wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_RESET);
-		}
-
-		mutex_lock(&ghvm->mm_lock);
-		list_for_each_entry_safe(mapping, tmp, &ghvm->memory_mappings, list) {
-			gh_vm_mem_reclaim(ghvm, mapping);
-			kfree(mapping);
-		}
-		mutex_unlock(&ghvm->mm_lock);
-		fallthrough;
-	case GH_RM_VM_STATUS_NO_STATE:
-		ret = gh_rm_dealloc_vmid(ghvm->rm, ghvm->vmid);
-		if (ret)
-			dev_warn(ghvm->parent, "Failed to deallocate vmid: %d\n", ret);
-
-		gh_rm_notifier_unregister(ghvm->rm, &ghvm->nb);
-		gh_rm_put(ghvm->rm);
-		kfree(ghvm);
-		break;
-	default:
-		dev_err(ghvm->parent, "VM is unknown state: %d. VM will not be cleaned up.\n",
-			ghvm->vm_status);
-
-		gh_rm_notifier_unregister(ghvm->rm, &ghvm->nb);
-		gh_rm_put(ghvm->rm);
-		kfree(ghvm);
-		break;
-	}
-}
-
-static void _gh_vm_put(struct kref *kref)
-{
-	struct gh_vm *ghvm = container_of(kref, struct gh_vm, kref);
-
-	/* VM will be reset and make RM calls which can interruptible sleep.
-	 * Defer to a work so this thread can receive signal.
-	 */
-	schedule_work(&ghvm->free_work);
-}
-
-int __must_check gh_vm_get(struct gh_vm *ghvm)
-{
-	return kref_get_unless_zero(&ghvm->kref);
-}
-EXPORT_SYMBOL_GPL(gh_vm_get);
-
-void gh_vm_put(struct gh_vm *ghvm)
-{
-	kref_put(&ghvm->kref, _gh_vm_put);
-}
-EXPORT_SYMBOL_GPL(gh_vm_put);
 
 static __must_check struct gh_vm *gh_vm_alloc(struct gh_rm *rm)
 {
 	struct gh_vm *ghvm;
-	int vmid, ret;
-
-	vmid = gh_rm_alloc_vmid(rm, 0);
-	if (vmid < 0)
-		return ERR_PTR(vmid);
 
 	ghvm = kzalloc(sizeof(*ghvm), GFP_KERNEL);
-	if (!ghvm) {
-		gh_rm_dealloc_vmid(rm, vmid);
+	if (!ghvm)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	ghvm->parent = gh_rm_get(rm);
-	ghvm->vmid = vmid;
+	ghvm->vmid = GH_VMID_INVAL;
 	ghvm->rm = rm;
 
-	init_waitqueue_head(&ghvm->vm_status_wait);
-	ghvm->nb.notifier_call = gh_vm_rm_notification;
-	ret = gh_rm_notifier_register(rm, &ghvm->nb);
-	if (ret) {
-		gh_rm_put(rm);
-		gh_rm_dealloc_vmid(rm, vmid);
-		kfree(ghvm);
-		return ERR_PTR(ret);
-	}
-
+	mmgrab(current->mm);
+	ghvm->mm = current->mm;
 	mutex_init(&ghvm->mm_lock);
 	INIT_LIST_HEAD(&ghvm->memory_mappings);
 	init_rwsem(&ghvm->status_lock);
+	init_waitqueue_head(&ghvm->vm_status_wait);
 	INIT_WORK(&ghvm->free_work, gh_vm_free);
 	kref_init(&ghvm->kref);
 	mutex_init(&ghvm->resources_lock);
 	INIT_LIST_HEAD(&ghvm->resources);
 	INIT_LIST_HEAD(&ghvm->resource_tickets);
+	init_rwsem(&ghvm->mmio_handler_lock);
+	ghvm->mmio_handler_root = RB_ROOT;
 	INIT_LIST_HEAD(&ghvm->functions);
-	ghvm->vm_status = GH_RM_VM_STATUS_LOAD;
+	ghvm->vm_status = GH_RM_VM_STATUS_NO_STATE;
 
 	return ghvm;
 }
@@ -541,13 +489,27 @@ static int gh_vm_start(struct gh_vm *ghvm)
 	int ret, i, n;
 
 	down_write(&ghvm->status_lock);
-	if (ghvm->vm_status != GH_RM_VM_STATUS_LOAD) {
+	if (ghvm->vm_status != GH_RM_VM_STATUS_NO_STATE) {
 		up_write(&ghvm->status_lock);
 		return 0;
 	}
 
+	ghvm->nb.notifier_call = gh_vm_rm_notification;
+	ret = gh_rm_notifier_register(ghvm->rm, &ghvm->nb);
+	if (ret)
+		goto err;
+
+	ret = gh_rm_alloc_vmid(ghvm->rm, 0);
+	if (ret < 0) {
+		gh_rm_notifier_unregister(ghvm->rm, &ghvm->nb);
+		goto err;
+	}
+	ghvm->vmid = ret;
+	ghvm->vm_status = GH_RM_VM_STATUS_LOAD;
+
 	mutex_lock(&ghvm->mm_lock);
 	list_for_each_entry(mapping, &ghvm->memory_mappings, list) {
+		mapping->parcel.acl_entries[0].vmid = cpu_to_le16(ghvm->vmid);
 		switch (mapping->share_type) {
 		case VM_MEM_LEND:
 			ret = gh_rm_mem_lend(ghvm->rm, &mapping->parcel);
@@ -559,8 +521,8 @@ static int gh_vm_start(struct gh_vm *ghvm)
 		if (ret) {
 			dev_warn(ghvm->parent, "Failed to %s parcel %d: %d\n",
 				mapping->share_type == VM_MEM_LEND ? "lend" : "share",
-				mapping->parcel.label,
-				ret);
+				mapping->parcel.label, ret);
+			mutex_unlock(&ghvm->mm_lock);
 			goto err;
 		}
 	}
@@ -602,11 +564,12 @@ static int gh_vm_start(struct gh_vm *ghvm)
 	}
 
 	ret = gh_rm_vm_init(ghvm->rm, ghvm->vmid);
-	ghvm->vm_status = GH_RM_VM_STATUS_RESET;
 	if (ret) {
+		ghvm->vm_status = GH_RM_VM_STATUS_INIT_FAILED;
 		dev_warn(ghvm->parent, "Failed to initialize VM: %d\n", ret);
 		goto err;
 	}
+	ghvm->vm_status = GH_RM_VM_STATUS_READY;
 
 	ret = gh_rm_get_hyp_resources(ghvm->rm, ghvm->vmid, &resources);
 	if (ret) {
@@ -634,7 +597,6 @@ static int gh_vm_start(struct gh_vm *ghvm)
 	up_write(&ghvm->status_lock);
 	return ret;
 err:
-	ghvm->vm_status = GH_RM_VM_STATUS_INIT_FAILED;
 	/* gh_vm_free will handle releasing resources and reclaiming memory */
 	up_write(&ghvm->status_lock);
 	return ret;
@@ -649,11 +611,11 @@ static int gh_vm_ensure_started(struct gh_vm *ghvm)
 		return ret;
 
 	/* Unlikely because VM is typically started */
-	if (unlikely(ghvm->vm_status == GH_RM_VM_STATUS_LOAD)) {
+	if (unlikely(ghvm->vm_status == GH_RM_VM_STATUS_NO_STATE)) {
 		up_read(&ghvm->status_lock);
 		ret = gh_vm_start(ghvm);
 		if (ret)
-			goto out;
+			return ret;
 		/** gh_vm_start() is guaranteed to bring status out of
 		 * GH_RM_VM_STATUS_LOAD, thus inifitely recursive call is not
 		 * possible
@@ -665,7 +627,6 @@ static int gh_vm_ensure_started(struct gh_vm *ghvm)
 	if (unlikely(ghvm->vm_status != GH_RM_VM_STATUS_RUNNING))
 		ret = -ENODEV;
 
-out:
 	up_read(&ghvm->status_lock);
 	return ret;
 }
@@ -684,6 +645,10 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case GH_VM_SET_USER_MEM_REGION: {
 		struct gh_userspace_memory_region region;
 
+		/* only allow owner task to add memory */
+		if (ghvm->mm != current->mm)
+			return -EPERM;
+
 		if (copy_from_user(&region, argp, sizeof(region)))
 			return -EFAULT;
 
@@ -700,9 +665,12 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&dtb_config, argp, sizeof(dtb_config)))
 			return -EFAULT;
 
-		dtb_config.size = PAGE_ALIGN(dtb_config.size);
-		if (dtb_config.guest_phys_addr + dtb_config.size < dtb_config.guest_phys_addr)
+		if (overflows_type(dtb_config.guest_phys_addr + dtb_config.size, u64))
 			return -EOVERFLOW;
+
+		/* Gunyah requires that dtb_config is page aligned */
+		if (!PAGE_ALIGNED(dtb_config.guest_phys_addr) || !PAGE_ALIGNED(dtb_config.size))
+			return -EINVAL;
 
 		ghvm->dtb_config = dtb_config;
 
@@ -728,21 +696,16 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&f, argp, sizeof(f)))
 			return -EFAULT;
 
-		r = gh_vm_add_function(ghvm, &f);
+		r = gh_vm_add_function_instance(ghvm, &f);
 		break;
 	}
 	case GH_VM_REMOVE_FUNCTION: {
-		struct gh_fn_desc *f;
+		struct gh_fn_desc f;
 
-		f = kzalloc(sizeof(*f), GFP_KERNEL);
-		if (!f)
-			return -ENOMEM;
-
-		if (copy_from_user(f, argp, sizeof(*f)))
+		if (copy_from_user(&f, argp, sizeof(f)))
 			return -EFAULT;
 
-		r = gh_vm_rm_function(ghvm, f);
-		kfree(f);
+		r = gh_vm_rm_function_instance(ghvm, &f);
 		break;
 	}
 	default:
@@ -752,6 +715,63 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	return r;
 }
+
+static void gh_vm_free(struct work_struct *work)
+{
+	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
+	int ret;
+
+	if (ghvm->vm_status == GH_RM_VM_STATUS_RUNNING)
+		gh_vm_stop(ghvm);
+
+	gh_vm_remove_functions(ghvm);
+	gh_vm_clean_resources(ghvm);
+
+	if (ghvm->vm_status != GH_RM_VM_STATUS_NO_STATE &&
+	    ghvm->vm_status != GH_RM_VM_STATUS_LOAD &&
+	    ghvm->vm_status != GH_RM_VM_STATUS_RESET) {
+		ret = gh_rm_vm_reset(ghvm->rm, ghvm->vmid);
+		if (ret)
+			dev_err(ghvm->parent, "Failed to reset the vm: %d\n", ret);
+		wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_RESET);
+	}
+
+	gh_vm_mem_reclaim(ghvm);
+
+	if (ghvm->vm_status > GH_RM_VM_STATUS_NO_STATE) {
+		gh_rm_notifier_unregister(ghvm->rm, &ghvm->nb);
+
+		ret = gh_rm_dealloc_vmid(ghvm->rm, ghvm->vmid);
+		if (ret)
+			dev_warn(ghvm->parent, "Failed to deallocate vmid: %d\n", ret);
+	}
+
+	gh_rm_put(ghvm->rm);
+	mmdrop(ghvm->mm);
+	kfree(ghvm);
+}
+
+int __must_check gh_vm_get(struct gh_vm *ghvm)
+{
+	return kref_get_unless_zero(&ghvm->kref);
+}
+EXPORT_SYMBOL_GPL(gh_vm_get);
+
+static void _gh_vm_put(struct kref *kref)
+{
+	struct gh_vm *ghvm = container_of(kref, struct gh_vm, kref);
+
+	/* VM will be reset and make RM calls which can interruptible sleep.
+	 * Defer to a work so this thread can receive signal.
+	 */
+	schedule_work(&ghvm->free_work);
+}
+
+void gh_vm_put(struct gh_vm *ghvm)
+{
+	kref_put(&ghvm->kref, _gh_vm_put);
+}
+EXPORT_SYMBOL_GPL(gh_vm_put);
 
 static int gh_vm_release(struct inode *inode, struct file *filp)
 {
@@ -802,7 +822,7 @@ static long gh_dev_ioctl_create_vm(struct gh_rm *rm, unsigned long arg)
 err_put_fd:
 	put_unused_fd(fd);
 err_destroy_vm:
-	gh_vm_free(&ghvm->free_work);
+	gh_vm_put(ghvm);
 	return err;
 }
 

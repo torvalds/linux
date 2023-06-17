@@ -6,18 +6,19 @@
 #ifndef _GUNYAH_RSC_MGR_H
 #define _GUNYAH_RSC_MGR_H
 
+#include <linux/android_vendor.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/gunyah.h>
 
-#define GH_VMID_INVAL	U16_MAX
+#define GH_VMID_INVAL		U16_MAX
 #define GH_MEM_HANDLE_INVAL	U32_MAX
 
 struct gh_rm;
-int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buff_size,
-		void **resp_buf, size_t *resp_buff_size);
-int gh_rm_notifier_register(struct gh_rm *rm, struct notifier_block *nb);
-int gh_rm_notifier_unregister(struct gh_rm *rm, struct notifier_block *nb);
+int gh_rm_call(void *rm, u32 message_id, const void *req_buf, size_t req_buf_size,
+		void **resp_buf, size_t *resp_buf_size);
+int gh_rm_notifier_register(void *rm, struct notifier_block *nb);
+int gh_rm_notifier_unregister(void *rm, struct notifier_block *nb);
 struct device *gh_rm_get(struct gh_rm *rm);
 void gh_rm_put(struct gh_rm *rm);
 
@@ -31,12 +32,6 @@ struct gh_rm_vm_exited_payload {
 #define GH_RM_NOTIFICATION_VM_EXITED		 0x56100001
 
 enum gh_rm_vm_status {
-	/**
-	 * RM doesn't have a state where load partially failed because
-	 * only Linux
-	 */
-	GH_RM_VM_STATUS_LOAD_FAILED	= -1,
-
 	GH_RM_VM_STATUS_NO_STATE	= 0,
 	GH_RM_VM_STATUS_INIT		= 1,
 	GH_RM_VM_STATUS_READY		= 2,
@@ -71,7 +66,7 @@ struct gh_rm_mem_acl_entry {
 } __packed;
 
 struct gh_rm_mem_entry {
-	__le64 ipa_base;
+	__le64 phys_addr;
 	__le64 size;
 } __packed;
 
@@ -81,16 +76,16 @@ enum gh_rm_mem_type {
 };
 
 /*
- * struct gh_rm_mem_parcel - Package info about memory to be lent/shared/donated/reclaimed
+ * struct gh_rm_mem_parcel - Info about memory to be lent/shared/donated/reclaimed
  * @mem_type: The type of memory: normal (DDR) or IO
  * @label: An client-specified identifier which can be used by the other VMs to identify the purpose
  *         of the memory parcel.
+ * @n_acl_entries: Count of the number of entries in the @acl_entries array.
  * @acl_entries: An array of access control entries. Each entry specifies a VM and what access
  *               is allowed for the memory parcel.
- * @n_acl_entries: Count of the number of entries in the `acl_entries` array.
- * @mem_entries: An list of regions to be associated with the memory parcel. Addresses should be
+ * @n_mem_entries: Count of the number of entries in the @mem_entries array.
+ * @mem_entries: An array of regions to be associated with the memory parcel. Addresses should be
  *               (intermediate) physical addresses from Linux's perspective.
- * @n_mem_entries: Count of the number of entries in the `mem_entries` array.
  * @mem_handle: On success, filled with memory handle that RM allocates for this memory parcel
  */
 struct gh_rm_mem_parcel {
@@ -101,6 +96,15 @@ struct gh_rm_mem_parcel {
 	size_t n_mem_entries;
 	struct gh_rm_mem_entry *mem_entries;
 	u32 mem_handle;
+
+	ANDROID_BACKPORT_RESERVED(1);
+	ANDROID_BACKPORT_RESERVED(2);
+	ANDROID_BACKPORT_RESERVED(3);
+	ANDROID_BACKPORT_RESERVED(4);
+	ANDROID_BACKPORT_RESERVED(5);
+	ANDROID_BACKPORT_RESERVED(6);
+	ANDROID_BACKPORT_RESERVED(7);
+	ANDROID_BACKPORT_RESERVED(8);
 };
 
 /* RPC Calls */
@@ -153,8 +157,13 @@ struct gh_resource *gh_rm_alloc_resource(struct gh_rm *rm, struct gh_rm_hyp_reso
 void gh_rm_free_resource(struct gh_resource *ghrsc);
 
 struct gh_rm_platform_ops {
-	int (*pre_mem_share)(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel);
-	int (*post_mem_reclaim)(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel);
+	int (*pre_mem_share)(void *rm, struct gh_rm_mem_parcel *mem_parcel);
+	int (*post_mem_reclaim)(void *rm, struct gh_rm_mem_parcel *mem_parcel);
+
+	ANDROID_BACKPORT_RESERVED(1);
+	ANDROID_BACKPORT_RESERVED(2);
+	ANDROID_BACKPORT_RESERVED(3);
+	ANDROID_BACKPORT_RESERVED(4);
 };
 
 #if IS_ENABLED(CONFIG_GUNYAH_PLATFORM_HOOKS)

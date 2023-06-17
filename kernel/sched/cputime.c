@@ -418,6 +418,7 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 	} else {
 		account_system_index_time(p, cputime, CPUTIME_SYSTEM);
 	}
+	trace_android_vh_irqtime_account_process_tick(p, this_rq(), user_tick, ticks);
 }
 
 static void irqtime_account_idle_ticks(int ticks)
@@ -492,23 +493,29 @@ EXPORT_SYMBOL_GPL(thread_group_cputime_adjusted);
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE: */
 
 /*
- * Account a single tick of CPU time.
+ * Account a single tick or a few ticks of CPU time.
  * @p: the process that the CPU time gets accounted to
  * @user_tick: indicates if the tick is a user or a system tick
  */
 void account_process_tick(struct task_struct *p, int user_tick)
 {
 	u64 cputime, steal;
+	int ticks = 1;
+
+	trace_android_vh_account_process_tick_gran(user_tick, &ticks);
+	if (!ticks)
+		return;
 
 	if (vtime_accounting_enabled_this_cpu())
 		return;
+	trace_android_vh_account_task_time(p, this_rq(), user_tick, ticks);
 
 	if (sched_clock_irqtime) {
-		irqtime_account_process_tick(p, user_tick, 1);
+		irqtime_account_process_tick(p, user_tick, ticks);
 		return;
 	}
 
-	cputime = TICK_NSEC;
+	cputime = TICK_NSEC * ticks;
 	steal = steal_account_process_time(ULONG_MAX);
 
 	if (steal >= cputime)

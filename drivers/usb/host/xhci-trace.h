@@ -80,20 +80,16 @@ DECLARE_EVENT_CLASS(xhci_log_ctx,
 		__field(dma_addr_t, ctx_dma)
 		__field(u8 *, ctx_va)
 		__field(unsigned, ctx_ep_num)
-		__field(int, slot_id)
 		__dynamic_array(u32, ctx_data,
 			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 8) *
 			((ctx->type == XHCI_CTX_TYPE_INPUT) + ep_num + 1))
 	),
 	TP_fast_assign(
-		struct usb_device *udev;
 
-		udev = to_usb_device(xhci_to_hcd(xhci)->self.controller);
 		__entry->ctx_64 = HCC_64BYTE_CONTEXT(xhci->hcc_params);
 		__entry->ctx_type = ctx->type;
 		__entry->ctx_dma = ctx->dma;
 		__entry->ctx_va = ctx->bytes;
-		__entry->slot_id = udev->slot_id;
 		__entry->ctx_ep_num = ep_num;
 		memcpy(__get_dynamic_array(ctx_data), ctx->bytes,
 			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 32) *

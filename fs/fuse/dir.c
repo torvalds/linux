@@ -259,7 +259,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 	}
 #endif
 	if (time_before64(fuse_dentry_time(entry), get_jiffies_64()) ||
-		 (flags & (LOOKUP_EXCL | LOOKUP_REVAL))) {
+		 (flags & (LOOKUP_EXCL | LOOKUP_REVAL | LOOKUP_RENAME_TARGET))) {
 		struct fuse_entry_out outarg;
 		struct fuse_entry_bpf bpf_arg;
 		FUSE_ARGS(args);

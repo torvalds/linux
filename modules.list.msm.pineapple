@@ -54,6 +54,7 @@ gh_msgq.ko
 gh_rm_drv.ko
 gunyah.ko
 gunyah_loader.ko
+gunyah_qcom.ko
 hwkm.ko
 crypto-qti.ko
 ufshcd-crypto-qti.ko

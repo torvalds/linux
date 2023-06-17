@@ -148,18 +148,18 @@ static void gh_control_hyp_uart(int val)
 
 static int gh_dbgfs_trace_class_set(void *data, u64 val)
 {
-	return gh_remap_error(gh_hcall_trace_update_class_flags(val, 0, NULL));
+	return gh_error_remap(gh_hcall_trace_update_class_flags(val, 0, NULL));
 }
 
 static int gh_dbgfs_trace_class_clear(void *data, u64 val)
 {
-	return gh_remap_error(gh_hcall_trace_update_class_flags(0, val, NULL));
+	return gh_error_remap(gh_hcall_trace_update_class_flags(0, val, NULL));
 }
 
 static int gh_dbgfs_trace_class_get(void *data, u64 *val)
 {
 	*val = 0;
-	return gh_remap_error(gh_hcall_trace_update_class_flags(0, 0, val));
+	return gh_error_remap(gh_hcall_trace_update_class_flags(0, 0, val));
 }
 
 static int gh_dbgfs_hyp_uart_set(void *data, u64 val)

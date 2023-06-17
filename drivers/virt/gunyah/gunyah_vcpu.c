@@ -41,19 +41,6 @@ struct gh_vcpu {
 	struct kref kref;
 };
 
-/* VCPU is ready to run */
-#define GH_VCPU_STATE_READY		0
-/* VCPU is sleeping until an interrupt arrives */
-#define GH_VCPU_STATE_EXPECTS_WAKEUP	1
-/* VCPU is powered off */
-#define GH_VCPU_STATE_POWERED_OFF	2
-/* VCPU is blocked in EL2 for unspecified reason */
-#define GH_VCPU_STATE_BLOCKED		3
-/* VCPU has returned for MMIO READ */
-#define GH_VCPU_ADDRSPACE_VMMIO_READ	4
-/* VCPU has returned for MMIO WRITE */
-#define GH_VCPU_ADDRSPACE_VMMIO_WRITE	5
-
 static void vcpu_release(struct kref *kref)
 {
 	struct gh_vcpu *vcpu = container_of(kref, struct gh_vcpu, kref);
@@ -80,6 +67,9 @@ static bool gh_handle_mmio(struct gh_vcpu *vcpu,
 	u64 addr = vcpu_run_resp->state_data[0],
 	    len  = vcpu_run_resp->state_data[1],
 	    data = vcpu_run_resp->state_data[2];
+
+	if (WARN_ON(len > sizeof(u64)))
+		len = sizeof(u64);
 
 	if (vcpu_run_resp->state == GH_VCPU_ADDRSPACE_VMMIO_READ) {
 		vcpu->vcpu_run->mmio.is_write = 0;
@@ -188,6 +178,8 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 		vcpu->state = GH_VCPU_READY;
 		break;
 	case GH_VCPU_MMIO_READ:
+		if (unlikely(vcpu->mmio_read_len > sizeof(state_data[0])))
+			vcpu->mmio_read_len = sizeof(state_data[0]);
 		memcpy(&state_data[0], vcpu->vcpu_run->mmio.data, vcpu->mmio_read_len);
 		vcpu->state = GH_VCPU_READY;
 		break;
@@ -205,7 +197,6 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 
 		gh_error = gh_hypercall_vcpu_run(vcpu->rsc->capid, state_data, &vcpu_run_resp);
 		if (gh_error == GH_ERROR_OK) {
-			ret = 0;
 			switch (vcpu_run_resp.state) {
 			case GH_VCPU_STATE_READY:
 				if (need_resched())
@@ -245,15 +236,15 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 				break;
 			default:
 				pr_warn_ratelimited("Unknown vCPU state: %llx\n",
-							vcpu_run_resp.state);
+							vcpu_run_resp.sized_state);
 				schedule();
 				break;
 			}
 		} else if (gh_error == GH_ERROR_RETRY) {
 			schedule();
-			ret = 0;
-		} else
-			ret = gh_remap_error(gh_error);
+		} else {
+			ret = gh_error_remap(gh_error);
+		}
 	}
 
 out:
@@ -323,14 +314,16 @@ static const struct file_operations gh_vcpu_fops = {
 	.mmap = gh_vcpu_mmap,
 };
 
-static int gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
+static bool gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
 {
 	struct gh_vcpu *vcpu = container_of(ticket, struct gh_vcpu, ticket);
 	int ret;
 
 	mutex_lock(&vcpu->run_lock);
 	if (vcpu->rsc) {
-		ret = -1;
+		pr_warn("vcpu%d already got a Gunyah resource. Check if multiple resources with same label were configured.\n",
+			vcpu->ticket.label);
+		ret = -EEXIST;
 		goto out;
 	}
 
@@ -342,9 +335,11 @@ static int gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_reso
 	if (ret)
 		pr_warn("Failed to request vcpu irq %d: %d", vcpu->rsc->irq, ret);
 
+	enable_irq_wake(vcpu->rsc->irq);
+
 out:
 	mutex_unlock(&vcpu->run_lock);
-	return ret;
+	return !ret;
 }
 
 static void gh_vcpu_unpopulate(struct gh_vm_resource_ticket *ticket,
@@ -399,15 +394,9 @@ static long gh_vcpu_bind(struct gh_vm_function_instance *f)
 	if (r)
 		goto err_destroy_page;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		r = fd;
-		goto err_remove_vcpu;
-	}
-
 	if (!gh_vm_get(f->ghvm)) {
 		r = -ENODEV;
-		goto err_put_fd;
+		goto err_remove_resource_ticket;
 	}
 	vcpu->ghvm = f->ghvm;
 
@@ -421,23 +410,30 @@ static long gh_vcpu_bind(struct gh_vm_function_instance *f)
 		goto err_put_gh_vm;
 
 	kref_get(&vcpu->kref);
-	snprintf(name, sizeof(name), "gh-vcpu:%d", vcpu->ticket.label);
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0) {
+		r = fd;
+		goto err_notifier;
+	}
+
+	snprintf(name, sizeof(name), "gh-vcpu:%u", vcpu->ticket.label);
 	file = anon_inode_getfile(name, &gh_vcpu_fops, vcpu, O_RDWR);
 	if (IS_ERR(file)) {
 		r = PTR_ERR(file);
-		goto err_notifier;
+		goto err_put_fd;
 	}
 
 	fd_install(fd, file);
 
 	return fd;
+err_put_fd:
+	put_unused_fd(fd);
 err_notifier:
 	gh_rm_notifier_unregister(f->rm, &vcpu->nb);
 err_put_gh_vm:
 	gh_vm_put(vcpu->ghvm);
-err_put_fd:
-	put_unused_fd(fd);
-err_remove_vcpu:
+err_remove_resource_ticket:
 	gh_vm_remove_resource_ticket(f->ghvm, &vcpu->ticket);
 err_destroy_page:
 	free_page((unsigned long)vcpu->vcpu_run);
@@ -457,6 +453,18 @@ static void gh_vcpu_unbind(struct gh_vm_function_instance *f)
 	kref_put(&vcpu->kref, vcpu_release);
 }
 
-DECLARE_GH_VM_FUNCTION_INIT(vcpu, GH_FN_VCPU, gh_vcpu_bind, gh_vcpu_unbind);
-MODULE_DESCRIPTION("Gunyah vCPU Driver");
+static bool gh_vcpu_compare(const struct gh_vm_function_instance *f,
+				const void *arg, size_t size)
+{
+	const struct gh_fn_vcpu_arg *instance = f->argp,
+					 *other = arg;
+
+	if (sizeof(*other) != size)
+		return false;
+
+	return instance->id == other->id;
+}
+
+DECLARE_GH_VM_FUNCTION_INIT(vcpu, GH_FN_VCPU, 1, gh_vcpu_bind, gh_vcpu_unbind, gh_vcpu_compare);
+MODULE_DESCRIPTION("Gunyah vCPU Function");
 MODULE_LICENSE("GPL");

@@ -10,4 +10,4 @@ vmlinux
 System.map
 "
 
-NDK_TRIPLE=arm-linux-androideabi31
+NDK_TRIPLE=${ARM_NDK_TRIPLE}

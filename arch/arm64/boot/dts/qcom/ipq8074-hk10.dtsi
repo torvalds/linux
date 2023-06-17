@@ -22,7 +22,7 @@
 };
 
 &blsp1_spi1 {
-	status = "ok";
+	status = "okay";
 
 	flash@0 {
 		#address-cells = <1>;
@@ -34,33 +34,33 @@
 };
 
 &blsp1_uart5 {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie0 {
-	status = "ok";
+	status = "okay";
 	perst-gpios = <&tlmm 58 0x1>;
 };
 
 &pcie1 {
-	status = "ok";
+	status = "okay";
 	perst-gpios = <&tlmm 61 0x1>;
 };
 
-&pcie_phy0 {
-	status = "ok";
+&pcie_qmp0 {
+	status = "okay";
 };
 
-&pcie_phy1 {
-	status = "ok";
+&pcie_qmp1 {
+	status = "okay";
 };
 
 &qpic_bam {
-	status = "ok";
+	status = "okay";
 };
 
 &qpic_nand {
-	status = "ok";
+	status = "okay";
 
 	nand@0 {
 		reg = <0>;

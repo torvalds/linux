@@ -12,6 +12,25 @@ package(
     ],
 )
 
+_GKI_AARCH64_MAKE_GOALS = [
+    "Image",
+    "Image.lz4",
+    "Image.gz",
+    "modules",
+]
+
+_GKI_RISCV64_MAKE_GOALS = [
+    "Image",
+    "Image.lz4",
+    "Image.gz",
+    "modules",
+]
+
+_GKI_X86_64_MAKE_GOALS = [
+    "bzImage",
+    "modules",
+]
+
 filegroup(
     name = "aarch64_additional_kmi_symbol_lists",
     srcs = [
@@ -19,11 +38,13 @@ filegroup(
         "android/abi_gki_aarch64_db845c",
         "android/abi_gki_aarch64_exynos",
         "android/abi_gki_aarch64_galaxy",
+        "android/abi_gki_aarch64_honor",
         "android/abi_gki_aarch64_imx",
         "android/abi_gki_aarch64_mtk",
         "android/abi_gki_aarch64_oplus",
         "android/abi_gki_aarch64_pixel",
         "android/abi_gki_aarch64_qcom",
+        "android/abi_gki_aarch64_unisoc",
         "android/abi_gki_aarch64_virtual_device",
         "android/abi_gki_aarch64_vivo",
         "android/abi_gki_aarch64_xiaomi",
@@ -39,10 +60,12 @@ define_common_kernels(target_configs = {
         "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
         "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
     },
     "kernel_aarch64_16k": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
     },
     "kernel_aarch64_debug": {
         "kmi_symbol_list_strict_mode": False,
@@ -51,22 +74,26 @@ define_common_kernels(target_configs = {
         "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
         "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
     },
     "kernel_riscv64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "make_goals": _GKI_RISCV64_MAKE_GOALS,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
         "protected_exports_list": "android/abi_gki_protected_exports_x86_64",
         "protected_modules_list": "android/gki_x86_64_protected_modules",
+        "make_goals": _GKI_X86_64_MAKE_GOALS,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
         "protected_exports_list": "android/abi_gki_protected_exports_x86_64",
         "protected_modules_list": "android/gki_x86_64_protected_modules",
+        "make_goals": _GKI_X86_64_MAKE_GOALS,
     },
 })
 
@@ -79,6 +106,12 @@ define_db845c(
     ],
     define_abi_targets = True,
     kmi_symbol_list = "//common:android/abi_gki_aarch64_db845c",
+    make_goals = [
+        "modules",
+        "qcom/sdm845-db845c.dtb",
+        "qcom/qrb5165-rb5.dtb",
+        "qcom/sm8450-qrd.dtb",
+    ],
     module_outs = [
         # keep sorted
         "crypto/michael_mic.ko",
@@ -229,10 +262,12 @@ define_db845c(
         "drivers/usb/typec/qcom-pmic-typec.ko",
         "drivers/watchdog/pm8916_wdt.ko",
         "drivers/watchdog/qcom-wdt.ko",
+        "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",
         "net/qrtr/qrtr-tun.ko",
+        "net/wireless/cfg80211.ko",
         "sound/soc/codecs/snd-soc-dmic.ko",
         "sound/soc/codecs/snd-soc-hdmi-codec.ko",
         "sound/soc/codecs/snd-soc-lpass-macro-common.ko",
@@ -288,6 +323,11 @@ kernel_build(
     ],
     build_config = "build.config.rockpi4",
     dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    make_goals = [
+        "Image",
+        "modules",
+        "rk3399-rock-pi-4b.dtb",
+    ],
     module_outs = COMMON_GKI_MODULES_LIST + [
         # keep sorted
         "drivers/block/virtio_blk.ko",
