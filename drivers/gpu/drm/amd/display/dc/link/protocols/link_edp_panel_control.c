@@ -320,7 +320,7 @@ bool edp_is_ilr_optimization_required(struct dc_link *link,
 	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
 				&lane_count_set.raw, sizeof(lane_count_set));
 
-	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
+	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing, dc_link_get_highest_encoding_format(link));
 
 	if (!crtc_timing->flags.DSC)
 		edp_decide_link_settings(link, &link_setting, req_bw);

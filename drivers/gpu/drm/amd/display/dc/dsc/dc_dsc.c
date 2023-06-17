@@ -85,7 +85,8 @@ static uint32_t apply_128b_132b_stream_overhead(
 }
 
 uint32_t dc_bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing)
+	const struct dc_crtc_timing *timing,
+	const enum dc_link_encoding_format link_encoding)
 {
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
@@ -133,6 +134,9 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 			kbps = kbps * 2 / 3;
 	}
 
+	if (link_encoding == DC_LINK_ENCODING_DP_128b_132b)
+		kbps = apply_128b_132b_stream_overhead(timing, kbps);
+
 	return kbps;
 }
 
@@ -144,6 +148,7 @@ static bool decide_dsc_bandwidth_range(
 		const uint32_t num_slices_h,
 		const struct dsc_enc_caps *dsc_caps,
 		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_bw_range *range);
 
 static uint32_t compute_bpp_x16_from_target_bandwidth(
@@ -170,6 +175,7 @@ static bool setup_dsc_config(
 		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		const struct dc_dsc_config_options *options,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_config *dsc_cfg);
 
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
@@ -435,6 +441,7 @@ bool dc_dsc_compute_bandwidth_range(
 		uint32_t max_bpp_x16,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_bw_range *range)
 {
 	bool is_dsc_possible = false;
@@ -454,11 +461,11 @@ bool dc_dsc_compute_bandwidth_range(
 
 	if (is_dsc_possible)
 		is_dsc_possible = setup_dsc_config(dsc_sink_caps, &dsc_enc_caps, 0, timing,
-				&options, &config);
+				&options, link_encoding, &config);
 
 	if (is_dsc_possible)
 		is_dsc_possible = decide_dsc_bandwidth_range(min_bpp_x16, max_bpp_x16,
-				config.num_slices_h, &dsc_common_caps, timing, range);
+				config.num_slices_h, &dsc_common_caps, timing, link_encoding, range);
 
 	return is_dsc_possible;
 }
@@ -594,6 +601,7 @@ static bool decide_dsc_bandwidth_range(
 		const uint32_t num_slices_h,
 		const struct dsc_enc_caps *dsc_caps,
 		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_bw_range *range)
 {
 	uint32_t preferred_bpp_x16 = timing->dsc_fixed_bits_per_pixel_x16;
@@ -623,7 +631,7 @@ static bool decide_dsc_bandwidth_range(
 	/* populate output structure */
 	if (range->max_target_bpp_x16 >= range->min_target_bpp_x16 && range->min_target_bpp_x16 > 0) {
 		/* native stream bandwidth */
-		range->stream_kbps = dc_bandwidth_in_kbps_from_timing(timing);
+		range->stream_kbps = dc_bandwidth_in_kbps_from_timing(timing, link_encoding);
 
 		/* max dsc target bpp */
 		range->max_kbps = dc_dsc_stream_bandwidth_in_kbps(timing,
@@ -649,6 +657,7 @@ static bool decide_dsc_target_bpp_x16(
 		const int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		const int num_slices_h,
+		const enum dc_link_encoding_format link_encoding,
 		int *target_bpp_x16)
 {
 	struct dc_dsc_bw_range range;
@@ -656,7 +665,7 @@ static bool decide_dsc_target_bpp_x16(
 	*target_bpp_x16 = 0;
 
 	if (decide_dsc_bandwidth_range(policy->min_target_bpp * 16, policy->max_target_bpp * 16,
-			num_slices_h, dsc_common_caps, timing, &range)) {
+			num_slices_h, dsc_common_caps, timing, link_encoding, &range)) {
 		if (target_bandwidth_kbps >= range.stream_kbps) {
 			if (policy->enable_dsc_when_not_needed)
 				/* enable max bpp even dsc is not needed */
@@ -833,6 +842,7 @@ static bool setup_dsc_config(
 		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		const struct dc_dsc_config_options *options,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_config *dsc_cfg)
 {
 	struct dsc_enc_caps dsc_common_caps;
@@ -1032,6 +1042,7 @@ static bool setup_dsc_config(
 				target_bandwidth_kbps,
 				timing,
 				num_slices_h,
+				link_encoding,
 				&target_bpp);
 		dsc_cfg->bits_per_pixel = target_bpp;
 	}
@@ -1060,6 +1071,7 @@ bool dc_dsc_compute_config(
 		const struct dc_dsc_config_options *options,
 		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_config *dsc_cfg)
 {
 	bool is_dsc_possible = false;
@@ -1069,7 +1081,7 @@ bool dc_dsc_compute_config(
 	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
 		&dsc_enc_caps,
 		target_bandwidth_kbps,
-		timing, options, dsc_cfg);
+		timing, options, link_encoding, dsc_cfg);
 	return is_dsc_possible;
 }
 

@@ -878,7 +878,7 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_0_mps; /* In MPs */
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
-	bool is_dp;
+	bool is_dp; /* Decoded format */
 };
 
 struct dc_golden_table {
@@ -899,6 +899,14 @@ enum dc_gpu_mem_alloc_type {
 	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 	DC_MEM_ALLOC_TYPE_INVISIBLE_FRAME_BUFFER,
 	DC_MEM_ALLOC_TYPE_AGP
+};
+
+enum dc_link_encoding_format {
+	DC_LINK_ENCODING_UNSPECIFIED = 0,
+	DC_LINK_ENCODING_DP_8b_10b,
+	DC_LINK_ENCODING_DP_128b_132b,
+	DC_LINK_ENCODING_HDMI_TMDS,
+	DC_LINK_ENCODING_HDMI_FRL
 };
 
 enum dc_psr_version {
