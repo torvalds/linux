@@ -1192,7 +1192,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 	if (!rtllib_act_scanning(priv->rtllib, false)) {
 		if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->link_state ==
-		     RTLLIB_NOLINK) &&
+		     MAC80211_NOLINK) &&
 		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
 			if ((ieee->pwr_save_ctrl.ReturnPoint ==

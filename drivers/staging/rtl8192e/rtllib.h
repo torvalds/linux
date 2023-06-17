@@ -1121,7 +1121,7 @@ struct rtllib_network {
 
 enum rtl_link_state {
 	/* the card is not linked at all */
-	RTLLIB_NOLINK = 0,
+	MAC80211_NOLINK = 0,
 
 	/* RTLLIB_ASSOCIATING* are for BSS client mode
 	 * the driver shall not perform RX filtering unless

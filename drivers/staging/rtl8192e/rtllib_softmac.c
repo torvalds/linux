@@ -508,7 +508,7 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		 *    performing a complete syncro scan before conclude
 		 *    there are no interesting cell and to create a
 		 *    new one. In this case the link state is
-		 *    RTLLIB_NOLINK until we found an interesting cell.
+		 *    MAC80211_NOLINK until we found an interesting cell.
 		 *    If so the ieee8021_new_net, called by the RX path
 		 *    will set the state to RTLLIB_LINKED, so we stop
 		 *    scanning
@@ -1548,7 +1548,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 	/* we are interested in new only if we are not associated
 	 * and we are not associating / authenticating
 	 */
-	if (ieee->link_state != RTLLIB_NOLINK)
+	if (ieee->link_state != MAC80211_NOLINK)
 		return;
 
 	if ((ieee->iw_mode == IW_MODE_INFRA) && !(net->capability &
@@ -1682,7 +1682,7 @@ static void rtllib_softmac_check_all_nets(struct rtllib_device *ieee)
 		 * we had found what we are searching for
 		 */
 
-		if (ieee->link_state != RTLLIB_NOLINK)
+		if (ieee->link_state != MAC80211_NOLINK)
 			break;
 
 		if (ieee->scan_age == 0 || time_after(target->last_scanned +
@@ -2495,7 +2495,7 @@ static void rtllib_start_ibss_wq(void *data)
 		ieee->ssid_set = 1;
 	}
 
-	ieee->link_state = RTLLIB_NOLINK;
+	ieee->link_state = MAC80211_NOLINK;
 	ieee->mode = WIRELESS_MODE_G;
 	/* check if we have this cell in our network list */
 	rtllib_softmac_check_all_nets(ieee);
@@ -2514,11 +2514,11 @@ static void rtllib_start_ibss_wq(void *data)
 	 * scan, that will stop at the first round because it sees the state
 	 * associated.
 	 */
-	if (ieee->link_state == RTLLIB_NOLINK)
+	if (ieee->link_state == MAC80211_NOLINK)
 		rtllib_start_scan_syncro(ieee, 0);
 
 	/* the network definitively is not here.. create a new cell */
-	if (ieee->link_state == RTLLIB_NOLINK) {
+	if (ieee->link_state == MAC80211_NOLINK) {
 		netdev_info(ieee->dev, "creating new IBSS cell\n");
 		ieee->current_network.channel = ieee->bss_start_channel;
 		if (!ieee->wap_set)
@@ -2623,7 +2623,7 @@ static void rtllib_start_bss(struct rtllib_device *ieee)
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if (ieee->link_state == RTLLIB_NOLINK)
+	if (ieee->link_state == MAC80211_NOLINK)
 		rtllib_start_scan(ieee);
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
@@ -2643,7 +2643,7 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 
 	if (IS_DOT11D_ENABLE(ieee))
 		dot11d_reset(ieee);
-	ieee->link_state = RTLLIB_NOLINK;
+	ieee->link_state = MAC80211_NOLINK;
 	ieee->is_set_key = false;
 	ieee->wap_set = 0;
 
@@ -2665,11 +2665,11 @@ static void rtllib_associate_retry_wq(void *data)
 	if (ieee->link_state != RTLLIB_ASSOCIATING_RETRY)
 		goto exit;
 
-	/* until we do not set the state to RTLLIB_NOLINK
+	/* until we do not set the state to MAC80211_NOLINK
 	 * there are no possibility to have someone else trying
 	 * to start an association procedure (we get here with
 	 * ieee->link_state = RTLLIB_ASSOCIATING).
-	 * When we set the state to RTLLIB_NOLINK it is possible
+	 * When we set the state to MAC80211_NOLINK it is possible
 	 * that the RX path run an attempt to associate, but
 	 * both rtllib_softmac_check_all_nets and the
 	 * RX path works with ieee->lock held so there are no
@@ -2679,13 +2679,13 @@ static void rtllib_associate_retry_wq(void *data)
 	 * state and we are going to start the scan.
 	 */
 	ieee->beinretry = true;
-	ieee->link_state = RTLLIB_NOLINK;
+	ieee->link_state = MAC80211_NOLINK;
 
 	rtllib_softmac_check_all_nets(ieee);
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if (ieee->link_state == RTLLIB_NOLINK)
+	if (ieee->link_state == MAC80211_NOLINK)
 		rtllib_start_scan(ieee);
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
@@ -2763,7 +2763,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 	rtllib_stop_scan(ieee);
 
 	if (ieee->link_state <= RTLLIB_ASSOCIATING_AUTHENTICATED)
-		ieee->link_state = RTLLIB_NOLINK;
+		ieee->link_state = MAC80211_NOLINK;
 
 	if (ieee->link_state == RTLLIB_LINKED) {
 		if (ieee->iw_mode == IW_MODE_INFRA)
@@ -2845,7 +2845,7 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 
 	memset(&ieee->current_network, 0, sizeof(struct rtllib_network));
 
-	ieee->link_state = RTLLIB_NOLINK;
+	ieee->link_state = MAC80211_NOLINK;
 	for (i = 0; i < 5; i++)
 		ieee->seq_ctrl[i] = 0;
 	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
@@ -3036,7 +3036,7 @@ static void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
 	u8	i;
 	bool	bFilterOutNonAssociatedBSSID = false;
 
-	rtllib->link_state = RTLLIB_NOLINK;
+	rtllib->link_state = MAC80211_NOLINK;
 
 	for (i = 0; i < 6; i++)
 		rtllib->current_network.bssid[i] = 0x55;
@@ -3063,7 +3063,7 @@ static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
 	RemovePeerTS(rtllib, asSta);
 
 	if (memcmp(rtllib->current_network.bssid, asSta, 6) == 0) {
-		rtllib->link_state = RTLLIB_NOLINK;
+		rtllib->link_state = MAC80211_NOLINK;
 
 		for (i = 0; i < 6; i++)
 			rtllib->current_network.bssid[i] = 0x22;
@@ -3092,7 +3092,7 @@ rtllib_MgntDisconnectAP(
 	rtllib_MlmeDisassociateRequest(rtllib, rtllib->current_network.bssid,
 				       asRsn);
 
-	rtllib->link_state = RTLLIB_NOLINK;
+	rtllib->link_state = MAC80211_NOLINK;
 }
 
 bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn)

@@ -2643,7 +2643,7 @@ static inline void rtllib_process_probe_response(
 		    || ((ieee->current_network.ssid_len == network->ssid_len) &&
 		    (strncmp(ieee->current_network.ssid, network->ssid,
 		    network->ssid_len) == 0) &&
-		    (ieee->link_state == RTLLIB_NOLINK))))
+		    (ieee->link_state == MAC80211_NOLINK))))
 			renew = 1;
 		update_network(ieee, target, network);
 		if (renew && (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE))
