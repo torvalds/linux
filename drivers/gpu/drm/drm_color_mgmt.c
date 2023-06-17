@@ -33,7 +33,7 @@
 /**
  * DOC: overview
  *
- * Color management or color space adjustments is supported through a set of 7
+ * Color management or color space adjustments is supported through a set of 5
  * properties on the &drm_crtc object. They are set up by calling
  * drm_crtc_enable_color_mgmt().
  *
@@ -60,7 +60,7 @@
  * “CTM”:
  *	Blob property to set the current transformation matrix (CTM) apply to
  *	pixel data after the lookup through the degamma LUT and before the
- *	lookup through the cubic LUT. The data is interpreted as a struct
+ *	lookup through the gamma LUT. The data is interpreted as a struct
  *	&drm_color_ctm.
  *
  *	Setting this to NULL (blob property value set to 0) means a
@@ -68,40 +68,13 @@
  *	boot-up state too. Drivers can access the blob for the color conversion
  *	matrix through &drm_crtc_state.ctm.
  *
- * ”CUBIC_LUT”:
- *	Blob property to set the cubic (3D) lookup table performing color
- *	mapping after the transformation matrix and before the lookup through
- *	the gamma LUT. Unlike the degamma and gamma LUTs that map color
- *	components independently, the 3D LUT converts an input color to an
- *	output color by indexing into the 3D table using the color components
- *	as a 3D coordinate. The LUT is subsampled as 8-bit (or more) precision
- *	would require too much storage space in the hardware, so the precision
- *	of the color components is reduced before the look up, and the low
- *	order bits may be used to interpolate between the nearest points in 3D
- *	space.
- *
- *	The data is interpreted as an array of &struct drm_color_lut elements.
- *	Hardware might choose not to use the full precision of the LUT
- *	elements.
- *
- *	Setting this to NULL (blob property value set to 0) means the output
- *	color is identical to the input color. This is generally the driver
- *	boot-up state too. Drivers can access this blob through
- *	&drm_crtc_state.cubic_lut.
- *
- * ”CUBIC_LUT_SIZE”:
- *	Unsigned range property to give the size of the lookup table to be set
- *	on the CUBIC_LUT property (the size depends on the underlying hardware).
- *	If drivers support multiple LUT sizes then they should publish the
- *	largest size, and sub-sample smaller sized LUTs appropriately.
- *
  * “GAMMA_LUT”:
  *	Blob property to set the gamma lookup table (LUT) mapping pixel data
- *	after the cubic LUT to data sent to the connector. The data is
- *	interpreted as an array of &struct drm_color_lut elements. Hardware
- *	might choose not to use the full precision of the LUT elements nor use
- *	all the elements of the LUT (for example the hardware might choose to
- *	interpolate between LUT[0] and LUT[4]).
+ *	after the transformation matrix to data sent to the connector. The
+ *	data is interpreted as an array of &struct drm_color_lut elements.
+ *	Hardware might choose not to use the full precision of the LUT elements
+ *	nor use all the elements of the LUT (for example the hardware might
+ *	choose to interpolate between LUT[0] and LUT[4]).
  *
  *	Setting this to NULL (blob property value set to 0) means a
  *	linear/pass-thru gamma table should be used. This is generally the

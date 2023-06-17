@@ -459,16 +459,6 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
-#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
-	} else if (property == config->cubic_lut_property) {
-		ret = drm_atomic_replace_property_blob_from_id(dev,
-					&state->cubic_lut,
-					val,
-					-1, sizeof(struct drm_color_lut),
-					&replaced);
-		state->color_mgmt_changed |= replaced;
-		return ret;
-#endif
 	} else if (property == config->prop_out_fence_ptr) {
 		s32 __user *fence_ptr = u64_to_user_ptr(val);
 
@@ -511,10 +501,6 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = (state->ctm) ? state->ctm->base.id : 0;
 	else if (property == config->gamma_lut_property)
 		*val = (state->gamma_lut) ? state->gamma_lut->base.id : 0;
-#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
-	else if (property == config->cubic_lut_property)
-		*val = (state->cubic_lut) ? state->cubic_lut->base.id : 0;
-#endif
 	else if (property == config->prop_out_fence_ptr)
 		*val = 0;
 	else if (crtc->funcs->atomic_get_property)

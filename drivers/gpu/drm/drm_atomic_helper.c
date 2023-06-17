@@ -3554,9 +3554,6 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	replaced  = drm_property_replace_blob(&crtc_state->degamma_lut, NULL);
 	replaced |= drm_property_replace_blob(&crtc_state->ctm, NULL);
 	replaced |= drm_property_replace_blob(&crtc_state->gamma_lut, blob);
-#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
-	replaced |= drm_property_replace_blob(&crtc_state->cubic_lut, NULL);
-#endif
 	crtc_state->color_mgmt_changed |= replaced;
 
 	ret = drm_atomic_commit(state);

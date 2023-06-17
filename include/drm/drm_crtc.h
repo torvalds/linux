@@ -287,16 +287,7 @@ struct drm_crtc_state {
 	 * NULL) is an array of &struct drm_color_lut.
 	 */
 	struct drm_property_blob *gamma_lut;
-#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
-	/**
-	 * @cubic_lut:
-	 *
-	 * Cubic Lookup table for converting pixel data. See
-	 * drm_crtc_enable_color_mgmt(). The blob (if not NULL) is a 3D array
-	 * of &struct drm_color_lut.
-	 */
-	struct drm_property_blob *cubic_lut;
-#endif
+
 	/**
 	 * @target_vblank:
 	 *
