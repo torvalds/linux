@@ -226,13 +226,12 @@ static ssize_t tt_toggle_store(struct device *dev,
 
 	if (value) {
 		rval = tt_toggle_enable();
-		if (rval)
-			return rval;
 	} else {
 		rval = tt_toggle_disable();
-		if (rval)
-			return rval;
 	}
+	if (rval)
+		return rval;
+
 	return count;
 }
 
