@@ -386,8 +386,6 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			#address-cells = <0>;
-			#size-cells = <0>;
 		};
 	};
 
