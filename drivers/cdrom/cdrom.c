@@ -264,6 +264,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/nospec.h>
 #include <linux/slab.h> 
 #include <linux/cdrom.h>
 #include <linux/sysctl.h>
@@ -2310,6 +2311,9 @@ static int cdrom_ioctl_media_changed(struct cdrom_device_info *cdi,
 
 	if (arg >= cdi->capacity)
 		return -EINVAL;
+
+	/* Prevent arg from speculatively bypassing the length check */
+	barrier_nospec();
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
