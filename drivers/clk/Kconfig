@@ -517,4 +517,11 @@ config CLK_GATE_KUNIT_TEST
 	help
 	  Kunit test for the basic clk gate type.
 
+config CLK_FD_KUNIT_TEST
+	tristate "Basic fractional divider type Kunit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit test for the clk-fractional-divider type.
+
 endif
