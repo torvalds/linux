@@ -481,6 +481,7 @@ static int remove_pagetable(unsigned long start, unsigned long end, bool direct)
  */
 static int vmem_add_range(unsigned long start, unsigned long size)
 {
+	start = (unsigned long)__va(start);
 	return add_pagetable(start, start + size, true);
 }
 
@@ -489,6 +490,7 @@ static int vmem_add_range(unsigned long start, unsigned long size)
  */
 static void vmem_remove_range(unsigned long start, unsigned long size)
 {
+	start = (unsigned long)__va(start);
 	remove_pagetable(start, start + size, true);
 }
 
