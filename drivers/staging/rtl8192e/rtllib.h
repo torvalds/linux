@@ -1153,7 +1153,7 @@ enum rtl_link_state {
 	 * logically linked, but it is doing a syncro site survey
 	 * then it will be back to LINKED state.
 	 */
-	RTLLIB_LINKED_SCANNING,
+	MAC80211_LINKED_SCANNING,
 };
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)

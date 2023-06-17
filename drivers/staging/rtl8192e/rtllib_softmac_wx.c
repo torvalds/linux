@@ -96,7 +96,7 @@ int rtllib_wx_get_wap(struct rtllib_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (ieee->link_state != MAC80211_LINKED &&
-		ieee->link_state != RTLLIB_LINKED_SCANNING &&
+		ieee->link_state != MAC80211_LINKED_SCANNING &&
 		ieee->wap_set == 0)
 
 		eth_zero_addr(wrqu->ap_addr.sa_data);
@@ -185,7 +185,7 @@ int rtllib_wx_get_essid(struct rtllib_device *ieee, struct iw_request_info *a,
 	}
 
 	if (ieee->link_state != MAC80211_LINKED &&
-		ieee->link_state != RTLLIB_LINKED_SCANNING &&
+		ieee->link_state != MAC80211_LINKED_SCANNING &&
 		ieee->ssid_set == 0) {
 		ret = -1;
 		goto out;
@@ -323,7 +323,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 	rtllib_stop_all_queues(ieee);
 	rtllib_stop_send_beacons(ieee);
-	ieee->link_state = RTLLIB_LINKED_SCANNING;
+	ieee->link_state = MAC80211_LINKED_SCANNING;
 	ieee->link_change(ieee->dev);
 	/* wait for ps packet to be kicked out successfully */
 	msleep(50);
