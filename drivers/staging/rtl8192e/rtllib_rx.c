@@ -2329,9 +2329,7 @@ static inline int rtllib_network_init(
 	}
 
 	if (network->bssht.bd_support_ht) {
-		if (network->mode == IEEE_A)
-			network->mode = IEEE_N_5G;
-		else if (network->mode & (IEEE_G | IEEE_B))
+		if (network->mode & (IEEE_G | IEEE_B))
 			network->mode = IEEE_N_24G;
 	}
 	if (rtllib_is_empty_essid(network->ssid, network->ssid_len))

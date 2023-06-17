@@ -1816,9 +1816,6 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 	rtl92e_config_rate(dev, &rate_config);
 	ratr_value = rate_config | *pMcsRate << 12;
 	switch (ieee->mode) {
-	case IEEE_A:
-		ratr_value &= 0x00000FF0;
-		break;
 	case IEEE_B:
 		ratr_value &= 0x0000000F;
 		break;
@@ -1827,7 +1824,6 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		ratr_value &= 0x00000FF7;
 		break;
 	case IEEE_N_24G:
-	case IEEE_N_5G:
 		if (ieee->ht_info->peer_mimo_ps == 0)
 			ratr_value &= 0x0007F007;
 		else

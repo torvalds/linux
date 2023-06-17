@@ -309,9 +309,7 @@ enum rt_op_mode {
 };
 
 #define aSifsTime						\
-	 (((priv->rtllib->current_network.mode == IEEE_A)	\
-	|| (priv->rtllib->current_network.mode == IEEE_N_24G)	\
-	|| (priv->rtllib->current_network.mode == IEEE_N_5G)) ? 16 : 10)
+	 ((priv->rtllib->current_network.mode == IEEE_N_24G) ? 16 : 10)
 
 #define MGMT_QUEUE_NUM 5
 
@@ -1724,12 +1722,10 @@ struct rtllib_device {
 	u8 priv[];
 };
 
-#define IEEE_A	    (1<<0)
 #define IEEE_B	    (1<<1)
 #define IEEE_G	    (1<<2)
 #define IEEE_N_24G		  (1<<4)
-#define	IEEE_N_5G		  (1<<5)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+#define IEEE_MODE_MASK    (IEEE_B | IEEE_G)
 
 /* Generate a 802.11 header */
 

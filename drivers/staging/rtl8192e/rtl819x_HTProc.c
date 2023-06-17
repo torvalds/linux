@@ -424,14 +424,12 @@ static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
 	}
 
 	switch (ieee->mode) {
-	case IEEE_A:
 	case IEEE_B:
 	case IEEE_G:
 		for (i = 0; i <= 15; i++)
 			pOperateMCS[i] = 0;
 		break;
 	case IEEE_N_24G:
-	case IEEE_N_5G:
 		pOperateMCS[0] &= RATE_ADPT_1SS_MASK;
 		pOperateMCS[1] &= RATE_ADPT_2SS_MASK;
 		pOperateMCS[3] &= RATE_ADPT_MCS32_MASK;

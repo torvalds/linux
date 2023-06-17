@@ -181,9 +181,7 @@ static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 		rate = ieee->basic_rate & 0x7f;
 
 	if (rate == 0) {
-		if (ieee->mode == IEEE_A ||
-		   ieee->mode == IEEE_N_5G ||
-		   (ieee->mode == IEEE_N_24G && !ht_info->bCurSuppCCK))
+		if (ieee->mode == IEEE_N_24G && !ht_info->bCurSuppCCK)
 			rate = 0x0c;
 		else
 			rate = 0x02;
@@ -2577,7 +2575,7 @@ static void rtllib_start_ibss_wq(void *data)
 	}
 
 	netdev_info(ieee->dev, "%s(): ieee->mode = %d\n", __func__, ieee->mode);
-	if ((ieee->mode == IEEE_N_24G) || (ieee->mode == IEEE_N_5G))
+	if (ieee->mode == IEEE_N_24G)
 		HTUseDefaultSetting(ieee);
 	else
 		ieee->ht_info->bCurrentHTSupport = false;
