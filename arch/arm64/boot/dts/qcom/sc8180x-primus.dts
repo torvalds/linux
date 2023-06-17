@@ -377,11 +377,9 @@
 
 			backlight = <&backlight>;
 
-			ports {
-				port {
-					auo_b133han05_in: endpoint {
-						remote-endpoint = <&mdss_edp_out>;
-					};
+			port {
+				auo_b133han05_in: endpoint {
+					remote-endpoint = <&mdss_edp_out>;
 				};
 			};
 		};
