@@ -87,6 +87,25 @@
 		clock-frequency = <19200000>;
 	};
 
+	vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "vph_pwr";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+	};
+
+	vlcm_3v3: regulator-vlcm-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vlcm_3v3";
+
+		vin-supply = <&vph_pwr>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 88 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&sn65dsi86 1000000>;
@@ -419,6 +438,7 @@
 			panel: panel {
 				compatible = "boe,nv133fhm-n61";
 				backlight = <&backlight>;
+				power-supply = <&vlcm_3v3>;
 
 				port {
 					panel_in_edp: endpoint {
