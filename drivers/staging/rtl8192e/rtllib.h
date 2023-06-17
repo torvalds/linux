@@ -1119,7 +1119,7 @@ struct rtllib_network {
 	struct list_head list;
 };
 
-enum rtllib_state {
+enum rtl_link_state {
 	/* the card is not linked at all */
 	RTLLIB_NOLINK = 0,
 
@@ -1489,7 +1489,7 @@ struct rtllib_device {
 	 */
 	struct rtllib_network current_network;
 
-	enum rtllib_state state;
+	enum rtl_link_state state;
 
 	int short_slot;
 	int mode;       /* A, B, G */
