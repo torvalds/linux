@@ -83,6 +83,7 @@
 			  "SD_DATA2_R",
 			  "SD_DATA3_R";
 
+	pinctrl-names = "default";
 	pinctrl-0 = <&gpioout &alt0>;
 };
 
