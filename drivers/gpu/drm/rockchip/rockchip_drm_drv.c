@@ -1337,6 +1337,9 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	private->aclk_prop = drm_property_create_range(dev, 0, "ACLK", 0, UINT_MAX);
 	private->bg_prop = drm_property_create_range(dev, 0, "BACKGROUND", 0, UINT_MAX);
 	private->line_flag_prop = drm_property_create_range(dev, 0, "LINE_FLAG1", 0, UINT_MAX);
+	private->cubic_lut_prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "CUBIC_LUT", 0);
+	private->cubic_lut_size_prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
+								 "CUBIC_LUT_SIZE", 0, UINT_MAX);
 
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }

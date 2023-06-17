@@ -255,6 +255,7 @@ struct rockchip_crtc_state {
 	struct drm_property_blob *hdr_ext_data;
 	struct drm_property_blob *acm_lut_data;
 	struct drm_property_blob *post_csc_data;
+	struct drm_property_blob *cubic_lut_data;
 
 	int request_refresh_rate;
 	int max_refresh_rate;
@@ -452,6 +453,8 @@ struct rockchip_drm_private {
 	struct drm_property *aclk_prop;
 	struct drm_property *bg_prop;
 	struct drm_property *line_flag_prop;
+	struct drm_property *cubic_lut_prop;
+	struct drm_property *cubic_lut_size_prop;
 
 	/* private plane prop */
 	struct drm_property *eotf_prop;

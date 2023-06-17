@@ -20,13 +20,6 @@ config DRM_ROCKCHIP
 
 if DRM_ROCKCHIP
 
-config ROCKCHIP_DRM_CUBIC_LUT
-	bool "Support 3D cubic LUT"
-	depends on NO_GKI
-	help
-	  This add properties to support provision of a 3D cubic
-	  look up table, allowing for color specific adjustments.
-
 config ROCKCHIP_DRM_DEBUG
 	bool "Rockchip DRM debug"
 	depends on DEBUG_FS

@@ -3524,7 +3524,6 @@ static int vop2_crtc_atomic_gamma_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
 static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
 {
@@ -3597,18 +3596,12 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void drm_crtc_enable_cubic_lut(struct drm_crtc *crtc, unsigned int cubic_lut_size)
+static void vop2_attach_cubic_lut_prop(struct drm_crtc *crtc, unsigned int cubic_lut_size)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *config = &dev->mode_config;
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
 
-	if (cubic_lut_size) {
-		drm_object_attach_property(&crtc->base,
-					   config->cubic_lut_property, 0);
-		drm_object_attach_property(&crtc->base,
-					   config->cubic_lut_size_property,
-					   cubic_lut_size);
-	}
+	drm_object_attach_property(&crtc->base, private->cubic_lut_prop, 0);
+	drm_object_attach_property(&crtc->base, private->cubic_lut_size_prop, cubic_lut_size);
 }
 
 static void vop2_cubic_lut_init(struct vop2 *vop2)
@@ -3628,12 +3621,9 @@ static void vop2_cubic_lut_init(struct vop2 *vop2)
 		vp->cubic_lut_len = vp_data->cubic_lut_len;
 
 		if (vp->cubic_lut_len)
-			drm_crtc_enable_cubic_lut(crtc, vp->cubic_lut_len);
+			vop2_attach_cubic_lut_prop(crtc, vp->cubic_lut_len);
 	}
 }
-#else
-static void vop2_cubic_lut_init(struct vop2 *vop2) { }
-#endif
 
 static int vop2_core_clks_prepare_enable(struct vop2 *vop2)
 {
@@ -9755,13 +9745,11 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 				vp->gamma_lut = crtc->state->gamma_lut->data;
 			vop2_crtc_atomic_gamma_set(crtc, crtc->state);
 		}
-#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
-		if (crtc->state->cubic_lut || vp->cubic_lut) {
-			if (crtc->state->cubic_lut)
-				vp->cubic_lut = crtc->state->cubic_lut->data;
+		if (vcstate->cubic_lut_data || vp->cubic_lut) {
+			if (vcstate->cubic_lut_data)
+				vp->cubic_lut = vcstate->cubic_lut_data->data;
 			vop2_crtc_atomic_cubic_lut_set(crtc, crtc->state);
 		}
-#endif
 	} else {
 		VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 0);
 	}
@@ -9874,6 +9862,8 @@ static struct drm_crtc_state *vop2_crtc_duplicate_state(struct drm_crtc *crtc)
 		drm_property_blob_get(vcstate->acm_lut_data);
 	if (vcstate->post_csc_data)
 		drm_property_blob_get(vcstate->post_csc_data);
+	if (vcstate->cubic_lut_data)
+		drm_property_blob_get(vcstate->cubic_lut_data);
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vcstate->base);
 	return &vcstate->base;
@@ -9888,6 +9878,7 @@ static void vop2_crtc_destroy_state(struct drm_crtc *crtc,
 	drm_property_blob_put(vcstate->hdr_ext_data);
 	drm_property_blob_put(vcstate->acm_lut_data);
 	drm_property_blob_put(vcstate->post_csc_data);
+	drm_property_blob_put(vcstate->cubic_lut_data);
 	kfree(vcstate);
 }
 
@@ -10034,6 +10025,11 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == private->cubic_lut_prop) {
+		*val = (vcstate->cubic_lut_data) ? vcstate->cubic_lut_data->base.id : 0;
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
 	return -EINVAL;
@@ -10156,6 +10152,16 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 								val,
 								sizeof(struct post_csc), -1,
 								&replaced);
+		return ret;
+	}
+
+	if (property == private->cubic_lut_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vcstate->cubic_lut_data,
+								val,
+								-1, sizeof(struct drm_color_lut),
+								&replaced);
+		state->color_mgmt_changed |= replaced;
 		return ret;
 	}
 
