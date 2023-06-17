@@ -53,7 +53,7 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 
 		if (ieee->iw_mode == IW_MODE_ADHOC ||
 		    ieee->iw_mode == IW_MODE_MASTER)
-			if (ieee->link_state == RTLLIB_LINKED) {
+			if (ieee->link_state == MAC80211_LINKED) {
 				rtllib_stop_send_beacons(ieee);
 				rtllib_start_send_beacons(ieee);
 			}
@@ -95,7 +95,7 @@ int rtllib_wx_get_wap(struct rtllib_device *ieee,
 	/* We want avoid to give to the user inconsistent infos*/
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if (ieee->link_state != RTLLIB_LINKED &&
+	if (ieee->link_state != MAC80211_LINKED &&
 		ieee->link_state != RTLLIB_LINKED_SCANNING &&
 		ieee->wap_set == 0)
 
@@ -184,7 +184,7 @@ int rtllib_wx_get_essid(struct rtllib_device *ieee, struct iw_request_info *a,
 		goto out;
 	}
 
-	if (ieee->link_state != RTLLIB_LINKED &&
+	if (ieee->link_state != MAC80211_LINKED &&
 		ieee->link_state != RTLLIB_LINKED_SCANNING &&
 		ieee->ssid_set == 0) {
 		ret = -1;
@@ -355,7 +355,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 	ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
 
-	ieee->link_state = RTLLIB_LINKED;
+	ieee->link_state = MAC80211_LINKED;
 	ieee->link_change(ieee->dev);
 
 	/* Notify AP that I wake up again */
@@ -385,7 +385,7 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 		goto out;
 	}
 
-	if (ieee->link_state == RTLLIB_LINKED) {
+	if (ieee->link_state == MAC80211_LINKED) {
 		schedule_work(&ieee->wx_sync_scan_wq);
 		/* intentionally forget to up sem */
 		return 0;

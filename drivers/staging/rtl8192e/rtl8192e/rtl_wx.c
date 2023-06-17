@@ -169,7 +169,7 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 		priv->ps_force = false;
 		psc->bLeisurePs = true;
 	} else {
-		if (priv->rtllib->link_state == RTLLIB_LINKED)
+		if (priv->rtllib->link_state == MAC80211_LINKED)
 			rtl92e_leisure_ps_leave(dev);
 
 		priv->ps_force = true;
@@ -378,7 +378,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 		if ((ieee->link_state >= RTLLIB_ASSOCIATING) &&
 		    (ieee->link_state <= RTLLIB_ASSOCIATING_AUTHENTICATED))
 			return 0;
-		if ((priv->rtllib->link_state == RTLLIB_LINKED) &&
+		if ((priv->rtllib->link_state == MAC80211_LINKED) &&
 		    (priv->rtllib->CntAfterLink < 2))
 			return 0;
 	}
@@ -409,7 +409,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 
 	priv->rtllib->FirstIe_InScan = true;
 
-	if (priv->rtllib->link_state != RTLLIB_LINKED) {
+	if (priv->rtllib->link_state != MAC80211_LINKED) {
 		if (rt_state == rf_off) {
 			if (priv->rtllib->rf_off_reason >
 			    RF_CHANGE_BY_IPS) {
@@ -1124,7 +1124,7 @@ static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 	int tmp_qual = 0;
 	int tmp_noise = 0;
 
-	if (ieee->link_state < RTLLIB_LINKED) {
+	if (ieee->link_state < MAC80211_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;
 		wstats->qual.noise = 0x100 - 100;	/* -100 dBm */

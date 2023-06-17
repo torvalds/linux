@@ -1146,7 +1146,7 @@ enum rtl_link_state {
 	/* the link is ok. the card associated to a BSS or linked
 	 * to a ibss cell or acting as an AP and creating the bss
 	 */
-	RTLLIB_LINKED,
+	MAC80211_LINKED,
 
 	/* same as LINKED, but the driver shall apply RX filter
 	 * rules as we are in NO_LINK mode. As the card is still

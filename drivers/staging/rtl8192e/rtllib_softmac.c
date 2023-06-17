@@ -510,7 +510,7 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		 *    new one. In this case the link state is
 		 *    MAC80211_NOLINK until we found an interesting cell.
 		 *    If so the ieee8021_new_net, called by the RX path
-		 *    will set the state to RTLLIB_LINKED, so we stop
+		 *    will set the state to MAC80211_LINKED, so we stop
 		 *    scanning
 		 * 2- We are linked and the root uses run iwlist scan.
 		 *    So we switch to RTLLIB_LINKED_SCANNING to remember
@@ -522,7 +522,7 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		 * if the state become LINKED because of the #1 situation
 		 */
 
-		if (ieee->link_state == RTLLIB_LINKED)
+		if (ieee->link_state == MAC80211_LINKED)
 			goto out;
 		if (ieee->sync_scan_hurryup) {
 			netdev_info(ieee->dev,
@@ -543,7 +543,7 @@ out:
 	ieee->actscanning = false;
 	ieee->sync_scan_hurryup = 0;
 
-	if (ieee->link_state >= RTLLIB_LINKED) {
+	if (ieee->link_state >= MAC80211_LINKED) {
 		if (IS_DOT11D_ENABLE(ieee))
 			dot11d_scan_complete(ieee);
 	}
@@ -1508,7 +1508,7 @@ static void rtllib_associate_complete(struct rtllib_device *ieee)
 {
 	del_timer_sync(&ieee->associate_timer);
 
-	ieee->link_state = RTLLIB_LINKED;
+	ieee->link_state = MAC80211_LINKED;
 	rtllib_sta_send_associnfo(ieee);
 
 	schedule_work(&ieee->associate_complete_wq);
@@ -1664,7 +1664,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 						    "Using B rates\n");
 				}
 				memset(ieee->dot11ht_oper_rate_set, 0, 16);
-				ieee->link_state = RTLLIB_LINKED;
+				ieee->link_state = MAC80211_LINKED;
 			}
 		}
 	}
@@ -1985,7 +1985,7 @@ static inline void rtllib_sta_ps(struct work_struct *work)
 
 	if ((ieee->ps == RTLLIB_PS_DISABLED ||
 	     ieee->iw_mode != IW_MODE_INFRA ||
-	     ieee->link_state != RTLLIB_LINKED)) {
+	     ieee->link_state != MAC80211_LINKED)) {
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 		rtllib_sta_wakeup(ieee, 1);
 
@@ -2149,7 +2149,7 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 
 			if (!network)
 				return 1;
-			ieee->link_state = RTLLIB_LINKED;
+			ieee->link_state = MAC80211_LINKED;
 			ieee->assoc_id = aid;
 			ieee->softmac_stats.rx_ass_ok++;
 			/* station support qos */
@@ -2283,7 +2283,7 @@ rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 	 * both for disassociation and deauthentication
 	 */
 	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-	    ieee->link_state == RTLLIB_LINKED &&
+	    ieee->link_state == MAC80211_LINKED &&
 	    (ieee->iw_mode == IW_MODE_INFRA)) {
 		frame_ctl = le16_to_cpu(header->frame_ctl);
 		netdev_info(ieee->dev,
@@ -2458,7 +2458,7 @@ static void rtllib_start_master_bss(struct rtllib_device *ieee)
 	ether_addr_copy(ieee->current_network.bssid, ieee->dev->dev_addr);
 
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
-	ieee->link_state = RTLLIB_LINKED;
+	ieee->link_state = MAC80211_LINKED;
 	ieee->link_change(ieee->dev);
 	notify_wx_assoc_event(ieee);
 	netif_carrier_on(ieee->dev);
@@ -2509,7 +2509,7 @@ static void rtllib_start_ibss_wq(void *data)
 	 * (in bss mode we had to make sure no-one tried to associate when
 	 * we had just checked the ieee->link_state and we was going to start the
 	 * scan) because in ibss mode the rtllib_new_net function, when
-	 * finds a good net, just set the ieee->link_state to RTLLIB_LINKED,
+	 * finds a good net, just set the ieee->link_state to MAC80211_LINKED,
 	 * so, at worst, we waste a bit of time to initiate an unneeded syncro
 	 * scan, that will stop at the first round because it sees the state
 	 * associated.
@@ -2581,7 +2581,7 @@ static void rtllib_start_ibss_wq(void *data)
 	ieee->SetHwRegHandler(ieee->dev, HW_VAR_MEDIA_STATUS,
 			      (u8 *)(&ieee->link_state));
 
-	ieee->link_state = RTLLIB_LINKED;
+	ieee->link_state = MAC80211_LINKED;
 	ieee->link_change(ieee->dev);
 
 	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
@@ -2765,7 +2765,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 	if (ieee->link_state <= RTLLIB_ASSOCIATING_AUTHENTICATED)
 		ieee->link_state = MAC80211_NOLINK;
 
-	if (ieee->link_state == RTLLIB_LINKED) {
+	if (ieee->link_state == MAC80211_LINKED) {
 		if (ieee->iw_mode == IW_MODE_INFRA)
 			SendDisassociation(ieee, 1, WLAN_REASON_DEAUTH_LEAVING);
 		rtllib_disassociate(ieee);
@@ -3100,7 +3100,7 @@ bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn)
 	if (rtllib->ps != RTLLIB_PS_DISABLED)
 		rtllib->sta_wake_up(rtllib->dev);
 
-	if (rtllib->link_state == RTLLIB_LINKED) {
+	if (rtllib->link_state == MAC80211_LINKED) {
 		if (rtllib->iw_mode == IW_MODE_ADHOC)
 			rtllib_MgntDisconnectIBSS(rtllib);
 		if (rtllib->iw_mode == IW_MODE_INFRA)
@@ -3119,7 +3119,7 @@ void notify_wx_assoc_event(struct rtllib_device *ieee)
 		return;
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	if (ieee->link_state == RTLLIB_LINKED)
+	if (ieee->link_state == MAC80211_LINKED)
 		memcpy(wrqu.ap_addr.sa_data, ieee->current_network.bssid,
 		       ETH_ALEN);
 	else {
