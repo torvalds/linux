@@ -420,17 +420,6 @@ enum init_gain_op_type {
 	IG_Max
 };
 
-enum led_ctl_mode {
-	LED_CTL_POWER_ON = 1,
-	LED_CTL_LINK = 2,
-	LED_CTL_NO_LINK = 3,
-	LED_CTL_TX = 4,
-	LED_CTL_RX = 5,
-	LED_CTL_SITE_SURVEY = 6,
-	LED_CTL_POWER_OFF = 7,
-	LED_CTL_START_TO_LINK = 8,
-};
-
 enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
