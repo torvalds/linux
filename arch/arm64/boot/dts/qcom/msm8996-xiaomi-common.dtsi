@@ -187,7 +187,6 @@
 
 &blsp2_i2c2 {
 	status = "okay";
-	label = "NFC_I2C";
 	clock-frequency = <400000>;
 
 	nfc: pn548@28 {
@@ -208,7 +207,6 @@
 
 &blsp2_i2c3 {
 	status = "okay";
-	label = "TYPEC_I2C";
 
 	typec: tusb320l@47 {
 		compatible = "ti,tusb320l";
@@ -220,7 +218,7 @@
 
 &blsp2_i2c6 {
 	status = "okay";
-	label = "MSM_TS_I2C";
+	/* MSM_TS */
 };
 
 &blsp1_uart2 {
