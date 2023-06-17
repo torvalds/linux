@@ -1489,7 +1489,7 @@ struct rtllib_device {
 	 */
 	struct rtllib_network current_network;
 
-	enum rtl_link_state state;
+	enum rtl_link_state link_state;
 
 	int short_slot;
 	int mode;       /* A, B, G */

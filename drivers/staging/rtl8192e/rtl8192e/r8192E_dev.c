@@ -52,15 +52,15 @@ static void _rtl92e_update_msr(struct net_device *dev)
 
 	switch (priv->rtllib->iw_mode) {
 	case IW_MODE_INFRA:
-		if (priv->rtllib->state == RTLLIB_LINKED)
+		if (priv->rtllib->link_state == RTLLIB_LINKED)
 			msr |= MSR_LINK_MANAGED;
 		break;
 	case IW_MODE_ADHOC:
-		if (priv->rtllib->state == RTLLIB_LINKED)
+		if (priv->rtllib->link_state == RTLLIB_LINKED)
 			msr |= MSR_LINK_ADHOC;
 		break;
 	case IW_MODE_MASTER:
-		if (priv->rtllib->state == RTLLIB_LINKED)
+		if (priv->rtllib->link_state == RTLLIB_LINKED)
 			msr |= MSR_LINK_MASTER;
 		break;
 	default:
@@ -745,7 +745,7 @@ void rtl92e_link_change(struct net_device *dev)
 	if (!priv->up)
 		return;
 
-	if (ieee->state == RTLLIB_LINKED) {
+	if (ieee->link_state == RTLLIB_LINKED) {
 		_rtl92e_net_update(dev);
 		rtl92e_update_ratr_table(dev);
 		if ((ieee->pairwise_key_type == KEY_TYPE_WEP40) ||
@@ -760,7 +760,7 @@ void rtl92e_link_change(struct net_device *dev)
 		u32 reg;
 
 		reg = rtl92e_readl(dev, RCR);
-		if (priv->rtllib->state == RTLLIB_LINKED) {
+		if (priv->rtllib->link_state == RTLLIB_LINKED) {
 			if (ieee->intel_promiscuous_md_info.promiscuous_on)
 				;
 			else

@@ -1196,7 +1196,7 @@ static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast,
 				      u8 nr_subframes)
 {
 	if (unicast) {
-		if (ieee->state == RTLLIB_LINKED) {
+		if (ieee->link_state == RTLLIB_LINKED) {
 			if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
 			    ieee->link_detect_info.NumTxOkInPeriod) > 8) ||
 			    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2)) {
@@ -2117,7 +2117,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			network->tim.tim_period = info_element->data[1];
 
 			network->dtim_period = info_element->data[1];
-			if (ieee->state != RTLLIB_LINKED)
+			if (ieee->link_state != RTLLIB_LINKED)
 				break;
 			network->last_dtim_sta_time = jiffies;
 
@@ -2585,7 +2585,7 @@ static inline void rtllib_process_probe_response(
 				ieee->current_network.buseprotection = false;
 		}
 		if (is_beacon(frame_ctl)) {
-			if (ieee->state >= RTLLIB_LINKED)
+			if (ieee->link_state >= RTLLIB_LINKED)
 				ieee->link_detect_info.NumRecvBcnInPeriod++;
 		}
 	}
@@ -2643,7 +2643,7 @@ static inline void rtllib_process_probe_response(
 		    || ((ieee->current_network.ssid_len == network->ssid_len) &&
 		    (strncmp(ieee->current_network.ssid, network->ssid,
 		    network->ssid_len) == 0) &&
-		    (ieee->state == RTLLIB_NOLINK))))
+		    (ieee->link_state == RTLLIB_NOLINK))))
 			renew = 1;
 		update_network(ieee, target, network);
 		if (renew && (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE))
@@ -2654,7 +2654,7 @@ static inline void rtllib_process_probe_response(
 	if (is_beacon(frame_ctl) &&
 	    is_same_network(&ieee->current_network, network,
 	    (network->ssid_len ? 1 : 0)) &&
-	    (ieee->state == RTLLIB_LINKED)) {
+	    (ieee->link_state == RTLLIB_LINKED)) {
 		ieee->handle_beacon(ieee->dev, beacon, &ieee->current_network);
 	}
 free_network:
@@ -2683,7 +2683,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 
 		if (ieee->sta_sleep || (ieee->ps != RTLLIB_PS_DISABLED &&
 		    ieee->iw_mode == IW_MODE_INFRA &&
-		    ieee->state == RTLLIB_LINKED))
+		    ieee->link_state == RTLLIB_LINKED))
 			schedule_work(&ieee->ps_task);
 
 		break;
@@ -2700,7 +2700,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
 		    ((ieee->iw_mode == IW_MODE_ADHOC ||
 		    ieee->iw_mode == IW_MODE_MASTER) &&
-		    ieee->state == RTLLIB_LINKED))
+		    ieee->link_state == RTLLIB_LINKED))
 			rtllib_rx_probe_rq(ieee, skb);
 		break;
 	}

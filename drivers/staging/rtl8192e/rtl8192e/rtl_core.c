@@ -169,7 +169,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
 			if ((priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) ||
 			    (change_source > RF_CHANGE_BY_IPS)) {
-				if (ieee->state == RTLLIB_LINKED)
+				if (ieee->link_state == RTLLIB_LINKED)
 					priv->blinked_ingpio = true;
 				else
 					priv->blinked_ingpio = false;
@@ -327,7 +327,7 @@ static void _rtl92e_qos_activate(void *data)
 	int i;
 
 	mutex_lock(&priv->mutex);
-	if (priv->rtllib->state != RTLLIB_LINKED)
+	if (priv->rtllib->link_state != RTLLIB_LINKED)
 		goto success;
 
 	for (i = 0; i <  QOS_QUEUE_NUM; i++)
@@ -344,7 +344,7 @@ static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
 	int ret = 0;
 	u32 size = sizeof(struct rtllib_qos_parameters);
 
-	if (priv->rtllib->state != RTLLIB_LINKED)
+	if (priv->rtllib->link_state != RTLLIB_LINKED)
 		return ret;
 
 	if (priv->rtllib->iw_mode != IW_MODE_INFRA)
@@ -400,7 +400,7 @@ static int _rtl92e_qos_assoc_resp(struct r8192_priv *priv,
 	if (!priv || !network)
 		return 0;
 
-	if (priv->rtllib->state != RTLLIB_LINKED)
+	if (priv->rtllib->link_state != RTLLIB_LINKED)
 		return 0;
 
 	if (priv->rtllib->iw_mode != IW_MODE_INFRA)
@@ -635,7 +635,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 	if (priv->polling_timer_on == 0)
 		rtl92e_check_rfctrl_gpio_timer(&priv->gpio_polling_timer);
 
-	if (priv->rtllib->state != RTLLIB_LINKED)
+	if (priv->rtllib->link_state != RTLLIB_LINKED)
 		rtllib_softmac_start_protocol(priv->rtllib, 0);
 	rtllib_reset_queue(priv->rtllib);
 	_rtl92e_watchdog_timer_cb(&priv->watch_dog_timer);
@@ -660,7 +660,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 
 	priv->rtllib->rtllib_ips_leave(dev);
 
-	if (priv->rtllib->state == RTLLIB_LINKED)
+	if (priv->rtllib->link_state == RTLLIB_LINKED)
 		rtl92e_leisure_ps_leave(dev);
 
 	priv->up = 0;
@@ -1009,7 +1009,7 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 
 	if (rfState == rf_on &&
 	    (priv->rtllib->iw_mode == IW_MODE_INFRA) &&
-	    (priv->rtllib->state == RTLLIB_LINKED))
+	    (priv->rtllib->link_state == RTLLIB_LINKED))
 		RxResetType = _rtl92e_rx_check_stuck(dev);
 
 	if (TxResetType == RESET_TYPE_NORMAL ||
@@ -1051,7 +1051,7 @@ RESET_START:
 
 		mutex_lock(&priv->wx_mutex);
 
-		if (priv->rtllib->state == RTLLIB_LINKED)
+		if (priv->rtllib->link_state == RTLLIB_LINKED)
 			rtl92e_leisure_ps_leave(dev);
 
 		if (priv->up) {
@@ -1073,9 +1073,9 @@ RESET_START:
 		rtl92e_dm_deinit(dev);
 		rtllib_stop_scan_syncro(ieee);
 
-		if (ieee->state == RTLLIB_LINKED) {
+		if (ieee->link_state == RTLLIB_LINKED) {
 			mutex_lock(&ieee->wx_mutex);
-			netdev_info(dev, "ieee->state is RTLLIB_LINKED\n");
+			netdev_info(dev, "ieee->link_state is RTLLIB_LINKED\n");
 			rtllib_stop_send_beacons(priv->rtllib);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
@@ -1083,7 +1083,7 @@ RESET_START:
 			netif_carrier_off(dev);
 			mutex_unlock(&ieee->wx_mutex);
 		} else {
-			netdev_info(dev, "ieee->state is NOT LINKED\n");
+			netdev_info(dev, "ieee->link_state is NOT LINKED\n");
 			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 		}
 
@@ -1110,14 +1110,14 @@ RESET_START:
 
 		rtl92e_enable_hw_security_config(dev);
 
-		if (ieee->state == RTLLIB_LINKED && ieee->iw_mode ==
+		if (ieee->link_state == RTLLIB_LINKED && ieee->iw_mode ==
 		    IW_MODE_INFRA) {
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel);
 
 			schedule_work(&ieee->associate_complete_wq);
 
-		} else if (ieee->state == RTLLIB_LINKED && ieee->iw_mode ==
+		} else if (ieee->link_state == RTLLIB_LINKED && ieee->iw_mode ==
 			   IW_MODE_ADHOC) {
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel);
@@ -1181,7 +1181,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	if (!priv->up || priv->hw_radio_off)
 		return;
 
-	if (priv->rtllib->state >= RTLLIB_LINKED) {
+	if (priv->rtllib->link_state >= RTLLIB_LINKED) {
 		if (priv->rtllib->CntAfterLink < 2)
 			priv->rtllib->CntAfterLink++;
 	} else {
@@ -1191,7 +1191,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	rtl92e_dm_watchdog(dev);
 
 	if (!rtllib_act_scanning(priv->rtllib, false)) {
-		if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state ==
+		if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->link_state ==
 		     RTLLIB_NOLINK) &&
 		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
@@ -1202,7 +1202,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 			}
 		}
 	}
-	if ((ieee->state == RTLLIB_LINKED) && (ieee->iw_mode ==
+	if ((ieee->link_state == RTLLIB_LINKED) && (ieee->iw_mode ==
 	     IW_MODE_INFRA) && (!ieee->net_promiscuous_md)) {
 		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
 		ieee->link_detect_info.NumTxOkInPeriod > 100)
@@ -1244,7 +1244,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	ieee->link_detect_info.bHigherBusyTraffic = bHigherBusyTraffic;
 	ieee->link_detect_info.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
 
-	if (ieee->state == RTLLIB_LINKED && ieee->iw_mode == IW_MODE_INFRA) {
+	if (ieee->link_state == RTLLIB_LINKED && ieee->iw_mode == IW_MODE_INFRA) {
 		u32	TotalRxBcnNum = 0;
 		u32	TotalRxDataNum = 0;
 
@@ -1263,7 +1263,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 				    "===>%s(): AP is power off, chan:%d, connect another one\n",
 				    __func__, priv->chan);
 
-			ieee->state = RTLLIB_ASSOCIATING;
+			ieee->link_state = RTLLIB_ASSOCIATING;
 
 			RemovePeerTS(priv->rtllib,
 				     priv->rtllib->current_network.bssid);

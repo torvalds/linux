@@ -291,7 +291,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
 		return;
 
-	if (priv->rtllib->state == RTLLIB_LINKED) {
+	if (priv->rtllib->link_state == RTLLIB_LINKED) {
 		bshort_gi_enabled = (ht_info->cur_tx_bw40mhz &&
 				     ht_info->bCurShortGI40MHz) ||
 				    (!ht_info->cur_tx_bw40mhz &&
@@ -1075,7 +1075,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 		dm_digtable.dig_state = DM_STA_DIG_OFF;
 	}
 
-	if (priv->rtllib->state == RTLLIB_LINKED)
+	if (priv->rtllib->link_state == RTLLIB_LINKED)
 		dm_digtable.cur_sta_connect_state = DIG_STA_CONNECT;
 	else
 		dm_digtable.cur_sta_connect_state = DIG_STA_DISCONNECT;
@@ -1105,7 +1105,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 		dm_digtable.dig_algorithm_switch = 0;
 	}
 
-	if (priv->rtllib->state != RTLLIB_LINKED)
+	if (priv->rtllib->link_state != RTLLIB_LINKED)
 		return;
 
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_low_thresh) &&
@@ -1406,7 +1406,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 
 	if (priv->rtllib->iw_mode == IW_MODE_ADHOC)
 		goto dm_CheckEdcaTurbo_EXIT;
-	if (priv->rtllib->state != RTLLIB_LINKED)
+	if (priv->rtllib->link_state != RTLLIB_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
 	if (priv->rtllib->ht_info->iot_action & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -1820,7 +1820,7 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 	bool		bSwitchFromCountDiff = false;
 	bool		bDoubleTimeInterval = false;
 
-	if (priv->rtllib->state == RTLLIB_LINKED &&
+	if (priv->rtllib->link_state == RTLLIB_LINKED &&
 	    priv->rtllib->bfsync_enable &&
 	    (priv->rtllib->ht_info->iot_action & HT_IOT_ACT_CDD_FSYNC)) {
 		u32 rate_bitmap;
@@ -1990,7 +1990,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 	static u8 reg_c38_State = RegC38_Default;
 	static u32 reset_cnt;
 
-	if (priv->rtllib->state == RTLLIB_LINKED &&
+	if (priv->rtllib->link_state == RTLLIB_LINKED &&
 	    priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_BROADCOM) {
 		if (priv->rtllib->bfsync_enable == 0) {
 			switch (priv->rtllib->fsync_state) {
@@ -2043,7 +2043,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			break;
 		}
 
-		if (priv->rtllib->state == RTLLIB_LINKED) {
+		if (priv->rtllib->link_state == RTLLIB_LINKED) {
 			if (priv->undecorated_smoothed_pwdb <=
 			    RegC38_TH) {
 				if (reg_c38_State !=
@@ -2112,7 +2112,7 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 		txlowpower_threshold = TX_POWER_NEAR_FIELD_THRESH_LOW;
 	}
 
-	if (priv->rtllib->state == RTLLIB_LINKED) {
+	if (priv->rtllib->link_state == RTLLIB_LINKED) {
 		if (priv->undecorated_smoothed_pwdb >= txhipower_threshold) {
 			priv->dynamic_tx_high_pwr = true;
 			priv->dynamic_tx_low_pwr = false;
