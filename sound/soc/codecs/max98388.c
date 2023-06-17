@@ -887,7 +887,7 @@ static const struct regmap_config max98388_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-const struct snd_soc_component_driver soc_codec_dev_max98388 = {
+static const struct snd_soc_component_driver soc_codec_dev_max98388 = {
 	.probe			= max98388_probe,
 	.controls		= max98388_snd_controls,
 	.num_controls		= ARRAY_SIZE(max98388_snd_controls),
