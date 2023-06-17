@@ -353,6 +353,11 @@
 	};
 };
 
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m0_sclk &i2s2m0_lrck &i2s2m0_sdi &i2s2m0_sdo>;
+	status = "disabled";
+};
+
 &i2s5_8ch {
 	status = "okay";
 };
