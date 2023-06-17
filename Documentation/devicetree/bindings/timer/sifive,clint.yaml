@@ -37,6 +37,7 @@ properties:
       - items:
           - enum:
               - allwinner,sun20i-d1-clint
+              - thead,th1520-clint
           - const: thead,c900-clint
       - items:
           - const: sifive,clint0
