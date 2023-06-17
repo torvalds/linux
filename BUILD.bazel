@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (C) 2021 The Android Open Source Project
 
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_build", "kernel_images", "kernel_modules_install")
@@ -30,6 +31,15 @@ _GKI_X86_64_MAKE_GOALS = [
     "bzImage",
     "modules",
 ]
+
+write_file(
+    name = "gki_system_dlkm_modules",
+    out = "android/gki_system_dlkm_modules",
+    content = COMMON_GKI_MODULES_LIST + [
+        # Ensure new line at the end.
+        "",
+    ],
+)
 
 filegroup(
     name = "aarch64_additional_kmi_symbol_lists",
