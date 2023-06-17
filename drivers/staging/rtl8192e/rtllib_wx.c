@@ -118,7 +118,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 			max_rate = rate;
 	}
 
-	if (network->mode >= IEEE_N_24G) {
+	if (network->mode >= WIRELESS_MODE_N_24G) {
 		struct ht_capab_ele *ht_cap = NULL;
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;

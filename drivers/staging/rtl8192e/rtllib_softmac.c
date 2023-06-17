@@ -181,7 +181,7 @@ static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 		rate = ieee->basic_rate & 0x7f;
 
 	if (rate == 0) {
-		if (ieee->mode == IEEE_N_24G && !ht_info->bCurSuppCCK)
+		if (ieee->mode == WIRELESS_MODE_N_24G && !ht_info->bCurSuppCCK)
 			rate = 0x0c;
 		else
 			rate = 0x02;
@@ -802,8 +802,8 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	else
 		atim_len = 0;
 
-	if ((ieee->current_network.mode == IEEE_G) ||
-	   (ieee->current_network.mode == IEEE_N_24G &&
+	if ((ieee->current_network.mode == WIRELESS_MODE_G) ||
+	   (ieee->current_network.mode == WIRELESS_MODE_N_24G &&
 	   ieee->ht_info->bCurSuppCCK)) {
 		erp_len = 3;
 		erpinfo_content = 0;
@@ -1470,7 +1470,7 @@ static void rtllib_associate_complete_wq(void *data)
 		netdev_info(ieee->dev, "Using G rates:%d\n", ieee->rate);
 	} else {
 		ieee->rate = 22;
-		ieee->SetWirelessMode(ieee->dev, IEEE_B);
+		ieee->SetWirelessMode(ieee->dev, WIRELESS_MODE_B);
 		netdev_info(ieee->dev, "Using B rates:%d\n", ieee->rate);
 	}
 	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
@@ -1654,14 +1654,12 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				    (ieee->modulation &
 				     RTLLIB_OFDM_MODULATION)) {
 					ieee->rate = 108;
-					ieee->SetWirelessMode(ieee->dev,
-							      IEEE_G);
+					ieee->SetWirelessMode(ieee->dev, WIRELESS_MODE_G);
 					netdev_info(ieee->dev,
 						    "Using G rates\n");
 				} else {
 					ieee->rate = 22;
-					ieee->SetWirelessMode(ieee->dev,
-							      IEEE_B);
+					ieee->SetWirelessMode(ieee->dev, WIRELESS_MODE_B);
 					netdev_info(ieee->dev,
 						    "Using B rates\n");
 				}
@@ -1826,8 +1824,8 @@ static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	status_code = le16_to_cpu(response_head->status);
 	if ((status_code == WLAN_STATUS_ASSOC_DENIED_RATES ||
 	   status_code == WLAN_STATUS_CAPS_UNSUPPORTED) &&
-	   ((ieee->mode == IEEE_G) &&
-	   (ieee->current_network.mode == IEEE_N_24G) &&
+	   ((ieee->mode == WIRELESS_MODE_G) &&
+	   (ieee->current_network.mode == WIRELESS_MODE_N_24G) &&
 	   (ieee->AsocRetryCount++ < (RT_ASOC_RETRY_LIMIT - 1)))) {
 		ieee->ht_info->iot_action |= HT_IOT_ACT_PURE_N_MODE;
 	} else {
@@ -2239,10 +2237,10 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 					      ieee->current_network.mode);
 		} else {
 			/*TODO*/
-			ieee->SetWirelessMode(ieee->dev, IEEE_G);
+			ieee->SetWirelessMode(ieee->dev, WIRELESS_MODE_G);
 		}
 
-		if ((ieee->current_network.mode == IEEE_N_24G) &&
+		if ((ieee->current_network.mode == WIRELESS_MODE_N_24G) &&
 		    bHalfSupportNmode) {
 			netdev_info(ieee->dev, "======>enter half N mode\n");
 			ieee->bHalfWirelessN24GMode = true;
@@ -2498,7 +2496,7 @@ static void rtllib_start_ibss_wq(void *data)
 	}
 
 	ieee->state = RTLLIB_NOLINK;
-	ieee->mode = IEEE_G;
+	ieee->mode = WIRELESS_MODE_G;
 	/* check if we have this cell in our network list */
 	rtllib_softmac_check_all_nets(ieee);
 
@@ -2568,14 +2566,14 @@ static void rtllib_start_ibss_wq(void *data)
 		}
 
 		ieee->current_network.qos_data.supported = 0;
-		ieee->SetWirelessMode(ieee->dev, IEEE_G);
+		ieee->SetWirelessMode(ieee->dev, WIRELESS_MODE_G);
 		ieee->current_network.mode = ieee->mode;
 		ieee->current_network.atim_window = 0;
 		ieee->current_network.capability = WLAN_CAPABILITY_IBSS;
 	}
 
 	netdev_info(ieee->dev, "%s(): ieee->mode = %d\n", __func__, ieee->mode);
-	if (ieee->mode == IEEE_N_24G)
+	if (ieee->mode == WIRELESS_MODE_N_24G)
 		HTUseDefaultSetting(ieee);
 	else
 		ieee->ht_info->bCurrentHTSupport = false;

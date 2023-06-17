@@ -406,7 +406,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	if (is_broadcast_ether_addr(skb->data + 16))
 		return;
 
-	if (ieee->mode < IEEE_N_24G) {
+	if (ieee->mode < WIRELESS_MODE_N_24G) {
 		if (skb->len > ieee->rts) {
 			tcb_desc->bRTSEnable = true;
 			tcb_desc->rts_rate = MGN_24M;

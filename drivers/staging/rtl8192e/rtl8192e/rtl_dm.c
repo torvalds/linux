@@ -2104,7 +2104,7 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 		return;
 	}
 	if ((priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_ATHEROS) &&
-	    (priv->rtllib->mode == IEEE_G)) {
+	    (priv->rtllib->mode == WIRELESS_MODE_G)) {
 		txhipower_threshold = TX_POWER_ATHEROAP_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_ATHEROAP_THRESH_LOW;
 	} else {

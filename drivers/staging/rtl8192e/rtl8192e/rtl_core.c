@@ -277,7 +277,7 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 		}
 	}
 
-	if (net->mode & (IEEE_G | IEEE_N_24G)) {
+	if (net->mode & (WIRELESS_MODE_G | WIRELESS_MODE_N_24G)) {
 		u8	slot_time_val;
 		u8	cur_slot_time = priv->slot_time;
 

@@ -162,7 +162,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			 &priv->rtllib->current_network.qos_data.parameters;
 
 		u1bAIFS = qop->aifs[pAcParam] *
-			  ((mode & (IEEE_G | IEEE_N_24G)) ? 9 : 20) + aSifsTime;
+			  ((mode & (WIRELESS_MODE_G | WIRELESS_MODE_N_24G)) ? 9 : 20) + aSifsTime;
 
 		rtl92e_dm_init_edca_turbo(dev);
 
@@ -1816,14 +1816,14 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 	rtl92e_config_rate(dev, &rate_config);
 	ratr_value = rate_config | *pMcsRate << 12;
 	switch (ieee->mode) {
-	case IEEE_B:
+	case WIRELESS_MODE_B:
 		ratr_value &= 0x0000000F;
 		break;
-	case IEEE_G:
-	case IEEE_G | IEEE_B:
+	case WIRELESS_MODE_G:
+	case WIRELESS_MODE_G | WIRELESS_MODE_B:
 		ratr_value &= 0x00000FF7;
 		break;
-	case IEEE_N_24G:
+	case WIRELESS_MODE_N_24G:
 		if (ieee->ht_info->peer_mimo_ps == 0)
 			ratr_value &= 0x0007F007;
 		else

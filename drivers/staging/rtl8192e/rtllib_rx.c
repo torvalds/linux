@@ -2317,9 +2317,9 @@ static inline int rtllib_network_init(
 	network->mode = 0;
 
 	if (network->flags & NETWORK_HAS_OFDM)
-		network->mode |= IEEE_G;
+		network->mode |= WIRELESS_MODE_G;
 	if (network->flags & NETWORK_HAS_CCK)
-		network->mode |= IEEE_B;
+		network->mode |= WIRELESS_MODE_B;
 
 	if (network->mode == 0) {
 		netdev_dbg(ieee->dev, "Filtered out '%s (%pM)' network.\n",
@@ -2329,8 +2329,8 @@ static inline int rtllib_network_init(
 	}
 
 	if (network->bssht.bd_support_ht) {
-		if (network->mode & (IEEE_G | IEEE_B))
-			network->mode = IEEE_N_24G;
+		if (network->mode & (WIRELESS_MODE_G | WIRELESS_MODE_B))
+			network->mode = WIRELESS_MODE_N_24G;
 	}
 	if (rtllib_is_empty_essid(network->ssid, network->ssid_len))
 		network->flags |= NETWORK_EMPTY_ESSID;
@@ -2576,8 +2576,8 @@ static inline void rtllib_process_probe_response(
 	if (is_same_network(&ieee->current_network, network,
 	   (network->ssid_len ? 1 : 0))) {
 		update_network(ieee, &ieee->current_network, network);
-		if ((ieee->current_network.mode == IEEE_N_24G ||
-		     ieee->current_network.mode == IEEE_G) &&
+		if ((ieee->current_network.mode == WIRELESS_MODE_N_24G ||
+		     ieee->current_network.mode == WIRELESS_MODE_G) &&
 		    ieee->current_network.berp_info_valid) {
 			if (ieee->current_network.erp_value & ERP_UseProtection)
 				ieee->current_network.buseprotection = true;
