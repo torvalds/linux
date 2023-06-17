@@ -366,7 +366,6 @@
 		function = "gpio";
 		pins = "gpio107";
 		bias-pull-up;
-		input-enable;
 	};
 };
 
