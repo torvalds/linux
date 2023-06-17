@@ -244,7 +244,6 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	kfree(ofs->config.lowerdir);
 	kfree(ofs->config.upperdir);
 	kfree(ofs->config.workdir);
-	kfree(ofs->config.redirect_mode);
 	if (ofs->creator_cred)
 		put_cred(ofs->creator_cred);
 	kfree(ofs);
@@ -330,9 +329,24 @@ static bool ovl_force_readonly(struct ovl_fs *ofs)
 	return (!ovl_upper_mnt(ofs) || !ofs->workdir);
 }
 
-static const char *ovl_redirect_mode_def(void)
+static const struct constant_table ovl_parameter_redirect_dir[] = {
+	{ "off",	OVL_REDIRECT_OFF      },
+	{ "follow",	OVL_REDIRECT_FOLLOW   },
+	{ "nofollow",	OVL_REDIRECT_NOFOLLOW },
+	{ "on",		OVL_REDIRECT_ON       },
+	{}
+};
+
+static const char *ovl_redirect_mode(struct ovl_config *config)
 {
-	return ovl_redirect_dir_def ? "on" : "off";
+	return ovl_parameter_redirect_dir[config->redirect_mode].name;
+}
+
+static int ovl_redirect_mode_def(void)
+{
+	return ovl_redirect_dir_def ? OVL_REDIRECT_ON :
+		ovl_redirect_always_follow ? OVL_REDIRECT_FOLLOW :
+					     OVL_REDIRECT_NOFOLLOW;
 }
 
 static const struct constant_table ovl_parameter_xino[] = {
@@ -372,8 +386,9 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	}
 	if (ofs->config.default_permissions)
 		seq_puts(m, ",default_permissions");
-	if (strcmp(ofs->config.redirect_mode, ovl_redirect_mode_def()) != 0)
-		seq_printf(m, ",redirect_dir=%s", ofs->config.redirect_mode);
+	if (ofs->config.redirect_mode != ovl_redirect_mode_def())
+		seq_printf(m, ",redirect_dir=%s",
+			   ovl_redirect_mode(&ofs->config));
 	if (ofs->config.index != ovl_index_def)
 		seq_printf(m, ",index=%s", ofs->config.index ? "on" : "off");
 	if (!ofs->config.uuid)
@@ -431,7 +446,10 @@ enum {
 	OPT_UPPERDIR,
 	OPT_WORKDIR,
 	OPT_DEFAULT_PERMISSIONS,
-	OPT_REDIRECT_DIR,
+	OPT_REDIRECT_DIR_ON,
+	OPT_REDIRECT_DIR_OFF,
+	OPT_REDIRECT_DIR_FOLLOW,
+	OPT_REDIRECT_DIR_NOFOLLOW,
 	OPT_INDEX_ON,
 	OPT_INDEX_OFF,
 	OPT_UUID_ON,
@@ -453,7 +471,10 @@ static const match_table_t ovl_tokens = {
 	{OPT_UPPERDIR,			"upperdir=%s"},
 	{OPT_WORKDIR,			"workdir=%s"},
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
-	{OPT_REDIRECT_DIR,		"redirect_dir=%s"},
+	{OPT_REDIRECT_DIR_ON,		"redirect_dir=on"},
+	{OPT_REDIRECT_DIR_OFF,		"redirect_dir=off"},
+	{OPT_REDIRECT_DIR_FOLLOW,	"redirect_dir=follow"},
+	{OPT_REDIRECT_DIR_NOFOLLOW,	"redirect_dir=nofollow"},
 	{OPT_INDEX_ON,			"index=on"},
 	{OPT_INDEX_OFF,			"index=off"},
 	{OPT_USERXATTR,			"userxattr"},
@@ -493,39 +514,11 @@ static char *ovl_next_opt(char **s)
 	return sbegin;
 }
 
-static int ovl_parse_redirect_mode(struct ovl_config *config, const char *mode)
-{
-	if (strcmp(mode, "on") == 0) {
-		config->redirect_dir = true;
-		/*
-		 * Does not make sense to have redirect creation without
-		 * redirect following.
-		 */
-		config->redirect_follow = true;
-	} else if (strcmp(mode, "follow") == 0) {
-		config->redirect_follow = true;
-	} else if (strcmp(mode, "off") == 0) {
-		if (ovl_redirect_always_follow)
-			config->redirect_follow = true;
-	} else if (strcmp(mode, "nofollow") != 0) {
-		pr_err("bad mount option \"redirect_dir=%s\"\n",
-		       mode);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int ovl_parse_opt(char *opt, struct ovl_config *config)
 {
 	char *p;
-	int err;
 	bool metacopy_opt = false, redirect_opt = false;
 	bool nfs_export_opt = false, index_opt = false;
-
-	config->redirect_mode = kstrdup(ovl_redirect_mode_def(), GFP_KERNEL);
-	if (!config->redirect_mode)
-		return -ENOMEM;
 
 	while ((p = ovl_next_opt(&opt)) != NULL) {
 		int token;
@@ -561,11 +554,25 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->default_permissions = true;
 			break;
 
-		case OPT_REDIRECT_DIR:
-			kfree(config->redirect_mode);
-			config->redirect_mode = match_strdup(&args[0]);
-			if (!config->redirect_mode)
-				return -ENOMEM;
+		case OPT_REDIRECT_DIR_ON:
+			config->redirect_mode = OVL_REDIRECT_ON;
+			redirect_opt = true;
+			break;
+
+		case OPT_REDIRECT_DIR_OFF:
+			config->redirect_mode = ovl_redirect_always_follow ?
+						OVL_REDIRECT_FOLLOW :
+						OVL_REDIRECT_NOFOLLOW;
+			redirect_opt = true;
+			break;
+
+		case OPT_REDIRECT_DIR_FOLLOW:
+			config->redirect_mode = OVL_REDIRECT_FOLLOW;
+			redirect_opt = true;
+			break;
+
+		case OPT_REDIRECT_DIR_NOFOLLOW:
+			config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
 			redirect_opt = true;
 			break;
 
@@ -654,22 +661,18 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 		config->ovl_volatile = false;
 	}
 
-	err = ovl_parse_redirect_mode(config, config->redirect_mode);
-	if (err)
-		return err;
-
 	/*
 	 * This is to make the logic below simpler.  It doesn't make any other
-	 * difference, since config->redirect_dir is only used for upper.
+	 * difference, since redirect_dir=on is only used for upper.
 	 */
-	if (!config->upperdir && config->redirect_follow)
-		config->redirect_dir = true;
+	if (!config->upperdir && config->redirect_mode == OVL_REDIRECT_FOLLOW)
+		config->redirect_mode = OVL_REDIRECT_ON;
 
 	/* Resolve metacopy -> redirect_dir dependency */
-	if (config->metacopy && !config->redirect_dir) {
+	if (config->metacopy && config->redirect_mode != OVL_REDIRECT_ON) {
 		if (metacopy_opt && redirect_opt) {
 			pr_err("conflicting options: metacopy=on,redirect_dir=%s\n",
-			       config->redirect_mode);
+			       ovl_redirect_mode(config));
 			return -EINVAL;
 		}
 		if (redirect_opt) {
@@ -678,17 +681,18 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			 * in this conflict.
 			 */
 			pr_info("disabling metacopy due to redirect_dir=%s\n",
-				config->redirect_mode);
+				ovl_redirect_mode(config));
 			config->metacopy = false;
 		} else {
 			/* Automatically enable redirect otherwise. */
-			config->redirect_follow = config->redirect_dir = true;
+			config->redirect_mode = OVL_REDIRECT_ON;
 		}
 	}
 
 	/* Resolve nfs_export -> index dependency */
 	if (config->nfs_export && !config->index) {
-		if (!config->upperdir && config->redirect_follow) {
+		if (!config->upperdir &&
+		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
 			pr_info("NFS export requires \"redirect_dir=nofollow\" on non-upper mount, falling back to nfs_export=off.\n");
 			config->nfs_export = false;
 		} else if (nfs_export_opt && index_opt) {
@@ -733,9 +737,10 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 	/* Resolve userxattr -> !redirect && !metacopy dependency */
 	if (config->userxattr) {
-		if (config->redirect_follow && redirect_opt) {
+		if (redirect_opt &&
+		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
 			pr_err("conflicting options: userxattr,redirect_dir=%s\n",
-			       config->redirect_mode);
+			       ovl_redirect_mode(config));
 			return -EINVAL;
 		}
 		if (config->metacopy && metacopy_opt) {
@@ -748,7 +753,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 		 * options must be explicitly enabled if used together with
 		 * userxattr.
 		 */
-		config->redirect_dir = config->redirect_follow = false;
+		config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
 		config->metacopy = false;
 	}
 
@@ -1332,10 +1337,17 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	if (err) {
 		pr_warn("failed to set xattr on upper\n");
 		ofs->noxattr = true;
-		if (ofs->config.index || ofs->config.metacopy) {
-			ofs->config.index = false;
+		if (ovl_redirect_follow(ofs)) {
+			ofs->config.redirect_mode = OVL_REDIRECT_NOFOLLOW;
+			pr_warn("...falling back to redirect_dir=nofollow.\n");
+		}
+		if (ofs->config.metacopy) {
 			ofs->config.metacopy = false;
-			pr_warn("...falling back to index=off,metacopy=off.\n");
+			pr_warn("...falling back to metacopy=off.\n");
+		}
+		if (ofs->config.index) {
+			ofs->config.index = false;
+			pr_warn("...falling back to index=off.\n");
 		}
 		/*
 		 * xattr support is required for persistent st_ino.
@@ -1963,6 +1975,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!cred)
 		goto out_err;
 
+	ofs->config.redirect_mode = ovl_redirect_mode_def();
 	ofs->config.index = ovl_index_def;
 	ofs->config.uuid = true;
 	ofs->config.nfs_export = ovl_nfs_export_def;

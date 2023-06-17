@@ -10,9 +10,7 @@ struct ovl_config {
 	char *upperdir;
 	char *workdir;
 	bool default_permissions;
-	bool redirect_dir;
-	bool redirect_follow;
-	const char *redirect_mode;
+	int redirect_mode;
 	bool index;
 	bool uuid;
 	bool nfs_export;

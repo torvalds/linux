@@ -231,12 +231,11 @@ Mount options:
     Redirects are enabled.
 - "redirect_dir=follow":
     Redirects are not created, but followed.
-- "redirect_dir=off":
-    Redirects are not created and only followed if "redirect_always_follow"
-    feature is enabled in the kernel/module config.
 - "redirect_dir=nofollow":
-    Redirects are not created and not followed (equivalent to "redirect_dir=off"
-    if "redirect_always_follow" feature is not enabled).
+    Redirects are not created and not followed.
+- "redirect_dir=off":
+    If "redirect_always_follow" is enabled in the kernel/module config,
+    this "off" traslates to "follow", otherwise it translates to "nofollow".
 
 When the NFS export feature is enabled, every copied up directory is
 indexed by the file handle of the lower inode and a file handle of the

@@ -506,13 +506,6 @@ bool ovl_dentry_needs_data_copy_up(struct dentry *dentry, int flags)
 	return !ovl_has_upperdata(d_inode(dentry));
 }
 
-bool ovl_redirect_dir(struct super_block *sb)
-{
-	struct ovl_fs *ofs = sb->s_fs_info;
-
-	return ofs->config.redirect_dir && !ofs->noxattr;
-}
-
 const char *ovl_dentry_get_redirect(struct dentry *dentry)
 {
 	return OVL_I(d_inode(dentry))->redirect;

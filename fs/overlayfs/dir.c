@@ -952,7 +952,7 @@ static bool ovl_type_merge_or_lower(struct dentry *dentry)
 
 static bool ovl_can_move(struct dentry *dentry)
 {
-	return ovl_redirect_dir(dentry->d_sb) ||
+	return ovl_redirect_dir(OVL_FS(dentry->d_sb)) ||
 		!d_is_dir(dentry) || !ovl_type_merge_or_lower(dentry);
 }
 

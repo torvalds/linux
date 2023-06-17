@@ -58,6 +58,13 @@ enum ovl_entry_flag {
 };
 
 enum {
+	OVL_REDIRECT_OFF,	/* "off" mode is never used. In effect	*/
+	OVL_REDIRECT_FOLLOW,	/* ...it translates to either "follow"	*/
+	OVL_REDIRECT_NOFOLLOW,	/* ...or "nofollow".			*/
+	OVL_REDIRECT_ON,
+};
+
+enum {
 	OVL_XINO_OFF,
 	OVL_XINO_AUTO,
 	OVL_XINO_ON,
@@ -352,17 +359,6 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 	return ((OPEN_FMODE(flags) & FMODE_WRITE) || (flags & O_TRUNC));
 }
 
-static inline bool ovl_allow_offline_changes(struct ovl_fs *ofs)
-{
-	/*
-	 * To avoid regressions in existing setups with overlay lower offline
-	 * changes, we allow lower changes only if none of the new features
-	 * are used.
-	 */
-	return (!ofs->config.index && !ofs->config.metacopy &&
-		!ofs->config.redirect_dir && ofs->config.xino != OVL_XINO_ON);
-}
-
 
 /* util.c */
 int ovl_want_write(struct dentry *dentry);
@@ -421,7 +417,6 @@ bool ovl_dentry_needs_data_copy_up(struct dentry *dentry, int flags);
 bool ovl_dentry_needs_data_copy_up_locked(struct dentry *dentry, int flags);
 bool ovl_has_upperdata(struct inode *inode);
 void ovl_set_upperdata(struct inode *inode);
-bool ovl_redirect_dir(struct super_block *sb);
 const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
@@ -489,6 +484,16 @@ static inline bool ovl_is_impuredir(struct super_block *sb,
 	return ovl_path_check_dir_xattr(ofs, &upperpath, OVL_XATTR_IMPURE);
 }
 
+static inline bool ovl_redirect_follow(struct ovl_fs *ofs)
+{
+	return ofs->config.redirect_mode != OVL_REDIRECT_NOFOLLOW;
+}
+
+static inline bool ovl_redirect_dir(struct ovl_fs *ofs)
+{
+	return ofs->config.redirect_mode == OVL_REDIRECT_ON;
+}
+
 /*
  * With xino=auto, we do best effort to keep all inodes on same st_dev and
  * d_ino consistent with st_ino.
@@ -497,6 +502,16 @@ static inline bool ovl_is_impuredir(struct super_block *sb,
 static inline bool ovl_xino_warn(struct ovl_fs *ofs)
 {
 	return ofs->config.xino == OVL_XINO_ON;
+}
+
+/*
+ * To avoid regressions in existing setups with overlay lower offline changes,
+ * we allow lower changes only if none of the new features are used.
+ */
+static inline bool ovl_allow_offline_changes(struct ovl_fs *ofs)
+{
+	return (!ofs->config.index && !ofs->config.metacopy &&
+		!ovl_redirect_dir(ofs) && !ovl_xino_warn(ofs));
 }
 
 /* All layers on same fs? */
