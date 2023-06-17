@@ -252,9 +252,18 @@ static void read_writeonly(struct kunit *test)
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
 		data->read[i] = false;
 
-	/* Try to read all the registers, the writeonly one should fail */
-	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, i != 5, regmap_read(map, i, &val) == 0);
+	/*
+	 * Try to read all the registers, the writeonly one should
+	 * fail if we aren't using the flat cache.
+	 */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
+		if (t->type != REGCACHE_FLAT) {
+			KUNIT_EXPECT_EQ(test, i != 5,
+					regmap_read(map, i, &val) == 0);
+		} else {
+			KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &val));
+		}
+	}
 
 	/* Did we trigger a hardware access? */
 	KUNIT_EXPECT_FALSE(test, data->read[5]);
