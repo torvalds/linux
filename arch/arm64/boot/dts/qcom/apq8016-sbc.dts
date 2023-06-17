@@ -172,15 +172,13 @@
 };
 
 &blsp_i2c2 {
-	/* On Low speed expansion */
+	/* On Low speed expansion: LS-I2C0 */
 	status = "okay";
-	label = "LS-I2C0";
 };
 
 &blsp_i2c4 {
-	/* On High speed expansion */
+	/* On High speed expansion: HS-I2C2 */
 	status = "okay";
-	label = "HS-I2C2";
 
 	adv_bridge: bridge@39 {
 		status = "okay";
@@ -228,21 +226,18 @@
 };
 
 &blsp_i2c6 {
-	/* On Low speed expansion */
+	/* On Low speed expansion: LS-I2C1 */
 	status = "okay";
-	label = "LS-I2C1";
 };
 
 &blsp_spi3 {
-	/* On High speed expansion */
+	/* On High speed expansion: HS-SPI1 */
 	status = "okay";
-	label = "HS-SPI1";
 };
 
 &blsp_spi5 {
-	/* On Low speed expansion */
+	/* On Low speed expansion: LS-SPI0 */
 	status = "okay";
-	label = "LS-SPI0";
 };
 
 &blsp_uart1 {
