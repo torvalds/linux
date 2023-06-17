@@ -1077,7 +1077,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 					BKEY_BTREE_PTR_U64s_MAX * (1 + split)))
 			break;
 
-		split = true;
+		split = path->l[update_level].b->nr.live_u64s > BTREE_SPLIT_THRESHOLD(c);
 	}
 
 	if (flags & BTREE_INSERT_GC_LOCK_HELD)
