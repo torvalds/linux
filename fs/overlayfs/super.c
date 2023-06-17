@@ -1922,6 +1922,8 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	ovl_set_upperdata(d_inode(root));
 	ovl_inode_init(d_inode(root), &oip, ino, fsid);
 	ovl_dentry_init_flags(root, upperdentry, oe, DCACHE_OP_WEAK_REVALIDATE);
+	/* root keeps a reference of upperdentry */
+	dget(upperdentry);
 
 	return root;
 }
@@ -2100,7 +2102,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!root_dentry)
 		goto out_free_oe;
 
-	mntput(upperpath.mnt);
+	path_put(&upperpath);
 	kfree(splitlower);
 
 	sb->s_root = root_dentry;
