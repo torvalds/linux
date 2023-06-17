@@ -70,6 +70,14 @@ enum {
 	OVL_XINO_ON,
 };
 
+/* The set of options that user requested explicitly via mount options */
+struct ovl_opt_set {
+	bool metacopy;
+	bool redirect;
+	bool nfs_export;
+	bool index;
+};
+
 /*
  * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
  * where:

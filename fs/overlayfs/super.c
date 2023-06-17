@@ -514,131 +514,142 @@ static char *ovl_next_opt(char **s)
 	return sbegin;
 }
 
-static int ovl_parse_opt(char *opt, struct ovl_config *config)
+static int ovl_parse_opt(char *opt, struct ovl_config *config,
+			 struct ovl_opt_set *set)
+{
+	int err = 0;
+	int token;
+	substring_t args[MAX_OPT_ARGS];
+
+	if (!*opt)
+		return 0;
+
+	token = match_token(opt, ovl_tokens, args);
+	switch (token) {
+	case OPT_UPPERDIR:
+		kfree(config->upperdir);
+		config->upperdir = match_strdup(&args[0]);
+		if (!config->upperdir)
+			return -ENOMEM;
+		break;
+
+	case OPT_LOWERDIR:
+		kfree(config->lowerdir);
+		config->lowerdir = match_strdup(&args[0]);
+		if (!config->lowerdir)
+			return -ENOMEM;
+		break;
+
+	case OPT_WORKDIR:
+		kfree(config->workdir);
+		config->workdir = match_strdup(&args[0]);
+		if (!config->workdir)
+			return -ENOMEM;
+		break;
+
+	case OPT_DEFAULT_PERMISSIONS:
+		config->default_permissions = true;
+		break;
+
+	case OPT_REDIRECT_DIR_ON:
+		config->redirect_mode = OVL_REDIRECT_ON;
+		set->redirect = true;
+		break;
+
+	case OPT_REDIRECT_DIR_OFF:
+		config->redirect_mode = ovl_redirect_always_follow ?
+			OVL_REDIRECT_FOLLOW :
+			OVL_REDIRECT_NOFOLLOW;
+		set->redirect = true;
+		break;
+
+	case OPT_REDIRECT_DIR_FOLLOW:
+		config->redirect_mode = OVL_REDIRECT_FOLLOW;
+		set->redirect = true;
+		break;
+
+	case OPT_REDIRECT_DIR_NOFOLLOW:
+		config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
+		set->redirect = true;
+		break;
+
+	case OPT_INDEX_ON:
+		config->index = true;
+		set->index = true;
+		break;
+
+	case OPT_INDEX_OFF:
+		config->index = false;
+		set->index = true;
+		break;
+
+	case OPT_UUID_ON:
+		config->uuid = true;
+		break;
+
+	case OPT_UUID_OFF:
+		config->uuid = false;
+		break;
+
+	case OPT_NFS_EXPORT_ON:
+		config->nfs_export = true;
+		set->nfs_export = true;
+		break;
+
+	case OPT_NFS_EXPORT_OFF:
+		config->nfs_export = false;
+		set->nfs_export = true;
+		break;
+
+	case OPT_XINO_ON:
+		config->xino = OVL_XINO_ON;
+		break;
+
+	case OPT_XINO_OFF:
+		config->xino = OVL_XINO_OFF;
+		break;
+
+	case OPT_XINO_AUTO:
+		config->xino = OVL_XINO_AUTO;
+		break;
+
+	case OPT_METACOPY_ON:
+		config->metacopy = true;
+		set->metacopy = true;
+		break;
+
+	case OPT_METACOPY_OFF:
+		config->metacopy = false;
+		set->metacopy = true;
+		break;
+
+	case OPT_VOLATILE:
+		config->ovl_volatile = true;
+		break;
+
+	case OPT_USERXATTR:
+		config->userxattr = true;
+		break;
+
+	default:
+		pr_err("unrecognized mount option \"%s\" or missing value\n",
+		       opt);
+		return -EINVAL;
+	}
+
+	return err;
+}
+
+static int ovl_parse_options(char *opt, struct ovl_config *config)
 {
 	char *p;
-	bool metacopy_opt = false, redirect_opt = false;
-	bool nfs_export_opt = false, index_opt = false;
+	int err;
+	struct ovl_opt_set set = {};
 
 	while ((p = ovl_next_opt(&opt)) != NULL) {
-		int token;
-		substring_t args[MAX_OPT_ARGS];
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, ovl_tokens, args);
-		switch (token) {
-		case OPT_UPPERDIR:
-			kfree(config->upperdir);
-			config->upperdir = match_strdup(&args[0]);
-			if (!config->upperdir)
-				return -ENOMEM;
-			break;
-
-		case OPT_LOWERDIR:
-			kfree(config->lowerdir);
-			config->lowerdir = match_strdup(&args[0]);
-			if (!config->lowerdir)
-				return -ENOMEM;
-			break;
-
-		case OPT_WORKDIR:
-			kfree(config->workdir);
-			config->workdir = match_strdup(&args[0]);
-			if (!config->workdir)
-				return -ENOMEM;
-			break;
-
-		case OPT_DEFAULT_PERMISSIONS:
-			config->default_permissions = true;
-			break;
-
-		case OPT_REDIRECT_DIR_ON:
-			config->redirect_mode = OVL_REDIRECT_ON;
-			redirect_opt = true;
-			break;
-
-		case OPT_REDIRECT_DIR_OFF:
-			config->redirect_mode = ovl_redirect_always_follow ?
-						OVL_REDIRECT_FOLLOW :
-						OVL_REDIRECT_NOFOLLOW;
-			redirect_opt = true;
-			break;
-
-		case OPT_REDIRECT_DIR_FOLLOW:
-			config->redirect_mode = OVL_REDIRECT_FOLLOW;
-			redirect_opt = true;
-			break;
-
-		case OPT_REDIRECT_DIR_NOFOLLOW:
-			config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
-			redirect_opt = true;
-			break;
-
-		case OPT_INDEX_ON:
-			config->index = true;
-			index_opt = true;
-			break;
-
-		case OPT_INDEX_OFF:
-			config->index = false;
-			index_opt = true;
-			break;
-
-		case OPT_UUID_ON:
-			config->uuid = true;
-			break;
-
-		case OPT_UUID_OFF:
-			config->uuid = false;
-			break;
-
-		case OPT_NFS_EXPORT_ON:
-			config->nfs_export = true;
-			nfs_export_opt = true;
-			break;
-
-		case OPT_NFS_EXPORT_OFF:
-			config->nfs_export = false;
-			nfs_export_opt = true;
-			break;
-
-		case OPT_XINO_ON:
-			config->xino = OVL_XINO_ON;
-			break;
-
-		case OPT_XINO_OFF:
-			config->xino = OVL_XINO_OFF;
-			break;
-
-		case OPT_XINO_AUTO:
-			config->xino = OVL_XINO_AUTO;
-			break;
-
-		case OPT_METACOPY_ON:
-			config->metacopy = true;
-			metacopy_opt = true;
-			break;
-
-		case OPT_METACOPY_OFF:
-			config->metacopy = false;
-			metacopy_opt = true;
-			break;
-
-		case OPT_VOLATILE:
-			config->ovl_volatile = true;
-			break;
-
-		case OPT_USERXATTR:
-			config->userxattr = true;
-			break;
-
-		default:
-			pr_err("unrecognized mount option \"%s\" or missing value\n",
-					p);
-			return -EINVAL;
-		}
+		err = ovl_parse_opt(p, config, &set);
+		if (err)
+			return err;
 	}
 
 	/* Workdir/index are useless in non-upper mount */
@@ -649,9 +660,9 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			kfree(config->workdir);
 			config->workdir = NULL;
 		}
-		if (config->index && index_opt) {
+		if (config->index && set.index) {
 			pr_info("option \"index=on\" is useless in a non-upper mount, ignore\n");
-			index_opt = false;
+			set.index = false;
 		}
 		config->index = false;
 	}
@@ -670,12 +681,12 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 	/* Resolve metacopy -> redirect_dir dependency */
 	if (config->metacopy && config->redirect_mode != OVL_REDIRECT_ON) {
-		if (metacopy_opt && redirect_opt) {
+		if (set.metacopy && set.redirect) {
 			pr_err("conflicting options: metacopy=on,redirect_dir=%s\n",
 			       ovl_redirect_mode(config));
 			return -EINVAL;
 		}
-		if (redirect_opt) {
+		if (set.redirect) {
 			/*
 			 * There was an explicit redirect_dir=... that resulted
 			 * in this conflict.
@@ -695,10 +706,10 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
 			pr_info("NFS export requires \"redirect_dir=nofollow\" on non-upper mount, falling back to nfs_export=off.\n");
 			config->nfs_export = false;
-		} else if (nfs_export_opt && index_opt) {
+		} else if (set.nfs_export && set.index) {
 			pr_err("conflicting options: nfs_export=on,index=off\n");
 			return -EINVAL;
-		} else if (index_opt) {
+		} else if (set.index) {
 			/*
 			 * There was an explicit index=off that resulted
 			 * in this conflict.
@@ -713,11 +724,11 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 	/* Resolve nfs_export -> !metacopy dependency */
 	if (config->nfs_export && config->metacopy) {
-		if (nfs_export_opt && metacopy_opt) {
+		if (set.nfs_export && set.metacopy) {
 			pr_err("conflicting options: nfs_export=on,metacopy=on\n");
 			return -EINVAL;
 		}
-		if (metacopy_opt) {
+		if (set.metacopy) {
 			/*
 			 * There was an explicit metacopy=on that resulted
 			 * in this conflict.
@@ -737,13 +748,13 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 	/* Resolve userxattr -> !redirect && !metacopy dependency */
 	if (config->userxattr) {
-		if (redirect_opt &&
+		if (set.redirect &&
 		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
 			pr_err("conflicting options: userxattr,redirect_dir=%s\n",
 			       ovl_redirect_mode(config));
 			return -EINVAL;
 		}
-		if (config->metacopy && metacopy_opt) {
+		if (config->metacopy && set.metacopy) {
 			pr_err("conflicting options: userxattr,metacopy=on\n");
 			return -EINVAL;
 		}
@@ -1981,7 +1992,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	ofs->config.nfs_export = ovl_nfs_export_def;
 	ofs->config.xino = ovl_xino_def();
 	ofs->config.metacopy = ovl_metacopy_def;
-	err = ovl_parse_opt((char *) data, &ofs->config);
+	err = ovl_parse_options((char *) data, &ofs->config);
 	if (err)
 		goto out_err;
 
