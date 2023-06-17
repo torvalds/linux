@@ -36,7 +36,7 @@
 		pinctrl-0 = <&hall_int_active_state>;
 		pinctrl-names = "default";
 
-		lid {
+		lid-switch {
 			gpios = <&tlmm 121 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
