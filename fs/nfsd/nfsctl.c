@@ -1494,7 +1494,17 @@ static int create_proc_exports_entry(void)
 
 unsigned int nfsd_net_id;
 
-static __net_init int nfsd_init_net(struct net *net)
+/**
+ * nfsd_net_init - Prepare the nfsd_net portion of a new net namespace
+ * @net: a freshly-created network namespace
+ *
+ * This information stays around as long as the network namespace is
+ * alive whether or not there is an NFSD instance running in the
+ * namespace.
+ *
+ * Returns zero on success, or a negative errno otherwise.
+ */
+static __net_init int nfsd_net_init(struct net *net)
 {
 	int retval;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -1524,7 +1534,12 @@ out_export_error:
 	return retval;
 }
 
-static __net_exit void nfsd_exit_net(struct net *net)
+/**
+ * nfsd_net_exit - Release the nfsd_net portion of a net namespace
+ * @net: a network namespace that is about to be destroyed
+ *
+ */
+static __net_exit void nfsd_net_exit(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
@@ -1535,8 +1550,8 @@ static __net_exit void nfsd_exit_net(struct net *net)
 }
 
 static struct pernet_operations nfsd_net_ops = {
-	.init = nfsd_init_net,
-	.exit = nfsd_exit_net,
+	.init = nfsd_net_init,
+	.exit = nfsd_net_exit,
 	.id   = &nfsd_net_id,
 	.size = sizeof(struct nfsd_net),
 };
