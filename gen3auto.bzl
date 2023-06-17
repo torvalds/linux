@@ -206,6 +206,7 @@ def define_gen3auto():
                     "bootconfig",
                     "androidboot.first_stage_console=1",
                     "nokaslr",
+                    "hibernate=nocompress",
                 ],
             ),
         )
