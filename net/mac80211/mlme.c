@@ -5608,6 +5608,169 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 	return true;
 }
 
+static void ieee80211_ml_reconf_work(struct wiphy *wiphy,
+				     struct wiphy_work *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.ml_reconf_work.work);
+	u16 new_valid_links, new_active_links, new_dormant_links;
+	int ret;
+
+	sdata_lock(sdata);
+	if (!sdata->u.mgd.removed_links) {
+		sdata_unlock(sdata);
+		return;
+	}
+
+	sdata_info(sdata,
+		   "MLO Reconfiguration: work: valid=0x%x, removed=0x%x\n",
+		   sdata->vif.valid_links, sdata->u.mgd.removed_links);
+
+	new_valid_links = sdata->vif.valid_links & ~sdata->u.mgd.removed_links;
+	if (new_valid_links == sdata->vif.valid_links) {
+		sdata_unlock(sdata);
+		return;
+	}
+
+	if (!new_valid_links ||
+	    !(new_valid_links & ~sdata->vif.dormant_links)) {
+		sdata_info(sdata, "No valid links after reconfiguration\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	new_active_links = sdata->vif.active_links & ~sdata->u.mgd.removed_links;
+	if (new_active_links != sdata->vif.active_links) {
+		if (!new_active_links)
+			new_active_links =
+				BIT(ffs(new_valid_links &
+					~sdata->vif.dormant_links) - 1);
+
+		ret = __ieee80211_set_active_links(&sdata->vif,
+						   new_active_links);
+		if (ret) {
+			sdata_info(sdata,
+				   "Failed setting active links\n");
+			goto out;
+		}
+	}
+
+	new_dormant_links = sdata->vif.dormant_links & ~sdata->u.mgd.removed_links;
+
+	ret = ieee80211_vif_set_links(sdata, new_valid_links,
+				      new_dormant_links);
+	if (ret)
+		sdata_info(sdata, "Failed setting valid links\n");
+
+out:
+	if (!ret)
+		cfg80211_links_removed(sdata->dev, sdata->u.mgd.removed_links);
+	else
+		___ieee80211_disconnect(sdata);
+
+	sdata->u.mgd.removed_links = 0;
+
+	sdata_unlock(sdata);
+}
+
+static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
+					 struct ieee802_11_elems *elems)
+{
+	const struct ieee80211_multi_link_elem *ml;
+	const struct element *sub;
+	size_t ml_len;
+	unsigned long removed_links = 0;
+	u16 link_removal_timeout[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	u8 link_id;
+	u32 delay;
+
+	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_reconf)
+		return;
+
+	ml_len = cfg80211_defragment_element(elems->ml_reconf_elem,
+					     elems->ie_start,
+					     elems->total_len,
+					     elems->scratch_pos,
+					     elems->scratch + elems->scratch_len -
+					     elems->scratch_pos,
+					     WLAN_EID_FRAGMENT);
+
+	elems->ml_reconf = (const void *)elems->scratch_pos;
+	elems->ml_reconf_len = ml_len;
+	ml = elems->ml_reconf;
+
+	/* Directly parse the sub elements as the common information doesn't
+	 * hold any useful information.
+	 */
+	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
+		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
+		u8 *pos = prof->variable;
+		u16 control;
+
+		if (sub->id != IEEE80211_MLE_SUBELEM_PER_STA_PROFILE)
+			continue;
+
+		if (!ieee80211_mle_reconf_sta_prof_size_ok(sub->data,
+							   sub->datalen))
+			return;
+
+		control = le16_to_cpu(prof->control);
+		link_id = control & IEEE80211_MLE_STA_RECONF_CONTROL_LINK_ID;
+
+		removed_links |= BIT(link_id);
+
+		/* the MAC address should not be included, but handle it */
+		if (control &
+		    IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT)
+			pos += 6;
+
+		/* According to Draft P802.11be_D3.0, the control should
+		 * include the AP Removal Timer present. If the AP Removal Timer
+		 * is not present assume immediate removal.
+		 */
+		if (control &
+		    IEEE80211_MLE_STA_RECONF_CONTROL_DELETE_TIMER_PRESENT)
+			link_removal_timeout[link_id] = le16_to_cpu(*(__le16 *)pos);
+	}
+
+	removed_links &= sdata->vif.valid_links;
+	if (!removed_links) {
+		/* In case the removal was cancelled, abort it */
+		if (sdata->u.mgd.removed_links) {
+			sdata->u.mgd.removed_links = 0;
+			wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+						  &sdata->u.mgd.ml_reconf_work);
+		}
+		return;
+	}
+
+	delay = 0;
+	for_each_set_bit(link_id, &removed_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			sdata_dereference(sdata->vif.link_conf[link_id], sdata);
+		u32 link_delay;
+
+		if (!link_conf) {
+			removed_links &= ~BIT(link_id);
+			continue;
+		}
+
+		link_delay = link_conf->beacon_int *
+			link_removal_timeout[link_id];
+
+		if (!delay)
+			delay = link_delay;
+		else
+			delay = min(delay, link_delay);
+	}
+
+	sdata->u.mgd.removed_links = removed_links;
+	wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+				 &sdata->u.mgd.ml_reconf_work,
+				 TU_TO_JIFFIES(delay));
+}
+
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				     struct ieee80211_hdr *hdr, size_t len,
 				     struct ieee80211_rx_status *rx_status)
@@ -5936,6 +6099,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 			goto free;
 		}
 	}
+
+	ieee80211_ml_reconfiguration(sdata, elems);
 
 	ieee80211_link_info_change_notify(sdata, link, changed);
 free:
@@ -6563,6 +6728,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 			ieee80211_csa_connection_drop_work);
 	INIT_DELAYED_WORK(&ifmgd->tdls_peer_del_work,
 			  ieee80211_tdls_peer_del_work);
+	wiphy_delayed_work_init(&ifmgd->ml_reconf_work,
+				ieee80211_ml_reconf_work);
 	timer_setup(&ifmgd->timer, ieee80211_sta_timer, 0);
 	timer_setup(&ifmgd->bcn_mon_timer, ieee80211_sta_bcn_mon_timer, 0);
 	timer_setup(&ifmgd->conn_mon_timer, ieee80211_sta_conn_mon_timer, 0);
@@ -7575,6 +7742,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	wiphy_work_cancel(sdata->local->hw.wiphy,
 			  &ifmgd->csa_connection_drop_work);
 	cancel_delayed_work_sync(&ifmgd->tdls_peer_del_work);
+	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+				  &ifmgd->ml_reconf_work);
 
 	sdata_lock(sdata);
 	if (ifmgd->assoc_data)

@@ -4891,6 +4891,39 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 	       fixed + prof->sta_info_len <= len;
 }
 
+#define IEEE80211_MLE_STA_RECONF_CONTROL_LINK_ID			0x000f
+#define IEEE80211_MLE_STA_RECONF_CONTROL_COMPLETE_PROFILE		0x0010
+#define IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT		0x0020
+#define IEEE80211_MLE_STA_RECONF_CONTROL_DELETE_TIMER_PRESENT		0x0040
+
+/**
+ * ieee80211_mle_reconf_sta_prof_size_ok - validate reconfiguration multi-link
+ *	element sta profile size.
+ * @data: pointer to the sub element data
+ * @len: length of the containing sub element
+ */
+static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
+							 size_t len)
+{
+	const struct ieee80211_mle_per_sta_profile *prof = (const void *)data;
+	u16 control;
+	u8 fixed = sizeof(*prof);
+	u8 info_len = 1;
+
+	if (len < fixed)
+		return false;
+
+	control = le16_to_cpu(prof->control);
+
+	if (control & IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT)
+		info_len += ETH_ALEN;
+	if (control & IEEE80211_MLE_STA_RECONF_CONTROL_DELETE_TIMER_PRESENT)
+		info_len += 2;
+
+	return prof->sta_info_len >= info_len &&
+	       fixed + prof->sta_info_len - 1 <= len;
+}
+
 #define for_each_mle_subelement(_elem, _data, _len)			\
 	if (ieee80211_mle_size_ok(_data, _len))				\
 		for_each_element(_elem,					\
