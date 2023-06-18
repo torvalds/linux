@@ -21,6 +21,8 @@ void bch2_assert_btree_nodes_not_locked(void);
 static inline void bch2_assert_btree_nodes_not_locked(void) {}
 #endif
 
+void bch2_trans_unlock_noassert(struct btree_trans *);
+
 static inline bool is_btree_node(struct btree_path *path, unsigned l)
 {
 	return l < BTREE_MAX_DEPTH && !IS_ERR_OR_NULL(path->l[l].b);

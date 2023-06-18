@@ -715,6 +715,14 @@ int bch2_trans_relock_notrace(struct btree_trans *trans)
 	return 0;
 }
 
+void bch2_trans_unlock_noassert(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	trans_for_each_path(trans, path)
+		__bch2_btree_path_unlock(trans, path);
+}
+
 void bch2_trans_unlock(struct btree_trans *trans)
 {
 	struct btree_path *path;
