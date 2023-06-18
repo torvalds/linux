@@ -707,7 +707,7 @@ static int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
 					GFP_ATOMIC);
 
 			if (!entry)
-				break;
+				goto error;
 
 			entry->center_freq = freq;
 
@@ -723,6 +723,7 @@ static int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
 		}
 	}
 
+error:
 	if (pos != end) {
 		cfg80211_free_coloc_ap_list(&ap_list);
 		return 0;
