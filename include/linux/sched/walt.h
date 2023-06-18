@@ -15,6 +15,7 @@ enum pause_client {
 	PAUSE_CORE_CTL	= 0x01,
 	PAUSE_THERMAL	= 0x02,
 	PAUSE_HYP	= 0x04,
+	PAUSE_SBT	= 0x08,
 };
 
 #if IS_ENABLED(CONFIG_SCHED_WALT)

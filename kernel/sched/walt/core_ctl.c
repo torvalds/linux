@@ -27,6 +27,9 @@ static cpumask_t cpus_paused_by_us = { CPU_BITS_NONE };
 /* mask of all CPUS with a partial pause claim outstanding */
 static cpumask_t cpus_part_paused_by_us = { CPU_BITS_NONE };
 
+/* global to indicate which cpus to pause for sbt */
+cpumask_t cpus_for_sbt_pause = { CPU_BITS_NONE };
+
 struct cluster_data {
 	bool			inited;
 	unsigned int		min_cpus;
@@ -44,6 +47,7 @@ struct cluster_data {
 	unsigned int		max_nr;
 	unsigned int		nr_assist;
 	unsigned int		nr_busy;
+	unsigned int		nr_big;
 	s64			need_ts;
 	struct list_head	lru;
 	bool			enable;
@@ -978,7 +982,8 @@ static void update_running_avg(void)
 					nr_misfit_assist_need, cluster->nr_assist,
 					cluster->nr_busy);
 
-		big_avg += cluster_real_big_tasks(index);
+		cluster->nr_big = cluster_real_big_tasks(index);
+		big_avg += cluster->nr_big;
 	}
 	spin_unlock_irqrestore(&state_lock, flags);
 
@@ -1254,6 +1259,58 @@ static bool core_ctl_check_masks_set(void)
 
 	return all_masks_set;
 }
+
+/* is the system in a single-big-thread case? */
+static inline bool is_sbt(void)
+{
+	struct cluster_data *cluster = &cluster_state[MAX_CLUSTERS - 1];
+
+	if (last_nr_big == 1 && cluster->nr_big == 1)
+		return true;
+
+	return false;
+}
+
+/**
+ * sbt_ctl_check
+ *
+ * Determine if the system should enter or
+ * exit single-big-thread mode and ensure
+ * the cpus are paused when entering.
+ *
+ * note: depends on update_running_average
+ * note: must be called every window rollover
+ */
+void sbt_ctl_check(void)
+{
+	static bool prev_is_sbt;
+	static int prev_is_sbt_windows;
+	bool now_is_sbt = is_sbt();
+
+	/* if there are cpus to adjust */
+	if (cpumask_weight(&cpus_for_sbt_pause) != 0) {
+
+		if (prev_is_sbt == now_is_sbt) {
+			if (prev_is_sbt_windows < sysctl_sched_sbt_delay_windows)
+				prev_is_sbt_windows = sysctl_sched_sbt_delay_windows;
+			return;
+		}
+
+		if (now_is_sbt && prev_is_sbt_windows-- > 0)
+			return;
+
+		if (!prev_is_sbt && now_is_sbt)
+			/*sbt entry*/
+			walt_pause_cpus(&cpus_for_sbt_pause, PAUSE_SBT);
+		else if (prev_is_sbt && !now_is_sbt)
+			/* sbt exit */
+			walt_resume_cpus(&cpus_for_sbt_pause, PAUSE_SBT);
+
+		prev_is_sbt_windows = sysctl_sched_sbt_delay_windows;
+		prev_is_sbt = now_is_sbt;
+	}
+}
+
 /*
  * sched_get_nr_running_avg will wipe out previous statistics and
  * update it to the values computed since the last call.
@@ -1305,6 +1362,9 @@ void core_ctl_check(u64 window_start)
 	if (wakeup)
 		do_core_ctl();
 	core_ctl_call_notifier();
+
+	/* independent check from eval_need */
+	sbt_ctl_check();
 }
 
 /* must be called with state_lock held */
@@ -1689,6 +1749,7 @@ static int cluster_init(const struct cpumask *mask)
 	cluster->enable = false;
 	cluster->nr_not_preferred_cpus = 0;
 	cluster->strict_nrrun = 0;
+	cluster->nr_big = 0;
 
 	/*
 	 * set all cpus in the cluster.  this is an invalid state
