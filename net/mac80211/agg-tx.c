@@ -457,6 +457,10 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 	u8 tid = tid_tx->tid;
 	u16 buf_size;
 
+	if (WARN_ON_ONCE(test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state) ||
+			 test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state)))
+		return;
+
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
 	/* activate the timer for the recipient's addBA response */
@@ -800,6 +804,10 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
 	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
+		return;
+
+	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state) ||
+	    test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state))
 		return;
 
 	if (!test_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state)) {
