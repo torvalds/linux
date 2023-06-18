@@ -61,7 +61,7 @@ struct mlx5_eq_table {
 	int			curr_comp_eqs;
 	int			max_comp_eqs;
 	struct mlx5_irq_table	*irq_table;
-	struct mlx5_irq         **comp_irqs;
+	struct xarray           comp_irqs;
 	struct mlx5_irq         *ctrl_irq;
 	struct cpu_rmap		*rmap;
 	struct cpumask          used_cpus;
@@ -455,14 +455,18 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 
 	eq_table->irq_table = mlx5_irq_table_get(dev);
 	cpumask_clear(&eq_table->used_cpus);
+	xa_init(&eq_table->comp_irqs);
 	eq_table->curr_comp_eqs = 0;
 	return 0;
 }
 
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev)
 {
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+
 	mlx5_eq_debugfs_cleanup(dev);
-	kvfree(dev->priv.eq_table);
+	xa_destroy(&table->comp_irqs);
+	kvfree(table);
 }
 
 /* Async EQs */
@@ -810,10 +814,13 @@ EXPORT_SYMBOL(mlx5_eq_update_ci);
 static void comp_irqs_release_pci(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	int i;
+	struct mlx5_irq *irq;
+	unsigned long index;
 
-	for (i = 0; i < table->max_comp_eqs; i++)
-		mlx5_irq_release_vector(table->comp_irqs[i]);
+	xa_for_each(&table->comp_irqs, index, irq) {
+		xa_erase(&table->comp_irqs, index);
+		mlx5_irq_release_vector(irq);
+	}
 }
 
 static int comp_irqs_request_pci(struct mlx5_core_dev *dev)
@@ -849,7 +856,8 @@ spread_done:
 		if (IS_ERR(irq))
 			break;
 
-		table->comp_irqs[i] = irq;
+		if (xa_err(xa_store(&table->comp_irqs, i, irq, GFP_KERNEL)))
+			break;
 	}
 
 	kfree(cpus);
@@ -859,10 +867,13 @@ spread_done:
 static void comp_irqs_release_sf(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	int i;
+	struct mlx5_irq *irq;
+	unsigned long index;
 
-	for (i = 0; i < table->max_comp_eqs; i++)
-		mlx5_irq_affinity_irq_release(dev, table->comp_irqs[i]);
+	xa_for_each(&table->comp_irqs, index, irq) {
+		xa_erase(&table->comp_irqs, index);
+		mlx5_irq_affinity_irq_release(dev, irq);
+	}
 }
 
 static int comp_irqs_request_sf(struct mlx5_core_dev *dev)
@@ -876,7 +887,8 @@ static int comp_irqs_request_sf(struct mlx5_core_dev *dev)
 		if (IS_ERR(irq))
 			break;
 
-		table->comp_irqs[i] = irq;
+		if (xa_err(xa_store(&table->comp_irqs, i, irq, GFP_KERNEL)))
+			break;
 	}
 
 	return i ? i : PTR_ERR(irq);
@@ -884,31 +896,14 @@ static int comp_irqs_request_sf(struct mlx5_core_dev *dev)
 
 static void comp_irqs_release(struct mlx5_core_dev *dev)
 {
-	struct mlx5_eq_table *table = dev->priv.eq_table;
-
 	mlx5_core_is_sf(dev) ? comp_irqs_release_sf(dev) :
 			       comp_irqs_release_pci(dev);
-
-	kfree(table->comp_irqs);
 }
 
 static int comp_irqs_request(struct mlx5_core_dev *dev)
 {
-	struct mlx5_eq_table *table = dev->priv.eq_table;
-	int ncomp_eqs;
-	int ret;
-
-	ncomp_eqs = table->max_comp_eqs;
-	table->comp_irqs = kcalloc(ncomp_eqs, sizeof(*table->comp_irqs), GFP_KERNEL);
-	if (!table->comp_irqs)
-		return -ENOMEM;
-
-	ret = mlx5_core_is_sf(dev) ? comp_irqs_request_sf(dev) :
-				     comp_irqs_request_pci(dev);
-	if (ret < 0)
-		kfree(table->comp_irqs);
-
-	return ret;
+	return mlx5_core_is_sf(dev) ? comp_irqs_request_sf(dev) :
+				      comp_irqs_request_pci(dev);
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -983,10 +978,11 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	struct mlx5_eq_comp *eq;
+	struct mlx5_irq *irq;
+	unsigned long index;
 	int ncomp_eqs;
 	int nent;
 	int err;
-	int i;
 
 	err = alloc_rmap(dev);
 	if (err)
@@ -1002,7 +998,8 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	INIT_LIST_HEAD(&table->comp_eqs_list);
 	nent = comp_eq_depth_devlink_param_get(dev);
 
-	for (i = 0; i < ncomp_eqs; i++) {
+	xa_for_each(&table->comp_irqs, index, irq)
+	{
 		struct mlx5_eq_param param = {};
 
 		eq = kzalloc_node(sizeof(*eq), GFP_KERNEL, dev->priv.numa_node);
@@ -1018,7 +1015,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
-			.irq = table->comp_irqs[i],
+			.irq = irq,
 			.nent = nent,
 		};
 
