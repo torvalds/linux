@@ -346,6 +346,15 @@
 			rockchip,bit-set-to-disable;
 		};
 
+		mclkout_i2s1m1: mclkout-i2s1@fd58a000 {
+			compatible = "rockchip,clk-out";
+			reg = <0 0xfd58a000 0 0x4>;
+			clocks = <&cru I2S1_8CH_MCLKOUT>;
+			#clock-cells = <0>;
+			clock-output-names = "i2s1m1_mclkout_to_io";
+			rockchip,bit-shift = <6>;
+		};
+
 		mclkout_i2s2: mclkout-i2s2@fd58c318 {
 			compatible = "rockchip,clk-out";
 			reg = <0 0xfd58c318 0 0x4>;
