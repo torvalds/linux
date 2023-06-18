@@ -4876,9 +4876,6 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 		info_len += 8;
 	if (control & IEEE80211_MLE_STA_CONTROL_DTIM_INFO_PRESENT)
 		info_len += 2;
-	if (control & IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT)
-		info_len += 1;
-
 	if (control & IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE &&
 	    control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE) {
 		if (control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE)
@@ -4886,6 +4883,8 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 		else
 			info_len += 1;
 	}
+	if (control & IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT)
+		info_len += 1;
 
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len <= len;
