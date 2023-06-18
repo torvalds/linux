@@ -574,39 +574,41 @@ static void cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list)
 static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 				  const u8 *pos, u8 length,
 				  const struct element *ssid_elem,
-				  int s_ssid_tmp)
+				  u32 s_ssid_tmp)
 {
-	/* skip the TBTT offset */
-	pos++;
+	u8 bss_params;
+
+	/* The length is already verified by the caller to contain bss_params */
+	if (length > sizeof(struct ieee80211_tbtt_info_7_8_9)) {
+		struct ieee80211_tbtt_info_ge_11 *tbtt_info = (void *)pos;
+
+		memcpy(entry->bssid, tbtt_info->bssid, ETH_ALEN);
+		entry->short_ssid = le32_to_cpu(tbtt_info->short_ssid);
+		entry->short_ssid_valid = true;
+
+		bss_params = tbtt_info->bss_params;
+	} else {
+		struct ieee80211_tbtt_info_7_8_9 *tbtt_info = (void *)pos;
+
+		memcpy(entry->bssid, tbtt_info->bssid, ETH_ALEN);
+
+		bss_params = tbtt_info->bss_params;
+	}
 
 	/* ignore entries with invalid BSSID */
-	if (!is_valid_ether_addr(pos))
+	if (!is_valid_ether_addr(entry->bssid))
 		return -EINVAL;
-
-	memcpy(entry->bssid, pos, ETH_ALEN);
-	pos += ETH_ALEN;
-
-	if (length >= IEEE80211_TBTT_INFO_OFFSET_BSSID_SSSID_BSS_PARAM) {
-		memcpy(&entry->short_ssid, pos,
-		       sizeof(entry->short_ssid));
-		entry->short_ssid_valid = true;
-		pos += 4;
-	}
 
 	/* skip non colocated APs */
-	if (!cfg80211_parse_bss_param(*pos, entry))
+	if (!cfg80211_parse_bss_param(bss_params, entry))
 		return -EINVAL;
-	pos++;
 
-	if (length == IEEE80211_TBTT_INFO_OFFSET_BSSID_BSS_PARAM) {
-		/*
-		 * no information about the short ssid. Consider the entry valid
-		 * for now. It would later be dropped in case there are explicit
-		 * SSIDs that need to be matched
-		 */
-		if (!entry->same_ssid)
-			return 0;
-	}
+	/* no information about the short ssid. Consider the entry valid
+	 * for now. It would later be dropped in case there are explicit
+	 * SSIDs that need to be matched
+	 */
+	if (!entry->same_ssid && !entry->short_ssid_valid)
+		return 0;
 
 	if (entry->same_ssid) {
 		entry->short_ssid = s_ssid_tmp;
@@ -617,10 +619,10 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 		 * cfg80211_parse_colocated_ap(), before calling this
 		 * function.
 		 */
-		memcpy(&entry->ssid, &ssid_elem->data,
-		       ssid_elem->datalen);
+		memcpy(&entry->ssid, &ssid_elem->data, ssid_elem->datalen);
 		entry->ssid_len = ssid_elem->datalen;
 	}
+
 	return 0;
 }
 
@@ -682,8 +684,11 @@ static int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
 		 * next AP info
 		 */
 		if (band != NL80211_BAND_6GHZ ||
-		    (length != IEEE80211_TBTT_INFO_OFFSET_BSSID_BSS_PARAM &&
-		     length < IEEE80211_TBTT_INFO_OFFSET_BSSID_SSSID_BSS_PARAM)) {
+		    !(length == offsetofend(struct ieee80211_tbtt_info_7_8_9,
+					    bss_params) ||
+		      length == sizeof(struct ieee80211_tbtt_info_7_8_9) ||
+		      length >= offsetofend(struct ieee80211_tbtt_info_ge_11,
+					    bss_params))) {
 			pos += count * length;
 			continue;
 		}
