@@ -587,6 +587,13 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 		entry->short_ssid_valid = true;
 
 		bss_params = tbtt_info->bss_params;
+
+		/* Ignore disabled links */
+		if (length >= offsetofend(typeof(*tbtt_info), mld_params)) {
+			if (le16_get_bits(tbtt_info->mld_params.params,
+					  IEEE80211_RNR_MLD_PARAMS_DISABLED_LINK))
+				return -EINVAL;
+		}
 	} else {
 		struct ieee80211_tbtt_info_7_8_9 *tbtt_info = (void *)pos;
 
