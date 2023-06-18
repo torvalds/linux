@@ -4893,7 +4893,9 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 #define IEEE80211_MLE_STA_RECONF_CONTROL_LINK_ID			0x000f
 #define IEEE80211_MLE_STA_RECONF_CONTROL_COMPLETE_PROFILE		0x0010
 #define IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT		0x0020
-#define IEEE80211_MLE_STA_RECONF_CONTROL_DELETE_TIMER_PRESENT		0x0040
+#define IEEE80211_MLE_STA_RECONF_CONTROL_AP_REM_TIMER_PRESENT		0x0040
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_UPDATE_TYPE		0x0780
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_PARAMS_PRESENT	0x0800
 
 /**
  * ieee80211_mle_reconf_sta_prof_size_ok - validate reconfiguration multi-link
@@ -4916,7 +4918,9 @@ static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
 
 	if (control & IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT)
 		info_len += ETH_ALEN;
-	if (control & IEEE80211_MLE_STA_RECONF_CONTROL_DELETE_TIMER_PRESENT)
+	if (control & IEEE80211_MLE_STA_RECONF_CONTROL_AP_REM_TIMER_PRESENT)
+		info_len += 2;
+	if (control & IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_PARAMS_PRESENT)
 		info_len += 2;
 
 	return prof->sta_info_len >= info_len &&

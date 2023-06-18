@@ -5730,7 +5730,7 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 		 * is not present assume immediate removal.
 		 */
 		if (control &
-		    IEEE80211_MLE_STA_RECONF_CONTROL_DELETE_TIMER_PRESENT)
+		    IEEE80211_MLE_STA_RECONF_CONTROL_AP_REM_TIMER_PRESENT)
 			link_removal_timeout[link_id] = le16_to_cpu(*(__le16 *)pos);
 	}
 
