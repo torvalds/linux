@@ -22,6 +22,18 @@ Human interfaces
    gpu/index
    fb/index
 
+Storage interfaces
+------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   filesystems/index
+   block/index
+   cdrom/index
+   scsi/index
+   target/index
+
 **Fixme**: much more organizational work is needed here.
 
 .. toctree::
@@ -31,8 +43,6 @@ Human interfaces
    core-api/index
    locking/index
    accounting/index
-   block/index
-   cdrom/index
    cpu-freq/index
    fpga/index
    i2c/index
@@ -44,7 +54,6 @@ Human interfaces
    networking/index
    pcmcia/index
    power/index
-   target/index
    timers/index
    spi/index
    w1/index
@@ -54,12 +63,10 @@ Human interfaces
    accel/index
    security/index
    crypto/index
-   filesystems/index
    mm/index
    bpf/index
    usb/index
    PCI/index
-   scsi/index
    misc-devices/index
    scheduler/index
    mhi/index
