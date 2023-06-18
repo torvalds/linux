@@ -4639,10 +4639,10 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
  * ieee80211_mle_get_eml_sync_delay - returns the medium sync delay
  * @data: pointer to the multi link EHT IE
  *
- * The element is assumed to be big enough. This must be checked by
- * ieee80211_mle_size_ok().
- * If the medium synchronization can't be found (the type is not basic, or
- * the medium sync presence bit is clear), 0 will be returned.
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ *
+ * If the medium synchronization is not present, then 0 is returned.
  */
 static inline u16 ieee80211_mle_get_eml_med_sync_delay(const u8 *data)
 {
@@ -4650,13 +4650,7 @@ static inline u16 ieee80211_mle_get_eml_med_sync_delay(const u8 *data)
 	u16 control = le16_to_cpu(mle->control);
 	const u8 *common = mle->variable;
 
-	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) !=
-	    IEEE80211_ML_CONTROL_TYPE_BASIC)
-		return 0;
-
-	/* common points now at the beginning of
-	 * ieee80211_mle_basic_common_info
-	 */
+	/* common points now at the beginning of ieee80211_mle_basic_common_info */
 	common += sizeof(struct ieee80211_mle_basic_common_info);
 
 	if (!(control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY))
@@ -4674,20 +4668,16 @@ static inline u16 ieee80211_mle_get_eml_med_sync_delay(const u8 *data)
  * ieee80211_mle_get_eml_cap - returns the EML capability
  * @data: pointer to the multi link EHT IE
  *
- * The element is assumed to be big enough. This must be checked by
- * ieee80211_mle_size_ok().
- * If the EML capability can't be found (the type is not basic, or
- * the EML capability presence bit is clear), 0 will be returned.
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ *
+ * If the EML capability is not present, 0 will be returned.
  */
 static inline u16 ieee80211_mle_get_eml_cap(const u8 *data)
 {
 	const struct ieee80211_multi_link_elem *mle = (const void *)data;
 	u16 control = le16_to_cpu(mle->control);
 	const u8 *common = mle->variable;
-
-	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) !=
-	    IEEE80211_ML_CONTROL_TYPE_BASIC)
-		return 0;
 
 	/* common points now at the beginning of ieee80211_mle_basic_common_info */
 	common += sizeof(struct ieee80211_mle_basic_common_info);
@@ -4771,6 +4761,28 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 
 	/* if present, common length is the first octet there */
 	return mle->variable[0] >= common;
+}
+
+/**
+ * ieee80211_mle_type_ok - validate multi-link element type and size
+ * @data: pointer to the element data
+ * @type: expected type of the element
+ * @len: length of the containing element
+ */
+static inline bool ieee80211_mle_type_ok(const u8 *data, u8 type, size_t len)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control;
+
+	if (!ieee80211_mle_size_ok(data, len))
+		return false;
+
+	control = le16_to_cpu(mle->control);
+
+	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) == type)
+		return true;
+
+	return false;
 }
 
 enum ieee80211_mle_subelems {

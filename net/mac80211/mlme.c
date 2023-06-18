@@ -4852,7 +4852,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 		/* data + 1 / datalen - 1 since it's an extended element */
 		if (eht_ml_elem &&
-		    ieee80211_mle_size_ok(eht_ml_elem->data + 1,
+		    ieee80211_mle_type_ok(eht_ml_elem->data + 1,
+					  IEEE80211_ML_CONTROL_TYPE_BASIC,
 					  eht_ml_elem->datalen - 1)) {
 			sdata->vif.cfg.eml_cap =
 				ieee80211_mle_get_eml_cap(eht_ml_elem->data + 1);
