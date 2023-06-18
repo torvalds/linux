@@ -72,6 +72,10 @@
 	status = "okay";
 };
 
+&rmii_phy {
+	bgs,increment = <0>;
+};
+
 &rng {
 	status = "okay";
 };
