@@ -740,26 +740,29 @@ static int rockchip_pdm_runtime_resume(struct device *dev)
 	int ret;
 
 	ret = clk_prepare_enable(pdm->clk);
-	if (ret) {
-		dev_err(pdm->dev, "clock enable failed %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		goto err_clk;
 
 	ret = clk_prepare_enable(pdm->hclk);
-	if (ret) {
-		dev_err(pdm->dev, "hclock enable failed %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		goto err_hclk;
 
-	rockchip_pdm_rxctrl(pdm, 0);
 	regcache_cache_only(pdm->regmap, false);
 	regcache_mark_dirty(pdm->regmap);
 	ret = regcache_sync(pdm->regmap);
-	if (ret) {
-		clk_disable_unprepare(pdm->clk);
-		clk_disable_unprepare(pdm->hclk);
-	}
+	if (ret)
+		goto err_regmap;
+
+	rockchip_pdm_rxctrl(pdm, 0);
+
 	return 0;
+
+err_regmap:
+	clk_disable_unprepare(pdm->hclk);
+err_hclk:
+	clk_disable_unprepare(pdm->clk);
+err_clk:
+	return ret;
 }
 
 static bool rockchip_pdm_wr_reg(struct device *dev, unsigned int reg)
