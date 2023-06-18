@@ -1755,9 +1755,10 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_328[0x2];
 	u8	   relaxed_ordering_read[0x1];
 	u8         log_max_pd[0x5];
-	u8         reserved_at_330[0x7];
+	u8         reserved_at_330[0x6];
+	u8         pci_sync_for_fw_update_with_driver_unload[0x1];
 	u8         vnic_env_cnt_steering_fail[0x1];
-	u8         reserved_at_338[0x1];
+	u8         vport_counter_local_loopback[0x1];
 	u8         q_counter_aggregation[0x1];
 	u8         q_counter_other_vport[0x1];
 	u8         log_max_xrcd[0x5];
@@ -3117,7 +3118,9 @@ struct mlx5_ifc_dtor_reg_bits {
 
 	struct mlx5_ifc_default_timeout_bits reclaim_vfs_pages_to;
 
-	u8         reserved_at_1c0[0x40];
+	struct mlx5_ifc_default_timeout_bits reset_unload_to;
+
+	u8         reserved_at_1c0[0x20];
 };
 
 enum {
@@ -5187,7 +5190,9 @@ struct mlx5_ifc_query_vport_counter_out_bits {
 
 	struct mlx5_ifc_traffic_counter_bits transmitted_eth_multicast;
 
-	u8         reserved_at_680[0xa00];
+	struct mlx5_ifc_traffic_counter_bits local_loopback;
+
+	u8         reserved_at_700[0x980];
 };
 
 enum {

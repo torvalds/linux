@@ -31,6 +31,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/debugfs.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include <linux/mlx5/vport.h>
@@ -1765,6 +1766,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
 	esw->first_host_vport = mlx5_eswitch_first_host_vport_num(dev);
 
+	esw->debugfs_root = debugfs_create_dir("esw", mlx5_debugfs_get_dev_root(dev));
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {
 		err = -ENOMEM;
@@ -1818,6 +1820,7 @@ reps_err:
 abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
+	debugfs_remove_recursive(esw->debugfs_root);
 	kfree(esw);
 unregister_param:
 	devl_params_unregister(priv_to_devlink(dev), mlx5_eswitch_params,
@@ -1844,6 +1847,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	mutex_destroy(&esw->offloads.decap_tbl_lock);
 	esw_offloads_cleanup(esw);
 	mlx5_esw_vports_cleanup(esw);
+	debugfs_remove_recursive(esw->debugfs_root);
 	kfree(esw);
 	devl_params_unregister(priv_to_devlink(esw->dev), mlx5_eswitch_params,
 			       ARRAY_SIZE(mlx5_eswitch_params));

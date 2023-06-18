@@ -165,15 +165,6 @@ struct page_pool;
 #define MLX5E_MAX_KLM_PER_WQE(mdev) \
 	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * mlx5e_get_max_sq_aligned_wqebbs(mdev))
 
-#define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
-
-#define mlx5e_dbg(mlevel, priv, format, ...)                    \
-do {                                                            \
-	if (NETIF_MSG_##mlevel & (priv)->msglevel)              \
-		netdev_warn(priv->netdev, format,               \
-			    ##__VA_ARGS__);                     \
-} while (0)
-
 #define mlx5e_state_dereference(priv, p) \
 	rcu_dereference_protected((p), lockdep_is_held(&(priv)->state_lock))
 
@@ -880,7 +871,6 @@ struct mlx5e_priv {
 #endif
 	/* priv data path fields - end */
 
-	u32                        msglevel;
 	unsigned long              state;
 	struct mutex               state_lock; /* Protects Interface state */
 	struct mlx5e_rq            drop_rq;

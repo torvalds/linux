@@ -304,6 +304,8 @@ enum {
 	MLX5_ESW_FDB_CREATED = BIT(0),
 };
 
+struct dentry;
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_nb          nb;
@@ -312,6 +314,7 @@ struct mlx5_eswitch {
 	struct hlist_head       mc_table[MLX5_L2_ADDR_HASH_SIZE];
 	struct esw_mc_addr mc_promisc;
 	/* end of legacy */
+	struct dentry *debugfs_root;
 	struct workqueue_struct *work_queue;
 	struct xarray vports;
 	u32 flags;
@@ -665,6 +668,7 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 			  index,					\
 			  vport,					\
 			  MLX5_CAP_GEN_2((esw->dev), ec_vf_vport_base),	\
+			  MLX5_CAP_GEN_2((esw->dev), ec_vf_vport_base) +\
 			  (last) - 1)
 
 struct mlx5_eswitch *mlx5_devlink_eswitch_get(struct devlink *devlink);

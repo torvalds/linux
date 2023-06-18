@@ -39,6 +39,7 @@
 #include "mlx5_core.h"
 #include "lib/eq.h"
 #include "lib/mlx5.h"
+#include "lib/events.h"
 #include "lib/pci_vsc.h"
 #include "lib/tout.h"
 #include "diag/fw_tracer.h"

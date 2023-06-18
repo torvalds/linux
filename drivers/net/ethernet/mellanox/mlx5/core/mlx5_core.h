@@ -358,4 +358,11 @@ static inline bool mlx5_core_is_ec_vf_vport(const struct mlx5_core_dev *dev, u16
 
 	return (vport_num >= base_vport && vport_num < max_vport);
 }
+
+static inline int mlx5_vport_to_func_id(const struct mlx5_core_dev *dev, u16 vport, bool ec_vf_func)
+{
+	return ec_vf_func ? vport - mlx5_core_ec_vf_vport_base(dev)
+			  : vport;
+}
+
 #endif /* __MLX5_CORE_H__ */
