@@ -2359,21 +2359,6 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	return __split_vma(mm, vma, addr, new_below);
 }
 
-static inline int munmap_sidetree(struct vm_area_struct *vma, int count,
-				   struct ma_state *mas_detach)
-{
-	vma_start_write(vma);
-	mas_set(mas_detach, count);
-	if (mas_store_gfp(mas_detach, vma, GFP_KERNEL))
-		return -ENOMEM;
-
-	vma_mark_detached(vma, true);
-	if (vma->vm_flags & VM_LOCKED)
-		vma->vm_mm->locked_vm -= vma_pages(vma);
-
-	return 0;
-}
-
 /*
  * do_mas_align_munmap() - munmap the aligned region from @start to @end.
  * @mas: The maple_state, ideally set up to alter the correct tree location.
@@ -2395,6 +2380,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	struct maple_tree mt_detach;
 	int count = 0;
 	int error = -ENOMEM;
+	unsigned long locked_vm = 0;
 	MA_STATE(mas_detach, &mt_detach, 0, 0);
 	mt_init_flags(&mt_detach, mas->tree->ma_flags & MT_FLAGS_LOCK_MASK);
 	mt_set_external_lock(&mt_detach, &mm->mmap_lock);
@@ -2450,18 +2436,27 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 
 			mas_set(mas, end);
 			split = mas_prev(mas, 0);
-			error = munmap_sidetree(split, count, &mas_detach);
+			vma_start_write(split);
+			mas_set(&mas_detach, count);
+			error = mas_store_gfp(&mas_detach, split, GFP_KERNEL);
 			if (error)
-				goto munmap_sidetree_failed;
+				goto munmap_gather_failed;
+			vma_mark_detached(split, true);
+			if (split->vm_flags & VM_LOCKED)
+				locked_vm += vma_pages(split);
 
 			count++;
 			if (vma == next)
 				vma = split;
 			break;
 		}
-		error = munmap_sidetree(next, count, &mas_detach);
-		if (error)
-			goto munmap_sidetree_failed;
+		vma_start_write(next);
+		mas_set(&mas_detach, count);
+		if (mas_store_gfp(&mas_detach, next, GFP_KERNEL))
+			goto munmap_gather_failed;
+		vma_mark_detached(next, true);
+		if (next->vm_flags & VM_LOCKED)
+			locked_vm += vma_pages(next);
 
 		count++;
 		if (unlikely(uf)) {
@@ -2519,6 +2514,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	if (mas_store_gfp(mas, NULL, GFP_KERNEL))
 		return -ENOMEM;
 
+	mm->locked_vm -= locked_vm;
 	mm->map_count -= count;
 	/*
 	 * Do not downgrade mmap_lock if we are next to VM_GROWSDOWN or
@@ -2550,7 +2546,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	return downgrade ? 1 : 0;
 
 userfaultfd_error:
-munmap_sidetree_failed:
+munmap_gather_failed:
 end_split_failed:
 	__mt_destroy(&mt_detach);
 start_split_failed:
