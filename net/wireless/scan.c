@@ -643,90 +643,89 @@ static int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
 	int n_coloc = 0, ret;
 	LIST_HEAD(ap_list);
 
-	elem = cfg80211_find_elem(WLAN_EID_REDUCED_NEIGHBOR_REPORT, ies->data,
-				  ies->len);
-	if (!elem)
-		return 0;
-
-	pos = elem->data;
-	end = pos + elem->datalen;
-
 	ret = cfg80211_calc_short_ssid(ies, &ssid_elem, &s_ssid_tmp);
 	if (ret)
 		return ret;
 
-	/* RNR IE may contain more than one NEIGHBOR_AP_INFO */
-	while (pos + sizeof(*ap_info) <= end) {
-		enum nl80211_band band;
-		int freq;
-		u8 length, i, count;
+	for_each_element_id(elem, WLAN_EID_REDUCED_NEIGHBOR_REPORT,
+			    ies->data, ies->len) {
+		pos = elem->data;
+		end = elem->data + elem->datalen;
 
-		ap_info = (void *)pos;
-		count = u8_get_bits(ap_info->tbtt_info_hdr,
-				    IEEE80211_AP_INFO_TBTT_HDR_COUNT) + 1;
-		length = ap_info->tbtt_info_len;
+		/* RNR IE may contain more than one NEIGHBOR_AP_INFO */
+		while (pos + sizeof(*ap_info) <= end) {
+			enum nl80211_band band;
+			int freq;
+			u8 length, i, count;
 
-		pos += sizeof(*ap_info);
+			ap_info = (void *)pos;
+			count = u8_get_bits(ap_info->tbtt_info_hdr,
+					    IEEE80211_AP_INFO_TBTT_HDR_COUNT) + 1;
+			length = ap_info->tbtt_info_len;
 
-		if (!ieee80211_operating_class_to_band(ap_info->op_class,
-						       &band))
-			break;
+			pos += sizeof(*ap_info);
 
-		freq = ieee80211_channel_to_frequency(ap_info->channel, band);
+			if (!ieee80211_operating_class_to_band(ap_info->op_class,
+							       &band))
+				break;
 
-		if (end - pos < count * length)
-			break;
+			freq = ieee80211_channel_to_frequency(ap_info->channel,
+							      band);
 
-		if (u8_get_bits(ap_info->tbtt_info_hdr,
-				IEEE80211_AP_INFO_TBTT_HDR_TYPE) !=
-		    IEEE80211_TBTT_INFO_TYPE_TBTT) {
-			pos += count * length;
-			continue;
-		}
+			if (end - pos < count * length)
+				break;
 
-		/*
-		 * TBTT info must include bss param + BSSID +
-		 * (short SSID or same_ssid bit to be set).
-		 * ignore other options, and move to the
-		 * next AP info
-		 */
-		if (band != NL80211_BAND_6GHZ ||
-		    !(length == offsetofend(struct ieee80211_tbtt_info_7_8_9,
-					    bss_params) ||
-		      length == sizeof(struct ieee80211_tbtt_info_7_8_9) ||
-		      length >= offsetofend(struct ieee80211_tbtt_info_ge_11,
-					    bss_params))) {
-			pos += count * length;
-			continue;
-		}
-
-		for (i = 0; i < count; i++) {
-			struct cfg80211_colocated_ap *entry;
-
-			entry = kzalloc(sizeof(*entry) + IEEE80211_MAX_SSID_LEN,
-					GFP_ATOMIC);
-
-			if (!entry)
-				goto error;
-
-			entry->center_freq = freq;
-
-			if (!cfg80211_parse_ap_info(entry, pos, length,
-						    ssid_elem, s_ssid_tmp)) {
-				n_coloc++;
-				list_add_tail(&entry->list, &ap_list);
-			} else {
-				kfree(entry);
+			if (u8_get_bits(ap_info->tbtt_info_hdr,
+					IEEE80211_AP_INFO_TBTT_HDR_TYPE) !=
+			    IEEE80211_TBTT_INFO_TYPE_TBTT) {
+				pos += count * length;
+				continue;
 			}
 
-			pos += length;
+			/* TBTT info must include bss param + BSSID +
+			 * (short SSID or same_ssid bit to be set).
+			 * ignore other options, and move to the
+			 * next AP info
+			 */
+			if (band != NL80211_BAND_6GHZ ||
+			    !(length == offsetofend(struct ieee80211_tbtt_info_7_8_9,
+						    bss_params) ||
+			      length == sizeof(struct ieee80211_tbtt_info_7_8_9) ||
+			      length >= offsetofend(struct ieee80211_tbtt_info_ge_11,
+						    bss_params))) {
+				pos += count * length;
+				continue;
+			}
+
+			for (i = 0; i < count; i++) {
+				struct cfg80211_colocated_ap *entry;
+
+				entry = kzalloc(sizeof(*entry) + IEEE80211_MAX_SSID_LEN,
+						GFP_ATOMIC);
+
+				if (!entry)
+					goto error;
+
+				entry->center_freq = freq;
+
+				if (!cfg80211_parse_ap_info(entry, pos, length,
+							    ssid_elem,
+							    s_ssid_tmp)) {
+					n_coloc++;
+					list_add_tail(&entry->list, &ap_list);
+				} else {
+					kfree(entry);
+				}
+
+				pos += length;
+			}
 		}
-	}
 
 error:
-	if (pos != end) {
-		cfg80211_free_coloc_ap_list(&ap_list);
-		return 0;
+		if (pos != end) {
+			cfg80211_free_coloc_ap_list(&ap_list);
+			return 0;
+		}
 	}
 
 	list_splice_tail(&ap_list, list);
