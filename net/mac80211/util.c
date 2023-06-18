@@ -987,6 +987,10 @@ ieee80211_parse_extension_element(u32 *crc,
 			const struct ieee80211_multi_link_elem *mle =
 				(void *)data;
 
+			if (crc)
+				*crc = crc32_be(*crc, (void *)elem,
+						elem->datalen + 2);
+
 			switch (le16_get_bits(mle->control,
 					      IEEE80211_ML_CONTROL_TYPE)) {
 			case IEEE80211_ML_CONTROL_TYPE_BASIC:
