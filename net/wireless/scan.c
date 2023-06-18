@@ -218,6 +218,10 @@ bool cfg80211_is_element_inherited(const struct element *elem,
 	if (elem->id == WLAN_EID_MULTIPLE_BSSID)
 		return false;
 
+	if (elem->id == WLAN_EID_EXTENSION && elem->datalen > 1 &&
+	    elem->data[0] == WLAN_EID_EXT_EHT_MULTI_LINK)
+		return false;
+
 	if (!non_inherit_elem || non_inherit_elem->datalen < 2)
 		return true;
 
