@@ -4523,6 +4523,28 @@ struct ieee80211_rnr_mld_params {
 #define IEEE80211_RNR_MLD_PARAMS_UPDATES_INCLUDED		0x1000
 #define IEEE80211_RNR_MLD_PARAMS_DISABLED_LINK			0x2000
 
+/* Format of the TBTT information element if it has 7, 8 or 9 bytes */
+struct ieee80211_tbtt_info_7_8_9 {
+	u8 tbtt_offset;
+	u8 bssid[ETH_ALEN];
+
+	/* The following element is optional, structure may not grow */
+	u8 bss_params;
+	u8 psd_20;
+} __packed;
+
+/* Format of the TBTT information element if it has >= 11 bytes */
+struct ieee80211_tbtt_info_ge_11 {
+	u8 tbtt_offset;
+	u8 bssid[ETH_ALEN];
+	__le32 short_ssid;
+
+	/* The following elements are optional, structure may grow */
+	u8 bss_params;
+	u8 psd_20;
+	struct ieee80211_rnr_mld_params mld_params;
+} __packed;
+
 /* multi-link device */
 #define IEEE80211_MLD_MAX_NUM_LINKS	15
 
