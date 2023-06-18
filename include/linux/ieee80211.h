@@ -1996,12 +1996,18 @@ struct ieee80211_mu_edca_param_set {
  * @rx_tx_mcs13_max_nss: indicates the maximum number of spatial streams
  *     supported for reception and the maximum number of spatial streams
  *     supported for transmission for MCS 12 - 13.
+ * @rx_tx_max_nss: array of the previous fields for easier loop access
  */
 struct ieee80211_eht_mcs_nss_supp_20mhz_only {
-	u8 rx_tx_mcs7_max_nss;
-	u8 rx_tx_mcs9_max_nss;
-	u8 rx_tx_mcs11_max_nss;
-	u8 rx_tx_mcs13_max_nss;
+	union {
+		struct {
+			u8 rx_tx_mcs7_max_nss;
+			u8 rx_tx_mcs9_max_nss;
+			u8 rx_tx_mcs11_max_nss;
+			u8 rx_tx_mcs13_max_nss;
+		};
+		u8 rx_tx_max_nss[4];
+	};
 };
 
 /**
@@ -2021,11 +2027,17 @@ struct ieee80211_eht_mcs_nss_supp_20mhz_only {
  * @rx_tx_mcs13_max_nss: indicates the maximum number of spatial streams
  *     supported for reception and the maximum number of spatial streams
  *     supported for transmission for MCS 12 - 13.
+ * @rx_tx_max_nss: array of the previous fields for easier loop access
  */
 struct ieee80211_eht_mcs_nss_supp_bw {
-	u8 rx_tx_mcs9_max_nss;
-	u8 rx_tx_mcs11_max_nss;
-	u8 rx_tx_mcs13_max_nss;
+	union {
+		struct {
+			u8 rx_tx_mcs9_max_nss;
+			u8 rx_tx_mcs11_max_nss;
+			u8 rx_tx_mcs13_max_nss;
+		};
+		u8 rx_tx_max_nss[3];
+	};
 };
 
 /**
@@ -2078,7 +2090,7 @@ struct ieee80211_eht_cap_elem {
  */
 struct ieee80211_eht_operation {
 	u8 params;
-	__le32 basic_mcs_nss;
+	struct ieee80211_eht_mcs_nss_supp_20mhz_only basic_mcs_nss;
 	u8 optional[];
 } __packed;
 

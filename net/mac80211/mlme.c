@@ -4694,6 +4694,89 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 	return false;
 }
 
+static u8
+ieee80211_get_eht_cap_mcs_nss(const struct ieee80211_sta_he_cap *sta_he_cap,
+			      const struct ieee80211_sta_eht_cap *sta_eht_cap,
+			      unsigned int idx, int bw)
+{
+	u8 he_phy_cap0 = sta_he_cap->he_cap_elem.phy_cap_info[0];
+	u8 eht_phy_cap0 = sta_eht_cap->eht_cap_elem.phy_cap_info[0];
+
+	/* handle us being a 20 MHz-only EHT STA - with four values
+	 * for MCS 0-7, 8-9, 10-11, 12-13.
+	 */
+	if (!(he_phy_cap0 & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL))
+		return sta_eht_cap->eht_mcs_nss_supp.only_20mhz.rx_tx_max_nss[idx];
+
+	/* the others have MCS 0-9 together, rather than separately from 0-7 */
+	if (idx > 0)
+		idx--;
+
+	switch (bw) {
+	case 0:
+		return sta_eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_max_nss[idx];
+	case 1:
+		if (!(he_phy_cap0 &
+		      (IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
+		       IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)))
+			return 0xff; /* pass check */
+		return sta_eht_cap->eht_mcs_nss_supp.bw._160.rx_tx_max_nss[idx];
+	case 2:
+		if (!(eht_phy_cap0 & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ))
+			return 0xff; /* pass check */
+		return sta_eht_cap->eht_mcs_nss_supp.bw._320.rx_tx_max_nss[idx];
+	}
+
+	WARN_ON(1);
+	return 0;
+}
+
+static bool
+ieee80211_verify_sta_eht_mcs_support(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_supported_band *sband,
+				     const struct ieee80211_eht_operation *eht_op)
+{
+	const struct ieee80211_sta_he_cap *sta_he_cap =
+		ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+	const struct ieee80211_sta_eht_cap *sta_eht_cap =
+		ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
+	const struct ieee80211_eht_mcs_nss_supp_20mhz_only *req;
+	unsigned int i;
+
+	if (!sta_he_cap || !sta_eht_cap || !eht_op)
+		return false;
+
+	req = &eht_op->basic_mcs_nss;
+
+	for (i = 0; i < ARRAY_SIZE(req->rx_tx_max_nss); i++) {
+		u8 req_rx_nss, req_tx_nss;
+		unsigned int bw;
+
+		req_rx_nss = u8_get_bits(req->rx_tx_max_nss[i],
+					 IEEE80211_EHT_MCS_NSS_RX);
+		req_tx_nss = u8_get_bits(req->rx_tx_max_nss[i],
+					 IEEE80211_EHT_MCS_NSS_TX);
+
+		for (bw = 0; bw < 3; bw++) {
+			u8 have, have_rx_nss, have_tx_nss;
+
+			have = ieee80211_get_eht_cap_mcs_nss(sta_he_cap,
+							     sta_eht_cap,
+							     i, bw);
+			have_rx_nss = u8_get_bits(have,
+						  IEEE80211_EHT_MCS_NSS_RX);
+			have_tx_nss = u8_get_bits(have,
+						  IEEE80211_EHT_MCS_NSS_TX);
+
+			if (req_rx_nss > have_rx_nss ||
+			    req_tx_nss > have_tx_nss)
+				return false;
+		}
+	}
+
+	return true;
+}
+
 static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_link_data *link,
 				  struct cfg80211_bss *cbss,
@@ -4849,11 +4932,15 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		else
 			eht_oper = NULL;
 
+		if (!ieee80211_verify_sta_eht_mcs_support(sdata, sband, eht_oper))
+			*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+
 		eht_ml_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_MULTI_LINK,
 						     cbss_ies->data, cbss_ies->len);
 
 		/* data + 1 / datalen - 1 since it's an extended element */
-		if (eht_ml_elem &&
+		if (!(*conn_flags & IEEE80211_CONN_DISABLE_EHT) &&
+		    eht_ml_elem &&
 		    ieee80211_mle_type_ok(eht_ml_elem->data + 1,
 					  IEEE80211_ML_CONTROL_TYPE_BASIC,
 					  eht_ml_elem->datalen - 1)) {
