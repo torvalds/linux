@@ -335,6 +335,8 @@ static bool gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_res
 	if (ret)
 		pr_warn("Failed to request vcpu irq %d: %d", vcpu->rsc->irq, ret);
 
+	enable_irq_wake(vcpu->rsc->irq);
+
 out:
 	mutex_unlock(&vcpu->run_lock);
 	return !ret;

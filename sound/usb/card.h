@@ -216,4 +216,19 @@ struct snd_usb_stream {
 	struct list_head list;
 };
 
+int snd_vendor_set_ops(struct snd_usb_audio_vendor_ops *vendor_ops);
+struct snd_usb_audio_vendor_ops *snd_vendor_get_ops(void);
+int snd_vendor_set_interface(struct usb_device *udev,
+			     struct usb_host_interface *alts,
+			     int iface, int alt);
+int snd_vendor_set_rate(int iface, int rate, int alt);
+int snd_vendor_set_pcm_intf(struct usb_interface *intf, int iface, int alt,
+			    int direction, struct snd_usb_substream *subs);
+int snd_vendor_set_pcm_connection(struct usb_device *udev,
+				  enum snd_vendor_pcm_open_close onoff,
+				  int direction);
+int snd_vendor_set_pcm_binterval(const struct audioformat *fp,
+				 const struct audioformat *found,
+				 int *cur_attr, int *attr);
+
 #endif /* __USBAUDIO_CARD_H */
