@@ -316,7 +316,7 @@ EXPORT_SYMBOL(mem_buf_map_mem_s1);
 int mem_buf_unmap_mem_s1(struct gh_sgl_desc *sgl_desc)
 {
 	u64 base, size;
-	int i, ret;
+	int i, ret = 0;
 
 	for (i = 0; i < sgl_desc->n_sgl_entries; i++) {
 		base = sgl_desc->sgl_entries[i].ipa_base;
