@@ -552,7 +552,7 @@ extern ssize_t fb_io_write(struct fb_info *info, const char __user *buf,
 	.fb_imageblit	= cfb_imageblit
 
 #define __FB_DEFAULT_IO_OPS_MMAP \
-	.fb_mmap	= NULL // default implementation
+	.fb_mmap	= NULL /* default implementation */
 
 #define FB_DEFAULT_IO_OPS \
 	__FB_DEFAULT_IO_OPS_RDWR, \
@@ -585,7 +585,7 @@ extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 	.fb_imageblit	= sys_imageblit
 
 #define __FB_DEFAULT_SYS_OPS_MMAP \
-	.fb_mmap	= NULL // default implementation
+	.fb_mmap	= NULL /* default implementation */
 
 #define FB_DEFAULT_SYS_OPS \
 	__FB_DEFAULT_SYS_OPS_RDWR, \
