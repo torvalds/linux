@@ -707,11 +707,6 @@ void arch_ftrace_update_code(int command)
 	ftrace_modify_all_code(command);
 }
 
-#ifdef CONFIG_PPC64
-#define PACATOC offsetof(struct paca_struct, kernel_toc)
-
-extern unsigned int ftrace_tramp_text[], ftrace_tramp_init[];
-
 void ftrace_free_init_tramp(void)
 {
 	int i;
@@ -725,28 +720,30 @@ void ftrace_free_init_tramp(void)
 
 int __init ftrace_dyn_arch_init(void)
 {
-	int i;
 	unsigned int *tramp[] = { ftrace_tramp_text, ftrace_tramp_init };
-#ifdef CONFIG_PPC_KERNEL_PCREL
+	unsigned long addr = FTRACE_REGS_ADDR;
+	long reladdr;
+	int i;
 	u32 stub_insns[] = {
+#ifdef CONFIG_PPC_KERNEL_PCREL
 		/* pla r12,addr */
 		PPC_PREFIX_MLS | __PPC_PRFX_R(1),
 		PPC_INST_PADDI | ___PPC_RT(_R12),
 		PPC_RAW_MTCTR(_R12),
 		PPC_RAW_BCTR()
-	};
-#else
-	u32 stub_insns[] = {
-		PPC_RAW_LD(_R12, _R13, PACATOC),
+#elif defined(CONFIG_PPC64)
+		PPC_RAW_LD(_R12, _R13, offsetof(struct paca_struct, kernel_toc)),
 		PPC_RAW_ADDIS(_R12, _R12, 0),
 		PPC_RAW_ADDI(_R12, _R12, 0),
 		PPC_RAW_MTCTR(_R12),
 		PPC_RAW_BCTR()
-	};
+#else
+		PPC_RAW_LIS(_R12, 0),
+		PPC_RAW_ADDI(_R12, _R12, 0),
+		PPC_RAW_MTCTR(_R12),
+		PPC_RAW_BCTR()
 #endif
-
-	unsigned long addr = FTRACE_REGS_ADDR;
-	long reladdr;
+	};
 
 	if (IS_ENABLED(CONFIG_PPC_KERNEL_PCREL)) {
 		for (i = 0; i < 2; i++) {
@@ -763,10 +760,10 @@ int __init ftrace_dyn_arch_init(void)
 			tramp[i][1] |= IMM_L(reladdr);
 			add_ftrace_tramp((unsigned long)tramp[i]);
 		}
-	} else {
+	} else if (IS_ENABLED(CONFIG_PPC64)) {
 		reladdr = addr - kernel_toc_addr();
 
-		if (reladdr >= (long)SZ_2G || reladdr < -(long)SZ_2G) {
+		if (reladdr >= (long)SZ_2G || reladdr < -(long long)SZ_2G) {
 			pr_err("Address of %ps out of range of kernel_toc.\n",
 				(void *)addr);
 			return -1;
@@ -778,11 +775,17 @@ int __init ftrace_dyn_arch_init(void)
 			tramp[i][2] |= PPC_LO(reladdr);
 			add_ftrace_tramp((unsigned long)tramp[i]);
 		}
+	} else {
+		for (i = 0; i < 2; i++) {
+			memcpy(tramp[i], stub_insns, sizeof(stub_insns));
+			tramp[i][0] |= PPC_HA(addr);
+			tramp[i][1] |= PPC_LO(addr);
+			add_ftrace_tramp((unsigned long)tramp[i]);
+		}
 	}
 
 	return 0;
 }
-#endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,

@@ -10,19 +10,17 @@
 #include <asm/ftrace.h>
 #include <asm/ppc-opcode.h>
 
-#ifdef CONFIG_PPC64
 .pushsection ".tramp.ftrace.text","aw",@progbits;
 .globl ftrace_tramp_text
 ftrace_tramp_text:
-	.space 64
+	.space 32
 .popsection
 
 .pushsection ".tramp.ftrace.init","aw",@progbits;
 .globl ftrace_tramp_init
 ftrace_tramp_init:
-	.space 64
+	.space 32
 .popsection
-#endif
 
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
