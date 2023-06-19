@@ -152,56 +152,42 @@
  */
 # define USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN	BIT(24)
 
+/*
+ * UCTL Shim Features Register
+ */
 #define USBDRD_UCTL_SHIM_CFG			0xe8
+/* Out-of-bound UAHC register access: 0 = read, 1 = write */
+# define USBDRD_UCTL_SHIM_CFG_XS_NCB_OOB_WRN	BIT(63)
+/* SRCID error log for out-of-bound UAHC register access:
+ *	[59:58] = chipID
+ *	[57] = Request source: 0 = core, 1 = NCB-device
+ *	[56:51] = Core/NCB-device number, [56] always 0 for NCB devices
+ *	[50:48] = SubID
+ */
+# define USBDRD_UCTL_SHIM_CFG_XS_NCB_OOB_OSRC	GENMASK(59, 48)
+/* Error log for bad UAHC DMA access: 0 = Read log, 1 = Write log */
+# define USBDRD_UCTL_SHIM_CFG_XM_BAD_DMA_WRN	BIT(47)
+/* Encoded error type for bad UAHC DMA */
+# define USBDRD_UCTL_SHIM_CFG_XM_BAD_DMA_TYPE	GENMASK(43, 40)
+/* Select the IOI read command used by DMA accesses */
+# define USBDRD_UCTL_SHIM_CFG_DMA_READ_CMD	BIT(12)
+/* Select endian format for DMA accesses to the L2C:
+ *	0x0 = Little endian
+ *	0x1 = Big endian
+ *	0x2 = Reserved
+ *	0x3 = Reserved
+ */
+# define USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE	GENMASK(9, 8)
+/* Select endian format for IOI CSR access to UAHC:
+ *	0x0 = Little endian
+ *	0x1 = Big endian
+ *	0x2 = Reserved
+ *	0x3 = Reserved
+ */
+# define USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE	GENMASK(1, 0)
+
 #define USBDRD_UCTL_ECC				0xf0
 #define USBDRD_UCTL_SPARE1			0xf8
-
-/* UCTL Shim Features Register */
-union cvm_usbdrd_uctl_shim_cfg {
-	uint64_t u64;
-	struct cvm_usbdrd_uctl_shim_cfg_s {
-	/* Out-of-bound UAHC register access: 0 = read, 1 = write */
-	__BITFIELD_FIELD(uint64_t xs_ncb_oob_wrn:1,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_60_62:3,
-	/* SRCID error log for out-of-bound UAHC register access:
-	 *	[59:58] = chipID
-	 *	[57] = Request source: 0 = core, 1 = NCB-device
-	 *	[56:51] = Core/NCB-device number, [56] always 0 for NCB devices
-	 *	[50:48] = SubID
-	 */
-	__BITFIELD_FIELD(uint64_t xs_ncb_oob_osrc:12,
-	/* Error log for bad UAHC DMA access: 0 = Read log, 1 = Write log */
-	__BITFIELD_FIELD(uint64_t xm_bad_dma_wrn:1,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_44_46:3,
-	/* Encoded error type for bad UAHC DMA */
-	__BITFIELD_FIELD(uint64_t xm_bad_dma_type:4,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_13_39:27,
-	/* Select the IOI read command used by DMA accesses */
-	__BITFIELD_FIELD(uint64_t dma_read_cmd:1,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_10_11:2,
-	/* Select endian format for DMA accesses to the L2c:
-	 *	0x0 = Little endian
-	 *`	0x1 = Big endian
-	 *	0x2 = Reserved
-	 *	0x3 = Reserved
-	 */
-	__BITFIELD_FIELD(uint64_t dma_endian_mode:2,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_2_7:6,
-	/* Select endian format for IOI CSR access to UAHC:
-	 *	0x0 = Little endian
-	 *`	0x1 = Big endian
-	 *	0x2 = Reserved
-	 *	0x3 = Reserved
-	 */
-	__BITFIELD_FIELD(uint64_t csr_endian_mode:2,
-	;))))))))))))
-	} s;
-};
 
 #define OCTEON_H_CLKDIV_SEL		8
 #define OCTEON_MIN_H_CLK_RATE		150000000
@@ -456,17 +442,17 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 
 static void __init dwc3_octeon_set_endian_mode(u64 base)
 {
-	union cvm_usbdrd_uctl_shim_cfg shim_cfg;
+	u64 val;
+	u64 uctl_shim_cfg_reg = base + USBDRD_UCTL_SHIM_CFG;
 
-	shim_cfg.u64 = cvmx_read_csr(base + USBDRD_UCTL_SHIM_CFG);
+	val = cvmx_read_csr(uctl_shim_cfg_reg);
+	val &= ~USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE;
+	val &= ~USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE;
 #ifdef __BIG_ENDIAN
-	shim_cfg.s.dma_endian_mode = 1;
-	shim_cfg.s.csr_endian_mode = 1;
-#else
-	shim_cfg.s.dma_endian_mode = 0;
-	shim_cfg.s.csr_endian_mode = 0;
+	val |= FIELD_PREP(USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE, 1);
+	val |= FIELD_PREP(USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE, 1);
 #endif
-	cvmx_write_csr(base + USBDRD_UCTL_SHIM_CFG, shim_cfg.u64);
+	cvmx_write_csr(uctl_shim_cfg_reg, val);
 }
 
 static void __init dwc3_octeon_phy_reset(u64 base)
