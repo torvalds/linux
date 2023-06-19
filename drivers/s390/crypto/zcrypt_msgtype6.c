@@ -425,11 +425,6 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 	    memcmp(function_code, "AU", 2) == 0)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
-		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
-#endif
-
 	/* check CPRB minor version, set info bits in ap_message flag field */
 	switch (*(unsigned short *)(&msg->cprbx.func_id[0])) {
 	case 0x5432: /* "T2" */
@@ -534,11 +529,6 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 	/* enable special processing based on the cprbs flags special bit */
 	if (msg->cprbx.flags & 0x20)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
-
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
-		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
-#endif
 
 	/* set info bits in ap_message flag field */
 	if (msg->cprbx.flags & 0x80)

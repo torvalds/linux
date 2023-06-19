@@ -661,11 +661,6 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 
 	ap_init_message(&ap_msg);
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (tr && tr->fi.cmd)
-		ap_msg.fi.cmd = tr->fi.cmd;
-#endif
-
 	if (mex->outputdatalength < mex->inputdatalength) {
 		func_code = 0;
 		rc = -EINVAL;
@@ -770,11 +765,6 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	trace_s390_zcrypt_req(crt, TP_ICARSACRT);
 
 	ap_init_message(&ap_msg);
-
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (tr && tr->fi.cmd)
-		ap_msg.fi.cmd = tr->fi.cmd;
-#endif
 
 	if (crt->outputdatalength < crt->inputdatalength) {
 		func_code = 0;
@@ -883,16 +873,6 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	xcrb->status = 0;
 	ap_init_message(&ap_msg);
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (tr && tr->fi.cmd)
-		ap_msg.fi.cmd = tr->fi.cmd;
-	if (tr && tr->fi.action == AP_FI_ACTION_CCA_AGENT_FF) {
-		ZCRYPT_DBF_WARN("%s fi cmd 0x%04x: forcing invalid agent_ID 'FF'\n",
-				__func__, tr->fi.cmd);
-		xcrb->agent_ID = 0x4646;
-	}
-#endif
-
 	rc = prep_cca_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
@@ -982,14 +962,6 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	if (*domain == AUTOSEL_DOM)
 		*domain = AP_QID_QUEUE(qid);
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (tr && tr->fi.action == AP_FI_ACTION_CCA_DOM_INVAL) {
-		ZCRYPT_DBF_WARN("%s fi cmd 0x%04x: forcing invalid domain\n",
-				__func__, tr->fi.cmd);
-		*domain = 99;
-	}
-#endif
-
 	rc = pref_zq->ops->send_cprb(userspace, pref_zq, xcrb, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
@@ -1057,11 +1029,6 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	trace_s390_zcrypt_req(xcrb, TP_ZSENDEP11CPRB);
 
 	ap_init_message(&ap_msg);
-
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (tr && tr->fi.cmd)
-		ap_msg.fi.cmd = tr->fi.cmd;
-#endif
 
 	target_num = (unsigned short)xcrb->targets_num;
 
@@ -1473,23 +1440,10 @@ static int icarsamodexpo_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (copy_from_user(&mex, umex, sizeof(mex)))
 		return -EFAULT;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (mex.inputdatalength & (1U << 31)) {
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		tr.fi.cmd = (u16)(mex.inputdatalength >> 16);
-	}
-	mex.inputdatalength &= 0x0000FFFF;
-#endif
-
 	do {
 		rc = zcrypt_rsa_modexpo(perms, &tr, &mex);
 		if (rc == -EAGAIN)
 			tr.again_counter++;
-#ifdef CONFIG_ZCRYPT_DEBUG
-		if (rc == -EAGAIN && (tr.fi.flags & AP_FI_FLAG_NO_RETRY))
-			break;
-#endif
 	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
 	/* on failure: retry once again after a requested rescan */
 	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
@@ -1518,23 +1472,10 @@ static int icarsacrt_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (copy_from_user(&crt, ucrt, sizeof(crt)))
 		return -EFAULT;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (crt.inputdatalength & (1U << 31)) {
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		tr.fi.cmd = (u16)(crt.inputdatalength >> 16);
-	}
-	crt.inputdatalength &= 0x0000FFFF;
-#endif
-
 	do {
 		rc = zcrypt_rsa_crt(perms, &tr, &crt);
 		if (rc == -EAGAIN)
 			tr.again_counter++;
-#ifdef CONFIG_ZCRYPT_DEBUG
-		if (rc == -EAGAIN && (tr.fi.flags & AP_FI_FLAG_NO_RETRY))
-			break;
-#endif
 	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
 	/* on failure: retry once again after a requested rescan */
 	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
@@ -1563,23 +1504,10 @@ static int zsecsendcprb_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (copy_from_user(&xcrb, uxcrb, sizeof(xcrb)))
 		return -EFAULT;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if ((xcrb.status & 0x8000FFFF) == 0x80004649 /* 'FI' */) {
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		tr.fi.cmd = (u16)(xcrb.status >> 16);
-	}
-	xcrb.status = 0;
-#endif
-
 	do {
 		rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb);
 		if (rc == -EAGAIN)
 			tr.again_counter++;
-#ifdef CONFIG_ZCRYPT_DEBUG
-		if (rc == -EAGAIN && (tr.fi.flags & AP_FI_FLAG_NO_RETRY))
-			break;
-#endif
 	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
 	/* on failure: retry once again after a requested rescan */
 	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
@@ -1609,23 +1537,10 @@ static int zsendep11cprb_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (copy_from_user(&xcrb, uxcrb, sizeof(xcrb)))
 		return -EFAULT;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (xcrb.req_len & (1ULL << 63)) {
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		tr.fi.cmd = (u16)(xcrb.req_len >> 48);
-	}
-	xcrb.req_len &= 0x0000FFFFFFFFFFFFULL;
-#endif
-
 	do {
 		rc = _zcrypt_send_ep11_cprb(true, perms, &tr, &xcrb);
 		if (rc == -EAGAIN)
 			tr.again_counter++;
-#ifdef CONFIG_ZCRYPT_DEBUG
-		if (rc == -EAGAIN && (tr.fi.flags & AP_FI_FLAG_NO_RETRY))
-			break;
-#endif
 	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
 	/* on failure: retry once again after a requested rescan */
 	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
