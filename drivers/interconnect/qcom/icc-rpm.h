@@ -7,6 +7,9 @@
 #define __DRIVERS_INTERCONNECT_QCOM_ICC_RPM_H
 
 #include <dt-bindings/interconnect/qcom,icc.h>
+#include <linux/clk.h>
+#include <linux/interconnect-provider.h>
+#include <linux/platform_device.h>
 
 #define RPM_BUS_MASTER_REQ	0x73616d62
 #define RPM_BUS_SLAVE_REQ	0x766c7362

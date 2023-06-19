@@ -7,7 +7,6 @@
  */
 
 #include <dt-bindings/interconnect/qcom,qcm2290.h>
-#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interconnect-provider.h>
 #include <linux/io.h>

@@ -5,7 +5,6 @@
  * With reference of msm8916 interconnect driver of Georgi Djakov.
  */
 
-#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interconnect-provider.h>
 #include <linux/io.h>
