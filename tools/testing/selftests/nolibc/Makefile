@@ -85,8 +85,8 @@ CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 \
 LDFLAGS := -s
 
 REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{f++} /\[SKIPPED\][\r]*$$/{s++} \
-		END{ printf("%d test(s) passed, %d skipped, %d failed.", p, s, f); \
-		if (s+f > 0) printf(" See all results in %s\n", ARGV[1]); else print; }'
+		END{ printf("%d test(s) passed, %d skipped, %d failed.\n", p, s, f); \
+		printf("See all results in %s\n", ARGV[1]); }'
 
 help:
 	@echo "Supported targets under selftests/nolibc:"
