@@ -1248,28 +1248,6 @@ static void atomisp_update_capture_mode(struct atomisp_sub_device *asd)
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_PRIMARY);
 }
 
-/* ISP2401 */
-int atomisp_set_sensor_runmode(struct atomisp_sub_device *asd,
-			       struct atomisp_s_runmode *runmode)
-{
-	struct atomisp_device *isp = asd->isp;
-	struct v4l2_ctrl *c;
-	int ret = 0;
-
-	if (!(runmode && (runmode->mode & RUNMODE_MASK)))
-		return -EINVAL;
-
-	mutex_lock(asd->ctrl_handler.lock);
-	c = v4l2_ctrl_find(isp->inputs[asd->input_curr].camera->ctrl_handler,
-			   V4L2_CID_RUN_MODE);
-
-	if (c)
-		ret = v4l2_ctrl_s_ctrl(c, runmode->mode);
-
-	mutex_unlock(asd->ctrl_handler.lock);
-	return ret;
-}
-
 /*
  * Function to enable/disable lens geometry distortion correction (GDC) and
  * chromatic aberration correction (CAC)
