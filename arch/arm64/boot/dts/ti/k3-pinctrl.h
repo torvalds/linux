@@ -11,6 +11,7 @@
 #define PULLUDEN_SHIFT		(16)
 #define PULLTYPESEL_SHIFT	(17)
 #define RXACTIVE_SHIFT		(18)
+#define DEBOUNCE_SHIFT		(11)
 
 #define PULL_DISABLE		(1 << PULLUDEN_SHIFT)
 #define PULL_ENABLE		(0 << PULLUDEN_SHIFT)
@@ -28,6 +29,14 @@
 #define PIN_INPUT		(INPUT_EN | PULL_DISABLE)
 #define PIN_INPUT_PULLUP	(INPUT_EN | PULL_UP)
 #define PIN_INPUT_PULLDOWN	(INPUT_EN | PULL_DOWN)
+
+#define PIN_DEBOUNCE_DISABLE	(0 << DEBOUNCE_SHIFT)
+#define PIN_DEBOUNCE_CONF1	(1 << DEBOUNCE_SHIFT)
+#define PIN_DEBOUNCE_CONF2	(2 << DEBOUNCE_SHIFT)
+#define PIN_DEBOUNCE_CONF3	(3 << DEBOUNCE_SHIFT)
+#define PIN_DEBOUNCE_CONF4	(4 << DEBOUNCE_SHIFT)
+#define PIN_DEBOUNCE_CONF5	(5 << DEBOUNCE_SHIFT)
+#define PIN_DEBOUNCE_CONF6	(6 << DEBOUNCE_SHIFT)
 
 #define AM62AX_IOPAD(pa, val, muxmode)		(((pa) & 0x1fff)) ((val) | (muxmode))
 #define AM62AX_MCU_IOPAD(pa, val, muxmode)	(((pa) & 0x1fff)) ((val) | (muxmode))
