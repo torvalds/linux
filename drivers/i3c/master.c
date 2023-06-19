@@ -2886,13 +2886,9 @@ int i3c_target_register(struct i3c_master_controller *master, struct device *par
 	master->target_ops = ops;
 	i3cbus->mode = I3C_BUS_MODE_PURE;
 
-	init_rwsem(&i3cbus->lock);
-	mutex_lock(&i3c_core_lock);
-	ret = idr_alloc(&i3c_bus_idr, i3cbus, 0, 0, GFP_KERNEL);
-	mutex_unlock(&i3c_core_lock);
-	if (ret < 0)
+	ret = i3c_bus_init(i3cbus, master->dev.of_node);
+	if (ret)
 		return ret;
-	i3cbus->id = ret;
 
 	device_initialize(&master->dev);
 	dev_set_name(&master->dev, "i3c-%d", i3cbus->id);
