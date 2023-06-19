@@ -106,6 +106,24 @@ int cpupower_set_epp(unsigned int cpu, char *epp)
 	return 0;
 }
 
+int cpupower_set_amd_pstate_mode(char *mode)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[20] = {};
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "amd_pstate/status");
+
+	if (!is_valid_path(path))
+		return -1;
+
+	snprintf(linebuf, sizeof(linebuf), "%s\n", mode);
+
+	if (cpupower_write_sysfs(path, linebuf, 20) <= 0)
+		return -1;
+
+	return 0;
+}
+
 bool cpupower_amd_pstate_enabled(void)
 {
 	char *driver = cpufreq_get_driver(0);

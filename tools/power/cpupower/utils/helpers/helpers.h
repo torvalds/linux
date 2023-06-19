@@ -117,6 +117,7 @@ extern int cpupower_intel_get_perf_bias(unsigned int cpu);
 extern unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu);
 
 extern int cpupower_set_epp(unsigned int cpu, char *epp);
+extern int cpupower_set_amd_pstate_mode(char *mode);
 
 /* Read/Write msr ****************************/
 
@@ -176,6 +177,8 @@ static inline unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu)
 { return 0; };
 
 static inline int cpupower_set_epp(unsigned int cpu, char *epp)
+{ return -1; };
+static inline int cpupower_set_amd_pstate_mode(char *mode)
 { return -1; };
 
 /* Read/Write msr ****************************/

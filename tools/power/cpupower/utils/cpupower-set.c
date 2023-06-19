@@ -19,6 +19,7 @@
 static struct option set_opts[] = {
 	{"perf-bias", required_argument, NULL, 'b'},
 	{"epp", required_argument, NULL, 'e'},
+	{"amd-pstate-mode", required_argument, NULL, 'm'},
 	{ },
 };
 
@@ -39,12 +40,13 @@ int cmd_set(int argc, char **argv)
 		struct {
 			int perf_bias:1;
 			int epp:1;
+			int mode:1;
 		};
 		int params;
 	} params;
 	int perf_bias = 0;
 	int ret = 0;
-	char epp[30];
+	char epp[30], mode[20];
 
 	ret = uname(&uts);
 	if (!ret && (!strcmp(uts.machine, "ppc64le") ||
@@ -58,7 +60,7 @@ int cmd_set(int argc, char **argv)
 
 	params.params = 0;
 	/* parameter parsing */
-	while ((ret = getopt_long(argc, argv, "b:e:",
+	while ((ret = getopt_long(argc, argv, "b:e:m:",
 						set_opts, NULL)) != -1) {
 		switch (ret) {
 		case 'b':
@@ -81,6 +83,17 @@ int cmd_set(int argc, char **argv)
 			}
 			params.epp = 1;
 			break;
+		case 'm':
+			if (cpupower_cpu_info.vendor != X86_VENDOR_AMD)
+				print_wrong_arg_exit();
+			if (params.mode)
+				print_wrong_arg_exit();
+			if (sscanf(optarg, "%19s", mode) != 1) {
+				print_wrong_arg_exit();
+				return -EINVAL;
+			}
+			params.mode = 1;
+			break;
 		default:
 			print_wrong_arg_exit();
 		}
@@ -88,6 +101,12 @@ int cmd_set(int argc, char **argv)
 
 	if (!params.params)
 		print_wrong_arg_exit();
+
+	if (params.mode) {
+		ret = cpupower_set_amd_pstate_mode(mode);
+		if (ret)
+			fprintf(stderr, "Error setting mode\n");
+	}
 
 	/* Default is: set all CPUs */
 	if (bitmask_isallclear(cpus_chosen))
@@ -123,6 +142,7 @@ int cmd_set(int argc, char **argv)
 				break;
 			}
 		}
+
 	}
 	return ret;
 }
