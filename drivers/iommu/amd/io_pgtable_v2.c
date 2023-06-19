@@ -2,7 +2,7 @@
 /*
  * CPU-agnostic AMD IO page table v2 allocator.
  *
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  * Author: Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
  * Author: Vasant Hegde <vasant.hegde@amd.com>
  */
