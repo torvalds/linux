@@ -45,7 +45,6 @@ patternProperties:
     properties:
       reg:
         maximum: 1
-      nand-on-flash-bbt: true
       nand-ecc-mode:
         const: hw
 
