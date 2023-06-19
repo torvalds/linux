@@ -120,23 +120,23 @@ PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, void *pvOS
 
 PVRSRV_ERROR OSConnectionPrivateDataDeInit(IMG_HANDLE hOsPrivateData)
 {
-	ENV_CONNECTION_DATA *psEnvConnection;
-
 	if (hOsPrivateData == NULL)
 	{
 		return PVRSRV_OK;
 	}
 
-	psEnvConnection = hOsPrivateData;
-
 #if defined(SUPPORT_ION) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
-	PVR_ASSERT(psEnvConnection->psIonData != NULL);
+	{
+		ENV_CONNECTION_DATA *psEnvConnection = hOsPrivateData;
 
-	PVR_ASSERT(psEnvConnection->psIonData->psIonClient != NULL);
-	ion_client_destroy(psEnvConnection->psIonData->psIonClient);
+		PVR_ASSERT(psEnvConnection->psIonData != NULL);
 
-	IonDevRelease(psEnvConnection->psIonData->psIonDev);
-	OSFreeMem(psEnvConnection->psIonData);
+		PVR_ASSERT(psEnvConnection->psIonData->psIonClient != NULL);
+		ion_client_destroy(psEnvConnection->psIonData->psIonClient);
+
+		IonDevRelease(psEnvConnection->psIonData->psIonDev);
+		OSFreeMem(psEnvConnection->psIonData);
+	}
 #endif
 
 	OSFreeMem(hOsPrivateData);

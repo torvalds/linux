@@ -313,12 +313,16 @@ RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_V2_PACKET_HDR);
 #define RGX_HWPERF_M_CORE_SHIFT			20U
 /*! OSID bit-shift macro used for encoding OSID into type field of a packet */
 #define RGX_HWPERF_OSID_SHIFT			24U
-typedef enum {
-	RGX_HWPERF_STREAM_ID0_FW,     /*!< Events from the Firmware/GPU */
-	RGX_HWPERF_STREAM_ID1_HOST,   /*!< Events from the Server host driver component */
-	RGX_HWPERF_STREAM_ID2_CLIENT, /*!< Events from the Client host driver component */
-	RGX_HWPERF_STREAM_ID_LAST,
-} RGX_HWPERF_STREAM_ID;
+
+/*! Origin or source of the event */
+typedef IMG_UINT32 RGX_HWPERF_STREAM_ID;
+/*! Events from the Firmware/GPU */
+#define RGX_HWPERF_STREAM_ID0_FW		0U
+/*! Events from the Server host driver component */
+#define RGX_HWPERF_STREAM_ID1_HOST		1U
+/*! Events from the Client host driver component */
+#define RGX_HWPERF_STREAM_ID2_CLIENT	2U
+#define RGX_HWPERF_STREAM_ID_LAST		3U
 
 /* Checks if all stream IDs can fit under RGX_HWPERF_TYPEID_STREAM_MASK. */
 static_assert(((IMG_UINT32)RGX_HWPERF_STREAM_ID_LAST - 1U) < (RGX_HWPERF_TYPEID_STREAM_MASK >> RGX_HWPERF_STREAM_SHIFT),

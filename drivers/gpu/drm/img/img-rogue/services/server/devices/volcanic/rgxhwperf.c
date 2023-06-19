@@ -159,8 +159,11 @@ PVRSRV_ERROR RGXServerFeatureFlagsToHWPerfFlags(PVRSRV_RGXDEV_INFO *psDevInfo, R
 	}
 
 #ifdef SUPPORT_WORKLOAD_ESTIMATION
-	/* Not a part of BVNC feature line and so doesn't need the feature supported check */
-	psBVNC->ui32BvncKmFeatureFlags |= RGX_HWPERF_FEATURE_WORKLOAD_ESTIMATION;
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
+	{
+		/* Not a part of BVNC feature line and so doesn't need the feature supported check */
+		psBVNC->ui32BvncKmFeatureFlags |= RGX_HWPERF_FEATURE_WORKLOAD_ESTIMATION;
+	}
 #endif
 
 	/* Define the HW counter block counts. */
@@ -232,6 +235,9 @@ PVRSRV_ERROR RGXServerFeatureFlagsToHWPerfFlags(PVRSRV_RGXDEV_INFO *psDevInfo, R
 		uiCount = *pui16Count;
 		OSDeviceMemSet(&psBlocks[uiCount], 0, (RGX_HWPERF_MAX_BVNC_BLOCK_LEN - uiCount) * sizeof(*psBlocks));
 	}
+
+	/* The GPU core count is overwritten by the FW */
+	psBVNC->ui16BvncGPUCores = 0;
 
 	return PVRSRV_OK;
 }
@@ -408,6 +414,119 @@ PVRSRV_ERROR RGXHWPerfConfigureCounters(
 	}
 
 	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR PVRSRVRGXGetConfiguredHWPerfCounters(PVRSRV_DEVICE_NODE *psDevNode,
+                                                  RGXFWIF_HWPERF_CTL *psHWPerfCtl,
+                                                  IMG_UINT32 ui32BlockID,
+                                                  RGX_HWPERF_CONFIG_CNTBLK *psConfiguredCounters)
+{
+	IMG_UINT32 i;
+	PVRSRV_ERROR eError = PVRSRV_OK;
+
+	PVR_RETURN_IF_FALSE(psDevNode != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+	PVR_RETURN_IF_FALSE(psHWPerfCtl != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+	PVR_RETURN_IF_FALSE(psConfiguredCounters != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+
+	if ((ui32BlockID & ~RGX_CNTBLK_ID_UNIT_ALL_MASK) < RGX_CNTBLK_ID_LAST)
+	{
+		RGXFWIF_HWPERF_CTL_BLK *psBlock = NULL;
+		RGX_HWPERF_CONFIG_CNTBLK sBlockConfig;
+
+		PVR_RETURN_IF_ERROR(PVRSRVPowerLock(psDevNode));
+
+		for (i = 0; i < psHWPerfCtl->ui32NumBlocks; i++)
+		{
+			if (psHWPerfCtl->sBlkCfg[i].uiBlockID != ui32BlockID)
+			{
+				continue;
+			}
+			else if (psHWPerfCtl->sBlkCfg[i].uiEnabled == 0)
+			{
+				PVR_DPF((PVR_DBG_ERROR, "Block (0x%04x) is not enabled.", ui32BlockID));
+				PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_PARAMS, Error);
+			}
+
+			psBlock = &psHWPerfCtl->sBlkCfg[i];
+			break;
+		}
+
+		if (psBlock == NULL)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "Block ID (0x%04x) was invalid.", ui32BlockID));
+			PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_PARAMS, Error);
+		}
+
+		sBlockConfig.ui16BlockID = psBlock->uiBlockID;
+		sBlockConfig.ui16NumCounters = psBlock->uiNumCounters;
+
+		for (i = 0; i < psBlock->uiNumCounters; i++)
+		{
+			sBlockConfig.ui16Counters[i] = psBlock->aui32CounterCfg[i];
+		}
+
+		*psConfiguredCounters = sBlockConfig;
+	}
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR, "Block ID (0x%04x) was invalid.", ui32BlockID));
+		PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_PARAMS, InvalidIDError);
+	}
+
+Error:
+	PVRSRVPowerUnlock(psDevNode);
+
+InvalidIDError:
+	return eError;
+}
+
+PVRSRV_ERROR PVRSRVRGXGetEnabledHWPerfBlocks(PVRSRV_DEVICE_NODE *psDevNode,
+                                             RGXFWIF_HWPERF_CTL *psHWPerfCtl,
+                                             IMG_UINT32 ui32ArrayLen,
+                                             IMG_UINT32 *pui32BlockCount,
+                                             IMG_UINT32 *pui32EnabledBlockIDs)
+{
+	IMG_UINT32 ui32LastIDIdx = 0;
+	IMG_UINT32 i;
+	PVRSRV_ERROR eError = PVRSRV_OK;
+
+	PVR_RETURN_IF_FALSE(psDevNode != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+	PVR_RETURN_IF_FALSE(psHWPerfCtl != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+
+	*pui32BlockCount = 0;
+
+	if (ui32ArrayLen > 0 && pui32EnabledBlockIDs == NULL)
+	{
+		PVR_DPF((PVR_DBG_WARNING, "ui32ArrayLen is greater than 0 but pui32EnabledBlockIDs is NULL"));
+	}
+
+	PVR_RETURN_IF_ERROR(PVRSRVPowerLock(psDevNode));
+
+	for (i = 0; i < psHWPerfCtl->ui32NumBlocks; i++)
+	{
+		if (psHWPerfCtl->sBlkCfg[i].uiEnabled)
+		{
+			*pui32BlockCount += 1;
+
+			if (pui32EnabledBlockIDs == NULL)
+			{
+				continue;
+			}
+
+			if (ui32LastIDIdx + 1 > ui32ArrayLen)
+			{
+				PVR_DPF((PVR_DBG_ERROR, "ui32ArrayLen less than the number of enabled blocks."));
+				PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_OUT_OF_MEMORY, Error);
+			}
+
+			pui32EnabledBlockIDs[ui32LastIDIdx] = psHWPerfCtl->sBlkCfg[i].uiBlockID;
+			ui32LastIDIdx += 1;
+		}
+	}
+
+Error:
+	PVRSRVPowerUnlock(psDevNode);
+	return eError;
 }
 
 /******************************************************************************

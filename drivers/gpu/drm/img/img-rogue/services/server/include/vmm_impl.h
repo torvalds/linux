@@ -51,14 +51,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef enum _VMM_CONF_PARAM_
 {
-	VMM_CONF_PRIO_OSID0 = 0,
-	VMM_CONF_PRIO_OSID1 = 1,
-	VMM_CONF_PRIO_OSID2 = 2,
-	VMM_CONF_PRIO_OSID3 = 3,
-	VMM_CONF_PRIO_OSID4 = 4,
-	VMM_CONF_PRIO_OSID5 = 5,
-	VMM_CONF_PRIO_OSID6 = 6,
-	VMM_CONF_PRIO_OSID7 = 7,
+	VMM_CONF_PRIO_DRV0 = 0,
+	VMM_CONF_PRIO_DRV1 = 1,
+	VMM_CONF_PRIO_DRV2 = 2,
+	VMM_CONF_PRIO_DRV3 = 3,
+	VMM_CONF_PRIO_DRV4 = 4,
+	VMM_CONF_PRIO_DRV5 = 5,
+	VMM_CONF_PRIO_DRV6 = 6,
+	VMM_CONF_PRIO_DRV7 = 7,
 	VMM_CONF_HCS_DEADLINE = 8
 } VMM_CONF_PARAM;
 
@@ -125,34 +125,29 @@ typedef struct _VMM_PVZ_CONNECTION_
 		   by the VM manager before forwarding request to host.
 		   If not implemented, return PVRSRV_ERROR_NOT_IMPLEMENTED.
 		 */
-		PVRSRV_ERROR (*pfnMapDevPhysHeap)(IMG_UINT32 ui32FuncID,
-										  IMG_UINT32 ui32DevID,
-										  IMG_UINT64 ui64Size,
+		PVRSRV_ERROR (*pfnMapDevPhysHeap)(IMG_UINT64 ui64Size,
 										  IMG_UINT64 ui64PAddr);
 
-		PVRSRV_ERROR (*pfnUnmapDevPhysHeap)(IMG_UINT32 ui32FuncID,
-											IMG_UINT32 ui32DevID);
+		PVRSRV_ERROR (*pfnUnmapDevPhysHeap)(void);
 	} sClientFuncTab;
 
 	struct {
 		/*
 			Corresponding server side entries to handle guest PVZ calls
 			NOTE:
-				 - Additional PVZ function ui32OSID parameter
-					 - OSID determination is responsibility of VM manager
-					 - Actual OSID value must be supplied by VM manager
+				 - Additional PVZ function ui32DriverID parameter
+					 - Driver ID determination is responsibility of VM manager
+					 - Actual Driver ID value must be supplied by VM manager
 						- This can be done either in client/VMM/host side
 					 - Must be done before host pvz function(s) are called
-					 - Host pvz function validates incoming OSID values
+					 - Host pvz function validates incoming Driver ID values
 		 */
-		PVRSRV_ERROR (*pfnMapDevPhysHeap)(IMG_UINT32 ui32OSID,
-										  IMG_UINT32 ui32FuncID,
+		PVRSRV_ERROR (*pfnMapDevPhysHeap)(IMG_UINT32 ui32DriverID,
 										  IMG_UINT32 ui32DevID,
 										  IMG_UINT64 ui64Size,
 										  IMG_UINT64 ui64PAddr);
 
-		PVRSRV_ERROR (*pfnUnmapDevPhysHeap)(IMG_UINT32 ui32OSID,
-											IMG_UINT32 ui32FuncID,
+		PVRSRV_ERROR (*pfnUnmapDevPhysHeap)(IMG_UINT32 ui32DriverID,
 											IMG_UINT32 ui32DevID);
 	} sServerFuncTab;
 
@@ -162,11 +157,15 @@ typedef struct _VMM_PVZ_CONNECTION_
 		   information to the host; these events may in turn be forwarded to
 		   the firmware
 		 */
-		PVRSRV_ERROR (*pfnOnVmOnline)(IMG_UINT32 ui32OSID);
+		PVRSRV_ERROR (*pfnOnVmOnline)(IMG_UINT32 ui32DriverID,
+									  IMG_UINT32 ui32DevID);
 
-		PVRSRV_ERROR (*pfnOnVmOffline)(IMG_UINT32 ui32OSID);
+		PVRSRV_ERROR (*pfnOnVmOffline)(IMG_UINT32 ui32DriverID,
+									   IMG_UINT32 ui32DevID);
 
-		PVRSRV_ERROR (*pfnVMMConfigure)(VMM_CONF_PARAM eVMMParamType, IMG_UINT32 ui32ParamValue);
+		PVRSRV_ERROR (*pfnVMMConfigure)(VMM_CONF_PARAM eVMMParamType,
+										IMG_UINT32 ui32ParamValue,
+										IMG_UINT32 ui32DevID);
 
 	} sVmmFuncTab;
 } VMM_PVZ_CONNECTION;

@@ -42,7 +42,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 #include <linux/version.h>
 #include <linux/cpumask.h>
-#include <linux/dma-mapping.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+ #include <linux/dma-map-ops.h>
+#else
+ #include <linux/dma-mapping.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0) */
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
 

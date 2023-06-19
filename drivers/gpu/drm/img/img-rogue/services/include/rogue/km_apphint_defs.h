@@ -71,30 +71,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  Module parameters (rogue-specific)
 ******************************************************************************/
 #define APPHINT_LIST_MODPARAM \
-/* name,                            type,           class,       default,                                         helper,         */ \
-X(EnableCDMKillingRandMode,         BOOL,           VALIDATION,  PVRSRV_APPHINT_ENABLECDMKILLINGRANDMODE,         NO_PARAM_TABLE   ) \
+/* name,                            type,           class,       default,                                         helper,          guest,  */ \
+X(EnableCDMKillingRandMode,         BOOL,           VALIDATION,  PVRSRV_APPHINT_ENABLECDMKILLINGRANDMODE,         NO_PARAM_TABLE,  ALWAYS   ) \
 \
-X(HWPerfDisableCustomCounterFilter, BOOL,           VALIDATION,  PVRSRV_APPHINT_HWPERFDISABLECUSTOMCOUNTERFILTER, NO_PARAM_TABLE   ) \
-X(ValidateSOCUSCTimer,              BOOL,           VALIDATION,  PVRSRV_APPHINT_VALIDATESOCUSCTIMERS,             NO_PARAM_TABLE   ) \
-X(ECCRAMErrInj,                     UINT32,         VALIDATION,  0,                                               NO_PARAM_TABLE   ) \
+X(HWPerfDisableCustomCounterFilter, BOOL,           VALIDATION,  PVRSRV_APPHINT_HWPERFDISABLECUSTOMCOUNTERFILTER, NO_PARAM_TABLE,  ALWAYS   ) \
+X(ValidateSOCUSCTimer,              BOOL,           VALIDATION,  PVRSRV_APPHINT_VALIDATESOCUSCTIMERS,             NO_PARAM_TABLE,  ALWAYS   ) \
+X(ECCRAMErrInj,                     UINT32,         VALIDATION,  0,                                               NO_PARAM_TABLE,  ALWAYS   ) \
 \
-X(TFBCCompressionControlGroup,      UINT32,         VALIDATION,  PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLGROUP,      NO_PARAM_TABLE   ) \
-X(TFBCCompressionControlScheme,     UINT32,         VALIDATION,  PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLSCHEME,     NO_PARAM_TABLE   ) \
-X(TFBCCompressionControlYUVFormat,  BOOL,           VALIDATION,  0,                                               NO_PARAM_TABLE   ) \
+X(TFBCCompressionControlGroup,      UINT32,         VALIDATION,  PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLGROUP,      NO_PARAM_TABLE,  ALWAYS   ) \
+X(TFBCCompressionControlScheme,     UINT32,         VALIDATION,  PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLSCHEME,     NO_PARAM_TABLE,  ALWAYS   ) \
+X(TFBCCompressionControlYUVFormat,  BOOL,           VALIDATION,  0,                                               NO_PARAM_TABLE,  ALWAYS   ) \
 
 /*
 *******************************************************************************
  Debugfs parameters (rogue-specific) - driver configuration
 ******************************************************************************/
 #define APPHINT_LIST_DEBUGINFO \
-/* name,                            type,           class,       default,                                         helper,         */ \
+/* name,                            type,           class,       default,                                         helper,          guest,  */ \
 
 /*
 *******************************************************************************
  Debugfs parameters (rogue-specific) - device configuration
 ******************************************************************************/
 #define APPHINT_LIST_DEBUGINFO_DEVICE \
-/* name,                            type,           class,       default,                                         helper,         */ \
+/* name,                            type,           class,       default,                                         helper,          guest,  */ \
 
 /*
 *******************************************************************************
@@ -115,7 +115,7 @@ X(TFBCCompressionControlYUVFormat,  BOOL,           VALIDATION,  0,             
 ******************************************************************************/
 /* Unique ID for all AppHints */
 typedef enum {
-#define X(a, b, c, d, e) APPHINT_ID_ ## a,
+#define X(a, b, c, d, e, f) APPHINT_ID_ ## a,
 	APPHINT_LIST_ALL
 #undef X
 	APPHINT_ID_MAX
@@ -123,7 +123,7 @@ typedef enum {
 
 /* ID for build variable Apphints - used for build variable only structures */
 typedef enum {
-#define X(a, b, c, d, e) APPHINT_BUILDVAR_ID_ ## a,
+#define X(a, b, c, d, e, f) APPHINT_BUILDVAR_ID_ ## a,
 	APPHINT_LIST_BUILDVAR_COMMON
 	APPHINT_LIST_BUILDVAR
 #undef X
@@ -132,7 +132,7 @@ typedef enum {
 
 /* ID for Modparam Apphints - used for modparam only structures */
 typedef enum {
-#define X(a, b, c, d, e) APPHINT_MODPARAM_ID_ ## a,
+#define X(a, b, c, d, e, f) APPHINT_MODPARAM_ID_ ## a,
 	APPHINT_LIST_MODPARAM_COMMON
 	APPHINT_LIST_MODPARAM
 #undef X
@@ -141,7 +141,7 @@ typedef enum {
 
 /* ID for Debugfs Apphints - used for debugfs only structures */
 typedef enum {
-#define X(a, b, c, d, e) APPHINT_DEBUGINFO_ID_ ## a,
+#define X(a, b, c, d, e, f) APPHINT_DEBUGINFO_ID_ ## a,
 	APPHINT_LIST_DEBUGINFO_COMMON
 	APPHINT_LIST_DEBUGINFO
 #undef X
@@ -150,7 +150,7 @@ typedef enum {
 
 /* ID for Debugfs Device Apphints - used for debugfs device only structures */
 typedef enum {
-#define X(a, b, c, d, e) APPHINT_DEBUGINFO_DEVICE_ID_ ## a,
+#define X(a, b, c, d, e, f) APPHINT_DEBUGINFO_DEVICE_ID_ ## a,
 	APPHINT_LIST_DEBUGINFO_DEVICE_COMMON
 	APPHINT_LIST_DEBUGINFO_DEVICE
 #undef X

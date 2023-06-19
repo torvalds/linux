@@ -45,7 +45,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "img_types.h"
 
-#define PVRSRV_MAX_DEVICES		16U	/*!< Largest supported number of devices on the system */
+#define PVRSRV_MAX_DEVICES		16U	 /*!< Largest supported number of devices on the system */
+#define PVRSRV_HOST_DEVICE_ID	255U /*!< Device ID used for host (non-GPU) device. */
+
+static_assert(PVRSRV_MAX_DEVICES < PVRSRV_HOST_DEVICE_ID, "Invalid host device ID.");
 
 #if defined(__KERNEL__) && defined(__linux__) && !defined(__GENKSYMS__)
 #define __pvrsrv_defined_struct_enum__

@@ -152,7 +152,7 @@ static SRV_INIT_PARAM_UINT32_LOOKUP fwt_loggroup_tbl[] = { RGXFWIF_LOG_GROUP_NAM
 /*
  * Services AppHints initialisation
  */
-#define X(a, b, c, d, e) SrvInitParamInit ## b(a, d, e)
+#define X(a, b, c, d, e, f) SrvInitParamInit ## b(a, d, e)
 APPHINT_LIST_ALL
 #undef X
 #endif /* !defined(__linux__) */
@@ -396,7 +396,7 @@ static INLINE void GetApphints(PVRSRV_RGXDEV_INFO *psDevInfo, RGX_SRVINIT_APPHIN
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,  pvParamState,  FBCDCVersionOverride,                         psHints->ui32FBCDCVersionOverride);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,  pvParamState,  TFBCCompressionControlGroup,           psHints->ui32TFBCCompressionControlGroup);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,  pvParamState,  TFBCCompressionControlScheme,         psHints->ui32TFBCCompressionControlScheme);
-	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,  pvParamState,  TFBCCompressionControlYUVFormat,      psHints->bTFBCCompressionControlYUVFormat);
+	SrvInitParamGetBOOL(INITPARAM_NO_DEVICE,    pvParamState,  TFBCCompressionControlYUVFormat,      psHints->bTFBCCompressionControlYUVFormat);
 #endif
 
 	/*
@@ -448,9 +448,7 @@ static INLINE void GetFWConfigFlags(PVRSRV_DEVICE_NODE *psDeviceNode,
                                     IMG_UINT32 *pui32FWConfigFlagsExt,
                                     IMG_UINT32 *pui32FwOsCfgFlags)
 {
-#if defined(SUPPORT_VALIDATION)
 	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
-#endif
 	IMG_UINT32 ui32FWConfigFlags = 0;
 	IMG_UINT32 ui32FWConfigFlagsExt = 0;
 
@@ -511,6 +509,16 @@ static INLINE void GetFWConfigFlags(PVRSRV_DEVICE_NODE *psDeviceNode,
 				  ((psHints->ui32TFBCCompressionControlScheme << RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_SHIFT) &
 															    ~RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_CLRMSK) |
 				  ((psHints->bTFBCCompressionControlYUVFormat) ? RGX_CR_TFBC_COMPRESSION_CONTROL_YUV10_OVERRIDE_EN : 0))
+				<< RGXFWIF_INICFG_EXT_TFBC_CONTROL_SHIFT) & RGXFWIF_INICFG_EXT_TFBC_CONTROL_MASK;
+		}
+#else
+		if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, TFBC_LOSSY_37_PERCENT))
+		{
+			ui32FWConfigFlagsExt |=
+				((((PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLGROUP  << RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP_CONTROL_SHIFT) &
+																  ~RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP_CONTROL_CLRMSK) |
+				  ((PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLSCHEME << RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_SHIFT) &
+																  ~RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_CLRMSK))
 				<< RGXFWIF_INICFG_EXT_TFBC_CONTROL_SHIFT) & RGXFWIF_INICFG_EXT_TFBC_CONTROL_MASK;
 		}
 #endif
@@ -1086,7 +1094,9 @@ static void InitialiseHWPerfCounters(PVRSRV_DEVICE_NODE *psDeviceNode,
                                      RGXFWIF_HWPERF_CTL *psHWPerfInitDataInt)
 {
 	RGXFWIF_HWPERF_CTL_BLK *psHWPerfInitBlkData;
+#if defined(HWPERF_UNIFIED)
 	RGXFWIF_HWPERF_DA_BLK *psHWPerfInitDABlkData;
+#endif
 	IMG_UINT32 ui32CntBlkModelLen;
 	const RGXFW_HWPERF_CNTBLK_TYPE_MODEL *asCntBlkTypeModel;
 	const RGXFW_HWPERF_CNTBLK_TYPE_MODEL* psBlkTypeDesc;
@@ -1125,13 +1135,14 @@ static void InitialiseHWPerfCounters(PVRSRV_DEVICE_NODE *psDeviceNode,
 			/* Get the block configure store to update from the global store of
 			 * block configuration. This is used to remember the configuration
 			 * between configurations and core power on in APM.
-			 * For RGX_FEATURE_HWPERF_OCEANIC layout we have a different
+			 * For HWPERF_UNIFIED layout we will have a different
 			 * structure type to decode the HWPerf block. This is indicated by
 			 * the RGX_CNTBLK_ID_DA_MASK bit being set in the block-ID value. */
 
 			bDirect = (psBlkTypeDesc->ui32IndirectReg == 0U);
 			uiUnit = ui32BlockID - psBlkTypeDesc->ui32CntBlkIdBase;
 
+#if defined(HWPERF_UNIFIED)
 			if ((ui32BlockID & RGX_CNTBLK_ID_DA_MASK) == RGX_CNTBLK_ID_DA_MASK)
 			{
 				psHWPerfInitDABlkData = rgxfw_hwperf_get_da_block_ctl(ui32BlockID, psHWPerfInitDataInt);
@@ -1189,25 +1200,26 @@ static void InitialiseHWPerfCounters(PVRSRV_DEVICE_NODE *psDeviceNode,
 				}
 			}
 			else
+#endif	/* defined(HWPERF_UNIFIED) */
 			{
 				psHWPerfInitBlkData = rgxfw_hwperf_get_block_ctl(ui32BlockID, psHWPerfInitDataInt);
 				/* Assert to check for HWPerf block mis-configuration */
 				PVR_ASSERT(psHWPerfInitBlkData);
 
-				psHWPerfInitBlkData->bValid = IMG_TRUE;
+				psHWPerfInitBlkData->ui32Valid = IMG_TRUE;
 				PDUMPCOMMENTWITHFLAGS(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
 			                      "bValid: This specifies if the layout block is valid for the given BVNC.");
 				DevmemPDumpLoadMemValue32(psHWPerfDataMemDesc,
-							(size_t)&(psHWPerfInitBlkData->bValid) - (size_t)(psHWPerfInitDataInt),
-							psHWPerfInitBlkData->bValid,
+							(size_t)&(psHWPerfInitBlkData->ui32Valid) - (size_t)(psHWPerfInitDataInt),
+							psHWPerfInitBlkData->ui32Valid,
 							PDUMP_FLAGS_CONTINUOUS);
 
-				psHWPerfInitBlkData->bEnabled = IMG_FALSE;
+				psHWPerfInitBlkData->ui32Enabled = IMG_FALSE;
 				PDUMPCOMMENTWITHFLAGS(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
 			                      "bEnabled: Set to 0x1 if the block needs to be enabled during playback.");
 				DevmemPDumpLoadMemValue32(psHWPerfDataMemDesc,
-							(size_t)&(psHWPerfInitBlkData->bEnabled) - (size_t)(psHWPerfInitDataInt),
-							psHWPerfInitBlkData->bEnabled,
+							(size_t)&(psHWPerfInitBlkData->ui32Enabled) - (size_t)(psHWPerfInitDataInt),
+							psHWPerfInitBlkData->ui32Enabled,
 							PDUMP_FLAGS_CONTINUOUS);
 
 				psHWPerfInitBlkData->eBlockID = ui32BlockID;
@@ -1346,7 +1358,6 @@ _ParseHTBAppHints(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	void *pvParamState = NULL;
 	IMG_UINT32 ui32LogType;
-	IMG_BOOL bAnyLogGroupConfigured;
 	IMG_UINT32 ui32BufferSize;
 	IMG_UINT32 ui32OpMode;
 
@@ -1356,7 +1367,6 @@ _ParseHTBAppHints(PVRSRV_DEVICE_NODE *psDeviceNode)
 		return;
 
 	SrvInitParamGetUINT32BitField(INITPARAM_NO_DEVICE,  pvParamState,  EnableHTBLogGroup,   ui32LogType);
-	bAnyLogGroupConfigured = ui32LogType ? IMG_TRUE : IMG_FALSE;
 	SrvInitParamGetUINT32List(INITPARAM_NO_DEVICE,      pvParamState,  HTBOperationMode,     ui32OpMode);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,          pvParamState,  HTBufferSizeInKB, ui32BufferSize);
 
@@ -1371,7 +1381,7 @@ static PVRSRV_ERROR RGXValidateTDHeap(PVRSRV_DEVICE_NODE *psDeviceNode,
 	PHYS_HEAP *psHeap = psDeviceNode->apsPhysHeap[ePhysHeap];
 	PHYS_HEAP_USAGE_FLAGS ui32HeapFlags = PhysHeapGetFlags(psHeap);
 	PHYS_HEAP_USAGE_FLAGS ui32InvalidFlags = ~(PHYS_HEAP_USAGE_FW_PRIV_DATA | PHYS_HEAP_USAGE_FW_CODE
-											   | PHYS_HEAP_USAGE_GPU_SECURE);
+											   | PHYS_HEAP_USAGE_GPU_SECURE | PHYS_HEAP_USAGE_FW_PRIVATE);
 
 	PVR_LOG_RETURN_IF_FALSE_VA((ui32HeapFlags & ui32RequiredFlags) != 0,
 							   PVRSRV_ERROR_NOT_SUPPORTED,
@@ -1435,7 +1445,7 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 	             psDeviceNode->psDevConfig->pszName);
 	PDUMPCOMMENT(psDeviceNode, "Device ID: %u (%d)",
 	             psDeviceNode->sDevId.ui32InternalID,
-	             psDeviceNode->sDevId.i32OsDeviceID);
+	             psDeviceNode->sDevId.i32KernelDeviceID);
 
 	if (psDeviceNode->psDevConfig->pszVersion)
 	{
@@ -1452,30 +1462,6 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 	             psDevInfo->sDevFeatureCfg.ui32C);
 
 	RGXInitMultiCoreInfo(psDeviceNode);
-
-#if defined(PDUMP)
-	eError = DevmemIntAllocDefBackingPage(psDeviceNode,
-	                                      &psDeviceNode->sDummyPage,
-	                                      PVR_DUMMY_PAGE_INIT_VALUE,
-	                                      DUMMY_PAGE,
-	                                      IMG_TRUE);
-	if (eError != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to allocate dummy page.", __func__));
-		goto cleanup;
-	}
-
-	eError = DevmemIntAllocDefBackingPage(psDeviceNode,
-	                                      &psDeviceNode->sDevZeroPage,
-	                                      PVR_ZERO_PAGE_INIT_VALUE,
-	                                      DEV_ZERO_PAGE,
-	                                      IMG_TRUE);
-	if (eError != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to allocate Zero page.", __func__));
-		goto cleanup;
-	}
-#endif /* defined(PDUMP) */
 
 	sLayerParams.psDevInfo = psDevInfo;
 #if defined(SUPPORT_TRUSTED_DEVICE)
@@ -1533,7 +1519,7 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 	if ((sApphints.bEnableTrustedDeviceAceConfig) &&
 		(RGX_IS_FEATURE_SUPPORTED(psDevInfo, AXI_ACELITE)))
 	{
-		SetTrustedDeviceAceEnabled();
+		SetTrustedDeviceAceEnabled(psDeviceNode->psDevConfig->hSysData);
 	}
 #endif
 #endif

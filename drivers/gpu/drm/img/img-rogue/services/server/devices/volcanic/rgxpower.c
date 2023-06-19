@@ -98,27 +98,46 @@ static PVRSRV_ERROR RGXFWNotifyHostTimeout(PVRSRV_RGXDEV_INFO *psDevInfo)
 static void _RGXUpdateGPUUtilStats(PVRSRV_RGXDEV_INFO *psDevInfo)
 {
 	RGXFWIF_GPU_UTIL_FWCB *psUtilFWCb;
-	IMG_UINT64 *paui64StatsCounters;
+	IMG_UINT64 (*paui64DMOSLastWord)[RGXFW_MAX_NUM_OSIDS];
+	IMG_UINT64 (*paaui64DMOSStatsCounters)[RGXFW_MAX_NUM_OSIDS][RGXFWIF_GPU_UTIL_STATE_NUM];
 	IMG_UINT64 ui64LastPeriod;
 	IMG_UINT64 ui64LastState;
 	IMG_UINT64 ui64LastTime;
 	IMG_UINT64 ui64TimeNow;
+	RGXFWIF_DM eDM;
 
 	psUtilFWCb = psDevInfo->psRGXFWIfGpuUtilFWCb;
-	paui64StatsCounters = &psUtilFWCb->aui64StatsCounters[0];
+	paui64DMOSLastWord = &psUtilFWCb->aaui64DMOSLastWord[0];
+	paaui64DMOSStatsCounters = &psUtilFWCb->aaaui64DMOSStatsCounters[0];
 
 	OSLockAcquire(psDevInfo->hGPUUtilLock);
 
 	ui64TimeNow = RGXFWIF_GPU_UTIL_GET_TIME(RGXTimeCorrGetClockns64(psDevInfo->psDeviceNode));
 
 	/* Update counters to account for the time since the last update */
-	ui64LastState  = RGXFWIF_GPU_UTIL_GET_STATE(psUtilFWCb->ui64LastWord);
-	ui64LastTime   = RGXFWIF_GPU_UTIL_GET_TIME(psUtilFWCb->ui64LastWord);
+	ui64LastState  = RGXFWIF_GPU_UTIL_GET_STATE(psUtilFWCb->ui64GpuLastWord);
+	ui64LastTime   = RGXFWIF_GPU_UTIL_GET_TIME(psUtilFWCb->ui64GpuLastWord);
 	ui64LastPeriod = RGXFWIF_GPU_UTIL_GET_PERIOD(ui64TimeNow, ui64LastTime);
-	paui64StatsCounters[ui64LastState] += ui64LastPeriod;
+	psUtilFWCb->aui64GpuStatsCounters[ui64LastState] += ui64LastPeriod;
 
 	/* Update state and time of the latest update */
-	psUtilFWCb->ui64LastWord = RGXFWIF_GPU_UTIL_MAKE_WORD(ui64TimeNow, ui64LastState);
+	psUtilFWCb->ui64GpuLastWord = RGXFWIF_GPU_UTIL_MAKE_WORD(ui64TimeNow, ui64LastState);
+
+	for (eDM = 0; eDM < psDevInfo->sDevFeatureCfg.ui32MAXDMCount; eDM++)
+	{
+		IMG_UINT32 ui32DriverID;
+
+		FOREACH_SUPPORTED_DRIVER(ui32DriverID)
+		{
+			ui64LastState  = RGXFWIF_GPU_UTIL_GET_STATE(psUtilFWCb->aaui64DMOSLastWord[eDM][ui32DriverID]);
+			ui64LastTime   = RGXFWIF_GPU_UTIL_GET_TIME(psUtilFWCb->aaui64DMOSLastWord[eDM][ui32DriverID]);
+			ui64LastPeriod = RGXFWIF_GPU_UTIL_GET_PERIOD(ui64TimeNow, ui64LastTime);
+			paaui64DMOSStatsCounters[eDM][ui32DriverID][ui64LastState] += ui64LastPeriod;
+
+			/* Update state and time of the latest update */
+			paui64DMOSLastWord[eDM][ui32DriverID] = RGXFWIF_GPU_UTIL_MAKE_WORD(ui64TimeNow, ui64LastState);
+		}
+	}
 
 	OSLockRelease(psDevInfo->hGPUUtilLock);
 }
@@ -305,20 +324,20 @@ static PVRSRV_ERROR _RGXWaitForGuestsToDisconnect(PVRSRV_DEVICE_NODE *psDeviceNo
 
 	LOOP_UNTIL_TIMEOUT(ui32FwTimeout)
 	{
-		IMG_UINT32 ui32OSid;
+		IMG_UINT32 ui32DriverID;
 		IMG_BOOL bGuestOnline = IMG_FALSE;
 
-		for (ui32OSid = RGXFW_GUEST_OSID_START;
-			 ui32OSid < RGX_NUM_OS_SUPPORTED; ui32OSid++)
+		for (ui32DriverID = RGXFW_GUEST_DRIVER_ID_START;
+			 ui32DriverID < RGX_NUM_DRIVERS_SUPPORTED; ui32DriverID++)
 		{
 			RGXFWIF_CONNECTION_FW_STATE eGuestState = (RGXFWIF_CONNECTION_FW_STATE)
-					psDevInfo->psRGXFWIfFwSysData->asOsRuntimeFlagsMirror[ui32OSid].bfOsState;
+					psDevInfo->psRGXFWIfFwSysData->asOsRuntimeFlagsMirror[ui32DriverID].bfOsState;
 
 			if ((eGuestState == RGXFW_CONNECTION_FW_ACTIVE) ||
 				(eGuestState == RGXFW_CONNECTION_FW_OFFLOADING))
 			{
 				bGuestOnline = IMG_TRUE;
-				PVR_DPF((PVR_DBG_WARNING, "%s: Guest OS %u still online.", __func__, ui32OSid));
+				PVR_DPF((PVR_DBG_WARNING, "%s: Guest OS %u still online.", __func__, ui32DriverID));
 			}
 		}
 
@@ -494,23 +513,37 @@ PVRSRV_ERROR RGXVzPostPowerState(IMG_HANDLE				hDevHandle,
 
 #if defined(RGX_VZ_STATIC_CARVEOUT_FW_HEAPS)
 			/* Guest drivers expect the firmware to have set its end of the
-			 * connection to Ready state by now. Poll indefinitely otherwise. */
+			 * connection to Ready state by now. */
 			if (!KM_FW_CONNECTION_IS(READY, psDevInfo))
 			{
 				PVR_DPF((PVR_DBG_WARNING, "%s: Firmware Connection is not in Ready state. Waiting for Firmware ...", __func__));
 			}
-			while (!KM_FW_CONNECTION_IS(READY, psDevInfo))
+
+			LOOP_UNTIL_TIMEOUT(RGX_VZ_CONNECTION_TIMEOUT_US)
 			{
-				OSSleepms(10);
+				if (KM_FW_CONNECTION_IS(READY, psDevInfo))
+				{
+					PVR_DPF((PVR_DBG_MESSAGE, "%s: Firmware Connection is Ready. Initialisation proceeding.", __func__));
+					break;
+				}
+				else
+				{
+					OSSleepms(10);
+				}
+			} END_LOOP_UNTIL_TIMEOUT();
+
+			if (!KM_FW_CONNECTION_IS(READY, psDevInfo))
+			{
+				PVR_DPF((PVR_DBG_ERROR, "%s: Timed out waiting for the Firmware to enter Ready state.", __func__));
+				return PVRSRV_ERROR_TIMEOUT;
 			}
-			PVR_DPF((PVR_DBG_WARNING, "%s: Firmware Connection is Ready. Initialisation proceeding.", __func__));
 #endif /* RGX_VZ_STATIC_CARVEOUT_FW_HEAPS */
 
 			/* Guests can only access the register holding the connection states,
 			 * after the GPU is confirmed to be powered up */
 			KM_SET_OS_CONNECTION(READY, psDevInfo);
 
-			OSWriteDeviceMem32(pbUpdatedFlag, IMG_FALSE);
+			OSWriteDeviceMem32WithWMB(pbUpdatedFlag, IMG_FALSE);
 
 			/* Kick an initial dummy command to make the firmware initialise all
 			 * its internal guest OS data structures and compatibility information.
@@ -530,6 +563,7 @@ PVRSRV_ERROR RGXVzPostPowerState(IMG_HANDLE				hDevHandle,
 		{
 			KM_SET_OS_CONNECTION(READY, psDevInfo);
 
+#if defined(SUPPORT_AUTOVZ)
 			/* Disable power callbacks that should not be run on virtualised drivers after the GPU
 			 * is fully initialised: system layer pre/post functions and driver idle requests.
 			 * The original device RGX Pre/Post functions are called from this Vz wrapper. */
@@ -537,7 +571,6 @@ PVRSRV_ERROR RGXVzPostPowerState(IMG_HANDLE				hDevHandle,
 									&RGXVzPrePowerState, &RGXVzPostPowerState,
 									NULL, NULL, NULL, NULL);
 
-#if defined(SUPPORT_AUTOVZ)
 			/* During first-time boot the flag is set here, while subsequent reboots will already
 			 * have set it earlier in RGXInit. Set to true from this point onwards in any case. */
 			psDeviceNode->bAutoVzFwIsUp = IMG_TRUE;
@@ -545,12 +578,25 @@ PVRSRV_ERROR RGXVzPostPowerState(IMG_HANDLE				hDevHandle,
 		}
 
 		/* Wait for the firmware to accept and enable the connection with this OS by setting its state to Active */
-		while (!KM_FW_CONNECTION_IS(ACTIVE, psDevInfo))
+		LOOP_UNTIL_TIMEOUT(RGX_VZ_CONNECTION_TIMEOUT_US)
 		{
-			PVR_DPF((PVR_DBG_WARNING, "%s: Firmware Connection is not in Active state. Waiting for Firmware ...", __func__));
-			OSSleepms(100);
+			if (KM_FW_CONNECTION_IS(ACTIVE, psDevInfo))
+			{
+				PVR_DPF((PVR_DBG_WARNING, "%s: Firmware Connection is Active. Initialisation proceeding.", __func__));
+				break;
+			}
+			else
+			{
+				PVR_DPF((PVR_DBG_WARNING, "%s: Firmware Connection is not in Active state. Waiting for Firmware ...", __func__));
+				OSSleepms(10);
+			}
+		} END_LOOP_UNTIL_TIMEOUT();
+
+		if (!KM_FW_CONNECTION_IS(ACTIVE, psDevInfo))
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s: Timed out waiting for the Firmware to enter Active state.", __func__));
+			return PVRSRV_ERROR_TIMEOUT;
 		}
-		PVR_DPF((PVR_DBG_WARNING, "%s: Firmware Connection is Active. Initialisation proceeding.", __func__));
 
 		/* poll on the Firmware supplying the compatibility data */
 		LOOP_UNTIL_TIMEOUT(ui32FwTimeout)
@@ -618,7 +664,7 @@ static INLINE PVRSRV_ERROR RGXDoStart(PVRSRV_DEVICE_NODE *psDeviceNode)
 	return eError;
 }
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION) && !defined(NO_HARDWARE)
+#if defined(SUPPORT_GPUVIRT_VALIDATION_MTS)
 /*
  * To validate the MTS unit we do the following:
  *  - Immediately after firmware loading for each OSID
@@ -649,10 +695,10 @@ static PVRSRV_ERROR RGXVirtualisationPowerupSidebandTest(PVRSRV_DEVICE_NODE	 *ps
 
 	ui32OsRegBanksMapped = MIN(ui32OsRegBanksMapped, GPUVIRT_VALIDATION_NUM_OS);
 
-	if (ui32OsRegBanksMapped != RGXFW_MAX_NUM_OS)
+	if (ui32OsRegBanksMapped != RGXFW_MAX_NUM_OSIDS)
 	{
 		PVR_DPF((PVR_DBG_WARNING, "The register bank mapped into kernel VA does not cover all OS' registers:"));
-		PVR_DPF((PVR_DBG_WARNING, "Maximum OS count = %d / Per-os register banks mapped = %d", RGXFW_MAX_NUM_OS, ui32OsRegBanksMapped));
+		PVR_DPF((PVR_DBG_WARNING, "Maximum OS count = %d / Per-os register banks mapped = %d", RGXFW_MAX_NUM_OSIDS, ui32OsRegBanksMapped));
 		PVR_DPF((PVR_DBG_WARNING, "Only first %d MTS registers will be tested", ui32OsRegBanksMapped));
 	}
 
@@ -678,7 +724,6 @@ static PVRSRV_ERROR RGXVirtualisationPowerupSidebandTest(PVRSRV_DEVICE_NODE	 *ps
 				 ui32OSid,
 				 ui32ScheduleRegister));
 		OSWriteHWReg32(psDevInfo->pvRegsBaseKM, ui32ScheduleRegister, ui32KickType);
-		OSMemoryBarrier((IMG_BYTE*) psDevInfo->pvRegsBaseKM + ui32ScheduleRegister);
 
 #if defined(PDUMP)
 		PDUMPCOMMENTWITHFLAGS(psDevInfo->psDeviceNode, PDUMP_FLAGS_CONTINUOUS, "VZ sideband test, kicking MTS register %u", ui32OSid);
@@ -694,9 +739,12 @@ static PVRSRV_ERROR RGXVirtualisationPowerupSidebandTest(PVRSRV_DEVICE_NODE	 *ps
 							   PDUMP_FLAGS_CONTINUOUS);
 #endif
 
+#if !defined(NO_HARDWARE)
+		OSMemoryBarrier((IMG_BYTE*) psDevInfo->pvRegsBaseKM + ui32ScheduleRegister);
+
 		/* Wait test enable bit to be unset */
 		if (PVRSRVPollForValueKM(psDeviceNode,
-								 (IMG_UINT32 *)&psFwSysInit->ui32OSKickTest,
+								 (volatile IMG_UINT32 __iomem *)&psFwSysInit->ui32OSKickTest,
 								 0,
 								 RGXFWIF_KICK_TEST_ENABLED_BIT,
 								 POLL_FLAG_LOG_ERROR | POLL_FLAG_DEBUG_DUMP) != PVRSRV_OK)
@@ -718,12 +766,13 @@ static PVRSRV_ERROR RGXVirtualisationPowerupSidebandTest(PVRSRV_DEVICE_NODE	 *ps
 		}
 
 		PVR_DPF((PVR_DBG_MESSAGE, "    PASS"));
+#endif
 	}
 
 	PVR_LOG(("MTS passed sideband tests"));
 	return PVRSRV_OK;
 }
-#endif /* defined(SUPPORT_GPUVIRT_VALIDATION) && !defined(NO_HARDWARE) */
+#endif /* defined(SUPPORT_GPUVIRT_VALIDATION_MTS) */
 
 #if defined(SUPPORT_VALIDATION) && defined(NO_HARDWARE) && defined(PDUMP)
 #define SCRATCH_VALUE  (0x12345678U)
@@ -731,7 +780,7 @@ static PVRSRV_ERROR RGXVirtualisationPowerupSidebandTest(PVRSRV_DEVICE_NODE	 *ps
 static void RGXRiscvDebugModuleTest(PVRSRV_RGXDEV_INFO *psDevInfo)
 {
 	void *pvAppHintState = NULL;
-	IMG_UINT32 ui32AppHintDefault = 0;
+	const IMG_BOOL bDefaultFalse = IMG_FALSE;
 	IMG_BOOL bRunRiscvDmiTest;
 
 	IMG_UINT32 *pui32FWCode = NULL;
@@ -739,7 +788,7 @@ static void RGXRiscvDebugModuleTest(PVRSRV_RGXDEV_INFO *psDevInfo)
 
 	OSCreateKMAppHintState(&pvAppHintState);
 	OSGetKMAppHintBOOL(APPHINT_NO_DEVICE, pvAppHintState, RiscvDmiTest,
-	                   &ui32AppHintDefault, &bRunRiscvDmiTest);
+	                   &bDefaultFalse, &bRunRiscvDmiTest);
 	OSFreeKMAppHintState(pvAppHintState);
 
 	if (bRunRiscvDmiTest == IMG_FALSE)
@@ -920,7 +969,7 @@ PVRSRV_ERROR RGXPostPowerState(IMG_HANDLE				hDevHandle,
 
 #endif /* defined(PDUMP) */
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION) && !defined(NO_HARDWARE)
+#if defined(SUPPORT_GPUVIRT_VALIDATION_MTS)
 			eError = RGXVirtualisationPowerupSidebandTest(psDeviceNode, psDevInfo->psRGXFWIfSysInit, psDevInfo);
 			if (eError != PVRSRV_OK)
 			{
@@ -933,7 +982,8 @@ PVRSRV_ERROR RGXPostPowerState(IMG_HANDLE				hDevHandle,
 #endif
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
-			SetFirmwareStartTime(psDevInfo->psRGXFWIfSysInit->ui32FirmwareStartedTimeStamp);
+			PVRSRVSetFirmwareStartTime(psDeviceNode->psPowerDev,
+			                           psDevInfo->psRGXFWIfSysInit->ui32FirmwareStartedTimeStamp);
 #endif
 
 			HTBSyncPartitionMarker(psDevInfo->psRGXFWIfSysInit->ui32MarkerVal);
@@ -1109,6 +1159,13 @@ PVRSRV_ERROR RGXPowUnitsStateMaskChange(IMG_HANDLE hDevHandle, IMG_UINT32 ui32Po
 	sPowUnitsStateMaskChange.eCmdType = RGXFWIF_KCCB_CMD_POW;
 	sPowUnitsStateMaskChange.uCmdData.sPowData.ePowType = RGXFWIF_POW_NUM_UNITS_CHANGE;
 	sPowUnitsStateMaskChange.uCmdData.sPowData.uPowerReqData.ui32PowUnitsStateMask = ui32PowUnitsStateMask;
+	sPowUnitsStateMaskChange.uCmdData.sPowData.uPowerReqData.ui32RACStateMask = 0;
+
+	if (RGX_GET_FEATURE_VALUE(psDevInfo, POWER_ISLAND_VERSION) >= 3)
+	{
+		sPowUnitsStateMaskChange.uCmdData.sPowData.uPowerReqData.ui32RACStateMask =
+			(1U << psDevInfo->sDevFeatureCfg.ui32MAXRACCount) - 1;
+	}
 
 	PDUMPCOMMENT(psDeviceNode,
 	             "Scheduling command to change power units state to 0x%X",
@@ -1257,7 +1314,8 @@ PVRSRV_ERROR RGXActivePowerRequest(IMG_HANDLE hDevHandle)
 	if (psFwSysData->ePowState == RGXFWIF_POW_IDLE)
 	{
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
-		SetFirmwareHandshakeIdleTime(RGXReadHWTimerReg(psDevInfo)-psFwSysData->ui64StartIdleTime);
+		PVRSRVSetFirmwareHandshakeIdleTime(psDeviceNode->psPowerDev,
+		                                   RGXReadHWTimerReg(psDevInfo)-psFwSysData->ui64StartIdleTime);
 #endif
 
 		PDUMPPOWCMDSTART(psDeviceNode);

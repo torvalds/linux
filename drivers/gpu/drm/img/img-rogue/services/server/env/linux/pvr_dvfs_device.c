@@ -95,7 +95,7 @@ static int _device_get_devid(struct device *dev)
 static IMG_INT32 devfreq_target(struct device *dev, unsigned long *requested_freq, IMG_UINT32 flags)
 {
 	int deviceId = _device_get_devid(dev);
-	PVRSRV_DEVICE_NODE *psDeviceNode = PVRSRVGetDeviceInstanceByOSId(deviceId);
+	PVRSRV_DEVICE_NODE *psDeviceNode = PVRSRVGetDeviceInstanceByKernelDevID(deviceId);
 	RGX_DATA		*psRGXData = NULL;
 	IMG_DVFS_DEVICE		*psDVFSDevice = NULL;
 	IMG_DVFS_DEVICE_CFG	*psDVFSDeviceCfg = NULL;
@@ -170,15 +170,15 @@ static IMG_INT32 devfreq_target(struct device *dev, unsigned long *requested_fre
 	/* Increasing frequency, change voltage first */
 	if (ui32Freq > ui32CurFreq)
 	{
-		psDVFSDeviceCfg->pfnSetVoltage(ui32Volt);
+		psDVFSDeviceCfg->pfnSetVoltage(psDeviceNode->psDevConfig->hSysData, ui32Volt);
 	}
 
-	psDVFSDeviceCfg->pfnSetFrequency(ui32Freq);
+	psDVFSDeviceCfg->pfnSetFrequency(psDeviceNode->psDevConfig->hSysData, ui32Freq);
 
 	/* Decreasing frequency, change frequency first */
 	if (ui32Freq < ui32CurFreq)
 	{
-		psDVFSDeviceCfg->pfnSetVoltage(ui32Volt);
+		psDVFSDeviceCfg->pfnSetVoltage(psDeviceNode->psDevConfig->hSysData, ui32Volt);
 	}
 
 	psRGXTimingInfo->ui32CoreClockSpeed = ui32Freq;
@@ -192,7 +192,7 @@ static IMG_INT32 devfreq_target(struct device *dev, unsigned long *requested_fre
 static int devfreq_get_dev_status(struct device *dev, struct devfreq_dev_status *stat)
 {
 	int                      deviceId = _device_get_devid(dev);
-	PVRSRV_DEVICE_NODE      *psDeviceNode = PVRSRVGetDeviceInstanceByOSId(deviceId);
+	PVRSRV_DEVICE_NODE      *psDeviceNode = PVRSRVGetDeviceInstanceByKernelDevID(deviceId);
 	PVRSRV_RGXDEV_INFO      *psDevInfo = NULL;
 	IMG_DVFS_DEVICE         *psDVFSDevice = NULL;
 	RGX_DATA                *psRGXData = NULL;
@@ -246,7 +246,7 @@ static int devfreq_get_dev_status(struct device *dev, struct devfreq_dev_status 
 static IMG_INT32 devfreq_cur_freq(struct device *dev, unsigned long *freq)
 {
 	int deviceId = _device_get_devid(dev);
-	PVRSRV_DEVICE_NODE *psDeviceNode = PVRSRVGetDeviceInstanceByOSId(deviceId);
+	PVRSRV_DEVICE_NODE *psDeviceNode = PVRSRVGetDeviceInstanceByKernelDevID(deviceId);
 	RGX_DATA *psRGXData = NULL;
 
 	/* Check the device is registered */
@@ -610,8 +610,8 @@ PVRSRV_ERROR RegisterDVFSDevice(PPVRSRV_DEVICE_NODE psDeviceNode)
 
 	psRGXTimingInfo->ui32CoreClockSpeed = min_freq;
 
-	psDVFSDeviceCfg->pfnSetFrequency(min_freq);
-	psDVFSDeviceCfg->pfnSetVoltage(min_volt);
+	psDVFSDeviceCfg->pfnSetFrequency(psDeviceNode->psDevConfig->hSysData, min_freq);
+	psDVFSDeviceCfg->pfnSetVoltage(psDeviceNode->psDevConfig->hSysData, min_volt);
 
 	psDVFSDevice->data.upthreshold = psDVFSGovernorCfg->ui32UpThreshold;
 	psDVFSDevice->data.downdifferential = psDVFSGovernorCfg->ui32DownDifferential;
@@ -637,6 +637,17 @@ PVRSRV_ERROR RegisterDVFSDevice(PPVRSRV_DEVICE_NODE psDeviceNode)
 		eError = TO_IMG_ERR(PTR_ERR(psDVFSDevice->psDevFreq));
 		goto err_exit;
 	}
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 50)))
+	/* Handle Linux kernel bug where a NULL return can occur. */
+	if (psDVFSDevice->psDevFreq == NULL)
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+				 "Failed to add as devfreq device %p, NULL return",
+				 psDVFSDevice->psDevFreq));
+		eError = TO_IMG_ERR(-EINVAL);
+		goto err_exit;
+	}
+#endif
 
 	eError = SuspendDVFS(psDeviceNode);
 	if (eError != PVRSRV_OK)

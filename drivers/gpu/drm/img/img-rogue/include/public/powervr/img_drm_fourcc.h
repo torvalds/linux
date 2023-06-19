@@ -137,4 +137,7 @@ THE SOFTWARE.
 #define DRM_FORMAT_MOD_PVR_FBCDC_LOSSY50_16x4_V13    fourcc_mod_code(PVR, 30)
 #define DRM_FORMAT_MOD_PVR_FBCDC_LOSSY75_16x4_V13    fourcc_mod_code(PVR, 31)
 
+#define DRM_FORMAT_MOD_PVR_FBCDC_LOSSY37_8x8_V13     fourcc_mod_code(PVR, 32)
+#define DRM_FORMAT_MOD_PVR_FBCDC_LOSSY37_16x4_V13    fourcc_mod_code(PVR, 33)
+
 #endif /* IMG_DRM_FOURCC_H */

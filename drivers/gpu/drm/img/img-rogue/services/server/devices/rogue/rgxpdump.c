@@ -352,11 +352,11 @@ PVRSRV_ERROR PVRSRVPDumpComputeCRCSignatureCheckKM(CONNECTION_DATA * psConnectio
 	}
 
 	/*
-	 * Add a PDUMP POLL on the KZ signature check status.
+	 * Add a PDUMP POLL on the WGP signature check status.
 	 */
-	if (psDevInfo->ui32ValidationFlags & RGX_VAL_KZ_SIG_CHECK_NOERR_EN)
+	if (psDevInfo->ui32ValidationFlags & RGX_VAL_WGP_SIG_CHECK_NOERR_EN)
 	{
-		PDUMPCOMMENT(psDeviceNode, "Verify KZ Signature: match required");
+		PDUMPCOMMENT(psDeviceNode, "Verify WGP Signature: match required");
 		eError = PDUMPREGPOL(psDeviceNode,
 		                     RGX_PDUMPREG_NAME,
 		                     RGX_CR_SCRATCH11,
@@ -365,9 +365,9 @@ PVRSRV_ERROR PVRSRVPDumpComputeCRCSignatureCheckKM(CONNECTION_DATA * psConnectio
 		                     ui32PDumpFlags,
 		                     PDUMP_POLL_OPERATOR_EQUAL);
 	}
-	else if (psDevInfo->ui32ValidationFlags & RGX_VAL_KZ_SIG_CHECK_ERR_EN)
+	else if (psDevInfo->ui32ValidationFlags & RGX_VAL_WGP_SIG_CHECK_ERR_EN)
 	{
-		PDUMPCOMMENT(psDeviceNode, "Verify KZ Signature: mismatch required");
+		PDUMPCOMMENT(psDeviceNode, "Verify WGP Signature: mismatch required");
 		eError = PDUMPREGPOL(psDeviceNode,
 		                     RGX_PDUMPREG_NAME,
 		                     RGX_CR_SCRATCH11,

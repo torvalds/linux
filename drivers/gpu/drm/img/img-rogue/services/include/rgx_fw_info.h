@@ -105,10 +105,11 @@ typedef enum
  *                          FILE_SIZE
  */
 
-#define FW_INFO_VERSION  (1)
+#define FW_INFO_VERSION  (2)
 
 typedef struct
 {
+	/* FW_INFO_VERSION 1 */
 	IMG_UINT32 ui32InfoVersion;      /* FW info version */
 	IMG_UINT32 ui32HeaderLen;        /* Header length */
 	IMG_UINT32 ui32LayoutEntryNum;   /* Number of entries in the layout table */
@@ -116,6 +117,11 @@ typedef struct
 	IMG_UINT64 RGXFW_ALIGN ui64BVNC; /* BVNC */
 	IMG_UINT32 ui32FwPageSize;       /* Page size of processor on which firmware executes */
 	IMG_UINT32 ui32Flags;            /* Compatibility flags */
+
+	/* FW_INFO_VERSION 2 */
+	IMG_UINT16 ui16PVRVersionMajor;  /* DDK major version number */
+	IMG_UINT16 ui16PVRVersionMinor;  /* DDK minor version number */
+	IMG_UINT32 ui32PVRVersionBuild;  /* DDK build number */
 } RGX_FW_INFO_HEADER;
 
 typedef struct

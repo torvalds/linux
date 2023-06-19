@@ -82,11 +82,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @Input          psConnection     the connection to the originator process
 @Input          uiSize           the size of the allocation
                                  (must be a multiple of page size)
-@Input          uiChunkSize      when sparse allocations are requested,
-                                 this is the allocated chunk size.
-                                 For regular allocations, this will be
-                                 the same as uiSize.
-                                 (must be a multiple of page size)
 @Input          ui32NumPhysChunks  when sparse allocations are requested,
                                    this is the number of physical chunks
                                    to be allocated.
@@ -116,7 +111,6 @@ PVRSRV_ERROR
 PhysmemNewOSRamBackedPMR(PHYS_HEAP *psPhysHeap,
                          CONNECTION_DATA *psConnection,
                          IMG_DEVMEM_SIZE_T uiSize,
-                         IMG_DEVMEM_SIZE_T uiChunkSize,
                          IMG_UINT32 ui32NumPhysChunks,
                          IMG_UINT32 ui32NumVirtChunks,
                          IMG_UINT32 *pui32MappingTable,

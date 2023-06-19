@@ -642,6 +642,6 @@ PVRSRVDebugRequest(PVRSRV_DEVICE_NODE *psDevNode,
 	if (!pfnDumpDebugPrintf)
 	{
 		/* Only notify OS of an issue if the debug dump has gone there */
-		//OSWarnOn(IMG_TRUE);
+		OSWarnOn(IMG_TRUE);
 	}
 }

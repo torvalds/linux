@@ -115,7 +115,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef IMG_UINT32 DEVMEM_HEAPCFGID;
 #define DEVMEM_HEAPCFG_FORCLIENTS 0
-#define DEVMEM_HEAPCFG_META 1
+#define DEVMEM_HEAPCFG_FORFW 1
 
 
 /*
@@ -125,41 +125,6 @@ typedef IMG_UINT32 DEVMEM_HEAPCFGID;
 
 typedef IMG_HANDLE DEVMEM_BRIDGE_HANDLE;
 
-/*************************************************************************/ /*!
-@Function       DevmemUnpin
-@Description    This is the counterpart to DevmemPin(). It is meant to be
-                called before repinning an allocation.
-
-                For a detailed description see client API documentation.
-
-@Input          phMemDesc       The MemDesc that is going to be unpinned.
-
-@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the memory is
-                                registered to be reclaimed. Error otherwise.
-*/ /**************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-DevmemUnpin(DEVMEM_MEMDESC *psMemDesc);
-
-/*************************************************************************/ /*!
-@Function       DevmemPin
-@Description    This is the counterpart to DevmemUnpin(). It is meant to be
-                called after unpinning an allocation.
-
-                For a detailed description see client API documentation.
-
-@Input          phMemDesc       The MemDesc that is going to be pinned.
-
-@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the allocation content
-                                was successfully restored.
-
-                                PVRSRV_ERROR_PMR_NEW_MEMORY when the content
-                                could not be restored and new physical memory
-                                was allocated.
-
-                                A different error otherwise.
-*/ /**************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-DevmemPin(DEVMEM_MEMDESC *psMemDesc);
 
 IMG_INTERNAL PVRSRV_ERROR
 DevmemGetHeapInt(DEVMEM_HEAP *psHeap,
@@ -282,6 +247,7 @@ DevmemCreateHeap(DEVMEM_CONTEXT *psCtxPtr,
                     func takes a copy if it needs it. */
                  const IMG_CHAR *pszName,
                  DEVMEM_HEAPCFGID uiHeapBlueprintID,
+                 IMG_UINT32 uiHeapIndex,
                  DEVMEM_HEAP **ppsHeapPtr);
 /*
  * DevmemDestroyHeap()
@@ -365,7 +331,6 @@ DeviceMemChangeSparse(DEVMEM_MEMDESC *psMemDesc,
 PVRSRV_ERROR
 DevmemAllocateSparse(SHARED_DEV_CONNECTION hDevConnection,
                      IMG_DEVMEM_SIZE_T uiSize,
-                     IMG_DEVMEM_SIZE_T uiChunkSize,
                      IMG_UINT32 ui32NumPhysChunks,
                      IMG_UINT32 ui32NumVirtChunks,
                      IMG_UINT32 *pui32MappingTable,
@@ -665,12 +630,6 @@ DevmemGetFaultAddress(DEVMEM_CONTEXT *psContext,
                       IMG_DEV_VIRTADDR *psFaultAddress);
 
 IMG_INTERNAL PVRSRV_ERROR
-DevmemFlushDeviceSLCRange(DEVMEM_MEMDESC *psMemDesc,
-                          IMG_DEV_VIRTADDR sDevVAddr,
-                          IMG_DEVMEM_SIZE_T uiSize,
-                          IMG_BOOL bInvalidate);
-
-IMG_INTERNAL PVRSRV_ERROR
 DevmemInvalidateFBSCTable(DEVMEM_CONTEXT *psContext,
                           IMG_UINT64 ui64FBSCEntries);
 
@@ -702,14 +661,12 @@ DevmemGetHeapReservedSize(DEVMEM_HEAP *psHeap);
 
 @Input          psContext      Memory context the process that would like to
                                be notified about.
-@Input          ui32PID        The PID  of the calling process.
 @Input          bRegister      If true, register. If false, de-register.
 @Return         PVRSRV_ERROR:  PVRSRV_OK on success. Otherwise, a PVRSRV_
                                error code
 */ /**************************************************************************/
 IMG_INTERNAL PVRSRV_ERROR
 RegisterDevmemPFNotify(DEVMEM_CONTEXT *psContext,
-                       IMG_UINT32     ui32PID,
                        IMG_BOOL       bRegister);
 
 /*************************************************************************/ /*!

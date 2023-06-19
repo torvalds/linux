@@ -42,7 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef RGXCORE_KM_4_31_4_55_H
 #define RGXCORE_KM_4_31_4_55_H
 
-/* Automatically generated file (04/10/2021 09:01:49): Do not edit manually */
+/* Automatically generated file (21/01/2022 09:01:15): Do not edit manually */
 /* CS: @2919104 */
 
 /******************************************************************************

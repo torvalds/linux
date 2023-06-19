@@ -46,7 +46,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/moduleparam.h>
 #include <linux/workqueue.h>
 #include <linux/string.h>
-#include <stdbool.h>
 
 /* Common and SO layer */
 #include "img_defs.h"
@@ -73,7 +72,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "km_apphint.h"
 
 #if defined(PDUMP)
-#include <stdarg.h>
+#if defined(__linux__)
+ #include <linux/version.h>
+
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+  #include <linux/stdarg.h>
+ #else
+  #include <stdarg.h>
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
+#else
+ #include <stdarg.h>
+#endif /* __linux__ */
 #include "pdump_km.h"
 #endif
 
@@ -190,10 +199,12 @@ struct apphint_param {
 };
 
 struct apphint_init_data {
-	IMG_UINT32 id;			/* index into AppHint Table */
+	IMG_UINT32 id;          /* index into AppHint Table */
 	APPHINT_CLASS class;
 	const IMG_CHAR *name;
 	union apphint_value default_value;
+	APPHINT_RT_CLASS guest; /* ALWAYS => present on GUEST,
+	                           NEVER => not present on GUEST */
 };
 
 struct apphint_init_data_mapping {
@@ -220,32 +231,32 @@ struct apphint_work {
 #define UINT32List UINT32
 
 static const struct apphint_init_data init_data_buildvar[] = {
-#define X(a, b, c, d, e) \
-	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d} },
+#define X(a, b, c, d, e, f) \
+	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d}, APPHINT_RT_CLASS_ ## f },
 	APPHINT_LIST_BUILDVAR_COMMON
 	APPHINT_LIST_BUILDVAR
 #undef X
 };
 
 static const struct apphint_init_data init_data_modparam[] = {
-#define X(a, b, c, d, e) \
-	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d} },
+#define X(a, b, c, d, e, f) \
+	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d}, APPHINT_RT_CLASS_ ## f },
 	APPHINT_LIST_MODPARAM_COMMON
 	APPHINT_LIST_MODPARAM
 #undef X
 };
 
 static const struct apphint_init_data init_data_debuginfo[] = {
-#define X(a, b, c, d, e) \
-	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d} },
+#define X(a, b, c, d, e, f) \
+	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d}, APPHINT_RT_CLASS_ ## f },
 	APPHINT_LIST_DEBUGINFO_COMMON
 	APPHINT_LIST_DEBUGINFO
 #undef X
 };
 
 static const struct apphint_init_data init_data_debuginfo_device[] = {
-#define X(a, b, c, d, e) \
-	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d} },
+#define X(a, b, c, d, e, f) \
+	{APPHINT_ID_ ## a, APPHINT_CLASS_ ## c, #a, {.b=d}, APPHINT_RT_CLASS_ ## f },
 	APPHINT_LIST_DEBUGINFO_DEVICE_COMMON
 	APPHINT_LIST_DEBUGINFO_DEVICE
 #undef X
@@ -265,7 +276,7 @@ static const struct apphint_init_data_mapping init_data_debuginfo_device_to_modp
 __maybe_unused static const char NO_PARAM_TABLE[] = {};
 
 static const struct apphint_param param_lookup[] = {
-#define X(a, b, c, d, e) \
+#define X(a, b, c, d, e, f) \
 	{APPHINT_ID_ ## a, APPHINT_DATA_TYPE_ ## b, e, ARRAY_SIZE(e) },
 	APPHINT_LIST_ALL
 #undef X
@@ -316,8 +327,8 @@ static struct apphint_state
 	.val = {
 #define UINT32Bitfield UINT32
 #define UINT32List UINT32
-#define X(a, b, c, d, e) \
-	{ {NULL}, {NULL}, NULL, NULL, {.b=d}, false },
+#define X(a, b, c, d, e, f) \
+	{ {NULL}, {NULL}, NULL, NULL, {.b=d}, NULL },
 	APPHINT_LIST_ALL
 #undef X
 #undef UINT32Bitfield
@@ -436,8 +447,7 @@ static void apphint_action_worker(struct work_struct *work)
 			         __func__, param_lookup[id].data_type, id));
 		}
 
-		/* Do not log errors if running in GUEST mode */
-		if ((PVRSRV_OK != result) && !PVRSRV_VZ_MODE_IS(GUEST)) {
+		if (PVRSRV_OK != result) {
 			PVR_DPF((PVR_DBG_ERROR,
 			         "%s: failed (%s)",
 			         __func__, PVRSRVGetErrorString(result)));
@@ -723,7 +733,7 @@ static PVRSRV_ERROR get_apphint_value_from_action(const struct apphint_action * 
 	return result;
 }
 
-/**
+/*
  * apphint_write - write the current AppHint data to a buffer
  *
  * Returns length written or -errno
@@ -833,7 +843,7 @@ err_exit:
 *******************************************************************************
  Module parameters initialization - different from debuginfo
 ******************************************************************************/
-/**
+/*
  * apphint_kparam_set - Handle an update of a module parameter
  *
  * Returns 0, or -errno.  arg is in kp->arg.
@@ -864,7 +874,7 @@ static int apphint_kparam_set(const char *val, const struct kernel_param *kp)
 	return (result > 0) ? 0 : result;
 }
 
-/**
+/*
  * apphint_kparam_get - handle a read of a module parameter
  *
  * Returns length written or -errno.  Buffer is 4k (ie. be short!)
@@ -889,7 +899,7 @@ static const struct kernel_param_ops apphint_kparam_fops = {
 #define apphint_modparam_enable(name, number, perm) \
 	module_param_cb(name, &apphint_kparam_fops, &apphint.val[number], perm);
 
-#define X(a, b, c, d, e) \
+#define X(a, b, c, d, e, f) \
 	apphint_modparam_class_ ##c(a, APPHINT_ID_ ## a, 0444)
 	APPHINT_LIST_MODPARAM_COMMON
 	APPHINT_LIST_MODPARAM
@@ -953,7 +963,7 @@ static int apphint_di_show(OSDI_IMPL_ENTRY *s, void *v)
  Debug Info supporting functions
 ******************************************************************************/
 
-/**
+/*
  * apphint_set - Handle a DI value update
  */
 static IMG_INT64 apphint_set(const IMG_CHAR *buffer, IMG_UINT64 count,
@@ -992,7 +1002,7 @@ err_exit:
 	return result;
 }
 
-/**
+/*
  * apphint_debuginfo_init - Create the specified debuginfo entries
  */
 static int apphint_debuginfo_init(const char *sub_dir,
@@ -1011,6 +1021,8 @@ static int apphint_debuginfo_init(const char *sub_dir,
 		.pfnNext  = apphint_di_next,  .pfnShow = apphint_di_show,
 		.pfnWrite = apphint_set,      .ui32WriteLenMax = APPHINT_BUFFER_SIZE
 	};
+	/* Determine if we're booted as a GUEST VZ OS */
+	IMG_BOOL bIsGUEST = PVRSRV_VZ_MODE_IS(GUEST);
 
 	if (*rootdir) {
 		PVR_DPF((PVR_DBG_WARNING,
@@ -1028,6 +1040,14 @@ static int apphint_debuginfo_init(const char *sub_dir,
 
 	for (i = 0; i < init_data_size; i++) {
 		if (!class_state[init_data[i].class].enabled)
+			continue;
+
+		/* Check to see if this AppHint should appear in a GUEST OS.
+		 * This will have a value in the init_data[i].guest field of ALWAYS
+		 * and if we don't have this set (and we're in GUEST mode) we must
+		 * not present this AppHint to the OS.
+		 */
+		if (bIsGUEST && (init_data[i].guest != APPHINT_RT_CLASS_ALWAYS))
 			continue;
 
 		result = DICreateEntry(init_data[i].name,
@@ -1049,7 +1069,7 @@ err_exit:
 	return result;
 }
 
-/**
+/*
  * apphint_debuginfo_deinit- destroy the debuginfo entries
  */
 static void apphint_debuginfo_deinit(unsigned int num_entries,
@@ -1163,7 +1183,7 @@ static void apphint_dump_values(const char *group_name,
 	}
 }
 
-/**
+/*
  * Callback for debug dump
  */
 static void apphint_dump_state(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle,
@@ -1172,7 +1192,7 @@ static void apphint_dump_state(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle,
 			void *pvDumpDebugFile)
 {
 	int i, result;
-	char km_buffer[APPHINT_BUFFER_SIZE];
+	char description_buffer[50];
 	PVRSRV_DEVICE_NODE *device = (PVRSRV_DEVICE_NODE *)hDebugRequestHandle;
 
 	if (DD_VERB_LVL_ENABLED(ui32VerbLevel, DEBUG_REQUEST_VERBOSITY_HIGH)) {
@@ -1195,14 +1215,14 @@ static void apphint_dump_state(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle,
 			    || (device && device != apphint.devices[i]))
 				continue;
 
-			result = snprintf(km_buffer,
-					  APPHINT_BUFFER_SIZE,
+			result = snprintf(description_buffer,
+					  sizeof(description_buffer),
 					  "Debug Info Params Device ID: %d",
 					  i);
 			if (0 > result)
 				continue;
 
-			apphint_dump_values(km_buffer, i,
+			apphint_dump_values(description_buffer, i,
 					    init_data_debuginfo_device,
 					    ARRAY_SIZE(init_data_debuginfo_device),
 					    pfnDumpDebugPrintf,
@@ -1260,7 +1280,6 @@ err_out:
 int pvr_apphint_device_register(PVRSRV_DEVICE_NODE *device)
 {
 	int result, i;
-	char device_num[APPHINT_BUFFER_SIZE];
 	unsigned int device_value_offset;
 
 	if (!apphint.initialized) {
@@ -1270,14 +1289,6 @@ int pvr_apphint_device_register(PVRSRV_DEVICE_NODE *device)
 
 	if (apphint.num_devices+1 > APPHINT_DEVICES_MAX) {
 		result = -EMFILE;
-		goto err_out;
-	}
-
-	result = snprintf(device_num, APPHINT_BUFFER_SIZE, "%u", apphint.num_devices);
-	if (result < 0) {
-		PVR_DPF((PVR_DBG_WARNING,
-			"snprintf failed (%d)", result));
-		result = -EINVAL;
 		goto err_out;
 	}
 
@@ -1305,16 +1316,16 @@ int pvr_apphint_device_register(PVRSRV_DEVICE_NODE *device)
 		}
 	}
 
-	result = apphint_debuginfo_init(device_num, apphint.num_devices,
+	result = apphint_debuginfo_init("apphint", device->sDevId.ui32InternalID,
 	                              ARRAY_SIZE(init_data_debuginfo_device),
 	                              init_data_debuginfo_device,
-	                              apphint.debuginfo_rootdir,
-	                              &apphint.debuginfo_device_rootdir[apphint.num_devices],
-	                              apphint.debuginfo_device_entry[apphint.num_devices]);
+	                              device->sDebugInfo.psGroup,
+	                              &apphint.debuginfo_device_rootdir[device->sDevId.ui32InternalID],
+	                              apphint.debuginfo_device_entry[device->sDevId.ui32InternalID]);
 	if (0 != result)
 		goto err_out;
 
-	apphint.devices[apphint.num_devices] = device;
+	apphint.devices[device->sDevId.ui32InternalID] = device;
 	apphint.num_devices++;
 
 	(void)SOPvrDbgRequestNotifyRegister(

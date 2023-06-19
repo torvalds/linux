@@ -143,4 +143,23 @@ PVRSRV_ERROR SysUninstallDeviceLISR(IMG_HANDLE hLISRData);
 void SysRGXErrorNotify(IMG_HANDLE hSysData,
                        PVRSRV_ROBUSTNESS_NOTIFY_DATA *psErrorData);
 
+/**************************************************************************/ /*!
+@Function       SysRestrictGpuLocalPhysheap
+@Description    If the Restriction apphint has been set, validate the
+                restriction value and return the new GPU_LOCAL heap size.
+
+@Input          uiHeapSize      Current syslayer detected GPU_LOCAL heap size.
+@Return         IMG_UINT64      New GPU_LOCAL heap size in bytes.
+*/ /***************************************************************************/
+IMG_UINT64 SysRestrictGpuLocalPhysheap(IMG_UINT64 uiHeapSize);
+
+/**************************************************************************/ /*!
+@Function       SysRestrictGpuLocalAddPrivateHeap
+@Description    Determine if the restriction apphint has been set.
+
+@Return         IMG_BOOL        IMG_TRUE if the restriction apphint has been
+                                set.
+*/ /***************************************************************************/
+IMG_BOOL SysRestrictGpuLocalAddPrivateHeap(void);
+
 #endif /* !defined(SYSCOMMON_H) */

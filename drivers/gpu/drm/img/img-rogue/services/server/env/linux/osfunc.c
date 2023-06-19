@@ -64,6 +64,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/dmaengine.h>
+#include <linux/dma-direction.h>
 #include <linux/kthread.h>
 #include <linux/utsname.h>
 #include <linux/scatterlist.h>
@@ -77,6 +78,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #else
 #include <linux/sched.h>
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)) */
+#if defined(SUPPORT_SECURE_ALLOC_KM)
+#if defined(PVR_ANDROID_HAS_DMA_HEAP_FIND)
+#include <linux/dma-heap.h>
+#include "physmem_dmabuf.h"
+#else
+#include "physmem.h"
+#endif
+#endif
 
 #include "log2.h"
 #include "osfunc.h"
@@ -100,6 +109,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "pvrsrv_sync_server.h"
 
+#if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO)
+#include "ri_server.h"
+#include "pvr_ricommon.h"
+#endif
 
 #if defined(VIRTUAL_PLATFORM)
 #define EVENT_OBJECT_TIMEOUT_US		(120000000ULL)
@@ -240,7 +253,6 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PHYS_HEAP *psPhysHeap, size_t uiSize,
 	                             psPage,
 	                             sCpuPAddr,
 	                             uiSize,
-	                             NULL,
 	                             uiPid
 	                             DEBUG_MEMSTATS_VALUES);
 #endif
@@ -254,13 +266,11 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PHYS_HEAP *psPhysHeap, size_t uiSize,
 void OSPhyContigPagesFree(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle)
 {
 	struct page *psPage = (struct page*) psMemHandle->u.pvHandle;
-	IMG_UINT32	uiSize, uiPageCount=0, ui32Order;
+	IMG_UINT32 ui32Order;
 
 	PVR_UNREFERENCED_PARAMETER(psPhysHeap);
 
 	ui32Order = psMemHandle->uiOrder;
-	uiPageCount = (1 << ui32Order);
-	uiSize = (uiPageCount * PAGE_SIZE);
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
@@ -302,7 +312,6 @@ PVRSRV_ERROR OSPhyContigPagesMap(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle,
 									 *pvPtr,
 									 sCpuPAddr,
 									 actualSize,
-									 NULL,
 									 OSGetCurrentClientProcessIDKM()
 									 DEBUG_MEMSTATS_VALUES);
 	}
@@ -405,18 +414,6 @@ IMG_UINT32 OSCPUCacheAttributeSize(OS_CPU_CACHE_ATTRIBUTE eCacheAttribute)
 	}
 
 	return uiSize;
-}
-
-IMG_UINT32 OSVSScanf(const IMG_CHAR *pStr, const IMG_CHAR *pszFormat, ...)
-{
-	va_list argList;
-	IMG_INT32 iCount = 0;
-
-	va_start(argList, pszFormat);
-	iCount = vsscanf(pStr, pszFormat, argList);
-	va_end(argList);
-
-	return iCount;
 }
 
 IMG_INT OSMemCmp(void *pvBufA, void *pvBufB, size_t uiLen)
@@ -864,6 +861,7 @@ static const error_map_t asErrorMap[] =
 	{-ENOTTY, PVRSRV_ERROR_BRIDGE_CALL_FAILED},
 	{-ERANGE, PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL},
 	{-ENOMEM, PVRSRV_ERROR_OUT_OF_MEMORY},
+	{-EACCES, PVRSRV_ERROR_PMR_NOT_PERMITTED},
 	{-EINVAL, PVRSRV_ERROR_INVALID_PARAMS},
 
 	{0,       PVRSRV_OK}
@@ -1118,6 +1116,124 @@ void OSPanic(void)
 #endif
 }
 
+IMG_BOOL OSIsMapPhysNonContigSupported(void)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)) && !defined(CONFIG_VMAP_PFN)
+	return IMG_FALSE;
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0))
+	return IMG_FALSE;
+#else
+	return IMG_TRUE;
+#endif
+}
+
+void OSUnMapPhysArrayToLin(void *pvLinAddr, void *pvPrivData)
+{
+	if (is_vmalloc_addr(pvLinAddr))
+	{
+#if defined(CONFIG_VMAP_PFN)
+		PVR_UNREFERENCED_PARAMETER(pvPrivData);
+		vunmap(pvLinAddr);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
+		unmap_kernel_range((unsigned long) (uintptr_t) pvLinAddr,
+                           get_vm_area_size(pvPrivData));
+		free_vm_area(pvPrivData);
+#else
+		PVR_DPF((PVR_DBG_ERROR,"%s: Cannot map into kernel, no method supported.", __func__));
+		PVR_ASSERT(0);
+#endif
+	}
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Given kernel address is not a vmalloc addr", __func__));
+	}
+}
+
+#define PagePAToPFN(PageAddr) (PageAddr >> PAGE_SHIFT)
+
+PVRSRV_ERROR OSMapPhysArrayToLin(IMG_CPU_PHYADDR pPagePA[],
+                                 IMG_UINT32 uiPagesCount,
+                                 void **ppvLinAddr,
+                                 void **ppvPrivData)
+{
+	if (ppvLinAddr == NULL || ppvPrivData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+#if defined(CONFIG_VMAP_PFN)
+	{
+		IMG_UINT32 i;
+
+		for (i = 0; i < uiPagesCount; i++)
+		{
+			pPagePA[i].uiAddr = PagePAToPFN(pPagePA[i].uiAddr);
+		}
+
+		*ppvLinAddr = vmap_pfn((unsigned long *)pPagePA,
+							   (unsigned int)uiPagesCount,
+							   pgprot_device(PAGE_KERNEL));
+		if (NULL == *ppvLinAddr)
+		{
+			return PVRSRV_ERROR_PMR_CPU_PAGE_MAP_FAILED;
+		}
+		*ppvPrivData = NULL;
+		return PVRSRV_OK;
+	}
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
+	{
+		pte_t *pte[32], **pte_array;
+		struct vm_struct *psVMA;
+		PVRSRV_ERROR eError = PVRSRV_OK;
+		IMG_UINT32 i = 0;
+
+		pte_array = &pte[0];
+		if (sizeof(pte) < (sizeof(pte[0]) * uiPagesCount))
+		{
+			pte_array = kzalloc(uiPagesCount * sizeof(*pte_array), GFP_KERNEL);
+			if (NULL == pte_array)
+			{
+				return PVRSRV_ERROR_OUT_OF_MEMORY;
+			}
+		}
+
+		psVMA = alloc_vm_area((size_t)(uiPagesCount << PAGE_SHIFT), pte_array);
+		if (NULL == psVMA)
+		{
+			eError = PVRSRV_ERROR_FAILED_TO_ALLOC_VIRT_MEMORY;
+			goto FreePTEArray;
+		}
+
+		PVR_DPF((PVR_DBG_MESSAGE, "Allocated VM: %s VMA: %p Addr: %p Size: 0x%lx count: %d", __func__,
+				psVMA, psVMA->addr, psVMA->size, psVMA->nr_pages));
+
+		for (i = 0; i < uiPagesCount; i++)
+		{
+			*(pte_array[i]) = pte_mkspecial(pfn_pte((unsigned long) PagePAToPFN(pPagePA[i].uiAddr),
+													pgprot_device(PAGE_KERNEL)));
+		}
+
+		OSWriteMemoryBarrier(psVMA->addr);
+
+		*ppvLinAddr = psVMA->addr;
+		*ppvPrivData = psVMA;
+
+FreePTEArray:
+		if (pte_array != pte)
+		{
+			kfree(pte_array);
+		}
+
+		return eError;
+	}
+#else
+	PVR_DPF((PVR_DBG_ERROR,"%s: Cannot map into kernel, no method supported.", __func__));
+	PVR_ASSERT(0);
+	*ppvLinAddr = NULL;
+	return PVRSRV_ERROR_PMR_CPU_PAGE_MAP_FAILED;
+#endif
+}
+
 void *
 OSMapPhysToLin(IMG_CPU_PHYADDR BasePAddr,
 			   size_t ui32Bytes,
@@ -1262,7 +1378,7 @@ static void OSTimerCallbackWrapper(uintptr_t uData)
 	res = queue_work(psTimerWorkQueue, &psTimerCBData->sWork);
 	if (res == 0)
 	{
-		PVR_DPF((PVR_DBG_WARNING, "OSTimerCallbackWrapper: work already queued"));
+		PVR_LOG(("OSTimerCallbackWrapper: work already queued"));
 	}
 }
 
@@ -1858,7 +1974,7 @@ typedef struct _OS_CLEANUP_DATA_
 	PFN_SERVER_CLEANUP pfnServerCleanup;
 	void* pvServerCleanupData;
 
-	enum dma_transfer_direction eDirection;
+	enum dma_data_direction eDirection;
 	struct sg_table **ppsSg;
 	struct page ***pages;
 	IMG_UINT32* puiNumPages;
@@ -1915,7 +2031,11 @@ static int cleanup_thread(void *pvData)
 			/* Unpin pages */
 			for (j=0; j<psOSCleanup->puiNumPages[i]; j++)
 			{
-				if (psOSCleanup->eDirection == DMA_DEV_TO_MEM)
+				/*
+				 * using DMA_FROM_DEVICE from enum dma_data_direction instead of DMA_DEV_TO_MEM
+				 * from enum dma_transfer_direction to avoid casting explicitly
+				 */
+				if (psOSCleanup->eDirection == DMA_FROM_DEVICE)
 				{
 					set_page_dirty_lock(psOSCleanup->pages[i][j]);
 				}
@@ -1957,7 +2077,11 @@ static int cleanup_thread(void *pvData)
 				 */
 				if (psOSCleanup->pages[i][j])
 				{
-					if (psOSCleanup->eDirection == DMA_DEV_TO_MEM)
+					/*
+					 * using DMA_FROM_DEVICE from enum dma_data_direction instead of DMA_DEV_TO_MEM
+					 * from enum dma_transfer_direction to avoid casting explicitly
+					 */
+					if (psOSCleanup->eDirection == DMA_FROM_DEVICE)
 					{
 						set_page_dirty_lock(psOSCleanup->pages[i][j]);
 					}
@@ -2227,6 +2351,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 	PVRSRV_DEVICE_CONFIG *psDevConfig = psDevNode->psDevConfig;
 	OS_CLEANUP_DATA* psOSCleanupData = pvOSData;
 
+	enum dma_data_direction eDataDirection = bMemToDev ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	struct dma_slave_config sConfig = {0};
 	struct dma_async_tx_descriptor *psDesc;
 
@@ -2283,7 +2408,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 	}
 	dmaengine_slave_config(pvChan, &sConfig);
 
-	iRet = dma_map_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, sConfig.direction);
+	iRet = dma_map_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, eDataDirection);
 	if (!iRet)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Error mapping SG list", __func__));
@@ -2291,7 +2416,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 		goto e4;
 	}
 
-	dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned int)iRet, sConfig.direction);
+	dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned int)iRet, eDataDirection);
 
 	psDesc = dmaengine_prep_slave_sg(pvChan, psSg->sgl, (unsigned int)iRet, sConfig.direction, 0);
 	if (!psDesc)
@@ -2301,7 +2426,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 		goto e5;
 	}
 
-	psOSCleanupData->eDirection = sConfig.direction;
+	psOSCleanupData->eDirection = eDataDirection;
 	psOSCleanupData->ppsSg[psOSCleanupData->uiCount] = psSg;
 	psOSCleanupData->pfnServerCleanup = pfnServerCleanup;
 	psOSCleanupData->pvServerCleanupData = pvServerCleanupParam;
@@ -2321,7 +2446,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 	return PVRSRV_OK;
 
 e5:
-	dma_unmap_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, sConfig.direction);
+	dma_unmap_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, eDataDirection);
 e4:
 	sg_free_table(psSg);
 e3:
@@ -2380,6 +2505,7 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 	IMG_UINT32 ui32Idx;
 	IMG_INT32 i32Rwd;
 
+	enum dma_data_direction eDataDirection = bMemToDev ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	struct dma_slave_config sConfig = {0};
 	struct dma_async_tx_descriptor *psDesc;
 
@@ -2511,14 +2637,14 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 		}
 		dmaengine_slave_config(pvChan, &sConfig);
 
-		iRet = dma_map_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, sConfig.direction);
+		iRet = dma_map_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, eDataDirection);
 		if (!iRet)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "%s: Error mapping SG list", __func__));
 			eError = PVRSRV_ERROR_INVALID_PARAMS;
 			goto e5;
 		}
-		dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned int)iRet, sConfig.direction);
+		dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned int)iRet, eDataDirection);
 
 		psDesc = dmaengine_prep_slave_sg(pvChan, psSg->sgl, (unsigned int)iRet, sConfig.direction, 0);
 		if (!psDesc)
@@ -2542,7 +2668,7 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 			{
 				struct task_struct* t1;
 
-				psOSCleanupData->eDirection = sConfig.direction;
+				psOSCleanupData->eDirection = eDataDirection;
 				psOSCleanupData->pfnServerCleanup = pfnServerCleanup;
 				psOSCleanupData->pvServerCleanupData = pvServerCleanupParam;
 
@@ -2557,7 +2683,7 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 	return PVRSRV_OK;
 
 e6:
-	dma_unmap_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, sConfig.direction);
+	dma_unmap_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, eDataDirection);
 e5:
 	sg_free_table(psSg);
 e4:
@@ -2576,7 +2702,7 @@ e2:
 		IMG_UINT32 i;
 
 		psSg = psOSCleanupData->ppsSgSparse[psOSCleanupData->uiCount][i32Rwd];
-		dma_unmap_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, sConfig.direction);
+		dma_unmap_sg(psDevConfig->pvOSDevice, psSg->sgl, psSg->nents, eDataDirection);
 		sg_free_table(psSg);
 
 		/* Unpin pages */
@@ -2598,3 +2724,131 @@ e0:
 }
 
 #endif /* SUPPORT_DMA_TRANSFER */
+
+#if defined(SUPPORT_SECURE_ALLOC_KM)
+#if defined(PVR_ANDROID_HAS_DMA_HEAP_FIND)
+IMG_INTERNAL PVRSRV_ERROR
+OSAllocateSecBuf(PVRSRV_DEVICE_NODE *psDeviceNode,
+				 IMG_DEVMEM_SIZE_T uiSize,
+				 const IMG_CHAR *pszName,
+				 PMR **ppsPMR)
+{
+	struct dma_heap *heap;
+	struct dma_buf *buf;
+	struct device *dev;
+	struct dma_buf_attachment *buf_attachment;
+
+	IMG_UINT32 ui32MappingTable = 0;
+	PVRSRV_ERROR eError;
+	IMG_CHAR *pszHeapName;
+
+	PVR_LOG_RETURN_IF_INVALID_PARAM(psDeviceNode, "psDeviceNode");
+	PVR_LOG_RETURN_IF_INVALID_PARAM(psDeviceNode->psDevConfig->pszSecureDMAHeapName, "pszSecureDMAHeapName");
+	PVR_LOG_RETURN_IF_INVALID_PARAM((OSStringLength(psDeviceNode->psDevConfig->pszSecureDMAHeapName) > 0), "pszSecureDMAHeapName length");
+
+	pszHeapName = psDeviceNode->psDevConfig->pszSecureDMAHeapName;
+	dev = (struct device*)psDeviceNode->psDevConfig->pvOSDevice;
+
+	heap = dma_heap_find(pszHeapName);
+	PVR_LOG_GOTO_IF_NOMEM(heap, eError, ErrorExit);
+
+	buf = dma_heap_buffer_alloc(heap, uiSize, 0, 0);
+	PVR_LOG_GOTO_IF_NOMEM(buf, eError, ErrorBufPut);
+
+	if (buf->size < uiSize)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: buffer size (%ld) is less than requested (%lld).",
+				 __func__, buf->size, uiSize));
+		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
+		goto ErrorBufFree;
+	}
+
+	buf_attachment = dma_buf_attach(buf, dev);
+	PVR_LOG_GOTO_IF_NOMEM(buf_attachment, eError, ErrorBufFree);
+
+	eError = PhysmemCreateNewDmaBufBackedPMR(psDeviceNode->apsPhysHeap[PVRSRV_PHYS_HEAP_EXTERNAL],
+											 buf_attachment,
+											 NULL,
+											 PVRSRV_MEMALLOCFLAG_GPU_READABLE
+											 | PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE,
+											 buf->size,
+											 1,
+											 1,
+											 &ui32MappingTable,
+											 OSStringLength(pszName),
+											 pszName,
+											 ppsPMR);
+	PVR_LOG_GOTO_IF_ERROR(eError, "PhysmemCreateNewDmaBufBackedPMR", ErrorBufDetach);
+
+	return PVRSRV_OK;
+
+ErrorBufDetach:
+	dma_buf_detach(buf, buf_attachment);
+ErrorBufFree:
+	dma_heap_buffer_free(buf);
+ErrorBufPut:
+	dma_buf_put(buf);
+ErrorExit:
+
+	return eError;
+}
+
+IMG_INTERNAL void
+OSFreeSecBuf(PMR *psPMR)
+{
+	struct dma_buf *buf = PhysmemGetDmaBuf(psPMR);
+	dma_buf_put(buf);
+	dma_heap_buffer_free(buf);
+
+	PMRUnrefPMR(psPMR);
+}
+#else /* PVR_ANDROID_HAS_DMA_HEAP_FIND */
+IMG_INTERNAL PVRSRV_ERROR
+OSAllocateSecBuf(PVRSRV_DEVICE_NODE *psDeviceNode,
+				 IMG_DEVMEM_SIZE_T uiSize,
+				 const IMG_CHAR *pszName,
+				 PMR **ppsPMR)
+{
+	IMG_UINT32 ui32MappingTable = 0;
+	PVRSRV_ERROR eError;
+
+	eError = PhysmemNewRamBackedPMR(NULL,
+									psDeviceNode,
+									uiSize,
+									1,
+									1,
+									&ui32MappingTable,
+									ExactLog2(OSGetPageSize()),
+									PVRSRV_MEMALLOCFLAG_PHYS_HEAP_HINT(GPU_SECURE)
+									| PVRSRV_MEMALLOCFLAG_GPU_READABLE
+									| PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE,
+									OSStringLength(pszName),
+									pszName,
+									OSGetCurrentClientProcessIDKM(),
+									ppsPMR,
+									PDUMP_NONE,
+									NULL);
+	PVR_LOG_GOTO_IF_ERROR(eError, "PhysmemNewRamBackedPMR", ErrorExit);
+
+#if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO)
+	eError = RIWritePMREntryWithOwnerKM(*ppsPMR, PVR_SYS_ALLOC_PID);
+	PVR_LOG_GOTO_IF_ERROR(eError, "RIWritePMREntryWithOwnerKM", ErrorUnrefPMR);
+#endif
+
+	return PVRSRV_OK;
+
+#if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO)
+ErrorUnrefPMR:
+	PMRUnrefPMR(*ppsPMR);
+#endif
+ErrorExit:
+	return eError;
+}
+
+IMG_INTERNAL void
+OSFreeSecBuf(PMR *psPMR)
+{
+	PMRUnrefPMR(psPMR);
+}
+#endif
+#endif /* SUPPORT_SECURE_ALLOC_KM */

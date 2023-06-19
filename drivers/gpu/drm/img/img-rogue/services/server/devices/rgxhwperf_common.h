@@ -52,6 +52,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "connection_server.h"
 #include "rgxdevice.h"
 #include "rgx_hwperf.h"
+#include "rgx_fwif_hwperf.h"
 
 /* HWPerf host buffer size constraints in KBs */
 #define HWPERF_HOST_TL_STREAM_SIZE_DEFAULT PVRSRV_APPHINT_HWPERFHOSTBUFSIZEINKB
@@ -80,6 +81,46 @@ void RGXHWPerfDeinit(PVRSRV_RGXDEV_INFO *psRgxDevInfo);
 void RGXHWPerfInitAppHintCallbacks(const PVRSRV_DEVICE_NODE *psDeviceNode);
 void RGXHWPerfClientInitAppHintCallbacks(void);
 
+static INLINE PVRSRV_ERROR RGXAcquireHWPerfCtlCPUAddr(PVRSRV_DEVICE_NODE *psDevNode,
+                                                      RGXFWIF_HWPERF_CTL **ppsHWPerfCtl)
+{
+	PVRSRV_RGXDEV_INFO *psDevInfo;
+	PVRSRV_ERROR eError;
+
+	PVR_RETURN_IF_FALSE(psDevNode != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+
+	psDevInfo = (PVRSRV_RGXDEV_INFO*)psDevNode->pvDevice;
+	PVR_RETURN_IF_FALSE(psDevInfo != NULL, PVRSRV_ERROR_INVALID_PARAMS);
+
+	eError = DevmemAcquireCpuVirtAddr(psDevInfo->psRGXFWIfHWPerfCountersMemDesc,
+	                                  (void**)ppsHWPerfCtl);
+
+	return eError;
+}
+
+static INLINE void RGXReleaseHWPerfCtlCPUAddr(PVRSRV_DEVICE_NODE *psDevNode)
+{
+	PVRSRV_RGXDEV_INFO *psDevInfo;
+
+	PVR_LOG_RETURN_VOID_IF_FALSE(psDevNode != NULL, "psDevNode is invalid");
+
+	psDevInfo = (PVRSRV_RGXDEV_INFO*)psDevNode->pvDevice;
+	PVR_LOG_RETURN_VOID_IF_FALSE(psDevInfo != NULL, "psDevInfo invalid");
+
+	DevmemReleaseCpuVirtAddr(psDevInfo->psRGXFWIfHWPerfCountersMemDesc);
+}
+
+PVRSRV_ERROR PVRSRVRGXGetConfiguredHWPerfCountersKM(CONNECTION_DATA *psConnection,
+                                                    PVRSRV_DEVICE_NODE *psDeviceNode,
+                                                    const IMG_UINT32 ui32BlockID,
+                                                    RGX_HWPERF_CONFIG_CNTBLK *psConfiguredCounters);
+
+PVRSRV_ERROR PVRSRVRGXGetEnabledHWPerfBlocksKM(CONNECTION_DATA *psConnection,
+                                               PVRSRV_DEVICE_NODE *psDeviceNode,
+                                               const IMG_UINT32 ui32ArrayLen,
+                                               IMG_UINT32 *pui32BlockCount,
+                                               IMG_UINT32 *pui32EnabledBlockIDs);
+
 /******************************************************************************
  * RGX HW Performance Profiling API(s)
  *****************************************************************************/
@@ -101,6 +142,38 @@ PVRSRV_ERROR PVRSRVRGXControlHWPerfBlocksKM(
 /******************************************************************************
  * RGX HW Performance Host Stream API
  *****************************************************************************/
+
+static inline RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS
+RGXHWPerfConvDeviceHealthStatus(PVRSRV_DEVICE_HEALTH_STATUS eDeviceHealthStatus)
+{
+	switch (eDeviceHealthStatus)
+	{
+		case PVRSRV_DEVICE_HEALTH_STATUS_UNDEFINED:         return RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_UNDEFINED;
+		case PVRSRV_DEVICE_HEALTH_STATUS_OK:                return RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_OK;
+		case PVRSRV_DEVICE_HEALTH_STATUS_NOT_RESPONDING:    return RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_NOT_RESPONDING;
+		case PVRSRV_DEVICE_HEALTH_STATUS_DEAD:              return RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_DEAD;
+		case PVRSRV_DEVICE_HEALTH_STATUS_FAULT:             return RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_FAULT;
+		default:                                            return RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_UNDEFINED;
+	}
+}
+
+static inline RGX_HWPERF_HOST_DEVICE_HEALTH_REASON
+RGXHWPerfConvDeviceHealthReason(PVRSRV_DEVICE_HEALTH_REASON eDeviceHealthReason)
+{
+	switch (eDeviceHealthReason)
+	{
+		case PVRSRV_DEVICE_HEALTH_REASON_NONE:                  return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_NONE;
+		case PVRSRV_DEVICE_HEALTH_REASON_ASSERTED:              return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_ASSERTED;
+		case PVRSRV_DEVICE_HEALTH_REASON_POLL_FAILING:          return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_POLL_FAILING;
+		case PVRSRV_DEVICE_HEALTH_REASON_TIMEOUTS:              return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_TIMEOUTS;
+		case PVRSRV_DEVICE_HEALTH_REASON_QUEUE_CORRUPT:         return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_QUEUE_CORRUPT;
+		case PVRSRV_DEVICE_HEALTH_REASON_QUEUE_STALLED:         return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_QUEUE_STALLED;
+		case PVRSRV_DEVICE_HEALTH_REASON_IDLING:                return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_IDLING;
+		case PVRSRV_DEVICE_HEALTH_REASON_RESTARTING:            return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_RESTARTING;
+		case PVRSRV_DEVICE_HEALTH_REASON_MISSING_INTERRUPTS:    return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_MISSING_INTERRUPTS;
+		default:                                                return RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_UNDEFINED;
+	}
+}
 
 PVRSRV_ERROR RGXHWPerfHostInit(PVRSRV_RGXDEV_INFO *psRgxDevInfo, IMG_UINT32 ui32BufSizeKB);
 PVRSRV_ERROR RGXHWPerfHostInitOnDemandResources(PVRSRV_RGXDEV_INFO* psRgxDevInfo);
@@ -157,8 +230,7 @@ void RGXHWPerfHostPostClkSyncEvent(PVRSRV_RGXDEV_INFO *psRgxDevInfo);
 
 void RGXHWPerfHostPostDeviceInfo(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
 								 RGX_HWPERF_DEV_INFO_EV eEvType,
-								 PVRSRV_DEVICE_HEALTH_STATUS eDeviceHealthStatus,
-								 PVRSRV_DEVICE_HEALTH_REASON eDeviceHeathReason);
+								 RGX_HWPERF_HOST_DEV_INFO_DETAIL *psData);
 
 void RGXHWPerfHostPostInfo(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
 								 RGX_HWPERF_INFO_EV eEvType);
@@ -416,20 +488,36 @@ IMG_BOOL RGXHWPerfHostIsEventEnabled(PVRSRV_RGXDEV_INFO *psRgxDevInfo, RGX_HWPER
 
 /**
  * This macro checks if HWPerfHost and the event are enabled and if they are
- * it posts a device info event to the HWPerfHost stream.
+ * it posts a device info health event to the HWPerfHost stream.
  *
  * @param I      Device info pointer
- * @param T      Event type
- * @param H		 Health status enum
- * @param R		 Health reason enum
+ * @param H      Health status enum
+ * @param R      Health reason enum
  */
-#define RGXSRV_HWPERF_DEVICE_INFO(I, T, H, R) \
-		do { \
-			if (RGXHWPerfHostIsEventEnabled((I), RGX_HWPERF_HOST_DEV_INFO)) \
-			{ \
-				RGXHWPerfHostPostDeviceInfo((I), (T), (H), (R)); \
-			} \
-		} while (0)
+#define RGXSRV_HWPERF_DEVICE_INFO_HEALTH(I, H, R) \
+	do { \
+		if (RGXHWPerfHostIsEventEnabled((I), RGX_HWPERF_HOST_DEV_INFO)) \
+		{ \
+			RGX_HWPERF_HOST_DEV_INFO_DETAIL uDevDetail; \
+			uDevDetail.sDeviceStatus.eDeviceHealthStatus = RGXHWPerfConvDeviceHealthStatus(H); \
+			uDevDetail.sDeviceStatus.eDeviceHealthReason = RGXHWPerfConvDeviceHealthReason(R); \
+			RGXHWPerfHostPostDeviceInfo((I), RGX_HWPERF_DEV_INFO_EV_HEALTH, &uDevDetail); \
+		} \
+	} while (0)
+
+/**
+ * This macro checks if HWPerfHost and the event are enabled and if they are
+ * it posts a device info features event to the HWPerfHost stream.
+ *
+ * @param I      Device info pointer
+ */
+#define RGXSRV_HWPERF_DEVICE_INFO_FEATURES(I) \
+	do { \
+		if (RGXHWPerfHostIsEventEnabled((I), RGX_HWPERF_HOST_DEV_INFO)) \
+		{ \
+			RGXHWPerfHostPostDeviceInfo((I), RGX_HWPERF_DEV_INFO_EV_FEATURES, NULL); \
+		} \
+	} while (0)
 
 /**
  * This macro checks if HWPerfHost and the event are enabled and if they are
@@ -501,7 +589,8 @@ do { \
 #define RGXSRV_HWPERF_FREE_FENCE_SYNC(D, T, UID, PID, FWADDR)
 #define RGXSRV_HWPERF_MODIFY_FENCE_SYNC(D, T, NEWUID, UID1, UID2, N, Z)
 #define RGXSRV_HWPERF_CLK_SYNC(I)
-#define RGXSRV_HWPERF_DEVICE_INFO(I, T, H, R)
+#define RGXSRV_HWPERF_DEVICE_INFO_HEALTH(I, H, R)
+#define RGXSRV_HWPERF_DEVICE_INFO_FEATURES(I)
 #define RGXSRV_HWPERF_HOST_INFO(I, T)
 #define RGXSRV_HWPERF_SYNC_FENCE_WAIT(I, T, PID, F, D)
 #define RGXSRV_HWPERF_SYNC_SW_TL_ADV(I, PID, SW_TL, SPI)

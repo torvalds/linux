@@ -168,7 +168,6 @@ typedef struct PVRSRV_DATA_TAG
 
 	IMG_HANDLE            hPvzConnection;                 /*!< PVZ connection used for cross-VM hyper-calls */
 	POS_LOCK              hPvzConnectionLock;             /*!< Lock protecting PVZ connection */
-	IMG_BOOL              abVmOnline[RGX_NUM_OS_SUPPORTED];
 
 	IMG_BOOL              bUnload;                        /*!< Driver unload is in progress */
 
@@ -202,7 +201,7 @@ typedef struct PVRSRV_DATA_TAG
 ******************************************************************************/
 PVRSRV_DATA *PVRSRVGetPVRSRVData(void);
 
-#define PVRSRV_KM_ERRORS                     (PVRSRVGetPVRSRVData()->ui32DPFErrorCount)
+#define PVRSRV_KM_ERRORS                     ( PVRSRVGetPVRSRVData() ? PVRSRVGetPVRSRVData()->ui32DPFErrorCount : IMG_UINT32_MAX)
 #define PVRSRV_ERROR_LIMIT_REACHED                (PVRSRV_KM_ERRORS == IMG_UINT32_MAX)
 #define PVRSRV_REPORT_ERROR()                do { if (!(PVRSRV_ERROR_LIMIT_REACHED)) { PVRSRVGetPVRSRVData()->ui32DPFErrorCount++; } } while (0)
 
@@ -235,19 +234,19 @@ typedef struct _PHYS_HEAP_ITERATOR_ PHYS_HEAP_ITERATOR;
  @Function LMA_HeapIteratorCreate
 
  @Description
- Creates iterator for traversing physical heap requested by ui32Flags. The
+ Creates iterator for traversing physical heap requested by ePhysHeap. The
  iterator will go through all of the segments (a segment is physically
  contiguous) of the physical heap and return their CPU physical address and
  size.
 
  @Input psDevNode: Pointer to device node struct.
- @Input ui32Flags: Find heap that matches flags.
+ @Input ePhysHeap: Find the matching heap.
  @Output ppsIter: Pointer to the iterator object.
 
  @Return PVRSRV_OK upon success and PVRSRV_ERROR otherwise.
 ******************************************************************************/
 PVRSRV_ERROR LMA_HeapIteratorCreate(PVRSRV_DEVICE_NODE *psDevNode,
-                                    PHYS_HEAP_USAGE_FLAGS ui32Flags,
+                                    PVRSRV_PHYS_HEAP ePhysHeap,
                                     PHYS_HEAP_ITERATOR **ppsIter);
 
 /*!
@@ -454,8 +453,8 @@ static inline IMG_BOOL PVRSRVIsBridgeEnabled(IMG_HANDLE hServices, IMG_UINT32 ui
 
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
 #if defined(EMULATOR)
-	void SetAxiProtOSid(IMG_UINT32 ui32OSid, IMG_BOOL bState);
-	void SetTrustedDeviceAceEnabled(void);
+	void SetAxiProtOSid(IMG_HANDLE hSysData, IMG_UINT32 ui32OSid, IMG_BOOL bState);
+	void SetTrustedDeviceAceEnabled(IMG_HANDLE hSysData);
 #endif
 #endif
 
@@ -483,37 +482,15 @@ PVRSRV_ERROR PVRSRVCreateHWPerfHostThread(IMG_UINT32 ui32Timeout);
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVDestroyHWPerfHostThread(void);
 
-/*!
-******************************************************************************
- @Function			: PVRSRVPhysMemHeapsInit
-
- @Description		: Registers and acquires physical memory heaps
-
- @Return			: PVRSRV_ERROR	PVRSRV_OK on success. Otherwise, a PVRSRV_
-									error code
-******************************************************************************/
-PVRSRV_ERROR PVRSRVPhysMemHeapsInit(PVRSRV_DEVICE_NODE *psDeviceNode, PVRSRV_DEVICE_CONFIG *psDevConfig);
-
-/*!
-******************************************************************************
- @Function			: PVRSRVPhysMemHeapsDeinit
-
- @Description		: Releases and unregisters physical memory heaps
-
- @Return			: PVRSRV_ERROR	PVRSRV_OK on success. Otherwise, a PVRSRV_
-									error code
-******************************************************************************/
-void PVRSRVPhysMemHeapsDeinit(PVRSRV_DEVICE_NODE *psDeviceNode);
-
 /*************************************************************************/ /*!
-@Function       FindPhysHeapConfig
+@Function       PVRSRVFindPhysHeapConfig
 @Description    Find Phys Heap Config from Device Config.
 @Input          psDevConfig  Pointer to device config.
 @Input          ui32Flags    Find heap that matches flags.
 @Return         PHYS_HEAP_CONFIG*  Return a config, or NULL if not found.
 */ /**************************************************************************/
-PHYS_HEAP_CONFIG* FindPhysHeapConfig(PVRSRV_DEVICE_CONFIG *psDevConfig,
-									 PHYS_HEAP_USAGE_FLAGS ui32Flags);
+PHYS_HEAP_CONFIG* PVRSRVFindPhysHeapConfig(PVRSRV_DEVICE_CONFIG *psDevConfig,
+										   PHYS_HEAP_USAGE_FLAGS ui32Flags);
 
 /*************************************************************************/ /*!
 @Function       PVRSRVGetDeviceInstance
@@ -524,12 +501,12 @@ PHYS_HEAP_CONFIG* FindPhysHeapConfig(PVRSRV_DEVICE_CONFIG *psDevConfig,
 PVRSRV_DEVICE_NODE* PVRSRVGetDeviceInstance(IMG_UINT32 ui32Instance);
 
 /*************************************************************************/ /*!
-@Function       PVRSRVGetDeviceInstanceByOSId
+@Function       PVRSRVGetDeviceInstanceByKernelDevID
 @Description    Return the specified device instance by OS Id.
 @Input          i32OSInstance        OS device Id to find
 @Return         PVRSRV_DEVICE_NODE*  Return a device node, or NULL if not found.
 */ /**************************************************************************/
-PVRSRV_DEVICE_NODE *PVRSRVGetDeviceInstanceByOSId(IMG_INT32 i32OSInstance);
+PVRSRV_DEVICE_NODE *PVRSRVGetDeviceInstanceByKernelDevID(IMG_INT32 i32OSInstance);
 
 /*************************************************************************/ /*!
 @Function       PVRSRVDefaultDomainPower

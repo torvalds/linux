@@ -43,13 +43,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRSRV_DEVICE_H
 
 #include "img_types.h"
-#include "physheap.h"
+#include "physheap_config.h"
 #include "pvrsrv_error.h"
 #include "pvrsrv_memalloc_physheap.h"
 #include "pvrsrv_firmware_boot.h"
 #include "rgx_fwif_km.h"
 #include "servicesext.h"
 #include "cache_ops.h"
+#include "opaque_types.h"
 
 #if defined(SUPPORT_LINUX_DVFS) || defined(SUPPORT_PDVFS)
 #include "pvr_dvfs.h"
@@ -134,7 +135,7 @@ typedef PVRSRV_ERROR
                 PVRSRV_SYS_POWER_STATE_OFF if the domain is powered off
 */ /**************************************************************************/
 typedef PVRSRV_SYS_POWER_STATE
-(*PFN_SYS_GET_POWER)(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
+(*PFN_SYS_GET_POWER)(PPVRSRV_DEVICE_NODE psDevNode);
 
 typedef void
 (*PFN_SYS_DEV_INTERRUPT_HANDLED)(PVRSRV_DEVICE_CONFIG *psDevConfig);
@@ -206,7 +207,9 @@ typedef PVRSRV_ERROR
 #endif /* defined(SUPPORT_TRUSTED_DEVICE) */
 
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
-typedef void (*PFN_SYS_DEV_VIRT_INIT)(IMG_UINT64[GPUVIRT_VALIDATION_NUM_REGIONS][GPUVIRT_VALIDATION_NUM_OS], IMG_UINT64[GPUVIRT_VALIDATION_NUM_REGIONS][GPUVIRT_VALIDATION_NUM_OS]);
+typedef void (*PFN_SYS_DEV_VIRT_INIT)(IMG_HANDLE hSysData,
+                                      IMG_UINT64[GPUVIRT_VALIDATION_NUM_REGIONS][GPUVIRT_VALIDATION_NUM_OS],
+                                      IMG_UINT64[GPUVIRT_VALIDATION_NUM_REGIONS][GPUVIRT_VALIDATION_NUM_OS]);
 #endif /* defined(SUPPORT_GPUVIRT_VALIDATION) */
 
 typedef struct _PVRSRV_ROBUSTNESS_ERR_DATA_HOST_WDG_
@@ -306,12 +309,6 @@ struct _PVRSRV_DEVICE_CONFIG_
 #endif
 
 	/*!
-	 *! Callback to handle memory budgeting. Can be used to reject allocations
-	 *! over a certain size (optional).
-	 */
-	PFN_SYS_DEV_CHECK_MEM_ALLOC_SIZE pfnCheckMemAllocSize;
-
-	/*!
 	 *! Callback to perform host CPU cache maintenance. Might be needed for
 	 *! architectures which allow extensions such as RISC-V (optional).
 	 */
@@ -334,6 +331,11 @@ struct _PVRSRV_DEVICE_CONFIG_
 	/*! Callbacks to ping the trusted device to securely run RGXStart/Stop() */
 	PFN_TD_RGXSTART pfnTDRGXStart;
 	PFN_TD_RGXSTOP pfnTDRGXStop;
+
+#if defined(PVR_ANDROID_HAS_DMA_HEAP_FIND)
+	/*! Name of DMA heap to allocate secure memory from. Used with dma_heap_find. */
+	IMG_CHAR *pszSecureDMAHeapName;
+#endif
 #endif /* defined(SUPPORT_TRUSTED_DEVICE) */
 
 	/*! Function that does device feature specific system layer initialisation */

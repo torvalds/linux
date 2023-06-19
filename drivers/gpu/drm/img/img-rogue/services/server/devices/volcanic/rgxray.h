@@ -65,7 +65,7 @@ typedef struct _RGX_SERVER_RAY_CONTEXT_ RGX_SERVER_RAY_CONTEXT;
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVRGXCreateRayContextKM(CONNECTION_DATA		*psConnection,
 										 PVRSRV_DEVICE_NODE		*psDeviceNode,
-										 IMG_UINT32				ui32Priority,
+										 IMG_INT32				i32Priority,
 										 IMG_HANDLE				hMemCtxPrivData,
 										 IMG_UINT32				ui32ContextFlags,
 										 IMG_UINT32				ui32StaticRayContextStateSize,
@@ -107,7 +107,10 @@ PVRSRV_ERROR PVRSRVRGXKickRDMKM(RGX_SERVER_RAY_CONTEXT	*psRayContext,
 								IMG_UINT32				ui32CmdSize,
 								IMG_PBYTE				pui8DMCmd,
 								IMG_UINT32				ui32PDumpFlags,
-								IMG_UINT32				ui32ExtJobRef);
+								IMG_UINT32				ui32ExtJobRef,
+								IMG_UINT32				ui32AccStructSizeInBytes,
+								IMG_UINT32				ui32DispatchSize,
+								IMG_UINT64				ui64DeadlineInus);
 
 
 #endif /* RGXRAY_H_ */

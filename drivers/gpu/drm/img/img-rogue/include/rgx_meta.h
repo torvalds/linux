@@ -302,12 +302,6 @@ typedef struct
 #define RGXFW_SEGMMU_DATA_VIVT_SLC_UNCACHED   (0x60000000U)
 #define RGXFW_SEGMMU_DATA_VIVT_SLC_CACHE_MASK (0x60000000U)
 
-
-#if defined(SECURE_FW_CODE_OSID) && defined(RGX_FEATURE_META)
-#error "SECURE_FW_CODE_OSID is not supported on META cores"
-#endif
-
-
 /******************************************************************************
 * RGX FW Bootloader defaults
 ******************************************************************************/

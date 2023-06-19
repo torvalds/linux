@@ -48,7 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #define IMG_EXPLICIT_INCLUDE_HWDEFS
-#if defined(__KERNEL__)
+#if defined(__KERNEL__) || defined(SUPPORT_SERVICES_SC_UNITTESTS_SERVER)
 #include "rgx_cr_defs_km.h"
 #endif
 #undef IMG_EXPLICIT_INCLUDE_HWDEFS
@@ -106,10 +106,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define GET_N(x)            (((x) & (N_POSTION_MASK)) >> (N_POSITION))
 #define GET_C(x)            (((x) & (C_POSTION_MASK)) >> (C_POSITION))
 
-#define BVNC_PACK(B,V,N,C)  ((((IMG_UINT64)(B))) << (B_POSITION) | \
-                             (((IMG_UINT64)(V))) << (V_POSITION) | \
-                             (((IMG_UINT64)(N))) << (N_POSITION) | \
-                             (((IMG_UINT64)(C))) << (C_POSITION) \
+#define BVNC_PACK(B,V,N,C)  (((((IMG_UINT64)(B))) << (B_POSITION)) | \
+                             ((((IMG_UINT64)(V))) << (V_POSITION)) | \
+                             ((((IMG_UINT64)(N))) << (N_POSITION)) | \
+                             ((((IMG_UINT64)(C))) << (C_POSITION)) \
                             )
 
 #define RGX_CR_CORE_ID_CONFIG_N_SHIFT    (8U)
@@ -118,9 +118,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_CR_CORE_ID_CONFIG_N_CLRMSK   (0XFFFF00FFU)
 #define RGX_CR_CORE_ID_CONFIG_C_CLRMSK   (0XFFFFFF00U)
 
-#define RGXFW_MAX_NUM_OS                                  (8U)
-#define RGXFW_HOST_OS                                     (0U)
-#define RGXFW_GUEST_OSID_START                            (1U)
+#if defined(RGX_FEATURE_NUM_OSIDS)
+#define RGXFW_MAX_NUM_OSIDS                               (RGX_FEATURE_NUM_OSIDS)
+#else
+#define RGXFW_MAX_NUM_OSIDS                               (8U)
+#endif
+
+#define RGXFW_HOST_DRIVER_ID                              (0U)
+#define RGXFW_GUEST_DRIVER_ID_START                       (RGXFW_HOST_DRIVER_ID + 1U)
 
 #define RGXFW_THREAD_0                                    (0U)
 #define RGXFW_THREAD_1                                    (1U)
@@ -145,7 +150,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_META_COREMEM_SIZE     (RGX_FEATURE_META_COREMEM_SIZE*1024U)
 #define RGX_META_COREMEM          (1)
 #define RGX_META_COREMEM_CODE     (1)
-#if !defined(FIX_HW_BRN_50767) && defined(RGX_NUM_OS_SUPPORTED) && (RGX_NUM_OS_SUPPORTED == 1)
+#if !defined(FIX_HW_BRN_50767) && defined(RGX_NUM_DRIVERS_SUPPORTED) && (RGX_NUM_DRIVERS_SUPPORTED == 1)
 #define RGX_META_COREMEM_DATA     (1)
 #endif
 #else
@@ -242,19 +247,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGXFW_META_SUPPORT_2ND_THREAD
 #endif
 
-
-/*
- * FW MMU contexts
- */
-#if defined(SUPPORT_TRUSTED_DEVICE) && defined(RGX_FEATURE_META)
-#define MMU_CONTEXT_MAPPING_FWPRIV (0x0U) /* FW code/private data */
-#define MMU_CONTEXT_MAPPING_FWIF   (0x7U) /* Host/FW data */
-#else
-#define MMU_CONTEXT_MAPPING_FWPRIV (0x0U)
-#define MMU_CONTEXT_MAPPING_FWIF   (0x0U)
-#endif
-
-
 /*
  * Utility macros to calculate CAT_BASE register addresses
  */
@@ -270,7 +262,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FWCORE_ADDR_REMAP_CONFIG0_MMU_CONTEXT_SHIFT   RGX_CR_FWCORE_ADDR_REMAP_CONFIG0_CBASE_SHIFT
 #define FWCORE_ADDR_REMAP_CONFIG0_MMU_CONTEXT_CLRMSK  RGX_CR_FWCORE_ADDR_REMAP_CONFIG0_CBASE_CLRMSK
 #define FWCORE_ADDR_REMAP_CONFIG0_SIZE_ALIGNSHIFT     (12U)
-
 
 /******************************************************************************
  * WA HWBRNs
@@ -326,6 +317,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_VIRTUALISATION_REG_SIZE_PER_OS (RGX_CR_MTS_SCHEDULE1 - RGX_CR_MTS_SCHEDULE)
 
 /*
+ * Renaming MTS sideband bitfields to emphasize that the Register Bank number
+ * of the MTS register used identifies a specific Driver/VM rather than the OSID tag
+ * emitted on bus memory transactions.
+ */
+#define RGX_MTS_SBDATA_DRIVERID_CLRMSK RGX_CR_MTS_BGCTX_SBDATA0_OS_ID_CLRMSK
+#define RGX_MTS_SBDATA_DRIVERID_SHIFT RGX_CR_MTS_BGCTX_SBDATA0_OS_ID_SHIFT
+
+/*
+ * Register Bank containing registers secured against host access
+ */
+#define RGX_HOST_SECURE_REGBANK_OFFSET				(0xF0000U)
+#define RGX_HOST_SECURE_REGBANK_SIZE				(0x10000U)
+
+/*
  * Macro used to indicate which version of HWPerf is active
  */
 #define RGX_FEATURE_HWPERF_ROGUE
@@ -334,5 +339,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Maximum number of cores supported by TRP
  */
 #define RGX_TRP_MAX_NUM_CORES                           (4U)
+
+/*
+ * Maximum number of cores supported by WGP
+ */
+#define RGX_WGP_MAX_NUM_CORES                           (8U)
 
 #endif /* RGXDEFS_KM_H */

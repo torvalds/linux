@@ -64,7 +64,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgxhwperf.h"
 #include "ospvr_gputrace.h"
 #include "rgxsyncutils.h"
-#include "htbuffer.h"
+#include "htbserver.h"
 
 #include "rgxdefs_km.h"
 #include "rgx_fwif_km.h"
@@ -148,13 +148,13 @@ void _DebugSyncCheckpoints(const IMG_CHAR *pszFunction,
 typedef struct {
 	DEVMEM_MEMDESC				*psContextStateMemDesc;
 	RGX_SERVER_COMMON_CONTEXT	*psServerCommonContext;
-	IMG_UINT32					ui32Priority;
+	IMG_INT32					i32Priority;
 } RGX_SERVER_RC_TA_DATA;
 
 typedef struct {
 	DEVMEM_MEMDESC				*psContextStateMemDesc;
 	RGX_SERVER_COMMON_CONTEXT	*psServerCommonContext;
-	IMG_UINT32					ui32Priority;
+	IMG_INT32					i32Priority;
 } RGX_SERVER_RC_3D_DATA;
 
 struct _RGX_SERVER_RENDER_CONTEXT_ {
@@ -543,12 +543,12 @@ PVRSRV_ERROR RGXGrowFreeList(RGX_FREELIST *psFreeList,
 	eError = PhysmemNewRamBackedPMR(psFreeList->psConnection,
 			psFreeList->psDevInfo->psDeviceNode,
 			uiSize,
-			uiSize,
 			1,
 			1,
 			&ui32MappingTable,
 			RGX_BIF_PM_PHYSICAL_PAGE_ALIGNSHIFT,
-			PVRSRV_MEMALLOCFLAG_GPU_READABLE,
+			PVRSRV_MEMALLOCFLAG_GPU_READABLE |
+			PVRSRV_MEMALLOCFLAG_PHYS_HEAP_HINT(GPU_PRIVATE),
 			sizeof(szAllocName),
 			szAllocName,
 			psFreeList->ownerPid,
@@ -913,7 +913,8 @@ void RGXProcessRequestGrow(PVRSRV_RGXDEV_INFO *psDevInfo,
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 			/* Update Stats */
-			PVRSRVStatsUpdateFreelistStats(0,
+			PVRSRVStatsUpdateFreelistStats(psDevInfo->psDeviceNode,
+					0,
 					1, /* Add 1 to the appropriate counter (Requests by FW) */
 					psFreeList->ui32InitFLPages,
 					psFreeList->ui32NumHighPages,
@@ -1682,7 +1683,6 @@ err_HWRTDataCommonCookieAlloc:
 */
 PVRSRV_ERROR RGXDestroyHWRTDataSet(RGX_KM_HW_RT_DATASET *psKMHWRTDataSet)
 {
-	PVRSRV_RGXDEV_INFO *psDevInfo;
 	PVRSRV_DEVICE_NODE *psDevNode;
 	PVRSRV_ERROR eError;
 	PRGXFWIF_HWRTDATA psHWRTData;
@@ -1691,7 +1691,6 @@ PVRSRV_ERROR RGXDestroyHWRTDataSet(RGX_KM_HW_RT_DATASET *psKMHWRTDataSet)
 	PVR_ASSERT(psKMHWRTDataSet);
 
 	psDevNode = psKMHWRTDataSet->psDeviceNode;
-	psDevInfo = psDevNode->pvDevice;
 
 	eError = RGXSetFirmwareAddress(&psHWRTData,
 	                               psKMHWRTDataSet->psHWRTDataFwMemDesc, 0,
@@ -1950,7 +1949,8 @@ PVRSRV_ERROR RGXCreateFreeList(CONNECTION_DATA      *psConnection,
 	}
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 	/* Update Stats */
-	PVRSRVStatsUpdateFreelistStats(1, /* Add 1 to the appropriate counter (Requests by App)*/
+	PVRSRVStatsUpdateFreelistStats(psDeviceNode,
+			1, /* Add 1 to the appropriate counter (Requests by App)*/
 			0,
 			psFreeList->ui32InitFLPages,
 			psFreeList->ui32NumHighPages,
@@ -2271,41 +2271,38 @@ RGXBackingZSBuffer(RGX_ZSBUFFER_DATA *psZSBuffer)
 
 	if (psZSBuffer->ui32RefCount == 0)
 	{
-		if (psZSBuffer->bOnDemand)
+		IMG_HANDLE hDevmemHeap;
+
+		PVR_ASSERT(psZSBuffer->psMapping == NULL);
+
+		/* Get Heap */
+		eError = DevmemServerGetHeapHandle(psZSBuffer->psReservation, &hDevmemHeap);
+		PVR_ASSERT(psZSBuffer->psMapping == NULL);
+		if (unlikely(hDevmemHeap == (IMG_HANDLE)NULL))
 		{
-			IMG_HANDLE hDevmemHeap;
-
-			PVR_ASSERT(psZSBuffer->psMapping == NULL);
-
-			/* Get Heap */
-			eError = DevmemServerGetHeapHandle(psZSBuffer->psReservation, &hDevmemHeap);
-			PVR_ASSERT(psZSBuffer->psMapping == NULL);
-			if (unlikely(hDevmemHeap == (IMG_HANDLE)NULL))
-			{
-				OSLockRelease(hLockZSBuffer);
-				return PVRSRV_ERROR_INVALID_HEAP;
-			}
-
-			eError = DevmemIntMapPMR(hDevmemHeap,
-					psZSBuffer->psReservation,
-					psZSBuffer->psPMR,
-					psZSBuffer->uiMapFlags,
-					&psZSBuffer->psMapping);
-			if (eError != PVRSRV_OK)
-			{
-				PVR_DPF((PVR_DBG_ERROR,
-						"Unable populate ZS Buffer [%p, ID=0x%08x] (%s)",
-						psZSBuffer,
-						psZSBuffer->ui32ZSBufferID,
-						PVRSRVGetErrorString(eError)));
-				OSLockRelease(hLockZSBuffer);
-				return eError;
-
-			}
-			PVR_DPF((PVR_DBG_MESSAGE, "ZS Buffer [%p, ID=0x%08x]: Physical backing acquired",
-					psZSBuffer,
-					psZSBuffer->ui32ZSBufferID));
+			OSLockRelease(hLockZSBuffer);
+			return PVRSRV_ERROR_INVALID_HEAP;
 		}
+
+		eError = DevmemIntMapPMR(hDevmemHeap,
+				psZSBuffer->psReservation,
+				psZSBuffer->psPMR,
+				psZSBuffer->uiMapFlags,
+				&psZSBuffer->psMapping);
+		if (eError != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+					"Unable populate ZS Buffer [%p, ID=0x%08x] (%s)",
+					psZSBuffer,
+					psZSBuffer->ui32ZSBufferID,
+					PVRSRVGetErrorString(eError)));
+			OSLockRelease(hLockZSBuffer);
+			return eError;
+
+		}
+		PVR_DPF((PVR_DBG_MESSAGE, "ZS Buffer [%p, ID=0x%08x]: Physical backing acquired",
+				psZSBuffer,
+				psZSBuffer->ui32ZSBufferID));
 	}
 
 	/* Increase refcount*/
@@ -2327,7 +2324,8 @@ RGXPopulateZSBufferKM(RGX_ZSBUFFER_DATA *psZSBuffer,
 	psZSBuffer->ui32NumReqByApp++;
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
-	PVRSRVStatsUpdateZSBufferStats(1, 0, psZSBuffer->owner);
+	PVRSRVStatsUpdateZSBufferStats(psZSBuffer->psDevInfo->psDeviceNode,
+								   1, 0, psZSBuffer->owner);
 #endif
 
 	/* Do the backing */
@@ -2508,7 +2506,8 @@ void RGXProcessRequestZSBufferBacking(PVRSRV_RGXDEV_INFO *psDevInfo,
 		psZSBuffer->ui32NumReqByFW++;
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
-		PVRSRVStatsUpdateZSBufferStats(0, 1, psZSBuffer->owner);
+		PVRSRVStatsUpdateZSBufferStats(psDevInfo->psDeviceNode,
+									   0, 1, psZSBuffer->owner);
 #endif
 
 	}
@@ -2583,7 +2582,7 @@ PVRSRV_ERROR _CreateTAContext(CONNECTION_DATA *psConnection,
 		DEVMEM_MEMDESC *psFWMemContextMemDesc,
 		IMG_DEV_VIRTADDR sVDMCallStackAddr,
 		IMG_UINT32 ui32CallStackDepth,
-		IMG_UINT32 ui32Priority,
+		IMG_INT32 i32Priority,
 		IMG_UINT32 ui32MaxDeadlineMS,
 		IMG_UINT64 ui64RobustnessAddress,
 		RGX_COMMON_CONTEXT_INFO *psInfo,
@@ -2647,7 +2646,7 @@ PVRSRV_ERROR _CreateTAContext(CONNECTION_DATA *psConnection,
 			ui32CCBAllocSizeLog2 ? ui32CCBAllocSizeLog2 : RGX_TA_CCB_SIZE_LOG2,
 			ui32CCBMaxAllocSizeLog2 ? ui32CCBMaxAllocSizeLog2 : RGX_TA_CCB_MAX_SIZE_LOG2,
 			ui32ContextFlags,
-			ui32Priority,
+			i32Priority,
 			ui32MaxDeadlineMS,
 			ui64RobustnessAddress,
 			psInfo,
@@ -2672,7 +2671,7 @@ PVRSRV_ERROR _CreateTAContext(CONNECTION_DATA *psConnection,
 			PDUMP_FLAGS_CONTINUOUS);
 #endif
 
-	psTAData->ui32Priority = ui32Priority;
+	psTAData->i32Priority = i32Priority;
 	return PVRSRV_OK;
 
 fail_tacommoncontext:
@@ -2690,7 +2689,7 @@ PVRSRV_ERROR _Create3DContext(CONNECTION_DATA *psConnection,
 		DEVMEM_MEMDESC *psAllocatedMemDesc,
 		IMG_UINT32 ui32AllocatedOffset,
 		DEVMEM_MEMDESC *psFWMemContextMemDesc,
-		IMG_UINT32 ui32Priority,
+		IMG_INT32 i32Priority,
 		IMG_UINT32 ui32MaxDeadlineMS,
 		IMG_UINT64 ui64RobustnessAddress,
 		RGX_COMMON_CONTEXT_INFO *psInfo,
@@ -2757,7 +2756,7 @@ PVRSRV_ERROR _Create3DContext(CONNECTION_DATA *psConnection,
 			ui32CCBAllocSizeLog2 ? ui32CCBAllocSizeLog2 : RGX_3D_CCB_SIZE_LOG2,
 			ui32CCBMaxAllocSizeLog2 ? ui32CCBMaxAllocSizeLog2 : RGX_3D_CCB_MAX_SIZE_LOG2,
 			ui32ContextFlags,
-			ui32Priority,
+			i32Priority,
 			ui32MaxDeadlineMS,
 			ui64RobustnessAddress,
 			psInfo,
@@ -2780,7 +2779,7 @@ PVRSRV_ERROR _Create3DContext(CONNECTION_DATA *psConnection,
 			sizeof(RGXFWIF_3DCTX_STATE),
 			PDUMP_FLAGS_CONTINUOUS);
 
-	ps3DData->ui32Priority = ui32Priority;
+	ps3DData->i32Priority = i32Priority;
 	return PVRSRV_OK;
 
 fail_3dcommoncontext:
@@ -2797,7 +2796,7 @@ fail_3dcontextsuspendalloc:
  */
 PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 		PVRSRV_DEVICE_NODE			*psDeviceNode,
-		IMG_UINT32					ui32Priority,
+		IMG_INT32					i32Priority,
 		IMG_DEV_VIRTADDR			sVDMCallStackAddr,
 		IMG_UINT32					ui32CallStackDepth,
 		IMG_UINT32					ui32FrameworkRegisterSize,
@@ -2856,7 +2855,10 @@ PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 	}
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	WorkEstInitTA3D(psDevInfo, &psRenderContext->sWorkEstData);
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
+	{
+		WorkEstInitTA3D(psDevInfo, &psRenderContext->sWorkEstData);
+	}
 #endif
 
 	if (ui32FrameworkRegisterSize)
@@ -2898,7 +2900,7 @@ PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 			psRenderContext->psFWRenderContextMemDesc,
 			offsetof(RGXFWIF_FWRENDERCONTEXT, s3DContext),
 			psFWMemContextMemDesc,
-			ui32Priority,
+			i32Priority,
 			ui32Max3DDeadlineMS,
 			ui64RobustnessAddress,
 			&sInfo,
@@ -2918,7 +2920,7 @@ PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 			psFWMemContextMemDesc,
 			sVDMCallStackAddr,
 			ui32CallStackDepth,
-			ui32Priority,
+			i32Priority,
 			ui32MaxTADeadlineMS,
 			ui64RobustnessAddress,
 			&sInfo,
@@ -2940,6 +2942,9 @@ PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 
 	/* Copy the static render context data */
 	OSDeviceMemCopy(&psFWRenderContext->sStaticRenderContextState, pStaticRenderContextState, ui32StaticRenderContextStateSize);
+#if defined(SUPPORT_TRP)
+	psFWRenderContext->eTRPGeomCoreAffinity = RGXFWIF_DM_MAX;
+#endif
 	DevmemPDumpLoadMem(psRenderContext->psFWRenderContextMemDesc, 0, sizeof(RGXFWIF_FWRENDERCONTEXT), PDUMP_FLAGS_CONTINUOUS);
 	DevmemReleaseCpuVirtAddr(psRenderContext->psFWRenderContextMemDesc);
 
@@ -3007,10 +3012,6 @@ PVRSRV_ERROR PVRSRVRGXDestroyRenderContextKM(RGX_SERVER_RENDER_CONTEXT *psRender
 {
 	PVRSRV_ERROR				eError;
 	PVRSRV_RGXDEV_INFO	*psDevInfo = psRenderContext->psDeviceNode->pvDevice;
-#if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	RGXFWIF_FWRENDERCONTEXT	*psFWRenderContext;
-	IMG_UINT32 ui32WorkEstCCBSubmitted;
-#endif
 
 	/* remove node from list before calling destroy - as destroy, if successful
 	 * will invalidate the node
@@ -3062,32 +3063,38 @@ PVRSRV_ERROR PVRSRVRGXDestroyRenderContextKM(RGX_SERVER_RENDER_CONTEXT *psRender
 	}
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	eError = DevmemAcquireCpuVirtAddr(psRenderContext->psFWRenderContextMemDesc,
-			(void **)&psFWRenderContext);
-	if (eError != PVRSRV_OK)
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-				"%s: Failed to map firmware render context (%s)",
-				__func__,
-				PVRSRVGetErrorString(eError)));
-		goto e0;
-	}
+		RGXFWIF_FWRENDERCONTEXT	*psFWRenderContext;
+		IMG_UINT32 ui32WorkEstCCBSubmitted;
 
-	ui32WorkEstCCBSubmitted = psFWRenderContext->ui32WorkEstCCBSubmitted;
+		eError = DevmemAcquireCpuVirtAddr(psRenderContext->psFWRenderContextMemDesc,
+				(void **)&psFWRenderContext);
+		if (eError != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+					"%s: Failed to map firmware render context (%s)",
+					__func__,
+					PVRSRVGetErrorString(eError)));
+			goto e0;
+		}
 
-	DevmemReleaseCpuVirtAddr(psRenderContext->psFWRenderContextMemDesc);
+		ui32WorkEstCCBSubmitted = psFWRenderContext->ui32WorkEstCCBSubmitted;
 
-	/* Check if all of the workload estimation CCB commands for this workload are read */
-	if (ui32WorkEstCCBSubmitted != psRenderContext->sWorkEstData.ui32WorkEstCCBReceived)
-	{
+		DevmemReleaseCpuVirtAddr(psRenderContext->psFWRenderContextMemDesc);
 
-		PVR_DPF((PVR_DBG_WARNING,
-		        "%s: WorkEst # cmds submitted (%u) and received (%u) mismatch",
-		        __func__, ui32WorkEstCCBSubmitted,
-		        psRenderContext->sWorkEstData.ui32WorkEstCCBReceived));
+		/* Check if all of the workload estimation CCB commands for this workload are read */
+		if (ui32WorkEstCCBSubmitted != psRenderContext->sWorkEstData.ui32WorkEstCCBReceived)
+		{
 
-		eError = PVRSRV_ERROR_RETRY;
-		goto e0;
+			PVR_DPF((PVR_DBG_WARNING,
+					"%s: WorkEst # cmds submitted (%u) and received (%u) mismatch",
+					__func__, ui32WorkEstCCBSubmitted,
+					psRenderContext->sWorkEstData.ui32WorkEstCCBReceived));
+
+			eError = PVRSRV_ERROR_RETRY;
+			goto e0;
+		}
 	}
 #endif
 
@@ -3112,7 +3119,10 @@ PVRSRV_ERROR PVRSRVRGXDestroyRenderContextKM(RGX_SERVER_RENDER_CONTEXT *psRender
 		SyncAddrListDeinit(&psRenderContext->sSyncAddrList3DUpdate);
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		WorkEstDeInitTA3D(psDevInfo, &psRenderContext->sWorkEstData);
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			WorkEstDeInitTA3D(psDevInfo, &psRenderContext->sWorkEstData);
+		}
 #endif
 
 		OSLockDestroy(psRenderContext->hLock);
@@ -4129,9 +4139,6 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 	if (iCheckTAFence >= 0 || iUpdateTATimeline >= 0 ||
 	    iCheck3DFence >= 0 || iUpdate3DTimeline >= 0)
 	{
-		PRGXFWIF_UFO_ADDR	*pauiClientTAIntUpdateUFOAddress = NULL;
-		PRGXFWIF_UFO_ADDR	*pauiClient3DIntUpdateUFOAddress = NULL;
-
 		CHKPT_DBG((PVR_DBG_ERROR,
 				   "%s: [TA] iCheckFence = %d, iUpdateTimeline = %d",
 				   __func__, iCheckTAFence, iUpdateTATimeline));
@@ -4177,11 +4184,17 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 						   (void*)psTAFenceTimelineUpdateSync,
 						   ui32TAFenceTimelineUpdateValue));
 
-				/* Store the FW address of the update sync checkpoint in pauiClientTAIntUpdateUFOAddress */
-				pauiClientTAIntUpdateUFOAddress = SyncCheckpointGetRGXFWIFUFOAddr(psUpdateTASyncCheckpoint);
-				CHKPT_DBG((PVR_DBG_ERROR,
-						   "%s: pauiClientIntUpdateUFOAddress[TA]->ui32Addr=0x%x",
-						   __func__, pauiClientTAIntUpdateUFOAddress->ui32Addr));
+#if defined(TA3D_CHECKPOINT_DEBUG)
+				{
+					PRGXFWIF_UFO_ADDR *pauiClientTAIntUpdateUFOAddress = NULL;
+
+					/* Store the FW address of the update sync checkpoint in pauiClientTAIntUpdateUFOAddress */
+					pauiClientTAIntUpdateUFOAddress = SyncCheckpointGetRGXFWIFUFOAddr(psUpdateTASyncCheckpoint);
+					CHKPT_DBG((PVR_DBG_ERROR,
+							   "%s: pauiClientIntUpdateUFOAddress[TA]->ui32Addr=0x%x",
+							   __func__, pauiClientTAIntUpdateUFOAddress->ui32Addr));
+				}
+#endif
 			}
 
 			/* Append the sync prim update for the TA timeline (if required) */
@@ -4246,11 +4259,17 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 						   (void*)ps3DFenceTimelineUpdateSync,
 						   ui323DFenceTimelineUpdateValue));
 
-				/* Store the FW address of the update sync checkpoint in pauiClient3DIntUpdateUFOAddress */
-				pauiClient3DIntUpdateUFOAddress = SyncCheckpointGetRGXFWIFUFOAddr(psUpdate3DSyncCheckpoint);
-				CHKPT_DBG((PVR_DBG_ERROR,
-						   "%s: pauiClientIntUpdateUFOAddress[3D]->ui32Addr=0x%x",
-						   __func__, pauiClient3DIntUpdateUFOAddress->ui32Addr));
+#if defined(TA3D_CHECKPOINT_DEBUG)
+				{
+					PRGXFWIF_UFO_ADDR *pauiClient3DIntUpdateUFOAddress = NULL;
+
+					/* Store the FW address of the update sync checkpoint in pauiClient3DIntUpdateUFOAddress */
+					pauiClient3DIntUpdateUFOAddress = SyncCheckpointGetRGXFWIFUFOAddr(psUpdate3DSyncCheckpoint);
+					CHKPT_DBG((PVR_DBG_ERROR,
+							   "%s: pauiClientIntUpdateUFOAddress[3D]->ui32Addr=0x%x",
+							   __func__, pauiClient3DIntUpdateUFOAddress->ui32Addr));
+				}
+#endif
 			}
 
 			/* Append the sync prim update for the 3D timeline (if required) */
@@ -4572,7 +4591,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 	}
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	if (bKickTA || bKick3D || bAbort)
+	if ((!PVRSRV_VZ_MODE_IS(GUEST)) && (bKickTA || bKick3D || bAbort))
 	{
 		sWorkloadCharacteristics.sTA3D.ui32RenderTargetSize  = ui32RenderTargetSize;
 		sWorkloadCharacteristics.sTA3D.ui32NumberOfDrawCalls = ui32NumberOfDrawCalls;
@@ -4587,14 +4606,17 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 		RGX_SERVER_RC_TA_DATA *psTAData = &psRenderContext->sTAData;
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* Prepare workload estimation */
-		WorkEstPrepare(psRenderContext->psDeviceNode->pvDevice,
-				&psRenderContext->sWorkEstData,
-				&psRenderContext->sWorkEstData.uWorkloadMatchingData.sTA3D.sDataTA,
-				RGXFWIF_CCB_CMD_TYPE_GEOM,
-				&sWorkloadCharacteristics,
-				ui64DeadlineInus,
-				&sWorkloadKickDataTA);
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* Prepare workload estimation */
+			WorkEstPrepare(psRenderContext->psDeviceNode->pvDevice,
+					&psRenderContext->sWorkEstData,
+					&psRenderContext->sWorkEstData.uWorkloadMatchingData.sTA3D.sDataTA,
+					RGXFWIF_CCB_CMD_TYPE_GEOM,
+					&sWorkloadCharacteristics,
+					ui64DeadlineInus,
+					&sWorkloadKickDataTA);
+		}
 #endif
 
 		/* Init the TA command helper */
@@ -4627,9 +4649,12 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 				pasTACmdHelperData);
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* The following is used to determine the offset of the command header containing
-		   the workload estimation data so that can be accessed when the KCCB is read */
-		ui32TACmdHeaderOffset = RGXCmdHelperGetDMCommandHeaderOffset(pasTACmdHelperData);
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* The following is used to determine the offset of the command header containing
+			   the workload estimation data so that can be accessed when the KCCB is read */
+			ui32TACmdHeaderOffset = RGXCmdHelperGetDMCommandHeaderOffset(pasTACmdHelperData);
+		}
 #endif
 
 		eError = RGXCmdHelperAcquireCmdCCB(CCB_CMD_HELPER_NUM_TA_COMMANDS, pasTACmdHelperData);
@@ -4737,14 +4762,17 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 		const RGXFWIF_CCB_CMD_TYPE e3DCmdType = bAbort ? RGXFWIF_CCB_CMD_TYPE_ABORT : RGXFWIF_CCB_CMD_TYPE_3D;
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* Prepare workload estimation */
-		WorkEstPrepare(psRenderContext->psDeviceNode->pvDevice,
-				&psRenderContext->sWorkEstData,
-				&psRenderContext->sWorkEstData.uWorkloadMatchingData.sTA3D.sData3D,
-				e3DCmdType,
-				&sWorkloadCharacteristics,
-				ui64DeadlineInus,
-				&sWorkloadKickData3D);
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* Prepare workload estimation */
+			WorkEstPrepare(psRenderContext->psDeviceNode->pvDevice,
+					&psRenderContext->sWorkEstData,
+					&psRenderContext->sWorkEstData.uWorkloadMatchingData.sTA3D.sData3D,
+					e3DCmdType,
+					&sWorkloadCharacteristics,
+					ui64DeadlineInus,
+					&sWorkloadKickData3D);
+		}
 #endif
 
 		/* Init the 3D command helper */
@@ -4774,10 +4802,13 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 				&pas3DCmdHelperData[ui323DCmdCount++]);
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* The following are used to determine the offset of the command header containing the workload estimation
-		   data so that can be accessed when the KCCB is read */
-		ui323DCmdHeaderOffset =	RGXCmdHelperGetDMCommandHeaderOffset(&pas3DCmdHelperData[ui323DCmdCount - 1]);
-		ui323DFullRenderCommandOffset =	RGXCmdHelperGetCommandOffset(pas3DCmdHelperData, ui323DCmdCount - 1);
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* The following are used to determine the offset of the command header containing the workload estimation
+			   data so that can be accessed when the KCCB is read */
+			ui323DCmdHeaderOffset =	RGXCmdHelperGetDMCommandHeaderOffset(&pas3DCmdHelperData[ui323DCmdCount - 1]);
+			ui323DFullRenderCommandOffset =	RGXCmdHelperGetCommandOffset(pas3DCmdHelperData, ui323DCmdCount - 1);
+		}
 #endif
 	}
 
@@ -4822,17 +4853,20 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 				FWCommonContextGetFWAddress(psRenderContext->sTAData.psServerCommonContext).ui32Addr);
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		ui32TACmdOffsetWrapCheck = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psRenderContext->sTAData.psServerCommonContext));
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			ui32TACmdOffsetWrapCheck = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psRenderContext->sTAData.psServerCommonContext));
 
-		/* This checks if the command would wrap around at the end of the CCB and therefore  would start at an
-		   offset of 0 rather than the current command offset */
-		if (ui32TACmdOffset < ui32TACmdOffsetWrapCheck)
-		{
-			ui32TACommandOffset = ui32TACmdOffset;
-		}
-		else
-		{
-			ui32TACommandOffset = 0;
+			/* This checks if the command would wrap around at the end of the CCB and therefore  would start at an
+			   offset of 0 rather than the current command offset */
+			if (ui32TACmdOffset < ui32TACmdOffsetWrapCheck)
+			{
+				ui32TACommandOffset = ui32TACmdOffset;
+			}
+			else
+			{
+				ui32TACommandOffset = 0;
+			}
 		}
 #endif
 	}
@@ -4846,15 +4880,18 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 				FWCommonContextGetFWAddress(psRenderContext->s3DData.psServerCommonContext).ui32Addr);
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		ui323DCmdOffsetWrapCheck = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psRenderContext->s3DData.psServerCommonContext));
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			ui323DCmdOffsetWrapCheck = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psRenderContext->s3DData.psServerCommonContext));
 
-		if (ui323DCmdOffset < ui323DCmdOffsetWrapCheck)
-		{
-			ui323DCommandOffset = ui323DCmdOffset;
-		}
-		else
-		{
-			ui323DCommandOffset = 0;
+			if (ui323DCmdOffset < ui323DCmdOffsetWrapCheck)
+			{
+				ui323DCommandOffset = ui323DCmdOffset;
+			}
+			else
+			{
+				ui323DCommandOffset = 0;
+			}
 		}
 #endif
 	}
@@ -4871,10 +4908,11 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 
 		/* Add the Workload data into the KCCB kick */
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* Store the offset to the CCCB command header so that it can be referenced when the KCCB command reaches the FW */
-		sTACmdKickData.ui32WorkEstCmdHeaderOffset = ui32TACommandOffset + ui32TACmdHeaderOffset;
-#else
-		sTACmdKickData.ui32WorkEstCmdHeaderOffset = 0;
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* Store the offset to the CCCB command header so that it can be referenced when the KCCB command reaches the FW */
+			sTACmdKickData.ui32WorkEstCmdHeaderOffset = ui32TACommandOffset + ui32TACmdHeaderOffset;
+		}
 #endif
 
 		eError = AttachKickResourcesCleanupCtls((PRGXFWIF_CLEANUP_CTL *) &sTACmdKickData.apsCleanupCtl,
@@ -4898,8 +4936,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 					ui32TACmdOffset,
 					psGeomCmdShared->sCmn.ui32FrameNum,
 					ui32ExtJobRef,
-					ui32IntJobRef
-			);
+					ui32IntJobRef);
 		}
 
 		RGXSRV_HWPERF_ENQ(psRenderContext,
@@ -4907,7 +4944,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 		                  ui32FWCtx,
 		                  ui32ExtJobRef,
 		                  ui32IntJobRef,
-		                  RGX_HWPERF_KICK_TYPE_TA,
+		                  RGX_HWPERF_KICK_TYPE2_GEOM,
 		                  iCheckTAFence,
 		                  iUpdateTAFence,
 		                  iUpdateTATimeline,
@@ -4940,16 +4977,14 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 		if (eError2 != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXKicKTA3DKM failed to schedule kernel CCB command. (0x%x)", eError2));
-			if (eError == PVRSRV_OK)
-			{
-				eError = eError2;
-			}
+			/* Mark the error and bail out */
+			eError = eError2;
 			goto fail_taacquirecmd;
 		}
 
-		PVRGpuTraceEnqueueEvent(psRenderContext->psDeviceNode->pvDevice,
+		PVRGpuTraceEnqueueEvent(psRenderContext->psDeviceNode,
 		                        ui32FWCtx, ui32ExtJobRef, ui32IntJobRef,
-		                        RGX_HWPERF_KICK_TYPE_TA3D);
+		                        RGX_HWPERF_KICK_TYPE2_GEOM);
 	}
 
 	if (ui323DCmdCount)
@@ -4965,10 +5000,11 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 
 		/* Add the Workload data into the KCCB kick */
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* Store the offset to the CCCB command header so that it can be referenced when the KCCB command reaches the FW */
-		s3DCmdKickData.ui32WorkEstCmdHeaderOffset = ui323DCommandOffset + ui323DCmdHeaderOffset + ui323DFullRenderCommandOffset;
-#else
-		s3DCmdKickData.ui32WorkEstCmdHeaderOffset = 0;
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* Store the offset to the CCCB command header so that it can be referenced when the KCCB command reaches the FW */
+			s3DCmdKickData.ui32WorkEstCmdHeaderOffset = ui323DCommandOffset + ui323DCmdHeaderOffset + ui323DFullRenderCommandOffset;
+		}
 #endif
 
 		eError = AttachKickResourcesCleanupCtls((PRGXFWIF_CLEANUP_CTL *) &s3DCmdKickData.apsCleanupCtl,
@@ -4992,8 +5028,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 					ui323DCmdOffset,
 					ps3DCmdShared->sCmn.ui32FrameNum,
 					ui32ExtJobRef,
-					ui32IntJobRef
-					);
+					ui32IntJobRef);
 		}
 
 		RGXSRV_HWPERF_ENQ(psRenderContext,
@@ -5001,7 +5036,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 		                  ui32FWCtx,
 		                  ui32ExtJobRef,
 		                  ui32IntJobRef,
-		                  RGX_HWPERF_KICK_TYPE_3D,
+		                  RGX_HWPERF_KICK_TYPE2_3D,
 		                  iCheck3DFence,
 		                  iUpdate3DFence,
 		                  iUpdate3DTimeline,
@@ -5027,24 +5062,29 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 		LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 		{
 			eError2 = RGXScheduleCommand(psRenderContext->psDeviceNode->pvDevice,
-					RGXFWIF_DM_3D,
-					&s3DKCCBCmd,
-					ui32PDumpFlags);
+			                             RGXFWIF_DM_3D,
+			                             &s3DKCCBCmd,
+			                             ui32PDumpFlags);
 			if (eError2 != PVRSRV_ERROR_RETRY)
 			{
 				break;
 			}
 			OSWaitus(MAX_HW_TIME_US/WAIT_TRY_COUNT);
 		} END_LOOP_UNTIL_TIMEOUT();
-	}
 
-	if (eError2 != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXKicKTA3DKM failed to schedule kernel CCB command. (0x%x)", eError2));
-		if (eError == PVRSRV_OK)
+		if (eError2 != PVRSRV_OK)
 		{
-			eError = eError2;
+			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXKicKTA3DKM failed to schedule kernel CCB command. (0x%x)", eError2));
+			if (eError == PVRSRV_OK)
+			{
+				eError = eError2;
+			}
+			goto fail_3dacquirecmd;
 		}
+
+		PVRGpuTraceEnqueueEvent(psRenderContext->psDeviceNode,
+		                        ui32FWCtx, ui32ExtJobRef, ui32IntJobRef,
+		                        RGX_HWPERF_KICK_TYPE2_3D);
 	}
 
 	/*
@@ -5271,7 +5311,7 @@ fail_resolve_input_ta_fence:
 PVRSRV_ERROR PVRSRVRGXSetRenderContextPriorityKM(CONNECTION_DATA *psConnection,
 		PVRSRV_DEVICE_NODE * psDeviceNode,
 		RGX_SERVER_RENDER_CONTEXT *psRenderContext,
-		IMG_UINT32 ui32Priority)
+		IMG_INT32 i32Priority)
 {
 	PVRSRV_ERROR eError;
 
@@ -5279,12 +5319,12 @@ PVRSRV_ERROR PVRSRVRGXSetRenderContextPriorityKM(CONNECTION_DATA *psConnection,
 
 	OSLockAcquire(psRenderContext->hLock);
 
-	if (psRenderContext->sTAData.ui32Priority != ui32Priority)
+	if (psRenderContext->sTAData.i32Priority != i32Priority)
 	{
 		eError = ContextSetPriority(psRenderContext->sTAData.psServerCommonContext,
 				psConnection,
 				psRenderContext->psDeviceNode->pvDevice,
-				ui32Priority,
+				i32Priority,
 				RGXFWIF_DM_GEOM);
 		if (eError != PVRSRV_OK)
 		{
@@ -5293,15 +5333,15 @@ PVRSRV_ERROR PVRSRVRGXSetRenderContextPriorityKM(CONNECTION_DATA *psConnection,
 					 __func__, PVRSRVGetErrorString(eError)));
 			goto fail_tacontext;
 		}
-		psRenderContext->sTAData.ui32Priority = ui32Priority;
+		psRenderContext->sTAData.i32Priority = i32Priority;
 	}
 
-	if (psRenderContext->s3DData.ui32Priority != ui32Priority)
+	if (psRenderContext->s3DData.i32Priority != i32Priority)
 	{
 		eError = ContextSetPriority(psRenderContext->s3DData.psServerCommonContext,
 				psConnection,
 				psRenderContext->psDeviceNode->pvDevice,
-				ui32Priority,
+				i32Priority,
 				RGXFWIF_DM_3D);
 		if (eError != PVRSRV_OK)
 		{
@@ -5310,7 +5350,7 @@ PVRSRV_ERROR PVRSRVRGXSetRenderContextPriorityKM(CONNECTION_DATA *psConnection,
 					 __func__, PVRSRVGetErrorString(eError)));
 			goto fail_3dcontext;
 		}
-		psRenderContext->s3DData.ui32Priority = ui32Priority;
+		psRenderContext->s3DData.i32Priority = i32Priority;
 	}
 
 	OSLockRelease(psRenderContext->hLock);

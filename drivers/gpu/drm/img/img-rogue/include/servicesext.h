@@ -72,14 +72,21 @@ typedef enum _PVRSRV_SERVICES_STATE_
  *****************************************************************************
  *	States for power management
  *****************************************************************************/
+
 /*!
   System Power State Enum
  */
+
+#define _PVRSRV_SYS_POWER_STATES \
+	X(Unspecified, -1) /*!< Unspecified : Uninitialised */ \
+	X(OFF,          0) /*!< Off */ \
+	X(ON,           1) /*!< On */
+
 typedef enum _PVRSRV_SYS_POWER_STATE_
 {
-	PVRSRV_SYS_POWER_STATE_Unspecified		= -1,	/*!< Unspecified : Uninitialised */
-	PVRSRV_SYS_POWER_STATE_OFF				= 0,	/*!< Off */
-	PVRSRV_SYS_POWER_STATE_ON				= 1,	/*!< On */
+#define X(name, value) PVRSRV_SYS_POWER_STATE_##name = value,
+	_PVRSRV_SYS_POWER_STATES
+#undef X
 
 	PVRSRV_SYS_POWER_STATE_FORCE_I32 = 0x7fffffff	/*!< Force enum to be at least 32-bits wide */
 
@@ -98,9 +105,10 @@ typedef IMG_INT32 *PPVRSRV_DEV_POWER_STATE;	/*!< Typedef for ptr to PVRSRV_DEV_P
   Power Flags Enum
  */
 typedef IMG_UINT32 PVRSRV_POWER_FLAGS;
-#define PVRSRV_POWER_FLAGS_NONE		0U			/*!< No flags */
-#define PVRSRV_POWER_FLAGS_FORCED	1U << 0		/*!< Power the transition should not fail */
-#define PVRSRV_POWER_FLAGS_SUSPEND	1U << 1		/*!< Power transition is due to OS suspend request */
+#define PVRSRV_POWER_FLAGS_NONE        0U      /*!< No flags */
+#define PVRSRV_POWER_FLAGS_FORCED      (1U << 0) /*!< Power the transition should not fail */
+#define PVRSRV_POWER_FLAGS_SUSPEND_REQ (1U << 1) /*!< Power transition is due to OS suspend request */
+#define PVRSRV_POWER_FLAGS_RESUME_REQ  (1U << 2) /*!< Power transition is due to OS resume request */
 
 /* Clock speed handler prototypes */
 

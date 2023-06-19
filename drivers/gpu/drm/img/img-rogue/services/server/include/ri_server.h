@@ -49,6 +49,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pmr.h"
 #include "pvrsrv_error.h"
 #include "physheap.h"
+#include "connection_server.h"
+#include "device.h"
 
 PVRSRV_ERROR RIInitKM(void);
 void RIDeInitKM(void);
@@ -63,14 +65,16 @@ PVRSRV_ERROR RIWritePMREntryWithOwnerKM(PMR *psPMR,
 
 PVRSRV_ERROR RIWriteMEMDESCEntryKM(PMR *psPMR,
                                    IMG_UINT32 ui32TextBSize,
-                                   const IMG_CHAR ai8TextB[DEVMEM_ANNOTATION_MAX_LEN],
+                                   const IMG_CHAR *psz8TextB,
                                    IMG_UINT64 uiOffset,
                                    IMG_UINT64 uiSize,
                                    IMG_BOOL bIsImport,
                                    IMG_BOOL bIsSuballoc,
                                    RI_HANDLE *phRIHandle);
 
-PVRSRV_ERROR RIWriteProcListEntryKM(IMG_UINT32 ui32TextBSize,
+PVRSRV_ERROR RIWriteProcListEntryKM(CONNECTION_DATA *psConnection,
+                                    PVRSRV_DEVICE_NODE *psDeviceNode,
+                                    IMG_UINT32 ui32TextBSize,
                                     const IMG_CHAR *psz8TextB,
                                     IMG_UINT64 ui64Size,
                                     IMG_UINT64 ui64DevVAddr,

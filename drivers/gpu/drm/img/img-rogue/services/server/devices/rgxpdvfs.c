@@ -55,7 +55,7 @@ static inline IMG_BOOL _PDVFSEnabled(void)
 
 	if (psSRVData->sDriverInfo.sKMBuildInfo.ui32BuildOptions &
 	    psSRVData->sDriverInfo.sUMBuildInfo.ui32BuildOptions &
-	    OPTIONS_PDVFS_MASK)
+	    OPTIONS_PDVFS_EN)
 	{
 		return IMG_TRUE;
 	}
@@ -188,15 +188,15 @@ PVRSRV_ERROR PDVFSProcessCoreClkChangeRequest(PVRSRV_RGXDEV_INFO *psDevInfo, IMG
 	/* Increasing frequency, change voltage first */
 	if (ui32CoreClockRate > ui32CoreClockRateCurrent)
 	{
-		psDVFSDeviceCfg->pfnSetVoltage(psOpp->ui32Volt);
+		psDVFSDeviceCfg->pfnSetVoltage(psDevConfig->hSysData, psOpp->ui32Volt);
 	}
 
-	psDVFSDeviceCfg->pfnSetFrequency(ui32CoreClockRate);
+	psDVFSDeviceCfg->pfnSetFrequency(psDevConfig->hSysData, ui32CoreClockRate);
 
 	/* Decreasing frequency, change frequency first */
 	if (ui32CoreClockRate < ui32CoreClockRateCurrent)
 	{
-		psDVFSDeviceCfg->pfnSetVoltage(psOpp->ui32Volt);
+		psDVFSDeviceCfg->pfnSetVoltage(psDevConfig->hSysData, psOpp->ui32Volt);
 	}
 
 	PVRSRVDevicePostClockSpeedChange(psDevInfo->psDeviceNode, psDVFSDeviceCfg->bIdleReq, NULL);

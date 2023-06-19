@@ -88,6 +88,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define GCC_VERSION_AT_LEAST(major, minor) 0
 #endif
 
+#if defined(__clang__)
+#define CLANG_VERSION_AT_LEAST(major) \
+	(__clang_major__ >= (major))
+#else
+#define CLANG_VERSION_AT_LEAST(major) 0
+#endif
+
 /* Use Clang's __has_extension and __has_builtin macros if available. */
 #if defined(__has_extension)
 #define has_clang_extension(e) __has_extension(e)
@@ -268,7 +275,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 		#define IMG_INTERNAL
 		#define IMG_EXPORT
 		#define IMG_CALLCONV
-	#elif defined(__linux__) || defined(__METAG) || defined(__mips) || defined(__QNXNTO__) || defined(__riscv)
+	#elif defined(__linux__) || defined(__METAG) || defined(__mips) || defined(__QNXNTO__) || defined(__riscv) || defined(__APPLE__)
 		#define IMG_CALLCONV
 		#define C_CALLCONV
 
@@ -320,7 +327,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#include <linux/compiler.h>
 
 	#if !defined(__fallthrough)
-		#if GCC_VERSION_AT_LEAST(7, 0)
+		#if GCC_VERSION_AT_LEAST(7, 0) || CLANG_VERSION_AT_LEAST(10)
 			#define __fallthrough __attribute__((__fallthrough__))
 		#else
 			#define __fallthrough
@@ -353,7 +360,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 	#if defined(__cplusplus) && (__cplusplus >= 201703L)
 		#define __fallthrough [[fallthrough]]
-	#elif GCC_VERSION_AT_LEAST(7, 0)
+	#elif GCC_VERSION_AT_LEAST(7, 0) || CLANG_VERSION_AT_LEAST(10)
 		#define __fallthrough __attribute__((__fallthrough__))
 	#else
 		#define __fallthrough
@@ -422,6 +429,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#define unlikely(x) (x)
 #endif
 
+#if !defined(BITS_PER_BYTE)
+#define BITS_PER_BYTE (8)
+#endif /* BITS_PER_BYTE */
+
 /* These two macros are also provided by the kernel */
 #ifndef BIT
 #define BIT(b) (1UL << (b))
@@ -456,7 +467,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SWAP(X, Y) (X) ^= (Y); (Y) ^= (X); (X) ^= (Y);
 
-
 #if defined(__linux__) && defined(__KERNEL__)
 	#include <linux/kernel.h>
 	#include <linux/bug.h>
@@ -472,6 +482,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Note, this macro is not equivalent to or replacing offsetof() */
 #define IMG_OFFSET_ADDR(addr, offset_in_bytes) \
 	(void*)&(((IMG_UINT8*)(void*)(addr))[offset_in_bytes])
+
+/* Get a new pointer with an offset (in bytes) from a base address, version
+ * for volatile memory.
+ */
+#define IMG_OFFSET_ADDR_VOLATILE(addr, offset_in_bytes) \
+	(volatile void*)&(((volatile IMG_UINT8*)(volatile void*)(addr))[offset_in_bytes])
 
 /* Get a new pointer with an offset (in dwords) from a base address, useful
  * when traversing byte buffers and accessing data in buffers through struct
@@ -559,6 +575,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #else
 #define NOLDSTOPT
 #define NOLDSTOPT_VOID
+#endif
+
+#if defined(SERVICES_SC) && !defined(DEBUG)
+#define PVR_PRE_DPF(...)
+#else
+#define PVR_PRE_DPF (void) printf
 #endif
 
 #endif /* IMG_DEFS_H */

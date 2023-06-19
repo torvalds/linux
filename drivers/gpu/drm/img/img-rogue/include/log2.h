@@ -270,7 +270,7 @@ static INLINE uint32_t __const_function FloorLog2(uint32_t n)
 {
 	uint32_t ui32log2 = 0;
 
-	while ((n >>= 1) != 0U)
+	for (n >>= 1; n != 0U; n >>= 1)
 	{
 		ui32log2++;
 	}
@@ -287,7 +287,7 @@ static INLINE uint32_t __const_function FloorLog2_64(uint64_t n)
 {
 	uint32_t ui32log2 = 0;
 
-	while ((n >>= 1) != 0U)
+	for (n >>= 1; n != 0U; n >>= 1)
 	{
 		ui32log2++;
 	}
@@ -354,12 +354,12 @@ static INLINE uint32_t __const_function ExactLog2(uint32_t n)
 {
 	static const uint32_t b[] =
 		{0xAAAAAAAAU, 0xCCCCCCCCU, 0xF0F0F0F0U, 0xFF00FF00U, 0xFFFF0000U};
-	uint32_t r = (n & b[0]) != 0U;
+	uint32_t r = (((n & b[0]) != 0U) ? 1U : 0U);
 
-	r |= (uint32_t) ((n & b[4]) != 0U) << 4;
-	r |= (uint32_t) ((n & b[3]) != 0U) << 3;
-	r |= (uint32_t) ((n & b[2]) != 0U) << 2;
-	r |= (uint32_t) ((n & b[1]) != 0U) << 1;
+	r |= (uint32_t) (((n & b[4]) != 0U) ? (1U << 4) : 0U);
+	r |= (uint32_t) (((n & b[3]) != 0U) ? (1U << 3) : 0U);
+	r |= (uint32_t) (((n & b[2]) != 0U) ? (1U << 2) : 0U);
+	r |= (uint32_t) (((n & b[1]) != 0U) ? (1U << 1) : 0U);
 
 	return r;
 }
@@ -372,16 +372,16 @@ static INLINE uint32_t __const_function ExactLog2(uint32_t n)
 static INLINE uint32_t __const_function ExactLog2_64(uint64_t n)
 {
 	static const uint64_t b[] =
-		{0xAAAAAAAAAAAAAAAAULL, 0xCCCCCCCCCCCCCCCCULL,
-		 0xF0F0F0F0F0F0F0F0ULL, 0xFF00FF00FF00FF00ULL,
-		 0xFFFF0000FFFF0000ULL, 0xFFFFFFFF00000000ULL};
-	uint32_t r = (n & b[0]) != 0U;
+		{0xAAAAAAAAAAAAAAAAUL, 0xCCCCCCCCCCCCCCCCUL,
+		 0xF0F0F0F0F0F0F0F0UL, 0xFF00FF00FF00FF00UL,
+		 0xFFFF0000FFFF0000UL, 0xFFFFFFFF00000000UL};
+	uint32_t r = (((n & b[0]) != 0U) ? 1U : 0U);
 
-	r |= (uint32_t) ((n & b[5]) != 0U) << 5;
-	r |= (uint32_t) ((n & b[4]) != 0U) << 4;
-	r |= (uint32_t) ((n & b[3]) != 0U) << 3;
-	r |= (uint32_t) ((n & b[2]) != 0U) << 2;
-	r |= (uint32_t) ((n & b[1]) != 0U) << 1;
+	r |= (uint32_t) (((n & b[5]) != 0U) ? (1U << 5) : 0U);
+	r |= (uint32_t) (((n & b[4]) != 0U) ? (1U << 4) : 0U);
+	r |= (uint32_t) (((n & b[3]) != 0U) ? (1U << 3) : 0U);
+	r |= (uint32_t) (((n & b[2]) != 0U) ? (1U << 2) : 0U);
+	r |= (uint32_t) (((n & b[1]) != 0U) ? (1U << 1) : 0U);
 
 	return r;
 }

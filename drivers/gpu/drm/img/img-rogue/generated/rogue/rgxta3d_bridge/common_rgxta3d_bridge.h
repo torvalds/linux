@@ -212,11 +212,11 @@ typedef struct PVRSRV_BRIDGE_IN_RGXCREATEFREELIST_TAG
 	IMG_HANDLE hMemCtxPrivData;
 	IMG_HANDLE hsFreeListPMR;
 	IMG_HANDLE hsGlobalFreeList;
-	IMG_BOOL bbFreeListCheck;
 	IMG_UINT32 ui32GrowFLPages;
 	IMG_UINT32 ui32GrowParamThreshold;
 	IMG_UINT32 ui32InitFLPages;
 	IMG_UINT32 ui32MaxFLPages;
+	IMG_BOOL bbFreeListCheck;
 } __packed PVRSRV_BRIDGE_IN_RGXCREATEFREELIST;
 
 /* Bridge out structure for RGXCreateFreeList */
@@ -254,12 +254,12 @@ typedef struct PVRSRV_BRIDGE_IN_RGXCREATERENDERCONTEXT_TAG
 	IMG_HANDLE hPrivData;
 	IMG_BYTE *pui8FrameworkCmd;
 	IMG_BYTE *pui8StaticRenderContextState;
+	IMG_INT32 i32Priority;
 	IMG_UINT32 ui32ContextFlags;
 	IMG_UINT32 ui32FrameworkCmdSize;
 	IMG_UINT32 ui32Max3DDeadlineMS;
 	IMG_UINT32 ui32MaxTADeadlineMS;
 	IMG_UINT32 ui32PackedCCBSizeU8888;
-	IMG_UINT32 ui32Priority;
 	IMG_UINT32 ui32StaticRenderContextStateSize;
 	IMG_UINT32 ui32ui32CallStackDepth;
 } __packed PVRSRV_BRIDGE_IN_RGXCREATERENDERCONTEXT;
@@ -295,7 +295,7 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXDESTROYRENDERCONTEXT_TAG
 typedef struct PVRSRV_BRIDGE_IN_RGXSETRENDERCONTEXTPRIORITY_TAG
 {
 	IMG_HANDLE hRenderContext;
-	IMG_UINT32 ui32Priority;
+	IMG_INT32 i32Priority;
 } __packed PVRSRV_BRIDGE_IN_RGXSETRENDERCONTEXTPRIORITY;
 
 /* Bridge out structure for RGXSetRenderContextPriority */
@@ -349,10 +349,6 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKTA3D2_TAG
 	IMG_HANDLE *phClientTAFenceSyncPrimBlock;
 	IMG_HANDLE *phClientTAUpdateSyncPrimBlock;
 	IMG_HANDLE *phSyncPMRs;
-	IMG_BOOL bbAbort;
-	IMG_BOOL bbKick3D;
-	IMG_BOOL bbKickPR;
-	IMG_BOOL bbKickTA;
 	PVRSRV_FENCE hCheckFence;
 	PVRSRV_FENCE hCheckFence3D;
 	PVRSRV_TIMELINE hUpdateTimeline;
@@ -372,6 +368,10 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKTA3D2_TAG
 	IMG_UINT32 ui32RenderTargetSize;
 	IMG_UINT32 ui32SyncPMRCount;
 	IMG_UINT32 ui32TACmdSize;
+	IMG_BOOL bbAbort;
+	IMG_BOOL bbKick3D;
+	IMG_BOOL bbKickPR;
+	IMG_BOOL bbKickTA;
 } __packed PVRSRV_BRIDGE_IN_RGXKICKTA3D2;
 
 /* Bridge out structure for RGXKickTA3D2 */

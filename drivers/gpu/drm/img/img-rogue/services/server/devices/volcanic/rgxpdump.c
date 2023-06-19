@@ -48,7 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pdumpdesc.h"
 #if defined(SUPPORT_VALIDATION)
 #include "validation_soc.h"
-#include "rgxtbdefs.h"
+#include "rgxtbdefs_km.h"
 #endif
 
 /*
@@ -268,11 +268,11 @@ PVRSRV_ERROR PVRSRVPDumpComputeCRCSignatureCheckKM(CONNECTION_DATA * psConnectio
 	}
 
 	/*
-	 * Add a PDUMP POLL on the KZ signature check status.
+	 * Add a PDUMP POLL on the WGP signature check status.
 	 */
-	if (psDevInfo->ui32ValidationFlags & RGX_VAL_KZ_SIG_CHECK_NOERR_EN)
+	if (psDevInfo->ui32ValidationFlags & RGX_VAL_WGP_SIG_CHECK_NOERR_EN)
 	{
-		PDUMPCOMMENT(psDeviceNode, "Verify KZ Signature: match required");
+		PDUMPCOMMENT(psDeviceNode, "Verify WGP Signature: match required");
 		eError = PDUMPREGPOL(psDeviceNode,
 		                     RGX_PDUMPREG_NAME,
 		                     RGX_CR_SCRATCH11,
@@ -281,9 +281,9 @@ PVRSRV_ERROR PVRSRVPDumpComputeCRCSignatureCheckKM(CONNECTION_DATA * psConnectio
 		                     ui32PDumpFlags,
 		                     PDUMP_POLL_OPERATOR_EQUAL);
 	}
-	else if (psDevInfo->ui32ValidationFlags & RGX_VAL_KZ_SIG_CHECK_ERR_EN)
+	else if (psDevInfo->ui32ValidationFlags & RGX_VAL_WGP_SIG_CHECK_ERR_EN)
 	{
-		PDUMPCOMMENT(psDeviceNode, "Verify KZ Signature: mismatch required");
+		PDUMPCOMMENT(psDeviceNode, "Verify WGP Signature: mismatch required");
 		eError = PDUMPREGPOL(psDeviceNode,
 		                     RGX_PDUMPREG_NAME,
 		                     RGX_CR_SCRATCH11,
@@ -302,10 +302,11 @@ PVRSRV_ERROR PVRSRVPDumpCRCSignatureCheckKM(CONNECTION_DATA * psConnection,
                                             PVRSRV_DEVICE_NODE * psDeviceNode,
                                             IMG_UINT32 ui32PDumpFlags)
 {
-#if defined(SUPPORT_VALIDATION) && defined(SUPPORT_FBCDC_SIGNATURE_CHECK)
+#if defined(SUPPORT_VALIDATION) && (defined(SUPPORT_FBCDC_SIGNATURE_CHECK) || defined(SUPPORT_TRP))
 	PVRSRV_RGXDEV_INFO *psDevInfo = (PVRSRV_RGXDEV_INFO *)psDeviceNode->pvDevice;
 	PVRSRV_ERROR eError;
 
+#if defined(SUPPORT_FBCDC_SIGNATURE_CHECK)
 	/*
 	 * Add a PDUMP POLL on the FBC/FBDC signature check status.
 	 */
@@ -373,6 +374,36 @@ PVRSRV_ERROR PVRSRVPDumpCRCSignatureCheckKM(CONNECTION_DATA * psConnection,
 			OSFreeMem(pszLoopCondition);
 		}
 	}
+#endif /* SUPPORT_FBCDC_SIGNATURE_CHECK */
+
+#if defined(SUPPORT_TRP)
+	/*
+	 * Add a PDUMP POLL on the TRP signature check status.
+	 */
+	if (psDevInfo->ui32ValidationFlags & RGX_VAL_TRP_SIG_CHECK_NOERR_EN)
+	{
+		PDUMPCOMMENT(psDeviceNode, "Verify TRP Signature: match required");
+		eError = PDUMPREGPOL(psDeviceNode,
+		                     RGX_PDUMPREG_NAME,
+							 RGXFWIF_CR_TRP_SIGNATURE_STATUS,
+							 RGXFWIF_TRP_STATUS_CHECKSUMS_OK,
+							 0xFFFFFFFF,
+							 ui32PDumpFlags,
+							 PDUMP_POLL_OPERATOR_EQUAL);
+	}
+	else if (psDevInfo->ui32ValidationFlags & RGX_VAL_TRP_SIG_CHECK_ERR_EN)
+	{
+		PDUMPCOMMENT(psDeviceNode, "Verify TRP Signature: mismatch required");
+		eError = PDUMPREGPOL(psDeviceNode,
+		                     RGX_PDUMPREG_NAME,
+							 RGXFWIF_CR_TRP_SIGNATURE_STATUS,
+							 RGXFWIF_TRP_STATUS_CHECKSUMS_ERROR,
+							 0xFFFFFFFF,
+							 ui32PDumpFlags,
+							 PDUMP_POLL_OPERATOR_EQUAL);
+	}
+#endif /* SUPPORT_TRP */
+
 #else
 	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);

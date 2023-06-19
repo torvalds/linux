@@ -48,6 +48,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if !defined(RGXSHADERHEADER_H)
 #define RGXSHADERHEADER_H
 
+#include "pvrversion.h"
+
 typedef struct _RGX_SHADER_HEADER_
 {
 	IMG_UINT32 ui32Version;
@@ -57,5 +59,13 @@ typedef struct _RGX_SHADER_HEADER_
 	IMG_UINT32 ui32SizeTDMFragment;
 	IMG_UINT32 ui32SizeClientMem;
 } RGX_SHADER_HEADER;
+
+/* TQ shaders version is used to check compatibility between the
+   binary TQ shaders file and the DDK. This number should be incremented
+   if a change to the TQ shader factory breaks compatibility. */
+#define RGX_TQ_SHADERS_VERSION 1U
+
+#define RGX_TQ_SHADERS_VERSION_PACK \
+	(((RGX_TQ_SHADERS_VERSION & 0xFFU) << 16) | ((PVRVERSION_MAJ & 0xFFU) << 8) | ((PVRVERSION_MIN & 0xFFU) << 0))
 
 #endif /* RGXSHADERHEADER_H */

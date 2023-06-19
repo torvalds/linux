@@ -234,7 +234,6 @@ static IMG_UINT32 sys_gpu_runtime_resume(IMG_HANDLE hd)
 static IMG_UINT32 sys_gpu_runtime_suspend(IMG_HANDLE hd)
 {
 	u0_img_gpu_disable();
-	clk_disable_unprepare(sf_cfg_t.clk_axi);
 	starfive_pmu_hw_event_turn_off_mask((uint32_t)-1);
 
 	return 0;

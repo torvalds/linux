@@ -57,8 +57,8 @@ extern "C" {
 
 /* Virtualisation validation builds are meant to test the VZ-related hardware without a fully virtualised platform.
  * As such a driver can support either the vz-validation code or real virtualisation.
- * Note: PVRSRV_VZ_NUM_OSID is the external build option, while RGX_NUM_OS_SUPPORTED is the internal symbol used in the DDK */
-#if defined(SUPPORT_GPUVIRT_VALIDATION) && (defined(RGX_NUM_OS_SUPPORTED) && (RGX_NUM_OS_SUPPORTED > 1))
+ * Note: PVRSRV_VZ_NUM_OSID is the external build option, while RGX_NUM_DRIVERS_SUPPORTED is the internal symbol used in the DDK */
+#if defined(SUPPORT_GPUVIRT_VALIDATION) && (defined(RGX_NUM_DRIVERS_SUPPORTED) && (RGX_NUM_DRIVERS_SUPPORTED > 1))
 #error "Invalid build configuration: Virtualisation support (PVRSRV_VZ_NUM_OSID > 1) and virtualisation validation code (SUPPORT_GPUVIRT_VALIDATION) are mutually exclusive."
 #endif
 
@@ -193,8 +193,8 @@ typedef IMG_UINT32 RGX_KICK_TYPE_DM;
  * @{
  */
 #define RGX_CTX_PRIORITY_REALTIME  (INT32_MAX)
-#define RGX_CTX_PRIORITY_HIGH      (2U) /*!< HIGH priority */
-#define RGX_CTX_PRIORITY_MEDIUM    (1U) /*!< MEDIUM priority */
+#define RGX_CTX_PRIORITY_HIGH      (2) /*!< HIGH priority */
+#define RGX_CTX_PRIORITY_MEDIUM    (1) /*!< MEDIUM priority */
 #define RGX_CTX_PRIORITY_LOW       (0) /*!< LOW priority */
 /*!
  * @} End of AddToGroup WorkloadContexts
@@ -219,10 +219,8 @@ typedef IMG_UINT32 RGX_KICK_TYPE_DM;
 #define RGX_CONTEXT_FLAGS_WRITEABLE_MASK            (RGX_CONTEXT_FLAG_DISABLESLR)
 
 /* List of attributes that may be set for a context */
-typedef enum _RGX_CONTEXT_PROPERTY_
-{
-	RGX_CONTEXT_PROPERTY_FLAGS  = 0, /*!< Context flags */
-} RGX_CONTEXT_PROPERTY;
+typedef IMG_UINT32 RGX_CONTEXT_PROPERTY;
+#define RGX_CONTEXT_PROPERTY_FLAGS 0U /*!< Context flags */
 
 #if defined(__cplusplus)
 }

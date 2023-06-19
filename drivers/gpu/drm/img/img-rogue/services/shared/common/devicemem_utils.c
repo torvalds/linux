@@ -213,10 +213,10 @@ DevmemCPUMapSVMUserManaged(DEVMEM_HEAP *psHeap,
 			if (eError == PVRSRV_ERROR_RA_REQUEST_ALLOC_FAIL)
 			{
 				PVRSRV_ERROR eErr;
-				eErr = BridgePVRSRVUpdateOOMStats(GetBridgeHandle(psHeap->psCtx->hDevConnection),
-								  PVRSRV_PROCESS_STAT_TYPE_OOM_VIRTMEM_COUNT,
+				eErr = BridgePVRSRVStatsUpdateOOMStat(GetBridgeHandle(psHeap->psCtx->hDevConnection),
+								  PVRSRV_DEVICE_STAT_TYPE_OOM_VIRTMEM_COUNT,
 								  OSGetCurrentProcessID());
-				PVR_LOG_IF_ERROR(eErr, "BridgePVRSRVUpdateOOMStats");
+				PVR_LOG_IF_ERROR(eErr, "BridgePVRSRVStatsUpdateOOMStat");
 			}
 #endif
 			goto failSVM;
@@ -639,6 +639,15 @@ PVRSRV_ERROR DevmemValidateParams(IMG_DEVMEM_SIZE_T uiSize,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
+	if ((*puiFlags & PVRSRV_MEMALLOCFLAG_DEFER_PHYS_ALLOC) &&
+			(*puiFlags & PVRSRV_MEMALLOCFLAG_PHYS_ALLOC_NOW))
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+				"%s: Defer Alloc and Alloc Now are mutually exclusive.",
+				__func__));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
 	if (uiAlign & (uiAlign-1))
 	{
 		PVR_DPF((PVR_DBG_ERROR,
@@ -778,10 +787,10 @@ static PVRSRV_ERROR DevmemReserveVARange(DEVMEM_HEAP *psHeap,
 				(eError == PVRSRV_ERROR_RA_REQUEST_VIRT_ADDR_FAIL))
 		{
 			PVRSRV_ERROR eErr;
-			eErr = BridgePVRSRVUpdateOOMStats(GetBridgeHandle(psHeap->psCtx->hDevConnection),
-											PVRSRV_PROCESS_STAT_TYPE_INVALID_VIRTMEM,
+			eErr = BridgePVRSRVStatsUpdateOOMStat(GetBridgeHandle(psHeap->psCtx->hDevConnection),
+											PVRSRV_DEVICE_STAT_TYPE_INVALID_VIRTMEM,
 											OSGetCurrentProcessID());
-			PVR_LOG_IF_ERROR(eErr, "BridgePVRSRVUpdateOOMStats");
+			PVR_LOG_IF_ERROR(eErr, "BridgePVRSRVStatsUpdateOOMStat");
 		}
 #endif
 		return eError;
@@ -814,7 +823,7 @@ PVRSRV_ERROR DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
 
 	/* Round the provided import alignment to the configured heap alignment */
 	uiAlign = 1ULL << psHeap->uiLog2ImportAlignment;
-	uiAlign = (psImport->uiAlign + uiAlign - 1) & ~(uiAlign-1);
+	uiAlign = PVR_ALIGN(psImport->uiAlign, uiAlign);
 
 	psDeviceImport = &psImport->sDeviceImport;
 
@@ -885,10 +894,10 @@ PVRSRV_ERROR DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
 				if (eError == PVRSRV_ERROR_RA_REQUEST_ALLOC_FAIL)
 				{
 					PVRSRV_ERROR eErr;
-					eErr = BridgePVRSRVUpdateOOMStats(GetBridgeHandle(psHeap->psCtx->hDevConnection),
-									  PVRSRV_PROCESS_STAT_TYPE_OOM_VIRTMEM_COUNT,
+					eErr = BridgePVRSRVStatsUpdateOOMStat(GetBridgeHandle(psHeap->psCtx->hDevConnection),
+									  PVRSRV_DEVICE_STAT_TYPE_OOM_VIRTMEM_COUNT,
 									  OSGetCurrentProcessID());
-					PVR_LOG_IF_ERROR(eErr, "BridgePVRSRVUpdateOOMStats");
+					PVR_LOG_IF_ERROR(eErr, "BridgePVRSRVStatsUpdateOOMStat");
 				}
 #endif
 				PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_DEVICEMEM_OUT_OF_DEVICE_VM, failVMRAAlloc);
@@ -1007,7 +1016,8 @@ PVRSRV_ERROR DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
 
 		if (psHeap->bPremapped)
 		{
-			/* no virtual address reservation and mapping are required for memory that's already mapped */
+			/* No virtual address reservation and mapping are required for
+			 * memory that is already pre-mapped e.g. FW heaps in VZ configs */
 			psDeviceImport->hReservation = LACK_OF_RESERVATION_POISON;
 			psDeviceImport->hMapping = LACK_OF_MAPPING_POISON;
 		}

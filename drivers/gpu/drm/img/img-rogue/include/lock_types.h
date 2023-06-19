@@ -66,17 +66,17 @@ typedef struct OS_LOCK_TAG *POS_LOCK;
 typedef struct OSWR_LOCK_TAG *POSWR_LOCK;
 #else /* defined(__linux__) || defined(__QNXNTO__) || defined(INTEGRITY_OS) */
 typedef struct OSWR_LOCK_TAG {
-	IMG_UINT32 ui32Dummy;
+	IMG_UINT32 ui32Unused;
 } *POSWR_LOCK;
 #endif /* defined(__linux__) || defined(__QNXNTO__) || defined(INTEGRITY_OS) */
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	typedef struct OS_ATOMIC_TAG {IMG_INT32 counter;} ATOMIC_T;
 #elif defined(__QNXNTO__)
 	typedef struct OS_ATOMIC_TAG {IMG_INT32 counter;} ATOMIC_T;
 #elif defined(_WIN32)
 	/*
-	 * Dummy definition. WDDM doesn't use Services, but some headers
+	 * Placeholder definition. WDDM doesn't use Services, but some headers
 	 * still have to be shared. This is one such case.
 	 */
 	typedef struct OS_ATOMIC_TAG {IMG_INT32 counter;} ATOMIC_T;

@@ -166,7 +166,7 @@ typedef struct _PMR_DMA_BUF_DATA_
 	IMG_BOOL bPoisonOnFree;
 
 	/* Mapping information. */
-	struct dma_buf_map sMap;
+	struct iosys_map sMap;
 
 	/* Modified by PMR lock/unlock */
 	struct sg_table *psSgTable;
@@ -178,7 +178,7 @@ typedef struct _PMR_DMA_BUF_DATA_
 /* Start size of the g_psDmaBufHash hash table */
 #define DMA_BUF_HASH_SIZE 20
 
-static DEFINE_MUTEX(g_HashLock);
+static DEFINE_MUTEX(g_FactoryLock);
 
 static HASH_TABLE *g_psDmaBufHash;
 static IMG_UINT32 g_ui32HashRefCount;
@@ -192,7 +192,7 @@ static IMG_UINT32 g_ui32HashRefCount;
 static int
 DmaBufSetValue(struct dma_buf *psDmaBuf, int iValue, const char *szFunc)
 {
-	struct dma_buf_map sMap;
+	struct iosys_map sMap;
 	int err, err_end_access;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
 	int i;
@@ -267,14 +267,15 @@ err_out:
  *                          PMR callback functions                           *
  *****************************************************************************/
 
-static PVRSRV_ERROR PMRFinalizeDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
+/* This function is protected by the pfn(Get/Release)PMRFactoryLock() lock
+ * acquired/released in _UnrefAndMaybeDestroy() in pmr.c. */
+static void PMRFinalizeDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
 {
 	PMR_DMA_BUF_DATA *psPrivData = pvPriv;
 	struct dma_buf_attachment *psAttachment = psPrivData->psAttachment;
 	struct dma_buf *psDmaBuf = psAttachment->dmabuf;
 	struct sg_table *psSgTable = psPrivData->psSgTable;
 	PMR *psPMR;
-	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	if (psDmaBuf->ops != &sPVRDmaBufOps)
 	{
@@ -283,38 +284,20 @@ static PVRSRV_ERROR PMRFinalizeDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
 			/* We have a hash table so check if we've seen this dmabuf before */
 			psPMR = (PMR *) HASH_Retrieve(g_psDmaBufHash, (uintptr_t) psDmaBuf);
 
-			if (psPMR)
+			if (psPMR != NULL)
 			{
-				if (!PMRIsPMRLive(psPMR))
-				{
-					HASH_Remove(g_psDmaBufHash, (uintptr_t) psDmaBuf);
-					g_ui32HashRefCount--;
+				HASH_Remove(g_psDmaBufHash, (uintptr_t) psDmaBuf);
+				g_ui32HashRefCount--;
 
-					if (g_ui32HashRefCount == 0)
-					{
-						HASH_Delete(g_psDmaBufHash);
-						g_psDmaBufHash = NULL;
-					}
-				}
-				else{
-					eError = PVRSRV_ERROR_PMR_STILL_REFERENCED;
+				if (g_ui32HashRefCount == 0)
+				{
+					HASH_Delete(g_psDmaBufHash);
+					g_psDmaBufHash = NULL;
 				}
 			}
+
 			PVRSRVIonRemoveMemAllocRecord(psDmaBuf);
 		}
-	}else
-	{
-		psPMR = (PMR *) psDmaBuf->priv;
-		if (PMRIsPMRLive(psPMR))
-		{
-			eError = PVRSRV_ERROR_PMR_STILL_REFERENCED;
-		}
-
-	}
-
-	if (PVRSRV_OK != eError)
-	{
-		return eError;
 	}
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
@@ -327,33 +310,22 @@ static PVRSRV_ERROR PMRFinalizeDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
 
 	dma_buf_unmap_attachment(psAttachment, psSgTable, DMA_BIDIRECTIONAL);
 
-
 	if (psPrivData->bPoisonOnFree)
 	{
-		int err;
+		int err = DmaBufSetValue(psDmaBuf, PVRSRV_POISON_ON_FREE_VALUE,
+		                         __func__);
+		PVR_LOG_IF_FALSE(err != 0, "Failed to poison allocation before free");
 
-		err = DmaBufSetValue(psDmaBuf, PVRSRV_POISON_ON_FREE_VALUE, __func__);
-		if (err)
-		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: Failed to poison allocation before "
-			                        "free", __func__));
-			PVR_ASSERT(IMG_FALSE);
-		}
+		PVR_ASSERT(err != 0);
 	}
 
 	if (psPrivData->pfnDestroy)
 	{
-		eError = psPrivData->pfnDestroy(psPrivData->psPhysHeap, psPrivData->psAttachment);
-		if (eError != PVRSRV_OK)
-		{
-			return eError;
-		}
+		psPrivData->pfnDestroy(psPrivData->psPhysHeap, psPrivData->psAttachment);
 	}
 
 	OSFreeMem(psPrivData->pasDevPhysAddr);
 	OSFreeMem(psPrivData);
-
-	return PVRSRV_OK;
 }
 
 static PVRSRV_ERROR PMRLockPhysAddressesDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
@@ -368,14 +340,14 @@ static PVRSRV_ERROR PMRUnlockPhysAddressesDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
 	return PVRSRV_OK;
 }
 
-static void PMRGetFactoryLock(void)
+static void PMRFactoryLock(void)
 {
-	mutex_lock(&g_HashLock);
+	mutex_lock(&g_FactoryLock);
 }
 
-static void PMRReleaseFactoryLock(void)
+static void PMRFactoryUnlock(void)
 {
-	mutex_unlock(&g_HashLock);
+	mutex_unlock(&g_FactoryLock);
 }
 
 static PVRSRV_ERROR PMRDevPhysAddrDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
@@ -516,8 +488,8 @@ static PMR_IMPL_FUNCTAB _sPMRDmaBufFuncTab =
 	.pfnReleaseKernelMappingData	= PMRReleaseKernelMappingDataDmaBuf,
 	.pfnMMap			= PMRMMapDmaBuf,
 	.pfnFinalize			= PMRFinalizeDmaBuf,
-	.pfnGetPMRFactoryLock = PMRGetFactoryLock,
-	.pfnReleasePMRFactoryLock = PMRReleaseFactoryLock,
+	.pfnGetPMRFactoryLock = PMRFactoryLock,
+	.pfnReleasePMRFactoryLock = PMRFactoryUnlock,
 };
 
 /*****************************************************************************
@@ -563,6 +535,16 @@ PhysmemCreateNewDmaBufBackedPMR(PHYS_HEAP *psHeap,
 	{
 		/* Zero on Alloc and Poison on Alloc are mutually exclusive */
 		eError = PVRSRV_ERROR_INVALID_PARAMS;
+		goto errReturn;
+	}
+
+	if (!PMRValidateSize((IMG_UINT64) ui32NumVirtChunks * uiChunkSize))
+	{
+		PVR_LOG_VA(PVR_DBG_ERROR,
+				 "PMR size exceeds limit #Chunks: %u ChunkSz %"IMG_UINT64_FMTSPECX"",
+				 ui32NumVirtChunks,
+				 uiChunkSize);
+		eError = PVRSRV_ERROR_PMR_TOO_LARGE;
 		goto errReturn;
 	}
 
@@ -704,7 +686,6 @@ PhysmemCreateNewDmaBufBackedPMR(PHYS_HEAP *psHeap,
 
 	eError = PMRCreatePMR(psHeap,
 			      ui32NumVirtChunks * uiChunkSize,
-			      uiChunkSize,
 			      ui32NumPhysChunks,
 			      ui32NumVirtChunks,
 			      pui32MappingTable,
@@ -736,8 +717,8 @@ errReturn:
 	return eError;
 }
 
-static PVRSRV_ERROR PhysmemDestroyDmaBuf(PHYS_HEAP *psHeap,
-					 struct dma_buf_attachment *psAttachment)
+static void PhysmemDestroyDmaBuf(PHYS_HEAP *psHeap,
+                                 struct dma_buf_attachment *psAttachment)
 {
 	struct dma_buf *psDmaBuf = psAttachment->dmabuf;
 
@@ -745,8 +726,6 @@ static PVRSRV_ERROR PhysmemDestroyDmaBuf(PHYS_HEAP *psHeap,
 
 	dma_buf_detach(psDmaBuf, psAttachment);
 	dma_buf_put(psDmaBuf);
-
-	return PVRSRV_OK;
 }
 
 struct dma_buf *
@@ -774,7 +753,7 @@ PhysmemExportDmaBuf(CONNECTION_DATA *psConnection,
 	PVRSRV_ERROR eError;
 	IMG_INT iFd;
 
-	mutex_lock(&g_HashLock);
+	PMRFactoryLock();
 
 	PMRRefPMR(psPMR);
 
@@ -816,7 +795,7 @@ PhysmemExportDmaBuf(CONNECTION_DATA *psConnection,
 		goto fail_dma_buf;
 	}
 
-	mutex_unlock(&g_HashLock);
+	PMRFactoryUnlock();
 	*piFd = iFd;
 
 	/* A PMR memory lay out can't change once exported
@@ -830,7 +809,7 @@ fail_dma_buf:
 	dma_buf_put(psDmaBuf);
 
 fail_pmr_ref:
-	mutex_unlock(&g_HashLock);
+	PMRFactoryUnlock();
 	PMRUnrefPMR(psPMR);
 
 	PVR_ASSERT(eError != PVRSRV_OK);
@@ -947,11 +926,7 @@ PhysmemImportSparseDmaBuf(CONNECTION_DATA *psConnection,
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
-	if (!psDevNode)
-	{
-		eError = PVRSRV_ERROR_INVALID_PARAMS;
-		goto errReturn;
-	}
+	PVR_GOTO_IF_INVALID_PARAM(psDevNode != NULL, eError, errReturn);
 
 	/* Terminate string from bridge to prevent corrupt annotations in RI */
 	if (pszName != NULL)
@@ -960,7 +935,7 @@ PhysmemImportSparseDmaBuf(CONNECTION_DATA *psConnection,
 		pszName0[ui32NameSize-1] = '\0';
 	}
 
-	mutex_lock(&g_HashLock);
+	PMRFactoryLock();
 
 	/* Get the buffer handle */
 	psDmaBuf = dma_buf_get(fd);
@@ -974,46 +949,38 @@ PhysmemImportSparseDmaBuf(CONNECTION_DATA *psConnection,
 
 	if (psDmaBuf->ops == &sPVRDmaBufOps)
 	{
-		PVRSRV_DEVICE_NODE *psPMRDevNode;
+		/* We exported this dma_buf, so we can just get its PMR. */
+		psPMR = psDmaBuf->priv;
 
-		/* We exported this dma_buf, so we can just get its PMR */
-		psPMR = (PMR *) psDmaBuf->priv;
-
-		/* However, we can't import it if it belongs to a different device */
-		psPMRDevNode = PMR_DeviceNode(psPMR);
-		if (psPMRDevNode != psDevNode)
+		/* However, we can't import it if it belongs to a different device. */
+		if (PMR_DeviceNode(psPMR) != psDevNode)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "%s: PMR invalid for this device",
 					 __func__));
-			eError = PVRSRV_ERROR_PMR_NOT_PERMITTED;
-			goto err;
+			PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_PMR_NOT_PERMITTED, err);
 		}
 	}
 	else
 	{
-		if (g_psDmaBufHash)
+		if (g_psDmaBufHash != NULL)
 		{
-			/* We have a hash table so check if we've seen this dmabuf before */
+			/* We have a hash table so check if we've seen this dmabuf
+			 * before. */
 			psPMR = (PMR *) HASH_Retrieve(g_psDmaBufHash, (uintptr_t) psDmaBuf);
 		}
 		else
 		{
-			/*
-			 * As different processes may import the same dmabuf we need to
+			/* As different processes may import the same dmabuf we need to
 			 * create a hash table so we don't generate a duplicate PMR but
-			 * rather just take a reference on an existing one.
-			 */
+			 * rather just take a reference on an existing one. */
 			g_psDmaBufHash = HASH_Create(DMA_BUF_HASH_SIZE);
-			if (!g_psDmaBufHash)
-			{
-				eError = PVRSRV_ERROR_OUT_OF_MEMORY;
-				goto err;
-			}
+			PVR_GOTO_IF_NOMEM(g_psDmaBufHash, eError, err);
+
 			bHashTableCreated = IMG_TRUE;
 		}
 	}
 
-	if (psPMR)
+	if (psPMR != NULL)
 	{
 		/* Reuse the PMR we already created */
 		PMRRefPMR(psPMR);
@@ -1022,24 +989,25 @@ PhysmemImportSparseDmaBuf(CONNECTION_DATA *psConnection,
 		PMR_LogicalSize(psPMR, puiSize);
 		*puiAlign = PAGE_SIZE;
 	}
+
 	/* No errors so far */
 	eError = PVRSRV_OK;
 
 err:
-	if (psPMR || (PVRSRV_OK != eError))
+	if (psPMR != NULL || eError != PVRSRV_OK)
 	{
-		mutex_unlock(&g_HashLock);
+		PMRFactoryUnlock();
 		dma_buf_put(psDmaBuf);
 
 		if (PVRSRV_OK == eError)
 		{
-			/*
-			 * We expect a PMR to be immutable at this point
+			/* We expect a PMR to be immutable at this point.
 			 * But its explicitly set here to cover a corner case
 			 * where a PMR created through non-DMA interface could be
-			 *  imported back again through DMA interface */
+			 * imported back again through DMA interface. */
 			PMR_SetLayoutFixed(psPMR, IMG_TRUE);
 		}
+
 		return eError;
 	}
 
@@ -1140,7 +1108,7 @@ err:
 	HASH_Insert(g_psDmaBufHash, (uintptr_t) psDmaBuf, (uintptr_t) psPMR);
 	g_ui32HashRefCount++;
 
-	mutex_unlock(&g_HashLock);
+	PMRFactoryUnlock();
 
 	PVRSRVIonAddMemAllocRecord(psDmaBuf);
 
@@ -1158,7 +1126,7 @@ errDMADetach:
 	dma_buf_detach(psDmaBuf, psAttachment);
 
 errUnlockAndDMAPut:
-	if (IMG_TRUE == bHashTableCreated)
+	if (bHashTableCreated)
 	{
 		HASH_Delete(g_psDmaBufHash);
 		g_psDmaBufHash = NULL;
@@ -1166,7 +1134,7 @@ errUnlockAndDMAPut:
 	dma_buf_put(psDmaBuf);
 
 errUnlockReturn:
-	mutex_unlock(&g_HashLock);
+	PMRFactoryUnlock();
 
 errReturn:
 	PVR_ASSERT(eError != PVRSRV_OK);

@@ -78,4 +78,14 @@ void WorkEstHashLockDestroy(POS_LOCK psHashLock);
 
 void WorkEstCheckFirmwareCCB(PVRSRV_RGXDEV_INFO *psDevInfo);
 
+void _WorkEstInit(PVRSRV_RGXDEV_INFO *psDevInfo,
+						 WORKLOAD_MATCHING_DATA *psWorkloadMatchingData,
+						 HASH_FUNC *pfnWorkEstHashFunc,
+						 HASH_KEY_COMP *pfnWorkEstHashCompare);
+
+void _WorkEstDeInit(PVRSRV_RGXDEV_INFO *psDevInfo,
+						 WORKLOAD_MATCHING_DATA *psWorkloadMatchingData);
+
+inline IMG_UINT32 _WorkEstDoHash(IMG_UINT32 ui32Input);
+
 #endif /* RGXWORKEST_H */

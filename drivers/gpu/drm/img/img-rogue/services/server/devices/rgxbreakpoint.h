@@ -69,6 +69,7 @@ PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(CONNECTION_DATA    * psConnection,
                                       PVRSRV_DEVICE_NODE * psDeviceNode,
                                       IMG_HANDLE           hMemCtxPrivData,
                                       RGXFWIF_DM           eFWDataMaster,
+                                      IMG_UINT64           ui64TempSpillingAddr,
                                       IMG_UINT32           ui32BPAddr,
                                       IMG_UINT32           ui32HandlerAddr,
                                       IMG_UINT32           ui32DataMaster);

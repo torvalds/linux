@@ -192,7 +192,6 @@ typedef struct _CACHEOP_WORK_QUEUE_
 static CACHEOP_WORK_QUEUE gsCwq;
 
 #define CacheOpConfigSupports(e) ((gsCwq.eConfig & (e)) ? IMG_TRUE : IMG_FALSE)
-extern void do_invalid_range(unsigned long start, unsigned long len);
 
 #if defined(CACHEOP_DEBUG)
 static INLINE void CacheOpStatsExecLogHeader(IMG_CHAR szBuffer[CACHEOP_MAX_DEBUG_MESSAGE_LEN])
@@ -1215,11 +1214,6 @@ static PVRSRV_ERROR CacheOpPMRExec (PMR *psPMR,
 			}
 		}
 	}
-
-    if(uiCacheOp == PVRSRV_CACHE_OP_INVALIDATE && uiSize >= 4096)
-    {
-        do_invalid_range(0x00000000, 0x200000);
-    }
 
 e0:
 	if (psCpuPhyAddr != asCpuPhyAddr)

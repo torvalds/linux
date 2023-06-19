@@ -235,11 +235,14 @@ static void _RGXMakeTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode, RGXTIMECORR_E
 	 * they represent the same current time sampled from different clock sources.
 	 */
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	if (OSClockMonotonicns64(&psTimeCorr->ui64OSMonoTimeStamp) != PVRSRV_OK)
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-		         "_RGXMakeTimeCorrData: System Monotonic Clock not available."));
-		PVR_ASSERT(0);
+		if (OSClockMonotonicns64(&psTimeCorr->ui64OSMonoTimeStamp) != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+					 "_RGXMakeTimeCorrData: System Monotonic Clock not available."));
+			PVR_ASSERT(0);
+		}
 	}
 #endif
 	psTimeCorr->ui64CRTimeStamp = RGXReadHWTimerReg(psDevInfo);

@@ -217,8 +217,8 @@ typedef struct {
 	IMG_UINT32				ui32RefCount;
 	IMG_BOOL				bOnDemand;
 
-	IMG_BOOL				ui32NumReqByApp;		/* Number of Backing Requests from Application */
-	IMG_BOOL				ui32NumReqByFW;			/* Number of Backing Requests from Firmware */
+	IMG_UINT32				ui32NumReqByApp;		/* Number of Backing Requests from Application */
+	IMG_UINT32				ui32NumReqByFW;			/* Number of Backing Requests from Firmware */
 
 	IMG_PID					owner;
 
@@ -370,7 +370,7 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 	Server-side implementation of RGXCreateRenderContext
 
  @Input pvDeviceNode - device node
- @Input ui32Priority - context priority
+ @Input i32Priority - context priority
  @Input hMemCtxPrivData - memory context private data
  @Input ui32PackedCCBSizeU8888 :
 		ui8TACCBAllocSizeLog2 - TA CCB size
@@ -385,7 +385,7 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 											PVRSRV_DEVICE_NODE			*psDeviceNode,
-											IMG_UINT32					ui32Priority,
+											IMG_INT32					i32Priority,
 											IMG_UINT32					ui32FrameworkCommandSize,
 											IMG_PBYTE					pabyFrameworkCommand,
 											IMG_HANDLE					hMemCtxPrivData,
@@ -482,7 +482,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 PVRSRV_ERROR PVRSRVRGXSetRenderContextPriorityKM(CONNECTION_DATA *psConnection,
                                                  PVRSRV_DEVICE_NODE * psDevNode,
                                                  RGX_SERVER_RENDER_CONTEXT *psRenderContext,
-                                                 IMG_UINT32 ui32Priority);
+                                                 IMG_INT32 i32Priority);
 
 PVRSRV_ERROR PVRSRVRGXSetRenderContextPropertyKM(RGX_SERVER_RENDER_CONTEXT *psRenderContext,
 												 RGX_CONTEXT_PROPERTY eContextProperty,

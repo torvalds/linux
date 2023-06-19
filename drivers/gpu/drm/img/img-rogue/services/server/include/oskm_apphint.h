@@ -136,7 +136,7 @@ static INLINE IMG_UINT os_get_km_apphint_STRING(PVRSRV_DEVICE_NODE *device, void
 @Output         value             Pointer to returned app hint value.
  */ /**************************************************************************/
 #define OSGetKMAppHintBOOL(device, state, name, appHintDefault, value) \
-	PVRSRVGetAppHint(state, # name, IMG_UINT_TYPE, appHintDefault, value)
+	PVRSRVGetAppHint(state, # name, IMG_BOOL_TYPE, appHintDefault, value)
 
 /**************************************************************************/ /*!
 @def OSGetKMAppHintSTRING(state, name, appHintDefault, buffer, size)
