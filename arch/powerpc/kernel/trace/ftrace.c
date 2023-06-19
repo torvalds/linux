@@ -745,13 +745,8 @@ int __init ftrace_dyn_arch_init(void)
 	};
 #endif
 
-	unsigned long addr;
+	unsigned long addr = FTRACE_REGS_ADDR;
 	long reladdr;
-
-	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
-		addr = ppc_global_function_entry((void *)ftrace_regs_caller);
-	else
-		addr = ppc_global_function_entry((void *)ftrace_caller);
 
 	if (IS_ENABLED(CONFIG_PPC_KERNEL_PCREL)) {
 		for (i = 0; i < 2; i++) {
