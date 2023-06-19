@@ -3452,11 +3452,10 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 					 &host->vdd_hba_reg_nb);
 
 	/* update phy revision information before calling phy_init() */
-	/*
-	 * FIXME:
-	 * ufs_qcom_phy_save_controller_version(host->generic_phy,
-	 *	host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
-	 */
+
+	ufs_qcom_phy_save_controller_version(host->generic_phy,
+		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
+
 	err = ufs_qcom_parse_reg_info(host, "qcom,vddp-ref-clk",
 				      &host->vddp_ref_clk);
 
