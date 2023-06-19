@@ -2418,13 +2418,20 @@ static int ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 
 	if (rx->sta && test_sta_flag(rx->sta, WLAN_STA_MFP)) {
 		if (unlikely(!ieee80211_has_protected(fc) &&
-			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
-			     rx->key)) {
+			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb))) {
 			if (ieee80211_is_deauth(fc) ||
-			    ieee80211_is_disassoc(fc))
+			    ieee80211_is_disassoc(fc)) {
+				/*
+				 * Permit unprotected deauth/disassoc frames
+				 * during 4-way-HS (key is installed after HS).
+				 */
+				if (!rx->key)
+					return 0;
+
 				cfg80211_rx_unprot_mlme_mgmt(rx->sdata->dev,
 							     rx->skb->data,
 							     rx->skb->len);
+			}
 			return -EACCES;
 		}
 		/* BIP does not use Protected field, so need to check MMIE */
