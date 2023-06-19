@@ -384,15 +384,15 @@
  */
 #define DTE_FLAG_V	BIT_ULL(0)
 #define DTE_FLAG_TV	BIT_ULL(1)
+#define DTE_FLAG_GIOV	BIT_ULL(54)
+#define DTE_FLAG_GV	BIT_ULL(55)
+#define DTE_GLX_SHIFT	(56)
+#define DTE_GLX_MASK	(3)
 #define DTE_FLAG_IR	BIT_ULL(61)
 #define DTE_FLAG_IW	BIT_ULL(62)
 
 #define DTE_FLAG_IOTLB	BIT_ULL(32)
-#define DTE_FLAG_GIOV	BIT_ULL(54)
-#define DTE_FLAG_GV	BIT_ULL(55)
 #define DTE_FLAG_MASK	(0x3ffULL << 32)
-#define DTE_GLX_SHIFT	(56)
-#define DTE_GLX_MASK	(3)
 #define DEV_DOMID_MASK	0xffffULL
 
 #define DTE_GCR3_VAL_A(x)	(((x) >> 12) & 0x00007ULL)
