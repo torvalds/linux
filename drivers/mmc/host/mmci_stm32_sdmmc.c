@@ -33,6 +33,20 @@
 #define DLYB_LNG_TIMEOUT_US	1000
 #define SDMMC_VSWEND_TIMEOUT_US 10000
 
+#define SYSCFG_DLYBSD_CR	0x0
+#define DLYBSD_CR_EN		BIT(0)
+#define DLYBSD_CR_RXTAPSEL_MASK	GENMASK(6, 1)
+#define DLYBSD_TAPSEL_NB	32
+#define DLYBSD_BYP_EN		BIT(16)
+#define DLYBSD_BYP_CMD		GENMASK(21, 17)
+#define DLYBSD_ANTIGLITCH_EN	BIT(22)
+
+#define SYSCFG_DLYBSD_SR	0x4
+#define DLYBSD_SR_LOCK		BIT(0)
+#define DLYBSD_SR_RXTAPSEL_ACK	BIT(1)
+
+#define DLYBSD_TIMEOUT_1S_IN_US	1000000
+
 struct sdmmc_lli_desc {
 	u32 idmalar;
 	u32 idmabase;
@@ -495,6 +509,46 @@ static int sdmmc_dlyb_mp15_prepare(struct mmci_host *host)
 	return 0;
 }
 
+static int sdmmc_dlyb_mp25_enable(struct sdmmc_dlyb *dlyb)
+{
+	u32 cr, sr;
+
+	cr = readl_relaxed(dlyb->base + SYSCFG_DLYBSD_CR);
+	cr |= DLYBSD_CR_EN;
+
+	writel_relaxed(cr, dlyb->base + SYSCFG_DLYBSD_CR);
+
+	return readl_relaxed_poll_timeout(dlyb->base + SYSCFG_DLYBSD_SR,
+					   sr, sr & DLYBSD_SR_LOCK, 1,
+					   DLYBSD_TIMEOUT_1S_IN_US);
+}
+
+static int sdmmc_dlyb_mp25_set_cfg(struct sdmmc_dlyb *dlyb,
+				   int unit __maybe_unused, int phase,
+				   bool sampler __maybe_unused)
+{
+	u32 cr, sr;
+
+	cr = readl_relaxed(dlyb->base + SYSCFG_DLYBSD_CR);
+	cr &= ~DLYBSD_CR_RXTAPSEL_MASK;
+	cr |= FIELD_PREP(DLYBSD_CR_RXTAPSEL_MASK, phase);
+
+	writel_relaxed(cr, dlyb->base + SYSCFG_DLYBSD_CR);
+
+	return readl_relaxed_poll_timeout(dlyb->base + SYSCFG_DLYBSD_SR,
+					  sr, sr & DLYBSD_SR_RXTAPSEL_ACK, 1,
+					  DLYBSD_TIMEOUT_1S_IN_US);
+}
+
+static int sdmmc_dlyb_mp25_prepare(struct mmci_host *host)
+{
+	struct sdmmc_dlyb *dlyb = host->variant_priv;
+
+	dlyb->max = DLYBSD_TAPSEL_NB;
+
+	return 0;
+}
+
 static int sdmmc_dlyb_phase_tuning(struct mmci_host *host, u32 opcode)
 {
 	struct sdmmc_dlyb *dlyb = host->variant_priv;
@@ -635,6 +689,12 @@ static struct sdmmc_tuning_ops dlyb_tuning_mp15_ops = {
 	.set_cfg = sdmmc_dlyb_mp15_set_cfg,
 };
 
+static struct sdmmc_tuning_ops dlyb_tuning_mp25_ops = {
+	.dlyb_enable = sdmmc_dlyb_mp25_enable,
+	.tuning_prepare = sdmmc_dlyb_mp25_prepare,
+	.set_cfg = sdmmc_dlyb_mp25_set_cfg,
+};
+
 void sdmmc_variant_init(struct mmci_host *host)
 {
 	struct device_node *np = host->mmc->parent->of_node;
@@ -653,7 +713,11 @@ void sdmmc_variant_init(struct mmci_host *host)
 		return;
 
 	dlyb->base = base_dlyb;
-	dlyb->ops = &dlyb_tuning_mp15_ops;
+	if (of_device_is_compatible(np, "st,stm32mp25-sdmmc2"))
+		dlyb->ops = &dlyb_tuning_mp25_ops;
+	else
+		dlyb->ops = &dlyb_tuning_mp15_ops;
+
 	host->variant_priv = dlyb;
 	host->mmc_ops->execute_tuning = sdmmc_execute_tuning;
 }
