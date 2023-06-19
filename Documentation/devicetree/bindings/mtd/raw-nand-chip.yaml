@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/raw-nand-chip.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Raw NAND Chip Common Properties
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+allOf:
+  - $ref: nand-chip.yaml#
+
+description: |
+  The ECC strength and ECC step size properties define the user
+  desires in terms of correction capability of a controller. Together,
+  they request the ECC engine to correct {strength} bit errors per
+  {size} bytes for a particular raw NAND chip.
+
+  The interpretation of these parameters is implementation-defined, so
+  not all implementations must support all possible
+  combinations. However, implementations are encouraged to further
+  specify the value(s) they support.
+
+properties:
+  $nodename:
+    pattern: "^nand@[a-f0-9]$"
+
+  reg:
+    description:
+      Contains the chip-select IDs.
+
+  nand-ecc-placement:
+    description:
+      Location of the ECC bytes. This location is unknown by default
+      but can be explicitly set to "oob", if all ECC bytes are
+      known to be stored in the OOB area, or "interleaved" if ECC
+      bytes will be interleaved with regular data in the main area.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [ oob, interleaved ]
+
+  nand-bus-width:
+    description:
+      Bus width to the NAND chip
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [8, 16]
+    default: 8
+
+  nand-on-flash-bbt:
+    description:
+      With this property, the OS will search the device for a Bad
+      Block Table (BBT). If not found, it will create one, reserve
+      a few blocks at the end of the device to store it and update
+      it as the device ages. Otherwise, the out-of-band area of a
+      few pages of all the blocks will be scanned at boot time to
+      find Bad Block Markers (BBM). These markers will help to
+      build a volatile BBT in RAM.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nand-ecc-maximize:
+    description:
+      Whether or not the ECC strength should be maximized. The
+      maximum ECC strength is both controller and chip
+      dependent. The ECC engine has to select the ECC config
+      providing the best strength and taking the OOB area size
+      constraint into account. This is particularly useful when
+      only the in-band area is used by the upper layers, and you
+      want to make your NAND as reliable as possible.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nand-is-boot-medium:
+    description:
+      Whether or not the NAND chip is a boot medium. Drivers might
+      use this information to select ECC algorithms supported by
+      the boot ROM or similar restrictions.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nand-rb:
+    description:
+      Contains the native Ready/Busy IDs.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  rb-gpios:
+    description:
+      Contains one or more GPIO descriptor (the numper of descriptor
+      depends on the number of R/B pins exposed by the flash) for the
+      Ready/Busy pins. Active state refers to the NAND ready state and
+      should be set to GPIOD_ACTIVE_HIGH unless the signal is inverted.
+
+  wp-gpios:
+    description:
+      Contains one GPIO descriptor for the Write Protect pin.
+      Active state refers to the NAND Write Protect state and should be
+      set to GPIOD_ACTIVE_LOW unless the signal is inverted.
+    maxItems: 1
+
+required:
+  - reg
+
+# This is a generic file other binding inherit from and extend
+additionalProperties: true
