@@ -396,8 +396,12 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 				return -EOPNOTSUPP;
 			}
 			req->vf = priv->pcifunc & RVU_PFVF_FUNC_MASK;
-			req->op = NIX_RX_ACTION_DEFAULT;
-			return 0;
+
+			/* if op is already set; avoid overwriting the same */
+			if (!req->op)
+				req->op = NIX_RX_ACTION_DEFAULT;
+			break;
+
 		case FLOW_ACTION_VLAN_POP:
 			req->vtag0_valid = true;
 			/* use RX_VTAG_TYPE7 which is initialized to strip vlan tag */
@@ -433,6 +437,12 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 		case FLOW_ACTION_MARK:
 			mark = act->mark;
 			break;
+
+		case FLOW_ACTION_RX_QUEUE_MAPPING:
+			req->op = NIX_RX_ACTIONOP_UCAST;
+			req->index = act->rx_queue;
+			break;
+
 		default:
 			return -EOPNOTSUPP;
 		}
