@@ -1989,11 +1989,16 @@ int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
 		goto done;
 	}
 
+	dev_dbg(dev, "enable streams %u:%#llx\n", pad, streams_mask);
+
 	/* Call the .enable_streams() operation. */
 	ret = v4l2_subdev_call(sd, pad, enable_streams, state, pad,
 			       streams_mask);
-	if (ret)
+	if (ret) {
+		dev_dbg(dev, "enable streams %u:%#llx failed: %d\n", pad,
+			streams_mask, ret);
 		goto done;
+	}
 
 	/* Mark the streams as enabled. */
 	for (i = 0; i < state->stream_configs.num_configs; ++i) {
@@ -2101,11 +2106,16 @@ int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
 		goto done;
 	}
 
+	dev_dbg(dev, "disable streams %u:%#llx\n", pad, streams_mask);
+
 	/* Call the .disable_streams() operation. */
 	ret = v4l2_subdev_call(sd, pad, disable_streams, state, pad,
 			       streams_mask);
-	if (ret)
+	if (ret) {
+		dev_dbg(dev, "disable streams %u:%#llx failed: %d\n", pad,
+			streams_mask, ret);
 		goto done;
+	}
 
 	/* Mark the streams as disabled. */
 	for (i = 0; i < state->stream_configs.num_configs; ++i) {
