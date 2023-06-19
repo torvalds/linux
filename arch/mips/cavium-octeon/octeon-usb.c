@@ -17,8 +17,6 @@
 #include <linux/mutex.h>
 #include <linux/of_platform.h>
 
-#include <asm/octeon/octeon.h>
-
 /*
  * USB Control Register
  */
@@ -196,6 +194,17 @@
 static DEFINE_MUTEX(dwc3_octeon_clocks_mutex);
 static uint8_t clk_div[OCTEON_H_CLKDIV_SEL] = {1, 2, 4, 6, 8, 16, 24, 32};
 
+#ifdef CONFIG_CAVIUM_OCTEON_SOC
+#include <asm/octeon/octeon.h>
+static inline uint64_t dwc3_octeon_readq(void __iomem *addr)
+{
+	return cvmx_readq_csr(addr);
+}
+
+static inline void dwc3_octeon_writeq(void __iomem *base, uint64_t val)
+{
+	cvmx_writeq_csr(base, val);
+}
 
 static void dwc3_octeon_config_gpio(int index, int gpio)
 {
@@ -220,14 +229,24 @@ static void dwc3_octeon_config_gpio(int index, int gpio)
 		cvmx_write_csr(CVMX_GPIO_XBIT_CFGX(gpio), gpio_bit.u64);
 	}
 }
+#else
+static inline uint64_t dwc3_octeon_readq(void __iomem *addr)
+{
+	return 0;
+}
 
-static int dwc3_octeon_config_power(struct device *dev, u64 base)
+static inline void dwc3_octeon_writeq(void __iomem *base, uint64_t val) { }
+
+static inline void dwc3_octeon_config_gpio(int index, int gpio) { }
+#endif
+
+static int dwc3_octeon_config_power(struct device *dev, void __iomem *base)
 {
 	uint32_t gpio_pwr[3];
 	int gpio, len, power_active_low;
 	struct device_node *node = dev->of_node;
 	u64 val;
-	u64 uctl_host_cfg_reg = base + USBDRD_UCTL_HOST_CFG;
+	void __iomem *uctl_host_cfg_reg = base + USBDRD_UCTL_HOST_CFG;
 
 	if (of_find_property(node, "power", &len) != NULL) {
 		if (len == 12) {
@@ -242,33 +261,33 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 			dev_err(dev, "invalid power configuration\n");
 			return -EINVAL;
 		}
-		dwc3_octeon_config_gpio((base >> 24) & 1, gpio);
+		dwc3_octeon_config_gpio(((u64)base >> 24) & 1, gpio);
 
 		/* Enable XHCI power control and set if active high or low. */
-		val = cvmx_read_csr(uctl_host_cfg_reg);
+		val = dwc3_octeon_readq(uctl_host_cfg_reg);
 		val |= USBDRD_UCTL_HOST_PPC_EN;
 		if (power_active_low)
 			val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
 		else
 			val |= USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		cvmx_write_csr(uctl_host_cfg_reg, val);
+		dwc3_octeon_writeq(uctl_host_cfg_reg, val);
 	} else {
 		/* Disable XHCI power control and set if active high. */
-		val = cvmx_read_csr(uctl_host_cfg_reg);
+		val = dwc3_octeon_readq(uctl_host_cfg_reg);
 		val &= ~USBDRD_UCTL_HOST_PPC_EN;
 		val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		cvmx_write_csr(uctl_host_cfg_reg, val);
+		dwc3_octeon_writeq(uctl_host_cfg_reg, val);
 		dev_info(dev, "power control disabled\n");
 	}
 	return 0;
 }
 
-static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
+static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 {
 	int i, mpll_mul, ref_clk_fsel, ref_clk_sel = 2;
 	u32 clock_rate;
 	u64 div, h_clk_rate, val;
-	u64 uctl_ctl_reg = base + USBDRD_UCTL_CTL;
+	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
 
 	if (dev->of_node) {
 		const char *ss_clock_type;
@@ -332,16 +351,16 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	/* Step 2: Select GPIO for overcurrent indication, if desired. SKIP */
 
 	/* Step 3: Assert all resets. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val |= USBDRD_UCTL_CTL_UPHY_RST |
 	       USBDRD_UCTL_CTL_UAHC_RST |
 	       USBDRD_UCTL_CTL_UCTL_RST;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 4a: Reset the clock dividers. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val |= USBDRD_UCTL_CTL_H_CLKDIV_RST;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 4b: Select controller clock frequency. */
 	for (div = 0; div < OCTEON_H_CLKDIV_SEL; div++) {
@@ -350,12 +369,12 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 				 h_clk_rate >= OCTEON_MIN_H_CLK_RATE)
 			break;
 	}
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_H_CLKDIV_SEL;
 	val |= FIELD_PREP(USBDRD_UCTL_CTL_H_CLKDIV_SEL, div);
 	val |= USBDRD_UCTL_CTL_H_CLK_EN;
-	cvmx_write_csr(uctl_ctl_reg, val);
-	val = cvmx_read_csr(uctl_ctl_reg);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	if ((div != FIELD_GET(USBDRD_UCTL_CTL_H_CLKDIV_SEL, val)) ||
 	    (!(FIELD_GET(USBDRD_UCTL_CTL_H_CLK_EN, val)))) {
 		dev_err(dev, "dwc3 controller clock init failure.\n");
@@ -364,10 +383,10 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 
 	/* Step 4c: Deassert the controller clock divider reset. */
 	val &= ~USBDRD_UCTL_CTL_H_CLKDIV_RST;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 5a: Reference clock configuration. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_REF_CLK_DIV2;
 	val &= ~USBDRD_UCTL_CTL_REF_CLK_SEL;
 	val |= FIELD_PREP(USBDRD_UCTL_CTL_REF_CLK_SEL, ref_clk_sel);
@@ -407,15 +426,15 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	/* Step 6a & 6b: Power up PHYs. */
 	val |= USBDRD_UCTL_CTL_HS_POWER_EN;
 	val |= USBDRD_UCTL_CTL_SS_POWER_EN;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 7: Wait 10 controller-clock cycles to take effect. */
 	udelay(10);
 
 	/* Step 8a: Deassert UCTL reset signal. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_UCTL_RST;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 8b: Wait 10 controller-clock cycles. */
 	udelay(10);
@@ -425,49 +444,49 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 		return -EINVAL;
 
 	/* Step 8d: Deassert UAHC reset signal. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_UAHC_RST;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 8e: Wait 10 controller-clock cycles. */
 	udelay(10);
 
 	/* Step 9: Enable conditional coprocessor clock of UCTL. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val |= USBDRD_UCTL_CTL_CSCLK_EN;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/*Step 10: Set for host mode only. */
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_DRD_MODE;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	return 0;
 }
 
-static void __init dwc3_octeon_set_endian_mode(u64 base)
+static void __init dwc3_octeon_set_endian_mode(void __iomem *base)
 {
 	u64 val;
-	u64 uctl_shim_cfg_reg = base + USBDRD_UCTL_SHIM_CFG;
+	void __iomem *uctl_shim_cfg_reg = base + USBDRD_UCTL_SHIM_CFG;
 
-	val = cvmx_read_csr(uctl_shim_cfg_reg);
+	val = dwc3_octeon_readq(uctl_shim_cfg_reg);
 	val &= ~USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE;
 	val &= ~USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE;
 #ifdef __BIG_ENDIAN
 	val |= FIELD_PREP(USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE, 1);
 	val |= FIELD_PREP(USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE, 1);
 #endif
-	cvmx_write_csr(uctl_shim_cfg_reg, val);
+	dwc3_octeon_writeq(uctl_shim_cfg_reg, val);
 }
 
-static void __init dwc3_octeon_phy_reset(u64 base)
+static void __init dwc3_octeon_phy_reset(void __iomem *base)
 {
 	u64 val;
-	u64 uctl_ctl_reg = base + USBDRD_UCTL_CTL;
+	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
 
-	val = cvmx_read_csr(uctl_ctl_reg);
+	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_UPHY_RST;
-	cvmx_write_csr(uctl_ctl_reg, val);
+	dwc3_octeon_writeq(uctl_ctl_reg, val);
 }
 
 static int __init dwc3_octeon_device_init(void)
@@ -506,10 +525,10 @@ static int __init dwc3_octeon_device_init(void)
 			}
 
 			mutex_lock(&dwc3_octeon_clocks_mutex);
-			if (dwc3_octeon_clocks_start(&pdev->dev, (u64)base) == 0)
+			if (dwc3_octeon_clocks_start(&pdev->dev, base) == 0)
 				dev_info(&pdev->dev, "clocks initialized.\n");
-			dwc3_octeon_set_endian_mode((u64)base);
-			dwc3_octeon_phy_reset((u64)base);
+			dwc3_octeon_set_endian_mode(base);
+			dwc3_octeon_phy_reset(base);
 			mutex_unlock(&dwc3_octeon_clocks_mutex);
 			devm_iounmap(&pdev->dev, base);
 			devm_release_mem_region(&pdev->dev, res->start,
