@@ -34,7 +34,9 @@ properties:
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
+
       nand-bus-width:
         const: 8
 
@@ -60,6 +62,8 @@ patternProperties:
           and should be declared in ascending order.
 
           Refer to the ipq8064 example on how to use this special binding.
+
+    unevaluatedProperties: false
 
 allOf:
   - $ref: nand-controller.yaml#
