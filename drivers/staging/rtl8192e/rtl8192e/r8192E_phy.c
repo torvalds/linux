@@ -268,7 +268,6 @@ void rtl92e_config_mac(struct net_device *dev)
 		rtl92e_set_bb_reg(dev, pdwArray[i], pdwArray[i + 1],
 				  pdwArray[i + 2]);
 	}
-	return;
 }
 
 static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
