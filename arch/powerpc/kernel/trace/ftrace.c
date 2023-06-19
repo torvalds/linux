@@ -220,7 +220,12 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	int ret = 0;
 
 	/* Verify instructions surrounding the ftrace location */
-	if (IS_ENABLED(CONFIG_PPC32)) {
+	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)) {
+		/* Expect nops */
+		ret = ftrace_validate_inst(ip - 4, ppc_inst(PPC_RAW_NOP()));
+		if (!ret)
+			ret = ftrace_validate_inst(ip, ppc_inst(PPC_RAW_NOP()));
+	} else if (IS_ENABLED(CONFIG_PPC32)) {
 		/* Expected sequence: 'mflr r0', 'stw r0,4(r1)', 'bl _mcount' */
 		ret = ftrace_validate_inst(ip - 8, ppc_inst(PPC_RAW_MFLR(_R0)));
 		if (!ret)
@@ -250,7 +255,12 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	/* Nop-out the ftrace location */
 	new = ppc_inst(PPC_RAW_NOP());
 	addr = MCOUNT_ADDR;
-	if (is_offset_in_branch_range(addr - ip)) {
+	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)) {
+		/* we instead patch-in the 'mflr r0' */
+		old = ppc_inst(PPC_RAW_NOP());
+		new = ppc_inst(PPC_RAW_MFLR(_R0));
+		ret = ftrace_modify_code(ip - 4, old, new);
+	} else if (is_offset_in_branch_range(addr - ip)) {
 		/* Within range */
 		old = ftrace_create_branch_inst(ip, addr, 1);
 		ret = ftrace_modify_code(ip, old, new);

@@ -250,6 +250,7 @@ livepatch_handler:
 	blr
 #endif /* CONFIG_LIVEPATCH */
 
+#ifndef CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
 EXPORT_SYMBOL(_mcount)
@@ -257,6 +258,7 @@ EXPORT_SYMBOL(_mcount)
 	mtctr	r12
 	mtlr	r0
 	bctr
+#endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 _GLOBAL(return_to_handler)
