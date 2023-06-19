@@ -306,12 +306,6 @@ void ia_css_debug_dump_isp_params(struct ia_css_stream *stream,
  */
 void ia_css_debug_dump_perf_counters(void);
 
-#ifdef HAS_WATCHDOG_SP_THREAD_DEBUG
-void sh_css_dump_thread_wait_info(void);
-void sh_css_dump_pipe_stage_info(void);
-void sh_css_dump_pipe_stripe_info(void);
-#endif
-
 void ia_css_debug_dump_isp_binary(void);
 
 void sh_css_dump_sp_raw_copy_linecount(bool reduced);

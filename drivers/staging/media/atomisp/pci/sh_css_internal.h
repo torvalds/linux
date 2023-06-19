@@ -86,30 +86,7 @@
 #define SH_CSS_MAX_IF_CONFIGS	3 /* Must match with IA_CSS_NR_OF_CONFIGS (not defined yet).*/
 #define SH_CSS_IF_CONFIG_NOT_NEEDED	0xFF
 
-/*
- * SH_CSS_MAX_SP_THREADS:
- *	 sp threads visible to host with connected communication queues
- *	 these threads are capable of running an image pipe
- * SH_CSS_MAX_SP_INTERNAL_THREADS:
- *	 internal sp service threads, no communication queues to host
- *	 these threads can't be used as image pipe
- */
-
-#if !defined(ISP2401)
-#define SH_CSS_SP_INTERNAL_METADATA_THREAD	1
-#else
-#define SH_CSS_SP_INTERNAL_METADATA_THREAD	0
-#endif
-
-#define SH_CSS_SP_INTERNAL_SERVICE_THREAD		1
-
 #define SH_CSS_MAX_SP_THREADS		5
-
-#define SH_CSS_MAX_SP_INTERNAL_THREADS	(\
-	 SH_CSS_SP_INTERNAL_SERVICE_THREAD +\
-	 SH_CSS_SP_INTERNAL_METADATA_THREAD)
-
-#define SH_CSS_MAX_PIPELINES	SH_CSS_MAX_SP_THREADS
 
 /**
  * The C99 standard does not specify the exact object representation of structs;
