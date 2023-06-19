@@ -20,6 +20,7 @@ ARM64 Architecture
     memory-tagging-extension
     perf
     pointer-authentication
+    ptdump
     silicon-errata
     sme
     sve
