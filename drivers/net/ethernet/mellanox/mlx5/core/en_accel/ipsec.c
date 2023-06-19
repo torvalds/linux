@@ -61,16 +61,19 @@ static void mlx5e_ipsec_handle_tx_limit(struct work_struct *_work)
 	struct mlx5e_ipsec_sa_entry *sa_entry = dwork->sa_entry;
 	struct xfrm_state *x = sa_entry->x;
 
-	spin_lock(&x->lock);
+	if (sa_entry->attrs.drop)
+		return;
+
+	spin_lock_bh(&x->lock);
 	xfrm_state_check_expire(x);
 	if (x->km.state == XFRM_STATE_EXPIRED) {
 		sa_entry->attrs.drop = true;
-		mlx5e_accel_ipsec_fs_modify(sa_entry);
-	}
-	spin_unlock(&x->lock);
+		spin_unlock_bh(&x->lock);
 
-	if (sa_entry->attrs.drop)
+		mlx5e_accel_ipsec_fs_modify(sa_entry);
 		return;
+	}
+	spin_unlock_bh(&x->lock);
 
 	queue_delayed_work(sa_entry->ipsec->wq, &dwork->dwork,
 			   MLX5_IPSEC_RESCHED);
@@ -1040,11 +1043,17 @@ err_fs:
 	return err;
 }
 
-static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)
+static void mlx5e_xfrm_del_policy(struct xfrm_policy *x)
 {
 	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
 
 	mlx5e_accel_ipsec_fs_del_pol(pol_entry);
+}
+
+static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)
+{
+	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
+
 	kfree(pol_entry);
 }
 
@@ -1065,6 +1074,7 @@ static const struct xfrmdev_ops mlx5e_ipsec_packet_xfrmdev_ops = {
 
 	.xdo_dev_state_update_curlft = mlx5e_xfrm_update_curlft,
 	.xdo_dev_policy_add = mlx5e_xfrm_add_policy,
+	.xdo_dev_policy_delete = mlx5e_xfrm_del_policy,
 	.xdo_dev_policy_free = mlx5e_xfrm_free_policy,
 };
 

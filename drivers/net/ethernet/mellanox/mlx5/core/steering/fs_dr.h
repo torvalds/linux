@@ -38,6 +38,8 @@ struct mlx5_fs_dr_table {
 
 bool mlx5_fs_dr_is_supported(struct mlx5_core_dev *dev);
 
+int mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat);
+
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_dr_cmds(void);
 
 #else
@@ -45,6 +47,11 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_dr_cmds(void);
 static inline const struct mlx5_flow_cmds *mlx5_fs_cmd_get_dr_cmds(void)
 {
 	return NULL;
+}
+
+static inline u32 mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat)
+{
+	return 0;
 }
 
 static inline bool mlx5_fs_dr_is_supported(struct mlx5_core_dev *dev)

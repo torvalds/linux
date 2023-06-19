@@ -1421,8 +1421,12 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 	}
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
 	{
-		u8 hw_actions[DR_ACTION_CACHE_LINE_SIZE] = {};
+		u8 *hw_actions;
 		int ret;
+
+		hw_actions = kzalloc(DR_ACTION_CACHE_LINE_SIZE, GFP_KERNEL);
+		if (!hw_actions)
+			return -ENOMEM;
 
 		ret = mlx5dr_ste_set_action_decap_l3_list(dmn->ste_ctx,
 							  data, data_sz,
@@ -1431,6 +1435,7 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 							  &action->rewrite->num_of_actions);
 		if (ret) {
 			mlx5dr_dbg(dmn, "Failed creating decap l3 action list\n");
+			kfree(hw_actions);
 			return ret;
 		}
 
@@ -1440,6 +1445,7 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 		ret = mlx5dr_ste_alloc_modify_hdr(action);
 		if (ret) {
 			mlx5dr_dbg(dmn, "Failed preparing reformat data\n");
+			kfree(hw_actions);
 			return ret;
 		}
 		return 0;
@@ -2127,6 +2133,11 @@ mlx5dr_action_create_aso(struct mlx5dr_domain *dmn, u32 obj_id,
 	refcount_inc(&dmn->refcount);
 
 	return action;
+}
+
+u32 mlx5dr_action_get_pkt_reformat_id(struct mlx5dr_action *action)
+{
+	return action->reformat->id;
 }
 
 int mlx5dr_action_destroy(struct mlx5dr_action *action)
