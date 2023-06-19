@@ -41,6 +41,14 @@ properties:
     enum: [ oob, interleaved ]
     deprecated: true
 
+  nand-ecc-mode:
+    description:
+      Legacy ECC configuration mixing the ECC engine choice and
+      configuration.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [none, soft, soft_bch, hw, hw_syndrome, on-die]
+    deprecated: true
+
   nand-bus-width:
     description:
       Bus width to the NAND chip
