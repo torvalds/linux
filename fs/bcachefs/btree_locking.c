@@ -112,15 +112,19 @@ static noinline void lock_graph_pop_all(struct lock_graph *g)
 		lock_graph_up(g);
 }
 
-static void lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
+static void __lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
 {
-	closure_get(&trans->ref);
-
 	g->g[g->nr++] = (struct trans_waiting_for_lock) {
 		.trans		= trans,
 		.node_want	= trans->locking,
 		.lock_want	= trans->locking_wait.lock_want,
 	};
+}
+
+static void lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
+{
+	closure_get(&trans->ref);
+	__lock_graph_down(g, trans);
 }
 
 static bool lock_graph_remove_non_waiters(struct lock_graph *g)
@@ -223,10 +227,14 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 	struct trans_waiting_for_lock *i;
 
 	for (i = g->g; i < g->g + g->nr; i++)
-		if (i->trans == trans)
+		if (i->trans == trans) {
+			closure_put(&trans->ref);
 			return break_cycle(g, cycle);
+		}
 
 	if (g->nr == ARRAY_SIZE(g->g)) {
+		closure_put(&trans->ref);
+
 		if (orig_trans->lock_may_not_fail)
 			return 0;
 
@@ -240,7 +248,7 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 		return btree_trans_restart(orig_trans, BCH_ERR_transaction_restart_deadlock_recursion_limit);
 	}
 
-	lock_graph_down(g, trans);
+	__lock_graph_down(g, trans);
 	return 0;
 }
 
@@ -335,9 +343,10 @@ next:
 				    !lock_type_conflicts(lock_held, trans->locking_wait.lock_want))
 					continue;
 
-				ret = lock_graph_descend(&g, trans, cycle);
+				closure_get(&trans->ref);
 				raw_spin_unlock(&b->lock.wait_lock);
 
+				ret = lock_graph_descend(&g, trans, cycle);
 				if (ret)
 					return ret;
 				goto next;
