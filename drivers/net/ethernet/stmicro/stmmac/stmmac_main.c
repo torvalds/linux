@@ -3873,7 +3873,6 @@ irq_error:
 
 	stmmac_hw_teardown(dev);
 init_error:
-	free_dma_desc_resources(priv, &priv->dma_conf);
 	phylink_disconnect_phy(priv->phylink);
 init_phy_error:
 	pm_runtime_put(priv->device);
@@ -3891,6 +3890,9 @@ static int stmmac_open(struct net_device *dev)
 		return PTR_ERR(dma_conf);
 
 	ret = __stmmac_open(dev, dma_conf);
+	if (ret)
+		free_dma_desc_resources(priv, dma_conf);
+
 	kfree(dma_conf);
 	return ret;
 }
@@ -5633,11 +5635,14 @@ static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 		stmmac_release(dev);
 
 		ret = __stmmac_open(dev, dma_conf);
-		kfree(dma_conf);
 		if (ret) {
+			free_dma_desc_resources(priv, dma_conf);
+			kfree(dma_conf);
 			netdev_err(priv->dev, "failed reopening the interface after MTU change\n");
 			return ret;
 		}
+
+		kfree(dma_conf);
 
 		stmmac_set_rx_mode(dev);
 	}
@@ -7233,8 +7238,7 @@ int stmmac_dvr_probe(struct device *device,
 	ndev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_RXCSUM;
 	ndev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-			     NETDEV_XDP_ACT_XSK_ZEROCOPY |
-			     NETDEV_XDP_ACT_NDO_XMIT;
+			     NETDEV_XDP_ACT_XSK_ZEROCOPY;
 
 	ret = stmmac_tc_init(priv, priv);
 	if (!ret) {

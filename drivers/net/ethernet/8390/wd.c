@@ -37,6 +37,7 @@ static const char version[] =
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <net/Space.h>
 
 #include <asm/io.h>
 

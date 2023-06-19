@@ -1048,7 +1048,7 @@ int kx022a_probe_internal(struct device *dev)
 		data->ien_reg = KX022A_REG_INC4;
 	} else {
 		irq = fwnode_irq_get_byname(fwnode, "INT2");
-		if (irq <= 0)
+		if (irq < 0)
 			return dev_err_probe(dev, irq, "No suitable IRQ\n");
 
 		data->inc_reg = KX022A_REG_INC5;

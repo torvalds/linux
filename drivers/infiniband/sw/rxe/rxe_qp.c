@@ -176,6 +176,9 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 	spin_lock_init(&qp->rq.producer_lock);
 	spin_lock_init(&qp->rq.consumer_lock);
 
+	skb_queue_head_init(&qp->req_pkts);
+	skb_queue_head_init(&qp->resp_pkts);
+
 	atomic_set(&qp->ssn, 0);
 	atomic_set(&qp->skb_out, 0);
 }
@@ -234,8 +237,6 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	qp->req.opcode		= -1;
 	qp->comp.opcode		= -1;
 
-	skb_queue_head_init(&qp->req_pkts);
-
 	rxe_init_task(&qp->req.task, qp, rxe_requester);
 	rxe_init_task(&qp->comp.task, qp, rxe_completer);
 
@@ -279,8 +280,6 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 		}
 	}
 
-	skb_queue_head_init(&qp->resp_pkts);
-
 	rxe_init_task(&qp->resp.task, qp, rxe_responder);
 
 	qp->resp.opcode		= OPCODE_NONE;
@@ -300,6 +299,7 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
+	unsigned long flags;
 
 	rxe_get(pd);
 	rxe_get(rcq);
@@ -325,10 +325,10 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	if (err)
 		goto err2;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	qp->attr.qp_state = IB_QPS_RESET;
 	qp->valid = 1;
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	return 0;
 
@@ -492,24 +492,28 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 /* move the qp to the error state */
 void rxe_qp_error(struct rxe_qp *qp)
 {
-	spin_lock_bh(&qp->state_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->state_lock, flags);
 	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
 	rxe_sched_task(&qp->resp.task);
 	rxe_sched_task(&qp->comp.task);
 	rxe_sched_task(&qp->req.task);
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
 
 static void rxe_qp_sqd(struct rxe_qp *qp, struct ib_qp_attr *attr,
 		       int mask)
 {
-	spin_lock_bh(&qp->state_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->state_lock, flags);
 	qp->attr.sq_draining = 1;
 	rxe_sched_task(&qp->comp.task);
 	rxe_sched_task(&qp->req.task);
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
 
 /* caller should hold qp->state_lock */
@@ -555,14 +559,16 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.cur_qp_state = attr->qp_state;
 
 	if (mask & IB_QP_STATE) {
-		spin_lock_bh(&qp->state_lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&qp->state_lock, flags);
 		err = __qp_chk_state(qp, attr, mask);
 		if (!err) {
 			qp->attr.qp_state = attr->qp_state;
 			rxe_dbg_qp(qp, "state -> %s\n",
 					qps2str[attr->qp_state]);
 		}
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 
 		if (err)
 			return err;
@@ -688,6 +694,8 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 /* called by the query qp verb */
 int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 {
+	unsigned long flags;
+
 	*attr = qp->attr;
 
 	attr->rq_psn				= qp->resp.psn;
@@ -708,12 +716,13 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	/* Applications that get this state typically spin on it.
 	 * Yield the processor
 	 */
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp->attr.sq_draining) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		cond_resched();
+	} else {
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 	}
-	spin_unlock_bh(&qp->state_lock);
 
 	return 0;
 }
@@ -736,10 +745,11 @@ int rxe_qp_chk_destroy(struct rxe_qp *qp)
 static void rxe_qp_do_cleanup(struct work_struct *work)
 {
 	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	qp->valid = 0;
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 	qp->qp_timeout_jiffies = 0;
 
 	if (qp_type(qp) == IB_QPT_RC) {

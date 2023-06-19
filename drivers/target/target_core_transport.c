@@ -504,6 +504,8 @@ target_setup_session(struct se_portal_group *tpg,
 
 free_sess:
 	transport_free_session(sess);
+	return ERR_PTR(rc);
+
 free_cnt:
 	target_free_cmd_counter(cmd_cnt);
 	return ERR_PTR(rc);

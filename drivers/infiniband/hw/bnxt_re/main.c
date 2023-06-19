@@ -1077,8 +1077,6 @@ static int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
 		return rc;
 	}
 	dev_info(rdev_to_dev(rdev), "Device registered with IB successfully");
-	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
-			 &rdev->active_width);
 	set_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags);
 
 	event = netif_running(rdev->netdev) && netif_carrier_ok(rdev->netdev) ?
@@ -1335,6 +1333,10 @@ exit:
 static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
 {
 	struct bnxt_qplib_cc_param cc_param = {};
+
+	/* Do not enable congestion control on VFs */
+	if (rdev->is_virtfn)
+		return;
 
 	/* Currently enabling only for GenP5 adapters */
 	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))

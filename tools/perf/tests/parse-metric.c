@@ -38,6 +38,7 @@ static void load_runtime_stat(struct evlist *evlist, struct value *vals)
 	evlist__alloc_aggr_stats(evlist, 1);
 	evlist__for_each_entry(evlist, evsel) {
 		count = find_value(evsel->name, vals);
+		evsel->supported = true;
 		evsel->stats->aggr->counts.val = count;
 		if (evsel__name_is(evsel, "duration_time"))
 			update_stats(&walltime_nsecs_stats, count);

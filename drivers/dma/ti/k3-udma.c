@@ -5527,7 +5527,7 @@ static int udma_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int udma_pm_suspend(struct device *dev)
+static int __maybe_unused udma_pm_suspend(struct device *dev)
 {
 	struct udma_dev *ud = dev_get_drvdata(dev);
 	struct dma_device *dma_dev = &ud->ddev;
@@ -5549,7 +5549,7 @@ static int udma_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int udma_pm_resume(struct device *dev)
+static int __maybe_unused udma_pm_resume(struct device *dev)
 {
 	struct udma_dev *ud = dev_get_drvdata(dev);
 	struct dma_device *dma_dev = &ud->ddev;

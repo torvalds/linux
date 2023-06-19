@@ -2877,9 +2877,9 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		struct rzv2m_usb3drd *ddata = dev_get_drvdata(pdev->dev.parent);
 
 		usb3->drd_reg = ddata->reg;
-		ret = devm_request_irq(ddata->dev, ddata->drd_irq,
+		ret = devm_request_irq(&pdev->dev, ddata->drd_irq,
 				       renesas_usb3_otg_irq, 0,
-				       dev_name(ddata->dev), usb3);
+				       dev_name(&pdev->dev), usb3);
 		if (ret < 0)
 			return ret;
 	}
