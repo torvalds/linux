@@ -4199,9 +4199,9 @@ int sk_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 {
 	int rc = 1;
 
-	if (sk_is_ipmr(sk))
+	if (sk->sk_type == SOCK_RAW && sk->sk_family == AF_INET)
 		rc = ipmr_sk_ioctl(sk, cmd, arg);
-	else if (sk_is_icmpv6(sk))
+	else if (sk->sk_type == SOCK_RAW && sk->sk_family == AF_INET6)
 		rc = ip6mr_sk_ioctl(sk, cmd, arg);
 	else if (sk_is_phonet(sk))
 		rc = phonet_sk_ioctl(sk, cmd, arg);

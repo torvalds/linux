@@ -16,12 +16,6 @@ static inline int ip_mroute_opt(int opt)
 	return opt >= MRT_BASE && opt <= MRT_MAX;
 }
 
-static inline int sk_is_ipmr(struct sock *sk)
-{
-	return sk->sk_family == AF_INET &&
-		inet_sk(sk)->inet_num == IPPROTO_IGMP;
-}
-
 int ip_mroute_setsockopt(struct sock *, int, sockptr_t, unsigned int);
 int ip_mroute_getsockopt(struct sock *, int, sockptr_t, sockptr_t);
 int ipmr_ioctl(struct sock *sk, int cmd, void *arg);
@@ -53,11 +47,6 @@ static inline int ip_mr_init(void)
 }
 
 static inline int ip_mroute_opt(int opt)
-{
-	return 0;
-}
-
-static inline int sk_is_ipmr(struct sock *sk)
 {
 	return 0;
 }
