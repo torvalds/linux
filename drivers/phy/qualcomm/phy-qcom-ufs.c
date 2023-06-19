@@ -303,6 +303,14 @@ skip_txrx_clk:
 				   &phy_common->rx_sym1_phy_clk, false);
 	 __ufs_qcom_phy_clk_get(phy_common->dev, "tx_sym0_phy_clk",
 				   &phy_common->tx_sym0_phy_clk, false);
+	if (!phy_common->rx_sym0_mux_clk ||
+		!phy_common->rx_sym1_mux_clk ||
+		!phy_common->tx_sym0_mux_clk ||
+		!phy_common->ref_clk_src ||
+		!phy_common->rx_sym0_phy_clk ||
+		!phy_common->rx_sym1_phy_clk ||
+		!phy_common->tx_sym0_phy_clk)
+		dev_err(phy_common->dev, "%s: null clock\n", __func__);
 out:
 	return err;
 }
@@ -677,10 +685,8 @@ void ufs_qcom_phy_set_src_clk_h8_enter(struct phy *generic_phy)
 	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
 
 	if (!ufs_qcom_phy->rx_sym0_mux_clk || !ufs_qcom_phy->rx_sym1_mux_clk ||
-		!ufs_qcom_phy->tx_sym0_mux_clk || !ufs_qcom_phy->ref_clk_src) {
-		dev_err(ufs_qcom_phy->dev, "%s: null clock\n", __func__);
+		!ufs_qcom_phy->tx_sym0_mux_clk || !ufs_qcom_phy->ref_clk_src)
 		return;
-	}
 
 	/*
 	 * Before entering hibernate, select xo as source of symbol
@@ -702,10 +708,8 @@ void ufs_qcom_phy_set_src_clk_h8_exit(struct phy *generic_phy)
 		!ufs_qcom_phy->tx_sym0_mux_clk ||
 		!ufs_qcom_phy->rx_sym0_phy_clk ||
 		!ufs_qcom_phy->rx_sym1_phy_clk ||
-		!ufs_qcom_phy->tx_sym0_phy_clk) {
-		dev_err(ufs_qcom_phy->dev, "%s: null clock\n", __func__);
+		!ufs_qcom_phy->tx_sym0_phy_clk)
 		return;
-	}
 
 	/*
 	 * Refer to the UFS Host Controller Hardware Programming Guide's
