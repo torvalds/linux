@@ -89,31 +89,9 @@ static inline int ftrace_modify_code(unsigned long ip, ppc_inst_t old, ppc_inst_
 	return ret;
 }
 
-/*
- * Helper functions that are the same for both PPC64 and PPC32.
- */
-static int test_24bit_addr(unsigned long ip, unsigned long addr)
-{
-	addr = ppc_function_entry((void *)addr);
-
-	return is_offset_in_branch_range(addr - ip);
-}
-
 static int is_bl_op(ppc_inst_t op)
 {
 	return (ppc_inst_val(op) & ~PPC_LI_MASK) == PPC_RAW_BL(0);
-}
-
-static unsigned long find_bl_target(unsigned long ip, ppc_inst_t op)
-{
-	int offset;
-
-	offset = PPC_LI(ppc_inst_val(op));
-	/* make it signed */
-	if (offset & 0x02000000)
-		offset |= 0xfe000000;
-
-	return ip + (long)offset;
 }
 
 static unsigned long find_ftrace_tramp(unsigned long ip)
@@ -130,115 +108,16 @@ static unsigned long find_ftrace_tramp(unsigned long ip)
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-#ifdef CONFIG_MODULES
-static int
-__ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
-					unsigned long addr)
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
 {
-	ppc_inst_t op;
-	unsigned long ip = rec->ip;
-	unsigned long entry, ptr, tramp;
-	struct module *mod = rec->arch.mod;
-
-	/* If we never set up ftrace trampolines, then bail */
-	if (!mod->arch.tramp || !mod->arch.tramp_regs) {
-		pr_err("No ftrace trampoline\n");
-		return -EINVAL;
-	}
-
-	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)ip)) {
-		pr_err("Fetching opcode failed.\n");
-		return -EFAULT;
-	}
-
-	/* Make sure that this is still a 24bit jump */
-	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
-		return -EINVAL;
-	}
-
-	/* lets find where the pointer goes */
-	tramp = find_bl_target(ip, op);
-	entry = ppc_global_function_entry((void *)old_addr);
-
-	pr_devel("ip:%lx jumps to %lx", ip, tramp);
-
-	if (tramp != entry) {
-		/* old_addr is not within range, so we must have used a trampoline */
-		if (module_trampoline_target(mod, tramp, &ptr)) {
-			pr_err("Failed to get trampoline target\n");
-			return -EFAULT;
-		}
-
-		pr_devel("trampoline target %lx", ptr);
-
-		/* This should match what was called */
-		if (ptr != entry) {
-			pr_err("addr %lx does not match expected %lx\n", ptr, entry);
-			return -EINVAL;
-		}
-	}
-
-	/* The new target may be within range */
-	if (test_24bit_addr(ip, addr)) {
-		/* within range */
-		if (patch_branch((u32 *)ip, addr, BRANCH_SET_LINK)) {
-			pr_err("REL24 out of range!\n");
-			return -EINVAL;
-		}
-
-		return 0;
-	}
-
-	if (rec->flags & FTRACE_FL_REGS)
-		tramp = mod->arch.tramp_regs;
-	else
-		tramp = mod->arch.tramp;
-
-	if (module_trampoline_target(mod, tramp, &ptr)) {
-		pr_err("Failed to get trampoline target\n");
-		return -EFAULT;
-	}
-
-	pr_devel("trampoline target %lx", ptr);
-
-	entry = ppc_global_function_entry((void *)addr);
-	/* This should match what was called */
-	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
-		return -EINVAL;
-	}
-
-	if (patch_branch((u32 *)ip, tramp, BRANCH_SET_LINK)) {
-		pr_err("REL24 out of range!\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#else
-static int __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
-{
-	return 0;
-}
-#endif
-
-int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
-			unsigned long addr)
-{
-	unsigned long ip = rec->ip;
+	unsigned long tramp, tramp_old, ip = rec->ip;
 	ppc_inst_t old, new;
+	struct module *mod;
 
-	/*
-	 * If the calling address is more that 24 bits away,
-	 * then we had to use a trampoline to make the call.
-	 * Otherwise just update the call site.
-	 */
-	if (test_24bit_addr(ip, addr) && test_24bit_addr(ip, old_addr)) {
-		/* within range */
-		old = ftrace_call_replace(ip, old_addr, 1);
-		new = ftrace_call_replace(ip, addr, 1);
+	if (is_offset_in_branch_range(old_addr - ip) && is_offset_in_branch_range(addr - ip)) {
+		/* Within range */
+		old = ftrace_create_branch_inst(ip, old_addr, 1);
+		new = ftrace_create_branch_inst(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	} else if (core_kernel_text(ip)) {
 		/*
@@ -246,20 +125,22 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		 * variant, so there is nothing to do here
 		 */
 		return 0;
-	} else if (!IS_ENABLED(CONFIG_MODULES)) {
-		/* We should not get here without modules */
-		return -EINVAL;
+	} else if (IS_ENABLED(CONFIG_MODULES)) {
+		/* Module code would be going to one of the module stubs */
+		mod = rec->arch.mod;
+		if (addr == (unsigned long)ftrace_caller) {
+			tramp_old = mod->arch.tramp_regs;
+			tramp = mod->arch.tramp;
+		} else {
+			tramp_old = mod->arch.tramp;
+			tramp = mod->arch.tramp_regs;
+		}
+		old = ftrace_create_branch_inst(ip, tramp_old, 1);
+		new = ftrace_create_branch_inst(ip, tramp, 1);
+		return ftrace_modify_code(ip, old, new);
 	}
 
-	/*
-	 * Out of range jumps are called from modules.
-	 */
-	if (!rec->arch.mod) {
-		pr_err("No module loaded\n");
-		return -EINVAL;
-	}
-
-	return __ftrace_modify_call(rec, old_addr, addr);
+	return -EINVAL;
 }
 #endif
 
