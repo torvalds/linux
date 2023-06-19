@@ -34,6 +34,16 @@
 #define AST2600_I3CG_REG1_SA_EN			BIT(15)
 #define AST2600_I3CG_REG1_INST_ID_MASK		GENMASK(19, 16)
 #define AST2600_I3CG_REG1_INST_ID(x)		(((x) << 16) & AST2600_I3CG_REG1_INST_ID_MASK)
+#define SCL_SW_MODE_OE				BIT(20)
+#define SCL_OUT_SW_MODE_VAL			BIT(21)
+#define SCL_IN_SW_MODE_VAL			BIT(23)
+#define SDA_SW_MODE_OE				BIT(24)
+#define SDA_OUT_SW_MODE_VAL			BIT(25)
+#define SDA_IN_SW_MODE_VAL			BIT(27)
+#define SCL_IN_SW_MODE_EN			BIT(28)
+#define SDA_IN_SW_MODE_EN			BIT(29)
+#define SCL_OUT_SW_MODE_EN			BIT(30)
+#define SDA_OUT_SW_MODE_EN			BIT(31)
 
 #define AST2600_DEFAULT_SDA_PULLUP_OHMS		2000
 
@@ -118,9 +128,60 @@ static void ast2600_i3c_set_dat_ibi(struct dw_i3c_master *i3c,
 	}
 }
 
+static void ast2600_i3c_enter_sw_mode(struct dw_i3c_master *dw)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_IN_SW_MODE_VAL | SDA_IN_SW_MODE_VAL,
+			  SCL_IN_SW_MODE_VAL | SDA_IN_SW_MODE_VAL);
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_IN_SW_MODE_EN | SDA_IN_SW_MODE_EN,
+			  SCL_IN_SW_MODE_EN | SDA_IN_SW_MODE_EN);
+}
+
+static void ast2600_i3c_exit_sw_mode(struct dw_i3c_master *dw)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_IN_SW_MODE_EN | SDA_IN_SW_MODE_EN, 0);
+}
+
+static void ast2600_i3c_toggle_scl_in(struct dw_i3c_master *dw, int count)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+
+	for (; count; count--) {
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_IN_SW_MODE_VAL, 0);
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+	}
+}
+
+static void ast2600_i3c_gen_internal_stop(struct dw_i3c_master *dw)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_VAL, 0);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
+}
+
 static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.init = ast2600_i3c_init,
 	.set_dat_ibi = ast2600_i3c_set_dat_ibi,
+	.enter_sw_mode = ast2600_i3c_enter_sw_mode,
+	.exit_sw_mode = ast2600_i3c_exit_sw_mode,
+	.toggle_scl_in = ast2600_i3c_toggle_scl_in,
+	.gen_internal_stop = ast2600_i3c_gen_internal_stop,
 };
 
 static int ast2600_i3c_probe(struct platform_device *pdev)

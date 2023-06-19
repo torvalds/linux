@@ -327,14 +327,54 @@ to_dw_i3c_master(struct i3c_master_controller *master)
 
 static void dw_i3c_master_disable(struct dw_i3c_master *master)
 {
+	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE))
+		return;
+
+	if (master->base.target)
+		master->platform_ops->enter_sw_mode(master);
+
 	writel(readl(master->regs + DEVICE_CTRL) & ~DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+
+	if (master->base.target) {
+		master->platform_ops->toggle_scl_in(master, 8);
+		if (readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE) {
+			dev_warn(&master->base.dev,
+				 "Failed to disable controller");
+			master->platform_ops->exit_sw_mode(master);
+			return;
+		}
+		master->platform_ops->exit_sw_mode(master);
+	}
 }
 
 static void dw_i3c_master_enable(struct dw_i3c_master *master)
 {
+	u32 wait_enable_ns;
+
+	if (master->base.target)
+		master->platform_ops->enter_sw_mode(master);
+
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+
+	if (master->base.target) {
+		wait_enable_ns =
+			master->timing.core_period *
+			BUS_AVAIL_TIME(readl(master->regs + BUS_FREE_TIMING));
+		udelay(DIV_ROUND_UP(wait_enable_ns, NSEC_PER_USEC));
+
+		master->platform_ops->toggle_scl_in(master, 8);
+		if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE)) {
+			dev_warn(&master->base.dev,
+				 "Failed to enable controller");
+			master->platform_ops->exit_sw_mode(master);
+			return;
+		}
+
+		master->platform_ops->gen_internal_stop(master);
+		master->platform_ops->exit_sw_mode(master);
+	}
 }
 
 static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
@@ -566,6 +606,9 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 
 	core_period = DIV_ROUND_UP(1000000000, core_rate);
 
+	master->timing.core_rate = core_rate;
+	master->timing.core_period = core_period;
+
 	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
 	if (hcnt < SCL_I3C_TIMING_CNT_MIN)
 		hcnt = SCL_I3C_TIMING_CNT_MIN;
@@ -613,6 +656,9 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 		return -EINVAL;
 
 	core_period = DIV_ROUND_UP(1000000000, core_rate);
+
+	master->timing.core_rate = core_rate;
+	master->timing.core_period = core_period;
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS, core_period);
 	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_PLUS_SCL_RATE) - lcnt;
@@ -1639,9 +1685,29 @@ static void dw_i3c_platform_set_dat_ibi_nop(struct dw_i3c_master *i3c,
 {
 }
 
+static void dw_i3c_platform_enter_sw_mode_nop(struct dw_i3c_master *i3c)
+{
+}
+
+static void dw_i3c_platform_exit_sw_mode_nop(struct dw_i3c_master *i3c)
+{
+}
+
+static void dw_i3c_toggle_scl_in_nop(struct dw_i3c_master *i3c, int count)
+{
+}
+
+static void dw_i3c_gen_internal_stop_nop(struct dw_i3c_master *i3c)
+{
+}
+
 static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.init = dw_i3c_platform_init_nop,
 	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_nop,
+	.enter_sw_mode = dw_i3c_platform_enter_sw_mode_nop,
+	.exit_sw_mode = dw_i3c_platform_exit_sw_mode_nop,
+	.toggle_scl_in = dw_i3c_toggle_scl_in_nop,
+	.gen_internal_stop = dw_i3c_gen_internal_stop_nop,
 };
 
 int dw_i3c_common_probe(struct dw_i3c_master *master,

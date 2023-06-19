@@ -70,6 +70,11 @@ struct dw_i3c_master {
 		void *buf;
 		u16 max_len;
 	} target_rx;
+
+	struct {
+		unsigned long core_rate;
+		unsigned long core_period;
+	} timing;
 };
 
 struct dw_i3c_platform_ops {
@@ -89,6 +94,14 @@ struct dw_i3c_platform_ops {
 	 */
 	void (*set_dat_ibi)(struct dw_i3c_master *i3c,
 			    struct i3c_dev_desc *dev, bool enable, u32 *reg);
+
+	/* Enter the software force mode by isolating the SCL and SDA pins */
+	void (*enter_sw_mode)(struct dw_i3c_master *i3c);
+
+	/* Exit the software force mode */
+	void (*exit_sw_mode)(struct dw_i3c_master *i3c);
+	void (*toggle_scl_in)(struct dw_i3c_master *i3c, int count);
+	void (*gen_internal_stop)(struct dw_i3c_master *i3c);
 };
 
 extern int dw_i3c_common_probe(struct dw_i3c_master *master,
