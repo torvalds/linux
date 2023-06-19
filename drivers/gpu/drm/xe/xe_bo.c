@@ -1852,6 +1852,7 @@ static void xe_place_from_ttm_type(u32 mem_type, struct ttm_place *place)
  */
 int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
 {
+	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
@@ -1875,6 +1876,18 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
 	placement.num_busy_placement = 1;
 	placement.placement = &requested;
 	placement.busy_placement = &requested;
+
+	/*
+	 * Stolen needs to be handled like below VRAM handling if we ever need
+	 * to support it.
+	 */
+	drm_WARN_ON(&xe->drm, mem_type == XE_PL_STOLEN);
+
+	if (mem_type_is_vram(mem_type)) {
+		u32 c = 0;
+
+		add_vram(xe, bo, &requested, bo->flags, mem_type, &c);
+	}
 
 	return ttm_bo_validate(&bo->ttm, &placement, &ctx);
 }
