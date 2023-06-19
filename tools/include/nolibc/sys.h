@@ -554,7 +554,11 @@ long getpagesize(void)
 static __attribute__((unused))
 int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
+#ifdef __NR_gettimeofday
 	return my_syscall2(__NR_gettimeofday, tv, tz);
+#else
+	return -ENOSYS;
+#endif
 }
 
 static __attribute__((unused))
@@ -672,7 +676,11 @@ int link(const char *old, const char *new)
 static __attribute__((unused))
 off_t sys_lseek(int fd, off_t offset, int whence)
 {
+#ifdef __NR_lseek
 	return my_syscall3(__NR_lseek, fd, offset, whence);
+#else
+	return -ENOSYS;
+#endif
 }
 
 static __attribute__((unused))
@@ -1338,7 +1346,11 @@ int unlink(const char *path)
 static __attribute__((unused))
 pid_t sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
 {
+#ifdef __NR_wait4
 	return my_syscall4(__NR_wait4, pid, status, options, rusage);
+#else
+	return -ENOSYS;
+#endif
 }
 
 static __attribute__((unused))
