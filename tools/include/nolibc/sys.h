@@ -124,7 +124,7 @@ int sys_chmod(const char *path, mode_t mode)
 #elif defined(__NR_chmod)
 	return my_syscall2(__NR_chmod, path, mode);
 #else
-#error Neither __NR_fchmodat nor __NR_chmod defined, cannot implement sys_chmod()
+	return -ENOSYS;
 #endif
 }
 
@@ -153,7 +153,7 @@ int sys_chown(const char *path, uid_t owner, gid_t group)
 #elif defined(__NR_chown)
 	return my_syscall3(__NR_chown, path, owner, group);
 #else
-#error Neither __NR_fchownat nor __NR_chown defined, cannot implement sys_chown()
+	return -ENOSYS;
 #endif
 }
 
@@ -251,7 +251,7 @@ int sys_dup2(int old, int new)
 #elif defined(__NR_dup2)
 	return my_syscall2(__NR_dup2, old, new);
 #else
-#error Neither __NR_dup3 nor __NR_dup2 defined, cannot implement sys_dup2()
+	return -ENOSYS;
 #endif
 }
 
@@ -351,7 +351,7 @@ pid_t sys_fork(void)
 #elif defined(__NR_fork)
 	return my_syscall0(__NR_fork);
 #else
-#error Neither __NR_clone nor __NR_fork defined, cannot implement sys_fork()
+	return -ENOSYS;
 #endif
 }
 #endif
@@ -648,7 +648,7 @@ int sys_link(const char *old, const char *new)
 #elif defined(__NR_link)
 	return my_syscall2(__NR_link, old, new);
 #else
-#error Neither __NR_linkat nor __NR_link defined, cannot implement sys_link()
+	return -ENOSYS;
 #endif
 }
 
@@ -700,7 +700,7 @@ int sys_mkdir(const char *path, mode_t mode)
 #elif defined(__NR_mkdir)
 	return my_syscall2(__NR_mkdir, path, mode);
 #else
-#error Neither __NR_mkdirat nor __NR_mkdir defined, cannot implement sys_mkdir()
+	return -ENOSYS;
 #endif
 }
 
@@ -729,7 +729,7 @@ long sys_mknod(const char *path, mode_t mode, dev_t dev)
 #elif defined(__NR_mknod)
 	return my_syscall3(__NR_mknod, path, mode, dev);
 #else
-#error Neither __NR_mknodat nor __NR_mknod defined, cannot implement sys_mknod()
+	return -ENOSYS;
 #endif
 }
 
@@ -848,7 +848,7 @@ int sys_open(const char *path, int flags, mode_t mode)
 #elif defined(__NR_open)
 	return my_syscall3(__NR_open, path, flags, mode);
 #else
-#error Neither __NR_openat nor __NR_open defined, cannot implement sys_open()
+	return -ENOSYS;
 #endif
 }
 
@@ -943,7 +943,7 @@ int sys_poll(struct pollfd *fds, int nfds, int timeout)
 #elif defined(__NR_poll)
 	return my_syscall3(__NR_poll, fds, nfds, timeout);
 #else
-#error Neither __NR_ppoll nor __NR_poll defined, cannot implement sys_poll()
+	return -ENOSYS;
 #endif
 }
 
@@ -1059,7 +1059,7 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 #endif
 	return my_syscall5(__NR__newselect, nfds, rfds, wfds, efds, timeout);
 #else
-#error None of __NR_select, __NR_pselect6, nor __NR__newselect defined, cannot implement sys_select()
+	return -ENOSYS;
 #endif
 }
 
@@ -1196,7 +1196,7 @@ int sys_stat(const char *path, struct stat *buf)
 #elif defined(__NR_stat)
 	ret = my_syscall2(__NR_stat, path, &stat);
 #else
-#error Neither __NR_newfstatat nor __NR_stat defined, cannot implement sys_stat()
+	return -ENOSYS;
 #endif
 	buf->st_dev          = stat.st_dev;
 	buf->st_ino          = stat.st_ino;
@@ -1243,7 +1243,7 @@ int sys_symlink(const char *old, const char *new)
 #elif defined(__NR_symlink)
 	return my_syscall2(__NR_symlink, old, new);
 #else
-#error Neither __NR_symlinkat nor __NR_symlink defined, cannot implement sys_symlink()
+	return -ENOSYS;
 #endif
 }
 
@@ -1312,7 +1312,7 @@ int sys_unlink(const char *path)
 #elif defined(__NR_unlink)
 	return my_syscall1(__NR_unlink, path);
 #else
-#error Neither __NR_unlinkat nor __NR_unlink defined, cannot implement sys_unlink()
+	return -ENOSYS;
 #endif
 }
 
