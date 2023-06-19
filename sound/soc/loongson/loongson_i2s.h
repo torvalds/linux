@@ -45,7 +45,7 @@
 struct loongson_dma_data {
 	dma_addr_t dev_addr;		/* device physical address for DMA */
 	void __iomem *order_addr;	/* DMA order register */
-	u32 irq;			/* DMA irq */
+	int irq;			/* DMA irq */
 };
 
 struct loongson_i2s {
