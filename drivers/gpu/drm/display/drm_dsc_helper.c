@@ -270,6 +270,28 @@ void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_payload,
 }
 EXPORT_SYMBOL(drm_dsc_pps_payload_pack);
 
+/**
+ * drm_dsc_set_const_params() - Set DSC parameters considered typically
+ * constant across operation modes
+ *
+ * @vdsc_cfg:
+ * DSC Configuration data partially filled by driver
+ */
+void drm_dsc_set_const_params(struct drm_dsc_config *vdsc_cfg)
+{
+	if (!vdsc_cfg->rc_model_size)
+		vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
+	vdsc_cfg->rc_edge_factor = DSC_RC_EDGE_FACTOR_CONST;
+	vdsc_cfg->rc_tgt_offset_high = DSC_RC_TGT_OFFSET_HI_CONST;
+	vdsc_cfg->rc_tgt_offset_low = DSC_RC_TGT_OFFSET_LO_CONST;
+
+	if (vdsc_cfg->bits_per_component <= 10)
+		vdsc_cfg->mux_word_size = DSC_MUX_WORD_SIZE_8_10_BPC;
+	else
+		vdsc_cfg->mux_word_size = DSC_MUX_WORD_SIZE_12_BPC;
+}
+EXPORT_SYMBOL(drm_dsc_set_const_params);
+
 /* From DSC_v1.11 spec, rc_parameter_Set syntax element typically constant */
 static const u16 drm_dsc_rc_buf_thresh[] = {
 	896, 1792, 2688, 3584, 4480, 5376, 6272, 6720, 7168, 7616,
@@ -1413,3 +1435,40 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	return 0;
 }
 EXPORT_SYMBOL(drm_dsc_compute_rc_parameters);
+
+/**
+ * drm_dsc_get_bpp_int() - Get integer bits per pixel value for the given DRM DSC config
+ * @vdsc_cfg: Pointer to DRM DSC config struct
+ *
+ * Return: Integer BPP value
+ */
+u32 drm_dsc_get_bpp_int(const struct drm_dsc_config *vdsc_cfg)
+{
+	WARN_ON_ONCE(vdsc_cfg->bits_per_pixel & 0xf);
+	return vdsc_cfg->bits_per_pixel >> 4;
+}
+EXPORT_SYMBOL(drm_dsc_get_bpp_int);
+
+/**
+ * drm_dsc_initial_scale_value() - Calculate the initial scale value for the given DSC config
+ * @dsc: Pointer to DRM DSC config struct
+ *
+ * Return: Calculated initial scale value
+ */
+u8 drm_dsc_initial_scale_value(const struct drm_dsc_config *dsc)
+{
+	return 8 * dsc->rc_model_size / (dsc->rc_model_size - dsc->initial_offset);
+}
+EXPORT_SYMBOL(drm_dsc_initial_scale_value);
+
+/**
+ * drm_dsc_flatness_det_thresh() - Calculate the flatness_det_thresh for the given DSC config
+ * @dsc: Pointer to DRM DSC config struct
+ *
+ * Return: Calculated flatness det thresh value
+ */
+u32 drm_dsc_flatness_det_thresh(const struct drm_dsc_config *dsc)
+{
+	return 2 << (dsc->bits_per_component - 8);
+}
+EXPORT_SYMBOL(drm_dsc_flatness_det_thresh);
