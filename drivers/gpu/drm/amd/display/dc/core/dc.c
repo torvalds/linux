@@ -4286,10 +4286,12 @@ static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_c
 
 static bool full_update_required(struct dc_surface_update *srf_updates,
 		int surface_count,
-		struct dc_stream_update *stream_update)
+		struct dc_stream_update *stream_update,
+		struct dc_stream_state *stream)
 {
 
 	int i;
+	struct dc_stream_status *stream_status;
 
 	for (i = 0; i < surface_count; i++) {
 		if (srf_updates &&
@@ -4333,16 +4335,23 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 			stream_update->crtc_timing_adjust))
 		return true;
 
+	if (stream) {
+		stream_status = dc_stream_get_status(stream);
+		if (stream_status == NULL || stream_status->plane_count != surface_count)
+			return true;
+	}
+
 	return false;
 }
 
 static bool fast_update_only(struct dc_fast_update *fast_update,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
-		struct dc_stream_update *stream_update)
+		struct dc_stream_update *stream_update,
+		struct dc_stream_state *stream)
 {
 	return fast_updates_exist(fast_update, surface_count)
-			&& !full_update_required(srf_updates, surface_count, stream_update);
+			&& !full_update_required(srf_updates, surface_count, stream_update, stream);
 }
 
 bool dc_update_planes_and_stream(struct dc *dc,
@@ -4414,7 +4423,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update) &&
+	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
@@ -4560,7 +4569,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update) &&
+	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
