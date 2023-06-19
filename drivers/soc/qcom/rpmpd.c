@@ -58,6 +58,7 @@ struct rpmpd {
 	struct qcom_smd_rpm *rpm;
 	unsigned int max_state;
 	__le32 key;
+	bool state_synced;
 };
 
 struct rpmpd_desc {
@@ -823,7 +824,11 @@ static int rpmpd_aggregate_corner(struct rpmpd *pd)
 	unsigned int this_active_corner = 0, this_sleep_corner = 0;
 	unsigned int peer_active_corner = 0, peer_sleep_corner = 0;
 
-	to_active_sleep(pd, pd->corner, &this_active_corner, &this_sleep_corner);
+	/* Clamp to the highest corner/level if sync_state isn't done yet */
+	if (!pd->state_synced)
+		this_active_corner = this_sleep_corner = pd->max_state - 1;
+	else
+		to_active_sleep(pd, pd->corner, &this_active_corner, &this_sleep_corner);
 
 	if (peer && peer->enabled)
 		to_active_sleep(peer, peer->corner, &peer_active_corner,
@@ -973,11 +978,38 @@ static int rpmpd_probe(struct platform_device *pdev)
 	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);
 }
 
+static void rpmpd_sync_state(struct device *dev)
+{
+	const struct rpmpd_desc *desc = of_device_get_match_data(dev);
+	struct rpmpd **rpmpds = desc->rpmpds;
+	struct rpmpd *pd;
+	unsigned int i;
+	int ret;
+
+	mutex_lock(&rpmpd_lock);
+	for (i = 0; i < desc->num_pds; i++) {
+		pd = rpmpds[i];
+		if (!pd)
+			continue;
+
+		pd->state_synced = true;
+
+		if (!pd->enabled)
+			pd->corner = 0;
+
+		ret = rpmpd_aggregate_corner(pd);
+		if (ret)
+			dev_err(dev, "failed to sync %s: %d\n", pd->pd.name, ret);
+	}
+	mutex_unlock(&rpmpd_lock);
+}
+
 static struct platform_driver rpmpd_driver = {
 	.driver = {
 		.name = "qcom-rpmpd",
 		.of_match_table = rpmpd_match_table,
 		.suppress_bind_attrs = true,
+		.sync_state = rpmpd_sync_state,
 	},
 	.probe = rpmpd_probe,
 };
