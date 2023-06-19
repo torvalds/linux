@@ -809,8 +809,9 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 		erpinfo_content = 0;
 		if (ieee->current_network.buseprotection)
 			erpinfo_content |= ERP_UseProtection;
-	} else
+	} else {
 		erp_len = 0;
+	}
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
@@ -1383,9 +1384,9 @@ static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
 
 	skb = rtllib_authentication_req(beacon, ieee, 0, daddr);
 
-	if (!skb)
+	if (!skb) {
 		rtllib_associate_abort(ieee);
-	else {
+	} else {
 		ieee->link_state = RTLLIB_ASSOCIATING_AUTHENTICATING;
 		netdev_dbg(ieee->dev, "Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
@@ -1408,9 +1409,9 @@ static void rtllib_auth_challenge(struct rtllib_device *ieee, u8 *challenge,
 
 	skb = rtllib_authentication_req(beacon, ieee, chlen + 2, beacon->bssid);
 
-	if (!skb)
+	if (!skb) {
 		rtllib_associate_abort(ieee);
-	else {
+	} else {
 		c = skb_put(skb, chlen + 2);
 		*(c++) = MFIE_TYPE_CHALLENGE;
 		*(c++) = chlen;
@@ -1439,9 +1440,9 @@ static void rtllib_associate_step2(struct rtllib_device *ieee)
 
 	ieee->softmac_stats.tx_ass_rq++;
 	skb = rtllib_association_req(beacon, ieee);
-	if (!skb)
+	if (!skb) {
 		rtllib_associate_abort(ieee);
-	else {
+	} else {
 		softmac_mgmt_xmit(skb, ieee);
 		mod_timer(&ieee->associate_timer, jiffies + (HZ / 2));
 	}
@@ -1583,11 +1584,12 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				net->ssid_len = net->hidden_ssid_len;
 				ssidbroad = 1;
 			}
-		} else
+		} else {
 			ssidmatch =
 			   (ieee->current_network.ssid_len == net->ssid_len) &&
 			   (!strncmp(ieee->current_network.ssid, net->ssid,
 			   net->ssid_len));
+		}
 
 		/* if the user set the AP check if match.
 		 * if the network does not broadcast essid we check the
@@ -2536,8 +2538,9 @@ static void rtllib_start_ibss_wq(void *data)
 			ieee->current_network.rates[3] =
 				 RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_11MB;
 
-		} else
+		} else {
 			ieee->current_network.rates_len = 0;
+		}
 
 		if (ieee->modulation & RTLLIB_OFDM_MODULATION) {
 			ieee->current_network.rates_ex_len = 8;
@@ -3119,10 +3122,10 @@ void notify_wx_assoc_event(struct rtllib_device *ieee)
 		return;
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	if (ieee->link_state == MAC80211_LINKED)
+	if (ieee->link_state == MAC80211_LINKED) {
 		memcpy(wrqu.ap_addr.sa_data, ieee->current_network.bssid,
 		       ETH_ALEN);
-	else {
+	} else {
 		netdev_info(ieee->dev, "%s(): Tell user space disconnected\n",
 			    __func__);
 		eth_zero_addr(wrqu.ap_addr.sa_data);

@@ -39,8 +39,9 @@ void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		BitShift = _rtl92e_calculate_bit_shift(dwBitMask);
 		NewValue = (OriginalValue & ~dwBitMask) | (dwData << BitShift);
 		rtl92e_writel(dev, dwRegAddr, NewValue);
-	} else
+	} else {
 		rtl92e_writel(dev, dwRegAddr, dwData);
+	}
 }
 
 u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
@@ -163,10 +164,10 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 
 			_rtl92e_phy_rf_fw_write(dev, eRFPath, RegAddr,
 						New_Value);
-		} else
+		} else {
 			_rtl92e_phy_rf_fw_write(dev, eRFPath, RegAddr, Data);
+		}
 		udelay(200);
-
 	} else {
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_read(dev, eRFPath,
@@ -175,8 +176,9 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 			New_Value = (Original_Value & ~BitMask) | (Data << BitShift);
 
 			_rtl92e_phy_rf_write(dev, eRFPath, RegAddr, New_Value);
-		} else
+		} else {
 			_rtl92e_phy_rf_write(dev, eRFPath, RegAddr, Data);
+		}
 	}
 }
 

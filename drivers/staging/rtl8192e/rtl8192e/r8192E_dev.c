@@ -765,8 +765,9 @@ void rtl92e_link_change(struct net_device *dev)
 				;
 			else
 				priv->receive_config = reg |= RCR_CBSSID;
-		} else
+		} else {
 			priv->receive_config = reg &= ~RCR_CBSSID;
+		}
 
 		rtl92e_writel(dev, RCR, reg);
 	}

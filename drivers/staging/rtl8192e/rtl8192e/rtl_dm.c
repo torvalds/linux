@@ -622,8 +622,9 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 				} else if (priv->rtllib->current_network.channel != 14 && priv->bcck_in_ch14) {
 					priv->bcck_in_ch14 = false;
 					rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-				} else
+				} else {
 					rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+				}
 			}
 
 			if (priv->cck_present_attn_diff <= -12 ||

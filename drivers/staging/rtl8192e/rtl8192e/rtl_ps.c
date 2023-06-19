@@ -219,8 +219,9 @@ void rtl92e_leisure_ps_enter(struct net_device *dev)
 
 			if (priv->rtllib->ps == RTLLIB_PS_DISABLED)
 				_rtl92e_ps_set_mode(dev, RTLLIB_PS_MBCAST | RTLLIB_PS_UNICAST);
-		} else
+		} else {
 			psc->LpsIdleCount++;
+		}
 	}
 }
 
