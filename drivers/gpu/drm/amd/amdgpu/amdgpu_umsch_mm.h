@@ -147,6 +147,10 @@ struct amdgpu_umsch_mm {
 	uint64_t			data_start_addr;
 	uint32_t			data_size;
 
+	struct amdgpu_bo		*cmd_buf_obj;
+	uint64_t			cmd_buf_gpu_addr;
+	uint32_t			*cmd_buf_ptr;
+
 	uint32_t			wb_index;
 	uint64_t			sch_ctx_gpu_addr;
 	uint32_t			*sch_ctx_cpu_addr;
@@ -163,12 +167,16 @@ struct amdgpu_umsch_mm {
 	struct mutex			mutex_hidden;
 };
 
+int umsch_mm_psp_update_sram(struct amdgpu_device *adev, u32 ucode_size);
+
 int amdgpu_umsch_mm_submit_pkt(struct amdgpu_umsch_mm *umsch, void *pkt, int ndws);
 int amdgpu_umsch_mm_query_fence(struct amdgpu_umsch_mm *umsch);
 
 int amdgpu_umsch_mm_init_microcode(struct amdgpu_umsch_mm *umsch);
 int amdgpu_umsch_mm_allocate_ucode_buffer(struct amdgpu_umsch_mm *umsch);
 int amdgpu_umsch_mm_allocate_ucode_data_buffer(struct amdgpu_umsch_mm *umsch);
+void* amdgpu_umsch_mm_add_cmd(struct amdgpu_umsch_mm *umsch,
+			      void* cmd_ptr, uint32_t reg_offset, uint32_t reg_data);
 
 int amdgpu_umsch_mm_ring_init(struct amdgpu_umsch_mm *umsch);
 

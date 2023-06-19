@@ -2399,6 +2399,15 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_VPE:
 		*type = GFX_FW_TYPE_VPE;
 		break;
+	case AMDGPU_UCODE_ID_UMSCH_MM_UCODE:
+		*type = GFX_FW_TYPE_UMSCH_UCODE;
+		break;
+	case AMDGPU_UCODE_ID_UMSCH_MM_DATA:
+		*type = GFX_FW_TYPE_UMSCH_DATA;
+		break;
+	case AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER:
+		*type = GFX_FW_TYPE_UMSCH_CMD_BUFFER;
+		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
 		return -EINVAL;

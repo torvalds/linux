@@ -664,6 +664,16 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "DMCUB";
 	case AMDGPU_UCODE_ID_CAP:
 		return "CAP";
+	case AMDGPU_UCODE_ID_VPE_CTX:
+		return "VPE_CTX";
+	case AMDGPU_UCODE_ID_VPE_CTL:
+		return "VPE_CTL";
+	case AMDGPU_UCODE_ID_VPE:
+		return "VPE";
+	case AMDGPU_UCODE_ID_UMSCH_MM_UCODE:
+		return "UMSCH_MM_UCODE";
+	case AMDGPU_UCODE_ID_UMSCH_MM_DATA:
+		return "UMSCH_MM_DATA";
 	default:
 		return "UNKNOWN UCODE";
 	}
@@ -750,6 +760,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	const struct sdma_firmware_header_v2_0 *sdma_hdr = NULL;
 	const struct imu_firmware_header_v1_0 *imu_hdr = NULL;
 	const struct vpe_firmware_header_v1_0 *vpe_hdr = NULL;
+	const struct umsch_mm_firmware_header_v1_0 *umsch_mm_hdr = NULL;
 	u8 *ucode_addr;
 
 	if (!ucode->fw)
@@ -961,6 +972,16 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 			ucode->ucode_size = le32_to_cpu(vpe_hdr->ctl_ucode_size_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(vpe_hdr->ctl_ucode_offset);
+			break;
+		case AMDGPU_UCODE_ID_UMSCH_MM_UCODE:
+			ucode->ucode_size = le32_to_cpu(umsch_mm_hdr->umsch_mm_ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(umsch_mm_hdr->header.ucode_array_offset_bytes);
+			break;
+		case AMDGPU_UCODE_ID_UMSCH_MM_DATA:
+			ucode->ucode_size = le32_to_cpu(umsch_mm_hdr->umsch_mm_ucode_data_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(umsch_mm_hdr->umsch_mm_ucode_data_offset_bytes);
 			break;
 		default:
 			ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);

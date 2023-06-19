@@ -76,6 +76,17 @@ struct umsch_mm_test {
 	uint32_t		num_queues;
 };
 
+int umsch_mm_psp_update_sram(struct amdgpu_device *adev, u32 ucode_size)
+{
+	struct amdgpu_firmware_info ucode = {
+		.ucode_id = AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER,
+		.mc_addr = adev->umsch_mm.cmd_buf_gpu_addr,
+		.ucode_size = ucode_size,
+	};
+
+	return psp_execute_ip_fw_load(&adev->psp, &ucode);
+}
+
 static int map_ring_data(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			  struct amdgpu_bo *bo, struct amdgpu_bo_va **bo_va,
 			  uint64_t addr, uint32_t size)
@@ -600,6 +611,22 @@ int amdgpu_umsch_mm_init_microcode(struct amdgpu_umsch_mm *umsch)
 		le32_to_cpu(umsch_mm_hdr->umsch_mm_data_start_addr_lo) |
 		((uint64_t)(le32_to_cpu(umsch_mm_hdr->umsch_mm_data_start_addr_hi)) << 32);
 
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		struct amdgpu_firmware_info *info;
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_UMSCH_MM_UCODE];
+		info->ucode_id = AMDGPU_UCODE_ID_UMSCH_MM_UCODE;
+		info->fw = adev->umsch_mm.fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(umsch_mm_hdr->umsch_mm_ucode_size_bytes), PAGE_SIZE);
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_UMSCH_MM_DATA];
+		info->ucode_id = AMDGPU_UCODE_ID_UMSCH_MM_DATA;
+		info->fw = adev->umsch_mm.fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(umsch_mm_hdr->umsch_mm_ucode_data_size_bytes), PAGE_SIZE);
+	}
+
 	return 0;
 }
 
@@ -667,6 +694,17 @@ int amdgpu_umsch_mm_allocate_ucode_data_buffer(struct amdgpu_umsch_mm *umsch)
 	return 0;
 }
 
+void* amdgpu_umsch_mm_add_cmd(struct amdgpu_umsch_mm *umsch,
+			      void* cmd_ptr, uint32_t reg_offset, uint32_t reg_data)
+{
+	uint32_t* ptr = (uint32_t *)cmd_ptr;
+
+	*ptr++ = (reg_offset << 2);
+	*ptr++ = reg_data;
+
+	return ptr;
+}
+
 static void umsch_mm_agdb_index_init(struct amdgpu_device *adev)
 {
 	uint32_t umsch_mm_agdb_start;
@@ -696,6 +734,17 @@ static int umsch_mm_init(struct amdgpu_device *adev)
 
 	adev->umsch_mm.sch_ctx_gpu_addr = adev->wb.gpu_addr +
 					  (adev->umsch_mm.wb_index * 4);
+
+	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &adev->umsch_mm.cmd_buf_obj,
+				    &adev->umsch_mm.cmd_buf_gpu_addr,
+				    (void **)&adev->umsch_mm.cmd_buf_ptr);
+	if (r) {
+		dev_err(adev->dev, "failed to allocate cmdbuf bo %d\n", r);
+		amdgpu_device_wb_free(adev, adev->umsch_mm.wb_index);
+		return r;
+	}
 
 	mutex_init(&adev->umsch_mm.mutex_hidden);
 
@@ -760,6 +809,11 @@ static int umsch_mm_sw_fini(void *handle)
 	amdgpu_ring_fini(&adev->umsch_mm.ring);
 
 	mutex_destroy(&adev->umsch_mm.mutex_hidden);
+
+	amdgpu_bo_free_kernel(&adev->umsch_mm.cmd_buf_obj,
+			      &adev->umsch_mm.cmd_buf_gpu_addr,
+			      (void **)&adev->umsch_mm.cmd_buf_ptr);
+
 	amdgpu_device_wb_free(adev, adev->umsch_mm.wb_index);
 
 	return 0;
