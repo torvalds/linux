@@ -3301,13 +3301,134 @@ int dwc3_msm_get_repeater_ver(struct dwc3_msm *mdwc)
 	return ver;
 }
 
+static void handle_gsi_buffer_setup_event(struct dwc3 *dwc)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
+	struct dwc3_event_buffer *evt;
+	int i;
+
+	if (!mdwc->gsi_ev_buff)
+		return;
+
+	for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
+		evt = mdwc->gsi_ev_buff[i];
+		if (!evt)
+			break;
+
+		dev_dbg(mdwc->dev, "Evt buf %pK dma %08llx length %d\n",
+			evt->buf, (unsigned long long) evt->dma,
+			evt->length);
+		memset(evt->buf, 0, evt->length);
+		evt->lpos = 0;
+		/*
+		 * Primary event buffer is programmed with registers
+		 * DWC3_GEVNT*(0). Hence use DWC3_GEVNT*(i+1) to
+		 * program USB GSI related event buffer with DWC3
+		 * controller.
+		 */
+		dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTADRLO((i+1)),
+			lower_32_bits(evt->dma));
+		dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTADRHI((i+1)),
+			(upper_32_bits(evt->dma) & 0xffff) |
+			DWC3_GEVNTADRHI_EVNTADRHI_GSI_EN(
+			DWC3_GEVENT_TYPE_GSI) |
+			DWC3_GEVNTADRHI_EVNTADRHI_GSI_IDX((i+1)));
+		dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTSIZ((i+1)),
+			DWC3_GEVNTCOUNT_EVNTINTRPTMASK |
+			((evt->length) & 0xffff));
+		dwc3_msm_write_reg(mdwc->base,
+				DWC3_GEVNTCOUNT((i+1)), 0);
+	}
+}
+
+static void handle_gsi_buffer_cleanup_event(struct dwc3 *dwc)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
+	struct dwc3_event_buffer *evt;
+	int i;
+
+	if (!mdwc->gsi_ev_buff)
+		return;
+
+	for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
+		evt = mdwc->gsi_ev_buff[i];
+		evt->lpos = 0;
+		/*
+		 * Primary event buffer is programmed with registers
+		 * DWC3_GEVNT*(0). Hence use DWC3_GEVNT*(i+1) to
+		 * program USB GSI related event buffer with DWC3
+		 * controller.
+		 */
+		dwc3_msm_write_reg(mdwc->base,
+				DWC3_GEVNTADRLO((i+1)), 0);
+		dwc3_msm_write_reg(mdwc->base,
+				DWC3_GEVNTADRHI((i+1)), 0);
+		dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTSIZ((i+1)),
+				DWC3_GEVNTSIZ_INTMASK |
+				DWC3_GEVNTSIZ_SIZE((i+1)));
+		dwc3_msm_write_reg(mdwc->base,
+				DWC3_GEVNTCOUNT((i+1)), 0);
+	}
+}
+
+static void handle_gsi_buffer_free_event(struct dwc3 *dwc)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
+	struct dwc3_event_buffer *evt;
+	int i;
+
+	if (!mdwc->gsi_ev_buff)
+		return;
+
+	for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
+		evt = mdwc->gsi_ev_buff[i];
+		if (evt)
+			dma_free_coherent(dwc->sysdev, evt->length,
+						evt->buf, evt->dma);
+	}
+	if (mdwc->dummy_gsi_db_dma) {
+		dma_unmap_single(dwc->sysdev, mdwc->dummy_gsi_db_dma,
+				 sizeof(mdwc->dummy_gsi_db),
+				 DMA_FROM_DEVICE);
+		mdwc->dummy_gsi_db_dma = (dma_addr_t)NULL;
+	}
+}
+
+static void handle_gsi_buffer_clear_event(struct dwc3 *dwc)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
+	u32 reg;
+	int i;
+
+	for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
+		reg = dwc3_msm_read_reg(mdwc->base,
+				DWC3_GEVNTCOUNT((i+1)));
+		reg &= DWC3_GEVNTCOUNT_MASK;
+		dwc3_msm_write_reg(mdwc->base,
+				DWC3_GEVNTCOUNT((i+1)), reg);
+		dbg_log_string("remaining EVNTCOUNT(%d)=%d", i+1, reg);
+	}
+}
+
+static void handle_gsi_clear_db(struct dwc3 *dwc)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
+
+	if (mdwc->gsi_reg) {
+		dwc3_msm_write_reg_field(mdwc->base,
+			GSI_GENERAL_CFG_REG(mdwc->gsi_reg),
+			BLOCK_GSI_WR_GO_MASK, true);
+		dwc3_msm_write_reg_field(mdwc->base,
+			GSI_GENERAL_CFG_REG(mdwc->gsi_reg),
+			GSI_EN_MASK, 0);
+	}
+}
+
 void dwc3_msm_notify_event(struct dwc3 *dwc,
 		enum dwc3_notify_event event, unsigned int value)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
-	struct dwc3_event_buffer *evt;
 	u32 reg;
-	int i;
 
 	switch (event) {
 	case DWC3_CONTROLLER_ERROR_EVENT:
@@ -3388,106 +3509,26 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 		break;
 	case DWC3_GSI_EVT_BUF_SETUP:
 		dev_dbg(mdwc->dev, "DWC3_GSI_EVT_BUF_SETUP\n");
-		if (!mdwc->gsi_ev_buff)
-			break;
-
-		for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
-			evt = mdwc->gsi_ev_buff[i];
-			if (!evt)
-				break;
-
-			dev_dbg(mdwc->dev, "Evt buf %pK dma %08llx length %d\n",
-				evt->buf, (unsigned long long) evt->dma,
-				evt->length);
-			memset(evt->buf, 0, evt->length);
-			evt->lpos = 0;
-			/*
-			 * Primary event buffer is programmed with registers
-			 * DWC3_GEVNT*(0). Hence use DWC3_GEVNT*(i+1) to
-			 * program USB GSI related event buffer with DWC3
-			 * controller.
-			 */
-			dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTADRLO((i+1)),
-				lower_32_bits(evt->dma));
-			dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTADRHI((i+1)),
-				(upper_32_bits(evt->dma) & 0xffff) |
-				DWC3_GEVNTADRHI_EVNTADRHI_GSI_EN(
-				DWC3_GEVENT_TYPE_GSI) |
-				DWC3_GEVNTADRHI_EVNTADRHI_GSI_IDX((i+1)));
-			dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTSIZ((i+1)),
-				DWC3_GEVNTCOUNT_EVNTINTRPTMASK |
-				((evt->length) & 0xffff));
-			dwc3_msm_write_reg(mdwc->base,
-					DWC3_GEVNTCOUNT((i+1)), 0);
-		}
+		handle_gsi_buffer_setup_event(dwc);
 		break;
 	case DWC3_GSI_EVT_BUF_CLEANUP:
 		dev_dbg(mdwc->dev, "DWC3_GSI_EVT_BUF_CLEANUP\n");
-		if (!mdwc->gsi_ev_buff)
-			break;
-
-		for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
-			evt = mdwc->gsi_ev_buff[i];
-			evt->lpos = 0;
-			/*
-			 * Primary event buffer is programmed with registers
-			 * DWC3_GEVNT*(0). Hence use DWC3_GEVNT*(i+1) to
-			 * program USB GSI related event buffer with DWC3
-			 * controller.
-			 */
-			dwc3_msm_write_reg(mdwc->base,
-					DWC3_GEVNTADRLO((i+1)), 0);
-			dwc3_msm_write_reg(mdwc->base,
-					DWC3_GEVNTADRHI((i+1)), 0);
-			dwc3_msm_write_reg(mdwc->base, DWC3_GEVNTSIZ((i+1)),
-					DWC3_GEVNTSIZ_INTMASK |
-					DWC3_GEVNTSIZ_SIZE((i+1)));
-			dwc3_msm_write_reg(mdwc->base,
-					DWC3_GEVNTCOUNT((i+1)), 0);
-		}
+		handle_gsi_buffer_cleanup_event(dwc);
 		break;
 	case DWC3_GSI_EVT_BUF_FREE:
 		dev_dbg(mdwc->dev, "DWC3_GSI_EVT_BUF_FREE\n");
-		if (!mdwc->gsi_ev_buff)
-			break;
-
-		for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
-			evt = mdwc->gsi_ev_buff[i];
-			if (evt)
-				dma_free_coherent(dwc->sysdev, evt->length,
-							evt->buf, evt->dma);
-		}
-		if (mdwc->dummy_gsi_db_dma) {
-			dma_unmap_single(dwc->sysdev, mdwc->dummy_gsi_db_dma,
-					 sizeof(mdwc->dummy_gsi_db),
-					 DMA_FROM_DEVICE);
-			mdwc->dummy_gsi_db_dma = (dma_addr_t)NULL;
-		}
+		handle_gsi_buffer_free_event(dwc);
 		break;
 	case DWC3_GSI_EVT_BUF_CLEAR:
 		dev_dbg(mdwc->dev, "DWC3_GSI_EVT_BUF_CLEAR\n");
-		for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
-			reg = dwc3_msm_read_reg(mdwc->base,
-					DWC3_GEVNTCOUNT((i+1)));
-			reg &= DWC3_GEVNTCOUNT_MASK;
-			dwc3_msm_write_reg(mdwc->base,
-					DWC3_GEVNTCOUNT((i+1)), reg);
-			dbg_log_string("remaining EVNTCOUNT(%d)=%d", i+1, reg);
-		}
+		handle_gsi_buffer_clear_event(dwc);
 		break;
 	case DWC3_CONTROLLER_NOTIFY_DISABLE_UPDXFER:
 		dwc3_msm_dbm_disable_updxfer(dwc, value);
 		break;
 	case DWC3_CONTROLLER_NOTIFY_CLEAR_DB:
 		dev_dbg(mdwc->dev, "DWC3_CONTROLLER_NOTIFY_CLEAR_DB\n");
-		if (mdwc->gsi_reg) {
-			dwc3_msm_write_reg_field(mdwc->base,
-				GSI_GENERAL_CFG_REG(mdwc->gsi_reg),
-				BLOCK_GSI_WR_GO_MASK, true);
-			dwc3_msm_write_reg_field(mdwc->base,
-				GSI_GENERAL_CFG_REG(mdwc->gsi_reg),
-				GSI_EN_MASK, 0);
-		}
+		handle_gsi_clear_db(dwc);
 		break;
 	case DWC3_IMEM_UPDATE_PID:
 		dwc3_msm_update_imem_pid(dwc);
