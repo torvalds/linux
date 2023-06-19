@@ -2830,15 +2830,19 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 	 * attempts does not fail just because the user provide the essid
 	 * and the nic is still checking for the AP MAC ??
 	 */
-	if (ieee->iw_mode == IW_MODE_INFRA) {
+	switch (ieee->iw_mode) {
+	case IW_MODE_INFRA:
 		rtllib_start_bss(ieee);
-	} else if (ieee->iw_mode == IW_MODE_ADHOC) {
+		break;
+	case IW_MODE_ADHOC:
 		rtllib_start_ibss(ieee);
-
-	} else if (ieee->iw_mode == IW_MODE_MASTER) {
+		break;
+	case IW_MODE_MASTER:
 		rtllib_start_master_bss(ieee);
-	} else if (ieee->iw_mode == IW_MODE_MONITOR) {
+		break;
+	case IW_MODE_MONITOR:
 		rtllib_start_monitor_mode(ieee);
+		break;
 	}
 }
 
