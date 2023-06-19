@@ -17,6 +17,19 @@
 
 #include <asm/octeon/octeon.h>
 
+#define USBDRD_UCTL_CTL				0x00
+#define USBDRD_UCTL_BIST_STATUS			0x08
+#define USBDRD_UCTL_SPARE0			0x10
+#define USBDRD_UCTL_INTSTAT			0x30
+#define USBDRD_UCTL_PORT_CFG_HS(port)		(0x40 + (0x20 * port))
+#define USBDRD_UCTL_PORT_CFG_SS(port)		(0x48 + (0x20 * port))
+#define USBDRD_UCTL_PORT_CR_DBG_CFG(port)	(0x50 + (0x20 * port))
+#define USBDRD_UCTL_PORT_CR_DBG_STATUS(port)	(0x58 + (0x20 * port))
+#define USBDRD_UCTL_HOST_CFG			0xe0
+#define USBDRD_UCTL_SHIM_CFG			0xe8
+#define USBDRD_UCTL_ECC				0xf0
+#define USBDRD_UCTL_SPARE1			0xf8
+
 /* USB Control Register */
 union cvm_usbdrd_uctl_ctl {
 	uint64_t u64;
@@ -227,7 +240,6 @@ static uint8_t clk_div[OCTEON_H_CLKDIV_SEL] = {1, 2, 4, 6, 8, 16, 24, 32};
 
 static int dwc3_octeon_config_power(struct device *dev, u64 base)
 {
-#define UCTL_HOST_CFG	0xe0
 	union cvm_usbdrd_uctl_host_cfg uctl_host_cfg;
 	union cvmx_gpio_bit_cfgx gpio_bit;
 	uint32_t gpio_pwr[3];
@@ -268,16 +280,16 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 		}
 
 		/* Enable XHCI power control and set if active high or low. */
-		uctl_host_cfg.u64 = cvmx_read_csr(base + UCTL_HOST_CFG);
+		uctl_host_cfg.u64 = cvmx_read_csr(base + USBDRD_UCTL_HOST_CFG);
 		uctl_host_cfg.s.ppc_en = 1;
 		uctl_host_cfg.s.ppc_active_high_en = !power_active_low;
-		cvmx_write_csr(base + UCTL_HOST_CFG, uctl_host_cfg.u64);
+		cvmx_write_csr(base + USBDRD_UCTL_HOST_CFG, uctl_host_cfg.u64);
 	} else {
 		/* Disable XHCI power control and set if active high. */
-		uctl_host_cfg.u64 = cvmx_read_csr(base + UCTL_HOST_CFG);
+		uctl_host_cfg.u64 = cvmx_read_csr(base + USBDRD_UCTL_HOST_CFG);
 		uctl_host_cfg.s.ppc_en = 0;
 		uctl_host_cfg.s.ppc_active_high_en = 0;
-		cvmx_write_csr(base + UCTL_HOST_CFG, uctl_host_cfg.u64);
+		cvmx_write_csr(base + USBDRD_UCTL_HOST_CFG, uctl_host_cfg.u64);
 		dev_info(dev, "power control disabled\n");
 	}
 	return 0;
@@ -464,10 +476,9 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 
 static void __init dwc3_octeon_set_endian_mode(u64 base)
 {
-#define UCTL_SHIM_CFG	0xe8
 	union cvm_usbdrd_uctl_shim_cfg shim_cfg;
 
-	shim_cfg.u64 = cvmx_read_csr(base + UCTL_SHIM_CFG);
+	shim_cfg.u64 = cvmx_read_csr(base + USBDRD_UCTL_SHIM_CFG);
 #ifdef __BIG_ENDIAN
 	shim_cfg.s.dma_endian_mode = 1;
 	shim_cfg.s.csr_endian_mode = 1;
@@ -475,20 +486,16 @@ static void __init dwc3_octeon_set_endian_mode(u64 base)
 	shim_cfg.s.dma_endian_mode = 0;
 	shim_cfg.s.csr_endian_mode = 0;
 #endif
-	cvmx_write_csr(base + UCTL_SHIM_CFG, shim_cfg.u64);
+	cvmx_write_csr(base + USBDRD_UCTL_SHIM_CFG, shim_cfg.u64);
 }
 
-#define CVMX_USBDRDX_UCTL_CTL(index)				\
-		(CVMX_ADD_IO_SEG(0x0001180068000000ull) +	\
-		((index & 1) * 0x1000000ull))
 static void __init dwc3_octeon_phy_reset(u64 base)
 {
 	union cvm_usbdrd_uctl_ctl uctl_ctl;
-	int index = (base >> 24) & 1;
 
-	uctl_ctl.u64 = cvmx_read_csr(CVMX_USBDRDX_UCTL_CTL(index));
+	uctl_ctl.u64 = cvmx_read_csr(base + USBDRD_UCTL_CTL);
 	uctl_ctl.s.uphy_rst = 0;
-	cvmx_write_csr(CVMX_USBDRDX_UCTL_CTL(index), uctl_ctl.u64);
+	cvmx_write_csr(base + USBDRD_UCTL_CTL, uctl_ctl.u64);
 }
 
 static int __init dwc3_octeon_device_init(void)
