@@ -4504,6 +4504,9 @@ static inline bool for_each_element_completed(const struct element *element,
 #define IEEE80211_RNR_TBTT_PARAMS_PROBE_ACTIVE			0x20
 #define IEEE80211_RNR_TBTT_PARAMS_COLOC_AP			0x40
 
+#define IEEE80211_RNR_TBTT_PARAMS_PSD_NO_LIMIT			127
+#define IEEE80211_RNR_TBTT_PARAMS_PSD_RESERVED			-128
+
 struct ieee80211_neighbor_ap_info {
 	u8 tbtt_info_hdr;
 	u8 tbtt_info_len;
@@ -4539,7 +4542,7 @@ struct ieee80211_tbtt_info_7_8_9 {
 
 	/* The following element is optional, structure may not grow */
 	u8 bss_params;
-	u8 psd_20;
+	s8 psd_20;
 } __packed;
 
 /* Format of the TBTT information element if it has >= 11 bytes */
@@ -4550,7 +4553,7 @@ struct ieee80211_tbtt_info_ge_11 {
 
 	/* The following elements are optional, structure may grow */
 	u8 bss_params;
-	u8 psd_20;
+	s8 psd_20;
 	struct ieee80211_rnr_mld_params mld_params;
 } __packed;
 

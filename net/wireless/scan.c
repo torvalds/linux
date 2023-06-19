@@ -96,6 +96,7 @@ MODULE_PARM_DESC(bss_entries_limit,
  *	colocated and can be discovered via legacy bands.
  * @short_ssid_valid: short_ssid is valid and can be used
  * @short_ssid: the short SSID for this SSID
+ * @psd_20: The 20MHz PSD EIRP of the primary 20MHz channel for the reported AP
  */
 struct cfg80211_colocated_ap {
 	struct list_head list;
@@ -111,6 +112,7 @@ struct cfg80211_colocated_ap {
 	   transmitted_bssid:1,
 	   colocated_ess:1,
 	   short_ssid_valid:1;
+	s8 psd_20;
 };
 
 static void bss_free(struct cfg80211_internal_bss *bss)
@@ -578,6 +580,8 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 {
 	u8 bss_params;
 
+	entry->psd_20 = IEEE80211_RNR_TBTT_PARAMS_PSD_RESERVED;
+
 	/* The length is already verified by the caller to contain bss_params */
 	if (length > sizeof(struct ieee80211_tbtt_info_7_8_9)) {
 		struct ieee80211_tbtt_info_ge_11 *tbtt_info = (void *)pos;
@@ -594,12 +598,20 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 					  IEEE80211_RNR_MLD_PARAMS_DISABLED_LINK))
 				return -EINVAL;
 		}
+
+		if (length >= offsetofend(struct ieee80211_tbtt_info_ge_11,
+					  psd_20))
+			entry->psd_20 = tbtt_info->psd_20;
 	} else {
 		struct ieee80211_tbtt_info_7_8_9 *tbtt_info = (void *)pos;
 
 		memcpy(entry->bssid, tbtt_info->bssid, ETH_ALEN);
 
 		bss_params = tbtt_info->bss_params;
+
+		if (length == offsetofend(struct ieee80211_tbtt_info_7_8_9,
+					  psd_20))
+			entry->psd_20 = tbtt_info->psd_20;
 	}
 
 	/* ignore entries with invalid BSSID */
@@ -904,6 +916,7 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 		scan_6ghz_params->short_ssid = ap->short_ssid;
 		scan_6ghz_params->short_ssid_valid = ap->short_ssid_valid;
 		scan_6ghz_params->unsolicited_probe = ap->unsolicited_probe;
+		scan_6ghz_params->psd_20 = ap->psd_20;
 
 		/*
 		 * If a PSC channel is added to the scan and 'need_scan_psc' is
