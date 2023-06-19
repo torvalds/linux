@@ -483,6 +483,35 @@ static int dexcr_get(struct task_struct *target, const struct user_regset *regse
 	return membuf_store(&to, (u64)lower_32_bits(mfspr(SPRN_HDEXCR_RO)));
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
+static int hashkeyr_active(struct task_struct *target, const struct user_regset *regset)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return regset->n;
+}
+
+static int hashkeyr_get(struct task_struct *target, const struct user_regset *regset,
+			struct membuf to)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return membuf_store(&to, target->thread.hashkeyr);
+}
+
+static int hashkeyr_set(struct task_struct *target, const struct user_regset *regset,
+			unsigned int pos, unsigned int count, const void *kbuf,
+			const void __user *ubuf)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, &target->thread.hashkeyr,
+				  0, sizeof(unsigned long));
+}
+#endif /* CONFIG_CHECKPOINT_RESTORE */
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_MEM_KEYS
@@ -649,6 +678,13 @@ static const struct user_regset native_regsets[] = {
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = dexcr_active, .regset_get = dexcr_get
 	},
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	[REGSET_HASHKEYR] = {
+		.core_note_type = NT_PPC_HASHKEYR, .n = ELF_NHASHKEYR,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = hashkeyr_active, .regset_get = hashkeyr_get, .set = hashkeyr_set
+	},
+#endif
 #endif
 #ifdef CONFIG_PPC_MEM_KEYS
 	[REGSET_PKEY] = {

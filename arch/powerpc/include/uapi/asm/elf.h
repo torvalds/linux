@@ -99,6 +99,7 @@
 #define ELF_NPMU	5	/* includes siar, sdar, sier, mmcr2, mmcr0 */
 #define ELF_NPKEY	3	/* includes amr, iamr, uamor */
 #define ELF_NDEXCR	2	/* includes dexcr, hdexcr */
+#define ELF_NHASHKEYR	1	/* includes hashkeyr */
 
 typedef unsigned long elf_greg_t64;
 typedef elf_greg_t64 elf_gregset_t64[ELF_NGREG];
