@@ -894,7 +894,7 @@ static int cal_ctx_v4l2_init_mc_format(struct cal_ctx *ctx)
 	const struct cal_format_info *fmtinfo;
 	struct v4l2_pix_format *pix_fmt = &ctx->v_fmt.fmt.pix;
 
-	fmtinfo = cal_format_by_code(MEDIA_BUS_FMT_UYVY8_2X8);
+	fmtinfo = cal_format_by_code(MEDIA_BUS_FMT_UYVY8_1X16);
 	if (!fmtinfo)
 		return -EINVAL;
 
