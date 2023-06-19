@@ -621,7 +621,7 @@
 			};
 		};
 
-		usb3_ss_phy: ssphy@9a000 {
+		usb3_ss_phy: usb-phy@9a000 {
 			compatible = "qcom,usb-ss-ipq4019-phy";
 			#phy-cells = <0>;
 			reg = <0x9a000 0x800>;
@@ -631,7 +631,7 @@
 			status = "disabled";
 		};
 
-		usb3_hs_phy: hsphy@a6000 {
+		usb3_hs_phy: usb-phy@a6000 {
 			compatible = "qcom,usb-hs-ipq4019-phy";
 			#phy-cells = <0>;
 			reg = <0xa6000 0x40>;
@@ -641,7 +641,7 @@
 			status = "disabled";
 		};
 
-		usb3: usb3@8af8800 {
+		usb3: usb@8af8800 {
 			compatible = "qcom,ipq4019-dwc3", "qcom,dwc3";
 			reg = <0x8af8800 0x100>;
 			#address-cells = <1>;
@@ -653,7 +653,7 @@
 			ranges;
 			status = "disabled";
 
-			dwc3@8a00000 {
+			usb3_dwc: usb@8a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x8a00000 0xf8000>;
 				interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
@@ -663,7 +663,7 @@
 			};
 		};
 
-		usb2_hs_phy: hsphy@a8000 {
+		usb2_hs_phy: usb-phy@a8000 {
 			compatible = "qcom,usb-hs-ipq4019-phy";
 			#phy-cells = <0>;
 			reg = <0xa8000 0x40>;
@@ -673,7 +673,7 @@
 			status = "disabled";
 		};
 
-		usb2: usb2@60f8800 {
+		usb2: usb@60f8800 {
 			compatible = "qcom,ipq4019-dwc3", "qcom,dwc3";
 			reg = <0x60f8800 0x100>;
 			#address-cells = <1>;
@@ -685,7 +685,7 @@
 			ranges;
 			status = "disabled";
 
-			dwc3@6000000 {
+			usb@6000000 {
 				compatible = "snps,dwc3";
 				reg = <0x6000000 0xf8000>;
 				interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
