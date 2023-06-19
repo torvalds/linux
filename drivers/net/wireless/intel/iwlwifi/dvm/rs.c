@@ -203,23 +203,6 @@ static const u16 expected_tpt_mimo3_40MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 277, 0, 478, 624, 737, 911, 1026, 1070, 1109}, /* AGG+SGI */
 };
 
-/* mbps, mcs */
-static const struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
-	{  "1", "BPSK DSSS"},
-	{  "2", "QPSK DSSS"},
-	{"5.5", "BPSK CCK"},
-	{ "11", "QPSK CCK"},
-	{  "6", "BPSK 1/2"},
-	{  "9", "BPSK 1/2"},
-	{ "12", "QPSK 1/2"},
-	{ "18", "QPSK 3/4"},
-	{ "24", "16QAM 1/2"},
-	{ "36", "16QAM 3/4"},
-	{ "48", "64QAM 2/3"},
-	{ "54", "64QAM 3/4"},
-	{ "60", "64QAM 5/6"},
-};
-
 #define MCS_INDEX_PER_STREAM	(8)
 
 static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
@@ -3088,6 +3071,23 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	int i = 0;
 	int index = 0;
 	ssize_t ret;
+
+	/* mbps, mcs */
+	static const struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
+		{  "1", "BPSK DSSS"},
+		{  "2", "QPSK DSSS"},
+		{"5.5", "BPSK CCK"},
+		{ "11", "QPSK CCK"},
+		{  "6", "BPSK 1/2"},
+		{  "9", "BPSK 1/2"},
+		{ "12", "QPSK 1/2"},
+		{ "18", "QPSK 3/4"},
+		{ "24", "16QAM 1/2"},
+		{ "36", "16QAM 3/4"},
+		{ "48", "64QAM 2/3"},
+		{ "54", "64QAM 3/4"},
+		{ "60", "64QAM 5/6"},
+	};
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
 	struct iwl_priv *priv;
