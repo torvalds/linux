@@ -116,112 +116,6 @@ static unsigned long find_bl_target(unsigned long ip, ppc_inst_t op)
 	return ip + (long)offset;
 }
 
-#ifdef CONFIG_MODULES
-static int
-__ftrace_make_nop(struct module *mod,
-		  struct dyn_ftrace *rec, unsigned long addr)
-{
-	unsigned long entry, ptr, tramp;
-	unsigned long ip = rec->ip;
-	ppc_inst_t op, pop;
-
-	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)ip)) {
-		pr_err("Fetching opcode failed.\n");
-		return -EFAULT;
-	}
-
-	/* Make sure that this is still a 24bit jump */
-	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
-		return -EINVAL;
-	}
-
-	/* lets find where the pointer goes */
-	tramp = find_bl_target(ip, op);
-
-	pr_devel("ip:%lx jumps to %lx", ip, tramp);
-
-	if (module_trampoline_target(mod, tramp, &ptr)) {
-		pr_err("Failed to get trampoline target\n");
-		return -EFAULT;
-	}
-
-	pr_devel("trampoline target %lx", ptr);
-
-	entry = ppc_global_function_entry((void *)addr);
-	/* This should match what was called */
-	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
-		return -EINVAL;
-	}
-
-	if (IS_ENABLED(CONFIG_MPROFILE_KERNEL)) {
-		if (copy_inst_from_kernel_nofault(&op, (void *)(ip - 4))) {
-			pr_err("Fetching instruction at %lx failed.\n", ip - 4);
-			return -EFAULT;
-		}
-
-		/* We expect either a mflr r0, or a std r0, LRSAVE(r1) */
-		if (!ppc_inst_equal(op, ppc_inst(PPC_RAW_MFLR(_R0))) &&
-		    !ppc_inst_equal(op, ppc_inst(PPC_INST_STD_LR))) {
-			pr_err("Unexpected instruction %08lx around bl _mcount\n",
-			       ppc_inst_as_ulong(op));
-			return -EINVAL;
-		}
-	} else if (IS_ENABLED(CONFIG_PPC64)) {
-		/*
-		 * Check what is in the next instruction. We can see ld r2,40(r1), but
-		 * on first pass after boot we will see mflr r0.
-		 */
-		if (copy_inst_from_kernel_nofault(&op, (void *)(ip + 4))) {
-			pr_err("Fetching op failed.\n");
-			return -EFAULT;
-		}
-
-		if (!ppc_inst_equal(op,  ppc_inst(PPC_INST_LD_TOC))) {
-			pr_err("Expected %08lx found %08lx\n", PPC_INST_LD_TOC,
-			       ppc_inst_as_ulong(op));
-			return -EINVAL;
-		}
-	}
-
-	/*
-	 * When using -mprofile-kernel or PPC32 there is no load to jump over.
-	 *
-	 * Otherwise our original call site looks like:
-	 *
-	 * bl <tramp>
-	 * ld r2,XX(r1)
-	 *
-	 * Milton Miller pointed out that we can not simply nop the branch.
-	 * If a task was preempted when calling a trace function, the nops
-	 * will remove the way to restore the TOC in r2 and the r2 TOC will
-	 * get corrupted.
-	 *
-	 * Use a b +8 to jump over the load.
-	 * XXX: could make PCREL depend on MPROFILE_KERNEL
-	 * XXX: check PCREL && MPROFILE_KERNEL calling sequence
-	 */
-	if (IS_ENABLED(CONFIG_MPROFILE_KERNEL) || IS_ENABLED(CONFIG_PPC32))
-		pop = ppc_inst(PPC_RAW_NOP());
-	else
-		pop = ppc_inst(PPC_RAW_BRANCH(8));	/* b +8 */
-
-	if (patch_instruction((u32 *)ip, pop)) {
-		pr_err("Patching NOP failed.\n");
-		return -EPERM;
-	}
-
-	return 0;
-}
-#else
-static int __ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
-{
-	return 0;
-}
-#endif /* CONFIG_MODULES */
-
 static unsigned long find_ftrace_tramp(unsigned long ip)
 {
 	int i;
@@ -233,88 +127,6 @@ static unsigned long find_ftrace_tramp(unsigned long ip)
 			return ftrace_tramps[i];
 
 	return 0;
-}
-
-static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
-{
-	unsigned long tramp, ip = rec->ip;
-	ppc_inst_t op;
-
-	/* Read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)ip)) {
-		pr_err("Fetching opcode failed.\n");
-		return -EFAULT;
-	}
-
-	/* Make sure that this is still a 24bit jump */
-	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
-		return -EINVAL;
-	}
-
-	/* Let's find where the pointer goes */
-	tramp = find_bl_target(ip, op);
-
-	pr_devel("ip:%lx jumps to %lx", ip, tramp);
-
-	/* Are ftrace trampolines reachable? */
-	if (!find_ftrace_tramp(ip)) {
-		pr_err("No ftrace trampolines reachable from %ps\n", (void *)ip);
-		return -EINVAL;
-	}
-
-	if (patch_instruction((u32 *)ip, ppc_inst(PPC_RAW_NOP()))) {
-		pr_err("Patching NOP failed.\n");
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-int ftrace_make_nop(struct module *mod,
-		    struct dyn_ftrace *rec, unsigned long addr)
-{
-	unsigned long ip = rec->ip;
-	ppc_inst_t old, new;
-
-	/*
-	 * If the calling address is more that 24 bits away,
-	 * then we had to use a trampoline to make the call.
-	 * Otherwise just update the call site.
-	 */
-	if (test_24bit_addr(ip, addr)) {
-		/* within range */
-		old = ftrace_call_replace(ip, addr, 1);
-		new = ppc_inst(PPC_RAW_NOP());
-		return ftrace_modify_code(ip, old, new);
-	} else if (core_kernel_text(ip)) {
-		return __ftrace_make_nop_kernel(rec, addr);
-	} else if (!IS_ENABLED(CONFIG_MODULES)) {
-		return -EINVAL;
-	}
-
-	/*
-	 * Out of range jumps are called from modules.
-	 * We should either already have a pointer to the module
-	 * or it has been passed in.
-	 */
-	if (!rec->arch.mod) {
-		if (!mod) {
-			pr_err("No module loaded addr=%lx\n", addr);
-			return -EFAULT;
-		}
-		rec->arch.mod = mod;
-	} else if (mod) {
-		if (mod != rec->arch.mod) {
-			pr_err("Record mod %p not equal to passed in mod %p\n",
-			       rec->arch.mod, mod);
-			return -EINVAL;
-		}
-		/* nothing to do if mod == rec->arch.mod */
-	} else
-		mod = rec->arch.mod;
-
-	return __ftrace_make_nop(mod, rec, addr);
 }
 
 #ifdef CONFIG_MODULES
@@ -606,6 +418,38 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return __ftrace_modify_call(rec, old_addr, addr);
 }
 #endif
+
+int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long tramp, ip = rec->ip;
+	ppc_inst_t old, new;
+
+	/* Nop-out the ftrace location */
+	new = ppc_inst(PPC_RAW_NOP());
+	if (is_offset_in_branch_range(addr - ip)) {
+		/* Within range */
+		old = ftrace_create_branch_inst(ip, addr, 1);
+		return ftrace_modify_code(ip, old, new);
+	} else if (core_kernel_text(ip)) {
+		/* We would be branching to one of our ftrace tramps */
+		tramp = find_ftrace_tramp(ip);
+		if (!tramp) {
+			pr_err("0x%lx: No ftrace trampolines reachable\n", ip);
+			return -EINVAL;
+		}
+		old = ftrace_create_branch_inst(ip, tramp, 1);
+		return ftrace_modify_code(ip, old, new);
+	} else if (IS_ENABLED(CONFIG_MODULES)) {
+		/* Module code would be going to one of the module stubs */
+		if (!mod)
+			mod = rec->arch.mod;
+		tramp = (addr == (unsigned long)ftrace_caller ? mod->arch.tramp : mod->arch.tramp_regs);
+		old = ftrace_create_branch_inst(ip, tramp, 1);
+		return ftrace_modify_code(ip, old, new);
+	}
+
+	return -EINVAL;
+}
 
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 {
