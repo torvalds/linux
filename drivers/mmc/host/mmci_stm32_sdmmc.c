@@ -361,6 +361,19 @@ static u32 sdmmc_get_dctrl_cfg(struct mmci_host *host)
 
 	datactrl = mmci_dctrl_blksz(host);
 
+	if (host->hw_revision >= 3) {
+		u32 thr = 0;
+
+		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
+		    host->mmc->ios.timing == MMC_TIMING_MMC_HS200) {
+			thr = ffs(min_t(unsigned int, host->data->blksz,
+					host->variant->fifosize));
+			thr = min_t(u32, thr, MMCI_STM32_THR_MASK);
+		}
+
+		writel_relaxed(thr, host->base + MMCI_STM32_FIFOTHRR);
+	}
+
 	if (host->mmc->card && mmc_card_sdio(host->mmc->card) &&
 	    host->data->blocks == 1)
 		datactrl |= MCI_DPSM_STM32_MODE_SDIO;

@@ -218,6 +218,11 @@
 #define MCI_STM32_BUSYD0ENDMASK	BIT(21)
 
 #define MMCIMASK1		0x040
+
+/* STM32 sdmmc data FIFO threshold register */
+#define MMCI_STM32_FIFOTHRR	0x044
+#define MMCI_STM32_THR_MASK	GENMASK(3, 0)
+
 #define MMCIFIFOCNT		0x048
 #define MMCIFIFO		0x080 /* to 0x0bc */
 
