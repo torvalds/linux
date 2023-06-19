@@ -4690,6 +4690,34 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 }
 
 /**
+ * ieee80211_mle_get_bss_param_ch_cnt - returns the BSS parameter change count
+ * @mle: the basic multi link element
+ *
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ *
+ * If the BSS parameter change count value can't be found (the presence bit
+ * for it is clear), 0 will be returned.
+ */
+static inline u8
+ieee80211_mle_get_bss_param_ch_cnt(const struct ieee80211_multi_link_elem *mle)
+{
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	/* common points now at the beginning of ieee80211_mle_basic_common_info */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT))
+		return 0;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+
+	return *common;
+}
+
+/**
  * ieee80211_mle_get_eml_sync_delay - returns the medium sync delay
  * @data: pointer to the multi link EHT IE
  *
@@ -4900,6 +4928,42 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len <= len;
+}
+
+/**
+ * ieee80211_mle_basic_sta_prof_bss_param_ch_cnt - get per-STA profile BSS
+ *	parameter change count
+ * @prof: the per-STA profile, having been checked with
+ *	ieee80211_mle_basic_sta_prof_size_ok() for the correct length
+ *
+ * Return: The BSS parameter change count value if present, 0 otherwise.
+ */
+static inline u8
+ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(const struct ieee80211_mle_per_sta_profile *prof)
+{
+	u16 control = le16_to_cpu(prof->control);
+	const u8 *pos = prof->variable;
+
+	if (!(control & IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT))
+		return 0;
+
+	if (control & IEEE80211_MLE_STA_CONTROL_STA_MAC_ADDR_PRESENT)
+		pos += 6;
+	if (control & IEEE80211_MLE_STA_CONTROL_BEACON_INT_PRESENT)
+		pos += 2;
+	if (control & IEEE80211_MLE_STA_CONTROL_TSF_OFFS_PRESENT)
+		pos += 8;
+	if (control & IEEE80211_MLE_STA_CONTROL_DTIM_INFO_PRESENT)
+		pos += 2;
+	if (control & IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE &&
+	    control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE) {
+		if (control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE)
+			pos += 2;
+		else
+			pos += 1;
+	}
+
+	return *pos;
 }
 
 #define IEEE80211_MLE_STA_RECONF_CONTROL_LINK_ID			0x000f

@@ -4018,6 +4018,8 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	const struct cfg80211_bss_ies *bss_ies = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee802_11_elems *elems;
+	const __le16 prof_bss_param_ch_present =
+		cpu_to_le16(IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT);
 	u16 capab_info;
 	bool ret;
 
@@ -4033,7 +4035,17 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		 * successful, so set the status directly to success
 		 */
 		assoc_data->link[link_id].status = WLAN_STATUS_SUCCESS;
-	} else if (!elems->prof) {
+		if (elems->ml_basic) {
+			if (!(elems->ml_basic->control &
+					cpu_to_le16(IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT))) {
+				ret = false;
+				goto out;
+			}
+			link->u.mgd.bss_param_ch_cnt =
+				ieee80211_mle_get_bss_param_ch_cnt(elems->ml_basic);
+		}
+	} else if (!elems->prof ||
+		   !(elems->prof->control & prof_bss_param_ch_present)) {
 		ret = false;
 		goto out;
 	} else {
@@ -4046,6 +4058,8 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		 */
 		capab_info = get_unaligned_le16(ptr);
 		assoc_data->link[link_id].status = get_unaligned_le16(ptr + 2);
+		link->u.mgd.bss_param_ch_cnt =
+			ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(elems->prof);
 
 		if (assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS) {
 			link_info(link, "association response status code=%u\n",
