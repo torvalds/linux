@@ -141,12 +141,6 @@ static inline void __printf(2, 0) ia_css_debug_vdtrace(unsigned int level,
 __printf(2, 3) void ia_css_debug_dtrace(unsigned int level,
 					const char *fmt, ...);
 
-/*! @brief Dump sp thread's stack contents
- * SP thread's stack contents are set to 0xcafecafe. This function dumps the
- * stack to inspect if the stack's boundaries are compromised.
- * @return	None
- */
-void ia_css_debug_dump_sp_stack_info(void);
 
 /*! @brief Function to set the global dtrace verbosity level.
  * @param[in]	trace_level	Maximum level of the messages to be traced.
