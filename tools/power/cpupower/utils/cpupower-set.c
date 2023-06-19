@@ -18,6 +18,7 @@
 
 static struct option set_opts[] = {
 	{"perf-bias", required_argument, NULL, 'b'},
+	{"epp", required_argument, NULL, 'e'},
 	{ },
 };
 
@@ -37,11 +38,13 @@ int cmd_set(int argc, char **argv)
 	union {
 		struct {
 			int perf_bias:1;
+			int epp:1;
 		};
 		int params;
 	} params;
 	int perf_bias = 0;
 	int ret = 0;
+	char epp[30];
 
 	ret = uname(&uts);
 	if (!ret && (!strcmp(uts.machine, "ppc64le") ||
@@ -55,7 +58,7 @@ int cmd_set(int argc, char **argv)
 
 	params.params = 0;
 	/* parameter parsing */
-	while ((ret = getopt_long(argc, argv, "b:",
+	while ((ret = getopt_long(argc, argv, "b:e:",
 						set_opts, NULL)) != -1) {
 		switch (ret) {
 		case 'b':
@@ -68,6 +71,15 @@ int cmd_set(int argc, char **argv)
 				print_wrong_arg_exit();
 			}
 			params.perf_bias = 1;
+			break;
+		case 'e':
+			if (params.epp)
+				print_wrong_arg_exit();
+			if (sscanf(optarg, "%29s", epp) != 1) {
+				print_wrong_arg_exit();
+				return -EINVAL;
+			}
+			params.epp = 1;
 			break;
 		default:
 			print_wrong_arg_exit();
@@ -99,6 +111,15 @@ int cmd_set(int argc, char **argv)
 			if (ret) {
 				fprintf(stderr, _("Error setting perf-bias "
 						  "value on CPU %d\n"), cpu);
+				break;
+			}
+		}
+
+		if (params.epp) {
+			ret = cpupower_set_epp(cpu, epp);
+			if (ret) {
+				fprintf(stderr,
+					"Error setting epp value on CPU %d\n", cpu);
 				break;
 			}
 		}
