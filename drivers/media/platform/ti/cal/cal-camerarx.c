@@ -864,7 +864,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	unsigned int i;
 	int ret;
 
-	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc(cal->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return ERR_PTR(-ENOMEM);
 
@@ -882,7 +882,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	if (IS_ERR(phy->base)) {
 		cal_err(cal, "failed to ioremap\n");
 		ret = PTR_ERR(phy->base);
-		goto error;
+		goto err_destroy_mutex;
 	}
 
 	cal_dbg(1, cal, "ioresource %s at %pa - %pa\n",
@@ -890,11 +890,11 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 
 	ret = cal_camerarx_regmap_init(cal, phy);
 	if (ret)
-		goto error;
+		goto err_destroy_mutex;
 
 	ret = cal_camerarx_parse_dt(phy);
 	if (ret)
-		goto error;
+		goto err_destroy_mutex;
 
 	/* Initialize the V4L2 subdev and media entity. */
 	sd = &phy->subdev;
@@ -911,21 +911,25 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(phy->pads),
 				     phy->pads);
 	if (ret)
-		goto error;
+		goto err_node_put;
 
 	ret = cal_camerarx_sd_init_cfg(sd, NULL);
 	if (ret)
-		goto error;
+		goto err_entity_cleanup;
 
 	ret = v4l2_device_register_subdev(&cal->v4l2_dev, sd);
 	if (ret)
-		goto error;
+		goto err_entity_cleanup;
 
 	return phy;
 
-error:
+err_entity_cleanup:
 	media_entity_cleanup(&phy->subdev.entity);
-	kfree(phy);
+err_node_put:
+	of_node_put(phy->source_ep_node);
+	of_node_put(phy->source_node);
+err_destroy_mutex:
+	mutex_destroy(&phy->mutex);
 	return ERR_PTR(ret);
 }
 
@@ -939,5 +943,4 @@ void cal_camerarx_destroy(struct cal_camerarx *phy)
 	of_node_put(phy->source_ep_node);
 	of_node_put(phy->source_node);
 	mutex_destroy(&phy->mutex);
-	kfree(phy);
 }
