@@ -771,12 +771,12 @@ static void set_regs_in_dict(PyObject *dict,
 	int size = __sw_hweight64(attr->sample_regs_intr) * 28;
 	char *bf = malloc(size);
 
-	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, sizeof(bf));
+	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, size);
 
 	pydict_set_item_string_decref(dict, "iregs",
 			_PyUnicode_FromString(bf));
 
-	regs_map(&sample->user_regs, attr->sample_regs_user, arch, bf, sizeof(bf));
+	regs_map(&sample->user_regs, attr->sample_regs_user, arch, bf, size);
 
 	pydict_set_item_string_decref(dict, "uregs",
 			_PyUnicode_FromString(bf));
