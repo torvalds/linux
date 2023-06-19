@@ -129,162 +129,6 @@ static unsigned long find_ftrace_tramp(unsigned long ip)
 	return 0;
 }
 
-#ifdef CONFIG_MODULES
-/*
- * Examine the existing instructions for __ftrace_make_call.
- * They should effectively be a NOP, and follow formal constraints,
- * depending on the ABI. Return false if they don't.
- */
-static bool expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
-{
-	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
-		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP()));
-	else
-		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_BRANCH(8))) &&
-		       ppc_inst_equal(op1, ppc_inst(PPC_INST_LD_TOC));
-}
-
-static int
-__ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
-{
-	ppc_inst_t op[2];
-	void *ip = (void *)rec->ip;
-	unsigned long entry, ptr, tramp;
-	struct module *mod = rec->arch.mod;
-
-	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(op, ip))
-		return -EFAULT;
-
-	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) &&
-	    copy_inst_from_kernel_nofault(op + 1, ip + 4))
-		return -EFAULT;
-
-	if (!expected_nop_sequence(ip, op[0], op[1])) {
-		pr_err("Unexpected call sequence at %p: %08lx %08lx\n", ip,
-		       ppc_inst_as_ulong(op[0]), ppc_inst_as_ulong(op[1]));
-		return -EINVAL;
-	}
-
-	/* If we never set up ftrace trampoline(s), then bail */
-	if (!mod->arch.tramp ||
-	    (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) && !mod->arch.tramp_regs)) {
-		pr_err("No ftrace trampoline\n");
-		return -EINVAL;
-	}
-
-	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) && rec->flags & FTRACE_FL_REGS)
-		tramp = mod->arch.tramp_regs;
-	else
-		tramp = mod->arch.tramp;
-
-	if (module_trampoline_target(mod, tramp, &ptr)) {
-		pr_err("Failed to get trampoline target\n");
-		return -EFAULT;
-	}
-
-	pr_devel("trampoline target %lx", ptr);
-
-	entry = ppc_global_function_entry((void *)addr);
-	/* This should match what was called */
-	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
-		return -EINVAL;
-	}
-
-	if (patch_branch(ip, tramp, BRANCH_SET_LINK)) {
-		pr_err("REL24 out of range!\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#else
-static int __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
-{
-	return 0;
-}
-#endif /* CONFIG_MODULES */
-
-static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
-{
-	ppc_inst_t op;
-	void *ip = (void *)rec->ip;
-	unsigned long tramp, entry, ptr;
-
-	/* Make sure we're being asked to patch branch to a known ftrace addr */
-	entry = ppc_global_function_entry((void *)ftrace_caller);
-	ptr = ppc_global_function_entry((void *)addr);
-
-	if (ptr != entry && IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
-		entry = ppc_global_function_entry((void *)ftrace_regs_caller);
-
-	if (ptr != entry) {
-		pr_err("Unknown ftrace addr to patch: %ps\n", (void *)ptr);
-		return -EINVAL;
-	}
-
-	/* Make sure we have a nop */
-	if (copy_inst_from_kernel_nofault(&op, ip)) {
-		pr_err("Unable to read ftrace location %p\n", ip);
-		return -EFAULT;
-	}
-
-	if (!ppc_inst_equal(op, ppc_inst(PPC_RAW_NOP()))) {
-		pr_err("Unexpected call sequence at %p: %08lx\n",
-		       ip, ppc_inst_as_ulong(op));
-		return -EINVAL;
-	}
-
-	tramp = find_ftrace_tramp((unsigned long)ip);
-	if (!tramp) {
-		pr_err("No ftrace trampolines reachable from %ps\n", ip);
-		return -EINVAL;
-	}
-
-	if (patch_branch(ip, tramp, BRANCH_SET_LINK)) {
-		pr_err("Error patching branch to ftrace tramp!\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
-{
-	unsigned long ip = rec->ip;
-	ppc_inst_t old, new;
-
-	/*
-	 * If the calling address is more that 24 bits away,
-	 * then we had to use a trampoline to make the call.
-	 * Otherwise just update the call site.
-	 */
-	if (test_24bit_addr(ip, addr)) {
-		/* within range */
-		old = ppc_inst(PPC_RAW_NOP());
-		new = ftrace_call_replace(ip, addr, 1);
-		return ftrace_modify_code(ip, old, new);
-	} else if (core_kernel_text(ip)) {
-		return __ftrace_make_call_kernel(rec, addr);
-	} else if (!IS_ENABLED(CONFIG_MODULES)) {
-		/* We should not get here without modules */
-		return -EINVAL;
-	}
-
-	/*
-	 * Out of range jumps are called from modules.
-	 * Being that we are converting from nop, it had better
-	 * already have a module defined.
-	 */
-	if (!rec->arch.mod) {
-		pr_err("No module loaded\n");
-		return -EINVAL;
-	}
-
-	return __ftrace_make_call(rec, addr);
-}
-
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 #ifdef CONFIG_MODULES
 static int
@@ -418,6 +262,37 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return __ftrace_modify_call(rec, old_addr, addr);
 }
 #endif
+
+int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long tramp, ip = rec->ip;
+	ppc_inst_t old, new;
+	struct module *mod;
+
+	old = ppc_inst(PPC_RAW_NOP());
+	if (is_offset_in_branch_range(addr - ip)) {
+		/* Within range */
+		new = ftrace_create_branch_inst(ip, addr, 1);
+		return ftrace_modify_code(ip, old, new);
+	} else if (core_kernel_text(ip)) {
+		/* We would be branching to one of our ftrace tramps */
+		tramp = find_ftrace_tramp(ip);
+		if (!tramp) {
+			pr_err("0x%lx: No ftrace trampolines reachable\n", ip);
+			return -EINVAL;
+		}
+		new = ftrace_create_branch_inst(ip, tramp, 1);
+		return ftrace_modify_code(ip, old, new);
+	} else if (IS_ENABLED(CONFIG_MODULES)) {
+		/* Module code would be going to one of the module stubs */
+		mod = rec->arch.mod;
+		tramp = (addr == (unsigned long)ftrace_caller ? mod->arch.tramp : mod->arch.tramp_regs);
+		new = ftrace_create_branch_inst(ip, tramp, 1);
+		return ftrace_modify_code(ip, old, new);
+	}
+
+	return -EINVAL;
+}
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
