@@ -164,6 +164,7 @@ static int efx_bind_neigh(struct efx_nic *efx,
 			 */
 			rc = -EOPNOTSUPP;
 			NL_SET_ERR_MSG_MOD(extack, "No IPv6 support (neigh bind)");
+			goto out_free;
 #endif
 		} else {
 			rt = ip_route_output_key(net, &flow4);
