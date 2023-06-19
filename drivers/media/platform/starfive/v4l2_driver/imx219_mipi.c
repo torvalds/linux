@@ -1564,6 +1564,7 @@ static const struct of_device_id imx219_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, imx219_dt_ids);
 
 static const struct dev_pm_ops imx219_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(imx219_power_off, imx219_power_on, NULL)
 };
 
