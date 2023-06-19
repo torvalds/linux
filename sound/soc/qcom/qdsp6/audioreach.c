@@ -732,111 +732,59 @@ static int audioreach_codec_dma_set_media_format(struct q6apm_graph *graph,
 	return rc;
 }
 
-static int audioreach_sal_limiter_enable(struct q6apm_graph *graph,
-					 struct audioreach_module *module, bool enable)
+int audioreach_send_u32_param(struct q6apm_graph *graph, struct audioreach_module *module,
+			      uint32_t param_id, uint32_t param_val)
 {
 	struct apm_module_param_data *param_data;
-	struct param_id_sal_limiter_enable *limiter_enable;
-	int payload_size;
 	struct gpr_pkt *pkt;
-	int rc;
+	uint32_t *param;
+	int rc, payload_size;
 	void *p;
 
-	payload_size = sizeof(*limiter_enable) + APM_MODULE_PARAM_DATA_SIZE;
+	payload_size = sizeof(uint32_t) + APM_MODULE_PARAM_DATA_SIZE;
+	p = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
+	if (IS_ERR(p))
+		return -ENOMEM;
 
-	pkt = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
-	if (IS_ERR(pkt))
-		return PTR_ERR(pkt);
-
-	p = (void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
+	pkt = p;
+	p = p + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
 
 	param_data = p;
 	param_data->module_instance_id = module->instance_id;
 	param_data->error_code = 0;
-	param_data->param_id = PARAM_ID_SAL_LIMITER_ENABLE;
-	param_data->param_size = sizeof(*limiter_enable);
-	p = p + APM_MODULE_PARAM_DATA_SIZE;
-	limiter_enable = p;
+	param_data->param_id = param_id;
+	param_data->param_size = sizeof(uint32_t);
 
-	limiter_enable->enable_lim = enable;
+	p = p + APM_MODULE_PARAM_DATA_SIZE;
+	param = p;
+	*param = param_val;
 
 	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
 
 	kfree(pkt);
 
 	return rc;
+}
+EXPORT_SYMBOL_GPL(audioreach_send_u32_param);
+
+static int audioreach_sal_limiter_enable(struct q6apm_graph *graph,
+					 struct audioreach_module *module, bool enable)
+{
+	return audioreach_send_u32_param(graph, module, PARAM_ID_SAL_LIMITER_ENABLE, enable);
 }
 
 static int audioreach_sal_set_media_format(struct q6apm_graph *graph,
 					   struct audioreach_module *module,
 					   struct audioreach_module_config *cfg)
 {
-	struct apm_module_param_data *param_data;
-	struct param_id_sal_output_config *media_format;
-	int payload_size;
-	struct gpr_pkt *pkt;
-	int rc;
-	void *p;
-
-	payload_size = sizeof(*media_format) + APM_MODULE_PARAM_DATA_SIZE;
-
-	pkt = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
-	if (IS_ERR(pkt))
-		return PTR_ERR(pkt);
-
-	p = (void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
-
-	param_data = p;
-	param_data->module_instance_id = module->instance_id;
-	param_data->error_code = 0;
-	param_data->param_id = PARAM_ID_SAL_OUTPUT_CFG;
-	param_data->param_size = sizeof(*media_format);
-	p = p + APM_MODULE_PARAM_DATA_SIZE;
-	media_format = p;
-
-	media_format->bits_per_sample = cfg->bit_width;
-
-	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
-
-	kfree(pkt);
-
-	return rc;
+	return audioreach_send_u32_param(graph, module, PARAM_ID_SAL_OUTPUT_CFG,  cfg->bit_width);
 }
 
 static int audioreach_module_enable(struct q6apm_graph *graph,
 				    struct audioreach_module *module,
 				    bool enable)
 {
-	struct apm_module_param_data *param_data;
-	struct param_id_module_enable *param;
-	int payload_size;
-	struct gpr_pkt *pkt;
-	int rc;
-	void *p;
-
-	payload_size = sizeof(*param) + APM_MODULE_PARAM_DATA_SIZE;
-
-	pkt = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
-	if (IS_ERR(pkt))
-		return PTR_ERR(pkt);
-
-	p = (void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
-
-	param_data = p;
-	param_data->module_instance_id = module->instance_id;
-	param_data->error_code = 0;
-	param_data->param_id = PARAM_ID_MODULE_ENABLE;
-	param_data->param_size = sizeof(*param);
-	p = p + APM_MODULE_PARAM_DATA_SIZE;
-	param = p;
-
-	param->enable = enable;
-
-	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
-
-	kfree(pkt);
-
-	return rc;
+	return audioreach_send_u32_param(graph, module, PARAM_ID_MODULE_ENABLE, enable);
 }
 
 static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
