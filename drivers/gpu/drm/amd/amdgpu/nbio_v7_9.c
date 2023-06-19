@@ -390,22 +390,7 @@ static int nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
 	px = REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
 			   PARTITION_MODE);
 
-	return ffs(px);
-}
-
-static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
-					enum amdgpu_gfx_partition mode)
-{
-	u32 tmp;
-
-	/* Each bit represents DPX,TPX,QPX,CPX mode. No bit set means default
-	 * SPX mode.
-	 */
-	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS);
-	tmp = REG_SET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
-			    PARTITION_MODE, mode ? BIT(mode - 1) : mode);
-
-	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS, tmp);
+	return px;
 }
 
 static u32 nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev,
@@ -463,7 +448,6 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.ih_control = nbio_v7_9_ih_control,
 	.remap_hdp_registers = nbio_v7_9_remap_hdp_registers,
 	.get_compute_partition_mode = nbio_v7_9_get_compute_partition_mode,
-	.set_compute_partition_mode = nbio_v7_9_set_compute_partition_mode,
 	.get_memory_partition_mode = nbio_v7_9_get_memory_partition_mode,
 	.init_registers = nbio_v7_9_init_registers,
 };

@@ -433,10 +433,17 @@ void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 			       struct dma_fence *fence)
 {
+	unsigned long flags;
+
 	ktime_t deadline = ktime_add_us(ktime_get(), 10000);
 
 	if (amdgpu_sriov_vf(ring->adev) || !ring->funcs->soft_recovery || !fence)
 		return false;
+
+	spin_lock_irqsave(fence->lock, flags);
+	if (!dma_fence_is_signaled_locked(fence))
+		dma_fence_set_error(fence, -ENODATA);
+	spin_unlock_irqrestore(fence->lock, flags);
 
 	atomic_inc(&ring->adev->gpu_reset_counter);
 	while (!dma_fence_is_signaled(fence) &&
@@ -561,6 +568,17 @@ static const struct file_operations amdgpu_debugfs_mqd_fops = {
 	.llseek = default_llseek
 };
 
+static int amdgpu_debugfs_ring_error(void *data, u64 val)
+{
+	struct amdgpu_ring *ring = data;
+
+	amdgpu_fence_driver_set_error(ring, val);
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE_SIGNED(amdgpu_debugfs_error_fops, NULL,
+				amdgpu_debugfs_ring_error, "%lld\n");
+
 #endif
 
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
@@ -582,6 +600,11 @@ void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 					 &amdgpu_debugfs_mqd_fops,
 					 ring->mqd_size);
 	}
+
+	sprintf(name, "amdgpu_error_%s", ring->name);
+	debugfs_create_file(name, 0200, root, ring,
+			    &amdgpu_debugfs_error_fops);
+
 #endif
 }
 

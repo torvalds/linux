@@ -1742,6 +1742,7 @@ static int dcn315_populate_dml_pipes_from_context(
 			/* Do not use asymetric crb if not enough for pstate support */
 			if (remaining_det_segs < 0) {
 				pipes[pipe_cnt].pipe.src.det_size_override = 0;
+				pipe_cnt++;
 				continue;
 			}
 

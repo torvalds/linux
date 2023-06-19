@@ -99,8 +99,6 @@ struct amdgpu_nbio_funcs {
 	int (*get_compute_partition_mode)(struct amdgpu_device *adev);
 	u32 (*get_memory_partition_mode)(struct amdgpu_device *adev,
 					 u32 *supp_modes);
-	void (*set_compute_partition_mode)(struct amdgpu_device *adev,
-					   enum amdgpu_gfx_partition mode);
 };
 
 struct amdgpu_nbio {

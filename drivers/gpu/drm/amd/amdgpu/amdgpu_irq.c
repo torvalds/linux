@@ -467,7 +467,8 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 			handled = true;
 
 	} else {
-		DRM_DEBUG("Unhandled interrupt src_id: %d\n", src_id);
+		DRM_DEBUG("Unregistered interrupt src_id: %d of client_id:%d\n",
+			src_id, client_id);
 	}
 
 	/* Send it to amdkfd as well if it isn't already handled */

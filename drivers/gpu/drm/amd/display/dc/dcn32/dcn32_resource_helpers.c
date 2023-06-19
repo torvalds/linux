@@ -255,8 +255,6 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
 	return psr_capable;
 }
 
-#define DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER 7
-
 /**
  * dcn32_determine_det_override(): Determine DET allocation for each pipe
  *
@@ -267,24 +265,13 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
  * If there is a plane that's driven by more than 1 pipe (i.e. pipe split), then the
  * number of DET for that given plane will be split among the pipes driving that plane.
  *
+ *
  * High level algorithm:
  * 1. Split total DET among number of streams
  * 2. For each stream, split DET among the planes
  * 3. For each plane, check if there is a pipe split. If yes, split the DET allocation
  *    among those pipes.
  * 4. Assign the DET override to the DML pipes.
- *
- * Special cases:
- *
- * For two displays that have a large difference in pixel rate, we may experience
- *  underflow on the larger display when we divide the DET equally. For this, we
- *  will implement a modified algorithm to assign more DET to larger display.
- *
- * 1. Calculate difference in pixel rates ( multiplier ) between two displays
- * 2. If the multiplier exceeds DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER, then
- *    implement the modified DET override algorithm.
- * 3. Assign smaller DET size for lower pixel display and higher DET size for
- *    higher pixel display
  *
  * @dc: Current DC state
  * @context: New DC state to be programmed
@@ -303,31 +290,10 @@ void dcn32_determine_det_override(struct dc *dc,
 	struct dc_plane_state *current_plane = NULL;
 	uint8_t stream_count = 0;
 
-	int phy_pix_clk_mult, lower_mode_stream_index;
-	int phy_pix_clk[MAX_PIPES] = {0};
-	bool use_new_det_override_algorithm = false;
-
 	for (i = 0; i < context->stream_count; i++) {
 		/* Don't count SubVP streams for DET allocation */
-		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
-			phy_pix_clk[i] = context->streams[i]->phy_pix_clk;
+		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM)
 			stream_count++;
-		}
-	}
-
-	/* Check for special case with two displays, one with much higher pixel rate */
-	if (stream_count == 2) {
-		ASSERT((phy_pix_clk[0] > 0) && (phy_pix_clk[1] > 0));
-		if (phy_pix_clk[0] < phy_pix_clk[1]) {
-			lower_mode_stream_index = 0;
-			phy_pix_clk_mult = phy_pix_clk[1] / phy_pix_clk[0];
-		} else {
-			lower_mode_stream_index = 1;
-			phy_pix_clk_mult = phy_pix_clk[0] / phy_pix_clk[1];
-		}
-
-		if (phy_pix_clk_mult >= DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER)
-			use_new_det_override_algorithm = true;
 	}
 
 	if (stream_count > 0) {
@@ -335,13 +301,6 @@ void dcn32_determine_det_override(struct dc *dc,
 		for (i = 0; i < context->stream_count; i++) {
 			if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
 				continue;
-
-			if (use_new_det_override_algorithm) {
-				if (i == lower_mode_stream_index)
-					stream_segments = 4;
-				else
-					stream_segments = 14;
-			}
 
 			if (context->stream_status[i].plane_count > 0)
 				plane_segments = stream_segments / context->stream_status[i].plane_count;
@@ -659,4 +618,106 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
 		is_native_scaling = true;
 
 	return is_native_scaling;
+}
+
+/**
+ * dcn32_subvp_drr_admissable() - Determine if SubVP + DRR config is admissible
+ *
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ *
+ * SubVP + DRR is admissible under the following conditions:
+ * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
+ * - One display is SubVP
+ * - Other display must have Freesync enabled
+ * - The potential DRR display must not be PSR capable
+ *
+ * Return: True if admissible, false otherwise
+ */
+bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
+{
+	bool result = false;
+	uint32_t i;
+	uint8_t subvp_count = 0;
+	uint8_t non_subvp_pipes = 0;
+	bool drr_pipe_found = false;
+	bool drr_psr_capable = false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				subvp_count++;
+			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+				non_subvp_pipes++;
+				drr_psr_capable = (drr_psr_capable || dcn32_is_psr_capable(pipe));
+				if (pipe->stream->ignore_msa_timing_param &&
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+					drr_pipe_found = true;
+				}
+			}
+		}
+	}
+
+	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable)
+		result = true;
+
+	return result;
+}
+
+/**
+ * dcn32_subvp_vblank_admissable() - Determine if SubVP + Vblank config is admissible
+ *
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @vlevel: Voltage level calculated by DML
+ *
+ * SubVP + Vblank is admissible under the following conditions:
+ * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
+ * - One display is SubVP
+ * - Other display must not have Freesync capability
+ * - DML must have output DRAM clock change support as SubVP + Vblank
+ * - The potential vblank display must not be PSR capable
+ *
+ * Return: True if admissible, false otherwise
+ */
+bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel)
+{
+	bool result = false;
+	uint32_t i;
+	uint8_t subvp_count = 0;
+	uint8_t non_subvp_pipes = 0;
+	bool drr_pipe_found = false;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+	bool vblank_psr_capable = false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				subvp_count++;
+			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+				non_subvp_pipes++;
+				vblank_psr_capable = (vblank_psr_capable || dcn32_is_psr_capable(pipe));
+				if (pipe->stream->ignore_msa_timing_param &&
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+					drr_pipe_found = true;
+				}
+			}
+		}
+	}
+
+	if (subvp_count == 1 && non_subvp_pipes == 1 && !drr_pipe_found && !vblank_psr_capable &&
+			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
+		result = true;
+
+	return result;
 }

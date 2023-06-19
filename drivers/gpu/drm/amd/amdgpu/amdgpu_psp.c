@@ -569,6 +569,26 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	return -ETIME;
 }
 
+int psp_wait_for_spirom_update(struct psp_context *psp, uint32_t reg_index,
+			       uint32_t reg_val, uint32_t mask, uint32_t msec_timeout)
+{
+	uint32_t val;
+	int i;
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp->adev->no_hw_access)
+		return 0;
+
+	for (i = 0; i < msec_timeout; i++) {
+		val = RREG32(reg_index);
+		if ((val & mask) == reg_val)
+			return 0;
+		msleep(1);
+	}
+
+	return -ETIME;
+}
+
 static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 {
 	switch (cmd_id) {
@@ -1653,10 +1673,11 @@ int psp_ras_initialize(struct psp_context *psp)
 
 	if (amdgpu_ras_is_poison_mode_supported(adev))
 		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
-	if (!adev->gmc.xgmi.connected_to_cpu)
+	if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu)
 		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
 	ras_cmd->ras_in_message.init_flags.xcc_mask =
 		adev->gfx.xcc_mask;
+	ras_cmd->ras_in_message.init_flags.channel_dis_num = hweight32(adev->gmc.m_half_use) * 2;
 
 	ret = psp_ta_load(psp, &psp->ras_context.context);
 

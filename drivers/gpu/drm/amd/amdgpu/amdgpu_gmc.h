@@ -301,6 +301,8 @@ struct amdgpu_gmc {
 
 	/* MALL size */
 	u64 mall_size;
+	uint32_t m_half_use;
+
 	/* number of UMC instances */
 	int num_umc;
 	/* mode2 save restore */

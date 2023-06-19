@@ -1515,6 +1515,7 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 				mall_size += mall_size_per_umc;
 		}
 		adev->gmc.mall_size = mall_size;
+		adev->gmc.m_half_use = half_use;
 		break;
 	default:
 		dev_err(adev->dev,
@@ -1896,6 +1897,8 @@ static int amdgpu_discovery_set_gc_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		break;
 	case IP_VERSION(9, 4, 3):
+		if (!amdgpu_exp_hw_support)
+			return -EINVAL;
 		amdgpu_device_ip_block_add(adev, &gfx_v9_4_3_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):

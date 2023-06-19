@@ -169,6 +169,10 @@ double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *conte
 
 bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int width, unsigned int height);
 
+bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context);
+
+bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel);
+
 /* definitions for run time init of reg offsets */
 
 /* CLK SRC */

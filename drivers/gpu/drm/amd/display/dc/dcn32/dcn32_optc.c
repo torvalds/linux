@@ -106,8 +106,11 @@ void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool man
 			OTG_H_TIMING_DIV_MODE_MANUAL, manual_mode ? 1 : 0);
 }
 /**
- * Enable CRTC
- * Enable CRTC - call ASIC Control Object to enable Timing generator.
+ * optc32_enable_crtc() - Enable CRTC - call ASIC Control Object to enable Timing generator.
+ *
+ * @optc: timing_generator instance.
+ *
+ * Return: If CRTC is enabled, return true.
  */
 static bool optc32_enable_crtc(struct timing_generator *optc)
 {

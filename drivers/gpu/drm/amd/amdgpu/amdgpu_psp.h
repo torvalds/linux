@@ -455,6 +455,8 @@ extern const struct amdgpu_ip_block_version psp_v13_0_4_ip_block;
 
 extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
+extern int psp_wait_for_spirom_update(struct psp_context *psp, uint32_t reg_index,
+			uint32_t field_val, uint32_t mask, uint32_t msec_timeout);
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,

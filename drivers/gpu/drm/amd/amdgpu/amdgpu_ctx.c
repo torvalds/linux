@@ -333,7 +333,7 @@ static int amdgpu_ctx_init(struct amdgpu_ctx_mgr *mgr, int32_t priority,
 
 	ctx->reset_counter = atomic_read(&mgr->adev->gpu_reset_counter);
 	ctx->reset_counter_query = ctx->reset_counter;
-	ctx->vram_lost_counter = atomic_read(&mgr->adev->vram_lost_counter);
+	ctx->generation = amdgpu_vm_generation(mgr->adev, &fpriv->vm);
 	ctx->init_priority = priority;
 	ctx->override_priority = AMDGPU_CTX_PRIORITY_UNSET;
 
@@ -432,6 +432,7 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			  u32 ring, struct drm_sched_entity **entity)
 {
 	int r;
+	struct drm_sched_entity *ctx_entity;
 
 	if (hw_ip >= AMDGPU_HW_IP_NUM) {
 		DRM_ERROR("unknown HW IP type: %d\n", hw_ip);
@@ -455,7 +456,14 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			return r;
 	}
 
-	*entity = &ctx->entities[hw_ip][ring]->entity;
+	ctx_entity = &ctx->entities[hw_ip][ring]->entity;
+	r = drm_sched_entity_error(ctx_entity);
+	if (r) {
+		DRM_DEBUG("error entity %p\n", ctx_entity);
+		return r;
+	}
+
+	*entity = ctx_entity;
 	return 0;
 }
 
@@ -586,7 +594,7 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 	if (ctx->reset_counter != atomic_read(&adev->gpu_reset_counter))
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RESET;
 
-	if (ctx->vram_lost_counter != atomic_read(&adev->vram_lost_counter))
+	if (ctx->generation != amdgpu_vm_generation(adev, &fpriv->vm))
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST;
 
 	if (atomic_read(&ctx->guilty))

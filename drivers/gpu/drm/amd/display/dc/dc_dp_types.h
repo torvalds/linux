@@ -61,7 +61,7 @@ enum dc_link_rate {
 	 */
 	LINK_RATE_UHBR10 = 1000,	// UHBR10 - 10.0 Gbps/Lane
 	LINK_RATE_UHBR13_5 = 1350,	// UHBR13.5 - 13.5 Gbps/Lane
-	LINK_RATE_UHBR20 = 2000,	// UHBR10 - 20.0 Gbps/Lane
+	LINK_RATE_UHBR20 = 2000,	// UHBR20 - 20.0 Gbps/Lane
 };
 
 enum dc_link_spread {

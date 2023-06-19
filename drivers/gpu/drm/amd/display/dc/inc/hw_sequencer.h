@@ -114,6 +114,26 @@ struct update_visual_confirm_params {
 	int mpcc_id;
 };
 
+struct power_on_mpc_mem_pwr_params {
+	struct mpc *mpc;
+	int mpcc_id;
+	bool power_on;
+};
+
+struct set_output_csc_params {
+	struct mpc *mpc;
+	int opp_id;
+	const uint16_t *regval;
+	enum mpc_output_csc_mode ocsc_mode;
+};
+
+struct set_ocsc_default_params {
+	struct mpc *mpc;
+	int opp_id;
+	enum dc_color_space color_space;
+	enum mpc_output_csc_mode ocsc_mode;
+};
+
 union block_sequence_params {
 	struct update_plane_addr_params update_plane_addr_params;
 	struct subvp_pipe_control_lock_fast_params subvp_pipe_control_lock_fast_params;
@@ -128,6 +148,9 @@ union block_sequence_params {
 	struct program_bias_and_scale_params program_bias_and_scale_params;
 	struct set_output_transfer_func_params set_output_transfer_func_params;
 	struct update_visual_confirm_params update_visual_confirm_params;
+	struct power_on_mpc_mem_pwr_params power_on_mpc_mem_pwr_params;
+	struct set_output_csc_params set_output_csc_params;
+	struct set_ocsc_default_params set_ocsc_default_params;
 };
 
 enum block_sequence_func {
@@ -144,6 +167,9 @@ enum block_sequence_func {
 	DPP_PROGRAM_BIAS_AND_SCALE,
 	DPP_SET_OUTPUT_TRANSFER_FUNC,
 	MPC_UPDATE_VISUAL_CONFIRM,
+	MPC_POWER_ON_MPC_MEM_PWR,
+	MPC_SET_OUTPUT_CSC,
+	MPC_SET_OCSC_DEFAULT,
 };
 
 struct block_sequence {
@@ -438,5 +464,11 @@ void hwss_program_manual_trigger(union block_sequence_params *params);
 void hwss_setup_dpp(union block_sequence_params *params);
 
 void hwss_program_bias_and_scale(union block_sequence_params *params);
+
+void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params);
+
+void hwss_set_output_csc(union block_sequence_params *params);
+
+void hwss_set_ocsc_default(union block_sequence_params *params);
 
 #endif /* __DC_HW_SEQUENCER_H__ */

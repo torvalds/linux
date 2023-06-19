@@ -279,6 +279,9 @@ static void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, in
  * Sets double buffer point for V_TOTAL, H_TOTAL, VTOTAL_MIN,
  * VTOTAL_MAX, VTOTAL_MIN_SEL and VTOTAL_MAX_SEL registers.
  *
+ * @optc: timing_generator instance.
+ * @enable: Enable DRR double buffering control if true, disable otherwise.
+ *
  * Options: any time,  start of frame, dp start of frame (range timing)
  */
 static void optc3_set_timing_double_buffer(struct timing_generator *optc, bool enable)

@@ -87,6 +87,8 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 		state = PSR_STATE4c_FULL_FRAME;
 	else if (raw_state == 0x4E)
 		state = PSR_STATE4_FULL_FRAME_POWERUP;
+	else if (raw_state == 0x4F)
+		state = PSR_STATE4_FULL_FRAME_HW_LOCK;
 	else if (raw_state == 0x60)
 		state = PSR_STATE_HWLOCK_MGR;
 	else if (raw_state == 0x61)
