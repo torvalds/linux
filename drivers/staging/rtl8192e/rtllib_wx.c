@@ -19,7 +19,7 @@
 #include "rtllib.h"
 
 static const char * const rtllib_modes[] = {
-	"a", "b", "g", "?", "N-24G", "N-5G"
+	"a", "b", "g", "?", "N-24G"
 };
 
 #define MAX_CUSTOM_LEN 64
