@@ -40,6 +40,7 @@ properties:
 patternProperties:
   "^nand@[0-7]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
       reg:
         minimum: 0
@@ -62,6 +63,9 @@ patternProperties:
         maxItems: 1
         items:
           maximum: 0
+
+    unevaluatedProperties: false
+
 
 required:
   - compatible
