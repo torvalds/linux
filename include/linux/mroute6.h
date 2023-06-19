@@ -109,13 +109,13 @@ static inline int ip6mr_sk_ioctl(struct sock *sk, unsigned int cmd,
 		struct sioc_mif_req6 buffer;
 
 		return sock_ioctl_inout(sk, cmd, arg, &buffer,
-				      sizeof(buffer));
+					sizeof(buffer));
 		}
 	case SIOCGETSGCNT_IN6: {
-		struct sioc_mif_req6 buffer;
+		struct sioc_sg_req6 buffer;
 
 		return sock_ioctl_inout(sk, cmd, arg, &buffer,
-				      sizeof(buffer));
+					sizeof(buffer));
 		}
 	}
 
