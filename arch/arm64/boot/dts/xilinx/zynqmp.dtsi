@@ -900,8 +900,8 @@
 				compatible = "snps,dwc3";
 				reg = <0x0 0xfe200000 0x0 0x40000>;
 				interrupt-parent = <&gic>;
-				interrupt-names = "dwc_usb3", "otg";
-				interrupts = <0 65 4>, <0 69 4>;
+				interrupt-names = "host", "peripheral", "otg";
+				interrupts = <0 65 4>, <0 65 4>, <0 69 4>;
 				clock-names = "bus_early", "ref";
 				iommus = <&smmu 0x860>;
 				snps,quirk-frame-length-adjustment = <0x20>;
@@ -927,8 +927,8 @@
 				compatible = "snps,dwc3";
 				reg = <0x0 0xfe300000 0x0 0x40000>;
 				interrupt-parent = <&gic>;
-				interrupt-names = "dwc_usb3", "otg";
-				interrupts = <0 70 4>, <0 74 4>;
+				interrupt-names = "host", "peripheral", "otg";
+				interrupts = <0 70 4>, <0 70 4>, <0 74 4>;
 				clock-names = "bus_early", "ref";
 				iommus = <&smmu 0x861>;
 				snps,quirk-frame-length-adjustment = <0x20>;
