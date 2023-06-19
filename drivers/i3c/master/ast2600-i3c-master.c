@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include "dw-i3c-master.h"
 
@@ -127,6 +128,7 @@ static int ast2600_i3c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct of_phandle_args gspec;
 	struct ast2600_i3c *i3c;
+	struct reset_control *rst;
 	int rc;
 
 	i3c = devm_kzalloc(&pdev->dev, sizeof(*i3c), GFP_KERNEL);
@@ -154,6 +156,13 @@ static int ast2600_i3c_probe(struct platform_device *pdev)
 	if (rc)
 		dev_err(&pdev->dev, "invalid sda-pullup value %d\n",
 			i3c->sda_pullup);
+
+	rst = devm_reset_control_get_shared(&pdev->dev, "global_rst");
+	if (IS_ERR(rst)) {
+		dev_err(&pdev->dev, "missing of invalid reset entry");
+		return PTR_ERR(rst);
+	}
+	reset_control_deassert(rst);
 
 	i3c->dw.platform_ops = &ast2600_i3c_ops;
 	i3c->dw.ibi_capable = true;
