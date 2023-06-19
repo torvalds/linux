@@ -81,9 +81,9 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 	/* fixup platform name based on reference node */
 	memset(&args, 0, sizeof(args));
 	ret = acpi_node_get_property_reference(fwnode, "cpu", 0, &args);
-	if (ACPI_FAILURE(ret) || !is_acpi_device_node(args.fwnode)) {
+	if (ret || !is_acpi_device_node(args.fwnode)) {
 		dev_err(card->dev, "No matching phy in ACPI table\n");
-		return ret;
+		return ret ?: -ENOENT;
 	}
 	adev = to_acpi_device_node(args.fwnode);
 	phy_dev = acpi_get_first_physical_node(adev);
@@ -95,9 +95,9 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 	/* fixup codec name based on reference node */
 	memset(&args, 0, sizeof(args));
 	ret = acpi_node_get_property_reference(fwnode, "codec", 0, &args);
-	if (ACPI_FAILURE(ret) || !is_acpi_device_node(args.fwnode)) {
+	if (ret || !is_acpi_device_node(args.fwnode)) {
 		dev_err(card->dev, "No matching phy in ACPI table\n");
-		return ret;
+		return ret ?: -ENOENT;
 	}
 	adev = to_acpi_device_node(args.fwnode);
 	snprintf(codec_name, sizeof(codec_name), "i2c-%s", acpi_dev_name(adev));
