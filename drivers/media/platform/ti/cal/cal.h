@@ -177,20 +177,12 @@ struct cal_camerarx {
 
 	struct v4l2_subdev	subdev;
 	struct media_pad	pads[CAL_CAMERARX_NUM_PADS];
-	struct v4l2_mbus_framefmt	formats[CAL_CAMERARX_NUM_PADS];
 
 	/* protects the vc_* fields below */
 	spinlock_t		vc_lock;
 	u8			vc_enable_count[4];
 	u16			vc_frame_number[4];
 	u32			vc_sequence[4];
-
-	/*
-	 * Lock for camerarx ops. Protects:
-	 * - formats
-	 * - enable_count
-	 */
-	struct mutex		mutex;
 
 	unsigned int		enable_count;
 };
