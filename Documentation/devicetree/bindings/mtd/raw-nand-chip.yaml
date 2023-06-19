@@ -39,6 +39,7 @@ properties:
       bytes will be interleaved with regular data in the main area.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [ oob, interleaved ]
+    deprecated: true
 
   nand-bus-width:
     description:
