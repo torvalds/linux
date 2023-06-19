@@ -576,6 +576,7 @@ struct btrfs_fs_info {
 	s32 dirty_metadata_batch;
 	s32 delalloc_batch;
 
+	/* Protected by 'trans_lock'. */
 	struct list_head dirty_cowonly_roots;
 
 	struct btrfs_fs_devices *fs_devices;
