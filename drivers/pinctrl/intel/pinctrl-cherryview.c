@@ -1413,8 +1413,10 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	ret = chv_gpio_set_intr_line(pctrl, hwirq);
-	if (ret)
-		goto out_unlock;
+	if (ret) {
+		raw_spin_unlock_irqrestore(&chv_lock, flags);
+		return ret;
+	}
 
 	/*
 	 * Pins which can be used as shared interrupt are configured in
@@ -1455,10 +1457,9 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 	else if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_handler_locked(d, handle_level_irq);
 
-out_unlock:
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static const struct irq_chip chv_gpio_irq_chip = {
