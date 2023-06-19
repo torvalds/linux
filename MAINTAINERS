@@ -7014,7 +7014,7 @@ F:	drivers/gpu/drm/stm
 
 DRM DRIVERS FOR TI KEYSTONE
 M:	Jyri Sarha <jyri.sarha@iki.fi>
-M:	Tomi Valkeinen <tomba@kernel.org>
+M:	Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -7025,16 +7025,18 @@ F:	drivers/gpu/drm/tidss/
 
 DRM DRIVERS FOR TI LCDC
 M:	Jyri Sarha <jyri.sarha@iki.fi>
-R:	Tomi Valkeinen <tomba@kernel.org>
+M:	Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/tilcdc/
 F:	drivers/gpu/drm/tilcdc/
 
 DRM DRIVERS FOR TI OMAP
-M:	Tomi Valkeinen <tomba@kernel.org>
+M:	Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/ti/
 F:	drivers/gpu/drm/omapdrm/
 
