@@ -446,30 +446,24 @@ static bool cal_ctx_wr_dma_stopped(struct cal_ctx *ctx)
 }
 
 static int
-cal_get_remote_frame_desc_entry(struct cal_camerarx *phy,
+cal_get_remote_frame_desc_entry(struct cal_ctx *ctx,
 				struct v4l2_mbus_frame_desc_entry *entry)
 {
 	struct v4l2_mbus_frame_desc fd;
+	struct media_pad *phy_source_pad;
 	int ret;
 
-	ret = cal_camerarx_get_remote_frame_desc(phy, &fd);
-	if (ret) {
-		if (ret != -ENOIOCTLCMD)
-			dev_err(phy->cal->dev,
-				"Failed to get remote frame desc: %d\n", ret);
-		return ret;
-	}
-
-	if (fd.num_entries == 0) {
-		dev_err(phy->cal->dev,
-			"No streams found in the remote frame descriptor\n");
-
+	phy_source_pad = media_pad_remote_pad_first(&ctx->pad);
+	if (!phy_source_pad)
 		return -ENODEV;
-	}
 
-	if (fd.num_entries > 1)
-		dev_dbg(phy->cal->dev,
-			"Multiple streams not supported in remote frame descriptor, using the first one\n");
+	ret = v4l2_subdev_call(&ctx->phy->subdev, pad, get_frame_desc,
+			       phy_source_pad->index, &fd);
+	if (ret)
+		return ret;
+
+	if (fd.num_entries != 1)
+		return -EINVAL;
 
 	*entry = fd.entry[0];
 
@@ -481,7 +475,7 @@ int cal_ctx_prepare(struct cal_ctx *ctx)
 	struct v4l2_mbus_frame_desc_entry entry;
 	int ret;
 
-	ret = cal_get_remote_frame_desc_entry(ctx->phy, &entry);
+	ret = cal_get_remote_frame_desc_entry(ctx, &entry);
 
 	if (ret == -ENOIOCTLCMD) {
 		ctx->vc = 0;

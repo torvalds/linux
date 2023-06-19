@@ -589,33 +589,6 @@ done:
 	return ret;
 }
 
-int cal_camerarx_get_remote_frame_desc(struct cal_camerarx *phy,
-				       struct v4l2_mbus_frame_desc *desc)
-{
-	struct media_pad *pad;
-	int ret;
-
-	if (!phy->source)
-		return -EPIPE;
-
-	pad = media_pad_remote_pad_first(&phy->pads[CAL_CAMERARX_PAD_SINK]);
-	if (!pad)
-		return -EPIPE;
-
-	ret = v4l2_subdev_call(phy->source, pad, get_frame_desc, pad->index,
-			       desc);
-	if (ret)
-		return ret;
-
-	if (desc->type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2) {
-		dev_err(phy->cal->dev,
-			"Frame descriptor does not describe CSI-2 link");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* ------------------------------------------------------------------
  *	V4L2 Subdev Operations
  * ------------------------------------------------------------------
@@ -772,6 +745,40 @@ static int cal_camerarx_sd_init_cfg(struct v4l2_subdev *sd,
 	return cal_camerarx_sd_set_fmt(sd, state, &format);
 }
 
+static int cal_camerarx_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				       struct v4l2_mbus_frame_desc *fd)
+{
+	struct cal_camerarx *phy = to_cal_camerarx(sd);
+	struct v4l2_mbus_frame_desc remote_desc;
+	const struct media_pad *remote_pad;
+	int ret;
+
+	remote_pad = media_pad_remote_pad_first(&phy->pads[CAL_CAMERARX_PAD_SINK]);
+	if (!remote_pad)
+		return -EPIPE;
+
+	ret = v4l2_subdev_call(phy->source, pad, get_frame_desc,
+			       remote_pad->index, &remote_desc);
+	if (ret)
+		return ret;
+
+	if (remote_desc.type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2) {
+		cal_err(phy->cal,
+			"Frame descriptor does not describe CSI-2 link");
+		return -EINVAL;
+	}
+
+	if (remote_desc.num_entries > 1)
+		cal_err(phy->cal,
+			"Multiple streams not supported in remote frame descriptor, using the first one\n");
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
+	fd->num_entries = 1;
+	fd->entry[0] = remote_desc.entry[0];
+
+	return 0;
+}
+
 static const struct v4l2_subdev_video_ops cal_camerarx_video_ops = {
 	.s_stream = cal_camerarx_sd_s_stream,
 };
@@ -782,6 +789,7 @@ static const struct v4l2_subdev_pad_ops cal_camerarx_pad_ops = {
 	.enum_frame_size = cal_camerarx_sd_enum_frame_size,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = cal_camerarx_sd_set_fmt,
+	.get_frame_desc = cal_camerarx_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops cal_camerarx_subdev_ops = {
