@@ -21330,6 +21330,14 @@ F:	drivers/misc/tifm*
 F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
 
+TI FPD-LINK DRIVERS
+M:	Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/ti,ds90*
+F:	drivers/media/i2c/ds90*
+F:	include/media/i2c/ds90*
+
 TI KEYSTONE MULTICORE NAVIGATOR DRIVERS
 M:	Nishanth Menon <nm@ti.com>
 M:	Santosh Shilimkar <ssantosh@kernel.org>

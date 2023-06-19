@@ -1625,4 +1625,25 @@ config VIDEO_THS7303
 
 endmenu
 
+#
+# Video serializers and deserializers (e.g. FPD-Link)
+#
+
+menu "Video serializers and deserializers"
+
+config VIDEO_DS90UB960
+	tristate "TI FPD-Link III/IV Deserializers"
+	depends on OF && I2C && VIDEO_DEV && COMMON_CLK
+	select I2C_ATR
+	select MEDIA_CONTROLLER
+	select GPIOLIB
+	select REGMAP_I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Device driver for the Texas Instruments DS90UB960
+	  FPD-Link III Deserializer and DS90UB9702 FPD-Link IV Deserializer.
+
+endmenu
+
 endif # VIDEO_DEV
