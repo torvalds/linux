@@ -960,7 +960,7 @@ static int max98388_i2c_probe(struct i2c_client *i2c)
 	ret = regmap_read(max98388->regmap,
 			  MAX98388_R22FF_REV_ID, &reg);
 	if (ret < 0)
-		return dev_err_probe(&i2c->dev, PTR_ERR(max98388->regmap),
+		return dev_err_probe(&i2c->dev, ret,
 				     "Failed to read the revision ID\n");
 
 	dev_info(&i2c->dev, "MAX98388 revisionID: 0x%02X\n", reg);
