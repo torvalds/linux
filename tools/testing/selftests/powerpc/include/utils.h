@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <sys/signal.h>
 #include <linux/auxvec.h>
 #include <linux/perf_event.h>
 #include <asm/cputable.h>
@@ -110,6 +111,9 @@ static inline char *auxv_platform(void)
 
 bool is_ppc64le(void);
 int using_hash_mmu(bool *using_hash);
+
+struct sigaction push_signal_handler(int sig, void (*fn)(int, siginfo_t *, void *));
+struct sigaction pop_signal_handler(int sig, struct sigaction old_handler);
 
 /* Yes, this is evil */
 #define FAIL_IF(x)						\
