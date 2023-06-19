@@ -702,7 +702,8 @@ static int mp_config_mi(struct rkisp_stream *stream)
 		height = dev->cap_dev.wrap_line;
 	val = out_fmt->plane_fmt[0].bytesperline;
 	/* in bytes for isp32 */
-	if (dev->isp_ver == ISP_V32)
+	if (dev->isp_ver == ISP_V32 &&
+	    stream->out_isp_fmt.write_format != MI_CTRL_MP_WRITE_YUVINT)
 		rkisp_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, false);
 	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
 	/* in pixels for isp32 lite */
@@ -861,8 +862,13 @@ static int bp_config_mi(struct rkisp_stream *stream)
 	* memory plane formats, so calculate the size explicitly.
 	*/
 	val = out_fmt->plane_fmt[0].bytesperline;
-	rkisp_write(dev, ISP3X_MI_BP_WR_Y_LLENGTH, val, false);
+	/* in bytes */
+	if (stream->out_isp_fmt.write_format != ISP3X_BP_FORMAT_INT)
+		rkisp_write(dev, ISP3X_MI_BP_WR_Y_LLENGTH, val, false);
 	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
+	/* in pixels */
+	if (stream->out_isp_fmt.write_format == ISP3X_BP_FORMAT_INT)
+		rkisp_write(dev, ISP3X_MI_BP_WR_Y_LLENGTH, val, false);
 	val *= out_fmt->height;
 	rkisp_write(dev, stream->config->mi.y_pic_size, val, false);
 	val = out_fmt->plane_fmt[0].bytesperline * out_fmt->height;
@@ -899,8 +905,11 @@ static int ds_config_mi(struct rkisp_stream *stream)
 	u32 val;
 
 	val = out_fmt->plane_fmt[0].bytesperline;
-	rkisp_write(dev, stream->config->mi.length, val, false);
+	if (stream->out_isp_fmt.write_format != ISP3X_BP_FORMAT_INT)
+		rkisp_write(dev, stream->config->mi.length, val, false);
 	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
+	if (stream->out_isp_fmt.write_format == ISP3X_BP_FORMAT_INT)
+		rkisp_write(dev, stream->config->mi.length, val, false);
 	val *= out_fmt->height;
 	rkisp_write(dev, stream->config->mi.y_pic_size, val, false);
 	val = out_fmt->plane_fmt[0].bytesperline * out_fmt->height;
