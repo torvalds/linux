@@ -197,13 +197,35 @@ static DEFINE_MUTEX(dwc3_octeon_clocks_mutex);
 static uint8_t clk_div[OCTEON_H_CLKDIV_SEL] = {1, 2, 4, 6, 8, 16, 24, 32};
 
 
-static int dwc3_octeon_config_power(struct device *dev, u64 base)
+static void dwc3_octeon_config_gpio(int index, int gpio)
 {
 	union cvmx_gpio_bit_cfgx gpio_bit;
+
+	if ((OCTEON_IS_MODEL(OCTEON_CN73XX) ||
+	    OCTEON_IS_MODEL(OCTEON_CNF75XX))
+	    && gpio <= 31) {
+		gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
+		gpio_bit.s.tx_oe = 1;
+		gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x15);
+		cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
+	} else if (gpio <= 15) {
+		gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
+		gpio_bit.s.tx_oe = 1;
+		gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
+		cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
+	} else {
+		gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_XBIT_CFGX(gpio));
+		gpio_bit.s.tx_oe = 1;
+		gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
+		cvmx_write_csr(CVMX_GPIO_XBIT_CFGX(gpio), gpio_bit.u64);
+	}
+}
+
+static int dwc3_octeon_config_power(struct device *dev, u64 base)
+{
 	uint32_t gpio_pwr[3];
 	int gpio, len, power_active_low;
 	struct device_node *node = dev->of_node;
-	int index = (base >> 24) & 1;
 	u64 val;
 	u64 uctl_host_cfg_reg = base + USBDRD_UCTL_HOST_CFG;
 
@@ -220,24 +242,7 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 			dev_err(dev, "invalid power configuration\n");
 			return -EINVAL;
 		}
-		if ((OCTEON_IS_MODEL(OCTEON_CN73XX) ||
-		    OCTEON_IS_MODEL(OCTEON_CNF75XX))
-		    && gpio <= 31) {
-			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
-			gpio_bit.s.tx_oe = 1;
-			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x15);
-			cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
-		} else if (gpio <= 15) {
-			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
-			gpio_bit.s.tx_oe = 1;
-			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
-			cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
-		} else {
-			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_XBIT_CFGX(gpio));
-			gpio_bit.s.tx_oe = 1;
-			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
-			cvmx_write_csr(CVMX_GPIO_XBIT_CFGX(gpio), gpio_bit.u64);
-		}
+		dwc3_octeon_config_gpio((base >> 24) & 1, gpio);
 
 		/* Enable XHCI power control and set if active high or low. */
 		val = cvmx_read_csr(uctl_host_cfg_reg);
