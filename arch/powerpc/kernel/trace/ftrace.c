@@ -50,32 +50,39 @@ ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 	return op;
 }
 
-static inline int
-ftrace_modify_code(unsigned long ip, ppc_inst_t old, ppc_inst_t new)
+static inline int ftrace_read_inst(unsigned long ip, ppc_inst_t *op)
 {
-	ppc_inst_t replaced;
-
-	/*
-	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
-	 * could cause us to read or write to someplace that could cause harm.
-	 * Carefully read and modify the code with probe_kernel_*(), and make
-	 * sure what we read is what we expected it to be before modifying it.
-	 */
-
-	/* read the text we want to modify */
-	if (copy_inst_from_kernel_nofault(&replaced, (void *)ip))
+	if (copy_inst_from_kernel_nofault(op, (void *)ip)) {
+		pr_err("0x%lx: fetching instruction failed\n", ip);
 		return -EFAULT;
-
-	/* Make sure it is what we expect it to be */
-	if (!ppc_inst_equal(replaced, old)) {
-		pr_err("%p: replaced (%08lx) != old (%08lx)", (void *)ip,
-		       ppc_inst_as_ulong(replaced), ppc_inst_as_ulong(old));
-		return -EINVAL;
 	}
 
-	/* replace the text with the new text */
-	return patch_instruction((u32 *)ip, new);
+	return 0;
+}
+
+static inline int ftrace_validate_inst(unsigned long ip, ppc_inst_t inst)
+{
+	ppc_inst_t op;
+	int ret;
+
+	ret = ftrace_read_inst(ip, &op);
+	if (!ret && !ppc_inst_equal(op, inst)) {
+		pr_err("0x%lx: expected (%08lx) != found (%08lx)\n",
+		       ip, ppc_inst_as_ulong(inst), ppc_inst_as_ulong(op));
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static inline int ftrace_modify_code(unsigned long ip, ppc_inst_t old, ppc_inst_t new)
+{
+	int ret = ftrace_validate_inst(ip, old);
+
+	if (!ret)
+		ret = patch_instruction((u32 *)ip, new);
+
+	return ret;
 }
 
 /*
