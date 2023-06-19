@@ -31,6 +31,16 @@
 #define	NUM_FTRACE_TRAMPS	2
 static unsigned long ftrace_tramps[NUM_FTRACE_TRAMPS];
 
+static ppc_inst_t ftrace_create_branch_inst(unsigned long ip, unsigned long addr, int link)
+{
+	ppc_inst_t op;
+
+	WARN_ON(!is_offset_in_branch_range(addr - ip));
+	create_branch(&op, (u32 *)ip, addr, link ? BRANCH_SET_LINK : 0);
+
+	return op;
+}
+
 static ppc_inst_t
 ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
@@ -596,6 +606,67 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return __ftrace_modify_call(rec, old_addr, addr);
 }
 #endif
+
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+{
+	unsigned long addr, ip = rec->ip;
+	ppc_inst_t old, new;
+	int ret = 0;
+
+	/* Verify instructions surrounding the ftrace location */
+	if (IS_ENABLED(CONFIG_PPC32)) {
+		/* Expected sequence: 'mflr r0', 'stw r0,4(r1)', 'bl _mcount' */
+		ret = ftrace_validate_inst(ip - 8, ppc_inst(PPC_RAW_MFLR(_R0)));
+		if (!ret)
+			ret = ftrace_validate_inst(ip - 4, ppc_inst(PPC_RAW_STW(_R0, _R1, 4)));
+	} else if (IS_ENABLED(CONFIG_MPROFILE_KERNEL)) {
+		/* Expected sequence: 'mflr r0', ['std r0,16(r1)'], 'bl _mcount' */
+		ret = ftrace_read_inst(ip - 4, &old);
+		if (!ret && !ppc_inst_equal(old, ppc_inst(PPC_RAW_MFLR(_R0)))) {
+			ret = ftrace_validate_inst(ip - 8, ppc_inst(PPC_RAW_MFLR(_R0)));
+			ret |= ftrace_validate_inst(ip - 4, ppc_inst(PPC_RAW_STD(_R0, _R1, 16)));
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	if (ret)
+		return ret;
+
+	if (!core_kernel_text(ip)) {
+		if (!mod) {
+			pr_err("0x%lx: No module provided for non-kernel address\n", ip);
+			return -EFAULT;
+		}
+		rec->arch.mod = mod;
+	}
+
+	/* Nop-out the ftrace location */
+	new = ppc_inst(PPC_RAW_NOP());
+	addr = MCOUNT_ADDR;
+	if (is_offset_in_branch_range(addr - ip)) {
+		/* Within range */
+		old = ftrace_create_branch_inst(ip, addr, 1);
+		ret = ftrace_modify_code(ip, old, new);
+	} else if (core_kernel_text(ip) || (IS_ENABLED(CONFIG_MODULES) && mod)) {
+		/*
+		 * We would be branching to a linker-generated stub, or to the module _mcount
+		 * stub. Let's just confirm we have a 'bl' here.
+		 */
+		ret = ftrace_read_inst(ip, &old);
+		if (ret)
+			return ret;
+		if (!is_bl_op(old)) {
+			pr_err("0x%lx: expected (bl) != found (%08lx)\n", ip, ppc_inst_as_ulong(old));
+			return -EINVAL;
+		}
+		ret = patch_instruction((u32 *)ip, new);
+	} else {
+		return -EINVAL;
+	}
+
+	return ret;
+}
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {

@@ -29,11 +29,17 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 				    unsigned long sp);
 
+struct module;
+struct dyn_ftrace;
 struct dyn_arch_ftrace {
 	struct module *mod;
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+#define ftrace_need_init_nop()	(true)
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_nop ftrace_init_nop
+
 struct ftrace_regs {
 	struct pt_regs regs;
 };
