@@ -14,6 +14,8 @@
   __alloc_skb
   alloc_workqueue
   alt_cb_patch_nops
+  android_debug_per_cpu_symbol
+  android_debug_symbol
   arch_freq_scale
   __arch_copy_from_user
   __arch_copy_to_user
