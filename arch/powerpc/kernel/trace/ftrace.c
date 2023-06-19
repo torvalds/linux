@@ -790,44 +790,10 @@ int __init ftrace_dyn_arch_init(void)
 #endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-
-extern void ftrace_graph_call(void);
-extern void ftrace_graph_stub(void);
-
-static int ftrace_modify_ftrace_graph_caller(bool enable)
+void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
+		       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
-	unsigned long ip = (unsigned long)(&ftrace_graph_call);
-	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
-	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
-	ppc_inst_t old, new;
-
-	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_ARGS))
-		return 0;
-
-	old = ftrace_call_replace(ip, enable ? stub : addr, 0);
-	new = ftrace_call_replace(ip, enable ? addr : stub, 0);
-
-	return ftrace_modify_code(ip, old, new);
-}
-
-int ftrace_enable_ftrace_graph_caller(void)
-{
-	return ftrace_modify_ftrace_graph_caller(true);
-}
-
-int ftrace_disable_ftrace_graph_caller(void)
-{
-	return ftrace_modify_ftrace_graph_caller(false);
-}
-
-/*
- * Hook the return address and push it in the stack of return addrs
- * in current thread info. Return the address we want to divert to.
- */
-static unsigned long
-__prepare_ftrace_return(unsigned long parent, unsigned long ip, unsigned long sp)
-{
-	unsigned long return_hooker;
+	unsigned long sp = fregs->regs.gpr[1];
 	int bit;
 
 	if (unlikely(ftrace_graph_is_dead()))
@@ -836,31 +802,15 @@ __prepare_ftrace_return(unsigned long parent, unsigned long ip, unsigned long sp
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
 
-	bit = ftrace_test_recursion_trylock(ip, parent);
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0)
 		goto out;
 
-	return_hooker = ppc_function_entry(return_to_handler);
-
-	if (!function_graph_enter(parent, ip, 0, (unsigned long *)sp))
-		parent = return_hooker;
+	if (!function_graph_enter(parent_ip, ip, 0, (unsigned long *)sp))
+		parent_ip = ppc_function_entry(return_to_handler);
 
 	ftrace_test_recursion_unlock(bit);
 out:
-	return parent;
+	fregs->regs.link = parent_ip;
 }
-
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
-		       struct ftrace_ops *op, struct ftrace_regs *fregs)
-{
-	fregs->regs.link = __prepare_ftrace_return(parent_ip, ip, fregs->regs.gpr[1]);
-}
-#else
-unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
-				    unsigned long sp)
-{
-	return __prepare_ftrace_return(parent, ip, sp);
-}
-#endif
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
