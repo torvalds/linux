@@ -1275,7 +1275,10 @@ int btrfs_delete_free_space_tree(struct btrfs_fs_info *fs_info)
 		goto abort;
 
 	btrfs_global_root_delete(free_space_root);
+
+	spin_lock(&fs_info->trans_lock);
 	list_del(&free_space_root->dirty_list);
+	spin_unlock(&fs_info->trans_lock);
 
 	btrfs_tree_lock(free_space_root->node);
 	btrfs_clean_tree_block(free_space_root->node);
