@@ -729,11 +729,11 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 			continue;
 
 		/*
-		 * Skip sizes where width and height are less then 2/3th of the
+		 * Skip sizes where width and height are less then 5/8th of the
 		 * sensor size to avoid sizes with a too small field of view.
 		 */
-		if (frame_sizes[i].width < (active->width * 2 / 3) &&
-		    frame_sizes[i].height < (active->height * 2 / 3))
+		if (frame_sizes[i].width < (active->width * 5 / 8) &&
+		    frame_sizes[i].height < (active->height * 5 / 8))
 			continue;
 
 		if (*valid_sizes == fsize->index) {
