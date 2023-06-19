@@ -95,7 +95,7 @@ bool cpupower_amd_pstate_enabled(void)
 	if (!driver)
 		return ret;
 
-	if (!strcmp(driver, "amd-pstate"))
+	if (!strncmp(driver, "amd", 3))
 		ret = true;
 
 	cpufreq_put_driver(driver);
