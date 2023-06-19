@@ -2245,16 +2245,16 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (r)
 		return r;
 
-	/* Sanity checks */
-	if (!amdgpu_vm_pt_is_root_clean(adev, vm)) {
-		r = -EINVAL;
-		goto unreserve_bo;
-	}
-
 	/* Check if PD needs to be reinitialized and do it before
 	 * changing any other state, in case it fails.
 	 */
 	if (pte_support_ats != vm->pte_support_ats) {
+		/* Sanity checks */
+		if (!amdgpu_vm_pt_is_root_clean(adev, vm)) {
+			r = -EINVAL;
+			goto unreserve_bo;
+		}
+
 		vm->pte_support_ats = pte_support_ats;
 		r = amdgpu_vm_pt_clear(adev, vm, to_amdgpu_bo_vm(vm->root.bo),
 				       false);
