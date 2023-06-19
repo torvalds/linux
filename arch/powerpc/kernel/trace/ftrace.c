@@ -94,104 +94,123 @@ static unsigned long find_ftrace_tramp(unsigned long ip)
 	return 0;
 }
 
+static int ftrace_get_call_inst(struct dyn_ftrace *rec, unsigned long addr, ppc_inst_t *call_inst)
+{
+	unsigned long ip = rec->ip;
+	unsigned long stub;
+
+	if (is_offset_in_branch_range(addr - ip)) {
+		/* Within range */
+		stub = addr;
+#ifdef CONFIG_MODULES
+	} else if (rec->arch.mod) {
+		/* Module code would be going to one of the module stubs */
+		stub = (addr == (unsigned long)ftrace_caller ? rec->arch.mod->arch.tramp :
+							       rec->arch.mod->arch.tramp_regs);
+#endif
+	} else if (core_kernel_text(ip)) {
+		/* We would be branching to one of our ftrace stubs */
+		stub = find_ftrace_tramp(ip);
+		if (!stub) {
+			pr_err("0x%lx: No ftrace stubs reachable\n", ip);
+			return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	*call_inst = ftrace_create_branch_inst(ip, stub, 1);
+	return 0;
+}
+
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
 {
-	unsigned long tramp, tramp_old, ip = rec->ip;
-	ppc_inst_t old, new;
-	struct module *mod;
-
-	if (is_offset_in_branch_range(old_addr - ip) && is_offset_in_branch_range(addr - ip)) {
-		/* Within range */
-		old = ftrace_create_branch_inst(ip, old_addr, 1);
-		new = ftrace_create_branch_inst(ip, addr, 1);
-		return ftrace_modify_code(ip, old, new);
-	} else if (core_kernel_text(ip)) {
-		/*
-		 * We always patch out of range locations to go to the regs
-		 * variant, so there is nothing to do here
-		 */
-		return 0;
-	} else if (IS_ENABLED(CONFIG_MODULES)) {
-		/* Module code would be going to one of the module stubs */
-		mod = rec->arch.mod;
-		if (addr == (unsigned long)ftrace_caller) {
-			tramp_old = mod->arch.tramp_regs;
-			tramp = mod->arch.tramp;
-		} else {
-			tramp_old = mod->arch.tramp;
-			tramp = mod->arch.tramp_regs;
-		}
-		old = ftrace_create_branch_inst(ip, tramp_old, 1);
-		new = ftrace_create_branch_inst(ip, tramp, 1);
-		return ftrace_modify_code(ip, old, new);
-	}
-
+	/* This should never be called since we override ftrace_replace_code() */
+	WARN_ON(1);
 	return -EINVAL;
 }
 #endif
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	unsigned long tramp, ip = rec->ip;
 	ppc_inst_t old, new;
-	struct module *mod;
+	int ret;
+
+	/* This can only ever be called during module load */
+	if (WARN_ON(!IS_ENABLED(CONFIG_MODULES) || core_kernel_text(rec->ip)))
+		return -EINVAL;
 
 	old = ppc_inst(PPC_RAW_NOP());
-	if (is_offset_in_branch_range(addr - ip)) {
-		/* Within range */
-		new = ftrace_create_branch_inst(ip, addr, 1);
-		return ftrace_modify_code(ip, old, new);
-	} else if (core_kernel_text(ip)) {
-		/* We would be branching to one of our ftrace tramps */
-		tramp = find_ftrace_tramp(ip);
-		if (!tramp) {
-			pr_err("0x%lx: No ftrace trampolines reachable\n", ip);
-			return -EINVAL;
-		}
-		new = ftrace_create_branch_inst(ip, tramp, 1);
-		return ftrace_modify_code(ip, old, new);
-	} else if (IS_ENABLED(CONFIG_MODULES)) {
-		/* Module code would be going to one of the module stubs */
-		mod = rec->arch.mod;
-		tramp = (addr == (unsigned long)ftrace_caller ? mod->arch.tramp : mod->arch.tramp_regs);
-		new = ftrace_create_branch_inst(ip, tramp, 1);
-		return ftrace_modify_code(ip, old, new);
-	}
+	ret = ftrace_get_call_inst(rec, addr, &new);
+	if (ret)
+		return ret;
 
-	return -EINVAL;
+	return ftrace_modify_code(rec->ip, old, new);
 }
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
-	unsigned long tramp, ip = rec->ip;
-	ppc_inst_t old, new;
+	/*
+	 * This should never be called since we override ftrace_replace_code(),
+	 * as well as ftrace_init_nop()
+	 */
+	WARN_ON(1);
+	return -EINVAL;
+}
 
-	/* Nop-out the ftrace location */
-	new = ppc_inst(PPC_RAW_NOP());
-	if (is_offset_in_branch_range(addr - ip)) {
-		/* Within range */
-		old = ftrace_create_branch_inst(ip, addr, 1);
-		return ftrace_modify_code(ip, old, new);
-	} else if (core_kernel_text(ip)) {
-		/* We would be branching to one of our ftrace tramps */
-		tramp = find_ftrace_tramp(ip);
-		if (!tramp) {
-			pr_err("0x%lx: No ftrace trampolines reachable\n", ip);
-			return -EINVAL;
+void ftrace_replace_code(int enable)
+{
+	ppc_inst_t old, new, call_inst, new_call_inst;
+	ppc_inst_t nop_inst = ppc_inst(PPC_RAW_NOP());
+	unsigned long ip, new_addr, addr;
+	struct ftrace_rec_iter *iter;
+	struct dyn_ftrace *rec;
+	int ret = 0, update;
+
+	for_ftrace_rec_iter(iter) {
+		rec = ftrace_rec_iter_record(iter);
+		ip = rec->ip;
+
+		if (rec->flags & FTRACE_FL_DISABLED && !(rec->flags & FTRACE_FL_ENABLED))
+			continue;
+
+		addr = ftrace_get_addr_curr(rec);
+		new_addr = ftrace_get_addr_new(rec);
+		update = ftrace_update_record(rec, enable);
+
+		switch (update) {
+		case FTRACE_UPDATE_IGNORE:
+		default:
+			continue;
+		case FTRACE_UPDATE_MODIFY_CALL:
+			ret = ftrace_get_call_inst(rec, new_addr, &new_call_inst);
+			ret |= ftrace_get_call_inst(rec, addr, &call_inst);
+			old = call_inst;
+			new = new_call_inst;
+			break;
+		case FTRACE_UPDATE_MAKE_NOP:
+			ret = ftrace_get_call_inst(rec, addr, &call_inst);
+			old = call_inst;
+			new = nop_inst;
+			break;
+		case FTRACE_UPDATE_MAKE_CALL:
+			ret = ftrace_get_call_inst(rec, new_addr, &call_inst);
+			old = nop_inst;
+			new = call_inst;
+			break;
 		}
-		old = ftrace_create_branch_inst(ip, tramp, 1);
-		return ftrace_modify_code(ip, old, new);
-	} else if (IS_ENABLED(CONFIG_MODULES)) {
-		/* Module code would be going to one of the module stubs */
-		if (!mod)
-			mod = rec->arch.mod;
-		tramp = (addr == (unsigned long)ftrace_caller ? mod->arch.tramp : mod->arch.tramp_regs);
-		old = ftrace_create_branch_inst(ip, tramp, 1);
-		return ftrace_modify_code(ip, old, new);
+
+		if (!ret)
+			ret = ftrace_modify_code(ip, old, new);
+		if (ret)
+			goto out;
 	}
 
-	return -EINVAL;
+out:
+	if (ret)
+		ftrace_bug(ret, rec);
+	return;
 }
 
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
