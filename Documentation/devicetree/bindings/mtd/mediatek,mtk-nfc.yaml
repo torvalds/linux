@@ -40,7 +40,7 @@ properties:
 
 patternProperties:
   "^nand@[a-f0-9]$":
-    $ref: nand-chip.yaml#
+    $ref: raw-nand-chip.yaml#
     unevaluatedProperties: false
     properties:
       reg:
