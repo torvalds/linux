@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <linux/regset.h>
+
 /*
  * Set of msr bits that gdb can change on behalf of a process.
  */
