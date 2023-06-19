@@ -13,6 +13,12 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		i3c0 = &i3c0;
+		i3c1 = &i3c1;
+		i3c2 = &i3c2;
+		i3c3 = &i3c3;
+		i3c4 = &i3c4;
+		i3c5 = &i3c5;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -603,6 +609,13 @@
 				compatible = "aspeed,ast2600-wdt";
 				reg = <0x1e7850C0 0x40>;
 				status = "disabled";
+			};
+
+			i3c: bus@1e7a0000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
 			peci0: peci-controller@1e78b000 {
@@ -1261,6 +1274,141 @@
 		bus-frequency = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c16_default>;
+		status = "disabled";
+	};
+};
+
+&i3c {
+	i3c_global: i3cg@0 {
+		reg = <0x0 0x1000>;
+		compatible = "aspeed,ast2600-i3c-global", "syscon";
+	};
+
+	i3c0: i3c0@2000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x2000 0x1000>;
+		compatible = "aspeed,ast2600-i3c", "syscon";
+		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
+		resets = <&syscon ASPEED_RESET_I3C0>, <&syscon ASPEED_RESET_I3C>;
+		reset-names = "core_rst", "global_rst";
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c1_default>;
+
+		i2c-scl-hz = <1000000>;
+		i3c-scl-hz = <12500000>;
+		aspeed,global-regs = <&i3c_global 0>;
+		sda-pullup-ohms = <2000>;
+
+		status = "disabled";
+	};
+
+	i3c1: i3c1@3000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x3000 0x1000>;
+		compatible = "aspeed,ast2600-i3c", "syscon";
+		clocks = <&syscon ASPEED_CLK_GATE_I3C1CLK>;
+		resets = <&syscon ASPEED_RESET_I3C1>, <&syscon ASPEED_RESET_I3C>;
+		reset-names = "core_rst", "global_rst";
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c2_default>;
+
+		i2c-scl-hz = <1000000>;
+		i3c-scl-hz = <12500000>;
+		aspeed,global-regs = <&i3c_global 1>;
+		sda-pullup-ohms = <2000>;
+
+		status = "disabled";
+	};
+
+	i3c2: i3c2@4000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x4000 0x1000>;
+		compatible = "aspeed,ast2600-i3c", "syscon";
+		clocks = <&syscon ASPEED_CLK_GATE_I3C2CLK>;
+		resets = <&syscon ASPEED_RESET_I3C2>, <&syscon ASPEED_RESET_I3C>;
+		reset-names = "core_rst", "global_rst";
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+
+		i2c-scl-hz = <1000000>;
+		i3c-scl-hz = <12500000>;
+		aspeed,global-regs = <&i3c_global 2>;
+		sda-pullup-ohms = <2000>;
+
+		status = "disabled";
+	};
+
+	i3c3: i3c3@5000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x5000 0x1000>;
+		compatible = "aspeed,ast2600-i3c", "syscon";
+		clocks = <&syscon ASPEED_CLK_GATE_I3C3CLK>;
+		resets = <&syscon ASPEED_RESET_I3C3>, <&syscon ASPEED_RESET_I3C>;
+		reset-names = "core_rst", "global_rst";
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+
+		i2c-scl-hz = <1000000>;
+		i3c-scl-hz = <12500000>;
+		aspeed,global-regs = <&i3c_global 3>;
+		sda-pullup-ohms = <2000>;
+
+		status = "disabled";
+	};
+
+	i3c4: i3c4@6000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x6000 0x1000>;
+		compatible = "aspeed,ast2600-i3c", "syscon";
+		clocks = <&syscon ASPEED_CLK_GATE_I3C4CLK>;
+		resets = <&syscon ASPEED_RESET_I3C4>, <&syscon ASPEED_RESET_I3C>;
+		reset-names = "core_rst", "global_rst";
+		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c5_default>;
+
+		i2c-scl-hz = <1000000>;
+		i3c-scl-hz = <12500000>;
+		aspeed,global-regs = <&i3c_global 4>;
+		sda-pullup-ohms = <2000>;
+
+		status = "disabled";
+	};
+
+	i3c5: i3c5@7000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x7000 0x1000>;
+		compatible = "aspeed,ast2600-i3c", "syscon";
+		clocks = <&syscon ASPEED_CLK_GATE_I3C5CLK>;
+		resets = <&syscon ASPEED_RESET_I3C5>, <&syscon ASPEED_RESET_I3C>;
+		reset-names = "core_rst", "global_rst";
+		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c6_default>;
+
+		i2c-scl-hz = <1000000>;
+		i3c-scl-hz = <12500000>;
+		aspeed,global-regs = <&i3c_global 5>;
+		sda-pullup-ohms = <2000>;
+
 		status = "disabled";
 	};
 };
