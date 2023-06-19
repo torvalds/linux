@@ -3001,12 +3001,6 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	bool need_to_enqueue_buffer = false;
 	int i;
 
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, pipe->vdev.name);
-		return;
-	}
-
 	lockdep_assert_held(&asd->isp->mutex);
 
 	/*
@@ -3067,12 +3061,6 @@ int atomisp_set_parameters(struct video_device *vdev,
 	struct atomisp_css_params_with_list *param = NULL;
 	struct atomisp_css_params *css_param = &asd->params.css_param;
 	int ret;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
 
 	lockdep_assert_held(&asd->isp->mutex);
 
@@ -4067,12 +4055,6 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	const struct atomisp_in_fmt_conv *fc = NULL;
 	int ret, i;
 
-	if (!asd) {
-		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
 	isp_sink_crop = atomisp_subdev_get_rect(
 			    &asd->subdev, NULL, V4L2_SUBDEV_FORMAT_ACTIVE,
 			    ATOMISP_SUBDEV_PAD_SINK, V4L2_SEL_TGT_CROP);
@@ -4279,12 +4261,6 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	struct atomisp_input_stream_info *stream_info =
 	    (struct atomisp_input_stream_info *)ffmt->reserved;
 	int ret;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
 
 	format = atomisp_get_format_bridge(f->pixelformat);
 	if (!format)

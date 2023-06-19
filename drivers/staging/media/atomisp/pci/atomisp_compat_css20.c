@@ -613,9 +613,6 @@ static void __apply_additional_pipe_config(
 static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 	enum ia_css_pipe_id pipe_id)
 {
-	if (!asd)
-		return false;
-
 	if (pipe_id == IA_CSS_PIPE_ID_YUVPP)
 		return true;
 
