@@ -2,13 +2,17 @@
 #ifndef __ASM_SPINLOCK_TYPES_H
 #define __ASM_SPINLOCK_TYPES_H
 
+#define __ARCH_SPIN_LOCK_UNLOCKED_VAL	0x1a46
+
 typedef struct {
 #ifdef CONFIG_PA20
 	volatile unsigned int slock;
-# define __ARCH_SPIN_LOCK_UNLOCKED { 1 }
+# define __ARCH_SPIN_LOCK_UNLOCKED { __ARCH_SPIN_LOCK_UNLOCKED_VAL }
 #else
 	volatile unsigned int lock[4];
-# define __ARCH_SPIN_LOCK_UNLOCKED	{ { 1, 1, 1, 1 } }
+# define __ARCH_SPIN_LOCK_UNLOCKED	\
+	{ { __ARCH_SPIN_LOCK_UNLOCKED_VAL, __ARCH_SPIN_LOCK_UNLOCKED_VAL, \
+	    __ARCH_SPIN_LOCK_UNLOCKED_VAL, __ARCH_SPIN_LOCK_UNLOCKED_VAL } }
 #endif
 } arch_spinlock_t;
 

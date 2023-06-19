@@ -2018,6 +2018,7 @@ static const struct spi_nor_manufacturer *manufacturers[] = {
 
 static const struct flash_info spi_nor_generic_flash = {
 	.name = "spi-nor-generic",
+	.n_banks = 1,
 	/*
 	 * JESD216 rev A doesn't specify the page size, therefore we need a
 	 * sane default.
@@ -2921,7 +2922,8 @@ static void spi_nor_late_init_params(struct spi_nor *nor)
 	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params->locking_ops)
 		spi_nor_init_default_locking_ops(nor);
 
-	nor->params->bank_size = div64_u64(nor->params->size, nor->info->n_banks);
+	if (nor->info->n_banks > 1)
+		params->bank_size = div64_u64(params->size, nor->info->n_banks);
 }
 
 /**
@@ -2987,6 +2989,7 @@ static void spi_nor_init_default_params(struct spi_nor *nor)
 	/* Set SPI NOR sizes. */
 	params->writesize = 1;
 	params->size = (u64)info->sector_size * info->n_sectors;
+	params->bank_size = params->size;
 	params->page_size = info->page_size;
 
 	if (!(info->flags & SPI_NOR_NO_FR)) {

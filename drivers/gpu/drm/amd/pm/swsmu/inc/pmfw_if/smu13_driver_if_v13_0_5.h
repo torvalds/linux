@@ -23,7 +23,7 @@
 #ifndef __SMU13_DRIVER_IF_V13_0_5_H__
 #define __SMU13_DRIVER_IF_V13_0_5_H__
 
-#define PMFW_DRIVER_IF_VERSION 4
+#define SMU13_0_5_DRIVER_IF_VERSION 4
 
 // Throttler Status Bitmask
 #define THROTTLER_STATUS_BIT_SPL            0

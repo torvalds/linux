@@ -746,8 +746,6 @@ void msm_gpu_retire(struct msm_gpu *gpu)
 /* add bo's to gpu's ring, and kick gpu: */
 void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 {
-	struct drm_device *dev = gpu->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned long flags;
 
@@ -758,8 +756,6 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	msm_gpu_hw_init(gpu);
 
 	submit->seqno = submit->hw_fence->seqno;
-
-	msm_rd_dump_submit(priv->rd, submit, NULL);
 
 	update_sw_cntrs(gpu);
 

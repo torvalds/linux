@@ -53,7 +53,7 @@ void kq_rollback_packet(struct kernel_queue *kq);
 
 struct kernel_queue {
 	/* data */
-	struct kfd_dev		*dev;
+	struct kfd_node		*dev;
 	struct mqd_manager	*mqd_mgr;
 	struct queue		*queue;
 	uint64_t		pending_wptr64;

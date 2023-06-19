@@ -761,7 +761,7 @@ void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 
 	for (i = first_vmid; i < last_vmid; i++) {
 		data = 0;
-		soc15_grbm_select(adev, 0, 0, 0, i);
+		soc15_grbm_select(adev, 0, 0, 0, i, 0);
 		data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, TRAP_EN, 1);
 		data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, EXCP_EN, 0);
 		data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, EXCP_REPLACE,
@@ -769,15 +769,18 @@ void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 		WREG32(SOC15_REG_OFFSET(GC, 0, regSPI_GDBG_PER_VMID_CNTL), data);
 	}
 
-	soc15_grbm_select(adev, 0, 0, 0, 0);
+	soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+
+	WREG32(SOC15_REG_OFFSET(GC, 0, regSPI_GDBG_TRAP_DATA0), 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, regSPI_GDBG_TRAP_DATA1), 0);
 }
 
 void gfx_v9_4_2_set_power_brake_sequence(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 
 	tmp = 0;
 	tmp = REG_SET_FIELD(tmp, GC_THROTTLE_CTRL, PATTERN_MODE, 1);
@@ -1699,28 +1702,6 @@ static void gfx_v9_4_2_reset_ras_error_count(struct amdgpu_device *adev)
 	gfx_v9_4_2_query_utc_edc_count(adev, NULL, NULL);
 }
 
-static int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
-{
-	struct ras_inject_if *info = (struct ras_inject_if *)inject_if;
-	int ret;
-	struct ta_ras_trigger_error_input block_info = { 0 };
-
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
-		return -EINVAL;
-
-	block_info.block_id = amdgpu_ras_block_to_ta(info->head.block);
-	block_info.sub_block_index = info->head.sub_block_index;
-	block_info.inject_error_type = amdgpu_ras_error_to_ta(info->head.type);
-	block_info.address = info->address;
-	block_info.value = info->value;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	ret = psp_ras_trigger_error(&adev->psp, &block_info);
-	mutex_unlock(&adev->grbm_idx_mutex);
-
-	return ret;
-}
-
 static void gfx_v9_4_2_query_ea_err_status(struct amdgpu_device *adev)
 {
 	uint32_t i, j;
@@ -1935,7 +1916,7 @@ static bool gfx_v9_4_2_query_uctl2_poison_status(struct amdgpu_device *adev)
 	u32 status = 0;
 	struct amdgpu_vmhub *hub;
 
-	hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	status = RREG32(hub->vm_l2_pro_fault_status);
 	/* reset page fault status */
 	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
@@ -1944,7 +1925,6 @@ static bool gfx_v9_4_2_query_uctl2_poison_status(struct amdgpu_device *adev)
 }
 
 struct amdgpu_ras_block_hw_ops  gfx_v9_4_2_ras_ops = {
-		.ras_error_inject = &gfx_v9_4_2_ras_error_inject,
 		.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
 		.reset_ras_error_count = &gfx_v9_4_2_reset_ras_error_count,
 		.query_ras_error_status = &gfx_v9_4_2_query_ras_error_status,

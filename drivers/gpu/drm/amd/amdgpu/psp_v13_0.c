@@ -624,10 +624,11 @@ static int psp_v13_0_exec_spi_cmd(struct psp_context *psp, int cmd)
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_73, 1);
 
 	if (cmd == C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE)
-		return 0;
-
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
-				MBOX_READY_FLAG, MBOX_READY_MASK, false);
+		ret = psp_wait_for_spirom_update(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
+						 MBOX_READY_FLAG, MBOX_READY_MASK, PSP_SPIROM_UPDATE_TIMEOUT);
+	else
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
+				   MBOX_READY_FLAG, MBOX_READY_MASK, false);
 	if (ret) {
 		dev_err(adev->dev, "SPI cmd %x timed out, ret = %d", cmd, ret);
 		return ret;

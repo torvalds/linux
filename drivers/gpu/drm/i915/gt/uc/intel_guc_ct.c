@@ -376,6 +376,24 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 	}
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+static void ct_track_lost_and_found(struct intel_guc_ct *ct, u32 fence, u32 action)
+{
+	unsigned int lost = fence % ARRAY_SIZE(ct->requests.lost_and_found);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+	unsigned long entries[SZ_32];
+	unsigned int n;
+
+	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
+
+	/* May be called under spinlock, so avoid sleeping */
+	ct->requests.lost_and_found[lost].stack = stack_depot_save(entries, n, GFP_NOWAIT);
+#endif
+	ct->requests.lost_and_found[lost].fence = fence;
+	ct->requests.lost_and_found[lost].action = action;
+}
+#endif
+
 static u32 ct_get_next_fence(struct intel_guc_ct *ct)
 {
 	/* For now it's trivial */
@@ -426,11 +444,11 @@ static int ct_write(struct intel_guc_ct *ct,
 		 FIELD_PREP(GUC_CTB_MSG_0_NUM_DWORDS, len) |
 		 FIELD_PREP(GUC_CTB_MSG_0_FENCE, fence);
 
-	type = (flags & INTEL_GUC_CT_SEND_NB) ? GUC_HXG_TYPE_EVENT :
+	type = (flags & INTEL_GUC_CT_SEND_NB) ? GUC_HXG_TYPE_FAST_REQUEST :
 		GUC_HXG_TYPE_REQUEST;
 	hxg = FIELD_PREP(GUC_HXG_MSG_0_TYPE, type) |
-		FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
-			   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
+		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION |
+			   GUC_HXG_REQUEST_MSG_0_DATA0, action[0]);
 
 	CT_DEBUG(ct, "writing (tail %u) %*ph %*ph %*ph\n",
 		 tail, 4, &header, 4, &hxg, 4 * (len - 1), &action[1]);
@@ -446,6 +464,11 @@ static int ct_write(struct intel_guc_ct *ct,
 		tail = (tail + 1) % size;
 	}
 	GEM_BUG_ON(tail > size);
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	ct_track_lost_and_found(ct, fence,
+				FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, action[0]));
+#endif
 
 	/*
 	 * make sure H2G buffer update and LRC tail update (if this triggering a
@@ -675,7 +698,7 @@ static int ct_send(struct intel_guc_ct *ct,
 
 	GEM_BUG_ON(!ct->enabled);
 	GEM_BUG_ON(!len);
-	GEM_BUG_ON(len & ~GUC_CT_MSG_LEN_MASK);
+	GEM_BUG_ON(len > GUC_CTB_HXG_MSG_MAX_LEN - GUC_CTB_HDR_LEN);
 	GEM_BUG_ON(!response_buf && response_buf_size);
 	might_sleep();
 
@@ -953,6 +976,43 @@ corrupted:
 	return -EPIPE;
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+static bool ct_check_lost_and_found(struct intel_guc_ct *ct, u32 fence)
+{
+	unsigned int n;
+	char *buf = NULL;
+	bool found = false;
+
+	lockdep_assert_held(&ct->requests.lock);
+
+	for (n = 0; n < ARRAY_SIZE(ct->requests.lost_and_found); n++) {
+		if (ct->requests.lost_and_found[n].fence != fence)
+			continue;
+		found = true;
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+		buf = kmalloc(SZ_4K, GFP_NOWAIT);
+		if (buf && stack_depot_snprint(ct->requests.lost_and_found[n].stack,
+					       buf, SZ_4K, 0)) {
+			CT_ERROR(ct, "Fence %u was used by action %#04x sent at\n%s",
+				 fence, ct->requests.lost_and_found[n].action, buf);
+			break;
+		}
+#endif
+		CT_ERROR(ct, "Fence %u was used by action %#04x\n",
+			 fence, ct->requests.lost_and_found[n].action);
+		break;
+	}
+	kfree(buf);
+	return found;
+}
+#else
+static bool ct_check_lost_and_found(struct intel_guc_ct *ct, u32 fence)
+{
+	return false;
+}
+#endif
+
 static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *response)
 {
 	u32 len = FIELD_GET(GUC_CTB_MSG_0_NUM_DWORDS, response->msg[0]);
@@ -994,12 +1054,13 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 		break;
 	}
 	if (!found) {
-		CT_ERROR(ct, "Unsolicited response (fence %u)\n", fence);
-		CT_ERROR(ct, "Could not find fence=%u, last_fence=%u\n", fence,
-			 ct->requests.last_fence);
-		list_for_each_entry(req, &ct->requests.pending, link)
-			CT_ERROR(ct, "request %u awaits response\n",
-				 req->fence);
+		CT_ERROR(ct, "Unsolicited response message: len %u, data %#x (fence %u, last %u)\n",
+			 len, hxg[0], fence, ct->requests.last_fence);
+		if (!ct_check_lost_and_found(ct, fence)) {
+			list_for_each_entry(req, &ct->requests.pending, link)
+				CT_ERROR(ct, "request %u awaits response\n",
+					 req->fence);
+		}
 		err = -ENOKEY;
 	}
 	spin_unlock_irqrestore(&ct->requests.lock, flags);

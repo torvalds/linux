@@ -147,7 +147,7 @@ static void radeon_atpx_parse_functions(struct radeon_atpx_functions *f, u32 mas
 }
 
 /**
- * radeon_atpx_validate_functions - validate ATPX functions
+ * radeon_atpx_validate() - validate ATPX functions
  *
  * @atpx: radeon atpx struct
  *

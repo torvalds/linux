@@ -2347,6 +2347,7 @@ int iwl_mvm_mld_update_sta_keys(struct iwl_mvm *mvm,
 				u32 old_sta_mask,
 				u32 new_sta_mask);
 
+bool iwl_rfi_supported(struct iwl_mvm *mvm);
 int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm,
 			    struct iwl_rfi_lut_entry *rfi_table);
 struct iwl_rfi_freq_table_resp_cmd *iwl_rfi_get_freq_table(struct iwl_mvm *mvm);

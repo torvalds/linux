@@ -341,11 +341,6 @@ void nv_grbm_select(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
-static void nv_vga_set_state(struct amdgpu_device *adev, bool state)
-{
-	/* todo */
-}
-
 static bool nv_read_disabled_bios(struct amdgpu_device *adev)
 {
 	/* todo */
@@ -381,12 +376,12 @@ static uint32_t nv_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff, 0);
 
 	val = RREG32(reg_offset);
 
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 	return val;
 }
@@ -632,9 +627,9 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 				       bool enter)
 {
 	if (enter)
-		amdgpu_gfx_rlc_enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 	else
-		amdgpu_gfx_rlc_exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	if (adev->gfx.funcs->update_perfmon_mgcg)
 		adev->gfx.funcs->update_perfmon_mgcg(adev, !enter);
@@ -654,7 +649,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.read_register = &nv_read_register,
 	.reset = &nv_asic_reset,
 	.reset_method = &nv_asic_reset_method,
-	.set_vga_state = &nv_vga_set_state,
 	.get_xclk = &nv_get_xclk,
 	.set_uvd_clocks = &nv_set_uvd_clocks,
 	.set_vce_clocks = &nv_set_vce_clocks,

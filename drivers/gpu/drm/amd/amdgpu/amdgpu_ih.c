@@ -270,7 +270,7 @@ void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,
 	entry->timestamp = dw[1] | ((u64)(dw[2] & 0xffff) << 32);
 	entry->timestamp_src = dw[2] >> 31;
 	entry->pasid = dw[3] & 0xffff;
-	entry->pasid_src = dw[3] >> 31;
+	entry->node_id = (dw[3] >> 16) & 0xff;
 	entry->src_data[0] = dw[4];
 	entry->src_data[1] = dw[5];
 	entry->src_data[2] = dw[6];

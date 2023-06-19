@@ -363,10 +363,6 @@
 /* TODO VPU Encoder/Decoder */
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ext_io0>, <&pinctrl_hog0>, <&pinctrl_hog1>,
-		    <&pinctrl_hog2>, <&pinctrl_lpspi2_cs2>;
-
 	/* On-module touch pen-down interrupt */
 	pinctrl_ad7879_int: ad7879intgrp {
 		fsl,pins = <IMX8QXP_MIPI_CSI0_I2C0_SCL_LSIO_GPIO3_IO05	0x21>;
@@ -499,8 +495,7 @@
 	};
 
 	pinctrl_hog1: hog1grp {
-		fsl,pins = <IMX8QXP_CSI_MCLK_LSIO_GPIO3_IO01			0x20>,		/* SODIMM  75 */
-			   <IMX8QXP_QSPI0A_SCLK_LSIO_GPIO3_IO16			0x20>;		/* SODIMM  93 */
+		fsl,pins = <IMX8QXP_QSPI0A_SCLK_LSIO_GPIO3_IO16			0x20>;		/* SODIMM  93 */
 	};
 
 	pinctrl_hog2: hog2grp {
@@ -774,3 +769,10 @@
 		fsl,pins = <IMX8QXP_SCU_BOOT_MODE3_SCU_DSC_RTC_CLOCK_OUTPUT_32K	0x20>;
 	};
 };
+
+/* Delete peripherals which are not present on SOC, but are defined in imx8-ss-*.dtsi */
+
+/delete-node/ &adc1;
+/delete-node/ &adc1_lpcg;
+/delete-node/ &dsp;
+/delete-node/ &dsp_lpcg;

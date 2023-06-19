@@ -1331,31 +1331,6 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	obj_to_location(obj, &page, &obj_idx);
 	zspage = get_zspage(page);
 
-#ifdef CONFIG_ZPOOL
-	/*
-	 * Move the zspage to front of pool's LRU.
-	 *
-	 * Note that this is swap-specific, so by definition there are no ongoing
-	 * accesses to the memory while the page is swapped out that would make
-	 * it "hot". A new entry is hot, then ages to the tail until it gets either
-	 * written back or swaps back in.
-	 *
-	 * Furthermore, map is also called during writeback. We must not put an
-	 * isolated page on the LRU mid-reclaim.
-	 *
-	 * As a result, only update the LRU when the page is mapped for write
-	 * when it's first instantiated.
-	 *
-	 * This is a deviation from the other backends, which perform this update
-	 * in the allocation function (zbud_alloc, z3fold_alloc).
-	 */
-	if (mm == ZS_MM_WO) {
-		if (!list_empty(&zspage->lru))
-			list_del(&zspage->lru);
-		list_add(&zspage->lru, &pool->lru);
-	}
-#endif
-
 	/*
 	 * migration cannot move any zpages in this zspage. Here, pool->lock
 	 * is too heavy since callers would take some time until they calls
@@ -1525,9 +1500,8 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 		fix_fullness_group(class, zspage);
 		record_obj(handle, obj);
 		class_stat_inc(class, ZS_OBJS_INUSE, 1);
-		spin_unlock(&pool->lock);
 
-		return handle;
+		goto out;
 	}
 
 	spin_unlock(&pool->lock);
@@ -1550,6 +1524,14 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 
 	/* We completely set up zspage so mark them as movable */
 	SetZsPageMovable(pool, zspage);
+out:
+#ifdef CONFIG_ZPOOL
+	/* Add/move zspage to beginning of LRU */
+	if (!list_empty(&zspage->lru))
+		list_del(&zspage->lru);
+	list_add(&zspage->lru, &pool->lru);
+#endif
+
 	spin_unlock(&pool->lock);
 
 	return handle;

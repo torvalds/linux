@@ -691,6 +691,11 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 
 		rcu_read_lock();
 		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[sta_id]);
+		if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
+			rcu_read_unlock();
+			goto out;
+		}
+
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		/* SN is set to the last expired frame + 1 */
@@ -712,6 +717,8 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 			  entries[index].e.reorder_time +
 			  1 + RX_REORDER_BUF_TIMEOUT_MQ);
 	}
+
+out:
 	spin_unlock(&buf->lock);
 }
 
@@ -2512,7 +2519,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 				RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
 				/* Unblock BCAST / MCAST station */
 				iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, false);
-				cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
+				cancel_delayed_work(&mvm->cs_tx_unblock_dwork);
 			}
 		}
 

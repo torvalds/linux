@@ -1172,7 +1172,8 @@ static inline sector_t max_io_len_target_boundary(struct dm_target *ti,
 }
 
 static sector_t __max_io_len(struct dm_target *ti, sector_t sector,
-			     unsigned int max_granularity)
+			     unsigned int max_granularity,
+			     unsigned int max_sectors)
 {
 	sector_t target_offset = dm_target_offset(ti, sector);
 	sector_t len = max_io_len_target_boundary(ti, target_offset);
@@ -1186,13 +1187,13 @@ static sector_t __max_io_len(struct dm_target *ti, sector_t sector,
 	if (!max_granularity)
 		return len;
 	return min_t(sector_t, len,
-		min(queue_max_sectors(ti->table->md->queue),
+		min(max_sectors ? : queue_max_sectors(ti->table->md->queue),
 		    blk_chunk_sectors_left(target_offset, max_granularity)));
 }
 
 static inline sector_t max_io_len(struct dm_target *ti, sector_t sector)
 {
-	return __max_io_len(ti, sector, ti->max_io_len);
+	return __max_io_len(ti, sector, ti->max_io_len, 0);
 }
 
 int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
@@ -1581,12 +1582,13 @@ static void __send_empty_flush(struct clone_info *ci)
 
 static void __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
 					unsigned int num_bios,
-					unsigned int max_granularity)
+					unsigned int max_granularity,
+					unsigned int max_sectors)
 {
 	unsigned int len, bios;
 
 	len = min_t(sector_t, ci->sector_count,
-		    __max_io_len(ti, ci->sector, max_granularity));
+		    __max_io_len(ti, ci->sector, max_granularity, max_sectors));
 
 	atomic_add(num_bios, &ci->io->io_count);
 	bios = __send_duplicate_bios(ci, ti, num_bios, &len);
@@ -1623,23 +1625,27 @@ static blk_status_t __process_abnormal_io(struct clone_info *ci,
 {
 	unsigned int num_bios = 0;
 	unsigned int max_granularity = 0;
+	unsigned int max_sectors = 0;
 	struct queue_limits *limits = dm_get_queue_limits(ti->table->md);
 
 	switch (bio_op(ci->bio)) {
 	case REQ_OP_DISCARD:
 		num_bios = ti->num_discard_bios;
+		max_sectors = limits->max_discard_sectors;
 		if (ti->max_discard_granularity)
-			max_granularity = limits->max_discard_sectors;
+			max_granularity = max_sectors;
 		break;
 	case REQ_OP_SECURE_ERASE:
 		num_bios = ti->num_secure_erase_bios;
+		max_sectors = limits->max_secure_erase_sectors;
 		if (ti->max_secure_erase_granularity)
-			max_granularity = limits->max_secure_erase_sectors;
+			max_granularity = max_sectors;
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		num_bios = ti->num_write_zeroes_bios;
+		max_sectors = limits->max_write_zeroes_sectors;
 		if (ti->max_write_zeroes_granularity)
-			max_granularity = limits->max_write_zeroes_sectors;
+			max_granularity = max_sectors;
 		break;
 	default:
 		break;
@@ -1654,7 +1660,8 @@ static blk_status_t __process_abnormal_io(struct clone_info *ci,
 	if (unlikely(!num_bios))
 		return BLK_STS_NOTSUPP;
 
-	__send_changing_extent_only(ci, ti, num_bios, max_granularity);
+	__send_changing_extent_only(ci, ti, num_bios,
+				    max_granularity, max_sectors);
 	return BLK_STS_OK;
 }
 
@@ -2808,6 +2815,10 @@ retry:
 	}
 
 	map = rcu_dereference_protected(md->map, lockdep_is_held(&md->suspend_lock));
+	if (!map) {
+		/* avoid deadlock with fs/namespace.c:do_mount() */
+		suspend_flags &= ~DM_SUSPEND_LOCKFS_FLAG;
+	}
 
 	r = __dm_suspend(md, map, suspend_flags, TASK_INTERRUPTIBLE, DMF_SUSPENDED);
 	if (r)

@@ -2062,7 +2062,7 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
 	if (bex->fe_len < gex->fe_len)
 		return;
 
-	if (finish_group)
+	if (finish_group || ac->ac_found > sbi->s_mb_min_to_scan)
 		ext4_mb_use_best_found(ac, e4b);
 }
 
@@ -2073,6 +2073,20 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
  * previous found extent and if new one is better, then it's stored
  * in the context. Later, the best found extent will be used, if
  * mballoc can't find good enough extent.
+ *
+ * The algorithm used is roughly as follows:
+ *
+ * * If free extent found is exactly as big as goal, then
+ *   stop the scan and use it immediately
+ *
+ * * If free extent found is smaller than goal, then keep retrying
+ *   upto a max of sbi->s_mb_max_to_scan times (default 200). After
+ *   that stop scanning and use whatever we have.
+ *
+ * * If free extent found is bigger than goal, then keep retrying
+ *   upto a max of sbi->s_mb_min_to_scan times (default 10) before
+ *   stopping the scan and using the extent.
+ *
  *
  * FIXME: real allocation policy is to be designed yet!
  */

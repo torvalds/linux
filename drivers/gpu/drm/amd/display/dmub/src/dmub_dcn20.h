@@ -202,6 +202,8 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
 
+uint32_t dmub_dcn20_get_inbox1_wptr(struct dmub_srv *dmub);
+
 uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub);
 
 void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset);

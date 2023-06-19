@@ -25,17 +25,6 @@
 
 #include "amdgpu_smu.h"
 
-#define SMU13_DRIVER_IF_VERSION_INV 0xFFFFFFFF
-#define SMU13_DRIVER_IF_VERSION_YELLOW_CARP 0x04
-#define SMU13_DRIVER_IF_VERSION_ALDE 0x08
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_0 0x37
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x08
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_10 0x32
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_7 0x37
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_10 0x1D
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_6 0x0
-
 #define SMU13_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
 
 /* MP Apertures */
@@ -61,6 +50,8 @@
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5
+
+#define SMU_13_VCLK_SHIFT		16
 
 extern const int pmfw_decoded_link_speed[5];
 extern const int pmfw_decoded_link_width[7];
@@ -130,6 +121,7 @@ struct smu_13_0_power_context {
 	uint32_t	power_source;
 	uint8_t		in_power_limit_boost_mode;
 	enum smu_13_0_power_state power_state;
+	atomic_t	throttle_status;
 };
 
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)

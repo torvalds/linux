@@ -806,6 +806,7 @@ enum {
 	FILTER_TRACE_FN,
 	FILTER_COMM,
 	FILTER_CPU,
+	FILTER_STACKTRACE,
 };
 
 extern int trace_event_raw_init(struct trace_event_call *call);

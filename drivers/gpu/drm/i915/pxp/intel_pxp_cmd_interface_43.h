@@ -11,19 +11,30 @@
 
 /* PXP-Cmd-Op definitions */
 #define PXP43_CMDID_START_HUC_AUTH 0x0000003A
+#define PXP43_CMDID_NEW_HUC_AUTH 0x0000003F /* MTL+ */
 #define PXP43_CMDID_INIT_SESSION 0x00000036
 
 /* PXP-Packet sizes for MTL's GSCCS-HECI instruction */
 #define PXP43_MAX_HECI_INOUT_SIZE (SZ_32K)
 
-/* PXP-Input-Packet: HUC-Authentication */
+/* PXP-Packet size for MTL's NEW_HUC_AUTH instruction */
+#define PXP43_HUC_AUTH_INOUT_SIZE (SZ_4K)
+
+/* PXP-Input-Packet: HUC Load and Authentication */
 struct pxp43_start_huc_auth_in {
 	struct pxp_cmd_header header;
 	__le64 huc_base_address;
 } __packed;
 
-/* PXP-Output-Packet: HUC-Authentication */
-struct pxp43_start_huc_auth_out {
+/* PXP-Input-Packet: HUC Auth-only */
+struct pxp43_new_huc_auth_in {
+	struct pxp_cmd_header header;
+	u64 huc_base_address;
+	u32 huc_size;
+} __packed;
+
+/* PXP-Output-Packet: HUC Load and Authentication or Auth-only */
+struct pxp43_huc_auth_out {
 	struct pxp_cmd_header header;
 } __packed;
 

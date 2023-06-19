@@ -28,7 +28,7 @@ alloc_empty_config(struct i915_perf *perf)
 	oa_config->perf = perf;
 	kref_init(&oa_config->ref);
 
-	strlcpy(oa_config->uuid, TEST_OA_CONFIG_UUID, sizeof(oa_config->uuid));
+	strscpy(oa_config->uuid, TEST_OA_CONFIG_UUID, sizeof(oa_config->uuid));
 
 	mutex_lock(&perf->metrics_lock);
 

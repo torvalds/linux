@@ -69,13 +69,6 @@ enum dce_environment {
 	DCE_ENV_VIRTUAL_HW
 };
 
-/* Note: use these macro definitions instead of direct comparison! */
-#define IS_FPGA_MAXIMUS_DC(dce_environment) \
-	(dce_environment == DCE_ENV_FPGA_MAXIMUS)
-
-#define IS_DIAG_DC(dce_environment) \
-	(IS_FPGA_MAXIMUS_DC(dce_environment) || (dce_environment == DCE_ENV_DIAG))
-
 struct dc_perf_trace {
 	unsigned long read_count;
 	unsigned long write_count;
@@ -83,7 +76,7 @@ struct dc_perf_trace {
 	unsigned long last_entry_write;
 };
 
-#define MAX_SURFACE_NUM 4
+#define MAX_SURFACE_NUM 6
 #define NUM_PIXEL_FORMATS 10
 
 enum tiling_mode {
@@ -196,6 +189,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
+	unsigned int delay_disable_aux_intercept_ms;
 };
 
 struct dc_edid_caps {
@@ -603,6 +597,7 @@ enum dc_psr_state {
 	PSR_STATE4b_FULL_FRAME,
 	PSR_STATE4c_FULL_FRAME,
 	PSR_STATE4_FULL_FRAME_POWERUP,
+	PSR_STATE4_FULL_FRAME_HW_LOCK,
 	PSR_STATE5,
 	PSR_STATE5a,
 	PSR_STATE5b,

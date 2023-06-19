@@ -307,7 +307,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	touch_pins: touch-state {
@@ -317,7 +316,6 @@
 
 			drive-strength = <8>;
 			bias-pull-down;
-			input-enable;
 		};
 
 		reset-pins {
@@ -335,7 +333,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	wlan_regulator_default_state: wlan-regulator-default-state {
