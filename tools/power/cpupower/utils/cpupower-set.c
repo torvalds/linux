@@ -20,6 +20,7 @@ static struct option set_opts[] = {
 	{"perf-bias", required_argument, NULL, 'b'},
 	{"epp", required_argument, NULL, 'e'},
 	{"amd-pstate-mode", required_argument, NULL, 'm'},
+	{"turbo-boost", required_argument, NULL, 't'},
 	{ },
 };
 
@@ -41,10 +42,11 @@ int cmd_set(int argc, char **argv)
 			int perf_bias:1;
 			int epp:1;
 			int mode:1;
+			int turbo_boost:1;
 		};
 		int params;
 	} params;
-	int perf_bias = 0;
+	int perf_bias = 0, turbo_boost = 1;
 	int ret = 0;
 	char epp[30], mode[20];
 
@@ -94,6 +96,18 @@ int cmd_set(int argc, char **argv)
 			}
 			params.mode = 1;
 			break;
+		case 't':
+			if (params.turbo_boost)
+				print_wrong_arg_exit();
+			turbo_boost = atoi(optarg);
+			if (turbo_boost < 0 || turbo_boost > 1) {
+				printf("--turbo-boost param out of range [0-1]\n");
+				print_wrong_arg_exit();
+			}
+			params.turbo_boost = 1;
+			break;
+
+
 		default:
 			print_wrong_arg_exit();
 		}
@@ -106,6 +120,12 @@ int cmd_set(int argc, char **argv)
 		ret = cpupower_set_amd_pstate_mode(mode);
 		if (ret)
 			fprintf(stderr, "Error setting mode\n");
+	}
+
+	if (params.turbo_boost) {
+		ret = cpupower_set_turbo_boost(turbo_boost);
+		if (ret)
+			fprintf(stderr, "Error setting turbo-boost\n");
 	}
 
 	/* Default is: set all CPUs */
