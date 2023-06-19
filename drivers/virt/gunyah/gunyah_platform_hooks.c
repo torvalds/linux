@@ -9,7 +9,7 @@
 
 #include "rsc_mgr.h"
 
-static struct gh_rm_platform_ops *rm_platform_ops;
+static const struct gh_rm_platform_ops *rm_platform_ops;
 static DECLARE_RWSEM(rm_platform_ops_lock);
 
 int gh_rm_platform_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel)
@@ -36,7 +36,7 @@ int gh_rm_platform_post_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_parcel *m
 }
 EXPORT_SYMBOL_GPL(gh_rm_platform_post_mem_reclaim);
 
-int gh_rm_register_platform_ops(struct gh_rm_platform_ops *platform_ops)
+int gh_rm_register_platform_ops(const struct gh_rm_platform_ops *platform_ops)
 {
 	int ret = 0;
 
@@ -50,7 +50,7 @@ int gh_rm_register_platform_ops(struct gh_rm_platform_ops *platform_ops)
 }
 EXPORT_SYMBOL_GPL(gh_rm_register_platform_ops);
 
-void gh_rm_unregister_platform_ops(struct gh_rm_platform_ops *platform_ops)
+void gh_rm_unregister_platform_ops(const struct gh_rm_platform_ops *platform_ops)
 {
 	down_write(&rm_platform_ops_lock);
 	if (rm_platform_ops == platform_ops)
@@ -61,10 +61,10 @@ EXPORT_SYMBOL_GPL(gh_rm_unregister_platform_ops);
 
 static void _devm_gh_rm_unregister_platform_ops(void *data)
 {
-	gh_rm_unregister_platform_ops(data);
+	gh_rm_unregister_platform_ops((const struct gh_rm_platform_ops *)data);
 }
 
-int devm_gh_rm_register_platform_ops(struct device *dev, struct gh_rm_platform_ops *ops)
+int devm_gh_rm_register_platform_ops(struct device *dev, const struct gh_rm_platform_ops *ops)
 {
 	int ret;
 
@@ -72,7 +72,7 @@ int devm_gh_rm_register_platform_ops(struct device *dev, struct gh_rm_platform_o
 	if (ret)
 		return ret;
 
-	return devm_add_action(dev, _devm_gh_rm_unregister_platform_ops, ops);
+	return devm_add_action(dev, _devm_gh_rm_unregister_platform_ops, (void *)ops);
 }
 EXPORT_SYMBOL_GPL(devm_gh_rm_register_platform_ops);
 
