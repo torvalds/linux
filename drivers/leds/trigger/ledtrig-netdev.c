@@ -406,6 +406,16 @@ static ssize_t interval_store(struct device *dev,
 
 static DEVICE_ATTR_RW(interval);
 
+static ssize_t hw_control_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", trigger_data->hw_control);
+}
+
+static DEVICE_ATTR_RO(hw_control);
+
 static struct attribute *netdev_trig_attrs[] = {
 	&dev_attr_device_name.attr,
 	&dev_attr_link.attr,
@@ -417,6 +427,7 @@ static struct attribute *netdev_trig_attrs[] = {
 	&dev_attr_rx.attr,
 	&dev_attr_tx.attr,
 	&dev_attr_interval.attr,
+	&dev_attr_hw_control.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(netdev_trig);
