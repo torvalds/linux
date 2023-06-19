@@ -15,6 +15,8 @@
 /* The size of END signal context header. */
 #define END_HDR_SIZE	0x0
 
+#ifndef __ASSEMBLY__
+
 struct __sc_riscv_v_state {
 	struct __riscv_v_ext_state v_state;
 } __attribute__((aligned(16)));
@@ -32,5 +34,7 @@ struct sigcontext {
 		struct __riscv_extra_ext_header sc_extdesc;
 	};
 };
+
+#endif /*!__ASSEMBLY__*/
 
 #endif /* _UAPI_ASM_RISCV_SIGCONTEXT_H */
