@@ -15,7 +15,6 @@
 #include "mmci.h"
 
 #define SDMMC_LLI_BUF_LEN	PAGE_SIZE
-#define SDMMC_IDMA_BURST	BIT(MMCI_STM32_IDMABNDT_SHIFT)
 
 #define DLYB_CR			0x0
 #define DLYB_CR_DEN		BIT(0)
@@ -69,7 +68,8 @@ static int sdmmc_idma_validate_data(struct mmci_host *host,
 	idma->use_bounce_buffer = false;
 	for_each_sg(data->sg, sg, data->sg_len - 1, i) {
 		if (!IS_ALIGNED(sg->offset, sizeof(u32)) ||
-		    !IS_ALIGNED(sg->length, SDMMC_IDMA_BURST)) {
+		    !IS_ALIGNED(sg->length,
+				host->variant->stm32_idmabsize_align)) {
 			dev_dbg(mmc_dev(host->mmc),
 				"unaligned scatterlist: ofst:%x length:%d\n",
 				data->sg->offset, data->sg->length);
