@@ -187,12 +187,7 @@
 #define USBDRD_UCTL_ECC				0xf0
 #define USBDRD_UCTL_SPARE1			0xf8
 
-#define OCTEON_H_CLKDIV_SEL		8
-#define OCTEON_MIN_H_CLK_RATE		150000000
-#define OCTEON_MAX_H_CLK_RATE		300000000
-
 static DEFINE_MUTEX(dwc3_octeon_clocks_mutex);
-static uint8_t clk_div[OCTEON_H_CLKDIV_SEL] = {1, 2, 4, 6, 8, 16, 24, 32};
 
 #ifdef CONFIG_CAVIUM_OCTEON_SOC
 #include <asm/octeon/octeon.h>
@@ -240,6 +235,21 @@ static inline void dwc3_octeon_writeq(void __iomem *base, uint64_t val) { }
 static inline void dwc3_octeon_config_gpio(int index, int gpio) { }
 #endif
 
+static int dwc3_octeon_get_divider(void)
+{
+	static const uint8_t clk_div[] = { 1, 2, 4, 6, 8, 16, 24, 32 };
+	int div = 0;
+
+	while (div < ARRAY_SIZE(clk_div)) {
+		uint64_t rate = octeon_get_io_clock_rate() / clk_div[div];
+		if (rate <= 300000000 && rate >= 150000000)
+			break;
+		div++;
+	}
+
+	return div;
+}
+
 static int dwc3_octeon_config_power(struct device *dev, void __iomem *base)
 {
 	uint32_t gpio_pwr[3];
@@ -284,9 +294,9 @@ static int dwc3_octeon_config_power(struct device *dev, void __iomem *base)
 
 static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 {
-	int i, mpll_mul, ref_clk_fsel, ref_clk_sel = 2;
+	int i, div, mpll_mul, ref_clk_fsel, ref_clk_sel = 2;
 	u32 clock_rate;
-	u64 div, h_clk_rate, val;
+	u64 val;
 	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
 
 	if (dev->of_node) {
@@ -363,12 +373,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	dwc3_octeon_writeq(uctl_ctl_reg, val);
 
 	/* Step 4b: Select controller clock frequency. */
-	for (div = 0; div < OCTEON_H_CLKDIV_SEL; div++) {
-		h_clk_rate = octeon_get_io_clock_rate() / clk_div[div];
-		if (h_clk_rate <= OCTEON_MAX_H_CLK_RATE &&
-				 h_clk_rate >= OCTEON_MIN_H_CLK_RATE)
-			break;
-	}
+	div = dwc3_octeon_get_divider();
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_H_CLKDIV_SEL;
 	val |= FIELD_PREP(USBDRD_UCTL_CTL_H_CLKDIV_SEL, div);
