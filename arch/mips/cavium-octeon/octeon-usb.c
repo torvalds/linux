@@ -126,46 +126,35 @@
 #define USBDRD_UCTL_PORT_CFG_SS(port)		(0x48 + (0x20 * port))
 #define USBDRD_UCTL_PORT_CR_DBG_CFG(port)	(0x50 + (0x20 * port))
 #define USBDRD_UCTL_PORT_CR_DBG_STATUS(port)	(0x58 + (0x20 * port))
+
+/*
+ * UCTL Configuration Register
+ */
 #define USBDRD_UCTL_HOST_CFG			0xe0
+/* Indicates minimum value of all received BELT values */
+# define USBDRD_UCTL_HOST_CFG_HOST_CURRENT_BELT	GENMASK(59, 48)
+/* HS jitter adjustment */
+# define USBDRD_UCTL_HOST_CFG_FLA		GENMASK(37, 32)
+/* Bus-master enable: 0x0 = Disabled (stall DMAs), 0x1 = enabled */
+# define USBDRD_UCTL_HOST_CFG_BME		BIT(28)
+/* Overcurrent protection enable: 0x0 = unavailable, 0x1 = available */
+# define USBDRD_UCTL_HOST_OCI_EN		BIT(27)
+/* Overcurrent sene selection:
+ *	0x0 = Overcurrent indication from off-chip is active-low
+ *	0x1 = Overcurrent indication from off-chip is active-high
+ */
+# define USBDRD_UCTL_HOST_OCI_ACTIVE_HIGH_EN	BIT(26)
+/* Port power control enable: 0x0 = unavailable, 0x1 = available */
+# define USBDRD_UCTL_HOST_PPC_EN		BIT(25)
+/* Port power control sense selection:
+ *	0x0 = Port power to off-chip is active-low
+ *	0x1 = Port power to off-chip is active-high
+ */
+# define USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN	BIT(24)
+
 #define USBDRD_UCTL_SHIM_CFG			0xe8
 #define USBDRD_UCTL_ECC				0xf0
 #define USBDRD_UCTL_SPARE1			0xf8
-
-/* UAHC Configuration Register */
-union cvm_usbdrd_uctl_host_cfg {
-	uint64_t u64;
-	struct cvm_usbdrd_uctl_host_cfg_s {
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_60_63:4,
-	/* Indicates minimum value of all received BELT values */
-	__BITFIELD_FIELD(uint64_t host_current_belt:12,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_38_47:10,
-	/* HS jitter adjustment */
-	__BITFIELD_FIELD(uint64_t fla:6,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_29_31:3,
-	/* Bus-master enable: 0x0 = Disabled (stall DMAs), 0x1 = enabled */
-	__BITFIELD_FIELD(uint64_t bme:1,
-	/* Overcurrent protection enable: 0x0 = unavailable, 0x1 = available */
-	__BITFIELD_FIELD(uint64_t oci_en:1,
-	/* Overcurrent sene selection:
-	 *	0x0 = Overcurrent indication from off-chip is active-low
-	 *	0x1 = Overcurrent indication from off-chip is active-high
-	 */
-	__BITFIELD_FIELD(uint64_t oci_active_high_en:1,
-	/* Port power control enable: 0x0 = unavailable, 0x1 = available */
-	__BITFIELD_FIELD(uint64_t ppc_en:1,
-	/* Port power control sense selection:
-	 *	0x0 = Port power to off-chip is active-low
-	 *	0x1 = Port power to off-chip is active-high
-	 */
-	__BITFIELD_FIELD(uint64_t ppc_active_high_en:1,
-	/* Reserved */
-	__BITFIELD_FIELD(uint64_t reserved_0_23:24,
-	;)))))))))))
-	} s;
-};
 
 /* UCTL Shim Features Register */
 union cvm_usbdrd_uctl_shim_cfg {
@@ -224,12 +213,13 @@ static uint8_t clk_div[OCTEON_H_CLKDIV_SEL] = {1, 2, 4, 6, 8, 16, 24, 32};
 
 static int dwc3_octeon_config_power(struct device *dev, u64 base)
 {
-	union cvm_usbdrd_uctl_host_cfg uctl_host_cfg;
 	union cvmx_gpio_bit_cfgx gpio_bit;
 	uint32_t gpio_pwr[3];
 	int gpio, len, power_active_low;
 	struct device_node *node = dev->of_node;
 	int index = (base >> 24) & 1;
+	u64 val;
+	u64 uctl_host_cfg_reg = base + USBDRD_UCTL_HOST_CFG;
 
 	if (of_find_property(node, "power", &len) != NULL) {
 		if (len == 12) {
@@ -264,16 +254,19 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 		}
 
 		/* Enable XHCI power control and set if active high or low. */
-		uctl_host_cfg.u64 = cvmx_read_csr(base + USBDRD_UCTL_HOST_CFG);
-		uctl_host_cfg.s.ppc_en = 1;
-		uctl_host_cfg.s.ppc_active_high_en = !power_active_low;
-		cvmx_write_csr(base + USBDRD_UCTL_HOST_CFG, uctl_host_cfg.u64);
+		val = cvmx_read_csr(uctl_host_cfg_reg);
+		val |= USBDRD_UCTL_HOST_PPC_EN;
+		if (power_active_low)
+			val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+		else
+			val |= USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+		cvmx_write_csr(uctl_host_cfg_reg, val);
 	} else {
 		/* Disable XHCI power control and set if active high. */
-		uctl_host_cfg.u64 = cvmx_read_csr(base + USBDRD_UCTL_HOST_CFG);
-		uctl_host_cfg.s.ppc_en = 0;
-		uctl_host_cfg.s.ppc_active_high_en = 0;
-		cvmx_write_csr(base + USBDRD_UCTL_HOST_CFG, uctl_host_cfg.u64);
+		val = cvmx_read_csr(uctl_host_cfg_reg);
+		val &= ~USBDRD_UCTL_HOST_PPC_EN;
+		val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+		cvmx_write_csr(uctl_host_cfg_reg, val);
 		dev_info(dev, "power control disabled\n");
 	}
 	return 0;
