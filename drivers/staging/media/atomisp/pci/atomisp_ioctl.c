@@ -708,6 +708,9 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 					      int *valid_sizes)
 {
 	static const struct v4l2_frmsize_discrete frame_sizes[] = {
+		{ 1920, 1440 },
+		{ 1920, 1200 },
+		{ 1920, 1080 },
 		{ 1600, 1200 },
 		{ 1600, 1080 },
 		{ 1600,  900 },
