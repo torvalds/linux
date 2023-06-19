@@ -4,6 +4,7 @@ la_targets = [
     "blair",
     "gen3auto",
     "pineapple",
+    "pitti",
     "sdmsteppeauto",
 ]
 
