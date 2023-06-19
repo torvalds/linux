@@ -410,3 +410,25 @@
 &udma {
 	status = "okay";
 };
+
+/*
+ * I3C loopback: connect I3C4 (target) to I3C5 (primary master)
+ * Four devices will be created under /sys/bus/i3c/devices
+ *   i3c-4: represent i3c4 controller, play the role as the target device
+ *   i3c-5: represent i3c5 controller, play the role as the master device
+ *   5-7ec05034000: the device descriptor represents the target device attached
+ *                  to the bus hosted by i3c-5 controller. In this case,
+ *                  5-7ec05034000 maps to the physical device i3c4.
+ *   4-target: the device descriptor represents i3c-4 itself.
+ */
+&i3c4 {
+	initial-role = "target";
+	pid = <0x000007ec 0x05034000>;
+	dcr = <0>;
+	status = "okay";
+};
+
+&i3c5 {
+	initial-role = "primary";
+	status = "okay";
+};
