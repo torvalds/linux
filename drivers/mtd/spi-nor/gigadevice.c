@@ -58,6 +58,14 @@ static const struct flash_info gigadevice_parts[] = {
 			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			   SPI_NOR_4B_OPCODES | SPI_NOR_HAS_LOCK |
 			   SPI_NOR_HAS_TB) },
+	{ "gd55b01gf", INFO(0xc8401b, 0, 64 * 1024, 2048,
+			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			    SPI_NOR_4B_OPCODES | SPI_NOR_HAS_LOCK |
+			    SPI_NOR_HAS_TB) },
+	{ "gd55b02gf", INFO(0xc8401c, 0, 64 * 1024, 4096,
+			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			    SPI_NOR_4B_OPCODES | SPI_NOR_HAS_LOCK |
+			    SPI_NOR_HAS_TB) },
 	{ "gd55b01ge", INFO(0xc8471b, 0, 64 * 1024, 2048,
 			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			   SPI_NOR_4B_OPCODES | SPI_NOR_HAS_LOCK |
