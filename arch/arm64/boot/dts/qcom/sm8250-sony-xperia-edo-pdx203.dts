@@ -15,6 +15,123 @@
 
 /delete-node/ &vreg_l7f_1p8;
 
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	pmic@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+		dlg,cs-gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+		vin5-supply = <&vreg_s1f_1p2>;
+		vin6-supply = <&vreg_s1f_1p2>;
+
+		pinctrl-0 = <&cam_pwr_b_cs>;
+		pinctrl-names = "default";
+
+		regulators {
+			slg51000_1_ldo1: ldo1 {
+				regulator-name = "slg51000_b_ldo1";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_1_ldo2: ldo2 {
+				regulator-name = "slg51000_b_ldo2";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_1_ldo3: ldo3 {
+				regulator-name = "slg51000_b_ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_1_ldo4: ldo4 {
+				regulator-name = "slg51000_b_ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_1_ldo5: ldo5 {
+				regulator-name = "slg51000_b_ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_1_ldo6: ldo6 {
+				regulator-name = "slg51000_b_ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_1_ldo7: ldo7 {
+				regulator-name = "slg51000_b_ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};
+
+&i2c15 {
+	pmic@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+		dlg,cs-gpios = <&tlmm 71 GPIO_ACTIVE_HIGH>;
+		vin5-supply = <&vreg_l2f_1p3>;
+		vin6-supply = <&vreg_l2f_1p3>;
+
+		pinctrl-0 = <&cam_pwr_a_cs>;
+		pinctrl-names = "default";
+
+		regulators {
+			slg51000_0_ldo1: ldo1 {
+				regulator-name = "slg51000_a_ldo1";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_0_ldo2: ldo2 {
+				regulator-name = "slg51000_a_ldo2";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_0_ldo3: ldo3 {
+				regulator-name = "slg51000_a_ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_0_ldo4: ldo4 {
+				regulator-name = "slg51000_a_ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_0_ldo5: ldo5 {
+				regulator-name = "slg51000_a_ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_0_ldo6: ldo6 {
+				regulator-name = "slg51000_a_ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_0_ldo7: ldo7 {
+				regulator-name = "slg51000_a_ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};
+
 &pm8009_gpios {
 	gpio-line-names = "NC", /* GPIO_1 */
 			  "CAM_PWR_LD_EN",
@@ -246,4 +363,18 @@
 			  "HST_BLE_SNS_UART6_RX",
 			  "HST_WLAN_UART_TX",
 			  "HST_WLAN_UART_RX";
+
+	cam_pwr_b_cs: cam-pwr-b-state {
+		pins = "gpio69";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	cam_pwr_a_cs: cam-pwr-a-state {
+		pins = "gpio71";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
 };
