@@ -54,6 +54,15 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 		  MMC_QUIRK_BLK_NO_CMD23),
 
 	/*
+	 * Kingston Canvas Go! Plus microSD cards never finish SD cache flush.
+	 * This has so far only been observed on cards from 11/2019, while new
+	 * cards from 2023/05 do not exhibit this behavior.
+	 */
+	_FIXUP_EXT("SD64G", CID_MANFID_KINGSTON_SD, 0x5449, 2019, 11,
+		   0, -1ull, SDIO_ANY_ID, SDIO_ANY_ID, add_quirk_sd,
+		   MMC_QUIRK_BROKEN_SD_CACHE, EXT_CSD_REV_ANY),
+
+	/*
 	 * Some SD cards lockup while using CMD23 multiblock transfers.
 	 */
 	MMC_FIXUP("AF SD", CID_MANFID_ATP, CID_OEMID_ANY, add_quirk_sd,
@@ -208,6 +217,10 @@ static inline void mmc_fixup_device(struct mmc_card *card,
 			continue;
 		if (f->of_compatible &&
 		    !mmc_fixup_of_compatible_match(card, f->of_compatible))
+			continue;
+		if (f->year != CID_YEAR_ANY && f->year != card->cid.year)
+			continue;
+		if (f->month != CID_MONTH_ANY && f->month != card->cid.month)
 			continue;
 
 		dev_dbg(&card->dev, "calling %ps\n", f->vendor_fixup);
