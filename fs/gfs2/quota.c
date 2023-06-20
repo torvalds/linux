@@ -1074,7 +1074,7 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
 	u32 x;
-	int error = 0;
+	int error;
 
 	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
 	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
