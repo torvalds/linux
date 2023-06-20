@@ -1566,6 +1566,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	iwl_mvm_lari_cfg(mvm);
+
 	/* Init RSS configuration */
 	ret = iwl_configure_rxq(&mvm->fwrt);
 	if (ret)
@@ -1676,7 +1678,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	iwl_mvm_lari_cfg(mvm);
 	/*
 	 * RTNL is not taken during Ct-kill, but we don't need to scan/Tx
 	 * anyway, so don't init MCC.
