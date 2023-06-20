@@ -112,6 +112,9 @@ def replace(h):
         tmp += w
     content = tmp
     for s in structs:
+        # XXX: cleaner way?
+        if s == 'TAG':
+            continue
         search_str = "(\W?struct\s+)" + s + "(\W)"
         replace_str = "\\1" + lkl_prefix(s) + "\\2"
         content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
