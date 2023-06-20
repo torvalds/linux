@@ -825,7 +825,7 @@ static const struct regmap_config es8316_regmap = {
 	.use_single_write = true,
 	.max_register = 0x53,
 	.volatile_reg = es8316_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int es8316_i2c_probe(struct i2c_client *i2c_client)
