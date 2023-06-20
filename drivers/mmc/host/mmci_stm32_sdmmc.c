@@ -411,7 +411,8 @@ static u32 sdmmc_get_dctrl_cfg(struct mmci_host *host)
 	return datactrl;
 }
 
-static bool sdmmc_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
+static bool sdmmc_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
+				u32 status, u32 err_msk)
 {
 	void __iomem *base = host->base;
 	u32 busy_d0, busy_d0end, mask, sdmmc_status;
