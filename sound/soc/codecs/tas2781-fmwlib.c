@@ -1863,7 +1863,7 @@ static int fw_parse_calibration_data(struct tasdevice_priv *tas_priv,
 
 	if (tas_fmw->nr_calibrations != 1) {
 		dev_err(tas_priv->dev,
-			"%s: only support one calibraiton(%d)!\n",
+			"%s: only supports one calibration (%d)!\n",
 			__func__, tas_fmw->nr_calibrations);
 		goto out;
 	}
