@@ -5133,6 +5133,13 @@ cleanup:
 	}
 }
 
+void walt_get_cpus_in_state1(struct cpumask *cpus)
+{
+	cpumask_or(cpus, cpu_partial_halt_mask, &sched_cluster[0]->cpus);
+	cpumask_andnot(cpus, cpus, cpu_halt_mask);
+}
+EXPORT_SYMBOL(walt_get_cpus_in_state1);
+
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
