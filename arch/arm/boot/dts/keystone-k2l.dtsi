@@ -116,42 +116,42 @@
 			pinctrl-single,function-mask = <0x1>;
 			status = "disabled";
 
-			uart3_emifa_pins: pinmux_uart3_emifa_pins {
+			uart3_emifa_pins: uart3-emifa-pins {
 				pinctrl-single,bits = <
 					/* UART3_EMIFA_SEL */
 					0x0 0x0  0xc0
 				>;
 			};
 
-			uart2_emifa_pins: pinmux_uart2_emifa_pins {
+			uart2_emifa_pins: uart2-emifa-pins {
 			pinctrl-single,bits = <
 					/* UART2_EMIFA_SEL */
 					0x0 0x0  0x30
 				>;
 			};
 
-			uart01_spi2_pins: pinmux_uart01_spi2_pins {
+			uart01_spi2_pins: uart01-spi2-pins {
 				pinctrl-single,bits = <
 					/* UART01_SPI2_SEL */
 					0x0 0x0 0x4
 				>;
 			};
 
-			dfesync_rp1_pins: pinmux_dfesync_rp1_pins{
+			dfesync_rp1_pins: dfesync-rp1-pins{
 				pinctrl-single,bits = <
 					/* DFESYNC_RP1_SEL */
 					0x0 0x0 0x2
 				>;
 			};
 
-			avsif_pins: pinmux_avsif_pins {
+			avsif_pins: avsif-pins {
 				pinctrl-single,bits = <
 					/* AVSIF_SEL */
 					0x0 0x0 0x1
 				>;
 			};
 
-			gpio_emu_pins: pinmux_gpio_emu_pins {
+			gpio_emu_pins: gpio-emu-pins {
 				pinctrl-single,bits = <
 				/*
 				 * GPIO_EMU_SEL[31]: 0-GPIO31, 1-EMU33
@@ -170,11 +170,11 @@
 				 * GPIO_EMU_SEL[18]: 0-GPIO18, 1-EMU20
 				 * GPIO_EMU_SEL[17]: 0-GPIO17, 1-EMU19
 				 */
-					0x4 0x0000 0xFFFE0000
+					0x4 0x0000 0xfffe0000
 				>;
 			};
 
-			gpio_timio_pins: pinmux_gpio_timio_pins {
+			gpio_timio_pins: gpio-timio-pins {
 				pinctrl-single,bits = <
 				/*
 				 * GPIO_TIMIO_SEL[15]: 0-GPIO15, 1-TIMO7
@@ -190,11 +190,11 @@
 				 * GPIO_TIMIO_SEL[5]: 0-GPIO5, 1-TIMI3
 				 * GPIO_TIMIO_SEL[4]: 0-GPIO4, 1-TIMI2
 				 */
-					0x4 0x0 0xFFF0
+					0x4 0x0 0xfff0
 				>;
 			};
 
-			gpio_spi2cs_pins: pinmux_gpio_spi2cs_pins {
+			gpio_spi2cs_pins: gpio-spi2cs-pins {
 				pinctrl-single,bits = <
 				/*
 				 * GPIO_SPI2CS_SEL[3]: 0-GPIO3, 1-SPI2CS4
@@ -202,11 +202,11 @@
 				 * GPIO_SPI2CS_SEL[1]: 0-GPIO1, 1-SPI2CS2
 				 * GPIO_SPI2CS_SEL[0]: 0-GPIO0, 1-SPI2CS1
 				 */
-					0x4 0x0 0xF
+					0x4 0x0 0xf
 				>;
 			};
 
-			gpio_dfeio_pins: pinmux_gpio_dfeio_pins {
+			gpio_dfeio_pins: gpio-dfeio-pins {
 				pinctrl-single,bits = <
 				/*
 				 * GPIO_DFEIO_SEL[31]: 0-DFEIO17, 1-GPIO63
@@ -226,11 +226,11 @@
 				 * GPIO_DFEIO_SEL[17]: 0-DFEIO3, 1-GPIO49
 				 * GPIO_DFEIO_SEL[16]: 0-DFEIO2, 1-GPIO48
 				 */
-					0x8 0x0 0xFFFF0000
+					0x8 0x0 0xffff0000
 				>;
 			};
 
-			gpio_emifa_pins: pinmux_gpio_emifa_pins {
+			gpio_emifa_pins: gpio-emifa-pins {
 				pinctrl-single,bits = <
 				/*
 				 * GPIO_EMIFA_SEL[15]: 0-EMIFA17, 1-GPIO47
@@ -250,7 +250,7 @@
 				 * GPIO_EMIFA_SEL[1]: 0-EMIFA1, 1-GPIO33
 				 * GPIO_EMIFA_SEL[0]: 0-EMIFA0, 1-GPIO32
 				 */
-					0x8 0x0 0xFFFF
+					0x8 0x0 0xffff
 				>;
 			};
 		};
