@@ -516,17 +516,6 @@ config QCOM_SOCINFO
 	 Say yes here to support the Qualcomm socinfo driver, providing
 	 information about the SoC to user space.
 
-config SILENT_MODE
-	tristate "Driver support for  Silent mode feature on QCOM Chipsets"
-	depends on PM_SILENT_MODE
-	help
-	  Enables the support for Silent mode for QCOM chipsets. This feature
-	  monitors a chosen external interface, ex: GPIO, when signalled a
-	  state change, will update
-	  /sys/kernel/silent_boot/pm_silentmode_kernel_state and
-	  /sys/kernel/silent_boot/pm_silentmode_hw_state attribute to
-	  indicate the state transition from silent to non-silent.
-
 config QCOM_SOCINFO_DT
 	tristate "Qualcomm Technologies, Inc. DT based socinfo driver"
 	select SOC_BUS
