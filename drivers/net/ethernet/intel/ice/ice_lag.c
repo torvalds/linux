@@ -4,7 +4,11 @@
 /* Link Aggregation code */
 
 #include "ice.h"
+#include "ice_lib.h"
 #include "ice_lag.h"
+
+#define ICE_LAG_RES_SHARED	BIT(14)
+#define ICE_LAG_RES_VALID	BIT(15)
 
 /**
  * ice_lag_set_primary - set PF LAG state as Primary
@@ -226,6 +230,26 @@ static void ice_lag_unregister(struct ice_lag *lag, struct net_device *netdev)
 }
 
 /**
+ * ice_lag_init_feature_support_flag - Check for NVM support for LAG
+ * @pf: PF struct
+ */
+static void ice_lag_init_feature_support_flag(struct ice_pf *pf)
+{
+	struct ice_hw_common_caps *caps;
+
+	caps = &pf->hw.dev_caps.common_cap;
+	if (caps->roce_lag)
+		ice_set_feature_support(pf, ICE_F_ROCE_LAG);
+	else
+		ice_clear_feature_support(pf, ICE_F_ROCE_LAG);
+
+	if (caps->sriov_lag)
+		ice_set_feature_support(pf, ICE_F_SRIOV_LAG);
+	else
+		ice_clear_feature_support(pf, ICE_F_SRIOV_LAG);
+}
+
+/**
  * ice_lag_changeupper_event - handle LAG changeupper event
  * @lag: LAG info struct
  * @ptr: opaque pointer data
@@ -265,26 +289,6 @@ static void ice_lag_changeupper_event(struct ice_lag *lag, void *ptr)
 }
 
 /**
- * ice_lag_changelower_event - handle LAG changelower event
- * @lag: LAG info struct
- * @ptr: opaque data pointer
- *
- * ptr to be cast to netdev_notifier_changelowerstate_info
- */
-static void ice_lag_changelower_event(struct ice_lag *lag, void *ptr)
-{
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
-
-	if (netdev != lag->netdev)
-		return;
-
-	netdev_dbg(netdev, "bonding info\n");
-
-	if (!netif_is_lag_port(netdev))
-		netdev_dbg(netdev, "CHANGELOWER rcvd, but netdev not in LAG. Bail\n");
-}
-
-/**
  * ice_lag_event_handler - handle LAG events from netdev
  * @notif_blk: notifier block registered by this netdev
  * @event: event type
@@ -309,9 +313,6 @@ ice_lag_event_handler(struct notifier_block *notif_blk, unsigned long event,
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		ice_lag_changeupper_event(lag, ptr);
-		break;
-	case NETDEV_CHANGELOWERSTATE:
-		ice_lag_changelower_event(lag, ptr);
 		break;
 	case NETDEV_BONDING_INFO:
 		ice_lag_info_event(lag, ptr);
@@ -379,6 +380,8 @@ int ice_init_lag(struct ice_pf *pf)
 	struct ice_vsi *vsi;
 	int err;
 
+	ice_lag_init_feature_support_flag(pf);
+
 	pf->lag = kzalloc(sizeof(*lag), GFP_KERNEL);
 	if (!pf->lag)
 		return -ENOMEM;
@@ -435,9 +438,7 @@ void ice_deinit_lag(struct ice_pf *pf)
 	if (lag->pf)
 		ice_unregister_lag_handler(lag);
 
-	dev_put(lag->upper_netdev);
-
-	dev_put(lag->peer_netdev);
+	flush_workqueue(ice_lag_wq);
 
 	kfree(lag);
 
