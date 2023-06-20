@@ -551,10 +551,10 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			goto err;
 		}
 
-		ret = of_parse_phandle_with_args(cpu, "sound-dai",
-						 "#sound-dai-cells", 0, &args);
+		ret = snd_soc_of_get_dlc(cpu, &args, link->cpus, 0);
 		if (ret) {
-			dev_err(card->dev, "%s: error getting cpu phandle\n", link->name);
+			dev_err_probe(card->dev, ret,
+				      "%s: error getting cpu dai info\n", link->name);
 			goto err;
 		}
 
@@ -582,16 +582,8 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			}
 		}
 
-		link->cpus->of_node = args.np;
 		link->platforms->of_node = link->cpus->of_node;
 		link->id = args.args[0];
-
-		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name, 0);
-		if (ret) {
-			dev_err_probe(card->dev, ret,
-				      "%s: error getting cpu dai name\n", link->name);
-			goto err;
-		}
 
 		codec = of_get_child_by_name(np, "codec");
 		if (codec) {
