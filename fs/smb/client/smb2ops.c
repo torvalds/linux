@@ -4444,8 +4444,8 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 
 	rc = smb2_get_enc_key(server, le64_to_cpu(tr_hdr->SessionId), enc, key);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not get %scryption key\n", __func__,
-			 enc ? "en" : "de");
+		cifs_server_dbg(FYI, "%s: Could not get %scryption key. sid: 0x%llx\n", __func__,
+			 enc ? "en" : "de", le64_to_cpu(tr_hdr->SessionId));
 		return rc;
 	}
 
