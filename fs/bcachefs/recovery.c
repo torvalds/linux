@@ -685,6 +685,9 @@ static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 		bch2_journal_log_msg(c, "journal replay finished");
 err:
 	kvfree(keys_sorted);
+
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1034,9 +1037,6 @@ static int bch2_fs_initialize_subvolumes(struct bch_fs *c)
 	root_tree.k.p.offset		= 1;
 	root_tree.v.master_subvol	= cpu_to_le32(1);
 	root_tree.v.root_snapshot	= cpu_to_le32(U32_MAX);
-	ret = bch2_btree_insert(c, BTREE_ID_snapshot_trees,
-				&root_tree.k_i,
-				NULL, NULL, 0);
 
 	bkey_snapshot_init(&root_snapshot.k_i);
 	root_snapshot.k.p.offset = U32_MAX;
@@ -1046,28 +1046,27 @@ static int bch2_fs_initialize_subvolumes(struct bch_fs *c)
 	root_snapshot.v.tree	= cpu_to_le32(1);
 	SET_BCH_SNAPSHOT_SUBVOL(&root_snapshot.v, true);
 
-	ret = bch2_btree_insert(c, BTREE_ID_snapshots,
-				&root_snapshot.k_i,
-				NULL, NULL, 0);
-	if (ret)
-		return ret;
-
 	bkey_subvolume_init(&root_volume.k_i);
 	root_volume.k.p.offset = BCACHEFS_ROOT_SUBVOL;
 	root_volume.v.flags	= 0;
 	root_volume.v.snapshot	= cpu_to_le32(U32_MAX);
 	root_volume.v.inode	= cpu_to_le64(BCACHEFS_ROOT_INO);
 
-	ret = bch2_btree_insert(c, BTREE_ID_subvolumes,
-				&root_volume.k_i,
-				NULL, NULL, 0);
+	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,
+				  &root_tree.k_i,
+				  NULL, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_snapshots,
+				  &root_snapshot.k_i,
+				  NULL, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_subvolumes,
+				  &root_volume.k_i,
+				  NULL, NULL, 0);
 	if (ret)
-		return ret;
-
-	return 0;
+		bch_err_fn(c, ret);
+	return ret;
 }
 
-static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
+static int __bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -1097,9 +1096,19 @@ err:
 	return ret;
 }
 
+/* set bi_subvol on root inode */
+noinline_for_stack
+static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
+{
+	int ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
+				__bch2_fs_upgrade_for_subvolumes(&trans));
+	if (ret)
+		bch_err_fn(c, ret);
+	return ret;
+}
+
 int bch2_fs_recovery(struct bch_fs *c)
 {
-	const char *err = "cannot allocate memory";
 	struct bch_sb_field_clean *clean = NULL;
 	struct jset *last_journal_entry = NULL;
 	u64 last_seq, blacklist_seq, journal_seq;
@@ -1135,12 +1144,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		bch_err(c, "filesystem may have incompatible bkey formats; run fsck from the compat branch to fix");
 		ret = -EINVAL;
 		goto err;
-	}
-
-	if (!(c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))) {
-		bch_info(c, "alloc_v2 feature bit not set, fsck required");
-		c->opts.fsck = true;
-		c->opts.fix_errors = FSCK_OPT_YES;
 	}
 
 	if (!c->opts.nochanges) {
@@ -1286,34 +1289,28 @@ use_clean:
 		goto err;
 
 	bch_verbose(c, "starting alloc read");
-	err = "error reading allocation information";
-
 	down_read(&c->gc_lock);
 	ret = c->sb.version < bcachefs_metadata_version_bucket_gens
 		? bch2_alloc_read(c)
 		: bch2_bucket_gens_read(c);
 	up_read(&c->gc_lock);
-
 	if (ret)
 		goto err;
 	bch_verbose(c, "alloc read done");
 
 	bch_verbose(c, "starting stripes_read");
-	err = "error reading stripes";
 	ret = bch2_stripes_read(c);
 	if (ret)
 		goto err;
 	bch_verbose(c, "stripes_read done");
 
 	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
-		err = "error creating root snapshot node";
 		ret = bch2_fs_initialize_subvolumes(c);
 		if (ret)
 			goto err;
 	}
 
 	bch_verbose(c, "reading snapshots table");
-	err = "error reading snapshots table";
 	ret = bch2_fs_snapshots_start(c);
 	if (ret)
 		goto err;
@@ -1323,7 +1320,6 @@ use_clean:
 		bool metadata_only = c->opts.norecovery;
 
 		bch_info(c, "checking allocations");
-		err = "error checking allocations";
 		ret = bch2_gc(c, true, metadata_only);
 		if (ret)
 			goto err;
@@ -1334,7 +1330,6 @@ use_clean:
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
 		bch_info(c, "starting journal replay, %zu keys", c->journal_keys.nr);
-		err = "journal replay failed";
 		ret = bch2_journal_replay(c, last_seq, blacklist_seq - 1);
 		if (ret)
 			goto err;
@@ -1342,7 +1337,6 @@ use_clean:
 			bch_info(c, "journal replay done");
 
 		bch_info(c, "checking need_discard and freespace btrees");
-		err = "error checking need_discard and freespace btrees";
 		ret = bch2_check_alloc_info(c);
 		if (ret)
 			goto err;
@@ -1351,7 +1345,6 @@ use_clean:
 		set_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags);
 
 		bch_info(c, "checking lrus");
-		err = "error checking lrus";
 		ret = bch2_check_lrus(c);
 		if (ret)
 			goto err;
@@ -1359,21 +1352,18 @@ use_clean:
 		set_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags);
 
 		bch_info(c, "checking backpointers to alloc keys");
-		err = "error checking backpointers to alloc keys";
 		ret = bch2_check_btree_backpointers(c);
 		if (ret)
 			goto err;
 		bch_verbose(c, "done checking backpointers to alloc keys");
 
 		bch_info(c, "checking backpointers to extents");
-		err = "error checking backpointers to extents";
 		ret = bch2_check_backpointers_to_extents(c);
 		if (ret)
 			goto err;
 		bch_verbose(c, "done checking backpointers to extents");
 
 		bch_info(c, "checking extents to backpointers");
-		err = "error checking extents to backpointers";
 		ret = bch2_check_extents_to_backpointers(c);
 		if (ret)
 			goto err;
@@ -1381,7 +1371,6 @@ use_clean:
 		set_bit(BCH_FS_CHECK_BACKPOINTERS_DONE, &c->flags);
 
 		bch_info(c, "checking alloc to lru refs");
-		err = "error checking alloc to lru refs";
 		ret = bch2_check_alloc_to_lru_refs(c);
 		if (ret)
 			goto err;
@@ -1401,7 +1390,6 @@ use_clean:
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
 		bch_verbose(c, "starting journal replay, %zu keys", c->journal_keys.nr);
-		err = "journal replay failed";
 		ret = bch2_journal_replay(c, last_seq, blacklist_seq - 1);
 		if (ret)
 			goto err;
@@ -1409,7 +1397,6 @@ use_clean:
 			bch_info(c, "journal replay done");
 	}
 
-	err = "error initializing freespace";
 	ret = bch2_fs_freespace_init(c);
 	if (ret)
 		goto err;
@@ -1417,7 +1404,6 @@ use_clean:
 	if (c->sb.version < bcachefs_metadata_version_bucket_gens &&
 	    c->opts.version_upgrade) {
 		bch_info(c, "initializing bucket_gens");
-		err = "error initializing bucket gens";
 		ret = bch2_bucket_gens_init(c);
 		if (ret)
 			goto err;
@@ -1425,24 +1411,18 @@ use_clean:
 	}
 
 	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
-		/* set bi_subvol on root inode */
-		err = "error upgrade root inode for subvolumes";
-		ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
-				    bch2_fs_upgrade_for_subvolumes(&trans));
+		ret = bch2_fs_upgrade_for_subvolumes(c);
 		if (ret)
 			goto err;
 	}
 
 	if (c->opts.fsck) {
-		bch_info(c, "starting fsck");
-		err = "error in fsck";
 		ret = bch2_fsck_full(c);
 		if (ret)
 			goto err;
 		bch_verbose(c, "fsck done");
 	} else if (!c->sb.clean) {
 		bch_verbose(c, "checking for deleted inodes");
-		err = "error in recovery";
 		ret = bch2_fsck_walk_inodes_only(c);
 		if (ret)
 			goto err;
@@ -1489,11 +1469,8 @@ use_clean:
 		bch2_move_stats_init(&stats, "recovery");
 
 		bch_info(c, "scanning for old btree nodes");
-		ret = bch2_fs_read_write(c);
-		if (ret)
-			goto err;
-
-		ret = bch2_scan_old_btree_nodes(c, &stats);
+		ret =   bch2_fs_read_write(c) ?:
+			bch2_scan_old_btree_nodes(c, &stats);
 		if (ret)
 			goto err;
 		bch_info(c, "scanning for old btree nodes done");
@@ -1521,7 +1498,7 @@ out:
 	}
 
 	if (ret)
-		bch_err(c, "Error in recovery: %s (%s)", err, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	else
 		bch_verbose(c, "ret %s", bch2_err_str(ret));
 	return ret;
@@ -1536,7 +1513,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	struct bch_inode_unpacked root_inode, lostfound_inode;
 	struct bkey_inode_buf packed_inode;
 	struct qstr lostfound = QSTR("lost+found");
-	const char *err = "cannot allocate memory";
 	struct bch_dev *ca;
 	unsigned i;
 	int ret;
@@ -1570,7 +1546,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	for_each_online_member(ca, c, i)
 		bch2_dev_usage_init(ca);
 
-	err = "unable to allocate journal buckets";
 	for_each_online_member(ca, c, i) {
 		ret = bch2_dev_journal_alloc(ca);
 		if (ret) {
@@ -1586,7 +1561,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_fs_journal_start(&c->journal, 1);
 	bch2_journal_set_replay_done(&c->journal);
 
-	err = "error going read-write";
 	ret = bch2_fs_read_write_early(c);
 	if (ret)
 		goto err;
@@ -1596,7 +1570,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * btree updates
 	 */
 	bch_verbose(c, "marking superblocks");
-	err = "error marking superblock and journal";
 	for_each_member_device(ca, c, i) {
 		ret = bch2_trans_mark_dev_sb(c, ca);
 		if (ret) {
@@ -1607,19 +1580,15 @@ int bch2_fs_initialize(struct bch_fs *c)
 		ca->new_fs_bucket_idx = 0;
 	}
 
-	bch_verbose(c, "initializing freespace");
-	err = "error initializing freespace";
 	ret = bch2_fs_freespace_init(c);
 	if (ret)
 		goto err;
 
-	err = "error creating root snapshot node";
 	ret = bch2_fs_initialize_subvolumes(c);
 	if (ret)
 		goto err;
 
 	bch_verbose(c, "reading snapshots table");
-	err = "error reading snapshots table";
 	ret = bch2_fs_snapshots_start(c);
 	if (ret)
 		goto err;
@@ -1631,16 +1600,16 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_pack(&packed_inode, &root_inode);
 	packed_inode.inode.k.p.snapshot = U32_MAX;
 
-	err = "error creating root directory";
 	ret = bch2_btree_insert(c, BTREE_ID_inodes,
 				&packed_inode.inode.k_i,
 				NULL, NULL, 0);
-	if (ret)
+	if (ret) {
+		bch_err_msg(c, ret, "creating root directory");
 		goto err;
+	}
 
 	bch2_inode_init_early(c, &lostfound_inode);
 
-	err = "error creating lost+found";
 	ret = bch2_trans_do(c, NULL, NULL, 0,
 		bch2_create_trans(&trans,
 				  BCACHEFS_ROOT_SUBVOL_INUM,
@@ -1649,7 +1618,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 				  0, 0, S_IFDIR|0700, 0,
 				  NULL, NULL, (subvol_inum) { 0 }, 0));
 	if (ret) {
-		bch_err(c, "error creating lost+found");
+		bch_err_msg(c, ret, "creating lost+found");
 		goto err;
 	}
 
@@ -1659,10 +1628,11 @@ int bch2_fs_initialize(struct bch_fs *c)
 			goto err;
 	}
 
-	err = "error writing first journal entry";
 	ret = bch2_journal_flush(&c->journal);
-	if (ret)
+	if (ret) {
+		bch_err_msg(c, ret, "writing first journal entry");
 		goto err;
+	}
 
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);
@@ -1673,6 +1643,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	return 0;
 err:
-	pr_err("Error initializing new filesystem: %s (%s)", err, bch2_err_str(ret));
+	bch_err_fn(ca, ret);
 	return ret;
 }

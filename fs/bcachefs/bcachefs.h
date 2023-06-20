@@ -291,6 +291,11 @@ do {									\
 #define bch_err_inum_offset_ratelimited(c, _inum, _offset, fmt, ...) \
 	printk_ratelimited(KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
 
+#define bch_err_fn(_c, _ret)						\
+	 bch_err(_c, "%s(): error %s", __func__, bch2_err_str(_ret))
+#define bch_err_msg(_c, _ret, _msg)					\
+	 bch_err(_c, "%s(): error " _msg " %s", __func__, bch2_err_str(_ret))
+
 #define bch_verbose(c, fmt, ...)					\
 do {									\
 	if ((c)->opts.verbose)						\

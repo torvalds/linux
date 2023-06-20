@@ -978,7 +978,7 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 	}
 
 	if (ret)
-		bch_err(c, "%s: err %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 unlock:
 	up_write(&c->state_lock);
 	return ret;
@@ -987,9 +987,12 @@ unlock:
 int bch2_dev_journal_alloc(struct bch_dev *ca)
 {
 	unsigned nr;
+	int ret;
 
-	if (dynamic_fault("bcachefs:add:journal_alloc"))
-		return -BCH_ERR_ENOMEM_set_nr_journal_buckets;
+	if (dynamic_fault("bcachefs:add:journal_alloc")) {
+		ret = -BCH_ERR_ENOMEM_set_nr_journal_buckets;
+		goto err;
+	}
 
 	/* 1/128th of the device by default: */
 	nr = ca->mi.nbuckets >> 7;
@@ -1003,7 +1006,11 @@ int bch2_dev_journal_alloc(struct bch_dev *ca)
 		     min(1 << 13,
 			 (1 << 24) / ca->mi.bucket_size));
 
-	return __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
+	ret = __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
+err:
+	if (ret)
+		bch_err_fn(ca, ret);
+	return ret;
 }
 
 /* startup/shutdown: */

@@ -798,7 +798,7 @@ static void ec_stripe_delete_work(struct work_struct *work)
 		ret = commit_do(&trans, NULL, NULL, BTREE_INSERT_NOFAIL,
 				ec_stripe_delete(&trans, idx));
 		if (ret) {
-			bch_err(c, "%s: err %s", __func__, bch2_err_str(ret));
+			bch_err_fn(c, ret);
 			break;
 		}
 	}
@@ -1845,7 +1845,7 @@ int bch2_stripes_read(struct bch_fs *c)
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "error reading stripes: %i", ret);
+		bch_err_fn(c, ret);
 
 	return ret;
 }

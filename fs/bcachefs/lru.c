@@ -160,20 +160,18 @@ fsck_err:
 
 int bch2_check_lrus(struct bch_fs *c)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bpos last_flushed_pos = POS_MIN;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = for_each_btree_key_commit(&trans, iter,
-			BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
-		bch2_check_lru_key(&trans, &iter, k, &last_flushed_pos));
-
-	bch2_trans_exit(&trans);
+	ret = bch2_trans_run(c,
+		for_each_btree_key_commit(&trans, iter,
+				BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
+				NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+			bch2_check_lru_key(&trans, &iter, k, &last_flushed_pos)));
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 
 }

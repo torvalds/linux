@@ -47,7 +47,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(&trans, &iter, &k.k_i, 0));
 	if (ret) {
-		bch_err(c, "%s(): update error in: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "update error");
 		goto err;
 	}
 
@@ -56,7 +56,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
-		bch_err(c, "%s(): delete error (first): %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "delete error (first)");
 		goto err;
 	}
 
@@ -65,7 +65,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
-		bch_err(c, "%s(): delete error (second): %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "delete error (second)");
 		goto err;
 	}
 err:
@@ -93,7 +93,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(&trans, &iter, &k.k_i, 0));
 	if (ret) {
-		bch_err(c, "%s(): update error: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "update error");
 		goto err;
 	}
 
@@ -104,7 +104,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
-		bch_err(c, "%s(): delete error: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "delete error");
 		goto err;
 	}
 err:
@@ -137,7 +137,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "%s(): insert error: %s", __func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "insert error");
 			goto err;
 		}
 	}
@@ -153,7 +153,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 		0;
 	}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating forwards: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating forwards");
 		goto err;
 	}
 
@@ -168,7 +168,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 			0;
 		}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating backwards: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating backwards");
 		goto err;
 	}
 
@@ -204,7 +204,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "%s(): insert error: %s", __func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "insert error");
 			goto err;
 		}
 	}
@@ -221,7 +221,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 		0;
 	}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating forwards: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating forwards");
 		goto err;
 	}
 
@@ -237,7 +237,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 			0;
 		}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating backwards: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating backwards");
 		goto err;
 	}
 
@@ -272,7 +272,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "%s(): insert error: %s", __func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "insert error");
 			goto err;
 		}
 	}
@@ -289,7 +289,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 		0;
 	}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating forwards: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating forwards");
 		goto err;
 	}
 
@@ -312,7 +312,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 		0;
 	}));
 	if (ret < 0) {
-		bch_err(c, "%s(): error iterating forwards by slots: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating forwards by slots");
 		goto err;
 	}
 	ret = 0;
@@ -346,7 +346,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "%s(): insert error: %s", __func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "insert error");
 			goto err;
 		}
 	}
@@ -364,7 +364,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		0;
 	}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating forwards: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating forwards");
 		goto err;
 	}
 
@@ -387,7 +387,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		0;
 	}));
 	if (ret) {
-		bch_err(c, "%s(): error iterating forwards by slots: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "error iterating forwards by slots");
 		goto err;
 	}
 	ret = 0;
@@ -461,7 +461,7 @@ static int insert_test_extent(struct bch_fs *c,
 	ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
 				NULL, NULL, 0);
 	if (ret)
-		bch_err(c, "%s(): insert error: %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -560,7 +560,7 @@ static int test_snapshots(struct bch_fs *c, u64 nr)
 
 	ret = test_snapshot_filter(c, snapids[0], snapids[1]);
 	if (ret) {
-		bch_err(c, "%s(): err from test_snapshot_filter: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "from test_snapshot_filter");
 		return ret;
 	}
 
@@ -674,7 +674,7 @@ static int rand_mixed_trans(struct btree_trans *trans,
 	k = bch2_btree_iter_peek(iter);
 	ret = bkey_err(k);
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(trans->c, "%s(): lookup error: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(trans->c, ret, "lookup error");
 	if (ret)
 		return ret;
 

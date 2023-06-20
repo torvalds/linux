@@ -404,8 +404,7 @@ again:
 		}
 
 		if (ret) {
-			bch_err(c, "%s: error getting btree node: %s",
-				__func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "getting btree node");
 			break;
 		}
 
@@ -473,8 +472,7 @@ again:
 		ret = PTR_ERR_OR_ZERO(cur);
 
 		if (ret) {
-			bch_err(c, "%s: error getting btree node: %s",
-				__func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "getting btree node");
 			goto err;
 		}
 
@@ -687,7 +685,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
 		if (!new) {
-			bch_err(c, "%s: error allocating new key", __func__);
+			bch_err_msg(c, ret, "allocating new key");
 			ret = -BCH_ERR_ENOMEM_gc_repair_key;
 			goto err;
 		}
@@ -814,7 +812,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 fsck_err:
 err:
 	if (ret)
-		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -919,11 +917,8 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 
 		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level,
 				       false, &k, true);
-		if (ret) {
-			bch_err(c, "%s: error from bch2_gc_mark_key: %s",
-				__func__, bch2_err_str(ret));
+		if (ret)
 			goto fsck_err;
-		}
 
 		if (b->c.level) {
 			bch2_bkey_buf_reassemble(&cur, c, k);
@@ -981,8 +976,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					continue;
 				}
 			} else if (ret) {
-				bch_err(c, "%s: error getting btree node: %s",
-					__func__, bch2_err_str(ret));
+				bch_err_msg(c, ret, "getting btree node");
 				break;
 			}
 
@@ -1049,7 +1043,7 @@ fsck_err:
 	six_unlock_read(&b->c.lock);
 
 	if (ret < 0)
-		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1079,7 +1073,7 @@ static int bch2_gc_btrees(struct bch_fs *c, bool initial, bool metadata_only)
 			: bch2_gc_btree(&trans, ids[i], initial, metadata_only);
 
 	if (ret < 0)
-		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 
 	bch2_trans_exit(&trans);
 	return ret;
@@ -1277,7 +1271,7 @@ fsck_err:
 	if (ca)
 		percpu_ref_put(&ca->ref);
 	if (ret)
-		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 
 	percpu_up_write(&c->mark_lock);
 	printbuf_exit(&buf);
@@ -1883,6 +1877,9 @@ out:
 	 * allocator thread - issue wakeup in case they blocked on gc_lock:
 	 */
 	closure_wake_up(&c->freelist_wait);
+
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 

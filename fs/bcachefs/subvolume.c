@@ -623,7 +623,7 @@ int bch2_fs_check_snapshots(struct bch_fs *c)
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
 		check_snapshot(&trans, &iter, k)));
 	if (ret)
-		bch_err(c, "%s: error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -702,8 +702,7 @@ int bch2_fs_check_subvols(struct bch_fs *c)
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
 		check_subvol(&trans, &iter, k)));
 	if (ret)
-		bch_err(c, "%s: error %s", __func__, bch2_err_str(ret));
-
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -724,7 +723,7 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 			bch2_mark_snapshot(&trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
 			bch2_snapshot_set_equiv(&trans, k)));
 	if (ret)
-		bch_err(c, "error starting snapshots: %s", bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1123,6 +1122,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 err:
 	darray_exit(&deleted);
 	bch2_trans_exit(&trans);
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 

@@ -1988,7 +1988,10 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
 
 int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca)
 {
-	return bch2_trans_run(c, __bch2_trans_mark_dev_sb(&trans, ca));
+	int ret = bch2_trans_run(c, __bch2_trans_mark_dev_sb(&trans, ca));
+	if (ret)
+		bch_err_fn(c, ret);
+	return ret;
 }
 
 /* Disk reservations: */

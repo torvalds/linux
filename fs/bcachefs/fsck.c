@@ -303,7 +303,7 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -983,7 +983,7 @@ static int check_inode(struct btree_trans *trans,
 err:
 fsck_err:
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1009,7 +1009,7 @@ static int check_inodes(struct bch_fs *c, bool full)
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1129,7 +1129,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 	}
 fsck_err:
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	if (!ret && trans_was_restarted(trans, restart_count))
 		ret = -BCH_ERR_transaction_restart_nested;
 	return ret;
@@ -1353,7 +1353,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1395,7 +1395,7 @@ static int check_extents(struct bch_fs *c)
 	snapshots_seen_exit(&s);
 
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1434,7 +1434,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 	}
 fsck_err:
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	if (!ret && trans_was_restarted(trans, restart_count))
 		ret = -BCH_ERR_transaction_restart_nested;
 	return ret;
@@ -1555,7 +1555,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1725,7 +1725,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1764,7 +1764,7 @@ static int check_dirents(struct bch_fs *c)
 	inode_walker_exit(&target);
 
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1801,7 +1801,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	ret = hash_check_key(trans, bch2_xattr_hash_desc, hash_info, iter, k);
 fsck_err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1833,7 +1833,7 @@ static int check_xattrs(struct bch_fs *c)
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1896,12 +1896,18 @@ fsck_err:
 noinline_for_stack
 static int check_root(struct bch_fs *c)
 {
+	int ret;
+
 	bch_verbose(c, "checking root directory");
 
-	return bch2_trans_do(c, NULL, NULL,
+	ret = bch2_trans_do(c, NULL, NULL,
 			     BTREE_INSERT_NOFAIL|
 			     BTREE_INSERT_LAZY_RW,
 		check_root_trans(&trans));
+
+	if (ret)
+		bch_err_fn(c, ret);
+	return ret;
 }
 
 struct pathbuf_entry {
@@ -2038,7 +2044,7 @@ static int check_path(struct btree_trans *trans,
 	}
 fsck_err:
 	if (ret)
-		bch_err(c, "%s: err %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -2081,10 +2087,11 @@ static int check_directory_structure(struct bch_fs *c)
 			break;
 	}
 	bch2_trans_iter_exit(&trans, &iter);
-
+	bch2_trans_exit(&trans);
 	darray_exit(&path);
 
-	bch2_trans_exit(&trans);
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -2364,6 +2371,8 @@ static int check_nlinks(struct bch_fs *c)
 
 	kvfree(links.d);
 
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -2397,7 +2406,6 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
 noinline_for_stack
 static int fix_reflink_p(struct bch_fs *c)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
@@ -2407,15 +2415,16 @@ static int fix_reflink_p(struct bch_fs *c)
 
 	bch_verbose(c, "fixing reflink_p keys");
 
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+	ret = bch2_trans_run(c,
+		for_each_btree_key_commit(&trans, iter,
+				BTREE_ID_extents, POS_MIN,
+				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|
+				BTREE_ITER_ALL_SNAPSHOTS, k,
+				NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+			fix_reflink_p_key(&trans, &iter, k)));
 
-	ret = for_each_btree_key_commit(&trans, iter,
-			BTREE_ID_extents, POS_MIN,
-			BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
-		fix_reflink_p_key(&trans, &iter, k));
-
-	bch2_trans_exit(&trans);
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 

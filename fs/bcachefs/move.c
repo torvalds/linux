@@ -690,7 +690,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (ret) {
-		bch_err(c, "%s: error looking up alloc key: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "looking up alloc key");
 		goto err;
 	}
 
@@ -701,7 +701,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 
 	ret = bch2_btree_write_buffer_flush(trans);
 	if (ret) {
-		bch_err(c, "%s: error flushing btree write buffer: %s", __func__, bch2_err_str(ret));
+		bch_err_msg(c, ret, "flushing btree write buffer");
 		goto err;
 	}
 
@@ -904,7 +904,7 @@ next:
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "error in %s(): %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 
 	bch2_btree_interior_updates_flush(c);
 
@@ -1029,6 +1029,8 @@ int bch2_scan_old_btree_nodes(struct bch_fs *c, struct bch_move_stats *stats)
 		mutex_unlock(&c->sb_lock);
 	}
 
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 

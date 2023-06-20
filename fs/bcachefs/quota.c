@@ -621,10 +621,11 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	      for_each_btree_key2(&trans, iter, BTREE_ID_inodes,
 			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 		bch2_fs_quota_read_inode(&trans, &iter, k));
-	if (ret)
-		bch_err(c, "%s: err %s", __func__, bch2_err_str(ret));
 
 	bch2_trans_exit(&trans);
+
+	if (ret)
+		bch_err_fn(c, ret);
 	return ret;
 }
 
