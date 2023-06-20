@@ -275,6 +275,10 @@ struct dw_mipi_dsi2 {
 	struct rockchip_drm_sub_dev sub_dev;
 
 	struct gpio_desc *te_gpio;
+
+	/* split with other display interface */
+	bool dual_connector_split;
+	bool left_display;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -843,6 +847,8 @@ static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
+	const struct drm_display_mode *adjusted_mode;
+	struct drm_display_mode *mode = &dsi2->mode;
 
 	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
 	if (!connector)
@@ -858,9 +864,14 @@ static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
 		return -ENODEV;
 	}
 
-	drm_mode_copy(&dsi2->mode, &crtc_state->adjusted_mode);
+	adjusted_mode = &crtc_state->adjusted_mode;
+	drm_mode_copy(mode, adjusted_mode);
+
+	if (dsi2->dual_connector_split)
+		drm_mode_convert_to_origin_mode(mode);
+
 	if (dsi2->slave)
-		drm_mode_copy(&dsi2->slave->mode, &crtc_state->adjusted_mode);
+		drm_mode_copy(&dsi2->slave->mode, mode);
 
 	return 0;
 }
@@ -951,6 +962,15 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 			s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
 		s->output_if |= VOP_OUTPUT_IF_MIPI1;
+	}
+
+	if (dsi2->dual_connector_split) {
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE;
+
+		if (dsi2->left_display)
+			s->output_if_left_panel |= dsi2->id ?
+						   VOP_OUTPUT_IF_MIPI1 :
+						   VOP_OUTPUT_IF_MIPI0;
 	}
 
 	if (dsi2->dsc_enable) {
@@ -1566,6 +1586,13 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->id = id;
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
+
+	if (device_property_read_bool(dev, "dual-connector-split")) {
+		dsi2->dual_connector_split = true;
+
+		if (device_property_read_bool(dev, "left-display"))
+			dsi2->left_display = true;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
