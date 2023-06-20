@@ -274,9 +274,6 @@ static int mt7628_pci_hw_init(struct platform_device *pdev)
 	val |= 0x50 << 8;
 	pci_config_write(NULL, 0, 0x70c, 4, val);
 
-	pci_config_read(NULL, 0, 0x70c, 4, &val);
-	dev_err(&pdev->dev, "Port 0 N_FTS = %x\n", (unsigned int) val);
-
 	return 0;
 }
 
