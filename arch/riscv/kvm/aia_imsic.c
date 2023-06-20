@@ -92,7 +92,7 @@ static unsigned long imsic_eix_read(int ireg)
 	switch (ireg) {
 	imsic_read_switchcase_64(IMSIC_EIP0)
 	imsic_read_switchcase_64(IMSIC_EIE0)
-	};
+	}
 
 	return 0;
 }
@@ -132,7 +132,7 @@ static unsigned long imsic_eix_swap(int ireg, unsigned long val)
 	switch (ireg) {
 	imsic_swap_switchcase_64(IMSIC_EIP0, val)
 	imsic_swap_switchcase_64(IMSIC_EIE0, val)
-	};
+	}
 
 	return 0;
 }
@@ -171,7 +171,7 @@ static void imsic_eix_write(int ireg, unsigned long val)
 	switch (ireg) {
 	imsic_write_switchcase_64(IMSIC_EIP0, val)
 	imsic_write_switchcase_64(IMSIC_EIE0, val)
-	};
+	}
 }
 
 #define imsic_vs_csr_set(__c, __v)		\
@@ -208,7 +208,7 @@ static void imsic_eix_set(int ireg, unsigned long val)
 	switch (ireg) {
 	imsic_set_switchcase_64(IMSIC_EIP0, val)
 	imsic_set_switchcase_64(IMSIC_EIE0, val)
-	};
+	}
 }
 
 static unsigned long imsic_mrif_atomic_rmw(struct imsic_mrif *mrif,
@@ -294,7 +294,7 @@ static int imsic_mrif_isel_check(u32 nr_eix, unsigned long isel)
 		break;
 	default:
 		return -ENOENT;
-	};
+	}
 #ifndef CONFIG_32BIT
 	if (num & 0x1)
 		return -EINVAL;
@@ -352,7 +352,7 @@ static int imsic_mrif_rmw(struct imsic_mrif *mrif, u32 nr_eix,
 		break;
 	default:
 		return -ENOENT;
-	};
+	}
 
 	if (val)
 		*val = old_val;

@@ -102,7 +102,7 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 				break;
 			default:
 				return -EINVAL;
-			};
+			}
 			aia->mode = *nr;
 		} else
 			*nr = aia->mode;
@@ -163,7 +163,7 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 		break;
 	default:
 		return -ENXIO;
-	};
+	}
 
 	return 0;
 }
