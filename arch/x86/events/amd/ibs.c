@@ -247,11 +247,33 @@ int forward_event_to_ibs(struct perf_event *event)
 	return -ENOENT;
 }
 
+/*
+ * Grouping of IBS events is not possible since IBS can have only
+ * one event active at any point in time.
+ */
+static int validate_group(struct perf_event *event)
+{
+	struct perf_event *sibling;
+
+	if (event->group_leader == event)
+		return 0;
+
+	if (event->group_leader->pmu == event->pmu)
+		return -EINVAL;
+
+	for_each_sibling_event(sibling, event->group_leader) {
+		if (sibling->pmu == event->pmu)
+			return -EINVAL;
+	}
+	return 0;
+}
+
 static int perf_ibs_init(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct perf_ibs *perf_ibs;
 	u64 max_cnt, config;
+	int ret;
 
 	perf_ibs = get_ibs_pmu(event->attr.type);
 	if (!perf_ibs)
@@ -264,6 +286,10 @@ static int perf_ibs_init(struct perf_event *event)
 
 	if (config & ~perf_ibs->config_mask)
 		return -EINVAL;
+
+	ret = validate_group(event);
+	if (ret)
+		return ret;
 
 	if (hwc->sample_period) {
 		if (config & perf_ibs->cnt_mask)
