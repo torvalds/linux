@@ -515,7 +515,7 @@
 		crc: crc@40023000 {
 			compatible = "st,stm32f7-crc";
 			reg = <0x40023000 0x400>;
-			clocks = <&rcc 0 12>;
+			clocks = <&rcc 0 STM32F7_AHB1_CLOCK(CRC)>;
 			status = "disabled";
 		};
 
