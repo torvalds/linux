@@ -666,7 +666,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	if (unlikely(!file || !(file->f_mode & mode)))
 		return -EBADF;
 
-	if (!io_req_ffs_set(req))
+	if (!(req->flags & REQ_F_FIXED_FILE))
 		req->flags |= io_file_get_flags(file) << REQ_F_SUPPORT_NOWAIT_BIT;
 
 	kiocb->ki_flags = file->f_iocb_flags;

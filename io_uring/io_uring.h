@@ -57,11 +57,6 @@ struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 
-static inline bool io_req_ffs_set(struct io_kiocb *req)
-{
-	return req->flags & REQ_F_FIXED_FILE;
-}
-
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
