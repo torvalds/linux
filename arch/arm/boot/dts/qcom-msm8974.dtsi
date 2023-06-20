@@ -300,7 +300,7 @@
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
 
-			rpm_requests: rpm_requests {
+			rpm_requests: rpm-requests {
 				compatible = "qcom,rpm-msm8974";
 				qcom,smd-channels = "rpm_requests";
 
@@ -675,7 +675,7 @@
 			#reset-cells = <1>;
 
 			ulpi {
-				usb_hs1_phy: phy@a {
+				usb_hs1_phy: phy-0 {
 					compatible = "qcom,usb-hs-phy-msm8974",
 						     "qcom,usb-hs-phy";
 					#phy-cells = <0>;
@@ -686,7 +686,7 @@
 					status = "disabled";
 				};
 
-				usb_hs2_phy: phy@b {
+				usb_hs2_phy: phy-1 {
 					compatible = "qcom,usb-hs-phy-msm8974",
 						     "qcom,usb-hs-phy";
 					#phy-cells = <0>;
@@ -706,7 +706,7 @@
 			clock-names = "core";
 		};
 
-		pronto: remoteproc@fb21b000 {
+		pronto: remoteproc@fb204000 {
 			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
 			reg = <0xfb204000 0x2000>, <0xfb202000 0x1000>, <0xfb21b000 0x3000>;
 			reg-names = "ccu", "dxe", "pmu";
@@ -745,7 +745,7 @@
 
 					qcom,mmio = <&pronto>;
 
-					bt {
+					bluetooth {
 						compatible = "qcom,wcnss-bt";
 					};
 
