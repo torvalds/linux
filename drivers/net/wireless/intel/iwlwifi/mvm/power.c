@@ -327,12 +327,11 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 
 		if (WARN_ON(!dtimper_tu))
 			return;
-		/* configure skip over dtim up to 306TU - 314 msec */
-		skip = max_t(u8, 1, 306 / dtimper_tu);
+		/* configure skip over dtim up to 900 TU DTIM interval */
+		skip = max_t(u8, 1, 900 / dtimper_tu);
 	}
 
-	/* the firmware really expects "look at every X DTIMs", so add 1 */
-	cmd->skip_dtim_periods = 1 + skip;
+	cmd->skip_dtim_periods = skip;
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 }
 
