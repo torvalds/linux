@@ -699,17 +699,25 @@ static void iwl_pcie_free_rxq_dma(struct iwl_trans *trans,
 	rxq->used_bd = NULL;
 }
 
+static size_t iwl_pcie_rb_stts_size(struct iwl_trans *trans)
+{
+	bool use_rx_td = (trans->trans_cfg->device_family >=
+			  IWL_DEVICE_FAMILY_AX210);
+
+	if (use_rx_td)
+		return sizeof(__le16);
+
+	return sizeof(struct iwl_rb_status);
+}
+
 static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 				  struct iwl_rxq *rxq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	size_t rb_stts_size = iwl_pcie_rb_stts_size(trans);
 	struct device *dev = trans->dev;
 	int i;
 	int free_size;
-	bool use_rx_td = (trans->trans_cfg->device_family >=
-			  IWL_DEVICE_FAMILY_AX210);
-	size_t rb_stts_size = use_rx_td ? sizeof(__le16) :
-			      sizeof(struct iwl_rb_status);
 
 	spin_lock_init(&rxq->lock);
 	if (trans->trans_cfg->mq_rx_supported)
@@ -757,11 +765,9 @@ err:
 static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	size_t rb_stts_size = iwl_pcie_rb_stts_size(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	int i, ret;
-	size_t rb_stts_size = trans->trans_cfg->device_family >=
-				IWL_DEVICE_FAMILY_AX210 ?
-			      sizeof(__le16) : sizeof(struct iwl_rb_status);
 
 	if (WARN_ON(trans_pcie->rxq))
 		return -EINVAL;
@@ -1193,11 +1199,9 @@ int iwl_pcie_gen2_rx_init(struct iwl_trans *trans)
 void iwl_pcie_rx_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	size_t rb_stts_size = iwl_pcie_rb_stts_size(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	int i;
-	size_t rb_stts_size = trans->trans_cfg->device_family >=
-				IWL_DEVICE_FAMILY_AX210 ?
-			      sizeof(__le16) : sizeof(struct iwl_rb_status);
 
 	/*
 	 * if rxq is NULL, it means that nothing has been allocated,
