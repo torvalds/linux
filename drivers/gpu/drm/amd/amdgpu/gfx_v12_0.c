@@ -30,6 +30,7 @@
 #include "amdgpu_psp.h"
 #include "amdgpu_smu.h"
 #include "amdgpu_atomfirmware.h"
+#include "imu_v12_0.h"
 #include "soc24.h"
 #include "nvd.h"
 
@@ -4523,8 +4524,7 @@ static void gfx_v12_0_set_imu_funcs(struct amdgpu_device *adev)
 	else
 		adev->gfx.imu.mode = DEBUG_MODE;
 
-	/* TODO */
-	//adev->gfx.imu.funcs = &gfx_v12_0_imu_funcs;
+	adev->gfx.imu.funcs = &gfx_v12_0_imu_funcs;
 }
 
 static void gfx_v12_0_set_rlc_funcs(struct amdgpu_device *adev)
