@@ -5652,6 +5652,30 @@ void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		iwl_trans_wait_tx_queues_empty(mvm->trans, msk);
 }
 
+void iwl_mvm_mac_flush_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int i;
+
+	mutex_lock(&mvm->mutex);
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
+		struct iwl_mvm_sta *mvmsta;
+		struct ieee80211_sta *tmp;
+
+		tmp = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (tmp != sta)
+			continue;
+
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+		if (iwl_mvm_flush_sta(mvm, mvmsta, false))
+			IWL_ERR(mvm, "flush request fail\n");
+	}
+	mutex_unlock(&mvm->mutex);
+}
+
 int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			   struct survey_info *survey)
 {
@@ -6204,6 +6228,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.mgd_complete_tx = iwl_mvm_mac_mgd_complete_tx,
 	.mgd_protect_tdls_discover = iwl_mvm_mac_mgd_protect_tdls_discover,
 	.flush = iwl_mvm_mac_flush,
+	.flush_sta = iwl_mvm_mac_flush_sta,
 	.sched_scan_start = iwl_mvm_mac_sched_scan_start,
 	.sched_scan_stop = iwl_mvm_mac_sched_scan_stop,
 	.set_key = iwl_mvm_mac_set_key,

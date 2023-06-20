@@ -1149,6 +1149,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.mgd_complete_tx = iwl_mvm_mac_mgd_complete_tx,
 	.mgd_protect_tdls_discover = iwl_mvm_mac_mgd_protect_tdls_discover,
 	.flush = iwl_mvm_mac_flush,
+	.flush_sta = iwl_mvm_mac_flush_sta,
 	.sched_scan_start = iwl_mvm_mac_sched_scan_start,
 	.sched_scan_stop = iwl_mvm_mac_sched_scan_stop,
 	.set_key = iwl_mvm_mac_set_key,

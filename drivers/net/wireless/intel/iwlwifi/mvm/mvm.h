@@ -2659,6 +2659,8 @@ void iwl_mvm_mac_mgd_complete_tx(struct ieee80211_hw *hw,
 				 struct ieee80211_prep_tx_info *info);
 void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       u32 queues, bool drop);
+void iwl_mvm_mac_flush_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta);
 int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct cfg80211_sched_scan_request *req,
