@@ -97,9 +97,11 @@
 	adc1: adc@0 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&adc1_in6_pins_a>;
-		st,min-sample-time-nsecs = <5000>;
-		st,adc-channels = <6>;
 		status = "disabled";
+		channel@6 {
+			reg = <6>;
+			st,min-sample-time-ns = <5000>;
+		};
 	};
 
 	adc2: adc@100 {
