@@ -850,6 +850,7 @@ EXPORT_SYMBOL(blkdev_get_by_dev);
  * @path: path to the block device to open
  * @mode: open mode (BLK_OPEN_*)
  * @holder: exclusive holder identifier
+ * @hops: holder operations
  *
  * Open the block device described by the device file at @path.  If @holder is
  * not %NULL, the block device is opened with exclusive access.  Exclusive opens
