@@ -169,6 +169,14 @@
 			polling-delay = <20000>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&tsens0>;
+
+			trips {
+				alert {
+					temperature = <105000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+			};
 		};
 	};
 };
@@ -393,8 +401,6 @@
 };
 
 &ssi1 {
-	#sound-dai-cells = <0>;
-	fsl,mode = "ac97-slave";
 	status = "okay";
 };
 
@@ -426,6 +432,7 @@
 	pinctrl-names = "default";
 	phy_type = "utmi";
 	dr_mode = "host";
+	disable-over-current;
 	status = "okay";
 };
 
@@ -437,6 +444,14 @@
 	dr_mode = "host";
 	disable-over-current;
 	status = "okay";
+};
+
+&usbphynop1 {
+	status = "disabled";
+};
+
+&usbphynop2 {
+	status = "disabled";
 };
 
 &usdhc1 {

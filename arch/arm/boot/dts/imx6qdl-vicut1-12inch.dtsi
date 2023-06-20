@@ -10,7 +10,7 @@
 		pinctrl-0 = <&pinctrl_gpiokeys>;
 		autorepeat;
 
-		power {
+		power-button {
 			label = "Power Button";
 			gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;

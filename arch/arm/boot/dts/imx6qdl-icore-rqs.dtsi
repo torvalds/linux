@@ -118,7 +118,7 @@
 	pinctrl-0 = <&pinctrl_audmux>;
 	status = "okay";
 
-	audmux_ssi1 {
+	mux-ssi1 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT1_SSI0>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSDIR |
@@ -130,7 +130,7 @@
 		>;
 	};
 
-	audmux_aud4 {
+	mux-aud4 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT4>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
@@ -262,7 +262,7 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
-	vmcc-supply = <&reg_sd3_vmmc>;
+	vmmc-supply = <&reg_sd3_vmmc>;
 	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
 	no-1-8-v;
@@ -274,7 +274,7 @@
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	pinctrl-1 = <&pinctrl_usdhc4_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc4_200mhz>;
-	vmcc-supply = <&reg_sd4_vmmc>;
+	vmmc-supply = <&reg_sd4_vmmc>;
 	bus-width = <8>;
 	no-1-8-v;
 	non-removable;

@@ -145,9 +145,9 @@
 		pinctrl-0 = <&pinctrl_gpiospi0>;
 		status = "okay";
 
-		gpio-sck = <&gpio4 15 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio4 12 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio4 11 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio4 15 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio4 11 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 		cs-gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
 
@@ -181,7 +181,7 @@
 
 				port@0 {
 					reg = <0>;
-					label = "cpu";
+					phy-mode = "rev-mii";
 					ethernet = <&fec>;
 
 					fixed-link {

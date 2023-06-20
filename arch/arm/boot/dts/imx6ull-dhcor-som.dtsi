@@ -11,6 +11,11 @@
 #include "imx6ull.dtsi"
 
 / {
+	aliases {
+		/delete-property/ mmc0;
+		/delete-property/ mmc1;
+	};
+
 	memory@80000000 {
 		/* Appropriate memory size will be filled by U-Boot */
 		reg = <0x80000000 0>;

@@ -158,7 +158,7 @@
 				regulator-max-microvolt = <3300000>;
 			};
 
-			vcoin_chg: vcoin {
+			vcoin_chg: coin {
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 			};

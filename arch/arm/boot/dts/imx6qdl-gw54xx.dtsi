@@ -187,7 +187,7 @@
 	pinctrl-0 = <&pinctrl_audmux>; /* AUD4<->sgtl5000 */
 	status = "okay";
 
-	ssi2 {
+	mux-ssi2 {
 		fsl,audmux-port = <1>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSDIR |
@@ -199,7 +199,7 @@
 		>;
 	};
 
-	aud5 {
+	mux-aud5 {
 		fsl,audmux-port = <4>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
@@ -349,8 +349,6 @@
 
 		fan-controller@2c {
 			compatible = "gw,gsc-fan";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0x2c>;
 		};
 	};
@@ -400,7 +398,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	pmic: pfuze100@8 {
+	pmic: pmic@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 

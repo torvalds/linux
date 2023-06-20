@@ -235,6 +235,7 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		vcc-supply = <&reg_mba6ul_3v3>;
 	};
 
 	expander_in0: gpio-expander@21 {
@@ -248,6 +249,7 @@
 		#interrupt-cells = <2>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		vcc-supply = <&reg_mba6ul_3v3>;
 
 		enet1_int-hog {
 			gpio-hog;
@@ -267,6 +269,7 @@
 		reg = <0x22>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		vcc-supply = <&reg_mba6ul_3v3>;
 	};
 
 	analog_touch: touchscreen@41 {
@@ -300,6 +303,7 @@
 		compatible = "nxp,se97b", "atmel,24c02";
 		reg = <0x51>;
 		pagesize = <16>;
+		vcc-supply = <&reg_mba6ul_3v3>;
 	};
 };
 

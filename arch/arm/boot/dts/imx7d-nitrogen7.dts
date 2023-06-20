@@ -159,7 +159,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	pmic: pfuze3000@8 {
+	pmic: pmic@8 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
 

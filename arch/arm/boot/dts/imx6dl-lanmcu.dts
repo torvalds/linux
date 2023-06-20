@@ -257,7 +257,16 @@
 	pinctrl-0 = <&pinctrl_usbotg>;
 	phy_type = "utmi";
 	dr_mode = "host";
+	over-current-active-low;
 	status = "okay";
+};
+
+&usbphynop1 {
+	status = "disabled";
+};
+
+&usbphynop2 {
+	status = "disabled";
 };
 
 &usdhc1 {

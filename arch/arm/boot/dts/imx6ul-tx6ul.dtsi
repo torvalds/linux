@@ -218,9 +218,9 @@
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_spi_gpio>;
-		gpio-mosi = <&gpio1 30 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio1 31 GPIO_ACTIVE_HIGH>;
-		gpio-sck = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <2>;
 		cs-gpios = <
 			&gpio1 29 GPIO_ACTIVE_HIGH

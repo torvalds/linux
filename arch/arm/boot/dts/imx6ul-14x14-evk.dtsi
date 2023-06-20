@@ -89,8 +89,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_spi4>;
 		status = "okay";
-		gpio-sck = <&gpio5 11 0>;
-		gpio-mosi = <&gpio5 10 0>;
+		sck-gpios = <&gpio5 11 0>;
+		mosi-gpios = <&gpio5 10 0>;
 		cs-gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 		#address-cells = <1>;

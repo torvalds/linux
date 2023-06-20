@@ -24,7 +24,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 500000 0>;
 		brightness-levels = <0 20 81 248 1000>;
-		default-brightness-level = <20>;
+		default-brightness-level = <65>;
 		num-interpolated-steps = <21>;
 		power-supply = <&reg_bl_12v0>;
 	};
@@ -246,18 +246,42 @@
 			polling-delay = <20000>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&tsens0>;
+
+			trips {
+				alert {
+					temperature = <105000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+			};
 		};
 
 		touch-thermal0 {
 			polling-delay = <20000>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&touch_temp0>;
+
+			trips {
+				alert {
+					temperature = <105000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+			};
 		};
 
 		touch-thermal1 {
 			polling-delay = <20000>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&touch_temp1>;
+
+			trips {
+				alert {
+					temperature = <105000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+			};
 		};
 	};
 
@@ -267,8 +291,6 @@
                               <&adc_ts 5>;
 		io-channel-names = "y", "z1", "z2", "x";
 		touchscreen-min-pressure = <64687>;
-		touchscreen-inverted-x;
-		touchscreen-inverted-y;
 		touchscreen-x-plate-ohms = <300>;
 		touchscreen-y-plate-ohms = <800>;
 	};

@@ -107,7 +107,6 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	num-chipselects = <1>;
 	cs-gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
@@ -122,7 +121,6 @@
 &ecspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
-	num-chipselects = <1>;
 	cs-gpios = <&gpio3 3 GPIO_ACTIVE_LOW>;
 	status = "okay";
 

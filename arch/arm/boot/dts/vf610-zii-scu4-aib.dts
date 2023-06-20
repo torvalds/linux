@@ -59,7 +59,7 @@
 
 					port@0 {
 						reg = <0>;
-						label = "cpu";
+						phy-mode = "rmii";
 						ethernet = <&fec1>;
 
 						fixed-link {
@@ -115,6 +115,11 @@
 						link = <&switch1port10
 							&switch3port10
 							&switch2port10>;
+
+						fixed-link {
+							speed = <10000>;
+							full-duplex;
+						};
 					};
 				};
 			};
@@ -156,6 +161,11 @@
 						phy-mode = "xgmii";
 						link = <&switch3port10
 							&switch2port10>;
+
+						fixed-link {
+							speed = <10000>;
+							full-duplex;
+						};
 					};
 
 					switch1port10: port@10 {
@@ -163,6 +173,11 @@
 						label = "dsa";
 						phy-mode = "xgmii";
 						link = <&switch0port10>;
+
+						fixed-link {
+							speed = <10000>;
+							full-duplex;
+						};
 					};
 				};
 			};
@@ -246,6 +261,11 @@
 						link = <&switch3port9
 							&switch1port9
 							&switch0port10>;
+
+						fixed-link {
+							speed = <2500>;
+							full-duplex;
+						};
 					};
 				};
 			};
@@ -295,6 +315,11 @@
 						label = "dsa";
 						phy-mode = "2500base-x";
 						link = <&switch2port10>;
+
+						fixed-link {
+							speed = <2500>;
+							full-duplex;
+						};
 					};
 
 					switch3port10: port@10 {
@@ -303,6 +328,11 @@
 						phy-mode = "xgmii";
 						link = <&switch1port9
 							&switch0port10>;
+
+						fixed-link {
+							speed = <10000>;
+							full-duplex;
+						};
 					};
 				};
 			};

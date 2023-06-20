@@ -7,8 +7,6 @@
 
 / {
 	aliases {
-		/delete-property/ mmc0; /* Avoid double definitions */
-		/delete-property/ mmc1;
 		/delete-property/ spi2;
 		/delete-property/ spi3;
 		i2c0 = &i2c2;

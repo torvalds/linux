@@ -260,7 +260,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
 	rts-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
-	rs485-rts-active-high;
 	linux,rs485-enabled-at-boot-time;
 	status = "okay";
 };

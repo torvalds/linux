@@ -238,8 +238,13 @@
 
 				port@5 {
 					reg = <5>;
-					label = "cpu";
 					ethernet = <&fec>;
+					phy-mode = "rgmii-id";
+
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
 				};
 			};
 		};
