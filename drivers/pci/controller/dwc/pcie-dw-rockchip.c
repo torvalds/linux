@@ -115,6 +115,10 @@ enum rk_pcie_device_mode {
 #define PME_TURN_OFF			(BIT(4) | BIT(20))
 #define PCIE_CLIENT_GENERAL_DEBUG	0x104
 #define PCIE_CLIENT_HOT_RESET_CTRL	0x180
+#define PCIE_LTSSM_APP_DLY1_EN		BIT(0)
+#define PCIE_LTSSM_APP_DLY2_EN		BIT(1)
+#define PCIE_LTSSM_APP_DLY1_DONE	BIT(2)
+#define PCIE_LTSSM_APP_DLY2_DONE	BIT(3)
 #define PCIE_LTSSM_ENABLE_ENHANCE	BIT(4)
 #define PCIE_CLIENT_LTSSM_STATUS	0x300
 #define SMLH_LINKUP			BIT(16)
@@ -137,6 +141,7 @@ enum rk_pcie_device_mode {
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
 #define RK_PCIE_L2_TMOUT_US		5000
+#define RK_PCIE_HOTRESET_TMOUT_US	10000
 
 enum rk_pcie_ltssm_code {
 	S_L0 = 0x11,
@@ -185,6 +190,8 @@ struct rk_pcie {
 	u32				l1ss_ctl1;
 	struct dentry			*debugfs;
 	u32				msi_vector_num;
+	struct workqueue_struct		*hot_rst_wq;
+	struct work_struct		hot_rst_work;
 };
 
 struct rk_pcie_of_data {
@@ -1434,13 +1441,37 @@ static void rk_pcie_config_dma_dwc(struct dma_table *table)
 	table->start.chnl = table->chn;
 }
 
+static void rk_pcie_hot_rst_work(struct work_struct *work)
+{
+	struct rk_pcie *rk_pcie = container_of(work, struct rk_pcie, hot_rst_work);
+	u32 val, status;
+	int ret;
+
+	/* Setup command register */
+	val = dw_pcie_readl_dbi(rk_pcie->pci, PCI_COMMAND);
+	val &= 0xffff0000;
+	val |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
+		PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
+	dw_pcie_writel_dbi(rk_pcie->pci, PCI_COMMAND, val);
+
+	if (rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL) & PCIE_LTSSM_APP_DLY2_EN) {
+		ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_LTSSM_STATUS,
+			 status, ((status & 0x3F) == 0), 100, RK_PCIE_HOTRESET_TMOUT_US);
+		if (ret)
+			dev_err(rk_pcie->pci->dev, "wait for detect quiet failed!\n");
+
+		rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL,
+			(PCIE_LTSSM_APP_DLY2_DONE) | ((PCIE_LTSSM_APP_DLY2_DONE) << 16));
+	}
+}
+
 static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 {
 	struct rk_pcie *rk_pcie = arg;
 	u32 chn;
 	union int_status status;
 	union int_clear clears;
-	u32 reg, val;
+	u32 reg;
 
 	status.asdword = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 					   PCIE_DMA_WR_INT_STATUS);
@@ -1481,14 +1512,8 @@ static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 	}
 
 	reg = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MISC);
-	if (reg & BIT(2)) {
-		/* Setup command register */
-		val = dw_pcie_readl_dbi(rk_pcie->pci, PCI_COMMAND);
-		val &= 0xffff0000;
-		val |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-		       PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
-		dw_pcie_writel_dbi(rk_pcie->pci, PCI_COMMAND, val);
-	}
+	if (reg & BIT(2))
+		queue_work(rk_pcie->hot_rst_wq, &rk_pcie->hot_rst_work);
 
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MISC, reg);
 
@@ -1612,7 +1637,8 @@ static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie)
 
 	/* LTSSM EN ctrl mode */
 	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL);
-	val |= PCIE_LTSSM_ENABLE_ENHANCE | (PCIE_LTSSM_ENABLE_ENHANCE << 16);
+	val |= (PCIE_LTSSM_ENABLE_ENHANCE | PCIE_LTSSM_APP_DLY2_EN)
+		| ((PCIE_LTSSM_APP_DLY2_EN | PCIE_LTSSM_ENABLE_ENHANCE) << 16);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL, val);
 }
 
@@ -2097,6 +2123,14 @@ retry_regulator:
 	}
 
 	dw_pcie_dbi_ro_wr_dis(pci);
+
+	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
+	if (!rk_pcie->hot_rst_wq) {
+		dev_err(dev, "failed to create hot_rst workqueue\n");
+		ret = -ENOMEM;
+		goto remove_irq_domain;
+	}
+	INIT_WORK(&rk_pcie->hot_rst_work, rk_pcie_hot_rst_work);
 
 	device_init_wakeup(dev, true);
 
