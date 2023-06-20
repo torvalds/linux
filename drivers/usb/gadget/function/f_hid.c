@@ -23,7 +23,11 @@
 #define HIDG_MINORS	4
 
 static int major, minors;
-static struct class *hidg_class;
+
+static const struct class hidg_class = {
+	.name = "hidg",
+};
+
 static DEFINE_IDA(hidg_ida);
 static DEFINE_MUTEX(hidg_ida_lock); /* protects access to hidg_ida */
 
@@ -1272,7 +1276,7 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 
 	device_initialize(&hidg->dev);
 	hidg->dev.release = hidg_release;
-	hidg->dev.class = hidg_class;
+	hidg->dev.class = &hidg_class;
 	hidg->dev.devt = MKDEV(major, opts->minor);
 	ret = dev_set_name(&hidg->dev, "hidg%d", opts->minor);
 	if (ret)
@@ -1325,17 +1329,13 @@ int ghid_setup(struct usb_gadget *g, int count)
 	int status;
 	dev_t dev;
 
-	hidg_class = class_create("hidg");
-	if (IS_ERR(hidg_class)) {
-		status = PTR_ERR(hidg_class);
-		hidg_class = NULL;
+	status = class_register(&hidg_class);
+	if (status)
 		return status;
-	}
 
 	status = alloc_chrdev_region(&dev, 0, count, "hidg");
 	if (status) {
-		class_destroy(hidg_class);
-		hidg_class = NULL;
+		class_unregister(&hidg_class);
 		return status;
 	}
 
@@ -1352,6 +1352,5 @@ void ghid_cleanup(void)
 		major = minors = 0;
 	}
 
-	class_destroy(hidg_class);
-	hidg_class = NULL;
+	class_unregister(&hidg_class);
 }
