@@ -220,7 +220,7 @@ int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload)
 EXPORT_SYMBOL_GPL(can_rx_offload_irq_offload_fifo);
 
 int can_rx_offload_queue_timestamp(struct can_rx_offload *offload,
-				struct sk_buff *skb, u32 timestamp)
+				   struct sk_buff *skb, u32 timestamp)
 {
 	struct can_rx_offload_cb *cb;
 
