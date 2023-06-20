@@ -62,6 +62,10 @@ static regex_t	 file_lineno;
 static struct ins_ops *ins__find(struct arch *arch, const char *name);
 static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
+static int call__scnprintf(struct ins *ins, char *bf, size_t size,
+			  struct ins_operands *ops, int max_ins_name);
+static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
+			  struct ins_operands *ops, int max_ins_name);
 
 struct arch {
 	const char	*name;
@@ -324,7 +328,7 @@ static struct ins_ops call_ops = {
 
 bool ins__is_call(const struct ins *ins)
 {
-	return ins->ops == &call_ops || ins->ops == &s390_call_ops;
+	return ins->ops == &call_ops || ins->ops == &s390_call_ops || ins->ops == &loongarch_call_ops;
 }
 
 /*
@@ -465,7 +469,7 @@ static struct ins_ops jump_ops = {
 
 bool ins__is_jump(const struct ins *ins)
 {
-	return ins->ops == &jump_ops;
+	return ins->ops == &jump_ops || ins->ops == &loongarch_jump_ops;
 }
 
 static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
