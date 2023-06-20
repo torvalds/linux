@@ -62,7 +62,7 @@
 static struct cpufreq_driver *current_pstate_driver;
 static struct cpufreq_driver amd_pstate_driver;
 static struct cpufreq_driver amd_pstate_epp_driver;
-static int cppc_state = AMD_PSTATE_DISABLE;
+static int cppc_state = AMD_PSTATE_UNDEFINED;
 static bool cppc_enabled;
 
 /*
@@ -1410,6 +1410,25 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
 	.attr		= amd_pstate_epp_attr,
 };
 
+static int __init amd_pstate_set_driver(int mode_idx)
+{
+	if (mode_idx >= AMD_PSTATE_DISABLE && mode_idx < AMD_PSTATE_MAX) {
+		cppc_state = mode_idx;
+		if (cppc_state == AMD_PSTATE_DISABLE)
+			pr_info("driver is explicitly disabled\n");
+
+		if (cppc_state == AMD_PSTATE_ACTIVE)
+			current_pstate_driver = &amd_pstate_epp_driver;
+
+		if (cppc_state == AMD_PSTATE_PASSIVE || cppc_state == AMD_PSTATE_GUIDED)
+			current_pstate_driver = &amd_pstate_driver;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int __init amd_pstate_init(void)
 {
 	struct device *dev_root;
@@ -1417,15 +1436,6 @@ static int __init amd_pstate_init(void)
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return -ENODEV;
-	/*
-	 * by default the pstate driver is disabled to load
-	 * enable the amd_pstate passive mode driver explicitly
-	 * with amd_pstate=passive or other modes in kernel command line
-	 */
-	if (cppc_state == AMD_PSTATE_DISABLE) {
-		pr_info("driver load is disabled, boot with specific mode to enable this\n");
-		return -ENODEV;
-	}
 
 	if (!acpi_cpc_valid()) {
 		pr_warn_once("the _CPC object is not present in SBIOS or ACPI disabled\n");
@@ -1435,6 +1445,33 @@ static int __init amd_pstate_init(void)
 	/* don't keep reloading if cpufreq_driver exists */
 	if (cpufreq_get_current_driver())
 		return -EEXIST;
+
+	switch (cppc_state) {
+	case AMD_PSTATE_UNDEFINED:
+		/* Disable on the following configs by default:
+		 * 1. Undefined platforms
+		 * 2. Server platforms
+		 * 3. Shared memory designs
+		 */
+		if (amd_pstate_acpi_pm_profile_undefined() ||
+		    amd_pstate_acpi_pm_profile_server() ||
+		    !boot_cpu_has(X86_FEATURE_CPPC)) {
+			pr_info("driver load is disabled, boot with specific mode to enable this\n");
+			return -ENODEV;
+		}
+		ret = amd_pstate_set_driver(CONFIG_X86_AMD_PSTATE_DEFAULT_MODE);
+		if (ret)
+			return ret;
+		break;
+	case AMD_PSTATE_DISABLE:
+		return -ENODEV;
+	case AMD_PSTATE_PASSIVE:
+	case AMD_PSTATE_ACTIVE:
+	case AMD_PSTATE_GUIDED:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* capability check */
 	if (boot_cpu_has(X86_FEATURE_CPPC)) {
@@ -1488,21 +1525,7 @@ static int __init amd_pstate_param(char *str)
 	size = strlen(str);
 	mode_idx = get_mode_idx_from_str(str, size);
 
-	if (mode_idx >= AMD_PSTATE_DISABLE && mode_idx < AMD_PSTATE_MAX) {
-		cppc_state = mode_idx;
-		if (cppc_state == AMD_PSTATE_DISABLE)
-			pr_info("driver is explicitly disabled\n");
-
-		if (cppc_state == AMD_PSTATE_ACTIVE)
-			current_pstate_driver = &amd_pstate_epp_driver;
-
-		if (cppc_state == AMD_PSTATE_PASSIVE || cppc_state == AMD_PSTATE_GUIDED)
-			current_pstate_driver = &amd_pstate_driver;
-
-		return 0;
-	}
-
-	return -EINVAL;
+	return amd_pstate_set_driver(mode_idx);
 }
 early_param("amd_pstate", amd_pstate_param);
 
