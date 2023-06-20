@@ -1771,19 +1771,6 @@ static void io_iopoll_req_issued(struct io_kiocb *req, unsigned int issue_flags)
  * any file. For now, just ensure that anything potentially problematic is done
  * inline.
  */
-static bool __io_file_supports_nowait(struct file *file, umode_t mode)
-{
-	/* any ->read/write should understand O_NONBLOCK */
-	if (file->f_flags & O_NONBLOCK)
-		return true;
-	return file->f_mode & FMODE_NOWAIT;
-}
-
-/*
- * If we tracked the file through the SCM inflight mechanism, we could support
- * any file. For now, just ensure that anything potentially problematic is done
- * inline.
- */
 unsigned int io_file_get_flags(struct file *file)
 {
 	umode_t mode = file_inode(file)->i_mode;
@@ -1791,7 +1778,7 @@ unsigned int io_file_get_flags(struct file *file)
 
 	if (S_ISREG(mode))
 		res |= FFS_ISREG;
-	if (__io_file_supports_nowait(file, mode))
+	if ((file->f_flags & O_NONBLOCK) || (file->f_mode & FMODE_NOWAIT))
 		res |= FFS_NOWAIT;
 	return res;
 }
