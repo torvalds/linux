@@ -22,6 +22,14 @@
 		      <0x88000000 0x18000000>;
 	};
 
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -47,6 +55,11 @@
 	status = "okay";
 };
 
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
+};
+
 &spi_nor {
 	status = "okay";
 };
@@ -56,14 +69,11 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
 			label = "lan";
 		};
 
 		port@5 {
-			reg = <5>;
 			label = "cpu";
-			ethernet = <&gmac0>;
 		};
 	};
 };

@@ -28,8 +28,8 @@
 	spi {
 		compatible = "spi-gpio";
 		num-chipselects = <1>;
-		gpio-sck = <&chipcommon 7 0>;
-		gpio-mosi = <&chipcommon 4 0>;
+		sck-gpios = <&chipcommon 7 0>;
+		mosi-gpios = <&chipcommon 4 0>;
 		cs-gpios = <&chipcommon 6 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;

@@ -24,6 +24,14 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+		};
+	};
+
 	nand_controller: nand-controller@18028000 {
 		nand@0 {
 			partitions {
@@ -60,6 +68,11 @@
 	};
 };
 
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
+};
+
 &spi_nor {
 	status = "okay";
 };
@@ -69,14 +82,11 @@
 
 	ports {
 		port@4 {
-			reg = <4>;
 			label = "lan";
 		};
 
 		port@5 {
-			reg = <5>;
 			label = "cpu";
-			ethernet = <&gmac0>;
 		};
 	};
 };

@@ -8,7 +8,7 @@
 #include "bcm47081.dtsi"
 
 / {
-	compatible = "luxul,xap-1410v1", "brcm,bcm47081", "brcm,bcm4708";
+	compatible = "luxul,xap-1410-v1", "brcm,bcm47081", "brcm,bcm4708";
 	model = "Luxul XAP-1410 V1";
 
 	chosen {
@@ -18,6 +18,14 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
+	};
+
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+		};
 	};
 
 	leds {
@@ -53,6 +61,11 @@
 	};
 };
 
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
+};
+
 &spi_nor {
 	status = "okay";
 };
@@ -62,14 +75,11 @@
 
 	ports {
 		port@4 {
-			reg = <4>;
 			label = "poe";
 		};
 
 		port@5 {
-			reg = <5>;
 			label = "cpu";
-			ethernet = <&gmac0>;
 		};
 	};
 };

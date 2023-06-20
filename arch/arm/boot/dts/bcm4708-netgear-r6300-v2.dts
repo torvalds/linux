@@ -12,7 +12,7 @@
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
-	compatible = "netgear,r6300v2", "brcm,bcm4708";
+	compatible = "netgear,r6300-v2", "brcm,bcm4708";
 	model = "Netgear R6300 V2 (BCM4708)";
 
 	chosen {

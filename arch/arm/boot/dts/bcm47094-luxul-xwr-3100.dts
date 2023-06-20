@@ -9,7 +9,7 @@
 #include "bcm5301x-nand-cs0-bch4.dtsi"
 
 / {
-	compatible = "luxul,xwr-3100v1", "brcm,bcm47094", "brcm,bcm4708";
+	compatible = "luxul,xwr-3100-v1", "brcm,bcm47094", "brcm,bcm4708";
 	model = "Luxul XWR-3100 V1";
 
 	chosen {
@@ -25,6 +25,10 @@
 	nvram@1eff0000 {
 		compatible = "brcm,nvram";
 		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+			#nvmem-cell-cells = <1>;
+		};
 	};
 
 	leds {
@@ -101,6 +105,11 @@
 	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
 };
 
+&gmac0 {
+	nvmem-cells = <&et0macaddr 0>;
+	nvmem-cell-names = "mac-address";
+};
+
 &spi_nor {
 	status = "okay";
 };
@@ -114,34 +123,29 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
 			label = "lan4";
 		};
 
 		port@1 {
-			reg = <1>;
 			label = "lan3";
 		};
 
 		port@2 {
-			reg = <2>;
 			label = "lan2";
 		};
 
 		port@3 {
-			reg = <3>;
 			label = "lan1";
 		};
 
 		port@4 {
-			reg = <4>;
 			label = "wan";
+			nvmem-cells = <&et0macaddr 5>;
+			nvmem-cell-names = "mac-address";
 		};
 
 		port@5 {
-			reg = <5>;
 			label = "cpu";
-			ethernet = <&gmac0>;
 		};
 	};
 };

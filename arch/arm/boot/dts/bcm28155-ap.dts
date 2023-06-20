@@ -21,30 +21,30 @@
 	};
 
 	i2c@3e016000 {
-		status = "okay";
 		clock-frequency = <400000>;
+		status = "okay";
 	};
 
 	i2c@3e017000 {
-		status = "okay";
 		clock-frequency = <400000>;
+		status = "okay";
 	};
 
 	i2c@3e018000 {
-		status = "okay";
 		clock-frequency = <400000>;
+		status = "okay";
 	};
 
 	i2c@3500d000 {
-		status = "okay";
 		clock-frequency = <100000>;
+		status = "okay";
 
 		pmu: pmu@8 {
 			reg = <0x08>;
 		};
 	};
 
-	sdio2: sdio@3f190000 {
+	sdio2: mmc@3f190000 {
 		non-removable;
 		max-frequency = <48000000>;
 		vmmc-supply = <&camldo1_reg>;
@@ -52,7 +52,7 @@
 		status = "okay";
 	};
 
-	sdio4: sdio@3f1b0000 {
+	sdio4: mmc@3f1b0000 {
 		max-frequency = <48000000>;
 		cd-gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
 		vmmc-supply = <&sdldo_reg>;

@@ -3961,6 +3961,7 @@ M:	Rafał Miłecki <zajec5@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	arch/arm/boot/dts/bcm-ns.dtsi
 F:	arch/arm/boot/dts/bcm470*
 F:	arch/arm/boot/dts/bcm5301*
 F:	arch/arm/boot/dts/bcm953012*

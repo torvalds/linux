@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2014 Broadcom Corporation
 
+#include <dt-bindings/clock/bcm21664.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-
-#include "dt-bindings/clock/bcm21664.h"
 
 / {
 	#address-cells = <1>;
@@ -50,34 +49,34 @@
 		reg = <0x3404e000 0x400>; /* 1 KiB in SRAM */
 	};
 
-	serial@3e000000 {
+	uartb: serial@3e000000 {
 		compatible = "brcm,bcm21664-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e000000 0x118>;
 		clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB>;
 		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
-	serial@3e001000 {
+	uartb2: serial@3e001000 {
 		compatible = "brcm,bcm21664-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e001000 0x118>;
 		clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB2>;
 		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
-	serial@3e002000 {
+	uartb3: serial@3e002000 {
 		compatible = "brcm,bcm21664-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e002000 0x118>;
 		clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB3>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
 	L2: cache-controller@3ff20000 {
@@ -113,7 +112,7 @@
 		interrupt-controller;
 	};
 
-	sdio1: sdio@3f180000 {
+	sdio1: mmc@3f180000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f180000 0x801c>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
@@ -121,7 +120,7 @@
 		status = "disabled";
 	};
 
-	sdio2: sdio@3f190000 {
+	sdio2: mmc@3f190000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f190000 0x801c>;
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
@@ -129,7 +128,7 @@
 		status = "disabled";
 	};
 
-	sdio3: sdio@3f1a0000 {
+	sdio3: mmc@3f1a0000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f1a0000 0x801c>;
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
@@ -137,7 +136,7 @@
 		status = "disabled";
 	};
 
-	sdio4: sdio@3f1b0000 {
+	sdio4: mmc@3f1b0000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f1b0000 0x801c>;
 		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
@@ -145,7 +144,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e016000 {
+	bsc1: i2c@3e016000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e016000 0x70>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
@@ -155,7 +154,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e017000 {
+	bsc2: i2c@3e017000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e017000 0x70>;
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
@@ -165,7 +164,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e018000 {
+	bsc3: i2c@3e018000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e018000 0x70>;
 		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
@@ -175,7 +174,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e01c000 {
+	bsc4: i2c@3e01c000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e01c000 0x70>;
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
@@ -286,21 +285,21 @@
 		};
 
 		root_ccu: root_ccu@35001000 {
-			compatible = BCM21664_DT_ROOT_CCU_COMPAT;
+			compatible = "brcm,bcm21664-root-ccu";
 			reg = <0x35001000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "frac_1m";
 		};
 
 		aon_ccu: aon_ccu@35002000 {
-			compatible = BCM21664_DT_AON_CCU_COMPAT;
+			compatible = "brcm,bcm21664-aon-ccu";
 			reg = <0x35002000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "hub_timer";
 		};
 
 		master_ccu: master_ccu@3f001000 {
-			compatible = BCM21664_DT_MASTER_CCU_COMPAT;
+			compatible = "brcm,bcm21664-master-ccu";
 			reg = <0x3f001000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "sdio1",
@@ -314,7 +313,7 @@
 		};
 
 		slave_ccu: slave_ccu@3e011000 {
-			compatible = BCM21664_DT_SLAVE_CCU_COMPAT;
+			compatible = "brcm,bcm21664-slave-ccu";
 			reg = <0x3e011000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "uartb",
