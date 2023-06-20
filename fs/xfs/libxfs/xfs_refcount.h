@@ -67,13 +67,16 @@ extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
  * log (plus any key updates) so we'll conservatively assume 32 bytes
  * per record.  We must also leave space for btree splits on both ends
  * of the range and space for the CUD and a new CUI.
+ *
+ * Each EFI that we attach to the transaction is assumed to consume ~32 bytes.
+ * This is a low estimate for an EFI tracking a single extent (16 bytes for the
+ * EFI header, 16 for the extent, and 12 for the xlog op header), but the
+ * estimate is acceptable if there's more than one extent being freed.
+ * In the worst case of freeing every other block during a refcount decrease
+ * operation, we amortize the space used for one EFI log item across 16
+ * extents.
  */
 #define XFS_REFCOUNT_ITEM_OVERHEAD	32
-
-static inline xfs_fileoff_t xfs_refcount_max_unmap(int log_res)
-{
-	return (log_res * 3 / 4) / XFS_REFCOUNT_ITEM_OVERHEAD;
-}
 
 extern int xfs_refcount_has_record(struct xfs_btree_cur *cur,
 		xfs_agblock_t bno, xfs_extlen_t len, bool *exists);

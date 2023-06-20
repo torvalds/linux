@@ -647,6 +647,23 @@ void ice_devlink_unregister(struct ice_pf *pf)
 	devlink_unregister(priv_to_devlink(pf));
 }
 
+/**
+ * ice_devlink_set_switch_id - Set unique switch id based on pci dsn
+ * @pf: the PF to create a devlink port for
+ * @ppid: struct with switch id information
+ */
+static void
+ice_devlink_set_switch_id(struct ice_pf *pf, struct netdev_phys_item_id *ppid)
+{
+	struct pci_dev *pdev = pf->pdev;
+	u64 id;
+
+	id = pci_get_dsn(pdev);
+
+	ppid->id_len = sizeof(id);
+	put_unaligned_be64(id, &ppid->id);
+}
+
 int ice_devlink_register_params(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
@@ -704,6 +721,9 @@ int ice_devlink_create_pf_port(struct ice_pf *pf)
 
 	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
 	attrs.phys.port_number = pf->hw.bus.func;
+
+	ice_devlink_set_switch_id(pf, &attrs.switch_id);
+
 	devlink_port_attrs_set(devlink_port, &attrs);
 	devlink = priv_to_devlink(pf);
 
@@ -753,12 +773,17 @@ int ice_devlink_create_vf_port(struct ice_vf *vf)
 
 	pf = vf->pf;
 	dev = ice_pf_to_dev(pf);
-	vsi = ice_get_vf_vsi(vf);
 	devlink_port = &vf->devlink_port;
+
+	vsi = ice_get_vf_vsi(vf);
+	if (!vsi)
+		return -EINVAL;
 
 	attrs.flavour = DEVLINK_PORT_FLAVOUR_PCI_VF;
 	attrs.pci_vf.pf = pf->hw.bus.func;
 	attrs.pci_vf.vf = vf->vf_id;
+
+	ice_devlink_set_switch_id(pf, &attrs.switch_id);
 
 	devlink_port_attrs_set(devlink_port, &attrs);
 	devlink = priv_to_devlink(pf);
@@ -789,6 +814,8 @@ void ice_devlink_destroy_vf_port(struct ice_vf *vf)
 	devlink_port_unregister(devlink_port);
 }
 
+#define ICE_DEVLINK_READ_BLK_SIZE (1024 * 1024)
+
 /**
  * ice_devlink_nvm_snapshot - Capture a snapshot of the NVM flash contents
  * @devlink: the devlink instance
@@ -815,8 +842,9 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	void *nvm_data;
-	u32 nvm_size;
+	u8 *nvm_data, *tmp, i;
+	u32 nvm_size, left;
+	s8 num_blks;
 	int status;
 
 	nvm_size = hw->flash.flash_size;
@@ -824,26 +852,44 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	if (!nvm_data)
 		return -ENOMEM;
 
-	status = ice_acquire_nvm(hw, ICE_RES_READ);
-	if (status) {
-		dev_dbg(dev, "ice_acquire_nvm failed, err %d aq_err %d\n",
-			status, hw->adminq.sq_last_status);
-		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
-		vfree(nvm_data);
-		return status;
-	}
 
-	status = ice_read_flat_nvm(hw, 0, &nvm_size, nvm_data, false);
-	if (status) {
-		dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
-			nvm_size, status, hw->adminq.sq_last_status);
-		NL_SET_ERR_MSG_MOD(extack, "Failed to read NVM contents");
+	num_blks = DIV_ROUND_UP(nvm_size, ICE_DEVLINK_READ_BLK_SIZE);
+	tmp = nvm_data;
+	left = nvm_size;
+
+	/* Some systems take longer to read the NVM than others which causes the
+	 * FW to reclaim the NVM lock before the entire NVM has been read. Fix
+	 * this by breaking the reads of the NVM into smaller chunks that will
+	 * probably not take as long. This has some overhead since we are
+	 * increasing the number of AQ commands, but it should always work
+	 */
+	for (i = 0; i < num_blks; i++) {
+		u32 read_sz = min_t(u32, ICE_DEVLINK_READ_BLK_SIZE, left);
+
+		status = ice_acquire_nvm(hw, ICE_RES_READ);
+		if (status) {
+			dev_dbg(dev, "ice_acquire_nvm failed, err %d aq_err %d\n",
+				status, hw->adminq.sq_last_status);
+			NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
+			vfree(nvm_data);
+			return -EIO;
+		}
+
+		status = ice_read_flat_nvm(hw, i * ICE_DEVLINK_READ_BLK_SIZE,
+					   &read_sz, tmp, false);
+		if (status) {
+			dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
+				read_sz, status, hw->adminq.sq_last_status);
+			NL_SET_ERR_MSG_MOD(extack, "Failed to read NVM contents");
+			ice_release_nvm(hw);
+			vfree(nvm_data);
+			return -EIO;
+		}
 		ice_release_nvm(hw);
-		vfree(nvm_data);
-		return status;
-	}
 
-	ice_release_nvm(hw);
+		tmp += read_sz;
+		left -= read_sz;
+	}
 
 	*data = nvm_data;
 

@@ -32,7 +32,7 @@ The following parameters are used to configure filters to reduce noise:
 |activation_height,	|size threshold to activate immediately		      |
 |activation_width	|						      |
 +-----------------------+-----------------------------------------------------+
-|min_height,		|size threshold bellow which fingers are ignored      |
+|min_height,		|size threshold below which fingers are ignored       |
 |min_width		|both to decide activation and during activity	      |
 +-----------------------+-----------------------------------------------------+
 |deactivate_slack	|the number of "no contact" frames to ignore before   |

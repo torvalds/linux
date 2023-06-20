@@ -297,7 +297,7 @@ static loff_t iomap_readpage_iter(const struct iomap_iter *iter,
 		/*
 		 * If the bio_alloc fails, try it again for a single page to
 		 * avoid having to deal with partial page reads.  This emulates
-		 * what do_mpage_readpage does.
+		 * what do_mpage_read_folio does.
 		 */
 		if (!ctx->bio) {
 			ctx->bio = bio_alloc(iomap->bdev, 1, REQ_OP_READ,
@@ -320,10 +320,8 @@ done:
 	return pos - orig_pos + plen;
 }
 
-int
-iomap_readpage(struct page *page, const struct iomap_ops *ops)
+int iomap_read_folio(struct folio *folio, const struct iomap_ops *ops)
 {
-	struct folio *folio = page_folio(page);
 	struct iomap_iter iter = {
 		.inode		= folio->mapping->host,
 		.pos		= folio_pos(folio),
@@ -351,13 +349,13 @@ iomap_readpage(struct page *page, const struct iomap_ops *ops)
 	}
 
 	/*
-	 * Just like mpage_readahead and block_read_full_page, we always
-	 * return 0 and just mark the page as PageError on errors.  This
+	 * Just like mpage_readahead and block_read_full_folio, we always
+	 * return 0 and just set the folio error flag on errors.  This
 	 * should be cleaned up throughout the stack eventually.
 	 */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iomap_readpage);
+EXPORT_SYMBOL_GPL(iomap_read_folio);
 
 static loff_t iomap_readahead_iter(const struct iomap_iter *iter,
 		struct iomap_readpage_ctx *ctx)
@@ -454,25 +452,23 @@ bool iomap_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 }
 EXPORT_SYMBOL_GPL(iomap_is_partially_uptodate);
 
-int
-iomap_releasepage(struct page *page, gfp_t gfp_mask)
+bool iomap_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	struct folio *folio = page_folio(page);
-
-	trace_iomap_releasepage(folio->mapping->host, folio_pos(folio),
+	trace_iomap_release_folio(folio->mapping->host, folio_pos(folio),
 			folio_size(folio));
 
 	/*
-	 * mm accommodates an old ext3 case where clean pages might not have had
-	 * the dirty bit cleared. Thus, it can send actual dirty pages to
-	 * ->releasepage() via shrink_active_list(); skip those here.
+	 * mm accommodates an old ext3 case where clean folios might
+	 * not have had the dirty bit cleared.  Thus, it can send actual
+	 * dirty folios to ->release_folio() via shrink_active_list();
+	 * skip those here.
 	 */
 	if (folio_test_dirty(folio) || folio_test_writeback(folio))
-		return 0;
+		return false;
 	iomap_page_release(folio);
-	return 1;
+	return true;
 }
-EXPORT_SYMBOL_GPL(iomap_releasepage);
+EXPORT_SYMBOL_GPL(iomap_release_folio);
 
 void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 {
@@ -531,7 +527,8 @@ iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
 	 * write started inside the existing inode size.
 	 */
 	if (pos + len > i_size)
-		truncate_pagecache_range(inode, max(pos, i_size), pos + len);
+		truncate_pagecache_range(inode, max(pos, i_size),
+					 pos + len - 1);
 }
 
 static int iomap_read_folio_sync(loff_t block_start, struct folio *folio,
@@ -663,10 +660,10 @@ static size_t __iomap_write_end(struct inode *inode, loff_t pos, size_t len,
 
 	/*
 	 * The blocks that were entirely written will now be uptodate, so we
-	 * don't have to worry about a readpage reading them and overwriting a
+	 * don't have to worry about a read_folio reading them and overwriting a
 	 * partial write.  However, if we've encountered a short write and only
 	 * partially written into a block, it will not be marked uptodate, so a
-	 * readpage might come in and destroy our partial write.
+	 * read_folio might come in and destroy our partial write.
 	 *
 	 * Do the simplest thing and just treat any short write to a
 	 * non-uptodate page as a zero-length write, and force the caller to
@@ -733,7 +730,7 @@ static size_t iomap_write_end(struct iomap_iter *iter, loff_t pos, size_t len,
 	folio_put(folio);
 
 	if (ret < len)
-		iomap_write_failed(iter->inode, pos, len);
+		iomap_write_failed(iter->inode, pos + ret, len - ret);
 	return ret;
 }
 
@@ -1386,7 +1383,6 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 		if (wpc->ops->discard_folio)
 			wpc->ops->discard_folio(folio, pos);
 		if (!count) {
-			folio_clear_uptodate(folio);
 			folio_unlock(folio);
 			goto done;
 		}
@@ -1485,7 +1481,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		 * Skip the page if it's fully outside i_size, e.g. due to a
 		 * truncate operation that's in progress. We must redirty the
 		 * page so that reclaim stops reclaiming it. Otherwise
-		 * iomap_vm_releasepage() is called on it and gets confused.
+		 * iomap_release_folio() is called on it and gets confused.
 		 *
 		 * Note that the end_index is unsigned long.  If the given
 		 * offset is greater than 16TB on a 32-bit system then if we

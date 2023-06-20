@@ -17,34 +17,12 @@ static efi_guid_t efi_cert_x509_sha256_guid __initdata =
 static efi_guid_t efi_cert_sha256_guid __initdata = EFI_CERT_SHA256_GUID;
 
 /*
- * Blacklist a hash.
- */
-static __init void uefi_blacklist_hash(const char *source, const void *data,
-				       size_t len, const char *type,
-				       size_t type_len)
-{
-	char *hash, *p;
-
-	hash = kmalloc(type_len + len * 2 + 1, GFP_KERNEL);
-	if (!hash)
-		return;
-	p = memcpy(hash, type, type_len);
-	p += type_len;
-	bin2hex(p, data, len);
-	p += len * 2;
-	*p = 0;
-
-	mark_hash_blacklisted(hash);
-	kfree(hash);
-}
-
-/*
  * Blacklist an X509 TBS hash.
  */
 static __init void uefi_blacklist_x509_tbs(const char *source,
 					   const void *data, size_t len)
 {
-	uefi_blacklist_hash(source, data, len, "tbs:", 4);
+	mark_hash_blacklisted(data, len, BLACKLIST_HASH_X509_TBS);
 }
 
 /*
@@ -53,7 +31,7 @@ static __init void uefi_blacklist_x509_tbs(const char *source,
 static __init void uefi_blacklist_binary(const char *source,
 					 const void *data, size_t len)
 {
-	uefi_blacklist_hash(source, data, len, "bin:", 4);
+	mark_hash_blacklisted(data, len, BLACKLIST_HASH_BINARY);
 }
 
 /*
@@ -73,7 +51,7 @@ __init efi_element_handler_t get_handler_for_db(const efi_guid_t *sig_type)
 {
 	if (efi_guidcmp(*sig_type, efi_cert_x509_guid) == 0)
 		return add_to_platform_keyring;
-	return 0;
+	return NULL;
 }
 
 /*
@@ -88,7 +66,7 @@ __init efi_element_handler_t get_handler_for_mok(const efi_guid_t *sig_type)
 		else
 			return add_to_platform_keyring;
 	}
-	return 0;
+	return NULL;
 }
 
 /*
@@ -103,5 +81,5 @@ __init efi_element_handler_t get_handler_for_dbx(const efi_guid_t *sig_type)
 		return uefi_blacklist_binary;
 	if (efi_guidcmp(*sig_type, efi_cert_x509_guid) == 0)
 		return uefi_revocation_list_x509;
-	return 0;
+	return NULL;
 }

@@ -106,8 +106,8 @@ struct au1000_private {
 	struct mac_reg *mac;  /* mac registers                      */
 	u32 *enable;     /* address of MAC Enable Register     */
 	void __iomem *macdma;	/* base of MAC DMA port */
-	u32 vaddr;                /* virtual address of rx/tx buffers   */
-	dma_addr_t dma_addr;      /* dma address of rx/tx buffers       */
+	void *vaddr;		/* virtual address of rx/tx buffers   */
+	dma_addr_t dma_addr;	/* dma address of rx/tx buffers       */
 
 	spinlock_t lock;       /* Serialise access to device */
 

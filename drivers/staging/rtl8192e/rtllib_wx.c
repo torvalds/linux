@@ -660,7 +660,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 {
 	u8 i = 0;
 	bool deauth = false;
-	struct iw_mlme *mlme = (struct iw_mlme *) extra;
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 
 	if (ieee->state != RTLLIB_LINKED)
 		return -ENOLINK;

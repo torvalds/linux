@@ -56,7 +56,7 @@
  * solved by also having a SMP watchdog where all CPUs check all other
  * CPUs heartbeat.
  *
- * The SMP checker can detect lockups on other CPUs. A gobal "pending"
+ * The SMP checker can detect lockups on other CPUs. A global "pending"
  * cpumask is kept, containing all CPUs which enable the watchdog. Each
  * CPU clears their pending bit in their heartbeat timer. When the bitmask
  * becomes empty, the last CPU to clear its pending bit updates a global

@@ -27,7 +27,6 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/paca.h>
 #include <asm/machdep.h>

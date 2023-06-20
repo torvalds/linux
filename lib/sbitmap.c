@@ -528,7 +528,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 
 		sbitmap_deferred_clear(map);
 		if (map->word == (1UL << (map_depth - 1)) - 1)
-			continue;
+			goto next;
 
 		nr = find_first_zero_bit(&map->word, map_depth);
 		if (nr + nr_tags <= map_depth) {
@@ -539,6 +539,8 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 			get_mask = ((1UL << map_tags) - 1) << nr;
 			do {
 				val = READ_ONCE(map->word);
+				if ((val & ~get_mask) != val)
+					goto next;
 				ret = atomic_long_cmpxchg(ptr, val, get_mask | val);
 			} while (ret != val);
 			get_mask = (get_mask & ~ret) >> nr;
@@ -549,6 +551,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 				return get_mask;
 			}
 		}
+next:
 		/* Jump to next index. */
 		if (++index >= sb->map_nr)
 			index = 0;

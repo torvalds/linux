@@ -164,7 +164,7 @@ ENTRY(vector_bhb_loop8_swi)
 1:	b	2f
 2:	subs	r8, r8, #1
 	bne	1b
-	dsb
+	dsb	nsh
 	isb
 	b	3f
 ENDPROC(vector_bhb_loop8_swi)
@@ -198,7 +198,7 @@ ENTRY(vector_swi)
 #endif
 	reload_current r10, ip
 	zero_fp
-	alignment_trap r10, ip, __cr_alignment
+	alignment_trap r10, ip, cr_alignment
 	asm_trace_hardirqs_on save=0
 	enable_irq_notrace
 	ct_user_exit save=0
@@ -302,6 +302,7 @@ local_restart:
 	b	ret_fast_syscall
 #endif
 ENDPROC(vector_swi)
+	.ltorg
 
 	/*
 	 * This is the really slow path.  We're going to be doing
@@ -327,14 +328,6 @@ __sys_trace_return:
 	mov	r0, sp
 	bl	syscall_trace_exit
 	b	ret_slow_syscall
-
-	.align	5
-#ifdef CONFIG_ALIGNMENT_TRAP
-	.type	__cr_alignment, #object
-__cr_alignment:
-	.word	cr_alignment
-#endif
-	.ltorg
 
 	.macro	syscall_table_start, sym
 	.equ	__sys_nr, 0

@@ -314,7 +314,6 @@ enum db_state {
 struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
-	u32 device_cap_flags;
 	struct xarray cqs;
 	struct xarray qps;
 	struct xarray mrs;

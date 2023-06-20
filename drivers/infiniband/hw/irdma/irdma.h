@@ -127,6 +127,7 @@ struct irdma_hw_attrs {
 	u64 max_hw_outbound_msg_size;
 	u64 max_hw_inbound_msg_size;
 	u64 max_mr_size;
+	u64 page_size_cap;
 	u32 min_hw_qp_id;
 	u32 min_hw_aeq_size;
 	u32 max_hw_aeq_size;

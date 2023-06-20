@@ -614,6 +614,10 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	}
 
 	if (!mmio_base) {
+		if (IS_ENABLED(CONFIG_ARM64)) {
+			dev_err(&pdev->dev, "MMIO base is invalid\n");
+			return -ENXIO;
+		}
 		error = pcim_iomap_regions(pdev, BIT(0), KBUILD_MODNAME);
 		if (error) {
 			dev_err(&pdev->dev, "Failed to reserve/map IO regions\n");

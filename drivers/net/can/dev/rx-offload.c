@@ -70,8 +70,6 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 			napi_reschedule(&offload->napi);
 	}
 
-	can_led_event(offload->dev, CAN_LED_EVENT_RX);
-
 	return work_done;
 }
 
@@ -221,7 +219,7 @@ int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload)
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_irq_offload_fifo);
 
-int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
+int can_rx_offload_queue_timestamp(struct can_rx_offload *offload,
 				struct sk_buff *skb, u32 timestamp)
 {
 	struct can_rx_offload_cb *cb;
@@ -240,7 +238,7 @@ int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(can_rx_offload_queue_sorted);
+EXPORT_SYMBOL_GPL(can_rx_offload_queue_timestamp);
 
 unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 					 unsigned int idx, u32 timestamp,
@@ -256,7 +254,7 @@ unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 	if (!skb)
 		return 0;
 
-	err = can_rx_offload_queue_sorted(offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(offload, skb, timestamp);
 	if (err) {
 		stats->rx_errors++;
 		stats->tx_fifo_errors++;
@@ -337,7 +335,8 @@ static int can_rx_offload_init_queue(struct net_device *dev,
 	skb_queue_head_init(&offload->skb_queue);
 	__skb_queue_head_init(&offload->skb_irq_queue);
 
-	netif_napi_add(dev, &offload->napi, can_rx_offload_napi_poll, weight);
+	netif_napi_add_weight(dev, &offload->napi, can_rx_offload_napi_poll,
+			      weight);
 
 	dev_dbg(dev->dev.parent, "%s: skb_queue_len_max=%d\n",
 		__func__, offload->skb_queue_len_max);

@@ -27,27 +27,28 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    free_page_reporting
    highmem
    ksm
+   frontswap
+   hmm
+   hwpoison
+   hugetlbfs_reserv
+   memory-model
+   mmu_notifier
+   numa
+   overcommit-accounting
+   page_frags
+   page_owner
+   page_table_check
+   remap_file_pages
+   split_page_table_lock
+   z3fold
+   zsmalloc
 
 TODOLIST:
 * arch_pgtable_helpers
 * free_page_reporting
-* frontswap
-* hmm
-* hwpoison
 * hugetlbfs_reserv
-* memory-model
-* mmu_notifier
-* numa
-* overcommit-accounting
 * page_migration
-* page_frags
-* page_owner
-* page_table_check
-* remap_file_pages
 * slub
-* split_page_table_lock
 * transhuge
 * unevictable-lru
 * vmalloced-kernel-stacks
-* z3fold
-* zsmalloc

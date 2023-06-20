@@ -22,8 +22,6 @@
  *
  */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
 #include "dm_services.h"
 
 #include "include/logger_interface.h"
@@ -450,4 +448,3 @@ struct irq_service *dal_irq_service_dcn30_create(
 	return irq_service;
 }
 
-#endif

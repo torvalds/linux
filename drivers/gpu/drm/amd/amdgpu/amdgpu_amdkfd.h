@@ -273,9 +273,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 		struct amdgpu_device *adev, struct kgd_mem *mem, void *drm_priv,
 		uint64_t *size);
-int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
-		struct amdgpu_device *adev, struct kgd_mem *mem, void *drm_priv,
-		bool *table_freed);
+int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(struct amdgpu_device *adev,
+					  struct kgd_mem *mem, void *drm_priv);
 int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 		struct amdgpu_device *adev, struct kgd_mem *mem, void *drm_priv);
 int amdgpu_amdkfd_gpuvm_sync_memory(
@@ -301,6 +300,7 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
 bool amdgpu_amdkfd_bo_mapped_to_dev(struct amdgpu_device *adev, struct kgd_mem *mem);
 void amdgpu_amdkfd_block_mmu_notifications(void *p);
 int amdgpu_amdkfd_criu_resume(void *p);
+bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev);
 
 #if IS_ENABLED(CONFIG_HSA_AMD)
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);

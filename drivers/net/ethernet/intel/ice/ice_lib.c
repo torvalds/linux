@@ -909,7 +909,7 @@ static void ice_set_dflt_vsi_ctx(struct ice_hw *hw, struct ice_vsi_ctx *ctxt)
  * @vsi: the VSI being configured
  * @ctxt: VSI context structure
  */
-static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
+static int ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 {
 	u16 offset = 0, qmap = 0, tx_count = 0, pow = 0;
 	u16 num_txq_per_tc, num_rxq_per_tc;
@@ -982,7 +982,18 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 	else
 		vsi->num_rxq = num_rxq_per_tc;
 
+	if (vsi->num_rxq > vsi->alloc_rxq) {
+		dev_err(ice_pf_to_dev(vsi->back), "Trying to use more Rx queues (%u), than were allocated (%u)!\n",
+			vsi->num_rxq, vsi->alloc_rxq);
+		return -EINVAL;
+	}
+
 	vsi->num_txq = tx_count;
+	if (vsi->num_txq > vsi->alloc_txq) {
+		dev_err(ice_pf_to_dev(vsi->back), "Trying to use more Tx queues (%u), than were allocated (%u)!\n",
+			vsi->num_txq, vsi->alloc_txq);
+		return -EINVAL;
+	}
 
 	if (vsi->type == ICE_VSI_VF && vsi->num_txq != vsi->num_rxq) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "VF VSI should have same number of Tx and Rx queues. Hence making them equal\n");
@@ -1000,6 +1011,8 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 	 */
 	ctxt->info.q_mapping[0] = cpu_to_le16(vsi->rxq_map[0]);
 	ctxt->info.q_mapping[1] = cpu_to_le16(vsi->num_rxq);
+
+	return 0;
 }
 
 /**
@@ -1187,7 +1200,10 @@ static int ice_vsi_init(struct ice_vsi *vsi, bool init_vsi)
 	if (vsi->type == ICE_VSI_CHNL) {
 		ice_chnl_vsi_setup_q_map(vsi, ctxt);
 	} else {
-		ice_vsi_setup_q_map(vsi, ctxt);
+		ret = ice_vsi_setup_q_map(vsi, ctxt);
+		if (ret)
+			goto out;
+
 		if (!init_vsi) /* means VSI being updated */
 			/* must to indicate which section of VSI context are
 			 * being modified
@@ -3464,7 +3480,7 @@ void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc)
  *
  * Prepares VSI tc_config to have queue configurations based on MQPRIO options.
  */
-static void
+static int
 ice_vsi_setup_q_map_mqprio(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt,
 			   u8 ena_tc)
 {
@@ -3513,7 +3529,18 @@ ice_vsi_setup_q_map_mqprio(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt,
 
 	/* Set actual Tx/Rx queue pairs */
 	vsi->num_txq = offset + qcount_tx;
+	if (vsi->num_txq > vsi->alloc_txq) {
+		dev_err(ice_pf_to_dev(vsi->back), "Trying to use more Tx queues (%u), than were allocated (%u)!\n",
+			vsi->num_txq, vsi->alloc_txq);
+		return -EINVAL;
+	}
+
 	vsi->num_rxq = offset + qcount_rx;
+	if (vsi->num_rxq > vsi->alloc_rxq) {
+		dev_err(ice_pf_to_dev(vsi->back), "Trying to use more Rx queues (%u), than were allocated (%u)!\n",
+			vsi->num_rxq, vsi->alloc_rxq);
+		return -EINVAL;
+	}
 
 	/* Setup queue TC[0].qmap for given VSI context */
 	ctxt->info.tc_mapping[0] = cpu_to_le16(qmap);
@@ -3531,6 +3558,8 @@ ice_vsi_setup_q_map_mqprio(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt,
 	dev_dbg(ice_pf_to_dev(vsi->back), "vsi->num_rxq = %d\n",  vsi->num_rxq);
 	dev_dbg(ice_pf_to_dev(vsi->back), "all_numtc %u, all_enatc: 0x%04x, tc_cfg.numtc %u\n",
 		vsi->all_numtc, vsi->all_enatc, vsi->tc_cfg.numtc);
+
+	return 0;
 }
 
 /**
@@ -3580,9 +3609,12 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
 
 	if (vsi->type == ICE_VSI_PF &&
 	    test_bit(ICE_FLAG_TC_MQPRIO, pf->flags))
-		ice_vsi_setup_q_map_mqprio(vsi, ctx, ena_tc);
+		ret = ice_vsi_setup_q_map_mqprio(vsi, ctx, ena_tc);
 	else
-		ice_vsi_setup_q_map(vsi, ctx);
+		ret = ice_vsi_setup_q_map(vsi, ctx);
+
+	if (ret)
+		goto out;
 
 	/* must to indicate which section of VSI context are being modified */
 	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_RXQ_MAP_VALID);

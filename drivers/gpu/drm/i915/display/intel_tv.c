@@ -1145,8 +1145,8 @@ intel_tv_get_config(struct intel_encoder *encoder,
 
 	intel_tv_mode_to_mode(&mode, &tv_mode);
 
-	drm_dbg_kms(&dev_priv->drm, "TV mode:\n");
-	drm_mode_debug_printmodeline(&mode);
+	drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(&mode));
 
 	intel_tv_scale_mode_horiz(&mode, hdisplay,
 				  xpos, mode.hdisplay - xsize - xpos);
@@ -1250,8 +1250,8 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		tv_conn_state->bypass_vfilter = false;
 	}
 
-	drm_dbg_kms(&dev_priv->drm, "TV mode:\n");
-	drm_mode_debug_printmodeline(adjusted_mode);
+	drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(adjusted_mode));
 
 	/*
 	 * The pipe scanline counter behaviour looks as follows when
@@ -1806,8 +1806,8 @@ intel_tv_get_modes(struct drm_connector *connector)
 		 */
 		intel_tv_mode_to_mode(mode, tv_mode);
 		if (count == 0) {
-			drm_dbg_kms(&dev_priv->drm, "TV mode:\n");
-			drm_mode_debug_printmodeline(mode);
+			drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
+				    DRM_MODE_ARG(mode));
 		}
 		intel_tv_scale_mode_horiz(mode, input->w, 0, 0);
 		intel_tv_scale_mode_vert(mode, input->h, 0, 0);

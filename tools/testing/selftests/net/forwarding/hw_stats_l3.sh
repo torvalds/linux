@@ -162,14 +162,6 @@ ping_ipv6()
 	ping_test $h1.200 2001:db8:2::1 " IPv6"
 }
 
-get_l3_stat()
-{
-	local selector=$1; shift
-
-	ip -j stats show dev $rp1.200 group offload subgroup l3_stats |
-		  jq '.[0].stats64.'$selector
-}
-
 send_packets_rx_ipv4()
 {
 	# Send 21 packets instead of 20, because the first one might trap and go
@@ -208,11 +200,11 @@ ___test_stats()
 	local a
 	local b
 
-	a=$(get_l3_stat ${dir}.packets)
+	a=$(hw_stats_get l3_stats $rp1.200 ${dir} packets)
 	send_packets_${dir}_${prot}
 	"$@"
 	b=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= $a + 20" \
-		       get_l3_stat ${dir}.packets)
+		       hw_stats_get l3_stats $rp1.200 ${dir} packets)
 	check_err $? "Traffic not reflected in the counter: $a -> $b"
 }
 
@@ -281,11 +273,11 @@ __test_stats_report()
 
 	RET=0
 
-	a=$(get_l3_stat ${dir}.packets)
+	a=$(hw_stats_get l3_stats $rp1.200 ${dir} packets)
 	send_packets_${dir}_${prot}
 	ip address flush dev $rp1.200
 	b=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= $a + 20" \
-		       get_l3_stat ${dir}.packets)
+		       hw_stats_get l3_stats $rp1.200 ${dir} packets)
 	check_err $? "Traffic not reflected in the counter: $a -> $b"
 	log_test "Test ${dir} packets: stats pushed on loss of L3"
 

@@ -597,6 +597,7 @@ static const struct snd_soc_component_driver soc_component_sdw_rt1316 = {
 	.num_dapm_widgets = ARRAY_SIZE(rt1316_dapm_widgets),
 	.dapm_routes = rt1316_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(rt1316_dapm_routes),
+	.endianness = 1,
 };
 
 static const struct snd_soc_dai_ops rt1316_aif_dai_ops = {
@@ -675,6 +676,16 @@ static int rt1316_sdw_probe(struct sdw_slave *slave,
 	return rt1316_sdw_init(&slave->dev, regmap, slave);
 }
 
+static int rt1316_sdw_remove(struct sdw_slave *slave)
+{
+	struct rt1316_sdw_priv *rt1316 = dev_get_drvdata(&slave->dev);
+
+	if (rt1316->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
+}
+
 static const struct sdw_device_id rt1316_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x1316, 0x3, 0x1, 0),
 	{},
@@ -734,6 +745,7 @@ static struct sdw_driver rt1316_sdw_driver = {
 		.pm = &rt1316_pm,
 	},
 	.probe = rt1316_sdw_probe,
+	.remove = rt1316_sdw_remove,
 	.ops = &rt1316_slave_ops,
 	.id_table = rt1316_id,
 };

@@ -37,7 +37,16 @@ int BPF_PROG(trace_task_newtask, struct task_struct *task, u64 clone_flags)
 	 */
 	work = task->task_works;
 	func = work->func;
-	if (!work && !func)
-		exception_triggered++;
+	/* Currently verifier will fail for `btf_ptr |= btf_ptr` * instruction.
+	 * To workaround the issue, use barrier_var() and rewrite as below to
+	 * prevent compiler from generating verifier-unfriendly code.
+	 */
+	barrier_var(work);
+	if (work)
+		return 0;
+	barrier_var(func);
+	if (func)
+		return 0;
+	exception_triggered++;
 	return 0;
 }

@@ -18,7 +18,9 @@ properties:
     oneOf:
       - const: rockchip,rk3399-vdec
       - items:
-          - const: rockchip,rk3228-vdec
+          - enum:
+              - rockchip,rk3228-vdec
+              - rockchip,rk3328-vdec
           - const: rockchip,rk3399-vdec
 
   reg:

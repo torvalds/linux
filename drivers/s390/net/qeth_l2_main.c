@@ -1129,11 +1129,11 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	if (card->dev->hw_features & (NETIF_F_TSO | NETIF_F_TSO6)) {
 		card->dev->needed_headroom = sizeof(struct qeth_hdr_tso);
 		netif_keep_dst(card->dev);
-		netif_set_gso_max_size(card->dev,
+		netif_set_tso_max_size(card->dev,
 				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
 
-	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
+	netif_napi_add(card->dev, &card->napi, qeth_poll, NAPI_POLL_WEIGHT);
 	return register_netdev(card->dev);
 }
 

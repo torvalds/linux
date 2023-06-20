@@ -87,7 +87,7 @@ struct clk_hw *__clk_hw_register_fixed_rate(struct device *dev,
 	hw = &fixed->hw;
 	if (dev || !np)
 		ret = clk_hw_register(dev, hw);
-	else if (np)
+	else
 		ret = of_clk_hw_register(np, hw);
 	if (ret) {
 		kfree(fixed);

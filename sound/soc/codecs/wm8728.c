@@ -273,8 +273,7 @@ static struct spi_driver wm8728_spi_driver = {
 #endif /* CONFIG_SPI_MASTER */
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8728_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8728_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8728_priv *wm8728;
 	int ret;
@@ -307,7 +306,7 @@ static struct i2c_driver wm8728_i2c_driver = {
 		.name = "wm8728",
 		.of_match_table = wm8728_of_match,
 	},
-	.probe =    wm8728_i2c_probe,
+	.probe_new = wm8728_i2c_probe,
 	.id_table = wm8728_i2c_id,
 };
 #endif

@@ -26,6 +26,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/string_helpers.h>
 
 #include "i915_drv.h"
 #include "intel_de.h"
@@ -393,10 +394,7 @@ static void glk_dsi_program_esc_clock(struct drm_device *dev,
 	/* Calculate TXESC2 divider */
 	div2_value = DIV_ROUND_UP(div1_value, txesc1_div);
 
-	if (div2_value < 10)
-		txesc2_div = div2_value;
-	else
-		txesc2_div = 10;
+	txesc2_div = min_t(u32, div2_value, 10);
 
 	intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV1,
 		       (1 << (txesc1_div - 1)) & GLK_TX_ESC_CLK_DIV1_MASK);
@@ -581,7 +579,7 @@ static void assert_dsi_pll(struct drm_i915_private *i915, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"DSI PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
+			str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_dsi_pll_enabled(struct drm_i915_private *i915)

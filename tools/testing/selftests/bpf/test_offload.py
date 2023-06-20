@@ -184,7 +184,7 @@ def bpftool_prog_list(expected=None, ns=""):
 def bpftool_map_list(expected=None, ns=""):
     _, maps = bpftool("map show", JSON=True, ns=ns, fail=True)
     # Remove the base maps
-    maps = [m for m in maps if m not in base_maps and m.get('name') not in base_map_names]
+    maps = [m for m in maps if m not in base_maps and m.get('name') and m.get('name') not in base_map_names]
     if expected is not None:
         if len(maps) != expected:
             fail(True, "%d BPF maps loaded, expected %d" %

@@ -149,4 +149,3 @@ examples:
             sound-dai = <&wm8994>;
         };
     };
-

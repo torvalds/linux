@@ -14,10 +14,12 @@
 
 #include "adau1761.h"
 
-static int adau1761_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static const struct i2c_device_id adau1761_i2c_ids[];
+
+static int adau1761_i2c_probe(struct i2c_client *client)
 {
 	struct regmap_config config;
+	const struct i2c_device_id *id = i2c_match_id(adau1761_i2c_ids, client);
 
 	config = adau1761_regmap_config;
 	config.val_bits = 8;
@@ -59,7 +61,7 @@ static struct i2c_driver adau1761_i2c_driver = {
 		.name = "adau1761",
 		.of_match_table = of_match_ptr(adau1761_i2c_dt_ids),
 	},
-	.probe = adau1761_i2c_probe,
+	.probe_new = adau1761_i2c_probe,
 	.remove = adau1761_i2c_remove,
 	.id_table = adau1761_i2c_ids,
 };

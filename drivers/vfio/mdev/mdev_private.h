@@ -15,7 +15,7 @@ void mdev_bus_unregister(void);
 
 struct mdev_parent {
 	struct device *dev;
-	const struct mdev_parent_ops *ops;
+	struct mdev_driver *mdev_driver;
 	struct kref ref;
 	struct list_head next;
 	struct kset *mdev_types_kset;
@@ -32,12 +32,12 @@ struct mdev_type {
 	unsigned int type_group_id;
 };
 
+extern const struct attribute_group *mdev_device_groups[];
+
 #define to_mdev_type_attr(_attr)	\
 	container_of(_attr, struct mdev_type_attribute, attr)
 #define to_mdev_type(_kobj)		\
 	container_of(_kobj, struct mdev_type, kobj)
-
-extern struct mdev_driver vfio_mdev_driver;
 
 int  parent_create_sysfs_files(struct mdev_parent *parent);
 void parent_remove_sysfs_files(struct mdev_parent *parent);

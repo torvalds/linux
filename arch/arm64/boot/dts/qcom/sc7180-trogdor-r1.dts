@@ -7,17 +7,16 @@
 
 /dts-v1/;
 
-#include "sc7180.dtsi"
-
-ap_ec_spi: &spi6 {};
-ap_h1_spi: &spi0 {};
-
 #include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
 / {
 	model = "Google Trogdor (rev1+)";
 	compatible = "google,trogdor", "qcom,sc7180";
+};
+
+&ap_tp_i2c {
+	status = "okay";
 };
 
 ap_ts_pen_1v8: &i2c4 {

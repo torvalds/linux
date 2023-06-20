@@ -354,12 +354,8 @@ static void msg_free_recv(struct ipmi_recv_msg *msg)
 			complete(&msg_wait);
 	}
 }
-static struct ipmi_smi_msg smi_msg = {
-	.done = msg_free_smi
-};
-static struct ipmi_recv_msg recv_msg = {
-	.done = msg_free_recv
-};
+static struct ipmi_smi_msg smi_msg = INIT_IPMI_SMI_MSG(msg_free_smi);
+static struct ipmi_recv_msg recv_msg = INIT_IPMI_RECV_MSG(msg_free_recv);
 
 static int __ipmi_set_timeout(struct ipmi_smi_msg  *smi_msg,
 			      struct ipmi_recv_msg *recv_msg,
@@ -475,12 +471,10 @@ static void panic_recv_free(struct ipmi_recv_msg *msg)
 	atomic_dec(&panic_done_count);
 }
 
-static struct ipmi_smi_msg panic_halt_heartbeat_smi_msg = {
-	.done = panic_smi_free
-};
-static struct ipmi_recv_msg panic_halt_heartbeat_recv_msg = {
-	.done = panic_recv_free
-};
+static struct ipmi_smi_msg panic_halt_heartbeat_smi_msg =
+	INIT_IPMI_SMI_MSG(panic_smi_free);
+static struct ipmi_recv_msg panic_halt_heartbeat_recv_msg =
+	INIT_IPMI_RECV_MSG(panic_recv_free);
 
 static void panic_halt_ipmi_heartbeat(void)
 {
@@ -516,12 +510,10 @@ static void panic_halt_ipmi_heartbeat(void)
 		atomic_sub(2, &panic_done_count);
 }
 
-static struct ipmi_smi_msg panic_halt_smi_msg = {
-	.done = panic_smi_free
-};
-static struct ipmi_recv_msg panic_halt_recv_msg = {
-	.done = panic_recv_free
-};
+static struct ipmi_smi_msg panic_halt_smi_msg =
+	INIT_IPMI_SMI_MSG(panic_smi_free);
+static struct ipmi_recv_msg panic_halt_recv_msg =
+	INIT_IPMI_RECV_MSG(panic_recv_free);
 
 /*
  * Special call, doesn't claim any locks.  This is only to be called

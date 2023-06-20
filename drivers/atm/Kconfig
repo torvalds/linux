@@ -146,36 +146,6 @@ config ATM_ENI_BURST_RX_2W
 	  try this if you have disabled 4W and 8W bursts. Enabling 2W if 4W or
 	  8W are also set may or may not improve throughput.
 
-config ATM_FIRESTREAM
-	tristate "Fujitsu FireStream (FS50/FS155) "
-	depends on PCI && VIRT_TO_BUS
-	help
-	  Driver for the Fujitsu FireStream 155 (MB86697) and
-	  FireStream 50 (MB86695) ATM PCI chips.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called firestream.
-
-config ATM_ZATM
-	tristate "ZeitNet ZN1221/ZN1225"
-	depends on PCI && VIRT_TO_BUS
-	help
-	  Driver for the ZeitNet ZN1221 (MMF) and ZN1225 (UTP-5) 155 Mbps ATM
-	  adapters.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called zatm.
-
-config ATM_ZATM_DEBUG
-	bool "Enable extended debugging"
-	depends on ATM_ZATM
-	help
-	  Extended debugging records various events and displays that list
-	  when an inconsistency is detected. This mechanism is faster than
-	  generally using printks, but still has some impact on performance.
-	  Note that extended debugging may create certain race conditions
-	  itself. Enable this ONLY if you suspect problems with the driver.
-
 config ATM_NICSTAR
 	tristate "IDT 77201 (NICStAR) (ForeRunnerLE)"
 	depends on PCI
@@ -243,55 +213,6 @@ config ATM_IDT77252_USE_SUNI
 	bool
 	depends on ATM_IDT77252
 	default y
-
-config ATM_AMBASSADOR
-	tristate "Madge Ambassador (Collage PCI 155 Server)"
-	depends on PCI && VIRT_TO_BUS
-	select BITREVERSE
-	help
-	  This is a driver for ATMizer based ATM card produced by Madge
-	  Networks Ltd. Say Y (or M to compile as a module named ambassador)
-	  here if you have one of these cards.
-
-config ATM_AMBASSADOR_DEBUG
-	bool "Enable debugging messages"
-	depends on ATM_AMBASSADOR
-	help
-	  Somewhat useful debugging messages are available. The choice of
-	  messages is controlled by a bitmap.  This may be specified as a
-	  module argument (kernel command line argument as well?), changed
-	  dynamically using an ioctl (not yet) or changed by sending the
-	  string "Dxxxx" to VCI 1023 (where x is a hex digit).  See the file
-	  <file:drivers/atm/ambassador.h> for the meanings of the bits in the
-	  mask.
-
-	  When active, these messages can have a significant impact on the
-	  speed of the driver, and the size of your syslog files! When
-	  inactive, they will have only a modest impact on performance.
-
-config ATM_HORIZON
-	tristate "Madge Horizon [Ultra] (Collage PCI 25 and Collage PCI 155 Client)"
-	depends on PCI && VIRT_TO_BUS
-	help
-	  This is a driver for the Horizon chipset ATM adapter cards once
-	  produced by Madge Networks Ltd. Say Y (or M to compile as a module
-	  named horizon) here if you have one of these cards.
-
-config ATM_HORIZON_DEBUG
-	bool "Enable debugging messages"
-	depends on ATM_HORIZON
-	help
-	  Somewhat useful debugging messages are available. The choice of
-	  messages is controlled by a bitmap.  This may be specified as a
-	  module argument (kernel command line argument as well?), changed
-	  dynamically using an ioctl (not yet) or changed by sending the
-	  string "Dxxxx" to VCI 1023 (where x is a hex digit).  See the file
-	  <file:drivers/atm/horizon.h> for the meanings of the bits in the
-	  mask.
-
-	  When active, these messages can have a significant impact on the
-	  speed of the driver, and the size of your syslog files! When
-	  inactive, they will have only a modest impact on performance.
 
 config ATM_IA
 	tristate "Interphase ATM PCI x575/x525/x531"

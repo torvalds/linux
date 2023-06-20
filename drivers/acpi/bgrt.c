@@ -21,7 +21,7 @@ static struct kobject *bgrt_kobj;
 	{									\
 		return sysfs_emit(buf, "%d\n", bgrt_tab._member);		\
 	}									\
-	struct kobj_attribute bgrt_attr_##_name = __ATTR_RO(_name)
+	static struct kobj_attribute bgrt_attr_##_name = __ATTR_RO(_name)
 
 BGRT_SHOW(version, version);
 BGRT_SHOW(status, status);

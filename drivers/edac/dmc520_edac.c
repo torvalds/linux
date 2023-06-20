@@ -489,7 +489,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 	dev = &pdev->dev;
 
 	for (idx = 0; idx < NUMBER_OF_IRQS; idx++) {
-		irq = platform_get_irq_byname(pdev, dmc520_irq_configs[idx].name);
+		irq = platform_get_irq_byname_optional(pdev, dmc520_irq_configs[idx].name);
 		irqs[idx] = irq;
 		masks[idx] = dmc520_irq_configs[idx].mask;
 		if (irq >= 0) {

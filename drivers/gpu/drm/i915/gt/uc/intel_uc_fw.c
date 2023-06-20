@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/firmware.h>
+#include <linux/highmem.h>
 
 #include <drm/drm_cache.h>
 #include <drm/drm_print.h>
@@ -52,21 +53,26 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * firmware as TGL.
  */
 #define INTEL_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
+	fw_def(DG2,          0, guc_def(dg2,  70, 1, 2)) \
+	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 70, 1, 1)) \
+	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  70, 1, 1)) \
+	fw_def(DG1,          0, guc_def(dg1,  70, 1, 1)) \
+	fw_def(ROCKETLAKE,   0, guc_def(tgl,  70, 1, 1)) \
+	fw_def(TIGERLAKE,    0, guc_def(tgl,  70, 1, 1)) \
+	fw_def(JASPERLAKE,   0, guc_def(ehl,  70, 1, 1)) \
+	fw_def(ELKHARTLAKE,  0, guc_def(ehl,  70, 1, 1)) \
+	fw_def(ICELAKE,      0, guc_def(icl,  70, 1, 1)) \
+	fw_def(COMETLAKE,    5, guc_def(cml,  70, 1, 1)) \
+	fw_def(COMETLAKE,    0, guc_def(kbl,  70, 1, 1)) \
+	fw_def(COFFEELAKE,   0, guc_def(kbl,  70, 1, 1)) \
+	fw_def(GEMINILAKE,   0, guc_def(glk,  70, 1, 1)) \
+	fw_def(KABYLAKE,     0, guc_def(kbl,  70, 1, 1)) \
+	fw_def(BROXTON,      0, guc_def(bxt,  70, 1, 1)) \
+	fw_def(SKYLAKE,      0, guc_def(skl,  70, 1, 1))
+
+#define INTEL_GUC_FIRMWARE_DEFS_FALLBACK(fw_def, guc_def) \
 	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 69, 0, 3)) \
-	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  69, 0, 3)) \
-	fw_def(DG1,          0, guc_def(dg1,  69, 0, 3)) \
-	fw_def(ROCKETLAKE,   0, guc_def(tgl,  69, 0, 3)) \
-	fw_def(TIGERLAKE,    0, guc_def(tgl,  69, 0, 3)) \
-	fw_def(JASPERLAKE,   0, guc_def(ehl,  69, 0, 3)) \
-	fw_def(ELKHARTLAKE,  0, guc_def(ehl,  69, 0, 3)) \
-	fw_def(ICELAKE,      0, guc_def(icl,  69, 0, 3)) \
-	fw_def(COMETLAKE,    5, guc_def(cml,  69, 0, 3)) \
-	fw_def(COMETLAKE,    0, guc_def(kbl,  69, 0, 3)) \
-	fw_def(COFFEELAKE,   0, guc_def(kbl,  69, 0, 3)) \
-	fw_def(GEMINILAKE,   0, guc_def(glk,  69, 0, 3)) \
-	fw_def(KABYLAKE,     0, guc_def(kbl,  69, 0, 3)) \
-	fw_def(BROXTON,      0, guc_def(bxt,  69, 0, 3)) \
-	fw_def(SKYLAKE,      0, guc_def(skl,  69, 0, 3))
+	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  69, 0, 3))
 
 #define INTEL_HUC_FIRMWARE_DEFS(fw_def, huc_def) \
 	fw_def(ALDERLAKE_P,  0, huc_def(tgl,  7, 9, 3)) \
@@ -103,6 +109,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	MODULE_FIRMWARE(uc_);
 
 INTEL_GUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH)
+INTEL_GUC_FIRMWARE_DEFS_FALLBACK(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH)
 INTEL_HUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_HUC_FW_PATH)
 
 /* The below structs and macros are used to iterate across the list of blobs */
@@ -147,6 +154,9 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 	static const struct uc_fw_platform_requirement blobs_guc[] = {
 		INTEL_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB)
 	};
+	static const struct uc_fw_platform_requirement blobs_guc_fallback[] = {
+		INTEL_GUC_FIRMWARE_DEFS_FALLBACK(MAKE_FW_LIST, GUC_FW_BLOB)
+	};
 	static const struct uc_fw_platform_requirement blobs_huc[] = {
 		INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB)
 	};
@@ -154,11 +164,20 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		[INTEL_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
 		[INTEL_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
 	};
-	static const struct uc_fw_platform_requirement *fw_blobs;
+	const struct uc_fw_platform_requirement *fw_blobs;
 	enum intel_platform p = INTEL_INFO(i915)->platform;
 	u32 fw_count;
 	u8 rev = INTEL_REVID(i915);
 	int i;
+
+	/*
+	 * The only difference between the ADL GuC FWs is the HWConfig support.
+	 * ADL-N does not support HWConfig, so we should use the same binary as
+	 * ADL-S, otherwise the GuC might attempt to fetch a config table that
+	 * does not exist.
+	 */
+	if (IS_ADLP_N(i915))
+		p = INTEL_ALDERLAKE_S;
 
 	GEM_BUG_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
 	fw_blobs = blobs_all[uc_fw->type].blobs;
@@ -168,9 +187,26 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		if (p == fw_blobs[i].p && rev >= fw_blobs[i].rev) {
 			const struct uc_fw_blob *blob = &fw_blobs[i].blob;
 			uc_fw->path = blob->path;
+			uc_fw->wanted_path = blob->path;
 			uc_fw->major_ver_wanted = blob->major;
 			uc_fw->minor_ver_wanted = blob->minor;
 			break;
+		}
+	}
+
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC) {
+		const struct uc_fw_platform_requirement *blobs = blobs_guc_fallback;
+		u32 count = ARRAY_SIZE(blobs_guc_fallback);
+
+		for (i = 0; i < count && p <= blobs[i].p; i++) {
+			if (p == blobs[i].p && rev >= blobs[i].rev) {
+				const struct uc_fw_blob *blob = &blobs[i].blob;
+
+				uc_fw->fallback.path = blob->path;
+				uc_fw->fallback.major_ver = blob->major;
+				uc_fw->fallback.minor_ver = blob->minor;
+				break;
+			}
 		}
 	}
 
@@ -327,7 +363,24 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	__force_fw_fetch_failures(uc_fw, -EINVAL);
 	__force_fw_fetch_failures(uc_fw, -ESTALE);
 
-	err = request_firmware(&fw, uc_fw->path, dev);
+	err = firmware_request_nowarn(&fw, uc_fw->path, dev);
+	if (err && !intel_uc_fw_is_overridden(uc_fw) && uc_fw->fallback.path) {
+		err = firmware_request_nowarn(&fw, uc_fw->fallback.path, dev);
+		if (!err) {
+			drm_notice(&i915->drm,
+				   "%s firmware %s is recommended, but only %s was found\n",
+				   intel_uc_fw_type_repr(uc_fw->type),
+				   uc_fw->wanted_path,
+				   uc_fw->fallback.path);
+			drm_info(&i915->drm,
+				 "Consider updating your linux-firmware pkg or downloading from %s\n",
+				 INTEL_UC_FIRMWARE_URL);
+
+			uc_fw->path = uc_fw->fallback.path;
+			uc_fw->major_ver_wanted = uc_fw->fallback.major_ver;
+			uc_fw->minor_ver_wanted = uc_fw->fallback.minor_ver;
+		}
+	}
 	if (err)
 		goto fail;
 
@@ -426,8 +479,8 @@ fail:
 				  INTEL_UC_FIRMWARE_MISSING :
 				  INTEL_UC_FIRMWARE_ERROR);
 
-	drm_notice(&i915->drm, "%s firmware %s: fetch failed with error %d\n",
-		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+	i915_probe_error(i915, "%s firmware %s: fetch failed with error %d\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
 	drm_info(&i915->drm, "%s firmware(s) can be downloaded from %s\n",
 		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
@@ -785,7 +838,13 @@ size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
 void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 {
 	drm_printf(p, "%s firmware: %s\n",
-		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->wanted_path);
+	if (uc_fw->fallback.path) {
+		drm_printf(p, "%s firmware fallback: %s\n",
+			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->fallback.path);
+		drm_printf(p, "fallback selected: %s\n",
+			   str_yes_no(uc_fw->path == uc_fw->fallback.path));
+	}
 	drm_printf(p, "\tstatus: %s\n",
 		   intel_uc_fw_status_repr(uc_fw->status));
 	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",

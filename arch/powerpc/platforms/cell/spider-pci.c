@@ -8,6 +8,7 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -81,7 +82,7 @@ static int __init spiderpci_pci_setup_chip(struct pci_controller *phb,
 	/*
 	 * On CellBlade, we can't know that which XDR memory is used by
 	 * kmalloc() to allocate dummy_page_va.
-	 * In order to imporve the performance, the XDR which is used to
+	 * In order to improve the performance, the XDR which is used to
 	 * allocate dummy_page_va is the nearest the spider-pci.
 	 * We have to select the CBE which is the nearest the spider-pci
 	 * to allocate memory from the best XDR, but I don't know that

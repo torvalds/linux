@@ -77,11 +77,14 @@ EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv4);
 
 static void iterate_cleanup_work(struct work_struct *work)
 {
+	struct nf_ct_iter_data iter_data = {};
 	struct masq_dev_work *w;
 
 	w = container_of(work, struct masq_dev_work, work);
 
-	nf_ct_iterate_cleanup_net(w->net, w->iter, (void *)w, 0, 0);
+	iter_data.net = w->net;
+	iter_data.data = (void *)w;
+	nf_ct_iterate_cleanup_net(w->iter, &iter_data);
 
 	put_net_track(w->net, &w->ns_tracker);
 	kfree(w);

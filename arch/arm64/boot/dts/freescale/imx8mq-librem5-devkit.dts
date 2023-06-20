@@ -18,7 +18,7 @@
 	backlight_dsi: backlight-dsi {
 		compatible = "pwm-backlight";
 		/* 200 Hz for the PAM2841 */
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 100>;
 		num-interpolated-steps = <100>;
 		/* Default brightness level (index into the array defined by */

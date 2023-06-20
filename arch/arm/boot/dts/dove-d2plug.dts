@@ -62,7 +62,7 @@
 	status = "okay";
 
 	/* spi0.0: 4M Flash Macronix MX25L3205D */
-	spi-flash@0 {
+	flash@0 {
 		compatible = "st,m25l3205d";
 		spi-max-frequency = <20000000>;
 		reg = <0>;

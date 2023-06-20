@@ -180,7 +180,7 @@ static void fixed_phy_del(int phy_addr)
 			if (fp->link_gpiod)
 				gpiod_put(fp->link_gpiod);
 			kfree(fp);
-			ida_simple_remove(&phy_fixed_ida, phy_addr);
+			ida_free(&phy_fixed_ida, phy_addr);
 			return;
 		}
 	}
@@ -244,13 +244,13 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 	}
 
 	/* Get the next available PHY address, up to PHY_MAX_ADDR */
-	phy_addr = ida_simple_get(&phy_fixed_ida, 0, PHY_MAX_ADDR, GFP_KERNEL);
+	phy_addr = ida_alloc_max(&phy_fixed_ida, PHY_MAX_ADDR - 1, GFP_KERNEL);
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
 	ret = fixed_phy_add_gpiod(irq, phy_addr, status, gpiod);
 	if (ret < 0) {
-		ida_simple_remove(&phy_fixed_ida, phy_addr);
+		ida_free(&phy_fixed_ida, phy_addr);
 		return ERR_PTR(ret);
 	}
 

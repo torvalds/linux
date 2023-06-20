@@ -186,8 +186,6 @@
 #define N_FTS_VAL					52
 #define FTS_VAL						52
 
-#define PORT_LOGIC_MSI_CTRL_INT_0_EN		0x828
-
 #define GEN3_EQ_CONTROL_OFF			0x8a8
 #define GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_SHIFT	8
 #define GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_MASK	GENMASK(23, 8)
@@ -2189,9 +2187,6 @@ static int tegra194_pcie_suspend_noirq(struct device *dev)
 	if (!pcie->link_state)
 		return 0;
 
-	/* Save MSI interrupt vector */
-	pcie->msi_ctrl_int = dw_pcie_readl_dbi(&pcie->pci,
-					       PORT_LOGIC_MSI_CTRL_INT_0_EN);
 	tegra_pcie_downstream_dev_to_D0(pcie);
 	tegra194_pcie_pme_turnoff(pcie);
 	tegra_pcie_unconfig_controller(pcie);
@@ -2222,10 +2217,6 @@ static int tegra194_pcie_resume_noirq(struct device *dev)
 	ret = tegra194_pcie_start_link(&pcie->pci);
 	if (ret < 0)
 		goto fail_host_init;
-
-	/* Restore MSI interrupt vector */
-	dw_pcie_writel_dbi(&pcie->pci, PORT_LOGIC_MSI_CTRL_INT_0_EN,
-			   pcie->msi_ctrl_int);
 
 	return 0;
 

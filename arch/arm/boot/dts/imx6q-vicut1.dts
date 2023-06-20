@@ -6,12 +6,9 @@
 /dts-v1/;
 #include "imx6q.dtsi"
 #include "imx6qdl-vicut1.dtsi"
+#include "imx6qdl-vicut1-12inch.dtsi"
 
 / {
 	model = "Kverneland UT1Q Board";
 	compatible = "kvg,vicut1q", "fsl,imx6q";
-};
-
-&sata {
-	status = "okay";
 };

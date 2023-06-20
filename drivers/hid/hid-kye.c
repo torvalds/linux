@@ -33,7 +33,7 @@ static __u8 easypen_i405x_rdesc_fixed[] = {
 	0xB1, 0x02,       /*    Feature (Variable),           */
 	0xC0,             /*  End Collection,                 */
 	0x05, 0x0D,       /*  Usage Page (Digitizer),         */
-	0x09, 0x02,       /*  Usage (Pen),                    */
+	0x09, 0x01,       /*  Usage (Digitizer),              */
 	0xA1, 0x01,       /*  Collection (Application),       */
 	0x85, 0x10,       /*    Report ID (16),               */
 	0x09, 0x20,       /*    Usage (Stylus),               */
@@ -91,7 +91,7 @@ static __u8 mousepen_i608x_rdesc_fixed[] = {
 	0xB1, 0x02,       /*    Feature (Variable),           */
 	0xC0,             /*  End Collection,                 */
 	0x05, 0x0D,       /*  Usage Page (Digitizer),         */
-	0x09, 0x02,       /*  Usage (Pen),                    */
+	0x09, 0x01,       /*  Usage (Digitizer),              */
 	0xA1, 0x01,       /*  Collection (Application),       */
 	0x85, 0x10,       /*    Report ID (16),               */
 	0x09, 0x20,       /*    Usage (Stylus),               */
@@ -190,7 +190,7 @@ static __u8 mousepen_i608x_v2_rdesc_fixed[] = {
 	0xB1, 0x02,                   /*    Feature (Variable),           */
 	0xC0,                         /*  End Collection,                 */
 	0x05, 0x0D,                   /*  Usage Page (Digitizer),         */
-	0x09, 0x02,                   /*  Usage (Pen),                    */
+	0x09, 0x01,                   /*  Usage (Digitizer),              */
 	0xA1, 0x01,                   /*  Collection (Application),       */
 	0x85, 0x10,                   /*    Report ID (16),               */
 	0x09, 0x20,                   /*    Usage (Stylus),               */
@@ -289,7 +289,7 @@ static __u8 easypen_m610x_rdesc_fixed[] = {
 	0xB1, 0x02,                   /*    Feature (Variable),           */
 	0xC0,                         /*  End Collection,                 */
 	0x05, 0x0D,                   /*  Usage Page (Digitizer),         */
-	0x09, 0x02,                   /*  Usage (Pen),                    */
+	0x09, 0x01,                   /*  Usage (Digitizer),              */
 	0xA1, 0x01,                   /*  Collection (Application),       */
 	0x85, 0x10,                   /*    Report ID (16),               */
 	0x09, 0x20,                   /*    Usage (Stylus),               */
@@ -368,7 +368,7 @@ static __u8 pensketch_m912_rdesc_fixed[] = {
 	0xB1, 0x02,                   /*    Feature (Variable),           */
 	0xC0,                         /*  End Collection,                 */
 	0x05, 0x0D,                   /*  Usage Page (Digitizer),         */
-	0x09, 0x02,                   /*  Usage (Pen),                    */
+	0x09, 0x01,                   /*  Usage (Digitizer),              */
 	0xA1, 0x01,                   /*  Collection (Application),       */
 	0x85, 0x10,                   /*    Report ID (16),               */
 	0x09, 0x20,                   /*    Usage (Stylus),               */
@@ -497,7 +497,7 @@ static __u8 easypen_m406xe_rdesc_fixed[] = {
 	0xB1, 0x02,         /*      Feature (Variable),             */
 	0xC0,               /*  End Collection,                     */
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x10,         /*      Report ID (16),                 */
 	0x09, 0x20,         /*      Usage (Stylus),                 */

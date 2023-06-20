@@ -4,6 +4,7 @@
  */
 
 #include <linux/module.h>
+#include <misc/cxl-base.h>
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
 

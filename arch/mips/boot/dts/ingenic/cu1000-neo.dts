@@ -31,42 +31,6 @@
 		};
 	};
 
-	ssi: spi-gpio {
-		compatible = "spi-gpio";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		num-chipselects = <1>;
-
-		mosi-gpios = <&gpd 2 GPIO_ACTIVE_HIGH>;
-		miso-gpios = <&gpd 3 GPIO_ACTIVE_HIGH>;
-		sck-gpios = <&gpd 0 GPIO_ACTIVE_HIGH>;
-		cs-gpios = <&gpd 1 GPIO_ACTIVE_HIGH>;
-
-		status = "okay";
-
-		spi-max-frequency = <50000000>;
-
-		sc16is752: expander@0 {
-			compatible = "nxp,sc16is752";
-			reg = <0>; /* CE0 */
-			spi-max-frequency = <4000000>;
-
-			clocks = <&exclk_sc16is752>;
-
-			interrupt-parent = <&gpc>;
-			interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
-
-			gpio-controller;
-			#gpio-cells = <2>;
-
-			exclk_sc16is752: sc16is752 {
-				compatible = "fixed-clock";
-				#clock-cells = <0>;
-				clock-frequency = <48000000>;
-			};
-		};
-	};
-
 	wlan_pwrseq: msc1-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 
@@ -90,7 +54,7 @@
 
 &ost {
 	/* 1500 kHz for the system timer and clocksource */
-	assigned-clocks = <&ost OST_CLK_PERCPU_TIMER>, <&ost OST_CLK_GLOBAL_TIMER>;
+	assigned-clocks = <&ost OST_CLK_EVENT_TIMER>, <&ost OST_CLK_GLOBAL_TIMER>;
 	assigned-clock-rates = <1500000>, <1500000>;
 };
 
@@ -99,6 +63,39 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_uart2>;
+};
+
+&ssi {
+	status = "okay";
+
+	num-cs = <2>;
+	cs-gpios = <0>, <&gpc 20 GPIO_ACTIVE_LOW>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_ssi>;
+
+	sc16is752: expander@0 {
+		compatible = "nxp,sc16is752";
+		reg = <0>; /* CE0 */
+
+		spi-rx-bus-width = <1>;
+		spi-tx-bus-width = <1>;
+		spi-max-frequency = <4000000>;
+
+		clocks = <&exclk_sc16is752>;
+
+		interrupt-parent = <&gpc>;
+		interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		exclk_sc16is752: sc16is752 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <48000000>;
+		};
+	};
 };
 
 &i2c0 {
@@ -190,6 +187,12 @@
 		function = "uart2";
 		groups = "uart2-data-d";
 		bias-pull-up;
+	};
+
+	pins_ssi: ssi {
+		function = "ssi";
+		groups = "ssi-dt-d", "ssi-dr-d", "ssi-clk-d", "ssi-ce0-d";
+		bias-disable;
 	};
 
 	pins_i2c0: i2c0 {

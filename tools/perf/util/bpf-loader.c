@@ -63,20 +63,16 @@ static struct hashmap *bpf_map_hash;
 static struct bpf_perf_object *
 bpf_perf_object__next(struct bpf_perf_object *prev)
 {
-	struct bpf_perf_object *next;
+	if (!prev) {
+		if (list_empty(&bpf_objects_list))
+			return NULL;
 
-	if (!prev)
-		next = list_first_entry(&bpf_objects_list,
-					struct bpf_perf_object,
-					list);
-	else
-		next = list_next_entry(prev, list);
-
-	/* Empty list is noticed here so don't need checking on entry. */
-	if (&next->list == &bpf_objects_list)
+		return list_first_entry(&bpf_objects_list, struct bpf_perf_object, list);
+	}
+	if (list_is_last(&prev->list, &bpf_objects_list))
 		return NULL;
 
-	return next;
+	return list_next_entry(prev, list);
 }
 
 #define bpf_perf_object__for_each(perf_obj, tmp)	\
@@ -99,16 +95,26 @@ static int bpf_perf_object__add(struct bpf_object *obj)
 	return perf_obj ? 0 : -ENOMEM;
 }
 
+static int libbpf_init(void)
+{
+	if (libbpf_initialized)
+		return 0;
+
+	libbpf_set_print(libbpf_perf_print);
+	libbpf_initialized = true;
+	return 0;
+}
+
 struct bpf_object *
 bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts, .object_name = name);
 	struct bpf_object *obj;
+	int err;
 
-	if (!libbpf_initialized) {
-		libbpf_set_print(libbpf_perf_print);
-		libbpf_initialized = true;
-	}
+	err = libbpf_init();
+	if (err)
+		return ERR_PTR(err);
 
 	obj = bpf_object__open_mem(obj_buf, obj_buf_sz, &opts);
 	if (IS_ERR_OR_NULL(obj)) {
@@ -135,14 +141,13 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts, .object_name = filename);
 	struct bpf_object *obj;
+	int err;
 
-	if (!libbpf_initialized) {
-		libbpf_set_print(libbpf_perf_print);
-		libbpf_initialized = true;
-	}
+	err = libbpf_init();
+	if (err)
+		return ERR_PTR(err);
 
 	if (source) {
-		int err;
 		void *obj_buf;
 		size_t obj_buf_sz;
 

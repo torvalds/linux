@@ -52,6 +52,22 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 #define __underlying_strncpy	__builtin_strncpy
 #endif
 
+/**
+ * unsafe_memcpy - memcpy implementation with no FORTIFY bounds checking
+ *
+ * @dst: Destination memory address to write to
+ * @src: Source memory address to read from
+ * @bytes: How many bytes to write to @dst from @src
+ * @justification: Free-form text or comment describing why the use is needed
+ *
+ * This should be used for corner cases where the compiler cannot do the
+ * right thing, or during transitions between APIs, etc. It should be used
+ * very rarely, and includes a place for justification detailing where bounds
+ * checking has happened, and why existing solutions cannot be employed.
+ */
+#define unsafe_memcpy(dst, src, bytes, justification)		\
+	__underlying_memcpy(dst, src, bytes)
+
 /*
  * Clang's use of __builtin_object_size() within inlines needs hinting via
  * __pass_object_size(). The preference is to only ever use type 1 (member

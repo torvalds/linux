@@ -919,7 +919,7 @@ void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 EXPORT_SYMBOL_GPL(xdr_init_encode);
 
 /**
- * xdr_commit_encode - Ensure all data is written to buffer
+ * __xdr_commit_encode - Ensure all data is written to buffer
  * @xdr: pointer to xdr_stream
  *
  * We handle encoding across page boundaries by giving the caller a
@@ -931,26 +931,29 @@ EXPORT_SYMBOL_GPL(xdr_init_encode);
  * required at the end of encoding, or any other time when the xdr_buf
  * data might be read.
  */
-inline void xdr_commit_encode(struct xdr_stream *xdr)
+void __xdr_commit_encode(struct xdr_stream *xdr)
 {
-	int shift = xdr->scratch.iov_len;
+	size_t shift = xdr->scratch.iov_len;
 	void *page;
 
-	if (shift == 0)
-		return;
 	page = page_address(*xdr->page_ptr);
 	memcpy(xdr->scratch.iov_base, page, shift);
 	memmove(page, page + shift, (void *)xdr->p - page);
 	xdr_reset_scratch_buffer(xdr);
 }
-EXPORT_SYMBOL_GPL(xdr_commit_encode);
+EXPORT_SYMBOL_GPL(__xdr_commit_encode);
 
-static __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
-		size_t nbytes)
+/*
+ * The buffer space to be reserved crosses the boundary between
+ * xdr->buf->head and xdr->buf->pages, or between two pages
+ * in xdr->buf->pages.
+ */
+static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
+						   size_t nbytes)
 {
-	__be32 *p;
 	int space_left;
 	int frag1bytes, frag2bytes;
+	void *p;
 
 	if (nbytes > PAGE_SIZE)
 		goto out_overflow; /* Bigger buffers require special handling */
@@ -964,6 +967,7 @@ static __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 		xdr->buf->page_len += frag1bytes;
 	xdr->page_ptr++;
 	xdr->iov = NULL;
+
 	/*
 	 * If the last encode didn't end exactly on a page boundary, the
 	 * next one will straddle boundaries.  Encode into the next
@@ -972,14 +976,19 @@ static __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 	 * space at the end of the previous buffer:
 	 */
 	xdr_set_scratch_buffer(xdr, xdr->p, frag1bytes);
-	p = page_address(*xdr->page_ptr);
+
 	/*
-	 * Note this is where the next encode will start after we've
-	 * shifted this one back:
+	 * xdr->p is where the next encode will start after
+	 * xdr_commit_encode() has shifted this one back:
 	 */
-	xdr->p = (void *)p + frag2bytes;
+	p = page_address(*xdr->page_ptr);
+	xdr->p = p + frag2bytes;
 	space_left = xdr->buf->buflen - xdr->buf->len;
-	xdr->end = (void *)p + min_t(int, space_left, PAGE_SIZE);
+	if (space_left - frag1bytes >= PAGE_SIZE)
+		xdr->end = p + PAGE_SIZE;
+	else
+		xdr->end = p + space_left - frag1bytes;
+
 	xdr->buf->page_len += frag2bytes;
 	xdr->buf->len += nbytes;
 	return p;

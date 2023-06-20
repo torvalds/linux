@@ -1598,7 +1598,8 @@ i915_request_await_object(struct i915_request *to,
 	struct dma_fence *fence;
 	int ret = 0;
 
-	dma_resv_for_each_fence(&cursor, obj->base.resv, write, fence) {
+	dma_resv_for_each_fence(&cursor, obj->base.resv,
+				dma_resv_usage_rw(write), fence) {
 		ret = i915_request_await_dma_fence(to, fence);
 		if (ret)
 			break;

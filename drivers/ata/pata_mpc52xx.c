@@ -19,11 +19,12 @@
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/libata.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/types.h>
 
 #include <asm/cacheflush.h>
-#include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
 #include <linux/fsl/bestcomm/bestcomm.h>

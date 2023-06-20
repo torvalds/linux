@@ -113,7 +113,6 @@ static int ssp_accel_probe(struct platform_device *pdev)
 	indio_dev->available_scan_masks = ssp_accel_scan_mask;
 
 	ret = devm_iio_kfifo_buffer_setup(&pdev->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &ssp_accel_buffer_ops);
 	if (ret)
 		return ret;

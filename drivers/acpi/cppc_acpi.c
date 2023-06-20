@@ -100,6 +100,16 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
 				(cpc)->cpc_entry.reg.space_id ==	\
 				ACPI_ADR_SPACE_PLATFORM_COMM)
 
+/* Check if a CPC register is in SystemMemory */
+#define CPC_IN_SYSTEM_MEMORY(cpc) ((cpc)->type == ACPI_TYPE_BUFFER &&	\
+				(cpc)->cpc_entry.reg.space_id ==	\
+				ACPI_ADR_SPACE_SYSTEM_MEMORY)
+
+/* Check if a CPC register is in SystemIo */
+#define CPC_IN_SYSTEM_IO(cpc) ((cpc)->type == ACPI_TYPE_BUFFER &&	\
+				(cpc)->cpc_entry.reg.space_id ==	\
+				ACPI_ADR_SPACE_SYSTEM_IO)
+
 /* Evaluates to True if reg is a NULL register descriptor */
 #define IS_NULL_REG(reg) ((reg)->space_id ==  ACPI_ADR_SPACE_SYSTEM_MEMORY && \
 				(reg)->address == 0 &&			\
@@ -305,7 +315,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 		goto end;
 	}
 
-	/* wait for completion and check for PCC errro bit */
+	/* wait for completion and check for PCC error bit */
 	ret = check_pcc_chan(pcc_ss_id, true);
 
 	if (pcc_ss_data->pcc_mrtt)
@@ -423,6 +433,24 @@ bool acpi_cpc_valid(void)
 	return true;
 }
 EXPORT_SYMBOL_GPL(acpi_cpc_valid);
+
+bool cppc_allow_fast_switch(void)
+{
+	struct cpc_register_resource *desired_reg;
+	struct cpc_desc *cpc_ptr;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
+		desired_reg = &cpc_ptr->cpc_regs[DESIRED_PERF];
+		if (!CPC_IN_SYSTEM_MEMORY(desired_reg) &&
+				!CPC_IN_SYSTEM_IO(desired_reg))
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(cppc_allow_fast_switch);
 
 /**
  * acpi_get_psd_map - Map the CPUs in the freq domain of a given cpu
@@ -550,6 +578,19 @@ bool __weak cpc_ffh_supported(void)
 }
 
 /**
+ * cpc_supported_by_cpu() - check if CPPC is supported by CPU
+ *
+ * Check if the architectural support for CPPC is present even
+ * if the _OSC hasn't prescribed it
+ *
+ * Return: true for supported, false for not supported
+ */
+bool __weak cpc_supported_by_cpu(void)
+{
+	return false;
+}
+
+/**
  * pcc_data_alloc() - Allocate the pcc_data memory for pcc subspace
  *
  * Check and allocate the cppc_pcc_data memory.
@@ -656,8 +697,11 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	acpi_status status;
 	int ret = -ENODATA;
 
-	if (osc_sb_cppc_not_supported)
-		return -ENODEV;
+	if (!osc_sb_cppc2_support_acked) {
+		pr_debug("CPPC v2 _OSC not acked\n");
+		if (!cpc_supported_by_cpu())
+			return -ENODEV;
+	}
 
 	/* Parse the ACPI _CPC table for this CPU. */
 	status = acpi_evaluate_object_typed(handle, "_CPC", NULL, &output,
@@ -736,6 +780,12 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 				if (gas_t->address) {
 					void __iomem *addr;
 
+					if (!osc_cpc_flexible_adr_space_confirmed) {
+						pr_debug("Flexible address space capability not supported\n");
+						if (!cpc_supported_by_cpu())
+							goto out_free;
+					}
+
 					addr = ioremap(gas_t->address, gas_t->bit_width/8);
 					if (!addr)
 						goto out_free;
@@ -757,6 +807,11 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					pr_debug("Invalid IO port %llu for SystemIO register in _CPC\n",
 						 gas_t->address);
 					goto out_free;
+				}
+				if (!osc_cpc_flexible_adr_space_confirmed) {
+					pr_debug("Flexible address space capability not supported\n");
+					if (!cpc_supported_by_cpu())
+						goto out_free;
 				}
 			} else {
 				if (gas_t->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE || !cpc_ffh_supported()) {
@@ -1447,6 +1502,9 @@ EXPORT_SYMBOL_GPL(cppc_set_perf);
  * transition latency for performance change requests. The closest we have
  * is the timing information from the PCCT tables which provides the info
  * on the number and frequency of PCC commands the platform can handle.
+ *
+ * If desired_reg is in the SystemMemory or SystemIo ACPI address space,
+ * then assume there is no latency.
  */
 unsigned int cppc_get_transition_latency(int cpu_num)
 {
@@ -1472,7 +1530,9 @@ unsigned int cppc_get_transition_latency(int cpu_num)
 		return CPUFREQ_ETERNAL;
 
 	desired_reg = &cpc_desc->cpc_regs[DESIRED_PERF];
-	if (!CPC_IN_PCC(desired_reg))
+	if (CPC_IN_SYSTEM_MEMORY(desired_reg) || CPC_IN_SYSTEM_IO(desired_reg))
+		return 0;
+	else if (!CPC_IN_PCC(desired_reg))
 		return CPUFREQ_ETERNAL;
 
 	if (pcc_ss_id < 0)

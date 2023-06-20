@@ -581,7 +581,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 
 	case 0xc7: /* mov imm, r/m */
-		if (!noinstr)
+		if (!opts.noinstr)
 			break;
 
 		if (insn.length == 3+4+4 && !strncmp(sec->name, ".init.text", 10)) {
@@ -786,4 +786,9 @@ int arch_decode_hint_reg(u8 sp_reg, int *base)
 bool arch_is_retpoline(struct symbol *sym)
 {
 	return !strncmp(sym->name, "__x86_indirect_", 15);
+}
+
+bool arch_is_rethunk(struct symbol *sym)
+{
+	return !strcmp(sym->name, "__x86_return_thunk");
 }

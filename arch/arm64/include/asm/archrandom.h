@@ -142,7 +142,7 @@ static inline bool __init __early_cpu_has_rndr(void)
 {
 	/* Open code as we run prior to the first call to cpufeature. */
 	unsigned long ftr = read_sysreg_s(SYS_ID_AA64ISAR0_EL1);
-	return (ftr >> ID_AA64ISAR0_RNDR_SHIFT) & 0xf;
+	return (ftr >> ID_AA64ISAR0_EL1_RNDR_SHIFT) & 0xf;
 }
 
 static inline bool __init __must_check

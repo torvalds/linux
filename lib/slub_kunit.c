@@ -12,7 +12,7 @@ static int slab_errors;
 static void test_clobber_zone(struct kunit *test)
 {
 	struct kmem_cache *s = kmem_cache_create("TestSlub_RZ_alloc", 64, 0,
-				SLAB_RED_ZONE, NULL);
+				SLAB_RED_ZONE|SLAB_NO_USER_FLAGS, NULL);
 	u8 *p = kmem_cache_alloc(s, GFP_KERNEL);
 
 	kasan_disable_current();
@@ -30,7 +30,7 @@ static void test_clobber_zone(struct kunit *test)
 static void test_next_pointer(struct kunit *test)
 {
 	struct kmem_cache *s = kmem_cache_create("TestSlub_next_ptr_free", 64, 0,
-				SLAB_POISON, NULL);
+				SLAB_POISON|SLAB_NO_USER_FLAGS, NULL);
 	u8 *p = kmem_cache_alloc(s, GFP_KERNEL);
 	unsigned long tmp;
 	unsigned long *ptr_addr;
@@ -75,7 +75,7 @@ static void test_next_pointer(struct kunit *test)
 static void test_first_word(struct kunit *test)
 {
 	struct kmem_cache *s = kmem_cache_create("TestSlub_1th_word_free", 64, 0,
-				SLAB_POISON, NULL);
+				SLAB_POISON|SLAB_NO_USER_FLAGS, NULL);
 	u8 *p = kmem_cache_alloc(s, GFP_KERNEL);
 
 	kmem_cache_free(s, p);
@@ -90,7 +90,7 @@ static void test_first_word(struct kunit *test)
 static void test_clobber_50th_byte(struct kunit *test)
 {
 	struct kmem_cache *s = kmem_cache_create("TestSlub_50th_word_free", 64, 0,
-				SLAB_POISON, NULL);
+				SLAB_POISON|SLAB_NO_USER_FLAGS, NULL);
 	u8 *p = kmem_cache_alloc(s, GFP_KERNEL);
 
 	kmem_cache_free(s, p);
@@ -106,7 +106,7 @@ static void test_clobber_50th_byte(struct kunit *test)
 static void test_clobber_redzone_free(struct kunit *test)
 {
 	struct kmem_cache *s = kmem_cache_create("TestSlub_RZ_free", 64, 0,
-				SLAB_RED_ZONE, NULL);
+				SLAB_RED_ZONE|SLAB_NO_USER_FLAGS, NULL);
 	u8 *p = kmem_cache_alloc(s, GFP_KERNEL);
 
 	kasan_disable_current();

@@ -362,8 +362,6 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	num_rqst++;
 
 	if (cfile) {
-		cifsFileInfo_put(cfile);
-		cfile = NULL;
 		rc = compound_send_recv(xid, ses, server,
 					flags, num_rqst - 2,
 					&rqst[1], &resp_buftype[1],
@@ -514,8 +512,11 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (smb2_data == NULL)
 		return -ENOMEM;
 
+	if (strcmp(full_path, ""))
+		rc = -ENOENT;
+	else
+		rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
 	/* If it is a root and its handle is cached then use it */
-	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
 	if (!rc) {
 		if (tcon->crfid.file_all_info_is_valid) {
 			move_smb2_info_to_cifs(data,

@@ -360,7 +360,6 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	sst_unregister(ctx->dev);
 	sst_set_fw_state_locked(ctx, SST_SHUTDOWN);
 	sysfs_remove_group(&ctx->dev->kobj, &sst_fw_version_attr_group);
-	flush_scheduled_work();
 	destroy_workqueue(ctx->post_msg_wq);
 	cpu_latency_qos_remove_request(ctx->qos);
 	kfree(ctx->fw_sg_list.src);

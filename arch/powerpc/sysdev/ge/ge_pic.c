@@ -14,12 +14,14 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/irq.h>
 
 #include "ge_pic.h"
@@ -150,7 +152,7 @@ static struct irq_chip gef_pic_chip = {
 };
 
 
-/* When an interrupt is being configured, this call allows some flexibilty
+/* When an interrupt is being configured, this call allows some flexibility
  * in deciding which irq_chip structure is used
  */
 static int gef_pic_host_map(struct irq_domain *h, unsigned int virq,

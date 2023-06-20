@@ -2,7 +2,8 @@
 /aarch64/arch_timer
 /aarch64/debug-exceptions
 /aarch64/get-reg-list
-/aarch64/psci_cpu_on_test
+/aarch64/hypercalls
+/aarch64/psci_test
 /aarch64/vcpu_width_config
 /aarch64/vgic_init
 /aarch64/vgic_irq
@@ -16,6 +17,7 @@
 /x86_64/debug_regs
 /x86_64/evmcs_test
 /x86_64/emulator_error_test
+/x86_64/fix_hypercall_test
 /x86_64/get_msr_index_features
 /x86_64/kvm_clock_test
 /x86_64/kvm_pv_test
@@ -53,7 +55,7 @@
 /x86_64/xen_shinfo_test
 /x86_64/xen_vmcall_test
 /x86_64/xss_msr_test
-/x86_64/vmx_pmu_msrs_test
+/x86_64/vmx_pmu_caps_test
 /access_tracking_perf_test
 /demand_paging_test
 /dirty_log_test

@@ -659,7 +659,6 @@ static int fsl_hv_open(struct inode *inode, struct file *filp)
 {
 	struct doorbell_queue *dbq;
 	unsigned long flags;
-	int ret = 0;
 
 	dbq = kzalloc(sizeof(struct doorbell_queue), GFP_KERNEL);
 	if (!dbq) {
@@ -676,7 +675,7 @@ static int fsl_hv_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = dbq;
 
-	return ret;
+	return 0;
 }
 
 /*

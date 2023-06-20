@@ -23,6 +23,9 @@ static u32 snd_sof_dsp_power_target(struct snd_sof_dev *sdev)
 	u32 target_dsp_state;
 
 	switch (sdev->system_suspend_target) {
+	case SOF_SUSPEND_S5:
+	case SOF_SUSPEND_S4:
+		/* DSP should be in D3 if the system is suspending to S3+ */
 	case SOF_SUSPEND_S3:
 		/* DSP should be in D3 if the system is suspending to S3 */
 		target_dsp_state = SOF_DSP_PM_D3;
@@ -102,11 +105,18 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 
 	/*
 	 * Nothing further to be done for platforms that support the low power
-	 * D0 substate.
+	 * D0 substate. Resume trace and return when resuming from
+	 * low-power D0 substate
 	 */
 	if (!runtime_resume && sof_ops(sdev)->set_power_state &&
-	    old_state == SOF_DSP_PM_D0)
+	    old_state == SOF_DSP_PM_D0) {
+		ret = sof_fw_trace_resume(sdev);
+		if (ret < 0)
+			/* non fatal */
+			dev_warn(sdev->dev,
+				 "failed to enable trace after resume %d\n", ret);
 		return 0;
+	}
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
 
@@ -135,8 +145,8 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* resume DMA trace, only need send ipc */
-	ret = snd_sof_init_trace_ipc(sdev);
+	/* resume DMA trace */
+	ret = sof_fw_trace_resume(sdev);
 	if (ret < 0) {
 		/* non fatal */
 		dev_warn(sdev->dev,
@@ -187,7 +197,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* prepare for streams to be resumed properly upon resume */
 	if (!runtime_suspend) {
-		ret = sof_set_hw_params_upon_resume(sdev->dev);
+		ret = snd_sof_dsp_hw_params_upon_resume(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: setting hw_params flag during suspend %d\n",
@@ -201,6 +211,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
 	if (target_state == SOF_DSP_PM_D0) {
+		sof_fw_trace_suspend(sdev, pm_state);
 		/* Notify clients not managed by pm framework about core suspend */
 		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
@@ -209,8 +220,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (tplg_ops->tear_down_all_pipelines)
 		tplg_ops->tear_down_all_pipelines(sdev, false);
 
-	/* release trace */
-	snd_sof_release_trace(sdev);
+	/* suspend DMA trace */
+	sof_fw_trace_suspend(sdev, pm_state);
 
 	/* Notify clients not managed by pm framework about core suspend */
 	sof_suspend_clients(sdev, pm_state);
@@ -327,8 +338,24 @@ int snd_sof_prepare(struct device *dev)
 		return 0;
 
 #if defined(CONFIG_ACPI)
-	if (acpi_target_system_state() == ACPI_STATE_S0)
+	switch (acpi_target_system_state()) {
+	case ACPI_STATE_S0:
 		sdev->system_suspend_target = SOF_SUSPEND_S0IX;
+		break;
+	case ACPI_STATE_S1:
+	case ACPI_STATE_S2:
+	case ACPI_STATE_S3:
+		sdev->system_suspend_target = SOF_SUSPEND_S3;
+		break;
+	case ACPI_STATE_S4:
+		sdev->system_suspend_target = SOF_SUSPEND_S4;
+		break;
+	case ACPI_STATE_S5:
+		sdev->system_suspend_target = SOF_SUSPEND_S5;
+		break;
+	default:
+		break;
+	}
 #endif
 
 	return 0;

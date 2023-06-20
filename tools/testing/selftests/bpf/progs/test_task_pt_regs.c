@@ -14,7 +14,7 @@ char current_regs[PT_REGS_SIZE] = {};
 char ctx_regs[PT_REGS_SIZE] = {};
 int uprobe_res = 0;
 
-SEC("uprobe/trigger_func")
+SEC("uprobe")
 int handle_uprobe(struct pt_regs *ctx)
 {
 	struct task_struct *current;

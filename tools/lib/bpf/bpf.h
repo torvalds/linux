@@ -61,48 +61,6 @@ LIBBPF_API int bpf_map_create(enum bpf_map_type map_type,
 			      __u32 max_entries,
 			      const struct bpf_map_create_opts *opts);
 
-struct bpf_create_map_attr {
-	const char *name;
-	enum bpf_map_type map_type;
-	__u32 map_flags;
-	__u32 key_size;
-	__u32 value_size;
-	__u32 max_entries;
-	__u32 numa_node;
-	__u32 btf_fd;
-	__u32 btf_key_type_id;
-	__u32 btf_value_type_id;
-	__u32 map_ifindex;
-	union {
-		__u32 inner_map_fd;
-		__u32 btf_vmlinux_value_type_id;
-	};
-};
-
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
-				   int key_size, int value_size,
-				   int max_entries, __u32 map_flags, int node);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
-				   int key_size, int value_size,
-				   int max_entries, __u32 map_flags);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
-			      int value_size, int max_entries, __u32 map_flags);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_in_map_node(enum bpf_map_type map_type,
-					  const char *name, int key_size,
-					  int inner_map_fd, int max_entries,
-					  __u32 map_flags, int node);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_in_map(enum bpf_map_type map_type,
-				     const char *name, int key_size,
-				     int inner_map_fd, int max_entries,
-				     __u32 map_flags);
-
 struct bpf_prog_load_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
 
@@ -244,6 +202,7 @@ LIBBPF_API int bpf_map_lookup_and_delete_elem(int fd, const void *key,
 LIBBPF_API int bpf_map_lookup_and_delete_elem_flags(int fd, const void *key,
 						    void *value, __u64 flags);
 LIBBPF_API int bpf_map_delete_elem(int fd, const void *key);
+LIBBPF_API int bpf_map_delete_elem_flags(int fd, const void *key, __u64 flags);
 LIBBPF_API int bpf_map_get_next_key(int fd, const void *key, void *next_key);
 LIBBPF_API int bpf_map_freeze(int fd);
 
@@ -420,6 +379,9 @@ struct bpf_link_create_opts {
 			const unsigned long *addrs;
 			const __u64 *cookies;
 		} kprobe_multi;
+		struct {
+			__u64 cookie;
+		} tracing;
 	};
 	size_t :0;
 };

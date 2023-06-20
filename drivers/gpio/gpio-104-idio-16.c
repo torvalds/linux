@@ -44,7 +44,7 @@ struct idio_16_gpio {
 	struct gpio_chip chip;
 	raw_spinlock_t lock;
 	unsigned long irq_mask;
-	unsigned int base;
+	void __iomem *base;
 	unsigned int out_state;
 };
 
@@ -79,9 +79,9 @@ static int idio_16_gpio_get(struct gpio_chip *chip, unsigned int offset)
 		return -EINVAL;
 
 	if (offset < 24)
-		return !!(inb(idio16gpio->base + 1) & mask);
+		return !!(ioread8(idio16gpio->base + 1) & mask);
 
-	return !!(inb(idio16gpio->base + 5) & (mask>>8));
+	return !!(ioread8(idio16gpio->base + 5) & (mask>>8));
 }
 
 static int idio_16_gpio_get_multiple(struct gpio_chip *chip,
@@ -91,9 +91,9 @@ static int idio_16_gpio_get_multiple(struct gpio_chip *chip,
 
 	*bits = 0;
 	if (*mask & GENMASK(23, 16))
-		*bits |= (unsigned long)inb(idio16gpio->base + 1) << 16;
+		*bits |= (unsigned long)ioread8(idio16gpio->base + 1) << 16;
 	if (*mask & GENMASK(31, 24))
-		*bits |= (unsigned long)inb(idio16gpio->base + 5) << 24;
+		*bits |= (unsigned long)ioread8(idio16gpio->base + 5) << 24;
 
 	return 0;
 }
@@ -116,9 +116,9 @@ static void idio_16_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		idio16gpio->out_state &= ~mask;
 
 	if (offset > 7)
-		outb(idio16gpio->out_state >> 8, idio16gpio->base + 4);
+		iowrite8(idio16gpio->out_state >> 8, idio16gpio->base + 4);
 	else
-		outb(idio16gpio->out_state, idio16gpio->base);
+		iowrite8(idio16gpio->out_state, idio16gpio->base);
 
 	raw_spin_unlock_irqrestore(&idio16gpio->lock, flags);
 }
@@ -135,9 +135,9 @@ static void idio_16_gpio_set_multiple(struct gpio_chip *chip,
 	idio16gpio->out_state |= *mask & *bits;
 
 	if (*mask & 0xFF)
-		outb(idio16gpio->out_state, idio16gpio->base);
+		iowrite8(idio16gpio->out_state, idio16gpio->base);
 	if ((*mask >> 8) & 0xFF)
-		outb(idio16gpio->out_state >> 8, idio16gpio->base + 4);
+		iowrite8(idio16gpio->out_state >> 8, idio16gpio->base + 4);
 
 	raw_spin_unlock_irqrestore(&idio16gpio->lock, flags);
 }
@@ -158,7 +158,7 @@ static void idio_16_irq_mask(struct irq_data *data)
 	if (!idio16gpio->irq_mask) {
 		raw_spin_lock_irqsave(&idio16gpio->lock, flags);
 
-		outb(0, idio16gpio->base + 2);
+		iowrite8(0, idio16gpio->base + 2);
 
 		raw_spin_unlock_irqrestore(&idio16gpio->lock, flags);
 	}
@@ -177,7 +177,7 @@ static void idio_16_irq_unmask(struct irq_data *data)
 	if (!prev_irq_mask) {
 		raw_spin_lock_irqsave(&idio16gpio->lock, flags);
 
-		inb(idio16gpio->base + 2);
+		ioread8(idio16gpio->base + 2);
 
 		raw_spin_unlock_irqrestore(&idio16gpio->lock, flags);
 	}
@@ -212,7 +212,7 @@ static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
 
 	raw_spin_lock(&idio16gpio->lock);
 
-	outb(0, idio16gpio->base + 1);
+	iowrite8(0, idio16gpio->base + 1);
 
 	raw_spin_unlock(&idio16gpio->lock);
 
@@ -232,8 +232,8 @@ static int idio_16_irq_init_hw(struct gpio_chip *gc)
 	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(gc);
 
 	/* Disable IRQ by default */
-	outb(0, idio16gpio->base + 2);
-	outb(0, idio16gpio->base + 1);
+	iowrite8(0, idio16gpio->base + 2);
+	iowrite8(0, idio16gpio->base + 1);
 
 	return 0;
 }
@@ -255,6 +255,10 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
+	idio16gpio->base = devm_ioport_map(dev, base[id], IDIO_16_EXTENT);
+	if (!idio16gpio->base)
+		return -ENOMEM;
+
 	idio16gpio->chip.label = name;
 	idio16gpio->chip.parent = dev;
 	idio16gpio->chip.owner = THIS_MODULE;
@@ -268,7 +272,6 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 	idio16gpio->chip.get_multiple = idio_16_gpio_get_multiple;
 	idio16gpio->chip.set = idio_16_gpio_set;
 	idio16gpio->chip.set_multiple = idio_16_gpio_set_multiple;
-	idio16gpio->base = base[id];
 	idio16gpio->out_state = 0xFFFF;
 
 	girq = &idio16gpio->chip.irq;

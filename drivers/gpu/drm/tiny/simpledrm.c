@@ -627,7 +627,7 @@ static const struct drm_connector_funcs simpledrm_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int
+static enum drm_mode_status
 simpledrm_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 				    const struct drm_display_mode *mode)
 {
@@ -801,7 +801,6 @@ static int simpledrm_device_init_modeset(struct simpledrm_device *sdev)
 	dev->mode_config.max_width = max_width;
 	dev->mode_config.min_height = mode->vdisplay;
 	dev->mode_config.max_height = max_height;
-	dev->mode_config.prefer_shadow_fbdev = true;
 	dev->mode_config.preferred_depth = sdev->format->cpp[0] * 8;
 	dev->mode_config.funcs = &simpledrm_mode_config_funcs;
 

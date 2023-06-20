@@ -10,8 +10,6 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 
-#include <asm/prom.h>
-
 #include "windfarm.h"
 
 #define VERSION "0.3"

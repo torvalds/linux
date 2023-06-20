@@ -17,6 +17,7 @@
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/gpio.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "pxa300.h"
 #include "devices.h"

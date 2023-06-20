@@ -74,7 +74,7 @@ static inline void __b15_rac_flush(void)
 	__raw_writel(FLUSH_RAC, b15_rac_base + rac_flush_offset);
 	do {
 		/* This dmb() is required to force the Bus Interface Unit
-		 * to clean oustanding writes, and forces an idle cycle
+		 * to clean outstanding writes, and forces an idle cycle
 		 * to be inserted.
 		 */
 		dmb();

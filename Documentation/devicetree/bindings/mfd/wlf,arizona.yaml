@@ -14,6 +14,7 @@ description: |
   range of analogue I/O.
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml
   - $ref: /schemas/sound/wlf,arizona.yaml#
   - $ref: /schemas/regulator/wlf,arizona.yaml#
   - $ref: /schemas/extcon/wlf,arizona.yaml#

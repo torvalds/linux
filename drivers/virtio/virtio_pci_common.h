@@ -38,7 +38,7 @@ struct virtio_pci_vq_info {
 	struct list_head node;
 
 	/* MSI-X vector (or none) */
-	unsigned msix_vector;
+	unsigned int msix_vector;
 };
 
 /* Our device structure */
@@ -68,16 +68,16 @@ struct virtio_pci_device {
 	 * and I'm too lazy to allocate each name separately. */
 	char (*msix_names)[256];
 	/* Number of available vectors */
-	unsigned msix_vectors;
+	unsigned int msix_vectors;
 	/* Vectors allocated, excluding per-vq vectors if any */
-	unsigned msix_used_vectors;
+	unsigned int msix_used_vectors;
 
 	/* Whether we have vector per vq */
 	bool per_vq_vectors;
 
 	struct virtqueue *(*setup_vq)(struct virtio_pci_device *vp_dev,
 				      struct virtio_pci_vq_info *info,
-				      unsigned idx,
+				      unsigned int idx,
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name,
 				      bool ctx,
@@ -108,7 +108,7 @@ bool vp_notify(struct virtqueue *vq);
 /* the config->del_vqs() implementation */
 void vp_del_vqs(struct virtio_device *vdev);
 /* the config->find_vqs() implementation */
-int vp_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+int vp_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		struct virtqueue *vqs[], vq_callback_t *callbacks[],
 		const char * const names[], const bool *ctx,
 		struct irq_affinity *desc);

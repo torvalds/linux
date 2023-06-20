@@ -3,7 +3,7 @@
  * Wireless configuration interface internals.
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -281,12 +281,6 @@ struct cfg80211_cached_keys {
 	int def;
 };
 
-enum cfg80211_chan_mode {
-	CHAN_MODE_UNDEFINED,
-	CHAN_MODE_SHARED,
-	CHAN_MODE_EXCLUSIVE,
-};
-
 struct cfg80211_beacon_registration {
 	struct list_head list;
 	u32 nlportid;
@@ -524,12 +518,6 @@ static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 
 	return jiffies_to_msecs(end + (ULONG_MAX - start) + 1);
 }
-
-void
-cfg80211_get_chan_state(struct wireless_dev *wdev,
-		        struct ieee80211_channel **chan,
-		        enum cfg80211_chan_mode *chanmode,
-		        u8 *radar_detect);
 
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_chan_def *chandef);

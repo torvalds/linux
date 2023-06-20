@@ -555,6 +555,12 @@ void __init mem_init(void)
 	BUILD_BUG_ON(PT_INITIAL > PTRS_PER_PGD);
 #endif
 
+#ifdef CONFIG_64BIT
+	/* avoid ldil_%L() asm statements to sign-extend into upper 32-bits */
+	BUILD_BUG_ON(__PAGE_OFFSET >= 0x80000000);
+	BUILD_BUG_ON(TMPALIAS_MAP_START >= 0x80000000);
+#endif
+
 	high_memory = __va((max_pfn << PAGE_SHIFT));
 	set_max_mapnr(max_low_pfn);
 	memblock_free_all();

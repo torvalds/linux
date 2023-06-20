@@ -298,7 +298,10 @@ properties:
 
   vqmmc-supply:
     description:
-      Supply for the bus IO line power
+      Supply for the bus IO line power, such as a level shifter.
+      If the level shifter is controlled by a GPIO line, this shall
+      be modeled as a "regulator-fixed" with a GPIO line for
+      switching the level shifter on/off.
 
   mmc-pwrseq:
     $ref: /schemas/types.yaml#/definitions/phandle

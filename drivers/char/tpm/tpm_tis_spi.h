@@ -31,10 +31,6 @@ extern int tpm_tis_spi_init(struct spi_device *spi, struct tpm_tis_spi_phy *phy,
 extern int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 				u8 *in, const u8 *out);
 
-extern int tpm_tis_spi_read16(struct tpm_tis_data *data, u32 addr, u16 *result);
-extern int tpm_tis_spi_read32(struct tpm_tis_data *data, u32 addr, u32 *result);
-extern int tpm_tis_spi_write32(struct tpm_tis_data *data, u32 addr, u32 value);
-
 #ifdef CONFIG_TCG_TIS_SPI_CR50
 extern int cr50_spi_probe(struct spi_device *spi);
 #else

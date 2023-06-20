@@ -21,6 +21,28 @@ const struct dpu_format *dpu_get_dpu_format_ext(
 #define dpu_get_dpu_format(f) dpu_get_dpu_format_ext(f, 0)
 
 /**
+ * dpu_find_format - validate if the pixel format is supported
+ * @format:		dpu format
+ * @supported_formats:	supported formats by dpu HW
+ * @num_formatss:	total number of formats
+ *
+ * Return: false if not valid format, true on success
+ */
+static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
+					size_t num_formats)
+{
+	int i;
+
+	for (i = 0; i < num_formats; i++) {
+		/* check for valid formats supported */
+		if (format == supported_formats[i])
+			return true;
+	}
+
+	return false;
+}
+
+/**
  * dpu_get_msm_format - get an dpu_format by its msm_format base
  *                     callback function registers with the msm_kms layer
  * @kms:             kms driver

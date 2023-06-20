@@ -51,8 +51,8 @@ static unsigned int efx_monitor_interval = 1 * HZ;
 /* Default stats update time */
 #define STATS_PERIOD_MS_DEFAULT 1000
 
-const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
-const char *const efx_reset_type_names[] = {
+static const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
+static const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_INVISIBLE]          = "INVISIBLE",
 	[RESET_TYPE_ALL]                = "ALL",
 	[RESET_TYPE_RECOVER_OR_ALL]     = "RECOVER_OR_ALL",

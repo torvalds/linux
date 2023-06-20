@@ -977,12 +977,6 @@ EXPORT_SYMBOL_GPL(vb2_poll);
  * and so they simplify the driver code.
  */
 
-/* The queue is busy if there is a owner and you are not that owner. */
-static inline bool vb2_queue_is_busy(struct video_device *vdev, struct file *file)
-{
-	return vdev->queue->owner && vdev->queue->owner != file->private_data;
-}
-
 /* vb2 ioctl helpers */
 
 int vb2_ioctl_reqbufs(struct file *file, void *priv,
@@ -997,7 +991,7 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	p->flags = flags;
 	if (res)
 		return res;
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
 	/* If count == 0, then the owner has released all buffers and he
@@ -1026,7 +1020,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 		return res != -EBUSY ? res : 0;
 	if (res)
 		return res;
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 
 	res = vb2_create_bufs(vdev->queue, p);
@@ -1041,7 +1035,7 @@ int vb2_ioctl_prepare_buf(struct file *file, void *priv,
 {
 	struct video_device *vdev = video_devdata(file);
 
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	return vb2_prepare_buf(vdev->queue, vdev->v4l2_dev->mdev, p);
 }
@@ -1060,7 +1054,7 @@ int vb2_ioctl_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	return vb2_qbuf(vdev->queue, vdev->v4l2_dev->mdev, p);
 }
@@ -1070,7 +1064,7 @@ int vb2_ioctl_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	return vb2_dqbuf(vdev->queue, p, file->f_flags & O_NONBLOCK);
 }
@@ -1080,7 +1074,7 @@ int vb2_ioctl_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	return vb2_streamon(vdev->queue, i);
 }
@@ -1090,7 +1084,7 @@ int vb2_ioctl_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	return vb2_streamoff(vdev->queue, i);
 }
@@ -1100,7 +1094,7 @@ int vb2_ioctl_expbuf(struct file *file, void *priv, struct v4l2_exportbuffer *p)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
 	return vb2_expbuf(vdev->queue, p);
 }
@@ -1152,7 +1146,7 @@ ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 	if (lock && mutex_lock_interruptible(lock))
 		return -ERESTARTSYS;
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		goto exit;
 	err = vb2_write(vdev->queue, buf, count, ppos,
 		       file->f_flags & O_NONBLOCK);
@@ -1176,7 +1170,7 @@ ssize_t vb2_fop_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	if (lock && mutex_lock_interruptible(lock))
 		return -ERESTARTSYS;
-	if (vb2_queue_is_busy(vdev, file))
+	if (vb2_queue_is_busy(vdev->queue, file))
 		goto exit;
 	err = vb2_read(vdev->queue, buf, count, ppos,
 		       file->f_flags & O_NONBLOCK);

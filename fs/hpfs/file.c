@@ -158,9 +158,9 @@ static const struct iomap_ops hpfs_iomap_ops = {
 	.iomap_begin		= hpfs_iomap_begin,
 };
 
-static int hpfs_readpage(struct file *file, struct page *page)
+static int hpfs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, hpfs_get_block);
+	return mpage_read_folio(folio, hpfs_get_block);
 }
 
 static int hpfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -194,13 +194,13 @@ static void hpfs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int hpfs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	int ret;
 
 	*pagep = NULL;
-	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+	ret = cont_write_begin(file, mapping, pos, len, pagep, fsdata,
 				hpfs_get_block,
 				&hpfs_i(mapping->host)->mmu_private);
 	if (unlikely(ret))
@@ -247,7 +247,7 @@ static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, 
 const struct address_space_operations hpfs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage = hpfs_readpage,
+	.read_folio = hpfs_read_folio,
 	.writepage = hpfs_writepage,
 	.readahead = hpfs_readahead,
 	.writepages = hpfs_writepages,

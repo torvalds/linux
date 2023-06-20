@@ -1653,10 +1653,9 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 				params->seq_len, params->seq);
 			return -EINVAL;
 		}
-	}
-
-	if (!IS_ERR(cs))
+	} else {
 		wil_del_rx_key(key_index, key_usage, cs);
+	}
 
 	if (params->seq && params->seq_len != IEEE80211_GCMP_PN_LEN) {
 		wil_err(wil,

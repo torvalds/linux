@@ -224,12 +224,9 @@ static const struct file_operations recursed_functions_fops = {
 
 __init static int create_recursed_functions(void)
 {
-	struct dentry *dentry;
 
-	dentry = trace_create_file("recursed_functions", TRACE_MODE_WRITE,
-				   NULL, NULL, &recursed_functions_fops);
-	if (!dentry)
-		pr_warn("WARNING: Failed to create recursed_functions\n");
+	trace_create_file("recursed_functions", TRACE_MODE_WRITE,
+			  NULL, NULL, &recursed_functions_fops);
 	return 0;
 }
 

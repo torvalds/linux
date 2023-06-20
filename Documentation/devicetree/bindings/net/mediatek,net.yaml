@@ -1,0 +1,437 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/mediatek,net.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Frame Engine Ethernet controller
+
+maintainers:
+  - Lorenzo Bianconi <lorenzo@kernel.org>
+  - Felix Fietkau <nbd@nbd.name>
+
+description:
+  The frame engine ethernet controller can be found on MediaTek SoCs. These SoCs
+  have dual GMAC ports.
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt2701-eth
+      - mediatek,mt7623-eth
+      - mediatek,mt7622-eth
+      - mediatek,mt7629-eth
+      - mediatek,mt7986-eth
+      - ralink,rt5350-eth
+
+  reg:
+    maxItems: 1
+
+  clocks: true
+  clock-names: true
+
+  interrupts:
+    minItems: 3
+    maxItems: 4
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 3
+
+  reset-names:
+    items:
+      - const: fe
+      - const: gmac
+      - const: ppe
+
+  mediatek,ethsys:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon node that handles the port setup.
+
+  cci-control-port: true
+
+  mediatek,hifsys:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the mediatek hifsys controller used to provide various clocks
+      and reset to the system.
+
+  mediatek,sgmiisys:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    maxItems: 2
+    items:
+      maxItems: 1
+    description:
+      A list of phandle to the syscon node that handles the SGMII setup which is required for
+      those SoCs equipped with SGMII.
+
+  dma-coherent: true
+
+  mdio-bus:
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+allOf:
+  - $ref: "ethernet-controller.yaml#"
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - mediatek,mt2701-eth
+              - mediatek,mt7623-eth
+    then:
+      properties:
+        interrupts:
+          maxItems: 3
+
+        clocks:
+          minItems: 4
+          maxItems: 4
+
+        clock-names:
+          items:
+            - const: ethif
+            - const: esw
+            - const: gp1
+            - const: gp2
+
+        mediatek,pctl:
+          $ref: /schemas/types.yaml#/definitions/phandle
+          description:
+            Phandle to the syscon node that handles the ports slew rate and
+            driver current.
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7622-eth
+    then:
+      properties:
+        interrupts:
+          maxItems: 3
+
+        clocks:
+          minItems: 11
+          maxItems: 11
+
+        clock-names:
+          items:
+            - const: ethif
+            - const: esw
+            - const: gp0
+            - const: gp1
+            - const: gp2
+            - const: sgmii_tx250m
+            - const: sgmii_rx250m
+            - const: sgmii_cdr_ref
+            - const: sgmii_cdr_fb
+            - const: sgmii_ck
+            - const: eth2pll
+
+        mediatek,sgmiisys:
+          minItems: 1
+          maxItems: 1
+
+        mediatek,wed:
+          $ref: /schemas/types.yaml#/definitions/phandle-array
+          minItems: 2
+          maxItems: 2
+          items:
+            maxItems: 1
+          description:
+            List of phandles to wireless ethernet dispatch nodes.
+
+        mediatek,pcie-mirror:
+          $ref: /schemas/types.yaml#/definitions/phandle
+          description:
+            Phandle to the mediatek pcie-mirror controller.
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7629-eth
+    then:
+      properties:
+        interrupts:
+          maxItems: 3
+
+        clocks:
+          minItems: 17
+          maxItems: 17
+
+        clock-names:
+          items:
+            - const: ethif
+            - const: sgmiitop
+            - const: esw
+            - const: gp0
+            - const: gp1
+            - const: gp2
+            - const: fe
+            - const: sgmii_tx250m
+            - const: sgmii_rx250m
+            - const: sgmii_cdr_ref
+            - const: sgmii_cdr_fb
+            - const: sgmii2_tx250m
+            - const: sgmii2_rx250m
+            - const: sgmii2_cdr_ref
+            - const: sgmii2_cdr_fb
+            - const: sgmii_ck
+            - const: eth2pll
+
+        mediatek,infracfg:
+          $ref: /schemas/types.yaml#/definitions/phandle
+          description:
+            Phandle to the syscon node that handles the path from GMAC to
+            PHY variants.
+
+        mediatek,sgmiisys:
+          minItems: 2
+          maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7986-eth
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+
+        clocks:
+          minItems: 15
+          maxItems: 15
+
+        clock-names:
+          items:
+            - const: fe
+            - const: gp2
+            - const: gp1
+            - const: wocpu1
+            - const: wocpu0
+            - const: sgmii_tx250m
+            - const: sgmii_rx250m
+            - const: sgmii_cdr_ref
+            - const: sgmii_cdr_fb
+            - const: sgmii2_tx250m
+            - const: sgmii2_rx250m
+            - const: sgmii2_cdr_ref
+            - const: sgmii2_cdr_fb
+            - const: netsys0
+            - const: netsys1
+
+        mediatek,sgmiisys:
+          minItems: 2
+          maxItems: 2
+
+patternProperties:
+  "^mac@[0-1]$":
+    type: object
+    additionalProperties: false
+    allOf:
+      - $ref: ethernet-controller.yaml#
+    description:
+      Ethernet MAC node
+    properties:
+      compatible:
+        const: mediatek,eth-mac
+
+      reg:
+        maxItems: 1
+
+      phy-handle: true
+
+      phy-mode: true
+
+    required:
+      - reg
+      - compatible
+      - phy-handle
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - mediatek,ethsys
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/mt7622-clk.h>
+    #include <dt-bindings/power/mt7622-power.h>
+
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      ethernet: ethernet@1b100000 {
+        compatible = "mediatek,mt7622-eth";
+        reg = <0 0x1b100000 0 0x20000>;
+        interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 224 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 225 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&topckgen CLK_TOP_ETH_SEL>,
+                 <&ethsys CLK_ETH_ESW_EN>,
+                 <&ethsys CLK_ETH_GP0_EN>,
+                 <&ethsys CLK_ETH_GP1_EN>,
+                 <&ethsys CLK_ETH_GP2_EN>,
+                 <&sgmiisys CLK_SGMII_TX250M_EN>,
+                 <&sgmiisys CLK_SGMII_RX250M_EN>,
+                 <&sgmiisys CLK_SGMII_CDR_REF>,
+                 <&sgmiisys CLK_SGMII_CDR_FB>,
+                 <&topckgen CLK_TOP_SGMIIPLL>,
+                 <&apmixedsys CLK_APMIXED_ETH2PLL>;
+        clock-names = "ethif", "esw", "gp0", "gp1", "gp2",
+                      "sgmii_tx250m", "sgmii_rx250m",
+                      "sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii_ck",
+                      "eth2pll";
+        power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
+        mediatek,ethsys = <&ethsys>;
+        mediatek,sgmiisys = <&sgmiisys>;
+        cci-control-port = <&cci_control2>;
+        mediatek,pcie-mirror = <&pcie_mirror>;
+        mediatek,hifsys = <&hifsys>;
+        dma-coherent;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mdio0: mdio-bus {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          phy0: ethernet-phy@0 {
+            reg = <0>;
+          };
+
+          phy1: ethernet-phy@1 {
+            reg = <1>;
+          };
+        };
+
+        gmac0: mac@0 {
+          compatible = "mediatek,eth-mac";
+          phy-mode = "rgmii";
+          phy-handle = <&phy0>;
+          reg = <0>;
+        };
+
+        gmac1: mac@1 {
+          compatible = "mediatek,eth-mac";
+          phy-mode = "rgmii";
+          phy-handle = <&phy1>;
+          reg = <1>;
+        };
+      };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/mt7622-clk.h>
+
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      eth: ethernet@15100000 {
+        #define CLK_ETH_FE_EN               0
+        #define CLK_ETH_WOCPU1_EN           3
+        #define CLK_ETH_WOCPU0_EN           4
+        #define CLK_TOP_NETSYS_SEL          43
+        #define CLK_TOP_NETSYS_500M_SEL     44
+        #define CLK_TOP_NETSYS_2X_SEL       46
+        #define CLK_TOP_SGM_325M_SEL        47
+        #define CLK_APMIXED_NET2PLL         1
+        #define CLK_APMIXED_SGMPLL          3
+
+        compatible = "mediatek,mt7986-eth";
+        reg = <0 0x15100000 0 0x80000>;
+        interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&ethsys CLK_ETH_FE_EN>,
+                 <&ethsys CLK_ETH_GP2_EN>,
+                 <&ethsys CLK_ETH_GP1_EN>,
+                 <&ethsys CLK_ETH_WOCPU1_EN>,
+                 <&ethsys CLK_ETH_WOCPU0_EN>,
+                 <&sgmiisys0 CLK_SGMII_TX250M_EN>,
+                 <&sgmiisys0 CLK_SGMII_RX250M_EN>,
+                 <&sgmiisys0 CLK_SGMII_CDR_REF>,
+                 <&sgmiisys0 CLK_SGMII_CDR_FB>,
+                 <&sgmiisys1 CLK_SGMII_TX250M_EN>,
+                 <&sgmiisys1 CLK_SGMII_RX250M_EN>,
+                 <&sgmiisys1 CLK_SGMII_CDR_REF>,
+                 <&sgmiisys1 CLK_SGMII_CDR_FB>,
+                 <&topckgen CLK_TOP_NETSYS_SEL>,
+                 <&topckgen CLK_TOP_NETSYS_SEL>;
+        clock-names = "fe", "gp2", "gp1", "wocpu1", "wocpu0",
+                      "sgmii_tx250m", "sgmii_rx250m",
+                      "sgmii_cdr_ref", "sgmii_cdr_fb",
+                      "sgmii2_tx250m", "sgmii2_rx250m",
+                      "sgmii2_cdr_ref", "sgmii2_cdr_fb",
+                      "netsys0", "netsys1";
+        mediatek,ethsys = <&ethsys>;
+        mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
+        assigned-clocks = <&topckgen CLK_TOP_NETSYS_2X_SEL>,
+                          <&topckgen CLK_TOP_SGM_325M_SEL>;
+        assigned-clock-parents = <&apmixedsys CLK_APMIXED_NET2PLL>,
+                                 <&apmixedsys CLK_APMIXED_SGMPLL>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mdio: mdio-bus {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          phy5: ethernet-phy@0 {
+            compatible = "ethernet-phy-id67c9.de0a";
+            phy-mode = "2500base-x";
+            reset-gpios = <&pio 6 1>;
+            reset-deassert-us = <20000>;
+            reg = <5>;
+          };
+
+          phy6: ethernet-phy@1 {
+            compatible = "ethernet-phy-id67c9.de0a";
+            phy-mode = "2500base-x";
+            reg = <6>;
+          };
+        };
+
+        mac0: mac@0 {
+          compatible = "mediatek,eth-mac";
+          phy-mode = "2500base-x";
+          phy-handle = <&phy5>;
+          reg = <0>;
+        };
+
+        mac1: mac@1 {
+          compatible = "mediatek,eth-mac";
+          phy-mode = "2500base-x";
+          phy-handle = <&phy6>;
+          reg = <1>;
+        };
+      };
+    };

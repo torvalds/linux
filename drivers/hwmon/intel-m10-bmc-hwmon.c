@@ -515,7 +515,6 @@ static int m10bmc_hwmon_probe(struct platform_device *pdev)
 	struct intel_m10bmc *m10bmc = dev_get_drvdata(pdev->dev.parent);
 	struct device *hwmon_dev, *dev = &pdev->dev;
 	struct m10bmc_hwmon *hw;
-	int i;
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
@@ -528,13 +527,9 @@ static int m10bmc_hwmon_probe(struct platform_device *pdev)
 	hw->chip.info = hw->bdata->hinfo;
 	hw->chip.ops = &m10bmc_hwmon_ops;
 
-	hw->hw_name = devm_kstrdup(dev, id->name, GFP_KERNEL);
-	if (!hw->hw_name)
-		return -ENOMEM;
-
-	for (i = 0; hw->hw_name[i]; i++)
-		if (hwmon_is_bad_char(hw->hw_name[i]))
-			hw->hw_name[i] = '_';
+	hw->hw_name = devm_hwmon_sanitize_name(dev, id->name);
+	if (IS_ERR(hw->hw_name))
+		return PTR_ERR(hw->hw_name);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, hw->hw_name,
 							 hw, &hw->chip, NULL);

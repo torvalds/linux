@@ -50,7 +50,6 @@
 
 #include <asm/reg.h>
 #include <asm/sections.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/pci-bridge.h>
 #include <asm/ohare.h>
@@ -80,10 +79,6 @@ int pmac_newworld;
 static int current_root_goodness = -1;
 
 #define DEFAULT_ROOT_DEVICE Root_SDA1	/* sda1 - slightly silly choice */
-
-#ifdef CONFIG_PPC64
-int sccdbg;
-#endif
 
 sys_ctrler_t sys_ctrler = SYS_CTRLER_UNKNOWN;
 EXPORT_SYMBOL(sys_ctrler);

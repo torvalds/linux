@@ -29,22 +29,6 @@
 		pinctrl3 = &pinctrl_hsi;
 		pinctrl4 = &pinctrl_core;
 		pinctrl5 = &pinctrl_peri;
-		mmc0 = &mmc_0;
-		serial0 = &serial_0;
-		serial1 = &serial_1;
-		serial2 = &serial_2;
-		i2c0 = &i2c_0;
-		i2c1 = &i2c_1;
-		i2c2 = &i2c_2;
-		i2c3 = &i2c_3;
-		i2c4 = &i2c_4;
-		i2c5 = &i2c_5;
-		i2c6 = &i2c_6;
-		i2c7 = &hsi2c_0;
-		i2c8 = &hsi2c_1;
-		i2c9 = &hsi2c_2;
-		i2c10 = &hsi2c_3;
-		i2c11 = &hsi2c_4;
 	};
 
 	arm-pmu {
@@ -181,7 +165,8 @@
 		};
 
 		timer@10040000 {
-			compatible = "samsung,exynos4210-mct";
+			compatible = "samsung,exynos850-mct",
+				     "samsung,exynos4210-mct";
 			reg = <0x10040000 0x800>;
 			interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,

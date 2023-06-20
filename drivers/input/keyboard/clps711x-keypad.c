@@ -95,8 +95,7 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->syscon =
-		syscon_regmap_lookup_by_compatible("cirrus,ep7209-syscon1");
+	priv->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->syscon))
 		return PTR_ERR(priv->syscon);
 

@@ -12,24 +12,49 @@ Allocation test on Intel RDT hardware. More tests will be added in the future.
 And the test suit can be extended to cover AMD QoS and ARM MPAM hardware
 as well.
 
+resctrl_tests can be run with or without kselftest framework.
+
+WITH KSELFTEST FRAMEWORK
+=======================
+
 BUILD
 -----
 
-Run "make" to build executable file "resctrl_tests".
+Build executable file "resctrl_tests" from top level directory of the kernel source:
+ $ make -C tools/testing/selftests TARGETS=resctrl
 
 RUN
 ---
 
-To use resctrl_tests, root or sudoer privileges are required. This is because
-the test needs to mount resctrl file system and change contents in the file
-system.
+Run resctrl_tests as sudo or root since the test needs to mount resctrl file
+system and change contents in the file system.
+Using kselftest framework will run all supported tests within resctrl_tests:
 
+ $ sudo make -C tools/testing/selftests TARGETS=resctrl run_tests
+
+More details about kselftest framework can be found in
+Documentation/dev-tools/kselftest.rst.
+
+WITHOUT KSELFTEST FRAMEWORK
+===========================
+
+BUILD
+-----
+
+Build executable file "resctrl_tests" from this directory(tools/testing/selftests/resctrl/):
+  $ make
+
+RUN
+---
+
+Run resctrl_tests as sudo or root since the test needs to mount resctrl file
+system and change contents in the file system.
 Executing the test without any parameter will run all supported tests:
 
-	sudo ./resctrl_tests
+ $ sudo ./resctrl_tests
 
 OVERVIEW OF EXECUTION
----------------------
+=====================
 
 A test case has four stages:
 
@@ -41,7 +66,7 @@ A test case has four stages:
   - teardown: umount resctrl and clear temporary files.
 
 ARGUMENTS
----------
+=========
 
 Parameter '-h' shows usage information.
 

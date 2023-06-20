@@ -11,6 +11,22 @@
 
 /* Refer to drivers/acpi/cppc_acpi.c for the description of functions */
 
+bool cpc_supported_by_cpu(void)
+{
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+	case X86_VENDOR_HYGON:
+		if (boot_cpu_data.x86 == 0x19 && ((boot_cpu_data.x86_model <= 0x0f) ||
+		    (boot_cpu_data.x86_model >= 0x20 && boot_cpu_data.x86_model <= 0x2f)))
+			return true;
+		else if (boot_cpu_data.x86 == 0x17 &&
+			 boot_cpu_data.x86_model >= 0x70 && boot_cpu_data.x86_model <= 0x7f)
+			return true;
+		return boot_cpu_has(X86_FEATURE_CPPC);
+	}
+	return false;
+}
+
 bool cpc_ffh_supported(void)
 {
 	return true;
@@ -50,20 +66,17 @@ int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 	return err;
 }
 
-bool amd_set_max_freq_ratio(u64 *ratio)
+static void amd_set_max_freq_ratio(void)
 {
 	struct cppc_perf_caps perf_caps;
 	u64 highest_perf, nominal_perf;
 	u64 perf_ratio;
 	int rc;
 
-	if (!ratio)
-		return false;
-
 	rc = cppc_get_perf_caps(0, &perf_caps);
 	if (rc) {
 		pr_debug("Could not retrieve perf counters (%d)\n", rc);
-		return false;
+		return;
 	}
 
 	highest_perf = amd_get_highest_perf();
@@ -71,7 +84,7 @@ bool amd_set_max_freq_ratio(u64 *ratio)
 
 	if (!highest_perf || !nominal_perf) {
 		pr_debug("Could not retrieve highest or nominal performance\n");
-		return false;
+		return;
 	}
 
 	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, nominal_perf);
@@ -79,25 +92,27 @@ bool amd_set_max_freq_ratio(u64 *ratio)
 	perf_ratio = (perf_ratio + SCHED_CAPACITY_SCALE) >> 1;
 	if (!perf_ratio) {
 		pr_debug("Non-zero highest/nominal perf values led to a 0 ratio\n");
-		return false;
+		return;
 	}
 
-	*ratio = perf_ratio;
-	arch_set_max_freq_ratio(false);
-
-	return true;
+	freq_invariance_set_perf_ratio(perf_ratio, false);
 }
 
 static DEFINE_MUTEX(freq_invariance_lock);
 
 void init_freq_invariance_cppc(void)
 {
-	static bool secondary;
+	static bool init_done;
+
+	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
+		return;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return;
 
 	mutex_lock(&freq_invariance_lock);
-
-	init_freq_invariance(secondary, true);
-	secondary = true;
-
+	if (!init_done)
+		amd_set_max_freq_ratio();
+	init_done = true;
 	mutex_unlock(&freq_invariance_lock);
 }

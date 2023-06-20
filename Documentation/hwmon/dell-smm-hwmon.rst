@@ -86,6 +86,13 @@ probe the BIOS on your machine and discover the appropriate codes.
 
 Again, when you find new codes, we'd be happy to have your patches!
 
+``thermal`` interface
+---------------------------
+
+The driver also exports the fans as thermal cooling devices with
+``type`` set to ``dell-smm-fan[1-3]``. This allows for easy fan control
+using one of the thermal governors.
+
 Module parameters
 -----------------
 
@@ -323,6 +330,8 @@ Reading of fan types causes erratic fan behaviour.      Studio XPS 8000
                                                         Studio XPS 8100
 
                                                         Inspiron 580
+
+                                                        Inspiron 3505
 
 Fan-related SMM calls take too long (about 500ms).      Inspiron 7720
 

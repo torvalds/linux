@@ -6,11 +6,12 @@
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
+#include <linux/soc/ti/omap1-io.h>
 
-#include <mach/tc.h>
+#include "tc.h"
+
 #include "flash.h"
 
-#include <mach/hardware.h>
 
 void omap1_set_vpp(struct platform_device *pdev, int enable)
 {

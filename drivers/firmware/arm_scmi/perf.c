@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Performance Protocol
  *
- * Copyright (C) 2018-2021 ARM Ltd.
+ * Copyright (C) 2018-2022 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications PERF - " fmt
@@ -17,8 +17,10 @@
 #include <linux/scmi_protocol.h>
 #include <linux/sort.h>
 
-#include "common.h"
+#include "protocols.h"
 #include "notify.h"
+
+#define MAX_OPPS		16
 
 enum scmi_performance_protocol_cmd {
 	PERF_DOMAIN_ATTRIBUTES = 0x3,
@@ -30,6 +32,7 @@ enum scmi_performance_protocol_cmd {
 	PERF_NOTIFY_LIMITS = 0x9,
 	PERF_NOTIFY_LEVEL = 0xa,
 	PERF_DESCRIBE_FASTCHANNEL = 0xb,
+	PERF_DOMAIN_NAME_GET = 0xc,
 };
 
 struct scmi_opp {
@@ -42,6 +45,7 @@ struct scmi_msg_resp_perf_attributes {
 	__le16 num_domains;
 	__le16 flags;
 #define POWER_SCALE_IN_MILLIWATT(x)	((x) & BIT(0))
+#define POWER_SCALE_IN_MICROWATT(x)	((x) & BIT(1))
 	__le32 stats_addr_low;
 	__le32 stats_addr_high;
 	__le32 stats_size;
@@ -54,10 +58,11 @@ struct scmi_msg_resp_perf_domain_attributes {
 #define SUPPORTS_PERF_LIMIT_NOTIFY(x)	((x) & BIT(29))
 #define SUPPORTS_PERF_LEVEL_NOTIFY(x)	((x) & BIT(28))
 #define SUPPORTS_PERF_FASTCHANNELS(x)	((x) & BIT(27))
+#define SUPPORTS_EXTENDED_NAMES(x)	((x) & BIT(26))
 	__le32 rate_limit_us;
 	__le32 sustained_freq_khz;
 	__le32 sustained_perf_level;
-	    u8 name[SCMI_MAX_STR_SIZE];
+	    u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 struct scmi_msg_perf_describe_levels {
@@ -166,6 +171,7 @@ struct scmi_perf_info {
 	u32 version;
 	int num_domains;
 	bool power_scale_mw;
+	bool power_scale_uw;
 	u64 stats_addr;
 	u32 stats_size;
 	struct perf_dom_info *dom_info;
@@ -196,6 +202,8 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 
 		pi->num_domains = le16_to_cpu(attr->num_domains);
 		pi->power_scale_mw = POWER_SCALE_IN_MILLIWATT(flags);
+		if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3)
+			pi->power_scale_uw = POWER_SCALE_IN_MICROWATT(flags);
 		pi->stats_addr = le32_to_cpu(attr->stats_addr_low) |
 				(u64)le32_to_cpu(attr->stats_addr_high) << 32;
 		pi->stats_size = le32_to_cpu(attr->stats_size);
@@ -207,9 +215,11 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 
 static int
 scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
-				u32 domain, struct perf_dom_info *dom_info)
+				u32 domain, struct perf_dom_info *dom_info,
+				u32 version)
 {
 	int ret;
+	u32 flags;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_perf_domain_attributes *attr;
 
@@ -223,7 +233,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
-		u32 flags = le32_to_cpu(attr->flags);
+		flags = le32_to_cpu(attr->flags);
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
 		dom_info->set_perf = SUPPORTS_SET_PERF_LVL(flags);
@@ -242,10 +252,20 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 			dom_info->mult_factor =
 					(dom_info->sustained_freq_khz * 1000) /
 					dom_info->sustained_perf_level;
-		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strscpy(dom_info->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	/*
+	 * If supported overwrite short name with the extended one;
+	 * on error just carry on and use already provided short name.
+	 */
+	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	    SUPPORTS_EXTENDED_NAMES(flags))
+		ph->hops->extended_name_get(ph, PERF_DOMAIN_NAME_GET, domain,
+					    dom_info->name, SCMI_MAX_STR_SIZE);
+
 	return ret;
 }
 
@@ -256,66 +276,87 @@ static int opp_cmp_func(const void *opp1, const void *opp2)
 	return t1->perf - t2->perf;
 }
 
+struct scmi_perf_ipriv {
+	u32 domain;
+	struct perf_dom_info *perf_dom;
+};
+
+static void iter_perf_levels_prepare_message(void *message,
+					     unsigned int desc_index,
+					     const void *priv)
+{
+	struct scmi_msg_perf_describe_levels *msg = message;
+	const struct scmi_perf_ipriv *p = priv;
+
+	msg->domain = cpu_to_le32(p->domain);
+	/* Set the number of OPPs to be skipped/already read */
+	msg->level_index = cpu_to_le32(desc_index);
+}
+
+static int iter_perf_levels_update_state(struct scmi_iterator_state *st,
+					 const void *response, void *priv)
+{
+	const struct scmi_msg_resp_perf_describe_levels *r = response;
+
+	st->num_returned = le16_to_cpu(r->num_returned);
+	st->num_remaining = le16_to_cpu(r->num_remaining);
+
+	return 0;
+}
+
+static int
+iter_perf_levels_process_response(const struct scmi_protocol_handle *ph,
+				  const void *response,
+				  struct scmi_iterator_state *st, void *priv)
+{
+	struct scmi_opp *opp;
+	const struct scmi_msg_resp_perf_describe_levels *r = response;
+	struct scmi_perf_ipriv *p = priv;
+
+	opp = &p->perf_dom->opp[st->desc_index + st->loop_idx];
+	opp->perf = le32_to_cpu(r->opp[st->loop_idx].perf_val);
+	opp->power = le32_to_cpu(r->opp[st->loop_idx].power);
+	opp->trans_latency_us =
+		le16_to_cpu(r->opp[st->loop_idx].transition_latency_us);
+	p->perf_dom->opp_count++;
+
+	dev_dbg(ph->dev, "Level %d Power %d Latency %dus\n",
+		opp->perf, opp->power, opp->trans_latency_us);
+
+	return 0;
+}
+
 static int
 scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph, u32 domain,
 			      struct perf_dom_info *perf_dom)
 {
-	int ret, cnt;
-	u32 tot_opp_cnt = 0;
-	u16 num_returned, num_remaining;
-	struct scmi_xfer *t;
-	struct scmi_opp *opp;
-	struct scmi_msg_perf_describe_levels *dom_info;
-	struct scmi_msg_resp_perf_describe_levels *level_info;
+	int ret;
+	void *iter;
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_perf_levels_prepare_message,
+		.update_state = iter_perf_levels_update_state,
+		.process_response = iter_perf_levels_process_response,
+	};
+	struct scmi_perf_ipriv ppriv = {
+		.domain = domain,
+		.perf_dom = perf_dom,
+	};
 
-	ret = ph->xops->xfer_get_init(ph, PERF_DESCRIBE_LEVELS,
-				      sizeof(*dom_info), 0, &t);
+	iter = ph->hops->iter_response_init(ph, &ops, MAX_OPPS,
+					    PERF_DESCRIBE_LEVELS,
+					    sizeof(struct scmi_msg_perf_describe_levels),
+					    &ppriv);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	ret = ph->hops->iter_response_run(iter);
 	if (ret)
 		return ret;
 
-	dom_info = t->tx.buf;
-	level_info = t->rx.buf;
+	if (perf_dom->opp_count)
+		sort(perf_dom->opp, perf_dom->opp_count,
+		     sizeof(struct scmi_opp), opp_cmp_func, NULL);
 
-	do {
-		dom_info->domain = cpu_to_le32(domain);
-		/* Set the number of OPPs to be skipped/already read */
-		dom_info->level_index = cpu_to_le32(tot_opp_cnt);
-
-		ret = ph->xops->do_xfer(ph, t);
-		if (ret)
-			break;
-
-		num_returned = le16_to_cpu(level_info->num_returned);
-		num_remaining = le16_to_cpu(level_info->num_remaining);
-		if (tot_opp_cnt + num_returned > MAX_OPPS) {
-			dev_err(ph->dev, "No. of OPPs exceeded MAX_OPPS");
-			break;
-		}
-
-		opp = &perf_dom->opp[tot_opp_cnt];
-		for (cnt = 0; cnt < num_returned; cnt++, opp++) {
-			opp->perf = le32_to_cpu(level_info->opp[cnt].perf_val);
-			opp->power = le32_to_cpu(level_info->opp[cnt].power);
-			opp->trans_latency_us = le16_to_cpu
-				(level_info->opp[cnt].transition_latency_us);
-
-			dev_dbg(ph->dev, "Level %d Power %d Latency %dus\n",
-				opp->perf, opp->power, opp->trans_latency_us);
-		}
-
-		tot_opp_cnt += num_returned;
-
-		ph->xops->reset_rx_to_maxsz(ph, t);
-		/*
-		 * check for both returned and remaining to avoid infinite
-		 * loop due to buggy firmware
-		 */
-	} while (num_returned && num_remaining);
-
-	perf_dom->opp_count = tot_opp_cnt;
-	ph->xops->xfer_put(ph, t);
-
-	sort(perf_dom->opp, tot_opp_cnt, sizeof(*opp), opp_cmp_func, NULL);
 	return ret;
 }
 
@@ -381,6 +422,9 @@ static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 {
 	struct scmi_perf_info *pi = ph->get_priv(ph);
 	struct perf_dom_info *dom = pi->dom_info + domain;
+
+	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3 && !max_perf && !min_perf)
+		return -EINVAL;
 
 	if (dom->fc_info && dom->fc_info->limit_set_addr) {
 		iowrite32(max_perf, dom->fc_info->limit_set_addr);
@@ -873,11 +917,13 @@ static const struct scmi_protocol_events perf_protocol_events = {
 
 static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 {
-	int domain;
+	int domain, ret;
 	u32 version;
 	struct scmi_perf_info *pinfo;
 
-	ph->xops->version_get(ph, &version);
+	ret = ph->xops->version_get(ph, &version);
+	if (ret)
+		return ret;
 
 	dev_dbg(ph->dev, "Performance Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
@@ -886,7 +932,9 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!pinfo)
 		return -ENOMEM;
 
-	scmi_perf_attributes_get(ph, pinfo);
+	ret = scmi_perf_attributes_get(ph, pinfo);
+	if (ret)
+		return ret;
 
 	pinfo->dom_info = devm_kcalloc(ph->dev, pinfo->num_domains,
 				       sizeof(*pinfo->dom_info), GFP_KERNEL);
@@ -896,7 +944,7 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	for (domain = 0; domain < pinfo->num_domains; domain++) {
 		struct perf_dom_info *dom = pinfo->dom_info + domain;
 
-		scmi_perf_domain_attributes_get(ph, domain, dom);
+		scmi_perf_domain_attributes_get(ph, domain, dom, version);
 		scmi_perf_describe_levels_get(ph, domain, dom);
 
 		if (dom->perf_fastchannels)

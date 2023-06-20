@@ -221,7 +221,7 @@
 &qspi {
 	status = "okay";
 
-	n25q128@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "micron,n25q128", "jedec,spi-nor";
@@ -238,7 +238,7 @@
 		cdns,tslch-ns = <4>;
 	};
 
-	n25q00@1 {
+	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "micron,mt25qu02g", "jedec,spi-nor";

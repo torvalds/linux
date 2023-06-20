@@ -81,6 +81,7 @@ struct hisi_pmu {
 	struct device *dev;
 	struct hlist_node node;
 	int sccl_id;
+	int sicl_id;
 	int ccl_id;
 	void __iomem *base;
 	/* the ID of the PMU modules */

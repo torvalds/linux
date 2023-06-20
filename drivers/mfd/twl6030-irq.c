@@ -438,7 +438,7 @@ fail_irq:
 	return status;
 }
 
-int twl6030_exit_irq(void)
+void twl6030_exit_irq(void)
 {
 	if (twl6030_irq && twl6030_irq->twl_irq) {
 		unregister_pm_notifier(&twl6030_irq->pm_nb);
@@ -453,6 +453,5 @@ int twl6030_exit_irq(void)
 		 * in this module.
 		 */
 	}
-	return 0;
 }
 

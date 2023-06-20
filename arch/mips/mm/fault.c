@@ -35,7 +35,7 @@ int show_unhandled_signals = 1;
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
+static void __do_page_fault(struct pt_regs *regs, unsigned long write,
 	unsigned long address)
 {
 	struct vm_area_struct * vma = NULL;
@@ -322,8 +322,9 @@ vmalloc_fault:
 	}
 #endif
 }
+NOKPROBE_SYMBOL(__do_page_fault);
 
-asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
+asmlinkage void do_page_fault(struct pt_regs *regs,
 	unsigned long write, unsigned long address)
 {
 	enum ctx_state prev_state;
@@ -332,3 +333,4 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	__do_page_fault(regs, write, address);
 	exception_exit(prev_state);
 }
+NOKPROBE_SYMBOL(do_page_fault);

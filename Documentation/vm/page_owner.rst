@@ -121,6 +121,14 @@ Usage
 		-r		Sort by memory release time.
 		-s		Sort by stack trace.
 		-t		Sort by times (default).
+		--sort <order>	Specify sorting order.  Sorting syntax is [+|-]key[,[+|-]key[,...]].
+				Choose a key from the **STANDARD FORMAT SPECIFIERS** section. The "+" is
+				optional since default direction is increasing numerical or lexicographic
+				order. Mixed use of abbreviated and complete-form of keys is allowed.
+
+		Examples:
+				./page_owner_sort <input> <output> --sort=n,+pid,-tgid
+				./page_owner_sort <input> <output> --sort=at
 
    additional function::
 
@@ -129,14 +137,12 @@ Usage
 				Specify culling rules.Culling syntax is key[,key[,...]].Choose a
 				multi-letter key from the **STANDARD FORMAT SPECIFIERS** section.
 
-
 		<rules> is a single argument in the form of a comma-separated list,
 		which offers a way to specify individual culling rules.  The recognized
 		keywords are described in the **STANDARD FORMAT SPECIFIERS** section below.
 		<rules> can be specified by the sequence of keys k1,k2, ..., as described in
 		the STANDARD SORT KEYS section below. Mixed use of abbreviated and
 		complete-form of keys is allowed.
-
 
 		Examples:
 				./page_owner_sort <input> <output> --cull=stacktrace
@@ -147,17 +153,44 @@ Usage
 		-f		Filter out the information of blocks whose memory has been released.
 
 	Select:
-		--pid <PID>		Select by pid.
-		--tgid <TGID>		Select by tgid.
-		--name <command>	Select by task command name.
+		--pid <pidlist>		Select by pid. This selects the blocks whose process ID
+					numbers appear in <pidlist>.
+		--tgid <tgidlist>	Select by tgid. This selects the blocks whose thread
+					group ID numbers appear in <tgidlist>.
+		--name <cmdlist>	Select by task command name. This selects the blocks whose
+					task command name appear in <cmdlist>.
+
+		<pidlist>, <tgidlist>, <cmdlist> are single arguments in the form of a comma-separated list,
+		which offers a way to specify individual selecting rules.
+
+
+		Examples:
+				./page_owner_sort <input> <output> --pid=1
+				./page_owner_sort <input> <output> --tgid=1,2,3
+				./page_owner_sort <input> <output> --name name1,name2
 
 STANDARD FORMAT SPECIFIERS
 ==========================
 ::
+
+  For --sort option:
+
+	KEY		LONG		DESCRIPTION
+	p		pid		process ID
+	tg		tgid		thread group ID
+	n		name		task command name
+	st		stacktrace	stack trace of the page allocation
+	T		txt		full text of block
+	ft		free_ts		timestamp of the page when it was released
+	at		alloc_ts	timestamp of the page when it was allocated
+	ator		allocator	memory allocator for pages
+
+  For --curl option:
 
 	KEY		LONG		DESCRIPTION
 	p		pid		process ID
 	tg		tgid		thread group ID
 	n		name		task command name
 	f		free		whether the page has been released or not
-	st		stacktrace	stace trace of the page allocation
+	st		stacktrace	stack trace of the page allocation
+	ator		allocator	memory allocator for pages

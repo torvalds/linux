@@ -14,11 +14,10 @@ static const char *__doc__ = " XDP RX-queue info extract example\n\n"
 #include <string.h>
 #include <unistd.h>
 #include <locale.h>
-#include <sys/resource.h>
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>
-
+#include <limits.h>
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
@@ -43,6 +42,9 @@ static struct bpf_map *rx_queue_index_map;
 #define EXIT_FAIL_XDP		3
 #define EXIT_FAIL_BPF		4
 #define EXIT_FAIL_MEM		5
+
+#define FAIL_MEM_SIG		INT_MAX
+#define FAIL_STAT_SIG		(INT_MAX - 1)
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -77,6 +79,12 @@ static void int_exit(int sig)
 			printf("program on interface changed, not removing\n");
 		}
 	}
+
+	if (sig == FAIL_MEM_SIG)
+		exit(EXIT_FAIL_MEM);
+	else if (sig == FAIL_STAT_SIG)
+		exit(EXIT_FAIL);
+
 	exit(EXIT_OK);
 }
 
@@ -141,7 +149,8 @@ static char* options2str(enum cfg_options_flags flag)
 	if (flag & READ_MEM)
 		return "read";
 	fprintf(stderr, "ERR: Unknown config option flags");
-	exit(EXIT_FAIL);
+	int_exit(FAIL_STAT_SIG);
+	return "unknown";
 }
 
 static void usage(char *argv[])
@@ -174,7 +183,7 @@ static __u64 gettime(void)
 	res = clock_gettime(CLOCK_MONOTONIC, &t);
 	if (res < 0) {
 		fprintf(stderr, "Error with gettimeofday! (%i)\n", res);
-		exit(EXIT_FAIL);
+		int_exit(FAIL_STAT_SIG);
 	}
 	return (__u64) t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
 }
@@ -202,7 +211,7 @@ static struct datarec *alloc_record_per_cpu(void)
 	array = calloc(nr_cpus, sizeof(struct datarec));
 	if (!array) {
 		fprintf(stderr, "Mem alloc error (nr_cpus:%u)\n", nr_cpus);
-		exit(EXIT_FAIL_MEM);
+		int_exit(FAIL_MEM_SIG);
 	}
 	return array;
 }
@@ -215,7 +224,7 @@ static struct record *alloc_record_per_rxq(void)
 	array = calloc(nr_rxqs, sizeof(struct record));
 	if (!array) {
 		fprintf(stderr, "Mem alloc error (nr_rxqs:%u)\n", nr_rxqs);
-		exit(EXIT_FAIL_MEM);
+		int_exit(FAIL_MEM_SIG);
 	}
 	return array;
 }
@@ -229,7 +238,7 @@ static struct stats_record *alloc_stats_record(void)
 	rec = calloc(1, sizeof(struct stats_record));
 	if (!rec) {
 		fprintf(stderr, "Mem alloc error\n");
-		exit(EXIT_FAIL_MEM);
+		int_exit(FAIL_MEM_SIG);
 	}
 	rec->rxq = alloc_record_per_rxq();
 	for (i = 0; i < nr_rxqs; i++)

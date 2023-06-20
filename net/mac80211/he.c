@@ -49,7 +49,7 @@ ieee80211_update_from_he_6ghz_capa(const struct ieee80211_he_6ghz_capa *he_6ghz_
 		break;
 	}
 
-	sta->sta.he_6ghz_capa = *he_6ghz_capa;
+	sta->sta.deflink.he_6ghz_capa = *he_6ghz_capa;
 }
 
 static void ieee80211_he_mcs_disable(__le16 *he_mcs)
@@ -110,7 +110,7 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 				  const struct ieee80211_he_6ghz_capa *he_6ghz_capa,
 				  struct sta_info *sta)
 {
-	struct ieee80211_sta_he_cap *he_cap = &sta->sta.he_cap;
+	struct ieee80211_sta_he_cap *he_cap = &sta->sta.deflink.he_cap;
 	struct ieee80211_sta_he_cap own_he_cap;
 	struct ieee80211_he_cap_elem *he_cap_ie_elem = (void *)he_cap_ie;
 	u8 he_ppe_size;
@@ -153,8 +153,8 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 
 	he_cap->has_he = true;
 
-	sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
-	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+	sta->deflink.cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
+	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 
 	if (sband->band == NL80211_BAND_6GHZ && he_6ghz_capa)
 		ieee80211_update_from_he_6ghz_capa(he_6ghz_capa, sta);

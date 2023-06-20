@@ -23,6 +23,3 @@ TODO
 
 5. Add tests for memblock_alloc_node() to check if the correct NUMA node is set
    for the new region
-
-6. Update comments in tests/basic_api.c to match the style used in
-   tests/alloc_*.c

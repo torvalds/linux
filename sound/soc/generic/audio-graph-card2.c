@@ -90,12 +90,12 @@ links indicates connection part of CPU side (= A).
 			ports@0 {
 (X) (A)			mcpu:	port@0 { mcpu0_ep: endpoint { remote-endpoint = <&mcodec0_ep>; }; };
 (y)				port@1 { mcpu1_ep: endpoint { remote-endpoint = <&cpu1_ep>; }; };
-(y)				port@1 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>; }; };
+(y)				port@2 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>; }; };
 			};
 			ports@1 {
 (X)				port@0 { mcodec0_ep: endpoint { remote-endpoint = <&mcpu0_ep>; }; };
-(y)				port@0 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
-(y)				port@1 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
+(y)				port@1 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
+(y)				port@2 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
 			};
 		};
 	};
@@ -711,7 +711,7 @@ static void graph_link_init(struct asoc_simple_priv *priv,
 	 */
 	daiclk = snd_soc_daifmt_clock_provider_from_bitmap(bit_frame);
 	if (is_cpu_node)
-		daiclk = snd_soc_daifmt_clock_provider_fliped(daiclk);
+		daiclk = snd_soc_daifmt_clock_provider_flipped(daiclk);
 
 	dai_link->dai_fmt	= daifmt | daiclk;
 	dai_link->init		= asoc_simple_dai_init;
@@ -1178,8 +1178,6 @@ int audio_graph2_parse_of(struct asoc_simple_priv *priv, struct device *dev,
 	struct link_info *li;
 	int ret;
 
-	dev_warn(dev, "Audio Graph Card2 is still under Experimental stage\n");
-
 	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
 	if (!li)
 		return -ENOMEM;
@@ -1244,6 +1242,9 @@ err:
 
 	if (ret < 0)
 		dev_err_probe(dev, ret, "parse error\n");
+
+	if (ret == 0)
+		dev_warn(dev, "Audio Graph Card2 is still under Experimental stage\n");
 
 	return ret;
 }

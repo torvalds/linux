@@ -128,6 +128,27 @@ static int context_flush(struct intel_context *ce, long timeout)
 	return err;
 }
 
+static int get_lri_mask(struct intel_engine_cs *engine, u32 lri)
+{
+	if ((lri & MI_LRI_LRM_CS_MMIO) == 0)
+		return ~0u;
+
+	if (GRAPHICS_VER(engine->i915) < 12)
+		return 0xfff;
+
+	switch (engine->class) {
+	default:
+	case RENDER_CLASS:
+	case COMPUTE_CLASS:
+		return 0x07ff;
+	case COPY_ENGINE_CLASS:
+		return 0x0fff;
+	case VIDEO_DECODE_CLASS:
+	case VIDEO_ENHANCEMENT_CLASS:
+		return 0x3fff;
+	}
+}
+
 static int live_lrc_layout(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -155,8 +176,8 @@ static int live_lrc_layout(void *arg)
 			continue;
 
 		hw = shmem_pin_map(engine->default_state);
-		if (IS_ERR(hw)) {
-			err = PTR_ERR(hw);
+		if (!hw) {
+			err = -ENOMEM;
 			break;
 		}
 		hw += LRC_STATE_OFFSET / sizeof(*hw);
@@ -167,6 +188,7 @@ static int live_lrc_layout(void *arg)
 		dw = 0;
 		do {
 			u32 lri = READ_ONCE(hw[dw]);
+			u32 lri_mask;
 
 			if (lri == 0) {
 				dw++;
@@ -194,6 +216,18 @@ static int live_lrc_layout(void *arg)
 				break;
 			}
 
+			/*
+			 * When bit 19 of MI_LOAD_REGISTER_IMM instruction
+			 * opcode is set on Gen12+ devices, HW does not
+			 * care about certain register address offsets, and
+			 * instead check the following for valid address
+			 * ranges on specific engines:
+			 * RCS && CCS: BITS(0 - 10)
+			 * BCS: BITS(0 - 11)
+			 * VECS && VCS: BITS(0 - 13)
+			 */
+			lri_mask = get_lri_mask(engine, lri);
+
 			lri &= 0x7f;
 			lri++;
 			dw++;
@@ -201,7 +235,7 @@ static int live_lrc_layout(void *arg)
 			while (lri) {
 				u32 offset = READ_ONCE(hw[dw]);
 
-				if (offset != lrc[dw]) {
+				if ((offset ^ lrc[dw]) & lri_mask) {
 					pr_err("%s: Different registers found at dword %d, expected %x, found %x\n",
 					       engine->name, dw, offset, lrc[dw]);
 					err = -EINVAL;
@@ -331,8 +365,8 @@ static int live_lrc_fixed(void *arg)
 			continue;
 
 		hw = shmem_pin_map(engine->default_state);
-		if (IS_ERR(hw)) {
-			err = PTR_ERR(hw);
+		if (!hw) {
+			err = -ENOMEM;
 			break;
 		}
 		hw += LRC_STATE_OFFSET / sizeof(*hw);
@@ -911,6 +945,19 @@ create_user_vma(struct i915_address_space *vm, unsigned long size)
 	return vma;
 }
 
+static u32 safe_poison(u32 offset, u32 poison)
+{
+	/*
+	 * Do not enable predication as it will nop all subsequent commands,
+	 * not only disabling the tests (by preventing all the other SRM) but
+	 * also preventing the arbitration events at the end of the request.
+	 */
+	if (offset == i915_mmio_reg_offset(RING_PREDICATE_RESULT(0)))
+		poison &= ~REG_BIT(0);
+
+	return poison;
+}
+
 static struct i915_vma *
 store_context(struct intel_context *ce, struct i915_vma *scratch)
 {
@@ -1120,7 +1167,9 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 		*cs++ = MI_LOAD_REGISTER_IMM(len);
 		while (len--) {
 			*cs++ = hw[dw];
-			*cs++ = poison;
+			*cs++ = safe_poison(hw[dw] & get_lri_mask(ce->engine,
+								  MI_LRI_LRM_CS_MMIO),
+					    poison);
 			dw += 2;
 		}
 	} while (dw < PAGE_SIZE / sizeof(u32) &&
@@ -1753,8 +1802,8 @@ static int __live_pphwsp_runtime(struct intel_engine_cs *engine)
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
-	ce->runtime.num_underflow = 0;
-	ce->runtime.max_underflow = 0;
+	ce->stats.runtime.num_underflow = 0;
+	ce->stats.runtime.max_underflow = 0;
 
 	do {
 		unsigned int loop = 1024;
@@ -1792,11 +1841,11 @@ static int __live_pphwsp_runtime(struct intel_engine_cs *engine)
 		intel_context_get_avg_runtime_ns(ce));
 
 	err = 0;
-	if (ce->runtime.num_underflow) {
+	if (ce->stats.runtime.num_underflow) {
 		pr_err("%s: pphwsp underflow %u time(s), max %u cycles!\n",
 		       engine->name,
-		       ce->runtime.num_underflow,
-		       ce->runtime.max_underflow);
+		       ce->stats.runtime.num_underflow,
+		       ce->stats.runtime.max_underflow);
 		GEM_TRACE_DUMP();
 		err = -EOVERFLOW;
 	}

@@ -20,11 +20,12 @@ properties:
     enum:
       - siliconmitus,sm5502-muic
       - siliconmitus,sm5504-muic
+      - siliconmitus,sm5703-muic
 
   reg:
     maxItems: 1
-    description: I2C slave address of the device. Usually 0x25 for SM5502,
-      0x14 for SM5504.
+    description: I2C slave address of the device. Usually 0x25 for SM5502
+      and SM5703, 0x14 for SM5504.
 
   interrupts:
     maxItems: 1

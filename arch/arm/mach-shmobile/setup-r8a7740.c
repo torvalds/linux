@@ -72,7 +72,7 @@ static void __init r8a7740_generic_init(void)
 
 static const char *const r8a7740_boards_compat_dt[] __initconst = {
 	"renesas,r8a7740",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")

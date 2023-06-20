@@ -136,6 +136,7 @@ struct ingenic_cgu_custom_info {
  * struct ingenic_cgu_clk_info - information about a clock
  * @name: name of the clock
  * @type: a bitmask formed from CGU_CLK_* values
+ * @flags: common clock flags to set on this clock
  * @parents: an array of the indices of potential parents of this clock
  *           within the clock_info array of the CGU, or -1 in entries
  *           which correspond to no valid parent
@@ -160,6 +161,8 @@ struct ingenic_cgu_clk_info {
 		CGU_CLK_FIXDIV		= BIT(6),
 		CGU_CLK_CUSTOM		= BIT(7),
 	} type;
+
+	unsigned long flags;
 
 	int parents[4];
 

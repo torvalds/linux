@@ -16,6 +16,11 @@
 #define TEGRA_HSP_MBOX_TYPE_AS 0x3
 
 /*
+ * These define the types of shared mailbox supported based on data size.
+ */
+#define TEGRA_HSP_MBOX_TYPE_SM_128BIT (1 << 8)
+
+/*
  * These defines represent the bit associated with the given master ID in the
  * doorbell registers.
  */

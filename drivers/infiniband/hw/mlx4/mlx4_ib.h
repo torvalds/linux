@@ -937,4 +937,7 @@ mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table)
 int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 				       int *num_of_mtts);
 
+int mlx4_ib_cm_init(void);
+void mlx4_ib_cm_destroy(void);
+
 #endif /* MLX4_IB_H */

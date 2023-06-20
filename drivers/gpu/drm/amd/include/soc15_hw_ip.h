@@ -86,6 +86,7 @@
 #define PCS_HWID                                          80
 #define DDCL_HWID                                         89
 #define SST_HWID                                          90
+#define LSDMA_HWID                                        91
 #define IOAGR_HWID                                       100
 #define NBIF_HWID                                        108
 #define IOAPIC_HWID                                      124

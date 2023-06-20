@@ -43,9 +43,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/serial.h>
-
+#include "common.h"
+#include "serial.h"
 #include "davinci.h"
 #include "irqs.h"
 
@@ -315,15 +314,13 @@ static int evm_pcf_setup(struct i2c_client *client, int gpio,
 	return evm_led_setup(client, gpio+4, 4, c);
 }
 
-static int evm_pcf_teardown(struct i2c_client *client, int gpio,
+static void evm_pcf_teardown(struct i2c_client *client, int gpio,
 			unsigned int ngpio, void *c)
 {
 	BUG_ON(ngpio < 8);
 
 	evm_sw_teardown(client, gpio, 4, c);
 	evm_led_teardown(client, gpio+4, 4, c);
-
-	return 0;
 }
 
 static struct pcf857x_platform_data pcf_data = {

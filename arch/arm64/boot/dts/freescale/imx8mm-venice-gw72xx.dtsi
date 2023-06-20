@@ -134,6 +134,7 @@
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	fsl,clkreq-unsupported;
 	clocks = <&pcie0_refclk>;
+	clock-names = "ref";
 	status = "okay";
 };
 

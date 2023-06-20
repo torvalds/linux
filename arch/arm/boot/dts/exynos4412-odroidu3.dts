@@ -119,8 +119,8 @@
 	phys = <&exynos_usbphy 2>, <&exynos_usbphy 3>;
 	phy-names = "hsic0", "hsic1";
 
-	ethernet: usbether@2 {
-		compatible = "usb0424,9730";
+	ethernet: ethernet@2 {
+		compatible = "usb424,9730";
 		reg = <2>;
 		local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
 	};

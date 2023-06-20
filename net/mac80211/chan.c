@@ -199,7 +199,7 @@ static enum nl80211_chan_width ieee80211_get_sta_bw(struct sta_info *sta)
 
 	switch (width) {
 	case IEEE80211_STA_RX_BW_20:
-		if (sta->sta.ht_cap.ht_supported)
+		if (sta->sta.deflink.ht_cap.ht_supported)
 			return NL80211_CHAN_WIDTH_20;
 		else
 			return NL80211_CHAN_WIDTH_20_NOHT;
@@ -375,15 +375,15 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 		new_sta_bw = ieee80211_sta_cur_vht_bw(sta);
 
 		/* nothing change */
-		if (new_sta_bw == sta->sta.bandwidth)
+		if (new_sta_bw == sta->sta.deflink.bandwidth)
 			continue;
 
 		/* vif changed to narrow BW and narrow BW for station wasn't
 		 * requested or vise versa */
-		if ((new_sta_bw < sta->sta.bandwidth) == !narrowed)
+		if ((new_sta_bw < sta->sta.deflink.bandwidth) == !narrowed)
 			continue;
 
-		sta->sta.bandwidth = new_sta_bw;
+		sta->sta.deflink.bandwidth = new_sta_bw;
 		rate_control_rate_update(local, sband, sta,
 					 IEEE80211_RC_BW_CHANGED);
 	}
@@ -1749,12 +1749,9 @@ int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata)
 
 	if (new_ctx->replace_state == IEEE80211_CHANCTX_REPLACE_NONE) {
 		if (old_ctx)
-			err = ieee80211_vif_use_reserved_reassign(sdata);
-		else
-			err = ieee80211_vif_use_reserved_assign(sdata);
+			return ieee80211_vif_use_reserved_reassign(sdata);
 
-		if (err)
-			return err;
+		return ieee80211_vif_use_reserved_assign(sdata);
 	}
 
 	/*

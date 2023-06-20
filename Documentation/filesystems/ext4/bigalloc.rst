@@ -23,7 +23,7 @@ means that a block group addresses 32 gigabytes instead of 128 megabytes,
 also shrinking the amount of file system overhead for metadata.
 
 The administrator can set a block cluster size at mkfs time (which is
-stored in the s\_log\_cluster\_size field in the superblock); from then
+stored in the s_log_cluster_size field in the superblock); from then
 on, the block bitmaps track clusters, not individual blocks. This means
 that block groups can be several gigabytes in size (instead of just
 128MiB); however, the minimum allocation unit becomes a cluster, not a

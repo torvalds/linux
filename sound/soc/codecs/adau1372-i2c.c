@@ -14,7 +14,7 @@
 
 #include "adau1372.h"
 
-static int adau1372_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int adau1372_i2c_probe(struct i2c_client *client)
 {
 	return adau1372_probe(&client->dev,
 		devm_regmap_init_i2c(client, &adau1372_regmap_config), NULL);
@@ -30,7 +30,7 @@ static struct i2c_driver adau1372_i2c_driver = {
 	.driver = {
 		.name = "adau1372",
 	},
-	.probe = adau1372_i2c_probe,
+	.probe_new = adau1372_i2c_probe,
 	.id_table = adau1372_i2c_ids,
 };
 module_i2c_driver(adau1372_i2c_driver);

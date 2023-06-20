@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <linux/hardirq.h>
+#include <linux/of.h>
 
 #include <asm/page.h>
 #include <asm/current.h>
@@ -25,7 +26,6 @@
 #include <asm/paca.h>
 #include <asm/mmu.h>
 #include <asm/sections.h>	/* _end */
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/svm.h>
@@ -406,7 +406,7 @@ static int __init export_htab_values(void)
 	if (!node)
 		return -ENODEV;
 
-	/* remove any stale propertys so ours can be found */
+	/* remove any stale properties so ours can be found */
 	of_remove_property(node, of_find_property(node, htab_base_prop.name, NULL));
 	of_remove_property(node, of_find_property(node, htab_size_prop.name, NULL));
 

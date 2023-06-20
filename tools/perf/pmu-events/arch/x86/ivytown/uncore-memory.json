@@ -5,8 +5,7 @@
         "EventCode": "0x1",
         "EventName": "UNC_M_ACT_COUNT.RD",
         "PerPkg": "1",
-        "UMask": "0x1",
-        "Umask": "0x3",
+        "UMask": "0x3",
         "Unit": "iMC"
     },
     {

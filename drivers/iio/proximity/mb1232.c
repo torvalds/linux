@@ -10,12 +10,14 @@
  * https://www.maxbotix.com/documents/I2CXL-MaxSonar-EZ_Datasheet.pdf
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/of_irq.h>
 #include <linux/delay.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/bitops.h>
+#include <linux/property.h>
+
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -209,7 +211,7 @@ static int mb1232_probe(struct i2c_client *client,
 
 	init_completion(&data->ranging);
 
-	data->irqnr = irq_of_parse_and_map(dev->of_node, 0);
+	data->irqnr = fwnode_irq_get(dev_fwnode(&client->dev), 0);
 	if (data->irqnr <= 0) {
 		/* usage of interrupt is optional */
 		data->irqnr = -1;

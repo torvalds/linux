@@ -343,6 +343,11 @@ Admin can request writeback of those idle pages at right timing via::
 
 With the command, zram will writeback idle pages from memory to the storage.
 
+Additionally, if a user choose to writeback only huge and idle pages
+this can be accomplished with::
+
+        echo huge_idle > /sys/block/zramX/writeback
+
 If an admin wants to write a specific page in zram device to the backing device,
 they could write a page index into the interface.
 

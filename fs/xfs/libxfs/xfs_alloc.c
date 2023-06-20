@@ -2511,7 +2511,7 @@ __xfs_free_extent_later(
 
 	ASSERT(bno != NULLFSBLOCK);
 	ASSERT(len > 0);
-	ASSERT(len <= MAXEXTLEN);
+	ASSERT(len <= XFS_MAX_BMBT_EXTLEN);
 	ASSERT(!isnullstartblock(bno));
 	agno = XFS_FSB_TO_AGNO(mp, bno);
 	agbno = XFS_FSB_TO_AGBNO(mp, bno);
@@ -2777,7 +2777,7 @@ xfs_alloc_get_freelist(
 	xfs_agblock_t		bno;
 	__be32			*agfl_bno;
 	int			error;
-	int			logflags;
+	uint32_t		logflags;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_perag	*pag;
 
@@ -2830,9 +2830,9 @@ xfs_alloc_get_freelist(
  */
 void
 xfs_alloc_log_agf(
-	xfs_trans_t	*tp,	/* transaction pointer */
-	struct xfs_buf	*bp,	/* buffer for a.g. freelist header */
-	int		fields)	/* mask of fields to be logged (XFS_AGF_...) */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	uint32_t		fields)
 {
 	int	first;		/* first byte offset */
 	int	last;		/* last byte offset */
@@ -2902,7 +2902,7 @@ xfs_alloc_put_freelist(
 	struct xfs_perag	*pag;
 	__be32			*blockp;
 	int			error;
-	int			logflags;
+	uint32_t		logflags;
 	__be32			*agfl_bno;
 	int			startoff;
 

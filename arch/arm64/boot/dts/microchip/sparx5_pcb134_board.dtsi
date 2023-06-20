@@ -274,7 +274,7 @@
 
 &spi0 {
 	status = "okay";
-	spi-flash@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		spi-max-frequency = <8000000>;
 		reg = <0>;
@@ -289,7 +289,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>;	/* CS0 */
-		spi-flash@9 {
+		flash@9 {
 			compatible = "jedec,spi-nor";
 			spi-max-frequency = <8000000>;
 			reg = <0x9>;	/* SPI */

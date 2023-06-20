@@ -1,6 +1,7 @@
 REPORTING BUGS
 ==============
-Report bugs to <lkml@vger.kernel.org>
+Report bugs to <linux-kernel@vger.kernel.org>
+and <linux-trace-devel@vger.kernel.org>
 
 LICENSE
 =======

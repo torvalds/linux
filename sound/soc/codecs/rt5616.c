@@ -1337,8 +1337,7 @@ static const struct of_device_id rt5616_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5616_of_match);
 #endif
 
-static int rt5616_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int rt5616_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5616_priv *rt5616;
 	unsigned int val;
@@ -1408,7 +1407,7 @@ static struct i2c_driver rt5616_i2c_driver = {
 		.name = "rt5616",
 		.of_match_table = of_match_ptr(rt5616_of_match),
 	},
-	.probe = rt5616_i2c_probe,
+	.probe_new = rt5616_i2c_probe,
 	.remove = rt5616_i2c_remove,
 	.shutdown = rt5616_i2c_shutdown,
 	.id_table = rt5616_i2c_id,

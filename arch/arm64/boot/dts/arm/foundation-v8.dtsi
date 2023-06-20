@@ -220,7 +220,7 @@
 				clock-names = "uartclk", "apb_pclk";
 			};
 
-			virtio-block@130000 {
+			virtio@130000 {
 				compatible = "virtio,mmio";
 				reg = <0x130000 0x200>;
 				interrupts = <42>;

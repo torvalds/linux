@@ -54,7 +54,8 @@ void hubp31_soft_reset(struct hubp *hubp, bool reset)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_SOFT_RESET, reset);
 }
 
-void hubp31_program_extended_blank(struct hubp *hubp, unsigned int min_dst_y_next_start_optimized)
+static void hubp31_program_extended_blank(struct hubp *hubp,
+					  unsigned int min_dst_y_next_start_optimized)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 

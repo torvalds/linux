@@ -29,7 +29,7 @@ extern char _Level5InterruptVector_text_end[];
 extern char _Level6InterruptVector_text_start[];
 extern char _Level6InterruptVector_text_end[];
 #endif
-#ifdef CONFIG_SMP
+#ifdef CONFIG_SECONDARY_RESET_VECTOR
 extern char _SecondaryResetVector_text_start[];
 extern char _SecondaryResetVector_text_end[];
 #endif

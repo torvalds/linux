@@ -196,7 +196,7 @@ int __init zpci_debug_init(void)
 	if (!pci_debug_err_id)
 		return -EINVAL;
 	debug_register_view(pci_debug_err_id, &debug_hex_ascii_view);
-	debug_set_level(pci_debug_err_id, 6);
+	debug_set_level(pci_debug_err_id, 3);
 
 	debugfs_root = debugfs_create_dir("pci", NULL);
 	return 0;

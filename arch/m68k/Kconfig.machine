@@ -149,6 +149,23 @@ config SUN3
 
 	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
+config VIRT
+	bool "Virtual M68k Machine support"
+	depends on MMU
+	select GENERIC_CLOCKEVENTS
+	select GOLDFISH
+	select GOLDFISH_TIMER
+	select GOLDFISH_TTY
+	select M68040
+	select MMU_MOTOROLA if MMU
+	select RTC_CLASS
+	select RTC_DRV_GOLDFISH
+	select TTY
+	select VIRTIO_MMIO
+	help
+	  This options enable a pure virtual machine based on m68k,
+	  VIRTIO MMIO devices and GOLDFISH interfaces (TTY, RTC, PIC)
+
 config PILOT
 	bool
 
@@ -335,6 +352,7 @@ comment "Machine Options"
 
 config UBOOT
 	bool "Support for U-Boot command line parameters"
+	depends on COLDFIRE
 	help
 	  If you say Y here kernel will try to collect command
 	  line parameters from the initial u-boot stack.

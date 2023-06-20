@@ -8,11 +8,11 @@
 /* 64 bit sparc */
 struct stat {
 	unsigned int st_dev;
-	ino_t   st_ino;
-	mode_t  st_mode;
+	__kernel_ino_t st_ino;
+	__kernel_mode_t st_mode;
 	short   st_nlink;
-	uid_t   st_uid;
-	gid_t   st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 	unsigned int st_rdev;
 	long    st_size;
 	long    st_atime;
@@ -51,8 +51,8 @@ struct stat64 {
 /* 32 bit sparc */
 struct stat {
 	unsigned short	st_dev;
-	ino_t		st_ino;
-	mode_t		st_mode;
+	__kernel_ino_t	st_ino;
+	__kernel_mode_t	st_mode;
 	short		st_nlink;
 	unsigned short	st_uid;
 	unsigned short	st_gid;

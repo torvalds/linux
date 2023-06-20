@@ -7,10 +7,6 @@
 #ifndef RXE_POOL_H
 #define RXE_POOL_H
 
-enum rxe_pool_flags {
-	RXE_POOL_ALLOC		= BIT(1),
-};
-
 enum rxe_elem_type {
 	RXE_TYPE_UC,
 	RXE_TYPE_PD,
@@ -35,7 +31,6 @@ struct rxe_pool {
 	struct rxe_dev		*rxe;
 	const char		*name;
 	void			(*cleanup)(struct rxe_pool_elem *elem);
-	enum rxe_pool_flags	flags;
 	enum rxe_elem_type	type;
 
 	unsigned int		max_elem;

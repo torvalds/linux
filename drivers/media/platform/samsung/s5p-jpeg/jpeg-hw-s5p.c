@@ -52,7 +52,6 @@ void s5p_jpeg_proc_mode(void __iomem *regs, unsigned long mode)
 {
 	unsigned long reg, m;
 
-	m = S5P_PROC_MODE_DECOMPR;
 	if (mode == S5P_JPEG_ENCODE)
 		m = S5P_PROC_MODE_COMPR;
 	else

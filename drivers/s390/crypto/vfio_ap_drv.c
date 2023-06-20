@@ -46,8 +46,6 @@ static struct ap_device_id ap_queue_ids[] = {
 	{ /* end of sibling */ },
 };
 
-MODULE_DEVICE_TABLE(vfio_ap, ap_queue_ids);
-
 static struct ap_matrix_mdev *vfio_ap_mdev_for_queue(struct vfio_ap_queue *q)
 {
 	struct ap_matrix_mdev *matrix_mdev;

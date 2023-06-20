@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) System Power Protocol
  *
- * Copyright (C) 2020-2021 ARM Ltd.
+ * Copyright (C) 2020-2022 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications SYSTEM - " fmt
@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
-#include "common.h"
+#include "protocols.h"
 #include "notify.h"
 
 #define SCMI_SYSTEM_NUM_SOURCES		1
@@ -113,10 +113,13 @@ static const struct scmi_protocol_events system_protocol_events = {
 
 static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 {
+	int ret;
 	u32 version;
 	struct scmi_system_info *pinfo;
 
-	ph->xops->version_get(ph, &version);
+	ret = ph->xops->version_get(ph, &version);
+	if (ret)
+		return ret;
 
 	dev_dbg(ph->dev, "System Power Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));

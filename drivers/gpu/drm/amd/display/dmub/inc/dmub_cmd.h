@@ -44,24 +44,6 @@
 
 #endif // defined(_TEST_HARNESS) || defined(FPGA_USB4)
 
-/* Firmware versioning. */
-#ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x929554ba
-#define DMUB_FW_VERSION_MAJOR 0
-#define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 108
-#define DMUB_FW_VERSION_TEST 0
-#define DMUB_FW_VERSION_VBIOS 0
-#define DMUB_FW_VERSION_HOTFIX 0
-#define DMUB_FW_VERSION_UCODE (((DMUB_FW_VERSION_MAJOR & 0xFF) << 24) | \
-		((DMUB_FW_VERSION_MINOR & 0xFF) << 16) | \
-		((DMUB_FW_VERSION_REVISION & 0xFF) << 8) | \
-		((DMUB_FW_VERSION_TEST & 0x1) << 7) | \
-		((DMUB_FW_VERSION_VBIOS & 0x1) << 6) | \
-		(DMUB_FW_VERSION_HOTFIX & 0x3F))
-
-#endif
-
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
 
@@ -368,8 +350,9 @@ union dmub_fw_boot_options {
 		uint32_t power_optimization: 1;
 		uint32_t diag_env: 1; /* 1 if diagnostic environment */
 		uint32_t gpint_scratch8: 1; /* 1 if GPINT is in scratch8*/
+		uint32_t usb4_cm_version: 1; /**< 1 CM support */
 
-		uint32_t reserved : 18; /**< reserved */
+		uint32_t reserved : 17; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -671,6 +654,10 @@ enum dmub_cmd_type {
 	 * Command type used for getting usbc cable ID
 	 */
 	DMUB_CMD_GET_USBC_CABLE_ID = 81,
+	/**
+	 * Command type used to query HPD state.
+	 */
+	DMUB_CMD__QUERY_HPD_STATE = 82,
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
@@ -1370,6 +1357,30 @@ struct dmub_rb_cmd_dp_set_config_reply {
 	struct set_config_reply_control_data set_config_reply_control;
 };
 
+/**
+ * Data passed from driver to FW in a DMUB_CMD__QUERY_HPD_STATE command.
+ */
+struct dmub_cmd_hpd_state_query_data {
+	uint8_t instance; /**< HPD instance or DPIA instance */
+	uint8_t result; /**< For returning HPD state */
+	enum aux_channel_type ch_type; /**< enum aux_channel_type */
+	enum aux_return_code_type status; /**< for returning the status of command */
+};
+
+/**
+ * Definition of a DMUB_CMD__QUERY_HPD_STATE command.
+ */
+struct dmub_rb_cmd_query_hpd_state {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__QUERY_HPD_STATE command.
+	 */
+	struct dmub_cmd_hpd_state_query_data data;
+};
+
 /*
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
@@ -1522,8 +1533,6 @@ enum dmub_phy_fsm_state {
 	DMUB_PHY_FSM_TX_EN,
 	DMUB_PHY_FSM_FAST_LP,
 };
-
-
 
 /**
  * Data passed from driver to FW in a DMUB_CMD__PSR_COPY_SETTINGS command.
@@ -1704,9 +1713,16 @@ struct dmub_rb_cmd_psr_enable_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * Phy state to enter.
+	 * Values to use are defined in dmub_phy_fsm_state
 	 */
-	uint8_t pad[2];
+	uint8_t phy_fsm_state;
+	/**
+	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
+	 * Set this using enum phy_link_rate.
+	 * This does not support HDMI/DP2 for now.
+	 */
+	uint8_t phy_rate;
 };
 
 /**
@@ -1772,16 +1788,9 @@ struct dmub_cmd_psr_force_static_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * Phy state to enter.
-	 * Values to use are defined in dmub_phy_fsm_state
+	 * Explicit padding to 4 byte boundary.
 	 */
-	uint8_t phy_fsm_state;
-	/**
-	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
-	 * Set this using enum phy_link_rate.
-	 * This does not support HDMI/DP2 for now.
-	 */
-	uint8_t phy_rate;
+	uint8_t pad[2];
 };
 
 /**
@@ -2776,6 +2785,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD_GET_USBC_CABLE_ID command.
 	 */
 	struct dmub_rb_cmd_get_usbc_cable_id cable_id;
+
+	/**
+	 * Definition of a DMUB_CMD__QUERY_HPD_STATE command.
+	 */
+	struct dmub_rb_cmd_query_hpd_state query_hpd;
 };
 
 /**
@@ -3044,9 +3058,7 @@ static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 	uint32_t wptr = rb->wrpt;
 
 	while (rptr != wptr) {
-		uint64_t volatile *data = (uint64_t volatile *)((uint8_t *)(rb->base_address) + rptr);
-		//uint64_t volatile *p = (uint64_t volatile *)data;
-		uint64_t temp;
+		uint64_t *data = (uint64_t *)((uint8_t *)(rb->base_address) + rptr);
 		uint8_t i;
 
 		/* Don't remove this.
@@ -3054,7 +3066,7 @@ static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 		 * for this function to be effective.
 		 */
 		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
-			temp = *data++;
+			(void)READ_ONCE(*data++);
 
 		rptr += DMUB_RB_CMD_SIZE;
 		if (rptr >= rb->capacity)

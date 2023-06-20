@@ -13,7 +13,6 @@
 
 #include <asm/machdep.h>
 #include <asm/ipic.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 
 #include "mpc512x.h"

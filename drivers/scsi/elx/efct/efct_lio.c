@@ -370,9 +370,6 @@ static int efct_lio_get_cmd_state(struct se_cmd *cmd)
 		container_of(cmd, struct efct_scsi_tgt_io, cmd);
 	struct efct_io *io = container_of(ocp, struct efct_io, tgt_io);
 
-	if (!io)
-		return 0;
-
 	return io->tgt_io.state;
 }
 

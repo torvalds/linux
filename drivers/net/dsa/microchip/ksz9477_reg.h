@@ -1586,10 +1586,6 @@
 
 #define REG_PORT_LUE_MSTP_STATE		0x0B04
 
-#define PORT_TX_ENABLE			BIT(2)
-#define PORT_RX_ENABLE			BIT(1)
-#define PORT_LEARN_DISABLE		BIT(0)
-
 /* C - PTP */
 
 #define REG_PTP_PORT_RX_DELAY__2	0x0C00

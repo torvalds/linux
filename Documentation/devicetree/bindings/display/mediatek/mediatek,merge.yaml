@@ -102,4 +102,3 @@ examples:
             clock-names = "merge";
         };
     };
-

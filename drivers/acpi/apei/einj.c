@@ -549,6 +549,9 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	     !arch_is_platform_page(base_addr)))
 		return -EINVAL;
 
+	if (is_zero_pfn(base_addr >> PAGE_SHIFT))
+		return -EADDRINUSE;
+
 inject:
 	mutex_lock(&einj_mutex);
 	rc = __einj_error_inject(type, flags, param1, param2, param3, param4);

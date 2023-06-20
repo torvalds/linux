@@ -13,9 +13,9 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 
 /* Max bytes to read/write in one go */

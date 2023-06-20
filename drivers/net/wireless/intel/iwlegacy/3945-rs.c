@@ -354,13 +354,13 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	 * after assoc.. */
 
 	for (i = sband->n_bitrates - 1; i >= 0; i--) {
-		if (sta->supp_rates[sband->band] & (1 << i)) {
+		if (sta->deflink.supp_rates[sband->band] & (1 << i)) {
 			rs_sta->last_txrate_idx = i;
 			break;
 		}
 	}
 
-	il->_3945.sta_supp_rates = sta->supp_rates[sband->band];
+	il->_3945.sta_supp_rates = sta->deflink.supp_rates[sband->band];
 	/* For 5 GHz band it start at IL_FIRST_OFDM_RATE */
 	if (sband->band == NL80211_BAND_5GHZ) {
 		rs_sta->last_txrate_idx += IL_FIRST_OFDM_RATE;
@@ -631,7 +631,7 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		il_sta = NULL;
 	}
 
-	rate_mask = sta->supp_rates[sband->band];
+	rate_mask = sta->deflink.supp_rates[sband->band];
 
 	/* get user max rate if set */
 	max_rate_idx = fls(txrc->rate_idx_mask) - 1;

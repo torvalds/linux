@@ -139,7 +139,7 @@ static int flush_buffer(struct line *line)
 		count = line->buffer + LINE_BUFSIZE - line->head;
 
 		n = write_chan(line->chan_out, line->head, count,
-			       line->driver->write_irq);
+			       line->write_irq);
 		if (n < 0)
 			return n;
 		if (n == count) {
@@ -156,7 +156,7 @@ static int flush_buffer(struct line *line)
 
 	count = line->tail - line->head;
 	n = write_chan(line->chan_out, line->head, count,
-		       line->driver->write_irq);
+		       line->write_irq);
 
 	if (n < 0)
 		return n;
@@ -195,7 +195,7 @@ int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
 		ret = buffer_data(line, buf, len);
 	else {
 		n = write_chan(line->chan_out, buf, len,
-			       line->driver->write_irq);
+			       line->write_irq);
 		if (n < 0) {
 			ret = n;
 			goto out_up;
@@ -215,7 +215,7 @@ void line_throttle(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
 
-	deactivate_chan(line->chan_in, line->driver->read_irq);
+	deactivate_chan(line->chan_in, line->read_irq);
 	line->throttled = 1;
 }
 
@@ -224,7 +224,7 @@ void line_unthrottle(struct tty_struct *tty)
 	struct line *line = tty->driver_data;
 
 	line->throttled = 0;
-	chan_interrupt(line, line->driver->read_irq);
+	chan_interrupt(line, line->read_irq);
 }
 
 static irqreturn_t line_write_interrupt(int irq, void *data)
@@ -260,19 +260,23 @@ int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 	int err;
 
 	if (input) {
-		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
-				     line_interrupt, IRQF_SHARED,
+		err = um_request_irq(UM_IRQ_ALLOC, fd, IRQ_READ,
+				     line_interrupt, 0,
 				     driver->read_irq_name, data);
 		if (err < 0)
 			return err;
+
+		line->read_irq = err;
 	}
 
 	if (output) {
-		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
-				     line_write_interrupt, IRQF_SHARED,
+		err = um_request_irq(UM_IRQ_ALLOC, fd, IRQ_WRITE,
+				     line_write_interrupt, 0,
 				     driver->write_irq_name, data);
 		if (err < 0)
 			return err;
+
+		line->write_irq = err;
 	}
 
 	return 0;

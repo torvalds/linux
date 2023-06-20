@@ -1255,7 +1255,8 @@ static int vector_net_open(struct net_device *dev)
 			goto out_close;
 	}
 
-	netif_napi_add(vp->dev, &vp->napi, vector_poll, get_depth(vp->parsed));
+	netif_napi_add_weight(vp->dev, &vp->napi, vector_poll,
+			      get_depth(vp->parsed));
 	napi_enable(&vp->napi);
 
 	/* READ IRQ */

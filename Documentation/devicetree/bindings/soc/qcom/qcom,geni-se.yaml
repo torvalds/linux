@@ -7,8 +7,7 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: GENI Serial Engine QUP Wrapper Controller
 
 maintainers:
-  - Mukesh Savaliya <msavaliy@codeaurora.org>
-  - Akash Asthana <akashast@codeaurora.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 description: |
  Generic Interface (GENI) based Qualcomm Universal Peripheral (QUP) wrapper
@@ -64,116 +63,23 @@ required:
   - ranges
 
 patternProperties:
-  "^.*@[0-9a-f]+$":
-    type: object
-    description: Common properties for GENI Serial Engine based I2C, SPI and
-                 UART controller.
-
-    properties:
-      reg:
-        description: GENI Serial Engine register address and length.
-        maxItems: 1
-
-      clock-names:
-        const: se
-
-      clocks:
-        description: Serial engine core clock needed by the device.
-        maxItems: 1
-
-      interconnects:
-        minItems: 2
-        maxItems: 3
-
-      interconnect-names:
-        minItems: 2
-        items:
-          - const: qup-core
-          - const: qup-config
-          - const: qup-memory
-
-    required:
-      - reg
-      - clock-names
-      - clocks
-
   "spi@[0-9a-f]+$":
     type: object
     description: GENI serial engine based SPI controller. SPI in master mode
                  supports up to 50MHz, up to four chip selects, programmable
                  data path from 4 bits to 32 bits and numerous protocol
                  variants.
-    $ref: /schemas/spi/spi-controller.yaml#
-
-    properties:
-      compatible:
-        enum:
-          - qcom,geni-spi
-
-      interrupts:
-        maxItems: 1
-
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
-    required:
-      - compatible
-      - interrupts
-      - "#address-cells"
-      - "#size-cells"
+    $ref: /schemas/spi/qcom,spi-geni-qcom.yaml#
 
   "i2c@[0-9a-f]+$":
     type: object
     description: GENI serial engine based I2C controller.
-    $ref: /schemas/i2c/i2c-controller.yaml#
-
-    properties:
-      compatible:
-        enum:
-          - qcom,geni-i2c
-
-      interrupts:
-        maxItems: 1
-
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
-      clock-frequency:
-        description: Desired I2C bus clock frequency in Hz.
-        default: 100000
-
-    required:
-      - compatible
-      - interrupts
-      - "#address-cells"
-      - "#size-cells"
+    $ref: /schemas/i2c/qcom,i2c-geni-qcom.yaml#
 
   "serial@[0-9a-f]+$":
     type: object
     description: GENI Serial Engine based UART Controller.
-    $ref: /schemas/serial.yaml#
-
-    properties:
-      compatible:
-        enum:
-          - qcom,geni-uart
-          - qcom,geni-debug-uart
-
-      interrupts:
-        minItems: 1
-        items:
-          - description: UART core irq
-          - description: Wakeup irq (RX GPIO)
-
-    required:
-      - compatible
-      - interrupts
+    $ref: /schemas/serial/qcom,serial-geni-qcom.yaml#
 
 additionalProperties: false
 

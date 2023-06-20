@@ -8,6 +8,8 @@
 #include "core.h"
 
 #define RF_PATH_NUM_8852C 2
+#define BB_PATH_NUM_8852C 2
+#define NTX_NUM_8852C 2
 
 struct rtw8852c_u_efuse {
 	u8 rsvd[0x38];
@@ -58,13 +60,23 @@ struct rtw8852c_efuse {
 	u8 rsvd7[3];
 	u8 path_a_therm;
 	u8 path_b_therm;
-	u8 rsvd8[46];
+	u8 rsvd8[2];
+	u8 rx_gain_2g_ofdm;
+	u8 rsvd9;
+	u8 rx_gain_2g_cck;
+	u8 rsvd10;
+	u8 rx_gain_5g_low;
+	u8 rsvd11;
+	u8 rx_gain_5g_mid;
+	u8 rsvd12;
+	u8 rx_gain_5g_high;
+	u8 rsvd13[35];
 	u8 bw40_1s_tssi_6g_a[TSSI_MCS_6G_CH_GROUP_NUM];
-	u8 rsvd9[10];
+	u8 rsvd14[10];
 	u8 bw40_1s_tssi_6g_b[TSSI_MCS_6G_CH_GROUP_NUM];
-	u8 rsvd10[110];
+	u8 rsvd15[110];
 	u8 channel_plan_6g;
-	u8 rsvd11[71];
+	u8 rsvd16[71];
 	union {
 		struct rtw8852c_u_efuse u;
 		struct rtw8852c_e_efuse e;

@@ -155,6 +155,10 @@ struct tlbcam {
 	u32	MAS3;
 	u32	MAS7;
 };
+
+#define NUM_TLBCAMS	64
+
+extern struct tlbcam TLBCAM[NUM_TLBCAMS];
 #endif
 
 #if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_FSL_BOOKE) || defined(CONFIG_PPC_8xx)

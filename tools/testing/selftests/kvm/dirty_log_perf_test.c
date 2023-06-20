@@ -336,8 +336,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 static void help(char *name)
 {
 	puts("");
-	printf("usage: %s [-h] [-i iterations] [-p offset] [-g]"
-	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]"
+	printf("usage: %s [-h] [-i iterations] [-p offset] [-g] "
+	       "[-m mode] [-n] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]"
 	       "[-x memslots]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
@@ -351,6 +351,7 @@ static void help(char *name)
 	printf(" -p: specify guest physical test memory offset\n"
 	       "     Warning: a low offset can conflict with the loaded test code.\n");
 	guest_modes_help();
+	printf(" -n: Run the vCPUs in nested mode (L2)\n");
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     dirtied by each vCPU. e.g. 10M or 3G.\n"
 	       "     (default: 1G)\n");
@@ -387,7 +388,7 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "ghi:p:m:b:f:v:os:x:")) != -1) {
+	while ((opt = getopt(argc, argv, "ghi:p:m:nb:f:v:os:x:")) != -1) {
 		switch (opt) {
 		case 'g':
 			dirty_log_manual_caps = 0;
@@ -400,6 +401,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'm':
 			guest_modes_cmdline(optarg);
+			break;
+		case 'n':
+			perf_test_args.nested = true;
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);

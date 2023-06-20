@@ -47,17 +47,6 @@ enum ipa_cmd_opcode {
 };
 
 /**
- * struct ipa_cmd_info - information needed for an IPA immediate command
- *
- * @opcode:	The command opcode.
- * @direction:	Direction of data transfer for DMA commands
- */
-struct ipa_cmd_info {
-	enum ipa_cmd_opcode opcode;
-	enum dma_data_direction direction;
-};
-
-/**
  * ipa_cmd_table_valid() - Validate a memory region holding a table
  * @ipa:	- IPA pointer
  * @mem:	- IPA memory region descriptor

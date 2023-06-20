@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -44,6 +44,80 @@
 #include "lpfc_compat.h"
 
 /**
+ * lpfc_mbox_rsrc_prep - Prepare a mailbox with DMA buffer memory.
+ * @phba: pointer to lpfc hba data structure.
+ * @mbox: pointer to the driver internal queue element for mailbox command.
+ *
+ * A mailbox command consists of the pool memory for the command, @mbox, and
+ * one or more DMA buffers for the data transfer.  This routine provides
+ * a standard framework for allocating the dma buffer and assigning to the
+ * @mbox.  Callers should cleanup the mbox with a call to
+ * lpfc_mbox_rsrc_cleanup.
+ *
+ * The lpfc_mbuf_alloc routine acquires the hbalock so the caller is
+ * responsible to ensure the hbalock is released.  Also note that the
+ * driver design is a single dmabuf/mbuf per mbox in the ctx_buf.
+ *
+ **/
+int
+lpfc_mbox_rsrc_prep(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	struct lpfc_dmabuf *mp;
+
+	mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp->virt) {
+		kfree(mp);
+		return -ENOMEM;
+	}
+
+	memset(mp->virt, 0, LPFC_BPL_SIZE);
+
+	/* Initialization only.  Driver does not use a list of dmabufs. */
+	INIT_LIST_HEAD(&mp->list);
+	mbox->ctx_buf = mp;
+	return 0;
+}
+
+/**
+ * lpfc_mbox_rsrc_cleanup - Free the mailbox DMA buffer and virtual memory.
+ * @phba: pointer to lpfc hba data structure.
+ * @mbox: pointer to the driver internal queue element for mailbox command.
+ * @locked: value that indicates if the hbalock is held (1) or not (0).
+ *
+ * A mailbox command consists of the pool memory for the command, @mbox, and
+ * possibly a DMA buffer for the data transfer.  This routine provides
+ * a standard framework for releasing any dma buffers and freeing all
+ * memory resources in it as well as releasing the @mbox back to the @phba pool.
+ * Callers should use this routine for cleanup for all mailboxes prepped with
+ * lpfc_mbox_rsrc_prep.
+ *
+ **/
+void
+lpfc_mbox_rsrc_cleanup(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
+		       enum lpfc_mbox_ctx locked)
+{
+	struct lpfc_dmabuf *mp;
+
+	mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
+	mbox->ctx_buf = NULL;
+
+	/* Release the generic BPL buffer memory.  */
+	if (mp) {
+		if (locked == MBOX_THD_LOCKED)
+			__lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		else
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
+	}
+
+	mempool_free(mbox, phba->mbox_mem_pool);
+}
+
+/**
  * lpfc_dump_static_vport - Dump HBA's static vport information.
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
@@ -61,6 +135,7 @@ lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 {
 	MAILBOX_t *mb;
 	struct lpfc_dmabuf *mp;
+	int rc;
 
 	mb = &pmb->u.mb;
 
@@ -79,22 +154,15 @@ lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 		return 0;
 	}
 
-	/* For SLI4 HBAs driver need to allocate memory */
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (mp)
-		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-
-	if (!mp || !mp->virt) {
-		kfree(mp);
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-			"2605 lpfc_dump_static_vport: memory"
-			" allocation failed\n");
+				"2605 %s: memory allocation failed\n",
+				__func__);
 		return 1;
 	}
-	memset(mp->virt, 0, LPFC_BPL_SIZE);
-	INIT_LIST_HEAD(&mp->list);
-	/* save address for completion */
-	pmb->ctx_buf = (uint8_t *)mp;
+
+	mp = pmb->ctx_buf;
 	mb->un.varWords[3] = putPaddrLow(mp->phys);
 	mb->un.varWords[4] = putPaddrHigh(mp->phys);
 	mb->un.varDmp.sli4_length = sizeof(struct static_vport_info);
@@ -606,35 +674,27 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 {
 	struct lpfc_dmabuf *mp;
 	MAILBOX_t *mb;
+	int rc;
 
-	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	mb->mbxOwner = OWN_HOST;
-
 	/* Get a buffer to hold the HBAs Service Parameters */
-
-	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
-	if (mp)
-		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp || !mp->virt) {
-		kfree(mp);
-		mb->mbxCommand = MBX_READ_SPARM64;
-		/* READ_SPARAM: no buffers */
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 			        "0301 READ_SPARAM: no buffers\n");
-		return (1);
+		return 1;
 	}
-	INIT_LIST_HEAD(&mp->list);
+
+	mp = pmb->ctx_buf;
+	mb = &pmb->u.mb;
+	mb->mbxOwner = OWN_HOST;
 	mb->mbxCommand = MBX_READ_SPARM64;
 	mb->un.varRdSparm.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
 	mb->un.varRdSparm.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRdSparm.un.sp64.addrLow = putPaddrLow(mp->phys);
 	if (phba->sli_rev >= LPFC_SLI_REV3)
 		mb->un.varRdSparm.vpi = phba->vpi_ids[vpi];
-
-	/* save address for completion */
-	pmb->ctx_buf = mp;
 
 	return (0);
 }
@@ -756,6 +816,7 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	MAILBOX_t *mb = &pmb->u.mb;
 	uint8_t *sparam;
 	struct lpfc_dmabuf *mp;
+	int rc;
 
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
@@ -766,12 +827,10 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 		mb->un.varRegLogin.vpi = phba->vpi_ids[vpi];
 	mb->un.varRegLogin.did = did;
 	mb->mbxOwner = OWN_HOST;
+
 	/* Get a buffer to hold NPorts Service Parameters */
-	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
-	if (mp)
-		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp || !mp->virt) {
-		kfree(mp);
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
@@ -779,15 +838,13 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 				"rpi x%x\n", vpi, did, rpi);
 		return 1;
 	}
-	INIT_LIST_HEAD(&mp->list);
-	sparam = mp->virt;
 
 	/* Copy param's into a new buffer */
+	mp = pmb->ctx_buf;
+	sparam = mp->virt;
 	memcpy(sparam, param, sizeof (struct serv_parm));
 
-	/* save address for completion */
-	pmb->ctx_buf = (uint8_t *)mp;
-
+	/* Finish initializing the mailbox. */
 	mb->mbxCommand = MBX_REG_LOGIN64;
 	mb->un.varRegLogin.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
 	mb->un.varRegLogin.un.sp64.addrHigh = putPaddrHigh(mp->phys);
@@ -1723,7 +1780,9 @@ lpfc_sli4_mbx_sge_get(struct lpfcMboxq *mbox, uint32_t sgentry,
  * @phba: pointer to lpfc hba data structure.
  * @mbox: pointer to lpfc mbox command.
  *
- * This routine frees SLI4 specific mailbox command for sending IOCTL command.
+ * This routine cleans up and releases an SLI4 mailbox command that was
+ * configured using lpfc_sli4_config.  It accounts for the embedded and
+ * non-embedded config types.
  **/
 void
 lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
@@ -2277,33 +2336,24 @@ lpfc_sli4_dump_cfg_rg23(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 {
 	struct lpfc_dmabuf *mp = NULL;
 	MAILBOX_t *mb;
+	int rc;
 
 	memset(mbox, 0, sizeof(*mbox));
 	mb = &mbox->u.mb;
 
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (mp)
-		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-
-	if (!mp || !mp->virt) {
-		kfree(mp);
-		/* dump config region 23 failed to allocate memory */
+	rc = lpfc_mbox_rsrc_prep(phba, mbox);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-			"2569 lpfc dump config region 23: memory"
-			" allocation failed\n");
+				"2569 %s: memory allocation failed\n",
+				__func__);
 		return 1;
 	}
-
-	memset(mp->virt, 0, LPFC_BPL_SIZE);
-	INIT_LIST_HEAD(&mp->list);
-
-	/* save address for completion */
-	mbox->ctx_buf = (uint8_t *)mp;
 
 	mb->mbxCommand = MBX_DUMP_MEMORY;
 	mb->un.varDmp.type = DMP_NV_PARAMS;
 	mb->un.varDmp.region_id = DMP_REGION_23;
 	mb->un.varDmp.sli4_length = DMP_RGN23_SIZE;
+	mp = mbox->ctx_buf;
 	mb->un.varWords[3] = putPaddrLow(mp->phys);
 	mb->un.varWords[4] = putPaddrHigh(mp->phys);
 	return 0;
@@ -2326,7 +2376,7 @@ lpfc_mbx_cmpl_rdp_link_stat(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	rc = SUCCESS;
 
 mbx_failed:
-	lpfc_sli4_mbox_cmd_free(phba, mboxq);
+	lpfc_mbox_rsrc_cleanup(phba, mboxq, MBOX_THD_UNLOCKED);
 	rdp_context->cmpl(phba, rdp_context, rc);
 }
 
@@ -2338,30 +2388,25 @@ lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 			(struct lpfc_rdp_context *)(mbox->ctx_ndlp);
 
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
-		goto error_mbuf_free;
+		goto error_mbox_free;
 
 	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a2,
 				DMP_SFF_PAGE_A2_SIZE);
 
-	/* We don't need dma buffer for link stat. */
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
-
-	memset(mbox, 0, sizeof(*mbox));
 	lpfc_read_lnk_stat(phba, mbox);
 	mbox->vport = rdp_context->ndlp->vport;
+
+	/* Save the dma buffer for cleanup in the final completion. */
+	mbox->ctx_buf = mp;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_link_stat;
 	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) == MBX_NOT_FINISHED)
-		goto error_cmd_free;
+		goto error_mbox_free;
 
 	return;
 
-error_mbuf_free:
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
-error_cmd_free:
-	lpfc_sli4_mbox_cmd_free(phba, mbox);
+error_mbox_free:
+	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 	rdp_context->cmpl(phba, rdp_context, FAILURE);
 }
 
@@ -2409,9 +2454,7 @@ lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	return;
 
 error:
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
-	lpfc_sli4_mbox_cmd_free(phba, mbox);
+	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 	rdp_context->cmpl(phba, rdp_context, FAILURE);
 }
 
@@ -2427,27 +2470,19 @@ error:
 int
 lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 {
+	int rc;
 	struct lpfc_dmabuf *mp = NULL;
 
 	memset(mbox, 0, sizeof(*mbox));
 
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (mp)
-		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp || !mp->virt) {
-		kfree(mp);
+	rc = lpfc_mbox_rsrc_prep(phba, mbox);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 			"3569 dump type 3 page 0xA0 allocation failed\n");
 		return 1;
 	}
 
-	memset(mp->virt, 0, LPFC_BPL_SIZE);
-	INIT_LIST_HEAD(&mp->list);
-
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
-	/* save address for completion */
-	mbox->ctx_buf = mp;
-
 	bf_set(lpfc_mbx_memory_dump_type3_type,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
 	bf_set(lpfc_mbx_memory_dump_type3_link,
@@ -2456,6 +2491,8 @@ lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		&mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A0);
 	bf_set(lpfc_mbx_memory_dump_type3_length,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
+
+	mp = mbox->ctx_buf;
 	mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
 	mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
 

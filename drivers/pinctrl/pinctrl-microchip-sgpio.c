@@ -688,11 +688,17 @@ static void microchip_sgpio_irq_setreg(struct irq_data *data,
 
 static void microchip_sgpio_irq_mask(struct irq_data *data)
 {
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+
 	microchip_sgpio_irq_setreg(data, REG_INT_ENABLE, true);
+	gpiochip_disable_irq(chip, data->hwirq);
 }
 
 static void microchip_sgpio_irq_unmask(struct irq_data *data)
 {
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+
+	gpiochip_enable_irq(chip, data->hwirq);
 	microchip_sgpio_irq_setreg(data, REG_INT_ENABLE, false);
 }
 
@@ -746,6 +752,8 @@ static const struct irq_chip microchip_sgpio_irqchip = {
 	.irq_ack	= microchip_sgpio_irq_ack,
 	.irq_unmask	= microchip_sgpio_irq_unmask,
 	.irq_set_type	= microchip_sgpio_irq_set_type,
+	.flags		= IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void sgpio_irq_handler(struct irq_desc *desc)
@@ -840,7 +848,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc			= &bank->gpio;
 	gc->label		= pctl_desc->name;
 	gc->parent		= dev;
-	gc->of_node		= to_of_node(fwnode);
+	gc->fwnode		= fwnode;
 	gc->owner		= THIS_MODULE;
 	gc->get_direction	= microchip_sgpio_get_direction;
 	gc->direction_input	= microchip_sgpio_direction_input;
@@ -861,11 +869,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 		if (irq) {
 			struct gpio_irq_chip *girq = &gc->irq;
 
-			girq->chip = devm_kmemdup(dev, &microchip_sgpio_irqchip,
-						  sizeof(microchip_sgpio_irqchip),
-						  GFP_KERNEL);
-			if (!girq->chip)
-				return -ENOMEM;
+			gpio_irq_chip_set_chip(girq, &microchip_sgpio_irqchip);
 			girq->parent_handler = sgpio_irq_handler;
 			girq->num_parents = 1;
 			girq->parents = devm_kcalloc(dev, 1,

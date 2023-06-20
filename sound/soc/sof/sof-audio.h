@@ -29,15 +29,46 @@
 #define DMA_CHAN_INVALID	0xFFFFFFFF
 
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
+#define WIDGET_IS_AIF(id) ((id) == snd_soc_dapm_aif_in || (id) == snd_soc_dapm_aif_out)
+#define WIDGET_IS_AIF_OR_DAI(id) (WIDGET_IS_DAI(id) || WIDGET_IS_AIF(id))
 
 #define SOF_DAI_CLK_INTEL_SSP_MCLK	0
 #define SOF_DAI_CLK_INTEL_SSP_BCLK	1
+
+enum sof_widget_op {
+	SOF_WIDGET_PREPARE,
+	SOF_WIDGET_SETUP,
+	SOF_WIDGET_FREE,
+	SOF_WIDGET_UNPREPARE,
+};
 
 /*
  * Volume fractional word length define to 16 sets
  * the volume linear gain value to use Qx.16 format
  */
 #define VOLUME_FWL	16
+
+#define SOF_TLV_ITEMS 3
+
+static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
+{
+	if (value >= size)
+		return volume_map[size - 1];
+
+	return volume_map[value];
+}
+
+static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (volume_map[i] >= value)
+			return i;
+	}
+
+	return i - 1;
+}
 
 struct snd_sof_widget;
 struct snd_sof_route;
@@ -86,6 +117,11 @@ struct sof_ipc_tplg_control_ops {
 			     const unsigned int __user *binary_data, unsigned int size);
 	/* update control data based on notification from the DSP */
 	void (*update)(struct snd_sof_dev *sdev, void *ipc_control_message);
+	/* Optional callback to setup kcontrols associated with an swidget */
+	int (*widget_kcontrol_setup)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+	/* mandatory callback to set up volume table for volume kcontrols */
+	int (*set_up_volume_table)(struct snd_sof_control *scontrol, int tlv[SOF_TLV_ITEMS],
+				   int size);
 };
 
 /**
@@ -95,6 +131,8 @@ struct sof_ipc_tplg_control_ops {
  * @token_list: List of token ID's that should be parsed for the widget
  * @token_list_size: number of elements in token_list
  * @bind_event: Function pointer for binding events to the widget
+ * @ipc_prepare: Optional op for preparing a widget for set up
+ * @ipc_unprepare: Optional op for unpreparing a widget
  */
 struct sof_ipc_tplg_widget_ops {
 	int (*ipc_setup)(struct snd_sof_widget *swidget);
@@ -103,6 +141,11 @@ struct sof_ipc_tplg_widget_ops {
 	int token_list_size;
 	int (*bind_event)(struct snd_soc_component *scomp, struct snd_sof_widget *swidget,
 			  u16 event_type);
+	int (*ipc_prepare)(struct snd_sof_widget *swidget,
+			   struct snd_pcm_hw_params *fe_params,
+			   struct snd_sof_platform_stream_params *platform_params,
+			   struct snd_pcm_hw_params *source_params, int dir);
+	void (*ipc_unprepare)(struct snd_sof_widget *swidget);
 };
 
 /**
@@ -112,6 +155,7 @@ struct sof_ipc_tplg_widget_ops {
  *	    initialized to 0.
  * @control: Pointer to the IPC-specific ops for topology kcontrol IO
  * @route_setup: Function pointer for setting up pipeline connections
+ * @route_free: Optional op for freeing pipeline connections.
  * @token_list: List of all tokens supported by the IPC version. The size of the token_list
  *		array should be SOF_TOKEN_COUNT. The unused elements in the array will be
  *		initialized to 0.
@@ -129,6 +173,7 @@ struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
 	const struct sof_ipc_tplg_control_ops *control;
 	int (*route_setup)(struct snd_sof_dev *sdev, struct snd_sof_route *sroute);
+	int (*route_free)(struct snd_sof_dev *sdev, struct snd_sof_route *sroute);
 	const struct sof_token_info *token_list;
 	int (*control_setup)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
 	int (*control_free)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
@@ -247,7 +292,6 @@ struct snd_sof_control {
 	int max_volume_step; /* max volume step for volume_table */
 	int num_channels;
 	unsigned int access;
-	u32 readback_offset; /* offset to mmapped data if used */
 	int info_type;
 	int index; /* pipeline ID */
 	void *priv; /* private data copied from topology */
@@ -292,10 +336,24 @@ struct snd_sof_widget {
 	struct snd_soc_component *scomp;
 	int comp_id;
 	int pipeline_id;
+	/*
+	 * complete flag is used to indicate that pipeline set up is complete for scheduler type
+	 * widgets. It is unused for all other widget types.
+	 */
 	int complete;
+	/*
+	 * the prepared flag is used to indicate that a widget has been prepared for getting set
+	 * up in the DSP.
+	 */
+	bool prepared;
 	int use_count; /* use_count will be protected by the PCM mutex held by the core */
 	int core;
-	int id;
+	int id; /* id is the DAPM widget type */
+	/*
+	 * Instance ID is set dynamically when the widget gets set up in the FW. It should be
+	 * unique for each module type across all pipelines. This will not be used in SOF_IPC.
+	 */
+	int instance_id;
 
 	/*
 	 * Flag indicating if the widget should be set up dynamically when a PCM is opened.
@@ -310,6 +368,7 @@ struct snd_sof_widget {
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_widget *pipe_widget;
+	void *module_info;
 
 	const guid_t uuid;
 
@@ -403,8 +462,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_dai(struct snd_soc_component *scomp,
 					  struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-
-	struct snd_sof_pcm *spcm = NULL;
+	struct snd_sof_pcm *spcm;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
 		if (le32_to_cpu(spcm->pcm.dai_id) == rtd->dai_link->id)
@@ -430,16 +488,10 @@ static inline void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstre
 static inline void snd_sof_compr_init_elapsed_work(struct work_struct *work) { }
 #endif
 
-/*
- * Mixer IPC
- */
-int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set);
-
 /* DAI link fixup */
 int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
 
 /* PM */
-int sof_set_hw_params_upon_resume(struct device *dev);
 bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev);
 bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev);
 
@@ -453,7 +505,10 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 		    struct snd_soc_dapm_widget *wsink);
 
 /* PCM */
-int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
+int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
+			  struct snd_pcm_hw_params *fe_params,
+			  struct snd_sof_platform_stream_params *platform_params,
+			  int dir);
 int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev *sdev,
 			 struct snd_sof_pcm *spcm);
@@ -467,6 +522,5 @@ int get_token_uuid(void *elem, void *object, u32 offset);
 int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum sof_tokens token_id,
 			  struct snd_sof_tuple *tuples, int num_tuples,
 			  size_t object_size, int token_instance_num);
-int sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_runtime *rtd,
-				    struct snd_sof_pcm *spcm, int dir);
+u32 vol_compute_gain(u32 value, int *tlv);
 #endif

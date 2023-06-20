@@ -417,7 +417,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "R1 must be referenced when passed to release function",
 },
 {
 	"bpf_sk_release(bpf_sk_fullsock(skb->sk))",
@@ -436,7 +436,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "R1 must be referenced when passed to release function",
 },
 {
 	"bpf_sk_release(bpf_tcp_sock(skb->sk))",
@@ -455,7 +455,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "R1 must be referenced when passed to release function",
 },
 {
 	"sk_storage_get(map, skb->sk, NULL, 0): value == NULL",

@@ -64,22 +64,21 @@ static const struct debugfs_reg32 hvs_regs[] = {
 	VC4_REG32(SCALER_OLEDCOEF2),
 };
 
-void vc4_hvs_dump_state(struct drm_device *dev)
+void vc4_hvs_dump_state(struct vc4_hvs *hvs)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_printer p = drm_info_printer(&vc4->hvs->pdev->dev);
+	struct drm_printer p = drm_info_printer(&hvs->pdev->dev);
 	int i;
 
-	drm_print_regset32(&p, &vc4->hvs->regset);
+	drm_print_regset32(&p, &hvs->regset);
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 0),
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 1),
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 2),
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 3));
+			 readl((u32 __iomem *)hvs->dlist + i + 0),
+			 readl((u32 __iomem *)hvs->dlist + i + 1),
+			 readl((u32 __iomem *)hvs->dlist + i + 2),
+			 readl((u32 __iomem *)hvs->dlist + i + 3));
 	}
 }
 
@@ -157,11 +156,10 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 	return 0;
 }
 
-static void vc4_hvs_lut_load(struct drm_crtc *crtc)
+static void vc4_hvs_lut_load(struct vc4_hvs *hvs,
+			     struct vc4_crtc *vc4_crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct drm_crtc *crtc = &vc4_crtc->base;
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	u32 i;
 
@@ -181,11 +179,12 @@ static void vc4_hvs_lut_load(struct drm_crtc *crtc)
 		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
 }
 
-static void vc4_hvs_update_gamma_lut(struct drm_crtc *crtc)
+static void vc4_hvs_update_gamma_lut(struct vc4_hvs *hvs,
+				     struct vc4_crtc *vc4_crtc)
 {
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct drm_color_lut *lut = crtc->state->gamma_lut->data;
-	u32 length = drm_color_lut_size(crtc->state->gamma_lut);
+	struct drm_crtc_state *crtc_state = vc4_crtc->base.state;
+	struct drm_color_lut *lut = crtc_state->gamma_lut->data;
+	u32 length = drm_color_lut_size(crtc_state->gamma_lut);
 	u32 i;
 
 	for (i = 0; i < length; i++) {
@@ -194,16 +193,38 @@ static void vc4_hvs_update_gamma_lut(struct drm_crtc *crtc)
 		vc4_crtc->lut_b[i] = drm_color_lut_extract(lut[i].blue, 8);
 	}
 
-	vc4_hvs_lut_load(crtc);
+	vc4_hvs_lut_load(hvs, vc4_crtc);
 }
 
-int vc4_hvs_get_fifo_from_output(struct drm_device *dev, unsigned int output)
+u8 vc4_hvs_get_fifo_frame_count(struct vc4_hvs *hvs, unsigned int fifo)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u8 field = 0;
+
+	switch (fifo) {
+	case 0:
+		field = VC4_GET_FIELD(HVS_READ(SCALER_DISPSTAT1),
+				      SCALER_DISPSTAT1_FRCNT0);
+		break;
+	case 1:
+		field = VC4_GET_FIELD(HVS_READ(SCALER_DISPSTAT1),
+				      SCALER_DISPSTAT1_FRCNT1);
+		break;
+	case 2:
+		field = VC4_GET_FIELD(HVS_READ(SCALER_DISPSTAT2),
+				      SCALER_DISPSTAT2_FRCNT2);
+		break;
+	}
+
+	return field;
+}
+
+int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output)
+{
+	struct vc4_dev *vc4 = hvs->vc4;
 	u32 reg;
 	int ret;
 
-	if (!vc4->hvs->hvs5)
+	if (!vc4->is_vc5)
 		return output;
 
 	switch (output) {
@@ -250,9 +271,11 @@ int vc4_hvs_get_fifo_from_output(struct drm_device *dev, unsigned int output)
 	}
 }
 
-static int vc4_hvs_init_channel(struct vc4_dev *vc4, struct drm_crtc *crtc,
+static int vc4_hvs_init_channel(struct vc4_hvs *hvs, struct drm_crtc *crtc,
 				struct drm_display_mode *mode, bool oneshot)
 {
+	struct vc4_dev *vc4 = hvs->vc4;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_crtc_state = to_vc4_crtc_state(crtc->state);
 	unsigned int chan = vc4_crtc_state->assigned_channel;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
@@ -270,7 +293,7 @@ static int vc4_hvs_init_channel(struct vc4_dev *vc4, struct drm_crtc *crtc,
 	 */
 	dispctrl = SCALER_DISPCTRLX_ENABLE;
 
-	if (!vc4->hvs->hvs5)
+	if (!vc4->is_vc5)
 		dispctrl |= VC4_SET_FIELD(mode->hdisplay,
 					  SCALER_DISPCTRLX_WIDTH) |
 			    VC4_SET_FIELD(mode->vdisplay,
@@ -291,21 +314,19 @@ static int vc4_hvs_init_channel(struct vc4_dev *vc4, struct drm_crtc *crtc,
 
 	HVS_WRITE(SCALER_DISPBKGNDX(chan), dispbkgndx |
 		  SCALER_DISPBKGND_AUTOHS |
-		  ((!vc4->hvs->hvs5) ? SCALER_DISPBKGND_GAMMA : 0) |
+		  ((!vc4->is_vc5) ? SCALER_DISPBKGND_GAMMA : 0) |
 		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
 
 	/* Reload the LUT, since the SRAMs would have been disabled if
 	 * all CRTCs had SCALER_DISPBKGND_GAMMA unset at once.
 	 */
-	vc4_hvs_lut_load(crtc);
+	vc4_hvs_lut_load(hvs, vc4_crtc);
 
 	return 0;
 }
 
-void vc4_hvs_stop_channel(struct drm_device *dev, unsigned int chan)
+void vc4_hvs_stop_channel(struct vc4_hvs *hvs, unsigned int chan)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
 	if (HVS_READ(SCALER_DISPCTRLX(chan)) & SCALER_DISPCTRLX_ENABLE)
 		return;
 
@@ -359,10 +380,20 @@ int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	return 0;
 }
 
-static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
+static void vc4_hvs_install_dlist(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_hvs *hvs = vc4->hvs;
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+
+	HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
+		  vc4_state->mm.start);
+}
+
+static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	unsigned long flags;
@@ -379,13 +410,7 @@ static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
 			crtc->state->event = NULL;
 		}
 
-		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
-			  vc4_state->mm.start);
-
 		spin_unlock_irqrestore(&dev->event_lock, flags);
-	} else {
-		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
-			  vc4_state->mm.start);
 	}
 
 	spin_lock_irqsave(&vc4_crtc->irq_lock, flags);
@@ -414,19 +439,21 @@ void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	bool oneshot = vc4_crtc->feeds_txp;
 
+	vc4_hvs_install_dlist(crtc);
 	vc4_hvs_update_dlist(crtc);
-	vc4_hvs_init_channel(vc4, crtc, mode, oneshot);
+	vc4_hvs_init_channel(vc4->hvs, crtc, mode, oneshot);
 }
 
 void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
 			    struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(old_state);
 	unsigned int chan = vc4_state->assigned_channel;
 
-	vc4_hvs_stop_channel(dev, chan);
+	vc4_hvs_stop_channel(vc4->hvs, chan);
 }
 
 void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
@@ -436,7 +463,10 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 									 crtc);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_hvs *hvs = vc4->hvs;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	unsigned int channel = vc4_state->assigned_channel;
 	struct drm_plane *plane;
 	struct vc4_plane_state *vc4_plane_state;
 	bool debug_dump_regs = false;
@@ -446,7 +476,7 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
-		vc4_hvs_dump_state(dev);
+		vc4_hvs_dump_state(hvs);
 	}
 
 	/* Copy all the active planes' dlist contents to the hardware dlist. */
@@ -477,8 +507,8 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 		/* This sets a black background color fill, as is the case
 		 * with other DRM drivers.
 		 */
-		HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel),
-			  HVS_READ(SCALER_DISPBKGNDX(vc4_state->assigned_channel)) |
+		HVS_WRITE(SCALER_DISPBKGNDX(channel),
+			  HVS_READ(SCALER_DISPBKGNDX(channel)) |
 			  SCALER_DISPBKGND_FILL);
 
 	/* Only update DISPLIST if the CRTC was already running and is not
@@ -488,14 +518,16 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 	 * If the CRTC is being disabled, there's no point in updating this
 	 * information.
 	 */
-	if (crtc->state->active && old_state->active)
+	if (crtc->state->active && old_state->active) {
+		vc4_hvs_install_dlist(crtc);
 		vc4_hvs_update_dlist(crtc);
+	}
 
 	if (crtc->state->color_mgmt_changed) {
-		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(vc4_state->assigned_channel));
+		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(channel));
 
 		if (crtc->state->gamma_lut) {
-			vc4_hvs_update_gamma_lut(crtc);
+			vc4_hvs_update_gamma_lut(hvs, vc4_crtc);
 			dispbkgndx |= SCALER_DISPBKGND_GAMMA;
 		} else {
 			/* Unsetting DISPBKGND_GAMMA skips the gamma lut step
@@ -504,18 +536,17 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 			 */
 			dispbkgndx &= ~SCALER_DISPBKGND_GAMMA;
 		}
-		HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel), dispbkgndx);
+		HVS_WRITE(SCALER_DISPBKGNDX(channel), dispbkgndx);
 	}
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
-		vc4_hvs_dump_state(dev);
+		vc4_hvs_dump_state(hvs);
 	}
 }
 
-void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
+void vc4_hvs_mask_underrun(struct vc4_hvs *hvs, int channel)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl &= ~SCALER_DISPCTRL_DSPEISLUR(channel);
@@ -523,9 +554,8 @@ void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
 }
 
-void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
+void vc4_hvs_unmask_underrun(struct vc4_hvs *hvs, int channel)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl |= SCALER_DISPCTRL_DSPEISLUR(channel);
@@ -547,6 +577,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 {
 	struct drm_device *dev = data;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_hvs *hvs = vc4->hvs;
 	irqreturn_t irqret = IRQ_NONE;
 	int channel;
 	u32 control;
@@ -559,7 +590,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 		/* Interrupt masking is not always honored, so check it here. */
 		if (status & SCALER_DISPSTAT_EUFLOW(channel) &&
 		    control & SCALER_DISPCTRL_DSPEISLUR(channel)) {
-			vc4_hvs_mask_underrun(dev, channel);
+			vc4_hvs_mask_underrun(hvs, channel);
 			vc4_hvs_report_underrun(dev);
 
 			irqret = IRQ_HANDLED;
@@ -582,15 +613,14 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_hvs *hvs = NULL;
 	int ret;
 	u32 dispctrl;
+	u32 reg;
 
 	hvs = devm_kzalloc(&pdev->dev, sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
 		return -ENOMEM;
 
+	hvs->vc4 = vc4;
 	hvs->pdev = pdev;
-
-	if (of_device_is_compatible(pdev->dev.of_node, "brcm,bcm2711-hvs"))
-		hvs->hvs5 = true;
 
 	hvs->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(hvs->regs))
@@ -600,7 +630,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	hvs->regset.regs = hvs_regs;
 	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
 
-	if (hvs->hvs5) {
+	if (vc4->is_vc5) {
 		hvs->core_clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(hvs->core_clk)) {
 			dev_err(&pdev->dev, "Couldn't get core clock\n");
@@ -614,7 +644,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
-	if (!hvs->hvs5)
+	if (!vc4->is_vc5)
 		hvs->dlist = hvs->regs + SCALER_DLIST_START;
 	else
 		hvs->dlist = hvs->regs + SCALER5_DLIST_START;
@@ -635,7 +665,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	 * between planes when they don't overlap on the screen, but
 	 * for now we just allocate globally.
 	 */
-	if (!hvs->hvs5)
+	if (!vc4->is_vc5)
 		/* 48k words of 2x12-bit pixels */
 		drm_mm_init(&hvs->lbm_mm, 0, 48 * 1024);
 	else
@@ -653,6 +683,26 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	vc4->hvs = hvs;
 
+	reg = HVS_READ(SCALER_DISPECTRL);
+	reg &= ~SCALER_DISPECTRL_DSP2_MUX_MASK;
+	HVS_WRITE(SCALER_DISPECTRL,
+		  reg | VC4_SET_FIELD(0, SCALER_DISPECTRL_DSP2_MUX));
+
+	reg = HVS_READ(SCALER_DISPCTRL);
+	reg &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+	HVS_WRITE(SCALER_DISPCTRL,
+		  reg | VC4_SET_FIELD(3, SCALER_DISPCTRL_DSP3_MUX));
+
+	reg = HVS_READ(SCALER_DISPEOLN);
+	reg &= ~SCALER_DISPEOLN_DSP4_MUX_MASK;
+	HVS_WRITE(SCALER_DISPEOLN,
+		  reg | VC4_SET_FIELD(3, SCALER_DISPEOLN_DSP4_MUX));
+
+	reg = HVS_READ(SCALER_DISPDITHER);
+	reg &= ~SCALER_DISPDITHER_DSP5_MUX_MASK;
+	HVS_WRITE(SCALER_DISPDITHER,
+		  reg | VC4_SET_FIELD(3, SCALER_DISPDITHER_DSP5_MUX));
+
 	dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl |= SCALER_DISPCTRL_ENABLE;
@@ -660,10 +710,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		    SCALER_DISPCTRL_DISPEIRQ(1) |
 		    SCALER_DISPCTRL_DISPEIRQ(2);
 
-	/* Set DSP3 (PV1) to use HVS channel 2, which would otherwise
-	 * be unused.
-	 */
-	dispctrl &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
 	dispctrl &= ~(SCALER_DISPCTRL_DMAEIRQ |
 		      SCALER_DISPCTRL_SLVWREIRQ |
 		      SCALER_DISPCTRL_SLVRDEIRQ |
@@ -677,7 +723,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		      SCALER_DISPCTRL_DSPEISLUR(1) |
 		      SCALER_DISPCTRL_DSPEISLUR(2) |
 		      SCALER_DISPCTRL_SCLEIRQ);
-	dispctrl |= VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
 
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
 

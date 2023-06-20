@@ -72,11 +72,17 @@ static int a800_probe(struct usb_interface *intf,
 }
 
 /* do not change the order of the ID table */
-static struct usb_device_id a800_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_AVERMEDIA,     USB_PID_AVERMEDIA_DVBT_USB2_COLD) },
-/* 01 */	{ USB_DEVICE(USB_VID_AVERMEDIA,     USB_PID_AVERMEDIA_DVBT_USB2_WARM) },
-			{ }		/* Terminating entry */
+enum {
+	AVERMEDIA_DVBT_USB2_COLD,
+	AVERMEDIA_DVBT_USB2_WARM,
 };
+
+static struct usb_device_id a800_table[] = {
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_DVBT_USB2_COLD),
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_DVBT_USB2_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE (usb, a800_table);
 
 static struct dvb_usb_device_properties a800_properties = {
@@ -132,8 +138,8 @@ static struct dvb_usb_device_properties a800_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "AVerMedia AverTV DVB-T USB 2.0 (A800)",
-			{ &a800_table[0], NULL },
-			{ &a800_table[1], NULL },
+			{ &a800_table[AVERMEDIA_DVBT_USB2_COLD], NULL },
+			{ &a800_table[AVERMEDIA_DVBT_USB2_WARM], NULL },
 		},
 	}
 };

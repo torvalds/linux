@@ -3,7 +3,7 @@
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
  *
- * Copyright (C) 2000 - 2021, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -163,6 +163,7 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 	return_ACPI_STATUS(status);
 }
 
+#ifdef _OBSOLETE_CODE		/* Was originally used for Load() operator */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_opcode_1A_1T_0R
@@ -187,10 +188,12 @@ acpi_status acpi_ex_opcode_1A_1T_0R(struct acpi_walk_state *walk_state)
 	/* Examine the AML opcode */
 
 	switch (walk_state->opcode) {
+#ifdef _OBSOLETE_CODE
 	case AML_LOAD_OP:
 
 		status = acpi_ex_load_op(operand[0], operand[1], walk_state);
 		break;
+#endif
 
 	default:		/* Unknown opcode */
 
@@ -204,6 +207,7 @@ cleanup:
 
 	return_ACPI_STATUS(status);
 }
+#endif
 
 /*******************************************************************************
  *
@@ -215,6 +219,8 @@ cleanup:
  *
  * DESCRIPTION: Execute opcode with one argument, one target, and a
  *              return value.
+ *              January 2022: Added Load operator, with new ACPI 6.4
+ *              semantics.
  *
  ******************************************************************************/
 
@@ -239,6 +245,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 	case AML_FIND_SET_LEFT_BIT_OP:
 	case AML_FIND_SET_RIGHT_BIT_OP:
 	case AML_FROM_BCD_OP:
+	case AML_LOAD_OP:
 	case AML_TO_BCD_OP:
 	case AML_CONDITIONAL_REF_OF_OP:
 
@@ -335,6 +342,20 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 				/* Next power of 10 */
 
 				power_of_ten *= 10;
+			}
+			break;
+
+		case AML_LOAD_OP:	/* Result1 = Load (Operand[0], Result1) */
+
+			return_desc->integer.value = 0;
+			status =
+			    acpi_ex_load_op(operand[0], return_desc,
+					    walk_state);
+			if (ACPI_SUCCESS(status)) {
+
+				/* Return -1 (non-zero) indicates success */
+
+				return_desc->integer.value = 0xFFFFFFFFFFFFFFFF;
 			}
 			break;
 

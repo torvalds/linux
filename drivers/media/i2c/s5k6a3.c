@@ -213,7 +213,7 @@ static int __s5k6a3_power_on(struct s5k6a3 *sensor)
 	for (i++; i < S5K6A3_NUM_SUPPLIES; i++) {
 		ret = regulator_enable(sensor->supplies[i].consumer);
 		if (ret < 0)
-			goto error_reg_dis;
+			goto error_clk;
 	}
 
 	gpio_set_value(sensor->gpio_reset, 1);
@@ -226,6 +226,8 @@ static int __s5k6a3_power_on(struct s5k6a3 *sensor)
 	msleep(20);
 	return 0;
 
+error_clk:
+	clk_disable_unprepare(sensor->clock);
 error_reg_dis:
 	for (--i; i >= 0; --i)
 		regulator_disable(sensor->supplies[i].consumer);

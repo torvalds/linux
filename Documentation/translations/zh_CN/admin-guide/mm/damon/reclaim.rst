@@ -53,8 +53,8 @@ DAMON_RECLAIM找到在特定时间内没有被访问的内存区域并分页。�
 
 下面是每个参数的描述。
 
-enable
-------
+enabled
+-------
 
 启用或禁用DAMON_RECLAIM。
 

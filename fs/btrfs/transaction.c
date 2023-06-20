@@ -221,7 +221,7 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 	 * the caching thread will re-start it's search from 3, and thus find
 	 * the hole from [4,6) to add to the free space cache.
 	 */
-	spin_lock(&fs_info->block_group_cache_lock);
+	write_lock(&fs_info->block_group_cache_lock);
 	list_for_each_entry_safe(caching_ctl, next,
 				 &fs_info->caching_block_groups, list) {
 		struct btrfs_block_group *cache = caching_ctl->block_group;
@@ -234,7 +234,7 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 			cache->last_byte_to_unpin = caching_ctl->progress;
 		}
 	}
-	spin_unlock(&fs_info->block_group_cache_lock);
+	write_unlock(&fs_info->block_group_cache_lock);
 	up_write(&fs_info->commit_root_sem);
 }
 

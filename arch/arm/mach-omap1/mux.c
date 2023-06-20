@@ -12,10 +12,10 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/soc/ti/omap1-io.h>
 
-#include <mach/hardware.h>
-
-#include <mach/mux.h>
+#include "hardware.h"
+#include "mux.h"
 
 #ifdef CONFIG_OMAP_MUX
 

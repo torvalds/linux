@@ -419,7 +419,8 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
-static int tcf_police_act_to_flow_act(int tc_act, u32 *extval)
+static int tcf_police_act_to_flow_act(int tc_act, u32 *extval,
+				      struct netlink_ext_ack *extack)
 {
 	int act_id = -EOPNOTSUPP;
 
@@ -430,19 +431,28 @@ static int tcf_police_act_to_flow_act(int tc_act, u32 *extval)
 			act_id = FLOW_ACTION_DROP;
 		else if (tc_act == TC_ACT_PIPE)
 			act_id = FLOW_ACTION_PIPE;
+		else if (tc_act == TC_ACT_RECLASSIFY)
+			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when conform/exceed action is \"reclassify\"");
+		else
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported conform/exceed action offload");
 	} else if (TC_ACT_EXT_CMP(tc_act, TC_ACT_GOTO_CHAIN)) {
 		act_id = FLOW_ACTION_GOTO;
 		*extval = tc_act & TC_ACT_EXT_VAL_MASK;
 	} else if (TC_ACT_EXT_CMP(tc_act, TC_ACT_JUMP)) {
 		act_id = FLOW_ACTION_JUMP;
 		*extval = tc_act & TC_ACT_EXT_VAL_MASK;
+	} else if (tc_act == TC_ACT_UNSPEC) {
+		act_id = FLOW_ACTION_CONTINUE;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported conform/exceed action offload");
 	}
 
 	return act_id;
 }
 
 static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
-					u32 *index_inc, bool bind)
+					u32 *index_inc, bool bind,
+					struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
@@ -466,14 +476,16 @@ static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
 		entry->police.mtu = tcf_police_tcfp_mtu(act);
 
 		act_id = tcf_police_act_to_flow_act(police->tcf_action,
-						    &entry->police.exceed.extval);
+						    &entry->police.exceed.extval,
+						    extack);
 		if (act_id < 0)
 			return act_id;
 
 		entry->police.exceed.act_id = act_id;
 
 		act_id = tcf_police_act_to_flow_act(p->tcfp_result,
-						    &entry->police.notexceed.extval);
+						    &entry->police.notexceed.extval,
+						    extack);
 		if (act_id < 0)
 			return act_id;
 

@@ -2,7 +2,7 @@
 config FB_OMAP
 	tristate "OMAP frame buffer support"
 	depends on FB
-	depends on ARCH_OMAP1
+	depends on ARCH_OMAP1 || (ARM && COMPILE_TEST)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -42,7 +42,7 @@ config FB_OMAP_LCD_MIPID
 
 config FB_OMAP_LCD_H3
 	bool "TPS65010 LCD controller on OMAP-H3"
-	depends on MACH_OMAP_H3
+	depends on MACH_OMAP_H3 || COMPILE_TEST
 	depends on TPS65010=y
 	default y
 	help

@@ -142,7 +142,7 @@ book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea, pte_t pte)
 	tsize = shift - 10;
 	/*
 	 * We can't be interrupted while we're setting up the MAS
-	 * regusters or after we've confirmed that no tlb exists.
+	 * registers or after we've confirmed that no tlb exists.
 	 */
 	local_irq_save(flags);
 

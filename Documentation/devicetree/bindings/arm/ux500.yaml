@@ -40,6 +40,11 @@ properties:
           - const: samsung,codina
           - const: st-ericsson,u8500
 
+      - description: Samsung Galaxy Exhibit (SGH-T599)
+        items:
+          - const: samsung,codina-tmo
+          - const: st-ericsson,u8500
+
       - description: Samsung Galaxy Beam (GT-I8530)
         items:
           - const: samsung,gavini

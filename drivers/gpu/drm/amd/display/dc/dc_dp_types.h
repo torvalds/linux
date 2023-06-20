@@ -133,6 +133,16 @@ enum dp_link_encoding {
 	DP_128b_132b_ENCODING = 2,
 };
 
+enum dp_test_link_rate {
+	DP_TEST_LINK_RATE_RBR		= 0x06,
+	DP_TEST_LINK_RATE_HBR		= 0x0A,
+	DP_TEST_LINK_RATE_HBR2		= 0x14,
+	DP_TEST_LINK_RATE_HBR3		= 0x1E,
+	DP_TEST_LINK_RATE_UHBR10	= 0x01,
+	DP_TEST_LINK_RATE_UHBR20	= 0x02,
+	DP_TEST_LINK_RATE_UHBR13_5	= 0x03,
+};
+
 struct dc_link_settings {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
@@ -620,7 +630,7 @@ union test_request {
 	uint8_t LINK_TEST_PATTRN             :1;
 	uint8_t EDID_READ                    :1;
 	uint8_t PHY_TEST_PATTERN             :1;
-	uint8_t RESERVED                     :1;
+	uint8_t PHY_TEST_CHANNEL_CODING_TYPE :2;
 	uint8_t AUDIO_TEST_PATTERN           :1;
 	uint8_t TEST_AUDIO_DISABLED_VIDEO    :1;
 	} bits;
@@ -993,8 +1003,8 @@ union dp_128b_132b_supported_link_rates {
 union dp_128b_132b_supported_lttpr_link_rates {
 	struct {
 		uint8_t UHBR10	:1;
-		uint8_t UHBR13_5:1;
 		uint8_t UHBR20	:1;
+		uint8_t UHBR13_5:1;
 		uint8_t RESERVED:5;
 	} bits;
 	uint8_t raw;

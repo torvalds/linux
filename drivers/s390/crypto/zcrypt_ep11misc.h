@@ -50,7 +50,7 @@ struct ep11keyblob {
 /* check ep11 key magic to find out if this is an ep11 key blob */
 static inline bool is_ep11_keyblob(const u8 *key)
 {
-	struct ep11keyblob *kb = (struct ep11keyblob *) key;
+	struct ep11keyblob *kb = (struct ep11keyblob *)key;
 
 	return (kb->version == EP11_STRUCT_MAGIC);
 }

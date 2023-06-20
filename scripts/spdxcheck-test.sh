@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # run check on a text and a binary file
-for FILE in Makefile Documentation/logo.gif; do
+for FILE in Makefile Documentation/images/logo.gif; do
 	python3 scripts/spdxcheck.py $FILE
 	python3 scripts/spdxcheck.py - < $FILE
 done

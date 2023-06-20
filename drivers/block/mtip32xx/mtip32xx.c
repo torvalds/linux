@@ -2729,7 +2729,7 @@ static int mtip_dma_alloc(struct driver_data *dd)
 {
 	struct mtip_port *port = dd->port;
 
-	/* Allocate dma memory for RX Fis, Identify, and Sector Bufffer */
+	/* Allocate dma memory for RX Fis, Identify, and Sector Buffer */
 	port->block1 =
 		dma_alloc_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
 					&port->block1_dma, GFP_KERNEL);

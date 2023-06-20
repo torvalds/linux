@@ -36,7 +36,7 @@ do
 	then
 		egrep "error:|warning:|^ld: .*undefined reference to" < $i > $i.diags
 		files="$files $i.diags $i"
-	elif ! test -f ${scenariobasedir}/vmlinux
+	elif ! test -f ${scenariobasedir}/vmlinux && ! test -f "${rundir}/re-run"
 	then
 		echo No ${scenariobasedir}/vmlinux file > $i.diags
 		files="$files $i.diags $i"

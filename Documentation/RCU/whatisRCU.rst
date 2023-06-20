@@ -224,7 +224,7 @@ synchronize_rcu()
 	be delayed.  This property results in system resilience in face
 	of denial-of-service attacks.  Code using call_rcu() should limit
 	update rate in order to gain this same sort of resilience.  See
-	checklist.txt for some approaches to limiting the update rate.
+	checklist.rst for some approaches to limiting the update rate.
 
 rcu_assign_pointer()
 ^^^^^^^^^^^^^^^^^^^^
@@ -318,7 +318,7 @@ rcu_dereference()
 	must prohibit.	The rcu_dereference_protected() variant takes
 	a lockdep expression to indicate which locks must be acquired
 	by the caller. If the indicated protection is not provided,
-	a lockdep splat is emitted.  See Documentation/RCU/Design/Requirements/Requirements.rst
+	a lockdep splat is emitted.  See Design/Requirements/Requirements.rst
 	and the API's code comments for more details and example usage.
 
 .. 	[2] If the list_for_each_entry_rcu() instance might be used by
@@ -399,8 +399,7 @@ for specialized uses, but are relatively uncommon.
 
 This section shows a simple use of the core RCU API to protect a
 global pointer to a dynamically allocated structure.  More-typical
-uses of RCU may be found in :ref:`listRCU.rst <list_rcu_doc>`,
-:ref:`arrayRCU.rst <array_rcu_doc>`, and :ref:`NMI-RCU.rst <NMI_rcu_doc>`.
+uses of RCU may be found in listRCU.rst, arrayRCU.rst, and NMI-RCU.rst.
 ::
 
 	struct foo {
@@ -482,10 +481,9 @@ So, to sum up:
 	RCU read-side critical sections that might be referencing that
 	data item.
 
-See checklist.txt for additional rules to follow when using RCU.
-And again, more-typical uses of RCU may be found in :ref:`listRCU.rst
-<list_rcu_doc>`, :ref:`arrayRCU.rst <array_rcu_doc>`, and :ref:`NMI-RCU.rst
-<NMI_rcu_doc>`.
+See checklist.rst for additional rules to follow when using RCU.
+And again, more-typical uses of RCU may be found in listRCU.rst,
+arrayRCU.rst, and NMI-RCU.rst.
 
 .. _4_whatisRCU:
 
@@ -579,7 +577,7 @@ to avoid having to write your own callback::
 
 	kfree_rcu(old_fp, rcu);
 
-Again, see checklist.txt for additional rules governing the use of RCU.
+Again, see checklist.rst for additional rules governing the use of RCU.
 
 .. _5_whatisRCU:
 
@@ -663,7 +661,7 @@ been able to write-acquire the lock otherwise.  The smp_mb__after_spinlock()
 promotes synchronize_rcu() to a full memory barrier in compliance with
 the "Memory-Barrier Guarantees" listed in:
 
-	Documentation/RCU/Design/Requirements/Requirements.rst
+	Design/Requirements/Requirements.rst
 
 It is possible to nest rcu_read_lock(), since reader-writer locks may
 be recursively acquired.  Note also that rcu_read_lock() is immune

@@ -1,0 +1,304 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) Protonic Holland
+ * Author: David Jander <david@protonic.nl>
+ */
+/dts-v1/;
+
+#include "stm32mp151a-prtt1l.dtsi"
+
+/ {
+	model = "Protonic PRTT1C";
+	compatible = "prt,prtt1c", "st,stm32mp151";
+
+	clock_ksz9031: clock-ksz9031 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	clock_sja1105: clock-sja1105 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	mdio0: mdio {
+		compatible = "virtual,mdio-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpios = <&gpioc 1 GPIO_ACTIVE_HIGH
+			 &gpioa 2 GPIO_ACTIVE_HIGH>;
+
+	};
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpiod 8 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&ethernet0 {
+	fixed-link {
+		speed = <100>;
+		full-duplex;
+	};
+};
+
+&gpioa {
+	gpio-line-names =
+		"", "", "", "PHY0_nRESET", "PHY0_nINT", "", "", "",
+		"", "", "", "", "", "", "", "SPI1_nSS";
+};
+
+&gpiod {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"WFM_RESET", "", "", "", "", "", "", "";
+};
+
+&gpioe {
+	gpio-line-names =
+		"SDMMC2_nRESET", "", "", "", "", "", "SPI1_nRESET", "",
+		"", "", "", "", "WFM_nIRQ", "", "", "";
+};
+
+&gpiog {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "PHY3_nINT",
+		"PHY1_nINT", "PHY3_nRESET", "PHY2_nINT", "PHY2_nRESET",
+		"PHY1_nRESET", "SPE1_PWR", "SPE0_PWR", "";
+};
+
+&mdio0 {
+	/* All this DP83TD510E PHYs can't be probed before switch@0 is
+	 * probed so we need to use compatible with PHYid
+	 */
+	/* TI DP83TD510E */
+	t1l0_phy: ethernet-phy@6 {
+		compatible = "ethernet-phy-id2000.0181";
+		reg = <6>;
+		interrupts-extended = <&gpioa 4 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+
+	/* TI DP83TD510E */
+	t1l1_phy: ethernet-phy@7 {
+		compatible = "ethernet-phy-id2000.0181";
+		reg = <7>;
+		interrupts-extended = <&gpiog 8 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpiog 12 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+
+	/* TI DP83TD510E */
+	t1l2_phy: ethernet-phy@10 {
+		compatible = "ethernet-phy-id2000.0181";
+		reg = <10>;
+		interrupts-extended = <&gpiog 10 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpiog 11 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+
+	/* Micrel KSZ9031 */
+	rj45_phy: ethernet-phy@2 {
+		reg = <2>;
+		interrupts-extended = <&gpiog 7 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <1000>;
+
+		clocks = <&clock_ksz9031>;
+	};
+};
+
+&qspi {
+	status = "disabled";
+};
+
+&sdmmc2 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_a>;
+	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_d47_pins_a>;
+	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_a>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	no-1-8-v;
+	st,neg-edge;
+	bus-width = <8>;
+	vmmc-supply = <&reg_3v3>;
+	vqmmc-supply = <&reg_3v3>;
+	status = "okay";
+};
+
+&sdmmc2_b4_od_pins_a {
+	pins1 {
+		pinmux = <STM32_PINMUX('B', 14, AF9)>, /* SDMMC2_D0 */
+			 <STM32_PINMUX('B', 7, AF10)>, /* SDMMC2_D1 */
+			 <STM32_PINMUX('B', 3, AF9)>, /* SDMMC2_D2 */
+			 <STM32_PINMUX('B', 4, AF9)>; /* SDMMC2_D3 */
+	};
+};
+
+&sdmmc2_b4_pins_a {
+	pins1 {
+		pinmux = <STM32_PINMUX('B', 14, AF9)>, /* SDMMC2_D0 */
+			 <STM32_PINMUX('B', 7, AF10)>, /* SDMMC2_D1 */
+			 <STM32_PINMUX('B', 3, AF9)>, /* SDMMC2_D2 */
+			 <STM32_PINMUX('B', 4, AF9)>, /* SDMMC2_D3 */
+			 <STM32_PINMUX('G', 6, AF10)>; /* SDMMC2_CMD */
+	};
+};
+
+&sdmmc2_b4_sleep_pins_a {
+	pins {
+		pinmux = <STM32_PINMUX('B', 14, ANALOG)>, /* SDMMC2_D0 */
+			 <STM32_PINMUX('B', 7, ANALOG)>, /* SDMMC2_D1 */
+			 <STM32_PINMUX('B', 3, ANALOG)>, /* SDMMC2_D2 */
+			 <STM32_PINMUX('B', 4, ANALOG)>, /* SDMMC2_D3 */
+			 <STM32_PINMUX('E', 3, ANALOG)>, /* SDMMC2_CK */
+			 <STM32_PINMUX('G', 6, ANALOG)>; /* SDMMC2_CMD */
+	};
+};
+
+&sdmmc2_d47_pins_a {
+	pins {
+		pinmux = <STM32_PINMUX('A', 8, AF9)>, /* SDMMC2_D4 */
+			 <STM32_PINMUX('A', 9, AF10)>, /* SDMMC2_D5 */
+			 <STM32_PINMUX('C', 6, AF10)>, /* SDMMC2_D6 */
+			 <STM32_PINMUX('C', 7, AF10)>; /* SDMMC2_D7 */
+	};
+};
+
+&sdmmc2_d47_sleep_pins_a {
+	pins {
+		pinmux = <STM32_PINMUX('A', 8, ANALOG)>, /* SDMMC2_D4 */
+			 <STM32_PINMUX('A', 9, ANALOG)>, /* SDMMC2_D5 */
+			 <STM32_PINMUX('C', 6, ANALOG)>, /* SDMMC2_D6 */
+			 <STM32_PINMUX('D', 3, ANALOG)>; /* SDMMC2_D7 */
+	};
+};
+
+&sdmmc3 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc3_b4_pins_b>;
+	pinctrl-1 = <&sdmmc3_b4_od_pins_b>;
+	pinctrl-2 = <&sdmmc3_b4_sleep_pins_b>;
+	non-removable;
+	no-1-8-v;
+	st,neg-edge;
+	bus-width = <4>;
+	vmmc-supply = <&reg_3v3>;
+	vqmmc-supply = <&reg_3v3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	mmc@1 {
+		compatible = "prt,prtt1c-wfm200", "silabs,wf200";
+		reg = <1>;
+	};
+};
+
+&sdmmc3_b4_od_pins_b {
+	pins1 {
+		pinmux = <STM32_PINMUX('D', 1, AF10)>, /* SDMMC3_D0 */
+			 <STM32_PINMUX('D', 4, AF10)>, /* SDMMC3_D1 */
+			 <STM32_PINMUX('D', 5, AF10)>, /* SDMMC3_D2 */
+			 <STM32_PINMUX('D', 7, AF10)>; /* SDMMC3_D3 */
+	};
+};
+
+&sdmmc3_b4_pins_b {
+	pins1 {
+		pinmux = <STM32_PINMUX('D', 1, AF10)>, /* SDMMC3_D0 */
+			 <STM32_PINMUX('D', 4, AF10)>, /* SDMMC3_D1 */
+			 <STM32_PINMUX('D', 5, AF10)>, /* SDMMC3_D2 */
+			 <STM32_PINMUX('D', 7, AF10)>, /* SDMMC3_D3 */
+			 <STM32_PINMUX('D', 0, AF10)>; /* SDMMC3_CMD */
+	};
+};
+
+&sdmmc3_b4_sleep_pins_b {
+	pins {
+		pinmux = <STM32_PINMUX('D', 1, ANALOG)>, /* SDMMC3_D0 */
+			 <STM32_PINMUX('D', 4, ANALOG)>, /* SDMMC3_D1 */
+			 <STM32_PINMUX('D', 5, ANALOG)>, /* SDMMC3_D2 */
+			 <STM32_PINMUX('D', 7, ANALOG)>, /* SDMMC3_D3 */
+			 <STM32_PINMUX('G', 15, ANALOG)>, /* SDMMC3_CK */
+			 <STM32_PINMUX('D', 0, ANALOG)>; /* SDMMC3_CMD */
+	};
+};
+
+&spi1 {
+	pinctrl-0 = <&spi1_pins_b>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
+
+	switch@0 {
+		compatible = "nxp,sja1105q";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		spi-rx-delay-us = <1>;
+		spi-tx-delay-us = <1>;
+		spi-cpha;
+
+		reset-gpios = <&gpioe 6 GPIO_ACTIVE_LOW>;
+
+		clocks = <&clock_sja1105>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "t1l0";
+				phy-mode = "rmii";
+				phy-handle = <&t1l0_phy>;
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "t1l1";
+				phy-mode = "rmii";
+				phy-handle = <&t1l1_phy>;
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "t1l2";
+				phy-mode = "rmii";
+				phy-handle = <&t1l2_phy>;
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "rj45";
+				phy-handle = <&rj45_phy>;
+				phy-mode = "rgmii-id";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "cpu";
+				ethernet = <&ethernet0>;
+				phy-mode = "rmii";
+
+				fixed-link {
+					speed = <100>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};

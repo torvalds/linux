@@ -9,6 +9,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include <misc/cxl-base.h>
 #include <asm/opal-api.h>
 

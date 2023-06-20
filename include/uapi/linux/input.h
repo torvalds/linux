@@ -78,10 +78,13 @@ struct input_id {
  * Note that input core does not clamp reported values to the
  * [minimum, maximum] limits, such task is left to userspace.
  *
- * The default resolution for main axes (ABS_X, ABS_Y, ABS_Z)
- * is reported in units per millimeter (units/mm), resolution
- * for rotational axes (ABS_RX, ABS_RY, ABS_RZ) is reported
- * in units per radian.
+ * The default resolution for main axes (ABS_X, ABS_Y, ABS_Z,
+ * ABS_MT_POSITION_X, ABS_MT_POSITION_Y) is reported in units
+ * per millimeter (units/mm), resolution for rotational axes
+ * (ABS_RX, ABS_RY, ABS_RZ) is reported in units per radian.
+ * The resolution for the size axes (ABS_MT_TOUCH_MAJOR,
+ * ABS_MT_TOUCH_MINOR, ABS_MT_WIDTH_MAJOR, ABS_MT_WIDTH_MINOR)
+ * is reported in units per millimeter (units/mm).
  * When INPUT_PROP_ACCELEROMETER is set the resolution changes.
  * The main axes (ABS_X, ABS_Y, ABS_Z) are then reported in
  * units per g (units/g) and in units per degree per second
@@ -271,6 +274,7 @@ struct input_mask {
 #define BUS_RMI			0x1D
 #define BUS_CEC			0x1E
 #define BUS_INTEL_ISHTP		0x1F
+#define BUS_AMD_SFH		0x20
 
 /*
  * MT_TOOL types

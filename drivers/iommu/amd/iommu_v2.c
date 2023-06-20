@@ -956,6 +956,7 @@ static void __exit amd_iommu_v2_exit(void)
 {
 	struct device_state *dev_state, *next;
 	unsigned long flags;
+	LIST_HEAD(freelist);
 
 	if (!amd_iommu_v2_supported())
 		return;
@@ -975,10 +976,19 @@ static void __exit amd_iommu_v2_exit(void)
 
 		put_device_state(dev_state);
 		list_del(&dev_state->list);
-		free_device_state(dev_state);
+		list_add_tail(&dev_state->list, &freelist);
 	}
 
 	spin_unlock_irqrestore(&state_lock, flags);
+
+	/*
+	 * Since free_device_state waits on the count to be zero,
+	 * we need to free dev_state outside the spinlock.
+	 */
+	list_for_each_entry_safe(dev_state, next, &freelist, list) {
+		list_del(&dev_state->list);
+		free_device_state(dev_state);
+	}
 
 	destroy_workqueue(iommu_wq);
 }

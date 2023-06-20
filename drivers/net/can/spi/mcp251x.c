@@ -22,7 +22,6 @@
 #include <linux/bitfield.h>
 #include <linux/can/core.h>
 #include <linux/can/dev.h>
-#include <linux/can/led.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -738,8 +737,6 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 	}
 	priv->net->stats.rx_packets++;
 
-	can_led_event(priv->net, CAN_LED_EVENT_RX);
-
 	netif_rx(skb);
 }
 
@@ -973,8 +970,6 @@ static int mcp251x_stop(struct net_device *net)
 
 	mutex_unlock(&priv->mcp_lock);
 
-	can_led_event(net, CAN_LED_EVENT_STOP);
-
 	return 0;
 }
 
@@ -1177,7 +1172,6 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 			break;
 
 		if (intf & CANINTF_TX) {
-			can_led_event(net, CAN_LED_EVENT_TX);
 			if (priv->tx_busy) {
 				net->stats.tx_packets++;
 				net->stats.tx_bytes += can_get_echo_skb(net, 0,
@@ -1231,8 +1225,6 @@ static int mcp251x_open(struct net_device *net)
 	ret = mcp251x_set_normal_mode(spi);
 	if (ret)
 		goto out_free_irq;
-
-	can_led_event(net, CAN_LED_EVENT_OPEN);
 
 	netif_wake_queue(net);
 	mutex_unlock(&priv->mcp_lock);
@@ -1402,8 +1394,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	ret = register_candev(net);
 	if (ret)
 		goto error_probe;
-
-	devm_can_led_init(net);
 
 	ret = mcp251x_gpio_setup(priv);
 	if (ret)
