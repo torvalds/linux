@@ -125,7 +125,7 @@ static void drm_bridge_connector_hpd_cb(void *cb_data,
 
 	drm_bridge_connector_hpd_notify(connector, status);
 
-	drm_kms_helper_hotplug_event(dev);
+	drm_kms_helper_connector_hotplug_event(connector);
 }
 
 static void drm_bridge_connector_enable_hpd(struct drm_connector *connector)
