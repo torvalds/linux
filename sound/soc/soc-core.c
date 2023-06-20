@@ -3402,26 +3402,6 @@ static int __snd_soc_of_get_dai_link_component_alloc(
 	return 0;
 }
 
-static int __snd_soc_of_get_dai_link_component_parse(
-	struct device_node *of_node,
-	struct snd_soc_dai_link_component *component, int index)
-{
-	struct of_phandle_args args;
-	int ret;
-
-	ret = of_parse_phandle_with_args(of_node, "sound-dai", "#sound-dai-cells",
-					 index, &args);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_get_dai_name(&args, &component->dai_name);
-	if (ret < 0)
-		return ret;
-
-	component->of_node = args.np;
-	return 0;
-}
-
 /*
  * snd_soc_of_put_dai_link_codecs - Dereference device nodes in the codecs array
  * @dai_link: DAI link
@@ -3466,7 +3446,7 @@ int snd_soc_of_get_dai_link_codecs(struct device *dev,
 
 	/* Parse the list */
 	for_each_link_codecs(dai_link, index, component) {
-		ret = __snd_soc_of_get_dai_link_component_parse(of_node, component, index);
+		ret = snd_soc_of_get_dlc(of_node, NULL, component, index);
 		if (ret)
 			goto err;
 	}
@@ -3521,7 +3501,7 @@ int snd_soc_of_get_dai_link_cpus(struct device *dev,
 
 	/* Parse the list */
 	for_each_link_cpus(dai_link, index, component) {
-		ret = __snd_soc_of_get_dai_link_component_parse(of_node, component, index);
+		ret = snd_soc_of_get_dlc(of_node, NULL, component, index);
 		if (ret)
 			goto err;
 	}
