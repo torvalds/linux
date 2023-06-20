@@ -61,7 +61,6 @@ struct bsr_dev {
 
 static unsigned total_bsr_devs;
 static LIST_HEAD(bsr_devs);
-static struct class *bsr_class;
 static int bsr_major;
 
 enum {
@@ -107,6 +106,11 @@ static struct attribute *bsr_dev_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(bsr_dev);
+
+static const struct class bsr_class = {
+	.name		= "bsr",
+	.dev_groups	= bsr_dev_groups,
+};
 
 static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -244,7 +248,7 @@ static int bsr_add_node(struct device_node *bn)
 			goto out_err;
 		}
 
-		cur->bsr_device = device_create(bsr_class, NULL, cur->bsr_dev,
+		cur->bsr_device = device_create(&bsr_class, NULL, cur->bsr_dev,
 						cur, "%s", cur->bsr_name);
 		if (IS_ERR(cur->bsr_device)) {
 			printk(KERN_ERR "device_create failed for %s\n",
@@ -293,13 +297,9 @@ static int __init bsr_init(void)
 	if (!np)
 		goto out_err;
 
-	bsr_class = class_create("bsr");
-	if (IS_ERR(bsr_class)) {
-		printk(KERN_ERR "class_create() failed for bsr_class\n");
-		ret = PTR_ERR(bsr_class);
+	ret = class_register(&bsr_class);
+	if (err)
 		goto out_err_1;
-	}
-	bsr_class->dev_groups = bsr_dev_groups;
 
 	ret = alloc_chrdev_region(&bsr_dev, 0, BSR_MAX_DEVS, "bsr");
 	bsr_major = MAJOR(bsr_dev);
@@ -320,7 +320,7 @@ static int __init bsr_init(void)
 	unregister_chrdev_region(bsr_dev, BSR_MAX_DEVS);
 
  out_err_2:
-	class_destroy(bsr_class);
+	class_unregister(&bsr_class);
 
  out_err_1:
 	of_node_put(np);
@@ -335,8 +335,7 @@ static void __exit  bsr_exit(void)
 
 	bsr_cleanup_devs();
 
-	if (bsr_class)
-		class_destroy(bsr_class);
+	class_unregister(&bsr_class);
 
 	if (bsr_major)
 		unregister_chrdev_region(MKDEV(bsr_major, 0), BSR_MAX_DEVS);
