@@ -27,7 +27,7 @@
 };
 
 &main_pmx0 {
-	main_m2_enable_pins_default: main-m2-enable-pins-default {
+	main_m2_enable_pins_default: main-m2-enable-default-pins {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x01c4, PIN_INPUT_PULLUP, 7)  /* (AH13) GPIO1_17 */
 		>;
@@ -39,7 +39,7 @@
 		>;
 	};
 
-	main_pmx0_m2_config_pins_default: main-pmx0-m2-config-pins-default {
+	main_pmx0_m2_config_pins_default: main-pmx0-m2-config-default-pins {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x01c8, PIN_INPUT_PULLUP, 7)  /* (AE13) GPIO1_18 */
 			AM65X_IOPAD(0x01cc, PIN_INPUT_PULLUP, 7)  /* (AD13) GPIO1_19 */
@@ -56,7 +56,7 @@
 };
 
 &main_pmx1 {
-	main_pmx1_m2_config_pins_default: main-pmx1-m2-config-pins-default {
+	main_pmx1_m2_config_pins_default: main-pmx1-m2-config-default-pins {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x0018, PIN_INPUT_PULLUP, 7)  /* (B22) GPIO1_88 */
 			AM65X_IOPAD(0x001c, PIN_INPUT_PULLUP, 7)  /* (C23) GPIO1_89 */
@@ -66,20 +66,18 @@
 
 &main_gpio0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&main_m2_pcie_mux_control
-		&arduino_io_d4_to_d9_pins_default
-	>;
+	pinctrl-0 =
+		<&main_m2_pcie_mux_control>,
+		<&arduino_io_d4_to_d9_pins_default>;
 };
 
 &main_gpio1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&main_m2_enable_pins_default
-		&main_pmx0_m2_config_pins_default
-		&main_pmx1_m2_config_pins_default
-		&cp2102n_reset_pin_default
-	>;
+	pinctrl-0 =
+		<&main_m2_enable_pins_default>,
+		<&main_pmx0_m2_config_pins_default>,
+		<&main_pmx1_m2_config_pins_default>,
+		<&cp2102n_reset_pin_default>;
 };
 
 /*

@@ -66,7 +66,7 @@
 };
 
 &main_pmx0 {
-	cpsw_mdio_pins_default: cpsw-mdio-pins-default {
+	cpsw_mdio_pins_default: cpsw-mdio-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x01f8, PIN_INPUT, 4)	/* (P5) PRG0_PRU1_GPO18.MDIO0_MDIO */
 			AM64X_IOPAD(0x01fc, PIN_OUTPUT, 4)	/* (R2) PRG0_PRU1_GPO19.MDIO0_MDC */
@@ -74,7 +74,7 @@
 		>;
 	};
 
-	cpsw_rgmii1_pins_default: cpsw-rgmii1-pins-default {
+	cpsw_rgmii1_pins_default: cpsw-rgmii1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0184, PIN_INPUT, 4)	/* (W6) PRG0_PRU0_GPO9.RGMII1_RX_CTL */
 			AM64X_IOPAD(0x0188, PIN_INPUT, 4)	/* (AA5) PRG0_PRU0_GPO10.RGMII1_RXC */
@@ -92,26 +92,26 @@
 		>;
 	};
 
-	eeprom_wp_pins_default: eeprom-wp-pins-default {
+	eeprom_wp_pins_default: eeprom-wp-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0208, PIN_OUTPUT, 7)	/* (D12) SPI0_CS0.GPIO1_42 */
 		>;
 	};
 
-	leds_pins_default: leds-pins-default {
+	leds_pins_default: leds-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0030, PIN_OUTPUT, 7)	/* (L18) OSPI0_CSn1.GPIO0_12 */
 		>;
 	};
 
-	main_i2c0_pins_default: main-i2c0-pins-default {
+	main_i2c0_pins_default: main-i2c0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0260, PIN_INPUT, 0)	/* (A18) I2C0_SCL */
 			AM64X_IOPAD(0x0264, PIN_INPUT, 0)	/* (B18) I2C0_SDA */
 		>;
 	};
 
-	ospi0_pins_default: ospi0-pins-default {
+	ospi0_pins_default: ospi0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0000, PIN_OUTPUT, 0)	/* (N20) OSPI0_CLK */
 			AM64X_IOPAD(0x0008, PIN_INPUT, 0)	/* (N19) OSPI0_DQS */
@@ -157,30 +157,6 @@
 };
 
 &cpsw_port2 {
-	status = "disabled";
-};
-
-&mailbox0_cluster2 {
-	status = "disabled";
-};
-
-&mailbox0_cluster3 {
-	status = "disabled";
-};
-
-&mailbox0_cluster4 {
-	status = "disabled";
-};
-
-&mailbox0_cluster5 {
-	status = "disabled";
-};
-
-&mailbox0_cluster6 {
-	status = "disabled";
-};
-
-&mailbox0_cluster7 {
 	status = "disabled";
 };
 
