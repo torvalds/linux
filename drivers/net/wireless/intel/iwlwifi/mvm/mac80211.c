@@ -2240,7 +2240,7 @@ int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm,
  * is enabled or not
  */
 bool iwl_mvm_set_fw_mu_edca_params(struct iwl_mvm *mvm,
-				   struct iwl_mvm_vif *mvmvif,
+				   const struct iwl_mvm_vif_link_info *link_info,
 				   struct iwl_he_backoff_conf *trig_based_txf)
 {
 	int i;
@@ -2248,11 +2248,11 @@ bool iwl_mvm_set_fw_mu_edca_params(struct iwl_mvm *mvm,
 	bool mu_edca_enabled = true;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		struct ieee80211_he_mu_edca_param_ac_rec *mu_edca =
-			&mvmvif->deflink.queue_params[i].mu_edca_param_rec;
+		const struct ieee80211_he_mu_edca_param_ac_rec *mu_edca =
+			&link_info->queue_params[i].mu_edca_param_rec;
 		u8 ac = iwl_mvm_mac80211_ac_to_ucode_ac(i);
 
-		if (!mvmvif->deflink.queue_params[i].mu_edca) {
+		if (!link_info->queue_params[i].mu_edca) {
 			mu_edca_enabled = false;
 			break;
 		}
@@ -2398,7 +2398,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	rcu_read_unlock();
 
-	if (iwl_mvm_set_fw_mu_edca_params(mvm, mvmvif,
+	if (iwl_mvm_set_fw_mu_edca_params(mvm, &mvmvif->deflink,
 					  &sta_ctxt_cmd.trig_based_txf[0]))
 		flags |= STA_CTXT_HE_MU_EDCA_CW;
 

@@ -1804,7 +1804,7 @@ void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       struct ieee80211_bss_conf *link_conf,
 			       struct iwl_ac_qos *ac, __le32 *qos_flags);
 bool iwl_mvm_set_fw_mu_edca_params(struct iwl_mvm *mvm,
-				   struct iwl_mvm_vif *mvmvif,
+				   const struct iwl_mvm_vif_link_info *link_info,
 				   struct iwl_he_backoff_conf *trig_based_txf);
 void iwl_mvm_set_fw_dtim_tbtt(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *link_conf,

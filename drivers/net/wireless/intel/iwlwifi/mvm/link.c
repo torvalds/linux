@@ -188,7 +188,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* TODO  how to set ndp_fdbk_buff_th_exp? */
 
-	if (iwl_mvm_set_fw_mu_edca_params(mvm, mvmvif,
+	if (iwl_mvm_set_fw_mu_edca_params(mvm, mvmvif->link[link_id],
 					  &cmd.trig_based_txf[0])) {
 		flags |= LINK_FLG_MU_EDCA_CW;
 		flags_mask |= LINK_FLG_MU_EDCA_CW;
