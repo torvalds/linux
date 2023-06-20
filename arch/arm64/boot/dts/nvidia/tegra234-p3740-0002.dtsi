@@ -1,10 +1,60 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <dt-bindings/sound/rt5640.h>
+
 / {
 	compatible = "nvidia,p3740-0002";
 
 	bus@0 {
+		aconnect@2900000 {
+			ahub@2900800 {
+				i2s@2901300 {
+					ports {
+						port@1 {
+							endpoint {
+								dai-format = "i2s";
+								remote-endpoint = <&rt5640_ep>;
+							};
+						};
+					};
+				};
+
+				i2s@2901500 {
+					ports {
+						port@1 {
+							endpoint {
+								bitclock-master;
+								frame-master;
+							};
+						};
+					};
+				};
+			};
+		};
+
 		i2c@31c0000 {
+			rt5640: audio-codec@1c {
+				compatible = "realtek,rt5640";
+				reg = <0x1c>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA234_MAIN_GPIO(F, 3) GPIO_ACTIVE_HIGH>;
+				clocks = <&bpmp TEGRA234_CLK_AUD_MCLK>;
+				clock-names = "mclk";
+
+				realtek,dmic1-data-pin = <RT5640_DMIC1_DATA_PIN_NONE>;
+				realtek,dmic2-data-pin = <RT5640_DMIC2_DATA_PIN_NONE>;
+				realtek,jack-detect-source = <RT5640_JD_SRC_HDA_HEADER>;
+
+				sound-name-prefix = "CVB-RT";
+
+				port {
+					rt5640_ep: endpoint {
+						remote-endpoint = <&i2s4_dap>;
+						mclk-fs = <256>;
+					};
+				};
+			};
+
 			/* carrier board ID EEPROM */
 			eeprom@55 {
 				compatible = "atmel,24c02";
