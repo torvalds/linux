@@ -2589,7 +2589,12 @@ static void release_journal_dev(struct super_block *super,
 			       struct reiserfs_journal *journal)
 {
 	if (journal->j_dev_bd != NULL) {
-		blkdev_put(journal->j_dev_bd, journal);
+		void *holder = NULL;
+
+		if (journal->j_dev_bd->bd_dev != super->s_dev)
+			holder = journal;
+
+		blkdev_put(journal->j_dev_bd, holder);
 		journal->j_dev_bd = NULL;
 	}
 }
