@@ -76,6 +76,11 @@ static u32 kvm_pgd_pages(u32 ia_bits, u32 start_level)
 	return __kvm_pgd_page_idx(&pgt, -1ULL) + 1;
 }
 
+static kvm_pte_t *kvm_pte_follow(kvm_pte_t pte, struct kvm_pgtable_mm_ops *mm_ops)
+{
+	return mm_ops->phys_to_virt(kvm_pte_to_phys(pte));
+}
+
 static void kvm_clear_pte(kvm_pte_t *ptep)
 {
 	WRITE_ONCE(*ptep, 0);
@@ -276,8 +281,7 @@ static int hyp_set_prot_attr(enum kvm_pgtable_prot prot, kvm_pte_t *ptep)
 	kvm_pte_t attr;
 	u32 mtype;
 
-	if (!(prot & KVM_PGTABLE_PROT_R) || (device && nc) ||
-			(prot & (KVM_PGTABLE_PROT_PXN | KVM_PGTABLE_PROT_UXN)))
+	if (!(prot & KVM_PGTABLE_PROT_R) || (device && nc))
 		return -EINVAL;
 
 	if (device)
@@ -566,14 +570,15 @@ static bool stage2_has_fwb(struct kvm_pgtable *pgt)
 #define KVM_S2_MEMATTR(pgt, attr) PAGE_S2_MEMATTR(attr, stage2_has_fwb(pgt))
 
 static int stage2_set_prot_attr(struct kvm_pgtable *pgt, enum kvm_pgtable_prot prot,
-		kvm_pte_t *ptep)
+				kvm_pte_t *ptep)
 {
-	u64 exec_type = KVM_PTE_LEAF_ATTR_HI_S2_XN_XN;
 	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
 	u32 sh = KVM_PTE_LEAF_ATTR_LO_S2_SH_IS;
 	bool nc = prot & KVM_PGTABLE_PROT_NC;
-	enum kvm_pgtable_prot exec_prot;
 	kvm_pte_t attr;
+
+	if (device && nc)
+		return -EINVAL;
 
 	if (device)
 		attr = KVM_S2_MEMATTR(pgt, DEVICE_nGnRE);
@@ -582,23 +587,11 @@ static int stage2_set_prot_attr(struct kvm_pgtable *pgt, enum kvm_pgtable_prot p
 	else
 		attr = KVM_S2_MEMATTR(pgt, NORMAL);
 
-	exec_prot = prot & (KVM_PGTABLE_PROT_X | KVM_PGTABLE_PROT_PXN | KVM_PGTABLE_PROT_UXN);
-	switch(exec_prot) {
-	case KVM_PGTABLE_PROT_X:
-		goto set_ap;
-	case KVM_PGTABLE_PROT_PXN:
-		exec_type = KVM_PTE_LEAF_ATTR_HI_S2_XN_PXN;
-		break;
-	case KVM_PGTABLE_PROT_UXN:
-		exec_type = KVM_PTE_LEAF_ATTR_HI_S2_XN_UXN;
-		break;
-	default:
-		if (exec_prot)
-			return -EINVAL;
-	}
-	attr |= FIELD_PREP(KVM_PTE_LEAF_ATTR_HI_S2_XN, exec_type);
+	if (!(prot & KVM_PGTABLE_PROT_X))
+		attr |= KVM_PTE_LEAF_ATTR_HI_S2_XN;
+	else if (device)
+		return -EINVAL;
 
-set_ap:
 	if (prot & KVM_PGTABLE_PROT_R)
 		attr |= KVM_PTE_LEAF_ATTR_LO_S2_S2AP_R;
 
@@ -624,21 +617,8 @@ enum kvm_pgtable_prot kvm_pgtable_stage2_pte_prot(kvm_pte_t pte)
 		prot |= KVM_PGTABLE_PROT_R;
 	if (pte & KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W)
 		prot |= KVM_PGTABLE_PROT_W;
-	switch(FIELD_GET(KVM_PTE_LEAF_ATTR_HI_S2_XN, pte)) {
-	case 0:
+	if (!(pte & KVM_PTE_LEAF_ATTR_HI_S2_XN))
 		prot |= KVM_PGTABLE_PROT_X;
-		break;
-	case KVM_PTE_LEAF_ATTR_HI_S2_XN_PXN:
-		prot |= KVM_PGTABLE_PROT_PXN;
-		break;
-	case KVM_PTE_LEAF_ATTR_HI_S2_XN_UXN:
-		prot |= KVM_PGTABLE_PROT_UXN;
-		break;
-	case KVM_PTE_LEAF_ATTR_HI_S2_XN_XN:
-		break;
-	default:
-		WARN_ON(1);
-	}
 
 	return prot;
 }
@@ -680,9 +660,7 @@ static bool stage2_pte_cacheable(struct kvm_pgtable *pgt, kvm_pte_t pte)
 
 static bool stage2_pte_executable(kvm_pte_t pte)
 {
-	kvm_pte_t xn = FIELD_GET(KVM_PTE_LEAF_ATTR_HI_S2_XN, pte);
-
-	return kvm_pte_valid(pte) && xn != KVM_PTE_LEAF_ATTR_HI_S2_XN_XN;
+	return kvm_pte_valid(pte) && !(pte & KVM_PTE_LEAF_ATTR_HI_S2_XN);
 }
 
 static bool stage2_leaf_mapping_allowed(u64 addr, u64 end, u32 level,
@@ -1039,30 +1017,6 @@ int kvm_pgtable_stage2_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size)
 	return kvm_pgtable_walk(pgt, addr, size, &walker);
 }
 
-static int stage2_reclaim_leaf_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
-				      enum kvm_pgtable_walk_flags flag, void * const arg)
-{
-	stage2_coalesce_walk_table_post(addr, end, level, ptep, arg);
-
-	return 0;
-}
-
-int kvm_pgtable_stage2_reclaim_leaves(struct kvm_pgtable *pgt, u64 addr, u64 size)
-{
-	struct stage2_map_data map_data = {
-		.phys		= KVM_PHYS_INVALID,
-		.mmu		= pgt->mmu,
-		.mm_ops		= pgt->mm_ops,
-	};
-	struct kvm_pgtable_walker walker = {
-		.cb	= stage2_reclaim_leaf_walker,
-		.arg	= &map_data,
-		.flags	= KVM_PGTABLE_WALK_TABLE_POST,
-	};
-
-	return kvm_pgtable_walk(pgt, addr, size, &walker);
-}
-
 struct stage2_attr_data {
 	kvm_pte_t			attr_set;
 	kvm_pte_t			attr_clr;
@@ -1181,7 +1135,7 @@ int kvm_pgtable_stage2_relax_perms(struct kvm_pgtable *pgt, u64 addr,
 	u32 level;
 	kvm_pte_t set = 0, clr = 0;
 
-	if (prot & !KVM_PGTABLE_PROT_RWX)
+	if (prot & KVM_PTE_LEAF_ATTR_HI_SW)
 		return -EINVAL;
 
 	if (prot & KVM_PGTABLE_PROT_R)

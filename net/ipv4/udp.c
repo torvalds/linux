@@ -1806,7 +1806,7 @@ EXPORT_SYMBOL(__skb_recv_udp);
 int udp_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 {
 	struct sk_buff *skb;
-	int err;
+	int err, copied;
 
 try_again:
 	skb = skb_recv_udp(sk, MSG_DONTWAIT, &err);
@@ -1825,7 +1825,10 @@ try_again:
 	}
 
 	WARN_ON_ONCE(!skb_set_owner_sk_safe(skb, sk));
-	return recv_actor(sk, skb);
+	copied = recv_actor(sk, skb);
+	kfree_skb(skb);
+
+	return copied;
 }
 EXPORT_SYMBOL(udp_read_skb);
 

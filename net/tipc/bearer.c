@@ -541,19 +541,6 @@ int tipc_bearer_mtu(struct net *net, u32 bearer_id)
 	return mtu;
 }
 
-int tipc_bearer_min_mtu(struct net *net, u32 bearer_id)
-{
-	int mtu = TIPC_MIN_BEARER_MTU;
-	struct tipc_bearer *b;
-
-	rcu_read_lock();
-	b = bearer_get(net, bearer_id);
-	if (b)
-		mtu += b->encap_hlen;
-	rcu_read_unlock();
-	return mtu;
-}
-
 /* tipc_bearer_xmit_skb - sends buffer to destination over bearer
  */
 void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
@@ -1151,8 +1138,8 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 				return -EINVAL;
 			}
 #ifdef CONFIG_TIPC_MEDIA_UDP
-			if (nla_get_u32(props[TIPC_NLA_PROP_MTU]) <
-			    b->encap_hlen + TIPC_MIN_BEARER_MTU) {
+			if (tipc_udp_mtu_bad(nla_get_u32
+					     (props[TIPC_NLA_PROP_MTU]))) {
 				NL_SET_ERR_MSG(info->extack,
 					       "MTU value is out-of-range");
 				return -EINVAL;

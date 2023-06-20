@@ -1,0 +1,3 @@
+per-file f2fs**=file:/fs/f2fs/OWNERS
+per-file fuse**=file:/fs/fuse/OWNERS
+per-file net**=file:/net/OWNERS

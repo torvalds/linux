@@ -8,11 +8,16 @@
 #define __ASM_EXCEPTION_H
 
 #include <asm/esr.h>
+#include <asm/kprobes.h>
 #include <asm/ptrace.h>
 
 #include <linux/interrupt.h>
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define __exception_irq_entry	__irq_entry
+#else
+#define __exception_irq_entry	__kprobes
+#endif
 
 static inline unsigned long disr_to_esr(u64 disr)
 {
