@@ -23,10 +23,16 @@
 		stdout-path = &uart1;
 	};
 
-	clk_pcie: clock-pcie {
+	clk_ext_audio_codec: clock-codec {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <100000000>;
+		clock-frequency = <24000000>;
+	};
+
+	clk_xtal25: clock-xtal25 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
 	};
 
 	connector {
@@ -140,12 +146,30 @@
 		};
 	};
 
-	reg_avdd: regulator-avdd {	/* AUDIO_VDD */
+	reg_3p3vdd: regulator-3p3vdd {	/* 3.3VDD */
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-name = "AUDIO_VDD";
+		regulator-name = "3P3VDD";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SGTL5000-Card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,widgets = "Headphone", "Headphone Jack";
+		simple-audio-card,routing = "Headphone Jack", "HP_OUT";
+
+		cpu_dai: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
 	};
 };
 
@@ -160,6 +184,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
+
+			sgtl5000: codec@a {
+				compatible = "fsl,sgtl5000";
+				reg = <0x0a>;
+				#sound-dai-cells = <0>;
+				clocks = <&clk_ext_audio_codec>;
+				VDDA-supply = <&reg_3p3vdd>;
+				VDDIO-supply = <&reg_vdd_3p3v_awo>;
+			};
 
 			typec@3d {
 				compatible = "nxp,ptn5150";
@@ -203,6 +236,13 @@
 				pagesize = <16>;
 				reg = <0x54>;
 			};
+
+			pcieclk: clock@6b {
+				compatible = "skyworks,si52144";
+				reg = <0x6b>;
+				clocks = <&clk_xtal25>;
+				#clock-cells = <1>;
+			};
 		};
 
 		i2cmuxed1: i2c@1 {	/* HDMI DDC I2C */
@@ -244,7 +284,7 @@
 };
 
 &pcie_phy {
-	clocks = <&clk_pcie>;
+	clocks = <&pcieclk 1>;
 	clock-names = "ref";
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	status = "okay";
@@ -253,6 +293,16 @@
 &pcie {
 	fsl,max-link-speed = <3>;
 	reset-gpio = <&gpio1 6 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&sai3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai3>;
+	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <12288000>;
+	fsl,sai-mclk-direction-output;
 	status = "okay";
 };
 

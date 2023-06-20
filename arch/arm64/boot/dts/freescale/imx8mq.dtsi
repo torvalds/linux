@@ -547,11 +547,13 @@
 			};
 
 			lcdif: lcd-controller@30320000 {
-				compatible = "fsl,imx8mq-lcdif", "fsl,imx28-lcdif";
+				compatible = "fsl,imx8mq-lcdif", "fsl,imx6sx-lcdif";
 				reg = <0x30320000 0x10000>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk IMX8MQ_CLK_LCDIF_PIXEL>;
-				clock-names = "pix";
+				clocks = <&clk IMX8MQ_CLK_LCDIF_PIXEL>,
+					 <&clk IMX8MQ_CLK_DISP_APB_ROOT>,
+					 <&clk IMX8MQ_CLK_DISP_AXI_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
 				assigned-clocks = <&clk IMX8MQ_VIDEO_PLL1_REF_SEL>,
 						  <&clk IMX8MQ_VIDEO_PLL1_BYPASS>,
 						  <&clk IMX8MQ_CLK_LCDIF_PIXEL>,
@@ -1054,9 +1056,11 @@
 				};
 			};
 
-			mipi_dsi: mipi-dsi@30a00000 {
+			mipi_dsi: dsi@30a00000 {
 				compatible = "fsl,imx8mq-nwl-dsi";
 				reg = <0x30a00000 0x300>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clk IMX8MQ_CLK_DSI_CORE>,
 					 <&clk IMX8MQ_CLK_DSI_AHB>,
 					 <&clk IMX8MQ_CLK_DSI_IPG_DIV>,
@@ -1577,6 +1581,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			bus-range = <0x00 0xff>;
 			ranges =  <0x81000000 0 0x00000000 0x27f80000 0 0x00010000>, /* downstream I/O 64KB */
 				  <0x82000000 0 0x20000000 0x20000000 0 0x07f00000>; /* non-prefetchable memory */
 			num-lanes = <1>;
