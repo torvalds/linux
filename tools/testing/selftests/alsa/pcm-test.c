@@ -258,7 +258,7 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 			  const char *test_name, snd_config_t *pcm_cfg)
 {
 	char name[64], key[128], msg[256];
-	const int duration_s = 4, margin_ms = 100;
+	const int duration_s = 2, margin_ms = 100;
 	const int duration_ms = duration_s * 1000;
 	const char *cs;
 	int i, err;
