@@ -2320,7 +2320,6 @@ static int smu_v13_0_0_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	mutex_lock(&adev->pm.mutex);
 	r = smu_cmn_update_table(smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
-	mutex_unlock(&adev->pm.mutex);
 	if (r)
 		goto fail;
 
@@ -2337,6 +2336,7 @@ static int smu_v13_0_0_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	r = num_msgs;
 fail:
+	mutex_unlock(&adev->pm.mutex);
 	kfree(req);
 	return r;
 }
