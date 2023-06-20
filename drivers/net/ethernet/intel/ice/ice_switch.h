@@ -30,6 +30,8 @@
 	ICE_SW_RULE_RX_TX_HDR_SIZE((s), 0)
 #define ICE_SW_RULE_LG_ACT_SIZE(s, n)		struct_size((s), act, (n))
 
+#define DUMMY_ETH_HDR_LEN		16
+
 /* VSI context structure for add/get/update/free operations */
 struct ice_vsi_ctx {
 	u16 vsi_num;
@@ -402,6 +404,7 @@ u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
 
 int ice_replay_vsi_all_fltr(struct ice_hw *hw, u16 vsi_handle);
 void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
+void ice_fill_eth_hdr(u8 *eth_hdr);
 
 int
 ice_aq_sw_rules(struct ice_hw *hw, void *rule_list, u16 rule_list_sz,
