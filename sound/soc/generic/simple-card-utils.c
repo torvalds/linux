@@ -1103,13 +1103,11 @@ int asoc_graph_parse_dai(struct device_node *ep,
 	 * 2) user need to rebind Sound Card everytime
 	 *    if he unbinded CPU or Codec.
 	 */
-	ret = snd_soc_get_dai_name(&args, &dlc->dai_name);
+	ret = snd_soc_get_dlc(&args, dlc);
 	if (ret < 0) {
 		of_node_put(node);
 		return ret;
 	}
-
-	dlc->of_node = node;
 
 	if (is_single_link)
 		*is_single_link = of_graph_get_endpoint_count(node) == 1;

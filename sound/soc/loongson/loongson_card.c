@@ -114,11 +114,9 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 
 static int loongson_card_parse_of(struct loongson_card_data *data)
 {
-	const char *cpu_dai_name, *codec_dai_name;
 	struct device_node *cpu, *codec;
 	struct snd_soc_card *card = &data->snd_card;
 	struct device *dev = card->dev;
-	struct of_phandle_args args;
 	int ret, i;
 
 	cpu = of_get_child_by_name(dev->of_node, "cpu");
@@ -133,30 +131,20 @@ static int loongson_card_parse_of(struct loongson_card_data *data)
 		goto err;
 	}
 
-	ret = of_parse_phandle_with_args(cpu, "sound-dai",
-					 "#sound-dai-cells", 0, &args);
-	if (ret) {
-		dev_err(dev, "codec node missing #sound-dai-cells\n");
-		goto err;
-	}
-	for (i = 0; i < card->num_links; i++)
-		loongson_dai_links[i].cpus->of_node = args.np;
-
-	ret = of_parse_phandle_with_args(codec, "sound-dai",
-					 "#sound-dai-cells", 0, &args);
-	if (ret) {
-		dev_err(dev, "codec node missing #sound-dai-cells\n");
-		goto err;
-	}
-	for (i = 0; i < card->num_links; i++)
-		loongson_dai_links[i].codecs->of_node = args.np;
-
-	snd_soc_of_get_dai_name(cpu, &cpu_dai_name);
-	snd_soc_of_get_dai_name(codec, &codec_dai_name);
 	for (i = 0; i < card->num_links; i++) {
-		loongson_dai_links[i].cpus->dai_name = cpu_dai_name;
-		loongson_dai_links[i].codecs->dai_name = codec_dai_name;
+		ret = snd_soc_of_get_dlc(cpu, NULL, loongson_dai_links[i].cpus, 0);
+		if (ret < 0) {
+			dev_err(dev, "getting cpu dlc error (%d)\n", ret);
+			goto err;
+		}
+
+		ret = snd_soc_of_get_dlc(codec, NULL, loongson_dai_links[i].codecs, 0);
+		if (ret < 0) {
+			dev_err(dev, "getting codec dlc error (%d)\n", ret);
+			goto err;
+		}
 	}
+
 	of_node_put(cpu);
 	of_node_put(codec);
 
