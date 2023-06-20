@@ -1256,16 +1256,9 @@ static void check_section_mismatch(struct module *mod, struct elf_info *elf,
 				 tosec, taddr);
 }
 
-static unsigned int *reloc_location(struct elf_info *elf,
-				    Elf_Shdr *sechdr, Elf_Rela *r)
-{
-	return sym_get_data_by_offset(elf, sechdr->sh_info, r->r_offset);
-}
-
-static int addend_386_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
+static int addend_386_rel(uint32_t *location, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
-	unsigned int *location = reloc_location(elf, sechdr, r);
 
 	switch (r_typ) {
 	case R_386_32:
@@ -1302,11 +1295,10 @@ static int32_t sign_extend32(int32_t value, int index)
 	return (int32_t)(value << shift) >> shift;
 }
 
-static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
+static int addend_arm_rel(void *loc, struct elf_info *elf, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 	Elf_Sym *sym = elf->symtab_start + ELF_R_SYM(r->r_info);
-	void *loc = reloc_location(elf, sechdr, r);
 	uint32_t inst, upper, lower, sign, j1, j2;
 	int32_t offset;
 
@@ -1396,11 +1388,10 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 	return 0;
 }
 
-static int addend_mips_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
+static int addend_mips_rel(uint32_t *location, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
-	unsigned int *location = reloc_location(elf, sechdr, r);
-	unsigned int inst;
+	uint32_t inst;
 
 	if (r_typ == R_MIPS_HI16)
 		return 1;	/* skip this */
@@ -1502,6 +1493,8 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		return;
 
 	for (rel = start; rel < stop; rel++) {
+		void *loc;
+
 		r.r_offset = TO_NATIVE(rel->r_offset);
 #if KERNEL_ELFCLASS == ELFCLASS64
 		if (elf->hdr->e_machine == EM_MIPS) {
@@ -1519,17 +1512,20 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		r_sym = ELF_R_SYM(r.r_info);
 #endif
 		r.r_addend = 0;
+
+		loc = sym_get_data_by_offset(elf, fsecndx, r.r_offset);
+
 		switch (elf->hdr->e_machine) {
 		case EM_386:
-			if (addend_386_rel(elf, sechdr, &r))
+			if (addend_386_rel(loc, &r))
 				continue;
 			break;
 		case EM_ARM:
-			if (addend_arm_rel(elf, sechdr, &r))
+			if (addend_arm_rel(loc, elf, &r))
 				continue;
 			break;
 		case EM_MIPS:
-			if (addend_mips_rel(elf, sechdr, &r))
+			if (addend_mips_rel(loc, &r))
 				continue;
 			break;
 		default:
