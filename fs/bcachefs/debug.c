@@ -627,19 +627,26 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 	struct bch_fs *c = i->c;
 	struct btree_trans *trans;
 	ssize_t ret = 0;
+	u32 seq;
 
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
-
-	mutex_lock(&c->btree_trans_lock);
+restart:
+	seqmutex_lock(&c->btree_trans_lock);
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
 		if (trans->locking_wait.task->pid <= i->iter)
 			continue;
 
+		closure_get(&trans->ref);
+		seq = seqmutex_seq(&c->btree_trans_lock);
+		seqmutex_unlock(&c->btree_trans_lock);
+
 		ret = flush_buf(i);
-		if (ret)
-			break;
+		if (ret) {
+			closure_put(&trans->ref);
+			goto unlocked;
+		}
 
 		bch2_btree_trans_to_text(&i->buf, trans);
 
@@ -651,9 +658,14 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 		prt_newline(&i->buf);
 
 		i->iter = trans->locking_wait.task->pid;
-	}
-	mutex_unlock(&c->btree_trans_lock);
 
+		closure_put(&trans->ref);
+
+		if (!seqmutex_relock(&c->btree_trans_lock, seq))
+			goto restart;
+	}
+	seqmutex_unlock(&c->btree_trans_lock);
+unlocked:
 	if (i->buf.allocation_failure)
 		ret = -ENOMEM;
 
@@ -815,6 +827,7 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 	struct bch_fs *c = i->c;
 	struct btree_trans *trans;
 	ssize_t ret = 0;
+	u32 seq;
 
 	i->ubuf = buf;
 	i->size	= size;
@@ -822,21 +835,32 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 
 	if (i->iter)
 		goto out;
-
-	mutex_lock(&c->btree_trans_lock);
+restart:
+	seqmutex_lock(&c->btree_trans_lock);
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
 		if (trans->locking_wait.task->pid <= i->iter)
 			continue;
 
+		closure_get(&trans->ref);
+		seq = seqmutex_seq(&c->btree_trans_lock);
+		seqmutex_unlock(&c->btree_trans_lock);
+
 		ret = flush_buf(i);
-		if (ret)
-			break;
+		if (ret) {
+			closure_put(&trans->ref);
+			goto out;
+		}
 
 		bch2_check_for_deadlock(trans, &i->buf);
 
 		i->iter = trans->locking_wait.task->pid;
+
+		closure_put(&trans->ref);
+
+		if (!seqmutex_relock(&c->btree_trans_lock, seq))
+			goto restart;
 	}
-	mutex_unlock(&c->btree_trans_lock);
+	seqmutex_unlock(&c->btree_trans_lock);
 out:
 	if (i->buf.allocation_failure)
 		ret = -ENOMEM;

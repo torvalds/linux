@@ -379,7 +379,7 @@ static void bch2_btree_wakeup_all(struct bch_fs *c)
 {
 	struct btree_trans *trans;
 
-	mutex_lock(&c->btree_trans_lock);
+	seqmutex_lock(&c->btree_trans_lock);
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
 		struct btree_bkey_cached_common *b = READ_ONCE(trans->locking);
 
@@ -387,7 +387,7 @@ static void bch2_btree_wakeup_all(struct bch_fs *c)
 			six_lock_wakeup_all(&b->lock);
 
 	}
-	mutex_unlock(&c->btree_trans_lock);
+	seqmutex_unlock(&c->btree_trans_lock);
 }
 
 SHOW(bch2_fs)

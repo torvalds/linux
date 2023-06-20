@@ -208,6 +208,7 @@
 #include "fifo.h"
 #include "nocow_locking_types.h"
 #include "opts.h"
+#include "seqmutex.h"
 #include "util.h"
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -779,7 +780,7 @@ struct bch_fs {
 	}			btree_write_stats[BTREE_WRITE_TYPE_NR];
 
 	/* btree_iter.c: */
-	struct mutex		btree_trans_lock;
+	struct seqmutex		btree_trans_lock;
 	struct list_head	btree_trans_list;
 	mempool_t		btree_paths_pool;
 	mempool_t		btree_trans_mem_pool;
