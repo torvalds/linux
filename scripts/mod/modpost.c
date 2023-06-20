@@ -1295,10 +1295,9 @@ static int32_t sign_extend32(int32_t value, int index)
 	return (int32_t)(value << shift) >> shift;
 }
 
-static int addend_arm_rel(void *loc, struct elf_info *elf, Elf_Rela *r)
+static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
-	Elf_Sym *sym = elf->symtab_start + ELF_R_SYM(r->r_info);
 	uint32_t inst, upper, lower, sign, j1, j2;
 	int32_t offset;
 
@@ -1493,6 +1492,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		return;
 
 	for (rel = start; rel < stop; rel++) {
+		Elf_Sym *tsym;
 		void *loc;
 
 		r.r_offset = TO_NATIVE(rel->r_offset);
@@ -1514,6 +1514,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		r.r_addend = 0;
 
 		loc = sym_get_data_by_offset(elf, fsecndx, r.r_offset);
+		tsym = elf->symtab_start + ELF_R_SYM(r.r_info);
 
 		switch (elf->hdr->e_machine) {
 		case EM_386:
@@ -1521,7 +1522,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 				continue;
 			break;
 		case EM_ARM:
-			if (addend_arm_rel(loc, elf, &r))
+			if (addend_arm_rel(loc, tsym, &r))
 				continue;
 			break;
 		case EM_MIPS:
@@ -1532,7 +1533,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 			fatal("Please add code to calculate addend for this architecture\n");
 		}
 
-		check_section_mismatch(mod, elf, elf->symtab_start + r_sym,
+		check_section_mismatch(mod, elf, tsym,
 				       fsecndx, fromsec, r.r_offset, r.r_addend);
 	}
 }
