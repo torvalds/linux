@@ -2730,10 +2730,10 @@ static int drm_connector_privacy_screen_notifier(
 	drm_connector_update_privacy_screen_properties(connector, true);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
-	drm_sysfs_connector_status_event(connector,
-				connector->privacy_screen_sw_state_property);
-	drm_sysfs_connector_status_event(connector,
-				connector->privacy_screen_hw_state_property);
+	drm_sysfs_connector_property_event(connector,
+					   connector->privacy_screen_sw_state_property);
+	drm_sysfs_connector_property_event(connector,
+					   connector->privacy_screen_hw_state_property);
 
 	return NOTIFY_DONE;
 }
