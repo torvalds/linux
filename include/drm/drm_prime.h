@@ -60,18 +60,11 @@ enum dma_data_direction;
 
 struct drm_device;
 struct drm_gem_object;
-struct drm_file;
 
 /* core prime functions */
 struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 				      struct dma_buf_export_info *exp_info);
 void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
-
-int drm_gem_prime_fd_to_handle(struct drm_device *dev,
-			       struct drm_file *file_priv, int prime_fd, uint32_t *handle);
-int drm_gem_prime_handle_to_fd(struct drm_device *dev,
-			       struct drm_file *file_priv, uint32_t handle, uint32_t flags,
-			       int *prime_fd);
 
 /* helper functions for exporting */
 int drm_gem_map_attach(struct dma_buf *dma_buf,
