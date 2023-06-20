@@ -198,12 +198,11 @@ picked up by bridge drivers.
 Asynchronous sub-device notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Bridge drivers in turn have to register a notifier object. This is
-performed using the :c:func:`v4l2_async_nf_register` call. To
-unregister the notifier the driver has to call
-:c:func:`v4l2_async_nf_unregister`. The former of the two functions
-takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
-pointer to struct :c:type:`v4l2_async_notifier`.
+Bridge drivers in turn have to register a notifier object. This is performed
+using the :c:func:`v4l2_async_nf_register` call. To unregister the notifier the
+driver has to call :c:func:`v4l2_async_nf_unregister`. Before releasing memory
+of an unregister notifier, it must be cleaned up by calling
+:c:func:`v4l2_async_nf_cleanup`.
 
 Before registering the notifier, bridge drivers must do two things: first, the
 notifier must be initialized using the :c:func:`v4l2_async_nf_init`.  Second,
