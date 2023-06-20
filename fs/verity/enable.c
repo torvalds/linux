@@ -208,7 +208,7 @@ static int enable_verity(struct file *filp,
 	}
 	desc->salt_size = arg->salt_size;
 
-	/* Get the signature if the user provided one */
+	/* Get the builtin signature if the user provided one */
 	if (arg->sig_size &&
 	    copy_from_user(desc->signature, u64_to_user_ptr(arg->sig_ptr),
 			   arg->sig_size)) {
