@@ -3355,10 +3355,10 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_name);
 
 int snd_soc_of_get_dai_name(struct device_node *of_node,
-			    const char **dai_name)
+			    const char **dai_name, int index)
 {
 	struct snd_soc_dai_link_component dlc;
-	int ret = snd_soc_of_get_dlc(of_node, NULL, &dlc, 0);
+	int ret = snd_soc_of_get_dlc(of_node, NULL, &dlc, index);
 
 	if (ret == 0)
 		*dai_name = dlc.dai_name;

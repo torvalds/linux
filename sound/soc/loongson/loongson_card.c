@@ -151,8 +151,8 @@ static int loongson_card_parse_of(struct loongson_card_data *data)
 	for (i = 0; i < card->num_links; i++)
 		loongson_dai_links[i].codecs->of_node = args.np;
 
-	snd_soc_of_get_dai_name(cpu, &cpu_dai_name);
-	snd_soc_of_get_dai_name(codec, &codec_dai_name);
+	snd_soc_of_get_dai_name(cpu, &cpu_dai_name, 0);
+	snd_soc_of_get_dai_name(codec, &codec_dai_name, 0);
 	for (i = 0; i < card->num_links; i++) {
 		loongson_dai_links[i].cpus->dai_name = cpu_dai_name;
 		loongson_dai_links[i].codecs->dai_name = codec_dai_name;

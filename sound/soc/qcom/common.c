@@ -105,7 +105,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		link->cpus->of_node = args.np;
 		link->id = args.args[0];
 
-		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name);
+		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name, 0);
 		if (ret) {
 			dev_err_probe(card->dev, ret,
 				      "%s: error getting cpu dai name\n", link->name);
