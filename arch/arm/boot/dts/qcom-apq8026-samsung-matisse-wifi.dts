@@ -99,7 +99,6 @@
 
 			dev-ctrl = /bits/ 8 <0x80>;
 			init-brt = /bits/ 8 <0x3f>;
-			pwm-period = <100000>;
 
 			pwms = <&backlight_pwm 0 100000>;
 			pwm-names = "lp8556";

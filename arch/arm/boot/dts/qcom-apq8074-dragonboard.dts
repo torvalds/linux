@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "qcom-msm8974.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
@@ -18,6 +21,26 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		pinctrl-0 = <&msm_keys_default>;
+		pinctrl-names = "default";
+
+		button-volup {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&pm8941_gpios 5 GPIO_ACTIVE_LOW>;
+		};
+
+		button-general {
+			label = "General";
+			linux,code = <KEY_PROG1>;
+			gpios = <&pm8941_gpios 23 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	reserved-memory {
@@ -48,7 +71,15 @@
 	};
 };
 
-&dsi0 {
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	vdda-supply = <&pm8941_l2>;
 	vdd-supply = <&pm8941_l22>;
 	vddio-supply = <&pm8941_l12>;
@@ -65,18 +96,18 @@
 
 		port {
 			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	remote-endpoint = <&panel_in>;
 	data-lanes = <0 1 2 3>;
 };
 
-&dsi0_phy {
+&mdss_dsi0_phy {
 	status = "okay";
 
 	vddio-supply = <&pm8941_l12>;
@@ -88,6 +119,41 @@
 
 &mdss {
 	status = "okay";
+};
+
+&pm8941_gpios {
+        msm_keys_default: pm8941-gpio-keys-state {
+		pins = "gpio5", "gpio23";
+		function = "normal";
+		input-enable;
+		drive-push-pull;
+		bias-pull-up;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		power-source = <PM8941_GPIO_S3>; /* 1.8V */
+        };
+};
+
+&pm8941_lpg {
+	qcom,power-source = <1>;
+	status = "okay";
+
+	led@5 {
+		reg = <5>;
+		color = <LED_COLOR_ID_BLUE>;
+		function = LED_FUNCTION_INDICATOR;
+	};
+
+	led@6 {
+		reg = <6>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_INDICATOR;
+	};
+
+	led@7 {
+		reg = <7>;
+		color = <LED_COLOR_ID_RED>;
+		function = LED_FUNCTION_INDICATOR;
+	};
 };
 
 &pm8941_wled {

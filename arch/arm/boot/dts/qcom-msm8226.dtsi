@@ -182,7 +182,7 @@
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
 				 <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&xo_board>;
+				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface", "core", "xo";
 			pinctrl-names = "default";
 			pinctrl-0 = <&sdhc1_default_state>;
@@ -198,7 +198,7 @@
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&gcc GCC_SDCC2_APPS_CLK>,
-				 <&xo_board>;
+				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface", "core", "xo";
 			pinctrl-names = "default";
 			pinctrl-0 = <&sdhc2_default_state>;
@@ -214,7 +214,7 @@
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC3_AHB_CLK>,
 				 <&gcc GCC_SDCC3_APPS_CLK>,
-				 <&xo_board>;
+				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface", "core", "xo";
 			pinctrl-names = "default";
 			pinctrl-0 = <&sdhc3_default_state>;
@@ -368,7 +368,8 @@
 					compatible = "qcom,usb-hs-phy-msm8226",
 						     "qcom,usb-hs-phy";
 					#phy-cells = <0>;
-					clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+					clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
+						 <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
 					clock-names = "ref", "sleep";
 					resets = <&gcc GCC_USB2A_PHY_BCR>, <&usb 0>;
 					reset-names = "phy", "por";
@@ -397,6 +398,21 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+
+			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
+				 <&gcc GCC_MMSS_GPLL0_CLK_SRC>,
+				 <&gcc GPLL0_VOTE>,
+				 <&gcc GPLL1_VOTE>,
+				 <&rpmcc RPM_SMD_GFX3D_CLK_SRC>,
+				 <0>,
+				 <0>;
+			clock-names = "xo",
+				      "mmss_gpll0_vote",
+				      "gpll0_vote",
+				      "gpll1_vote",
+				      "gfx3d_clk_src",
+				      "dsi0pll",
+				      "dsi0pllbyte";
 		};
 
 		tlmm: pinctrl@fd510000 {
@@ -512,9 +528,129 @@
 			};
 		};
 
+		tsens: thermal-sensor@fc4a9000 {
+			compatible = "qcom,msm8226-tsens", "qcom,tsens-v0_1";
+			reg = <0xfc4a9000 0x1000>, /* TM */
+			      <0xfc4a8000 0x1000>; /* SROT */
+			nvmem-cells = <&tsens_mode>,
+				      <&tsens_base1>, <&tsens_base2>,
+				      <&tsens_s0_p1>, <&tsens_s0_p2>,
+				      <&tsens_s1_p1>, <&tsens_s1_p2>,
+				      <&tsens_s2_p1>, <&tsens_s2_p2>,
+				      <&tsens_s3_p1>, <&tsens_s3_p2>,
+				      <&tsens_s4_p1>, <&tsens_s4_p2>,
+				      <&tsens_s5_p1>, <&tsens_s5_p2>,
+				      <&tsens_s6_p1>, <&tsens_s6_p2>;
+			nvmem-cell-names = "mode",
+					   "base1", "base2",
+					   "s0_p1", "s0_p2",
+					   "s1_p1", "s1_p2",
+					   "s2_p1", "s2_p2",
+					   "s3_p1", "s3_p2",
+					   "s4_p1", "s4_p2",
+					   "s5_p1", "s5_p2",
+					   "s6_p1", "s6_p2";
+			#qcom,sensors = <6>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "uplow";
+			#thermal-sensor-cells = <1>;
+		};
+
 		restart@fc4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0xfc4ab000 0x4>;
+		};
+
+		qfprom: qfprom@fc4bc000 {
+			compatible = "qcom,msm8226-qfprom", "qcom,qfprom";
+			reg = <0xfc4bc000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			tsens_base1: base1@1c1 {
+				reg = <0x1c1 0x2>;
+				bits = <5 8>;
+			};
+
+			tsens_s0_p1: s0-p1@1c2 {
+				reg = <0x1c2 0x2>;
+				bits = <5 6>;
+			};
+
+			tsens_s1_p1: s1-p1@1c4 {
+				reg = <0x1c4 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s2_p1: s2-p1@1c4 {
+				reg = <0x1c4 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s3_p1: s3-p1@1c5 {
+				reg = <0x1c5 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s4_p1: s4-p1@1c6 {
+				reg = <0x1c6 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s5_p1: s5-p1@1c7 {
+				reg = <0x1c7 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s6_p1: s6-p1@1ca {
+				reg = <0x1ca 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_base2: base2@1cc {
+				reg = <0x1cc 0x1>;
+				bits = <0 8>;
+			};
+
+			tsens_s0_p2: s0-p2@1cd {
+				reg = <0x1cd 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s1_p2: s1-p2@1cd {
+				reg = <0x1cd 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s2_p2: s2-p2@1ce {
+				reg = <0x1ce 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s3_p2: s3-p2@1cf {
+				reg = <0x1cf 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s4_p2: s4-p2@446 {
+				reg = <0x446 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s5_p2: s5-p2@447 {
+				reg = <0x447 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s6_p2: s6-p2@44e {
+				reg = <0x44e 0x1>;
+				bits = <1 6>;
+			};
+
+			tsens_mode: mode@44f {
+				reg = <0x44f 0x1>;
+				bits = <5 3>;
+			};
 		};
 
 		spmi_bus: spmi@fc4cf000 {
@@ -628,7 +764,7 @@
 			power-domains = <&rpmpd MSM8226_VDDCX>;
 			power-domain-names = "cx";
 
-			clocks = <&xo_board>;
+			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "xo";
 
 			memory-region = <&adsp_region>;
@@ -659,6 +795,50 @@
 				mode-bootloader = <0x77665500>;
 				mode-normal     = <0x77665501>;
 				mode-recovery   = <0x77665502>;
+			};
+		};
+	};
+
+	thermal-zones {
+		cpu0-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 5>;
+
+			trips {
+				cpu_alert0: trip0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit0: trip1 {
+					temperature = <110000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu1-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 2>;
+
+			trips {
+				cpu_alert1: trip0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit1: trip1 {
+					temperature = <110000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
 			};
 		};
 	};
