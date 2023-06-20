@@ -143,21 +143,6 @@
 	};
 };
 
-&dsi0 {
-	vdda-supply = <&vreg_l3c_1p2>;
-	status = "okay";
-};
-
-&dsi0_out {
-	remote-endpoint = <&sn65dsi86_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi_phy {
-	vdds-supply = <&vreg_l4a_0p8>;
-	status = "okay";
-};
-
 &i2c2 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -269,7 +254,7 @@
 				reg = <0>;
 
 				sn65dsi86_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -310,6 +295,21 @@
 };
 
 &mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l3c_1p2>;
+	status = "okay";
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&sn65dsi86_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l4a_0p8>;
 	status = "okay";
 };
 

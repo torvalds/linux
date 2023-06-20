@@ -424,10 +424,6 @@
 	};
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 &mpss {
 	status = "okay";
 	firmware-name = "qcom/sm8350/modem.mbn";

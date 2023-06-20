@@ -171,6 +171,7 @@
 
 		/* Marvell 88EA1512 */
 		rgmii_phy: phy@8 {
+			compatible = "ethernet-phy-id0141.0dd4";
 			reg = <0x8>;
 
 			interrupts-extended = <&tlmm 127 IRQ_TYPE_EDGE_FALLING>;

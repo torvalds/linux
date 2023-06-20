@@ -235,7 +235,15 @@
 	};
 };
 
-&dsi0 {
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	status = "okay";
 
 	vdd-supply = <&vreg_l2a_1p25>;
@@ -246,24 +254,16 @@
 	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_sleep>;
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	status = "okay";
 
 	data-lanes = <0 1 2 3>;
 };
 
-&dsi0_phy {
+&mdss_dsi0_phy {
 	status = "okay";
 
 	vcca-supply = <&vreg_l28a_0p925>;
-};
-
-&gpu {
-	status = "okay";
-};
-
-&mdss {
-	status = "okay";
 };
 
 &mmcc {

@@ -70,6 +70,7 @@ description: |
         sdm845
         sdx55
         sdx65
+        sdx75
         sm4250
         sm6115
         sm6115p
@@ -90,9 +91,11 @@ description: |
         ap-al02-c6
         ap-al02-c7
         ap-al02-c8
+        ap-al02-c9
         ap-mi01.2
         ap-mi01.3
         ap-mi01.6
+        ap-mi01.9
         cdp
         cp01-c1
         dragonboard
@@ -196,6 +199,7 @@ properties:
       - items:
           - enum:
               - qcom,msm8960-cdp
+              - samsung,expressatt
           - const: qcom,msm8960
 
       - items:
@@ -340,6 +344,7 @@ properties:
               - qcom,ipq5332-ap-mi01.2
               - qcom,ipq5332-ap-mi01.3
               - qcom,ipq5332-ap-mi01.6
+              - qcom,ipq5332-ap-mi01.9
           - const: qcom,ipq5332
 
       - items:
@@ -361,6 +366,7 @@ properties:
               - qcom,ipq9574-ap-al02-c6
               - qcom,ipq9574-ap-al02-c7
               - qcom,ipq9574-ap-al02-c8
+              - qcom,ipq9574-ap-al02-c9
           - const: qcom,ipq9574
 
       - description: Sierra Wireless MangOH Green with WP8548 Module
@@ -830,6 +836,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sdx75-idp
+          - const: qcom,sdx75
+
+      - items:
+          - enum:
               - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
@@ -1056,6 +1067,7 @@ allOf:
               - qcom,sdm845
               - qcom,sdx55
               - qcom,sdx65
+              - qcom,sdx75
               - qcom,sm4250
               - qcom,sm6115
               - qcom,sm6125
