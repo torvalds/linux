@@ -13,8 +13,7 @@
 #include <media/v4l2-subdev.h>
 
 static const struct csiphy_format csiphy_formats_st7110[] = {
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
-	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 16},
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 16},
 	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
 	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
 	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
