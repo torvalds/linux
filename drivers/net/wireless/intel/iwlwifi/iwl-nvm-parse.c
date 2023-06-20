@@ -680,8 +680,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 					IEEE80211_EHT_PHY_CAP0_BEAMFORMEE_SS_80MHZ_MASK,
 				.phy_cap_info[1] =
 					IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_80MHZ_MASK  |
-					IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_160MHZ_MASK |
-					IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_320MHZ_MASK,
+					IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_160MHZ_MASK,
 				.phy_cap_info[3] =
 					IEEE80211_EHT_PHY_CAP3_NG_16_SU_FEEDBACK |
 					IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
@@ -890,6 +889,10 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			 const struct iwl_fw *fw)
 {
 	bool is_ap = iftype_data->types_mask & BIT(NL80211_IFTYPE_AP);
+	bool no_320;
+
+	no_320 = !trans->trans_cfg->integrated &&
+		 trans->pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB;
 
 	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be)
 		iftype_data->eht_cap.has_eht = false;
@@ -916,8 +919,12 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 				       IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK);
 		break;
 	case NL80211_BAND_6GHZ:
-		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[0] |=
-			IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
+		if (!no_320) {
+			iftype_data->eht_cap.eht_cap_elem.phy_cap_info[0] |=
+				IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
+			iftype_data->eht_cap.eht_cap_elem.phy_cap_info[1] |=
+				IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_320MHZ_MASK;
+		}
 		fallthrough;
 	case NL80211_BAND_5GHZ:
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[0] |=
