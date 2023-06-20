@@ -227,6 +227,8 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 		flush_delayed_work(&fwrt->dump.wks[i].wk);
 }
 
+int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt);
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
 {

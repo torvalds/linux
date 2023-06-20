@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -3154,6 +3154,51 @@ static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 	return 0;
 }
 
+int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_mvm_marker marker = {
+		.dw_len = sizeof(struct iwl_mvm_marker) / 4,
+		.marker_id = MARKER_ID_SYNC_CLOCK,
+	};
+	struct iwl_host_cmd hcmd = {
+		.flags = CMD_ASYNC,
+		.id = WIDE_ID(LONG_GROUP, MARKER_CMD),
+		.dataflags = {},
+	};
+	struct iwl_mvm_marker_rsp *resp;
+	int cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
+					    WIDE_ID(LONG_GROUP, MARKER_CMD),
+					    IWL_FW_CMD_VER_UNKNOWN);
+	int ret;
+
+	if (cmd_ver == 1) {
+		/* the real timestamp is taken from the ftrace clock
+		 * this is for finding the match between fw and kernel logs
+		 */
+		marker.timestamp = cpu_to_le64(fwrt->timestamp.seq++);
+	} else if (cmd_ver == 2) {
+		marker.timestamp = cpu_to_le64(ktime_get_boottime_ns());
+	} else {
+		IWL_DEBUG_INFO(fwrt,
+			       "Invalid version of Marker CMD. Ver = %d\n",
+			       cmd_ver);
+		return -EINVAL;
+	}
+
+	hcmd.data[0] = &marker;
+	hcmd.len[0] = sizeof(marker);
+
+	ret = iwl_trans_send_cmd(fwrt->trans, &hcmd);
+
+	if (cmd_ver > 1 && hcmd.resp_pkt) {
+		resp = (void *)hcmd.resp_pkt->data;
+		IWL_DEBUG_INFO(fwrt, "FW GP2 time: %u\n",
+			       le32_to_cpu(resp->gp2));
+	}
+
+	return ret;
+}
+
 void iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
 				       struct iwl_fw_dbg_params *params,
 				       bool stop)
@@ -3164,12 +3209,15 @@ void iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
 		return;
 
 	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_DBG_SUSPEND_RESUME_CMD_SUPP))
+			IWL_UCODE_TLV_CAPA_DBG_SUSPEND_RESUME_CMD_SUPP)) {
+		if (stop)
+			iwl_fw_send_timestamp_marker_cmd(fwrt);
 		ret = iwl_fw_dbg_suspend_resume_hcmd(fwrt->trans, stop);
-	else if (stop)
+	} else if (stop) {
 		iwl_fw_dbg_stop_recording(fwrt->trans, params);
-	else
+	} else {
 		ret = iwl_fw_dbg_restart_recording(fwrt->trans, params);
+	}
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (!ret) {
 		if (stop)

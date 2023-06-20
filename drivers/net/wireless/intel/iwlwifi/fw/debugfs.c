@@ -123,28 +123,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 #define FWRT_DEBUGFS_ADD_FILE(name, parent, mode) \
 	FWRT_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
-static int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_mvm_marker marker = {
-		.dw_len = sizeof(struct iwl_mvm_marker) / 4,
-		.marker_id = MARKER_ID_SYNC_CLOCK,
-
-		/* the real timestamp is taken from the ftrace clock
-		 * this is for finding the match between fw and kernel logs
-		 */
-		.timestamp = cpu_to_le64(fwrt->timestamp.seq++),
-	};
-
-	struct iwl_host_cmd hcmd = {
-		.id = MARKER_CMD,
-		.flags = CMD_ASYNC,
-		.data[0] = &marker,
-		.len[0] = sizeof(marker),
-	};
-
-	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
-}
-
 static int iwl_dbgfs_enabled_severities_write(struct iwl_fw_runtime *fwrt,
 					      char *buf, size_t count)
 {
