@@ -3257,8 +3257,7 @@ int snd_soc_get_dai_id(struct device_node *ep)
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_id);
 
-int snd_soc_get_dai_name(const struct of_phandle_args *args,
-				const char **dai_name)
+int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_component *dlc)
 {
 	struct snd_soc_component *pos;
 	int ret = -EPROBE_DEFER;
@@ -3270,7 +3269,7 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 		if (component_of_node != args->np || !pos->num_dai)
 			continue;
 
-		ret = snd_soc_component_of_xlate_dai_name(pos, args, dai_name);
+		ret = snd_soc_component_of_xlate_dai_name(pos, args, &dlc->dai_name);
 		if (ret == -ENOTSUPP) {
 			struct snd_soc_dai *dai;
 			int id = -1;
@@ -3301,9 +3300,10 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 				id--;
 			}
 
-			*dai_name = dai->driver->name;
-			if (!*dai_name)
-				*dai_name = pos->name;
+			dlc->of_node	= args->np;
+			dlc->dai_name	= dai->driver->name;
+			if (!dlc->dai_name)
+				dlc->dai_name = pos->name;
 		} else if (ret) {
 			/*
 			 * if another error than ENOTSUPP is returned go on and
@@ -3319,22 +3319,49 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 	mutex_unlock(&client_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(snd_soc_get_dlc);
+
+int snd_soc_of_get_dlc(struct device_node *of_node,
+		       struct of_phandle_args *args,
+		       struct snd_soc_dai_link_component *dlc,
+		       int index)
+{
+	struct of_phandle_args __args;
+	int ret;
+
+	if (!args)
+		args = &__args;
+
+	ret = of_parse_phandle_with_args(of_node, "sound-dai",
+					 "#sound-dai-cells", index, args);
+	if (ret)
+		return ret;
+
+	return snd_soc_get_dlc(args, dlc);
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_get_dlc);
+
+int snd_soc_get_dai_name(const struct of_phandle_args *args,
+			 const char **dai_name)
+{
+	struct snd_soc_dai_link_component dlc;
+	int ret = snd_soc_get_dlc(args, &dlc);
+
+	if (ret == 0)
+		*dai_name = dlc.dai_name;
+
+	return ret;
+}
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_name);
 
 int snd_soc_of_get_dai_name(struct device_node *of_node,
 			    const char **dai_name)
 {
-	struct of_phandle_args args;
-	int ret;
+	struct snd_soc_dai_link_component dlc;
+	int ret = snd_soc_of_get_dlc(of_node, NULL, &dlc, 0);
 
-	ret = of_parse_phandle_with_args(of_node, "sound-dai",
-					 "#sound-dai-cells", 0, &args);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_get_dai_name(&args, dai_name);
-
-	of_node_put(args.np);
+	if (ret == 0)
+		*dai_name = dlc.dai_name;
 
 	return ret;
 }

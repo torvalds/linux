@@ -1309,6 +1309,12 @@ unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
 		snd_soc_daifmt_parse_clock_provider_as_bitmap(np, prefix))
 
 int snd_soc_get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream);
+int snd_soc_get_dlc(const struct of_phandle_args *args,
+		    struct snd_soc_dai_link_component *dlc);
+int snd_soc_of_get_dlc(struct device_node *of_node,
+		       struct of_phandle_args *args,
+		       struct snd_soc_dai_link_component *dlc,
+		       int index);
 int snd_soc_get_dai_id(struct device_node *ep);
 int snd_soc_get_dai_name(const struct of_phandle_args *args,
 			 const char **dai_name);
