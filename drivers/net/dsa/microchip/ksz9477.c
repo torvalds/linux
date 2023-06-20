@@ -329,11 +329,27 @@ int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 
 int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
+	u32 mask, val32;
+
 	/* No real PHY after this. */
 	if (!dev->info->internal_phy[addr])
 		return 0;
 
-	return ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
+	if (reg < 0x10)
+		return ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
+
+	/* Errata: When using SPI, I2C, or in-band register access,
+	 * writes to certain PHY registers should be performed as
+	 * 32-bit writes instead of 16-bit writes.
+	 */
+	val32 = val;
+	mask = 0xffff;
+	if ((reg & 1) == 0) {
+		val32 <<= 16;
+		mask <<= 16;
+	}
+	reg &= ~1;
+	return ksz_prmw32(dev, addr, 0x100 + (reg << 1), mask, val32);
 }
 
 void ksz9477_cfg_port_member(struct ksz_device *dev, int port, u8 member)
