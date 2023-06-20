@@ -555,6 +555,11 @@ static netdev_tx_t canfd_driver_start_xmit(struct sk_buff *skb, struct net_devic
 
 	priv->tx_mode = XMIT_PTB_MODE;
 
+	if (can_dropped_invalid_skb(ndev, skb))
+		return NETDEV_TX_OK;
+
+	netif_stop_queue(ndev);
+
 	switch (priv->tx_mode) {
 	case XMIT_FULL:
 		return NETDEV_TX_BUSY;
@@ -647,11 +652,27 @@ static netdev_tx_t canfd_driver_start_xmit(struct sk_buff *skb, struct net_devic
 		}
 		canfd_reigister_set_bit(priv, CANFD_TCMD_OFFSET, CAN_FD_SET_TPE_MASK);
 		stats->tx_bytes += cf->len;
-		netif_stop_queue(ndev);
 		break;
 	default:
 		break;
 	}
+
+	if (!(ndev->flags & IFF_ECHO) ||
+		    (skb->protocol != htons(ETH_P_CAN) &&
+		     skb->protocol != htons(ETH_P_CANFD))) {
+			kfree_skb(skb);
+			return 0;
+	}
+
+	skb = can_create_echo_skb(skb);
+	if (!skb)
+		return -ENOMEM;
+
+	/* make settings for echo to reduce code in irq context */
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->dev = ndev;
+
+	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
