@@ -219,11 +219,11 @@ registering their async sub-devices with the notifier.
 Asynchronous sub-device registration helper for camera sensor drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:c:func:`v4l2_async_register_subdev_sensor` is a helper function for
-sensor drivers registering their own async sub-device, but it also registers a
-notifier and further registers async sub-devices for lens and flash devices
-found in firmware. The notifier for the sub-device is unregistered with the
-async sub-device.
+:c:func:`v4l2_async_register_subdev_sensor` is a helper function for sensor
+drivers registering their own async sub-device, but it also registers a notifier
+and further registers async sub-devices for lens and flash devices found in
+firmware. The notifier for the sub-device is unregistered and cleaned up with
+the async sub-device, using :c:func:`v4l2_async_unregister_subdev`.
 
 Asynchronous sub-device notifier example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
