@@ -10,6 +10,11 @@
 	model = "Ampere Mt.Mitchell BMC";
 	compatible = "ampere,mtmitchell-bmc", "aspeed,ast2600";
 
+	aliases {
+		serial7 = &uart8;
+		serial8 = &uart9;
+	};
+
 	chosen {
 		stdout-path = &uart5;
 	};
@@ -304,6 +309,14 @@
 };
 
 &uart4 {
+	status = "okay";
+};
+
+&uart8 {
+	status = "okay";
+};
+
+&uart9 {
 	status = "okay";
 };
 
