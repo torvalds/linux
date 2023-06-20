@@ -109,7 +109,11 @@ smb2_add_credits(struct TCP_Server_Info *server,
 			server->credits--;
 			server->oplock_credits++;
 		}
-	}
+	} else if ((server->in_flight > 0) && (server->oplock_credits > 3) &&
+		   ((optype & CIFS_OP_MASK) == CIFS_OBREAK_OP))
+		/* if now have too many oplock credits, rebalance so don't starve normal ops */
+		change_conf(server);
+
 	scredits = *val;
 	in_flight = server->in_flight;
 	spin_unlock(&server->req_lock);
