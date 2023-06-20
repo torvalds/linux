@@ -286,7 +286,7 @@
 			clock-names = "ahb",
 				      "tcon-ch0",
 				      "tcon-ch1";
-			clock-output-names = "tcon-pixel-clock";
+			clock-output-names = "tcon-data-clock";
 			#clock-cells = <0>;
 			status = "disabled";
 
@@ -512,6 +512,15 @@
 			mmc2_4bit_pc_pins: mmc2-4bit-pc-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 				       "PC10", "PC11";
+				function = "mmc2";
+				drive-strength = <30>;
+				bias-pull-up;
+			};
+
+			/omit-if-no-ref/
+			mmc2_4bit_pe_pins: mmc2-4bit-pe-pins {
+				pins = "PE4", "PE5", "PE6", "PE7",
+				       "PE8", "PE9";
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;
