@@ -499,13 +499,24 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct ovl_fs_context *ctx = fc->fs_private;
 	int opt;
 
-	/*
-	 * On remount overlayfs has always ignored all mount options no
-	 * matter if malformed or not so for backwards compatibility we
-	 * do the same here.
-	 */
-	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
-		return 0;
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		/*
+		 * On remount overlayfs has always ignored all mount
+		 * options no matter if malformed or not so for
+		 * backwards compatibility we do the same here.
+		 */
+		if (fc->oldapi)
+			return 0;
+
+		/*
+		 * Give us the freedom to allow changing mount options
+		 * with the new mount api in the future. So instead of
+		 * silently ignoring everything we report a proper
+		 * error. This is only visible for users of the new
+		 * mount api.
+		 */
+		return invalfc(fc, "No changes allowed in reconfigure");
+	}
 
 	opt = fs_parse(fc, ovl_parameter_spec, param, &result);
 	if (opt < 0)
