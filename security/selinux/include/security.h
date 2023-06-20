@@ -189,6 +189,12 @@ static inline bool selinux_policycap_ioctl_skip_cloexec(void)
 		selinux_state.policycap[POLICYDB_CAP_IOCTL_SKIP_CLOEXEC]);
 }
 
+static inline bool selinux_policycap_userspace_initial_context(void)
+{
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_USERSPACE_INITIAL_CONTEXT]);
+}
+
 struct selinux_policy_convert_data;
 
 struct selinux_load_state {
