@@ -1916,7 +1916,7 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 
 	drm_mode_copy(&m, mode);
 
-	if (dp->plat_data->split_mode)
+	if (dp->plat_data->split_mode || dp->plat_data->dual_connector_split)
 		dp->plat_data->convert_to_origin_mode(&m);
 
 	max_link_rate = min_t(u32, dp->video_info.max_link_rate,
