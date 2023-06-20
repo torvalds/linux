@@ -160,34 +160,24 @@ int txgbe_read_pba_string(struct wx *wx, u8 *pba_num, u32 pba_num_size)
 static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 {
 	u16 *eeprom_ptrs = NULL;
-	u32 buffer_size = 0;
-	u16 *buffer = NULL;
 	u16 *local_buffer;
 	int status;
 	u16 i;
 
 	wx_init_eeprom_params(wx);
 
-	if (!buffer) {
-		eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
-					     GFP_KERNEL);
-		if (!eeprom_ptrs)
-			return -ENOMEM;
-		/* Read pointer area */
-		status = wx_read_ee_hostif_buffer(wx, 0,
-						  TXGBE_EEPROM_LAST_WORD,
-						  eeprom_ptrs);
-		if (status != 0) {
-			wx_err(wx, "Failed to read EEPROM image\n");
-			kvfree(eeprom_ptrs);
-			return status;
-		}
-		local_buffer = eeprom_ptrs;
-	} else {
-		if (buffer_size < TXGBE_EEPROM_LAST_WORD)
-			return -EFAULT;
-		local_buffer = buffer;
+	eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
+				     GFP_KERNEL);
+	if (!eeprom_ptrs)
+		return -ENOMEM;
+	/* Read pointer area */
+	status = wx_read_ee_hostif_buffer(wx, 0, TXGBE_EEPROM_LAST_WORD, eeprom_ptrs);
+	if (status != 0) {
+		wx_err(wx, "Failed to read EEPROM image\n");
+		kvfree(eeprom_ptrs);
+		return status;
 	}
+	local_buffer = eeprom_ptrs;
 
 	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++)
 		if (i != wx->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
