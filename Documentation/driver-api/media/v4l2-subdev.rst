@@ -157,6 +157,9 @@ below.
 Using one or the other registration method only affects the probing process, the
 run-time bridge-subdevice interaction is in both cases the same.
 
+Registering synchronous sub-devices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 In the **synchronous** case a device (bridge) driver needs to register the
 :c:type:`v4l2_subdev` with the v4l2_device:
 
@@ -175,9 +178,11 @@ You can unregister a sub-device using:
 	:c:func:`v4l2_device_unregister_subdev <v4l2_device_unregister_subdev>`
 	(:c:type:`sd <v4l2_subdev>`).
 
-
 Afterwards the subdev module can be unloaded and
 :c:type:`sd <v4l2_subdev>`->dev == ``NULL``.
+
+Registering asynchronous sub-devices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In the **asynchronous** case subdevice probing can be invoked independently of
 the bridge driver availability. The subdevice driver then has to verify whether
@@ -189,6 +194,9 @@ the :c:func:`v4l2_async_register_subdev` function. Unregistration is
 performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
 registered this way are stored in a global list of subdevices, ready to be
 picked up by bridge drivers.
+
+Asynchronous sub-device notifiers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Bridge drivers in turn have to register a notifier object. This is
 performed using the :c:func:`v4l2_async_nf_register` call. To
@@ -208,11 +216,17 @@ the needs of the driver.
 :c:func:`v4l2_async_nf_add_i2c` are for bridge and ISP drivers for
 registering their async sub-devices with the notifier.
 
+Asynchronous sub-device registration helper for camera sensor drivers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 :c:func:`v4l2_async_register_subdev_sensor` is a helper function for
 sensor drivers registering their own async sub-device, but it also registers a
 notifier and further registers async sub-devices for lens and flash devices
 found in firmware. The notifier for the sub-device is unregistered with the
 async sub-device.
+
+Asynchronous sub-device notifier example
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 These functions allocate an async sub-device descriptor which is of type struct
 :c:type:`v4l2_async_subdev` embedded in a driver-specific struct. The &struct
@@ -236,6 +250,9 @@ These functions allocate an async sub-device descriptor which is of type struct
 
 	if (IS_ERR(my_asd))
 		return PTR_ERR(my_asd);
+
+Asynchronous sub-device notifier callbacks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The V4L2 core will then use these descriptors to match asynchronously
 registered subdevices to them. If a match is detected the ``.bound()``
