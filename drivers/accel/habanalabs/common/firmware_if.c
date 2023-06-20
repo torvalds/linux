@@ -2783,6 +2783,11 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 				hdev->decoder_binning, hdev->rotator_binning);
 		}
 
+		if (hdev->asic_prop.support_dynamic_resereved_fw_size) {
+			hdev->asic_prop.reserved_fw_mem_size =
+				le32_to_cpu(fw_loader->dynamic_loader.comm_desc.rsvd_mem_size_mb);
+		}
+
 		return 0;
 	}
 

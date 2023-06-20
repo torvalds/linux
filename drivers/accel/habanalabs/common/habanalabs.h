@@ -641,6 +641,7 @@ struct hl_hints_range {
  * @glbl_err_cause_num: global err cause number.
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
  *                 not supported.
+ * @reserved_fw_mem_size: size in MB of dram memory reserved for FW.
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -689,6 +690,7 @@ struct hl_hints_range {
  * @dma_mask: the dma mask to be set for this device
  * @supports_advanced_cpucp_rc: true if new cpucp opcodes are supported.
  * @supports_engine_modes: true if changing engines/engine_cores modes is supported.
+ * @support_dynamic_resereved_fw_size: true if we support dynamic reserved size for fw.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -772,6 +774,7 @@ struct asic_fixed_properties {
 	u32				num_of_special_blocks;
 	u32				glbl_err_cause_num;
 	u32				hbw_flush_reg;
+	u32				reserved_fw_mem_size;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
@@ -808,6 +811,7 @@ struct asic_fixed_properties {
 	u8				dma_mask;
 	u8				supports_advanced_cpucp_rc;
 	u8				supports_engine_modes;
+	u8				support_dynamic_resereved_fw_size;
 };
 
 /**

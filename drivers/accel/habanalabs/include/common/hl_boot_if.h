@@ -570,6 +570,8 @@ struct lkd_fw_comms_desc {
 	__le64 img_addr;	/* address for next FW component load */
 	struct lkd_fw_binning_info binning_info;
 	struct lkd_fw_ascii_msg ascii_msg[LKD_FW_ASCII_MSG_MAX];
+	__le32 rsvd_mem_size_mb; /* reserved memory size [MB] for FW/SVE */
+	char reserved1[4];
 };
 
 enum comms_reset_cause {
@@ -596,6 +598,9 @@ struct lkd_fw_comms_msg {
 			__le64 img_addr;
 			struct lkd_fw_binning_info binning_info;
 			struct lkd_fw_ascii_msg ascii_msg[LKD_FW_ASCII_MSG_MAX];
+			/* reserved memory size [MB] for FW/SVE */
+			__le32 rsvd_mem_size_mb;
+			char reserved1[4];
 		};
 		struct {
 			__u8 reset_cause;
