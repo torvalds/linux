@@ -1959,6 +1959,8 @@
   topology_update_thermal_pressure
   _totalram_pages
   touch_softlockup_watchdog
+  __trace_bprintk
+  __trace_bputs
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_printf
