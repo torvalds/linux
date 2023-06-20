@@ -116,75 +116,31 @@
 	status = "okay";
 };
 
-&eth {
-	status = "okay";
-
-	gmac0: mac@0 {
-		compatible = "mediatek,eth-mac";
-		reg = <0>;
-		phy-mode = "trgmii";
-
-		fixed-link {
-			speed = <1000>;
-			full-duplex;
-			pause;
+&switch0 {
+	ports {
+		port@0 {
+			status = "okay";
+			label = "lan0";
 		};
-	};
 
-	mdio-bus {
-		#address-cells = <1>;
-		#size-cells = <0>;
+		port@1 {
+			status = "okay";
+			label = "lan1";
+		};
 
-		switch@0 {
-			compatible = "mediatek,mt7530";
-			reg = <0>;
-			mediatek,mcm;
-			resets = <&ethsys MT2701_ETHSYS_MCM_RST>;
-			reset-names = "mcm";
-			core-supply = <&mt6323_vpa_reg>;
-			io-supply = <&mt6323_vemc3v3_reg>;
+		port@2 {
+			status = "okay";
+			label = "lan2";
+		};
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
+		port@3 {
+			status = "okay";
+			label = "lan3";
+		};
 
-				port@0 {
-					reg = <0>;
-					label = "lan0";
-				};
-
-				port@1 {
-					reg = <1>;
-					label = "lan1";
-				};
-
-				port@2 {
-					reg = <2>;
-					label = "lan2";
-				};
-
-				port@3 {
-					reg = <3>;
-					label = "lan3";
-				};
-
-				port@4 {
-					reg = <4>;
-					label = "wan";
-				};
-
-				port@6 {
-					reg = <6>;
-					label = "cpu";
-					ethernet = <&gmac0>;
-					phy-mode = "trgmii";
-
-					fixed-link {
-						speed = <1000>;
-						full-duplex;
-					};
-				};
-			};
+		port@4 {
+			status = "okay";
+			label = "wan";
 		};
 	};
 };
