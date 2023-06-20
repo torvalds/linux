@@ -582,6 +582,13 @@ static inline int ksz_prmw8(struct ksz_device *dev, int port, int offset,
 			mask, val);
 }
 
+static inline int ksz_prmw32(struct ksz_device *dev, int port, int offset,
+			     u32 mask, u32 val)
+{
+	return ksz_rmw32(dev, dev->dev_ops->get_port_addr(port, offset),
+			 mask, val);
+}
+
 static inline void ksz_regmap_lock(void *__mtx)
 {
 	struct mutex *mtx = __mtx;
