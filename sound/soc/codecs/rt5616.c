@@ -1315,7 +1315,7 @@ static const struct regmap_config rt5616_regmap = {
 					       RT5616_PR_SPACING),
 	.volatile_reg = rt5616_volatile_register,
 	.readable_reg = rt5616_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5616_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5616_reg),
 	.ranges = rt5616_ranges,

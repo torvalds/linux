@@ -2863,7 +2863,7 @@ static const struct regmap_config rt5670_regmap = {
 					       RT5670_PR_SPACING),
 	.volatile_reg = rt5670_volatile_register,
 	.readable_reg = rt5670_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5670_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5670_reg),
 	.ranges = rt5670_ranges,

@@ -955,7 +955,7 @@ static const struct regmap_config rt1305_regmap = {
 					       RT1305_PR_SPACING),
 	.volatile_reg = rt1305_volatile_register,
 	.readable_reg = rt1305_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt1305_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt1305_reg),
 	.ranges = rt1305_ranges,

@@ -535,7 +535,7 @@ static const struct regmap_config rt1019_regmap = {
 	.max_register = RT1019_BEEP_2,
 	.volatile_reg = rt1019_volatile_register,
 	.readable_reg = rt1019_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt1019_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt1019_reg),
 };
