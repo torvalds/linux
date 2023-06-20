@@ -889,7 +889,9 @@ out:
 
 void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 {
+	struct sock *sk = (struct sock *)msk;
 	u32 flags = 0;
+	bool slow;
 
 	memset(info, 0, sizeof(*info));
 
@@ -897,6 +899,9 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 	info->mptcpi_add_addr_signal = READ_ONCE(msk->pm.add_addr_signaled);
 	info->mptcpi_add_addr_accepted = READ_ONCE(msk->pm.add_addr_accepted);
 	info->mptcpi_local_addr_used = READ_ONCE(msk->pm.local_addr_used);
+
+	if (inet_sk_state_load(sk) == TCP_LISTEN)
+		return;
 
 	/* The following limits only make sense for the in-kernel PM */
 	if (mptcp_pm_is_kernel(msk)) {
@@ -915,11 +920,21 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 	if (READ_ONCE(msk->can_ack))
 		flags |= MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED;
 	info->mptcpi_flags = flags;
-	info->mptcpi_token = READ_ONCE(msk->token);
-	info->mptcpi_write_seq = READ_ONCE(msk->write_seq);
-	info->mptcpi_snd_una = READ_ONCE(msk->snd_una);
-	info->mptcpi_rcv_nxt = READ_ONCE(msk->ack_seq);
-	info->mptcpi_csum_enabled = READ_ONCE(msk->csum_enabled);
+	mptcp_data_lock(sk);
+	info->mptcpi_snd_una = msk->snd_una;
+	info->mptcpi_rcv_nxt = msk->ack_seq;
+	info->mptcpi_bytes_acked = msk->bytes_acked;
+	mptcp_data_unlock(sk);
+
+	slow = lock_sock_fast(sk);
+	info->mptcpi_csum_enabled = msk->csum_enabled;
+	info->mptcpi_token = msk->token;
+	info->mptcpi_write_seq = msk->write_seq;
+	info->mptcpi_retransmits = inet_csk(sk)->icsk_retransmits;
+	info->mptcpi_bytes_sent = msk->bytes_sent;
+	info->mptcpi_bytes_received = msk->bytes_received;
+	info->mptcpi_bytes_retrans = msk->bytes_retrans;
+	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(mptcp_diag_fill_info);
 

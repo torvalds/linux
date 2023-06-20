@@ -262,10 +262,13 @@ struct mptcp_sock {
 	u64		local_key;
 	u64		remote_key;
 	u64		write_seq;
+	u64		bytes_sent;
 	u64		snd_nxt;
+	u64		bytes_received;
 	u64		ack_seq;
 	atomic64_t	rcv_wnd_sent;
 	u64		rcv_data_fin_seq;
+	u64		bytes_retrans;
 	int		rmem_fwd_alloc;
 	struct sock	*last_snd;
 	int		snd_burst;
@@ -274,6 +277,7 @@ struct mptcp_sock {
 						 * recovery related fields are under data_lock
 						 * protection
 						 */
+	u64		bytes_acked;
 	u64		snd_una;
 	u64		wnd_end;
 	unsigned long	timer_ival;
