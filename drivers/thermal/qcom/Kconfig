@@ -196,3 +196,12 @@ config THERMAL_TSENS_LEGACY
 	  to set threshold temperature for both warm and cool and update
 	  thermal userspace client when a threshold is reached. Warm/Cool
 	  temperature thresholds can be set independently for each sensor.
+
+config QTI_CX_IPEAK_COOLING_DEVICE
+	tristate "QTI CX IPeak cooling device"
+	depends on THERMAL && THERMAL_OF
+	help
+	  This implements a mitigation device to place a thermal client vote
+	  to CXIP LM hardware. When all pre-defined clients on CX rail including
+	  thermal client set their vote, CXIP LM hardware throttles the clients
+	  on the CX rail.
