@@ -189,7 +189,9 @@ static inline void __ublk_complete_rq(struct request *req);
 static void ublk_complete_rq(struct kref *ref);
 
 static dev_t ublk_chr_devt;
-static struct class *ublk_chr_class;
+static const struct class ublk_chr_class = {
+	.name = "ublk-char",
+};
 
 static DEFINE_IDR(ublk_index_idr);
 static DEFINE_SPINLOCK(ublk_idr_lock);
@@ -1755,7 +1757,7 @@ static int ublk_add_chdev(struct ublk_device *ub)
 
 	dev->parent = ublk_misc.this_device;
 	dev->devt = MKDEV(MAJOR(ublk_chr_devt), minor);
-	dev->class = ublk_chr_class;
+	dev->class = &ublk_chr_class;
 	dev->release = ublk_cdev_rel;
 	device_initialize(dev);
 
@@ -2581,11 +2583,10 @@ static int __init ublk_init(void)
 	if (ret)
 		goto unregister_mis;
 
-	ublk_chr_class = class_create("ublk-char");
-	if (IS_ERR(ublk_chr_class)) {
-		ret = PTR_ERR(ublk_chr_class);
+	ret = class_register(&ublk_chr_class);
+	if (ret)
 		goto free_chrdev_region;
-	}
+
 	return 0;
 
 free_chrdev_region:
@@ -2603,7 +2604,7 @@ static void __exit ublk_exit(void)
 	idr_for_each_entry(&ublk_index_idr, ub, id)
 		ublk_remove(ub);
 
-	class_destroy(ublk_chr_class);
+	class_unregister(&ublk_chr_class);
 	misc_deregister(&ublk_misc);
 
 	idr_destroy(&ublk_index_idr);
