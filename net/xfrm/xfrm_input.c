@@ -131,6 +131,7 @@ struct sec_path *secpath_set(struct sk_buff *skb)
 	memset(sp->ovec, 0, sizeof(sp->ovec));
 	sp->olen = 0;
 	sp->len = 0;
+	sp->verified_cnt = 0;
 
 	return sp;
 }
@@ -330,11 +331,10 @@ xfrm_inner_mode_encap_remove(struct xfrm_state *x,
 {
 	switch (x->props.mode) {
 	case XFRM_MODE_BEET:
-		switch (XFRM_MODE_SKB_CB(skb)->protocol) {
-		case IPPROTO_IPIP:
-		case IPPROTO_BEETPH:
+		switch (x->sel.family) {
+		case AF_INET:
 			return xfrm4_remove_beet_encap(x, skb);
-		case IPPROTO_IPV6:
+		case AF_INET6:
 			return xfrm6_remove_beet_encap(x, skb);
 		}
 		break;
