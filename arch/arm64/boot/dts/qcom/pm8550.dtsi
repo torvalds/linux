@@ -55,5 +55,11 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		pm8550_flash: led-controller@ee00 {
+			compatible = "qcom,pm8550-flash-led", "qcom,spmi-flash-led";
+			reg = <0xee00>;
+			status = "disabled";
+		};
 	};
 };

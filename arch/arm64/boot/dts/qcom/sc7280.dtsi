@@ -640,6 +640,18 @@
 		};
 	};
 
+	eud_typec: connector {
+		compatible = "usb-c-connector";
+
+		ports {
+			port@0 {
+				con_eud: endpoint {
+					remote-endpoint = <&eud_con>;
+				};
+			};
+		};
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the size */
@@ -3421,6 +3433,7 @@
 				phy-names = "usb2-phy";
 				maximum-speed = "high-speed";
 				usb-role-switch;
+
 				port {
 					usb2_role_switch: endpoint {
 						remote-endpoint = <&eud_ep>;
@@ -3432,6 +3445,7 @@
 		qspi: spi@88dc000 {
 			compatible = "qcom,sc7280-qspi", "qcom,qspi-v1";
 			reg = <0 0x088dc000 0 0x1000>;
+			iommus = <&apps_smmu 0x20 0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
@@ -3596,10 +3610,11 @@
 		};
 
 		eud: eud@88e0000 {
-			compatible = "qcom,sc7280-eud","qcom,eud";
-			reg = <0 0x088e0000 0 0x2000>,
-			      <0 0x088e2000 0 0x1000>;
+			compatible = "qcom,sc7280-eud", "qcom,eud";
+			reg = <0 0x88e0000 0 0x2000>,
+			      <0 0x88e2000 0 0x1000>;
 			interrupts-extended = <&pdc 11 IRQ_TYPE_LEVEL_HIGH>;
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3610,25 +3625,11 @@
 						remote-endpoint = <&usb2_role_switch>;
 					};
 				};
+
 				port@1 {
 					reg = <1>;
 					eud_con: endpoint {
 						remote-endpoint = <&con_eud>;
-					};
-				};
-			};
-		};
-
-		eud_typec: connector {
-			compatible = "usb-c-connector";
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-					con_eud: endpoint {
-						remote-endpoint = <&eud_con>;
 					};
 				};
 			};

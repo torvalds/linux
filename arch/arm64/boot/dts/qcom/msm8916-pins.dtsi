@@ -3,9 +3,9 @@
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  */
 
-&msmgpio {
+&tlmm {
 
-	blsp1_uart1_default: blsp1-uart1-default-state {
+	blsp_uart1_default: blsp-uart1-default-state {
 		/* TX, RX, CTS_N, RTS_N */
 		pins = "gpio0", "gpio1", "gpio2", "gpio3";
 		function = "blsp_uart1";
@@ -14,7 +14,7 @@
 		bias-disable;
 	};
 
-	blsp1_uart1_sleep: blsp1-uart1-sleep-state {
+	blsp_uart1_sleep: blsp-uart1-sleep-state {
 		pins = "gpio0", "gpio1", "gpio2", "gpio3";
 		function = "gpio";
 
@@ -22,7 +22,7 @@
 		bias-pull-down;
 	};
 
-	blsp1_uart2_default: blsp1-uart2-default-state {
+	blsp_uart2_default: blsp-uart2-default-state {
 		pins = "gpio4", "gpio5";
 		function = "blsp_uart2";
 
@@ -30,7 +30,7 @@
 		bias-disable;
 	};
 
-	blsp1_uart2_sleep: blsp1-uart2-sleep-state {
+	blsp_uart2_sleep: blsp-uart2-sleep-state {
 		pins = "gpio4", "gpio5";
 		function = "gpio";
 
@@ -38,7 +38,7 @@
 		bias-pull-down;
 	};
 
-	spi1_default: spi1-default-state {
+	blsp_spi1_default: blsp-spi1-default-state {
 		spi-pins {
 			pins = "gpio0", "gpio1", "gpio3";
 			function = "blsp_spi1";
@@ -56,7 +56,7 @@
 		};
 	};
 
-	spi1_sleep: spi1-sleep-state {
+	blsp_spi1_sleep: blsp-spi1-sleep-state {
 		pins = "gpio0", "gpio1", "gpio2", "gpio3";
 		function = "gpio";
 
@@ -64,7 +64,7 @@
 		bias-pull-down;
 	};
 
-	spi2_default: spi2-default-state {
+	blsp_spi2_default: blsp-spi2-default-state {
 		spi-pins {
 			pins = "gpio4", "gpio5", "gpio7";
 			function = "blsp_spi2";
@@ -82,7 +82,7 @@
 		};
 	};
 
-	spi2_sleep: spi2-sleep-state {
+	blsp_spi2_sleep: blsp-spi2-sleep-state {
 		pins = "gpio4", "gpio5", "gpio6", "gpio7";
 		function = "gpio";
 
@@ -90,7 +90,7 @@
 		bias-pull-down;
 	};
 
-	spi3_default: spi3-default-state {
+	blsp_spi3_default: blsp-spi3-default-state {
 		spi-pins {
 			pins = "gpio8", "gpio9", "gpio11";
 			function = "blsp_spi3";
@@ -108,7 +108,7 @@
 		};
 	};
 
-	spi3_sleep: spi3-sleep-state {
+	blsp_spi3_sleep: blsp-spi3-sleep-state {
 		pins = "gpio8", "gpio9", "gpio10", "gpio11";
 		function = "gpio";
 
@@ -116,7 +116,7 @@
 		bias-pull-down;
 	};
 
-	spi4_default: spi4-default-state {
+	blsp_spi4_default: blsp-spi4-default-state {
 		spi-pins {
 			pins = "gpio12", "gpio13", "gpio15";
 			function = "blsp_spi4";
@@ -134,7 +134,7 @@
 		};
 	};
 
-	spi4_sleep: spi4-sleep-state {
+	blsp_spi4_sleep: blsp-spi4-sleep-state {
 		pins = "gpio12", "gpio13", "gpio14", "gpio15";
 		function = "gpio";
 
@@ -142,7 +142,7 @@
 		bias-pull-down;
 	};
 
-	spi5_default: spi5-default-state {
+	blsp_spi5_default: blsp-spi5-default-state {
 		spi-pins {
 			pins = "gpio16", "gpio17", "gpio19";
 			function = "blsp_spi5";
@@ -160,7 +160,7 @@
 		};
 	};
 
-	spi5_sleep: spi5-sleep-state {
+	blsp_spi5_sleep: blsp-spi5-sleep-state {
 		pins = "gpio16", "gpio17", "gpio18", "gpio19";
 		function = "gpio";
 
@@ -168,7 +168,7 @@
 		bias-pull-down;
 	};
 
-	spi6_default: spi6-default-state {
+	blsp_spi6_default: blsp-spi6-default-state {
 		spi-pins {
 			pins = "gpio20", "gpio21", "gpio23";
 			function = "blsp_spi6";
@@ -186,7 +186,7 @@
 		};
 	};
 
-	spi6_sleep: spi6-sleep-state {
+	blsp_spi6_sleep: blsp-spi6-sleep-state {
 		pins = "gpio20", "gpio21", "gpio22", "gpio23";
 		function = "gpio";
 
@@ -194,7 +194,7 @@
 		bias-pull-down;
 	};
 
-	i2c1_default: i2c1-default-state {
+	blsp_i2c1_default: blsp-i2c1-default-state {
 		pins = "gpio2", "gpio3";
 		function = "blsp_i2c1";
 
@@ -202,7 +202,7 @@
 		bias-disable;
 	};
 
-	i2c1_sleep: i2c1-sleep-state {
+	blsp_i2c1_sleep: blsp-i2c1-sleep-state {
 		pins = "gpio2", "gpio3";
 		function = "gpio";
 
@@ -210,7 +210,7 @@
 		bias-disable;
 	};
 
-	i2c2_default: i2c2-default-state {
+	blsp_i2c2_default: blsp-i2c2-default-state {
 		pins = "gpio6", "gpio7";
 		function = "blsp_i2c2";
 
@@ -218,7 +218,7 @@
 		bias-disable;
 	};
 
-	i2c2_sleep: i2c2-sleep-state {
+	blsp_i2c2_sleep: blsp-i2c2-sleep-state {
 		pins = "gpio6", "gpio7";
 		function = "gpio";
 
@@ -226,7 +226,7 @@
 		bias-disable;
 	};
 
-	i2c3_default: i2c3-default-state {
+	blsp_i2c3_default: blsp-i2c3-default-state {
 		pins = "gpio10", "gpio11";
 		function = "blsp_i2c3";
 
@@ -234,7 +234,7 @@
 		bias-disable;
 	};
 
-	i2c3_sleep: i2c3-sleep-state {
+	blsp_i2c3_sleep: blsp-i2c3-sleep-state {
 		pins = "gpio10", "gpio11";
 		function = "gpio";
 
@@ -242,7 +242,7 @@
 		bias-disable;
 	};
 
-	i2c4_default: i2c4-default-state {
+	blsp_i2c4_default: blsp-i2c4-default-state {
 		pins = "gpio14", "gpio15";
 		function = "blsp_i2c4";
 
@@ -250,7 +250,7 @@
 		bias-disable;
 	};
 
-	i2c4_sleep: i2c4-sleep-state {
+	blsp_i2c4_sleep: blsp-i2c4-sleep-state {
 		pins = "gpio14", "gpio15";
 		function = "gpio";
 
@@ -258,7 +258,7 @@
 		bias-disable;
 	};
 
-	i2c5_default: i2c5-default-state {
+	blsp_i2c5_default: blsp-i2c5-default-state {
 		pins = "gpio18", "gpio19";
 		function = "blsp_i2c5";
 
@@ -266,7 +266,7 @@
 		bias-disable;
 	};
 
-	i2c5_sleep: i2c5-sleep-state {
+	blsp_i2c5_sleep: blsp-i2c5-sleep-state {
 		pins = "gpio18", "gpio19";
 		function = "gpio";
 
@@ -274,7 +274,7 @@
 		bias-disable;
 	};
 
-	i2c6_default: i2c6-default-state {
+	blsp_i2c6_default: blsp-i2c6-default-state {
 		pins = "gpio22", "gpio23";
 		function = "blsp_i2c6";
 
@@ -282,7 +282,7 @@
 		bias-disable;
 	};
 
-	i2c6_sleep: i2c6-sleep-state {
+	blsp_i2c6_sleep: blsp-i2c6-sleep-state {
 		pins = "gpio22", "gpio23";
 		function = "gpio";
 

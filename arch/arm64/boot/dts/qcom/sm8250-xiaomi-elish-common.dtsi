@@ -504,7 +504,6 @@
 					remote-endpoint = <&dsi1_out>;
 				};
 			};
-
 		};
 	};
 };

@@ -604,7 +604,7 @@
 		};
 	};
 
-	soc: soc {
+	soc: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
@@ -887,16 +887,16 @@
 			#power-domain-cells = <1>;
 			reg = <0x008c0000 0x40000>;
 			clocks = <&xo_board>,
-				 <&gcc GCC_MMSS_NOC_CFG_AHB_CLK>,
 				 <&gcc GPLL0>,
+				 <&gcc GCC_MMSS_NOC_CFG_AHB_CLK>,
 				 <&dsi0_phy 1>,
 				 <&dsi0_phy 0>,
 				 <&dsi1_phy 1>,
 				 <&dsi1_phy 0>,
 				 <&hdmi_phy>;
 			clock-names = "xo",
-				      "gcc_mmss_noc_cfg_ahb_clk",
 				      "gpll0",
+				      "gcc_mmss_noc_cfg_ahb_clk",
 				      "dsi0pll",
 				      "dsi0pllbyte",
 				      "dsi1pll",
@@ -1830,7 +1830,7 @@
 			compatible = "simple-pm-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x0 0x0 0xffffffff>;
 
 			pcie0: pcie@600000 {
 				compatible = "qcom,pcie-msm8996";
@@ -2067,7 +2067,7 @@
 			};
 		};
 
-		camss: camss@a00000 {
+		camss: camss@a34000 {
 			compatible = "qcom,msm8996-camss";
 			reg = <0x00a34000 0x1000>,
 			      <0x00a00030 0x4>,
