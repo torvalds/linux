@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/interrupt.h>
@@ -59,27 +59,23 @@ static irqreturn_t etr_handler(int irq, void *data)
 static long tmc_etr_flush_remaining_bytes(struct tmc_drvdata *tmcdrvdata, long offset,
 			size_t len, char **bufpp)
 {
-	long rwp_offset, req_size, actual = 0;
+	long req_size, actual = 0;
 	struct etr_buf *etr_buf;
 	struct device *dev;
-	int rc = 0;
+	struct byte_cntr *byte_cntr_data;
 
 	if (!tmcdrvdata)
+		return -EINVAL;
+
+	byte_cntr_data = tmcdrvdata->byte_cntr;
+	if (!byte_cntr_data)
 		return -EINVAL;
 
 	etr_buf = tmcdrvdata->sysfs_buf;
 	dev = &tmcdrvdata->csdev->dev;
 
-	rc = pm_runtime_get_sync(dev->parent);
-	if (rc < 0) {
-		pm_runtime_put_noidle(dev->parent);
-		return rc;
-	}
-
-	rwp_offset = tmc_get_rwp_offset(tmcdrvdata);
-	pm_runtime_put(dev->parent);
-	req_size = ((rwp_offset < offset) ? tmcdrvdata->size : 0) +
-		rwp_offset - offset;
+	req_size = ((byte_cntr_data->rwp_offset < offset) ? tmcdrvdata->size : 0) +
+		byte_cntr_data->rwp_offset - offset;
 
 	if (req_size > len)
 		req_size = len;
@@ -202,6 +198,8 @@ void tmc_etr_byte_cntr_stop(struct byte_cntr *byte_cntr_data)
 		return;
 
 	mutex_lock(&byte_cntr_data->byte_cntr_lock);
+	byte_cntr_data->rwp_offset =
+		tmc_get_rwp_offset(byte_cntr_data->tmcdrvdata);
 	byte_cntr_data->enable = false;
 	byte_cntr_data->read_active = false;
 	atomic_set(&byte_cntr_data->irq_cnt, 0);
@@ -218,7 +216,6 @@ static int tmc_etr_byte_cntr_release(struct inode *in, struct file *fp)
 {
 	struct byte_cntr *byte_cntr_data = fp->private_data;
 	struct device *dev = &byte_cntr_data->tmcdrvdata->csdev->dev;
-	int rc;
 
 	mutex_lock(&byte_cntr_data->byte_cntr_lock);
 	byte_cntr_data->read_active = false;
@@ -230,16 +227,6 @@ static int tmc_etr_byte_cntr_release(struct inode *in, struct file *fp)
 				byte_cntr_data->irqctrl_offset, 0);
 
 	disable_irq_wake(byte_cntr_data->byte_cntr_irq);
-
-	rc = pm_runtime_get_sync(dev->parent);
-	if (rc < 0) {
-		pm_runtime_put_noidle(dev->parent);
-	} else {
-		byte_cntr_data->rwp_offset =
-				tmc_get_rwp_offset(byte_cntr_data->tmcdrvdata);
-
-		pm_runtime_put(dev->parent);
-	}
 
 	dev_dbg(dev, "send data total size: %lld bytes, irq_cnt: %lld, offset: %lld rwp_offset: %lld\n",
 		byte_cntr_data->total_size, byte_cntr_data->total_irq,
