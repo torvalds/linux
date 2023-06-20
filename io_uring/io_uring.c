@@ -1766,11 +1766,6 @@ static void io_iopoll_req_issued(struct io_kiocb *req, unsigned int issue_flags)
 	}
 }
 
-/*
- * If we tracked the file through the SCM inflight mechanism, we could support
- * any file. For now, just ensure that anything potentially problematic is done
- * inline.
- */
 unsigned int io_file_get_flags(struct file *file)
 {
 	unsigned int res = 0;
