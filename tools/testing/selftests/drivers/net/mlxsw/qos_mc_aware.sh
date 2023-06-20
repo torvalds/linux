@@ -135,11 +135,13 @@ switch_create()
 		prio bands 8 priomap 7 7 7 7 7 7 7 7
 
 	ip link add name br1 type bridge vlan_filtering 0
+	ip link set dev br1 addrgenmode none
 	ip link set dev br1 up
 	ip link set dev $swp1 master br1
 	ip link set dev $swp3 master br1
 
 	ip link add name br111 type bridge vlan_filtering 0
+	ip link set dev br111 addrgenmode none
 	ip link set dev br111 up
 	ip link set dev $swp2.111 master br111
 	ip link set dev $swp3.111 master br111
