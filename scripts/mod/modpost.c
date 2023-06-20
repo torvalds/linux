@@ -1267,6 +1267,8 @@ static int addend_386_rel(uint32_t *location, Elf_Rela *r)
 	case R_386_PC32:
 		r->r_addend = TO_NATIVE(*location) + 4;
 		break;
+	default:
+		r->r_addend = (Elf_Addr)(-1);
 	}
 	return 0;
 }
@@ -1382,7 +1384,7 @@ static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 		r->r_addend = offset + sym->st_value + 4;
 		break;
 	default:
-		return 1;
+		r->r_addend = (Elf_Addr)(-1);
 	}
 	return 0;
 }
@@ -1392,8 +1394,6 @@ static int addend_mips_rel(uint32_t *location, Elf_Rela *r)
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 	uint32_t inst;
 
-	if (r_typ == R_MIPS_HI16)
-		return 1;	/* skip this */
 	inst = TO_NATIVE(*location);
 	switch (r_typ) {
 	case R_MIPS_LO16:
@@ -1405,6 +1405,8 @@ static int addend_mips_rel(uint32_t *location, Elf_Rela *r)
 	case R_MIPS_32:
 		r->r_addend = inst;
 		break;
+	default:
+		r->r_addend = (Elf_Addr)(-1);
 	}
 	return 0;
 }
@@ -1514,20 +1516,17 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		r.r_addend = 0;
 
 		loc = sym_get_data_by_offset(elf, fsecndx, r.r_offset);
-		tsym = elf->symtab_start + ELF_R_SYM(r.r_info);
+		tsym = elf->symtab_start + r_sym;
 
 		switch (elf->hdr->e_machine) {
 		case EM_386:
-			if (addend_386_rel(loc, &r))
-				continue;
+			addend_386_rel(loc, &r);
 			break;
 		case EM_ARM:
-			if (addend_arm_rel(loc, tsym, &r))
-				continue;
+			addend_arm_rel(loc, tsym, &r);
 			break;
 		case EM_MIPS:
-			if (addend_mips_rel(loc, &r))
-				continue;
+			addend_mips_rel(loc, &r);
 			break;
 		default:
 			fatal("Please add code to calculate addend for this architecture\n");
