@@ -1567,9 +1567,16 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 
 		if (!reg_capa.allow_160mhz)
 			flags |= NL80211_RRF_NO_160MHZ;
+
+		if (!reg_capa.allow_320mhz)
+			flags |= NL80211_RRF_NO_320MHZ;
 	}
+
 	if (reg_capa.disable_11ax)
 		flags |= NL80211_RRF_NO_HE;
+
+	if (reg_capa.disable_11be)
+		flags |= NL80211_RRF_NO_EHT;
 
 	return flags;
 }
