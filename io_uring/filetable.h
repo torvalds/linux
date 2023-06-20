@@ -54,10 +54,8 @@ static inline struct file *io_file_from_index(struct io_file_table *table,
 static inline void io_fixed_file_set(struct io_fixed_file *file_slot,
 				     struct file *file)
 {
-	unsigned long file_ptr = (unsigned long) file;
-
-	file_ptr |= io_file_get_flags(file);
-	file_slot->file_ptr = file_ptr;
+	file_slot->file_ptr = (unsigned long)file |
+		(io_file_get_flags(file) >> REQ_F_SUPPORT_NOWAIT_BIT);
 }
 
 static inline void io_reset_alloc_hint(struct io_ring_ctx *ctx)

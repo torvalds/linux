@@ -667,7 +667,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 		return -EBADF;
 
 	if (!(req->flags & REQ_F_FIXED_FILE))
-		req->flags |= io_file_get_flags(file) << REQ_F_SUPPORT_NOWAIT_BIT;
+		req->flags |= io_file_get_flags(file);
 
 	kiocb->ki_flags = file->f_iocb_flags;
 	ret = kiocb_set_rw_flags(kiocb, rw->flags);

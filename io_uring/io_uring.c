@@ -425,7 +425,7 @@ static void io_prep_async_work(struct io_kiocb *req)
 		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 
 	if (req->file && !(req->flags & REQ_F_FIXED_FILE))
-		req->flags |= io_file_get_flags(req->file) << REQ_F_SUPPORT_NOWAIT_BIT;
+		req->flags |= io_file_get_flags(req->file);
 
 	if (req->file && (req->flags & REQ_F_ISREG)) {
 		bool should_hash = def->hash_reg_file;
@@ -1771,9 +1771,9 @@ unsigned int io_file_get_flags(struct file *file)
 	unsigned int res = 0;
 
 	if (S_ISREG(file_inode(file)->i_mode))
-		res |= FFS_ISREG;
+		res |= REQ_F_ISREG;
 	if ((file->f_flags & O_NONBLOCK) || (file->f_mode & FMODE_NOWAIT))
-		res |= FFS_NOWAIT;
+		res |= REQ_F_SUPPORT_NOWAIT;
 	return res;
 }
 
