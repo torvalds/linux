@@ -605,8 +605,6 @@ DEFINE_DRM_GEM_DMA_FOPS(rcar_du_fops);
 static const struct drm_driver rcar_du_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.dumb_create		= rcar_du_dumb_create,
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = rcar_du_gem_prime_import_sg_table,
 	.fops			= &rcar_du_fops,
 	.name			= "rcar-du",

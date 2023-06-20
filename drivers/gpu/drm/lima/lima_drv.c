@@ -276,9 +276,7 @@ static const struct drm_driver lima_drm_driver = {
 	.patchlevel         = 0,
 
 	.gem_create_object  = lima_gem_create_object,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 };
 
 struct lima_block_reader {

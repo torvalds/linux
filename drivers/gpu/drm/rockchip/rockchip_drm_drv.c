@@ -224,8 +224,6 @@ DEFINE_DRM_GEM_FOPS(rockchip_drm_driver_fops);
 static const struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.dumb_create		= rockchip_gem_dumb_create,
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table	= rockchip_gem_prime_import_sg_table,
 	.fops			= &rockchip_drm_driver_fops,
 	.name	= DRIVER_NAME,
