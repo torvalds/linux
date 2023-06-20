@@ -18,7 +18,12 @@ select: false
 
 properties:
   compatible:
-    const: xlnx,versal-clk
+    oneOf:
+      - const: xlnx,versal-clk
+      - items:
+          - enum:
+              - xlnx,versal-net-clk
+          - const: xlnx,versal-clk
 
   "#clock-cells":
     const: 1
