@@ -8,6 +8,7 @@
 
 / {
 	model = "Google Hana";
+	chassis-type = "laptop";
 	compatible = "google,hana-rev6", "google,hana-rev5",
 		     "google,hana-rev4", "google,hana-rev3",
 		     "google,hana", "mediatek,mt8173";
