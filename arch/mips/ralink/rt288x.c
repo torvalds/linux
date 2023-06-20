@@ -21,15 +21,6 @@
 
 static struct ralink_soc_info *soc_info_ptr;
 
-void __init ralink_of_remap(void)
-{
-	rt_sysc_membase = plat_of_remap_node("ralink,rt2880-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,rt2880-memc");
-
-	if (!rt_sysc_membase || !rt_memc_membase)
-		panic("Failed to remap core resources");
-}
-
 static unsigned int __init rt2880_get_soc_name0(void)
 {
 	return __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME0);

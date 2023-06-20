@@ -56,15 +56,6 @@ static unsigned long rt5350_get_mem_size(void)
 	return ret;
 }
 
-void __init ralink_of_remap(void)
-{
-	rt_sysc_membase = plat_of_remap_node("ralink,rt3050-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,rt3050-memc");
-
-	if (!rt_sysc_membase || !rt_memc_membase)
-		panic("Failed to remap core resources");
-}
-
 static unsigned int __init rt305x_get_soc_name0(void)
 {
 	return __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME0);

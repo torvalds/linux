@@ -47,15 +47,6 @@ static int dram_type;
 
 static struct ralink_soc_info *soc_info_ptr;
 
-void __init ralink_of_remap(void)
-{
-	rt_sysc_membase = plat_of_remap_node("ralink,mt7620a-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,mt7620a-memc");
-
-	if (!rt_sysc_membase || !rt_memc_membase)
-		panic("Failed to remap core resources");
-}
-
 static __init void
 mt7620_dram_init(struct ralink_soc_info *soc_info)
 {
