@@ -131,7 +131,7 @@ struct old_linux_dirent {
 	unsigned long	d_ino;
 	unsigned long	d_offset;
 	unsigned short	d_namlen;
-	char		d_name[1];
+	char		d_name[];
 };
 
 struct readdir_callback {
@@ -208,7 +208,7 @@ struct linux_dirent {
 	unsigned long	d_ino;
 	unsigned long	d_off;
 	unsigned short	d_reclen;
-	char		d_name[1];
+	char		d_name[];
 };
 
 struct getdents_callback {
@@ -388,7 +388,7 @@ struct compat_old_linux_dirent {
 	compat_ulong_t	d_ino;
 	compat_ulong_t	d_offset;
 	unsigned short	d_namlen;
-	char		d_name[1];
+	char		d_name[];
 };
 
 struct compat_readdir_callback {
@@ -460,7 +460,7 @@ struct compat_linux_dirent {
 	compat_ulong_t	d_ino;
 	compat_ulong_t	d_off;
 	unsigned short	d_reclen;
-	char		d_name[1];
+	char		d_name[];
 };
 
 struct compat_getdents_callback {
