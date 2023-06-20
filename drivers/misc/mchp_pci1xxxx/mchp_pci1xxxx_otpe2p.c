@@ -11,18 +11,29 @@
 #include "mchp_pci1xxxx_gp.h"
 
 #define AUX_DRIVER_NAME			"PCI1xxxxOTPE2P"
+#define EEPROM_NAME			"pci1xxxx_eeprom"
 #define OTP_NAME			"pci1xxxx_otp"
 
 #define PERI_PF3_SYSTEM_REG_ADDR_BASE	0x2000
 #define PERI_PF3_SYSTEM_REG_LENGTH	0x4000
 
+#define EEPROM_SIZE_BYTES		8192
 #define OTP_SIZE_BYTES			8192
 
 #define CONFIG_REG_ADDR_BASE		0
+#define EEPROM_REG_ADDR_BASE		0x0E00
 #define OTP_REG_ADDR_BASE		0x1000
 
 #define MMAP_OTP_OFFSET(x)		(OTP_REG_ADDR_BASE + (x))
+#define MMAP_EEPROM_OFFSET(x)		(EEPROM_REG_ADDR_BASE + (x))
 #define MMAP_CFG_OFFSET(x)		(CONFIG_REG_ADDR_BASE + (x))
+
+#define EEPROM_CMD_REG			0x00
+#define EEPROM_DATA_REG			0x04
+
+#define EEPROM_CMD_EPC_WRITE		(BIT(29) | BIT(28))
+#define EEPROM_CMD_EPC_TIMEOUT_BIT	BIT(17)
+#define EEPROM_CMD_EPC_BUSY_BIT		BIT(31)
 
 #define STATUS_READ_DELAY_US		1
 #define STATUS_READ_TIMEOUT_US		20000
@@ -56,6 +67,8 @@
 struct pci1xxxx_otp_eeprom_device {
 	struct auxiliary_device *pdev;
 	void __iomem *reg_base;
+	struct nvmem_config nvmem_config_eeprom;
+	struct nvmem_device *nvmem_eeprom;
 	struct nvmem_config nvmem_config_otp;
 	struct nvmem_device *nvmem_otp;
 };
@@ -79,6 +92,115 @@ static void release_sys_lock(struct pci1xxxx_otp_eeprom_device *priv)
 	void __iomem *sys_lock = priv->reg_base +
 				 MMAP_CFG_OFFSET(CFG_SYS_LOCK_OFFSET);
 	writel(0, sys_lock);
+}
+
+static bool is_eeprom_responsive(struct pci1xxxx_otp_eeprom_device *priv)
+{
+	void __iomem *rb = priv->reg_base;
+	u32 regval;
+	int ret;
+
+	writel(EEPROM_CMD_EPC_TIMEOUT_BIT,
+	       rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+	writel(EEPROM_CMD_EPC_BUSY_BIT,
+	       rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+
+	/* Wait for the EPC_BUSY bit to get cleared or timeout bit to get set*/
+	ret = read_poll_timeout(readl, regval, !(regval & EEPROM_CMD_EPC_BUSY_BIT),
+				STATUS_READ_DELAY_US, STATUS_READ_TIMEOUT_US,
+				true, rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+
+	/* Return failure if either of software or hardware timeouts happen */
+	if (ret < 0 || (!ret && (regval & EEPROM_CMD_EPC_TIMEOUT_BIT)))
+		return false;
+
+	return true;
+}
+
+static int pci1xxxx_eeprom_read(void *priv_t, unsigned int off,
+				void *buf_t, size_t count)
+{
+	struct pci1xxxx_otp_eeprom_device *priv = priv_t;
+	void __iomem *rb = priv->reg_base;
+	char *buf = buf_t;
+	u32 regval;
+	u32 byte;
+	int ret;
+
+	if (off >= priv->nvmem_config_eeprom.size)
+		return -EFAULT;
+
+	if ((off + count) > priv->nvmem_config_eeprom.size)
+		count = priv->nvmem_config_eeprom.size - off;
+
+	ret = set_sys_lock(priv);
+	if (ret)
+		return ret;
+
+	for (byte = 0; byte < count; byte++) {
+		writel(EEPROM_CMD_EPC_BUSY_BIT | (off + byte), rb +
+		       MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+
+		ret = read_poll_timeout(readl, regval,
+					!(regval & EEPROM_CMD_EPC_BUSY_BIT),
+					STATUS_READ_DELAY_US,
+					STATUS_READ_TIMEOUT_US, true,
+					rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+		if (ret < 0 || (!ret && (regval & EEPROM_CMD_EPC_TIMEOUT_BIT))) {
+			ret = -EIO;
+			goto error;
+		}
+
+		buf[byte] = readl(rb + MMAP_EEPROM_OFFSET(EEPROM_DATA_REG));
+	}
+	ret = byte;
+error:
+	release_sys_lock(priv);
+	return ret;
+}
+
+static int pci1xxxx_eeprom_write(void *priv_t, unsigned int off,
+				 void *value_t, size_t count)
+{
+	struct pci1xxxx_otp_eeprom_device *priv = priv_t;
+	void __iomem *rb = priv->reg_base;
+	char *value = value_t;
+	u32 regval;
+	u32 byte;
+	int ret;
+
+	if (off >= priv->nvmem_config_eeprom.size)
+		return -EFAULT;
+
+	if ((off + count) > priv->nvmem_config_eeprom.size)
+		count = priv->nvmem_config_eeprom.size - off;
+
+	ret = set_sys_lock(priv);
+	if (ret)
+		return ret;
+
+	for (byte = 0; byte < count; byte++) {
+		writel(*(value + byte), rb + MMAP_EEPROM_OFFSET(EEPROM_DATA_REG));
+		regval = EEPROM_CMD_EPC_TIMEOUT_BIT | EEPROM_CMD_EPC_WRITE |
+			 (off + byte);
+		writel(regval, rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+		writel(EEPROM_CMD_EPC_BUSY_BIT | regval,
+		       rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+
+		ret = read_poll_timeout(readl, regval,
+					!(regval & EEPROM_CMD_EPC_BUSY_BIT),
+					STATUS_READ_DELAY_US,
+					STATUS_READ_TIMEOUT_US, true,
+					rb + MMAP_EEPROM_OFFSET(EEPROM_CMD_REG));
+		if (ret < 0 || (!ret && (regval & EEPROM_CMD_EPC_TIMEOUT_BIT))) {
+			ret = -EIO;
+			goto error;
+		}
+	}
+	ret = byte;
+error:
+	release_sys_lock(priv);
+	return ret;
 }
 
 static void otp_device_set_address(struct pci1xxxx_otp_eeprom_device *priv,
@@ -242,6 +364,24 @@ static int pci1xxxx_otp_eeprom_probe(struct auxiliary_device *aux_dev,
 	       priv->reg_base + MMAP_OTP_OFFSET(OTP_PWR_DN_OFFSET));
 
 	dev_set_drvdata(&aux_dev->dev, priv);
+
+	if (is_eeprom_responsive(priv)) {
+		priv->nvmem_config_eeprom.type = NVMEM_TYPE_EEPROM;
+		priv->nvmem_config_eeprom.name = EEPROM_NAME;
+		priv->nvmem_config_eeprom.dev = &aux_dev->dev;
+		priv->nvmem_config_eeprom.owner = THIS_MODULE;
+		priv->nvmem_config_eeprom.reg_read = pci1xxxx_eeprom_read;
+		priv->nvmem_config_eeprom.reg_write = pci1xxxx_eeprom_write;
+		priv->nvmem_config_eeprom.priv = priv;
+		priv->nvmem_config_eeprom.stride = 1;
+		priv->nvmem_config_eeprom.word_size = 1;
+		priv->nvmem_config_eeprom.size = EEPROM_SIZE_BYTES;
+
+		priv->nvmem_eeprom = devm_nvmem_register(&aux_dev->dev,
+							 &priv->nvmem_config_eeprom);
+		if (!priv->nvmem_eeprom)
+			return -ENOMEM;
+	}
 
 	release_sys_lock(priv);
 
