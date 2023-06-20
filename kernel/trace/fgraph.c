@@ -236,6 +236,9 @@ static struct notifier_block ftrace_suspend_notifier = {
 	.notifier_call = ftrace_suspend_notifier_call,
 };
 
+/* fgraph_ret_regs is not defined without CONFIG_FUNCTION_GRAPH_RETVAL */
+struct fgraph_ret_regs;
+
 /*
  * Send the trace to the ring-buffer.
  * @return the original return address.
