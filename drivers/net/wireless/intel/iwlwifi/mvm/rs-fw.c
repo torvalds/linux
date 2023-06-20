@@ -523,6 +523,7 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 {
 	const struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
 	const struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
+	const struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
 
 	if (WARN_ON_ONCE(!link_conf->chandef.chan))
 		return IEEE80211_MAX_MPDU_LEN_VHT_3895;
@@ -537,8 +538,18 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 		default:
 			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
 		}
-	} else
-	if (vht_cap->vht_supported) {
+	} else if (link_conf->chandef.chan->band == NL80211_BAND_2GHZ &&
+		   eht_cap->has_eht) {
+		switch (u8_get_bits(eht_cap->eht_cap_elem.mac_cap_info[0],
+				    IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK)) {
+		case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454:
+			return IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991:
+			return IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		default:
+			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		}
+	} else if (vht_cap->vht_supported) {
 		switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
 			return IEEE80211_MAX_MPDU_LEN_VHT_11454;
