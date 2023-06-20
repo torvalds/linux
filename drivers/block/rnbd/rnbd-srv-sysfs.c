@@ -19,7 +19,9 @@
 #include "rnbd-srv.h"
 
 static struct device *rnbd_dev;
-static struct class *rnbd_dev_class;
+static const struct class rnbd_dev_class = {
+	.name = "rnbd-server",
+};
 static struct kobject *rnbd_devs_kobj;
 
 static void rnbd_srv_dev_release(struct kobject *kobj)
@@ -213,12 +215,12 @@ int rnbd_srv_create_sysfs_files(void)
 {
 	int err;
 
-	rnbd_dev_class = class_create("rnbd-server");
-	if (IS_ERR(rnbd_dev_class))
-		return PTR_ERR(rnbd_dev_class);
+	err = class_register(&rnbd_dev_class);
+	if (err)
+		return err;
 
-	rnbd_dev = device_create(rnbd_dev_class, NULL,
-				  MKDEV(0, 0), NULL, "ctl");
+	rnbd_dev = device_create(&rnbd_dev_class, NULL,
+				 MKDEV(0, 0), NULL, "ctl");
 	if (IS_ERR(rnbd_dev)) {
 		err = PTR_ERR(rnbd_dev);
 		goto cls_destroy;
@@ -232,9 +234,9 @@ int rnbd_srv_create_sysfs_files(void)
 	return 0;
 
 dev_destroy:
-	device_destroy(rnbd_dev_class, MKDEV(0, 0));
+	device_destroy(&rnbd_dev_class, MKDEV(0, 0));
 cls_destroy:
-	class_destroy(rnbd_dev_class);
+	class_unregister(&rnbd_dev_class);
 
 	return err;
 }
@@ -243,6 +245,6 @@ void rnbd_srv_destroy_sysfs_files(void)
 {
 	kobject_del(rnbd_devs_kobj);
 	kobject_put(rnbd_devs_kobj);
-	device_destroy(rnbd_dev_class, MKDEV(0, 0));
-	class_destroy(rnbd_dev_class);
+	device_destroy(&rnbd_dev_class, MKDEV(0, 0));
+	class_unregister(&rnbd_dev_class);
 }
