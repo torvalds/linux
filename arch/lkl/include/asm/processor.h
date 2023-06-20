@@ -21,10 +21,6 @@ static inline unsigned long thread_saved_pc(struct task_struct *tsk)
 	return 0;
 }
 
-static inline void release_thread(struct task_struct *dead_task)
-{
-}
-
 static inline void prepare_to_copy(struct task_struct *tsk)
 {
 }
