@@ -106,7 +106,7 @@ void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id)
 		goto exit;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt peer unmap vdev %d peer %pM id %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "peer unmap vdev %d peer %pM id %d\n",
 		   peer->vdev_id, peer->addr, peer_id);
 
 	list_del(&peer->list);
@@ -138,7 +138,7 @@ void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,
 		wake_up(&ab->peer_mapping_wq);
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt peer map vdev %d peer %pM id %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "peer map vdev %d peer %pM id %d\n",
 		   vdev_id, mac_addr, peer_id);
 
 exit:

@@ -84,6 +84,8 @@ properties:
     required:
       - iommus
 
+  ieee80211-freq-limit: true
+
   qcom,ath10k-calibration-data:
     $ref: /schemas/types.yaml#/definitions/uint8-array
     description:
@@ -164,6 +166,7 @@ required:
 additionalProperties: false
 
 allOf:
+  - $ref: ieee80211.yaml#
   - if:
       properties:
         compatible:
@@ -355,4 +358,5 @@ examples:
                            "msi14",
                            "msi15",
                            "legacy";
+        ieee80211-freq-limit = <5470000 5875000>;
       };
