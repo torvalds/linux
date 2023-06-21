@@ -1645,6 +1645,9 @@ static int gpiochip_irqchip_add_allocated_domain(struct gpio_chip *gc,
 	if (!domain)
 		return -EINVAL;
 
+	if (gc->to_irq)
+		chip_warn(gc, "to_irq is redefined in %s and you shouldn't rely on it\n", __func__);
+
 	gc->to_irq = gpiochip_to_irq;
 	gc->irq.domain = domain;
 	gc->irq.domain_is_allocated_externally = allocated_externally;
@@ -1675,6 +1678,7 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 	struct irq_domain *domain;
 	unsigned int type;
 	unsigned int i;
+	int ret;
 
 	if (!irqchip)
 		return 0;
@@ -1695,10 +1699,6 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 		 "%pfw: Ignoring %u default trigger\n", fwnode, type))
 		type = IRQ_TYPE_NONE;
 
-	if (gc->to_irq)
-		chip_warn(gc, "to_irq is redefined in %s and you shouldn't rely on it\n", __func__);
-
-	gc->to_irq = gpiochip_to_irq;
 	gc->irq.default_type = type;
 	gc->irq.lock_key = lock_key;
 	gc->irq.request_key = request_key;
@@ -1711,7 +1711,6 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 	}
 	if (IS_ERR(domain))
 		return PTR_ERR(domain);
-	gc->irq.domain = domain;
 
 	if (gc->irq.parent_handler) {
 		for (i = 0; i < gc->irq.num_parents; i++) {
@@ -1735,14 +1734,9 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 
 	gpiochip_set_irq_hooks(gc);
 
-	/*
-	 * Using barrier() here to prevent compiler from reordering
-	 * gc->irq.initialized before initialization of above
-	 * GPIO chip irq members.
-	 */
-	barrier();
-
-	gc->irq.initialized = true;
+	ret = gpiochip_irqchip_add_allocated_domain(gc, domain, false);
+	if (ret)
+		return ret;
 
 	acpi_gpiochip_request_interrupts(gc);
 
