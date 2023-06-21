@@ -153,9 +153,9 @@ Endpoint function can be specified in one trace. Specifying both Root Port
 and function at the same time is not supported. Driver maintains a list of
 available filters and will check the invalid inputs.
 
-Currently the available filters are detected in driver's probe. If the supported
-devices are removed/added after probe, you may need to reload the driver to update
-the filters.
+The available filters will be dynamically updated, which means you will always
+get correct filter information when hotplug events happen, or when you manually
+remove/rescan the devices.
 
 2. Type
 -------
