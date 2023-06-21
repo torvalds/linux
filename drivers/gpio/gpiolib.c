@@ -1447,6 +1447,19 @@ static const struct irq_domain_ops gpiochip_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
+static struct irq_domain *gpiochip_simple_create_domain(struct gpio_chip *gc)
+{
+	struct fwnode_handle *fwnode = dev_fwnode(&gc->gpiodev->dev);
+	struct irq_domain *domain;
+
+	domain = irq_domain_create_simple(fwnode, gc->ngpio, gc->irq.first,
+					  &gpiochip_domain_ops, gc);
+	if (!domain)
+		return ERR_PTR(-EINVAL);
+
+	return domain;
+}
+
 /*
  * TODO: move these activate/deactivate in under the hierarchicial
  * irqchip implementation as static once SPMI and SSBI (all external
@@ -1673,13 +1686,9 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 		if (IS_ERR(gc->irq.domain))
 			return PTR_ERR(gc->irq.domain);
 	} else {
-		gc->irq.domain = irq_domain_create_simple(fwnode,
-			gc->ngpio,
-			gc->irq.first,
-			&gpiochip_domain_ops,
-			gc);
-		if (!gc->irq.domain)
-			return -EINVAL;
+		gc->irq.domain = gpiochip_simple_create_domain(gc);
+		if (IS_ERR(gc->irq.domain))
+			return PTR_ERR(gc->irq.domain);
 	}
 
 	if (gc->irq.parent_handler) {
