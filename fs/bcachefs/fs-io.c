@@ -124,7 +124,7 @@ static int filemap_get_contig_folios_d(struct address_space *mapping,
 			break;
 
 		f = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, fgp_flags, gfp);
-		if (!f)
+		if (IS_ERR_OR_NULL(f))
 			break;
 
 		BUG_ON(folios->nr && folio_pos(f) != pos);
@@ -1764,7 +1764,7 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT,
 				FGP_LOCK|FGP_WRITE|FGP_CREAT|FGP_STABLE,
 				mapping_gfp_mask(mapping));
-	if (!folio)
+	if (IS_ERR_OR_NULL(folio))
 		goto err_unlock;
 
 	if (folio_test_uptodate(folio))
@@ -2852,7 +2852,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	u64 end_pos;
 
 	folio = filemap_lock_folio(mapping, index);
-	if (!folio) {
+	if (IS_ERR_OR_NULL(folio)) {
 		/*
 		 * XXX: we're doing two index lookups when we end up reading the
 		 * folio
@@ -2865,7 +2865,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 
 		folio = __filemap_get_folio(mapping, index,
 					    FGP_LOCK|FGP_CREAT, GFP_KERNEL);
-		if (unlikely(!folio)) {
+		if (unlikely(IS_ERR_OR_NULL(folio))) {
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -3788,7 +3788,7 @@ static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 	bool ret = true;
 
 	folio = filemap_lock_folio(mapping, *offset >> PAGE_SHIFT);
-	if (!folio)
+	if (IS_ERR_OR_NULL(folio))
 		return true;
 
 	s = bch2_folio(folio);
