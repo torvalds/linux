@@ -28,6 +28,7 @@ struct snd_ump_endpoint {
 	u32 stream_wait_for;	/* expected stream message status */
 	bool stream_finished;	/* set when message has been processed */
 	bool parsed;		/* UMP / FB parse finished? */
+	bool no_process_stream;	/* suppress UMP stream messages handling */
 	wait_queue_head_t stream_wait;
 	struct snd_rawmidi_file stream_rfile;
 
@@ -107,6 +108,9 @@ static inline int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	return 0;
 }
 #endif
+
+int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val);
+int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol);
 
 /*
  * Some definitions for UMP
