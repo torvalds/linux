@@ -680,7 +680,7 @@
 				clocks = <&clk32k>;
 			};
 
-			shutdown_controller: shdwc@f8048010 {
+			shutdown_controller: poweroff@f8048010 {
 				compatible = "atmel,sama5d2-shdwc";
 				reg = <0xf8048010 0x10>;
 				clocks = <&clk32k>;

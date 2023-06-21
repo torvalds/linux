@@ -18,6 +18,8 @@
 
 	gpio-restart {
 		compatible = "gpio-restart";
+		pinctrl-0 = <&reset_pins>;
+		pinctrl-names = "default";
 		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
 		priority = <200>;
 	};
@@ -39,7 +41,7 @@
 	status = "okay";
 
 	spi3: spi@400 {
-		pinctrl-0 = <&fc3_b_pins>;
+		pinctrl-0 = <&fc3_b_pins>, <&spi3_cs_pins>;
 		pinctrl-names = "default";
 		status = "okay";
 		cs-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
@@ -47,6 +49,9 @@
 };
 
 &gpio {
+	pinctrl-0 = <&phy_int_pins>;
+	pinctrl-names = "default";
+
 	fc3_b_pins: fc3-b-pins {
 		/* SCK, MISO, MOSI */
 		pins = "GPIO_51", "GPIO_52", "GPIO_53";
@@ -59,6 +64,18 @@
 		function = "miim_c";
 	};
 
+	phy_int_pins: phy-int-pins {
+		/* PHY_INT# */
+		pins = "GPIO_24";
+		function = "gpio";
+	};
+
+	reset_pins: reset-pins {
+		/* SYS_RST# */
+		pins = "GPIO_56";
+		function = "gpio";
+	};
+
 	sgpio_a_pins: sgpio-a-pins {
 		/* SCK, D0, D1 */
 		pins = "GPIO_32", "GPIO_33", "GPIO_34";
@@ -69,6 +86,12 @@
 		/* LD */
 		pins = "GPIO_64";
 		function = "sgpio_b";
+	};
+
+	spi3_cs_pins: spi3-cs-pins {
+		/* CS# */
+		pins = "GPIO_46";
+		function = "gpio";
 	};
 
 	usart0_pins: usart0-pins {
@@ -93,21 +116,25 @@
 
 	phy4: ethernet-phy@5 {
 		reg = <5>;
+		interrupts-extended = <&gpio 24 IRQ_TYPE_LEVEL_LOW>;
 		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 
 	phy5: ethernet-phy@6 {
 		reg = <6>;
+		interrupts-extended = <&gpio 24 IRQ_TYPE_LEVEL_LOW>;
 		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 
 	phy6: ethernet-phy@7 {
 		reg = <7>;
+		interrupts-extended = <&gpio 24 IRQ_TYPE_LEVEL_LOW>;
 		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 
 	phy7: ethernet-phy@8 {
 		reg = <8>;
+		interrupts-extended = <&gpio 24 IRQ_TYPE_LEVEL_LOW>;
 		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 };
