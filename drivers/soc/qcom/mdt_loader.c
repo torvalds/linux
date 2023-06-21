@@ -275,6 +275,14 @@ static bool qcom_mdt_bins_are_split(const struct firmware *fw, const char *fw_na
 	phdrs = (struct elf32_phdr *)(ehdr + 1);
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
+		/*
+		 * The size of the MDT file is not padded to include any
+		 * zero-sized segments at the end. Ignore these, as they should
+		 * not affect the decision about image being split or not.
+		 */
+		if (!phdrs[i].p_filesz)
+			continue;
+
 		seg_start = phdrs[i].p_offset;
 		seg_end = phdrs[i].p_offset + phdrs[i].p_filesz;
 		if (seg_start > fw->size || seg_end > fw->size)
