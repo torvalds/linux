@@ -1638,6 +1638,28 @@ static void gpiochip_set_irq_hooks(struct gpio_chip *gc)
 	}
 }
 
+static int gpiochip_irqchip_add_allocated_domain(struct gpio_chip *gc,
+						 struct irq_domain *domain,
+						 bool allocated_externally)
+{
+	if (!domain)
+		return -EINVAL;
+
+	gc->to_irq = gpiochip_to_irq;
+	gc->irq.domain = domain;
+	gc->irq.domain_is_allocated_externally = allocated_externally;
+
+	/*
+	 * Using barrier() here to prevent compiler from reordering
+	 * gc->irq.initialized before adding irqdomain.
+	 */
+	barrier();
+
+	gc->irq.initialized = true;
+
+	return 0;
+}
+
 /**
  * gpiochip_add_irqchip() - adds an IRQ chip to a GPIO chip
  * @gc: the GPIO chip to add the IRQ chip to
@@ -1791,22 +1813,7 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gc)
 int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 				struct irq_domain *domain)
 {
-	if (!domain)
-		return -EINVAL;
-
-	gc->to_irq = gpiochip_to_irq;
-	gc->irq.domain = domain;
-	gc->irq.domain_is_allocated_externally = true;
-
-	/*
-	 * Using barrier() here to prevent compiler from reordering
-	 * gc->irq.initialized before adding irqdomain.
-	 */
-	barrier();
-
-	gc->irq.initialized = true;
-
-	return 0;
+	return gpiochip_irqchip_add_allocated_domain(gc, domain, true);
 }
 EXPORT_SYMBOL_GPL(gpiochip_irqchip_add_domain);
 
