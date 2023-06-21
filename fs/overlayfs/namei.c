@@ -25,7 +25,7 @@ struct ovl_lookup_data {
 	bool stop;
 	bool last;
 	char *redirect;
-	bool metacopy;
+	int metacopy;
 	/* Referring to last redirect xattr */
 	bool absolute_redirect;
 };
@@ -270,7 +270,7 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 			d->stop = true;
 			goto put_and_out;
 		}
-		err = ovl_check_metacopy_xattr(OVL_FS(d->sb), &path);
+		err = ovl_check_metacopy_xattr(OVL_FS(d->sb), &path, NULL);
 		if (err < 0)
 			goto out_err;
 
@@ -963,7 +963,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		.stop = false,
 		.last = ovl_redirect_follow(ofs) ? false : !ovl_numlower(poe),
 		.redirect = NULL,
-		.metacopy = false,
+		.metacopy = 0,
 	};
 
 	if (dentry->d_name.len > ofs->namelen)
@@ -1120,7 +1120,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	/* Defer lookup of lowerdata in data-only layers to first access */
 	if (d.metacopy && ctr && ofs->numdatalayer && d.absolute_redirect) {
-		d.metacopy = false;
+		d.metacopy = 0;
 		ctr++;
 	}
 
@@ -1211,7 +1211,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			upperredirect = NULL;
 			goto out_free_oe;
 		}
-		err = ovl_check_metacopy_xattr(ofs, &upperpath);
+		err = ovl_check_metacopy_xattr(ofs, &upperpath, NULL);
 		if (err < 0)
 			goto out_free_oe;
 		uppermetacopy = err;
