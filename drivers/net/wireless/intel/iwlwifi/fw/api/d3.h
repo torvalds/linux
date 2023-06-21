@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -396,6 +396,7 @@ struct iwl_wowlan_config_cmd {
 #define WOWLAN_KEY_MAX_SIZE	32
 #define WOWLAN_GTK_KEYS_NUM     2
 #define WOWLAN_IGTK_KEYS_NUM	2
+#define WOWLAN_IGTK_MIN_INDEX	4
 
 /*
  * WOWLAN_TSC_RSC_PARAMS
@@ -612,6 +613,7 @@ struct iwl_wowlan_gtk_status_v3 {
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_3 */
 
 #define IWL_WOWLAN_GTK_IDX_MASK		(BIT(0) | BIT(1))
+#define IWL_WOWLAN_IGTK_BIGTK_IDX_MASK	(BIT(0))
 
 /**
  * struct iwl_wowlan_igtk_status - IGTK status
