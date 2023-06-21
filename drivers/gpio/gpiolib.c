@@ -1292,12 +1292,14 @@ static void gpiochip_hierarchy_setup_domain_ops(struct irq_domain_ops *ops)
 		ops->free = irq_domain_free_irqs_common;
 }
 
-static int gpiochip_hierarchy_add_domain(struct gpio_chip *gc)
+static struct irq_domain *gpiochip_hierarchy_create_domain(struct gpio_chip *gc)
 {
+	struct irq_domain *domain;
+
 	if (!gc->irq.child_to_parent_hwirq ||
 	    !gc->irq.fwnode) {
 		chip_err(gc, "missing irqdomain vital data\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (!gc->irq.child_offset_to_irq)
@@ -1309,7 +1311,7 @@ static int gpiochip_hierarchy_add_domain(struct gpio_chip *gc)
 
 	gpiochip_hierarchy_setup_domain_ops(&gc->irq.child_irq_domain_ops);
 
-	gc->irq.domain = irq_domain_create_hierarchy(
+	domain = irq_domain_create_hierarchy(
 		gc->irq.parent_domain,
 		0,
 		gc->ngpio,
@@ -1317,12 +1319,12 @@ static int gpiochip_hierarchy_add_domain(struct gpio_chip *gc)
 		&gc->irq.child_irq_domain_ops,
 		gc);
 
-	if (!gc->irq.domain)
-		return -ENOMEM;
+	if (!domain)
+		return ERR_PTR(-ENOMEM);
 
 	gpiochip_set_hierarchical_irqchip(gc, gc->irq.chip);
 
-	return 0;
+	return domain;
 }
 
 static bool gpiochip_hierarchy_is_hierarchical(struct gpio_chip *gc)
@@ -1366,9 +1368,9 @@ EXPORT_SYMBOL_GPL(gpiochip_populate_parent_fwspec_fourcell);
 
 #else
 
-static int gpiochip_hierarchy_add_domain(struct gpio_chip *gc)
+static struct irq_domain *gpiochip_hierarchy_create_domain(struct gpio_chip *gc)
 {
-	return -EINVAL;
+	return ERR_PTR(-EINVAL);
 }
 
 static bool gpiochip_hierarchy_is_hierarchical(struct gpio_chip *gc)
@@ -1667,9 +1669,9 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 
 	/* If a parent irqdomain is provided, let's build a hierarchy */
 	if (gpiochip_hierarchy_is_hierarchical(gc)) {
-		int ret = gpiochip_hierarchy_add_domain(gc);
-		if (ret)
-			return ret;
+		gc->irq.domain = gpiochip_hierarchy_create_domain(gc);
+		if (IS_ERR(gc->irq.domain))
+			return PTR_ERR(gc->irq.domain);
 	} else {
 		gc->irq.domain = irq_domain_create_simple(fwnode,
 			gc->ngpio,
