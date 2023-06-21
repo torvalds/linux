@@ -4,3 +4,6 @@
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-pitti.ko
+qcom_hwspinlock.ko
+smem.ko
+socinfo.ko
