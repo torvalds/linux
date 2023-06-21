@@ -179,6 +179,21 @@ static void setup_vpe_queue(struct amdgpu_device *adev,
 			    struct umsch_mm_test *test,
 			    struct umsch_mm_test_queue_info *qinfo)
 {
+	struct MQD_INFO *mqd = (struct MQD_INFO *)test->mqd_data_cpu_addr;
+	uint64_t ring_gpu_addr = test->ring_data_gpu_addr;
+
+	mqd->rb_base_lo = (ring_gpu_addr >> 8);
+	mqd->rb_base_hi = (ring_gpu_addr >> 40);
+	mqd->rb_size = PAGE_SIZE / 4;
+	mqd->wptr_val = 0;
+	mqd->rptr_val = 0;
+	mqd->unmapped = 1;
+
+	qinfo->mqd_addr = test->mqd_data_gpu_addr;
+	qinfo->csa_addr = test->ctx_data_gpu_addr +
+		offsetof(struct umsch_mm_test_ctx_data, vpe_ctx_csa);
+	qinfo->doorbell_offset_0 = (adev->doorbell_index.vpe_ring + 1) << 1;
+	qinfo->doorbell_offset_1 = 0;
 }
 
 static void setup_vcn_queue(struct amdgpu_device *adev,
@@ -247,7 +262,42 @@ static int remove_test_queue(struct amdgpu_device *adev,
 
 static int submit_vpe_queue(struct amdgpu_device *adev, struct umsch_mm_test *test)
 {
-	return 0;
+	struct MQD_INFO *mqd = (struct MQD_INFO *)test->mqd_data_cpu_addr;
+	uint32_t *ring = test->ring_data_cpu_addr +
+		offsetof(struct umsch_mm_test_ring_data, vpe_ring) / 4;
+	uint32_t *ib = test->ring_data_cpu_addr +
+		offsetof(struct umsch_mm_test_ring_data, vpe_ib) / 4;
+	uint64_t ib_gpu_addr = test->ring_data_gpu_addr +
+		offsetof(struct umsch_mm_test_ring_data, vpe_ib);
+	uint32_t *fence = ib + 2048 / 4;
+	uint64_t fence_gpu_addr = ib_gpu_addr + 2048;
+	const uint32_t test_pattern = 0xdeadbeef;
+	int i;
+
+	ib[0] = VPE_CMD_HEADER(VPE_CMD_OPCODE_FENCE, 0);
+	ib[1] = lower_32_bits(fence_gpu_addr);
+	ib[2] = upper_32_bits(fence_gpu_addr);
+	ib[3] = test_pattern;
+
+	ring[0] = VPE_CMD_HEADER(VPE_CMD_OPCODE_INDIRECT, 0);
+	ring[1] = (ib_gpu_addr & 0xffffffe0);
+	ring[2] = upper_32_bits(ib_gpu_addr);
+	ring[3] = 4;
+	ring[4] = 0;
+	ring[5] = 0;
+
+	mqd->wptr_val = (6 << 2);
+	// WDOORBELL32(adev->umsch_mm.agdb_index[CONTEXT_PRIORITY_LEVEL_NORMAL], mqd->wptr_val);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (*fence == test_pattern)
+			return 0;
+		udelay(1);
+	}
+
+	dev_err(adev->dev, "vpe queue submission timeout\n");
+
+	return -ETIMEDOUT;
 }
 
 static int submit_vcn_queue(struct amdgpu_device *adev, struct umsch_mm_test *test)
@@ -402,7 +452,9 @@ static void cleanup_test_queues(struct amdgpu_device *adev,
 
 static int umsch_mm_test(struct amdgpu_device *adev)
 {
-	struct umsch_mm_test_queue_info qinfo[] = {};
+	struct umsch_mm_test_queue_info qinfo[] = {
+		{ .engine = UMSCH_SWIP_ENGINE_TYPE_VPE },
+	};
 	struct umsch_mm_test test = { .num_queues = ARRAY_SIZE(qinfo) };
 	int r;
 
