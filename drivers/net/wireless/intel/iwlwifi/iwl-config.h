@@ -632,17 +632,9 @@ extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0_long;
 extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
 extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0;
 extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long;
-extern const struct iwl_cfg iwl_cfg_ma_a0_hr_b0;
-extern const struct iwl_cfg iwl_cfg_ma_a0_gf_a0;
-extern const struct iwl_cfg iwl_cfg_ma_a0_gf4_a0;
-extern const struct iwl_cfg iwl_cfg_ma_a0_mr_a0;
-extern const struct iwl_cfg iwl_cfg_ma_a0_ms_a0;
-extern const struct iwl_cfg iwl_cfg_ma_a0_fm_a0;
-extern const struct iwl_cfg iwl_cfg_ma_b0_hr_b0;
-extern const struct iwl_cfg iwl_cfg_ma_b0_gf_a0;
-extern const struct iwl_cfg iwl_cfg_ma_b0_gf4_a0;
-extern const struct iwl_cfg iwl_cfg_ma_b0_mr_a0;
-extern const struct iwl_cfg iwl_cfg_ma_b0_fm_a0;
+
+extern const struct iwl_cfg iwl_cfg_ma;
+
 extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
 extern const struct iwl_cfg iwl_cfg_so_a0_ms_a0;
 extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;

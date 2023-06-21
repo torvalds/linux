@@ -273,76 +273,6 @@ const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long = {
 	.trans.low_latency_xtal = true,
 };
 
-const struct iwl_cfg iwl_cfg_ma_a0_hr_b0 = {
-	.fw_name_pre = IWL_MA_A_HR_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_a0_gf_a0 = {
-	.fw_name_pre = IWL_MA_A_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_a0_gf4_a0 = {
-	.fw_name_pre = IWL_MA_A_GF4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_a0_mr_a0 = {
-	.fw_name_pre = IWL_MA_A_MR_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_a0_ms_a0 = {
-	.fw_name_pre = IWL_MA_A_MR_A_FW_PRE,
-	.uhb_supported = false,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_b0_fm_a0 = {
-	.fw_name_pre = IWL_MA_B_FM_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_b0_hr_b0 = {
-	.fw_name_pre = IWL_MA_B_HR_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_b0_gf_a0 = {
-	.fw_name_pre = IWL_MA_B_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_b0_gf4_a0 = {
-	.fw_name_pre = IWL_MA_B_GF4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwl_cfg_ma_b0_mr_a0 = {
-	.fw_name_pre = IWL_MA_B_MR_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
 const struct iwl_cfg iwl_cfg_so_a0_ms_a0 = {
 	.fw_name_pre = IWL_SO_A_MR_A_FW_PRE,
 	.uhb_supported = false,
@@ -350,8 +280,8 @@ const struct iwl_cfg iwl_cfg_so_a0_ms_a0 = {
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
-const struct iwl_cfg iwl_cfg_ma_a0_fm_a0 = {
-	.fw_name_pre = IWL_MA_A_FM_A_FW_PRE,
+const struct iwl_cfg iwl_cfg_ma = {
+	.fw_name_mac = "ma",
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
