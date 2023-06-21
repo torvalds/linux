@@ -647,6 +647,16 @@
 		rockchip,supported-hw;
 		rockchip,opp-shared-dsu;
 
+		rockchip,pvtm-hw = <0x06>;
+		rockchip,pvtm-voltage-sel-hw = <
+			0	1365	0
+			1366	1387	1
+			1388	1409	2
+			1410	1431	3
+			1432	1453	4
+			1454	1475	5
+			1476	9999	6
+		>;
 		rockchip,pvtm-voltage-sel = <
 			0	1410	0
 			1411	1434	1
@@ -683,36 +693,37 @@
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <1608000>;
 
+		/* RK3588 cluster0 OPPs */
 		opp-408000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <675000 675000 950000>,
 					<675000 675000 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <675000 675000 950000>,
 					<675000 675000 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <675000 675000 950000>,
 					<675000 675000 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <675000 675000 950000>,
 					<675000 675000 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <712500 712500 950000>,
 					<712500 712500 950000>;
@@ -731,7 +742,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <762500 762500 950000>,
 					<762500 762500 950000>;
@@ -751,7 +762,7 @@
 			opp-suspend;
 		};
 		opp-1608000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <850000 850000 950000>,
 					<850000 850000 950000>;
@@ -767,25 +778,6 @@
 					   <800000 800000 950000>;
 			opp-microvolt-L6 = <787500 787500 950000>,
 					   <787500 787500 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1704000000 {
-			opp-supported-hw = <0x02 0xffff>;
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <900000 900000 950000>,
-					<900000 900000 950000>;
-			opp-microvolt-L1 = <887500 887500 950000>,
-					   <887500 887500 950000>;
-			opp-microvolt-L2 = <875000 875000 950000>,
-					   <875000 875000 950000>;
-			opp-microvolt-L3 = <862500 862500 950000>,
-					   <862500 862500 950000>;
-			opp-microvolt-L4 = <850000 850000 950000>,
-					   <850000 850000 950000>;
-			opp-microvolt-L5 = <837500 837500 950000>,
-					   <837500 837500 950000>;
-			opp-microvolt-L6 = <825000 825000 950000>,
-					   <825000 825000 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
@@ -807,6 +799,106 @@
 					   <875000 875000 950000>;
 			clock-latency-ns = <40000>;
 		};
+
+		/* RK3588J/M cluster0 OPPs */
+		opp-j-m-408000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-600000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-816000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1008000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1200000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-1296000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1296000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			opp-microvolt-L0 = <775000 775000 950000>,
+					   <775000 775000 950000>;
+			opp-microvolt-L1 = <762500 762500 950000>,
+					   <762500 762500 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1416000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			opp-microvolt-L0 = <787500 787500 950000>,
+					   <787500 787500 950000>;
+			opp-microvolt-L1 = <775000 775000 950000>,
+					   <775000 775000 950000>;
+			opp-microvolt-L2 = <762500 762500 950000>,
+					   <762500 762500 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-j-m-1608000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <887500 887500 950000>,
+					<887500 887500 950000>;
+			opp-microvolt-L1 = <875000 875000 950000>,
+					   <875000 875000 950000>;
+			opp-microvolt-L2 = <862500 862500 950000>,
+					   <862500 862500 950000>;
+			opp-microvolt-L3 = <850000 850000 950000>,
+					   <850000 850000 950000>;
+			opp-microvolt-L4 = <837500 837500 950000>,
+					   <837500 837500 950000>;
+			opp-microvolt-L5 = <825000 825000 950000>,
+					   <825000 825000 950000>;
+			opp-microvolt-L6 = <812500 812500 950000>,
+					   <812500 812500 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1704000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <937500 937500 950000>,
+					<937500 937500 950000>;
+			opp-microvolt-L1 = <925000 925000 950000>,
+					   <925000 925000 950000>;
+			opp-microvolt-L2 = <912500 912500 950000>,
+					   <912500 912500 950000>;
+			opp-microvolt-L3 = <900000 900000 950000>,
+					   <900000 900000 950000>;
+			opp-microvolt-L4 = <887500 887500 950000>,
+					   <887500 887500 950000>;
+			opp-microvolt-L5 = <875000 875000 950000>,
+					   <875000 875000 950000>;
+			opp-microvolt-L6 = <862500 862500 950000>,
+					   <862500 862500 950000>;
+			clock-latency-ns = <40000>;
+		};
 	};
 
 	cluster1_opp_table: cluster1-opp-table {
@@ -817,6 +909,17 @@
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
 		rockchip,supported-hw;
 
+		rockchip,pvtm-hw = <0x06>;
+		rockchip,pvtm-voltage-sel-hw = <
+			0	1539	0
+			1540	1564	1
+			1565	1589	2
+			1590	1614	3
+			1615	1644	4
+			1645	1674	5
+			1675	1704	6
+			1705	9999	7
+		>;
 		rockchip,pvtm-voltage-sel = <
 			0	1595	0
 			1596	1615	1
@@ -855,8 +958,9 @@
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <2208000>;
 
+		/* RK3588 cluster1 OPPs */
 		opp-408000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
@@ -864,35 +968,35 @@
 			opp-suspend;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <725000 725000 1000000>,
 					<725000 725000 1000000>;
@@ -911,7 +1015,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <762500 762500 1000000>,
 					<762500 762500 1000000>;
@@ -930,7 +1034,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <850000 850000 1000000>,
 					<850000 850000 1000000>;
@@ -951,7 +1055,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2016000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <2016000000>;
 			opp-microvolt = <925000 925000 1000000>,
 					<925000 925000 1000000>;
@@ -1020,6 +1124,114 @@
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
+
+		/* RK3588J/M cluster1 OPPs */
+		opp-j-m-408000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-600000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-816000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1008000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1200000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1416000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			opp-microvolt-L0 = <762500 762500 950000>,
+					<762500 762500 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-j-m-1608000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <787500 787500 950000>,
+					<787500 787500 950000>;
+			opp-microvolt-L2 = <775000 775000 950000>,
+					   <775000 775000 950000>;
+			opp-microvolt-L3 = <762500 762500 950000>,
+					   <762500 762500 950000>;
+			opp-microvolt-L4 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			opp-microvolt-L5 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			opp-microvolt-L6 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			opp-microvolt-L7 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1800000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <875000 875000 950000>,
+					<875000 875000 950000>;
+			opp-microvolt-L1 = <862500 862500 950000>,
+					   <862500 862500 950000>;
+			opp-microvolt-L2 = <850000 850000 950000>,
+					   <850000 850000 950000>;
+			opp-microvolt-L3 = <837500 837500 950000>,
+					   <837500 837500 950000>;
+			opp-microvolt-L4 = <825000 825000 950000>,
+					   <825000 825000 950000>;
+			opp-microvolt-L5 = <812500 812500 950000>,
+					   <812500 812500 950000>;
+			opp-microvolt-L6 = <800000 800000 950000>,
+					   <800000 800000 950000>;
+			opp-microvolt-L7 = <787500 787500 950000>,
+					   <787500 787500 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-2016000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <950000 950000 950000>,
+					<950000 950000 950000>;
+			opp-microvolt-L1 = <950000 950000 950000>,
+					   <950000 950000 950000>;
+			opp-microvolt-L2 = <937500 937500 950000>,
+					   <937500 937500 950000>;
+			opp-microvolt-L3 = <925000 925000 950000>,
+					   <925000 925000 950000>;
+			opp-microvolt-L4 = <912500 912500 950000>,
+					   <912500 912500 950000>;
+			opp-microvolt-L5 = <900000 900000 950000>,
+					   <900000 900000 950000>;
+			opp-microvolt-L6 = <887500 887500 950000>,
+					   <887500 887500 950000>;
+			opp-microvolt-L7 = <875000 875000 950000>,
+					   <875000 875000 950000>;
+			clock-latency-ns = <40000>;
+		};
 	};
 
 	cluster2_opp_table: cluster2-opp-table {
@@ -1030,6 +1242,17 @@
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
 		rockchip,supported-hw;
 
+		rockchip,pvtm-hw = <0x06>;
+		rockchip,pvtm-voltage-sel-hw = <
+			0	1539	0
+			1540	1564	1
+			1565	1589	2
+			1590	1614	3
+			1615	1644	4
+			1645	1674	5
+			1675	1704	6
+			1705	9999	7
+		>;
 		rockchip,pvtm-voltage-sel = <
 			0	1595	0
 			1596	1615	1
@@ -1068,8 +1291,9 @@
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <2208000>;
 
+		/* RK3588 cluster2 OPPs */
 		opp-408000000 {
-			opp-supported-hw = <0xff 0x0ffff>;
+			opp-supported-hw = <0xf9 0x0ffff>;
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
@@ -1077,35 +1301,35 @@
 			opp-suspend;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <675000 675000 1000000>,
 					<675000 675000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <725000 725000 1000000>,
 					<725000 725000 1000000>;
@@ -1124,7 +1348,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <762500 762500 1000000>,
 					<762500 762500 1000000>;
@@ -1143,7 +1367,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <850000 850000 1000000>,
 					<850000 850000 1000000>;
@@ -1164,7 +1388,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2016000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <2016000000>;
 			opp-microvolt = <925000 925000 1000000>,
 					<925000 925000 1000000>;
@@ -1227,6 +1451,114 @@
 			opp-hz = /bits/ 64 <2400000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+
+		/* RK3588J/M cluster2 OPPs */
+		opp-j-m-408000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-600000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-816000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1008000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1200000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1416000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+			opp-microvolt-L0 = <762500 762500 950000>,
+					<762500 762500 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-j-m-1608000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <787500 787500 950000>,
+					<787500 787500 950000>;
+			opp-microvolt-L2 = <775000 775000 950000>,
+					   <775000 775000 950000>;
+			opp-microvolt-L3 = <762500 762500 950000>,
+					   <762500 762500 950000>;
+			opp-microvolt-L4 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			opp-microvolt-L5 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			opp-microvolt-L6 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			opp-microvolt-L7 = <750000 750000 950000>,
+					   <750000 750000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-1800000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <875000 875000 950000>,
+					<875000 875000 950000>;
+			opp-microvolt-L1 = <862500 862500 950000>,
+					   <862500 862500 950000>;
+			opp-microvolt-L2 = <850000 850000 950000>,
+					   <850000 850000 950000>;
+			opp-microvolt-L3 = <837500 837500 950000>,
+					   <837500 837500 950000>;
+			opp-microvolt-L4 = <825000 825000 950000>,
+					   <825000 825000 950000>;
+			opp-microvolt-L5 = <812500 812500 950000>,
+					   <812500 812500 950000>;
+			opp-microvolt-L6 = <800000 800000 950000>,
+					   <800000 800000 950000>;
+			opp-microvolt-L7 = <787500 787500 950000>,
+					   <787500 787500 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-m-2016000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <950000 950000 950000>,
+					<950000 950000 950000>;
+			opp-microvolt-L1 = <950000 950000 950000>,
+					   <950000 950000 950000>;
+			opp-microvolt-L2 = <937500 937500 950000>,
+					   <937500 937500 950000>;
+			opp-microvolt-L3 = <925000 925000 950000>,
+					   <925000 925000 950000>;
+			opp-microvolt-L4 = <912500 912500 950000>,
+					   <912500 912500 950000>;
+			opp-microvolt-L5 = <900000 900000 950000>,
+					   <900000 900000 950000>;
+			opp-microvolt-L6 = <887500 887500 950000>,
+					   <887500 887500 950000>;
+			opp-microvolt-L7 = <875000 875000 950000>,
+					   <875000 875000 950000>;
 			clock-latency-ns = <40000>;
 		};
 	};
@@ -1379,8 +1711,10 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&log_leakage>, <&dmc_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		nvmem-cells = <&log_leakage>, <&dmc_opp_info>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		rockchip,supported-hw;
+
 		rockchip,leakage-voltage-sel = <
 			1	31	0
 			32	44	1
@@ -1391,7 +1725,9 @@
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <750000>;
 
+		/* RK3588 dmc OPPs */
 		opp-528000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <528000000>;
 			opp-microvolt = <675000 675000 875000>,
 					<725000 725000 750000>;
@@ -1403,6 +1739,7 @@
 					   <675000 675000 750000>;
 		};
 		opp-1068000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1068000000>;
 			opp-microvolt = <725000 725000 875000>,
 					<737500 737500 750000>;
@@ -1414,6 +1751,7 @@
 					   <687500 687500 750000>;
 		};
 		opp-1560000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1560000000>;
 			opp-microvolt = <800000 800000 875000>,
 					<750000 750000 750000>;
@@ -1425,6 +1763,7 @@
 					   <700000 700000 750000>;
 		};
 		opp-2750000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <2750000000>;
 			opp-microvolt = <875000 875000 875000>,
 					<750000 750000 750000>;
@@ -1434,6 +1773,44 @@
 					   <725000 725000 750000>;
 			opp-microvolt-L3 = <825000 820000 875000>,
 					   <700000 700000 750000>;
+		};
+
+		/* RK3588J/M dmc OPPs */
+		opp-j-m-528000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <750000 750000 875000>,
+					<750000 750000 750000>;
+		};
+		opp-j-m-1068000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1068000000>;
+			opp-microvolt = <750000 750000 875000>,
+					<750000 750000 750000>;
+		};
+		opp-j-m-1560000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <1560000000>;
+			opp-microvolt = <800000 800000 875000>,
+					<750000 750000 750000>;
+			opp-microvolt-L1 = <775000 775000 875000>,
+					   <750000 750000 750000>;
+			opp-microvolt-L2 = <750000 750000 875000>,
+					   <750000 750000 750000>;
+			opp-microvolt-L3 = <750000 750000 875000>,
+					   <750000 750000 750000>;
+		};
+		opp-j-m-2750000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <2750000000>;
+			opp-microvolt = <875000 875000 875000>,
+					<750000 750000 750000>;
+			opp-microvolt-L1 = <850000 850000 875000>,
+					   <750000 750000 750000>;
+			opp-microvolt-L2 = <837500 837500 875000>,
+					   <750000 750000 750000>;
+			opp-microvolt-L3 = <825000 820000 875000>,
+					   <750000 750000 750000>;
 		};
 	};
 
@@ -1858,6 +2235,15 @@
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
 		rockchip,supported-hw;
 
+		rockchip,pvtm-hw = <0x04>;
+		rockchip,pvtm-voltage-sel-hw = <
+			0	799	0
+			800	819	1
+			820	844	2
+			845	869	3
+			870	894	4
+			895	9999	5
+		>;
 		rockchip,pvtm-voltage-sel = <
 			0	815	0
 			816	835	1
@@ -1893,32 +2279,33 @@
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <800000>;
 
+		/* RK3588 gpu OPPs */
 		opp-300000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <675000 675000 850000>,
 					<675000 675000 850000>;
 		};
 		opp-400000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <675000 675000 850000>,
 					<675000 675000 850000>;
 		};
 		opp-500000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <675000 675000 850000>,
 					<675000 675000 850000>;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <675000 675000 850000>,
 					<675000 675000 850000>;
 		};
 		opp-700000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
@@ -1932,7 +2319,7 @@
 					   <675000 675000 850000>;
 		};
 		opp-800000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <750000 750000 850000>,
 					<750000 750000 850000>;
@@ -1948,7 +2335,7 @@
 					   <700000 700000 850000>;
 		};
 		opp-900000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <800000 800000 850000>,
 					<800000 800000 850000>;
@@ -1964,7 +2351,95 @@
 					   <737500 737500 850000>;
 		};
 		opp-1000000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <850000 850000 850000>,
+					<850000 850000 850000>;
+			opp-microvolt-L1 = <837500 837500 850000>,
+					   <837500 837500 850000>;
+			opp-microvolt-L2 = <825000 825000 850000>,
+					   <825000 825000 850000>;
+			opp-microvolt-L3 = <812500 812500 850000>,
+					   <812500 812500 850000>;
+			opp-microvolt-L4 = <800000 800000 850000>,
+					   <800000 800000 850000>;
+			opp-microvolt-L5 = <787500 787500 850000>,
+					   <787500 787500 850000>;
+		};
+
+		/* RK3588J/M gpu OPPs */
+		opp-j-m-300000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-400000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-500000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-600000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-700000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		/* RK3588J gpu OPPs */
+		opp-j-850000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <850000000>;
+			opp-microvolt = <787500 787500 850000>,
+					<787500 787500 850000>;
+			opp-microvolt-L1 = <775000 775000 850000>,
+					   <775000 775000 850000>;
+			opp-microvolt-L2 = <762500 762500 850000>,
+					   <762500 762500 850000>;
+			opp-microvolt-L3 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+			opp-microvolt-L4 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+			opp-microvolt-L5 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+		};
+		/* RK3588M gpu OPPs */
+		opp-m-800000000 {
+			opp-supported-hw = <0x02 0xffff>;
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-m-900000000 {
+			opp-supported-hw = <0x02 0xffff>;
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <800000 800000 850000>,
+					<800000 800000 850000>;
+			opp-microvolt-L1 = <787500 787500 850000>,
+					   <787500 787500 850000>;
+			opp-microvolt-L2 = <775000 775000 850000>,
+					   <775000 775000 850000>;
+			opp-microvolt-L3 = <762500 762500 850000>,
+					   <762500 762500 850000>;
+			opp-microvolt-L4 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+			opp-microvolt-L5 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+		};
+		opp-m-1000000000 {
+			opp-supported-hw = <0x02 0xffff>;
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <850000 850000 850000>,
 					<850000 850000 850000>;
@@ -2847,6 +3322,15 @@
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
 		rockchip,supported-hw;
 
+		rockchip,pvtm-hw = <0x06>;
+		rockchip,pvtm-voltage-sel-hw = <
+			0	799	0
+			800	819	1
+			820	844	2
+			845	869	3
+			870	894	4
+			895	9999	5
+		>;
 		rockchip,pvtm-voltage-sel = <
 			0	815	0
 			816	835	1
@@ -2883,8 +3367,9 @@
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <800000>;
 
+		/* RK3588 npu OPPs */
 		opp-300000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
@@ -2900,7 +3385,7 @@
 					   <675000 675000 850000>;
 		};
 		opp-400000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
@@ -2916,7 +3401,7 @@
 					   <675000 675000 850000>;
 		};
 		opp-500000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
@@ -2932,7 +3417,7 @@
 					   <675000 675000 850000>;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
@@ -2948,7 +3433,7 @@
 					   <675000 675000 850000>;
 		};
 		opp-700000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
@@ -2960,7 +3445,7 @@
 					   <675000 675000 850000>;
 		};
 		opp-800000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <750000 750000 850000>,
 					<750000 750000 850000>;
@@ -2974,7 +3459,7 @@
 					   <700000 700000 850000>;
 		};
 		opp-900000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <800000 800000 850000>,
 					<800000 800000 850000>;
@@ -2990,7 +3475,7 @@
 					   <737500 737500 850000>;
 		};
 		opp-1000000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <850000 850000 850000>,
 					<850000 850000 850000>;
@@ -3004,6 +3489,60 @@
 					   <800000 800000 850000>;
 			opp-microvolt-L5 = <787500 787500 850000>,
 					   <787500 787500 850000>;
+		};
+
+		/* RK3588J/M npu OPPs */
+		opp-j-m-300000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-400000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-500000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-600000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-700000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-800000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-j-m-950000000 {
+			opp-supported-hw = <0x06 0xffff>;
+			opp-hz = /bits/ 64 <950000000>;
+			opp-microvolt = <837500 837500 850000>,
+					<837500 837500 850000>;
+			opp-microvolt-L1 = <825000 825000 850000>,
+					   <825000 825000 850000>;
+			opp-microvolt-L2 = <812500 812500 850000>,
+					   <812500 812500 850000>;
+			opp-microvolt-L3 = <800000 800000 850000>,
+					   <800000 800000 850000>;
+			opp-microvolt-L4 = <787500 787500 850000>,
+					   <787500 787500 850000>;
+			opp-microvolt-L5 = <775000 775000 850000>,
+					   <775000 775000 850000>;
 		};
 	};
 
