@@ -401,7 +401,6 @@
 	no-sd;
 	no-sdio;
 	non-removable;
-	max-frequency = <200000000>;
 	vmmc-supply = <&vcc_3v3_s0>;
 	vqmmc-supply = <&vcc_1v8_s3>;
 	status = "okay";
@@ -429,7 +428,6 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	max-frequency = <200000000>;
 	no-sdio;
 	no-mmc;
 	sd-uhs-sdr104;
