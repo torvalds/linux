@@ -70,11 +70,25 @@ static void ast_enable_vga(struct drm_device *dev)
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
 }
 
-static void ast_enable_mmio(struct drm_device *dev)
+/*
+ * Run this function as part of the HW device cleanup; not
+ * when the DRM device gets released.
+ */
+static void ast_enable_mmio_release(void *data)
 {
-	struct ast_device *ast = to_ast_device(dev);
+	struct ast_device *ast = data;
+
+	/* enable standard VGA decode */
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
+}
+
+static int ast_enable_mmio(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
 
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+
+	return devm_add_action_or_reset(dev->dev, ast_enable_mmio_release, ast);
 }
 
 static void ast_open_key(struct ast_device *ast)
@@ -391,18 +405,6 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-/*
- * Run this function as part of the HW device cleanup; not
- * when the DRM device gets released.
- */
-static void ast_device_release(void *data)
-{
-	struct ast_device *ast = data;
-
-	/* enable standard VGA decode */
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
-}
-
 struct ast_device *ast_device_create(const struct drm_driver *drv,
 				     struct pci_dev *pdev,
 				     unsigned long flags)
@@ -464,7 +466,9 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 
 	/* Enable extended register access */
 	ast_open_key(ast);
-	ast_enable_mmio(dev);
+	ret = ast_enable_mmio(ast);
+	if (ret)
+		return ERR_PTR(ret);
 
 	/* Find out whether P2A works or whether to use device-tree */
 	ast_detect_config_mode(dev, &scu_rev);
@@ -494,10 +498,6 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	}
 
 	ret = ast_mode_config_init(ast);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ret = devm_add_action_or_reset(dev->dev, ast_device_release, ast);
 	if (ret)
 		return ERR_PTR(ret);
 
