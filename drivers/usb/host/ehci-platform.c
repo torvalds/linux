@@ -378,6 +378,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 	if (err)
 		goto err_power;
 
+	/* Set 512 bytes for transmit FIFO threshold */
+	if (ehci->is_aspeed)
+		writel(((readl(hcd->regs + 0x84) & ~0xC0) | 0x80), hcd->regs + 0x84);
+
 	device_wakeup_enable(hcd->self.controller);
 	device_enable_async_suspend(hcd->self.controller);
 	platform_set_drvdata(dev, hcd);
