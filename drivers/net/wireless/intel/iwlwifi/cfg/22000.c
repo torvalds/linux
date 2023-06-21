@@ -67,6 +67,10 @@
 #define IWL_BZ_A_FM_B_FW_PRE		"iwlwifi-bz-a0-fm-b0-"
 #define IWL_BZ_A_FM_C_FW_PRE		"iwlwifi-bz-a0-fm-c0-"
 #define IWL_BZ_A_FM4_B_FW_PRE		"iwlwifi-bz-a0-fm4-b0-"
+#define IWL_BZ_B_GF_A_FW_PRE		"iwlwifi-bz-b0-gf-a0-"
+#define IWL_BZ_B_GF4_A_FW_PRE		"iwlwifi-bz-b0-gf4-a0-"
+#define IWL_BZ_B_FM_B_FW_PRE		"iwlwifi-bz-b0-fm-b0-"
+#define IWL_BZ_B_FM4_B_FW_PRE		"iwlwifi-bz-b0-fm4-b0-"
 #define IWL_GL_A_FM_A_FW_PRE		"iwlwifi-gl-a0-fm-a0-"
 #define IWL_GL_B_FM_B_FW_PRE		"iwlwifi-gl-b0-fm-b0-"
 #define IWL_GL_C_FM_C_FW_PRE		"iwlwifi-gl-c0-fm-c0-"
@@ -160,6 +164,14 @@
 		IWL_BZ_A_FM_C_FW_PRE __stringify(api) ".ucode"
 #define IWL_BZ_A_FM4_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_FM4_B_FW_PRE __stringify(api) ".ucode"
+#define IWL_BZ_B_GF_A_MODULE_FIRMWARE(api) \
+	IWL_BZ_B_GF_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_BZ_B_GF4_A_MODULE_FIRMWARE(api) \
+	IWL_BZ_B_GF4_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_BZ_B_FM_B_MODULE_FIRMWARE(api) \
+	IWL_BZ_B_FM_B_FW_PRE __stringify(api) ".ucode"
+#define IWL_BZ_B_FM4_B_MODULE_FIRMWARE(api) \
+	IWL_BZ_B_FM4_B_FW_PRE __stringify(api) ".ucode"
 #define IWL_GL_A_FM_A_MODULE_FIRMWARE(api) \
 	IWL_GL_A_FM_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_GL_B_FM_B_MODULE_FIRMWARE(api) \
@@ -1029,6 +1041,22 @@ const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0 = {
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
+const struct iwl_cfg iwl_cfg_bz_b0_gf_a0 = {
+	.fw_name_pre = IWL_BZ_B_GF_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_BZ,
+	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwl_cfg_bz_b0_gf4_a0 = {
+	.fw_name_pre = IWL_BZ_B_GF4_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_BZ,
+	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
 const struct iwl_cfg iwl_cfg_bz_a0_mr_a0 = {
 	.fw_name_pre = IWL_BZ_A_MR_A_FW_PRE,
 	.uhb_supported = true,
@@ -1071,6 +1099,22 @@ const struct iwl_cfg iwl_cfg_bz_a0_fm_c0 = {
 
 const struct iwl_cfg iwl_cfg_bz_a0_fm4_b0 = {
 	.fw_name_pre = IWL_BZ_A_FM4_B_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_BZ,
+	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwl_cfg_bz_b0_fm_b0 = {
+	.fw_name_pre = IWL_BZ_B_FM_B_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_BZ,
+	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwl_cfg_bz_b0_fm4_b0 = {
+	.fw_name_pre = IWL_BZ_B_FM4_B_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
 	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
