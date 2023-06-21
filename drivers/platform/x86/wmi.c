@@ -1241,11 +1241,7 @@ static bool guid_already_parsed_for_legacy(struct acpi_device *device, const gui
 	list_for_each_entry(wblock, &wmi_block_list, list) {
 		/* skip warning and register if we know the driver will use struct wmi_driver */
 		for (int i = 0; allow_duplicates[i] != NULL; i++) {
-			guid_t tmp;
-
-			if (guid_parse(allow_duplicates[i], &tmp))
-				continue;
-			if (guid_equal(&tmp, guid))
+			if (guid_parse_and_compare(allow_duplicates[i], guid))
 				return false;
 		}
 		if (guid_equal(&wblock->gblock.guid, guid)) {
