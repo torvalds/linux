@@ -1044,25 +1044,25 @@ void release_pages(release_pages_arg arg, int nr)
 EXPORT_SYMBOL(release_pages);
 
 /*
- * The pages which we're about to release may be in the deferred lru-addition
+ * The folios which we're about to release may be in the deferred lru-addition
  * queues.  That would prevent them from really being freed right now.  That's
- * OK from a correctness point of view but is inefficient - those pages may be
+ * OK from a correctness point of view but is inefficient - those folios may be
  * cache-warm and we want to give them back to the page allocator ASAP.
  *
- * So __pagevec_release() will drain those queues here.
+ * So __folio_batch_release() will drain those queues here.
  * folio_batch_move_lru() calls folios_put() directly to avoid
  * mutual recursion.
  */
-void __pagevec_release(struct pagevec *pvec)
+void __folio_batch_release(struct folio_batch *fbatch)
 {
-	if (!pvec->percpu_pvec_drained) {
+	if (!fbatch->percpu_pvec_drained) {
 		lru_add_drain();
-		pvec->percpu_pvec_drained = true;
+		fbatch->percpu_pvec_drained = true;
 	}
-	release_pages(pvec->pages, pagevec_count(pvec));
-	pagevec_reinit(pvec);
+	release_pages(fbatch->folios, folio_batch_count(fbatch));
+	folio_batch_reinit(fbatch);
 }
-EXPORT_SYMBOL(__pagevec_release);
+EXPORT_SYMBOL(__folio_batch_release);
 
 /**
  * folio_batch_remove_exceptionals() - Prune non-folios from a batch.
