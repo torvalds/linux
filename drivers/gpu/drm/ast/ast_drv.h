@@ -166,7 +166,6 @@ struct ast_device {
 	void __iomem *dp501_fw_buf;
 
 	enum ast_chip chip;
-	bool vga2_clone;
 	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
