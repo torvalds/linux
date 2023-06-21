@@ -27,7 +27,6 @@ allOf:
     then:
       properties:
         st,spi-midi-ns: false
-        spi-slave: false
 
 properties:
   compatible:
