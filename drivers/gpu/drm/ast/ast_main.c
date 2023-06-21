@@ -96,68 +96,75 @@ static void ast_open_key(struct ast_device *ast)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
 }
 
-static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
+static int ast_device_config_init(struct ast_device *ast)
 {
-	struct device_node *np = dev->dev->of_node;
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	uint32_t data, jregd0, jregd1;
+	struct device_node *np = dev->dev->of_node;
+	uint32_t scu_rev = 0xffffffff;
+	u32 data;
+	u8 jregd0, jregd1;
 
-	/* Defaults */
+	/*
+	 * Find configuration mode and read SCU revision
+	 */
+
 	ast->config_mode = ast_use_defaults;
 
 	/* Check if we have device-tree properties */
-	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id",
-					scu_rev)) {
+	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id", &data)) {
 		/* We do, disable P2A access */
 		ast->config_mode = ast_use_dt;
-		drm_info(dev, "Using device-tree for configuration\n");
-		return;
-	}
+		scu_rev = data;
+	} else if (pdev->device == PCI_CHIP_AST2000) { // Not all families have a P2A bridge
+		/*
+		 * The BMC will set SCU 0x40 D[12] to 1 if the P2 bridge
+		 * is disabled. We force using P2A if VGA only mode bit
+		 * is set D[7]
+		 */
+		jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
 
-	/* Not all families have a P2A bridge */
-	if (pdev->device != PCI_CHIP_AST2000)
-		return;
+			/*
+			 * We have a P2A bridge and it is enabled.
+			 */
 
-	/*
-	 * The BMC will set SCU 0x40 D[12] to 1 if the P2 bridge
-	 * is disabled. We force using P2A if VGA only mode bit
-	 * is set D[7]
-	 */
-	jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
-	jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
-	if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
-		/* Patch GEN6 */
-		if (((pdev->revision & 0xF0) == 0x40)
-			&& ((jregd0 & AST_VRAM_INIT_STATUS_MASK) == 0))
-			ast_patch_ahb_2500(ast);
+			/* Patch AST2500/AST2510 */
+			if ((pdev->revision & 0xf0) == 0x40) {
+				if (!(jregd0 & AST_VRAM_INIT_STATUS_MASK))
+					ast_patch_ahb_2500(ast);
+			}
 
-		/* Double check it's actually working */
-		data = ast_read32(ast, 0xf004);
-		if ((data != 0xFFFFFFFF) && (data != 0x00)) {
-			/* P2A works, grab silicon revision */
-			ast->config_mode = ast_use_p2a;
+			/* Double check that it's actually working */
+			data = ast_read32(ast, 0xf004);
+			if ((data != 0xffffffff) && (data != 0x00)) {
+				ast->config_mode = ast_use_p2a;
 
-			drm_info(dev, "Using P2A bridge for configuration\n");
-
-			/* Read SCU7c (silicon revision register) */
-			ast_write32(ast, 0xf004, 0x1e6e0000);
-			ast_write32(ast, 0xf000, 0x1);
-			*scu_rev = ast_read32(ast, 0x1207c);
-			return;
+				/* Read SCU7c (silicon revision register) */
+				ast_write32(ast, 0xf004, 0x1e6e0000);
+				ast_write32(ast, 0xf000, 0x1);
+				scu_rev = ast_read32(ast, 0x1207c);
+			}
 		}
 	}
 
-	/* We have a P2A bridge but it's disabled */
-	drm_info(dev, "P2A bridge disabled, using default configuration\n");
-}
+	switch (ast->config_mode) {
+	case ast_use_defaults:
+		drm_info(dev, "Using default configuration\n");
+		break;
+	case ast_use_dt:
+		drm_info(dev, "Using device-tree for configuration\n");
+		break;
+	case ast_use_p2a:
+		drm_info(dev, "Using P2A bridge for configuration\n");
+		break;
+	}
 
-static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
-{
-	struct ast_device *ast = to_ast_device(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	/*
+	 * Identify chipset
+	 */
 
-	/* Identify chipset */
 	if (pdev->revision >= 0x50) {
 		ast->chip = AST2600;
 		drm_info(dev, "AST 2600 detected\n");
@@ -442,7 +449,6 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	struct ast_device *ast;
 	bool need_post = false;
 	int ret = 0;
-	u32 scu_rev = 0xffffffff;
 
 	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
 	if (IS_ERR(ast))
@@ -499,10 +505,10 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* Find out whether P2A works or whether to use device-tree */
-	ast_detect_config_mode(dev, &scu_rev);
+	ret = ast_device_config_init(ast);
+	if (ret)
+		return ERR_PTR(ret);
 
-	ast_detect_chip(dev, need_post, scu_rev);
 	ast_detect_widescreen(ast);
 	ast_detect_tx_chip(ast, need_post);
 
