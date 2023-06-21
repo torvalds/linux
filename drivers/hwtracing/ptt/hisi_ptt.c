@@ -405,6 +405,144 @@ hisi_ptt_alloc_add_filter(struct hisi_ptt *hisi_ptt, u16 devid, bool is_port)
 	return filter;
 }
 
+static ssize_t hisi_ptt_filter_show(struct device *dev, struct device_attribute *attr,
+				    char *buf)
+{
+	struct hisi_ptt_filter_desc *filter;
+	unsigned long filter_val;
+
+	filter = container_of(attr, struct hisi_ptt_filter_desc, attr);
+	filter_val = hisi_ptt_get_filter_val(filter->devid, filter->is_port) |
+		     (filter->is_port ? HISI_PTT_PMU_FILTER_IS_PORT : 0);
+
+	return sysfs_emit(buf, "0x%05lx\n", filter_val);
+}
+
+static int hisi_ptt_create_rp_filter_attr(struct hisi_ptt *hisi_ptt,
+					  struct hisi_ptt_filter_desc *filter)
+{
+	struct kobject *kobj = &hisi_ptt->hisi_ptt_pmu.dev->kobj;
+
+	sysfs_attr_init(&filter->attr.attr);
+	filter->attr.attr.name = filter->name;
+	filter->attr.attr.mode = 0400; /* DEVICE_ATTR_ADMIN_RO */
+	filter->attr.show = hisi_ptt_filter_show;
+
+	return sysfs_add_file_to_group(kobj, &filter->attr.attr,
+				       HISI_PTT_RP_FILTERS_GRP_NAME);
+}
+
+static void hisi_ptt_remove_rp_filter_attr(struct hisi_ptt *hisi_ptt,
+					  struct hisi_ptt_filter_desc *filter)
+{
+	struct kobject *kobj = &hisi_ptt->hisi_ptt_pmu.dev->kobj;
+
+	sysfs_remove_file_from_group(kobj, &filter->attr.attr,
+				     HISI_PTT_RP_FILTERS_GRP_NAME);
+}
+
+static int hisi_ptt_create_req_filter_attr(struct hisi_ptt *hisi_ptt,
+					   struct hisi_ptt_filter_desc *filter)
+{
+	struct kobject *kobj = &hisi_ptt->hisi_ptt_pmu.dev->kobj;
+
+	sysfs_attr_init(&filter->attr.attr);
+	filter->attr.attr.name = filter->name;
+	filter->attr.attr.mode = 0400; /* DEVICE_ATTR_ADMIN_RO */
+	filter->attr.show = hisi_ptt_filter_show;
+
+	return sysfs_add_file_to_group(kobj, &filter->attr.attr,
+				       HISI_PTT_REQ_FILTERS_GRP_NAME);
+}
+
+static void hisi_ptt_remove_req_filter_attr(struct hisi_ptt *hisi_ptt,
+					   struct hisi_ptt_filter_desc *filter)
+{
+	struct kobject *kobj = &hisi_ptt->hisi_ptt_pmu.dev->kobj;
+
+	sysfs_remove_file_from_group(kobj, &filter->attr.attr,
+				     HISI_PTT_REQ_FILTERS_GRP_NAME);
+}
+
+static int hisi_ptt_create_filter_attr(struct hisi_ptt *hisi_ptt,
+				       struct hisi_ptt_filter_desc *filter)
+{
+	int ret;
+
+	if (filter->is_port)
+		ret = hisi_ptt_create_rp_filter_attr(hisi_ptt, filter);
+	else
+		ret = hisi_ptt_create_req_filter_attr(hisi_ptt, filter);
+
+	if (ret)
+		pci_err(hisi_ptt->pdev, "failed to create sysfs attribute for filter %s\n",
+			filter->name);
+
+	return ret;
+}
+
+static void hisi_ptt_remove_filter_attr(struct hisi_ptt *hisi_ptt,
+					struct hisi_ptt_filter_desc *filter)
+{
+	if (filter->is_port)
+		hisi_ptt_remove_rp_filter_attr(hisi_ptt, filter);
+	else
+		hisi_ptt_remove_req_filter_attr(hisi_ptt, filter);
+}
+
+static void hisi_ptt_remove_all_filter_attributes(void *data)
+{
+	struct hisi_ptt_filter_desc *filter;
+	struct hisi_ptt *hisi_ptt = data;
+
+	mutex_lock(&hisi_ptt->filter_lock);
+
+	list_for_each_entry(filter, &hisi_ptt->req_filters, list)
+		hisi_ptt_remove_filter_attr(hisi_ptt, filter);
+
+	list_for_each_entry(filter, &hisi_ptt->port_filters, list)
+		hisi_ptt_remove_filter_attr(hisi_ptt, filter);
+
+	hisi_ptt->sysfs_inited = false;
+	mutex_unlock(&hisi_ptt->filter_lock);
+}
+
+static int hisi_ptt_init_filter_attributes(struct hisi_ptt *hisi_ptt)
+{
+	struct hisi_ptt_filter_desc *filter;
+	int ret;
+
+	mutex_lock(&hisi_ptt->filter_lock);
+
+	/*
+	 * Register the reset callback in the first stage. In reset we traverse
+	 * the filters list to remove the sysfs attributes so the callback can
+	 * be called safely even without below filter attributes creation.
+	 */
+	ret = devm_add_action(&hisi_ptt->pdev->dev,
+			      hisi_ptt_remove_all_filter_attributes,
+			      hisi_ptt);
+	if (ret)
+		goto out;
+
+	list_for_each_entry(filter, &hisi_ptt->port_filters, list) {
+		ret = hisi_ptt_create_filter_attr(hisi_ptt, filter);
+		if (ret)
+			goto out;
+	}
+
+	list_for_each_entry(filter, &hisi_ptt->req_filters, list) {
+		ret = hisi_ptt_create_filter_attr(hisi_ptt, filter);
+		if (ret)
+			goto out;
+	}
+
+	hisi_ptt->sysfs_inited = true;
+out:
+	mutex_unlock(&hisi_ptt->filter_lock);
+	return ret;
+}
+
 static void hisi_ptt_update_filters(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
@@ -429,6 +567,18 @@ static void hisi_ptt_update_filters(struct work_struct *work)
 			filter = hisi_ptt_alloc_add_filter(hisi_ptt, info.devid, info.is_port);
 			if (!filter)
 				continue;
+
+			/*
+			 * If filters' sysfs entries hasn't been initialized,
+			 * then we're still at probe stage. Add the filters to
+			 * the list and later hisi_ptt_init_filter_attributes()
+			 * will create sysfs attributes for all the filters.
+			 */
+			if (hisi_ptt->sysfs_inited &&
+			    hisi_ptt_create_filter_attr(hisi_ptt, filter)) {
+				hisi_ptt_del_free_filter(hisi_ptt, filter);
+				continue;
+			}
 		} else {
 			struct hisi_ptt_filter_desc *tmp;
 			struct list_head *target_list;
@@ -438,6 +588,9 @@ static void hisi_ptt_update_filters(struct work_struct *work)
 
 			list_for_each_entry_safe(filter, tmp, target_list, list)
 				if (filter->devid == info.devid) {
+					if (hisi_ptt->sysfs_inited)
+						hisi_ptt_remove_filter_attr(hisi_ptt, filter);
+
 					hisi_ptt_del_free_filter(hisi_ptt, filter);
 					break;
 				}
@@ -663,10 +816,58 @@ static struct attribute_group hisi_ptt_pmu_format_group = {
 	.attrs = hisi_ptt_pmu_format_attrs,
 };
 
+static ssize_t hisi_ptt_filter_multiselect_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct dev_ext_attribute *ext_attr;
+
+	ext_attr = container_of(attr, struct dev_ext_attribute, attr);
+	return sysfs_emit(buf, "%s\n", (char *)ext_attr->var);
+}
+
+static struct dev_ext_attribute root_port_filters_multiselect = {
+	.attr = {
+		.attr = { .name = "multiselect", .mode = 0400 },
+		.show = hisi_ptt_filter_multiselect_show,
+	},
+	.var = "1",
+};
+
+static struct attribute *hisi_ptt_pmu_root_ports_attrs[] = {
+	&root_port_filters_multiselect.attr.attr,
+	NULL
+};
+
+static struct attribute_group hisi_ptt_pmu_root_ports_group = {
+	.name = HISI_PTT_RP_FILTERS_GRP_NAME,
+	.attrs = hisi_ptt_pmu_root_ports_attrs,
+};
+
+static struct dev_ext_attribute requester_filters_multiselect = {
+	.attr = {
+		.attr = { .name = "multiselect", .mode = 0400 },
+		.show = hisi_ptt_filter_multiselect_show,
+	},
+	.var = "0",
+};
+
+static struct attribute *hisi_ptt_pmu_requesters_attrs[] = {
+	&requester_filters_multiselect.attr.attr,
+	NULL
+};
+
+static struct attribute_group hisi_ptt_pmu_requesters_group = {
+	.name = HISI_PTT_REQ_FILTERS_GRP_NAME,
+	.attrs = hisi_ptt_pmu_requesters_attrs,
+};
+
 static const struct attribute_group *hisi_ptt_pmu_groups[] = {
 	&hisi_ptt_cpumask_attr_group,
 	&hisi_ptt_pmu_format_group,
 	&hisi_ptt_tune_group,
+	&hisi_ptt_pmu_root_ports_group,
+	&hisi_ptt_pmu_requesters_group,
 	NULL
 };
 
@@ -1144,6 +1345,12 @@ static int hisi_ptt_probe(struct pci_dev *pdev,
 	ret = hisi_ptt_register_pmu(hisi_ptt);
 	if (ret) {
 		pci_err(pdev, "failed to register PMU device, ret = %d", ret);
+		return ret;
+	}
+
+	ret = hisi_ptt_init_filter_attributes(hisi_ptt);
+	if (ret) {
+		pci_err(pdev, "failed to init sysfs filter attributes, ret = %d", ret);
 		return ret;
 	}
 

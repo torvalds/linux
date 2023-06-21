@@ -148,6 +148,12 @@ For example, if the desired filter is Endpoint function 0000:01:00.1 the filter
 value will be 0x00101. If the desired filter is Root Port 0000:00:10.0 then
 then filter value is calculated as 0x80001.
 
+The driver also presents every supported Root Port and Requester filter through
+sysfs. Each filter will be an individual file with name of its related PCIe
+device name (domain:bus:device.function). The files of Root Port filters are
+under $(PTT PMU dir)/root_port_filters and files of Requester filters
+are under $(PTT PMU dir)/requester_filters.
+
 Note that multiple Root Ports can be specified at one time, but only one
 Endpoint function can be specified in one trace. Specifying both Root Port
 and function at the same time is not supported. Driver maintains a list of
