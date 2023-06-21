@@ -287,11 +287,6 @@ static inline void ast_set_index_reg_mask(struct ast_device *ast, u32 base, u8 i
 	ast_set_index_reg(ast, base, index, tmp);
 }
 
-static inline void ast_open_key(struct ast_device *ast)
-{
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
-}
-
 #define AST_VIDMEM_SIZE_8M    0x00800000
 #define AST_VIDMEM_SIZE_16M   0x01000000
 #define AST_VIDMEM_SIZE_32M   0x02000000
@@ -470,9 +465,6 @@ int ast_mode_config_init(struct ast_device *ast);
 int ast_mm_init(struct ast_device *ast);
 
 /* ast post */
-void ast_enable_vga(struct drm_device *dev);
-void ast_enable_mmio(struct drm_device *dev);
-bool ast_is_vga_enabled(struct drm_device *dev);
 void ast_post_gpu(struct drm_device *dev);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
 void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);

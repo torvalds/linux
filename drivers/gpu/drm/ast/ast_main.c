@@ -52,6 +52,36 @@ out:
 	return pcibios_err_to_errno(err);
 }
 
+static bool ast_is_vga_enabled(struct drm_device *dev)
+{
+	struct ast_device *ast = to_ast_device(dev);
+	u8 ch;
+
+	ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
+
+	return !!(ch & 0x01);
+}
+
+static void ast_enable_vga(struct drm_device *dev)
+{
+	struct ast_device *ast = to_ast_device(dev);
+
+	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
+	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
+}
+
+static void ast_enable_mmio(struct drm_device *dev)
+{
+	struct ast_device *ast = to_ast_device(dev);
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+}
+
+static void ast_open_key(struct ast_device *ast)
+{
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
+}
+
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
 	struct device_node *np = dev->dev->of_node;
