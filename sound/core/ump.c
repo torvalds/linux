@@ -854,6 +854,10 @@ static void ump_handle_stream_msg(struct snd_ump_endpoint *ump,
 	unsigned int status;
 	int ret;
 
+	/* UMP stream message suppressed (for gadget UMP)? */
+	if (ump->no_process_stream)
+		return;
+
 	BUILD_BUG_ON(sizeof(*msg) != 16);
 	ump_dbg(ump, "Stream msg: %08x %08x %08x %08x\n",
 		buf[0], buf[1], buf[2], buf[3]);
