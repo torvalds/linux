@@ -1645,7 +1645,7 @@ err_bucket_stale:
 		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 
 	/* We can retry this: */
-	ret = BCH_ERR_transaction_restart;
+	ret = -BCH_ERR_transaction_restart;
 	goto out;
 }
 

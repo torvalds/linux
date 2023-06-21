@@ -378,25 +378,24 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	i->size	= size;
 	i->ret	= 0;
 
-	bch2_trans_init(&trans, i->c, 0, 0);
+	ret = flush_buf(i);
+	if (ret)
+		return ret;
 
+	bch2_trans_init(&trans, i->c, 0, 0);
 	ret = for_each_btree_key2(&trans, iter, i->id, i->from,
 				  BTREE_ITER_PREFETCH|
 				  BTREE_ITER_ALL_SNAPSHOTS, k, ({
-		ret = flush_buf(i);
-		if (ret)
-			break;
-
 		bch2_bkey_val_to_text(&i->buf, i->c, k);
 		prt_newline(&i->buf);
-		0;
+		drop_locks_do(&trans, flush_buf(i));
 	}));
 	i->from = iter.pos;
 
+	bch2_trans_exit(&trans);
+
 	if (!ret)
 		ret = flush_buf(i);
-
-	bch2_trans_exit(&trans);
 
 	return ret ?: i->ret;
 }
@@ -429,18 +428,23 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 		return i->ret;
 
 	bch2_trans_init(&trans, i->c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
 
 	for_each_btree_node(&trans, iter, i->id, i->from, 0, b, ret) {
-		ret = flush_buf(i);
-		if (ret)
-			break;
-
 		bch2_btree_node_to_text(&i->buf, i->c, b);
 		i->from = !bpos_eq(SPOS_MAX, b->key.k.p)
 			? bpos_successor(b->key.k.p)
 			: b->key.k.p;
+
+		ret = drop_locks_do(&trans, flush_buf(i));
+		if (ret)
+			break;
 	}
 	bch2_trans_iter_exit(&trans, &iter);
+
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		goto retry;
 
 	bch2_trans_exit(&trans);
 
@@ -483,17 +487,13 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 		struct bkey_packed *_k =
 			bch2_btree_node_iter_peek(&l->iter, l->b);
 
-		ret = flush_buf(i);
-		if (ret)
-			break;
-
 		if (bpos_gt(l->b->key.k.p, i->prev_node)) {
 			bch2_btree_node_to_text(&i->buf, i->c, l->b);
 			i->prev_node = l->b->key.k.p;
 		}
 
 		bch2_bfloat_to_text(&i->buf, l->b, _k);
-		0;
+		drop_locks_do(&trans, flush_buf(i));
 	}));
 	i->from = iter.pos;
 

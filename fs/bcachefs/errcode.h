@@ -224,7 +224,7 @@ bool __bch2_err_matches(int, int);
 
 static inline bool _bch2_err_matches(int err, int class)
 {
-	return err && __bch2_err_matches(err, class);
+	return err < 0 && __bch2_err_matches(err, class);
 }
 
 #define bch2_err_matches(_err, _class)			\

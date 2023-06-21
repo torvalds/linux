@@ -286,7 +286,7 @@ __always_inline
 static inline int btree_trans_restart_nounlock(struct btree_trans *trans, int err)
 {
 	BUG_ON(err <= 0);
-	BUG_ON(!bch2_err_matches(err, BCH_ERR_transaction_restart));
+	BUG_ON(!bch2_err_matches(-err, BCH_ERR_transaction_restart));
 
 	trans->restarted = err;
 	trans->last_restarted_ip = _THIS_IP_;
