@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_buf.h"
 #include "bkey_methods.h"
 #include "btree_update.h"
 #include "extents.h"
@@ -504,8 +505,10 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 	struct bkey_s_c_dirent dirent;
 	subvol_inum target;
 	u32 snapshot;
+	struct bkey_buf sk;
 	int ret;
 
+	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
@@ -528,10 +531,11 @@ retry:
 		if (ret)
 			continue;
 
-		/*
-		 * XXX: dir_emit() can fault and block, while we're holding
-		 * locks
-		 */
+		/* dir_emit() can fault and block: */
+		bch2_bkey_buf_reassemble(&sk, c, k);
+		dirent = bkey_i_to_s_c_dirent(sk.k);
+		bch2_trans_unlock(&trans);
+
 		ctx->pos = dirent.k->p.offset;
 		if (!dir_emit(ctx, dirent.v->d_name,
 			      bch2_dirent_name_bytes(dirent),
@@ -554,6 +558,7 @@ err:
 		goto retry;
 
 	bch2_trans_exit(&trans);
+	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;
 }
