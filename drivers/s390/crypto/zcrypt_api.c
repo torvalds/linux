@@ -111,8 +111,6 @@ EXPORT_SYMBOL(zcrypt_msgtype);
  * Multi device nodes extension functions.
  */
 
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
-
 struct zcdn_device;
 
 static struct class *zcrypt_class;
@@ -477,8 +475,6 @@ static void zcdn_destroy_all(void)
 	mutex_unlock(&ap_perms_mutex);
 }
 
-#endif
-
 /*
  * zcrypt_read (): Not supported beyond zcrypt 1.3.1.
  *
@@ -510,7 +506,6 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 {
 	struct ap_perms *perms = &ap_perms;
 
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
@@ -522,7 +517,6 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 		if (zcdndev)
 			perms = &zcdndev->perms;
 	}
-#endif
 	filp->private_data = (void *)perms;
 
 	atomic_inc(&zcrypt_open_count);
@@ -536,7 +530,6 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
  */
 static int zcrypt_release(struct inode *inode, struct file *filp)
 {
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
@@ -549,7 +542,6 @@ static int zcrypt_release(struct inode *inode, struct file *filp)
 			put_device(&zcdndev->device);
 		}
 	}
-#endif
 
 	atomic_dec(&zcrypt_open_count);
 	return 0;
@@ -2061,8 +2053,6 @@ void zcrypt_debug_exit(void)
 	debug_unregister(zcrypt_dbf_info);
 }
 
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
-
 static int __init zcdn_init(void)
 {
 	int rc;
@@ -2120,8 +2110,6 @@ static void zcdn_exit(void)
 	class_destroy(zcrypt_class);
 }
 
-#endif
-
 /*
  * zcrypt_api_init(): Module initialization.
  *
@@ -2135,11 +2123,9 @@ int __init zcrypt_api_init(void)
 	if (rc)
 		goto out;
 
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
 	rc = zcdn_init();
 	if (rc)
 		goto out;
-#endif
 
 	/* Register the request sprayer. */
 	rc = misc_register(&zcrypt_misc_device);
@@ -2152,9 +2138,7 @@ int __init zcrypt_api_init(void)
 	return 0;
 
 out_misc_register_failed:
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
 	zcdn_exit();
-#endif
 	zcrypt_debug_exit();
 out:
 	return rc;
@@ -2167,9 +2151,7 @@ out:
  */
 void __exit zcrypt_api_exit(void)
 {
-#ifdef CONFIG_ZCRYPT_MULTIDEVNODES
 	zcdn_exit();
-#endif
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();

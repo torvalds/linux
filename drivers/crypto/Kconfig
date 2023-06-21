@@ -92,17 +92,6 @@ config ZCRYPT_DEBUG
 
 	  If unsure, say N.
 
-config ZCRYPT_MULTIDEVNODES
-	bool "Support for multiple zcrypt device nodes"
-	default y
-	depends on S390
-	depends on ZCRYPT
-	help
-	  With this option enabled the zcrypt device driver can
-	  provide multiple devices nodes in /dev. Each device
-	  node can get customized to limit access and narrow
-	  down the use of the available crypto hardware.
-
 config PKEY
 	tristate "Kernel API for protected key handling"
 	depends on S390
