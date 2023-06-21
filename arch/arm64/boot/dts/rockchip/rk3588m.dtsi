@@ -5,23 +5,3 @@
  */
 
 #include "rk3588.dtsi"
-
-&cluster0_opp_table {
-	/delete-node/ opp-1800000000;
-};
-
-&cluster1_opp_table {
-	/delete-node/ opp-2208000000;
-	/delete-node/ opp-2256000000;
-	/delete-node/ opp-2304000000;
-	/delete-node/ opp-2352000000;
-	/delete-node/ opp-2400000000;
-};
-
-&cluster2_opp_table {
-	/delete-node/ opp-2208000000;
-	/delete-node/ opp-2256000000;
-	/delete-node/ opp-2304000000;
-	/delete-node/ opp-2352000000;
-	/delete-node/ opp-2400000000;
-};
