@@ -892,8 +892,8 @@ static int rpmpd_set_performance(struct generic_pm_domain *domain,
 	pd->corner = state;
 
 	/* Always send updates for vfc and vfl */
-	if (!pd->enabled && pd->key != KEY_FLOOR_CORNER &&
-	    pd->key != KEY_FLOOR_LEVEL)
+	if (!pd->enabled && pd->key != cpu_to_le32(KEY_FLOOR_CORNER) &&
+	    pd->key != cpu_to_le32(KEY_FLOOR_LEVEL))
 		goto out;
 
 	ret = rpmpd_aggregate_corner(pd);
