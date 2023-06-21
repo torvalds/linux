@@ -174,7 +174,7 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		return trans->cfg->fw_name_pre;
 
 	if (WARN_ON(!trans->cfg->fw_name_mac))
-		return "unconfigured-";
+		return "unconfigured";
 
 	mac_step = iwl_drv_get_step(trans->hw_rev_step);
 
@@ -199,7 +199,7 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		rf = "wh";
 		break;
 	default:
-		return "unknown-rf-";
+		return "unknown-rf";
 	}
 
 	cdb = CSR_HW_RFID_IS_CDB(trans->hw_rf_id) ? "4" : "";
@@ -244,12 +244,12 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
 		if (cfg->ucode_api_min == cfg->ucode_api_max) {
-			IWL_ERR(drv, "%s%d is required\n", fw_name_pre,
+			IWL_ERR(drv, "%s-%d is required\n", fw_name_pre,
 				cfg->ucode_api_max);
 		} else {
-			IWL_ERR(drv, "minimum version required: %s%d\n",
+			IWL_ERR(drv, "minimum version required: %s-%d\n",
 				fw_name_pre, cfg->ucode_api_min);
-			IWL_ERR(drv, "maximum version supported: %s%d\n",
+			IWL_ERR(drv, "maximum version supported: %s-%d\n",
 				fw_name_pre, cfg->ucode_api_max);
 		}
 
@@ -258,7 +258,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%d.ucode",
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s-%d.ucode",
 		 fw_name_pre, drv->fw_index);
 
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",

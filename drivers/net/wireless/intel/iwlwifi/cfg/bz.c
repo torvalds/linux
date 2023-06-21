@@ -26,59 +26,59 @@
 #define IWL_BZ_SMEM_OFFSET		0x400000
 #define IWL_BZ_SMEM_LEN			0xD0000
 
-#define IWL_BZ_A_HR_A_FW_PRE		"iwlwifi-bz-a0-hr-b0-"
-#define IWL_BZ_A_HR_B_FW_PRE		"iwlwifi-bz-a0-hr-b0-"
-#define IWL_BZ_A_GF_A_FW_PRE		"iwlwifi-bz-a0-gf-a0-"
-#define IWL_BZ_A_GF4_A_FW_PRE		"iwlwifi-bz-a0-gf4-a0-"
-#define IWL_BZ_A_MR_A_FW_PRE		"iwlwifi-bz-a0-mr-a0-"
-#define IWL_BZ_A_FM_A_FW_PRE		"iwlwifi-bz-a0-fm-a0-"
-#define IWL_BZ_A_FM4_A_FW_PRE		"iwlwifi-bz-a0-fm4-a0-"
-#define IWL_BZ_A_FM_B_FW_PRE		"iwlwifi-bz-a0-fm-b0-"
-#define IWL_BZ_A_FM_C_FW_PRE		"iwlwifi-bz-a0-fm-c0-"
-#define IWL_BZ_A_FM4_B_FW_PRE		"iwlwifi-bz-a0-fm4-b0-"
-#define IWL_BZ_B_GF_A_FW_PRE		"iwlwifi-bz-b0-gf-a0-"
-#define IWL_BZ_B_GF4_A_FW_PRE		"iwlwifi-bz-b0-gf4-a0-"
-#define IWL_BZ_B_FM_B_FW_PRE		"iwlwifi-bz-b0-fm-b0-"
-#define IWL_BZ_B_FM4_B_FW_PRE		"iwlwifi-bz-b0-fm4-b0-"
-#define IWL_GL_A_FM_A_FW_PRE		"iwlwifi-gl-a0-fm-a0-"
-#define IWL_GL_B_FM_B_FW_PRE		"iwlwifi-gl-b0-fm-b0-"
-#define IWL_GL_C_FM_C_FW_PRE		"iwlwifi-gl-c0-fm-c0-"
-#define IWL_BZ_Z_GF_A_FW_PRE		"iwlwifi-bz-z0-gf-a0-"
+#define IWL_BZ_A_HR_A_FW_PRE		"iwlwifi-bz-a0-hr-b0"
+#define IWL_BZ_A_HR_B_FW_PRE		"iwlwifi-bz-a0-hr-b0"
+#define IWL_BZ_A_GF_A_FW_PRE		"iwlwifi-bz-a0-gf-a0"
+#define IWL_BZ_A_GF4_A_FW_PRE		"iwlwifi-bz-a0-gf4-a0"
+#define IWL_BZ_A_MR_A_FW_PRE		"iwlwifi-bz-a0-mr-a0"
+#define IWL_BZ_A_FM_A_FW_PRE		"iwlwifi-bz-a0-fm-a0"
+#define IWL_BZ_A_FM4_A_FW_PRE		"iwlwifi-bz-a0-fm4-a0"
+#define IWL_BZ_A_FM_B_FW_PRE		"iwlwifi-bz-a0-fm-b0"
+#define IWL_BZ_A_FM_C_FW_PRE		"iwlwifi-bz-a0-fm-c0"
+#define IWL_BZ_A_FM4_B_FW_PRE		"iwlwifi-bz-a0-fm4-b0"
+#define IWL_BZ_B_GF_A_FW_PRE		"iwlwifi-bz-b0-gf-a0"
+#define IWL_BZ_B_GF4_A_FW_PRE		"iwlwifi-bz-b0-gf4-a0"
+#define IWL_BZ_B_FM_B_FW_PRE		"iwlwifi-bz-b0-fm-b0"
+#define IWL_BZ_B_FM4_B_FW_PRE		"iwlwifi-bz-b0-fm4-b0"
+#define IWL_GL_A_FM_A_FW_PRE		"iwlwifi-gl-a0-fm-a0"
+#define IWL_GL_B_FM_B_FW_PRE		"iwlwifi-gl-b0-fm-b0"
+#define IWL_GL_C_FM_C_FW_PRE		"iwlwifi-gl-c0-fm-c0"
+#define IWL_BZ_Z_GF_A_FW_PRE		"iwlwifi-bz-z0-gf-a0"
 
 #define IWL_BZ_A_HR_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_HR_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_HR_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_HR_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_HR_B_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_GF_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_GF_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_GF4_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_GF4_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_MR_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_MR_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_MR_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_FM_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM4_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM4_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_FM4_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM_B_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_FM_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM_C_MODULE_FIRMWARE(api) \
-		IWL_BZ_A_FM_C_FW_PRE __stringify(api) ".ucode"
+		IWL_BZ_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM4_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM4_B_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_A_FM4_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_B_GF_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_B_GF_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_B_GF_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_B_GF4_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_B_GF4_A_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_B_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_B_FM_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_B_FM_B_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_B_FM_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_B_FM4_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_B_FM4_B_FW_PRE __stringify(api) ".ucode"
+	IWL_BZ_B_FM4_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_GL_A_FM_A_MODULE_FIRMWARE(api) \
-	IWL_GL_A_FM_A_FW_PRE __stringify(api) ".ucode"
+	IWL_GL_A_FM_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_GL_B_FM_B_MODULE_FIRMWARE(api) \
-	IWL_GL_B_FM_B_FW_PRE __stringify(api) ".ucode"
+	IWL_GL_B_FM_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_GL_C_FM_C_MODULE_FIRMWARE(api) \
-	IWL_GL_C_FM_C_FW_PRE __stringify(api) ".ucode"
+	IWL_GL_C_FM_C_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_bz_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,

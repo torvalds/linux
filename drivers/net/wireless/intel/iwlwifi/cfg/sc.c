@@ -26,28 +26,28 @@
 #define IWL_SC_SMEM_OFFSET		0x400000
 #define IWL_SC_SMEM_LEN			0xD0000
 
-#define IWL_SC_A_FM_B_FW_PRE		"iwlwifi-sc-a0-fm-b0-"
-#define IWL_SC_A_FM_C_FW_PRE		"iwlwifi-sc-a0-fm-c0-"
-#define IWL_SC_A_HR_A_FW_PRE		"iwlwifi-sc-a0-hr-b0-"
-#define IWL_SC_A_HR_B_FW_PRE		"iwlwifi-sc-a0-hr-b0-"
-#define IWL_SC_A_GF_A_FW_PRE		"iwlwifi-sc-a0-gf-a0-"
-#define IWL_SC_A_GF4_A_FW_PRE		"iwlwifi-sc-a0-gf4-a0-"
-#define IWL_SC_A_WH_A_FW_PRE		"iwlwifi-sc-a0-wh-a0-"
+#define IWL_SC_A_FM_B_FW_PRE		"iwlwifi-sc-a0-fm-b0"
+#define IWL_SC_A_FM_C_FW_PRE		"iwlwifi-sc-a0-fm-c0"
+#define IWL_SC_A_HR_A_FW_PRE		"iwlwifi-sc-a0-hr-b0"
+#define IWL_SC_A_HR_B_FW_PRE		"iwlwifi-sc-a0-hr-b0"
+#define IWL_SC_A_GF_A_FW_PRE		"iwlwifi-sc-a0-gf-a0"
+#define IWL_SC_A_GF4_A_FW_PRE		"iwlwifi-sc-a0-gf4-a0"
+#define IWL_SC_A_WH_A_FW_PRE		"iwlwifi-sc-a0-wh-a0"
 
 #define IWL_SC_A_FM_B_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_FM_B_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_FM_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_FM_C_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_FM_C_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_HR_A_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_HR_A_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_HR_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_HR_B_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_HR_B_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_GF_A_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_GF_A_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_GF4_A_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_GF4_A_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_WH_A_FW_MODULE_FIRMWARE(api) \
-	IWL_SC_A_WH_A_FW_PRE __stringify(api) ".ucode"
+	IWL_SC_A_WH_A_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_sc_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,

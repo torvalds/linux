@@ -26,26 +26,26 @@
 #define IWL_22000_SMEM_OFFSET		0x400000
 #define IWL_22000_SMEM_LEN		0xD0000
 
-#define IWL_QU_B_HR_B_FW_PRE		"iwlwifi-Qu-b0-hr-b0-"
-#define IWL_QU_C_HR_B_FW_PRE		"iwlwifi-Qu-c0-hr-b0-"
-#define IWL_QU_B_JF_B_FW_PRE		"iwlwifi-Qu-b0-jf-b0-"
-#define IWL_QU_C_JF_B_FW_PRE		"iwlwifi-Qu-c0-jf-b0-"
-#define IWL_QUZ_A_HR_B_FW_PRE		"iwlwifi-QuZ-a0-hr-b0-"
-#define IWL_QUZ_A_JF_B_FW_PRE		"iwlwifi-QuZ-a0-jf-b0-"
-#define IWL_CC_A_FW_PRE			"iwlwifi-cc-a0-"
+#define IWL_QU_B_HR_B_FW_PRE		"iwlwifi-Qu-b0-hr-b0"
+#define IWL_QU_C_HR_B_FW_PRE		"iwlwifi-Qu-c0-hr-b0"
+#define IWL_QU_B_JF_B_FW_PRE		"iwlwifi-Qu-b0-jf-b0"
+#define IWL_QU_C_JF_B_FW_PRE		"iwlwifi-Qu-c0-jf-b0"
+#define IWL_QUZ_A_HR_B_FW_PRE		"iwlwifi-QuZ-a0-hr-b0"
+#define IWL_QUZ_A_JF_B_FW_PRE		"iwlwifi-QuZ-a0-jf-b0"
+#define IWL_CC_A_FW_PRE			"iwlwifi-cc-a0"
 
 #define IWL_QU_B_HR_B_MODULE_FIRMWARE(api) \
-	IWL_QU_B_HR_B_FW_PRE __stringify(api) ".ucode"
+	IWL_QU_B_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_QUZ_A_HR_B_MODULE_FIRMWARE(api) \
-	IWL_QUZ_A_HR_B_FW_PRE __stringify(api) ".ucode"
+	IWL_QUZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_QUZ_A_JF_B_MODULE_FIRMWARE(api) \
-	IWL_QUZ_A_JF_B_FW_PRE __stringify(api) ".ucode"
+	IWL_QUZ_A_JF_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_QU_C_HR_B_MODULE_FIRMWARE(api) \
-	IWL_QU_C_HR_B_FW_PRE __stringify(api) ".ucode"
+	IWL_QU_C_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_QU_B_JF_B_MODULE_FIRMWARE(api) \
-	IWL_QU_B_JF_B_FW_PRE __stringify(api) ".ucode"
+	IWL_QU_B_JF_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_CC_A_MODULE_FIRMWARE(api)			\
-	IWL_CC_A_FW_PRE __stringify(api) ".ucode"
+	IWL_CC_A_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_22000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,

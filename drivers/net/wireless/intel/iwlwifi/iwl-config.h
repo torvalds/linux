@@ -309,7 +309,7 @@ struct iwl_fw_mon_regs {
  * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
- *	filename is constructed as fw_name_pre<api>.ucode.
+ *	filename is constructed as <fw_name_pre>-<api>.ucode.
  * @fw_name_mac: MAC name for this config, the remaining pieces of the
  *	name will be generated dynamically
  * @ucode_api_max: Highest version of uCode API supported by driver.
