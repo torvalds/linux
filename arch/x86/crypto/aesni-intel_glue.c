@@ -229,10 +229,10 @@ static inline struct crypto_aes_ctx *aes_ctx(void *raw_ctx)
 	return (struct crypto_aes_ctx *)ALIGN(addr, align);
 }
 
-static int aes_set_key_common(struct crypto_tfm *tfm, void *raw_ctx,
+static int aes_set_key_common(struct crypto_tfm *tfm,
+			      struct crypto_aes_ctx *ctx,
 			      const u8 *in_key, unsigned int key_len)
 {
-	struct crypto_aes_ctx *ctx = aes_ctx(raw_ctx);
 	int err;
 
 	if (key_len != AES_KEYSIZE_128 && key_len != AES_KEYSIZE_192 &&
@@ -253,7 +253,7 @@ static int aes_set_key_common(struct crypto_tfm *tfm, void *raw_ctx,
 static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
-	return aes_set_key_common(tfm, crypto_tfm_ctx(tfm), in_key, key_len);
+	return aes_set_key_common(tfm, aes_ctx(crypto_tfm_ctx(tfm)), in_key, key_len);
 }
 
 static void aesni_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
@@ -286,7 +286,7 @@ static int aesni_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			         unsigned int len)
 {
 	return aes_set_key_common(crypto_skcipher_tfm(tfm),
-				  crypto_skcipher_ctx(tfm), key, len);
+				  aes_ctx(crypto_skcipher_ctx(tfm)), key, len);
 }
 
 static int ecb_encrypt(struct skcipher_request *req)
@@ -893,13 +893,13 @@ static int xts_aesni_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	keylen /= 2;
 
 	/* first half of xts-key is for crypt */
-	err = aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_crypt_ctx,
+	err = aes_set_key_common(crypto_skcipher_tfm(tfm), aes_ctx(ctx->raw_crypt_ctx),
 				 key, keylen);
 	if (err)
 		return err;
 
 	/* second half of xts-key is for tweak */
-	return aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_tweak_ctx,
+	return aes_set_key_common(crypto_skcipher_tfm(tfm), aes_ctx(ctx->raw_tweak_ctx),
 				  key + keylen, keylen);
 }
 
