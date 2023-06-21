@@ -231,6 +231,10 @@ static int umsch_mm_init(struct amdgpu_device *adev)
 {
 	int r;
 
+	adev->umsch_mm.vmid_mask_mm_vpe = 0xf00;
+	adev->umsch_mm.engine_mask = (1 << UMSCH_SWIP_ENGINE_TYPE_VPE);
+	adev->umsch_mm.vpe_hqd_mask = 0xfe;
+
 	r = amdgpu_device_wb_get(adev, &adev->umsch_mm.wb_index);
 	if (r) {
 		dev_err(adev->dev, "failed to alloc wb for umsch: %d\n", r);
