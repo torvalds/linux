@@ -102,11 +102,16 @@ int rockchip_get_volt_rm_table(struct device *dev, struct device_node *np,
 			       char *porp_name, struct volt_rm_table **table);
 void rockchip_get_opp_data(const struct of_device_id *matches,
 			   struct rockchip_opp_info *info);
+int rockchip_get_soc_info(struct device *dev, struct device_node *np, int *bin,
+			  int *process);
 void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 				 char *reg_name, int bin, int process,
 				 int *scale, int *volt_sel);
 struct opp_table *rockchip_set_opp_prop_name(struct device *dev, int process,
 					     int volt_sel);
+struct opp_table *rockchip_set_opp_supported_hw(struct device *dev,
+						struct device_node *np,
+						int bin, int volt_sel);
 int rockchip_adjust_power_scale(struct device *dev, int scale);
 int rockchip_get_read_margin(struct device *dev,
 			     struct rockchip_opp_info *opp_info,
@@ -191,6 +196,12 @@ static inline void rockchip_get_opp_data(const struct of_device_id *matches,
 					 struct rockchip_opp_info *info)
 {
 }
+static inline int rockchip_get_soc_info(struct device *dev,
+					struct device_node *np, int *bin,
+					int *process)
+{
+	return -EOPNOTSUPP;
+}
 
 static inline void rockchip_get_scale_volt_sel(struct device *dev,
 					       char *lkg_name, char *reg_name,
@@ -202,6 +213,13 @@ static inline void rockchip_get_scale_volt_sel(struct device *dev,
 static inline struct opp_table *rockchip_set_opp_prop_name(struct device *dev,
 							   int process,
 							   int volt_sel)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct opp_table *rockchip_set_opp_supported_hw(struct device *dev,
+							      struct device_node *np,
+							      int bin, int volt_sel)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
