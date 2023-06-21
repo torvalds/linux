@@ -145,6 +145,7 @@ struct tsens_sensor {
 	struct tsens_context		thr_state;
 	int				offset;
 	int				slope;
+	int				cached_temp;
 };
 
 /**

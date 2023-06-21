@@ -245,6 +245,7 @@ static int tsens_thermal_zone_register(struct tsens_device *tmdev)
 	for (i = 0; i < TSENS_MAX_SENSORS; i++) {
 		tmdev->sensor[i].tmdev = tmdev;
 		tmdev->sensor[i].hw_id = i;
+		tmdev->sensor[i].cached_temp = INT_MIN;
 		if (tmdev->ops->sensor_en(tmdev, i)) {
 			tmdev->sensor[i].tzd =
 				devm_thermal_of_zone_register(
@@ -295,6 +296,7 @@ static void tsens_therm_fwk_notify(struct work_struct *work)
 
 	TSENS_DBG(tmdev, "Controller %pK\n", &tmdev->phys_addr_tm);
 	for (i = 0; i < TSENS_MAX_SENSORS; i++) {
+		tmdev->sensor[i].cached_temp = INT_MIN;
 		if (tmdev->ops->sensor_en(tmdev, i)) {
 			rc = tsens_get_temp(tmdev->sensor[i].tzd, &temp);
 			if (rc) {
