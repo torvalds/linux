@@ -35,34 +35,6 @@
 
 #include "ast_drv.h"
 
-void ast_set_index_reg_mask(struct ast_device *ast,
-			    uint32_t base, uint8_t index,
-			    uint8_t mask, uint8_t val)
-{
-	u8 tmp;
-	ast_io_write8(ast, base, index);
-	tmp = (ast_io_read8(ast, base + 1) & mask) | val;
-	ast_set_index_reg(ast, base, index, tmp);
-}
-
-uint8_t ast_get_index_reg(struct ast_device *ast,
-			  uint32_t base, uint8_t index)
-{
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1);
-	return ret;
-}
-
-uint8_t ast_get_index_reg_mask(struct ast_device *ast,
-			       uint32_t base, uint8_t index, uint8_t mask)
-{
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1) & mask;
-	return ret;
-}
-
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
 	struct device_node *np = dev->dev->of_node;

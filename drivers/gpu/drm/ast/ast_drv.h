@@ -257,22 +257,36 @@ static inline void ast_io_write8(struct ast_device *ast, u32 reg, u8 val)
 	iowrite8(val, ast->ioregs + reg);
 }
 
-static inline void ast_set_index_reg(struct ast_device *ast,
-				     uint32_t base, uint8_t index,
-				     uint8_t val)
+static inline u8 ast_get_index_reg(struct ast_device *ast, u32 base, u8 index)
+{
+	ast_io_write8(ast, base, index);
+	++base;
+	return ast_io_read8(ast, base);
+}
+
+static inline u8 ast_get_index_reg_mask(struct ast_device *ast, u32 base, u8 index,
+					u8 preserve_mask)
+{
+	u8 val = ast_get_index_reg(ast, base, index);
+
+	return val & preserve_mask;
+}
+
+static inline void ast_set_index_reg(struct ast_device *ast, u32 base, u8 index, u8 val)
 {
 	ast_io_write8(ast, base, index);
 	++base;
 	ast_io_write8(ast, base, val);
 }
 
-void ast_set_index_reg_mask(struct ast_device *ast,
-			    uint32_t base, uint8_t index,
-			    uint8_t mask, uint8_t val);
-uint8_t ast_get_index_reg(struct ast_device *ast,
-			  uint32_t base, uint8_t index);
-uint8_t ast_get_index_reg_mask(struct ast_device *ast,
-			       uint32_t base, uint8_t index, uint8_t mask);
+static inline void ast_set_index_reg_mask(struct ast_device *ast, u32 base, u8 index,
+					  u8 preserve_mask, u8 val)
+{
+	u8 tmp = ast_get_index_reg_mask(ast, base, index, preserve_mask);
+
+	tmp |= val;
+	ast_set_index_reg(ast, base, index, tmp);
+}
 
 static inline void ast_open_key(struct ast_device *ast)
 {
