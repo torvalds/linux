@@ -55,12 +55,11 @@
 
 /* Offset from pad_regs */
 #define PADCFG0				0x000
-#define PADCFG0_RXEVCFG_SHIFT		25
 #define PADCFG0_RXEVCFG_MASK		GENMASK(26, 25)
-#define PADCFG0_RXEVCFG_LEVEL		0
-#define PADCFG0_RXEVCFG_EDGE		1
-#define PADCFG0_RXEVCFG_DISABLED	2
-#define PADCFG0_RXEVCFG_EDGE_BOTH	3
+#define PADCFG0_RXEVCFG_LEVEL		(0 << 25)
+#define PADCFG0_RXEVCFG_EDGE		(1 << 25)
+#define PADCFG0_RXEVCFG_DISABLED	(2 << 25)
+#define PADCFG0_RXEVCFG_EDGE_BOTH	(3 << 25)
 #define PADCFG0_PREGFRXSEL		BIT(24)
 #define PADCFG0_RXINV			BIT(23)
 #define PADCFG0_GPIROUTIOXAPIC		BIT(20)
@@ -411,18 +410,19 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	/* Now enable the mux setting for each pin in the group */
 	for (i = 0; i < grp->grp.npins; i++) {
 		void __iomem *padcfg0;
-		u32 value;
+		u32 value, pmode;
 
 		padcfg0 = intel_get_padcfg(pctrl, grp->grp.pins[i], PADCFG0);
-		value = readl(padcfg0);
 
+		value = readl(padcfg0);
 		value &= ~PADCFG0_PMODE_MASK;
 
 		if (grp->modes)
-			value |= grp->modes[i] << PADCFG0_PMODE_SHIFT;
+			pmode = grp->modes[i];
 		else
-			value |= grp->mode << PADCFG0_PMODE_SHIFT;
+			pmode = grp->mode;
 
+		value |= pmode << PADCFG0_PMODE_SHIFT;
 		writel(value, padcfg0);
 	}
 
@@ -1126,9 +1126,9 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned int pin = intel_gpio_to_pin(pctrl, irqd_to_hwirq(d), NULL, NULL);
+	u32 rxevcfg, rxinv, value;
 	unsigned long flags;
 	void __iomem *reg;
-	u32 value;
 
 	reg = intel_get_padcfg(pctrl, pin, PADCFG0);
 	if (!reg)
@@ -1144,27 +1144,31 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 		return -EPERM;
 	}
 
+	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
+		rxevcfg = PADCFG0_RXEVCFG_EDGE_BOTH;
+	} else if (type & IRQ_TYPE_EDGE_FALLING) {
+		rxevcfg = PADCFG0_RXEVCFG_EDGE;
+	} else if (type & IRQ_TYPE_EDGE_RISING) {
+		rxevcfg = PADCFG0_RXEVCFG_EDGE;
+	} else if (type & IRQ_TYPE_LEVEL_MASK) {
+		rxevcfg = PADCFG0_RXEVCFG_LEVEL;
+	} else {
+		rxevcfg = PADCFG0_RXEVCFG_DISABLED;
+	}
+
+	if (type == IRQ_TYPE_EDGE_FALLING || type == IRQ_TYPE_LEVEL_LOW)
+		rxinv = PADCFG0_RXINV;
+	else
+		rxinv = 0;
+
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	intel_gpio_set_gpio_mode(reg);
 
 	value = readl(reg);
 
-	value &= ~(PADCFG0_RXEVCFG_MASK | PADCFG0_RXINV);
-
-	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
-		value |= PADCFG0_RXEVCFG_EDGE_BOTH << PADCFG0_RXEVCFG_SHIFT;
-	} else if (type & IRQ_TYPE_EDGE_FALLING) {
-		value |= PADCFG0_RXEVCFG_EDGE << PADCFG0_RXEVCFG_SHIFT;
-		value |= PADCFG0_RXINV;
-	} else if (type & IRQ_TYPE_EDGE_RISING) {
-		value |= PADCFG0_RXEVCFG_EDGE << PADCFG0_RXEVCFG_SHIFT;
-	} else if (type & IRQ_TYPE_LEVEL_MASK) {
-		if (type & IRQ_TYPE_LEVEL_LOW)
-			value |= PADCFG0_RXINV;
-	} else {
-		value |= PADCFG0_RXEVCFG_DISABLED << PADCFG0_RXEVCFG_SHIFT;
-	}
+	value = (value & ~PADCFG0_RXEVCFG_MASK) | rxevcfg;
+	value = (value & ~PADCFG0_RXINV) | rxinv;
 
 	writel(value, reg);
 
