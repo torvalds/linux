@@ -86,24 +86,24 @@ static void ctcm_print_statistics(struct ctcm_priv *priv)
 		return;
 	p = sbuf;
 
-	p += sprintf(p, "  Device FSM state: %s\n",
-		     fsm_getstate_str(priv->fsm));
-	p += sprintf(p, "  RX channel FSM state: %s\n",
-		     fsm_getstate_str(priv->channel[CTCM_READ]->fsm));
-	p += sprintf(p, "  TX channel FSM state: %s\n",
-		     fsm_getstate_str(priv->channel[CTCM_WRITE]->fsm));
-	p += sprintf(p, "  Max. TX buffer used: %ld\n",
-		     priv->channel[WRITE]->prof.maxmulti);
-	p += sprintf(p, "  Max. chained SKBs: %ld\n",
-		     priv->channel[WRITE]->prof.maxcqueue);
-	p += sprintf(p, "  TX single write ops: %ld\n",
-		     priv->channel[WRITE]->prof.doios_single);
-	p += sprintf(p, "  TX multi write ops: %ld\n",
-		     priv->channel[WRITE]->prof.doios_multi);
-	p += sprintf(p, "  Netto bytes written: %ld\n",
-		     priv->channel[WRITE]->prof.txlen);
-	p += sprintf(p, "  Max. TX IO-time: %u\n",
-		     jiffies_to_usecs(priv->channel[WRITE]->prof.tx_time));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Device FSM state: %s\n",
+		       fsm_getstate_str(priv->fsm));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  RX channel FSM state: %s\n",
+		       fsm_getstate_str(priv->channel[CTCM_READ]->fsm));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  TX channel FSM state: %s\n",
+		       fsm_getstate_str(priv->channel[CTCM_WRITE]->fsm));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Max. TX buffer used: %ld\n",
+		       priv->channel[WRITE]->prof.maxmulti);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Max. chained SKBs: %ld\n",
+		       priv->channel[WRITE]->prof.maxcqueue);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  TX single write ops: %ld\n",
+		       priv->channel[WRITE]->prof.doios_single);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  TX multi write ops: %ld\n",
+		       priv->channel[WRITE]->prof.doios_multi);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Netto bytes written: %ld\n",
+		       priv->channel[WRITE]->prof.txlen);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Max. TX IO-time: %u\n",
+		       jiffies_to_usecs(priv->channel[WRITE]->prof.tx_time));
 
 	printk(KERN_INFO "Statistics for %s:\n%s",
 				priv->channel[CTCM_WRITE]->netdev->name, sbuf);
