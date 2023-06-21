@@ -20,6 +20,7 @@
 
 #define MTD_VENDOR_PART_START		0
 #define MTD_VENDOR_PART_SIZE		FLASH_VENDOR_PART_SIZE
+#define MTD_VENDOR_NOR_BLOCK_SIZE	128
 #define MTD_VENDOR_PART_NUM		1
 #define MTD_VENDOR_TAG			VENDOR_HEAD_TAG
 
@@ -43,6 +44,7 @@ static u8 *g_idb_buffer;
 static struct flash_vendor_info *g_vendor;
 static DEFINE_MUTEX(vendor_ops_mutex);
 static struct mtd_info *mtd;
+static u32 mtd_erase_size;
 static const char *vendor_mtd_name = "vnvm";
 static struct mtd_nand_info nand_info;
 static struct platform_device *g_pdev;
@@ -54,8 +56,8 @@ static int mtd_vendor_nand_write(void)
 	struct erase_info ei;
 
 re_write:
-	if (nand_info.page_offset >= mtd->erasesize) {
-		nand_info.blk_offset += mtd->erasesize;
+	if (nand_info.page_offset >= mtd_erase_size) {
+		nand_info.blk_offset += mtd_erase_size;
 		if (nand_info.blk_offset >= mtd->size)
 			nand_info.blk_offset = 0;
 		if (mtd_block_isbad(mtd, nand_info.blk_offset))
@@ -63,7 +65,7 @@ re_write:
 
 		memset(&ei, 0, sizeof(struct erase_info));
 		ei.addr = nand_info.blk_offset;
-		ei.len	= mtd->erasesize;
+		ei.len	= mtd_erase_size;
 		if (mtd_erase(mtd, &ei))
 			goto re_write;
 
@@ -100,7 +102,15 @@ static int mtd_vendor_storage_init(void)
 	nand_info.ops_size = (sizeof(*g_vendor) + mtd->writesize - 1) / mtd->writesize;
 	nand_info.ops_size *= mtd->writesize;
 
-	for (offset = 0; offset < mtd->size; offset += mtd->erasesize) {
+	/*
+	 * The NOR FLASH erase size maybe config as 4KB, need to re-define
+	 * and maintain consistency with uboot.
+	 */
+	mtd_erase_size = mtd->erasesize;
+	if (mtd_erase_size <= MTD_VENDOR_NOR_BLOCK_SIZE * 512)
+		mtd_erase_size = MTD_VENDOR_NOR_BLOCK_SIZE * 512;
+
+	for (offset = 0; offset < mtd->size; offset += mtd_erase_size) {
 		if (!mtd_block_isbad(mtd, offset)) {
 			err = mtd_read(mtd, offset, sizeof(*g_vendor),
 				       &bytes_read, (u8 *)g_vendor);
@@ -115,11 +125,11 @@ static int mtd_vendor_storage_init(void)
 				}
 			}
 		} else if (nand_info.blk_offset == offset)
-			nand_info.blk_offset += mtd->erasesize;
+			nand_info.blk_offset += mtd_erase_size;
 	}
 
 	if (nand_info.version) {
-		for (offset = mtd->erasesize - nand_info.ops_size;
+		for (offset = mtd_erase_size - nand_info.ops_size;
 		     offset >= 0;
 		     offset -= nand_info.ops_size) {
 			err = mtd_read(mtd, nand_info.blk_offset + offset,
@@ -145,7 +155,10 @@ static int mtd_vendor_storage_init(void)
 			if (bytes_read == sizeof(*g_vendor) &&
 			    g_vendor->tag == MTD_VENDOR_TAG &&
 			    g_vendor->version == g_vendor->version2) {
-				nand_info.version = g_vendor->version;
+				if (nand_info.version > g_vendor->version)
+					g_vendor->version = nand_info.version;
+				else
+					nand_info.version = g_vendor->version;
 				break;
 			}
 		}
@@ -155,11 +168,11 @@ static int mtd_vendor_storage_init(void)
 		g_vendor->tag = MTD_VENDOR_TAG;
 		g_vendor->free_size = sizeof(g_vendor->data);
 		g_vendor->version2 = g_vendor->version;
-		for (offset = 0; offset < mtd->size; offset += mtd->erasesize) {
+		for (offset = 0; offset < mtd->size; offset += mtd_erase_size) {
 			if (!mtd_block_isbad(mtd, offset)) {
 				memset(&ei, 0, sizeof(struct erase_info));
 				ei.addr = nand_info.blk_offset + offset;
-				ei.len  = mtd->erasesize;
+				ei.len  = mtd_erase_size;
 				mtd_erase(mtd, &ei);
 			}
 		}
