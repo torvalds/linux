@@ -19,6 +19,7 @@
 		#size-cells = <0x0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_gpio_pins>;
+		spi-delay-us = <10>;
 		status = "okay";
 
 		sck-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -44,6 +45,7 @@
 			disable-delay-ms = <20>;
 			width-mm = <217>;
 			height-mm = <136>;
+			rockchip,cmd-type = "spi";
 			status = "okay";
 
 			// type:0 is cmd, 1 is data
@@ -235,7 +237,7 @@
 };
 
 &route_rgb {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp0_out_rgb>;
 };
 
