@@ -71,7 +71,7 @@ enum ast_chip {
 	AST1050 = __AST_CHIP(4, 2), // unused
 	/* 5th gen */
 	AST2400 = __AST_CHIP(5, 0),
-	AST1400 = __AST_CHIP(5, 1), // unused
+	AST1400 = __AST_CHIP(5, 1),
 	AST1250 = __AST_CHIP(5, 2), // unused
 	/* 6th gen */
 	AST2500 = __AST_CHIP(6, 0),

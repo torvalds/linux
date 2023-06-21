@@ -166,8 +166,15 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 		ast->chip = AST2500;
 		drm_info(dev, "AST 2500 detected\n");
 	} else if (pdev->revision >= 0x30) {
-		ast->chip = AST2400;
-		drm_info(dev, "AST 2400 detected\n");
+		switch (scu_rev & 0x300) {
+		case 0x0100:
+			ast->chip = AST1400;
+			drm_info(dev, "AST 1400 detected\n");
+			break;
+		default:
+			ast->chip = AST2400;
+			drm_info(dev, "AST 2400 detected\n");
+		}
 	} else if (pdev->revision >= 0x20) {
 		switch (scu_rev & 0x300) {
 		case 0x0000:
@@ -218,8 +225,7 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 			ast->support_wide_screen = false;
 			if (ast->chip == AST1300)
 				ast->support_wide_screen = true;
-			if (ast->chip == AST2400 &&
-			    (scu_rev & 0x300) == 0x100) /* ast1400 */
+			if (ast->chip == AST1400)
 				ast->support_wide_screen = true;
 			if (ast->chip == AST2500 &&
 			    scu_rev == 0x100)           /* ast2510 */
