@@ -111,14 +111,24 @@ EOF
         ],
     )
 
-    board_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
-    if board_extras:
+    board_cmdline_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
+    if board_cmdline_extras:
         native.genrule(
             name = "{}_extra_cmdline".format(target),
             outs = ["board_extra_cmdline_{}".format(target)],
             cmd_bash = """
                 echo {} > "$@"
-            """.format(board_extras),
+            """.format(board_cmdline_extras),
+        )
+
+    board_bc_extras = " ".join(boot_image_opts.board_bootconfig_extras)
+    if board_bc_extras:
+        native.genrule(
+            name = "{}_extra_bootconfig".format(target),
+            outs = ["board_extra_bootconfig_{}".format(target)],
+            cmd_bash = """
+                echo {} > "$@"
+            """.format(board_bc_extras),
         )
 
 def _define_kernel_build(
@@ -336,9 +346,13 @@ def _define_kernel_dist(
 
     msm_dist_targets.append("{}_avb_sign_boot_image".format(target))
 
-    board_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
-    if board_extras:
+    board_cmdline_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
+    if board_cmdline_extras:
         msm_dist_targets.append("{}_extra_cmdline".format(target))
+
+    board_bc_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
+    if board_bc_extras:
+        msm_dist_targets.append("{}_extra_bootconfig".format(target))
 
     if define_abi_targets:
         kernel_abi_dist(
