@@ -578,6 +578,9 @@ static void sdma_v4_4_2_inst_enable(struct amdgpu_device *adev, bool enable,
 			return;
 	}
 
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
+		return;
+
 	for_each_inst(i, inst_mask) {
 		f32_cntl = RREG32_SDMA(i, regSDMA_F32_CNTL);
 		f32_cntl = REG_SET_FIELD(f32_cntl, SDMA_F32_CNTL, HALT, enable ? 0 : 1);
@@ -904,10 +907,12 @@ static int sdma_v4_4_2_inst_start(struct amdgpu_device *adev,
 				ring->use_doorbell, ring->doorbell_index,
 				adev->doorbell_index.sdma_doorbell_range);
 
-			/* unhalt engine */
-			temp = RREG32_SDMA(i, regSDMA_F32_CNTL);
-			temp = REG_SET_FIELD(temp, SDMA_F32_CNTL, HALT, 0);
-			WREG32_SDMA(i, regSDMA_F32_CNTL, temp);
+			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+				/* unhalt engine */
+				temp = RREG32_SDMA(i, regSDMA_F32_CNTL);
+				temp = REG_SET_FIELD(temp, SDMA_F32_CNTL, HALT, 0);
+				WREG32_SDMA(i, regSDMA_F32_CNTL, temp);
+			}
 		}
 	}
 
