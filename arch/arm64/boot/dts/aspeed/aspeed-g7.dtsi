@@ -697,6 +697,8 @@
 			interrupts-extended = <&intc0 10>;
 			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI0CLK>;
 			resets = <&io_clk ASPEED_RESET_ESPI0>;
+			pinctrl-names = "default";
+			pinctrl-1 = <&pinctrl_espi0_default>;
 			status = "disabled";
 		};
 
@@ -706,6 +708,8 @@
 			interrupts-extended = <&intc1 10>;
 			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI1CLK>;
 			resets = <&io_clk ASPEED_RESET_ESPI1>;
+			pinctrl-names = "default";
+			pinctrl-1 = <&pinctrl_espi1_default>;
 			status = "disabled";
 		};
 
@@ -918,6 +922,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 0>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c0_default>;
 		status = "disabled";
 	};
 
@@ -933,6 +939,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 1>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c1_default>;
 		status = "disabled";
 	};
 
@@ -948,6 +956,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 2>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2_default>;
 		status = "disabled";
 	};
 
@@ -962,6 +972,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 3>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3_default>;
 		status = "disabled";
 	};
 
@@ -977,6 +989,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		clock-frequency = <100000>;
 		interrupts-extended = <&intc2 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c4_default>;
 		status = "disabled";
 	};
 
@@ -992,6 +1006,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 5>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c5_default>;
 		status = "disabled";
 	};
 
@@ -1007,6 +1023,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 6>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c6_default>;
 		status = "disabled";
 	};
 
@@ -1023,6 +1041,7 @@
 		interrupts-extended = <&intc2 7>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c7_default>;
 		status = "disabled";
 	};
 
@@ -1039,6 +1058,7 @@
 		interrupts-extended = <&intc2 8>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c8_default>;
 		status = "disabled";
 	};
 
@@ -1054,6 +1074,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 9>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c9_default>;
 		status = "disabled";
 	};
 
@@ -1069,6 +1091,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 10>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c10_default>;
 		status = "disabled";
 	};
 
@@ -1084,6 +1108,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 11>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c11_default>;
 		status = "disabled";
 	};
 
@@ -1099,6 +1125,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 12>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c12_default>;
 		status = "disabled";
 	};
 
@@ -1114,6 +1142,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 13>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c13_default>;
 		status = "disabled";
 	};
 
@@ -1129,6 +1159,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 14>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c14_default>;
 		status = "disabled";
 	};
 
@@ -1144,6 +1176,8 @@
 		resets = <&io_clk ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 15>;
 		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c15_default>;
 		status = "disabled";
 	};
 };
