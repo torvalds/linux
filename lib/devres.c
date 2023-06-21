@@ -129,7 +129,7 @@ __devm_ioremap_resource(struct device *dev, const struct resource *res,
 	BUG_ON(!dev);
 
 	if (!res || resource_type(res) != IORESOURCE_MEM) {
-		dev_err(dev, "invalid resource\n");
+		dev_err(dev, "invalid resource %pR\n", res);
 		return IOMEM_ERR_PTR(-EINVAL);
 	}
 
