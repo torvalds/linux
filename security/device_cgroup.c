@@ -822,7 +822,6 @@ struct cgroup_subsys devices_cgrp_subsys = {
 
 /**
  * devcgroup_legacy_check_permission - checks if an inode operation is permitted
- * @dev_cgroup: the dev cgroup to be tested against
  * @type: device type
  * @major: device major number
  * @minor: device minor number
