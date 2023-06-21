@@ -29,12 +29,9 @@
 #define IWL_BZ_A_HR_B_FW_PRE		"iwlwifi-bz-a0-hr-b0"
 #define IWL_BZ_A_GF_A_FW_PRE		"iwlwifi-bz-a0-gf-a0"
 #define IWL_BZ_A_GF4_A_FW_PRE		"iwlwifi-bz-a0-gf4-a0"
-#define IWL_BZ_A_FM_A_FW_PRE		"iwlwifi-bz-a0-fm-a0"
-#define IWL_BZ_A_FM4_A_FW_PRE		"iwlwifi-bz-a0-fm4-a0"
 #define IWL_BZ_A_FM_B_FW_PRE		"iwlwifi-bz-a0-fm-b0"
 #define IWL_BZ_A_FM_C_FW_PRE		"iwlwifi-bz-a0-fm-c0"
 #define IWL_BZ_A_FM4_B_FW_PRE		"iwlwifi-bz-a0-fm4-b0"
-#define IWL_GL_A_FM_A_FW_PRE		"iwlwifi-gl-a0-fm-a0"
 #define IWL_GL_B_FM_B_FW_PRE		"iwlwifi-gl-b0-fm-b0"
 #define IWL_GL_C_FM_C_FW_PRE		"iwlwifi-gl-c0-fm-c0"
 
@@ -44,18 +41,12 @@
 	IWL_BZ_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_GF4_A_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_FM_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_FM4_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM4_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_FM_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM_C_MODULE_FIRMWARE(api) \
-		IWL_BZ_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
+	IWL_BZ_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_BZ_A_FM4_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_FM4_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_GL_A_FM_A_MODULE_FIRMWARE(api) \
-	IWL_GL_A_FM_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_GL_B_FM_B_MODULE_FIRMWARE(api) \
 	IWL_GL_B_FM_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_GL_C_FM_C_MODULE_FIRMWARE(api) \
@@ -71,13 +62,6 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
-};
-
-static const struct iwl_ht_params iwl_gl_a_ht_params = {
-	.stbc = false, /* we explicitly disable STBC for GL step A */
-	.ldpc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ) |
-		      BIT(NL80211_BAND_6GHZ),
 };
 
 #define IWL_DEVICE_BZ_COMMON						\
@@ -180,14 +164,6 @@ const struct iwl_cfg iwl_cfg_bz = {
 	.num_rbds = IWL_NUM_RBDS_BZ_HE,
 };
 
-const struct iwl_cfg iwl_cfg_gl_a0_fm_a0 = {
-	.fw_name_pre = IWL_GL_A_FM_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_GL_A,
-	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
 const struct iwl_cfg iwl_cfg_gl = {
 	.fw_name_mac = "gl",
 	.uhb_supported = true,
@@ -200,12 +176,8 @@ const struct iwl_cfg iwl_cfg_gl = {
 MODULE_FIRMWARE(IWL_BZ_A_HR_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BZ_A_GF_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BZ_A_GF4_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_FM_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BZ_A_FM_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BZ_A_FM_C_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_FM4_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BZ_A_FM4_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-
-MODULE_FIRMWARE(IWL_GL_A_FM_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_GL_B_FM_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_GL_C_FM_C_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
