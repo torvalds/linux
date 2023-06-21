@@ -8,6 +8,9 @@ def define_pitti():
     _pitti_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/firmware/qcom-scm.ko",
+        "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/pinctrl/qcom/pinctrl-pitti.ko",
     ]
 
     _pitti_consolidate_in_tree_modules = _pitti_in_tree_modules + [
