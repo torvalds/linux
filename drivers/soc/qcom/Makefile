@@ -77,6 +77,7 @@ obj-$(CONFIG_QCOM_LOGBUF_BOOTLOG) += qcom_logbuf_boot_log.o
 obj-$(CONFIG_QCOM_HUNG_TASK_ENH) += hung_task_enh.o
 obj-$(CONFIG_QCOM_AOP_SET_DDR) += aop-set-ddr.o
 obj-$(CONFIG_QCOM_MEM_OFFLINE) += mem-offline.o
+obj-$(CONFIG_SHOW_SUSPEND_EPOCH) += msm_show_epoch.o
 obj-$(CONFIG_GH_TLMM_VM_MEM_ACCESS) += gh_tlmm_vm_mem_access.o
 obj-$(CONFIG_GH_CPUSYS_VM_MEM_ACCESS) += gh_cpusys_vm_mem_access.o
 obj-$(CONFIG_SPS) += sps/

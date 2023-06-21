@@ -80,6 +80,16 @@ config QCOM_CPUSS_SLEEP_STATS
 	 low power modes. This driver creates debugfs entry which provide
 	 provision to read those counters.
 
+config SHOW_SUSPEND_EPOCH
+        tristate "Show epoch values in suspend resume cycles"
+        depends on ARCH_QCOM
+        help
+          Show epoch values when device enter and exit out of suspend
+          and resume. These epoch values are useful to know how long
+          the device is in suspend state. These values can be used to
+          synchronize various subsystem timestamps and have an unique
+          timestamp to correlate between various subsystems.
+
 config QCOM_CRM
 	tristate "Qualcomm Technologies, Inc. (QTI) CRM driver"
 	depends on QCOM_RPMH && (ARCH_QCOM || COMPILE_TEST)
