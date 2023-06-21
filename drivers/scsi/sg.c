@@ -1497,7 +1497,7 @@ sg_add_device(struct device *cl_dev)
 	int error;
 	unsigned long iflags;
 
-	error = scsi_device_get(scsidp);
+	error = blk_get_queue(scsidp->request_queue);
 	if (error)
 		return error;
 
@@ -1558,7 +1558,7 @@ cdev_add_err:
 out:
 	if (cdev)
 		cdev_del(cdev);
-	scsi_device_put(scsidp);
+	blk_put_queue(scsidp->request_queue);
 	return error;
 }
 
@@ -1575,7 +1575,7 @@ sg_device_destroy(struct kref *kref)
 	 */
 
 	blk_trace_remove(q);
-	scsi_device_put(sdp->device);
+	blk_put_queue(q);
 
 	write_lock_irqsave(&sg_index_lock, flags);
 	idr_remove(&sg_index_idr, sdp->index);
