@@ -395,13 +395,18 @@ static inline int catu_wait_for_ready(struct catu_drvdata *drvdata)
 	return coresight_timeout(csa, CATU_STATUS, CATU_STATUS_READY, 1);
 }
 
-static int catu_enable_hw(struct catu_drvdata *drvdata, void *data)
+static int catu_enable_hw(struct catu_drvdata *drvdata, enum cs_mode cs_mode,
+			  void *data)
 {
 	int rc;
 	u32 control, mode;
-	struct etr_buf *etr_buf = data;
+	struct etr_buf *etr_buf = NULL;
 	struct device *dev = &drvdata->csdev->dev;
 	struct coresight_device *csdev = drvdata->csdev;
+	struct coresight_device *etrdev;
+	union coresight_dev_subtype etr_subtype = {
+		.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_SYSMEM
+	};
 
 	if (catu_wait_for_ready(drvdata))
 		dev_warn(dev, "Timeout while waiting for READY\n");
@@ -416,6 +421,13 @@ static int catu_enable_hw(struct catu_drvdata *drvdata, void *data)
 	if (rc)
 		return rc;
 
+	etrdev = coresight_find_input_type(
+		csdev->pdata, CORESIGHT_DEV_TYPE_SINK, etr_subtype);
+	if (etrdev) {
+		etr_buf = tmc_etr_get_buffer(etrdev, cs_mode, data);
+		if (IS_ERR(etr_buf))
+			return PTR_ERR(etr_buf);
+	}
 	control |= BIT(CATU_CONTROL_ENABLE);
 
 	if (etr_buf && etr_buf->mode == ETR_MODE_CATU) {
@@ -441,13 +453,14 @@ static int catu_enable_hw(struct catu_drvdata *drvdata, void *data)
 	return 0;
 }
 
-static int catu_enable(struct coresight_device *csdev, void *data)
+static int catu_enable(struct coresight_device *csdev, enum cs_mode mode,
+		       void *data)
 {
 	int rc;
 	struct catu_drvdata *catu_drvdata = csdev_to_catu_drvdata(csdev);
 
 	CS_UNLOCK(catu_drvdata->base);
-	rc = catu_enable_hw(catu_drvdata, data);
+	rc = catu_enable_hw(catu_drvdata, mode, data);
 	CS_LOCK(catu_drvdata->base);
 	return rc;
 }
