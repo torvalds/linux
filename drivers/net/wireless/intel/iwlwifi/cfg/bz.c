@@ -191,112 +191,8 @@ const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
 
 const char iwl_bz_name[] = "Intel(R) TBD Bz device";
 
-const struct iwl_cfg iwl_cfg_bz_a0_hr_a0 = {
-	.fw_name_pre = IWL_BZ_A_HR_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_hr_b0 = {
-	.fw_name_pre = IWL_BZ_A_HR_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_gf_a0 = {
-	.fw_name_pre = IWL_BZ_A_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0 = {
-	.fw_name_pre = IWL_BZ_A_GF4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_b0_gf_a0 = {
-	.fw_name_pre = IWL_BZ_B_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_b0_gf4_a0 = {
-	.fw_name_pre = IWL_BZ_B_GF4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_mr_a0 = {
-	.fw_name_pre = IWL_BZ_A_MR_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_fm_a0 = {
-	.fw_name_pre = IWL_BZ_A_FM_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_fm4_a0 = {
-	.fw_name_pre = IWL_BZ_A_FM4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_fm_b0 = {
-	.fw_name_pre = IWL_BZ_A_FM_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_fm_c0 = {
-	.fw_name_pre = IWL_BZ_A_FM_C_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_a0_fm4_b0 = {
-	.fw_name_pre = IWL_BZ_A_FM4_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_b0_fm_b0 = {
-	.fw_name_pre = IWL_BZ_B_FM_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_b0_fm4_b0 = {
-	.fw_name_pre = IWL_BZ_B_FM4_B_FW_PRE,
+const struct iwl_cfg iwl_cfg_bz = {
+	.fw_name_mac = "bz",
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
 	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
@@ -311,24 +207,8 @@ const struct iwl_cfg iwl_cfg_gl_a0_fm_a0 = {
 	.num_rbds = IWL_NUM_RBDS_BZ_HE,
 };
 
-const struct iwl_cfg iwl_cfg_gl_b0_fm_b0 = {
-	.fw_name_pre = IWL_GL_B_FM_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_gl_c0_fm_c0 = {
-	.fw_name_pre = IWL_GL_C_FM_C_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
-};
-
-const struct iwl_cfg iwl_cfg_bz_z0_gf_a0 = {
-	.fw_name_pre = IWL_BZ_Z_GF_A_FW_PRE,
+const struct iwl_cfg iwl_cfg_gl = {
+	.fw_name_mac = "gl",
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
 	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,

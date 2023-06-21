@@ -15,6 +15,7 @@
 #include "iwl-io.h"
 #include "debugfs.h"
 #include "iwl-modparams.h"
+#include "iwl-drv.h"
 #include "fw/error-dump.h"
 #include "fw/api/phy-ctxt.h"
 
@@ -715,6 +716,7 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	struct iwl_mvm *mvm = file->private_data;
 	char *buff, *pos, *endpos;
 	static const size_t bufsz = 1024;
+	char _fw_name_pre[FW_NAME_PRE_BUFSIZE];
 	int ret;
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
@@ -725,7 +727,7 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	endpos = pos + bufsz;
 
 	pos += scnprintf(pos, endpos - pos, "FW prefix: %s\n",
-			 mvm->trans->cfg->fw_name_pre);
+			 iwl_drv_get_fwname_pre(mvm->trans, _fw_name_pre));
 	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
 			 mvm->fwrt.fw->human_readable);
 	pos += scnprintf(pos, endpos - pos, "Device: %s\n",

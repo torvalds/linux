@@ -310,6 +310,8 @@ struct iwl_fw_mon_regs {
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
+ * @fw_name_mac: MAC name for this config, the remaining pieces of the
+ *	name will be generated dynamically
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section (only DVM)
@@ -363,6 +365,7 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
+	const char *fw_name_mac;
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
@@ -643,24 +646,11 @@ extern const struct iwl_cfg iwl_cfg_ma_b0_fm_a0;
 extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
 extern const struct iwl_cfg iwl_cfg_so_a0_ms_a0;
 extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_hr_a0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_hr_b0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_gf_a0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0;
-extern const struct iwl_cfg iwl_cfg_bz_b0_gf_a0;
-extern const struct iwl_cfg iwl_cfg_bz_b0_gf4_a0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_mr_a0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_fm_a0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_fm4_a0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_fm_b0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_fm_c0;
-extern const struct iwl_cfg iwl_cfg_bz_a0_fm4_b0;
-extern const struct iwl_cfg iwl_cfg_bz_b0_fm_b0;
-extern const struct iwl_cfg iwl_cfg_bz_b0_fm4_b0;
+
+extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_gl_a0_fm_a0;
-extern const struct iwl_cfg iwl_cfg_gl_b0_fm_b0;
-extern const struct iwl_cfg iwl_cfg_gl_c0_fm_c0;
-extern const struct iwl_cfg iwl_cfg_bz_z0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_gl;
+
 extern const struct iwl_cfg iwl_cfg_sc_a0_fm_b0;
 extern const struct iwl_cfg iwl_cfg_sc_a0_fm_c0;
 extern const struct iwl_cfg iwl_cfg_sc_a0_hr_a0;
