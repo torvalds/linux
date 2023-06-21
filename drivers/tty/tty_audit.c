@@ -33,16 +33,16 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 {
 	struct tty_audit_buf *buf;
 
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		goto err;
+
 	buf->data = kmalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	if (!buf->data)
 		goto err_buf;
+
 	mutex_init(&buf->mutex);
-	buf->dev = MKDEV(0, 0);
-	buf->icanon = 0;
-	buf->valid = 0;
+
 	return buf;
 
 err_buf:
