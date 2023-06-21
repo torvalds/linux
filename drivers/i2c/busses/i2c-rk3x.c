@@ -1489,7 +1489,8 @@ static void rk3x_i2c_tb_cb(void *data)
 		device_property_read_u32(i2c->dev, "i2c,clk-rate", (u32 *)&clk_rate);
 
 	rk3x_i2c_adapt_div(i2c, clk_rate);
-
+	if (rk3x_i2c_get_version(i2c) >= RK_I2C_VERSION5)
+		i2c->autostop_supported = true;
 	enable_irq(i2c->irq);
 }
 
@@ -1648,10 +1649,10 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 			device_property_read_u32(&pdev->dev, "i2c,clk-rate", (u32 *)&clk_rate);
 
 		rk3x_i2c_adapt_div(i2c, clk_rate);
-	}
 
-	if (rk3x_i2c_get_version(i2c) >= RK_I2C_VERSION5)
-		i2c->autostop_supported = true;
+		if (rk3x_i2c_get_version(i2c) >= RK_I2C_VERSION5)
+			i2c->autostop_supported = true;
+	}
 
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0)
