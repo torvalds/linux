@@ -15,9 +15,9 @@ struct ulpi_ops;
  * @dev: device interface
  */
 struct ulpi {
+	struct device dev;
 	struct ulpi_device_id id;
 	const struct ulpi_ops *ops;
-	struct device dev;
 };
 
 #define to_ulpi_dev(d) container_of(d, struct ulpi, dev)
