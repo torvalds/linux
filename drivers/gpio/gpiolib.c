@@ -1650,6 +1650,7 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 {
 	struct fwnode_handle *fwnode = dev_fwnode(&gc->gpiodev->dev);
 	struct irq_chip *irqchip = gc->irq.chip;
+	struct irq_domain *domain;
 	unsigned int type;
 	unsigned int i;
 
@@ -1682,14 +1683,13 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 
 	/* If a parent irqdomain is provided, let's build a hierarchy */
 	if (gpiochip_hierarchy_is_hierarchical(gc)) {
-		gc->irq.domain = gpiochip_hierarchy_create_domain(gc);
-		if (IS_ERR(gc->irq.domain))
-			return PTR_ERR(gc->irq.domain);
+		domain = gpiochip_hierarchy_create_domain(gc);
 	} else {
-		gc->irq.domain = gpiochip_simple_create_domain(gc);
-		if (IS_ERR(gc->irq.domain))
-			return PTR_ERR(gc->irq.domain);
+		domain = gpiochip_simple_create_domain(gc);
 	}
+	if (IS_ERR(domain))
+		return PTR_ERR(domain);
+	gc->irq.domain = domain;
 
 	if (gc->irq.parent_handler) {
 		for (i = 0; i < gc->irq.num_parents; i++) {
