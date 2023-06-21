@@ -32,6 +32,7 @@
 
 #define QCOM_CPU_PART_KRYO4XX_GOLD 0x804
 #define QCOM_CPU_PART_KRYO5XX_GOLD 0xD0D
+#define QCOM_CPU_PART_A78_GOLD 0xD4B
 #define QCOM_CPU_PART_KRYO4XX_SILVER_V1 0x803
 #define QCOM_CPU_PART_KRYO4XX_SILVER_V2 0x805
 
@@ -151,7 +152,7 @@ static void l1_l2_irq_enable(void *info)
 {
 	int irq = *(int *)info;
 
-	enable_percpu_irq(irq, IRQ_TYPE_LEVEL_HIGH);
+	enable_percpu_irq(irq, irq_get_trigger_type(irq));
 }
 
 static void l1_l2_irq_disable(void *info)
@@ -166,20 +167,19 @@ static int request_erp_irq(struct platform_device *pdev, const char *propname,
 			void *ed, int percpu)
 {
 	int rc;
-	struct resource *r;
 	struct erp_drvdata *drv = ed;
 	struct erp_drvdata *temp = NULL;
+	int irq;
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, propname);
-
-	if (!r) {
+	irq = platform_get_irq_byname(pdev, propname);
+	if (irq < 0) {
 		pr_err("ARM64 CPU ERP: Could not find <%s> IRQ property. Proceeding anyway.\n",
 			propname);
 		goto out;
 	}
 
 	if (!percpu) {
-		rc = devm_request_threaded_irq(&pdev->dev, r->start, NULL,
+		rc = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					       handler,
 					       IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
 					       desc,
@@ -187,7 +187,7 @@ static int request_erp_irq(struct platform_device *pdev, const char *propname,
 
 		if (rc) {
 			pr_err("ARM64 CPU ERP: Failed to request IRQ %d: %d (%s / %s). Proceeding anyway.\n",
-			       (int) r->start, rc, propname, desc);
+				irq, rc, propname, desc);
 			goto out;
 		}
 
@@ -201,17 +201,17 @@ static int request_erp_irq(struct platform_device *pdev, const char *propname,
 		temp = raw_cpu_ptr(drv->erp_cpu_drvdata);
 		temp->erp_cpu_drvdata = drv;
 
-		rc = request_percpu_irq(r->start, handler, desc,
+		rc = request_percpu_irq(irq, handler, desc,
 				drv->erp_cpu_drvdata);
 
 		if (rc) {
 			pr_err("ARM64 CPU ERP: Failed to request IRQ %d: %d (%s / %s). Proceeding anyway.\n",
-			       (int) r->start, rc, propname, desc);
+			       irq, rc, propname, desc);
 			goto out_free;
 		}
 
-		drv->ppi = r->start;
-		on_each_cpu(l1_l2_irq_enable, &(r->start), 1);
+		drv->ppi = irq;
+		on_each_cpu(l1_l2_irq_enable, &irq, 1);
 	}
 
 	return 0;
@@ -293,6 +293,7 @@ static void kryo_parse_l1_l2_cache_error(u64 errxstatus, u64 errxmisc,
 	case QCOM_CPU_PART_KRYO4XX_GOLD:
 	case QCOM_CPU_PART_KRYO5XX_GOLD:
 	case QCOM_CPU_PART_KRYO6XX_GOLDPLUS:
+	case QCOM_CPU_PART_A78_GOLD:
 		switch (KRYO_ERRXMISC_LVL_GOLD(errxmisc)) {
 		case L1_GOLD_DC_BIT:
 		case L1_GOLD_IC_BIT:
@@ -523,6 +524,16 @@ static int kryo_cpu_erp_probe(struct platform_device *pdev)
 			kryo_l3_scu_handler, drv, 0))
 		fail++;
 
+	if (request_erp_irq(pdev, "l3-c0-scu-faultirq",
+			"KRYO L3-SCU ECC FAULTIRQ CLUSTER 0",
+			kryo_l3_scu_handler, drv, 0))
+		fail++;
+
+	if (request_erp_irq(pdev, "l3-c1-scu-faultirq",
+			"KRYO L3-SCU ECC FAULTIRQ CLUSTER 1",
+			kryo_l3_scu_handler, drv, 0))
+		fail++;
+
 	num_irqs = platform_irq_count(pdev);
 	if (num_irqs == 0) {
 		pr_err("KRYO ERP: No irqs found for error reporting\n");
@@ -535,7 +546,7 @@ static int kryo_cpu_erp_probe(struct platform_device *pdev)
 		goto out_dev;
 	}
 
-	if (fail == platform_irq_count(pdev)) {
+	if (fail >= platform_irq_count(pdev)) {
 		pr_err("KRYO ERP: Could not request any IRQs. Giving up.\n");
 		rc = -ENODEV;
 		goto out_dev;
