@@ -28,7 +28,7 @@ static ssize_t ctcm_buffer_show(struct device *dev,
 
 	if (!priv)
 		return -ENODEV;
-	return sprintf(buf, "%d\n", priv->buffer_size);
+	return sysfs_emit(buf, "%d\n", priv->buffer_size);
 }
 
 static ssize_t ctcm_buffer_write(struct device *dev,
@@ -120,7 +120,7 @@ static ssize_t stats_show(struct device *dev,
 	if (!priv || gdev->state != CCWGROUP_ONLINE)
 		return -ENODEV;
 	ctcm_print_statistics(priv);
-	return sprintf(buf, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static ssize_t stats_write(struct device *dev, struct device_attribute *attr,
@@ -142,7 +142,7 @@ static ssize_t ctcm_proto_show(struct device *dev,
 	if (!priv)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", priv->protocol);
+	return sysfs_emit(buf, "%d\n", priv->protocol);
 }
 
 static ssize_t ctcm_proto_store(struct device *dev,
@@ -184,8 +184,8 @@ static ssize_t ctcm_type_show(struct device *dev,
 	if (!cgdev)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n",
-			ctcm_type[cgdev->cdev[0]->id.driver_info]);
+	return sysfs_emit(buf, "%s\n",
+			  ctcm_type[cgdev->cdev[0]->id.driver_info]);
 }
 
 static DEVICE_ATTR(buffer, 0644, ctcm_buffer_show, ctcm_buffer_write);
