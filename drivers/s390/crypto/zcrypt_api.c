@@ -1668,14 +1668,16 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		size_t total_size = MAX_ZDEV_ENTRIES_EXT
 			* sizeof(struct zcrypt_device_status_ext);
 
-		device_status = kzalloc(total_size, GFP_KERNEL);
+		device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
+					       sizeof(struct zcrypt_device_status_ext),
+					       GFP_KERNEL);
 		if (!device_status)
 			return -ENOMEM;
 		zcrypt_device_status_mask_ext(device_status);
 		if (copy_to_user((char __user *)arg, device_status,
 				 total_size))
 			rc = -EFAULT;
-		kfree(device_status);
+		kvfree(device_status);
 		return rc;
 	}
 	case ZCRYPT_STATUS_MASK: {
