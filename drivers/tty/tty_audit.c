@@ -15,7 +15,7 @@
 struct tty_audit_buf {
 	struct mutex mutex;	/* Protects all data below */
 	dev_t dev;		/* The TTY which the data is from */
-	unsigned icanon:1;
+	bool icanon;
 	size_t valid;
 	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
 };
@@ -202,8 +202,8 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 {
 	struct tty_audit_buf *buf;
-	unsigned int icanon = !!L_ICANON(tty);
 	unsigned int audit_tty;
+	bool icanon = L_ICANON(tty);
 	dev_t dev;
 
 	audit_tty = READ_ONCE(current->signal->audit_tty);
