@@ -32,6 +32,7 @@ static int __init match_dev_by_uuid(struct device *dev, const void *data)
 /**
  * devt_from_partuuid - looks up the dev_t of a partition by its UUID
  * @uuid_str:	char array containing ascii UUID
+ * @devt:	dev_t result
  *
  * The function will return the first partition which contains a matching
  * UUID value in its partition_meta_info struct.  This does not search
@@ -40,7 +41,7 @@ static int __init match_dev_by_uuid(struct device *dev, const void *data)
  * If @uuid_str is followed by a "/PARTNROFF=%d", then the number will be
  * extracted and used as an offset from the partition identified by the UUID.
  *
- * Returns the matching dev_t on success or 0 on failure.
+ * Returns 0 on success or a negative error code on failure.
  */
 static int __init devt_from_partuuid(const char *uuid_str, dev_t *devt)
 {

@@ -561,6 +561,7 @@ static void bd_clear_claiming(struct block_device *whole, void *holder)
  * bd_finish_claiming - finish claiming of a block device
  * @bdev: block device of interest
  * @holder: holder that has claimed @bdev
+ * @hops: block device holder operations
  *
  * Finish exclusive open of a block device. Mark the device as exlusively
  * open by the holder and wake up all waiters for exclusive open to finish.
