@@ -44,7 +44,6 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 
 	/* Defaults */
 	ast->config_mode = ast_use_defaults;
-	*scu_rev = 0xffffffff;
 
 	/* Check if we have device-tree properties */
 	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id",
@@ -92,32 +91,11 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	drm_info(dev, "P2A bridge disabled, using default configuration\n");
 }
 
-static int ast_detect_chip(struct drm_device *dev, bool *need_post)
+static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 {
 	struct ast_device *ast = to_ast_device(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	uint32_t jreg, scu_rev;
-
-	/*
-	 * If VGA isn't enabled, we need to enable now or subsequent
-	 * access to the scratch registers will fail. We also inform
-	 * our caller that it needs to POST the chip
-	 * (Assumption: VGA not enabled -> need to POST)
-	 */
-	if (!ast_is_vga_enabled(dev)) {
-		ast_enable_vga(dev);
-		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
-		*need_post = true;
-	} else
-		*need_post = false;
-
-
-	/* Enable extended register access */
-	ast_open_key(ast);
-	ast_enable_mmio(dev);
-
-	/* Find out whether P2A works or whether to use device-tree */
-	ast_detect_config_mode(dev, &scu_rev);
+	uint32_t jreg;
 
 	/* Identify chipset */
 	if (pdev->revision >= 0x50) {
@@ -195,7 +173,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	 * is at power-on reset, otherwise we'll incorrectly "detect" a
 	 * SIL164 when there is none.
 	 */
-	if (!*need_post) {
+	if (!need_post) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
 		if (jreg & 0x80)
 			ast->tx_chip_types = AST_TX_SIL164_BIT;
@@ -384,8 +362,9 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 {
 	struct drm_device *dev;
 	struct ast_device *ast;
-	bool need_post;
+	bool need_post = false;
 	int ret = 0;
+	u32 scu_rev = 0xffffffff;
 
 	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
 	if (IS_ERR(ast))
@@ -420,7 +399,26 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 			return ERR_PTR(-EIO);
 	}
 
-	ast_detect_chip(dev, &need_post);
+	if (!ast_is_vga_enabled(dev)) {
+		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
+		need_post = true;
+	}
+
+	/*
+	 * If VGA isn't enabled, we need to enable now or subsequent
+	 * access to the scratch registers will fail.
+	 */
+	if (need_post)
+		ast_enable_vga(dev);
+
+	/* Enable extended register access */
+	ast_open_key(ast);
+	ast_enable_mmio(dev);
+
+	/* Find out whether P2A works or whether to use device-tree */
+	ast_detect_config_mode(dev, &scu_rev);
+
+	ast_detect_chip(dev, need_post, scu_rev);
 
 	ret = ast_get_dram_info(dev);
 	if (ret)
