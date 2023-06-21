@@ -52,7 +52,6 @@
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
 
-
 enum ast_chip {
 	AST2000,
 	AST2100,
