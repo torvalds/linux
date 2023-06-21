@@ -68,6 +68,16 @@ qca8k_parse_netdev(unsigned long rules, u32 *offload_trigger)
 		*offload_trigger |= QCA8K_LED_TX_BLINK_MASK;
 	if (test_bit(TRIGGER_NETDEV_RX, &rules))
 		*offload_trigger |= QCA8K_LED_RX_BLINK_MASK;
+	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+		*offload_trigger |= QCA8K_LED_LINK_10M_EN_MASK;
+	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+		*offload_trigger |= QCA8K_LED_LINK_100M_EN_MASK;
+	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+		*offload_trigger |= QCA8K_LED_LINK_1000M_EN_MASK;
+	if (test_bit(TRIGGER_NETDEV_HALF_DUPLEX, &rules))
+		*offload_trigger |= QCA8K_LED_HALF_DUPLEX_MASK;
+	if (test_bit(TRIGGER_NETDEV_FULL_DUPLEX, &rules))
+		*offload_trigger |= QCA8K_LED_FULL_DUPLEX_MASK;
 
 	if (rules && !*offload_trigger)
 		return -EOPNOTSUPP;
@@ -322,6 +332,16 @@ qca8k_cled_hw_control_get(struct led_classdev *ldev, unsigned long *rules)
 		set_bit(TRIGGER_NETDEV_TX, rules);
 	if (val & QCA8K_LED_RX_BLINK_MASK)
 		set_bit(TRIGGER_NETDEV_RX, rules);
+	if (val & QCA8K_LED_LINK_10M_EN_MASK)
+		set_bit(TRIGGER_NETDEV_LINK_10, rules);
+	if (val & QCA8K_LED_LINK_100M_EN_MASK)
+		set_bit(TRIGGER_NETDEV_LINK_100, rules);
+	if (val & QCA8K_LED_LINK_1000M_EN_MASK)
+		set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+	if (val & QCA8K_LED_HALF_DUPLEX_MASK)
+		set_bit(TRIGGER_NETDEV_HALF_DUPLEX, rules);
+	if (val & QCA8K_LED_FULL_DUPLEX_MASK)
+		set_bit(TRIGGER_NETDEV_FULL_DUPLEX, rules);
 
 	return 0;
 }
