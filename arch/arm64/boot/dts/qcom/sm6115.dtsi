@@ -865,6 +865,11 @@
 				reg = <0x25b 0x1>;
 				bits = <1 4>;
 			};
+
+			gpu_speed_bin: gpu-speed-bin@6006 {
+				reg = <0x6006 0x2>;
+				bits = <5 8>;
+			};
 		};
 
 		rng: rng@1b53000 {
@@ -1314,6 +1319,104 @@
 				snps,hird-threshold = /bits/ 8 <0x10>;
 				snps,usb3_lpm_capable;
 			};
+		};
+
+		gpu: gpu@5900000 {
+			compatible = "qcom,adreno-610.0", "qcom,adreno";
+			reg = <0x0 0x05900000 0x0 0x40000>;
+			reg-names = "kgsl_3d0_reg_memory";
+
+			/* There's no (real) GMU, so we have to handle quite a bunch of clocks! */
+			clocks = <&gpucc GPU_CC_GX_GFX3D_CLK>,
+				 <&gpucc GPU_CC_AHB_CLK>,
+				 <&gcc GCC_BIMC_GPU_AXI_CLK>,
+				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+				 <&gpucc GPU_CC_CX_GMU_CLK>,
+				 <&gpucc GPU_CC_CXO_CLK>;
+			clock-names = "core",
+				      "iface",
+				      "mem_iface",
+				      "alt_mem_iface",
+				      "gmu",
+				      "xo";
+
+			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+
+			iommus = <&adreno_smmu 0 1>;
+			operating-points-v2 = <&gpu_opp_table>;
+			power-domains = <&rpmpd SM6115_VDDCX>;
+			qcom,gmu = <&gmu_wrapper>;
+
+			nvmem-cells = <&gpu_speed_bin>;
+			nvmem-cell-names = "speed_bin";
+
+			status = "disabled";
+
+			zap-shader {
+				memory-region = <&pil_gpu_mem>;
+			};
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-320000000 {
+					opp-hz = /bits/ 64 <320000000>;
+					required-opps = <&rpmpd_opp_low_svs>;
+					opp-supported-hw = <0x1f>;
+				};
+
+				opp-465000000 {
+					opp-hz = /bits/ 64 <465000000>;
+					required-opps = <&rpmpd_opp_svs>;
+					opp-supported-hw = <0x1f>;
+				};
+
+				opp-600000000 {
+					opp-hz = /bits/ 64 <600000000>;
+					required-opps = <&rpmpd_opp_svs_plus>;
+					opp-supported-hw = <0x1f>;
+				};
+
+				opp-745000000 {
+					opp-hz = /bits/ 64 <745000000>;
+					required-opps = <&rpmpd_opp_nom>;
+					opp-supported-hw = <0xf>;
+				};
+
+				opp-820000000 {
+					opp-hz = /bits/ 64 <820000000>;
+					required-opps = <&rpmpd_opp_nom_plus>;
+					opp-supported-hw = <0x7>;
+				};
+
+				opp-900000000 {
+					opp-hz = /bits/ 64 <900000000>;
+					required-opps = <&rpmpd_opp_turbo>;
+					opp-supported-hw = <0x7>;
+				};
+
+				/* Speed bin 2 can reach 950 Mhz instead of 980 like the rest. */
+				opp-950000000 {
+					opp-hz = /bits/ 64 <950000000>;
+					required-opps = <&rpmpd_opp_turbo_plus>;
+					opp-supported-hw = <0x4>;
+				};
+
+				opp-980000000 {
+					opp-hz = /bits/ 64 <980000000>;
+					required-opps = <&rpmpd_opp_turbo_plus>;
+					opp-supported-hw = <0x3>;
+				};
+			};
+		};
+
+		gmu_wrapper: gmu@596a000 {
+			compatible = "qcom,adreno-gmu-wrapper";
+			reg = <0x0 0x0596a000 0x0 0x30000>;
+			reg-names = "gmu";
+			power-domains = <&gpucc GPU_CX_GDSC>,
+					<&gpucc GPU_GX_GDSC>;
+			power-domain-names = "cx", "gx";
 		};
 
 		gpucc: clock-controller@5990000 {
