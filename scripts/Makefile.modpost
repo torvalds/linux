@@ -125,7 +125,9 @@ targets += $(output-symdump)
 $(output-symdump): $(modorder-if-needed) $(vmlinux.o-if-present) $(module.symvers-if-present) $(MODPOST) FORCE
 	$(call if_changed,modpost)
 
+ifeq ($(findstring elf,$(if $(CONFIG_OUTPUT_FORMAT),$(CONFIG_OUTPUT_FORMAT),elf)),elf)
 __modpost: $(output-symdump)
+endif
 PHONY += FORCE
 FORCE:
 
