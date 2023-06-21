@@ -38,6 +38,7 @@ struct efx_tc_action_set {
 	struct efx_tc_encap_action *encap_md; /* entry in tc_encap_ht table */
 	struct list_head encap_user; /* entry on encap_md->users list */
 	struct efx_tc_action_set_list *user; /* Only populated if encap_md */
+	struct list_head count_user; /* entry on counter->users list, if encap */
 	u32 dest_mport;
 	u32 fw_id; /* index of this entry in firmware actions table */
 	struct list_head list;

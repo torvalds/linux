@@ -110,8 +110,13 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 		 */
 		list_del(&act->list);
 	}
-	if (act->count)
+	if (act->count) {
+		spin_lock_bh(&act->count->cnt->lock);
+		if (!list_empty(&act->count_user))
+			list_del(&act->count_user);
+		spin_unlock_bh(&act->count->cnt->lock);
 		efx_tc_flower_put_counter_index(efx, act->count);
+	}
 	if (act->encap_md) {
 		list_del(&act->encap_user);
 		efx_tc_flower_release_encap_md(efx, act->encap_md);
@@ -796,6 +801,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 					goto release;
 				}
 				act->count = ctr;
+				INIT_LIST_HEAD(&act->count_user);
 			}
 
 			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
@@ -1083,6 +1089,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 				goto release;
 			}
 			act->count = ctr;
+			INIT_LIST_HEAD(&act->count_user);
 		}
 
 		switch (fa->id) {
@@ -1120,6 +1127,17 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 				list_add_tail(&act->encap_user, &encap->users);
 				act->dest_mport = encap->dest_mport;
 				act->deliver = 1;
+				if (act->count && !WARN_ON(!act->count->cnt)) {
+					/* This counter is used by an encap
+					 * action, which needs a reference back
+					 * so it can prod neighbouring whenever
+					 * traffic is seen.
+					 */
+					spin_lock_bh(&act->count->cnt->lock);
+					list_add_tail(&act->count_user,
+						      &act->count->cnt->users);
+					spin_unlock_bh(&act->count->cnt->lock);
+				}
 				rc = efx_mae_alloc_action_set(efx, act);
 				if (rc) {
 					NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (encap)");
