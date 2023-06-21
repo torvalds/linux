@@ -66,20 +66,20 @@ static void tty_audit_log(const char *description, dev_t dev,
 	uid_t uid = from_kuid(&init_user_ns, task_uid(current));
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 	unsigned int sessionid = audit_get_sessionid(current);
+	char name[TASK_COMM_LEN];
 
 	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_TTY);
-	if (ab) {
-		char name[TASK_COMM_LEN];
+	if (!ab)
+		return;
 
-		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
-				 " minor=%d comm=", description, pid, uid,
-				 loginuid, sessionid, MAJOR(dev), MINOR(dev));
-		get_task_comm(name, current);
-		audit_log_untrustedstring(ab, name);
-		audit_log_format(ab, " data=");
-		audit_log_n_hex(ab, data, size);
-		audit_log_end(ab);
-	}
+	audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d minor=%d comm=",
+			 description, pid, uid, loginuid, sessionid,
+			 MAJOR(dev), MINOR(dev));
+	get_task_comm(name, current);
+	audit_log_untrustedstring(ab, name);
+	audit_log_format(ab, " data=");
+	audit_log_n_hex(ab, data, size);
+	audit_log_end(ab);
 }
 
 /*
