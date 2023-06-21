@@ -1154,7 +1154,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 }
 
 /**
- * verify_dfa_accept_xindex - verify accept indexes are in range of perms table
+ * verify_dfa_accept_index - verify accept indexes are in range of perms table
  * @dfa: the dfa to check accept indexes are in range
  * table_size: the permission table size the indexes should be within
  */
