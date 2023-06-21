@@ -64,14 +64,12 @@ bool ast_is_vga_enabled(struct drm_device *dev)
 }
 
 static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
-static const u8 extreginfo_ast2300a0[] = { 0x0f, 0x04, 0x1c, 0xff };
 static const u8 extreginfo_ast2300[] = { 0x0f, 0x04, 0x1f, 0xff };
 
 static void
 ast_set_def_ext_reg(struct drm_device *dev)
 {
 	struct ast_device *ast = to_ast_device(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u8 i, index, reg;
 	const u8 *ext_reg_info;
 
@@ -79,13 +77,9 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	for (i = 0x81; i <= 0x9f; i++)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
 
-	if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
-		if (pdev->revision >= 0x20)
-			ext_reg_info = extreginfo_ast2300;
-		else
-			ext_reg_info = extreginfo_ast2300a0;
-	} else
+	if (ast->chip == AST2300 || ast->chip == AST2400 || ast->chip == AST2500)
+		ext_reg_info = extreginfo_ast2300;
+	else
 		ext_reg_info = extreginfo;
 
 	index = 0xa0;
