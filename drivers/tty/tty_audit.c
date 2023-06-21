@@ -69,7 +69,7 @@ static void tty_audit_log(const char *description, dev_t dev,
 
 	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_TTY);
 	if (ab) {
-		char name[sizeof(current->comm)];
+		char name[TASK_COMM_LEN];
 
 		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
 				 " minor=%d comm=", description, pid, uid,
