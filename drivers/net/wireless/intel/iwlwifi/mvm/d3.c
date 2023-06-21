@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1779,9 +1779,42 @@ struct iwl_mvm_d3_gtk_iter_data {
 	struct iwl_wowlan_status_data *status;
 	void *last_gtk;
 	u32 cipher;
-	bool find_phase, unhandled_cipher;
+	bool unhandled_cipher;
 	int num_keys;
 };
+
+static void iwl_mvm_d3_find_last_keys(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_key_conf *key,
+				      void *_data)
+{
+	struct iwl_mvm_d3_gtk_iter_data *data = _data;
+
+	if (data->unhandled_cipher)
+		return;
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		/* ignore WEP completely, nothing to do */
+		return;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+	case WLAN_CIPHER_SUITE_TKIP:
+		/* we support these */
+		data->last_gtk = key;
+		data->cipher = key->cipher;
+		break;
+	default:
+		/* everything else - disconnect from AP */
+		data->unhandled_cipher = true;
+		return;
+	}
+
+	data->num_keys++;
+}
 
 static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
@@ -1803,53 +1836,24 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-	case WLAN_CIPHER_SUITE_TKIP:
-		/* we support these */
-		break;
-	default:
-		/* everything else (even CMAC for MFP) - disconnect from AP */
-		data->unhandled_cipher = true;
-		return;
-	}
-
-	data->num_keys++;
-
-	/*
-	 * pairwise key - update sequence counters only;
-	 * note that this assumes no TDLS sessions are active
-	 */
-	if (sta) {
-		if (data->find_phase)
-			return;
-
-		switch (key->cipher) {
-		case WLAN_CIPHER_SUITE_CCMP:
-		case WLAN_CIPHER_SUITE_GCMP:
-		case WLAN_CIPHER_SUITE_GCMP_256:
+		if (sta) {
 			atomic64_set(&key->tx_pn, status->ptk.aes.tx_pn);
 			iwl_mvm_set_aes_ptk_rx_seq(data->mvm, status, sta, key);
-			break;
-		case WLAN_CIPHER_SUITE_TKIP:
+			return;
+		}
+		fallthrough;
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (sta) {
 			atomic64_set(&key->tx_pn, status->ptk.tkip.tx_pn);
 			iwl_mvm_set_key_rx_seq_tids(key, status->ptk.tkip.seq);
-			break;
+			return;
 		}
+		if (data->status->num_of_gtk_rekeys)
+			ieee80211_remove_key(key);
 
-		/* that's it for this key */
-		return;
+		if (data->last_gtk == key)
+			iwl_mvm_set_key_rx_seq(key, data->status, false);
 	}
-
-	if (data->find_phase) {
-		data->last_gtk = key;
-		data->cipher = key->cipher;
-		return;
-	}
-
-	if (data->status->num_of_gtk_rekeys)
-		ieee80211_remove_key(key);
-
-	if (data->last_gtk == key)
-		iwl_mvm_set_key_rx_seq(key, data->status, false);
 }
 
 static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
@@ -1872,9 +1876,8 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		return false;
 
 	/* find last GTK that we used initially, if any */
-	gtkdata.find_phase = true;
 	ieee80211_iter_keys(mvm->hw, vif,
-			    iwl_mvm_d3_update_keys, &gtkdata);
+			    iwl_mvm_d3_find_last_keys, &gtkdata);
 	/* not trying to keep connections with MFP/unhandled ciphers */
 	if (gtkdata.unhandled_cipher)
 		return false;
@@ -1887,7 +1890,6 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	 * invalidate all other GTKs that might still exist and update
 	 * the one that we used
 	 */
-	gtkdata.find_phase = false;
 	ieee80211_iter_keys(mvm->hw, vif,
 			    iwl_mvm_d3_update_keys, &gtkdata);
 
