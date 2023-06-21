@@ -149,56 +149,8 @@ const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
 
 const char iwl_sc_name[] = "Intel(R) TBD Sc device";
 
-const struct iwl_cfg iwl_cfg_sc_a0_fm_b0 = {
-	.fw_name_pre = IWL_SC_A_FM_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
-};
-
-const struct iwl_cfg iwl_cfg_sc_a0_fm_c0 = {
-	.fw_name_pre = IWL_SC_A_FM_C_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
-};
-
-const struct iwl_cfg iwl_cfg_sc_a0_hr_a0 = {
-	.fw_name_pre = IWL_SC_A_HR_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
-};
-
-const struct iwl_cfg iwl_cfg_sc_a0_hr_b0 = {
-	.fw_name_pre = IWL_SC_A_HR_B_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
-};
-
-const struct iwl_cfg iwl_cfg_sc_a0_gf_a0 = {
-	.fw_name_pre = IWL_SC_A_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
-};
-
-const struct iwl_cfg iwl_cfg_sc_a0_gf4_a0 = {
-	.fw_name_pre = IWL_SC_A_GF4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
-};
-
-const struct iwl_cfg iwl_cfg_sc_a0_wh_a0 = {
-	.fw_name_pre = IWL_SC_A_WH_A_FW_PRE,
+const struct iwl_cfg iwl_cfg_sc = {
+	.fw_name_mac = "sc",
 	.uhb_supported = true,
 	IWL_DEVICE_SC,
 	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
