@@ -3873,7 +3873,7 @@ struct ieee80211_prep_tx_info {
  *
  * @link_sta_add_debugfs: Drivers can use this callback to add debugfs files
  *	when a link is added to a mac80211 station. This callback
- *	should be within a CPTCFG_MAC80211_DEBUGFS conditional. This
+ *	should be within a CONFIG_MAC80211_DEBUGFS conditional. This
  *	callback can sleep.
  *	For non-MLO the callback will be called once for the deflink with the
  *	station's directory rather than a separate subdirectory.
