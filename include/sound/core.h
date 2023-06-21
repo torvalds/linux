@@ -232,7 +232,7 @@ static inline struct device *snd_card_get_device_link(struct snd_card *card)
 
 extern int snd_major;
 extern int snd_ecards_limit;
-extern struct class *sound_class;
+extern const struct class sound_class;
 #ifdef CONFIG_SND_DEBUG
 extern struct dentry *sound_debugfs_root;
 #endif
