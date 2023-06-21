@@ -14,6 +14,8 @@
 #include <media/videobuf2-dma-contig.h>
 
 static const struct stfcamss_format_info formats_pix_st7110_wr[] = {
+	{ MEDIA_BUS_FMT_AYUV8_1X32, V4L2_PIX_FMT_AYUV32, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 32 } },
 	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_PIX_FMT_YUYV, 1,
 	  { { 1, 1 } }, { { 1, 1 } }, { 16 } },
 	{ MEDIA_BUS_FMT_RGB565_2X8_LE, V4L2_PIX_FMT_RGB565, 1,
@@ -867,11 +869,12 @@ static int video_g_fmt_mp(struct file *file, void *fh, struct v4l2_format *f)
 static int video_entity_s_fmt(struct stfcamss_video *video,
 			struct media_entity *entity,
 			struct v4l2_subdev_state *state,
-			struct v4l2_subdev_format *fmt, u32 dst_code)
+			struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_subdev *subdev;
 	struct media_pad *pad;
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
+	struct v4l2_subdev_format fmt_src;
 	u32 width, height, code;
 	int ret, index = 0;
 
@@ -886,13 +889,7 @@ static int video_entity_s_fmt(struct stfcamss_video *video,
 		pad = media_entity_remote_pad(pad);
 		if (pad && is_media_entity_v4l2_subdev(pad->entity)) {
 			fmt->pad = index;
-			if (index)
-				mf->code = dst_code;
 			ret = v4l2_subdev_call(subdev, pad, set_fmt, state, fmt);
-			st_warn(ST_VIDEO,
-				"\"%s\":%d pad fmt set to 0x%x %ux%u, dst_code = 0x%x, ret=%d\n",
-				subdev->name, fmt->pad, mf->code,
-				mf->width, mf->height, dst_code, ret);
 			if (mf->code != code ||
 				mf->width != width || mf->height != height) {
 				st_warn(ST_VIDEO,
@@ -901,8 +898,16 @@ static int video_entity_s_fmt(struct stfcamss_video *video,
 					subdev->name, fmt->pad, mf->code,
 					mf->width, mf->height);
 			}
-			if (index)
-				ret = video_entity_s_fmt(video, pad->entity, state, fmt, dst_code);
+			if (index) {
+				fmt_src.pad = index;
+				fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+				ret = v4l2_subdev_call(subdev, pad, get_fmt, state, &fmt_src);
+				if (ret)
+					return ret;
+
+				fmt->format.code = fmt_src.format.code;
+				ret = video_entity_s_fmt(video, pad->entity, state, fmt);
+			}
 		}
 
 		if (ret < 0 && ret != -ENOIOCTLCMD)
@@ -921,6 +926,7 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 	struct v4l2_subdev *subdev;
 	int ret, index;
 	struct v4l2_subdev_format fmt = {
+		.pad = 0,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		.reserved = {getcrop_pad_id(video->id)}
 	};
@@ -948,37 +954,27 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 			return index;
 		v4l2_fill_mbus_format(mf, pix, video->formats[index].code);
 	}
-	code = mf->code;
+
 	width = mf->width;
 	height = mf->height;
+
 	sensor = stfcamss_find_sensor(entity);
-	if (sensor) {
-		subdev = media_entity_to_v4l2_subdev(sensor);
-		ret = v4l2_subdev_call(subdev, pad, set_fmt, state, &fmt);
-		st_warn(ST_VIDEO,
-			"\"%s\":%d pad fmt set to 0x%x %ux%u\n",
-			subdev->name, fmt.pad, mf->code,
-			mf->width, mf->height);
-		if (mf->code != code ||
-			mf->width != width || mf->height != height) {
-			st_warn(ST_VIDEO,
-				"\"%s\":%d pad fmt has been"
-				" changed to 0x%x %ux%u\n",
-				subdev->name, fmt.pad, mf->code,
-				mf->width, mf->height);
-		}
-	} else {
+	if (!sensor) {
 		st_err(ST_VIDEO, "Can't find sensor\n");
 		return -ENOTTY;
 	}
+
+	subdev = media_entity_to_v4l2_subdev(sensor);
+	ret = v4l2_subdev_call(subdev, pad, get_fmt, state, &fmt);
+	if (ret)
+		return ret;
+
 	/*
 	 * Starting from sensor subdevice, walk within
 	 * pipeline and set format on each subdevice
 	 */
-	sensor = stfcamss_find_sensor(entity);
 	pad = media_entity_remote_pad(&sensor->pads[0]);
-	ret = video_entity_s_fmt(video, pad->entity, state, &fmt, code);
-
+	ret = video_entity_s_fmt(video, pad->entity, state, &fmt);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
 

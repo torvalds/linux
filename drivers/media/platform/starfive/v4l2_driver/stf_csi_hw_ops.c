@@ -212,8 +212,28 @@ static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 		writel(0, reg_base + CSI2RX_STREAM_CTRL_REG(i));
 }
 
+static void csi_set_vin_axiwr_pix(struct stf_csi_dev *csi_dev, u32 width, u8 bpp)
+{
+	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
+	u32 value = 0;
+	int cnfg_axiwr_pix_ct = 64 / bpp;
+
+	if (cnfg_axiwr_pix_ct == 2)
+		value = 0;
+	else if (cnfg_axiwr_pix_ct == 4)
+		value = 1;
+	else if (cnfg_axiwr_pix_ct == 8)
+		value = 2;
+
+	reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
+		BIT(14)|BIT(13), value << 13);	//u0_vin_cnfg_axiwr0_pix_ct
+	reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
+		BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2),
+		(width / cnfg_axiwr_pix_ct - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
+}
+
 static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
-					int on, u32 dt, u32 width)
+			      int on, u32 dt, u32 width, u8 bpp)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	void __iomem *reg_base = vin->csi2rx_base;
@@ -224,14 +244,9 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
 			BIT(3)|BIT(2)|BIT(1)|BIT(0),
 			0<<0);		//u0_vin_cnfg_axiwr0_channel_sel
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
-			BIT(14)|BIT(13),
-			1<<13);		//u0_vin_cnfg_axiwr0_pix_ct
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
 			BIT(16)|BIT(15),
 			0<<15);		//u0_vin_cnfg_axiwr0_pixel_high_bit_sel
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
-			BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2),
-			(width / 4 - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
+		csi_set_vin_axiwr_pix(csi_dev, width, bpp);
 		break;
 	case SENSOR_ISP:
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,

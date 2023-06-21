@@ -12,13 +12,21 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-static const struct csi_format csi_formats_st7110[] = {
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
-	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 16},
+static const struct csi_format csi_formats_sink[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 16},
 	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
 	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
 	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
 	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
+};
+
+/* this bpp need see csi controllor */
+static const struct csi_format csi_formats_src[] = {
+	{ MEDIA_BUS_FMT_AYUV8_1X32, 32},
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 16},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 16},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 16},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 16},
 };
 
 static int csi_find_format(u32 code,
@@ -40,8 +48,10 @@ int stf_csi_subdev_init(struct stfcamss *stfcamss)
 	csi_dev->s_type = SENSOR_VIN;
 	csi_dev->hw_ops = &csi_ops;
 	csi_dev->stfcamss = stfcamss;
-	csi_dev->formats = csi_formats_st7110;
-	csi_dev->nformats = ARRAY_SIZE(csi_formats_st7110);
+	csi_dev->formats_sink = csi_formats_sink;
+	csi_dev->nformats_sink = ARRAY_SIZE(csi_formats_sink);
+	csi_dev->formats_src = csi_formats_src;
+	csi_dev->nformats_src = ARRAY_SIZE(csi_formats_src);
 	mutex_init(&csi_dev->stream_lock);
 	return 0;
 }
@@ -74,10 +84,8 @@ static u32 code_to_data_type(int code)
 	case MEDIA_BUS_FMT_SGBRG10_1X10:
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		return 0x2b;
-	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		return 0x1E;
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-		return 0x22;
 	default:
 		return 0x2b;
 	}
@@ -89,8 +97,9 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 	u32 code, width, dt;
+	u8 bpp;
 
-	format = __csi_get_format(csi_dev, NULL, STF_CSI_PAD_SRC,
+	format = __csi_get_format(csi_dev, NULL, STF_CSI_PAD_SINK,
 				V4L2_SUBDEV_FORMAT_ACTIVE);
 	if (format == NULL)
 		return -EINVAL;
@@ -98,26 +107,27 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 	width = format->width;
 
 	ret = csi_find_format(format->code,
-				csi_dev->formats,
-				csi_dev->nformats);
+				csi_dev->formats_sink,
+				csi_dev->nformats_sink);
 	if (ret < 0)
 		return ret;
 
-	code = csi_dev->formats[ret].code;
+	code = csi_dev->formats_sink[ret].code;
+	bpp = csi_dev->formats_src[ret].bpp;
 	dt = code_to_data_type(code);
 
 	mutex_lock(&csi_dev->stream_lock);
 	if (enable) {
 		if (csi_dev->stream_count == 0) {
 			csi_dev->hw_ops->csi_clk_enable(csi_dev);
-			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width);
+			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width, bpp);
 		}
 		csi_dev->stream_count++;
 	} else {
 		if (csi_dev->stream_count == 0)
 			goto exit;
 		if (csi_dev->stream_count == 1) {
-			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width);
+			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width, bpp);
 			csi_dev->hw_ops->csi_clk_disable(csi_dev);
 		}
 		csi_dev->stream_count--;
@@ -139,12 +149,12 @@ static void csi_try_format(struct stf_csi_dev *csi_dev,
 	case STF_CSI_PAD_SINK:
 		/* Set format on sink pad */
 
-		for (i = 0; i < csi_dev->nformats; i++)
-			if (fmt->code == csi_dev->formats[i].code)
+		for (i = 0; i < csi_dev->nformats_sink; i++)
+			if (fmt->code == csi_dev->formats_sink[i].code)
 				break;
 
-		if (i >= csi_dev->nformats)
-			fmt->code = csi_dev->formats[0].code;
+		if (i >= csi_dev->nformats_sink)
+			fmt->code = csi_dev->formats_sink[0].code;
 
 		fmt->width = clamp_t(u32,
 				fmt->width,
@@ -163,8 +173,27 @@ static void csi_try_format(struct stf_csi_dev *csi_dev,
 		break;
 
 	case STF_CSI_PAD_SRC:
+		/* Set format on src pad */
 
-		*fmt = *__csi_get_format(csi_dev, state, STF_CSI_PAD_SINK, which);
+		for (i = 0; i < csi_dev->nformats_src; i++)
+			if (fmt->code == csi_dev->formats_src[i].code)
+				break;
+
+		if (i >= csi_dev->nformats_src)
+			fmt->code = csi_dev->formats_src[0].code;
+
+		fmt->width = clamp_t(u32,
+				fmt->width,
+				STFCAMSS_FRAME_MIN_WIDTH,
+				STFCAMSS_FRAME_MAX_WIDTH);
+		fmt->height = clamp_t(u32,
+				fmt->height,
+				STFCAMSS_FRAME_MIN_HEIGHT,
+				STFCAMSS_FRAME_MAX_HEIGHT);
+
+		fmt->field = V4L2_FIELD_NONE;
+		fmt->colorspace = V4L2_COLORSPACE_SRGB;
+		fmt->flags = 0;
 
 		break;
 	}
@@ -176,10 +205,10 @@ static int csi_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
 
-	if (code->index >= csi_dev->nformats)
+	if (code->index >= csi_dev->nformats_sink)
 		return -EINVAL;
 	if (code->pad == STF_CSI_PAD_SINK) {
-		code->code = csi_dev->formats[code->index].code;
+		code->code = csi_dev->formats_sink[code->index].code;
 	} else {
 		struct v4l2_mbus_framefmt *sink_fmt;
 
@@ -247,6 +276,8 @@ static int csi_set_format(struct v4l2_subdev *sd,
 {
 	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
+	struct v4l2_mbus_framefmt *format_src;
+	int ret;
 
 	format = __csi_get_format(csi_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
@@ -263,13 +294,17 @@ static int csi_set_format(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&csi_dev->stream_lock);
 
-	/* Propagate the format from sink to source */
 	if (fmt->pad == STF_CSI_PAD_SINK) {
-		format = __csi_get_format(csi_dev, state, STF_CSI_PAD_SRC,
+		format_src = __csi_get_format(csi_dev, state, STF_DVP_PAD_SRC,
 					fmt->which);
 
-		*format = fmt->format;
-		csi_try_format(csi_dev, state, STF_CSI_PAD_SRC, format,
+		ret = csi_find_format(format->code, csi_dev->formats_sink,
+				csi_dev->nformats_sink);
+		if (ret < 0)
+			return ret;
+
+		format_src->code = csi_dev->formats_src[ret].code;
+		csi_try_format(csi_dev, state, STF_DVP_PAD_SRC, format_src,
 					fmt->which);
 	}
 out:

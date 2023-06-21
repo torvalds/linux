@@ -61,6 +61,9 @@
 #define OV4689_REG_AWB_B_GAIN           0x5010
 #define OV4689_REG_STREAM_ON            0x0100
 
+#define OV4689_REG_MIPI_SC_CTRL_HI	0x3018
+#define OV4689_REG_MIPI_SC_CTRL_LOW	0x3019
+
 enum ov4689_mode_id {
 	//OV4689_MODE_720P_1280_720 = 0,
 	OV4689_MODE_1080P_1920_1080 = 0,
@@ -216,7 +219,6 @@ static const struct reg_value ov4689_init_setting_30fps_1080P[] = {
 	{0x031e, 0x00, 0, 0},
 	{0x3000, 0x20, 0, 0},
 	{0x3002, 0x00, 0, 0},
-	{0x3018, 0x72, 0, 0},
 	{0x3020, 0x93, 0, 0},
 	{0x3021, 0x03, 0, 0},
 	{0x3022, 0x01, 0, 0},
@@ -472,8 +474,6 @@ static const struct reg_value ov4689_setting_VGA_640_480[] = {
 	{0x031e, 0x00, 0, 0},
 	{0x3000, 0x20, 0, 0},
 	{0x3002, 0x00, 0, 0},
-	{0x3018, 0x32, 0, 0}, // 32/72 2lane/4lane
-	{0x3019, 0x0c, 0, 0}, // 0c/00 2lane/4lane
 	{0x3020, 0x93, 0, 0},
 	{0x3021, 0x03, 0, 0},
 	{0x3022, 0x01, 0, 0},
@@ -733,8 +733,6 @@ static const struct reg_value ov4689_setting_720P_1280_720[] = {
 	{0x031e, 0x00, 0, 0},
 	{0x3000, 0x20, 0, 0},
 	{0x3002, 0x00, 0, 0},
-	{0x3018, 0x32, 0, 0}, // 32/72 2lane/4lane
-	{0x3019, 0x0c, 0, 0}, // 0c/00 2lane/4lane
 	{0x3020, 0x93, 0, 0},
 	{0x3021, 0x03, 0, 0},
 	{0x3022, 0x01, 0, 0},
@@ -996,8 +994,6 @@ static const struct reg_value ov4689_setting_1080P_1920_1080[] = {
 	{0x031e, 0x00, 0, 0},
 	{0x3000, 0x20, 0, 0},
 	{0x3002, 0x00, 0, 0},
-	{0x3018, 0x32, 0, 0},
-	{0x3019, 0x0c, 0, 0},
 	{0x3020, 0x93, 0, 0},
 	{0x3021, 0x03, 0, 0},
 	{0x3022, 0x01, 0, 0},
@@ -1253,8 +1249,6 @@ static const struct reg_value ov4689_setting_4M_2688_1520[] = {
 	{0x031e, 0x00, 0, 0},
 	{0x3000, 0x20, 0, 0},
 	{0x3002, 0x00, 0, 0},
-	{0x3018, 0x32, 0, 0},
-	{0x3019, 0x0C, 0, 0},
 	{0x3020, 0x93, 0, 0},
 	{0x3021, 0x03, 0, 0},
 	{0x3022, 0x01, 0, 0},
@@ -2700,6 +2694,16 @@ static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 			ret = ov4689_set_mode(sensor);
 			if (ret)
 				goto out;
+		}
+
+		if (sensor->ep.bus.mipi_csi2.num_data_lanes == 2) {
+			ov4689_write_reg(sensor, OV4689_REG_MIPI_SC_CTRL_HI, 0x32);
+			ov4689_write_reg(sensor, OV4689_REG_MIPI_SC_CTRL_LOW, 0x0c);
+		} else if (sensor->ep.bus.mipi_csi2.num_data_lanes == 4) {
+			ov4689_write_reg(sensor, OV4689_REG_MIPI_SC_CTRL_HI, 0x72);
+			ov4689_write_reg(sensor, OV4689_REG_MIPI_SC_CTRL_LOW, 0x00);
+		} else {
+			dev_err(&sensor->i2c_client->dev, "Unsupport lane num\n");
 		}
 
 		ret = ov4689_stream_start(sensor, enable);

@@ -30,9 +30,8 @@ struct csi_hw_ops {
 	int (*csi_power_on)(struct stf_csi_dev *csi_dev, u8 on);
 	int (*csi_clk_enable)(struct stf_csi_dev *csi_dev);
 	int (*csi_clk_disable)(struct stf_csi_dev *csi_dev);
-	int (*csi_set_format)(struct stf_csi_dev *csi_dev,
-			u32 vsize, u8 bpp, int is_raw10);
-	int (*csi_stream_set)(struct stf_csi_dev *csi_dev, int on, u32 dt, u32 width);
+	int (*csi_stream_set)(struct stf_csi_dev *csi_dev, int on,
+			      u32 dt, u32 width, u8 bpp);
 };
 
 struct stf_csi_dev {
@@ -41,8 +40,10 @@ struct stf_csi_dev {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[STF_CSI_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[STF_CSI_PADS_NUM];
-	const struct csi_format *formats;
-	unsigned int nformats;
+	const struct csi_format *formats_sink;
+	unsigned int nformats_sink;
+	const struct csi_format *formats_src;
+	unsigned int nformats_src;
 	struct csi_hw_ops *hw_ops;
 	struct mutex stream_lock;
 	int stream_count;
