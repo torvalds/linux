@@ -13,7 +13,7 @@
 #define IWL_AX210_UCODE_API_MAX	82
 
 /* Lowest firmware API version supported */
-#define IWL_AX210_UCODE_API_MIN	39
+#define IWL_AX210_UCODE_API_MIN	59
 
 /* NVM versions */
 #define IWL_AX210_NVM_VERSION		0x0a1d
