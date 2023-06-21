@@ -5468,13 +5468,13 @@ static struct bio *remove_bio_from_retry(struct r5conf *conf,
  */
 static void raid5_align_endio(struct bio *bi)
 {
-	struct md_io_acct *md_io_acct = bi->bi_private;
-	struct bio *raid_bi = md_io_acct->orig_bio;
+	struct md_io_clone *md_io_clone = bi->bi_private;
+	struct bio *raid_bi = md_io_clone->orig_bio;
 	struct mddev *mddev;
 	struct r5conf *conf;
 	struct md_rdev *rdev;
 	blk_status_t error = bi->bi_status;
-	unsigned long start_time = md_io_acct->start_time;
+	unsigned long start_time = md_io_clone->start_time;
 
 	bio_put(bi);
 
@@ -5506,7 +5506,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	struct md_rdev *rdev;
 	sector_t sector, end_sector, first_bad;
 	int bad_sectors, dd_idx;
-	struct md_io_acct *md_io_acct;
+	struct md_io_clone *md_io_clone;
 	bool did_inc;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
@@ -5544,15 +5544,15 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	}
 
 	align_bio = bio_alloc_clone(rdev->bdev, raid_bio, GFP_NOIO,
-				    &mddev->io_acct_set);
-	md_io_acct = container_of(align_bio, struct md_io_acct, bio_clone);
+				    &mddev->io_clone_set);
+	md_io_clone = container_of(align_bio, struct md_io_clone, bio_clone);
 	raid_bio->bi_next = (void *)rdev;
 	if (blk_queue_io_stat(raid_bio->bi_bdev->bd_disk->queue))
-		md_io_acct->start_time = bio_start_io_acct(raid_bio);
-	md_io_acct->orig_bio = raid_bio;
+		md_io_clone->start_time = bio_start_io_acct(raid_bio);
+	md_io_clone->orig_bio = raid_bio;
 
 	align_bio->bi_end_io = raid5_align_endio;
-	align_bio->bi_private = md_io_acct;
+	align_bio->bi_private = md_io_clone;
 	align_bio->bi_iter.bi_sector = sector;
 
 	/* No reshape active, so we can trust rdev->data_offset */
