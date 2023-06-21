@@ -859,7 +859,6 @@ static int gfs2_adjust_quota(struct gfs2_sbd *sdp, loff_t loc,
 		return err;
 
 	loc -= sizeof(q); /* gfs2_internal_read would've advanced the loc ptr */
-	err = -EIO;
 	be64_add_cpu(&q.qu_value, change);
 	if (((s64)be64_to_cpu(q.qu_value)) < 0)
 		q.qu_value = 0; /* Never go negative on quota usage */
