@@ -255,6 +255,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_gpint_response = dmub_dcn31_get_gpint_response;
 		funcs->get_gpint_dataout = dmub_dcn31_get_gpint_dataout;
 		funcs->get_fw_status = dmub_dcn31_get_fw_boot_status;
+		funcs->get_fw_boot_option = dmub_dcn31_get_fw_boot_option;
 		funcs->enable_dmub_boot_options = dmub_dcn31_enable_dmub_boot_options;
 		funcs->skip_dmub_panel_power_sequence = dmub_dcn31_skip_dmub_panel_power_sequence;
 		//outbox0 call stacks
@@ -842,6 +843,20 @@ enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
 
 	if (dmub->hw_funcs.get_fw_status)
 		*status = dmub->hw_funcs.get_fw_status(dmub);
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_get_fw_boot_option(struct dmub_srv *dmub,
+					     union dmub_fw_boot_options *option)
+{
+	option->all = 0;
+
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_funcs.get_fw_boot_option)
+		*option = dmub->hw_funcs.get_fw_boot_option(dmub);
 
 	return DMUB_STATUS_OK;
 }

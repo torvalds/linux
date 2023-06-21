@@ -378,6 +378,7 @@ struct dmub_srv_hw_funcs {
 
 	union dmub_fw_boot_status (*get_fw_status)(struct dmub_srv *dmub);
 
+	union dmub_fw_boot_options (*get_fw_boot_option)(struct dmub_srv *dmub);
 
 	void (*set_gpint)(struct dmub_srv *dmub,
 			  union dmub_gpint_data_register reg);
@@ -777,6 +778,9 @@ void dmub_flush_buffer_mem(const struct dmub_fb *fb);
  */
 enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
 					     union dmub_fw_boot_status *status);
+
+enum dmub_status dmub_srv_get_fw_boot_option(struct dmub_srv *dmub,
+					     union dmub_fw_boot_options *option);
 
 enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 					      union dmub_rb_cmd *cmd);
