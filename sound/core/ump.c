@@ -671,18 +671,35 @@ static void seq_notify_protocol(struct snd_ump_endpoint *ump)
 #endif /* CONFIG_SND_SEQUENCER */
 }
 
+/**
+ * snd_ump_switch_protocol - switch MIDI protocol
+ * @ump: UMP endpoint
+ * @protocol: protocol to switch to
+ *
+ * Returns 1 if the protocol is actually switched, 0 if unchanged
+ */
+int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol)
+{
+	protocol &= ump->info.protocol_caps;
+	if (protocol == ump->info.protocol)
+		return 0;
+
+	ump->info.protocol = protocol;
+	ump_dbg(ump, "New protocol = %x (caps = %x)\n",
+		protocol, ump->info.protocol_caps);
+	seq_notify_protocol(ump);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(snd_ump_switch_protocol);
+
 /* handle EP stream config message; update the UMP protocol */
 static int ump_handle_stream_cfg_msg(struct snd_ump_endpoint *ump,
 				     const union snd_ump_stream_msg *buf)
 {
-	unsigned int old_protocol = ump->info.protocol;
-
-	ump->info.protocol =
+	unsigned int protocol =
 		(buf->stream_cfg.protocol << 8) | buf->stream_cfg.jrts;
-	ump_dbg(ump, "Current protocol = %x (caps = %x)\n",
-		ump->info.protocol, ump->info.protocol_caps);
-	if (ump->parsed && ump->info.protocol != old_protocol)
-		seq_notify_protocol(ump);
+
+	snd_ump_switch_protocol(ump, protocol);
 	return 1; /* finished */
 }
 

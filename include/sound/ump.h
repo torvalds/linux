@@ -108,6 +108,8 @@ static inline int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 }
 #endif
 
+int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol);
+
 /*
  * Some definitions for UMP
  */
