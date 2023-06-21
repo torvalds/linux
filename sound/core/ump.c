@@ -263,12 +263,16 @@ static unsigned char ump_packet_words[0x10] = {
 	1, 1, 1, 2, 2, 4, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4
 };
 
-/* parse the UMP packet data;
- * the data is copied onto ump->input_buf[].
+/**
+ * snd_ump_receive_ump_val - parse the UMP packet data
+ * @ump: UMP endpoint
+ * @val: UMP packet data
+ *
+ * The data is copied onto ump->input_buf[].
  * When a full packet is completed, returns the number of words (from 1 to 4).
  * OTOH, if the packet is incomplete, returns 0.
  */
-static int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
+int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
 {
 	int words;
 
@@ -284,6 +288,7 @@ static int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_ump_receive_ump_val);
 
 /**
  * snd_ump_receive - transfer UMP packets from the device
@@ -671,18 +676,35 @@ static void seq_notify_protocol(struct snd_ump_endpoint *ump)
 #endif /* CONFIG_SND_SEQUENCER */
 }
 
+/**
+ * snd_ump_switch_protocol - switch MIDI protocol
+ * @ump: UMP endpoint
+ * @protocol: protocol to switch to
+ *
+ * Returns 1 if the protocol is actually switched, 0 if unchanged
+ */
+int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol)
+{
+	protocol &= ump->info.protocol_caps;
+	if (protocol == ump->info.protocol)
+		return 0;
+
+	ump->info.protocol = protocol;
+	ump_dbg(ump, "New protocol = %x (caps = %x)\n",
+		protocol, ump->info.protocol_caps);
+	seq_notify_protocol(ump);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(snd_ump_switch_protocol);
+
 /* handle EP stream config message; update the UMP protocol */
 static int ump_handle_stream_cfg_msg(struct snd_ump_endpoint *ump,
 				     const union snd_ump_stream_msg *buf)
 {
-	unsigned int old_protocol = ump->info.protocol;
-
-	ump->info.protocol =
+	unsigned int protocol =
 		(buf->stream_cfg.protocol << 8) | buf->stream_cfg.jrts;
-	ump_dbg(ump, "Current protocol = %x (caps = %x)\n",
-		ump->info.protocol, ump->info.protocol_caps);
-	if (ump->parsed && ump->info.protocol != old_protocol)
-		seq_notify_protocol(ump);
+
+	snd_ump_switch_protocol(ump, protocol);
 	return 1; /* finished */
 }
 
@@ -836,6 +858,10 @@ static void ump_handle_stream_msg(struct snd_ump_endpoint *ump,
 	const union snd_ump_stream_msg *msg;
 	unsigned int status;
 	int ret;
+
+	/* UMP stream message suppressed (for gadget UMP)? */
+	if (ump->no_process_stream)
+		return;
 
 	BUILD_BUG_ON(sizeof(*msg) != 16);
 	ump_dbg(ump, "Stream msg: %08x %08x %08x %08x\n",
