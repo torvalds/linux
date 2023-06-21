@@ -1344,7 +1344,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf)
 	/*
 	 * See do_wp_page(): we can only reuse the folio exclusively if
 	 * there are no additional references. Note that we always drain
-	 * the LRU pagevecs immediately after adding a THP.
+	 * the LRU cache immediately after adding a THP.
 	 */
 	if (folio_ref_count(folio) >
 			1 + folio_test_swapcache(folio) * folio_nr_pages(folio))

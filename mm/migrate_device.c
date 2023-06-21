@@ -376,7 +376,7 @@ static unsigned long migrate_device_unmap(unsigned long *src_pfns,
 		/* ZONE_DEVICE pages are not on LRU */
 		if (!is_zone_device_page(page)) {
 			if (!PageLRU(page) && allow_drain) {
-				/* Drain CPU's pagevec */
+				/* Drain CPU's lru cache */
 				lru_add_drain_all();
 				allow_drain = false;
 			}

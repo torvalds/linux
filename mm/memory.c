@@ -3401,8 +3401,8 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 			goto copy;
 		if (!folio_test_lru(folio))
 			/*
-			 * Note: We cannot easily detect+handle references from
-			 * remote LRU pagevecs or references to LRU folios.
+			 * We cannot easily detect+handle references from
+			 * remote LRU caches or references to LRU folios.
 			 */
 			lru_add_drain();
 		if (folio_ref_count(folio) > 1 + folio_test_swapcache(folio))
@@ -3880,7 +3880,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		 * If we want to map a page that's in the swapcache writable, we
 		 * have to detect via the refcount if we're really the exclusive
 		 * owner. Try removing the extra reference from the local LRU
-		 * pagevecs if required.
+		 * caches if required.
 		 */
 		if ((vmf->flags & FAULT_FLAG_WRITE) && folio == swapcache &&
 		    !folio_test_ksm(folio) && !folio_test_lru(folio))

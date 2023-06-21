@@ -76,7 +76,7 @@ static DEFINE_PER_CPU(struct cpu_fbatches, cpu_fbatches) = {
 
 /*
  * This path almost never happens for VM activity - pages are normally freed
- * via pagevecs.  But it gets used by networking - and for compound pages.
+ * in batches.  But it gets used by networking - and for compound pages.
  */
 static void __page_cache_release(struct folio *folio)
 {
