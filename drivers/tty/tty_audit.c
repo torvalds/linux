@@ -59,7 +59,7 @@ static void tty_audit_buf_free(struct tty_audit_buf *buf)
 }
 
 static void tty_audit_log(const char *description, dev_t dev,
-			  unsigned char *data, size_t size)
+			  const unsigned char *data, size_t size)
 {
 	struct audit_buffer *ab;
 	pid_t pid = task_pid_nr(current);
