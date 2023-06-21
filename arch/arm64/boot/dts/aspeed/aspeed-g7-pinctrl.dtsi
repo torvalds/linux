@@ -200,4 +200,283 @@
 		function = "USB2B";
 		groups = "USB2BHP";
 	};
+
+};
+
+&pinctrl1 {
+	pinctrl_espi0_default: espi0_default {
+		function = "ESPI0";
+		groups = "ESPI0";
+	};
+
+	pinctrl_espi1_default: espi1_default {
+		function = "ESPI1";
+		groups = "ESPI1";
+	};
+
+	pinctrl_lpc0_default: lpc0_default {
+		function = "LPC0";
+		groups = "LPC0";
+	};
+
+	pinctrl_lpc1_default: lpc1_default {
+		function = "LPC1";
+		groups = "LPC1";
+	};
+
+	pinctrl_vpi_default: vpi_default {
+		function = "VPI";
+		groups = "VPI";
+	};
+
+	pinctrl_sd_default: sd_default {
+		function = "SD";
+		groups = "SD";
+	};
+
+	pinctrl_i3c4hv_default: i3c4hv_default {
+		function = "I3C4HV";
+		groups = "I3C4HV";
+	};
+
+	pinctrl_i3c5hv_default: i3c5hv_default {
+		function = "I3C5HV";
+		groups = "I3C5HV";
+	};
+
+	pinctrl_i3c6hv_default: i3c6hv_default {
+		function = "I3C6HV";
+		groups = "I3C6HV";
+	};
+
+	pinctrl_tach0_default: tach0_default {
+		function = "TACH0";
+		groups = "TACH0";
+	};
+
+	pinctrl_tach1_default: tach1_default {
+		function = "TACH1";
+		groups = "TACH1";
+	};
+
+	pinctrl_tach2_default: tach2_default {
+		function = "TACH2";
+		groups = "TACH2";
+	};
+
+	pinctrl_tach3_default: tach3_default {
+		function = "TACH3";
+		groups = "TACH3";
+	};
+
+	pinctrl_tach4_default: tach4_default {
+		function = "TACH4";
+		groups = "TACH4";
+	};
+
+	pinctrl_tach5_default: tach5_default {
+		function = "TACH5";
+		groups = "TACH5";
+	};
+
+	pinctrl_tach6_default: tach6_default {
+		function = "TACH6";
+		groups = "TACH6";
+	};
+
+	pinctrl_tach7_default: tach7_default {
+		function = "TACH7";
+		groups = "TACH7";
+	};
+
+	pinctrl_tach8_default: tach8_default {
+		function = "TACH8";
+		groups = "TACH8";
+	};
+
+	pinctrl_tach9_default: tach9_default {
+		function = "TACH9";
+		groups = "TACH9";
+	};
+
+	pinctrl_tach10_default: tach10_default {
+		function = "TACH10";
+		groups = "TACH10";
+	};
+
+	pinctrl_tach11_default: tach11_default {
+		function = "TACH11";
+		groups = "TACH11";
+	};
+
+	pinctrl_tach12_default: tach12_default {
+		function = "TACH12";
+		groups = "TACH12";
+	};
+
+	pinctrl_tach13_default: tach13_default {
+		function = "TACH13";
+		groups = "TACH13";
+	};
+
+	pinctrl_tach14_default: tach14_default {
+		function = "TACH14";
+		groups = "TACH14";
+	};
+
+	pinctrl_tach15_default: tach15_default {
+		function = "TACH15";
+		groups = "TACH15";
+	};
+
+	pinctrl_thru0_default: thru0_default {
+		function = "THRU0";
+		groups = "THRU0";
+	};
+
+	pinctrl_thru1_default: thru1_default {
+		function = "THRU1";
+		groups = "THRU1";
+	};
+
+	pinctrl_ncts5_default: ncts5_default {
+		function = "NCTS5";
+		groups = "NCTS5";
+	};
+
+	pinctrl_ndcd5_default: ndcd5_default {
+		function = "NDCD5";
+		groups = "NDCD5";
+	};
+
+	pinctrl_ndsr5_default: ndsr5_default {
+		function = "NDSR5";
+		groups = "NDSR5";
+	};
+
+	pinctrl_nri5_default: nri5_default {
+		function = "NRI5";
+		groups = "NRI5";
+	};
+
+	pinctrl_i2c0_default: i2c0_default {
+		function = "I2C0";
+		groups = "I2C0";
+	};
+
+	pinctrl_i2c1_default: i2c1_default {
+		function = "I2C1";
+		groups = "I2C1";
+	};
+
+	pinctrl_i2c2_default: i2c2_default {
+		function = "I2C2";
+		groups = "I2C2";
+	};
+
+	pinctrl_i2c3_default: i2c3_default {
+		function = "I2C3";
+		groups = "I2C3";
+	};
+
+	pinctrl_i2c4_default: i2c4_default {
+		function = "I2C4";
+		groups = "I2C4";
+	};
+
+	pinctrl_i2c5_default: i2c5_default {
+		function = "I2C5";
+		groups = "I2C5";
+	};
+
+	pinctrl_i2c6_default: i2c6_default {
+		function = "I2C6";
+		groups = "I2C6";
+	};
+
+	pinctrl_i2c7_default: i2c7_default {
+		function = "I2C7";
+		groups = "I2C7";
+	};
+
+	pinctrl_i2c8_default: i2c8_default {
+		function = "I2C8";
+		groups = "I2C8";
+	};
+
+	pinctrl_i2c9_default: i2c9_default {
+		function = "I2C9";
+		groups = "I2C9";
+	};
+
+	pinctrl_i2c10_default: i2c10_default {
+		function = "I2C10";
+		groups = "I2C10";
+	};
+
+	pinctrl_i2c11_default: i2c11_default {
+		function = "I2C11";
+		groups = "I2C11";
+	};
+
+	pinctrl_i2c12_default: i2c12_default {
+		function = "I2C12";
+		groups = "I2C12";
+	};
+
+	pinctrl_i2c13_default: i2c13_default {
+		function = "I2C13";
+		groups = "I2C13";
+	};
+
+	pinctrl_i2c14_default: i2c14_default {
+		function = "I2C14";
+		groups = "I2C14";
+	};
+
+	pinctrl_i2c15_default: i2c15_default {
+		function = "I2C15";
+		groups = "I2C15";
+	};
+
+	pinctrl_di2c8_default: di2c8_default {
+		function = "DI2C8";
+		groups = "DI2C8";
+	};
+
+	pinctrl_di2c9_default: di2c9_default {
+		function = "DI2C9";
+		groups = "DI2C9";
+	};
+
+	pinctrl_di2c10_default: di2c10_default {
+		function = "DI2C10";
+		groups = "DI2C10";
+	};
+
+	pinctrl_di2c11_default: di2c11_default {
+		function = "DI2C11";
+		groups = "DI2C11";
+	};
+
+	pinctrl_di2c12_default: id2c12_default {
+		function = "DI2C12";
+		groups = "DI2C12";
+	};
+
+	pinctrl_di2c13_default: di2c13_default {
+		function = "DI2C13";
+		groups = "DI2C13";
+	};
+
+	pinctrl_di2c14_default: di2c14_default {
+		function = "DI2C14";
+		groups = "DI2C14";
+	};
+
+	pinctrl_di2c15_default: di2c15_default {
+		function = "DI2C15";
+		groups = "DI2C15";
+	};
+
 };
