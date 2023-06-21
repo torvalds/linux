@@ -263,12 +263,16 @@ static unsigned char ump_packet_words[0x10] = {
 	1, 1, 1, 2, 2, 4, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4
 };
 
-/* parse the UMP packet data;
- * the data is copied onto ump->input_buf[].
+/**
+ * snd_ump_receive_ump_val - parse the UMP packet data
+ * @ump: UMP endpoint
+ * @val: UMP packet data
+ *
+ * The data is copied onto ump->input_buf[].
  * When a full packet is completed, returns the number of words (from 1 to 4).
  * OTOH, if the packet is incomplete, returns 0.
  */
-static int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
+int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
 {
 	int words;
 
@@ -284,6 +288,7 @@ static int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_ump_receive_ump_val);
 
 /**
  * snd_ump_receive - transfer UMP packets from the device
