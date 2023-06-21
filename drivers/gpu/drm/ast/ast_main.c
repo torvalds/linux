@@ -127,7 +127,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
 	jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 	if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
-		/* Patch AST2500 */
+		/* Patch GEN6 */
 		if (((pdev->revision & 0xF0) == 0x40)
 			&& ((jregd0 & AST_VRAM_INIT_STATUS_MASK) == 0))
 			ast_patch_ahb_2500(ast);
@@ -196,8 +196,8 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 	}
 
 	/* Check if we support wide screen */
-	switch (ast->chip) {
-	case AST2000:
+	switch (AST_GEN(ast)) {
+	case 1:
 		ast->support_wide_screen = false;
 		break;
 	default:
@@ -217,7 +217,7 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 			if (ast->chip == AST2500 &&
 			    scu_rev == 0x100)           /* ast2510 */
 				ast->support_wide_screen = true;
-			if (ast->chip == AST2600)		/* ast2600 */
+			if (IS_AST_GEN7(ast))
 				ast->support_wide_screen = true;
 		}
 		break;
@@ -240,9 +240,9 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 			ast->tx_chip_types = AST_TX_SIL164_BIT;
 	}
 
-	if ((ast->chip == AST2300) || (ast->chip == AST2400) || (ast->chip == AST2500)) {
+	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
 		/*
-		 * On AST2300 and 2400, look the configuration set by the SoC in
+		 * On AST GEN4+, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
@@ -264,7 +264,7 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 		case 0x0c:
 			ast->tx_chip_types = AST_TX_DP501_BIT;
 		}
-	} else if (ast->chip == AST2600) {
+	} else if (IS_AST_GEN7(ast)) {
 		if (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, TX_TYPE_MASK) ==
 		    ASTDP_DPMCU_TX) {
 			ast->tx_chip_types = AST_TX_ASTDP_BIT;
@@ -296,7 +296,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	case ast_use_dt:
 		/*
 		 * If some properties are missing, use reasonable
-		 * defaults for AST2400
+		 * defaults for GEN5
 		 */
 		if (of_property_read_u32(np, "aspeed,mcr-configuration",
 					 &mcr_cfg))
@@ -319,7 +319,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	default:
 		ast->dram_bus_width = 16;
 		ast->dram_type = AST_DRAM_1Gx16;
-		if (ast->chip == AST2500)
+		if (IS_AST_GEN6(ast))
 			ast->mclk = 800;
 		else
 			ast->mclk = 396;
@@ -331,7 +331,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	else
 		ast->dram_bus_width = 32;
 
-	if (ast->chip == AST2500) {
+	if (IS_AST_GEN6(ast)) {
 		switch (mcr_cfg & 0x03) {
 		case 0:
 			ast->dram_type = AST_DRAM_1Gx16;
@@ -347,7 +347,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 			ast->dram_type = AST_DRAM_8Gx16;
 			break;
 		}
-	} else if (ast->chip == AST2300 || ast->chip == AST2400) {
+	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
 		switch (mcr_cfg & 0x03) {
 		case 0:
 			ast->dram_type = AST_DRAM_512Mx16;

@@ -51,7 +51,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	for (i = 0x81; i <= 0x9f; i++)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
 
-	if (ast->chip == AST2300 || ast->chip == AST2400 || ast->chip == AST2500)
+	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast))
 		ext_reg_info = extreginfo_ast2300;
 	else
 		ext_reg_info = extreginfo;
@@ -72,8 +72,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	/* Enable RAMDAC for A1 */
 	reg = 0x04;
-	if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500)
+	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast))
 		reg |= 0x20;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff, reg);
 }
@@ -249,7 +248,7 @@ static void ast_init_dram_reg(struct drm_device *dev)
 	j = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
 
 	if ((j & 0x80) == 0) { /* VGA only */
-		if (ast->chip == AST2000) {
+		if (IS_AST_GEN1(ast)) {
 			dram_reg_info = ast2000_dram_table_data;
 			ast_write32(ast, 0xf004, 0x1e6e0000);
 			ast_write32(ast, 0xf000, 0x1);
@@ -258,7 +257,7 @@ static void ast_init_dram_reg(struct drm_device *dev)
 			do {
 				;
 			} while (ast_read32(ast, 0x10100) != 0xa8);
-		} else {/* AST2100/1100 */
+		} else { /* GEN2/GEN3 */
 			if (ast->chip == AST2100 || ast->chip == AST2200)
 				dram_reg_info = ast2100_dram_table_data;
 			else
@@ -281,7 +280,7 @@ static void ast_init_dram_reg(struct drm_device *dev)
 			if (dram_reg_info->index == 0xff00) {/* delay fn */
 				for (i = 0; i < 15; i++)
 					udelay(dram_reg_info->data);
-			} else if (dram_reg_info->index == 0x4 && ast->chip != AST2000) {
+			} else if (dram_reg_info->index == 0x4 && !IS_AST_GEN1(ast)) {
 				data = dram_reg_info->data;
 				if (ast->dram_type == AST_DRAM_1Gx16)
 					data = 0x00000d89;
@@ -307,15 +306,13 @@ static void ast_init_dram_reg(struct drm_device *dev)
 				cbrdlli_ast2150(ast, 32); /* 32 bits */
 		}
 
-		switch (ast->chip) {
-		case AST2000:
+		switch (AST_GEN(ast)) {
+		case 1:
 			temp = ast_read32(ast, 0x10140);
 			ast_write32(ast, 0x10140, temp | 0x40);
 			break;
-		case AST1100:
-		case AST2100:
-		case AST2200:
-		case AST2150:
+		case 2:
+		case 3:
 			temp = ast_read32(ast, 0x1200c);
 			ast_write32(ast, 0x1200c, temp & 0xfffffffd);
 			temp = ast_read32(ast, 0x12040);
@@ -338,13 +335,13 @@ void ast_post_gpu(struct drm_device *dev)
 
 	ast_set_def_ext_reg(dev);
 
-	if (ast->chip == AST2600) {
+	if (IS_AST_GEN7(ast)) {
 		if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
 			ast_dp_launch(dev);
 	} else if (ast->config_mode == ast_use_p2a) {
-		if (ast->chip == AST2500)
+		if (IS_AST_GEN6(ast))
 			ast_post_chip_2500(dev);
-		else if (ast->chip == AST2300 || ast->chip == AST2400)
+		else if (IS_AST_GEN5(ast) || IS_AST_GEN4(ast))
 			ast_post_chip_2300(dev);
 		else
 			ast_init_dram_reg(dev);

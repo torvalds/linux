@@ -52,17 +52,37 @@
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
 
+#define __AST_CHIP(__gen, __index)	((__gen) << 16 | (__index))
+
 enum ast_chip {
-	AST2000,
-	AST2100,
-	AST1100,
-	AST2200,
-	AST2150,
-	AST2300,
-	AST2400,
-	AST2500,
-	AST2600,
+	/* 1st gen */
+	AST1000 = __AST_CHIP(1, 0), // unused
+	AST2000 = __AST_CHIP(1, 1),
+	/* 2nd gen */
+	AST1100 = __AST_CHIP(2, 0),
+	AST2100 = __AST_CHIP(2, 1),
+	AST2050 = __AST_CHIP(2, 2), // unused
+	/* 3rd gen */
+	AST2200 = __AST_CHIP(3, 0),
+	AST2150 = __AST_CHIP(3, 1),
+	/* 4th gen */
+	AST2300 = __AST_CHIP(4, 0),
+	AST1300 = __AST_CHIP(4, 1), // unused
+	AST1050 = __AST_CHIP(4, 2), // unused
+	/* 5th gen */
+	AST2400 = __AST_CHIP(5, 0),
+	AST1400 = __AST_CHIP(5, 1), // unused
+	AST1250 = __AST_CHIP(5, 2), // unused
+	/* 6th gen */
+	AST2500 = __AST_CHIP(6, 0),
+	AST2510 = __AST_CHIP(6, 1), // unused
+	AST2520 = __AST_CHIP(6, 2), // unused
+	/* 7th gen */
+	AST2600 = __AST_CHIP(7, 0),
+	AST2620 = __AST_CHIP(7, 1), // unused
 };
+
+#define __AST_CHIP_GEN(__chip)	(((unsigned long)(__chip)) >> 16)
 
 enum ast_tx_chip {
 	AST_TX_NONE,
@@ -216,6 +236,24 @@ static inline struct ast_device *to_ast_device(struct drm_device *dev)
 struct ast_device *ast_device_create(const struct drm_driver *drv,
 				     struct pci_dev *pdev,
 				     unsigned long flags);
+
+static inline unsigned long __ast_gen(struct ast_device *ast)
+{
+	return __AST_CHIP_GEN(ast->chip);
+}
+#define AST_GEN(__ast)	__ast_gen(__ast)
+
+static inline bool __ast_gen_is_eq(struct ast_device *ast, unsigned long gen)
+{
+	return __ast_gen(ast) == gen;
+}
+#define IS_AST_GEN1(__ast)	__ast_gen_is_eq(__ast, 1)
+#define IS_AST_GEN2(__ast)	__ast_gen_is_eq(__ast, 2)
+#define IS_AST_GEN3(__ast)	__ast_gen_is_eq(__ast, 3)
+#define IS_AST_GEN4(__ast)	__ast_gen_is_eq(__ast, 4)
+#define IS_AST_GEN5(__ast)	__ast_gen_is_eq(__ast, 5)
+#define IS_AST_GEN6(__ast)	__ast_gen_is_eq(__ast, 6)
+#define IS_AST_GEN7(__ast)	__ast_gen_is_eq(__ast, 7)
 
 #define AST_IO_AR_PORT_WRITE		(0x40)
 #define AST_IO_MISC_PORT_WRITE		(0x42)
