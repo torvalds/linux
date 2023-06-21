@@ -156,7 +156,6 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 {
 	struct ast_device *ast = to_ast_device(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	uint32_t jreg;
 
 	/* Identify chipset */
 	if (pdev->revision >= 0x50) {
@@ -217,6 +216,13 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 		drm_info(dev, "AST 2000 detected\n");
 	}
 
+	return 0;
+}
+
+static void ast_detect_widescreen(struct ast_device *ast)
+{
+	u8 jreg;
+
 	/* Check if we support wide screen */
 	switch (AST_GEN(ast)) {
 	case 1:
@@ -241,6 +247,12 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 		}
 		break;
 	}
+}
+
+static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
+{
+	struct drm_device *dev = &ast->base;
+	u8 jreg;
 
 	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip_types |= AST_TX_NONE_BIT;
@@ -300,8 +312,6 @@ static int ast_detect_chip(struct drm_device *dev, bool need_post, u32 scu_rev)
 		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
 	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
 		drm_info(dev, "Using ASPEED DisplayPort transmitter\n");
-
-	return 0;
 }
 
 static int ast_get_dram_info(struct drm_device *dev)
@@ -493,6 +503,8 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	ast_detect_config_mode(dev, &scu_rev);
 
 	ast_detect_chip(dev, need_post, scu_rev);
+	ast_detect_widescreen(ast);
+	ast_detect_tx_chip(ast, need_post);
 
 	ret = ast_get_dram_info(dev);
 	if (ret)
