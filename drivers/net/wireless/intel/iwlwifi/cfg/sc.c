@@ -96,7 +96,7 @@ static const struct iwl_base_params iwl_sc_base_params = {
 		},							\
 	},								\
 	.trans.umac_prph_offset = 0x300000,				\
-	.trans.device_family = IWL_DEVICE_FAMILY_BZ,			\
+	.trans.device_family = IWL_DEVICE_FAMILY_SC,			\
 	.trans.base_params = &iwl_sc_base_params,			\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
@@ -135,7 +135,7 @@ static const struct iwl_base_params iwl_sc_base_params = {
 #define IWL_NUM_RBDS_SC_HE		4096
 
 const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
-	.device_family = IWL_DEVICE_FAMILY_BZ,
+	.device_family = IWL_DEVICE_FAMILY_SC,
 	.base_params = &iwl_sc_base_params,
 	.mq_rx_supported = true,
 	.rf_id = true,
