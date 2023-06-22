@@ -1067,6 +1067,12 @@ config SPI_SLAVE_SYSTEM_CONTROL
 	  SPI slave handler to allow remote control of system reboot, power
 	  off, halt, and suspend.
 
+config SPI_SLAVE_ROCKCHIP_OBJ
+	tristate "Rockchip SPI slave inter transmission protocol demo"
+	help
+	  SPI slave with a rockchip protocol specification for SPI slave
+	  transmission, work with the corresponding master driver spidev_rkmst.
+
 endif # SPI_SLAVE
 
 config SPI_DYNAMIC
