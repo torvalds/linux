@@ -1369,7 +1369,7 @@ static void cached_dev_free(struct closure *cl)
 		put_page(virt_to_page(dc->sb_disk));
 
 	if (!IS_ERR_OR_NULL(dc->bdev))
-		blkdev_put(dc->bdev, bcache_kobj);
+		blkdev_put(dc->bdev, dc);
 
 	wake_up(&unregister_wait);
 
@@ -1453,7 +1453,6 @@ static int register_bdev(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 
 	memcpy(&dc->sb, sb, sizeof(struct cache_sb));
 	dc->bdev = bdev;
-	dc->bdev->bd_holder = dc;
 	dc->sb_disk = sb_disk;
 
 	if (cached_dev_init(dc, sb->block_size << 9))
@@ -2218,7 +2217,7 @@ void bch_cache_release(struct kobject *kobj)
 		put_page(virt_to_page(ca->sb_disk));
 
 	if (!IS_ERR_OR_NULL(ca->bdev))
-		blkdev_put(ca->bdev, bcache_kobj);
+		blkdev_put(ca->bdev, ca);
 
 	kfree(ca);
 	module_put(THIS_MODULE);
@@ -2345,7 +2344,6 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 
 	memcpy(&ca->sb, sb, sizeof(struct cache_sb));
 	ca->bdev = bdev;
-	ca->bdev->bd_holder = ca;
 	ca->sb_disk = sb_disk;
 
 	if (bdev_max_discard_sectors((bdev)))
@@ -2359,7 +2357,7 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 		 * call blkdev_put() to bdev in bch_cache_release(). So we
 		 * explicitly call blkdev_put() here.
 		 */
-		blkdev_put(bdev, bcache_kobj);
+		blkdev_put(bdev, ca);
 		if (ret == -ENOMEM)
 			err = "cache_alloc(): -ENOMEM";
 		else if (ret == -EPERM)
@@ -2516,10 +2514,11 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	char *path = NULL;
 	struct cache_sb *sb;
 	struct cache_sb_disk *sb_disk;
-	struct block_device *bdev;
-	void *holder;
+	struct block_device *bdev, *bdev2;
+	void *holder = NULL;
 	ssize_t ret;
 	bool async_registration = false;
+	bool quiet = false;
 
 #ifdef CONFIG_BCACHE_ASYNC_REGISTRATION
 	async_registration = true;
@@ -2548,24 +2547,9 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 
 	ret = -EINVAL;
 	err = "failed to open device";
-	bdev = blkdev_get_by_path(strim(path), BLK_OPEN_READ | BLK_OPEN_WRITE,
-				  bcache_kobj, NULL);
-	if (IS_ERR(bdev)) {
-		if (bdev == ERR_PTR(-EBUSY)) {
-			dev_t dev;
-
-			mutex_lock(&bch_register_lock);
-			if (lookup_bdev(strim(path), &dev) == 0 &&
-			    bch_is_open(dev))
-				err = "device already registered";
-			else
-				err = "device busy";
-			mutex_unlock(&bch_register_lock);
-			if (attr == &ksysfs_register_quiet)
-				goto done;
-		}
+	bdev = blkdev_get_by_path(strim(path), BLK_OPEN_READ, NULL, NULL);
+	if (IS_ERR(bdev))
 		goto out_free_sb;
-	}
 
 	err = "failed to set blocksize";
 	if (set_blocksize(bdev, 4096))
@@ -2580,6 +2564,32 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 		ret = -ENOMEM;
 		err = "cannot allocate memory";
 		goto out_put_sb_page;
+	}
+
+	/* Now reopen in exclusive mode with proper holder */
+	bdev2 = blkdev_get_by_dev(bdev->bd_dev, BLK_OPEN_READ | BLK_OPEN_WRITE,
+				  holder, NULL);
+	blkdev_put(bdev, NULL);
+	bdev = bdev2;
+	if (IS_ERR(bdev)) {
+		ret = PTR_ERR(bdev);
+		bdev = NULL;
+		if (ret == -EBUSY) {
+			dev_t dev;
+
+			mutex_lock(&bch_register_lock);
+			if (lookup_bdev(strim(path), &dev) == 0 &&
+			    bch_is_open(dev))
+				err = "device already registered";
+			else
+				err = "device busy";
+			mutex_unlock(&bch_register_lock);
+			if (attr == &ksysfs_register_quiet) {
+				quiet = true;
+				ret = size;
+			}
+		}
+		goto out_free_holder;
 	}
 
 	err = "failed to register device";
@@ -2619,7 +2629,6 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 			goto out_free_sb;
 	}
 
-done:
 	kfree(sb);
 	kfree(path);
 	module_put(THIS_MODULE);
@@ -2631,7 +2640,8 @@ out_free_holder:
 out_put_sb_page:
 	put_page(virt_to_page(sb_disk));
 out_blkdev_put:
-	blkdev_put(bdev, register_bcache);
+	if (bdev)
+		blkdev_put(bdev, holder);
 out_free_sb:
 	kfree(sb);
 out_free_path:
@@ -2640,7 +2650,8 @@ out_free_path:
 out_module_put:
 	module_put(THIS_MODULE);
 out:
-	pr_info("error %s: %s\n", path?path:"", err);
+	if (!quiet)
+		pr_info("error %s: %s\n", path?path:"", err);
 	return ret;
 }
 
