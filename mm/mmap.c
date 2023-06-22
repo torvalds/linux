@@ -2036,7 +2036,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 	int error = 0;
 
 	address &= PAGE_MASK;
-	if (address < mmap_min_addr)
+	if (address < mmap_min_addr || address < FIRST_USER_ADDRESS)
 		return -EPERM;
 
 	/* Enforce stack_guard_gap */
