@@ -69,6 +69,8 @@ power1_input		Total power usage
 power2_input		Power usage of the 12v psu rail
 power3_input		Power usage of the 5v psu rail
 power4_input		Power usage of the 3.3v psu rail
+pwm1			PWM value, read only
+pwm1_enable		PWM mode, read only
 temp1_input		Temperature of the psu vrm component
 temp1_crit		Temperature max cirtical value of the psu vrm component
 temp2_input		Temperature of the psu case

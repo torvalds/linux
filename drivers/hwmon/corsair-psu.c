@@ -58,7 +58,8 @@
 #define OCP_MULTI_RAIL		0x02
 
 #define PSU_CMD_SELECT_RAIL	0x00 /* expects length 2 */
-#define PSU_CMD_RAIL_VOLTS_HCRIT 0x40 /* the rest of the commands expect length 3 */
+#define PSU_CMD_FAN_PWM		0x3B /* the rest of the commands expect length 3 */
+#define PSU_CMD_RAIL_VOLTS_HCRIT 0x40
 #define PSU_CMD_RAIL_VOLTS_LCRIT 0x44
 #define PSU_CMD_RAIL_AMPS_HCRIT	0x46
 #define PSU_CMD_TEMP_HCRIT	0x4F
@@ -76,6 +77,7 @@
 #define PSU_CMD_UPTIME		0xD2
 #define PSU_CMD_OCPMODE		0xD8
 #define PSU_CMD_TOTAL_WATTS	0xEE
+#define PSU_CMD_FAN_PWM_ENABLE	0xF0
 #define PSU_CMD_INIT		0xFE
 
 #define L_IN_VOLTS		"v_in"
@@ -143,6 +145,14 @@ static int corsairpsu_linear11_to_int(const u16 val, const int scale)
 	const int result = mant * scale;
 
 	return (exp >= 0) ? (result << exp) : (result >> -exp);
+}
+
+/* the micro-controller uses percentage values to control pwm */
+static int corsairpsu_dutycycle_to_pwm(const long dutycycle)
+{
+	const int result = (256 << 16) / 100;
+
+	return (result * dutycycle) >> 16;
 }
 
 static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2, void *data)
@@ -264,6 +274,24 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	case PSU_CMD_FAN:
 		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
 		break;
+	case PSU_CMD_FAN_PWM_ENABLE:
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
+		/*
+		 * 0 = automatic mode, means the micro-controller controls the fan using a plan
+		 *     which can be modified, but changing this plan is not supported by this
+		 *     driver, the matching PWM mode is automatic fan speed control = PWM 2
+		 * 1 = fixed mode, fan runs at a fixed speed represented by a percentage
+		 *     value 0-100, this matches the PWM manual fan speed control = PWM 1
+		 * technically there is no PWM no fan speed control mode, it would be a combination
+		 * of 1 at 100%
+		 */
+		if (*val == 0)
+			*val = 2;
+		break;
+	case PSU_CMD_FAN_PWM:
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
+		*val = corsairpsu_dutycycle_to_pwm(*val);
+		break;
 	case PSU_CMD_RAIL_WATTS:
 	case PSU_CMD_TOTAL_WATTS:
 		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000000);
@@ -349,6 +377,18 @@ static umode_t corsairpsu_hwmon_fan_is_visible(const struct corsairpsu_data *pri
 	}
 }
 
+static umode_t corsairpsu_hwmon_pwm_is_visible(const struct corsairpsu_data *priv, u32 attr,
+					       int channel)
+{
+	switch (attr) {
+	case hwmon_pwm_input:
+	case hwmon_pwm_enable:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
 static umode_t corsairpsu_hwmon_power_is_visible(const struct corsairpsu_data *priv, u32 attr,
 						 int channel)
 {
@@ -416,6 +456,8 @@ static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sens
 		return corsairpsu_hwmon_temp_is_visible(priv, attr, channel);
 	case hwmon_fan:
 		return corsairpsu_hwmon_fan_is_visible(priv, attr, channel);
+	case hwmon_pwm:
+		return corsairpsu_hwmon_pwm_is_visible(priv, attr, channel);
 	case hwmon_power:
 		return corsairpsu_hwmon_power_is_visible(priv, attr, channel);
 	case hwmon_in:
@@ -445,6 +487,20 @@ static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, in
 	}
 
 	return err;
+}
+
+static int corsairpsu_hwmon_pwm_read(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
+{
+	switch (attr) {
+	case hwmon_pwm_input:
+		return corsairpsu_get_value(priv, PSU_CMD_FAN_PWM, 0, val);
+	case hwmon_pwm_enable:
+		return corsairpsu_get_value(priv, PSU_CMD_FAN_PWM_ENABLE, 0, val);
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static int corsairpsu_hwmon_power_read(struct corsairpsu_data *priv, u32 attr, int channel,
@@ -531,6 +587,8 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 		if (attr == hwmon_fan_input)
 			return corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
 		return -EOPNOTSUPP;
+	case hwmon_pwm:
+		return corsairpsu_hwmon_pwm_read(priv, attr, channel, val);
 	case hwmon_power:
 		return corsairpsu_hwmon_power_read(priv, attr, channel, val);
 	case hwmon_in:
@@ -579,6 +637,8 @@ static const struct hwmon_channel_info * const corsairpsu_info[] = {
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT),
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
 	HWMON_CHANNEL_INFO(power,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
