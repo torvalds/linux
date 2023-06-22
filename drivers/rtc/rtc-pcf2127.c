@@ -101,6 +101,7 @@ struct pcf21xx_config {
 	u8 regs_alarm_base; /* Alarm function base registers. */
 	u8 reg_wd_ctl; /* Watchdog control register. */
 	u8 reg_wd_val; /* Watchdog value register. */
+	u8 reg_clkout; /* Clkout register. */
 };
 
 struct pcf2127 {
@@ -631,6 +632,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
 		.reg_wd_ctl = PCF2127_REG_WD_CTL,
 		.reg_wd_val = PCF2127_REG_WD_VAL,
+		.reg_clkout = PCF2127_REG_CLKOUT,
 	},
 	[PCF2129] = {
 		.type = PCF2129,
@@ -641,6 +643,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
 		.reg_wd_ctl = PCF2127_REG_WD_CTL,
 		.reg_wd_val = PCF2127_REG_WD_VAL,
+		.reg_clkout = PCF2127_REG_CLKOUT,
 	},
 };
 
@@ -720,12 +723,12 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	regmap_clear_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
 				PCF2127_BIT_CTRL1_POR_OVRD);
 
-	ret = regmap_read(pcf2127->regmap, PCF2127_REG_CLKOUT, &val);
+	ret = regmap_read(pcf2127->regmap, pcf2127->cfg->reg_clkout, &val);
 	if (ret < 0)
 		return ret;
 
 	if (!(val & PCF2127_BIT_CLKOUT_OTPR)) {
-		ret = regmap_set_bits(pcf2127->regmap, PCF2127_REG_CLKOUT,
+		ret = regmap_set_bits(pcf2127->regmap, pcf2127->cfg->reg_clkout,
 				      PCF2127_BIT_CLKOUT_OTPR);
 		if (ret < 0)
 			return ret;
