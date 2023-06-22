@@ -47,11 +47,7 @@
 #define PCF2127_REG_TIME_BASE		0x03
 #define PCF2127_BIT_SC_OSF			BIT(7)
 /* Alarm registers */
-#define PCF2127_REG_ALARM_SC		0x0A
-#define PCF2127_REG_ALARM_MN		0x0B
-#define PCF2127_REG_ALARM_HR		0x0C
-#define PCF2127_REG_ALARM_DM		0x0D
-#define PCF2127_REG_ALARM_DW		0x0E
+#define PCF2127_REG_ALARM_BASE		0x0A
 #define PCF2127_BIT_ALARM_AE			BIT(7)
 /* CLKOUT control register */
 #define PCF2127_REG_CLKOUT		0x0f
@@ -102,6 +98,7 @@ struct pcf21xx_config {
 	unsigned int has_nvmem:1;
 	unsigned int has_bit_wd_ctl_cd0:1;
 	u8 reg_time_base; /* Time/date base register. */
+	u8 regs_alarm_base; /* Alarm function base registers. */
 };
 
 struct pcf2127 {
@@ -381,8 +378,8 @@ static int pcf2127_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_ALARM_SC, buf,
-			       sizeof(buf));
+	ret = regmap_bulk_read(pcf2127->regmap, pcf2127->cfg->regs_alarm_base,
+			       buf, sizeof(buf));
 	if (ret)
 		return ret;
 
@@ -432,8 +429,8 @@ static int pcf2127_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	buf[3] = bin2bcd(alrm->time.tm_mday);
 	buf[4] = PCF2127_BIT_ALARM_AE; /* Do not match on week day */
 
-	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_ALARM_SC, buf,
-				sizeof(buf));
+	ret = regmap_bulk_write(pcf2127->regmap, pcf2127->cfg->regs_alarm_base,
+				buf, sizeof(buf));
 	if (ret)
 		return ret;
 
@@ -629,6 +626,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.has_nvmem = 1,
 		.has_bit_wd_ctl_cd0 = 1,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
+		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
 	},
 	[PCF2129] = {
 		.type = PCF2129,
@@ -636,6 +634,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.has_nvmem = 0,
 		.has_bit_wd_ctl_cd0 = 0,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
+		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
 	},
 };
 
