@@ -297,9 +297,9 @@ retry:
 	if (err)
 		goto err_unlock_list;
 
-	if (xe_vm_is_closed(engine->vm)) {
-		drm_warn(&xe->drm, "Trying to schedule after vm is closed\n");
-		err = -EIO;
+	if (xe_vm_is_closed_or_banned(engine->vm)) {
+		drm_warn(&xe->drm, "Trying to schedule after vm is closed or banned\n");
+		err = -ECANCELED;
 		goto err_engine_end;
 	}
 

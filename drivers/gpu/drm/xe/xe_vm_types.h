@@ -176,15 +176,19 @@ struct xe_vm {
 	struct xe_bo *scratch_bo[XE_MAX_TILES_PER_DEVICE];
 	struct xe_pt *scratch_pt[XE_MAX_TILES_PER_DEVICE][XE_VM_MAX_LEVEL];
 
-	/** @flags: flags for this VM, statically setup a creation time */
+	/**
+	 * @flags: flags for this VM, statically setup a creation time aside
+	 * from XE_VM_FLAG_BANNED which requires vm->lock to set / read safely
+	 */
 #define XE_VM_FLAGS_64K			BIT(0)
 #define XE_VM_FLAG_COMPUTE_MODE		BIT(1)
 #define XE_VM_FLAG_ASYNC_BIND_OPS	BIT(2)
 #define XE_VM_FLAG_MIGRATION		BIT(3)
 #define XE_VM_FLAG_SCRATCH_PAGE		BIT(4)
 #define XE_VM_FLAG_FAULT_MODE		BIT(5)
-#define XE_VM_FLAG_GT_ID(flags)		(((flags) >> 6) & 0x3)
-#define XE_VM_FLAG_SET_TILE_ID(tile)	((tile)->id << 6)
+#define XE_VM_FLAG_BANNED		BIT(6)
+#define XE_VM_FLAG_GT_ID(flags)		(((flags) >> 7) & 0x3)
+#define XE_VM_FLAG_SET_TILE_ID(tile)	((tile)->id << 7)
 	unsigned long flags;
 
 	/** @composite_fence_ctx: context composite fence */

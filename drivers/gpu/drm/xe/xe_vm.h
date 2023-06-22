@@ -45,8 +45,19 @@ void xe_vm_unlock(struct xe_vm *vm, struct ww_acquire_ctx *ww);
 
 static inline bool xe_vm_is_closed(struct xe_vm *vm)
 {
-	/* Only guaranteed not to change when vm->resv is held */
+	/* Only guaranteed not to change when vm->lock is held */
 	return !vm->size;
+}
+
+static inline bool xe_vm_is_banned(struct xe_vm *vm)
+{
+	return vm->flags & XE_VM_FLAG_BANNED;
+}
+
+static inline bool xe_vm_is_closed_or_banned(struct xe_vm *vm)
+{
+	lockdep_assert_held(&vm->lock);
+	return xe_vm_is_closed(vm) || xe_vm_is_banned(vm);
 }
 
 struct xe_vma *

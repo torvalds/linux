@@ -597,10 +597,23 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 		if (XE_IOCTL_ERR(xe, !vm))
 			return -ENOENT;
 
+		err = down_read_interruptible(&vm->lock);
+		if (err) {
+			xe_vm_put(vm);
+			return err;
+		}
+
+		if (XE_IOCTL_ERR(xe, xe_vm_is_closed_or_banned(vm))) {
+			up_read(&vm->lock);
+			xe_vm_put(vm);
+			return -ENOENT;
+		}
+
 		e = xe_engine_create(xe, vm, logical_mask,
 				     args->width, hwe,
 				     xe_vm_no_dma_fences(vm) ? 0 :
 				     ENGINE_FLAG_PERSISTENT);
+		up_read(&vm->lock);
 		xe_vm_put(vm);
 		if (IS_ERR(e))
 			return PTR_ERR(e);

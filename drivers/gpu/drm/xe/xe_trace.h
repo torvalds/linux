@@ -478,6 +478,11 @@ DECLARE_EVENT_CLASS(xe_vm,
 			      __entry->asid)
 );
 
+DEFINE_EVENT(xe_vm, xe_vm_kill,
+	     TP_PROTO(struct xe_vm *vm),
+	     TP_ARGS(vm)
+);
+
 DEFINE_EVENT(xe_vm, xe_vm_create,
 	     TP_PROTO(struct xe_vm *vm),
 	     TP_ARGS(vm)

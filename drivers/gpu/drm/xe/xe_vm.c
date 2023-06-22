@@ -514,6 +514,24 @@ void xe_vm_unlock_dma_resv(struct xe_vm *vm,
 
 #define XE_VM_REBIND_RETRY_TIMEOUT_MS 1000
 
+static void xe_vm_kill(struct xe_vm *vm)
+{
+	struct ww_acquire_ctx ww;
+	struct xe_engine *e;
+
+	lockdep_assert_held(&vm->lock);
+
+	xe_vm_lock(vm, &ww, 0, false);
+	vm->flags |= XE_VM_FLAG_BANNED;
+	trace_xe_vm_kill(vm);
+
+	list_for_each_entry(e, &vm->preempt.engines, compute.link)
+		e->ops->kill(e);
+	xe_vm_unlock(vm, &ww);
+
+	/* TODO: Inform user the VM is banned */
+}
+
 static void preempt_rebind_work_func(struct work_struct *w)
 {
 	struct xe_vm *vm = container_of(w, struct xe_vm, preempt.rebind_work);
@@ -533,12 +551,13 @@ static void preempt_rebind_work_func(struct work_struct *w)
 	XE_BUG_ON(!xe_vm_in_compute_mode(vm));
 	trace_xe_vm_rebind_worker_enter(vm);
 
-	if (xe_vm_is_closed(vm)) {
+	down_write(&vm->lock);
+
+	if (xe_vm_is_closed_or_banned(vm)) {
+		up_write(&vm->lock);
 		trace_xe_vm_rebind_worker_exit(vm);
 		return;
 	}
-
-	down_write(&vm->lock);
 
 retry:
 	if (vm->async_ops.error)
@@ -666,11 +685,14 @@ out_unlock_outer:
 			goto retry;
 		}
 	}
+	if (err) {
+		drm_warn(&vm->xe->drm, "VM worker error: %d\n", err);
+		xe_vm_kill(vm);
+	}
 	up_write(&vm->lock);
 
 	free_preempt_fences(&preempt_fences);
 
-	XE_WARN_ON(err < 0);	/* TODO: Kill VM or put in error state */
 	trace_xe_vm_rebind_worker_exit(vm);
 }
 
@@ -1140,11 +1162,12 @@ xe_vm_find_overlapping_vma(struct xe_vm *vm, const struct xe_vma *vma)
 {
 	struct rb_node *node;
 
-	if (xe_vm_is_closed(vm))
+	lockdep_assert_held(&vm->lock);
+
+	if (xe_vm_is_closed_or_banned(vm))
 		return NULL;
 
 	XE_BUG_ON(vma->end >= vm->size);
-	lockdep_assert_held(&vm->lock);
 
 	node = rb_find(vma, &vm->vmas, xe_vma_cmp_vma_cb);
 
@@ -1377,6 +1400,13 @@ mm_closed:
 	wake_up_all(&vm->async_ops.error_capture.wq);
 }
 
+static void xe_vm_close(struct xe_vm *vm)
+{
+	down_write(&vm->lock);
+	vm->size = 0;
+	up_write(&vm->lock);
+}
+
 void xe_vm_close_and_put(struct xe_vm *vm)
 {
 	struct rb_root contested = RB_ROOT;
@@ -1387,8 +1417,8 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 
 	XE_BUG_ON(vm->preempt.num_engines);
 
-	vm->size = 0;
-	smp_mb();
+	xe_vm_close(vm);
+
 	flush_async_ops(vm);
 	if (xe_vm_in_compute_mode(vm))
 		flush_work(&vm->preempt.rebind_work);
@@ -3072,28 +3102,32 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (err)
 		return err;
 
-	vm = xe_vm_lookup(xef, args->vm_id);
-	if (XE_IOCTL_ERR(xe, !vm)) {
-		err = -EINVAL;
-		goto free_objs;
-	}
-
-	if (XE_IOCTL_ERR(xe, xe_vm_is_closed(vm))) {
-		drm_err(dev, "VM closed while we began looking up?\n");
-		err = -ENOENT;
-		goto put_vm;
-	}
-
 	if (args->engine_id) {
 		e = xe_engine_lookup(xef, args->engine_id);
 		if (XE_IOCTL_ERR(xe, !e)) {
 			err = -ENOENT;
-			goto put_vm;
+			goto free_objs;
 		}
+
 		if (XE_IOCTL_ERR(xe, !(e->flags & ENGINE_FLAG_VM))) {
 			err = -EINVAL;
 			goto put_engine;
 		}
+	}
+
+	vm = xe_vm_lookup(xef, args->vm_id);
+	if (XE_IOCTL_ERR(xe, !vm)) {
+		err = -EINVAL;
+		goto put_engine;
+	}
+
+	err = down_write_killable(&vm->lock);
+	if (err)
+		goto put_vm;
+
+	if (XE_IOCTL_ERR(xe, xe_vm_is_closed_or_banned(vm))) {
+		err = -ENOENT;
+		goto release_vm_lock;
 	}
 
 	if (VM_BIND_OP(bind_ops[0].op) == XE_VM_BIND_OP_RESTART) {
@@ -3105,10 +3139,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			err = -EPROTO;
 
 		if (!err) {
-			down_write(&vm->lock);
 			trace_xe_vm_restart(vm);
 			vm_set_async_error(vm, 0);
-			up_write(&vm->lock);
 
 			queue_work(system_unbound_wq, &vm->async_ops.work);
 
@@ -3117,13 +3149,13 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 				xe_vm_queue_rebind_worker(vm);
 		}
 
-		goto put_engine;
+		goto release_vm_lock;
 	}
 
 	if (XE_IOCTL_ERR(xe, !vm->async_ops.error &&
 			 async != !!(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS))) {
 		err = -EOPNOTSUPP;
-		goto put_engine;
+		goto release_vm_lock;
 	}
 
 	for (i = 0; i < args->num_binds; ++i) {
@@ -3133,7 +3165,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (XE_IOCTL_ERR(xe, range > vm->size) ||
 		    XE_IOCTL_ERR(xe, addr > vm->size - range)) {
 			err = -EINVAL;
-			goto put_engine;
+			goto release_vm_lock;
 		}
 
 		if (bind_ops[i].tile_mask) {
@@ -3142,7 +3174,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			if (XE_IOCTL_ERR(xe, bind_ops[i].tile_mask &
 					 ~valid_tiles)) {
 				err = -EINVAL;
-				goto put_engine;
+				goto release_vm_lock;
 			}
 		}
 	}
@@ -3150,13 +3182,13 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	bos = kzalloc(sizeof(*bos) * args->num_binds, GFP_KERNEL);
 	if (!bos) {
 		err = -ENOMEM;
-		goto put_engine;
+		goto release_vm_lock;
 	}
 
 	vmas = kzalloc(sizeof(*vmas) * args->num_binds, GFP_KERNEL);
 	if (!vmas) {
 		err = -ENOMEM;
-		goto put_engine;
+		goto release_vm_lock;
 	}
 
 	for (i = 0; i < args->num_binds; ++i) {
@@ -3211,10 +3243,6 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			goto free_syncs;
 	}
 
-	err = down_write_killable(&vm->lock);
-	if (err)
-		goto free_syncs;
-
 	/* Do some error checking first to make the unwind easier */
 	for (i = 0; i < args->num_binds; ++i) {
 		u64 range = bind_ops[i].range;
@@ -3223,7 +3251,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 		err = __vm_bind_ioctl_lookup_vma(vm, bos[i], addr, range, op);
 		if (err)
-			goto release_vm_lock;
+			goto free_syncs;
 	}
 
 	for (i = 0; i < args->num_binds; ++i) {
@@ -3343,8 +3371,6 @@ destroy_vmas:
 			break;
 		}
 	}
-release_vm_lock:
-	up_write(&vm->lock);
 free_syncs:
 	while (num_syncs--) {
 		if (async && j &&
@@ -3357,11 +3383,13 @@ free_syncs:
 put_obj:
 	for (i = j; i < args->num_binds; ++i)
 		xe_bo_put(bos[i]);
+release_vm_lock:
+	up_write(&vm->lock);
+put_vm:
+	xe_vm_put(vm);
 put_engine:
 	if (e)
 		xe_engine_put(e);
-put_vm:
-	xe_vm_put(vm);
 free_objs:
 	kfree(bos);
 	kfree(vmas);
