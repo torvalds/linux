@@ -1162,7 +1162,7 @@ add_target:
 			dev_dbg(&cxlr->dev, "%s:%s: %s expected %s at %d\n",
 				dev_name(port->uport), dev_name(&port->dev),
 				dev_name(&cxlsd->cxld.dev),
-				dev_name(ep->dport->dport),
+				dev_name(ep->dport->dport_dev),
 				cxl_rr->nr_targets_set);
 			return -ENXIO;
 		}
@@ -1173,7 +1173,7 @@ out_target_set:
 	cxl_rr->nr_targets_set += inc;
 	dev_dbg(&cxlr->dev, "%s:%s target[%d] = %s for %s:%s @ %d\n",
 		dev_name(port->uport), dev_name(&port->dev),
-		cxl_rr->nr_targets_set - 1, dev_name(ep->dport->dport),
+		cxl_rr->nr_targets_set - 1, dev_name(ep->dport->dport_dev),
 		dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev), pos);
 
 	return 0;

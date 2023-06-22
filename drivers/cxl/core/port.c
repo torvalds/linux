@@ -605,7 +605,7 @@ static int devm_cxl_link_parent_dport(struct device *host,
 	if (!parent_dport)
 		return 0;
 
-	rc = sysfs_create_link(&port->dev.kobj, &parent_dport->dport->kobj,
+	rc = sysfs_create_link(&port->dev.kobj, &parent_dport->dport_dev->kobj,
 			       "parent_dport");
 	if (rc)
 		return rc;
@@ -658,7 +658,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 		if (iter->host_bridge)
 			port->host_bridge = iter->host_bridge;
 		else if (parent_dport->rch)
-			port->host_bridge = parent_dport->dport;
+			port->host_bridge = parent_dport->dport_dev;
 		else
 			port->host_bridge = iter->uport;
 		dev_dbg(uport, "host-bridge: %s\n", dev_name(port->host_bridge));
@@ -847,22 +847,22 @@ static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 	return NULL;
 }
 
-static int add_dport(struct cxl_port *port, struct cxl_dport *new)
+static int add_dport(struct cxl_port *port, struct cxl_dport *dport)
 {
 	struct cxl_dport *dup;
 	int rc;
 
 	device_lock_assert(&port->dev);
-	dup = find_dport(port, new->port_id);
+	dup = find_dport(port, dport->port_id);
 	if (dup) {
 		dev_err(&port->dev,
 			"unable to add dport%d-%s non-unique port id (%s)\n",
-			new->port_id, dev_name(new->dport),
-			dev_name(dup->dport));
+			dport->port_id, dev_name(dport->dport_dev),
+			dev_name(dup->dport_dev));
 		return -EBUSY;
 	}
 
-	rc = xa_insert(&port->dports, (unsigned long)new->dport, new,
+	rc = xa_insert(&port->dports, (unsigned long)dport->dport_dev, dport,
 		       GFP_KERNEL);
 	if (rc)
 		return rc;
@@ -895,8 +895,8 @@ static void cxl_dport_remove(void *data)
 	struct cxl_dport *dport = data;
 	struct cxl_port *port = dport->port;
 
-	xa_erase(&port->dports, (unsigned long) dport->dport);
-	put_device(dport->dport);
+	xa_erase(&port->dports, (unsigned long) dport->dport_dev);
+	put_device(dport->dport_dev);
 }
 
 static void cxl_dport_unlink(void *data)
@@ -954,7 +954,7 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		dev_dbg(dport_dev, "Component Registers found for dport: %pa\n",
 			&component_reg_phys);
 
-	dport->dport = dport_dev;
+	dport->dport_dev = dport_dev;
 	dport->port_id = port_id;
 	dport->component_reg_phys = component_reg_phys;
 	dport->port = port;
