@@ -298,8 +298,8 @@
 
 		regulators {
 			vddcore: DCDC1 {
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>;
+				regulator-min-microvolt = <1125000>;
+				regulator-max-microvolt = <1125000>;
 				vp1-supply = <&vcc_33v>;
 				regulator-always-on;
 			};
