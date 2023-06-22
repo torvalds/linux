@@ -1150,8 +1150,8 @@ int drm_gem_pin(struct drm_gem_object *obj)
 {
 	if (obj->funcs->pin)
 		return obj->funcs->pin(obj);
-	else
-		return 0;
+
+	return 0;
 }
 
 void drm_gem_unpin(struct drm_gem_object *obj)
