@@ -17,11 +17,16 @@ description: |
 
 properties:
   compatible:
-    items:
-      - enum:
-          - qcom,msm8916-iommu
-          - qcom,msm8953-iommu
-      - const: qcom,msm-iommu-v1
+    oneOf:
+      - items:
+          - enum:
+              - qcom,msm8916-iommu
+              - qcom,msm8953-iommu
+          - const: qcom,msm-iommu-v1
+      - items:
+          - enum:
+              - qcom,msm8976-iommu
+          - const: qcom,msm-iommu-v2
 
   clocks:
     items:
@@ -64,6 +69,8 @@ patternProperties:
         enum:
           - qcom,msm-iommu-v1-ns
           - qcom,msm-iommu-v1-sec
+          - qcom,msm-iommu-v2-ns
+          - qcom,msm-iommu-v2-sec
 
       interrupts:
         maxItems: 1
