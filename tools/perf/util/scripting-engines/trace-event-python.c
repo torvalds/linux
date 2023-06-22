@@ -737,10 +737,10 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, ch
 	unsigned int i = 0, r;
 	int printed = 0;
 
+	bf[0] = 0;
+
 	if (size <= 0)
 		return;
-
-	bf[0] = 0;
 
 	if (!regs || !regs->regs)
 		return;
