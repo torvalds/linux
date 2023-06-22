@@ -2856,7 +2856,7 @@ static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int num_comp_vectors, ix, irq;
 
-	num_comp_vectors = mlx5_comp_vectors_count(mdev);
+	num_comp_vectors = mlx5_comp_vectors_max(mdev);
 
 	for (ix = 0; ix < params->num_channels; ix++) {
 		cpumask_clear(priv->scratchpad.cpumask);

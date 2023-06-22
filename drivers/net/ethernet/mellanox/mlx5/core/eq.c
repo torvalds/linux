@@ -1052,11 +1052,11 @@ int mlx5_vector2irqn(struct mlx5_core_dev *dev, int vector, unsigned int *irqn)
 	return vector2eqnirqn(dev, vector, NULL, irqn);
 }
 
-unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
+unsigned int mlx5_comp_vectors_max(struct mlx5_core_dev *dev)
 {
 	return dev->priv.eq_table->max_comp_eqs;
 }
-EXPORT_SYMBOL(mlx5_comp_vectors_count);
+EXPORT_SYMBOL(mlx5_comp_vectors_max);
 
 static struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
