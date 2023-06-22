@@ -11,6 +11,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. SM8350 HDK";
 	compatible = "qcom,sm8350-hdk", "qcom,sm8350";
+	chassis-type = "embedded";
 
 	aliases {
 		serial0 = &uart2;
