@@ -948,9 +948,6 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (WARN_ON(!host))
-		return IRQ_NONE;
-
 	/* ack all raised interrupts */
 	writel(status, host->regs + SD_EMMC_STATUS);
 
