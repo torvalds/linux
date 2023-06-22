@@ -234,6 +234,10 @@
  * JMP_NOSPEC and CALL_NOSPEC macros can be used instead of a simple
  * indirect jmp/call which may be susceptible to the Spectre variant 2
  * attack.
+ *
+ * NOTE: these do not take kCFI into account and are thus not comparable to C
+ * indirect calls, take care when using. The target of these should be an ENDBR
+ * instruction irrespective of kCFI.
  */
 .macro JMP_NOSPEC reg:req
 #ifdef CONFIG_RETPOLINE
