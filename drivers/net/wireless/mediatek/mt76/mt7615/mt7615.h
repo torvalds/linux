@@ -262,9 +262,6 @@ struct mt7615_dev {
 	wait_queue_head_t reset_wait;
 	u32 reset_state;
 
-	struct list_head sta_poll_list;
-	spinlock_t sta_poll_lock;
-
 	struct {
 		u8 n_pulses;
 		u32 period;
