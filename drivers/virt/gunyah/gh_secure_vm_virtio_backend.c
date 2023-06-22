@@ -1089,13 +1089,14 @@ done:
 
 int gh_parse_virtio_properties(struct device *dev, const char *vm_name)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np;
 	int idx = 0;
 	u32 len, nr_entries = 0;
 
 	if (!dev || !vm_name)
 		return -EINVAL;
 
+	np = dev->of_node;
 	if (of_find_property(np, "virtio-backends", &len))
 		nr_entries = len / 4;
 	if (!nr_entries) {
