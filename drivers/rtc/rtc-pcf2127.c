@@ -44,7 +44,7 @@
 #define PCF2127_BIT_CTRL3_BF			BIT(3)
 #define PCF2127_BIT_CTRL3_BTSE			BIT(4)
 /* Time and date registers */
-#define PCF2127_REG_SC			0x03
+#define PCF2127_REG_TIME_BASE		0x03
 #define PCF2127_BIT_SC_OSF			BIT(7)
 /* Alarm registers */
 #define PCF2127_REG_ALARM_SC		0x0A
@@ -101,6 +101,7 @@ struct pcf21xx_config {
 	int max_register;
 	unsigned int has_nvmem:1;
 	unsigned int has_bit_wd_ctl_cd0:1;
+	u8 reg_time_base; /* Time/date base register. */
 };
 
 struct pcf2127 {
@@ -127,8 +128,8 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	 * Avoid reading CTRL2 register as it causes WD_VAL register
 	 * value to reset to 0 which means watchdog is stopped.
 	 */
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_SC, buf,
-			       sizeof(buf));
+	ret = regmap_bulk_read(pcf2127->regmap, pcf2127->cfg->reg_time_base,
+			       buf, sizeof(buf));
 	if (ret) {
 		dev_err(dev, "%s: read error\n", __func__);
 		return ret;
@@ -194,7 +195,7 @@ static int pcf2127_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buf[i++] = bin2bcd(tm->tm_year - 100);
 
 	/* write register's data */
-	err = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_SC, buf, i);
+	err = regmap_bulk_write(pcf2127->regmap, pcf2127->cfg->reg_time_base, buf, i);
 	if (err) {
 		dev_dbg(dev, "%s: err=%d", __func__, err);
 		return err;
@@ -627,12 +628,14 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x1d,
 		.has_nvmem = 1,
 		.has_bit_wd_ctl_cd0 = 1,
+		.reg_time_base = PCF2127_REG_TIME_BASE,
 	},
 	[PCF2129] = {
 		.type = PCF2129,
 		.max_register = 0x19,
 		.has_nvmem = 0,
 		.has_bit_wd_ctl_cd0 = 0,
+		.reg_time_base = PCF2127_REG_TIME_BASE,
 	},
 };
 
