@@ -19,6 +19,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. SM8550 QRD";
 	compatible = "qcom,sm8550-qrd", "qcom,sm8550";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &uart7;
