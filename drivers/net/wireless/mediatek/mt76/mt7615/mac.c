@@ -388,8 +388,8 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 
 		msta = container_of(status->wcid, struct mt7615_sta, wcid);
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
-		if (list_empty(&msta->poll_list))
-			list_add_tail(&msta->poll_list,
+		if (list_empty(&msta->wcid.poll_list))
+			list_add_tail(&msta->wcid.poll_list,
 				      &dev->mt76.sta_poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 	}
@@ -914,10 +914,10 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 		bool clear = false;
 
 		msta = list_first_entry(&sta_poll_list, struct mt7615_sta,
-					poll_list);
+					wcid.poll_list);
 
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
-		list_del_init(&msta->poll_list);
+		list_del_init(&msta->wcid.poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 		addr = mt7615_mac_wtbl_addr(dev, msta->wcid.idx) + 19 * 4;
@@ -1516,8 +1516,8 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	sta = wcid_to_sta(wcid);
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
-	if (list_empty(&msta->poll_list))
-		list_add_tail(&msta->poll_list, &dev->mt76.sta_poll_list);
+	if (list_empty(&msta->wcid.poll_list))
+		list_add_tail(&msta->wcid.poll_list, &dev->mt76.sta_poll_list);
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 	if (mt7615_mac_add_txs_skb(dev, msta, pid, txs_data))
