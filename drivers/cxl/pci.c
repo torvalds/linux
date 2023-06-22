@@ -274,9 +274,9 @@ static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 	return 0;
 }
 
-static int cxl_map_regblock(struct pci_dev *pdev, struct cxl_register_map *map)
+static int cxl_map_regblock(struct cxl_register_map *map)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = map->dev;
 
 	map->base = ioremap(map->resource, map->max_size);
 	if (!map->base) {
@@ -288,18 +288,17 @@ static int cxl_map_regblock(struct pci_dev *pdev, struct cxl_register_map *map)
 	return 0;
 }
 
-static void cxl_unmap_regblock(struct pci_dev *pdev,
-			       struct cxl_register_map *map)
+static void cxl_unmap_regblock(struct cxl_register_map *map)
 {
 	iounmap(map->base);
 	map->base = NULL;
 }
 
-static int cxl_probe_regs(struct pci_dev *pdev, struct cxl_register_map *map)
+static int cxl_probe_regs(struct cxl_register_map *map)
 {
 	struct cxl_component_reg_map *comp_map;
 	struct cxl_device_reg_map *dev_map;
-	struct device *dev = &pdev->dev;
+	struct device *dev = map->dev;
 	void __iomem *base = map->base;
 
 	switch (map->reg_type) {
@@ -346,12 +345,12 @@ static int cxl_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
 	if (rc)
 		return rc;
 
-	rc = cxl_map_regblock(pdev, map);
+	rc = cxl_map_regblock(map);
 	if (rc)
 		return rc;
 
-	rc = cxl_probe_regs(pdev, map);
-	cxl_unmap_regblock(pdev, map);
+	rc = cxl_probe_regs(map);
+	cxl_unmap_regblock(map);
 
 	return rc;
 }
@@ -688,7 +687,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = cxl_map_device_regs(&pdev->dev, &cxlds->regs.device_regs, &map);
+	rc = cxl_map_device_regs(&map, &cxlds->regs.device_regs);
 	if (rc)
 		return rc;
 
@@ -703,8 +702,8 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	cxlds->component_reg_phys = map.resource;
 
-	rc = cxl_map_component_regs(&pdev->dev, &cxlds->regs.component,
-				    &map, BIT(CXL_CM_CAP_CAP_ID_RAS));
+	rc = cxl_map_component_regs(&map, &cxlds->regs.component,
+				    BIT(CXL_CM_CAP_CAP_ID_RAS));
 	if (rc)
 		dev_dbg(&pdev->dev, "Failed to map RAS capability.\n");
 
