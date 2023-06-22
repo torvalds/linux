@@ -58,6 +58,8 @@ struct mlxsw_sp_crif_key {
 struct mlxsw_sp_crif {
 	struct mlxsw_sp_crif_key key;
 	struct rhash_head ht_node;
+	bool can_destroy;
+	struct mlxsw_sp_rif *rif;
 };
 
 static const struct rhashtable_params mlxsw_sp_crif_ht_params = {
@@ -67,9 +69,9 @@ static const struct rhashtable_params mlxsw_sp_crif_ht_params = {
 };
 
 struct mlxsw_sp_rif {
+	struct mlxsw_sp_crif *crif; /* NULL for underlay RIF */
 	struct list_head nexthop_list;
 	struct list_head neigh_list;
-	struct net_device *dev; /* NULL for underlay RIF */
 	struct mlxsw_sp_fid *fid;
 	unsigned char addr[ETH_ALEN];
 	int mtu;
@@ -88,7 +90,9 @@ struct mlxsw_sp_rif {
 
 static struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
 {
-	return rif->dev;
+	if (!rif->crif)
+		return NULL;
+	return rif->crif->key.dev;
 }
 
 struct mlxsw_sp_rif_params {
@@ -1096,6 +1100,9 @@ mlxsw_sp_crif_alloc(struct net_device *dev)
 
 static void mlxsw_sp_crif_free(struct mlxsw_sp_crif *crif)
 {
+	if (WARN_ON(crif->rif))
+		return;
+
 	kfree(crif);
 }
 
@@ -7970,8 +7977,9 @@ static void mlxsw_sp_rif_index_free(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
 
 static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
 					       u16 vr_id,
-					       struct net_device *l3_dev)
+					       struct mlxsw_sp_crif *crif)
 {
+	struct net_device *l3_dev = crif ? crif->key.dev : NULL;
 	struct mlxsw_sp_rif *rif;
 
 	rif = kzalloc(rif_size, GFP_KERNEL);
@@ -7983,10 +7991,13 @@ static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
 	if (l3_dev) {
 		ether_addr_copy(rif->addr, l3_dev->dev_addr);
 		rif->mtu = l3_dev->mtu;
-		rif->dev = l3_dev;
 	}
 	rif->vr_id = vr_id;
 	rif->rif_index = rif_index;
+	if (crif) {
+		rif->crif = crif;
+		crif->rif = rif;
+	}
 
 	return rif;
 }
@@ -7995,6 +8006,9 @@ static void mlxsw_sp_rif_free(struct mlxsw_sp_rif *rif)
 {
 	WARN_ON(!list_empty(&rif->neigh_list));
 	WARN_ON(!list_empty(&rif->nexthop_list));
+
+	if (rif->crif)
+		rif->crif->rif = NULL;
 	kfree(rif);
 }
 
@@ -8228,6 +8242,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_rif_ops *ops;
 	struct mlxsw_sp_fid *fid = NULL;
 	enum mlxsw_sp_rif_type type;
+	struct mlxsw_sp_crif *crif;
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_vr *vr;
 	u16 rif_index;
@@ -8247,7 +8262,13 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_rif_index_alloc;
 	}
 
-	rif = mlxsw_sp_rif_alloc(ops->rif_size, rif_index, vr->id, params->dev);
+	crif = mlxsw_sp_crif_lookup(mlxsw_sp->router, params->dev);
+	if (WARN_ON(!crif)) {
+		err = -ENOENT;
+		goto err_crif_lookup;
+	}
+
+	rif = mlxsw_sp_rif_alloc(ops->rif_size, rif_index, vr->id, crif);
 	if (!rif) {
 		err = -ENOMEM;
 		goto err_rif_alloc;
@@ -8306,6 +8327,7 @@ err_fid_get:
 	dev_put(params->dev);
 	mlxsw_sp_rif_free(rif);
 err_rif_alloc:
+err_crif_lookup:
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 err_rif_index_alloc:
 	vr->rif_count--;
@@ -8318,6 +8340,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	struct net_device *dev = mlxsw_sp_rif_dev(rif);
 	const struct mlxsw_sp_rif_ops *ops = rif->ops;
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct mlxsw_sp_crif *crif = rif->crif;
 	struct mlxsw_sp_fid *fid = rif->fid;
 	u8 rif_entries = rif->rif_entries;
 	u16 rif_index = rif->rif_index;
@@ -8348,6 +8371,9 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
+
+	if (crif->can_destroy)
+		mlxsw_sp_crif_free(crif);
 }
 
 void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,
@@ -9262,7 +9288,10 @@ static void mlxsw_sp_crif_unregister(struct mlxsw_sp_router *router,
 				     struct mlxsw_sp_crif *crif)
 {
 	mlxsw_sp_crif_remove(router, crif);
-	mlxsw_sp_crif_free(crif);
+	if (crif->rif)
+		crif->can_destroy = true;
+	else
+		mlxsw_sp_crif_free(crif);
 }
 
 static int mlxsw_sp_netdevice_register(struct mlxsw_sp_router *router,
@@ -10068,6 +10097,7 @@ mlxsw_sp_rif_ipip_lb_ul_rif_op(struct mlxsw_sp_rif *ul_rif, bool enable)
 
 static struct mlxsw_sp_rif *
 mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
+		       struct mlxsw_sp_crif *ul_crif,
 		       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_rif *ul_rif;
@@ -10081,7 +10111,8 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 		return ERR_PTR(err);
 	}
 
-	ul_rif = mlxsw_sp_rif_alloc(sizeof(*ul_rif), rif_index, vr->id, NULL);
+	ul_rif = mlxsw_sp_rif_alloc(sizeof(*ul_rif), rif_index, vr->id,
+				    ul_crif);
 	if (!ul_rif) {
 		err = -ENOMEM;
 		goto err_rif_alloc;
@@ -10120,6 +10151,7 @@ static void mlxsw_sp_ul_rif_destroy(struct mlxsw_sp_rif *ul_rif)
 
 static struct mlxsw_sp_rif *
 mlxsw_sp_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
+		    struct mlxsw_sp_crif *ul_crif,
 		    struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_vr *vr;
@@ -10132,7 +10164,7 @@ mlxsw_sp_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
 	if (refcount_inc_not_zero(&vr->ul_rif_refcnt))
 		return vr->ul_rif;
 
-	vr->ul_rif = mlxsw_sp_ul_rif_create(mlxsw_sp, vr, extack);
+	vr->ul_rif = mlxsw_sp_ul_rif_create(mlxsw_sp, vr, ul_crif, extack);
 	if (IS_ERR(vr->ul_rif)) {
 		err = PTR_ERR(vr->ul_rif);
 		goto err_ul_rif_create;
@@ -10170,7 +10202,7 @@ int mlxsw_sp_router_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
 	int err = 0;
 
 	mutex_lock(&mlxsw_sp->router->lock);
-	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL);
+	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL, NULL);
 	if (IS_ERR(ul_rif)) {
 		err = PTR_ERR(ul_rif);
 		goto out;
@@ -10206,7 +10238,7 @@ mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif,
 	struct mlxsw_sp_rif *ul_rif;
 	int err;
 
-	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, extack);
+	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL, extack);
 	if (IS_ERR(ul_rif))
 		return PTR_ERR(ul_rif);
 
@@ -10741,9 +10773,12 @@ static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
 
 	/* Create a generic loopback RIF associated with the main table
 	 * (default VRF). Any table can be used, but the main table exists
-	 * anyway, so we do not waste resources.
+	 * anyway, so we do not waste resources. Loopback RIFs are usually
+	 * created with a NULL CRIF, but this RIF is used as a fallback RIF
+	 * for blackhole nexthops, and nexthops expect to have a valid CRIF.
 	 */
-	lb_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN, extack);
+	lb_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN, router->lb_crif,
+				     extack);
 	if (IS_ERR(lb_rif)) {
 		err = PTR_ERR(lb_rif);
 		goto err_ul_rif_get;
