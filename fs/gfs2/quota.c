@@ -905,18 +905,12 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	unsigned int nalloc = 0, blocks;
 	int error;
 
-	error = gfs2_qa_get(ip);
-	if (error)
-		return error;
-
 	gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 			      &data_blocks, &ind_blocks);
 
 	ghs = kmalloc_array(num_qd, sizeof(struct gfs2_holder), GFP_NOFS);
-	if (!ghs) {
-		error = -ENOMEM;
-		goto out;
-	}
+	if (!ghs)
+		return -ENOMEM;
 
 	sort(qda, num_qd, sizeof(struct gfs2_quota_data *), sort_qd, NULL);
 	inode_lock(&ip->i_inode);
@@ -989,8 +983,6 @@ out_dq:
 	kfree(ghs);
 	gfs2_log_flush(ip->i_gl->gl_name.ln_sbd, ip->i_gl,
 		       GFS2_LOG_HEAD_FLUSH_NORMAL | GFS2_LFC_DO_SYNC);
-out:
-	gfs2_qa_put(ip);
 	if (!error) {
 		for (x = 0; x < num_qd; x++)
 			qda[x]->qd_sync_gen = sdp->sd_quota_sync_gen;
