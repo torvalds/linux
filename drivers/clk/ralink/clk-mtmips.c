@@ -292,6 +292,7 @@ static int mtmips_register_fixed_clocks(struct clk_hw_onecell_data *clk_data,
 						      sclk->parent, 0,
 						      sclk->rate);
 		if (IS_ERR(sclk->hw)) {
+			ret = PTR_ERR(sclk->hw);
 			pr_err("Couldn't register fixed clock %d\n", idx);
 			goto err_clk_unreg;
 		}
@@ -342,6 +343,7 @@ static int mtmips_register_factor_clocks(struct clk_hw_onecell_data *clk_data,
 						  sclk->parent, sclk->flags,
 						  sclk->mult, sclk->div);
 		if (IS_ERR(sclk->hw)) {
+			ret = PTR_ERR(sclk->hw);
 			pr_err("Couldn't register factor clock %d\n", idx);
 			goto err_clk_unreg;
 		}
