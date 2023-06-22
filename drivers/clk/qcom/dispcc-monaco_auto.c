@@ -1449,18 +1449,6 @@ static struct clk_branch disp_cc_mdss_vsync_clk = {
 		},
 	},
 };
-static struct clk_branch disp_cc_sm_obs_clk = {
-	.halt_reg = 0x11014,
-	.halt_check = BRANCH_HALT_VOTED,
-	.clkr = {
-		.enable_reg = 0x11014,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data){
-			.name = "disp_cc_sm_obs_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
 
 static struct clk_regmap *disp_cc_monaco_auto_clocks[] = {
 	[DISP_CC_MDSS_AHB1_CLK] = &disp_cc_mdss_ahb1_clk.clkr,
@@ -1529,7 +1517,6 @@ static struct clk_regmap *disp_cc_monaco_auto_clocks[] = {
 	[DISP_CC_PLL0] = &disp_cc_pll0.clkr,
 	[DISP_CC_PLL1] = &disp_cc_pll1.clkr,
 	[DISP_CC_SLEEP_CLK_SRC] = &disp_cc_sleep_clk_src.clkr,
-	[DISP_CC_SM_OBS_CLK] = &disp_cc_sm_obs_clk.clkr,
 	[DISP_CC_XO_CLK_SRC] = &disp_cc_xo_clk_src.clkr,
 };
 

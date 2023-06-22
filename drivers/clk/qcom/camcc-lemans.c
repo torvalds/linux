@@ -1919,19 +1919,6 @@ static struct clk_branch cam_cc_sleep_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_sm_obs_clk = {
-	.halt_reg = 0x1510c,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0x1510c,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data){
-			.name = "cam_cc_sm_obs_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch cam_cc_titan_top_accu_shift_clk = {
 	.halt_reg = 0x131f0,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -2034,7 +2021,6 @@ static struct clk_regmap *cam_cc_lemans_clocks[] = {
 	[CAM_CC_SLEEP_CLK_SRC] = &cam_cc_sleep_clk_src.clkr,
 	[CAM_CC_SLOW_AHB_CLK_SRC] = &cam_cc_slow_ahb_clk_src.clkr,
 	[CAM_CC_XO_CLK_SRC] = &cam_cc_xo_clk_src.clkr,
-	[CAM_CC_SM_OBS_CLK] = NULL,
 	[CAM_CC_TITAN_TOP_ACCU_SHIFT_CLK] = NULL,
 };
 
@@ -2138,8 +2124,6 @@ static int cam_cc_lemans_fixup(struct platform_device *pdev, struct regmap *regm
 		cam_cc_lemans_clocks[CAM_CC_CSIPHY3_CLK] = NULL;
 		cam_cc_lemans_clocks[CAM_CC_MCLK3_CLK] = NULL;
 		cam_cc_lemans_clocks[CAM_CC_MCLK3_CLK_SRC] = NULL;
-		cam_cc_lemans_clocks[CAM_CC_SM_OBS_CLK] =
-					&cam_cc_sm_obs_clk.clkr;
 		cam_cc_lemans_clocks[CAM_CC_TITAN_TOP_ACCU_SHIFT_CLK] =
 				&cam_cc_titan_top_accu_shift_clk.clkr;
 
