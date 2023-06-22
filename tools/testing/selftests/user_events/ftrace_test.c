@@ -102,30 +102,56 @@ err:
 	return -1;
 }
 
+static bool wait_for_delete(void)
+{
+	int i;
+
+	for (i = 0; i < 1000; ++i) {
+		int fd = open(enable_file, O_RDONLY);
+
+		if (fd == -1)
+			return true;
+
+		close(fd);
+		usleep(1000);
+	}
+
+	return false;
+}
+
 static int clear(int *check)
 {
 	struct user_unreg unreg = {0};
+	int fd;
 
 	unreg.size = sizeof(unreg);
 	unreg.disable_bit = 31;
 	unreg.disable_addr = (__u64)check;
 
-	int fd = open(data_file, O_RDWR);
+	fd = open(data_file, O_RDWR);
 
 	if (fd == -1)
 		return -1;
 
 	if (ioctl(fd, DIAG_IOCSUNREG, &unreg) == -1)
 		if (errno != ENOENT)
-			return -1;
+			goto fail;
 
-	if (ioctl(fd, DIAG_IOCSDEL, "__test_event") == -1)
-		if (errno != ENOENT)
-			return -1;
+	if (ioctl(fd, DIAG_IOCSDEL, "__test_event") == -1) {
+		if (errno == EBUSY) {
+			if (!wait_for_delete())
+				goto fail;
+		} else if (errno != ENOENT)
+			goto fail;
+	}
 
 	close(fd);
 
 	return 0;
+fail:
+	close(fd);
+
+	return -1;
 }
 
 static int check_print_fmt(const char *event, const char *expected, int *check)
@@ -155,15 +181,16 @@ static int check_print_fmt(const char *event, const char *expected, int *check)
 	/* Register should work */
 	ret = ioctl(fd, DIAG_IOCSREG, &reg);
 
-	close(fd);
-
 	if (ret != 0) {
+		close(fd);
 		printf("Reg failed in fmt\n");
 		return ret;
 	}
 
 	/* Ensure correct print_fmt */
 	ret = get_print_fmt(print_fmt, sizeof(print_fmt));
+
+	close(fd);
 
 	if (ret != 0)
 		return ret;
@@ -228,6 +255,12 @@ TEST_F(user, register_events) {
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
 
+	/* Multiple registers to same name but different args should fail */
+	reg.enable_bit = 29;
+	reg.name_args = (__u64)"__test_event u32 field1;";
+	ASSERT_EQ(-1, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
+	ASSERT_EQ(EADDRINUSE, errno);
+
 	/* Ensure disabled */
 	self->enable_fd = open(enable_file, O_RDWR);
 	ASSERT_NE(-1, self->enable_fd);
@@ -250,10 +283,10 @@ TEST_F(user, register_events) {
 	unreg.disable_bit = 30;
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
 
-	/* Delete should work only after close and unregister */
+	/* Delete should have been auto-done after close and unregister */
 	close(self->data_fd);
-	self->data_fd = open(data_file, O_RDWR);
-	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSDEL, "__test_event"));
+
+	ASSERT_EQ(true, wait_for_delete());
 }
 
 TEST_F(user, write_events) {
@@ -308,6 +341,39 @@ TEST_F(user, write_events) {
 	reg.write_index = -1;
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
 	ASSERT_EQ(EINVAL, errno);
+}
+
+TEST_F(user, write_empty_events) {
+	struct user_reg reg = {0};
+	struct iovec io[1];
+	int before = 0, after = 0;
+
+	reg.size = sizeof(reg);
+	reg.name_args = (__u64)"__test_event";
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)&self->check;
+	reg.enable_size = sizeof(self->check);
+
+	io[0].iov_base = &reg.write_index;
+	io[0].iov_len = sizeof(reg.write_index);
+
+	/* Register should work */
+	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
+	ASSERT_EQ(0, reg.write_index);
+	ASSERT_EQ(0, self->check);
+
+	/* Enable event */
+	self->enable_fd = open(enable_file, O_RDWR);
+	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
+
+	/* Event should now be enabled */
+	ASSERT_EQ(1 << reg.enable_bit, self->check);
+
+	/* Write should make it out to ftrace buffers */
+	before = trace_bytes();
+	ASSERT_NE(-1, writev(self->data_fd, (const struct iovec *)io, 1));
+	after = trace_bytes();
+	ASSERT_GT(after, before);
 }
 
 TEST_F(user, write_fault) {

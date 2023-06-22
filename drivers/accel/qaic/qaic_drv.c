@@ -97,6 +97,7 @@ static int qaic_open(struct drm_device *dev, struct drm_file *file)
 
 cleanup_usr:
 	cleanup_srcu_struct(&usr->qddev_lock);
+	ida_free(&qaic_usrs, usr->handle);
 free_usr:
 	kfree(usr);
 dev_unlock:
@@ -224,6 +225,9 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 	struct qaic_user *usr;
 
 	qddev = qdev->qddev;
+	qdev->qddev = NULL;
+	if (!qddev)
+		return;
 
 	/*
 	 * Existing users get unresolvable errors till they close FDs.

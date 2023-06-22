@@ -307,6 +307,7 @@ static void radeon_fbdev_client_unregister(struct drm_client_dev *client)
 
 	if (fb_helper->info) {
 		vga_switcheroo_client_fb_set(rdev->pdev, NULL);
+		drm_helper_force_disable_all(dev);
 		drm_fb_helper_unregister_info(fb_helper);
 	} else {
 		drm_client_release(&fb_helper->client);
