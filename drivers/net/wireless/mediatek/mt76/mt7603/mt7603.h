@@ -64,7 +64,6 @@ struct mt7603_sta {
 
 	struct mt7603_vif *vif;
 
-	struct list_head poll_list;
 	u32 tx_airtime_ac[4];
 
 	struct sk_buff_head psq;

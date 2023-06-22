@@ -419,8 +419,8 @@ void mt7603_mac_sta_poll(struct mt7603_dev *dev)
 		}
 
 		msta = list_first_entry(&dev->mt76.sta_poll_list,
-					struct mt7603_sta, poll_list);
-		list_del_init(&msta->poll_list);
+					struct mt7603_sta, wcid.poll_list);
+		list_del_init(&msta->wcid.poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 		addr = mt7603_wtbl4_addr(msta->wcid.idx);
@@ -1267,9 +1267,9 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	msta = container_of(wcid, struct mt7603_sta, wcid);
 	sta = wcid_to_sta(wcid);
 
-	if (list_empty(&msta->poll_list)) {
+	if (list_empty(&msta->wcid.poll_list)) {
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
-		list_add_tail(&msta->poll_list, &dev->mt76.sta_poll_list);
+		list_add_tail(&msta->wcid.poll_list, &dev->mt76.sta_poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 	}
 
