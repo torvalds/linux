@@ -137,10 +137,10 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	tm->tm_sec = bcd2bin(buf[0] & 0x7F);
 	tm->tm_min = bcd2bin(buf[1] & 0x7F);
-	tm->tm_hour = bcd2bin(buf[2] & 0x3F); /* rtc hr 0-23 */
+	tm->tm_hour = bcd2bin(buf[2] & 0x3F);
 	tm->tm_mday = bcd2bin(buf[3] & 0x3F);
 	tm->tm_wday = buf[4] & 0x07;
-	tm->tm_mon = bcd2bin(buf[5] & 0x1F) - 1; /* rtc mn 1-12 */
+	tm->tm_mon = bcd2bin(buf[5] & 0x1F) - 1;
 	tm->tm_year = bcd2bin(buf[6]);
 	tm->tm_year += 100;
 
