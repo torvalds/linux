@@ -1133,7 +1133,7 @@ static void ext4_blkdev_remove(struct ext4_sb_info *sbi)
 	struct block_device *bdev;
 	bdev = sbi->s_journal_bdev;
 	if (bdev) {
-		blkdev_put(bdev, sbi->s_es);
+		blkdev_put(bdev, sbi->s_sb);
 		sbi->s_journal_bdev = NULL;
 	}
 }
