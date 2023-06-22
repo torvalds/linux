@@ -150,7 +150,6 @@ struct mt7921_sta {
 
 	struct mt7921_vif *vif;
 
-	struct list_head poll_list;
 	u32 airtime_ac[8];
 
 	int ack_signal;
