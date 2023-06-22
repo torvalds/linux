@@ -144,6 +144,9 @@
   sbitmap_weight
   scsi_done
   scsi_remove_device
+  param_get_bool
+  blk_mq_unique_tag
+  param_set_uint_minmax
 
 #required by mi_sched.ko
   __traceiter_android_vh_scheduler_tick
@@ -231,6 +234,9 @@
 #required by touch module
   power_supply_is_system_supplied
 
+#required by mi-power.ko
+  class_create_file_ns
+
 #required by mi_mempool.ko
   __traceiter_android_vh_alloc_pages_reclaim_bypass
   __traceiter_android_vh_alloc_pages_failure_bypass
@@ -255,3 +261,10 @@
   tty_port_close_start
   tty_port_lower_dtr_rts
   tty_port_close_end
+
+#required by mtdoops.ko
+  of_node_name_prefix
+  bdi_unregister
+
+#required by dispaly.ko
+  mipi_dsi_dcs_set_display_off
