@@ -15,6 +15,8 @@
 #include <linux/units.h>
 #include <dt-bindings/clock/nuvoton,ma35d1-clk.h>
 
+#include "clk-ma35d1.h"
+
 /* PLL frequency limits */
 #define PLL_FREF_MAX_FREQ	(200 * HZ_PER_MHZ)
 #define PLL_FREF_MIN_FREQ	(1 * HZ_PER_MHZ)
@@ -70,9 +72,6 @@ struct ma35d1_clk_pll {
 	void __iomem *ctl1_base;
 	void __iomem *ctl2_base;
 };
-
-struct clk_hw *ma35d1_reg_clk_pll(struct device *dev, u32 id, u8 u8mode, const char *name,
-				  struct clk_hw *parent_hw, void __iomem *base);
 
 static inline struct ma35d1_clk_pll *to_ma35d1_clk_pll(struct clk_hw *_hw)
 {

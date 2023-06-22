@@ -12,6 +12,8 @@
 #include <linux/spinlock.h>
 #include <dt-bindings/clock/nuvoton,ma35d1-clk.h>
 
+#include "clk-ma35d1.h"
+
 static DEFINE_SPINLOCK(ma35d1_lock);
 
 #define PLL_MAX_NUM		5
@@ -59,14 +61,6 @@ static DEFINE_SPINLOCK(ma35d1_lock);
 #define PLL_MODE_INT            0
 #define PLL_MODE_FRAC           1
 #define PLL_MODE_SS             2
-
-struct clk_hw *ma35d1_reg_clk_pll(struct device *dev, u32 id, u8 u8mode,
-				  const char *name, struct clk_hw *parent_hw,
-				  void __iomem *base);
-struct clk_hw *ma35d1_reg_adc_clkdiv(struct device *dev, const char *name,
-				     struct clk_hw *hw, spinlock_t *lock,
-				     unsigned long flags, void __iomem *reg,
-				     u8 shift, u8 width, u32 mask_bit);
 
 static const struct clk_parent_data ca35clk_sel_clks[] = {
 	{ .index = 0 },  /* HXT */

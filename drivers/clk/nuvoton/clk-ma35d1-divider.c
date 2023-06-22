@@ -9,6 +9,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
+#include "clk-ma35d1.h"
+
 struct ma35d1_adc_clk_div {
 	struct clk_hw hw;
 	void __iomem *reg;
@@ -19,11 +21,6 @@ struct ma35d1_adc_clk_div {
 	/* protects concurrent access to clock divider registers */
 	spinlock_t *lock;
 };
-
-struct clk_hw *ma35d1_reg_adc_clkdiv(struct device *dev, const char *name,
-				     struct clk_hw *parent_hw, spinlock_t *lock,
-				     unsigned long flags, void __iomem *reg,
-				     u8 shift, u8 width, u32 mask_bit);
 
 static inline struct ma35d1_adc_clk_div *to_ma35d1_adc_clk_div(struct clk_hw *_hw)
 {
