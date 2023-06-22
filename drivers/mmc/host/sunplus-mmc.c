@@ -902,7 +902,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto probe_free_host;
+		goto clk_disable;
 
 	mmc->ops = &spmmc_ops;
 	mmc->f_min = SPMMC_MIN_CLK;
@@ -911,7 +911,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
-		goto probe_free_host;
+		goto clk_disable;
 
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
@@ -927,9 +927,17 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	host->tuning_info.enable_tuning = 1;
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto pm_disable;
 
-	return ret;
+	return 0;
+
+pm_disable:
+	pm_runtime_disable(&pdev->dev);
+
+clk_disable:
+	clk_disable_unprepare(host->clk);
 
 probe_free_host:
 	if (mmc)
