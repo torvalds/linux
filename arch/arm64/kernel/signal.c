@@ -398,7 +398,7 @@ static int restore_tpidr2_context(struct user_ctxs *user)
 
 	__get_user_error(tpidr2_el0, &user->tpidr2->tpidr2, err);
 	if (!err)
-		current->thread.tpidr2_el0 = tpidr2_el0;
+		write_sysreg_s(tpidr2_el0, SYS_TPIDR2_EL0);
 
 	return err;
 }
