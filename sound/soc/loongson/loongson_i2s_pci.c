@@ -107,10 +107,10 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 	tx_data = &i2s->tx_dma_data;
 	rx_data = &i2s->rx_dma_data;
 
-	tx_data->dev_addr = (dma_addr_t)i2s->reg_base + LS_I2S_TX_DATA;
+	tx_data->dev_addr = pci_resource_start(pdev, 0) + LS_I2S_TX_DATA;
 	tx_data->order_addr = i2s->reg_base + LS_I2S_TX_ORDER;
 
-	rx_data->dev_addr = (dma_addr_t)i2s->reg_base + LS_I2S_RX_DATA;
+	rx_data->dev_addr = pci_resource_start(pdev, 0) + LS_I2S_RX_DATA;
 	rx_data->order_addr = i2s->reg_base + LS_I2S_RX_ORDER;
 
 	tx_data->irq = fwnode_irq_get_byname(fwnode, "tx");
