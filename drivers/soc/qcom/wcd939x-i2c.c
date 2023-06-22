@@ -1187,6 +1187,12 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 		dev_err(priv->dev, "Failed to initialize regmap: %d\n", rc);
 		goto err_data;
 	}
+
+	/* OVP-Fuse settings recommended from HW */
+	regmap_update_bits(priv->regmap, WCD_USBSS_FSM_OVERRIDE, 0x77, 0x77);
+	regmap_update_bits(priv->regmap, WCD_USBSS_DP_EN, 0x0E, 0x08);
+	regmap_update_bits(priv->regmap, WCD_USBSS_DN_EN, 0x0E, 0x08);
+
 	regmap_read(priv->regmap, WCD_USBSS_CHIP_ID1, &ver);
 	if (ver == 0x1) { /* Harmonium 2.0 */
 		regmap_update_bits(priv->regmap, WCD_USBSS_MG1_EN, 0x2, 0x0);
