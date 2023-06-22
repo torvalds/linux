@@ -10561,7 +10561,8 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 }
 
-static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
+				struct netlink_ext_ack *extack)
 {
 	u16 lb_rif_index;
 	int err;
@@ -10674,7 +10675,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_vrs_init;
 
-	err = mlxsw_sp_lb_rif_init(mlxsw_sp);
+	err = mlxsw_sp_lb_rif_init(mlxsw_sp, extack);
 	if (err)
 		goto err_lb_rif_init;
 
