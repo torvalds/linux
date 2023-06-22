@@ -45,12 +45,6 @@
 /* Time and date registers */
 #define PCF2127_REG_SC			0x03
 #define PCF2127_BIT_SC_OSF			BIT(7)
-#define PCF2127_REG_MN			0x04
-#define PCF2127_REG_HR			0x05
-#define PCF2127_REG_DM			0x06
-#define PCF2127_REG_DW			0x07
-#define PCF2127_REG_MO			0x08
-#define PCF2127_REG_YR			0x09
 /* Alarm registers */
 #define PCF2127_REG_ALARM_SC		0x0A
 #define PCF2127_REG_ALARM_MN		0x0B
@@ -117,27 +111,22 @@ struct pcf2127 {
 static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
-	unsigned char buf[10];
+	unsigned char buf[7];
 	int ret;
 
 	/*
 	 * Avoid reading CTRL2 register as it causes WD_VAL register
 	 * value to reset to 0 which means watchdog is stopped.
 	 */
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_CTRL3,
-			       (buf + PCF2127_REG_CTRL3),
-			       ARRAY_SIZE(buf) - PCF2127_REG_CTRL3);
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_SC, buf,
+			       sizeof(buf));
 	if (ret) {
 		dev_err(dev, "%s: read error\n", __func__);
 		return ret;
 	}
 
-	if (buf[PCF2127_REG_CTRL3] & PCF2127_BIT_CTRL3_BLF)
-		dev_info(dev,
-			"low voltage detected, check/replace RTC battery.\n");
-
 	/* Clock integrity is not guaranteed when OSF flag is set. */
-	if (buf[PCF2127_REG_SC] & PCF2127_BIT_SC_OSF) {
+	if (buf[0] & PCF2127_BIT_SC_OSF) {
 		/*
 		 * no need clear the flag here,
 		 * it will be cleared once the new date is saved
@@ -148,20 +137,17 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	dev_dbg(dev,
-		"%s: raw data is cr3=%02x, sec=%02x, min=%02x, hr=%02x, "
+		"%s: raw data is sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, wday=%02x, mon=%02x, year=%02x\n",
-		__func__, buf[PCF2127_REG_CTRL3], buf[PCF2127_REG_SC],
-		buf[PCF2127_REG_MN], buf[PCF2127_REG_HR],
-		buf[PCF2127_REG_DM], buf[PCF2127_REG_DW],
-		buf[PCF2127_REG_MO], buf[PCF2127_REG_YR]);
+		__func__, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
 
-	tm->tm_sec = bcd2bin(buf[PCF2127_REG_SC] & 0x7F);
-	tm->tm_min = bcd2bin(buf[PCF2127_REG_MN] & 0x7F);
-	tm->tm_hour = bcd2bin(buf[PCF2127_REG_HR] & 0x3F); /* rtc hr 0-23 */
-	tm->tm_mday = bcd2bin(buf[PCF2127_REG_DM] & 0x3F);
-	tm->tm_wday = buf[PCF2127_REG_DW] & 0x07;
-	tm->tm_mon = bcd2bin(buf[PCF2127_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
-	tm->tm_year = bcd2bin(buf[PCF2127_REG_YR]);
+	tm->tm_sec = bcd2bin(buf[0] & 0x7F);
+	tm->tm_min = bcd2bin(buf[1] & 0x7F);
+	tm->tm_hour = bcd2bin(buf[2] & 0x3F); /* rtc hr 0-23 */
+	tm->tm_mday = bcd2bin(buf[3] & 0x3F);
+	tm->tm_wday = buf[4] & 0x07;
+	tm->tm_mon = bcd2bin(buf[5] & 0x1F) - 1; /* rtc mn 1-12 */
+	tm->tm_year = bcd2bin(buf[6]);
 	tm->tm_year += 100;
 
 	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
