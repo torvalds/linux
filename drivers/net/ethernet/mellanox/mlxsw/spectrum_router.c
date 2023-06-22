@@ -10731,8 +10731,13 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
 				struct netlink_ext_ack *extack)
 {
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	struct mlxsw_sp_rif *lb_rif;
 	int err;
+
+	router->lb_crif = mlxsw_sp_crif_alloc(NULL);
+	if (IS_ERR(router->lb_crif))
+		return PTR_ERR(router->lb_crif);
 
 	/* Create a generic loopback RIF associated with the main table
 	 * (default VRF). Any table can be used, but the main table exists
@@ -10741,17 +10746,22 @@ static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
 	lb_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN, extack);
 	if (IS_ERR(lb_rif)) {
 		err = PTR_ERR(lb_rif);
-		return err;
+		goto err_ul_rif_get;
 	}
 
 	mlxsw_sp->router->lb_rif_index = lb_rif->rif_index;
 
 	return 0;
+
+err_ul_rif_get:
+	mlxsw_sp_crif_free(router->lb_crif);
+	return err;
 }
 
 static void mlxsw_sp_lb_rif_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp_router_ul_rif_put(mlxsw_sp, mlxsw_sp->router->lb_rif_index);
+	mlxsw_sp_crif_free(mlxsw_sp->router->lb_crif);
 }
 
 static int mlxsw_sp1_router_init(struct mlxsw_sp *mlxsw_sp)

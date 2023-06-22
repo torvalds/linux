@@ -61,6 +61,7 @@ struct mlxsw_sp_router {
 	struct mutex lock; /* Protects shared router resources */
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
 	u16 lb_rif_index;
+	struct mlxsw_sp_crif *lb_crif;
 	const struct mlxsw_sp_adj_grp_size_range *adj_grp_size_ranges;
 	size_t adj_grp_size_ranges_count;
 	struct delayed_work nh_grp_activity_dw;
