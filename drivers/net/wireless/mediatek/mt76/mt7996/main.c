@@ -223,9 +223,9 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 	vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
 
 	if (phy->mt76->chandef.chan->band != NL80211_BAND_2GHZ)
-		mvif->basic_rates_idx = MT7996_BASIC_RATES_TBL + 4;
+		mvif->mt76.basic_rates_idx = MT7996_BASIC_RATES_TBL + 4;
 	else
-		mvif->basic_rates_idx = MT7996_BASIC_RATES_TBL;
+		mvif->mt76.basic_rates_idx = MT7996_BASIC_RATES_TBL;
 
 	mt7996_init_bitrate_mask(vif);
 
@@ -505,7 +505,7 @@ static u8
 mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       bool beacon, bool mcast)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
 	struct mt76_phy *mphy = hw->priv;
 	u16 rate;
 	u8 i, idx, ht;
@@ -517,7 +517,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct mt7996_dev *dev = mt7996_hw_dev(hw);
 
 		/* must odd index */
-		idx = MT7996_BEACON_RATES_TBL + 2 * (mvif->mt76.idx % 20);
+		idx = MT7996_BEACON_RATES_TBL + 2 * (mvif->idx % 20);
 		mt7996_mac_set_fixed_rate_table(dev, idx, rate);
 		return idx;
 	}
@@ -555,7 +555,7 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_bss_conf *info,
 				    u64 changed)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 

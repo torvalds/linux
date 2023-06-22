@@ -128,10 +128,6 @@ struct mt7996_vif {
 
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 	struct cfg80211_bitrate_mask bitrate_mask;
-
-	u8 basic_rates_idx;
-	u8 mcast_rates_idx;
-	u8 beacon_rates_idx;
 };
 
 /* crash-dump */

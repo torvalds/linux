@@ -705,6 +705,9 @@ struct mt76_vif {
 	u8 wmm_idx;
 	u8 scan_seq_num;
 	u8 cipher;
+	u8 basic_rates_idx;
+	u8 mcast_rates_idx;
+	u8 beacon_rates_idx;
 };
 
 struct mt76_phy {
