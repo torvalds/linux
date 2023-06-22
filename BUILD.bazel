@@ -3,8 +3,16 @@
 
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
-load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_build", "kernel_images", "kernel_modules_install")
+load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
+load(
+    "//build/kernel/kleaf:kernel.bzl",
+    "ddk_headers",
+    "kernel_abi",
+    "kernel_build",
+    "kernel_images",
+    "kernel_modules_install",
+    "merged_kernel_uapi_headers",
+)
 load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
 package(
@@ -107,15 +115,18 @@ define_common_kernels(target_configs = {
     },
 })
 
-define_db845c(
+kernel_build(
     name = "db845c",
     outs = [
         "arch/arm64/boot/dts/qcom/qrb5165-rb5.dtb",
         "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
         "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
     ],
-    define_abi_targets = True,
-    kmi_symbol_list = "//common:android/abi_gki_aarch64_db845c",
+    # Enable mixed build.
+    base_kernel = ":kernel_aarch64",
+    build_config = "build.config.db845c",
+    collect_unstripped_modules = True,
+    kmi_symbol_list = "android/abi_gki_aarch64_db845c",
     make_goals = [
         "modules",
         "qcom/sdm845-db845c.dtb",
@@ -309,6 +320,47 @@ define_db845c(
         "sound/soc/qcom/snd-soc-sdm845.ko",
         "sound/soc/qcom/snd-soc-sm8250.ko",
     ],
+    strip_modules = True,
+)
+
+kernel_abi(
+    name = "db845c_abi",
+    kernel_build = ":db845c",
+    kmi_symbol_list_add_only = True,
+)
+
+kernel_modules_install(
+    name = "db845c_modules_install",
+    kernel_build = ":db845c",
+)
+
+merged_kernel_uapi_headers(
+    name = "db845c_merged_kernel_uapi_headers",
+    kernel_build = ":db845c",
+)
+
+kernel_images(
+    name = "db845c_images",
+    build_initramfs = True,
+    kernel_build = ":db845c",
+    kernel_modules_install = ":db845c_modules_install",
+)
+
+copy_to_dist_dir(
+    name = "db845c_dist",
+    data = [
+        ":db845c",
+        ":db845c_images",
+        ":db845c_modules_install",
+        ":db845c_merged_kernel_uapi_headers",
+        # Mixed build: Additional GKI artifacts.
+        ":kernel_aarch64",
+        ":kernel_aarch64_modules",
+        ":kernel_aarch64_additional_artifacts",
+    ],
+    dist_dir = "out/db845/dist",
+    flat = True,
+    log = "info",
 )
 
 _ROCKPI4_MODULE_OUTS = [
@@ -386,6 +438,7 @@ kernel_build(
         "rk3399-rock-pi-4b.dtb",
     ],
     module_outs = COMMON_GKI_MODULES_LIST + _ROCKPI4_MODULE_OUTS + _ROCKPI4_WATCHDOG_MODULE_OUTS,
+    visibility = ["//visibility:private"],
 )
 
 # TODO(b/258259749): Convert rockpi4 to mixed build
@@ -408,6 +461,7 @@ kernel_build(
         "rk3399-rock-pi-4b.dtb",
     ],
     module_outs = COMMON_GKI_MODULES_LIST + _ROCKPI4_MODULE_OUTS,
+    visibility = ["//visibility:private"],
 )
 
 alias(
@@ -420,14 +474,14 @@ alias(
 
 kernel_modules_install(
     name = "rockpi4_modules_install",
-    kernel_build = "//common:rockpi4",
+    kernel_build = ":rockpi4",
 )
 
 kernel_images(
     name = "rockpi4_images",
     build_initramfs = True,
-    kernel_build = "//common:rockpi4",
-    kernel_modules_install = "//common:rockpi4_modules_install",
+    kernel_build = ":rockpi4",
+    kernel_modules_install = ":rockpi4_modules_install",
 )
 
 copy_to_dist_dir(
