@@ -68,7 +68,9 @@ enum cxl_rcrb {
 	CXL_RCRB_DOWNSTREAM,
 	CXL_RCRB_UPSTREAM,
 };
-resource_size_t __rcrb_to_component(struct device *dev, resource_size_t rcrb,
+struct cxl_rcrb_info;
+resource_size_t __rcrb_to_component(struct device *dev,
+				    struct cxl_rcrb_info *ri,
 				    enum cxl_rcrb which);
 
 extern struct rw_semaphore cxl_dpa_rwsem;
