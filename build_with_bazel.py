@@ -238,22 +238,18 @@ class BazelBuilder:
         if self.skip_list:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
 
-        self.user_opts.extend(["--config=stamp"])
-
-        self.user_opts.append("--config=android_arm64")
+        self.user_opts.append("--config=stamp")
+        device_user_opts = self.user_opts + ["--config=android_arm64"]
 
         logging.info("Building device targets...")
         self.build_targets(
             cross_targets_to_build,
-            user_opts=self.user_opts,
+            user_opts=device_user_opts,
         )
         self.run_targets(
             cross_targets_to_build,
-            user_opts=self.user_opts,
+            user_opts=device_user_opts,
         )
-
-        # Replace the last option above (--config=android_arm64) with the host config
-        self.user_opts[-1] = "--config=hermetic_cc"
 
         logging.info("Building host targets...")
         self.build_targets(
