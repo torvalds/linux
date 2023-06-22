@@ -71,6 +71,11 @@ patternProperties:
       reg:
         maxItems: 1
 
+      qcom,ctx-asid:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          The ASID number associated to the context bank.
+
     required:
       - compatible
       - interrupts
