@@ -72,13 +72,13 @@ cxled_to_memdev(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_port *port = to_cxl_port(cxled->cxld.dev.parent);
 
-	return to_cxl_memdev(port->uport);
+	return to_cxl_memdev(port->uport_dev);
 }
 
 bool is_cxl_memdev(const struct device *dev);
 static inline bool is_cxl_endpoint(struct cxl_port *port)
 {
-	return is_cxl_memdev(port->uport);
+	return is_cxl_memdev(port->uport_dev);
 }
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);

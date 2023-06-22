@@ -754,7 +754,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		/* check is endpoint is attach to host-bridge0 */
 		port = cxled_to_port(cxled);
 		do {
-			if (port->uport == &cxl_host_bridge[0]->dev) {
+			if (port->uport_dev == &cxl_host_bridge[0]->dev) {
 				hb0 = true;
 				break;
 			}
@@ -889,7 +889,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 		mock_init_hdm_decoder(cxld);
 
 		if (target_count) {
-			rc = device_for_each_child(port->uport, &ctx,
+			rc = device_for_each_child(port->uport_dev, &ctx,
 						   map_targets);
 			if (rc) {
 				put_device(&cxld->dev);
@@ -919,29 +919,29 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 	int i, array_size;
 
 	if (port->depth == 1) {
-		if (is_multi_bridge(port->uport)) {
+		if (is_multi_bridge(port->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_root_port);
 			array = cxl_root_port;
-		} else if (is_single_bridge(port->uport)) {
+		} else if (is_single_bridge(port->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_root_single);
 			array = cxl_root_single;
 		} else {
 			dev_dbg(&port->dev, "%s: unknown bridge type\n",
-				dev_name(port->uport));
+				dev_name(port->uport_dev));
 			return -ENXIO;
 		}
 	} else if (port->depth == 2) {
 		struct cxl_port *parent = to_cxl_port(port->dev.parent);
 
-		if (is_multi_bridge(parent->uport)) {
+		if (is_multi_bridge(parent->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_switch_dport);
 			array = cxl_switch_dport;
-		} else if (is_single_bridge(parent->uport)) {
+		} else if (is_single_bridge(parent->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_swd_single);
 			array = cxl_swd_single;
 		} else {
 			dev_dbg(&port->dev, "%s: unknown bridge type\n",
-				dev_name(port->uport));
+				dev_name(port->uport_dev));
 			return -ENXIO;
 		}
 	} else {
@@ -954,9 +954,9 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 		struct platform_device *pdev = array[i];
 		struct cxl_dport *dport;
 
-		if (pdev->dev.parent != port->uport) {
+		if (pdev->dev.parent != port->uport_dev) {
 			dev_dbg(&port->dev, "%s: mismatch parent %s\n",
-				dev_name(port->uport),
+				dev_name(port->uport_dev),
 				dev_name(pdev->dev.parent));
 			continue;
 		}

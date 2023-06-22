@@ -536,7 +536,7 @@ struct cxl_dax_region {
  *		     downstream port devices to construct a CXL memory
  *		     decode hierarchy.
  * @dev: this port's device
- * @uport: PCI or platform device implementing the upstream port capability
+ * @uport_dev: PCI or platform device implementing the upstream port capability
  * @host_bridge: Shortcut to the platform attach point for this port
  * @id: id for port device-name
  * @dports: cxl_dport instances referenced by decoders
@@ -555,7 +555,7 @@ struct cxl_dax_region {
  */
 struct cxl_port {
 	struct device dev;
-	struct device *uport;
+	struct device *uport_dev;
 	struct device *host_bridge;
 	int id;
 	struct xarray dports;
@@ -641,21 +641,22 @@ struct cxl_region_ref {
 /*
  * The platform firmware device hosting the root is also the top of the
  * CXL port topology. All other CXL ports have another CXL port as their
- * parent and their ->uport / host device is out-of-line of the port
+ * parent and their ->uport_dev / host device is out-of-line of the port
  * ancestry.
  */
 static inline bool is_cxl_root(struct cxl_port *port)
 {
-	return port->uport == port->dev.parent;
+	return port->uport_dev == port->dev.parent;
 }
 
 bool is_cxl_port(const struct device *dev);
 struct cxl_port *to_cxl_port(const struct device *dev);
 struct pci_bus;
-int devm_cxl_register_pci_bus(struct device *host, struct device *uport,
+int devm_cxl_register_pci_bus(struct device *host, struct device *uport_dev,
 			      struct pci_bus *bus);
 struct pci_bus *cxl_port_to_pci_bus(struct cxl_port *port);
-struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
+struct cxl_port *devm_cxl_add_port(struct device *host,
+				   struct device *uport_dev,
 				   resource_size_t component_reg_phys,
 				   struct cxl_dport *parent_dport);
 struct cxl_port *find_cxl_root(struct cxl_port *port);
