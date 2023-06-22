@@ -136,7 +136,6 @@ struct mt7915_sta {
 
 	struct mt7915_vif *vif;
 
-	struct list_head poll_list;
 	struct list_head rc_list;
 	u32 airtime_ac[8];
 
