@@ -265,17 +265,22 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 	struct io_uring_sync_cancel_reg sc;
 	struct fd f = { };
 	DEFINE_WAIT(wait);
-	int ret;
+	int ret, i;
 
 	if (copy_from_user(&sc, arg, sizeof(sc)))
 		return -EFAULT;
 	if (sc.flags & ~CANCEL_FLAGS)
 		return -EINVAL;
-	if (sc.pad[0] || sc.pad[1] || sc.pad[2] || sc.pad[3])
-		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(sc.pad); i++)
+		if (sc.pad[i])
+			return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(sc.pad2); i++)
+		if (sc.pad2[i])
+			return -EINVAL;
 
 	cd.data = sc.addr;
 	cd.flags = sc.flags;
+	cd.opcode = sc.opcode;
 
 	/* we can grab a normal file descriptor upfront */
 	if ((cd.flags & IORING_ASYNC_CANCEL_FD) &&

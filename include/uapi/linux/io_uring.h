@@ -701,7 +701,9 @@ struct io_uring_sync_cancel_reg {
 	__s32				fd;
 	__u32				flags;
 	struct __kernel_timespec	timeout;
-	__u64				pad[4];
+	__u8				opcode;
+	__u8				pad[7];
+	__u64				pad2[3];
 };
 
 /*
