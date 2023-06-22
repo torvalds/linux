@@ -45,6 +45,8 @@
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
 #include "link/hwss/link_hwss_hpo_dp.h"
+#include "link/hwss/link_hwss_dio_fixed_vs_pe_retimer.h"
+#include "link/hwss/link_hwss_hpo_fixed_vs_pe_retimer_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -4198,11 +4200,13 @@ const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		 * with an hpo encoder. Or we can return a very dummy one that doesn't
 		 * do work for all functions
 		 */
-		return get_hpo_dp_link_hwss();
+		return (requires_fixed_vs_pe_retimer_hpo_link_hwss(link) ?
+				get_hpo_fixed_vs_pe_retimer_dp_link_hwss() : get_hpo_dp_link_hwss());
 	else if (can_use_dpia_link_hwss(link, link_res))
 		return get_dpia_link_hwss();
 	else if (can_use_dio_link_hwss(link, link_res))
-		return get_dio_link_hwss();
+		return (requires_fixed_vs_pe_retimer_dio_link_hwss(link)) ?
+				get_dio_fixed_vs_pe_retimer_link_hwss() : get_dio_link_hwss();
 	else
 		return get_virtual_link_hwss();
 }

@@ -1498,6 +1498,7 @@ struct dc_link {
 	enum engine_id eng_id;
 
 	bool test_pattern_enabled;
+	enum dp_test_pattern current_test_pattern;
 	union compliance_test_state compliance_test_state;
 
 	void *priv;

@@ -132,6 +132,7 @@ static void construct_link_service_ddc(struct link_service *link_srv)
 	link_srv->destroy_ddc_service = link_destroy_ddc_service;
 	link_srv->query_ddc_data = link_query_ddc_data;
 	link_srv->aux_transfer_raw = link_aux_transfer_raw;
+	link_srv->configure_fixed_vs_pe_retimer = link_configure_fixed_vs_pe_retimer;
 	link_srv->aux_transfer_with_retries_no_mutex =
 			link_aux_transfer_with_retries_no_mutex;
 	link_srv->is_in_aux_transaction_mode = link_is_in_aux_transaction_mode;
