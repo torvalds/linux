@@ -3563,7 +3563,7 @@ static int __mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp,
 	u16 rif_index;
 
 	rif_index = nh->rif ? nh->rif->rif_index :
-			      mlxsw_sp->router->lb_rif_index;
+			      mlxsw_sp->router->lb_crif->rif->rif_index;
 	op = force ? MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY :
 		     MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY_ON_ACTIVITY;
 	mlxsw_reg_ratr_pack(ratr_pl, op, true, MLXSW_REG_RATR_TYPE_ETHERNET,
@@ -4530,7 +4530,7 @@ static int mlxsw_sp_adj_trap_entry_init(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY, true,
 			    MLXSW_REG_RATR_TYPE_ETHERNET,
 			    mlxsw_sp->router->adj_trap_index,
-			    mlxsw_sp->router->lb_rif_index);
+			    mlxsw_sp->router->lb_crif->rif->rif_index);
 	mlxsw_reg_ratr_trap_action_set(ratr_pl, trap_action);
 	mlxsw_reg_ratr_trap_id_set(ratr_pl, MLXSW_TRAP_ID_RTR_EGRESS0);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
@@ -4846,15 +4846,13 @@ static bool mlxsw_sp_nexthop_obj_is_gateway(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_nexthop_obj_blackhole_init(struct mlxsw_sp *mlxsw_sp,
 						struct mlxsw_sp_nexthop *nh)
 {
-	u16 lb_rif_index = mlxsw_sp->router->lb_rif_index;
-
 	nh->action = MLXSW_SP_NEXTHOP_ACTION_DISCARD;
 	nh->should_offload = 1;
 	/* While nexthops that discard packets do not forward packets
 	 * via an egress RIF, they still need to be programmed using a
 	 * valid RIF, so use the loopback RIF created during init.
 	 */
-	nh->rif = mlxsw_sp->router->rifs[lb_rif_index];
+	nh->rif = mlxsw_sp->router->lb_crif->rif;
 }
 
 static void mlxsw_sp_nexthop_obj_blackhole_fini(struct mlxsw_sp *mlxsw_sp,
@@ -10784,8 +10782,6 @@ static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
 		goto err_ul_rif_get;
 	}
 
-	mlxsw_sp->router->lb_rif_index = lb_rif->rif_index;
-
 	return 0;
 
 err_ul_rif_get:
@@ -10795,7 +10791,7 @@ err_ul_rif_get:
 
 static void mlxsw_sp_lb_rif_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	mlxsw_sp_router_ul_rif_put(mlxsw_sp, mlxsw_sp->router->lb_rif_index);
+	mlxsw_sp_ul_rif_put(mlxsw_sp->router->lb_crif->rif);
 	mlxsw_sp_crif_free(mlxsw_sp->router->lb_crif);
 }
 
