@@ -287,6 +287,7 @@ struct ice_nvgre_hdr {
  * M = EVLAN (0x8100) - Outer L2 header has EVLAN (ethernet type 0x8100)
  * N = EVLAN (0x9100) - Outer L2 header has EVLAN (ethernet type 0x9100)
  */
+#define ICE_PKT_FROM_NETWORK	BIT(3)
 #define ICE_PKT_VLAN_STAG	BIT(12)
 #define ICE_PKT_VLAN_ITAG	BIT(13)
 #define ICE_PKT_VLAN_EVLAN	(BIT(14) | BIT(15))
