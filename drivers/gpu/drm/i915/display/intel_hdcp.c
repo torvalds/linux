@@ -2358,7 +2358,7 @@ int intel_hdcp_enable(struct intel_atomic_state *state,
 	mutex_lock(&dig_port->hdcp_mutex);
 	drm_WARN_ON(&i915->drm,
 		    hdcp->value == DRM_MODE_CONTENT_PROTECTION_ENABLED);
-	hdcp->content_type = (u8)conn_state->content_type;
+	hdcp->content_type = (u8)conn_state->hdcp_content_type;
 
 	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST)) {
 		hdcp->cpu_transcoder = pipe_config->mst_master_transcoder;
