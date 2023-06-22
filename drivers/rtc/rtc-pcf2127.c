@@ -1128,8 +1128,16 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf2127->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
-	set_bit(RTC_FEATURE_ALARM_RES_2S, pcf2127->rtc->features);
-	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf2127->rtc->features);
+
+	/*
+	 * PCF2127/29 do not work correctly when setting alarms at 1s intervals.
+	 * PCF2131 is ok.
+	 */
+	if (pcf2127->cfg->type == PCF2127 || pcf2127->cfg->type == PCF2129) {
+		set_bit(RTC_FEATURE_ALARM_RES_2S, pcf2127->rtc->features);
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf2127->rtc->features);
+	}
+
 	clear_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
 
 	if (alarm_irq > 0) {
