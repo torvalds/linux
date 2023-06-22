@@ -59,8 +59,8 @@
 #define PCF2127_BIT_WD_CTL_CD0			BIT(6)
 #define PCF2127_BIT_WD_CTL_CD1			BIT(7)
 #define PCF2127_REG_WD_VAL		0x11
-/* Tamper timestamp registers */
-#define PCF2127_REG_TS_CTRL		0x12
+/* Tamper timestamp1 registers */
+#define PCF2127_REG_TS1_BASE		0x12
 #define PCF2127_BIT_TS_CTRL_TSOFF		BIT(6)
 #define PCF2127_BIT_TS_CTRL_TSM			BIT(7)
 /*
@@ -86,10 +86,34 @@
 		PCF2127_BIT_CTRL2_WDTF | \
 		PCF2127_BIT_CTRL2_TSF2)
 
+#define PCF2127_MAX_TS_SUPPORTED	1
+
 enum pcf21xx_type {
 	PCF2127,
 	PCF2129,
 	PCF21XX_LAST_ID
+};
+
+struct pcf21xx_ts_config {
+	u8 reg_base; /* Base register to read timestamp values. */
+
+	/*
+	 * If the TS input pin is driven to GND, an interrupt can be generated
+	 * (supported by all variants).
+	 */
+	u8 gnd_detect_reg; /* Interrupt control register address. */
+	u8 gnd_detect_bit; /* Interrupt bit. */
+
+	/*
+	 * If the TS input pin is driven to an intermediate level between GND
+	 * and supply, an interrupt can be generated (optional feature depending
+	 * on variant).
+	 */
+	u8 inter_detect_reg; /* Interrupt control register address. */
+	u8 inter_detect_bit; /* Interrupt bit. */
+
+	u8 ie_reg; /* Interrupt enable control register. */
+	u8 ie_bit; /* Interrupt enable bit. */
 };
 
 struct pcf21xx_config {
@@ -102,6 +126,9 @@ struct pcf21xx_config {
 	u8 reg_wd_ctl; /* Watchdog control register. */
 	u8 reg_wd_val; /* Watchdog value register. */
 	u8 reg_clkout; /* Clkout register. */
+	unsigned int ts_count;
+	struct pcf21xx_ts_config ts[PCF2127_MAX_TS_SUPPORTED];
+	struct attribute_group attribute_group;
 };
 
 struct pcf2127 {
@@ -109,9 +136,9 @@ struct pcf2127 {
 	struct watchdog_device wdd;
 	struct regmap *regmap;
 	const struct pcf21xx_config *cfg;
-	time64_t ts;
-	bool ts_valid;
 	bool irq_enabled;
+	time64_t ts[PCF2127_MAX_TS_SUPPORTED]; /* Timestamp values. */
+	bool ts_valid[PCF2127_MAX_TS_SUPPORTED];  /* Timestamp valid indication. */
 };
 
 /*
@@ -441,18 +468,19 @@ static int pcf2127_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 }
 
 /*
- * This function reads ctrl2 register, caller is responsible for calling
- * pcf2127_wdt_active_ping()
+ * This function reads one timestamp function data, caller is responsible for
+ * calling pcf2127_wdt_active_ping()
  */
-static int pcf2127_rtc_ts_read(struct device *dev, time64_t *ts)
+static int pcf2127_rtc_ts_read(struct device *dev, time64_t *ts,
+			       int ts_id)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
 	struct rtc_time tm;
 	int ret;
 	unsigned char data[7];
 
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_TS_CTRL, data,
-			       sizeof(data));
+	ret = regmap_bulk_read(pcf2127->regmap, pcf2127->cfg->ts[ts_id].reg_base,
+			       data, sizeof(data));
 	if (ret) {
 		dev_err(dev, "%s: read error ret=%d\n", __func__, ret);
 		return ret;
@@ -482,18 +510,21 @@ static int pcf2127_rtc_ts_read(struct device *dev, time64_t *ts)
 	return 0;
 };
 
-static void pcf2127_rtc_ts_snapshot(struct device *dev)
+static void pcf2127_rtc_ts_snapshot(struct device *dev, int ts_id)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
 	int ret;
 
-	/* Let userspace read the first timestamp */
-	if (pcf2127->ts_valid)
+	if (ts_id >= pcf2127->cfg->ts_count)
 		return;
 
-	ret = pcf2127_rtc_ts_read(dev, &pcf2127->ts);
+	/* Let userspace read the first timestamp */
+	if (pcf2127->ts_valid[ts_id])
+		return;
+
+	ret = pcf2127_rtc_ts_read(dev, &pcf2127->ts[ts_id], ts_id);
 	if (!ret)
-		pcf2127->ts_valid = true;
+		pcf2127->ts_valid[ts_id] = true;
 }
 
 static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
@@ -514,7 +545,7 @@ static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
 		return IRQ_NONE;
 
 	if (ctrl1 & PCF2127_BIT_CTRL1_TSF1 || ctrl2 & PCF2127_BIT_CTRL2_TSF2)
-		pcf2127_rtc_ts_snapshot(dev);
+		pcf2127_rtc_ts_snapshot(dev, 0);
 
 	if (ctrl1 & PCF2127_CTRL1_IRQ_MASK)
 		regmap_write(pcf2127->regmap, PCF2127_REG_CTRL1,
@@ -543,28 +574,41 @@ static const struct rtc_class_ops pcf2127_rtc_ops = {
 
 /* sysfs interface */
 
-static ssize_t timestamp0_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t timestamp_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count, int ts_id)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev->parent);
 	int ret;
 
+	if (ts_id >= pcf2127->cfg->ts_count)
+		return 0;
+
 	if (pcf2127->irq_enabled) {
-		pcf2127->ts_valid = false;
+		pcf2127->ts_valid[ts_id] = false;
 	} else {
-		ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
-			PCF2127_BIT_CTRL1_TSF1, 0);
+		/* Always clear GND interrupt bit. */
+		ret = regmap_update_bits(pcf2127->regmap,
+					 pcf2127->cfg->ts[ts_id].gnd_detect_reg,
+					 pcf2127->cfg->ts[ts_id].gnd_detect_bit,
+					 0);
+
 		if (ret) {
-			dev_err(dev, "%s: update ctrl1 ret=%d\n", __func__, ret);
+			dev_err(dev, "%s: update TS gnd detect ret=%d\n", __func__, ret);
 			return ret;
 		}
 
-		ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
-			PCF2127_BIT_CTRL2_TSF2, 0);
-		if (ret) {
-			dev_err(dev, "%s: update ctrl2 ret=%d\n", __func__, ret);
-			return ret;
+		if (pcf2127->cfg->ts[ts_id].inter_detect_bit) {
+			/* Clear intermediate level interrupt bit if supported. */
+			ret = regmap_update_bits(pcf2127->regmap,
+						 pcf2127->cfg->ts[ts_id].inter_detect_reg,
+						 pcf2127->cfg->ts[ts_id].inter_detect_bit,
+						 0);
+			if (ret) {
+				dev_err(dev, "%s: update TS intermediate level detect ret=%d\n",
+					__func__, ret);
+				return ret;
+			}
 		}
 
 		ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
@@ -573,34 +617,63 @@ static ssize_t timestamp0_store(struct device *dev,
 	}
 
 	return count;
+}
+
+static ssize_t timestamp0_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	return timestamp_store(dev, attr, buf, count, 0);
 };
 
-static ssize_t timestamp0_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t timestamp_show(struct device *dev,
+			      struct device_attribute *attr, char *buf,
+			      int ts_id)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev->parent);
-	unsigned int ctrl1, ctrl2;
 	int ret;
 	time64_t ts;
 
+	if (ts_id >= pcf2127->cfg->ts_count)
+		return 0;
+
 	if (pcf2127->irq_enabled) {
-		if (!pcf2127->ts_valid)
+		if (!pcf2127->ts_valid[ts_id])
 			return 0;
-		ts = pcf2127->ts;
+		ts = pcf2127->ts[ts_id];
 	} else {
-		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL1, &ctrl1);
+		u8 valid_low = 0;
+		u8 valid_inter = 0;
+		unsigned int ctrl;
+
+		/* Check if TS input pin is driven to GND, supported by all
+		 * variants.
+		 */
+		ret = regmap_read(pcf2127->regmap,
+				  pcf2127->cfg->ts[ts_id].gnd_detect_reg,
+				  &ctrl);
 		if (ret)
 			return 0;
 
-		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL2, &ctrl2);
-		if (ret)
+		valid_low = ctrl & pcf2127->cfg->ts[ts_id].gnd_detect_bit;
+
+		if (pcf2127->cfg->ts[ts_id].inter_detect_bit) {
+			/* Check if TS input pin is driven to intermediate level
+			 * between GND and supply, if supported by variant.
+			 */
+			ret = regmap_read(pcf2127->regmap,
+					  pcf2127->cfg->ts[ts_id].inter_detect_reg,
+					  &ctrl);
+			if (ret)
+				return 0;
+
+			valid_inter = ctrl & pcf2127->cfg->ts[ts_id].inter_detect_bit;
+		}
+
+		if (!valid_low && !valid_inter)
 			return 0;
 
-		if (!(ctrl1 & PCF2127_BIT_CTRL1_TSF1) &&
-		    !(ctrl2 & PCF2127_BIT_CTRL2_TSF2))
-			return 0;
-
-		ret = pcf2127_rtc_ts_read(dev->parent, &ts);
+		ret = pcf2127_rtc_ts_read(dev->parent, &ts, ts_id);
 		if (ret)
 			return 0;
 
@@ -609,6 +682,12 @@ static ssize_t timestamp0_show(struct device *dev,
 			return ret;
 	}
 	return sprintf(buf, "%llu\n", (unsigned long long)ts);
+}
+
+static ssize_t timestamp0_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	return timestamp_show(dev, attr, buf, 0);
 };
 
 static DEVICE_ATTR_RW(timestamp0);
@@ -616,10 +695,6 @@ static DEVICE_ATTR_RW(timestamp0);
 static struct attribute *pcf2127_attrs[] = {
 	&dev_attr_timestamp0.attr,
 	NULL
-};
-
-static const struct attribute_group pcf2127_attr_group = {
-	.attrs	= pcf2127_attrs,
 };
 
 static struct pcf21xx_config pcf21xx_cfg[] = {
@@ -633,6 +708,19 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.reg_wd_ctl = PCF2127_REG_WD_CTL,
 		.reg_wd_val = PCF2127_REG_WD_VAL,
 		.reg_clkout = PCF2127_REG_CLKOUT,
+		.ts_count = 1,
+		.ts[0] = {
+			.reg_base  = PCF2127_REG_TS1_BASE,
+			.gnd_detect_reg = PCF2127_REG_CTRL1,
+			.gnd_detect_bit = PCF2127_BIT_CTRL1_TSF1,
+			.inter_detect_reg = PCF2127_REG_CTRL2,
+			.inter_detect_bit = PCF2127_BIT_CTRL2_TSF2,
+			.ie_reg    = PCF2127_REG_CTRL2,
+			.ie_bit    = PCF2127_BIT_CTRL2_TSIE,
+		},
+		.attribute_group = {
+			.attrs	= pcf2127_attrs,
+		},
 	},
 	[PCF2129] = {
 		.type = PCF2129,
@@ -644,8 +732,73 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.reg_wd_ctl = PCF2127_REG_WD_CTL,
 		.reg_wd_val = PCF2127_REG_WD_VAL,
 		.reg_clkout = PCF2127_REG_CLKOUT,
+		.ts_count = 1,
+		.ts[0] = {
+			.reg_base  = PCF2127_REG_TS1_BASE,
+			.gnd_detect_reg = PCF2127_REG_CTRL1,
+			.gnd_detect_bit = PCF2127_BIT_CTRL1_TSF1,
+			.inter_detect_reg = PCF2127_REG_CTRL2,
+			.inter_detect_bit = PCF2127_BIT_CTRL2_TSF2,
+			.ie_reg    = PCF2127_REG_CTRL2,
+			.ie_bit    = PCF2127_BIT_CTRL2_TSIE,
+		},
+		.attribute_group = {
+			.attrs	= pcf2127_attrs,
+		},
 	},
 };
+
+/*
+ * Enable timestamp function and corresponding interrupt(s).
+ */
+static int pcf2127_enable_ts(struct device *dev, int ts_id)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
+	int ret;
+
+	if (ts_id >= pcf2127->cfg->ts_count) {
+		dev_err(dev, "%s: invalid tamper detection ID (%d)\n",
+			__func__, ts_id);
+		return -EINVAL;
+	}
+
+	/* Enable timestamp function. */
+	ret = regmap_update_bits(pcf2127->regmap,
+				 pcf2127->cfg->ts[ts_id].reg_base,
+				 PCF2127_BIT_TS_CTRL_TSOFF |
+				 PCF2127_BIT_TS_CTRL_TSM,
+				 PCF2127_BIT_TS_CTRL_TSM);
+	if (ret) {
+		dev_err(dev, "%s: tamper detection config (ts%d_ctrl) failed\n",
+			__func__, ts_id);
+		return ret;
+	}
+
+	/* TS input pin driven to GND detection is supported by all variants.
+	 * Make sure that interrupt bit is defined.
+	 */
+	if (pcf2127->cfg->ts[ts_id].gnd_detect_bit == 0) {
+		dev_err(dev, "%s: tamper detection to GND configuration invalid\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Enable interrupt generation when TSF timestamp flag is set.
+	 * Interrupt signals are open-drain outputs and can be left floating if
+	 * unused.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, pcf2127->cfg->ts[ts_id].ie_reg,
+				 pcf2127->cfg->ts[ts_id].ie_bit,
+				 pcf2127->cfg->ts[ts_id].ie_bit);
+	if (ret) {
+		dev_err(dev, "%s: tamper detection TSIE%d config failed\n",
+			__func__, ts_id);
+		return ret;
+	}
+
+	return ret;
+}
 
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 			 int alarm_irq, const char *name, const struct pcf21xx_config *config)
@@ -777,34 +930,15 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	/*
-	 * Enable timestamp function and store timestamp of first trigger
-	 * event until TSF1 and TSF2 interrupt flags are cleared.
+	 * Enable timestamp functions 1 to 4.
 	 */
-	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_TS_CTRL,
-				 PCF2127_BIT_TS_CTRL_TSOFF |
-				 PCF2127_BIT_TS_CTRL_TSM,
-				 PCF2127_BIT_TS_CTRL_TSM);
-	if (ret) {
-		dev_err(dev, "%s: tamper detection config (ts_ctrl) failed\n",
-			__func__);
-		return ret;
+	for (int i = 0; i < pcf2127->cfg->ts_count; i++) {
+		ret = pcf2127_enable_ts(dev, i);
+		if (ret)
+			return ret;
 	}
 
-	/*
-	 * Enable interrupt generation when TSF1 or TSF2 timestamp flags
-	 * are set. Interrupt signal is an open-drain output and can be
-	 * left floating if unused.
-	 */
-	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
-				 PCF2127_BIT_CTRL2_TSIE,
-				 PCF2127_BIT_CTRL2_TSIE);
-	if (ret) {
-		dev_err(dev, "%s: tamper detection config (ctrl2) failed\n",
-			__func__);
-		return ret;
-	}
-
-	ret = rtc_add_group(pcf2127->rtc, &pcf2127_attr_group);
+	ret = rtc_add_group(pcf2127->rtc, &pcf2127->cfg->attribute_group);
 	if (ret) {
 		dev_err(dev, "%s: tamper sysfs registering failed\n",
 			__func__);
