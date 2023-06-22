@@ -181,8 +181,7 @@ static int pcf2127_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/* write register's data */
 	err = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_SC, buf, i);
 	if (err) {
-		dev_err(dev,
-			"%s: err=%d", __func__, err);
+		dev_dbg(dev, "%s: err=%d", __func__, err);
 		return err;
 	}
 
