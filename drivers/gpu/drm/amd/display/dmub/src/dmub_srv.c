@@ -639,11 +639,11 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	if (dmub->hw_funcs.enable_dmub_boot_options)
 		dmub->hw_funcs.enable_dmub_boot_options(dmub, params);
 
-	if (dmub->hw_funcs.skip_dmub_panel_power_sequence)
+	if (dmub->hw_funcs.skip_dmub_panel_power_sequence && !dmub->is_virtual)
 		dmub->hw_funcs.skip_dmub_panel_power_sequence(dmub,
 			params->skip_panel_power_sequence);
 
-	if (dmub->hw_funcs.reset_release)
+	if (dmub->hw_funcs.reset_release && !dmub->is_virtual)
 		dmub->hw_funcs.reset_release(dmub);
 
 	dmub->hw_init = true;
