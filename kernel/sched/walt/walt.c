@@ -4952,6 +4952,76 @@ cpumask_t walt_get_cpus_taken(void)
 }
 EXPORT_SYMBOL(walt_get_cpus_taken);
 
+struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
+{
+	struct freq_qos_request *req = NULL;
+
+	switch (client) {
+	default:
+		pr_debug("unsupported qos client=%d\n", client);
+		break;
+	}
+
+	return req;
+}
+
+void add_max_freq_qos_request(struct cpumask cpus, s32 max_freq,
+		enum qos_clients client)
+{
+	struct cpufreq_policy policy;
+	struct freq_qos_request *req;
+	int cpu;
+	int ret;
+
+	for_each_cpu(cpu, &cpus) {
+		if (cpufreq_get_policy(&policy, cpu))
+			continue;
+		if (cpu_online(cpu)) {
+			req = get_req_from_client(cpu, client);
+			ret = freq_qos_update_request(req, max_freq);
+			trace_sched_qos_max_freq_request(cpus, max_freq, client, ret);
+		}
+	}
+}
+
+void init_max_freq_qos_request(enum qos_clients client)
+{
+	struct cpufreq_policy *policy;
+	struct freq_qos_request *req;
+	int cpu, ret;
+
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy) {
+			pr_err("%s: Failed to get cpufreq policy for cpu%d\n",
+				__func__, cpu);
+			goto cleanup;
+		}
+
+		req = get_req_from_client(cpu, client);
+		if (!req)
+			return;
+		ret = freq_qos_add_request(&policy->constraints, req,
+			FREQ_QOS_MAX, FREQ_QOS_MAX_DEFAULT_VALUE);
+		if (ret < 0) {
+			pr_err("%s: Failed to add max freq constraint (%d)\n",
+				__func__, ret);
+			cpufreq_cpu_put(policy);
+			goto cleanup;
+		}
+
+		cpufreq_cpu_put(policy);
+	}
+	return;
+
+cleanup:
+	for_each_online_cpu(cpu) {
+		req = get_req_from_client(cpu, client);
+		if (req && freq_qos_request_active(req))
+			freq_qos_remove_request(req);
+	}
+}
+
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
