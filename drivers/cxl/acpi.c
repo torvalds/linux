@@ -327,51 +327,6 @@ __mock struct acpi_device *to_cxl_host_bridge(struct device *host,
 	return NULL;
 }
 
-/*
- * A host bridge is a dport to a CFMWS decode and it is a uport to the
- * dport (PCIe Root Ports) in the host bridge.
- */
-static int add_host_bridge_uport(struct device *match, void *arg)
-{
-	struct cxl_port *root_port = arg;
-	struct device *host = root_port->dev.parent;
-	struct acpi_device *hb = to_cxl_host_bridge(host, match);
-	struct acpi_pci_root *pci_root;
-	struct cxl_dport *dport;
-	struct cxl_port *port;
-	struct device *bridge;
-	int rc;
-
-	if (!hb)
-		return 0;
-
-	pci_root = acpi_pci_find_root(hb->handle);
-	bridge = pci_root->bus->bridge;
-	dport = cxl_find_dport_by_dev(root_port, bridge);
-	if (!dport) {
-		dev_dbg(host, "host bridge expected and not found\n");
-		return 0;
-	}
-
-	if (dport->rch) {
-		dev_info(bridge, "host supports CXL (restricted)\n");
-		return 0;
-	}
-
-	rc = devm_cxl_register_pci_bus(host, bridge, pci_root->bus);
-	if (rc)
-		return rc;
-
-	port = devm_cxl_add_port(host, bridge, dport->component_reg_phys,
-				 dport);
-	if (IS_ERR(port))
-		return PTR_ERR(port);
-
-	dev_info(bridge, "host supports CXL\n");
-
-	return 0;
-}
-
 /* Note, @dev is used by mock_acpi_table_parse_cedt() */
 struct cxl_chbs_context {
 	struct device *dev;
@@ -463,6 +418,51 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 
 	if (IS_ERR(dport))
 		return PTR_ERR(dport);
+
+	return 0;
+}
+
+/*
+ * A host bridge is a dport to a CFMWS decode and it is a uport to the
+ * dport (PCIe Root Ports) in the host bridge.
+ */
+static int add_host_bridge_uport(struct device *match, void *arg)
+{
+	struct cxl_port *root_port = arg;
+	struct device *host = root_port->dev.parent;
+	struct acpi_device *hb = to_cxl_host_bridge(host, match);
+	struct acpi_pci_root *pci_root;
+	struct cxl_dport *dport;
+	struct cxl_port *port;
+	struct device *bridge;
+	int rc;
+
+	if (!hb)
+		return 0;
+
+	pci_root = acpi_pci_find_root(hb->handle);
+	bridge = pci_root->bus->bridge;
+	dport = cxl_find_dport_by_dev(root_port, bridge);
+	if (!dport) {
+		dev_dbg(host, "host bridge expected and not found\n");
+		return 0;
+	}
+
+	if (dport->rch) {
+		dev_info(bridge, "host supports CXL (restricted)\n");
+		return 0;
+	}
+
+	rc = devm_cxl_register_pci_bus(host, bridge, pci_root->bus);
+	if (rc)
+		return rc;
+
+	port = devm_cxl_add_port(host, bridge, dport->component_reg_phys,
+				 dport);
+	if (IS_ERR(port))
+		return PTR_ERR(port);
+
+	dev_info(bridge, "host supports CXL\n");
 
 	return 0;
 }
