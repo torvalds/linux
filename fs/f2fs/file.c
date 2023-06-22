@@ -2878,6 +2878,17 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 		f2fs_up_write(&F2FS_I(dst)->i_gc_rwsem[WRITE]);
 out_src:
 	f2fs_up_write(&F2FS_I(src)->i_gc_rwsem[WRITE]);
+	if (ret)
+		goto out_unlock;
+
+	src->i_mtime = src->i_ctime = current_time(src);
+	f2fs_mark_inode_dirty_sync(src, false);
+	if (src != dst) {
+		dst->i_mtime = dst->i_ctime = current_time(dst);
+		f2fs_mark_inode_dirty_sync(dst, false);
+	}
+	f2fs_update_time(sbi, REQ_TIME);
+
 out_unlock:
 	if (src != dst)
 		inode_unlock(dst);
