@@ -704,6 +704,9 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(dev->of_node, "qcom,msm-iommu-v2-sec"))
 		ctx->secured_ctx = true;
 
+	if (of_device_is_compatible(dev->of_node, "qcom,msm-iommu-v2-sec"))
+		ctx->secured_ctx = true;
+
 	/* clear IRQs before registering fault handler, just in case the
 	 * boot-loader left us a surprise:
 	 */
