@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/mm_types.h>
 #include <linux/pgtable.h>
-
+#include <linux/io.h>
 #include <asm/asm-offsets.h>
 #include <asm/facility.h>
 #include <asm/current.h>
@@ -22,7 +22,6 @@
 #include <asm/sysinfo.h>
 #include <asm/page-states.h>
 #include <asm/gmap.h>
-#include <asm/io.h>
 #include <asm/ptrace.h>
 #include <asm/sclp.h>
 #include <asm/ap.h>

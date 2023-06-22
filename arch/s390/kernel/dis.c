@@ -24,8 +24,8 @@
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
+#include <linux/io.h>
 #include <asm/dis.h>
-#include <asm/io.h>
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>

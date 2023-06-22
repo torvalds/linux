@@ -16,10 +16,10 @@
 #include <linux/bio.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
-#include <asm/io.h>
 #include <asm/ccwdev.h>
 
 #include "dasd_int.h"
