@@ -10,6 +10,20 @@ is taken directly from the kernel source, with supplemental material added
 as needed (or at least as we managed to add it — probably *not* all that is
 needed).
 
+Core subsystems
+---------------
+
+.. toctree::
+   :maxdepth: 1
+
+   core-api/index
+   driver-api/index
+   mm/index
+   power/index
+   scheduler/index
+   timers/index
+   locking/index
+
 Human interfaces
 ----------------
 
@@ -39,9 +53,6 @@ Storage interfaces
 .. toctree::
    :maxdepth: 1
 
-   driver-api/index
-   core-api/index
-   locking/index
    accounting/index
    cpu-freq/index
    fpga/index
@@ -53,8 +64,6 @@ Storage interfaces
    netlabel/index
    networking/index
    pcmcia/index
-   power/index
-   timers/index
    spi/index
    w1/index
    watchdog/index
@@ -63,12 +72,10 @@ Storage interfaces
    accel/index
    security/index
    crypto/index
-   mm/index
    bpf/index
    usb/index
    PCI/index
    misc-devices/index
-   scheduler/index
    mhi/index
    peci/index
    wmi/index
