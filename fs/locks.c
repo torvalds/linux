@@ -868,6 +868,21 @@ static bool posix_locks_conflict(struct file_lock *caller_fl,
 	return locks_conflict(caller_fl, sys_fl);
 }
 
+/* Determine if lock sys_fl blocks lock caller_fl. Used on xx_GETLK
+ * path so checks for additional GETLK-specific things like F_UNLCK.
+ */
+static bool posix_test_locks_conflict(struct file_lock *caller_fl,
+				      struct file_lock *sys_fl)
+{
+	/* F_UNLCK checks any locks on the same fd. */
+	if (caller_fl->fl_type == F_UNLCK) {
+		if (!posix_same_owner(caller_fl, sys_fl))
+			return false;
+		return locks_overlap(caller_fl, sys_fl);
+	}
+	return posix_locks_conflict(caller_fl, sys_fl);
+}
+
 /* Determine if lock sys_fl blocks lock caller_fl. FLOCK specific
  * checking before calling the locks_conflict().
  */
@@ -901,7 +916,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 retry:
 	spin_lock(&ctx->flc_lock);
 	list_for_each_entry(cfl, &ctx->flc_posix, fl_list) {
-		if (!posix_locks_conflict(fl, cfl))
+		if (!posix_test_locks_conflict(fl, cfl))
 			continue;
 		if (cfl->fl_lmops && cfl->fl_lmops->lm_lock_expirable
 			&& (*cfl->fl_lmops->lm_lock_expirable)(cfl)) {
@@ -2207,7 +2222,8 @@ int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock *flock)
 	if (fl == NULL)
 		return -ENOMEM;
 	error = -EINVAL;
-	if (flock->l_type != F_RDLCK && flock->l_type != F_WRLCK)
+	if (cmd != F_OFD_GETLK && flock->l_type != F_RDLCK
+			&& flock->l_type != F_WRLCK)
 		goto out;
 
 	error = flock_to_posix_lock(filp, fl, flock);
@@ -2414,7 +2430,8 @@ int fcntl_getlk64(struct file *filp, unsigned int cmd, struct flock64 *flock)
 		return -ENOMEM;
 
 	error = -EINVAL;
-	if (flock->l_type != F_RDLCK && flock->l_type != F_WRLCK)
+	if (cmd != F_OFD_GETLK && flock->l_type != F_RDLCK
+			&& flock->l_type != F_WRLCK)
 		goto out;
 
 	error = flock64_to_posix_lock(filp, fl, flock);
