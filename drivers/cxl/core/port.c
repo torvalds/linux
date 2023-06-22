@@ -711,6 +711,13 @@ static inline int cxl_port_setup_regs(struct cxl_port *port,
 				   component_reg_phys);
 }
 
+static inline int cxl_dport_setup_regs(struct cxl_dport *dport,
+				       resource_size_t component_reg_phys)
+{
+	return cxl_setup_comp_regs(dport->dport_dev, &dport->comp_map,
+				   component_reg_phys);
+}
+
 static struct cxl_port *__devm_cxl_add_port(struct device *host,
 					    struct device *uport_dev,
 					    resource_size_t component_reg_phys,
@@ -988,6 +995,10 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 	dport->dport_dev = dport_dev;
 	dport->port_id = port_id;
 	dport->port = port;
+
+	rc = cxl_dport_setup_regs(dport, component_reg_phys);
+	if (rc)
+		return ERR_PTR(rc);
 
 	cond_cxl_root_lock(port);
 	rc = add_dport(port, dport);
