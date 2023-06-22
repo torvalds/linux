@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
 
@@ -89,10 +90,24 @@
 		PCF2127_BIT_CTRL2_WDTF | \
 		PCF2127_BIT_CTRL2_TSF2)
 
+enum pcf21xx_type {
+	PCF2127,
+	PCF2129,
+	PCF21XX_LAST_ID
+};
+
+struct pcf21xx_config {
+	int type; /* IC variant */
+	int max_register;
+	unsigned int has_nvmem:1;
+	unsigned int has_bit_wd_ctl_cd0:1;
+};
+
 struct pcf2127 {
 	struct rtc_device *rtc;
 	struct watchdog_device wdd;
 	struct regmap *regmap;
+	const struct pcf21xx_config *cfg;
 	time64_t ts;
 	bool ts_valid;
 	bool irq_enabled;
@@ -606,8 +621,23 @@ static const struct attribute_group pcf2127_attr_group = {
 	.attrs	= pcf2127_attrs,
 };
 
+static struct pcf21xx_config pcf21xx_cfg[] = {
+	[PCF2127] = {
+		.type = PCF2127,
+		.max_register = 0x1d,
+		.has_nvmem = 1,
+		.has_bit_wd_ctl_cd0 = 1,
+	},
+	[PCF2129] = {
+		.type = PCF2129,
+		.max_register = 0x19,
+		.has_nvmem = 0,
+		.has_bit_wd_ctl_cd0 = 0,
+	},
+};
+
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
-			 int alarm_irq, const char *name, bool is_pcf2127)
+			 int alarm_irq, const char *name, const struct pcf21xx_config *config)
 {
 	struct pcf2127 *pcf2127;
 	int ret = 0;
@@ -620,6 +650,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		return -ENOMEM;
 
 	pcf2127->regmap = regmap;
+	pcf2127->cfg = config;
 
 	dev_set_drvdata(dev, pcf2127);
 
@@ -663,7 +694,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		set_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
 	}
 
-	if (is_pcf2127) {
+	if (pcf2127->cfg->has_nvmem) {
 		struct nvmem_config nvmem_cfg = {
 			.priv = pcf2127,
 			.reg_read = pcf2127_nvmem_read,
@@ -709,7 +740,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 				 PCF2127_BIT_WD_CTL_TF1 |
 				 PCF2127_BIT_WD_CTL_TF0,
 				 PCF2127_BIT_WD_CTL_CD1 |
-				 (is_pcf2127 ? PCF2127_BIT_WD_CTL_CD0 : 0) |
+				 (pcf2127->cfg->has_bit_wd_ctl_cd0 ? PCF2127_BIT_WD_CTL_CD0 : 0) |
 				 PCF2127_BIT_WD_CTL_TF1);
 	if (ret) {
 		dev_err(dev, "%s: watchdog config (wd_ctl) failed\n", __func__);
@@ -774,9 +805,9 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 #ifdef CONFIG_OF
 static const struct of_device_id pcf2127_of_match[] = {
-	{ .compatible = "nxp,pcf2127" },
-	{ .compatible = "nxp,pcf2129" },
-	{ .compatible = "nxp,pca2129" },
+	{ .compatible = "nxp,pcf2127", .data = &pcf21xx_cfg[PCF2127] },
+	{ .compatible = "nxp,pcf2129", .data = &pcf21xx_cfg[PCF2129] },
+	{ .compatible = "nxp,pca2129", .data = &pcf21xx_cfg[PCF2129] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf2127_of_match);
@@ -861,25 +892,39 @@ static const struct regmap_bus pcf2127_i2c_regmap = {
 static struct i2c_driver pcf2127_i2c_driver;
 
 static const struct i2c_device_id pcf2127_i2c_id[] = {
-	{ "pcf2127", 1 },
-	{ "pcf2129", 0 },
-	{ "pca2129", 0 },
+	{ "pcf2127", PCF2127 },
+	{ "pcf2129", PCF2129 },
+	{ "pca2129", PCF2129 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf2127_i2c_id);
 
 static int pcf2127_i2c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_match_id(pcf2127_i2c_id, client);
 	struct regmap *regmap;
-	static const struct regmap_config config = {
+	static struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
-		.max_register = 0x1d,
 	};
+	const struct pcf21xx_config *variant;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
+
+	if (client->dev.of_node) {
+		variant = of_device_get_match_data(&client->dev);
+		if (!variant)
+			return -ENODEV;
+	} else {
+		enum pcf21xx_type type =
+			i2c_match_id(pcf2127_i2c_id, client)->driver_data;
+
+		if (type >= PCF21XX_LAST_ID)
+			return -ENODEV;
+		variant = &pcf21xx_cfg[type];
+	}
+
+	config.max_register = variant->max_register,
 
 	regmap = devm_regmap_init(&client->dev, &pcf2127_i2c_regmap,
 					&client->dev, &config);
@@ -890,7 +935,7 @@ static int pcf2127_i2c_probe(struct i2c_client *client)
 	}
 
 	return pcf2127_probe(&client->dev, regmap, client->irq,
-			     pcf2127_i2c_driver.driver.name, id->driver_data);
+			     pcf2127_i2c_driver.driver.name, variant);
 }
 
 static struct i2c_driver pcf2127_i2c_driver = {
@@ -928,17 +973,32 @@ static void pcf2127_i2c_unregister_driver(void)
 #if IS_ENABLED(CONFIG_SPI_MASTER)
 
 static struct spi_driver pcf2127_spi_driver;
+static const struct spi_device_id pcf2127_spi_id[];
 
 static int pcf2127_spi_probe(struct spi_device *spi)
 {
-	static const struct regmap_config config = {
+	static struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
 		.read_flag_mask = 0xa0,
 		.write_flag_mask = 0x20,
-		.max_register = 0x1d,
 	};
 	struct regmap *regmap;
+	const struct pcf21xx_config *variant;
+
+	if (spi->dev.of_node) {
+		variant = of_device_get_match_data(&spi->dev);
+		if (!variant)
+			return -ENODEV;
+	} else {
+		enum pcf21xx_type type = spi_get_device_id(spi)->driver_data;
+
+		if (type >= PCF21XX_LAST_ID)
+			return -ENODEV;
+		variant = &pcf21xx_cfg[type];
+	}
+
+	config.max_register = variant->max_register,
 
 	regmap = devm_regmap_init_spi(spi, &config);
 	if (IS_ERR(regmap)) {
@@ -949,13 +1009,13 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 
 	return pcf2127_probe(&spi->dev, regmap, spi->irq,
 			     pcf2127_spi_driver.driver.name,
-			     spi_get_device_id(spi)->driver_data);
+			     variant);
 }
 
 static const struct spi_device_id pcf2127_spi_id[] = {
-	{ "pcf2127", 1 },
-	{ "pcf2129", 0 },
-	{ "pca2129", 0 },
+	{ "pcf2127", PCF2127 },
+	{ "pcf2129", PCF2129 },
+	{ "pca2129", PCF2129 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, pcf2127_spi_id);
