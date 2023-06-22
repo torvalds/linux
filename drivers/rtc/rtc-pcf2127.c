@@ -99,6 +99,8 @@ struct pcf21xx_config {
 	unsigned int has_bit_wd_ctl_cd0:1;
 	u8 reg_time_base; /* Time/date base register. */
 	u8 regs_alarm_base; /* Alarm function base registers. */
+	u8 reg_wd_ctl; /* Watchdog control register. */
+	u8 reg_wd_val; /* Watchdog value register. */
 };
 
 struct pcf2127 {
@@ -269,7 +271,7 @@ static int pcf2127_wdt_ping(struct watchdog_device *wdd)
 {
 	struct pcf2127 *pcf2127 = watchdog_get_drvdata(wdd);
 
-	return regmap_write(pcf2127->regmap, PCF2127_REG_WD_VAL, wdd->timeout);
+	return regmap_write(pcf2127->regmap, pcf2127->cfg->reg_wd_val, wdd->timeout);
 }
 
 /*
@@ -303,7 +305,7 @@ static int pcf2127_wdt_stop(struct watchdog_device *wdd)
 {
 	struct pcf2127 *pcf2127 = watchdog_get_drvdata(wdd);
 
-	return regmap_write(pcf2127->regmap, PCF2127_REG_WD_VAL,
+	return regmap_write(pcf2127->regmap, pcf2127->cfg->reg_wd_val,
 			    PCF2127_WD_VAL_STOP);
 }
 
@@ -352,7 +354,7 @@ static int pcf2127_watchdog_init(struct device *dev, struct pcf2127 *pcf2127)
 	watchdog_set_drvdata(&pcf2127->wdd, pcf2127);
 
 	/* Test if watchdog timer is started by bootloader */
-	ret = regmap_read(pcf2127->regmap, PCF2127_REG_WD_VAL, &wdd_timeout);
+	ret = regmap_read(pcf2127->regmap, pcf2127->cfg->reg_wd_val, &wdd_timeout);
 	if (ret)
 		return ret;
 
@@ -627,6 +629,8 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.has_bit_wd_ctl_cd0 = 1,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
+		.reg_wd_ctl = PCF2127_REG_WD_CTL,
+		.reg_wd_val = PCF2127_REG_WD_VAL,
 	},
 	[PCF2129] = {
 		.type = PCF2129,
@@ -635,6 +639,8 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.has_bit_wd_ctl_cd0 = 0,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
+		.reg_wd_ctl = PCF2127_REG_WD_CTL,
+		.reg_wd_val = PCF2127_REG_WD_VAL,
 	},
 };
 
@@ -736,7 +742,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	 * as T. Bits labeled as T must always be written with
 	 * logic 0.
 	 */
-	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_WD_CTL,
+	ret = regmap_update_bits(pcf2127->regmap, pcf2127->cfg->reg_wd_ctl,
 				 PCF2127_BIT_WD_CTL_CD1 |
 				 PCF2127_BIT_WD_CTL_CD0 |
 				 PCF2127_BIT_WD_CTL_TF1 |
