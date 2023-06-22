@@ -138,8 +138,11 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(9, 4, 0): /* VEGA20 */
 	case IP_VERSION(9, 4, 1): /* ARCTURUS */
 	case IP_VERSION(9, 4, 2): /* ALDEBARAN */
-	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
+		break;
+	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
+		kfd->device_info.event_interrupt_class =
+						&event_interrupt_class_v9_4_3;
 		break;
 	case IP_VERSION(10, 3, 1): /* VANGOGH */
 	case IP_VERSION(10, 3, 3): /* YELLOW_CARP */
@@ -599,6 +602,41 @@ static void kfd_cleanup_nodes(struct kfd_dev *kfd, unsigned int num_nodes)
 	}
 }
 
+static void kfd_setup_interrupt_bitmap(struct kfd_node *node,
+				       unsigned int kfd_node_idx)
+{
+	struct amdgpu_device *adev = node->adev;
+	uint32_t xcc_mask = node->xcc_mask;
+	uint32_t xcc, mapped_xcc;
+	/*
+	 * Interrupt bitmap is setup for processing interrupts from
+	 * different XCDs and AIDs.
+	 * Interrupt bitmap is defined as follows:
+	 * 1. Bits 0-15 - correspond to the NodeId field.
+	 *    Each bit corresponds to NodeId number. For example, if
+	 *    a KFD node has interrupt bitmap set to 0x7, then this
+	 *    KFD node will process interrupts with NodeId = 0, 1 and 2
+	 *    in the IH cookie.
+	 * 2. Bits 16-31 - unused.
+	 *
+	 * Please note that the kfd_node_idx argument passed to this
+	 * function is not related to NodeId field received in the
+	 * IH cookie.
+	 *
+	 * In CPX mode, a KFD node will process an interrupt if:
+	 * - the Node Id matches the corresponding bit set in
+	 *   Bits 0-15.
+	 * - AND VMID reported in the interrupt lies within the
+	 *   VMID range of the node.
+	 */
+	for_each_inst(xcc, xcc_mask) {
+		mapped_xcc = GET_INST(GC, xcc);
+		node->interrupt_bitmap |= (mapped_xcc % 2 ? 5 : 3) << (4 * (mapped_xcc / 2));
+	}
+	dev_info(kfd_device, "Node: %d, interrupt_bitmap: %x\n", kfd_node_idx,
+							node->interrupt_bitmap);
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
@@ -797,6 +835,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
 					&node->local_mem_info, node->xcp);
+
+		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3))
+			kfd_setup_interrupt_bitmap(node, i);
 
 		/* Initialize the KFD node */
 		if (kfd_init_node(node)) {
