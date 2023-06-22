@@ -1280,8 +1280,8 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	 * reflecting it in the finalized feature set, thus limiting its scope
 	 * to a single KVM_ARM_VCPU_INIT call.
 	 */
-	if (init->features[0] & KVM_ARM_VCPU_POWER_OFF) {
-		init->features[0] &= ~KVM_ARM_VCPU_POWER_OFF;
+	if (init->features[0] & BIT(KVM_ARM_VCPU_POWER_OFF)) {
+		init->features[0] &= ~BIT(KVM_ARM_VCPU_POWER_OFF);
 		power_off = true;
 	}
 
