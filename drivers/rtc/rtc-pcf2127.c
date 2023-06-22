@@ -185,6 +185,7 @@ struct pcf21xx_config {
 	int max_register;
 	unsigned int has_nvmem:1;
 	unsigned int has_bit_wd_ctl_cd0:1;
+	unsigned int wd_val_reg_readable:1; /* If watchdog value register can be read. */
 	unsigned int has_int_a_b:1; /* PCF2131 supports two interrupt outputs. */
 	u8 reg_time_base; /* Time/date base register. */
 	u8 regs_alarm_base; /* Alarm function base registers. */
@@ -486,7 +487,6 @@ static int pcf2127_watchdog_get_period(int n, int f1000)
 
 static int pcf2127_watchdog_init(struct device *dev, struct pcf2127 *pcf2127)
 {
-	u32 wdd_timeout;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_WATCHDOG) ||
@@ -514,12 +514,17 @@ static int pcf2127_watchdog_init(struct device *dev, struct pcf2127 *pcf2127)
 	watchdog_set_drvdata(&pcf2127->wdd, pcf2127);
 
 	/* Test if watchdog timer is started by bootloader */
-	ret = regmap_read(pcf2127->regmap, pcf2127->cfg->reg_wd_val, &wdd_timeout);
-	if (ret)
-		return ret;
+	if (pcf2127->cfg->wd_val_reg_readable) {
+		u32 wdd_timeout;
 
-	if (wdd_timeout)
-		set_bit(WDOG_HW_RUNNING, &pcf2127->wdd.status);
+		ret = regmap_read(pcf2127->regmap, pcf2127->cfg->reg_wd_val,
+				  &wdd_timeout);
+		if (ret)
+			return ret;
+
+		if (wdd_timeout)
+			set_bit(WDOG_HW_RUNNING, &pcf2127->wdd.status);
+	}
 
 	return devm_watchdog_register_device(dev, &pcf2127->wdd);
 }
@@ -919,6 +924,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x1d,
 		.has_nvmem = 1,
 		.has_bit_wd_ctl_cd0 = 1,
+		.wd_val_reg_readable = 1,
 		.has_int_a_b = 0,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
@@ -946,6 +952,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x19,
 		.has_nvmem = 0,
 		.has_bit_wd_ctl_cd0 = 0,
+		.wd_val_reg_readable = 1,
 		.has_int_a_b = 0,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
@@ -973,6 +980,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x36,
 		.has_nvmem = 0,
 		.has_bit_wd_ctl_cd0 = 0,
+		.wd_val_reg_readable = 0,
 		.has_int_a_b = 1,
 		.reg_time_base = PCF2131_REG_TIME_BASE,
 		.regs_alarm_base = PCF2131_REG_ALARM_BASE,
