@@ -2448,6 +2448,7 @@ struct async_reg_args {
 	struct cache_sb *sb;
 	struct cache_sb_disk *sb_disk;
 	struct block_device *bdev;
+	void *holder;
 };
 
 static void register_bdev_worker(struct work_struct *work)
@@ -2455,22 +2456,13 @@ static void register_bdev_worker(struct work_struct *work)
 	int fail = false;
 	struct async_reg_args *args =
 		container_of(work, struct async_reg_args, reg_work.work);
-	struct cached_dev *dc;
-
-	dc = kzalloc(sizeof(*dc), GFP_KERNEL);
-	if (!dc) {
-		fail = true;
-		put_page(virt_to_page(args->sb_disk));
-		blkdev_put(args->bdev, bcache_kobj);
-		goto out;
-	}
 
 	mutex_lock(&bch_register_lock);
-	if (register_bdev(args->sb, args->sb_disk, args->bdev, dc) < 0)
+	if (register_bdev(args->sb, args->sb_disk, args->bdev, args->holder)
+	    < 0)
 		fail = true;
 	mutex_unlock(&bch_register_lock);
 
-out:
 	if (fail)
 		pr_info("error %s: fail to register backing device\n",
 			args->path);
@@ -2485,21 +2477,11 @@ static void register_cache_worker(struct work_struct *work)
 	int fail = false;
 	struct async_reg_args *args =
 		container_of(work, struct async_reg_args, reg_work.work);
-	struct cache *ca;
-
-	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
-	if (!ca) {
-		fail = true;
-		put_page(virt_to_page(args->sb_disk));
-		blkdev_put(args->bdev, bcache_kobj);
-		goto out;
-	}
 
 	/* blkdev_put() will be called in bch_cache_release() */
-	if (register_cache(args->sb, args->sb_disk, args->bdev, ca) != 0)
+	if (register_cache(args->sb, args->sb_disk, args->bdev, args->holder))
 		fail = true;
 
-out:
 	if (fail)
 		pr_info("error %s: fail to register cache device\n",
 			args->path);
@@ -2520,6 +2502,13 @@ static void register_device_async(struct async_reg_args *args)
 	queue_delayed_work(system_wq, &args->reg_work, 10);
 }
 
+static void *alloc_holder_object(struct cache_sb *sb)
+{
+	if (SB_IS_BDEV(sb))
+		return kzalloc(sizeof(struct cached_dev), GFP_KERNEL);
+	return kzalloc(sizeof(struct cache), GFP_KERNEL);
+}
+
 static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 			       const char *buffer, size_t size)
 {
@@ -2528,6 +2517,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	struct cache_sb *sb;
 	struct cache_sb_disk *sb_disk;
 	struct block_device *bdev;
+	void *holder;
 	ssize_t ret;
 	bool async_registration = false;
 
@@ -2585,6 +2575,13 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (err)
 		goto out_blkdev_put;
 
+	holder = alloc_holder_object(sb);
+	if (!holder) {
+		ret = -ENOMEM;
+		err = "cannot allocate memory";
+		goto out_put_sb_page;
+	}
+
 	err = "failed to register device";
 
 	if (async_registration) {
@@ -2595,44 +2592,29 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 		if (!args) {
 			ret = -ENOMEM;
 			err = "cannot allocate memory";
-			goto out_put_sb_page;
+			goto out_free_holder;
 		}
 
 		args->path	= path;
 		args->sb	= sb;
 		args->sb_disk	= sb_disk;
 		args->bdev	= bdev;
+		args->holder	= holder;
 		register_device_async(args);
 		/* No wait and returns to user space */
 		goto async_done;
 	}
 
 	if (SB_IS_BDEV(sb)) {
-		struct cached_dev *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
-
-		if (!dc) {
-			ret = -ENOMEM;
-			err = "cannot allocate memory";
-			goto out_put_sb_page;
-		}
-
 		mutex_lock(&bch_register_lock);
-		ret = register_bdev(sb, sb_disk, bdev, dc);
+		ret = register_bdev(sb, sb_disk, bdev, holder);
 		mutex_unlock(&bch_register_lock);
 		/* blkdev_put() will be called in cached_dev_free() */
 		if (ret < 0)
 			goto out_free_sb;
 	} else {
-		struct cache *ca = kzalloc(sizeof(*ca), GFP_KERNEL);
-
-		if (!ca) {
-			ret = -ENOMEM;
-			err = "cannot allocate memory";
-			goto out_put_sb_page;
-		}
-
 		/* blkdev_put() will be called in bch_cache_release() */
-		ret = register_cache(sb, sb_disk, bdev, ca);
+		ret = register_cache(sb, sb_disk, bdev, holder);
 		if (ret)
 			goto out_free_sb;
 	}
@@ -2644,6 +2626,8 @@ done:
 async_done:
 	return size;
 
+out_free_holder:
+	kfree(holder);
 out_put_sb_page:
 	put_page(virt_to_page(sb_disk));
 out_blkdev_put:
