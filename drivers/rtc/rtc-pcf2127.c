@@ -179,6 +179,7 @@ struct pcf21xx_config {
 	int max_register;
 	unsigned int has_nvmem:1;
 	unsigned int has_bit_wd_ctl_cd0:1;
+	unsigned int has_int_a_b:1; /* PCF2131 supports two interrupt outputs. */
 	u8 reg_time_base; /* Time/date base register. */
 	u8 regs_alarm_base; /* Alarm function base registers. */
 	u8 reg_wd_ctl; /* Watchdog control register. */
@@ -845,6 +846,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x1d,
 		.has_nvmem = 1,
 		.has_bit_wd_ctl_cd0 = 1,
+		.has_int_a_b = 0,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
 		.reg_wd_ctl = PCF2127_REG_WD_CTL,
@@ -869,6 +871,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x19,
 		.has_nvmem = 0,
 		.has_bit_wd_ctl_cd0 = 0,
+		.has_int_a_b = 0,
 		.reg_time_base = PCF2127_REG_TIME_BASE,
 		.regs_alarm_base = PCF2127_REG_ALARM_BASE,
 		.reg_wd_ctl = PCF2127_REG_WD_CTL,
@@ -893,6 +896,7 @@ static struct pcf21xx_config pcf21xx_cfg[] = {
 		.max_register = 0x36,
 		.has_nvmem = 0,
 		.has_bit_wd_ctl_cd0 = 0,
+		.has_int_a_b = 1,
 		.reg_time_base = PCF2131_REG_TIME_BASE,
 		.regs_alarm_base = PCF2131_REG_ALARM_BASE,
 		.reg_wd_ctl = PCF2131_REG_WD_CTL,
@@ -989,6 +993,28 @@ static int pcf2127_enable_ts(struct device *dev, int ts_id)
 	return ret;
 }
 
+/* Route all interrupt sources to INT A pin. */
+static int pcf2127_configure_interrupt_pins(struct device *dev)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
+	int ret;
+
+	/* Mask bits need to be cleared to enable corresponding
+	 * interrupt source.
+	 */
+	ret = regmap_write(pcf2127->regmap,
+			   PCF2131_REG_INT_A_MASK1, 0);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(pcf2127->regmap,
+			   PCF2131_REG_INT_A_MASK2, 0);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 			 int alarm_irq, const char *name, const struct pcf21xx_config *config)
 {
@@ -1045,6 +1071,15 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	if (alarm_irq > 0 || device_property_read_bool(dev, "wakeup-source")) {
 		device_init_wakeup(dev, true);
 		set_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
+	}
+
+	if (pcf2127->cfg->has_int_a_b) {
+		/* Configure int A/B pins, independently of alarm_irq. */
+		ret = pcf2127_configure_interrupt_pins(dev);
+		if (ret) {
+			dev_err(dev, "failed to configure interrupt pins\n");
+			return ret;
+		}
 	}
 
 	if (pcf2127->cfg->has_nvmem) {
