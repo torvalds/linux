@@ -10564,19 +10564,20 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
 				struct netlink_ext_ack *extack)
 {
-	u16 lb_rif_index;
+	struct mlxsw_sp_rif *lb_rif;
 	int err;
 
 	/* Create a generic loopback RIF associated with the main table
 	 * (default VRF). Any table can be used, but the main table exists
 	 * anyway, so we do not waste resources.
 	 */
-	err = mlxsw_sp_router_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN,
-					 &lb_rif_index);
-	if (err)
+	lb_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN, extack);
+	if (IS_ERR(lb_rif)) {
+		err = PTR_ERR(lb_rif);
 		return err;
+	}
 
-	mlxsw_sp->router->lb_rif_index = lb_rif_index;
+	mlxsw_sp->router->lb_rif_index = lb_rif->rif_index;
 
 	return 0;
 }
