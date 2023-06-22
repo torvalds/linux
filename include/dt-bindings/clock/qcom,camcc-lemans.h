@@ -91,8 +91,7 @@
 #define CAM_CC_SLEEP_CLK_SRC				81
 #define CAM_CC_SLOW_AHB_CLK_SRC				82
 #define CAM_CC_XO_CLK_SRC				83
-#define CAM_CC_SM_OBS_CLK				84
-#define CAM_CC_TITAN_TOP_ACCU_SHIFT_CLK			85
+#define CAM_CC_TITAN_TOP_ACCU_SHIFT_CLK			84
 
 /* CAM_CC resets */
 #define CAM_CC_ICP_BCR					0
