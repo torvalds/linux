@@ -397,9 +397,6 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					rsp_iov);
 
  finished:
-	if (cfile)
-		cifsFileInfo_put(cfile);
-
 	SMB2_open_free(&rqst[0]);
 	if (rc == -EREMCHG) {
 		pr_warn_once("server share %s deleted\n", tcon->tree_name);
@@ -512,6 +509,9 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		free_set_inf_compound(rqst);
 		break;
 	}
+
+	if (cfile)
+		cifsFileInfo_put(cfile);
 
 	if (rc && err_iov && err_buftype) {
 		memcpy(err_iov, rsp_iov, 3 * sizeof(*err_iov));
