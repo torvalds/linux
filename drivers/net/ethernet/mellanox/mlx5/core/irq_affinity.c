@@ -191,17 +191,13 @@ struct mlx5_irq *mlx5_irq_affinity_irq_request_auto(struct mlx5_core_dev *dev,
 	struct irq_affinity_desc af_desc = {};
 	struct mlx5_irq *irq;
 
+	if (!mlx5_irq_pool_is_sf_pool(pool))
+		return ERR_PTR(-ENOENT);
+
 	af_desc.is_managed = 1;
 	cpumask_copy(&af_desc.mask, cpu_online_mask);
 	cpumask_andnot(&af_desc.mask, &af_desc.mask, used_cpus);
-	if (mlx5_irq_pool_is_sf_pool(pool))
-		irq = mlx5_irq_affinity_request(pool, &af_desc);
-	else
-		/* In case SF pool doesn't exists, fallback to the PF IRQs.
-		 * The PF IRQs are already allocated and binded to CPU
-		 * at this point. Hence, only an index is needed.
-		 */
-		irq = mlx5_irq_request(dev, vecidx, NULL, NULL);
+	irq = mlx5_irq_affinity_request(pool, &af_desc);
 
 	if (IS_ERR(irq))
 		return irq;

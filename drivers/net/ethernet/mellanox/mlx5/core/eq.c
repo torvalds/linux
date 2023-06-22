@@ -850,14 +850,29 @@ spread_done:
 	return found_cpu;
 }
 
+static struct cpu_rmap *mlx5_eq_table_get_pci_rmap(struct mlx5_core_dev *dev)
+{
+#ifdef CONFIG_RFS_ACCEL
+#ifdef CONFIG_MLX5_SF
+	if (mlx5_core_is_sf(dev))
+		return dev->priv.parent_mdev->priv.eq_table->rmap;
+#endif
+	return dev->priv.eq_table->rmap;
+#else
+	return NULL;
+#endif
+}
+
 static int comp_irq_request_pci(struct mlx5_core_dev *dev, u16 vecidx)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
+	struct cpu_rmap *rmap;
 	struct mlx5_irq *irq;
 	int cpu;
 
+	rmap = mlx5_eq_table_get_pci_rmap(dev);
 	cpu = mlx5_cpumask_default_spread(dev->priv.numa_node, vecidx);
-	irq = mlx5_irq_request_vector(dev, cpu, vecidx, &table->rmap);
+	irq = mlx5_irq_request_vector(dev, cpu, vecidx, &rmap);
 	if (IS_ERR(irq))
 		return PTR_ERR(irq);
 
@@ -883,8 +898,13 @@ static int comp_irq_request_sf(struct mlx5_core_dev *dev, u16 vecidx)
 	struct mlx5_irq *irq;
 
 	irq = mlx5_irq_affinity_irq_request_auto(dev, &table->used_cpus, vecidx);
-	if (IS_ERR(irq))
+	if (IS_ERR(irq)) {
+		/* In case SF irq pool does not exist, fallback to the PF irqs*/
+		if (PTR_ERR(irq) == -ENOENT)
+			return comp_irq_request_pci(dev, vecidx);
+
 		return PTR_ERR(irq);
+	}
 
 	return xa_err(xa_store(&table->comp_irqs, vecidx, irq, GFP_KERNEL));
 }
