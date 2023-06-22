@@ -991,6 +991,10 @@ out_dq:
 		       GFS2_LOG_HEAD_FLUSH_NORMAL | GFS2_LFC_DO_SYNC);
 out:
 	gfs2_qa_put(ip);
+	if (!error) {
+		for (x = 0; x < num_qd; x++)
+			qda[x]->qd_sync_gen = sdp->sd_quota_sync_gen;
+	}
 	return error;
 }
 
@@ -1334,10 +1338,6 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 		if (num_qd) {
 			if (!error)
 				error = do_sync(num_qd, qda);
-			if (!error)
-				for (x = 0; x < num_qd; x++)
-					qda[x]->qd_sync_gen =
-						sdp->sd_quota_sync_gen;
 
 			for (x = 0; x < num_qd; x++)
 				qd_unlock(qda[x]);
