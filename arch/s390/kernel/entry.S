@@ -136,7 +136,7 @@ _LPP_OFFSET	= __LC_LPP
 	clgfrl	%r14,.Lrange_size\@
 	jhe	\outside_label
 	.section .rodata, "a"
-	.align 4
+	.balign 4
 .Lrange_size\@:
 	.long	\end - \start
 	.previous

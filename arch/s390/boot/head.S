@@ -185,19 +185,19 @@ ipl_start:
 	larl	%r13,.Lcrash
 	lpsw	0(%r13)
 
-	.align	8
+	.balign	8
 .Lwaitpsw:
 	.quad	0x0202000180000000,.Lioint
 .Lnewpswmask:
 	.quad	0x0000000180000000
-	.align	8
+	.balign	8
 .Lorb:	.long	0x00000000,0x0080ff00,.Lccws
 .Lirb:	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	.align	8
+	.balign	8
 .Lcr6:	.quad	0x00000000ff000000
-	.align	8
+	.balign	8
 .Lcrash:.long	0x000a0000,0x00000000
-	.align	8
+	.balign	8
 .Lccws: .rept	19
 	.long	0x02600050,0x00000000
 	.endr
@@ -207,7 +207,7 @@ ipl_start:
 	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep nohold"
 .L_eof: .long	0xc5d6c600	 /* C'EOF' */
 .L_hdr: .long	0xc8c4d900	 /* C'HDR' */
-	.align	8
+	.balign	8
 .Lcpuid:.fill	8,1,0
 
 #
@@ -265,7 +265,7 @@ SYM_CODE_START_LOCAL(startup_normal)
 	brasl	%r14,startup_kernel
 SYM_CODE_END(startup_normal)
 
-	.align	8
+	.balign	8
 6:	.long	0x7fffffff,0xffffffff
 .Lext_new_psw:
 	.quad	0x0002000180000000,0x1b0	# disabled wait
