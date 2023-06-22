@@ -19,7 +19,7 @@
 #include "xe_gt_types.h"
 #include "xe_guc_engine_types.h"
 #include "xe_sched_job.h"
-#include "xe_vm_types.h"
+#include "xe_vm.h"
 
 DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
 		    TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
@@ -374,10 +374,10 @@ DECLARE_EVENT_CLASS(xe_vma,
 
 		    TP_fast_assign(
 			   __entry->vma = (unsigned long)vma;
-			   __entry->asid = vma->vm->usm.asid;
-			   __entry->start = vma->start;
-			   __entry->end = vma->end;
-			   __entry->ptr = (u64)vma->userptr.ptr;
+			   __entry->asid = xe_vma_vm(vma)->usm.asid;
+			   __entry->start = xe_vma_start(vma);
+			   __entry->end = xe_vma_end(vma) - 1;
+			   __entry->ptr = xe_vma_userptr(vma);
 			   ),
 
 		    TP_printk("vma=0x%016llx, asid=0x%05x, start=0x%012llx, end=0x%012llx, ptr=0x%012llx,",

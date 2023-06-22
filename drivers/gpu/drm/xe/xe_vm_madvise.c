@@ -30,7 +30,7 @@ static int madvise_preferred_mem_class(struct xe_device *xe, struct xe_vm *vm,
 		struct xe_bo *bo;
 		struct ww_acquire_ctx ww;
 
-		bo = vmas[i]->bo;
+		bo = xe_vma_bo(vmas[i]);
 
 		err = xe_bo_lock(bo, &ww, 0, true);
 		if (err)
@@ -55,7 +55,7 @@ static int madvise_preferred_gt(struct xe_device *xe, struct xe_vm *vm,
 		struct xe_bo *bo;
 		struct ww_acquire_ctx ww;
 
-		bo = vmas[i]->bo;
+		bo = xe_vma_bo(vmas[i]);
 
 		err = xe_bo_lock(bo, &ww, 0, true);
 		if (err)
@@ -91,7 +91,7 @@ static int madvise_preferred_mem_class_gt(struct xe_device *xe,
 		struct xe_bo *bo;
 		struct ww_acquire_ctx ww;
 
-		bo = vmas[i]->bo;
+		bo = xe_vma_bo(vmas[i]);
 
 		err = xe_bo_lock(bo, &ww, 0, true);
 		if (err)
@@ -114,7 +114,7 @@ static int madvise_cpu_atomic(struct xe_device *xe, struct xe_vm *vm,
 		struct xe_bo *bo;
 		struct ww_acquire_ctx ww;
 
-		bo = vmas[i]->bo;
+		bo = xe_vma_bo(vmas[i]);
 		if (XE_IOCTL_ERR(xe, !(bo->flags & XE_BO_CREATE_SYSTEM_BIT)))
 			return -EINVAL;
 
@@ -145,7 +145,7 @@ static int madvise_device_atomic(struct xe_device *xe, struct xe_vm *vm,
 		struct xe_bo *bo;
 		struct ww_acquire_ctx ww;
 
-		bo = vmas[i]->bo;
+		bo = xe_vma_bo(vmas[i]);
 		if (XE_IOCTL_ERR(xe, !(bo->flags & XE_BO_CREATE_VRAM0_BIT) &&
 				 !(bo->flags & XE_BO_CREATE_VRAM1_BIT)))
 			return -EINVAL;
@@ -176,7 +176,7 @@ static int madvise_priority(struct xe_device *xe, struct xe_vm *vm,
 		struct xe_bo *bo;
 		struct ww_acquire_ctx ww;
 
-		bo = vmas[i]->bo;
+		bo = xe_vma_bo(vmas[i]);
 
 		err = xe_bo_lock(bo, &ww, 0, true);
 		if (err)

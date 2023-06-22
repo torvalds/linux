@@ -126,7 +126,7 @@ retry:
 		if (xe_vma_is_userptr(vma))
 			continue;
 
-		err = xe_bo_validate(vma->bo, vm, false);
+		err = xe_bo_validate(xe_vma_bo(vma), vm, false);
 		if (err) {
 			xe_vm_unlock_dma_resv(vm, tv_onstack, *tv, ww, objs);
 			*tv = NULL;

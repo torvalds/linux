@@ -96,7 +96,7 @@ static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 				&cur);
 		return xe_res_dma(&cur) + offset;
 	} else {
-		return xe_bo_addr(vma->bo, offset, page_size, is_vram);
+		return xe_bo_addr(xe_vma_bo(vma), offset, page_size, is_vram);
 	}
 }
 
@@ -749,7 +749,7 @@ static int
 xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 struct xe_vm_pgtable_update *entries, u32 *num_entries)
 {
-	struct xe_bo *bo = vma->bo;
+	struct xe_bo *bo = xe_vma_bo(vma);
 	bool is_vram = !xe_vma_is_userptr(vma) && bo && xe_bo_is_vram(bo);
 	struct xe_res_cursor curs;
 	struct xe_pt_stage_bind_walk xe_walk = {
@@ -758,15 +758,15 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 			.shifts = xe_normal_pt_shifts,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
-		.vm = vma->vm,
+		.vm = xe_vma_vm(vma),
 		.tile = tile,
 		.curs = &curs,
-		.va_curs_start = vma->start,
+		.va_curs_start = xe_vma_start(vma),
 		.pte_flags = vma->pte_flags,
 		.wupd.entries = entries,
-		.needs_64K = (vma->vm->flags & XE_VM_FLAGS_64K) && is_vram,
+		.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAGS_64K) && is_vram,
 	};
-	struct xe_pt *pt = vma->vm->pt_root[tile->id];
+	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 	int ret;
 
 	if (is_vram) {
@@ -788,20 +788,20 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 
 	if (!xe_vma_is_null(vma)) {
 		if (xe_vma_is_userptr(vma))
-			xe_res_first_sg(vma->userptr.sg, 0,
-					vma->end - vma->start + 1, &curs);
+			xe_res_first_sg(vma->userptr.sg, 0, xe_vma_size(vma),
+					&curs);
 		else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
-			xe_res_first(bo->ttm.resource, vma->bo_offset,
-				     vma->end - vma->start + 1, &curs);
+			xe_res_first(bo->ttm.resource, xe_vma_bo_offset(vma),
+				     xe_vma_size(vma), &curs);
 		else
-			xe_res_first_sg(xe_bo_get_sg(bo), vma->bo_offset,
-					vma->end - vma->start + 1, &curs);
+			xe_res_first_sg(xe_bo_get_sg(bo), xe_vma_bo_offset(vma),
+					xe_vma_size(vma), &curs);
 	} else {
-		curs.size = vma->end - vma->start + 1;
+		curs.size = xe_vma_size(vma);
 	}
 
-	ret = xe_pt_walk_range(&pt->base, pt->level, vma->start, vma->end + 1,
-				&xe_walk.base);
+	ret = xe_pt_walk_range(&pt->base, pt->level, xe_vma_start(vma),
+			       xe_vma_end(vma), &xe_walk.base);
 
 	*num_entries = xe_walk.wupd.num_used_entries;
 	return ret;
@@ -933,13 +933,13 @@ bool xe_pt_zap_ptes(struct xe_tile *tile, struct xe_vma *vma)
 		},
 		.tile = tile,
 	};
-	struct xe_pt *pt = vma->vm->pt_root[tile->id];
+	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 
 	if (!(vma->tile_present & BIT(tile->id)))
 		return false;
 
-	(void)xe_pt_walk_shared(&pt->base, pt->level, vma->start, vma->end + 1,
-				 &xe_walk.base);
+	(void)xe_pt_walk_shared(&pt->base, pt->level, xe_vma_start(vma),
+				xe_vma_end(vma), &xe_walk.base);
 
 	return xe_walk.needs_invalidate;
 }
@@ -974,21 +974,21 @@ static void xe_pt_abort_bind(struct xe_vma *vma,
 			continue;
 
 		for (j = 0; j < entries[i].qwords; j++)
-			xe_pt_destroy(entries[i].pt_entries[j].pt, vma->vm->flags, NULL);
+			xe_pt_destroy(entries[i].pt_entries[j].pt, xe_vma_vm(vma)->flags, NULL);
 		kfree(entries[i].pt_entries);
 	}
 }
 
 static void xe_pt_commit_locks_assert(struct xe_vma *vma)
 {
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 
 	lockdep_assert_held(&vm->lock);
 
 	if (xe_vma_is_userptr(vma))
 		lockdep_assert_held_read(&vm->userptr.notifier_lock);
 	else if (!xe_vma_is_null(vma))
-		dma_resv_assert_held(vma->bo->ttm.base.resv);
+		dma_resv_assert_held(xe_vma_bo(vma)->ttm.base.resv);
 
 	dma_resv_assert_held(&vm->resv);
 }
@@ -1021,7 +1021,7 @@ static void xe_pt_commit_bind(struct xe_vma *vma,
 
 			if (xe_pt_entry(pt_dir, j_))
 				xe_pt_destroy(xe_pt_entry(pt_dir, j_),
-					      vma->vm->flags, deferred);
+					      xe_vma_vm(vma)->flags, deferred);
 
 			pt_dir->dir.entries[j_] = &newpte->base;
 		}
@@ -1082,7 +1082,7 @@ static int xe_pt_userptr_inject_eagain(struct xe_vma *vma)
 	static u32 count;
 
 	if (count++ % divisor == divisor - 1) {
-		struct xe_vm *vm = vma->vm;
+		struct xe_vm *vm = xe_vma_vm(vma);
 
 		vma->userptr.divisor = divisor << 1;
 		spin_lock(&vm->userptr.invalidated_lock);
@@ -1125,7 +1125,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 		container_of(pt_update, typeof(*userptr_update), base);
 	struct xe_vma *vma = pt_update->vma;
 	unsigned long notifier_seq = vma->userptr.notifier_seq;
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 
 	userptr_update->locked = false;
 
@@ -1296,19 +1296,19 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		},
 		.bind = true,
 	};
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	u32 num_entries;
 	struct dma_fence *fence;
 	struct invalidation_fence *ifence = NULL;
 	int err;
 
 	bind_pt_update.locked = false;
-	xe_bo_assert_held(vma->bo);
+	xe_bo_assert_held(xe_vma_bo(vma));
 	xe_vm_assert_held(vm);
 
-	vm_dbg(&vma->vm->xe->drm,
+	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing bind, with range [%llx...%llx) engine %p.\n",
-	       vma->start, vma->end, e);
+	       xe_vma_start(vma), xe_vma_end(vma) - 1, e);
 
 	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
 	if (err)
@@ -1337,7 +1337,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	}
 
 	fence = xe_migrate_update_pgtables(tile->migrate,
-					   vm, vma->bo,
+					   vm, xe_vma_bo(vma),
 					   e ? e : vm->eng[tile->id],
 					   entries, num_entries,
 					   syncs, num_syncs,
@@ -1363,8 +1363,8 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 				   DMA_RESV_USAGE_KERNEL :
 				   DMA_RESV_USAGE_BOOKKEEP);
 
-		if (!xe_vma_has_no_bo(vma) && !vma->bo->vm)
-			dma_resv_add_fence(vma->bo->ttm.base.resv, fence,
+		if (!xe_vma_has_no_bo(vma) && !xe_vma_bo(vma)->vm)
+			dma_resv_add_fence(xe_vma_bo(vma)->ttm.base.resv, fence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_bind(vma, entries, num_entries, rebind,
 				  bind_pt_update.locked ? &deferred : NULL);
@@ -1526,14 +1526,14 @@ static unsigned int xe_pt_stage_unbind(struct xe_tile *tile, struct xe_vma *vma,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
 		.tile = tile,
-		.modified_start = vma->start,
-		.modified_end = vma->end + 1,
+		.modified_start = xe_vma_start(vma),
+		.modified_end = xe_vma_end(vma),
 		.wupd.entries = entries,
 	};
-	struct xe_pt *pt = vma->vm->pt_root[tile->id];
+	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 
-	(void)xe_pt_walk_shared(&pt->base, pt->level, vma->start, vma->end + 1,
-				 &xe_walk.base);
+	(void)xe_pt_walk_shared(&pt->base, pt->level, xe_vma_start(vma),
+				xe_vma_end(vma), &xe_walk.base);
 
 	return xe_walk.wupd.num_used_entries;
 }
@@ -1545,7 +1545,7 @@ xe_migrate_clear_pgtable_callback(struct xe_migrate_pt_update *pt_update,
 				  const struct xe_vm_pgtable_update *update)
 {
 	struct xe_vma *vma = pt_update->vma;
-	u64 empty = __xe_pt_empty_pte(tile, vma->vm, update->pt->level);
+	u64 empty = __xe_pt_empty_pte(tile, xe_vma_vm(vma), update->pt->level);
 	int i;
 
 	if (map && map->is_iomem)
@@ -1581,7 +1581,7 @@ xe_pt_commit_unbind(struct xe_vma *vma,
 			     i++) {
 				if (xe_pt_entry(pt_dir, i))
 					xe_pt_destroy(xe_pt_entry(pt_dir, i),
-						      vma->vm->flags, deferred);
+						      xe_vma_vm(vma)->flags, deferred);
 
 				pt_dir->dir.entries[i] = NULL;
 			}
@@ -1630,18 +1630,18 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 			.vma = vma,
 		},
 	};
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	u32 num_entries;
 	struct dma_fence *fence = NULL;
 	struct invalidation_fence *ifence;
 	LLIST_HEAD(deferred);
 
-	xe_bo_assert_held(vma->bo);
+	xe_bo_assert_held(xe_vma_bo(vma));
 	xe_vm_assert_held(vm);
 
-	vm_dbg(&vma->vm->xe->drm,
+	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing unbind, with range [%llx...%llx) engine %p.\n",
-	       vma->start, vma->end, e);
+	       xe_vma_start(vma), xe_vma_end(vma) - 1, e);
 
 	num_entries = xe_pt_stage_unbind(tile, vma, entries);
 	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
@@ -1680,8 +1680,8 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 				   DMA_RESV_USAGE_BOOKKEEP);
 
 		/* This fence will be installed by caller when doing eviction */
-		if (!xe_vma_has_no_bo(vma) && !vma->bo->vm)
-			dma_resv_add_fence(vma->bo->ttm.base.resv, fence,
+		if (!xe_vma_has_no_bo(vma) && !xe_vma_bo(vma)->vm)
+			dma_resv_add_fence(xe_vma_bo(vma)->ttm.base.resv, fence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_unbind(vma, entries, num_entries,
 				    unbind_pt_update.locked ? &deferred : NULL);

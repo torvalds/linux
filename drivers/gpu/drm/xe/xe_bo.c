@@ -426,7 +426,7 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 	}
 
 	list_for_each_entry(vma, &bo->vmas, bo_link) {
-		struct xe_vm *vm = vma->vm;
+		struct xe_vm *vm = xe_vma_vm(vma);
 
 		trace_xe_vma_evict(vma);
 
@@ -454,7 +454,7 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 
 		} else {
 			bool vm_resv_locked = false;
-			struct xe_vm *vm = vma->vm;
+			struct xe_vm *vm = xe_vma_vm(vma);
 
 			/*
 			 * We need to put the vma on the vm's rebind_list,

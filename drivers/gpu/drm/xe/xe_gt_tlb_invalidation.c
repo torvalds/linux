@@ -203,8 +203,8 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 	if (!xe->info.has_range_tlb_invalidation) {
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL);
 	} else {
-		u64 start = vma->start;
-		u64 length = vma->end - vma->start + 1;
+		u64 start = xe_vma_start(vma);
+		u64 length = xe_vma_size(vma);
 		u64 align, end;
 
 		if (length < SZ_4K)
@@ -217,12 +217,12 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 		 * address mask covering the required range.
 		 */
 		align = roundup_pow_of_two(length);
-		start = ALIGN_DOWN(vma->start, align);
-		end = ALIGN(vma->start + length, align);
+		start = ALIGN_DOWN(xe_vma_start(vma), align);
+		end = ALIGN(xe_vma_end(vma), align);
 		length = align;
 		while (start + length < end) {
 			length <<= 1;
-			start = ALIGN_DOWN(vma->start, length);
+			start = ALIGN_DOWN(xe_vma_start(vma), length);
 		}
 
 		/*
@@ -231,7 +231,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 		 */
 		if (length >= SZ_2M) {
 			length = max_t(u64, SZ_16M, length);
-			start = ALIGN_DOWN(vma->start, length);
+			start = ALIGN_DOWN(xe_vma_start(vma), length);
 		}
 
 		XE_BUG_ON(length < SZ_4K);
@@ -240,7 +240,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 		XE_BUG_ON(!IS_ALIGNED(start, length));
 
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_PAGE_SELECTIVE);
-		action[len++] = vma->vm->usm.asid;
+		action[len++] = xe_vma_vm(vma)->usm.asid;
 		action[len++] = lower_32_bits(start);
 		action[len++] = upper_32_bits(start);
 		action[len++] = ilog2(length) - ilog2(SZ_4K);

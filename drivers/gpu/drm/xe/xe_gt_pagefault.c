@@ -77,7 +77,8 @@ static bool vma_is_valid(struct xe_tile *tile, struct xe_vma *vma)
 
 static bool vma_matches(struct xe_vma *vma, struct xe_vma *lookup)
 {
-	if (lookup->start > vma->end || lookup->end < vma->start)
+	if (xe_vma_start(lookup) > xe_vma_end(vma) - 1 ||
+	    xe_vma_end(lookup) - 1 < xe_vma_start(vma))
 		return false;
 
 	return true;
@@ -171,7 +172,7 @@ retry_userptr:
 	}
 
 	/* Lock VM and BOs dma-resv */
-	bo = vma->bo;
+	bo = xe_vma_bo(vma);
 	if (only_needs_bo_lock(bo)) {
 		/* This path ensures the BO's LRU is updated */
 		ret = xe_bo_lock(bo, &ww, xe->info.tile_count, false);
@@ -538,7 +539,7 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 		goto unlock_vm;
 
 	/* Lock VM and BOs dma-resv */
-	bo = vma->bo;
+	bo = xe_vma_bo(vma);
 	if (only_needs_bo_lock(bo)) {
 		/* This path ensures the BO's LRU is updated */
 		ret = xe_bo_lock(bo, &ww, xe->info.tile_count, false);

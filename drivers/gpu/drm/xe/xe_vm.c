@@ -53,15 +53,14 @@ int xe_vma_userptr_check_repin(struct xe_vma *vma)
 
 int xe_vma_userptr_pin_pages(struct xe_vma *vma)
 {
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	struct xe_device *xe = vm->xe;
-	const unsigned long num_pages =
-		(vma->end - vma->start + 1) >> PAGE_SHIFT;
+	const unsigned long num_pages = xe_vma_size(vma) >> PAGE_SHIFT;
 	struct page **pages;
 	bool in_kthread = !current->mm;
 	unsigned long notifier_seq;
 	int pinned, ret, i;
-	bool read_only = vma->pte_flags & XE_PTE_FLAG_READ_ONLY;
+	bool read_only = xe_vma_read_only(vma);
 
 	lockdep_assert_held(&vm->lock);
 	XE_BUG_ON(!xe_vma_is_userptr(vma));
@@ -96,7 +95,8 @@ retry:
 	}
 
 	while (pinned < num_pages) {
-		ret = get_user_pages_fast(vma->userptr.ptr + pinned * PAGE_SIZE,
+		ret = get_user_pages_fast(xe_vma_userptr(vma) +
+					  pinned * PAGE_SIZE,
 					  num_pages - pinned,
 					  read_only ? 0 : FOLL_WRITE,
 					  &pages[pinned]);
@@ -299,7 +299,7 @@ void xe_vm_fence_all_extobjs(struct xe_vm *vm, struct dma_fence *fence,
 	struct xe_vma *vma;
 
 	list_for_each_entry(vma, &vm->extobj.list, extobj.link)
-		dma_resv_add_fence(vma->bo->ttm.base.resv, fence, usage);
+		dma_resv_add_fence(xe_vma_bo(vma)->ttm.base.resv, fence, usage);
 }
 
 static void resume_and_reinstall_preempt_fences(struct xe_vm *vm)
@@ -448,7 +448,7 @@ int xe_vm_lock_dma_resv(struct xe_vm *vm, struct ww_acquire_ctx *ww,
 	INIT_LIST_HEAD(objs);
 	list_for_each_entry(vma, &vm->extobj.list, extobj.link) {
 		tv_bo->num_shared = num_shared;
-		tv_bo->bo = &vma->bo->ttm;
+		tv_bo->bo = &xe_vma_bo(vma)->ttm;
 
 		list_add_tail(&tv_bo->head, objs);
 		tv_bo++;
@@ -463,7 +463,7 @@ int xe_vm_lock_dma_resv(struct xe_vm *vm, struct ww_acquire_ctx *ww,
 	spin_lock(&vm->notifier.list_lock);
 	list_for_each_entry_safe(vma, next, &vm->notifier.rebind_list,
 				 notifier.rebind_link) {
-		xe_bo_assert_held(vma->bo);
+		xe_bo_assert_held(xe_vma_bo(vma));
 
 		list_del_init(&vma->notifier.rebind_link);
 		if (vma->tile_present && !vma->destroyed)
@@ -612,7 +612,7 @@ retry:
 		if (xe_vma_has_no_bo(vma) || vma->destroyed)
 			continue;
 
-		err = xe_bo_validate(vma->bo, vm, false);
+		err = xe_bo_validate(xe_vma_bo(vma), vm, false);
 		if (err)
 			goto out_unlock;
 	}
@@ -706,7 +706,7 @@ static bool vma_userptr_invalidate(struct mmu_interval_notifier *mni,
 				   unsigned long cur_seq)
 {
 	struct xe_vma *vma = container_of(mni, struct xe_vma, userptr.notifier);
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 	long err;
@@ -925,7 +925,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 
 			err = mmu_interval_notifier_insert(&vma->userptr.notifier,
 							   current->mm,
-							   vma->userptr.ptr, size,
+							   xe_vma_userptr(vma), size,
 							   &vma_userptr_notifier_ops);
 			if (err) {
 				kfree(vma);
@@ -945,7 +945,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 static bool vm_remove_extobj(struct xe_vma *vma)
 {
 	if (!list_empty(&vma->extobj.link)) {
-		vma->vm->extobj.entries--;
+		xe_vma_vm(vma)->extobj.entries--;
 		list_del_init(&vma->extobj.link);
 		return true;
 	}
@@ -954,9 +954,9 @@ static bool vm_remove_extobj(struct xe_vma *vma)
 
 static void xe_vma_destroy_late(struct xe_vma *vma)
 {
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	struct xe_device *xe = vm->xe;
-	bool read_only = vma->pte_flags & XE_PTE_FLAG_READ_ONLY;
+	bool read_only = xe_vma_read_only(vma);
 
 	if (xe_vma_is_userptr(vma)) {
 		if (vma->userptr.sg) {
@@ -978,7 +978,7 @@ static void xe_vma_destroy_late(struct xe_vma *vma)
 	} else if (xe_vma_is_null(vma)) {
 		xe_vm_put(vm);
 	} else {
-		xe_bo_put(vma->bo);
+		xe_bo_put(xe_vma_bo(vma));
 	}
 
 	kfree(vma);
@@ -999,7 +999,7 @@ bo_has_vm_references_locked(struct xe_bo *bo, struct xe_vm *vm,
 	struct xe_vma *vma;
 
 	list_for_each_entry(vma, &bo->vmas, bo_link) {
-		if (vma != ignore && vma->vm == vm)
+		if (vma != ignore && xe_vma_vm(vma) == vm)
 			return vma;
 	}
 
@@ -1027,7 +1027,7 @@ static void __vm_insert_extobj(struct xe_vm *vm, struct xe_vma *vma)
 
 static void vm_insert_extobj(struct xe_vm *vm, struct xe_vma *vma)
 {
-	struct xe_bo *bo = vma->bo;
+	struct xe_bo *bo = xe_vma_bo(vma);
 
 	lockdep_assert_held_write(&vm->lock);
 
@@ -1048,7 +1048,7 @@ static void vma_destroy_cb(struct dma_fence *fence,
 
 static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 {
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 
 	lockdep_assert_held_write(&vm->lock);
 	XE_BUG_ON(!list_empty(&vma->unbind_link));
@@ -1060,17 +1060,17 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 		spin_unlock(&vm->userptr.invalidated_lock);
 		list_del(&vma->userptr_link);
 	} else if (!xe_vma_is_null(vma)) {
-		xe_bo_assert_held(vma->bo);
+		xe_bo_assert_held(xe_vma_bo(vma));
 		list_del(&vma->bo_link);
 
 		spin_lock(&vm->notifier.list_lock);
 		list_del(&vma->notifier.rebind_link);
 		spin_unlock(&vm->notifier.list_lock);
 
-		if (!vma->bo->vm && vm_remove_extobj(vma)) {
+		if (!xe_vma_bo(vma)->vm && vm_remove_extobj(vma)) {
 			struct xe_vma *other;
 
-			other = bo_has_vm_references_locked(vma->bo, vm, NULL);
+			other = bo_has_vm_references_locked(xe_vma_bo(vma), vm, NULL);
 
 			if (other)
 				__vm_insert_extobj(vm, other);
@@ -1098,13 +1098,13 @@ static void xe_vma_destroy_unlocked(struct xe_vma *vma)
 {
 	struct ttm_validate_buffer tv[2];
 	struct ww_acquire_ctx ww;
-	struct xe_bo *bo = vma->bo;
+	struct xe_bo *bo = xe_vma_bo(vma);
 	LIST_HEAD(objs);
 	LIST_HEAD(dups);
 	int err;
 
 	memset(tv, 0, sizeof(tv));
-	tv[0].bo = xe_vm_ttm_bo(vma->vm);
+	tv[0].bo = xe_vm_ttm_bo(xe_vma_vm(vma));
 	list_add(&tv[0].head, &objs);
 
 	if (bo) {
@@ -1127,11 +1127,11 @@ static struct xe_vma *to_xe_vma(const struct rb_node *node)
 	return (struct xe_vma *)node;
 }
 
-static int xe_vma_cmp(const struct xe_vma *a, const struct xe_vma *b)
+static int xe_vma_cmp(struct xe_vma *a, struct xe_vma *b)
 {
-	if (a->end < b->start) {
+	if (xe_vma_end(a) - 1 < xe_vma_start(b)) {
 		return -1;
-	} else if (b->end < a->start) {
+	} else if (xe_vma_end(b) - 1 < xe_vma_start(a)) {
 		return 1;
 	} else {
 		return 0;
@@ -1146,19 +1146,19 @@ static bool xe_vma_less_cb(struct rb_node *a, const struct rb_node *b)
 int xe_vma_cmp_vma_cb(const void *key, const struct rb_node *node)
 {
 	struct xe_vma *cmp = to_xe_vma(node);
-	const struct xe_vma *own = key;
+	struct xe_vma *own = (struct xe_vma *)key;
 
-	if (own->start > cmp->end)
+	if (xe_vma_start(own) > xe_vma_end(cmp) - 1)
 		return 1;
 
-	if (own->end < cmp->start)
+	if (xe_vma_end(own) - 1 < xe_vma_start(cmp))
 		return -1;
 
 	return 0;
 }
 
 struct xe_vma *
-xe_vm_find_overlapping_vma(struct xe_vm *vm, const struct xe_vma *vma)
+xe_vm_find_overlapping_vma(struct xe_vm *vm, struct xe_vma *vma)
 {
 	struct rb_node *node;
 
@@ -1167,7 +1167,7 @@ xe_vm_find_overlapping_vma(struct xe_vm *vm, const struct xe_vma *vma)
 	if (xe_vm_is_closed_or_banned(vm))
 		return NULL;
 
-	XE_BUG_ON(vma->end >= vm->size);
+	XE_BUG_ON(xe_vma_end(vma) > vm->size);
 
 	node = rb_find(vma, &vm->vmas, xe_vma_cmp_vma_cb);
 
@@ -1176,7 +1176,7 @@ xe_vm_find_overlapping_vma(struct xe_vm *vm, const struct xe_vma *vma)
 
 static void xe_vm_insert_vma(struct xe_vm *vm, struct xe_vma *vma)
 {
-	XE_BUG_ON(vma->vm != vm);
+	XE_BUG_ON(xe_vma_vm(vma) != vm);
 	lockdep_assert_held(&vm->lock);
 
 	rb_add(&vma->vm_node, &vm->vmas, xe_vma_less_cb);
@@ -1184,7 +1184,7 @@ static void xe_vm_insert_vma(struct xe_vm *vm, struct xe_vma *vma)
 
 static void xe_vm_remove_vma(struct xe_vm *vm, struct xe_vma *vma)
 {
-	XE_BUG_ON(vma->vm != vm);
+	XE_BUG_ON(xe_vma_vm(vma) != vm);
 	lockdep_assert_held(&vm->lock);
 
 	rb_erase(&vma->vm_node, &vm->vmas);
@@ -1445,7 +1445,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 		rb_erase(&vma->vm_node, &vm->vmas);
 
 		/* easy case, remove from VMA? */
-		if (xe_vma_has_no_bo(vma) || vma->bo->vm) {
+		if (xe_vma_has_no_bo(vma) || xe_vma_bo(vma)->vm) {
 			xe_vma_destroy(vma, NULL);
 			continue;
 		}
@@ -1584,7 +1584,7 @@ xe_vm_unbind_vma(struct xe_vma *vma, struct xe_engine *e,
 	struct dma_fence *fence = NULL;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	int cur_fence = 0, i;
 	int number_tiles = hweight_long(vma->tile_present);
 	int err;
@@ -1654,7 +1654,7 @@ xe_vm_bind_vma(struct xe_vma *vma, struct xe_engine *e,
 	struct dma_fence *fence;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
-	struct xe_vm *vm = vma->vm;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	int cur_fence = 0, i;
 	int number_tiles = hweight_long(vma->tile_mask);
 	int err;
@@ -1840,7 +1840,7 @@ static int xe_vm_unbind(struct xe_vm *vm, struct xe_vma *vma,
 	struct dma_fence *fence;
 
 	xe_vm_assert_held(vm);
-	xe_bo_assert_held(vma->bo);
+	xe_bo_assert_held(xe_vma_bo(vma));
 
 	fence = xe_vm_unbind_vma(vma, e, syncs, num_syncs);
 	if (IS_ERR(fence))
@@ -2078,13 +2078,13 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 	XE_BUG_ON(region > ARRAY_SIZE(region_to_mem_type));
 
 	if (!xe_vma_has_no_bo(vma)) {
-		err = xe_bo_migrate(vma->bo, region_to_mem_type[region]);
+		err = xe_bo_migrate(xe_vma_bo(vma), region_to_mem_type[region]);
 		if (err)
 			return err;
 	}
 
 	if (vma->tile_mask != (vma->tile_present & ~vma->usm.tile_invalidated)) {
-		return xe_vm_bind(vm, vma, e, vma->bo, syncs, num_syncs,
+		return xe_vm_bind(vm, vma, e, xe_vma_bo(vma), syncs, num_syncs,
 				  afence);
 	} else {
 		int i;
@@ -2180,7 +2180,7 @@ static int vm_bind_ioctl(struct xe_vm *vm, struct xe_vma *vma,
 
 	xe_vm_tv_populate(vm, &tv_vm);
 	list_add_tail(&tv_vm.head, &objs);
-	vbo = vma->bo;
+	vbo = xe_vma_bo(vma);
 	if (vbo) {
 		/*
 		 * An unbind can drop the last reference to the BO and
@@ -2540,7 +2540,7 @@ static int vm_bind_ioctl_async(struct xe_vm *vm, struct xe_vma *vma,
 		} else {
 			bind_op->op = XE_VM_BIND_FLAG_ASYNC |
 				XE_VM_BIND_OP_MAP;
-			xe_bo_get(__vma->bo);
+			xe_bo_get(xe_vma_bo(__vma));
 		}
 
 		if (!last) {
@@ -2550,7 +2550,7 @@ static int vm_bind_ioctl_async(struct xe_vm *vm, struct xe_vma *vma,
 		}
 
 		err = __vm_bind_ioctl_async(vm, __vma, e,
-					    __vma->bo, bind_op, last ?
+					    xe_vma_bo(__vma), bind_op, last ?
 					    out_syncs : NULL,
 					    last ? num_out_syncs : 0);
 		if (err) {
@@ -2597,8 +2597,8 @@ static int __vm_bind_ioctl_lookup_vma(struct xe_vm *vm, struct xe_bo *bo,
 	case XE_VM_BIND_OP_PREFETCH:
 		vma = xe_vm_find_overlapping_vma(vm, &lookup);
 		if (XE_IOCTL_ERR(xe, !vma) ||
-		    XE_IOCTL_ERR(xe, (vma->start != addr ||
-				 vma->end != addr + range - 1) && !async))
+		    XE_IOCTL_ERR(xe, (xe_vma_start(vma) != addr ||
+				 xe_vma_end(vma) != addr + range) && !async))
 			return -EINVAL;
 		break;
 	case XE_VM_BIND_OP_UNMAP_ALL:
@@ -2623,9 +2623,9 @@ static int prep_replacement_vma(struct xe_vm *vm, struct xe_vma *vma)
 {
 	int err;
 
-	if (vma->bo && !vma->bo->vm) {
+	if (xe_vma_bo(vma) && !xe_vma_bo(vma)->vm) {
 		vm_insert_extobj(vm, vma);
-		err = add_preempt_fences(vm, vma->bo);
+		err = add_preempt_fences(vm, xe_vma_bo(vma));
 		if (err)
 			return err;
 	}
@@ -2674,25 +2674,25 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 		}
 	}
 
-	if (first->start != lookup->start) {
+	if (xe_vma_start(first) != xe_vma_start(lookup)) {
 		struct ww_acquire_ctx ww;
 
-		if (first->bo)
-			err = xe_bo_lock(first->bo, &ww, 0, true);
+		if (xe_vma_bo(first))
+			err = xe_bo_lock(xe_vma_bo(first), &ww, 0, true);
 		if (err)
 			goto unwind;
-		new_first = xe_vma_create(first->vm, first->bo,
-					  first->bo ? first->bo_offset :
-					  first->userptr.ptr,
-					  first->start,
-					  lookup->start - 1,
-					  (first->pte_flags &
-					   XE_PTE_FLAG_READ_ONLY),
+		new_first = xe_vma_create(xe_vma_vm(first), xe_vma_bo(first),
+					  xe_vma_bo(first) ?
+					  xe_vma_bo_offset(first) :
+					  xe_vma_userptr(first),
+					  xe_vma_start(first),
+					  xe_vma_start(lookup) - 1,
+					  xe_vma_read_only(first),
 					  (first->pte_flags &
 					   XE_PTE_FLAG_NULL),
 					  first->tile_mask);
-		if (first->bo)
-			xe_bo_unlock(first->bo, &ww);
+		if (xe_vma_bo(first))
+			xe_bo_unlock(xe_vma_bo(first), &ww);
 		if (!new_first) {
 			err = -ENOMEM;
 			goto unwind;
@@ -2707,25 +2707,25 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 			goto unwind;
 	}
 
-	if (last->end != lookup->end) {
+	if (xe_vma_end(last) != xe_vma_end(lookup)) {
 		struct ww_acquire_ctx ww;
-		u64 chunk = lookup->end + 1 - last->start;
+		u64 chunk = xe_vma_end(lookup) - xe_vma_start(last);
 
-		if (last->bo)
-			err = xe_bo_lock(last->bo, &ww, 0, true);
+		if (xe_vma_bo(last))
+			err = xe_bo_lock(xe_vma_bo(last), &ww, 0, true);
 		if (err)
 			goto unwind;
-		new_last = xe_vma_create(last->vm, last->bo,
-					 last->bo ? last->bo_offset + chunk :
-					 last->userptr.ptr + chunk,
-					 last->start + chunk,
-					 last->end,
-					 (last->pte_flags &
-					  XE_PTE_FLAG_READ_ONLY),
+		new_last = xe_vma_create(xe_vma_vm(last), xe_vma_bo(last),
+					 xe_vma_bo(last) ?
+					 xe_vma_bo_offset(last) + chunk :
+					 xe_vma_userptr(last) + chunk,
+					 xe_vma_start(last) + chunk,
+					 xe_vma_end(last) - 1,
+					 xe_vma_read_only(last),
 					 (last->pte_flags & XE_PTE_FLAG_NULL),
 					 last->tile_mask);
-		if (last->bo)
-			xe_bo_unlock(last->bo, &ww);
+		if (xe_vma_bo(last))
+			xe_bo_unlock(xe_vma_bo(last), &ww);
 		if (!new_last) {
 			err = -ENOMEM;
 			goto unwind;
@@ -2791,7 +2791,7 @@ static struct xe_vma *vm_prefetch_lookup_vmas(struct xe_vm *vm,
 	struct rb_node *node;
 
 	if (!xe_vma_has_no_bo(vma)) {
-		if (!xe_bo_can_migrate(vma->bo, region_to_mem_type[region]))
+		if (!xe_bo_can_migrate(xe_vma_bo(vma), region_to_mem_type[region]))
 			return ERR_PTR(-EINVAL);
 	}
 
@@ -2800,7 +2800,7 @@ static struct xe_vma *vm_prefetch_lookup_vmas(struct xe_vm *vm,
 		if (!xe_vma_cmp_vma_cb(lookup, node)) {
 			__vma = to_xe_vma(node);
 			if (!xe_vma_has_no_bo(__vma)) {
-				if (!xe_bo_can_migrate(__vma->bo, region_to_mem_type[region]))
+				if (!xe_bo_can_migrate(xe_vma_bo(__vma), region_to_mem_type[region]))
 					goto flush_list;
 			}
 			list_add_tail(&__vma->unbind_link, &vma->unbind_link);
@@ -2814,7 +2814,7 @@ static struct xe_vma *vm_prefetch_lookup_vmas(struct xe_vm *vm,
 		if (!xe_vma_cmp_vma_cb(lookup, node)) {
 			__vma = to_xe_vma(node);
 			if (!xe_vma_has_no_bo(__vma)) {
-				if (!xe_bo_can_migrate(__vma->bo, region_to_mem_type[region]))
+				if (!xe_bo_can_migrate(xe_vma_bo(__vma), region_to_mem_type[region]))
 					goto flush_list;
 			}
 			list_add(&__vma->unbind_link, &vma->unbind_link);
@@ -2842,7 +2842,7 @@ static struct xe_vma *vm_unbind_all_lookup_vmas(struct xe_vm *vm,
 	xe_bo_assert_held(bo);
 
 	list_for_each_entry(vma, &bo->vmas, bo_link) {
-		if (vma->vm != vm)
+		if (xe_vma_vm(vma) != vm)
 			continue;
 
 		prep_vma_destroy(vm, vma);
@@ -3436,14 +3436,14 @@ void xe_vm_unlock(struct xe_vm *vm, struct ww_acquire_ctx *ww)
  */
 int xe_vm_invalidate_vma(struct xe_vma *vma)
 {
-	struct xe_device *xe = vma->vm->xe;
+	struct xe_device *xe = xe_vma_vm(vma)->xe;
 	struct xe_tile *tile;
 	u32 tile_needs_invalidate = 0;
 	int seqno[XE_MAX_TILES_PER_DEVICE];
 	u8 id;
 	int ret;
 
-	XE_BUG_ON(!xe_vm_in_fault_mode(vma->vm));
+	XE_BUG_ON(!xe_vm_in_fault_mode(xe_vma_vm(vma)));
 	XE_WARN_ON(xe_vma_is_null(vma));
 	trace_xe_vma_usm_invalidate(vma);
 
@@ -3453,11 +3453,11 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 			WARN_ON_ONCE(!mmu_interval_check_retry
 				     (&vma->userptr.notifier,
 				      vma->userptr.notifier_seq));
-			WARN_ON_ONCE(!dma_resv_test_signaled(&vma->vm->resv,
+			WARN_ON_ONCE(!dma_resv_test_signaled(&xe_vma_vm(vma)->resv,
 							     DMA_RESV_USAGE_BOOKKEEP));
 
 		} else {
-			xe_bo_assert_held(vma->bo);
+			xe_bo_assert_held(xe_vma_bo(vma));
 		}
 	}
 
@@ -3522,10 +3522,11 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 				addr = 0;
 			}
 		} else {
-			addr = __xe_bo_addr(vma->bo, 0, XE_PAGE_SIZE, &is_vram);
+			addr = __xe_bo_addr(xe_vma_bo(vma), 0, XE_PAGE_SIZE, &is_vram);
 		}
 		drm_printf(p, " [%016llx-%016llx] S:0x%016llx A:%016llx %s\n",
-			   vma->start, vma->end, vma->end - vma->start + 1ull,
+			   xe_vma_start(vma), xe_vma_end(vma) - 1,
+			   xe_vma_size(vma),
 			   addr, is_null ? "NULL" : is_userptr ? "USR" :
 			   is_vram ? "VRAM" : "SYS");
 	}

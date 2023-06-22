@@ -61,7 +61,66 @@ static inline bool xe_vm_is_closed_or_banned(struct xe_vm *vm)
 }
 
 struct xe_vma *
-xe_vm_find_overlapping_vma(struct xe_vm *vm, const struct xe_vma *vma);
+xe_vm_find_overlapping_vma(struct xe_vm *vm, struct xe_vma *vma);
+
+/**
+ * DOC: Provide accessors for vma members to facilitate easy change of
+ * implementation.
+ */
+static inline u64 xe_vma_start(struct xe_vma *vma)
+{
+	return vma->start;
+}
+
+static inline u64 xe_vma_size(struct xe_vma *vma)
+{
+	return vma->end - vma->start + 1;
+}
+
+static inline u64 xe_vma_end(struct xe_vma *vma)
+{
+	return xe_vma_start(vma) + xe_vma_size(vma);
+}
+
+static inline u64 xe_vma_bo_offset(struct xe_vma *vma)
+{
+	return vma->bo_offset;
+}
+
+static inline struct xe_bo *xe_vma_bo(struct xe_vma *vma)
+{
+	return vma->bo;
+}
+
+static inline struct xe_vm *xe_vma_vm(struct xe_vma *vma)
+{
+	return vma->vm;
+}
+
+static inline bool xe_vma_read_only(struct xe_vma *vma)
+{
+	return vma->pte_flags & XE_PTE_FLAG_READ_ONLY;
+}
+
+static inline u64 xe_vma_userptr(struct xe_vma *vma)
+{
+	return vma->userptr.ptr;
+}
+
+static inline bool xe_vma_is_null(struct xe_vma *vma)
+{
+	return vma->pte_flags & XE_PTE_FLAG_NULL;
+}
+
+static inline bool xe_vma_has_no_bo(struct xe_vma *vma)
+{
+	return !xe_vma_bo(vma);
+}
+
+static inline bool xe_vma_is_userptr(struct xe_vma *vma)
+{
+	return xe_vma_has_no_bo(vma) && !xe_vma_is_null(vma);
+}
 
 #define xe_vm_assert_held(vm) dma_resv_assert_held(&(vm)->resv)
 
@@ -124,21 +183,6 @@ static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
 		vm->preempt.rebind_deactivated = false;
 		queue_work(system_unbound_wq, &vm->preempt.rebind_work);
 	}
-}
-
-static inline bool xe_vma_is_null(struct xe_vma *vma)
-{
-	return vma->pte_flags & XE_PTE_FLAG_NULL;
-}
-
-static inline bool xe_vma_has_no_bo(struct xe_vma *vma)
-{
-	return !vma->bo;
-}
-
-static inline bool xe_vma_is_userptr(struct xe_vma *vma)
-{
-	return xe_vma_has_no_bo(vma) && !xe_vma_is_null(vma);
 }
 
 int xe_vma_userptr_pin_pages(struct xe_vma *vma);
