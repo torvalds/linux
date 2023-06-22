@@ -212,6 +212,9 @@ struct drm_xe_query_gts {
 /**
  * struct drm_xe_query_topology_mask - describe the topology mask of a GT
  *
+ * This is the hardware topology which reflects the internal physical
+ * structure of the GPU.
+ *
  * If a query is made with a struct drm_xe_device_query where .query
  * is equal to DRM_XE_DEVICE_QUERY_GT_TOPOLOGY, then the reply uses
  * struct drm_xe_query_topology_mask in .data.
@@ -220,8 +223,29 @@ struct drm_xe_query_topology_mask {
 	/** @gt_id: GT ID the mask is associated with */
 	__u16 gt_id;
 
+	/*
+	 * To query the mask of Dual Sub Slices (DSS) available for geometry
+	 * operations. For example a query response containing the following
+	 * in mask:
+	 *   DSS_GEOMETRY    ff ff ff ff 00 00 00 00
+	 * means 32 DSS are available for geometry.
+	 */
 #define XE_TOPO_DSS_GEOMETRY	(1 << 0)
+	/*
+	 * To query the mask of Dual Sub Slices (DSS) available for compute
+	 * operations. For example a query response containing the following
+	 * in mask:
+	 *   DSS_COMPUTE    ff ff ff ff 00 00 00 00
+	 * means 32 DSS are available for compute.
+	 */
 #define XE_TOPO_DSS_COMPUTE	(1 << 1)
+	/*
+	 * To query the mask of Execution Units (EU) available per Dual Sub
+	 * Slices (DSS). For example a query response containing the following
+	 * in mask:
+	 *   EU_PER_DSS    ff ff 00 00 00 00 00 00
+	 * means each DSS has 16 EU.
+	 */
 #define XE_TOPO_EU_PER_DSS	(1 << 2)
 	/** @type: type of mask */
 	__u16 type;
