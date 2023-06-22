@@ -4189,6 +4189,7 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 	*capacity = max((int)(cpu_rq(cpu)->cpu_capacity_orig - rt_pressure), 0);
 }
 
+DEFINE_PER_CPU(u32, wakeup_ctr);
 /**
  * walt_irq_work() - perform walt irq work for rollover and migration
  *
@@ -4204,6 +4205,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 	int level = 0;
 	int cpu;
 	bool is_migration = false;
+	u32 wakeup_ctr_sum = 0;
 
 	if (irq_work == &walt_migration_irq_work)
 		is_migration = true;
@@ -4232,6 +4234,13 @@ static void walt_irq_work(struct irq_work *irq_work)
 
 	__walt_irq_work_locked(is_migration, &lock_cpus);
 
+	if (!is_migration) {
+		for_each_cpu(cpu, cpu_online_mask) {
+			wakeup_ctr_sum += per_cpu(wakeup_ctr, cpu);
+			per_cpu(wakeup_ctr, cpu) = 0;
+		}
+	}
+
 	for_each_cpu(cpu, &lock_cpus)
 		raw_spin_unlock(&cpu_rq(cpu)->__lock);
 
@@ -4240,7 +4249,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 		find_heaviest_topapp(wrq->window_start);
 		rearrange_heavy(wrq->window_start);
 		rearrange_pipeline_preferred_cpus(wrq->window_start);
-		core_ctl_check(wrq->window_start);
+		core_ctl_check(wrq->window_start, wakeup_ctr_sum);
 	}
 }
 
@@ -4270,14 +4279,17 @@ void walt_rotation_checkpoint(int nr_big)
 	}
 }
 
+#define WAKEUP_CTR_THRESH 50
 #define FMAX_CAP_HYSTERESIS 1000000000
 
-void fmax_uncap_checkpoint(int nr_big, u64 window_start)
+void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 {
-	bool fmax_uncap_load_detected = nr_big >= 7 || is_full_throttle_boost() ||
-					is_storage_boost();
+	bool fmax_uncap_load_detected;
 	static u64 fmax_uncap_timestamp;
 	int i;
+
+	fmax_uncap_load_detected = (nr_big >= 7 && wakeup_ctr_sum < WAKEUP_CTR_THRESH) ||
+		is_full_throttle_boost() || is_storage_boost();
 
 	if (fmax_uncap_load_detected) {
 		if (!fmax_uncap_timestamp)
@@ -4293,6 +4305,9 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start)
 					QOS_FMAX_CAP, MAX_REQUEST);
 		fmax_uncap_timestamp = 0;
 	}
+
+	trace_sched_fmax_uncap(nr_big, window_start, wakeup_ctr_sum,
+			fmax_uncap_load_detected, fmax_uncap_timestamp);
 }
 
 void walt_fill_ta_data(struct core_ctl_notif_data *data)
@@ -4602,6 +4617,9 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq,
 		return;
 
 	lockdep_assert_held(&rq->__lock);
+
+	if (flags & ENQUEUE_WAKEUP)
+		per_cpu(wakeup_ctr, cpu_of(rq)) += 1;
 
 	if (!is_per_cpu_kthread(p))
 		wrq->enqueue_counter++;
