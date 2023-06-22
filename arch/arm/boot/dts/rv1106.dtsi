@@ -1014,6 +1014,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
 		clock-names = "spiclk", "apb_pclk";
+		assigned-clocks = <&cru CLK_SPI1>;
+		assigned-clock-rates = <200000000>;
 		dmas = <&dmac 3>, <&dmac 2>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default";
