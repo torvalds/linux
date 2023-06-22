@@ -262,10 +262,13 @@ struct mptcp_sock {
 	u64		local_key;
 	u64		remote_key;
 	u64		write_seq;
+	u64		bytes_sent;
 	u64		snd_nxt;
+	u64		bytes_received;
 	u64		ack_seq;
 	atomic64_t	rcv_wnd_sent;
 	u64		rcv_data_fin_seq;
+	u64		bytes_retrans;
 	int		rmem_fwd_alloc;
 	struct sock	*last_snd;
 	int		snd_burst;
@@ -274,6 +277,7 @@ struct mptcp_sock {
 						 * recovery related fields are under data_lock
 						 * protection
 						 */
+	u64		bytes_acked;
 	u64		snd_una;
 	u64		wnd_end;
 	unsigned long	timer_ival;
@@ -319,7 +323,8 @@ struct mptcp_sock {
 		u64	rtt_us; /* last maximum rtt of subflows */
 	} rcvq_space;
 
-	u32 setsockopt_seq;
+	u32		subflow_id;
+	u32		setsockopt_seq;
 	char		ca_name[TCP_CA_NAME_MAX];
 	struct mptcp_sock	*dl_next;
 };
@@ -499,6 +504,8 @@ struct mptcp_subflow_context {
 	u8	reset_transient:1;
 	u8	reset_reason:4;
 	u8	stale_count;
+
+	u32	subflow_id;
 
 	long	delegated_status;
 	unsigned long	fail_tout;
@@ -810,7 +817,7 @@ int mptcp_pm_nl_mp_prio_send_ack(struct mptcp_sock *msk,
 				 struct mptcp_addr_info *rem,
 				 u8 bkup);
 bool mptcp_pm_alloc_anno_list(struct mptcp_sock *msk,
-			      const struct mptcp_pm_addr_entry *entry);
+			      const struct mptcp_addr_info *addr);
 void mptcp_pm_free_anno_list(struct mptcp_sock *msk);
 bool mptcp_pm_sport_in_anno_list(struct mptcp_sock *msk, const struct sock *sk);
 struct mptcp_pm_add_entry *
