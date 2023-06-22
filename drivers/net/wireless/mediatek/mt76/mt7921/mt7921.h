@@ -274,9 +274,6 @@ struct mt7921_dev {
 	bool hw_init_done:1;
 	bool fw_assert:1;
 
-	struct list_head sta_poll_list;
-	spinlock_t sta_poll_lock;
-
 	struct work_struct init_work;
 
 	u8 fw_debug;
