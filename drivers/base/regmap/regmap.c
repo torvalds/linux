@@ -311,26 +311,6 @@ static void regmap_format_32_native(void *buf, unsigned int val,
 	memcpy(buf, &v, sizeof(v));
 }
 
-#ifdef CONFIG_64BIT
-static void regmap_format_64_be(void *buf, unsigned int val, unsigned int shift)
-{
-	put_unaligned_be64((u64) val << shift, buf);
-}
-
-static void regmap_format_64_le(void *buf, unsigned int val, unsigned int shift)
-{
-	put_unaligned_le64((u64) val << shift, buf);
-}
-
-static void regmap_format_64_native(void *buf, unsigned int val,
-				    unsigned int shift)
-{
-	u64 v = (u64) val << shift;
-
-	memcpy(buf, &v, sizeof(v));
-}
-#endif
-
 static void regmap_parse_inplace_noop(void *buf)
 {
 }
@@ -410,40 +390,6 @@ static unsigned int regmap_parse_32_native(const void *buf)
 	memcpy(&v, buf, sizeof(v));
 	return v;
 }
-
-#ifdef CONFIG_64BIT
-static unsigned int regmap_parse_64_be(const void *buf)
-{
-	return get_unaligned_be64(buf);
-}
-
-static unsigned int regmap_parse_64_le(const void *buf)
-{
-	return get_unaligned_le64(buf);
-}
-
-static void regmap_parse_64_be_inplace(void *buf)
-{
-	u64 v =  get_unaligned_be64(buf);
-
-	memcpy(buf, &v, sizeof(v));
-}
-
-static void regmap_parse_64_le_inplace(void *buf)
-{
-	u64 v = get_unaligned_le64(buf);
-
-	memcpy(buf, &v, sizeof(v));
-}
-
-static unsigned int regmap_parse_64_native(const void *buf)
-{
-	u64 v;
-
-	memcpy(&v, buf, sizeof(v));
-	return v;
-}
-#endif
 
 static void regmap_lock_hwlock(void *__map)
 {
@@ -1005,24 +951,6 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 		break;
 
-#ifdef CONFIG_64BIT
-	case 64:
-		switch (reg_endian) {
-		case REGMAP_ENDIAN_BIG:
-			map->format.format_reg = regmap_format_64_be;
-			break;
-		case REGMAP_ENDIAN_LITTLE:
-			map->format.format_reg = regmap_format_64_le;
-			break;
-		case REGMAP_ENDIAN_NATIVE:
-			map->format.format_reg = regmap_format_64_native;
-			break;
-		default:
-			goto err_hwlock;
-		}
-		break;
-#endif
-
 	default:
 		goto err_hwlock;
 	}
@@ -1086,28 +1014,6 @@ struct regmap *__regmap_init(struct device *dev,
 			goto err_hwlock;
 		}
 		break;
-#ifdef CONFIG_64BIT
-	case 64:
-		switch (val_endian) {
-		case REGMAP_ENDIAN_BIG:
-			map->format.format_val = regmap_format_64_be;
-			map->format.parse_val = regmap_parse_64_be;
-			map->format.parse_inplace = regmap_parse_64_be_inplace;
-			break;
-		case REGMAP_ENDIAN_LITTLE:
-			map->format.format_val = regmap_format_64_le;
-			map->format.parse_val = regmap_parse_64_le;
-			map->format.parse_inplace = regmap_parse_64_le_inplace;
-			break;
-		case REGMAP_ENDIAN_NATIVE:
-			map->format.format_val = regmap_format_64_native;
-			map->format.parse_val = regmap_parse_64_native;
-			break;
-		default:
-			goto err_hwlock;
-		}
-		break;
-#endif
 	}
 
 	if (map->format.format_write) {
@@ -2160,9 +2066,6 @@ static int regmap_noinc_readwrite(struct regmap *map, unsigned int reg,
 	u8 *u8p;
 	u16 *u16p;
 	u32 *u32p;
-#ifdef CONFIG_64BIT
-	u64 *u64p;
-#endif
 	int ret;
 	int i;
 
@@ -2182,13 +2085,6 @@ static int regmap_noinc_readwrite(struct regmap *map, unsigned int reg,
 		if (write)
 			lastval = (unsigned int)u32p[val_count - 1];
 		break;
-#ifdef CONFIG_64BIT
-	case 8:
-		u64p = val;
-		if (write)
-			lastval = (unsigned int)u64p[val_count - 1];
-		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -2226,11 +2122,6 @@ static int regmap_noinc_readwrite(struct regmap *map, unsigned int reg,
 			case 4:
 				pr_cont("%x", u32p[i]);
 				break;
-#ifdef CONFIG_64BIT
-			case 8:
-				pr_cont("%llx", u64p[i]);
-				break;
-#endif
 			default:
 				break;
 			}
@@ -2438,11 +2329,6 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			case 4:
 				ival = *(u32 *)(val + (i * val_bytes));
 				break;
-#ifdef CONFIG_64BIT
-			case 8:
-				ival = *(u64 *)(val + (i * val_bytes));
-				break;
-#endif
 			default:
 				ret = -EINVAL;
 				goto out;
@@ -3207,9 +3093,6 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
 			map->format.parse_inplace(val + i);
 	} else {
-#ifdef CONFIG_64BIT
-		u64 *u64 = val;
-#endif
 		u32 *u32 = val;
 		u16 *u16 = val;
 		u8 *u8 = val;
@@ -3225,11 +3108,6 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 				goto out;
 
 			switch (map->format.val_bytes) {
-#ifdef CONFIG_64BIT
-			case 8:
-				u64[i] = ival;
-				break;
-#endif
 			case 4:
 				u32[i] = ival;
 				break;
