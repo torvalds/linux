@@ -1146,7 +1146,7 @@ static bool need_sync(struct gfs2_quota_data *qd)
 void gfs2_quota_unlock(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_quota_data *qda[4];
+	struct gfs2_quota_data *qda[2 * GFS2_MAXQUOTAS];
 	unsigned int count = 0;
 	u32 x;
 	int found;
