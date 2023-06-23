@@ -71,6 +71,7 @@ struct phylink {
 	struct mutex state_mutex;
 	struct phylink_link_state phy_state;
 	struct work_struct resolve;
+	unsigned int pcs_neg_mode;
 
 	bool mac_link_dropped;
 	bool using_mac_select_pcs;
@@ -992,23 +993,23 @@ static void phylink_resolve_an_pause(struct phylink_link_state *state)
 	}
 }
 
-static int phylink_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+static int phylink_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			      const struct phylink_link_state *state,
 			      bool permit_pause_to_mac)
 {
 	if (!pcs)
 		return 0;
 
-	return pcs->ops->pcs_config(pcs, mode, state->interface,
+	return pcs->ops->pcs_config(pcs, neg_mode, state->interface,
 				    state->advertising, permit_pause_to_mac);
 }
 
-static void phylink_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+static void phylink_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 				phy_interface_t interface, int speed,
 				int duplex)
 {
 	if (pcs && pcs->ops->pcs_link_up)
-		pcs->ops->pcs_link_up(pcs, mode, interface, speed, duplex);
+		pcs->ops->pcs_link_up(pcs, neg_mode, interface, speed, duplex);
 }
 
 static void phylink_pcs_poll_stop(struct phylink *pl)
@@ -1058,9 +1059,14 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	struct phylink_pcs *pcs = NULL;
 	bool pcs_changed = false;
 	unsigned int rate_kbd;
+	unsigned int neg_mode;
 	int err;
 
 	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
+
+	pl->pcs_neg_mode = phylink_pcs_neg_mode(pl->cur_link_an_mode,
+						state->interface,
+						state->advertising);
 
 	if (pl->using_mac_select_pcs) {
 		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
@@ -1094,9 +1100,12 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 
 	phylink_mac_config(pl, state);
 
-	err = phylink_pcs_config(pl->pcs, pl->cur_link_an_mode, state,
-				 !!(pl->link_config.pause &
-				    MLO_PAUSE_AN));
+	neg_mode = pl->cur_link_an_mode;
+	if (pl->pcs && pl->pcs->neg_mode)
+		neg_mode = pl->pcs_neg_mode;
+
+	err = phylink_pcs_config(pl->pcs, neg_mode, state,
+				 !!(pl->link_config.pause & MLO_PAUSE_AN));
 	if (err < 0)
 		phylink_err(pl, "pcs_config failed: %pe\n",
 			    ERR_PTR(err));
@@ -1131,6 +1140,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
  */
 static int phylink_change_inband_advert(struct phylink *pl)
 {
+	unsigned int neg_mode;
 	int ret;
 
 	if (test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state))
@@ -1149,12 +1159,20 @@ static int phylink_change_inband_advert(struct phylink *pl)
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, pl->link_config.advertising,
 		    pl->link_config.pause);
 
+	/* Recompute the PCS neg mode */
+	pl->pcs_neg_mode = phylink_pcs_neg_mode(pl->cur_link_an_mode,
+					pl->link_config.interface,
+					pl->link_config.advertising);
+
+	neg_mode = pl->cur_link_an_mode;
+	if (pl->pcs->neg_mode)
+		neg_mode = pl->pcs_neg_mode;
+
 	/* Modern PCS-based method; update the advert at the PCS, and
 	 * restart negotiation if the pcs_config() helper indicates that
 	 * the programmed advertisement has changed.
 	 */
-	ret = phylink_pcs_config(pl->pcs, pl->cur_link_an_mode,
-				 &pl->link_config,
+	ret = phylink_pcs_config(pl->pcs, neg_mode, &pl->link_config,
 				 !!(pl->link_config.pause & MLO_PAUSE_AN));
 	if (ret < 0)
 		return ret;
@@ -1257,6 +1275,7 @@ static void phylink_link_up(struct phylink *pl,
 			    struct phylink_link_state link_state)
 {
 	struct net_device *ndev = pl->netdev;
+	unsigned int neg_mode;
 	int speed, duplex;
 	bool rx_pause;
 
@@ -1287,8 +1306,12 @@ static void phylink_link_up(struct phylink *pl,
 
 	pl->cur_interface = link_state.interface;
 
-	phylink_pcs_link_up(pl->pcs, pl->cur_link_an_mode, pl->cur_interface,
-			    speed, duplex);
+	neg_mode = pl->cur_link_an_mode;
+	if (pl->pcs && pl->pcs->neg_mode)
+		neg_mode = pl->pcs_neg_mode;
+
+	phylink_pcs_link_up(pl->pcs, neg_mode, pl->cur_interface, speed,
+			    duplex);
 
 	pl->mac_ops->mac_link_up(pl->config, pl->phydev, pl->cur_link_an_mode,
 				 pl->cur_interface, speed, duplex,
@@ -3522,18 +3545,19 @@ EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_encode_advertisement);
 /**
  * phylink_mii_c22_pcs_config() - configure clause 22 PCS
  * @pcs: a pointer to a &struct mdio_device.
- * @mode: link autonegotiation mode
  * @interface: the PHY interface mode being configured
  * @advertising: the ethtool advertisement mask
+ * @neg_mode: PCS negotiation mode
  *
  * Configure a Clause 22 PCS PHY with the appropriate negotiation
  * parameters for the @mode, @interface and @advertising parameters.
  * Returns negative error number on failure, zero if the advertisement
  * has not changed, or positive if there is a change.
  */
-int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
+int phylink_mii_c22_pcs_config(struct mdio_device *pcs,
 			       phy_interface_t interface,
-			       const unsigned long *advertising)
+			       const unsigned long *advertising,
+			       unsigned int neg_mode)
 {
 	bool changed = 0;
 	u16 bmcr;
@@ -3548,15 +3572,12 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 		changed = ret;
 	}
 
-	/* Ensure ISOLATE bit is disabled */
-	if (mode == MLO_AN_INBAND &&
-	    (interface == PHY_INTERFACE_MODE_SGMII ||
-	     interface == PHY_INTERFACE_MODE_QSGMII ||
-	     linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, advertising)))
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		bmcr = BMCR_ANENABLE;
 	else
 		bmcr = 0;
 
+	/* Configure the inband state. Ensure ISOLATE bit is disabled */
 	ret = mdiodev_modify(pcs, MII_BMCR, BMCR_ANENABLE | BMCR_ISOLATE, bmcr);
 	if (ret < 0)
 		return ret;

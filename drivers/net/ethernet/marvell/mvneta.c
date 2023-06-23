@@ -4002,8 +4002,8 @@ static void mvneta_pcs_get_state(struct phylink_pcs *pcs,
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static int mvneta_pcs_config(struct phylink_pcs *pcs,
-			     unsigned int mode, phy_interface_t interface,
+static int mvneta_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+			     phy_interface_t interface,
 			     const unsigned long *advertising,
 			     bool permit_pause_to_mac)
 {
@@ -4016,7 +4016,7 @@ static int mvneta_pcs_config(struct phylink_pcs *pcs,
 	       MVNETA_GMAC_AN_FLOW_CTRL_EN |
 	       MVNETA_GMAC_AN_DUPLEX_EN;
 
-	if (phylink_autoneg_inband(mode)) {
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
 		mask |= MVNETA_GMAC_CONFIG_MII_SPEED |
 			MVNETA_GMAC_CONFIG_GMII_SPEED |
 			MVNETA_GMAC_CONFIG_FULL_DUPLEX;
@@ -5518,6 +5518,7 @@ static int mvneta_probe(struct platform_device *pdev)
 		clk_prepare_enable(pp->clk_bus);
 
 	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
+	pp->phylink_pcs.neg_mode = true;
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
