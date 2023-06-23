@@ -89,7 +89,6 @@ static ssize_t get_game_start_pid(struct kobject *kobj,
 static ssize_t set_game_start_pid(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf,
 	size_t count);
-#if IS_ENABLED(CONFIG_QTI_PLH)
 static ssize_t get_splh_notif(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf);
 static ssize_t set_splh_notif(struct kobject *kobj,
@@ -120,7 +119,6 @@ static ssize_t get_lplh_log_level(struct kobject *kobj,
 static ssize_t set_lplh_log_level(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf,
 	size_t count);
-#endif
 static struct kobj_attribute cpu_min_freq_attr =
 	__ATTR(cpu_min_freq, 0644, get_cpu_min_freq, set_cpu_min_freq);
 static struct kobj_attribute cpu_max_freq_attr =
@@ -132,7 +130,6 @@ static struct kobj_attribute core_ctl_register_attr =
 	set_core_ctl_register);
 static struct kobj_attribute evnt_gplaf_pid_attr =
 	__ATTR(evnt_gplaf_pid, 0644, get_game_start_pid, set_game_start_pid);
-#if IS_ENABLED(CONFIG_QTI_PLH)
 static struct kobj_attribute splh_notif_attr =
 	__ATTR(splh_notif, 0644, get_splh_notif, set_splh_notif);
 static struct kobj_attribute splh_sample_ms_attr =
@@ -145,7 +142,34 @@ static struct kobj_attribute lplh_sample_ms_attr =
 	__ATTR(lplh_sample_ms, 0644, get_lplh_sample_ms, set_lplh_sample_ms);
 static struct kobj_attribute lplh_log_level_attr =
 	__ATTR(lplh_log_level, 0644, get_lplh_log_level, set_lplh_log_level);
-#endif
+
+static struct attribute *plh_param_attrs[] = {
+	&splh_notif_attr.attr,
+	&splh_sample_ms_attr.attr,
+	&splh_log_level_attr.attr,
+	&lplh_notif_attr.attr,
+	&lplh_sample_ms_attr.attr,
+	&lplh_log_level_attr.attr,
+	NULL,
+};
+
+static struct attribute_group plh_param_attr_group = {
+	.attrs = plh_param_attrs,
+};
+
+static int add_plh_params(void)
+{
+	int ret = 0;
+
+	if (param_kobj)
+		ret = sysfs_update_group(param_kobj, &plh_param_attr_group);
+	if (!param_kobj || ret) {
+		pr_err("msm_perf: plh: Failed to update param_kobj\n");
+		return -ENOMEM;
+
+	}
+	return 0;
+}
 
 static struct attribute *param_attrs[] = {
 	&cpu_min_freq_attr.attr,
@@ -153,14 +177,6 @@ static struct attribute *param_attrs[] = {
 	&inst_attr.attr,
 	&core_ctl_register_attr.attr,
 	&evnt_gplaf_pid_attr.attr,
-#if IS_ENABLED(CONFIG_QTI_PLH)
-	&splh_notif_attr.attr,
-	&splh_sample_ms_attr.attr,
-	&splh_log_level_attr.attr,
-	&lplh_notif_attr.attr,
-	&lplh_sample_ms_attr.attr,
-	&lplh_log_level_attr.attr,
-#endif
 	NULL,
 };
 
@@ -990,7 +1006,7 @@ int cpucp_plh_init(struct scmi_device *sdev)
 }
 EXPORT_SYMBOL(cpucp_plh_init);
 
-#if IS_ENABLED(CONFIG_QTI_PLH)
+
 static int splh_notif, splh_init_done, splh_sample_ms, splh_log_level;
 
 #define SPLH_MIN_SAMPLE_MS			1
@@ -1447,7 +1463,6 @@ static ssize_t set_lplh_notif(struct kobject *kobj,
 
 	return count;
 }
-#endif
 
 static int scmi_plh_init(struct platform_device *pdev)
 {
@@ -1469,6 +1484,7 @@ static int scmi_plh_init(struct platform_device *pdev)
 		if (ret < 0)
 			dev_err(dev, "plh: Error in %s, ret = %d\n", __func__, ret);
 	}
+	ret = add_plh_params();
 	return ret;
 }
 

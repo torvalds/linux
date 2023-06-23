@@ -30,7 +30,6 @@ static inline void msm_perf_events_update(enum evt_update_t update_typ,
 }
 #endif
 
-#if IS_ENABLED(CONFIG_QTI_PLH)
 #if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
 #define SCMI_SPLH_ALGO_STR (0x53504C48414C474F)
 #define SCMI_LPLH_ALGO_STR (0x4C504C48414C474F)
@@ -79,7 +78,7 @@ enum scmi_vendor_plh_param_ids {
 
 #define lplh_set_sample_ms(sample_ms) ({\
 		uint32_t temp, *msg = &temp;\
-		*msg = cpu_to_le32(splh_sample_ms);\
+		*msg = cpu_to_le32(sample_ms);\
 		plh_ops->set_param(plh_handle, msg, SCMI_LPLH_ALGO_STR,\
 				PLH_SET_SAMPLE_PERIOD_MS, sizeof(*msg));\
 })
@@ -157,11 +156,11 @@ enum scmi_vendor_plh_param_ids {
 })
 
 #define splh_set_sample_ms(sample_ms) ({\
-	plh_ops->set_plh_sample_ms(plh_handle, plh_sample_ms, PERF_LOCK_SCROLL);\
+	plh_ops->set_plh_sample_ms(plh_handle, sample_ms, PERF_LOCK_SCROLL);\
 })
 
 #define lplh_set_sample_ms(sample_ms) ({\
-	plh_ops->set_plh_sample_ms(plh_handle, plh_sample_ms, PERF_LOCK_LAUNCH);\
+	plh_ops->set_plh_sample_ms(plh_handle, sample_ms, PERF_LOCK_LAUNCH);\
 })
 
 #define splh_set_log_level(log_level) ({\
@@ -179,6 +178,5 @@ enum scmi_vendor_plh_param_ids {
 #define lplh_init_ipc_freq_tbl(tmp, total_tokens) ({\
 	plh_ops->init_plh_ipc_freq_tbl(plh_handle, tmp, total_tokens, PERF_LOCK_LAUNCH); \
 })
-#endif
 #endif
 #endif
