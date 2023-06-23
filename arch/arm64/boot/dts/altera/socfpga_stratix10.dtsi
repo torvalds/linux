@@ -331,6 +331,9 @@
 		ocram: sram@ffe00000 {
 			compatible = "mmio-sram";
 			reg = <0xffe00000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xffe00000 0x100000>;
 		};
 
 		pdma: dma-controller@ffda0000 {
