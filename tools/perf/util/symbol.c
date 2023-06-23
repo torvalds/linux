@@ -613,8 +613,12 @@ struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name)
 
 void dso__sort_by_name(struct dso *dso)
 {
-	dso__set_sorted_by_name(dso);
-	return symbols__sort_by_name(&dso->symbol_names, &dso->symbols);
+	mutex_lock(&dso->lock);
+	if (!dso__sorted_by_name(dso)) {
+		symbols__sort_by_name(&dso->symbol_names, &dso->symbols);
+		dso__set_sorted_by_name(dso);
+	}
+	mutex_unlock(&dso->lock);
 }
 
 /*

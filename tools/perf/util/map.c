@@ -398,8 +398,7 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 		return NULL;
 
 	dso = map__dso(map);
-	if (!dso__sorted_by_name(dso))
-		dso__sort_by_name(dso);
+	dso__sort_by_name(dso);
 
 	return dso__find_symbol_by_name(dso, name);
 }

@@ -3767,8 +3767,7 @@ int show_available_funcs(const char *target, struct nsinfo *nsi,
 		goto end;
 	}
 	dso = map__dso(map);
-	if (!dso__sorted_by_name(dso))
-		dso__sort_by_name(dso);
+	dso__sort_by_name(dso);
 
 	/* Show all (filtered) symbols */
 	setup_pager();
