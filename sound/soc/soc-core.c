@@ -3262,6 +3262,8 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 	struct snd_soc_component *pos;
 	int ret = -EPROBE_DEFER;
 
+	dlc->of_node = args->np;
+
 	mutex_lock(&client_mutex);
 	for_each_component(pos) {
 		struct device_node *component_of_node = soc_component_to_node(pos);
@@ -3300,7 +3302,6 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 				id--;
 			}
 
-			dlc->of_node	= args->np;
 			dlc->dai_name	= dai->driver->name;
 			if (!dlc->dai_name)
 				dlc->dai_name = pos->name;
