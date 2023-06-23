@@ -71,6 +71,37 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 	__p_bits(buf, size, value, bits);
 }
 
+#define ENUM_ID_TO_STR_CASE(x) case x: return (#x);
+static const char *stringify_perf_type_id(u64 value)
+{
+	switch (value) {
+	ENUM_ID_TO_STR_CASE(PERF_TYPE_HARDWARE)
+	ENUM_ID_TO_STR_CASE(PERF_TYPE_SOFTWARE)
+	ENUM_ID_TO_STR_CASE(PERF_TYPE_TRACEPOINT)
+	ENUM_ID_TO_STR_CASE(PERF_TYPE_HW_CACHE)
+	ENUM_ID_TO_STR_CASE(PERF_TYPE_RAW)
+	ENUM_ID_TO_STR_CASE(PERF_TYPE_BREAKPOINT)
+	default:
+		return NULL;
+	}
+}
+#undef ENUM_ID_TO_STR_CASE
+
+#define PRINT_ID(_s, _f)					\
+do {								\
+	const char *__s = _s;					\
+	if (__s == NULL)					\
+		snprintf(buf, size, _f, value);			\
+	else							\
+		snprintf(buf, size, _f" (%s)", value, __s);	\
+} while (0)
+#define print_id_unsigned(_s)	PRINT_ID(_s, "%"PRIu64)
+
+static void __p_type_id(char *buf, size_t size, u64 value)
+{
+	print_id_unsigned(stringify_perf_type_id(value));
+}
+
 #define BUF_SIZE		1024
 
 #define p_hex(val)		snprintf(buf, BUF_SIZE, "%#"PRIx64, (uint64_t)(val))
@@ -79,6 +110,7 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 #define p_sample_type(val)	__p_sample_type(buf, BUF_SIZE, val)
 #define p_branch_sample_type(val) __p_branch_sample_type(buf, BUF_SIZE, val)
 #define p_read_format(val)	__p_read_format(buf, BUF_SIZE, val)
+#define p_type_id(val)		__p_type_id(buf, BUF_SIZE, val)
 
 #define PRINT_ATTRn(_n, _f, _p, _a)			\
 do {							\
@@ -96,7 +128,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	char buf[BUF_SIZE];
 	int ret = 0;
 
-	PRINT_ATTRf(type, p_unsigned);
+	PRINT_ATTRn("type", type, p_type_id, true);
 	PRINT_ATTRf(size, p_unsigned);
 	PRINT_ATTRf(config, p_hex);
 	PRINT_ATTRn("{ sample_period, sample_freq }", sample_period, p_unsigned, false);
