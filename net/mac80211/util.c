@@ -6,7 +6,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  *
  * utilities for mac80211
  */
@@ -918,6 +918,7 @@ ieee80211_parse_extension_element(u32 *crc,
 				  struct ieee80211_elems_parse_params *params)
 {
 	const void *data = elem->data + 1;
+	bool calc_crc = false;
 	u8 len;
 
 	if (!elem->datalen)
@@ -927,12 +928,9 @@ ieee80211_parse_extension_element(u32 *crc,
 
 	switch (elem->data[0]) {
 	case WLAN_EID_EXT_HE_MU_EDCA:
-		if (len >= sizeof(*elems->mu_edca_param_set)) {
+		calc_crc = true;
+		if (len >= sizeof(*elems->mu_edca_param_set))
 			elems->mu_edca_param_set = data;
-			if (crc)
-				*crc = crc32_be(*crc, (void *)elem,
-						elem->datalen + 2);
-		}
 		break;
 	case WLAN_EID_EXT_HE_CAPABILITY:
 		if (ieee80211_he_capa_size_ok(data, len)) {
@@ -941,13 +939,10 @@ ieee80211_parse_extension_element(u32 *crc,
 		}
 		break;
 	case WLAN_EID_EXT_HE_OPERATION:
+		calc_crc = true;
 		if (len >= sizeof(*elems->he_operation) &&
-		    len >= ieee80211_he_oper_size(data) - 1) {
-			if (crc)
-				*crc = crc32_be(*crc, (void *)elem,
-						elem->datalen + 2);
+		    len >= ieee80211_he_oper_size(data) - 1)
 			elems->he_operation = data;
-		}
 		break;
 	case WLAN_EID_EXT_UORA:
 		if (len >= 1)
@@ -981,14 +976,36 @@ ieee80211_parse_extension_element(u32 *crc,
 	case WLAN_EID_EXT_EHT_OPERATION:
 		if (ieee80211_eht_oper_size_ok(data, len))
 			elems->eht_operation = data;
+		calc_crc = true;
 		break;
 	case WLAN_EID_EXT_EHT_MULTI_LINK:
+		calc_crc = true;
+
 		if (ieee80211_mle_size_ok(data, len)) {
-			elems->multi_link = (void *)data;
-			elems->multi_link_len = len;
+			const struct ieee80211_multi_link_elem *mle =
+				(void *)data;
+
+			switch (le16_get_bits(mle->control,
+					      IEEE80211_ML_CONTROL_TYPE)) {
+			case IEEE80211_ML_CONTROL_TYPE_BASIC:
+				elems->ml_basic_elem = (void *)elem;
+				elems->ml_basic = data;
+				elems->ml_basic_len = len;
+				break;
+			case IEEE80211_ML_CONTROL_TYPE_RECONF:
+				elems->ml_reconf_elem = (void *)elem;
+				elems->ml_reconf = data;
+				elems->ml_reconf_len = len;
+				break;
+			default:
+				break;
+			}
 		}
 		break;
 	}
+
+	if (crc && calc_crc)
+		*crc = crc32_be(*crc, (void *)elem, elem->datalen + 2);
 }
 
 static u32
@@ -1458,56 +1475,11 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 	return found ? profile_len : 0;
 }
 
-static void ieee80211_defragment_element(struct ieee802_11_elems *elems,
-					 void **elem_ptr, size_t *len,
-					 size_t total_len, u8 frag_id)
-{
-	u8 *data = *elem_ptr, *pos, *start;
-	const struct element *elem;
-
-	/*
-	 * Since 'data' points to the data of the element, not the element
-	 * itself, allow 254 in case it was an extended element where the
-	 * extended ID isn't part of the data we see here and thus not part of
-	 * 'len' either.
-	 */
-	if (!data || (*len != 254 && *len != 255))
-		return;
-
-	start = elems->scratch_pos;
-
-	if (WARN_ON(*len > (elems->scratch + elems->scratch_len -
-			    elems->scratch_pos)))
-		return;
-
-	memcpy(elems->scratch_pos, data, *len);
-	elems->scratch_pos += *len;
-
-	pos = data + *len;
-	total_len -= *len;
-	for_each_element(elem, pos, total_len) {
-		if (elem->id != frag_id)
-			break;
-
-		if (WARN_ON(elem->datalen >
-			    (elems->scratch + elems->scratch_len -
-			     elems->scratch_pos)))
-			return;
-
-		memcpy(elems->scratch_pos, elem->data, elem->datalen);
-		elems->scratch_pos += elem->datalen;
-
-		*len += elem->datalen;
-	}
-
-	*elem_ptr = start;
-}
-
 static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 				       u8 link_id)
 {
-	const struct ieee80211_multi_link_elem *ml = elems->multi_link;
-	size_t ml_len = elems->multi_link_len;
+	const struct ieee80211_multi_link_elem *ml = elems->ml_basic;
+	ssize_t ml_len = elems->ml_basic_len;
 	const struct element *sub;
 
 	if (!ml || !ml_len)
@@ -1519,12 +1491,14 @@ static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 
 	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
 		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
+		ssize_t sta_prof_len;
 		u16 control;
 
 		if (sub->id != IEEE80211_MLE_SUBELEM_PER_STA_PROFILE)
 			continue;
 
-		if (!ieee80211_mle_sta_prof_size_ok(sub->data, sub->datalen))
+		if (!ieee80211_mle_basic_sta_prof_size_ok(sub->data,
+							  sub->datalen))
 			return;
 
 		control = le16_to_cpu(prof->control);
@@ -1536,14 +1510,23 @@ static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 		if (!(control & IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE))
 			return;
 
-		elems->prof = prof;
-		elems->sta_prof_len = sub->datalen;
-
 		/* the sub element can be fragmented */
-		ieee80211_defragment_element(elems, (void **)&elems->prof,
-					     &elems->sta_prof_len,
-					     ml_len - (sub->data - (u8 *)ml),
-					     IEEE80211_MLE_SUBELEM_FRAGMENT);
+		sta_prof_len =
+			cfg80211_defragment_element(sub,
+						    (u8 *)ml, ml_len,
+						    elems->scratch_pos,
+						    elems->scratch +
+							elems->scratch_len -
+							elems->scratch_pos,
+						    IEEE80211_MLE_SUBELEM_FRAGMENT);
+
+		if (sta_prof_len < 0)
+			return;
+
+		elems->prof = (void *)elems->scratch_pos;
+		elems->sta_prof_len = sta_prof_len;
+		elems->scratch_pos += sta_prof_len;
+
 		return;
 	}
 }
@@ -1557,17 +1540,27 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 		.from_ap = params->from_ap,
 		.link_id = -1,
 	};
+	ssize_t ml_len = elems->ml_basic_len;
 	const struct element *non_inherit = NULL;
 	const u8 *end;
 
 	if (params->link_id == -1)
 		return;
 
-	ieee80211_defragment_element(elems, (void **)&elems->multi_link,
-				     &elems->multi_link_len,
-				     elems->total_len - ((u8 *)elems->multi_link -
-							 elems->ie_start),
-				     WLAN_EID_FRAGMENT);
+	ml_len = cfg80211_defragment_element(elems->ml_basic_elem,
+					     elems->ie_start,
+					     elems->total_len,
+					     elems->scratch_pos,
+					     elems->scratch +
+						elems->scratch_len -
+						elems->scratch_pos,
+					     WLAN_EID_FRAGMENT);
+
+	if (ml_len < 0)
+		return;
+
+	elems->ml_basic = (const void *)elems->scratch_pos;
+	elems->ml_basic_len = ml_len;
 
 	ieee80211_mle_get_sta_prof(elems, params->link_id);
 	prof = elems->prof;
@@ -1824,7 +1817,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	bool multi_link = sdata->vif.valid_links;
+	bool multi_link = ieee80211_vif_is_mld(&sdata->vif);
 	struct {
 		u8 id;
 		u8 len;
@@ -1918,7 +1911,7 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-static u8 *ieee80211_write_he_6ghz_cap(u8 *pos, __le16 cap, u8 *end)
+u8 *ieee80211_write_he_6ghz_cap(u8 *pos, __le16 cap, u8 *end)
 {
 	if ((end - pos) < 5)
 		return pos;
@@ -2121,8 +2114,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		*offset = noffset;
 	}
 
-	he_cap = ieee80211_get_he_iftype_cap(sband,
-					     ieee80211_vif_type_p2p(&sdata->vif));
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (he_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE)) {
@@ -2131,8 +2123,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 	}
 
-	eht_cap = ieee80211_get_eht_iftype_cap(sband,
-					       ieee80211_vif_type_p2p(&sdata->vif));
+	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
 
 	if (eht_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
@@ -2150,8 +2141,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_supported_band *sband6;
 
 		sband6 = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
-		he_cap = ieee80211_get_he_iftype_cap(sband6,
-				ieee80211_vif_type_p2p(&sdata->vif));
+		he_cap = ieee80211_get_he_iftype_cap_vif(sband6, &sdata->vif);
 
 		if (he_cap) {
 			enum nl80211_iftype iftype =
@@ -2674,7 +2664,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			continue;
 
 		sdata_lock(sdata);
-		if (sdata->vif.valid_links) {
+		if (ieee80211_vif_is_mld(&sdata->vif)) {
 			struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS] = {
 				[0] = &sdata->vif.bss_conf,
 			};
@@ -2694,7 +2684,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		for (link_id = 0;
 		     link_id < ARRAY_SIZE(sdata->vif.link_conf);
 		     link_id++) {
-			if (sdata->vif.valid_links &&
+			if (ieee80211_vif_is_mld(&sdata->vif) &&
 			    !(sdata->vif.active_links & BIT(link_id)))
 				continue;
 
@@ -2726,12 +2716,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (sdata->vif.bss_conf.mu_mimo_owner)
 			changed |= BSS_CHANGED_MU_GROUPS;
 
-		if (!sdata->vif.valid_links)
+		if (!ieee80211_vif_is_mld(&sdata->vif))
 			changed |= BSS_CHANGED_IDLE;
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
-			if (!sdata->vif.valid_links) {
+			if (!ieee80211_vif_is_mld(&sdata->vif)) {
 				changed |= BSS_CHANGED_ASSOC |
 					   BSS_CHANGED_ARP_FILTER |
 					   BSS_CHANGED_PS;
@@ -2769,7 +2759,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_AP:
 			changed |= BSS_CHANGED_P2P_PS;
 
-			if (sdata->vif.valid_links)
+			if (ieee80211_vif_is_mld(&sdata->vif))
 				ieee80211_vif_cfg_change_notify(sdata,
 								BSS_CHANGED_SSID);
 			else
@@ -2783,7 +2773,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (sdata->vif.type == NL80211_IFTYPE_AP) {
 				changed |= BSS_CHANGED_AP_PROBE_RESP;
 
-				if (sdata->vif.valid_links) {
+				if (ieee80211_vif_is_mld(&sdata->vif)) {
 					ieee80211_reconfig_ap_links(local,
 								    sdata,
 								    changed);
@@ -3883,10 +3873,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 	}
 
 	eht_cap = ieee80211_get_eht_iftype_cap(sband, iftype);
-	if (!eht_cap) {
-		sdata_info(sdata, "Missing iftype sband data/EHT cap");
+	if (!eht_cap)
 		eht_oper = NULL;
-	}
 
 	he_6ghz_oper = ieee80211_he_6ghz_oper(he_oper);
 

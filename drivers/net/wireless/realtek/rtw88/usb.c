@@ -24,11 +24,12 @@ struct rtw_usb_txcb {
 static void rtw_usb_fill_tx_checksum(struct rtw_usb *rtwusb,
 				     struct sk_buff *skb, int agg_num)
 {
+	struct rtw_tx_desc *tx_desc = (struct rtw_tx_desc *)skb->data;
 	struct rtw_dev *rtwdev = rtwusb->rtwdev;
 	struct rtw_tx_pkt_info pkt_info;
 
-	SET_TX_DESC_DMA_TXAGG_NUM(skb->data, agg_num);
-	pkt_info.pkt_offset = GET_TX_DESC_PKT_OFFSET(skb->data);
+	le32p_replace_bits(&tx_desc->w7, agg_num, RTW_TX_DESC_W7_DMA_TXAGG_NUM);
+	pkt_info.pkt_offset = le32_get_bits(tx_desc->w1, RTW_TX_DESC_W1_PKT_OFFSET);
 	rtw_tx_fill_txdesc_checksum(rtwdev, &pkt_info, skb->data);
 }
 
@@ -306,11 +307,13 @@ static int rtw_usb_write_port(struct rtw_dev *rtwdev, u8 qsel, struct sk_buff *s
 static bool rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list)
 {
 	struct rtw_dev *rtwdev = rtwusb->rtwdev;
+	struct rtw_tx_desc *tx_desc;
 	struct rtw_usb_txcb *txcb;
 	struct sk_buff *skb_head;
 	struct sk_buff *skb_iter;
 	int agg_num = 0;
 	unsigned int align_next = 0;
+	u8 qsel;
 
 	if (skb_queue_empty(list))
 		return false;
@@ -363,9 +366,10 @@ static bool rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list
 
 queue:
 	skb_queue_tail(&txcb->tx_ack_queue, skb_head);
+	tx_desc = (struct rtw_tx_desc *)skb_head->data;
+	qsel = le32_get_bits(tx_desc->w1, RTW_TX_DESC_W1_QSEL);
 
-	rtw_usb_write_port(rtwdev, GET_TX_DESC_QSEL(skb_head->data), skb_head,
-			   rtw_usb_write_port_tx_complete, txcb);
+	rtw_usb_write_port(rtwdev, qsel, skb_head, rtw_usb_write_port_tx_complete, txcb);
 
 	return true;
 }
@@ -465,6 +469,9 @@ static u8 rtw_usb_tx_queue_mapping_to_qsel(struct sk_buff *skb)
 
 	if (unlikely(ieee80211_is_mgmt(fc) || ieee80211_is_ctl(fc)))
 		qsel = TX_DESC_QSEL_MGMT;
+	else if (is_broadcast_ether_addr(hdr->addr1) ||
+		 is_multicast_ether_addr(hdr->addr1))
+		qsel = TX_DESC_QSEL_HIGH;
 	else if (skb_get_queue_mapping(skb) <= IEEE80211_AC_BK)
 		qsel = skb->priority;
 	else

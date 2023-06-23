@@ -322,7 +322,7 @@ struct iwl_mcc_update_resp_v3 {
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_3 */
 
 /**
- * struct iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * struct iwl_mcc_update_resp_v4 - response to MCC_UPDATE_CMD.
  * Contains the new channel control profile map, if changed, and the new MCC
  * (mobile country code).
  * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
@@ -338,7 +338,7 @@ struct iwl_mcc_update_resp_v3 {
  * @channels: channel control data map, DWORD for each channel. Only the first
  *	16bits are used.
  */
-struct iwl_mcc_update_resp {
+struct iwl_mcc_update_resp_v4 {
 	__le32 status;
 	__le16 mcc;
 	__le16 cap;
@@ -349,6 +349,37 @@ struct iwl_mcc_update_resp {
 	__le32 n_channels;
 	__le32 channels[];
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_4 */
+
+/**
+ * struct iwl_mcc_update_resp_v8 - response to MCC_UPDATE_CMD.
+ * Contains the new channel control profile map, if changed, and the new MCC
+ * (mobile country code).
+ * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
+ * @status: see &enum iwl_mcc_update_status
+ * @mcc: the new applied MCC
+ * @padding: padding for 2 bytes.
+ * @cap: capabilities for all channels which matches the MCC
+ * @time: time elapsed from the MCC test start (in units of 30 seconds)
+ * @geo_info: geographic specific profile information
+ *     see &enum iwl_geo_information.
+ * @source_id: the MCC source, see iwl_mcc_source
+ * @reserved: for four bytes alignment.
+ * @n_channels: number of channels in @channels_data.
+ * @channels: channel control data map, DWORD for each channel. Only the first
+ *     16bits are used.
+ */
+struct iwl_mcc_update_resp_v8 {
+	__le32 status;
+	__le16 mcc;
+	u8 padding[2];
+	__le32 cap;
+	__le16 time;
+	__le16 geo_info;
+	u8 source_id;
+	u8 reserved[3];
+	__le32 n_channels;
+	__le32 channels[];
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_8 */
 
 /**
  * struct iwl_mcc_chub_notif - chub notifies of mcc change

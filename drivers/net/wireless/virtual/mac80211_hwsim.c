@@ -1860,7 +1860,7 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	int i;
 
-	if (!vif->valid_links)
+	if (!ieee80211_vif_is_mld(vif))
 		return &vif->bss_conf;
 
 	WARN_ON(is_multicast_ether_addr(hdr->addr1));
@@ -2636,7 +2636,8 @@ static int mac80211_hwsim_sta_state(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    new_state == IEEE80211_STA_AUTHORIZED && !sta->tdls)
-		ieee80211_set_active_links_async(vif, vif->valid_links);
+		ieee80211_set_active_links_async(vif,
+						 ieee80211_vif_usable_links(vif));
 
 	return 0;
 }

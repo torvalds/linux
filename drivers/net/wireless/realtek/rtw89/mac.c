@@ -758,11 +758,8 @@ static int hfc_reset_param(struct rtw89_dev *rtwdev)
 	if (param_ini.pub_cfg)
 		param->pub_cfg = *param_ini.pub_cfg;
 
-	if (param_ini.prec_cfg) {
+	if (param_ini.prec_cfg)
 		param->prec_cfg = *param_ini.prec_cfg;
-		rtwdev->hal.sw_amsdu_max_size =
-				param->prec_cfg.wp_ch07_prec * HFC_PAGE_UNIT;
-	}
 
 	if (param_ini.ch_cfg)
 		param->ch_cfg = param_ini.ch_cfg;
@@ -1541,7 +1538,6 @@ static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 		return NULL;
 	}
 
-	mac->dle_info.wde_pg_size = cfg->wde_size->pge_size;
 	mac->dle_info.ple_pg_size = cfg->ple_size->pge_size;
 	mac->dle_info.qta_mode = mode;
 	mac->dle_info.c0_rx_qta = cfg->ple_min_qt->cma0_dma;

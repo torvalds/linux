@@ -410,6 +410,8 @@ struct ieee80211_mgd_assoc_data {
 		ieee80211_conn_flags_t conn_flags;
 
 		u16 status;
+
+		bool disabled;
 	} link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	u8 ap_addr[ETH_ALEN] __aligned(2);
@@ -549,6 +551,9 @@ struct ieee80211_if_managed {
 	 */
 	u8 *assoc_req_ies;
 	size_t assoc_req_ies_len;
+
+	struct wiphy_delayed_work ml_reconf_work;
+	u16 removed_links;
 };
 
 struct ieee80211_if_ibss {
@@ -945,6 +950,8 @@ struct ieee80211_link_data_managed {
 
 	int wmm_last_param_set;
 	int mu_edca_last_param_set;
+
+	u8 bss_param_ch_cnt;
 
 	struct cfg80211_bss *bss;
 };
@@ -1614,7 +1621,7 @@ ieee80211_get_sband(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum nl80211_band band;
 
-	WARN_ON(sdata->vif.valid_links);
+	WARN_ON(ieee80211_vif_is_mld(&sdata->vif));
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
@@ -1724,7 +1731,8 @@ struct ieee802_11_elems {
 	const struct ieee80211_aid_response_ie *aid_resp;
 	const struct ieee80211_eht_cap_elem *eht_cap;
 	const struct ieee80211_eht_operation *eht_operation;
-	const struct ieee80211_multi_link_elem *multi_link;
+	const struct ieee80211_multi_link_elem *ml_basic;
+	const struct ieee80211_multi_link_elem *ml_reconf;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1749,7 +1757,14 @@ struct ieee802_11_elems {
 	u8 eht_cap_len;
 
 	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
-	size_t multi_link_len;
+	size_t ml_basic_len;
+	size_t ml_reconf_len;
+
+	/* The basic Multi-Link element in the original IEs */
+	const struct element *ml_basic_elem;
+
+	/* The reconfiguration Multi-Link element in the original IEs */
+	const struct element *ml_reconf_elem;
 
 	/*
 	 * store the per station profile pointer and length in case that the
@@ -1927,6 +1942,9 @@ void ieee80211_scan_cancel(struct ieee80211_local *local);
 void ieee80211_run_deferred_scan(struct ieee80211_local *local);
 void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb);
 
+void ieee80211_inform_bss(struct wiphy *wiphy, struct cfg80211_bss *bss,
+			  const struct cfg80211_bss_ies *ies, void *data);
+
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
@@ -2019,8 +2037,9 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 			 struct ieee80211_bss_conf *link_conf);
 void ieee80211_link_stop(struct ieee80211_link_data *link);
 int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
-			    u16 new_links);
+			    u16 new_links, u16 dormant_links);
 void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata);
+int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
@@ -2424,6 +2443,7 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 				    const u8 *da, const u8 *bssid,
 				    u16 stype, u16 reason,
 				    bool send_frame, u8 *frame_buf);
+u8 *ieee80211_write_he_6ghz_cap(u8 *pos, __le16 cap, u8 *end);
 
 enum {
 	IEEE80211_PROBE_FLAG_DIRECTED		= BIT(0),
@@ -2563,10 +2583,10 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 /* TDLS */
 int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-			const u8 *peer, u8 action_code, u8 dialog_token,
-			u16 status_code, u32 peer_capability,
-			bool initiator, const u8 *extra_ies,
-			size_t extra_ies_len);
+			const u8 *peer, int link_id,
+			u8 action_code, u8 dialog_token, u16 status_code,
+			u32 peer_capability, bool initiator,
+			const u8 *extra_ies, size_t extra_ies_len);
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper);
 void ieee80211_tdls_peer_del_work(struct work_struct *wk);

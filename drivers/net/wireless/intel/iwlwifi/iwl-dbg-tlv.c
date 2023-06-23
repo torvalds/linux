@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include <linux/firmware.h>
 #include "iwl-drv.h"
@@ -586,8 +586,14 @@ static int iwl_dbg_tlv_alloc_fragments(struct iwl_fw_runtime *fwrt,
 	fw_mon_cfg = &fwrt->trans->dbg.fw_mon_cfg[alloc_id];
 	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
 
-	if (fw_mon->num_frags ||
-	    fw_mon_cfg->buf_location !=
+	if (fw_mon->num_frags) {
+		for (i = 0; i < fw_mon->num_frags; i++)
+			memset(fw_mon->frags[i].block, 0,
+			       fw_mon->frags[i].size);
+		return 0;
+	}
+
+	if (fw_mon_cfg->buf_location !=
 	    cpu_to_le32(IWL_FW_INI_LOCATION_DRAM_PATH))
 		return 0;
 
@@ -795,8 +801,7 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 			 IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT))
 		return;
 
-	dram_info->first_word = cpu_to_le32(DRAM_INFO_FIRST_MAGIC_WORD);
-	dram_info->second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
+	memset(dram_info, 0, sizeof(*dram_info));
 
 	for (i = IWL_FW_INI_ALLOCATION_ID_DBGC1;
 	     i < IWL_FW_INI_ALLOCATION_NUM; i++) {
@@ -813,11 +818,10 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 				 i, ret);
 	}
 
-	if (dram_alloc)
-		IWL_DEBUG_FW(fwrt, "block data after  %08x\n",
-			     dram_info->first_word);
-	else
-		memset(frags->block, 0, sizeof(*dram_info));
+	if (dram_alloc) {
+		dram_info->first_word = cpu_to_le32(DRAM_INFO_FIRST_MAGIC_WORD);
+		dram_info->second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
+	}
 }
 
 static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
@@ -1274,18 +1278,23 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 	int ret, i;
 	u32 failed_alloc = 0;
 
-	if (*ini_dest != IWL_FW_INI_LOCATION_INVALID)
+	if (*ini_dest == IWL_FW_INI_LOCATION_INVALID) {
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: Generating active triggers list, domain 0x%x\n",
+			     fwrt->trans->dbg.domains_bitmap);
+
+		for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
+			struct iwl_dbg_tlv_time_point_data *tp =
+				&fwrt->trans->dbg.time_point[i];
+
+			iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
+		}
+	} else if (*ini_dest != IWL_FW_INI_LOCATION_DRAM_PATH) {
+		/* For DRAM, go through the loop below to clear all the buffers
+		 * properly on restart, otherwise garbage may be left there and
+		 * leak into new debug dumps.
+		 */
 		return;
-
-	IWL_DEBUG_FW(fwrt,
-		     "WRT: Generating active triggers list, domain 0x%x\n",
-		     fwrt->trans->dbg.domains_bitmap);
-
-	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
-		struct iwl_dbg_tlv_time_point_data *tp =
-			&fwrt->trans->dbg.time_point[i];
-
-		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
 	}
 
 	*ini_dest = IWL_FW_INI_LOCATION_INVALID;

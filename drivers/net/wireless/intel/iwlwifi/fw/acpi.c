@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2022 Intel Corporation
+ * Copyright (C) 2019-2023 Intel Corporation
  */
 #include <linux/uuid.h>
 #include <linux/dmi.h>
@@ -94,7 +94,7 @@ static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 	return 0;
 }
 
-void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+static void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 {
 	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_handle handle;
@@ -115,7 +115,6 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 	}
 	return buf.pointer;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
 
 /*
  * Generic function for evaluating a method defined in the device specific
@@ -237,11 +236,12 @@ int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u32);
 
-union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
-					       union acpi_object *data,
-					       int min_data_size,
-					       int max_data_size,
-					       int *tbl_rev)
+static union acpi_object *
+iwl_acpi_get_wifi_pkg_range(struct device *dev,
+			    union acpi_object *data,
+			    int min_data_size,
+			    int max_data_size,
+			    int *tbl_rev)
 {
 	int i;
 	union acpi_object *wifi_pkg;
@@ -292,7 +292,16 @@ union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
 found:
 	return wifi_pkg;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg_range);
+
+static union acpi_object *
+iwl_acpi_get_wifi_pkg(struct device *dev,
+		      union acpi_object *data,
+		      int data_size, int *tbl_rev)
+{
+	return iwl_acpi_get_wifi_pkg_range(dev, data, data_size, data_size,
+					   tbl_rev);
+}
+
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		     union iwl_tas_config_cmd *cmd, int fw_ver)
@@ -1169,40 +1178,47 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
          */
         cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags);
 
+	IWL_DEBUG_RADIO(fwrt, "PPAG cmd ver is %d\n", cmd_ver);
 	if (cmd_ver == 1) {
                 num_sub_bands = IWL_NUM_SUB_BANDS_V1;
                 gain = cmd->v1.gain[0];
                 *cmd_size = sizeof(cmd->v1);
                 if (fwrt->ppag_ver == 1 || fwrt->ppag_ver == 2) {
+			/* in this case FW supports revision 0 */
                         IWL_DEBUG_RADIO(fwrt,
-                                        "PPAG table rev is %d but FW supports v1, sending truncated table\n",
+					"PPAG table rev is %d, send truncated table\n",
                                         fwrt->ppag_ver);
-			if (!fw_has_capa(&fwrt->fw->ucode_capa,
-					 IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) {
-				cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
-				IWL_DEBUG_RADIO(fwrt,
-						"FW doesn't support ppag China bit\n");
-			} else {
-				IWL_DEBUG_RADIO(fwrt,
-						"FW supports ppag China bit\n");
-			}
 		}
 	} else if (cmd_ver >= 2 && cmd_ver <= 4) {
                 num_sub_bands = IWL_NUM_SUB_BANDS_V2;
                 gain = cmd->v2.gain[0];
                 *cmd_size = sizeof(cmd->v2);
                 if (fwrt->ppag_ver == 0) {
+			/* in this case FW supports revisions 1 or 2 */
                         IWL_DEBUG_RADIO(fwrt,
-                                        "PPAG table is v1 but FW supports v2, sending padded table\n");
-                } else if (cmd_ver == 2 && fwrt->ppag_ver == 2) {
-                        IWL_DEBUG_RADIO(fwrt,
-                                        "PPAG table is v3 but FW supports v2, sending partial bitmap.\n");
-                        cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
+					"PPAG table rev is 0, send padded table\n");
                 }
         } else {
                 IWL_DEBUG_RADIO(fwrt, "Unsupported PPAG command version\n");
                 return -EINVAL;
         }
+
+	/* ppag mode */
+	IWL_DEBUG_RADIO(fwrt,
+			"PPAG MODE bits were read from bios: %d\n",
+			cmd->v1.flags & cpu_to_le32(ACPI_PPAG_MASK));
+	if ((cmd_ver == 1 && !fw_has_capa(&fwrt->fw->ucode_capa,
+					  IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) ||
+	    (cmd_ver == 2 && fwrt->ppag_ver == 2)) {
+		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
+		IWL_DEBUG_RADIO(fwrt, "masking ppag China bit\n");
+	} else {
+		IWL_DEBUG_RADIO(fwrt, "isn't masking ppag China bit\n");
+	}
+
+	IWL_DEBUG_RADIO(fwrt,
+			"PPAG MODE bits going to be sent: %d\n",
+			cmd->v1.flags & cpu_to_le32(ACPI_PPAG_MASK));
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
                 for (j = 0; j < num_sub_bands; j++) {
@@ -1232,3 +1248,40 @@ bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 	return true;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_is_ppag_approved);
+
+void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
+			      struct iwl_phy_specific_cfg *filters)
+{
+	struct iwl_phy_specific_cfg tmp = {};
+	union acpi_object *wifi_pkg, *data;
+	int tbl_rev, i;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WPFC_METHOD);
+	if (IS_ERR(data))
+		return;
+
+	/* try to read wtas table revision 1 or revision 0*/
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WPFC_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg))
+		goto out_free;
+
+	if (tbl_rev != 0)
+		goto out_free;
+
+	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) != ACPI_WPFC_WIFI_DATA_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
+		if (wifi_pkg->package.elements[i].type != ACPI_TYPE_INTEGER)
+			return;
+		tmp.filter_cfg_chains[i] =
+			cpu_to_le32(wifi_pkg->package.elements[i].integer.value);
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC filter config from ACPI\n");
+	*filters = tmp;
+out_free:
+	kfree(data);
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_phy_filters);

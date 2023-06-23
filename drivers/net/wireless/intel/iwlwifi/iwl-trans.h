@@ -1067,6 +1067,8 @@ struct iwl_trans_txqs {
  * @iwl_trans_txqs: transport tx queues data.
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
+ * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
+ *	only valid for discrete (not integrated) NICs
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1128,6 +1130,8 @@ struct iwl_trans {
 	struct iwl_trans_txqs txqs;
 	u32 mbx_addr_0_step;
 	u32 mbx_addr_1_step;
+
+	u8 pcie_link_speed;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1612,6 +1616,11 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 			  const struct iwl_cfg_trans_params *cfg_trans);
 int iwl_trans_init(struct iwl_trans *trans);
 void iwl_trans_free(struct iwl_trans *trans);
+
+static inline bool iwl_trans_is_hw_error_value(u32 val)
+{
+	return ((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50);
+}
 
 /*****************************************************
 * driver (transport) register/unregister functions

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022 - 2023 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <net/mac80211.h>
@@ -42,7 +42,7 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	 * Of course the same can be done during add as well, but we must do
 	 * it during remove, since we don't have the mvmvif->ap_sta pointer.
 	 */
-	if (!sta && (keyconf->link_id >= 0 || !vif->valid_links))
+	if (!sta && (keyconf->link_id >= 0 || !ieee80211_vif_is_mld(vif)))
 		return BIT(link_info->ap_sta_id);
 
 	/* STA should be non-NULL now, but iwl_mvm_sta_fw_id_mask() checks */
@@ -175,9 +175,14 @@ int iwl_mvm_mld_send_key(struct iwl_mvm *mvm, u32 sta_mask, u32 key_flags,
 		.u.add.key_flags = cpu_to_le32(key_flags),
 		.u.add.tx_seq = cpu_to_le64(atomic64_read(&keyconf->tx_pn)),
 	};
+	int max_key_len = sizeof(cmd.u.add.key);
 	int ret;
 
-	if (WARN_ON(keyconf->keylen > sizeof(cmd.u.add.key)))
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_WEP104)
+		max_key_len -= IWL_SEC_WEP_KEY_OFFSET;
+
+	if (WARN_ON(keyconf->keylen > max_key_len))
 		return -EINVAL;
 
 	if (WARN_ON(!sta_mask))
@@ -226,8 +231,49 @@ int iwl_mvm_sec_key_add(struct iwl_mvm *mvm,
 {
 	u32 sta_mask = iwl_mvm_get_sec_sta_mask(mvm, vif, sta, keyconf);
 	u32 key_flags = iwl_mvm_get_sec_flags(mvm, vif, sta, keyconf);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *mvm_link = NULL;
+	int ret;
 
-	return iwl_mvm_mld_send_key(mvm, sta_mask, key_flags, keyconf);
+	if (keyconf->keyidx == 4 || keyconf->keyidx == 5) {
+		unsigned int link_id = 0;
+
+		/* set to -1 for non-MLO right now */
+		if (keyconf->link_id >= 0)
+			link_id = keyconf->link_id;
+
+		mvm_link = mvmvif->link[link_id];
+		if (WARN_ON(!mvm_link))
+			return -EINVAL;
+
+		if (mvm_link->igtk) {
+			IWL_DEBUG_MAC80211(mvm, "remove old IGTK %d\n",
+					   mvm_link->igtk->keyidx);
+			ret = iwl_mvm_sec_key_del(mvm, vif, sta,
+						  mvm_link->igtk);
+			if (ret)
+				IWL_ERR(mvm,
+					"failed to remove old IGTK (ret=%d)\n",
+					ret);
+		}
+
+		WARN_ON(mvm_link->igtk);
+	}
+
+	ret = iwl_mvm_mld_send_key(mvm, sta_mask, key_flags, keyconf);
+	if (ret)
+		return ret;
+
+	if (mvm_link)
+		mvm_link->igtk = keyconf;
+
+	/* We don't really need this, but need it to be not invalid,
+	 * and if we switch links multiple times it might go to be
+	 * invalid when removed.
+	 */
+	keyconf->hw_key_idx = 0;
+
+	return 0;
 }
 
 static int _iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
@@ -238,10 +284,30 @@ static int _iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
 {
 	u32 sta_mask = iwl_mvm_get_sec_sta_mask(mvm, vif, sta, keyconf);
 	u32 key_flags = iwl_mvm_get_sec_flags(mvm, vif, sta, keyconf);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
 	if (WARN_ON(!sta_mask))
 		return -EINVAL;
+
+	if (keyconf->keyidx == 4 || keyconf->keyidx == 5) {
+		struct iwl_mvm_vif_link_info *mvm_link;
+		unsigned int link_id = 0;
+
+		/* set to -1 for non-MLO right now */
+		if (keyconf->link_id >= 0)
+			link_id = keyconf->link_id;
+
+		mvm_link = mvmvif->link[link_id];
+		if (WARN_ON(!mvm_link))
+			return -EINVAL;
+
+		if (mvm_link->igtk == keyconf) {
+			/* no longer in HW - mark for later */
+			mvm_link->igtk->hw_key_idx = STA_KEY_IDX_INVALID;
+			mvm_link->igtk = NULL;
+		}
+	}
 
 	ret = __iwl_mvm_sec_key_del(mvm, sta_mask, key_flags, keyconf->keyidx,
 				    flags);

@@ -1651,7 +1651,7 @@ static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
 
 	backpressure_time = *data;
 
-	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt backpressure event, pdev %d, ring type %d,ring id %d, hp %d tp %d, backpressure time %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "backpressure event, pdev %d, ring type %d,ring id %d, hp %d tp %d, backpressure time %d\n",
 		   pdev_id, ring_type, ring_id, hp, tp, backpressure_time);
 
 	if (ring_type == HTT_BACKPRESSURE_UMAC_RING_TYPE) {
@@ -2466,7 +2466,7 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %d %s sn %u %s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %p len %u peer %pM %d %s sn %u %s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
 		   peer ? peer->addr : NULL,
@@ -4908,7 +4908,7 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 			goto err_merge_fail;
 
 		ath11k_dbg(ab, ATH11K_DBG_DATA,
-			   "mpdu_buf %pK mpdu_buf->len %u",
+			   "mpdu_buf %p mpdu_buf->len %u",
 			   prev_buf, prev_buf->len);
 	} else {
 		ath11k_dbg(ab, ATH11K_DBG_DATA,
@@ -5099,7 +5099,7 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 
 	if (!mon_dst_srng) {
 		ath11k_warn(ar->ab,
-			    "HAL Monitor Destination Ring Init Failed -- %pK",
+			    "HAL Monitor Destination Ring Init Failed -- %p",
 			    mon_dst_srng);
 		return;
 	}

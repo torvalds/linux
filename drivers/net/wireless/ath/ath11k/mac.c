@@ -643,7 +643,10 @@ struct ath11k *ath11k_mac_get_ar_by_pdev_id(struct ath11k_base *ab, u32 pdev_id)
 		return NULL;
 
 	for (i = 0; i < ab->num_radios; i++) {
-		pdev = rcu_dereference(ab->pdevs_active[i]);
+		if (ab->fw_mode == ATH11K_FIRMWARE_MODE_FTM)
+			pdev = &ab->pdevs[i];
+		else
+			pdev = rcu_dereference(ab->pdevs_active[i]);
 
 		if (pdev && pdev->pdev_id == pdev_id)
 			return (pdev->ar ? pdev->ar : NULL);
@@ -815,7 +818,7 @@ static int ath11k_recalc_rtscts_prot(struct ath11k_vif *arvif)
 
 	arvif->rtscts_prot_mode = rts_cts;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev %d recalc rts/cts prot %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %d recalc rts/cts prot %d\n",
 		   arvif->vdev_id, rts_cts);
 
 	ret =  ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
@@ -971,7 +974,7 @@ static int ath11k_mac_monitor_vdev_start(struct ath11k *ar, int vdev_id,
 		goto vdev_stop;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %i started\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "monitor vdev %i started\n",
 		   vdev_id);
 
 	return 0;
@@ -1025,7 +1028,7 @@ static int ath11k_mac_monitor_vdev_stop(struct ath11k *ar)
 		return ret;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %i stopped\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "monitor vdev %i stopped\n",
 		   ar->monitor_vdev_id);
 
 	return 0;
@@ -1096,7 +1099,7 @@ static int ath11k_mac_monitor_vdev_create(struct ath11k *ar)
 	ar->num_created_vdevs++;
 	set_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %d created\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "monitor vdev %d created\n",
 		   ar->monitor_vdev_id);
 
 	return 0;
@@ -1131,7 +1134,7 @@ static int ath11k_mac_monitor_vdev_delete(struct ath11k *ar)
 	if (time_left == 0) {
 		ath11k_warn(ar->ab, "Timeout in receiving vdev delete response\n");
 	} else {
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %d deleted\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "monitor vdev %d deleted\n",
 			   ar->monitor_vdev_id);
 
 		ar->allocated_vdev_map &= ~(1LL << ar->monitor_vdev_id);
@@ -1177,7 +1180,7 @@ static int ath11k_mac_monitor_start(struct ath11k *ar)
 		return ret;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor started\n");
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "monitor started\n");
 
 	return 0;
 }
@@ -1207,7 +1210,7 @@ static int ath11k_mac_monitor_stop(struct ath11k *ar)
 		return ret;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor stopped ret %d\n", ret);
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "monitor stopped ret %d\n", ret);
 
 	return 0;
 }
@@ -1258,7 +1261,7 @@ static int ath11k_mac_vif_setup_ps(struct ath11k_vif *arvif)
 		psmode = WMI_STA_PS_MODE_DISABLED;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev %d psmode %s\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %d psmode %s\n",
 		   arvif->vdev_id, psmode ? "enable" : "disable");
 
 	ret = ath11k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id, psmode);
@@ -1638,7 +1641,7 @@ static void ath11k_control_beaconing(struct ath11k_vif *arvif,
 
 	arvif->is_up = true;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev %d up\n", arvif->vdev_id);
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %d up\n", arvif->vdev_id);
 }
 
 static void ath11k_mac_handle_beacon_iter(void *data, u8 *mac,
@@ -1961,7 +1964,7 @@ static void ath11k_peer_assoc_h_ht(struct ath11k *ar,
 		arg->peer_nss = min(sta->deflink.rx_nss, max_nss);
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac ht peer %pM mcs cnt %d nss %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "ht peer %pM mcs cnt %d nss %d\n",
 		   arg->peer_mac,
 		   arg->peer_ht_rates.num_rates,
 		   arg->peer_nss);
@@ -2125,7 +2128,7 @@ static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 	}
 
 	if (!user_rate_valid) {
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac setting vht range mcs value to peer supported nss %d for peer %pM\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "setting vht range mcs value to peer supported nss %d for peer %pM\n",
 			   sta->deflink.rx_nss, sta->addr);
 		vht_mcs_mask[sta->deflink.rx_nss - 1] = vht_mcs_mask[vht_nss - 1];
 	}
@@ -2182,7 +2185,7 @@ static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 	}
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac vht peer %pM max_mpdu %d flags 0x%x nss_override 0x%x\n",
+		   "vht peer %pM max_mpdu %d flags 0x%x nss_override 0x%x\n",
 		   sta->addr, arg->peer_max_mpdu, arg->peer_flags,
 		   arg->peer_bw_rxnss_override);
 }
@@ -2407,7 +2410,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	}
 
 	if (!user_rate_valid) {
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac setting he range mcs value to peer supported nss %d for peer %pM\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "setting he range mcs value to peer supported nss %d for peer %pM\n",
 			   sta->deflink.rx_nss, sta->addr);
 		he_mcs_mask[sta->deflink.rx_nss - 1] = he_mcs_mask[he_nss - 1];
 	}
@@ -2488,7 +2491,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	}
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac he peer %pM nss %d mcs cnt %d nss_override 0x%x\n",
+		   "he peer %pM nss %d mcs cnt %d nss_override 0x%x\n",
 		   sta->addr, arg->peer_nss,
 		   arg->peer_he_mcs_count,
 		   arg->peer_bw_rxnss_override);
@@ -2608,7 +2611,7 @@ static void ath11k_peer_assoc_h_qos(struct ath11k *ar,
 		break;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac peer %pM qos %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "peer %pM qos %d\n",
 		   sta->addr, arg->qos_flag);
 }
 
@@ -2625,7 +2628,7 @@ static int ath11k_peer_assoc_qos_ap(struct ath11k *ar,
 
 	params.vdev_id = arvif->vdev_id;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac uapsd_queues 0x%x max_sp %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "uapsd_queues 0x%x max_sp %d\n",
 		   sta->uapsd_queues, sta->max_sp);
 
 	uapsd = 0;
@@ -2811,7 +2814,7 @@ static void ath11k_peer_assoc_h_phymode(struct ath11k *ar,
 		break;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac peer %pM phymode %s\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "peer %pM phymode %s\n",
 		   sta->addr, ath11k_wmi_phymode_str(phymode));
 
 	arg->peer_phymode = phymode;
@@ -3002,7 +3005,7 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev %i assoc bssid %pM aid %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %i assoc bssid %pM aid %d\n",
 		   arvif->vdev_id, arvif->bssid, arvif->aid);
 
 	rcu_read_lock();
@@ -3068,7 +3071,7 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 	arvif->rekey_data.enable_offload = false;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac vdev %d up (associated) bssid %pM aid %d\n",
+		   "vdev %d up (associated) bssid %pM aid %d\n",
 		   arvif->vdev_id, bss_conf->bssid, vif->cfg.aid);
 
 	spin_lock_bh(&ar->ab->base_lock);
@@ -3113,7 +3116,7 @@ static void ath11k_bss_disassoc(struct ieee80211_hw *hw,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev %i disassoc bssid %pM\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %i disassoc bssid %pM\n",
 		   arvif->vdev_id, arvif->bssid);
 
 	ret = ath11k_wmi_vdev_down(ar, arvif->vdev_id);
@@ -3262,7 +3265,7 @@ static int ath11k_mac_config_obss_pd(struct ath11k *ar,
 	}
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac obss pd sr_ctrl %x non_srg_thres %u srg_max %u\n",
+		   "obss pd sr_ctrl %x non_srg_thres %u srg_max %u\n",
 		   he_obss_pd->sr_ctrl, he_obss_pd->non_srg_max_offset,
 		   he_obss_pd->max_offset);
 
@@ -3590,7 +3593,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_TXPOWER) {
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev_id %i txpower %d\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev_id %i txpower %d\n",
 			   arvif->vdev_id, info->txpower);
 
 		arvif->txpower = info->txpower;
@@ -3631,7 +3634,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		rate = ATH11K_HW_RATE_CODE(hw_value, 0, preamble);
 
 		ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-			   "mac vdev %d mcast_rate %x\n",
+			   "vdev %d mcast_rate %x\n",
 			   arvif->vdev_id, rate);
 
 		vdev_param = WMI_VDEV_PARAM_MCAST_DATA_RATE;
@@ -3740,7 +3743,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		memcpy(arvif->arp_ns_offload.mac_addr, vif->addr, ETH_ALEN);
 		arvif->arp_ns_offload.ipv4_count = ipv4_cnt;
 
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac arp_addr_cnt %d vif->addr %pM, offload_addr %pI4\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "arp_addr_cnt %d vif->addr %pM, offload_addr %pI4\n",
 			   vif->cfg.arp_addr_cnt,
 			   vif->addr, arvif->arp_ns_offload.ipv4_addr);
 	}
@@ -4462,7 +4465,7 @@ ath11k_mac_set_peer_he_fixed_rate(struct ath11k_vif *arvif,
 		return -EINVAL;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac setting fixed he rate for peer %pM, device will not switch to any other selected rates",
+		   "setting fixed he rate for peer %pM, device will not switch to any other selected rates",
 		   sta->addr);
 
 	rate_code = ATH11K_HW_RATE_CODE(he_rate, nss - 1,
@@ -4704,14 +4707,14 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 		ath11k_peer_assoc_h_phymode(ar, arvif->vif, sta, &peer_arg);
 		peer_phymode = peer_arg.peer_phymode;
 
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac update sta %pM peer bw %d phymode %d\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "update sta %pM peer bw %d phymode %d\n",
 			   sta->addr, bw, peer_phymode);
 
 		if (bw > bw_prev) {
 			/* BW is upgraded. In this case we send WMI_PEER_PHYMODE
 			 * followed by WMI_PEER_CHWIDTH
 			 */
-			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac BW upgrade for sta %pM new BW %d, old BW %d\n",
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "BW upgrade for sta %pM new BW %d, old BW %d\n",
 				   sta->addr, bw, bw_prev);
 
 			err = ath11k_wmi_set_peer_param(ar, sta->addr, arvif->vdev_id,
@@ -4733,7 +4736,7 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 			/* BW is downgraded. In this case we send WMI_PEER_CHWIDTH
 			 * followed by WMI_PEER_PHYMODE
 			 */
-			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac BW downgrade for sta %pM new BW %d,old BW %d\n",
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "BW downgrade for sta %pM new BW %d,old BW %d\n",
 				   sta->addr, bw, bw_prev);
 
 			err = ath11k_wmi_set_peer_param(ar, sta->addr, arvif->vdev_id,
@@ -4755,7 +4758,7 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 	}
 
 	if (changed & IEEE80211_RC_NSS_CHANGED) {
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac update sta %pM nss %d\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "update sta %pM nss %d\n",
 			   sta->addr, nss);
 
 		err = ath11k_wmi_set_peer_param(ar, sta->addr, arvif->vdev_id,
@@ -4766,7 +4769,7 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 	}
 
 	if (changed & IEEE80211_RC_SMPS_CHANGED) {
-		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac update sta %pM smps %d\n",
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "update sta %pM smps %d\n",
 			   sta->addr, smps);
 
 		err = ath11k_wmi_set_peer_param(ar, sta->addr, arvif->vdev_id,
@@ -5224,7 +5227,7 @@ static void ath11k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac sta rc update for %pM changed %08x bw %d nss %d smps %d\n",
+		   "sta rc update for %pM changed %08x bw %d nss %d smps %d\n",
 		   sta->addr, changed, sta->deflink.bandwidth,
 		   sta->deflink.rx_nss,
 		   sta->deflink.smps_mode);
@@ -6035,7 +6038,7 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 	spin_unlock_bh(&ar->txmgmt_idr_lock);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac tx mgmt frame, buf id %d\n", buf_id);
+		   "tx mgmt frame, buf id %d\n", buf_id);
 
 	if (buf_id < 0)
 		return -ENOSPC;
@@ -6112,7 +6115,7 @@ static void ath11k_mgmt_over_wmi_tx_work(struct work_struct *work)
 				ath11k_mgmt_over_wmi_tx_drop(ar, skb);
 			} else {
 				ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-					   "mac tx mgmt frame, vdev_id %d\n",
+					   "tx mgmt frame, vdev_id %d\n",
 					   arvif->vdev_id);
 			}
 		} else {
@@ -6271,6 +6274,11 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	struct ath11k_pdev *pdev = ar->pdev;
 	int ret;
 
+	if (ath11k_ftm_mode) {
+		ath11k_warn(ab, "mac operations not supported in factory test mode\n");
+		return -EOPNOTSUPP;
+	}
+
 	ath11k_mac_drain_tx(ar);
 	mutex_lock(&ar->conf_mutex);
 
@@ -6285,6 +6293,7 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	case ATH11K_STATE_RESTARTED:
 	case ATH11K_STATE_WEDGED:
 	case ATH11K_STATE_ON:
+	case ATH11K_STATE_FTM:
 		WARN_ON(1);
 		ret = -EINVAL;
 		goto err;
@@ -6578,7 +6587,7 @@ void ath11k_mac_11d_scan_start(struct ath11k *ar, u32 vdev_id)
 
 	mutex_lock(&ar->ab->vdev_id_11d_lock);
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev id for 11d scan %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev id for 11d scan %d\n",
 		   ar->vdev_id_11d_scan);
 
 	if (ar->regdom_set_by_user)
@@ -6597,7 +6606,7 @@ void ath11k_mac_11d_scan_start(struct ath11k *ar, u32 vdev_id)
 	param.start_interval_msec = 0;
 	param.scan_period_msec = ATH11K_SCAN_11D_INTERVAL;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac start 11d scan\n");
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "start 11d scan\n");
 
 	ret = ath11k_wmi_send_11d_scan_start_cmd(ar, &param);
 	if (ret) {
@@ -6626,11 +6635,11 @@ void ath11k_mac_11d_scan_stop(struct ath11k *ar)
 	if (!test_bit(WMI_TLV_SERVICE_11D_OFFLOAD, ar->ab->wmi_ab.svc_map))
 		return;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac stop 11d scan\n");
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "stop 11d scan\n");
 
 	mutex_lock(&ar->ab->vdev_id_11d_lock);
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac stop 11d vdev id %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "stop 11d vdev id %d\n",
 		   ar->vdev_id_11d_scan);
 
 	if (ar->state_11d == ATH11K_11D_PREPARING) {
@@ -6661,7 +6670,7 @@ void ath11k_mac_11d_scan_stop_all(struct ath11k_base *ab)
 	struct ath11k_pdev *pdev;
 	int i;
 
-	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac stop soc 11d scan\n");
+	ath11k_dbg(ab, ATH11K_DBG_MAC, "stop soc 11d scan\n");
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
@@ -6789,7 +6798,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 		break;
 	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac add interface id %d type %d subtype %d map %llx\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "add interface id %d type %d subtype %d map %llx\n",
 		   arvif->vdev_id, arvif->vdev_type, arvif->vdev_subtype,
 		   ab->free_vdev_map);
 
@@ -6980,7 +6989,7 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->conf_mutex);
 
-	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac remove interface (vdev %d)\n",
+	ath11k_dbg(ab, ATH11K_DBG_MAC, "remove interface (vdev %d)\n",
 		   arvif->vdev_id);
 
 	ret = ath11k_spectral_vif_stop(arvif);
@@ -7135,7 +7144,7 @@ static int ath11k_mac_op_add_chanctx(struct ieee80211_hw *hw,
 	struct ath11k_base *ab = ar->ab;
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "mac chanctx add freq %u width %d ptr %pK\n",
+		   "chanctx add freq %u width %d ptr %p\n",
 		   ctx->def.chan->center_freq, ctx->def.width, ctx);
 
 	mutex_lock(&ar->conf_mutex);
@@ -7159,7 +7168,7 @@ static void ath11k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	struct ath11k_base *ab = ar->ab;
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "mac chanctx remove freq %u width %d ptr %pK\n",
+		   "chanctx remove freq %u width %d ptr %p\n",
 		   ctx->def.chan->center_freq, ctx->def.width, ctx);
 
 	mutex_lock(&ar->conf_mutex);
@@ -7239,7 +7248,7 @@ ath11k_mac_vdev_start_restart(struct ath11k_vif *arvif,
 	arg.channel.passive |= !!(chandef->chan->flags & IEEE80211_CHAN_NO_IR);
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "mac vdev %d start center_freq %d phymode %s\n",
+		   "vdev %d start center_freq %d phymode %s\n",
 		   arg.vdev_id, arg.channel.freq,
 		   ath11k_wmi_phymode_str(arg.channel.mode));
 
@@ -7513,7 +7522,7 @@ static void ath11k_mac_op_change_chanctx(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "mac chanctx change freq %u width %d ptr %pK changed %x\n",
+		   "chanctx change freq %u width %d ptr %p changed %x\n",
 		   ctx->def.chan->center_freq, ctx->def.width, ctx, changed);
 
 	/* This shouldn't really happen because channel switching should use
@@ -7594,7 +7603,7 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "mac chanctx assign ptr %pK vdev_id %i\n",
+		   "chanctx assign ptr %p vdev_id %i\n",
 		   ctx, arvif->vdev_id);
 
 	/* for QCA6390 bss peer must be created before vdev_start */
@@ -7684,7 +7693,7 @@ ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "mac chanctx unassign ptr %pK vdev_id %i\n",
+		   "chanctx unassign ptr %p vdev_id %i\n",
 		   ctx, arvif->vdev_id);
 
 	WARN_ON(!arvif->is_started);
@@ -7728,7 +7737,7 @@ ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				    arvif->bssid, arvif->vdev_id, ret);
 		else
 			ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-				   "mac removed peer %pM  vdev %d after vdev stop\n",
+				   "removed peer %pM  vdev %d after vdev stop\n",
 				   arvif->bssid, arvif->vdev_id);
 	}
 
@@ -7763,7 +7772,7 @@ ath11k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac chanctx switch n_vifs %d mode %d\n",
+		   "chanctx switch n_vifs %d mode %d\n",
 		   n_vifs, mode);
 	ath11k_mac_update_vif_chan(ar, vifs, n_vifs);
 
@@ -8095,7 +8104,7 @@ static int ath11k_mac_set_rate_params(struct ath11k_vif *arvif,
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac set rate params vdev %i rate 0x%02x nss 0x%02x sgi 0x%02x ldpc 0x%02x he_gi 0x%02x he_ltf 0x%02x he_fixed_rate %d\n",
+		   "set rate params vdev %i rate 0x%02x nss 0x%02x sgi 0x%02x ldpc 0x%02x he_gi 0x%02x he_ltf 0x%02x he_fixed_rate %d\n",
 		   arvif->vdev_id, rate, nss, sgi, ldpc, he_gi,
 		   he_ltf, he_fixed_rate);
 
@@ -8600,7 +8609,7 @@ static void ath11k_mac_put_chain_rssi(struct station_info *sinfo,
 			arsta->chain_signal[i] = ATH11K_INVALID_RSSI_FULL;
 
 		ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-			   "mac sta statistics %s rssi[%d] %d\n", pre, i, rssi);
+			   "sta statistics %s rssi[%d] %d\n", pre, i, rssi);
 
 		if (rssi != ATH11K_DEFAULT_NOISE_FLOOR &&
 		    rssi != ATH11K_INVALID_RSSI_FULL &&
@@ -8664,7 +8673,7 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 		signal = arsta->rssi_beacon;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac sta statistics db2dbm %u rssi comb %d rssi beacon %d\n",
+		   "sta statistics db2dbm %u rssi comb %d rssi beacon %d\n",
 		   db2dbm, arsta->rssi_comb, arsta->rssi_beacon);
 
 	if (signal) {
@@ -8711,7 +8720,7 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	struct list_head *p;
 	u32 count, scope;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac op ipv6 changed\n");
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "op ipv6 changed\n");
 
 	offload = &arvif->arp_ns_offload;
 	count = 0;
@@ -8736,7 +8745,7 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 			memcpy(offload->ipv6_addr[count], &ifa6->addr.s6_addr,
 			       sizeof(ifa6->addr.s6_addr));
 			offload->ipv6_type[count] = ATH11K_IPV6_UC_TYPE;
-			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac count %d ipv6 uc %pI6 scope %d\n",
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "count %d ipv6 uc %pI6 scope %d\n",
 				   count, offload->ipv6_addr[count],
 				   scope);
 			count++;
@@ -8756,7 +8765,7 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 			memcpy(offload->ipv6_addr[count], &ifaca6->aca_addr,
 			       sizeof(ifaca6->aca_addr));
 			offload->ipv6_type[count] = ATH11K_IPV6_AC_TYPE;
-			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac count %d ipv6 ac %pI6 scope %d\n",
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "count %d ipv6 ac %pI6 scope %d\n",
 				   count, offload->ipv6_addr[count],
 				   scope);
 			count++;
@@ -8782,7 +8791,7 @@ static void ath11k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_rekey_data *rekey_data = &arvif->rekey_data;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac set rekey data vdev %d\n",
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "set rekey data vdev %d\n",
 		   arvif->vdev_id);
 
 	mutex_lock(&ar->conf_mutex);
@@ -9783,6 +9792,7 @@ void ath11k_mac_destroy(struct ath11k_base *ab)
 		if (!ar)
 			continue;
 
+		ath11k_fw_stats_free(&ar->fw_stats);
 		ieee80211_free_hw(ar->hw);
 		pdev->ar = NULL;
 	}
