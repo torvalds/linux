@@ -103,9 +103,9 @@
 	status = "okay";
 
 	flash@0 {
+		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0>;
 		nand-bus-width = <16>;
 
 		partition@0 {
@@ -194,7 +194,7 @@
 				reg = <0x0 0x03FE0000>;
 			};
 
-			qspi_rootfs: partition@3FE0000 {
+			qspi_rootfs: partition@3fe0000 {
 				label = "Root Filesystem - JFFS2";
 				reg = <0x03FE0000 0x0C020000>;
 			};
