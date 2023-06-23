@@ -281,14 +281,16 @@ def define_pineapple():
     ]
 
     board_kernel_cmdline_extras = []
+    board_bootconfig_extras = []
 
     for variant in la_variants:
         if variant == "consolidate":
             mod_list = _pineapple_consolidate_in_tree_modules
         else:
             mod_list = _pineapple_in_tree_modules
-            board_kernel_cmdline_extras += ["nosoftlockup", "androidboot.console=0"]
+            board_kernel_cmdline_extras += ["nosoftlockup"]
             kernel_vendor_cmdline_extras += ["nosoftlockup"]
+            board_bootconfig_extras += ["androidboot.console=0"]
 
         define_msm_la(
             msm_target = target_name,
@@ -298,5 +300,6 @@ def define_pineapple():
                 earlycon_addr = "qcom_geni,0x00a9C000",
                 kernel_vendor_cmdline_extras = kernel_vendor_cmdline_extras,
                 board_kernel_cmdline_extras = board_kernel_cmdline_extras,
+                board_bootconfig_extras = board_bootconfig_extras,
             ),
         )
