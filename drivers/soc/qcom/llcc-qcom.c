@@ -385,6 +385,22 @@ static const struct llcc_slice_config pineapple_data[] = {
 	{LLCC_VIDVSP,   28,  256, 3, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
+static const struct llcc_slice_config cliffs_data[] = {
+	{LLCC_CPUSS,     1, 3200, 0, 0, 0x3FFF, 0x0, 0, 0x0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_VIDSC0,    2,  128, 3, 1, 0x3FFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_MDMHPGRW, 25, 1024, 3, 0, 0x3FFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_GPUHTW,   11,  256, 1, 1, 0x3FFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_GPU,       9, 2688, 1, 0, 0x3FFF, 0x0, 0, 0x0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_MMUHWT,   18,  512, 1, 1, 0x3FFF, 0x0, 0, 0x0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_MDMPNG,   27, 1024, 0, 1, 0x0000, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_MDMVPE,   29,   64, 1, 1, 0x3C00, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+	{LLCC_WRTCH,    31,  256, 1, 1, 0x3FFF, 0x0, 0, 0x0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_CAMEXP0,   4,  256, 3, 1,    0xF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_CAMEXP1,   7, 1536, 2, 1, 0x3FF0, 0x0, 2, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_LCPDARE,  30,  128, 3, 1, 0x3FFF, 0x0, 0, 0x0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+	{LLCC_ISLAND1,  12, 3584, 7, 1, 0x0, 0x3FFF, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
+
 static const struct llcc_slice_config qdu1000_data_2ch[] =  {
 	{LLCC_MDMHPGRW, 7, 512, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
 	{LLCC_MDMHW,    9, 256, 1, 1, 0xFFF, 0x0, 0, 0, 0, 1, 0, 0, 0 },
@@ -459,6 +475,11 @@ static const struct qcom_llcc_config sm8550_cfg = {
 static const struct qcom_llcc_config pineapple_cfg = {
 	.sct_data	= pineapple_data,
 	.size		= ARRAY_SIZE(pineapple_data),
+};
+
+static const struct qcom_llcc_config cliffs_cfg = {
+	.sct_data	= cliffs_data,
+	.size		= ARRAY_SIZE(cliffs_data),
 };
 
 static const struct qcom_llcc_config qdu1000_cfg[] = {
@@ -1200,6 +1221,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,sm8550-llcc", .data = &sm8550_cfg },
 	{ .compatible = "qcom,pineapple-llcc", .data = &pineapple_cfg },
 	{ .compatible = "qcom,qdu1000-llcc", .data = &qdu1000_cfg },
+	{ .compatible = "qcom,cliffs-llcc", .data = &cliffs_cfg },
 	{ }
 };
 
