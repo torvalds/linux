@@ -486,7 +486,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	long timeo;
 	int flags;
 
-	/* Don't let internal sendpage flags through */
+	/* Don't let internal flags through */
 	flags = (msg->msg_flags & ~MSG_SENDPAGE_DECRYPTED);
 	flags |= MSG_NO_SHARED_FRAGS;
 
@@ -566,23 +566,6 @@ out_err:
 	return copied ? copied : err;
 }
 
-static int tcp_bpf_sendpage(struct sock *sk, struct page *page, int offset,
-			    size_t size, int flags)
-{
-	struct bio_vec bvec;
-	struct msghdr msg = {
-		.msg_flags = flags | MSG_SPLICE_PAGES,
-	};
-
-	bvec_set_page(&bvec, page, size, offset);
-	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
-
-	if (flags & MSG_SENDPAGE_NOTLAST)
-		msg.msg_flags |= MSG_MORE;
-
-	return tcp_bpf_sendmsg(sk, &msg, size);
-}
-
 enum {
 	TCP_BPF_IPV4,
 	TCP_BPF_IPV6,
@@ -612,7 +595,6 @@ static void tcp_bpf_rebuild_protos(struct proto prot[TCP_BPF_NUM_CFGS],
 
 	prot[TCP_BPF_TX]			= prot[TCP_BPF_BASE];
 	prot[TCP_BPF_TX].sendmsg		= tcp_bpf_sendmsg;
-	prot[TCP_BPF_TX].sendpage		= tcp_bpf_sendpage;
 
 	prot[TCP_BPF_RX]			= prot[TCP_BPF_BASE];
 	prot[TCP_BPF_RX].recvmsg		= tcp_bpf_recvmsg_parser;
@@ -647,8 +629,7 @@ static int tcp_bpf_assert_proto_ops(struct proto *ops)
 	 * indeed valid assumptions.
 	 */
 	return ops->recvmsg  == tcp_recvmsg &&
-	       ops->sendmsg  == tcp_sendmsg &&
-	       ops->sendpage == tcp_sendpage ? 0 : -ENOTSUPP;
+	       ops->sendmsg  == tcp_sendmsg ? 0 : -ENOTSUPP;
 }
 
 int tcp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)

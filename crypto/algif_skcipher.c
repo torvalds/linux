@@ -194,7 +194,6 @@ static struct proto_ops algif_skcipher_ops = {
 
 	.release	=	af_alg_release,
 	.sendmsg	=	skcipher_sendmsg,
-	.sendpage	=	af_alg_sendpage,
 	.recvmsg	=	skcipher_recvmsg,
 	.poll		=	af_alg_poll,
 };
@@ -246,18 +245,6 @@ static int skcipher_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
 	return skcipher_sendmsg(sock, msg, size);
 }
 
-static ssize_t skcipher_sendpage_nokey(struct socket *sock, struct page *page,
-				       int offset, size_t size, int flags)
-{
-	int err;
-
-	err = skcipher_check_key(sock);
-	if (err)
-		return err;
-
-	return af_alg_sendpage(sock, page, offset, size, flags);
-}
-
 static int skcipher_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
 				  size_t ignored, int flags)
 {
@@ -285,7 +272,6 @@ static struct proto_ops algif_skcipher_ops_nokey = {
 
 	.release	=	af_alg_release,
 	.sendmsg	=	skcipher_sendmsg_nokey,
-	.sendpage	=	skcipher_sendpage_nokey,
 	.recvmsg	=	skcipher_recvmsg_nokey,
 	.poll		=	af_alg_poll,
 };

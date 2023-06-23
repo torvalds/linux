@@ -1246,20 +1246,6 @@ void chtls_splice_eof(struct socket *sock)
 	release_sock(sk);
 }
 
-int chtls_sendpage(struct sock *sk, struct page *page,
-		   int offset, size_t size, int flags)
-{
-	struct msghdr msg = { .msg_flags = flags | MSG_SPLICE_PAGES, };
-	struct bio_vec bvec;
-
-	if (flags & MSG_SENDPAGE_NOTLAST)
-		msg.msg_flags |= MSG_MORE;
-
-	bvec_set_page(&bvec, page, size, offset);
-	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
-	return chtls_sendmsg(sk, &msg, size);
-}
-
 static void chtls_select_window(struct sock *sk)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);

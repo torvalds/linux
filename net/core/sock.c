@@ -3261,36 +3261,6 @@ void __receive_sock(struct file *file)
 	}
 }
 
-ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags)
-{
-	ssize_t res;
-	struct msghdr msg = {.msg_flags = flags};
-	struct kvec iov;
-	char *kaddr = kmap(page);
-	iov.iov_base = kaddr + offset;
-	iov.iov_len = size;
-	res = kernel_sendmsg(sock, &msg, &iov, 1, size);
-	kunmap(page);
-	return res;
-}
-EXPORT_SYMBOL(sock_no_sendpage);
-
-ssize_t sock_no_sendpage_locked(struct sock *sk, struct page *page,
-				int offset, size_t size, int flags)
-{
-	ssize_t res;
-	struct msghdr msg = {.msg_flags = flags};
-	struct kvec iov;
-	char *kaddr = kmap(page);
-
-	iov.iov_base = kaddr + offset;
-	iov.iov_len = size;
-	res = kernel_sendmsg_locked(sk, &msg, &iov, 1, size);
-	kunmap(page);
-	return res;
-}
-EXPORT_SYMBOL(sock_no_sendpage_locked);
-
 /*
  *	Default Socket Callbacks
  */
@@ -4046,7 +4016,7 @@ static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
 {
 
 	seq_printf(seq, "%-9s %4u %6d  %6ld   %-3s %6u   %-3s  %-10s "
-			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
+			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
 		   proto->name,
 		   proto->obj_size,
 		   sock_prot_inuse_get(seq_file_net(seq), proto),
@@ -4067,7 +4037,6 @@ static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
 		   proto_method_implemented(proto->getsockopt),
 		   proto_method_implemented(proto->sendmsg),
 		   proto_method_implemented(proto->recvmsg),
-		   proto_method_implemented(proto->sendpage),
 		   proto_method_implemented(proto->bind),
 		   proto_method_implemented(proto->backlog_rcv),
 		   proto_method_implemented(proto->hash),
@@ -4088,7 +4057,7 @@ static int proto_seq_show(struct seq_file *seq, void *v)
 			   "maxhdr",
 			   "slab",
 			   "module",
-			   "cl co di ac io in de sh ss gs se re sp bi br ha uh gp em\n");
+			   "cl co di ac io in de sh ss gs se re bi br ha uh gp em\n");
 	else
 		proto_seq_printf(seq, list_entry(v, struct proto, node));
 	return 0;

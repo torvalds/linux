@@ -3553,54 +3553,6 @@ int kernel_getpeername(struct socket *sock, struct sockaddr *addr)
 EXPORT_SYMBOL(kernel_getpeername);
 
 /**
- *	kernel_sendpage - send a &page through a socket (kernel space)
- *	@sock: socket
- *	@page: page
- *	@offset: page offset
- *	@size: total size in bytes
- *	@flags: flags (MSG_DONTWAIT, ...)
- *
- *	Returns the total amount sent in bytes or an error.
- */
-
-int kernel_sendpage(struct socket *sock, struct page *page, int offset,
-		    size_t size, int flags)
-{
-	if (sock->ops->sendpage) {
-		/* Warn in case the improper page to zero-copy send */
-		WARN_ONCE(!sendpage_ok(page), "improper page for zero-copy send");
-		return sock->ops->sendpage(sock, page, offset, size, flags);
-	}
-	return sock_no_sendpage(sock, page, offset, size, flags);
-}
-EXPORT_SYMBOL(kernel_sendpage);
-
-/**
- *	kernel_sendpage_locked - send a &page through the locked sock (kernel space)
- *	@sk: sock
- *	@page: page
- *	@offset: page offset
- *	@size: total size in bytes
- *	@flags: flags (MSG_DONTWAIT, ...)
- *
- *	Returns the total amount sent in bytes or an error.
- *	Caller must hold @sk.
- */
-
-int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
-			   size_t size, int flags)
-{
-	struct socket *sock = sk->sk_socket;
-
-	if (sock->ops->sendpage_locked)
-		return sock->ops->sendpage_locked(sk, page, offset, size,
-						  flags);
-
-	return sock_no_sendpage_locked(sk, page, offset, size, flags);
-}
-EXPORT_SYMBOL(kernel_sendpage_locked);
-
-/**
  *	kernel_sock_shutdown - shut down part of a full-duplex connection (kernel space)
  *	@sock: socket
  *	@how: connection part

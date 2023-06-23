@@ -936,7 +936,7 @@ nfsd_open_verified(struct svc_rqst *rqstp, struct svc_fh *fhp, int may_flags,
 
 /*
  * Grab and keep cached pages associated with a file in the svc_rqst
- * so that they can be passed to the network sendmsg/sendpage routines
+ * so that they can be passed to the network sendmsg routines
  * directly. They will be released after the sending has completed.
  *
  * Return values: Number of bytes consumed, or -EIO if there are no

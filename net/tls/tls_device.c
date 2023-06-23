@@ -621,23 +621,6 @@ void tls_device_splice_eof(struct socket *sock)
 	mutex_unlock(&tls_ctx->tx_lock);
 }
 
-int tls_device_sendpage(struct sock *sk, struct page *page,
-			int offset, size_t size, int flags)
-{
-	struct bio_vec bvec;
-	struct msghdr msg = { .msg_flags = flags | MSG_SPLICE_PAGES, };
-
-	if (flags & MSG_SENDPAGE_NOTLAST)
-		msg.msg_flags |= MSG_MORE;
-
-	if (flags & MSG_OOB)
-		return -EOPNOTSUPP;
-
-	bvec_set_page(&bvec, page, size, offset);
-	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
-	return tls_device_sendmsg(sk, &msg, size);
-}
-
 struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 				       u32 seq, u64 *p_record_sn)
 {
