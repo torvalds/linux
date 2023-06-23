@@ -186,6 +186,7 @@ properties:
 
       - items:
           - enum:
+              - samsung,a7
               - sony,kanuti-tulip
               - square,apq8039-t2
           - const: qcom,msm8939
