@@ -36,6 +36,9 @@ void entry_INT80_compat(void);
 #ifdef CONFIG_XEN_PV
 void xen_entry_INT80_compat(void);
 #endif
+#else /* !CONFIG_IA32_EMULATION */
+#define entry_SYSCALL_compat NULL
+#define entry_SYSENTER_compat NULL
 #endif
 
 void x86_configure_nx(void);
