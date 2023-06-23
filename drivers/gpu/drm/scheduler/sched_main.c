@@ -1040,10 +1040,9 @@ static int drm_sched_main(void *param)
 		trace_drm_run_job(sched_job, entity);
 		fence = sched->ops->run_job(sched_job);
 		complete_all(&entity->entity_idle);
-		drm_sched_fence_scheduled(s_fence);
+		drm_sched_fence_scheduled(s_fence, fence);
 
 		if (!IS_ERR_OR_NULL(fence)) {
-			drm_sched_fence_set_parent(s_fence, fence);
 			/* Drop for original kref_init of the fence */
 			dma_fence_put(fence);
 
