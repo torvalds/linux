@@ -2867,7 +2867,7 @@ static void tcp_process_loss(struct sock *sk, int flag, int num_dupack,
 	}
 	if (tcp_is_reno(tp)) {
 		/* A Reno DUPACK means new data in F-RTO step 2.b above are
-		 * delivered. Lower inflight to clock out (re)tranmissions.
+		 * delivered. Lower inflight to clock out (re)transmissions.
 		 */
 		if (after(tp->snd_nxt, tp->high_seq) && num_dupack)
 			tcp_add_reno_sack(sk, num_dupack, flag & FLAG_ECE);
