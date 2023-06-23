@@ -43,7 +43,7 @@
 #define CPUM_SF_SDBT_TL_OFFSET	(CPUM_SF_SDB_PER_TABLE * 8)
 static inline int require_table_link(const void *sdbt)
 {
-	return ((unsigned long) sdbt & ~PAGE_MASK) == CPUM_SF_SDBT_TL_OFFSET;
+	return ((unsigned long)sdbt & ~PAGE_MASK) == CPUM_SF_SDBT_TL_OFFSET;
 }
 
 /* Minimum and maximum sampling buffer sizes:
@@ -192,7 +192,7 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 		if (is_link_entry(curr)) {
 			curr = get_next_sdbt(curr);
 			if (sdbt)
-				free_page((unsigned long) sdbt);
+				free_page((unsigned long)sdbt);
 
 			/* If the origin is reached, sampling buffer is freed */
 			if (curr == sfb->sdbt)
@@ -278,7 +278,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 	for (i = 0; i < num_sdb; i++) {
 		/* Allocate a new SDB-table if it is full. */
 		if (require_table_link(tail)) {
-			new = (unsigned long *) get_zeroed_page(gfp_flags);
+			new = (unsigned long *)get_zeroed_page(gfp_flags);
 			if (!new) {
 				rc = -ENOMEM;
 				break;
@@ -304,7 +304,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 			 */
 			if (tail_prev) {
 				sfb->num_sdbt--;
-				free_page((unsigned long) new);
+				free_page((unsigned long)new);
 				tail = tail_prev;
 			}
 			break;
@@ -343,7 +343,7 @@ static int alloc_sampling_buffer(struct sf_buffer *sfb, unsigned long num_sdb)
 		return -EINVAL;
 
 	/* Allocate the sample-data-block-table origin */
-	sfb->sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+	sfb->sdbt = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 	if (!sfb->sdbt)
 		return -ENOMEM;
 	sfb->num_sdb = 0;
@@ -597,7 +597,7 @@ static void setup_pmc_cpu(void *flags)
 	struct cpu_hw_sf *cpusf = this_cpu_ptr(&cpu_hw_sf);
 	int err = 0;
 
-	switch (*((int *) flags)) {
+	switch (*((int *)flags)) {
 	case PMC_INIT:
 		memset(cpusf, 0, sizeof(*cpusf));
 		err = qsi(&cpusf->qsi);
@@ -614,7 +614,7 @@ static void setup_pmc_cpu(void *flags)
 		break;
 	}
 	if (err) {
-		*((int *) flags) |= PMC_FAILURE;
+		*((int *)flags) |= PMC_FAILURE;
 		pr_err("Switching off the sampling facility failed with rc %i\n", err);
 	}
 }
@@ -1214,7 +1214,7 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 
 	te = trailer_entry_ptr((unsigned long)sdbt);
 	sample = (struct hws_basic_entry *)sdbt;
-	while ((unsigned long *) sample < (unsigned long *) te) {
+	while ((unsigned long *)sample < (unsigned long *)te) {
 		/* Check for an empty sample */
 		if (!sample->def || sample->LS)
 			break;
@@ -1291,7 +1291,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	if (SAMPL_DIAG_MODE(&event->hw))
 		return;
 
-	sdbt = (unsigned long *) TEAR_REG(hwc);
+	sdbt = (unsigned long *)TEAR_REG(hwc);
 	done = event_overflow = sampl_overflow = num_sdb = 0;
 	while (!done) {
 		/* Get the trailer entry of the sample-data-block */
@@ -1794,7 +1794,7 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 
 	/* Allocate the first SDBT */
 	sfb->num_sdbt = 0;
-	sfb->sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+	sfb->sdbt = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 	if (!sfb->sdbt)
 		goto no_sdbt;
 	aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)sfb->sdbt;
@@ -1806,7 +1806,7 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 	 */
 	for (i = 0; i < nr_pages; i++, tail++) {
 		if (require_table_link(tail)) {
-			new = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+			new = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 			if (!new)
 				goto no_sdbt;
 			aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)new;
@@ -1963,8 +1963,8 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	cpuhw->lsctl.interval = SAMPL_RATE(&event->hw);
 	if (!SAMPL_DIAG_MODE(&event->hw)) {
 		cpuhw->lsctl.tear = virt_to_phys(cpuhw->sfb.sdbt);
-		cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
-		TEAR_REG(&event->hw) = (unsigned long) cpuhw->sfb.sdbt;
+		cpuhw->lsctl.dear = *(unsigned long *)cpuhw->sfb.sdbt;
+		TEAR_REG(&event->hw) = (unsigned long)cpuhw->sfb.sdbt;
 	}
 
 	/* Ensure sampling functions are in the disabled state.  If disabled,
