@@ -119,7 +119,8 @@ properties:
               name:
                 type: string
               type:
-                enum: [ u8, u16, u32, u64, s8, s16, s32, s64, string ]
+                description: The netlink attribute type
+                enum: [ u8, u16, u32, u64, s8, s16, s32, s64, string, binary ]
               len:
                 $ref: '#/$defs/len-or-define'
               byte-order:
@@ -130,6 +131,12 @@ properties:
               enum:
                 description: Name of the enum type used for the attribute.
                 type: string
+              display-hint: &display-hint
+                description: |
+                  Optional format indicator that is intended only for choosing
+                  the right formatting mechanism when displaying values of this
+                  type.
+                enum: [ hex, mac, fddi, ipv4, ipv6, uuid ]
         # End genetlink-legacy
 
   attribute-sets:
@@ -179,6 +186,7 @@ properties:
               name:
                 type: string
               type: &attr-type
+                description: The netlink attribute type
                 enum: [ unused, pad, flag, binary, u8, u16, u32, u64, s32, s64,
                         string, nest, array-nest, nest-type-value ]
               doc:
@@ -226,6 +234,7 @@ properties:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
+              display-hint: *display-hint
               # Start genetlink-c
               name-prefix:
                 type: string
