@@ -839,7 +839,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 		tss.len -= ret;
 		spliced += ret;
 
-		if (!timeo)
+		if (!tss.len || !timeo)
 			break;
 		release_sock(sk);
 		lock_sock(sk);
