@@ -15,6 +15,7 @@
 #include "sev-dev.h"
 #include "tee-dev.h"
 #include "platform-access.h"
+#include "dbc.h"
 
 struct psp_device *psp_master;
 
@@ -112,6 +113,12 @@ static void psp_init_platform_access(struct psp_device *psp)
 		dev_warn(psp->dev, "platform access init failed: %d\n", ret);
 		return;
 	}
+
+	/* dbc must come after platform access as it tests the feature */
+	ret = dbc_dev_init(psp);
+	if (ret)
+		dev_warn(psp->dev, "failed to init dynamic boost control: %d\n",
+			 ret);
 }
 
 static int psp_init(struct psp_device *psp)
@@ -216,6 +223,8 @@ void psp_dev_destroy(struct sp_device *sp)
 	sev_dev_destroy(psp);
 
 	tee_dev_destroy(psp);
+
+	dbc_dev_destroy(psp);
 
 	platform_access_dev_destroy(psp);
 
