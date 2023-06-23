@@ -168,8 +168,7 @@ static bool smc_tx_should_cork(struct smc_sock *smc, struct msghdr *msg)
 	 * should known how/when to uncork it.
 	 */
 	if ((msg->msg_flags & MSG_MORE ||
-	     smc_tx_is_corked(smc) ||
-	     msg->msg_flags & MSG_SENDPAGE_NOTLAST) &&
+	     smc_tx_is_corked(smc)) &&
 	    atomic_read(&conn->sndbuf_space))
 		return true;
 
@@ -305,6 +304,9 @@ int smc_tx_sendpage(struct smc_sock *smc, struct page *page, int offset,
 	char *kaddr = kmap(page);
 	struct kvec iov;
 	int rc;
+
+	if (flags & MSG_SENDPAGE_NOTLAST)
+		msg.msg_flags |= MSG_MORE;
 
 	iov.iov_base = kaddr + offset;
 	iov.iov_len = size;
