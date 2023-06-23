@@ -107,6 +107,15 @@ config QCOM_CLK_APCS_MSM8916
 	  Say Y if you want to support CPU frequency scaling on devices
 	  such as msm8916.
 
+config QCOM_CLK_APCS_MSM8953
+	tristate "MSM8953 APCS Clock Controller"
+	select INTERCONNECT_CLK if INTERCONNECT
+	help
+	  Support for the APCS Clock Controller on msm8953 devices. The
+	  APCS is managing CPU mux, divider and PLL clocks.
+	  Say Y if you want to support CPU clock scaling using CPUfreq
+	  drivers for dyanmic power management.
+
 config QCOM_CLK_APCC_MSM8996
 	tristate "MSM8996 CPU Clock Controller"
 	select QCOM_KRYO_L2_ACCESSORS
