@@ -19,6 +19,7 @@ properties:
       - const: atmel,at91rm9200-spi
       - items:
           - const: microchip,sam9x60-spi
+          - const: microchip,sam9x7-spi
           - const: atmel,at91rm9200-spi
 
   reg:
