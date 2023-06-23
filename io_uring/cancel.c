@@ -27,11 +27,11 @@ struct io_cancel {
 #define CANCEL_FLAGS	(IORING_ASYNC_CANCEL_ALL | IORING_ASYNC_CANCEL_FD | \
 			 IORING_ASYNC_CANCEL_ANY | IORING_ASYNC_CANCEL_FD_FIXED)
 
-static bool io_cancel_cb(struct io_wq_work *work, void *data)
+/*
+ * Returns true if the request matches the criteria outlined by 'cd'.
+ */
+bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd)
 {
-	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
-	struct io_cancel_data *cd = data;
-
 	if (req->ctx != cd->ctx)
 		return false;
 	if (cd->flags & IORING_ASYNC_CANCEL_ANY) {
@@ -48,7 +48,16 @@ static bool io_cancel_cb(struct io_wq_work *work, void *data)
 			return false;
 		req->work.cancel_seq = cd->seq;
 	}
+
 	return true;
+}
+
+static bool io_cancel_cb(struct io_wq_work *work, void *data)
+{
+	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+	struct io_cancel_data *cd = data;
+
+	return io_cancel_req_match(req, cd);
 }
 
 static int io_async_cancel_one(struct io_uring_task *tctx,
