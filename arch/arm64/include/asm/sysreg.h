@@ -704,6 +704,25 @@
 #define ICH_VTR_TDS_SHIFT	19
 #define ICH_VTR_TDS_MASK	(1 << ICH_VTR_TDS_SHIFT)
 
+/*
+ * Permission Indirection Extension (PIE) permission encodings.
+ * Encodings with the _O suffix, have overlays applied (Permission Overlay Extension).
+ */
+#define PIE_NONE_O	0x0
+#define PIE_R_O		0x1
+#define PIE_X_O		0x2
+#define PIE_RX_O	0x3
+#define PIE_RW_O	0x5
+#define PIE_RWnX_O	0x6
+#define PIE_RWX_O	0x7
+#define PIE_R		0x8
+#define PIE_GCS		0x9
+#define PIE_RX		0xa
+#define PIE_RW		0xc
+#define PIE_RWX		0xe
+
+#define PIRx_ELx_PERM(idx, perm)	((perm) << ((idx) * 4))
+
 #define ARM64_FEATURE_FIELD_BITS	4
 
 /* Defined for compatibility only, do not add new users. */

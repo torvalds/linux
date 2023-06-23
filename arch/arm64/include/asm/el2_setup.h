@@ -159,11 +159,20 @@
 	mov	x0, xzr
 	mrs	x1, id_aa64pfr1_el1
 	ubfx	x1, x1, #ID_AA64PFR1_EL1_SME_SHIFT, #4
-	cbz	x1, .Lset_fgt_\@
+	cbz	x1, .Lset_pie_fgt_\@
 
 	/* Disable nVHE traps of TPIDR2 and SMPRI */
 	orr	x0, x0, #HFGxTR_EL2_nSMPRI_EL1_MASK
 	orr	x0, x0, #HFGxTR_EL2_nTPIDR2_EL0_MASK
+
+.Lset_pie_fgt_\@:
+	mrs_s	x1, SYS_ID_AA64MMFR3_EL1
+	ubfx	x1, x1, #ID_AA64MMFR3_EL1_S1PIE_SHIFT, #4
+	cbz	x1, .Lset_fgt_\@
+
+	/* Disable trapping of PIR_EL1 / PIRE0_EL1 */
+	orr	x0, x0, #HFGxTR_EL2_nPIR_EL1
+	orr	x0, x0, #HFGxTR_EL2_nPIRE0_EL1
 
 .Lset_fgt_\@:
 	msr_s	SYS_HFGRTR_EL2, x0
