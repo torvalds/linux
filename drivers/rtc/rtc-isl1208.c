@@ -74,6 +74,7 @@ struct isl1208_config {
 	unsigned int	nvmem_length;
 	unsigned	has_tamper:1;
 	unsigned	has_timestamp:1;
+	unsigned	has_inverted_osc_bit:1;
 };
 
 static const struct isl1208_config config_isl1208 = {
@@ -100,11 +101,19 @@ static const struct isl1208_config config_isl1219 = {
 	.has_timestamp = true
 };
 
+static const struct isl1208_config config_raa215300_a0 = {
+	.nvmem_length = 2,
+	.has_tamper = false,
+	.has_timestamp = false,
+	.has_inverted_osc_bit = true
+};
+
 static const struct i2c_device_id isl1208_id[] = {
 	{ "isl1208", .driver_data = (kernel_ulong_t)&config_isl1208 },
 	{ "isl1209", .driver_data = (kernel_ulong_t)&config_isl1209 },
 	{ "isl1218", .driver_data = (kernel_ulong_t)&config_isl1218 },
 	{ "isl1219", .driver_data = (kernel_ulong_t)&config_isl1219 },
+	{ "raa215300_a0", .driver_data = (kernel_ulong_t)&config_raa215300_a0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl1208_id);
@@ -894,6 +903,9 @@ isl1208_probe(struct i2c_client *client)
 		dev_err(&client->dev, "reading status failed\n");
 		return sr;
 	}
+
+	if (isl1208->config->has_inverted_osc_bit)
+		xtosb_val = !xtosb_val;
 
 	rc = isl1208_set_xtoscb(client, sr, xtosb_val);
 	if (rc)
