@@ -22,11 +22,12 @@ struct io_cancel {
 	u64				addr;
 	u32				flags;
 	s32				fd;
+	u8				opcode;
 };
 
 #define CANCEL_FLAGS	(IORING_ASYNC_CANCEL_ALL | IORING_ASYNC_CANCEL_FD | \
 			 IORING_ASYNC_CANCEL_ANY | IORING_ASYNC_CANCEL_FD_FIXED | \
-			 IORING_ASYNC_CANCEL_USERDATA)
+			 IORING_ASYNC_CANCEL_USERDATA | IORING_ASYNC_CANCEL_OP)
 
 /*
  * Returns true if the request matches the criteria outlined by 'cd'.
@@ -38,13 +39,17 @@ bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd)
 	if (req->ctx != cd->ctx)
 		return false;
 
-	if (!(cd->flags & (IORING_ASYNC_CANCEL_FD)))
+	if (!(cd->flags & (IORING_ASYNC_CANCEL_FD | IORING_ASYNC_CANCEL_OP)))
 		match_user_data = true;
 
 	if (cd->flags & IORING_ASYNC_CANCEL_ANY)
 		goto check_seq;
 	if (cd->flags & IORING_ASYNC_CANCEL_FD) {
 		if (req->file != cd->file)
+			return false;
+	}
+	if (cd->flags & IORING_ASYNC_CANCEL_OP) {
+		if (req->opcode != cd->opcode)
 			return false;
 	}
 	if (match_user_data && req->cqe.user_data != cd->data)
@@ -127,7 +132,7 @@ int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (unlikely(req->flags & REQ_F_BUFFER_SELECT))
 		return -EINVAL;
-	if (sqe->off || sqe->len || sqe->splice_fd_in)
+	if (sqe->off || sqe->splice_fd_in)
 		return -EINVAL;
 
 	cancel->addr = READ_ONCE(sqe->addr);
@@ -138,6 +143,11 @@ int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		if (cancel->flags & IORING_ASYNC_CANCEL_ANY)
 			return -EINVAL;
 		cancel->fd = READ_ONCE(sqe->fd);
+	}
+	if (cancel->flags & IORING_ASYNC_CANCEL_OP) {
+		if (cancel->flags & IORING_ASYNC_CANCEL_ANY)
+			return -EINVAL;
+		cancel->opcode = READ_ONCE(sqe->len);
 	}
 
 	return 0;
@@ -185,6 +195,7 @@ int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 		.ctx	= req->ctx,
 		.data	= cancel->addr,
 		.flags	= cancel->flags,
+		.opcode	= cancel->opcode,
 		.seq	= atomic_inc_return(&req->ctx->cancel_seq),
 	};
 	struct io_uring_task *tctx = req->task->io_uring;

@@ -8,10 +8,10 @@ struct io_cancel_data {
 		u64 data;
 		struct file *file;
 	};
+	u8 opcode;
 	u32 flags;
 	int seq;
 };
-
 
 int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags);
