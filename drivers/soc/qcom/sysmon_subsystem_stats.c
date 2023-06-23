@@ -535,7 +535,7 @@ static u32 sysmon_read_hmx_util(void)
  * in the hmx_util parameter.
  * @arg1: u32 pointer to HMX utilization in percentage.
  * @return: SUCCESS (0) if Query is successful
- *        FAILURE (Non-zero) if Query could not be processed.
+ *        FAILURE (Non-zero) if Query could not be processed, refer error codes.
  */
 int sysmon_stats_query_hmx_utlization(u32 *hmx_util)
 {
@@ -547,6 +547,12 @@ int sysmon_stats_query_hmx_utlization(u32 *hmx_util)
 
 	if (!IS_ERR_OR_NULL(g_sysmon_stats.hmx_util)) {
 		hmx_utilization = sysmon_read_hmx_util();
+
+		if (hmx_utilization == HMX_HVX_PMU_EVENTS_NA) {
+			hmx_utilization = 0;
+			ret = DSP_PMU_COUNTER_NA;
+		}
+
 		memcpy(hmx_util, &hmx_utilization, sizeof(u32));
 	} else
 		return -ENOKEY;
@@ -589,7 +595,7 @@ static u32 sysmon_read_hvx_util(void)
  * in the hvx_util parameter.
  * @arg1: u32 pointer to HVX utilization in percentage.
  * @return: SUCCESS (0) if Query is successful
- *        FAILURE (Non-zero) if Query could not be processed.
+ *        FAILURE (Non-zero) if Query could not be processed, refer error codes.
  */
 int sysmon_stats_query_hvx_utlization(u32 *hvx_util)
 {
@@ -601,6 +607,12 @@ int sysmon_stats_query_hvx_utlization(u32 *hvx_util)
 
 	if (!IS_ERR_OR_NULL(g_sysmon_stats.hvx_util)) {
 		hvx_utilization = sysmon_read_hvx_util();
+
+		if (hvx_utilization == HMX_HVX_PMU_EVENTS_NA) {
+			hvx_utilization = 0;
+			ret = DSP_PMU_COUNTER_NA;
+		}
+
 		memcpy(hvx_util, &hvx_utilization, sizeof(u32));
 	} else
 		return -ENOKEY;
@@ -1237,15 +1249,23 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 	}
 
 	ret = sysmon_stats_query_hmx_utlization(&hmx_util);
-	if (!ret) {
+
+	if (ret) {
+		seq_printf(s, "\nHMX stats not available, error code: %d\n", ret);
+	} else {
 		seq_puts(s, "\nHMX stats:\n\n");
 		seq_printf(s, "HMX utilization in percentage = %u\n", hmx_util);
 	}
+
 	ret = sysmon_stats_query_hvx_utlization(&hvx_util);
-	if (!ret) {
+
+	if (ret) {
+		seq_printf(s, "\nHVX stats not available, error code: %d\n", ret);
+	} else {
 		seq_puts(s, "\nHVX Stats:\n\n");
 		seq_printf(s, "HVX utilization in percentage = %u\n", hvx_util);
 	}
+
 	return 0;
 }
 
