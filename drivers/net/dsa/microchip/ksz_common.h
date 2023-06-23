@@ -578,17 +578,15 @@ static inline int ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 static inline int ksz_prmw8(struct ksz_device *dev, int port, int offset,
 			    u8 mask, u8 val)
 {
-	int ret;
+	return ksz_rmw8(dev, dev->dev_ops->get_port_addr(port, offset),
+			mask, val);
+}
 
-	ret = regmap_update_bits(ksz_regmap_8(dev),
-				 dev->dev_ops->get_port_addr(port, offset),
-				 mask, val);
-	if (ret)
-		dev_err(dev->dev, "can't rmw 8bit reg 0x%x: %pe\n",
-			dev->dev_ops->get_port_addr(port, offset),
-			ERR_PTR(ret));
-
-	return ret;
+static inline int ksz_prmw32(struct ksz_device *dev, int port, int offset,
+			     u32 mask, u32 val)
+{
+	return ksz_rmw32(dev, dev->dev_ops->get_port_addr(port, offset),
+			 mask, val);
 }
 
 static inline void ksz_regmap_lock(void *__mtx)
