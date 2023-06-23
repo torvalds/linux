@@ -246,7 +246,7 @@ static int lkl_test_nd_remove(void)
 }
 
 LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0,
-	"mem=16M loglevel=8 %s", cla.dhcp ? "ip=dhcp" : "");
+	"mem=32M loglevel=8 %s", cla.dhcp ? "ip=dhcp" : "");
 LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
 
 static int nd_ifindex;
