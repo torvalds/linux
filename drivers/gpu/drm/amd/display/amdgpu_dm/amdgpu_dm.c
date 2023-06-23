@@ -593,8 +593,20 @@ static void dm_crtc_high_irq(void *interrupt_params)
 						       list_entry);
 			spin_unlock_irqrestore(&acrtc->wb_conn->job_lock, flags);
 
-			if (job)
+			if (job) {
+				unsigned int v_total, refresh_hz;
+				struct dc_stream_state *stream = acrtc->dm_irq_params.stream;
+
+				v_total = stream->adjust.v_total_max ?
+					  stream->adjust.v_total_max : stream->timing.v_total;
+				refresh_hz = div_u64((uint64_t) stream->timing.pix_clk_100hz *
+					     100LL, (v_total * stream->timing.h_total));
+				mdelay(1000 / refresh_hz);
+
 				drm_writeback_signal_completion(acrtc->wb_conn, 0);
+				dc_stream_fc_disable_writeback(adev->dm.dc,
+							       acrtc->dm_irq_params.stream, 0);
+			}
 		} else
 			DRM_ERROR("%s: no amdgpu_crtc wb_conn\n", __func__);
 		acrtc->wb_pending = false;
