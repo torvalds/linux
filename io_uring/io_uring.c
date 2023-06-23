@@ -644,12 +644,6 @@ static inline void io_cq_lock(struct io_ring_ctx *ctx)
 	spin_lock(&ctx->completion_lock);
 }
 
-static inline void io_cq_unlock(struct io_ring_ctx *ctx)
-	__releases(ctx->completion_lock)
-{
-	spin_unlock(&ctx->completion_lock);
-}
-
 /* keep it inlined for io_submit_flush_completions() */
 static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
@@ -694,10 +688,10 @@ static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 	struct io_overflow_cqe *ocqe;
 	LIST_HEAD(list);
 
-	io_cq_lock(ctx);
+	spin_lock(&ctx->completion_lock);
 	list_splice_init(&ctx->cq_overflow_list, &list);
 	clear_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq);
-	io_cq_unlock(ctx);
+	spin_unlock(&ctx->completion_lock);
 
 	while (!list_empty(&list)) {
 		ocqe = list_first_entry(&list, struct io_overflow_cqe, list);
