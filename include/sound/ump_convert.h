@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#ifndef __UMP_CONVERT_H
-#define __UMP_CONVERT_H
+#ifndef __SOUND_UMP_CONVERT_H
+#define __SOUND_UMP_CONVERT_H
 
 #include <sound/ump_msg.h>
 
@@ -31,13 +31,16 @@ struct ump_cvt_to_ump {
 	struct ump_cvt_to_ump_bank bank[16];	/* per channel */
 };
 
-int snd_ump_convert_init(struct snd_ump_endpoint *ump);
-void snd_ump_convert_free(struct snd_ump_endpoint *ump);
-int snd_ump_convert_from_ump(struct snd_ump_endpoint *ump,
-			     const u32 *data, unsigned char *dst,
+int snd_ump_convert_from_ump(const u32 *data, unsigned char *dst,
 			     unsigned char *group_ret);
-void snd_ump_convert_to_ump(struct snd_ump_endpoint *ump,
-			    unsigned char group, unsigned char c);
-void snd_ump_reset_convert_to_ump(struct snd_ump_endpoint *ump,
-				  unsigned char group);
-#endif /* __UMP_CONVERT_H */
+void snd_ump_convert_to_ump(struct ump_cvt_to_ump *cvt, unsigned char group,
+			    unsigned int protocol, unsigned char c);
+
+/* reset the converter context, called at each open to ump */
+static inline void snd_ump_convert_reset(struct ump_cvt_to_ump *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+
+}
+
+#endif /* __SOUND_UMP_CONVERT_H */
