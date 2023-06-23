@@ -2301,7 +2301,7 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 			d++;
 			if (d == conf->raid_disks * 2)
 				d = 0;
-		} while (!success && d != read_disk);
+		} while (d != read_disk);
 
 		if (!success) {
 			/* Cannot read from anywhere - mark it bad */

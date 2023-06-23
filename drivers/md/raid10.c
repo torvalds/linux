@@ -2783,7 +2783,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			sl++;
 			if (sl == conf->copies)
 				sl = 0;
-		} while (!success && sl != slot);
+		} while (sl != slot);
 		rcu_read_unlock();
 
 		if (!success) {
