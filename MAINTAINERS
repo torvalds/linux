@@ -9972,8 +9972,9 @@ M:	Miquel Raynal <miquel.raynal@bootlin.com>
 L:	linux-wpan@vger.kernel.org
 S:	Maintained
 W:	https://linux-wpan.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan-next.git
+Q:	https://patchwork.kernel.org/project/linux-wpan/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wpan/wpan.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wpan/wpan-next.git
 F:	Documentation/networking/ieee802154.rst
 F:	drivers/net/ieee802154/
 F:	include/linux/ieee802154.h
@@ -13269,10 +13270,11 @@ F:	drivers/memory/mtk-smi.c
 F:	include/soc/mediatek/smi.h
 
 MEDIATEK SWITCH DRIVER
-M:	Sean Wang <sean.wang@mediatek.com>
+M:	Arınç ÜNAL <arinc.unal@arinc9.com>
+M:	Daniel Golle <daniel@makrotopia.org>
 M:	Landen Chao <Landen.Chao@mediatek.com>
 M:	DENG Qingfang <dqfext@gmail.com>
-M:	Daniel Golle <daniel@makrotopia.org>
+M:	Sean Wang <sean.wang@mediatek.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/dsa/mt7530-mdio.c

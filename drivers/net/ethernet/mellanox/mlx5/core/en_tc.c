@@ -1439,6 +1439,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 		mlx5e_hairpin_flow_del(priv, flow);
 
 	free_flow_post_acts(flow);
+	mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);
 
 	kvfree(attr->parse_attr);
 	kfree(flow->attr);
