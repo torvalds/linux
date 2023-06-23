@@ -2078,10 +2078,6 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 	int mode = DEFAULT_PGTABLE_LEVEL;
 	int ret;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
-	if (!domain)
-		return NULL;
-
 	/*
 	 * Force IOMMU v1 page table when iommu=pt and
 	 * when allocating domain for pass-through devices.
@@ -2096,6 +2092,10 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 	} else {
 		return NULL;
 	}
+
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	if (!domain)
+		return NULL;
 
 	switch (pgtable) {
 	case AMD_IOMMU_V1:
