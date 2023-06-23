@@ -551,7 +551,7 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
-static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *name)
+static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *name, bool is_core)
 {
 	struct perf_cpu_map *cpus;
 	const char *templates[] = {
@@ -575,7 +575,8 @@ static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *name)
 			return cpus;
 	}
 
-	return !strcmp(name, "cpu") ? perf_cpu_map__get(cpu_map__online()) : NULL;
+	/* Nothing found, for core PMUs assume this means all CPUs. */
+	return is_core ? perf_cpu_map__get(cpu_map__online()) : NULL;
 }
 
 static bool pmu_is_uncore(int dirfd, const char *name)
@@ -886,7 +887,8 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	if (!pmu)
 		return NULL;
 
-	pmu->cpus = pmu_cpumask(dirfd, name);
+	pmu->is_core = is_pmu_core(name);
+	pmu->cpus = pmu_cpumask(dirfd, name, pmu->is_core);
 	pmu->name = strdup(name);
 	if (!pmu->name)
 		goto err;
@@ -903,7 +905,6 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	}
 
 	pmu->type = type;
-	pmu->is_core = is_pmu_core(name);
 	pmu->is_uncore = pmu_is_uncore(dirfd, name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
