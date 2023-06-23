@@ -1924,6 +1924,7 @@ int tas2781_load_calibration(void *context, char *file_name,
 	if (!fw_entry->size) {
 		dev_err(tas_priv->dev, "%s: file read error: size = %lu\n",
 			__func__, (unsigned long)fw_entry->size);
+		ret = -EINVAL;
 		goto out;
 	}
 	fmw.size = fw_entry->size;
