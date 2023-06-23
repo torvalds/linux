@@ -10,4 +10,7 @@ void bootmem_init(unsigned long mem_size);
 
 #include <asm-generic/page.h>
 
+#undef PAGE_OFFSET
+#define PAGE_OFFSET memory_start
+
 #endif /* _ASM_LKL_PAGE_H */
