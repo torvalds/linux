@@ -25,24 +25,30 @@ struct io_cancel {
 };
 
 #define CANCEL_FLAGS	(IORING_ASYNC_CANCEL_ALL | IORING_ASYNC_CANCEL_FD | \
-			 IORING_ASYNC_CANCEL_ANY | IORING_ASYNC_CANCEL_FD_FIXED)
+			 IORING_ASYNC_CANCEL_ANY | IORING_ASYNC_CANCEL_FD_FIXED | \
+			 IORING_ASYNC_CANCEL_USERDATA)
 
 /*
  * Returns true if the request matches the criteria outlined by 'cd'.
  */
 bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd)
 {
+	bool match_user_data = cd->flags & IORING_ASYNC_CANCEL_USERDATA;
+
 	if (req->ctx != cd->ctx)
 		return false;
-	if (cd->flags & IORING_ASYNC_CANCEL_ANY) {
+
+	if (!(cd->flags & (IORING_ASYNC_CANCEL_FD)))
+		match_user_data = true;
+
+	if (cd->flags & IORING_ASYNC_CANCEL_ANY)
 		goto check_seq;
-	} else if (cd->flags & IORING_ASYNC_CANCEL_FD) {
+	if (cd->flags & IORING_ASYNC_CANCEL_FD) {
 		if (req->file != cd->file)
 			return false;
-	} else {
-		if (req->cqe.user_data != cd->data)
-			return false;
 	}
+	if (match_user_data && req->cqe.user_data != cd->data)
+		return false;
 	if (cd->flags & IORING_ASYNC_CANCEL_ALL) {
 check_seq:
 		if (cd->seq == req->work.cancel_seq)
