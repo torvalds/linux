@@ -1147,6 +1147,7 @@
   fwnode_get_name
   fwnode_get_named_child_node
   fwnode_get_next_child_node
+  fwnode_get_phy_node
   fwnode_handle_get
   fwnode_handle_put
   fwnode_property_present
@@ -2311,6 +2312,7 @@
   phylink_ethtool_set_eee
   phylink_ethtool_set_pauseparam
   phylink_ethtool_set_wol
+  phylink_expects_phy
   phylink_fwnode_phy_connect
   phylink_generic_validate
   phylink_get_eee_err
