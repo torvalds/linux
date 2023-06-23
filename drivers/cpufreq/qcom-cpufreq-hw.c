@@ -424,7 +424,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	struct cpufreq_policy *policy = data->policy;
 	int cpu = cpumask_first(policy->related_cpus);
 	struct device *dev = get_cpu_device(cpu);
-	unsigned long freq_hz, throttled_freq;
+	unsigned long freq_hz, throttled_freq, thermal_pressure;
 	struct dev_pm_opp *opp;
 
 	if (!dev)
@@ -445,8 +445,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	else
 		dev_pm_opp_put(opp);
 
-	throttled_freq = freq_hz / HZ_PER_KHZ;
-	trace_dcvsh_freq(cpu, qcom_cpufreq_get_freq(cpu), throttled_freq);
+	throttled_freq = thermal_pressure = freq_hz / HZ_PER_KHZ;
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
@@ -461,7 +460,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	 * for, then stop polling and switch back to interrupt mechanism.
 	 */
 	if (throttled_freq >= qcom_cpufreq_get_freq(cpu)) {
-		throttled_freq = policy->cpuinfo.max_freq;
+		thermal_pressure = policy->cpuinfo.max_freq;
 
 		enable_irq(data->throttle_irq);
 		trace_dcvsh_throttle(cpu, 0);
@@ -473,14 +472,16 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 		 * communicated as thermal pressure.
 		 */
 		if (throttled_freq >= data->last_non_boost_freq)
-			throttled_freq = policy->cpuinfo.max_freq;
+			thermal_pressure = policy->cpuinfo.max_freq;
 
 		mod_delayed_work(system_highpri_wq, &data->throttle_work,
 				 msecs_to_jiffies(10));
 	}
 
+	trace_dcvsh_freq(cpu, qcom_cpufreq_get_freq(cpu), throttled_freq, thermal_pressure);
+
 	/* Update thermal pressure (the boost frequencies are accepted) */
-	arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
+	arch_update_thermal_pressure(policy->related_cpus, thermal_pressure);
 	data->dcvsh_freq_limit = throttled_freq;
 
 out:
