@@ -8,7 +8,7 @@
 #include <sound/core.h>
 #include <sound/asound.h>
 #include <sound/ump.h>
-#include "ump_convert.h"
+#include <sound/ump_convert.h>
 
 /*
  * Upgrade / downgrade value bits
@@ -205,12 +205,18 @@ static int cvt_ump_sysex7_to_legacy(const u32 *data, unsigned char *buf)
 	return size;
 }
 
-/* convert from a UMP packet @data to MIDI 1.0 bytes at @buf;
- * the target group is stored at @group_ret,
- * returns the number of bytes of MIDI 1.0 stream
+/**
+ * snd_ump_convert_from_ump - convert from UMP to legacy MIDI
+ * @data: UMP packet
+ * @buf: buffer to store legacy MIDI data
+ * @group_ret: pointer to store the target group
+ *
+ * Convert from a UMP packet @data to MIDI 1.0 bytes at @buf.
+ * The target group is stored at @group_ret.
+ *
+ * The function returns the number of bytes of MIDI 1.0 stream.
  */
-int snd_ump_convert_from_ump(struct snd_ump_endpoint *ump,
-			     const u32 *data,
+int snd_ump_convert_from_ump(const u32 *data,
 			     unsigned char *buf,
 			     unsigned char *group_ret)
 {
@@ -230,6 +236,7 @@ int snd_ump_convert_from_ump(struct snd_ump_endpoint *ump,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_ump_convert_from_ump);
 
 /*
  * MIDI 1 byte stream -> UMP conversion
@@ -302,10 +309,10 @@ static void fill_rpn(struct ump_cvt_to_ump_bank *cc,
 }
 
 /* convert to a MIDI 1.0 Channel Voice message */
-static int cvt_legacy_cmd_to_ump(struct snd_ump_endpoint *ump,
-				 struct ump_cvt_to_ump *cvt,
-				 unsigned char group, u32 *data,
-				 unsigned char bytes)
+static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
+				 unsigned char group,
+				 unsigned int protocol,
+				 u32 *data, unsigned char bytes)
 {
 	const unsigned char *buf = cvt->buf;
 	struct ump_cvt_to_ump_bank *cc;
@@ -316,7 +323,7 @@ static int cvt_legacy_cmd_to_ump(struct snd_ump_endpoint *ump,
 	BUILD_BUG_ON(sizeof(union snd_ump_midi2_msg) != 8);
 
 	/* for MIDI 1.0 UMP, it's easy, just pack it into UMP */
-	if (ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI1) {
+	if (protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI1) {
 		data[0] = ump_compose(UMP_MSG_TYPE_MIDI1_CHANNEL_VOICE,
 				      group, 0, buf[0]);
 		data[0] |= buf[1] << 8;
@@ -413,8 +420,8 @@ static int cvt_legacy_cmd_to_ump(struct snd_ump_endpoint *ump,
 	return 8;
 }
 
-static int do_convert_to_ump(struct snd_ump_endpoint *ump,
-			     unsigned char group, unsigned char c, u32 *data)
+static int do_convert_to_ump(struct ump_cvt_to_ump *cvt, unsigned char group,
+			     unsigned int protocol, unsigned char c, u32 *data)
 {
 	/* bytes for 0x80-0xf0 */
 	static unsigned char cmd_bytes[8] = {
@@ -424,7 +431,6 @@ static int do_convert_to_ump(struct snd_ump_endpoint *ump,
 	static unsigned char system_bytes[16] = {
 		0, 2, 3, 2, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1
 	};
-	struct ump_cvt_to_ump *cvt = &ump->out_cvts[group];
 	unsigned char bytes;
 
 	if (c == UMP_MIDI1_MSG_SYSEX_START) {
@@ -478,40 +484,22 @@ static int do_convert_to_ump(struct snd_ump_endpoint *ump,
 	cvt->len = 1;
 	if ((cvt->buf[0] & 0xf0) == UMP_MIDI1_MSG_REALTIME)
 		return cvt_legacy_system_to_ump(cvt, group, data);
-	return cvt_legacy_cmd_to_ump(ump, cvt, group, data, cvt->cmd_bytes);
+	return cvt_legacy_cmd_to_ump(cvt, group, protocol, data, cvt->cmd_bytes);
 }
 
-/* feed a MIDI 1.0 byte @c and convert to a UMP packet;
- * the target group is @group,
- * the result is stored in out_cvts[group].ump[] and out_cvts[group].ump_bytes
+/**
+ * snd_ump_convert_to_ump - convert legacy MIDI byte to UMP packet
+ * @cvt: converter context
+ * @group: target UMP group
+ * @protocol: target UMP protocol
+ * @c: MIDI 1.0 byte data
+ *
+ * Feed a MIDI 1.0 byte @c and convert to a UMP packet if completed.
+ * The result is stored in the buffer in @cvt.
  */
-void snd_ump_convert_to_ump(struct snd_ump_endpoint *ump,
-			    unsigned char group, unsigned char c)
+void snd_ump_convert_to_ump(struct ump_cvt_to_ump *cvt, unsigned char group,
+			    unsigned int protocol, unsigned char c)
 {
-	struct ump_cvt_to_ump *cvt = &ump->out_cvts[group];
-
-	cvt->ump_bytes = do_convert_to_ump(ump, group, c, cvt->ump);
+	cvt->ump_bytes = do_convert_to_ump(cvt, group, protocol, c, cvt->ump);
 }
-
-/* reset the converter context, called at each open */
-void snd_ump_reset_convert_to_ump(struct snd_ump_endpoint *ump,
-				  unsigned char group)
-{
-	memset(&ump->out_cvts[group], 0, sizeof(*ump->out_cvts));
-}
-
-/* initialize converters */
-int snd_ump_convert_init(struct snd_ump_endpoint *ump)
-{
-	ump->out_cvts = kcalloc(16, sizeof(*ump->out_cvts), GFP_KERNEL);
-	if (!ump->out_cvts)
-		return -ENOMEM;
-	return 0;
-}
-
-/* release resources */
-void snd_ump_convert_free(struct snd_ump_endpoint *ump)
-{
-	kfree(ump->out_cvts);
-	ump->out_cvts = NULL;
-}
+EXPORT_SYMBOL_GPL(snd_ump_convert_to_ump);
