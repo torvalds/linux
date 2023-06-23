@@ -626,7 +626,6 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 }
 
 static inline void __io_cq_lock(struct io_ring_ctx *ctx)
-	__acquires(ctx->completion_lock)
 {
 	if (!ctx->task_complete)
 		spin_lock(&ctx->completion_lock);
@@ -646,7 +645,6 @@ static inline void io_cq_lock(struct io_ring_ctx *ctx)
 
 /* keep it inlined for io_submit_flush_completions() */
 static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
-	__releases(ctx->completion_lock)
 {
 	io_commit_cqring(ctx);
 	__io_cq_unlock(ctx);
@@ -655,7 +653,6 @@ static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 }
 
 static void __io_cq_unlock_post_flush(struct io_ring_ctx *ctx)
-	__releases(ctx->completion_lock)
 {
 	io_commit_cqring(ctx);
 
