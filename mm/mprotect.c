@@ -824,7 +824,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	}
 	tlb_finish_mmu(&tlb);
 
-	if (!error && vma_iter_end(&vmi) < end)
+	if (!error && tmp < end)
 		error = -ENOMEM;
 
 out:

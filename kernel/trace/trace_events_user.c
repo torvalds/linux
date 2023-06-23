@@ -96,12 +96,12 @@ struct user_event {
  * these to track enablement sites that are tied to an event.
  */
 struct user_event_enabler {
-	struct list_head	link;
+	struct list_head	mm_enablers_link;
 	struct user_event	*event;
 	unsigned long		addr;
 
 	/* Track enable bit, flags, etc. Aligned for bitops. */
-	unsigned int		values;
+	unsigned long		values;
 };
 
 /* Bits 0-5 are for the bit to update upon enable/disable (0-63 allowed) */
@@ -116,7 +116,9 @@ struct user_event_enabler {
 /* Only duplicate the bit value */
 #define ENABLE_VAL_DUP_MASK ENABLE_VAL_BIT_MASK
 
-#define ENABLE_BITOPS(e) ((unsigned long *)&(e)->values)
+#define ENABLE_BITOPS(e) (&(e)->values)
+
+#define ENABLE_BIT(e) ((int)((e)->values & ENABLE_VAL_BIT_MASK))
 
 /* Used for asynchronous faulting in of pages */
 struct user_event_enabler_fault {
@@ -153,7 +155,7 @@ struct user_event_file_info {
 #define VALIDATOR_REL (1 << 1)
 
 struct user_event_validator {
-	struct list_head	link;
+	struct list_head	user_event_link;
 	int			offset;
 	int			flags;
 };
@@ -259,7 +261,7 @@ error:
 
 static void user_event_enabler_destroy(struct user_event_enabler *enabler)
 {
-	list_del_rcu(&enabler->link);
+	list_del_rcu(&enabler->mm_enablers_link);
 
 	/* No longer tracking the event via the enabler */
 	refcount_dec(&enabler->event->refcnt);
@@ -423,9 +425,9 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 
 	/* Update bit atomically, user tracers must be atomic as well */
 	if (enabler->event && enabler->event->status)
-		set_bit(enabler->values & ENABLE_VAL_BIT_MASK, ptr);
+		set_bit(ENABLE_BIT(enabler), ptr);
 	else
-		clear_bit(enabler->values & ENABLE_VAL_BIT_MASK, ptr);
+		clear_bit(ENABLE_BIT(enabler), ptr);
 
 	kunmap_local(kaddr);
 	unpin_user_pages_dirty_lock(&page, 1, true);
@@ -437,11 +439,9 @@ static bool user_event_enabler_exists(struct user_event_mm *mm,
 				      unsigned long uaddr, unsigned char bit)
 {
 	struct user_event_enabler *enabler;
-	struct user_event_enabler *next;
 
-	list_for_each_entry_safe(enabler, next, &mm->enablers, link) {
-		if (enabler->addr == uaddr &&
-		    (enabler->values & ENABLE_VAL_BIT_MASK) == bit)
+	list_for_each_entry(enabler, &mm->enablers, mm_enablers_link) {
+		if (enabler->addr == uaddr && ENABLE_BIT(enabler) == bit)
 			return true;
 	}
 
@@ -451,23 +451,36 @@ static bool user_event_enabler_exists(struct user_event_mm *mm,
 static void user_event_enabler_update(struct user_event *user)
 {
 	struct user_event_enabler *enabler;
-	struct user_event_mm *mm = user_event_mm_get_all(user);
 	struct user_event_mm *next;
+	struct user_event_mm *mm;
 	int attempt;
+
+	lockdep_assert_held(&event_mutex);
+
+	/*
+	 * We need to build a one-shot list of all the mms that have an
+	 * enabler for the user_event passed in. This list is only valid
+	 * while holding the event_mutex. The only reason for this is due
+	 * to the global mm list being RCU protected and we use methods
+	 * which can wait (mmap_read_lock and pin_user_pages_remote).
+	 *
+	 * NOTE: user_event_mm_get_all() increments the ref count of each
+	 * mm that is added to the list to prevent removal timing windows.
+	 * We must always put each mm after they are used, which may wait.
+	 */
+	mm = user_event_mm_get_all(user);
 
 	while (mm) {
 		next = mm->next;
 		mmap_read_lock(mm->mm);
-		rcu_read_lock();
 
-		list_for_each_entry_rcu(enabler, &mm->enablers, link) {
+		list_for_each_entry(enabler, &mm->enablers, mm_enablers_link) {
 			if (enabler->event == user) {
 				attempt = 0;
 				user_event_enabler_write(mm, enabler, true, &attempt);
 			}
 		}
 
-		rcu_read_unlock();
 		mmap_read_unlock(mm->mm);
 		user_event_mm_put(mm);
 		mm = next;
@@ -495,7 +508,9 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 	enabler->values = orig->values & ENABLE_VAL_DUP_MASK;
 
 	refcount_inc(&enabler->event->refcnt);
-	list_add_rcu(&enabler->link, &mm->enablers);
+
+	/* Enablers not exposed yet, RCU not required */
+	list_add(&enabler->mm_enablers_link, &mm->enablers);
 
 	return true;
 }
@@ -514,6 +529,14 @@ static struct user_event_mm *user_event_mm_get_all(struct user_event *user)
 	struct user_event_mm *mm;
 
 	/*
+	 * We use the mm->next field to build a one-shot list from the global
+	 * RCU protected list. To build this list the event_mutex must be held.
+	 * This lets us build a list without requiring allocs that could fail
+	 * when user based events are most wanted for diagnostics.
+	 */
+	lockdep_assert_held(&event_mutex);
+
+	/*
 	 * We do not want to block fork/exec while enablements are being
 	 * updated, so we use RCU to walk the current tasks that have used
 	 * user_events ABI for 1 or more events. Each enabler found in each
@@ -525,23 +548,24 @@ static struct user_event_mm *user_event_mm_get_all(struct user_event *user)
 	 */
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(mm, &user_event_mms, link)
-		list_for_each_entry_rcu(enabler, &mm->enablers, link)
+	list_for_each_entry_rcu(mm, &user_event_mms, mms_link) {
+		list_for_each_entry_rcu(enabler, &mm->enablers, mm_enablers_link) {
 			if (enabler->event == user) {
 				mm->next = found;
 				found = user_event_mm_get(mm);
 				break;
 			}
+		}
+	}
 
 	rcu_read_unlock();
 
 	return found;
 }
 
-static struct user_event_mm *user_event_mm_create(struct task_struct *t)
+static struct user_event_mm *user_event_mm_alloc(struct task_struct *t)
 {
 	struct user_event_mm *user_mm;
-	unsigned long flags;
 
 	user_mm = kzalloc(sizeof(*user_mm), GFP_KERNEL_ACCOUNT);
 
@@ -552,12 +576,6 @@ static struct user_event_mm *user_event_mm_create(struct task_struct *t)
 	INIT_LIST_HEAD(&user_mm->enablers);
 	refcount_set(&user_mm->refcnt, 1);
 	refcount_set(&user_mm->tasks, 1);
-
-	spin_lock_irqsave(&user_event_mms_lock, flags);
-	list_add_rcu(&user_mm->link, &user_event_mms);
-	spin_unlock_irqrestore(&user_event_mms_lock, flags);
-
-	t->user_event_mm = user_mm;
 
 	/*
 	 * The lifetime of the memory descriptor can slightly outlast
@@ -572,6 +590,17 @@ static struct user_event_mm *user_event_mm_create(struct task_struct *t)
 	return user_mm;
 }
 
+static void user_event_mm_attach(struct user_event_mm *user_mm, struct task_struct *t)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&user_event_mms_lock, flags);
+	list_add_rcu(&user_mm->mms_link, &user_event_mms);
+	spin_unlock_irqrestore(&user_event_mms_lock, flags);
+
+	t->user_event_mm = user_mm;
+}
+
 static struct user_event_mm *current_user_event_mm(void)
 {
 	struct user_event_mm *user_mm = current->user_event_mm;
@@ -579,10 +608,12 @@ static struct user_event_mm *current_user_event_mm(void)
 	if (user_mm)
 		goto inc;
 
-	user_mm = user_event_mm_create(current);
+	user_mm = user_event_mm_alloc(current);
 
 	if (!user_mm)
 		goto error;
+
+	user_event_mm_attach(user_mm, current);
 inc:
 	refcount_inc(&user_mm->refcnt);
 error:
@@ -593,7 +624,7 @@ static void user_event_mm_destroy(struct user_event_mm *mm)
 {
 	struct user_event_enabler *enabler, *next;
 
-	list_for_each_entry_safe(enabler, next, &mm->enablers, link)
+	list_for_each_entry_safe(enabler, next, &mm->enablers, mm_enablers_link)
 		user_event_enabler_destroy(enabler);
 
 	mmdrop(mm->mm);
@@ -630,7 +661,7 @@ void user_event_mm_remove(struct task_struct *t)
 
 	/* Remove the mm from the list, so it can no longer be enabled */
 	spin_lock_irqsave(&user_event_mms_lock, flags);
-	list_del_rcu(&mm->link);
+	list_del_rcu(&mm->mms_link);
 	spin_unlock_irqrestore(&user_event_mms_lock, flags);
 
 	/*
@@ -670,7 +701,7 @@ void user_event_mm_remove(struct task_struct *t)
 
 void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 {
-	struct user_event_mm *mm = user_event_mm_create(t);
+	struct user_event_mm *mm = user_event_mm_alloc(t);
 	struct user_event_enabler *enabler;
 
 	if (!mm)
@@ -678,16 +709,18 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(enabler, &old_mm->enablers, link)
+	list_for_each_entry_rcu(enabler, &old_mm->enablers, mm_enablers_link) {
 		if (!user_event_enabler_dup(enabler, mm))
 			goto error;
+	}
 
 	rcu_read_unlock();
 
+	user_event_mm_attach(mm, t);
 	return;
 error:
 	rcu_read_unlock();
-	user_event_mm_remove(t);
+	user_event_mm_destroy(mm);
 }
 
 static bool current_user_event_enabler_exists(unsigned long uaddr,
@@ -748,7 +781,7 @@ retry:
 	 */
 	if (!*write_result) {
 		refcount_inc(&enabler->event->refcnt);
-		list_add_rcu(&enabler->link, &user_mm->enablers);
+		list_add_rcu(&enabler->mm_enablers_link, &user_mm->enablers);
 	}
 
 	mutex_unlock(&event_mutex);
@@ -904,8 +937,8 @@ static void user_event_destroy_validators(struct user_event *user)
 	struct user_event_validator *validator, *next;
 	struct list_head *head = &user->validators;
 
-	list_for_each_entry_safe(validator, next, head, link) {
-		list_del(&validator->link);
+	list_for_each_entry_safe(validator, next, head, user_event_link) {
+		list_del(&validator->user_event_link);
 		kfree(validator);
 	}
 }
@@ -959,7 +992,7 @@ add_validator:
 	validator->offset = offset;
 
 	/* Want sequential access when validating */
-	list_add_tail(&validator->link, &user->validators);
+	list_add_tail(&validator->user_event_link, &user->validators);
 
 add_field:
 	field->type = type;
@@ -1349,7 +1382,7 @@ static int user_event_validate(struct user_event *user, void *data, int len)
 	void *pos, *end = data + len;
 	u32 loc, offset, size;
 
-	list_for_each_entry(validator, head, link) {
+	list_for_each_entry(validator, head, user_event_link) {
 		pos = data + validator->offset;
 
 		/* Already done min_size check, no bounds check here */
@@ -2270,9 +2303,9 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 	 */
 	mutex_lock(&event_mutex);
 
-	list_for_each_entry_safe(enabler, next, &mm->enablers, link)
+	list_for_each_entry_safe(enabler, next, &mm->enablers, mm_enablers_link) {
 		if (enabler->addr == reg.disable_addr &&
-		    (enabler->values & ENABLE_VAL_BIT_MASK) == reg.disable_bit) {
+		    ENABLE_BIT(enabler) == reg.disable_bit) {
 			set_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler));
 
 			if (!test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)))
@@ -2281,6 +2314,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 			/* Removed at least one */
 			ret = 0;
 		}
+	}
 
 	mutex_unlock(&event_mutex);
 
