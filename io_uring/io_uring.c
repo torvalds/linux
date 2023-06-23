@@ -754,29 +754,29 @@ static void io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 }
 
 /* can be called by any task */
-static void io_put_task_remote(struct task_struct *task, int nr)
+static void io_put_task_remote(struct task_struct *task)
 {
 	struct io_uring_task *tctx = task->io_uring;
 
-	percpu_counter_sub(&tctx->inflight, nr);
+	percpu_counter_sub(&tctx->inflight, 1);
 	if (unlikely(atomic_read(&tctx->in_cancel)))
 		wake_up(&tctx->wait);
-	put_task_struct_many(task, nr);
+	put_task_struct(task);
 }
 
 /* used by a task to put its own references */
-static void io_put_task_local(struct task_struct *task, int nr)
+static void io_put_task_local(struct task_struct *task)
 {
-	task->io_uring->cached_refs += nr;
+	task->io_uring->cached_refs++;
 }
 
 /* must to be called somewhat shortly after putting a request */
-static inline void io_put_task(struct task_struct *task, int nr)
+static inline void io_put_task(struct task_struct *task)
 {
 	if (likely(task == current))
-		io_put_task_local(task, nr);
+		io_put_task_local(task);
 	else
-		io_put_task_remote(task, nr);
+		io_put_task_remote(task);
 }
 
 void io_task_refs_refill(struct io_uring_task *tctx)
@@ -1033,7 +1033,7 @@ static void __io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 		 * we don't hold ->completion_lock. Clean them here to avoid
 		 * deadlocks.
 		 */
-		io_put_task_remote(req->task, 1);
+		io_put_task_remote(req->task);
 		wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 		ctx->locked_free_nr++;
 	}
@@ -1518,9 +1518,6 @@ void io_queue_next(struct io_kiocb *req)
 void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
 	__must_hold(&ctx->uring_lock)
 {
-	struct task_struct *task = NULL;
-	int task_refs = 0;
-
 	do {
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
@@ -1550,19 +1547,10 @@ void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
 
 		io_req_put_rsrc_locked(req, ctx);
 
-		if (req->task != task) {
-			if (task)
-				io_put_task(task, task_refs);
-			task = req->task;
-			task_refs = 0;
-		}
-		task_refs++;
+		io_put_task(req->task);
 		node = req->comp_list.next;
 		io_req_add_to_cache(req, ctx);
 	} while (node);
-
-	if (task)
-		io_put_task(task, task_refs);
 }
 
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
