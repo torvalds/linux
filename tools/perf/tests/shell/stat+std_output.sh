@@ -12,8 +12,7 @@ stat_output=$(mktemp /tmp/__perf_test.stat_output.std.XXXXX)
 
 event_name=(cpu-clock task-clock context-switches cpu-migrations page-faults stalled-cycles-frontend stalled-cycles-backend cycles instructions branches branch-misses)
 event_metric=("CPUs utilized" "CPUs utilized" "/sec" "/sec" "/sec" "frontend cycles idle" "backend cycles idle" "GHz" "insn per cycle" "/sec" "of all branches")
-
-metricgroup_name=(TopdownL1 TopdownL2)
+skip_metric=("stalled cycles per insn" "tma_")
 
 cleanup() {
   rm -f "${stat_output}"
@@ -58,13 +57,14 @@ function commachecker()
 
 		main_body=$(echo $line | cut -d' ' -f$prefix-)
 		x=${main_body%#*}
-		# Check default metricgroup
-		y=$(echo $x | tr -d ' ')
-		[ "$y" = "" ] && continue
-		for i in "${!metricgroup_name[@]}"; do
-			[[ "$y" == *"${metricgroup_name[$i]}"* ]] && break
+		[ "$x" = "" ] && continue
+
+		# Skip metrics without event name
+		y=${main_body#*#}
+		for i in "${!skip_metric[@]}"; do
+			[[ "$y" == *"${skip_metric[$i]}"* ]] && break
 		done
-		[[ "$y" == *"${metricgroup_name[$i]}"* ]] && continue
+		[[ "$y" == *"${skip_metric[$i]}"* ]] && continue
 
 		# Check default event
 		for i in "${!event_name[@]}"; do
