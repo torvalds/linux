@@ -1317,7 +1317,7 @@ static __cold void io_fallback_tw(struct io_uring_task *tctx)
 	}
 }
 
-static void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
+static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned nr_wait, nr_tw, nr_tw_prev;
@@ -1368,18 +1368,10 @@ static void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 }
 
-void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
+static void io_req_normal_work_add(struct io_kiocb *req)
 {
 	struct io_uring_task *tctx = req->task->io_uring;
 	struct io_ring_ctx *ctx = req->ctx;
-
-	if (!(flags & IOU_F_TWQ_FORCE_NORMAL) &&
-	    (ctx->flags & IORING_SETUP_DEFER_TASKRUN)) {
-		rcu_read_lock();
-		io_req_local_work_add(req, flags);
-		rcu_read_unlock();
-		return;
-	}
 
 	/* task_work already pending, we're done */
 	if (!llist_add(&req->io_task_work.node, &tctx->task_list))
@@ -1394,6 +1386,17 @@ void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
 	io_fallback_tw(tctx);
 }
 
+void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
+{
+	if (req->ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
+		rcu_read_lock();
+		io_req_local_work_add(req, flags);
+		rcu_read_unlock();
+	} else {
+		io_req_normal_work_add(req);
+	}
+}
+
 static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 {
 	struct llist_node *node;
@@ -1404,7 +1407,7 @@ static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 						    io_task_work.node);
 
 		node = node->next;
-		__io_req_task_work_add(req, IOU_F_TWQ_FORCE_NORMAL);
+		io_req_normal_work_add(req);
 	}
 }
 
