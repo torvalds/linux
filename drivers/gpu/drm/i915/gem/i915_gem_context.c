@@ -1269,6 +1269,10 @@ static void i915_gem_context_release_work(struct work_struct *work)
 	trace_i915_context_free(ctx);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
+	spin_lock(&ctx->i915->gem.contexts.lock);
+	list_del(&ctx->link);
+	spin_unlock(&ctx->i915->gem.contexts.lock);
+
 	if (ctx->syncobj)
 		drm_syncobj_put(ctx->syncobj);
 
@@ -1368,7 +1372,8 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	return engine;
 }
 
-static void kill_engines(struct i915_gem_engines *engines, bool ban)
+static void
+kill_engines(struct i915_gem_engines *engines, bool exit, bool persistent)
 {
 	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
@@ -1382,9 +1387,15 @@ static void kill_engines(struct i915_gem_engines *engines, bool ban)
 	 */
 	for_each_gem_engine(ce, engines, it) {
 		struct intel_engine_cs *engine;
+		bool skip = false;
 
-		if (ban && intel_context_ban(ce, NULL))
-			continue;
+		if (exit)
+			skip = intel_context_set_exiting(ce);
+		else if (!persistent)
+			skip = intel_context_exit_nonpersistent(ce, NULL);
+
+		if (skip)
+			continue; /* Already marked. */
 
 		/*
 		 * Check the current active state of this context; if we
@@ -1396,7 +1407,7 @@ static void kill_engines(struct i915_gem_engines *engines, bool ban)
 		engine = active_engine(ce);
 
 		/* First attempt to gracefully cancel the context */
-		if (engine && !__cancel_engine(engine) && ban)
+		if (engine && !__cancel_engine(engine) && (exit || !persistent))
 			/*
 			 * If we are unable to send a preemptive pulse to bump
 			 * the context from the GPU, we have to resort to a full
@@ -1408,8 +1419,6 @@ static void kill_engines(struct i915_gem_engines *engines, bool ban)
 
 static void kill_context(struct i915_gem_context *ctx)
 {
-	bool ban = (!i915_gem_context_is_persistent(ctx) ||
-		    !ctx->i915->params.enable_hangcheck);
 	struct i915_gem_engines *pos, *next;
 
 	spin_lock_irq(&ctx->stale.lock);
@@ -1422,7 +1431,8 @@ static void kill_context(struct i915_gem_context *ctx)
 
 		spin_unlock_irq(&ctx->stale.lock);
 
-		kill_engines(pos, ban);
+		kill_engines(pos, !ctx->i915->params.enable_hangcheck,
+			     i915_gem_context_is_persistent(ctx));
 
 		spin_lock_irq(&ctx->stale.lock);
 		GEM_BUG_ON(i915_sw_fence_signaled(&pos->fence));
@@ -1468,7 +1478,8 @@ static void engines_idle_release(struct i915_gem_context *ctx,
 
 kill:
 	if (list_empty(&engines->link)) /* raced, already closed */
-		kill_engines(engines, true);
+		kill_engines(engines, true,
+			     i915_gem_context_is_persistent(ctx));
 
 	i915_sw_fence_commit(&engines->fence);
 }
@@ -1513,10 +1524,6 @@ static void context_close(struct i915_gem_context *ctx)
 	lut_close(ctx);
 
 	ctx->file_priv = ERR_PTR(-EBADF);
-
-	spin_lock(&ctx->i915->gem.contexts.lock);
-	list_del(&ctx->link);
-	spin_unlock(&ctx->i915->gem.contexts.lock);
 
 	client = ctx->client;
 	if (client) {
@@ -1876,6 +1883,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 {
 	const struct sseu_dev_info *device = &gt->info.sseu;
 	struct drm_i915_private *i915 = gt->i915;
+	unsigned int dev_subslice_mask = intel_sseu_get_hsw_subslices(device, 0);
 
 	/* No zeros in any field. */
 	if (!user->slice_mask || !user->subslice_mask ||
@@ -1902,7 +1910,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 	if (user->slice_mask & ~device->slice_mask)
 		return -EINVAL;
 
-	if (user->subslice_mask & ~device->subslice_mask[0])
+	if (user->subslice_mask & ~dev_subslice_mask)
 		return -EINVAL;
 
 	if (user->max_eus_per_subslice > device->max_eus_per_subslice)
@@ -1916,7 +1924,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 	/* Part specific restrictions. */
 	if (GRAPHICS_VER(i915) == 11) {
 		unsigned int hw_s = hweight8(device->slice_mask);
-		unsigned int hw_ss_per_s = hweight8(device->subslice_mask[0]);
+		unsigned int hw_ss_per_s = hweight8(dev_subslice_mask);
 		unsigned int req_s = hweight8(context->slice_mask);
 		unsigned int req_ss = hweight8(context->subslice_mask);
 

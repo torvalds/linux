@@ -331,11 +331,17 @@ struct ocelot_pinctrl {
 	const struct ocelot_pincfg_data *pincfg_data;
 	struct ocelot_pmx_func func[FUNC_MAX];
 	u8 stride;
+	struct workqueue_struct *wq;
 };
 
 struct ocelot_match_data {
 	struct pinctrl_desc desc;
 	struct ocelot_pincfg_data pincfg_data;
+};
+
+struct ocelot_irq_work {
+	struct work_struct irq_work;
+	struct irq_desc *irq_desc;
 };
 
 #define LUTON_P(p, f0, f1)						\
@@ -1810,6 +1816,76 @@ static void ocelot_irq_mask(struct irq_data *data)
 
 	regmap_update_bits(info->map, REG(OCELOT_GPIO_INTR_ENA, info, gpio),
 			   BIT(gpio % 32), 0);
+	gpiochip_disable_irq(chip, gpio);
+}
+
+static void ocelot_irq_work(struct work_struct *work)
+{
+	struct ocelot_irq_work *w = container_of(work, struct ocelot_irq_work, irq_work);
+	struct irq_chip *parent_chip = irq_desc_get_chip(w->irq_desc);
+	struct gpio_chip *chip = irq_desc_get_chip_data(w->irq_desc);
+	struct irq_data *data = irq_desc_get_irq_data(w->irq_desc);
+	unsigned int gpio = irqd_to_hwirq(data);
+
+	local_irq_disable();
+	chained_irq_enter(parent_chip, w->irq_desc);
+	generic_handle_domain_irq(chip->irq.domain, gpio);
+	chained_irq_exit(parent_chip, w->irq_desc);
+	local_irq_enable();
+
+	kfree(w);
+}
+
+static void ocelot_irq_unmask_level(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
+	struct irq_desc *desc = irq_data_to_desc(data);
+	unsigned int gpio = irqd_to_hwirq(data);
+	unsigned int bit = BIT(gpio % 32);
+	bool ack = false, active = false;
+	u8 trigger_level;
+	int val;
+
+	trigger_level = irqd_get_trigger_type(data);
+
+	/* Check if the interrupt line is still active. */
+	regmap_read(info->map, REG(OCELOT_GPIO_IN, info, gpio), &val);
+	if ((!(val & bit) && trigger_level == IRQ_TYPE_LEVEL_LOW) ||
+	      (val & bit && trigger_level == IRQ_TYPE_LEVEL_HIGH))
+		active = true;
+
+	/*
+	 * Check if the interrupt controller has seen any changes in the
+	 * interrupt line.
+	 */
+	regmap_read(info->map, REG(OCELOT_GPIO_INTR, info, gpio), &val);
+	if (val & bit)
+		ack = true;
+
+	/* Enable the interrupt now */
+	gpiochip_enable_irq(chip, gpio);
+	regmap_update_bits(info->map, REG(OCELOT_GPIO_INTR_ENA, info, gpio),
+			   bit, bit);
+
+	/*
+	 * In case the interrupt line is still active and the interrupt
+	 * controller has not seen any changes in the interrupt line, then it
+	 * means that there happen another interrupt while the line was active.
+	 * So we missed that one, so we need to kick the interrupt again
+	 * handler.
+	 */
+	if (active && !ack) {
+		struct ocelot_irq_work *work;
+
+		work = kmalloc(sizeof(*work), GFP_ATOMIC);
+		if (!work)
+			return;
+
+		work->irq_desc = desc;
+		INIT_WORK(&work->irq_work, ocelot_irq_work);
+		queue_work(info->wq, &work->irq_work);
+	}
 }
 
 static void ocelot_irq_unmask(struct irq_data *data)
@@ -1818,6 +1894,7 @@ static void ocelot_irq_unmask(struct irq_data *data)
 	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
 	unsigned int gpio = irqd_to_hwirq(data);
 
+	gpiochip_enable_irq(chip, gpio);
 	regmap_update_bits(info->map, REG(OCELOT_GPIO_INTR_ENA, info, gpio),
 			   BIT(gpio % 32), BIT(gpio % 32));
 }
@@ -1834,13 +1911,14 @@ static void ocelot_irq_ack(struct irq_data *data)
 
 static int ocelot_irq_set_type(struct irq_data *data, unsigned int type);
 
-static struct irq_chip ocelot_eoi_irqchip = {
+static struct irq_chip ocelot_level_irqchip = {
 	.name		= "gpio",
 	.irq_mask	= ocelot_irq_mask,
-	.irq_eoi	= ocelot_irq_ack,
-	.irq_unmask	= ocelot_irq_unmask,
-	.flags          = IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED,
+	.irq_ack	= ocelot_irq_ack,
+	.irq_unmask	= ocelot_irq_unmask_level,
+	.flags		= IRQCHIP_IMMUTABLE,
 	.irq_set_type	= ocelot_irq_set_type,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS
 };
 
 static struct irq_chip ocelot_irqchip = {
@@ -1849,18 +1927,15 @@ static struct irq_chip ocelot_irqchip = {
 	.irq_ack	= ocelot_irq_ack,
 	.irq_unmask	= ocelot_irq_unmask,
 	.irq_set_type	= ocelot_irq_set_type,
+	.flags          = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS
 };
 
 static int ocelot_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	type &= IRQ_TYPE_SENSE_MASK;
-
-	if (!(type & (IRQ_TYPE_EDGE_BOTH | IRQ_TYPE_LEVEL_HIGH)))
-		return -EINVAL;
-
-	if (type & IRQ_TYPE_LEVEL_HIGH)
-		irq_set_chip_handler_name_locked(data, &ocelot_eoi_irqchip,
-						 handle_fasteoi_irq, NULL);
+	if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+		irq_set_chip_handler_name_locked(data, &ocelot_level_irqchip,
+						 handle_level_irq, NULL);
 	if (type & IRQ_TYPE_EDGE_BOTH)
 		irq_set_chip_handler_name_locked(data, &ocelot_irqchip,
 						 handle_edge_irq, NULL);
@@ -1912,7 +1987,7 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0) {
 		girq = &gc->irq;
-		girq->chip = &ocelot_irqchip;
+		gpio_irq_chip_set_chip(girq, &ocelot_irqchip);
 		girq->parent_handler = ocelot_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(&pdev->dev, 1,
@@ -1938,6 +2013,7 @@ static const struct of_device_id ocelot_pinctrl_of_match[] = {
 	{ .compatible = "microchip,lan966x-pinctrl", .data = &lan966x_desc },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ocelot_pinctrl_of_match);
 
 static struct regmap *ocelot_pinctrl_create_pincfg(struct platform_device *pdev,
 						   const struct ocelot_pinctrl *info)
@@ -1989,6 +2065,10 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 	if (!info->desc)
 		return -ENOMEM;
 
+	info->wq = alloc_ordered_workqueue("ocelot_ordered", 0);
+	if (!info->wq)
+		return -ENOMEM;
+
 	info->pincfg_data = &data->pincfg_data;
 
 	reset = devm_reset_control_get_optional_shared(dev, "switch");
@@ -2011,7 +2091,7 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to create regmap\n");
 		return PTR_ERR(info->map);
 	}
-	dev_set_drvdata(dev, info->map);
+	dev_set_drvdata(dev, info);
 	info->dev = dev;
 
 	/* Pinconf registers */
@@ -2036,6 +2116,15 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int ocelot_pinctrl_remove(struct platform_device *pdev)
+{
+	struct ocelot_pinctrl *info = platform_get_drvdata(pdev);
+
+	destroy_workqueue(info->wq);
+
+	return 0;
+}
+
 static struct platform_driver ocelot_pinctrl_driver = {
 	.driver = {
 		.name = "pinctrl-ocelot",
@@ -2043,5 +2132,7 @@ static struct platform_driver ocelot_pinctrl_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = ocelot_pinctrl_probe,
+	.remove = ocelot_pinctrl_remove,
 };
-builtin_platform_driver(ocelot_pinctrl_driver);
+module_platform_driver(ocelot_pinctrl_driver);
+MODULE_LICENSE("Dual MIT/GPL");

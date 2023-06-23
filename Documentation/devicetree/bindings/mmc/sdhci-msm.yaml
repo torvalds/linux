@@ -17,6 +17,9 @@ description:
 properties:
   compatible:
     oneOf:
+      - enum:
+          - qcom,sdhci-msm-v4
+        deprecated: true
       - items:
           - enum:
               - qcom,apq8084-sdhci
@@ -27,6 +30,10 @@ properties:
               - qcom,msm8992-sdhci
               - qcom,msm8994-sdhci
               - qcom,msm8996-sdhci
+              - qcom,msm8998-sdhci
+          - const: qcom,sdhci-msm-v4 # for sdcc versions less than 5.0
+      - items:
+          - enum:
               - qcom,qcs404-sdhci
               - qcom,sc7180-sdhci
               - qcom,sc7280-sdhci
@@ -38,20 +45,16 @@ properties:
               - qcom,sm6350-sdhci
               - qcom,sm8150-sdhci
               - qcom,sm8250-sdhci
-          - enum:
-              - qcom,sdhci-msm-v4 # for sdcc versions less than 5.0
-              - qcom,sdhci-msm-v5 # for sdcc version 5.0
-      - items:
-          - const: qcom,sdhci-msm-v4 # Deprecated (only for backward compatibility)
-                                     # for sdcc versions less than 5.0
+              - qcom,sm8450-sdhci
+          - const: qcom,sdhci-msm-v5 # for sdcc version 5.0
 
   reg:
     minItems: 1
-    items:
-      - description: Host controller register map
-      - description: SD Core register map
-      - description: CQE register map
-      - description: Inline Crypto Engine register map
+    maxItems: 4
+
+  reg-names:
+    minItems: 1
+    maxItems: 4
 
   clocks:
     minItems: 3
@@ -93,6 +96,9 @@ properties:
     description:
       Should specify pin control groups used for this controller.
 
+  resets:
+    maxItems: 1
+
   qcom,ddr-config:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: platform specific settings for DDR_CONFIG reg.
@@ -121,6 +127,18 @@ properties:
     description: A phandle to sdhci power domain node
     maxItems: 1
 
+  mmc-ddr-1_8v: true
+
+  mmc-hs200-1_8v: true
+
+  mmc-hs400-1_8v: true
+
+  bus-width: true
+
+  max-frequency: true
+
+  operating-points-v2: true
+
 patternProperties:
   '^opp-table(-[a-z0-9]+)?$':
     if:
@@ -140,7 +158,47 @@ required:
   - clock-names
   - interrupts
 
-additionalProperties: true
+allOf:
+  - $ref: mmc-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdhci-msm-v4
+    then:
+      properties:
+        reg:
+          minItems: 2
+          items:
+            - description: Host controller register map
+            - description: SD Core register map
+            - description: CQE register map
+            - description: Inline Crypto Engine register map
+        reg-names:
+          minItems: 2
+          items:
+            - const: hc
+            - const: core
+            - const: cqhci
+            - const: ice
+    else:
+      properties:
+        reg:
+          minItems: 1
+          items:
+            - description: Host controller register map
+            - description: CQE register map
+            - description: Inline Crypto Engine register map
+        reg-names:
+          minItems: 1
+          items:
+            - const: hc
+            - const: cqhci
+            - const: ice
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -149,7 +207,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
 
-    sdhc_2: sdhci@8804000 {
+    sdhc_2: mmc@8804000 {
       compatible = "qcom,sm8250-sdhci", "qcom,sdhci-msm-v5";
       reg = <0 0x08804000 0 0x1000>;
 

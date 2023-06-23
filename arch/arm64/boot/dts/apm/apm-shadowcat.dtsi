@@ -597,11 +597,11 @@
 			interrupts = <0x0 0x4c 0x4>;
 		};
 
-		/* Do not change dwusb name, coded for backward compatibility */
-		usb0: dwusb@19000000 {
+		/* Node-name might need to be coded as dwusb for backward compatibility */
+		usb0: usb@19000000 {
 			status = "disabled";
 			compatible = "snps,dwc3";
-			reg =  <0x0 0x19000000 0x0 0x100000>;
+			reg = <0x0 0x19000000 0x0 0x100000>;
 			interrupts = <0x0 0x5d 0x4>;
 			dma-coherent;
 			dr_mode = "host";

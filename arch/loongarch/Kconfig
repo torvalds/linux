@@ -2,6 +2,9 @@
 config LOONGARCH
 	bool
 	default y
+	select ACPI
+	select ACPI_GENERIC_GSI if ACPI
+	select ACPI_MCFG if ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_ENABLE_MEMORY_HOTPLUG
@@ -36,9 +39,11 @@ config LOONGARCH
 	select ARCH_INLINE_SPIN_UNLOCK_BH if !PREEMPTION
 	select ARCH_INLINE_SPIN_UNLOCK_IRQ if !PREEMPTION
 	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE if !PREEMPTION
+	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_HUGETLBFS
@@ -47,9 +52,11 @@ config LOONGARCH
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
+	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANTS_NO_INSTR
 	select BUILDTIME_TABLE_SORT
 	select COMMON_CLK
+	select EFI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
@@ -74,7 +81,7 @@ config LOONGARCH
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_CONTEXT_TRACKING
+	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_EXIT_THREAD
@@ -85,6 +92,7 @@ config LOONGARCH
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
+	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RSEQ
@@ -94,20 +102,28 @@ config LOONGARCH
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if !SMP
 	select IRQ_FORCED_THREADING
 	select IRQ_LOONGARCH_CPU
+	select MMU_GATHER_MERGE_VMAS if MMU
 	select MODULES_USE_ELF_RELA if MODULES
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
 	select NEED_PER_CPU_PAGE_FIRST_CHUNK
 	select OF
 	select OF_EARLY_FLATTREE
+	select PCI
+	select PCI_DOMAINS_GENERIC
+	select PCI_ECAM if ACPI
+	select PCI_LOONGSON
+	select PCI_MSI_ARCH_FALLBACKS
+	select PCI_QUIRKS
 	select PERF_USE_VMALLOC
 	select RTC_LIB
+	select SMP
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select SWIOTLB
 	select TRACE_IRQFLAGS_SUPPORT
 	select USE_PERCPU_NUMA_NODE_ID
+	select USER_STACKTRACE_SUPPORT
 	select ZONE_DMA32
-	select MMU_GATHER_MERGE_VMAS if MMU
 
 config 32BIT
 	bool
@@ -137,6 +153,10 @@ config L1_CACHE_SHIFT
 	default "6"
 
 config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
 	bool
 	default y
 
@@ -406,7 +426,7 @@ config ARCH_SPARSEMEM_ENABLE
 	  Say Y to support efficient handling of sparse physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa.rst> for more.
+	  See <file:Documentation/mm/numa.rst> for more.
 
 config ARCH_ENABLE_THP_MIGRATION
 	def_bool y

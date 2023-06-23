@@ -25,7 +25,6 @@
 #include <media/v4l2-event.h>
 #include <media/videobuf-vmalloc.h>
 
-#include "atomisp_acc.h"
 #include "atomisp_cmd.h"
 #include "atomisp_common.h"
 #include "atomisp_fops.h"
@@ -623,17 +622,6 @@ unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 		       ATOMISP_DEVICE_STREAMING_ENABLED;
 
 	return sum;
-}
-
-unsigned int atomisp_is_acc_enabled(struct atomisp_device *isp)
-{
-	unsigned int i;
-
-	for (i = 0; i < isp->num_of_streams; i++)
-		if (isp->asd[i].acc.pipeline)
-			return 1;
-
-	return 0;
 }
 
 /*
@@ -1371,7 +1359,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 		ret = ia_css_frame_map(&handle, &frame_info,
 					    (void __user *)buf->m.userptr,
-					    0, pgnr);
+					    pgnr);
 		if (ret) {
 			dev_err(isp->dev, "Failed to map user buffer\n");
 			goto error;
@@ -1913,11 +1901,8 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 
-	ret = atomisp_acc_load_extensions(asd);
-	if (ret < 0) {
-		dev_err(isp->dev, "acc extension failed to load\n");
-		goto out;
-	}
+	/* Invalidate caches. FIXME: should flush only necessary buffers */
+	wbinvd();
 
 	if (asd->params.css_update_params_needed) {
 		atomisp_apply_css_parameters(asd, &asd->params.css_param);
@@ -2154,7 +2139,6 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 					 video, s_stream, 0);
 
 		rt_mutex_lock(&isp->mutex);
-		atomisp_acc_unload_extensions(asd);
 	}
 
 	spin_lock_irqsave(&isp->lock, flags);
@@ -2283,8 +2267,17 @@ stopsensor:
 		dev_err(isp->dev, "atomisp_reset");
 		atomisp_reset(isp);
 		for (i = 0; i < isp->num_of_streams; i++) {
-			if (recreate_streams[i])
-				atomisp_create_pipes_stream(&isp->asd[i]);
+			if (recreate_streams[i]) {
+				int ret2;
+
+				ret2 = atomisp_create_pipes_stream(&isp->asd[i]);
+				if (ret2) {
+					dev_err(isp->dev, "%s error re-creating streams: %d\n",
+						__func__, ret2);
+					if (!ret)
+						ret = ret2;
+				}
+			}
 		}
 		isp->isp_timeout = false;
 	}
@@ -3118,38 +3111,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 			err = -EINVAL;
 		break;
 
-	case ATOMISP_IOC_ACC_LOAD:
-		err = atomisp_acc_load(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_LOAD_TO_PIPE:
-		err = atomisp_acc_load_to_pipe(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_UNLOAD:
-		err = atomisp_acc_unload(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_START:
-		err = atomisp_acc_start(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_WAIT:
-		err = atomisp_acc_wait(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_MAP:
-		err = atomisp_acc_map(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_UNMAP:
-		err = atomisp_acc_unmap(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_S_MAPPED_ARG:
-		err = atomisp_acc_s_mapped_arg(asd, arg);
-		break;
-
 	case ATOMISP_IOC_S_ISP_SHD_TAB:
 		err = atomisp_set_shading_table(asd, arg);
 		break;
@@ -3197,12 +3158,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		break;
 	case ATOMISP_IOC_S_EXPOSURE_WINDOW:
 		err = atomisp_s_ae_window(asd, arg);
-		break;
-	case ATOMISP_IOC_S_ACC_STATE:
-		err = atomisp_acc_set_state(asd, arg);
-		break;
-	case ATOMISP_IOC_G_ACC_STATE:
-		err = atomisp_acc_get_state(asd, arg);
 		break;
 	case ATOMISP_IOC_INJECT_A_FAKE_EVENT:
 		err = atomisp_inject_a_fake_event(asd, arg);

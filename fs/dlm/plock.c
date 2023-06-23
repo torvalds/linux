@@ -29,6 +29,8 @@ struct plock_async_data {
 struct plock_op {
 	struct list_head list;
 	int done;
+	/* if lock op got interrupted while waiting dlm_controld reply */
+	bool sigint;
 	struct dlm_plock_info info;
 	/* if set indicates async handling */
 	struct plock_async_data *data;
@@ -79,8 +81,7 @@ static void send_op(struct plock_op *op)
    abandoned waiter.  So, we have to insert the unlock-close when the
    lock call is interrupted. */
 
-static void do_unlock_close(struct dlm_ls *ls, u64 number,
-			    struct file *file, struct file_lock *fl)
+static void do_unlock_close(const struct dlm_plock_info *info)
 {
 	struct plock_op *op;
 
@@ -89,15 +90,12 @@ static void do_unlock_close(struct dlm_ls *ls, u64 number,
 		return;
 
 	op->info.optype		= DLM_PLOCK_OP_UNLOCK;
-	op->info.pid		= fl->fl_pid;
-	op->info.fsid		= ls->ls_global_id;
-	op->info.number		= number;
+	op->info.pid		= info->pid;
+	op->info.fsid		= info->fsid;
+	op->info.number		= info->number;
 	op->info.start		= 0;
 	op->info.end		= OFFSET_MAX;
-	if (fl->fl_lmops && fl->fl_lmops->lm_grant)
-		op->info.owner	= (__u64) fl->fl_pid;
-	else
-		op->info.owner	= (__u64)(long) fl->fl_owner;
+	op->info.owner		= info->owner;
 
 	op->info.flags |= DLM_PLOCK_FL_CLOSE;
 	send_op(op);
@@ -161,15 +159,23 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	rv = wait_event_interruptible(recv_wq, (op->done != 0));
 	if (rv == -ERESTARTSYS) {
 		spin_lock(&ops_lock);
-		list_del(&op->list);
+		/* recheck under ops_lock if we got a done != 0,
+		 * if so this interrupt case should be ignored
+		 */
+		if (op->done != 0) {
+			spin_unlock(&ops_lock);
+			goto do_lock_wait;
+		}
+
+		op->sigint = true;
 		spin_unlock(&ops_lock);
-		log_print("%s: wait interrupted %x %llx, op removed",
+		log_debug(ls, "%s: wait interrupted %x %llx pid %d",
 			  __func__, ls->ls_global_id,
-			  (unsigned long long)number);
-		dlm_release_plock_op(op);
-		do_unlock_close(ls, number, file, fl);
+			  (unsigned long long)number, op->info.pid);
 		goto out;
 	}
+
+do_lock_wait:
 
 	WARN_ON(!list_empty(&op->list));
 
@@ -378,7 +384,7 @@ static ssize_t dev_read(struct file *file, char __user *u, size_t count,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&send_list)) {
-		op = list_entry(send_list.next, struct plock_op, list);
+		op = list_first_entry(&send_list, struct plock_op, list);
 		if (op->info.flags & DLM_PLOCK_FL_CLOSE)
 			list_del(&op->list);
 		else
@@ -425,6 +431,19 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		if (iter->info.fsid == info.fsid &&
 		    iter->info.number == info.number &&
 		    iter->info.owner == info.owner) {
+			if (iter->sigint) {
+				list_del(&iter->list);
+				spin_unlock(&ops_lock);
+
+				pr_debug("%s: sigint cleanup %x %llx pid %d",
+					  __func__, iter->info.fsid,
+					  (unsigned long long)iter->info.number,
+					  iter->info.pid);
+				do_unlock_close(&iter->info);
+				memcpy(&iter->info, &info, sizeof(info));
+				dlm_release_plock_op(iter);
+				return count;
+			}
 			list_del_init(&iter->list);
 			memcpy(&iter->info, &info, sizeof(info));
 			if (iter->data)
@@ -443,7 +462,7 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		else
 			wake_up(&recv_wq);
 	} else
-		log_print("%s: no op %x %llx - may got interrupted?", __func__,
+		log_print("%s: no op %x %llx", __func__,
 			  info.fsid, (unsigned long long)info.number);
 	return count;
 }

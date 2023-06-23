@@ -919,8 +919,7 @@ static void venc_cleanup(struct vpu_inst *inst)
 		return;
 
 	venc = inst->priv;
-	if (venc)
-		vfree(venc);
+	vfree(venc);
 	inst->priv = NULL;
 	vfree(inst);
 }

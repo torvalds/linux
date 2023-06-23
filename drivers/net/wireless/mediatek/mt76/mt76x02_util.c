@@ -487,7 +487,8 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 EXPORT_SYMBOL_GPL(mt76x02_set_key);
 
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params)
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params)
 {
 	struct mt76x02_dev *dev = hw->priv;
 	u8 cw_min = 5, cw_max = 10, qid;
@@ -636,7 +637,7 @@ EXPORT_SYMBOL_GPL(mt76x02_sta_ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info,
-			      u32 changed)
+			      u64 changed)
 {
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76x02_dev *dev = hw->priv;

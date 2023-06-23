@@ -250,7 +250,7 @@ int slim_register_controller(struct slim_controller *ctrl)
 {
 	int id;
 
-	id = ida_simple_get(&ctrl_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&ctrl_ida, GFP_KERNEL);
 	if (id < 0)
 		return id;
 
@@ -299,7 +299,7 @@ int slim_unregister_controller(struct slim_controller *ctrl)
 {
 	/* Remove all clients */
 	device_for_each_child(ctrl->dev, NULL, slim_ctrl_remove_device);
-	ida_simple_remove(&ctrl_ida, ctrl->id);
+	ida_free(&ctrl_ida, ctrl->id);
 
 	return 0;
 }
@@ -323,7 +323,7 @@ void slim_report_absent(struct slim_device *sbdev)
 	sbdev->is_laddr_valid = false;
 	mutex_unlock(&ctrl->lock);
 	if (!ctrl->get_laddr)
-		ida_simple_remove(&ctrl->laddr_ida, sbdev->laddr);
+		ida_free(&ctrl->laddr_ida, sbdev->laddr);
 	slim_device_update_status(sbdev, SLIM_DEVICE_STATUS_DOWN);
 }
 EXPORT_SYMBOL_GPL(slim_report_absent);

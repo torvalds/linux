@@ -85,7 +85,7 @@ extern struct auxiliary_driver i40iw_auxiliary_drv;
 #define	IRDMA_NO_QSET	0xffff
 
 #define IW_CFG_FPM_QP_COUNT		32768
-#define IRDMA_MAX_PAGES_PER_FMR		512
+#define IRDMA_MAX_PAGES_PER_FMR		262144
 #define IRDMA_MIN_PAGES_PER_FMR		1
 #define IRDMA_CQP_COMPL_RQ_WQE_FLUSHED	2
 #define IRDMA_CQP_COMPL_SQ_WQE_FLUSHED	3

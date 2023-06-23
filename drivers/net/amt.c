@@ -449,7 +449,7 @@ out:
 	dev_put(amt->dev);
 }
 
-/* Non-existant group is created as INCLUDE {empty}:
+/* Non-existent group is created as INCLUDE {empty}:
  *
  * RFC 3376 - 5.1. Action on Change of Interface State
  *
@@ -1400,11 +1400,11 @@ static void amt_add_srcs(struct amt_dev *amt, struct amt_tunnel_list *tunnel,
 	int i;
 
 	if (!v6) {
-		igmp_grec = (struct igmpv3_grec *)grec;
+		igmp_grec = grec;
 		nsrcs = ntohs(igmp_grec->grec_nsrcs);
 	} else {
 #if IS_ENABLED(CONFIG_IPV6)
-		mld_grec = (struct mld2_grec *)grec;
+		mld_grec = grec;
 		nsrcs = ntohs(mld_grec->grec_nsrcs);
 #else
 	return;
@@ -1485,11 +1485,11 @@ static void amt_lookup_act_srcs(struct amt_tunnel_list *tunnel,
 	int i, j;
 
 	if (!v6) {
-		igmp_grec = (struct igmpv3_grec *)grec;
+		igmp_grec = grec;
 		nsrcs = ntohs(igmp_grec->grec_nsrcs);
 	} else {
 #if IS_ENABLED(CONFIG_IPV6)
-		mld_grec = (struct mld2_grec *)grec;
+		mld_grec = grec;
 		nsrcs = ntohs(mld_grec->grec_nsrcs);
 #else
 	return;

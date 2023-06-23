@@ -24,7 +24,7 @@ MODULE_PARM_DESC(allocator, " memory allocator selection, default is 0.\n"
 
 #define VIMC_MDEV_MODEL_NAME "VIMC MDEV"
 
-#define VIMC_ENT_LINK(src, srcpad, sink, sinkpad, link_flags) {	\
+#define VIMC_DATA_LINK(src, srcpad, sink, sinkpad, link_flags) {	\
 	.src_ent = src,						\
 	.src_pad = srcpad,					\
 	.sink_ent = sink,					\
@@ -32,8 +32,13 @@ MODULE_PARM_DESC(allocator, " memory allocator selection, default is 0.\n"
 	.flags = link_flags,					\
 }
 
-/* Structure which describes links between entities */
-struct vimc_ent_link {
+#define VIMC_ANCILLARY_LINK(primary, ancillary) {	\
+	.primary_ent = primary,			\
+	.ancillary_ent = ancillary		\
+}
+
+/* Structure which describes data links between entities */
+struct vimc_data_link {
 	unsigned int src_ent;
 	u16 src_pad;
 	unsigned int sink_ent;
@@ -41,12 +46,35 @@ struct vimc_ent_link {
 	u32 flags;
 };
 
+/* Enum to improve clarity when defining vimc_data_links */
+enum vimc_data_link_ents {
+	SENSOR_A,
+	SENSOR_B,
+	DEBAYER_A,
+	DEBAYER_B,
+	RAW_CAPTURE_0,
+	RAW_CAPTURE_1,
+	RGB_YUV_INPUT,
+	SCALER,
+	RGB_YUV_CAPTURE,
+	LENS_A,
+	LENS_B,
+};
+
+/* Structure which describes ancillary links between entities */
+struct vimc_ancillary_link {
+	unsigned int primary_ent;
+	unsigned int ancillary_ent;
+};
+
 /* Structure which describes the whole topology */
 struct vimc_pipeline_config {
 	const struct vimc_ent_config *ents;
 	size_t num_ents;
-	const struct vimc_ent_link *links;
-	size_t num_links;
+	const struct vimc_data_link *data_links;
+	size_t num_data_links;
+	const struct vimc_ancillary_link *ancillary_links;
+	size_t num_ancillary_links;
 };
 
 /* --------------------------------------------------------------------------
@@ -54,69 +82,91 @@ struct vimc_pipeline_config {
  */
 
 static struct vimc_ent_config ent_config[] = {
-	{
+	[SENSOR_A] = {
 		.name = "Sensor A",
-		.type = &vimc_sen_type
+		.type = &vimc_sensor_type
 	},
-	{
+	[SENSOR_B] = {
 		.name = "Sensor B",
-		.type = &vimc_sen_type
+		.type = &vimc_sensor_type
 	},
-	{
+	[DEBAYER_A] = {
 		.name = "Debayer A",
-		.type = &vimc_deb_type
+		.type = &vimc_debayer_type
 	},
-	{
+	[DEBAYER_B] = {
 		.name = "Debayer B",
-		.type = &vimc_deb_type
+		.type = &vimc_debayer_type
 	},
-	{
+	[RAW_CAPTURE_0] = {
 		.name = "Raw Capture 0",
-		.type = &vimc_cap_type
+		.type = &vimc_capture_type
 	},
-	{
+	[RAW_CAPTURE_1] = {
 		.name = "Raw Capture 1",
-		.type = &vimc_cap_type
+		.type = &vimc_capture_type
 	},
-	{
+	[RGB_YUV_INPUT] = {
 		/* TODO: change this to vimc-input when it is implemented */
 		.name = "RGB/YUV Input",
-		.type = &vimc_sen_type
+		.type = &vimc_sensor_type
 	},
-	{
+	[SCALER] = {
 		.name = "Scaler",
-		.type = &vimc_sca_type
+		.type = &vimc_scaler_type
 	},
-	{
+	[RGB_YUV_CAPTURE] = {
 		.name = "RGB/YUV Capture",
-		.type = &vimc_cap_type
+		.type = &vimc_capture_type
+	},
+	[LENS_A] = {
+		.name = "Lens A",
+		.type = &vimc_lens_type
+	},
+	[LENS_B] = {
+		.name = "Lens B",
+		.type = &vimc_lens_type
 	},
 };
 
-static const struct vimc_ent_link ent_links[] = {
+static const struct vimc_data_link data_links[] = {
 	/* Link: Sensor A (Pad 0)->(Pad 0) Debayer A */
-	VIMC_ENT_LINK(0, 0, 2, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_A, 0, DEBAYER_A, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Sensor A (Pad 0)->(Pad 0) Raw Capture 0 */
-	VIMC_ENT_LINK(0, 0, 4, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_A, 0, RAW_CAPTURE_0, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Sensor B (Pad 0)->(Pad 0) Debayer B */
-	VIMC_ENT_LINK(1, 0, 3, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_B, 0, DEBAYER_B, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Sensor B (Pad 0)->(Pad 0) Raw Capture 1 */
-	VIMC_ENT_LINK(1, 0, 5, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_B, 0, RAW_CAPTURE_1, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Debayer A (Pad 1)->(Pad 0) Scaler */
-	VIMC_ENT_LINK(2, 1, 7, 0, MEDIA_LNK_FL_ENABLED),
+	VIMC_DATA_LINK(DEBAYER_A, 1, SCALER, 0, MEDIA_LNK_FL_ENABLED),
 	/* Link: Debayer B (Pad 1)->(Pad 0) Scaler */
-	VIMC_ENT_LINK(3, 1, 7, 0, 0),
+	VIMC_DATA_LINK(DEBAYER_B, 1, SCALER, 0, 0),
 	/* Link: RGB/YUV Input (Pad 0)->(Pad 0) Scaler */
-	VIMC_ENT_LINK(6, 0, 7, 0, 0),
+	VIMC_DATA_LINK(RGB_YUV_INPUT, 0, SCALER, 0, 0),
 	/* Link: Scaler (Pad 1)->(Pad 0) RGB/YUV Capture */
-	VIMC_ENT_LINK(7, 1, 8, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SCALER, 1, RGB_YUV_CAPTURE, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+};
+
+static const struct vimc_ancillary_link ancillary_links[] = {
+	/* Link: Sensor A -> Lens A */
+	VIMC_ANCILLARY_LINK(0, 9),
+	/* Link: Sensor B -> Lens B */
+	VIMC_ANCILLARY_LINK(1, 10),
 };
 
 static struct vimc_pipeline_config pipe_cfg = {
-	.ents		= ent_config,
-	.num_ents	= ARRAY_SIZE(ent_config),
-	.links		= ent_links,
-	.num_links	= ARRAY_SIZE(ent_links)
+	.ents		     = ent_config,
+	.num_ents	     = ARRAY_SIZE(ent_config),
+	.data_links	     = data_links,
+	.num_data_links	     = ARRAY_SIZE(data_links),
+	.ancillary_links     = ancillary_links,
+	.num_ancillary_links = ARRAY_SIZE(ancillary_links),
 };
 
 /* -------------------------------------------------------------------------- */
@@ -135,8 +185,8 @@ static int vimc_create_links(struct vimc_device *vimc)
 	int ret;
 
 	/* Initialize the links between entities */
-	for (i = 0; i < vimc->pipe_cfg->num_links; i++) {
-		const struct vimc_ent_link *link = &vimc->pipe_cfg->links[i];
+	for (i = 0; i < vimc->pipe_cfg->num_data_links; i++) {
+		const struct vimc_data_link *link = &vimc->pipe_cfg->data_links[i];
 
 		struct vimc_ent_device *ved_src =
 			vimc->ent_devs[link->src_ent];
@@ -148,6 +198,22 @@ static int vimc_create_links(struct vimc_device *vimc)
 					    link->flags);
 		if (ret)
 			goto err_rm_links;
+	}
+
+	for (i = 0; i < vimc->pipe_cfg->num_ancillary_links; i++) {
+		const struct vimc_ancillary_link *link = &vimc->pipe_cfg->ancillary_links[i];
+
+		struct vimc_ent_device *ved_primary =
+			vimc->ent_devs[link->primary_ent];
+		struct vimc_ent_device *ved_ancillary =
+			vimc->ent_devs[link->ancillary_ent];
+		struct media_link *ret_link =
+			media_create_ancillary_link(ved_primary->ent, ved_ancillary->ent);
+
+		if (IS_ERR(ret_link)) {
+			ret = PTR_ERR(ret_link);
+			goto err_rm_links;
+		}
 	}
 
 	return 0;

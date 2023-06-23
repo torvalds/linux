@@ -529,7 +529,7 @@ static void lowcomms_write_space(struct sock *sk)
 		return;
 
 	if (!test_and_set_bit(CF_CONNECTED, &con->flags)) {
-		log_print("successful connected to node %d", con->nodeid);
+		log_print("connected to node %d", con->nodeid);
 		queue_work(send_workqueue, &con->swork);
 		return;
 	}
@@ -1931,7 +1931,7 @@ static int dlm_sctp_connect(struct connection *con, struct socket *sock,
 		return ret;
 
 	if (!test_and_set_bit(CF_CONNECTED, &con->flags))
-		log_print("successful connected to node %d", con->nodeid);
+		log_print("connected to node %d", con->nodeid);
 
 	return 0;
 }

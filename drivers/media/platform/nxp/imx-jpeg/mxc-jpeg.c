@@ -389,7 +389,6 @@ static int enum_fmt(const struct mxc_jpeg_fmt *mxc_formats, int n,
 	if (i >= n)
 		return -EINVAL;
 
-	strscpy(f->description, mxc_formats[i].name, sizeof(f->description));
 	f->pixelformat = mxc_formats[i].fourcc;
 
 	return 0;
@@ -520,6 +519,7 @@ static bool mxc_jpeg_alloc_slot_data(struct mxc_jpeg_dev *jpeg,
 				     GFP_ATOMIC);
 	if (!cfg_stm)
 		goto err;
+	memset(cfg_stm, 0, MXC_JPEG_MAX_CFG_STREAM);
 	jpeg->slot_data[slot].cfg_stream_vaddr = cfg_stm;
 
 skip_alloc:
@@ -558,6 +558,18 @@ static void mxc_jpeg_free_slot_data(struct mxc_jpeg_dev *jpeg,
 	jpeg->slot_data[slot].used = false;
 }
 
+static void mxc_jpeg_check_and_set_last_buffer(struct mxc_jpeg_ctx *ctx,
+					       struct vb2_v4l2_buffer *src_buf,
+					       struct vb2_v4l2_buffer *dst_buf)
+{
+	if (v4l2_m2m_is_last_draining_src_buf(ctx->fh.m2m_ctx, src_buf)) {
+		dst_buf->flags |= V4L2_BUF_FLAG_LAST;
+		v4l2_m2m_mark_stopped(ctx->fh.m2m_ctx);
+		notify_eos(ctx);
+		ctx->header_parsed = false;
+	}
+}
+
 static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 {
 	struct mxc_jpeg_dev *jpeg = priv;
@@ -580,15 +592,8 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 	dev_dbg(dev, "Irq %d on slot %d.\n", irq, slot);
 
 	ctx = v4l2_m2m_get_curr_priv(jpeg->m2m_dev);
-	if (!ctx) {
-		dev_err(dev,
-			"Instance released before the end of transaction.\n");
-		/* soft reset only resets internal state, not registers */
-		mxc_jpeg_sw_reset(reg);
-		/* clear all interrupts */
-		writel(0xFFFFFFFF, reg + MXC_SLOT_OFFSET(slot, SLOT_STATUS));
+	if (WARN_ON(!ctx))
 		goto job_unlock;
-	}
 
 	if (slot != ctx->slot) {
 		/* TODO investigate when adding multi-instance support */
@@ -624,6 +629,7 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 	    ctx->enc_state == MXC_JPEG_ENC_CONF) {
 		ctx->enc_state = MXC_JPEG_ENCODING;
 		dev_dbg(dev, "Encoder config finished. Start encoding...\n");
+		mxc_jpeg_enc_set_quality(dev, reg, ctx->jpeg_quality);
 		mxc_jpeg_enc_mode_go(dev, reg);
 		goto job_unlock;
 	}
@@ -632,6 +638,7 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 		dev_dbg(dev, "Decoder DHT cfg finished. Start decoding...\n");
 		goto job_unlock;
 	}
+
 	if (jpeg->mode == MXC_JPEG_ENCODE) {
 		payload = readl(reg + MXC_SLOT_OFFSET(slot, SLOT_BUF_PTR));
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload);
@@ -659,7 +666,9 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 	buf_state = VB2_BUF_STATE_DONE;
 
 buffers_done:
+	mxc_jpeg_disable_irq(reg, ctx->slot);
 	jpeg->slot_data[slot].used = false; /* unused, but don't free */
+	mxc_jpeg_check_and_set_last_buffer(ctx, src_buf, dst_buf);
 	v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 	v4l2_m2m_buf_done(src_buf, buf_state);
@@ -755,7 +764,13 @@ static unsigned int mxc_jpeg_setup_cfg_stream(void *cfg_stream_vaddr,
 					      u32 fourcc,
 					      u16 w, u16 h)
 {
-	unsigned int offset = 0;
+	/*
+	 * There is a hardware issue that first 128 bytes of configuration data
+	 * can't be loaded correctly.
+	 * To avoid this issue, we need to write the configuration from
+	 * an offset which should be no less than 0x80 (128 bytes).
+	 */
+	unsigned int offset = 0x80;
 	u8 *cfg = (u8 *)cfg_stream_vaddr;
 	struct mxc_jpeg_sof *sof;
 	struct mxc_jpeg_sos *sos;
@@ -887,8 +902,8 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	jpeg->slot_data[slot].cfg_stream_size =
 			mxc_jpeg_setup_cfg_stream(cfg_stream_vaddr,
 						  q_data->fmt->fourcc,
-						  q_data->w_adjusted,
-						  q_data->h_adjusted);
+						  q_data->w,
+						  q_data->h);
 
 	/* chain the config descriptor with the encoding descriptor */
 	cfg_desc->next_descpt_ptr = desc_handle | MXC_NXT_DESCPT_EN;
@@ -970,7 +985,7 @@ static bool mxc_jpeg_source_change(struct mxc_jpeg_ctx *ctx,
 				      &q_data_cap->h_adjusted,
 				      q_data_cap->h_adjusted, /* adjust up */
 				      MXC_JPEG_MAX_HEIGHT,
-				      q_data_cap->fmt->v_align,
+				      0,
 				      0);
 
 		/* setup bytesperline/sizeimage for capture queue */
@@ -1027,6 +1042,7 @@ static void mxc_jpeg_device_run(void *priv)
 		jpeg_src_buf->jpeg_parse_error = true;
 	}
 	if (jpeg_src_buf->jpeg_parse_error) {
+		mxc_jpeg_check_and_set_last_buffer(ctx, src_buf, dst_buf);
 		v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
@@ -1077,45 +1093,33 @@ end:
 	spin_unlock_irqrestore(&ctx->mxc_jpeg->hw_lock, flags);
 }
 
-static void mxc_jpeg_set_last_buffer_dequeued(struct mxc_jpeg_ctx *ctx)
-{
-	struct vb2_queue *q;
-
-	ctx->stopped = 1;
-	q = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
-	if (!list_empty(&q->done_list))
-		return;
-
-	q->last_buffer_dequeued = true;
-	wake_up(&q->done_wq);
-	ctx->stopped = 0;
-	ctx->header_parsed = false;
-}
-
 static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 				struct v4l2_decoder_cmd *cmd)
 {
 	struct v4l2_fh *fh = file->private_data;
 	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(fh);
-	struct device *dev = ctx->mxc_jpeg->dev;
 	int ret;
 
 	ret = v4l2_m2m_ioctl_try_decoder_cmd(file, fh, cmd);
 	if (ret < 0)
 		return ret;
 
-	if (cmd->cmd == V4L2_DEC_CMD_STOP) {
-		dev_dbg(dev, "Received V4L2_DEC_CMD_STOP");
-		if (v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx) == 0) {
-			/* No more src bufs, notify app EOS */
-			notify_eos(ctx);
-			mxc_jpeg_set_last_buffer_dequeued(ctx);
-		} else {
-			/* will send EOS later*/
-			ctx->stopping = 1;
-		}
+	if (!vb2_is_streaming(v4l2_m2m_get_src_vq(fh->m2m_ctx)))
+		return 0;
+
+	ret = v4l2_m2m_ioctl_decoder_cmd(file, priv, cmd);
+	if (ret < 0)
+		return ret;
+
+	if (cmd->cmd == V4L2_DEC_CMD_STOP &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx)) {
+		notify_eos(ctx);
+		ctx->header_parsed = false;
 	}
 
+	if (cmd->cmd == V4L2_DEC_CMD_START &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx))
+		vb2_clear_last_buffer_dequeued(&fh->m2m_ctx->cap_q_ctx.q);
 	return 0;
 }
 
@@ -1124,24 +1128,27 @@ static int mxc_jpeg_encoder_cmd(struct file *file, void *priv,
 {
 	struct v4l2_fh *fh = file->private_data;
 	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(fh);
-	struct device *dev = ctx->mxc_jpeg->dev;
 	int ret;
 
 	ret = v4l2_m2m_ioctl_try_encoder_cmd(file, fh, cmd);
 	if (ret < 0)
 		return ret;
 
-	if (cmd->cmd == V4L2_ENC_CMD_STOP) {
-		dev_dbg(dev, "Received V4L2_ENC_CMD_STOP");
-		if (v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx) == 0) {
-			/* No more src bufs, notify app EOS */
-			notify_eos(ctx);
-			mxc_jpeg_set_last_buffer_dequeued(ctx);
-		} else {
-			/* will send EOS later*/
-			ctx->stopping = 1;
-		}
-	}
+	if (!vb2_is_streaming(v4l2_m2m_get_src_vq(fh->m2m_ctx)) ||
+	    !vb2_is_streaming(v4l2_m2m_get_dst_vq(fh->m2m_ctx)))
+		return 0;
+
+	ret = v4l2_m2m_ioctl_encoder_cmd(file, fh, cmd);
+	if (ret < 0)
+		return 0;
+
+	if (cmd->cmd == V4L2_ENC_CMD_STOP &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx))
+		notify_eos(ctx);
+
+	if (cmd->cmd == V4L2_ENC_CMD_START &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx))
+		vb2_clear_last_buffer_dequeued(&fh->m2m_ctx->cap_q_ctx.q);
 
 	return 0;
 }
@@ -1154,18 +1161,30 @@ static int mxc_jpeg_queue_setup(struct vb2_queue *q,
 {
 	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(q);
 	struct mxc_jpeg_q_data *q_data = NULL;
+	struct mxc_jpeg_q_data tmp_q;
 	int i;
 
 	q_data = mxc_jpeg_get_q_data(ctx, q->type);
 	if (!q_data)
 		return -EINVAL;
 
+	tmp_q.fmt = q_data->fmt;
+	tmp_q.w = q_data->w_adjusted;
+	tmp_q.h = q_data->h_adjusted;
+	for (i = 0; i < MXC_JPEG_MAX_PLANES; i++) {
+		tmp_q.bytesperline[i] = q_data->bytesperline[i];
+		tmp_q.sizeimage[i] = q_data->sizeimage[i];
+	}
+	mxc_jpeg_sizeimage(&tmp_q);
+	for (i = 0; i < MXC_JPEG_MAX_PLANES; i++)
+		tmp_q.sizeimage[i] = max(tmp_q.sizeimage[i], q_data->sizeimage[i]);
+
 	/* Handle CREATE_BUFS situation - *nplanes != 0 */
 	if (*nplanes) {
 		if (*nplanes != q_data->fmt->colplanes)
 			return -EINVAL;
 		for (i = 0; i < *nplanes; i++) {
-			if (sizes[i] < q_data->sizeimage[i])
+			if (sizes[i] < tmp_q.sizeimage[i])
 				return -EINVAL;
 		}
 		return 0;
@@ -1174,7 +1193,7 @@ static int mxc_jpeg_queue_setup(struct vb2_queue *q,
 	/* Handle REQBUFS situation */
 	*nplanes = q_data->fmt->colplanes;
 	for (i = 0; i < *nplanes; i++)
-		sizes[i] = q_data->sizeimage[i];
+		sizes[i] = tmp_q.sizeimage[i];
 
 	return 0;
 }
@@ -1184,6 +1203,8 @@ static int mxc_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(q);
 	struct mxc_jpeg_q_data *q_data = mxc_jpeg_get_q_data(ctx, q->type);
 	int ret;
+
+	v4l2_m2m_update_start_streaming_state(ctx->fh.m2m_ctx, q);
 
 	if (ctx->mxc_jpeg->mode == MXC_JPEG_DECODE && V4L2_TYPE_IS_CAPTURE(q->type))
 		ctx->source_change = 0;
@@ -1216,11 +1237,15 @@ static void mxc_jpeg_stop_streaming(struct vb2_queue *q)
 			break;
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 	}
-	pm_runtime_put_sync(&ctx->mxc_jpeg->pdev->dev);
-	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
-		ctx->stopping = 0;
-		ctx->stopped = 0;
+
+	v4l2_m2m_update_stop_streaming_state(ctx->fh.m2m_ctx, q);
+	if (V4L2_TYPE_IS_OUTPUT(q->type) &&
+	    v4l2_m2m_has_stopped(ctx->fh.m2m_ctx)) {
+		notify_eos(ctx);
+		ctx->header_parsed = false;
 	}
+
+	pm_runtime_put_sync(&ctx->mxc_jpeg->pdev->dev);
 }
 
 static int mxc_jpeg_valid_comp_id(struct device *dev,
@@ -1374,11 +1399,6 @@ static int mxc_jpeg_parse(struct mxc_jpeg_ctx *ctx, struct vb2_buffer *vb)
 	}
 	q_data_out->w = header.frame.width;
 	q_data_out->h = header.frame.height;
-	if (header.frame.width % 8 != 0 || header.frame.height % 8 != 0) {
-		dev_err(dev, "JPEG width or height not multiple of 8: %dx%d\n",
-			header.frame.width, header.frame.height);
-		return -EINVAL;
-	}
 	if (header.frame.width > MXC_JPEG_MAX_WIDTH ||
 	    header.frame.height > MXC_JPEG_MAX_HEIGHT) {
 		dev_err(dev, "JPEG width or height should be <= 8192: %dx%d\n",
@@ -1423,6 +1443,20 @@ static void mxc_jpeg_buf_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct mxc_jpeg_src_buf *jpeg_src_buf;
+
+	if (V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type) &&
+	    vb2_is_streaming(vb->vb2_queue) &&
+	    v4l2_m2m_dst_buf_is_last(ctx->fh.m2m_ctx)) {
+		struct mxc_jpeg_q_data *q_data;
+
+		q_data = mxc_jpeg_get_q_data(ctx, vb->vb2_queue->type);
+		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->sequence = q_data->sequence++;
+		v4l2_m2m_last_buffer_done(ctx->fh.m2m_ctx, vbuf);
+		notify_eos(ctx);
+		ctx->header_parsed = false;
+		return;
+	}
 
 	if (vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		goto end;
@@ -1472,24 +1506,11 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 			return -EINVAL;
 		}
 	}
-	return 0;
-}
-
-static void mxc_jpeg_buf_finish(struct vb2_buffer *vb)
-{
-	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	struct vb2_queue *q = vb->vb2_queue;
-
-	if (V4L2_TYPE_IS_OUTPUT(vb->type))
-		return;
-	if (!ctx->stopped)
-		return;
-	if (list_empty(&q->done_list)) {
-		vbuf->flags |= V4L2_BUF_FLAG_LAST;
-		ctx->stopped = 0;
-		ctx->header_parsed = false;
+	if (V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type)) {
+		vb2_set_plane_payload(vb, 0, 0);
+		vb2_set_plane_payload(vb, 1, 0);
 	}
+	return 0;
 }
 
 static const struct vb2_ops mxc_jpeg_qops = {
@@ -1498,7 +1519,6 @@ static const struct vb2_ops mxc_jpeg_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 	.buf_out_validate	= mxc_jpeg_buf_out_validate,
 	.buf_prepare		= mxc_jpeg_buf_prepare,
-	.buf_finish             = mxc_jpeg_buf_finish,
 	.start_streaming	= mxc_jpeg_start_streaming,
 	.stop_streaming		= mxc_jpeg_stop_streaming,
 	.buf_queue		= mxc_jpeg_buf_queue,
@@ -1563,6 +1583,56 @@ static void mxc_jpeg_set_default_params(struct mxc_jpeg_ctx *ctx)
 	}
 }
 
+static int mxc_jpeg_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct mxc_jpeg_ctx *ctx =
+		container_of(ctrl->handler, struct mxc_jpeg_ctx, ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		ctx->jpeg_quality = ctrl->val;
+		break;
+	default:
+		dev_err(ctx->mxc_jpeg->dev, "Invalid control, id = %d, val = %d\n",
+			ctrl->id, ctrl->val);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops mxc_jpeg_ctrl_ops = {
+	.s_ctrl = mxc_jpeg_s_ctrl,
+};
+
+static void mxc_jpeg_encode_ctrls(struct mxc_jpeg_ctx *ctx)
+{
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &mxc_jpeg_ctrl_ops,
+			  V4L2_CID_JPEG_COMPRESSION_QUALITY, 1, 100, 1, 75);
+}
+
+static int mxc_jpeg_ctrls_setup(struct mxc_jpeg_ctx *ctx)
+{
+	int err;
+
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 2);
+
+	if (ctx->mxc_jpeg->mode == MXC_JPEG_ENCODE)
+		mxc_jpeg_encode_ctrls(ctx);
+
+	if (ctx->ctrl_handler.error) {
+		err = ctx->ctrl_handler.error;
+
+		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+		return err;
+	}
+
+	err = v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
+	if (err)
+		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+	return err;
+}
+
 static int mxc_jpeg_open(struct file *file)
 {
 	struct mxc_jpeg_dev *mxc_jpeg = video_drvdata(file);
@@ -1594,6 +1664,12 @@ static int mxc_jpeg_open(struct file *file)
 		goto error;
 	}
 
+	ret = mxc_jpeg_ctrls_setup(ctx);
+	if (ret) {
+		dev_err(ctx->mxc_jpeg->dev, "failed to setup mxc jpeg controls\n");
+		goto err_ctrls_setup;
+	}
+	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
 	mxc_jpeg_set_default_params(ctx);
 	ctx->slot = MXC_MAX_SLOTS; /* slot not allocated yet */
 
@@ -1605,6 +1681,8 @@ static int mxc_jpeg_open(struct file *file)
 
 	return 0;
 
+err_ctrls_setup:
+	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 error:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -1646,7 +1724,6 @@ static int mxc_jpeg_enum_fmt_vid_cap(struct file *file, void *priv,
 		if (f->index)
 			return -EINVAL;
 		f->pixelformat = q_data->fmt->fourcc;
-		strscpy(f->description, q_data->fmt->name, sizeof(f->description));
 		return 0;
 	}
 }
@@ -1684,22 +1761,17 @@ static int mxc_jpeg_try_fmt(struct v4l2_format *f, const struct mxc_jpeg_fmt *fm
 	pix_mp->num_planes = fmt->colplanes;
 	pix_mp->pixelformat = fmt->fourcc;
 
-	/*
-	 * use MXC_JPEG_H_ALIGN instead of fmt->v_align, for vertical
-	 * alignment, to loosen up the alignment to multiple of 8,
-	 * otherwise NV12-1080p fails as 1080 is not a multiple of 16
-	 */
+	pix_mp->width = w;
+	pix_mp->height = h;
 	v4l_bound_align_image(&w,
-			      MXC_JPEG_MIN_WIDTH,
-			      w, /* adjust downwards*/
+			      w, /* adjust upwards*/
+			      MXC_JPEG_MAX_WIDTH,
 			      fmt->h_align,
 			      &h,
-			      MXC_JPEG_MIN_HEIGHT,
-			      h, /* adjust downwards*/
-			      MXC_JPEG_H_ALIGN,
+			      h, /* adjust upwards*/
+			      MXC_JPEG_MAX_HEIGHT,
+			      0,
 			      0);
-	pix_mp->width = w; /* negotiate the width */
-	pix_mp->height = h; /* negotiate the height */
 
 	/* get user input into the tmp_q */
 	tmp_q.w = w;
@@ -1825,35 +1897,19 @@ static int mxc_jpeg_s_fmt(struct mxc_jpeg_ctx *ctx,
 
 	q_data->w_adjusted = q_data->w;
 	q_data->h_adjusted = q_data->h;
-	if (jpeg->mode == MXC_JPEG_DECODE) {
-		/*
-		 * align up the resolution for CAST IP,
-		 * but leave the buffer resolution unchanged
-		 */
-		v4l_bound_align_image(&q_data->w_adjusted,
-				      q_data->w_adjusted,  /* adjust upwards */
-				      MXC_JPEG_MAX_WIDTH,
-				      q_data->fmt->h_align,
-				      &q_data->h_adjusted,
-				      q_data->h_adjusted, /* adjust upwards */
-				      MXC_JPEG_MAX_HEIGHT,
-				      q_data->fmt->v_align,
-				      0);
-	} else {
-		/*
-		 * align down the resolution for CAST IP,
-		 * but leave the buffer resolution unchanged
-		 */
-		v4l_bound_align_image(&q_data->w_adjusted,
-				      MXC_JPEG_MIN_WIDTH,
-				      q_data->w_adjusted, /* adjust downwards*/
-				      q_data->fmt->h_align,
-				      &q_data->h_adjusted,
-				      MXC_JPEG_MIN_HEIGHT,
-				      q_data->h_adjusted, /* adjust downwards*/
-				      q_data->fmt->v_align,
-				      0);
-	}
+	/*
+	 * align up the resolution for CAST IP,
+	 * but leave the buffer resolution unchanged
+	 */
+	v4l_bound_align_image(&q_data->w_adjusted,
+			      q_data->w_adjusted,  /* adjust upwards */
+			      MXC_JPEG_MAX_WIDTH,
+			      q_data->fmt->h_align,
+			      &q_data->h_adjusted,
+			      q_data->h_adjusted, /* adjust upwards */
+			      MXC_JPEG_MAX_HEIGHT,
+			      q_data->fmt->v_align,
+			      0);
 
 	for (i = 0; i < pix_mp->num_planes; i++) {
 		q_data->bytesperline[i] = pix_mp->plane_fmt[i].bytesperline;
@@ -1958,30 +2014,11 @@ static int mxc_jpeg_subscribe_event(struct v4l2_fh *fh,
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	case V4L2_EVENT_SOURCE_CHANGE:
 		return v4l2_src_change_event_subscribe(fh, sub);
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subscribe_event(fh, sub);
 	default:
 		return -EINVAL;
 	}
-}
-
-static int mxc_jpeg_dqbuf(struct file *file, void *priv,
-			  struct v4l2_buffer *buf)
-{
-	struct v4l2_fh *fh = file->private_data;
-	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(priv);
-	struct device *dev = ctx->mxc_jpeg->dev;
-	int num_src_ready = v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx);
-	int ret;
-
-	dev_dbg(dev, "DQBUF type=%d, index=%d", buf->type, buf->index);
-	if (ctx->stopping == 1 && num_src_ready == 0) {
-		/* No more src bufs, notify app EOS */
-		notify_eos(ctx);
-		ctx->stopping = 0;
-		mxc_jpeg_set_last_buffer_dequeued(ctx);
-	}
-
-	ret = v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
-	return ret;
 }
 
 static const struct v4l2_ioctl_ops mxc_jpeg_ioctl_ops = {
@@ -2007,7 +2044,7 @@ static const struct v4l2_ioctl_ops mxc_jpeg_ioctl_ops = {
 	.vidioc_encoder_cmd		= mxc_jpeg_encoder_cmd,
 
 	.vidioc_qbuf			= v4l2_m2m_ioctl_qbuf,
-	.vidioc_dqbuf			= mxc_jpeg_dqbuf,
+	.vidioc_dqbuf			= v4l2_m2m_ioctl_dqbuf,
 
 	.vidioc_create_bufs		= v4l2_m2m_ioctl_create_bufs,
 	.vidioc_prepare_buf		= v4l2_m2m_ioctl_prepare_buf,
@@ -2031,6 +2068,7 @@ static int mxc_jpeg_release(struct file *file)
 	else
 		dev_dbg(dev, "Release JPEG encoder instance on slot %d.",
 			ctx->slot);
+	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -2167,12 +2205,14 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	jpeg->clk_ipg = devm_clk_get(dev, "ipg");
 	if (IS_ERR(jpeg->clk_ipg)) {
 		dev_err(dev, "failed to get clock: ipg\n");
+		ret = PTR_ERR(jpeg->clk_ipg);
 		goto err_clk;
 	}
 
 	jpeg->clk_per = devm_clk_get(dev, "per");
 	if (IS_ERR(jpeg->clk_per)) {
 		dev_err(dev, "failed to get clock: per\n");
+		ret = PTR_ERR(jpeg->clk_per);
 		goto err_clk;
 	}
 

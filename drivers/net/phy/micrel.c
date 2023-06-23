@@ -209,6 +209,9 @@
 #define PTP_TSU_INT_STS_PTP_RX_TS_OVRFL_INT_	BIT(1)
 #define PTP_TSU_INT_STS_PTP_RX_TS_EN_		BIT(0)
 
+#define LAN8814_LED_CTRL_1			0x0
+#define LAN8814_LED_CTRL_1_KSZ9031_LED_MODE_	BIT(6)
+
 /* PHY Control 1 */
 #define MII_KSZPHY_CTRL_1			0x1e
 #define KSZ8081_CTRL1_MDIX_STAT			BIT(4)
@@ -306,6 +309,10 @@ struct kszphy_priv {
 	bool rmii_ref_clk_sel;
 	bool rmii_ref_clk_sel_val;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
+};
+
+static const struct kszphy_type lan8814_type = {
+	.led_mode_reg		= ~LAN8814_LED_CTRL_1,
 };
 
 static const struct kszphy_type ksz8021_type = {
@@ -1688,6 +1695,30 @@ static int kszphy_suspend(struct phy_device *phydev)
 	return genphy_suspend(phydev);
 }
 
+static void kszphy_parse_led_mode(struct phy_device *phydev)
+{
+	const struct kszphy_type *type = phydev->drv->driver_data;
+	const struct device_node *np = phydev->mdio.dev.of_node;
+	struct kszphy_priv *priv = phydev->priv;
+	int ret;
+
+	if (type && type->led_mode_reg) {
+		ret = of_property_read_u32(np, "micrel,led-mode",
+					   &priv->led_mode);
+
+		if (ret)
+			priv->led_mode = -1;
+
+		if (priv->led_mode > 3) {
+			phydev_err(phydev, "invalid led mode: 0x%02x\n",
+				   priv->led_mode);
+			priv->led_mode = -1;
+		}
+	} else {
+		priv->led_mode = -1;
+	}
+}
+
 static int kszphy_resume(struct phy_device *phydev)
 {
 	int ret;
@@ -1720,7 +1751,6 @@ static int kszphy_probe(struct phy_device *phydev)
 	const struct device_node *np = phydev->mdio.dev.of_node;
 	struct kszphy_priv *priv;
 	struct clk *clk;
-	int ret;
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1730,20 +1760,7 @@ static int kszphy_probe(struct phy_device *phydev)
 
 	priv->type = type;
 
-	if (type && type->led_mode_reg) {
-		ret = of_property_read_u32(np, "micrel,led-mode",
-				&priv->led_mode);
-		if (ret)
-			priv->led_mode = -1;
-
-		if (priv->led_mode > 3) {
-			phydev_err(phydev, "invalid led mode: 0x%02x\n",
-				   priv->led_mode);
-			priv->led_mode = -1;
-		}
-	} else {
-		priv->led_mode = -1;
-	}
+	kszphy_parse_led_mode(phydev);
 
 	clk = devm_clk_get(&phydev->mdio.dev, "rmii-ref");
 	/* NOTE: clk may be NULL if building without CONFIG_HAVE_CLK */
@@ -2662,14 +2679,17 @@ static int lan8804_config_init(struct phy_device *phydev)
 static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status, tsu_irq_status;
+	int ret = IRQ_NONE;
 
 	irq_status = phy_read(phydev, LAN8814_INTS);
-	if (irq_status > 0 && (irq_status & LAN8814_INT_LINK))
-		phy_trigger_machine(phydev);
-
 	if (irq_status < 0) {
 		phy_error(phydev);
 		return IRQ_NONE;
+	}
+
+	if (irq_status & LAN8814_INT_LINK) {
+		phy_trigger_machine(phydev);
+		ret = IRQ_HANDLED;
 	}
 
 	while (1) {
@@ -2680,12 +2700,15 @@ static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 		    (tsu_irq_status & (LAN8814_INTR_STS_REG_1588_TSU0_ |
 				       LAN8814_INTR_STS_REG_1588_TSU1_ |
 				       LAN8814_INTR_STS_REG_1588_TSU2_ |
-				       LAN8814_INTR_STS_REG_1588_TSU3_)))
+				       LAN8814_INTR_STS_REG_1588_TSU3_))) {
 			lan8814_handle_ptp_interrupt(phydev);
-		else
+			ret = IRQ_HANDLED;
+		} else {
 			break;
+		}
 	}
-	return IRQ_HANDLED;
+
+	return ret;
 }
 
 static int lan8814_ack_interrupt(struct phy_device *phydev)
@@ -2815,8 +2838,23 @@ static int lan8814_ptp_probe_once(struct phy_device *phydev)
 	return 0;
 }
 
+static void lan8814_setup_led(struct phy_device *phydev, int val)
+{
+	int temp;
+
+	temp = lanphy_read_page_reg(phydev, 5, LAN8814_LED_CTRL_1);
+
+	if (val)
+		temp |= LAN8814_LED_CTRL_1_KSZ9031_LED_MODE_;
+	else
+		temp &= ~LAN8814_LED_CTRL_1_KSZ9031_LED_MODE_;
+
+	lanphy_write_page_reg(phydev, 5, LAN8814_LED_CTRL_1, temp);
+}
+
 static int lan8814_config_init(struct phy_device *phydev)
 {
+	struct kszphy_priv *lan8814 = phydev->priv;
 	int val;
 
 	/* Reset the PHY */
@@ -2835,15 +2873,24 @@ static int lan8814_config_init(struct phy_device *phydev)
 	val |= LAN8814_ALIGN_TX_A_B_SWAP;
 	lanphy_write_page_reg(phydev, 2, LAN8814_ALIGN_SWAP, val);
 
+	if (lan8814->led_mode >= 0)
+		lan8814_setup_led(phydev, lan8814->led_mode);
+
 	return 0;
 }
 
+/* It is expected that there will not be any 'lan8814_take_coma_mode'
+ * function called in suspend. Because the GPIO line can be shared, so if one of
+ * the phys goes back in coma mode, then all the other PHYs will go, which is
+ * wrong.
+ */
 static int lan8814_release_coma_mode(struct phy_device *phydev)
 {
 	struct gpio_desc *gpiod;
 
 	gpiod = devm_gpiod_get_optional(&phydev->mdio.dev, "coma-mode",
-					GPIOD_OUT_HIGH_OPEN_DRAIN);
+					GPIOD_OUT_HIGH_OPEN_DRAIN |
+					GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (IS_ERR(gpiod))
 		return PTR_ERR(gpiod);
 
@@ -2855,6 +2902,7 @@ static int lan8814_release_coma_mode(struct phy_device *phydev)
 
 static int lan8814_probe(struct phy_device *phydev)
 {
+	const struct kszphy_type *type = phydev->drv->driver_data;
 	struct kszphy_priv *priv;
 	u16 addr;
 	int err;
@@ -2863,9 +2911,11 @@ static int lan8814_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->led_mode = -1;
-
 	phydev->priv = priv;
+
+	priv->type = type;
+
+	kszphy_parse_led_mode(phydev);
 
 	/* Strap-in value for PHY address, below register read gives starting
 	 * phy address value
@@ -3068,6 +3118,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip INDY Gigabit Quad PHY",
 	.config_init	= lan8814_config_init,
+	.driver_data	= &lan8814_type,
 	.probe		= lan8814_probe,
 	.soft_reset	= genphy_soft_reset,
 	.read_status	= ksz9031_read_status,

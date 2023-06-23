@@ -454,24 +454,100 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 	return res;
 }
 
+#ifdef CONFIG_FS_POSIX_ACL
+/*
+ * Apply the idmapping of the layer to POSIX ACLs. The caller must pass a clone
+ * of the POSIX ACLs retrieved from the lower layer to this function to not
+ * alter the POSIX ACLs for the underlying filesystem.
+ */
+static void ovl_idmap_posix_acl(struct inode *realinode,
+				struct user_namespace *mnt_userns,
+				struct posix_acl *acl)
+{
+	struct user_namespace *fs_userns = i_user_ns(realinode);
+
+	for (unsigned int i = 0; i < acl->a_count; i++) {
+		vfsuid_t vfsuid;
+		vfsgid_t vfsgid;
+
+		struct posix_acl_entry *e = &acl->a_entries[i];
+		switch (e->e_tag) {
+		case ACL_USER:
+			vfsuid = make_vfsuid(mnt_userns, fs_userns, e->e_uid);
+			e->e_uid = vfsuid_into_kuid(vfsuid);
+			break;
+		case ACL_GROUP:
+			vfsgid = make_vfsgid(mnt_userns, fs_userns, e->e_gid);
+			e->e_gid = vfsgid_into_kgid(vfsgid);
+			break;
+		}
+	}
+}
+
+/*
+ * When the relevant layer is an idmapped mount we need to take the idmapping
+ * of the layer into account and translate any ACL_{GROUP,USER} values
+ * according to the idmapped mount.
+ *
+ * We cannot alter the ACLs returned from the relevant layer as that would
+ * alter the cached values filesystem wide for the lower filesystem. Instead we
+ * can clone the ACLs and then apply the relevant idmapping of the layer.
+ *
+ * This is obviously only relevant when idmapped layers are used.
+ */
 struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct inode *realinode = ovl_inode_real(inode);
-	const struct cred *old_cred;
-	struct posix_acl *acl;
+	struct posix_acl *acl, *clone;
+	struct path realpath;
 
-	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL) || !IS_POSIXACL(realinode))
+	if (!IS_POSIXACL(realinode))
 		return NULL;
 
+	/* Careful in RCU walk mode */
+	ovl_i_path_real(inode, &realpath);
+	if (!realpath.dentry) {
+		WARN_ON(!rcu);
+		return ERR_PTR(-ECHILD);
+	}
+
+	if (rcu) {
+		acl = get_cached_acl_rcu(realinode, type);
+	} else {
+		const struct cred *old_cred;
+
+		old_cred = ovl_override_creds(inode->i_sb);
+		acl = get_acl(realinode, type);
+		revert_creds(old_cred);
+	}
+	/*
+	 * If there are no POSIX ACLs, or we encountered an error,
+	 * or the layer isn't idmapped we don't need to do anything.
+	 */
+	if (!is_idmapped_mnt(realpath.mnt) || IS_ERR_OR_NULL(acl))
+		return acl;
+
+	/*
+	 * We only get here if the layer is idmapped. So drop out of RCU path
+	 * walk so we can clone the ACLs. There's no need to release the ACLs
+	 * since get_cached_acl_rcu() doesn't take a reference on the ACLs.
+	 */
 	if (rcu)
-		return get_cached_acl_rcu(realinode, type);
+		return ERR_PTR(-ECHILD);
 
-	old_cred = ovl_override_creds(inode->i_sb);
-	acl = get_acl(realinode, type);
-	revert_creds(old_cred);
-
-	return acl;
+	clone = posix_acl_clone(acl, GFP_KERNEL);
+	if (!clone)
+		clone = ERR_PTR(-ENOMEM);
+	else
+		ovl_idmap_posix_acl(realinode, mnt_user_ns(realpath.mnt), clone);
+	/*
+	 * Since we're not in RCU path walk we always need to release the
+	 * original ACLs.
+	 */
+	posix_acl_release(acl);
+	return clone;
 }
+#endif
 
 int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags)
 {

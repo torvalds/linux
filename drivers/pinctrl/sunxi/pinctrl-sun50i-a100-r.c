@@ -82,6 +82,7 @@ static const struct sunxi_pinctrl_desc a100_r_pinctrl_data = {
 	.npins = ARRAY_SIZE(a100_r_pins),
 	.pin_base = PL_BASE,
 	.irq_banks = 1,
+	.io_bias_cfg_variant = BIAS_VOLTAGE_PIO_POW_MODE_CTL,
 };
 
 static int a100_r_pinctrl_probe(struct platform_device *pdev)
@@ -98,7 +99,7 @@ MODULE_DEVICE_TABLE(of, a100_r_pinctrl_match);
 static struct platform_driver a100_r_pinctrl_driver = {
 	.probe	= a100_r_pinctrl_probe,
 	.driver	= {
-		.name		= "sun50iw10p1-r-pinctrl",
+		.name		= "sun50i-a100-r-pinctrl",
 		.of_match_table	= a100_r_pinctrl_match,
 	},
 };

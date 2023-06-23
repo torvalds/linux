@@ -162,8 +162,8 @@
 };
 
 &twl_gpio {
-	ti,pullups	= <0x000001>; /* BIT(0) */
-	ti,pulldowns	= <0x008106>; /* BIT(1) | BIT(2) | BIT(8) | BIT(15) */
+	ti,pullups = <0x000001>; /* BIT(0) */
+	ti,pulldowns = <0x008106>; /* BIT(1) | BIT(2) | BIT(8) | BIT(15) */
 };
 
 &vdac {

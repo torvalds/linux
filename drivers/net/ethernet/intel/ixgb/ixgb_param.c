@@ -141,8 +141,6 @@ IXGB_PARAM(IntDelayEnable, "Transmit Interrupt Delay Enable");
 #define MAX_RDTR			 0xFFFF
 #define MIN_RDTR			      0
 
-#define XSUMRX_DEFAULT		 OPTION_ENABLED
-
 #define DEFAULT_FCRTL	  		0x28000
 #define DEFAULT_FCRTH			0x30000
 #define MIN_FCRTL			      0

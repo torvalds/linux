@@ -616,12 +616,14 @@ static int mt9m114_get_intg_factor(struct i2c_client *client,
 				   struct camera_mipi_info *info,
 				   const struct mt9m114_res_struct *res)
 {
-	struct atomisp_sensor_mode_data *buf = &info->data;
+	struct atomisp_sensor_mode_data *buf;
 	u32 reg_val;
 	int ret;
 
 	if (!info)
 		return -EINVAL;
+
+	buf = &info->data;
 
 	ret =  mt9m114_read_reg(client, MISENSOR_32BIT,
 				REG_PIXEL_CLK, &reg_val);

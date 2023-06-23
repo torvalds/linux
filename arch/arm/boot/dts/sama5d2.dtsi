@@ -99,6 +99,16 @@
 		ranges = <0 0x00200000 0x20000>;
 	};
 
+	resistive_touch: resistive-touch {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc AT91_SAMA5D2_ADC_X_CHANNEL>,
+			      <&adc AT91_SAMA5D2_ADC_Y_CHANNEL>,
+			      <&adc AT91_SAMA5D2_ADC_P_CHANNEL>;
+		io-channel-names = "x", "y", "pressure";
+		touchscreen-min-pressure = <50000>;
+		status = "disabled";
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -374,8 +384,6 @@
 				interrupts = <5  IRQ_TYPE_LEVEL_HIGH 3		/* Queue 0 */
 					      66 IRQ_TYPE_LEVEL_HIGH 3          /* Queue 1 */
 					      67 IRQ_TYPE_LEVEL_HIGH 3>;        /* Queue 2 */
-				#address-cells = <1>;
-				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 5>, <&pmc PMC_TYPE_PERIPHERAL 5>;
 				clock-names = "hclk", "pclk";
 				status = "disabled";
@@ -660,7 +668,7 @@
 				ranges = <0 0xf8044000 0x1420>;
 			};
 
-			reset_controller: rstc@f8048000 {
+			reset_controller: reset-controller@f8048000 {
 				compatible = "atmel,sama5d3-rstc";
 				reg = <0xf8048000 0x10>;
 				clocks = <&clk32k>;
@@ -1047,16 +1055,6 @@
 				atmel,startup-time-ms = <4>;
 				atmel,trigger-edge-type = <IRQ_TYPE_EDGE_RISING>;
 				#io-channel-cells = <1>;
-				status = "disabled";
-			};
-
-			resistive_touch: resistive-touch {
-				compatible = "resistive-adc-touch";
-				io-channels = <&adc AT91_SAMA5D2_ADC_X_CHANNEL>,
-					      <&adc AT91_SAMA5D2_ADC_Y_CHANNEL>,
-					      <&adc AT91_SAMA5D2_ADC_P_CHANNEL>;
-				io-channel-names = "x", "y", "pressure";
-				touchscreen-min-pressure = <50000>;
 				status = "disabled";
 			};
 

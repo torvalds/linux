@@ -37,10 +37,6 @@
 #define ETH_HEADER_OTHER 14
 #define ISS_NET_TIMER_VALUE (HZ / 10)
 
-
-static DEFINE_SPINLOCK(devices_lock);
-static LIST_HEAD(devices);
-
 /* ------------------------------------------------------------------------- */
 
 /* We currently only support the TUNTAP transport protocol. */
@@ -70,8 +66,6 @@ struct iss_net_ops {
 /* This structure contains out private information for the driver. */
 
 struct iss_net_private {
-	struct list_head device_list;
-
 	spinlock_t lock;
 	struct net_device *dev;
 	struct platform_device pdev;
@@ -472,23 +466,30 @@ static const struct net_device_ops iss_netdev_ops = {
 	.ndo_set_rx_mode	= iss_net_set_multicast_list,
 };
 
-static int iss_net_configure(int index, char *init)
+static void iss_net_pdev_release(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iss_net_private *lp =
+		container_of(pdev, struct iss_net_private, pdev);
+
+	free_netdev(lp->dev);
+}
+
+static void iss_net_configure(int index, char *init)
 {
 	struct net_device *dev;
 	struct iss_net_private *lp;
-	int err;
 
 	dev = alloc_etherdev(sizeof(*lp));
 	if (dev == NULL) {
 		pr_err("eth_configure: failed to allocate device\n");
-		return 1;
+		return;
 	}
 
 	/* Initialize private element. */
 
 	lp = netdev_priv(dev);
 	*lp = (struct iss_net_private) {
-		.device_list		= LIST_HEAD_INIT(lp->device_list),
 		.dev			= dev,
 		.index			= index,
 	};
@@ -509,7 +510,7 @@ static int iss_net_configure(int index, char *init)
 	if (!tuntap_probe(lp, index, init)) {
 		pr_err("%s: invalid arguments. Skipping device!\n",
 		       dev->name);
-		goto errout;
+		goto err_free_netdev;
 	}
 
 	pr_info("Netdevice %d (%pM)\n", index, dev->dev_addr);
@@ -517,17 +518,16 @@ static int iss_net_configure(int index, char *init)
 	/* sysfs register */
 
 	if (!driver_registered) {
-		platform_driver_register(&iss_net_driver);
+		if (platform_driver_register(&iss_net_driver))
+			goto err_free_netdev;
 		driver_registered = 1;
 	}
 
-	spin_lock(&devices_lock);
-	list_add(&lp->device_list, &devices);
-	spin_unlock(&devices_lock);
-
 	lp->pdev.id = index;
 	lp->pdev.name = DRIVER_NAME;
-	platform_device_register(&lp->pdev);
+	lp->pdev.dev.release = iss_net_pdev_release;
+	if (platform_device_register(&lp->pdev))
+		goto err_free_netdev;
 	SET_NETDEV_DEV(dev, &lp->pdev.dev);
 
 	dev->netdev_ops = &iss_netdev_ops;
@@ -536,23 +536,20 @@ static int iss_net_configure(int index, char *init)
 	dev->irq = -1;
 
 	rtnl_lock();
-	err = register_netdevice(dev);
-	rtnl_unlock();
-
-	if (err) {
+	if (register_netdevice(dev)) {
+		rtnl_unlock();
 		pr_err("%s: error registering net device!\n", dev->name);
-		/* XXX: should we call ->remove() here? */
-		free_netdev(dev);
-		return 1;
+		platform_device_unregister(&lp->pdev);
+		return;
 	}
+	rtnl_unlock();
 
 	timer_setup(&lp->tl, iss_net_user_timer_expire, 0);
 
-	return 0;
+	return;
 
-errout:
-	/* FIXME: unregister; free, etc.. */
-	return -EIO;
+err_free_netdev:
+	free_netdev(dev);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -574,7 +571,7 @@ struct iss_net_init {
 
 static int __init iss_net_setup(char *str)
 {
-	struct iss_net_private *device = NULL;
+	struct iss_net_init *device = NULL;
 	struct iss_net_init *new;
 	struct list_head *ele;
 	char *end;
@@ -595,15 +592,11 @@ static int __init iss_net_setup(char *str)
 	}
 	str = end;
 
-	spin_lock(&devices_lock);
-
-	list_for_each(ele, &devices) {
-		device = list_entry(ele, struct iss_net_private, device_list);
+	list_for_each(ele, &eth_cmd_line) {
+		device = list_entry(ele, struct iss_net_init, list);
 		if (device->index == n)
 			break;
 	}
-
-	spin_unlock(&devices_lock);
 
 	if (device && device->index == n) {
 		pr_err("Device %u already configured\n", n);

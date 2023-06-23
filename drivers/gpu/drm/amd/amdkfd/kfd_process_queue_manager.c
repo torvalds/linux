@@ -180,7 +180,8 @@ void pqm_uninit(struct process_queue_manager *pqm)
 static int init_user_queue(struct process_queue_manager *pqm,
 				struct kfd_dev *dev, struct queue **q,
 				struct queue_properties *q_properties,
-				struct file *f, unsigned int qid)
+				struct file *f, struct amdgpu_bo *wptr_bo,
+				unsigned int qid)
 {
 	int retval;
 
@@ -210,6 +211,7 @@ static int init_user_queue(struct process_queue_manager *pqm,
 			goto cleanup;
 		}
 		memset((*q)->gang_ctx_cpu_ptr, 0, AMDGPU_MES_GANG_CTX_SIZE);
+		(*q)->wptr_bo = wptr_bo;
 	}
 
 	pr_debug("PQM After init queue");
@@ -226,6 +228,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
+			    struct amdgpu_bo *wptr_bo,
 			    const struct kfd_criu_queue_priv_data *q_data,
 			    const void *restore_mqd,
 			    const void *restore_ctl_stack,
@@ -288,7 +291,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		 * allocate_sdma_queue() in create_queue() has the
 		 * corresponding check logic.
 		 */
-		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
+		retval = init_user_queue(pqm, dev, &q, properties, f, wptr_bo, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -309,7 +312,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		}
 
-		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
+		retval = init_user_queue(pqm, dev, &q, properties, f, wptr_bo, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -436,9 +439,13 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			pdd->qpd.num_gws = 0;
 		}
 
-		if (dev->shared_resources.enable_mes)
+		if (dev->shared_resources.enable_mes) {
 			amdgpu_amdkfd_free_gtt_mem(dev->adev,
 						   pqn->q->gang_ctx_bo);
+			if (pqn->q->wptr_bo)
+				amdgpu_amdkfd_free_gtt_mem(dev->adev, pqn->q->wptr_bo);
+
+		}
 		uninit_queue(pqn->q);
 	}
 
@@ -489,6 +496,21 @@ int pqm_update_mqd(struct process_queue_manager *pqm,
 	if (!pqn) {
 		pr_debug("No queue %d exists for update operation\n", qid);
 		return -EFAULT;
+	}
+
+	/* ASICs that have WGPs must enforce pairwise enabled mask checks. */
+	if (minfo && minfo->update_flag == UPDATE_FLAG_CU_MASK && minfo->cu_mask.ptr &&
+			KFD_GC_VERSION(pqn->q->device) >= IP_VERSION(10, 0, 0)) {
+		int i;
+
+		for (i = 0; i < minfo->cu_mask.count; i += 2) {
+			uint32_t cu_pair = (minfo->cu_mask.ptr[i / 32] >> (i % 32)) & 0x3;
+
+			if (cu_pair && cu_pair != 0x3) {
+				pr_debug("CUs must be adjacent pairwise enabled.\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
@@ -844,7 +866,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	print_queue_properties(&qp);
 
-	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, q_data, mqd, ctl_stack,
+	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, NULL, q_data, mqd, ctl_stack,
 				NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);

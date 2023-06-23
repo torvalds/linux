@@ -233,7 +233,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		struct evsel *tracking_evsel;
 		int err;
 
-		err = parse_events(evlist, "dummy:u", NULL);
+		err = parse_event(evlist, "dummy:u");
 		if (err)
 			return err;
 

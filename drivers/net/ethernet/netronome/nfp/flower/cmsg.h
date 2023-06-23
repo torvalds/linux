@@ -96,8 +96,6 @@
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
 
-#define IPV6_FLOW_LABEL_MASK		cpu_to_be32(0x000fffff)
-
 /* LAG ports */
 #define NFP_FL_LAG_OUT			0xC0DE0000
 

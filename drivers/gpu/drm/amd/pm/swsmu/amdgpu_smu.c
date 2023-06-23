@@ -66,6 +66,7 @@ static int smu_set_fan_control_mode(void *handle, u32 value);
 static int smu_set_power_limit(void *handle, uint32_t limit);
 static int smu_set_fan_speed_rpm(void *handle, uint32_t speed);
 static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
+static int smu_set_mp1_state(void *handle, enum pp_mp1_state mp1_state);
 
 static int smu_sys_get_pp_feature_mask(void *handle,
 				       char *buf)
@@ -132,6 +133,14 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 							    max);
 
 	return ret;
+}
+
+int smu_set_gfx_power_up_by_imu(struct smu_context *smu)
+{
+	if (!smu->ppt_funcs && !smu->ppt_funcs->set_gfx_power_up_by_imu)
+		return -EOPNOTSUPP;
+
+	return smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
 }
 
 static u32 smu_get_mclk(void *handle, bool low)
@@ -1352,6 +1361,15 @@ static int smu_hw_init(void *handle)
 	}
 
 	if (smu->is_apu) {
+		if ((smu->ppt_funcs->set_gfx_power_up_by_imu) &&
+				likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+			ret = smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
+			if (ret) {
+				dev_err(adev->dev, "Failed to Enable gfx imu!\n");
+				return ret;
+			}
+		}
+
 		smu_dpm_set_vcn_enable(smu, true);
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(smu, true);
@@ -1400,6 +1418,18 @@ static int smu_disable_dpms(struct smu_context *smu)
 		 ((adev->in_runpm || adev->in_s4) && amdgpu_asic_supports_baco(adev)));
 
 	/*
+	 * For SMU 13.0.0 and 13.0.7, PMFW will handle the DPM features(disablement or others)
+	 * properly on suspend/reset/unload. Driver involvement may cause some unexpected issues.
+	 */
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 7):
+		return 0;
+	default:
+		break;
+	}
+
+	/*
 	 * For custom pptable uploading, skip the DPM features
 	 * disable process on Navi1x ASICs.
 	 *   - As the gfx related features are under control of
@@ -1436,7 +1466,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 5):
 		case IP_VERSION(11, 0, 9):
-		case IP_VERSION(13, 0, 0):
+		case IP_VERSION(13, 0, 7):
 			return 0;
 		default:
 			break;
@@ -2466,7 +2496,6 @@ static int smu_set_power_profile_mode(void *handle,
 
 	return smu_bump_power_profile_mode(smu, param, param_size);
 }
-
 
 static int smu_get_fan_control_mode(void *handle, u32 *fan_mode)
 {

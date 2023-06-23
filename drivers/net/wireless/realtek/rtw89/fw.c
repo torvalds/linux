@@ -579,7 +579,7 @@ int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	}
 	skb_put(skb, H2C_CAM_LEN);
 	rtw89_cam_fill_addr_cam_info(rtwdev, rtwvif, rtwsta, scan_mac_addr, skb->data);
-	rtw89_cam_fill_bssid_cam_info(rtwdev, rtwvif, skb->data);
+	rtw89_cam_fill_bssid_cam_info(rtwdev, rtwvif, rtwsta, skb->data);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
@@ -1043,7 +1043,8 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	u16 tim_offset;
 	int bcn_total_len;
 
-	skb_beacon = ieee80211_beacon_get_tim(rtwdev->hw, vif, &tim_offset, NULL);
+	skb_beacon = ieee80211_beacon_get_tim(rtwdev->hw, vif, &tim_offset,
+					      NULL, 0);
 	if (!skb_beacon) {
 		rtw89_err(rtwdev, "failed to get beacon skb\n");
 		return -ENOMEM;
@@ -2257,7 +2258,7 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 		list_add_tail(&ch_info->list, &chan_list);
 		off_chan_time += ch_info->period;
 	}
-	rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
+	ret = rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
 
 out:
 	list_for_each_entry_safe(ch_info, tmp, &chan_list, list) {
@@ -2339,6 +2340,9 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwvif->scan_req = NULL;
 	rtwvif->scan_ies = NULL;
 	rtwdev->scan_info.scanning_vif = NULL;
+
+	if (rtwvif->net_type != RTW89_NET_TYPE_NO_LINK)
+		rtw89_store_op_chan(rtwdev, false);
 }
 
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
@@ -2365,20 +2369,27 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 		if (ret)
 			goto out;
 	}
-	rtw89_fw_h2c_scan_offload(rtwdev, &opt, rtwvif);
+	ret = rtw89_fw_h2c_scan_offload(rtwdev, &opt, rtwvif);
 out:
 	return ret;
 }
 
-void rtw89_store_op_chan(struct rtw89_dev *rtwdev)
+void rtw89_store_op_chan(struct rtw89_dev *rtwdev, bool backup)
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	scan_info->op_pri_ch = hal->current_primary_channel;
-	scan_info->op_chan = hal->current_channel;
-	scan_info->op_bw = hal->current_band_width;
-	scan_info->op_band = hal->current_band_type;
+	if (backup) {
+		scan_info->op_pri_ch = hal->current_primary_channel;
+		scan_info->op_chan = hal->current_channel;
+		scan_info->op_bw = hal->current_band_width;
+		scan_info->op_band = hal->current_band_type;
+	} else {
+		hal->current_primary_channel = scan_info->op_pri_ch;
+		hal->current_channel = scan_info->op_chan;
+		hal->current_band_width = scan_info->op_bw;
+		hal->current_band_type = scan_info->op_band;
+	}
 }
 
 #define H2C_FW_CPU_EXCEPTION_LEN 4

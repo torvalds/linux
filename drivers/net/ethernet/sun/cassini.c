@@ -29,7 +29,7 @@
  *  -- on page reclamation, the driver swaps the page with a spare page.
  *     if that page is still in use, it frees its reference to that page,
  *     and allocates a new page for use. otherwise, it just recycles the
- *     the page.
+ *     page.
  *
  * NOTE: cassini can parse the header. however, it's not worth it
  *       as long as the network stack requires a header copy.

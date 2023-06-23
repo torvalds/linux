@@ -53,7 +53,7 @@ static int adf_cfg_dev_init(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
-static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
+int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -288,6 +288,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = -ENOMEM;
 		goto out_err_disable_aer;
 	}
+
+	ret = adf_sysfs_init(accel_dev);
+	if (ret)
+		goto out_err_disable_aer;
 
 	ret = adf_crypto_dev_config(accel_dev);
 	if (ret)

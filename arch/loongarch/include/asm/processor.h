@@ -101,6 +101,10 @@ struct thread_struct {
 	unsigned long reg23, reg24, reg25, reg26; /* s0-s3 */
 	unsigned long reg27, reg28, reg29, reg30, reg31; /* s4-s8 */
 
+	/* __schedule() return address / call frame address */
+	unsigned long sched_ra;
+	unsigned long sched_cfa;
+
 	/* CSR registers */
 	unsigned long csr_prmd;
 	unsigned long csr_crmd;
@@ -129,6 +133,9 @@ struct thread_struct {
 	struct loongarch_fpu fpu FPU_ALIGN;
 };
 
+#define thread_saved_ra(tsk)	(tsk->thread.sched_ra)
+#define thread_saved_fp(tsk)	(tsk->thread.sched_cfa)
+
 #define INIT_THREAD  {						\
 	/*							\
 	 * Main processor registers				\
@@ -145,6 +152,8 @@ struct thread_struct {
 	.reg29			= 0,				\
 	.reg30			= 0,				\
 	.reg31			= 0,				\
+	.sched_ra		= 0,				\
+	.sched_cfa		= 0,				\
 	.csr_crmd		= 0,				\
 	.csr_prmd		= 0,				\
 	.csr_euen		= 0,				\

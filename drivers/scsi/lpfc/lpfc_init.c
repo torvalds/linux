@@ -375,6 +375,9 @@ lpfc_update_vport_wwn(struct lpfc_vport *vport)
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    vport->port_type == LPFC_PHYSICAL_PORT &&
 		    phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_FABRIC) {
+			if (!(phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_CONFIG))
+				phba->sli4_hba.fawwpn_flag &=
+						~LPFC_FAWWPN_FABRIC;
 			lpfc_printf_log(phba, KERN_INFO,
 					LOG_SLI | LOG_DISCOVERY | LOG_ELS,
 					"2701 FA-PWWN change WWPN from %llx to "
@@ -2681,11 +2684,6 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		break;
 	case PCI_DEVICE_ID_SAT_S:
 		m = (typeof(m)){"LPe12000-S", "PCIe", "Fibre Channel Adapter"};
-		break;
-	case PCI_DEVICE_ID_HORNET:
-		m = (typeof(m)){"LP21000", "PCIe",
-				"Obsolete, Unsupported FCoE Adapter"};
-		GE = 1;
 		break;
 	case PCI_DEVICE_ID_PROTEUS_VF:
 		m = (typeof(m)){"LPev12000", "PCIe IOV",
@@ -7692,7 +7690,6 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->port_list);
 
 	INIT_LIST_HEAD(&phba->work_list);
-	init_waitqueue_head(&phba->wait_4_mlo_m_q);
 
 	/* Initialize the wait queue head for the kernel thread */
 	init_waitqueue_head(&phba->work_waitq);
@@ -7775,13 +7772,6 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	rc = lpfc_setup_driver_resource_phase1(phba);
 	if (rc)
 		return -ENODEV;
-
-	if (phba->pcidev->device == PCI_DEVICE_ID_HORNET) {
-		phba->menlo_flag |= HBA_MENLO_SUPPORT;
-		/* check for menlo minimum sg count */
-		if (phba->cfg_sg_seg_cnt < LPFC_DEFAULT_MENLO_SG_SEG_CNT)
-			phba->cfg_sg_seg_cnt = LPFC_DEFAULT_MENLO_SG_SEG_CNT;
-	}
 
 	if (!phba->sli.sli3_ring)
 		phba->sli.sli3_ring = kcalloc(LPFC_SLI3_MAX_RING,
@@ -7958,6 +7948,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* The lpfc_wq workqueue for deferred irq use */
 	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+	if (!phba->wq)
+		return -ENOMEM;
 
 	/*
 	 * Initialize timers used by driver
@@ -8061,7 +8053,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Allocate device driver memory */
 	rc = lpfc_mem_alloc(phba, SGL_ALIGN_SZ);
 	if (rc)
-		return -ENOMEM;
+		goto out_destroy_workqueue;
 
 	/* IF Type 2 ports get initialized now. */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
@@ -8489,6 +8481,9 @@ out_free_bsmbx:
 	lpfc_destroy_bootstrap_mbox(phba);
 out_free_mem:
 	lpfc_mem_free(phba);
+out_destroy_workqueue:
+	destroy_workqueue(phba->wq);
+	phba->wq = NULL;
 	return rc;
 }
 
@@ -9975,7 +9970,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 					"configured on\n");
 			phba->sli4_hba.fawwpn_flag |= LPFC_FAWWPN_CONFIG;
 		} else {
-			phba->sli4_hba.fawwpn_flag = 0;
+			/* Clear FW configured flag, preserve driver flag */
+			phba->sli4_hba.fawwpn_flag &= ~LPFC_FAWWPN_CONFIG;
 		}
 
 		phba->sli4_hba.conf_trunk =

@@ -127,6 +127,17 @@ enum vc4_hdmi_field {
 	HDMI_VERTB0,
 	HDMI_VERTB1,
 	HDMI_VID_CTL,
+	HDMI_MISC_CONTROL,
+	HDMI_FORMAT_DET_1,
+	HDMI_FORMAT_DET_2,
+	HDMI_FORMAT_DET_3,
+	HDMI_FORMAT_DET_4,
+	HDMI_FORMAT_DET_5,
+	HDMI_FORMAT_DET_6,
+	HDMI_FORMAT_DET_7,
+	HDMI_FORMAT_DET_8,
+	HDMI_FORMAT_DET_9,
+	HDMI_FORMAT_DET_10,
 };
 
 struct vc4_hdmi_register {
@@ -189,6 +200,7 @@ static const struct vc4_hdmi_register __maybe_unused vc4_hdmi_fields[] = {
 	VC4_HDMI_REG(HDMI_VERTB0, 0x00d0),
 	VC4_HDMI_REG(HDMI_VERTA1, 0x00d4),
 	VC4_HDMI_REG(HDMI_VERTB1, 0x00d8),
+	VC4_HDMI_REG(HDMI_MISC_CONTROL, 0x00e4),
 	VC4_HDMI_REG(HDMI_CEC_CNTRL_1, 0x00e8),
 	VC4_HDMI_REG(HDMI_CEC_CNTRL_2, 0x00ec),
 	VC4_HDMI_REG(HDMI_CEC_CNTRL_3, 0x00f0),
@@ -237,8 +249,19 @@ static const struct vc4_hdmi_register __maybe_unused vc5_hdmi_hdmi0_fields[] = {
 	VC4_HDMI_REG(HDMI_VERTB0, 0x0f0),
 	VC4_HDMI_REG(HDMI_VERTA1, 0x0f4),
 	VC4_HDMI_REG(HDMI_VERTB1, 0x0f8),
+	VC4_HDMI_REG(HDMI_MISC_CONTROL, 0x100),
 	VC4_HDMI_REG(HDMI_MAI_CHANNEL_MAP, 0x09c),
 	VC4_HDMI_REG(HDMI_MAI_CONFIG, 0x0a0),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_1, 0x134),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_2, 0x138),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_3, 0x13c),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_4, 0x140),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_5, 0x144),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_6, 0x148),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_7, 0x14c),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_8, 0x150),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_9, 0x154),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_10, 0x158),
 	VC4_HDMI_REG(HDMI_DEEP_COLOR_CONFIG_1, 0x170),
 	VC4_HDMI_REG(HDMI_GCP_CONFIG, 0x178),
 	VC4_HDMI_REG(HDMI_GCP_WORD_1, 0x17c),
@@ -319,8 +342,19 @@ static const struct vc4_hdmi_register __maybe_unused vc5_hdmi_hdmi1_fields[] = {
 	VC4_HDMI_REG(HDMI_VERTB0, 0x0f0),
 	VC4_HDMI_REG(HDMI_VERTA1, 0x0f4),
 	VC4_HDMI_REG(HDMI_VERTB1, 0x0f8),
+	VC4_HDMI_REG(HDMI_MISC_CONTROL, 0x100),
 	VC4_HDMI_REG(HDMI_MAI_CHANNEL_MAP, 0x09c),
 	VC4_HDMI_REG(HDMI_MAI_CONFIG, 0x0a0),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_1, 0x134),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_2, 0x138),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_3, 0x13c),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_4, 0x140),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_5, 0x144),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_6, 0x148),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_7, 0x14c),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_8, 0x150),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_9, 0x154),
+	VC4_HDMI_REG(HDMI_FORMAT_DET_10, 0x158),
 	VC4_HDMI_REG(HDMI_DEEP_COLOR_CONFIG_1, 0x170),
 	VC4_HDMI_REG(HDMI_GCP_CONFIG, 0x178),
 	VC4_HDMI_REG(HDMI_GCP_WORD_1, 0x17c),
@@ -420,7 +454,7 @@ static inline u32 vc4_hdmi_read(struct vc4_hdmi *hdmi,
 	const struct vc4_hdmi_variant *variant = hdmi->variant;
 	void __iomem *base;
 
-	WARN_ON(!pm_runtime_active(&hdmi->pdev->dev));
+	WARN_ON(pm_runtime_status_suspended(&hdmi->pdev->dev));
 
 	if (reg >= variant->num_registers) {
 		dev_warn(&hdmi->pdev->dev,
@@ -450,7 +484,7 @@ static inline void vc4_hdmi_write(struct vc4_hdmi *hdmi,
 
 	lockdep_assert_held(&hdmi->hw_lock);
 
-	WARN_ON(!pm_runtime_active(&hdmi->pdev->dev));
+	WARN_ON(pm_runtime_status_suspended(&hdmi->pdev->dev));
 
 	if (reg >= variant->num_registers) {
 		dev_warn(&hdmi->pdev->dev,

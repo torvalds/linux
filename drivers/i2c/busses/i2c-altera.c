@@ -447,7 +447,7 @@ static int altr_i2c_probe(struct platform_device *pdev)
 	mutex_unlock(&idev->isr_mutex);
 
 	i2c_set_adapdata(&idev->adapter, idev);
-	strlcpy(idev->adapter.name, pdev->name, sizeof(idev->adapter.name));
+	strscpy(idev->adapter.name, pdev->name, sizeof(idev->adapter.name));
 	idev->adapter.owner = THIS_MODULE;
 	idev->adapter.algo = &altr_i2c_algo;
 	idev->adapter.dev.parent = &pdev->dev;

@@ -37,9 +37,11 @@ struct cpu_aggr_map {
 
 struct perf_record_cpu_map_data;
 
+bool perf_record_cpu_map_data__test_bit(int i, const struct perf_record_cpu_map_data *data);
+
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr);
 
-struct perf_cpu_map *cpu_map__new_data(struct perf_record_cpu_map_data *data);
+struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *data);
 size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp);

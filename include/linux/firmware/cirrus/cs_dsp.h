@@ -11,6 +11,7 @@
 #ifndef __CS_DSP_H
 #define __CS_DSP_H
 
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/list.h>
@@ -34,6 +35,7 @@
 #define CS_ADSP2_REGION_ALL (CS_ADSP2_REGION_0 | CS_ADSP2_REGION_1_9)
 
 #define CS_DSP_DATA_WORD_SIZE                3
+#define CS_DSP_DATA_WORD_BITS                (3 * BITS_PER_BYTE)
 
 #define CS_DSP_ACKED_CTL_TIMEOUT_MS          100
 #define CS_DSP_ACKED_CTL_N_QUICKPOLLS        10
@@ -189,7 +191,8 @@ struct cs_dsp {
  * @control_remove:	Called under the pwr_lock when a control is destroyed
  * @pre_run:		Called under the pwr_lock by cs_dsp_run() before the core is started
  * @post_run:		Called under the pwr_lock by cs_dsp_run() after the core is started
- * @post_stop:		Called under the pwr_lock by cs_dsp_stop()
+ * @pre_stop:		Called under the pwr_lock by cs_dsp_stop() before the core is stopped
+ * @post_stop:		Called under the pwr_lock by cs_dsp_stop() after the core is stopped
  * @watchdog_expired:	Called when a watchdog expiry is detected
  *
  * These callbacks give the cs_dsp client an opportunity to respond to events
@@ -200,6 +203,7 @@ struct cs_dsp_client_ops {
 	void (*control_remove)(struct cs_dsp_coeff_ctl *ctl);
 	int (*pre_run)(struct cs_dsp *dsp);
 	int (*post_run)(struct cs_dsp *dsp);
+	void (*pre_stop)(struct cs_dsp *dsp);
 	void (*post_stop)(struct cs_dsp *dsp);
 	void (*watchdog_expired)(struct cs_dsp *dsp);
 };
@@ -249,5 +253,76 @@ struct cs_dsp_alg_region *cs_dsp_find_alg_region(struct cs_dsp *dsp,
 						 int type, unsigned int id);
 
 const char *cs_dsp_mem_region_name(unsigned int type);
+
+/**
+ * struct cs_dsp_chunk - Describes a buffer holding data formatted for the DSP
+ * @data:	Pointer to underlying buffer memory
+ * @max:	Pointer to end of the buffer memory
+ * @bytes:	Number of bytes read/written into the memory chunk
+ * @cache:	Temporary holding data as it is formatted
+ * @cachebits:	Number of bits of data currently in cache
+ */
+struct cs_dsp_chunk {
+	u8 *data;
+	u8 *max;
+	int bytes;
+
+	u32 cache;
+	int cachebits;
+};
+
+/**
+ * cs_dsp_chunk() - Create a DSP memory chunk
+ * @data: Pointer to the buffer that will be used to store data
+ * @size: Size of the buffer in bytes
+ *
+ * Return: A cs_dsp_chunk structure
+ */
+static inline struct cs_dsp_chunk cs_dsp_chunk(void *data, int size)
+{
+	struct cs_dsp_chunk ch = {
+		.data = data,
+		.max = data + size,
+	};
+
+	return ch;
+}
+
+/**
+ * cs_dsp_chunk_end() - Check if a DSP memory chunk is full
+ * @ch: Pointer to the chunk structure
+ *
+ * Return: True if the whole buffer has been read/written
+ */
+static inline bool cs_dsp_chunk_end(struct cs_dsp_chunk *ch)
+{
+	return ch->data == ch->max;
+}
+
+/**
+ * cs_dsp_chunk_bytes() - Number of bytes written/read from a DSP memory chunk
+ * @ch: Pointer to the chunk structure
+ *
+ * Return: Number of bytes read/written to the buffer
+ */
+static inline int cs_dsp_chunk_bytes(struct cs_dsp_chunk *ch)
+{
+	return ch->bytes;
+}
+
+/**
+ * cs_dsp_chunk_valid_addr() - Check if an address is in a DSP memory chunk
+ * @ch: Pointer to the chunk structure
+ *
+ * Return: True if the given address is within the buffer
+ */
+static inline bool cs_dsp_chunk_valid_addr(struct cs_dsp_chunk *ch, void *addr)
+{
+	return (u8 *)addr >= ch->data && (u8 *)addr < ch->max;
+}
+
+int cs_dsp_chunk_write(struct cs_dsp_chunk *ch, int nbits, u32 val);
+int cs_dsp_chunk_flush(struct cs_dsp_chunk *ch);
+int cs_dsp_chunk_read(struct cs_dsp_chunk *ch, int nbits);
 
 #endif

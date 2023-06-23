@@ -140,7 +140,7 @@ enum nvme_quirks {
 	NVME_QUIRK_DMA_ADDRESS_BITS_48		= (1 << 16),
 
 	/*
-	 * The controller requires the command_id value be be limited, so skip
+	 * The controller requires the command_id value be limited, so skip
 	 * encoding the generation sequence number.
 	 */
 	NVME_QUIRK_SKIP_CID_GEN			= (1 << 17),
@@ -328,6 +328,15 @@ struct nvme_ctrl {
 	struct work_struct ana_work;
 #endif
 
+#ifdef CONFIG_NVME_AUTH
+	struct work_struct dhchap_auth_work;
+	struct list_head dhchap_auth_list;
+	struct mutex dhchap_auth_mutex;
+	struct nvme_dhchap_key *host_key;
+	struct nvme_dhchap_key *ctrl_key;
+	u16 transaction;
+#endif
+
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
 	bool apst_enabled;
@@ -495,7 +504,6 @@ struct nvme_ctrl_ops {
 	unsigned int flags;
 #define NVME_F_FABRICS			(1 << 0)
 #define NVME_F_METADATA_SUPPORTED	(1 << 1)
-#define NVME_F_PCI_P2PDMA		(1 << 2)
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
@@ -505,6 +513,7 @@ struct nvme_ctrl_ops {
 	void (*stop_ctrl)(struct nvme_ctrl *ctrl);
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
 	void (*print_device_info)(struct nvme_ctrl *ctrl);
+	bool (*supports_pci_p2pdma)(struct nvme_ctrl *ctrl);
 };
 
 /*
@@ -698,7 +707,7 @@ static __always_inline void nvme_complete_batch(struct io_comp_batch *iob,
 }
 
 blk_status_t nvme_host_path_error(struct request *req);
-bool nvme_cancel_request(struct request *req, void *data, bool reserved);
+bool nvme_cancel_request(struct request *req, void *data);
 void nvme_cancel_tagset(struct nvme_ctrl *ctrl);
 void nvme_cancel_admin_tagset(struct nvme_ctrl *ctrl);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
@@ -734,7 +743,7 @@ void nvme_wait_freeze(struct nvme_ctrl *ctrl);
 int nvme_wait_freeze_timeout(struct nvme_ctrl *ctrl, long timeout);
 void nvme_start_freeze(struct nvme_ctrl *ctrl);
 
-static inline unsigned int nvme_req_op(struct nvme_command *cmd)
+static inline enum req_op nvme_req_op(struct nvme_command *cmd)
 {
 	return nvme_is_write(cmd) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 }
@@ -781,7 +790,7 @@ int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		union nvme_result *result, void *buffer, unsigned bufflen,
-		unsigned timeout, int qid, int at_head,
+		int qid, int at_head,
 		blk_mq_req_flags_t flags);
 int nvme_set_features(struct nvme_ctrl *dev, unsigned int fid,
 		      unsigned int dword11, void *buffer, size_t buflen,
@@ -837,7 +846,7 @@ void nvme_mpath_default_iopolicy(struct nvme_subsystem *subsys);
 void nvme_failover_req(struct request *req);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
-void nvme_mpath_add_disk(struct nvme_ns *ns, struct nvme_id_ns *id);
+void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid);
 void nvme_mpath_remove_disk(struct nvme_ns_head *head);
 int nvme_mpath_init_identify(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id);
 void nvme_mpath_init_ctrl(struct nvme_ctrl *ctrl);
@@ -879,8 +888,7 @@ static inline int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,
 {
 	return 0;
 }
-static inline void nvme_mpath_add_disk(struct nvme_ns *ns,
-		struct nvme_id_ns *id)
+static inline void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid)
 {
 }
 static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
@@ -991,6 +999,27 @@ static inline bool nvme_ctrl_sgl_supported(struct nvme_ctrl *ctrl)
 {
 	return ctrl->sgls & ((1 << 0) | (1 << 1));
 }
+
+#ifdef CONFIG_NVME_AUTH
+void nvme_auth_init_ctrl(struct nvme_ctrl *ctrl);
+void nvme_auth_stop(struct nvme_ctrl *ctrl);
+int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid);
+int nvme_auth_wait(struct nvme_ctrl *ctrl, int qid);
+void nvme_auth_reset(struct nvme_ctrl *ctrl);
+void nvme_auth_free(struct nvme_ctrl *ctrl);
+#else
+static inline void nvme_auth_init_ctrl(struct nvme_ctrl *ctrl) {};
+static inline void nvme_auth_stop(struct nvme_ctrl *ctrl) {};
+static inline int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
+{
+	return -EPROTONOSUPPORT;
+}
+static inline int nvme_auth_wait(struct nvme_ctrl *ctrl, int qid)
+{
+	return NVME_SC_AUTH_REQUIRED;
+}
+static inline void nvme_auth_free(struct nvme_ctrl *ctrl) {};
+#endif
 
 u32 nvme_command_effects(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 			 u8 opcode);

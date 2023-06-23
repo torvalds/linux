@@ -105,5 +105,7 @@ int cfe_setenv(char *name, char *val);
 int cfe_write(int handle, const char *buffer, int length);
 int cfe_writeblk(int handle, int64_t offset, const char *buffer,
 		 int length);
+extern unsigned long cfe_seal;
+__printf(1, 2) void cfe_die(char *fmt, ...);
 
 #endif				/* CFE_API_H */

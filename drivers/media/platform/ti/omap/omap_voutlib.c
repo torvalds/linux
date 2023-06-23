@@ -314,7 +314,7 @@ unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr)
 
 	if (virt_addr) {
 		while (size > 0) {
-			SetPageReserved(virt_to_page(addr));
+			SetPageReserved(virt_to_page((void *)addr));
 			addr += PAGE_SIZE;
 			size -= PAGE_SIZE;
 		}
@@ -335,7 +335,7 @@ void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
 	order = get_order(size);
 
 	while (size > 0) {
-		ClearPageReserved(virt_to_page(addr));
+		ClearPageReserved(virt_to_page((void *)addr));
 		addr += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}

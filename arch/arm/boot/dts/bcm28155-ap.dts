@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2013 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2013 Broadcom Corporation
 
 /dts-v1/;
 
@@ -31,22 +21,22 @@
 	};
 
 	i2c@3e016000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@3e017000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@3e018000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@3500d000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <100000>;
 
 		pmu: pmu@8 {

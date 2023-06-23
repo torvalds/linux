@@ -152,7 +152,7 @@ struct btrfsic_block {
 	struct btrfsic_block *next_in_same_bio;
 	void *orig_bio_private;
 	bio_end_io_t *orig_bio_end_io;
-	int submit_bio_bh_rw;
+	blk_opf_t submit_bio_bh_rw;
 	u64 flush_gen; /* only valid if !never_written */
 };
 
@@ -1681,7 +1681,7 @@ static void btrfsic_process_written_block(struct btrfsic_dev_state *dev_state,
 					  u64 dev_bytenr, char **mapped_datav,
 					  unsigned int num_pages,
 					  struct bio *bio, int *bio_is_patched,
-					  int submit_bio_bh_rw)
+					  blk_opf_t submit_bio_bh_rw)
 {
 	int is_metadata;
 	struct btrfsic_block *block;

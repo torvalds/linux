@@ -938,7 +938,7 @@ enum  velocity_owner {
 #define IMR_MASK_VALUE      0x0013FB0FUL	/* initial value of IMR
 						   ignore MIBFI,RACEI to
 						   reduce intr. frequency
-						   NOTE.... do not enable NoBuf int mask at driver driver
+						   NOTE.... do not enable NoBuf int mask at driver
 						      when (1) NoBuf -> RxThreshold = SF
 							   (2) OK    -> RxThreshold = original value
 						 */

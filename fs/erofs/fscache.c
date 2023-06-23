@@ -222,8 +222,10 @@ static int erofs_fscache_meta_read_folio(struct file *data, struct folio *folio)
 
 	rreq = erofs_fscache_alloc_request(folio_mapping(folio),
 				folio_pos(folio), folio_size(folio));
-	if (IS_ERR(rreq))
+	if (IS_ERR(rreq)) {
+		ret = PTR_ERR(rreq);
 		goto out;
+	}
 
 	return erofs_fscache_read_folios_async(mdev.m_fscache->cookie,
 				rreq, mdev.m_pa);
@@ -301,8 +303,10 @@ static int erofs_fscache_read_folio(struct file *file, struct folio *folio)
 
 	rreq = erofs_fscache_alloc_request(folio_mapping(folio),
 				folio_pos(folio), folio_size(folio));
-	if (IS_ERR(rreq))
+	if (IS_ERR(rreq)) {
+		ret = PTR_ERR(rreq);
 		goto out_unlock;
+	}
 
 	pstart = mdev.m_pa + (pos - map.m_la);
 	return erofs_fscache_read_folios_async(mdev.m_fscache->cookie,

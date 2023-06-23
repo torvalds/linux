@@ -153,7 +153,7 @@ struct vl_info {
 
 #ifdef CONFIG_ARM64_SVE
 
-extern void sve_alloc(struct task_struct *task);
+extern void sve_alloc(struct task_struct *task, bool flush);
 extern void fpsimd_release_task(struct task_struct *task);
 extern void fpsimd_sync_to_sve(struct task_struct *task);
 extern void fpsimd_force_sync_to_sve(struct task_struct *task);
@@ -256,7 +256,7 @@ size_t sve_state_size(struct task_struct const *task);
 
 #else /* ! CONFIG_ARM64_SVE */
 
-static inline void sve_alloc(struct task_struct *task) { }
+static inline void sve_alloc(struct task_struct *task, bool flush) { }
 static inline void fpsimd_release_task(struct task_struct *task) { }
 static inline void sve_sync_to_fpsimd(struct task_struct *task) { }
 static inline void sve_sync_from_fpsimd_zeropad(struct task_struct *task) { }

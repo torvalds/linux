@@ -25,6 +25,9 @@
 
 #include "resource.h"
 #include "clk_mgr.h"
+#include "dcn31/dcn31_resource.h"
+#include "dcn315/dcn315_resource.h"
+#include "dcn316/dcn316_resource.h"
 
 #include "dml/dcn20/dcn20_fpu.h"
 #include "dcn31_fpu.h"
@@ -114,7 +117,7 @@ struct _vcs_dpi_ip_params_st dcn3_1_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{
@@ -201,7 +204,7 @@ struct _vcs_dpi_ip_params_st dcn3_15_ip = {
 	.hostvm_max_page_table_levels = 2,
 	.rob_buffer_size_kbytes = 64,
 	.det_buffer_size_kbytes = DCN3_15_DEFAULT_DET_SIZE,
-	.min_comp_buffer_size_kbytes = DCN3_15_MIN_COMPBUF_SIZE_KB,
+	.min_comp_buffer_size_kbytes = 64,
 	.config_return_buffer_size_in_kbytes = 1024,
 	.compressed_buffer_segment_size_in_kbytes = 64,
 	.meta_fifo_size_in_kentries = 32,
@@ -259,7 +262,7 @@ struct _vcs_dpi_ip_params_st dcn3_15_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
 	.sr_exit_time_us = 9.0,
 	.sr_enter_plus_exit_time_us = 11.0,
 	.sr_exit_z8_time_us = 50.0,
@@ -288,6 +291,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
 	.do_urgent_latency_adjustment = false,
 	.urgent_latency_adjustment_fabric_clock_component_us = 0,
 	.urgent_latency_adjustment_fabric_clock_reference_mhz = 0,
+	.num_chans = 4,
 };
 
 struct _vcs_dpi_ip_params_st dcn3_16_ip = {
@@ -297,6 +301,7 @@ struct _vcs_dpi_ip_params_st dcn3_16_ip = {
 	.hostvm_max_page_table_levels = 2,
 	.rob_buffer_size_kbytes = 64,
 	.det_buffer_size_kbytes = DCN3_16_DEFAULT_DET_SIZE,
+	.min_comp_buffer_size_kbytes = 64,
 	.config_return_buffer_size_in_kbytes = 1024,
 	.compressed_buffer_segment_size_in_kbytes = 64,
 	.meta_fifo_size_in_kentries = 32,
@@ -354,7 +359,7 @@ struct _vcs_dpi_ip_params_st dcn3_16_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{
@@ -433,6 +438,26 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
 	.urgent_latency_adjustment_fabric_clock_component_us = 0,
 	.urgent_latency_adjustment_fabric_clock_reference_mhz = 0,
 };
+
+void dcn31_zero_pipe_dcc_fraction(display_e2e_pipe_params_st *pipes,
+				  int pipe_cnt)
+{
+	dc_assert_fp_enabled();
+
+	pipes[pipe_cnt].pipe.src.dcc_fraction_of_zs_req_luma = 0;
+	pipes[pipe_cnt].pipe.src.dcc_fraction_of_zs_req_chroma = 0;
+}
+
+void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
+{
+	dc_assert_fp_enabled();
+
+	if (dc->clk_mgr->bw_params->wm_table.entries[WM_A].valid) {
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.entries[WM_A].pstate_latency_us;
+		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.entries[WM_A].sr_enter_plus_exit_time_us;
+		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.entries[WM_A].sr_exit_time_us;
+	}
+}
 
 void dcn31_calculate_wm_and_dlg_fp(
 		struct dc *dc, struct dc_state *context,
@@ -574,11 +599,13 @@ void dcn31_calculate_wm_and_dlg_fp(
 void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
 	unsigned int i, closest_clk_lvl;
 	int j;
 
 	dc_assert_fp_enabled();
+
+	memcpy(&dcn3_1_soc._clock_tmp, &dcn3_1_soc.clock_limits,
+	       sizeof(dcn3_1_soc.clock_limits));
 
 	// Default clock levels are used for diags, which may lead to overclocking.
 	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
@@ -607,33 +634,34 @@ void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 				}
 			}
 
-			clock_limits[i].state = i;
+			dcn3_1_soc._clock_tmp[i].state = i;
 
 			/* Clocks dependent on voltage level. */
-			clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-			clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2 * clk_table->entries[i].wck_ratio;
+			dcn3_1_soc._clock_tmp[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+			dcn3_1_soc._clock_tmp[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+			dcn3_1_soc._clock_tmp[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+			dcn3_1_soc._clock_tmp[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2 * clk_table->entries[i].wck_ratio;
 
 			/* Clocks independent of voltage level. */
-			clock_limits[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
+			dcn3_1_soc._clock_tmp[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
 				dcn3_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
 
-			clock_limits[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
+			dcn3_1_soc._clock_tmp[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
 				dcn3_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
 
-			clock_limits[i].dram_bw_per_chan_gbps = dcn3_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			clock_limits[i].dscclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			clock_limits[i].dtbclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			clock_limits[i].phyclk_d18_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			clock_limits[i].phyclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+			dcn3_1_soc._clock_tmp[i].dram_bw_per_chan_gbps = dcn3_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+			dcn3_1_soc._clock_tmp[i].dscclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+			dcn3_1_soc._clock_tmp[i].dtbclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+			dcn3_1_soc._clock_tmp[i].phyclk_d18_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+			dcn3_1_soc._clock_tmp[i].phyclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
 		}
-		for (i = 0; i < clk_table->num_entries; i++)
-			dcn3_1_soc.clock_limits[i] = clock_limits[i];
 		if (clk_table->num_entries) {
 			dcn3_1_soc.num_states = clk_table->num_entries;
 		}
 	}
+
+	memcpy(&dcn3_1_soc.clock_limits, &dcn3_1_soc._clock_tmp,
+	       sizeof(dcn3_1_soc.clock_limits));
 
 	dcn3_1_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
@@ -653,7 +681,11 @@ void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 
 	dcn3_15_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
 	dcn3_15_ip.max_num_dpp = dc->res_pool->pipe_count;
-	dcn3_15_soc.num_chans = bw_params->num_channels;
+
+	if (bw_params->num_channels > 0)
+		dcn3_15_soc.num_chans = bw_params->num_channels;
+	if (bw_params->dram_channel_width_bytes > 0)
+		dcn3_15_soc.dram_channel_width_bytes = bw_params->dram_channel_width_bytes;
 
 	ASSERT(clk_table->num_entries);
 
@@ -701,12 +733,14 @@ void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
 	unsigned int i, closest_clk_lvl;
 	int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
 	int j;
 
 	dc_assert_fp_enabled();
+
+	memcpy(&dcn3_16_soc._clock_tmp, &dcn3_16_soc.clock_limits,
+	       sizeof(dcn3_16_soc.clock_limits));
 
 	// Default clock levels are used for diags, which may lead to overclocking.
 	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
@@ -739,38 +773,39 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 				closest_clk_lvl = dcn3_16_soc.num_states - 1;
 			}
 
-			clock_limits[i].state = i;
+			dcn3_16_soc._clock_tmp[i].state = i;
 
 			/* Clocks dependent on voltage level. */
-			clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+			dcn3_16_soc._clock_tmp[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
 			if (clk_table->num_entries == 1 &&
-				clock_limits[i].dcfclk_mhz < dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
+			    dcn3_16_soc._clock_tmp[i].dcfclk_mhz < dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
 				/*SMU fix not released yet*/
-				clock_limits[i].dcfclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
+				dcn3_16_soc._clock_tmp[i].dcfclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
 			}
-			clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2 * clk_table->entries[i].wck_ratio;
+			dcn3_16_soc._clock_tmp[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+			dcn3_16_soc._clock_tmp[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+			dcn3_16_soc._clock_tmp[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2 * clk_table->entries[i].wck_ratio;
 
 			/* Clocks independent of voltage level. */
-			clock_limits[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
+			dcn3_16_soc._clock_tmp[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
 				dcn3_16_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
 
-			clock_limits[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
+			dcn3_16_soc._clock_tmp[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
 				dcn3_16_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
 
-			clock_limits[i].dram_bw_per_chan_gbps = dcn3_16_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			clock_limits[i].dscclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			clock_limits[i].dtbclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			clock_limits[i].phyclk_d18_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			clock_limits[i].phyclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+			dcn3_16_soc._clock_tmp[i].dram_bw_per_chan_gbps = dcn3_16_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+			dcn3_16_soc._clock_tmp[i].dscclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+			dcn3_16_soc._clock_tmp[i].dtbclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+			dcn3_16_soc._clock_tmp[i].phyclk_d18_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+			dcn3_16_soc._clock_tmp[i].phyclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
 		}
-		for (i = 0; i < clk_table->num_entries; i++)
-			dcn3_16_soc.clock_limits[i] = clock_limits[i];
 		if (clk_table->num_entries) {
 			dcn3_16_soc.num_states = clk_table->num_entries;
 		}
 	}
+
+	memcpy(&dcn3_16_soc.clock_limits, &dcn3_16_soc._clock_tmp,
+	       sizeof(dcn3_16_soc.clock_limits));
 
 	if (max_dispclk_mhz) {
 		dcn3_16_soc.dispclk_dppclk_vco_speed_mhz = max_dispclk_mhz * 2;

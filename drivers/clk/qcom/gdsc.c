@@ -132,10 +132,29 @@ static int gdsc_poll_status(struct gdsc *sc, enum gdsc_status status)
 	return -ETIMEDOUT;
 }
 
+static int gdsc_update_collapse_bit(struct gdsc *sc, bool val)
+{
+	u32 reg, mask;
+	int ret;
+
+	if (sc->collapse_mask) {
+		reg = sc->collapse_ctrl;
+		mask = sc->collapse_mask;
+	} else {
+		reg = sc->gdscr;
+		mask = SW_COLLAPSE_MASK;
+	}
+
+	ret = regmap_update_bits(sc->regmap, reg, mask, val ? mask : 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 {
 	int ret;
-	u32 val = (status == GDSC_ON) ? 0 : SW_COLLAPSE_MASK;
 
 	if (status == GDSC_ON && sc->rsupply) {
 		ret = regulator_enable(sc->rsupply);
@@ -143,9 +162,7 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 			return ret;
 	}
 
-	ret = regmap_update_bits(sc->regmap, sc->gdscr, SW_COLLAPSE_MASK, val);
-	if (ret)
-		return ret;
+	ret = gdsc_update_collapse_bit(sc, status == GDSC_OFF);
 
 	/* If disabling votable gdscs, don't poll on status */
 	if ((sc->flags & VOTABLE) && status == GDSC_OFF) {
@@ -420,13 +437,20 @@ static int gdsc_init(struct gdsc *sc)
 				return ret;
 		}
 
+		/* ...and the power-domain */
+		ret = gdsc_pm_runtime_get(sc);
+		if (ret) {
+			if (sc->rsupply)
+				regulator_disable(sc->rsupply);
+			return ret;
+		}
+
 		/*
 		 * Votable GDSCs can be ON due to Vote from other masters.
 		 * If a Votable GDSC is ON, make sure we have a Vote.
 		 */
 		if (sc->flags & VOTABLE) {
-			ret = regmap_update_bits(sc->regmap, sc->gdscr,
-						 SW_COLLAPSE_MASK, val);
+			ret = gdsc_update_collapse_bit(sc, false);
 			if (ret)
 				return ret;
 		}

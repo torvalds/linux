@@ -41,7 +41,7 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c,
 	if (i2c->dev.platform_data)
 		dev->pdata = i2c->dev.platform_data;
 
-	ret = ksz9477_switch_register(dev);
+	ret = ksz_switch_register(dev);
 
 	/* Main DSA driver may not be started yet. */
 	if (ret)
@@ -71,8 +71,8 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->shutdown)
-		dev->dev_ops->shutdown(dev);
+	if (dev->dev_ops->reset)
+		dev->dev_ops->reset(dev);
 
 	dsa_switch_shutdown(dev->ds);
 

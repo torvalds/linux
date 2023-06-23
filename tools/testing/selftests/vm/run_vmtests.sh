@@ -151,7 +151,7 @@ if [ $VADDR64 -ne 0 ]; then
 	run_test ./virtual_address_range
 
 	# virtual address 128TB switch test
-	run_test ./va_128TBswitch
+	run_test ./va_128TBswitch.sh
 fi # VADDR64
 
 # vmalloc stability smoke test
@@ -178,5 +178,18 @@ run_test ./ksm_tests -Z -p 10 -z 1
 run_test ./ksm_tests -N -m 1
 # KSM test with 2 NUMA nodes and merge_across_nodes = 0
 run_test ./ksm_tests -N -m 0
+
+# protection_keys tests
+if [ -x ./protection_keys_32 ]
+then
+	run_test ./protection_keys_32
+fi
+
+if [ -x ./protection_keys_64 ]
+then
+	run_test ./protection_keys_64
+fi
+
+run_test ./soft-dirty
 
 exit $exitcode

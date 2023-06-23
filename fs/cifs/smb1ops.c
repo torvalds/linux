@@ -92,17 +92,17 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct mid_q_entry *mid;
 
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if (compare_mid(mid->mid, buf) &&
 		    mid->mid_state == MID_REQUEST_SUBMITTED &&
 		    le16_to_cpu(mid->command) == buf->Command) {
 			kref_get(&mid->refcount);
-			spin_unlock(&GlobalMid_Lock);
+			spin_unlock(&server->mid_lock);
 			return mid;
 		}
 	}
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 	return NULL;
 }
 
@@ -166,7 +166,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	__u16 last_mid, cur_mid;
 	bool collision, reconnect = false;
 
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 
 	/* mid is 16 bit only for CIFS/SMB */
 	cur_mid = (__u16)((server->CurrentMid) & 0xffff);
@@ -225,7 +225,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 		}
 		cur_mid++;
 	}
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 
 	if (reconnect) {
 		cifs_signal_cifsd_for_reconnect(server, false);

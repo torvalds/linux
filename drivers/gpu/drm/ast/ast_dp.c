@@ -34,7 +34,7 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 		 * CRE4[7:0]: Read-Pointer for EDID (Unit: 4bytes); valid range: 0~64
 		 */
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE4,
-					(u8) ~ASTDP_EDID_READ_POINTER_MASK, (u8) i);
+				       ASTDP_AND_CLEAR_MASK, (u8)i);
 		j = 0;
 
 		/*
@@ -274,8 +274,8 @@ void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mo
 	 * CRE1[7:0]: MISC1 (default: 0x00)
 	 * CRE2[7:0]: video format index (0x00 ~ 0x20 or 0x40 ~ 0x50)
 	 */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE0, (u8) ~ASTDP_CLEAR_MASK,
-				ASTDP_MISC0_24bpp);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE1, (u8) ~ASTDP_CLEAR_MASK, ASTDP_MISC1);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE2, (u8) ~ASTDP_CLEAR_MASK, ModeIdx);
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE0, ASTDP_AND_CLEAR_MASK,
+			       ASTDP_MISC0_24bpp);
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE1, ASTDP_AND_CLEAR_MASK, ASTDP_MISC1);
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE2, ASTDP_AND_CLEAR_MASK, ModeIdx);
 }

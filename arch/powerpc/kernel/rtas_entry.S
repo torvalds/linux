@@ -109,8 +109,12 @@ __enter_rtas:
 	 * its critical regions (as specified in PAPR+ section 7.2.1). MSR[S]
 	 * is not impacted by RFI_TO_KERNEL (only urfid can unset it). So if
 	 * MSR[S] is set, it will remain when entering RTAS.
+	 * If we're in HV mode, RTAS must also run in HV mode, so extract MSR_HV
+	 * from the saved MSR value and insert into the value RTAS will use.
 	 */
+	extrdi	r0, r6, 1, 63 - MSR_HV_LG
 	LOAD_REG_IMMEDIATE(r6, MSR_ME | MSR_RI)
+	insrdi	r6, r0, 1, 63 - MSR_HV_LG
 
 	li      r0,0
 	mtmsrd  r0,1                    /* disable RI before using SRR0/1 */

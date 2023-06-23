@@ -730,7 +730,6 @@ struct hns_roce_caps {
 	u32		num_qps;
 	u32		num_pi_qps;
 	u32		reserved_qps;
-	int		num_qpc_timer;
 	u32		num_srqs;
 	u32		max_wqes;
 	u32		max_srq_wrs;
@@ -959,6 +958,7 @@ struct hns_roce_dev {
 	const struct hns_roce_hw *hw;
 	void			*priv;
 	struct workqueue_struct *irq_workq;
+	struct work_struct ecc_work;
 	const struct hns_roce_dfx_hw *dfx;
 	u32 func_num;
 	u32 is_vf;

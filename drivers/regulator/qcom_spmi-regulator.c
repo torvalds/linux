@@ -164,6 +164,8 @@ enum spmi_regulator_subtype {
 	SPMI_REGULATOR_SUBTYPE_ULT_HF_CTL3	= 0x0f,
 	SPMI_REGULATOR_SUBTYPE_ULT_HF_CTL4	= 0x10,
 	SPMI_REGULATOR_SUBTYPE_HFS430		= 0x0a,
+	SPMI_REGULATOR_SUBTYPE_HT_P150		= 0x35,
+	SPMI_REGULATOR_SUBTYPE_HT_P600		= 0x3d,
 };
 
 enum spmi_common_regulator_registers {
@@ -544,6 +546,14 @@ static struct spmi_voltage_range hfs430_ranges[] = {
 	SPMI_VOLTAGE_RANGE(0, 320000, 320000, 2040000, 2040000, 8000),
 };
 
+static struct spmi_voltage_range ht_p150_ranges[] = {
+	SPMI_VOLTAGE_RANGE(0, 1616000, 1616000, 3304000, 3304000, 8000),
+};
+
+static struct spmi_voltage_range ht_p600_ranges[] = {
+	SPMI_VOLTAGE_RANGE(0, 1704000, 1704000, 1896000, 1896000, 8000),
+};
+
 static DEFINE_SPMI_SET_POINTS(pldo);
 static DEFINE_SPMI_SET_POINTS(nldo1);
 static DEFINE_SPMI_SET_POINTS(nldo2);
@@ -564,6 +574,8 @@ static DEFINE_SPMI_SET_POINTS(nldo660);
 static DEFINE_SPMI_SET_POINTS(ht_lvpldo);
 static DEFINE_SPMI_SET_POINTS(ht_nldo);
 static DEFINE_SPMI_SET_POINTS(hfs430);
+static DEFINE_SPMI_SET_POINTS(ht_p150);
+static DEFINE_SPMI_SET_POINTS(ht_p600);
 
 static inline int spmi_vreg_read(struct spmi_regulator *vreg, u16 addr, u8 *buf,
 				 int len)
@@ -1458,6 +1470,8 @@ static const struct regulator_ops spmi_hfs430_ops = {
 
 static const struct spmi_regulator_mapping supported_regulators[] = {
 	/*           type subtype dig_min dig_max ltype ops setpoints hpm_min */
+	SPMI_VREG(LDO,   HT_P600,  0, INF, HFS430, hfs430, ht_p600, 10000),
+	SPMI_VREG(LDO,   HT_P150,  0, INF, HFS430, hfs430, ht_p150, 10000),
 	SPMI_VREG(BUCK,  GP_CTL,   0, INF, SMPS,   smps,   smps,   100000),
 	SPMI_VREG(BUCK,  HFS430,   0, INF, HFS430, hfs430, hfs430,  10000),
 	SPMI_VREG(LDO,   N300,     0, INF, LDO,    ldo,    nldo1,   10000),
@@ -2125,6 +2139,28 @@ static const struct spmi_regulator_data pm8005_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pmp8074_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1"},
+	{ "s2", 0x1700, "vdd_s2"},
+	{ "s3", 0x1a00, "vdd_s3"},
+	{ "s4", 0x1d00, "vdd_s4"},
+	{ "s5", 0x2000, "vdd_s5"},
+	{ "l1", 0x4000, "vdd_l1_l2"},
+	{ "l2", 0x4100, "vdd_l1_l2"},
+	{ "l3", 0x4200, "vdd_l3_l8"},
+	{ "l4", 0x4300, "vdd_l4"},
+	{ "l5", 0x4400, "vdd_l5_l6_l15"},
+	{ "l6", 0x4500, "vdd_l5_l6_l15"},
+	{ "l7", 0x4600, "vdd_l7"},
+	{ "l8", 0x4700, "vdd_l3_l8"},
+	{ "l9", 0x4800, "vdd_l9"},
+	/* l10 is currently unsupported HT_P50 */
+	{ "l11", 0x4a00, "vdd_l10_l11_l12_l13"},
+	{ "l12", 0x4b00, "vdd_l10_l11_l12_l13"},
+	{ "l13", 0x4c00, "vdd_l10_l11_l12_l13"},
+	{ }
+};
+
 static const struct spmi_regulator_data pms405_regulators[] = {
 	{ "s3", 0x1a00, "vdd_s3"},
 	{ }
@@ -2142,6 +2178,7 @@ static const struct of_device_id qcom_spmi_regulator_match[] = {
 	{ .compatible = "qcom,pmi8994-regulators", .data = &pmi8994_regulators },
 	{ .compatible = "qcom,pm660-regulators", .data = &pm660_regulators },
 	{ .compatible = "qcom,pm660l-regulators", .data = &pm660l_regulators },
+	{ .compatible = "qcom,pmp8074-regulators", .data = &pmp8074_regulators },
 	{ .compatible = "qcom,pms405-regulators", .data = &pms405_regulators },
 	{ }
 };

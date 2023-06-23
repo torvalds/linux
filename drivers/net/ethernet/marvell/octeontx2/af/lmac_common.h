@@ -80,6 +80,7 @@ struct mac_ops {
 	 */
 	int			(*get_nr_lmacs)(void *cgx);
 	u8                      (*get_lmac_type)(void *cgx, int lmac_id);
+	u32                     (*lmac_fifo_len)(void *cgx, int lmac_id);
 	int                     (*mac_lmac_intl_lbk)(void *cgx, int lmac_id,
 						     bool enable);
 	/* Register Stats related functions */

@@ -100,8 +100,6 @@ static inline void efi_fpu_end(void)
 	efi_fpu_end();							\
 })
 
-#define arch_efi_call_virt(p, f, args...)	p->f(args)
-
 #else /* !CONFIG_X86_32 */
 
 #define EFI_LOADER_SIGNATURE	"EL64"
@@ -121,6 +119,7 @@ extern asmlinkage u64 __efi_call(void *fp, ...);
 	efi_enter_mm();							\
 })
 
+#undef arch_efi_call_virt
 #define arch_efi_call_virt(p, f, args...) ({				\
 	u64 ret, ibt = ibt_save();					\
 	ret = efi_call((void *)p->f, args);				\
@@ -383,7 +382,6 @@ static inline bool efi_is_64bit(void)
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);
 
-extern void efi_find_mirror(void);
 extern void efi_reserve_boot_services(void);
 #else
 static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
@@ -394,9 +392,6 @@ static inline bool efi_reboot_required(void)
 static inline  bool efi_is_table_address(unsigned long phys_addr)
 {
 	return false;
-}
-static inline void efi_find_mirror(void)
-{
 }
 static inline void efi_reserve_boot_services(void)
 {

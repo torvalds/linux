@@ -253,6 +253,9 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	bool big_endian;
 	u64 addr;
 
+	if (early_con.flags & CON_ENABLED)
+		return -EALREADY;
+
 	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
 	addr = of_flat_dt_translate_address(node);

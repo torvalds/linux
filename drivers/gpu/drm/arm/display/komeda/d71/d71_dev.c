@@ -5,6 +5,7 @@
  *
  */
 
+#include <drm/drm_blend.h>
 #include <drm/drm_print.h>
 #include "d71_dev.h"
 #include "malidp_io.h"

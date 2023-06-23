@@ -232,7 +232,7 @@ static void pmc_power_off(void)
 	pm1_cnt_port = acpi_base_addr + PM1_CNT;
 
 	pm1_cnt_value = inl(pm1_cnt_port);
-	pm1_cnt_value &= SLEEP_TYPE_MASK;
+	pm1_cnt_value &= ~SLEEP_TYPE_MASK;
 	pm1_cnt_value |= SLEEP_TYPE_S5;
 	pm1_cnt_value |= SLEEP_ENABLE;
 
@@ -389,21 +389,16 @@ static const struct dmi_system_id critclk_systems[] = {
 		},
 	},
 	{
-		/* pmc_plt_clk0 - 3 are used for the 4 ethernet controllers */
-		.ident = "Lex 3I380D",
+		/*
+		 * Lex System / Lex Computech Co. makes a lot of Bay Trail
+		 * based embedded boards which often come with multiple
+		 * ethernet controllers using multiple pmc_plt_clks. See:
+		 * https://www.lex.com.tw/products/embedded-ipc-board/
+		 */
+		.ident = "Lex BayTrail",
 		.callback = dmi_callback,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Lex BayTrail"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "3I380D"),
-		},
-	},
-	{
-		/* pmc_plt_clk* - are used for ethernet controllers */
-		.ident = "Lex 2I385SW",
-		.callback = dmi_callback,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Lex BayTrail"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "2I385SW"),
 		},
 	},
 	{

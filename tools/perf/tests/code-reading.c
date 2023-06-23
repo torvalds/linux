@@ -638,7 +638,7 @@ static int do_test_code_reading(bool try_kcore)
 
 		str = do_determine_event(excl_kernel);
 		pr_debug("Parsing event '%s'\n", str);
-		ret = parse_events(evlist, str, NULL);
+		ret = parse_event(evlist, str);
 		if (ret < 0) {
 			pr_debug("parse_events failed\n");
 			goto out_put;

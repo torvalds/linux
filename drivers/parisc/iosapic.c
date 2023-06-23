@@ -221,16 +221,7 @@ static size_t irt_num_entry;
 
 static struct irt_entry *iosapic_alloc_irt(int num_entries)
 {
-	unsigned long a;
-
-	/* The IRT needs to be 8-byte aligned for the PDC call. 
-	 * Normally kmalloc would guarantee larger alignment, but
-	 * if CONFIG_DEBUG_SLAB is enabled, then we can get only
-	 * 4-byte alignment on 32-bit kernels
-	 */
-	a = (unsigned long)kmalloc(sizeof(struct irt_entry) * num_entries + 8, GFP_KERNEL);
-	a = (a + 7UL) & ~7UL;
-	return (struct irt_entry *)a;
+	return kcalloc(num_entries, sizeof(struct irt_entry), GFP_KERNEL);
 }
 
 /**
@@ -677,7 +668,7 @@ static int iosapic_set_affinity_irq(struct irq_data *d,
 	if (dest_cpu < 0)
 		return -1;
 
-	cpumask_copy(irq_data_get_affinity_mask(d), cpumask_of(dest_cpu));
+	irq_data_update_affinity(d, cpumask_of(dest_cpu));
 	vi->txn_addr = txn_affinity_addr(d->irq, dest_cpu);
 
 	spin_lock_irqsave(&iosapic_lock, flags);

@@ -266,24 +266,6 @@ static const struct i915_refct_sgt_ops tt_rsgt_ops = {
 	.release = i915_ttm_tt_release
 };
 
-static inline bool
-i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
-{
-	bool lmem_placement = false;
-	int i;
-
-	for (i = 0; i < obj->mm.n_placements; i++) {
-		/* Compression is not allowed for the objects with smem placement */
-		if (obj->mm.placements[i]->type == INTEL_MEMORY_SYSTEM)
-			return false;
-		if (!lmem_placement &&
-		    obj->mm.placements[i]->type == INTEL_MEMORY_LOCAL)
-			lmem_placement = true;
-	}
-
-	return lmem_placement;
-}
-
 static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 					 uint32_t page_flags)
 {
@@ -315,7 +297,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 		i915_tt->is_shmem = true;
 	}
 
-	if (HAS_FLAT_CCS(i915) && i915_gem_object_needs_ccs_pages(obj))
+	if (i915_gem_object_needs_ccs_pages(obj))
 		ccs_pages = DIV_ROUND_UP(DIV_ROUND_UP(bo->base.size,
 						      NUM_BYTES_PER_CCS_BYTE),
 					 PAGE_SIZE);
@@ -682,7 +664,15 @@ static void i915_ttm_swap_notify(struct ttm_buffer_object *bo)
 		i915_ttm_purge(obj);
 }
 
-static bool i915_ttm_resource_mappable(struct ttm_resource *res)
+/**
+ * i915_ttm_resource_mappable - Return true if the ttm resource is CPU
+ * accessible.
+ * @res: The TTM resource to check.
+ *
+ * This is interesting on small-BAR systems where we may encounter lmem objects
+ * that can't be accessed via the CPU.
+ */
+bool i915_ttm_resource_mappable(struct ttm_resource *res)
 {
 	struct i915_ttm_buddy_resource *bman_res = to_ttm_buddy_resource(res);
 
@@ -694,6 +684,22 @@ static bool i915_ttm_resource_mappable(struct ttm_resource *res)
 
 static int i915_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(mem->bo);
+	bool unknown_state;
+
+	if (!obj)
+		return -EINVAL;
+
+	if (!kref_get_unless_zero(&obj->base.refcount))
+		return -EINVAL;
+
+	assert_object_held(obj);
+
+	unknown_state = i915_gem_object_has_unknown_state(obj);
+	i915_gem_object_put(obj);
+	if (unknown_state)
+		return -EINVAL;
+
 	if (!i915_ttm_cpu_maps_iomem(mem))
 		return 0;
 

@@ -19,6 +19,7 @@
 
 #include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/bitfield.h>
 #include <linux/interrupt.h>
@@ -847,7 +848,7 @@ static void ctucan_err_interrupt(struct net_device *ndev, u32 isr)
 		case CAN_STATE_ERROR_PASSIVE:
 			priv->can.can_stats.error_passive++;
 			if (skb) {
-				cf->can_id |= CAN_ERR_CRTL;
+				cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 				cf->data[1] = (bec.rxerr > 127) ?
 						CAN_ERR_CRTL_RX_PASSIVE :
 						CAN_ERR_CRTL_TX_PASSIVE;
@@ -858,7 +859,7 @@ static void ctucan_err_interrupt(struct net_device *ndev, u32 isr)
 		case CAN_STATE_ERROR_WARNING:
 			priv->can.can_stats.error_warning++;
 			if (skb) {
-				cf->can_id |= CAN_ERR_CRTL;
+				cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 				cf->data[1] |= (bec.txerr > bec.rxerr) ?
 					CAN_ERR_CRTL_TX_WARNING :
 					CAN_ERR_CRTL_RX_WARNING;
@@ -867,6 +868,7 @@ static void ctucan_err_interrupt(struct net_device *ndev, u32 isr)
 			}
 			break;
 		case CAN_STATE_ERROR_ACTIVE:
+			cf->can_id |= CAN_ERR_CNT;
 			cf->data[1] = CAN_ERR_CRTL_ACTIVE;
 			cf->data[6] = bec.txerr;
 			cf->data[7] = bec.rxerr;
@@ -1087,7 +1089,7 @@ clear:
 /**
  * ctucan_interrupt() - CAN Isr
  * @irq:	irq number
- * @dev_id:	device id poniter
+ * @dev_id:	device id pointer
  *
  * This is the CTU CAN FD ISR. It checks for the type of interrupt
  * and invokes the corresponding ISR.
@@ -1300,6 +1302,10 @@ static const struct net_device_ops ctucan_netdev_ops = {
 	.ndo_change_mtu	= can_change_mtu,
 };
 
+static const struct ethtool_ops ctucan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 int ctucan_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -1376,6 +1382,7 @@ int ctucan_probe_common(struct device *dev, void __iomem *addr, int irq, unsigne
 		set_drvdata_fnc(dev, ndev);
 	SET_NETDEV_DEV(ndev, dev);
 	ndev->netdev_ops = &ctucan_netdev_ops;
+	ndev->ethtool_ops = &ctucan_ethtool_ops;
 
 	/* Getting the can_clk info */
 	if (!can_clk_rate) {

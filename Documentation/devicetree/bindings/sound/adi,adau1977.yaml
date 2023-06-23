@@ -32,8 +32,6 @@ properties:
   reset-gpios:
     maxItems: 1
 
-  spi-max-frequency: true
-
   AVDD-supply:
     description: Analog power support for the device.
 
@@ -52,7 +50,10 @@ required:
   - compatible
   - AVDD-supply
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

@@ -83,7 +83,6 @@ struct nfs_open_context {
 	fmode_t mode;
 
 	unsigned long flags;
-#define NFS_CONTEXT_RESEND_WRITES	(1)
 #define NFS_CONTEXT_BAD			(2)
 #define NFS_CONTEXT_UNLOCK	(3)
 #define NFS_CONTEXT_FILE_OPEN		(4)
@@ -182,6 +181,7 @@ struct nfs_inode {
 		/* Regular file */
 		struct {
 			atomic_long_t	nrequests;
+			atomic_long_t	redirtied_pages;
 			struct nfs_mds_commit_info commit_info;
 			struct mutex	commit_mutex;
 		};
@@ -617,6 +617,15 @@ nfs_fileid_to_ino_t(u64 fileid)
 
 #define NFS_JUKEBOX_RETRY_TIME (5 * HZ)
 
+/* We need to block new opens while a file is being unlinked.
+ * If it is opened *before* we decide to unlink, we will silly-rename
+ * instead. If it is opened *after*, then we need to create or will fail.
+ * If we allow the two to race, we could end up with a file that is open
+ * but deleted on the server resulting in ESTALE.
+ * So use ->d_fsdata to record when the unlink is happening
+ * and block dentry revalidation while it is set.
+ */
+#define NFS_FSDATA_BLOCKED ((void*)1)
 
 # undef ifdebug
 # ifdef NFS_DEBUG

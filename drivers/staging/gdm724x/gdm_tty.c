@@ -17,12 +17,6 @@
 #define GDM_TTY_MAJOR 0
 #define GDM_TTY_MINOR 32
 
-#define ACM_CTRL_DTR 0x01
-#define ACM_CTRL_RTS 0x02
-#define ACM_CTRL_DSR 0x02
-#define ACM_CTRL_RI  0x08
-#define ACM_CTRL_DCD 0x01
-
 #define WRITE_SIZE 2048
 
 #define MUX_TX_MAX_SIZE 2048

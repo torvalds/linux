@@ -127,6 +127,12 @@
 				clocks = <&xtal>, <&xtal>, <&xtal>;
 				clock-names = "xtal", "pclk", "baud";
 			};
+
+			reset: reset-controller@2000 {
+				compatible = "amlogic,meson-s4-reset";
+				reg = <0x0 0x2000 0x0 0x98>;
+				#reset-cells = <1>;
+			};
 		};
 	};
 };

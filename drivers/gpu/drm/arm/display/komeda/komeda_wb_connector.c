@@ -4,6 +4,7 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
+#include <drm/drm_framebuffer.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 

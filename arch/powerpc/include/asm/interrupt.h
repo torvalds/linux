@@ -69,6 +69,7 @@
 #include <linux/context_tracking.h>
 #include <linux/hardirq.h>
 #include <asm/cputime.h>
+#include <asm/firmware.h>
 #include <asm/ftrace.h>
 #include <asm/kprobes.h>
 #include <asm/runlatch.h>

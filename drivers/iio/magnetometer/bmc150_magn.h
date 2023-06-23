@@ -7,6 +7,6 @@ extern const struct dev_pm_ops bmc150_magn_pm_ops;
 
 int bmc150_magn_probe(struct device *dev, struct regmap *regmap, int irq,
 		      const char *name);
-int bmc150_magn_remove(struct device *dev);
+void bmc150_magn_remove(struct device *dev);
 
 #endif /* _BMC150_MAGN_H_ */

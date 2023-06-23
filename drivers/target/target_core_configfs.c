@@ -732,6 +732,7 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
 
@@ -744,8 +745,11 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("Generic Block Discard not supported\n");
-		return -ENOSYS;
+		if (!dev->transport->configure_unmap ||
+		    !dev->transport->configure_unmap(dev)) {
+			pr_err("Generic Block Discard not supported\n");
+			return -ENOSYS;
+		}
 	}
 
 	da->emulate_tpu = flag;
@@ -758,6 +762,7 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
 
@@ -770,8 +775,11 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("Generic Block Discard not supported\n");
-		return -ENOSYS;
+		if (!dev->transport->configure_unmap ||
+		    !dev->transport->configure_unmap(dev)) {
+			pr_err("Generic Block Discard not supported\n");
+			return -ENOSYS;
+		}
 	}
 
 	da->emulate_tpws = flag;
@@ -964,6 +972,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
 
@@ -982,10 +991,12 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 	 * Discard supported is detected iblock_configure_device().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("dev[%p]: Thin Provisioning LBPRZ will not be set"
-		       " because max_unmap_block_desc_count is zero\n",
-		       da->da_dev);
-		return -ENOSYS;
+		if (!dev->transport->configure_unmap ||
+		    !dev->transport->configure_unmap(dev)) {
+			pr_err("dev[%p]: Thin Provisioning LBPRZ will not be set because max_unmap_block_desc_count is zero\n",
+			       da->da_dev);
+			return -ENOSYS;
+		}
 	}
 	da->unmap_zeroes_data = flag;
 	pr_debug("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",

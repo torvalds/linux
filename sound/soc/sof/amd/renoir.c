@@ -173,6 +173,10 @@ struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* Trace Logger */
 	.trace_init		= acp_sof_trace_init,
 	.trace_release		= acp_sof_trace_release,
+
+	/* PM */
+	.suspend                = amd_sof_acp_suspend,
+	.resume                 = amd_sof_acp_resume,
 };
 EXPORT_SYMBOL(sof_renoir_ops);
 

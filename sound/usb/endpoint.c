@@ -133,7 +133,7 @@ static inline bool ep_state_running(struct snd_usb_endpoint *ep)
 
 static inline bool ep_state_update(struct snd_usb_endpoint *ep, int old, int new)
 {
-	return atomic_cmpxchg(&ep->state, old, new) == old;
+	return atomic_try_cmpxchg(&ep->state, &old, new);
 }
 
 /**
@@ -924,6 +924,8 @@ void snd_usb_endpoint_close(struct snd_usb_audio *chip,
 		endpoint_set_interface(chip, ep, false);
 
 	if (!--ep->opened) {
+		if (ep->clock_ref && !atomic_read(&ep->clock_ref->locked))
+			ep->clock_ref->rate = 0;
 		ep->iface = 0;
 		ep->altsetting = 0;
 		ep->cur_audiofmt = NULL;

@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/ioctl.h>
+#include <linux/compiler.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/kernel.h>
 #include "tests.h"
@@ -137,8 +139,7 @@ static int test__wp_rw(struct test_suite *test __maybe_unused,
 #endif
 }
 
-static int test__wp_modify(struct test_suite *test __maybe_unused,
-			   int subtest __maybe_unused)
+static int test__wp_modify(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 #if defined(__s390x__)
 	return TEST_SKIP;
@@ -160,6 +161,11 @@ static int test__wp_modify(struct test_suite *test __maybe_unused,
 	new_attr.disabled = 1;
 	ret = ioctl(fd, PERF_EVENT_IOC_MODIFY_ATTRIBUTES, &new_attr);
 	if (ret < 0) {
+		if (errno == ENOTTY) {
+			test->test_cases[subtest].skip_reason = "missing kernel support";
+			ret = TEST_SKIP;
+		}
+
 		pr_debug("ioctl(PERF_EVENT_IOC_MODIFY_ATTRIBUTES) failed\n");
 		close(fd);
 		return ret;

@@ -8,6 +8,7 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "framebuffer.h"
 #include "gem.h"

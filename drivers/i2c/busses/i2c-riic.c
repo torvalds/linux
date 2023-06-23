@@ -448,7 +448,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	adap = &riic->adapter;
 	i2c_set_adapdata(adap, riic);
-	strlcpy(adap->name, "Renesas RIIC adapter", sizeof(adap->name));
+	strscpy(adap->name, "Renesas RIIC adapter", sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->algo = &riic_algo;
 	adap->dev.parent = &pdev->dev;

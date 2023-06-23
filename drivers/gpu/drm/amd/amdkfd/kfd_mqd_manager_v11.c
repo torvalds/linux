@@ -126,6 +126,10 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se4 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se5 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se6 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se7 = 0xFFFFFFFF;
 
 	m->cp_hqd_persistent_state = CP_HQD_PERSISTENT_STATE__PRELOAD_REQ_MASK |
 			0x55 << CP_HQD_PERSISTENT_STATE__PRELOAD_SIZE__SHIFT;
@@ -377,6 +381,8 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdmax_rlcx_rb_base_hi = upper_32_bits(q->queue_address >> 8);
 	m->sdmax_rlcx_rb_rptr_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->sdmax_rlcx_rb_rptr_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
+	m->sdmax_rlcx_rb_wptr_poll_addr_lo = lower_32_bits((uint64_t)q->write_ptr);
+	m->sdmax_rlcx_rb_wptr_poll_addr_hi = upper_32_bits((uint64_t)q->write_ptr);
 	m->sdmax_rlcx_doorbell_offset =
 		q->doorbell_off << SDMA0_QUEUE0_DOORBELL_OFFSET__OFFSET__SHIFT;
 

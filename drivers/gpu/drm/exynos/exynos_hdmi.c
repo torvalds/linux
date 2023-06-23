@@ -1594,12 +1594,12 @@ static int hdmi_audio_hw_params(struct device *dev, void *data,
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 
 	if (daifmt->fmt != HDMI_I2S || daifmt->bit_clk_inv ||
-	    daifmt->frame_clk_inv || daifmt->bit_clk_master ||
-	    daifmt->frame_clk_master) {
+	    daifmt->frame_clk_inv || daifmt->bit_clk_provider ||
+	    daifmt->frame_clk_provider) {
 		dev_err(dev, "%s: Bad flags %d %d %d %d\n", __func__,
 			daifmt->bit_clk_inv, daifmt->frame_clk_inv,
-			daifmt->bit_clk_master,
-			daifmt->frame_clk_master);
+			daifmt->bit_clk_provider,
+			daifmt->frame_clk_provider);
 		return -EINVAL;
 	}
 

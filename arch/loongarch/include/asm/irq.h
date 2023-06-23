@@ -35,9 +35,6 @@ static inline bool on_irq_stack(int cpu, unsigned long sp)
 	return (low <= sp && sp <= high);
 }
 
-int get_ipi_irq(void);
-int get_pmc_irq(void);
-int get_timer_irq(void);
 void spurious_interrupt(void);
 
 #define NR_IRQS_LEGACY 16
@@ -47,6 +44,14 @@ void arch_trigger_cpumask_backtrace(const struct cpumask *mask, bool exclude_sel
 
 #define MAX_IO_PICS 2
 #define NR_IRQS	(64 + (256 * MAX_IO_PICS))
+
+struct acpi_vector_group {
+	int node;
+	int pci_segment;
+	struct irq_domain *parent;
+};
+extern struct acpi_vector_group pch_group[MAX_IO_PICS];
+extern struct acpi_vector_group msi_group[MAX_IO_PICS];
 
 #define CORES_PER_EIO_NODE	4
 
@@ -76,18 +81,6 @@ void arch_trigger_cpumask_backtrace(const struct cpumask *mask, bool exclude_sel
 #define GSI_MIN_PCH_IRQ		LOONGSON_PCH_IRQ_BASE
 #define GSI_MAX_PCH_IRQ		(LOONGSON_PCH_IRQ_BASE + 256 - 1)
 
-extern int find_pch_pic(u32 gsi);
-extern int eiointc_get_node(int id);
-
-static inline void eiointc_enable(void)
-{
-	uint64_t misc;
-
-	misc = iocsr_read64(LOONGARCH_IOCSR_MISC_FUNC);
-	misc |= IOCSR_MISC_FUNC_EXT_IOI_EN;
-	iocsr_write64(misc, LOONGARCH_IOCSR_MISC_FUNC);
-}
-
 struct acpi_madt_lio_pic;
 struct acpi_madt_eio_pic;
 struct acpi_madt_ht_pic;
@@ -95,21 +88,21 @@ struct acpi_madt_bio_pic;
 struct acpi_madt_msi_pic;
 struct acpi_madt_lpc_pic;
 
-struct irq_domain *loongarch_cpu_irq_init(void);
-
-struct irq_domain *liointc_acpi_init(struct irq_domain *parent,
+int liointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_lio_pic *acpi_liointc);
-struct irq_domain *eiointc_acpi_init(struct irq_domain *parent,
+int eiointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_eio_pic *acpi_eiointc);
 
 struct irq_domain *htvec_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_ht_pic *acpi_htvec);
-struct irq_domain *pch_lpc_acpi_init(struct irq_domain *parent,
+int pch_lpc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_lpc_pic *acpi_pchlpc);
-struct irq_domain *pch_msi_acpi_init(struct irq_domain *parent,
+int pch_msi_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_msi_pic *acpi_pchmsi);
-struct irq_domain *pch_pic_acpi_init(struct irq_domain *parent,
+int pch_pic_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_bio_pic *acpi_pchpic);
+int find_pch_pic(u32 gsi);
+struct fwnode_handle *get_pch_msi_handle(int pci_segment);
 
 extern struct acpi_madt_lio_pic *acpi_liointc;
 extern struct acpi_madt_eio_pic *acpi_eiointc[MAX_IO_PICS];
@@ -119,11 +112,10 @@ extern struct acpi_madt_lpc_pic *acpi_pchlpc;
 extern struct acpi_madt_msi_pic *acpi_pchmsi[MAX_IO_PICS];
 extern struct acpi_madt_bio_pic *acpi_pchpic[MAX_IO_PICS];
 
-extern struct irq_domain *cpu_domain;
-extern struct irq_domain *liointc_domain;
-extern struct irq_domain *pch_lpc_domain;
-extern struct irq_domain *pch_msi_domain[MAX_IO_PICS];
-extern struct irq_domain *pch_pic_domain[MAX_IO_PICS];
+extern struct fwnode_handle *cpuintc_handle;
+extern struct fwnode_handle *liointc_handle;
+extern struct fwnode_handle *pch_lpc_handle;
+extern struct fwnode_handle *pch_pic_handle[MAX_IO_PICS];
 
 extern irqreturn_t loongson3_ipi_interrupt(int irq, void *dev);
 

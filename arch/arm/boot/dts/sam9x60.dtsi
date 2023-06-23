@@ -464,7 +464,7 @@
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 4>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
 				#pwm-cells = <3>;
-				status="disabled";
+				status = "disabled";
 			};
 
 			hlcdc: hlcdc@f8038000 {
@@ -667,7 +667,7 @@
 				clock-names = "td_slck", "md_slck", "main_xtal";
 			};
 
-			reset_controller: rstc@fffffe00 {
+			reset_controller: reset-controller@fffffe00 {
 				compatible = "microchip,sam9x60-rstc";
 				reg = <0xfffffe00 0x10>;
 				clocks = <&clk32k 0>;

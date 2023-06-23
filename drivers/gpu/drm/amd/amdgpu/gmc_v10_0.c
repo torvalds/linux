@@ -22,6 +22,9 @@
  */
 #include <linux/firmware.h>
 #include <linux/pci.h>
+
+#include <drm/drm_cache.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
 #include "gmc_v10_0.h"
@@ -416,6 +419,7 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	uint32_t seq;
 	uint16_t queried_pasid;
 	bool ret;
+	u32 usec_timeout = amdgpu_sriov_vf(adev) ? SRIOV_USEC_TIMEOUT : adev->usec_timeout;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 
@@ -434,7 +438,7 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 		amdgpu_ring_commit(ring);
 		spin_unlock(&adev->gfx.kiq.ring_lock);
-		r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
+		r = amdgpu_fence_wait_polling(ring, seq, usec_timeout);
 		if (r < 1) {
 			dev_err(adev->dev, "wait for kiq fence error: %ld.\n", r);
 			return -ETIME;
@@ -456,7 +460,8 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 				gmc_v10_0_flush_gpu_tlb(adev, vmid,
 						AMDGPU_GFXHUB_0, flush_type);
 			}
-			break;
+			if (!adev->enable_mes)
+				break;
 		}
 	}
 
@@ -833,10 +838,21 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 		adev->gmc.visible_vram_size = adev->gmc.real_vram_size;
 
 	/* set the gart size */
-	if (amdgpu_gart_size == -1)
-		adev->gmc.gart_size = 512ULL << 20;
-	else
+	if (amdgpu_gart_size == -1) {
+		switch (adev->ip_versions[GC_HWIP][0]) {
+		default:
+			adev->gmc.gart_size = 512ULL << 20;
+			break;
+		case IP_VERSION(10, 3, 1):   /* DCE SG support */
+		case IP_VERSION(10, 3, 3):   /* DCE SG support */
+		case IP_VERSION(10, 3, 6):   /* DCE SG support */
+		case IP_VERSION(10, 3, 7):   /* DCE SG support */
+			adev->gmc.gart_size = 1024ULL << 20;
+			break;
+		}
+	} else {
 		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
+	}
 
 	gmc_v10_0_vram_gtt_location(adev, &adev->gmc);
 
@@ -967,6 +983,8 @@ static int gmc_v10_0_sw_init(void *handle)
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
+
+	adev->need_swiotlb = drm_need_swiotlb(44);
 
 	r = gmc_v10_0_mc_init(adev);
 	if (r)

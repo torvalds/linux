@@ -45,7 +45,6 @@
 		exit(code);			\
 	} while (0)
 
-int done;
 int rcvbufsz;
 char name[100];
 int dbg;
@@ -285,7 +284,6 @@ int main(int argc, char *argv[])
 	pid_t rtid = 0;
 
 	int fd = 0;
-	int count = 0;
 	int write_file = 0;
 	int maskset = 0;
 	char *logfile = NULL;
@@ -495,7 +493,6 @@ int main(int argc, char *argv[])
 				len2 = 0;
 				/* For nested attributes, na follows */
 				na = (struct nlattr *) NLA_DATA(na);
-				done = 0;
 				while (len2 < aggr_len) {
 					switch (na->nla_type) {
 					case TASKSTATS_TYPE_PID:
@@ -509,7 +506,6 @@ int main(int argc, char *argv[])
 							printf("TGID\t%d\n", rtid);
 						break;
 					case TASKSTATS_TYPE_STATS:
-						count++;
 						if (print_delays)
 							print_delayacct((struct taskstats *) NLA_DATA(na));
 						if (print_io_accounting)

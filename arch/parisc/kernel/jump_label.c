@@ -42,14 +42,3 @@ void arch_jump_label_transform(struct jump_entry *entry,
 
 	patch_text(addr, insn);
 }
-
-void arch_jump_label_transform_static(struct jump_entry *entry,
-				      enum jump_label_type type)
-{
-	/*
-	 * We use the architected NOP in arch_static_branch, so there's no
-	 * need to patch an identical NOP over the top of it here. The core
-	 * will call arch_jump_label_transform from a module notifier if the
-	 * NOP needs to be replaced by a branch.
-	 */
-}

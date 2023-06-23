@@ -253,6 +253,17 @@ Description:
 		only if the system firmware is capable of describing the
 		connection between a port and its connector.
 
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/disable
+Date:		June 2022
+Contact:	Michael Grzeschik <m.grzeschik@pengutronix.de>
+Description:
+		This file controls the state of a USB port, including
+		Vbus power output (but only on hubs that support
+		power switching -- most hubs don't support it). If
+		a port is disabled, the port is unusable: Devices
+		attached to the port will not be detected, initialized,
+		or enumerated.
+
 What:		/sys/bus/usb/devices/.../power/usb2_lpm_l1_timeout
 Date:		May 2013
 Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>

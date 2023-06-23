@@ -517,36 +517,36 @@ bad_block:
 	/* Here we know that we can set the new attribute. */
 
 	if (header) {
-		/* assert(header == HDR(bh)); */
+		int offset;
+
 		lock_buffer(bh);
 		if (header->h_refcount == cpu_to_le32(1)) {
 			__u32 hash = le32_to_cpu(header->h_hash);
+			struct mb_cache_entry *oe;
 
-			ea_bdebug(bh, "modifying in-place");
+			oe = mb_cache_entry_delete_or_get(EA_BLOCK_CACHE(inode),
+					hash, bh->b_blocknr);
+			if (!oe) {
+				ea_bdebug(bh, "modifying in-place");
+				goto update_block;
+			}
 			/*
-			 * This must happen under buffer lock for
-			 * ext2_xattr_set2() to reliably detect modified block
+			 * Someone is trying to reuse the block, leave it alone
 			 */
-			mb_cache_entry_delete(EA_BLOCK_CACHE(inode), hash,
-					      bh->b_blocknr);
-
-			/* keep the buffer locked while modifying it. */
-		} else {
-			int offset;
-
-			unlock_buffer(bh);
-			ea_bdebug(bh, "cloning");
-			header = kmemdup(HDR(bh), bh->b_size, GFP_KERNEL);
-			error = -ENOMEM;
-			if (header == NULL)
-				goto cleanup;
-			header->h_refcount = cpu_to_le32(1);
-
-			offset = (char *)here - bh->b_data;
-			here = ENTRY((char *)header + offset);
-			offset = (char *)last - bh->b_data;
-			last = ENTRY((char *)header + offset);
+			mb_cache_entry_put(EA_BLOCK_CACHE(inode), oe);
 		}
+		unlock_buffer(bh);
+		ea_bdebug(bh, "cloning");
+		header = kmemdup(HDR(bh), bh->b_size, GFP_KERNEL);
+		error = -ENOMEM;
+		if (header == NULL)
+			goto cleanup;
+		header->h_refcount = cpu_to_le32(1);
+
+		offset = (char *)here - bh->b_data;
+		here = ENTRY((char *)header + offset);
+		offset = (char *)last - bh->b_data;
+		last = ENTRY((char *)header + offset);
 	} else {
 		/* Allocate a buffer where we construct the new block. */
 		header = kzalloc(sb->s_blocksize, GFP_KERNEL);
@@ -559,6 +559,7 @@ bad_block:
 		last = here = ENTRY(header+1);
 	}
 
+update_block:
 	/* Iff we are modifying the block in-place, bh is locked here. */
 
 	if (not_found) {
@@ -649,6 +650,55 @@ cleanup:
 	up_write(&EXT2_I(inode)->xattr_sem);
 
 	return error;
+}
+
+static void ext2_xattr_release_block(struct inode *inode,
+				     struct buffer_head *bh)
+{
+	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
+
+retry_ref:
+	lock_buffer(bh);
+	if (HDR(bh)->h_refcount == cpu_to_le32(1)) {
+		__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
+		struct mb_cache_entry *oe;
+
+		/*
+		 * This must happen under buffer lock to properly
+		 * serialize with ext2_xattr_set() reusing the block.
+		 */
+		oe = mb_cache_entry_delete_or_get(ea_block_cache, hash,
+						  bh->b_blocknr);
+		if (oe) {
+			/*
+			 * Someone is trying to reuse the block. Wait
+			 * and retry.
+			 */
+			unlock_buffer(bh);
+			mb_cache_entry_wait_unused(oe);
+			mb_cache_entry_put(ea_block_cache, oe);
+			goto retry_ref;
+		}
+
+		/* Free the old block. */
+		ea_bdebug(bh, "freeing");
+		ext2_free_blocks(inode, bh->b_blocknr, 1);
+		/* We let our caller release bh, so we
+		 * need to duplicate the buffer before. */
+		get_bh(bh);
+		bforget(bh);
+		unlock_buffer(bh);
+	} else {
+		/* Decrement the refcount only. */
+		le32_add_cpu(&HDR(bh)->h_refcount, -1);
+		dquot_free_block(inode, 1);
+		mark_buffer_dirty(bh);
+		unlock_buffer(bh);
+		ea_bdebug(bh, "refcount now=%d",
+			le32_to_cpu(HDR(bh)->h_refcount));
+		if (IS_SYNC(inode))
+			sync_dirty_buffer(bh);
+	}
 }
 
 /*
@@ -747,34 +797,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 		 * If there was an old block and we are no longer using it,
 		 * release the old block.
 		 */
-		lock_buffer(old_bh);
-		if (HDR(old_bh)->h_refcount == cpu_to_le32(1)) {
-			__u32 hash = le32_to_cpu(HDR(old_bh)->h_hash);
-
-			/*
-			 * This must happen under buffer lock for
-			 * ext2_xattr_set2() to reliably detect freed block
-			 */
-			mb_cache_entry_delete(ea_block_cache, hash,
-					      old_bh->b_blocknr);
-			/* Free the old block. */
-			ea_bdebug(old_bh, "freeing");
-			ext2_free_blocks(inode, old_bh->b_blocknr, 1);
-			mark_inode_dirty(inode);
-			/* We let our caller release old_bh, so we
-			 * need to duplicate the buffer before. */
-			get_bh(old_bh);
-			bforget(old_bh);
-		} else {
-			/* Decrement the refcount only. */
-			le32_add_cpu(&HDR(old_bh)->h_refcount, -1);
-			dquot_free_block_nodirty(inode, 1);
-			mark_inode_dirty(inode);
-			mark_buffer_dirty(old_bh);
-			ea_bdebug(old_bh, "refcount now=%d",
-				le32_to_cpu(HDR(old_bh)->h_refcount));
-		}
-		unlock_buffer(old_bh);
+		ext2_xattr_release_block(inode, old_bh);
 	}
 
 cleanup:
@@ -828,30 +851,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 			EXT2_I(inode)->i_file_acl);
 		goto cleanup;
 	}
-	lock_buffer(bh);
-	if (HDR(bh)->h_refcount == cpu_to_le32(1)) {
-		__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
-
-		/*
-		 * This must happen under buffer lock for ext2_xattr_set2() to
-		 * reliably detect freed block
-		 */
-		mb_cache_entry_delete(EA_BLOCK_CACHE(inode), hash,
-				      bh->b_blocknr);
-		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
-		get_bh(bh);
-		bforget(bh);
-		unlock_buffer(bh);
-	} else {
-		le32_add_cpu(&HDR(bh)->h_refcount, -1);
-		ea_bdebug(bh, "refcount now=%d",
-			le32_to_cpu(HDR(bh)->h_refcount));
-		unlock_buffer(bh);
-		mark_buffer_dirty(bh);
-		if (IS_SYNC(inode))
-			sync_dirty_buffer(bh);
-		dquot_free_block_nodirty(inode, 1);
-	}
+	ext2_xattr_release_block(inode, bh);
 	EXT2_I(inode)->i_file_acl = 0;
 
 cleanup:
@@ -943,7 +943,7 @@ ext2_xattr_cache_find(struct inode *inode, struct ext2_xattr_header *header)
 	if (!header->h_hash)
 		return NULL;  /* never share */
 	ea_idebug(inode, "looking for cached blocks [%x]", (int)hash);
-again:
+
 	ce = mb_cache_entry_find_first(ea_block_cache, hash);
 	while (ce) {
 		struct buffer_head *bh;
@@ -955,22 +955,8 @@ again:
 				inode->i_ino, (unsigned long) ce->e_value);
 		} else {
 			lock_buffer(bh);
-			/*
-			 * We have to be careful about races with freeing or
-			 * rehashing of xattr block. Once we hold buffer lock
-			 * xattr block's state is stable so we can check
-			 * whether the block got freed / rehashed or not.
-			 * Since we unhash mbcache entry under buffer lock when
-			 * freeing / rehashing xattr block, checking whether
-			 * entry is still hashed is reliable.
-			 */
-			if (hlist_bl_unhashed(&ce->e_hash_list)) {
-				mb_cache_entry_put(ea_block_cache, ce);
-				unlock_buffer(bh);
-				brelse(bh);
-				goto again;
-			} else if (le32_to_cpu(HDR(bh)->h_refcount) >
-				   EXT2_XATTR_REFCOUNT_MAX) {
+			if (le32_to_cpu(HDR(bh)->h_refcount) >
+			    EXT2_XATTR_REFCOUNT_MAX) {
 				ea_idebug(inode, "block %ld refcount %d>%d",
 					  (unsigned long) ce->e_value,
 					  le32_to_cpu(HDR(bh)->h_refcount),

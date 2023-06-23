@@ -20,5 +20,6 @@ fi
 echo >&2 "*"
 echo >&2 "* Could not find Qt5 via ${HOSTPKG_CONFIG}."
 echo >&2 "* Please install Qt5 and make sure it's in PKG_CONFIG_PATH"
+echo >&2 "* You need $PKG"
 echo >&2 "*"
 exit 1

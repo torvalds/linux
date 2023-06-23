@@ -28,6 +28,9 @@ enum cpu_usage_stat {
 	CPUTIME_STEAL,
 	CPUTIME_GUEST,
 	CPUTIME_GUEST_NICE,
+#ifdef CONFIG_SCHED_CORE
+	CPUTIME_FORCEIDLE,
+#endif
 	NR_STATS,
 };
 
@@ -114,5 +117,9 @@ extern void account_process_tick(struct task_struct *, int user);
 #endif
 
 extern void account_idle_ticks(unsigned long ticks);
+
+#ifdef CONFIG_SCHED_CORE
+extern void __account_forceidle_time(struct task_struct *tsk, u64 delta);
+#endif
 
 #endif /* _LINUX_KERNEL_STAT_H */

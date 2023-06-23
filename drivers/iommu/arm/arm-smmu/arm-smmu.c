@@ -1432,27 +1432,19 @@ out_free:
 static void arm_smmu_release_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct arm_smmu_master_cfg *cfg;
-	struct arm_smmu_device *smmu;
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 	int ret;
 
-	if (!fwspec || fwspec->ops != &arm_smmu_ops)
-		return;
-
-	cfg  = dev_iommu_priv_get(dev);
-	smmu = cfg->smmu;
-
-	ret = arm_smmu_rpm_get(smmu);
+	ret = arm_smmu_rpm_get(cfg->smmu);
 	if (ret < 0)
 		return;
 
 	arm_smmu_master_free_smes(cfg, fwspec);
 
-	arm_smmu_rpm_put(smmu);
+	arm_smmu_rpm_put(cfg->smmu);
 
 	dev_iommu_priv_set(dev, NULL);
 	kfree(cfg);
-	iommu_fwspec_free(dev);
 }
 
 static void arm_smmu_probe_finalize(struct device *dev)
@@ -1592,7 +1584,6 @@ static struct iommu_ops arm_smmu_ops = {
 	.device_group		= arm_smmu_device_group,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
-	.put_resv_regions	= generic_iommu_put_resv_regions,
 	.def_domain_type	= arm_smmu_def_domain_type,
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
 	.owner			= THIS_MODULE,
@@ -2071,10 +2062,57 @@ err_reset_platform_ops: __maybe_unused;
 	return err;
 }
 
+static void arm_smmu_rmr_install_bypass_smr(struct arm_smmu_device *smmu)
+{
+	struct list_head rmr_list;
+	struct iommu_resv_region *e;
+	int idx, cnt = 0;
+	u32 reg;
+
+	INIT_LIST_HEAD(&rmr_list);
+	iort_get_rmr_sids(dev_fwnode(smmu->dev), &rmr_list);
+
+	/*
+	 * Rather than trying to look at existing mappings that
+	 * are setup by the firmware and then invalidate the ones
+	 * that do no have matching RMR entries, just disable the
+	 * SMMU until it gets enabled again in the reset routine.
+	 */
+	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sCR0);
+	reg |= ARM_SMMU_sCR0_CLIENTPD;
+	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_sCR0, reg);
+
+	list_for_each_entry(e, &rmr_list, list) {
+		struct iommu_iort_rmr_data *rmr;
+		int i;
+
+		rmr = container_of(e, struct iommu_iort_rmr_data, rr);
+		for (i = 0; i < rmr->num_sids; i++) {
+			idx = arm_smmu_find_sme(smmu, rmr->sids[i], ~0);
+			if (idx < 0)
+				continue;
+
+			if (smmu->s2crs[idx].count == 0) {
+				smmu->smrs[idx].id = rmr->sids[i];
+				smmu->smrs[idx].mask = 0;
+				smmu->smrs[idx].valid = true;
+			}
+			smmu->s2crs[idx].count++;
+			smmu->s2crs[idx].type = S2CR_TYPE_BYPASS;
+			smmu->s2crs[idx].privcfg = S2CR_PRIVCFG_DEFAULT;
+
+			cnt++;
+		}
+	}
+
+	dev_notice(smmu->dev, "\tpreserved %d boot mapping%s\n", cnt,
+		   cnt == 1 ? "" : "s");
+	iort_put_rmr_sids(dev_fwnode(smmu->dev), &rmr_list);
+}
+
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	resource_size_t ioaddr;
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	int num_irqs, i, err;
@@ -2098,7 +2136,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	smmu->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
-	ioaddr = res->start;
+	smmu->ioaddr = res->start;
+
 	/*
 	 * The resource size should effectively match the value of SMMU_TOP;
 	 * stash that temporarily until we know PAGESIZE to validate it with.
@@ -2178,7 +2217,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	err = iommu_device_sysfs_add(&smmu->iommu, smmu->dev, NULL,
-				     "smmu.%pa", &ioaddr);
+				     "smmu.%pa", &smmu->ioaddr);
 	if (err) {
 		dev_err(dev, "Failed to register iommu in sysfs\n");
 		return err;
@@ -2191,6 +2230,10 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, smmu);
+
+	/* Check for RMRs and install bypass SMRs if any */
+	arm_smmu_rmr_install_bypass_smr(smmu);
+
 	arm_smmu_device_reset(smmu);
 	arm_smmu_test_smr_masks(smmu);
 

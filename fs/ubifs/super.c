@@ -2430,7 +2430,7 @@ static int __init ubifs_init(void)
 	if (!ubifs_inode_slab)
 		return -ENOMEM;
 
-	err = register_shrinker(&ubifs_shrinker_info);
+	err = register_shrinker(&ubifs_shrinker_info, "ubifs-slab");
 	if (err)
 		goto out_slab;
 

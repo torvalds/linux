@@ -17,7 +17,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		U74_0: cpu@0 {
 			compatible = "sifive,u74-mc", "riscv";
 			reg = <0>;
 			d-cache-block-size = <64>;
@@ -42,7 +42,7 @@
 			};
 		};
 
-		cpu@1 {
+		U74_1: cpu@1 {
 			compatible = "sifive,u74-mc", "riscv";
 			reg = <1>;
 			d-cache-block-size = <64>;
@@ -64,6 +64,18 @@
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 				#interrupt-cells = <1>;
+			};
+		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&U74_0>;
+				};
+
+				core1 {
+					cpu = <&U74_1>;
+				};
 			};
 		};
 	};
@@ -118,7 +130,7 @@
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
-			riscv,ndev = <127>;
+			riscv,ndev = <133>;
 		};
 
 		clkgen: clock-controller@11800000 {

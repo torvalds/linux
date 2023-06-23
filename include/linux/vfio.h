@@ -32,6 +32,11 @@ struct vfio_device_set {
 struct vfio_device {
 	struct device *dev;
 	const struct vfio_device_ops *ops;
+	/*
+	 * mig_ops is a static property of the vfio_device which must be set
+	 * prior to registering the vfio_device.
+	 */
+	const struct vfio_migration_ops *mig_ops;
 	struct vfio_group *group;
 	struct vfio_device_set *dev_set;
 	struct list_head dev_set_list;
@@ -44,6 +49,7 @@ struct vfio_device {
 	unsigned int open_count;
 	struct completion comp;
 	struct list_head group_next;
+	struct list_head iommu_entry;
 };
 
 /**
@@ -60,17 +66,9 @@ struct vfio_device {
  * @match: Optional device name match callback (return: 0 for no-match, >0 for
  *         match, -errno for abort (ex. match with insufficient or incorrect
  *         additional args)
+ * @dma_unmap: Called when userspace unmaps IOVA from the container
+ *             this device is attached to.
  * @device_feature: Optional, fill in the VFIO_DEVICE_FEATURE ioctl
- * @migration_set_state: Optional callback to change the migration state for
- *         devices that support migration. It's mandatory for
- *         VFIO_DEVICE_FEATURE_MIGRATION migration support.
- *         The returned FD is used for data transfer according to the FSM
- *         definition. The driver is responsible to ensure that FD reaches end
- *         of stream or error whenever the migration FSM leaves a data transfer
- *         state or before close_device() returns.
- * @migration_get_state: Optional callback to get the migration state for
- *         devices that support migration. It's mandatory for
- *         VFIO_DEVICE_FEATURE_MIGRATION migration support.
  */
 struct vfio_device_ops {
 	char	*name;
@@ -85,8 +83,24 @@ struct vfio_device_ops {
 	int	(*mmap)(struct vfio_device *vdev, struct vm_area_struct *vma);
 	void	(*request)(struct vfio_device *vdev, unsigned int count);
 	int	(*match)(struct vfio_device *vdev, char *buf);
+	void	(*dma_unmap)(struct vfio_device *vdev, u64 iova, u64 length);
 	int	(*device_feature)(struct vfio_device *device, u32 flags,
 				  void __user *arg, size_t argsz);
+};
+
+/**
+ * @migration_set_state: Optional callback to change the migration state for
+ *         devices that support migration. It's mandatory for
+ *         VFIO_DEVICE_FEATURE_MIGRATION migration support.
+ *         The returned FD is used for data transfer according to the FSM
+ *         definition. The driver is responsible to ensure that FD reaches end
+ *         of stream or error whenever the migration FSM leaves a data transfer
+ *         state or before close_device() returns.
+ * @migration_get_state: Optional callback to get the migration state for
+ *         devices that support migration. It's mandatory for
+ *         VFIO_DEVICE_FEATURE_MIGRATION migration support.
+ */
+struct vfio_migration_ops {
 	struct file *(*migration_set_state)(
 		struct vfio_device *device,
 		enum vfio_device_mig_state new_state);
@@ -140,36 +154,18 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 /*
  * External user API
  */
-extern struct iommu_group *vfio_file_iommu_group(struct file *file);
-extern bool vfio_file_enforced_coherent(struct file *file);
-extern void vfio_file_set_kvm(struct file *file, struct kvm *kvm);
-extern bool vfio_file_has_dev(struct file *file, struct vfio_device *device);
+struct iommu_group *vfio_file_iommu_group(struct file *file);
+bool vfio_file_enforced_coherent(struct file *file);
+void vfio_file_set_kvm(struct file *file, struct kvm *kvm);
+bool vfio_file_has_dev(struct file *file, struct vfio_device *device);
 
 #define VFIO_PIN_PAGES_MAX_ENTRIES	(PAGE_SIZE/sizeof(unsigned long))
 
-extern int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
-			  int npage, int prot, unsigned long *phys_pfn);
-extern int vfio_unpin_pages(struct vfio_device *device, unsigned long *user_pfn,
-			    int npage);
-extern int vfio_dma_rw(struct vfio_device *device, dma_addr_t user_iova,
-		       void *data, size_t len, bool write);
-
-/* each type has independent events */
-enum vfio_notify_type {
-	VFIO_IOMMU_NOTIFY = 0,
-};
-
-/* events for VFIO_IOMMU_NOTIFY */
-#define VFIO_IOMMU_NOTIFY_DMA_UNMAP	BIT(0)
-
-extern int vfio_register_notifier(struct vfio_device *device,
-				  enum vfio_notify_type type,
-				  unsigned long *required_events,
-				  struct notifier_block *nb);
-extern int vfio_unregister_notifier(struct vfio_device *device,
-				    enum vfio_notify_type type,
-				    struct notifier_block *nb);
-
+int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
+		   int npage, int prot, struct page **pages);
+void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova, int npage);
+int vfio_dma_rw(struct vfio_device *device, dma_addr_t iova,
+		void *data, size_t len, bool write);
 
 /*
  * Sub-module helpers
@@ -178,25 +174,24 @@ struct vfio_info_cap {
 	struct vfio_info_cap_header *buf;
 	size_t size;
 };
-extern struct vfio_info_cap_header *vfio_info_cap_add(
-		struct vfio_info_cap *caps, size_t size, u16 id, u16 version);
-extern void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset);
+struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
+					       size_t size, u16 id,
+					       u16 version);
+void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset);
 
-extern int vfio_info_add_capability(struct vfio_info_cap *caps,
-				    struct vfio_info_cap_header *cap,
-				    size_t size);
+int vfio_info_add_capability(struct vfio_info_cap *caps,
+			     struct vfio_info_cap_header *cap, size_t size);
 
-extern int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr,
-					      int num_irqs, int max_irq_type,
-					      size_t *data_size);
+int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr,
+				       int num_irqs, int max_irq_type,
+				       size_t *data_size);
 
 struct pci_dev;
 #if IS_ENABLED(CONFIG_VFIO_SPAPR_EEH)
-extern void vfio_spapr_pci_eeh_open(struct pci_dev *pdev);
-extern void vfio_spapr_pci_eeh_release(struct pci_dev *pdev);
-extern long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
-				       unsigned int cmd,
-				       unsigned long arg);
+void vfio_spapr_pci_eeh_open(struct pci_dev *pdev);
+void vfio_spapr_pci_eeh_release(struct pci_dev *pdev);
+long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group, unsigned int cmd,
+				unsigned long arg);
 #else
 static inline void vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
 {
@@ -230,10 +225,9 @@ struct virqfd {
 	struct virqfd		**pvirqfd;
 };
 
-extern int vfio_virqfd_enable(void *opaque,
-			      int (*handler)(void *, void *),
-			      void (*thread)(void *, void *),
-			      void *data, struct virqfd **pvirqfd, int fd);
-extern void vfio_virqfd_disable(struct virqfd **pvirqfd);
+int vfio_virqfd_enable(void *opaque, int (*handler)(void *, void *),
+		       void (*thread)(void *, void *), void *data,
+		       struct virqfd **pvirqfd, int fd);
+void vfio_virqfd_disable(struct virqfd **pvirqfd);
 
 #endif /* VFIO_H */

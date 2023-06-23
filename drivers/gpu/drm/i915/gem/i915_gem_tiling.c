@@ -114,7 +114,7 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 	return i915_gem_fence_size(i915, size, tiling, stride);
 }
 
-/* Check pitch constriants for all chips & tiling formats */
+/* Check pitch constraints for all chips & tiling formats */
 static bool
 i915_tiling_ok(struct drm_i915_gem_object *obj,
 	       unsigned int tiling, unsigned int stride)

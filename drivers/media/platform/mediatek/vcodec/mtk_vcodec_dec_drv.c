@@ -208,8 +208,11 @@ static int fops_vcodec_open(struct file *file)
 
 		dev->dec_capability =
 			mtk_vcodec_fw_get_vdec_capa(dev->fw_handler);
+
 		mtk_v4l2_debug(0, "decoder capability %x", dev->dec_capability);
 	}
+
+	ctx->dev->vdec_pdata->init_vdec_params(ctx);
 
 	list_add(&ctx->list, &dev->ctx_list);
 
@@ -386,7 +389,13 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 			mtk_v4l2_err("Main device of_platform_populate failed.");
 			goto err_reg_cont;
 		}
+	} else {
+		set_bit(MTK_VDEC_CORE, dev->subdev_bitmap);
 	}
+
+	atomic_set(&dev->dec_active_cnt, 0);
+	memset(dev->vdec_racing_info, 0, sizeof(dev->vdec_racing_info));
+	mutex_init(&dev->dec_racing_info_mutex);
 
 	ret = video_register_device(vfd_dec, VFL_TYPE_VIDEO, -1);
 	if (ret) {
@@ -464,6 +473,10 @@ static const struct of_device_id mtk_vcodec_match[] = {
 	{
 		.compatible = "mediatek,mt8186-vcodec-dec",
 		.data = &mtk_vdec_single_core_pdata,
+	},
+	{
+		.compatible = "mediatek,mt8195-vcodec-dec",
+		.data = &mtk_lat_sig_core_pdata,
 	},
 	{},
 };

@@ -5238,9 +5238,10 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 		return 0;
 	}
 
-	lockdep_init_map_waits(lock, name, key, 0,
-			       lock->wait_type_inner,
-			       lock->wait_type_outer);
+	lockdep_init_map_type(lock, name, key, 0,
+			      lock->wait_type_inner,
+			      lock->wait_type_outer,
+			      lock->lock_type);
 	class = register_lock_class(lock, subclass, 0);
 	hlock->class_idx = class - lock_classes;
 
@@ -6570,7 +6571,7 @@ void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 
 	/*
 	 * If a CPU is in the RCU-free window in idle (ie: in the section
-	 * between rcu_idle_enter() and rcu_idle_exit(), then RCU
+	 * between ct_idle_enter() and ct_idle_exit(), then RCU
 	 * considers that CPU to be in an "extended quiescent state",
 	 * which means that RCU will be completely ignoring that CPU.
 	 * Therefore, rcu_read_lock() and friends have absolutely no

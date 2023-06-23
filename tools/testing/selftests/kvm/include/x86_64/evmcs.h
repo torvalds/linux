@@ -241,7 +241,7 @@ struct hv_enlightened_vmcs {
 extern struct hv_enlightened_vmcs *current_evmcs;
 extern struct hv_vp_assist_page *current_vp_assist;
 
-int vcpu_enable_evmcs(struct kvm_vm *vm, int vcpu_id);
+int vcpu_enable_evmcs(struct kvm_vcpu *vcpu);
 
 static inline int enable_vp_assist(uint64_t vp_assist_pa, void *vp_assist)
 {

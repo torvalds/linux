@@ -8,7 +8,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/vmalloc.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
@@ -23,6 +22,65 @@
 int mgag200_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, mgag200_modeset, int, 0400);
+
+int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2)
+{
+	struct device *dev = &pdev->dev;
+	int err;
+
+	err = pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
+	if (err != PCIBIOS_SUCCESSFUL) {
+		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
+		return pcibios_err_to_errno(err);
+	}
+
+	err = pci_write_config_dword(pdev, PCI_MGA_OPTION2, option2);
+	if (err != PCIBIOS_SUCCESSFUL) {
+		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION2) failed: %d\n", err);
+		return pcibios_err_to_errno(err);
+	}
+
+	return 0;
+}
+
+resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size)
+{
+	int offset;
+	int orig;
+	int test1, test2;
+	int orig1, orig2;
+	size_t vram_size;
+
+	/* Probe */
+	orig = ioread16(mem);
+	iowrite16(0, mem);
+
+	vram_size = size;
+
+	for (offset = 0x100000; offset < vram_size; offset += 0x4000) {
+		orig1 = ioread8(mem + offset);
+		orig2 = ioread8(mem + offset + 0x100);
+
+		iowrite16(0xaa55, mem + offset);
+		iowrite16(0xaa55, mem + offset + 0x100);
+
+		test1 = ioread16(mem + offset);
+		test2 = ioread16(mem);
+
+		iowrite16(orig1, mem + offset);
+		iowrite16(orig2, mem + offset + 0x100);
+
+		if (test1 != 0xaa55)
+			break;
+
+		if (test2)
+			break;
+	}
+
+	iowrite16(orig, mem);
+
+	return offset - 65536;
+}
 
 /*
  * DRM driver
@@ -46,263 +104,87 @@ static const struct drm_driver mgag200_driver = {
  * DRM device
  */
 
-static bool mgag200_has_sgram(struct mga_device *mdev)
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev)
 {
-	struct drm_device *dev = &mdev->base;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	u32 option;
-	int ret;
-
-	ret = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
-	if (drm_WARN(dev, ret, "failed to read PCI config dword: %d\n", ret))
-		return false;
-
-	return !!(option & PCI_MGA_OPTION_HARDPWMSK);
+	return mgag200_probe_vram(mdev->vram, resource_size(mdev->vram_res));
 }
 
-static int mgag200_regs_init(struct mga_device *mdev)
+int mgag200_device_preinit(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	u32 option, option2;
-	u8 crtcext3;
+	resource_size_t start, len;
+	struct resource *res;
+
+	/* BAR 1 contains registers */
+
+	start = pci_resource_start(pdev, 1);
+	len = pci_resource_len(pdev, 1);
+
+	res = devm_request_mem_region(dev->dev, start, len, "mgadrmfb_mmio");
+	if (!res) {
+		drm_err(dev, "devm_request_mem_region(MMIO) failed\n");
+		return -ENXIO;
+	}
+	mdev->rmmio_res = res;
+
+	mdev->rmmio = pcim_iomap(pdev, 1, 0);
+	if (!mdev->rmmio)
+		return -ENOMEM;
+
+	/* BAR 0 is VRAM */
+
+	start = pci_resource_start(pdev, 0);
+	len = pci_resource_len(pdev, 0);
+
+	res = devm_request_mem_region(dev->dev, start, len, "mgadrmfb_vram");
+	if (!res) {
+		drm_err(dev, "devm_request_mem_region(VRAM) failed\n");
+		return -ENXIO;
+	}
+	mdev->vram_res = res;
+
+	/* Don't fail on errors, but performance might be reduced. */
+	devm_arch_io_reserve_memtype_wc(dev->dev, res->start, resource_size(res));
+	devm_arch_phys_wc_add(dev->dev, res->start, resource_size(res));
+
+	mdev->vram = devm_ioremap(dev->dev, res->start, resource_size(res));
+	if (!mdev->vram)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type,
+			const struct mgag200_device_info *info)
+{
+	struct drm_device *dev = &mdev->base;
+	u8 crtcext3, misc;
 	int ret;
+
+	mdev->info = info;
+	mdev->type = type;
 
 	ret = drmm_mutex_init(dev, &mdev->rmmio_lock);
 	if (ret)
 		return ret;
 
-	switch (mdev->type) {
-	case G200_PCI:
-	case G200_AGP:
-		if (mgag200_has_sgram(mdev))
-			option = 0x4049cd21;
-		else
-			option = 0x40499121;
-		option2 = 0x00008000;
-		break;
-	case G200_SE_A:
-	case G200_SE_B:
-		option = 0x40049120;
-		if (mgag200_has_sgram(mdev))
-			option |= PCI_MGA_OPTION_HARDPWMSK;
-		option2 = 0x00008000;
-		break;
-	case G200_WB:
-	case G200_EW3:
-		option = 0x41049120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EV:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EH:
-	case G200_EH3:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	default:
-		option = 0;
-		option2 = 0;
-	}
-
-	if (option)
-		pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
-	if (option2)
-		pci_write_config_dword(pdev, PCI_MGA_OPTION2, option2);
-
-	/* BAR 1 contains registers */
-	mdev->rmmio_base = pci_resource_start(pdev, 1);
-	mdev->rmmio_size = pci_resource_len(pdev, 1);
-
-	if (!devm_request_mem_region(dev->dev, mdev->rmmio_base,
-				     mdev->rmmio_size, "mgadrmfb_mmio")) {
-		drm_err(dev, "can't reserve mmio registers\n");
-		return -ENOMEM;
-	}
-
-	mdev->rmmio = pcim_iomap(pdev, 1, 0);
-	if (mdev->rmmio == NULL)
-		return -ENOMEM;
+	mutex_lock(&mdev->rmmio_lock);
 
 	RREG_ECRT(0x03, crtcext3);
 	crtcext3 |= MGAREG_CRTCEXT3_MGAMODE;
 	WREG_ECRT(0x03, crtcext3);
 
+	WREG_ECRT(0x04, 0x00);
+
+	misc = RREG8(MGA_MISC_IN);
+	misc |= MGAREG_MISC_RAMMAPEN |
+		MGAREG_MISC_HIGH_PG_SEL;
+	WREG8(MGA_MISC_OUT, misc);
+
+	mutex_unlock(&mdev->rmmio_lock);
+
 	return 0;
-}
-
-static void mgag200_g200_interpret_bios(struct mga_device *mdev,
-					const unsigned char *bios,
-					size_t size)
-{
-	static const char matrox[] = {'M', 'A', 'T', 'R', 'O', 'X'};
-	static const unsigned int expected_length[6] = {
-		0, 64, 64, 64, 128, 128
-	};
-	struct drm_device *dev = &mdev->base;
-	const unsigned char *pins;
-	unsigned int pins_len, version;
-	int offset;
-	int tmp;
-
-	/* Test for MATROX string. */
-	if (size < 45 + sizeof(matrox))
-		return;
-	if (memcmp(&bios[45], matrox, sizeof(matrox)) != 0)
-		return;
-
-	/* Get the PInS offset. */
-	if (size < MGA_BIOS_OFFSET + 2)
-		return;
-	offset = (bios[MGA_BIOS_OFFSET + 1] << 8) | bios[MGA_BIOS_OFFSET];
-
-	/* Get PInS data structure. */
-
-	if (size < offset + 6)
-		return;
-	pins = bios + offset;
-	if (pins[0] == 0x2e && pins[1] == 0x41) {
-		version = pins[5];
-		pins_len = pins[2];
-	} else {
-		version = 1;
-		pins_len = pins[0] + (pins[1] << 8);
-	}
-
-	if (version < 1 || version > 5) {
-		drm_warn(dev, "Unknown BIOS PInS version: %d\n", version);
-		return;
-	}
-	if (pins_len != expected_length[version]) {
-		drm_warn(dev, "Unexpected BIOS PInS size: %d expected: %d\n",
-			 pins_len, expected_length[version]);
-		return;
-	}
-	if (size < offset + pins_len)
-		return;
-
-	drm_dbg_kms(dev, "MATROX BIOS PInS version %d size: %d found\n",
-		    version, pins_len);
-
-	/* Extract the clock values */
-
-	switch (version) {
-	case 1:
-		tmp = pins[24] + (pins[25] << 8);
-		if (tmp)
-			mdev->model.g200.pclk_max = tmp * 10;
-		break;
-	case 2:
-		if (pins[41] != 0xff)
-			mdev->model.g200.pclk_max = (pins[41] + 100) * 1000;
-		break;
-	case 3:
-		if (pins[36] != 0xff)
-			mdev->model.g200.pclk_max = (pins[36] + 100) * 1000;
-		if (pins[52] & 0x20)
-			mdev->model.g200.ref_clk = 14318;
-		break;
-	case 4:
-		if (pins[39] != 0xff)
-			mdev->model.g200.pclk_max = pins[39] * 4 * 1000;
-		if (pins[92] & 0x01)
-			mdev->model.g200.ref_clk = 14318;
-		break;
-	case 5:
-		tmp = pins[4] ? 8000 : 6000;
-		if (pins[123] != 0xff)
-			mdev->model.g200.pclk_min = pins[123] * tmp;
-		if (pins[38] != 0xff)
-			mdev->model.g200.pclk_max = pins[38] * tmp;
-		if (pins[110] & 0x01)
-			mdev->model.g200.ref_clk = 14318;
-		break;
-	default:
-		break;
-	}
-}
-
-static void mgag200_g200_init_refclk(struct mga_device *mdev)
-{
-	struct drm_device *dev = &mdev->base;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	unsigned char __iomem *rom;
-	unsigned char *bios;
-	size_t size;
-
-	mdev->model.g200.pclk_min = 50000;
-	mdev->model.g200.pclk_max = 230000;
-	mdev->model.g200.ref_clk = 27050;
-
-	rom = pci_map_rom(pdev, &size);
-	if (!rom)
-		return;
-
-	bios = vmalloc(size);
-	if (!bios)
-		goto out;
-	memcpy_fromio(bios, rom, size);
-
-	if (size != 0 && bios[0] == 0x55 && bios[1] == 0xaa)
-		mgag200_g200_interpret_bios(mdev, bios, size);
-
-	drm_dbg_kms(dev, "pclk_min: %ld pclk_max: %ld ref_clk: %ld\n",
-		    mdev->model.g200.pclk_min, mdev->model.g200.pclk_max,
-		    mdev->model.g200.ref_clk);
-
-	vfree(bios);
-out:
-	pci_unmap_rom(pdev, rom);
-}
-
-static void mgag200_g200se_init_unique_id(struct mga_device *mdev)
-{
-	struct drm_device *dev = &mdev->base;
-
-	/* stash G200 SE model number for later use */
-	mdev->model.g200se.unique_rev_id = RREG32(0x1e24);
-
-	drm_dbg(dev, "G200 SE unique revision id is 0x%x\n",
-		mdev->model.g200se.unique_rev_id);
-}
-
-static struct mga_device *
-mgag200_device_create(struct pci_dev *pdev, enum mga_type type, unsigned long flags)
-{
-	struct mga_device *mdev;
-	struct drm_device *dev;
-	int ret;
-
-	mdev = devm_drm_dev_alloc(&pdev->dev, &mgag200_driver, struct mga_device, base);
-	if (IS_ERR(mdev))
-		return mdev;
-	dev = &mdev->base;
-
-	pci_set_drvdata(pdev, dev);
-
-	mdev->flags = flags;
-	mdev->type = type;
-
-	ret = mgag200_regs_init(mdev);
-	if (ret)
-		return ERR_PTR(ret);
-
-	if (mdev->type == G200_PCI || mdev->type == G200_AGP)
-		mgag200_g200_init_refclk(mdev);
-	else if (IS_G200_SE(mdev))
-		mgag200_g200se_init_unique_id(mdev);
-
-	ret = mgag200_mm_init(mdev);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ret = mgag200_modeset_init(mdev);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return mdev;
 }
 
 /*
@@ -312,8 +194,7 @@ mgag200_device_create(struct pci_dev *pdev, enum mga_type type, unsigned long fl
 static const struct pci_device_id mgag200_pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_PCI },
 	{ PCI_VENDOR_ID_MATROX, 0x521, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_AGP },
-	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		G200_SE_A | MGAG200_FLAG_HW_BUG_NO_STARTADD},
+	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_A },
 	{ PCI_VENDOR_ID_MATROX, 0x524, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_B },
 	{ PCI_VENDOR_ID_MATROX, 0x530, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EV },
 	{ PCI_VENDOR_ID_MATROX, 0x532, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_WB },
@@ -326,22 +207,10 @@ static const struct pci_device_id mgag200_pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, mgag200_pciidlist);
 
-static enum mga_type mgag200_type_from_driver_data(kernel_ulong_t driver_data)
-{
-	return (enum mga_type)(driver_data & MGAG200_TYPE_MASK);
-}
-
-static unsigned long mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
-{
-	return driver_data & MGAG200_FLAG_MASK;
-}
-
 static int
 mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	kernel_ulong_t driver_data = ent->driver_data;
-	enum mga_type type = mgag200_type_from_driver_data(driver_data);
-	unsigned long flags = mgag200_flags_from_driver_data(driver_data);
+	enum mga_type type = (enum mga_type)ent->driver_data;
 	struct mga_device *mdev;
 	struct drm_device *dev;
 	int ret;
@@ -354,7 +223,37 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	mdev = mgag200_device_create(pdev, type, flags);
+	switch (type) {
+	case G200_PCI:
+	case G200_AGP:
+		mdev = mgag200_g200_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_SE_A:
+	case G200_SE_B:
+		mdev = mgag200_g200se_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_WB:
+		mdev = mgag200_g200wb_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_EV:
+		mdev = mgag200_g200ev_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_EH:
+		mdev = mgag200_g200eh_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_EH3:
+		mdev = mgag200_g200eh3_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_ER:
+		mdev = mgag200_g200er_device_create(pdev, &mgag200_driver, type);
+		break;
+	case G200_EW3:
+		mdev = mgag200_g200ew3_device_create(pdev, &mgag200_driver, type);
+		break;
+	default:
+		dev_err(&pdev->dev, "Device type %d is unsupported\n", type);
+		return -ENODEV;
+	}
 	if (IS_ERR(mdev))
 		return PTR_ERR(mdev);
 	dev = &mdev->base;
@@ -363,7 +262,11 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, 0);
+	/*
+	 * FIXME: A 24-bit color depth does not work with 24 bpp on
+	 * G200ER. Force 32 bpp.
+	 */
+	drm_fbdev_generic_setup(dev, 32);
 
 	return 0;
 }

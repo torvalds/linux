@@ -147,7 +147,8 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, unsigned int s
 	static atomic_t unknown_domains;
 
 	if (WARN_ON((size && direct_max) ||
-		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && direct_max)))
+		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && direct_max) ||
+		    (direct_max && (direct_max != hwirq_max))))
 		return NULL;
 
 	domain = kzalloc_node(struct_size(domain, revmap, size),
@@ -219,7 +220,6 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, unsigned int s
 	domain->hwirq_max = hwirq_max;
 
 	if (direct_max) {
-		size = direct_max;
 		domain->flags |= IRQ_DOMAIN_FLAG_NO_MAP;
 	}
 
@@ -650,9 +650,9 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 		pr_debug("create_direct virq allocation failed\n");
 		return 0;
 	}
-	if (virq >= domain->revmap_size) {
-		pr_err("ERROR: no free irqs available below %i maximum\n",
-			domain->revmap_size);
+	if (virq >= domain->hwirq_max) {
+		pr_err("ERROR: no free irqs available below %lu maximum\n",
+			domain->hwirq_max);
 		irq_free_desc(virq);
 		return 0;
 	}
@@ -906,10 +906,12 @@ struct irq_desc *__irq_resolve_mapping(struct irq_domain *domain,
 		return desc;
 
 	if (irq_domain_is_nomap(domain)) {
-		if (hwirq < domain->revmap_size) {
+		if (hwirq < domain->hwirq_max) {
 			data = irq_domain_get_irq_data(domain, hwirq);
 			if (data && data->hwirq == hwirq)
 				desc = irq_data_to_desc(data);
+			if (irq && desc)
+				*irq = hwirq;
 		}
 
 		return desc;

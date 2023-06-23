@@ -63,7 +63,7 @@ static unsigned int cpm_set(unsigned int cpm_reg, unsigned int mask)
 	 * known as class 1, 2 and 3. For class 1 units, they are
 	 * unconditionally put to sleep when the corresponding CPM bit is
 	 * set. For class 2 and 3 units this is not case; if they can be
-	 * put to to sleep, they will. Here we do not verify, we just
+	 * put to sleep, they will. Here we do not verify, we just
 	 * set them and expect them to eventually go off when they can.
 	 */
 	value = dcr_read(cpm.dcr_host, cpm.dcr_offset[cpm_reg]);

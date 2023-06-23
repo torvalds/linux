@@ -5,9 +5,10 @@
  * Copyright (C) 2018, Google LLC.
  */
 
+#include <asm/msr-index.h>
+
 #include "test_util.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 #include "vmx.h"
 
@@ -43,16 +44,12 @@ struct eptPageTablePointer {
 	uint64_t address:40;
 	uint64_t reserved_63_52:12;
 };
-int vcpu_enable_evmcs(struct kvm_vm *vm, int vcpu_id)
+int vcpu_enable_evmcs(struct kvm_vcpu *vcpu)
 {
 	uint16_t evmcs_ver;
 
-	struct kvm_enable_cap enable_evmcs_cap = {
-		.cap = KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
-		 .args[0] = (unsigned long)&evmcs_ver
-	};
-
-	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_evmcs_cap);
+	vcpu_enable_cap(vcpu, KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
+			(unsigned long)&evmcs_ver);
 
 	/* KVM should return supported EVMCS version range */
 	TEST_ASSERT(((evmcs_ver >> 8) >= (evmcs_ver & 0xff)) &&
@@ -387,21 +384,6 @@ void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 	init_vmcs_guest_state(guest_rip, guest_rsp);
 }
 
-bool nested_vmx_supported(void)
-{
-	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
-
-	return entry->ecx & CPUID_VMX;
-}
-
-void nested_vmx_check_supported(void)
-{
-	if (!nested_vmx_supported()) {
-		print_skip("nested VMX not enabled");
-		exit(KSFT_SKIP);
-	}
-}
-
 static void nested_create_pte(struct kvm_vm *vm,
 			      struct eptPageTableEntry *pte,
 			      uint64_t nested_paddr,
@@ -562,9 +544,27 @@ void nested_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
 	__nested_map(vmx, vm, addr, addr, size, PG_LEVEL_1G);
 }
 
+bool kvm_vm_has_ept(struct kvm_vm *vm)
+{
+	struct kvm_vcpu *vcpu;
+	uint64_t ctrl;
+
+	vcpu = list_first_entry(&vm->vcpus, struct kvm_vcpu, list);
+	TEST_ASSERT(vcpu, "Cannot determine EPT support without vCPUs.\n");
+
+	ctrl = vcpu_get_msr(vcpu, MSR_IA32_VMX_TRUE_PROCBASED_CTLS) >> 32;
+	if (!(ctrl & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
+		return false;
+
+	ctrl = vcpu_get_msr(vcpu, MSR_IA32_VMX_PROCBASED_CTLS2) >> 32;
+	return ctrl & SECONDARY_EXEC_ENABLE_EPT;
+}
+
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot)
 {
+	TEST_REQUIRE(kvm_vm_has_ept(vm));
+
 	vmx->eptp = (void *)vm_vaddr_alloc_page(vm);
 	vmx->eptp_hva = addr_gva2hva(vm, (uintptr_t)vmx->eptp);
 	vmx->eptp_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->eptp);

@@ -1909,24 +1909,14 @@ pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 
 #include <asm/pci.h>
 
-/* These two functions provide almost identical functionality. Depending
- * on the architecture, one will be implemented as a wrapper around the
- * other (in drivers/pci/mmap.c).
- *
+/*
  * pci_mmap_resource_range() maps a specific BAR, and vm->vm_pgoff
  * is expected to be an offset within that region.
  *
- * pci_mmap_page_range() is the legacy architecture-specific interface,
- * which accepts a "user visible" resource address converted by
- * pci_resource_to_user(), as used in the legacy mmap() interface in
- * /proc/bus/pci/.
  */
 int pci_mmap_resource_range(struct pci_dev *dev, int bar,
 			    struct vm_area_struct *vma,
 			    enum pci_mmap_state mmap_state, int write_combine);
-int pci_mmap_page_range(struct pci_dev *pdev, int bar,
-			struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine);
 
 #ifndef arch_can_pci_mmap_wc
 #define arch_can_pci_mmap_wc()		0

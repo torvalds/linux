@@ -6,9 +6,6 @@
 #define ASMARM_DEVICE_H
 
 struct dev_archdata {
-#ifdef CONFIG_DMABOUNCE
-	struct dmabounce_device_info *dmabounce;
-#endif
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping	*mapping;
 #endif

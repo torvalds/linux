@@ -260,10 +260,29 @@ struct rlc_firmware_header_v2_2 {
 /* version_major=2, version_minor=3 */
 struct rlc_firmware_header_v2_3 {
     struct rlc_firmware_header_v2_2 v2_2;
+    uint32_t rlcp_ucode_version;
+    uint32_t rlcp_ucode_feature_version;
     uint32_t rlcp_ucode_size_bytes;
     uint32_t rlcp_ucode_offset_bytes;
+    uint32_t rlcv_ucode_version;
+    uint32_t rlcv_ucode_feature_version;
     uint32_t rlcv_ucode_size_bytes;
     uint32_t rlcv_ucode_offset_bytes;
+};
+
+/* version_major=2, version_minor=4 */
+struct rlc_firmware_header_v2_4 {
+    struct rlc_firmware_header_v2_3 v2_3;
+    uint32_t global_tap_delays_ucode_size_bytes;
+    uint32_t global_tap_delays_ucode_offset_bytes;
+    uint32_t se0_tap_delays_ucode_size_bytes;
+    uint32_t se0_tap_delays_ucode_offset_bytes;
+    uint32_t se1_tap_delays_ucode_size_bytes;
+    uint32_t se1_tap_delays_ucode_offset_bytes;
+    uint32_t se2_tap_delays_ucode_size_bytes;
+    uint32_t se2_tap_delays_ucode_offset_bytes;
+    uint32_t se3_tap_delays_ucode_size_bytes;
+    uint32_t se3_tap_delays_ucode_offset_bytes;
 };
 
 /* version_major=1, version_minor=0 */
@@ -375,6 +394,7 @@ union amdgpu_firmware_header {
 	struct rlc_firmware_header_v2_1 rlc_v2_1;
 	struct rlc_firmware_header_v2_2 rlc_v2_2;
 	struct rlc_firmware_header_v2_3 rlc_v2_3;
+	struct rlc_firmware_header_v2_4 rlc_v2_4;
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct sdma_firmware_header_v2_0 sdma_v2_0;
@@ -426,6 +446,11 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_CP_MES1_DATA,
 	AMDGPU_UCODE_ID_IMU_I,
 	AMDGPU_UCODE_ID_IMU_D,
+	AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS,
+	AMDGPU_UCODE_ID_SE0_TAP_DELAYS,
+	AMDGPU_UCODE_ID_SE1_TAP_DELAYS,
+	AMDGPU_UCODE_ID_SE2_TAP_DELAYS,
+	AMDGPU_UCODE_ID_SE3_TAP_DELAYS,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM,

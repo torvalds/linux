@@ -57,8 +57,11 @@ void mt76x02_mac_set_beacon(struct mt76x02_dev *dev,
 	int bcn_len = dev->beacon_ops->slot_size;
 	int bcn_addr = MT_BEACON_BASE + (bcn_len * dev->beacon_data_count);
 
-	if (!mt76x02_write_beacon(dev, bcn_addr, skb))
+	if (!mt76x02_write_beacon(dev, bcn_addr, skb)) {
+		if (!dev->beacon_data_count)
+			dev->beacon_hang_check++;
 		dev->beacon_data_count++;
+	}
 	dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
@@ -74,6 +77,7 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 	if (!dev->mt76.beacon_mask)
 		dev->tbtt_count = 0;
 
+	dev->beacon_hang_check = 0;
 	if (enable) {
 		dev->mt76.beacon_mask |= BIT(mvif->idx);
 	} else {
@@ -139,7 +143,7 @@ mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!(dev->mt76.beacon_mask & BIT(mvif->idx)))
 		return;
 
-	skb = ieee80211_beacon_get(mt76_hw(dev), vif);
+	skb = ieee80211_beacon_get(mt76_hw(dev), vif, 0);
 	if (!skb)
 		return;
 

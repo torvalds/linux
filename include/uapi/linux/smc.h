@@ -124,6 +124,7 @@ enum {
 	SMC_NLA_LGR_R_V2,		/* nest */
 	SMC_NLA_LGR_R_NET_COOKIE,	/* u64 */
 	SMC_NLA_LGR_R_PAD,		/* flag */
+	SMC_NLA_LGR_R_BUF_TYPE,		/* u8 */
 	__SMC_NLA_LGR_R_MAX,
 	SMC_NLA_LGR_R_MAX = __SMC_NLA_LGR_R_MAX - 1
 };

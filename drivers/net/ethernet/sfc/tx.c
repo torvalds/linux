@@ -512,7 +512,7 @@ unlock:
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
 	unsigned index, type;
 
@@ -549,7 +549,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 		 * previous packets out.
 		 */
 		if (!netdev_xmit_more())
-			efx_tx_send_pending(tx_queue->channel);
+			efx_tx_send_pending(efx_get_tx_channel(efx, index));
 		return NETDEV_TX_OK;
 	}
 
@@ -559,6 +559,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 {
 	unsigned int pkts_compl = 0, bytes_compl = 0;
+	unsigned int efv_pkts_compl = 0;
 	unsigned int read_ptr;
 	bool finished = false;
 
@@ -580,7 +581,8 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 		/* Need to check the flag before dequeueing. */
 		if (buffer->flags & EFX_TX_BUF_SKB)
 			finished = true;
-		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl,
+				   &efv_pkts_compl);
 
 		++tx_queue->read_count;
 		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
@@ -589,7 +591,7 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 	tx_queue->pkts_compl += pkts_compl;
 	tx_queue->bytes_compl += bytes_compl;
 
-	EFX_WARN_ON_PARANOID(pkts_compl != 1);
+	EFX_WARN_ON_PARANOID(pkts_compl + efv_pkts_compl != 1);
 
 	efx_xmit_done_check_empty(tx_queue);
 }
@@ -609,7 +611,7 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		 void *type_data)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct tc_mqprio_qopt *mqprio = type_data;
 	unsigned tc, num_tc;
 

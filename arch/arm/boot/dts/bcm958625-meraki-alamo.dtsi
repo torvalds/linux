@@ -13,7 +13,7 @@
 		autorepeat;
 		poll-interval = <20>;
 
-		reset {
+		button-reset {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpioa 8 GPIO_ACTIVE_LOW>;

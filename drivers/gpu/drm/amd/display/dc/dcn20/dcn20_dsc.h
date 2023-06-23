@@ -445,7 +445,6 @@
 	type DSCRM_DSC_FORWARD_EN; \
 	type DSCRM_DSC_OPP_PIPE_SOURCE
 
-
 struct dcn20_dsc_registers {
 	uint32_t DSC_TOP_CONTROL;
 	uint32_t DSC_DEBUG_CONTROL;

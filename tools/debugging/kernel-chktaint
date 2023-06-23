@@ -187,12 +187,21 @@ else
 	echo " * auxiliary taint, defined for and used by distros (#16)"
 
 fi
+
 T=`expr $T / 2`
 if [ `expr $T % 2` -eq 0 ]; then
 	addout " "
 else
 	addout "T"
 	echo " * kernel was built with the struct randomization plugin (#17)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "N"
+	echo " * an in-kernel test (such as a KUnit test) has been run (#18)"
 fi
 
 echo "For a more detailed explanation of the various taint flags see"

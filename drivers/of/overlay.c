@@ -903,12 +903,6 @@ static int of_overlay_apply(struct overlay_changeset *ovcs)
 {
 	int ret = 0, ret_revert, ret_tmp;
 
-	if (devicetree_corrupt()) {
-		pr_err("devicetree state suspect, refuse to apply overlay\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
 	ret = of_resolve_phandles(ovcs->overlay_root);
 	if (ret)
 		goto out;
@@ -983,6 +977,11 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 
 	*ret_ovcs_id = 0;
 
+	if (devicetree_corrupt()) {
+		pr_err("devicetree state suspect, refuse to apply overlay\n");
+		return -EBUSY;
+	}
+
 	if (overlay_fdt_size < sizeof(struct fdt_header) ||
 	    fdt_check_header(overlay_fdt)) {
 		pr_err("Invalid overlay_fdt header\n");
@@ -1044,20 +1043,15 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	 * goto err_free_ovcs.  Instead, the caller of of_overlay_fdt_apply()
 	 * can call of_overlay_remove();
 	 */
-
-	mutex_unlock(&of_mutex);
-	of_overlay_mutex_unlock();
-
 	*ret_ovcs_id = ovcs->id;
-
-	return ret;
+	goto out_unlock;
 
 err_free_ovcs:
 	free_overlay_changeset(ovcs);
 
+out_unlock:
 	mutex_unlock(&of_mutex);
 	of_overlay_mutex_unlock();
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(of_overlay_fdt_apply);

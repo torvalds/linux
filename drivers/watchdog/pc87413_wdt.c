@@ -442,7 +442,7 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-/* -- Notifier funtions -----------------------------------------*/
+/* -- Notifier functions -----------------------------------------*/
 
 /**
  *	pc87413_notify_sys:

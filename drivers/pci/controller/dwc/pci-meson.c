@@ -370,7 +370,7 @@ static int meson_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static int meson_pcie_host_init(struct pcie_port *pp)
+static int meson_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct meson_pcie *mp = to_meson_pcie(pci);

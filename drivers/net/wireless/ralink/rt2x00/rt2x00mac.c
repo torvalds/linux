@@ -325,7 +325,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	rt2x00queue_stop_queue(rt2x00dev->rx);
 
-	/* Do not race with with link tuner. */
+	/* Do not race with link tuner. */
 	mutex_lock(&rt2x00dev->conf_mutex);
 
 	/*
@@ -574,7 +574,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_get_stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,
-				u32 changes)
+				u64 changes)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
@@ -645,7 +645,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (changes & BSS_CHANGED_ASSOC) {
 		rt2x00dev->link.count = 0;
 
-		if (bss_conf->assoc)
+		if (vif->cfg.assoc)
 			rt2x00dev->intf_associated++;
 		else
 			rt2x00dev->intf_associated--;
@@ -665,7 +665,8 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
-		      struct ieee80211_vif *vif, u16 queue_idx,
+		      struct ieee80211_vif *vif,
+		      unsigned int link_id, u16 queue_idx,
 		      const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;

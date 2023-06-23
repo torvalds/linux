@@ -873,7 +873,7 @@ mpt3sas_base_stop_watchdog(struct MPT3SAS_ADAPTER *ioc)
  * @fault_code: fault code
  */
 void
-mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc , u16 fault_code)
+mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc, u16 fault_code)
 {
 	ioc_err(ioc, "fault_state(0x%04x)!\n", fault_code);
 }
@@ -1057,7 +1057,7 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 		desc = "config no defaults";
 		break;
 	case MPI2_IOCSTATUS_CONFIG_CANT_COMMIT:
-		desc = "config cant commit";
+		desc = "config can't commit";
 		break;
 
 /****************************************************************************
@@ -1321,7 +1321,7 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
  * @log_info: log info
  */
 static void
-_base_sas_log_info(struct MPT3SAS_ADAPTER *ioc , u32 log_info)
+_base_sas_log_info(struct MPT3SAS_ADAPTER *ioc, u32 log_info)
 {
 	union loginfo_type {
 		u32	loginfo;
@@ -1393,7 +1393,7 @@ _base_display_reply_info(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	if ((ioc_status & MPI2_IOCSTATUS_MASK) &&
 	    (ioc->logging_level & MPT_DEBUG_REPLY)) {
-		_base_sas_ioc_info(ioc , mpi_reply,
+		_base_sas_ioc_info(ioc, mpi_reply,
 		   mpt3sas_base_get_msg_frame(ioc, smid));
 	}
 
@@ -2993,7 +2993,7 @@ _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 
 	if (ioc->is_mcpu_endpoint ||
 	    sizeof(dma_addr_t) == 4 || ioc->use_32bit_dma ||
-	    dma_get_required_mask(&pdev->dev) <= 32)
+	    dma_get_required_mask(&pdev->dev) <= DMA_BIT_MASK(32))
 		ioc->dma_mask = 32;
 	/* Set 63 bit DMA mask for all SAS3 and SAS35 controllers */
 	else if (ioc->hba_mpi_version_belonged > MPI2_VERSION)

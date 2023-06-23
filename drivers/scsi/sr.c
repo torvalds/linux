@@ -624,8 +624,8 @@ static int sr_probe(struct device *dev)
 	if (!cd)
 		goto fail;
 
-	disk = __alloc_disk_node(sdev->request_queue, NUMA_NO_NODE,
-				 &sr_bio_compl_lkclass);
+	disk = blk_mq_alloc_disk_for_queue(sdev->request_queue,
+					   &sr_bio_compl_lkclass);
 	if (!disk)
 		goto fail_free;
 	mutex_init(&cd->lock);

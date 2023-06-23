@@ -85,6 +85,15 @@ config SND_SOC_TEGRA210_I2S
 	  compatible devices.
 	  Say Y or M if you want to add support for Tegra210 I2S module.
 
+config SND_SOC_TEGRA210_OPE
+	tristate "Tegra210 OPE module"
+	help
+	  Config to enable the Output Processing Engine (OPE) which includes
+	  Parametric Equalizer (PEQ) and Multi Band Dynamic Range Compressor
+	  (MBDRC) sub blocks for data processing. It can support up to 8
+	  channels.
+	  Say Y or M if you want to add support for Tegra210 OPE module.
+
 config SND_SOC_TEGRA186_ASRC
 	tristate "Tegra186 ASRC module"
 	help

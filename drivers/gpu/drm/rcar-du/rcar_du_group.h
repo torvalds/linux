@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * rcar_du_group.c  --  R-Car Display Unit Planes and CRTCs Group
+ * R-Car Display Unit Planes and CRTCs Group
  *
  * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *

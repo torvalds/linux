@@ -1136,7 +1136,7 @@ int bmp280_common_probe(struct device *dev,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL(bmp280_common_probe);
+EXPORT_SYMBOL_NS(bmp280_common_probe, IIO_BMP280);
 
 static int bmp280_runtime_suspend(struct device *dev)
 {

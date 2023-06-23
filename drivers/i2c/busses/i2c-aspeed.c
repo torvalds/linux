@@ -1022,7 +1022,7 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	bus->adap.algo = &aspeed_i2c_algo;
 	bus->adap.dev.parent = &pdev->dev;
 	bus->adap.dev.of_node = pdev->dev.of_node;
-	strlcpy(bus->adap.name, pdev->name, sizeof(bus->adap.name));
+	strscpy(bus->adap.name, pdev->name, sizeof(bus->adap.name));
 	i2c_set_adapdata(&bus->adap, bus);
 
 	bus->dev = &pdev->dev;

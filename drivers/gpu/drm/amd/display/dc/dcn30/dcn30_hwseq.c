@@ -48,6 +48,8 @@
 #include "dc_dmub_srv.h"
 #include "link_hwss.h"
 #include "dpcd_defs.h"
+#include "../dcn20/dcn20_hwseq.h"
+#include "dcn30_resource.h"
 #include "inc/dc_link_dp.h"
 #include "inc/link_dpcd.h"
 
@@ -344,17 +346,6 @@ void dcn30_enable_writeback(
 	dwb->funcs->enable(dwb, &wb_info->dwb_params);
 }
 
-void dcn30_prepare_bandwidth(struct dc *dc,
- 	struct dc_state *context)
-{
-	if (dc->clk_mgr->dc_mode_softmax_enabled)
-		if (dc->clk_mgr->clks.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
-				context->bw_ctx.bw.dcn.clk.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
-			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
-
- 	dcn20_prepare_bandwidth(dc, context);
-}
-
 void dcn30_disable_writeback(
 		struct dc *dc,
 		unsigned int dwb_pipe_inst)
@@ -647,6 +638,10 @@ void dcn30_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->init_crb)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
 
+	// Get DMCUB capabilities
+	dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv->dmub);
+	dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
+	dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
 }
 
 void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -944,11 +939,17 @@ bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane, s
 
 void dcn30_hardware_release(struct dc *dc)
 {
-	/* if pstate unsupported, force it supported */
-	if (!dc->clk_mgr->clks.p_state_change_support &&
-			dc->res_pool->hubbub->funcs->force_pstate_change_control)
-		dc->res_pool->hubbub->funcs->force_pstate_change_control(
-				dc->res_pool->hubbub, true, true);
+	dc_dmub_srv_p_state_delegate(dc, false, NULL);
+
+	/* If pstate unsupported, or still supported
+	 * by firmware, force it supported by dcn
+	 */
+	if (dc->current_state)
+		if ((!dc->clk_mgr->clks.p_state_change_support ||
+				dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) &&
+				dc->res_pool->hubbub->funcs->force_pstate_change_control)
+			dc->res_pool->hubbub->funcs->force_pstate_change_control(
+					dc->res_pool->hubbub, true, true);
 }
 
 void dcn30_set_disp_pattern_generator(const struct dc *dc,
@@ -959,35 +960,21 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		const struct tg_color *solid_color,
 		int width, int height, int offset)
 {
-	struct stream_resource *stream_res = &pipe_ctx->stream_res;
-	struct pipe_ctx *mpcc_pipe;
-
-	if (test_pattern != CONTROLLER_DP_TEST_PATTERN_VIDEOMODE) {
-		pipe_ctx->vtp_locked = false;
-		/* turning on DPG */
-		stream_res->opp->funcs->opp_set_disp_pattern_generator(stream_res->opp, test_pattern, color_space,
-				color_depth, solid_color, width, height, offset);
-
-		/* Defer hubp blank if tg is locked */
-		if (stream_res->tg->funcs->is_tg_enabled(stream_res->tg)) {
-			if (stream_res->tg->funcs->is_locked(stream_res->tg))
-				pipe_ctx->vtp_locked = true;
-			else {
-				/* Blank HUBP to allow p-state during blank on all timings */
-				pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, true);
-
-				for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
-					mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
-			}
-		}
-	} else {
-		/* turning off DPG */
-		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, false);
-		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
-			if (mpcc_pipe->plane_res.hubp)
-				mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, false);
-
-		stream_res->opp->funcs->opp_set_disp_pattern_generator(stream_res->opp, test_pattern, color_space,
-				color_depth, solid_color, width, height, offset);
-	}
+	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
+			color_space, color_depth, solid_color, width, height, offset);
 }
+
+void dcn30_prepare_bandwidth(struct dc *dc,
+ 	struct dc_state *context)
+{
+	if (dc->clk_mgr->dc_mode_softmax_enabled)
+		if (dc->clk_mgr->clks.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
+				context->bw_ctx.bw.dcn.clk.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
+			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
+
+	dcn20_prepare_bandwidth(dc, context);
+
+	dc_dmub_srv_p_state_delegate(dc,
+		context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching, context);
+}
+

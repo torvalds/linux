@@ -367,13 +367,24 @@ static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
 					     bool is_kernel)
 {
 	struct build_id bid;
+	struct nsinfo *nsi;
+	struct nscookie nc;
 	int rc;
 
-	if (is_kernel)
+	if (is_kernel) {
 		rc = sysfs__read_build_id("/sys/kernel/notes", &bid);
-	else
-		rc = filename__read_build_id(event->filename, &bid) > 0 ? 0 : -1;
+		goto out;
+	}
 
+	nsi = nsinfo__new(event->pid);
+	nsinfo__mountns_enter(nsi, &nc);
+
+	rc = filename__read_build_id(event->filename, &bid) > 0 ? 0 : -1;
+
+	nsinfo__mountns_exit(&nc);
+	nsinfo__put(nsi);
+
+out:
 	if (rc == 0) {
 		memcpy(event->build_id, bid.data, sizeof(bid.data));
 		event->build_id_size = (u8) bid.size;
@@ -1184,52 +1195,48 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 	return err;
 }
 
-static void synthesize_cpus(struct cpu_map_entries *cpus,
-			    struct perf_cpu_map *map)
+static void synthesize_cpus(struct perf_record_cpu_map_data *data,
+			    const struct perf_cpu_map *map)
 {
 	int i, map_nr = perf_cpu_map__nr(map);
 
-	cpus->nr = map_nr;
+	data->cpus_data.nr = map_nr;
 
 	for (i = 0; i < map_nr; i++)
-		cpus->cpu[i] = perf_cpu_map__cpu(map, i).cpu;
+		data->cpus_data.cpu[i] = perf_cpu_map__cpu(map, i).cpu;
 }
 
-static void synthesize_mask(struct perf_record_record_cpu_map *mask,
-			    struct perf_cpu_map *map, int max)
+static void synthesize_mask(struct perf_record_cpu_map_data *data,
+			    const struct perf_cpu_map *map, int max)
 {
-	int i;
+	int idx;
+	struct perf_cpu cpu;
 
-	mask->nr = BITS_TO_LONGS(max);
-	mask->long_size = sizeof(long);
+	/* Due to padding, the 4bytes per entry mask variant is always smaller. */
+	data->mask32_data.nr = BITS_TO_U32(max);
+	data->mask32_data.long_size = 4;
 
-	for (i = 0; i < perf_cpu_map__nr(map); i++)
-		set_bit(perf_cpu_map__cpu(map, i).cpu, mask->mask);
+	perf_cpu_map__for_each_cpu(cpu, idx, map) {
+		int bit_word = cpu.cpu / 32;
+		__u32 bit_mask = 1U << (cpu.cpu & 31);
+
+		data->mask32_data.mask[bit_word] |= bit_mask;
+	}
 }
 
-static size_t cpus_size(struct perf_cpu_map *map)
+static size_t cpus_size(const struct perf_cpu_map *map)
 {
 	return sizeof(struct cpu_map_entries) + perf_cpu_map__nr(map) * sizeof(u16);
 }
 
-static size_t mask_size(struct perf_cpu_map *map, int *max)
+static size_t mask_size(const struct perf_cpu_map *map, int *max)
 {
-	int i;
-
-	*max = 0;
-
-	for (i = 0; i < perf_cpu_map__nr(map); i++) {
-		/* bit position of the cpu is + 1 */
-		int bit = perf_cpu_map__cpu(map, i).cpu + 1;
-
-		if (bit > *max)
-			*max = bit;
-	}
-
-	return sizeof(struct perf_record_record_cpu_map) + BITS_TO_LONGS(*max) * sizeof(long);
+	*max = perf_cpu_map__max(map).cpu;
+	return sizeof(struct perf_record_mask_cpu_map32) + BITS_TO_U32(*max) * sizeof(__u32);
 }
 
-void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int *max)
+static void *cpu_map_data__alloc(const struct perf_cpu_map *map, size_t *size,
+				 u16 *type, int *max)
 {
 	size_t size_cpus, size_mask;
 	bool is_dummy = perf_cpu_map__empty(map);
@@ -1258,30 +1265,31 @@ void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int
 		*type  = PERF_CPU_MAP__MASK;
 	}
 
-	*size += sizeof(struct perf_record_cpu_map_data);
+	*size += sizeof(__u16); /* For perf_record_cpu_map_data.type. */
 	*size = PERF_ALIGN(*size, sizeof(u64));
 	return zalloc(*size);
 }
 
-void cpu_map_data__synthesize(struct perf_record_cpu_map_data *data, struct perf_cpu_map *map,
-			      u16 type, int max)
+static void cpu_map_data__synthesize(struct perf_record_cpu_map_data *data,
+				     const struct perf_cpu_map *map,
+				     u16 type, int max)
 {
 	data->type = type;
 
 	switch (type) {
 	case PERF_CPU_MAP__CPUS:
-		synthesize_cpus((struct cpu_map_entries *) data->data, map);
+		synthesize_cpus(data, map);
 		break;
 	case PERF_CPU_MAP__MASK:
-		synthesize_mask((struct perf_record_record_cpu_map *)data->data, map, max);
+		synthesize_mask(data, map, max);
 	default:
 		break;
 	}
 }
 
-static struct perf_record_cpu_map *cpu_map_event__new(struct perf_cpu_map *map)
+static struct perf_record_cpu_map *cpu_map_event__new(const struct perf_cpu_map *map)
 {
-	size_t size = sizeof(struct perf_record_cpu_map);
+	size_t size = sizeof(struct perf_event_header);
 	struct perf_record_cpu_map *event;
 	int max;
 	u16 type;
@@ -1299,7 +1307,7 @@ static struct perf_record_cpu_map *cpu_map_event__new(struct perf_cpu_map *map)
 }
 
 int perf_event__synthesize_cpu_map(struct perf_tool *tool,
-				   struct perf_cpu_map *map,
+				   const struct perf_cpu_map *map,
 				   perf_event__handler_t process,
 				   struct machine *machine)
 {
@@ -1432,11 +1440,12 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 			result += sizeof(u64);
 		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
 		if (read_format & PERF_FORMAT_GROUP) {
-			sz = sample->read.group.nr *
-			     sizeof(struct sample_read_value);
-			result += sz;
+			sz = sample_read_value_size(read_format);
+			result += sz * sample->read.group.nr;
 		} else {
 			result += sizeof(u64);
+			if (read_format & PERF_FORMAT_LOST)
+				result += sizeof(u64);
 		}
 	}
 
@@ -1521,6 +1530,20 @@ void __weak arch_perf_synthesize_sample_weight(const struct perf_sample *data,
 	*array = data->weight;
 }
 
+static __u64 *copy_read_group_values(__u64 *array, __u64 read_format,
+				     const struct perf_sample *sample)
+{
+	size_t sz = sample_read_value_size(read_format);
+	struct sample_read_value *v = sample->read.group.values;
+
+	sample_read_group__for_each(v, sample->read.group.nr, read_format) {
+		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
+		memcpy(array, v, sz);
+		array = (void *)array + sz;
+	}
+	return array;
+}
+
 int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_format,
 				  const struct perf_sample *sample)
 {
@@ -1602,13 +1625,16 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 
 		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
 		if (read_format & PERF_FORMAT_GROUP) {
-			sz = sample->read.group.nr *
-			     sizeof(struct sample_read_value);
-			memcpy(array, sample->read.group.values, sz);
-			array = (void *)array + sz;
+			array = copy_read_group_values(array, read_format,
+						       sample);
 		} else {
 			*array = sample->read.one.id;
 			array++;
+
+			if (read_format & PERF_FORMAT_LOST) {
+				*array = sample->read.one.lost;
+				array++;
+			}
 		}
 	}
 
@@ -1712,48 +1738,112 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 	return 0;
 }
 
-int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_t process,
-				    struct evlist *evlist, struct machine *machine)
+int perf_event__synthesize_id_sample(__u64 *array, u64 type, const struct perf_sample *sample)
+{
+	__u64 *start = array;
+
+	/*
+	 * used for cross-endian analysis. See git commit 65014ab3
+	 * for why this goofiness is needed.
+	 */
+	union u64_swap u;
+
+	if (type & PERF_SAMPLE_TID) {
+		u.val32[0] = sample->pid;
+		u.val32[1] = sample->tid;
+		*array = u.val64;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TIME) {
+		*array = sample->time;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_ID) {
+		*array = sample->id;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_STREAM_ID) {
+		*array = sample->stream_id;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_CPU) {
+		u.val32[0] = sample->cpu;
+		u.val32[1] = 0;
+		*array = u.val64;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_IDENTIFIER) {
+		*array = sample->id;
+		array++;
+	}
+
+	return (void *)array - (void *)start;
+}
+
+int __perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_t process,
+				      struct evlist *evlist, struct machine *machine, size_t from)
 {
 	union perf_event *ev;
 	struct evsel *evsel;
-	size_t nr = 0, i = 0, sz, max_nr, n;
+	size_t nr = 0, i = 0, sz, max_nr, n, pos;
+	size_t e1_sz = sizeof(struct id_index_entry);
+	size_t e2_sz = sizeof(struct id_index_entry_2);
+	size_t etot_sz = e1_sz + e2_sz;
+	bool e2_needed = false;
 	int err;
+
+	max_nr = (UINT16_MAX - sizeof(struct perf_record_id_index)) / etot_sz;
+
+	pos = 0;
+	evlist__for_each_entry(evlist, evsel) {
+		if (pos++ < from)
+			continue;
+		nr += evsel->core.ids;
+	}
+
+	if (!nr)
+		return 0;
 
 	pr_debug2("Synthesizing id index\n");
 
-	max_nr = (UINT16_MAX - sizeof(struct perf_record_id_index)) /
-		 sizeof(struct id_index_entry);
-
-	evlist__for_each_entry(evlist, evsel)
-		nr += evsel->core.ids;
-
 	n = nr > max_nr ? max_nr : nr;
-	sz = sizeof(struct perf_record_id_index) + n * sizeof(struct id_index_entry);
+	sz = sizeof(struct perf_record_id_index) + n * etot_sz;
 	ev = zalloc(sz);
 	if (!ev)
 		return -ENOMEM;
 
+	sz = sizeof(struct perf_record_id_index) + n * e1_sz;
+
 	ev->id_index.header.type = PERF_RECORD_ID_INDEX;
-	ev->id_index.header.size = sz;
 	ev->id_index.nr = n;
 
+	pos = 0;
 	evlist__for_each_entry(evlist, evsel) {
 		u32 j;
 
-		for (j = 0; j < evsel->core.ids; j++) {
+		if (pos++ < from)
+			continue;
+		for (j = 0; j < evsel->core.ids; j++, i++) {
 			struct id_index_entry *e;
+			struct id_index_entry_2 *e2;
 			struct perf_sample_id *sid;
 
 			if (i >= n) {
+				ev->id_index.header.size = sz + (e2_needed ? n * e2_sz : 0);
 				err = process(tool, ev, NULL, machine);
 				if (err)
 					goto out_err;
 				nr -= n;
 				i = 0;
+				e2_needed = false;
 			}
 
-			e = &ev->id_index.entries[i++];
+			e = &ev->id_index.entries[i];
 
 			e->id = evsel->core.id[j];
 
@@ -1766,11 +1856,18 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 			e->idx = sid->idx;
 			e->cpu = sid->cpu.cpu;
 			e->tid = sid->tid;
+
+			if (sid->machine_pid)
+				e2_needed = true;
+
+			e2 = (void *)ev + sz;
+			e2[i].machine_pid = sid->machine_pid;
+			e2[i].vcpu        = sid->vcpu.cpu;
 		}
 	}
 
-	sz = sizeof(struct perf_record_id_index) + nr * sizeof(struct id_index_entry);
-	ev->id_index.header.size = sz;
+	sz = sizeof(struct perf_record_id_index) + nr * e1_sz;
+	ev->id_index.header.size = sz + (e2_needed ? nr * e2_sz : 0);
 	ev->id_index.nr = nr;
 
 	err = process(tool, ev, NULL, machine);
@@ -1778,6 +1875,12 @@ out_err:
 	free(ev);
 
 	return err;
+}
+
+int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_t process,
+				    struct evlist *evlist, struct machine *machine)
+{
+	return __perf_event__synthesize_id_index(tool, process, evlist, machine, 0);
 }
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,

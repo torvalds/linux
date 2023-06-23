@@ -166,6 +166,17 @@
         "UMask": "0x20"
     },
     {
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.RET",
+        "PEBS": "1",
+        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
+        "SampleAfterValue": "100007",
+        "UMask": "0x8"
+    },
+    {
         "BriefDescription": "Core crystal clock cycles when this thread is unhalted and the other thread is halted.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",

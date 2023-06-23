@@ -373,6 +373,12 @@ struct dm_target {
 	 * after returning DM_MAPIO_SUBMITTED from its map function.
 	 */
 	bool accounts_remapped_io:1;
+
+	/*
+	 * Set if the target will submit the DM bio without first calling
+	 * bio_set_dev(). NOTE: ideally a target should _not_ need this.
+	 */
+	bool needs_bio_set_dev:1;
 };
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size);
@@ -561,7 +567,6 @@ void dm_sync_table(struct mapped_device *md);
  * Queries
  */
 sector_t dm_table_get_size(struct dm_table *t);
-unsigned int dm_table_get_num_targets(struct dm_table *t);
 fmode_t dm_table_get_mode(struct dm_table *t);
 struct mapped_device *dm_table_get_md(struct dm_table *t);
 const char *dm_table_device_name(struct dm_table *t);

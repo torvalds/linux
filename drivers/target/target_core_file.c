@@ -86,6 +86,24 @@ static struct se_device *fd_alloc_device(struct se_hba *hba, const char *name)
 	return &fd_dev->dev;
 }
 
+static bool fd_configure_unmap(struct se_device *dev)
+{
+	struct file *file = FD_DEV(dev)->fd_file;
+	struct inode *inode = file->f_mapping->host;
+
+	if (S_ISBLK(inode->i_mode))
+		return target_configure_unmap_from_queue(&dev->dev_attrib,
+							 I_BDEV(inode));
+
+	/* Limit UNMAP emulation to 8k Number of LBAs (NoLB) */
+	dev->dev_attrib.max_unmap_lba_count = 0x2000;
+	/* Currently hardcoded to 1 in Linux/SCSI code. */
+	dev->dev_attrib.max_unmap_block_desc_count = 1;
+	dev->dev_attrib.unmap_granularity = 1;
+	dev->dev_attrib.unmap_granularity_alignment = 0;
+	return true;
+}
+
 static int fd_configure_device(struct se_device *dev)
 {
 	struct fd_dev *fd_dev = FD_DEV(dev);
@@ -149,10 +167,6 @@ static int fd_configure_device(struct se_device *dev)
 			" block_device blocks: %llu logical_block_size: %d\n",
 			dev_size, div_u64(dev_size, fd_dev->fd_block_size),
 			fd_dev->fd_block_size);
-
-		if (target_configure_unmap_from_queue(&dev->dev_attrib, bdev))
-			pr_debug("IFILE: BLOCK Discard support available,"
-				 " disabled by default\n");
 		/*
 		 * Enable write same emulation for IBLOCK and use 0xFFFF as
 		 * the smaller WRITE_SAME(10) only has a two-byte block count.
@@ -170,16 +184,6 @@ static int fd_configure_device(struct se_device *dev)
 		}
 
 		fd_dev->fd_block_size = FD_BLOCKSIZE;
-		/*
-		 * Limit UNMAP emulation to 8k Number of LBAs (NoLB)
-		 */
-		dev->dev_attrib.max_unmap_lba_count = 0x2000;
-		/*
-		 * Currently hardcoded to 1 in Linux/SCSI code..
-		 */
-		dev->dev_attrib.max_unmap_block_desc_count = 1;
-		dev->dev_attrib.unmap_granularity = 1;
-		dev->dev_attrib.unmap_granularity_alignment = 0;
 
 		/*
 		 * Limit WRITE_SAME w/ UNMAP=0 emulation to 8k Number of LBAs (NoLB)
@@ -438,10 +442,6 @@ fd_execute_write_same(struct se_cmd *cmd)
 	unsigned int len = 0, i;
 	ssize_t ret;
 
-	if (!nolb) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
 	if (cmd->prot_op) {
 		pr_err("WRITE_SAME: Protection information with FILEIO"
 		       " backends not supported\n");
@@ -927,6 +927,7 @@ static const struct target_backend_ops fileio_ops = {
 	.configure_device	= fd_configure_device,
 	.destroy_device		= fd_destroy_device,
 	.free_device		= fd_free_device,
+	.configure_unmap	= fd_configure_unmap,
 	.parse_cdb		= fd_parse_cdb,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,

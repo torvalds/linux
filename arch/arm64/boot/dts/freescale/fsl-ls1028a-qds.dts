@@ -93,7 +93,7 @@
 		compatible = "mdio-mux-multiplexer";
 		mux-controls = <&mux 0>;
 		mdio-parent-bus = <&enetc_mdio_pf3>;
-		#address-cells=<1>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
 		/* on-board RGMII PHY */

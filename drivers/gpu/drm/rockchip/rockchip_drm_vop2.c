@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/media-bus-format.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -22,10 +23,12 @@
 #include <drm/drm.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_flip_work.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -1202,7 +1205,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		 */
 		stride = (fb->pitches[0] << 3) / bpp;
 		if ((stride & 0x3f) && (xmirror || rotate_90 || rotate_270))
-			drm_err(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligened\n",
+			drm_err(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligned\n",
 				vp->id, win->data->name, stride);
 
 		rb_swap = vop2_afbc_rb_swap(fb->format->format);
@@ -1436,11 +1439,15 @@ static void rk3568_set_intf_mux(struct vop2_video_port *vp, int id,
 		die &= ~RK3568_SYS_DSP_INFACE_EN_HDMI_MUX;
 		die |= RK3568_SYS_DSP_INFACE_EN_HDMI |
 			   FIELD_PREP(RK3568_SYS_DSP_INFACE_EN_HDMI_MUX, vp->id);
+		dip &= ~RK3568_DSP_IF_POL__HDMI_PIN_POL;
+		dip |= FIELD_PREP(RK3568_DSP_IF_POL__HDMI_PIN_POL, polflags);
 		break;
 	case ROCKCHIP_VOP2_EP_EDP0:
 		die &= ~RK3568_SYS_DSP_INFACE_EN_EDP_MUX;
 		die |= RK3568_SYS_DSP_INFACE_EN_EDP |
 			   FIELD_PREP(RK3568_SYS_DSP_INFACE_EN_EDP_MUX, vp->id);
+		dip &= ~RK3568_DSP_IF_POL__EDP_PIN_POL;
+		dip |= FIELD_PREP(RK3568_DSP_IF_POL__EDP_PIN_POL, polflags);
 		break;
 	case ROCKCHIP_VOP2_EP_MIPI0:
 		die &= ~RK3568_SYS_DSP_INFACE_EN_MIPI0_MUX;
@@ -1473,7 +1480,7 @@ static void rk3568_set_intf_mux(struct vop2_video_port *vp, int id,
 	default:
 		drm_err(vop2->drm, "Invalid interface id %d on vp%d\n", id, vp->id);
 		return;
-	};
+	}
 
 	dip |= RK3568_DSP_IF_POL__CFG_DONE_IMD;
 
@@ -1524,6 +1531,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (ret < 0) {
 		drm_err(vop2->drm, "failed to enable dclk for video port%d - %d\n",
 			vp->id, ret);
+		vop2_unlock(vop2);
 		return;
 	}
 

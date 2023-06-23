@@ -143,17 +143,6 @@ static struct ccu_common *sun50i_h6_r_ccu_clks[] = {
 	&w1_clk.common,
 };
 
-static struct ccu_common *sun50i_h616_r_ccu_clks[] = {
-	&r_apb1_clk.common,
-	&r_apb2_clk.common,
-	&r_apb1_twd_clk.common,
-	&r_apb2_i2c_clk.common,
-	&r_apb2_rsb_clk.common,
-	&r_apb1_ir_clk.common,
-	&r_apb1_rtc_clk.common,
-	&ir_clk.common,
-};
-
 static struct clk_hw_onecell_data sun50i_h6_r_hw_clks = {
 	.hws	= {
 		[CLK_AR100]		= &ar100_clk.common.hw,
@@ -219,8 +208,8 @@ static const struct sunxi_ccu_desc sun50i_h6_r_ccu_desc = {
 };
 
 static const struct sunxi_ccu_desc sun50i_h616_r_ccu_desc = {
-	.ccu_clks	= sun50i_h616_r_ccu_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun50i_h616_r_ccu_clks),
+	.ccu_clks	= sun50i_h6_r_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun50i_h6_r_ccu_clks),
 
 	.hw_clks	= &sun50i_h616_r_hw_clks,
 

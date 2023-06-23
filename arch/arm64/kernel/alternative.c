@@ -121,7 +121,7 @@ static void clean_dcache_range_nopatch(u64 start, u64 end)
 
 	ctr_el0 = read_sanitised_ftr_reg(SYS_CTR_EL0);
 	d_size = 4 << cpuid_feature_extract_unsigned_field(ctr_el0,
-							   CTR_DMINLINE_SHIFT);
+							   CTR_EL0_DminLine_SHIFT);
 	cur = start & ~(d_size - 1);
 	do {
 		/*

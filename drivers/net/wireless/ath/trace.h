@@ -40,16 +40,13 @@ TRACE_EVENT(ath_log,
 	    TP_STRUCT__entry(
 		    __string(device, wiphy_name(wiphy))
 		    __string(driver, KBUILD_MODNAME)
-		    __dynamic_array(char, msg, ATH_DBG_MAX_LEN)
+		    __vstring(msg, vaf->fmt, vaf->va)
 	    ),
 
 	    TP_fast_assign(
 		    __assign_str(device, wiphy_name(wiphy));
 		    __assign_str(driver, KBUILD_MODNAME);
-		    WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
-					   ATH_DBG_MAX_LEN,
-					   vaf->fmt,
-					   *vaf->va) >= ATH_DBG_MAX_LEN);
+		    __assign_vstr(msg, vaf->fmt, vaf->va);
 	    ),
 
 	    TP_printk(

@@ -734,10 +734,10 @@ static void flush_tlb_func(void *info)
 	const struct flush_tlb_info *f = info;
 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
-	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
 	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
 	bool local = smp_processor_id() == f->initiating_cpu;
 	unsigned long nr_invalidate = 0;
+	u64 mm_tlb_gen;
 
 	/* This code cannot presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
@@ -770,6 +770,23 @@ static void flush_tlb_func(void *info)
 		switch_mm_irqs_off(NULL, &init_mm, NULL);
 		return;
 	}
+
+	if (unlikely(f->new_tlb_gen != TLB_GENERATION_INVALID &&
+		     f->new_tlb_gen <= local_tlb_gen)) {
+		/*
+		 * The TLB is already up to date in respect to f->new_tlb_gen.
+		 * While the core might be still behind mm_tlb_gen, checking
+		 * mm_tlb_gen unnecessarily would have negative caching effects
+		 * so avoid it.
+		 */
+		return;
+	}
+
+	/*
+	 * Defer mm_tlb_gen reading as long as possible to avoid cache
+	 * contention.
+	 */
+	mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
 
 	if (unlikely(local_tlb_gen == mm_tlb_gen)) {
 		/*
@@ -826,6 +843,12 @@ static void flush_tlb_func(void *info)
 	    f->new_tlb_gen == mm_tlb_gen) {
 		/* Partial flush */
 		unsigned long addr = f->start;
+
+		/* Partial flush cannot have invalid generations */
+		VM_WARN_ON(f->new_tlb_gen == TLB_GENERATION_INVALID);
+
+		/* Partial flush must have valid mm */
+		VM_WARN_ON(f->mm == NULL);
 
 		nr_invalidate = (f->end - f->start) >> f->stride_shift;
 
@@ -1029,7 +1052,8 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		struct flush_tlb_info *info;
 
 		preempt_disable();
-		info = get_flush_tlb_info(NULL, start, end, 0, false, 0);
+		info = get_flush_tlb_info(NULL, start, end, 0, false,
+					  TLB_GENERATION_INVALID);
 
 		on_each_cpu(do_kernel_range_flush, info, 1);
 
@@ -1198,7 +1222,8 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 
 	int cpu = get_cpu();
 
-	info = get_flush_tlb_info(NULL, 0, TLB_FLUSH_ALL, 0, false, 0);
+	info = get_flush_tlb_info(NULL, 0, TLB_FLUSH_ALL, 0, false,
+				  TLB_GENERATION_INVALID);
 	/*
 	 * flush_tlb_multi() is not optimized for the common case in which only
 	 * a local TLB flush is needed. Optimize this use-case by calling

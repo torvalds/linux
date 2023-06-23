@@ -22,6 +22,7 @@ static const struct wilc_cfg_byte g_cfg_byte[] = {
 	{WID_STATUS, 0},
 	{WID_RSSI, 0},
 	{WID_LINKSPEED, 0},
+	{WID_TX_POWER, 0},
 	{WID_WOWLAN_TRIGGER, 0},
 	{WID_NIL, 0}
 };
@@ -180,9 +181,10 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 				i++;
 
 			if (cfg->s[i].id == wid)
-				memcpy(cfg->s[i].str, &info[2], info[2] + 2);
+				memcpy(cfg->s[i].str, &info[2],
+				       get_unaligned_le16(&info[2]) + 2);
 
-			len = 2 + info[2];
+			len = 2 + get_unaligned_le16(&info[2]);
 			break;
 
 		default:

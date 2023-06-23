@@ -26,7 +26,6 @@
 
 #include <core/firmware.h>
 #include <subdev/acr.h>
-#include <subdev/secboot.h>
 
 #include <nvfw/flcn.h>
 

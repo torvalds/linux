@@ -18,6 +18,7 @@ properties:
       - items:
           - enum:
               - mediatek,mt7629-spi
+              - mediatek,mt8365-spi
           - const: mediatek,mt7622-spi
       - items:
           - enum:
@@ -33,6 +34,7 @@ properties:
       - items:
           - enum:
               - mediatek,mt7986-spi-ipm
+              - mediatek,mt8188-spi-ipm
           - const: mediatek,spi-ipm
       - items:
           - enum:

@@ -316,6 +316,14 @@ static __maybe_unused int mdio_bus_phy_resume(struct device *dev)
 
 	phydev->suspended_by_mdio_bus = 0;
 
+	/* If we managed to get here with the PHY state machine in a state
+	 * neither PHY_HALTED, PHY_READY nor PHY_UP, this is an indication
+	 * that something went wrong and we should most likely be using
+	 * MAC managed PM, but we are not.
+	 */
+	WARN_ON(phydev->state != PHY_HALTED && phydev->state != PHY_READY &&
+		phydev->state != PHY_UP);
+
 	ret = phy_init_hw(phydev);
 	if (ret < 0)
 		return ret;
@@ -2024,18 +2032,12 @@ EXPORT_SYMBOL(genphy_config_eee_advert);
  */
 int genphy_setup_forced(struct phy_device *phydev)
 {
-	u16 ctl = 0;
+	u16 ctl;
 
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
-	if (SPEED_1000 == phydev->speed)
-		ctl |= BMCR_SPEED1000;
-	else if (SPEED_100 == phydev->speed)
-		ctl |= BMCR_SPEED100;
-
-	if (DUPLEX_FULL == phydev->duplex)
-		ctl |= BMCR_FULLDPLX;
+	ctl = mii_bmcr_encode_fixed(phydev->speed, phydev->duplex);
 
 	return phy_modify(phydev, MII_BMCR,
 			  ~(BMCR_LOOPBACK | BMCR_ISOLATE | BMCR_PDOWN), ctl);
@@ -2637,13 +2639,7 @@ int genphy_loopback(struct phy_device *phydev, bool enable)
 		u16 val, ctl = BMCR_LOOPBACK;
 		int ret;
 
-		if (phydev->speed == SPEED_1000)
-			ctl |= BMCR_SPEED1000;
-		else if (phydev->speed == SPEED_100)
-			ctl |= BMCR_SPEED100;
-
-		if (phydev->duplex == DUPLEX_FULL)
-			ctl |= BMCR_FULLDPLX;
+		ctl |= mii_bmcr_encode_fixed(phydev->speed, phydev->duplex);
 
 		phy_modify(phydev, MII_BMCR, ~0, ctl);
 

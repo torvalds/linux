@@ -998,19 +998,23 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		pr_err("Couldn't retrieve BIOS data\n");
 		goto out_input;
 	}
-	/* initialize backlight */
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.type = BACKLIGHT_PLATFORM;
-	props.max_brightness = pcc->sinf[SINF_AC_MAX_BRIGHT];
-	pcc->backlight = backlight_device_register("panasonic", NULL, pcc,
-						   &pcc_backlight_ops, &props);
-	if (IS_ERR(pcc->backlight)) {
-		result = PTR_ERR(pcc->backlight);
-		goto out_input;
-	}
 
-	/* read the initial brightness setting from the hardware */
-	pcc->backlight->props.brightness = pcc->sinf[SINF_AC_CUR_BRIGHT];
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
+		/* initialize backlight */
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_PLATFORM;
+		props.max_brightness = pcc->sinf[SINF_AC_MAX_BRIGHT];
+
+		pcc->backlight = backlight_device_register("panasonic", NULL, pcc,
+							   &pcc_backlight_ops, &props);
+		if (IS_ERR(pcc->backlight)) {
+			result = PTR_ERR(pcc->backlight);
+			goto out_input;
+		}
+
+		/* read the initial brightness setting from the hardware */
+		pcc->backlight->props.brightness = pcc->sinf[SINF_AC_CUR_BRIGHT];
+	}
 
 	/* Reset initial sticky key mode since the hardware register state is not consistent */
 	acpi_pcc_write_sset(pcc, SINF_STICKY_KEY, 0);

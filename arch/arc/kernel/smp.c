@@ -232,14 +232,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-/*
- * not supported here
- */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 /*****************************************************************************/
 /*              Inter Processor Interrupt Handling                           */
 /*****************************************************************************/

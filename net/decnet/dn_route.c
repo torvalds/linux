@@ -201,7 +201,7 @@ static void dn_dst_check_expire(struct timer_list *unused)
 		}
 		spin_unlock(&dn_rt_hash_table[i].lock);
 
-		if ((jiffies - now) > 0)
+		if (jiffies != now)
 			break;
 	}
 

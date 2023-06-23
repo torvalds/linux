@@ -48,6 +48,12 @@
 #define S3C24XX_SERIAL_MAJOR	204
 #define S3C24XX_SERIAL_MINOR	64
 
+#ifdef CONFIG_ARM64
+#define UART_NR			12
+#else
+#define UART_NR			CONFIG_SERIAL_SAMSUNG_UARTS
+#endif
+
 #define S3C24XX_TX_PIO			1
 #define S3C24XX_TX_DMA			2
 #define S3C24XX_RX_PIO			1
@@ -87,7 +93,7 @@ struct s3c24xx_uart_info {
 struct s3c24xx_serial_drv_data {
 	const struct s3c24xx_uart_info	info;
 	const struct s3c2410_uartcfg	def_cfg;
-	const unsigned int		fifosize[CONFIG_SERIAL_SAMSUNG_UARTS];
+	const unsigned int		fifosize[UART_NR];
 };
 
 struct s3c24xx_uart_dma {
@@ -1011,6 +1017,7 @@ static unsigned int s3c24xx_serial_get_mctrl(struct uart_port *port)
 static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	unsigned int umcon = rd_regl(port, S3C2410_UMCON);
+	unsigned int ucon = rd_regl(port, S3C2410_UCON);
 
 	if (mctrl & TIOCM_RTS)
 		umcon |= S3C2410_UMCOM_RTS_LOW;
@@ -1018,6 +1025,13 @@ static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		umcon &= ~S3C2410_UMCOM_RTS_LOW;
 
 	wr_regl(port, S3C2410_UMCON, umcon);
+
+	if (mctrl & TIOCM_LOOP)
+		ucon |= S3C2410_UCON_LOOPBACK;
+	else
+		ucon &= ~S3C2410_UCON_LOOPBACK;
+
+	wr_regl(port, S3C2410_UCON, ucon);
 }
 
 static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
@@ -1801,67 +1815,27 @@ static const struct uart_ops apple_s5l_serial_ops = {
 static struct uart_driver s3c24xx_uart_drv = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "s3c2410_serial",
-	.nr		= CONFIG_SERIAL_SAMSUNG_UARTS,
+	.nr		= UART_NR,
 	.cons		= S3C24XX_SERIAL_CONSOLE,
 	.dev_name	= S3C24XX_SERIAL_NAME,
 	.major		= S3C24XX_SERIAL_MAJOR,
 	.minor		= S3C24XX_SERIAL_MINOR,
 };
 
-#define __PORT_LOCK_UNLOCKED(i) \
-	__SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[i].port.lock)
-static struct s3c24xx_uart_port
-s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS] = {
-	[0] = {
-		.port = {
-			.lock		= __PORT_LOCK_UNLOCKED(0),
-			.iotype		= UPIO_MEM,
-			.uartclk	= 0,
-			.fifosize	= 16,
-			.ops		= &s3c24xx_serial_ops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 0,
-		}
-	},
-	[1] = {
-		.port = {
-			.lock		= __PORT_LOCK_UNLOCKED(1),
-			.iotype		= UPIO_MEM,
-			.uartclk	= 0,
-			.fifosize	= 16,
-			.ops		= &s3c24xx_serial_ops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 1,
-		}
-	},
-#if CONFIG_SERIAL_SAMSUNG_UARTS > 2
-	[2] = {
-		.port = {
-			.lock		= __PORT_LOCK_UNLOCKED(2),
-			.iotype		= UPIO_MEM,
-			.uartclk	= 0,
-			.fifosize	= 16,
-			.ops		= &s3c24xx_serial_ops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 2,
-		}
-	},
-#endif
-#if CONFIG_SERIAL_SAMSUNG_UARTS > 3
-	[3] = {
-		.port = {
-			.lock		= __PORT_LOCK_UNLOCKED(3),
-			.iotype		= UPIO_MEM,
-			.uartclk	= 0,
-			.fifosize	= 16,
-			.ops		= &s3c24xx_serial_ops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 3,
-		}
-	}
-#endif
-};
-#undef __PORT_LOCK_UNLOCKED
+static struct s3c24xx_uart_port s3c24xx_serial_ports[UART_NR];
+
+static void s3c24xx_serial_init_port_default(int index) {
+	struct uart_port *port = &s3c24xx_serial_ports[index].port;
+
+	spin_lock_init(&port->lock);
+
+	port->iotype = UPIO_MEM;
+	port->uartclk = 0;
+	port->fifosize = 16;
+	port->ops = &s3c24xx_serial_ops;
+	port->flags = UPF_BOOT_AUTOCONF;
+	port->line = index;
+}
 
 /* s3c24xx_serial_resetport
  *
@@ -2176,6 +2150,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	ourport = &s3c24xx_serial_ports[index];
+
+	s3c24xx_serial_init_port_default(index);
 
 	ourport->drv_data = s3c24xx_get_driver_data(pdev);
 	if (!ourport->drv_data) {
@@ -2575,7 +2551,7 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 
 	/* is this a valid port */
 
-	if (co->index == -1 || co->index >= CONFIG_SERIAL_SAMSUNG_UARTS)
+	if (co->index == -1 || co->index >= UART_NR)
 		co->index = 0;
 
 	port = &s3c24xx_serial_ports[co->index].port;

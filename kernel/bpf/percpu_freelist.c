@@ -31,7 +31,7 @@ static inline void pcpu_freelist_push_node(struct pcpu_freelist_head *head,
 					   struct pcpu_freelist_node *node)
 {
 	node->next = head->first;
-	head->first = node;
+	WRITE_ONCE(head->first, node);
 }
 
 static inline void ___pcpu_freelist_push(struct pcpu_freelist_head *head,
@@ -130,14 +130,17 @@ static struct pcpu_freelist_node *___pcpu_freelist_pop(struct pcpu_freelist *s)
 	orig_cpu = cpu = raw_smp_processor_id();
 	while (1) {
 		head = per_cpu_ptr(s->freelist, cpu);
+		if (!READ_ONCE(head->first))
+			goto next_cpu;
 		raw_spin_lock(&head->lock);
 		node = head->first;
 		if (node) {
-			head->first = node->next;
+			WRITE_ONCE(head->first, node->next);
 			raw_spin_unlock(&head->lock);
 			return node;
 		}
 		raw_spin_unlock(&head->lock);
+next_cpu:
 		cpu = cpumask_next(cpu, cpu_possible_mask);
 		if (cpu >= nr_cpu_ids)
 			cpu = 0;
@@ -146,10 +149,12 @@ static struct pcpu_freelist_node *___pcpu_freelist_pop(struct pcpu_freelist *s)
 	}
 
 	/* per cpu lists are all empty, try extralist */
+	if (!READ_ONCE(s->extralist.first))
+		return NULL;
 	raw_spin_lock(&s->extralist.lock);
 	node = s->extralist.first;
 	if (node)
-		s->extralist.first = node->next;
+		WRITE_ONCE(s->extralist.first, node->next);
 	raw_spin_unlock(&s->extralist.lock);
 	return node;
 }
@@ -164,15 +169,18 @@ ___pcpu_freelist_pop_nmi(struct pcpu_freelist *s)
 	orig_cpu = cpu = raw_smp_processor_id();
 	while (1) {
 		head = per_cpu_ptr(s->freelist, cpu);
+		if (!READ_ONCE(head->first))
+			goto next_cpu;
 		if (raw_spin_trylock(&head->lock)) {
 			node = head->first;
 			if (node) {
-				head->first = node->next;
+				WRITE_ONCE(head->first, node->next);
 				raw_spin_unlock(&head->lock);
 				return node;
 			}
 			raw_spin_unlock(&head->lock);
 		}
+next_cpu:
 		cpu = cpumask_next(cpu, cpu_possible_mask);
 		if (cpu >= nr_cpu_ids)
 			cpu = 0;
@@ -181,11 +189,11 @@ ___pcpu_freelist_pop_nmi(struct pcpu_freelist *s)
 	}
 
 	/* cannot pop from per cpu lists, try extralist */
-	if (!raw_spin_trylock(&s->extralist.lock))
+	if (!READ_ONCE(s->extralist.first) || !raw_spin_trylock(&s->extralist.lock))
 		return NULL;
 	node = s->extralist.first;
 	if (node)
-		s->extralist.first = node->next;
+		WRITE_ONCE(s->extralist.first, node->next);
 	raw_spin_unlock(&s->extralist.lock);
 	return node;
 }

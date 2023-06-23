@@ -76,6 +76,12 @@
 		pins = "GPIO_25", "GPIO_26";
 		function = "fc0_b";
 	};
+
+	usbs_a_pins: usbs-a-pins {
+		/* VBUS_DET */
+		pins = "GPIO_66";
+		function = "gpio";
+	};
 };
 
 &mdio0 {
@@ -182,6 +188,13 @@
 };
 
 &switch {
+	status = "okay";
+};
+
+&udc {
+	pinctrl-0 = <&usbs_a_pins>;
+	pinctrl-names = "default";
+	atmel,vbus-gpio = <&gpio 66 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

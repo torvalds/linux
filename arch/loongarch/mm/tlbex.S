@@ -83,7 +83,7 @@ vmalloc_done_load:
 	bnez	t0, tlb_huge_update_load
 
 	csrrd	t0, LOONGARCH_CSR_BADV
-	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
+	srli.d	t0, t0, PAGE_SHIFT
 	andi	t0, t0, (PTRS_PER_PTE - 1)
 	slli.d	t0, t0, _PTE_T_LOG2
 	add.d	t1, ra, t0
@@ -247,7 +247,7 @@ vmalloc_done_store:
 	bnez	t0, tlb_huge_update_store
 
 	csrrd	t0, LOONGARCH_CSR_BADV
-	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
+	srli.d	t0, t0, PAGE_SHIFT
 	andi	t0, t0, (PTRS_PER_PTE - 1)
 	slli.d	t0, t0, _PTE_T_LOG2
 	add.d	t1, ra, t0
@@ -414,7 +414,7 @@ vmalloc_done_modify:
 	bnez	t0, tlb_huge_update_modify
 
 	csrrd	t0, LOONGARCH_CSR_BADV
-	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
+	srli.d	t0, t0, PAGE_SHIFT
 	andi	t0, t0, (PTRS_PER_PTE - 1)
 	slli.d	t0, t0, _PTE_T_LOG2
 	add.d	t1, ra, t0

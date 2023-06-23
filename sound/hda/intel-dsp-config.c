@@ -414,6 +414,11 @@ static const struct config_entry config_table[] = {
 	},
 	/* Alderlake-P */
 	{
+		.flags = FLAG_SOF,
+		.device = 0x51c8,
+		.codec_hid =  &essx_83x6,
+	},
+	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x51c8,
 	},
@@ -444,6 +449,16 @@ static const struct config_entry config_table[] = {
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x51cb,
+	},
+	/* RaptorLake-M */
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = 0x51ce,
+	},
+	/* RaptorLake-PX */
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = 0x51cf,
 	},
 #endif
 

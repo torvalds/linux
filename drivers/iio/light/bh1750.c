@@ -277,7 +277,7 @@ static int bh1750_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused bh1750_suspend(struct device *dev)
+static int bh1750_suspend(struct device *dev)
 {
 	int ret;
 	struct bh1750_data *data =
@@ -294,7 +294,7 @@ static int __maybe_unused bh1750_suspend(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(bh1750_pm_ops, bh1750_suspend, NULL);
+static DEFINE_SIMPLE_DEV_PM_OPS(bh1750_pm_ops, bh1750_suspend, NULL);
 
 static const struct i2c_device_id bh1750_id[] = {
 	{ "bh1710", BH1710 },
@@ -320,7 +320,7 @@ static struct i2c_driver bh1750_driver = {
 	.driver = {
 		.name = "bh1750",
 		.of_match_table = bh1750_of_match,
-		.pm = &bh1750_pm_ops,
+		.pm = pm_sleep_ptr(&bh1750_pm_ops),
 	},
 	.probe = bh1750_probe,
 	.remove = bh1750_remove,

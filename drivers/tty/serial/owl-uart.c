@@ -201,7 +201,7 @@ static void owl_uart_send_chars(struct uart_port *port)
 
 		ch = xmit->buf[xmit->tail];
 		owl_uart_write(port, ch, OWL_UART_TXDAT);
-		xmit->tail = (xmit->tail + 1) & (SERIAL_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 

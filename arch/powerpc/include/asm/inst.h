@@ -139,25 +139,6 @@ static inline void ppc_inst_write(u32 *ptr, ppc_inst_t x)
 		*(u64 *)ptr = ppc_inst_as_ulong(x);
 }
 
-#define PPC_INST_STR_LEN sizeof("00000000 00000000")
-
-static inline char *__ppc_inst_as_str(char str[PPC_INST_STR_LEN], ppc_inst_t x)
-{
-	if (ppc_inst_prefixed(x))
-		sprintf(str, "%08x %08x", ppc_inst_val(x), ppc_inst_suffix(x));
-	else
-		sprintf(str, "%08x", ppc_inst_val(x));
-
-	return str;
-}
-
-#define ppc_inst_as_str(x)		\
-({					\
-	char __str[PPC_INST_STR_LEN];	\
-	__ppc_inst_as_str(__str, x);	\
-	__str;				\
-})
-
 static inline int __copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
 {
 	unsigned int val, suffix;

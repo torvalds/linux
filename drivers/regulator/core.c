@@ -1565,6 +1565,9 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 			rdev->constraints->always_on = true;
 	}
 
+	if (rdev->desc->off_on_delay)
+		rdev->last_off = ktime_get();
+
 	/* If the constraints say the regulator should be on at this point
 	 * and we have control then make sure it is enabled.
 	 */
@@ -1592,8 +1595,6 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 
 		if (rdev->constraints->always_on)
 			rdev->use_count++;
-	} else if (rdev->desc->off_on_delay) {
-		rdev->last_off = ktime_get();
 	}
 
 	print_constraints(rdev);
@@ -2732,13 +2733,18 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
  */
 static int _regulator_handle_consumer_enable(struct regulator *regulator)
 {
+	int ret;
 	struct regulator_dev *rdev = regulator->rdev;
 
 	lockdep_assert_held_once(&rdev->mutex.base);
 
 	regulator->enable_count++;
-	if (regulator->uA_load && regulator->enable_count == 1)
-		return drms_uA_update(rdev);
+	if (regulator->uA_load && regulator->enable_count == 1) {
+		ret = drms_uA_update(rdev);
+		if (ret)
+			regulator->enable_count--;
+		return ret;
+	}
 
 	return 0;
 }
@@ -4783,22 +4789,26 @@ int regulator_bulk_get(struct device *dev, int num_consumers,
 		consumers[i].consumer = regulator_get(dev,
 						      consumers[i].supply);
 		if (IS_ERR(consumers[i].consumer)) {
-			ret = PTR_ERR(consumers[i].consumer);
+			ret = dev_err_probe(dev, PTR_ERR(consumers[i].consumer),
+					    "Failed to get supply '%s'",
+					    consumers[i].supply);
 			consumers[i].consumer = NULL;
 			goto err;
+		}
+
+		if (consumers[i].init_load_uA > 0) {
+			ret = regulator_set_load(consumers[i].consumer,
+						 consumers[i].init_load_uA);
+			if (ret) {
+				i++;
+				goto err;
+			}
 		}
 	}
 
 	return 0;
 
 err:
-	if (ret != -EPROBE_DEFER)
-		dev_err(dev, "Failed to get supply '%s': %pe\n",
-			consumers[i].supply, ERR_PTR(ret));
-	else
-		dev_dbg(dev, "Failed to get supply '%s', deferring\n",
-			consumers[i].supply);
-
 	while (--i >= 0)
 		regulator_put(consumers[i].consumer);
 

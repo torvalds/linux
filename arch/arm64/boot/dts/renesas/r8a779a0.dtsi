@@ -41,6 +41,7 @@
 			device_type = "cpu";
 			power-domains = <&sysc R8A779A0_PD_A1E0D0C0>;
 			next-level-cache = <&L3_CA76_0>;
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_Z0>;
 		};
 
 		L3_CA76_0: cache-controller-0 {
@@ -105,7 +106,8 @@
 		};
 
 		gpio0: gpio@e6058180 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6058180 0 0x54>;
 			interrupts = <GIC_SPI 832 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 916>;
@@ -119,7 +121,8 @@
 		};
 
 		gpio1: gpio@e6050180 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6050180 0 0x54>;
 			interrupts = <GIC_SPI 836 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 915>;
@@ -133,7 +136,8 @@
 		};
 
 		gpio2: gpio@e6050980 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6050980 0 0x54>;
 			interrupts = <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 915>;
@@ -147,7 +151,8 @@
 		};
 
 		gpio3: gpio@e6058980 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6058980 0 0x54>;
 			interrupts = <GIC_SPI 844 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 916>;
@@ -161,7 +166,8 @@
 		};
 
 		gpio4: gpio@e6060180 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6060180 0 0x54>;
 			interrupts = <GIC_SPI 848 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 917>;
@@ -175,7 +181,8 @@
 		};
 
 		gpio5: gpio@e6060980 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6060980 0 0x54>;
 			interrupts = <GIC_SPI 852 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 917>;
@@ -189,7 +196,8 @@
 		};
 
 		gpio6: gpio@e6068180 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6068180 0 0x54>;
 			interrupts = <GIC_SPI 856 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 918>;
@@ -203,7 +211,8 @@
 		};
 
 		gpio7: gpio@e6068980 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6068980 0 0x54>;
 			interrupts = <GIC_SPI 860 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 918>;
@@ -217,7 +226,8 @@
 		};
 
 		gpio8: gpio@e6069180 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6069180 0 0x54>;
 			interrupts = <GIC_SPI 864 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 918>;
@@ -231,7 +241,8 @@
 		};
 
 		gpio9: gpio@e6069980 {
-			compatible = "renesas,gpio-r8a779a0";
+			compatible = "renesas,gpio-r8a779a0",
+				     "renesas,rcar-gen4-gpio";
 			reg = <0 0xe6069980 0 0x54>;
 			interrupts = <GIC_SPI 868 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 918>;

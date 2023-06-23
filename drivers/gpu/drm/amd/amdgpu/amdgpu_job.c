@@ -29,6 +29,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_reset.h"
 
 static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 {
@@ -64,7 +65,14 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		  ti.process_name, ti.tgid, ti.task_name, ti.pid);
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
-		r = amdgpu_device_gpu_recover_imp(ring->adev, job);
+		struct amdgpu_reset_context reset_context;
+		memset(&reset_context, 0, sizeof(reset_context));
+
+		reset_context.method = AMD_RESET_METHOD_NONE;
+		reset_context.reset_req_dev = adev;
+		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		r = amdgpu_device_gpu_recover(ring->adev, job, &reset_context);
 		if (r)
 			DRM_ERROR("GPU Recovery Failed: %d\n", r);
 	} else {
@@ -125,16 +133,10 @@ void amdgpu_job_free_resources(struct amdgpu_job *job)
 {
 	struct amdgpu_ring *ring = to_amdgpu_ring(job->base.sched);
 	struct dma_fence *f;
-	struct dma_fence *hw_fence;
 	unsigned i;
 
-	if (job->hw_fence.ops == NULL)
-		hw_fence = job->external_hw_fence;
-	else
-		hw_fence = &job->hw_fence;
-
 	/* use sched fence if available */
-	f = job->base.s_fence ? &job->base.s_fence->finished : hw_fence;
+	f = job->base.s_fence ? &job->base.s_fence->finished :  &job->hw_fence;
 	for (i = 0; i < job->num_ibs; ++i)
 		amdgpu_ib_free(ring->adev, &job->ibs[i], f);
 }
@@ -148,11 +150,7 @@ static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 	amdgpu_sync_free(&job->sync);
 	amdgpu_sync_free(&job->sched_sync);
 
-    /* only put the hw fence if has embedded fence */
-	if (job->hw_fence.ops != NULL)
-		dma_fence_put(&job->hw_fence);
-	else
-		kfree(job);
+	dma_fence_put(&job->hw_fence);
 }
 
 void amdgpu_job_free(struct amdgpu_job *job)
@@ -161,11 +159,10 @@ void amdgpu_job_free(struct amdgpu_job *job)
 	amdgpu_sync_free(&job->sync);
 	amdgpu_sync_free(&job->sched_sync);
 
-	/* only put the hw fence if has embedded fence */
-	if (job->hw_fence.ops != NULL)
-		dma_fence_put(&job->hw_fence);
-	else
+	if (!job->hw_fence.ops)
 		kfree(job);
+	else
+		dma_fence_put(&job->hw_fence);
 }
 
 int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
@@ -195,15 +192,12 @@ int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	int r;
 
 	job->base.sched = &ring->sched;
-	r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs, NULL, fence);
-	/* record external_hw_fence for direct submit */
-	job->external_hw_fence = dma_fence_get(*fence);
+	r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs, job, fence);
+
 	if (r)
 		return r;
 
 	amdgpu_job_free(job);
-	dma_fence_put(*fence);
-
 	return 0;
 }
 
@@ -262,10 +256,6 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
 	}
 
-	if (!job->job_run_counter)
-		dma_fence_get(fence);
-	else if (finished->error < 0)
-		dma_fence_put(&job->hw_fence);
 	job->job_run_counter++;
 	amdgpu_job_free_resources(job);
 
@@ -285,10 +275,6 @@ void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 	/* Signal all jobs not yet scheduled */
 	for (i = DRM_SCHED_PRIORITY_COUNT - 1; i >= DRM_SCHED_PRIORITY_MIN; i--) {
 		struct drm_sched_rq *rq = &sched->sched_rq[i];
-
-		if (!rq)
-			continue;
-
 		spin_lock(&rq->lock);
 		list_for_each_entry(s_entity, &rq->entities, list) {
 			while ((s_job = to_drm_sched_job(spsc_queue_pop(&s_entity->job_queue)))) {

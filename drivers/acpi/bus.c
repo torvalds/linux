@@ -464,7 +464,6 @@ out_free:
 static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 {
 	struct acpi_device *adev;
-	struct acpi_driver *driver;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	bool hotplug_event = false;
 
@@ -516,10 +515,13 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	if (!adev)
 		goto err;
 
-	driver = adev->driver;
-	if (driver && driver->ops.notify &&
-	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
-		driver->ops.notify(adev, type);
+	if (adev->dev.driver) {
+		struct acpi_driver *driver = to_acpi_driver(adev->dev.driver);
+
+		if (driver && driver->ops.notify &&
+		    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
+			driver->ops.notify(adev, type);
+	}
 
 	if (!hotplug_event) {
 		acpi_bus_put_acpi_device(adev);
@@ -538,8 +540,9 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 static void acpi_notify_device(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
+	struct acpi_driver *acpi_drv = to_acpi_driver(device->dev.driver);
 
-	device->driver->ops.notify(device, event);
+	acpi_drv->ops.notify(device, event);
 }
 
 static void acpi_notify_device_fixed(void *data)
@@ -1032,8 +1035,6 @@ static int acpi_device_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	acpi_dev->driver = acpi_drv;
-
 	pr_debug("Driver [%s] successfully bound to device [%s]\n",
 		 acpi_drv->name, acpi_dev->pnp.bus_id);
 
@@ -1043,7 +1044,6 @@ static int acpi_device_probe(struct device *dev)
 			if (acpi_drv->ops.remove)
 				acpi_drv->ops.remove(acpi_dev);
 
-			acpi_dev->driver = NULL;
 			acpi_dev->driver_data = NULL;
 			return ret;
 		}
@@ -1059,15 +1059,14 @@ static int acpi_device_probe(struct device *dev)
 static void acpi_device_remove(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
+	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
 
-	if (acpi_drv) {
-		if (acpi_drv->ops.notify)
-			acpi_device_remove_notify_handler(acpi_dev);
-		if (acpi_drv->ops.remove)
-			acpi_drv->ops.remove(acpi_dev);
-	}
-	acpi_dev->driver = NULL;
+	if (acpi_drv->ops.notify)
+		acpi_device_remove_notify_handler(acpi_dev);
+
+	if (acpi_drv->ops.remove)
+		acpi_drv->ops.remove(acpi_dev);
+
 	acpi_dev->driver_data = NULL;
 
 	put_device(dev);
@@ -1101,6 +1100,7 @@ static int acpi_dev_for_one_check(struct device *dev, void *context)
 
 	return adwc->fn(to_acpi_device(dev), adwc->data);
 }
+EXPORT_SYMBOL_GPL(acpi_dev_for_each_child);
 
 int acpi_dev_for_each_child(struct acpi_device *adev,
 			    int (*fn)(struct acpi_device *, void *), void *data)
@@ -1111,6 +1111,18 @@ int acpi_dev_for_each_child(struct acpi_device *adev,
 	};
 
 	return device_for_each_child(&adev->dev, &adwc, acpi_dev_for_one_check);
+}
+
+int acpi_dev_for_each_child_reverse(struct acpi_device *adev,
+				    int (*fn)(struct acpi_device *, void *),
+				    void *data)
+{
+	struct acpi_dev_walk_context adwc = {
+		.fn = fn,
+		.data = data,
+	};
+
+	return device_for_each_child_reverse(&adev->dev, &adwc, acpi_dev_for_one_check);
 }
 
 /* --------------------------------------------------------------------------
@@ -1143,6 +1155,9 @@ static int __init acpi_bus_init_irq(void)
 		break;
 	case ACPI_IRQ_MODEL_PLATFORM:
 		message = "platform specific model";
+		break;
+	case ACPI_IRQ_MODEL_LPIC:
+		message = "LPIC";
 		break;
 	default:
 		pr_info("Unknown interrupt routing model\n");
@@ -1399,6 +1414,7 @@ static int __init acpi_init(void)
 
 	pci_mmcfg_late_init();
 	acpi_iort_init();
+	acpi_viot_early_init();
 	acpi_hest_init();
 	acpi_ghes_init();
 	acpi_scan_init();

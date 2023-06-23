@@ -693,9 +693,9 @@ void x86_pmu_disable_all(void)
 	}
 }
 
-struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
+struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr, void *data)
 {
-	return static_call(x86_pmu_guest_get_msrs)(nr);
+	return static_call(x86_pmu_guest_get_msrs)(nr, data);
 }
 EXPORT_SYMBOL_GPL(perf_guest_get_msrs);
 
@@ -2103,14 +2103,15 @@ static int __init init_hw_perf_events(void)
 	}
 	if (err != 0) {
 		pr_cont("no PMU driver, software events only.\n");
-		return 0;
+		err = 0;
+		goto out_bad_pmu;
 	}
 
 	pmu_check_apic();
 
 	/* sanity check that the hardware exists or is emulated */
 	if (!check_hw_exists(&pmu, x86_pmu.num_counters, x86_pmu.num_counters_fixed))
-		return 0;
+		goto out_bad_pmu;
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
@@ -2219,6 +2220,8 @@ out1:
 	cpuhp_remove_state(CPUHP_AP_PERF_X86_STARTING);
 out:
 	cpuhp_remove_state(CPUHP_PERF_X86_PREPARE);
+out_bad_pmu:
+	memset(&x86_pmu, 0, sizeof(x86_pmu));
 	return err;
 }
 early_initcall(init_hw_perf_events);
@@ -2990,6 +2993,11 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 
 void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap)
 {
+	if (!x86_pmu_initialized()) {
+		memset(cap, 0, sizeof(*cap));
+		return;
+	}
+
 	cap->version		= x86_pmu.version;
 	/*
 	 * KVM doesn't support the hybrid PMU yet.
@@ -3002,5 +3010,17 @@ void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap)
 	cap->bit_width_fixed	= x86_pmu.cntval_bits;
 	cap->events_mask	= (unsigned int)x86_pmu.events_maskl;
 	cap->events_mask_len	= x86_pmu.events_mask_len;
+	cap->pebs_ept		= x86_pmu.pebs_ept;
 }
 EXPORT_SYMBOL_GPL(perf_get_x86_pmu_capability);
+
+u64 perf_get_hw_event_config(int hw_event)
+{
+	int max = x86_pmu.max_events;
+
+	if (hw_event < max)
+		return x86_pmu.event_map(array_index_nospec(hw_event, max));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(perf_get_hw_event_config);

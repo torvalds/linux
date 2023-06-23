@@ -215,7 +215,7 @@ xfs_rmap_get_rec(
 	int			*stat)
 {
 	struct xfs_mount	*mp = cur->bc_mp;
-	xfs_agnumber_t		agno = cur->bc_ag.pag->pag_agno;
+	struct xfs_perag	*pag = cur->bc_ag.pag;
 	union xfs_btree_rec	*rec;
 	int			error;
 
@@ -235,12 +235,12 @@ xfs_rmap_get_rec(
 			goto out_bad_rec;
 	} else {
 		/* check for valid extent range, including overflow */
-		if (!xfs_verify_agbno(mp, agno, irec->rm_startblock))
+		if (!xfs_verify_agbno(pag, irec->rm_startblock))
 			goto out_bad_rec;
 		if (irec->rm_startblock >
 				irec->rm_startblock + irec->rm_blockcount)
 			goto out_bad_rec;
-		if (!xfs_verify_agbno(mp, agno,
+		if (!xfs_verify_agbno(pag,
 				irec->rm_startblock + irec->rm_blockcount - 1))
 			goto out_bad_rec;
 	}
@@ -254,7 +254,7 @@ xfs_rmap_get_rec(
 out_bad_rec:
 	xfs_warn(mp,
 		"Reverse Mapping BTree record corruption in AG %d detected!",
-		agno);
+		pag->pag_agno);
 	xfs_warn(mp,
 		"Owner 0x%llx, flags 0x%x, start block 0x%x block count 0x%x",
 		irec->rm_owner, irec->rm_flags, irec->rm_startblock,

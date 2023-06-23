@@ -60,7 +60,7 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 				 &regs->data[priv->sreg_key], NULL,
 				 &regs->data[priv->sreg_data],
 				 timeout, 0, GFP_ATOMIC);
-	if (elem == NULL)
+	if (IS_ERR(elem))
 		goto err1;
 
 	ext = nft_set_elem_ext(set, elem);

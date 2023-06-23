@@ -174,7 +174,7 @@
 		compatible = "ti,k2g-sci";
 		ti,host-id = <12>;
 		mbox-names = "rx", "tx";
-		mboxes= <&secure_proxy_main 12>,
+		mboxes = <&secure_proxy_main 12>,
 			<&secure_proxy_main 13>;
 		reg-names = "debug_messages";
 		reg = <0x00 0x44043000 0x00 0xfe0>;
@@ -1301,7 +1301,7 @@
 		      <0x00 0x20718000 0x00 0x8000>;
 		reg-names = "m_can", "message_ram";
 		power-domains = <&k3_pds 99 TI_SCI_PD_EXCLUSIVE>;
-		clocks =  <&k3_clks 99 5>, <&k3_clks 99 0>;
+		clocks = <&k3_clks 99 5>, <&k3_clks 99 0>;
 		clock-names = "hclk", "cclk";
 		interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;

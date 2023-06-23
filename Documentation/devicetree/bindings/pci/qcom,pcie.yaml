@@ -11,7 +11,7 @@ maintainers:
   - Stanimir Varbanov <svarbanov@mm-sol.com>
 
 description: |
-  Qualcomm PCIe root complex controller is bansed on the Synopsys DesignWare
+  Qualcomm PCIe root complex controller is based on the Synopsys DesignWare
   PCIe IP.
 
 properties:
@@ -43,11 +43,12 @@ properties:
     maxItems: 5
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 8
 
   interrupt-names:
-    items:
-      - const: msi
+    minItems: 1
+    maxItems: 8
 
   # Common definitions for clocks, clock-names and reset.
   # Platform constraints are described later.
@@ -614,7 +615,7 @@ allOf:
   - if:
       not:
         properties:
-          compatibles:
+          compatible:
             contains:
               enum:
                 - qcom,pcie-msm8996
@@ -622,6 +623,50 @@ allOf:
       required:
         - resets
         - reset-names
+
+    # Newer chipsets support either 1 or 8 MSI vectors
+    # On older chipsets it's always 1 MSI vector
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pcie-msm8996
+              - qcom,pcie-sc7280
+              - qcom,pcie-sc8180x
+              - qcom,pcie-sdm845
+              - qcom,pcie-sm8150
+              - qcom,pcie-sm8250
+              - qcom,pcie-sm8450-pcie0
+              - qcom,pcie-sm8450-pcie1
+    then:
+      oneOf:
+        - properties:
+            interrupts:
+              maxItems: 1
+            interrupt-names:
+              items:
+                - const: msi
+        - properties:
+            interrupts:
+              minItems: 8
+            interrupt-names:
+              items:
+                - const: msi0
+                - const: msi1
+                - const: msi2
+                - const: msi3
+                - const: msi4
+                - const: msi5
+                - const: msi6
+                - const: msi7
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+        interrupt-names:
+          items:
+            - const: msi
 
 unevaluatedProperties: false
 

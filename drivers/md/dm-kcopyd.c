@@ -219,7 +219,7 @@ static struct page_list *alloc_pl(gfp_t gfp)
 	if (!pl)
 		return NULL;
 
-	pl->page = alloc_page(gfp);
+	pl->page = alloc_page(gfp | __GFP_HIGHMEM);
 	if (!pl->page) {
 		kfree(pl);
 		return NULL;
@@ -350,9 +350,9 @@ struct kcopyd_job {
 	unsigned long write_err;
 
 	/*
-	 * Either READ or WRITE
+	 * REQ_OP_READ, REQ_OP_WRITE or REQ_OP_WRITE_ZEROES.
 	 */
-	int rw;
+	enum req_op op;
 	struct dm_io_region source;
 
 	/*
@@ -418,7 +418,8 @@ static struct kcopyd_job *pop_io_job(struct list_head *jobs,
 	 * constraint and sequential writes that are at the right position.
 	 */
 	list_for_each_entry(job, jobs, list) {
-		if (job->rw == READ || !(job->flags & BIT(DM_KCOPYD_WRITE_SEQ))) {
+		if (job->op == REQ_OP_READ ||
+		    !(job->flags & BIT(DM_KCOPYD_WRITE_SEQ))) {
 			list_del(&job->list);
 			return job;
 		}
@@ -518,7 +519,7 @@ static void complete_io(unsigned long error, void *context)
 	io_job_finish(kc->throttle);
 
 	if (error) {
-		if (op_is_write(job->rw))
+		if (op_is_write(job->op))
 			job->write_err |= error;
 		else
 			job->read_err = 1;
@@ -530,11 +531,11 @@ static void complete_io(unsigned long error, void *context)
 		}
 	}
 
-	if (op_is_write(job->rw))
+	if (op_is_write(job->op))
 		push(&kc->complete_jobs, job);
 
 	else {
-		job->rw = WRITE;
+		job->op = REQ_OP_WRITE;
 		push(&kc->io_jobs, job);
 	}
 
@@ -549,8 +550,7 @@ static int run_io_job(struct kcopyd_job *job)
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_op = job->rw,
-		.bi_op_flags = 0,
+		.bi_opf = job->op,
 		.mem.type = DM_IO_PAGE_LIST,
 		.mem.ptr.pl = job->pages,
 		.mem.offset = 0,
@@ -571,7 +571,7 @@ static int run_io_job(struct kcopyd_job *job)
 
 	io_job_start(job->kc->throttle);
 
-	if (job->rw == READ)
+	if (job->op == REQ_OP_READ)
 		r = dm_io(&io_req, 1, &job->source, NULL);
 	else
 		r = dm_io(&io_req, job->num_dests, job->dests, NULL);
@@ -614,7 +614,7 @@ static int process_jobs(struct list_head *jobs, struct dm_kcopyd_client *kc,
 
 		if (r < 0) {
 			/* error this rogue job */
-			if (op_is_write(job->rw))
+			if (op_is_write(job->op))
 				job->write_err = (unsigned long) -1L;
 			else
 				job->read_err = 1;
@@ -817,7 +817,7 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	if (from) {
 		job->source = *from;
 		job->pages = NULL;
-		job->rw = READ;
+		job->op = REQ_OP_READ;
 	} else {
 		memset(&job->source, 0, sizeof job->source);
 		job->source.count = job->dests[0].count;
@@ -826,10 +826,10 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		/*
 		 * Use WRITE ZEROES to optimize zeroing if all dests support it.
 		 */
-		job->rw = REQ_OP_WRITE_ZEROES;
+		job->op = REQ_OP_WRITE_ZEROES;
 		for (i = 0; i < job->num_dests; i++)
 			if (!bdev_write_zeroes_sectors(job->dests[i].bdev)) {
-				job->rw = WRITE;
+				job->op = REQ_OP_WRITE;
 				break;
 			}
 	}

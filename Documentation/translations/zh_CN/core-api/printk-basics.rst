@@ -6,6 +6,7 @@
 :翻译:
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
+ 周彬彬 Binbin Zhou <zhoubinbin@loongson.cn>
 
 .. _cn_printk-basics.rst:
 
@@ -106,7 +107,5 @@ pr_debug()和pr_devel()，除非定义了 ``DEBUG`` (或者在pr_debug()的情�
 ========
 
 该API在以下内核代码中:
-
-kernel/printk/printk.c
 
 include/linux/printk.h

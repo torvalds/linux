@@ -660,7 +660,6 @@ static const struct snd_soc_component_driver soc_component_cs4234 = {
 	.controls		= cs4234_snd_controls,
 	.num_controls		= ARRAY_SIZE(cs4234_snd_controls),
 	.set_bias_level		= cs4234_set_bias_level,
-	.non_legacy_dai_naming	= 1,
 	.idle_bias_on		= 1,
 	.suspend_bias_off	= 1,
 	.endianness		= 1,

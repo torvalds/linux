@@ -139,15 +139,20 @@ err_exit:
 
 static int dw_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 {
-	dws->rxchan = dma_request_slave_channel(dev, "rx");
-	if (!dws->rxchan)
-		return -ENODEV;
+	int ret;
 
-	dws->txchan = dma_request_slave_channel(dev, "tx");
-	if (!dws->txchan) {
-		dma_release_channel(dws->rxchan);
+	dws->rxchan = dma_request_chan(dev, "rx");
+	if (IS_ERR(dws->rxchan)) {
+		ret = PTR_ERR(dws->rxchan);
 		dws->rxchan = NULL;
-		return -ENODEV;
+		goto err_exit;
+	}
+
+	dws->txchan = dma_request_chan(dev, "tx");
+	if (IS_ERR(dws->txchan)) {
+		ret = PTR_ERR(dws->txchan);
+		dws->txchan = NULL;
+		goto free_rxchan;
 	}
 
 	dws->master->dma_rx = dws->rxchan;
@@ -160,6 +165,12 @@ static int dw_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 	dw_spi_dma_sg_burst_init(dws);
 
 	return 0;
+
+free_rxchan:
+	dma_release_channel(dws->rxchan);
+	dws->rxchan = NULL;
+err_exit:
+	return ret;
 }
 
 static void dw_spi_dma_exit(struct dw_spi *dws)

@@ -663,6 +663,42 @@ SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 	return do_fchmodat(AT_FDCWD, filename, mode);
 }
 
+/**
+ * setattr_vfsuid - check and set ia_fsuid attribute
+ * @kuid: new inode owner
+ *
+ * Check whether @kuid is valid and if so generate and set vfsuid_t in
+ * ia_vfsuid.
+ *
+ * Return: true if @kuid is valid, false if not.
+ */
+static inline bool setattr_vfsuid(struct iattr *attr, kuid_t kuid)
+{
+	if (!uid_valid(kuid))
+		return false;
+	attr->ia_valid |= ATTR_UID;
+	attr->ia_vfsuid = VFSUIDT_INIT(kuid);
+	return true;
+}
+
+/**
+ * setattr_vfsgid - check and set ia_fsgid attribute
+ * @kgid: new inode owner
+ *
+ * Check whether @kgid is valid and if so generate and set vfsgid_t in
+ * ia_vfsgid.
+ *
+ * Return: true if @kgid is valid, false if not.
+ */
+static inline bool setattr_vfsgid(struct iattr *attr, kgid_t kgid)
+{
+	if (!gid_valid(kgid))
+		return false;
+	attr->ia_valid |= ATTR_GID;
+	attr->ia_vfsgid = VFSGIDT_INIT(kgid);
+	return true;
+}
+
 int chown_common(const struct path *path, uid_t user, gid_t group)
 {
 	struct user_namespace *mnt_userns, *fs_userns;
@@ -678,28 +714,24 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 
 	mnt_userns = mnt_user_ns(path->mnt);
 	fs_userns = i_user_ns(inode);
-	uid = mapped_kuid_user(mnt_userns, fs_userns, uid);
-	gid = mapped_kgid_user(mnt_userns, fs_userns, gid);
 
 retry_deleg:
+	newattrs.ia_vfsuid = INVALID_VFSUID;
+	newattrs.ia_vfsgid = INVALID_VFSGID;
 	newattrs.ia_valid =  ATTR_CTIME;
-	if (user != (uid_t) -1) {
-		if (!uid_valid(uid))
-			return -EINVAL;
-		newattrs.ia_valid |= ATTR_UID;
-		newattrs.ia_uid = uid;
-	}
-	if (group != (gid_t) -1) {
-		if (!gid_valid(gid))
-			return -EINVAL;
-		newattrs.ia_valid |= ATTR_GID;
-		newattrs.ia_gid = gid;
-	}
+	if ((user != (uid_t)-1) && !setattr_vfsuid(&newattrs, uid))
+		return -EINVAL;
+	if ((group != (gid_t)-1) && !setattr_vfsgid(&newattrs, gid))
+		return -EINVAL;
 	if (!S_ISDIR(inode->i_mode))
 		newattrs.ia_valid |=
 			ATTR_KILL_SUID | ATTR_KILL_SGID | ATTR_KILL_PRIV;
 	inode_lock(inode);
-	error = security_path_chown(path, uid, gid);
+	/* Continue to send actual fs values, not the mount values. */
+	error = security_path_chown(
+		path,
+		from_vfsuid(mnt_userns, fs_userns, newattrs.ia_vfsuid),
+		from_vfsgid(mnt_userns, fs_userns, newattrs.ia_vfsgid));
 	if (!error)
 		error = notify_change(mnt_userns, path->dentry, &newattrs,
 				      &delegated_inode);
@@ -858,10 +890,13 @@ static int do_dentry_open(struct file *f,
 	if ((f->f_mode & FMODE_WRITE) &&
 	     likely(f->f_op->write || f->f_op->write_iter))
 		f->f_mode |= FMODE_CAN_WRITE;
+	if ((f->f_mode & FMODE_LSEEK) && !f->f_op->llseek)
+		f->f_mode &= ~FMODE_LSEEK;
 	if (f->f_mapping->a_ops && f->f_mapping->a_ops->direct_IO)
 		f->f_mode |= FMODE_CAN_ODIRECT;
 
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
+	f->f_iocb_flags = iocb_flags(f);
 
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
 

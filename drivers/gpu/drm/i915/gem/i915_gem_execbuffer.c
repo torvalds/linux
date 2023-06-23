@@ -6,7 +6,6 @@
 
 #include <linux/dma-resv.h>
 #include <linux/highmem.h>
-#include <linux/intel-iommu.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
@@ -1951,7 +1950,7 @@ eb_find_first_request_added(struct i915_execbuffer *eb)
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
 /* Stage with GFP_KERNEL allocations before we enter the signaling critical path */
-static void eb_capture_stage(struct i915_execbuffer *eb)
+static int eb_capture_stage(struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
 	unsigned int i = count, j;
@@ -1963,6 +1962,10 @@ static void eb_capture_stage(struct i915_execbuffer *eb)
 
 		if (!(flags & EXEC_OBJECT_CAPTURE))
 			continue;
+
+		if (i915_gem_context_is_recoverable(eb->gem_context) &&
+		    (IS_DGFX(eb->i915) || GRAPHICS_VER_FULL(eb->i915) > IP_VER(12, 0)))
+			return -EINVAL;
 
 		for_each_batch_create_order(eb, j) {
 			struct i915_capture_list *capture;
@@ -1976,6 +1979,8 @@ static void eb_capture_stage(struct i915_execbuffer *eb)
 			eb->capture_lists[j] = capture;
 		}
 	}
+
+	return 0;
 }
 
 /* Commit once we're in the critical path */
@@ -2017,8 +2022,9 @@ static void eb_capture_list_clear(struct i915_execbuffer *eb)
 
 #else
 
-static void eb_capture_stage(struct i915_execbuffer *eb)
+static int eb_capture_stage(struct i915_execbuffer *eb)
 {
+	return 0;
 }
 
 static void eb_capture_commit(struct i915_execbuffer *eb)
@@ -3410,7 +3416,9 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 
 	ww_acquire_done(&eb.ww.ctx);
-	eb_capture_stage(&eb);
+	err = eb_capture_stage(&eb);
+	if (err)
+		goto err_vma;
 
 	out_fence = eb_requests_create(&eb, in_fence, out_fence_fd);
 	if (IS_ERR(out_fence)) {

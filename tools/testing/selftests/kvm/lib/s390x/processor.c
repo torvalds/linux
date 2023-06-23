@@ -7,11 +7,10 @@
 
 #include "processor.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 
 #define PAGES_PER_REGION 4
 
-void virt_pgd_alloc(struct kvm_vm *vm)
+void virt_arch_pgd_alloc(struct kvm_vm *vm)
 {
 	vm_paddr_t paddr;
 
@@ -47,7 +46,7 @@ static uint64_t virt_alloc_region(struct kvm_vm *vm, int ri)
 		| ((ri < 4 ? (PAGES_PER_REGION - 1) : 0) & REGION_ENTRY_LENGTH);
 }
 
-void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
+void virt_arch_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
 {
 	int ri, idx;
 	uint64_t *entry;
@@ -86,7 +85,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
 	entry[idx] = gpa;
 }
 
-vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
+vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	int ri, idx;
 	uint64_t *entry;
@@ -147,7 +146,7 @@ static void virt_dump_region(FILE *stream, struct kvm_vm *vm, uint8_t indent,
 	}
 }
 
-void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
+void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
 	if (!vm->pgd_created)
 		return;
@@ -155,12 +154,14 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	virt_dump_region(stream, vm, indent, vm->pgd);
 }
 
-void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+				  void *guest_code)
 {
 	size_t stack_size =  DEFAULT_STACK_PGS * getpagesize();
 	uint64_t stack_vaddr;
 	struct kvm_regs regs;
 	struct kvm_sregs sregs;
+	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 
 	TEST_ASSERT(vm->page_size == 4096, "Unsupported page size: 0x%x",
@@ -169,24 +170,26 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 	stack_vaddr = vm_vaddr_alloc(vm, stack_size,
 				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
-	vm_vcpu_add(vm, vcpuid);
+	vcpu = __vm_vcpu_add(vm, vcpu_id);
 
 	/* Setup guest registers */
-	vcpu_regs_get(vm, vcpuid, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	regs.gprs[15] = stack_vaddr + (DEFAULT_STACK_PGS * getpagesize()) - 160;
-	vcpu_regs_set(vm, vcpuid, &regs);
+	vcpu_regs_set(vcpu, &regs);
 
-	vcpu_sregs_get(vm, vcpuid, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	sregs.crs[0] |= 0x00040000;		/* Enable floating point regs */
 	sregs.crs[1] = vm->pgd | 0xf;		/* Primary region table */
-	vcpu_sregs_set(vm, vcpuid, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 
-	run = vcpu_state(vm, vcpuid);
+	run = vcpu->run;
 	run->psw_mask = 0x0400000180000000ULL;  /* DAT enabled + 64 bit mode */
 	run->psw_addr = (uintptr_t)guest_code;
+
+	return vcpu;
 }
 
-void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
+void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 {
 	va_list ap;
 	struct kvm_regs regs;
@@ -197,26 +200,21 @@ void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
 		    num);
 
 	va_start(ap, num);
-	vcpu_regs_get(vm, vcpuid, &regs);
+	vcpu_regs_get(vcpu, &regs);
 
 	for (i = 0; i < num; i++)
 		regs.gprs[i + 2] = va_arg(ap, uint64_t);
 
-	vcpu_regs_set(vm, vcpuid, &regs);
+	vcpu_regs_set(vcpu, &regs);
 	va_end(ap);
 }
 
-void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
 {
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-
-	if (!vcpu)
-		return;
-
 	fprintf(stream, "%*spstate: psw: 0x%.16llx:0x%.16llx\n",
-		indent, "", vcpu->state->psw_mask, vcpu->state->psw_addr);
+		indent, "", vcpu->run->psw_mask, vcpu->run->psw_addr);
 }
 
-void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid)
+void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 {
 }

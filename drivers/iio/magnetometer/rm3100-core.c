@@ -544,7 +544,7 @@ int rm3100_common_probe(struct device *dev, struct regmap *regmap, int irq)
 	indio_dev->info = &rm3100_info;
 	indio_dev->channels = rm3100_channels;
 	indio_dev->num_channels = ARRAY_SIZE(rm3100_channels);
-	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_TRIGGERED;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (!irq)
 		data->use_interrupt = false;

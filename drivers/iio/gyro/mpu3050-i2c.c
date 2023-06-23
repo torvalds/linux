@@ -116,7 +116,7 @@ static struct i2c_driver mpu3050_i2c_driver = {
 	.driver = {
 		.of_match_table = mpu3050_i2c_of_match,
 		.name = "mpu3050-i2c",
-		.pm = &mpu3050_dev_pm_ops,
+		.pm = pm_ptr(&mpu3050_dev_pm_ops),
 	},
 };
 module_i2c_driver(mpu3050_i2c_driver);

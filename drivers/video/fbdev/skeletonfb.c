@@ -131,8 +131,6 @@ static struct fb_info info;
      */
 static struct xxx_par __initdata current_par;
 
-int xxxfb_init(void);
-
 /**
  *	xxxfb_open - Optional function. Called when the framebuffer is
  *		     first accessed.
@@ -886,7 +884,7 @@ static struct pci_driver xxxfb_driver = {
 
 MODULE_DEVICE_TABLE(pci, xxxfb_id_table);
 
-int __init xxxfb_init(void)
+static int __init xxxfb_init(void)
 {
 	/*
 	 *  For kernel boot options (in 'video=xxxfb:<options>' format)
@@ -967,7 +965,7 @@ static struct platform_device *xxxfb_device;
  * Only necessary if your driver takes special options,
  * otherwise we fall back on the generic fb_setup().
  */
-int __init xxxfb_setup(char *options)
+static int __init xxxfb_setup(char *options)
 {
     /* Parse user specified options (`video=xxxfb:') */
 }

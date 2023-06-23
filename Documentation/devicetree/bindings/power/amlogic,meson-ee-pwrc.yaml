@@ -2,13 +2,13 @@
 # Copyright 2019 BayLibre, SAS
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/power/amlogic,meson-ee-pwrc.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/power/amlogic,meson-ee-pwrc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Amlogic Meson Everything-Else Power Domains
 
 maintainers:
-  - Neil Armstrong <narmstrong@baylibre.com>
+  - Neil Armstrong <neil.armstrong@linaro.org>
 
 description: |+
   The Everything-Else Power Domains node should be the child of a syscon
@@ -17,7 +17,7 @@ description: |+
   - compatible: Should be the following:
                 "amlogic,meson-gx-hhi-sysctrl", "simple-mfd", "syscon"
 
-  Refer to the the bindings described in
+  Refer to the bindings described in
   Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:

@@ -12,8 +12,27 @@
 #define MT76_CONNAC_MAX_SCHED_SCAN_SSID		10
 #define MT76_CONNAC_MAX_SCAN_MATCH		16
 
+#define MT76_CONNAC_MAX_WMM_SETS		4
+
 #define MT76_CONNAC_COREDUMP_TIMEOUT		(HZ / 20)
 #define MT76_CONNAC_COREDUMP_SZ			(1300 * 1024)
+
+#define MT_TXD_SIZE				(8 * 4)
+
+#define MT_USB_TXD_SIZE				(MT_TXD_SIZE + 8 * 4)
+#define MT_USB_HDR_SIZE				4
+#define MT_USB_TAIL_SIZE			4
+
+#define MT_SDIO_TXD_SIZE			(MT_TXD_SIZE + 8 * 4)
+#define MT_SDIO_TAIL_SIZE			8
+#define MT_SDIO_HDR_SIZE			4
+
+#define MT_MSDU_ID_VALID		BIT(15)
+
+#define MT_TXD_LEN_LAST			BIT(15)
+#define MT_TXD_LEN_MASK			GENMASK(11, 0)
+#define MT_TXD_LEN_MSDU_LAST		BIT(14)
+#define MT_TXD_LEN_AMSDU_LAST		BIT(15)
 
 enum {
 	CMD_CBW_20MHZ = IEEE80211_STA_RX_BW_20,
@@ -90,6 +109,46 @@ struct mt76_connac_sta_key_conf {
 	u8 key[16];
 };
 
+#define MT_TXP_MAX_BUF_NUM		6
+
+struct mt76_connac_fw_txp {
+	__le16 flags;
+	__le16 token;
+	u8 bss_idx;
+	__le16 rept_wds_wcid;
+	u8 nbuf;
+	__le32 buf[MT_TXP_MAX_BUF_NUM];
+	__le16 len[MT_TXP_MAX_BUF_NUM];
+} __packed __aligned(4);
+
+#define MT_HW_TXP_MAX_MSDU_NUM		4
+#define MT_HW_TXP_MAX_BUF_NUM		4
+
+struct mt76_connac_txp_ptr {
+	__le32 buf0;
+	__le16 len0;
+	__le16 len1;
+	__le32 buf1;
+} __packed __aligned(4);
+
+struct mt76_connac_hw_txp {
+	__le16 msdu_id[MT_HW_TXP_MAX_MSDU_NUM];
+	struct mt76_connac_txp_ptr ptr[MT_HW_TXP_MAX_BUF_NUM / 2];
+} __packed __aligned(4);
+
+struct mt76_connac_txp_common {
+	union {
+		struct mt76_connac_fw_txp fw;
+		struct mt76_connac_hw_txp hw;
+	};
+};
+
+struct mt76_connac_tx_free {
+	__le16 rx_byte_cnt;
+	__le16 ctrl;
+	__le32 txd;
+} __packed __aligned(4);
+
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
 static inline bool is_mt7922(struct mt76_dev *dev)
@@ -145,6 +204,19 @@ static inline bool is_connac_v1(struct mt76_dev *dev)
 	return is_mt7615(dev) || is_mt7663(dev) || is_mt7622(dev);
 }
 
+static inline bool is_mt76_fw_txp(struct mt76_dev *dev)
+{
+	switch (mt76_chip(dev)) {
+	case 0x7961:
+	case 0x7922:
+	case 0x7663:
+	case 0x7622:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static inline u8 mt76_connac_chan_bw(struct cfg80211_chan_def *chandef)
 {
 	static const u8 width_to_bw[] = {
@@ -170,11 +242,30 @@ static inline u8 mt76_connac_lmac_mapping(u8 ac)
 	return 3 - ac;
 }
 
+static inline void *
+mt76_connac_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	u8 *txwi;
+
+	if (!t)
+		return NULL;
+
+	txwi = mt76_get_txwi_ptr(dev, t);
+
+	return (void *)(txwi + MT_TXD_SIZE);
+}
+
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);
 void mt76_connac_power_save_sched(struct mt76_phy *phy,
 				  struct mt76_connac_pm *pm);
 void mt76_connac_free_pending_tx_skbs(struct mt76_connac_pm *pm,
 				      struct mt76_wcid *wcid);
+
+static inline void mt76_connac_tx_cleanup(struct mt76_dev *dev)
+{
+	dev->queue_ops->tx_cleanup(dev, dev->q_mcu[MT_MCUQ_WM], false);
+	dev->queue_ops->tx_cleanup(dev, dev->q_mcu[MT_MCUQ_WA], false);
+}
 
 static inline bool
 mt76_connac_pm_ref(struct mt76_phy *phy, struct mt76_connac_pm *pm)
@@ -238,11 +329,36 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	mutex_unlock(&dev->mutex);
 }
 
+int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
+			       int ring_base, u32 flags);
+void mt76_connac_write_hw_txp(struct mt76_dev *dev,
+			      struct mt76_tx_info *tx_info,
+			      void *txp_ptr, u32 id);
+void mt76_connac_txp_skb_unmap(struct mt76_dev *dev,
+			       struct mt76_txwi_cache *txwi);
+void mt76_connac_tx_complete_skb(struct mt76_dev *mdev,
+				 struct mt76_queue_entry *e);
 void mt76_connac_pm_queue_skb(struct ieee80211_hw *hw,
 			      struct mt76_connac_pm *pm,
 			      struct mt76_wcid *wcid,
 			      struct sk_buff *skb);
 void mt76_connac_pm_dequeue_skbs(struct mt76_phy *phy,
 				 struct mt76_connac_pm *pm);
+void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
+				 struct sk_buff *skb, struct mt76_wcid *wcid,
+				 struct ieee80211_key_conf *key, int pid,
+				 enum mt76_txq_id qid, u32 changed);
+bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
+				  int pid, __le32 *txs_data,
+				  struct mt76_sta_stats *stats);
+void mt76_connac2_mac_decode_he_radiotap(struct mt76_dev *dev,
+					 struct sk_buff *skb,
+					 __le32 *rxv, u32 mode);
+int mt76_connac2_reverse_frag0_hdr_trans(struct ieee80211_vif *vif,
+					 struct sk_buff *skb, u16 hdr_offset);
+int mt76_connac2_mac_fill_rx_rate(struct mt76_dev *dev,
+				  struct mt76_rx_status *status,
+				  struct ieee80211_supported_band *sband,
+				  __le32 *rxv, u8 *mode);
 
 #endif /* __MT76_CONNAC_H */

@@ -8,6 +8,8 @@
 
 #include <linux/kvm.h>
 
+#include "kvm_util.h"
+
 #define REDIST_REGION_ATTR_ADDR(count, base, flags, index) \
 	(((uint64_t)(count) << 52) | \
 	((uint64_t)((base) >> 16) << 16) | \
@@ -26,8 +28,8 @@ void kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level);
 int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level);
 
 /* The vcpu arg only applies to private interrupts. */
-void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, uint32_t vcpu);
-void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, uint32_t vcpu);
+void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu);
+void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu);
 
 #define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
 

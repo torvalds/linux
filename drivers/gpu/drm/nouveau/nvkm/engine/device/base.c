@@ -24,7 +24,6 @@
 #include "priv.h"
 #include "acpi.h"
 
-#include <core/notify.h>
 #include <core/option.h>
 
 #include <subdev/bios.h>
@@ -2606,6 +2605,27 @@ nv172_chipset = {
 };
 
 static const struct nvkm_device_chip
+nv173_chipset = {
+	.name = "GA103",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gpio     = { 0x00000001, ga102_gpio_new },
+	.i2c      = { 0x00000001, gm200_i2c_new },
+	.imem     = { 0x00000001, nv50_instmem_new },
+	.mc       = { 0x00000001, ga100_mc_new },
+	.mmu      = { 0x00000001, tu102_mmu_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.privring = { 0x00000001, gm200_privring_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.top      = { 0x00000001, ga100_top_new },
+	.disp     = { 0x00000001, ga102_disp_new },
+	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+};
+
+static const struct nvkm_device_chip
 nv174_chipset = {
 	.name = "GA104",
 	.bar      = { 0x00000001, tu102_bar_new },
@@ -2666,24 +2686,6 @@ nv177_chipset = {
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
-};
-
-static int
-nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
-		       struct nvkm_notify *notify)
-{
-	if (!WARN_ON(size != 0)) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = 0;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static const struct nvkm_event_func
-nvkm_device_event_func = {
-	.ctor = nvkm_device_event_ctor,
 };
 
 struct nvkm_subdev *
@@ -2838,8 +2840,6 @@ nvkm_device_del(struct nvkm_device **pdevice)
 		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
 			nvkm_subdev_del(&subdev);
 
-		nvkm_event_fini(&device->event);
-
 		if (device->pri)
 			iounmap(device->pri);
 		list_del(&device->head);
@@ -2913,10 +2913,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	list_add_tail(&device->head, &nv_devices);
 	device->debug = nvkm_dbgopt(device->dbgopt, "device");
 	INIT_LIST_HEAD(&device->subdev);
-
-	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
-	if (ret)
-		goto done;
 
 	mmio_base = device->func->resource_addr(device, 0);
 	mmio_size = device->func->resource_size(device, 0);
@@ -3092,6 +3088,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x167: device->chip = &nv167_chipset; break;
 		case 0x168: device->chip = &nv168_chipset; break;
 		case 0x172: device->chip = &nv172_chipset; break;
+		case 0x173: device->chip = &nv173_chipset; break;
 		case 0x174: device->chip = &nv174_chipset; break;
 		case 0x176: device->chip = &nv176_chipset; break;
 		case 0x177: device->chip = &nv177_chipset; break;

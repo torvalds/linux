@@ -1774,10 +1774,10 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 			if (v->vid == pvid)
 				vxi.flags |= BRIDGE_VLAN_INFO_PVID;
 			br_vlan_get_stats(v, &stats);
-			vxi.rx_bytes = stats.rx_bytes;
-			vxi.rx_packets = stats.rx_packets;
-			vxi.tx_bytes = stats.tx_bytes;
-			vxi.tx_packets = stats.tx_packets;
+			vxi.rx_bytes = u64_stats_read(&stats.rx_bytes);
+			vxi.rx_packets = u64_stats_read(&stats.rx_packets);
+			vxi.tx_bytes = u64_stats_read(&stats.tx_bytes);
+			vxi.tx_packets = u64_stats_read(&stats.tx_packets);
 
 			if (nla_put(skb, BRIDGE_XSTATS_VLAN, sizeof(vxi), &vxi))
 				goto nla_put_failure;

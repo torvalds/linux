@@ -57,10 +57,10 @@
 	cp2_sfp_eth0: sfp-eth0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp2_sfpp0_i2c>;
-		los-gpio = <&cp2_module_expander1 11 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp2_module_expander1 10 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp2_module_expander1 9 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp2_module_expander1 8 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp2_module_expander1 11 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp2_module_expander1 10 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp2_module_expander1 9 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp2_module_expander1 8 GPIO_ACTIVE_HIGH>;
 		/*
 		 * SFP cages are unconnected on early PCBs because of an the I2C
 		 * lanes not being connected. Prevent the port for being

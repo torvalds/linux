@@ -43,6 +43,7 @@
 #include <asm/stacktrace.h>
 #include <asm/tlb.h>
 #include <asm/types.h>
+#include <asm/unwind.h>
 
 #include "access-helper.h"
 
@@ -64,19 +65,20 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs,
 			   const char *loglvl, bool user)
 {
 	unsigned long addr;
-	unsigned long *sp = (unsigned long *)(regs->regs[3] & ~3);
+	struct unwind_state state;
+	struct pt_regs *pregs = (struct pt_regs *)regs;
+
+	if (!task)
+		task = current;
+
+	if (user_mode(regs))
+		state.type = UNWINDER_GUESS;
 
 	printk("%sCall Trace:", loglvl);
-#ifdef CONFIG_KALLSYMS
-	printk("%s\n", loglvl);
-#endif
-	while (!kstack_end(sp)) {
-		if (__get_addr(&addr, sp++, user)) {
-			printk("%s (Bad stack address)", loglvl);
-			break;
-		}
-		if (__kernel_text_address(addr))
-			print_ip_sym(loglvl, addr);
+	for (unwind_start(&state, task, pregs);
+	      !unwind_done(&state); unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		print_ip_sym(loglvl, addr);
 	}
 	printk("%s\n", loglvl);
 }
@@ -459,11 +461,9 @@ asmlinkage void noinstr do_watch(struct pt_regs *regs)
 
 asmlinkage void noinstr do_ri(struct pt_regs *regs)
 {
-	int status = -1;
+	int status = SIGILL;
 	unsigned int opcode = 0;
 	unsigned int __user *era = (unsigned int __user *)exception_era(regs);
-	unsigned long old_era = regs->csr_era;
-	unsigned long old_ra = regs->regs[1];
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
@@ -475,21 +475,12 @@ asmlinkage void noinstr do_ri(struct pt_regs *regs)
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
 
-	compute_return_era(regs);
-
 	if (unlikely(get_user(opcode, era) < 0)) {
 		status = SIGSEGV;
 		current->thread.error_code = 1;
 	}
 
-	if (status < 0)
-		status = SIGILL;
-
-	if (unlikely(status > 0)) {
-		regs->csr_era = old_era;		/* Undo skip-over.  */
-		regs->regs[1] = old_ra;
-		force_sig(status);
-	}
+	force_sig(status);
 
 out:
 	local_irq_disable();

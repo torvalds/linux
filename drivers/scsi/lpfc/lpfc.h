@@ -48,9 +48,6 @@ struct lpfc_sli2_slim;
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
-#define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
-		cmnd for menlo needs nearly twice as for firmware
-		downloads using bsg */
 
 #define LPFC_DEFAULT_XPSGL_SIZE	256
 #define LPFC_MAX_SG_TABLESIZE	0xffff
@@ -604,7 +601,6 @@ struct lpfc_vport {
 #define FC_VFI_REGISTERED	0x800000 /* VFI is registered */
 #define FC_FDISC_COMPLETED	0x1000000/* FDISC completed */
 #define FC_DISC_DELAYED		0x2000000/* Delay NPort discovery */
-#define FC_RSCN_MEMENTO		0x4000000/* RSCN cmd processed */
 
 	uint32_t ct_flags;
 #define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
@@ -987,7 +983,8 @@ struct lpfc_hba {
 					   u8 last_seq, u8 cr_cx_cmd);
 	void (*__lpfc_sli_prep_abort_xri)(struct lpfc_iocbq *cmdiocbq,
 					  u16 ulp_context, u16 iotag,
-					  u8 ulp_class, u16 cqid, bool ia);
+					  u8 ulp_class, u16 cqid, bool ia,
+					  bool wqec);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
@@ -1439,8 +1436,6 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
-	int wait_4_mlo_maint_flg;
-	wait_queue_head_t wait_4_mlo_m_q;
 	/* data structure used for latency data collection */
 #define LPFC_NO_BUCKET	   0
 #define LPFC_LINEAR_BUCKET 1
@@ -1475,8 +1470,6 @@ struct lpfc_hba {
 	/* RAS Support */
 	struct lpfc_ras_fwlog ras_fwlog;
 
-	uint8_t menlo_flag;	/* menlo generic flags */
-#define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 	uint32_t iocb_cnt;
 	uint32_t iocb_max;
 	atomic_t sdev_cnt;

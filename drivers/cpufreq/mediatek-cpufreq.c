@@ -478,6 +478,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	if (info->soc_data->ccifreq_supported) {
 		info->vproc_on_boot = regulator_get_voltage(info->proc_reg);
 		if (info->vproc_on_boot < 0) {
+			ret = info->vproc_on_boot;
 			dev_err(info->cpu_dev,
 				"invalid Vproc value: %d\n", info->vproc_on_boot);
 			goto out_disable_inter_clock;

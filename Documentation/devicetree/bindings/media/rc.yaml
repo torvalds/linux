@@ -12,7 +12,7 @@ maintainers:
 
 properties:
   $nodename:
-    pattern: "^ir(@[a-f0-9]+)?$"
+    pattern: "^ir(-receiver)?(@[a-f0-9]+)?$"
 
   linux,rc-map-name:
     description:

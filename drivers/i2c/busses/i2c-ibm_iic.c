@@ -738,7 +738,7 @@ static int iic_probe(struct platform_device *ofdev)
 	adap = &dev->adap;
 	adap->dev.parent = &ofdev->dev;
 	adap->dev.of_node = of_node_get(np);
-	strlcpy(adap->name, "IBM IIC", sizeof(adap->name));
+	strscpy(adap->name, "IBM IIC", sizeof(adap->name));
 	i2c_set_adapdata(adap, dev);
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo = &iic_algo;

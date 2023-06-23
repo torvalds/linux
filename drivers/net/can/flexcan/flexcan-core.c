@@ -941,11 +941,6 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 	u32 reg_ctrl, reg_id, reg_iflag1;
 	int i;
 
-	if (unlikely(drop)) {
-		skb = ERR_PTR(-ENOBUFS);
-		goto mark_as_read;
-	}
-
 	mb = flexcan_get_mb(priv, n);
 
 	if (priv->devtype_data.quirks & FLEXCAN_QUIRK_USE_RX_MAILBOX) {
@@ -972,6 +967,11 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 			return NULL;
 
 		reg_ctrl = priv->read(&mb->can_ctrl);
+	}
+
+	if (unlikely(drop)) {
+		skb = ERR_PTR(-ENOBUFS);
+		goto mark_as_read;
 	}
 
 	if (reg_ctrl & FLEXCAN_MB_CNT_EDL)
@@ -2113,7 +2113,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	dev->netdev_ops = &flexcan_netdev_ops;
-	flexcan_set_ethtool_ops(dev);
+	dev->ethtool_ops = &flexcan_ethtool_ops;
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
 

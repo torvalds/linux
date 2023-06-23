@@ -15,6 +15,14 @@
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
+struct fw_binning_conf {
+	u64 tpc_binning;
+	u32 dec_binning;
+	u32 hbm_binning;
+	u32 edma_binning;
+	u32 mme_redundancy;
+};
+
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
@@ -33,7 +41,7 @@ static char *extract_fw_ver_from_str(const char *fw_str)
 	ver_offset = str - fw_str;
 
 	/* Copy until the next whitespace */
-	whitespace =  strnstr(str, " ", VERSION_MAX_LEN - ver_offset);
+	whitespace = strnstr(str, " ", VERSION_MAX_LEN - ver_offset);
 	if (!whitespace)
 		goto free_fw_ver;
 
@@ -44,6 +52,43 @@ static char *extract_fw_ver_from_str(const char *fw_str)
 free_fw_ver:
 	kfree(fw_ver);
 	return NULL;
+}
+
+static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
+{
+	char major[8], minor[8], *first_dot, *second_dot;
+	int rc;
+
+	first_dot = strnstr(preboot_ver, ".", 10);
+	if (first_dot) {
+		strscpy(major, preboot_ver, first_dot - preboot_ver + 1);
+		rc = kstrtou32(major, 10, &hdev->fw_major_version);
+	} else {
+		rc = -EINVAL;
+	}
+
+	if (rc) {
+		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
+		goto out;
+	}
+
+	/* skip the first dot */
+	first_dot++;
+
+	second_dot = strnstr(first_dot, ".", 10);
+	if (second_dot) {
+		strscpy(minor, first_dot, second_dot - first_dot + 1);
+		rc = kstrtou32(minor, 10, &hdev->fw_minor_version);
+	} else {
+		rc = -EINVAL;
+	}
+
+	if (rc)
+		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
+
+out:
+	kfree(preboot_ver);
+	return rc;
 }
 
 static int hl_request_fw(struct hl_device *hdev,
@@ -197,14 +242,14 @@ int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 	return rc;
 }
 
-int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
+int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode, u64 value)
 {
 	struct cpucp_packet pkt = {};
 
 	pkt.ctl = cpu_to_le32(opcode << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(value);
 
-	return hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt,
-						sizeof(pkt), 0, NULL);
+	return hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
 }
 
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
@@ -218,8 +263,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	u32 tmp, expected_ack_val, pi;
 	int rc;
 
-	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
-								&pkt_dma_addr);
+	pkt = hl_cpu_accessible_dma_pool_alloc(hdev, len, &pkt_dma_addr);
 	if (!pkt) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for packet to CPU\n");
@@ -231,7 +275,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	mutex_lock(&hdev->send_cpu_message_lock);
 
 	/* CPU-CP messages can be sent during soft-reset */
-	if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+	if (hdev->disabled && !hdev->reset_info.in_compute_reset) {
 		rc = 0;
 		goto out;
 	}
@@ -267,7 +311,14 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
 
 	if (rc == -ETIMEDOUT) {
-		dev_err(hdev->dev, "Device CPU packet timeout (0x%x)\n", tmp);
+		/* If FW performed reset just before sending it a packet, we will get a timeout.
+		 * This is expected behavior, hence no need for error message.
+		 */
+		if (!hl_device_operational(hdev, NULL) && !hdev->reset_info.in_compute_reset)
+			dev_dbg(hdev->dev, "Device CPU packet timeout (0x%x) due to FW reset\n",
+					tmp);
+		else
+			dev_err(hdev->dev, "Device CPU packet timeout (0x%x)\n", tmp);
 		hdev->device_cpu_disabled = true;
 		goto out;
 	}
@@ -276,11 +327,15 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	rc = (tmp & CPUCP_PKT_CTL_RC_MASK) >> CPUCP_PKT_CTL_RC_SHIFT;
 	if (rc) {
-		dev_err(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
-			rc,
-			(tmp & CPUCP_PKT_CTL_OPCODE_MASK)
-						>> CPUCP_PKT_CTL_OPCODE_SHIFT);
+		dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
+			rc, (tmp & CPUCP_PKT_CTL_OPCODE_MASK) >> CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+		/* propagate the return code from the f/w to the callers who want to check it */
+		if (result)
+			*result = rc;
+
 		rc = -EIO;
+
 	} else if (result) {
 		*result = le64_to_cpu(pkt->result);
 	}
@@ -296,7 +351,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 out:
 	mutex_unlock(&hdev->send_cpu_message_lock);
 
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, len, pkt);
+	hl_cpu_accessible_dma_pool_free(hdev, len, pkt);
 
 	return rc;
 }
@@ -517,6 +572,11 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
 	}
 
+	if (err_val & CPU_BOOT_ERR0_BINNING_FAIL) {
+		dev_err(hdev->dev, "Device boot error - binning failure\n");
+		err_exists = true;
+	}
+
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
@@ -637,10 +697,8 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	u64 result;
 	int rc;
 
-	cpucp_info_cpu_addr =
-			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-					sizeof(struct cpucp_info),
-					&cpucp_info_dma_addr);
+	cpucp_info_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, sizeof(struct cpucp_info),
+								&cpucp_info_dma_addr);
 	if (!cpucp_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP info packet\n");
@@ -701,8 +759,7 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 		prop->fw_app_cpu_boot_dev_sts1 = RREG32(sts_boot_dev_sts1_reg);
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-			sizeof(struct cpucp_info), cpucp_info_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, sizeof(struct cpucp_info), cpucp_info_cpu_addr);
 
 	return rc;
 }
@@ -785,9 +842,8 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	u64 result;
 	int rc;
 
-	eeprom_info_cpu_addr =
-			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-					max_size, &eeprom_info_dma_addr);
+	eeprom_info_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, max_size,
+									&eeprom_info_dma_addr);
 	if (!eeprom_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP EEPROM packet\n");
@@ -815,8 +871,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	memcpy(data, eeprom_info_cpu_addr, min((size_t)result, max_size));
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, max_size,
-			eeprom_info_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, max_size, eeprom_info_cpu_addr);
 
 	return rc;
 }
@@ -833,8 +888,7 @@ int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
 	int i, rc;
 
 	data_size = sizeof(struct cpucp_monitor_dump);
-	mon_dump_cpu_addr = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, data_size,
-										&mon_dump_dma_addr);
+	mon_dump_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, data_size, &mon_dump_dma_addr);
 	if (!mon_dump_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP monitor-dump packet\n");
@@ -864,7 +918,7 @@ int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
 	}
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, data_size, mon_dump_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, data_size, mon_dump_cpu_addr);
 
 	return rc;
 }
@@ -1057,10 +1111,9 @@ int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
 	u64 result;
 	int rc;
 
-	cpucp_repl_rows_info_cpu_addr =
-			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-					sizeof(struct cpucp_hbm_row_info),
-					&cpucp_repl_rows_info_dma_addr);
+	cpucp_repl_rows_info_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev,
+							sizeof(struct cpucp_hbm_row_info),
+							&cpucp_repl_rows_info_dma_addr);
 	if (!cpucp_repl_rows_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP replaced rows info packet\n");
@@ -1085,9 +1138,8 @@ int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
 	memcpy(info, cpucp_repl_rows_info_cpu_addr, sizeof(*info));
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					sizeof(struct cpucp_hbm_row_info),
-					cpucp_repl_rows_info_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, sizeof(struct cpucp_hbm_row_info),
+						cpucp_repl_rows_info_cpu_addr);
 
 	return rc;
 }
@@ -1234,15 +1286,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	}
 }
 
-static int hl_fw_read_preboot_caps(struct hl_device *hdev,
-					u32 cpu_boot_status_reg,
-					u32 sts_boot_dev_sts0_reg,
-					u32 sts_boot_dev_sts1_reg,
-					u32 boot_err0_reg, u32 boot_err1_reg,
-					u32 timeout)
+static int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 status, reg_val;
+	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
+	u32 status;
 	int rc;
 
 	/* Need to check two possible scenarios:
@@ -1255,13 +1302,13 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 	 */
 	rc = hl_poll_timeout(
 		hdev,
-		cpu_boot_status_reg,
+		pre_fw_load->cpu_boot_status_reg,
 		status,
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
 		hdev->fw_poll_interval_usec,
-		timeout);
+		pre_fw_load->wait_for_preboot_timeout);
 
 	if (rc) {
 		dev_err(hdev->dev, "CPU boot ready status timeout\n");
@@ -1271,11 +1318,31 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		 * of reading specific errors
 		 */
 		if (status != -1)
-			fw_read_errors(hdev, boot_err0_reg, boot_err1_reg,
-							sts_boot_dev_sts0_reg,
-							sts_boot_dev_sts1_reg);
+			fw_read_errors(hdev, pre_fw_load->boot_err0_reg,
+						pre_fw_load->boot_err1_reg,
+						pre_fw_load->sts_boot_dev_sts0_reg,
+						pre_fw_load->sts_boot_dev_sts1_reg);
 		return -EIO;
 	}
+
+	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_PREBOOT_CPU;
+
+	return 0;
+}
+
+static int hl_fw_read_preboot_caps(struct hl_device *hdev)
+{
+	struct pre_fw_load_props *pre_fw_load;
+	struct asic_fixed_properties *prop;
+	u32 reg_val;
+	int rc;
+
+	prop = &hdev->asic_prop;
+	pre_fw_load = &hdev->fw_loader.pre_fw_load;
+
+	rc = hl_fw_wait_preboot_ready(hdev);
+	if (rc)
+		return rc;
 
 	/*
 	 * the registers DEV_STS* contain FW capabilities/features.
@@ -1287,13 +1354,13 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 	 * In case it is not enabled the stored value will be left 0- all
 	 * caps/features are off
 	 */
-	reg_val = RREG32(sts_boot_dev_sts0_reg);
+	reg_val = RREG32(pre_fw_load->sts_boot_dev_sts0_reg);
 	if (reg_val & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_cpu_boot_dev_sts0_valid = true;
 		prop->fw_preboot_cpu_boot_dev_sts0 = reg_val;
 	}
 
-	reg_val = RREG32(sts_boot_dev_sts1_reg);
+	reg_val = RREG32(pre_fw_load->sts_boot_dev_sts1_reg);
 	if (reg_val & CPU_BOOT_DEV_STS1_ENABLED) {
 		prop->fw_cpu_boot_dev_sts1_valid = true;
 		prop->fw_preboot_cpu_boot_dev_sts1 = reg_val;
@@ -1436,24 +1503,21 @@ static int hl_fw_static_read_preboot_status(struct hl_device *hdev)
 	return 0;
 }
 
-int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-				u32 sts_boot_dev_sts0_reg,
-				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
-				u32 boot_err1_reg, u32 timeout)
+int hl_fw_read_preboot_status(struct hl_device *hdev)
 {
 	int rc;
 
 	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU))
 		return 0;
 
+	/* get FW pre-load parameters  */
+	hdev->asic_funcs->init_firmware_preload_params(hdev);
+
 	/*
 	 * In order to determine boot method (static VS dymanic) we need to
 	 * read the boot caps register
 	 */
-	rc = hl_fw_read_preboot_caps(hdev, cpu_boot_status_reg,
-					sts_boot_dev_sts0_reg,
-					sts_boot_dev_sts1_reg, boot_err0_reg,
-					boot_err1_reg, timeout);
+	rc = hl_fw_read_preboot_caps(hdev);
 	if (rc)
 		return rc;
 
@@ -1989,18 +2053,14 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			char major[8];
 			int rc;
 
 			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
-			sprintf(major, "%.2s", preboot_ver);
-			kfree(preboot_ver);
 
-			rc = kstrtou32(major, 10, &hdev->fw_major_version);
-			if (rc) {
-				dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
+			/* This function takes care of freeing preboot_ver */
+			rc = extract_fw_sub_versions(hdev, preboot_ver);
+			if (rc)
 				return rc;
-			}
 		}
 
 		break;
@@ -2361,6 +2421,19 @@ static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 	case HL_COMMS_RESET_CAUSE_TYPE:
 		msg.reset_cause = *(__u8 *) data;
 		break;
+
+	case HL_COMMS_BINNING_CONF_TYPE:
+	{
+		struct fw_binning_conf *binning_conf = (struct fw_binning_conf *) data;
+
+		msg.tpc_binning_conf = cpu_to_le64(binning_conf->tpc_binning);
+		msg.dec_binning_conf = cpu_to_le32(binning_conf->dec_binning);
+		msg.hbm_binning_conf = cpu_to_le32(binning_conf->hbm_binning);
+		msg.edma_binning_conf = cpu_to_le32(binning_conf->edma_binning);
+		msg.mme_redundancy_conf = cpu_to_le32(binning_conf->mme_redundancy);
+		break;
+	}
+
 	default:
 		dev_err(hdev->dev,
 			"Send COMMS message - invalid message type %u\n",
@@ -2418,7 +2491,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	int rc;
 
 	dev_info(hdev->dev,
-		"Loading firmware to device, may take some time...\n");
+		"Loading %sfirmware to device, may take some time...\n",
+		hdev->asic_prop.fw_security_enabled ? "secured " : "");
 
 	/* initialize FW descriptor as invalid */
 	fw_loader->dynamic_loader.fw_desc_valid = false;
@@ -2428,6 +2502,13 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 * It will be updated from FW after hl_fw_dynamic_request_descriptor().
 	 */
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
+
+	/* if no preboot loaded indication- wait for preboot */
+	if (!(hdev->fw_loader.fw_comp_loaded & FW_TYPE_PREBOOT_CPU)) {
+		rc = hl_fw_wait_preboot_ready(hdev);
+		if (rc)
+			return -EIO;
+	}
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,
 						0, true,

@@ -54,7 +54,10 @@ void aosp_do_open(struct hci_dev *hdev)
 	/* LE Get Vendor Capabilities Command */
 	skb = __hci_cmd_sync(hdev, hci_opcode_pack(0x3f, 0x153), 0, NULL,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
+	if (IS_ERR_OR_NULL(skb)) {
+		if (!skb)
+			skb = ERR_PTR(-EIO);
+
 		bt_dev_err(hdev, "AOSP get vendor capabilities (%ld)",
 			   PTR_ERR(skb));
 		return;
@@ -152,7 +155,10 @@ static int enable_quality_report(struct hci_dev *hdev)
 
 	skb = __hci_cmd_sync(hdev, BQR_OPCODE, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
+	if (IS_ERR_OR_NULL(skb)) {
+		if (!skb)
+			skb = ERR_PTR(-EIO);
+
 		bt_dev_err(hdev, "Enabling Android BQR failed (%ld)",
 			   PTR_ERR(skb));
 		return PTR_ERR(skb);
@@ -171,7 +177,10 @@ static int disable_quality_report(struct hci_dev *hdev)
 
 	skb = __hci_cmd_sync(hdev, BQR_OPCODE, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
+	if (IS_ERR_OR_NULL(skb)) {
+		if (!skb)
+			skb = ERR_PTR(-EIO);
+
 		bt_dev_err(hdev, "Disabling Android BQR failed (%ld)",
 			   PTR_ERR(skb));
 		return PTR_ERR(skb);

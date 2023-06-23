@@ -1666,17 +1666,9 @@ static u64 a5xx_gpu_busy(struct msm_gpu *gpu, unsigned long *out_sample_rate)
 {
 	u64 busy_cycles;
 
-	/* Only read the gpu busy if the hardware is already active */
-	if (pm_runtime_get_if_in_use(&gpu->pdev->dev) == 0) {
-		*out_sample_rate = 1;
-		return 0;
-	}
-
 	busy_cycles = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
 			REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
 	*out_sample_rate = clk_get_rate(gpu->core_clk);
-
-	pm_runtime_put(&gpu->pdev->dev);
 
 	return busy_cycles;
 }

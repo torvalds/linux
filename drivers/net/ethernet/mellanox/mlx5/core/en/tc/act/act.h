@@ -13,7 +13,7 @@
 struct mlx5_flow_attr;
 
 struct mlx5e_tc_act_parse_state {
-	unsigned int num_actions;
+	struct flow_action *flow_action;
 	struct mlx5e_tc_flow *flow;
 	struct netlink_ext_ack *extack;
 	u32 actions;
@@ -50,6 +50,16 @@ struct mlx5e_tc_act {
 	bool (*is_multi_table_act)(struct mlx5e_priv *priv,
 				   const struct flow_action_entry *act,
 				   struct mlx5_flow_attr *attr);
+
+	int (*offload_action)(struct mlx5e_priv *priv,
+			      struct flow_offload_action *fl_act,
+			      struct flow_action_entry *act);
+
+	int (*destroy_action)(struct mlx5e_priv *priv,
+			      struct flow_offload_action *fl_act);
+
+	int (*stats_action)(struct mlx5e_priv *priv,
+			    struct flow_offload_action *fl_act);
 };
 
 struct mlx5e_tc_flow_action {
@@ -76,6 +86,7 @@ extern struct mlx5e_tc_act mlx5e_tc_act_ct;
 extern struct mlx5e_tc_act mlx5e_tc_act_sample;
 extern struct mlx5e_tc_act mlx5e_tc_act_ptype;
 extern struct mlx5e_tc_act mlx5e_tc_act_redirect_ingress;
+extern struct mlx5e_tc_act mlx5e_tc_act_police;
 
 struct mlx5e_tc_act *
 mlx5e_tc_act_get(enum flow_action_id act_id,

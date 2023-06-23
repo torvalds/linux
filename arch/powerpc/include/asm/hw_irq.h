@@ -130,7 +130,6 @@ static inline notrace unsigned long irq_soft_mask_return(void)
  */
 static inline notrace void irq_soft_mask_set(unsigned long mask)
 {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	/*
 	 * The irq mask must always include the STD bit if any are set.
 	 *
@@ -145,8 +144,8 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 	 * unmasks to be replayed, among other things. For now, take
 	 * the simple approach.
 	 */
-	WARN_ON(mask && !(mask & IRQS_DISABLED));
-#endif
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON(mask && !(mask & IRQS_DISABLED));
 
 	asm volatile(
 		"stb %0,%1(13)"
@@ -312,9 +311,8 @@ static inline bool pmi_irq_pending(void)
 	flags = irq_soft_mask_set_return(IRQS_ALL_DISABLED);		\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;			\
 	if (!arch_irqs_disabled_flags(flags)) {				\
-		asm ("stdx %%r1, 0, %1 ;"				\
-		     : "=m" (local_paca->saved_r1)			\
-		     : "b" (&local_paca->saved_r1));			\
+		asm volatile("std%X0 %1,%0" : "=m" (local_paca->saved_r1) \
+					    : "r" (current_stack_pointer)); \
 		trace_hardirqs_off();					\
 	}								\
 } while(0)
@@ -353,11 +351,13 @@ bool power_pmu_wants_prompt_pmi(void);
  */
 static inline bool should_hard_irq_enable(void)
 {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	WARN_ON(irq_soft_mask_return() == IRQS_ENABLED);
-	WARN_ON(mfmsr() & MSR_EE);
-#endif
-#ifdef CONFIG_PERF_EVENTS
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
+		WARN_ON(irq_soft_mask_return() == IRQS_ENABLED);
+		WARN_ON(mfmsr() & MSR_EE);
+	}
+
+	if (!IS_ENABLED(CONFIG_PERF_EVENTS))
+		return false;
 	/*
 	 * If the PMU is not running, there is not much reason to enable
 	 * MSR[EE] in irq handlers because any interrupts would just be
@@ -372,9 +372,6 @@ static inline bool should_hard_irq_enable(void)
 		return false;
 
 	return true;
-#else
-	return false;
-#endif
 }
 
 /*
@@ -382,11 +379,11 @@ static inline bool should_hard_irq_enable(void)
  */
 static inline void do_hard_irq_enable(void)
 {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	WARN_ON(irq_soft_mask_return() == IRQS_ENABLED);
-	WARN_ON(get_paca()->irq_happened & PACA_IRQ_MUST_HARD_MASK);
-	WARN_ON(mfmsr() & MSR_EE);
-#endif
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
+		WARN_ON(irq_soft_mask_return() == IRQS_ENABLED);
+		WARN_ON(get_paca()->irq_happened & PACA_IRQ_MUST_HARD_MASK);
+		WARN_ON(mfmsr() & MSR_EE);
+	}
 	/*
 	 * This allows PMI interrupts (and watchdog soft-NMIs) through.
 	 * There is no other reason to enable this way.

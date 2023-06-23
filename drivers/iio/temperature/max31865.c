@@ -55,7 +55,7 @@ struct max31865_data {
 	struct mutex lock;
 	bool filter_50hz;
 	bool three_wire;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int max31865_read(struct max31865_data *data, u8 reg,

@@ -126,15 +126,23 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 
 void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr, struct dc_state *context)
 {
-	int dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
-	int disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
-
-	uint32_t dppclk_wdivider = dentist_get_did_from_divider(dpp_divider);
-	uint32_t dispclk_wdivider = dentist_get_did_from_divider(disp_divider);
+	int dpp_divider = 0;
+	int disp_divider = 0;
+	uint32_t dppclk_wdivider = 0;
+	uint32_t dispclk_wdivider = 0;
 	uint32_t current_dispclk_wdivider;
 	uint32_t i;
+
+	if (clk_mgr->base.clks.dppclk_khz == 0 || clk_mgr->base.clks.dispclk_khz == 0)
+		return;
+
+	dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+		* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
+	disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+		* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
+
+	dppclk_wdivider = dentist_get_did_from_divider(dpp_divider);
+	dispclk_wdivider = dentist_get_did_from_divider(disp_divider);
 
 	REG_GET(DENTIST_DISPCLK_CNTL,
 			DENTIST_DISPCLK_WDIVIDER, &current_dispclk_wdivider);
@@ -436,7 +444,6 @@ void dcn2_read_clocks_from_hw_dentist(struct clk_mgr *clk_mgr_base)
 		clk_mgr_base->clks.dppclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / dpp_divider;
 	}
-
 }
 
 void dcn2_get_clock(struct clk_mgr *clk_mgr,

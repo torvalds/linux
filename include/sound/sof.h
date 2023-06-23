@@ -138,6 +138,7 @@ struct sof_dev_desc {
 
 	struct snd_sof_dsp_ops *ops;
 	int (*ops_init)(struct snd_sof_dev *sdev);
+	void (*ops_free)(struct snd_sof_dev *sdev);
 };
 
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);

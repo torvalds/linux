@@ -140,7 +140,8 @@ static int tps23861_read_temp(struct tps23861_data *data, long *val)
 static int tps23861_read_voltage(struct tps23861_data *data, int channel,
 				 long *val)
 {
-	unsigned int regval;
+	__le16 regval;
+	long raw_val;
 	int err;
 
 	if (channel < TPS23861_NUM_PORTS) {
@@ -155,7 +156,8 @@ static int tps23861_read_voltage(struct tps23861_data *data, int channel,
 	if (err < 0)
 		return err;
 
-	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, regval) * VOLTAGE_LSB) / 1000;
+	raw_val = le16_to_cpu(regval);
+	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, raw_val) * VOLTAGE_LSB) / 1000;
 
 	return 0;
 }
@@ -163,8 +165,9 @@ static int tps23861_read_voltage(struct tps23861_data *data, int channel,
 static int tps23861_read_current(struct tps23861_data *data, int channel,
 				 long *val)
 {
-	unsigned int current_lsb;
-	unsigned int regval;
+	long raw_val, current_lsb;
+	__le16 regval;
+
 	int err;
 
 	if (data->shunt_resistor == SHUNT_RESISTOR_DEFAULT)
@@ -178,7 +181,8 @@ static int tps23861_read_current(struct tps23861_data *data, int channel,
 	if (err < 0)
 		return err;
 
-	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, regval) * current_lsb) / 1000000;
+	raw_val = le16_to_cpu(regval);
+	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, raw_val) * current_lsb) / 1000000;
 
 	return 0;
 }
@@ -489,18 +493,20 @@ static char *tps23861_port_poe_plus_status(struct tps23861_data *data, int port)
 
 static int tps23861_port_resistance(struct tps23861_data *data, int port)
 {
-	u16 regval;
+	unsigned int raw_val;
+	__le16 regval;
 
 	regmap_bulk_read(data->regmap,
 			 PORT_1_RESISTANCE_LSB + PORT_N_RESISTANCE_LSB_OFFSET * (port - 1),
 			 &regval,
 			 2);
 
-	switch (FIELD_GET(PORT_RESISTANCE_RSN_MASK, regval)) {
+	raw_val = le16_to_cpu(regval);
+	switch (FIELD_GET(PORT_RESISTANCE_RSN_MASK, raw_val)) {
 	case PORT_RESISTANCE_RSN_OTHER:
-		return (FIELD_GET(PORT_RESISTANCE_MASK, regval) * RESISTANCE_LSB) / 10000;
+		return (FIELD_GET(PORT_RESISTANCE_MASK, raw_val) * RESISTANCE_LSB) / 10000;
 	case PORT_RESISTANCE_RSN_LOW:
-		return (FIELD_GET(PORT_RESISTANCE_MASK, regval) * RESISTANCE_LSB_LOW) / 10000;
+		return (FIELD_GET(PORT_RESISTANCE_MASK, raw_val) * RESISTANCE_LSB_LOW) / 10000;
 	case PORT_RESISTANCE_RSN_SHORT:
 	case PORT_RESISTANCE_RSN_OPEN:
 	default:

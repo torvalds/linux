@@ -539,13 +539,13 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	return rc;
 }
 
-static int ata_ioc32(struct ata_port *ap)
+static bool ata_ioc32(struct ata_port *ap)
 {
 	if (ap->flags & ATA_FLAG_PIO_DMA)
-		return 1;
+		return true;
 	if (ap->pflags & ATA_PFLAG_PIO32)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 /*
@@ -1055,11 +1055,13 @@ EXPORT_SYMBOL_GPL(ata_scsi_dma_need_drain);
 int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 {
 	struct request_queue *q = sdev->request_queue;
+	int depth = 1;
 
 	if (!ata_id_has_unload(dev->id))
 		dev->flags |= ATA_DFLAG_NO_UNLOAD;
 
 	/* configure max sectors */
+	dev->max_sectors = min(dev->max_sectors, sdev->host->max_sectors);
 	blk_queue_max_hw_sectors(q, dev->max_sectors);
 
 	if (dev->class == ATA_DEV_ATAPI) {
@@ -1099,13 +1101,10 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_AN)
 		set_bit(SDEV_EVT_MEDIA_CHANGE, sdev->supported_events);
 
-	if (dev->flags & ATA_DFLAG_NCQ) {
-		int depth;
-
+	if (dev->flags & ATA_DFLAG_NCQ)
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
-		depth = min(ATA_MAX_QUEUE, depth);
-		scsi_change_queue_depth(sdev, depth);
-	}
+	depth = min(ATA_MAX_QUEUE, depth);
+	scsi_change_queue_depth(sdev, depth);
 
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;

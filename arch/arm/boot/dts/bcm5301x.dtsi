@@ -568,9 +568,9 @@
 
 			trips {
 				cpu-crit {
-					temperature	= <125000>;
-					hysteresis	= <0>;
-					type		= "critical";
+					temperature = <125000>;
+					hysteresis = <0>;
+					type = "critical";
 				};
 			};
 

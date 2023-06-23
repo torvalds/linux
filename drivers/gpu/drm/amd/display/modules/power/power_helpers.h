@@ -27,6 +27,7 @@
 
 #include "dc/inc/hw/dmcu.h"
 #include "dc/inc/hw/abm.h"
+#include "dc/inc/core_types.h"
 
 struct resource_pool;
 
@@ -53,4 +54,9 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		unsigned int inst);
 
 bool is_psr_su_specific_panel(struct dc_link *link);
+void mod_power_calc_psr_configs(struct psr_config *psr_config,
+		struct dc_link *link,
+		const struct dc_stream_state *stream);
+bool mod_power_only_edp(const struct dc_state *context,
+		const struct dc_stream_state *stream);
 #endif /* MODULES_POWER_POWER_HELPERS_H_ */

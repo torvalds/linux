@@ -244,6 +244,9 @@ enum x86_transfer_type {
 
 static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
 {
+	if (KVM_EMULATOR_BUG_ON(nr >= NR_EMULATOR_GPRS, ctxt))
+		nr &= NR_EMULATOR_GPRS - 1;
+
 	if (!(ctxt->regs_valid & (1 << nr))) {
 		ctxt->regs_valid |= 1 << nr;
 		ctxt->_regs[nr] = ctxt->ops->read_gpr(ctxt, nr);
@@ -253,6 +256,12 @@ static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
 
 static ulong *reg_write(struct x86_emulate_ctxt *ctxt, unsigned nr)
 {
+	if (KVM_EMULATOR_BUG_ON(nr >= NR_EMULATOR_GPRS, ctxt))
+		nr &= NR_EMULATOR_GPRS - 1;
+
+	BUILD_BUG_ON(sizeof(ctxt->regs_dirty) * BITS_PER_BYTE < NR_EMULATOR_GPRS);
+	BUILD_BUG_ON(sizeof(ctxt->regs_valid) * BITS_PER_BYTE < NR_EMULATOR_GPRS);
+
 	ctxt->regs_valid |= 1 << nr;
 	ctxt->regs_dirty |= 1 << nr;
 	return &ctxt->_regs[nr];
@@ -266,9 +275,10 @@ static ulong *reg_rmw(struct x86_emulate_ctxt *ctxt, unsigned nr)
 
 static void writeback_registers(struct x86_emulate_ctxt *ctxt)
 {
+	unsigned long dirty = ctxt->regs_dirty;
 	unsigned reg;
 
-	for_each_set_bit(reg, (ulong *)&ctxt->regs_dirty, 16)
+	for_each_set_bit(reg, &dirty, NR_EMULATOR_GPRS)
 		ctxt->ops->write_gpr(ctxt, reg, ctxt->_regs[reg]);
 }
 
@@ -316,7 +326,8 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	".align " __stringify(FASTOP_SIZE) " \n\t" \
 	".type " name ", @function \n\t" \
 	name ":\n\t" \
-	ASM_ENDBR
+	ASM_ENDBR \
+	IBT_NOSEAL(name)
 
 #define FOP_FUNC(name) \
 	__FOP_FUNC(#name)
@@ -436,27 +447,12 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	FOP_END
 
 /* Special case for SETcc - 1 instruction per cc */
-
-/*
- * Depending on .config the SETcc functions look like:
- *
- * ENDBR			[4 bytes; CONFIG_X86_KERNEL_IBT]
- * SETcc %al			[3 bytes]
- * RET | JMP __x86_return_thunk	[1,5 bytes; CONFIG_RETHUNK]
- * INT3				[1 byte; CONFIG_SLS]
- */
-#define SETCC_ALIGN	16
-
 #define FOP_SETCC(op) \
-	".align " __stringify(SETCC_ALIGN) " \n\t" \
-	".type " #op ", @function \n\t" \
-	#op ": \n\t" \
-	ASM_ENDBR \
+	FOP_FUNC(op) \
 	#op " %al \n\t" \
-	__FOP_RET(#op) \
-	".skip " __stringify(SETCC_ALIGN) " - (.-" #op "), 0xcc \n\t"
+	FOP_RET(op)
 
-__FOP_START(setcc, SETCC_ALIGN)
+FOP_START(setcc)
 FOP_SETCC(seto)
 FOP_SETCC(setno)
 FOP_SETCC(setc)
@@ -483,7 +479,7 @@ FOP_END;
 
 /*
  * XXX: inoutclob user must know where the argument is being expanded.
- *      Relying on CONFIG_CC_HAS_ASM_GOTO would allow us to remove _fault.
+ *      Using asm goto would allow us to remove _fault.
  */
 #define asm_safe(insn, inoutclob...) \
 ({ \
@@ -615,7 +611,9 @@ static unsigned long seg_base(struct x86_emulate_ctxt *ctxt, int seg)
 static int emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
 			     u32 error, bool valid)
 {
-	WARN_ON(vec > 0x1f);
+	if (KVM_EMULATOR_BUG_ON(vec > 0x1f, ctxt))
+		return X86EMUL_UNHANDLEABLE;
+
 	ctxt->exception.vector = vec;
 	ctxt->exception.error_code = error;
 	ctxt->exception.error_code_valid = valid;
@@ -1067,7 +1065,7 @@ static int em_bsr_c(struct x86_emulate_ctxt *ctxt)
 static __always_inline u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
-	void (*fop)(void) = (void *)em_setcc + SETCC_ALIGN * (condition & 0xf);
+	void (*fop)(void) = (void *)em_setcc + FASTOP_SIZE * (condition & 0xf);
 
 	flags = (flags & EFLAGS_MASK) | X86_EFLAGS_IF;
 	asm("push %[flags]; popf; " CALL_NOSPEC
@@ -1362,7 +1360,8 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 	if (mc->pos < mc->end)
 		goto read_cached;
 
-	WARN_ON((mc->end + size) >= sizeof(mc->data));
+	if (KVM_EMULATOR_BUG_ON((mc->end + size) >= sizeof(mc->data), ctxt))
+		return X86EMUL_UNHANDLEABLE;
 
 	rc = ctxt->ops->read_emulated(ctxt, addr, mc->data + mc->end, size,
 				      &ctxt->exception);
@@ -1687,16 +1686,6 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	case VCPU_SREG_TR:
 		if (seg_desc.s || (seg_desc.type != 1 && seg_desc.type != 9))
 			goto exception;
-		if (!seg_desc.p) {
-			err_vec = NP_VECTOR;
-			goto exception;
-		}
-		old_desc = seg_desc;
-		seg_desc.type |= 2; /* busy */
-		ret = ctxt->ops->cmpxchg_emulated(ctxt, desc_addr, &old_desc, &seg_desc,
-						  sizeof(seg_desc), &ctxt->exception);
-		if (ret != X86EMUL_CONTINUE)
-			return ret;
 		break;
 	case VCPU_SREG_LDTR:
 		if (seg_desc.s || seg_desc.type != 2)
@@ -1734,8 +1723,17 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		if (ret != X86EMUL_CONTINUE)
 			return ret;
 		if (emul_is_noncanonical_address(get_desc_base(&seg_desc) |
-				((u64)base3 << 32), ctxt))
-			return emulate_gp(ctxt, 0);
+						 ((u64)base3 << 32), ctxt))
+			return emulate_gp(ctxt, err_code);
+	}
+
+	if (seg == VCPU_SREG_TR) {
+		old_desc = seg_desc;
+		seg_desc.type |= 2; /* busy */
+		ret = ctxt->ops->cmpxchg_emulated(ctxt, desc_addr, &old_desc, &seg_desc,
+						  sizeof(seg_desc), &ctxt->exception);
+		if (ret != X86EMUL_CONTINUE)
+			return ret;
 	}
 load:
 	ctxt->ops->set_segment(ctxt, selector, &seg_desc, base3, seg);
@@ -2432,7 +2430,7 @@ static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
 	ctxt->eflags =             GET_SMSTATE(u32, smstate, 0x7ff4) | X86_EFLAGS_FIXED;
 	ctxt->_eip =               GET_SMSTATE(u32, smstate, 0x7ff0);
 
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < NR_EMULATOR_GPRS; i++)
 		*reg_write(ctxt, i) = GET_SMSTATE(u32, smstate, 0x7fd0 + i * 4);
 
 	val = GET_SMSTATE(u32, smstate, 0x7fcc);
@@ -2489,7 +2487,7 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt,
 	u16 selector;
 	int i, r;
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < NR_EMULATOR_GPRS; i++)
 		*reg_write(ctxt, i) = GET_SMSTATE(u64, smstate, 0x7ff8 - i * 8);
 
 	ctxt->_eip   = GET_SMSTATE(u64, smstate, 0x7f78);
@@ -4134,6 +4132,9 @@ static int em_xsetbv(struct x86_emulate_ctxt *ctxt)
 {
 	u32 eax, ecx, edx;
 
+	if (!(ctxt->ops->get_cr(ctxt, 4) & X86_CR4_OSXSAVE))
+		return emulate_ud(ctxt);
+
 	eax = reg_read(ctxt, VCPU_REGS_RAX);
 	edx = reg_read(ctxt, VCPU_REGS_RDX);
 	ecx = reg_read(ctxt, VCPU_REGS_RCX);
@@ -4566,6 +4567,10 @@ static const struct mode_dual mode_dual_63 = {
 	N, I(DstReg | SrcMem32 | ModRM | Mov, em_movsxd)
 };
 
+static const struct instr_dual instr_dual_8d = {
+	D(DstReg | SrcMem | ModRM | NoAccess), N
+};
+
 static const struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	F6ALU(Lock, em_add),
@@ -4622,7 +4627,7 @@ static const struct opcode opcode_table[256] = {
 	I2bv(DstMem | SrcReg | ModRM | Mov | PageTable, em_mov),
 	I2bv(DstReg | SrcMem | ModRM | Mov, em_mov),
 	I(DstMem | SrcNone | ModRM | Mov | PageTable, em_mov_rm_sreg),
-	D(ModRM | SrcMem | NoAccess | DstReg),
+	ID(0, &instr_dual_8d),
 	I(ImplicitOps | SrcMem16 | ModRM, em_mov_sreg_rm),
 	G(0, group1A),
 	/* 0x90 - 0x97 */
@@ -5719,7 +5724,8 @@ writeback:
 
 done:
 	if (rc == X86EMUL_PROPAGATE_FAULT) {
-		WARN_ON(ctxt->exception.vector > 0x1f);
+		if (KVM_EMULATOR_BUG_ON(ctxt->exception.vector > 0x1f, ctxt))
+			return EMULATION_FAILED;
 		ctxt->have_exception = true;
 	}
 	if (rc == X86EMUL_INTERCEPTED)

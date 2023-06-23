@@ -180,7 +180,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, u8 slot_index,
 		} else {
 			/* When reading upper pages 1, 2 and 3 the offset
 			 * starts at 0 and I2C high address is used. Please refer
-			 * refer to "Memory Organization" figure in SFF-8472
+			 * to "Memory Organization" figure in SFF-8472
 			 * specification for graphical depiction.
 			 */
 			i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;

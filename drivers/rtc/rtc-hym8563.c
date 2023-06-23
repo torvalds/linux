@@ -495,8 +495,7 @@ static int hym8563_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(hym8563_pm_ops, hym8563_suspend, hym8563_resume);
 
-static int hym8563_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int hym8563_probe(struct i2c_client *client)
 {
 	struct hym8563 *hym8563;
 	int ret;
@@ -572,7 +571,7 @@ static struct i2c_driver hym8563_driver = {
 		.pm	= &hym8563_pm_ops,
 		.of_match_table	= hym8563_dt_idtable,
 	},
-	.probe		= hym8563_probe,
+	.probe_new	= hym8563_probe,
 	.id_table	= hym8563_id,
 };
 

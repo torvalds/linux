@@ -264,8 +264,10 @@ config DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 config DEBUG_INFO_DWARF4
 	bool "Generate DWARF Version 4 debuginfo"
 	select DEBUG_INFO
+	depends on !CC_IS_CLANG || (CC_IS_CLANG && (AS_IS_LLVM || (AS_IS_GNU && AS_VERSION >= 23502)))
 	help
-	  Generate DWARF v4 debug info. This requires gcc 4.5+ and gdb 7.0+.
+	  Generate DWARF v4 debug info. This requires gcc 4.5+, binutils 2.35.2
+	  if using clang without clang's integrated assembler, and gdb 7.0+.
 
 	  If you have consumers of DWARF debug info that are not ready for
 	  newer revisions of DWARF, you may wish to choose this or have your
@@ -498,7 +500,7 @@ config STACK_VALIDATION
 	  runtime stack traces are more reliable.
 
 	  For more information, see
-	  tools/objtool/Documentation/stack-validation.txt.
+	  tools/objtool/Documentation/objtool.txt.
 
 config NOINSTR_VALIDATION
 	bool
@@ -698,6 +700,14 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 	depends on DEBUG_OBJECTS
 	help
 	  Debug objects boot parameter default value
+
+config SHRINKER_DEBUG
+	bool "Enable shrinker debugging support"
+	depends on DEBUG_FS
+	help
+	  Say Y to enable the shrinker debugfs interface which provides
+	  visibility into the kernel memory shrinkers subsystem.
+	  Disable it to avoid an extra memory footprint.
 
 config HAVE_DEBUG_KMEMLEAK
 	bool
@@ -1560,7 +1570,7 @@ config DEBUG_KOBJECT_RELEASE
 	help
 	  kobjects are reference counted objects.  This means that their
 	  last reference count put is not predictable, and the kobject can
-	  live on past the point at which a driver decides to drop it's
+	  live on past the point at which a driver decides to drop its
 	  initial reference to the kobject gained on allocation.  An
 	  example of this would be a struct device which has just been
 	  unregistered.
@@ -2020,6 +2030,18 @@ config LKDTM
 
 	Documentation on how to use the module can be found in
 	Documentation/fault-injection/provoke-crashes.rst
+
+config CPUMASK_KUNIT_TEST
+	tristate "KUnit test for cpumask" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable to turn on cpumask tests, running at boot or module load time.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
 
 config TEST_LIST_SORT
 	tristate "Linked list sorting test" if !KUNIT_ALL_TESTS

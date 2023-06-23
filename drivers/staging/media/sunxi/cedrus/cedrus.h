@@ -81,6 +81,8 @@ struct cedrus_h265_run {
 	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
 	const struct v4l2_ctrl_hevc_decode_params	*decode_params;
 	const struct v4l2_ctrl_hevc_scaling_matrix	*scaling_matrix;
+	const u32					*entry_points;
+	u32						entry_points_count;
 };
 
 struct cedrus_vp8_run {
@@ -146,6 +148,8 @@ struct cedrus_ctx {
 			ssize_t		mv_col_buf_unit_size;
 			void		*neighbor_info_buf;
 			dma_addr_t	neighbor_info_buf_addr;
+			void		*entry_points_buf;
+			dma_addr_t	entry_points_buf_addr;
 		} h265;
 		struct {
 			unsigned int	last_frame_p_type;
@@ -162,7 +166,7 @@ struct cedrus_dec_ops {
 	void (*irq_clear)(struct cedrus_ctx *ctx);
 	void (*irq_disable)(struct cedrus_ctx *ctx);
 	enum cedrus_irq_status (*irq_status)(struct cedrus_ctx *ctx);
-	void (*setup)(struct cedrus_ctx *ctx, struct cedrus_run *run);
+	int (*setup)(struct cedrus_ctx *ctx, struct cedrus_run *run);
 	int (*start)(struct cedrus_ctx *ctx);
 	void (*stop)(struct cedrus_ctx *ctx);
 	void (*trigger)(struct cedrus_ctx *ctx);
@@ -261,5 +265,6 @@ vb2_to_cedrus_buffer(const struct vb2_buffer *p)
 }
 
 void *cedrus_find_control_data(struct cedrus_ctx *ctx, u32 id);
+u32 cedrus_get_num_of_controls(struct cedrus_ctx *ctx, u32 id);
 
 #endif

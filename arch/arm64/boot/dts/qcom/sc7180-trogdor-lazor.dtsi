@@ -6,6 +6,7 @@
  */
 
 /* This file must be included after sc7180-trogdor.dtsi */
+#include <arm/cros-ec-keyboard.dtsi>
 
 &ap_sar_sensor {
 	semtech,cs0-ground;

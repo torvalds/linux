@@ -5,7 +5,6 @@ top_srcdir = $(abspath ../../../..)
 APIDIR := $(top_scrdir)/include/uapi
 TEST_GEN_FILES = action.o
 
-KSFT_KHDR_INSTALL := 1
 include ../lib.mk
 
 PROBE := $(shell $(LLC) -march=bpf -mcpu=probe -filetype=null /dev/null 2>&1)

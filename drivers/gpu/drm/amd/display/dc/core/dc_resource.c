@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 
 #include "resource.h"
@@ -65,14 +63,18 @@
 #include "dcn302/dcn302_resource.h"
 #include "dcn303/dcn303_resource.h"
 #include "dcn31/dcn31_resource.h"
+#include "dcn314/dcn314_resource.h"
 #include "dcn315/dcn315_resource.h"
 #include "dcn316/dcn316_resource.h"
+#include "../dcn32/dcn32_resource.h"
+#include "../dcn321/dcn321_resource.h"
 
 #define DC_LOGGER_INIT(logger)
 
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+
 	switch (asic_id.chip_family) {
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
@@ -162,7 +164,14 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASICREV_IS_GC_10_3_7(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_16;
 		break;
-
+	case AMDGPU_FAMILY_GC_11_0_0:
+		dc_version = DCN_VERSION_3_2;
+		if (ASICREV_IS_GC_11_0_2(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_21;
+		break;
+	case AMDGPU_FAMILY_GC_11_0_1:
+		dc_version = DCN_VERSION_3_14;
+		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -252,11 +261,20 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	case DCN_VERSION_3_1:
 		res_pool = dcn31_create_resource_pool(init_data, dc);
 		break;
+	case DCN_VERSION_3_14:
+		res_pool = dcn314_create_resource_pool(init_data, dc);
+		break;
 	case DCN_VERSION_3_15:
 		res_pool = dcn315_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_3_16:
 		res_pool = dcn316_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_2:
+		res_pool = dcn32_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_21:
+		res_pool = dcn321_create_resource_pool(init_data, dc);
 		break;
 #endif
 	default:
@@ -747,6 +765,10 @@ static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *spli
 			(*split_idx)++;
 			split_pipe = split_pipe->top_pipe;
 		}
+
+		/* MPO window on right side of ODM split */
+		if (split_pipe && split_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe)
+			(*split_idx)++;
 	} else {
 		/*Get odm split index*/
 		struct pipe_ctx *split_pipe = pipe_ctx->prev_odm_pipe;
@@ -793,7 +815,11 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	/*
 	 * Only the leftmost ODM pipe should be offset by a nonzero distance
 	 */
-	if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
+	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe) {
+		/* MPO window on right side of ODM split */
+		data->recout.x = stream->dst.x + (surf_clip.x - stream->src.x - stream->src.width/2) *
+				stream->dst.width / stream->src.width;
+	} else if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
 		data->recout.x = stream->dst.x;
 		if (stream->src.x < surf_clip.x)
 			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
@@ -991,6 +1017,8 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			* stream->dst.height / stream->src.height;
 	if (pipe_ctx->prev_odm_pipe && split_idx)
 		ro_lb = data->h_active * split_idx - recout_full_x;
+	else if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe)
+		ro_lb = data->h_active * split_idx - recout_full_x + data->recout.x;
 	else
 		ro_lb = data->recout.x - recout_full_x;
 	ro_tb = data->recout.y - recout_full_y;
@@ -1096,9 +1124,26 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			timing->h_border_left + timing->h_border_right;
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
 		timing->v_border_top + timing->v_border_bottom;
-	if (pipe_ctx->next_odm_pipe || pipe_ctx->prev_odm_pipe)
+	if (pipe_ctx->next_odm_pipe || pipe_ctx->prev_odm_pipe) {
 		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx) + 1;
 
+		DC_LOG_SCALER("%s pipe %d: next_odm_pipe:%d   prev_odm_pipe:%d\n",
+				__func__,
+				pipe_ctx->pipe_idx,
+				pipe_ctx->next_odm_pipe ? pipe_ctx->next_odm_pipe->pipe_idx : -1,
+				pipe_ctx->prev_odm_pipe ? pipe_ctx->prev_odm_pipe->pipe_idx : -1);
+	}	/* ODM + windows MPO, where window is on either right or left ODM half */
+	else if (pipe_ctx->top_pipe && (pipe_ctx->top_pipe->next_odm_pipe || pipe_ctx->top_pipe->prev_odm_pipe)) {
+
+		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx->top_pipe) + 1;
+
+		DC_LOG_SCALER("%s ODM + windows MPO: pipe:%d top_pipe:%d   top_pipe->next_odm_pipe:%d   top_pipe->prev_odm_pipe:%d\n",
+				__func__,
+				pipe_ctx->pipe_idx,
+				pipe_ctx->top_pipe->pipe_idx,
+				pipe_ctx->top_pipe->next_odm_pipe ? pipe_ctx->top_pipe->next_odm_pipe->pipe_idx : -1,
+				pipe_ctx->top_pipe->prev_odm_pipe ? pipe_ctx->top_pipe->prev_odm_pipe->pipe_idx : -1);
+	}
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
 	/* depends on pixel format */
@@ -1106,10 +1151,12 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	/* depends on scaling ratios and recout, does not calculate offset yet */
 	calculate_viewport_size(pipe_ctx);
 
-	/* Stopgap for validation of ODM + MPO on one side of screen case */
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 1 ||
-			pipe_ctx->plane_res.scl_data.viewport.width < 1)
-		return false;
+	if (!pipe_ctx->stream->ctx->dc->config.enable_windowed_mpo_odm) {
+		/* Stopgap for validation of ODM + MPO on one side of screen case */
+		if (pipe_ctx->plane_res.scl_data.viewport.height < 1 ||
+				pipe_ctx->plane_res.scl_data.viewport.width < 1)
+			return false;
+	}
 
 	/*
 	 * LB calculations depend on vp size, h/v_active and scaling ratios
@@ -1359,8 +1406,12 @@ static struct pipe_ctx *acquire_free_pipe_for_head(
 	 * to acquire an idle one to satisfy the request
 	 */
 
-	if (!pool->funcs->acquire_idle_pipe_for_layer)
-		return NULL;
+	if (!pool->funcs->acquire_idle_pipe_for_layer) {
+		if (!pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer)
+			return NULL;
+		else
+			return pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer(context, pool, head_pipe->stream, head_pipe);
+	}
 
 	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, head_pipe->stream);
 }
@@ -1410,7 +1461,11 @@ bool dc_add_plane_to_context(
 	struct resource_pool *pool = dc->res_pool;
 	struct pipe_ctx *head_pipe, *tail_pipe, *free_pipe;
 	struct dc_stream_status *stream_status = NULL;
+	struct pipe_ctx *prev_right_head = NULL;
+	struct pipe_ctx *free_right_pipe = NULL;
+	struct pipe_ctx *prev_left_head = NULL;
 
+	DC_LOGGER_INIT(stream->ctx->logger);
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
 			stream_status = &context->stream_status[i];
@@ -1457,23 +1512,181 @@ bool dc_add_plane_to_context(
 		if (head_pipe != free_pipe) {
 			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
 			ASSERT(tail_pipe);
-			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
-			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-			free_pipe->clock_source = tail_pipe->clock_source;
-			free_pipe->top_pipe = tail_pipe;
-			tail_pipe->bottom_pipe = free_pipe;
-			if (!free_pipe->next_odm_pipe && tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
-				free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
-				tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
-			}
-			if (!free_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
-				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
-				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+
+			/* ODM + window MPO, where MPO window is on right half only */
+			if (free_pipe->plane_state &&
+				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2) &&
+				tail_pipe->next_odm_pipe) {
+
+				/* For ODM + window MPO, in 3 plane case, if we already have a MPO window on
+				 *  the right side, then we will invalidate a 2nd one on the right side
+				 */
+				if (head_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+					dc_plane_state_release(plane_state);
+					return false;
+				}
+
+				DC_LOG_SCALER("%s - ODM + window MPO(right). free_pipe:%d  tail_pipe->next_odm_pipe:%d\n",
+						__func__,
+						free_pipe->pipe_idx,
+						tail_pipe->next_odm_pipe ? tail_pipe->next_odm_pipe->pipe_idx : -1);
+
+				/*
+				 * We want to avoid the case where the right side already has a pipe assigned to
+				 *  it and is different from free_pipe ( which would cause trigger a pipe
+				 *  reallocation ).
+				 * Check the old context to see if the right side already has a pipe allocated
+				 * - If not, continue to use free_pipe
+				 * - If the right side already has a pipe, use that pipe instead if its available
+				 */
+
+				/*
+				 * We also want to avoid the case where with three plane ( 2 MPO videos ), we have
+				 *  both videos on the left side so one of the videos is invalidated.  Then we
+				 *  move the invalidated video back to the right side.  If the order of the plane
+				 *  states is such that the right MPO plane is processed first, the free pipe
+				 *  selected by the head will be the left MPO pipe. But since there was no right
+				 *  MPO pipe, it will assign the free pipe to the right MPO pipe instead and
+				 *  a pipe reallocation will occur.
+				 * Check the old context to see if the left side already has a pipe allocated
+				 * - If not, continue to use free_pipe
+				 * - If the left side is already using this pipe, then pick another pipe for right
+				 */
+
+				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[tail_pipe->next_odm_pipe->pipe_idx];
+				if ((prev_right_head->bottom_pipe) &&
+					(free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
+					free_right_pipe = acquire_free_pipe_for_head(context, pool, tail_pipe->next_odm_pipe);
+				} else {
+					prev_left_head = &dc->current_state->res_ctx.pipe_ctx[head_pipe->pipe_idx];
+					if ((prev_left_head->bottom_pipe) &&
+						(free_pipe->pipe_idx == prev_left_head->bottom_pipe->pipe_idx)) {
+						free_right_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
+					}
+				}
+
+				if (free_right_pipe) {
+					free_pipe->stream = NULL;
+					memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
+					memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
+					free_pipe->plane_state = NULL;
+					free_pipe->pipe_idx = 0;
+					free_right_pipe->plane_state = plane_state;
+					free_pipe = free_right_pipe;
+				}
+
+				free_pipe->stream_res.tg = tail_pipe->next_odm_pipe->stream_res.tg;
+				free_pipe->stream_res.abm = tail_pipe->next_odm_pipe->stream_res.abm;
+				free_pipe->stream_res.opp = tail_pipe->next_odm_pipe->stream_res.opp;
+				free_pipe->stream_res.stream_enc = tail_pipe->next_odm_pipe->stream_res.stream_enc;
+				free_pipe->stream_res.audio = tail_pipe->next_odm_pipe->stream_res.audio;
+				free_pipe->clock_source = tail_pipe->next_odm_pipe->clock_source;
+
+				free_pipe->top_pipe = tail_pipe->next_odm_pipe;
+				tail_pipe->next_odm_pipe->bottom_pipe = free_pipe;
+			} else if (free_pipe->plane_state &&
+				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2)
+				&& head_pipe->next_odm_pipe) {
+
+				/* For ODM + window MPO, support 3 plane ( 2 MPO ) case.
+				 * Here we have a desktop ODM + left window MPO and a new MPO window appears
+				 *  on the right side only.  It fails the first case, because tail_pipe is the
+				 *  left window MPO, so it has no next_odm_pipe.  So in this scenario, we check
+				 *  for head_pipe->next_odm_pipe instead
+				 */
+				DC_LOG_SCALER("%s - ODM + win MPO (left) + win MPO (right). free_pipe:%d  head_pipe->next_odm:%d\n",
+						__func__,
+						free_pipe->pipe_idx,
+						head_pipe->next_odm_pipe ? head_pipe->next_odm_pipe->pipe_idx : -1);
+
+				/*
+				 * We want to avoid the case where the right side already has a pipe assigned to
+				 *  it and is different from free_pipe ( which would cause trigger a pipe
+				 *  reallocation ).
+				 * Check the old context to see if the right side already has a pipe allocated
+				 * - If not, continue to use free_pipe
+				 * - If the right side already has a pipe, use that pipe instead if its available
+				 */
+				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[head_pipe->next_odm_pipe->pipe_idx];
+				if ((prev_right_head->bottom_pipe) &&
+					(free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
+					free_right_pipe = acquire_free_pipe_for_head(context, pool, head_pipe->next_odm_pipe);
+					if (free_right_pipe) {
+						free_pipe->stream = NULL;
+						memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
+						memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
+						free_pipe->plane_state = NULL;
+						free_pipe->pipe_idx = 0;
+						free_right_pipe->plane_state = plane_state;
+						free_pipe = free_right_pipe;
+					}
+				}
+
+				free_pipe->stream_res.tg = head_pipe->next_odm_pipe->stream_res.tg;
+				free_pipe->stream_res.abm = head_pipe->next_odm_pipe->stream_res.abm;
+				free_pipe->stream_res.opp = head_pipe->next_odm_pipe->stream_res.opp;
+				free_pipe->stream_res.stream_enc = head_pipe->next_odm_pipe->stream_res.stream_enc;
+				free_pipe->stream_res.audio = head_pipe->next_odm_pipe->stream_res.audio;
+				free_pipe->clock_source = head_pipe->next_odm_pipe->clock_source;
+
+				free_pipe->top_pipe = head_pipe->next_odm_pipe;
+				head_pipe->next_odm_pipe->bottom_pipe = free_pipe;
+			} else {
+
+				/* For ODM + window MPO, in 3 plane case, if we already have a MPO window on
+				 *  the left side, then we will invalidate a 2nd one on the left side
+				 */
+				if (head_pipe->next_odm_pipe && tail_pipe->top_pipe) {
+					dc_plane_state_release(plane_state);
+					return false;
+				}
+
+				free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+				free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
+				free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
+				free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
+				free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
+				free_pipe->clock_source = tail_pipe->clock_source;
+
+				free_pipe->top_pipe = tail_pipe;
+				tail_pipe->bottom_pipe = free_pipe;
+
+				/* Connect MPO pipes together if MPO window is in the centre */
+				if (!(free_pipe->plane_state &&
+						(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
+						free_pipe->stream->src.x + free_pipe->stream->src.width/2))) {
+					if (!free_pipe->next_odm_pipe &&
+						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+						free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
+						tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
+					}
+					if (!free_pipe->prev_odm_pipe &&
+						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+						free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+						tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+					}
+				}
 			}
 		}
+
+		/* ODM + window MPO, where MPO window is on left half only */
+		if (free_pipe->plane_state &&
+			(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
+			free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
+			DC_LOG_SCALER("%s - ODM + window MPO(left). free_pipe:%d\n",
+					__func__,
+					free_pipe->pipe_idx);
+			break;
+		}
+		/* ODM + window MPO, where MPO window is on right half only */
+		if (free_pipe->plane_state &&
+			(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
+			DC_LOG_SCALER("%s - ODM + window MPO(right). free_pipe:%d\n",
+					__func__,
+					free_pipe->pipe_idx);
+			break;
+		}
+
 		head_pipe = head_pipe->next_odm_pipe;
 	}
 	/* assign new surfaces*/
@@ -1691,6 +1904,9 @@ bool dc_is_stream_unchanged(
 	if (memcmp(&old_stream->audio_info, &stream->audio_info, sizeof(stream->audio_info)) != 0)
 		return false;
 
+	if (old_stream->odm_2to1_policy_applied != stream->odm_2to1_policy_applied)
+		return false;
+
 	return true;
 }
 
@@ -1871,6 +2087,12 @@ static int acquire_first_free_pipe(
 				pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
 			pipe_ctx->pipe_idx = i;
 
+			if (i >= pool->timing_generator_count) {
+				int tg_inst = pool->timing_generator_count - 1;
+
+				pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
+				pipe_ctx->stream_res.opp = pool->opps[tg_inst];
+			}
 
 			pipe_ctx->stream = stream;
 			return i;
@@ -1983,6 +2205,7 @@ enum dc_status dc_remove_stream_from_ctx(
 				dc->res_pool,
 			del_pipe->stream_res.stream_enc,
 			false);
+
 	if (is_dp_128b_132b_signal(del_pipe)) {
 		update_hpo_dp_stream_engine_usage(
 			&new_ctx->res_ctx, dc->res_pool,
@@ -2148,7 +2371,7 @@ static int acquire_resource_from_hw_enabled_state(
 
 		if (pipe_ctx->stream_res.tg->funcs->get_optc_source)
 			pipe_ctx->stream_res.tg->funcs->get_optc_source(pipe_ctx->stream_res.tg,
-					&numPipes, &id_src[0], &id_src[1]);
+						&numPipes, &id_src[0], &id_src[1]);
 
 		if (id_src[0] == 0xf && id_src[1] == 0xf) {
 			id_src[0] = tg_inst;
@@ -2159,6 +2382,8 @@ static int acquire_resource_from_hw_enabled_state(
 			//Check if src id invalid
 			if (id_src[i] == 0xf)
 				return -1;
+
+			pipe_ctx = &res_ctx->pipe_ctx[id_src[i]];
 
 			pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
 			pipe_ctx->plane_res.mi = pool->mis[id_src[i]];
@@ -2173,13 +2398,17 @@ static int acquire_resource_from_hw_enabled_state(
 
 				if (pool->mpc->funcs->read_mpcc_state) {
 					struct mpcc_state s = {0};
+
 					pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+
 					if (s.dpp_id < MAX_MPCC)
 						pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id =
 								s.dpp_id;
+
 					if (s.bot_mpcc_id < MAX_MPCC)
 						pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
 								&pool->mpc->mpcc_array[s.bot_mpcc_id];
+
 					if (s.opp_id < MAX_OPP)
 						pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
 				}
@@ -2188,6 +2417,7 @@ static int acquire_resource_from_hw_enabled_state(
 
 			if (id_src[i] >= pool->timing_generator_count) {
 				id_src[i] = pool->timing_generator_count - 1;
+
 				pipe_ctx->stream_res.tg = pool->timing_generators[id_src[i]];
 				pipe_ctx->stream_res.opp = pool->opps[id_src[i]];
 			}
@@ -2275,12 +2505,10 @@ enum dc_status resource_map_pool_resources(
 	/* Allocate DP HPO Stream Encoder based on signal, hw capabilities
 	 * and link settings
 	 */
-	if (dc_is_dp_signal(stream->signal) &&
-			dc->caps.dp_hpo) {
-		struct dc_link_settings link_settings = {0};
-
-		decide_link_settings(stream, &link_settings);
-		if (dp_get_link_encoding_format(&link_settings) == DP_128b_132b_ENCODING) {
+	if (dc_is_dp_signal(stream->signal)) {
+		if (!decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
+			return DC_FAIL_DP_LINK_BANDWIDTH;
+		if (dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =
 					find_first_free_match_hpo_dp_stream_enc_for_link(
 							&context->res_ctx, pool, stream);
@@ -2488,6 +2716,8 @@ static void set_avi_info_frame(
 	union hdmi_info_packet hdmi_info;
 	union display_content_support support = {0};
 	unsigned int vic = pipe_ctx->stream->timing.vic;
+	unsigned int rid = pipe_ctx->stream->timing.rid;
+	unsigned int fr_ind = pipe_ctx->stream->timing.fr_index;
 	enum dc_timing_3d_format format;
 
 	memset(&hdmi_info, 0, sizeof(union hdmi_info_packet));
@@ -2680,6 +2910,15 @@ static void set_avi_info_frame(
 		hdmi_info.bits.header.length = 14;
 	}
 
+	if (rid != 0 && fr_ind != 0) {
+		hdmi_info.bits.header.version = 5;
+		hdmi_info.bits.header.length = 15;
+
+		hdmi_info.bits.FR0_FR3 = fr_ind & 0xF;
+		hdmi_info.bits.FR4 = (fr_ind >> 4) & 0x1;
+		hdmi_info.bits.RID0_RID5 = rid;
+	}
+
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
 	 * repetition start from 1 */
@@ -2778,6 +3017,26 @@ static void set_vsc_info_packet(
 
 	*info_packet = stream->vsc_infopacket;
 }
+static void set_hfvs_info_packet(
+		struct dc_info_packet *info_packet,
+		struct dc_stream_state *stream)
+{
+	if (!stream->hfvsif_infopacket.valid)
+		return;
+
+	*info_packet = stream->hfvsif_infopacket;
+}
+
+
+static void set_vtem_info_packet(
+		struct dc_info_packet *info_packet,
+		struct dc_stream_state *stream)
+{
+	if (!stream->vtem_infopacket.valid)
+		return;
+
+	*info_packet = stream->vtem_infopacket;
+}
 
 void dc_resource_state_destruct(struct dc_state *context)
 {
@@ -2858,7 +3117,8 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->spd.valid = false;
 	info->hdrsmd.valid = false;
 	info->vsc.valid = false;
-
+	info->hfvsif.valid = false;
+	info->vtem.valid = false;
 	signal = pipe_ctx->stream->signal;
 
 	/* HDMi and DP have different info packets*/
@@ -2866,6 +3126,8 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_avi_info_frame(&info->avi, pipe_ctx);
 
 		set_vendor_info_packet(&info->vendor, pipe_ctx->stream);
+		set_hfvs_info_packet(&info->hfvsif, pipe_ctx->stream);
+		set_vtem_info_packet(&info->vtem, pipe_ctx->stream);
 
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
@@ -2973,12 +3235,11 @@ bool pipe_need_reprogram(
 	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
 		bool need_reprogram = false;
 		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
-		enum link_enc_cfg_mode mode = dc->current_state->res_ctx.link_enc_cfg_ctx.mode;
+		struct link_encoder *link_enc_prev =
+			link_enc_cfg_get_link_enc_used_by_stream_current(dc, pipe_ctx_old->stream);
 
-		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
-		if (link_enc_cfg_get_link_enc_used_by_stream(dc, pipe_ctx_old->stream) != pipe_ctx->stream->link_enc)
+		if (link_enc_prev != pipe_ctx->stream->link_enc)
 			need_reprogram = true;
-		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = mode;
 
 		return need_reprogram;
 	}
@@ -3320,6 +3581,23 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
 			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
 				i, disabled_master_pipe_idx);
+	}
+}
+
+void reset_sync_context_for_pipe(const struct dc *dc,
+	struct dc_state *context,
+	uint8_t pipe_idx)
+{
+	int i;
+	struct pipe_ctx *pipe_ctx_reset;
+
+	/* reset the otg sync context for the pipe and its slave pipes if any */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe_ctx_reset = &context->res_ctx.pipe_ctx[i];
+
+		if (((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_reset) == pipe_idx) &&
+			IS_PIPE_SYNCD_VALID(pipe_ctx_reset)) || (i == pipe_idx))
+			SET_PIPE_SYNCD_TO_PIPE(pipe_ctx_reset, i);
 	}
 }
 

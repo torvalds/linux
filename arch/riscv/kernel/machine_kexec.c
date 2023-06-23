@@ -138,19 +138,37 @@ void machine_shutdown(void)
 #endif
 }
 
+/* Override the weak function in kernel/panic.c */
+void crash_smp_send_stop(void)
+{
+	static int cpus_stopped;
+
+	/*
+	 * This function can be called twice in panic path, but obviously
+	 * we execute this only once.
+	 */
+	if (cpus_stopped)
+		return;
+
+	smp_send_stop();
+	cpus_stopped = 1;
+}
+
 /*
  * machine_crash_shutdown - Prepare to kexec after a kernel crash
  *
  * This function is called by crash_kexec just before machine_kexec
- * below and its goal is similar to machine_shutdown, but in case of
- * a kernel crash. Since we don't handle such cases yet, this function
- * is empty.
+ * and its goal is to shutdown non-crashing cpus and save registers.
  */
 void
 machine_crash_shutdown(struct pt_regs *regs)
 {
+	local_irq_disable();
+
+	/* shutdown non-crashing cpus */
+	crash_smp_send_stop();
+
 	crash_save_cpu(regs, smp_processor_id());
-	machine_shutdown();
 	pr_info("Starting crashdump kernel...\n");
 }
 
@@ -171,7 +189,7 @@ machine_kexec(struct kimage *image)
 	struct kimage_arch *internal = &image->arch;
 	unsigned long jump_addr = (unsigned long) image->start;
 	unsigned long first_ind_entry = (unsigned long) &image->head;
-	unsigned long this_cpu_id = smp_processor_id();
+	unsigned long this_cpu_id = __smp_processor_id();
 	unsigned long this_hart_id = cpuid_to_hartid_map(this_cpu_id);
 	unsigned long fdt_addr = internal->fdt_addr;
 	void *control_code_buffer = page_address(image->control_code_page);

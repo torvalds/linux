@@ -650,13 +650,26 @@ Bit assignments shown below:-
     parameter is set this value is applied to the currently indexed
     address range.
 
+.. _coresight-branch-broadcast:
 
 **bit (4):**
     ETM_MODE_BB
 
 **description:**
-    Set to enable branch broadcast if supported in hardware [IDR0].
+    Set to enable branch broadcast if supported in hardware [IDR0]. The primary use for this feature
+    is when code is patched dynamically at run time and the full program flow may not be able to be
+    reconstructed using only conditional branches.
 
+    There is currently no support in Perf for supplying modified binaries to the decoder, so this
+    feature is only inteded to be used for debugging purposes or with a 3rd party tool.
+
+    Choosing this option will result in a significant increase in the amount of trace generated -
+    possible danger of overflows, or fewer instructions covered. Note, that this option also
+    overrides any setting of :ref:`ETM_MODE_RETURNSTACK <coresight-return-stack>`, so where a branch
+    broadcast range overlaps a return stack range, return stacks will not be available for that
+    range.
+
+.. _coresight-cycle-accurate:
 
 **bit (5):**
     ETMv4_MODE_CYCACC
@@ -678,6 +691,7 @@ Bit assignments shown below:-
 **description:**
     Set to enable virtual machine ID tracing if supported [IDR2].
 
+.. _coresight-timestamp:
 
 **bit (11):**
     ETMv4_MODE_TIMESTAMP
@@ -685,6 +699,7 @@ Bit assignments shown below:-
 **description:**
     Set to enable timestamp generation if supported [IDR0].
 
+.. _coresight-return-stack:
 
 **bit (12):**
     ETM_MODE_RETURNSTACK

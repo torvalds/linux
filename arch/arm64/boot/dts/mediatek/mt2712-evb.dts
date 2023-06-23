@@ -106,7 +106,7 @@
 };
 
 &eth {
-	phy-mode ="rgmii-rxid";
+	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethernet_phy0>;
 	mediatek,tx-delay-ps = <1530>;
 	snps,reset-gpio = <&pio 87 GPIO_ACTIVE_LOW>;

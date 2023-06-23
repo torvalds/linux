@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-mvebu/kirkwood.h
  *
  * Generic definitions for Marvell Kirkwood SoC flavors:
  * 88F6180, 88F6192 and 88F6281.
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #define KIRKWOOD_REGS_PHYS_BASE	0xf1000000

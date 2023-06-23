@@ -23,8 +23,19 @@ static int __dso_id__cmp(struct dso_id *a, struct dso_id *b)
 	if (a->ino > b->ino) return -1;
 	if (a->ino < b->ino) return 1;
 
-	if (a->ino_generation > b->ino_generation) return -1;
-	if (a->ino_generation < b->ino_generation) return 1;
+	/*
+	 * Synthesized MMAP events have zero ino_generation, avoid comparing
+	 * them with MMAP events with actual ino_generation.
+	 *
+	 * I found it harmful because the mismatch resulted in a new
+	 * dso that did not have a build ID whereas the original dso did have a
+	 * build ID. The build ID was essential because the object was not found
+	 * otherwise. - Adrian
+	 */
+	if (a->ino_generation && b->ino_generation) {
+		if (a->ino_generation > b->ino_generation) return -1;
+		if (a->ino_generation < b->ino_generation) return 1;
+	}
 
 	return 0;
 }

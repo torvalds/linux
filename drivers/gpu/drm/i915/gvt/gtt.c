@@ -2341,7 +2341,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			gvt_vgpu_err("fail to populate guest ggtt entry\n");
 			/* guest driver may read/write the entry when partial
 			 * update the entry in this situation p2m will fail
-			 * settting the shadow entry to point to a scratch page
+			 * setting the shadow entry to point to a scratch page
 			 */
 			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 		} else

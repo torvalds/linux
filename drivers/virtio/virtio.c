@@ -2,10 +2,10 @@
 #include <linux/virtio.h>
 #include <linux/spinlock.h>
 #include <linux/virtio_config.h>
+#include <linux/virtio_anchor.h>
 #include <linux/module.h>
 #include <linux/idr.h>
 #include <linux/of.h>
-#include <linux/platform-feature.h>
 #include <uapi/linux/virtio_ids.h>
 
 /* Unique numbering for virtio devices. */
@@ -174,7 +174,7 @@ static int virtio_features_ok(struct virtio_device *dev)
 
 	might_sleep();
 
-	if (platform_has(PLATFORM_VIRTIO_RESTRICTED_MEM_ACCESS)) {
+	if (virtio_check_mem_acc_cb(dev)) {
 		if (!virtio_has_feature(dev, VIRTIO_F_VERSION_1)) {
 			dev_warn(&dev->dev,
 				 "device must provide VIRTIO_F_VERSION_1\n");
@@ -428,7 +428,9 @@ int register_virtio_device(struct virtio_device *dev)
 		goto out;
 
 	dev->index = err;
-	dev_set_name(&dev->dev, "virtio%u", dev->index);
+	err = dev_set_name(&dev->dev, "virtio%u", dev->index);
+	if (err)
+		goto out_ida_remove;
 
 	err = virtio_device_of_init(dev);
 	if (err)

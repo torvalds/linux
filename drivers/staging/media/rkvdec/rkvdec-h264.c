@@ -109,7 +109,7 @@ struct rkvdec_h264_run {
 	const struct v4l2_ctrl_h264_sps *sps;
 	const struct v4l2_ctrl_h264_pps *pps;
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling_matrix;
-	int ref_buf_idx[V4L2_H264_NUM_DPB_ENTRIES];
+	struct vb2_buffer *ref_buf[V4L2_H264_NUM_DPB_ENTRIES];
 };
 
 struct rkvdec_h264_ctx {
@@ -742,17 +742,16 @@ static void lookup_ref_buf_idx(struct rkvdec_ctx *ctx,
 		struct v4l2_m2m_ctx *m2m_ctx = ctx->fh.m2m_ctx;
 		const struct v4l2_h264_dpb_entry *dpb = run->decode_params->dpb;
 		struct vb2_queue *cap_q = &m2m_ctx->cap_q_ctx.q;
-		int buf_idx = -1;
+		struct vb2_buffer *buf = NULL;
 
 		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE) {
-			buf_idx = vb2_find_timestamp(cap_q,
-						     dpb[i].reference_ts, 0);
-			if (buf_idx < 0)
+			buf = vb2_find_buffer(cap_q, dpb[i].reference_ts);
+			if (!buf)
 				pr_debug("No buffer for reference_ts %llu",
 					 dpb[i].reference_ts);
 		}
 
-		run->ref_buf_idx[i] = buf_idx;
+		run->ref_buf[i] = buf;
 	}
 }
 
@@ -805,7 +804,7 @@ static void assemble_hw_rps(struct rkvdec_ctx *ctx,
 			if (WARN_ON(ref->index >= ARRAY_SIZE(dec_params->dpb)))
 				continue;
 
-			dpb_valid = run->ref_buf_idx[ref->index] >= 0;
+			dpb_valid = run->ref_buf[ref->index] != NULL;
 			bottom = ref->fields == V4L2_H264_BOTTOM_FIELD_REF;
 
 			set_ps_field(hw_rps, DPB_INFO(i, j),
@@ -881,24 +880,6 @@ static const u32 poc_reg_tbl_bottom_field[16] = {
 	RKVDEC_REG_H264_POC_REFER2(1)
 };
 
-static struct vb2_buffer *
-get_ref_buf(struct rkvdec_ctx *ctx, struct rkvdec_h264_run *run,
-	    unsigned int dpb_idx)
-{
-	struct v4l2_m2m_ctx *m2m_ctx = ctx->fh.m2m_ctx;
-	struct vb2_queue *cap_q = &m2m_ctx->cap_q_ctx.q;
-	int buf_idx = run->ref_buf_idx[dpb_idx];
-
-	/*
-	 * If a DPB entry is unused or invalid, address of current destination
-	 * buffer is returned.
-	 */
-	if (buf_idx < 0)
-		return &run->base.bufs.dst->vb2_buf;
-
-	return vb2_get_buffer(cap_q, buf_idx);
-}
-
 static void config_registers(struct rkvdec_ctx *ctx,
 			     struct rkvdec_h264_run *run)
 {
@@ -971,8 +952,14 @@ static void config_registers(struct rkvdec_ctx *ctx,
 
 	/* config ref pic address & poc */
 	for (i = 0; i < ARRAY_SIZE(dec_params->dpb); i++) {
-		struct vb2_buffer *vb_buf = get_ref_buf(ctx, run, i);
+		struct vb2_buffer *vb_buf = run->ref_buf[i];
 
+		/*
+		 * If a DPB entry is unused or invalid, address of current destination
+		 * buffer is returned.
+		 */
+		if (!vb_buf)
+			vb_buf = &dst_buf->vb2_buf;
 		refer_addr = vb2_dma_contig_plane_dma_addr(vb_buf, 0);
 
 		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)
@@ -1175,8 +1162,8 @@ static int rkvdec_h264_run(struct rkvdec_ctx *ctx)
 
 	schedule_delayed_work(&rkvdec->watchdog_work, msecs_to_jiffies(2000));
 
-	writel(0xffffffff, rkvdec->regs + RKVDEC_REG_STRMD_ERR_EN);
-	writel(0xffffffff, rkvdec->regs + RKVDEC_REG_H264_ERR_E);
+	writel(0, rkvdec->regs + RKVDEC_REG_STRMD_ERR_EN);
+	writel(0, rkvdec->regs + RKVDEC_REG_H264_ERR_E);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_LUMA_CACHE_COMMAND);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_CHR_CACHE_COMMAND);
 

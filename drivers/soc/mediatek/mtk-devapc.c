@@ -31,10 +31,7 @@ struct mtk_devapc_vio_dbgs {
 	u32 vio_dbg1;
 };
 
-struct mtk_devapc_data {
-	/* numbers of violation index */
-	u32 vio_idx_num;
-
+struct mtk_devapc_regs_ofs {
 	/* reg offset */
 	u32 vio_mask_offset;
 	u32 vio_sta_offset;
@@ -44,6 +41,12 @@ struct mtk_devapc_data {
 	u32 vio_shift_sta_offset;
 	u32 vio_shift_sel_offset;
 	u32 vio_shift_con_offset;
+};
+
+struct mtk_devapc_data {
+	/* numbers of violation index */
+	u32 vio_idx_num;
+	const struct mtk_devapc_regs_ofs *regs_ofs;
 };
 
 struct mtk_devapc_context {
@@ -58,7 +61,7 @@ static void clear_vio_status(struct mtk_devapc_context *ctx)
 	void __iomem *reg;
 	int i;
 
-	reg = ctx->infra_base + ctx->data->vio_sta_offset;
+	reg = ctx->infra_base + ctx->data->regs_ofs->vio_sta_offset;
 
 	for (i = 0; i < VIO_MOD_TO_REG_IND(ctx->data->vio_idx_num) - 1; i++)
 		writel(GENMASK(31, 0), reg + 4 * i);
@@ -73,7 +76,7 @@ static void mask_module_irq(struct mtk_devapc_context *ctx, bool mask)
 	u32 val;
 	int i;
 
-	reg = ctx->infra_base + ctx->data->vio_mask_offset;
+	reg = ctx->infra_base + ctx->data->regs_ofs->vio_mask_offset;
 
 	if (mask)
 		val = GENMASK(31, 0);
@@ -116,11 +119,11 @@ static int devapc_sync_vio_dbg(struct mtk_devapc_context *ctx)
 	u32 val;
 
 	pd_vio_shift_sta_reg = ctx->infra_base +
-			       ctx->data->vio_shift_sta_offset;
+			       ctx->data->regs_ofs->vio_shift_sta_offset;
 	pd_vio_shift_sel_reg = ctx->infra_base +
-			       ctx->data->vio_shift_sel_offset;
+			       ctx->data->regs_ofs->vio_shift_sel_offset;
 	pd_vio_shift_con_reg = ctx->infra_base +
-			       ctx->data->vio_shift_con_offset;
+			       ctx->data->regs_ofs->vio_shift_con_offset;
 
 	/* Find the minimum shift group which has violation */
 	val = readl(pd_vio_shift_sta_reg);
@@ -161,8 +164,8 @@ static void devapc_extract_vio_dbg(struct mtk_devapc_context *ctx)
 	void __iomem *vio_dbg0_reg;
 	void __iomem *vio_dbg1_reg;
 
-	vio_dbg0_reg = ctx->infra_base + ctx->data->vio_dbg0_offset;
-	vio_dbg1_reg = ctx->infra_base + ctx->data->vio_dbg1_offset;
+	vio_dbg0_reg = ctx->infra_base + ctx->data->regs_ofs->vio_dbg0_offset;
+	vio_dbg1_reg = ctx->infra_base + ctx->data->regs_ofs->vio_dbg1_offset;
 
 	vio_dbgs.vio_dbg0 = readl(vio_dbg0_reg);
 	vio_dbgs.vio_dbg1 = readl(vio_dbg1_reg);
@@ -200,7 +203,7 @@ static irqreturn_t devapc_violation_irq(int irq_number, void *data)
  */
 static void start_devapc(struct mtk_devapc_context *ctx)
 {
-	writel(BIT(31), ctx->infra_base + ctx->data->apc_con_offset);
+	writel(BIT(31), ctx->infra_base + ctx->data->regs_ofs->apc_con_offset);
 
 	mask_module_irq(ctx, false);
 }
@@ -212,11 +215,10 @@ static void stop_devapc(struct mtk_devapc_context *ctx)
 {
 	mask_module_irq(ctx, true);
 
-	writel(BIT(2), ctx->infra_base + ctx->data->apc_con_offset);
+	writel(BIT(2), ctx->infra_base + ctx->data->regs_ofs->apc_con_offset);
 }
 
-static const struct mtk_devapc_data devapc_mt6779 = {
-	.vio_idx_num = 511,
+static const struct mtk_devapc_regs_ofs devapc_regs_ofs_mt6779 = {
 	.vio_mask_offset = 0x0,
 	.vio_sta_offset = 0x400,
 	.vio_dbg0_offset = 0x900,
@@ -227,10 +229,23 @@ static const struct mtk_devapc_data devapc_mt6779 = {
 	.vio_shift_con_offset = 0xF20,
 };
 
+static const struct mtk_devapc_data devapc_mt6779 = {
+	.vio_idx_num = 511,
+	.regs_ofs = &devapc_regs_ofs_mt6779,
+};
+
+static const struct mtk_devapc_data devapc_mt8186 = {
+	.vio_idx_num = 519,
+	.regs_ofs = &devapc_regs_ofs_mt6779,
+};
+
 static const struct of_device_id mtk_devapc_dt_match[] = {
 	{
 		.compatible = "mediatek,mt6779-devapc",
 		.data = &devapc_mt6779,
+	}, {
+		.compatible = "mediatek,mt8186-devapc",
+		.data = &devapc_mt8186,
 	}, {
 	},
 };

@@ -248,8 +248,13 @@ QEMU_MACHINE := -cpu host,accel=kvm -machine s390-ccw-virtio -append $(KERNEL_CM
 else
 QEMU_MACHINE := -cpu max -machine s390-ccw-virtio -append $(KERNEL_CMDLINE)
 endif
+else ifeq ($(ARCH),um)
+CHOST := $(HOST_ARCH)-linux-musl
+KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/vmlinux
+KERNEL_ARCH := um
+KERNEL_CMDLINE := $(shell sed -n 's/CONFIG_CMDLINE=\(.*\)/\1/p' arch/um.config)
 else
-$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc64, powerpc64le, powerpc, m68k, riscv64, riscv32, s390x)
+$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc64, powerpc64le, powerpc, m68k, riscv64, riscv32, s390x, um)
 endif
 
 TOOLCHAIN_FILENAME := $(CHOST)-cross.tgz
@@ -262,7 +267,9 @@ $(eval $(call file_download,$(TOOLCHAIN_FILENAME),$(TOOLCHAIN_DIR),,$(DISTFILES_
 STRIP := $(CHOST)-strip
 CROSS_COMPILE_FLAG := --build=$(CBUILD) --host=$(CHOST)
 $(info Building for $(CHOST) using $(CBUILD))
+ifneq ($(ARCH),um)
 export CROSS_COMPILE := $(CHOST)-
+endif
 export PATH := $(TOOLCHAIN_PATH)/bin:$(PATH)
 export CC := $(CHOST)-gcc
 CCACHE_PATH := $(shell which ccache 2>/dev/null)
@@ -279,6 +286,7 @@ comma := ,
 build: $(KERNEL_BZIMAGE)
 qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
+ifneq ($(ARCH),um)
 	timeout --foreground 20m qemu-system-$(QEMU_ARCH) \
 		-nodefaults \
 		-nographic \
@@ -291,6 +299,13 @@ qemu: $(KERNEL_BZIMAGE)
 		-no-reboot \
 		-monitor none \
 		-kernel $<
+else
+	timeout --foreground 20m $< \
+		$(KERNEL_CMDLINE) \
+		mem=$$(grep -q CONFIG_DEBUG_KMEMLEAK=y $(KERNEL_BUILD_PATH)/.config && echo 1G || echo 256M) \
+		noreboot \
+		con1=fd:51 51>$(BUILD_PATH)/result </dev/null 2>&1 | cat
+endif
 	grep -Fq success $(BUILD_PATH)/result
 
 $(BUILD_PATH)/init-cpio-spec.txt: $(TOOLCHAIN_PATH)/.installed $(BUILD_PATH)/init
@@ -328,8 +343,10 @@ $(KERNEL_BZIMAGE): $(TOOLCHAIN_PATH)/.installed $(KERNEL_BUILD_PATH)/.config $(B
 .PHONY: $(KERNEL_BZIMAGE)
 
 $(TOOLCHAIN_PATH)/$(CHOST)/include/linux/.installed: | $(KERNEL_BUILD_PATH)/.config $(TOOLCHAIN_PATH)/.installed
+ifneq ($(ARCH),um)
 	rm -rf $(TOOLCHAIN_PATH)/$(CHOST)/include/linux
 	$(MAKE) -C $(KERNEL_PATH) O=$(KERNEL_BUILD_PATH) INSTALL_HDR_PATH=$(TOOLCHAIN_PATH)/$(CHOST) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE) headers_install
+endif
 	touch $@
 
 $(TOOLCHAIN_PATH)/.installed: $(TOOLCHAIN_TAR)

@@ -44,7 +44,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated: removed from this core's cache, after the data is forwarded back to the requestor and indicating the data was found unmodified in the (FE) Forward or Exclusive State in this cores caches cache.  A single snoop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -56,7 +55,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated: removed from this core's caches, after the data is forwarded back to the requestor, and indicating the data was found modified(M) in this cores caches cache (aka HitM response).  A single snoop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -68,7 +66,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated in this core's caches without being forwarded back to the requestor. The line was in Forward, Shared or Exclusive (FSE) state in this cores caches.  A single snoop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -80,7 +77,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating that the data was not found (IHitI) in this core's caches. A single snoop response from the core counts on all hyperthreads of the Core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -92,7 +88,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (FS) Forward or Shared state.  A single snoop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x40"
     },
     {
@@ -104,7 +99,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (M)odified state.  A single snoop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -116,7 +110,6 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts responses to snoops indicating the line was kept on this core in the (S)hared state, and that the data was found unmodified but not forwarded back to the requestor, initially the data was found in the cache in the (FSE) Forward, Shared state or Exclusive state.  A single snoop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -428,7 +421,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.ANY_RESPONSE",
@@ -439,7 +432,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.DRAM",
@@ -450,7 +443,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.LOCAL_DRAM",
@@ -461,7 +454,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those PMM accesses that are controlled by the close SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those PMM accesses that are controlled by the close SNC Cluster.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.LOCAL_PMM",
@@ -472,7 +465,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_DRAM",
@@ -483,7 +476,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM accesses that are controlled by the close or distant SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM accesses that are controlled by the close or distant SNC Cluster.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_PMM",
@@ -494,7 +487,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE",
@@ -505,7 +498,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to another socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to another socket.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE_DRAM",
@@ -516,7 +509,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to another socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM or PMM attached to another socket.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.READS_TO_CORE.REMOTE_MEMORY",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x731800477",
+        "Offcore": "1",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to another socket.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE_PMM",
@@ -527,7 +531,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.SNC_DRAM",
@@ -538,7 +542,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.SNC_PMM",
@@ -555,6 +559,17 @@
         "EventName": "OCR.STREAMING_WR.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10800",
+        "Offcore": "1",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand RFOs, ItoM's, PREFECTHW's, Hardware RFO Prefetches to the L1/L2 and Streaming stores that likely resulted in a store to Memory (DRAM or PMM)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.WRITE_ESTIMATE.MEMORY",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0xFBFF80822",
         "Offcore": "1",
         "SampleAfterValue": "100003",
         "UMask": "0x1"

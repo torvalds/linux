@@ -65,7 +65,7 @@
 		#clock-cells = <1>;
 		clocks = <&cpu_clk>, <&ddr_clk>, <&sys_clk>;
 		clock-names = "cpu", "ddr", "sys";
-		reg = <0xe00c00a8 0x38>;
+		reg = <0xe00c00a8 0x38>, <0xe00c02cc 0x4>;
 	};
 
 	timer {
@@ -83,6 +83,17 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		udc: usb@200000 {
+			compatible = "microchip,lan9662-udc",
+				     "atmel,sama5d3-udc";
+			reg = <0x00200000 0x80000>,
+			      <0xe0808000 0x400>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks GCK_GATE_UDPHS>, <&nic_clk>;
+			clock-names = "pclk", "hclk";
+			status = "disabled";
+		};
 
 		switch: switch@e0000000 {
 			compatible = "microchip,lan966x-switch";
@@ -473,6 +484,21 @@
 			status = "disabled";
 		};
 
+		can1: can@e0820000 {
+			compatible = "bosch,m_can";
+			reg = <0xe0820000 0xfc>, <0x00100000 0x8000>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&clks GCK_ID_MCAN1>, <&clks GCK_ID_MCAN1>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&clks GCK_ID_MCAN1>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0x4000 0 0 64 0 0 32 32>;
+			status = "disabled";
+		};
+
 		reset: reset-controller@e200400c {
 			compatible = "microchip,lan966x-switch-reset";
 			reg = <0xe200400c 0x4>;
@@ -515,13 +541,13 @@
 
 			phy0: ethernet-phy@1 {
 				reg = <1>;
-				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			phy1: ethernet-phy@2 {
 				reg = <2>;
-				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 		};

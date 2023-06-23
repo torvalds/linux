@@ -74,6 +74,21 @@ static const char *ext4_get_link(struct dentry *dentry, struct inode *inode,
 				 struct delayed_call *callback)
 {
 	struct buffer_head *bh;
+	char *inline_link;
+
+	/*
+	 * Create a new inlined symlink is not supported, just provide a
+	 * method to read the leftovers.
+	 */
+	if (ext4_has_inline_data(inode)) {
+		if (!dentry)
+			return ERR_PTR(-ECHILD);
+
+		inline_link = ext4_read_inline_link(inode);
+		if (!IS_ERR(inline_link))
+			set_delayed_call(callback, kfree_link, inline_link);
+		return inline_link;
+	}
 
 	if (!dentry) {
 		bh = ext4_getblk(NULL, inode, 0, EXT4_GET_BLOCKS_CACHED_NOWAIT);

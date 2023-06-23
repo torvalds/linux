@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-VERSION = 5
-PATCHLEVEL = 19
+VERSION = 6
+PATCHLEVEL = 0
 SUBLEVEL = 0
 EXTRAVERSION =
-NAME = Superb Owl
+NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -128,6 +128,9 @@ endif
 
 $(if $(word 2, $(KBUILD_EXTMOD)), \
 	$(error building multiple external modules is not supported))
+
+$(foreach x, % :, $(if $(findstring $x, $(KBUILD_EXTMOD)), \
+	$(error module directory path cannot contain '$x')))
 
 # Remove trailing slashes
 ifneq ($(filter %/, $(KBUILD_EXTMOD)),)
@@ -755,8 +758,6 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
 KBUILD_CFLAGS += -O2
-else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
-KBUILD_CFLAGS += -O3
 else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS += -Os
 endif
@@ -1033,6 +1034,11 @@ KBUILD_CFLAGS   += $(KCFLAGS)
 KBUILD_LDFLAGS_MODULE += --build-id=sha1
 LDFLAGS_vmlinux += --build-id=sha1
 
+KBUILD_LDFLAGS	+= -z noexecstack
+ifeq ($(CONFIG_LD_IS_BFD),y)
+KBUILD_LDFLAGS	+= $(call ld-option,--no-warn-rwx-segments)
+endif
+
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
 endif
@@ -1097,6 +1103,7 @@ export MODULES_NSDEPS := $(extmod_prefix)modules.nsdeps
 ifeq ($(KBUILD_EXTMOD),)
 core-y			+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/
 core-$(CONFIG_BLOCK)	+= block/
+core-$(CONFIG_IO_URING)	+= io_uring/
 
 vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, \
 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
@@ -1106,12 +1113,10 @@ vmlinux-alldirs	:= $(sort $(vmlinux-dirs) Documentation \
 		     $(patsubst %/,%,$(filter %/, $(core-) \
 			$(drivers-) $(libs-))))
 
-subdir-modorder := $(addsuffix modules.order,$(filter %/, \
-			$(core-y) $(core-m) $(libs-y) $(libs-m) \
-			$(drivers-y) $(drivers-m)))
-
 build-dirs	:= $(vmlinux-dirs)
 clean-dirs	:= $(vmlinux-alldirs)
+
+subdir-modorder := $(addsuffix /modules.order, $(build-dirs))
 
 # Externally visible symbols (used by link-vmlinux.sh)
 KBUILD_VMLINUX_OBJS := $(head-y) $(patsubst %/,%/built-in.a, $(core-y))
@@ -1284,8 +1289,7 @@ hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
 
 PHONY += headers
 headers: $(version_h) scripts_unifdef uapi-asm-generic archheaders archscripts
-	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/Kbuild),, \
-	  $(error Headers not exportable for the $(SRCARCH) architecture))
+	$(if $(filter um, $(SRCARCH)), $(error Headers not exportable for UML))
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(SRCARCH)/include/uapi
 
@@ -1349,10 +1353,10 @@ tools/%: FORCE
 # Kernel selftest
 
 PHONY += kselftest
-kselftest:
+kselftest: headers
 	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests run_tests
 
-kselftest-%: FORCE
+kselftest-%: headers FORCE
 	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests $*
 
 PHONY += kselftest-merge
@@ -1371,15 +1375,20 @@ endif
 
 ifneq ($(dtstree),)
 
-%.dtb: include/config/kernel.release scripts_dtc
+%.dtb: dtbs_prepare
 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
 
-%.dtbo: include/config/kernel.release scripts_dtc
+%.dtbo: dtbs_prepare
 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
 
-PHONY += dtbs dtbs_install dtbs_check
-dtbs: include/config/kernel.release scripts_dtc
+PHONY += dtbs dtbs_prepare dtbs_install dtbs_check
+dtbs: dtbs_prepare
 	$(Q)$(MAKE) $(build)=$(dtstree)
+
+# include/config/kernel.release is actually needed when installing DTBs because
+# INSTALL_DTBS_PATH contains $(KERNELRELEASE). However, we do not want to make
+# dtbs_install depend on it as dtbs_install may run as root.
+dtbs_prepare: include/config/kernel.release scripts_dtc
 
 ifneq ($(filter dtbs_check, $(MAKECMDGOALS)),)
 export CHECK_DTBS=y

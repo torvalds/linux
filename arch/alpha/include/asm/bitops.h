@@ -46,8 +46,8 @@ set_bit(unsigned long nr, volatile void * addr)
 /*
  * WARNING: non atomic version.
  */
-static inline void
-__set_bit(unsigned long nr, volatile void * addr)
+static __always_inline void
+arch___set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	int *m = ((int *) addr) + (nr >> 5);
 
@@ -82,8 +82,8 @@ clear_bit_unlock(unsigned long nr, volatile void * addr)
 /*
  * WARNING: non atomic version.
  */
-static __inline__ void
-__clear_bit(unsigned long nr, volatile void * addr)
+static __always_inline void
+arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	int *m = ((int *) addr) + (nr >> 5);
 
@@ -94,7 +94,7 @@ static inline void
 __clear_bit_unlock(unsigned long nr, volatile void * addr)
 {
 	smp_mb();
-	__clear_bit(nr, addr);
+	arch___clear_bit(nr, addr);
 }
 
 static inline void
@@ -118,8 +118,8 @@ change_bit(unsigned long nr, volatile void * addr)
 /*
  * WARNING: non atomic version.
  */
-static __inline__ void
-__change_bit(unsigned long nr, volatile void * addr)
+static __always_inline void
+arch___change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	int *m = ((int *) addr) + (nr >> 5);
 
@@ -186,8 +186,8 @@ test_and_set_bit_lock(unsigned long nr, volatile void *addr)
 /*
  * WARNING: non atomic version.
  */
-static inline int
-__test_and_set_bit(unsigned long nr, volatile void * addr)
+static __always_inline bool
+arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = 1 << (nr & 0x1f);
 	int *m = ((int *) addr) + (nr >> 5);
@@ -230,8 +230,8 @@ test_and_clear_bit(unsigned long nr, volatile void * addr)
 /*
  * WARNING: non atomic version.
  */
-static inline int
-__test_and_clear_bit(unsigned long nr, volatile void * addr)
+static __always_inline bool
+arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = 1 << (nr & 0x1f);
 	int *m = ((int *) addr) + (nr >> 5);
@@ -272,8 +272,8 @@ test_and_change_bit(unsigned long nr, volatile void * addr)
 /*
  * WARNING: non atomic version.
  */
-static __inline__ int
-__test_and_change_bit(unsigned long nr, volatile void * addr)
+static __always_inline bool
+arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = 1 << (nr & 0x1f);
 	int *m = ((int *) addr) + (nr >> 5);
@@ -283,11 +283,8 @@ __test_and_change_bit(unsigned long nr, volatile void * addr)
 	return (old & mask) != 0;
 }
 
-static inline int
-test_bit(int nr, const volatile void * addr)
-{
-	return (1UL & (((const int *) addr)[nr >> 5] >> (nr & 31))) != 0UL;
-}
+#define arch_test_bit generic_test_bit
+#define arch_test_bit_acquire generic_test_bit_acquire
 
 /*
  * ffz = Find First Zero in word. Undefined if no zero exists,
@@ -449,6 +446,8 @@ sched_find_first_bit(const unsigned long b[2])
 
 	return __ffs(tmp) + ofs;
 }
+
+#include <asm-generic/bitops/non-instrumented-non-atomic.h>
 
 #include <asm-generic/bitops/le.h>
 

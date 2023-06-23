@@ -106,32 +106,25 @@ declare_get_random_var_wait(long, unsigned long)
  */
 #include <linux/prandom.h>
 
-#ifdef CONFIG_ARCH_RANDOM
-# include <asm/archrandom.h>
-#else
-static inline bool __must_check arch_get_random_long(unsigned long *v) { return false; }
-static inline bool __must_check arch_get_random_int(unsigned int *v) { return false; }
-static inline bool __must_check arch_get_random_seed_long(unsigned long *v) { return false; }
-static inline bool __must_check arch_get_random_seed_int(unsigned int *v) { return false; }
-#endif
+#include <asm/archrandom.h>
 
 /*
  * Called from the boot CPU during startup; not valid to call once
  * secondary CPUs are up and preemption is possible.
  */
-#ifndef arch_get_random_seed_long_early
-static inline bool __init arch_get_random_seed_long_early(unsigned long *v)
+#ifndef arch_get_random_seed_longs_early
+static inline size_t __init arch_get_random_seed_longs_early(unsigned long *v, size_t max_longs)
 {
 	WARN_ON(system_state != SYSTEM_BOOTING);
-	return arch_get_random_seed_long(v);
+	return arch_get_random_seed_longs(v, max_longs);
 }
 #endif
 
-#ifndef arch_get_random_long_early
-static inline bool __init arch_get_random_long_early(unsigned long *v)
+#ifndef arch_get_random_longs_early
+static inline bool __init arch_get_random_longs_early(unsigned long *v, size_t max_longs)
 {
 	WARN_ON(system_state != SYSTEM_BOOTING);
-	return arch_get_random_long(v);
+	return arch_get_random_longs(v, max_longs);
 }
 #endif
 

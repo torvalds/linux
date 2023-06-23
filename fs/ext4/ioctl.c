@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/iversion.h>
 #include <linux/fileattr.h>
+#include <linux/uuid.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include <linux/fsmap.h>
@@ -39,6 +40,15 @@ static void ext4_sb_setlabel(struct ext4_super_block *es, const void *arg)
 	BUILD_BUG_ON(sizeof(es->s_volume_name) < EXT4_LABEL_MAX);
 
 	memcpy(es->s_volume_name, (char *)arg, EXT4_LABEL_MAX);
+}
+
+/*
+ * Superblock modification callback function for changing file system
+ * UUID.
+ */
+static void ext4_sb_setuuid(struct ext4_super_block *es, const void *arg)
+{
+	memcpy(es->s_uuid, (__u8 *)arg, UUID_SIZE);
 }
 
 static
@@ -944,7 +954,9 @@ static long ext4_ioctl_group_add(struct file *file,
 	    test_opt(sb, INIT_INODE_TABLE))
 		err = ext4_register_li_request(sb, input->group);
 group_add_out:
-	ext4_resize_end(sb);
+	err2 = ext4_resize_end(sb, false);
+	if (err == 0)
+		err = err2;
 	return err;
 }
 
@@ -1131,6 +1143,73 @@ static int ext4_ioctl_getlabel(struct ext4_sb_info *sbi, char __user *user_label
 	return 0;
 }
 
+static int ext4_ioctl_getuuid(struct ext4_sb_info *sbi,
+			struct fsuuid __user *ufsuuid)
+{
+	struct fsuuid fsuuid;
+	__u8 uuid[UUID_SIZE];
+
+	if (copy_from_user(&fsuuid, ufsuuid, sizeof(fsuuid)))
+		return -EFAULT;
+
+	if (fsuuid.fsu_len == 0) {
+		fsuuid.fsu_len = UUID_SIZE;
+		if (copy_to_user(ufsuuid, &fsuuid, sizeof(fsuuid.fsu_len)))
+			return -EFAULT;
+		return -EINVAL;
+	}
+
+	if (fsuuid.fsu_len != UUID_SIZE || fsuuid.fsu_flags != 0)
+		return -EINVAL;
+
+	lock_buffer(sbi->s_sbh);
+	memcpy(uuid, sbi->s_es->s_uuid, UUID_SIZE);
+	unlock_buffer(sbi->s_sbh);
+
+	if (copy_to_user(&ufsuuid->fsu_uuid[0], uuid, UUID_SIZE))
+		return -EFAULT;
+	return 0;
+}
+
+static int ext4_ioctl_setuuid(struct file *filp,
+			const struct fsuuid __user *ufsuuid)
+{
+	int ret = 0;
+	struct super_block *sb = file_inode(filp)->i_sb;
+	struct fsuuid fsuuid;
+	__u8 uuid[UUID_SIZE];
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/*
+	 * If any checksums (group descriptors or metadata) are being used
+	 * then the checksum seed feature is required to change the UUID.
+	 */
+	if (((ext4_has_feature_gdt_csum(sb) || ext4_has_metadata_csum(sb))
+			&& !ext4_has_feature_csum_seed(sb))
+		|| ext4_has_feature_stable_inodes(sb))
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&fsuuid, ufsuuid, sizeof(fsuuid)))
+		return -EFAULT;
+
+	if (fsuuid.fsu_len != UUID_SIZE || fsuuid.fsu_flags != 0)
+		return -EINVAL;
+
+	if (copy_from_user(uuid, &ufsuuid->fsu_uuid[0], UUID_SIZE))
+		return -EFAULT;
+
+	ret = mnt_want_write_file(filp);
+	if (ret)
+		return ret;
+
+	ret = ext4_update_superblocks_fn(sb, ext4_sb_setuuid, &uuid);
+	mnt_drop_write_file(filp);
+
+	return ret;
+}
+
 static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -1223,7 +1302,9 @@ setversion_out:
 			err = err2;
 		mnt_drop_write_file(filp);
 group_extend_out:
-		ext4_resize_end(sb);
+		err2 = ext4_resize_end(sb, false);
+		if (err == 0)
+			err = err2;
 		return err;
 	}
 
@@ -1371,7 +1452,9 @@ mext_out:
 			err = ext4_register_li_request(sb, o_group);
 
 resizefs_out:
-		ext4_resize_end(sb);
+		err2 = ext4_resize_end(sb, true);
+		if (err == 0)
+			err = err2;
 		return err;
 	}
 
@@ -1509,6 +1592,10 @@ resizefs_out:
 		return ext4_ioctl_setlabel(filp,
 					   (const void __user *)arg);
 
+	case EXT4_IOC_GETFSUUID:
+		return ext4_ioctl_getuuid(EXT4_SB(sb), (void __user *)arg);
+	case EXT4_IOC_SETFSUUID:
+		return ext4_ioctl_setuuid(filp, (const void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
@@ -1586,6 +1673,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_CHECKPOINT:
 	case FS_IOC_GETFSLABEL:
 	case FS_IOC_SETFSLABEL:
+	case EXT4_IOC_GETFSUUID:
+	case EXT4_IOC_SETFSUUID:
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -1599,13 +1688,15 @@ static void set_overhead(struct ext4_super_block *es, const void *arg)
 	es->s_overhead_clusters = cpu_to_le32(*((unsigned long *) arg));
 }
 
-int ext4_update_overhead(struct super_block *sb)
+int ext4_update_overhead(struct super_block *sb, bool force)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (sb_rdonly(sb) || sbi->s_overhead == 0 ||
-	    sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters))
+	if (sb_rdonly(sb))
 		return 0;
-
+	if (!force &&
+	    (sbi->s_overhead == 0 ||
+	     sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters)))
+		return 0;
 	return ext4_update_superblocks_fn(sb, set_overhead, &sbi->s_overhead);
 }

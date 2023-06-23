@@ -320,13 +320,6 @@ static void __init pmac_setup_arch(void)
 #endif /* CONFIG_ADB */
 }
 
-#ifdef CONFIG_SCSI
-void note_scsi_host(struct device_node *node, void *host)
-{
-}
-EXPORT_SYMBOL(note_scsi_host);
-#endif
-
 static int initializing = 1;
 
 static int pmac_late_init(void)

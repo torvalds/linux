@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Utility to set the DAVINCI MUX register from a table in mux.h
  *
@@ -8,10 +9,7 @@
  *
  * Written by Tony Lindgren
  *
- * 2007 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2007 (c) MontaVista Software, Inc.
  *
  * Copyright (C) 2008 Texas Instruments.
  */

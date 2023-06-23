@@ -41,12 +41,12 @@ Sr              Repeated start condition, used to switch from write to
 P               Stop condition
 Rd/Wr (1 bit)   Read/Write bit. Rd equals 1, Wr equals 0.
 A, NA (1 bit)   Acknowledge (ACK) and Not Acknowledge (NACK) bit
-Addr  (7 bits)  I2C 7 bit address. Note that this can be expanded as usual to
+Addr  (7 bits)  I2C 7 bit address. Note that this can be expanded to
                 get a 10 bit I2C address.
 Comm  (8 bits)  Command byte, a data byte which often selects a register on
                 the device.
-Data  (8 bits)  A plain data byte. Sometimes, I write DataLow, DataHigh
-                for 16 bit data.
+Data  (8 bits)  A plain data byte. DataLow and DataHigh represent the low and
+                high byte of a 16 bit word.
 Count (8 bits)  A data byte containing the length of a block operation.
 
 [..]            Data sent by I2C device, as opposed to data sent by the host

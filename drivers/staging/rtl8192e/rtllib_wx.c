@@ -17,17 +17,9 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include "rtllib.h"
-struct modes_unit {
-	char *mode_string;
-	int mode_size;
-};
-static struct modes_unit rtllib_modes[] = {
-	{"a", 1},
-	{"b", 1},
-	{"g", 1},
-	{"?", 1},
-	{"N-24G", 5},
-	{"N-5G", 4},
+
+static const char * const rtllib_modes[] = {
+	"a", "b", "g", "?", "N-24G", "N-5G"
 };
 
 #define MAX_CUSTOM_LEN 64
@@ -72,10 +64,9 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	for (i = 0; i < ARRAY_SIZE(rtllib_modes); i++) {
-		if (network->mode&(1<<i)) {
-			sprintf(pname, rtllib_modes[i].mode_string,
-				rtllib_modes[i].mode_size);
-			pname += rtllib_modes[i].mode_size;
+		if (network->mode & BIT(i)) {
+			strcpy(pname, rtllib_modes[i]);
+			pname += strlen(rtllib_modes[i]);
 		}
 	}
 	*pname = '\0';
@@ -158,7 +149,8 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 			max_rate = rate;
 	}
 	iwe.cmd = SIOCGIWRATE;
-	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
+	iwe.u.bitrate.disabled = 0;
+	iwe.u.bitrate.fixed = 0;
 	iwe.u.bitrate.value = max_rate * 500000;
 	start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_PARAM_LEN);
 	iwe.cmd = IWEVCUSTOM;
@@ -285,7 +277,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			 struct iw_request_info *info,
 			 union iwreq_data *wrqu, char *keybuf)
 {
-	struct iw_point *erq = &(wrqu->encoding);
+	struct iw_point *erq = &wrqu->encoding;
 	struct net_device *dev = ieee->dev;
 	struct rtllib_security sec = {
 		.flags = 0
@@ -312,8 +304,9 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			netdev_dbg(ieee->dev,
 				   "Disabling encryption on key %d.\n", key);
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
-		} else
+		} else {
 			netdev_dbg(ieee->dev, "Disabling encryption.\n");
+		}
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all
@@ -457,7 +450,7 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 			 struct iw_request_info *info,
 			 union iwreq_data *wrqu, char *keybuf)
 {
-	struct iw_point *erq = &(wrqu->encoding);
+	struct iw_point *erq = &wrqu->encoding;
 	int len, key;
 	struct lib80211_crypt_data *crypt;
 
@@ -608,7 +601,6 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			goto done;
 		}
 		*crypt = new_crypt;
-
 	}
 
 	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
@@ -732,8 +724,9 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 		} else if (data->value & IW_AUTH_ALG_LEAP) {
 			ieee->open_wep = 1;
 			ieee->auth_mode = 2;
-		} else
+		} else {
 			return -EINVAL;
+		}
 		break;
 
 	case IW_AUTH_WPA_ENABLED:
@@ -776,7 +769,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 	kfree(ieee->wps_ie);
 	ieee->wps_ie = NULL;
 	if (len) {
-		if (len != ie[1]+2)
+		if (len != ie[1] + 2)
 			return -EINVAL;
 		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (!buf)

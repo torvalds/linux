@@ -26,6 +26,22 @@ extern unsigned int __sw_hweight32(unsigned int w);
 extern unsigned long __sw_hweight64(__u64 w);
 
 /*
+ * Defined here because those may be needed by architecture-specific static
+ * inlines.
+ */
+
+#define bitop(op, nr, addr)						\
+	op(nr, addr)
+
+#define __set_bit(nr, addr)		bitop(___set_bit, nr, addr)
+#define __clear_bit(nr, addr)		bitop(___clear_bit, nr, addr)
+#define __change_bit(nr, addr)		bitop(___change_bit, nr, addr)
+#define __test_and_set_bit(nr, addr)	bitop(___test_and_set_bit, nr, addr)
+#define __test_and_clear_bit(nr, addr)	bitop(___test_and_clear_bit, nr, addr)
+#define __test_and_change_bit(nr, addr)	bitop(___test_and_change_bit, nr, addr)
+#define test_bit(nr, addr)		bitop(_test_bit, nr, addr)
+
+/*
  * Include this here because some architectures need generic_ffs/fls in
  * scope
  *

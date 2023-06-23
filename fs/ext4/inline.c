@@ -6,6 +6,7 @@
 
 #include <linux/iomap.h>
 #include <linux/fiemap.h>
+#include <linux/namei.h>
 #include <linux/iversion.h>
 #include <linux/sched/mm.h>
 
@@ -34,6 +35,9 @@ static int get_max_inline_xattr_value_size(struct inode *inode,
 	struct ext4_xattr_entry *entry;
 	struct ext4_inode *raw_inode;
 	int free, min_offs;
+
+	if (!EXT4_INODE_HAS_XATTR_SPACE(inode))
+		return 0;
 
 	min_offs = EXT4_SB(inode->i_sb)->s_inode_size -
 			EXT4_GOOD_OLD_INODE_SIZE -
@@ -1586,6 +1590,35 @@ out:
 	kfree(dir_buf);
 	brelse(iloc.bh);
 	return ret;
+}
+
+void *ext4_read_inline_link(struct inode *inode)
+{
+	struct ext4_iloc iloc;
+	int ret, inline_size;
+	void *link;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = -ENOMEM;
+	inline_size = ext4_get_inline_size(inode);
+	link = kmalloc(inline_size + 1, GFP_NOFS);
+	if (!link)
+		goto out;
+
+	ret = ext4_read_inline_data(inode, link, inline_size, &iloc);
+	if (ret < 0) {
+		kfree(link);
+		goto out;
+	}
+	nd_terminate_link(link, inode->i_size, ret);
+out:
+	if (ret < 0)
+		link = ERR_PTR(ret);
+	brelse(iloc.bh);
+	return link;
 }
 
 struct buffer_head *ext4_get_first_inline_block(struct inode *inode,

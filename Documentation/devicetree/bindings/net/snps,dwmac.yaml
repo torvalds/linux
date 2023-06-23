@@ -65,6 +65,8 @@ properties:
         - ingenic,x2000-mac
         - loongson,ls2k-dwmac
         - loongson,ls7a-dwmac
+        - renesas,r9a06g032-gmac
+        - renesas,rzn1-gmac
         - rockchip,px30-gmac
         - rockchip,rk3128-gmac
         - rockchip,rk3228-gmac
@@ -134,6 +136,9 @@ properties:
 
   reset-names:
     const: stmmaceth
+
+  power-domains:
+    maxItems: 1
 
   mac-mode:
     $ref: ethernet-controller.yaml#/properties/phy-connection-type

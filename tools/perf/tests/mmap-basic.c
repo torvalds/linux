@@ -114,8 +114,7 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 
 	for (i = 0; i < nsyscalls; ++i)
 		for (j = 0; j < expected_nr_events[i]; ++j) {
-			int foo = syscalls[i]();
-			++foo;
+			syscalls[i]();
 		}
 
 	md = &evlist->mmap[0];
@@ -170,14 +169,139 @@ out_free_threads:
 	return err;
 }
 
+static int test_stat_user_read(int event)
+{
+	struct perf_counts_values counts = { .val = 0 };
+	struct perf_thread_map *threads;
+	struct perf_evsel *evsel;
+	struct perf_event_mmap_page *pc;
+	struct perf_event_attr attr = {
+		.type	= PERF_TYPE_HARDWARE,
+		.config	= event,
+#ifdef __aarch64__
+		.config1 = 0x2,		/* Request user access */
+#endif
+	};
+	int err, i, ret = TEST_FAIL;
+	bool opened = false, mapped = false;
+
+	threads = perf_thread_map__new_dummy();
+	TEST_ASSERT_VAL("failed to create threads", threads);
+
+	perf_thread_map__set_pid(threads, 0, 0);
+
+	evsel = perf_evsel__new(&attr);
+	TEST_ASSERT_VAL("failed to create evsel", evsel);
+
+	err = perf_evsel__open(evsel, NULL, threads);
+	if (err) {
+		pr_err("failed to open evsel: %s\n", strerror(-err));
+		ret = TEST_SKIP;
+		goto out;
+	}
+	opened = true;
+
+	err = perf_evsel__mmap(evsel, 0);
+	if (err) {
+		pr_err("failed to mmap evsel: %s\n", strerror(-err));
+		goto out;
+	}
+	mapped = true;
+
+	pc = perf_evsel__mmap_base(evsel, 0, 0);
+	if (!pc) {
+		pr_err("failed to get mmapped address\n");
+		goto out;
+	}
+
+	if (!pc->cap_user_rdpmc || !pc->index) {
+		pr_err("userspace counter access not %s\n",
+			!pc->cap_user_rdpmc ? "supported" : "enabled");
+		ret = TEST_SKIP;
+		goto out;
+	}
+	if (pc->pmc_width < 32) {
+		pr_err("userspace counter width not set (%d)\n", pc->pmc_width);
+		goto out;
+	}
+
+	perf_evsel__read(evsel, 0, 0, &counts);
+	if (counts.val == 0) {
+		pr_err("failed to read value for evsel\n");
+		goto out;
+	}
+
+	for (i = 0; i < 5; i++) {
+		volatile int count = 0x10000 << i;
+		__u64 start, end, last = 0;
+
+		pr_debug("\tloop = %u, ", count);
+
+		perf_evsel__read(evsel, 0, 0, &counts);
+		start = counts.val;
+
+		while (count--) ;
+
+		perf_evsel__read(evsel, 0, 0, &counts);
+		end = counts.val;
+
+		if ((end - start) < last) {
+			pr_err("invalid counter data: end=%llu start=%llu last= %llu\n",
+				end, start, last);
+			goto out;
+		}
+		last = end - start;
+		pr_debug("count = %llu\n", end - start);
+	}
+	ret = TEST_OK;
+
+out:
+	if (mapped)
+		perf_evsel__munmap(evsel);
+	if (opened)
+		perf_evsel__close(evsel);
+	perf_evsel__delete(evsel);
+
+	perf_thread_map__put(threads);
+	return ret;
+}
+
+static int test__mmap_user_read_instr(struct test_suite *test __maybe_unused,
+				      int subtest __maybe_unused)
+{
+	return test_stat_user_read(PERF_COUNT_HW_INSTRUCTIONS);
+}
+
+static int test__mmap_user_read_cycles(struct test_suite *test __maybe_unused,
+				       int subtest __maybe_unused)
+{
+	return test_stat_user_read(PERF_COUNT_HW_CPU_CYCLES);
+}
+
 static struct test_case tests__basic_mmap[] = {
 	TEST_CASE_REASON("Read samples using the mmap interface",
 			 basic_mmap,
 			 "permissions"),
+	TEST_CASE_REASON("User space counter reading of instructions",
+			 mmap_user_read_instr,
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+			 "permissions"
+#else
+			 "unsupported"
+#endif
+		),
+	TEST_CASE_REASON("User space counter reading of cycles",
+			 mmap_user_read_cycles,
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+			 "permissions"
+#else
+			 "unsupported"
+#endif
+		),
 	{	.name = NULL, }
 };
 
 struct test_suite suite__basic_mmap = {
-	.desc = "Read samples using the mmap interface",
+	.desc = "mmap interface tests",
 	.test_cases = tests__basic_mmap,
 };

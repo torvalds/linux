@@ -128,8 +128,25 @@ config KVM_BOOK3S_64_PR
 	  and system calls on the host.
 
 config KVM_BOOK3S_HV_EXIT_TIMING
-	bool "Detailed timing for hypervisor real-mode code"
+	bool
+
+config KVM_BOOK3S_HV_P9_TIMING
+	bool "Detailed timing for the P9 entry point"
+	select KVM_BOOK3S_HV_EXIT_TIMING
 	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS
+	help
+	  Calculate time taken for each vcpu during vcpu entry and
+	  exit, time spent inside the guest and time spent handling
+	  hypercalls and page faults. The total, minimum and maximum
+	  times in nanoseconds together with the number of executions
+	  are reported in debugfs in kvm/vm#/vcpu#/timings.
+
+	  If unsure, say N.
+
+config KVM_BOOK3S_HV_P8_TIMING
+	bool "Detailed timing for hypervisor real-mode code (for POWER8)"
+	select KVM_BOOK3S_HV_EXIT_TIMING
+	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS && !KVM_BOOK3S_HV_P9_TIMING
 	help
 	  Calculate time taken for each vcpu in the real-mode guest entry,
 	  exit, and interrupt handling code, plus time spent in the guest
@@ -149,7 +166,7 @@ config KVM_BOOK3S_HV_NESTED_PMU_WORKAROUND
 	  Old nested HV capable Linux guests have a bug where they don't
 	  reflect the PMU in-use status of their L2 guest to the L0 host
 	  while the L2 PMU registers are live. This can result in loss
-          of L2 PMU register state, causing perf to not work correctly in
+	  of L2 PMU register state, causing perf to not work correctly in
 	  L2 guests.
 
 	  Selecting this option for the L0 host implements a workaround for

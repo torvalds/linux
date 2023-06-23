@@ -171,6 +171,14 @@ EXPORT_SYMBOL_GPL(machine_power_off);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
+size_t __must_check arch_get_random_seed_longs(unsigned long *v, size_t max_longs)
+{
+	if (max_longs && ppc_md.get_random_seed && ppc_md.get_random_seed(v))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(arch_get_random_seed_longs);
+
 void machine_halt(void)
 {
 	machine_shutdown();

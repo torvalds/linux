@@ -14,6 +14,7 @@
 #include "intel_gt_regs.h"
 #include "intel_gt_sysfs.h"
 #include "intel_gt_sysfs_pm.h"
+#include "intel_pcode.h"
 #include "intel_rc6.h"
 #include "intel_rps.h"
 
@@ -544,8 +545,7 @@ static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_ratl, RATL_MASK);
 static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_vr_thermalert, VR_THERMALERT_MASK);
 static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_vr_tdc, VR_TDC_MASK);
 
-static const struct attribute *freq_attrs[] = {
-	&dev_attr_punit_req_freq_mhz.attr,
+static const struct attribute *throttle_reason_attrs[] = {
 	&attr_throttle_reason_status.attr,
 	&attr_throttle_reason_pl1.attr,
 	&attr_throttle_reason_pl2.attr,
@@ -555,6 +555,174 @@ static const struct attribute *freq_attrs[] = {
 	&attr_throttle_reason_ratl.attr,
 	&attr_throttle_reason_vr_thermalert.attr,
 	&attr_throttle_reason_vr_tdc.attr,
+	NULL
+};
+
+/*
+ * Scaling for multipliers (aka frequency factors).
+ * The format of the value in the register is u8.8.
+ *
+ * The presentation to userspace is inspired by the perf event framework.
+ * See:
+ *   Documentation/ABI/testing/sysfs-bus-event_source-devices-events
+ * for description of:
+ *   /sys/bus/event_source/devices/<pmu>/events/<event>.scale
+ *
+ * Summary: Expose two sysfs files for each multiplier.
+ *
+ * 1. File <attr> contains a raw hardware value.
+ * 2. File <attr>.scale contains the multiplicative scale factor to be
+ *    used by userspace to compute the actual value.
+ *
+ * So userspace knows that to get the frequency_factor it multiplies the
+ * provided value by the specified scale factor and vice-versa.
+ *
+ * That way there is no precision loss in the kernel interface and API
+ * is future proof should one day the hardware register change to u16.u16,
+ * on some platform. (Or any other fixed point representation.)
+ *
+ * Example:
+ * File <attr> contains the value 2.5, represented as u8.8 0x0280, which
+ * is comprised of:
+ * - an integer part of 2
+ * - a fractional part of 0x80 (representing 0x80 / 2^8 == 0x80 / 256).
+ * File <attr>.scale contains a string representation of floating point
+ * value 0.00390625 (which is (1 / 256)).
+ * Userspace computes the actual value:
+ *   0x0280 * 0.00390625 -> 2.5
+ * or converts an actual value to the value to be written into <attr>:
+ *   2.5 / 0.00390625 -> 0x0280
+ */
+
+#define U8_8_VAL_MASK           0xffff
+#define U8_8_SCALE_TO_VALUE     "0.00390625"
+
+static ssize_t freq_factor_scale_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buff)
+{
+	return sysfs_emit(buff, "%s\n", U8_8_SCALE_TO_VALUE);
+}
+
+static u32 media_ratio_mode_to_factor(u32 mode)
+{
+	/* 0 -> 0, 1 -> 256, 2 -> 128 */
+	return !mode ? mode : 256 / mode;
+}
+
+static ssize_t media_freq_factor_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buff)
+{
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
+	intel_wakeref_t wakeref;
+	u32 mode;
+
+	/*
+	 * Retrieve media_ratio_mode from GEN6_RPNSWREQ bit 13 set by
+	 * GuC. GEN6_RPNSWREQ:13 value 0 represents 1:2 and 1 represents 1:1
+	 */
+	if (IS_XEHPSDV(gt->i915) &&
+	    slpc->media_ratio_mode == SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL) {
+		/*
+		 * For XEHPSDV dynamic mode GEN6_RPNSWREQ:13 does not contain
+		 * the media_ratio_mode, just return the cached media ratio
+		 */
+		mode = slpc->media_ratio_mode;
+	} else {
+		with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+			mode = intel_uncore_read(gt->uncore, GEN6_RPNSWREQ);
+		mode = REG_FIELD_GET(GEN12_MEDIA_FREQ_RATIO, mode) ?
+			SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_ONE :
+			SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_TWO;
+	}
+
+	return sysfs_emit(buff, "%u\n", media_ratio_mode_to_factor(mode));
+}
+
+static ssize_t media_freq_factor_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buff, size_t count)
+{
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
+	u32 factor, mode;
+	int err;
+
+	err = kstrtou32(buff, 0, &factor);
+	if (err)
+		return err;
+
+	for (mode = SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL;
+	     mode <= SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_TWO; mode++)
+		if (factor == media_ratio_mode_to_factor(mode))
+			break;
+
+	if (mode > SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_TWO)
+		return -EINVAL;
+
+	err = intel_guc_slpc_set_media_ratio_mode(slpc, mode);
+	if (!err) {
+		slpc->media_ratio_mode = mode;
+		DRM_DEBUG("Set slpc->media_ratio_mode to %d", mode);
+	}
+	return err ?: count;
+}
+
+static ssize_t media_RP0_freq_mhz_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buff)
+{
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	u32 val;
+	int err;
+
+	err = snb_pcode_read_p(gt->uncore, XEHP_PCODE_FREQUENCY_CONFIG,
+			       PCODE_MBOX_FC_SC_READ_FUSED_P0,
+			       PCODE_MBOX_DOMAIN_MEDIAFF, &val);
+
+	if (err)
+		return err;
+
+	/* Fused media RP0 read from pcode is in units of 50 MHz */
+	val *= GT_FREQUENCY_MULTIPLIER;
+
+	return sysfs_emit(buff, "%u\n", val);
+}
+
+static ssize_t media_RPn_freq_mhz_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buff)
+{
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	u32 val;
+	int err;
+
+	err = snb_pcode_read_p(gt->uncore, XEHP_PCODE_FREQUENCY_CONFIG,
+			       PCODE_MBOX_FC_SC_READ_FUSED_PN,
+			       PCODE_MBOX_DOMAIN_MEDIAFF, &val);
+
+	if (err)
+		return err;
+
+	/* Fused media RPn read from pcode is in units of 50 MHz */
+	val *= GT_FREQUENCY_MULTIPLIER;
+
+	return sysfs_emit(buff, "%u\n", val);
+}
+
+static DEVICE_ATTR_RW(media_freq_factor);
+static struct device_attribute dev_attr_media_freq_factor_scale =
+	__ATTR(media_freq_factor.scale, 0444, freq_factor_scale_show, NULL);
+static DEVICE_ATTR_RO(media_RP0_freq_mhz);
+static DEVICE_ATTR_RO(media_RPn_freq_mhz);
+
+static const struct attribute *media_perf_power_attrs[] = {
+	&dev_attr_media_freq_factor.attr,
+	&dev_attr_media_freq_factor_scale.attr,
+	&dev_attr_media_RP0_freq_mhz.attr,
+	&dev_attr_media_RPn_freq_mhz.attr,
 	NULL
 };
 
@@ -594,9 +762,25 @@ void intel_gt_sysfs_pm_init(struct intel_gt *gt, struct kobject *kobj)
 	if (!is_object_gt(kobj))
 		return;
 
-	ret = sysfs_create_files(kobj, freq_attrs);
+	ret = sysfs_create_file(kobj, &dev_attr_punit_req_freq_mhz.attr);
 	if (ret)
 		drm_warn(&gt->i915->drm,
-			 "failed to create gt%u throttle sysfs files (%pe)",
+			 "failed to create gt%u punit_req_freq_mhz sysfs (%pe)",
 			 gt->info.id, ERR_PTR(ret));
+
+	if (GRAPHICS_VER(gt->i915) >= 11) {
+		ret = sysfs_create_files(kobj, throttle_reason_attrs);
+		if (ret)
+			drm_warn(&gt->i915->drm,
+				 "failed to create gt%u throttle sysfs files (%pe)",
+				 gt->info.id, ERR_PTR(ret));
+	}
+
+	if (HAS_MEDIA_RATIO_MODE(gt->i915) && intel_uc_uses_guc_slpc(&gt->uc)) {
+		ret = sysfs_create_files(kobj, media_perf_power_attrs);
+		if (ret)
+			drm_warn(&gt->i915->drm,
+				 "failed to create gt%u media_perf_power_attrs sysfs (%pe)\n",
+				 gt->info.id, ERR_PTR(ret));
+	}
 }

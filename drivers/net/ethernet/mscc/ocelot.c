@@ -290,6 +290,13 @@ static int ocelot_port_num_untagged_vlans(struct ocelot *ocelot, int port)
 		if (!(vlan->portmask & BIT(port)))
 			continue;
 
+		/* Ignore the VLAN added by ocelot_add_vlan_unaware_pvid(),
+		 * because this is never active in hardware at the same time as
+		 * the bridge VLANs, which only matter in VLAN-aware mode.
+		 */
+		if (vlan->vid >= OCELOT_RSV_VLAN_RANGE_START)
+			continue;
+
 		if (vlan->untagged & BIT(port))
 			num_untagged++;
 	}
@@ -1860,16 +1867,20 @@ void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 	if (sset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ocelot->num_stats; i++)
+	for (i = 0; i < OCELOT_NUM_STATS; i++) {
+		if (ocelot->stats_layout[i].name[0] == '\0')
+			continue;
+
 		memcpy(data + i * ETH_GSTRING_LEN, ocelot->stats_layout[i].name,
 		       ETH_GSTRING_LEN);
+	}
 }
 EXPORT_SYMBOL(ocelot_get_strings);
 
 /* Caller must hold &ocelot->stats_lock */
 static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 {
-	unsigned int idx = port * ocelot->num_stats;
+	unsigned int idx = port * OCELOT_NUM_STATS;
 	struct ocelot_stats_region *region;
 	int err, j;
 
@@ -1877,9 +1888,8 @@ static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 	ocelot_write(ocelot, SYS_STAT_CFG_STAT_VIEW(port), SYS_STAT_CFG);
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
-		err = ocelot_bulk_read_rix(ocelot, SYS_COUNT_RX_OCTETS,
-					   region->offset, region->buf,
-					   region->count);
+		err = ocelot_bulk_read(ocelot, region->base, region->buf,
+				       region->count);
 		if (err)
 			return err;
 
@@ -1906,13 +1916,13 @@ static void ocelot_check_stats_work(struct work_struct *work)
 					     stats_work);
 	int i, err;
 
-	mutex_lock(&ocelot->stats_lock);
+	spin_lock(&ocelot->stats_lock);
 	for (i = 0; i < ocelot->num_phys_ports; i++) {
 		err = ocelot_port_update_stats(ocelot, i);
 		if (err)
 			break;
 	}
-	mutex_unlock(&ocelot->stats_lock);
+	spin_unlock(&ocelot->stats_lock);
 
 	if (err)
 		dev_err(ocelot->dev, "Error %d updating ethtool stats\n",  err);
@@ -1925,16 +1935,22 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 {
 	int i, err;
 
-	mutex_lock(&ocelot->stats_lock);
+	spin_lock(&ocelot->stats_lock);
 
 	/* check and update now */
 	err = ocelot_port_update_stats(ocelot, port);
 
-	/* Copy all counters */
-	for (i = 0; i < ocelot->num_stats; i++)
-		*data++ = ocelot->stats[port * ocelot->num_stats + i];
+	/* Copy all supported counters */
+	for (i = 0; i < OCELOT_NUM_STATS; i++) {
+		int index = port * OCELOT_NUM_STATS + i;
 
-	mutex_unlock(&ocelot->stats_lock);
+		if (ocelot->stats_layout[i].name[0] == '\0')
+			continue;
+
+		*data++ = ocelot->stats[index];
+	}
+
+	spin_unlock(&ocelot->stats_lock);
 
 	if (err)
 		dev_err(ocelot->dev, "Error %d updating ethtool stats\n", err);
@@ -1943,10 +1959,16 @@ EXPORT_SYMBOL(ocelot_get_ethtool_stats);
 
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
+	int i, num_stats = 0;
+
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
-	return ocelot->num_stats;
+	for (i = 0; i < OCELOT_NUM_STATS; i++)
+		if (ocelot->stats_layout[i].name[0] != '\0')
+			num_stats++;
+
+	return num_stats;
 }
 EXPORT_SYMBOL(ocelot_get_sset_count);
 
@@ -1958,8 +1980,11 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
-	for (i = 0; i < ocelot->num_stats; i++) {
-		if (region && ocelot->stats_layout[i].offset == last + 1) {
+	for (i = 0; i < OCELOT_NUM_STATS; i++) {
+		if (ocelot->stats_layout[i].name[0] == '\0')
+			continue;
+
+		if (region && ocelot->stats_layout[i].reg == last + 4) {
 			region->count++;
 		} else {
 			region = devm_kzalloc(ocelot->dev, sizeof(*region),
@@ -1967,12 +1992,12 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 			if (!region)
 				return -ENOMEM;
 
-			region->offset = ocelot->stats_layout[i].offset;
+			region->base = ocelot->stats_layout[i].reg;
 			region->count = 1;
 			list_add_tail(&region->node, &ocelot->stats_regions);
 		}
 
-		last = ocelot->stats_layout[i].offset;
+		last = ocelot->stats_layout[i].reg;
 	}
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
@@ -3340,7 +3365,6 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 
 int ocelot_init(struct ocelot *ocelot)
 {
-	const struct ocelot_stat_layout *stat;
 	char queue_name[32];
 	int i, ret;
 	u32 port;
@@ -3353,20 +3377,17 @@ int ocelot_init(struct ocelot *ocelot)
 		}
 	}
 
-	ocelot->num_stats = 0;
-	for_each_stat(ocelot, stat)
-		ocelot->num_stats++;
-
 	ocelot->stats = devm_kcalloc(ocelot->dev,
-				     ocelot->num_phys_ports * ocelot->num_stats,
+				     ocelot->num_phys_ports * OCELOT_NUM_STATS,
 				     sizeof(u64), GFP_KERNEL);
 	if (!ocelot->stats)
 		return -ENOMEM;
 
-	mutex_init(&ocelot->stats_lock);
+	spin_lock_init(&ocelot->stats_lock);
 	mutex_init(&ocelot->ptp_lock);
 	mutex_init(&ocelot->mact_lock);
 	mutex_init(&ocelot->fwd_domain_lock);
+	mutex_init(&ocelot->tas_lock);
 	spin_lock_init(&ocelot->ptp_clock_lock);
 	spin_lock_init(&ocelot->ts_id_lock);
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
@@ -3510,7 +3531,6 @@ void ocelot_deinit(struct ocelot *ocelot)
 	cancel_delayed_work(&ocelot->stats_work);
 	destroy_workqueue(ocelot->stats_queue);
 	destroy_workqueue(ocelot->owq);
-	mutex_destroy(&ocelot->stats_lock);
 }
 EXPORT_SYMBOL(ocelot_deinit);
 

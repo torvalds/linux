@@ -1388,6 +1388,11 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
+static struct perf_event_header finished_init_event = {
+	.size = sizeof(struct perf_event_header),
+	.type = PERF_RECORD_FINISHED_INIT,
+};
+
 static void record__adjust_affinity(struct record *rec, struct mmap *map)
 {
 	if (rec->opts.affinity != PERF_AFFINITY_SYS &&
@@ -1696,6 +1701,14 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 	return err;
 }
 
+static int write_finished_init(struct record *rec, bool tail)
+{
+	if (rec->opts.tail_synthesize != tail)
+		return 0;
+
+	return record__write(rec, NULL, &finished_init_event, sizeof(finished_init_event));
+}
+
 static int record__synthesize(struct record *rec, bool tail);
 
 static int
@@ -1709,6 +1722,8 @@ record__switch_output(struct record *rec, bool at_exit)
 	char timestamp[] = "InvalidTimestamp";
 
 	record__aio_mmap_read_sync(rec);
+
+	write_finished_init(rec, true);
 
 	record__synthesize(rec, true);
 	if (target__none(&rec->opts.target))
@@ -1764,6 +1779,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		 */
 		if (target__none(&rec->opts.target))
 			record__synthesize_workload(rec, false);
+		write_finished_init(rec, false);
 	}
 	return fd;
 }
@@ -1834,13 +1850,11 @@ static int record__synthesize(struct record *rec, bool tail)
 		goto out;
 
 	/* Synthesize id_index before auxtrace_info */
-	if (rec->opts.auxtrace_sample_mode || rec->opts.full_auxtrace) {
-		err = perf_event__synthesize_id_index(tool,
-						      process_synthesized_event,
-						      session->evlist, machine);
-		if (err)
-			goto out;
-	}
+	err = perf_event__synthesize_id_index(tool,
+					      process_synthesized_event,
+					      session->evlist, machine);
+	if (err)
+		goto out;
 
 	if (rec->opts.full_auxtrace) {
 		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
@@ -1892,14 +1906,18 @@ static int record__synthesize(struct record *rec, bool tail)
 
 	err = perf_event__synthesize_bpf_events(session, process_synthesized_event,
 						machine, opts);
-	if (err < 0)
+	if (err < 0) {
 		pr_warning("Couldn't synthesize bpf events.\n");
+		err = 0;
+	}
 
 	if (rec->opts.synth & PERF_SYNTH_CGROUP) {
 		err = perf_event__synthesize_cgroups(tool, process_synthesized_event,
 						     machine);
-		if (err < 0)
+		if (err < 0) {
 			pr_warning("Couldn't synthesize cgroup events.\n");
+			err = 0;
+		}
 	}
 
 	if (rec->opts.nr_threads_synthesize > 1) {
@@ -2421,6 +2439,15 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
 	perf_hooks__invoke_record_start();
+
+	/*
+	 * Must write FINISHED_INIT so it will be seen after all other
+	 * synthesized user events, but before any regular events.
+	 */
+	err = write_finished_init(rec, false);
+	if (err < 0)
+		goto out_child;
+
 	for (;;) {
 		unsigned long long hits = thread->samples;
 
@@ -2564,6 +2591,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n",
 			record__waking(rec));
+
+	write_finished_init(rec, true);
 
 	if (target__none(&rec->opts.target))
 		record__synthesize_workload(rec, true);
@@ -3193,6 +3222,8 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN(0, "code-page-size", &record.opts.sample_code_page_size,
 		    "Record the sampled code address (ip) page size"),
 	OPT_BOOLEAN(0, "sample-cpu", &record.opts.sample_cpu, "Record the sample cpu"),
+	OPT_BOOLEAN(0, "sample-identifier", &record.opts.sample_identifier,
+		    "Record the sample identifier"),
 	OPT_BOOLEAN_SET('T', "timestamp", &record.opts.sample_time,
 			&record.opts.sample_time_set,
 			"Record the sample timestamps"),
@@ -3331,16 +3362,24 @@ static struct option __record_options[] = {
 
 struct option *record_options = __record_options;
 
-static void record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cpu_map *cpus)
+static int record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cpu_map *cpus)
 {
 	struct perf_cpu cpu;
 	int idx;
 
 	if (cpu_map__is_dummy(cpus))
-		return;
+		return 0;
 
-	perf_cpu_map__for_each_cpu(cpu, idx, cpus)
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
+		if (cpu.cpu == -1)
+			continue;
+		/* Return ENODEV is input cpu is greater than max cpu */
+		if ((unsigned long)cpu.cpu > mask->nbits)
+			return -ENODEV;
 		set_bit(cpu.cpu, mask->bits);
+	}
+
+	return 0;
 }
 
 static int record__mmap_cpu_mask_init_spec(struct mmap_cpu_mask *mask, const char *mask_spec)
@@ -3352,7 +3391,9 @@ static int record__mmap_cpu_mask_init_spec(struct mmap_cpu_mask *mask, const cha
 		return -ENOMEM;
 
 	bitmap_zero(mask->bits, mask->nbits);
-	record__mmap_cpu_mask_init(mask, cpus);
+	if (record__mmap_cpu_mask_init(mask, cpus))
+		return -ENODEV;
+
 	perf_cpu_map__put(cpus);
 
 	return 0;
@@ -3434,7 +3475,12 @@ static int record__init_thread_masks_spec(struct record *rec, struct perf_cpu_ma
 		pr_err("Failed to allocate CPUs mask\n");
 		return ret;
 	}
-	record__mmap_cpu_mask_init(&cpus_mask, cpus);
+
+	ret = record__mmap_cpu_mask_init(&cpus_mask, cpus);
+	if (ret) {
+		pr_err("Failed to init cpu mask\n");
+		goto out_free_cpu_mask;
+	}
 
 	ret = record__thread_mask_alloc(&full_mask, cpu__max_cpu().cpu);
 	if (ret) {
@@ -3675,7 +3721,8 @@ static int record__init_thread_default_masks(struct record *rec, struct perf_cpu
 	if (ret)
 		return ret;
 
-	record__mmap_cpu_mask_init(&rec->thread_masks->maps, cpus);
+	if (record__mmap_cpu_mask_init(&rec->thread_masks->maps, cpus))
+		return -ENODEV;
 
 	rec->nr_threads = 1;
 
@@ -3804,6 +3851,9 @@ int cmd_record(int argc, const char **argv)
 		err = -EINVAL;
 		goto out_opts;
 	}
+
+	if (rec->opts.kcore)
+		rec->opts.text_poke = true;
 
 	if (rec->opts.kcore || record__threads_enabled(rec))
 		rec->data.is_dir = true;
@@ -3966,8 +4016,15 @@ int cmd_record(int argc, const char **argv)
 		arch__add_leaf_frame_record_opts(&rec->opts);
 
 	err = -ENOMEM;
-	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
-		usage_with_options(record_usage, record_options);
+	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0) {
+		if (rec->opts.target.pid != NULL) {
+			pr_err("Couldn't create thread/CPU maps: %s\n",
+				errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
+			goto out;
+		}
+		else
+			usage_with_options(record_usage, record_options);
+	}
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
 	if (err)

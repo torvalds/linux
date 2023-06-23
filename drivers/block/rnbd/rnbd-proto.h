@@ -229,9 +229,9 @@ static inline bool rnbd_flags_supported(u32 flags)
 	return true;
 }
 
-static inline u32 rnbd_to_bio_flags(u32 rnbd_opf)
+static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
 {
-	u32 bio_opf;
+	blk_opf_t bio_opf;
 
 	switch (rnbd_op(rnbd_opf)) {
 	case RNBD_OP_READ:
@@ -286,7 +286,8 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
 		break;
 	default:
 		WARN(1, "Unknown request type %d (flags %llu)\n",
-		     req_op(rq), (unsigned long long)rq->cmd_flags);
+		     (__force u32)req_op(rq),
+		     (__force unsigned long long)rq->cmd_flags);
 		rnbd_opf = 0;
 	}
 

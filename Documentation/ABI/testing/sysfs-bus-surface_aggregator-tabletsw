@@ -1,0 +1,57 @@
+What:		/sys/bus/surface_aggregator/devices/01:0e:01:00:01/state
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Maximilian Luz <luzmaximilian@gmail.com>
+Description:
+		This attribute returns a string with the current type-cover
+		or device posture, as indicated by the embedded controller.
+		Currently returned posture states are:
+
+		- "disconnected": The type-cover has been disconnected.
+
+		- "closed": The type-cover has been folded closed and lies on
+		  top of the display.
+
+		- "laptop": The type-cover is open and in laptop-mode, i.e.,
+		  ready for normal use.
+
+		- "folded-canvas": The type-cover has been folded back
+		  part-ways, but does not lie flush with the back side of the
+		  device. In general, this means that the kick-stand is used
+		  and extended atop of the cover.
+
+		- "folded-back": The type cover has been fully folded back and
+		  lies flush with the back side of the device.
+
+		- "<unknown>": The current state is unknown to the driver, for
+		  example due to newer as-of-yet unsupported hardware.
+
+		New states may be introduced with new hardware. Users therefore
+		must not rely on this list of states being exhaustive and
+		gracefully handle unknown states.
+
+What:		/sys/bus/surface_aggregator/devices/01:26:01:00:01/state
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Maximilian Luz <luzmaximilian@gmail.com>
+Description:
+		This attribute returns a string with the current device posture, as indicated by the embedded controller. Currently
+		returned posture states are:
+
+		- "closed": The lid of the device is closed.
+
+		- "laptop": The lid of the device is opened and the device
+		  operates as a normal laptop.
+
+		- "slate": The screen covers the keyboard or has been flipped
+		  back and the device operates mainly based on touch input.
+
+		- "tablet": The device operates as tablet and exclusively
+		  relies on touch input (or external peripherals).
+
+		- "<unknown>": The current state is unknown to the driver, for
+		  example due to newer as-of-yet unsupported hardware.
+
+		New states may be introduced with new hardware. Users therefore
+		must not rely on this list of states being exhaustive and
+		gracefully handle unknown states.

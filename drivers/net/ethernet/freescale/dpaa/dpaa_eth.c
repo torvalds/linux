@@ -2886,6 +2886,7 @@ static void dpaa_adjust_link(struct net_device *net_dev)
 
 /* The Aquantia PHYs are capable of performing rate adaptation */
 #define PHY_VEND_AQUANTIA	0x03a1b400
+#define PHY_VEND_AQUANTIA2	0x31c31c00
 
 static int dpaa_phy_init(struct net_device *net_dev)
 {
@@ -2893,6 +2894,7 @@ static int dpaa_phy_init(struct net_device *net_dev)
 	struct mac_device *mac_dev;
 	struct phy_device *phy_dev;
 	struct dpaa_priv *priv;
+	u32 phy_vendor;
 
 	priv = netdev_priv(net_dev);
 	mac_dev = priv->mac_dev;
@@ -2905,9 +2907,11 @@ static int dpaa_phy_init(struct net_device *net_dev)
 		return -ENODEV;
 	}
 
+	phy_vendor = phy_dev->drv->phy_id & GENMASK(31, 10);
 	/* Unless the PHY is capable of rate adaptation */
 	if (mac_dev->phy_if != PHY_INTERFACE_MODE_XGMII ||
-	    ((phy_dev->drv->phy_id & GENMASK(31, 10)) != PHY_VEND_AQUANTIA)) {
+	    (phy_vendor != PHY_VEND_AQUANTIA &&
+	     phy_vendor != PHY_VEND_AQUANTIA2)) {
 		/* remove any features not supported by the controller */
 		ethtool_convert_legacy_u32_to_link_mode(mask,
 							mac_dev->if_support);

@@ -77,12 +77,22 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 #define FIND_CHILD_MIN_SCORE	1
 #define FIND_CHILD_MAX_SCORE	2
 
+static int match_any(struct acpi_device *adev, void *not_used)
+{
+	return 1;
+}
+
+static bool acpi_dev_has_children(struct acpi_device *adev)
+{
+	return acpi_dev_for_each_child(adev, match_any, NULL) > 0;
+}
+
 static int find_child_checks(struct acpi_device *adev, bool check_children)
 {
 	unsigned long long sta;
 	acpi_status status;
 
-	if (check_children && list_empty(&adev->children))
+	if (check_children && !acpi_dev_has_children(adev))
 		return -ENODEV;
 
 	status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
@@ -105,53 +115,96 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 	return FIND_CHILD_MAX_SCORE;
 }
 
+struct find_child_walk_data {
+	struct acpi_device *adev;
+	u64 address;
+	int score;
+	bool check_sta;
+	bool check_children;
+};
+
+static int check_one_child(struct acpi_device *adev, void *data)
+{
+	struct find_child_walk_data *wd = data;
+	int score;
+
+	if (!adev->pnp.type.bus_address || acpi_device_adr(adev) != wd->address)
+		return 0;
+
+	if (!wd->adev) {
+		/*
+		 * This is the first matching object, so save it.  If it is not
+		 * necessary to look for any other matching objects, stop the
+		 * search.
+		 */
+		wd->adev = adev;
+		return !(wd->check_sta || wd->check_children);
+	}
+
+	/*
+	 * There is more than one matching device object with the same _ADR
+	 * value.  That really is unexpected, so we are kind of beyond the scope
+	 * of the spec here.  We have to choose which one to return, though.
+	 *
+	 * First, get the score for the previously found object and terminate
+	 * the walk if it is maximum.
+	*/
+	if (!wd->score) {
+		score = find_child_checks(wd->adev, wd->check_children);
+		if (score == FIND_CHILD_MAX_SCORE)
+			return 1;
+
+		wd->score = score;
+	}
+	/*
+	 * Second, if the object that has just been found has a better score,
+	 * replace the previously found one with it and terminate the walk if
+	 * the new score is maximum.
+	 */
+	score = find_child_checks(adev, wd->check_children);
+	if (score > wd->score) {
+		wd->adev = adev;
+		if (score == FIND_CHILD_MAX_SCORE)
+			return 1;
+
+		wd->score = score;
+	}
+
+	/* Continue, because there may be better matches. */
+	return 0;
+}
+
+static struct acpi_device *acpi_find_child(struct acpi_device *parent,
+					   u64 address, bool check_children,
+					   bool check_sta)
+{
+	struct find_child_walk_data wd = {
+		.address = address,
+		.check_children = check_children,
+		.check_sta = check_sta,
+		.adev = NULL,
+		.score = 0,
+	};
+
+	if (parent)
+		acpi_dev_for_each_child(parent, check_one_child, &wd);
+
+	return wd.adev;
+}
+
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 					   u64 address, bool check_children)
 {
-	struct acpi_device *adev, *ret = NULL;
-	int ret_score = 0;
-
-	if (!parent)
-		return NULL;
-
-	list_for_each_entry(adev, &parent->children, node) {
-		acpi_bus_address addr = acpi_device_adr(adev);
-		int score;
-
-		if (!adev->pnp.type.bus_address || addr != address)
-			continue;
-
-		if (!ret) {
-			/* This is the first matching object.  Save it. */
-			ret = adev;
-			continue;
-		}
-		/*
-		 * There is more than one matching device object with the same
-		 * _ADR value.  That really is unexpected, so we are kind of
-		 * beyond the scope of the spec here.  We have to choose which
-		 * one to return, though.
-		 *
-		 * First, check if the previously found object is good enough
-		 * and return it if so.  Second, do the same for the object that
-		 * we've just found.
-		 */
-		if (!ret_score) {
-			ret_score = find_child_checks(ret, check_children);
-			if (ret_score == FIND_CHILD_MAX_SCORE)
-				return ret;
-		}
-		score = find_child_checks(adev, check_children);
-		if (score == FIND_CHILD_MAX_SCORE) {
-			return adev;
-		} else if (score > ret_score) {
-			ret = adev;
-			ret_score = score;
-		}
-	}
-	return ret;
+	return acpi_find_child(parent, address, check_children, true);
 }
 EXPORT_SYMBOL_GPL(acpi_find_child_device);
+
+struct acpi_device *acpi_find_child_by_adr(struct acpi_device *adev,
+					   acpi_bus_address adr)
+{
+	return acpi_find_child(adev, adr, false, false);
+}
+EXPORT_SYMBOL_GPL(acpi_find_child_by_adr);
 
 static void acpi_physnode_link_name(char *buf, unsigned int node_id)
 {

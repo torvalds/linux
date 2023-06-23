@@ -77,8 +77,8 @@ struct adc108s102_state {
 	 *  tx_buf: 8 channel read commands, plus 1 dummy command
 	 *  rx_buf: 1 dummy response, 8 channel responses
 	 */
-	__be16				rx_buf[9] ____cacheline_aligned;
-	__be16				tx_buf[9] ____cacheline_aligned;
+	__be16				rx_buf[9] __aligned(IIO_DMA_MINALIGN);
+	__be16				tx_buf[9] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define ADC108S102_V_CHAN(index)					\

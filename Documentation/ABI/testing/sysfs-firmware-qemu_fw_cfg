@@ -12,8 +12,9 @@ Description:
 		configuration data to the guest userspace.
 
 		The authoritative guest-side hardware interface documentation
-		to the fw_cfg device can be found in "docs/specs/fw_cfg.txt"
-		in the QEMU source tree.
+		to the fw_cfg device can be found in "docs/specs/fw_cfg.rst"
+		in the QEMU source tree, or online at:
+		https://qemu-project.gitlab.io/qemu/specs/fw_cfg.html
 
 		**SysFS fw_cfg Interface**
 

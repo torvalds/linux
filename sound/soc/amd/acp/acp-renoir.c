@@ -39,6 +39,17 @@
 #define ACP_ERROR_MASK 0x20000000
 #define ACP_EXT_INTR_STAT_CLEAR_MASK 0xFFFFFFFF
 
+static struct acp_resource rsrc = {
+	.offset = 20,
+	.no_of_ctrls = 1,
+	.irqp_used = 0,
+	.irq_reg_offset = 0x1800,
+	.i2s_pin_cfg_offset = 0x1400,
+	.i2s_mode = 0x04,
+	.scratch_reg_offset = 0x12800,
+	.sram_pte_offset = 0x02052800,
+};
+
 static struct snd_soc_acpi_codecs amp_rt1019 = {
 	.num_codecs = 1,
 	.codecs = {"10EC1019"}
@@ -186,20 +197,24 @@ static int acp3x_reset(void __iomem *base)
 	return readl_poll_timeout(base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP_TIMEOUT);
 }
 
-static void acp3x_enable_interrupts(void __iomem *base)
+static void acp3x_enable_interrupts(struct acp_dev_data *adata)
 {
+	struct acp_resource *rsrc = adata->rsrc;
 	u32 ext_intr_ctrl;
 
-	writel(0x01, base + ACP_EXTERNAL_INTR_ENB);
-	ext_intr_ctrl = readl(base + ACP_EXTERNAL_INTR_CNTL);
+	writel(0x01, ACP_EXTERNAL_INTR_ENB(adata));
+	ext_intr_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
 	ext_intr_ctrl |= ACP_ERROR_MASK;
-	writel(ext_intr_ctrl, base + ACP_EXTERNAL_INTR_CNTL);
+	writel(ext_intr_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
 }
 
-static void acp3x_disable_interrupts(void __iomem *base)
+static void acp3x_disable_interrupts(struct acp_dev_data *adata)
 {
-	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, base + ACP_EXTERNAL_INTR_STAT);
-	writel(0x00, base + ACP_EXTERNAL_INTR_ENB);
+	struct acp_resource *rsrc = adata->rsrc;
+
+	writel(ACP_EXT_INTR_STAT_CLEAR_MASK,
+	       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
+	writel(0x00, ACP_EXTERNAL_INTR_ENB(adata));
 }
 
 static int rn_acp_init(void __iomem *base)
@@ -218,16 +233,12 @@ static int rn_acp_init(void __iomem *base)
 	if (ret)
 		return ret;
 
-	acp3x_enable_interrupts(base);
-
 	return 0;
 }
 
 static int rn_acp_deinit(void __iomem *base)
 {
 	int ret = 0;
-
-	acp3x_disable_interrupts(base);
 
 	/* Reset */
 	ret = acp3x_reset(base);
@@ -290,11 +301,13 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	adata->dev = dev;
 	adata->dai_driver = acp_renoir_dai;
 	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
+	adata->rsrc = &rsrc;
 
 	adata->machines = snd_soc_acpi_amd_acp_machines;
 	acp_machine_select(adata);
 
 	dev_set_drvdata(dev, adata);
+	acp3x_enable_interrupts(adata);
 	acp_platform_register(dev);
 
 	return 0;
@@ -303,20 +316,17 @@ static int renoir_audio_probe(struct platform_device *pdev)
 static int renoir_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct acp_dev_data *adata = dev_get_drvdata(dev);
 	struct acp_chip_info *chip;
 	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
-	if (!chip || !chip->base) {
-		dev_err(&pdev->dev, "ACP chip data is NULL\n");
-		return -ENODEV;
-	}
+
+	acp3x_disable_interrupts(adata);
 
 	ret = rn_acp_deinit(chip->base);
-	if (ret) {
-		dev_err(&pdev->dev, "ACP de-init Failed\n");
-		return -EINVAL;
-	}
+	if (ret)
+		dev_err(&pdev->dev, "ACP de-init Failed (%pe)\n", ERR_PTR(ret));
 
 	acp_platform_unregister(dev);
 	return 0;

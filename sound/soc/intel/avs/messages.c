@@ -59,7 +59,7 @@ int avs_ipc_unload_modules(struct avs_dev *adev, u16 *mod_ids, u32 num_mod_ids)
 	request.data = mod_ids;
 	request.size = sizeof(*mod_ids) * num_mod_ids;
 
-	ret = avs_dsp_send_msg_timeout(adev, &request, NULL, AVS_CL_TIMEOUT_MS);
+	ret = avs_dsp_send_msg(adev, &request, NULL);
 	if (ret)
 		avs_ipc_err(adev, &request, "unload multiple modules", ret);
 
@@ -378,7 +378,6 @@ int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id
 	union avs_module_msg msg = AVS_MODULE_REQUEST(LARGE_CONFIG_GET);
 	struct avs_ipc_msg request;
 	struct avs_ipc_msg reply = {{0}};
-	size_t size;
 	void *buf;
 	int ret;
 
@@ -406,15 +405,14 @@ int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id
 		return ret;
 	}
 
-	size = reply.rsp.ext.large_config.data_off_size;
-	buf = krealloc(reply.data, size, GFP_KERNEL);
+	buf = krealloc(reply.data, reply.size, GFP_KERNEL);
 	if (!buf) {
 		kfree(reply.data);
 		return -ENOMEM;
 	}
 
 	*reply_data = buf;
-	*reply_size = size;
+	*reply_size = reply.size;
 
 	return 0;
 }
@@ -476,6 +474,9 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
+	/* Non-zero payload expected for FIRMWARE_CONFIG. */
+	if (!payload_size)
+		return -EREMOTEIO;
 
 	while (offset < payload_size) {
 		tlv = (struct avs_tlv *)(payload + offset);
@@ -561,6 +562,7 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 		case AVS_FW_CFG_DMA_BUFFER_CONFIG:
 		case AVS_FW_CFG_SCHEDULER_CONFIG:
 		case AVS_FW_CFG_CLOCKS_CONFIG:
+		case AVS_FW_CFG_RESERVED:
 			break;
 
 		default:
@@ -589,6 +591,9 @@ int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
+	/* Non-zero payload expected for HARDWARE_CONFIG. */
+	if (!payload_size)
+		return -EREMOTEIO;
 
 	while (offset < payload_size) {
 		tlv = (struct avs_tlv *)(payload + offset);
@@ -672,6 +677,9 @@ int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
+	/* Non-zero payload expected for MODULES_INFO. */
+	if (!payload_size)
+		return -EREMOTEIO;
 
 	*info = (struct avs_mods_info *)payload;
 	return 0;

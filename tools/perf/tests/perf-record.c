@@ -332,7 +332,7 @@ out_delete_evlist:
 out:
 	if (err == -EACCES)
 		return TEST_SKIP;
-	if (err < 0)
+	if (err < 0 || errs != 0)
 		return TEST_FAIL;
 	return TEST_OK;
 }

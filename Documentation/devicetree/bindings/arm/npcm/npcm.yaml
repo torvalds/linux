@@ -8,6 +8,7 @@ title: NPCM Platforms Device Tree Bindings
 
 maintainers:
   - Jonathan Neuschäfer <j.neuschaefer@gmx.net>
+  - Tomer Maimon <tmaimon77@gmail.com>
 
 properties:
   $nodename:
@@ -25,5 +26,11 @@ properties:
           - enum:
               - nuvoton,npcm750-evb         # NPCM750 evaluation board
           - const: nuvoton,npcm750
+
+      - description: NPCM845 based boards
+        items:
+          - enum:
+              - nuvoton,npcm845-evb         # NPCM845 evaluation board
+          - const: nuvoton,npcm845
 
 additionalProperties: true

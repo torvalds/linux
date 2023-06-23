@@ -1292,7 +1292,7 @@ err_out5:
 	if (ops->destroy)
 		ops->destroy(sch);
 err_out3:
-	dev_put_track(dev, &sch->dev_tracker);
+	netdev_put(dev, &sch->dev_tracker);
 	qdisc_free(sch);
 err_out2:
 	module_put(ops->owner);

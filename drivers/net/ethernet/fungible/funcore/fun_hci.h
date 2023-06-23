@@ -442,6 +442,7 @@ enum fun_port_lane_attr {
 };
 
 enum fun_admin_port_subop {
+	FUN_ADMIN_PORT_SUBOP_XCVR_READ = 0x23,
 	FUN_ADMIN_PORT_SUBOP_INETADDR_EVENT = 0x24,
 };
 
@@ -595,6 +596,19 @@ struct fun_admin_port_req {
 
 			struct fun_admin_read48_req read48[];
 		} read;
+		struct fun_admin_port_xcvr_read_req {
+			u8 subop;
+			u8 rsvd0;
+			__be16 flags;
+			__be32 id;
+
+			u8 bank;
+			u8 page;
+			u8 offset;
+			u8 length;
+			u8 dev_addr;
+			u8 rsvd1[3];
+		} xcvr_read;
 		struct fun_admin_port_inetaddr_event_req {
 			__u8 subop;
 			__u8 rsvd0;
@@ -624,6 +638,15 @@ struct fun_admin_port_req {
 		.subop = (_subop), .flags = cpu_to_be16(_flags), \
 		.id = cpu_to_be32(_id),                          \
 	}
+
+#define FUN_ADMIN_PORT_XCVR_READ_REQ_INIT(_flags, _id, _bank, _page,   \
+					  _offset, _length, _dev_addr) \
+	((struct fun_admin_port_xcvr_read_req) {                       \
+		.subop = FUN_ADMIN_PORT_SUBOP_XCVR_READ,               \
+		.flags = cpu_to_be16(_flags), .id = cpu_to_be32(_id),  \
+		.bank = (_bank), .page = (_page), .offset = (_offset), \
+		.length = (_length), .dev_addr = (_dev_addr),          \
+	})
 
 struct fun_admin_port_rsp {
 	struct fun_admin_rsp_common common;
@@ -657,6 +680,23 @@ struct fun_admin_port_rsp {
 			__be32 id; /* portid */
 		} inetaddr_event;
 	} u;
+};
+
+struct fun_admin_port_xcvr_read_rsp {
+	struct fun_admin_rsp_common common;
+
+	u8 subop;
+	u8 rsvd0[3];
+	__be32 id;
+
+	u8 bank;
+	u8 page;
+	u8 offset;
+	u8 length;
+	u8 dev_addr;
+	u8 rsvd1[3];
+
+	u8 data[128];
 };
 
 enum fun_xcvr_type {

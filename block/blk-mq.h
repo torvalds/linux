@@ -86,16 +86,16 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *
 	return xa_load(&q->hctx_table, q->tag_set->map[type].mq_map[cpu]);
 }
 
-static inline enum hctx_type blk_mq_get_hctx_type(unsigned int flags)
+static inline enum hctx_type blk_mq_get_hctx_type(blk_opf_t opf)
 {
 	enum hctx_type type = HCTX_TYPE_DEFAULT;
 
 	/*
 	 * The caller ensure that if REQ_POLLED, poll must be enabled.
 	 */
-	if (flags & REQ_POLLED)
+	if (opf & REQ_POLLED)
 		type = HCTX_TYPE_POLL;
-	else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
+	else if ((opf & REQ_OP_MASK) == REQ_OP_READ)
 		type = HCTX_TYPE_READ;
 	return type;
 }
@@ -103,14 +103,14 @@ static inline enum hctx_type blk_mq_get_hctx_type(unsigned int flags)
 /*
  * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
  * @q: request queue
- * @flags: request command flags
+ * @opf: operation type (REQ_OP_*) and flags (e.g. REQ_POLLED).
  * @ctx: software queue cpu ctx
  */
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
-						     unsigned int flags,
+						     blk_opf_t opf,
 						     struct blk_mq_ctx *ctx)
 {
-	return ctx->hctxs[blk_mq_get_hctx_type(flags)];
+	return ctx->hctxs[blk_mq_get_hctx_type(opf)];
 }
 
 /*
@@ -118,9 +118,10 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
  */
 extern void blk_mq_sysfs_init(struct request_queue *q);
 extern void blk_mq_sysfs_deinit(struct request_queue *q);
-extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
-extern int blk_mq_sysfs_register(struct request_queue *q);
-extern void blk_mq_sysfs_unregister(struct request_queue *q);
+int blk_mq_sysfs_register(struct gendisk *disk);
+void blk_mq_sysfs_unregister(struct gendisk *disk);
+int blk_mq_sysfs_register_hctxs(struct request_queue *q);
+void blk_mq_sysfs_unregister_hctxs(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 void blk_mq_free_plug_rqs(struct blk_plug *plug);
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
@@ -151,7 +152,7 @@ struct blk_mq_alloc_data {
 	struct request_queue *q;
 	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
-	unsigned int cmd_flags;
+	blk_opf_t cmd_flags;
 	req_flags_t rq_flags;
 
 	/* allocate multiple requests/tags in one go */
@@ -293,7 +294,6 @@ static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
 
 /*
  * blk_mq_plug() - Get caller context plug
- * @q: request queue
  * @bio : the bio being submitted by the caller context
  *
  * Plugging, by design, may delay the insertion of BIOs into the elevator in
@@ -304,23 +304,22 @@ static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
  * order. While this is not a problem with regular block devices, this ordering
  * change can cause write BIO failures with zoned block devices as these
  * require sequential write patterns to zones. Prevent this from happening by
- * ignoring the plug state of a BIO issuing context if the target request queue
- * is for a zoned block device and the BIO to plug is a write operation.
+ * ignoring the plug state of a BIO issuing context if it is for a zoned block
+ * device and the BIO to plug is a write operation.
  *
  * Return current->plug if the bio can be plugged and NULL otherwise
  */
-static inline struct blk_plug *blk_mq_plug(struct request_queue *q,
-					   struct bio *bio)
+static inline struct blk_plug *blk_mq_plug( struct bio *bio)
 {
+	/* Zoned block device write operation case: do not plug the BIO */
+	if (bdev_is_zoned(bio->bi_bdev) && op_is_write(bio_op(bio)))
+		return NULL;
+
 	/*
 	 * For regular block devices or read operations, use the context plug
 	 * which may be NULL if blk_start_plug() was not executed.
 	 */
-	if (!blk_queue_is_zoned(q) || !op_is_write(bio_op(bio)))
-		return current->plug;
-
-	/* Zoned block device write operation case: do not plug the BIO */
-	return NULL;
+	return current->plug;
 }
 
 /* Free all requests on the list */

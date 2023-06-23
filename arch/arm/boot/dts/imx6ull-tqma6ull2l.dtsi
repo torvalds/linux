@@ -14,7 +14,7 @@
 };
 
 &usdhc2 {
-	fsl,tuning-step= <6>;
+	fsl,tuning-step = <6>;
 	/* Errata ERR010450 Workaround */
 	max-frequency = <99000000>;
 	assigned-clocks = <&clks IMX6UL_CLK_USDHC2_SEL>, <&clks IMX6UL_CLK_USDHC2>;

@@ -18,6 +18,8 @@
 #include <linux/rhashtable.h>
 #include <linux/dim.h>
 #include <linux/bitfield.h>
+#include <net/page_pool.h>
+#include <linux/bpf_trace.h>
 #include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
@@ -48,6 +50,11 @@
 				 NETIF_F_HW_TC)
 #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
 #define NEXT_DESP_IDX(X, Y)	(((X) + 1) & ((Y) - 1))
+
+#define MTK_PP_HEADROOM		XDP_PACKET_HEADROOM
+#define MTK_PP_PAD		(MTK_PP_HEADROOM + \
+				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define MTK_PP_MAX_BUF_SIZE	(PAGE_SIZE - MTK_PP_PAD)
 
 #define MTK_QRX_OFFSET		0x10
 
@@ -307,8 +314,13 @@
 #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
 #define RX_DMA_SPECIAL_TAG	BIT(22)
 
-#define RX_DMA_GET_SPORT(x)	(((x) >> 19) & 0xf)
-#define RX_DMA_GET_SPORT_V2(x)	(((x) >> 26) & 0x7)
+/* PDMA descriptor rxd5 */
+#define MTK_RXD5_FOE_ENTRY	GENMASK(14, 0)
+#define MTK_RXD5_PPE_CPU_REASON	GENMASK(22, 18)
+#define MTK_RXD5_SRC_PORT	GENMASK(29, 26)
+
+#define RX_DMA_GET_SPORT(x)	(((x) >> 19) & 0x7)
+#define RX_DMA_GET_SPORT_V2(x)	(((x) >> 26) & 0xf)
 
 /* PDMA V2 descriptor rxd3 */
 #define RX_DMA_VTAG_V2		BIT(0)
@@ -563,6 +575,16 @@ struct mtk_tx_dma_v2 {
 struct mtk_eth;
 struct mtk_mac;
 
+struct mtk_xdp_stats {
+	u64 rx_xdp_redirect;
+	u64 rx_xdp_pass;
+	u64 rx_xdp_drop;
+	u64 rx_xdp_tx;
+	u64 rx_xdp_tx_errors;
+	u64 tx_xdp_xmit;
+	u64 tx_xdp_xmit_errors;
+};
+
 /* struct mtk_hw_stats - the structure that holds the traffic statistics.
  * @stats_lock:		make sure that stats operations are atomic
  * @reg_offset:		the status register offset of the SoC
@@ -585,6 +607,8 @@ struct mtk_hw_stats {
 	u64 rx_long_errors;
 	u64 rx_checksum_errors;
 	u64 rx_flow_control_packets;
+
+	struct mtk_xdp_stats	xdp_stats;
 
 	spinlock_t		stats_lock;
 	u32			reg_offset;
@@ -677,6 +701,12 @@ enum mtk_dev_state {
 	MTK_RESETTING
 };
 
+enum mtk_tx_buf_type {
+	MTK_TYPE_SKB,
+	MTK_TYPE_XDP_TX,
+	MTK_TYPE_XDP_NDO,
+};
+
 /* struct mtk_tx_buf -	This struct holds the pointers to the memory pointed at
  *			by the TX descriptor	s
  * @skb:		The SKB pointer of the packet being sent
@@ -686,7 +716,9 @@ enum mtk_dev_state {
  * @dma_len1:		The length of the second segment
  */
 struct mtk_tx_buf {
-	struct sk_buff *skb;
+	enum mtk_tx_buf_type type;
+	void *data;
+
 	u32 flags;
 	DEFINE_DMA_UNMAP_ADDR(dma_addr0);
 	DEFINE_DMA_UNMAP_LEN(dma_len0);
@@ -745,6 +777,9 @@ struct mtk_rx_ring {
 	bool calc_idx_update;
 	u16 calc_idx;
 	u32 crx_idx_reg;
+	/* page_pool */
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_q;
 };
 
 enum mkt_eth_capabilities {
@@ -1078,6 +1113,8 @@ struct mtk_eth {
 
 	struct mtk_ppe			*ppe;
 	struct rhashtable		flow_table;
+
+	struct bpf_prog			__rcu *prog;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the

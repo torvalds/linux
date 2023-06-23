@@ -182,9 +182,9 @@ static void rt6_uncached_list_flush_dev(struct net_device *dev)
 
 			if (rt_dev == dev) {
 				rt->dst.dev = blackhole_netdev;
-				dev_replace_track(rt_dev, blackhole_netdev,
-						  &rt->dst.dev_tracker,
-						  GFP_ATOMIC);
+				netdev_ref_replace(rt_dev, blackhole_netdev,
+						   &rt->dst.dev_tracker,
+						   GFP_ATOMIC);
 				handled = true;
 			}
 			if (handled)
@@ -607,7 +607,7 @@ static void rt6_probe_deferred(struct work_struct *w)
 
 	addrconf_addr_solict_mult(&work->target, &mcaddr);
 	ndisc_send_ns(work->dev, &work->target, &mcaddr, NULL, 0);
-	dev_put_track(work->dev, &work->dev_tracker);
+	netdev_put(work->dev, &work->dev_tracker);
 	kfree(work);
 }
 
@@ -661,7 +661,7 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 	} else {
 		INIT_WORK(&work->work, rt6_probe_deferred);
 		work->target = *nh_gw;
-		dev_hold_track(dev, &work->dev_tracker, GFP_ATOMIC);
+		netdev_hold(dev, &work->dev_tracker, GFP_ATOMIC);
 		work->dev = dev;
 		schedule_work(&work->work);
 	}
@@ -5941,7 +5941,7 @@ int rt6_dump_route(struct fib6_info *rt, void *p_arg, unsigned int skip)
 		rcu_read_unlock();
 
 		if (err)
-			return count += w.count;
+			return count + w.count;
 	}
 
 	return -1;

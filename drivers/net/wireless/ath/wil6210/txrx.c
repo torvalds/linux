@@ -1782,9 +1782,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	}
 
 	/* Header Length = MAC header len + IP header len + TCP header len*/
-	hdrlen = ETH_HLEN +
-		(int)skb_network_header_len(skb) +
-		tcp_hdrlen(skb);
+	hdrlen = skb_tcp_all_headers(skb);
 
 	gso_type = skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV6 | SKB_GSO_TCPV4);
 	switch (gso_type) {

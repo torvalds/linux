@@ -12,7 +12,6 @@ extern unsigned long long memory_limit;
 extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
 struct device_node;
-extern void note_scsi_host(struct device_node *, void *);
 
 /* Used in very early kernel initialization. */
 extern unsigned long reloc_offset(void);
@@ -84,6 +83,11 @@ void __init machine_init(u64 dt_ptr);
 #endif
 void __init early_setup(unsigned long dt_ptr);
 void early_setup_secondary(void);
+
+/* prom_init (OpenFirmware) */
+unsigned long __init prom_init(unsigned long r3, unsigned long r4,
+			       unsigned long pp, unsigned long r6,
+			       unsigned long r7, unsigned long kbase);
 
 #endif /* !__ASSEMBLY__ */
 

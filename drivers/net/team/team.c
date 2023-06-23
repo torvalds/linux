@@ -749,10 +749,10 @@ static rx_handler_result_t team_handle_frame(struct sk_buff **pskb)
 
 		pcpu_stats = this_cpu_ptr(team->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
-		pcpu_stats->rx_packets++;
-		pcpu_stats->rx_bytes += skb->len;
+		u64_stats_inc(&pcpu_stats->rx_packets);
+		u64_stats_add(&pcpu_stats->rx_bytes, skb->len);
 		if (skb->pkt_type == PACKET_MULTICAST)
-			pcpu_stats->rx_multicast++;
+			u64_stats_inc(&pcpu_stats->rx_multicast);
 		u64_stats_update_end(&pcpu_stats->syncp);
 
 		skb->dev = team->dev;
@@ -1275,10 +1275,12 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		}
 	}
 
-	netif_addr_lock_bh(dev);
-	dev_uc_sync_multiple(port_dev, dev);
-	dev_mc_sync_multiple(port_dev, dev);
-	netif_addr_unlock_bh(dev);
+	if (dev->flags & IFF_UP) {
+		netif_addr_lock_bh(dev);
+		dev_uc_sync_multiple(port_dev, dev);
+		dev_mc_sync_multiple(port_dev, dev);
+		netif_addr_unlock_bh(dev);
+	}
 
 	port->index = -1;
 	list_add_tail_rcu(&port->list, &team->port_list);
@@ -1349,8 +1351,10 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	netdev_rx_handler_unregister(port_dev);
 	team_port_disable_netpoll(port);
 	vlan_vids_del_by_dev(port_dev, dev);
-	dev_uc_unsync(port_dev, dev);
-	dev_mc_unsync(port_dev, dev);
+	if (dev->flags & IFF_UP) {
+		dev_uc_unsync(port_dev, dev);
+		dev_mc_unsync(port_dev, dev);
+	}
 	dev_close(port_dev);
 	team_port_leave(team, port);
 
@@ -1700,6 +1704,14 @@ static int team_open(struct net_device *dev)
 
 static int team_close(struct net_device *dev)
 {
+	struct team *team = netdev_priv(dev);
+	struct team_port *port;
+
+	list_for_each_entry(port, &team->port_list, list) {
+		dev_uc_unsync(port->dev, dev);
+		dev_mc_unsync(port->dev, dev);
+	}
+
 	return 0;
 }
 
@@ -1720,8 +1732,8 @@ static netdev_tx_t team_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		pcpu_stats = this_cpu_ptr(team->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
-		pcpu_stats->tx_packets++;
-		pcpu_stats->tx_bytes += len;
+		u64_stats_inc(&pcpu_stats->tx_packets);
+		u64_stats_add(&pcpu_stats->tx_bytes, len);
 		u64_stats_update_end(&pcpu_stats->syncp);
 	} else {
 		this_cpu_inc(team->pcpu_stats->tx_dropped);
@@ -1854,11 +1866,11 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		p = per_cpu_ptr(team->pcpu_stats, i);
 		do {
 			start = u64_stats_fetch_begin_irq(&p->syncp);
-			rx_packets	= p->rx_packets;
-			rx_bytes	= p->rx_bytes;
-			rx_multicast	= p->rx_multicast;
-			tx_packets	= p->tx_packets;
-			tx_bytes	= p->tx_bytes;
+			rx_packets	= u64_stats_read(&p->rx_packets);
+			rx_bytes	= u64_stats_read(&p->rx_bytes);
+			rx_multicast	= u64_stats_read(&p->rx_multicast);
+			tx_packets	= u64_stats_read(&p->tx_packets);
+			tx_bytes	= u64_stats_read(&p->tx_bytes);
 		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 		stats->rx_packets	+= rx_packets;
@@ -1870,9 +1882,9 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		 * rx_dropped, tx_dropped & rx_nohandler are u32,
 		 * updated without syncp protection.
 		 */
-		rx_dropped	+= p->rx_dropped;
-		tx_dropped	+= p->tx_dropped;
-		rx_nohandler	+= p->rx_nohandler;
+		rx_dropped	+= READ_ONCE(p->rx_dropped);
+		tx_dropped	+= READ_ONCE(p->tx_dropped);
+		rx_nohandler	+= READ_ONCE(p->rx_nohandler);
 	}
 	stats->rx_dropped	= rx_dropped;
 	stats->tx_dropped	= tx_dropped;

@@ -460,7 +460,6 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	u8 i = 0;
 
 	vdsc_cfg->pic_width = pipe_config->hw.adjusted_mode.crtc_hdisplay;
-	vdsc_cfg->pic_height = pipe_config->hw.adjusted_mode.crtc_vdisplay;
 	vdsc_cfg->slice_width = DIV_ROUND_UP(vdsc_cfg->pic_width,
 					     pipe_config->dsc.slice_count);
 

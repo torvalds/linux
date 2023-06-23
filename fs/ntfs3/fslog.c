@@ -3843,6 +3843,8 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 
 	memset(&rst_info2, 0, sizeof(struct restart_info));
 	err = log_read_rst(log, l_size, false, &rst_info2);
+	if (err)
+		goto out;
 
 	/* Determine which restart area to use. */
 	if (!rst_info2.restart || rst_info2.last_lsn <= rst_info.last_lsn)
@@ -5057,7 +5059,7 @@ undo_action_next:
 		goto add_allocated_vcns;
 
 	vcn = le64_to_cpu(lrh->target_vcn);
-	vcn &= ~(log->clst_per_page - 1);
+	vcn &= ~(u64)(log->clst_per_page - 1);
 
 add_allocated_vcns:
 	for (i = 0, vcn = le64_to_cpu(lrh->target_vcn),

@@ -39,6 +39,7 @@ struct mptcp_ext {
 			infinite_map:1;
 };
 
+#define MPTCPOPT_HMAC_LEN	20
 #define MPTCP_RM_IDS_MAX	8
 
 struct mptcp_rm_list {
@@ -89,7 +90,7 @@ struct mptcp_out_options {
 			u32 nonce;
 			u32 token;
 			u64 thmac;
-			u8 hmac[20];
+			u8 hmac[MPTCPOPT_HMAC_LEN];
 		};
 	};
 #endif
@@ -288,6 +289,10 @@ static inline void mptcpv6_handle_mapped(struct sock *sk, bool mapped) { }
 struct mptcp_sock *bpf_mptcp_sock_from_subflow(struct sock *sk);
 #else
 static inline struct mptcp_sock *bpf_mptcp_sock_from_subflow(struct sock *sk) { return NULL; }
+#endif
+
+#if !IS_ENABLED(CONFIG_MPTCP)
+struct mptcp_sock { };
 #endif
 
 #endif /* __NET_MPTCP_H */

@@ -775,6 +775,34 @@ static void xdr_buf_pages_shift_left(const struct xdr_buf *buf,
 	xdr_buf_tail_copy_left(buf, 0, len - buf->page_len, shift);
 }
 
+static void xdr_buf_head_shift_left(const struct xdr_buf *buf,
+				    unsigned int base, unsigned int len,
+				    unsigned int shift)
+{
+	const struct kvec *head = buf->head;
+	unsigned int bytes;
+
+	if (!shift || !len)
+		return;
+
+	if (shift > base) {
+		bytes = (shift - base);
+		if (bytes >= len)
+			return;
+		base += bytes;
+		len -= bytes;
+	}
+
+	if (base < head->iov_len) {
+		bytes = min_t(unsigned int, len, head->iov_len - base);
+		memmove(head->iov_base + (base - shift),
+			head->iov_base + base, bytes);
+		base += bytes;
+		len -= bytes;
+	}
+	xdr_buf_pages_shift_left(buf, base - head->iov_len, len, shift);
+}
+
 /**
  * xdr_shrink_bufhead
  * @buf: xdr_buf
@@ -1472,71 +1500,35 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 }
 EXPORT_SYMBOL_GPL(xdr_read_pages);
 
-unsigned int xdr_align_data(struct xdr_stream *xdr, unsigned int offset,
-			    unsigned int length)
+/**
+ * xdr_set_pagelen - Sets the length of the XDR pages
+ * @xdr: pointer to xdr_stream struct
+ * @len: new length of the XDR page data
+ *
+ * Either grows or shrinks the length of the xdr pages by setting pagelen to
+ * @len bytes. When shrinking, any extra data is moved into buf->tail, whereas
+ * when growing any data beyond the current pointer is moved into the tail.
+ *
+ * Returns True if the operation was successful, and False otherwise.
+ */
+void xdr_set_pagelen(struct xdr_stream *xdr, unsigned int len)
 {
 	struct xdr_buf *buf = xdr->buf;
-	unsigned int from, bytes, len;
-	unsigned int shift;
+	size_t remaining = xdr_stream_remaining(xdr);
+	size_t base = 0;
 
-	xdr_realign_pages(xdr);
-	from = xdr_page_pos(xdr);
-
-	if (from >= buf->page_len + buf->tail->iov_len)
-		return 0;
-	if (from + buf->head->iov_len >= buf->len)
-		return 0;
-
-	len = buf->len - buf->head->iov_len;
-
-	/* We only shift data left! */
-	if (WARN_ONCE(from < offset, "SUNRPC: misaligned data src=%u dst=%u\n",
-		      from, offset))
-		return 0;
-	if (WARN_ONCE(offset > buf->page_len,
-		      "SUNRPC: buffer overflow. offset=%u, page_len=%u\n",
-		      offset, buf->page_len))
-		return 0;
-
-	/* Move page data to the left */
-	shift = from - offset;
-	xdr_buf_pages_shift_left(buf, from, len, shift);
-
-	bytes = xdr_stream_remaining(xdr);
-	if (length > bytes)
-		length = bytes;
-	bytes -= length;
-
-	xdr->buf->len -= shift;
-	xdr_set_page(xdr, offset + length, bytes);
-	return length;
+	if (len < buf->page_len) {
+		base = buf->page_len - len;
+		xdr_shrink_pagelen(buf, len);
+	} else {
+		xdr_buf_head_shift_right(buf, xdr_stream_pos(xdr),
+					 buf->page_len, remaining);
+		if (len > buf->page_len)
+			xdr_buf_try_expand(buf, len - buf->page_len);
+	}
+	xdr_set_tail_base(xdr, base, remaining);
 }
-EXPORT_SYMBOL_GPL(xdr_align_data);
-
-unsigned int xdr_expand_hole(struct xdr_stream *xdr, unsigned int offset,
-			     unsigned int length)
-{
-	struct xdr_buf *buf = xdr->buf;
-	unsigned int from, to, shift;
-
-	xdr_realign_pages(xdr);
-	from = xdr_page_pos(xdr);
-	to = xdr_align_size(offset + length);
-
-	/* Could the hole be behind us? */
-	if (to > from) {
-		unsigned int buflen = buf->len - buf->head->iov_len;
-		shift = to - from;
-		xdr_buf_try_expand(buf, shift);
-		xdr_buf_pages_shift_right(buf, from, buflen, shift);
-		xdr_set_page(xdr, to, xdr_stream_remaining(xdr));
-	} else if (to != from)
-		xdr_align_data(xdr, to, 0);
-	xdr_buf_pages_zero(buf, offset, length);
-
-	return length;
-}
-EXPORT_SYMBOL_GPL(xdr_expand_hole);
+EXPORT_SYMBOL_GPL(xdr_set_pagelen);
 
 /**
  * xdr_enter_page - decode data from the XDR page
@@ -1679,6 +1671,60 @@ bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 	return true;
 }
 EXPORT_SYMBOL_GPL(xdr_stream_subsegment);
+
+/**
+ * xdr_stream_move_subsegment - Move part of a stream to another position
+ * @xdr: the source xdr_stream
+ * @offset: the source offset of the segment
+ * @target: the target offset of the segment
+ * @length: the number of bytes to move
+ *
+ * Moves @length bytes from @offset to @target in the xdr_stream, overwriting
+ * anything in its space. Returns the number of bytes in the segment.
+ */
+unsigned int xdr_stream_move_subsegment(struct xdr_stream *xdr, unsigned int offset,
+					unsigned int target, unsigned int length)
+{
+	struct xdr_buf buf;
+	unsigned int shift;
+
+	if (offset < target) {
+		shift = target - offset;
+		if (xdr_buf_subsegment(xdr->buf, &buf, offset, shift + length) < 0)
+			return 0;
+		xdr_buf_head_shift_right(&buf, 0, length, shift);
+	} else if (offset > target) {
+		shift = offset - target;
+		if (xdr_buf_subsegment(xdr->buf, &buf, target, shift + length) < 0)
+			return 0;
+		xdr_buf_head_shift_left(&buf, shift, length, shift);
+	}
+	return length;
+}
+EXPORT_SYMBOL_GPL(xdr_stream_move_subsegment);
+
+/**
+ * xdr_stream_zero - zero out a portion of an xdr_stream
+ * @xdr: an xdr_stream to zero out
+ * @offset: the starting point in the stream
+ * @length: the number of bytes to zero
+ */
+unsigned int xdr_stream_zero(struct xdr_stream *xdr, unsigned int offset,
+			     unsigned int length)
+{
+	struct xdr_buf buf;
+
+	if (xdr_buf_subsegment(xdr->buf, &buf, offset, length) < 0)
+		return 0;
+	if (buf.head[0].iov_len)
+		xdr_buf_iov_zero(buf.head, 0, buf.head[0].iov_len);
+	if (buf.page_len > 0)
+		xdr_buf_pages_zero(&buf, 0, buf.page_len);
+	if (buf.tail[0].iov_len)
+		xdr_buf_iov_zero(buf.tail, 0, buf.tail[0].iov_len);
+	return length;
+}
+EXPORT_SYMBOL_GPL(xdr_stream_zero);
 
 /**
  * xdr_buf_trim - lop at most "len" bytes off the end of "buf"

@@ -76,7 +76,8 @@ struct perf_tool {
 			stat_config,
 			stat,
 			stat_round,
-			feature;
+			feature,
+			finished_init;
 	event_op4	compressed;
 	event_op3	auxtrace;
 	bool		ordered_events;

@@ -35,15 +35,12 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv);
 void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv);
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv);
+void intel_wm_state_verify(struct intel_crtc *crtc,
+			   struct intel_crtc_state *new_crtc_state);
 u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv);
-void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
-			       struct skl_ddb_entry *ddb_y,
-			       struct skl_ddb_entry *ddb_uv);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv);
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 			    const struct skl_ddb_entry *entry);
-void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
-			      struct skl_pipe_wm *out);
 void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
 void vlv_wm_sanitize(struct drm_i915_private *dev_priv);
 void skl_wm_sanitize(struct drm_i915_private *dev_priv);
@@ -51,13 +48,6 @@ bool intel_can_enable_sagv(struct drm_i915_private *dev_priv,
 			   const struct intel_bw_state *bw_state);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
-const struct skl_wm_level *skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
-					      enum plane_id plane_id,
-					      int level);
-const struct skl_wm_level *skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
-					      enum plane_id plane_id);
-bool skl_wm_level_equals(const struct skl_wm_level *l1,
-			 const struct skl_wm_level *l2);
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
 				 int num_entries, int ignore_idx);

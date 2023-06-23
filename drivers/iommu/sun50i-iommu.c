@@ -738,8 +738,6 @@ static struct iommu_device *sun50i_iommu_probe_device(struct device *dev)
 	return &iommu->iommu;
 }
 
-static void sun50i_iommu_release_device(struct device *dev) {}
-
 static struct iommu_group *sun50i_iommu_device_group(struct device *dev)
 {
 	struct sun50i_iommu *iommu = sun50i_iommu_from_dev(dev);
@@ -764,7 +762,6 @@ static const struct iommu_ops sun50i_iommu_ops = {
 	.domain_alloc	= sun50i_iommu_domain_alloc,
 	.of_xlate	= sun50i_iommu_of_xlate,
 	.probe_device	= sun50i_iommu_probe_device,
-	.release_device	= sun50i_iommu_release_device,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= sun50i_iommu_attach_device,
 		.detach_dev	= sun50i_iommu_detach_device,

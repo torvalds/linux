@@ -83,3 +83,18 @@ config NVME_TARGET_TCP
 	  devices over TCP.
 
 	  If unsure, say N.
+
+config NVME_TARGET_AUTH
+	bool "NVMe over Fabrics In-band Authentication support"
+	depends on NVME_TARGET
+	select NVME_COMMON
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_DH
+	select CRYPTO_DH_RFC7919_GROUPS
+	help
+	  This enables support for NVMe over Fabrics In-band Authentication
+
+	  If unsure, say N.

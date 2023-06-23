@@ -142,7 +142,7 @@
 	};
 
 	sgtl5000: audio-codec@2a {
-		#sound-dai-cells=<0x0>;
+		#sound-dai-cells = <0x0>;
 		compatible = "fsl,sgtl5000";
 		reg = <0x2a>;
 		VDDA-supply = <&reg_3p3v>;

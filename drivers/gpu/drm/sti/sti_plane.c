@@ -8,8 +8,10 @@
 
 #include <linux/types.h>
 
+#include <drm/drm_blend.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "sti_compositor.h"

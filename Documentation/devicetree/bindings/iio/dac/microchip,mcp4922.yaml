@@ -15,6 +15,7 @@ properties:
     enum:
       - microchip,mcp4902
       - microchip,mcp4912
+      - microchip,mcp4921
       - microchip,mcp4922
 
   reg:

@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/sil,sii9022.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silicon Image sii902x HDMI bridge
+
+maintainers:
+  - Boris Brezillon <bbrezillon@kernel.org>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - sil,sii9022-cpi # CEC Programming Interface
+              - sil,sii9022-tpi # Transmitter Programming Interface
+          - const: sil,sii9022
+      - const: sil,sii9022
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+    description: Interrupt line used to inform the host about hotplug events.
+
+  reset-gpios:
+    maxItems: 1
+
+  iovcc-supply:
+    description: I/O Supply Voltage (1.8V or 3.3V)
+
+  cvcc12-supply:
+    description: Digital Core Supply Voltage (1.2V)
+
+  '#sound-dai-cells':
+    enum: [ 0, 1 ]
+    description: |
+      <0> if only I2S or S/PDIF pin is wired,
+      <1> if both are wired.
+      HDMI audio is configured only if this property is found.
+      If HDMI audio is configured, the sii902x device becomes an I2S and/or
+      S/PDIF audio codec component (e.g. a digital audio sink), that can be
+      used in configuring full audio devices with simple-card or
+      audio-graph-card bindings. See their binding documents on how to describe
+      the way the
+      sii902x device is connected to the rest of the audio system:
+      Documentation/devicetree/bindings/sound/simple-card.yaml
+      Documentation/devicetree/bindings/sound/audio-graph-card.yaml
+      Note: In case of the audio-graph-card binding the used port index should
+      be 3.
+
+  sil,i2s-data-lanes:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    uniqueItems: true
+    items:
+      enum: [ 0, 1, 2, 3 ]
+    description:
+      Each integer indicates which I2S pin is connected to which audio FIFO.
+      The first integer selects the I2S audio pin for the first audio FIFO#0
+      (HDMI channels 1&2), the second for FIFO#1 (HDMI channels 3&4), and so
+      on. There are 4 FIFOs and 4 I2S pins (SD0 - SD3). Any I2S pin can be
+      connected to any FIFO, but there can be no gaps. E.g. an I2S pin must be
+      mapped to FIFO#0 and FIFO#1 before mapping a channel to FIFO#2. The
+      default value is <0>, describing SD0 pin being routed to HDMI audio
+      FIFO#0.
+
+  clocks:
+    maxItems: 1
+    description: MCLK input. MCLK can be used to produce HDMI audio CTS values.
+
+  clock-names:
+    const: mclk
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Parallel RGB input port
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: HDMI output port
+
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Sound input port
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hdmi-bridge@39 {
+            compatible = "sil,sii9022";
+            reg = <0x39>;
+            reset-gpios = <&pioA 1 0>;
+            iovcc-supply = <&v3v3_hdmi>;
+            cvcc12-supply = <&v1v2_hdmi>;
+
+            #sound-dai-cells = <0>;
+            sil,i2s-data-lanes = < 0 1 2 >;
+            clocks = <&mclk>;
+            clock-names = "mclk";
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    bridge_in: endpoint {
+                        remote-endpoint = <&dc_out>;
+                    };
+                };
+            };
+        };
+    };

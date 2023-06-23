@@ -55,8 +55,7 @@ static bool p9_sbe_occ_save_ffdc(struct p9_sbe_occ *ctx, const void *resp,
 	mutex_lock(&ctx->sbe_error_lock);
 	if (!ctx->sbe_error) {
 		if (resp_len > ctx->ffdc_size) {
-			if (ctx->ffdc)
-				kvfree(ctx->ffdc);
+			kvfree(ctx->ffdc);
 			ctx->ffdc = kvmalloc(resp_len, GFP_KERNEL);
 			if (!ctx->ffdc) {
 				ctx->ffdc_len = 0;
@@ -170,8 +169,7 @@ static int p9_sbe_occ_remove(struct platform_device *pdev)
 	ctx->sbe = NULL;
 	occ_shutdown(occ);
 
-	if (ctx->ffdc)
-		kvfree(ctx->ffdc);
+	kvfree(ctx->ffdc);
 
 	return 0;
 }

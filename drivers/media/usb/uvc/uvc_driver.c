@@ -329,7 +329,8 @@ static enum v4l2_ycbcr_encoding uvc_ycbcr_enc(const u8 matrix_coefficients)
 	return V4L2_YCBCR_ENC_DEFAULT;  /* Reserved */
 }
 
-/* Simplify a fraction using a simple continued fraction decomposition. The
+/*
+ * Simplify a fraction using a simple continued fraction decomposition. The
  * idea here is to convert fractions such as 333333/10000000 to 1/30 using
  * 32 bit arithmetic only. The algorithm is not perfect and relies upon two
  * arbitrary parameters to remove non-significative terms from the simple
@@ -347,8 +348,9 @@ void uvc_simplify_fraction(u32 *numerator, u32 *denominator,
 	if (an == NULL)
 		return;
 
-	/* Convert the fraction to a simple continued fraction. See
-	 * https://mathforum.org/dr.math/faq/faq.fractions.html
+	/*
+	 * Convert the fraction to a simple continued fraction. See
+	 * https://en.wikipedia.org/wiki/Continued_fraction
 	 * Stop if the current term is bigger than or equal to the given
 	 * threshold.
 	 */
@@ -383,7 +385,8 @@ void uvc_simplify_fraction(u32 *numerator, u32 *denominator,
 	kfree(an);
 }
 
-/* Convert a fraction to a frame interval in 100ns multiples. The idea here is
+/*
+ * Convert a fraction to a frame interval in 100ns multiples. The idea here is
  * to compute numerator / denominator * 10000000 using 32 bit fixed point
  * arithmetic only.
  */
@@ -396,7 +399,8 @@ u32 uvc_fraction_to_interval(u32 numerator, u32 denominator)
 	    numerator/denominator >= ((u32)-1)/10000000)
 		return (u32)-1;
 
-	/* Divide both the denominator and the multiplier by two until
+	/*
+	 * Divide both the denominator and the multiplier by two until
 	 * numerator * multiplier doesn't overflow. If anyone knows a better
 	 * algorithm please let me know.
 	 */
@@ -548,7 +552,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		format->bpp = buffer[21];
 
-		/* Some devices report a format that doesn't match what they
+		/*
+		 * Some devices report a format that doesn't match what they
 		 * really send.
 		 */
 		if (dev->quirks & UVC_QUIRK_FORCE_Y8) {
@@ -663,7 +668,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 	buflen -= buffer[0];
 	buffer += buffer[0];
 
-	/* Parse the frame descriptors. Only uncompressed, MJPEG and frame
+	/*
+	 * Parse the frame descriptors. Only uncompressed, MJPEG and frame
 	 * based formats have frame descriptors.
 	 */
 	while (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
@@ -705,7 +711,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 		}
 		frame->dwFrameInterval = *intervals;
 
-		/* Several UVC chipsets screw up dwMaxVideoFrameBufferSize
+		/*
+		 * Several UVC chipsets screw up dwMaxVideoFrameBufferSize
 		 * completely. Observed behaviours range from setting the
 		 * value to 1.1x the actual frame size to hardwiring the
 		 * 16 low bits to 0. This results in a higher than necessary
@@ -717,7 +724,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 			frame->dwMaxVideoFrameBufferSize = format->bpp
 				* frame->wWidth * frame->wHeight / 8;
 
-		/* Some bogus devices report dwMinFrameInterval equal to
+		/*
+		 * Some bogus devices report dwMinFrameInterval equal to
 		 * dwMaxFrameInterval and have dwFrameIntervalStep set to
 		 * zero. Setting all null intervals to 1 fixes the problem and
 		 * some other divisions by zero that could happen.
@@ -727,7 +735,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 			*(*intervals)++ = interval ? interval : 1;
 		}
 
-		/* Make sure that the default frame interval stays between
+		/*
+		 * Make sure that the default frame interval stays between
 		 * the boundaries.
 		 */
 		n -= frame->bFrameIntervalType ? 1 : 2;
@@ -819,7 +828,8 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 		return -ENOMEM;
 	}
 
-	/* The Pico iMage webcam has its class-specific interface descriptors
+	/*
+	 * The Pico iMage webcam has its class-specific interface descriptors
 	 * after the endpoint descriptors.
 	 */
 	if (buflen == 0) {
@@ -918,7 +928,8 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 			break;
 
 		case UVC_VS_FORMAT_DV:
-			/* DV format has no frame descriptor. We will create a
+			/*
+			 * DV format has no frame descriptor. We will create a
 			 * dummy frame descriptor with a dummy frame interval.
 			 */
 			nformats++;
@@ -1105,7 +1116,8 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 		if (buffer[1] != 0x41 || buffer[2] != 0x01)
 			break;
 
-		/* Logitech implements several vendor specific functions
+		/*
+		 * Logitech implements several vendor specific functions
 		 * through vendor specific extension units (LXU).
 		 *
 		 * The LXU descriptors are similar to XU descriptors
@@ -1303,7 +1315,8 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		/* Make sure the terminal type MSB is not null, otherwise it
+		/*
+		 * Make sure the terminal type MSB is not null, otherwise it
 		 * could be confused with a unit.
 		 */
 		type = get_unaligned_le16(&buffer[4]);
@@ -1437,7 +1450,8 @@ static int uvc_parse_control(struct uvc_device *dev)
 	int buflen = alts->extralen;
 	int ret;
 
-	/* Parse the default alternate setting only, as the UVC specification
+	/*
+	 * Parse the default alternate setting only, as the UVC specification
 	 * defines a single alternate setting, the default alternate setting
 	 * zero.
 	 */
@@ -1455,7 +1469,8 @@ next_descriptor:
 		buffer += buffer[0];
 	}
 
-	/* Check if the optional status endpoint is present. Built-in iSight
+	/*
+	 * Check if the optional status endpoint is present. Built-in iSight
 	 * webcams have an interrupt endpoint but spit proprietary data that
 	 * don't conform to the UVC status endpoint messages. Don't try to
 	 * handle the interrupt endpoint for those cameras.
@@ -2057,7 +2072,8 @@ static int uvc_scan_device(struct uvc_device *dev)
 		if (!UVC_ENTITY_IS_OTERM(term))
 			continue;
 
-		/* If the terminal is already included in a chain, skip it.
+		/*
+		 * If the terminal is already included in a chain, skip it.
 		 * This can happen for chains that have multiple output
 		 * terminals, where all output terminals beside the first one
 		 * will be inserted in the chain in forward scans.
@@ -2309,7 +2325,8 @@ static int uvc_register_terms(struct uvc_device *dev,
 		if (ret < 0)
 			return ret;
 
-		/* Register a metadata node, but ignore a possible failure,
+		/*
+		 * Register a metadata node, but ignore a possible failure,
 		 * complete registration of video nodes anyway.
 		 */
 		uvc_meta_register(stream);
@@ -2507,7 +2524,8 @@ static void uvc_disconnect(struct usb_interface *intf)
 {
 	struct uvc_device *dev = usb_get_intfdata(intf);
 
-	/* Set the USB interface data to NULL. This can be done outside the
+	/*
+	 * Set the USB interface data to NULL. This can be done outside the
 	 * lock, as there's no other reader.
 	 */
 	usb_set_intfdata(intf, NULL);
@@ -2643,6 +2661,30 @@ MODULE_PARM_DESC(timeout, "Streaming control requests timeout");
  * Driver initialization and cleanup
  */
 
+static const struct uvc_menu_info power_line_frequency_controls_limited[] = {
+	{ 1, "50 Hz" },
+	{ 2, "60 Hz" },
+};
+
+static const struct uvc_control_mapping uvc_ctrl_power_line_mapping_limited = {
+	.id		= V4L2_CID_POWER_LINE_FREQUENCY,
+	.entity		= UVC_GUID_UVC_PROCESSING,
+	.selector	= UVC_PU_POWER_LINE_FREQUENCY_CONTROL,
+	.size		= 2,
+	.offset		= 0,
+	.v4l2_type	= V4L2_CTRL_TYPE_MENU,
+	.data_type	= UVC_CTRL_DATA_TYPE_ENUM,
+	.menu_info	= power_line_frequency_controls_limited,
+	.menu_count	= ARRAY_SIZE(power_line_frequency_controls_limited),
+};
+
+static const struct uvc_device_info uvc_ctrl_power_line_limited = {
+	.mappings = (const struct uvc_control_mapping *[]) {
+		&uvc_ctrl_power_line_mapping_limited,
+		NULL, /* Sentinel */
+	},
+};
+
 static const struct uvc_device_info uvc_quirk_probe_minmax = {
 	.quirks = UVC_QUIRK_PROBE_MINMAX,
 };
@@ -2673,6 +2715,33 @@ static const struct uvc_device_info uvc_quirk_force_y8 = {
  * though they are compliant.
  */
 static const struct usb_device_id uvc_ids[] = {
+	/* Quanta USB2.0 HD UVC Webcam */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x0408,
+	  .idProduct		= 0x3090,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
+	/* Quanta USB2.0 HD UVC Webcam */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x0408,
+	  .idProduct		= 0x4030,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
+	/* Quanta USB2.0 HD UVC Webcam */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x0408,
+	  .idProduct		= 0x4034,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= UVC_PC_PROTOCOL_15,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
 	/* LogiLink Wireless Webcam */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2784,6 +2853,33 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_INFO_QUIRK(UVC_QUIRK_RESTRICT_FRAME_RATE) },
+	/* Chicony EasyCamera */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x04f2,
+	  .idProduct		= 0xb5eb,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
+	/* Chicony EasyCamera */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x04f2,
+	  .idProduct		= 0xb6ba,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
+	/* Chicony EasyCamera */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x04f2,
+	  .idProduct		= 0xb746,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
 	/* Alcor Micro AU3820 (Future Boy PC USB Webcam) */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -3168,6 +3264,15 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_INFO_QUIRK(UVC_QUIRK_FORCE_BPP) },
+	/* Acer EasyCamera */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x5986,
+	  .idProduct		= 0x1172,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_ctrl_power_line_limited },
 	/* Intel RealSense D4M */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,

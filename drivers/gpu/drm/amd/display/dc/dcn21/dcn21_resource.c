@@ -1325,6 +1325,7 @@ static int map_transmitter_id_to_phy_instance(
 }
 
 static struct link_encoder *dcn21_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn21_link_encoder *enc21 =
@@ -1490,7 +1491,7 @@ static bool dcn21_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 
-	dc->caps.hdmi_frl_pcon_support = true;
+	dc->caps.dp_hdmi21_pcon_support = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

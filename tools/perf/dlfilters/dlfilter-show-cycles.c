@@ -98,9 +98,9 @@ int filter_event_early(void *data, const struct perf_dlfilter_sample *sample, vo
 static void print_vals(__u64 cycles, __u64 delta)
 {
 	if (delta)
-		printf("%10llu %10llu ", cycles, delta);
+		printf("%10llu %10llu ", (unsigned long long)cycles, (unsigned long long)delta);
 	else
-		printf("%10llu %10s ", cycles, "");
+		printf("%10llu %10s ", (unsigned long long)cycles, "");
 }
 
 int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ctx)

@@ -14,7 +14,7 @@
 	operating-points-v2 = <&gpu_sdm660_opp_table>;
 
 	gpu_sdm660_opp_table: opp-table {
-		compatible  = "operating-points-v2";
+		compatible = "operating-points-v2";
 
 		/*
 		 * 775MHz is only available on the highest speed bin
@@ -192,6 +192,8 @@
 		phys = <&dsi1_phy>;
 		phy-names = "dsi";
 
+		status = "disabled";
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -225,6 +227,7 @@
 
 		clocks = <&mmcc MDSS_AHB_CLK>, <&rpmcc RPM_SMD_XO_CLK_SRC>;
 		clock-names = "iface", "ref";
+		status = "disabled";
 	};
 };
 

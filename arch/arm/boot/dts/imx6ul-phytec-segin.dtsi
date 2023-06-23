@@ -83,11 +83,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc1>;
 	vref-supply = <&reg_adc1_vref_3v3>;
-	/*
-	 * driver can not separate a specific channel so we request 4 channels
-	 * here - we need only the fourth channel
-	 */
-	num-channels = <4>;
 	status = "disabled";
 };
 

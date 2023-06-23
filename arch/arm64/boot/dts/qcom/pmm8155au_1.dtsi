@@ -116,7 +116,7 @@
 		};
 
 		pmm8155au_1_gpios: gpio@c000 {
-			compatible = "qcom,pmm8155au-gpio";
+			compatible = "qcom,pmm8155au-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
 			#gpio-cells = <2>;

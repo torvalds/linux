@@ -417,7 +417,7 @@
 		};
 	};
 
-	cpu0_opp_table: cpu0-opp-table {
+	cpu0_opp_table: opp-table-cpu0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -477,7 +477,7 @@
 		};
 	};
 
-	cpu4_opp_table: cpu4-opp-table {
+	cpu4_opp_table: opp-table-cpu4 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -547,7 +547,7 @@
 		};
 	};
 
-	cpu7_opp_table: cpu7-opp-table {
+	cpu7_opp_table: opp-table-cpu7 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -763,7 +763,7 @@
 		method = "smc";
 	};
 
-	qspi_opp_table: qspi-opp-table {
+	qspi_opp_table: opp-table-qspi {
 		compatible = "operating-points-v2";
 
 		opp-75000000 {
@@ -787,7 +787,7 @@
 		};
 	};
 
-	qup_opp_table: qup-opp-table {
+	qup_opp_table: opp-table-qup {
 		compatible = "operating-points-v2";
 
 		opp-75000000 {
@@ -818,7 +818,7 @@
 			reg = <0 0x00100000 0 0x1f0000>;
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK_A>, <&sleep_clk>,
-				 <0>, <&pcie1_lane 0>,
+				 <0>, <&pcie1_lane>,
 				 <0>, <0>, <0>, <0>;
 			clock-names = "bi_tcxo", "bi_tcxo_ao", "sleep_clk",
 				      "pcie_0_pipe_clk", "pcie_1_pipe_clk",
@@ -857,7 +857,7 @@
 			};
 		};
 
-		sdhc_1: sdhci@7c4000 {
+		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,sc7280-sdhci", "qcom,sdhci-msm-v5";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc1_clk>, <&sdc1_cmd>, <&sdc1_data>, <&sdc1_rclk>;
@@ -873,10 +873,10 @@
 				     <GIC_SPI 656 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
-			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&gcc GCC_SDCC1_AHB_CLK>,
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>;
-			clock-names = "core", "iface", "xo";
+			clock-names = "iface", "core", "xo";
 			interconnects = <&aggre1_noc MASTER_SDCC_1 0 &mc_virt SLAVE_EBI1 0>,
 					<&gem_noc MASTER_APPSS_PROC 0 &cnoc2 SLAVE_SDCC_1 0>;
 			interconnect-names = "sdhc-ddr","cpu-sdhc";
@@ -2035,7 +2035,7 @@
 
 			clocks = <&gcc GCC_PCIE_1_PIPE_CLK>,
 				 <&gcc GCC_PCIE_1_PIPE_CLK_SRC>,
-				 <&pcie1_lane 0>,
+				 <&pcie1_lane>,
 				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_PCIE_1_AUX_CLK>,
 				 <&gcc GCC_PCIE_1_CFG_AHB_CLK>,
@@ -2110,7 +2110,7 @@
 				clock-names = "pipe0";
 
 				#phy-cells = <0>;
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clock-output-names = "pcie_1_pipe_clk";
 			};
 		};
@@ -2201,7 +2201,7 @@
 		lpasscore: clock-controller@3900000 {
 			compatible = "qcom,sc7280-lpasscorecc";
 			reg = <0 0x03900000 0 0x50000>;
-			clocks =  <&rpmhcc RPMH_CXO_CLK>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "bi_tcxo";
 			power-domains = <&lpass_hm LPASS_CORE_CC_LPASS_CORE_HM_GDSC>;
 			#clock-cells = <1>;
@@ -2222,6 +2222,98 @@
 			compatible = "qcom,sc7280-lpass-ag-noc";
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		lpass_tlmm: pinctrl@33c0000 {
+			compatible = "qcom,sc7280-lpass-lpi-pinctrl";
+			reg = <0 0x033c0000 0x0 0x20000>,
+				<0 0x03550000 0x0 0x10000>;
+			qcom,adsp-bypass-mode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&lpass_tlmm 0 0 15>;
+
+			#clock-cells = <1>;
+
+			lpass_dmic01_clk: dmic01-clk {
+				pins = "gpio6";
+				function = "dmic1_clk";
+			};
+
+			lpass_dmic01_clk_sleep: dmic01-clk-sleep {
+				pins = "gpio6";
+				function = "dmic1_clk";
+			};
+
+			lpass_dmic01_data: dmic01-data {
+				pins = "gpio7";
+				function = "dmic1_data";
+			};
+
+			lpass_dmic01_data_sleep: dmic01-data-sleep {
+				pins = "gpio7";
+				function = "dmic1_data";
+			};
+
+			lpass_dmic23_clk: dmic23-clk {
+				pins = "gpio8";
+				function = "dmic2_clk";
+			};
+
+			lpass_dmic23_clk_sleep: dmic23-clk-sleep {
+				pins = "gpio8";
+				function = "dmic2_clk";
+			};
+
+			lpass_dmic23_data: dmic23-data {
+				pins = "gpio9";
+				function = "dmic2_data";
+			};
+
+			lpass_dmic23_data_sleep: dmic23-data-sleep {
+				pins = "gpio9";
+				function = "dmic2_data";
+			};
+
+			lpass_rx_swr_clk: rx-swr-clk {
+				pins = "gpio3";
+				function = "swr_rx_clk";
+			};
+
+			lpass_rx_swr_clk_sleep: rx-swr-clk-sleep {
+				pins = "gpio3";
+				function = "swr_rx_clk";
+			};
+
+			lpass_rx_swr_data: rx-swr-data {
+				pins = "gpio4", "gpio5";
+				function = "swr_rx_data";
+			};
+
+			lpass_rx_swr_data_sleep: rx-swr-data-sleep {
+				pins = "gpio4", "gpio5";
+				function = "swr_rx_data";
+			};
+
+			lpass_tx_swr_clk: tx-swr-clk {
+				pins = "gpio0";
+				function = "swr_tx_clk";
+			};
+
+			lpass_tx_swr_clk_sleep: tx-swr-clk-sleep {
+				pins = "gpio0";
+				function = "swr_tx_clk";
+			};
+
+			lpass_tx_swr_data: tx-swr-data {
+				pins = "gpio1", "gpio2", "gpio14";
+				function = "swr_tx_data";
+			};
+
+			lpass_tx_swr_data_sleep: tx-swr-data-sleep {
+				pins = "gpio1", "gpio2", "gpio14";
+				function = "swr_tx_data";
+			};
 		};
 
 		gpu: gpu@3d00000 {
@@ -2305,7 +2397,7 @@
 		};
 
 		gmu: gmu@3d6a000 {
-			compatible="qcom,adreno-gmu-635.0", "qcom,adreno-gmu";
+			compatible = "qcom,adreno-gmu-635.0", "qcom,adreno-gmu";
 			reg = <0 0x03d6a000 0 0x34000>,
 				<0 0x3de0000 0 0x10000>,
 				<0 0x0b290000 0 0x10000>;
@@ -2313,13 +2405,13 @@
 			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hfi", "gmu";
-			clocks = <&gpucc 5>,
-					<&gpucc 8>,
-					<&gcc GCC_DDRSS_GPU_AXI_CLK>,
-					<&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-					<&gpucc 2>,
-					<&gpucc 15>,
-					<&gpucc 11>;
+			clocks = <&gpucc GPU_CC_CX_GMU_CLK>,
+				 <&gpucc GPU_CC_CXO_CLK>,
+				 <&gcc GCC_DDRSS_GPU_AXI_CLK>,
+				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+				 <&gpucc GPU_CC_AHB_CLK>,
+				 <&gpucc GPU_CC_HUB_CX_INT_CLK>,
+				 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>;
 			clock-names = "gmu",
 				      "cxo",
 				      "axi",
@@ -2327,8 +2419,8 @@
 				      "ahb",
 				      "hub",
 				      "smmu_vote";
-			power-domains = <&gpucc 0>,
-					<&gpucc 1>;
+			power-domains = <&gpucc GPU_CC_CX_GDSC>,
+					<&gpucc GPU_CC_GX_GDSC>;
 			power-domain-names = "cx",
 					     "gx";
 			iommus = <&adreno_smmu 5 0x400>;
@@ -2377,12 +2469,12 @@
 					<GIC_SPI 687 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-					<&gcc GCC_GPU_SNOC_DVM_GFX_CLK>,
-					<&gpucc 2>,
-					<&gpucc 11>,
-					<&gpucc 5>,
-					<&gpucc 15>,
-					<&gpucc 13>;
+				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>,
+				 <&gpucc GPU_CC_AHB_CLK>,
+				 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
+				 <&gpucc GPU_CC_CX_GMU_CLK>,
+				 <&gpucc GPU_CC_HUB_CX_INT_CLK>,
+				 <&gpucc GPU_CC_HUB_AON_CLK>;
 			clock-names = "gcc_gpu_memnoc_gfx_clk",
 					"gcc_gpu_snoc_dvm_gfx_clk",
 					"gpu_cc_ahb_clk",
@@ -2391,7 +2483,7 @@
 					"gpu_cc_hub_cx_int_clk",
 					"gpu_cc_hub_aon_clk";
 
-			power-domains = <&gpucc 0>;
+			power-domains = <&gpucc GPU_CC_CX_GDSC>;
 		};
 
 		remoteproc_mpss: remoteproc@4080000 {
@@ -2936,7 +3028,7 @@
 			};
 		};
 
-		sdhc_2: sdhci@8804000 {
+		sdhc_2: mmc@8804000 {
 			compatible = "qcom,sc7280-sdhci", "qcom,sdhci-msm-v5";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc2_clk>, <&sdc2_cmd>, <&sdc2_data>;
@@ -2950,10 +3042,10 @@
 				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
-			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
-				 <&gcc GCC_SDCC2_AHB_CLK>,
+			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+				 <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>;
-			clock-names = "core", "iface", "xo";
+			clock-names = "iface", "core", "xo";
 			interconnects = <&aggre1_noc MASTER_SDCC_2 0 &mc_virt SLAVE_EBI1 0>,
 					<&gem_noc MASTER_APPSS_PROC 0 &cnoc2 SLAVE_SDCC_2 0>;
 			interconnect-names = "sdhc-ddr","cpu-sdhc";
@@ -3082,10 +3174,11 @@
 			assigned-clock-rates = <19200000>, <200000000>;
 
 			interrupts-extended = <&intc GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
-				     <&pdc 13 IRQ_TYPE_EDGE_RISING>,
-				     <&pdc 12 IRQ_TYPE_EDGE_RISING>;
+					      <&pdc 12 IRQ_TYPE_EDGE_RISING>,
+					      <&pdc 13 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "hs_phy_irq",
-					  "dm_hs_phy_irq", "dp_hs_phy_irq";
+					  "dp_hs_phy_irq",
+					  "dm_hs_phy_irq";
 
 			power-domains = <&gcc GCC_USB30_SEC_GDSC>;
 
@@ -3265,13 +3358,13 @@
 			assigned-clock-rates = <19200000>, <200000000>;
 
 			interrupts-extended = <&intc GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
-					      <&pdc 17 IRQ_TYPE_EDGE_BOTH>,
+					      <&pdc 14 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 15 IRQ_TYPE_EDGE_BOTH>,
-					      <&pdc 14 IRQ_TYPE_LEVEL_HIGH>;
+					      <&pdc 17 IRQ_TYPE_EDGE_BOTH>;
 			interrupt-names = "hs_phy_irq",
-					  "ss_phy_irq",
+					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
-					  "dp_hs_phy_irq";
+					  "ss_phy_irq";
 
 			power-domains = <&gcc GCC_USB30_PRIM_GDSC>;
 
@@ -3280,6 +3373,8 @@
 			interconnects = <&aggre1_noc MASTER_USB3_0 0 &mc_virt SLAVE_EBI1 0>,
 					<&gem_noc MASTER_APPSS_PROC 0 &cnoc2 SLAVE_USB3_0 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
+
+			wakeup-source;
 
 			usb_1_dwc3: usb@a600000 {
 				compatible = "snps,dwc3";
@@ -3291,7 +3386,6 @@
 				phys = <&usb_1_hsphy>, <&usb_1_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
 				maximum-speed = "super-speed";
-				wakeup-source;
 			};
 		};
 
@@ -3334,7 +3428,7 @@
 				iommus = <&apps_smmu 0x21a2 0x0>;
 			};
 
-			venus_opp_table: venus-opp-table {
+			venus_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-133330000 {
@@ -3426,9 +3520,6 @@
 				      "ahb",
 				      "core";
 
-			assigned-clocks = <&dispcc DISP_CC_MDSS_MDP_CLK>;
-			assigned-clock-rates = <300000000>;
-
 			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -3462,11 +3553,9 @@
 					      "lut",
 					      "core",
 					      "vsync";
-				assigned-clocks = <&dispcc DISP_CC_MDSS_MDP_CLK>,
-						<&dispcc DISP_CC_MDSS_VSYNC_CLK>,
+				assigned-clocks = <&dispcc DISP_CC_MDSS_VSYNC_CLK>,
 						<&dispcc DISP_CC_MDSS_AHB_CLK>;
-				assigned-clock-rates = <300000000>,
-							<19200000>,
+				assigned-clock-rates = <19200000>,
 							<19200000>;
 				operating-points-v2 = <&mdp_opp_table>;
 				power-domains = <&rpmhpd SC7280_CX>;
@@ -3629,21 +3718,16 @@
 				interrupt-parent = <&mdss>;
 				interrupts = <14>;
 
-				clocks = <&rpmhcc RPMH_CXO_CLK>,
-					 <&gcc GCC_EDP_CLKREF_EN>,
-					 <&dispcc DISP_CC_MDSS_AHB_CLK>,
+				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc DISP_CC_MDSS_EDP_AUX_CLK>,
 					 <&dispcc DISP_CC_MDSS_EDP_LINK_CLK>,
 					 <&dispcc DISP_CC_MDSS_EDP_LINK_INTF_CLK>,
 					 <&dispcc DISP_CC_MDSS_EDP_PIXEL_CLK>;
-				clock-names = "core_xo",
-					      "core_ref",
-					      "core_iface",
+				clock-names = "core_iface",
 					      "core_aux",
 					      "ctrl_link",
 					      "ctrl_link_iface",
 					      "stream_pixel";
-				#clock-cells = <1>;
 				assigned-clocks = <&dispcc DISP_CC_MDSS_EDP_LINK_CLK_SRC>,
 						  <&dispcc DISP_CC_MDSS_EDP_PIXEL_CLK_SRC>;
 				assigned-clock-parents = <&mdss_edp_phy 0>, <&mdss_edp_phy 1>;
@@ -3653,9 +3737,6 @@
 
 				operating-points-v2 = <&edp_opp_table>;
 				power-domains = <&rpmhpd SC7280_CX>;
-
-				#address-cells = <1>;
-				#size-cells = <0>;
 
 				status = "disabled";
 
@@ -3723,7 +3804,11 @@
 			mdss_dp: displayport-controller@ae90000 {
 				compatible = "qcom,sc7280-dp";
 
-				reg = <0 0x0ae90000 0 0x1400>;
+				reg = <0 0xae90000 0 0x200>,
+				      <0 0xae90200 0 0x200>,
+				      <0 0xae90400 0 0xc00>,
+				      <0 0xae91000 0 0x400>,
+				      <0 0xae91400 0 0x400>;
 
 				interrupt-parent = <&mdss>;
 				interrupts = <12>;
@@ -3733,12 +3818,11 @@
 					 <&dispcc DISP_CC_MDSS_DP_LINK_CLK>,
 					 <&dispcc DISP_CC_MDSS_DP_LINK_INTF_CLK>,
 					 <&dispcc DISP_CC_MDSS_DP_PIXEL_CLK>;
-				clock-names =	"core_iface",
+				clock-names = "core_iface",
 						"core_aux",
 						"ctrl_link",
 						"ctrl_link_iface",
 						"stream_pixel";
-				#clock-cells = <1>;
 				assigned-clocks = <&dispcc DISP_CC_MDSS_DP_LINK_CLK_SRC>,
 						  <&dispcc DISP_CC_MDSS_DP_PIXEL_CLK_SRC>;
 				assigned-clock-parents = <&dp_phy 0>, <&dp_phy 1>;
@@ -3843,7 +3927,7 @@
 		};
 
 		aoss_qmp: power-controller@c300000 {
-			compatible = "qcom,sc7280-aoss-qmp";
+			compatible = "qcom,sc7280-aoss-qmp", "qcom,aoss-qmp";
 			reg = <0 0x0c300000 0 0x400>;
 			interrupts-extended = <&ipcc IPCC_CLIENT_AOP
 						     IPCC_MPROC_SIGNAL_GLINK_QMP
@@ -3896,6 +3980,46 @@
 			edp_hot_plug_det: edp-hot-plug-det {
 				pins = "gpio60";
 				function = "edp_hot";
+			};
+
+			mi2s0_data0: mi2s0-data0 {
+				pins = "gpio98";
+				function = "mi2s0_data0";
+			};
+
+			mi2s0_data1: mi2s0-data1 {
+				pins = "gpio99";
+				function = "mi2s0_data1";
+			};
+
+			mi2s0_mclk: mi2s0-mclk {
+				pins = "gpio96";
+				function = "pri_mi2s";
+			};
+
+			mi2s0_sclk: mi2s0-sclk {
+				pins = "gpio97";
+				function = "mi2s0_sck";
+			};
+
+			mi2s0_ws: mi2s0-ws {
+				pins = "gpio100";
+				function = "mi2s0_ws";
+			};
+
+			mi2s1_data0: mi2s1-data0 {
+				pins = "gpio107";
+				function = "mi2s1_data0";
+			};
+
+			mi2s1_sclk: mi2s1-sclk {
+				pins = "gpio106";
+				function = "mi2s1_sck";
+			};
+
+			mi2s1_ws: mi2s1-ws {
+				pins = "gpio108";
+				function = "mi2s1_ws";
 			};
 
 			pcie1_clkreq_n: pcie1-clkreq-n {
@@ -4639,8 +4763,8 @@
 			};
 		};
 
-		imem@146a5000 {
-			compatible = "qcom,sc7280-imem", "syscon";
+		sram@146a5000 {
+			compatible = "qcom,sc7280-imem", "syscon", "simple-mfd";
 			reg = <0 0x146a5000 0 0x6000>;
 
 			#address-cells = <1>;
@@ -4771,9 +4895,9 @@
 		};
 
 		timer@17c20000 {
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0 0 0x20000000>;
 			compatible = "arm,armv7-timer-mem";
 			reg = <0 0x17c20000 0 0x1000>;
 
@@ -4781,49 +4905,49 @@
 				frame-number = <0>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c21000 0 0x1000>,
-				      <0 0x17c22000 0 0x1000>;
+				reg = <0x17c21000 0x1000>,
+				      <0x17c22000 0x1000>;
 			};
 
 			frame@17c23000 {
 				frame-number = <1>;
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c23000 0 0x1000>;
+				reg = <0x17c23000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c25000 {
 				frame-number = <2>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c25000 0 0x1000>;
+				reg = <0x17c25000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c27000 {
 				frame-number = <3>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c27000 0 0x1000>;
+				reg = <0x17c27000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c29000 {
 				frame-number = <4>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c29000 0 0x1000>;
+				reg = <0x17c29000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c2b000 {
 				frame-number = <5>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c2b000 0 0x1000>;
+				reg = <0x17c2b000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c2d000 {
 				frame-number = <6>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0 0x17c2d000 0 0x1000>;
+				reg = <0x17c2d000 0x1000>;
 				status = "disabled";
 			};
 		};

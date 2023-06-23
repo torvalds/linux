@@ -675,6 +675,7 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 			       sizeof(struct three_key_threshold));
 	}
 
+	of_node_put(node);
 	dev_warn(priv->dev, "accdet caps=%x\n", priv->caps);
 
 	return 0;

@@ -78,21 +78,20 @@ struct vfio_platform_reset_node {
 	vfio_platform_reset_fn_t of_reset;
 };
 
-extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
-				      struct device *dev);
+int vfio_platform_probe_common(struct vfio_platform_device *vdev,
+			       struct device *dev);
 void vfio_platform_remove_common(struct vfio_platform_device *vdev);
 
-extern int vfio_platform_irq_init(struct vfio_platform_device *vdev);
-extern void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);
+int vfio_platform_irq_init(struct vfio_platform_device *vdev);
+void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);
 
-extern int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
-					uint32_t flags, unsigned index,
-					unsigned start, unsigned count,
-					void *data);
+int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
+				 uint32_t flags, unsigned index,
+				 unsigned start, unsigned count, void *data);
 
-extern void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
-extern void vfio_platform_unregister_reset(const char *compat,
-					   vfio_platform_reset_fn_t fn);
+void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
+void vfio_platform_unregister_reset(const char *compat,
+				    vfio_platform_reset_fn_t fn);
 #define vfio_platform_register_reset(__compat, __reset)		\
 static struct vfio_platform_reset_node __reset ## _node = {	\
 	.owner = THIS_MODULE,					\

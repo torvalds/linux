@@ -115,39 +115,6 @@ bool i915_error_injected(void);
 #define overflows_type(x, T) \
 	(sizeof(x) > sizeof(T) && (x) >> BITS_PER_TYPE(T))
 
-static inline bool
-__check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
-{
-	size_t sz;
-
-	if (check_mul_overflow(count, arr, &sz))
-		return false;
-
-	if (check_add_overflow(sz, base, &sz))
-		return false;
-
-	*size = sz;
-	return true;
-}
-
-/**
- * check_struct_size() - Calculate size of structure with trailing array.
- * @p: Pointer to the structure.
- * @member: Name of the array member.
- * @n: Number of elements in the array.
- * @sz: Total size of structure and array
- *
- * Calculates size of memory needed for structure @p followed by an
- * array of @n @member elements, like struct_size() but reports
- * whether it overflowed, and the resultant size in @sz
- *
- * Return: false if the calculation overflowed.
- */
-#define check_struct_size(p, member, n, sz) \
-	likely(__check_struct_size(sizeof(*(p)), \
-				   sizeof(*(p)->member) + __must_be_array((p)->member), \
-				   n, sz))
-
 #define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
 	(typeof(ptr))(__v & -BIT(n));					\
@@ -183,8 +150,6 @@ __check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
 #define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
 
 #define struct_member(T, member) (((T *)0)->member)
-
-#define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\
@@ -227,11 +192,6 @@ static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
 	typeof(*(U)) mbz__;						\
 	get_user(mbz__, (U)) ? -EFAULT : mbz__ ? -EINVAL : 0;		\
 })
-
-static inline u64 ptr_to_u64(const void *ptr)
-{
-	return (uintptr_t)ptr;
-}
 
 #define u64_to_ptr(T, x) ({						\
 	typecheck(u64, x);						\

@@ -552,7 +552,7 @@
 			ranges;
 
 			sdio0: sdio@20300000 {
-				compatible  = "sprd,sdhci-r11";
+				compatible = "sprd,sdhci-r11";
 				reg = <0 0x20300000 0 0x1000>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -568,7 +568,7 @@
 			};
 
 			sdio3: sdio@20600000 {
-				compatible  = "sprd,sdhci-r11";
+				compatible = "sprd,sdhci-r11";
 				reg = <0 0x20600000 0 0x1000>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 

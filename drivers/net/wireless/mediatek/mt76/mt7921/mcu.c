@@ -1,78 +1,14 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#include <linux/firmware.h>
 #include <linux/fs.h>
 #include "mt7921.h"
 #include "mt7921_trace.h"
 #include "mcu.h"
 #include "mac.h"
 
-struct mt7921_patch_hdr {
-	char build_date[16];
-	char platform[4];
-	__be32 hw_sw_ver;
-	__be32 patch_ver;
-	__be16 checksum;
-	u16 reserved;
-	struct {
-		__be32 patch_ver;
-		__be32 subsys;
-		__be32 feature;
-		__be32 n_region;
-		__be32 crc;
-		u32 reserved[11];
-	} desc;
-} __packed;
-
-struct mt7921_patch_sec {
-	__be32 type;
-	__be32 offs;
-	__be32 size;
-	union {
-		__be32 spec[13];
-		struct {
-			__be32 addr;
-			__be32 len;
-			__be32 sec_key_idx;
-			__be32 align_len;
-			u32 reserved[9];
-		} info;
-	};
-} __packed;
-
-struct mt7921_fw_trailer {
-	u8 chip_id;
-	u8 eco_code;
-	u8 n_region;
-	u8 format_ver;
-	u8 format_flag;
-	u8 reserved[2];
-	char fw_ver[10];
-	char build_date[15];
-	u32 crc;
-} __packed;
-
-struct mt7921_fw_region {
-	__le32 decomp_crc;
-	__le32 decomp_len;
-	__le32 decomp_blk_sz;
-	u8 reserved[4];
-	__le32 addr;
-	__le32 len;
-	u8 feature_set;
-	u8 reserved1[15];
-} __packed;
-
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)
-
-#define PATCH_SEC_ENC_TYPE_MASK		GENMASK(31, 24)
-#define PATCH_SEC_ENC_TYPE_PLAIN		0x00
-#define PATCH_SEC_ENC_TYPE_AES			0x01
-#define PATCH_SEC_ENC_TYPE_SCRAMBLE		0x02
-#define PATCH_SEC_ENC_SCRAMBLE_INFO_MASK	GENMASK(15, 0)
-#define PATCH_SEC_ENC_AES_KEY_MASK		GENMASK(7, 0)
 
 static int
 mt7921_mcu_parse_eeprom(struct mt76_dev *dev, struct sk_buff *skb)
@@ -83,7 +19,7 @@ mt7921_mcu_parse_eeprom(struct mt76_dev *dev, struct sk_buff *skb)
 	if (!skb)
 		return -EINVAL;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 
 	res = (struct mt7921_mcu_eeprom_info *)skb->data;
 	buf = dev->eeprom.data + le32_to_cpu(res->addr);
@@ -96,7 +32,7 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq)
 {
 	int mcu_cmd = FIELD_GET(__MCU_CMD_FIELD_ID, cmd);
-	struct mt7921_mcu_rxd *rxd;
+	struct mt76_connac2_mcu_rxd *rxd;
 	int ret = 0;
 
 	if (!skb) {
@@ -107,11 +43,12 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		return -ETIMEDOUT;
 	}
 
-	rxd = (struct mt7921_mcu_rxd *)skb->data;
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
-	if (cmd == MCU_CMD(PATCH_SEM_CONTROL)) {
+	if (cmd == MCU_CMD(PATCH_SEM_CONTROL) ||
+	    cmd == MCU_CMD(PATCH_FINISH_REQ)) {
 		skb_pull(skb, sizeof(*rxd) - 4);
 		ret = *skb->data;
 	} else if (cmd == MCU_EXT_CMD(THERMAL_CTRL)) {
@@ -140,89 +77,12 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		event = (struct mt7921_mcu_reg_event *)skb->data;
 		ret = (int)le32_to_cpu(event->val);
 	} else {
-		skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+		skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt7921_mcu_parse_response);
-
-int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			    int cmd, int *wait_seq)
-{
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-	int txd_len, mcu_cmd = FIELD_GET(__MCU_CMD_FIELD_ID, cmd);
-	struct mt7921_uni_txd *uni_txd;
-	struct mt7921_mcu_txd *mcu_txd;
-	__le32 *txd;
-	u32 val;
-	u8 seq;
-
-	if (cmd == MCU_UNI_CMD(HIF_CTRL) ||
-	    cmd == MCU_UNI_CMD(SUSPEND) ||
-	    cmd == MCU_UNI_CMD(OFFLOAD))
-		mdev->mcu.timeout = HZ;
-	else
-		mdev->mcu.timeout = 3 * HZ;
-
-	seq = ++dev->mt76.mcu.msg_seq & 0xf;
-	if (!seq)
-		seq = ++dev->mt76.mcu.msg_seq & 0xf;
-
-	if (cmd == MCU_CMD(FW_SCATTER))
-		goto exit;
-
-	txd_len = cmd & __MCU_CMD_FIELD_UNI ? sizeof(*uni_txd) : sizeof(*mcu_txd);
-	txd = (__le32 *)skb_push(skb, txd_len);
-
-	val = FIELD_PREP(MT_TXD0_TX_BYTES, skb->len) |
-	      FIELD_PREP(MT_TXD0_PKT_FMT, MT_TX_TYPE_CMD) |
-	      FIELD_PREP(MT_TXD0_Q_IDX, MT_TX_MCU_PORT_RX_Q0);
-	txd[0] = cpu_to_le32(val);
-
-	val = MT_TXD1_LONG_FORMAT |
-	      FIELD_PREP(MT_TXD1_HDR_FORMAT, MT_HDR_FORMAT_CMD);
-	txd[1] = cpu_to_le32(val);
-
-	if (cmd & __MCU_CMD_FIELD_UNI) {
-		uni_txd = (struct mt7921_uni_txd *)txd;
-		uni_txd->len = cpu_to_le16(skb->len - sizeof(uni_txd->txd));
-		uni_txd->option = MCU_CMD_UNI_EXT_ACK;
-		uni_txd->cid = cpu_to_le16(mcu_cmd);
-		uni_txd->s2d_index = MCU_S2D_H2N;
-		uni_txd->pkt_type = MCU_PKT_ID;
-		uni_txd->seq = seq;
-
-		goto exit;
-	}
-
-	mcu_txd = (struct mt7921_mcu_txd *)txd;
-	mcu_txd->len = cpu_to_le16(skb->len - sizeof(mcu_txd->txd));
-	mcu_txd->pq_id = cpu_to_le16(MCU_PQ_ID(MT_TX_PORT_IDX_MCU,
-					       MT_TX_MCU_PORT_RX_Q0));
-	mcu_txd->pkt_type = MCU_PKT_ID;
-	mcu_txd->seq = seq;
-	mcu_txd->cid = mcu_cmd;
-	mcu_txd->s2d_index = MCU_S2D_H2N;
-	mcu_txd->ext_cid = FIELD_GET(__MCU_CMD_FIELD_EXT_ID, cmd);
-
-	if (mcu_txd->ext_cid || (cmd & __MCU_CMD_FIELD_CE)) {
-		if (cmd & __MCU_CMD_FIELD_QUERY)
-			mcu_txd->set_query = MCU_Q_QUERY;
-		else
-			mcu_txd->set_query = MCU_Q_SET;
-		mcu_txd->ext_cid_ack = !!mcu_txd->ext_cid;
-	} else {
-		mcu_txd->set_query = MCU_Q_NA;
-	}
-
-exit:
-	if (wait_seq)
-		*wait_seq = seq;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_fill_message);
 
 #ifdef CONFIG_PM
 
@@ -304,7 +164,7 @@ mt7921_mcu_connection_loss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	struct mt76_connac_beacon_loss_event *event;
 	struct mt76_phy *mphy = &dev->mt76.phy;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt76_connac_beacon_loss_event *)skb->data;
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
@@ -318,7 +178,7 @@ mt7921_mcu_bss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_connac_mcu_bss_event *event;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt76_connac_mcu_bss_event *)skb->data;
 	if (event->is_absent)
 		ieee80211_stop_queues(mphy->hw);
@@ -338,7 +198,7 @@ mt7921_mcu_debug_msg_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		u8 content[512];
 	} __packed * msg;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	msg = (struct mt7921_debug_msg *)skb->data;
 
 	if (msg->type == 3) { /* fw log */
@@ -361,7 +221,7 @@ mt7921_mcu_low_power_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		u8 reserved[3];
 	} __packed * event;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt7921_mcu_lp_event *)skb->data;
 
 	trace_lp_event(dev, event->state);
@@ -372,7 +232,7 @@ mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_mcu_tx_done_event *event;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt7921_mcu_tx_done_event *)skb->data;
 
 	mt7921_mac_add_txs(dev, event->txs);
@@ -381,8 +241,9 @@ mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
 static void
 mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
+	struct mt76_connac2_mcu_rxd *rxd;
 
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	switch (rxd->eid) {
 	case MCU_EVENT_BSS_BEACON_LOSS:
 		mt7921_mcu_connection_loss_event(dev, skb);
@@ -416,12 +277,12 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt7921_mcu_rxd *rxd;
+	struct mt76_connac2_mcu_rxd *rxd;
 
 	if (skb_linearize(skb))
 		return;
 
-	rxd = (struct mt7921_mcu_rxd *)skb->data;
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 
 	if (rxd->eid == 0x6) {
 		mt76_mcu_rx_event(&dev->mt76, skb);
@@ -469,34 +330,6 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 				      enable, false);
 }
 
-static u32 mt7921_get_data_mode(struct mt7921_dev *dev, u32 info)
-{
-	u32 mode = DL_MODE_NEED_RSP;
-
-	if (info == PATCH_SEC_NOT_SUPPORT)
-		return mode;
-
-	switch (FIELD_GET(PATCH_SEC_ENC_TYPE_MASK, info)) {
-	case PATCH_SEC_ENC_TYPE_PLAIN:
-		break;
-	case PATCH_SEC_ENC_TYPE_AES:
-		mode |= DL_MODE_ENCRYPT;
-		mode |= FIELD_PREP(DL_MODE_KEY_IDX,
-				(info & PATCH_SEC_ENC_AES_KEY_MASK)) & DL_MODE_KEY_IDX;
-		mode |= DL_MODE_RESET_SEC_IV;
-		break;
-	case PATCH_SEC_ENC_TYPE_SCRAMBLE:
-		mode |= DL_MODE_ENCRYPT;
-		mode |= DL_CONFIG_ENCRY_MODE_SEL;
-		mode |= DL_MODE_RESET_SEC_IV;
-		break;
-	default:
-		dev_err(dev->mt76.dev, "Encryption type not support!\n");
-	}
-
-	return mode;
-}
-
 static char *mt7921_patch_name(struct mt7921_dev *dev)
 {
 	char *ret;
@@ -507,152 +340,6 @@ static char *mt7921_patch_name(struct mt7921_dev *dev)
 		ret = MT7921_ROM_PATCH;
 
 	return ret;
-}
-
-static int mt7921_load_patch(struct mt7921_dev *dev)
-{
-	const struct mt7921_patch_hdr *hdr;
-	const struct firmware *fw = NULL;
-	int i, ret, sem, max_len;
-
-	max_len = mt76_is_sdio(&dev->mt76) ? 2048 : 4096;
-
-	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, true);
-	switch (sem) {
-	case PATCH_IS_DL:
-		return 0;
-	case PATCH_NOT_DL_SEM_SUCCESS:
-		break;
-	default:
-		dev_err(dev->mt76.dev, "Failed to get patch semaphore\n");
-		return -EAGAIN;
-	}
-
-	ret = request_firmware(&fw, mt7921_patch_name(dev), dev->mt76.dev);
-	if (ret)
-		goto out;
-
-	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
-		dev_err(dev->mt76.dev, "Invalid firmware\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	hdr = (const struct mt7921_patch_hdr *)(fw->data);
-
-	dev_info(dev->mt76.dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
-		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
-
-	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
-		struct mt7921_patch_sec *sec;
-		const u8 *dl;
-		u32 len, addr, mode;
-		u32 sec_info = 0;
-
-		sec = (struct mt7921_patch_sec *)(fw->data + sizeof(*hdr) +
-						  i * sizeof(*sec));
-		if ((be32_to_cpu(sec->type) & PATCH_SEC_TYPE_MASK) !=
-		    PATCH_SEC_TYPE_INFO) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		addr = be32_to_cpu(sec->info.addr);
-		len = be32_to_cpu(sec->info.len);
-		dl = fw->data + be32_to_cpu(sec->offs);
-		sec_info = be32_to_cpu(sec->info.sec_key_idx);
-		mode = mt7921_get_data_mode(dev, sec_info);
-
-		ret = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
-						    mode);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					       dl, len, max_len);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send patch\n");
-			goto out;
-		}
-	}
-
-	ret = mt76_connac_mcu_start_patch(&dev->mt76);
-	if (ret)
-		dev_err(dev->mt76.dev, "Failed to start patch\n");
-
-	if (mt76_is_sdio(&dev->mt76)) {
-		/* activate again */
-		ret = __mt7921_mcu_fw_pmctrl(dev);
-		if (!ret)
-			ret = __mt7921_mcu_drv_pmctrl(dev);
-	}
-
-out:
-	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, false);
-	switch (sem) {
-	case PATCH_REL_SEM_SUCCESS:
-		break;
-	default:
-		ret = -EAGAIN;
-		dev_err(dev->mt76.dev, "Failed to release patch semaphore\n");
-		break;
-	}
-	release_firmware(fw);
-
-	return ret;
-}
-
-static int
-mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
-			     const struct mt7921_fw_trailer *hdr,
-			     const u8 *data, bool is_wa)
-{
-	int i, offset = 0, max_len;
-	u32 override = 0, option = 0;
-
-	max_len = mt76_is_sdio(&dev->mt76) ? 2048 : 4096;
-
-	for (i = 0; i < hdr->n_region; i++) {
-		const struct mt7921_fw_region *region;
-		int err;
-		u32 len, addr, mode;
-
-		region = (const struct mt7921_fw_region *)((const u8 *)hdr -
-			 (hdr->n_region - i) * sizeof(*region));
-		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
-						   region->feature_set, is_wa);
-		len = le32_to_cpu(region->len);
-		addr = le32_to_cpu(region->addr);
-
-		if (region->feature_set & FW_FEATURE_OVERRIDE_ADDR)
-			override = addr;
-
-		err = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
-						    mode);
-		if (err) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			return err;
-		}
-
-		err = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					       data + offset, len, max_len);
-		if (err) {
-			dev_err(dev->mt76.dev, "Failed to send firmware.\n");
-			return err;
-		}
-
-		offset += len;
-	}
-
-	if (override)
-		option |= FW_START_OVERRIDE;
-
-	if (is_wa)
-		option |= FW_START_WORKING_PDA_CR4;
-
-	return mt76_connac_mcu_start_firmware(&dev->mt76, override, option);
 }
 
 static char *mt7921_ram_name(struct mt7921_dev *dev)
@@ -667,44 +354,6 @@ static char *mt7921_ram_name(struct mt7921_dev *dev)
 	return ret;
 }
 
-static int mt7921_load_ram(struct mt7921_dev *dev)
-{
-	const struct mt7921_fw_trailer *hdr;
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, mt7921_ram_name(dev), dev->mt76.dev);
-	if (ret)
-		return ret;
-
-	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
-		dev_err(dev->mt76.dev, "Invalid firmware\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	hdr = (const struct mt7921_fw_trailer *)(fw->data + fw->size -
-					sizeof(*hdr));
-
-	dev_info(dev->mt76.dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
-		 hdr->fw_ver, hdr->build_date);
-
-	ret = mt7921_mcu_send_ram_firmware(dev, hdr, fw->data, false);
-	if (ret) {
-		dev_err(dev->mt76.dev, "Failed to start WM firmware\n");
-		goto out;
-	}
-
-	snprintf(dev->mt76.hw->wiphy->fw_version,
-		 sizeof(dev->mt76.hw->wiphy->fw_version),
-		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-
-out:
-	release_firmware(fw);
-
-	return ret;
-}
-
 static int mt7921_load_firmware(struct mt7921_dev *dev)
 {
 	int ret;
@@ -715,11 +364,18 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 		goto fw_loaded;
 	}
 
-	ret = mt7921_load_patch(dev);
+	ret = mt76_connac2_load_patch(&dev->mt76, mt7921_patch_name(dev));
 	if (ret)
 		return ret;
 
-	ret = mt7921_load_ram(dev);
+	if (mt76_is_sdio(&dev->mt76)) {
+		/* activate again */
+		ret = __mt7921_mcu_fw_pmctrl(dev);
+		if (!ret)
+			ret = __mt7921_mcu_drv_pmctrl(dev);
+	}
+
+	ret = mt76_connac2_load_ram(&dev->mt76, mt7921_ram_name(dev), NULL);
 	if (ret)
 		return ret;
 
@@ -770,12 +426,6 @@ int mt7921_run_firmware(struct mt7921_dev *dev)
 	return mt7921_mcu_fw_log_2_host(dev, 1);
 }
 EXPORT_SYMBOL_GPL(mt7921_run_firmware);
-
-void mt7921_mcu_exit(struct mt7921_dev *dev)
-{
-	skb_queue_purge(&dev->mt76.mcu.res_q);
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_exit);
 
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
@@ -972,7 +622,7 @@ int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 		.ps = {
 			.tag = cpu_to_le16(UNI_BSS_INFO_PS),
 			.len = cpu_to_le16(sizeof(struct ps_tlv)),
-			.ps_state = vif->bss_conf.ps ? 2 : 0,
+			.ps_state = vif->cfg.ps ? 2 : 0,
 		},
 	};
 
@@ -1019,7 +669,7 @@ mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 				 &bcnft_req, sizeof(bcnft_req), true);
 }
 
-static int
+int
 mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 		      bool enable)
 {
@@ -1036,7 +686,7 @@ mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 		u8 pad;
 	} req = {
 		.bss_idx = mvif->mt76.idx,
-		.aid = cpu_to_le16(vif->bss_conf.aid),
+		.aid = cpu_to_le16(vif->cfg.aid),
 		.dtim_period = vif->bss_conf.dtim_period,
 		.bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int),
 	};
@@ -1047,9 +697,6 @@ mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 		.bss_idx = mvif->mt76.idx,
 	};
 	int err;
-
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return 0;
 
 	err = mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(SET_BSS_ABORT),
 				&req_hdr, sizeof(req_hdr), false);
@@ -1132,7 +779,6 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 				 struct ieee80211_vif *vif,
 				 bool enable)
 {
-	struct ieee80211_hw *hw = mt76_hw(dev);
 	int err;
 
 	if (enable) {
@@ -1140,8 +786,6 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 		if (err)
 			return err;
 
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		ieee80211_hw_set(hw, CONNECTION_MONITOR);
 		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
 
 		return 0;
@@ -1151,8 +795,6 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 	if (err)
 		return err;
 
-	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
-	__clear_bit(IEEE80211_HW_CONNECTION_MONITOR, hw->flags);
 	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
 
 	return 0;
@@ -1255,10 +897,13 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 	};
 	struct sk_buff *skb;
 
+	/* support enable/update process only
+	 * disable flow would be handled in bss stop handler automatically
+	 */
 	if (!enable)
-		goto out;
+		return -EOPNOTSUPP;
 
-	skb = ieee80211_beacon_get_template(mt76_hw(dev), vif, &offs);
+	skb = ieee80211_beacon_get_template(mt76_hw(dev), vif, &offs, 0);
 	if (!skb)
 		return -EINVAL;
 
@@ -1268,8 +913,8 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 		return -EINVAL;
 	}
 
-	mt7921_mac_write_txwi(dev, (__le32 *)(req.beacon_tlv.pkt), skb,
-			      wcid, NULL, 0, true);
+	mt76_connac2_mac_write_txwi(&dev->mt76, (__le32 *)(req.beacon_tlv.pkt),
+				    skb, wcid, NULL, 0, 0, BSS_CHANGED_BEACON);
 	memcpy(req.beacon_tlv.pkt + MT_TXD_SIZE, skb->data, skb->len);
 	req.beacon_tlv.pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
 	req.beacon_tlv.tim_ie_pos = cpu_to_le16(MT_TXD_SIZE + offs.tim_offset);
@@ -1282,7 +927,6 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 	}
 	dev_kfree_skb(skb);
 
-out:
 	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
 				 &req, sizeof(req), true);
 }

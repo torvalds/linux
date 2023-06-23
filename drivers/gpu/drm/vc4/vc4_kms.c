@@ -16,6 +16,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
@@ -405,7 +406,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		 * Do a temporary request on the core clock during the
 		 * modeset.
 		 */
-		clk_set_min_rate(hvs->core_clk, core_rate);
+		WARN_ON(clk_set_min_rate(hvs->core_clk, core_rate));
 	}
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
@@ -438,7 +439,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		 * Request a clock rate based on the current HVS
 		 * requirements.
 		 */
-		clk_set_min_rate(hvs->core_clk, new_hvs_state->core_clock_rate);
+		WARN_ON(clk_set_min_rate(hvs->core_clk, new_hvs_state->core_clock_rate));
 
 		drm_dbg(dev, "Core clock actual rate: %lu Hz\n",
 			clk_get_rate(hvs->core_clk));
@@ -950,7 +951,9 @@ vc4_core_clock_atomic_check(struct drm_atomic_state *state)
 			continue;
 
 		num_outputs++;
-		cob_rate += hvs_new_state->fifo_state[i].fifo_load;
+		cob_rate = max_t(unsigned long,
+				 hvs_new_state->fifo_state[i].fifo_load,
+				 cob_rate);
 	}
 
 	pixel_rate = load_state->hvs_load;

@@ -317,6 +317,7 @@ static inline struct ssusb_mtk *dev_to_ssusb(struct device *dev)
  * @ep0_req: dummy request used while handling standard USB requests
  *		for GET_STATUS and SET_SEL
  * @setup_buf: ep0 response buffer for GET_STATUS and SET_SEL requests
+ * @u3_capable: is capable of supporting USB3
  */
 struct mtu3 {
 	spinlock_t lock;
@@ -353,10 +354,12 @@ struct mtu3 {
 	unsigned softconnect:1;
 	unsigned u1_enable:1;
 	unsigned u2_enable:1;
-	unsigned is_u3_ip:1;
+	unsigned u3_capable:1;
 	unsigned delayed_status:1;
 	unsigned gen2cp:1;
 	unsigned connected:1;
+	unsigned async_callbacks:1;
+	unsigned separate_fifo:1;
 
 	u8 address;
 	u8 test_mode_nr;

@@ -42,8 +42,6 @@ source "drivers/staging/rts5208/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
-source "drivers/staging/octeon-usb/Kconfig"
-
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"

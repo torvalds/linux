@@ -84,42 +84,42 @@
 			};
 
 			reg_buck1: buck1 {
-				regulator-min-microvolt =  <400000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
 			reg_buck2: buck2 {
-				regulator-min-microvolt =  <400000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
 			reg_buck3: buck3 {
-				regulator-min-microvolt =  <400000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
 			reg_buck4: buck4 {
-				regulator-min-microvolt =  <400000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
 			reg_buck5: buck5 {
-				regulator-min-microvolt =  <400000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
 			reg_buck6: buck6 {
-				regulator-min-microvolt =  <400000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;

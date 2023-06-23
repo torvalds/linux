@@ -376,7 +376,7 @@ static ssize_t xilinx_dpdma_debugfs_read(struct file *f, char __user *buf,
 		if (ret < 0)
 			goto done;
 	} else {
-		strlcpy(kern_buff, "No testcase executed",
+		strscpy(kern_buff, "No testcase executed",
 			XILINX_DPDMA_DEBUGFS_READ_MAX_SIZE);
 	}
 
@@ -1652,10 +1652,8 @@ static int xilinx_dpdma_probe(struct platform_device *pdev)
 	dpdma_hw_init(xdev);
 
 	xdev->irq = platform_get_irq(pdev, 0);
-	if (xdev->irq < 0) {
-		dev_err(xdev->dev, "failed to get platform irq\n");
+	if (xdev->irq < 0)
 		return xdev->irq;
-	}
 
 	ret = request_irq(xdev->irq, xilinx_dpdma_irq_handler, IRQF_SHARED,
 			  dev_name(xdev->dev), xdev);

@@ -213,7 +213,7 @@
 
 			u48: pca9575@22 {
 				compatible = "nxp,pca9575";
-				reg=<0x22>;
+				reg = <0x22>;
 				gpio-controller;
 				#gpio-cells = <2>;
 
@@ -232,7 +232,7 @@
 
 			u59: pca9575@23 {
 				compatible = "nxp,pca9575";
-				reg=<0x23>;
+				reg = <0x23>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				gpio-line-names =

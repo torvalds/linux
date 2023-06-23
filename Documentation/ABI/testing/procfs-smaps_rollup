@@ -22,6 +22,7 @@ Description:
 			MMUPageSize:           4 kB
 			Rss:		     884 kB
 			Pss:		     385 kB
+			Pss_Dirty:	      68 kB
 			Pss_Anon:	     301 kB
 			Pss_File:	      80 kB
 			Pss_Shmem:	       4 kB

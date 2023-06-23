@@ -268,7 +268,7 @@ config LOONGSON2_CPUFREQ
 	  This option adds a CPUFreq driver for loongson processors which
 	  support software configurable cpu frequency.
 
-	  Loongson2F and it's successors support this feature.
+	  Loongson2F and its successors support this feature.
 
 	  If in doubt, say N.
 

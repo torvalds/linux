@@ -26,7 +26,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_gpio_gpio>;	/* GPIO11 */
 
-		user_btn1 {
+		button {
 			label = "USER_BTN1";
 			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
 			linux,code =<KEY_PROG1> ;

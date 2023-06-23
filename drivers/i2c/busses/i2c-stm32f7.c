@@ -410,6 +410,12 @@ static const struct stm32f7_i2c_setup stm32mp15_setup = {
 	.fmp_clr_offset = 0x40,
 };
 
+static const struct stm32f7_i2c_setup stm32mp13_setup = {
+	.rise_time = STM32F7_I2C_RISE_TIME_DEFAULT,
+	.fall_time = STM32F7_I2C_FALL_TIME_DEFAULT,
+	.fmp_clr_offset = 0x4,
+};
+
 static inline void stm32f7_i2c_set_bits(void __iomem *reg, u32 mask)
 {
 	writel_relaxed(readl_relaxed(reg) | mask, reg);
@@ -2468,6 +2474,7 @@ static const struct dev_pm_ops stm32f7_i2c_pm_ops = {
 static const struct of_device_id stm32f7_i2c_match[] = {
 	{ .compatible = "st,stm32f7-i2c", .data = &stm32f7_setup},
 	{ .compatible = "st,stm32mp15-i2c", .data = &stm32mp15_setup},
+	{ .compatible = "st,stm32mp13-i2c", .data = &stm32mp13_setup},
 	{},
 };
 MODULE_DEVICE_TABLE(of, stm32f7_i2c_match);

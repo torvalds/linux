@@ -1106,7 +1106,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	writel(0, &rxmac->mif_ctrl);
 	writel(0, &rxmac->space_avail);
 
-	/* Initialize the the mif_ctrl register
+	/* Initialize the mif_ctrl register
 	 * bit 3:  Receive code error. One or more nibbles were signaled as
 	 *	   errors  during the reception of the packet.  Clear this
 	 *	   bit in Gigabit, set it in 100Mbit.  This was derived

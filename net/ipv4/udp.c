@@ -125,6 +125,8 @@ EXPORT_SYMBOL(sysctl_udp_mem);
 
 atomic_long_t udp_memory_allocated ____cacheline_aligned_in_smp;
 EXPORT_SYMBOL(udp_memory_allocated);
+DEFINE_PER_CPU(int, udp_memory_per_cpu_fw_alloc);
+EXPORT_PER_CPU_SYMBOL_GPL(udp_memory_per_cpu_fw_alloc);
 
 #define MAX_UDP_PORTS 65536
 #define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN)
@@ -781,6 +783,8 @@ int __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 	 */
 	if (tunnel) {
 		/* ...not for tunnels though: we don't have a sending socket */
+		if (udp_sk(sk)->encap_err_rcv)
+			udp_sk(sk)->encap_err_rcv(sk, skb, iph->ihl << 2);
 		goto out;
 	}
 	if (!inet->recverr) {
@@ -1461,11 +1465,11 @@ static void udp_rmem_release(struct sock *sk, int size, int partial,
 
 
 	sk->sk_forward_alloc += size;
-	amt = (sk->sk_forward_alloc - partial) & ~(SK_MEM_QUANTUM - 1);
+	amt = (sk->sk_forward_alloc - partial) & ~(PAGE_SIZE - 1);
 	sk->sk_forward_alloc -= amt;
 
 	if (amt)
-		__sk_mem_reduce_allocated(sk, amt >> SK_MEM_QUANTUM_SHIFT);
+		__sk_mem_reduce_allocated(sk, amt >> PAGE_SHIFT);
 
 	atomic_sub(size, &sk->sk_rmem_alloc);
 
@@ -1558,7 +1562,7 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	spin_lock(&list->lock);
 	if (size >= sk->sk_forward_alloc) {
 		amt = sk_mem_pages(size);
-		delta = amt << SK_MEM_QUANTUM_SHIFT;
+		delta = amt << PAGE_SHIFT;
 		if (!__sk_mem_raise_allocated(sk, delta, amt, SK_MEM_RECV)) {
 			err = -ENOBUFS;
 			spin_unlock(&list->lock);
@@ -1795,8 +1799,7 @@ busy_check:
 }
 EXPORT_SYMBOL(__skb_recv_udp);
 
-int udp_read_sock(struct sock *sk, read_descriptor_t *desc,
-		  sk_read_actor_t recv_actor)
+int udp_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 {
 	int copied = 0;
 
@@ -1818,7 +1821,8 @@ int udp_read_sock(struct sock *sk, read_descriptor_t *desc,
 			continue;
 		}
 
-		used = recv_actor(desc, skb, 0, skb->len);
+		WARN_ON_ONCE(!skb_set_owner_sk_safe(skb, sk));
+		used = recv_actor(sk, skb);
 		if (used <= 0) {
 			if (!copied)
 				copied = used;
@@ -1829,13 +1833,12 @@ int udp_read_sock(struct sock *sk, read_descriptor_t *desc,
 		}
 
 		kfree_skb(skb);
-		if (!desc->count)
-			break;
+		break;
 	}
 
 	return copied;
 }
-EXPORT_SYMBOL(udp_read_sock);
+EXPORT_SYMBOL(udp_read_skb);
 
 /*
  * 	This should be easy, if there is something there we
@@ -2946,6 +2949,8 @@ struct proto udp_prot = {
 	.psock_update_sk_prot	= udp_bpf_update_proto,
 #endif
 	.memory_allocated	= &udp_memory_allocated,
+	.per_cpu_fw_alloc	= &udp_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem		= sysctl_udp_mem,
 	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_udp_wmem_min),
 	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_udp_rmem_min),
@@ -3261,19 +3266,15 @@ u32 udp_flow_hashrnd(void)
 }
 EXPORT_SYMBOL(udp_flow_hashrnd);
 
-static void __udp_sysctl_init(struct net *net)
+static int __net_init udp_sysctl_init(struct net *net)
 {
-	net->ipv4.sysctl_udp_rmem_min = SK_MEM_QUANTUM;
-	net->ipv4.sysctl_udp_wmem_min = SK_MEM_QUANTUM;
+	net->ipv4.sysctl_udp_rmem_min = PAGE_SIZE;
+	net->ipv4.sysctl_udp_wmem_min = PAGE_SIZE;
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	net->ipv4.sysctl_udp_l3mdev_accept = 0;
 #endif
-}
 
-static int __net_init udp_sysctl_init(struct net *net)
-{
-	__udp_sysctl_init(net);
 	return 0;
 }
 
@@ -3348,8 +3349,6 @@ void __init udp_init(void)
 	sysctl_udp_mem[0] = limit / 4 * 3;
 	sysctl_udp_mem[1] = limit;
 	sysctl_udp_mem[2] = sysctl_udp_mem[0] * 2;
-
-	__udp_sysctl_init(&init_net);
 
 	/* 16 spinlocks per cpu */
 	udp_busylocks_log = ilog2(nr_cpu_ids) + 4;

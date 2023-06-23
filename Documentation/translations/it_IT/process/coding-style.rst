@@ -466,13 +466,51 @@ la riga della parentesi graffa di chiusura. Ad esempio:
 	}
 	EXPORT_SYMBOL(system_is_up);
 
+6.1) Prototipi di funzione
+**************************
+
 Nei prototipi di funzione, includete i nomi dei parametri e i loro tipi.
 Nonostante questo non sia richiesto dal linguaggio C, in Linux viene preferito
 perché è un modo semplice per aggiungere informazioni importanti per il
 lettore.
 
-Non usate la parola chiave ``extern`` coi prototipi di funzione perché
+Non usate la parola chiave ``extern`` con le dichiarazioni di funzione perché
 rende le righe più lunghe e non è strettamente necessario.
+
+Quando scrivete i prototipi di funzione mantenete `l'ordine degli elementi <https://lore.kernel.org/mm-commits/CAHk-=wiOCLRny5aifWNhr621kYrJwhfURsa0vFPeUEm8mF0ufg@mail.gmail.com/>`_.
+
+Prendiamo questa dichiarazione di funzione come esempio::
+
+ __init void * __must_check action(enum magic value, size_t size, u8 count,
+                                  char *fmt, ...) __printf(4, 5) __malloc;
+
+L'ordine suggerito per gli elementi di un prototipo di funzione è il seguente:
+
+- classe d'archiviazione (in questo caso ``static __always_inline``. Da notare
+  che ``__always_inline`` è tecnicamente un attributo ma che viene trattato come
+  ``inline``)
+- attributi della classe di archiviazione (in questo caso ``__init``, in altre
+  parole la sezione, ma anche cose tipo ``__cold``)
+- il tipo di ritorno (in questo caso, ``void *``)
+- attributi per il valore di ritorno (in questo caso, ``__must_check``)
+- il nome della funzione (in questo caso, ``action``)
+- i parametri della funzione(in questo caso,
+  ``(enum magic value, size_t size, u8 count, char *fmt, ...)``,
+  da notare che va messo anche il nome del parametro)
+- attributi dei parametri (in questo caso, ``__printf(4, 5)``)
+- attributi per il comportamento della funzione (in questo caso, ``__malloc_``)
+
+Notate che per la **definizione** di una funzione (il altre parole il corpo
+della funzione), il compilatore non permette di usare gli attributi per i
+parametri dopo i parametri. In questi casi, devono essere messi dopo gli
+attributi della classe d'archiviazione (notate che la posizione di
+``__printf(4,5)`` cambia rispetto alla **dichiarazione**)::
+
+ static __always_inline __init __printf(4, 5) void * __must_check action(enum magic value,
+              size_t size, u8 count, char *fmt, ...) __malloc
+ {
+         ...
+ }*)**``)**``)``)``*)``)``)``)``*``)``)``)*)
 
 7) Centralizzare il ritorno delle funzioni
 ------------------------------------------
@@ -855,7 +893,7 @@ I messaggi del kernel non devono terminare con un punto fermo.
 Scrivere i numeri fra parentesi (%d) non migliora alcunché e per questo
 dovrebbero essere evitati.
 
-Ci sono alcune macro per la diagnostica in <linux/device.h> che dovreste
+Ci sono alcune macro per la diagnostica in <linux/dev_printk.h> che dovreste
 usare per assicurarvi che i messaggi vengano associati correttamente ai
 dispositivi e ai driver, e che siano etichettati correttamente:  dev_err(),
 dev_warn(), dev_info(), e così via.  Per messaggi che non sono associati ad

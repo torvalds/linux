@@ -79,10 +79,12 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		link->psr_settings.psr_feature_enabled = true;
 	}
 
-	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d\n",
+	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d DPCD caps 0x%x su_y_granularity %d\n",
 		link->psr_settings.psr_feature_enabled,
 		link->psr_settings.psr_version,
-		link->dpcd_caps.psr_info.psr_version);
+		link->dpcd_caps.psr_info.psr_version,
+		link->dpcd_caps.psr_info.psr_dpcd_caps.raw,
+		link->dpcd_caps.psr_info.psr2_su_y_granularity_cap);
 
 }
 
@@ -97,19 +99,24 @@ bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 	struct dc_link *link = NULL;
 	struct psr_config psr_config = {0};
 	struct psr_context psr_context = {0};
+	struct dc *dc = NULL;
 	bool ret = false;
 
 	if (stream == NULL)
 		return false;
 
 	link = stream->link;
+	dc = link->ctx->dc;
 
 	if (link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
-		psr_config.psr_version = link->psr_settings.psr_version;
-		psr_config.psr_frame_capture_indication_req = 0;
-		psr_config.psr_rfb_setup_time = 0x37;
-		psr_config.psr_sdp_transmit_line_num_deadline = 0x20;
-		psr_config.allow_smu_optimizations = 0x0;
+		mod_power_calc_psr_configs(&psr_config, link, stream);
+
+		/* linux DM specific updating for psr config fields */
+		psr_config.allow_smu_optimizations =
+			(amdgpu_dc_feature_mask & DC_PSR_ALLOW_SMU_OPT) &&
+			mod_power_only_edp(dc->current_state, stream);
+		psr_config.allow_multi_disp_optimizations =
+			(amdgpu_dc_feature_mask & DC_PSR_ALLOW_MULTI_DISP_OPT);
 
 		ret = dc_link_setup_psr(link, stream, &psr_config, &psr_context);
 
@@ -163,7 +170,13 @@ bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 					   &stream, 1,
 					   &params);
 
-	power_opt |= psr_power_opt_z10_static_screen;
+	/*
+	 * Only enable static-screen optimizations for PSR1. For PSR SU, this
+	 * causes vstartup interrupt issues, used by amdgpu_dm to send vblank
+	 * events.
+	 */
+	if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1)
+		power_opt |= psr_power_opt_z10_static_screen;
 
 	return dc_link_set_psr_allow_active(link, &psr_enable, false, false, &power_opt);
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
@@ -398,7 +398,7 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	}
 
 	rcu_read_lock();
-	pctx = rcu_dereference(vif->chanctx_conf);
+	pctx = rcu_dereference(vif->bss_conf.chanctx_conf);
 	/* Copy the ctx to unlock the rcu and send the phy ctxt. We don't care
 	 * about changes in the ctx after releasing the lock because the driver
 	 * is still protected by the mutex. */

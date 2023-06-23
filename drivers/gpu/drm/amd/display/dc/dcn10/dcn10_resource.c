@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "dc.h"
 
@@ -742,6 +740,7 @@ static const struct encoder_feature_support link_enc_feature = {
 };
 
 static struct link_encoder *dcn10_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn10_link_encoder *enc10 =

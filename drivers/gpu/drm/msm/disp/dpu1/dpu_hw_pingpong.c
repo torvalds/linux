@@ -51,10 +51,7 @@ static const struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
 
 	for (i = 0; i < m->pingpong_count; i++) {
 		if (pp == m->pingpong[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->pingpong[i].base;
-			b->length = m->pingpong[i].len;
-			b->hwversion = m->hwversion;
+			b->blk_addr = addr + m->pingpong[i].base;
 			b->log_mask = DPU_DBG_MASK_PINGPONG;
 			return &m->pingpong[i];
 		}
@@ -158,7 +155,7 @@ static int dpu_hw_pp_poll_timeout_wr_ptr(struct dpu_hw_pingpong *pp,
 		return -EINVAL;
 
 	c = &pp->hw;
-	rc = readl_poll_timeout(c->base_off + c->blk_off + PP_LINE_COUNT,
+	rc = readl_poll_timeout(c->blk_addr + PP_LINE_COUNT,
 			val, (val & 0xffff) >= 1, 10, timeout_us);
 
 	return rc;

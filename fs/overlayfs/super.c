@@ -301,7 +301,7 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
 
 /**
  * ovl_statfs
- * @sb: The overlayfs super block
+ * @dentry: The dentry to query
  * @buf: The struct kstatfs to fill in with stats
  *
  * Get the filesystem statistics.  As writes always target the upper layer
@@ -349,6 +349,8 @@ static inline int ovl_xino_def(void)
 
 /**
  * ovl_show_options
+ * @m: the seq_file handle
+ * @dentry: The dentry to query
  *
  * Prints the mount options for a given superblock.
  * Returns zero; does not fail.
@@ -1003,9 +1005,6 @@ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, void *buffer, size_t size)
 {
-	if (!IS_POSIXACL(inode))
-		return -EOPNOTSUPP;
-
 	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
 }
 
@@ -1020,9 +1019,6 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 	struct inode *realinode = ovl_inode_real(inode);
 	struct posix_acl *acl = NULL;
 	int err;
-
-	if (!IS_POSIXACL(inode))
-		return -EOPNOTSUPP;
 
 	/* Check that everything is OK before copy-up */
 	if (value) {
@@ -1418,11 +1414,12 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	 */
 	err = ovl_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
 	if (err) {
+		pr_warn("failed to set xattr on upper\n");
 		ofs->noxattr = true;
 		if (ofs->config.index || ofs->config.metacopy) {
 			ofs->config.index = false;
 			ofs->config.metacopy = false;
-			pr_warn("upper fs does not support xattr, falling back to index=off,metacopy=off.\n");
+			pr_warn("...falling back to index=off,metacopy=off.\n");
 		}
 		/*
 		 * xattr support is required for persistent st_ino.
@@ -1430,8 +1427,10 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		 */
 		if (ofs->config.xino == OVL_XINO_AUTO) {
 			ofs->config.xino = OVL_XINO_OFF;
-			pr_warn("upper fs does not support xattr, falling back to xino=off.\n");
+			pr_warn("...falling back to xino=off.\n");
 		}
+		if (err == -EPERM && !ofs->config.userxattr)
+			pr_info("try mounting with 'userxattr' option\n");
 		err = 0;
 	} else {
 		ovl_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
@@ -1966,20 +1965,6 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	return root;
 }
 
-static bool ovl_has_idmapped_layers(struct ovl_fs *ofs)
-{
-
-	unsigned int i;
-	const struct vfsmount *mnt;
-
-	for (i = 0; i < ofs->numlayer; i++) {
-		mnt = ofs->layers[i].mnt;
-		if (mnt && is_idmapped_mnt(mnt))
-			return true;
-	}
-	return false;
-}
-
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { };
@@ -2052,7 +2037,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_stack_depth = 0;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	atomic_long_set(&ofs->last_ino, 1);
-	/* Assume underlaying fs uses 32bit inodes unless proven otherwise */
+	/* Assume underlying fs uses 32bit inodes unless proven otherwise */
 	if (ofs->config.xino != OVL_XINO_OFF) {
 		ofs->xino_mode = BITS_PER_LONG - 32;
 		if (!ofs->xino_mode) {
@@ -2149,10 +2134,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_xattr = ofs->config.userxattr ? ovl_user_xattr_handlers :
 		ovl_trusted_xattr_handlers;
 	sb->s_fs_info = ofs;
-	if (ovl_has_idmapped_layers(ofs))
-		pr_warn("POSIX ACLs are not yet supported with idmapped layers, mounting without ACL support.\n");
-	else
-		sb->s_flags |= SB_POSIXACL;
+	sb->s_flags |= SB_POSIXACL;
 	sb->s_iflags |= SB_I_SKIP_SYNC;
 
 	err = -ENOMEM;

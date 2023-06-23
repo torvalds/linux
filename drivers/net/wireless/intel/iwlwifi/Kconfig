@@ -140,6 +140,7 @@ config IWLMEI
 	depends on INTEL_MEI
 	depends on PM
 	depends on CFG80211
+	depends on BROKEN
 	help
 	  Enables the iwlmei kernel module.
 

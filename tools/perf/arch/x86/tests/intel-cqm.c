@@ -56,7 +56,7 @@ int test__intel_cqm_count_nmi_context(struct test_suite *test __maybe_unused, in
 		return TEST_FAIL;
 	}
 
-	ret = parse_events(evlist, "intel_cqm/llc_occupancy/", NULL);
+	ret = parse_event(evlist, "intel_cqm/llc_occupancy/");
 	if (ret) {
 		pr_debug("parse_events failed, is \"intel_cqm/llc_occupancy/\" available?\n");
 		err = TEST_SKIP;

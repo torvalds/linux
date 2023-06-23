@@ -26,6 +26,9 @@
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netns/conntrack.h>
 #endif
+#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+#include <net/netns/flow_table.h>
+#endif
 #include <net/netns/nftables.h>
 #include <net/netns/xfrm.h>
 #include <net/netns/mpls.h>
@@ -120,7 +123,9 @@ struct net {
 	struct netns_core	core;
 	struct netns_mib	mib;
 	struct netns_packet	packet;
+#if IS_ENABLED(CONFIG_UNIX)
 	struct netns_unix	unx;
+#endif
 	struct netns_nexthop	nexthop;
 	struct netns_ipv4	ipv4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -139,6 +144,9 @@ struct net {
 #endif
 #if defined(CONFIG_NF_TABLES) || defined(CONFIG_NF_TABLES_MODULE)
 	struct netns_nftables	nft;
+#endif
+#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+	struct netns_ft ft;
 #endif
 #endif
 #ifdef CONFIG_WEXT_CORE

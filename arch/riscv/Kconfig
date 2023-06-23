@@ -86,7 +86,7 @@ config RISCV
 	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_VMAP_STACK if MMU && 64BIT
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_CONTEXT_TRACKING
+	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS if MMU
 	select HAVE_EBPF_JIT if MMU
@@ -113,6 +113,7 @@ config RISCV
 	select MODULES_USE_ELF_RELA if MODULES
 	select MODULE_SECTIONS if MODULES
 	select OF
+	select OF_DMA_DEFAULT_COHERENT
 	select OF_EARLY_FLATTREE
 	select OF_IRQ
 	select PCI_DOMAINS_GENERIC if PCI
@@ -218,10 +219,33 @@ config PGTABLE_LEVELS
 config LOCKDEP_SUPPORT
 	def_bool y
 
+config RISCV_DMA_NONCOHERENT
+	bool
+	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SETUP_DMA_OPS
+	select DMA_DIRECT_REMAP
+
 source "arch/riscv/Kconfig.socs"
 source "arch/riscv/Kconfig.erratas"
 
 menu "Platform type"
+
+config NONPORTABLE
+	bool "Allow configurations that result in non-portable kernels"
+	help
+	  RISC-V kernel binaries are compatible between all known systems
+	  whenever possible, but there are some use cases that can only be
+	  satisfied by configurations that result in kernel binaries that are
+	  not portable between systems.
+
+	  Selecting N does not guarantee kernels will be portable to all known
+	  systems.  Selecting any of the options guarded by NONPORTABLE will
+	  result in kernel binaries that are unlikely to be portable between
+	  systems.
+
+	  If unsure, say N.
 
 choice
 	prompt "Base ISA"
@@ -232,6 +256,7 @@ choice
 
 config ARCH_RV32I
 	bool "RV32I"
+	depends on NONPORTABLE
 	select 32BIT
 	select GENERIC_LIB_ASHLDI3
 	select GENERIC_LIB_ASHRDI3
@@ -352,15 +377,16 @@ config RISCV_ISA_C
 	bool "Emit compressed instructions when building Linux"
 	default y
 	help
-	   Adds "C" to the ISA subsets that the toolchain is allowed to emit
-	   when building Linux, which results in compressed instructions in the
-	   Linux binary.
+	  Adds "C" to the ISA subsets that the toolchain is allowed to emit
+	  when building Linux, which results in compressed instructions in the
+	  Linux binary.
 
-	   If you don't know what to do here, say Y.
+	  If you don't know what to do here, say Y.
 
 config RISCV_ISA_SVPBMT
 	bool "SVPBMT extension support"
 	depends on 64BIT && MMU
+	depends on !XIP_KERNEL
 	select RISCV_ALTERNATIVE
 	default y
 	help
@@ -376,6 +402,28 @@ config RISCV_ISA_SVPBMT
 
 	   If you don't know what to do here, say Y.
 
+config CC_HAS_ZICBOM
+	bool
+	default y if 64BIT && $(cc-option,-mabi=lp64 -march=rv64ima_zicbom)
+	default y if 32BIT && $(cc-option,-mabi=ilp32 -march=rv32ima_zicbom)
+
+config RISCV_ISA_ZICBOM
+	bool "Zicbom extension support for non-coherent DMA operation"
+	depends on CC_HAS_ZICBOM
+	depends on !XIP_KERNEL && MMU
+	select RISCV_DMA_NONCOHERENT
+	select RISCV_ALTERNATIVE
+	default y
+	help
+	   Adds support to dynamically detect the presence of the ZICBOM
+	   extension (Cache Block Management Operations) and enable its
+	   usage.
+
+	   The Zicbom extension can be used to handle for example
+	   non-coherent DMA support on devices that need it.
+
+	   If you don't know what to do here, say Y.
+
 config FPU
 	bool "FPU support"
 	default y
@@ -385,7 +433,7 @@ config FPU
 
 	  If you don't know what to do here, say Y.
 
-endmenu
+endmenu # "Platform type"
 
 menu "Kernel features"
 
@@ -447,7 +495,6 @@ config KEXEC_FILE
 
 config ARCH_HAS_KEXEC_PURGATORY
 	def_bool KEXEC_FILE
-	select BUILD_BIN2C
 	depends on CRYPTO=y
 	depends on CRYPTO_SHA256=y
 
@@ -474,7 +521,7 @@ config COMPAT
 
 	  If you want to execute 32-bit userspace applications, say Y.
 
-endmenu
+endmenu # "Kernel features"
 
 menu "Boot options"
 
@@ -509,7 +556,6 @@ config CMDLINE_EXTEND
 	  appended to the built-in command line. This is useful in
 	  cases where the provided arguments are insufficient and
 	  you don't want to or cannot modify them.
-
 
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"
@@ -553,6 +599,7 @@ config STACKPROTECTOR_PER_TASK
 
 config PHYS_RAM_BASE_FIXED
 	bool "Explicitly specified physical RAM address"
+	depends on NONPORTABLE
 	default n
 
 config PHYS_RAM_BASE
@@ -566,7 +613,7 @@ config PHYS_RAM_BASE
 
 config XIP_KERNEL
 	bool "Kernel Execute-In-Place from ROM"
-	depends on MMU && SPARSEMEM
+	depends on MMU && SPARSEMEM && NONPORTABLE
 	# This prevents XIP from being enabled by all{yes,mod}config, which
 	# fail to build since XIP doesn't support large kernels.
 	depends on !COMPILE_TEST
@@ -602,23 +649,30 @@ config XIP_PHYS_ADDR
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
 
-endmenu
+endmenu # "Boot options"
 
 config BUILTIN_DTB
 	bool
-	depends on OF
+	depends on OF && NONPORTABLE
 	default y if XIP_KERNEL
+
+config PORTABLE
+	bool
+	default !NONPORTABLE
+	select EFI
+	select OF
+	select MMU
 
 menu "Power management options"
 
 source "kernel/power/Kconfig"
 
-endmenu
+endmenu # "Power management options"
 
 menu "CPU Power Management"
 
 source "drivers/cpuidle/Kconfig"
 
-endmenu
+endmenu # "CPU Power Management"
 
 source "arch/riscv/kvm/Kconfig"

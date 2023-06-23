@@ -30,11 +30,15 @@ properties:
 
   pwrkey:
     type: object
-    $ref: "../../input/qcom,pm8941-pwrkey.yaml#"
+    $ref: /schemas/input/qcom,pm8941-pwrkey.yaml#
 
   resin:
     type: object
-    $ref: "../../input/qcom,pm8941-pwrkey.yaml#"
+    $ref: /schemas/input/qcom,pm8941-pwrkey.yaml#
+
+  watchdog:
+    type: object
+    $ref: /schemas/watchdog/qcom,pm8916-wdt.yaml
 
 required:
   - compatible

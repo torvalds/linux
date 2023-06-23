@@ -106,6 +106,7 @@ struct rnbd_queue {
 };
 
 struct rnbd_clt_dev {
+	struct kobject		kobj;
 	struct rnbd_clt_session	*sess;
 	struct request_queue	*queue;
 	struct rnbd_queue	*hw_queues;
@@ -114,27 +115,14 @@ struct rnbd_clt_dev {
 	u32			clt_device_id;
 	struct mutex		lock;
 	enum rnbd_clt_dev_state	dev_state;
+	refcount_t		refcount;
 	char			*pathname;
 	enum rnbd_access_mode	access_mode;
 	u32			nr_poll_queues;
-	bool			read_only;
-	bool			wc;
-	bool			fua;
-	u32			max_hw_sectors;
-	u32			max_discard_sectors;
-	u32			discard_granularity;
-	u32			discard_alignment;
-	u16			secure_discard;
-	u16			physical_block_size;
-	u16			logical_block_size;
-	u16			max_segments;
-	size_t			nsectors;
 	u64			size;		/* device size in bytes */
 	struct list_head        list;
 	struct gendisk		*gd;
-	struct kobject		kobj;
 	char			*blk_symlink_name;
-	refcount_t		refcount;
 	struct work_struct	unmap_on_rmmod_work;
 };
 
@@ -150,7 +138,7 @@ int rnbd_clt_unmap_device(struct rnbd_clt_dev *dev, bool force,
 			   const struct attribute *sysfs_self);
 
 int rnbd_clt_remap_device(struct rnbd_clt_dev *dev);
-int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, size_t newsize);
+int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, sector_t newsize);
 
 /* rnbd-clt-sysfs.c */
 

@@ -28,6 +28,7 @@ properties:
               - allwinner,sun8i-h3-ohci
               - allwinner,sun8i-r40-ohci
               - allwinner,sun9i-a80-ohci
+              - allwinner,sun20i-d1-ohci
               - brcm,bcm3384-ohci
               - brcm,bcm63268-ohci
               - brcm,bcm6328-ohci

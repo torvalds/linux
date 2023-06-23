@@ -551,6 +551,10 @@ enum {
 	 * creation/deletion on drivers rescan. Unset during device attach.
 	 */
 	MLX5_PRIV_FLAGS_DETACH = 1 << 2,
+	/* Distinguish between mlx5e_probe/remove called by module init/cleanup
+	 * and called by other flows which can already hold devlink lock
+	 */
+	MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW = 1 << 3,
 };
 
 struct mlx5_adev {
@@ -606,6 +610,7 @@ struct mlx5_priv {
 	spinlock_t              ctx_lock;
 	struct mlx5_adev       **adev;
 	int			adev_idx;
+	int			sw_vhca_id;
 	struct mlx5_events      *events;
 
 	struct mlx5_flow_steering *steering;
@@ -676,6 +681,7 @@ struct mlx5e_resources {
 enum mlx5_sw_icm_type {
 	MLX5_SW_ICM_TYPE_STEERING,
 	MLX5_SW_ICM_TYPE_HEADER_MODIFY,
+	MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN,
 };
 
 #define MLX5_MAX_RESERVED_GIDS 8
@@ -727,10 +733,10 @@ enum {
 };
 
 enum {
-	MR_CACHE_LAST_STD_ENTRY = 20,
+	MKEY_CACHE_LAST_STD_ENTRY = 20,
 	MLX5_IMR_MTT_CACHE_ENTRY,
 	MLX5_IMR_KSM_CACHE_ENTRY,
-	MAX_MR_CACHE_ENTRIES
+	MAX_MKEY_CACHE_ENTRIES
 };
 
 struct mlx5_profile {
@@ -739,7 +745,7 @@ struct mlx5_profile {
 	struct {
 		int	size;
 		int	limit;
-	} mr_cache[MAX_MR_CACHE_ENTRIES];
+	} mr_cache[MAX_MKEY_CACHE_ENTRIES];
 };
 
 struct mlx5_hca_cap {
@@ -773,6 +779,7 @@ struct mlx5_core_dev {
 	enum mlx5_device_state	state;
 	/* sync interface state */
 	struct mutex		intf_state_mutex;
+	struct lock_class_key	lock_key;
 	unsigned long		intf_state;
 	struct mlx5_priv	priv;
 	struct mlx5_profile	profile;
@@ -1273,16 +1280,17 @@ enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
 
-static inline bool mlx5_is_roce_init_enabled(struct mlx5_core_dev *dev)
-{
-	struct devlink *devlink = priv_to_devlink(dev);
-	union devlink_param_value val;
-	int err;
+bool mlx5_is_roce_on(struct mlx5_core_dev *dev);
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
-						 &val);
-	return err ? MLX5_CAP_GEN(dev, roce) : val.vbool;
+static inline bool mlx5_get_roce_state(struct mlx5_core_dev *dev)
+{
+	if (MLX5_CAP_GEN(dev, roce_rw_supported))
+		return MLX5_CAP_GEN(dev, roce);
+
+	/* If RoCE cap is read-only in FW, get RoCE state from devlink
+	 * in order to support RoCE enable/disable feature
+	 */
+	return mlx5_is_roce_on(dev);
 }
 
 #endif /* MLX5_DRIVER_H */

@@ -46,6 +46,7 @@ typedef unsigned int	speed_t;
 #define EXTA		B19200
 #define EXTB		B38400
 
+#define ADDRB		0x20000000	/* address bit */
 #define CMSPAR		0x40000000	/* mark or space (stick) parity */
 #define CRTSCTS		0x80000000	/* flow control */
 

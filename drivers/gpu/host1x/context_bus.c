@@ -15,11 +15,6 @@ static int __init host1x_context_device_bus_init(void)
 {
 	int err;
 
-	if (!of_machine_is_compatible("nvidia,tegra186") &&
-	    !of_machine_is_compatible("nvidia,tegra194") &&
-	    !of_machine_is_compatible("nvidia,tegra234"))
-		return 0;
-
 	err = bus_register(&host1x_context_device_bus_type);
 	if (err < 0) {
 		pr_err("bus type registration failed: %d\n", err);

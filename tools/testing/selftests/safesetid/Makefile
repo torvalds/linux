@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Makefile for mount selftests.
+# Makefile for SafeSetID selftest.
 CFLAGS = -Wall -O2
 LDLIBS = -lcap
 

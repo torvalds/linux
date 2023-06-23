@@ -2,7 +2,7 @@
 /*
  * Xilinx Zynq MPSoC Firmware layer
  *
- *  Copyright (C) 2014-2021 Xilinx, Inc.
+ *  Copyright (C) 2014-2022 Xilinx, Inc.
  *
  *  Michal Simek <michal.simek@xilinx.com>
  *  Davorin Mista <davorin.mista@aggios.com>
@@ -339,6 +339,20 @@ int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 arg0, u32 arg1,
 
 static u32 pm_api_version;
 static u32 pm_tz_version;
+
+int zynqmp_pm_register_sgi(u32 sgi_num, u32 reset)
+{
+	int ret;
+
+	ret = zynqmp_pm_invoke_fn(TF_A_PM_REGISTER_SGI, sgi_num, reset, 0, 0,
+				  NULL);
+	if (!ret)
+		return ret;
+
+	/* try old implementation as fallback strategy if above fails */
+	return zynqmp_pm_invoke_fn(PM_IOCTL, 0, IOCTL_REGISTER_SGI, sgi_num,
+				   reset, NULL);
+}
 
 /**
  * zynqmp_pm_get_api_version() - Get version number of PMU PM firmware

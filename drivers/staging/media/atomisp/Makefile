@@ -13,7 +13,6 @@ atomisp = $(srctree)/drivers/staging/media/atomisp/
 
 # SPDX-License-Identifier: GPL-2.0
 atomisp-objs += \
-	pci/atomisp_acc.o \
 	pci/atomisp_cmd.o \
 	pci/atomisp_compat_css20.o \
 	pci/atomisp_csi2.o \
@@ -45,9 +44,7 @@ atomisp-objs += \
 	pci/camera/pipe/src/pipe_util.o \
 	pci/camera/util/src/util.o \
 	pci/hmm/hmm_bo.o \
-	pci/hmm/hmm_dynamic_pool.o \
 	pci/hmm/hmm.o \
-	pci/hmm/hmm_reserved_pool.o \
 	pci/ia_css_device_access.o \
 	pci/ia_css_isp_configs.o \
 	pci/ia_css_isp_states.o \

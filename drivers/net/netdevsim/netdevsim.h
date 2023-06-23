@@ -376,9 +376,6 @@ struct nsim_bus_dev {
 				  */
 	unsigned int max_vfs;
 	unsigned int num_vfs;
-	/* Lock for devlink->reload_enabled in netdevsim module */
-	struct mutex nsim_bus_reload_lock;
-	bool in_reload;
 	bool init;
 };
 

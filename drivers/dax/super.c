@@ -22,6 +22,8 @@
  * @private: dax driver private data
  * @flags: state and boolean properties
  * @ops: operations for this device
+ * @holder_data: holder of a dax_device: could be filesystem or mapped device
+ * @holder_ops: operations for the inner holder
  */
 struct dax_device {
 	struct inode inode;
@@ -29,6 +31,8 @@ struct dax_device {
 	void *private;
 	unsigned long flags;
 	const struct dax_operations *ops;
+	void *holder_data;
+	const struct dax_holder_operations *holder_ops;
 };
 
 static dev_t dax_devt;
@@ -71,8 +75,11 @@ EXPORT_SYMBOL_GPL(dax_remove_host);
  * fs_dax_get_by_bdev() - temporary lookup mechanism for filesystem-dax
  * @bdev: block device to find a dax_device for
  * @start_off: returns the byte offset into the dax_device that @bdev starts
+ * @holder: filesystem or mapped device inside the dax_device
+ * @ops: operations for the inner holder
  */
-struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev, u64 *start_off)
+struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev, u64 *start_off,
+		void *holder, const struct dax_holder_operations *ops)
 {
 	struct dax_device *dax_dev;
 	u64 part_size;
@@ -92,11 +99,26 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev, u64 *start_off)
 	dax_dev = xa_load(&dax_hosts, (unsigned long)bdev->bd_disk);
 	if (!dax_dev || !dax_alive(dax_dev) || !igrab(&dax_dev->inode))
 		dax_dev = NULL;
+	else if (holder) {
+		if (!cmpxchg(&dax_dev->holder_data, NULL, holder))
+			dax_dev->holder_ops = ops;
+		else
+			dax_dev = NULL;
+	}
 	dax_read_unlock(id);
 
 	return dax_dev;
 }
 EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
+
+void fs_put_dax(struct dax_device *dax_dev, void *holder)
+{
+	if (dax_dev && holder &&
+	    cmpxchg(&dax_dev->holder_data, holder, NULL) == holder)
+		dax_dev->holder_ops = NULL;
+	put_dax(dax_dev);
+}
+EXPORT_SYMBOL_GPL(fs_put_dax);
 #endif /* CONFIG_BLOCK && CONFIG_FS_DAX */
 
 enum dax_device_flags {
@@ -204,6 +226,29 @@ size_t dax_recovery_write(struct dax_device *dax_dev, pgoff_t pgoff,
 }
 EXPORT_SYMBOL_GPL(dax_recovery_write);
 
+int dax_holder_notify_failure(struct dax_device *dax_dev, u64 off,
+			      u64 len, int mf_flags)
+{
+	int rc, id;
+
+	id = dax_read_lock();
+	if (!dax_alive(dax_dev)) {
+		rc = -ENXIO;
+		goto out;
+	}
+
+	if (!dax_dev->holder_ops) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rc = dax_dev->holder_ops->notify_failure(dax_dev, off, len, mf_flags);
+out:
+	dax_read_unlock(id);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(dax_holder_notify_failure);
+
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size);
 void dax_flush(struct dax_device *dax_dev, void *addr, size_t size)
@@ -277,8 +322,15 @@ void kill_dax(struct dax_device *dax_dev)
 	if (!dax_dev)
 		return;
 
+	if (dax_dev->holder_data != NULL)
+		dax_holder_notify_failure(dax_dev, 0, U64_MAX, 0);
+
 	clear_bit(DAXDEV_ALIVE, &dax_dev->flags);
 	synchronize_srcu(&dax_srcu);
+
+	/* clear holder data */
+	dax_dev->holder_ops = NULL;
+	dax_dev->holder_data = NULL;
 }
 EXPORT_SYMBOL_GPL(kill_dax);
 
@@ -419,6 +471,19 @@ void put_dax(struct dax_device *dax_dev)
 	iput(&dax_dev->inode);
 }
 EXPORT_SYMBOL_GPL(put_dax);
+
+/**
+ * dax_holder() - obtain the holder of a dax device
+ * @dax_dev: a dax_device instance
+
+ * Return: the holder's data which represents the holder if registered,
+ * otherwize NULL.
+ */
+void *dax_holder(struct dax_device *dax_dev)
+{
+	return dax_dev->holder_data;
+}
+EXPORT_SYMBOL_GPL(dax_holder);
 
 /**
  * inode_dax: convert a public inode into its dax_dev

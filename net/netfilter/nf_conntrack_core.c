@@ -329,20 +329,18 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		return gre_pkt_to_tuple(skb, dataoff, net, tuple);
 #endif
 	case IPPROTO_TCP:
-	case IPPROTO_UDP: /* fallthrough */
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
+	case IPPROTO_UDP:
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
 	case IPPROTO_UDPLITE:
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 #endif
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 	case IPPROTO_SCTP:
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 #endif
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 	case IPPROTO_DCCP:
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 #endif
+		/* fallthrough */
+		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 	default:
 		break;
 	}
@@ -1784,7 +1782,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		}
 		spin_unlock_bh(&nf_conntrack_expect_lock);
 	}
-	if (!exp)
+	if (!exp && tmpl)
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 
 	/* Other CPU might have obtained a pointer to this object before it was
@@ -2070,10 +2068,6 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
 	if (ct->master || (help && !hlist_empty(&help->expectations)))
 		return;
-
-	rcu_read_lock();
-	__nf_ct_try_assign_helper(ct, NULL, GFP_ATOMIC);
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);
 
@@ -2799,7 +2793,6 @@ int nf_conntrack_init_net(struct net *net)
 	nf_conntrack_acct_pernet_init(net);
 	nf_conntrack_tstamp_pernet_init(net);
 	nf_conntrack_ecache_pernet_init(net);
-	nf_conntrack_helper_pernet_init(net);
 	nf_conntrack_proto_pernet_init(net);
 
 	return 0;
@@ -2808,3 +2801,65 @@ err_expect:
 	free_percpu(net->ct.stat);
 	return ret;
 }
+
+#if (IS_BUILTIN(CONFIG_NF_CONNTRACK) && IS_ENABLED(CONFIG_DEBUG_INFO_BTF)) || \
+    (IS_MODULE(CONFIG_NF_CONNTRACK) && IS_ENABLED(CONFIG_DEBUG_INFO_BTF_MODULES) || \
+    IS_ENABLED(CONFIG_NF_CT_NETLINK))
+
+/* ctnetlink code shared by both ctnetlink and nf_conntrack_bpf */
+
+int __nf_ct_change_timeout(struct nf_conn *ct, u64 timeout)
+{
+	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
+		return -EPERM;
+
+	__nf_ct_set_timeout(ct, timeout);
+
+	if (test_bit(IPS_DYING_BIT, &ct->status))
+		return -ETIME;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__nf_ct_change_timeout);
+
+void __nf_ct_change_status(struct nf_conn *ct, unsigned long on, unsigned long off)
+{
+	unsigned int bit;
+
+	/* Ignore these unchangable bits */
+	on &= ~IPS_UNCHANGEABLE_MASK;
+	off &= ~IPS_UNCHANGEABLE_MASK;
+
+	for (bit = 0; bit < __IPS_MAX_BIT; bit++) {
+		if (on & (1 << bit))
+			set_bit(bit, &ct->status);
+		else if (off & (1 << bit))
+			clear_bit(bit, &ct->status);
+	}
+}
+EXPORT_SYMBOL_GPL(__nf_ct_change_status);
+
+int nf_ct_change_status_common(struct nf_conn *ct, unsigned int status)
+{
+	unsigned long d;
+
+	d = ct->status ^ status;
+
+	if (d & (IPS_EXPECTED|IPS_CONFIRMED|IPS_DYING))
+		/* unchangeable */
+		return -EBUSY;
+
+	if (d & IPS_SEEN_REPLY && !(status & IPS_SEEN_REPLY))
+		/* SEEN_REPLY bit can only be set */
+		return -EBUSY;
+
+	if (d & IPS_ASSURED && !(status & IPS_ASSURED))
+		/* ASSURED bit can only be set */
+		return -EBUSY;
+
+	__nf_ct_change_status(ct, status, 0);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_ct_change_status_common);
+
+#endif

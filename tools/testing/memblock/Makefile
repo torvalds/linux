@@ -45,9 +45,8 @@ help:
 	@echo  '  clean		  - Remove generated files and symlinks in the directory'
 	@echo  ''
 	@echo  'Configuration:'
+	@echo  '  make MEMBLOCK_DEBUG=1     - enable memblock_dbg() messages'
 	@echo  '  make NUMA=1               - simulate enabled NUMA'
-	@echo  '  make MOVABLE_NODE=1       - override `movable_node_is_enabled`'
-	@echo  '                              definition to simulate movable NUMA nodes'
 	@echo  '  make 32BIT_PHYS_ADDR_T=1  - Use 32 bit physical addresses'
 
 vpath %.c ../../lib

@@ -94,6 +94,7 @@
 
 /* Interrupts */
 #define R_AX_HIMR0 0x01A0
+#define B_AX_WDT_TIMEOUT_INT_EN BIT(22)
 #define B_AX_HALT_C2H_INT_EN BIT(21)
 #define R_AX_HISR0 0x01A4
 

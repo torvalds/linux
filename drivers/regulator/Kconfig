@@ -546,6 +546,16 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX597X
+	tristate "Maxim 597x power switch and monitor"
+	depends on I2C
+	depends on OF
+	depends on MFD_MAX597X
+	help
+	  This driver controls a Maxim 5970/5978 switch via I2C bus.
+	  The MAX5970/5978 is a smart switch with no output regulation, but
+	  fault protection and voltage and current monitoring capabilities.
+
 config REGULATOR_MAX77620
 	tristate "Maxim 77620/MAX20024 voltage regulator"
 	depends on MFD_MAX77620 || COMPILE_TEST
@@ -804,6 +814,14 @@ config REGULATOR_MT6360
 	  2-channel buck with Thermal Shutdown and Overload Protection
 	  6-channel High PSRR and Low Dropout LDO.
 
+config REGULATOR_MT6370
+	tristate "MT6370 SubPMIC Regulator"
+	depends on MFD_MT6370
+	help
+	  Say Y here to enable MT6370 regulator support.
+	  This driver supports the control for DisplayBias voltages and one
+	  general purpose LDO which is commonly used to drive the vibrator.
+
 config REGULATOR_MT6380
 	tristate "MediaTek MT6380 PMIC"
 	depends on MTK_PMIC_WRAP
@@ -1046,6 +1064,16 @@ config REGULATOR_RT5033
 	  This adds support for voltage and current regulators in Richtek
 	  RT5033 PMIC. The device supports multiple regulators like
 	  current source, LDO and Buck.
+
+config REGULATOR_RT5120
+	tristate "Richtek RT5120 PMIC Regulators"
+	depends on MFD_RT5120
+	help
+	  This adds support for voltage regulator in Richtek RT5120 PMIC.
+	  It integrates 4 channels buck controller, 1 channel LDO, 1 EXTEN
+	  to control external power source. Only BUCK1 is adjustable from
+	  600mV to 1395mV, per step 6.250mV. The others are all fixed voltage
+	  by external hardware circuit.
 
 config REGULATOR_RT5190A
 	tristate "Richtek RT5190A PMIC"

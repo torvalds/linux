@@ -304,6 +304,10 @@ struct amdgpu_gfx {
 	uint32_t			rlc_srlg_feature_version;
 	uint32_t			rlc_srls_fw_version;
 	uint32_t			rlc_srls_feature_version;
+	uint32_t			rlcp_ucode_version;
+	uint32_t			rlcp_ucode_feature_version;
+	uint32_t			rlcv_ucode_version;
+	uint32_t			rlcv_ucode_feature_version;
 	uint32_t			mec_feature_version;
 	uint32_t			mec2_feature_version;
 	bool				mec_fw_write_wait;
@@ -396,6 +400,8 @@ bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int mec,
 				     int pipe, int queue);
 bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 					       struct amdgpu_ring *ring);
+bool amdgpu_gfx_is_high_priority_graphics_queue(struct amdgpu_device *adev,
+						struct amdgpu_ring *ring);
 int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev, int me,
 			       int pipe, int queue);
 void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,

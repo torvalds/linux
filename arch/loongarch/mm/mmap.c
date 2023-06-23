@@ -2,16 +2,9 @@
 /*
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
-#include <linux/compiler.h>
-#include <linux/elf-randomize.h>
-#include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/export.h>
-#include <linux/personality.h>
-#include <linux/random.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/mm.h>
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 EXPORT_SYMBOL(shm_align_mask);
@@ -120,6 +113,6 @@ int __virt_addr_valid(volatile void *kaddr)
 	if ((vaddr < PAGE_OFFSET) || (vaddr >= vm_map_base))
 		return 0;
 
-	return pfn_valid(PFN_DOWN(virt_to_phys(kaddr)));
+	return pfn_valid(PFN_DOWN(PHYSADDR(kaddr)));
 }
 EXPORT_SYMBOL_GPL(__virt_addr_valid);

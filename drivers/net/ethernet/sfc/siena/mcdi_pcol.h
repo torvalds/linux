@@ -274,7 +274,7 @@
  * MC_CMD_WORKAROUND_BUG26807.
  * May also returned for other operations such as sub-variant switching. */
 #define MC_CMD_ERR_FILTERS_PRESENT 0x1014
-/* The clock whose frequency you've attempted to set set
+/* The clock whose frequency you've attempted to set
  * doesn't exist on this NIC */
 #define MC_CMD_ERR_NO_CLOCK 0x1015
 /* Returned by MC_CMD_TESTASSERT if the action that should
@@ -7782,7 +7782,7 @@
  * large number (253) it is not anticipated that this will be needed in the
  * near future, so can currently be ignored.
  *
- * On Riverhead this command is implemented as a a wrapper for `list` in the
+ * On Riverhead this command is implemented as a wrapper for `list` in the
  * sensor_query SPHINX service.
  */
 #define MC_CMD_DYNAMIC_SENSORS_LIST 0x66
@@ -7827,7 +7827,7 @@
  * update is in progress, and effectively means the set of usable sensors is
  * the intersection between the sets of sensors known to the driver and the MC.
  *
- * On Riverhead this command is implemented as a a wrapper for
+ * On Riverhead this command is implemented as a wrapper for
  * `get_descriptions` in the sensor_query SPHINX service.
  */
 #define MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS 0x67
@@ -7876,7 +7876,7 @@
  * update is in progress, and effectively means the set of usable sensors is
  * the intersection between the sets of sensors known to the driver and the MC.
  *
- * On Riverhead this command is implemented as a a wrapper for `get_readings`
+ * On Riverhead this command is implemented as a wrapper for `get_readings`
  * in the sensor_query SPHINX service.
  */
 #define MC_CMD_DYNAMIC_SENSORS_GET_READINGS 0x68
@@ -16682,7 +16682,7 @@
  * TLV_PORT_MODE_*). A superset of MC_CMD_GET_PORT_MODES_OUT/MODES that
  * contains all modes implemented in firmware for a particular board. Modes
  * listed in MODES are considered production modes and should be exposed in
- * userland tools. Modes listed in in ENGINEERING_MODES, but not in MODES
+ * userland tools. Modes listed in ENGINEERING_MODES, but not in MODES
  * should be considered hidden (not to be exposed in userland tools) and for
  * engineering use only. There are no other semantic differences and any mode
  * listed in either MODES or ENGINEERING_MODES can be set on the board.

@@ -32,7 +32,7 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 		goto exit;
 	}
 
-	precvpriv->precv_buf = (u8 *)N_BYTE_ALIGMENT((size_t)(precvpriv->pallocated_recv_buf), 4);
+	precvpriv->precv_buf = (u8 *)ALIGN((size_t)(precvpriv->pallocated_recv_buf), 4);
 
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 

@@ -373,7 +373,7 @@ static void mtk_cqdma_tasklet_cb(struct tasklet_struct *t)
 
 		/*
 		 * free child CVD after completion.
-		 * the parent CVD would be freeed with desc_free by user.
+		 * the parent CVD would be freed with desc_free by user.
 		 */
 		if (cvd->parent != cvd)
 			kfree(cvd);

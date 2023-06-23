@@ -117,6 +117,8 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,     0),
 	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit,                 0),
 	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
+	MSG_MAP(Mode1Reset,			PPSMC_MSG_Mode1Reset,                  0),
+	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_clk_map[SMU_CLK_COUNT] = {
@@ -194,6 +196,7 @@ static struct cmn2asic_mapping smu_v13_0_0_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(DRIVER_SMU_CONFIG),
 	TAB_MAP(ACTIVITY_MONITOR_COEFF),
 	[SMU_TABLE_COMBO_PPTABLE] = {1, TABLE_COMBO_PPTABLE},
+	TAB_MAP(I2C_COMMANDS),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
@@ -236,69 +239,47 @@ smu_v13_0_0_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
 	struct amdgpu_device *adev = smu->adev;
+	u32 smu_version;
 
 	if (num > 2)
 		return -EINVAL;
 
-	memset(feature_mask, 0, sizeof(uint32_t) * num);
+	memset(feature_mask, 0xff, sizeof(uint32_t) * num);
 
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FW_DATA_READ_BIT);
-
-	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK) {
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_IMU_BIT);
+	if (!(adev->pm.pp_feature & PP_SCLK_DPM_MASK)) {
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFX_IMU_BIT);
 	}
 
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MM_DPM_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_VCN_BIT);
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_ATHUB) ||
+	    !(adev->pg_flags & AMD_PG_SUPPORT_MMHUB))
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_ATHUB_MMHUB_PG_BIT);
 
-	if ((adev->pg_flags & AMD_PG_SUPPORT_ATHUB) &&
-	    (adev->pg_flags & AMD_PG_SUPPORT_MMHUB))
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ATHUB_MMHUB_PG_BIT);
+	if (!(adev->pm.pp_feature & PP_SOCCLK_DPM_MASK))
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
 
-	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+	/* PMFW 78.58 contains a critical fix for gfxoff feature */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if ((smu_version < 0x004e3a00) ||
+	     !(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFXOFF_BIT);
 
-#if 0
-	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFXOFF_BIT);
-#endif
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_THROTTLERS_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FAN_CONTROL_BIT);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DF_CSTATE_BIT);
-
-	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK) {
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_VMEMP_SCALING_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_VDDIO_MEM_SCALING_BIT);
+	if (!(adev->pm.pp_feature & PP_MCLK_DPM_MASK)) {
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_VMEMP_SCALING_BIT);
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_VDDIO_MEM_SCALING_BIT);
 	}
 
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MEM_TEMP_READ_BIT);
+	if (!(adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK))
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
 
-	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_SOCCLK_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_SOC_MPCLK_DS_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_BACO_MPCLK_DS_BIT);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_FCLK_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCN_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_DCFCLK_BIT);
-
-	if (adev->pm.pp_feature & PP_PCIE_DPM_MASK) {
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_LINK_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_LCLK_BIT);
+	if (!(adev->pm.pp_feature & PP_PCIE_DPM_MASK)) {
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_LINK_BIT);
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DS_LCLK_BIT);
 	}
 
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_BACO_BIT);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FW_DSTATE_BIT);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_OUT_OF_BAND_MONITOR_BIT);
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_SOC_CG_BIT);
+	if (!(adev->pm.pp_feature & PP_ULV_MASK))
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFX_ULV_BIT);
 
 	return 0;
 }
@@ -316,6 +297,9 @@ static int smu_v13_0_0_check_powerplay_table(struct smu_context *smu)
 	if (powerplay_table->platform_caps & SMU_13_0_0_PP_PLATFORM_CAP_BACO ||
 	    powerplay_table->platform_caps & SMU_13_0_0_PP_PLATFORM_CAP_MACO)
 		smu_baco->platform_support = true;
+
+	if (powerplay_table->platform_caps & SMU_13_0_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->maco_support = true;
 
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;
@@ -369,30 +353,35 @@ static int smu_v13_0_0_append_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
+static int smu_v13_0_0_get_pptable_from_pmfw(struct smu_context *smu,
+					     void **table,
+					     uint32_t *size)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	void *combo_pptable = smu_table->combo_pptable;
+	int ret = 0;
+
+	ret = smu_cmn_get_combo_pptable(smu);
+	if (ret)
+		return ret;
+
+	*table = combo_pptable;
+	*size = sizeof(struct smu_13_0_0_powerplay_table);
+
+	return 0;
+}
+
+static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	/*
-	 * With SCPM enabled, the pptable used will be signed. It cannot
-	 * be used directly by driver. To get the raw pptable, we need to
-	 * rely on the combo pptable(and its revelant SMU message).
-	 */
-	if (adev->scpm_enabled) {
-		ret = smu_cmn_get_combo_pptable(smu);
-		if (ret)
-			return ret;
-
-		smu->smu_table.power_play_table = combo_pptable;
-		smu->smu_table.power_play_table_size = sizeof(struct smu_13_0_0_powerplay_table);
-	} else {
-		ret = smu_v13_0_setup_pptable(smu);
-		if (ret)
-			return ret;
-	}
+	ret = smu_v13_0_0_get_pptable_from_pmfw(smu,
+						&smu_table->power_play_table,
+						&smu_table->power_play_table_size);
+	if (ret)
+		return ret;
 
 	ret = smu_v13_0_0_store_powerplay_table(smu);
 	if (ret)
@@ -840,7 +829,7 @@ static int smu_v13_0_0_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		ret = smu_v13_0_0_get_smu_metrics_data(smu,
-						       METRICS_AVERAGE_UCLK,
+						       METRICS_CURR_UCLK,
 						       (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
@@ -1576,14 +1565,206 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
 					       NULL);
 }
 
+static bool smu_v13_0_0_is_mode1_reset_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	u32 smu_version;
+
+	/* SRIOV does not support SMU mode1 reset */
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	/* PMFW support is available since 78.41 */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x004e2900)
+		return false;
+
+	return true;
+}
+
+static int smu_v13_0_0_i2c_xfer(struct i2c_adapter *i2c_adap,
+				   struct i2c_msg *msg, int num_msgs)
+{
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(i2c_adap);
+	struct amdgpu_device *adev = smu_i2c->adev;
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = &smu_table->driver_table;
+	SwI2cRequest_t *req, *res = (SwI2cRequest_t *)table->cpu_addr;
+	int i, j, r, c;
+	u16 dir;
+
+	if (!adev->pm.dpm_enabled)
+		return -EBUSY;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	req->I2CcontrollerPort = smu_i2c->port;
+	req->I2CSpeed = I2C_SPEED_FAST_400K;
+	req->SlaveAddress = msg[0].addr << 1; /* wants an 8-bit address */
+	dir = msg[0].flags & I2C_M_RD;
+
+	for (c = i = 0; i < num_msgs; i++) {
+		for (j = 0; j < msg[i].len; j++, c++) {
+			SwI2cCmd_t *cmd = &req->SwI2cCmds[c];
+
+			if (!(msg[i].flags & I2C_M_RD)) {
+				/* write */
+				cmd->CmdConfig |= CMDCONFIG_READWRITE_MASK;
+				cmd->ReadWriteData = msg[i].buf[j];
+			}
+
+			if ((dir ^ msg[i].flags) & I2C_M_RD) {
+				/* The direction changes.
+				 */
+				dir = msg[i].flags & I2C_M_RD;
+				cmd->CmdConfig |= CMDCONFIG_RESTART_MASK;
+			}
+
+			req->NumCmds++;
+
+			/*
+			 * Insert STOP if we are at the last byte of either last
+			 * message for the transaction or the client explicitly
+			 * requires a STOP at this particular message.
+			 */
+			if ((j == msg[i].len - 1) &&
+			    ((i == num_msgs - 1) || (msg[i].flags & I2C_M_STOP))) {
+				cmd->CmdConfig &= ~CMDCONFIG_RESTART_MASK;
+				cmd->CmdConfig |= CMDCONFIG_STOP_MASK;
+			}
+		}
+	}
+	mutex_lock(&adev->pm.mutex);
+	r = smu_cmn_update_table(smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
+	mutex_unlock(&adev->pm.mutex);
+	if (r)
+		goto fail;
+
+	for (c = i = 0; i < num_msgs; i++) {
+		if (!(msg[i].flags & I2C_M_RD)) {
+			c += msg[i].len;
+			continue;
+		}
+		for (j = 0; j < msg[i].len; j++, c++) {
+			SwI2cCmd_t *cmd = &res->SwI2cCmds[c];
+
+			msg[i].buf[j] = cmd->ReadWriteData;
+		}
+	}
+	r = num_msgs;
+fail:
+	kfree(req);
+	return r;
+}
+
+static u32 smu_v13_0_0_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+static const struct i2c_algorithm smu_v13_0_0_i2c_algo = {
+	.master_xfer = smu_v13_0_0_i2c_xfer,
+	.functionality = smu_v13_0_0_i2c_func,
+};
+
+static const struct i2c_adapter_quirks smu_v13_0_0_i2c_control_quirks = {
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
+	.max_read_len  = MAX_SW_I2C_COMMANDS,
+	.max_write_len = MAX_SW_I2C_COMMANDS,
+	.max_comb_1st_msg_len = 2,
+	.max_comb_2nd_msg_len = MAX_SW_I2C_COMMANDS - 2,
+};
+
+static int smu_v13_0_0_i2c_control_init(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int res, i;
+
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		smu_i2c->adev = adev;
+		smu_i2c->port = i;
+		mutex_init(&smu_i2c->mutex);
+		control->owner = THIS_MODULE;
+		control->class = I2C_CLASS_SPD;
+		control->dev.parent = &adev->pdev->dev;
+		control->algo = &smu_v13_0_0_i2c_algo;
+		snprintf(control->name, sizeof(control->name), "AMDGPU SMU %d", i);
+		control->quirks = &smu_v13_0_0_i2c_control_quirks;
+		i2c_set_adapdata(control, smu_i2c);
+
+		res = i2c_add_adapter(control);
+		if (res) {
+			DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
+			goto Out_err;
+		}
+	}
+
+	/* assign the buses used for the FRU EEPROM and RAS EEPROM */
+	/* XXX ideally this would be something in a vbios data table */
+	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[1].adapter;
+	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+
+	return 0;
+Out_err:
+	for ( ; i >= 0; i--) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
+	return res;
+}
+
+static void smu_v13_0_0_i2c_control_fini(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int i;
+
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
+	adev->pm.ras_eeprom_i2c_bus = NULL;
+	adev->pm.fru_eeprom_i2c_bus = NULL;
+}
+
+static int smu_v13_0_0_set_mp1_state(struct smu_context *smu,
+				     enum pp_mp1_state mp1_state)
+{
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		ret = smu_cmn_set_mp1_state(smu, mp1_state);
+		break;
+	default:
+		/* Ignore others */
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_0_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_0_set_default_dpm_table,
+	.i2c_init = smu_v13_0_0_i2c_control_init,
+	.i2c_fini = smu_v13_0_0_i2c_control_fini,
 	.is_dpm_running = smu_v13_0_0_is_dpm_running,
 	.dump_pptable = smu_v13_0_0_dump_pptable,
 	.init_microcode = smu_v13_0_init_microcode,
 	.load_microcode = smu_v13_0_load_microcode,
+	.fini_microcode = smu_v13_0_fini_microcode,
 	.init_smc_tables = smu_v13_0_0_init_smc_tables,
+	.fini_smc_tables = smu_v13_0_fini_smc_tables,
 	.init_power = smu_v13_0_init_power,
 	.fini_power = smu_v13_0_fini_power,
 	.check_fw_status = smu_v13_0_check_fw_status,
@@ -1638,6 +1819,9 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.baco_set_state = smu_v13_0_baco_set_state,
 	.baco_enter = smu_v13_0_baco_enter,
 	.baco_exit = smu_v13_0_baco_exit,
+	.mode1_reset_is_support = smu_v13_0_0_is_mode1_reset_supported,
+	.mode1_reset = smu_v13_0_mode1_reset,
+	.set_mp1_state = smu_v13_0_0_set_mp1_state,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
@@ -1649,4 +1833,5 @@ void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = smu_v13_0_0_table_map;
 	smu->pwr_src_map = smu_v13_0_0_pwr_src_map;
 	smu->workload_map = smu_v13_0_0_workload_map;
+	smu_v13_0_set_smu_mailbox_registers(smu);
 }

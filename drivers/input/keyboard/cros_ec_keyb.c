@@ -12,6 +12,7 @@
 // expensive.
 
 #include <linux/module.h>
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -518,6 +519,50 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev,
 	return 0;
 }
 
+static void cros_ec_keyb_parse_vivaldi_physmap(struct cros_ec_keyb *ckdev)
+{
+	u32 *physmap = ckdev->vdata.function_row_physmap;
+	unsigned int row, col, scancode;
+	int n_physmap;
+	int error;
+	int i;
+
+	n_physmap = device_property_count_u32(ckdev->dev,
+					      "function-row-physmap");
+	if (n_physmap <= 0)
+		return;
+
+	if (n_physmap >= VIVALDI_MAX_FUNCTION_ROW_KEYS) {
+		dev_warn(ckdev->dev,
+			 "only up to %d top row keys is supported (%d specified)\n",
+			 VIVALDI_MAX_FUNCTION_ROW_KEYS, n_physmap);
+		n_physmap = VIVALDI_MAX_FUNCTION_ROW_KEYS;
+	}
+
+	error = device_property_read_u32_array(ckdev->dev,
+					       "function-row-physmap",
+					       physmap, n_physmap);
+	if (error) {
+		dev_warn(ckdev->dev,
+			 "failed to parse function-row-physmap property: %d\n",
+			 error);
+		return;
+	}
+
+	/*
+	 * Convert (in place) from row/column encoding to matrix "scancode"
+	 * used by the driver.
+	 */
+	for (i = 0; i < n_physmap; i++) {
+		row = KEY_ROW(physmap[i]);
+		col = KEY_COL(physmap[i]);
+		scancode = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
+		physmap[i] = scancode;
+	}
+
+	ckdev->vdata.num_function_row_keys = n_physmap;
+}
+
 /**
  * cros_ec_keyb_register_matrix - Register matrix keys
  *
@@ -534,11 +579,6 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	struct input_dev *idev;
 	const char *phys;
 	int err;
-	struct property *prop;
-	const __be32 *p;
-	u32 *physmap;
-	u32 key_pos;
-	unsigned int row, col, scancode, n_physmap;
 
 	err = matrix_keypad_parse_properties(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
@@ -573,7 +613,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	idev->id.product = 0;
 	idev->dev.parent = dev;
 
-	ckdev->ghost_filter = of_property_read_bool(dev->of_node,
+	ckdev->ghost_filter = device_property_read_bool(dev,
 					"google,needs-ghost-filter");
 
 	err = matrix_keypad_build_keymap(NULL, NULL, ckdev->rows, ckdev->cols,
@@ -589,22 +629,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	input_set_drvdata(idev, ckdev);
 	ckdev->idev = idev;
 	cros_ec_keyb_compute_valid_keys(ckdev);
-
-	physmap = ckdev->vdata.function_row_physmap;
-	n_physmap = 0;
-	of_property_for_each_u32(dev->of_node, "function-row-physmap",
-				 prop, p, key_pos) {
-		if (n_physmap == VIVALDI_MAX_FUNCTION_ROW_KEYS) {
-			dev_warn(dev, "Only support up to %d top row keys\n",
-				 VIVALDI_MAX_FUNCTION_ROW_KEYS);
-			break;
-		}
-		row = KEY_ROW(key_pos);
-		col = KEY_COL(key_pos);
-		scancode = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
-		physmap[n_physmap++] = scancode;
-	}
-	ckdev->vdata.num_function_row_keys = n_physmap;
+	cros_ec_keyb_parse_vivaldi_physmap(ckdev);
 
 	err = input_register_device(ckdev->idev);
 	if (err) {
@@ -653,14 +678,19 @@ static const struct attribute_group cros_ec_keyb_attr_group = {
 
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
-	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
+	struct cros_ec_device *ec;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_keyb *ckdev;
 	bool buttons_switches_only = device_get_match_data(dev);
 	int err;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	/*
+	 * If the parent ec device has not been probed yet, defer the probe of
+	 * this keyboard/button driver until later.
+	 */
+	ec = dev_get_drvdata(pdev->dev.parent);
+	if (!ec)
+		return -EPROBE_DEFER;
 
 	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
 	if (!ckdev)
@@ -713,6 +743,14 @@ static int cros_ec_keyb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cros_ec_keyb_acpi_match[] = {
+	{ "GOOG0007", true },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cros_ec_keyb_acpi_match);
+#endif
+
 #ifdef CONFIG_OF
 static const struct of_device_id cros_ec_keyb_of_match[] = {
 	{ .compatible = "google,cros-ec-keyb" },
@@ -730,6 +768,7 @@ static struct platform_driver cros_ec_keyb_driver = {
 	.driver = {
 		.name = "cros-ec-keyb",
 		.of_match_table = of_match_ptr(cros_ec_keyb_of_match),
+		.acpi_match_table = ACPI_PTR(cros_ec_keyb_acpi_match),
 		.pm = &cros_ec_keyb_pm_ops,
 	},
 };

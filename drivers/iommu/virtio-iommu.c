@@ -788,11 +788,13 @@ static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	return 0;
 }
 
-static int viommu_map(struct iommu_domain *domain, unsigned long iova,
-		      phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+static int viommu_map_pages(struct iommu_domain *domain, unsigned long iova,
+			    phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			    int prot, gfp_t gfp, size_t *mapped)
 {
 	int ret;
 	u32 flags;
+	size_t size = pgsize * pgcount;
 	u64 end = iova + size - 1;
 	struct virtio_iommu_req_map map;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
@@ -823,17 +825,21 @@ static int viommu_map(struct iommu_domain *domain, unsigned long iova,
 	ret = viommu_send_req_sync(vdomain->viommu, &map, sizeof(map));
 	if (ret)
 		viommu_del_mappings(vdomain, iova, end);
+	else if (mapped)
+		*mapped = size;
 
 	return ret;
 }
 
-static size_t viommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			   size_t size, struct iommu_iotlb_gather *gather)
+static size_t viommu_unmap_pages(struct iommu_domain *domain, unsigned long iova,
+				 size_t pgsize, size_t pgcount,
+				 struct iommu_iotlb_gather *gather)
 {
 	int ret = 0;
 	size_t unmapped;
 	struct virtio_iommu_req_unmap unmap;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
+	size_t size = pgsize * pgcount;
 
 	unmapped = viommu_del_mappings(vdomain, iova, iova + size - 1);
 	if (unmapped < size)
@@ -964,7 +970,7 @@ static struct iommu_device *viommu_probe_device(struct device *dev)
 	return &viommu->iommu;
 
 err_free_dev:
-	generic_iommu_put_resv_regions(dev, &vdev->resv_regions);
+	iommu_put_resv_regions(dev, &vdev->resv_regions);
 	kfree(vdev);
 
 	return ERR_PTR(ret);
@@ -981,15 +987,9 @@ static void viommu_probe_finalize(struct device *dev)
 
 static void viommu_release_device(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct viommu_endpoint *vdev;
+	struct viommu_endpoint *vdev = dev_iommu_priv_get(dev);
 
-	if (!fwspec || fwspec->ops != &viommu_ops)
-		return;
-
-	vdev = dev_iommu_priv_get(dev);
-
-	generic_iommu_put_resv_regions(dev, &vdev->resv_regions);
+	iommu_put_resv_regions(dev, &vdev->resv_regions);
 	kfree(vdev);
 }
 
@@ -1006,20 +1006,30 @@ static int viommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	return iommu_fwspec_add_ids(dev, args->args, 1);
 }
 
+static bool viommu_capable(enum iommu_cap cap)
+{
+	switch (cap) {
+	case IOMMU_CAP_CACHE_COHERENCY:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static struct iommu_ops viommu_ops = {
+	.capable		= viommu_capable,
 	.domain_alloc		= viommu_domain_alloc,
 	.probe_device		= viommu_probe_device,
 	.probe_finalize		= viommu_probe_finalize,
 	.release_device		= viommu_release_device,
 	.device_group		= viommu_device_group,
 	.get_resv_regions	= viommu_get_resv_regions,
-	.put_resv_regions	= generic_iommu_put_resv_regions,
 	.of_xlate		= viommu_of_xlate,
 	.owner			= THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev		= viommu_attach_dev,
-		.map			= viommu_map,
-		.unmap			= viommu_unmap,
+		.map_pages		= viommu_map_pages,
+		.unmap_pages		= viommu_unmap_pages,
 		.iova_to_phys		= viommu_iova_to_phys,
 		.iotlb_sync		= viommu_iotlb_sync,
 		.free			= viommu_domain_free,

@@ -450,7 +450,7 @@
 
 			sysctrl_AO: sys-ctrl@0 {
 				compatible = "amlogic,meson-gx-ao-sysctrl", "simple-mfd", "syscon";
-				reg =  <0x0 0x0 0x0 0x100>;
+				reg = <0x0 0x0 0x0 0x100>;
 
 				clkc_AO: clock-controller {
 					compatible = "amlogic,meson-gx-aoclkc";

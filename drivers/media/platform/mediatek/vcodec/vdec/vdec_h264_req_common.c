@@ -51,7 +51,7 @@ void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_ctx *ctx,
 	struct vb2_queue *vq;
 	struct vb2_buffer *vb;
 	struct vb2_v4l2_buffer *vb2_v4l2;
-	int index, vb2_index;
+	int index;
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 
@@ -62,8 +62,8 @@ void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_ctx *ctx,
 			continue;
 		}
 
-		vb2_index = vb2_find_timestamp(vq, dpb->reference_ts, 0);
-		if (vb2_index < 0) {
+		vb = vb2_find_buffer(vq, dpb->reference_ts);
+		if (!vb) {
 			dev_err(&ctx->dev->plat_dev->dev,
 				"Reference invalid: dpb_index(%d) reference_ts(%lld)",
 				index, dpb->reference_ts);
@@ -76,7 +76,6 @@ void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_ctx *ctx,
 		else
 			h264_dpb_info[index].reference_flag = 2;
 
-		vb = vq->bufs[vb2_index];
 		vb2_v4l2 = container_of(vb, struct vb2_v4l2_buffer, vb2_buf);
 		h264_dpb_info[index].field = vb2_v4l2->field;
 

@@ -22,6 +22,7 @@
 #include <linux/bitops.h>
 #include <linux/rpmsg.h>
 #include "smd.h"
+#include "firmware.h"
 
 struct wcn36xx_cfg_val {
 	u32 cfg_id;
@@ -295,7 +296,7 @@ static void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
 		sta_params->vht_capable = sta->deflink.vht_cap.vht_supported;
 		sta_params->vht_ldpc_enabled =
 			is_cap_supported(caps, IEEE80211_VHT_CAP_RXLDPC);
-		if (get_feat_caps(wcn->fw_feat_caps, MU_MIMO)) {
+		if (wcn36xx_firmware_get_feat_caps(wcn->fw_feat_caps, MU_MIMO)) {
 			sta_params->vht_tx_mu_beamformee_capable =
 				is_cap_supported(caps, IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE);
 			if (sta_params->vht_tx_mu_beamformee_capable)
@@ -2431,49 +2432,6 @@ out:
 	return ret;
 }
 
-void set_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
-{
-	int arr_idx, bit_idx;
-
-	if (cap < 0 || cap > 127) {
-		wcn36xx_warn("error cap idx %d\n", cap);
-		return;
-	}
-
-	arr_idx = cap / 32;
-	bit_idx = cap % 32;
-	bitmap[arr_idx] |= (1 << bit_idx);
-}
-
-int get_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
-{
-	int arr_idx, bit_idx;
-
-	if (cap < 0 || cap > 127) {
-		wcn36xx_warn("error cap idx %d\n", cap);
-		return -EINVAL;
-	}
-
-	arr_idx = cap / 32;
-	bit_idx = cap % 32;
-
-	return (bitmap[arr_idx] & (1 << bit_idx)) ? 1 : 0;
-}
-
-void clear_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
-{
-	int arr_idx, bit_idx;
-
-	if (cap < 0 || cap > 127) {
-		wcn36xx_warn("error cap idx %d\n", cap);
-		return;
-	}
-
-	arr_idx = cap / 32;
-	bit_idx = cap % 32;
-	bitmap[arr_idx] &= ~(1 << bit_idx);
-}
-
 int wcn36xx_smd_feature_caps_exchange(struct wcn36xx *wcn)
 {
 	struct wcn36xx_hal_feat_caps_msg msg_body, *rsp;
@@ -2482,11 +2440,12 @@ int wcn36xx_smd_feature_caps_exchange(struct wcn36xx *wcn)
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_REQ);
 
-	set_feat_caps(msg_body.feat_caps, STA_POWERSAVE);
+	wcn36xx_firmware_set_feat_caps(msg_body.feat_caps, STA_POWERSAVE);
 	if (wcn->rf_id == RF_IRIS_WCN3680) {
-		set_feat_caps(msg_body.feat_caps, DOT11AC);
-		set_feat_caps(msg_body.feat_caps, WLAN_CH144);
-		set_feat_caps(msg_body.feat_caps, ANTENNA_DIVERSITY_SELECTION);
+		wcn36xx_firmware_set_feat_caps(msg_body.feat_caps, DOT11AC);
+		wcn36xx_firmware_set_feat_caps(msg_body.feat_caps, WLAN_CH144);
+		wcn36xx_firmware_set_feat_caps(msg_body.feat_caps,
+					       ANTENNA_DIVERSITY_SELECTION);
 	}
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
@@ -3005,7 +2964,7 @@ int wcn36xx_smd_arp_offload(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		msg_body.host_offload_params.enable =
 			WCN36XX_HAL_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
 		memcpy(&msg_body.host_offload_params.u,
-		       &vif->bss_conf.arp_addr_list[0], sizeof(__be32));
+		       &vif->cfg.arp_addr_list[0], sizeof(__be32));
 	}
 	msg_body.ns_offload_params.bss_index = vif_priv->bss_index;
 
@@ -3300,7 +3259,7 @@ int wcn36xx_smd_add_beacon_filter(struct wcn36xx *wcn,
 	size_t payload_size;
 	int ret;
 
-	if (!get_feat_caps(wcn->fw_feat_caps, BCN_FILTER))
+	if (!wcn36xx_firmware_get_feat_caps(wcn->fw_feat_caps, BCN_FILTER))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&wcn->hal_mutex);

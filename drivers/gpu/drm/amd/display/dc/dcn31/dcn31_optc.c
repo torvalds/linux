@@ -141,7 +141,7 @@ static bool optc31_disable_crtc(struct timing_generator *optc)
 	return true;
 }
 
-static bool optc31_immediate_disable_crtc(struct timing_generator *optc)
+bool optc31_immediate_disable_crtc(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -266,6 +266,7 @@ static struct timing_generator_funcs dcn31_tg_funcs = {
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc31_set_drr,
+		.get_last_used_drr_vtotal = optc2_get_last_used_drr_vtotal,
 		.set_vtotal_min_max = optc1_set_vtotal_min_max,
 		.set_static_screen_control = optc1_set_static_screen_control,
 		.program_stereo = optc1_program_stereo,

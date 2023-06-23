@@ -384,7 +384,7 @@
 };
 
 &ao_arc_rproc {
-	compatible= "amlogic,meson8b-ao-arc", "amlogic,meson-mx-ao-arc";
+	compatible = "amlogic,meson8b-ao-arc", "amlogic,meson-mx-ao-arc";
 	amlogic,secbus2 = <&secbus2>;
 	sram = <&ao_arc_sram>;
 	resets = <&reset RESET_MEDIA_CPU>;

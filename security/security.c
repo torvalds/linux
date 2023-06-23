@@ -1324,7 +1324,8 @@ int security_inode_permission(struct inode *inode, int mask)
 	return call_int_hook(inode_permission, 0, inode, mask);
 }
 
-int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int security_inode_setattr(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
 
@@ -1333,7 +1334,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	ret = call_int_hook(inode_setattr, 0, dentry, attr);
 	if (ret)
 		return ret;
-	return evm_inode_setattr(dentry, attr);
+	return evm_inode_setattr(mnt_userns, dentry, attr);
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
@@ -1801,6 +1802,11 @@ int security_task_fix_setgid(struct cred *new, const struct cred *old,
 				 int flags)
 {
 	return call_int_hook(task_fix_setgid, 0, new, old, flags);
+}
+
+int security_task_fix_setgroups(struct cred *new, const struct cred *old)
+{
+	return call_int_hook(task_fix_setgroups, 0, new, old);
 }
 
 int security_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -2653,5 +2659,9 @@ int security_uring_override_creds(const struct cred *new)
 int security_uring_sqpoll(void)
 {
 	return call_int_hook(uring_sqpoll, 0);
+}
+int security_uring_cmd(struct io_uring_cmd *ioucmd)
+{
+	return call_int_hook(uring_cmd, 0, ioucmd);
 }
 #endif /* CONFIG_IO_URING */

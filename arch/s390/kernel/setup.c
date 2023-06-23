@@ -474,18 +474,18 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
 
-	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
-	if (!mcck_stack)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, THREAD_SIZE, THREAD_SIZE);
-	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
-
-	/* Setup absolute zero lowcore */
 	put_abs_lowcore(restart_stack, lc->restart_stack);
 	put_abs_lowcore(restart_fn, lc->restart_fn);
 	put_abs_lowcore(restart_data, lc->restart_data);
 	put_abs_lowcore(restart_source, lc->restart_source);
 	put_abs_lowcore(restart_psw, lc->restart_psw);
+	put_abs_lowcore(mcesad, lc->mcesad);
+
+	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	if (!mcck_stack)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, THREAD_SIZE, THREAD_SIZE);
+	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
 
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
@@ -508,8 +508,8 @@ static void __init setup_lowcore_dat_on(void)
 	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
-	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
 	__ctl_set_bit(0, 28);
+	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
 	put_abs_lowcore(restart_flags, RESTART_FLAG_CTLREGS);
 	put_abs_lowcore(program_new_psw, lc->program_new_psw);
 	for (cr = 0; cr < ARRAY_SIZE(lc->cregs_save_area); cr++)
@@ -876,10 +876,8 @@ static void __init setup_randomness(void)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free(vmms, PAGE_SIZE);
 
-#ifdef CONFIG_ARCH_RANDOM
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
 		static_branch_enable(&s390_arch_random_available);
-#endif
 }
 
 /*

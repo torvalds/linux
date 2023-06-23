@@ -216,6 +216,8 @@ static const char * const snd_pcm_format_names[] = {
 /**
  * snd_pcm_format_name - Return a name string for the given PCM format
  * @format: PCM format
+ *
+ * Return: the format name string
  */
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
@@ -1005,6 +1007,7 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 		substream->runtime = NULL;
 	}
 	mutex_destroy(&runtime->buffer_mutex);
+	snd_fasync_free(runtime->fasync);
 	kfree(runtime);
 	put_pid(substream->pid);
 	substream->pid = NULL;
@@ -1028,7 +1031,7 @@ static ssize_t pcm_class_show(struct device *dev,
 		str = "none";
 	else
 		str = strs[pcm->dev_class];
-	return sprintf(buf, "%s\n", str);
+	return sysfs_emit(buf, "%s\n", str);
 }
 
 static DEVICE_ATTR_RO(pcm_class);
@@ -1138,6 +1141,8 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
  * This adds the given notifier to the global list so that the callback is
  * called for each registered PCM devices.  This exists only for PCM OSS
  * emulation, so far.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 {

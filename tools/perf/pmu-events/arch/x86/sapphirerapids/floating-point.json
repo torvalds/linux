@@ -8,6 +8,7 @@
         "EventName": "ARITH.FPDIV_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -19,6 +20,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts all microcode Floating Point assists.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -29,6 +31,7 @@
         "EventName": "ASSISTS.SSE_AVX_MIX",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -39,6 +42,7 @@
         "EventName": "FP_ARITH_DISPATCHED.PORT_0",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -49,6 +53,7 @@
         "EventName": "FP_ARITH_DISPATCHED.PORT_1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -59,6 +64,7 @@
         "EventName": "FP_ARITH_DISPATCHED.PORT_5",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {

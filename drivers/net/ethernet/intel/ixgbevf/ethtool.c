@@ -17,8 +17,6 @@
 
 #include "ixgbevf.h"
 
-#define IXGBE_ALL_RAR_ENTRIES 16
-
 enum {NETDEV_STATS, IXGBEVF_STATS};
 
 struct ixgbe_stats {
@@ -129,8 +127,6 @@ static void ixgbevf_set_msglevel(struct net_device *netdev, u32 data)
 
 	adapter->msg_enable = data;
 }
-
-#define IXGBE_GET_STAT(_A_, _R_) (_A_->stats._R_)
 
 static int ixgbevf_get_regs_len(struct net_device *netdev)
 {

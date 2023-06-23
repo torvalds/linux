@@ -13,6 +13,8 @@
 #ifndef __ASSEMBLY__
 
 #define nop()		__asm__ __volatile__ ("nop")
+#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
+#define nops(n)		__asm__ __volatile__ (__nops(n))
 
 #define RISCV_FENCE(p, s) \
 	__asm__ __volatile__ ("fence " #p "," #s : : : "memory")

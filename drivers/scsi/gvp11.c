@@ -26,7 +26,11 @@
 struct gvp11_hostdata {
 	struct WD33C93_hostdata wh;
 	struct gvp11_scsiregs *regs;
+	struct device *dev;
 };
+
+#define DMA_DIR(d)   ((d == DATA_OUT_DIR) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
+#define TO_DMA_MASK(m)	(~((unsigned long long)m & 0xffffffff))
 
 static irqreturn_t gvp11_intr(int irq, void *data)
 {
@@ -54,17 +58,33 @@ void gvp11_setup(char *str, int *ints)
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
 	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
+	unsigned long len = scsi_pointer->this_residual;
 	struct Scsi_Host *instance = cmd->device->host;
 	struct gvp11_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct gvp11_scsiregs *regs = hdata->regs;
 	unsigned short cntr = GVP11_DMAC_INT_ENABLE;
-	unsigned long addr = virt_to_bus(scsi_pointer->ptr);
+	dma_addr_t addr;
 	int bank_mask;
 	static int scsi_alloc_out_of_range = 0;
 
+	addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
+			      len, DMA_DIR(dir_in));
+	if (dma_mapping_error(hdata->dev, addr)) {
+		dev_warn(hdata->dev, "cannot map SCSI data block %p\n",
+			 scsi_pointer->ptr);
+		return 1;
+	}
+	scsi_pointer->dma_handle = addr;
+
 	/* use bounce buffer if the physical address is bad */
 	if (addr & wh->dma_xfer_mask) {
+		/* drop useless mapping */
+		dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+				 scsi_pointer->this_residual,
+				 DMA_DIR(dir_in));
+		scsi_pointer->dma_handle = (dma_addr_t) NULL;
+
 		wh->dma_bounce_len = (scsi_pointer->this_residual + 511) & ~0x1ff;
 
 		if (!scsi_alloc_out_of_range) {
@@ -87,10 +107,32 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 			wh->dma_buffer_pool = BUF_CHIP_ALLOCED;
 		}
 
-		/* check if the address of the bounce buffer is OK */
-		addr = virt_to_bus(wh->dma_bounce_buffer);
+		if (!dir_in) {
+			/* copy to bounce buffer for a write */
+			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
+			       scsi_pointer->this_residual);
+		}
+
+		if (wh->dma_buffer_pool == BUF_SCSI_ALLOCED) {
+		/* will flush/invalidate cache for us */
+			addr = dma_map_single(hdata->dev,
+					      wh->dma_bounce_buffer,
+					      wh->dma_bounce_len,
+					      DMA_DIR(dir_in));
+			/* can't map buffer; use PIO */
+			if (dma_mapping_error(hdata->dev, addr)) {
+				dev_warn(hdata->dev,
+					 "cannot map bounce buffer %p\n",
+					 wh->dma_bounce_buffer);
+				return 1;
+			}
+		}
 
 		if (addr & wh->dma_xfer_mask) {
+			/* drop useless mapping */
+			dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+					 scsi_pointer->this_residual,
+					 DMA_DIR(dir_in));
 			/* fall back to Chip RAM if address out of range */
 			if (wh->dma_buffer_pool == BUF_SCSI_ALLOCED) {
 				kfree(wh->dma_bounce_buffer);
@@ -108,15 +150,19 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 				return 1;
 			}
 
-			addr = virt_to_bus(wh->dma_bounce_buffer);
+			if (!dir_in) {
+				/* copy to bounce buffer for a write */
+				memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
+				       scsi_pointer->this_residual);
+			}
+			/* chip RAM can be mapped to phys. address directly */
+			addr = virt_to_phys(wh->dma_bounce_buffer);
+			/* no need to flush/invalidate cache */
 			wh->dma_buffer_pool = BUF_CHIP_ALLOCED;
 		}
+		/* finally, have OK mapping (punted for PIO else) */
+		scsi_pointer->dma_handle = addr;
 
-		if (!dir_in) {
-			/* copy to bounce buffer for a write */
-			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
-			       scsi_pointer->this_residual);
-		}
 	}
 
 	/* setup dma direction */
@@ -129,13 +175,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	/* setup DMA *physical* address */
 	regs->ACR = addr;
 
-	if (dir_in) {
-		/* invalidate any cache */
-		cache_clear(addr, scsi_pointer->this_residual);
-	} else {
-		/* push any dirty cache */
-		cache_push(addr, scsi_pointer->this_residual);
-	}
+	/* no more cache flush here - dma_map_single() takes care */
 
 	bank_mask = (~wh->dma_xfer_mask >> 18) & 0x01c0;
 	if (bank_mask)
@@ -160,6 +200,11 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	regs->SP_DMA = 1;
 	/* remove write bit from CONTROL bits */
 	regs->CNTR = GVP11_DMAC_INT_ENABLE;
+
+	if (wh->dma_buffer_pool == BUF_SCSI_ALLOCED)
+		dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+				 scsi_pointer->this_residual,
+				 DMA_DIR(wh->dma_dir));
 
 	/* copy from a bounce buffer, if necessary */
 	if (status && wh->dma_bounce_buffer) {
@@ -287,6 +332,13 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 
 	default_dma_xfer_mask = ent->driver_data;
 
+	if (dma_set_mask_and_coherent(&z->dev,
+		TO_DMA_MASK(default_dma_xfer_mask))) {
+		dev_warn(&z->dev, "cannot use DMA mask %llx\n",
+			 TO_DMA_MASK(default_dma_xfer_mask));
+		return -ENODEV;
+	}
+
 	/*
 	 * Rumors state that some GVP ram boards use the same product
 	 * code as the SCSI controllers. Therefore if the board-size
@@ -327,9 +379,16 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	wdregs.SCMD = &regs->SCMD;
 
 	hdata = shost_priv(instance);
-	if (gvp11_xfer_mask)
+	if (gvp11_xfer_mask) {
 		hdata->wh.dma_xfer_mask = gvp11_xfer_mask;
-	else
+		if (dma_set_mask_and_coherent(&z->dev,
+			TO_DMA_MASK(gvp11_xfer_mask))) {
+			dev_warn(&z->dev, "cannot use DMA mask %llx\n",
+				 TO_DMA_MASK(gvp11_xfer_mask));
+			error = -ENODEV;
+			goto fail_check_or_alloc;
+		}
+	} else
 		hdata->wh.dma_xfer_mask = default_dma_xfer_mask;
 
 	hdata->wh.no_sync = 0xff;

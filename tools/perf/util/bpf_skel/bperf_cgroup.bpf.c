@@ -48,6 +48,7 @@ const volatile __u32 num_cpus = 1;
 
 int enabled = 0;
 int use_cgroup_v2 = 0;
+int perf_subsys_id = -1;
 
 static inline int get_cgroup_v1_idx(__u32 *cgrps, int size)
 {
@@ -58,7 +59,15 @@ static inline int get_cgroup_v1_idx(__u32 *cgrps, int size)
 	int level;
 	int cnt;
 
-	cgrp = BPF_CORE_READ(p, cgroups, subsys[perf_event_cgrp_id], cgroup);
+	if (perf_subsys_id == -1) {
+#if __has_builtin(__builtin_preserve_enum_value)
+		perf_subsys_id = bpf_core_enum_value(enum cgroup_subsys_id,
+						     perf_event_cgrp_id);
+#else
+		perf_subsys_id = perf_event_cgrp_id;
+#endif
+	}
+	cgrp = BPF_CORE_READ(p, cgroups, subsys[perf_subsys_id], cgroup);
 	level = BPF_CORE_READ(cgrp, level);
 
 	for (cnt = 0; i < MAX_LEVELS; i++) {
@@ -176,7 +185,7 @@ static int bperf_cgroup_count(void)
 }
 
 // This will be attached to cgroup-switches event for each cpu
-SEC("perf_events")
+SEC("perf_event")
 int BPF_PROG(on_cgrp_switch)
 {
 	return bperf_cgroup_count();

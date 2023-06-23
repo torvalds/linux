@@ -25,6 +25,8 @@
 		     ##__VA_ARGS__);					\
 } while (0)
 
+#define INTEL_CONTEXT_BANNED_PREEMPT_TIMEOUT_MS (1)
+
 struct i915_gem_ww_ctx;
 
 void intel_context_init(struct intel_context *ce,
@@ -309,17 +311,26 @@ static inline bool intel_context_set_banned(struct intel_context *ce)
 	return test_and_set_bit(CONTEXT_BANNED, &ce->flags);
 }
 
-static inline bool intel_context_ban(struct intel_context *ce,
-				     struct i915_request *rq)
+bool intel_context_ban(struct intel_context *ce, struct i915_request *rq);
+
+static inline bool intel_context_is_schedulable(const struct intel_context *ce)
 {
-	bool ret = intel_context_set_banned(ce);
-
-	trace_intel_context_ban(ce);
-	if (ce->ops->ban)
-		ce->ops->ban(ce, rq);
-
-	return ret;
+	return !test_bit(CONTEXT_EXITING, &ce->flags) &&
+	       !test_bit(CONTEXT_BANNED, &ce->flags);
 }
+
+static inline bool intel_context_is_exiting(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_EXITING, &ce->flags);
+}
+
+static inline bool intel_context_set_exiting(struct intel_context *ce)
+{
+	return test_and_set_bit(CONTEXT_EXITING, &ce->flags);
+}
+
+bool intel_context_exit_nonpersistent(struct intel_context *ce,
+				      struct i915_request *rq);
 
 static inline bool
 intel_context_force_single_submission(const struct intel_context *ce)

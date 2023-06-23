@@ -7,17 +7,19 @@
 
 struct sk_buff *
 __mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
-		     int data_len, gfp_t gfp)
+		     int len, int data_len, gfp_t gfp)
 {
 	const struct mt76_mcu_ops *ops = dev->mcu_ops;
-	int length = ops->headroom + data_len + ops->tailroom;
 	struct sk_buff *skb;
 
-	skb = alloc_skb(length, gfp);
+	len = max_t(int, len, data_len);
+	len = ops->headroom + len + ops->tailroom;
+
+	skb = alloc_skb(len, gfp);
 	if (!skb)
 		return NULL;
 
-	memset(skb->head, 0, length);
+	memset(skb->head, 0, len);
 	skb_reserve(skb, ops->headroom);
 
 	if (data && data_len)

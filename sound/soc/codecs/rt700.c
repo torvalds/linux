@@ -818,8 +818,13 @@ static const struct snd_soc_dapm_route rt700_audio_map[] = {
 static int rt700_probe(struct snd_soc_component *component)
 {
 	struct rt700_priv *rt700 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt700->component = component;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
 
 	return 0;
 }

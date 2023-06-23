@@ -106,14 +106,6 @@ static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 			u32 flags);
 
-#define EFX_ASSERT_RESET_SERIALISED(efx)		\
-	do {						\
-		if ((efx->state == STATE_READY) ||	\
-		    (efx->state == STATE_RECOVERY) ||	\
-		    (efx->state == STATE_DISABLED))	\
-			ASSERT_RTNL();			\
-	} while (0)
-
 /**************************************************************************
  *
  * Port handling
@@ -378,6 +370,8 @@ static int efx_probe_all(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
+	efx->state = STATE_NET_DOWN;
+
 	return 0;
 
  fail5:
@@ -498,7 +492,7 @@ void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
  */
 static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
 
 	if (cmd == SIOCSHWTSTAMP)
@@ -523,7 +517,7 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 /* Context: process, rtnl_lock() held. */
 int efx_net_open(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
 	netif_dbg(efx, ifup, efx->net_dev, "opening device on CPU %d\n",
@@ -544,6 +538,9 @@ int efx_net_open(struct net_device *net_dev)
 	efx_start_all(efx);
 	if (efx->state == STATE_DISABLED || efx->reset_pending)
 		netif_device_detach(efx->net_dev);
+	else
+		efx->state = STATE_NET_UP;
+
 	efx_selftest_async_start(efx);
 	return 0;
 }
@@ -554,7 +551,7 @@ int efx_net_open(struct net_device *net_dev)
  */
 int efx_net_stop(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	netif_dbg(efx, ifdown, efx->net_dev, "closing on CPU %d\n",
 		  raw_smp_processor_id());
@@ -567,7 +564,7 @@ int efx_net_stop(struct net_device *net_dev)
 
 static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->vlan_rx_add_vid)
 		return efx->type->vlan_rx_add_vid(efx, proto, vid);
@@ -577,7 +574,7 @@ static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid
 
 static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vid)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->vlan_rx_kill_vid)
 		return efx->type->vlan_rx_kill_vid(efx, proto, vid);
@@ -646,7 +643,7 @@ static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
 /* Context: process, rtnl_lock() held. */
 static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
@@ -659,7 +656,7 @@ static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 			u32 flags)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -681,7 +678,7 @@ static int efx_netdev_event(struct notifier_block *this,
 
 	if ((net_dev->netdev_ops == &efx_netdev_ops) &&
 	    event == NETDEV_CHANGENAME)
-		efx_update_name(netdev_priv(net_dev));
+		efx_update_name(efx_netdev_priv(net_dev));
 
 	return NOTIFY_DONE;
 }
@@ -720,8 +717,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 	 * already requested.  If so, the NIC is probably hosed so we
 	 * abort.
 	 */
-	efx->state = STATE_READY;
-	smp_mb(); /* ensure we change state before checking reset_pending */
 	if (efx->reset_pending) {
 		pci_err(efx->pci_dev, "aborting probe due to scheduled reset\n");
 		rc = -EIO;
@@ -747,6 +742,8 @@ static int efx_register_netdev(struct efx_nic *efx)
 	}
 
 	efx_associate(efx);
+
+	efx->state = STATE_NET_DOWN;
 
 	rtnl_unlock();
 
@@ -777,7 +774,8 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	if (!efx->net_dev)
 		return;
 
-	BUG_ON(netdev_priv(efx->net_dev) != efx);
+	if (WARN_ON(efx_netdev_priv(efx->net_dev) != efx))
+		return;
 
 	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
@@ -845,7 +843,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	/* Flush reset_work. It can no longer be scheduled since we
 	 * are not READY.
 	 */
-	BUG_ON(efx->state == STATE_READY);
+	WARN_ON(efx_net_active(efx->state));
 	efx_flush_reset_workqueue(efx);
 
 	efx_disable_interrupts(efx);
@@ -863,6 +861,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
  */
 static void efx_pci_remove(struct pci_dev *pci_dev)
 {
+	struct efx_probe_data *probe_data;
 	struct efx_nic *efx;
 
 	efx = pci_get_drvdata(pci_dev);
@@ -887,10 +886,12 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_pci_remove_main(efx);
 
 	efx_fini_io(efx);
-	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
+	pci_dbg(efx->pci_dev, "shutdown successful\n");
 
 	efx_fini_struct(efx);
 	free_netdev(efx->net_dev);
+	probe_data = container_of(efx, struct efx_probe_data, efx);
+	kfree(probe_data);
 
 	pci_disable_pcie_error_reporting(pci_dev);
 };
@@ -1044,24 +1045,34 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 static int efx_pci_probe(struct pci_dev *pci_dev,
 			 const struct pci_device_id *entry)
 {
+	struct efx_probe_data *probe_data, **probe_ptr;
 	struct net_device *net_dev;
 	struct efx_nic *efx;
 	int rc;
 
-	/* Allocate and initialise a struct net_device and struct efx_nic */
-	net_dev = alloc_etherdev_mqs(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES,
-				     EFX_MAX_RX_QUEUES);
+	/* Allocate probe data and struct efx_nic */
+	probe_data = kzalloc(sizeof(*probe_data), GFP_KERNEL);
+	if (!probe_data)
+		return -ENOMEM;
+	probe_data->pci_dev = pci_dev;
+	efx = &probe_data->efx;
+
+	/* Allocate and initialise a struct net_device */
+	net_dev = alloc_etherdev_mq(sizeof(probe_data), EFX_MAX_CORE_TX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
-	efx = netdev_priv(net_dev);
+	probe_ptr = netdev_priv(net_dev);
+	*probe_ptr = probe_data;
+	efx->net_dev = net_dev;
 	efx->type = (const struct efx_nic_type *) entry->driver_data;
 	efx->fixed_features |= NETIF_F_HIGHDMA;
 
 	pci_set_drvdata(pci_dev, efx);
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);
-	rc = efx_init_struct(efx, pci_dev, net_dev);
+	rc = efx_init_struct(efx, pci_dev);
 	if (rc)
 		goto fail1;
+	efx->mdio.dev = net_dev;
 
 	pci_info(pci_dev, "Solarflare NIC detected\n");
 
@@ -1150,13 +1161,13 @@ static int efx_pm_freeze(struct device *dev)
 
 	rtnl_lock();
 
-	if (efx->state != STATE_DISABLED) {
-		efx->state = STATE_UNINIT;
-
+	if (efx_net_active(efx->state)) {
 		efx_device_detach_sync(efx);
 
 		efx_stop_all(efx);
 		efx_disable_interrupts(efx);
+
+		efx->state = efx_freeze(efx->state);
 	}
 
 	rtnl_unlock();
@@ -1171,7 +1182,7 @@ static int efx_pm_thaw(struct device *dev)
 
 	rtnl_lock();
 
-	if (efx->state != STATE_DISABLED) {
+	if (efx_frozen(efx->state)) {
 		rc = efx_enable_interrupts(efx);
 		if (rc)
 			goto fail;
@@ -1184,7 +1195,7 @@ static int efx_pm_thaw(struct device *dev)
 
 		efx_device_attach_if_not_resetting(efx);
 
-		efx->state = STATE_READY;
+		efx->state = efx_thaw(efx->state);
 
 		efx->type->resume_wol(efx);
 	}

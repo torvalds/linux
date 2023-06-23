@@ -4,7 +4,7 @@
  *
  * This code provides the generic "frontend" layer to call a matching
  * "backend" driver implementation of frontswap.  See
- * Documentation/vm/frontswap.rst for more information.
+ * Documentation/mm/frontswap.rst for more information.
  *
  * Copyright (C) 2009-2012 Oracle Corp.  All rights reserved.
  * Author: Dan Magenheimer
@@ -125,6 +125,9 @@ void frontswap_init(unsigned type, unsigned long *map)
 	 * p->frontswap set to something valid to work properly.
 	 */
 	frontswap_map_set(sis, map);
+
+	if (!frontswap_enabled())
+		return;
 	frontswap_ops->init(type);
 }
 

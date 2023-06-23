@@ -8,6 +8,7 @@
 
 #include <dt-bindings/clock/samsung,exynosautov9.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/samsung,boot-mode.h>
 #include <dt-bindings/soc/samsung,exynos-usi.h>
 
 / {
@@ -265,6 +266,16 @@
 						 IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
+		pdma0: dma-controller@1b2e0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x1b2e0000 0x1000>;
+			interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_busmc CLK_GOUT_BUSMC_PDMA0_PCLK>;
+			clock-names = "apb_pclk";
+			arm,pl330-broken-no-flushp;
+			#dma-cells = <1>;
+		};
+
 		pinctrl_alive: pinctrl@10450000 {
 			compatible = "samsung,exynosautov9-pinctrl";
 			reg = <0x10450000 0x1000>;
@@ -312,6 +323,22 @@
 		pmu_system_controller: system-controller@10460000 {
 			compatible = "samsung,exynos7-pmu", "syscon";
 			reg = <0x10460000 0x10000>;
+
+			reboot: syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&pmu_system_controller>;
+				offset = <0x3a00>; /* SYSTEM_CONFIGURATION */
+				value = <0x2>;
+				mask = <0x2>;
+			};
+
+			reboot-mode {
+				compatible = "syscon-reboot-mode";
+				offset = <0x810>; /* SYSIP_DAT0 */
+				mode-bootloader = <EXYNOSAUTOV9_BOOT_BOOTLOADER>;
+				mode-fastboot = <EXYNOSAUTOV9_BOOT_FASTBOOT>;
+				mode-recovery = <EXYNOSAUTOV9_BOOT_RECOVERY>;
+			};
 		};
 
 		syscon_fsys2: syscon@17c20000 {
@@ -324,12 +351,17 @@
 			reg = <0x10220000 0x2000>;
 		};
 
+		syscon_peric1: syscon@10820000 {
+			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			reg = <0x10820000 0x2000>;
+		};
+
 		usi_0: usi@103000c0 {
-			compatible = "samsung,exynos850-usi";
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
 			reg = <0x103000c0 0x20>;
 			samsung,sysreg = <&syscon_peric0 0x1000>;
 			samsung,mode = <USI_V2_UART>;
-			samsung,clkreq-on; /* needed for UART mode */
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -338,21 +370,1083 @@
 			clock-names = "pclk", "ipclk";
 			status = "disabled";
 
-			/* USI: UART */
 			serial_0: serial@10300000 {
-				compatible = "samsung,exynos850-uart";
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
 				reg = <0x10300000 0xc0>;
 				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&uart0_bus_dual>;
+				pinctrl-0 = <&uart0_bus>;
 				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>,
 					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>;
 				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <256>;
+				status = "disabled";
+			};
+
+			spi_0: spi@10300000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10300000 0x30>;
+				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI00_USI>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 1>, <&pdma0 0>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_0: i2c@10300000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10300000 0xc0>;
+				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c0_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 		};
 
-		ufs_0_phy: ufs0-phy@17e04000 {
+		usi_i2c_0: usi@103100c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103100c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1004>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_1>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_1>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_1: i2c@10310000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10310000 0xc0>;
+				interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c1_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_1>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_1>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_1: usi@103200c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103200c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1008>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_2>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_2>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_1: serial@10320000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10320000 0xc0>;
+				interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart1_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_2>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_2>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <256>;
+				status = "disabled";
+			};
+
+			spi_1: spi@10320000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10320000 0x30>;
+				interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi1_bus &spi1_cs_func>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_2>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI01_USI>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_2>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 3>, <&pdma0 2>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_2: i2c@10320000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10320000 0xc0>;
+				interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c2_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_2>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_2>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_1: usi@103300c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103300c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x100c>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_3>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_3>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_3: i2c@10330000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10330000 0xc0>;
+				interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c3_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_3>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_3>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_2: usi@103400c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103400c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1010>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_4>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_4>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_2: serial@10340000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10340000 0xc0>;
+				interrupts = <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart2_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_4>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_4>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_2: spi@10340000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10340000 0x30>;
+				interrupts = <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_bus &spi2_cs_func>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_4>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI02_USI>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_4>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 5>, <&pdma0 4>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_4: i2c@10340000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10340000 0xc0>;
+				interrupts = <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c4_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_4>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_4>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_2: usi@103500c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103500c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1014>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_5>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_5>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_5: i2c@10350000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10350000 0xc0>;
+				interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c5_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_5>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_5>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_3: usi@103600c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103600c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1018>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_6>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_6>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_3: serial@10360000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10360000 0xc0>;
+				interrupts = <GIC_SPI 351 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart3_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_6>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_6>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_3: spi@10360000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10360000 0x30>;
+				interrupts = <GIC_SPI 351 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi3_bus &spi3_cs_func>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_6>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI03_USI>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_6>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 7>, <&pdma0 6>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_6: i2c@10360000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10360000 0xc0>;
+				interrupts = <GIC_SPI 351 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c6_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_6>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_6>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_3: usi@103700c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103700c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x101c>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_7>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_7>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_7: i2c@10370000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10370000 0xc0>;
+				interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c7_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_7>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_7>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_4: usi@103800c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103800c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1020>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_8>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_8>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_4: serial@10380000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10380000 0xc0>;
+				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart4_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_8>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_8>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_4: spi@10380000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10380000 0x30>;
+				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi4_bus &spi4_cs_func>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_8>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI04_USI>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_8>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 9>, <&pdma0 8>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_8: i2c@10380000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10380000 0xc0>;
+				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c8_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_8>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_8>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_4: usi@103900c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103900c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1024>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_9>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_9>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_9: i2c@10390000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10390000 0xc0>;
+				interrupts = <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c9_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_9>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_9>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_5: usi@103a00c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103a00c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1028>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_10>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_10>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_5: serial@103a0000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x103a0000 0xc0>;
+				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart5_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_10>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_10>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_5: spi@103a0000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x103a0000 0x30>;
+				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi5_bus &spi5_cs_func>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_10>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI05_USI>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_10>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 11>, <&pdma0 10>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_10: i2c@103a0000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x103a0000 0xc0>;
+				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c10_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_10>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_10>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_5: usi@103b00c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x103b00c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x102c>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_11>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_11>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_11: i2c@103b0000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x103b0000 0xc0>;
+				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c11_bus>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_11>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_11>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_6: usi@109000c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109000c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1000>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_0>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_0>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_6: serial@10900000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10900000 0xc0>;
+				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart6_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_0>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_0>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <256>;
+				status = "disabled";
+			};
+
+			spi_6: spi@10900000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10900000 0x30>;
+				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi6_bus &spi6_cs_func>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_0>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI06_USI>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_0>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 13>, <&pdma0 12>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_12: i2c@10900000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10900000 0xc0>;
+				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c12_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_0>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_0>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_6: usi@109100c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109100c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1004>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_1>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_1>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_13: i2c@10910000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10910000 0xc0>;
+				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c13_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_1>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_1>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_7: usi@109200c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109200c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1008>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_2>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_2>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_7: serial@10920000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10920000 0xc0>;
+				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart7_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_2>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_2>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_7: spi@10920000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10920000 0x30>;
+				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi7_bus &spi7_cs_func>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_2>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI07_USI>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_2>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 15>, <&pdma0 14>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_14: i2c@10920000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10920000 0xc0>;
+				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c14_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_2>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_2>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_7: usi@109300c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109300c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x100c>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_3>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_3>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_15: i2c@10930000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10930000 0xc0>;
+				interrupts = <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c15_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_3>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_3>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_8: usi@109400c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109400c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1010>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_4>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_4>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_8: serial@10940000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10940000 0xc0>;
+				interrupts = <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart8_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_4>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_4>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_8: spi@10940000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10940000 0x30>;
+				interrupts = <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi8_bus &spi8_cs_func>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_4>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI08_USI>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_4>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 17>, <&pdma0 16>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_16: i2c@10940000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10940000 0xc0>;
+				interrupts = <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c16_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_4>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_4>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_8: usi@109500c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109500c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1014>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_5>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_5>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_17: i2c@10950000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10950000 0xc0>;
+				interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c17_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_5>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_5>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_9: usi@109600c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109600c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1018>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_6>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_6>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_9: serial@10960000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10960000 0xc0>;
+				interrupts = <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart9_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_6>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_6>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_9: spi@10960000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10960000 0x30>;
+				interrupts = <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi9_bus &spi9_cs_func>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_6>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI09_USI>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_6>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 19>, <&pdma0 18>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_18: i2c@10960000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10960000 0xc0>;
+				interrupts = <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c18_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_6>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_6>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_9: usi@109700c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109700c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x101c>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_7>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_7>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_19: i2c@10970000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10970000 0xc0>;
+				interrupts = <GIC_SPI 363 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c19_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_7>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_7>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_10: usi@109800c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109800c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1020>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_8>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_8>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_10: serial@10980000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x10980000 0xc0>;
+				interrupts = <GIC_SPI 366 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart10_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_8>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_8>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_10: spi@10980000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x10980000 0x30>;
+				interrupts = <GIC_SPI 366 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi10_bus &spi10_cs_func>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_8>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI10_USI>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_8>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 21>, <&pdma0 20>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_20: i2c@10980000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10980000 0xc0>;
+				interrupts = <GIC_SPI 366 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c20_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_8>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_8>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_10: usi@109900c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109900c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1024>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_9>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_9>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_21: i2c@10990000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x10990000 0xc0>;
+				interrupts = <GIC_SPI 365 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c21_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_9>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_9>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_11: usi@109a00c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109a00c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x1028>;
+			samsung,mode = <USI_V2_UART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_10>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_10>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			serial_11: serial@109a0000 {
+				compatible = "samsung,exynosautov9-uart",
+					     "samsung,exynos850-uart";
+				reg = <0x109a0000 0xc0>;
+				interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart11_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_10>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_10>;
+				clock-names = "uart", "clk_uart_baud0";
+				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_11: spi@109a0000 {
+				compatible = "samsung,exynosautov9-spi";
+				reg = <0x109a0000 0x30>;
+				interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi11_bus &spi11_cs_func>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_10>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI11_USI>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_10>;
+				clock-names = "spi", "spi_busclk0", "spi_ioclk";
+				samsung,spi-src-clk = <0>;
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			hsi2c_22: i2c@109a0000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x109a0000 0xc0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c22_bus>;
+				interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_10>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_10>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usi_i2c_11: usi@109b00c0 {
+			compatible = "samsung,exynosautov9-usi",
+				     "samsung,exynos850-usi";
+			reg = <0x109b00c0 0x20>;
+			samsung,sysreg = <&syscon_peric1 0x102c>;
+			samsung,mode = <USI_V2_I2C>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_11>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_11>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			hsi2c_23: i2c@109b0000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x109b0000 0xc0>;
+				interrupts = <GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hsi2c23_bus>;
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_IPCLK_11>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_PCLK_11>;
+				clock-names = "hsi2c", "hsi2c_pclk";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		ufs_0_phy: phy@17e04000 {
 			compatible = "samsung,exynosautov9-ufs-phy";
 			reg = <0x17e04000 0xc00>;
 			reg-names = "phy-pma";
@@ -363,13 +1457,13 @@
 			status = "disabled";
 		};
 
-		ufs_0: ufs0@17e00000 {
-			compatible ="samsung,exynosautov9-ufs";
+		ufs_0: ufs@17e00000 {
+			compatible = "samsung,exynosautov9-ufs";
 
-			reg = <0x17e00000 0x100>,  /* 0: HCI standard */
-				<0x17e01100 0x410>,  /* 1: Vendor-specific */
-				<0x17e80000 0x8000>,  /* 2: UNIPRO */
-				<0x17dc0000 0x2200>;  /* 3: UFS protector */
+			reg = <0x17e00000 0x100>,
+			      <0x17e01100 0x410>,
+			      <0x17e80000 0x8000>,
+			      <0x17dc0000 0x2200>;
 			reg-names = "hci", "vs_hci", "unipro", "ufsp";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_ACLK>,
@@ -382,6 +1476,58 @@
 			phy-names = "ufs-phy";
 			samsung,sysreg = <&syscon_fsys2 0x710>;
 			status = "disabled";
+		};
+
+		ufs_1_phy: phy@17f04000 {
+			compatible = "samsung,exynosautov9-ufs-phy";
+			reg = <0x17f04000 0xc00>;
+			reg-names = "phy-pma";
+			samsung,pmu-syscon = <&pmu_system_controller 0x72c>;
+			#phy-cells = <0>;
+			clocks = <&xtcxo>;
+			clock-names = "ref_clk";
+			status = "disabled";
+		};
+
+		ufs_1: ufs@17f00000 {
+			compatible = "samsung,exynosautov9-ufs";
+
+			reg = <0x17f00000 0x100>,
+			      <0x17f01100 0x410>,
+			      <0x17f80000 0x8000>,
+			      <0x17de0000 0x2200>;
+			reg-names = "hci", "vs_hci", "unipro", "ufsp";
+			interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD1_ACLK>,
+				 <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD1_UNIPRO>;
+			clock-names = "core_clk", "sclk_unipro_main";
+			freq-table-hz = <0 0>, <0 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ufs_rst_n_1 &ufs_refclk_out_1>;
+			phys = <&ufs_1_phy>;
+			phy-names = "ufs-phy";
+			samsung,sysreg = <&syscon_fsys2 0x714>;
+			status = "disabled";
+		};
+
+		watchdog_cl0: watchdog@10050000 {
+			compatible = "samsung,exynosautov9-wdt";
+			reg = <0x10050000 0x100>;
+			interrupts = <GIC_SPI 476 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_peris CLK_GOUT_WDT_CLUSTER0>, <&xtcxo>;
+			clock-names = "watchdog", "watchdog_src";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			samsung,cluster-index = <0>;
+		};
+
+		watchdog_cl1: watchdog@10060000 {
+			compatible = "samsung,exynosautov9-wdt";
+			reg = <0x10060000 0x100>;
+			interrupts = <GIC_SPI 475 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_peris CLK_GOUT_WDT_CLUSTER1>, <&xtcxo>;
+			clock-names = "watchdog", "watchdog_src";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			samsung,cluster-index = <1>;
 		};
 	};
 };

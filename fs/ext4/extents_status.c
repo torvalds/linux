@@ -1654,7 +1654,8 @@ int ext4_es_register_shrinker(struct ext4_sb_info *sbi)
 	sbi->s_es_shrinker.scan_objects = ext4_es_scan;
 	sbi->s_es_shrinker.count_objects = ext4_es_count;
 	sbi->s_es_shrinker.seeks = DEFAULT_SEEKS;
-	err = register_shrinker(&sbi->s_es_shrinker);
+	err = register_shrinker(&sbi->s_es_shrinker, "ext4-es:%s",
+				sbi->s_sb->s_id);
 	if (err)
 		goto err4;
 

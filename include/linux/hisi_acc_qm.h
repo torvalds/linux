@@ -265,6 +265,12 @@ struct hisi_qm_list {
 	void (*unregister_from_crypto)(struct hisi_qm *qm);
 };
 
+struct hisi_qm_poll_data {
+	struct hisi_qm *qm;
+	struct work_struct work;
+	u16 *qp_finish_id;
+};
+
 struct hisi_qm {
 	enum qm_hw_ver ver;
 	enum qm_fun_type fun_type;
@@ -302,6 +308,7 @@ struct hisi_qm {
 	struct rw_semaphore qps_lock;
 	struct idr qp_idr;
 	struct hisi_qp *qp_array;
+	struct hisi_qm_poll_data *poll_data;
 
 	struct mutex mailbox_lock;
 
@@ -312,7 +319,6 @@ struct hisi_qm {
 	u32 error_mask;
 
 	struct workqueue_struct *wq;
-	struct work_struct work;
 	struct work_struct rst_work;
 	struct work_struct cmd_process;
 

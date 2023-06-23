@@ -68,6 +68,27 @@ void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 			       value, index, data, size);
 }
 
+static int asix_set_sw_mii(struct usbnet *dev, int in_pm)
+{
+	int ret;
+
+	ret = asix_write_cmd(dev, AX_CMD_SET_SW_MII, 0x0000, 0, 0, NULL, in_pm);
+
+	if (ret < 0)
+		netdev_err(dev->net, "Failed to enable software MII access\n");
+	return ret;
+}
+
+static int asix_set_hw_mii(struct usbnet *dev, int in_pm)
+{
+	int ret;
+
+	ret = asix_write_cmd(dev, AX_CMD_SET_HW_MII, 0x0000, 0, 0, NULL, in_pm);
+	if (ret < 0)
+		netdev_err(dev->net, "Failed to enable hardware MII access\n");
+	return ret;
+}
+
 static int asix_check_host_enable(struct usbnet *dev, int in_pm)
 {
 	int i, ret;
@@ -295,25 +316,6 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	usbnet_set_skb_tx_stats(skb, 1, 0);
 	return skb;
-}
-
-int asix_set_sw_mii(struct usbnet *dev, int in_pm)
-{
-	int ret;
-	ret = asix_write_cmd(dev, AX_CMD_SET_SW_MII, 0x0000, 0, 0, NULL, in_pm);
-
-	if (ret < 0)
-		netdev_err(dev->net, "Failed to enable software MII access\n");
-	return ret;
-}
-
-int asix_set_hw_mii(struct usbnet *dev, int in_pm)
-{
-	int ret;
-	ret = asix_write_cmd(dev, AX_CMD_SET_HW_MII, 0x0000, 0, 0, NULL, in_pm);
-	if (ret < 0)
-		netdev_err(dev->net, "Failed to enable hardware MII access\n");
-	return ret;
 }
 
 int asix_read_phy_addr(struct usbnet *dev, bool internal)

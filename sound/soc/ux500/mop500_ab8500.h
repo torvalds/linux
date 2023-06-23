@@ -4,8 +4,6 @@
  *
  * Author: Ola Lilja <ola.o.lilja@stericsson.com>
  *         for ST-Ericsson.
- *
- * License terms:
  */
 
 #ifndef MOP500_AB8500_H

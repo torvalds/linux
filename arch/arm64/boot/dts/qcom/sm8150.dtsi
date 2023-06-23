@@ -288,7 +288,7 @@
 		};
 	};
 
-	cpu0_opp_table: cpu0_opp_table {
+	cpu0_opp_table: opp-table-cpu0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -383,7 +383,7 @@
 		};
 	};
 
-	cpu4_opp_table: cpu4_opp_table {
+	cpu4_opp_table: opp-table-cpu4 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -473,7 +473,7 @@
 		};
 	};
 
-	cpu7_opp_table: cpu7_opp_table {
+	cpu7_opp_table: opp-table-cpu7 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -2187,7 +2187,7 @@
 		};
 
 		gmu: gmu@2c6a000 {
-			compatible="qcom,adreno-gmu-640.1", "qcom,adreno-gmu";
+			compatible = "qcom,adreno-gmu-640.1", "qcom,adreno-gmu";
 
 			reg = <0 0x02c6a000 0 0x30000>,
 			      <0 0x0b290000 0 0x10000>,
@@ -3394,57 +3394,49 @@
 					compute-cb@1 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <1>;
-						iommus = <&apps_smmu 0x1401 0x2040>,
-							 <&apps_smmu 0x1421 0x0>,
-							 <&apps_smmu 0x2001 0x420>,
-							 <&apps_smmu 0x2041 0x0>;
+						iommus = <&apps_smmu 0x1001 0x0460>;
 					};
 
 					compute-cb@2 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <2>;
-						iommus = <&apps_smmu 0x2 0x3440>,
-							 <&apps_smmu 0x22 0x3400>;
+						iommus = <&apps_smmu 0x1002 0x0460>;
 					};
 
 					compute-cb@3 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <3>;
-						iommus = <&apps_smmu 0x3 0x3440>,
-							 <&apps_smmu 0x1423 0x0>,
-							 <&apps_smmu 0x2023 0x0>;
+						iommus = <&apps_smmu 0x1003 0x0460>;
 					};
 
 					compute-cb@4 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <4>;
-						iommus = <&apps_smmu 0x4 0x3440>,
-							 <&apps_smmu 0x24 0x3400>;
+						iommus = <&apps_smmu 0x1004 0x0460>;
 					};
 
 					compute-cb@5 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <5>;
-						iommus = <&apps_smmu 0x5 0x3440>,
-							 <&apps_smmu 0x25 0x3400>;
+						iommus = <&apps_smmu 0x1005 0x0460>;
 					};
 
 					compute-cb@6 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <6>;
-						iommus = <&apps_smmu 0x6 0x3460>;
+						iommus = <&apps_smmu 0x1006 0x0460>;
 					};
 
 					compute-cb@7 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <7>;
-						iommus = <&apps_smmu 0x7 0x3460>;
+						iommus = <&apps_smmu 0x1007 0x0460>;
 					};
 
 					compute-cb@8 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <8>;
-						iommus = <&apps_smmu 0x8 0x3460>;
+						iommus = <&apps_smmu 0x1008 0x0460>;
 					};
 
 					/* note: secure cb9 in downstream */
@@ -3543,7 +3535,7 @@
 			};
 		};
 
-		sdhc_2: sdhci@8804000 {
+		sdhc_2: mmc@8804000 {
 			compatible = "qcom,sm8150-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x08804000 0 0x1000>;
 
@@ -3563,7 +3555,7 @@
 
 			status = "disabled";
 
-			sdhc2_opp_table: sdhc2-opp-table {
+			sdhc2_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-19200000 {
@@ -3718,7 +3710,7 @@
 		};
 
 		aoss_qmp: power-controller@c300000 {
-			compatible = "qcom,sm8150-aoss-qmp";
+			compatible = "qcom,sm8150-aoss-qmp", "qcom,aoss-qmp";
 			reg = <0x0 0x0c300000 0x0 0x400>;
 			interrupts = <GIC_SPI 389 IRQ_TYPE_EDGE_RISING>;
 			mboxes = <&apss_shared 0>;
@@ -3944,9 +3936,9 @@
 		};
 
 		timer@17c20000 {
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0 0 0x20000000>;
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0 0x17c20000 0x0 0x1000>;
 			clock-frequency = <19200000>;
@@ -3955,49 +3947,49 @@
 				frame-number = <0>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c21000 0x0 0x1000>,
-				      <0x0 0x17c22000 0x0 0x1000>;
+				reg = <0x17c21000 0x1000>,
+				      <0x17c22000 0x1000>;
 			};
 
 			frame@17c23000 {
 				frame-number = <1>;
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c23000 0x0 0x1000>;
+				reg = <0x17c23000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c25000 {
 				frame-number = <2>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c25000 0x0 0x1000>;
+				reg = <0x17c25000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c27000 {
 				frame-number = <3>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c26000 0x0 0x1000>;
+				reg = <0x17c26000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c29000 {
 				frame-number = <4>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c29000 0x0 0x1000>;
+				reg = <0x17c29000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c2b000 {
 				frame-number = <5>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c2b000 0x0 0x1000>;
+				reg = <0x17c2b000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17c2d000 {
 				frame-number = <6>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0 0x17c2d000 0x0 0x1000>;
+				reg = <0x17c2d000 0x1000>;
 				status = "disabled";
 			};
 		};

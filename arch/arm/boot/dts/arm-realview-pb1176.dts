@@ -410,7 +410,7 @@
 			interrupt-parent = <&intc_dc1176>;
 			interrupts = <0 17 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&sspclk>, <&pclk>;
-			clock-names = "SSPCLK", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 		};
 
 		pb1176_serial0: serial@1010c000 {

@@ -21,7 +21,7 @@ struct v4l2_subdev *fimc_find_remote_sensor(struct media_entity *entity)
 
 	while (pad->flags & MEDIA_PAD_FL_SINK) {
 		/* source pad */
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 

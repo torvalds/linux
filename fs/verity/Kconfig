@@ -14,11 +14,11 @@ config FS_VERITY
 	help
 	  This option enables fs-verity.  fs-verity is the dm-verity
 	  mechanism implemented at the file level.  On supported
-	  filesystems (currently EXT4 and F2FS), userspace can use an
-	  ioctl to enable verity for a file, which causes the filesystem
-	  to build a Merkle tree for the file.  The filesystem will then
-	  transparently verify any data read from the file against the
-	  Merkle tree.  The file is also made read-only.
+	  filesystems (currently ext4, f2fs, and btrfs), userspace can
+	  use an ioctl to enable verity for a file, which causes the
+	  filesystem to build a Merkle tree for the file.  The filesystem
+	  will then transparently verify any data read from the file
+	  against the Merkle tree.  The file is also made read-only.
 
 	  This serves as an integrity check, but the availability of the
 	  Merkle tree root hash also allows efficiently supporting

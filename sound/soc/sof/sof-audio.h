@@ -168,6 +168,7 @@ struct sof_ipc_tplg_widget_ops {
  * @dai_get_clk: Function pointer for getting the DAI clock setting
  * @set_up_all_pipelines: Function pointer for setting up all topology pipelines
  * @tear_down_all_pipelines: Function pointer for tearing down all topology pipelines
+ * @parse_manifest: Optional function pointer for ipc4 specific parsing of topology manifest
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
@@ -185,6 +186,8 @@ struct sof_ipc_tplg_ops {
 	int (*dai_get_clk)(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int clk_type);
 	int (*set_up_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
 	int (*tear_down_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
+	int (*parse_manifest)(struct snd_soc_component *scomp, int index,
+			      struct snd_soc_tplg_manifest *man);
 };
 
 /** struct snd_sof_tuple - Tuple info
@@ -225,6 +228,15 @@ enum sof_tokens {
 	SOF_AFE_TOKENS,
 	SOF_CORE_TOKENS,
 	SOF_COMP_EXT_TOKENS,
+	SOF_IN_AUDIO_FORMAT_TOKENS,
+	SOF_OUT_AUDIO_FORMAT_TOKENS,
+	SOF_AUDIO_FORMAT_BUFFER_SIZE_TOKENS,
+	SOF_COPIER_GATEWAY_CFG_TOKENS,
+	SOF_COPIER_TOKENS,
+	SOF_AUDIO_FMT_NUM_TOKENS,
+	SOF_COPIER_FORMAT_TOKENS,
+	SOF_GAIN_TOKENS,
+	SOF_ACPDMIC_TOKENS,
 
 	/* this should be the last */
 	SOF_TOKEN_COUNT,

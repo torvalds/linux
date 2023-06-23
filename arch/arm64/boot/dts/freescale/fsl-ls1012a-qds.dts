@@ -69,7 +69,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q128a11", "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
 	};

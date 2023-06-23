@@ -1305,8 +1305,6 @@ void ia_css_debug_frame_print(const struct ia_css_frame *frame,
 	ia_css_debug_dtrace(2, "  padded width  = %d\n",
 			    frame->info.padded_width);
 	ia_css_debug_dtrace(2, "  format        = %d\n", frame->info.format);
-	ia_css_debug_dtrace(2, "  is contiguous = %s\n",
-			    frame->contiguous ? "yes" : "no");
 	switch (frame->info.format) {
 	case IA_CSS_FRAME_FORMAT_NV12:
 	case IA_CSS_FRAME_FORMAT_NV16:

@@ -114,7 +114,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 static irqreturn_t intel_sst_irq_thread_mrfld(int irq, void *context)
 {
 	struct intel_sst_drv *drv = (struct intel_sst_drv *) context;
-	struct ipc_post *__msg, *msg = NULL;
+	struct ipc_post *__msg, *msg;
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->rx_msg_lock, irq_flags);

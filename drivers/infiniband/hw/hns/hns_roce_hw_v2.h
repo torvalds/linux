@@ -36,11 +36,11 @@
 #include <linux/bitops.h>
 
 #define HNS_ROCE_V2_MAX_QP_NUM			0x1000
-#define HNS_ROCE_V2_MAX_QPC_TIMER_NUM		0x200
 #define HNS_ROCE_V2_MAX_WQE_NUM			0x8000
 #define HNS_ROCE_V2_MAX_SRQ_WR			0x8000
 #define HNS_ROCE_V2_MAX_SRQ_SGE			64
 #define HNS_ROCE_V2_MAX_CQ_NUM			0x100000
+#define HNS_ROCE_V2_MAX_QPC_TIMER_BT_NUM	0x100
 #define HNS_ROCE_V2_MAX_CQC_TIMER_BT_NUM	0x100
 #define HNS_ROCE_V2_MAX_SRQ_NUM			0x100000
 #define HNS_ROCE_V2_MAX_CQE_NUM			0x400000
@@ -83,7 +83,7 @@
 
 #define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
-#define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
+#define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFF000
 #define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
 #define HNS_ROCE_INVALID_LKEY			0x0
 #define HNS_ROCE_INVALID_SGE_LENGTH		0x80000000
@@ -250,6 +250,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CFG_GMV_TBL			= 0x850f,
 	HNS_ROCE_OPC_CFG_GMV_BT				= 0x8510,
 	HNS_ROCE_OPC_EXT_CFG				= 0x8512,
+	HNS_ROCE_QUERY_RAM_ECC				= 0x8513,
 	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
 };
 
@@ -1107,6 +1108,11 @@ enum {
 #define CFG_GMV_BT_BA_H CMQ_REQ_FIELD_LOC(51, 32)
 #define CFG_GMV_BT_IDX CMQ_REQ_FIELD_LOC(95, 64)
 
+/* Fields of HNS_ROCE_QUERY_RAM_ECC */
+#define QUERY_RAM_ECC_1BIT_ERR CMQ_REQ_FIELD_LOC(31, 0)
+#define QUERY_RAM_ECC_RES_TYPE CMQ_REQ_FIELD_LOC(63, 32)
+#define QUERY_RAM_ECC_TAG CMQ_REQ_FIELD_LOC(95, 64)
+
 struct hns_roce_cfg_sgid_tb {
 	__le32	table_idx_rsv;
 	__le32	vf_sgid_l;
@@ -1343,6 +1349,12 @@ struct hns_roce_dip {
 	struct list_head node; /* all dips are on a list */
 };
 
+struct fmea_ram_ecc {
+	u32	is_ecc_err;
+	u32	res_type;
+	u32	index;
+};
+
 /* only for RNR timeout issue of HIP08 */
 #define HNS_ROCE_CLOCK_ADJUST 1000
 #define HNS_ROCE_MAX_CQ_PERIOD 65
@@ -1382,7 +1394,6 @@ struct hns_roce_dip {
 #define HNS_ROCE_V2_ASYNC_EQE_NUM		0x1000
 
 #define HNS_ROCE_V2_VF_INT_ST_AEQ_OVERFLOW_S	0
-#define HNS_ROCE_V2_VF_INT_ST_RAS_INT_S		1
 
 #define HNS_ROCE_EQ_DB_CMD_AEQ			0x0
 #define HNS_ROCE_EQ_DB_CMD_AEQ_ARMED		0x1

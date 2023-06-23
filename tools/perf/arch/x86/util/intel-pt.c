@@ -426,7 +426,7 @@ static int intel_pt_track_switches(struct evlist *evlist)
 	if (!evlist__can_select_event(evlist, sched_switch))
 		return -EPERM;
 
-	err = parse_events(evlist, sched_switch, NULL);
+	err = parse_event(evlist, sched_switch);
 	if (err) {
 		pr_debug2("%s: failed to parse %s, error %d\n",
 			  __func__, sched_switch, err);

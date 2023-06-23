@@ -473,7 +473,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	return 0;
 fail_cleanup_disk:
-	blk_cleanup_disk(gendisk);
+	put_disk(gendisk);
 fail_free_tag_set:
 	blk_mq_free_tag_set(&priv->tag_set);
 fail_teardown:
@@ -500,7 +500,7 @@ static void ps3disk_remove(struct ps3_system_bus_device *_dev)
 		    &ps3disk_mask);
 	mutex_unlock(&ps3disk_mask_mutex);
 	del_gendisk(priv->gendisk);
-	blk_cleanup_disk(priv->gendisk);
+	put_disk(priv->gendisk);
 	blk_mq_free_tag_set(&priv->tag_set);
 	dev_notice(&dev->sbd.core, "Synchronizing disk cache\n");
 	ps3disk_sync_cache(dev);

@@ -401,7 +401,6 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mtk_wdt_suspend(struct device *dev)
 {
 	struct mtk_wdt_dev *mtk_wdt = dev_get_drvdata(dev);
@@ -423,7 +422,6 @@ static int mtk_wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct of_device_id mtk_wdt_dt_ids[] = {
 	{ .compatible = "mediatek,mt2712-wdt", .data = &mt2712_data },
@@ -437,16 +435,14 @@ static const struct of_device_id mtk_wdt_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mtk_wdt_dt_ids);
 
-static const struct dev_pm_ops mtk_wdt_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mtk_wdt_suspend,
-				mtk_wdt_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(mtk_wdt_pm_ops,
+				mtk_wdt_suspend, mtk_wdt_resume);
 
 static struct platform_driver mtk_wdt_driver = {
 	.probe		= mtk_wdt_probe,
 	.driver		= {
 		.name		= DRV_NAME,
-		.pm		= &mtk_wdt_pm_ops,
+		.pm		= pm_sleep_ptr(&mtk_wdt_pm_ops),
 		.of_match_table	= mtk_wdt_dt_ids,
 	},
 };

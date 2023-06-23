@@ -82,6 +82,7 @@ struct funeth_txq_stats {  /* per Tx queue SW counters */
 	u64 tx_cso;        /* # of packets with checksum offload */
 	u64 tx_tso;        /* # of non-encapsulated TSO super-packets */
 	u64 tx_encap_tso;  /* # of encapsulated TSO super-packets */
+	u64 tx_uso;        /* # of non-encapsulated UDP LSO super-packets */
 	u64 tx_more;       /* # of DBs elided due to xmit_more */
 	u64 tx_nstops;     /* # of times the queue has stopped */
 	u64 tx_nrestarts;  /* # of times the queue has restarted */
@@ -205,9 +206,9 @@ struct funeth_rxq {
 
 #define FUN_QSTAT_READ(q, seq, stats_copy) \
 	do { \
-		seq = u64_stats_fetch_begin(&(q)->syncp); \
+		seq = u64_stats_fetch_begin_irq(&(q)->syncp); \
 		stats_copy = (q)->stats; \
-	} while (u64_stats_fetch_retry(&(q)->syncp, (seq)))
+	} while (u64_stats_fetch_retry_irq(&(q)->syncp, (seq)))
 
 #define FUN_INT_NAME_LEN (IFNAMSIZ + 16)
 

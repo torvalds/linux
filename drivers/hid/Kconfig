@@ -1306,6 +1306,22 @@ config HID_MCP2221
 	To compile this driver as a module, choose M here: the module
 	will be called hid-mcp2221.ko.
 
+config HID_KUNIT_TEST
+	bool "KUnit tests for HID" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
+	depends on HID_UCLOGIC
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for HID. This option is not useful for
+	  distributions or general kernels, but only for kernel
+	  developers working on HID and associated drivers.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+
+	  If in doubt, say "N".
+
 endmenu
 
 endif # HID

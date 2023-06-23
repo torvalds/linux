@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/io.h>
 #include <linux/can/dev.h>
 #include <linux/spinlock.h>
@@ -671,6 +672,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 				/* There are no others at this point */
 				break;
 			}
+			cf.can_id |= CAN_ERR_CNT;
 			cf.data[6] = txerr;
 			cf.data[7] = rxerr;
 			priv->can.state = state;
@@ -1560,6 +1562,10 @@ static const struct net_device_ops grcan_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops grcan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int grcan_setup_netdev(struct platform_device *ofdev,
 			      void __iomem *base,
 			      int irq, u32 ambafreq, bool txbug)
@@ -1576,6 +1582,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
 	dev->netdev_ops = &grcan_netdev_ops;
+	dev->ethtool_ops = &grcan_ethtool_ops;
 	dev->sysfs_groups[0] = &sysfs_grcan_group;
 
 	priv = netdev_priv(dev);

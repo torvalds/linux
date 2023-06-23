@@ -73,7 +73,7 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 		BUG_ON(!fid);
 	}
 
-	refcount_inc(&fid->count);
+	p9_fid_get(fid);
 	rreq->netfs_priv = fid;
 	return 0;
 }
@@ -86,7 +86,7 @@ static void v9fs_free_request(struct netfs_io_request *rreq)
 {
 	struct p9_fid *fid = rreq->netfs_priv;
 
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 }
 
 /**

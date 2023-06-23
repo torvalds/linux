@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2021 Intel Corporation
+ * Copyright(c) 2020-2022 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -138,13 +138,16 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_supported_band *sband,
 				       const struct ieee80211_ht_cap *ht_cap_ie,
-				       struct sta_info *sta)
+				       struct link_sta_info *link_sta)
 {
+	struct ieee80211_bss_conf *link_conf;
+	struct sta_info *sta = link_sta->sta;
 	struct ieee80211_sta_ht_cap ht_cap, own_cap;
 	u8 ampdu_info, tx_mcs_set_cap;
 	int i, max_tx_streams;
 	bool changed;
 	enum ieee80211_sta_rx_bandwidth bw;
+	enum nl80211_chan_width width;
 
 	memset(&ht_cap, 0, sizeof(ht_cap));
 
@@ -243,11 +246,18 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_3839;
 
  apply:
-	changed = memcmp(&sta->sta.deflink.ht_cap, &ht_cap, sizeof(ht_cap));
+	changed = memcmp(&link_sta->pub->ht_cap, &ht_cap, sizeof(ht_cap));
 
-	memcpy(&sta->sta.deflink.ht_cap, &ht_cap, sizeof(ht_cap));
+	memcpy(&link_sta->pub->ht_cap, &ht_cap, sizeof(ht_cap));
 
-	switch (sdata->vif.bss_conf.chandef.width) {
+	rcu_read_lock();
+	link_conf = rcu_dereference(sdata->vif.link_conf[link_sta->link_id]);
+	if (WARN_ON(!link_conf))
+		width = NL80211_CHAN_WIDTH_20_NOHT;
+	else
+		width = link_conf->chandef.width;
+
+	switch (width) {
 	default:
 		WARN_ON_ONCE(1);
 		fallthrough;
@@ -263,10 +273,11 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 		break;
 	}
+	rcu_read_unlock();
 
-	sta->sta.deflink.bandwidth = bw;
+	link_sta->pub->bandwidth = bw;
 
-	sta->deflink.cur_max_bandwidth =
+	link_sta->cur_max_bandwidth =
 		ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
@@ -433,7 +444,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+		memcpy(mgmt->bssid, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		memcpy(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN);
 
@@ -539,31 +550,27 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void ieee80211_request_smps_mgd_work(struct work_struct *work)
-{
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data,
-			     u.mgd.request_smps_work);
-
-	sdata_lock(sdata);
-	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.driver_smps_mode);
-	sdata_unlock(sdata);
-}
-
-void ieee80211_request_smps(struct ieee80211_vif *vif,
+void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 			    enum ieee80211_smps_mode smps_mode)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_link_data *link;
 
 	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION))
 		return;
 
-	if (sdata->u.mgd.driver_smps_mode == smps_mode)
-		return;
+	rcu_read_lock();
+	link = rcu_dereference(sdata->link[link_id]);
+	if (WARN_ON(!link))
+		goto out;
 
-	sdata->u.mgd.driver_smps_mode = smps_mode;
-	ieee80211_queue_work(&sdata->local->hw,
-			     &sdata->u.mgd.request_smps_work);
+	if (link->u.mgd.driver_smps_mode == smps_mode)
+		goto out;
+
+	link->u.mgd.driver_smps_mode = smps_mode;
+	ieee80211_queue_work(&sdata->local->hw, &link->u.mgd.request_smps_work);
+out:
+	rcu_read_unlock();
 }
 /* this might change ... don't want non-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);

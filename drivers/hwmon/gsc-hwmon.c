@@ -269,9 +269,12 @@ gsc_hwmon_get_devtree_pdata(struct device *dev)
 	/* fan controller base address */
 	fan = of_find_compatible_node(dev->parent->of_node, NULL, "gw,gsc-fan");
 	if (fan && of_property_read_u32(fan, "reg", &pdata->fan_base)) {
+		of_node_put(fan);
 		dev_err(dev, "fan node without base\n");
 		return ERR_PTR(-EINVAL);
 	}
+
+	of_node_put(fan);
 
 	/* allocate structures for channels and count instances of each type */
 	device_for_each_child_node(dev, child) {

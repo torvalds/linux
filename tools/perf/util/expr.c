@@ -12,6 +12,7 @@
 #include "expr-bison.h"
 #include "expr-flex.h"
 #include "smt.h"
+#include "tsc.h"
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
@@ -402,6 +403,13 @@ double expr_id_data__source_count(const struct expr_id_data *data)
 	return data->val.source_count;
 }
 
+#if !defined(__i386__) && !defined(__x86_64__)
+double arch_get_tsc_freq(void)
+{
+	return 0.0;
+}
+#endif
+
 double expr__get_literal(const char *literal)
 {
 	static struct cpu_topology *topology;
@@ -414,6 +422,11 @@ double expr__get_literal(const char *literal)
 
 	if (!strcmp("#num_cpus", literal)) {
 		result = cpu__max_present_cpu().cpu;
+		goto out;
+	}
+
+	if (!strcasecmp("#system_tsc_freq", literal)) {
+		result = arch_get_tsc_freq();
 		goto out;
 	}
 

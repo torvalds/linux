@@ -640,7 +640,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK |
 		      FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 	info->node = -1;
-	strlcpy(info->fix.id, mi->id, 16);
+	strscpy(info->fix.id, mi->id, 16);
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux = 0;
 	info->fix.xpanstep = 0;

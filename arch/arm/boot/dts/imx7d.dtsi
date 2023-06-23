@@ -78,7 +78,7 @@
 		#phy-cells = <0>;
 	};
 
-	soc {
+	soc: soc {
 		etm@3007d000 {
 			compatible = "arm,coresight-etm3x", "arm,primecell";
 			reg = <0x3007d000 0x1000>;

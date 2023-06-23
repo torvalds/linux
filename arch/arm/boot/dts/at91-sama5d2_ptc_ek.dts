@@ -20,9 +20,9 @@
 
 	aliases {
 		serial0 = &uart0;	/* DBGU */
-		i2c0	= &i2c0;	/* mikroBUS 1 */
-		i2c1	= &i2c1;	/* XPRO EXT1 */
-		i2c2	= &i2c2;
+		i2c0 = &i2c0;	/* mikroBUS 1 */
+		i2c1 = &i2c1;	/* XPRO EXT1 */
+		i2c2 = &i2c2;
 	};
 
 	chosen {
@@ -139,6 +139,8 @@
 			macb0: ethernet@f8008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				phy-mode = "rmii";
 				status = "okay";
 
@@ -394,13 +396,13 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
 
-		bp1 {
+		button-1 {
 			label = "PB_USER";
 			gpios = <&pioA PIN_PA10 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;

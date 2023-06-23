@@ -188,7 +188,7 @@ mt7601u_set_country_reg(struct mt7601u_dev *dev, u8 *eeprom)
 
 	if (idx != -1)
 		dev_info(dev->dev,
-			 "EEPROM country region %02hhx (channels %hhd-%hhd)\n",
+			 "EEPROM country region %02x (channels %d-%d)\n",
 			 val, chan_bounds[idx].start,
 			 chan_bounds[idx].start + chan_bounds[idx].num - 1);
 	else

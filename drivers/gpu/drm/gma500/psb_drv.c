@@ -383,7 +383,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
-	gma_irq_install(dev, pdev->irq);
+	gma_irq_install(dev);
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 

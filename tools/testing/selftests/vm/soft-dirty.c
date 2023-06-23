@@ -121,13 +121,76 @@ static void test_hugepage(int pagemap_fd, int pagesize)
 	free(map);
 }
 
+static void test_mprotect(int pagemap_fd, int pagesize, bool anon)
+{
+	const char *type[] = {"file", "anon"};
+	const char *fname = "./soft-dirty-test-file";
+	int test_fd;
+	char *map;
+
+	if (anon) {
+		map = mmap(NULL, pagesize, PROT_READ|PROT_WRITE,
+			   MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+		if (!map)
+			ksft_exit_fail_msg("anon mmap failed\n");
+	} else {
+		test_fd = open(fname, O_RDWR | O_CREAT);
+		if (test_fd < 0) {
+			ksft_test_result_skip("Test %s open() file failed\n", __func__);
+			return;
+		}
+		unlink(fname);
+		ftruncate(test_fd, pagesize);
+		map = mmap(NULL, pagesize, PROT_READ|PROT_WRITE,
+			   MAP_SHARED, test_fd, 0);
+		if (!map)
+			ksft_exit_fail_msg("file mmap failed\n");
+	}
+
+	*map = 1;
+	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 1,
+			 "Test %s-%s dirty bit of new written page\n",
+			 __func__, type[anon]);
+	clear_softdirty();
+	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 0,
+			 "Test %s-%s soft-dirty clear after clear_refs\n",
+			 __func__, type[anon]);
+	mprotect(map, pagesize, PROT_READ);
+	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 0,
+			 "Test %s-%s soft-dirty clear after marking RO\n",
+			 __func__, type[anon]);
+	mprotect(map, pagesize, PROT_READ|PROT_WRITE);
+	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 0,
+			 "Test %s-%s soft-dirty clear after marking RW\n",
+			 __func__, type[anon]);
+	*map = 2;
+	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 1,
+			 "Test %s-%s soft-dirty after rewritten\n",
+			 __func__, type[anon]);
+
+	munmap(map, pagesize);
+
+	if (!anon)
+		close(test_fd);
+}
+
+static void test_mprotect_anon(int pagemap_fd, int pagesize)
+{
+	test_mprotect(pagemap_fd, pagesize, true);
+}
+
+static void test_mprotect_file(int pagemap_fd, int pagesize)
+{
+	test_mprotect(pagemap_fd, pagesize, false);
+}
+
 int main(int argc, char **argv)
 {
 	int pagemap_fd;
 	int pagesize;
 
 	ksft_print_header();
-	ksft_set_plan(5);
+	ksft_set_plan(15);
 
 	pagemap_fd = open(PAGEMAP_FILE_PATH, O_RDONLY);
 	if (pagemap_fd < 0)
@@ -138,6 +201,8 @@ int main(int argc, char **argv)
 	test_simple(pagemap_fd, pagesize);
 	test_vma_reuse(pagemap_fd, pagesize);
 	test_hugepage(pagemap_fd, pagesize);
+	test_mprotect_anon(pagemap_fd, pagesize);
+	test_mprotect_file(pagemap_fd, pagesize);
 
 	close(pagemap_fd);
 

@@ -6,6 +6,8 @@
 
 #include "../lapic.h"
 #include "../x86.h"
+#include "../pmu.h"
+#include "../cpuid.h"
 
 extern bool __read_mostly enable_vpid;
 extern bool __read_mostly flexpriority_enabled;
@@ -13,6 +15,7 @@ extern bool __read_mostly enable_ept;
 extern bool __read_mostly enable_unrestricted_guest;
 extern bool __read_mostly enable_ept_ad_bits;
 extern bool __read_mostly enable_pml;
+extern bool __read_mostly enable_ipiv;
 extern int __read_mostly pt_mode;
 
 #define PT_MODE_SYSTEM		0
@@ -59,6 +62,7 @@ struct vmcs_config {
 	u32 pin_based_exec_ctrl;
 	u32 cpu_based_exec_ctrl;
 	u32 cpu_based_2nd_exec_ctrl;
+	u64 cpu_based_3rd_exec_ctrl;
 	u32 vmexit_ctrl;
 	u32 vmentry_ctrl;
 	struct nested_vmx_msrs nested;
@@ -94,20 +98,17 @@ static inline bool cpu_has_vmx_posted_intr(void)
 
 static inline bool cpu_has_load_ia32_efer(void)
 {
-	return (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_EFER) &&
-	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_EFER);
+	return vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_EFER;
 }
 
 static inline bool cpu_has_load_perf_global_ctrl(void)
 {
-	return (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL) &&
-	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
+	return vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
 }
 
 static inline bool cpu_has_vmx_mpx(void)
 {
-	return (vmcs_config.vmexit_ctrl & VM_EXIT_CLEAR_BNDCFGS) &&
-		(vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_BNDCFGS);
+	return vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_BNDCFGS;
 }
 
 static inline bool cpu_has_vmx_tpr_shadow(void)
@@ -129,6 +130,12 @@ static inline bool cpu_has_secondary_exec_ctrls(void)
 {
 	return vmcs_config.cpu_based_exec_ctrl &
 		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
+}
+
+static inline bool cpu_has_tertiary_exec_ctrls(void)
+{
+	return vmcs_config.cpu_based_exec_ctrl &
+		CPU_BASED_ACTIVATE_TERTIARY_CONTROLS;
 }
 
 static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
@@ -276,6 +283,11 @@ static inline bool cpu_has_vmx_apicv(void)
 		cpu_has_vmx_posted_intr();
 }
 
+static inline bool cpu_has_vmx_ipiv(void)
+{
+	return vmcs_config.cpu_based_3rd_exec_ctrl & TERTIARY_EXEC_IPI_VIRT;
+}
+
 static inline bool cpu_has_vmx_flexpriority(void)
 {
 	return cpu_has_vmx_tpr_shadow() &&
@@ -363,7 +375,6 @@ static inline bool cpu_has_vmx_intel_pt(void)
 	rdmsrl(MSR_IA32_VMX_MISC, vmx_msr);
 	return (vmx_msr & MSR_IA32_VMX_MISC_INTEL_PT) &&
 		(vmcs_config.cpu_based_2nd_exec_ctrl & SECONDARY_EXEC_PT_USE_GPA) &&
-		(vmcs_config.vmexit_ctrl & VM_EXIT_CLEAR_IA32_RTIT_CTL) &&
 		(vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_RTIT_CTL);
 }
 
@@ -385,23 +396,31 @@ static inline bool vmx_pt_mode_is_host_guest(void)
 	return pt_mode == PT_MODE_HOST_GUEST;
 }
 
+static inline bool vmx_pebs_supported(void)
+{
+	return boot_cpu_has(X86_FEATURE_PEBS) && kvm_pmu_cap.pebs_ept;
+}
+
 static inline u64 vmx_get_perf_capabilities(void)
 {
-	u64 perf_cap = 0;
+	u64 perf_cap = PMU_CAP_FW_WRITES;
+	u64 host_perf_cap = 0;
 
 	if (!enable_pmu)
-		return perf_cap;
+		return 0;
 
 	if (boot_cpu_has(X86_FEATURE_PDCM))
-		rdmsrl(MSR_IA32_PERF_CAPABILITIES, perf_cap);
+		rdmsrl(MSR_IA32_PERF_CAPABILITIES, host_perf_cap);
 
-	perf_cap &= PMU_CAP_LBR_FMT;
+	perf_cap |= host_perf_cap & PMU_CAP_LBR_FMT;
 
-	/*
-	 * Since counters are virtualized, KVM would support full
-	 * width counting unconditionally, even if the host lacks it.
-	 */
-	return PMU_CAP_FW_WRITES | perf_cap;
+	if (vmx_pebs_supported()) {
+		perf_cap |= host_perf_cap & PERF_CAP_PEBS_MASK;
+		if ((perf_cap & PERF_CAP_PEBS_FORMAT) < 4)
+			perf_cap &= ~PERF_CAP_PEBS_BASELINE;
+	}
+
+	return perf_cap;
 }
 
 static inline u64 vmx_supported_debugctl(void)
@@ -415,6 +434,12 @@ static inline u64 vmx_supported_debugctl(void)
 		debugctl |= DEBUGCTLMSR_LBR_MASK;
 
 	return debugctl;
+}
+
+static inline bool cpu_has_notify_vmexit(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_NOTIFY_VM_EXITING;
 }
 
 #endif /* __KVM_X86_VMX_CAPS_H */

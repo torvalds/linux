@@ -584,7 +584,7 @@ BPF_CALL_3(bpf_strncmp, const char *, s1, u32, s1_sz, const char *, s2)
 	return strncmp(s1, s2, s1_sz);
 }
 
-const struct bpf_func_proto bpf_strncmp_proto = {
+static const struct bpf_func_proto bpf_strncmp_proto = {
 	.func		= bpf_strncmp,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1402,7 +1402,7 @@ BPF_CALL_2(bpf_kptr_xchg, void *, map_value, void *, ptr)
  */
 #define BPF_PTR_POISON ((void *)((0xeB9FUL << 2) + POISON_POINTER_DELTA))
 
-const struct bpf_func_proto bpf_kptr_xchg_proto = {
+static const struct bpf_func_proto bpf_kptr_xchg_proto = {
 	.func         = bpf_kptr_xchg,
 	.gpl_only     = false,
 	.ret_type     = RET_PTR_TO_BTF_ID_OR_NULL,
@@ -1487,7 +1487,7 @@ error:
 	return err;
 }
 
-const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
+static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.func		= bpf_dynptr_from_mem,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1514,7 +1514,7 @@ BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, struct bpf_dynptr_kern *, src
 	return 0;
 }
 
-const struct bpf_func_proto bpf_dynptr_read_proto = {
+static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.func		= bpf_dynptr_read,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1542,7 +1542,7 @@ BPF_CALL_5(bpf_dynptr_write, struct bpf_dynptr_kern *, dst, u32, offset, void *,
 	return 0;
 }
 
-const struct bpf_func_proto bpf_dynptr_write_proto = {
+static const struct bpf_func_proto bpf_dynptr_write_proto = {
 	.func		= bpf_dynptr_write,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1570,7 +1570,7 @@ BPF_CALL_3(bpf_dynptr_data, struct bpf_dynptr_kern *, ptr, u32, offset, u32, len
 	return (unsigned long)(ptr->data + ptr->offset + offset);
 }
 
-const struct bpf_func_proto bpf_dynptr_data_proto = {
+static const struct bpf_func_proto bpf_dynptr_data_proto = {
 	.func		= bpf_dynptr_data,
 	.gpl_only	= false,
 	.ret_type	= RET_PTR_TO_DYNPTR_MEM_OR_NULL,

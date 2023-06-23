@@ -2538,21 +2538,31 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 
 	if (rc)
 		return rc;
+	down_write(&efx->filter_sem);
 	rc = efx_mcdi_filter_table_probe(efx, nic_data->workaround_26807);
 
 	if (rc)
-		return rc;
+		goto out_unlock;
 
 	list_for_each_entry(vlan, &nic_data->vlan_list, list) {
 		rc = efx_mcdi_filter_add_vlan(efx, vlan->vid);
 		if (rc)
 			goto fail_add_vlan;
 	}
-	return 0;
+	goto out_unlock;
 
 fail_add_vlan:
 	efx_mcdi_filter_table_remove(efx);
+out_unlock:
+	up_write(&efx->filter_sem);
 	return rc;
+}
+
+static void efx_ef10_filter_table_remove(struct efx_nic *efx)
+{
+	down_write(&efx->filter_sem);
+	efx_mcdi_filter_table_remove(efx);
+	up_write(&efx->filter_sem);
 }
 
 /* This creates an entry in the RX descriptor queue */
@@ -3211,9 +3221,7 @@ static int efx_ef10_vport_set_mac_address(struct efx_nic *efx)
 
 	efx_device_detach_sync(efx);
 	efx_net_stop(efx->net_dev);
-	down_write(&efx->filter_sem);
-	efx_mcdi_filter_table_remove(efx);
-	up_write(&efx->filter_sem);
+	efx_ef10_filter_table_remove(efx);
 
 	rc = efx_ef10_vadaptor_free(efx, efx->vport_id);
 	if (rc)
@@ -3243,9 +3251,7 @@ restore_vadaptor:
 	if (rc2)
 		goto reset_nic;
 restore_filters:
-	down_write(&efx->filter_sem);
 	rc2 = efx_ef10_filter_table_probe(efx);
-	up_write(&efx->filter_sem);
 	if (rc2)
 		goto reset_nic;
 
@@ -3275,8 +3281,7 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 	efx_net_stop(efx->net_dev);
 
 	mutex_lock(&efx->mac_lock);
-	down_write(&efx->filter_sem);
-	efx_mcdi_filter_table_remove(efx);
+	efx_ef10_filter_table_remove(efx);
 
 	ether_addr_copy(MCDI_PTR(inbuf, VADAPTOR_SET_MAC_IN_MACADDR),
 			efx->net_dev->dev_addr);
@@ -3286,7 +3291,6 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 				sizeof(inbuf), NULL, 0, NULL);
 
 	efx_ef10_filter_table_probe(efx);
-	up_write(&efx->filter_sem);
 	mutex_unlock(&efx->mac_lock);
 
 	if (was_enabled)
@@ -3877,7 +3881,7 @@ static int efx_ef10_udp_tnl_set_port(struct net_device *dev,
 				     unsigned int table, unsigned int entry,
 				     struct udp_tunnel_info *ti)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 	struct efx_ef10_nic_data *nic_data;
 	int efx_tunnel_type, rc;
 
@@ -3937,7 +3941,7 @@ static int efx_ef10_udp_tnl_unset_port(struct net_device *dev,
 				       unsigned int table, unsigned int entry,
 				       struct udp_tunnel_info *ti)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 	struct efx_ef10_nic_data *nic_data;
 	int rc;
 
@@ -4092,7 +4096,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.ev_test_generate = efx_ef10_ev_test_generate,
 	.filter_table_probe = efx_ef10_filter_table_probe,
 	.filter_table_restore = efx_mcdi_filter_table_restore,
-	.filter_table_remove = efx_mcdi_filter_table_remove,
+	.filter_table_remove = efx_ef10_filter_table_remove,
 	.filter_update_rx_scatter = efx_mcdi_update_rx_scatter,
 	.filter_insert = efx_mcdi_filter_insert,
 	.filter_remove_safe = efx_mcdi_filter_remove_safe,
@@ -4209,7 +4213,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.ev_test_generate = efx_ef10_ev_test_generate,
 	.filter_table_probe = efx_ef10_filter_table_probe,
 	.filter_table_restore = efx_mcdi_filter_table_restore,
-	.filter_table_remove = efx_mcdi_filter_table_remove,
+	.filter_table_remove = efx_ef10_filter_table_remove,
 	.filter_update_rx_scatter = efx_mcdi_update_rx_scatter,
 	.filter_insert = efx_mcdi_filter_insert,
 	.filter_remove_safe = efx_mcdi_filter_remove_safe,

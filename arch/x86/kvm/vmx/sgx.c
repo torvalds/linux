@@ -79,7 +79,7 @@ static int sgx_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t gva, bool write,
 	else
 		*gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, &ex);
 
-	if (*gpa == UNMAPPED_GVA) {
+	if (*gpa == INVALID_GPA) {
 		kvm_inject_emulated_page_fault(vcpu, &ex);
 		return -EFAULT;
 	}
@@ -148,8 +148,8 @@ static int __handle_encls_ecreate(struct kvm_vcpu *vcpu,
 	u8 max_size_log2;
 	int trapnr, ret;
 
-	sgx_12_0 = kvm_find_cpuid_entry(vcpu, 0x12, 0);
-	sgx_12_1 = kvm_find_cpuid_entry(vcpu, 0x12, 1);
+	sgx_12_0 = kvm_find_cpuid_entry_index(vcpu, 0x12, 0);
+	sgx_12_1 = kvm_find_cpuid_entry_index(vcpu, 0x12, 1);
 	if (!sgx_12_0 || !sgx_12_1) {
 		kvm_prepare_emulation_failure_exit(vcpu);
 		return 0;
@@ -431,7 +431,7 @@ static bool sgx_intercept_encls_ecreate(struct kvm_vcpu *vcpu)
 	if (!vcpu->kvm->arch.sgx_provisioning_allowed)
 		return true;
 
-	guest_cpuid = kvm_find_cpuid_entry(vcpu, 0x12, 0);
+	guest_cpuid = kvm_find_cpuid_entry_index(vcpu, 0x12, 0);
 	if (!guest_cpuid)
 		return true;
 
@@ -439,7 +439,7 @@ static bool sgx_intercept_encls_ecreate(struct kvm_vcpu *vcpu)
 	if (guest_cpuid->ebx != ebx || guest_cpuid->edx != edx)
 		return true;
 
-	guest_cpuid = kvm_find_cpuid_entry(vcpu, 0x12, 1);
+	guest_cpuid = kvm_find_cpuid_entry_index(vcpu, 0x12, 1);
 	if (!guest_cpuid)
 		return true;
 

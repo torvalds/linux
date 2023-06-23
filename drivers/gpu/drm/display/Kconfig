@@ -3,7 +3,7 @@
 config DRM_DP_AUX_BUS
 	tristate
 	depends on DRM
-	depends on OF
+	depends on OF || COMPILE_TEST
 
 config DRM_DISPLAY_HELPER
 	tristate

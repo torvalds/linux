@@ -17,7 +17,6 @@
 #define KVM_FEP_LENGTH 5
 static int fep_available = 1;
 
-#define VCPU_ID	      1
 #define MSR_NON_EXISTENT 0x474f4f00
 
 static u64 deny_bits = 0;
@@ -395,31 +394,21 @@ static void guest_ud_handler(struct ex_regs *regs)
 	regs->rip += KVM_FEP_LENGTH;
 }
 
-static void run_guest(struct kvm_vm *vm)
+static void check_for_guest_assert(struct kvm_vcpu *vcpu)
 {
-	int rc;
-
-	rc = _vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(rc == 0, "vcpu_run failed: %d\n", rc);
-}
-
-static void check_for_guest_assert(struct kvm_vm *vm)
-{
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
 	struct ucall uc;
 
-	if (run->exit_reason == KVM_EXIT_IO &&
-		get_ucall(vm, VCPU_ID, &uc) == UCALL_ABORT) {
-			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
-				__FILE__, uc.args[1]);
+	if (vcpu->run->exit_reason == KVM_EXIT_IO &&
+	    get_ucall(vcpu, &uc) == UCALL_ABORT) {
+		REPORT_GUEST_ASSERT(uc);
 	}
 }
 
-static void process_rdmsr(struct kvm_vm *vm, uint32_t msr_index)
+static void process_rdmsr(struct kvm_vcpu *vcpu, uint32_t msr_index)
 {
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 
-	check_for_guest_assert(vm);
+	check_for_guest_assert(vcpu);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_X86_RDMSR,
 		    "Unexpected exit reason: %u (%s),\n",
@@ -450,11 +439,11 @@ static void process_rdmsr(struct kvm_vm *vm, uint32_t msr_index)
 	}
 }
 
-static void process_wrmsr(struct kvm_vm *vm, uint32_t msr_index)
+static void process_wrmsr(struct kvm_vcpu *vcpu, uint32_t msr_index)
 {
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 
-	check_for_guest_assert(vm);
+	check_for_guest_assert(vcpu);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_X86_WRMSR,
 		    "Unexpected exit reason: %u (%s),\n",
@@ -481,43 +470,43 @@ static void process_wrmsr(struct kvm_vm *vm, uint32_t msr_index)
 	}
 }
 
-static void process_ucall_done(struct kvm_vm *vm)
+static void process_ucall_done(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
-	check_for_guest_assert(vm);
+	check_for_guest_assert(vcpu);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Unexpected exit reason: %u (%s)",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	TEST_ASSERT(get_ucall(vm, VCPU_ID, &uc) == UCALL_DONE,
+	TEST_ASSERT(get_ucall(vcpu, &uc) == UCALL_DONE,
 		    "Unexpected ucall command: %lu, expected UCALL_DONE (%d)",
 		    uc.cmd, UCALL_DONE);
 }
 
-static uint64_t process_ucall(struct kvm_vm *vm)
+static uint64_t process_ucall(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 	struct ucall uc = {};
 
-	check_for_guest_assert(vm);
+	check_for_guest_assert(vcpu);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Unexpected exit reason: %u (%s)",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	switch (get_ucall(vm, VCPU_ID, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 		break;
 	case UCALL_ABORT:
-		check_for_guest_assert(vm);
+		check_for_guest_assert(vcpu);
 		break;
 	case UCALL_DONE:
-		process_ucall_done(vm);
+		process_ucall_done(vcpu);
 		break;
 	default:
 		TEST_ASSERT(false, "Unexpected ucall");
@@ -526,45 +515,43 @@ static uint64_t process_ucall(struct kvm_vm *vm)
 	return uc.cmd;
 }
 
-static void run_guest_then_process_rdmsr(struct kvm_vm *vm, uint32_t msr_index)
+static void run_guest_then_process_rdmsr(struct kvm_vcpu *vcpu,
+					 uint32_t msr_index)
 {
-	run_guest(vm);
-	process_rdmsr(vm, msr_index);
+	vcpu_run(vcpu);
+	process_rdmsr(vcpu, msr_index);
 }
 
-static void run_guest_then_process_wrmsr(struct kvm_vm *vm, uint32_t msr_index)
+static void run_guest_then_process_wrmsr(struct kvm_vcpu *vcpu,
+					 uint32_t msr_index)
 {
-	run_guest(vm);
-	process_wrmsr(vm, msr_index);
+	vcpu_run(vcpu);
+	process_wrmsr(vcpu, msr_index);
 }
 
-static uint64_t run_guest_then_process_ucall(struct kvm_vm *vm)
+static uint64_t run_guest_then_process_ucall(struct kvm_vcpu *vcpu)
 {
-	run_guest(vm);
-	return process_ucall(vm);
+	vcpu_run(vcpu);
+	return process_ucall(vcpu);
 }
 
-static void run_guest_then_process_ucall_done(struct kvm_vm *vm)
+static void run_guest_then_process_ucall_done(struct kvm_vcpu *vcpu)
 {
-	run_guest(vm);
-	process_ucall_done(vm);
+	vcpu_run(vcpu);
+	process_ucall_done(vcpu);
 }
 
-static void test_msr_filter_allow(void) {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_USER_SPACE_MSR,
-		.args[0] = KVM_MSR_EXIT_REASON_FILTER,
-	};
+static void test_msr_filter_allow(void)
+{
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	int rc;
 
-	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code_filter_allow);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code_filter_allow);
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
 	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");
@@ -572,43 +559,43 @@ static void test_msr_filter_allow(void) {
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_allow);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
 
 	/* Process guest code userspace exits. */
-	run_guest_then_process_rdmsr(vm, MSR_IA32_XSS);
-	run_guest_then_process_wrmsr(vm, MSR_IA32_XSS);
-	run_guest_then_process_wrmsr(vm, MSR_IA32_XSS);
+	run_guest_then_process_rdmsr(vcpu, MSR_IA32_XSS);
+	run_guest_then_process_wrmsr(vcpu, MSR_IA32_XSS);
+	run_guest_then_process_wrmsr(vcpu, MSR_IA32_XSS);
 
-	run_guest_then_process_rdmsr(vm, MSR_IA32_FLUSH_CMD);
-	run_guest_then_process_wrmsr(vm, MSR_IA32_FLUSH_CMD);
-	run_guest_then_process_wrmsr(vm, MSR_IA32_FLUSH_CMD);
+	run_guest_then_process_rdmsr(vcpu, MSR_IA32_FLUSH_CMD);
+	run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
+	run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
 
-	run_guest_then_process_wrmsr(vm, MSR_NON_EXISTENT);
-	run_guest_then_process_rdmsr(vm, MSR_NON_EXISTENT);
+	run_guest_then_process_wrmsr(vcpu, MSR_NON_EXISTENT);
+	run_guest_then_process_rdmsr(vcpu, MSR_NON_EXISTENT);
 
 	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
-	run_guest(vm);
+	vcpu_run(vcpu);
 	vm_install_exception_handler(vm, UD_VECTOR, NULL);
 
-	if (process_ucall(vm) != UCALL_DONE) {
+	if (process_ucall(vcpu) != UCALL_DONE) {
 		vm_install_exception_handler(vm, GP_VECTOR, guest_fep_gp_handler);
 
 		/* Process emulated rdmsr and wrmsr instructions. */
-		run_guest_then_process_rdmsr(vm, MSR_IA32_XSS);
-		run_guest_then_process_wrmsr(vm, MSR_IA32_XSS);
-		run_guest_then_process_wrmsr(vm, MSR_IA32_XSS);
+		run_guest_then_process_rdmsr(vcpu, MSR_IA32_XSS);
+		run_guest_then_process_wrmsr(vcpu, MSR_IA32_XSS);
+		run_guest_then_process_wrmsr(vcpu, MSR_IA32_XSS);
 
-		run_guest_then_process_rdmsr(vm, MSR_IA32_FLUSH_CMD);
-		run_guest_then_process_wrmsr(vm, MSR_IA32_FLUSH_CMD);
-		run_guest_then_process_wrmsr(vm, MSR_IA32_FLUSH_CMD);
+		run_guest_then_process_rdmsr(vcpu, MSR_IA32_FLUSH_CMD);
+		run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
+		run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
 
-		run_guest_then_process_wrmsr(vm, MSR_NON_EXISTENT);
-		run_guest_then_process_rdmsr(vm, MSR_NON_EXISTENT);
+		run_guest_then_process_wrmsr(vcpu, MSR_NON_EXISTENT);
+		run_guest_then_process_rdmsr(vcpu, MSR_NON_EXISTENT);
 
 		/* Confirm the guest completed without issues. */
-		run_guest_then_process_ucall_done(vm);
+		run_guest_then_process_ucall_done(vcpu);
 	} else {
 		printf("To run the instruction emulated tests set the module parameter 'kvm.force_emulation_prefix=1'\n");
 	}
@@ -616,16 +603,16 @@ static void test_msr_filter_allow(void) {
 	kvm_vm_free(vm);
 }
 
-static int handle_ucall(struct kvm_vm *vm)
+static int handle_ucall(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	switch (get_ucall(vm, VCPU_ID, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		TEST_FAIL("Guest assertion not met");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_SYNC:
-		vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &no_filter_deny);
+		vm_ioctl(vcpu->vm, KVM_X86_SET_MSR_FILTER, &no_filter_deny);
 		break;
 	case UCALL_DONE:
 		return 1;
@@ -673,25 +660,21 @@ static void handle_wrmsr(struct kvm_run *run)
 	}
 }
 
-static void test_msr_filter_deny(void) {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_USER_SPACE_MSR,
-		.args[0] = KVM_MSR_EXIT_REASON_INVAL |
-			   KVM_MSR_EXIT_REASON_UNKNOWN |
-			   KVM_MSR_EXIT_REASON_FILTER,
-	};
+static void test_msr_filter_deny(void)
+{
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	int rc;
 
-	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code_filter_deny);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
-	run = vcpu_state(vm, VCPU_ID);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code_filter_deny);
+	run = vcpu->run;
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_INVAL |
+						      KVM_MSR_EXIT_REASON_UNKNOWN |
+						      KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
 	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");
@@ -700,9 +683,7 @@ static void test_msr_filter_deny(void) {
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_deny);
 
 	while (1) {
-		rc = _vcpu_run(vm, VCPU_ID);
-
-		TEST_ASSERT(rc == 0, "vcpu_run failed: %d\n", rc);
+		vcpu_run(vcpu);
 
 		switch (run->exit_reason) {
 		case KVM_EXIT_X86_RDMSR:
@@ -712,7 +693,7 @@ static void test_msr_filter_deny(void) {
 			handle_wrmsr(run);
 			break;
 		case KVM_EXIT_IO:
-			if (handle_ucall(vm))
+			if (handle_ucall(vcpu))
 				goto done;
 			break;
 		}
@@ -726,31 +707,28 @@ done:
 	kvm_vm_free(vm);
 }
 
-static void test_msr_permission_bitmap(void) {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_USER_SPACE_MSR,
-		.args[0] = KVM_MSR_EXIT_REASON_FILTER,
-	};
+static void test_msr_permission_bitmap(void)
+{
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	int rc;
 
-	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code_permission_bitmap);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code_permission_bitmap);
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
 	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");
 
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_fs);
-	run_guest_then_process_rdmsr(vm, MSR_FS_BASE);
-	TEST_ASSERT(run_guest_then_process_ucall(vm) == UCALL_SYNC, "Expected ucall state to be UCALL_SYNC.");
+	run_guest_then_process_rdmsr(vcpu, MSR_FS_BASE);
+	TEST_ASSERT(run_guest_then_process_ucall(vcpu) == UCALL_SYNC,
+		    "Expected ucall state to be UCALL_SYNC.");
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_gs);
-	run_guest_then_process_rdmsr(vm, MSR_GS_BASE);
-	run_guest_then_process_ucall_done(vm);
+	run_guest_then_process_rdmsr(vcpu, MSR_GS_BASE);
+	run_guest_then_process_ucall_done(vcpu);
 
 	kvm_vm_free(vm);
 }

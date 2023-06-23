@@ -80,7 +80,7 @@
  *
  * Note that the source rectangle must fully lie within the bounds of the
  * &drm_framebuffer. The destination rectangle can lie outside of the visible
- * area of the current mode of the CRTC. It must be apprpriately clipped by the
+ * area of the current mode of the CRTC. It must be appropriately clipped by the
  * driver, which can be done by calling drm_plane_helper_check_update(). Drivers
  * are also allowed to round the subpixel sampling positions appropriately, but
  * only to the next full pixel. No pixel outside of the source rectangle may

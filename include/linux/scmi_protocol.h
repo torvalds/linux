@@ -60,6 +60,12 @@ struct scmi_clock_info {
 	};
 };
 
+enum scmi_power_scale {
+	SCMI_POWER_BOGOWATTS,
+	SCMI_POWER_MILLIWATTS,
+	SCMI_POWER_MICROWATTS
+};
+
 struct scmi_handle;
 struct scmi_device;
 struct scmi_protocol_handle;
@@ -78,7 +84,7 @@ struct scmi_protocol_handle;
 struct scmi_clk_proto_ops {
 	int (*count_get)(const struct scmi_protocol_handle *ph);
 
-	const struct scmi_clock_info *(*info_get)
+	const struct scmi_clock_info __must_check *(*info_get)
 		(const struct scmi_protocol_handle *ph, u32 clk_id);
 	int (*rate_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
 			u64 *rate);
@@ -135,7 +141,7 @@ struct scmi_perf_proto_ops {
 			     unsigned long *rate, unsigned long *power);
 	bool (*fast_switch_possible)(const struct scmi_protocol_handle *ph,
 				     struct device *dev);
-	bool (*power_scale_mw_get)(const struct scmi_protocol_handle *ph);
+	enum scmi_power_scale (*power_scale_get)(const struct scmi_protocol_handle *ph);
 };
 
 /**
@@ -460,7 +466,7 @@ enum scmi_sensor_class {
  */
 struct scmi_sensor_proto_ops {
 	int (*count_get)(const struct scmi_protocol_handle *ph);
-	const struct scmi_sensor_info *(*info_get)
+	const struct scmi_sensor_info __must_check *(*info_get)
 		(const struct scmi_protocol_handle *ph, u32 sensor_id);
 	int (*trip_point_config)(const struct scmi_protocol_handle *ph,
 				 u32 sensor_id, u8 trip_id, u64 trip_value);
@@ -561,6 +567,116 @@ struct scmi_voltage_proto_ops {
 };
 
 /**
+ * struct scmi_powercap_info  - Describe one available Powercap domain
+ *
+ * @id: Domain ID as advertised by the platform.
+ * @notify_powercap_cap_change: CAP change notification support.
+ * @notify_powercap_measurement_change: MEASUREMENTS change notifications
+ *				       support.
+ * @async_powercap_cap_set: Asynchronous CAP set support.
+ * @powercap_cap_config: CAP configuration support.
+ * @powercap_monitoring: Monitoring (measurements) support.
+ * @powercap_pai_config: PAI configuration support.
+ * @powercap_scale_mw: Domain reports power data in milliwatt units.
+ * @powercap_scale_uw: Domain reports power data in microwatt units.
+ *		       Note that, when both @powercap_scale_mw and
+ *		       @powercap_scale_uw are set to false, the domain
+ *		       reports power data on an abstract linear scale.
+ * @name: name assigned to the Powercap Domain by platform.
+ * @min_pai: Minimum configurable PAI.
+ * @max_pai: Maximum configurable PAI.
+ * @pai_step: Step size between two consecutive PAI values.
+ * @min_power_cap: Minimum configurable CAP.
+ * @max_power_cap: Maximum configurable CAP.
+ * @power_cap_step: Step size between two consecutive CAP values.
+ * @sustainable_power: Maximum sustainable power consumption for this domain
+ *		       under normal conditions.
+ * @accuracy: The accuracy with which the power is measured and reported in
+ *	      integral multiples of 0.001 percent.
+ * @parent_id: Identifier of the containing parent power capping domain, or the
+ *	       value 0xFFFFFFFF if this powercap domain is a root domain not
+ *	       contained in any other domain.
+ */
+struct scmi_powercap_info {
+	unsigned int id;
+	bool notify_powercap_cap_change;
+	bool notify_powercap_measurement_change;
+	bool async_powercap_cap_set;
+	bool powercap_cap_config;
+	bool powercap_monitoring;
+	bool powercap_pai_config;
+	bool powercap_scale_mw;
+	bool powercap_scale_uw;
+	bool fastchannels;
+	char name[SCMI_MAX_STR_SIZE];
+	unsigned int min_pai;
+	unsigned int max_pai;
+	unsigned int pai_step;
+	unsigned int min_power_cap;
+	unsigned int max_power_cap;
+	unsigned int power_cap_step;
+	unsigned int sustainable_power;
+	unsigned int accuracy;
+#define SCMI_POWERCAP_ROOT_ZONE_ID     0xFFFFFFFFUL
+	unsigned int parent_id;
+	struct scmi_fc_info *fc_info;
+};
+
+/**
+ * struct scmi_powercap_proto_ops - represents the various operations provided
+ * by SCMI Powercap Protocol
+ *
+ * @num_domains_get: get the count of powercap domains provided by SCMI.
+ * @info_get: get the information for the specified domain.
+ * @cap_get: get the current CAP value for the specified domain.
+ * @cap_set: set the CAP value for the specified domain to the provided value;
+ *	     if the domain supports setting the CAP with an asynchronous command
+ *	     this request will finally trigger an asynchronous transfer, but, if
+ *	     @ignore_dresp here is set to true, this call will anyway return
+ *	     immediately without waiting for the related delayed response.
+ * @pai_get: get the current PAI value for the specified domain.
+ * @pai_set: set the PAI value for the specified domain to the provided value.
+ * @measurements_get: retrieve the current average power measurements for the
+ *		      specified domain and the related PAI upon which is
+ *		      calculated.
+ * @measurements_threshold_set: set the desired low and high power thresholds
+ *				to be used when registering for notification
+ *				of type POWERCAP_MEASUREMENTS_NOTIFY with this
+ *				powercap domain.
+ *				Note that this must be called at least once
+ *				before registering any callback with the usual
+ *				@scmi_notify_ops; moreover, in case this method
+ *				is called with measurement notifications already
+ *				enabled it will also trigger, transparently, a
+ *				proper update of the power thresholds configured
+ *				in the SCMI backend server.
+ * @measurements_threshold_get: get the currently configured low and high power
+ *				thresholds used when registering callbacks for
+ *				notification POWERCAP_MEASUREMENTS_NOTIFY.
+ */
+struct scmi_powercap_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
+	const struct scmi_powercap_info __must_check *(*info_get)
+		(const struct scmi_protocol_handle *ph, u32 domain_id);
+	int (*cap_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
+		       u32 *power_cap);
+	int (*cap_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
+		       u32 power_cap, bool ignore_dresp);
+	int (*pai_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
+		       u32 *pai);
+	int (*pai_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
+		       u32 pai);
+	int (*measurements_get)(const struct scmi_protocol_handle *ph,
+				u32 domain_id, u32 *average_power, u32 *pai);
+	int (*measurements_threshold_set)(const struct scmi_protocol_handle *ph,
+					  u32 domain_id, u32 power_thresh_low,
+					  u32 power_thresh_high);
+	int (*measurements_threshold_get)(const struct scmi_protocol_handle *ph,
+					  u32 domain_id, u32 *power_thresh_low,
+					  u32 *power_thresh_high);
+};
+
+/**
  * struct scmi_notify_ops  - represents notifications' operations provided by
  * SCMI core
  * @devm_event_notifier_register: Managed registration of a notifier_block for
@@ -624,6 +740,9 @@ struct scmi_notify_ops {
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
+ * @devm_protocol_acquire: devres managed method to get hold of a protocol,
+ *			   causing its initialization and related resource
+ *			   accounting
  * @devm_protocol_get: devres managed method to acquire a protocol and get specific
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
@@ -642,6 +761,8 @@ struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
 
+	int __must_check (*devm_protocol_acquire)(struct scmi_device *sdev,
+						  u8 proto);
 	const void __must_check *
 		(*devm_protocol_get)(struct scmi_device *sdev, u8 proto,
 				     struct scmi_protocol_handle **ph);
@@ -661,6 +782,7 @@ enum scmi_std_protocol {
 	SCMI_PROTOCOL_SENSOR = 0x15,
 	SCMI_PROTOCOL_RESET = 0x16,
 	SCMI_PROTOCOL_VOLTAGE = 0x17,
+	SCMI_PROTOCOL_POWERCAP = 0x18,
 };
 
 enum scmi_system_events {
@@ -762,6 +884,8 @@ enum scmi_notification_events {
 	SCMI_EVENT_RESET_ISSUED = 0x0,
 	SCMI_EVENT_BASE_ERROR_EVENT = 0x0,
 	SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER = 0x0,
+	SCMI_EVENT_POWERCAP_CAP_CHANGED = 0x0,
+	SCMI_EVENT_POWERCAP_MEASUREMENTS_CHANGED = 0x1,
 };
 
 struct scmi_power_state_changed_report {
@@ -781,8 +905,10 @@ struct scmi_clock_rate_notif_report {
 struct scmi_system_power_state_notifier_report {
 	ktime_t		timestamp;
 	unsigned int	agent_id;
+#define SCMI_SYSPOWER_IS_REQUEST_GRACEFUL(flags)	((flags) & BIT(0))
 	unsigned int	flags;
 	unsigned int	system_state;
+	unsigned int	timeout;
 };
 
 struct scmi_perf_limits_report {
@@ -830,4 +956,18 @@ struct scmi_base_error_report {
 	unsigned long long	reports[];
 };
 
+struct scmi_powercap_cap_changed_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	power_cap;
+	unsigned int	pai;
+};
+
+struct scmi_powercap_meas_changed_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	power;
+};
 #endif /* _LINUX_SCMI_PROTOCOL_H */

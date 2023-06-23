@@ -12,14 +12,13 @@
 #include <asm/hwtest.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
+#include <asm/processor.h>
 #include <asm/virt.h>
 
 #define GFPIC_REG_IRQ_PENDING           0x04
 #define GFPIC_REG_IRQ_DISABLE_ALL       0x08
 #define GFPIC_REG_IRQ_DISABLE           0x0c
 #define GFPIC_REG_IRQ_ENABLE            0x10
-
-extern void show_registers(struct pt_regs *regs);
 
 static struct resource picres[6];
 static const char *picname[6] = {

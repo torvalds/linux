@@ -1623,6 +1623,7 @@ static int igt_shrink_thp(void *arg)
 	struct file *file;
 	unsigned int flags = PIN_USER;
 	unsigned int n;
+	intel_wakeref_t wf;
 	bool should_swap;
 	int err;
 
@@ -1659,9 +1660,11 @@ static int igt_shrink_thp(void *arg)
 		goto out_put;
 	}
 
+	wf = intel_runtime_pm_get(&i915->runtime_pm); /* active shrink */
+
 	err = i915_vma_pin(vma, 0, 0, flags);
 	if (err)
-		goto out_put;
+		goto out_wf;
 
 	if (obj->mm.page_sizes.phys < I915_GTT_PAGE_SIZE_2M) {
 		pr_info("failed to allocate THP, finishing test early\n");
@@ -1732,6 +1735,8 @@ static int igt_shrink_thp(void *arg)
 
 out_unpin:
 	i915_vma_unpin(vma);
+out_wf:
+	intel_runtime_pm_put(&i915->runtime_pm, wf);
 out_put:
 	i915_gem_object_put(obj);
 out_vm:

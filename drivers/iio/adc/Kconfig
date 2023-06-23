@@ -417,7 +417,6 @@ config DLN2_ADC
 
 config ENVELOPE_DETECTOR
 	tristate "Envelope detector using a DAC and a comparator"
-	depends on OF
 	help
 	  Say yes here to build support for an envelope detector using a DAC
 	  and a comparator.
@@ -563,7 +562,7 @@ config LP8788_ADC
 config LPC18XX_ADC
 	tristate "NXP LPC18xx ADC driver"
 	depends on ARCH_LPC18XX || COMPILE_TEST
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	help
 	  Say yes here to build support for NXP LPC18XX ADC.
 
@@ -823,6 +822,18 @@ config QCOM_PM8XXX_XOADC
 	  To compile this driver as a module, choose M here: the module
 	  will be called qcom-pm8xxx-xoadc.
 
+config QCOM_SPMI_RRADC
+	tristate "Qualcomm SPMI RRADC"
+	depends on MFD_SPMI_PMIC
+	help
+	  This is for the PMIC Round Robin ADC driver.
+
+	  This driver exposes the battery ID resistor, battery thermal, PMIC die
+	  temperature, charger USB in and DC in voltage and current.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-qpmi-rradc.
+
 config QCOM_SPMI_IADC
 	tristate "Qualcomm SPMI PMIC current ADC"
 	depends on SPMI
@@ -941,7 +952,6 @@ config SPEAR_ADC
 
 config SD_ADC_MODULATOR
 	tristate "Generic sigma delta modulator"
-	depends on OF
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -1259,7 +1269,6 @@ config TWL6030_GPADC
 
 config VF610_ADC
 	tristate "Freescale vf610 ADC driver"
-	depends on OF
 	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER

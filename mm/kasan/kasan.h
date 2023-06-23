@@ -125,6 +125,7 @@ static inline bool kasan_sync_fault_possible(void)
 enum kasan_report_type {
 	KASAN_REPORT_ACCESS,
 	KASAN_REPORT_INVALID_FREE,
+	KASAN_REPORT_DOUBLE_FREE,
 };
 
 struct kasan_report_info {
@@ -277,7 +278,7 @@ static inline void kasan_print_address_stack_frame(const void *addr) { }
 
 bool kasan_report(unsigned long addr, size_t size,
 		bool is_write, unsigned long ip);
-void kasan_report_invalid_free(void *object, unsigned long ip);
+void kasan_report_invalid_free(void *object, unsigned long ip, enum kasan_report_type type);
 
 struct page *kasan_addr_to_page(const void *addr);
 struct slab *kasan_addr_to_slab(const void *addr);

@@ -233,7 +233,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00244",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch code reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -244,9 +243,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0600400244",
+        "MSRValue": "0x600400244",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch code reads miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -259,7 +257,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -270,9 +267,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0600400091",
+        "MSRValue": "0x600400091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -283,9 +279,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_MISS.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x063F800091",
+        "MSRValue": "0x63F800091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads miss the L3 and the data is returned from remote dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -298,7 +293,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103FC00091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads miss the L3 and the modified data is transferred from remote cache",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -309,9 +303,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x083FC00091",
+        "MSRValue": "0x83FC00091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads miss the L3 and clean or shared data is transferred from remote cache",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -324,7 +317,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC007F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -335,9 +327,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x06004007F7",
+        "MSRValue": "0x6004007F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -348,9 +339,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x063F8007F7",
+        "MSRValue": "0x63F8007F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) miss the L3 and the data is returned from remote dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -363,7 +353,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103FC007F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) miss the L3 and the modified data is transferred from remote cache",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -374,9 +363,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x083FC007F7",
+        "MSRValue": "0x83FC007F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) miss the L3 and clean or shared data is transferred from remote cache",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -389,7 +377,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC08FFF",
         "Offcore": "1",
-        "PublicDescription": "Counts all requests miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -402,7 +389,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00122",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch RFOs miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -413,9 +399,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0600400122",
+        "MSRValue": "0x600400122",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch RFOs miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -428,7 +413,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00004",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand code reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -439,9 +423,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0600400004",
+        "MSRValue": "0x600400004",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand code reads miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -454,7 +437,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00001",
         "Offcore": "1",
-        "PublicDescription": "Counts demand data reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -465,9 +447,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0600400001",
+        "MSRValue": "0x600400001",
         "Offcore": "1",
-        "PublicDescription": "Counts demand data reads miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -480,7 +461,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00002",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand data writes (RFOs) miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -491,9 +471,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0600400002",
+        "MSRValue": "0x600400002",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand data writes (RFOs) miss the L3 and the data is returned from local dram",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -506,7 +485,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103FC00002",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand data writes (RFOs) miss the L3 and the modified data is transferred from remote cache",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -519,7 +497,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00040",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -532,7 +509,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00010",
         "Offcore": "1",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -545,7 +521,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00020",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -558,7 +533,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00200",
         "Offcore": "1",
-        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -571,7 +545,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00080",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -584,7 +557,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00100",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs miss in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

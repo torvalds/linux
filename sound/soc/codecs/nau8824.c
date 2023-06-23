@@ -901,7 +901,10 @@ static void nau8824_jdet_work(struct work_struct *work)
 		NAU8824_IRQ_KEY_RELEASE_DIS |
 		NAU8824_IRQ_KEY_SHORT_PRESS_DIS, 0);
 
-	nau8824_sema_release(nau8824);
+	if (nau8824->resume_lock) {
+		nau8824_sema_release(nau8824);
+		nau8824->resume_lock = false;
+	}
 }
 
 static void nau8824_setup_auto_irq(struct nau8824 *nau8824)
@@ -966,7 +969,10 @@ static irqreturn_t nau8824_interrupt(int irq, void *data)
 		/* release semaphore held after resume,
 		 * and cancel jack detection
 		 */
-		nau8824_sema_release(nau8824);
+		if (nau8824->resume_lock) {
+			nau8824_sema_release(nau8824);
+			nau8824->resume_lock = false;
+		}
 		cancel_work_sync(&nau8824->jdet_work);
 	} else if (active_irq & NAU8824_KEY_SHORT_PRESS_IRQ) {
 		int key_status, button_pressed;
@@ -1014,27 +1020,42 @@ static irqreturn_t nau8824_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int nau8824_clock_check(struct nau8824 *nau8824,
-	int stream, int rate, int osr)
+static const struct nau8824_osr_attr *
+nau8824_get_osr(struct nau8824 *nau8824, int stream)
 {
-	int osrate;
+	unsigned int osr;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(nau8824->regmap,
+			    NAU8824_REG_DAC_FILTER_CTRL_1, &osr);
+		osr &= NAU8824_DAC_OVERSAMPLE_MASK;
 		if (osr >= ARRAY_SIZE(osr_dac_sel))
-			return -EINVAL;
-		osrate = osr_dac_sel[osr].osr;
+			return NULL;
+		return &osr_dac_sel[osr];
 	} else {
+		regmap_read(nau8824->regmap,
+			    NAU8824_REG_ADC_FILTER_CTRL, &osr);
+		osr &= NAU8824_ADC_SYNC_DOWN_MASK;
 		if (osr >= ARRAY_SIZE(osr_adc_sel))
-			return -EINVAL;
-		osrate = osr_adc_sel[osr].osr;
+			return NULL;
+		return &osr_adc_sel[osr];
 	}
+}
 
-	if (!osrate || rate * osr > CLK_DA_AD_MAX) {
-		dev_err(nau8824->dev, "exceed the maximum frequency of CLK_ADC or CLK_DAC\n");
+static int nau8824_dai_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
+	const struct nau8824_osr_attr *osr;
+
+	osr = nau8824_get_osr(nau8824, substream->stream);
+	if (!osr || !osr->osr)
 		return -EINVAL;
-	}
 
-	return 0;
+	return snd_pcm_hw_constraint_minmax(substream->runtime,
+					    SNDRV_PCM_HW_PARAM_RATE,
+					    0, CLK_DA_AD_MAX / osr->osr);
 }
 
 static int nau8824_hw_params(struct snd_pcm_substream *substream,
@@ -1042,7 +1063,9 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
-	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, bclk_div;
+	unsigned int val_len = 0, ctrl_val, bclk_fs, bclk_div;
+	const struct nau8824_osr_attr *osr;
+	int err = -EINVAL;
 
 	nau8824_sema_acquire(nau8824, HZ);
 
@@ -1053,27 +1076,19 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 	 * than 6.144 MHz.
 	 */
 	nau8824->fs = params_rate(params);
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_read(nau8824->regmap,
-			NAU8824_REG_DAC_FILTER_CTRL_1, &osr);
-		osr &= NAU8824_DAC_OVERSAMPLE_MASK;
-		if (nau8824_clock_check(nau8824, substream->stream,
-			nau8824->fs, osr))
-			return -EINVAL;
+	osr = nau8824_get_osr(nau8824, substream->stream);
+	if (!osr || !osr->osr)
+		goto error;
+	if (nau8824->fs * osr->osr > CLK_DA_AD_MAX)
+		goto error;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		regmap_update_bits(nau8824->regmap, NAU8824_REG_CLK_DIVIDER,
 			NAU8824_CLK_DAC_SRC_MASK,
-			osr_dac_sel[osr].clk_src << NAU8824_CLK_DAC_SRC_SFT);
-	} else {
-		regmap_read(nau8824->regmap,
-			NAU8824_REG_ADC_FILTER_CTRL, &osr);
-		osr &= NAU8824_ADC_SYNC_DOWN_MASK;
-		if (nau8824_clock_check(nau8824, substream->stream,
-			nau8824->fs, osr))
-			return -EINVAL;
+			osr->clk_src << NAU8824_CLK_DAC_SRC_SFT);
+	else
 		regmap_update_bits(nau8824->regmap, NAU8824_REG_CLK_DIVIDER,
 			NAU8824_CLK_ADC_SRC_MASK,
-			osr_adc_sel[osr].clk_src << NAU8824_CLK_ADC_SRC_SFT);
-	}
+			osr->clk_src << NAU8824_CLK_ADC_SRC_SFT);
 
 	/* make BCLK and LRC divde configuration if the codec as master. */
 	regmap_read(nau8824->regmap,
@@ -1090,7 +1105,7 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 		else if (bclk_fs <= 256)
 			bclk_div = 0;
 		else
-			return -EINVAL;
+			goto error;
 		regmap_update_bits(nau8824->regmap,
 			NAU8824_REG_PORT0_I2S_PCM_CTRL_2,
 			NAU8824_I2S_LRC_DIV_MASK | NAU8824_I2S_BLK_DIV_MASK,
@@ -1111,15 +1126,17 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 		val_len |= NAU8824_I2S_DL_32;
 		break;
 	default:
-		return -EINVAL;
+		goto error;
 	}
 
 	regmap_update_bits(nau8824->regmap, NAU8824_REG_PORT0_I2S_PCM_CTRL_1,
 		NAU8824_I2S_DL_MASK, val_len);
+	err = 0;
 
+ error:
 	nau8824_sema_release(nau8824);
 
-	return 0;
+	return err;
 }
 
 static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -1127,8 +1144,6 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct snd_soc_component *component = dai->component;
 	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
-
-	nau8824_sema_acquire(nau8824, HZ);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1170,6 +1185,8 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
+
+	nau8824_sema_acquire(nau8824, HZ);
 
 	regmap_update_bits(nau8824->regmap, NAU8824_REG_PORT0_I2S_PCM_CTRL_1,
 		NAU8824_I2S_DF_MASK | NAU8824_I2S_BP_MASK |
@@ -1513,6 +1530,7 @@ static int __maybe_unused nau8824_suspend(struct snd_soc_component *component)
 static int __maybe_unused nau8824_resume(struct snd_soc_component *component)
 {
 	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	regcache_cache_only(nau8824->regmap, false);
 	regcache_sync(nau8824->regmap);
@@ -1520,7 +1538,10 @@ static int __maybe_unused nau8824_resume(struct snd_soc_component *component)
 		/* Hold semaphore to postpone playback happening
 		 * until jack detection done.
 		 */
-		nau8824_sema_acquire(nau8824, 0);
+		nau8824->resume_lock = true;
+		ret = nau8824_sema_acquire(nau8824, 0);
+		if (ret)
+			nau8824->resume_lock = false;
 		enable_irq(nau8824->irq);
 	}
 
@@ -1544,10 +1565,10 @@ static const struct snd_soc_component_driver nau8824_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops nau8824_dai_ops = {
+	.startup = nau8824_dai_startup,
 	.hw_params = nau8824_hw_params,
 	.set_fmt = nau8824_set_fmt,
 	.set_tdm_slot = nau8824_set_tdm_slot,
@@ -1929,6 +1950,7 @@ static int nau8824_i2c_probe(struct i2c_client *i2c)
 	nau8824->regmap = devm_regmap_init_i2c(i2c, &nau8824_regmap_config);
 	if (IS_ERR(nau8824->regmap))
 		return PTR_ERR(nau8824->regmap);
+	nau8824->resume_lock = false;
 	nau8824->dev = dev;
 	nau8824->irq = i2c->irq;
 	sema_init(&nau8824->jd_sem, 1);

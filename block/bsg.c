@@ -169,7 +169,7 @@ static void bsg_device_release(struct device *dev)
 {
 	struct bsg_device *bd = container_of(dev, struct bsg_device, device);
 
-	ida_simple_remove(&bsg_minor_ida, MINOR(bd->device.devt));
+	ida_free(&bsg_minor_ida, MINOR(bd->device.devt));
 	kfree(bd);
 }
 
@@ -196,7 +196,7 @@ struct bsg_device *bsg_register_queue(struct request_queue *q,
 	bd->queue = q;
 	bd->sg_io_fn = sg_io_fn;
 
-	ret = ida_simple_get(&bsg_minor_ida, 0, BSG_MAX_DEVS, GFP_KERNEL);
+	ret = ida_alloc_max(&bsg_minor_ida, BSG_MAX_DEVS - 1, GFP_KERNEL);
 	if (ret < 0) {
 		if (ret == -ENOSPC)
 			dev_err(parent, "bsg: too many bsg devices\n");

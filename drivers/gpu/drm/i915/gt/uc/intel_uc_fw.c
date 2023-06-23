@@ -335,6 +335,82 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 	}
 }
 
+static int check_gsc_manifest(const struct firmware *fw,
+			      struct intel_uc_fw *uc_fw)
+{
+	u32 *dw = (u32 *)fw->data;
+	u32 version = dw[HUC_GSC_VERSION_DW];
+
+	uc_fw->major_ver_found = FIELD_GET(HUC_GSC_MAJOR_VER_MASK, version);
+	uc_fw->minor_ver_found = FIELD_GET(HUC_GSC_MINOR_VER_MASK, version);
+
+	return 0;
+}
+
+static int check_ccs_header(struct drm_i915_private *i915,
+			    const struct firmware *fw,
+			    struct intel_uc_fw *uc_fw)
+{
+	struct uc_css_header *css;
+	size_t size;
+
+	/* Check the size of the blob before examining buffer contents */
+	if (unlikely(fw->size < sizeof(struct uc_css_header))) {
+		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw->size, sizeof(struct uc_css_header));
+		return -ENODATA;
+	}
+
+	css = (struct uc_css_header *)fw->data;
+
+	/* Check integrity of size values inside CSS header */
+	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
+		css->exponent_size_dw) * sizeof(u32);
+	if (unlikely(size != sizeof(struct uc_css_header))) {
+		drm_warn(&i915->drm,
+			 "%s firmware %s: unexpected header size: %zu != %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw->size, sizeof(struct uc_css_header));
+		return -EPROTO;
+	}
+
+	/* uCode size must calculated from other sizes */
+	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
+
+	/* now RSA */
+	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
+
+	/* At least, it should have header, uCode and RSA. Size of all three. */
+	size = sizeof(struct uc_css_header) + uc_fw->ucode_size + uc_fw->rsa_size;
+	if (unlikely(fw->size < size)) {
+		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw->size, size);
+		return -ENOEXEC;
+	}
+
+	/* Sanity check whether this fw is not larger than whole WOPCM memory */
+	size = __intel_uc_fw_get_upload_size(uc_fw);
+	if (unlikely(size >= i915->wopcm.size)) {
+		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu > %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 size, (size_t)i915->wopcm.size);
+		return -E2BIG;
+	}
+
+	/* Get version numbers from the CSS header */
+	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+					   css->sw_version);
+	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+					   css->sw_version);
+
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
+		uc_fw->private_data_size = css->private_data_size;
+
+	return 0;
+}
+
 /**
  * intel_uc_fw_fetch - fetch uC firmware
  * @uc_fw: uC firmware
@@ -349,8 +425,6 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	struct device *dev = i915->drm.dev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
-	struct uc_css_header *css;
-	size_t size;
 	int err;
 
 	GEM_BUG_ON(!i915->wopcm.size);
@@ -384,60 +458,12 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	if (err)
 		goto fail;
 
-	/* Check the size of the blob before examining buffer contents */
-	if (unlikely(fw->size < sizeof(struct uc_css_header))) {
-		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 fw->size, sizeof(struct uc_css_header));
-		err = -ENODATA;
+	if (uc_fw->loaded_via_gsc)
+		err = check_gsc_manifest(fw, uc_fw);
+	else
+		err = check_ccs_header(i915, fw, uc_fw);
+	if (err)
 		goto fail;
-	}
-
-	css = (struct uc_css_header *)fw->data;
-
-	/* Check integrity of size values inside CSS header */
-	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
-		css->exponent_size_dw) * sizeof(u32);
-	if (unlikely(size != sizeof(struct uc_css_header))) {
-		drm_warn(&i915->drm,
-			 "%s firmware %s: unexpected header size: %zu != %zu\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 fw->size, sizeof(struct uc_css_header));
-		err = -EPROTO;
-		goto fail;
-	}
-
-	/* uCode size must calculated from other sizes */
-	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
-
-	/* now RSA */
-	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
-
-	/* At least, it should have header, uCode and RSA. Size of all three. */
-	size = sizeof(struct uc_css_header) + uc_fw->ucode_size + uc_fw->rsa_size;
-	if (unlikely(fw->size < size)) {
-		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 fw->size, size);
-		err = -ENOEXEC;
-		goto fail;
-	}
-
-	/* Sanity check whether this fw is not larger than whole WOPCM memory */
-	size = __intel_uc_fw_get_upload_size(uc_fw);
-	if (unlikely(size >= i915->wopcm.size)) {
-		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu > %zu\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 size, (size_t)i915->wopcm.size);
-		err = -E2BIG;
-		goto fail;
-	}
-
-	/* Get version numbers from the CSS header */
-	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
-					   css->sw_version);
-	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
-					   css->sw_version);
 
 	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
@@ -450,9 +476,6 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			goto fail;
 		}
 	}
-
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
-		uc_fw->private_data_size = css->private_data_size;
 
 	if (HAS_LMEM(i915)) {
 		obj = i915_gem_object_create_lmem_from_data(i915, fw->data, fw->size);
@@ -521,7 +544,10 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 	if (i915_gem_object_is_lmem(obj))
 		pte_flags |= PTE_LM;
 
-	ggtt->vm.insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
+	if (ggtt->vm.raw_insert_entries)
+		ggtt->vm.raw_insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
+	else
+		ggtt->vm.insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
 }
 
 static void uc_fw_unbind_ggtt(struct intel_uc_fw *uc_fw)

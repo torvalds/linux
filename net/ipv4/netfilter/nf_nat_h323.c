@@ -579,28 +579,22 @@ static struct nf_ct_helper_expectfn callforwarding_nat = {
 	.expectfn	= ip_nat_callforwarding_expect,
 };
 
+static const struct nfct_h323_nat_hooks nathooks = {
+	.set_h245_addr = set_h245_addr,
+	.set_h225_addr = set_h225_addr,
+	.set_sig_addr = set_sig_addr,
+	.set_ras_addr = set_ras_addr,
+	.nat_rtp_rtcp = nat_rtp_rtcp,
+	.nat_t120 = nat_t120,
+	.nat_h245 = nat_h245,
+	.nat_callforwarding = nat_callforwarding,
+	.nat_q931 = nat_q931,
+};
+
 /****************************************************************************/
 static int __init nf_nat_h323_init(void)
 {
-	BUG_ON(set_h245_addr_hook != NULL);
-	BUG_ON(set_h225_addr_hook != NULL);
-	BUG_ON(set_sig_addr_hook != NULL);
-	BUG_ON(set_ras_addr_hook != NULL);
-	BUG_ON(nat_rtp_rtcp_hook != NULL);
-	BUG_ON(nat_t120_hook != NULL);
-	BUG_ON(nat_h245_hook != NULL);
-	BUG_ON(nat_callforwarding_hook != NULL);
-	BUG_ON(nat_q931_hook != NULL);
-
-	RCU_INIT_POINTER(set_h245_addr_hook, set_h245_addr);
-	RCU_INIT_POINTER(set_h225_addr_hook, set_h225_addr);
-	RCU_INIT_POINTER(set_sig_addr_hook, set_sig_addr);
-	RCU_INIT_POINTER(set_ras_addr_hook, set_ras_addr);
-	RCU_INIT_POINTER(nat_rtp_rtcp_hook, nat_rtp_rtcp);
-	RCU_INIT_POINTER(nat_t120_hook, nat_t120);
-	RCU_INIT_POINTER(nat_h245_hook, nat_h245);
-	RCU_INIT_POINTER(nat_callforwarding_hook, nat_callforwarding);
-	RCU_INIT_POINTER(nat_q931_hook, nat_q931);
+	RCU_INIT_POINTER(nfct_h323_nat_hook, &nathooks);
 	nf_ct_helper_expectfn_register(&q931_nat);
 	nf_ct_helper_expectfn_register(&callforwarding_nat);
 	return 0;
@@ -609,15 +603,7 @@ static int __init nf_nat_h323_init(void)
 /****************************************************************************/
 static void __exit nf_nat_h323_fini(void)
 {
-	RCU_INIT_POINTER(set_h245_addr_hook, NULL);
-	RCU_INIT_POINTER(set_h225_addr_hook, NULL);
-	RCU_INIT_POINTER(set_sig_addr_hook, NULL);
-	RCU_INIT_POINTER(set_ras_addr_hook, NULL);
-	RCU_INIT_POINTER(nat_rtp_rtcp_hook, NULL);
-	RCU_INIT_POINTER(nat_t120_hook, NULL);
-	RCU_INIT_POINTER(nat_h245_hook, NULL);
-	RCU_INIT_POINTER(nat_callforwarding_hook, NULL);
-	RCU_INIT_POINTER(nat_q931_hook, NULL);
+	RCU_INIT_POINTER(nfct_h323_nat_hook, NULL);
 	nf_ct_helper_expectfn_unregister(&q931_nat);
 	nf_ct_helper_expectfn_unregister(&callforwarding_nat);
 	synchronize_rcu();

@@ -46,6 +46,11 @@
 
 /* Register map definition */
 
+/* CSIS version */
+#define MIPI_CSIS_VERSION			0x00
+#define MIPI_CSIS_VERSION_IMX7D			0x03030505
+#define MIPI_CSIS_VERSION_IMX8MP		0x03060301
+
 /* CSIS common control */
 #define MIPI_CSIS_CMN_CTRL			0x04
 #define MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW	BIT(16)
@@ -1155,6 +1160,32 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				    struct v4l2_mbus_frame_desc *fd)
+{
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
+	struct v4l2_mbus_frame_desc_entry *entry = &fd->entry[0];
+
+	if (pad != CSIS_PAD_SOURCE)
+		return -EINVAL;
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_PARALLEL;
+	fd->num_entries = 1;
+
+	memset(entry, 0, sizeof(*entry));
+
+	mutex_lock(&csis->lock);
+
+	entry->flags = 0;
+	entry->pixelcode = csis->csis_fmt->code;
+	entry->bus.csi2.vc = 0;
+	entry->bus.csi2.dt = csis->csis_fmt->data_type;
+
+	mutex_unlock(&csis->lock);
+
+	return 0;
+}
+
 static int mipi_csis_log_status(struct v4l2_subdev *sd)
 {
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
@@ -1179,6 +1210,7 @@ static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
 	.enum_mbus_code		= mipi_csis_enum_mbus_code,
 	.get_fmt		= mipi_csis_get_fmt,
 	.set_fmt		= mipi_csis_set_fmt,
+	.get_frame_desc		= mipi_csis_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops mipi_csis_subdev_ops = {
@@ -1378,6 +1410,13 @@ static int mipi_csis_subdev_init(struct mipi_csis_device *csis)
 
 	sd->dev = csis->dev;
 
+	sd->fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(csis->dev),
+						     1, 0, 0);
+	if (!sd->fwnode) {
+		dev_err(csis->dev, "Unable to retrieve endpoint for port@1\n");
+		return -ENOENT;
+	}
+
 	csis->csis_fmt = &mipi_csis_formats[0];
 	mipi_csis_init_cfg(sd, NULL);
 
@@ -1498,6 +1537,7 @@ cleanup:
 	v4l2_async_unregister_subdev(&csis->sd);
 disable_clock:
 	mipi_csis_clk_disable(csis);
+	fwnode_handle_put(csis->sd.fwnode);
 	mutex_destroy(&csis->lock);
 
 	return ret;
@@ -1517,6 +1557,7 @@ static int mipi_csis_remove(struct platform_device *pdev)
 	mipi_csis_runtime_suspend(&pdev->dev);
 	mipi_csis_clk_disable(csis);
 	media_entity_cleanup(&csis->sd.entity);
+	fwnode_handle_put(csis->sd.fwnode);
 	mutex_destroy(&csis->lock);
 	pm_runtime_set_suspended(&pdev->dev);
 

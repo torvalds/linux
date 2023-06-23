@@ -54,6 +54,7 @@
 #define FIRMWARE_YELLOW_CARP	"amdgpu/yellow_carp_vcn.bin"
 #define FIRMWARE_VCN_3_1_2	"amdgpu/vcn_3_1_2.bin"
 #define FIRMWARE_VCN4_0_0	"amdgpu/vcn_4_0_0.bin"
+#define FIRMWARE_VCN4_0_2	"amdgpu/vcn_4_0_2.bin"
 #define FIRMWARE_VCN4_0_4      "amdgpu/vcn_4_0_4.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
@@ -74,6 +75,7 @@ MODULE_FIRMWARE(FIRMWARE_BEIGE_GOBY);
 MODULE_FIRMWARE(FIRMWARE_YELLOW_CARP);
 MODULE_FIRMWARE(FIRMWARE_VCN_3_1_2);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_0);
+MODULE_FIRMWARE(FIRMWARE_VCN4_0_2);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_4);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
@@ -181,6 +183,12 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(4, 0, 0):
 		fw_name = FIRMWARE_VCN4_0_0;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = true;
+		break;
+	case IP_VERSION(4, 0, 2):
+		fw_name = FIRMWARE_VCN4_0_2;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
@@ -327,6 +335,18 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	mutex_destroy(&adev->vcn.vcn_pg_lock);
 
 	return 0;
+}
+
+/* from vcn4 and above, only unified queue is used */
+static bool amdgpu_vcn_using_unified_queue(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	bool ret = false;
+
+	if (adev->ip_versions[UVD_HWIP][0] >= IP_VERSION(4, 0, 0))
+		ret = true;
+
+	return ret;
 }
 
 bool amdgpu_vcn_is_disabled_vcn(struct amdgpu_device *adev, enum vcn_ring_type type, uint32_t vcn_instance)
@@ -718,18 +738,54 @@ error:
 	return r;
 }
 
+static uint32_t *amdgpu_vcn_unified_ring_ib_header(struct amdgpu_ib *ib,
+						uint32_t ib_pack_in_dw, bool enc)
+{
+	uint32_t *ib_checksum;
+
+	ib->ptr[ib->length_dw++] = 0x00000010; /* single queue checksum */
+	ib->ptr[ib->length_dw++] = 0x30000002;
+	ib_checksum = &ib->ptr[ib->length_dw++];
+	ib->ptr[ib->length_dw++] = ib_pack_in_dw;
+
+	ib->ptr[ib->length_dw++] = 0x00000010; /* engine info */
+	ib->ptr[ib->length_dw++] = 0x30000001;
+	ib->ptr[ib->length_dw++] = enc ? 0x2 : 0x3;
+	ib->ptr[ib->length_dw++] = ib_pack_in_dw * sizeof(uint32_t);
+
+	return ib_checksum;
+}
+
+static void amdgpu_vcn_unified_ring_ib_checksum(uint32_t **ib_checksum,
+						uint32_t ib_pack_in_dw)
+{
+	uint32_t i;
+	uint32_t checksum = 0;
+
+	for (i = 0; i < ib_pack_in_dw; i++)
+		checksum += *(*ib_checksum + 2 + i);
+
+	**ib_checksum = checksum;
+}
+
 static int amdgpu_vcn_dec_sw_send_msg(struct amdgpu_ring *ring,
 				      struct amdgpu_ib *ib_msg,
 				      struct dma_fence **fence)
 {
 	struct amdgpu_vcn_decode_buffer *decode_buffer = NULL;
-	const unsigned int ib_size_dw = 64;
+	unsigned int ib_size_dw = 64;
 	struct amdgpu_device *adev = ring->adev;
 	struct dma_fence *f = NULL;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	uint64_t addr = AMDGPU_GPU_PAGE_ALIGN(ib_msg->gpu_addr);
+	bool sq = amdgpu_vcn_using_unified_queue(ring);
+	uint32_t *ib_checksum;
+	uint32_t ib_pack_in_dw;
 	int i, r;
+
+	if (sq)
+		ib_size_dw += 8;
 
 	r = amdgpu_job_alloc_with_ib(adev, ib_size_dw * 4,
 				AMDGPU_IB_POOL_DIRECT, &job);
@@ -738,6 +794,13 @@ static int amdgpu_vcn_dec_sw_send_msg(struct amdgpu_ring *ring,
 
 	ib = &job->ibs[0];
 	ib->length_dw = 0;
+
+	/* single queue headers */
+	if (sq) {
+		ib_pack_in_dw = sizeof(struct amdgpu_vcn_decode_buffer) / sizeof(uint32_t)
+						+ 4 + 2; /* engine info + decoding ib in dw */
+		ib_checksum = amdgpu_vcn_unified_ring_ib_header(ib, ib_pack_in_dw, false);
+	}
 
 	ib->ptr[ib->length_dw++] = sizeof(struct amdgpu_vcn_decode_buffer) + 8;
 	ib->ptr[ib->length_dw++] = cpu_to_le32(AMDGPU_VCN_IB_FLAG_DECODE_BUFFER);
@@ -751,6 +814,9 @@ static int amdgpu_vcn_dec_sw_send_msg(struct amdgpu_ring *ring,
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
+
+	if (sq)
+		amdgpu_vcn_unified_ring_ib_checksum(&ib_checksum, ib_pack_in_dw);
 
 	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
@@ -838,12 +904,17 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 					 struct amdgpu_ib *ib_msg,
 					 struct dma_fence **fence)
 {
-	const unsigned ib_size_dw = 16;
+	unsigned int ib_size_dw = 16;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
+	uint32_t *ib_checksum = NULL;
 	uint64_t addr;
+	bool sq = amdgpu_vcn_using_unified_queue(ring);
 	int i, r;
+
+	if (sq)
+		ib_size_dw += 8;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
 					AMDGPU_IB_POOL_DIRECT, &job);
@@ -854,6 +925,10 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	addr = AMDGPU_GPU_PAGE_ALIGN(ib_msg->gpu_addr);
 
 	ib->length_dw = 0;
+
+	if (sq)
+		ib_checksum = amdgpu_vcn_unified_ring_ib_header(ib, 0x11, true);
+
 	ib->ptr[ib->length_dw++] = 0x00000018;
 	ib->ptr[ib->length_dw++] = 0x00000001; /* session info */
 	ib->ptr[ib->length_dw++] = handle;
@@ -872,6 +947,9 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
+
+	if (sq)
+		amdgpu_vcn_unified_ring_ib_checksum(&ib_checksum, 0x11);
 
 	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
@@ -892,12 +970,17 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 					  struct amdgpu_ib *ib_msg,
 					  struct dma_fence **fence)
 {
-	const unsigned ib_size_dw = 16;
+	unsigned int ib_size_dw = 16;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
+	uint32_t *ib_checksum = NULL;
 	uint64_t addr;
+	bool sq = amdgpu_vcn_using_unified_queue(ring);
 	int i, r;
+
+	if (sq)
+		ib_size_dw += 8;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
 					AMDGPU_IB_POOL_DIRECT, &job);
@@ -908,6 +991,10 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	addr = AMDGPU_GPU_PAGE_ALIGN(ib_msg->gpu_addr);
 
 	ib->length_dw = 0;
+
+	if (sq)
+		ib_checksum = amdgpu_vcn_unified_ring_ib_header(ib, 0x11, true);
+
 	ib->ptr[ib->length_dw++] = 0x00000018;
 	ib->ptr[ib->length_dw++] = 0x00000001;
 	ib->ptr[ib->length_dw++] = handle;
@@ -926,6 +1013,9 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
+
+	if (sq)
+		amdgpu_vcn_unified_ring_ib_checksum(&ib_checksum, 0x11);
 
 	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
@@ -974,6 +1064,20 @@ error:
 	amdgpu_ib_free(adev, &ib, fence);
 	dma_fence_put(fence);
 
+	return r;
+}
+
+int amdgpu_vcn_unified_ring_test_ib(struct amdgpu_ring *ring, long timeout)
+{
+	long r;
+
+	r = amdgpu_vcn_enc_ring_test_ib(ring, timeout);
+	if (r)
+		goto error;
+
+	r =  amdgpu_vcn_dec_sw_ring_test_ib(ring, timeout);
+
+error:
 	return r;
 }
 

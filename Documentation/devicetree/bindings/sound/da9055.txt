@@ -2,7 +2,7 @@
 
 DA9055 provides Audio CODEC support (I2C only).
 
-The Audio CODEC device in DA9055 has it's own I2C address which is configurable,
+The Audio CODEC device in DA9055 has its own I2C address which is configurable,
 so the device is instantiated separately from the PMIC (MFD) device.
 
 For details on accompanying PMIC I2C device, see the following:

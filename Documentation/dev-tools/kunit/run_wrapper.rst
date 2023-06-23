@@ -192,6 +192,21 @@ via UML. To run tests on qemu, by default it requires two flags:
     if we have downloaded the microblaze toolchain from the 0-day
     website to a directory in our home directory called toolchains.
 
+This means that for most architectures, running under qemu is as simple as:
+
+.. code-block:: bash
+
+	./tools/testing/kunit/kunit.py run --arch=x86_64
+
+When cross-compiling, we'll likely need to specify a different toolchain, for
+example:
+
+.. code-block:: bash
+
+	./tools/testing/kunit/kunit.py run \
+		--arch=s390 \
+		--cross_compile=s390x-linux-gnu-
+
 If we want to run KUnit tests on an architecture not supported by
 the ``--arch`` flag, or want to run KUnit tests on qemu using a
 non-default configuration; then we can write our own``QemuConfig``.
@@ -214,14 +229,11 @@ as
 		--jobs=12 \
 		--qemu_config=./tools/testing/kunit/qemu_configs/x86_64.py
 
-To run existing KUnit tests on non-UML architectures, see:
-Documentation/dev-tools/kunit/non_uml.rst.
-
 Command-Line Arguments
 ======================
 
 kunit_tool has a number of other command-line arguments which can
-be useful for our test environment. Below the most commonly used
+be useful for our test environment. Below are the most commonly used
 command line arguments:
 
 - ``--help``: Lists all available options. To list common options,
@@ -245,3 +257,64 @@ command line arguments:
             added or modified. Instead, enable all tests
             which have satisfied dependencies by adding
             ``CONFIG_KUNIT_ALL_TESTS=y`` to your ``.kunitconfig``.
+
+- ``--kunitconfig``: Specifies the path or the directory of the ``.kunitconfig``
+  file. For example:
+
+  - ``lib/kunit/.kunitconfig`` can be the path of the file.
+
+  - ``lib/kunit`` can be the directory in which the file is located.
+
+  This file is used to build and run with a predefined set of tests
+  and their dependencies. For example, to run tests for a given subsystem.
+
+- ``--kconfig_add``: Specifies additional configuration options to be
+  appended to the ``.kunitconfig`` file. For example:
+
+  .. code-block::
+
+	./tools/testing/kunit/kunit.py run --kconfig_add CONFIG_KASAN=y
+
+- ``--arch``: Runs tests on the specified architecture. The architecture
+  argument is same as the Kbuild ARCH environment variable.
+  For example, i386, x86_64, arm, um, etc. Non-UML architectures run on qemu.
+  Default is `um`.
+
+- ``--cross_compile``: Specifies the Kbuild toolchain. It passes the
+  same argument as passed to the ``CROSS_COMPILE`` variable used by
+  Kbuild. This will be the prefix for the toolchain
+  binaries such as GCC. For example:
+
+  - ``sparc64-linux-gnu-`` if we have the sparc toolchain installed on
+    our system.
+
+  - ``$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux``
+    if we have downloaded the microblaze toolchain from the 0-day
+    website to a specified path in our home directory called toolchains.
+
+- ``--qemu_config``: Specifies the path to a file containing a
+  custom qemu architecture definition. This should be a python file
+  containing a `QemuArchParams` object.
+
+- ``--qemu_args``: Specifies additional qemu arguments, for example, ``-smp 8``.
+
+- ``--jobs``: Specifies the number of jobs (commands) to run simultaneously.
+  By default, this is set to the number of cores on your system.
+
+- ``--timeout``: Specifies the maximum number of seconds allowed for all tests to run.
+  This does not include the time taken to build the tests.
+
+- ``--kernel_args``: Specifies additional kernel command-line arguments. May be repeated.
+
+- ``--run_isolated``: If set, boots the kernel for each individual suite/test.
+  This is useful for debugging a non-hermetic test, one that
+  might pass/fail based on what ran before it.
+
+- ``--raw_output``: If set, generates unformatted output from kernel. Possible options are:
+
+   - ``all``: To view the full kernel output, use ``--raw_output=all``.
+
+   - ``kunit``: This is the default option and filters to KUnit output. Use ``--raw_output`` or ``--raw_output=kunit``.
+
+- ``--json``: If set, stores the test results in a JSON format and prints to `stdout` or
+  saves to a file if a filename is specified.
