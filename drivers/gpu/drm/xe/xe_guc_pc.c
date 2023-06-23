@@ -76,12 +76,7 @@
  *
  * Render-C states is also a GuC PC feature that is now enabled in Xe for
  * all platforms.
- * Xe's GuC PC provides a sysfs API for Render-C States:
  *
- * device/gt#/rc* *read-only* files:
- * - rc_status: Provide the actual immediate status of Render-C: (rc0 or rc6)
- * - rc6_residency: Provide the rc6_residency counter in units of 1.28 uSec.
- *                  Prone to overflows.
  */
 
 static struct xe_guc *
@@ -572,10 +567,12 @@ out:
 }
 static DEVICE_ATTR_RW(freq_max);
 
-static ssize_t rc_status_show(struct device *dev,
-			      struct device_attribute *attr, char *buff)
+/**
+ * xe_guc_pc_rc_status - get the current Render C state
+ * @pc: XE_GuC_PC instance
+ */
+enum xe_gt_idle_state xe_guc_pc_rc_status(struct xe_guc_pc *pc)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
 	struct xe_gt *gt = pc_to_gt(pc);
 	u32 reg;
 
@@ -585,37 +582,29 @@ static ssize_t rc_status_show(struct device *dev,
 
 	switch (REG_FIELD_GET(RCN_MASK, reg)) {
 	case GT_RC6:
-		return sysfs_emit(buff, "rc6\n");
+		return GT_IDLE_C6;
 	case GT_RC0:
-		return sysfs_emit(buff, "rc0\n");
+		return GT_IDLE_C0;
 	default:
-		return -ENOENT;
+		return GT_IDLE_UNKNOWN;
 	}
 }
-static DEVICE_ATTR_RO(rc_status);
 
-static ssize_t rc6_residency_show(struct device *dev,
-				  struct device_attribute *attr, char *buff)
+/**
+ * xe_guc_pc_rc6_residency - rc6 residency counter
+ * @pc: Xe_GuC_PC instance
+ */
+u64 xe_guc_pc_rc6_residency(struct xe_guc_pc *pc)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
 	struct xe_gt *gt = pc_to_gt(pc);
 	u32 reg;
-	ssize_t ret;
 
-	xe_device_mem_access_get(pc_to_xe(pc));
-	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (ret)
-		goto out;
-
+	xe_device_mem_access_get(gt_to_xe(gt));
 	reg = xe_mmio_read32(gt, GT_GFX_RC6);
-	ret = sysfs_emit(buff, "%u\n", reg);
+	xe_device_mem_access_put(gt_to_xe(gt));
 
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
-out:
-	xe_device_mem_access_put(pc_to_xe(pc));
-	return ret;
+	return reg;
 }
-static DEVICE_ATTR_RO(rc6_residency);
 
 static const struct attribute *pc_attrs[] = {
 	&dev_attr_freq_act.attr,
@@ -625,8 +614,6 @@ static const struct attribute *pc_attrs[] = {
 	&dev_attr_freq_rpn.attr,
 	&dev_attr_freq_min.attr,
 	&dev_attr_freq_max.attr,
-	&dev_attr_rc_status.attr,
-	&dev_attr_rc6_residency.attr,
 	NULL
 };
 

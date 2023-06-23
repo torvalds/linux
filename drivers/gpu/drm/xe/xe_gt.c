@@ -18,6 +18,7 @@
 #include "xe_force_wake.h"
 #include "xe_ggtt.h"
 #include "xe_gt_clock.h"
+#include "xe_gt_idle_sysfs.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
 #include "xe_gt_printk.h"
@@ -305,6 +306,8 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	err = xe_uc_init_hwconfig(&gt->uc);
 	if (err)
 		goto err_force_wake;
+
+	xe_gt_idle_sysfs_init(&gt->gtidle);
 
 	/* XXX: Fake that we pull the engine mask from hwconfig blob */
 	gt->info.engine_mask = gt->info.__engine_mask;
