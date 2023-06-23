@@ -1721,7 +1721,7 @@ static bool gic_enable_quirk_msm8996(void *data)
 
 static bool gic_enable_quirk_mtk_gicr(void *data)
 {
-	struct gic_chip_data *d = data;
+	struct gic_chip_data_v3 *d = data;
 
 	d->flags |= FLAGS_WORKAROUND_MTK_GICR_SAVE;
 
