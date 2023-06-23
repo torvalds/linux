@@ -727,36 +727,22 @@ SYM_CODE_END(__switch_to_asm)
  * edi: kernel thread arg
  */
 .pushsection .text, "ax"
-SYM_CODE_START(ret_from_fork)
+SYM_CODE_START(ret_from_fork_asm)
+	movl	%esp, %edx	/* regs */
+
 	/* return address for the stack unwinder */
 	pushl	$.Lsyscall_32_done
 
 	FRAME_BEGIN
-	pushl	%eax
-	call	schedule_tail
+	/* prev already in EAX */
+	movl	%ebx, %ecx	/* fn */
+	pushl	%edi		/* fn_arg */
+	call	ret_from_fork
 	addl	$4, %esp
 	FRAME_END
 
-	testl	%ebx, %ebx
-	jnz	1f		/* kernel threads are uncommon */
-
-2:
-	/* When we fork, we trace the syscall return in the child, too. */
-	leal    4(%esp), %eax
-	call    syscall_exit_to_user_mode
 	RET
-
-	/* kernel thread */
-1:	movl	%edi, %eax
-	CALL_NOSPEC ebx
-	/*
-	 * A kernel thread is allowed to return here after successfully
-	 * calling kernel_execve().  Exit to userspace to complete the execve()
-	 * syscall.
-	 */
-	movl	$0, PT_EAX(%esp)
-	jmp	2b
-SYM_CODE_END(ret_from_fork)
+SYM_CODE_END(ret_from_fork_asm)
 .popsection
 
 SYM_ENTRY(__begin_SYSENTER_singlestep_region, SYM_L_GLOBAL, SYM_A_NONE)
