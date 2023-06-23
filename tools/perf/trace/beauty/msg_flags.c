@@ -8,9 +8,6 @@
 #ifndef MSG_WAITFORONE
 #define MSG_WAITFORONE		   0x10000
 #endif
-#ifndef MSG_SENDPAGE_NOTLAST
-#define MSG_SENDPAGE_NOTLAST	   0x20000
-#endif
 #ifndef MSG_FASTOPEN
 #define MSG_FASTOPEN		0x20000000
 #endif
@@ -50,7 +47,7 @@ static size_t syscall_arg__scnprintf_msg_flags(char *bf, size_t size,
 	P_MSG_FLAG(NOSIGNAL);
 	P_MSG_FLAG(MORE);
 	P_MSG_FLAG(WAITFORONE);
-	P_MSG_FLAG(SENDPAGE_NOTLAST);
+	P_MSG_FLAG(SPLICE_PAGES);
 	P_MSG_FLAG(FASTOPEN);
 	P_MSG_FLAG(CMSG_CLOEXEC);
 #undef P_MSG_FLAG
