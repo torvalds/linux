@@ -146,7 +146,6 @@ static bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 bool cancel_all);
 
-static void io_clean_op(struct io_kiocb *req);
 static void io_queue_sqe(struct io_kiocb *req);
 static void io_move_task_work_from_local(struct io_ring_ctx *ctx);
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx);
@@ -365,6 +364,39 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 	}
 
 	return false;
+}
+
+static void io_clean_op(struct io_kiocb *req)
+{
+	if (req->flags & REQ_F_BUFFER_SELECTED) {
+		spin_lock(&req->ctx->completion_lock);
+		io_put_kbuf_comp(req);
+		spin_unlock(&req->ctx->completion_lock);
+	}
+
+	if (req->flags & REQ_F_NEED_CLEANUP) {
+		const struct io_cold_def *def = &io_cold_defs[req->opcode];
+
+		if (def->cleanup)
+			def->cleanup(req);
+	}
+	if ((req->flags & REQ_F_POLLED) && req->apoll) {
+		kfree(req->apoll->double_poll);
+		kfree(req->apoll);
+		req->apoll = NULL;
+	}
+	if (req->flags & REQ_F_INFLIGHT) {
+		struct io_uring_task *tctx = req->task->io_uring;
+
+		atomic_dec(&tctx->inflight_tracked);
+	}
+	if (req->flags & REQ_F_CREDS)
+		put_cred(req->creds);
+	if (req->flags & REQ_F_ASYNC_DATA) {
+		kfree(req->async_data);
+		req->async_data = NULL;
+	}
+	req->flags &= ~IO_REQ_CLEAN_FLAGS;
 }
 
 static inline void io_req_track_inflight(struct io_kiocb *req)
@@ -1821,39 +1853,6 @@ queue:
 	de->seq = seq;
 	list_add_tail(&de->list, &ctx->defer_list);
 	spin_unlock(&ctx->completion_lock);
-}
-
-static void io_clean_op(struct io_kiocb *req)
-{
-	if (req->flags & REQ_F_BUFFER_SELECTED) {
-		spin_lock(&req->ctx->completion_lock);
-		io_put_kbuf_comp(req);
-		spin_unlock(&req->ctx->completion_lock);
-	}
-
-	if (req->flags & REQ_F_NEED_CLEANUP) {
-		const struct io_cold_def *def = &io_cold_defs[req->opcode];
-
-		if (def->cleanup)
-			def->cleanup(req);
-	}
-	if ((req->flags & REQ_F_POLLED) && req->apoll) {
-		kfree(req->apoll->double_poll);
-		kfree(req->apoll);
-		req->apoll = NULL;
-	}
-	if (req->flags & REQ_F_INFLIGHT) {
-		struct io_uring_task *tctx = req->task->io_uring;
-
-		atomic_dec(&tctx->inflight_tracked);
-	}
-	if (req->flags & REQ_F_CREDS)
-		put_cred(req->creds);
-	if (req->flags & REQ_F_ASYNC_DATA) {
-		kfree(req->async_data);
-		req->async_data = NULL;
-	}
-	req->flags &= ~IO_REQ_CLEAN_FLAGS;
 }
 
 static bool io_assign_file(struct io_kiocb *req, const struct io_issue_def *def,
