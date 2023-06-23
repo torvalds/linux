@@ -103,6 +103,6 @@ int imx_icc_register(struct platform_device *pdev,
 		     struct imx_icc_node_desc *nodes,
 		     int nodes_count,
 		     struct imx_icc_noc_setting *noc_settings);
-int imx_icc_unregister(struct platform_device *pdev);
+void imx_icc_unregister(struct platform_device *pdev);
 
 #endif /* __DRIVERS_INTERCONNECT_IMX_H */

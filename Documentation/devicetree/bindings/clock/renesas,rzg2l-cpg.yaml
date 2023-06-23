@@ -24,7 +24,7 @@ description: |
 properties:
   compatible:
     enum:
-      - renesas,r9a07g043-cpg # RZ/G2UL{Type-1,Type-2}
+      - renesas,r9a07g043-cpg # RZ/G2UL{Type-1,Type-2} and RZ/Five
       - renesas,r9a07g044-cpg # RZ/G2{L,LC}
       - renesas,r9a07g054-cpg # RZ/V2L
       - renesas,r9a09g011-cpg # RZ/V2M

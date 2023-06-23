@@ -90,6 +90,12 @@ DEFINE_ENTRY(pud, pud, init)
 DEFINE_ENTRY(pmd, pmd, init)
 DEFINE_ENTRY(pte, pte, init)
 
+static inline pgprot_t prot_sethuge(pgprot_t prot)
+{
+	WARN_ON_ONCE(pgprot_val(prot) & _PAGE_PAT);
+
+	return __pgprot(pgprot_val(prot) | _PAGE_PSE);
+}
 
 /*
  * NOTE: pagetable_init alloc all the fixmap pagetables contiguous on the
@@ -557,9 +563,8 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long paddr, unsigned long paddr_end,
 		if (page_size_mask & (1<<PG_LEVEL_2M)) {
 			pages++;
 			spin_lock(&init_mm.page_table_lock);
-			set_pte_init((pte_t *)pmd,
-				     pfn_pte((paddr & PMD_MASK) >> PAGE_SHIFT,
-					     __pgprot(pgprot_val(prot) | _PAGE_PSE)),
+			set_pmd_init(pmd,
+				     pfn_pmd(paddr >> PAGE_SHIFT, prot_sethuge(prot)),
 				     init);
 			spin_unlock(&init_mm.page_table_lock);
 			paddr_last = paddr_next;
@@ -644,12 +649,8 @@ phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
 		if (page_size_mask & (1<<PG_LEVEL_1G)) {
 			pages++;
 			spin_lock(&init_mm.page_table_lock);
-
-			prot = __pgprot(pgprot_val(prot) | _PAGE_PSE);
-
-			set_pte_init((pte_t *)pud,
-				     pfn_pte((paddr & PUD_MASK) >> PAGE_SHIFT,
-					     prot),
+			set_pud_init(pud,
+				     pfn_pud(paddr >> PAGE_SHIFT, prot_sethuge(prot)),
 				     init);
 			spin_unlock(&init_mm.page_table_lock);
 			paddr_last = paddr_next;
@@ -1287,7 +1288,7 @@ static void __init preallocate_vmalloc_pages(void)
 	unsigned long addr;
 	const char *lvl;
 
-	for (addr = VMALLOC_START; addr <= VMALLOC_END; addr = ALIGN(addr + 1, PGDIR_SIZE)) {
+	for (addr = VMALLOC_START; addr <= VMEMORY_END; addr = ALIGN(addr + 1, PGDIR_SIZE)) {
 		pgd_t *pgd = pgd_offset_k(addr);
 		p4d_t *p4d;
 		pud_t *pud;

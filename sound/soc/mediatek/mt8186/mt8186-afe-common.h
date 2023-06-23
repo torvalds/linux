@@ -189,6 +189,9 @@ unsigned int mt8186_rate_transform(struct device *dev,
 unsigned int mt8186_tdm_relatch_rate_transform(struct device *dev,
 					       unsigned int rate);
 
+int mt8186_dai_i2s_set_share(struct mtk_base_afe *afe, const char *main_i2s_name,
+			     const char *secondary_i2s_name);
+
 int mt8186_dai_set_priv(struct mtk_base_afe *afe, int id,
 			int priv_size, const void *priv_data);
 

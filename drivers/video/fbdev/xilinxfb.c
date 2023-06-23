@@ -376,7 +376,7 @@ err_cmap:
 	return rc;
 }
 
-static int xilinxfb_release(struct device *dev)
+static void xilinxfb_release(struct device *dev)
 {
 	struct xilinxfb_drvdata *drvdata = dev_get_drvdata(dev);
 
@@ -402,8 +402,6 @@ static int xilinxfb_release(struct device *dev)
 	if (!(drvdata->flags & BUS_ACCESS_FLAG))
 		dcr_unmap(drvdata->dcr_host, drvdata->dcr_len);
 #endif
-
-	return 0;
 }
 
 /* ---------------------------------------------------------------------
@@ -480,7 +478,9 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 
 static int xilinxfb_of_remove(struct platform_device *op)
 {
-	return xilinxfb_release(&op->dev);
+	xilinxfb_release(&op->dev);
+
+	return 0;
 }
 
 /* Match table for of_platform binding */

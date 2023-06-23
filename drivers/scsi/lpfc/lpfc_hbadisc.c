@@ -1242,6 +1242,8 @@ lpfc_linkdown(struct lpfc_hba *phba)
 			phba->trunk_link.link1.state = 0;
 			phba->trunk_link.link2.state = 0;
 			phba->trunk_link.link3.state = 0;
+			phba->trunk_link.phy_lnk_speed =
+						LPFC_LINK_SPEED_UNKNOWN;
 			phba->sli4_hba.link_state.logical_speed =
 						LPFC_LINK_SPEED_UNKNOWN;
 		}
@@ -1353,8 +1355,13 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 				   FCH_EVT_LINKUP, 0);
 
 	spin_lock_irq(shost->host_lock);
-	vport->fc_flag &= ~(FC_PT2PT | FC_PT2PT_PLOGI | FC_ABORT_DISCOVERY |
-			    FC_RSCN_MODE | FC_NLP_MORE | FC_RSCN_DISCOVERY);
+	if (phba->defer_flogi_acc_flag)
+		vport->fc_flag &= ~(FC_ABORT_DISCOVERY | FC_RSCN_MODE |
+				    FC_NLP_MORE | FC_RSCN_DISCOVERY);
+	else
+		vport->fc_flag &= ~(FC_PT2PT | FC_PT2PT_PLOGI |
+				    FC_ABORT_DISCOVERY | FC_RSCN_MODE |
+				    FC_NLP_MORE | FC_RSCN_DISCOVERY);
 	vport->fc_flag |= FC_NDISC_ACTIVE;
 	vport->fc_ns_retry = 0;
 	spin_unlock_irq(shost->host_lock);
@@ -1392,7 +1399,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 
 	/* reinitialize initial HBA flag */
 	phba->hba_flag &= ~(HBA_FLOGI_ISSUED | HBA_RHBA_CMPL);
-	phba->defer_flogi_acc_flag = false;
 
 	return 0;
 }
@@ -2150,8 +2156,8 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
  * This function makes an running random selection decision on FCF record to
  * use through a sequence of @fcf_cnt eligible FCF records with equal
  * probability. To perform integer manunipulation of random numbers with
- * size unit32_t, the lower 16 bits of the 32-bit random number returned
- * from prandom_u32() are taken as the random random number generated.
+ * size unit32_t, a 16-bit random number returned from get_random_u16() is
+ * taken as the random random number generated.
  *
  * Returns true when outcome is for the newly read FCF record should be
  * chosen; otherwise, return false when outcome is for keeping the previously
@@ -2163,7 +2169,7 @@ lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
 	uint32_t rand_num;
 
 	/* Get 16-bit uniform random number */
-	rand_num = 0xFFFF & prandom_u32();
+	rand_num = get_random_u16();
 
 	/* Decision with probability 1/fcf_cnt */
 	if ((fcf_cnt * rand_num) < 0xFFFF)
@@ -2964,7 +2970,7 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint32_t boot_flag, addr_mode;
 	uint16_t next_fcf_index, fcf_index;
 	uint16_t current_fcf_index;
-	uint16_t vlan_id;
+	uint16_t vlan_id = LPFC_FCOE_NULL_VID;
 	int rc;
 
 	/* If link state is not up, stop the roundrobin failover process */
@@ -3069,7 +3075,7 @@ lpfc_mbx_cmpl_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct fcf_record *new_fcf_record;
 	uint32_t boot_flag, addr_mode;
 	uint16_t fcf_index, next_fcf_index;
-	uint16_t vlan_id;
+	uint16_t vlan_id =  LPFC_FCOE_NULL_VID;
 	int rc;
 
 	/* If link state is not up, no need to proceed */
@@ -3790,6 +3796,9 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		if (phba->cmf_active_mode != LPFC_CFG_OFF)
 			lpfc_cmf_signal_init(phba);
 
+		if (phba->lmt & LMT_64Gb)
+			lpfc_read_lds_params(phba);
+
 	} else if (attn_type == LPFC_ATT_LINK_DOWN ||
 		   attn_type == LPFC_ATT_UNEXP_WWPN) {
 		phba->fc_stat.LinkDown++;
@@ -4389,8 +4398,11 @@ out:
 			rc = lpfc_issue_els_edc(vport, 0);
 			lpfc_printf_log(phba, KERN_INFO,
 					LOG_INIT | LOG_ELS | LOG_DISCOVERY,
-					"4220 EDC issue error x%x, Data: x%x\n",
+					"4220 Issue EDC status x%x Data x%x\n",
 					rc, phba->cgn_init_reg_signal);
+		} else if (phba->lmt & LMT_64Gb) {
+			/* may send link fault capability descriptor */
+			lpfc_issue_els_edc(vport, 0);
 		} else {
 			lpfc_issue_els_rdf(vport, 0);
 		}
@@ -4788,22 +4800,6 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	    new_state == NLP_STE_UNMAPPED_NODE)
 		lpfc_nlp_reg_node(vport, ndlp);
 
-	if ((new_state ==  NLP_STE_MAPPED_NODE) &&
-		(vport->stat_data_enabled)) {
-		/*
-		 * A new target is discovered, if there is no buffer for
-		 * statistical data collection allocate buffer.
-		 */
-		ndlp->lat_data = kcalloc(LPFC_MAX_BUCKET_COUNT,
-					 sizeof(struct lpfc_scsicmd_bkt),
-					 GFP_KERNEL);
-
-		if (!ndlp->lat_data)
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				"0286 lpfc_nlp_state_cleanup failed to "
-				"allocate statistical data buffer DID "
-				"0x%x\n", ndlp->nlp_DID);
-	}
 	/*
 	 * If the node just added to Mapped list was an FCP target,
 	 * but the remote port registration failed or assigned a target
@@ -6648,7 +6644,6 @@ lpfc_nlp_release(struct kref *kref)
 	ndlp->fc4_xpt_flags = 0;
 
 	/* free ndlp memory for final ndlp release */
-	kfree(ndlp->lat_data);
 	if (ndlp->phba->sli_rev == LPFC_SLI_REV4)
 		mempool_free(ndlp->active_rrqs_xri_bitmap,
 				ndlp->phba->active_rrq_pool);

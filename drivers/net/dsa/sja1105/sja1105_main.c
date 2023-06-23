@@ -1038,7 +1038,7 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 
 		policing[bcast].sharindx = port;
 		/* Only SJA1110 has multicast policers */
-		if (mcast <= table->ops->max_entry_count)
+		if (mcast < table->ops->max_entry_count)
 			policing[mcast].sharindx = port;
 	}
 
@@ -3351,8 +3351,6 @@ static void sja1105_remove(struct spi_device *spi)
 		return;
 
 	dsa_unregister_switch(priv->ds);
-
-	spi_set_drvdata(spi, NULL);
 }
 
 static void sja1105_shutdown(struct spi_device *spi)

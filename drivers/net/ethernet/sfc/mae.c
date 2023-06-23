@@ -112,6 +112,167 @@ int efx_mae_lookup_mport(struct efx_nic *efx, u32 selector, u32 *id)
 	return 0;
 }
 
+static int efx_mae_get_basic_caps(struct efx_nic *efx, struct mae_caps *caps)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_GET_CAPS_OUT_LEN);
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_MAE_GET_CAPS_IN_LEN);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_GET_CAPS, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	caps->match_field_count = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_MATCH_FIELD_COUNT);
+	caps->action_prios = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_ACTION_PRIOS);
+	return 0;
+}
+
+static int efx_mae_get_rule_fields(struct efx_nic *efx, u32 cmd,
+				   u8 *field_support)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_GET_AR_CAPS_OUT_LEN(MAE_NUM_FIELDS));
+	MCDI_DECLARE_STRUCT_PTR(caps);
+	unsigned int count;
+	size_t outlen;
+	int rc, i;
+
+	BUILD_BUG_ON(MC_CMD_MAE_GET_AR_CAPS_IN_LEN);
+
+	rc = efx_mcdi_rpc(efx, cmd, NULL, 0, outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	count = MCDI_DWORD(outbuf, MAE_GET_AR_CAPS_OUT_COUNT);
+	memset(field_support, MAE_FIELD_UNSUPPORTED, MAE_NUM_FIELDS);
+	caps = _MCDI_DWORD(outbuf, MAE_GET_AR_CAPS_OUT_FIELD_FLAGS);
+	/* We're only interested in the support status enum, not any other
+	 * flags, so just extract that from each entry.
+	 */
+	for (i = 0; i < count; i++)
+		if (i * sizeof(*outbuf) + MC_CMD_MAE_GET_AR_CAPS_OUT_FIELD_FLAGS_OFST < outlen)
+			field_support[i] = EFX_DWORD_FIELD(caps[i], MAE_FIELD_FLAGS_SUPPORT_STATUS);
+	return 0;
+}
+
+int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps)
+{
+	int rc;
+
+	rc = efx_mae_get_basic_caps(efx, caps);
+	if (rc)
+		return rc;
+	return efx_mae_get_rule_fields(efx, MC_CMD_MAE_GET_AR_CAPS,
+				       caps->action_rule_fields);
+}
+
+/* Bit twiddling:
+ * Prefix: 1...110...0
+ *      ~: 0...001...1
+ *    + 1: 0...010...0 is power of two
+ * so (~x) & ((~x) + 1) == 0.  Converse holds also.
+ */
+#define is_prefix_byte(_x)	!(((_x) ^ 0xff) & (((_x) ^ 0xff) + 1))
+
+enum mask_type { MASK_ONES, MASK_ZEROES, MASK_PREFIX, MASK_OTHER };
+
+static const char *mask_type_name(enum mask_type typ)
+{
+	switch (typ) {
+	case MASK_ONES:
+		return "all-1s";
+	case MASK_ZEROES:
+		return "all-0s";
+	case MASK_PREFIX:
+		return "prefix";
+	case MASK_OTHER:
+		return "arbitrary";
+	default: /* can't happen */
+		return "unknown";
+	}
+}
+
+/* Checks a (big-endian) bytestring is a bit prefix */
+static enum mask_type classify_mask(const u8 *mask, size_t len)
+{
+	bool zeroes = true; /* All bits seen so far are zeroes */
+	bool ones = true; /* All bits seen so far are ones */
+	bool prefix = true; /* Valid prefix so far */
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		if (ones) {
+			if (!is_prefix_byte(mask[i]))
+				prefix = false;
+		} else if (mask[i]) {
+			prefix = false;
+		}
+		if (mask[i] != 0xff)
+			ones = false;
+		if (mask[i])
+			zeroes = false;
+	}
+	if (ones)
+		return MASK_ONES;
+	if (zeroes)
+		return MASK_ZEROES;
+	if (prefix)
+		return MASK_PREFIX;
+	return MASK_OTHER;
+}
+
+static int efx_mae_match_check_cap_typ(u8 support, enum mask_type typ)
+{
+	switch (support) {
+	case MAE_FIELD_UNSUPPORTED:
+	case MAE_FIELD_SUPPORTED_MATCH_NEVER:
+		if (typ == MASK_ZEROES)
+			return 0;
+		return -EOPNOTSUPP;
+	case MAE_FIELD_SUPPORTED_MATCH_OPTIONAL:
+		if (typ == MASK_ZEROES)
+			return 0;
+		fallthrough;
+	case MAE_FIELD_SUPPORTED_MATCH_ALWAYS:
+		if (typ == MASK_ONES)
+			return 0;
+		return -EINVAL;
+	case MAE_FIELD_SUPPORTED_MATCH_PREFIX:
+		if (typ == MASK_OTHER)
+			return -EOPNOTSUPP;
+		return 0;
+	case MAE_FIELD_SUPPORTED_MATCH_MASK:
+		return 0;
+	default:
+		return -EIO;
+	}
+}
+
+int efx_mae_match_check_caps(struct efx_nic *efx,
+			     const struct efx_tc_match_fields *mask,
+			     struct netlink_ext_ack *extack)
+{
+	const u8 *supported_fields = efx->tc->caps->action_rule_fields;
+	__be32 ingress_port = cpu_to_be32(mask->ingress_port);
+	enum mask_type ingress_port_mask_type;
+	int rc;
+
+	/* Check for _PREFIX assumes big-endian, so we need to convert */
+	ingress_port_mask_type = classify_mask((const u8 *)&ingress_port,
+					       sizeof(ingress_port));
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_INGRESS_PORT],
+					 ingress_port_mask_type);
+	if (rc) {
+		efx_tc_err(efx, "No support for %s mask in field ingress_port\n",
+			   mask_type_name(ingress_port_mask_type));
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported mask type for ingress_port");
+		return rc;
+	}
+	return 0;
+}
+
 static bool efx_mae_asl_id(u32 id)
 {
 	return !!(id & BIT(31));
@@ -279,6 +440,10 @@ static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 	}
 	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_INGRESS_MPORT_SELECTOR_MASK,
 			      match->mask.ingress_port);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID,
+			     match->value.recirc_id);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID_MASK,
+			     match->mask.recirc_id);
 	return 0;
 }
 

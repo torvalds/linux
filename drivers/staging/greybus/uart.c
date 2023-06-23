@@ -480,7 +480,7 @@ static int gb_tty_break_ctl(struct tty_struct *tty, int state)
 }
 
 static void gb_tty_set_termios(struct tty_struct *tty,
-			       struct ktermios *termios_old)
+			       const struct ktermios *termios_old)
 {
 	struct gb_uart_set_line_coding_request newline;
 	struct gb_tty *gb_tty = tty->driver_data;

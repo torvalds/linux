@@ -8,16 +8,12 @@
 #include "util/thread_map.h"
 #include "util/lock-contention.h"
 #include <linux/zalloc.h>
+#include <linux/string.h>
 #include <bpf/bpf.h>
 
 #include "bpf_skel/lock_contention.skel.h"
 
 static struct lock_contention_bpf *skel;
-
-/* should be same as bpf_skel/lock_contention.bpf.c */
-struct lock_contention_key {
-	s32 stack_id;
-};
 
 struct lock_contention_data {
 	u64 total_time;
@@ -40,6 +36,7 @@ int lock_contention_prepare(struct lock_contention *con)
 		return -1;
 	}
 
+	bpf_map__set_value_size(skel->maps.stacks, con->max_stack * sizeof(u64));
 	bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
 	bpf_map__set_max_entries(skel->maps.lock_stat, con->map_nr_entries);
 
@@ -91,6 +88,8 @@ int lock_contention_prepare(struct lock_contention *con)
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 	}
 
+	skel->bss->stack_skip = con->stack_skip;
+
 	lock_contention_bpf__attach(skel);
 	return 0;
 }
@@ -114,7 +113,7 @@ int lock_contention_read(struct lock_contention *con)
 	struct lock_contention_data data;
 	struct lock_stat *st;
 	struct machine *machine = con->machine;
-	u64 stack_trace[CONTENTION_STACK_DEPTH];
+	u64 stack_trace[con->max_stack];
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
@@ -125,7 +124,7 @@ int lock_contention_read(struct lock_contention *con)
 	while (!bpf_map_get_next_key(fd, &prev_key, &key)) {
 		struct map *kmap;
 		struct symbol *sym;
-		int idx;
+		int idx = 0;
 
 		bpf_map_lookup_elem(fd, &key, &data);
 		st = zalloc(sizeof(*st));
@@ -144,10 +143,9 @@ int lock_contention_read(struct lock_contention *con)
 
 		bpf_map_lookup_elem(stack, &key, stack_trace);
 
-		/* skip BPF + lock internal functions */
-		idx = CONTENTION_STACK_SKIP;
+		/* skip lock internal functions */
 		while (is_lock_function(machine, stack_trace[idx]) &&
-		       idx < CONTENTION_STACK_DEPTH - 1)
+		       idx < con->max_stack - 1)
 			idx++;
 
 		st->addr = stack_trace[idx];
@@ -169,6 +167,14 @@ int lock_contention_read(struct lock_contention *con)
 		} else if (asprintf(&st->name, "%#lx", (unsigned long)st->addr) < 0) {
 			free(st);
 			return -1;
+		}
+
+		if (verbose) {
+			st->callstack = memdup(stack_trace, sizeof(stack_trace));
+			if (st->callstack == NULL) {
+				free(st);
+				return -1;
+			}
 		}
 
 		hlist_add_head(&st->hash_entry, con->result);

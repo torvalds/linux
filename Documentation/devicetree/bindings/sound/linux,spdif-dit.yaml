@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/linux,spdif-dit.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Dummy SPDIF Transmitter Device Tree Bindings
+title: Dummy SPDIF Transmitter
 
 maintainers:
   - Mark Brown <broonie@kernel.org>

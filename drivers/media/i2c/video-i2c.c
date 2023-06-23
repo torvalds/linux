@@ -895,7 +895,7 @@ error_free_device:
 	return ret;
 }
 
-static int video_i2c_remove(struct i2c_client *client)
+static void video_i2c_remove(struct i2c_client *client)
 {
 	struct video_i2c_data *data = i2c_get_clientdata(client);
 
@@ -908,8 +908,6 @@ static int video_i2c_remove(struct i2c_client *client)
 		data->chip->set_power(data, false);
 
 	video_unregister_device(&data->vdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

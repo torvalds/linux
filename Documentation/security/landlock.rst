@@ -7,7 +7,7 @@ Landlock LSM: kernel documentation
 ==================================
 
 :Author: Mickaël Salaün
-:Date: May 2022
+:Date: September 2022
 
 Landlock's goal is to create scoped access-control (i.e. sandboxing).  To
 harden a whole system, this feature should be available to any process,
@@ -49,13 +49,13 @@ Filesystem access rights
 ------------------------
 
 All access rights are tied to an inode and what can be accessed through it.
-Reading the content of a directory doesn't imply to be allowed to read the
+Reading the content of a directory does not imply to be allowed to read the
 content of a listed inode.  Indeed, a file name is local to its parent
 directory, and an inode can be referenced by multiple file names thanks to
 (hard) links.  Being able to unlink a file only has a direct impact on the
 directory, not the unlinked inode.  This is the reason why
-`LANDLOCK_ACCESS_FS_REMOVE_FILE` or `LANDLOCK_ACCESS_FS_REFER` are not allowed
-to be tied to files but only to directories.
+``LANDLOCK_ACCESS_FS_REMOVE_FILE`` or ``LANDLOCK_ACCESS_FS_REFER`` are not
+allowed to be tied to files but only to directories.
 
 Tests
 =====

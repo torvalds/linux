@@ -880,7 +880,7 @@ static int tipc_nl_compat_name_table_dump_header(struct tipc_nl_compat_msg *msg)
 	};
 
 	ntq = (struct tipc_name_table_query *)TLV_DATA(msg->req);
-	if (TLV_GET_DATA_LEN(msg->req) < sizeof(struct tipc_name_table_query))
+	if (TLV_GET_DATA_LEN(msg->req) < (int)sizeof(struct tipc_name_table_query))
 		return -EINVAL;
 
 	depth = ntohl(ntq->depth);
@@ -1357,6 +1357,7 @@ static struct genl_family tipc_genl_compat_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= tipc_genl_compat_ops,
 	.n_small_ops	= ARRAY_SIZE(tipc_genl_compat_ops),
+	.resv_start_op	= TIPC_GENL_CMD + 1,
 };
 
 int __init tipc_netlink_compat_start(void)

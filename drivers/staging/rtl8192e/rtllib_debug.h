@@ -46,10 +46,4 @@ enum RTL_DEBUG {
 	COMP_ERR		= BIT(31)
 };
 
-#define RT_TRACE(component, x, args...)		\
-do {			\
-	if (rt_global_debug_component & component) \
-		printk(KERN_DEBUG DRV_NAME ":" x "\n", ##args);\
-} while (0)
-
 #endif

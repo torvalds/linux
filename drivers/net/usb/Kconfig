@@ -168,7 +168,7 @@ config USB_NET_AX8817X
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
 	depends on USB_USBNET
 	select CRC32
-	select PHYLIB
+	select PHYLINK
 	select AX88796B_PHY
 	imply NET_SELFTESTS
 	default y

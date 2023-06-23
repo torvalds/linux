@@ -141,14 +141,14 @@ int udp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 
 	if (restore) {
 		sk->sk_write_space = psock->saved_write_space;
-		WRITE_ONCE(sk->sk_prot, psock->sk_proto);
+		sock_replace_proto(sk, psock->sk_proto);
 		return 0;
 	}
 
 	if (sk->sk_family == AF_INET6)
 		udp_bpf_check_v6_needs_rebuild(psock->sk_proto);
 
-	WRITE_ONCE(sk->sk_prot, &udp_bpf_prots[family]);
+	sock_replace_proto(sk, &udp_bpf_prots[family]);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(udp_bpf_update_proto);

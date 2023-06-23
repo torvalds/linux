@@ -1088,6 +1088,14 @@ int __init acpi_sleep_init(void)
 		register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
 					 SYS_OFF_PRIO_FIRMWARE,
 					 acpi_power_off, NULL);
+
+		/*
+		 * Windows uses S5 for reboot, so some BIOSes depend on it to
+		 * perform proper reboot.
+		 */
+		register_sys_off_handler(SYS_OFF_MODE_RESTART_PREPARE,
+					 SYS_OFF_PRIO_FIRMWARE,
+					 acpi_power_off_prepare, NULL);
 	} else {
 		acpi_no_s5 = true;
 	}

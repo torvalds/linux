@@ -19,6 +19,7 @@
  * which is (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -5860,6 +5861,10 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if(sisfb_off)
 		return -ENXIO;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "sisfb");
+	if (ret)
+		return ret;
 
 	sis_fb_info = framebuffer_alloc(sizeof(*ivideo), &pdev->dev);
 	if(!sis_fb_info)

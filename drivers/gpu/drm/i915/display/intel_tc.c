@@ -246,7 +246,7 @@ static u32 icl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
-	u32 isr_bit = i915->hotplug.pch_hpd[dig_port->base.hpd_pin];
+	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
 	u32 mask = 0;
 	u32 val;
 
@@ -279,7 +279,7 @@ static u32 adl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 isr_bit = i915->hotplug.pch_hpd[dig_port->base.hpd_pin];
+	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val, mask = 0;
 

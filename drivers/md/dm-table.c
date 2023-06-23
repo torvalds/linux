@@ -234,12 +234,12 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 
 	if ((start >= dev_size) || (start + len > dev_size)) {
-		DMWARN("%s: %pg too small for target: "
-		       "start=%llu, len=%llu, dev_size=%llu",
-		       dm_device_name(ti->table->md), bdev,
-		       (unsigned long long)start,
-		       (unsigned long long)len,
-		       (unsigned long long)dev_size);
+		DMERR("%s: %pg too small for target: "
+		      "start=%llu, len=%llu, dev_size=%llu",
+		      dm_device_name(ti->table->md), bdev,
+		      (unsigned long long)start,
+		      (unsigned long long)len,
+		      (unsigned long long)dev_size);
 		return 1;
 	}
 
@@ -251,10 +251,10 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		unsigned int zone_sectors = bdev_zone_sectors(bdev);
 
 		if (start & (zone_sectors - 1)) {
-			DMWARN("%s: start=%llu not aligned to h/w zone size %u of %pg",
-			       dm_device_name(ti->table->md),
-			       (unsigned long long)start,
-			       zone_sectors, bdev);
+			DMERR("%s: start=%llu not aligned to h/w zone size %u of %pg",
+			      dm_device_name(ti->table->md),
+			      (unsigned long long)start,
+			      zone_sectors, bdev);
 			return 1;
 		}
 
@@ -268,10 +268,10 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		 * the sector range.
 		 */
 		if (len & (zone_sectors - 1)) {
-			DMWARN("%s: len=%llu not aligned to h/w zone size %u of %pg",
-			       dm_device_name(ti->table->md),
-			       (unsigned long long)len,
-			       zone_sectors, bdev);
+			DMERR("%s: len=%llu not aligned to h/w zone size %u of %pg",
+			      dm_device_name(ti->table->md),
+			      (unsigned long long)len,
+			      zone_sectors, bdev);
 			return 1;
 		}
 	}
@@ -280,20 +280,20 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 
 	if (start & (logical_block_size_sectors - 1)) {
-		DMWARN("%s: start=%llu not aligned to h/w "
-		       "logical block size %u of %pg",
-		       dm_device_name(ti->table->md),
-		       (unsigned long long)start,
-		       limits->logical_block_size, bdev);
+		DMERR("%s: start=%llu not aligned to h/w "
+		      "logical block size %u of %pg",
+		      dm_device_name(ti->table->md),
+		      (unsigned long long)start,
+		      limits->logical_block_size, bdev);
 		return 1;
 	}
 
 	if (len & (logical_block_size_sectors - 1)) {
-		DMWARN("%s: len=%llu not aligned to h/w "
-		       "logical block size %u of %pg",
-		       dm_device_name(ti->table->md),
-		       (unsigned long long)len,
-		       limits->logical_block_size, bdev);
+		DMERR("%s: len=%llu not aligned to h/w "
+		      "logical block size %u of %pg",
+		      dm_device_name(ti->table->md),
+		      (unsigned long long)len,
+		      limits->logical_block_size, bdev);
 		return 1;
 	}
 
@@ -434,8 +434,8 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 		}
 	}
 	if (!found) {
-		DMWARN("%s: device %s not in table devices list",
-		       dm_device_name(ti->table->md), d->name);
+		DMERR("%s: device %s not in table devices list",
+		      dm_device_name(ti->table->md), d->name);
 		return;
 	}
 	if (refcount_dec_and_test(&dd->count)) {
@@ -618,12 +618,12 @@ static int validate_hardware_logical_block_alignment(struct dm_table *t,
 	}
 
 	if (remaining) {
-		DMWARN("%s: table line %u (start sect %llu len %llu) "
-		       "not aligned to h/w logical block size %u",
-		       dm_device_name(t->md), i,
-		       (unsigned long long) ti->begin,
-		       (unsigned long long) ti->len,
-		       limits->logical_block_size);
+		DMERR("%s: table line %u (start sect %llu len %llu) "
+		      "not aligned to h/w logical block size %u",
+		      dm_device_name(t->md), i,
+		      (unsigned long long) ti->begin,
+		      (unsigned long long) ti->len,
+		      limits->logical_block_size);
 		return -EINVAL;
 	}
 
@@ -1008,7 +1008,7 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 	struct dm_md_mempools *pools;
 
 	if (unlikely(type == DM_TYPE_NONE)) {
-		DMWARN("no table type is set, can't allocate mempools");
+		DMERR("no table type is set, can't allocate mempools");
 		return -EINVAL;
 	}
 
@@ -1112,7 +1112,7 @@ static bool integrity_profile_exists(struct gendisk *disk)
  * Get a disk whose integrity profile reflects the table's profile.
  * Returns NULL if integrity support was inconsistent or unavailable.
  */
-static struct gendisk * dm_table_get_integrity_disk(struct dm_table *t)
+static struct gendisk *dm_table_get_integrity_disk(struct dm_table *t)
 {
 	struct list_head *devices = dm_table_get_devices(t);
 	struct dm_dev_internal *dd = NULL;
@@ -1185,10 +1185,10 @@ static int dm_table_register_integrity(struct dm_table *t)
 	 * profile the new profile should not conflict.
 	 */
 	if (blk_integrity_compare(dm_disk(md), template_disk) < 0) {
-		DMWARN("%s: conflict with existing integrity profile: "
-		       "%s profile mismatch",
-		       dm_device_name(t->md),
-		       template_disk->disk_name);
+		DMERR("%s: conflict with existing integrity profile: "
+		      "%s profile mismatch",
+		      dm_device_name(t->md),
+		      template_disk->disk_name);
 		return 1;
 	}
 
@@ -1327,7 +1327,7 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 	if (t->md->queue &&
 	    !blk_crypto_has_capabilities(profile,
 					 t->md->queue->crypto_profile)) {
-		DMWARN("Inline encryption capabilities of new DM table were more restrictive than the old table's. This is not supported!");
+		DMERR("Inline encryption capabilities of new DM table were more restrictive than the old table's. This is not supported!");
 		dm_destroy_crypto_profile(profile);
 		return -EINVAL;
 	}
@@ -1856,9 +1856,7 @@ static bool dm_table_supports_write_zeroes(struct dm_table *t)
 static int device_not_nowait_capable(struct dm_target *ti, struct dm_dev *dev,
 				     sector_t start, sector_t len, void *data)
 {
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-
-	return !blk_queue_nowait(q);
+	return !bdev_nowait(dev->bdev);
 }
 
 static bool dm_table_supports_nowait(struct dm_table *t)

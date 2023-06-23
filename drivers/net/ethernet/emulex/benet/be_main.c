@@ -2982,8 +2982,7 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 			return -ENOMEM;
 		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
 				eqo->affinity_mask);
-		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(adapter->netdev, &eqo->napi, be_poll);
 	}
 	return 0;
 }

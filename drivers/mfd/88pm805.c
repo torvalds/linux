@@ -239,7 +239,7 @@ out_init:
 	return ret;
 }
 
-static int pm805_remove(struct i2c_client *client)
+static void pm805_remove(struct i2c_client *client)
 {
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 
@@ -247,8 +247,6 @@ static int pm805_remove(struct i2c_client *client)
 	device_irq_exit_805(chip);
 
 	pm80x_deinit();
-
-	return 0;
 }
 
 static struct i2c_driver pm805_driver = {

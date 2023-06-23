@@ -25,6 +25,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
+#include "rcar_mipi_dsi.h"
 #include "rcar_mipi_dsi_regs.h"
 
 struct rcar_mipi_dsi {
@@ -414,7 +415,7 @@ static int rcar_mipi_dsi_startup(struct rcar_mipi_dsi *dsi,
 
 	/* Enable DOT clock */
 	vclkset = VCLKSET_CKEN;
-	rcar_mipi_dsi_set(dsi, VCLKSET, vclkset);
+	rcar_mipi_dsi_write(dsi, VCLKSET, vclkset);
 
 	if (dsi_format == 24)
 		vclkset |= VCLKSET_BPP_24;
@@ -429,7 +430,7 @@ static int rcar_mipi_dsi_startup(struct rcar_mipi_dsi *dsi,
 	vclkset |= VCLKSET_COLOR_RGB | VCLKSET_DIV(setup_info.div)
 		|  VCLKSET_LANE(dsi->lanes - 1);
 
-	rcar_mipi_dsi_set(dsi, VCLKSET, vclkset);
+	rcar_mipi_dsi_write(dsi, VCLKSET, vclkset);
 
 	/* After setting VCLKSET register, enable VCLKEN */
 	rcar_mipi_dsi_set(dsi, VCLKEN, VCLKEN_CKEN);
@@ -441,8 +442,20 @@ static int rcar_mipi_dsi_startup(struct rcar_mipi_dsi *dsi,
 
 static void rcar_mipi_dsi_shutdown(struct rcar_mipi_dsi *dsi)
 {
+	/* Disable VCLKEN */
+	rcar_mipi_dsi_write(dsi, VCLKSET, 0);
+
+	/* Disable DOT clock */
+	rcar_mipi_dsi_write(dsi, VCLKSET, 0);
+
 	rcar_mipi_dsi_clr(dsi, PHYSETUP, PHYSETUP_RSTZ);
 	rcar_mipi_dsi_clr(dsi, PHYSETUP, PHYSETUP_SHUTDOWNZ);
+
+	/* CFGCLK disable */
+	rcar_mipi_dsi_clr(dsi, CFGCLKSET, CFGCLKSET_CKEN);
+
+	/* LPCLK disable */
+	rcar_mipi_dsi_clr(dsi, LPCLKSET, LPCLKSET_CKEN);
 
 	dev_dbg(dsi->dev, "DSI device is shutdown\n");
 }
@@ -542,6 +555,34 @@ static int rcar_mipi_dsi_start_video(struct rcar_mipi_dsi *dsi)
 	return 0;
 }
 
+static void rcar_mipi_dsi_stop_video(struct rcar_mipi_dsi *dsi)
+{
+	u32 status;
+	int ret;
+
+	/* Disable transmission in video mode. */
+	rcar_mipi_dsi_clr(dsi, TXVMCR, TXVMCR_EN_VIDEO);
+
+	ret = read_poll_timeout(rcar_mipi_dsi_read, status,
+				!(status & TXVMSR_ACT),
+				2000, 100000, false, dsi, TXVMSR);
+	if (ret < 0) {
+		dev_err(dsi->dev, "Failed to disable video transmission\n");
+		return;
+	}
+
+	/* Assert video FIFO clear. */
+	rcar_mipi_dsi_set(dsi, TXVMCR, TXVMCR_VFCLR);
+
+	ret = read_poll_timeout(rcar_mipi_dsi_read, status,
+				!(status & TXVMSR_VFRDY),
+				2000, 100000, false, dsi, TXVMSR);
+	if (ret < 0) {
+		dev_err(dsi->dev, "Failed to assert video FIFO clear\n");
+		return;
+	}
+}
+
 /* -----------------------------------------------------------------------------
  * Bridge
  */
@@ -558,7 +599,22 @@ static int rcar_mipi_dsi_attach(struct drm_bridge *bridge,
 static void rcar_mipi_dsi_atomic_enable(struct drm_bridge *bridge,
 					struct drm_bridge_state *old_bridge_state)
 {
-	struct drm_atomic_state *state = old_bridge_state->base.state;
+	struct rcar_mipi_dsi *dsi = bridge_to_rcar_mipi_dsi(bridge);
+
+	rcar_mipi_dsi_start_video(dsi);
+}
+
+static void rcar_mipi_dsi_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_bridge_state *old_bridge_state)
+{
+	struct rcar_mipi_dsi *dsi = bridge_to_rcar_mipi_dsi(bridge);
+
+	rcar_mipi_dsi_stop_video(dsi);
+}
+
+void rcar_mipi_dsi_pclk_enable(struct drm_bridge *bridge,
+			       struct drm_atomic_state *state)
+{
 	struct rcar_mipi_dsi *dsi = bridge_to_rcar_mipi_dsi(bridge);
 	const struct drm_display_mode *mode;
 	struct drm_connector *connector;
@@ -586,8 +642,6 @@ static void rcar_mipi_dsi_atomic_enable(struct drm_bridge *bridge,
 	if (ret < 0)
 		goto err_dsi_start_hs;
 
-	rcar_mipi_dsi_start_video(dsi);
-
 	return;
 
 err_dsi_start_hs:
@@ -595,15 +649,16 @@ err_dsi_start_hs:
 err_dsi_startup:
 	rcar_mipi_dsi_clk_disable(dsi);
 }
+EXPORT_SYMBOL_GPL(rcar_mipi_dsi_pclk_enable);
 
-static void rcar_mipi_dsi_atomic_disable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_bridge_state)
+void rcar_mipi_dsi_pclk_disable(struct drm_bridge *bridge)
 {
 	struct rcar_mipi_dsi *dsi = bridge_to_rcar_mipi_dsi(bridge);
 
 	rcar_mipi_dsi_shutdown(dsi);
 	rcar_mipi_dsi_clk_disable(dsi);
 }
+EXPORT_SYMBOL_GPL(rcar_mipi_dsi_pclk_disable);
 
 static enum drm_mode_status
 rcar_mipi_dsi_bridge_mode_valid(struct drm_bridge *bridge,

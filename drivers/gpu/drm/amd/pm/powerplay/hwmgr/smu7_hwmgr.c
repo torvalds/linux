@@ -3603,7 +3603,7 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 			return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(
-			(smu7_power_state->performance_level_count <=
+			(smu7_power_state->performance_level_count <
 					hwmgr->platform_descriptor.hardwareActivityPerformanceLevels),
 			"Performance levels exceeds Driver limit!",
 			return -EINVAL);

@@ -55,6 +55,7 @@
 #define SECONDS_PER_DAY		(SECONDS_PER_HOUR * 24)
 #define RAIL_COUNT		3 /* 3v3 + 5v + 12v */
 #define TEMP_COUNT		2
+#define OCP_MULTI_RAIL		0x02
 
 #define PSU_CMD_SELECT_RAIL	0x00 /* expects length 2 */
 #define PSU_CMD_RAIL_VOLTS_HCRIT 0x40 /* the rest of the commands expect length 3 */
@@ -71,9 +72,10 @@
 #define PSU_CMD_RAIL_WATTS	0x96
 #define PSU_CMD_VEND_STR	0x99
 #define PSU_CMD_PROD_STR	0x9A
-#define PSU_CMD_TOTAL_WATTS	0xEE
 #define PSU_CMD_TOTAL_UPTIME	0xD1
 #define PSU_CMD_UPTIME		0xD2
+#define PSU_CMD_OCPMODE		0xD8
+#define PSU_CMD_TOTAL_WATTS	0xEE
 #define PSU_CMD_INIT		0xFE
 
 #define L_IN_VOLTS		"v_in"
@@ -268,6 +270,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		break;
 	case PSU_CMD_TOTAL_UPTIME:
 	case PSU_CMD_UPTIME:
+	case PSU_CMD_OCPMODE:
 		*val = tmp;
 		break;
 	default:
@@ -660,6 +663,29 @@ static int product_show(struct seq_file *seqf, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(product);
 
+static int ocpmode_show(struct seq_file *seqf, void *unused)
+{
+	struct corsairpsu_data *priv = seqf->private;
+	long val;
+	int ret;
+
+	/*
+	 * The rail mode is switchable on the fly. The RAW interface can be used for this. But it
+	 * will not be included here, because I consider it somewhat dangerous for the health of the
+	 * PSU. The returned value can be a bogus one, if the PSU is in the process of switching and
+	 * getting of the value itself can also fail during this. Because of this every other value
+	 * than OCP_MULTI_RAIL can be considered as "single rail".
+	 */
+	ret = corsairpsu_get_value(priv, PSU_CMD_OCPMODE, 0, &val);
+	if (ret < 0)
+		seq_puts(seqf, "N/A\n");
+	else
+		seq_printf(seqf, "%s\n", (val == OCP_MULTI_RAIL) ? "multi rail" : "single rail");
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ocpmode);
+
 static void corsairpsu_debugfs_init(struct corsairpsu_data *priv)
 {
 	char name[32];
@@ -671,6 +697,7 @@ static void corsairpsu_debugfs_init(struct corsairpsu_data *priv)
 	debugfs_create_file("uptime_total", 0444, priv->debugfs, priv, &uptime_total_fops);
 	debugfs_create_file("vendor", 0444, priv->debugfs, priv, &vendor_fops);
 	debugfs_create_file("product", 0444, priv->debugfs, priv, &product_fops);
+	debugfs_create_file("ocpmode", 0444, priv->debugfs, priv, &ocpmode_fops);
 }
 
 #else
@@ -786,13 +813,15 @@ static const struct hid_device_id corsairpsu_idtable[] = {
 	{ HID_USB_DEVICE(0x1b1c, 0x1c04) }, /* Corsair HX650i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c05) }, /* Corsair HX750i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c06) }, /* Corsair HX850i */
-	{ HID_USB_DEVICE(0x1b1c, 0x1c07) }, /* Corsair HX1000i */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c07) }, /* Corsair HX1000i revision 1 */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c08) }, /* Corsair HX1200i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c09) }, /* Corsair RM550i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0a) }, /* Corsair RM650i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0b) }, /* Corsair RM750i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0c) }, /* Corsair RM850i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0d) }, /* Corsair RM1000i */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c1e) }, /* Corsair HX1000i revision 2 */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c1f) }, /* Corsair HX1500i */
 	{ },
 };
 MODULE_DEVICE_TABLE(hid, corsairpsu_idtable);

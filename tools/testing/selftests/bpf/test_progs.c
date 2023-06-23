@@ -943,6 +943,23 @@ int trigger_module_test_write(int write_sz)
 	return 0;
 }
 
+int write_sysctl(const char *sysctl, const char *value)
+{
+	int fd, err, len;
+
+	fd = open(sysctl, O_WRONLY);
+	if (!ASSERT_NEQ(fd, -1, "open sysctl"))
+		return -1;
+
+	len = strlen(value);
+	err = write(fd, value, len);
+	close(fd);
+	if (!ASSERT_EQ(err, len, "write sysctl"))
+		return -1;
+
+	return 0;
+}
+
 #define MAX_BACKTRACE_SZ 128
 void crash_handler(int signum)
 {
@@ -993,7 +1010,7 @@ static inline const char *str_msg(const struct msg *msg, char *buf)
 			msg->subtest_done.have_log);
 		break;
 	case MSG_TEST_LOG:
-		sprintf(buf, "MSG_TEST_LOG (cnt: %ld, last: %d)",
+		sprintf(buf, "MSG_TEST_LOG (cnt: %zu, last: %d)",
 			strlen(msg->test_log.log_buf),
 			msg->test_log.is_last);
 		break;

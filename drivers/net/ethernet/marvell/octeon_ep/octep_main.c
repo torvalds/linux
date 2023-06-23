@@ -410,7 +410,7 @@ static void octep_napi_add(struct octep_device *oct)
 	for (i = 0; i < oct->num_oqs; i++) {
 		netdev_dbg(oct->netdev, "Adding NAPI on Q-%d\n", i);
 		netif_napi_add(oct->netdev, &oct->ioq_vector[i]->napi,
-			       octep_napi_poll, 64);
+			       octep_napi_poll);
 		oct->oq[i]->napi = &oct->ioq_vector[i]->napi;
 	}
 }
@@ -521,14 +521,12 @@ static int octep_open(struct net_device *netdev)
 	octep_oq_dbell_init(oct);
 
 	ret = octep_get_link_status(oct);
-	if (ret)
+	if (ret > 0)
 		octep_link_up(netdev);
 
 	return 0;
 
 set_queues_err:
-	octep_napi_disable(oct);
-	octep_napi_delete(oct);
 	octep_clean_irqs(oct);
 setup_irq_err:
 	octep_free_oqs(oct);
@@ -958,7 +956,7 @@ int octep_device_setup(struct octep_device *oct)
 	ret = octep_ctrl_mbox_init(ctrl_mbox);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize control mbox\n");
-		return -1;
+		goto unsupported_dev;
 	}
 	oct->ctrl_mbox_ifstats_offset = OCTEP_CTRL_MBOX_SZ(ctrl_mbox->h2fq.elem_sz,
 							   ctrl_mbox->h2fq.elem_cnt,
@@ -968,6 +966,10 @@ int octep_device_setup(struct octep_device *oct)
 	return 0;
 
 unsupported_dev:
+	for (i = 0; i < OCTEP_MMIO_REGIONS; i++)
+		iounmap(oct->mmio[i].hw_addr);
+
+	kfree(oct->conf);
 	return -1;
 }
 
@@ -1070,7 +1072,11 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->max_mtu = OCTEP_MAX_MTU;
 	netdev->mtu = OCTEP_DEFAULT_MTU;
 
-	octep_get_mac_addr(octep_dev, octep_dev->mac_addr);
+	err = octep_get_mac_addr(octep_dev, octep_dev->mac_addr);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get mac address\n");
+		goto register_dev_err;
+	}
 	eth_hw_addr_set(netdev, octep_dev->mac_addr);
 
 	err = register_netdev(netdev);

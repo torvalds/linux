@@ -19,8 +19,6 @@
 
 /* Switch NVM support */
 
-#define NVM_CSS			0x10
-
 struct nvm_auth_status {
 	struct list_head list;
 	uuid_t uuid;
@@ -102,70 +100,30 @@ static void nvm_clear_auth_status(const struct tb_switch *sw)
 
 static int nvm_validate_and_write(struct tb_switch *sw)
 {
-	unsigned int image_size, hdr_size;
-	const u8 *buf = sw->nvm->buf;
-	u16 ds_size;
+	unsigned int image_size;
+	const u8 *buf;
 	int ret;
 
-	if (!buf)
-		return -EINVAL;
+	ret = tb_nvm_validate(sw->nvm);
+	if (ret)
+		return ret;
 
+	ret = tb_nvm_write_headers(sw->nvm);
+	if (ret)
+		return ret;
+
+	buf = sw->nvm->buf_data_start;
 	image_size = sw->nvm->buf_data_size;
-	if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE)
-		return -EINVAL;
-
-	/*
-	 * FARB pointer must point inside the image and must at least
-	 * contain parts of the digital section we will be reading here.
-	 */
-	hdr_size = (*(u32 *)buf) & 0xffffff;
-	if (hdr_size + NVM_DEVID + 2 >= image_size)
-		return -EINVAL;
-
-	/* Digital section start should be aligned to 4k page */
-	if (!IS_ALIGNED(hdr_size, SZ_4K))
-		return -EINVAL;
-
-	/*
-	 * Read digital section size and check that it also fits inside
-	 * the image.
-	 */
-	ds_size = *(u16 *)(buf + hdr_size);
-	if (ds_size >= image_size)
-		return -EINVAL;
-
-	if (!sw->safe_mode) {
-		u16 device_id;
-
-		/*
-		 * Make sure the device ID in the image matches the one
-		 * we read from the switch config space.
-		 */
-		device_id = *(u16 *)(buf + hdr_size + NVM_DEVID);
-		if (device_id != sw->config.device_id)
-			return -EINVAL;
-
-		if (sw->generation < 3) {
-			/* Write CSS headers first */
-			ret = dma_port_flash_write(sw->dma_port,
-				DMA_PORT_CSS_ADDRESS, buf + NVM_CSS,
-				DMA_PORT_CSS_MAX_SIZE);
-			if (ret)
-				return ret;
-		}
-
-		/* Skip headers in the image */
-		buf += hdr_size;
-		image_size -= hdr_size;
-	}
 
 	if (tb_switch_is_usb4(sw))
 		ret = usb4_switch_nvm_write(sw, 0, buf, image_size);
 	else
 		ret = dma_port_flash_write(sw->dma_port, 0, buf, image_size);
-	if (!ret)
-		sw->nvm->flushed = true;
-	return ret;
+	if (ret)
+		return ret;
+
+	sw->nvm->flushed = true;
+	return 0;
 }
 
 static int nvm_authenticate_host_dma_port(struct tb_switch *sw)
@@ -300,14 +258,6 @@ static inline bool nvm_upgradeable(struct tb_switch *sw)
 	return nvm_readable(sw);
 }
 
-static inline int nvm_read(struct tb_switch *sw, unsigned int address,
-			   void *buf, size_t size)
-{
-	if (tb_switch_is_usb4(sw))
-		return usb4_switch_nvm_read(sw, address, buf, size);
-	return dma_port_flash_read(sw->dma_port, address, buf, size);
-}
-
 static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 {
 	int ret;
@@ -335,8 +285,26 @@ static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 	return ret;
 }
 
-static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
-			      size_t bytes)
+/**
+ * tb_switch_nvm_read() - Read router NVM
+ * @sw: Router whose NVM to read
+ * @address: Start address on the NVM
+ * @buf: Buffer where the read data is copied
+ * @size: Size of the buffer in bytes
+ *
+ * Reads from router NVM and returns the requested data in @buf. Locking
+ * is up to the caller. Returns %0 in success and negative errno in case
+ * of failure.
+ */
+int tb_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
+		       size_t size)
+{
+	if (tb_switch_is_usb4(sw))
+		return usb4_switch_nvm_read(sw, address, buf, size);
+	return dma_port_flash_read(sw->dma_port, address, buf, size);
+}
+
+static int nvm_read(void *priv, unsigned int offset, void *val, size_t bytes)
 {
 	struct tb_nvm *nvm = priv;
 	struct tb_switch *sw = tb_to_switch(nvm->dev);
@@ -349,7 +317,7 @@ static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 		goto out;
 	}
 
-	ret = nvm_read(sw, offset, val, bytes);
+	ret = tb_switch_nvm_read(sw, offset, val, bytes);
 	mutex_unlock(&sw->tb->lock);
 
 out:
@@ -359,8 +327,7 @@ out:
 	return ret;
 }
 
-static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
-			       size_t bytes)
+static int nvm_write(void *priv, unsigned int offset, void *val, size_t bytes)
 {
 	struct tb_nvm *nvm = priv;
 	struct tb_switch *sw = tb_to_switch(nvm->dev);
@@ -384,28 +351,20 @@ static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
 static int tb_switch_nvm_add(struct tb_switch *sw)
 {
 	struct tb_nvm *nvm;
-	u32 val;
 	int ret;
 
 	if (!nvm_readable(sw))
 		return 0;
 
-	/*
-	 * The NVM format of non-Intel hardware is not known so
-	 * currently restrict NVM upgrade for Intel hardware. We may
-	 * relax this in the future when we learn other NVM formats.
-	 */
-	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL &&
-	    sw->config.vendor_id != 0x8087) {
-		dev_info(&sw->dev,
-			 "NVM format of vendor %#x is not known, disabling NVM upgrade\n",
-			 sw->config.vendor_id);
-		return 0;
+	nvm = tb_nvm_alloc(&sw->dev);
+	if (IS_ERR(nvm)) {
+		ret = PTR_ERR(nvm) == -EOPNOTSUPP ? 0 : PTR_ERR(nvm);
+		goto err_nvm;
 	}
 
-	nvm = tb_nvm_alloc(&sw->dev);
-	if (IS_ERR(nvm))
-		return PTR_ERR(nvm);
+	ret = tb_nvm_read_version(nvm);
+	if (ret)
+		goto err_nvm;
 
 	/*
 	 * If the switch is in safe-mode the only accessible portion of
@@ -413,31 +372,13 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	 * write new functional NVM.
 	 */
 	if (!sw->safe_mode) {
-		u32 nvm_size, hdr_size;
-
-		ret = nvm_read(sw, NVM_FLASH_SIZE, &val, sizeof(val));
-		if (ret)
-			goto err_nvm;
-
-		hdr_size = sw->generation < 3 ? SZ_8K : SZ_16K;
-		nvm_size = (SZ_1M << (val & 7)) / 8;
-		nvm_size = (nvm_size - hdr_size) / 2;
-
-		ret = nvm_read(sw, NVM_VERSION, &val, sizeof(val));
-		if (ret)
-			goto err_nvm;
-
-		nvm->major = val >> 16;
-		nvm->minor = val >> 8;
-
-		ret = tb_nvm_add_active(nvm, nvm_size, tb_switch_nvm_read);
+		ret = tb_nvm_add_active(nvm, nvm_read);
 		if (ret)
 			goto err_nvm;
 	}
 
 	if (!sw->no_nvm_upgrade) {
-		ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE,
-					    tb_switch_nvm_write);
+		ret = tb_nvm_add_non_active(nvm, nvm_write);
 		if (ret)
 			goto err_nvm;
 	}
@@ -446,7 +387,11 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	return 0;
 
 err_nvm:
-	tb_nvm_free(nvm);
+	tb_sw_dbg(sw, "NVM upgrade disabled\n");
+	sw->no_nvm_upgrade = true;
+	if (!IS_ERR(nvm))
+		tb_nvm_free(nvm);
+
 	return ret;
 }
 
@@ -1229,6 +1174,135 @@ int tb_port_update_credits(struct tb_port *port)
 	return tb_port_do_update_credits(port->dual_link_port);
 }
 
+static int __tb_port_pm_secondary_set(struct tb_port *port, bool secondary)
+{
+	u32 phy;
+	int ret;
+
+	ret = tb_port_read(port, &phy, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (secondary)
+		phy |= LANE_ADP_CS_1_PMS;
+	else
+		phy &= ~LANE_ADP_CS_1_PMS;
+
+	return tb_port_write(port, &phy, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+static int tb_port_pm_secondary_enable(struct tb_port *port)
+{
+	return __tb_port_pm_secondary_set(port, true);
+}
+
+static int tb_port_pm_secondary_disable(struct tb_port *port)
+{
+	return __tb_port_pm_secondary_set(port, false);
+}
+
+/* Called for USB4 or Titan Ridge routers only */
+static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx_mask)
+{
+	u32 val, mask = 0;
+	bool ret;
+
+	/* Don't enable CLx in case of two single-lane links */
+	if (!port->bonded && port->dual_link_port)
+		return false;
+
+	/* Don't enable CLx in case of inter-domain link */
+	if (port->xdomain)
+		return false;
+
+	if (tb_switch_is_usb4(port->sw)) {
+		if (!usb4_port_clx_supported(port))
+			return false;
+	} else if (!tb_lc_is_clx_supported(port)) {
+		return false;
+	}
+
+	if (clx_mask & TB_CL1) {
+		/* CL0s and CL1 are enabled and supported together */
+		mask |= LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
+	}
+	if (clx_mask & TB_CL2)
+		mask |= LANE_ADP_CS_0_CL2_SUPPORT;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_0, 1);
+	if (ret)
+		return false;
+
+	return !!(val & mask);
+}
+
+static int __tb_port_clx_set(struct tb_port *port, enum tb_clx clx, bool enable)
+{
+	u32 phy, mask;
+	int ret;
+
+	/* CL0s and CL1 are enabled and supported together */
+	if (clx == TB_CL1)
+		mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
+	else
+		/* For now we support only CL0s and CL1. Not CL2 */
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &phy, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		phy |= mask;
+	else
+		phy &= ~mask;
+
+	return tb_port_write(port, &phy, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+static int tb_port_clx_disable(struct tb_port *port, enum tb_clx clx)
+{
+	return __tb_port_clx_set(port, clx, false);
+}
+
+static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
+{
+	return __tb_port_clx_set(port, clx, true);
+}
+
+/**
+ * tb_port_is_clx_enabled() - Is given CL state enabled
+ * @port: USB4 port to check
+ * @clx_mask: Mask of CL states to check
+ *
+ * Returns true if any of the given CL states is enabled for @port.
+ */
+bool tb_port_is_clx_enabled(struct tb_port *port, unsigned int clx_mask)
+{
+	u32 val, mask = 0;
+	int ret;
+
+	if (!tb_port_clx_supported(port, clx_mask))
+		return false;
+
+	if (clx_mask & TB_CL1)
+		mask |= LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
+	if (clx_mask & TB_CL2)
+		mask |= LANE_ADP_CS_1_CL2_ENABLE;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return false;
+
+	return !!(val & mask);
+}
+
 static int tb_port_start_lane_initialization(struct tb_port *port)
 {
 	int ret;
@@ -1620,7 +1694,7 @@ static ssize_t authorized_show(struct device *dev,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->authorized);
+	return sysfs_emit(buf, "%u\n", sw->authorized);
 }
 
 static int disapprove_switch(struct device *dev, void *not_used)
@@ -1730,7 +1804,7 @@ static ssize_t boot_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->boot);
+	return sysfs_emit(buf, "%u\n", sw->boot);
 }
 static DEVICE_ATTR_RO(boot);
 
@@ -1739,7 +1813,7 @@ static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%#x\n", sw->device);
+	return sysfs_emit(buf, "%#x\n", sw->device);
 }
 static DEVICE_ATTR_RO(device);
 
@@ -1748,7 +1822,7 @@ device_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%s\n", sw->device_name ? sw->device_name : "");
+	return sysfs_emit(buf, "%s\n", sw->device_name ?: "");
 }
 static DEVICE_ATTR_RO(device_name);
 
@@ -1757,7 +1831,7 @@ generation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->generation);
+	return sysfs_emit(buf, "%u\n", sw->generation);
 }
 static DEVICE_ATTR_RO(generation);
 
@@ -1771,9 +1845,9 @@ static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 		return restart_syscall();
 
 	if (sw->key)
-		ret = sprintf(buf, "%*phN\n", TB_SWITCH_KEY_SIZE, sw->key);
+		ret = sysfs_emit(buf, "%*phN\n", TB_SWITCH_KEY_SIZE, sw->key);
 	else
-		ret = sprintf(buf, "\n");
+		ret = sysfs_emit(buf, "\n");
 
 	mutex_unlock(&sw->tb->lock);
 	return ret;
@@ -1818,7 +1892,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u.0 Gb/s\n", sw->link_speed);
+	return sysfs_emit(buf, "%u.0 Gb/s\n", sw->link_speed);
 }
 
 /*
@@ -1833,7 +1907,7 @@ static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->link_width);
+	return sysfs_emit(buf, "%u\n", sw->link_width);
 }
 
 /*
@@ -1850,7 +1924,7 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 	u32 status;
 
 	nvm_get_auth_status(sw, &status);
-	return sprintf(buf, "%#x\n", status);
+	return sysfs_emit(buf, "%#x\n", status);
 }
 
 static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
@@ -1864,6 +1938,11 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 	if (!mutex_trylock(&sw->tb->lock)) {
 		ret = restart_syscall();
 		goto exit_rpm;
+	}
+
+	if (sw->no_nvm_upgrade) {
+		ret = -EOPNOTSUPP;
+		goto exit_unlock;
 	}
 
 	/* If NVMem devices are not yet added */
@@ -1954,7 +2033,7 @@ static ssize_t nvm_version_show(struct device *dev,
 	else if (!sw->nvm)
 		ret = -EAGAIN;
 	else
-		ret = sprintf(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
+		ret = sysfs_emit(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
 
 	mutex_unlock(&sw->tb->lock);
 
@@ -1967,7 +2046,7 @@ static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%#x\n", sw->vendor);
+	return sysfs_emit(buf, "%#x\n", sw->vendor);
 }
 static DEVICE_ATTR_RO(vendor);
 
@@ -1976,7 +2055,7 @@ vendor_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%s\n", sw->vendor_name ? sw->vendor_name : "");
+	return sysfs_emit(buf, "%s\n", sw->vendor_name ?: "");
 }
 static DEVICE_ATTR_RO(vendor_name);
 
@@ -1985,7 +2064,7 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%pUb\n", sw->uuid);
+	return sysfs_emit(buf, "%pUb\n", sw->uuid);
 }
 static DEVICE_ATTR_RO(unique_id);
 
@@ -2822,6 +2901,26 @@ static void tb_switch_credits_init(struct tb_switch *sw)
 		tb_sw_info(sw, "failed to determine preferred buffer allocation, using defaults\n");
 }
 
+static int tb_switch_port_hotplug_enable(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	if (tb_switch_is_icm(sw))
+		return 0;
+
+	tb_switch_for_each_port(sw, port) {
+		int res;
+
+		if (!port->cap_usb4)
+			continue;
+
+		res = usb4_port_hotplug_enable(port);
+		if (res)
+			return res;
+	}
+	return 0;
+}
+
 /**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
@@ -2890,6 +2989,10 @@ int tb_switch_add(struct tb_switch *sw)
 		if (ret)
 			return ret;
 	}
+
+	ret = tb_switch_port_hotplug_enable(sw);
+	if (ret)
+		return ret;
 
 	ret = device_add(&sw->dev);
 	if (ret) {
@@ -3362,35 +3465,6 @@ struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 	return NULL;
 }
 
-static int __tb_port_pm_secondary_set(struct tb_port *port, bool secondary)
-{
-	u32 phy;
-	int ret;
-
-	ret = tb_port_read(port, &phy, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return ret;
-
-	if (secondary)
-		phy |= LANE_ADP_CS_1_PMS;
-	else
-		phy &= ~LANE_ADP_CS_1_PMS;
-
-	return tb_port_write(port, &phy, TB_CFG_PORT,
-			     port->cap_phy + LANE_ADP_CS_1, 1);
-}
-
-static int tb_port_pm_secondary_enable(struct tb_port *port)
-{
-	return __tb_port_pm_secondary_set(port, true);
-}
-
-static int tb_port_pm_secondary_disable(struct tb_port *port)
-{
-	return __tb_port_pm_secondary_set(port, false);
-}
-
 static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
 {
 	struct tb_switch *parent = tb_switch_parent(sw);
@@ -3407,83 +3481,6 @@ static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
 		return ret;
 
 	return tb_port_pm_secondary_disable(down);
-}
-
-/* Called for USB4 or Titan Ridge routers only */
-static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
-{
-	u32 mask, val;
-	bool ret;
-
-	/* Don't enable CLx in case of two single-lane links */
-	if (!port->bonded && port->dual_link_port)
-		return false;
-
-	/* Don't enable CLx in case of inter-domain link */
-	if (port->xdomain)
-		return false;
-
-	if (tb_switch_is_usb4(port->sw)) {
-		if (!usb4_port_clx_supported(port))
-			return false;
-	} else if (!tb_lc_is_clx_supported(port)) {
-		return false;
-	}
-
-	switch (clx) {
-	case TB_CL1:
-		/* CL0s and CL1 are enabled and supported together */
-		mask = LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
-		break;
-
-	/* For now we support only CL0s and CL1. Not CL2 */
-	case TB_CL2:
-	default:
-		return false;
-	}
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_0, 1);
-	if (ret)
-		return false;
-
-	return !!(val & mask);
-}
-
-static int __tb_port_clx_set(struct tb_port *port, enum tb_clx clx, bool enable)
-{
-	u32 phy, mask;
-	int ret;
-
-	/* CL0s and CL1 are enabled and supported together */
-	if (clx == TB_CL1)
-		mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
-	else
-		/* For now we support only CL0s and CL1. Not CL2 */
-		return -EOPNOTSUPP;
-
-	ret = tb_port_read(port, &phy, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return ret;
-
-	if (enable)
-		phy |= mask;
-	else
-		phy &= ~mask;
-
-	return tb_port_write(port, &phy, TB_CFG_PORT,
-			     port->cap_phy + LANE_ADP_CS_1, 1);
-}
-
-static int tb_port_clx_disable(struct tb_port *port, enum tb_clx clx)
-{
-	return __tb_port_clx_set(port, clx, false);
-}
-
-static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
-{
-	return __tb_port_clx_set(port, clx, true);
 }
 
 static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)

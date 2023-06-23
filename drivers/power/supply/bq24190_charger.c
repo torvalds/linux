@@ -1901,7 +1901,7 @@ out_pmrt:
 	return ret;
 }
 
-static int bq24190_remove(struct i2c_client *client)
+static void bq24190_remove(struct i2c_client *client)
 {
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 	int error;
@@ -1918,8 +1918,6 @@ static int bq24190_remove(struct i2c_client *client)
 		pm_runtime_put_sync(bdi->dev);
 	pm_runtime_dont_use_autosuspend(bdi->dev);
 	pm_runtime_disable(bdi->dev);
-
-	return 0;
 }
 
 static void bq24190_shutdown(struct i2c_client *client)

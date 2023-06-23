@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/tegra.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVIDIA Tegra device tree bindings
+title: NVIDIA Tegra
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>

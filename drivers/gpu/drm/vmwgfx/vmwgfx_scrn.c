@@ -29,7 +29,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "vmwgfx_kms.h"
@@ -950,6 +949,10 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	int i, ret;
 
+	/* Screen objects won't work if GMR's aren't available */
+	if (!dev_priv->has_gmr)
+		return -ENOSYS;
+
 	if (!(dev_priv->capabilities & SVGA_CAP_SCREEN_OBJECT_2)) {
 		return -ENOSYS;
 	}
@@ -1383,6 +1386,6 @@ out_revert:
 	vmw_validation_revert(&val_ctx);
 out_unref:
 	vmw_validation_unref_lists(&val_ctx);
-	
+
 	return ret;
 }

@@ -989,6 +989,7 @@ static struct genl_family l2tp_nl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= l2tp_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(l2tp_nl_ops),
+	.resv_start_op	= L2TP_CMD_SESSION_GET + 1,
 	.mcgrps		= l2tp_multicast_group,
 	.n_mcgrps	= ARRAY_SIZE(l2tp_multicast_group),
 };

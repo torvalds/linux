@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 
 #include "imx8mp.dtsi"
 
@@ -100,6 +101,12 @@
 		};
 	};
 
+	pcie0_refclk: pcie0-refclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
 	pps {
 		compatible = "pps-gpio";
 		pinctrl-names = "default";
@@ -134,11 +141,27 @@
 		compatible = "regulator-fixed";
 		regulator-name = "wl";
 		gpio = <&gpio3 9 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <100>;
+		startup-delay-us = <70000>;
 		enable-active-high;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
+};
+
+&A53_0 {
+	cpu-supply = <&reg_arm>;
+};
+
+&A53_1 {
+	cpu-supply = <&reg_arm>;
+};
+
+&A53_2 {
+	cpu-supply = <&reg_arm>;
+};
+
+&A53_3 {
+	cpu-supply = <&reg_arm>;
 };
 
 /* off-board header */
@@ -199,8 +222,8 @@
 &gpio2 {
 	gpio-line-names =
 		"", "", "", "", "", "", "", "",
-		"", "", "", "", "", "", "", "",
-		"pcie3_wdis#", "", "", "pcie1_wdis@", "pcie2_wdis#", "", "", "",
+		"", "", "", "", "", "", "pcie3_wdis#", "",
+		"", "", "pcie2_wdis#", "", "", "", "", "",
 		"", "", "", "", "", "", "", "";
 };
 
@@ -361,7 +384,7 @@
 				regulator-ramp-delay = <3125>;
 			};
 
-			BUCK2 {
+			reg_arm: BUCK2 {
 				regulator-name = "BUCK2";
 				regulator-min-microvolt = <720000>;
 				regulator-max-microvolt = <1025000>;
@@ -546,6 +569,28 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	fsl,clkreq-unsupported;
+	clocks = <&pcie0_refclk>;
+	clock-names = "ref";
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0>;
+	reset-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
+	clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
+		 <&clk IMX8MP_CLK_PCIE_ROOT>,
+		 <&clk IMX8MP_CLK_HSIO_AXI>;
+	clock-names = "pcie", "pcie_aux", "pcie_bus";
+	assigned-clocks = <&clk IMX8MP_CLK_PCIE_AUX>;
+	assigned-clock-rates = <10000000>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_50M>;
+	status = "okay";
+};
+
 /* GPS / off-board header */
 &uart1 {
 	pinctrl-names = "default";
@@ -560,6 +605,21 @@
 	status = "okay";
 };
 
+/* bluetooth HCI */
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>, <&pinctrl_uart3_gpio>;
+	cts-gpios = <&gpio3 21 GPIO_ACTIVE_LOW>;
+	rts-gpios = <&gpio3 22 GPIO_ACTIVE_LOW>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		shutdown-gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
@@ -567,20 +627,35 @@
 };
 
 /* USB1 - Type C front panel */
-&usb3_phy0 {
+&usb3_0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb1>;
-	status = "okay";
-};
-
-&usb3_0 {
 	fsl,over-current-active-low;
 	status = "okay";
 };
 
-&usb_dwc3_0 {
-	dr_mode = "host";
+&usb3_phy0 {
 	status = "okay";
+};
+
+&usb_dwc3_0 {
+	/* dual role is implemented but not a full featured OTG */
+	adp-disable;
+	hnp-disable;
+	srp-disable;
+	dr_mode = "otg";
+	usb-role-switch;
+	role-switch-default-mode = "peripheral";
+	status = "okay";
+
+	connector {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon1>;
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "Type-C";
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 /* USB2 - USB3.0 Hub */
@@ -598,6 +673,25 @@
 &usb_dwc3_1 {
 	dr_mode = "host";
 	status = "okay";
+};
+
+/* SDIO WiFi */
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	bus-width = <4>;
+	non-removable;
+	vmmc-supply = <&reg_wifi_en>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	wifi@0 {
+		compatible = "cypress,cyw4373-fmac";
+		reg = <0>;
+	};
 };
 
 /* eMMC */
@@ -629,7 +723,6 @@
 			MX8MP_IOMUXC_GPIO1_IO09__GPIO1_IO09	0x40000040 /* DIO0 */
 			MX8MP_IOMUXC_GPIO1_IO11__GPIO1_IO11	0x40000040 /* DIO1 */
 			MX8MP_IOMUXC_NAND_DQS__GPIO3_IO14	0x40000040 /* M2SKT_OFF# */
-			MX8MP_IOMUXC_SD2_DATA2__GPIO2_IO17	0x40000150 /* PCIE1_WDIS# */
 			MX8MP_IOMUXC_SD2_DATA3__GPIO2_IO18	0x40000150 /* PCIE2_WDIS# */
 			MX8MP_IOMUXC_SD2_CMD__GPIO2_IO14	0x40000150 /* PCIE3_WDIS# */
 			MX8MP_IOMUXC_NAND_DATA00__GPIO3_IO06	0x40000040 /* M2SKT_RST# */
@@ -742,6 +835,12 @@
 		>;
 	};
 
+	pinctrl_pcie0: pciegrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_DATA2__GPIO2_IO17	0x110
+		>;
+	};
+
 	pinctrl_pmic: pmicgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_NAND_DATA01__GPIO3_IO07	0x140
@@ -829,7 +928,12 @@
 	pinctrl_usb1: usb1grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_GPIO1_IO13__USB1_OTG_OC	0x140
-			MX8MP_IOMUXC_GPIO1_IO10__USB1_OTG_ID	0x140
+		>;
+	};
+
+	pinctrl_usbcon1: usb1congrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10	0x140
 		>;
 	};
 
@@ -841,6 +945,28 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1	0x1d0
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2	0x1d0
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3	0x1d0
+		>;
+	};
+
+	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD1_CLK__USDHC1_CLK	0x194
+			MX8MP_IOMUXC_SD1_CMD__USDHC1_CMD	0x1d4
+			MX8MP_IOMUXC_SD1_DATA0__USDHC1_DATA0	0x1d4
+			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1	0x1d4
+			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2	0x1d4
+			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3	0x1d4
+		>;
+	};
+
+	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD1_CLK__USDHC1_CLK	0x196
+			MX8MP_IOMUXC_SD1_CMD__USDHC1_CMD	0x1d6
+			MX8MP_IOMUXC_SD1_DATA0__USDHC1_DATA0	0x1d6
+			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1	0x1d6
+			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2	0x1d6
+			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3	0x1d6
 		>;
 	};
 

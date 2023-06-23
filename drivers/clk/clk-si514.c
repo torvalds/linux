@@ -370,10 +370,9 @@ static int si514_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int si514_remove(struct i2c_client *client)
+static void si514_remove(struct i2c_client *client)
 {
 	of_clk_del_provider(client->dev.of_node);
-	return 0;
 }
 
 static const struct i2c_device_id si514_id[] = {

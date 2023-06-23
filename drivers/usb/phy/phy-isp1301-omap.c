@@ -1196,7 +1196,7 @@ static void isp1301_release(struct device *dev)
 
 static struct isp1301 *the_transceiver;
 
-static int isp1301_remove(struct i2c_client *i2c)
+static void isp1301_remove(struct i2c_client *i2c)
 {
 	struct isp1301	*isp;
 
@@ -1214,8 +1214,6 @@ static int isp1301_remove(struct i2c_client *i2c)
 
 	put_device(&i2c->dev);
 	the_transceiver = NULL;
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/

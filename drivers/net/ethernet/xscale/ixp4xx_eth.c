@@ -841,7 +841,7 @@ static void eth_txdone_irq(void *unused)
 	}
 }
 
-static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct port *port = netdev_priv(dev);
 	unsigned int txreadyq = port->plat->txreadyq;
@@ -999,11 +999,11 @@ static void ixp4xx_get_drvinfo(struct net_device *dev,
 {
 	struct port *port = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u:%u:%u:%u",
 		 port->firmware[0], port->firmware[1],
 		 port->firmware[2], port->firmware[3]);
-	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
+	strscpy(info->bus_info, "internal", sizeof(info->bus_info));
 }
 
 static int ixp4xx_get_ts_info(struct net_device *dev,

@@ -1218,10 +1218,10 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
 
 		/* get the big lock and read metadata off disk */
 		if (!locked)
-			lock_extent_bits(io_tree, start, end, &cached);
+			lock_extent(io_tree, start, end, &cached);
 		em = defrag_get_extent(BTRFS_I(inode), start, newer_than);
 		if (!locked)
-			unlock_extent_cached(io_tree, start, end, &cached);
+			unlock_extent(io_tree, start, end, &cached);
 
 		if (IS_ERR(em))
 			return NULL;
@@ -1333,10 +1333,10 @@ again:
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 
-		lock_extent_bits(&inode->io_tree, page_start, page_end, &cached_state);
+		lock_extent(&inode->io_tree, page_start, page_end, &cached_state);
 		ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
-		unlock_extent_cached(&inode->io_tree, page_start, page_end,
-				     &cached_state);
+		unlock_extent(&inode->io_tree, page_start, page_end,
+			      &cached_state);
 		if (!ordered)
 			break;
 
@@ -1616,7 +1616,7 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 		return ret;
 	clear_extent_bit(&inode->io_tree, start, start + len - 1,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
-			 EXTENT_DEFRAG, 0, 0, cached_state);
+			 EXTENT_DEFRAG, cached_state);
 	set_extent_defrag(&inode->io_tree, start, start + len - 1, cached_state);
 
 	/* Update the page status */
@@ -1666,9 +1666,9 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 		wait_on_page_writeback(pages[i]);
 
 	/* Lock the pages range */
-	lock_extent_bits(&inode->io_tree, start_index << PAGE_SHIFT,
-			 (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
-			 &cached_state);
+	lock_extent(&inode->io_tree, start_index << PAGE_SHIFT,
+		    (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
+		    &cached_state);
 	/*
 	 * Now we have a consistent view about the extent map, re-check
 	 * which range really needs to be defragged.
@@ -1694,9 +1694,9 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 		kfree(entry);
 	}
 unlock_extent:
-	unlock_extent_cached(&inode->io_tree, start_index << PAGE_SHIFT,
-			     (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
-			     &cached_state);
+	unlock_extent(&inode->io_tree, start_index << PAGE_SHIFT,
+		      (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
+		      &cached_state);
 free_pages:
 	for (i = 0; i < nr_pages; i++) {
 		if (pages[i]) {
@@ -3105,6 +3105,8 @@ static int btrfs_ioctl_get_subvol_info(struct inode *inode, void __user *argp)
 		}
 	}
 
+	btrfs_free_path(path);
+	path = NULL;
 	if (copy_to_user(argp, subvol_info, sizeof(*subvol_info)))
 		ret = -EFAULT;
 
@@ -3194,6 +3196,8 @@ static int btrfs_ioctl_get_subvol_rootref(struct btrfs_root *root,
 	}
 
 out:
+	btrfs_free_path(path);
+
 	if (!ret || ret == -EOVERFLOW) {
 		rootrefs->num_items = found;
 		/* update min_treeid for next search */
@@ -3205,7 +3209,6 @@ out:
 	}
 
 	kfree(rootrefs);
-	btrfs_free_path(path);
 
 	return ret;
 }
@@ -4231,6 +4234,8 @@ static long btrfs_ioctl_ino_to_path(struct btrfs_root *root, void __user *arg)
 		ipath->fspath->val[i] = rel_ptr;
 	}
 
+	btrfs_free_path(path);
+	path = NULL;
 	ret = copy_to_user((void __user *)(unsigned long)ipa->fspath,
 			   ipath->fspath, size);
 	if (ret) {
@@ -4281,21 +4286,20 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 		size = min_t(u32, loi->size, SZ_16M);
 	}
 
+	inodes = init_data_container(size);
+	if (IS_ERR(inodes)) {
+		ret = PTR_ERR(inodes);
+		goto out_loi;
+	}
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	inodes = init_data_container(size);
-	if (IS_ERR(inodes)) {
-		ret = PTR_ERR(inodes);
-		inodes = NULL;
-		goto out;
-	}
-
 	ret = iterate_inodes_from_logical(loi->logical, fs_info, path,
 					  inodes, ignore_offset);
+	btrfs_free_path(path);
 	if (ret == -EINVAL)
 		ret = -ENOENT;
 	if (ret < 0)
@@ -4307,7 +4311,6 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 		ret = -EFAULT;
 
 out:
-	btrfs_free_path(path);
 	kvfree(inodes);
 out_loi:
 	kfree(loi);

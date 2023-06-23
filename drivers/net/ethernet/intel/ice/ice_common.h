@@ -151,6 +151,15 @@ int
 ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
 		       struct ice_sq_cd *cd);
 int
+ice_aq_get_port_options(struct ice_hw *hw,
+			struct ice_aqc_get_port_options_elem *options,
+			u8 *option_count, u8 lport, bool lport_valid,
+			u8 *active_option_idx, bool *active_option_valid,
+			u8 *pending_option_idx, bool *pending_option_valid);
+int
+ice_aq_set_port_option(struct ice_hw *hw, u8 lport, u8 lport_valid,
+		       u8 new_option);
+int
 ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 		  u16 mem_addr, u8 page, u8 set_page, u8 *data, u8 length,
 		  bool write, struct ice_sq_cd *cd);
@@ -204,6 +213,7 @@ ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,
 int
 ice_aq_get_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx,
 		bool *value, struct ice_sq_cd *cd);
+bool ice_is_100m_speed_supported(struct ice_hw *hw);
 int
 ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 		    struct ice_sq_cd *cd);

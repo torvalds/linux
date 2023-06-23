@@ -166,6 +166,7 @@ static const enum gpiod_flags gpio_flags[] = {
  * on board (for a copper SFP) time to initialise.
  */
 #define T_WAIT			msecs_to_jiffies(50)
+#define T_WAIT_ROLLBALL		msecs_to_jiffies(25000)
 #define T_START_UP		msecs_to_jiffies(300)
 #define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
 
@@ -205,8 +206,11 @@ static const enum gpiod_flags gpio_flags[] = {
 
 /* SFP modules appear to always have their PHY configured for bus address
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
+ * RollBall SFPs access phy via SFP Enhanced Digital Diagnostic Interface
+ * via address 0x51 (mdio-i2c will use RollBall protocol on this address).
  */
-#define SFP_PHY_ADDR	22
+#define SFP_PHY_ADDR		22
+#define SFP_PHY_ADDR_ROLLBALL	17
 
 struct sff_data {
 	unsigned int gpios;
@@ -218,6 +222,7 @@ struct sfp {
 	struct i2c_adapter *i2c;
 	struct mii_bus *i2c_mii;
 	struct sfp_bus *sfp_bus;
+	enum mdio_i2c_proto mdio_protocol;
 	struct phy_device *mod_phy;
 	const struct sff_data *type;
 	size_t i2c_block_size;
@@ -234,6 +239,7 @@ struct sfp {
 	bool need_poll;
 
 	struct mutex st_mutex;			/* Protects state */
+	unsigned int state_hw_mask;
 	unsigned int state_soft_mask;
 	unsigned int state;
 	struct delayed_work poll;
@@ -250,7 +256,10 @@ struct sfp {
 	struct sfp_eeprom_id id;
 	unsigned int module_power_mW;
 	unsigned int module_t_start_up;
+	unsigned int module_t_wait;
 	bool tx_fault_ignore;
+
+	const struct sfp_quirk *quirk;
 
 #if IS_ENABLED(CONFIG_HWMON)
 	struct sfp_diag diag;
@@ -307,6 +316,136 @@ static const struct of_device_id sfp_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sfp_of_match);
+
+static void sfp_fixup_long_startup(struct sfp *sfp)
+{
+	sfp->module_t_start_up = T_START_UP_BAD_GPON;
+}
+
+static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
+{
+	sfp->tx_fault_ignore = true;
+}
+
+static void sfp_fixup_halny_gsfp(struct sfp *sfp)
+{
+	/* Ignore the TX_FAULT and LOS signals on this module.
+	 * these are possibly used for other purposes on this
+	 * module, e.g. a serial port.
+	 */
+	sfp->state_hw_mask &= ~(SFP_F_TX_FAULT | SFP_F_LOS);
+}
+
+static void sfp_fixup_rollball(struct sfp *sfp)
+{
+	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
+	sfp->module_t_wait = T_WAIT_ROLLBALL;
+}
+
+static void sfp_fixup_rollball_cc(struct sfp *sfp)
+{
+	sfp_fixup_rollball(sfp);
+
+	/* Some RollBall SFPs may have wrong (zero) extended compliance code
+	 * burned in EEPROM. For PHY probing we need the correct one.
+	 */
+	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SFI;
+}
+
+static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
+				unsigned long *modes,
+				unsigned long *interfaces)
+{
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT, modes);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
+}
+
+static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
+				      unsigned long *modes,
+				      unsigned long *interfaces)
+{
+	/* Ubiquiti U-Fiber Instant module claims that support all transceiver
+	 * types including 10G Ethernet which is not truth. So clear all claimed
+	 * modes and set only one mode which module supports: 1000baseX_Full.
+	 */
+	linkmode_zero(modes);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT, modes);
+}
+
+#define SFP_QUIRK(_v, _p, _m, _f) \
+	{ .vendor = _v, .part = _p, .modes = _m, .fixup = _f, }
+#define SFP_QUIRK_M(_v, _p, _m) SFP_QUIRK(_v, _p, _m, NULL)
+#define SFP_QUIRK_F(_v, _p, _f) SFP_QUIRK(_v, _p, NULL, _f)
+
+static const struct sfp_quirk sfp_quirks[] = {
+	// Alcatel Lucent G-010S-P can operate at 2500base-X, but incorrectly
+	// report 2500MBd NRZ in their EEPROM
+	SFP_QUIRK_M("ALCATELLUCENT", "G010SP", sfp_quirk_2500basex),
+
+	// Alcatel Lucent G-010S-A can operate at 2500base-X, but report 3.2GBd
+	// NRZ in their EEPROM
+	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
+		  sfp_fixup_long_startup),
+
+	SFP_QUIRK_F("HALNy", "HL-GSFP", sfp_fixup_halny_gsfp),
+
+	// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd NRZ in
+	// their EEPROM
+	SFP_QUIRK("HUAWEI", "MA5671A", sfp_quirk_2500basex,
+		  sfp_fixup_ignore_tx_fault),
+
+	// Lantech 8330-262D-E can operate at 2500base-X, but incorrectly report
+	// 2500MBd NRZ in their EEPROM
+	SFP_QUIRK_M("Lantech", "8330-262D-E", sfp_quirk_2500basex),
+
+	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
+
+	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
+	SFP_QUIRK_F("OEM", "RTSFP-10", sfp_fixup_rollball_cc),
+	SFP_QUIRK_F("OEM", "RTSFP-10G", sfp_fixup_rollball_cc),
+	SFP_QUIRK_F("Turris", "RTSFP-10", sfp_fixup_rollball),
+	SFP_QUIRK_F("Turris", "RTSFP-10G", sfp_fixup_rollball),
+};
+
+static size_t sfp_strlen(const char *str, size_t maxlen)
+{
+	size_t size, i;
+
+	/* Trailing characters should be filled with space chars, but
+	 * some manufacturers can't read SFF-8472 and use NUL.
+	 */
+	for (i = 0, size = 0; i < maxlen; i++)
+		if (str[i] != ' ' && str[i] != '\0')
+			size = i + 1;
+
+	return size;
+}
+
+static bool sfp_match(const char *qs, const char *str, size_t len)
+{
+	if (!qs)
+		return true;
+	if (strlen(qs) != len)
+		return false;
+	return !strncmp(qs, str, len);
+}
+
+static const struct sfp_quirk *sfp_lookup_quirk(const struct sfp_eeprom_id *id)
+{
+	const struct sfp_quirk *q;
+	unsigned int i;
+	size_t vs, ps;
+
+	vs = sfp_strlen(id->base.vendor_name, ARRAY_SIZE(id->base.vendor_name));
+	ps = sfp_strlen(id->base.vendor_pn, ARRAY_SIZE(id->base.vendor_pn));
+
+	for (i = 0, q = sfp_quirks; i < ARRAY_SIZE(sfp_quirks); i++, q++)
+		if (sfp_match(q->vendor, id->base.vendor_name, vs) &&
+		    sfp_match(q->part, id->base.vendor_pn, ps))
+			return q;
+
+	return NULL;
+}
 
 static unsigned long poll_jiffies;
 
@@ -419,9 +558,6 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 
 static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 {
-	struct mii_bus *i2c_mii;
-	int ret;
-
 	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
 		return -EINVAL;
 
@@ -429,7 +565,15 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 	sfp->read = sfp_i2c_read;
 	sfp->write = sfp_i2c_write;
 
-	i2c_mii = mdio_i2c_alloc(sfp->dev, i2c);
+	return 0;
+}
+
+static int sfp_i2c_mdiobus_create(struct sfp *sfp)
+{
+	struct mii_bus *i2c_mii;
+	int ret;
+
+	i2c_mii = mdio_i2c_alloc(sfp->dev, sfp->i2c, sfp->mdio_protocol);
 	if (IS_ERR(i2c_mii))
 		return PTR_ERR(i2c_mii);
 
@@ -445,6 +589,12 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 	sfp->i2c_mii = i2c_mii;
 
 	return 0;
+}
+
+static void sfp_i2c_mdiobus_destroy(struct sfp *sfp)
+{
+	mdiobus_unregister(sfp->i2c_mii);
+	sfp->i2c_mii = NULL;
 }
 
 /* Interface */
@@ -499,17 +649,18 @@ static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
 static void sfp_soft_start_poll(struct sfp *sfp)
 {
 	const struct sfp_eeprom_id *id = &sfp->id;
+	unsigned int mask = 0;
 
 	sfp->state_soft_mask = 0;
-	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_DISABLE &&
-	    !sfp->gpio[GPIO_TX_DISABLE])
-		sfp->state_soft_mask |= SFP_F_TX_DISABLE;
-	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_FAULT &&
-	    !sfp->gpio[GPIO_TX_FAULT])
-		sfp->state_soft_mask |= SFP_F_TX_FAULT;
-	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RX_LOS &&
-	    !sfp->gpio[GPIO_LOS])
-		sfp->state_soft_mask |= SFP_F_LOS;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_DISABLE)
+		mask |= SFP_F_TX_DISABLE;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_FAULT)
+		mask |= SFP_F_TX_FAULT;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RX_LOS)
+		mask |= SFP_F_LOS;
+
+	// Poll the soft state for hardware pins we want to ignore
+	sfp->state_soft_mask = ~sfp->state_hw_mask & mask;
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
 	    !sfp->need_poll)
@@ -523,10 +674,11 @@ static void sfp_soft_stop_poll(struct sfp *sfp)
 
 static unsigned int sfp_get_state(struct sfp *sfp)
 {
-	unsigned int state = sfp->get_state(sfp);
+	unsigned int soft = sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT);
+	unsigned int state;
 
-	if (state & SFP_F_PRESENT &&
-	    sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT))
+	state = sfp->get_state(sfp) & sfp->state_hw_mask;
+	if (state & SFP_F_PRESENT && soft)
 		state |= sfp_soft_get_state(sfp);
 
 	return state;
@@ -1195,90 +1347,45 @@ static const struct hwmon_ops sfp_hwmon_ops = {
 	.read_string = sfp_hwmon_read_string,
 };
 
-static u32 sfp_hwmon_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_chip = {
-	.type = hwmon_chip,
-	.config = sfp_hwmon_chip_config,
-};
-
-static u32 sfp_hwmon_temp_config[] = {
-	HWMON_T_INPUT |
-	HWMON_T_MAX | HWMON_T_MIN |
-	HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
-	HWMON_T_CRIT | HWMON_T_LCRIT |
-	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM |
-	HWMON_T_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_temp_channel_info = {
-	.type = hwmon_temp,
-	.config = sfp_hwmon_temp_config,
-};
-
-static u32 sfp_hwmon_vcc_config[] = {
-	HWMON_I_INPUT |
-	HWMON_I_MAX | HWMON_I_MIN |
-	HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
-	HWMON_I_CRIT | HWMON_I_LCRIT |
-	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM |
-	HWMON_I_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_vcc_channel_info = {
-	.type = hwmon_in,
-	.config = sfp_hwmon_vcc_config,
-};
-
-static u32 sfp_hwmon_bias_config[] = {
-	HWMON_C_INPUT |
-	HWMON_C_MAX | HWMON_C_MIN |
-	HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
-	HWMON_C_CRIT | HWMON_C_LCRIT |
-	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM |
-	HWMON_C_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_bias_channel_info = {
-	.type = hwmon_curr,
-	.config = sfp_hwmon_bias_config,
-};
-
-static u32 sfp_hwmon_power_config[] = {
-	/* Transmit power */
-	HWMON_P_INPUT |
-	HWMON_P_MAX | HWMON_P_MIN |
-	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
-	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
-	HWMON_P_LABEL,
-	/* Receive power */
-	HWMON_P_INPUT |
-	HWMON_P_MAX | HWMON_P_MIN |
-	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
-	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
-	HWMON_P_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_power_channel_info = {
-	.type = hwmon_power,
-	.config = sfp_hwmon_power_config,
-};
-
 static const struct hwmon_channel_info *sfp_hwmon_info[] = {
-	&sfp_hwmon_chip,
-	&sfp_hwmon_vcc_channel_info,
-	&sfp_hwmon_temp_channel_info,
-	&sfp_hwmon_bias_channel_info,
-	&sfp_hwmon_power_channel_info,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT |
+			   HWMON_I_MAX | HWMON_I_MIN |
+			   HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
+			   HWMON_I_CRIT | HWMON_I_LCRIT |
+			   HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM |
+			   HWMON_I_LABEL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT |
+			   HWMON_T_MAX | HWMON_T_MIN |
+			   HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
+			   HWMON_T_CRIT | HWMON_T_LCRIT |
+			   HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM |
+			   HWMON_T_LABEL),
+	HWMON_CHANNEL_INFO(curr,
+			   HWMON_C_INPUT |
+			   HWMON_C_MAX | HWMON_C_MIN |
+			   HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
+			   HWMON_C_CRIT | HWMON_C_LCRIT |
+			   HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM |
+			   HWMON_C_LABEL),
+	HWMON_CHANNEL_INFO(power,
+			   /* Transmit power */
+			   HWMON_P_INPUT |
+			   HWMON_P_MAX | HWMON_P_MIN |
+			   HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
+			   HWMON_P_CRIT | HWMON_P_LCRIT |
+			   HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+			   HWMON_P_LABEL,
+			   /* Receive power */
+			   HWMON_P_INPUT |
+			   HWMON_P_MAX | HWMON_P_MIN |
+			   HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
+			   HWMON_P_CRIT | HWMON_P_LCRIT |
+			   HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+			   HWMON_P_LABEL),
 	NULL,
 };
 
@@ -1505,12 +1612,12 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
 	sfp->mod_phy = NULL;
 }
 
-static int sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
+static int sfp_sm_probe_phy(struct sfp *sfp, int addr, bool is_c45)
 {
 	struct phy_device *phy;
 	int err;
 
-	phy = get_phy_device(sfp->i2c_mii, SFP_PHY_ADDR, is_c45);
+	phy = get_phy_device(sfp->i2c_mii, addr, is_c45);
 	if (phy == ERR_PTR(-ENODEV))
 		return PTR_ERR(phy);
 	if (IS_ERR(phy)) {
@@ -1606,6 +1713,14 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 	}
 }
 
+static int sfp_sm_add_mdio_bus(struct sfp *sfp)
+{
+	if (sfp->mdio_protocol != MDIO_I2C_NONE)
+		return sfp_i2c_mdiobus_create(sfp);
+
+	return 0;
+}
+
 /* Probe a SFP for a PHY device if the module supports copper - the PHY
  * normally sits at I2C bus address 0x56, and may either be a clause 22
  * or clause 45 PHY.
@@ -1621,19 +1736,23 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
 {
 	int err = 0;
 
-	switch (sfp->id.base.extended_cc) {
-	case SFF8024_ECC_10GBASE_T_SFI:
-	case SFF8024_ECC_10GBASE_T_SR:
-	case SFF8024_ECC_5GBASE_T:
-	case SFF8024_ECC_2_5GBASE_T:
-		err = sfp_sm_probe_phy(sfp, true);
+	switch (sfp->mdio_protocol) {
+	case MDIO_I2C_NONE:
 		break;
 
-	default:
-		if (sfp->id.base.e1000_base_t)
-			err = sfp_sm_probe_phy(sfp, false);
+	case MDIO_I2C_MARVELL_C22:
+		err = sfp_sm_probe_phy(sfp, SFP_PHY_ADDR, false);
+		break;
+
+	case MDIO_I2C_C45:
+		err = sfp_sm_probe_phy(sfp, SFP_PHY_ADDR, true);
+		break;
+
+	case MDIO_I2C_ROLLBALL:
+		err = sfp_sm_probe_phy(sfp, SFP_PHY_ADDR_ROLLBALL, true);
 		break;
 	}
+
 	return err;
 }
 
@@ -1947,17 +2066,33 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (ret < 0)
 		return ret;
 
-	if (!memcmp(id.base.vendor_name, "ALCATELLUCENT   ", 16) &&
-	    !memcmp(id.base.vendor_pn, "3FE46541AA      ", 16))
-		sfp->module_t_start_up = T_START_UP_BAD_GPON;
-	else
-		sfp->module_t_start_up = T_START_UP;
+	/* Initialise state bits to use from hardware */
+	sfp->state_hw_mask = SFP_F_PRESENT;
+	if (sfp->gpio[GPIO_TX_DISABLE])
+		sfp->state_hw_mask |= SFP_F_TX_DISABLE;
+	if (sfp->gpio[GPIO_TX_FAULT])
+		sfp->state_hw_mask |= SFP_F_TX_FAULT;
+	if (sfp->gpio[GPIO_LOS])
+		sfp->state_hw_mask |= SFP_F_LOS;
 
-	if (!memcmp(id.base.vendor_name, "HUAWEI          ", 16) &&
-	    !memcmp(id.base.vendor_pn, "MA5671A         ", 16))
-		sfp->tx_fault_ignore = true;
+	sfp->module_t_start_up = T_START_UP;
+	sfp->module_t_wait = T_WAIT;
+
+	sfp->tx_fault_ignore = false;
+
+	if (sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SFI ||
+	    sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SR ||
+	    sfp->id.base.extended_cc == SFF8024_ECC_5GBASE_T ||
+	    sfp->id.base.extended_cc == SFF8024_ECC_2_5GBASE_T)
+		sfp->mdio_protocol = MDIO_I2C_C45;
+	else if (sfp->id.base.e1000_base_t)
+		sfp->mdio_protocol = MDIO_I2C_MARVELL_C22;
 	else
-		sfp->tx_fault_ignore = false;
+		sfp->mdio_protocol = MDIO_I2C_NONE;
+
+	sfp->quirk = sfp_lookup_quirk(&id);
+	if (sfp->quirk && sfp->quirk->fixup)
+		sfp->quirk->fixup(sfp);
 
 	return 0;
 }
@@ -2071,7 +2206,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			break;
 
 		/* Report the module insertion to the upstream device */
-		err = sfp_module_insert(sfp->sfp_bus, &sfp->id);
+		err = sfp_module_insert(sfp->sfp_bus, &sfp->id,
+					sfp->quirk);
 		if (err < 0) {
 			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
 			break;
@@ -2130,6 +2266,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			sfp_module_stop(sfp->sfp_bus);
 		if (sfp->mod_phy)
 			sfp_sm_phy_detach(sfp);
+		if (sfp->i2c_mii)
+			sfp_i2c_mdiobus_destroy(sfp);
 		sfp_module_tx_disable(sfp);
 		sfp_soft_stop_poll(sfp);
 		sfp_sm_next(sfp, SFP_S_DOWN, 0);
@@ -2153,9 +2291,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 		/* We need to check the TX_FAULT state, which is not defined
 		 * while TX_DISABLE is asserted. The earliest we want to do
-		 * anything (such as probe for a PHY) is 50ms.
+		 * anything (such as probe for a PHY) is 50ms (or more on
+		 * specific modules).
 		 */
-		sfp_sm_next(sfp, SFP_S_WAIT, T_WAIT);
+		sfp_sm_next(sfp, SFP_S_WAIT, sfp->module_t_wait);
 		break;
 
 	case SFP_S_WAIT:
@@ -2169,8 +2308,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			 * deasserting.
 			 */
 			timeout = sfp->module_t_start_up;
-			if (timeout > T_WAIT)
-				timeout -= T_WAIT;
+			if (timeout > sfp->module_t_wait)
+				timeout -= sfp->module_t_wait;
 			else
 				timeout = 1;
 
@@ -2192,6 +2331,12 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 				     sfp->sm_fault_retries == N_FAULT_INIT);
 		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
 	init_done:
+			/* Create mdiobus and start trying for PHY */
+			ret = sfp_sm_add_mdio_bus(sfp);
+			if (ret < 0) {
+				sfp_sm_next(sfp, SFP_S_FAIL, 0);
+				break;
+			}
 			sfp->sm_phy_retries = R_PHY_RETRY;
 			goto phy_probe;
 		}
@@ -2572,6 +2717,8 @@ static int sfp_probe(struct platform_device *pdev)
 			if (IS_ERR(sfp->gpio[i]))
 				return PTR_ERR(sfp->gpio[i]);
 		}
+
+	sfp->state_hw_mask = SFP_F_PRESENT;
 
 	sfp->get_state = sfp_gpio_get_state;
 	sfp->set_state = sfp_gpio_set_state;

@@ -2234,7 +2234,7 @@ static int proc_otg_show(struct seq_file *s)
 	char		*ctrl_name = "(UNKNOWN)";
 
 	tmp = omap_readl(OTG_REV);
-	ctrl_name = "tranceiver_ctrl";
+	ctrl_name = "transceiver_ctrl";
 	trans = omap_readw(USB_TRANSCEIVER_CTRL);
 	seq_printf(s, "\nOTG rev %d.%d, %s %05x\n",
 		tmp >> 4, tmp & 0xf, ctrl_name, trans);
@@ -2558,7 +2558,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 
 	/* set up driver data structures */
 	BUG_ON(strlen(name) >= sizeof ep->name);
-	strlcpy(ep->name, name, sizeof ep->name);
+	strscpy(ep->name, name, sizeof(ep->name));
 	INIT_LIST_HEAD(&ep->queue);
 	INIT_LIST_HEAD(&ep->iso);
 	ep->bEndpointAddress = addr;

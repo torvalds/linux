@@ -246,14 +246,12 @@ disable_clk:
 	return ret;
 }
 
-static int s3fwrn5_i2c_remove(struct i2c_client *client)
+static void s3fwrn5_i2c_remove(struct i2c_client *client)
 {
 	struct s3fwrn5_i2c_phy *phy = i2c_get_clientdata(client);
 
 	s3fwrn5_remove(phy->common.ndev);
 	clk_disable_unprepare(phy->clk);
-
-	return 0;
 }
 
 static const struct i2c_device_id s3fwrn5_i2c_id_table[] = {

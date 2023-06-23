@@ -137,7 +137,7 @@
 		};
 	};
 
-	spi_gpio: spi-gpio {
+	spi_gpio: spi {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;

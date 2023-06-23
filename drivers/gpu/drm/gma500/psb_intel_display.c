@@ -9,8 +9,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 
-#include <drm/drm_plane_helper.h>
-
 #include "framebuffer.h"
 #include "gem.h"
 #include "gma_display.h"

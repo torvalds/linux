@@ -11,14 +11,14 @@ ALL_TESTS="
 REQUIRE_MZ=no
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
-source "$lib_dir"/../../../net/forwarding/lib.sh
+source "$lib_dir"/net_forwarding_lib.sh
 
-source "$lib_dir"/../bonding/lag_lib.sh
+source "$lib_dir"/lag_lib.sh
 
 
 destroy()
 {
-	local ifnames=(dummy0 dummy1 team0 mv0)
+	local ifnames=(dummy1 dummy2 team0 mv0)
 	local ifname
 
 	for ifname in "${ifnames[@]}"; do

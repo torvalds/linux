@@ -338,13 +338,11 @@ static int rmi_smb_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rmi_smb_remove(struct i2c_client *client)
+static void rmi_smb_remove(struct i2c_client *client)
 {
 	struct rmi_smb_xport *rmi_smb = i2c_get_clientdata(client);
 
 	rmi_unregister_transport_device(&rmi_smb->xport);
-
-	return 0;
 }
 
 static int __maybe_unused rmi_smb_suspend(struct device *dev)

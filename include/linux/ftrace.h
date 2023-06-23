@@ -1122,47 +1122,6 @@ static inline void unpause_graph_tracing(void) { }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef CONFIG_TRACING
-
-/* flags for current->trace */
-enum {
-	TSK_TRACE_FL_TRACE_BIT	= 0,
-	TSK_TRACE_FL_GRAPH_BIT	= 1,
-};
-enum {
-	TSK_TRACE_FL_TRACE	= 1 << TSK_TRACE_FL_TRACE_BIT,
-	TSK_TRACE_FL_GRAPH	= 1 << TSK_TRACE_FL_GRAPH_BIT,
-};
-
-static inline void set_tsk_trace_trace(struct task_struct *tsk)
-{
-	set_bit(TSK_TRACE_FL_TRACE_BIT, &tsk->trace);
-}
-
-static inline void clear_tsk_trace_trace(struct task_struct *tsk)
-{
-	clear_bit(TSK_TRACE_FL_TRACE_BIT, &tsk->trace);
-}
-
-static inline int test_tsk_trace_trace(struct task_struct *tsk)
-{
-	return tsk->trace & TSK_TRACE_FL_TRACE;
-}
-
-static inline void set_tsk_trace_graph(struct task_struct *tsk)
-{
-	set_bit(TSK_TRACE_FL_GRAPH_BIT, &tsk->trace);
-}
-
-static inline void clear_tsk_trace_graph(struct task_struct *tsk)
-{
-	clear_bit(TSK_TRACE_FL_GRAPH_BIT, &tsk->trace);
-}
-
-static inline int test_tsk_trace_graph(struct task_struct *tsk)
-{
-	return tsk->trace & TSK_TRACE_FL_GRAPH;
-}
-
 enum ftrace_dump_mode;
 
 extern enum ftrace_dump_mode ftrace_dump_on_oops;

@@ -172,7 +172,7 @@ netdev_tx_t mcp251xfd_start_xmit(struct sk_buff *skb,
 	u8 tx_head;
 	int err;
 
-	if (can_dropped_invalid_skb(ndev, skb))
+	if (can_dev_dropped_skb(ndev, skb))
 		return NETDEV_TX_OK;
 
 	if (mcp251xfd_tx_busy(priv, tx_ring))

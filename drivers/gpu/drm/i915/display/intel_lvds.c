@@ -837,12 +837,12 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
-		drm_WARN(dev, !dev_priv->vbt.int_lvds_support,
+		drm_WARN(dev, !dev_priv->display.vbt.int_lvds_support,
 			 "Useless DMI match. Internal LVDS support disabled by VBT\n");
 		return;
 	}
 
-	if (!dev_priv->vbt.int_lvds_support) {
+	if (!dev_priv->display.vbt.int_lvds_support) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Internal LVDS support disabled by VBT\n");
 		return;
@@ -972,8 +972,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	/* Try EDID first */
 	intel_panel_add_edid_fixed_modes(intel_connector,
-					 intel_connector->panel.vbt.drrs_type != DRRS_TYPE_NONE,
-					 false);
+					 intel_connector->panel.vbt.drrs_type != DRRS_TYPE_NONE);
 
 	/* Failed to get EDID, what about VBT? */
 	if (!intel_panel_preferred_fixed_mode(intel_connector))

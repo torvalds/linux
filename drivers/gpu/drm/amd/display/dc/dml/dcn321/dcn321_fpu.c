@@ -29,6 +29,7 @@
 #include "dcn321_fpu.h"
 #include "dcn32/dcn32_resource.h"
 #include "dcn321/dcn321_resource.h"
+#include "dml/dcn32/display_mode_vba_util_32.h"
 
 #define DCN3_2_DEFAULT_DET_SIZE 256
 
@@ -119,15 +120,15 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_21_soc = {
 		},
 	},
 	.num_states = 1,
-	.sr_exit_time_us = 12.36,
-	.sr_enter_plus_exit_time_us = 16.72,
+	.sr_exit_time_us = 19.95,
+	.sr_enter_plus_exit_time_us = 24.36,
 	.sr_exit_z8_time_us = 285.0,
 	.sr_enter_plus_exit_z8_time_us = 320,
 	.writeback_latency_us = 12.0,
 	.round_trip_ping_latency_dcfclk_cycles = 263,
-	.urgent_latency_pixel_data_only_us = 4.0,
-	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
-	.urgent_latency_vm_data_only_us = 4.0,
+	.urgent_latency_pixel_data_only_us = 4,
+	.urgent_latency_pixel_mixed_with_vm_data_us = 4,
+	.urgent_latency_vm_data_only_us = 4,
 	.fclk_change_latency_us = 20,
 	.usr_retraining_latency_us = 2,
 	.smn_latency_us = 2,
@@ -155,7 +156,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_21_soc = {
 	.dispclk_dppclk_vco_speed_mhz = 4300.0,
 	.do_urgent_latency_adjustment = true,
 	.urgent_latency_adjustment_fabric_clock_component_us = 1.0,
-	.urgent_latency_adjustment_fabric_clock_reference_mhz = 1000,
+	.urgent_latency_adjustment_fabric_clock_reference_mhz = 3000,
 };
 
 static void get_optimal_ntuple(struct _vcs_dpi_voltage_scaling_st *entry)
@@ -489,6 +490,7 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 		if ((int)(dcn3_21_soc.urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
 			&& dc->bb_overrides.urgent_latency_ns) {
 			dcn3_21_soc.urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+			dcn3_21_soc.urgent_latency_pixel_data_only_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
 		}
 
 		if ((int)(dcn3_21_soc.dram_clock_change_latency_us * 1000)
@@ -518,13 +520,16 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 
 			if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
 				if (bb_info.dram_clock_change_latency_100ns > 0)
-					dcn3_21_soc.dram_clock_change_latency_us = bb_info.dram_clock_change_latency_100ns * 10;
+					dcn3_21_soc.dram_clock_change_latency_us =
+						bb_info.dram_clock_change_latency_100ns * 10;
 
-			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
-				dcn3_21_soc.sr_enter_plus_exit_time_us = bb_info.dram_sr_enter_exit_latency_100ns * 10;
+				if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+					dcn3_21_soc.sr_enter_plus_exit_time_us =
+						bb_info.dram_sr_enter_exit_latency_100ns * 10;
 
-			if (bb_info.dram_sr_exit_latency_100ns > 0)
-				dcn3_21_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
+				if (bb_info.dram_sr_exit_latency_100ns > 0)
+					dcn3_21_soc.sr_exit_time_us =
+						bb_info.dram_sr_exit_latency_100ns * 10;
 			}
 		}
 
@@ -534,8 +539,12 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 
 		if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
 			dcn3_21_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
-
 	}
+
+	/* DML DSC delay factor workaround */
+	dcn3_21_ip.dsc_delay_factor_wa = dc->debug.dsc_delay_factor_wa_x1000 / 1000.0;
+
+	dcn3_21_ip.min_prefetch_in_strobe_us = dc->debug.min_prefetch_in_strobe_ns / 1000.0;
 
 	/* Override dispclk_dppclk_vco_speed_mhz from Clk Mgr */
 	dcn3_21_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;

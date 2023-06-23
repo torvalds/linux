@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/allwinner,sun4i-a10-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 NAND Controller Device Tree Bindings
+title: Allwinner A10 NAND Controller
 
 allOf:
   - $ref: "nand-controller.yaml"

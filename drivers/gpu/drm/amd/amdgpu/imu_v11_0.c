@@ -26,12 +26,15 @@
 #include "amdgpu_imu.h"
 #include "amdgpu_dpm.h"
 
+#include "imu_v11_0_3.h"
+
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
 
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_1_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_3_imu.bin");
 
 static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 {
@@ -359,6 +362,9 @@ static void imu_v11_0_program_rlc_ram(struct amdgpu_device *adev)
 	case IP_VERSION(11, 0, 2):
 		program_imu_rlc_ram(adev, imu_rlc_ram_golden_11_0_2,
 				(const u32)ARRAY_SIZE(imu_rlc_ram_golden_11_0_2));
+		break;
+	case IP_VERSION(11, 0, 3):
+		imu_v11_0_3_program_rlc_ram(adev);
 		break;
 	default:
 		BUG();

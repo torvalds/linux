@@ -354,7 +354,7 @@ static int zap_process(struct task_struct *start, int exit_code)
 	struct task_struct *t;
 	int nr = 0;
 
-	/* ignore all signals except SIGKILL, see prepare_signal() */
+	/* Allow SIGKILL, see prepare_signal() */
 	start->signal->flags = SIGNAL_GROUP_EXIT;
 	start->signal->group_exit_code = exit_code;
 	start->signal->group_stop_count = 0;
@@ -402,9 +402,8 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	if (core_waiters > 0) {
 		struct core_thread *ptr;
 
-		freezer_do_not_count();
-		wait_for_completion(&core_state->startup);
-		freezer_count();
+		wait_for_completion_state(&core_state->startup,
+					  TASK_UNINTERRUPTIBLE|TASK_FREEZABLE);
 		/*
 		 * Wait for all the threads to become inactive, so that
 		 * all the thread context (extended register state, like
@@ -412,7 +411,7 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 		 */
 		ptr = core_state->dumper.next;
 		while (ptr != NULL) {
-			wait_task_inactive(ptr->task, 0);
+			wait_task_inactive(ptr->task, TASK_ANY);
 			ptr = ptr->next;
 		}
 	}
@@ -841,7 +840,7 @@ static int dump_emit_page(struct coredump_params *cprm, struct page *page)
 	};
 	struct iov_iter iter;
 	struct file *file = cprm->file;
-	loff_t pos = file->f_pos;
+	loff_t pos;
 	ssize_t n;
 
 	if (cprm->to_skip) {
@@ -853,6 +852,7 @@ static int dump_emit_page(struct coredump_params *cprm, struct page *page)
 		return 0;
 	if (dump_interrupted())
 		return 0;
+	pos = file->f_pos;
 	iov_iter_bvec(&iter, WRITE, &bvec, 1, PAGE_SIZE);
 	n = __kernel_write_iter(cprm->file, &iter, &pos);
 	if (n != PAGE_SIZE)
@@ -1100,30 +1100,20 @@ whole:
 	return vma->vm_end - vma->vm_start;
 }
 
-static struct vm_area_struct *first_vma(struct task_struct *tsk,
-					struct vm_area_struct *gate_vma)
-{
-	struct vm_area_struct *ret = tsk->mm->mmap;
-
-	if (ret)
-		return ret;
-	return gate_vma;
-}
-
 /*
  * Helper function for iterating across a vma list.  It ensures that the caller
  * will visit `gate_vma' prior to terminating the search.
  */
-static struct vm_area_struct *next_vma(struct vm_area_struct *this_vma,
+static struct vm_area_struct *coredump_next_vma(struct ma_state *mas,
+				       struct vm_area_struct *vma,
 				       struct vm_area_struct *gate_vma)
 {
-	struct vm_area_struct *ret;
-
-	ret = this_vma->vm_next;
-	if (ret)
-		return ret;
-	if (this_vma == gate_vma)
+	if (gate_vma && (vma == gate_vma))
 		return NULL;
+
+	vma = mas_next(mas, ULONG_MAX);
+	if (vma)
+		return vma;
 	return gate_vma;
 }
 
@@ -1147,9 +1137,10 @@ static void free_vma_snapshot(struct coredump_params *cprm)
  */
 static bool dump_vma_snapshot(struct coredump_params *cprm)
 {
-	struct vm_area_struct *vma, *gate_vma;
+	struct vm_area_struct *gate_vma, *vma = NULL;
 	struct mm_struct *mm = current->mm;
-	int i;
+	MA_STATE(mas, &mm->mm_mt, 0, 0);
+	int i = 0;
 
 	/*
 	 * Once the stack expansion code is fixed to not change VMA bounds
@@ -1169,8 +1160,7 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 		return false;
 	}
 
-	for (i = 0, vma = first_vma(current, gate_vma); vma != NULL;
-			vma = next_vma(vma, gate_vma), i++) {
+	while ((vma = coredump_next_vma(&mas, vma, gate_vma)) != NULL) {
 		struct core_vma_metadata *m = cprm->vma_meta + i;
 
 		m->start = vma->vm_start;
@@ -1178,10 +1168,10 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 		m->flags = vma->vm_flags;
 		m->dump_size = vma_dump_size(vma, cprm->mm_flags);
 		m->pgoff = vma->vm_pgoff;
-
 		m->file = vma->vm_file;
 		if (m->file)
 			get_file(m->file);
+		i++;
 	}
 
 	mmap_write_unlock(mm);

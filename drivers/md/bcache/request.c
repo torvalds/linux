@@ -401,7 +401,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	}
 
 	if (bypass_torture_test(dc)) {
-		if ((get_random_int() & 3) == 3)
+		if (prandom_u32_max(4) == 3)
 			goto skip;
 		else
 			goto rescale;

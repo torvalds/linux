@@ -70,8 +70,6 @@ struct fsverity_info {
 	const struct inode *inode;
 };
 
-/* Arbitrary limit to bound the kmalloc() size.  Can be changed. */
-#define FS_VERITY_MAX_DESCRIPTOR_SIZE	16384
 
 #define FS_VERITY_MAX_SIGNATURE_SIZE	(FS_VERITY_MAX_DESCRIPTOR_SIZE - \
 					 sizeof(struct fsverity_descriptor))

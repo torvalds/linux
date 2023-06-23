@@ -49,18 +49,30 @@
 #define CTX \
 	enc1->base.ctx
 
+static void enc314_reset_fifo(struct stream_encoder *enc, bool reset)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t reset_val = reset ? 1 : 0;
+	uint32_t is_symclk_on;
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, reset_val);
+	REG_GET(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, &is_symclk_on);
+
+	if (is_symclk_on)
+		REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, reset_val, 10, 5000);
+	else
+		udelay(10);
+}
 
 static void enc314_enable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	/* TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON */
-	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
-	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 10, 5000);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
-	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 10, 5000);
+
+	enc314_reset_fifo(enc, true);
+	enc314_reset_fifo(enc, false);
+
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
 }
 
@@ -81,7 +93,7 @@ static void enc314_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-void enc314_stream_encoder_dvi_set_stream_attribute(
+static void enc314_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -262,7 +274,7 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-void enc314_stream_encoder_dp_blank(
+static void enc314_stream_encoder_dp_blank(
 	struct dc_link *link,
 	struct stream_encoder *enc)
 {

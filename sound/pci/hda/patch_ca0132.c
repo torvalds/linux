@@ -1306,6 +1306,7 @@ static const struct snd_pci_quirk ca0132_quirks[] = {
 	SND_PCI_QUIRK(0x1458, 0xA026, "Gigabyte G1.Sniper Z97", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1458, 0xA036, "Gigabyte GA-Z170X-Gaming 7", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x3842, 0x1038, "EVGA X99 Classified", QUIRK_R3DI),
+	SND_PCI_QUIRK(0x3842, 0x1055, "EVGA Z390 DARK", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1102, 0x0013, "Recon3D", QUIRK_R3D),
 	SND_PCI_QUIRK(0x1102, 0x0018, "Recon3D", QUIRK_R3D),
 	SND_PCI_QUIRK(0x1102, 0x0051, "Sound Blaster AE-5", QUIRK_AE5),
@@ -2962,7 +2963,6 @@ static int dsp_allocate_ports_format(struct hda_codec *codec,
 			const unsigned short fmt,
 			unsigned int *port_map)
 {
-	int status;
 	unsigned int num_chans;
 
 	unsigned int sample_rate_div = ((get_hdafmt_rate(fmt) >> 0) & 3) + 1;
@@ -2976,9 +2976,7 @@ static int dsp_allocate_ports_format(struct hda_codec *codec,
 
 	num_chans = get_hdafmt_chs(fmt) + 1;
 
-	status = dsp_allocate_ports(codec, num_chans, rate_multi, port_map);
-
-	return status;
+	return dsp_allocate_ports(codec, num_chans, rate_multi, port_map);
 }
 
 /*

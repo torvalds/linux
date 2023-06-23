@@ -181,14 +181,12 @@ static int fsa4480_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int fsa4480_remove(struct i2c_client *client)
+static void fsa4480_remove(struct i2c_client *client)
 {
 	struct fsa4480 *fsa = i2c_get_clientdata(client);
 
 	typec_mux_unregister(fsa->mux);
 	typec_switch_unregister(fsa->sw);
-
-	return 0;
 }
 
 static const struct i2c_device_id fsa4480_table[] = {

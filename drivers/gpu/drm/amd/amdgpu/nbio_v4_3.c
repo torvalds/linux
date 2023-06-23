@@ -488,3 +488,47 @@ const struct amdgpu_nbio_funcs nbio_v4_3_funcs = {
 	.get_rom_offset = nbio_v4_3_get_rom_offset,
 	.program_aspm = nbio_v4_3_program_aspm,
 };
+
+
+static void nbio_v4_3_sriov_ih_doorbell_range(struct amdgpu_device *adev,
+					bool use_doorbell, int doorbell_index)
+{
+}
+
+static void nbio_v4_3_sriov_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
+					  bool use_doorbell, int doorbell_index,
+					  int doorbell_size)
+{
+}
+
+static void nbio_v4_3_sriov_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
+					 int doorbell_index, int instance)
+{
+}
+
+static void nbio_v4_3_sriov_gc_doorbell_init(struct amdgpu_device *adev)
+{
+}
+
+const struct amdgpu_nbio_funcs nbio_v4_3_sriov_funcs = {
+	.get_hdp_flush_req_offset = nbio_v4_3_get_hdp_flush_req_offset,
+	.get_hdp_flush_done_offset = nbio_v4_3_get_hdp_flush_done_offset,
+	.get_pcie_index_offset = nbio_v4_3_get_pcie_index_offset,
+	.get_pcie_data_offset = nbio_v4_3_get_pcie_data_offset,
+	.get_rev_id = nbio_v4_3_get_rev_id,
+	.mc_access_enable = nbio_v4_3_mc_access_enable,
+	.get_memsize = nbio_v4_3_get_memsize,
+	.sdma_doorbell_range = nbio_v4_3_sriov_sdma_doorbell_range,
+	.vcn_doorbell_range = nbio_v4_3_sriov_vcn_doorbell_range,
+	.gc_doorbell_init = nbio_v4_3_sriov_gc_doorbell_init,
+	.enable_doorbell_aperture = nbio_v4_3_enable_doorbell_aperture,
+	.enable_doorbell_selfring_aperture = nbio_v4_3_enable_doorbell_selfring_aperture,
+	.ih_doorbell_range = nbio_v4_3_sriov_ih_doorbell_range,
+	.update_medium_grain_clock_gating = nbio_v4_3_update_medium_grain_clock_gating,
+	.update_medium_grain_light_sleep = nbio_v4_3_update_medium_grain_light_sleep,
+	.get_clockgating_state = nbio_v4_3_get_clockgating_state,
+	.ih_control = nbio_v4_3_ih_control,
+	.init_registers = nbio_v4_3_init_registers,
+	.remap_hdp_registers = nbio_v4_3_remap_hdp_registers,
+	.get_rom_offset = nbio_v4_3_get_rom_offset,
+};

@@ -614,7 +614,7 @@ static int apparmor_sb_pivotroot(const struct path *old_path,
 	return error;
 }
 
-static int apparmor_getprocattr(struct task_struct *task, char *name,
+static int apparmor_getprocattr(struct task_struct *task, const char *name,
 				char **value)
 {
 	int error = -ENOENT;

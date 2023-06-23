@@ -181,7 +181,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	return true;
 }
 
-int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
+void _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -202,7 +202,7 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 		if (pxmitpriv->free_xmitframe_cnt > (NR_XMITFRAME / 4)) {
 			res = rtw_mlcst2unicst(padapter, pkt);
 			if (res)
-				goto exit;
+				return;
 		}
 	}
 
@@ -210,22 +210,17 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 	if (res < 0)
 		goto drop_packet;
 
-	goto exit;
+	return;
 
 drop_packet:
 	pxmitpriv->tx_drop++;
 	dev_kfree_skb_any(pkt);
-
-exit:
-	return 0;
 }
 
-int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
+netdev_tx_t rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
-	int ret = 0;
-
 	if (pkt)
-		ret = _rtw_xmit_entry(pkt, pnetdev);
+		_rtw_xmit_entry(pkt, pnetdev);
 
-	return ret;
+	return NETDEV_TX_OK;
 }

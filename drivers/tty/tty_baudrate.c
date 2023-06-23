@@ -49,13 +49,13 @@ static int n_baud_table = ARRAY_SIZE(baud_table);
  *
  *	Convert termios baud rate data into a speed. This should be called
  *	with the termios lock held if this termios is a terminal termios
- *	structure. May change the termios data. Device drivers can call this
- *	function but should use ->c_[io]speed directly as they are updated.
+ *	structure. Device drivers can call this function but should use
+ *	->c_[io]speed directly as they are updated.
  *
  *	Locking: none
  */
 
-speed_t tty_termios_baud_rate(struct ktermios *termios)
+speed_t tty_termios_baud_rate(const struct ktermios *termios)
 {
 	unsigned int cbaud;
 
@@ -67,11 +67,7 @@ speed_t tty_termios_baud_rate(struct ktermios *termios)
 
 	if (cbaud & CBAUDEX) {
 		cbaud &= ~CBAUDEX;
-
-		if (cbaud < 1 || cbaud + 15 > n_baud_table)
-			termios->c_cflag &= ~CBAUDEX;
-		else
-			cbaud += 15;
+		cbaud += 15;
 	}
 	return cbaud >= n_baud_table ? 0 : baud_table[cbaud];
 }
@@ -83,30 +79,26 @@ EXPORT_SYMBOL(tty_termios_baud_rate);
  *
  *	Convert termios baud rate data into a speed. This should be called
  *	with the termios lock held if this termios is a terminal termios
- *	structure. May change the termios data. Device drivers can call this
- *	function but should use ->c_[io]speed directly as they are updated.
+ *	structure. Device drivers can call this function but should use
+ *	->c_[io]speed directly as they are updated.
  *
  *	Locking: none
  */
 
-speed_t tty_termios_input_baud_rate(struct ktermios *termios)
+speed_t tty_termios_input_baud_rate(const struct ktermios *termios)
 {
 	unsigned int cbaud = (termios->c_cflag >> IBSHIFT) & CBAUD;
 
 	if (cbaud == B0)
 		return tty_termios_baud_rate(termios);
 
-	/* Magic token for arbitrary speed via c_ispeed*/
+	/* Magic token for arbitrary speed via c_ispeed */
 	if (cbaud == BOTHER)
 		return termios->c_ispeed;
 
 	if (cbaud & CBAUDEX) {
 		cbaud &= ~CBAUDEX;
-
-		if (cbaud < 1 || cbaud + 15 > n_baud_table)
-			termios->c_cflag &= ~(CBAUDEX << IBSHIFT);
-		else
-			cbaud += 15;
+		cbaud += 15;
 	}
 	return cbaud >= n_baud_table ? 0 : baud_table[cbaud];
 }

@@ -89,9 +89,16 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (inet_opt == NULL || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
 
-	if (inet->inet_saddr == 0)
-		inet->inet_saddr = fl4->saddr;
-	sk_rcv_saddr_set(sk, inet->inet_saddr);
+	if (inet->inet_saddr == 0) {
+		err = inet_bhash2_update_saddr(sk,  &fl4->saddr, AF_INET);
+		if (err) {
+			ip_rt_put(rt);
+			return err;
+		}
+	} else {
+		sk_rcv_saddr_set(sk, inet->inet_saddr);
+	}
+
 	inet->inet_dport = usin->sin_port;
 	sk_daddr_set(sk, daddr);
 
@@ -123,7 +130,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 						    inet->inet_daddr,
 						    inet->inet_sport,
 						    inet->inet_dport);
-	inet->inet_id = prandom_u32();
+	inet->inet_id = get_random_u16();
 
 	err = dccp_connect(sk);
 	rt = NULL;
@@ -136,6 +143,7 @@ failure:
 	 * This unhashes the socket and releases the local port, if necessary.
 	 */
 	dccp_set_state(sk, DCCP_CLOSED);
+	inet_bhash2_reset_saddr(sk);
 	ip_rt_put(rt);
 	sk->sk_route_caps = 0;
 	inet->inet_dport = 0;
@@ -422,7 +430,7 @@ struct sock *dccp_v4_request_recv_sock(const struct sock *sk,
 	RCU_INIT_POINTER(newinet->inet_opt, rcu_dereference(ireq->ireq_opt));
 	newinet->mc_index  = inet_iif(skb);
 	newinet->mc_ttl	   = ip_hdr(skb)->ttl;
-	newinet->inet_id   = prandom_u32();
+	newinet->inet_id   = get_random_u16();
 
 	if (dst == NULL && (dst = inet_csk_route_child_sock(sk, newsk, req)) == NULL)
 		goto put_and_exit;

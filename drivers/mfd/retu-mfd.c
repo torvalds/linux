@@ -287,7 +287,7 @@ static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int retu_remove(struct i2c_client *i2c)
+static void retu_remove(struct i2c_client *i2c)
 {
 	struct retu_dev *rdev = i2c_get_clientdata(i2c);
 
@@ -297,8 +297,6 @@ static int retu_remove(struct i2c_client *i2c)
 	}
 	mfd_remove_devices(rdev->dev);
 	regmap_del_irq_chip(i2c->irq, rdev->irq_data);
-
-	return 0;
 }
 
 static const struct i2c_device_id retu_id[] = {

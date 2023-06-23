@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra210-adx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra210 ADX Device Tree Bindings
+title: Tegra210 ADX
 
 description: |
   The Audio Demultiplexer (ADX) block takes an input stream with up to

@@ -272,8 +272,9 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	 * The request socket is not added to the ehash
 	 * because it's been added to the accept queue directly.
 	 */
+	req->timeout = tcp_timeout_init(child);
 	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
-				  TCP_TIMEOUT_INIT, TCP_RTO_MAX);
+				  req->timeout, TCP_RTO_MAX);
 
 	refcount_set(&req->rsk_refcnt, 2);
 

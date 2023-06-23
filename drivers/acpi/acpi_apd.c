@@ -60,12 +60,6 @@ static int acpi_apd_setup(struct apd_private_data *pdata)
 }
 
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
-static int misc_check_res(struct acpi_resource *ares, void *data)
-{
-	struct resource res;
-
-	return !acpi_dev_resource_memory(ares, &res);
-}
 
 static int fch_misc_setup(struct apd_private_data *pdata)
 {
@@ -82,8 +76,7 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list, misc_check_res,
-				     NULL);
+	ret = acpi_dev_get_memory_resources(adev, &resource_list);
 	if (ret < 0)
 		return -ENOENT;
 

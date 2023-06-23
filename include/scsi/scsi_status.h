@@ -62,12 +62,12 @@ enum scsi_host_status {
 					 * recover the link. Transport class will
 					 * retry or fail IO */
 	DID_TRANSPORT_FAILFAST = 0x0f, /* Transport class fastfailed the io */
-	DID_TARGET_FAILURE = 0x10, /* Permanent target failure, do not retry on
-				    * other paths */
-	DID_NEXUS_FAILURE = 0x11,  /* Permanent nexus failure, retry on other
-				    * paths might yield different results */
-	DID_ALLOC_FAILURE = 0x12,  /* Space allocation on the device failed */
-	DID_MEDIUM_ERROR = 0x13,  /* Medium error */
+	/*
+	 * We used to have DID_TARGET_FAILURE, DID_NEXUS_FAILURE,
+	 * DID_ALLOC_FAILURE and DID_MEDIUM_ERROR at 0x10 - 0x13. For compat
+	 * with userspace apps that parse the host byte for SG IO, we leave
+	 * that block of codes unused and start at 0x14 below.
+	 */
 	DID_TRANSPORT_MARGINAL = 0x14, /* Transport marginal errors */
 };
 

@@ -399,6 +399,7 @@ enum rxrpc_conn_proto_state {
 struct rxrpc_bundle {
 	struct rxrpc_conn_parameters params;
 	refcount_t		ref;
+	atomic_t		active;		/* Number of active users */
 	unsigned int		debug_id;
 	bool			try_upgrade;	/* True if the bundle is attempting upgrade */
 	bool			alloc_conn;	/* True if someone's getting a conn */
@@ -782,7 +783,6 @@ void rxrpc_delete_call_timer(struct rxrpc_call *call);
  */
 extern const char *const rxrpc_call_states[];
 extern const char *const rxrpc_call_completions[];
-extern unsigned int rxrpc_max_call_lifetime;
 extern struct kmem_cache *rxrpc_call_jar;
 
 struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long);

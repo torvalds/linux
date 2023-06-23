@@ -16,6 +16,8 @@
 #include "hif.h"
 #include <linux/remoteproc.h>
 #include "pcic.h"
+#include <linux/soc/qcom/smem.h>
+#include <linux/soc/qcom/smem_state.h>
 
 static const struct of_device_id ath11k_ahb_of_match[] = {
 	/* TODO: Should we change the compatible string to something similar
@@ -359,6 +361,7 @@ static void ath11k_ahb_ext_irq_enable(struct ath11k_base *ab)
 		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
 
 		if (!irq_grp->napi_enabled) {
+			dev_set_threaded(&irq_grp->napi_ndev, true);
 			napi_enable(&irq_grp->napi);
 			irq_grp->napi_enabled = true;
 		}
@@ -406,7 +409,8 @@ static int ath11k_ahb_fwreset_from_cold_boot(struct ath11k_base *ab)
 	int timeout;
 
 	if (ath11k_cold_boot_cal == 0 || ab->qmi.cal_done ||
-	    ab->hw_params.cold_boot_calib == 0)
+	    ab->hw_params.cold_boot_calib == 0 ||
+	    ab->hw_params.cbcal_restart_fw == 0)
 		return 0;
 
 	ath11k_dbg(ab, ATH11K_DBG_AHB, "wait for cold boot done\n");
@@ -541,7 +545,7 @@ static int ath11k_ahb_config_ext_irq(struct ath11k_base *ab)
 		irq_grp->grp_id = i;
 		init_dummy_netdev(&irq_grp->napi_ndev);
 		netif_napi_add(&irq_grp->napi_ndev, &irq_grp->napi,
-			       ath11k_ahb_ext_grp_napi_poll, NAPI_POLL_WEIGHT);
+			       ath11k_ahb_ext_grp_napi_poll);
 
 		for (j = 0; j < ATH11K_EXT_IRQ_NUM_MAX; j++) {
 			if (ab->hw_params.ring_mask->tx[i] & BIT(j)) {
@@ -685,11 +689,90 @@ static int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id
 	return 0;
 }
 
+static int ath11k_ahb_hif_suspend(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	u32 wake_irq;
+	u32 value = 0;
+	int ret;
+
+	if (!device_may_wakeup(ab->dev))
+		return -EPERM;
+
+	wake_irq = ab->irq_num[ATH11K_PCI_IRQ_CE0_OFFSET + ATH11K_PCI_CE_WAKE_IRQ];
+
+	ret = enable_irq_wake(wake_irq);
+	if (ret) {
+		ath11k_err(ab, "failed to enable wakeup irq :%d\n", ret);
+		return ret;
+	}
+
+	value = u32_encode_bits(ab_ahb->smp2p_info.seq_no++,
+				ATH11K_AHB_SMP2P_SMEM_SEQ_NO);
+	value |= u32_encode_bits(ATH11K_AHB_POWER_SAVE_ENTER,
+				 ATH11K_AHB_SMP2P_SMEM_MSG);
+
+	ret = qcom_smem_state_update_bits(ab_ahb->smp2p_info.smem_state,
+					  ATH11K_AHB_SMP2P_SMEM_VALUE_MASK, value);
+	if (ret) {
+		ath11k_err(ab, "failed to send smp2p power save enter cmd :%d\n", ret);
+		return ret;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "ahb device suspended\n");
+
+	return ret;
+}
+
+static int ath11k_ahb_hif_resume(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	u32 wake_irq;
+	u32 value = 0;
+	int ret;
+
+	if (!device_may_wakeup(ab->dev))
+		return -EPERM;
+
+	wake_irq = ab->irq_num[ATH11K_PCI_IRQ_CE0_OFFSET + ATH11K_PCI_CE_WAKE_IRQ];
+
+	ret = disable_irq_wake(wake_irq);
+	if (ret) {
+		ath11k_err(ab, "failed to disable wakeup irq: %d\n", ret);
+		return ret;
+	}
+
+	reinit_completion(&ab->wow.wakeup_completed);
+
+	value = u32_encode_bits(ab_ahb->smp2p_info.seq_no++,
+				ATH11K_AHB_SMP2P_SMEM_SEQ_NO);
+	value |= u32_encode_bits(ATH11K_AHB_POWER_SAVE_EXIT,
+				 ATH11K_AHB_SMP2P_SMEM_MSG);
+
+	ret = qcom_smem_state_update_bits(ab_ahb->smp2p_info.smem_state,
+					  ATH11K_AHB_SMP2P_SMEM_VALUE_MASK, value);
+	if (ret) {
+		ath11k_err(ab, "failed to send smp2p power save enter cmd :%d\n", ret);
+		return ret;
+	}
+
+	ret = wait_for_completion_timeout(&ab->wow.wakeup_completed, 3 * HZ);
+	if (ret == 0) {
+		ath11k_warn(ab, "timed out while waiting for wow wakeup completion\n");
+		return -ETIMEDOUT;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "ahb device resumed\n");
+
+	return 0;
+}
+
 static const struct ath11k_hif_ops ath11k_ahb_hif_ops_ipq8074 = {
 	.start = ath11k_ahb_start,
 	.stop = ath11k_ahb_stop,
 	.read32 = ath11k_ahb_read32,
 	.write32 = ath11k_ahb_write32,
+	.read = NULL,
 	.irq_enable = ath11k_ahb_ext_irq_enable,
 	.irq_disable = ath11k_ahb_ext_irq_disable,
 	.map_service_to_pipe = ath11k_ahb_map_service_to_pipe,
@@ -702,6 +785,7 @@ static const struct ath11k_hif_ops ath11k_ahb_hif_ops_wcn6750 = {
 	.stop = ath11k_pcic_stop,
 	.read32 = ath11k_pcic_read32,
 	.write32 = ath11k_pcic_write32,
+	.read = NULL,
 	.irq_enable = ath11k_pcic_ext_irq_enable,
 	.irq_disable = ath11k_pcic_ext_irq_disable,
 	.get_msi_address =  ath11k_pcic_get_msi_address,
@@ -709,6 +793,10 @@ static const struct ath11k_hif_ops ath11k_ahb_hif_ops_wcn6750 = {
 	.map_service_to_pipe = ath11k_pcic_map_service_to_pipe,
 	.power_down = ath11k_ahb_power_down,
 	.power_up = ath11k_ahb_power_up,
+	.suspend = ath11k_ahb_hif_suspend,
+	.resume = ath11k_ahb_hif_resume,
+	.ce_irq_enable = ath11k_pci_enable_ce_irqs_except_wake_irq,
+	.ce_irq_disable = ath11k_pci_disable_ce_irqs_except_wake_irq,
 };
 
 static int ath11k_core_get_rproc(struct ath11k_base *ab)
@@ -781,6 +869,34 @@ static int ath11k_ahb_setup_msi_resources(struct ath11k_base *ab)
 	set_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags);
 
 	return 0;
+}
+
+static int ath11k_ahb_setup_smp2p_handle(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+
+	if (!ab->hw_params.smp2p_wow_exit)
+		return 0;
+
+	ab_ahb->smp2p_info.smem_state = qcom_smem_state_get(ab->dev, "wlan-smp2p-out",
+							    &ab_ahb->smp2p_info.smem_bit);
+	if (IS_ERR(ab_ahb->smp2p_info.smem_state)) {
+		ath11k_err(ab, "failed to fetch smem state: %ld\n",
+			   PTR_ERR(ab_ahb->smp2p_info.smem_state));
+		return PTR_ERR(ab_ahb->smp2p_info.smem_state);
+	}
+
+	return 0;
+}
+
+static void ath11k_ahb_release_smp2p_handle(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+
+	if (!ab->hw_params.smp2p_wow_exit)
+		return;
+
+	qcom_smem_state_put(ab_ahb->smp2p_info.smem_state);
 }
 
 static int ath11k_ahb_setup_resources(struct ath11k_base *ab)
@@ -1038,9 +1154,13 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_core_free;
 
-	ret = ath11k_hal_srng_init(ab);
+	ret = ath11k_ahb_setup_smp2p_handle(ab);
 	if (ret)
 		goto err_fw_deinit;
+
+	ret = ath11k_hal_srng_init(ab);
+	if (ret)
+		goto err_release_smp2p_handle;
 
 	ret = ath11k_ce_alloc_pipes(ab);
 	if (ret) {
@@ -1078,6 +1198,9 @@ err_ce_free:
 err_hal_srng_deinit:
 	ath11k_hal_srng_deinit(ab);
 
+err_release_smp2p_handle:
+	ath11k_ahb_release_smp2p_handle(ab);
+
 err_fw_deinit:
 	ath11k_ahb_fw_resource_deinit(ab);
 
@@ -1088,19 +1211,9 @@ err_core_free:
 	return ret;
 }
 
-static int ath11k_ahb_remove(struct platform_device *pdev)
+static void ath11k_ahb_remove_prepare(struct ath11k_base *ab)
 {
-	struct ath11k_base *ab = platform_get_drvdata(pdev);
 	unsigned long left;
-
-	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
-		ath11k_ahb_power_down(ab);
-		ath11k_debugfs_soc_destroy(ab);
-		ath11k_qmi_deinit_service(ab);
-		goto qmi_fail;
-	}
-
-	reinit_completion(&ab->driver_recovery);
 
 	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags)) {
 		left = wait_for_completion_timeout(&ab->driver_recovery,
@@ -1111,17 +1224,59 @@ static int ath11k_ahb_remove(struct platform_device *pdev)
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
 	cancel_work_sync(&ab->restart_work);
+	cancel_work_sync(&ab->qmi.event_work);
+}
 
-	ath11k_core_deinit(ab);
-qmi_fail:
+static void ath11k_ahb_free_resources(struct ath11k_base *ab)
+{
+	struct platform_device *pdev = ab->pdev;
+
 	ath11k_ahb_free_irq(ab);
 	ath11k_hal_srng_deinit(ab);
+	ath11k_ahb_release_smp2p_handle(ab);
 	ath11k_ahb_fw_resource_deinit(ab);
 	ath11k_ce_free_pipes(ab);
 	ath11k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);
+}
+
+static int ath11k_ahb_remove(struct platform_device *pdev)
+{
+	struct ath11k_base *ab = platform_get_drvdata(pdev);
+
+	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
+		ath11k_ahb_power_down(ab);
+		ath11k_debugfs_soc_destroy(ab);
+		ath11k_qmi_deinit_service(ab);
+		goto qmi_fail;
+	}
+
+	ath11k_ahb_remove_prepare(ab);
+	ath11k_core_deinit(ab);
+
+qmi_fail:
+	ath11k_ahb_free_resources(ab);
 
 	return 0;
+}
+
+static void ath11k_ahb_shutdown(struct platform_device *pdev)
+{
+	struct ath11k_base *ab = platform_get_drvdata(pdev);
+
+	/* platform shutdown() & remove() are mutually exclusive.
+	 * remove() is invoked during rmmod & shutdown() during
+	 * system reboot/shutdown.
+	 */
+	ath11k_ahb_remove_prepare(ab);
+
+	if (!(test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags)))
+		goto free_resources;
+
+	ath11k_core_deinit(ab);
+
+free_resources:
+	ath11k_ahb_free_resources(ab);
 }
 
 static struct platform_driver ath11k_ahb_driver = {
@@ -1131,6 +1286,7 @@ static struct platform_driver ath11k_ahb_driver = {
 	},
 	.probe  = ath11k_ahb_probe,
 	.remove = ath11k_ahb_remove,
+	.shutdown = ath11k_ahb_shutdown,
 };
 
 static int ath11k_ahb_init(void)

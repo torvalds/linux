@@ -76,7 +76,7 @@ properties:
 
       - items:
           - enum:
-              - renesas,scif-r9a07g043      # RZ/G2UL
+              - renesas,scif-r9a07g043      # RZ/G2UL and RZ/Five
               - renesas,scif-r9a07g054      # RZ/V2L
           - const: renesas,scif-r9a07g044   # RZ/G2{L,LC} fallback
 

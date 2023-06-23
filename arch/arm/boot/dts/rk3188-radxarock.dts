@@ -71,7 +71,7 @@
 		#sound-dai-cells = <0>;
 	};
 
-	ir_recv: gpio-ir-receiver {
+	ir_recv: ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -126,18 +126,21 @@
 };
 
 &emac {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&phy_int>;
-
 	phy = <&phy0>;
 	phy-supply = <&vcc_rmii>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&phy_int>;
+	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		reg = <0>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <RK_PD2 IRQ_TYPE_LEVEL_LOW>;
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+			interrupt-parent = <&gpio3>;
+			interrupts = <RK_PD2 IRQ_TYPE_LEVEL_LOW>;
+		};
 	};
 };
 

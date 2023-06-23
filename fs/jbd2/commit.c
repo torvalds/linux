@@ -122,8 +122,8 @@ static int journal_submit_commit_record(journal_t *journal,
 {
 	struct commit_header *tmp;
 	struct buffer_head *bh;
-	int ret;
 	struct timespec64 now;
+	blk_opf_t write_flags = REQ_OP_WRITE | REQ_SYNC;
 
 	*cbh = NULL;
 
@@ -155,13 +155,11 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_has_feature_async_commit(journal))
-		ret = submit_bh(REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH |
-				REQ_FUA, bh);
-	else
-		ret = submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
+		write_flags |= REQ_PREFLUSH | REQ_FUA;
 
+	submit_bh(write_flags, bh);
 	*cbh = bh;
-	return ret;
+	return 0;
 }
 
 /*
@@ -570,7 +568,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	journal->j_running_transaction = NULL;
 	start_time = ktime_get();
 	commit_transaction->t_log_start = journal->j_head;
-	wake_up(&journal->j_wait_transaction_locked);
+	wake_up_all(&journal->j_wait_transaction_locked);
 	write_unlock(&journal->j_state_lock);
 
 	jbd2_debug(3, "JBD2: commit phase 2a\n");

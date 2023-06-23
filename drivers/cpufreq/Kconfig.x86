@@ -35,7 +35,7 @@ config X86_PCC_CPUFREQ
 	  If in doubt, say N.
 
 config X86_AMD_PSTATE
-	tristate "AMD Processor P-State driver"
+	bool "AMD Processor P-State driver"
 	depends on X86 && ACPI
 	select ACPI_PROCESSOR
 	select ACPI_CPPC_LIB if X86_64
@@ -50,6 +50,21 @@ config X86_AMD_PSTATE
 	  <file:Documentation/admin-guide/pm/amd-pstate.rst>.
 
 	  If in doubt, say N.
+
+config X86_AMD_PSTATE_UT
+	tristate "selftest for AMD Processor P-State driver"
+	depends on X86 && ACPI_PROCESSOR
+	default n
+	help
+	  This kernel module is used for testing. It's safe to say M here.
+
+	  It can also be built-in without X86_AMD_PSTATE enabled.
+	  Currently, only tests for amd-pstate are supported. If X86_AMD_PSTATE
+	  is set disabled, it can tell the users test can only run on amd-pstate
+	  driver, please set X86_AMD_PSTATE enabled.
+	  In the future, comparison tests will be added. It can set amd-pstate
+	  disabled and set acpi-cpufreq enabled to run test cases, then compare
+	  the test results.
 
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"

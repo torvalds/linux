@@ -35,7 +35,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/rfcomm.h>
 
-#define RFCOMM_TTY_MAGIC 0x6d02		/* magic number for rfcomm struct */
 #define RFCOMM_TTY_PORTS RFCOMM_MAX_DEV	/* whole lotta rfcomm devices */
 #define RFCOMM_TTY_MAJOR 216		/* device node major id of the usb/bluetooth.c driver */
 #define RFCOMM_TTY_MINOR 0
@@ -855,7 +854,8 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 	return -ENOIOCTLCMD;
 }
 
-static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void rfcomm_tty_set_termios(struct tty_struct *tty,
+				   const struct ktermios *old)
 {
 	struct ktermios *new = &tty->termios;
 	int old_baud_rate = tty_termios_baud_rate(old);

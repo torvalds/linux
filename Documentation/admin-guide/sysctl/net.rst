@@ -31,17 +31,18 @@ see only some of them, depending on your kernel's configuration.
 
 Table : Subdirectories in /proc/sys/net
 
- ========= =================== = ========== ==================
+ ========= =================== = ========== ===================
  Directory Content               Directory  Content
- ========= =================== = ========== ==================
- core      General parameter     appletalk  Appletalk protocol
- unix      Unix domain sockets   netrom     NET/ROM
- 802       E802 protocol         ax25       AX25
- ethernet  Ethernet protocol     rose       X.25 PLP layer
+ ========= =================== = ========== ===================
+ 802       E802 protocol         mptcp      Multipath TCP
+ appletalk Appletalk protocol    netfilter  Network Filter
+ ax25      AX25                  netrom     NET/ROM
+ bridge    Bridging              rose       X.25 PLP layer
+ core      General parameter     tipc       TIPC
+ ethernet  Ethernet protocol     unix       Unix domain sockets
  ipv4      IP version 4          x25        X.25 protocol
- bridge    Bridging              decnet     DEC net
- ipv6      IP version 6          tipc       TIPC
- ========= =================== = ========== ==================
+ ipv6      IP version 6
+ ========= =================== = ========== ===================
 
 1. /proc/sys/net/core - Network core options
 ============================================
@@ -100,6 +101,9 @@ Values:
 	- 0 - disable JIT hardening (default value)
 	- 1 - enable JIT hardening for unprivileged users only
 	- 2 - enable JIT hardening for all users
+
+where "privileged user" in this context means a process having
+CAP_BPF or CAP_SYS_ADMIN in the root user name space.
 
 bpf_jit_kallsyms
 ----------------

@@ -29,6 +29,7 @@ properties:
           - qcom,rpmcc-mdm9607
           - qcom,rpmcc-msm8226
           - qcom,rpmcc-msm8660
+          - qcom,rpmcc-msm8909
           - qcom,rpmcc-msm8916
           - qcom,rpmcc-msm8936
           - qcom,rpmcc-msm8953
@@ -43,6 +44,7 @@ properties:
           - qcom,rpmcc-sdm660
           - qcom,rpmcc-sm6115
           - qcom,rpmcc-sm6125
+          - qcom,rpmcc-sm6375
       - const: qcom,rpmcc
 
   '#clock-cells':

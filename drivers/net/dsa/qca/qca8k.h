@@ -512,7 +512,8 @@ int qca8k_port_vlan_del(struct dsa_switch *ds, int port,
 
 /* Common port LAG function */
 int qca8k_port_lag_join(struct dsa_switch *ds, int port, struct dsa_lag lag,
-			struct netdev_lag_upper_info *info);
+			struct netdev_lag_upper_info *info,
+			struct netlink_ext_ack *extack);
 int qca8k_port_lag_leave(struct dsa_switch *ds, int port,
 			 struct dsa_lag lag);
 

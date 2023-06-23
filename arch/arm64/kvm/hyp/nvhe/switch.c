@@ -55,18 +55,6 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 	write_sysreg(val, cptr_el2);
 	write_sysreg(__this_cpu_read(kvm_hyp_vector), vbar_el2);
 
-	if (cpus_have_final_cap(ARM64_SME)) {
-		val = read_sysreg_s(SYS_HFGRTR_EL2);
-		val &= ~(HFGxTR_EL2_nTPIDR2_EL0_MASK |
-			 HFGxTR_EL2_nSMPRI_EL1_MASK);
-		write_sysreg_s(val, SYS_HFGRTR_EL2);
-
-		val = read_sysreg_s(SYS_HFGWTR_EL2);
-		val &= ~(HFGxTR_EL2_nTPIDR2_EL0_MASK |
-			 HFGxTR_EL2_nSMPRI_EL1_MASK);
-		write_sysreg_s(val, SYS_HFGWTR_EL2);
-	}
-
 	if (cpus_have_final_cap(ARM64_WORKAROUND_SPECULATIVE_AT)) {
 		struct kvm_cpu_context *ctxt = &vcpu->arch.ctxt;
 
@@ -110,20 +98,6 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(this_cpu_ptr(&kvm_init_params)->hcr_el2, hcr_el2);
 
-	if (cpus_have_final_cap(ARM64_SME)) {
-		u64 val;
-
-		val = read_sysreg_s(SYS_HFGRTR_EL2);
-		val |= HFGxTR_EL2_nTPIDR2_EL0_MASK |
-			HFGxTR_EL2_nSMPRI_EL1_MASK;
-		write_sysreg_s(val, SYS_HFGRTR_EL2);
-
-		val = read_sysreg_s(SYS_HFGWTR_EL2);
-		val |= HFGxTR_EL2_nTPIDR2_EL0_MASK |
-			HFGxTR_EL2_nSMPRI_EL1_MASK;
-		write_sysreg_s(val, SYS_HFGWTR_EL2);
-	}
-
 	cptr = CPTR_EL2_DEFAULT;
 	if (vcpu_has_sve(vcpu) && (vcpu->arch.fp_state == FP_STATE_GUEST_OWNED))
 		cptr |= CPTR_EL2_TZ;
@@ -143,7 +117,7 @@ static void __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 	}
 }
 
-/* Restore VGICv3 state on non_VEH systems */
+/* Restore VGICv3 state on non-VHE systems */
 static void __hyp_vgic_restore_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif)) {

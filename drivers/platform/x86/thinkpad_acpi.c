@@ -263,6 +263,8 @@ enum tpacpi_hkey_event_t {
 #define TPACPI_DBG_BRGHT	0x0020
 #define TPACPI_DBG_MIXER	0x0040
 
+#define FAN_NOT_PRESENT		65535
+
 #define strlencmp(a, b) (strncmp((a), (b), strlen(b)))
 
 
@@ -4495,6 +4497,14 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "21A0"),
 		}
 	},
+	{
+		.ident = "P14s Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21A1"),
+		}
+	},
 	{}
 };
 
@@ -7623,9 +7633,9 @@ static int __init volume_create_alsa_mixer(void)
 	data = card->private_data;
 	data->card = card;
 
-	strlcpy(card->driver, TPACPI_ALSA_DRVNAME,
+	strscpy(card->driver, TPACPI_ALSA_DRVNAME,
 		sizeof(card->driver));
-	strlcpy(card->shortname, TPACPI_ALSA_SHRTNAME,
+	strscpy(card->shortname, TPACPI_ALSA_SHRTNAME,
 		sizeof(card->shortname));
 	snprintf(card->mixername, sizeof(card->mixername), "ThinkPad EC %s",
 		 (thinkpad_id.ec_version_str) ?
@@ -8876,7 +8886,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			/* Try and probe the 2nd fan */
 			tp_features.second_fan = 1; /* needed for get_speed to work */
 			res = fan2_get_speed(&speed);
-			if (res >= 0) {
+			if (res >= 0 && speed != FAN_NOT_PRESENT) {
 				/* It responded - so let's assume it's there */
 				tp_features.second_fan = 1;
 				tp_features.second_fan_ctl = 1;
@@ -11715,7 +11725,7 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.quirks = dmi_id->driver_data;
 
 	/* Device initialization */
-	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, -1,
+	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, PLATFORM_DEVID_NONE,
 							NULL, 0);
 	if (IS_ERR(tpacpi_pdev)) {
 		ret = PTR_ERR(tpacpi_pdev);
@@ -11726,7 +11736,7 @@ static int __init thinkpad_acpi_module_init(void)
 	}
 	tpacpi_sensors_pdev = platform_device_register_simple(
 						TPACPI_HWMON_DRVR_NAME,
-						-1, NULL, 0);
+						PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(tpacpi_sensors_pdev)) {
 		ret = PTR_ERR(tpacpi_sensors_pdev);
 		tpacpi_sensors_pdev = NULL;

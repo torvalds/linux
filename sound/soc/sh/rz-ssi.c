@@ -598,7 +598,7 @@ static int rz_ssi_dma_transfer(struct rz_ssi_priv *ssi,
 		return -EINVAL;
 
 	runtime = substream->runtime;
-	if (runtime->status->state == SNDRV_PCM_STATE_DRAINING)
+	if (runtime->state == SNDRV_PCM_STATE_DRAINING)
 		/*
 		 * Stream is ending, so do not queue up any more DMA
 		 * transfers otherwise we play partial sound clips

@@ -132,7 +132,7 @@ EXPORT_SYMBOL(sync_file_get_fence);
 char *sync_file_get_name(struct sync_file *sync_file, char *buf, int len)
 {
 	if (sync_file->user_name[0]) {
-		strlcpy(buf, sync_file->user_name, len);
+		strscpy(buf, sync_file->user_name, len);
 	} else {
 		struct dma_fence *fence = sync_file->fence;
 
@@ -172,7 +172,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 		return NULL;
 	}
 	sync_file->fence = fence;
-	strlcpy(sync_file->user_name, name, sizeof(sync_file->user_name));
+	strscpy(sync_file->user_name, name, sizeof(sync_file->user_name));
 	return sync_file;
 }
 
@@ -262,9 +262,9 @@ err_put_fd:
 static int sync_fill_fence_info(struct dma_fence *fence,
 				 struct sync_fence_info *info)
 {
-	strlcpy(info->obj_name, fence->ops->get_timeline_name(fence),
+	strscpy(info->obj_name, fence->ops->get_timeline_name(fence),
 		sizeof(info->obj_name));
-	strlcpy(info->driver_name, fence->ops->get_driver_name(fence),
+	strscpy(info->driver_name, fence->ops->get_driver_name(fence),
 		sizeof(info->driver_name));
 
 	info->status = dma_fence_get_status(fence);

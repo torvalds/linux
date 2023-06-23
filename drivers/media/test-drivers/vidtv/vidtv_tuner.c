@@ -414,13 +414,11 @@ static int vidtv_tuner_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int vidtv_tuner_i2c_remove(struct i2c_client *client)
+static void vidtv_tuner_i2c_remove(struct i2c_client *client)
 {
 	struct vidtv_tuner_dev *tuner_dev = i2c_get_clientdata(client);
 
 	kfree(tuner_dev);
-
-	return 0;
 }
 
 static struct i2c_driver vidtv_tuner_i2c_driver = {

@@ -74,6 +74,80 @@ const char *phy_duplex_to_str(unsigned int duplex)
 }
 EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 
+/**
+ * phy_rate_matching_to_str - Return a string describing the rate matching
+ *
+ * @rate_matching: Type of rate matching to describe
+ */
+const char *phy_rate_matching_to_str(int rate_matching)
+{
+	switch (rate_matching) {
+	case RATE_MATCH_NONE:
+		return "none";
+	case RATE_MATCH_PAUSE:
+		return "pause";
+	case RATE_MATCH_CRS:
+		return "crs";
+	case RATE_MATCH_OPEN_LOOP:
+		return "open-loop";
+	}
+	return "Unsupported (update phy-core.c)";
+}
+EXPORT_SYMBOL_GPL(phy_rate_matching_to_str);
+
+/**
+ * phy_interface_num_ports - Return the number of links that can be carried by
+ *			     a given MAC-PHY physical link. Returns 0 if this is
+ *			     unknown, the number of links else.
+ *
+ * @interface: The interface mode we want to get the number of ports
+ */
+int phy_interface_num_ports(phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_NA:
+		return 0;
+	case PHY_INTERFACE_MODE_INTERNAL:
+	case PHY_INTERFACE_MODE_MII:
+	case PHY_INTERFACE_MODE_GMII:
+	case PHY_INTERFACE_MODE_TBI:
+	case PHY_INTERFACE_MODE_REVMII:
+	case PHY_INTERFACE_MODE_RMII:
+	case PHY_INTERFACE_MODE_REVRMII:
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RTBI:
+	case PHY_INTERFACE_MODE_XGMII:
+	case PHY_INTERFACE_MODE_XLGMII:
+	case PHY_INTERFACE_MODE_MOCA:
+	case PHY_INTERFACE_MODE_TRGMII:
+	case PHY_INTERFACE_MODE_USXGMII:
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_SMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+	case PHY_INTERFACE_MODE_5GBASER:
+	case PHY_INTERFACE_MODE_10GBASER:
+	case PHY_INTERFACE_MODE_25GBASER:
+	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_100BASEX:
+	case PHY_INTERFACE_MODE_RXAUI:
+	case PHY_INTERFACE_MODE_XAUI:
+	case PHY_INTERFACE_MODE_1000BASEKX:
+		return 1;
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_QUSGMII:
+		return 4;
+	case PHY_INTERFACE_MODE_MAX:
+		WARN_ONCE(1, "PHY_INTERFACE_MODE_MAX isn't a valid interface mode");
+		return 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(phy_interface_num_ports);
+
 /* A mapping of all SUPPORTED settings to speed/duplex.  This table
  * must be grouped by speed and sorted in descending match priority
  * - iow, descending speed.

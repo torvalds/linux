@@ -4296,8 +4296,14 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 	/* Restore CINT timer delay to HW reset values */
 	rvu_write64(rvu, blkaddr, NIX_AF_CINT_DELAY, 0x0ULL);
 
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SEB_CFG);
+
 	/* For better performance use NDC TX instead of NDC RX for SQ's SQEs" */
-	rvu_write64(rvu, blkaddr, NIX_AF_SEB_CFG, 0x1ULL);
+	cfg |= 1ULL;
+	if (!is_rvu_otx2(rvu))
+		cfg |= NIX_PTP_1STEP_EN;
+
+	rvu_write64(rvu, blkaddr, NIX_AF_SEB_CFG, cfg);
 
 	if (is_block_implemented(hw, blkaddr)) {
 		err = nix_setup_txschq(rvu, nix_hw, blkaddr);
@@ -4979,6 +4985,8 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 		ipolicer->ref_count = devm_kcalloc(rvu->dev,
 						   ipolicer->band_prof.max,
 						   sizeof(u16), GFP_KERNEL);
+		if (!ipolicer->ref_count)
+			return -ENOMEM;
 	}
 
 	/* Set policer timeunit to 2us ie  (19 + 1) * 100 nsec = 2us */

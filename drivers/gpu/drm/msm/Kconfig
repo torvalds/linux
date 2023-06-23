@@ -155,7 +155,7 @@ config DRM_MSM_HDMI
 	  Compile in support for the HDMI output MSM DRM driver. It can
 	  be a primary or a secondary display on device. Note that this is used
 	  only for the direct HDMI output. If the device outputs HDMI data
-	  throught some kind of DSI-to-HDMI bridge, this option can be disabled.
+	  through some kind of DSI-to-HDMI bridge, this option can be disabled.
 
 config DRM_MSM_HDMI_HDCP
 	bool "Enable HDMI HDCP support in MSM DRM driver"

@@ -1747,7 +1747,6 @@ bool dc_remove_plane_from_context(
 
 	for (i = 0; i < stream_status->plane_count; i++) {
 		if (stream_status->plane_states[i] == plane_state) {
-
 			dc_plane_state_release(stream_status->plane_states[i]);
 			break;
 		}
@@ -1902,9 +1901,6 @@ bool dc_is_stream_unchanged(
 
 	/*compare audio info*/
 	if (memcmp(&old_stream->audio_info, &stream->audio_info, sizeof(stream->audio_info)) != 0)
-		return false;
-
-	if (old_stream->odm_2to1_policy_applied != stream->odm_2to1_policy_applied)
 		return false;
 
 	return true;
@@ -3664,4 +3660,78 @@ const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		return get_dio_link_hwss();
 	else
 		return get_virtual_link_hwss();
+}
+
+bool is_h_timing_divisible_by_2(struct dc_stream_state *stream)
+{
+	bool divisible = false;
+	uint16_t h_blank_start = 0;
+	uint16_t h_blank_end = 0;
+
+	if (stream) {
+		h_blank_start = stream->timing.h_total - stream->timing.h_front_porch;
+		h_blank_end = h_blank_start - stream->timing.h_addressable;
+
+		/* HTOTAL, Hblank start/end, and Hsync start/end all must be
+		 * divisible by 2 in order for the horizontal timing params
+		 * to be considered divisible by 2. Hsync start is always 0.
+		 */
+		divisible = (stream->timing.h_total % 2 == 0) &&
+				(h_blank_start % 2 == 0) &&
+				(h_blank_end % 2 == 0) &&
+				(stream->timing.h_sync_width % 2 == 0);
+	}
+	return divisible;
+}
+
+bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
+		const struct dc *dc,
+		struct dc_state *state,
+		struct pipe_ctx *pri_pipe,
+		struct pipe_ctx *sec_pipe,
+		bool odm)
+{
+	int pipe_idx = sec_pipe->pipe_idx;
+	struct pipe_ctx *sec_top, *sec_bottom, *sec_next, *sec_prev;
+	const struct resource_pool *pool = dc->res_pool;
+
+	sec_top = sec_pipe->top_pipe;
+	sec_bottom = sec_pipe->bottom_pipe;
+	sec_next = sec_pipe->next_odm_pipe;
+	sec_prev = sec_pipe->prev_odm_pipe;
+
+	*sec_pipe = *pri_pipe;
+
+	sec_pipe->top_pipe = sec_top;
+	sec_pipe->bottom_pipe = sec_bottom;
+	sec_pipe->next_odm_pipe = sec_next;
+	sec_pipe->prev_odm_pipe = sec_prev;
+
+	sec_pipe->pipe_idx = pipe_idx;
+	sec_pipe->plane_res.mi = pool->mis[pipe_idx];
+	sec_pipe->plane_res.hubp = pool->hubps[pipe_idx];
+	sec_pipe->plane_res.ipp = pool->ipps[pipe_idx];
+	sec_pipe->plane_res.xfm = pool->transforms[pipe_idx];
+	sec_pipe->plane_res.dpp = pool->dpps[pipe_idx];
+	sec_pipe->plane_res.mpcc_inst = pool->dpps[pipe_idx]->inst;
+	sec_pipe->stream_res.dsc = NULL;
+	if (odm) {
+		if (!sec_pipe->top_pipe)
+			sec_pipe->stream_res.opp = pool->opps[pipe_idx];
+		else
+			sec_pipe->stream_res.opp = sec_pipe->top_pipe->stream_res.opp;
+		if (sec_pipe->stream->timing.flags.DSC == 1) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			dcn20_acquire_dsc(dc, &state->res_ctx, &sec_pipe->stream_res.dsc, pipe_idx);
+#endif
+			ASSERT(sec_pipe->stream_res.dsc);
+			if (sec_pipe->stream_res.dsc == NULL)
+				return false;
+		}
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		dcn20_build_mapped_resource(dc, state, sec_pipe->stream);
+#endif
+	}
+
+	return true;
 }

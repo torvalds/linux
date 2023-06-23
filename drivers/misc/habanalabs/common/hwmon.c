@@ -194,7 +194,8 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev, struct cpucp_sensor *sen
 		curr_arr[sensors_by_type_next_index[type]++] = flags;
 	}
 
-	channels_info = kcalloc(num_active_sensor_types + 1, sizeof(*channels_info), GFP_KERNEL);
+	channels_info = kcalloc(num_active_sensor_types + 1, sizeof(struct hwmon_channel_info *),
+				GFP_KERNEL);
 	if (!channels_info) {
 		rc = -ENOMEM;
 		goto channels_info_array_err;
@@ -909,4 +910,25 @@ void hl_hwmon_fini(struct hl_device *hdev)
 		return;
 
 	hwmon_device_unregister(hdev->hwmon_dev);
+}
+
+void hl_hwmon_release_resources(struct hl_device *hdev)
+{
+	const struct hwmon_channel_info **channel_info_arr;
+	int i = 0;
+
+	if (!hdev->hl_chip_info->info)
+		return;
+
+	channel_info_arr = hdev->hl_chip_info->info;
+
+	while (channel_info_arr[i]) {
+		kfree(channel_info_arr[i]->config);
+		kfree(channel_info_arr[i]);
+		i++;
+	}
+
+	kfree(channel_info_arr);
+
+	hdev->hl_chip_info->info = NULL;
 }

@@ -233,27 +233,61 @@ void sdhci_reset(struct sdhci_host *host, u8 mask)
 }
 EXPORT_SYMBOL_GPL(sdhci_reset);
 
-static void sdhci_do_reset(struct sdhci_host *host, u8 mask)
+static bool sdhci_do_reset(struct sdhci_host *host, u8 mask)
 {
 	if (host->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
 		struct mmc_host *mmc = host->mmc;
 
 		if (!mmc->ops->get_cd(mmc))
-			return;
+			return false;
 	}
 
 	host->ops->reset(host, mask);
 
-	if (mask & SDHCI_RESET_ALL) {
+	return true;
+}
+
+static void sdhci_reset_for_all(struct sdhci_host *host)
+{
+	if (sdhci_do_reset(host, SDHCI_RESET_ALL)) {
 		if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 			if (host->ops->enable_dma)
 				host->ops->enable_dma(host);
 		}
-
 		/* Resetting the controller clears many */
 		host->preset_enabled = false;
 	}
 }
+
+enum sdhci_reset_reason {
+	SDHCI_RESET_FOR_INIT,
+	SDHCI_RESET_FOR_REQUEST_ERROR,
+	SDHCI_RESET_FOR_REQUEST_ERROR_DATA_ONLY,
+	SDHCI_RESET_FOR_TUNING_ABORT,
+	SDHCI_RESET_FOR_CARD_REMOVED,
+	SDHCI_RESET_FOR_CQE_RECOVERY,
+};
+
+static void sdhci_reset_for_reason(struct sdhci_host *host, enum sdhci_reset_reason reason)
+{
+	switch (reason) {
+	case SDHCI_RESET_FOR_INIT:
+		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+		break;
+	case SDHCI_RESET_FOR_REQUEST_ERROR:
+	case SDHCI_RESET_FOR_TUNING_ABORT:
+	case SDHCI_RESET_FOR_CARD_REMOVED:
+	case SDHCI_RESET_FOR_CQE_RECOVERY:
+		sdhci_do_reset(host, SDHCI_RESET_CMD);
+		sdhci_do_reset(host, SDHCI_RESET_DATA);
+		break;
+	case SDHCI_RESET_FOR_REQUEST_ERROR_DATA_ONLY:
+		sdhci_do_reset(host, SDHCI_RESET_DATA);
+		break;
+	}
+}
+
+#define sdhci_reset_for(h, r) sdhci_reset_for_reason((h), SDHCI_RESET_FOR_##r)
 
 static void sdhci_set_default_irqs(struct sdhci_host *host)
 {
@@ -323,9 +357,9 @@ static void sdhci_init(struct sdhci_host *host, int soft)
 	unsigned long flags;
 
 	if (soft)
-		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+		sdhci_reset_for(host, INIT);
 	else
-		sdhci_do_reset(host, SDHCI_RESET_ALL);
+		sdhci_reset_for_all(host);
 
 	if (host->v4_mode)
 		sdhci_do_enable_v4_mode(host);
@@ -339,6 +373,7 @@ static void sdhci_init(struct sdhci_host *host, int soft)
 	if (soft) {
 		/* force clock reconfiguration */
 		host->clock = 0;
+		host->reinit_uhs = true;
 		mmc->ops->set_ios(mmc, &mmc->ios);
 	}
 }
@@ -1538,8 +1573,9 @@ static void __sdhci_finish_data(struct sdhci_host *host, bool sw_data_timeout)
 	 */
 	if (data->error) {
 		if (!host->cmd || host->cmd == data_cmd)
-			sdhci_do_reset(host, SDHCI_RESET_CMD);
-		sdhci_do_reset(host, SDHCI_RESET_DATA);
+			sdhci_reset_for(host, REQUEST_ERROR);
+		else
+			sdhci_reset_for(host, REQUEST_ERROR_DATA_ONLY);
 	}
 
 	if ((host->flags & (SDHCI_REQ_USE_DMA | SDHCI_USE_ADMA)) ==
@@ -2258,10 +2294,45 @@ void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing)
 }
 EXPORT_SYMBOL_GPL(sdhci_set_uhs_signaling);
 
+static bool sdhci_timing_has_preset(unsigned char timing)
+{
+	switch (timing) {
+	case MMC_TIMING_UHS_SDR12:
+	case MMC_TIMING_UHS_SDR25:
+	case MMC_TIMING_UHS_SDR50:
+	case MMC_TIMING_UHS_SDR104:
+	case MMC_TIMING_UHS_DDR50:
+	case MMC_TIMING_MMC_DDR52:
+		return true;
+	};
+	return false;
+}
+
+static bool sdhci_preset_needed(struct sdhci_host *host, unsigned char timing)
+{
+	return !(host->quirks2 & SDHCI_QUIRK2_PRESET_VALUE_BROKEN) &&
+	       sdhci_timing_has_preset(timing);
+}
+
+static bool sdhci_presetable_values_change(struct sdhci_host *host, struct mmc_ios *ios)
+{
+	/*
+	 * Preset Values are: Driver Strength, Clock Generator and SDCLK/RCLK
+	 * Frequency. Check if preset values need to be enabled, or the Driver
+	 * Strength needs updating. Note, clock changes are handled separately.
+	 */
+	return !host->preset_enabled &&
+	       (sdhci_preset_needed(host, ios->timing) || host->drv_type != ios->drv_type);
+}
+
 void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
+	bool reinit_uhs = host->reinit_uhs;
+	bool turning_on_clk = false;
 	u8 ctrl;
+
+	host->reinit_uhs = false;
 
 	if (ios->power_mode == MMC_POWER_UNDEFINED)
 		return;
@@ -2288,6 +2359,8 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		sdhci_enable_preset_value(host, false);
 
 	if (!ios->clock || ios->clock != host->clock) {
+		turning_on_clk = ios->clock && !host->clock;
+
 		host->ops->set_clock(host, ios->clock);
 		host->clock = ios->clock;
 
@@ -2313,6 +2386,17 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->ops->platform_send_init_74_clocks(host, ios->power_mode);
 
 	host->ops->set_bus_width(host, ios->bus_width);
+
+	/*
+	 * Special case to avoid multiple clock changes during voltage
+	 * switching.
+	 */
+	if (!reinit_uhs &&
+	    turning_on_clk &&
+	    host->timing == ios->timing &&
+	    host->version >= SDHCI_SPEC_300 &&
+	    !sdhci_presetable_values_change(host, ios))
+		return;
 
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 
@@ -2357,6 +2441,7 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			}
 
 			sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+			host->drv_type = ios->drv_type;
 		} else {
 			/*
 			 * According to SDHC Spec v3.00, if the Preset Value
@@ -2384,33 +2469,20 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->ops->set_uhs_signaling(host, ios->timing);
 		host->timing = ios->timing;
 
-		if (!(host->quirks2 & SDHCI_QUIRK2_PRESET_VALUE_BROKEN) &&
-				((ios->timing == MMC_TIMING_UHS_SDR12) ||
-				 (ios->timing == MMC_TIMING_UHS_SDR25) ||
-				 (ios->timing == MMC_TIMING_UHS_SDR50) ||
-				 (ios->timing == MMC_TIMING_UHS_SDR104) ||
-				 (ios->timing == MMC_TIMING_UHS_DDR50) ||
-				 (ios->timing == MMC_TIMING_MMC_DDR52))) {
+		if (sdhci_preset_needed(host, ios->timing)) {
 			u16 preset;
 
 			sdhci_enable_preset_value(host, true);
 			preset = sdhci_get_preset_value(host);
 			ios->drv_type = FIELD_GET(SDHCI_PRESET_DRV_MASK,
 						  preset);
+			host->drv_type = ios->drv_type;
 		}
 
 		/* Re-enable SD Clock */
 		host->ops->set_clock(host, host->clock);
 	} else
 		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-
-	/*
-	 * Some (ENE) controllers go apeshit on some ios operation,
-	 * signalling timeout and CRC errors even on CMD0. Resetting
-	 * it on each ios seems to solve the problem.
-	 */
-	if (host->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
-		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 }
 EXPORT_SYMBOL_GPL(sdhci_set_ios);
 
@@ -2718,8 +2790,7 @@ void sdhci_abort_tuning(struct sdhci_host *host, u32 opcode)
 {
 	sdhci_reset_tuning(host);
 
-	sdhci_do_reset(host, SDHCI_RESET_CMD);
-	sdhci_do_reset(host, SDHCI_RESET_DATA);
+	sdhci_reset_for(host, TUNING_ABORT);
 
 	sdhci_end_tuning(host);
 
@@ -2987,8 +3058,7 @@ static void sdhci_card_event(struct mmc_host *mmc)
 		pr_err("%s: Resetting controller.\n",
 			mmc_hostname(mmc));
 
-		sdhci_do_reset(host, SDHCI_RESET_CMD);
-		sdhci_do_reset(host, SDHCI_RESET_DATA);
+		sdhci_reset_for(host, CARD_REMOVED);
 
 		sdhci_error_out_mrqs(host, -ENOMEDIUM);
 	}
@@ -3059,12 +3129,7 @@ static bool sdhci_request_done(struct sdhci_host *host)
 			/* This is to force an update */
 			host->ops->set_clock(host, host->clock);
 
-		/*
-		 * Spec says we should do both at the same time, but Ricoh
-		 * controllers do not like that.
-		 */
-		sdhci_do_reset(host, SDHCI_RESET_CMD);
-		sdhci_do_reset(host, SDHCI_RESET_DATA);
+		sdhci_reset_for(host, REQUEST_ERROR);
 
 		host->pending_reset = false;
 	}
@@ -3748,6 +3813,7 @@ int sdhci_resume_host(struct sdhci_host *host)
 		sdhci_init(host, 0);
 		host->pwr = 0;
 		host->clock = 0;
+		host->reinit_uhs = true;
 		mmc->ops->set_ios(mmc, &mmc->ios);
 	} else {
 		sdhci_init(host, (mmc->pm_flags & MMC_PM_KEEP_POWER));
@@ -3810,6 +3876,7 @@ int sdhci_runtime_resume_host(struct sdhci_host *host, int soft_reset)
 		/* Force clock and power re-program */
 		host->pwr = 0;
 		host->clock = 0;
+		host->reinit_uhs = true;
 		mmc->ops->start_signal_voltage_switch(mmc, &mmc->ios);
 		mmc->ops->set_ios(mmc, &mmc->ios);
 
@@ -3905,10 +3972,8 @@ void sdhci_cqe_disable(struct mmc_host *mmc, bool recovery)
 
 	host->cqe_on = false;
 
-	if (recovery) {
-		sdhci_do_reset(host, SDHCI_RESET_CMD);
-		sdhci_do_reset(host, SDHCI_RESET_DATA);
-	}
+	if (recovery)
+		sdhci_reset_for(host, CQE_RECOVERY);
 
 	pr_debug("%s: sdhci: CQE off, IRQ mask %#x, IRQ status %#x\n",
 		 mmc_hostname(mmc), host->ier,
@@ -4066,7 +4131,7 @@ void __sdhci_read_caps(struct sdhci_host *host, const u16 *ver,
 	if (debug_quirks2)
 		host->quirks2 = debug_quirks2;
 
-	sdhci_do_reset(host, SDHCI_RESET_ALL);
+	sdhci_reset_for_all(host);
 
 	if (host->v4_mode)
 		sdhci_do_enable_v4_mode(host);
@@ -4807,7 +4872,7 @@ int __sdhci_add_host(struct sdhci_host *host)
 unled:
 	sdhci_led_unregister(host);
 unirq:
-	sdhci_do_reset(host, SDHCI_RESET_ALL);
+	sdhci_reset_for_all(host);
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
@@ -4865,7 +4930,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	sdhci_led_unregister(host);
 
 	if (!dead)
-		sdhci_do_reset(host, SDHCI_RESET_ALL);
+		sdhci_reset_for_all(host);
 
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);

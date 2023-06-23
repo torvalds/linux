@@ -160,13 +160,12 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int pi3usb30532_remove(struct i2c_client *client)
+static void pi3usb30532_remove(struct i2c_client *client)
 {
 	struct pi3usb30532 *pi = i2c_get_clientdata(client);
 
 	typec_mux_unregister(pi->mux);
 	typec_switch_unregister(pi->sw);
-	return 0;
 }
 
 static const struct i2c_device_id pi3usb30532_table[] = {

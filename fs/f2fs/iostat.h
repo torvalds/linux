@@ -31,7 +31,7 @@ struct iostat_lat_info {
 extern int __maybe_unused iostat_info_seq_show(struct seq_file *seq,
 			void *offset);
 extern void f2fs_reset_iostat(struct f2fs_sb_info *sbi);
-extern void f2fs_update_iostat(struct f2fs_sb_info *sbi,
+extern void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
 			enum iostat_type type, unsigned long long io_bytes);
 
 struct bio_iostat_ctx {
@@ -65,7 +65,7 @@ extern void f2fs_destroy_iostat_processing(void);
 extern int f2fs_init_iostat(struct f2fs_sb_info *sbi);
 extern void f2fs_destroy_iostat(struct f2fs_sb_info *sbi);
 #else
-static inline void f2fs_update_iostat(struct f2fs_sb_info *sbi,
+static inline void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
 		enum iostat_type type, unsigned long long io_bytes) {}
 static inline void iostat_update_and_unbind_ctx(struct bio *bio, int rw) {}
 static inline void iostat_alloc_and_bind_ctx(struct f2fs_sb_info *sbi,

@@ -17,10 +17,10 @@ Example:
 		auo_pixcir_ts@5c {
 			compatible = "auo,auo_pixcir_ts";
 			reg = <0x5c>;
-			interrupts = <2 0>;
+			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 
-			gpios = <&gpf 2 0 2>, /* INT */
-				<&gpf 5 1 0>; /* RST */
+			gpios = <&gpf 2 0 GPIO_LEVEL_HIGH>, /* INT */
+				<&gpf 5 1 GPIO_LEVEL_LOW>; /* RST */
 
 			x-size = <800>;
 			y-size = <600>;

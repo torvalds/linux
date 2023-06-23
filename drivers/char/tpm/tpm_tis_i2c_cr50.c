@@ -763,20 +763,18 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
  * - 0:		Success.
  * - -errno:	A POSIX error code.
  */
-static int tpm_cr50_i2c_remove(struct i2c_client *client)
+static void tpm_cr50_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
 
 	if (!chip) {
 		dev_crit(dev, "Could not get client data at remove, memory corruption ahead\n");
-		return 0;
+		return;
 	}
 
 	tpm_chip_unregister(chip);
 	tpm_cr50_release_locality(chip, true);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(cr50_i2c_pm, tpm_pm_suspend, tpm_pm_resume);

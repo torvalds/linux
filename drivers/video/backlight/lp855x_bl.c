@@ -534,7 +534,7 @@ disable_supply:
 	return ret;
 }
 
-static int lp855x_remove(struct i2c_client *cl)
+static void lp855x_remove(struct i2c_client *cl)
 {
 	struct lp855x *lp = i2c_get_clientdata(cl);
 
@@ -545,8 +545,6 @@ static int lp855x_remove(struct i2c_client *cl)
 	if (lp->supply)
 		regulator_disable(lp->supply);
 	sysfs_remove_group(&lp->dev->kobj, &lp855x_attr_group);
-
-	return 0;
 }
 
 static const struct of_device_id lp855x_dt_ids[] = {

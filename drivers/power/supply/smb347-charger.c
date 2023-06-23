@@ -1595,14 +1595,12 @@ static int smb347_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int smb347_remove(struct i2c_client *client)
+static void smb347_remove(struct i2c_client *client)
 {
 	struct smb347_charger *smb = i2c_get_clientdata(client);
 
 	smb347_usb_vbus_regulator_disable(smb->usb_rdev);
 	smb347_irq_disable(smb);
-
-	return 0;
 }
 
 static void smb347_shutdown(struct i2c_client *client)

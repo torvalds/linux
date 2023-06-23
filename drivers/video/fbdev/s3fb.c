@@ -11,6 +11,7 @@
  * which is based on the code of neofb.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1130,6 +1131,10 @@ static int s3_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		dev_info(&(dev->dev), "ignoring secondary device\n");
 		return -ENODEV;
 	}
+
+	rc = aperture_remove_conflicting_pci_devices(dev, "s3fb");
+	if (rc)
+		return rc;
 
 	/* Allocate and fill driver data structure */
 	info = framebuffer_alloc(sizeof(struct s3fb_info), &(dev->dev));

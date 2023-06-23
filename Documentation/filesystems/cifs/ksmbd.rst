@@ -118,26 +118,44 @@ ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
 How to run
 ==========
 
-1. Download ksmbd-tools and compile them.
-	- https://github.com/cifsd-team/ksmbd-tools
+1. Download ksmbd-tools(https://github.com/cifsd-team/ksmbd-tools/releases) and
+   compile them.
 
-2. Create user/password for SMB share.
+   - Refer README(https://github.com/cifsd-team/ksmbd-tools/blob/master/README.md)
+     to know how to use ksmbd.mountd/adduser/addshare/control utils
 
-	# mkdir /etc/ksmbd/
-	# ksmbd.adduser -a <Enter USERNAME for SMB share access>
+     $ ./autogen.sh
+     $ ./configure --with-rundir=/run
+     $ make && sudo make install
 
-3. Create /etc/ksmbd/smb.conf file, add SMB share in smb.conf file
-	- Refer smb.conf.example and
-          https://github.com/cifsd-team/ksmbd-tools/blob/master/Documentation/configuration.txt
+2. Create /usr/local/etc/ksmbd/ksmbd.conf file, add SMB share in ksmbd.conf file.
 
-4. Insert ksmbd.ko module
+   - Refer ksmbd.conf.example in ksmbd-utils, See ksmbd.conf manpage
+     for details to configure shares.
 
-	# insmod ksmbd.ko
+        $ man ksmbd.conf
+
+3. Create user/password for SMB share.
+
+   - See ksmbd.adduser manpage.
+
+     $ man ksmbd.adduser
+     $ sudo ksmbd.adduser -a <Enter USERNAME for SMB share access>
+
+4. Insert ksmbd.ko module after build your kernel. No need to load module
+   if ksmbd is built into the kernel.
+
+   - Set ksmbd in menuconfig(e.g. $ make menuconfig)
+       [*] Network File Systems  --->
+           <M> SMB3 server support (EXPERIMENTAL)
+
+	$ sudo modprobe ksmbd.ko
 
 5. Start ksmbd user space daemon
-	# ksmbd.mountd
 
-6. Access share from Windows or Linux using CIFS
+	$ sudo ksmbd.mountd
+
+6. Access share from Windows or Linux using SMB3 client (cifs.ko or smbclient of samba)
 
 Shutdown KSMBD
 ==============

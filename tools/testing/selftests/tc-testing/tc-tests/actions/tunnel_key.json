@@ -933,5 +933,55 @@
         "teardown": [
             "$TC actions flush action tunnel_key"
         ]
+    },
+    {
+        "id": "3671",
+        "name": "Delete tunnel_key set action with valid index",
+	"category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+	    "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 index 1"
+        ],
+        "cmdUnderTest": "$TC actions del action tunnel_key index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "8597",
+        "name": "Delete tunnel_key set action with invalid index",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 index 1"
+        ],
+        "cmdUnderTest": "$TC actions del action tunnel_key index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
     }
 ]

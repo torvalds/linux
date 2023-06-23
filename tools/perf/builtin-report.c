@@ -752,6 +752,22 @@ static int count_sample_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int count_lost_samples_event(struct perf_tool *tool,
+				    union perf_event *event,
+				    struct perf_sample *sample,
+				    struct machine *machine __maybe_unused)
+{
+	struct report *rep = container_of(tool, struct report, tool);
+	struct evsel *evsel;
+
+	evsel = evlist__id2evsel(rep->session->evlist, sample->id);
+	if (evsel) {
+		hists__inc_nr_lost_samples(evsel__hists(evsel),
+					   event->lost_samples.lost);
+	}
+	return 0;
+}
+
 static int process_attr(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct evlist **pevlist);
@@ -761,6 +777,7 @@ static void stats_setup(struct report *rep)
 	memset(&rep->tool, 0, sizeof(rep->tool));
 	rep->tool.attr = process_attr;
 	rep->tool.sample = count_sample_event;
+	rep->tool.lost_samples = count_lost_samples_event;
 	rep->tool.no_warn = true;
 }
 

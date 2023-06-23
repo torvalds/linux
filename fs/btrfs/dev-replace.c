@@ -545,10 +545,7 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 		if (!cache)
 			continue;
 
-		spin_lock(&cache->lock);
-		cache->to_copy = 1;
-		spin_unlock(&cache->lock);
-
+		set_bit(BLOCK_GROUP_FLAG_TO_COPY, &cache->runtime_flags);
 		btrfs_put_block_group(cache);
 	}
 	if (iter_ret < 0)
@@ -577,7 +574,7 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 		return true;
 
 	spin_lock(&cache->lock);
-	if (cache->removed) {
+	if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &cache->runtime_flags)) {
 		spin_unlock(&cache->lock);
 		return true;
 	}
@@ -610,9 +607,7 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 	}
 
 	/* Last stripe on this device */
-	spin_lock(&cache->lock);
-	cache->to_copy = 0;
-	spin_unlock(&cache->lock);
+	clear_bit(BLOCK_GROUP_FLAG_TO_COPY, &cache->runtime_flags);
 
 	return true;
 }
@@ -1286,11 +1281,6 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 		break;
 	}
 	return 1;
-}
-
-void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
-{
-	percpu_counter_inc(&fs_info->dev_replace.bio_counter);
 }
 
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)

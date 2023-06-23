@@ -12,7 +12,9 @@
 #include <linux/slab.h>
 
 #define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
-					HL_CS_FLAGS_COLLECTIVE_WAIT)
+			HL_CS_FLAGS_COLLECTIVE_WAIT | HL_CS_FLAGS_RESERVE_SIGNALS_ONLY | \
+			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY | HL_CS_FLAGS_ENGINE_CORE_COMMAND)
+
 
 #define MAX_TS_ITER_NUM 10
 
@@ -824,10 +826,10 @@ static void cs_timedout(struct work_struct *work)
 	}
 
 	/* Save only the first CS timeout parameters */
-	rc = atomic_cmpxchg(&hdev->last_error.cs_timeout.write_enable, 1, 0);
+	rc = atomic_cmpxchg(&hdev->captured_err_info.cs_timeout.write_enable, 1, 0);
 	if (rc) {
-		hdev->last_error.cs_timeout.timestamp = ktime_get();
-		hdev->last_error.cs_timeout.seq = cs->sequence;
+		hdev->captured_err_info.cs_timeout.timestamp = ktime_get();
+		hdev->captured_err_info.cs_timeout.seq = cs->sequence;
 
 		event_mask = device_reset ? (HL_NOTIFIER_EVENT_CS_TIMEOUT |
 				HL_NOTIFIER_EVENT_DEVICE_RESET) : HL_NOTIFIER_EVENT_CS_TIMEOUT;
@@ -1242,6 +1244,8 @@ static enum hl_cs_type hl_cs_get_cs_type(u32 cs_type_flags)
 		return CS_RESERVE_SIGNALS;
 	else if (cs_type_flags & HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY)
 		return CS_UNRESERVE_SIGNALS;
+	else if (cs_type_flags & HL_CS_FLAGS_ENGINE_CORE_COMMAND)
+		return CS_TYPE_ENGINE_CORE;
 	else
 		return CS_TYPE_DEFAULT;
 }
@@ -1253,6 +1257,7 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	u32 cs_type_flags, num_chunks;
 	enum hl_device_status status;
 	enum hl_cs_type cs_type;
+	bool is_sync_stream;
 
 	if (!hl_device_operational(hdev, &status)) {
 		return -EBUSY;
@@ -1276,9 +1281,10 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	cs_type = hl_cs_get_cs_type(cs_type_flags);
 	num_chunks = args->in.num_chunks_execute;
 
-	if (unlikely((cs_type == CS_TYPE_SIGNAL || cs_type == CS_TYPE_WAIT ||
-			cs_type == CS_TYPE_COLLECTIVE_WAIT) &&
-			!hdev->supports_sync_stream)) {
+	is_sync_stream = (cs_type == CS_TYPE_SIGNAL || cs_type == CS_TYPE_WAIT ||
+			cs_type == CS_TYPE_COLLECTIVE_WAIT);
+
+	if (unlikely(is_sync_stream && !hdev->supports_sync_stream)) {
 		dev_err(hdev->dev, "Sync stream CS is not supported\n");
 		return -EINVAL;
 	}
@@ -1288,7 +1294,7 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 			dev_err(hdev->dev, "Got execute CS with 0 chunks, context %d\n", ctx->asid);
 			return -EINVAL;
 		}
-	} else if (num_chunks != 1) {
+	} else if (is_sync_stream && num_chunks != 1) {
 		dev_err(hdev->dev,
 			"Sync stream CS mandates one chunk only, context %d\n",
 			ctx->asid);
@@ -1584,13 +1590,14 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
 	bool need_soft_reset = false;
-	int rc = 0, do_ctx_switch;
+	int rc = 0, do_ctx_switch = 0;
 	void __user *chunks;
 	u32 num_chunks, tmp;
 	u16 sob_count;
 	int ret;
 
-	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
+	if (hdev->supports_ctx_switch)
+		do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
 
 	if (do_ctx_switch || (args->in.cs_flags & HL_CS_FLAGS_FORCE_RESTORE)) {
 		mutex_lock(&hpriv->restore_phase_mutex);
@@ -1661,9 +1668,10 @@ wait_again:
 			}
 		}
 
-		ctx->thread_ctx_switch_wait_token = 1;
+		if (hdev->supports_ctx_switch)
+			ctx->thread_ctx_switch_wait_token = 1;
 
-	} else if (!ctx->thread_ctx_switch_wait_token) {
+	} else if (hdev->supports_ctx_switch && !ctx->thread_ctx_switch_wait_token) {
 		rc = hl_poll_timeout_memory(hdev,
 			&ctx->thread_ctx_switch_wait_token, tmp, (tmp == 1),
 			100, jiffies_to_usecs(hdev->timeout_jiffies), false);
@@ -2351,6 +2359,41 @@ out:
 	return rc;
 }
 
+static int cs_ioctl_engine_cores(struct hl_fpriv *hpriv, u64 engine_cores,
+						u32 num_engine_cores, u32 core_command)
+{
+	int rc;
+	struct hl_device *hdev = hpriv->hdev;
+	void __user *engine_cores_arr;
+	u32 *cores;
+
+	if (!num_engine_cores || num_engine_cores > hdev->asic_prop.num_engine_cores) {
+		dev_err(hdev->dev, "Number of engine cores %d is invalid\n", num_engine_cores);
+		return -EINVAL;
+	}
+
+	if (core_command != HL_ENGINE_CORE_RUN && core_command != HL_ENGINE_CORE_HALT) {
+		dev_err(hdev->dev, "Engine core command is invalid\n");
+		return -EINVAL;
+	}
+
+	engine_cores_arr = (void __user *) (uintptr_t) engine_cores;
+	cores = kmalloc_array(num_engine_cores, sizeof(u32), GFP_KERNEL);
+	if (!cores)
+		return -ENOMEM;
+
+	if (copy_from_user(cores, engine_cores_arr, num_engine_cores * sizeof(u32))) {
+		dev_err(hdev->dev, "Failed to copy core-ids array from user\n");
+		kfree(cores);
+		return -EFAULT;
+	}
+
+	rc = hdev->asic_funcs->set_engine_cores(hdev, cores, num_engine_cores, core_command);
+	kfree(cores);
+
+	return rc;
+}
+
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cs_args *args = data;
@@ -2402,6 +2445,10 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_UNRESERVE_SIGNALS:
 		rc = cs_ioctl_unreserve_signals(hpriv,
 					args->in.encaps_sig_handle_id);
+		break;
+	case CS_TYPE_ENGINE_CORE:
+		rc = cs_ioctl_engine_cores(hpriv, args->in.engine_cores,
+				args->in.num_engine_cores, args->in.core_command);
 		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
@@ -2524,7 +2571,7 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_com
 	ktime_t max_ktime, first_cs_time;
 	enum hl_cs_wait_status status;
 
-	memset(fence_ptr, 0, arr_len * sizeof(*fence_ptr));
+	memset(fence_ptr, 0, arr_len * sizeof(struct hl_fence *));
 
 	/* get all fences under the same lock */
 	rc = hl_ctx_get_fences(mcs_data->ctx, seq_arr, fence_ptr, arr_len);
@@ -2826,7 +2873,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	/* allocate array for the fences */
-	fence_arr = kmalloc_array(seq_arr_len, sizeof(*fence_arr), GFP_KERNEL);
+	fence_arr = kmalloc_array(seq_arr_len, sizeof(struct hl_fence *), GFP_KERNEL);
 	if (!fence_arr) {
 		rc = -ENOMEM;
 		goto free_seq_arr;

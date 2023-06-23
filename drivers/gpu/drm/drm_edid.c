@@ -5165,6 +5165,51 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 	mode->clock = clock;
 }
 
+static void drm_calculate_luminance_range(struct drm_connector *connector)
+{
+	struct hdr_static_metadata *hdr_metadata = &connector->hdr_sink_metadata.hdmi_type1;
+	struct drm_luminance_range_info *luminance_range =
+		&connector->display_info.luminance_range;
+	static const u8 pre_computed_values[] = {
+		50, 51, 52, 53, 55, 56, 57, 58, 59, 61, 62, 63, 65, 66, 68, 69,
+		71, 72, 74, 75, 77, 79, 81, 82, 84, 86, 88, 90, 92, 94, 96, 98
+	};
+	u32 max_avg, min_cll, max, min, q, r;
+
+	if (!(hdr_metadata->metadata_type & BIT(HDMI_STATIC_METADATA_TYPE1)))
+		return;
+
+	max_avg = hdr_metadata->max_fall;
+	min_cll = hdr_metadata->min_cll;
+
+	/*
+	 * From the specification (CTA-861-G), for calculating the maximum
+	 * luminance we need to use:
+	 *	Luminance = 50*2**(CV/32)
+	 * Where CV is a one-byte value.
+	 * For calculating this expression we may need float point precision;
+	 * to avoid this complexity level, we take advantage that CV is divided
+	 * by a constant. From the Euclids division algorithm, we know that CV
+	 * can be written as: CV = 32*q + r. Next, we replace CV in the
+	 * Luminance expression and get 50*(2**q)*(2**(r/32)), hence we just
+	 * need to pre-compute the value of r/32. For pre-computing the values
+	 * We just used the following Ruby line:
+	 *	(0...32).each {|cv| puts (50*2**(cv/32.0)).round}
+	 * The results of the above expressions can be verified at
+	 * pre_computed_values.
+	 */
+	q = max_avg >> 5;
+	r = max_avg % 32;
+	max = (1 << q) * pre_computed_values[r];
+
+	/* min luminance: maxLum * (CV/255)^2 / 100 */
+	q = DIV_ROUND_CLOSEST(min_cll, 255);
+	min = max * DIV_ROUND_CLOSEST((q * q), 100);
+
+	luminance_range->min_luminance = min;
+	luminance_range->max_luminance = max;
+}
+
 static uint8_t eotf_supported(const u8 *edid_ext)
 {
 	return edid_ext[2] &
@@ -5196,8 +5241,12 @@ drm_parse_hdr_metadata_block(struct drm_connector *connector, const u8 *db)
 		connector->hdr_sink_metadata.hdmi_type1.max_cll = db[4];
 	if (len >= 5)
 		connector->hdr_sink_metadata.hdmi_type1.max_fall = db[5];
-	if (len >= 6)
+	if (len >= 6) {
 		connector->hdr_sink_metadata.hdmi_type1.min_cll = db[6];
+
+		/* Calculate only when all values are available */
+		drm_calculate_luminance_range(connector);
+	}
 }
 
 static void
@@ -6113,6 +6162,7 @@ static void drm_reset_display_info(struct drm_connector *connector)
 
 	info->non_desktop = 0;
 	memset(&info->monitor_range, 0, sizeof(info->monitor_range));
+	memset(&info->luminance_range, 0, sizeof(info->luminance_range));
 
 	info->mso_stream_count = 0;
 	info->mso_pixel_overlap = 0;

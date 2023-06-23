@@ -61,7 +61,7 @@ int __vfs_setxattr_locked(struct user_namespace *, struct dentry *,
 			  const char *, const void *, size_t, int,
 			  struct inode **);
 int vfs_setxattr(struct user_namespace *, struct dentry *, const char *,
-		 void *, size_t, int);
+		 const void *, size_t, int);
 int __vfs_removexattr(struct user_namespace *, struct dentry *, const char *);
 int __vfs_removexattr_locked(struct user_namespace *, struct dentry *,
 			     const char *, struct inode **);

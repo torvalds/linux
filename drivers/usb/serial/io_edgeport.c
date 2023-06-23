@@ -281,7 +281,7 @@ static int  send_iosp_ext_cmd(struct edgeport_port *edge_port, __u8 command,
 static int  calc_baud_rate_divisor(struct device *dev, int baud_rate, int *divisor);
 static void change_port_settings(struct tty_struct *tty,
 				struct edgeport_port *edge_port,
-				struct ktermios *old_termios);
+				const struct ktermios *old_termios);
 static int  send_cmd_write_uart_register(struct edgeport_port *edge_port,
 				__u8 regNum, __u8 regValue);
 static int  write_cmd_usb(struct edgeport_port *edge_port,
@@ -1441,7 +1441,8 @@ static void edge_unthrottle(struct tty_struct *tty)
  * the termios structure
  *****************************************************************************/
 static void edge_set_termios(struct tty_struct *tty,
-	struct usb_serial_port *port, struct ktermios *old_termios)
+			     struct usb_serial_port *port,
+			     const struct ktermios *old_termios)
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 
@@ -2325,7 +2326,7 @@ static int send_cmd_write_uart_register(struct edgeport_port *edge_port,
  *****************************************************************************/
 
 static void change_port_settings(struct tty_struct *tty,
-	struct edgeport_port *edge_port, struct ktermios *old_termios)
+	struct edgeport_port *edge_port, const struct ktermios *old_termios)
 {
 	struct device *dev = &edge_port->port->dev;
 	struct edgeport_serial *edge_serial =

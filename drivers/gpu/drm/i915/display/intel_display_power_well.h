@@ -14,15 +14,15 @@ struct drm_i915_private;
 struct i915_power_well;
 
 #define for_each_power_well(__dev_priv, __power_well)				\
-	for ((__power_well) = (__dev_priv)->power_domains.power_wells;	\
-	     (__power_well) - (__dev_priv)->power_domains.power_wells <	\
-		(__dev_priv)->power_domains.power_well_count;		\
+	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells;	\
+	     (__power_well) - (__dev_priv)->display.power.domains.power_wells <	\
+		(__dev_priv)->display.power.domains.power_well_count;		\
 	     (__power_well)++)
 
 #define for_each_power_well_reverse(__dev_priv, __power_well)			\
-	for ((__power_well) = (__dev_priv)->power_domains.power_wells +		\
-			      (__dev_priv)->power_domains.power_well_count - 1;	\
-	     (__power_well) - (__dev_priv)->power_domains.power_wells >= 0;	\
+	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells +		\
+			      (__dev_priv)->display.power.domains.power_well_count - 1;	\
+	     (__power_well) - (__dev_priv)->display.power.domains.power_wells >= 0;	\
 	     (__power_well)--)
 
 /*
@@ -80,6 +80,9 @@ struct i915_power_well_instance {
 			 */
 			u8 idx;
 		} hsw;
+		struct {
+			u8 aux_ch;
+		} xelpdp;
 	};
 };
 
@@ -169,5 +172,6 @@ extern const struct i915_power_well_ops vlv_dpio_power_well_ops;
 extern const struct i915_power_well_ops icl_aux_power_well_ops;
 extern const struct i915_power_well_ops icl_ddi_power_well_ops;
 extern const struct i915_power_well_ops tgl_tc_cold_off_ops;
+extern const struct i915_power_well_ops xelpdp_aux_power_well_ops;
 
 #endif

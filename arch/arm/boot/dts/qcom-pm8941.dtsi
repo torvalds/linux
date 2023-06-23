@@ -93,7 +93,7 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		pm8941_vadc: vadc@3100 {
+		pm8941_vadc: adc@3100 {
 			compatible = "qcom,spmi-vadc";
 			reg = <0x3100>;
 			interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
@@ -144,7 +144,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm8941_lpg: lpg {
+		pm8941_lpg: pwm {
 			compatible = "qcom,pm8941-lpg";
 
 			#address-cells = <1>;

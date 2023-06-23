@@ -787,7 +787,7 @@ err_unregister_i2c:
 	return err;
 }
 
-static int anx6345_i2c_remove(struct i2c_client *client)
+static void anx6345_i2c_remove(struct i2c_client *client)
 {
 	struct anx6345 *anx6345 = i2c_get_clientdata(client);
 
@@ -798,8 +798,6 @@ static int anx6345_i2c_remove(struct i2c_client *client)
 	kfree(anx6345->edid);
 
 	mutex_destroy(&anx6345->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id anx6345_id[] = {

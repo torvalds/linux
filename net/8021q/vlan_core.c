@@ -467,12 +467,9 @@ static struct sk_buff *vlan_gro_receive(struct list_head *head,
 
 	off_vlan = skb_gro_offset(skb);
 	hlen = off_vlan + sizeof(*vhdr);
-	vhdr = skb_gro_header_fast(skb, off_vlan);
-	if (skb_gro_header_hard(skb, hlen)) {
-		vhdr = skb_gro_header_slow(skb, hlen, off_vlan);
-		if (unlikely(!vhdr))
-			goto out;
-	}
+	vhdr = skb_gro_header(skb, hlen, off_vlan);
+	if (unlikely(!vhdr))
+		goto out;
 
 	type = vhdr->h_vlan_encapsulated_proto;
 

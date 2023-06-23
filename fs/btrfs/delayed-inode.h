@@ -16,9 +16,10 @@
 #include <linux/refcount.h>
 #include "ctree.h"
 
-/* types of the delayed item */
-#define BTRFS_DELAYED_INSERTION_ITEM	1
-#define BTRFS_DELAYED_DELETION_ITEM	2
+enum btrfs_delayed_item_type {
+	BTRFS_DELAYED_INSERTION_ITEM,
+	BTRFS_DELAYED_DELETION_ITEM
+};
 
 struct btrfs_delayed_root {
 	spinlock_t lock;
@@ -73,14 +74,27 @@ struct btrfs_delayed_node {
 
 struct btrfs_delayed_item {
 	struct rb_node rb_node;
-	struct btrfs_key key;
+	/* Offset value of the corresponding dir index key. */
+	u64 index;
 	struct list_head tree_list;	/* used for batch insert/delete items */
 	struct list_head readdir_list;	/* used for readdir items */
+	/*
+	 * Used when logging a directory.
+	 * Insertions and deletions to this list are protected by the parent
+	 * delayed node's mutex.
+	 */
+	struct list_head log_list;
 	u64 bytes_reserved;
 	struct btrfs_delayed_node *delayed_node;
 	refcount_t refs;
-	int ins_or_del;
-	u32 data_len;
+	enum btrfs_delayed_item_type type:8;
+	/*
+	 * Track if this delayed item was already logged.
+	 * Protected by the mutex of the parent delayed inode.
+	 */
+	bool logged;
+	/* The maximum leaf size is 64K, so u16 is more than enough. */
+	u16 data_len;
 	char data[];
 };
 
@@ -143,6 +157,14 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
 				  u64 index);
 int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 				    struct list_head *ins_list);
+
+/* Used during directory logging. */
+void btrfs_log_get_delayed_items(struct btrfs_inode *inode,
+				 struct list_head *ins_list,
+				 struct list_head *del_list);
+void btrfs_log_put_delayed_items(struct btrfs_inode *inode,
+				 struct list_head *ins_list,
+				 struct list_head *del_list);
 
 /* for init */
 int __init btrfs_delayed_inode_init(void);

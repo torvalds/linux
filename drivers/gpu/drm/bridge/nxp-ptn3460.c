@@ -315,13 +315,11 @@ static int ptn3460_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int ptn3460_remove(struct i2c_client *client)
+static void ptn3460_remove(struct i2c_client *client)
 {
 	struct ptn3460_bridge *ptn_bridge = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&ptn_bridge->bridge);
-
-	return 0;
 }
 
 static const struct i2c_device_id ptn3460_i2c_table[] = {

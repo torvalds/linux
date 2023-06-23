@@ -143,6 +143,36 @@ enum mlx5_semaphore_space_address {
 
 #define MLX5_DEFAULT_PROF       2
 
+static inline int mlx5_flexible_inlen(struct mlx5_core_dev *dev, size_t fixed,
+				      size_t item_size, size_t num_items,
+				      const char *func, int line)
+{
+	int inlen;
+
+	if (fixed > INT_MAX || item_size > INT_MAX || num_items > INT_MAX) {
+		mlx5_core_err(dev, "%s: %s:%d: input values too big: %zu + %zu * %zu\n",
+			      __func__, func, line, fixed, item_size, num_items);
+		return -ENOMEM;
+	}
+
+	if (check_mul_overflow((int)item_size, (int)num_items, &inlen)) {
+		mlx5_core_err(dev, "%s: %s:%d: multiplication overflow: %zu + %zu * %zu\n",
+			      __func__, func, line, fixed, item_size, num_items);
+		return -ENOMEM;
+	}
+
+	if (check_add_overflow((int)fixed, inlen, &inlen)) {
+		mlx5_core_err(dev, "%s: %s:%d: addition overflow: %zu + %zu * %zu\n",
+			      __func__, func, line, fixed, item_size, num_items);
+		return -ENOMEM;
+	}
+
+	return inlen;
+}
+
+#define MLX5_FLEXIBLE_INLEN(dev, fixed, item_size, num_items) \
+	mlx5_flexible_inlen(dev, fixed, item_size, num_items, __func__, __LINE__)
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);

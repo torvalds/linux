@@ -48,7 +48,13 @@ allOf:
 
 properties:
   compatible:
-    const: mediatek,mt8192-pcie
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt8188-pcie
+              - mediatek,mt8195-pcie
+          - const: mediatek,mt8192-pcie
+      - const: mediatek,mt8192-pcie
 
   reg:
     maxItems: 1
@@ -84,7 +90,9 @@ properties:
       - const: tl_96m
       - const: tl_32k
       - const: peri_26m
-      - const: top_133m
+      - enum:
+          - top_133m        # for MT8192
+          - peri_mem        # for MT8188/MT8195
 
   assigned-clocks:
     maxItems: 1
@@ -126,6 +134,7 @@ required:
   - interrupts
   - ranges
   - clocks
+  - clock-names
   - '#interrupt-cells'
   - interrupt-controller
 

@@ -39,7 +39,9 @@
 #define AMD_PMC_STB_INDEX_ADDRESS	0xF8
 #define AMD_PMC_STB_INDEX_DATA		0xFC
 #define AMD_PMC_STB_PMI_0		0x03E30600
-#define AMD_PMC_STB_PREDEF		0xC6000001
+#define AMD_PMC_STB_S2IDLE_PREPARE	0xC6000001
+#define AMD_PMC_STB_S2IDLE_RESTORE	0xC6000002
+#define AMD_PMC_STB_S2IDLE_CHECK	0xC6000003
 
 /* STB S2D(Spill to DRAM) has different message port offset */
 #define STB_SPILL_TO_DRAM		0xBE
@@ -151,9 +153,7 @@ struct amd_pmc_dev {
 	struct device *dev;
 	struct pci_dev *rdev;
 	struct mutex lock; /* generic mutex lock */
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
 };
 
 static bool enable_stb;
@@ -276,7 +276,6 @@ static const struct file_operations amd_pmc_stb_debugfs_fops_v2 = {
 	.release = amd_pmc_stb_debugfs_release_v2,
 };
 
-#if defined(CONFIG_SUSPEND) || defined(CONFIG_DEBUG_FS)
 static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 {
 	if (dev->cpu_id == AMD_CPU_ID_PCO) {
@@ -351,7 +350,6 @@ static int get_metrics_table(struct amd_pmc_dev *pdev, struct smu_metrics *table
 	memcpy_fromio(table, pdev->smu_virt_addr, sizeof(struct smu_metrics));
 	return 0;
 }
-#endif /* CONFIG_SUSPEND || CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_SUSPEND
 static void amd_pmc_validate_deepest(struct amd_pmc_dev *pdev)
@@ -369,7 +367,64 @@ static void amd_pmc_validate_deepest(struct amd_pmc_dev *pdev)
 }
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
+{
+	int rc;
+	u32 val;
+
+	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
+	if (rc)
+		return rc;
+
+	dev->smu_program = (val >> 24) & GENMASK(7, 0);
+	dev->major = (val >> 16) & GENMASK(7, 0);
+	dev->minor = (val >> 8) & GENMASK(7, 0);
+	dev->rev = (val >> 0) & GENMASK(7, 0);
+
+	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
+		dev->smu_program, dev->major, dev->minor, dev->rev);
+
+	return 0;
+}
+
+static ssize_t smu_fw_version_show(struct device *d, struct device_attribute *attr,
+				   char *buf)
+{
+	struct amd_pmc_dev *dev = dev_get_drvdata(d);
+
+	if (!dev->major) {
+		int rc = amd_pmc_get_smu_version(dev);
+
+		if (rc)
+			return rc;
+	}
+	return sysfs_emit(buf, "%u.%u.%u\n", dev->major, dev->minor, dev->rev);
+}
+
+static ssize_t smu_program_show(struct device *d, struct device_attribute *attr,
+				   char *buf)
+{
+	struct amd_pmc_dev *dev = dev_get_drvdata(d);
+
+	if (!dev->major) {
+		int rc = amd_pmc_get_smu_version(dev);
+
+		if (rc)
+			return rc;
+	}
+	return sysfs_emit(buf, "%u\n", dev->smu_program);
+}
+
+static DEVICE_ATTR_RO(smu_fw_version);
+static DEVICE_ATTR_RO(smu_program);
+
+static struct attribute *pmc_attrs[] = {
+	&dev_attr_smu_fw_version.attr,
+	&dev_attr_smu_program.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(pmc);
+
 static int smu_fw_info_show(struct seq_file *s, void *unused)
 {
 	struct amd_pmc_dev *dev = s->private;
@@ -435,26 +490,6 @@ static int s0ix_stats_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(s0ix_stats);
 
-static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
-{
-	int rc;
-	u32 val;
-
-	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
-	if (rc)
-		return rc;
-
-	dev->smu_program = (val >> 24) & GENMASK(7, 0);
-	dev->major = (val >> 16) & GENMASK(7, 0);
-	dev->minor = (val >> 8) & GENMASK(7, 0);
-	dev->rev = (val >> 0) & GENMASK(7, 0);
-
-	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
-		dev->smu_program, dev->major, dev->minor, dev->rev);
-
-	return 0;
-}
-
 static int amd_pmc_idlemask_show(struct seq_file *s, void *unused)
 {
 	struct amd_pmc_dev *dev = s->private;
@@ -504,15 +539,6 @@ static void amd_pmc_dbgfs_register(struct amd_pmc_dev *dev)
 					    &amd_pmc_stb_debugfs_fops);
 	}
 }
-#else
-static inline void amd_pmc_dbgfs_register(struct amd_pmc_dev *dev)
-{
-}
-
-static inline void amd_pmc_dbgfs_unregister(struct amd_pmc_dev *dev)
-{
-}
-#endif /* CONFIG_DEBUG_FS */
 
 static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 {
@@ -635,6 +661,13 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 	struct rtc_time tm;
 	int rc;
 
+	/* we haven't yet read SMU version */
+	if (!pdev->major) {
+		rc = amd_pmc_get_smu_version(pdev);
+		if (rc)
+			return rc;
+	}
+
 	if (pdev->major < 64 || (pdev->major == 64 && pdev->minor < 53))
 		return 0;
 
@@ -691,8 +724,6 @@ static void amd_pmc_s2idle_prepare(void)
 		}
 	}
 
-	/* Dump the IdleMask before we send hint to SMU */
-	amd_pmc_idlemask_read(pdev, pdev->dev, NULL);
 	msg = amd_pmc_get_os_hint(pdev);
 	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, 0);
 	if (rc) {
@@ -700,11 +731,28 @@ static void amd_pmc_s2idle_prepare(void)
 		return;
 	}
 
-	if (enable_stb) {
-		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF);
-		if (rc)
-			dev_err(pdev->dev, "error writing to STB: %d\n", rc);
-	}
+	rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_S2IDLE_PREPARE);
+	if (rc)
+		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+}
+
+static void amd_pmc_s2idle_check(void)
+{
+	struct amd_pmc_dev *pdev = &pmc;
+	struct smu_metrics table;
+	int rc;
+
+	/* CZN: Ensure that future s0i3 entry attempts at least 10ms passed */
+	if (pdev->cpu_id == AMD_CPU_ID_CZN && !get_metrics_table(pdev, &table) &&
+	    table.s0i3_last_entry_status)
+		usleep_range(10000, 20000);
+
+	/* Dump the IdleMask before we add to the STB */
+	amd_pmc_idlemask_read(pdev, pdev->dev, NULL);
+
+	rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_S2IDLE_CHECK);
+	if (rc)
+		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
 }
 
 static void amd_pmc_s2idle_restore(void)
@@ -721,15 +769,9 @@ static void amd_pmc_s2idle_restore(void)
 	/* Let SMU know that we are looking for stats */
 	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_DUMP_DATA, 0);
 
-	/* Dump the IdleMask to see the blockers */
-	amd_pmc_idlemask_read(pdev, pdev->dev, NULL);
-
-	/* Write data incremented by 1 to distinguish in stb_read */
-	if (enable_stb) {
-		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF + 1);
-		if (rc)
-			dev_err(pdev->dev, "error writing to STB: %d\n", rc);
-	}
+	rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_S2IDLE_RESTORE);
+	if (rc)
+		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
 
 	/* Notify on failed entry */
 	amd_pmc_validate_deepest(pdev);
@@ -737,6 +779,7 @@ static void amd_pmc_s2idle_restore(void)
 
 static struct acpi_s2idle_dev_ops amd_pmc_s2idle_dev_ops = {
 	.prepare = amd_pmc_s2idle_prepare,
+	.check = amd_pmc_s2idle_check,
 	.restore = amd_pmc_s2idle_restore,
 };
 #endif
@@ -925,6 +968,7 @@ static const struct acpi_device_id amd_pmc_acpi_ids[] = {
 	{"AMDI0006", 0},
 	{"AMDI0007", 0},
 	{"AMDI0008", 0},
+	{"AMDI0009", 0},
 	{"AMD0004", 0},
 	{"AMD0005", 0},
 	{ }
@@ -935,6 +979,7 @@ static struct platform_driver amd_pmc_driver = {
 	.driver = {
 		.name = "amd_pmc",
 		.acpi_match_table = amd_pmc_acpi_ids,
+		.dev_groups = pmc_groups,
 	},
 	.probe = amd_pmc_probe,
 	.remove = amd_pmc_remove,

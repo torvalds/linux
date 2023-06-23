@@ -734,7 +734,7 @@ static int send_connect(struct c4iw_ep *ep)
 				   &ep->com.remote_addr;
 	int ret;
 	enum chip_type adapter_type = ep->com.dev->rdev.lldi.adapter_type;
-	u32 isn = (prandom_u32() & ~7UL) - 1;
+	u32 isn = (get_random_u32() & ~7UL) - 1;
 	struct net_device *netdev;
 	u64 params;
 
@@ -2469,7 +2469,7 @@ static int accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	}
 
 	if (!is_t4(adapter_type)) {
-		u32 isn = (prandom_u32() & ~7UL) - 1;
+		u32 isn = (get_random_u32() & ~7UL) - 1;
 
 		skb = get_skb(skb, roundup(sizeof(*rpl5), 16), GFP_KERNEL);
 		rpl5 = __skb_put_zero(skb, roundup(sizeof(*rpl5), 16));

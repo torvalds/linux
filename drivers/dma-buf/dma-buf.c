@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-fence.h>
+#include <linux/dma-fence-unwrap.h>
 #include <linux/anon_inodes.h>
 #include <linux/export.h>
 #include <linux/debugfs.h>
@@ -53,7 +54,7 @@ static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 		ret = strlcpy(name, dmabuf->name, DMA_BUF_NAME_LEN);
 	spin_unlock(&dmabuf->name_lock);
 
-	return dynamic_dname(dentry, buffer, buflen, "/%s:%s",
+	return dynamic_dname(buffer, buflen, "/%s:%s",
 			     dentry->d_name.name, ret > 0 ? name : "");
 }
 
@@ -391,8 +392,10 @@ static long dma_buf_import_sync_file(struct dma_buf *dmabuf,
 				     const void __user *user_data)
 {
 	struct dma_buf_import_sync_file arg;
-	struct dma_fence *fence;
+	struct dma_fence *fence, *f;
 	enum dma_resv_usage usage;
+	struct dma_fence_unwrap iter;
+	unsigned int num_fences;
 	int ret = 0;
 
 	if (copy_from_user(&arg, user_data, sizeof(arg)))
@@ -411,13 +414,21 @@ static long dma_buf_import_sync_file(struct dma_buf *dmabuf,
 	usage = (arg.flags & DMA_BUF_SYNC_WRITE) ? DMA_RESV_USAGE_WRITE :
 						   DMA_RESV_USAGE_READ;
 
-	dma_resv_lock(dmabuf->resv, NULL);
+	num_fences = 0;
+	dma_fence_unwrap_for_each(f, &iter, fence)
+		++num_fences;
 
-	ret = dma_resv_reserve_fences(dmabuf->resv, 1);
-	if (!ret)
-		dma_resv_add_fence(dmabuf->resv, fence, usage);
+	if (num_fences > 0) {
+		dma_resv_lock(dmabuf->resv, NULL);
 
-	dma_resv_unlock(dmabuf->resv);
+		ret = dma_resv_reserve_fences(dmabuf->resv, num_fences);
+		if (!ret) {
+			dma_fence_unwrap_for_each(f, &iter, fence)
+				dma_resv_add_fence(dmabuf->resv, f, usage);
+		}
+
+		dma_resv_unlock(dmabuf->resv);
+	}
 
 	dma_fence_put(fence);
 
@@ -531,11 +542,11 @@ static struct file *dma_buf_getfile(struct dma_buf *dmabuf, int flags)
 	 * value.
 	 */
 	inode->i_ino = atomic64_add_return(1, &dmabuf_inode);
+	flags &= O_ACCMODE | O_NONBLOCK;
 	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
 	if (IS_ERR(file))
 		goto err_alloc_file;
-	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
 	file->private_data = dmabuf;
 	file->f_path.dentry->d_fsdata = dmabuf;
 

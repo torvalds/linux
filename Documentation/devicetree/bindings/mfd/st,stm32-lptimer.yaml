@@ -46,6 +46,7 @@ properties:
 
   pwm:
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -60,6 +61,7 @@ properties:
 
   counter:
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -70,6 +72,7 @@ properties:
 
   timer:
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -81,6 +84,7 @@ properties:
 patternProperties:
   "^trigger@[0-9]+$":
     type: object
+    additionalProperties: false
 
     properties:
       compatible:

@@ -200,14 +200,39 @@ static irqreturn_t pseries_vas_fault_thread_fn(int irq, void *data)
 	struct vas_user_win_ref *tsk_ref;
 	int rc;
 
-	rc = h_get_nx_fault(txwin->vas_win.winid, (u64)virt_to_phys(&crb));
-	if (!rc) {
-		tsk_ref = &txwin->vas_win.task_ref;
-		vas_dump_crb(&crb);
-		vas_update_csb(&crb, tsk_ref);
+	while (atomic_read(&txwin->pending_faults)) {
+		rc = h_get_nx_fault(txwin->vas_win.winid, (u64)virt_to_phys(&crb));
+		if (!rc) {
+			tsk_ref = &txwin->vas_win.task_ref;
+			vas_dump_crb(&crb);
+			vas_update_csb(&crb, tsk_ref);
+		}
+		atomic_dec(&txwin->pending_faults);
 	}
 
 	return IRQ_HANDLED;
+}
+
+/*
+ * irq_default_primary_handler() can be used only with IRQF_ONESHOT
+ * which disables IRQ before executing the thread handler and enables
+ * it after. But this disabling interrupt sets the VAS IRQ OFF
+ * state in the hypervisor. If the NX generates fault interrupt
+ * during this window, the hypervisor will not deliver this
+ * interrupt to the LPAR. So use VAS specific IRQ handler instead
+ * of calling the default primary handler.
+ */
+static irqreturn_t pseries_vas_irq_handler(int irq, void *data)
+{
+	struct pseries_vas_window *txwin = data;
+
+	/*
+	 * The thread hanlder will process this interrupt if it is
+	 * already running.
+	 */
+	atomic_inc(&txwin->pending_faults);
+
+	return IRQ_WAKE_THREAD;
 }
 
 /*
@@ -240,8 +265,9 @@ static int allocate_setup_window(struct pseries_vas_window *txwin,
 		goto out_irq;
 	}
 
-	rc = request_threaded_irq(txwin->fault_virq, NULL,
-				  pseries_vas_fault_thread_fn, IRQF_ONESHOT,
+	rc = request_threaded_irq(txwin->fault_virq,
+				  pseries_vas_irq_handler,
+				  pseries_vas_fault_thread_fn, 0,
 				  txwin->name, txwin);
 	if (rc) {
 		pr_err("VAS-Window[%d]: Request IRQ(%u) failed with %d\n",
@@ -333,7 +359,7 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 		 * So no unpacking needs to be done.
 		 */
 		rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, domain,
-				  VPHN_FLAG_VCPU, smp_processor_id());
+				  VPHN_FLAG_VCPU, hard_smp_processor_id());
 		if (rc != H_SUCCESS) {
 			pr_err("H_HOME_NODE_ASSOCIATIVITY error: %d\n", rc);
 			goto out;
@@ -501,14 +527,10 @@ static const struct vas_user_win_ops vops_pseries = {
 int vas_register_api_pseries(struct module *mod, enum vas_cop_type cop_type,
 			     const char *name)
 {
-	int rc;
-
 	if (!copypaste_feat)
 		return -ENOTSUPP;
 
-	rc = vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
-
-	return rc;
+	return vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
 }
 EXPORT_SYMBOL_GPL(vas_register_api_pseries);
 
@@ -830,6 +852,25 @@ int vas_reconfig_capabilties(u8 type, int new_nr_creds)
 	mutex_unlock(&vas_pseries_mutex);
 	return rc;
 }
+
+int pseries_vas_dlpar_cpu(void)
+{
+	int new_nr_creds, rc;
+
+	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
+				      vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
+				      (u64)virt_to_phys(&hv_cop_caps));
+	if (!rc) {
+		new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
+		rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE, new_nr_creds);
+	}
+
+	if (rc)
+		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
+
+	return rc;
+}
+
 /*
  * Total number of default credits available (target_credits)
  * in LPAR depends on number of cores configured. It varies based on
@@ -844,7 +885,15 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 	struct of_reconfig_data *rd = data;
 	struct device_node *dn = rd->dn;
 	const __be32 *intserv = NULL;
-	int new_nr_creds, len, rc = 0;
+	int len;
+
+	/*
+	 * For shared CPU partition, the hypervisor assigns total credits
+	 * based on entitled core capacity. So updating VAS windows will
+	 * be called from lparcfg_write().
+	 */
+	if (is_shared_processor())
+		return NOTIFY_OK;
 
 	if ((action == OF_RECONFIG_ATTACH_NODE) ||
 		(action == OF_RECONFIG_DETACH_NODE))
@@ -856,19 +905,7 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 	if (!intserv)
 		return NOTIFY_OK;
 
-	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
-					vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
-					(u64)virt_to_phys(&hv_cop_caps));
-	if (!rc) {
-		new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
-		rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE,
-						new_nr_creds);
-	}
-
-	if (rc)
-		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
-
-	return rc;
+	return pseries_vas_dlpar_cpu();
 }
 
 static struct notifier_block pseries_vas_nb = {

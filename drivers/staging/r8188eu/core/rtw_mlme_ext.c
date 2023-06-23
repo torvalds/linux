@@ -9,8 +9,6 @@
 #include "../include/wifi.h"
 #include "../include/rtw_mlme_ext.h"
 #include "../include/wlan_bssdef.h"
-#include "../include/mlme_osdep.h"
-#include "../include/recv_osdep.h"
 #include "../include/rtl8188e_xmit.h"
 #include "../include/rtl8188e_dm.h"
 
@@ -332,6 +330,28 @@ static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_c
 		}
 	}
 	return chanset_size;
+}
+
+static void _survey_timer_hdl(struct timer_list *t)
+{
+	struct adapter *padapter = from_timer(padapter, t, mlmeextpriv.survey_timer);
+
+	survey_timer_hdl(padapter);
+}
+
+static void _link_timer_hdl(struct timer_list *t)
+{
+	struct adapter *padapter = from_timer(padapter, t, mlmeextpriv.link_timer);
+
+	link_timer_hdl(padapter);
+}
+
+static void init_mlme_ext_timer(struct adapter *padapter)
+{
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
+	timer_setup(&pmlmeext->survey_timer, _survey_timer_hdl, 0);
+	timer_setup(&pmlmeext->link_timer, _link_timer_hdl, 0);
 }
 
 void init_mlme_ext_priv(struct adapter *padapter)
@@ -910,6 +930,46 @@ authclnt_fail:
 	return _FAIL;
 }
 
+static void UpdateBrateTbl(u8 *mbrate)
+{
+	u8 i;
+	u8 rate;
+
+	/*  1M, 2M, 5.5M, 11M, 6M, 12M, 24M are mandatory. */
+	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
+		rate = mbrate[i] & 0x7f;
+		switch (rate) {
+		case IEEE80211_CCK_RATE_1MB:
+		case IEEE80211_CCK_RATE_2MB:
+		case IEEE80211_CCK_RATE_5MB:
+		case IEEE80211_CCK_RATE_11MB:
+		case IEEE80211_OFDM_RATE_6MB:
+		case IEEE80211_OFDM_RATE_12MB:
+		case IEEE80211_OFDM_RATE_24MB:
+			mbrate[i] |= IEEE80211_BASIC_RATE_MASK;
+			break;
+		}
+	}
+}
+
+static void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
+{
+	u8 i;
+	u8 rate;
+
+	for (i = 0; i < bssratelen; i++) {
+		rate = bssrateset[i] & 0x7f;
+		switch (rate) {
+		case IEEE80211_CCK_RATE_1MB:
+		case IEEE80211_CCK_RATE_2MB:
+		case IEEE80211_CCK_RATE_5MB:
+		case IEEE80211_CCK_RATE_11MB:
+			bssrateset[i] |= IEEE80211_BASIC_RATE_MASK;
+			break;
+		}
+	}
+}
+
 unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	u16 capab_info;
@@ -1320,9 +1380,9 @@ OnAssocReqFail:
 
 unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame)
 {
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	uint i;
 	int res;
-	unsigned short	status;
 	struct ndis_802_11_var_ie *pIE;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
@@ -1331,7 +1391,7 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 	uint pkt_len = precv_frame->len;
 
 	/* check A1 matches or not */
-	if (memcmp(myid(&padapter->eeprompriv), get_da(pframe), ETH_ALEN))
+	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))
 		return _SUCCESS;
 
 	if (!(pmlmeinfo->state & (WIFI_FW_AUTH_SUCCESS | WIFI_FW_ASSOC_STATE)))
@@ -1342,28 +1402,24 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 
 	_cancel_timer_ex(&pmlmeext->link_timer);
 
-	/* status */
-	status = le16_to_cpu(*(__le16 *)(pframe + WLAN_HDR_A3_LEN + 2));
-	if (status > 0) {
+	if (le16_to_cpu(mgmt->u.assoc_resp.status_code) > 0) {
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		res = -4;
 		goto report_assoc_result;
 	}
 
-	/* get capabilities */
-	pmlmeinfo->capability = le16_to_cpu(*(__le16 *)(pframe + WLAN_HDR_A3_LEN));
+	pmlmeinfo->capability = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 
 	/* set slot time */
 	pmlmeinfo->slotTime = (pmlmeinfo->capability & BIT(10)) ? 9 : 20;
 
-	/* AID */
-	pmlmeinfo->aid = (int)(le16_to_cpu(*(__le16 *)(pframe + WLAN_HDR_A3_LEN + 4)) & 0x3fff);
+	pmlmeinfo->aid = le16_to_cpu(mgmt->u.assoc_resp.aid) & 0x3fff;
 	res = pmlmeinfo->aid;
 
 	/* following are moved to join event callback function */
 	/* to handle HT, WMM, rate adaptive, update MAC reg */
 	/* for not to handle the synchronous IO in the tasklet */
-	for (i = (6 + WLAN_HDR_A3_LEN); i < pkt_len;) {
+	for (i = offsetof(struct ieee80211_mgmt, u.assoc_resp.variable); i < pkt_len;) {
 		pIE = (struct ndis_802_11_var_ie *)(pframe + i);
 
 		switch (pIE->ElementID) {
@@ -1391,7 +1447,7 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 	pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 
 	/* Update Basic Rate Table for spec, 2010-12-28 , by thomas */
-	UpdateBrateTbl(padapter, pmlmeinfo->network.SupportedRates);
+	UpdateBrateTbl(pmlmeinfo->network.SupportedRates);
 
 report_assoc_result:
 	report_join_res(padapter, res);
@@ -7858,7 +7914,7 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 				spin_unlock_bh(&psta_bmc->sleep_q.lock);
 				if (rtl8188eu_hal_xmit(padapter, pxmitframe))
-					rtw_os_xmit_complete(padapter, pxmitframe);
+					rtw_xmit_complete(padapter, pxmitframe);
 				spin_lock_bh(&psta_bmc->sleep_q.lock);
 			}
 			spin_unlock_bh(&psta_bmc->sleep_q.lock);

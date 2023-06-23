@@ -1546,7 +1546,7 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 
 	kfree(init_attr);
 
-	netif_napi_add(pr->port->netdev, &pr->napi, ehea_poll, 64);
+	netif_napi_add(pr->port->netdev, &pr->napi, ehea_poll);
 
 	ret = 0;
 	goto out;
@@ -2900,6 +2900,7 @@ static struct device *ehea_register_port(struct ehea_port *port,
 	ret = of_device_register(&port->ofdev);
 	if (ret) {
 		pr_err("failed to register device. ret=%d\n", ret);
+		put_device(&port->ofdev.dev);
 		goto out;
 	}
 

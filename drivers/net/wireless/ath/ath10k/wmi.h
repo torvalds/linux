@@ -3170,7 +3170,7 @@ struct wmi_start_scan_common {
 	/* dwell time in msec on passive channels */
 	__le32 dwell_time_passive;
 	/*
-	 * min time in msec on the BSS channel,only valid if atleast one
+	 * min time in msec on the BSS channel,only valid if at least one
 	 * VDEV is active
 	 */
 	__le32 min_rest_time;
@@ -3196,7 +3196,7 @@ struct wmi_start_scan_common {
 	 * and bssid_list
 	 */
 	__le32 repeat_probe_time;
-	/* time in msec between 2 consequetive probe requests with in a set. */
+	/* time in msec between 2 consecutive probe requests with in a set. */
 	__le32 probe_spacing_time;
 	/*
 	 * data inactivity time in msec on bss channel that will be used by
@@ -4397,7 +4397,7 @@ struct wmi_pdev_stats_tx {
 	/* wal pdev continuous xretry */
 	__le32 pdev_cont_xretry;
 
-	/* wal pdev continous xretry */
+	/* wal pdev continuous xretry */
 	__le32 pdev_tx_timeout;
 
 	/* wal pdev resets  */
@@ -5240,7 +5240,7 @@ enum wmi_vdev_param {
 	 * scheduler.
 	 */
 	WMI_VDEV_OC_SCHEDULER_AIR_TIME_LIMIT,
-	/* enable/dsiable WDS for this VDEV  */
+	/* enable/disable WDS for this VDEV  */
 	WMI_VDEV_PARAM_WDS,
 	/* ATIM Window */
 	WMI_VDEV_PARAM_ATIM_WINDOW,
@@ -5372,7 +5372,7 @@ enum wmi_10x_vdev_param {
 	 * scheduler.
 	 */
 	WMI_10X_VDEV_OC_SCHEDULER_AIR_TIME_LIMIT,
-	/* enable/dsiable WDS for this VDEV  */
+	/* enable/disable WDS for this VDEV  */
 	WMI_10X_VDEV_PARAM_WDS,
 	/* ATIM Window */
 	WMI_10X_VDEV_PARAM_ATIM_WINDOW,
@@ -5904,7 +5904,7 @@ enum wmi_sta_ps_param_tx_wake_threshold {
 enum wmi_sta_ps_param_pspoll_count {
 	WMI_STA_PS_PSPOLL_COUNT_NO_MAX = 0,
 	/*
-	 * Values greater than 0 indicate the maximum numer of PS-Poll frames
+	 * Values greater than 0 indicate the maximum number of PS-Poll frames
 	 * FW will send before waking up.
 	 */
 
@@ -6947,7 +6947,7 @@ struct wmi_echo_ev_arg {
 };
 
 struct wmi_pdev_temperature_event {
-	/* temperature value in Celcius degree */
+	/* temperature value in Celsius degree */
 	__le32 temperature;
 } __packed;
 

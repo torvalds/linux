@@ -423,6 +423,26 @@
 			interrupts =
 				<GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
+
+		can0: can@52104000 {
+			compatible = "renesas,r9a06g032-sja1000","renesas,rzn1-sja1000";
+			reg = <0x52104000 0x800>;
+			reg-io-width = <4>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sysctrl R9A06G032_HCLK_CAN0>;
+			power-domains = <&sysctrl>;
+			status = "disabled";
+		};
+
+		can1: can@52105000 {
+			compatible = "renesas,r9a06g032-sja1000", "renesas,rzn1-sja1000";
+			reg = <0x52105000 0x800>;
+			reg-io-width = <4>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sysctrl R9A06G032_HCLK_CAN1>;
+			power-domains = <&sysctrl>;
+			status = "disabled";
+		};
 	};
 
 	timer {

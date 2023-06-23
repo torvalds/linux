@@ -266,6 +266,8 @@
 #define RFE_ADDR_FILT_LO(x)		(0x404 + (8 * (x)))
 
 #define RFE_CTL				(0x508)
+#define RFE_CTL_TCP_UDP_COE_		BIT(12)
+#define RFE_CTL_IP_COE_			BIT(11)
 #define RFE_CTL_AB_			BIT(10)
 #define RFE_CTL_AM_			BIT(9)
 #define RFE_CTL_AU_			BIT(8)
@@ -954,8 +956,7 @@ struct lan743x_tx {
 
 	struct napi_struct napi;
 	u32 frame_count;
-
-	struct sk_buff *overflow_skb;
+	u32 rqd_descriptors;
 };
 
 void lan743x_tx_set_timestamping_mode(struct lan743x_tx *tx,
@@ -1110,7 +1111,7 @@ struct lan743x_tx_buffer_info {
 	unsigned int    buffer_length;
 };
 
-#define LAN743X_TX_RING_SIZE    (50)
+#define LAN743X_TX_RING_SIZE    (128)
 
 /* OWN bit is set. ie, Descs are owned by RX DMAC */
 #define RX_DESC_DATA0_OWN_                (0x00008000)
@@ -1122,6 +1123,9 @@ struct lan743x_tx_buffer_info {
 	(((data0) & RX_DESC_DATA0_FRAME_LENGTH_MASK_) >> 16)
 #define RX_DESC_DATA0_EXT_                (0x00004000)
 #define RX_DESC_DATA0_BUF_LENGTH_MASK_    (0x00003FFF)
+#define RX_DESC_DATA1_STATUS_ICE_         (0x00020000)
+#define RX_DESC_DATA1_STATUS_TCE_         (0x00010000)
+#define RX_DESC_DATA1_STATUS_ICSM_        (0x00000001)
 #define RX_DESC_DATA2_TS_NS_MASK_         (0x3FFFFFFF)
 
 #if ((NET_IP_ALIGN != 0) && (NET_IP_ALIGN != 2))

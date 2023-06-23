@@ -119,7 +119,6 @@ struct vpu_mbox {
 enum vpu_core_state {
 	VPU_CORE_DEINIT = 0,
 	VPU_CORE_ACTIVE,
-	VPU_CORE_SNAPSHOT,
 	VPU_CORE_HANG
 };
 

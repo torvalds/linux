@@ -332,18 +332,18 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		u32 reg = readl(wdt->base + WDT_RESET_WIDTH);
 
 		reg &= config->ext_pulse_width_mask;
-		if (of_property_read_bool(np, "aspeed,ext-push-pull"))
-			reg |= WDT_PUSH_PULL_MAGIC;
-		else
-			reg |= WDT_OPEN_DRAIN_MAGIC;
-
-		writel(reg, wdt->base + WDT_RESET_WIDTH);
-
-		reg &= config->ext_pulse_width_mask;
 		if (of_property_read_bool(np, "aspeed,ext-active-high"))
 			reg |= WDT_ACTIVE_HIGH_MAGIC;
 		else
 			reg |= WDT_ACTIVE_LOW_MAGIC;
+
+		writel(reg, wdt->base + WDT_RESET_WIDTH);
+
+		reg &= config->ext_pulse_width_mask;
+		if (of_property_read_bool(np, "aspeed,ext-push-pull"))
+			reg |= WDT_PUSH_PULL_MAGIC;
+		else
+			reg |= WDT_OPEN_DRAIN_MAGIC;
 
 		writel(reg, wdt->base + WDT_RESET_WIDTH);
 	}

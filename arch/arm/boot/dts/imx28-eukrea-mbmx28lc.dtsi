@@ -19,12 +19,12 @@
 		default-brightness-level = <10>;
 	};
 
-	button-sw3 {
+	gpio-keys-0 {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_button_sw3_pins_mbmx28lc>;
 
-		sw3 {
+		switch-sw3 {
 			label = "SW3";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_MISC>;
@@ -32,12 +32,12 @@
 		};
 	};
 
-	button-sw4 {
+	gpio-keys-1 {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_button_sw4_pins_mbmx28lc>;
 
-		sw4 {
+		switch-sw4 {
 			label = "SW4";
 			gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_MISC>;

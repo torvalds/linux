@@ -9,6 +9,7 @@
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/at91.h>
+#include <dt-bindings/mfd/at91-usart.h>
 #include <dt-bindings/iio/adc/at91-sama5d2_adc.h>
 
 / {
@@ -441,6 +442,7 @@
 			uart0: serial@f801c000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf801c000 0x100>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 7>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
@@ -457,6 +459,7 @@
 			uart1: serial@f8020000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8020000 0x100>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <25 IRQ_TYPE_LEVEL_HIGH 7>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
@@ -473,6 +476,7 @@
 			uart2: serial@f8024000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8024000 0x100>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <26 IRQ_TYPE_LEVEL_HIGH 7>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
@@ -530,6 +534,7 @@
 				uart5: serial@200 {
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
+					atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
 					clock-names = "usart";
@@ -600,6 +605,7 @@
 				uart6: serial@200 {
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
+					atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 					interrupts = <20 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;
 					clock-names = "usart";
@@ -769,6 +775,7 @@
 			uart3: serial@fc008000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc008000 0x100>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 7>;
 				dmas = <&dma1
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
@@ -785,6 +792,7 @@
 			uart4: serial@fc00c000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc00c000 0x100>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
 					 AT91_XDMAC_DT_PERID(43))>,
@@ -810,6 +818,7 @@
 				uart7: serial@200 {
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
+					atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 					interrupts = <21 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
 					clock-names = "usart";
@@ -880,6 +889,7 @@
 				uart8: serial@200 {
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
+					atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
 					clock-names = "usart";
@@ -951,6 +961,7 @@
 				uart9: serial@200 {
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
+					atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					clock-names = "usart";

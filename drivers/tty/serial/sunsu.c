@@ -897,7 +897,7 @@ sunsu_change_speed(struct uart_port *port, unsigned int cflag,
 
 static void
 sunsu_set_termios(struct uart_port *port, struct ktermios *termios,
-		  struct ktermios *old)
+		  const struct ktermios *old)
 {
 	unsigned int baud, quot;
 
@@ -1217,13 +1217,13 @@ static int sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 	serio->id.type = SERIO_RS232;
 	if (up->su_type == SU_PORT_KBD) {
 		serio->id.proto = SERIO_SUNKBD;
-		strlcpy(serio->name, "sukbd", sizeof(serio->name));
+		strscpy(serio->name, "sukbd", sizeof(serio->name));
 	} else {
 		serio->id.proto = SERIO_SUN;
 		serio->id.extra = 1;
-		strlcpy(serio->name, "sums", sizeof(serio->name));
+		strscpy(serio->name, "sums", sizeof(serio->name));
 	}
-	strlcpy(serio->phys,
+	strscpy(serio->phys,
 		(!(up->port.line & 1) ? "su/serio0" : "su/serio1"),
 		sizeof(serio->phys));
 

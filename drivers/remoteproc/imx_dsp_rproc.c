@@ -599,7 +599,7 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		}
 
 		/* Register memory region */
-		mem = rproc_mem_entry_init(dev, cpu_addr, (dma_addr_t)att->sa,
+		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)att->sa,
 					   att->size, da, NULL, NULL, "dsp_mem");
 
 		if (mem)
@@ -635,7 +635,7 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		}
 
 		/* Register memory region */
-		mem = rproc_mem_entry_init(dev, cpu_addr, (dma_addr_t)rmem->base,
+		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)rmem->base,
 					   rmem->size, da, NULL, NULL, it.node->name);
 
 		if (mem)

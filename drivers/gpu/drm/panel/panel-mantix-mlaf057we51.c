@@ -336,7 +336,7 @@ static void mantix_shutdown(struct mipi_dsi_device *dsi)
 	drm_panel_disable(&ctx->panel);
 }
 
-static int mantix_remove(struct mipi_dsi_device *dsi)
+static void mantix_remove(struct mipi_dsi_device *dsi)
 {
 	struct mantix *ctx = mipi_dsi_get_drvdata(dsi);
 
@@ -344,8 +344,6 @@ static int mantix_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id mantix_of_match[] = {

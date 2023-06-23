@@ -760,7 +760,7 @@ static int mxuport_tiocmget(struct tty_struct *tty)
 }
 
 static int mxuport_set_termios_flow(struct tty_struct *tty,
-				    struct ktermios *old_termios,
+				    const struct ktermios *old_termios,
 				    struct usb_serial_port *port,
 				    struct usb_serial *serial)
 {
@@ -834,7 +834,7 @@ out:
 
 static void mxuport_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	u8 *buf;

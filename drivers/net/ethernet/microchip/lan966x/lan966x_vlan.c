@@ -169,6 +169,12 @@ void lan966x_vlan_port_apply(struct lan966x_port *port)
 		ANA_VLAN_CFG_VLAN_POP_CNT,
 		lan966x, ANA_VLAN_CFG(port->chip_port));
 
+	lan_rmw(DEV_MAC_TAGS_CFG_VLAN_AWR_ENA_SET(port->vlan_aware) |
+		DEV_MAC_TAGS_CFG_VLAN_DBL_AWR_ENA_SET(port->vlan_aware),
+		DEV_MAC_TAGS_CFG_VLAN_AWR_ENA |
+		DEV_MAC_TAGS_CFG_VLAN_DBL_AWR_ENA,
+		lan966x, DEV_MAC_TAGS_CFG(port->chip_port));
+
 	/* Drop frames with multicast source address */
 	val = ANA_DROP_CFG_DROP_MC_SMAC_ENA_SET(1);
 	if (port->vlan_aware && !pvid)

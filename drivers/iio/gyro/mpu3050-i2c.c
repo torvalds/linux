@@ -78,7 +78,7 @@ static int mpu3050_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int mpu3050_i2c_remove(struct i2c_client *client)
+static void mpu3050_i2c_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&client->dev);
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
@@ -87,8 +87,6 @@ static int mpu3050_i2c_remove(struct i2c_client *client)
 		i2c_mux_del_adapters(mpu3050->i2cmux);
 
 	mpu3050_common_remove(&client->dev);
-
-	return 0;
 }
 
 /*

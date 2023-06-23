@@ -52,7 +52,7 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	int err = 0, fd = -1;
 	FILE *f = NULL;
 
-	snprintf(test_file, sizeof(test_file), "%s.o", t->file);
+	snprintf(test_file, sizeof(test_file), "%s.bpf.o", t->file);
 
 	btf = btf__parse_elf(test_file, NULL);
 	if (!ASSERT_OK_PTR(btf, "btf_parse_elf")) {
@@ -764,8 +764,8 @@ static void test_btf_dump_struct_data(struct btf *btf, struct btf_dump *d,
 
 	/* union with nested struct */
 	TEST_BTF_DUMP_DATA(btf, d, "union", str, union bpf_iter_link_info, BTF_F_COMPACT,
-			   "(union bpf_iter_link_info){.map = (struct){.map_fd = (__u32)1,},}",
-			   { .map = { .map_fd = 1 }});
+			   "(union bpf_iter_link_info){.map = (struct){.map_fd = (__u32)1,},.cgroup = (struct){.order = (enum bpf_cgroup_iter_order)BPF_CGROUP_ITER_SELF_ONLY,.cgroup_fd = (__u32)1,},.task = (struct){.tid = (__u32)1,.pid = (__u32)1,},}",
+			   { .cgroup = { .order = 1, .cgroup_fd = 1, }});
 
 	/* struct skb with nested structs/unions; because type output is so
 	 * complex, we don't do a string comparison, just verify we return
@@ -841,8 +841,8 @@ static void test_btf_dump_datasec_data(char *str)
 	char license[4] = "GPL";
 	struct btf_dump *d;
 
-	btf = btf__parse("xdping_kern.o", NULL);
-	if (!ASSERT_OK_PTR(btf, "xdping_kern.o BTF not found"))
+	btf = btf__parse("xdping_kern.bpf.o", NULL);
+	if (!ASSERT_OK_PTR(btf, "xdping_kern.bpf.o BTF not found"))
 		return;
 
 	d = btf_dump__new(btf, btf_dump_snprintf, str, NULL);

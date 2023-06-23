@@ -92,6 +92,24 @@ static const struct tlsdev_ops mlx5e_ktls_ops = {
 	.tls_dev_resync = mlx5e_ktls_resync,
 };
 
+bool mlx5e_is_ktls_rx(struct mlx5_core_dev *mdev)
+{
+	u8 max_sq_wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
+
+	if (is_kdump_kernel() || !MLX5_CAP_GEN(mdev, tls_rx))
+		return false;
+
+	/* Check the possibility to post the required ICOSQ WQEs. */
+	if (WARN_ON_ONCE(max_sq_wqebbs < MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS))
+		return false;
+	if (WARN_ON_ONCE(max_sq_wqebbs < MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS))
+		return false;
+	if (WARN_ON_ONCE(max_sq_wqebbs < MLX5E_KTLS_GET_PROGRESS_WQEBBS))
+		return false;
+
+	return true;
+}
+
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
@@ -118,9 +136,9 @@ int mlx5e_ktls_set_feature_rx(struct net_device *netdev, bool enable)
 
 	mutex_lock(&priv->state_lock);
 	if (enable)
-		err = mlx5e_accel_fs_tcp_create(priv);
+		err = mlx5e_accel_fs_tcp_create(priv->fs);
 	else
-		mlx5e_accel_fs_tcp_destroy(priv);
+		mlx5e_accel_fs_tcp_destroy(priv->fs);
 	mutex_unlock(&priv->state_lock);
 
 	return err;
@@ -138,7 +156,7 @@ int mlx5e_ktls_init_rx(struct mlx5e_priv *priv)
 		return -ENOMEM;
 
 	if (priv->netdev->features & NETIF_F_HW_TLS_RX) {
-		err = mlx5e_accel_fs_tcp_create(priv);
+		err = mlx5e_accel_fs_tcp_create(priv->fs);
 		if (err) {
 			destroy_workqueue(priv->tls->rx_wq);
 			return err;
@@ -154,7 +172,7 @@ void mlx5e_ktls_cleanup_rx(struct mlx5e_priv *priv)
 		return;
 
 	if (priv->netdev->features & NETIF_F_HW_TLS_RX)
-		mlx5e_accel_fs_tcp_destroy(priv);
+		mlx5e_accel_fs_tcp_destroy(priv->fs);
 
 	destroy_workqueue(priv->tls->rx_wq);
 }

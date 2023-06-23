@@ -197,7 +197,7 @@
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
-		ti,nand-xfer-type = "polled";
+		ti,nand-xfer-type = "prefetch-dma";
 
 		gpmc,device-nand = "true";
 		gpmc,device-width = <1>;

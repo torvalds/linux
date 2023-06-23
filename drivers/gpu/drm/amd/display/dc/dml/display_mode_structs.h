@@ -26,6 +26,16 @@
 #include "dc_features.h"
 #include "display_mode_enums.h"
 
+/**
+ * DOC: overview
+ *
+ * Most of the DML code is automatically generated and tested via hardware
+ * description language. Usually, we use the reference _vcs_dpi in the code
+ * where VCS means "Verilog Compiled Simulator" and DPI stands for "Direct
+ * Programmer Interface". In other words, those structs can be used to
+ * interface with Verilog with other languages such as C.
+ */
+
 #ifndef __DISPLAY_MODE_STRUCTS_H__
 #define __DISPLAY_MODE_STRUCTS_H__
 
@@ -159,13 +169,20 @@ struct _vcs_dpi_voltage_scaling_st {
 	double dtbclk_mhz;
 };
 
+/**
+ * _vcs_dpi_soc_bounding_box_st: SOC definitions
+ *
+ * This struct maintains the SOC Bounding Box information for the ASIC; it
+ * defines things such as clock, voltage, performance, etc. Usually, we load
+ * these values from VBIOS; if something goes wrong, we use some hard-coded
+ * values, which will enable the ASIC to light up with limitations.
+ */
 struct _vcs_dpi_soc_bounding_box_st {
 	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
-	/*
-	 * This is a temporary stash for updating @clock_limits with the PMFW
-	 * clock table. Do not use outside of *update_bw_boudning_box functions.
+	/**
+	 * @num_states: It represents the total of Display Power Management
+	 * (DPM) supported by the specific ASIC.
 	 */
-	struct _vcs_dpi_voltage_scaling_st _clock_tmp[DC__VOLTAGE_STATES];
 	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
@@ -231,6 +248,14 @@ struct _vcs_dpi_soc_bounding_box_st {
 	enum self_refresh_affinity allow_dram_self_refresh_or_dram_clock_change_in_vblank;
 };
 
+/**
+ * @_vcs_dpi_ip_params_st: IP configuraion for DCN blocks
+ *
+ * In this struct you can find the DCN configuration associated to the specific
+ * ASIC. For example, here we can save how many DPPs the ASIC is using and it
+ * is available.
+ *
+ */
 struct _vcs_dpi_ip_params_st {
 	bool use_min_dcfclk;
 	bool clamp_min_dcfclk;
@@ -283,6 +308,9 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int writeback_line_buffer_chroma_buffer_size;
 
 	unsigned int max_page_table_levels;
+	/**
+	 * @max_num_dpp: Maximum number of DPP supported in the target ASIC.
+	 */
 	unsigned int max_num_dpp;
 	unsigned int max_num_otg;
 	unsigned int cursor_chunk_size;
@@ -336,6 +364,10 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int max_num_dp2p0_outputs;
 	unsigned int max_num_dp2p0_streams;
 	unsigned int VBlankNomDefaultUS;
+
+	/* DM workarounds */
+	double dsc_delay_factor_wa; // TODO: Remove after implementing root cause fix
+	double min_prefetch_in_strobe_us;
 };
 
 struct _vcs_dpi_display_xfc_params_st {
@@ -482,6 +514,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int htotal;
 	unsigned int vtotal;
 	unsigned int vfront_porch;
+	unsigned int vblank_nom;
 	unsigned int vactive;
 	unsigned int hactive;
 	unsigned int vstartup_start;

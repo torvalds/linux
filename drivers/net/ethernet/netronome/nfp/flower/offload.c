@@ -373,10 +373,10 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			if (ipv6_tun) {
 				key_layer_two |= NFP_FLOWER_LAYER2_TUN_IPV6;
 				key_size +=
-					sizeof(struct nfp_flower_ipv6_udp_tun);
+					sizeof(struct nfp_flower_ipv6_gre_tun);
 			} else {
 				key_size +=
-					sizeof(struct nfp_flower_ipv4_udp_tun);
+					sizeof(struct nfp_flower_ipv4_gre_tun);
 			}
 
 			if (enc_op.key) {
@@ -1301,9 +1301,14 @@ static bool offload_pre_check(struct flow_cls_offload *flow)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct flow_dissector *dissector = rule->match.dissector;
+	struct flow_match_ct ct;
 
-	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT))
-		return false;
+	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT)) {
+		flow_rule_match_ct(rule, &ct);
+		/* Allow special case where CT match is all 0 */
+		if (memchr_inv(ct.key, 0, sizeof(*ct.key)))
+			return false;
+	}
 
 	if (flow->common.chain_index)
 		return false;

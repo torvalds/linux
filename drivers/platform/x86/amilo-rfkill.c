@@ -150,7 +150,8 @@ static int __init amilo_rfkill_init(void)
 	if (rc)
 		return rc;
 
-	amilo_rfkill_pdev = platform_device_register_simple(KBUILD_MODNAME, -1,
+	amilo_rfkill_pdev = platform_device_register_simple(KBUILD_MODNAME,
+							    PLATFORM_DEVID_NONE,
 							    NULL, 0);
 	if (IS_ERR(amilo_rfkill_pdev)) {
 		rc = PTR_ERR(amilo_rfkill_pdev);

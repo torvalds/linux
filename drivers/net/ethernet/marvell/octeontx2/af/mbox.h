@@ -293,20 +293,74 @@ M(NIX_BANDPROF_ALLOC,	0x801d, nix_bandprof_alloc, nix_bandprof_alloc_req, \
 M(NIX_BANDPROF_FREE,	0x801e, nix_bandprof_free, nix_bandprof_free_req,   \
 				msg_rsp)				    \
 M(NIX_BANDPROF_GET_HWINFO, 0x801f, nix_bandprof_get_hwinfo, msg_req,		\
-				nix_bandprof_get_hwinfo_rsp)
+				nix_bandprof_get_hwinfo_rsp)		    \
+/* MCS mbox IDs (range 0xA000 - 0xBFFF) */					\
+M(MCS_ALLOC_RESOURCES,	0xa000, mcs_alloc_resources, mcs_alloc_rsrc_req,	\
+				mcs_alloc_rsrc_rsp)				\
+M(MCS_FREE_RESOURCES,	0xa001, mcs_free_resources, mcs_free_rsrc_req, msg_rsp) \
+M(MCS_FLOWID_ENTRY_WRITE, 0xa002, mcs_flowid_entry_write, mcs_flowid_entry_write_req,	\
+				msg_rsp)					\
+M(MCS_SECY_PLCY_WRITE,	0xa003, mcs_secy_plcy_write, mcs_secy_plcy_write_req,	\
+				msg_rsp)					\
+M(MCS_RX_SC_CAM_WRITE,	0xa004, mcs_rx_sc_cam_write, mcs_rx_sc_cam_write_req,	\
+				msg_rsp)					\
+M(MCS_SA_PLCY_WRITE,	0xa005, mcs_sa_plcy_write, mcs_sa_plcy_write_req,	\
+				msg_rsp)					\
+M(MCS_TX_SC_SA_MAP_WRITE, 0xa006, mcs_tx_sc_sa_map_write, mcs_tx_sc_sa_map,	\
+				  msg_rsp)					\
+M(MCS_RX_SC_SA_MAP_WRITE, 0xa007, mcs_rx_sc_sa_map_write, mcs_rx_sc_sa_map,	\
+				  msg_rsp)					\
+M(MCS_FLOWID_ENA_ENTRY,	0xa008, mcs_flowid_ena_entry, mcs_flowid_ena_dis_entry,	\
+				msg_rsp)					\
+M(MCS_PN_TABLE_WRITE,	0xa009, mcs_pn_table_write, mcs_pn_table_write_req,	\
+				msg_rsp)					\
+M(MCS_SET_ACTIVE_LMAC,	0xa00a,	mcs_set_active_lmac, mcs_set_active_lmac,	\
+				msg_rsp)					\
+M(MCS_GET_HW_INFO,	0xa00b,	mcs_get_hw_info, msg_req, mcs_hw_info)		\
+M(MCS_GET_FLOWID_STATS, 0xa00c, mcs_get_flowid_stats, mcs_stats_req,		\
+				mcs_flowid_stats)				\
+M(MCS_GET_SECY_STATS,	0xa00d, mcs_get_secy_stats, mcs_stats_req,		\
+				mcs_secy_stats)					\
+M(MCS_GET_SC_STATS,	0xa00e, mcs_get_sc_stats, mcs_stats_req, mcs_sc_stats)	\
+M(MCS_GET_SA_STATS,	0xa00f, mcs_get_sa_stats, mcs_stats_req, mcs_sa_stats)	\
+M(MCS_GET_PORT_STATS,	0xa010, mcs_get_port_stats, mcs_stats_req,		\
+				mcs_port_stats)					\
+M(MCS_CLEAR_STATS,	0xa011,	mcs_clear_stats, mcs_clear_stats, msg_rsp)	\
+M(MCS_INTR_CFG,		0xa012, mcs_intr_cfg, mcs_intr_cfg, msg_rsp)		\
+M(MCS_SET_LMAC_MODE,	0xa013, mcs_set_lmac_mode, mcs_set_lmac_mode, msg_rsp)	\
+M(MCS_SET_PN_THRESHOLD, 0xa014, mcs_set_pn_threshold, mcs_set_pn_threshold,	\
+				msg_rsp)					\
+M(MCS_ALLOC_CTRL_PKT_RULE, 0xa015, mcs_alloc_ctrl_pkt_rule,			\
+				   mcs_alloc_ctrl_pkt_rule_req,			\
+				   mcs_alloc_ctrl_pkt_rule_rsp)			\
+M(MCS_FREE_CTRL_PKT_RULE, 0xa016, mcs_free_ctrl_pkt_rule,			\
+				  mcs_free_ctrl_pkt_rule_req, msg_rsp)		\
+M(MCS_CTRL_PKT_RULE_WRITE, 0xa017, mcs_ctrl_pkt_rule_write,			\
+				   mcs_ctrl_pkt_rule_write_req, msg_rsp)	\
+M(MCS_PORT_RESET,	0xa018, mcs_port_reset, mcs_port_reset_req, msg_rsp)	\
+M(MCS_PORT_CFG_SET,	0xa019, mcs_port_cfg_set, mcs_port_cfg_set_req, msg_rsp)\
+M(MCS_PORT_CFG_GET,	0xa020, mcs_port_cfg_get, mcs_port_cfg_get_req,		\
+				mcs_port_cfg_get_rsp)				\
+M(MCS_CUSTOM_TAG_CFG_GET, 0xa021, mcs_custom_tag_cfg_get,			\
+				  mcs_custom_tag_cfg_get_req,			\
+				  mcs_custom_tag_cfg_get_rsp)
 
-/* Messages initiated by AF (range 0xC00 - 0xDFF) */
+/* Messages initiated by AF (range 0xC00 - 0xEFF) */
 #define MBOX_UP_CGX_MESSAGES						\
 M(CGX_LINK_EVENT,	0xC00, cgx_link_event, cgx_link_info_msg, msg_rsp)
 
 #define MBOX_UP_CPT_MESSAGES						\
 M(CPT_INST_LMTST,	0xD00, cpt_inst_lmtst, cpt_inst_lmtst_req, msg_rsp)
 
+#define MBOX_UP_MCS_MESSAGES						\
+M(MCS_INTR_NOTIFY,	0xE00, mcs_intr_notify, mcs_intr_info, msg_rsp)
+
 enum {
 #define M(_name, _id, _1, _2, _3) MBOX_MSG_ ## _name = _id,
 MBOX_MESSAGES
 MBOX_UP_CGX_MESSAGES
 MBOX_UP_CPT_MESSAGES
+MBOX_UP_MCS_MESSAGES
 #undef M
 };
 
@@ -1471,6 +1525,7 @@ enum ptp_op {
 	PTP_OP_GET_CLOCK = 1,
 	PTP_OP_GET_TSTMP = 2,
 	PTP_OP_SET_THRESH = 3,
+	PTP_OP_EXTTS_ON = 4,
 };
 
 struct ptp_req {
@@ -1478,6 +1533,7 @@ struct ptp_req {
 	u8 op;
 	s64 scaled_ppm;
 	u64 thresh;
+	int extts_on;
 };
 
 struct ptp_rsp {
@@ -1653,6 +1709,417 @@ enum cgx_af_status {
 	LMAC_AF_ERR_EXACT_MATCH_TBL_ADD_FAILED = -1108,
 	LMAC_AF_ERR_EXACT_MATCH_TBL_DEL_FAILED = -1109,
 	LMAC_AF_ERR_EXACT_MATCH_TBL_LOOK_UP_FAILED = -1110,
+};
+
+enum mcs_direction {
+	MCS_RX,
+	MCS_TX,
+};
+
+enum mcs_rsrc_type {
+	MCS_RSRC_TYPE_FLOWID,
+	MCS_RSRC_TYPE_SECY,
+	MCS_RSRC_TYPE_SC,
+	MCS_RSRC_TYPE_SA,
+};
+
+struct mcs_alloc_rsrc_req {
+	struct mbox_msghdr hdr;
+	u8 rsrc_type;
+	u8 rsrc_cnt;	/* Resources count */
+	u8 mcs_id;	/* MCS block ID	*/
+	u8 dir;		/* Macsec ingress or egress side */
+	u8 all;		/* Allocate all resource type one each */
+	u64 rsvd;
+};
+
+struct mcs_alloc_rsrc_rsp {
+	struct mbox_msghdr hdr;
+	u8 flow_ids[128];	/* Index of reserved entries */
+	u8 secy_ids[128];
+	u8 sc_ids[128];
+	u8 sa_ids[256];
+	u8 rsrc_type;
+	u8 rsrc_cnt;		/* No of entries reserved */
+	u8 mcs_id;
+	u8 dir;
+	u8 all;
+	u8 rsvd[256];		/* reserved fields for future expansion */
+};
+
+struct mcs_free_rsrc_req {
+	struct mbox_msghdr hdr;
+	u8 rsrc_id;		/* Index of the entry to be freed */
+	u8 rsrc_type;
+	u8 mcs_id;
+	u8 dir;
+	u8 all;			/* Free all the cam resources */
+	u64 rsvd;
+};
+
+struct mcs_flowid_entry_write_req {
+	struct mbox_msghdr hdr;
+	u64 data[4];
+	u64 mask[4];
+	u64 sci;	/* CNF10K-B for tx_secy_mem_map */
+	u8 flow_id;
+	u8 secy_id;	/* secyid for which flowid is mapped */
+	u8 sc_id;	/* Valid if dir = MCS_TX, SC_CAM id mapped to flowid */
+	u8 ena;		/* Enable tcam entry */
+	u8 ctrl_pkt;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_secy_plcy_write_req {
+	struct mbox_msghdr hdr;
+	u64 plcy;
+	u8 secy_id;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+/* RX SC_CAM mapping */
+struct mcs_rx_sc_cam_write_req {
+	struct mbox_msghdr hdr;
+	u64 sci;	/* SCI */
+	u64 secy_id;	/* secy index mapped to SC */
+	u8 sc_id;	/* SC CAM entry index */
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_sa_plcy_write_req {
+	struct mbox_msghdr hdr;
+	u64 plcy[2][9];		/* Support 2 SA policy */
+	u8 sa_index[2];
+	u8 sa_cnt;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_tx_sc_sa_map {
+	struct mbox_msghdr hdr;
+	u8 sa_index0;
+	u8 sa_index1;
+	u8 rekey_ena;
+	u8 sa_index0_vld;
+	u8 sa_index1_vld;
+	u8 tx_sa_active;
+	u64 sectag_sci;
+	u8 sc_id;	/* used as index for SA_MEM_MAP */
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_rx_sc_sa_map {
+	struct mbox_msghdr hdr;
+	u8 sa_index;
+	u8 sa_in_use;
+	u8 sc_id;
+	u8 an;		/* value range 0-3, sc_id + an used as index SA_MEM_MAP */
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_flowid_ena_dis_entry {
+	struct mbox_msghdr hdr;
+	u8 flow_id;
+	u8 ena;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_pn_table_write_req {
+	struct mbox_msghdr hdr;
+	u64 next_pn;
+	u8 pn_id;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_hw_info {
+	struct mbox_msghdr hdr;
+	u8 num_mcs_blks;	/* Number of MCS blocks */
+	u8 tcam_entries;	/* RX/TX Tcam entries per mcs block */
+	u8 secy_entries;	/* RX/TX SECY entries per mcs block */
+	u8 sc_entries;		/* RX/TX SC CAM entries per mcs block */
+	u8 sa_entries;		/* PN table entries = SA entries */
+	u64 rsvd[16];
+};
+
+struct mcs_set_active_lmac {
+	struct mbox_msghdr hdr;
+	u32 lmac_bmap;	/* bitmap of active lmac per mcs block */
+	u8 mcs_id;
+	u16 chan_base; /* MCS channel base */
+	u64 rsvd;
+};
+
+struct mcs_set_lmac_mode {
+	struct mbox_msghdr hdr;
+	u8 mode;	/* 1:Bypass 0:Operational */
+	u8 lmac_id;
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_port_reset_req {
+	struct mbox_msghdr hdr;
+	u8 reset;
+	u8 mcs_id;
+	u8 port_id;
+	u64 rsvd;
+};
+
+struct mcs_port_cfg_set_req {
+	struct mbox_msghdr hdr;
+	u8 cstm_tag_rel_mode_sel;
+	u8 custom_hdr_enb;
+	u8 fifo_skid;
+	u8 port_mode;
+	u8 port_id;
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_port_cfg_get_req {
+	struct mbox_msghdr hdr;
+	u8 port_id;
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_port_cfg_get_rsp {
+	struct mbox_msghdr hdr;
+	u8 cstm_tag_rel_mode_sel;
+	u8 custom_hdr_enb;
+	u8 fifo_skid;
+	u8 port_mode;
+	u8 port_id;
+	u8 mcs_id;
+	u64 rsvd;
+};
+
+struct mcs_custom_tag_cfg_get_req {
+	struct mbox_msghdr hdr;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_custom_tag_cfg_get_rsp {
+	struct mbox_msghdr hdr;
+	u16 cstm_etype[8];
+	u8 cstm_indx[8];
+	u8 cstm_etype_en;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+/* MCS mailbox error codes
+ * Range 1201 - 1300.
+ */
+enum mcs_af_status {
+	MCS_AF_ERR_INVALID_MCSID        = -1201,
+	MCS_AF_ERR_NOT_MAPPED           = -1202,
+};
+
+struct mcs_set_pn_threshold {
+	struct mbox_msghdr hdr;
+	u64 threshold;
+	u8 xpn; /* '1' for setting xpn threshold */
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+enum mcs_ctrl_pkt_rulew_type {
+	MCS_CTRL_PKT_RULE_TYPE_ETH,
+	MCS_CTRL_PKT_RULE_TYPE_DA,
+	MCS_CTRL_PKT_RULE_TYPE_RANGE,
+	MCS_CTRL_PKT_RULE_TYPE_COMBO,
+	MCS_CTRL_PKT_RULE_TYPE_MAC,
+};
+
+struct mcs_alloc_ctrl_pkt_rule_req {
+	struct mbox_msghdr hdr;
+	u8 rule_type;
+	u8 mcs_id;	/* MCS block ID	*/
+	u8 dir;		/* Macsec ingress or egress side */
+	u64 rsvd;
+};
+
+struct mcs_alloc_ctrl_pkt_rule_rsp {
+	struct mbox_msghdr hdr;
+	u8 rule_idx;
+	u8 rule_type;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_free_ctrl_pkt_rule_req {
+	struct mbox_msghdr hdr;
+	u8 rule_idx;
+	u8 rule_type;
+	u8 mcs_id;
+	u8 dir;
+	u8 all;
+	u64 rsvd;
+};
+
+struct mcs_ctrl_pkt_rule_write_req {
+	struct mbox_msghdr hdr;
+	u64 data0;
+	u64 data1;
+	u64 data2;
+	u8 rule_idx;
+	u8 rule_type;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_stats_req {
+	struct mbox_msghdr hdr;
+	u8 id;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_flowid_stats {
+	struct mbox_msghdr hdr;
+	u64 tcam_hit_cnt;
+	u64 rsvd;
+};
+
+struct mcs_secy_stats {
+	struct mbox_msghdr hdr;
+	u64 ctl_pkt_bcast_cnt;
+	u64 ctl_pkt_mcast_cnt;
+	u64 ctl_pkt_ucast_cnt;
+	u64 ctl_octet_cnt;
+	u64 unctl_pkt_bcast_cnt;
+	u64 unctl_pkt_mcast_cnt;
+	u64 unctl_pkt_ucast_cnt;
+	u64 unctl_octet_cnt;
+	/* Valid only for RX */
+	u64 octet_decrypted_cnt;
+	u64 octet_validated_cnt;
+	u64 pkt_port_disabled_cnt;
+	u64 pkt_badtag_cnt;
+	u64 pkt_nosa_cnt;
+	u64 pkt_nosaerror_cnt;
+	u64 pkt_tagged_ctl_cnt;
+	u64 pkt_untaged_cnt;
+	u64 pkt_ctl_cnt;	/* CN10K-B */
+	u64 pkt_notag_cnt;	/* CNF10K-B */
+	/* Valid only for TX */
+	u64 octet_encrypted_cnt;
+	u64 octet_protected_cnt;
+	u64 pkt_noactivesa_cnt;
+	u64 pkt_toolong_cnt;
+	u64 pkt_untagged_cnt;
+	u64 rsvd[4];
+};
+
+struct mcs_port_stats {
+	struct mbox_msghdr hdr;
+	u64 tcam_miss_cnt;
+	u64 parser_err_cnt;
+	u64 preempt_err_cnt;  /* CNF10K-B */
+	u64 sectag_insert_err_cnt;
+	u64 rsvd[4];
+};
+
+/* Only for CN10K-B */
+struct mcs_sa_stats {
+	struct mbox_msghdr hdr;
+	/* RX */
+	u64 pkt_invalid_cnt;
+	u64 pkt_nosaerror_cnt;
+	u64 pkt_notvalid_cnt;
+	u64 pkt_ok_cnt;
+	u64 pkt_nosa_cnt;
+	/* TX */
+	u64 pkt_encrypt_cnt;
+	u64 pkt_protected_cnt;
+	u64 rsvd[4];
+};
+
+struct mcs_sc_stats {
+	struct mbox_msghdr hdr;
+	/* RX */
+	u64 hit_cnt;
+	u64 pkt_invalid_cnt;
+	u64 pkt_late_cnt;
+	u64 pkt_notvalid_cnt;
+	u64 pkt_unchecked_cnt;
+	u64 pkt_delay_cnt;	/* CNF10K-B */
+	u64 pkt_ok_cnt;		/* CNF10K-B */
+	u64 octet_decrypt_cnt;	/* CN10K-B */
+	u64 octet_validate_cnt;	/* CN10K-B */
+	/* TX */
+	u64 pkt_encrypt_cnt;
+	u64 pkt_protected_cnt;
+	u64 octet_encrypt_cnt;		/* CN10K-B */
+	u64 octet_protected_cnt;	/* CN10K-B */
+	u64 rsvd[4];
+};
+
+struct mcs_clear_stats {
+	struct mbox_msghdr hdr;
+#define MCS_FLOWID_STATS	0
+#define MCS_SECY_STATS		1
+#define MCS_SC_STATS		2
+#define MCS_SA_STATS		3
+#define MCS_PORT_STATS		4
+	u8 type;	/* FLOWID, SECY, SC, SA, PORT */
+	u8 id;		/* type = PORT, If id = FF(invalid) port no is derived from pcifunc */
+	u8 mcs_id;
+	u8 dir;
+	u8 all;		/* All resources stats mapped to PF are cleared */
+};
+
+struct mcs_intr_cfg {
+	struct mbox_msghdr hdr;
+#define MCS_CPM_RX_SECTAG_V_EQ1_INT		BIT_ULL(0)
+#define MCS_CPM_RX_SECTAG_E_EQ0_C_EQ1_INT	BIT_ULL(1)
+#define MCS_CPM_RX_SECTAG_SL_GTE48_INT		BIT_ULL(2)
+#define MCS_CPM_RX_SECTAG_ES_EQ1_SC_EQ1_INT	BIT_ULL(3)
+#define MCS_CPM_RX_SECTAG_SC_EQ1_SCB_EQ1_INT	BIT_ULL(4)
+#define MCS_CPM_RX_PACKET_XPN_EQ0_INT		BIT_ULL(5)
+#define MCS_CPM_RX_PN_THRESH_REACHED_INT	BIT_ULL(6)
+#define MCS_CPM_TX_PACKET_XPN_EQ0_INT		BIT_ULL(7)
+#define MCS_CPM_TX_PN_THRESH_REACHED_INT	BIT_ULL(8)
+#define MCS_CPM_TX_SA_NOT_VALID_INT		BIT_ULL(9)
+#define MCS_BBE_RX_DFIFO_OVERFLOW_INT		BIT_ULL(10)
+#define MCS_BBE_RX_PLFIFO_OVERFLOW_INT		BIT_ULL(11)
+#define MCS_BBE_TX_DFIFO_OVERFLOW_INT		BIT_ULL(12)
+#define MCS_BBE_TX_PLFIFO_OVERFLOW_INT		BIT_ULL(13)
+#define MCS_PAB_RX_CHAN_OVERFLOW_INT		BIT_ULL(14)
+#define MCS_PAB_TX_CHAN_OVERFLOW_INT		BIT_ULL(15)
+	u64 intr_mask;		/* Interrupt enable mask */
+	u8 mcs_id;
+	u8 lmac_id;
+	u64 rsvd;
+};
+
+struct mcs_intr_info {
+	struct mbox_msghdr hdr;
+	u64 intr_mask;
+	int sa_id;
+	u8 mcs_id;
+	u8 lmac_id;
+	u64 rsvd;
 };
 
 #endif /* MBOX_H */

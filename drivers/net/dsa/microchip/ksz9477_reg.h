@@ -189,8 +189,9 @@
 
 #define SW_VLAN_ENABLE			BIT(7)
 #define SW_DROP_INVALID_VID		BIT(6)
-#define SW_AGE_CNT_M			0x7
+#define SW_AGE_CNT_M			GENMASK(5, 3)
 #define SW_AGE_CNT_S			3
+#define SW_AGE_PERIOD_10_8_M		GENMASK(10, 8)
 #define SW_RESV_MCAST_ENABLE		BIT(2)
 #define SW_HASH_OPTION_M		0x03
 #define SW_HASH_OPTION_CRC		1
@@ -225,6 +226,7 @@
 #define SW_PRIO_LOWEST_DA_SA		3
 
 #define REG_SW_LUE_CTRL_3		0x0313
+#define SW_AGE_PERIOD_7_0_M		GENMASK(7, 0)
 
 #define REG_SW_LUE_INT_STATUS		0x0314
 #define REG_SW_LUE_INT_ENABLE		0x0315

@@ -28,7 +28,6 @@ config ARM
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
-	select ARCH_NO_SG_CHAIN if !ARM_HAS_SG_CHAIN
 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT if CPU_V7
 	select ARCH_SUPPORTS_ATOMIC_RMW
@@ -42,6 +41,7 @@ config ARM
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select BINFMT_FLAT_ARGVP_ENVP_ON_STACK
 	select BUILDTIME_TABLE_SORT if MMU
+	select COMMON_CLK if !(ARCH_RPC || ARCH_FOOTBRIDGE)
 	select CLONE_BACKWARDS
 	select CPU_PM if SUSPEND || CPU_IDLE
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -110,6 +110,7 @@ config ARM
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_OPTPROBES if !THUMB2_KERNEL
+	select HAVE_PCI if MMU
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
@@ -126,13 +127,17 @@ config ARM
 	select OF_EARLY_FLATTREE if OF
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC
 	select RTC_LIB
+	select SPARSE_IRQ if !(ARCH_FOOTBRIDGE || ARCH_RPC)
 	select SYS_SUPPORTS_APM_EMULATION
 	select THREAD_INFO_IN_TASK
+	select TIMER_OF if OF
 	select HAVE_ARCH_VMAP_STACK if MMU && ARM_HAS_GROUP_RELOCS
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
+	select USE_OF if !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
 	help
@@ -154,12 +159,8 @@ config ARM_HAS_GROUP_RELOCS
 	  which is usually sufficient, but not for allyesconfig, so we disable
 	  this feature when doing compile testing.
 
-config ARM_HAS_SG_CHAIN
-	bool
-
 config ARM_DMA_USE_IOMMU
 	bool
-	select ARM_HAS_SG_CHAIN
 	select NEED_SG_DMA_LENGTH
 
 if ARM_DMA_USE_IOMMU
@@ -245,7 +246,7 @@ config ARCH_MTD_XIP
 config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
 	default y
-	depends on !XIP_KERNEL && MMU
+	depends on MMU
 	help
 	  Patch phys-to-virt and virt-to-phys translation functions at
 	  boot and module load time according to the position of the
@@ -274,7 +275,7 @@ config NEED_MACH_MEMORY_H
 
 config PHYS_OFFSET
 	hex "Physical address of main memory" if MMU
-	depends on !ARM_PATCH_PHYS_VIRT
+	depends on !ARM_PATCH_PHYS_VIRT || !AUTO_ZRELADDR
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
@@ -307,13 +308,8 @@ config MMU
 config ARM_SINGLE_ARMV7M
 	def_bool !MMU
 	select ARM_NVIC
-	select AUTO_ZRELADDR
-	select TIMER_OF
-	select COMMON_CLK
 	select CPU_V7M
 	select NO_IOPORT_MAP
-	select SPARSE_IRQ
-	select USE_OF
 
 config ARCH_MMAP_RND_BITS_MIN
 	default 8
@@ -323,94 +319,31 @@ config ARCH_MMAP_RND_BITS_MAX
 	default 15 if PAGE_OFFSET=0x80000000
 	default 16
 
-#
-# The "ARM system type" choice list is ordered alphabetically by option
-# text.  Please add new entries in the option alphabetic order.
-#
-choice
-	prompt "ARM system type"
-	depends on MMU
-	default ARCH_MULTIPLATFORM
-
 config ARCH_MULTIPLATFORM
-	bool "Allow multiple platforms to be selected"
-	select ARCH_FLATMEM_ENABLE
-	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_SELECT_MEMORY_MODEL
-	select ARM_HAS_SG_CHAIN
-	select ARM_PATCH_PHYS_VIRT
-	select AUTO_ZRELADDR
-	select TIMER_OF
-	select COMMON_CLK
-	select HAVE_PCI
-	select PCI_DOMAINS_GENERIC if PCI
-	select SPARSE_IRQ
-	select USE_OF
-
-config ARCH_FOOTBRIDGE
-	bool "FootBridge"
-	depends on CPU_LITTLE_ENDIAN
-	depends on ATAGS
-	select CPU_SA110
-	select FOOTBRIDGE
-	select NEED_MACH_MEMORY_H
+	bool "Require kernel to be portable to multiple machines" if EXPERT
+	depends on MMU && !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
+	default y
 	help
-	  Support for systems based on the DC21285 companion chip
-	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
+	  In general, all Arm machines can be supported in a single
+	  kernel image, covering either Armv4/v5 or Armv6/v7.
 
-config ARCH_RPC
-	bool "RiscPC"
-	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
-	depends on CPU_LITTLE_ENDIAN
-	depends on ATAGS
-	select ARCH_ACORN
-	select ARCH_MAY_HAVE_PC_FDC
-	select ARCH_SPARSEMEM_ENABLE
-	select ARM_HAS_SG_CHAIN
-	select CPU_SA110
-	select FIQ
-	select HAVE_PATA_PLATFORM
-	select ISA_DMA_API
-	select LEGACY_TIMER_TICK
-	select NEED_MACH_IO_H
-	select NEED_MACH_MEMORY_H
-	select NO_IOPORT_MAP
-	help
-	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
-	  CD-ROM interface, serial and parallel port, and the floppy drive.
+	  However, some configuration options require hardcoding machine
+	  specific physical addresses or enable errata workarounds that may
+	  break other machines.
 
-config ARCH_SA1100
-	bool "SA1100-based"
-	depends on CPU_LITTLE_ENDIAN
-	depends on ATAGS
-	select ARCH_MTD_XIP
-	select ARCH_SPARSEMEM_ENABLE
-	select CLKSRC_MMIO
-	select CLKSRC_PXA
-	select TIMER_OF if OF
-	select COMMON_CLK
-	select CPU_FREQ
-	select CPU_SA1100
-	select GPIOLIB
-	select IRQ_DOMAIN
-	select ISA
-	select NEED_MACH_MEMORY_H
-	select SPARSE_IRQ
-	help
-	  Support for StrongARM 11x0 based boards.
+	  Selecting N here allows using those options, including
+	  DEBUG_UNCOMPRESS, XIP_KERNEL and ZBOOT_ROM. If unsure, say Y.
 
-endchoice
-
-menu "Multiple platform selection"
-	depends on ARCH_MULTIPLATFORM
+menu "Platform selection"
+	depends on MMU
 
 comment "CPU Core family selection"
 
 config ARCH_MULTI_V4
-	bool "ARMv4 based platforms (FA526)"
+	bool "ARMv4 based platforms (FA526, StrongARM)"
 	depends on !ARCH_MULTI_V6_V7
 	select ARCH_MULTI_V4_V5
-	select CPU_FA526
+	select CPU_FA526 if !(CPU_SA110 || CPU_SA1100)
 
 config ARCH_MULTI_V4T
 	bool "ARMv4T based platforms (ARM720T, ARM920T, ...)"
@@ -472,7 +405,6 @@ config ARCH_AIROHA
 	select ARM_GIC_V3
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
-	select COMMON_CLK
 	help
 	  Support for Airoha EN7523 SoCs
 
@@ -573,6 +505,8 @@ source "arch/arm/mach-rda/Kconfig"
 
 source "arch/arm/mach-realtek/Kconfig"
 
+source "arch/arm/mach-rpc/Kconfig"
+
 source "arch/arm/mach-rockchip/Kconfig"
 
 source "arch/arm/mach-s3c/Kconfig"
@@ -638,7 +572,6 @@ config ARCH_ACORN
 config PLAT_ORION
 	bool
 	select CLKSRC_MMIO
-	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
@@ -989,11 +922,6 @@ config ISA
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
-# Select ISA DMA controller support
-config ISA_DMA
-	bool
-	select ISA_DMA_API
-
 # Select ISA DMA interface
 config ISA_DMA_API
 	bool
@@ -1054,7 +982,7 @@ config SMP
 
 config SMP_ON_UP
 	bool "Allow booting SMP kernel on uniprocessor systems"
-	depends on SMP && !XIP_KERNEL && MMU
+	depends on SMP && MMU
 	default y
 	help
 	  SMP kernels contain instructions which fail on non-SMP processors.
@@ -1303,7 +1231,7 @@ config THUMB2_KERNEL
 
 config ARM_PATCH_IDIV
 	bool "Runtime patch udiv/sdiv instructions into __aeabi_{u}idiv()"
-	depends on CPU_32v7 && !XIP_KERNEL
+	depends on CPU_32v7
 	default y
 	help
 	  The ARM compiler inserts calls to __aeabi_idiv() and
@@ -1358,13 +1286,13 @@ config OABI_COMPAT
 	  at all). If in doubt say N.
 
 config ARCH_SELECT_MEMORY_MODEL
-	bool
+	def_bool y
 
 config ARCH_FLATMEM_ENABLE
-	bool
+	def_bool !(ARCH_RPC || ARCH_SA1100)
 
 config ARCH_SPARSEMEM_ENABLE
-	bool
+	def_bool !ARCH_FOOTBRIDGE
 	select SPARSEMEM_STATIC if SPARSEMEM
 
 config HIGHMEM
@@ -1434,7 +1362,7 @@ config ARM_MODULE_PLTS
 	  Disabling this is usually safe for small single-platform
 	  configurations. If unsure, say y.
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	default "12" if SOC_AM33XX
 	default "9" if SA1111
@@ -1671,7 +1599,6 @@ config CMDLINE
 choice
 	prompt "Kernel command line type" if CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
-	depends on ATAGS
 
 config CMDLINE_FROM_BOOTLOADER
 	bool "Use bootloader kernel arguments if available"
@@ -1698,6 +1625,7 @@ endchoice
 config XIP_KERNEL
 	bool "Kernel Execute-In-Place from ROM"
 	depends on !ARM_LPAE && !ARCH_MULTIPLATFORM
+	depends on !ARM_PATCH_IDIV && !ARM_PATCH_PHYS_VIRT && !SMP_ON_UP
 	help
 	  Execute-In-Place allows the kernel to run from non-volatile storage
 	  directly addressable by the CPU, such as NOR flash. This saves RAM
@@ -1772,7 +1700,8 @@ config CRASH_DUMP
 	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
 config AUTO_ZRELADDR
-	bool "Auto calculation of the decompressed kernel image address"
+	bool "Auto calculation of the decompressed kernel image address" if !ARCH_MULTIPLATFORM
+	default !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
 	help
 	  ZRELADDR is the physical address where the decompressed kernel
 	  image will be placed. If AUTO_ZRELADDR is selected, the address
@@ -1920,9 +1849,5 @@ config ARCH_HIBERNATION_POSSIBLE
 	default y if ARCH_SUSPEND_POSSIBLE
 
 endmenu
-
-if CRYPTO
-source "arch/arm/crypto/Kconfig"
-endif
 
 source "arch/arm/Kconfig.assembler"

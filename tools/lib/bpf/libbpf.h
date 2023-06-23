@@ -118,7 +118,9 @@ struct bpf_object_open_opts {
 	 * auto-pinned to that path on load; defaults to "/sys/fs/bpf".
 	 */
 	const char *pin_root_path;
-	long :0;
+
+	__u32 :32; /* stub out now removed attach_prog_fd */
+
 	/* Additional kernel config content that augments and overrides
 	 * system Kconfig for CONFIG_xxx externs.
 	 */
@@ -260,6 +262,8 @@ LIBBPF_API const char *bpf_program__name(const struct bpf_program *prog);
 LIBBPF_API const char *bpf_program__section_name(const struct bpf_program *prog);
 LIBBPF_API bool bpf_program__autoload(const struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_autoload(struct bpf_program *prog, bool autoload);
+LIBBPF_API bool bpf_program__autoattach(const struct bpf_program *prog);
+LIBBPF_API void bpf_program__set_autoattach(struct bpf_program *prog, bool autoattach);
 
 struct bpf_insn;
 
@@ -1009,6 +1013,7 @@ LIBBPF_API int bpf_tc_query(const struct bpf_tc_hook *hook,
 
 /* Ring buffer APIs */
 struct ring_buffer;
+struct user_ring_buffer;
 
 typedef int (*ring_buffer_sample_fn)(void *ctx, void *data, size_t size);
 
@@ -1027,6 +1032,112 @@ LIBBPF_API int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 LIBBPF_API int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms);
 LIBBPF_API int ring_buffer__consume(struct ring_buffer *rb);
 LIBBPF_API int ring_buffer__epoll_fd(const struct ring_buffer *rb);
+
+struct user_ring_buffer_opts {
+	size_t sz; /* size of this struct, for forward/backward compatibility */
+};
+
+#define user_ring_buffer_opts__last_field sz
+
+/* @brief **user_ring_buffer__new()** creates a new instance of a user ring
+ * buffer.
+ *
+ * @param map_fd A file descriptor to a BPF_MAP_TYPE_USER_RINGBUF map.
+ * @param opts Options for how the ring buffer should be created.
+ * @return A user ring buffer on success; NULL and errno being set on a
+ * failure.
+ */
+LIBBPF_API struct user_ring_buffer *
+user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts);
+
+/* @brief **user_ring_buffer__reserve()** reserves a pointer to a sample in the
+ * user ring buffer.
+ * @param rb A pointer to a user ring buffer.
+ * @param size The size of the sample, in bytes.
+ * @return A pointer to an 8-byte aligned reserved region of the user ring
+ * buffer; NULL, and errno being set if a sample could not be reserved.
+ *
+ * This function is *not* thread safe, and callers must synchronize accessing
+ * this function if there are multiple producers.  If a size is requested that
+ * is larger than the size of the entire ring buffer, errno will be set to
+ * E2BIG and NULL is returned. If the ring buffer could accommodate the size,
+ * but currently does not have enough space, errno is set to ENOSPC and NULL is
+ * returned.
+ *
+ * After initializing the sample, callers must invoke
+ * **user_ring_buffer__submit()** to post the sample to the kernel. Otherwise,
+ * the sample must be freed with **user_ring_buffer__discard()**.
+ */
+LIBBPF_API void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 size);
+
+/* @brief **user_ring_buffer__reserve_blocking()** reserves a record in the
+ * ring buffer, possibly blocking for up to @timeout_ms until a sample becomes
+ * available.
+ * @param rb The user ring buffer.
+ * @param size The size of the sample, in bytes.
+ * @param timeout_ms The amount of time, in milliseconds, for which the caller
+ * should block when waiting for a sample. -1 causes the caller to block
+ * indefinitely.
+ * @return A pointer to an 8-byte aligned reserved region of the user ring
+ * buffer; NULL, and errno being set if a sample could not be reserved.
+ *
+ * This function is *not* thread safe, and callers must synchronize
+ * accessing this function if there are multiple producers
+ *
+ * If **timeout_ms** is -1, the function will block indefinitely until a sample
+ * becomes available. Otherwise, **timeout_ms** must be non-negative, or errno
+ * is set to EINVAL, and NULL is returned. If **timeout_ms** is 0, no blocking
+ * will occur and the function will return immediately after attempting to
+ * reserve a sample.
+ *
+ * If **size** is larger than the size of the entire ring buffer, errno is set
+ * to E2BIG and NULL is returned. If the ring buffer could accommodate
+ * **size**, but currently does not have enough space, the caller will block
+ * until at most **timeout_ms** has elapsed. If insufficient space is available
+ * at that time, errno is set to ENOSPC, and NULL is returned.
+ *
+ * The kernel guarantees that it will wake up this thread to check if
+ * sufficient space is available in the ring buffer at least once per
+ * invocation of the **bpf_ringbuf_drain()** helper function, provided that at
+ * least one sample is consumed, and the BPF program did not invoke the
+ * function with BPF_RB_NO_WAKEUP. A wakeup may occur sooner than that, but the
+ * kernel does not guarantee this. If the helper function is invoked with
+ * BPF_RB_FORCE_WAKEUP, a wakeup event will be sent even if no sample is
+ * consumed.
+ *
+ * When a sample of size **size** is found within **timeout_ms**, a pointer to
+ * the sample is returned. After initializing the sample, callers must invoke
+ * **user_ring_buffer__submit()** to post the sample to the ring buffer.
+ * Otherwise, the sample must be freed with **user_ring_buffer__discard()**.
+ */
+LIBBPF_API void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb,
+						    __u32 size,
+						    int timeout_ms);
+
+/* @brief **user_ring_buffer__submit()** submits a previously reserved sample
+ * into the ring buffer.
+ * @param rb The user ring buffer.
+ * @param sample A reserved sample.
+ *
+ * It is not necessary to synchronize amongst multiple producers when invoking
+ * this function.
+ */
+LIBBPF_API void user_ring_buffer__submit(struct user_ring_buffer *rb, void *sample);
+
+/* @brief **user_ring_buffer__discard()** discards a previously reserved sample.
+ * @param rb The user ring buffer.
+ * @param sample A reserved sample.
+ *
+ * It is not necessary to synchronize amongst multiple producers when invoking
+ * this function.
+ */
+LIBBPF_API void user_ring_buffer__discard(struct user_ring_buffer *rb, void *sample);
+
+/* @brief **user_ring_buffer__free()** frees a ring buffer that was previously
+ * created with **user_ring_buffer__new()**.
+ * @param rb The user ring buffer being freed.
+ */
+LIBBPF_API void user_ring_buffer__free(struct user_ring_buffer *rb);
 
 /* Perf buffer APIs */
 struct perf_buffer;

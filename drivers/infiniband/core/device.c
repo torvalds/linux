@@ -422,7 +422,7 @@ int ib_device_rename(struct ib_device *ibdev, const char *name)
 		return ret;
 	}
 
-	strlcpy(ibdev->name, name, IB_DEVICE_NAME_MAX);
+	strscpy(ibdev->name, name, IB_DEVICE_NAME_MAX);
 	ret = rename_compat_devs(ibdev);
 
 	downgrade_write(&devices_rwsem);
@@ -1217,7 +1217,7 @@ static int assign_name(struct ib_device *device, const char *name)
 		ret = -ENFILE;
 		goto out;
 	}
-	strlcpy(device->name, dev_name(&device->dev), IB_DEVICE_NAME_MAX);
+	strscpy(device->name, dev_name(&device->dev), IB_DEVICE_NAME_MAX);
 
 	ret = xa_alloc_cyclic(&devices, &device->index, device, xa_limit_31b,
 			&last_id, GFP_KERNEL);
@@ -2815,10 +2815,18 @@ static int __init ib_core_init(void)
 
 	nldev_init();
 	rdma_nl_register(RDMA_NL_LS, ibnl_ls_cb_table);
-	roce_gid_mgmt_init();
+	ret = roce_gid_mgmt_init();
+	if (ret) {
+		pr_warn("Couldn't init RoCE GID management\n");
+		goto err_parent;
+	}
 
 	return 0;
 
+err_parent:
+	rdma_nl_unregister(RDMA_NL_LS);
+	nldev_exit();
+	unregister_pernet_device(&rdma_dev_net_ops);
 err_compat:
 	unregister_blocking_lsm_notifier(&ibdev_lsm_nb);
 err_sa:

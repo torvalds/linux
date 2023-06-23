@@ -283,7 +283,7 @@ static void ar933x_uart_get_scale_step(unsigned int clk,
 
 static void ar933x_uart_set_termios(struct uart_port *port,
 				    struct ktermios *new,
-				    struct ktermios *old)
+				    const struct ktermios *old)
 {
 	struct ar933x_uart_port *up =
 		container_of(port, struct ar933x_uart_port, port);
@@ -583,6 +583,13 @@ static const struct uart_ops ar933x_uart_ops = {
 static int ar933x_config_rs485(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485conf)
 {
+	struct ar933x_uart_port *up =
+			container_of(port, struct ar933x_uart_port, port);
+
+	if (port->rs485.flags & SER_RS485_ENABLED)
+		gpiod_set_value(up->rts_gpiod,
+			!!(rs485conf->flags & SER_RS485_RTS_AFTER_SEND));
+
 	return 0;
 }
 

@@ -499,7 +499,7 @@
 		linux,code = <KEY_POWER>;
 	};
 
-	volwnkey {
+	resin {
 		compatible = "qcom,pm8941-resin";
 		interrupts = <0 8 1 IRQ_TYPE_EDGE_BOTH>;
 		debounce = <15625>;

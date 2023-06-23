@@ -8,6 +8,7 @@
 /*
  * Core code for the Via multifunction framebuffer device.
  */
+#include <linux/aperture.h>
 #include <linux/via-core.h>
 #include <linux/via_i2c.h>
 #include <linux/via-gpio.h>
@@ -616,6 +617,10 @@ static int __maybe_unused via_resume(struct device *dev)
 static int via_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "viafb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(pdev);
 	if (ret)

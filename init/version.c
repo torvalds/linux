@@ -16,26 +16,7 @@
 #include <linux/uts.h>
 #include <linux/utsname.h>
 #include <generated/utsrelease.h>
-#include <linux/version.h>
 #include <linux/proc_ns.h>
-
-struct uts_namespace init_uts_ns = {
-	.ns.count = REFCOUNT_INIT(2),
-	.name = {
-		.sysname	= UTS_SYSNAME,
-		.nodename	= UTS_NODENAME,
-		.release	= UTS_RELEASE,
-		.version	= UTS_VERSION,
-		.machine	= UTS_MACHINE,
-		.domainname	= UTS_DOMAINNAME,
-	},
-	.user_ns = &init_user_ns,
-	.ns.inum = PROC_UTS_INIT_INO,
-#ifdef CONFIG_UTS_NS
-	.ns.ops = &utsns_operations,
-#endif
-};
-EXPORT_SYMBOL_GPL(init_uts_ns);
 
 static int __init early_hostname(char *arg)
 {
@@ -52,11 +33,6 @@ static int __init early_hostname(char *arg)
 }
 early_param("hostname", early_hostname);
 
-/* FIXED STRINGS! Don't touch! */
-const char linux_banner[] =
-	"Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
-	LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "\n";
-
 const char linux_proc_banner[] =
 	"%s version %s"
 	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
@@ -64,3 +40,16 @@ const char linux_proc_banner[] =
 
 BUILD_SALT;
 BUILD_LTO_INFO;
+
+/*
+ * init_uts_ns and linux_banner contain the build version and timestamp,
+ * which are really fixed at the very last step of build process.
+ * They are compiled with __weak first, and without __weak later.
+ */
+
+struct uts_namespace init_uts_ns __weak;
+const char linux_banner[] __weak;
+
+#include "version-timestamp.c"
+
+EXPORT_SYMBOL_GPL(init_uts_ns);

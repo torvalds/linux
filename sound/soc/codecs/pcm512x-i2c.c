@@ -29,10 +29,9 @@ static int pcm512x_i2c_probe(struct i2c_client *i2c)
 	return pcm512x_probe(&i2c->dev, regmap);
 }
 
-static int pcm512x_i2c_remove(struct i2c_client *i2c)
+static void pcm512x_i2c_remove(struct i2c_client *i2c)
 {
 	pcm512x_remove(&i2c->dev);
-	return 0;
 }
 
 static const struct i2c_device_id pcm512x_i2c_id[] = {

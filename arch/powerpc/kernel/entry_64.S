@@ -292,16 +292,16 @@ _GLOBAL(enter_prom)
 
 	/* Prepare a 32-bit mode big endian MSR
 	 */
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	rlwinm	r11,r11,0,1,31
 	mtsrr1	r11
 	rfi
-#else /* CONFIG_PPC_BOOK3E */
+#else /* CONFIG_PPC_BOOK3E_64 */
 	LOAD_REG_IMMEDIATE(r12, MSR_SF | MSR_LE)
 	andc	r11,r11,r12
 	mtsrr1	r11
 	RFI_TO_KERNEL
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_BOOK3E_64 */
 
 1:	/* Return from OF */
 	FIXUP_ENDIAN

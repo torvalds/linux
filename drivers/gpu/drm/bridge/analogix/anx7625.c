@@ -1440,6 +1440,20 @@ static void anx7625_start_dp_work(struct anx7625_data *ctx)
 
 static int anx7625_read_hpd_status_p0(struct anx7625_data *ctx)
 {
+	int ret;
+
+	/* Set irq detect window to 2ms */
+	ret = anx7625_reg_write(ctx, ctx->i2c.tx_p2_client,
+				HPD_DET_TIMER_BIT0_7, HPD_TIME & 0xFF);
+	ret |= anx7625_reg_write(ctx, ctx->i2c.tx_p2_client,
+				 HPD_DET_TIMER_BIT8_15,
+				 (HPD_TIME >> 8) & 0xFF);
+	ret |= anx7625_reg_write(ctx, ctx->i2c.tx_p2_client,
+				 HPD_DET_TIMER_BIT16_23,
+				 (HPD_TIME >> 16) & 0xFF);
+	if (ret < 0)
+		return ret;
+
 	return anx7625_reg_read(ctx, ctx->i2c.rx_p0_client, SYSTEM_STSTUS);
 }
 
@@ -1642,6 +1656,7 @@ static int anx7625_parse_dt(struct device *dev,
 	anx7625_get_swing_setting(dev, pdata);
 
 	pdata->is_dpi = 0; /* default dsi mode */
+	of_node_put(pdata->mipi_host_node);
 	pdata->mipi_host_node = of_graph_get_remote_node(np, 0, 0);
 	if (!pdata->mipi_host_node) {
 		DRM_DEV_ERROR(dev, "fail to get internal panel.\n");
@@ -1796,8 +1811,13 @@ static int anx7625_audio_hw_params(struct device *dev, void *data,
 	int wl, ch, rate;
 	int ret = 0;
 
-	if (fmt->fmt != HDMI_DSP_A) {
-		DRM_DEV_ERROR(dev, "only supports DSP_A\n");
+	if (anx7625_sink_detect(ctx) == connector_status_disconnected) {
+		DRM_DEV_DEBUG_DRIVER(dev, "DP not connected\n");
+		return 0;
+	}
+
+	if (fmt->fmt != HDMI_DSP_A && fmt->fmt != HDMI_I2S) {
+		DRM_DEV_ERROR(dev, "only supports DSP_A & I2S\n");
 		return -EINVAL;
 	}
 
@@ -1805,10 +1825,16 @@ static int anx7625_audio_hw_params(struct device *dev, void *data,
 			     params->sample_rate, params->sample_width,
 			     params->cea.channels);
 
-	ret |= anx7625_write_and_or(ctx, ctx->i2c.tx_p2_client,
-				    AUDIO_CHANNEL_STATUS_6,
-				    ~I2S_SLAVE_MODE,
-				    TDM_SLAVE_MODE);
+	if (fmt->fmt == HDMI_DSP_A)
+		ret = anx7625_write_and_or(ctx, ctx->i2c.tx_p2_client,
+					   AUDIO_CHANNEL_STATUS_6,
+					   ~I2S_SLAVE_MODE,
+					   TDM_SLAVE_MODE);
+	else
+		ret = anx7625_write_and_or(ctx, ctx->i2c.tx_p2_client,
+					   AUDIO_CHANNEL_STATUS_6,
+					   ~TDM_SLAVE_MODE,
+					   I2S_SLAVE_MODE);
 
 	/* Word length */
 	switch (params->sample_width) {
@@ -2689,7 +2715,7 @@ free_hdcp_wq:
 	return ret;
 }
 
-static int anx7625_i2c_remove(struct i2c_client *client)
+static void anx7625_i2c_remove(struct i2c_client *client)
 {
 	struct anx7625_data *platform = i2c_get_clientdata(client);
 
@@ -2709,8 +2735,6 @@ static int anx7625_i2c_remove(struct i2c_client *client)
 
 	if (platform->pdata.audio_en)
 		anx7625_unregister_audio(platform);
-
-	return 0;
 }
 
 static const struct i2c_device_id anx7625_id[] = {

@@ -463,7 +463,7 @@ err_max77836:
 	return ret;
 }
 
-static int max14577_i2c_remove(struct i2c_client *i2c)
+static void max14577_i2c_remove(struct i2c_client *i2c)
 {
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
@@ -471,8 +471,6 @@ static int max14577_i2c_remove(struct i2c_client *i2c)
 	regmap_del_irq_chip(max14577->irq, max14577->irq_data);
 	if (max14577->dev_type == MAXIM_DEVICE_TYPE_MAX77836)
 		max77836_remove(max14577);
-
-	return 0;
 }
 
 static const struct i2c_device_id max14577_i2c_id[] = {

@@ -95,6 +95,31 @@ config SND_SOC_SOF_MERRIFIELD
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
+config SND_SOC_SOF_INTEL_SKL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_IPC4
+
+config SND_SOC_SOF_SKYLAKE
+	tristate "SOF support for SkyLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_SKL
+	help
+	  This adds support for the Intel(R) platforms using the SkyLake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+	  This is intended only for developers and not a recommend option for distros.
+
+config SND_SOC_SOF_KABYLAKE
+	tristate "SOF support for KabyLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_SKL
+	help
+	  This adds support for the Intel(R) platforms using the KabyLake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+	  This is intended only for developers and not a recommend option for distros.
+
 config SND_SOC_SOF_INTEL_APL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON

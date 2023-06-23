@@ -21,6 +21,7 @@
 #include <asm/elf.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
+#include <asm/maccess.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
@@ -45,7 +46,7 @@ struct save_area {
 	u64 fprs[16];
 	u32 fpc;
 	u32 prefix;
-	u64 todpreg;
+	u32 todpreg;
 	u64 timer;
 	u64 todcmp;
 	u64 vxrs_low[16];
@@ -53,8 +54,6 @@ struct save_area {
 };
 
 static LIST_HEAD(dump_save_areas);
-static DEFINE_MUTEX(memcpy_real_mutex);
-static char memcpy_real_buf[PAGE_SIZE];
 
 /*
  * Allocate a save area
@@ -116,27 +115,7 @@ void __init save_area_add_vxrs(struct save_area *sa, __vector128 *vxrs)
 	memcpy(sa->vxrs_high, vxrs + 16, 16 * sizeof(__vector128));
 }
 
-static size_t copy_to_iter_real(struct iov_iter *iter, unsigned long src, size_t count)
-{
-	size_t len, copied, res = 0;
-
-	mutex_lock(&memcpy_real_mutex);
-	while (count) {
-		len = min(PAGE_SIZE, count);
-		if (memcpy_real(memcpy_real_buf, src, len))
-			break;
-		copied = copy_to_iter(memcpy_real_buf, len, iter);
-		count -= copied;
-		src += copied;
-		res += copied;
-		if (copied < len)
-			break;
-	}
-	mutex_unlock(&memcpy_real_mutex);
-	return res;
-}
-
-size_t copy_oldmem_iter(struct iov_iter *iter, unsigned long src, size_t count)
+static size_t copy_oldmem_iter(struct iov_iter *iter, unsigned long src, size_t count)
 {
 	size_t len, copied, res = 0;
 
@@ -156,7 +135,7 @@ size_t copy_oldmem_iter(struct iov_iter *iter, unsigned long src, size_t count)
 			} else {
 				len = count;
 			}
-			copied = copy_to_iter_real(iter, src, len);
+			copied = memcpy_real_iter(iter, src, len);
 		}
 		count -= copied;
 		src += copied;
@@ -165,6 +144,19 @@ size_t copy_oldmem_iter(struct iov_iter *iter, unsigned long src, size_t count)
 			break;
 	}
 	return res;
+}
+
+int copy_oldmem_kernel(void *dst, unsigned long src, size_t count)
+{
+	struct iov_iter iter;
+	struct kvec kvec;
+
+	kvec.iov_base = dst;
+	kvec.iov_len = count;
+	iov_iter_kvec(&iter, WRITE, &kvec, 1, count);
+	if (copy_oldmem_iter(&iter, src, count) < count)
+		return -EFAULT;
+	return 0;
 }
 
 /*

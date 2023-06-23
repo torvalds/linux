@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/zalloc.h>
 
+#include "config.h"
 #include "evlist.h"
 #include "dso.h"
 #include "map.h"
@@ -51,6 +52,7 @@
 #include "intel-pt.h"
 #include "intel-bts.h"
 #include "arm-spe.h"
+#include "hisi-ptt.h"
 #include "s390-cpumsf.h"
 #include "util/mmap.h"
 
@@ -1319,6 +1321,9 @@ int perf_event__process_auxtrace_info(struct perf_session *session,
 	case PERF_AUXTRACE_S390_CPUMSF:
 		err = s390_cpumsf_process_auxtrace_info(event, session);
 		break;
+	case PERF_AUXTRACE_HISI_PTT:
+		err = hisi_ptt_process_auxtrace_info(event, session);
+		break;
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
@@ -1434,6 +1439,16 @@ static int get_flags(const char **ptr, unsigned int *plus_flags, unsigned int *m
 	}
 }
 
+#define ITRACE_DFLT_LOG_ON_ERROR_SZ 16384
+
+static unsigned int itrace_log_on_error_size(void)
+{
+	unsigned int sz = 0;
+
+	perf_config_scan("itrace.debug-log-buffer-size", "%u", &sz);
+	return sz ?: ITRACE_DFLT_LOG_ON_ERROR_SZ;
+}
+
 /*
  * Please check tools/perf/Documentation/perf-script.txt for information
  * about the options parsed here, which is introduced after this cset,
@@ -1532,6 +1547,8 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 			if (get_flags(&p, &synth_opts->log_plus_flags,
 				      &synth_opts->log_minus_flags))
 				goto out_err;
+			if (synth_opts->log_plus_flags & AUXTRACE_LOG_FLG_ON_ERROR)
+				synth_opts->log_on_error_size = itrace_log_on_error_size();
 			break;
 		case 'c':
 			synth_opts->branches = true;
@@ -2308,11 +2325,19 @@ struct sym_args {
 	bool		near;
 };
 
+static bool kern_sym_name_match(const char *kname, const char *name)
+{
+	size_t n = strlen(name);
+
+	return !strcmp(kname, name) ||
+	       (!strncmp(kname, name, n) && kname[n] == '\t');
+}
+
 static bool kern_sym_match(struct sym_args *args, const char *name, char type)
 {
 	/* A function with the same name, and global or the n'th found or any */
 	return kallsyms__is_function(type) &&
-	       !strcmp(name, args->name) &&
+	       kern_sym_name_match(name, args->name) &&
 	       ((args->global && isupper(type)) ||
 		(args->selected && ++(args->cnt) == args->idx) ||
 		(!args->global && !args->selected));

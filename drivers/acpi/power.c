@@ -944,13 +944,15 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 		return NULL;
 
 	device = &resource->device;
-	acpi_init_device_object(device, handle, ACPI_BUS_TYPE_POWER);
+	acpi_init_device_object(device, handle, ACPI_BUS_TYPE_POWER,
+				acpi_release_power_resource);
 	mutex_init(&resource->resource_lock);
 	INIT_LIST_HEAD(&resource->list_node);
 	INIT_LIST_HEAD(&resource->dependents);
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
 	device->power.state = ACPI_STATE_UNKNOWN;
+	device->flags.match_driver = true;
 
 	/* Evaluate the object to get the system level and resource order. */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
@@ -967,8 +969,11 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 
 	pr_info("%s [%s]\n", acpi_device_name(device), acpi_device_bid(device));
 
-	device->flags.match_driver = true;
-	result = acpi_device_add(device, acpi_release_power_resource);
+	result = acpi_tie_acpi_dev(device);
+	if (result)
+		goto err;
+
+	result = acpi_device_add(device);
 	if (result)
 		goto err;
 

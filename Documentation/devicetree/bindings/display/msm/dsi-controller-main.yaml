@@ -66,13 +66,11 @@ properties:
       2 DSI links.
 
   assigned-clocks:
-    minItems: 2
     maxItems: 2
     description: |
       Parents of "byte" and "pixel" for the given platform.
 
   assigned-clock-parents:
-    minItems: 2
     maxItems: 2
     description: |
       The Byte clock and Pixel clock PLL outputs provided by a DSI PHY block.

@@ -479,7 +479,6 @@ static inline int ehset_single_step_set_feature(struct usb_hcd *hcd, int port)
 struct pci_dev;
 struct pci_device_id;
 extern int usb_hcd_pci_probe(struct pci_dev *dev,
-			     const struct pci_device_id *id,
 			     const struct hc_driver *driver);
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);

@@ -149,6 +149,7 @@ config ARM64
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_COMPILER_H
+	select HAVE_ARCH_HUGE_VMALLOC
 	select HAVE_ARCH_HUGE_VMAP
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
@@ -194,7 +195,6 @@ config ARM64
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KVM
 	select HAVE_NMI
-	select HAVE_PATA_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
@@ -209,7 +209,6 @@ config ARM64
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_GENERIC_VDSO
-	select IOMMU_DMA if IOMMU_SUPPORT
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
 	select KASAN_VMALLOC if KASAN
@@ -230,6 +229,7 @@ config ARM64
 	select HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD
 	select TRACE_IRQFLAGS_SUPPORT
 	select TRACE_IRQFLAGS_NMI_SUPPORT
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -632,6 +632,23 @@ config ARM64_ERRATUM_1530923
 config ARM64_WORKAROUND_REPEAT_TLBI
 	bool
 
+config ARM64_ERRATUM_2441007
+	bool "Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI"
+	default y
+	select ARM64_WORKAROUND_REPEAT_TLBI
+	help
+	  This option adds a workaround for ARM Cortex-A55 erratum #2441007.
+
+	  Under very rare circumstances, affected Cortex-A55 CPUs
+	  may not handle a race between a break-before-make sequence on one
+	  CPU, and another CPU accessing the same page. This could allow a
+	  store to a page that has been unmapped.
+
+	  Work around this by adding the affected CPUs to the list that needs
+	  TLB sequences to be done twice.
+
+	  If unsure, say Y.
+
 config ARM64_ERRATUM_1286807
 	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation"
 	default y
@@ -730,6 +747,19 @@ config ARM64_ERRATUM_2077057
 
 	  When these conditions occur, the SPSR_EL2 value is unchanged from the
 	  previous guest entry, and can be restored from the in-memory copy.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2658417
+	bool "Cortex-A510: 2658417: remove BF16 support due to incorrect result"
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2658417.
+	  Affected Cortex-A510 (r0p0 to r1p1) may produce the wrong result for
+	  BFMMLA or VMMLA instructions in rare circumstances when a pair of
+	  A510 CPUs are using shared neon hardware. As the sharing is not
+	  discoverable by the kernel, hide the BF16 HWCAP to indicate that
+	  user-space should not be using these instructions.
 
 	  If unsure, say Y.
 
@@ -1418,7 +1448,7 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM64.
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int
 	default "14" if ARM64_64K_PAGES
 	default "12" if ARM64_16K_PAGES
@@ -1561,6 +1591,9 @@ config THUMB2_COMPAT_VDSO
 	help
 	  Compile the compat vDSO with '-mthumb -fomit-frame-pointer' if y,
 	  otherwise with '-marm'.
+
+config COMPAT_ALIGNMENT_FIXUPS
+	bool "Fix up misaligned multi-word loads and stores in user space"
 
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
@@ -2234,6 +2267,3 @@ source "drivers/acpi/Kconfig"
 
 source "arch/arm64/kvm/Kconfig"
 
-if CRYPTO
-source "arch/arm64/crypto/Kconfig"
-endif # CRYPTO

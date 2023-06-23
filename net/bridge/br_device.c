@@ -251,10 +251,10 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 
 static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "bridge", sizeof(info->driver));
-	strlcpy(info->version, BR_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
+	strscpy(info->driver, "bridge", sizeof(info->driver));
+	strscpy(info->version, BR_VERSION, sizeof(info->version));
+	strscpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strscpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
 static int br_get_link_ksettings(struct net_device *dev,

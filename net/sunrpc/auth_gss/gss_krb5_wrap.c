@@ -130,8 +130,8 @@ gss_krb5_make_confounder(char *p, u32 conflen)
 
 	/* initialize to random value */
 	if (i == 0) {
-		i = prandom_u32();
-		i = (i << 32) | prandom_u32();
+		i = get_random_u32();
+		i = (i << 32) | get_random_u32();
 	}
 
 	switch (conflen) {

@@ -1425,10 +1425,107 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
+/**
+ * nau8825_set_tdm_slot - configure DAI TDM.
+ * @dai: DAI
+ * @tx_mask: bitmask representing active TX slots.
+ * @rx_mask: bitmask representing active RX slots.
+ * @slots: Number of slots in use.
+ * @slot_width: Width in bits for each slot.
+ *
+ * Configures a DAI for TDM operation. Support TDM 4/8 slots.
+ * The limitation is DAC and ADC need shift 4 slots at 8 slots mode.
+ */
+static int nau8825_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+				unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
+	unsigned int ctrl_val = 0, ctrl_offset = 0, value = 0, dac_s, adc_s;
+
+	if (slots != 4 && slots != 8) {
+		dev_err(nau8825->dev, "Only support 4 or 8 slots!\n");
+		return -EINVAL;
+	}
+
+	/* The driver is limited to 1-channel for ADC, and 2-channel for DAC on TDM mode */
+	if (hweight_long((unsigned long) tx_mask) != 1 ||
+	    hweight_long((unsigned long) rx_mask) != 2) {
+		dev_err(nau8825->dev,
+			"The limitation is 1-channel for ADC, and 2-channel for DAC on TDM mode.\n");
+		return -EINVAL;
+	}
+
+	if (((tx_mask & 0xf) && (tx_mask & 0xf0)) ||
+	    ((rx_mask & 0xf) && (rx_mask & 0xf0)) ||
+	    ((tx_mask & 0xf) && (rx_mask & 0xf0)) ||
+	    ((rx_mask & 0xf) && (tx_mask & 0xf0))) {
+		dev_err(nau8825->dev,
+			"Slot assignment of DAC and ADC need to set same interval.\n");
+		return -EINVAL;
+	}
+
+	/* The offset of fixed 4 slots for 8 slots support */
+	if (rx_mask & 0xf0) {
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
+				   NAU8825_I2S_PCM_TS_EN_MASK, NAU8825_I2S_PCM_TS_EN);
+		regmap_read(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL1, &value);
+		ctrl_val |= NAU8825_TDM_OFFSET_EN;
+		ctrl_offset = 4 * slot_width;
+		if (!(value & NAU8825_I2S_PCMB_MASK))
+			ctrl_offset += 1;
+		dac_s = (rx_mask & 0xf0) >> 4;
+		adc_s = fls((tx_mask & 0xf0) >> 4);
+	} else {
+		dac_s = rx_mask & 0xf;
+		adc_s = fls(tx_mask & 0xf);
+	}
+
+	ctrl_val |= NAU8825_TDM_MODE;
+
+	switch (dac_s) {
+	case 0x3:
+		ctrl_val |= 1 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0x5:
+		ctrl_val |= 2 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0x6:
+		ctrl_val |= 1 << NAU8825_TDM_DACL_RX_SFT;
+		ctrl_val |= 2 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0x9:
+		ctrl_val |= 3 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0xa:
+		ctrl_val |= 1 << NAU8825_TDM_DACL_RX_SFT;
+		ctrl_val |= 3 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0xc:
+		ctrl_val |= 2 << NAU8825_TDM_DACL_RX_SFT;
+		ctrl_val |= 3 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ctrl_val |= adc_s - 1;
+
+	regmap_update_bits(nau8825->regmap, NAU8825_REG_TDM_CTRL,
+			   NAU8825_TDM_MODE | NAU8825_TDM_OFFSET_EN |
+			   NAU8825_TDM_DACL_RX_MASK | NAU8825_TDM_DACR_RX_MASK |
+			   NAU8825_TDM_TX_MASK, ctrl_val);
+	regmap_update_bits(nau8825->regmap, NAU8825_REG_LEFT_TIME_SLOT,
+			   NAU8825_TSLOT_L0_MASK, ctrl_offset);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops nau8825_dai_ops = {
 	.startup	= nau8825_dai_startup,
 	.hw_params	= nau8825_hw_params,
 	.set_fmt	= nau8825_set_dai_fmt,
+	.set_tdm_slot	= nau8825_set_tdm_slot,
 };
 
 #define NAU8825_RATES	SNDRV_PCM_RATE_8000_192000
@@ -1983,6 +2080,10 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	/* Disable short Frame Sync detection logic */
 	regmap_update_bits(regmap, NAU8825_REG_LEFT_TIME_SLOT,
 		NAU8825_DIS_FS_SHORT_DET, NAU8825_DIS_FS_SHORT_DET);
+	/* ADCDAT IO drive strength control */
+	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
+			   NAU8825_ADCOUT_DS_MASK,
+			   nau8825->adcout_ds << NAU8825_ADCOUT_DS_SFT);
 }
 
 static const struct regmap_config nau8825_regmap_config = {
@@ -2521,6 +2622,7 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 			nau8825->jack_eject_debounce);
 	dev_dbg(dev, "crosstalk-enable:     %d\n",
 			nau8825->xtalk_enable);
+	dev_dbg(dev, "adcout-drive-strong:  %d\n", nau8825->adcout_ds);
 }
 
 static int nau8825_read_device_properties(struct device *dev,
@@ -2587,6 +2689,7 @@ static int nau8825_read_device_properties(struct device *dev,
 		nau8825->jack_eject_debounce = 0;
 	nau8825->xtalk_enable = device_property_read_bool(dev,
 		"nuvoton,crosstalk-enable");
+	nau8825->adcout_ds = device_property_read_bool(dev, "nuvoton,adcout-drive-strong");
 
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
@@ -2675,10 +2778,8 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 		&nau8825_dai, 1);
 }
 
-static int nau8825_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void nau8825_i2c_remove(struct i2c_client *client)
+{}
 
 static const struct i2c_device_id nau8825_i2c_ids[] = {
 	{ "nau8825", 0 },

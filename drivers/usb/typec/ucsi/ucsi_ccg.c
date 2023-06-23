@@ -125,6 +125,11 @@ struct version_format {
 #define CCG_FW_BUILD_NVIDIA	(('n' << 8) | 'v')
 #define CCG_OLD_FW_VERSION	(CCG_VERSION(0x31) | CCG_VERSION_PATCH(10))
 
+/* Firmware for Tegra doesn't support UCSI ALT command, built
+ * for NVIDIA has known issue of reporting wrong capability info
+ */
+#define CCG_FW_BUILD_NVIDIA_TEGRA	(('g' << 8) | 'n')
+
 /* Altmode offset for NVIDIA Function Test Board (FTB) */
 #define NVIDIA_FTB_DP_OFFSET	(2)
 #define NVIDIA_FTB_DBG_OFFSET	(3)
@@ -513,6 +518,7 @@ static int ucsi_ccg_read(struct ucsi *ucsi, unsigned int offset,
 {
 	struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
 	u16 reg = CCGX_RAB_UCSI_DATA_BLOCK(offset);
+	struct ucsi_capability *cap;
 	struct ucsi_altmode *alt;
 	int ret;
 
@@ -534,6 +540,12 @@ static int ucsi_ccg_read(struct ucsi *ucsi, unsigned int offset,
 			alt = val;
 			if (alt[0].svid == USB_TYPEC_NVIDIA_VLINK_SID)
 				ucsi_ccg_nvidia_altmode(uc, alt);
+		}
+		break;
+	case UCSI_GET_CAPABILITY:
+		if (uc->fw_build == CCG_FW_BUILD_NVIDIA_TEGRA) {
+			cap = val;
+			cap->features &= ~UCSI_CAP_ALT_MODE_DETAILS;
 		}
 		break;
 	default:
@@ -1403,7 +1415,7 @@ out_ucsi_destroy:
 	return status;
 }
 
-static int ucsi_ccg_remove(struct i2c_client *client)
+static void ucsi_ccg_remove(struct i2c_client *client)
 {
 	struct ucsi_ccg *uc = i2c_get_clientdata(client);
 
@@ -1413,8 +1425,6 @@ static int ucsi_ccg_remove(struct i2c_client *client)
 	ucsi_unregister(uc->ucsi);
 	ucsi_destroy(uc->ucsi);
 	free_irq(uc->irq, uc);
-
-	return 0;
 }
 
 static const struct i2c_device_id ucsi_ccg_device_id[] = {

@@ -143,7 +143,7 @@ DEFINE_FIXED_SYMBOL(__run_at_load, first_256B)
 	.globl	__secondary_hold
 __secondary_hold:
 	FIXUP_ENDIAN
-#ifndef CONFIG_PPC_BOOK3E
+#ifndef CONFIG_PPC_BOOK3E_64
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
@@ -160,7 +160,7 @@ __secondary_hold:
 	sync
 
 	li	r26,0
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	tovirt(r26,r26)
 #endif
 	/* All secondary cpus wait here until told to start. */
@@ -169,7 +169,7 @@ __secondary_hold:
 	beq	100b
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	tovirt(r12,r12)
 #endif
 	mtctr	r12
@@ -178,7 +178,7 @@ __secondary_hold:
 	 * it may be the case that other platforms have r4 right to
 	 * begin with, this gives us some safety in case it is not
 	 */
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	mr	r4,r25
 #else
 	li	r4,0
@@ -191,13 +191,6 @@ __secondary_hold:
 	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 #endif
 CLOSE_FIXED_SECTION(first_256B)
-
-/* This value is used to mark exception frames on the stack. */
-	.section ".toc","aw"
-/* This value is used to mark exception frames on the stack. */
-exception_marker:
-	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
-	.previous
 
 /*
  * On server, we include the exception vectors code here as it
@@ -214,7 +207,7 @@ USE_TEXT_SECTION()
 
 #include "interrupt_64.S"
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 /*
  * The booting_thread_hwid holds the thread id we want to boot in cpu
  * hotplug case. It is set by cpu hotplug code, and is invalid by default.
@@ -322,7 +315,7 @@ _GLOBAL(fsl_secondary_thread_init)
 	bl	book3e_secondary_thread_init
 	b	generic_secondary_common_init
 
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_BOOK3E_64 */
 
 /*
  * On pSeries and most other platforms, secondary processors spin
@@ -345,7 +338,7 @@ _GLOBAL(generic_secondary_smp_init)
 	bl	relative_toc
 	tovirt(r2,r2)
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	/* Book3E initialization */
 	mr	r3,r24
 	mr	r4,r25
@@ -400,8 +393,12 @@ generic_secondary_common_init:
 #else
 	LOAD_REG_ADDR(r8, paca_ptrs)	/* Load paca_ptrs pointe	 */
 	ld	r8,0(r8)		/* Get base vaddr of array	 */
+#if (NR_CPUS == 1) || defined(CONFIG_FORCE_NR_CPUS)
+	LOAD_REG_IMMEDIATE(r7, NR_CPUS)
+#else
 	LOAD_REG_ADDR(r7, nr_cpu_ids)	/* Load nr_cpu_ids address       */
 	lwz	r7,0(r7)		/* also the max paca allocated 	 */
+#endif
 	li	r5,0			/* logical cpu id                */
 1:
 	sldi	r9,r5,3			/* get paca_ptrs[] index from cpu id */
@@ -417,7 +414,7 @@ generic_secondary_common_init:
 	b	kexec_wait		/* next kernel might do better	 */
 
 2:	SET_PACA(r13)
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in another  */
 	mtspr	SPRN_SPRG_TLB_EXFRAME,r12
 #endif
@@ -494,6 +491,9 @@ __start_initialization_multiplatform:
 	/* Make sure we are running in 64 bits mode */
 	bl	enable_64b_mode
 
+	/* Zero r13 (paca) so early program check / mce don't use it */
+	li	r13,0
+
 	/* Get TOC pointer (current runtime address) */
 	bl	relative_toc
 
@@ -519,7 +519,7 @@ __start_initialization_multiplatform:
 	mr	r29,r9
 #endif
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	bl	start_initialization_book3e
 	b	__after_prom_start
 #else
@@ -540,7 +540,7 @@ __start_initialization_multiplatform:
 	/* Switch off MMU if not already off */
 	bl	__mmu_off
 	b	__after_prom_start
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_BOOK3E_64 */
 
 __REF
 __boot_from_prom:
@@ -587,11 +587,11 @@ __after_prom_start:
 	/* process relocations for the final address of the kernel */
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
 	sldi	r25,r25,32
-#if defined(CONFIG_PPC_BOOK3E)
+#if defined(CONFIG_PPC_BOOK3E_64)
 	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
 #endif
 	lwz	r7,(FIXED_SYMBOL_ABS_ADDR(__run_at_load))(r26)
-#if defined(CONFIG_PPC_BOOK3E)
+#if defined(CONFIG_PPC_BOOK3E_64)
 	tophys(r26,r26)
 #endif
 	cmplwi	cr0,r7,1	/* flagged to stay where we are ? */
@@ -599,7 +599,7 @@ __after_prom_start:
 	add	r25,r25,r26
 1:	mr	r3,r25
 	bl	relocate
-#if defined(CONFIG_PPC_BOOK3E)
+#if defined(CONFIG_PPC_BOOK3E_64)
 	/* IVPR needs to be set after relocation. */
 	bl	init_core_book3e
 #endif
@@ -613,11 +613,11 @@ __after_prom_start:
  * Note: This process overwrites the OF exception vectors.
  */
 	li	r3,0			/* target addr */
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	tovirt(r3,r3)		/* on booke, we already run at PAGE_OFFSET */
 #endif
 	mr.	r4,r26			/* In some cases the loader may  */
-#if defined(CONFIG_PPC_BOOK3E)
+#if defined(CONFIG_PPC_BOOK3E_64)
 	tovirt(r4,r4)
 #endif
 	beq	9f			/* have already put us at zero */
@@ -630,14 +630,14 @@ __after_prom_start:
  * variable __run_at_load, if it is set the kernel is treated as relocatable
  * kernel, otherwise it will be moved to PHYSICAL_START
  */
-#if defined(CONFIG_PPC_BOOK3E)
+#if defined(CONFIG_PPC_BOOK3E_64)
 	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
 #endif
 	lwz	r7,(FIXED_SYMBOL_ABS_ADDR(__run_at_load))(r26)
 	cmplwi	cr0,r7,1
 	bne	3f
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	LOAD_REG_ADDR(r5, __end_interrupts)
 	LOAD_REG_ADDR(r11, _stext)
 	sub	r5,r5,r11
@@ -848,7 +848,7 @@ __secondary_start:
  * before going into C code.
  */
 start_secondary_prolog:
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	start_secondary
@@ -871,10 +871,10 @@ _GLOBAL(start_secondary_resume)
  */
 enable_64b_mode:
 	mfmsr	r11			/* grab the current MSR */
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
 	mtmsr	r11
-#else /* CONFIG_PPC_BOOK3E */
+#else /* CONFIG_PPC_BOOK3E_64 */
 	LOAD_REG_IMMEDIATE(r12, MSR_64BIT)
 	or	r11,r11,r12
 	mtmsrd	r11
@@ -940,7 +940,7 @@ start_here_multiplatform:
 	std	r29,8(r11);
 #endif
 
-#ifndef CONFIG_PPC_BOOK3E
+#ifndef CONFIG_PPC_BOOK3E_64
 	mfmsr	r6
 	ori	r6,r6,MSR_RI
 	mtmsrd	r6			/* RI on */
@@ -988,7 +988,7 @@ start_here_common:
 	std	r1,PACAKSAVE(r13)
 
 	/* Load the TOC (virtual address) */
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)

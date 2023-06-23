@@ -228,12 +228,12 @@ __releases(&key->lock)
 
 	if (!key->manual_alloc) {
 		spin_lock_irqsave(&net->mctp.keys_lock, flags);
-		hlist_del(&key->hlist);
-		hlist_del(&key->sklist);
+		if (!hlist_unhashed(&key->hlist)) {
+			hlist_del_init(&key->hlist);
+			hlist_del_init(&key->sklist);
+			mctp_key_unref(key);
+		}
 		spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
-
-		/* unref for the lists */
-		mctp_key_unref(key);
 	}
 
 	/* and one for the local reference */
@@ -1400,7 +1400,7 @@ int __init mctp_routes_init(void)
 	return register_pernet_subsys(&mctp_net_ops);
 }
 
-void __exit mctp_routes_exit(void)
+void mctp_routes_exit(void)
 {
 	unregister_pernet_subsys(&mctp_net_ops);
 	rtnl_unregister(PF_MCTP, RTM_DELROUTE);

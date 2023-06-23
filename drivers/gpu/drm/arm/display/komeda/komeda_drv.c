@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/component.h>
 #include <linux/pm_runtime.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include "komeda_dev.h"
@@ -72,6 +73,7 @@ static int komeda_bind(struct device *dev)
 	}
 
 	dev_set_drvdata(dev, mdrv);
+	drm_fbdev_generic_setup(&mdrv->kms->base, 32);
 
 	return 0;
 

@@ -762,6 +762,7 @@ void f2fs_decompress_cluster(struct decompress_io_ctx *dic, bool in_task)
 
 	if (dic->clen > PAGE_SIZE * dic->nr_cpages - COMPRESS_HEADER_SIZE) {
 		ret = -EFSCORRUPTED;
+		f2fs_handle_error(sbi, ERROR_FAIL_DECOMPRESSION);
 		goto out_release;
 	}
 
@@ -912,17 +913,15 @@ bool f2fs_sanity_check_cluster(struct dnode_of_data *dn)
 			reason = "[C|*|C|*]";
 			goto out;
 		}
-		if (compressed) {
-			if (!__is_valid_data_blkaddr(blkaddr)) {
-				if (!cluster_end)
-					cluster_end = i;
-				continue;
-			}
-			/* [COMPR_ADDR, NULL_ADDR or NEW_ADDR, valid_blkaddr] */
-			if (cluster_end) {
-				reason = "[C|N|N|V]";
-				goto out;
-			}
+		if (!__is_valid_data_blkaddr(blkaddr)) {
+			if (!cluster_end)
+				cluster_end = i;
+			continue;
+		}
+		/* [COMPR_ADDR, NULL_ADDR or NEW_ADDR, valid_blkaddr] */
+		if (cluster_end) {
+			reason = "[C|N|N|V]";
+			goto out;
 		}
 	}
 	return false;
@@ -952,6 +951,7 @@ static int __f2fs_cluster_blocks(struct inode *inode,
 
 	if (f2fs_sanity_check_cluster(&dn)) {
 		ret = -EFSCORRUPTED;
+		f2fs_handle_error(F2FS_I_SB(inode), ERROR_CORRUPTED_CLUSTER);
 		goto fail;
 	}
 
@@ -1568,12 +1568,8 @@ static int f2fs_prepare_decomp_mem(struct decompress_io_ctx *dic,
 	if (!dic->cbuf)
 		return -ENOMEM;
 
-	if (cops->init_decompress_ctx) {
-		int ret = cops->init_decompress_ctx(dic);
-
-		if (ret)
-			return ret;
-	}
+	if (cops->init_decompress_ctx)
+		return cops->init_decompress_ctx(dic);
 
 	return 0;
 }
@@ -1905,7 +1901,7 @@ bool f2fs_load_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
 
 void f2fs_invalidate_compress_pages(struct f2fs_sb_info *sbi, nid_t ino)
 {
-	struct address_space *mapping = sbi->compress_inode->i_mapping;
+	struct address_space *mapping = COMPRESS_MAPPING(sbi);
 	struct folio_batch fbatch;
 	pgoff_t index = 0;
 	pgoff_t end = MAX_BLKADDR(sbi);

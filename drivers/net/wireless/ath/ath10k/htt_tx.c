@@ -1112,7 +1112,7 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 	int len = 0;
 	int ret;
 
-	/* Response IDs are echo-ed back only for host driver convienence
+	/* Response IDs are echo-ed back only for host driver convenience
 	 * purposes. They aren't used for anything in the driver yet so use 0.
 	 */
 

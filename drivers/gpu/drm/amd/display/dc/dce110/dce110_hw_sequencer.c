@@ -722,7 +722,6 @@ void dce110_edp_wait_for_hpd_ready(
 	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
 	struct gpio *hpd;
-	struct dc_sink *sink = link->local_sink;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
@@ -755,9 +754,9 @@ void dce110_edp_wait_for_hpd_ready(
 		return;
 	}
 
-	if (sink != NULL) {
-		if (sink->edid_caps.panel_patch.extra_t3_ms > 0) {
-			int extra_t3_in_ms = sink->edid_caps.panel_patch.extra_t3_ms;
+	if (link != NULL) {
+		if (link->panel_config.pps.extra_t3_ms > 0) {
+			int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
 
 			msleep(extra_t3_in_ms);
 		}
@@ -842,7 +841,7 @@ void dce110_edp_power_control(
 			/* add time defined by a patch, if any (usually patch extra_t12_ms is 0) */
 			if (link->local_sink != NULL)
 				remaining_min_edp_poweroff_time_ms +=
-					link->local_sink->edid_caps.panel_patch.extra_t12_ms;
+					link->panel_config.pps.extra_t12_ms;
 
 			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
 			if (dp_trace_get_edp_poweroff_timestamp(link) != 0) {
@@ -946,7 +945,7 @@ void dce110_edp_wait_for_T12(
 						current_ts,
 						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 
-		t12_duration += link->local_sink->edid_caps.panel_patch.extra_t12_ms; // Add extra T12
+		t12_duration += link->panel_config.pps.extra_t12_ms; // Add extra T12
 
 		if (time_since_edp_poweroff_ms < t12_duration)
 			msleep(t12_duration - time_since_edp_poweroff_ms);
@@ -965,6 +964,8 @@ void dce110_edp_backlight_control(
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	uint8_t panel_instance;
+	unsigned int pre_T11_delay = OLED_PRE_T11_DELAY;
+	unsigned int post_T7_delay = OLED_POST_T7_DELAY;
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -1043,8 +1044,10 @@ void dce110_edp_backlight_control(
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
 
-	if (enable && link->dpcd_sink_ext_caps.bits.oled)
-		msleep(OLED_POST_T7_DELAY);
+	if (enable && link->dpcd_sink_ext_caps.bits.oled) {
+		post_T7_delay += link->panel_config.pps.extra_post_t7_ms;
+		msleep(post_T7_delay);
+	}
 
 	if (link->dpcd_sink_ext_caps.bits.oled ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
@@ -1066,8 +1069,10 @@ void dce110_edp_backlight_control(
 			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
 	}
 
-	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
-		msleep(OLED_PRE_T11_DELAY);
+	if (!enable && link->dpcd_sink_ext_caps.bits.oled) {
+		pre_T11_delay += link->panel_config.pps.extra_pre_t11_ms;
+		msleep(pre_T11_delay);
+	}
 }
 
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
@@ -1439,6 +1444,14 @@ static enum dc_status dce110_enable_stream_timing(
 				&pipe_ctx->pll_settings)) {
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
+		}
+
+		if (dc_is_hdmi_tmds_signal(stream->signal)) {
+			stream->link->phy_state.symclk_ref_cnts.otg = 1;
+			if (stream->link->phy_state.symclk_state == SYMCLK_OFF_TX_OFF)
+				stream->link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
+			else
+				stream->link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
 		}
 
 		pipe_ctx->stream_res.tg->funcs->program_timing(
@@ -2114,6 +2127,7 @@ static void dce110_reset_hw_ctx_wrap(
 				BREAK_TO_DEBUGGER();
 			}
 			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
+			pipe_ctx_old->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
 
@@ -2992,6 +3006,124 @@ void dce110_set_pipe(struct pipe_ctx *pipe_ctx)
 		abm->funcs->set_pipe(abm, otg_inst, panel_cntl->inst);
 }
 
+void dce110_enable_lvds_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum clock_source_id clock_source,
+		uint32_t pixel_clock)
+{
+	link->link_enc->funcs->enable_lvds_output(
+			link->link_enc,
+			clock_source,
+			pixel_clock);
+	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+}
+
+void dce110_enable_tmds_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		enum dc_color_depth color_depth,
+		uint32_t pixel_clock)
+{
+	link->link_enc->funcs->enable_tmds_output(
+			link->link_enc,
+			clock_source,
+			color_depth,
+			signal,
+			pixel_clock);
+	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+}
+
+void dce110_enable_dp_link_output(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct pipe_ctx *pipes =
+			link->dc->current_state->res_ctx.pipe_ctx;
+	struct clock_source *dp_cs =
+			link->dc->res_pool->dp_clock_source;
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
+	unsigned int i;
+
+
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		if (!link->dc->config.edp_no_power_sequencing)
+			link->dc->hwss.edp_power_control(link, true);
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+	}
+
+	/* If the current pixel clock source is not DTO(happens after
+	 * switching from HDMI passive dongle to DP on the same connector),
+	 * switch the pixel clock source to DTO.
+	 */
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (pipes[i].stream != NULL &&
+				pipes[i].stream->link == link) {
+			if (pipes[i].clock_source != NULL &&
+					pipes[i].clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
+				pipes[i].clock_source = dp_cs;
+				pipes[i].stream_res.pix_clk_params.requested_pix_clk_100hz =
+						pipes[i].stream->timing.pix_clk_100hz;
+				pipes[i].clock_source->funcs->program_pix_clk(
+						pipes[i].clock_source,
+						&pipes[i].stream_res.pix_clk_params,
+						dp_get_link_encoding_format(link_settings),
+						&pipes[i].pll_settings);
+			}
+		}
+	}
+
+	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+		if (dc->clk_mgr->funcs->notify_link_rate_change)
+			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
+	}
+
+	if (dmcu != NULL && dmcu->funcs->lock_phy)
+		dmcu->funcs->lock_phy(dmcu);
+
+	if (link_hwss->ext.enable_dp_link_output)
+		link_hwss->ext.enable_dp_link_output(link, link_res, signal,
+				clock_source, link_settings);
+
+	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+
+	if (dmcu != NULL && dmcu->funcs->unlock_phy)
+		dmcu->funcs->unlock_phy(dmcu);
+
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
+}
+
+void dce110_disable_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
+	struct dc *dc = link->ctx->dc;
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+
+	if (signal == SIGNAL_TYPE_EDP &&
+			link->dc->hwss.edp_backlight_control)
+		link->dc->hwss.edp_backlight_control(link, false);
+	else if (dmcu != NULL && dmcu->funcs->lock_phy)
+		dmcu->funcs->lock_phy(dmcu);
+
+	link_hwss->disable_link_output(link, link_res, signal);
+	link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+
+	if (signal == SIGNAL_TYPE_EDP &&
+			link->dc->hwss.edp_backlight_control)
+		link->dc->hwss.edp_power_control(link, false);
+	else if (dmcu != NULL && dmcu->funcs->lock_phy)
+		dmcu->funcs->unlock_phy(dmcu);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
+}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_output_csc = program_output_csc,
@@ -3031,6 +3163,10 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_backlight_level = dce110_set_backlight_level,
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 	.set_pipe = dce110_set_pipe,
+	.enable_lvds_link_output = dce110_enable_lvds_link_output,
+	.enable_tmds_link_output = dce110_enable_tmds_link_output,
+	.enable_dp_link_output = dce110_enable_dp_link_output,
+	.disable_link_output = dce110_disable_link_output,
 };
 
 static const struct hwseq_private_funcs dce110_private_funcs = {

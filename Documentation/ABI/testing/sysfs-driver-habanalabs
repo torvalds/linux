@@ -16,7 +16,7 @@ Description:    Version of the application running on the device's CPU
 
 What:           /sys/class/habanalabs/hl<n>/clk_max_freq_mhz
 Date:           Jun 2019
-KernelVersion:  not yet upstreamed
+KernelVersion:  5.7
 Contact:        ogabbay@kernel.org
 Description:    Allows the user to set the maximum clock frequency, in MHz.
                 The device clock might be set to lower value than the maximum.
@@ -26,7 +26,7 @@ Description:    Allows the user to set the maximum clock frequency, in MHz.
 
 What:           /sys/class/habanalabs/hl<n>/clk_cur_freq_mhz
 Date:           Jun 2019
-KernelVersion:  not yet upstreamed
+KernelVersion:  5.7
 Contact:        ogabbay@kernel.org
 Description:    Displays the current frequency, in MHz, of the device clock.
                 This property is valid only for the Gaudi ASIC family
@@ -176,6 +176,12 @@ KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Version of the device's preboot F/W code
 
+What:           /sys/class/habanalabs/hl<n>/security_enabled
+Date:           Oct 2022
+KernelVersion:  6.1
+Contact:        obitton@habana.ai
+Description:    Displays the device's security status
+
 What:           /sys/class/habanalabs/hl<n>/soft_reset
 Date:           Jan 2019
 KernelVersion:  5.1
@@ -230,6 +236,6 @@ Description:    Version of the u-boot running on the device's CPU
 
 What:           /sys/class/habanalabs/hl<n>/vrm_ver
 Date:           Jan 2022
-KernelVersion:  not yet upstreamed
+KernelVersion:  5.17
 Contact:        ogabbay@kernel.org
 Description:    Version of the Device's Voltage Regulator Monitor F/W code. N/A to GOYA and GAUDI

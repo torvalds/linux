@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * drivers/input/tablet/wacom_wac.c
- *
  *  USB Wacom tablet support - Wacom specific code
- */
-
-/*
  */
 
 #include "wacom_wac.h"
@@ -713,11 +708,14 @@ static int wacom_intuos_get_tool_type(int tool_id)
 	case 0x802: /* Intuos4/5 13HD/24HD General Pen */
 	case 0x8e2: /* IntuosHT2 pen */
 	case 0x022:
+	case 0x200: /* Pro Pen 3 */
+	case 0x04200: /* Pro Pen 3 */
 	case 0x10842: /* MobileStudio Pro Pro Pen slim */
 	case 0x14802: /* Intuos4/5 13HD/24HD Classic Pen */
 	case 0x16802: /* Cintiq 13HD Pro Pen */
 	case 0x18802: /* DTH2242 Pen */
 	case 0x10802: /* Intuos4/5 13HD/24HD General Pen */
+	case 0x80842: /* Intuos Pro and Cintiq Pro 3D Pen */
 		tool_type = BTN_TOOL_PEN;
 		break;
 
@@ -2522,11 +2520,12 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 
 	if (!delay_pen_events(wacom_wac) && wacom_wac->tool[0]) {
 		int id = wacom_wac->id[0];
-		if (wacom_wac->features.quirks & WACOM_QUIRK_PEN_BUTTON3 &&
-		    wacom_wac->hid_data.barrelswitch & wacom_wac->hid_data.barrelswitch2) {
-			wacom_wac->hid_data.barrelswitch = 0;
-			wacom_wac->hid_data.barrelswitch2 = 0;
-			wacom_wac->hid_data.barrelswitch3 = 1;
+		if (wacom_wac->features.quirks & WACOM_QUIRK_PEN_BUTTON3) {
+			int sw_state = wacom_wac->hid_data.barrelswitch |
+				       (wacom_wac->hid_data.barrelswitch2 << 1);
+			wacom_wac->hid_data.barrelswitch = sw_state == 1;
+			wacom_wac->hid_data.barrelswitch2 = sw_state == 2;
+			wacom_wac->hid_data.barrelswitch3 = sw_state == 3;
 		}
 		input_report_key(input, BTN_STYLUS, wacom_wac->hid_data.barrelswitch);
 		input_report_key(input, BTN_STYLUS2, wacom_wac->hid_data.barrelswitch2);
@@ -4875,6 +4874,10 @@ static const struct wacom_features wacom_features_0x3c6 =
 static const struct wacom_features wacom_features_0x3c8 =
 	{ "Wacom Intuos BT M", 21600, 13500, 4095, 63,
 	  INTUOSHT3_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+static const struct wacom_features wacom_features_0x3dd =
+	{ "Wacom Intuos Pro S", 31920, 19950, 8191, 63,
+	  INTUOSP2S_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 7,
+	  .touch_max = 10 };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };
@@ -5050,6 +5053,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ BT_DEVICE_WACOM(0x393) },
 	{ BT_DEVICE_WACOM(0x3c6) },
 	{ BT_DEVICE_WACOM(0x3c8) },
+	{ BT_DEVICE_WACOM(0x3dd) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },

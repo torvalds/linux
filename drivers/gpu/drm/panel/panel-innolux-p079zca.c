@@ -506,7 +506,7 @@ static int innolux_panel_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int innolux_panel_remove(struct mipi_dsi_device *dsi)
+static void innolux_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct innolux_panel *innolux = mipi_dsi_get_drvdata(dsi);
 	int err;
@@ -524,8 +524,6 @@ static int innolux_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	innolux_panel_del(innolux);
-
-	return 0;
 }
 
 static void innolux_panel_shutdown(struct mipi_dsi_device *dsi)

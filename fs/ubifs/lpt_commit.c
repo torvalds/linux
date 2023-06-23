@@ -1970,28 +1970,28 @@ static int dbg_populate_lsave(struct ubifs_info *c)
 
 	if (!dbg_is_chk_gen(c))
 		return 0;
-	if (prandom_u32() & 3)
+	if (prandom_u32_max(4))
 		return 0;
 
 	for (i = 0; i < c->lsave_cnt; i++)
 		c->lsave[i] = c->main_first;
 
 	list_for_each_entry(lprops, &c->empty_list, list)
-		c->lsave[prandom_u32() % c->lsave_cnt] = lprops->lnum;
+		c->lsave[prandom_u32_max(c->lsave_cnt)] = lprops->lnum;
 	list_for_each_entry(lprops, &c->freeable_list, list)
-		c->lsave[prandom_u32() % c->lsave_cnt] = lprops->lnum;
+		c->lsave[prandom_u32_max(c->lsave_cnt)] = lprops->lnum;
 	list_for_each_entry(lprops, &c->frdi_idx_list, list)
-		c->lsave[prandom_u32() % c->lsave_cnt] = lprops->lnum;
+		c->lsave[prandom_u32_max(c->lsave_cnt)] = lprops->lnum;
 
 	heap = &c->lpt_heap[LPROPS_DIRTY_IDX - 1];
 	for (i = 0; i < heap->cnt; i++)
-		c->lsave[prandom_u32() % c->lsave_cnt] = heap->arr[i]->lnum;
+		c->lsave[prandom_u32_max(c->lsave_cnt)] = heap->arr[i]->lnum;
 	heap = &c->lpt_heap[LPROPS_DIRTY - 1];
 	for (i = 0; i < heap->cnt; i++)
-		c->lsave[prandom_u32() % c->lsave_cnt] = heap->arr[i]->lnum;
+		c->lsave[prandom_u32_max(c->lsave_cnt)] = heap->arr[i]->lnum;
 	heap = &c->lpt_heap[LPROPS_FREE - 1];
 	for (i = 0; i < heap->cnt; i++)
-		c->lsave[prandom_u32() % c->lsave_cnt] = heap->arr[i]->lnum;
+		c->lsave[prandom_u32_max(c->lsave_cnt)] = heap->arr[i]->lnum;
 
 	return 1;
 }

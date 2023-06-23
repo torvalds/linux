@@ -568,8 +568,7 @@ config EXPOLINE_FULL
 endchoice
 
 config RELOCATABLE
-	bool "Build a relocatable kernel"
-	default y
+	def_bool y
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded at an arbitrary address.
@@ -578,10 +577,11 @@ config RELOCATABLE
 	  bootup process.
 	  The relocations make the kernel image about 15% larger (compressed
 	  10%), but are discarded at runtime.
+	  Note: this option exists only for documentation purposes, please do
+	  not remove it.
 
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image (KASLR)"
-	depends on RELOCATABLE
 	default y
 	help
 	  In support of Kernel Address Space Layout Randomization (KASLR),

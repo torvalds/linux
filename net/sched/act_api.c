@@ -676,6 +676,31 @@ int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 }
 EXPORT_SYMBOL(tcf_idr_search);
 
+static int __tcf_generic_walker(struct net *net, struct sk_buff *skb,
+				struct netlink_callback *cb, int type,
+				const struct tc_action_ops *ops,
+				struct netlink_ext_ack *extack)
+{
+	struct tc_action_net *tn = net_generic(net, ops->net_id);
+
+	if (unlikely(ops->walk))
+		return ops->walk(net, skb, cb, type, ops, extack);
+
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
+}
+
+static int __tcf_idr_search(struct net *net,
+			    const struct tc_action_ops *ops,
+			    struct tc_action **a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, ops->net_id);
+
+	if (unlikely(ops->lookup))
+		return ops->lookup(net, a, index);
+
+	return tcf_idr_search(tn, a, index);
+}
+
 static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 {
 	struct tc_action *p;
@@ -926,7 +951,7 @@ int tcf_register_action(struct tc_action_ops *act,
 	struct tc_action_ops *a;
 	int ret;
 
-	if (!act->act || !act->dump || !act->init || !act->walk || !act->lookup)
+	if (!act->act || !act->dump || !act->init)
 		return -EINVAL;
 
 	/* We have to register pernet ops before making the action ops visible,
@@ -1638,7 +1663,7 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 		goto err_out;
 	}
 	err = -ENOENT;
-	if (ops->lookup(net, &a, index) == 0) {
+	if (__tcf_idr_search(net, ops, &a, index) == 0) {
 		NL_SET_ERR_MSG(extack, "TC action with specified index not found");
 		goto err_mod;
 	}
@@ -1703,7 +1728,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 		goto out_module_put;
 	}
 
-	err = ops->walk(net, skb, &dcb, RTM_DELACTION, ops, extack);
+	err = __tcf_generic_walker(net, skb, &dcb, RTM_DELACTION, ops, extack);
 	if (err <= 0) {
 		nla_nest_cancel(skb, nest);
 		goto out_module_put;
@@ -2121,7 +2146,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nest == NULL)
 		goto out_module_put;
 
-	ret = a_o->walk(net, skb, cb, RTM_GETACTION, a_o, NULL);
+	ret = __tcf_generic_walker(net, skb, cb, RTM_GETACTION, a_o, NULL);
 	if (ret < 0)
 		goto out_module_put;
 

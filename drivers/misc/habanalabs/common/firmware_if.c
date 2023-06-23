@@ -15,14 +15,6 @@
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
-struct fw_binning_conf {
-	u64 tpc_binning;
-	u32 dec_binning;
-	u32 hbm_binning;
-	u32 edma_binning;
-	u32 mme_redundancy;
-};
-
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
@@ -260,7 +252,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
 	struct hl_bd *sent_bd;
-	u32 tmp, expected_ack_val, pi;
+	u32 tmp, expected_ack_val, pi, opcode;
 	int rc;
 
 	pkt = hl_cpu_accessible_dma_pool_alloc(hdev, len, &pkt_dma_addr);
@@ -327,8 +319,35 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	rc = (tmp & CPUCP_PKT_CTL_RC_MASK) >> CPUCP_PKT_CTL_RC_SHIFT;
 	if (rc) {
-		dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
-			rc, (tmp & CPUCP_PKT_CTL_OPCODE_MASK) >> CPUCP_PKT_CTL_OPCODE_SHIFT);
+		opcode = (tmp & CPUCP_PKT_CTL_OPCODE_MASK) >> CPUCP_PKT_CTL_OPCODE_SHIFT;
+
+		if (!prop->supports_advanced_cpucp_rc) {
+			dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n", rc, opcode);
+			goto scrub_descriptor;
+		}
+
+		switch (rc) {
+		case cpucp_packet_invalid:
+			dev_err(hdev->dev,
+				"CPU packet %d is not supported by F/W\n", opcode);
+			break;
+		case cpucp_packet_fault:
+			dev_err(hdev->dev,
+				"F/W failed processing CPU packet %d\n", opcode);
+			break;
+		case cpucp_packet_invalid_pkt:
+			dev_dbg(hdev->dev,
+				"CPU packet %d is not supported by F/W\n", opcode);
+			break;
+		case cpucp_packet_invalid_params:
+			dev_err(hdev->dev,
+				"F/W reports invalid parameters for CPU packet %d\n", opcode);
+			break;
+
+		default:
+			dev_err(hdev->dev,
+				"Unknown F/W ERROR %d for CPU packet %d\n", rc, opcode);
+		}
 
 		/* propagate the return code from the f/w to the callers who want to check it */
 		if (result)
@@ -340,6 +359,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		*result = le64_to_cpu(pkt->result);
 	}
 
+scrub_descriptor:
 	/* Scrub previous buffer descriptor 'ctl' field which contains the
 	 * previous PI value written during packet submission.
 	 * We must do this or else F/W can read an old value upon queue wraparound.
@@ -462,6 +482,21 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 			size);
 }
 
+int hl_fw_send_device_activity(struct hl_device *hdev, bool open)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_ACTIVE_STATUS_SET <<	CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(open);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+	if (rc)
+		dev_err(hdev->dev, "failed to send device activity msg(%u)\n", open);
+
+	return rc;
+}
+
 int hl_fw_send_heartbeat(struct hl_device *hdev)
 {
 	struct cpucp_packet hb_pkt;
@@ -581,6 +616,15 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
 	/* All warnings should go here in order not to reach the unknown error validation */
+	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - EEPROM failure detected, default settings applied\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_EEPROM_FAIL;
+	}
+
 	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
 		dev_warn(hdev->dev,
 			"Device boot warning - Skipped DRAM initialization\n");
@@ -1476,6 +1520,8 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 */
 	prop->hard_reset_done_by_fw = !!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
+	prop->fw_security_enabled = !!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_SECURITY_EN);
+
 	dev_dbg(hdev->dev, "Firmware preboot boot device status0 %#x\n",
 							cpu_boot_dev_sts0);
 
@@ -1514,7 +1560,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev)
 	hdev->asic_funcs->init_firmware_preload_params(hdev);
 
 	/*
-	 * In order to determine boot method (static VS dymanic) we need to
+	 * In order to determine boot method (static VS dynamic) we need to
 	 * read the boot caps register
 	 */
 	rc = hl_fw_read_preboot_caps(hdev);
@@ -1781,7 +1827,7 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
  *
  * @return the CRC32 result
  *
- * NOTE: kernel's CRC32 differ's from standard CRC32 calculation.
+ * NOTE: kernel's CRC32 differs from standard CRC32 calculation.
  *       in order to be aligned we need to flip the bits of both the input
  *       initial CRC and kernel's CRC32 result.
  *       in addition both sides use initial CRC of 0,
@@ -1798,7 +1844,7 @@ static u32 hl_fw_compat_crc32(u8 *data, size_t size)
  *
  * @hdev: pointer to the habanalabs device structure
  * @addr: device address of memory transfer
- * @size: memory transter size
+ * @size: memory transfer size
  * @region: PCI memory region
  *
  * @return 0 on success, otherwise non-zero error code
@@ -1854,50 +1900,36 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 	u64 addr;
 	int rc;
 
-	if (le32_to_cpu(fw_desc->header.magic) != HL_COMMS_DESC_MAGIC) {
-		dev_err(hdev->dev, "Invalid magic for dynamic FW descriptor (%x)\n",
+	if (le32_to_cpu(fw_desc->header.magic) != HL_COMMS_DESC_MAGIC)
+		dev_warn(hdev->dev, "Invalid magic for dynamic FW descriptor (%x)\n",
 				fw_desc->header.magic);
-		return -EIO;
-	}
 
-	if (fw_desc->header.version != HL_COMMS_DESC_VER) {
-		dev_err(hdev->dev, "Invalid version for dynamic FW descriptor (%x)\n",
+	if (fw_desc->header.version != HL_COMMS_DESC_VER)
+		dev_warn(hdev->dev, "Invalid version for dynamic FW descriptor (%x)\n",
 				fw_desc->header.version);
-		return -EIO;
-	}
 
 	/*
-	 * calc CRC32 of data without header.
+	 * Calc CRC32 of data without header. use the size of the descriptor
+	 * reported by firmware, without calculating it ourself, to allow adding
+	 * more fields to the lkd_fw_comms_desc structure.
 	 * note that no alignment/stride address issues here as all structures
-	 * are 64 bit padded
+	 * are 64 bit padded.
 	 */
-	data_size = sizeof(struct lkd_fw_comms_desc) -
-					sizeof(struct comms_desc_header);
 	data_ptr = (u8 *)fw_desc + sizeof(struct comms_desc_header);
-
-	if (le16_to_cpu(fw_desc->header.size) != data_size) {
-		dev_err(hdev->dev,
-			"Invalid descriptor size 0x%x, expected size 0x%zx\n",
-				le16_to_cpu(fw_desc->header.size), data_size);
-		return -EIO;
-	}
+	data_size = le16_to_cpu(fw_desc->header.size);
 
 	data_crc32 = hl_fw_compat_crc32(data_ptr, data_size);
-
 	if (data_crc32 != le32_to_cpu(fw_desc->header.crc32)) {
-		dev_err(hdev->dev,
-			"CRC32 mismatch for dynamic FW descriptor (%x:%x)\n",
-					data_crc32, fw_desc->header.crc32);
+		dev_err(hdev->dev, "CRC32 mismatch for dynamic FW descriptor (%x:%x)\n",
+			data_crc32, fw_desc->header.crc32);
 		return -EIO;
 	}
 
 	/* find memory region to which to copy the image */
 	addr = le64_to_cpu(fw_desc->img_addr);
 	region_id = hl_get_pci_memory_region(hdev, addr);
-	if ((region_id != PCI_REGION_SRAM) &&
-			((region_id != PCI_REGION_DRAM))) {
-		dev_err(hdev->dev,
-			"Invalid region to copy FW image address=%llx\n", addr);
+	if ((region_id != PCI_REGION_SRAM) && ((region_id != PCI_REGION_DRAM))) {
+		dev_err(hdev->dev, "Invalid region to copy FW image address=%llx\n", addr);
 		return -EIO;
 	}
 
@@ -1914,8 +1946,7 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 					fw_loader->dynamic_loader.fw_image_size,
 					region);
 	if (rc) {
-		dev_err(hdev->dev,
-			"invalid mem transfer request for FW image\n");
+		dev_err(hdev->dev, "invalid mem transfer request for FW image\n");
 		return rc;
 	}
 
@@ -2422,18 +2453,6 @@ static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 		msg.reset_cause = *(__u8 *) data;
 		break;
 
-	case HL_COMMS_BINNING_CONF_TYPE:
-	{
-		struct fw_binning_conf *binning_conf = (struct fw_binning_conf *) data;
-
-		msg.tpc_binning_conf = cpu_to_le64(binning_conf->tpc_binning);
-		msg.dec_binning_conf = cpu_to_le32(binning_conf->dec_binning);
-		msg.hbm_binning_conf = cpu_to_le32(binning_conf->hbm_binning);
-		msg.edma_binning_conf = cpu_to_le32(binning_conf->edma_binning);
-		msg.mme_redundancy_conf = cpu_to_le32(binning_conf->mme_redundancy);
-		break;
-	}
-
 	default:
 		dev_err(hdev->dev,
 			"Send COMMS message - invalid message type %u\n",
@@ -2503,13 +2522,6 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 */
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
-	/* if no preboot loaded indication- wait for preboot */
-	if (!(hdev->fw_loader.fw_comp_loaded & FW_TYPE_PREBOOT_CPU)) {
-		rc = hl_fw_wait_preboot_ready(hdev);
-		if (rc)
-			return -EIO;
-	}
-
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,
 						0, true,
 						fw_loader->cpu_timeout);
@@ -2547,7 +2559,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	/*
 	 * when testing FW load (without Linux) on PLDM we don't want to
 	 * wait until boot fit is active as it may take several hours.
-	 * instead, we load the bootfit and let it do all initializations in
+	 * instead, we load the bootfit and let it do all initialization in
 	 * the background.
 	 */
 	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
@@ -2960,4 +2972,50 @@ void hl_fw_set_max_power(struct hl_device *hdev)
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
+}
+
+static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void *data, u32 size,
+					u32 nonce, u32 timeout)
+{
+	struct cpucp_packet pkt = {};
+	dma_addr_t req_dma_addr;
+	void *req_cpu_addr;
+	int rc;
+
+	req_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, size, &req_dma_addr);
+	if (!data) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for CPU-CP packet %u\n", packet_id);
+		return -ENOMEM;
+	}
+
+	memset(data, 0, size);
+
+	pkt.ctl = cpu_to_le32(packet_id << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(req_dma_addr);
+	pkt.data_max_size = cpu_to_le32(size);
+	pkt.nonce = cpu_to_le32(nonce);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					timeout, NULL);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle CPU-CP pkt %u, error %d\n", packet_id, rc);
+		goto out;
+	}
+
+	memcpy(data, req_cpu_addr, size);
+
+out:
+	hl_cpu_accessible_dma_pool_free(hdev, size, req_cpu_addr);
+
+	return rc;
+}
+
+int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_info *sec_attest_info,
+				u32 nonce)
+{
+	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_SEC_ATTEST_GET, sec_attest_info,
+					sizeof(struct cpucp_sec_attest_info), nonce,
+					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }

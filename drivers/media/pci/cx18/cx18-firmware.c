@@ -248,7 +248,7 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	 *
 	 * Many thanks to Jeff Campbell and Mike Bradley for their extensive
 	 * investigation, experimentation, testing, and suggested solutions of
-	 * of audio/video sync problems with SVideo and CVBS captures.
+	 * audio/video sync problems with SVideo and CVBS captures.
 	 */
 
 	/* the fast clock is at 200/245 MHz */

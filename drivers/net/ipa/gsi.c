@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2021 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -56,9 +56,9 @@
  * element can also contain an immediate command, requesting the IPA perform
  * actions other than data transfer.
  *
- * Each TRE refers to a block of data--also located DRAM.  After writing one
- * or more TREs to a channel, the writer (either the IPA or an EE) writes a
- * doorbell register to inform the receiving side how many elements have
+ * Each TRE refers to a block of data--also located in DRAM.  After writing
+ * one or more TREs to a channel, the writer (either the IPA or an EE) writes
+ * a doorbell register to inform the receiving side how many elements have
  * been written.
  *
  * Each channel has a GSI "event ring" associated with it.  An event ring
@@ -710,43 +710,32 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	const struct list_head *list;
+	u32 pending_id = trans_info->pending_id;
 	struct gsi_trans *trans;
+	u16 trans_id;
 
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* There is a small chance a TX transaction got allocated just
-	 * before we disabled transmits, so check for that.
-	 */
-	if (channel->toward_ipa) {
-		list = &trans_info->alloc;
-		if (!list_empty(list))
-			goto done;
-		list = &trans_info->committed;
-		if (!list_empty(list))
-			goto done;
-		list = &trans_info->pending;
-		if (!list_empty(list))
-			goto done;
+	if (channel->toward_ipa && pending_id != trans_info->free_id) {
+		/* There is a small chance a TX transaction got allocated
+		 * just before we disabled transmits, so check for that.
+		 * The last allocated, committed, or pending transaction
+		 * precedes the first free transaction.
+		 */
+		trans_id = trans_info->free_id - 1;
+	} else if (trans_info->polled_id != pending_id) {
+		/* Otherwise (TX or RX) we want to wait for anything that
+		 * has completed, or has been polled but not released yet.
+		 *
+		 * The last completed or polled transaction precedes the
+		 * first pending transaction.
+		 */
+		trans_id = pending_id - 1;
+	} else {
+		return NULL;
 	}
 
-	/* Otherwise (TX or RX) we want to wait for anything that
-	 * has completed, or has been polled but not released yet.
-	 */
-	list = &trans_info->complete;
-	if (!list_empty(list))
-		goto done;
-	list = &trans_info->polled;
-	if (list_empty(list))
-		list = NULL;
-done:
-	trans = list ? list_last_entry(list, struct gsi_trans, links) : NULL;
-
 	/* Caller will wait for this, so take a reference */
-	if (trans)
-		refcount_inc(&trans->refcount);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	trans = &trans_info->trans[trans_id % channel->tre_count];
+	refcount_inc(&trans->refcount);
 
 	return trans;
 }
@@ -1358,8 +1347,8 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
  * we update transactions to record their actual received lengths.
  *
  * When an event for a TX channel arrives we use information in the
- * transaction to report the number of requests and bytes have been
- * transferred.
+ * transaction to report the number of requests and bytes that have
+ * been transferred.
  *
  * This function is called whenever we learn that the GSI hardware has filled
  * new events since the last time we checked.  The ring's index field tells
@@ -1485,8 +1474,8 @@ void gsi_channel_doorbell(struct gsi_channel *channel)
 	iowrite32(val, gsi->virt + GSI_CH_C_DOORBELL_0_OFFSET(channel_id));
 }
 
-/* Consult hardware, move any newly completed transactions to completed list */
-static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
+/* Consult hardware, move newly completed transactions to completed state */
+void gsi_channel_update(struct gsi_channel *channel)
 {
 	u32 evt_ring_id = channel->evt_ring_id;
 	struct gsi *gsi = channel->gsi;
@@ -1505,12 +1494,12 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	offset = GSI_EV_CH_E_CNTXT_4_OFFSET(evt_ring_id);
 	index = gsi_ring_index(ring, ioread32(gsi->virt + offset));
 	if (index == ring->index % ring->count)
-		return NULL;
+		return;
 
 	/* Get the transaction for the latest completed event. */
 	trans = gsi_event_trans(gsi, gsi_ring_virt(ring, index - 1));
 	if (!trans)
-		return NULL;
+		return;
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
@@ -1518,8 +1507,6 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	 * up the network stack.
 	 */
 	gsi_evt_ring_update(gsi, evt_ring_id, index);
-
-	return gsi_channel_trans_complete(channel);
 }
 
 /**
@@ -1528,21 +1515,18 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
  *
  * Return:	Transaction pointer, or null if none are available
  *
- * This function returns the first entry on a channel's completed transaction
- * list.  If that list is empty, the hardware is consulted to determine
- * whether any new transactions have completed.  If so, they're moved to the
- * completed list and the new first entry is returned.  If there are no more
- * completed transactions, a null pointer is returned.
+ * This function returns the first of a channel's completed transactions.
+ * If no transactions are in completed state, the hardware is consulted to
+ * determine whether any new transactions have completed.  If so, they're
+ * moved to completed state and the first such transaction is returned.
+ * If there are no more completed transactions, a null pointer is returned.
  */
 static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
 {
 	struct gsi_trans *trans;
 
-	/* Get the first transaction from the completed list */
+	/* Get the first completed transaction */
 	trans = gsi_channel_trans_complete(channel);
-	if (!trans)	/* List is empty; see if there's more to do */
-		trans = gsi_channel_update(channel);
-
 	if (trans)
 		gsi_trans_move_polled(trans);
 
@@ -1623,7 +1607,7 @@ static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id)
 				  gsi_channel_poll);
 	else
 		netif_napi_add(&gsi->dummy_dev, &channel->napi,
-			       gsi_channel_poll, NAPI_POLL_WEIGHT);
+			       gsi_channel_poll);
 
 	return 0;
 

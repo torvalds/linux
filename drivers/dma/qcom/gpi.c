@@ -1150,9 +1150,9 @@ static void gpi_ev_tasklet(unsigned long data)
 {
 	struct gpii *gpii = (struct gpii *)data;
 
-	read_lock_bh(&gpii->pm_lock);
+	read_lock(&gpii->pm_lock);
 	if (!REG_ACCESS_VALID(gpii->pm_state)) {
-		read_unlock_bh(&gpii->pm_lock);
+		read_unlock(&gpii->pm_lock);
 		dev_err(gpii->gpi_dev->dev, "not processing any events, pm_state:%s\n",
 			TO_GPI_PM_STR(gpii->pm_state));
 		return;
@@ -1163,7 +1163,7 @@ static void gpi_ev_tasklet(unsigned long data)
 
 	/* enable IEOB, switching back to interrupts */
 	gpi_config_interrupts(gpii, MASK_IEOB_SETTINGS, 1);
-	read_unlock_bh(&gpii->pm_lock);
+	read_unlock(&gpii->pm_lock);
 }
 
 /* marks all pending events for the channel as stale */
@@ -2288,6 +2288,7 @@ static int gpi_probe(struct platform_device *pdev)
 static const struct of_device_id gpi_of_match[] = {
 	{ .compatible = "qcom,sc7280-gpi-dma", .data = (void *)0x10000 },
 	{ .compatible = "qcom,sdm845-gpi-dma", .data = (void *)0x0 },
+	{ .compatible = "qcom,sm6350-gpi-dma", .data = (void *)0x10000 },
 	{ .compatible = "qcom,sm8150-gpi-dma", .data = (void *)0x0 },
 	{ .compatible = "qcom,sm8250-gpi-dma", .data = (void *)0x0 },
 	{ .compatible = "qcom,sm8350-gpi-dma", .data = (void *)0x10000 },

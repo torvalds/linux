@@ -3,7 +3,7 @@ Date:		May 2011
 KernelVersion:	3.0
 Contact:	Rafał Miłecki <zajec5@gmail.com>
 Description:
-		Each BCMA core has it's manufacturer id. See
+		Each BCMA core has its manufacturer id. See
 		include/linux/bcma/bcma.h for possible values.
 
 What:		/sys/bus/bcma/devices/.../id

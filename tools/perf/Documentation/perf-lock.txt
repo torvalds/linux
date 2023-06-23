@@ -40,6 +40,10 @@ COMMON OPTIONS
 --verbose::
         Be more verbose (show symbol address, etc).
 
+-q::
+--quiet::
+	Do not show any message. (Suppress -v)
+
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
@@ -94,6 +98,11 @@ REPORT OPTIONS
          EventManager_De       1845          1             636
          futex-default-S       1609          0               0
 
+-E::
+--entries=<value>::
+	Display this many entries.
+
+
 INFO OPTIONS
 ------------
 
@@ -104,6 +113,7 @@ INFO OPTIONS
 -m::
 --map::
 	dump map of lock instances (address:name table)
+
 
 CONTENTION OPTIONS
 --------------
@@ -147,6 +157,16 @@ CONTENTION OPTIONS
 
 --map-nr-entries::
 	Maximum number of BPF map entries (default: 10240).
+
+--max-stack::
+	Maximum stack depth when collecting lock contention (default: 8).
+
+--stack-skip
+	Number of stack depth to skip when finding a lock caller (default: 3).
+
+-E::
+--entries=<value>::
+	Display this many entries.
 
 
 SEE ALSO

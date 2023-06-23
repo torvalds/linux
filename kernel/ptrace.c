@@ -269,7 +269,7 @@ static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 	read_unlock(&tasklist_lock);
 
 	if (!ret && !ignore_state &&
-	    WARN_ON_ONCE(!wait_task_inactive(child, __TASK_TRACED)))
+	    WARN_ON_ONCE(!wait_task_inactive(child, __TASK_TRACED|TASK_FROZEN)))
 		ret = -ESRCH;
 
 	return ret;

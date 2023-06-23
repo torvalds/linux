@@ -115,6 +115,14 @@ tc filter add dev lo parent ffff: protocol ip pref 1337 flower ip_proto \
 # Send 10 IPv4/UDP packets from port 10. Filter should not drop any.
 ./test_flow_dissector -i 4 -f 10
 
+echo "Testing IPv4 from 127.0.0.127 (fallback to generic dissector)..."
+# Send 10 IPv4/UDP packets from port 8. Filter should not drop any.
+./test_flow_dissector -i 4 -S 127.0.0.127 -f 8
+# Send 10 IPv4/UDP packets from port 9. Filter should drop all.
+./test_flow_dissector -i 4 -S 127.0.0.127 -f 9 -F
+# Send 10 IPv4/UDP packets from port 10. Filter should not drop any.
+./test_flow_dissector -i 4 -S 127.0.0.127 -f 10
+
 echo "Testing IPIP..."
 # Send 10 IPv4/IPv4/UDP packets from port 8. Filter should not drop any.
 ./with_addr.sh ./with_tunnels.sh ./test_flow_dissector -o 4 -e bare -i 4 \

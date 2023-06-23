@@ -5181,7 +5181,7 @@ static int __init mlxplat_init(void)
 	if (!dmi_check_system(mlxplat_dmi_table))
 		return -ENODEV;
 
-	mlxplat_dev = platform_device_register_simple(MLX_PLAT_DEVICE_NAME, -1,
+	mlxplat_dev = platform_device_register_simple(MLX_PLAT_DEVICE_NAME, PLATFORM_DEVID_NONE,
 					mlxplat_lpc_resources,
 					ARRAY_SIZE(mlxplat_lpc_resources));
 

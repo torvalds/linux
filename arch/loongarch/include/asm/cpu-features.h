@@ -19,11 +19,6 @@
 #define cpu_has_loongarch32		(cpu_data[0].isa_level & LOONGARCH_CPU_ISA_32BIT)
 #define cpu_has_loongarch64		(cpu_data[0].isa_level & LOONGARCH_CPU_ISA_64BIT)
 
-#define cpu_icache_line_size()		cpu_data[0].icache.linesz
-#define cpu_dcache_line_size()		cpu_data[0].dcache.linesz
-#define cpu_vcache_line_size()		cpu_data[0].vcache.linesz
-#define cpu_scache_line_size()		cpu_data[0].scache.linesz
-
 #ifdef CONFIG_32BIT
 # define cpu_has_64bits			(cpu_data[0].isa_level & LOONGARCH_CPU_ISA_64BIT)
 # define cpu_vabits			31

@@ -15,6 +15,9 @@
 #include "sof-priv.h"
 #include "ops.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sof.h>
+
 /* see SOF_DBG_ flags */
 static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);

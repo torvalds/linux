@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * drivers/input/tablet/wacom_sys.c
- *
  *  USB Wacom tablet support - system specific code
- */
-
-/*
  */
 
 #include "wacom_wac.h"
@@ -2226,7 +2221,7 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		} else if (strstr(product_name, "Wacom") ||
 			   strstr(product_name, "wacom") ||
 			   strstr(product_name, "WACOM")) {
-			strlcpy(name, product_name, sizeof(name));
+			strscpy(name, product_name, sizeof(name));
 		} else {
 			snprintf(name, sizeof(name), "Wacom %s", product_name);
 		}
@@ -2244,7 +2239,7 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		if (name[strlen(name)-1] == ' ')
 			name[strlen(name)-1] = '\0';
 	} else {
-		strlcpy(name, features->name, sizeof(name));
+		strscpy(name, features->name, sizeof(name));
 	}
 
 	snprintf(wacom_wac->name, sizeof(wacom_wac->name), "%s%s",
@@ -2509,7 +2504,7 @@ static void wacom_wireless_work(struct work_struct *work)
 				goto fail;
 		}
 
-		strlcpy(wacom_wac->name, wacom_wac1->name,
+		strscpy(wacom_wac->name, wacom_wac1->name,
 			sizeof(wacom_wac->name));
 		error = wacom_initialize_battery(wacom);
 		if (error)

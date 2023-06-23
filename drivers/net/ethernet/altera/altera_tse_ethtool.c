@@ -199,9 +199,9 @@ static int tse_reglen(struct net_device *dev)
 static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			 void *regbuf)
 {
-	int i;
 	struct altera_tse_private *priv = netdev_priv(dev);
 	u32 *buf = regbuf;
+	int i;
 
 	/* Set version to a known value, so ethtool knows
 	 * how to do any special formatting of this data.
@@ -221,6 +221,22 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		buf[i] = csrrd32(priv->mac_dev, i * 4);
 }
 
+static int tse_ethtool_set_link_ksettings(struct net_device *dev,
+					  const struct ethtool_link_ksettings *cmd)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+
+	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
+}
+
+static int tse_ethtool_get_link_ksettings(struct net_device *dev,
+					  struct ethtool_link_ksettings *cmd)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+
+	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
+}
+
 static const struct ethtool_ops tse_ethtool_ops = {
 	.get_drvinfo = tse_get_drvinfo,
 	.get_regs_len = tse_reglen,
@@ -231,8 +247,9 @@ static const struct ethtool_ops tse_ethtool_ops = {
 	.get_ethtool_stats = tse_fill_stats,
 	.get_msglevel = tse_get_msglevel,
 	.set_msglevel = tse_set_msglevel,
-	.get_link_ksettings = phy_ethtool_get_link_ksettings,
-	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_link_ksettings = tse_ethtool_get_link_ksettings,
+	.set_link_ksettings = tse_ethtool_set_link_ksettings,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 void altera_tse_set_ethtool_ops(struct net_device *netdev)

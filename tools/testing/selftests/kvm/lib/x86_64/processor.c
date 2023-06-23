@@ -111,6 +111,14 @@ static void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent)
 	}
 }
 
+bool kvm_is_tdp_enabled(void)
+{
+	if (is_intel_cpu())
+		return get_kvm_intel_param_bool("ept");
+	else
+		return get_kvm_amd_param_bool("npt");
+}
+
 void virt_arch_pgd_alloc(struct kvm_vm *vm)
 {
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
@@ -212,6 +220,25 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
 	__virt_pg_map(vm, vaddr, paddr, PG_LEVEL_4K);
+}
+
+void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		    uint64_t nr_bytes, int level)
+{
+	uint64_t pg_size = PG_LEVEL_SIZE(level);
+	uint64_t nr_pages = nr_bytes / pg_size;
+	int i;
+
+	TEST_ASSERT(nr_bytes % pg_size == 0,
+		    "Region size not aligned: nr_bytes: 0x%lx, page size: 0x%lx",
+		    nr_bytes, pg_size);
+
+	for (i = 0; i < nr_pages; i++) {
+		__virt_pg_map(vm, vaddr, paddr, level);
+
+		vaddr += pg_size;
+		paddr += pg_size;
+	}
 }
 
 static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm,
@@ -1047,19 +1074,6 @@ void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits)
 	}
 }
 
-struct idt_entry {
-	uint16_t offset0;
-	uint16_t selector;
-	uint16_t ist : 3;
-	uint16_t : 5;
-	uint16_t type : 4;
-	uint16_t : 1;
-	uint16_t dpl : 2;
-	uint16_t p : 1;
-	uint16_t offset1;
-	uint32_t offset2; uint32_t reserved;
-};
-
 static void set_idt_entry(struct kvm_vm *vm, int vector, unsigned long addr,
 			  int dpl, unsigned short selector)
 {
@@ -1294,20 +1308,9 @@ done:
 /* Returns true if kvm_intel was loaded with unrestricted_guest=1. */
 bool vm_is_unrestricted_guest(struct kvm_vm *vm)
 {
-	char val = 'N';
-	size_t count;
-	FILE *f;
-
 	/* Ensure that a KVM vendor-specific module is loaded. */
 	if (vm == NULL)
 		close(open_kvm_dev_path_or_exit());
 
-	f = fopen("/sys/module/kvm_intel/parameters/unrestricted_guest", "r");
-	if (f) {
-		count = fread(&val, sizeof(char), 1, f);
-		TEST_ASSERT(count == 1, "Unable to read from param file.");
-		fclose(f);
-	}
-
-	return val == 'Y';
+	return get_kvm_intel_param_bool("unrestricted_guest");
 }

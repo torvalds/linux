@@ -404,6 +404,7 @@ struct hns3_rx_ptype {
 	u32 ip_summed : 2;
 	u32 l3_type : 4;
 	u32 valid : 1;
+	u32 hash_type: 3;
 };
 
 struct ring_stats {
@@ -744,4 +745,7 @@ u16 hns3_get_max_available_channels(struct hnae3_handle *h);
 void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
 			      enum dim_cq_period_mode tx_mode,
 			      enum dim_cq_period_mode rx_mode);
+
+void hns3_external_lb_prepare(struct net_device *ndev, bool if_running);
+void hns3_external_lb_restore(struct net_device *ndev, bool if_running);
 #endif

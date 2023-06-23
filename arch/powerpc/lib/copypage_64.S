@@ -9,11 +9,6 @@
 #include <asm/export.h>
 #include <asm/feature-fixups.h>
 
-        .section        ".toc","aw"
-PPC64_CACHES:
-        .tc             ppc64_caches[TC],ppc64_caches
-        .section        ".text"
-
 _GLOBAL_TOC(copy_page)
 BEGIN_FTR_SECTION
 	lis	r5,PAGE_SIZE@h
@@ -24,7 +19,7 @@ FTR_SECTION_ELSE
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
 BEGIN_FTR_SECTION
-	ld      r10,PPC64_CACHES@toc(r2)
+	LOAD_REG_ADDR(r10, ppc64_caches)
 	lwz	r11,DCACHEL1LOGBLOCKSIZE(r10)	/* log2 of cache block size */
 	lwz     r12,DCACHEL1BLOCKSIZE(r10)	/* get cache block size */
 	li	r9,0

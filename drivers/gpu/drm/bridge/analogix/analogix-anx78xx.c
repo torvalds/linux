@@ -1357,7 +1357,7 @@ err_unregister_i2c:
 	return err;
 }
 
-static int anx78xx_i2c_remove(struct i2c_client *client)
+static void anx78xx_i2c_remove(struct i2c_client *client)
 {
 	struct anx78xx *anx78xx = i2c_get_clientdata(client);
 
@@ -1366,8 +1366,6 @@ static int anx78xx_i2c_remove(struct i2c_client *client)
 	unregister_i2c_dummy_clients(anx78xx);
 
 	kfree(anx78xx->edid);
-
-	return 0;
 }
 
 static const struct i2c_device_id anx78xx_id[] = {

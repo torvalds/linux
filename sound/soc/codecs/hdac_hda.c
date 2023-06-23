@@ -246,7 +246,7 @@ static int hdac_hda_dai_hw_free(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	hda_stream = &pcm->stream[substream->stream];
-	snd_hda_codec_cleanup(&hda_pvt->codec, hda_stream, substream);
+	snd_hda_codec_cleanup(hda_pvt->codec, hda_stream, substream);
 
 	return 0;
 }
@@ -264,7 +264,7 @@ static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	hda_pvt = snd_soc_component_get_drvdata(component);
-	hdev = &hda_pvt->codec.core;
+	hdev = &hda_pvt->codec->core;
 	pcm = snd_soc_find_pcm_from_dai(hda_pvt, dai);
 	if (!pcm)
 		return -EINVAL;
@@ -274,7 +274,7 @@ static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 	stream = hda_pvt->pcm[dai->id].stream_tag[substream->stream];
 	format_val = hda_pvt->pcm[dai->id].format_val[substream->stream];
 
-	ret = snd_hda_codec_prepare(&hda_pvt->codec, hda_stream,
+	ret = snd_hda_codec_prepare(hda_pvt->codec, hda_stream,
 				    stream, format_val, substream);
 	if (ret < 0)
 		dev_err(&hdev->dev, "codec prepare failed %d\n", ret);
@@ -299,7 +299,7 @@ static int hdac_hda_dai_open(struct snd_pcm_substream *substream,
 
 	hda_stream = &pcm->stream[substream->stream];
 
-	return hda_stream->ops.open(hda_stream, &hda_pvt->codec, substream);
+	return hda_stream->ops.open(hda_stream, hda_pvt->codec, substream);
 }
 
 static void hdac_hda_dai_close(struct snd_pcm_substream *substream,
@@ -317,7 +317,7 @@ static void hdac_hda_dai_close(struct snd_pcm_substream *substream,
 
 	hda_stream = &pcm->stream[substream->stream];
 
-	hda_stream->ops.close(hda_stream, &hda_pvt->codec, substream);
+	hda_stream->ops.close(hda_stream, hda_pvt->codec, substream);
 
 	snd_hda_codec_pcm_put(pcm);
 }
@@ -325,7 +325,7 @@ static void hdac_hda_dai_close(struct snd_pcm_substream *substream,
 static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 						 struct snd_soc_dai *dai)
 {
-	struct hda_codec *hcodec = &hda_pvt->codec;
+	struct hda_codec *hcodec = hda_pvt->codec;
 	struct hda_pcm *cpcm;
 	const char *pcm_name;
 
@@ -394,8 +394,8 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 			snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
-	struct hdac_device *hdev = &hda_pvt->codec.core;
-	struct hda_codec *hcodec = &hda_pvt->codec;
+	struct hdac_device *hdev = &hda_pvt->codec->core;
+	struct hda_codec *hcodec = hda_pvt->codec;
 	struct hdac_ext_link *hlink;
 	hda_codec_patch_t patch;
 	int ret;
@@ -461,9 +461,6 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		dev_dbg(&hdev->dev, "no patch file found\n");
 	}
 
-	/* configure codec for 1:1 PCM:DAI mapping */
-	hcodec->mst_no_extra_pcms = 1;
-
 	ret = snd_hda_codec_parse_pcms(hcodec);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to map pcms to dai %d\n", ret);
@@ -515,8 +512,8 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 {
 	struct hdac_hda_priv *hda_pvt =
 		      snd_soc_component_get_drvdata(component);
-	struct hdac_device *hdev = &hda_pvt->codec.core;
-	struct hda_codec *codec = &hda_pvt->codec;
+	struct hdac_device *hdev = &hda_pvt->codec->core;
+	struct hda_codec *codec = hda_pvt->codec;
 	struct hdac_ext_link *hlink = NULL;
 
 	hlink = snd_hdac_ext_bus_get_link(hdev->bus, dev_name(&hdev->dev));
@@ -584,7 +581,6 @@ static const struct snd_soc_component_driver hdac_hda_codec = {
 static int hdac_hda_dev_probe(struct hdac_device *hdev)
 {
 	struct hdac_ext_link *hlink;
-	struct hdac_hda_priv *hda_pvt;
 	int ret;
 
 	/* hold the ref while we probe */
@@ -595,10 +591,6 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 	}
 	snd_hdac_ext_bus_link_get(hdev->bus, hlink);
 
-	hda_pvt = hdac_to_hda_priv(hdev);
-	if (!hda_pvt)
-		return -ENOMEM;
-
 	/* ASoC specific initialization */
 	ret = devm_snd_soc_register_component(&hdev->dev,
 					 &hdac_hda_codec, hdac_hda_dais,
@@ -608,7 +600,6 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 		return ret;
 	}
 
-	dev_set_drvdata(&hdev->dev, hda_pvt);
 	snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 
 	return ret;

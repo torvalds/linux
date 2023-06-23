@@ -1159,13 +1159,11 @@ static int rnbd_rdma_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
 {
 	struct rnbd_queue *q = hctx->driver_data;
 	struct rnbd_clt_dev *dev = q->dev;
-	int cnt;
 
-	cnt = rtrs_clt_rdma_cq_direct(dev->sess->rtrs, hctx->queue_num);
-	return cnt;
+	return rtrs_clt_rdma_cq_direct(dev->sess->rtrs, hctx->queue_num);
 }
 
-static int rnbd_rdma_map_queues(struct blk_mq_tag_set *set)
+static void rnbd_rdma_map_queues(struct blk_mq_tag_set *set)
 {
 	struct rnbd_clt_session *sess = set->driver_data;
 
@@ -1194,8 +1192,6 @@ static int rnbd_rdma_map_queues(struct blk_mq_tag_set *set)
 			set->map[HCTX_TYPE_DEFAULT].nr_queues,
 			set->map[HCTX_TYPE_READ].nr_queues);
 	}
-
-	return 0;
 }
 
 static struct blk_mq_ops rnbd_mq_ops = {

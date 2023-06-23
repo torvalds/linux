@@ -32,8 +32,7 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	if (path[ext_depth(inode)].p_ext == NULL) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
+		ext4_free_ext_path(path);
 		*ppath = NULL;
 		return -ENODATA;
 	}
@@ -103,12 +102,10 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 		if (unwritten != ext4_ext_is_unwritten(ext))
 			goto out;
 		from += ext4_ext_get_actual_len(ext);
-		ext4_ext_drop_refs(path);
 	}
 	ret = 1;
 out:
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	return ret;
 }
 
@@ -472,19 +469,17 @@ mext_check_arguments(struct inode *orig_inode,
 	if (IS_IMMUTABLE(donor_inode) || IS_APPEND(donor_inode))
 		return -EPERM;
 
-	/* Ext4 move extent does not support swapfile */
+	/* Ext4 move extent does not support swap files */
 	if (IS_SWAPFILE(orig_inode) || IS_SWAPFILE(donor_inode)) {
-		ext4_debug("ext4 move extent: The argument files should "
-			"not be swapfile [ino:orig %lu, donor %lu]\n",
+		ext4_debug("ext4 move extent: The argument files should not be swap files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
-		return -EBUSY;
+		return -ETXTBSY;
 	}
 
 	if (ext4_is_quota_file(orig_inode) && ext4_is_quota_file(donor_inode)) {
-		ext4_debug("ext4 move extent: The argument files should "
-			"not be quota files [ino:orig %lu, donor %lu]\n",
+		ext4_debug("ext4 move extent: The argument files should not be quota files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
-		return -EBUSY;
+		return -EOPNOTSUPP;
 	}
 
 	/* Ext4 move extent supports only extent based file */
@@ -631,11 +626,11 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		if (ret)
 			goto out;
 		ex = path[path->p_depth].p_ext;
-		next_blk = ext4_ext_next_allocated_block(path);
 		cur_blk = le32_to_cpu(ex->ee_block);
 		cur_len = ext4_ext_get_actual_len(ex);
 		/* Check hole before the start pos */
 		if (cur_blk + cur_len - 1 < o_start) {
+			next_blk = ext4_ext_next_allocated_block(path);
 			if (next_blk == EXT_MAX_BLOCKS) {
 				ret = -ENODATA;
 				goto out;
@@ -663,7 +658,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		donor_page_index = d_start >> (PAGE_SHIFT -
 					       donor_inode->i_blkbits);
 		offset_in_page = o_start % blocks_per_page;
-		if (cur_len > blocks_per_page- offset_in_page)
+		if (cur_len > blocks_per_page - offset_in_page)
 			cur_len = blocks_per_page - offset_in_page;
 		/*
 		 * Up semaphore to avoid following problems:
@@ -694,8 +689,7 @@ out:
 		ext4_discard_preallocations(donor_inode, 0);
 	}
 
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	unlock_two_nondirectories(orig_inode, donor_inode);
 

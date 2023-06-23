@@ -137,7 +137,13 @@ struct crc_params {
 	bool enable;
 };
 
+/**
+ * struct timing_generator - Entry point to Output Timing Generator feature.
+ */
 struct timing_generator {
+	/**
+	 * @funcs: Timing generator control functions
+	 */
 	const struct timing_generator_funcs *funcs;
 	struct dc_bios *bp;
 	struct dc_context *ctx;
@@ -148,7 +154,9 @@ struct dc_crtc_timing;
 
 struct drr_params;
 
-
+/**
+ * struct timing_generator_funcs - Control timing generator on a given device.
+ */
 struct timing_generator_funcs {
 	bool (*validate_timing)(struct timing_generator *tg,
 							const struct dc_crtc_timing *timing);
@@ -201,7 +209,6 @@ struct timing_generator_funcs {
 	void (*set_blank)(struct timing_generator *tg,
 					bool enable_blanking);
 	bool (*is_blanked)(struct timing_generator *tg);
-	bool (*is_locked)(struct timing_generator *tg);
 	void (*set_overscan_blank_color) (struct timing_generator *tg, const struct tg_color *color);
 	void (*set_blank_color)(struct timing_generator *tg, const struct tg_color *color);
 	void (*set_colors)(struct timing_generator *tg,
@@ -273,8 +280,8 @@ struct timing_generator_funcs {
 			       const struct crc_params *params);
 
 	/**
-	 * Get CRCs for the given timing generator. Return false if CRCs are
-	 * not enabled (via configure_crc).
+	 * @get_crc: Get CRCs for the given timing generator. Return false if
+	 * CRCs are not enabled (via configure_crc).
 	 */
 	bool (*get_crc)(struct timing_generator *tg,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);

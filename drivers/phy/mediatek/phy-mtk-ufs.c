@@ -11,6 +11,8 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 
+#include "phy-mtk-io.h"
+
 /* mphy register and offsets */
 #define MP_GLB_DIG_8C               0x008C
 #define FRC_PLL_ISO_EN              BIT(8)
@@ -39,34 +41,6 @@ struct ufs_mtk_phy {
 	struct clk_bulk_data clks[UFSPHY_CLKS_CNT];
 };
 
-static inline u32 mphy_readl(struct ufs_mtk_phy *phy, u32 reg)
-{
-	return readl(phy->mmio + reg);
-}
-
-static inline void mphy_writel(struct ufs_mtk_phy *phy, u32 val, u32 reg)
-{
-	writel(val, phy->mmio + reg);
-}
-
-static void mphy_set_bit(struct ufs_mtk_phy *phy, u32 reg, u32 bit)
-{
-	u32 val;
-
-	val = mphy_readl(phy, reg);
-	val |= bit;
-	mphy_writel(phy, val, reg);
-}
-
-static void mphy_clr_bit(struct ufs_mtk_phy *phy, u32 reg, u32 bit)
-{
-	u32 val;
-
-	val = mphy_readl(phy, reg);
-	val &= ~bit;
-	mphy_writel(phy, val, reg);
-}
-
 static struct ufs_mtk_phy *get_ufs_mtk_phy(struct phy *generic_phy)
 {
 	return (struct ufs_mtk_phy *)phy_get_drvdata(generic_phy);
@@ -84,57 +58,61 @@ static int ufs_mtk_phy_clk_init(struct ufs_mtk_phy *phy)
 
 static void ufs_mtk_phy_set_active(struct ufs_mtk_phy *phy)
 {
+	void __iomem *mmio = phy->mmio;
+
 	/* release DA_MP_PLL_PWR_ON */
-	mphy_set_bit(phy, MP_GLB_DIG_8C, PLL_PWR_ON);
-	mphy_clr_bit(phy, MP_GLB_DIG_8C, FRC_FRC_PWR_ON);
+	mtk_phy_set_bits(mmio + MP_GLB_DIG_8C, PLL_PWR_ON);
+	mtk_phy_clear_bits(mmio + MP_GLB_DIG_8C, FRC_FRC_PWR_ON);
 
 	/* release DA_MP_PLL_ISO_EN */
-	mphy_clr_bit(phy, MP_GLB_DIG_8C, PLL_ISO_EN);
-	mphy_clr_bit(phy, MP_GLB_DIG_8C, FRC_PLL_ISO_EN);
+	mtk_phy_clear_bits(mmio + MP_GLB_DIG_8C, PLL_ISO_EN);
+	mtk_phy_clear_bits(mmio + MP_GLB_DIG_8C, FRC_PLL_ISO_EN);
 
 	/* release DA_MP_CDR_PWR_ON */
-	mphy_set_bit(phy, MP_LN_RX_44, CDR_PWR_ON);
-	mphy_clr_bit(phy, MP_LN_RX_44, FRC_CDR_PWR_ON);
+	mtk_phy_set_bits(mmio + MP_LN_RX_44, CDR_PWR_ON);
+	mtk_phy_clear_bits(mmio + MP_LN_RX_44, FRC_CDR_PWR_ON);
 
 	/* release DA_MP_CDR_ISO_EN */
-	mphy_clr_bit(phy, MP_LN_RX_44, CDR_ISO_EN);
-	mphy_clr_bit(phy, MP_LN_RX_44, FRC_CDR_ISO_EN);
+	mtk_phy_clear_bits(mmio + MP_LN_RX_44, CDR_ISO_EN);
+	mtk_phy_clear_bits(mmio + MP_LN_RX_44, FRC_CDR_ISO_EN);
 
 	/* release DA_MP_RX0_SQ_EN */
-	mphy_set_bit(phy, MP_LN_DIG_RX_AC, RX_SQ_EN);
-	mphy_clr_bit(phy, MP_LN_DIG_RX_AC, FRC_RX_SQ_EN);
+	mtk_phy_set_bits(mmio + MP_LN_DIG_RX_AC, RX_SQ_EN);
+	mtk_phy_clear_bits(mmio + MP_LN_DIG_RX_AC, FRC_RX_SQ_EN);
 
 	/* delay 1us to wait DIFZ stable */
 	udelay(1);
 
 	/* release DIFZ */
-	mphy_clr_bit(phy, MP_LN_DIG_RX_9C, FSM_DIFZ_FRC);
+	mtk_phy_clear_bits(mmio + MP_LN_DIG_RX_9C, FSM_DIFZ_FRC);
 }
 
 static void ufs_mtk_phy_set_deep_hibern(struct ufs_mtk_phy *phy)
 {
+	void __iomem *mmio = phy->mmio;
+
 	/* force DIFZ */
-	mphy_set_bit(phy, MP_LN_DIG_RX_9C, FSM_DIFZ_FRC);
+	mtk_phy_set_bits(mmio + MP_LN_DIG_RX_9C, FSM_DIFZ_FRC);
 
 	/* force DA_MP_RX0_SQ_EN */
-	mphy_set_bit(phy, MP_LN_DIG_RX_AC, FRC_RX_SQ_EN);
-	mphy_clr_bit(phy, MP_LN_DIG_RX_AC, RX_SQ_EN);
+	mtk_phy_set_bits(mmio + MP_LN_DIG_RX_AC, FRC_RX_SQ_EN);
+	mtk_phy_clear_bits(mmio + MP_LN_DIG_RX_AC, RX_SQ_EN);
 
 	/* force DA_MP_CDR_ISO_EN */
-	mphy_set_bit(phy, MP_LN_RX_44, FRC_CDR_ISO_EN);
-	mphy_set_bit(phy, MP_LN_RX_44, CDR_ISO_EN);
+	mtk_phy_set_bits(mmio + MP_LN_RX_44, FRC_CDR_ISO_EN);
+	mtk_phy_set_bits(mmio + MP_LN_RX_44, CDR_ISO_EN);
 
 	/* force DA_MP_CDR_PWR_ON */
-	mphy_set_bit(phy, MP_LN_RX_44, FRC_CDR_PWR_ON);
-	mphy_clr_bit(phy, MP_LN_RX_44, CDR_PWR_ON);
+	mtk_phy_set_bits(mmio + MP_LN_RX_44, FRC_CDR_PWR_ON);
+	mtk_phy_clear_bits(mmio + MP_LN_RX_44, CDR_PWR_ON);
 
 	/* force DA_MP_PLL_ISO_EN */
-	mphy_set_bit(phy, MP_GLB_DIG_8C, FRC_PLL_ISO_EN);
-	mphy_set_bit(phy, MP_GLB_DIG_8C, PLL_ISO_EN);
+	mtk_phy_set_bits(mmio + MP_GLB_DIG_8C, FRC_PLL_ISO_EN);
+	mtk_phy_set_bits(mmio + MP_GLB_DIG_8C, PLL_ISO_EN);
 
 	/* force DA_MP_PLL_PWR_ON */
-	mphy_set_bit(phy, MP_GLB_DIG_8C, FRC_FRC_PWR_ON);
-	mphy_clr_bit(phy, MP_GLB_DIG_8C, PLL_PWR_ON);
+	mtk_phy_set_bits(mmio + MP_GLB_DIG_8C, FRC_FRC_PWR_ON);
+	mtk_phy_clear_bits(mmio + MP_GLB_DIG_8C, PLL_PWR_ON);
 }
 
 static int ufs_mtk_phy_power_on(struct phy *generic_phy)

@@ -70,13 +70,11 @@ static int ov7640_probe(struct i2c_client *client,
 }
 
 
-static int ov7640_remove(struct i2c_client *client)
+static void ov7640_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov7640_id[] = {

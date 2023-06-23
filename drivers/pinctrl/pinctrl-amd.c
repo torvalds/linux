@@ -246,7 +246,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 		}
 		seq_printf(s, "GPIO bank%d\n", bank);
 		for (; i < pin_num; i++) {
-			seq_printf(s, "📌%d\t", i);
+			seq_printf(s, "#%d\t", i);
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 			pin_reg = readl(gpio_dev->base + i * 4);
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
@@ -278,32 +278,32 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			}
 
 			if (pin_reg & BIT(INTERRUPT_MASK_OFF))
-				interrupt_mask = "-";
+				interrupt_mask = "😛";
 			else
-				interrupt_mask = "+";
-			seq_printf(s, "int %s (🎭 %s)| active-%s| %s-🔫| ",
+				interrupt_mask = "😷";
+			seq_printf(s, "int %s (%s)| active-%s| %s-⚡| ",
 				   interrupt_enable,
 				   interrupt_mask,
 				   active_level,
 				   level_trig);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S0I3))
-				wake_cntrl0 = "+";
+				wake_cntrl0 = "⏰";
 			else
-				wake_cntrl0 = "∅";
-			seq_printf(s, "S0i3 🌅 %s| ", wake_cntrl0);
+				wake_cntrl0 = " ∅";
+			seq_printf(s, "S0i3 %s| ", wake_cntrl0);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S3))
-				wake_cntrl1 = "+";
+				wake_cntrl1 = "⏰";
 			else
-				wake_cntrl1 = "∅";
-			seq_printf(s, "S3 🌅 %s| ", wake_cntrl1);
+				wake_cntrl1 = " ∅";
+			seq_printf(s, "S3 %s| ", wake_cntrl1);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S4))
-				wake_cntrl2 = "+";
+				wake_cntrl2 = "⏰";
 			else
-				wake_cntrl2 = "∅";
-			seq_printf(s, "S4/S5 🌅 %s| ", wake_cntrl2);
+				wake_cntrl2 = " ∅";
+			seq_printf(s, "S4/S5 %s| ", wake_cntrl2);
 
 			if (pin_reg & BIT(PULL_UP_ENABLE_OFF)) {
 				pull_up_enable = "+";
@@ -367,7 +367,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 				debounce_enable = "  ∅";
 			}
 			snprintf(debounce_value, sizeof(debounce_value), "%u", time * unit);
-			seq_printf(s, "debounce %s (⏰ %sus)| ", debounce_enable, debounce_value);
+			seq_printf(s, "debounce %s (🕑 %sus)| ", debounce_enable, debounce_value);
 			seq_printf(s, " 0x%x\n", pin_reg);
 		}
 	}
@@ -639,7 +639,7 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 			if (!(regval & PIN_IRQ_PENDING) ||
 			    !(regval & BIT(INTERRUPT_MASK_OFF)))
 				continue;
-			generic_handle_domain_irq(gc->irq.domain, irqnr + i);
+			generic_handle_domain_irq_safe(gc->irq.domain, irqnr + i);
 
 			/* Clear interrupt.
 			 * We must read the pin register again, in case the
@@ -1051,13 +1051,13 @@ static void amd_get_iomux_res(struct amd_gpio *gpio_dev)
 
 	index = device_property_match_string(dev, "pinctrl-resource-names",  "iomux");
 	if (index < 0) {
-		dev_warn(dev, "failed to get iomux index\n");
+		dev_dbg(dev, "iomux not supported\n");
 		goto out_no_pinmux;
 	}
 
 	gpio_dev->iomux_base = devm_platform_ioremap_resource(gpio_dev->pdev, index);
 	if (IS_ERR(gpio_dev->iomux_base)) {
-		dev_warn(dev, "Failed to get iomux %d io resource\n", index);
+		dev_dbg(dev, "iomux not supported %d io resource\n", index);
 		goto out_no_pinmux;
 	}
 

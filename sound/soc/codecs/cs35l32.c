@@ -497,14 +497,12 @@ err_supplies:
 	return ret;
 }
 
-static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
+static void cs35l32_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs35l32_private *cs35l32 = i2c_get_clientdata(i2c_client);
 
 	/* Hold down reset */
 	gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -25,6 +25,7 @@
 #include <linux/times.h>
 #include <linux/posix-timers.h>
 #include <linux/security.h>
+#include <linux/random.h>
 #include <linux/suspend.h>
 #include <linux/tty.h>
 #include <linux/signal.h>
@@ -496,7 +497,7 @@ static void flag_nproc_exceeded(struct cred *new)
 	 * for programs doing set*uid()+execve() by harmlessly deferring the
 	 * failure to the execve() stage.
 	 */
-	if (is_ucounts_overlimit(new->ucounts, UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)) &&
+	if (is_rlimit_overlimit(new->ucounts, UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)) &&
 			new->user != INIT_USER)
 		current->flags |= PF_NPROC_EXCEEDED;
 	else
@@ -1366,6 +1367,7 @@ SYSCALL_DEFINE2(sethostname, char __user *, name, int, len)
 	if (!copy_from_user(tmp, name, len)) {
 		struct new_utsname *u;
 
+		add_device_randomness(tmp, len);
 		down_write(&uts_sem);
 		u = utsname();
 		memcpy(u->nodename, tmp, len);
@@ -1419,6 +1421,7 @@ SYSCALL_DEFINE2(setdomainname, char __user *, name, int, len)
 	if (!copy_from_user(tmp, name, len)) {
 		struct new_utsname *u;
 
+		add_device_randomness(tmp, len);
 		down_write(&uts_sem);
 		u = utsname();
 		memcpy(u->domainname, tmp, len);

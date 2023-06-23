@@ -19,9 +19,9 @@ config MACH_ASPEED_G4
 	select PINCTRL_ASPEED_G4
 	select FTTMR010_TIMER
 	help
-	 Say yes if you intend to run on an Aspeed ast2400 or similar
-	 fourth generation BMCs, such as those used by OpenPower Power8
-	 systems.
+	  Say yes if you intend to run on an Aspeed ast2400 or similar
+	  fourth generation BMCs, such as those used by OpenPower Power8
+	  systems.
 
 config MACH_ASPEED_G5
 	bool "Aspeed SoC 5th Generation"
@@ -29,8 +29,8 @@ config MACH_ASPEED_G5
 	select PINCTRL_ASPEED_G5
 	select FTTMR010_TIMER
 	help
-	 Say yes if you intend to run on an Aspeed ast2500 or similar
-	 fifth generation Aspeed BMCs.
+	  Say yes if you intend to run on an Aspeed ast2500 or similar
+	  fifth generation Aspeed BMCs.
 
 config MACH_ASPEED_G6
 	bool "Aspeed SoC 6th Generation"
@@ -40,7 +40,7 @@ config MACH_ASPEED_G6
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
 	help
-	 Say yes if you intend to run on an Aspeed ast2600 or similar
-	 sixth generation Aspeed BMCs.
+	  Say yes if you intend to run on an Aspeed ast2600 or similar
+	  sixth generation Aspeed BMCs.
 
 endif

@@ -45,6 +45,8 @@
 #include "mlx5_core.h"
 #include "lib/eq.h"
 #include "lib/tout.h"
+#define CREATE_TRACE_POINTS
+#include "diag/cmd_tracepoint.h"
 
 enum {
 	CMD_IF_REV = 5,
@@ -785,27 +787,14 @@ EXPORT_SYMBOL(mlx5_cmd_out_err);
 static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 {
 	u16 opcode, op_mod;
-	u32 syndrome;
-	u8  status;
 	u16 uid;
-	int err;
-
-	syndrome = MLX5_GET(mbox_out, out, syndrome);
-	status = MLX5_GET(mbox_out, out, status);
 
 	opcode = MLX5_GET(mbox_in, in, opcode);
 	op_mod = MLX5_GET(mbox_in, in, op_mod);
 	uid    = MLX5_GET(mbox_in, in, uid);
 
-	err = cmd_status_to_err(status);
-
 	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY)
 		mlx5_cmd_out_err(dev, opcode, op_mod, out);
-	else
-		mlx5_core_dbg(dev,
-			"%s(0x%x) op_mod(0x%x) uid(%d) failed, status %s(0x%x), syndrome (0x%x), err(%d)\n",
-			mlx5_command_str(opcode), opcode, op_mod, uid,
-			cmd_status_str(status), status, syndrome, err);
 }
 
 int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *out)
@@ -1016,6 +1005,7 @@ static void cmd_work_handler(struct work_struct *work)
 		cmd_ent_get(ent);
 	set_bit(MLX5_CMD_ENT_STATE_PENDING_COMP, &ent->state);
 
+	cmd_ent_get(ent); /* for the _real_ FW event on completion */
 	/* Skip sending command to fw if internal error */
 	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, ent->op)) {
 		ent->ret = -ENXIO;
@@ -1023,7 +1013,6 @@ static void cmd_work_handler(struct work_struct *work)
 		return;
 	}
 
-	cmd_ent_get(ent); /* for the _real_ FW event on completion */
 	/* ring doorbell after the descriptor is valid */
 	mlx5_core_dbg(dev, "writing 0x%x to command doorbell\n", 1 << ent->idx);
 	wmb();
@@ -1508,8 +1497,8 @@ static ssize_t outlen_write(struct file *filp, const char __user *buf,
 		return -EFAULT;
 
 	err = sscanf(outlen_str, "%d", &outlen);
-	if (err < 0)
-		return err;
+	if (err != 1)
+		return -EINVAL;
 
 	ptr = kzalloc(outlen, GFP_KERNEL);
 	if (!ptr)
@@ -1672,8 +1661,8 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 				cmd_ent_put(ent); /* timeout work was canceled */
 
 			if (!forced || /* Real FW completion */
-			    pci_channel_offline(dev->pdev) || /* FW is inaccessible */
-			    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+			     mlx5_cmd_is_down(dev) || /* No real FW completion is expected */
+			     !opcode_allowed(cmd, ent->op))
 				cmd_ent_put(ent);
 
 			ent->ts2 = ktime_get_ns();
@@ -1770,12 +1759,17 @@ void mlx5_cmd_flush(struct mlx5_core_dev *dev)
 	struct mlx5_cmd *cmd = &dev->cmd;
 	int i;
 
-	for (i = 0; i < cmd->max_reg_cmds; i++)
-		while (down_trylock(&cmd->sem))
+	for (i = 0; i < cmd->max_reg_cmds; i++) {
+		while (down_trylock(&cmd->sem)) {
 			mlx5_cmd_trigger_completions(dev);
+			cond_resched();
+		}
+	}
 
-	while (down_trylock(&cmd->pages_sem))
+	while (down_trylock(&cmd->pages_sem)) {
 		mlx5_cmd_trigger_completions(dev);
+		cond_resched();
+	}
 
 	/* Unlock cmdif */
 	up(&cmd->pages_sem);
@@ -1887,6 +1881,16 @@ out_in:
 	return err;
 }
 
+static void mlx5_cmd_err_trace(struct mlx5_core_dev *dev, u16 opcode, u16 op_mod, void *out)
+{
+	u32 syndrome = MLX5_GET(mbox_out, out, syndrome);
+	u8 status = MLX5_GET(mbox_out, out, status);
+
+	trace_mlx5_cmd(mlx5_command_str(opcode), opcode, op_mod,
+		       cmd_status_str(status), status, syndrome,
+		       cmd_status_to_err(status));
+}
+
 static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status,
 			   u32 syndrome, int err)
 {
@@ -1909,7 +1913,7 @@ static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status,
 }
 
 /* preserve -EREMOTEIO for outbox.status != OK, otherwise return err as is */
-static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, void *out)
+static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, u16 op_mod, void *out)
 {
 	u32 syndrome = MLX5_GET(mbox_out, out, syndrome);
 	u8 status = MLX5_GET(mbox_out, out, status);
@@ -1917,8 +1921,10 @@ static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, void *
 	if (err == -EREMOTEIO) /* -EREMOTEIO is preserved */
 		err = -EIO;
 
-	if (!err && status != MLX5_CMD_STAT_OK)
+	if (!err && status != MLX5_CMD_STAT_OK) {
 		err = -EREMOTEIO;
+		mlx5_cmd_err_trace(dev, opcode, op_mod, out);
+	}
 
 	cmd_status_log(dev, opcode, status, syndrome, err);
 	return err;
@@ -1946,9 +1952,9 @@ int mlx5_cmd_do(struct mlx5_core_dev *dev, void *in, int in_size, void *out, int
 {
 	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
 	u16 opcode = MLX5_GET(mbox_in, in, opcode);
+	u16 op_mod = MLX5_GET(mbox_in, in, op_mod);
 
-	err = cmd_status_err(dev, err, opcode, out);
-	return err;
+	return cmd_status_err(dev, err, opcode, op_mod, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_do);
 
@@ -1992,8 +1998,9 @@ int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
 {
 	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
 	u16 opcode = MLX5_GET(mbox_in, in, opcode);
+	u16 op_mod = MLX5_GET(mbox_in, in, op_mod);
 
-	err = cmd_status_err(dev, err, opcode, out);
+	err = cmd_status_err(dev, err, opcode, op_mod, out);
 	return mlx5_cmd_check(dev, err, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_polling);
@@ -2004,7 +2011,7 @@ void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
 	ctx->dev = dev;
 	/* Starts at 1 to avoid doing wake_up if we are not cleaning up */
 	atomic_set(&ctx->num_inflight, 1);
-	init_waitqueue_head(&ctx->wait);
+	init_completion(&ctx->inflight_done);
 }
 EXPORT_SYMBOL(mlx5_cmd_init_async_ctx);
 
@@ -2018,8 +2025,8 @@ EXPORT_SYMBOL(mlx5_cmd_init_async_ctx);
  */
 void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx)
 {
-	atomic_dec(&ctx->num_inflight);
-	wait_event(ctx->wait, atomic_read(&ctx->num_inflight) == 0);
+	if (!atomic_dec_and_test(&ctx->num_inflight))
+		wait_for_completion(&ctx->inflight_done);
 }
 EXPORT_SYMBOL(mlx5_cmd_cleanup_async_ctx);
 
@@ -2029,10 +2036,10 @@ static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 	struct mlx5_async_ctx *ctx;
 
 	ctx = work->ctx;
-	status = cmd_status_err(ctx->dev, status, work->opcode, work->out);
+	status = cmd_status_err(ctx->dev, status, work->opcode, work->op_mod, work->out);
 	work->user_callback(status, work);
 	if (atomic_dec_and_test(&ctx->num_inflight))
-		wake_up(&ctx->wait);
+		complete(&ctx->inflight_done);
 }
 
 int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
@@ -2044,13 +2051,14 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 	work->ctx = ctx;
 	work->user_callback = callback;
 	work->opcode = MLX5_GET(mbox_in, in, opcode);
+	work->op_mod = MLX5_GET(mbox_in, in, op_mod);
 	work->out = out;
 	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
 		return -EIO;
 	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
 		       mlx5_cmd_exec_cb_handler, work, false);
 	if (ret && atomic_dec_and_test(&ctx->num_inflight))
-		wake_up(&ctx->wait);
+		complete(&ctx->inflight_done);
 
 	return ret;
 }

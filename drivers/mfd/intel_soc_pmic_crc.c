@@ -2,18 +2,21 @@
 /*
  * Device access for Crystal Cove PMIC
  *
- * Copyright (C) 2013, 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2012-2014, 2022 Intel Corporation. All rights reserved.
  *
  * Author: Yang, Bin <bin.yang@intel.com>
  * Author: Zhu, Lejun <lejun.zhu@linux.intel.com>
  */
 
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/regmap.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/intel_soc_pmic.h>
-
-#include "intel_soc_pmic_core.h"
+#include <linux/platform_data/x86/soc.h>
+#include <linux/pwm.h>
+#include <linux/regmap.h>
 
 #define CRYSTAL_COVE_MAX_REGISTER	0xC6
 
@@ -132,7 +135,20 @@ static const struct regmap_irq_chip crystal_cove_irq_chip = {
 	.mask_base = CRYSTAL_COVE_REG_MIRQLVL1,
 };
 
-struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc = {
+/* PWM consumed by the Intel GFX */
+static struct pwm_lookup crc_pwm_lookup[] = {
+	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
+};
+
+struct crystal_cove_config {
+	unsigned long irq_flags;
+	struct mfd_cell *cell_dev;
+	int n_cell_devs;
+	const struct regmap_config *regmap_config;
+	const struct regmap_irq_chip *irq_chip;
+};
+
+static const struct crystal_cove_config crystal_cove_config_byt_crc = {
 	.irq_flags = IRQF_TRIGGER_RISING,
 	.cell_dev = crystal_cove_byt_dev,
 	.n_cell_devs = ARRAY_SIZE(crystal_cove_byt_dev),
@@ -140,10 +156,121 @@ struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc = {
 	.irq_chip = &crystal_cove_irq_chip,
 };
 
-struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc = {
+static const struct crystal_cove_config crystal_cove_config_cht_crc = {
 	.irq_flags = IRQF_TRIGGER_RISING,
 	.cell_dev = crystal_cove_cht_dev,
 	.n_cell_devs = ARRAY_SIZE(crystal_cove_cht_dev),
 	.regmap_config = &crystal_cove_regmap_config,
 	.irq_chip = &crystal_cove_irq_chip,
 };
+
+static int crystal_cove_i2c_probe(struct i2c_client *i2c)
+{
+	const struct crystal_cove_config *config;
+	struct device *dev = &i2c->dev;
+	struct intel_soc_pmic *pmic;
+	int ret;
+
+	if (soc_intel_is_byt())
+		config = &crystal_cove_config_byt_crc;
+	else
+		config = &crystal_cove_config_cht_crc;
+
+	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
+	if (!pmic)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, pmic);
+
+	pmic->regmap = devm_regmap_init_i2c(i2c, config->regmap_config);
+	if (IS_ERR(pmic->regmap))
+		return PTR_ERR(pmic->regmap);
+
+	pmic->irq = i2c->irq;
+
+	ret = devm_regmap_add_irq_chip(dev, pmic->regmap, pmic->irq,
+				       config->irq_flags | IRQF_ONESHOT,
+				       0, config->irq_chip, &pmic->irq_chip_data);
+	if (ret)
+		return ret;
+
+	ret = enable_irq_wake(pmic->irq);
+	if (ret)
+		dev_warn(dev, "Can't enable IRQ as wake source: %d\n", ret);
+
+	/* Add lookup table for crc-pwm */
+	pwm_add_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
+
+	/* To distuingish this domain from the GPIO/charger's irqchip domains */
+	irq_domain_update_bus_token(regmap_irq_get_domain(pmic->irq_chip_data),
+				    DOMAIN_BUS_NEXUS);
+
+	ret = mfd_add_devices(dev, PLATFORM_DEVID_NONE, config->cell_dev,
+			      config->n_cell_devs, NULL, 0,
+			      regmap_irq_get_domain(pmic->irq_chip_data));
+	if (ret)
+		pwm_remove_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
+
+	return ret;
+}
+
+static void crystal_cove_i2c_remove(struct i2c_client *i2c)
+{
+	/* remove crc-pwm lookup table */
+	pwm_remove_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
+
+	mfd_remove_devices(&i2c->dev);
+}
+
+static void crystal_cove_shutdown(struct i2c_client *i2c)
+{
+	struct intel_soc_pmic *pmic = i2c_get_clientdata(i2c);
+
+	disable_irq(pmic->irq);
+
+	return;
+}
+
+static int crystal_cove_suspend(struct device *dev)
+{
+	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
+
+	disable_irq(pmic->irq);
+
+	return 0;
+}
+
+static int crystal_cove_resume(struct device *dev)
+{
+	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
+
+	enable_irq(pmic->irq);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(crystal_cove_pm_ops, crystal_cove_suspend, crystal_cove_resume);
+
+static const struct acpi_device_id crystal_cove_acpi_match[] = {
+	{ "INT33FD" },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, crystal_cove_acpi_match);
+
+static struct i2c_driver crystal_cove_i2c_driver = {
+	.driver = {
+		.name = "crystal_cove_i2c",
+		.pm = pm_sleep_ptr(&crystal_cove_pm_ops),
+		.acpi_match_table = crystal_cove_acpi_match,
+	},
+	.probe_new = crystal_cove_i2c_probe,
+	.remove = crystal_cove_i2c_remove,
+	.shutdown = crystal_cove_shutdown,
+};
+
+module_i2c_driver(crystal_cove_i2c_driver);
+
+MODULE_DESCRIPTION("I2C driver for Intel SoC PMIC");
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Yang, Bin <bin.yang@intel.com>");
+MODULE_AUTHOR("Zhu, Lejun <lejun.zhu@linux.intel.com>");

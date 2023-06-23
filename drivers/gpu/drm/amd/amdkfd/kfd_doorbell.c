@@ -157,6 +157,8 @@ int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
 
 	/* Calculate physical address of doorbell */
 	address = kfd_get_process_doorbells(pdd);
+	if (!address)
+		return -ENOMEM;
 	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
 				VM_DONTDUMP | VM_PFNMAP;
 
@@ -275,6 +277,13 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd)
 
 phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd)
 {
+	if (!pdd->doorbell_index) {
+		int r = kfd_alloc_process_doorbells(pdd->dev,
+						    &pdd->doorbell_index);
+		if (r)
+			return 0;
+	}
+
 	return pdd->dev->doorbell_base +
 		pdd->doorbell_index * kfd_doorbell_process_slice(pdd->dev);
 }
@@ -293,6 +302,9 @@ int kfd_alloc_process_doorbells(struct kfd_dev *kfd, unsigned int *doorbell_inde
 
 	if (r > 0)
 		*doorbell_index = r;
+
+	if (r < 0)
+		pr_err("Failed to allocate process doorbells\n");
 
 	return r;
 }

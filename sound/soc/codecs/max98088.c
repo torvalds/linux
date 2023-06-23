@@ -474,6 +474,9 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
                        max98088_mic2pre_get, max98088_mic2pre_set,
                        max98088_micboost_tlv),
 
+        SOC_SINGLE("Noise Gate Threshold", M98088_REG_40_MICAGC_THRESH,
+               4, 15, 0),
+
        SOC_SINGLE("INA Volume", M98088_REG_37_LVL_INA, 0, 7, 1),
        SOC_SINGLE("INB Volume", M98088_REG_38_LVL_INB, 0, 7, 1),
 
@@ -1746,7 +1749,6 @@ MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 static int max98088_i2c_probe(struct i2c_client *i2c)
 {
 	struct max98088_priv *max98088;
-	int ret;
 	const struct i2c_device_id *id;
 
 	max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
@@ -1769,9 +1771,8 @@ static int max98088_i2c_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, max98088);
 	max98088->pdata = i2c->dev.platform_data;
 
-	ret = devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_max98088,
+	return devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_max98088,
 					      &max98088_dai[0], 2);
-	return ret;
 }
 
 #if defined(CONFIG_OF)

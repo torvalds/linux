@@ -232,14 +232,13 @@ err_mem:
 	return ret;
 }
 
-static int qm1d1b0004_remove(struct i2c_client *client)
+static void qm1d1b0004_remove(struct i2c_client *client)
 {
 	struct dvb_frontend *fe;
 
 	fe = i2c_get_clientdata(client);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 

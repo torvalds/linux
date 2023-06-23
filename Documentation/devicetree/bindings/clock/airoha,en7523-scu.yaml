@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/airoha,en7523-scu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: EN7523 Clock Device Tree Bindings
+title: EN7523 Clock
 
 maintainers:
   - Felix Fietkau <nbd@nbd.name>

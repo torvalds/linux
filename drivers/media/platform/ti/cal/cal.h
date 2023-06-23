@@ -174,11 +174,16 @@ struct cal_camerarx {
 	struct device_node	*source_ep_node;
 	struct device_node	*source_node;
 	struct v4l2_subdev	*source;
-	struct media_pipeline	pipe;
 
 	struct v4l2_subdev	subdev;
 	struct media_pad	pads[CAL_CAMERARX_NUM_PADS];
 	struct v4l2_mbus_framefmt	formats[CAL_CAMERARX_NUM_PADS];
+
+	/* protects the vc_* fields below */
+	spinlock_t		vc_lock;
+	u8			vc_enable_count[4];
+	u16			vc_frame_number[4];
+	u32			vc_sequence[4];
 
 	/*
 	 * Lock for camerarx ops. Protects:
@@ -242,7 +247,6 @@ struct cal_ctx {
 	const struct cal_format_info	**active_fmt;
 	unsigned int		num_active_fmt;
 
-	unsigned int		sequence;
 	struct vb2_queue	vb_vidq;
 	u8			dma_ctx;
 	u8			cport;

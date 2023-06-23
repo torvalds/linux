@@ -224,9 +224,6 @@ static int hda_codec_probe(struct snd_soc_component *component)
 		goto err;
 	}
 
-	/* configure codec for 1:1 PCM:DAI mapping */
-	codec->mst_no_extra_pcms = 1;
-
 	ret = snd_hda_codec_parse_pcms(codec);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to map pcms to dai %d\n", ret);

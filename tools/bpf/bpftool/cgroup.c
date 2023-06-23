@@ -136,8 +136,8 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			jsonw_string_field(json_wtr, "attach_type", attach_type_str);
 		else
 			jsonw_uint_field(json_wtr, "attach_type", attach_type);
-		jsonw_string_field(json_wtr, "attach_flags",
-				   attach_flags_str);
+		if (!(query_flags & BPF_F_QUERY_EFFECTIVE))
+			jsonw_string_field(json_wtr, "attach_flags", attach_flags_str);
 		jsonw_string_field(json_wtr, "name", prog_name);
 		if (attach_btf_name)
 			jsonw_string_field(json_wtr, "attach_btf_name", attach_btf_name);
@@ -150,7 +150,10 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			printf("%-15s", attach_type_str);
 		else
 			printf("type %-10u", attach_type);
-		printf(" %-15s %-15s", attach_flags_str, prog_name);
+		if (query_flags & BPF_F_QUERY_EFFECTIVE)
+			printf(" %-15s", prog_name);
+		else
+			printf(" %-15s %-15s", attach_flags_str, prog_name);
 		if (attach_btf_name)
 			printf(" %-15s", attach_btf_name);
 		else if (info.attach_btf_id)
@@ -195,6 +198,32 @@ static int cgroup_has_attached_progs(int cgroup_fd)
 
 	return no_prog ? 0 : 1;
 }
+
+static int show_effective_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
+				    int level)
+{
+	LIBBPF_OPTS(bpf_prog_query_opts, p);
+	__u32 prog_ids[1024] = {0};
+	__u32 iter;
+	int ret;
+
+	p.query_flags = query_flags;
+	p.prog_cnt = ARRAY_SIZE(prog_ids);
+	p.prog_ids = prog_ids;
+
+	ret = bpf_prog_query_opts(cgroup_fd, type, &p);
+	if (ret)
+		return ret;
+
+	if (p.prog_cnt == 0)
+		return 0;
+
+	for (iter = 0; iter < p.prog_cnt; iter++)
+		show_bpf_prog(prog_ids[iter], type, NULL, level);
+
+	return 0;
+}
+
 static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 				   int level)
 {
@@ -245,6 +274,14 @@ static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 	return 0;
 }
 
+static int show_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
+			  int level)
+{
+	return query_flags & BPF_F_QUERY_EFFECTIVE ?
+	       show_effective_bpf_progs(cgroup_fd, type, level) :
+	       show_attached_bpf_progs(cgroup_fd, type, level);
+}
+
 static int do_show(int argc, char **argv)
 {
 	enum bpf_attach_type type;
@@ -292,6 +329,8 @@ static int do_show(int argc, char **argv)
 
 	if (json_output)
 		jsonw_start_array(json_wtr);
+	else if (query_flags & BPF_F_QUERY_EFFECTIVE)
+		printf("%-8s %-15s %-15s\n", "ID", "AttachType", "Name");
 	else
 		printf("%-8s %-15s %-15s %-15s\n", "ID", "AttachType",
 		       "AttachFlags", "Name");
@@ -304,7 +343,7 @@ static int do_show(int argc, char **argv)
 		 * If we were able to get the show for at least one
 		 * attach type, let's return 0.
 		 */
-		if (show_attached_bpf_progs(cgroup_fd, type, 0) == 0)
+		if (show_bpf_progs(cgroup_fd, type, 0) == 0)
 			ret = 0;
 	}
 
@@ -362,7 +401,7 @@ static int do_show_tree_fn(const char *fpath, const struct stat *sb,
 
 	btf_vmlinux = libbpf_find_kernel_btf();
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++)
-		show_attached_bpf_progs(cgroup_fd, type, ftw->level);
+		show_bpf_progs(cgroup_fd, type, ftw->level);
 
 	if (errno == EINVAL)
 		/* Last attach type does not support query.
@@ -436,6 +475,11 @@ static int do_show_tree(int argc, char **argv)
 
 	if (json_output)
 		jsonw_start_array(json_wtr);
+	else if (query_flags & BPF_F_QUERY_EFFECTIVE)
+		printf("%s\n"
+		       "%-8s %-15s %-15s\n",
+		       "CgroupPath",
+		       "ID", "AttachType", "Name");
 	else
 		printf("%s\n"
 		       "%-8s %-15s %-15s %-15s\n",

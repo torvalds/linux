@@ -368,7 +368,7 @@ static void rcu_dump_cpu_stacks(void)
 			if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu)) {
 				if (cpu_is_offline(cpu))
 					pr_err("Offline CPU %d blocking current GP.\n", cpu);
-				else if (!trigger_single_cpu_backtrace(cpu))
+				else
 					dump_cpu_task(cpu);
 			}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -511,8 +511,7 @@ static void rcu_check_gp_kthread_starvation(void)
 					pr_err("RCU GP kthread last ran on offline CPU %d.\n", cpu);
 				} else  {
 					pr_err("Stack dump where RCU GP kthread last ran:\n");
-					if (!trigger_single_cpu_backtrace(cpu))
-						dump_cpu_task(cpu);
+					dump_cpu_task(cpu);
 				}
 			}
 			wake_up_process(gpk);

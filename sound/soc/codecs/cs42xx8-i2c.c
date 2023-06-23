@@ -30,11 +30,9 @@ static int cs42xx8_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static int cs42xx8_i2c_remove(struct i2c_client *i2c)
+static void cs42xx8_i2c_remove(struct i2c_client *i2c)
 {
 	pm_runtime_disable(&i2c->dev);
-
-	return 0;
 }
 
 static struct i2c_device_id cs42xx8_i2c_id[] = {

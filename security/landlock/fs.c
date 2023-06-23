@@ -712,7 +712,7 @@ static inline access_mask_t maybe_remove(const struct dentry *const dentry)
  * allowed accesses in @layer_masks_dom.
  *
  * This is similar to check_access_path_dual() but much simpler because it only
- * handles walking on the same mount point and only check one set of accesses.
+ * handles walking on the same mount point and only checks one set of accesses.
  *
  * Returns:
  * - true if all the domain access rights are allowed for @dir;

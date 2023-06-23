@@ -26,6 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/phy_led_triggers.h>
+#include <linux/pse-pd/pse.h>
 #include <linux/property.h>
 #include <linux/sfp.h>
 #include <linux/skbuff.h>
@@ -216,6 +217,7 @@ static void phy_mdio_device_free(struct mdio_device *mdiodev)
 
 static void phy_device_release(struct device *dev)
 {
+	fwnode_handle_put(dev->fwnode);
 	kfree(to_phy_device(dev));
 }
 
@@ -372,7 +374,7 @@ int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 	if (!fixup)
 		return -ENOMEM;
 
-	strlcpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
+	strscpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
 	fixup->phy_uid = phy_uid;
 	fixup->phy_uid_mask = phy_uid_mask;
 	fixup->run = run;
@@ -522,7 +524,7 @@ phy_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
-	return sprintf(buf, "0x%.8lx\n", (unsigned long)phydev->phy_id);
+	return sysfs_emit(buf, "0x%.8lx\n", (unsigned long)phydev->phy_id);
 }
 static DEVICE_ATTR_RO(phy_id);
 
@@ -537,7 +539,7 @@ phy_interface_show(struct device *dev, struct device_attribute *attr, char *buf)
 	else
 		mode = phy_modes(phydev->interface);
 
-	return sprintf(buf, "%s\n", mode);
+	return sysfs_emit(buf, "%s\n", mode);
 }
 static DEVICE_ATTR_RO(phy_interface);
 
@@ -547,7 +549,7 @@ phy_has_fixups_show(struct device *dev, struct device_attribute *attr,
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
-	return sprintf(buf, "%d\n", phydev->has_fixups);
+	return sysfs_emit(buf, "%d\n", phydev->has_fixups);
 }
 static DEVICE_ATTR_RO(phy_has_fixups);
 
@@ -557,7 +559,7 @@ static ssize_t phy_dev_flags_show(struct device *dev,
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
-	return sprintf(buf, "0x%08x\n", phydev->dev_flags);
+	return sysfs_emit(buf, "0x%08x\n", phydev->dev_flags);
 }
 static DEVICE_ATTR_RO(phy_dev_flags);
 
@@ -991,6 +993,7 @@ EXPORT_SYMBOL(phy_device_register);
 void phy_device_remove(struct phy_device *phydev)
 {
 	unregister_mii_timestamper(phydev->mii_ts);
+	pse_control_put(phydev->psec);
 
 	device_del(&phydev->mdio.dev);
 
@@ -1312,7 +1315,7 @@ phy_standalone_show(struct device *dev, struct device_attribute *attr,
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
-	return sprintf(buf, "%d\n", !phydev->attached_dev);
+	return sysfs_emit(buf, "%d\n", !phydev->attached_dev);
 }
 static DEVICE_ATTR_RO(phy_standalone);
 
@@ -1518,6 +1521,7 @@ error:
 
 error_module_put:
 	module_put(d->driver->owner);
+	d->driver = NULL;
 error_put_device:
 	put_device(d);
 	if (ndev_owner != bus->owner)

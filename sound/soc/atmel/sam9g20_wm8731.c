@@ -172,7 +172,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret,
-			      "snd_soc_register_card() failed: %d\n", ret);
+			      "snd_soc_register_card() failed\n");
 		goto err;
 	}
 

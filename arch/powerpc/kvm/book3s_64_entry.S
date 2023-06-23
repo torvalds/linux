@@ -315,7 +315,7 @@ kvmppc_p9_exit_interrupt:
 	reg = reg + 1
 	.endr
 
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 
 	mflr	r4
 	std	r4,VCPU_LR(r3)

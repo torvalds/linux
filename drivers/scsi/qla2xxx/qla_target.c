@@ -1557,11 +1557,11 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf009,
 	    "Waiting for sess works (tgt %p)", tgt);
 	spin_lock_irqsave(&tgt->sess_work_lock, flags);
-	while (!list_empty(&tgt->sess_works_list)) {
+	do {
 		spin_unlock_irqrestore(&tgt->sess_work_lock, flags);
-		flush_scheduled_work();
+		flush_work(&tgt->sess_work);
 		spin_lock_irqsave(&tgt->sess_work_lock, flags);
-	}
+	} while (!list_empty(&tgt->sess_works_list));
 	spin_unlock_irqrestore(&tgt->sess_work_lock, flags);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00a,
@@ -6336,69 +6336,6 @@ out_term:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
-static void qlt_tmr_work(struct qla_tgt *tgt,
-	struct qla_tgt_sess_work_param *prm)
-{
-	struct atio_from_isp *a = &prm->tm_iocb2;
-	struct scsi_qla_host *vha = tgt->vha;
-	struct qla_hw_data *ha = vha->hw;
-	struct fc_port *sess;
-	unsigned long flags;
-	be_id_t s_id;
-	int rc;
-	u64 unpacked_lun;
-	int fn;
-	void *iocb;
-
-	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-
-	if (tgt->tgt_stop)
-		goto out_term2;
-
-	s_id = prm->tm_iocb2.u.isp24.fcp_hdr.s_id;
-	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, s_id);
-	if (!sess) {
-		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-
-		sess = qlt_make_local_sess(vha, s_id);
-		/* sess has got an extra creation ref */
-
-		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-		if (!sess)
-			goto out_term2;
-	} else {
-		if (sess->deleted) {
-			goto out_term2;
-		}
-
-		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_tgt_tmr, vha, 0xf020,
-			    "%s: kref_get fail %8phC\n",
-			     __func__, sess->port_name);
-			goto out_term2;
-		}
-	}
-
-	iocb = a;
-	fn = a->u.isp24.fcp_cmnd.task_mgmt_flags;
-	unpacked_lun =
-	    scsilun_to_int((struct scsi_lun *)&a->u.isp24.fcp_cmnd.lun);
-
-	rc = qlt_issue_task_mgmt(sess, unpacked_lun, fn, iocb, 0);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-
-	ha->tgt.tgt_ops->put_sess(sess);
-
-	if (rc != 0)
-		goto out_term;
-	return;
-
-out_term2:
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-out_term:
-	qlt_send_term_exchange(ha->base_qpair, NULL, &prm->tm_iocb2, 1, 0);
-}
-
 static void qlt_sess_work_fn(struct work_struct *work)
 {
 	struct qla_tgt *tgt = container_of(work, struct qla_tgt, sess_work);
@@ -6424,9 +6361,6 @@ static void qlt_sess_work_fn(struct work_struct *work)
 		switch (prm->type) {
 		case QLA_TGT_SESS_WORK_ABORT:
 			qlt_abort_work(tgt, prm);
-			break;
-		case QLA_TGT_SESS_WORK_TM:
-			qlt_tmr_work(tgt, prm);
 			break;
 		default:
 			BUG_ON(1);
@@ -6514,7 +6448,6 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	tgt->ha = ha;
 	tgt->vha = base_vha;
 	init_waitqueue_head(&tgt->waitQ);
-	INIT_LIST_HEAD(&tgt->del_sess_list);
 	spin_lock_init(&tgt->sess_work_lock);
 	INIT_WORK(&tgt->sess_work, qlt_sess_work_fn);
 	INIT_LIST_HEAD(&tgt->sess_works_list);

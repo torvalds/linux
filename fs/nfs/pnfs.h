@@ -169,6 +169,8 @@ struct pnfs_layoutdriver_type {
 	void (*cleanup_layoutcommit) (struct nfs4_layoutcommit_data *data);
 	int (*prepare_layoutcommit) (struct nfs4_layoutcommit_args *args);
 	int (*prepare_layoutstats) (struct nfs42_layoutstat_args *args);
+
+	void (*cancel_io)(struct pnfs_layout_segment *lseg);
 };
 
 struct pnfs_commit_ops {
@@ -683,6 +685,13 @@ pnfs_lseg_request_intersecting(struct pnfs_layout_segment *lseg, struct nfs_page
 
 	return pnfs_is_range_intersecting(lseg->pls_range.offset, seg_last,
 				req_offset(req), req_last);
+}
+
+static inline void pnfs_lseg_cancel_io(struct nfs_server *server,
+				       struct pnfs_layout_segment *lseg)
+{
+	if (server->pnfs_curr_ld->cancel_io)
+		server->pnfs_curr_ld->cancel_io(lseg);
 }
 
 extern unsigned int layoutstats_timer;

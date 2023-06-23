@@ -76,7 +76,7 @@ enum {
 
 /**
  * MDP TOP BLOCK features
- * @DPU_MDP_PANIC_PER_PIPE Panic configuration needs to be be done per pipe
+ * @DPU_MDP_PANIC_PER_PIPE Panic configuration needs to be done per pipe
  * @DPU_MDP_10BIT_SUPPORT, Chipset supports 10 bit pixel formats
  * @DPU_MDP_BWC,           MDSS HW supports Bandwidth compression.
  * @DPU_MDP_UBWC_1_0,      This chipsets supports Universal Bandwidth

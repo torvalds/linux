@@ -20,6 +20,7 @@
 #include "panfrost_regs.h"
 #include "panfrost_gpu.h"
 #include "panfrost_mmu.h"
+#include "panfrost_dump.h"
 
 #define JOB_TIMEOUT_MS 500
 
@@ -726,6 +727,8 @@ static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
 		job_read(pfdev, JS_HEAD_LO(js)),
 		job_read(pfdev, JS_TAIL_LO(js)),
 		sched_job);
+
+	panfrost_core_dump(job);
 
 	atomic_set(&pfdev->reset.pending, 1);
 	panfrost_reset(pfdev, sched_job);

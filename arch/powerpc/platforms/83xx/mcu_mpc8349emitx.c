@@ -178,7 +178,7 @@ err:
 	return ret;
 }
 
-static int mcu_remove(struct i2c_client *client)
+static void mcu_remove(struct i2c_client *client)
 {
 	struct mcu *mcu = i2c_get_clientdata(client);
 
@@ -193,7 +193,6 @@ static int mcu_remove(struct i2c_client *client)
 
 	mcu_gpiochip_remove(mcu);
 	kfree(mcu);
-	return 0;
 }
 
 static const struct i2c_device_id mcu_ids[] = {

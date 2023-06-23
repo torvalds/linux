@@ -88,6 +88,12 @@ void lru_cache_add(struct page *page)
 }
 EXPORT_SYMBOL(lru_cache_add);
 
+void lru_cache_add_inactive_or_unevictable(struct page *page,
+		struct vm_area_struct *vma)
+{
+	folio_add_lru_vma(page_folio(page), vma);
+}
+
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 		pgoff_t index, gfp_t gfp)
 {

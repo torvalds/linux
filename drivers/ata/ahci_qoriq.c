@@ -280,7 +280,7 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (of_id)
-		qoriq_priv->type = (enum ahci_qoriq_type)of_id->data;
+		qoriq_priv->type = (unsigned long)of_id->data;
 	else
 		qoriq_priv->type = (enum ahci_qoriq_type)acpi_id->driver_data;
 

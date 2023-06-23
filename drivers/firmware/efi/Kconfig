@@ -105,9 +105,28 @@ config EFI_RUNTIME_WRAPPERS
 config EFI_GENERIC_STUB
 	bool
 
+config EFI_ZBOOT
+	bool "Enable the generic EFI decompressor"
+	depends on EFI_GENERIC_STUB && !ARM
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
+	help
+	  Create the bootable image as an EFI application that carries the
+	  actual kernel image in compressed form, and decompresses it into
+	  memory before executing it via LoadImage/StartImage EFI boot service
+	  calls. For compatibility with non-EFI loaders, the payload can be
+	  decompressed and executed by the loader as well, provided that the
+	  loader implements the decompression algorithm and that non-EFI boot
+	  is supported by the encapsulated image. (The compression algorithm
+	  used is described in the zboot image header)
+
 config EFI_ARMSTUB_DTB_LOADER
 	bool "Enable the DTB loader"
-	depends on EFI_GENERIC_STUB && !RISCV
+	depends on EFI_GENERIC_STUB && !RISCV && !LOONGARCH
 	default y
 	help
 	  Select this config option to add support for the dtb= command
@@ -124,7 +143,7 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 	bool "Enable the command line initrd loader" if !X86
 	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
 	default y if X86
-	depends on !RISCV
+	depends on !RISCV && !LOONGARCH
 	help
 	  Select this config option to add support for the initrd= command
 	  line parameter, allowing an initrd that resides on the same volume

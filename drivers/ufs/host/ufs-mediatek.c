@@ -19,7 +19,6 @@
 #include <linux/pm_qos.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
-#include <linux/sched/clock.h>
 #include <linux/soc/mediatek/mtk_sip_svc.h>
 
 #include <ufs/ufshcd.h>
@@ -45,6 +44,44 @@ static const struct ufs_dev_quirk ufs_mtk_dev_fixups[] = {
 static const struct of_device_id ufs_mtk_of_match[] = {
 	{ .compatible = "mediatek,mt8183-ufshci" },
 	{},
+};
+
+/*
+ * Details of UIC Errors
+ */
+static const char *const ufs_uic_err_str[] = {
+	"PHY Adapter Layer",
+	"Data Link Layer",
+	"Network Link Layer",
+	"Transport Link Layer",
+	"DME"
+};
+
+static const char *const ufs_uic_pa_err_str[] = {
+	"PHY error on Lane 0",
+	"PHY error on Lane 1",
+	"PHY error on Lane 2",
+	"PHY error on Lane 3",
+	"Generic PHY Adapter Error. This should be the LINERESET indication"
+};
+
+static const char *const ufs_uic_dl_err_str[] = {
+	"NAC_RECEIVED",
+	"TCx_REPLAY_TIMER_EXPIRED",
+	"AFCx_REQUEST_TIMER_EXPIRED",
+	"FCx_PROTECTION_TIMER_EXPIRED",
+	"CRC_ERROR",
+	"RX_BUFFER_OVERFLOW",
+	"MAX_FRAME_LENGTH_EXCEEDED",
+	"WRONG_SEQUENCE_NUMBER",
+	"AFC_FRAME_SYNTAX_ERROR",
+	"NAC_FRAME_SYNTAX_ERROR",
+	"EOF_SYNTAX_ERROR",
+	"FRAME_SYNTAX_ERROR",
+	"BAD_CTRL_SYMBOL_TYPE",
+	"PA_INIT_ERROR",
+	"PA_ERROR_IND_RECEIVED",
+	"PA_INIT"
 };
 
 static bool ufs_mtk_is_boost_crypt_enabled(struct ufs_hba *hba)
@@ -598,6 +635,12 @@ static void ufs_mtk_boost_pm_qos(struct ufs_hba *hba, bool boost)
 				       boost ? 0 : PM_QOS_DEFAULT_VALUE);
 }
 
+static void ufs_mtk_scale_perf(struct ufs_hba *hba, bool scale_up)
+{
+	ufs_mtk_boost_crypt(hba, scale_up);
+	ufs_mtk_boost_pm_qos(hba, scale_up);
+}
+
 static void ufs_mtk_pwr_ctrl(struct ufs_hba *hba, bool on)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
@@ -605,11 +648,11 @@ static void ufs_mtk_pwr_ctrl(struct ufs_hba *hba, bool on)
 	if (on) {
 		phy_power_on(host->mphy);
 		ufs_mtk_setup_ref_clk(hba, on);
-		ufs_mtk_boost_crypt(hba, on);
-		ufs_mtk_boost_pm_qos(hba, on);
+		if (!ufshcd_is_clkscaling_supported(hba))
+			ufs_mtk_scale_perf(hba, on);
 	} else {
-		ufs_mtk_boost_pm_qos(hba, on);
-		ufs_mtk_boost_crypt(hba, on);
+		if (!ufshcd_is_clkscaling_supported(hba))
+			ufs_mtk_scale_perf(hba, on);
 		ufs_mtk_setup_ref_clk(hba, on);
 		phy_power_off(host->mphy);
 	}
@@ -693,6 +736,46 @@ static void ufs_mtk_get_controller_version(struct ufs_hba *hba)
 static u32 ufs_mtk_get_ufs_hci_version(struct ufs_hba *hba)
 {
 	return hba->ufs_version;
+}
+
+/**
+ * ufs_mtk_init_clocks - Init mtk driver private clocks
+ *
+ * @hba: per adapter instance
+ */
+static void ufs_mtk_init_clocks(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct list_head *head = &hba->clk_list_head;
+	struct ufs_mtk_clk *mclk = &host->mclk;
+	struct ufs_clk_info *clki, *clki_tmp;
+
+	/*
+	 * Find private clocks and store them in struct ufs_mtk_clk.
+	 * Remove "ufs_sel_min_src" and "ufs_sel_min_src" from list to avoid
+	 * being switched on/off in clock gating.
+	 */
+	list_for_each_entry_safe(clki, clki_tmp, head, list) {
+		if (!strcmp(clki->name, "ufs_sel")) {
+			host->mclk.ufs_sel_clki = clki;
+		} else if (!strcmp(clki->name, "ufs_sel_max_src")) {
+			host->mclk.ufs_sel_max_clki = clki;
+			clk_disable_unprepare(clki->clk);
+			list_del(&clki->list);
+		} else if (!strcmp(clki->name, "ufs_sel_min_src")) {
+			host->mclk.ufs_sel_min_clki = clki;
+			clk_disable_unprepare(clki->clk);
+			list_del(&clki->list);
+		}
+	}
+
+	if (!mclk->ufs_sel_clki || !mclk->ufs_sel_max_clki ||
+	    !mclk->ufs_sel_min_clki) {
+		hba->caps &= ~UFSHCD_CAP_CLK_SCALING;
+		dev_info(hba->dev,
+			 "%s: Clk-scaling not ready. Feature disabled.",
+			 __func__);
+	}
 }
 
 #define MAX_VCC_NAME 30
@@ -815,11 +898,17 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 
 	/* Enable WriteBooster */
 	hba->caps |= UFSHCD_CAP_WB_EN;
+
+	/* Enable clk scaling*/
+	hba->caps |= UFSHCD_CAP_CLK_SCALING;
+
 	hba->quirks |= UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL;
 	hba->vps->wb_flush_threshold = UFS_WB_BUF_REMAIN_PERCENT(80);
 
 	if (host->caps & UFS_MTK_CAP_DISABLE_AH8)
 		hba->caps |= UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
+
+	ufs_mtk_init_clocks(hba);
 
 	/*
 	 * ufshcd_vops_init() is invoked after
@@ -832,6 +921,10 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	ufs_mtk_setup_clocks(hba, true, POST_CHANGE);
 
 	host->ip_ver = ufshcd_readl(hba, REG_UFS_MTK_IP_VER);
+
+	/* Initialize pm-qos request */
+	cpu_latency_qos_add_request(&host->pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	host->pm_qos_init = true;
 
 	goto out;
 
@@ -1247,13 +1340,16 @@ fail:
 
 static void ufs_mtk_dbg_register_dump(struct ufs_hba *hba)
 {
-	ufshcd_dump_regs(hba, REG_UFS_REFCLK_CTRL, 0x4, "Ref-Clk Ctrl ");
+	/* Dump ufshci register 0x140 ~ 0x14C */
+	ufshcd_dump_regs(hba, REG_UFS_XOUFS_CTRL, 0x10,
+			 "XOUFS Ctrl (0x140): ");
 
 	ufshcd_dump_regs(hba, REG_UFS_EXTREG, 0x4, "Ext Reg ");
 
+	/* Dump ufshci register 0x2200 ~ 0x22AC */
 	ufshcd_dump_regs(hba, REG_UFS_MPHYCTRL,
 			 REG_UFS_REJECT_MON - REG_UFS_MPHYCTRL + 4,
-			 "MPHY Ctrl ");
+			 "MPHY Ctrl (0x2200): ");
 
 	/* Direct debugging information to REG_MTK_PROBE */
 	ufs_mtk_dbg_sel(hba);
@@ -1310,8 +1406,101 @@ static void ufs_mtk_event_notify(struct ufs_hba *hba,
 				 enum ufs_event_type evt, void *data)
 {
 	unsigned int val = *(u32 *)data;
+	unsigned long reg;
+	u8 bit;
 
 	trace_ufs_mtk_event(evt, val);
+
+	/* Print details of UIC Errors */
+	if (evt <= UFS_EVT_DME_ERR) {
+		dev_info(hba->dev,
+			 "Host UIC Error Code (%s): %08x\n",
+			 ufs_uic_err_str[evt], val);
+		reg = val;
+	}
+
+	if (evt == UFS_EVT_PA_ERR) {
+		for_each_set_bit(bit, &reg, ARRAY_SIZE(ufs_uic_pa_err_str))
+			dev_info(hba->dev, "%s\n", ufs_uic_pa_err_str[bit]);
+	}
+
+	if (evt == UFS_EVT_DL_ERR) {
+		for_each_set_bit(bit, &reg, ARRAY_SIZE(ufs_uic_dl_err_str))
+			dev_info(hba->dev, "%s\n", ufs_uic_dl_err_str[bit]);
+	}
+}
+
+static void ufs_mtk_config_scaling_param(struct ufs_hba *hba,
+				struct devfreq_dev_profile *profile,
+				struct devfreq_simple_ondemand_data *data)
+{
+	/* Customize min gear in clk scaling */
+	hba->clk_scaling.min_gear = UFS_HS_G4;
+
+	hba->vps->devfreq_profile.polling_ms = 200;
+	hba->vps->ondemand_data.upthreshold = 50;
+	hba->vps->ondemand_data.downdifferential = 20;
+}
+
+/**
+ * ufs_mtk_clk_scale - Internal clk scaling operation
+ *
+ * MTK platform supports clk scaling by switching parent of ufs_sel(mux).
+ * The ufs_sel downstream to ufs_ck which feeds directly to UFS hardware.
+ * Max and min clocks rate of ufs_sel defined in dts should match rate of
+ * "ufs_sel_max_src" and "ufs_sel_min_src" respectively.
+ * This prevent changing rate of pll clock that is shared between modules.
+ *
+ * @hba: per adapter instance
+ * @scale_up: True for scaling up and false for scaling down
+ */
+static void ufs_mtk_clk_scale(struct ufs_hba *hba, bool scale_up)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct ufs_mtk_clk *mclk = &host->mclk;
+	struct ufs_clk_info *clki = mclk->ufs_sel_clki;
+	int ret = 0;
+
+	ret = clk_prepare_enable(clki->clk);
+	if (ret) {
+		dev_info(hba->dev,
+			 "clk_prepare_enable() fail, ret: %d\n", ret);
+		return;
+	}
+
+	if (scale_up) {
+		ret = clk_set_parent(clki->clk, mclk->ufs_sel_max_clki->clk);
+		clki->curr_freq = clki->max_freq;
+	} else {
+		ret = clk_set_parent(clki->clk, mclk->ufs_sel_min_clki->clk);
+		clki->curr_freq = clki->min_freq;
+	}
+
+	if (ret) {
+		dev_info(hba->dev,
+			 "Failed to set ufs_sel_clki, ret: %d\n", ret);
+	}
+
+	clk_disable_unprepare(clki->clk);
+
+	trace_ufs_mtk_clk_scale(clki->name, scale_up, clk_get_rate(clki->clk));
+}
+
+static int ufs_mtk_clk_scale_notify(struct ufs_hba *hba, bool scale_up,
+				    enum ufs_notify_change_status status)
+{
+	if (!ufshcd_is_clkscaling_supported(hba))
+		return 0;
+
+	if (status == PRE_CHANGE) {
+		/* Switch parent before clk_set_rate() */
+		ufs_mtk_clk_scale(hba, scale_up);
+	} else {
+		/* Request interrupt latency QoS accordingly */
+		ufs_mtk_scale_perf(hba, scale_up);
+	}
+
+	return 0;
 }
 
 /*
@@ -1335,6 +1524,8 @@ static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.dbg_register_dump   = ufs_mtk_dbg_register_dump,
 	.device_reset        = ufs_mtk_device_reset,
 	.event_notify        = ufs_mtk_event_notify,
+	.config_scaling_param = ufs_mtk_config_scaling_param,
+	.clk_scale_notify    = ufs_mtk_clk_scale_notify,
 };
 
 /**

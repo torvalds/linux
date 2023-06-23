@@ -9,6 +9,9 @@
 #include <net/xdp_sock.h>
 #include <net/xsk_buff_pool.h>
 
+#define XDP_UMEM_MIN_CHUNK_SHIFT 11
+#define XDP_UMEM_MIN_CHUNK_SIZE (1 << XDP_UMEM_MIN_CHUNK_SHIFT)
+
 #ifdef CONFIG_XDP_SOCKETS
 
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries);
@@ -102,13 +105,6 @@ static inline void xsk_buff_free(struct xdp_buff *xdp)
 	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
 
 	xp_free(xskb);
-}
-
-static inline void xsk_buff_discard(struct xdp_buff *xdp)
-{
-	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
-
-	xp_release(xskb);
 }
 
 static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)

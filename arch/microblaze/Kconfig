@@ -204,6 +204,16 @@ config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000"
 
+config MB_MANAGER
+	bool "Support for Microblaze Manager"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option enables API for configuring the MicroBlaze manager
+	  control register, which is consumed by the break handler to
+	  block the break.
+
+	  Say N here unless you know what you are doing.
+
 endmenu
 
 menu "Bus Options"

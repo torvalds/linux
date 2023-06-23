@@ -919,7 +919,7 @@ static int panel_probe(struct mipi_dsi_device *dsi)
 	return err;
 }
 
-static int panel_remove(struct mipi_dsi_device *dsi)
+static void panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct panel_info *pinfo = mipi_dsi_get_drvdata(dsi);
 	int err;
@@ -937,8 +937,6 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	drm_panel_remove(&pinfo->base);
-
-	return 0;
 }
 
 static void panel_shutdown(struct mipi_dsi_device *dsi)

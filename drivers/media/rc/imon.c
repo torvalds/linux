@@ -684,7 +684,6 @@ static int send_packet(struct imon_context *ictx)
  */
 static int send_associate_24g(struct imon_context *ictx)
 {
-	int retval;
 	const unsigned char packet[8] = { 0x01, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x20 };
 
@@ -699,9 +698,8 @@ static int send_associate_24g(struct imon_context *ictx)
 	}
 
 	memcpy(ictx->usb_tx_buf, packet, sizeof(packet));
-	retval = send_packet(ictx);
 
-	return retval;
+	return send_packet(ictx);
 }
 
 /*

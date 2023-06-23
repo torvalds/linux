@@ -157,36 +157,18 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 
 static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
-	unsigned long flags;
+	unsigned long flags = irq_soft_mask_return();
 
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	WARN_ON(mask && !(mask & IRQS_DISABLED));
-#endif
-
-	asm volatile(
-		"lbz %0,%1(13); stb %2,%1(13)"
-		: "=&r" (flags)
-		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
-		  "r" (mask)
-		: "memory");
+	irq_soft_mask_set(mask);
 
 	return flags;
 }
 
 static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 {
-	unsigned long flags, tmp;
+	unsigned long flags = irq_soft_mask_return();
 
-	asm volatile(
-		"lbz %0,%2(13); or %1,%0,%3; stb %1,%2(13)"
-		: "=&r" (flags), "=r" (tmp)
-		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
-		  "r" (mask)
-		: "memory");
-
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	WARN_ON((mask | flags) && !((mask | flags) & IRQS_DISABLED));
-#endif
+	irq_soft_mask_set(flags | mask);
 
 	return flags;
 }
@@ -488,6 +470,30 @@ static inline void irq_soft_mask_regs_set_state(struct pt_regs *regs, unsigned l
 {
 }
 #endif /* CONFIG_PPC64 */
+
+static inline unsigned long mtmsr_isync_irqsafe(unsigned long msr)
+{
+#ifdef CONFIG_PPC64
+	if (arch_irqs_disabled()) {
+		/*
+		 * With soft-masking, MSR[EE] can change from 1 to 0
+		 * asynchronously when irqs are disabled, and we don't want to
+		 * set MSR[EE] back to 1 here if that has happened. A race-free
+		 * way to do this is ensure EE is already 0. Another way it
+		 * could be done is with a RESTART_TABLE handler, but that's
+		 * probably overkill here.
+		 */
+		msr &= ~MSR_EE;
+		mtmsr_isync(msr);
+		irq_soft_mask_set(IRQS_ALL_DISABLED);
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+	} else
+#endif
+		mtmsr_isync(msr);
+
+	return msr;
+}
+
 
 #define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
 

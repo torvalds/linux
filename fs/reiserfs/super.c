@@ -1702,9 +1702,7 @@ static int read_super_block(struct super_block *s, int offset)
 /* after journal replay, reread all bitmap and super blocks */
 static int reread_meta_blocks(struct super_block *s)
 {
-	ll_rw_block(REQ_OP_READ, 1, &SB_BUFFER_WITH_SB(s));
-	wait_on_buffer(SB_BUFFER_WITH_SB(s));
-	if (!buffer_uptodate(SB_BUFFER_WITH_SB(s))) {
+	if (bh_read(SB_BUFFER_WITH_SB(s), 0) < 0) {
 		reiserfs_warning(s, "reiserfs-2504", "error reading the super");
 		return 1;
 	}
@@ -2504,9 +2502,7 @@ static ssize_t reiserfs_quota_read(struct super_block *sb, int type, char *data,
 		len = i_size - off;
 	toread = len;
 	while (toread > 0) {
-		tocopy =
-		    sb->s_blocksize - offset <
-		    toread ? sb->s_blocksize - offset : toread;
+		tocopy = min_t(unsigned long, sb->s_blocksize - offset, toread);
 		tmp_bh.b_state = 0;
 		/*
 		 * Quota files are without tails so we can safely
@@ -2554,8 +2550,7 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 		return -EIO;
 	}
 	while (towrite > 0) {
-		tocopy = sb->s_blocksize - offset < towrite ?
-		    sb->s_blocksize - offset : towrite;
+		tocopy = min_t(unsigned long, sb->s_blocksize - offset, towrite);
 		tmp_bh.b_state = 0;
 		reiserfs_write_lock(sb);
 		err = reiserfs_get_block(inode, blk, &tmp_bh, GET_BLOCK_CREATE);

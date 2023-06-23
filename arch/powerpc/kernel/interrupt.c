@@ -374,10 +374,18 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
 	if (regs_is_unrecoverable(regs))
 		unrecoverable_exception(regs);
 	/*
-	 * CT_WARN_ON comes here via program_check_exception,
-	 * so avoid recursion.
+	 * CT_WARN_ON comes here via program_check_exception, so avoid
+	 * recursion.
+	 *
+	 * Skip the assertion on PMIs on 64e to work around a problem caused
+	 * by NMI PMIs incorrectly taking this interrupt return path, it's
+	 * possible for this to hit after interrupt exit to user switches
+	 * context to user. See also the comment in the performance monitor
+	 * handler in exceptions-64e.S
 	 */
-	if (TRAP(regs) != INTERRUPT_PROGRAM)
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3E_64) &&
+	    TRAP(regs) != INTERRUPT_PROGRAM &&
+	    TRAP(regs) != INTERRUPT_PERFMON)
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	kuap = kuap_get_and_assert_locked();
@@ -431,16 +439,6 @@ again:
 
 		if (unlikely(stack_store))
 			__hard_EE_RI_disable();
-		/*
-		 * Returning to a kernel context with local irqs disabled.
-		 * Here, if EE was enabled in the interrupted context, enable
-		 * it on return as well. A problem exists here where a soft
-		 * masked interrupt may have cleared MSR[EE] and set HARD_DIS
-		 * here, and it will still exist on return to the caller. This
-		 * will be resolved by the masked interrupt firing again.
-		 */
-		if (regs->msr & MSR_EE)
-			local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
 #endif /* CONFIG_PPC64 */
 	}
 

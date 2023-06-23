@@ -231,6 +231,7 @@ struct scsi_device {
 	atomic_t iorequest_cnt;
 	atomic_t iodone_cnt;
 	atomic_t ioerr_cnt;
+	atomic_t iotmo_cnt;
 
 	struct device		sdev_gendev,
 				sdev_dev;

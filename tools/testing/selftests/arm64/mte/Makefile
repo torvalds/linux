@@ -11,11 +11,8 @@ LDFLAGS += -pthread
 SRCS := $(filter-out mte_common_util.c,$(wildcard *.c))
 PROGS := $(patsubst %.c,%,$(SRCS))
 
-#Add mte compiler option
-CFLAGS += -march=armv8.5-a+memtag
-
 #check if the compiler works well
-mte_cc_support := $(shell if ($(CC) $(CFLAGS) -E -x c /dev/null -o /dev/null 2>&1) then echo "1"; fi)
+mte_cc_support := $(shell if ($(CC) $(CFLAGS) -march=armv8.5-a+memtag -E -x c /dev/null -o /dev/null 2>&1) then echo "1"; fi)
 
 ifeq ($(mte_cc_support),1)
 # Generated binaries to be installed by top KSFT script

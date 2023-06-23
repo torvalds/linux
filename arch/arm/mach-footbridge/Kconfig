@@ -1,38 +1,37 @@
 # SPDX-License-Identifier: GPL-2.0-only
-if ARCH_FOOTBRIDGE
+menuconfig ARCH_FOOTBRIDGE
+	bool "FootBridge Implementations"
+	depends on ARCH_MULTI_V4 && !(ARCH_MULTI_V4T || ARCH_MULTI_V5)
+	depends on !(ARCH_MOXART || ARCH_GEMINI || ARCH_SA1100)
+	depends on ATAGS
+	depends on CPU_LITTLE_ENDIAN
+	depends on MMU
+	select ARCH_NO_SG_CHAIN
+	select CPU_SA110
+	select FOOTBRIDGE
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for systems based on the DC21285 companion chip
+	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-menu "Footbridge Implementations"
+if ARCH_FOOTBRIDGE
 
 config ARCH_CATS
 	bool "CATS"
 	depends on UNUSED_BOARD_FILES
 	select CLKEVT_I8253
 	select CLKSRC_I8253
-	select FOOTBRIDGE_HOST
 	select ISA
-	select ISA_DMA
 	select FORCE_PCI
 	help
 	  Say Y here if you intend to run this kernel on the CATS.
 
 	  Saying N will reduce the size of the Footbridge kernel.
 
-config ARCH_EBSA285_ADDIN
-	bool "EBSA285 (addin mode)"
-	select ARCH_EBSA285
-	select FOOTBRIDGE_ADDIN
-	help
-	  Say Y here if you intend to run this kernel on the EBSA285 card
-	  in addin mode.
-
-	  Saying N will reduce the size of the Footbridge kernel.
-
 config ARCH_EBSA285_HOST
 	bool "EBSA285 (host mode)"
 	select ARCH_EBSA285
-	select FOOTBRIDGE_HOST
 	select ISA
-	select ISA_DMA
 	select ARCH_MAY_HAVE_PC_FDC
 	select FORCE_PCI
 	help
@@ -45,9 +44,7 @@ config ARCH_NETWINDER
 	bool "NetWinder"
 	select CLKEVT_I8253
 	select CLKSRC_I8253
-	select FOOTBRIDGE_HOST
 	select ISA
-	select ISA_DMA
 	select FORCE_PCI
 	help
 	  Say Y here if you intend to run this kernel on the Rebel.COM
@@ -57,23 +54,12 @@ config ARCH_NETWINDER
 
 	  Saying N will reduce the size of the Footbridge kernel.
 
-endmenu
-
 # Footbridge support
 config FOOTBRIDGE
-	select ARCH_HAS_PHYS_TO_DMA
-	bool
-
-# Footbridge in host mode
-config FOOTBRIDGE_HOST
-	bool
+	def_bool y
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ISA_DMA_API
 
-# Footbridge in addin mode
-config FOOTBRIDGE_ADDIN
-	bool
-
-# EBSA285 board in either host or addin mode
 config ARCH_EBSA285
 	bool
 

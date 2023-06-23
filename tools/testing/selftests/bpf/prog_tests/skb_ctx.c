@@ -31,7 +31,7 @@ void test_skb_ctx(void)
 	struct bpf_object *obj;
 	int err, prog_fd, i;
 
-	err = bpf_prog_test_load("./test_skb_ctx.o", BPF_PROG_TYPE_SCHED_CLS,
+	err = bpf_prog_test_load("./test_skb_ctx.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
 				 &obj, &prog_fd);
 	if (!ASSERT_OK(err, "load"))
 		return;

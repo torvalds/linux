@@ -240,10 +240,6 @@ config PCMCIA_PROBE
 	bool
 	default y if ISA && !ARCH_SA1100 && !PARISC
 
-config PCMCIA_VRC4171
-	tristate "NEC VRC4171 Card Controllers support"
-	depends on CPU_VR41XX && ISA && PCMCIA
-
 config OMAP_CF
 	tristate "OMAP CompactFlash Controller"
 	depends on PCMCIA
@@ -251,15 +247,6 @@ config OMAP_CF
 	help
 	  Say Y here to support the CompactFlash controller on OMAP.
 	  Note that this doesn't support "True IDE" mode.
-
-config AT91_CF
-	tristate "AT91 CompactFlash Controller"
-	depends on PCI
-	depends on OF
-	depends on PCMCIA && ARCH_AT91
-	help
-	  Say Y here to support the CompactFlash controller on AT91 chips.
-	  Or choose M to compile the driver as a module named "at91_cf".
 
 config ELECTRA_CF
 	tristate "Electra CompactFlash Controller"

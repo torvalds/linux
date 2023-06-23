@@ -179,6 +179,8 @@ static int armada_37xx_wdt_set_timeout(struct watchdog_device *wdt,
 	dev->timeout = (u64)dev->clk_rate * timeout;
 	do_div(dev->timeout, CNTR_CTRL_PRESCALE_MIN);
 
+	set_counter_value(dev, CNTR_ID_WDOG, dev->timeout);
+
 	return 0;
 }
 

@@ -1474,7 +1474,7 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 						urb->sg,
 						urb->num_sgs,
 						dir);
-				if (n <= 0)
+				if (!n)
 					ret = -EAGAIN;
 				else
 					urb->transfer_flags |= URB_DMA_MAP_SG;
@@ -2158,21 +2158,14 @@ static struct urb *request_single_step_set_feature_urb(
 {
 	struct urb *urb;
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
-	struct usb_host_endpoint *ep;
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return NULL;
 
 	urb->pipe = usb_rcvctrlpipe(udev, 0);
-	ep = (usb_pipein(urb->pipe) ? udev->ep_in : udev->ep_out)
-				[usb_pipeendpoint(urb->pipe)];
-	if (!ep) {
-		usb_free_urb(urb);
-		return NULL;
-	}
 
-	urb->ep = ep;
+	urb->ep = &udev->ep0;
 	urb->dev = udev;
 	urb->setup_packet = (void *)dr;
 	urb->transfer_buffer = buf;

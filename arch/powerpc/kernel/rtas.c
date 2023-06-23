@@ -23,6 +23,7 @@
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
+#include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -43,7 +44,6 @@
 #include <asm/time.h>
 #include <asm/mmu.h>
 #include <asm/topology.h>
-#include <asm/paca.h>
 
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
@@ -464,6 +464,9 @@ void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, 
 	va_end(list);
 }
 
+static int ibm_open_errinjct_token;
+static int ibm_errinjct_token;
+
 int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
 	va_list list;
@@ -475,6 +478,16 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 
 	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
 		return -1;
+
+	if (token == ibm_open_errinjct_token || token == ibm_errinjct_token) {
+		/*
+		 * It would be nicer to not discard the error value
+		 * from security_locked_down(), but callers expect an
+		 * RTAS status, not an errno.
+		 */
+		if (security_locked_down(LOCKDOWN_RTAS_ERROR_INJECTION))
+			return -1;
+	}
 
 	if ((mfmsr() & (MSR_IR|MSR_DR)) != (MSR_IR|MSR_DR)) {
 		WARN_ON_ONCE(1);
@@ -932,59 +945,6 @@ void rtas_activate_firmware(void)
 		pr_err("ibm,activate-firmware failed (%i)\n", fwrc);
 }
 
-#ifdef CONFIG_PPC_PSERIES
-/**
- * rtas_call_reentrant() - Used for reentrant rtas calls
- * @token:	Token for desired reentrant RTAS call
- * @nargs:	Number of Input Parameters
- * @nret:	Number of Output Parameters
- * @outputs:	Array of outputs
- * @...:	Inputs for desired RTAS call
- *
- * According to LoPAR documentation, only "ibm,int-on", "ibm,int-off",
- * "ibm,get-xive" and "ibm,set-xive" are currently reentrant.
- * Reentrant calls need their own rtas_args buffer, so not using rtas.args, but
- * PACA one instead.
- *
- * Return:	-1 on error,
- *		First output value of RTAS call if (nret > 0),
- *		0 otherwise,
- */
-int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
-{
-	va_list list;
-	struct rtas_args *args;
-	unsigned long flags;
-	int i, ret = 0;
-
-	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
-		return -1;
-
-	local_irq_save(flags);
-	preempt_disable();
-
-	/* We use the per-cpu (PACA) rtas args buffer */
-	args = local_paca->rtas_args_reentrant;
-
-	va_start(list, outputs);
-	va_rtas_call_unlocked(args, token, nargs, nret, list);
-	va_end(list);
-
-	if (nret > 1 && outputs)
-		for (i = 0; i < nret - 1; ++i)
-			outputs[i] = be32_to_cpu(args->rets[i + 1]);
-
-	if (nret > 0)
-		ret = be32_to_cpu(args->rets[0]);
-
-	local_irq_restore(flags);
-	preempt_enable();
-
-	return ret;
-}
-
-#endif /* CONFIG_PPC_PSERIES */
-
 /**
  * get_pseries_errorlog() - Find a specific pseries error log in an RTAS
  *                          extended event log.
@@ -1227,6 +1187,14 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 	if (block_rtas_call(token, nargs, &args))
 		return -EINVAL;
 
+	if (token == ibm_open_errinjct_token || token == ibm_errinjct_token) {
+		int err;
+
+		err = security_locked_down(LOCKDOWN_RTAS_ERROR_INJECTION);
+		if (err)
+			return err;
+	}
+
 	/* Need to handle ibm,suspend_me call specially */
 	if (token == rtas_token("ibm,suspend-me")) {
 
@@ -1325,7 +1293,8 @@ void __init rtas_initialize(void)
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 	rtas_last_error_token = rtas_token("rtas-last-error");
 #endif
-
+	ibm_open_errinjct_token = rtas_token("ibm,open-errinjct");
+	ibm_errinjct_token = rtas_token("ibm,errinjct");
 	rtas_syscall_filter_init();
 }
 

@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_VIU
+	tristate "NXP VIU Video Driver (DEPRECATED)"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && (PPC_MPC512x || COMPILE_TEST) && I2C
+	select VIDEOBUF_DMA_CONTIG
+	help
+	  Support for Freescale VIU video driver. This device captures
+	  video data, or overlays video on DIU frame buffer.
+
+	  This driver is deprecated and is scheduled for removal by
+	  the beginning of 2023. See the TODO file for more information.
+
+	  Say Y here if you want to enable VIU device on MPC5121e Rev2+.
+	  In doubt, say N.

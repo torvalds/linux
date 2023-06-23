@@ -1146,7 +1146,7 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 static void bcmgenet_get_drvinfo(struct net_device *dev,
 				 struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "bcmgenet", sizeof(info->driver));
+	strscpy(info->driver, "bcmgenet", sizeof(info->driver));
 }
 
 static int bcmgenet_get_sset_count(struct net_device *dev, int string_set)
@@ -2707,8 +2707,7 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 	bcmgenet_init_rx_coalesce(ring);
 
 	/* Initialize Rx NAPI */
-	netif_napi_add(priv->dev, &ring->napi, bcmgenet_rx_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(priv->dev, &ring->napi, bcmgenet_rx_poll);
 
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_PROD_INDEX);
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_CONS_INDEX);

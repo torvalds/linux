@@ -99,11 +99,17 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.hardware_release = dcn30_hardware_release,
 	.set_pipe = dcn21_set_pipe,
+	.enable_lvds_link_output = dce110_enable_lvds_link_output,
+	.enable_tmds_link_output = dce110_enable_tmds_link_output,
+	.enable_dp_link_output = dce110_enable_dp_link_output,
+	.disable_link_output = dcn32_disable_link_output,
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
 	.commit_subvp_config = dcn32_commit_subvp_config,
 	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
 	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
+	.update_phantom_vp_position = dcn32_update_phantom_vp_position,
+	.update_dsc_pg = dcn32_update_dsc_pg,
 };
 
 static const struct hwseq_private_funcs dcn32_private_funcs = {
@@ -133,6 +139,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.program_all_writeback_pipes_in_tree = dcn30_program_all_writeback_pipes_in_tree,
 	.update_odm = dcn32_update_odm,
 	.dsc_pg_control = dcn32_dsc_pg_control,
+	.dsc_pg_status = dcn32_dsc_pg_status,
 	.set_hdr_multiplier = dcn10_set_hdr_multiplier,
 	.verify_allow_pstate_change_high = dcn10_verify_allow_pstate_change_high,
 	.wait_for_blank_complete = dcn20_wait_for_blank_complete,

@@ -27,6 +27,28 @@
 #include <sound/soc-link.h>
 #include <sound/initval.h>
 
+#define soc_pcm_ret(rtd, ret) _soc_pcm_ret(rtd, __func__, ret)
+static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
+			       const char *func, int ret)
+{
+	/* Positive, Zero values are not errors */
+	if (ret >= 0)
+		return ret;
+
+	/* Negative values might be errors */
+	switch (ret) {
+	case -EPROBE_DEFER:
+	case -ENOTSUPP:
+		break;
+	default:
+		dev_err(rtd->dev,
+			"ASoC: error at %s on %s: %d\n",
+			func, rtd->dai_link->name, ret);
+	}
+
+	return ret;
+}
+
 static inline void snd_soc_dpcm_mutex_lock(struct snd_soc_pcm_runtime *rtd)
 {
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
@@ -62,11 +84,11 @@ static inline void snd_soc_dpcm_stream_unlock_irq(struct snd_soc_pcm_runtime *rt
 
 static inline const char *soc_cpu_dai_name(struct snd_soc_pcm_runtime *rtd)
 {
-	return (rtd)->num_cpus == 1 ? asoc_rtd_to_cpu(rtd, 0)->name : "multicpu";
+	return (rtd)->dai_link->num_cpus == 1 ? asoc_rtd_to_cpu(rtd, 0)->name : "multicpu";
 }
 static inline const char *soc_codec_dai_name(struct snd_soc_pcm_runtime *rtd)
 {
-	return (rtd)->num_codecs == 1 ? asoc_rtd_to_codec(rtd, 0)->name : "multicodec";
+	return (rtd)->dai_link->num_codecs == 1 ? asoc_rtd_to_codec(rtd, 0)->name : "multicodec";
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -163,7 +185,7 @@ static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
 	int stream;
 	char *buf;
 
-	if (fe->num_cpus > 1) {
+	if (fe->dai_link->num_cpus > 1) {
 		dev_err(fe->dev,
 			"%s doesn't support Multi CPU yet\n", __func__);
 		return -EINVAL;
@@ -615,7 +637,7 @@ int snd_soc_runtime_calc_hw(struct snd_soc_pcm_runtime *rtd,
 	 * connected to CPU DAI(s), use CPU DAI's directly and let
 	 * channel allocation be fixed up later
 	 */
-	if (rtd->num_codecs > 1) {
+	if (rtd->dai_link->num_codecs > 1) {
 		hw->channels_min = cpu_chan_min;
 		hw->channels_max = cpu_chan_max;
 	}
@@ -723,7 +745,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	snd_soc_dpcm_mutex_lock(rtd);
-	soc_pcm_clean(rtd, substream, 0);
+	__soc_pcm_close(rtd, substream);
 	snd_soc_dpcm_mutex_unlock(rtd);
 	return 0;
 }
@@ -800,11 +822,6 @@ static int __soc_pcm_open(struct snd_soc_pcm_runtime *rtd,
 		ret = snd_soc_dai_startup(dai, substream);
 		if (ret < 0)
 			goto err;
-
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			dai->tx_mask = 0;
-		else
-			dai->rx_mask = 0;
 	}
 
 	/* Dynamic PCM DAI links compat checks use dynamic capabilities */
@@ -832,12 +849,10 @@ dynamic:
 	snd_soc_runtime_activate(rtd, substream->stream);
 	ret = 0;
 err:
-	if (ret < 0) {
+	if (ret < 0)
 		soc_pcm_clean(rtd, substream, 1);
-		dev_err(rtd->dev, "%s() failed (%d)", __func__, ret);
-	}
 
-	return ret;
+	return soc_pcm_ret(rtd, ret);
 }
 
 /* PCM open ops for non-DPCM streams */
@@ -850,16 +865,6 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	ret = __soc_pcm_open(rtd, substream);
 	snd_soc_dpcm_mutex_unlock(rtd);
 	return ret;
-}
-
-static void codec2codec_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
-{
-	/*
-	 * Currently nothing to do for c2c links
-	 * Since c2c links are internal nodes in the DAPM graph and
-	 * don't interface with the outside world or application layer
-	 * we don't have to do any special handling on close.
-	 */
 }
 
 /*
@@ -901,10 +906,7 @@ static int __soc_pcm_prepare(struct snd_soc_pcm_runtime *rtd,
 		snd_soc_dai_digital_mute(dai, 0, substream->stream);
 
 out:
-	if (ret < 0)
-		dev_err(rtd->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
-
-	return ret;
+	return soc_pcm_ret(rtd, ret);
 }
 
 /* PCM prepare ops for non-DPCM streams */
@@ -1070,12 +1072,10 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 
 	ret = snd_soc_pcm_component_hw_params(substream, params);
 out:
-	if (ret < 0) {
+	if (ret < 0)
 		soc_pcm_hw_clean(rtd, substream, 1);
-		dev_err(rtd->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
-	}
 
-	return ret;
+	return soc_pcm_ret(rtd, ret);
 }
 
 /* hw_params PCM ops for non-DPCM streams */
@@ -1247,6 +1247,8 @@ static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 		return;
 
 	be_substream = snd_soc_dpcm_get_substream(be, stream);
+	if (!be_substream)
+		return;
 
 	for_each_dpcm_fe(be, stream, dpcm) {
 		if (dpcm->fe == fe)
@@ -1374,7 +1376,7 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(fe, 0);
 	int paths;
 
-	if (fe->num_cpus > 1) {
+	if (fe->dai_link->num_cpus > 1) {
 		dev_err(fe->dev,
 			"%s doesn't support Multi CPU yet\n", __func__);
 		return -EINVAL;
@@ -1453,6 +1455,10 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	struct snd_soc_dapm_widget *widget;
 	int i, new = 0, err;
 
+	/* don't connect if FE is not running */
+	if (!fe->dpcm[stream].runtime && !fe->fe_compr)
+		return new;
+
 	/* Create any new FE <--> BE connections */
 	for_each_dapm_widgets(list, i, widget) {
 
@@ -1476,10 +1482,6 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 				widget->name);
 			continue;
 		}
-
-		/* don't connect if FE is not running */
-		if (!fe->dpcm[stream].runtime && !fe->fe_compr)
-			continue;
 
 		/*
 		 * Filter for systems with 'component_chaining' enabled.
@@ -1637,10 +1639,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 unwind:
 	dpcm_be_dai_startup_rollback(fe, stream, dpcm);
 
-	dev_err(fe->dev, "ASoC: %s() failed at %s (%d)\n",
-		__func__, be->dai_link->name, err);
-
-	return err;
+	return soc_pcm_ret(fe, err);
 }
 
 static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
@@ -1749,7 +1748,7 @@ static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 		 * chan min/max cannot be enforced if there are multiple CODEC
 		 * DAIs connected to a single CPU DAI, use CPU DAI's directly
 		 */
-		if (be->num_codecs == 1) {
+		if (be->dai_link->num_codecs == 1) {
 			struct snd_soc_pcm_stream *codec_stream = snd_soc_dai_get_pcm_stream(
 				asoc_rtd_to_codec(be, 0), stream);
 
@@ -1840,10 +1839,7 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		}
 	}
 error:
-	if (err < 0)
-		dev_err(fe->dev, "ASoC: %s failed (%d)\n", __func__, err);
-
-	return err;
+	return soc_pcm_ret(fe, err);
 }
 
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
@@ -1880,10 +1876,7 @@ unwind:
 be_err:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 
-	if (ret < 0)
-		dev_err(fe->dev, "%s() failed (%d)\n", __func__, ret);
-
-	return ret;
+	return soc_pcm_ret(fe, ret);
 }
 
 static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
@@ -2082,10 +2075,7 @@ out:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	snd_soc_dpcm_mutex_unlock(fe);
 
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: %s failed (%d)\n", __func__, ret);
-
-	return ret;
+	return soc_pcm_ret(fe, ret);
 }
 
 int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
@@ -2254,10 +2244,7 @@ next:
 		if (ret)
 			break;
 	}
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: %s() failed at %s (%d)\n",
-			__func__, be->dai_link->name, ret);
-	return ret;
+	return soc_pcm_ret(fe, ret);
 }
 EXPORT_SYMBOL_GPL(dpcm_be_dai_trigger);
 
@@ -2428,10 +2415,7 @@ int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 	}
 
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
-
-	return ret;
+	return soc_pcm_ret(fe, ret);
 }
 
 static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
@@ -2468,10 +2452,7 @@ out:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	snd_soc_dpcm_mutex_unlock(fe);
 
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
-
-	return ret;
+	return soc_pcm_ret(fe, ret);
 }
 
 static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2504,10 +2485,7 @@ static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 	/* run the stream event for each BE */
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_NOP);
 
-	if (err < 0)
-		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, err);
-
-	return err;
+	return soc_pcm_ret(fe, err);
 }
 
 static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2597,10 +2575,7 @@ disconnect:
 				dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
 	}
 
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
-
-	return ret;
+	return soc_pcm_ret(fe, ret);
 }
 
 static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
@@ -2612,7 +2587,7 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 	if (!fe->dai_link->dynamic)
 		return 0;
 
-	if (fe->num_cpus > 1) {
+	if (fe->dai_link->num_cpus > 1) {
 		dev_err(fe->dev,
 			"%s doesn't support Multi CPU yet\n", __func__);
 		return -EINVAL;
@@ -2756,7 +2731,7 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 	struct snd_soc_dai *cpu_dai;
 	int i;
 
-	if (rtd->dai_link->dynamic && rtd->num_cpus > 1) {
+	if (rtd->dai_link->dynamic && rtd->dai_link->num_cpus > 1) {
 		dev_err(rtd->dev,
 			"DPCM doesn't support Multi CPU for Front-Ends yet\n");
 		return -EINVAL;
@@ -2808,9 +2783,9 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 			SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
 
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
-			if (rtd->num_cpus == 1) {
+			if (rtd->dai_link->num_cpus == 1) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-			} else if (rtd->num_cpus == rtd->num_codecs) {
+			} else if (rtd->dai_link->num_cpus == rtd->dai_link->num_codecs) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, i);
 			} else {
 				dev_err(rtd->card->dev,
@@ -2899,14 +2874,19 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		return ret;
 
 	/* DAPM dai link stream work */
-	if (rtd->dai_link->params)
-		rtd->close_delayed_work_func = codec2codec_close_delayed_work;
-	else
+	/*
+	 * Currently nothing to do for c2c links
+	 * Since c2c links are internal nodes in the DAPM graph and
+	 * don't interface with the outside world or application layer
+	 * we don't have to do any special handling on close.
+	 */
+	if (!rtd->dai_link->params)
 		rtd->close_delayed_work_func = snd_soc_close_delayed_work;
 
 	rtd->pcm = pcm;
 	pcm->nonatomic = rtd->dai_link->nonatomic;
 	pcm->private_data = rtd;
+	pcm->no_device_suspend = true;
 
 	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
 		if (playback)
@@ -2961,8 +2941,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	ret = snd_soc_pcm_component_new(rtd);
 	if (ret < 0)
 		return ret;
-
-	pcm->no_device_suspend = true;
 out:
 	dev_dbg(rtd->card->dev, "%s <-> %s mapping ok\n",
 		soc_codec_dai_name(rtd), soc_cpu_dai_name(rtd));

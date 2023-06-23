@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/gpio/gpio.h>
 #include "qcom-msm8974.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
@@ -261,7 +262,7 @@
 &sdhc_2 {
 	status = "okay";
 
-	cd-gpios = <&tlmm 62 0x1>;
+	cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&pm8941_l21>;
 	vqmmc-supply = <&pm8941_l13>;
 

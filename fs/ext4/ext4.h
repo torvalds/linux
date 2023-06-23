@@ -2977,6 +2977,7 @@ extern struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 extern int  ext4_write_inode(struct inode *, struct writeback_control *);
 extern int  ext4_setattr(struct user_namespace *, struct dentry *,
 			 struct iattr *);
+extern u32  ext4_dio_alignment(struct inode *inode);
 extern int  ext4_getattr(struct user_namespace *, const struct path *,
 			 struct kstat *, u32, unsigned int);
 extern void ext4_evict_inode(struct inode *);
@@ -3591,9 +3592,6 @@ extern bool empty_inline_dir(struct inode *dir, int *has_inline_data);
 extern struct buffer_head *ext4_get_first_inline_block(struct inode *inode,
 					struct ext4_dir_entry_2 **parent_de,
 					int *retval);
-extern int ext4_inline_data_fiemap(struct inode *inode,
-				   struct fiemap_extent_info *fieinfo,
-				   int *has_inline, __u64 start, __u64 len);
 extern void *ext4_read_inline_link(struct inode *inode);
 
 struct iomap;
@@ -3712,7 +3710,7 @@ extern int ext4_ext_insert_extent(handle_t *, struct inode *,
 extern struct ext4_ext_path *ext4_find_extent(struct inode *, ext4_lblk_t,
 					      struct ext4_ext_path **,
 					      int flags);
-extern void ext4_ext_drop_refs(struct ext4_ext_path *);
+extern void ext4_free_ext_path(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
 extern ext4_lblk_t ext4_ext_next_allocated_block(struct ext4_ext_path *path);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,

@@ -76,6 +76,8 @@ enum ovs_datapath_cmd {
  * datapath.  Always present in notifications.
  * @OVS_DP_ATTR_MEGAFLOW_STATS: Statistics about mega flow masks usage for the
  * datapath. Always present in notifications.
+ * @OVS_DP_ATTR_IFINDEX: Interface index for a new datapath netdev. Only
+ * valid for %OVS_DP_CMD_NEW requests.
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_DP_* commands.
@@ -92,6 +94,7 @@ enum ovs_datapath_attr {
 	OVS_DP_ATTR_PER_CPU_PIDS,   /* Netlink PIDS to receive upcalls in
 				     * per-cpu dispatch mode
 				     */
+	OVS_DP_ATTR_IFINDEX,
 	__OVS_DP_ATTR_MAX
 };
 

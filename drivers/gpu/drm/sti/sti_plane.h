@@ -8,7 +8,6 @@
 #define _STI_PLANE_H_
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #define to_sti_plane(x) container_of(x, struct sti_plane, drm_plane)
 

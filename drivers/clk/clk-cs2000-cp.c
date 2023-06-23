@@ -557,7 +557,7 @@ static int cs2000_version_print(struct cs2000_priv *priv)
 	return 0;
 }
 
-static int cs2000_remove(struct i2c_client *client)
+static void cs2000_remove(struct i2c_client *client)
 {
 	struct cs2000_priv *priv = i2c_get_clientdata(client);
 	struct device *dev = priv_to_dev(priv);
@@ -566,8 +566,6 @@ static int cs2000_remove(struct i2c_client *client)
 	of_clk_del_provider(np);
 
 	clk_hw_unregister(&priv->hw);
-
-	return 0;
 }
 
 static int cs2000_probe(struct i2c_client *client)

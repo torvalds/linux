@@ -59,6 +59,7 @@
 MODULE_FIRMWARE("amdgpu/aldebaran_smc.bin");
 MODULE_FIRMWARE("amdgpu/smu_13_0_0.bin");
 MODULE_FIRMWARE("amdgpu/smu_13_0_7.bin");
+MODULE_FIRMWARE("amdgpu/smu_13_0_10.bin");
 
 #define mmMP1_SMN_C2PMSG_66                                                                            0x0282
 #define mmMP1_SMN_C2PMSG_66_BASE_IDX                                                                   0
@@ -210,7 +211,8 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 		return 0;
 
 	if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7)) ||
-	    (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0)))
+	    (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0)) ||
+	    (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10)))
 		return 0;
 
 	/* override pptable_id from driver parameter */
@@ -287,7 +289,8 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
 		break;
 	case IP_VERSION(13, 0, 0):
-		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_0;
+	case IP_VERSION(13, 0, 10):
+		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_10;
 		break;
 	case IP_VERSION(13, 0, 7):
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_7;
@@ -450,7 +453,6 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 		dev_info(adev->dev, "override pptable id %d\n", pptable_id);
 	} else {
 		pptable_id = smu->smu_table.boot_values.pp_table_id;
-
 	}
 
 	/* force using vbios pptable in sriov mode */
@@ -838,6 +840,7 @@ int smu_v13_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case IP_VERSION(13, 0, 5):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 8):
+	case IP_VERSION(13, 0, 10):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -1062,6 +1065,9 @@ int smu_v13_0_enable_thermal_alert(struct smu_context *smu)
 {
 	int ret = 0;
 
+	if (!smu->irq_source.num_types)
+		return 0;
+
 	ret = amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
 	if (ret)
 		return ret;
@@ -1071,6 +1077,9 @@ int smu_v13_0_enable_thermal_alert(struct smu_context *smu)
 
 int smu_v13_0_disable_thermal_alert(struct smu_context *smu)
 {
+	if (!smu->irq_source.num_types)
+		return 0;
+
 	return amdgpu_irq_put(smu->adev, &smu->irq_source, 0);
 }
 
@@ -1441,6 +1450,9 @@ int smu_v13_0_register_irq_handler(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	struct amdgpu_irq_src *irq_src = &smu->irq_source;
 	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	irq_src->num_types = 1;
 	irq_src->funcs = &smu_v13_0_irq_funcs;
@@ -2216,6 +2228,15 @@ int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 		ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_GFX_ULV_BIT, enablement);
 
 	return ret;
+}
+
+int smu_v13_0_baco_set_armd3_sequence(struct smu_context *smu,
+				      enum smu_baco_seq baco_seq)
+{
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_ArmD3,
+					       baco_seq,
+					       NULL);
 }
 
 bool smu_v13_0_baco_is_support(struct smu_context *smu)

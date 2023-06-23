@@ -299,8 +299,8 @@ struct rtl819x_ops {
 	void (*tx_enable)(struct net_device *dev);
 	void (*interrupt_recognized)(struct net_device *dev,
 				     u32 *p_inta, u32 *p_intb);
-	bool (*TxCheckStuckHandler)(struct net_device *dev);
-	bool (*RxCheckStuckHandler)(struct net_device *dev);
+	bool (*tx_check_stuck_handler)(struct net_device *dev);
+	bool (*rx_check_stuck_handler)(struct net_device *dev);
 };
 
 struct r8192_priv {
@@ -392,7 +392,7 @@ struct r8192_priv {
 	u16		ShortRetryLimit;
 	u16		LongRetryLimit;
 
-	bool		bHwRadioOff;
+	bool		hw_radio_off;
 	bool		blinked_ingpio;
 	u8		polling_timer_on;
 
@@ -430,7 +430,7 @@ struct r8192_priv {
 
 	u16 basic_rate;
 	u8 short_preamble;
-	u8 dot11CurrentPreambleMode;
+	u8 dot11_current_preamble_mode;
 	u8 slot_time;
 	u16 SifsTime;
 
@@ -478,7 +478,7 @@ struct r8192_priv {
 	bool bInPowerSaveMode;
 	u8 bHwRfOffAction;
 
-	bool RFChangeInProgress;
+	bool rf_change_in_progress;
 	bool SetRFPowerStateInProgress;
 	bool bdisable_nic;
 
@@ -598,6 +598,6 @@ bool rtl92e_enable_nic(struct net_device *dev);
 bool rtl92e_disable_nic(struct net_device *dev);
 
 bool rtl92e_set_rf_state(struct net_device *dev,
-			 enum rt_rf_power_state StateToSet,
-			 RT_RF_CHANGE_SOURCE ChangeSource);
+			 enum rt_rf_power_state state_to_set,
+			 RT_RF_CHANGE_SOURCE change_source);
 #endif

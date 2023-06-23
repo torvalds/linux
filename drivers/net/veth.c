@@ -128,8 +128,8 @@ static int veth_get_link_ksettings(struct net_device *dev,
 
 static void veth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -1070,7 +1070,7 @@ static int veth_enable_xdp_range(struct net_device *dev, int start, int end,
 		struct veth_rq *rq = &priv->rq[i];
 
 		if (!napi_already_on)
-			netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+			netif_napi_add(dev, &rq->xdp_napi, veth_poll);
 		err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i, rq->xdp_napi.napi_id);
 		if (err < 0)
 			goto err_rxq_reg;
@@ -1184,7 +1184,7 @@ static int veth_napi_enable_range(struct net_device *dev, int start, int end)
 	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
-		netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(dev, &rq->xdp_napi, veth_poll);
 	}
 
 	err = __veth_napi_enable_range(dev, start, end);

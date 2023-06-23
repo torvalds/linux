@@ -1566,7 +1566,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 		goto out_dev;
 	}
 
-	strlcpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
+	strscpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
 
 	dev_info(&dev->dev,
 		"setup OK : r/w = %s/%s, protocol : %d\n",

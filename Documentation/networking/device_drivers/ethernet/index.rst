@@ -52,6 +52,7 @@ Contents:
    ti/tlan
    toshiba/spider_net
    wangxun/txgbe
+   wangxun/ngbe
 
 .. only::  subproject and html
 

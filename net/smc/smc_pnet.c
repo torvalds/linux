@@ -715,7 +715,8 @@ static struct genl_family smc_pnet_nl_family __ro_after_init = {
 	.netnsok = true,
 	.module = THIS_MODULE,
 	.ops = smc_pnet_ops,
-	.n_ops =  ARRAY_SIZE(smc_pnet_ops)
+	.n_ops =  ARRAY_SIZE(smc_pnet_ops),
+	.resv_start_op = SMC_PNETID_FLUSH + 1,
 };
 
 bool smc_pnet_is_ndev_pnetid(struct net *net, u8 *pnetid)

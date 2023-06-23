@@ -12,7 +12,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h> /* of_get_named_gpio() */
 #include <linux/of_address.h>
 #include <linux/gpio/driver.h>
 #include <linux/regmap.h>
@@ -1162,6 +1161,31 @@ static void st_parse_syscfgs(struct st_pinctrl *info, int bank,
 	return;
 }
 
+static int st_pctl_dt_calculate_pin(struct st_pinctrl *info,
+				    phandle bank, unsigned int offset)
+{
+	struct device_node *np;
+	struct gpio_chip *chip;
+	int retval = -EINVAL;
+	int i;
+
+	np = of_find_node_by_phandle(bank);
+	if (!np)
+		return -EINVAL;
+
+	for (i = 0; i < info->nbanks; i++) {
+		chip = &info->banks[i].gpio_chip;
+		if (chip->of_node == np) {
+			if (offset < chip->ngpio)
+				retval = chip->base + offset;
+			break;
+		}
+	}
+
+	of_node_put(np);
+	return retval;
+}
+
 /*
  * Each pin is represented in of the below forms.
  * <bank offset mux direction rt_type rt_delay rt_clk>
@@ -1175,6 +1199,8 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	struct device *dev = info->dev;
 	struct st_pinconf *conf;
 	struct device_node *pins;
+	phandle bank;
+	unsigned int offset;
 	int i = 0, npins = 0, nr_props, ret = 0;
 
 	pins = of_get_child_by_name(np, "st,pins");
@@ -1214,9 +1240,9 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		conf = &grp->pin_conf[i];
 
 		/* bank & offset */
-		be32_to_cpup(list++);
-		be32_to_cpup(list++);
-		conf->pin = of_get_named_gpio(pins, pp->name, 0);
+		bank = be32_to_cpup(list++);
+		offset = be32_to_cpup(list++);
+		conf->pin = st_pctl_dt_calculate_pin(info, bank, offset);
 		conf->name = pp->name;
 		grp->pins[i] = conf->pin;
 		/* mux */

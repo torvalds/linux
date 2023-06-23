@@ -1360,9 +1360,11 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 	if (esw->mode == MLX5_ESWITCH_OFFLOADS) {
 		struct devlink *devlink = priv_to_devlink(esw->dev);
 
-		esw_offloads_del_send_to_vport_meta_rules(esw);
 		devl_rate_nodes_destroy(devlink);
 	}
+	/* Destroy legacy fdb when disabling sriov in legacy mode. */
+	if (esw->mode == MLX5_ESWITCH_LEGACY)
+		mlx5_eswitch_disable_locked(esw);
 
 	esw->esw_funcs.num_vfs = 0;
 
@@ -1388,12 +1390,14 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw)
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
 		 esw->esw_funcs.num_vfs, esw->enabled_vports);
 
-	esw->fdb_table.flags &= ~MLX5_ESW_FDB_CREATED;
-	if (esw->mode == MLX5_ESWITCH_OFFLOADS)
-		esw_offloads_disable(esw);
-	else if (esw->mode == MLX5_ESWITCH_LEGACY)
-		esw_legacy_disable(esw);
-	mlx5_esw_acls_ns_cleanup(esw);
+	if (esw->fdb_table.flags & MLX5_ESW_FDB_CREATED) {
+		esw->fdb_table.flags &= ~MLX5_ESW_FDB_CREATED;
+		if (esw->mode == MLX5_ESWITCH_OFFLOADS)
+			esw_offloads_disable(esw);
+		else if (esw->mode == MLX5_ESWITCH_LEGACY)
+			esw_legacy_disable(esw);
+		mlx5_esw_acls_ns_cleanup(esw);
+	}
 
 	if (esw->mode == MLX5_ESWITCH_OFFLOADS)
 		devl_rate_nodes_destroy(devlink);

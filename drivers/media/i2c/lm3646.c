@@ -377,15 +377,13 @@ static int lm3646_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lm3646_remove(struct i2c_client *client)
+static void lm3646_remove(struct i2c_client *client)
 {
 	struct lm3646_flash *flash = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(&flash->subdev_led);
 	v4l2_ctrl_handler_free(&flash->ctrls_led);
 	media_entity_cleanup(&flash->subdev_led.entity);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3646_id_table[] = {

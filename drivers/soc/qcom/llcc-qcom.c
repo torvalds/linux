@@ -104,6 +104,7 @@ struct qcom_llcc_config {
 	int size;
 	bool need_llcc_cfg;
 	const u32 *reg_offset;
+	const struct llcc_edac_reg_offset *edac_reg_offset;
 };
 
 enum llcc_reg_offset {
@@ -296,12 +297,68 @@ static const struct llcc_slice_config sm8450_data[] =  {
 	{LLCC_AENPU,     8, 2048, 1, 1, 0xFFFF, 0x0,   0, 0, 0, 0, 0, 0, 0 },
 };
 
-static const u32 llcc_v1_2_reg_offset[] = {
+static const struct llcc_edac_reg_offset llcc_v1_edac_reg_offset = {
+	.trp_ecc_error_status0 = 0x20344,
+	.trp_ecc_error_status1 = 0x20348,
+	.trp_ecc_sb_err_syn0 = 0x2304c,
+	.trp_ecc_db_err_syn0 = 0x20370,
+	.trp_ecc_error_cntr_clear = 0x20440,
+	.trp_interrupt_0_status = 0x20480,
+	.trp_interrupt_0_clear = 0x20484,
+	.trp_interrupt_0_enable = 0x20488,
+
+	/* LLCC Common registers */
+	.cmn_status0 = 0x3000c,
+	.cmn_interrupt_0_enable = 0x3001c,
+	.cmn_interrupt_2_enable = 0x3003c,
+
+	/* LLCC DRP registers */
+	.drp_ecc_error_cfg = 0x40000,
+	.drp_ecc_error_cntr_clear = 0x40004,
+	.drp_interrupt_status = 0x41000,
+	.drp_interrupt_clear = 0x41008,
+	.drp_interrupt_enable = 0x4100c,
+	.drp_ecc_error_status0 = 0x42044,
+	.drp_ecc_error_status1 = 0x42048,
+	.drp_ecc_sb_err_syn0 = 0x4204c,
+	.drp_ecc_db_err_syn0 = 0x42070,
+};
+
+static const struct llcc_edac_reg_offset llcc_v2_1_edac_reg_offset = {
+	.trp_ecc_error_status0 = 0x20344,
+	.trp_ecc_error_status1 = 0x20348,
+	.trp_ecc_sb_err_syn0 = 0x2034c,
+	.trp_ecc_db_err_syn0 = 0x20370,
+	.trp_ecc_error_cntr_clear = 0x20440,
+	.trp_interrupt_0_status = 0x20480,
+	.trp_interrupt_0_clear = 0x20484,
+	.trp_interrupt_0_enable = 0x20488,
+
+	/* LLCC Common registers */
+	.cmn_status0 = 0x3400c,
+	.cmn_interrupt_0_enable = 0x3401c,
+	.cmn_interrupt_2_enable = 0x3403c,
+
+	/* LLCC DRP registers */
+	.drp_ecc_error_cfg = 0x50000,
+	.drp_ecc_error_cntr_clear = 0x50004,
+	.drp_interrupt_status = 0x50020,
+	.drp_interrupt_clear = 0x50028,
+	.drp_interrupt_enable = 0x5002c,
+	.drp_ecc_error_status0 = 0x520f4,
+	.drp_ecc_error_status1 = 0x520f8,
+	.drp_ecc_sb_err_syn0 = 0x520fc,
+	.drp_ecc_db_err_syn0 = 0x52120,
+};
+
+/* LLCC register offset starting from v1.0.0 */
+static const u32 llcc_v1_reg_offset[] = {
 	[LLCC_COMMON_HW_INFO]	= 0x00030000,
 	[LLCC_COMMON_STATUS0]	= 0x0003000c,
 };
 
-static const u32 llcc_v21_reg_offset[] = {
+/* LLCC register offset starting from v2.0.1 */
+static const u32 llcc_v2_1_reg_offset[] = {
 	[LLCC_COMMON_HW_INFO]	= 0x00034000,
 	[LLCC_COMMON_STATUS0]	= 0x0003400c,
 };
@@ -310,70 +367,80 @@ static const struct qcom_llcc_config sc7180_cfg = {
 	.sct_data	= sc7180_data,
 	.size		= ARRAY_SIZE(sc7180_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sc7280_cfg = {
 	.sct_data	= sc7280_data,
 	.size		= ARRAY_SIZE(sc7280_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sc8180x_cfg = {
 	.sct_data	= sc8180x_data,
 	.size		= ARRAY_SIZE(sc8180x_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sc8280xp_cfg = {
 	.sct_data	= sc8280xp_data,
 	.size		= ARRAY_SIZE(sc8280xp_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sdm845_cfg = {
 	.sct_data	= sdm845_data,
 	.size		= ARRAY_SIZE(sdm845_data),
 	.need_llcc_cfg	= false,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sm6350_cfg = {
 	.sct_data	= sm6350_data,
 	.size		= ARRAY_SIZE(sm6350_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8150_cfg = {
 	.sct_data       = sm8150_data,
 	.size           = ARRAY_SIZE(sm8150_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8250_cfg = {
 	.sct_data       = sm8250_data,
 	.size           = ARRAY_SIZE(sm8250_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8350_cfg = {
 	.sct_data       = sm8350_data,
 	.size           = ARRAY_SIZE(sm8350_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v1_2_reg_offset,
+	.reg_offset	= llcc_v1_reg_offset,
+	.edac_reg_offset = &llcc_v1_edac_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8450_cfg = {
 	.sct_data       = sm8450_data,
 	.size           = ARRAY_SIZE(sm8450_data),
 	.need_llcc_cfg	= true,
-	.reg_offset	= llcc_v21_reg_offset,
+	.reg_offset	= llcc_v2_1_reg_offset,
+	.edac_reg_offset = &llcc_v2_1_edac_reg_offset,
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
@@ -774,6 +841,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 	drv_data->cfg = llcc_cfg;
 	drv_data->cfg_size = sz;
+	drv_data->edac_reg_offset = cfg->edac_reg_offset;
 	mutex_init(&drv_data->lock);
 	platform_set_drvdata(pdev, drv_data);
 

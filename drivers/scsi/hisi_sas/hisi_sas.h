@@ -649,6 +649,7 @@ extern void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no,
 				int enable);
 extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
 			      gfp_t gfp_flags);
+extern void hisi_sas_phy_bcast(struct hisi_sas_phy *phy);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);

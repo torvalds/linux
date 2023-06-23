@@ -333,19 +333,31 @@ bool __bitmap_subset(const unsigned long *bitmap1,
 }
 EXPORT_SYMBOL(__bitmap_subset);
 
+#define BITMAP_WEIGHT(FETCH, bits)	\
+({										\
+	unsigned int __bits = (bits), idx, w = 0;				\
+										\
+	for (idx = 0; idx < __bits / BITS_PER_LONG; idx++)			\
+		w += hweight_long(FETCH);					\
+										\
+	if (__bits % BITS_PER_LONG)						\
+		w += hweight_long((FETCH) & BITMAP_LAST_WORD_MASK(__bits));	\
+										\
+	w;									\
+})
+
 unsigned int __bitmap_weight(const unsigned long *bitmap, unsigned int bits)
 {
-	unsigned int k, lim = bits/BITS_PER_LONG, w = 0;
-
-	for (k = 0; k < lim; k++)
-		w += hweight_long(bitmap[k]);
-
-	if (bits % BITS_PER_LONG)
-		w += hweight_long(bitmap[k] & BITMAP_LAST_WORD_MASK(bits));
-
-	return w;
+	return BITMAP_WEIGHT(bitmap[idx], bits);
 }
 EXPORT_SYMBOL(__bitmap_weight);
+
+unsigned int __bitmap_weight_and(const unsigned long *bitmap1,
+				const unsigned long *bitmap2, unsigned int bits)
+{
+	return BITMAP_WEIGHT(bitmap1[idx] & bitmap2[idx], bits);
+}
+EXPORT_SYMBOL(__bitmap_weight_and);
 
 void __bitmap_set(unsigned long *map, unsigned int start, int len)
 {
@@ -953,37 +965,7 @@ static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos, unsigne
 	if (pos >= nbits || !test_bit(pos, buf))
 		return -1;
 
-	return __bitmap_weight(buf, pos);
-}
-
-/**
- * bitmap_ord_to_pos - find position of n-th set bit in bitmap
- *	@buf: pointer to bitmap
- *	@ord: ordinal bit position (n-th set bit, n >= 0)
- *	@nbits: number of valid bit positions in @buf
- *
- * Map the ordinal offset of bit @ord in @buf to its position in @buf.
- * Value of @ord should be in range 0 <= @ord < weight(buf). If @ord
- * >= weight(buf), returns @nbits.
- *
- * If for example, just bits 4 through 7 are set in @buf, then @ord
- * values 0 through 3 will get mapped to 4 through 7, respectively,
- * and all other @ord values returns @nbits.  When @ord value 3
- * gets mapped to (returns) @pos value 7 in this example, that means
- * that the 3rd set bit (starting with 0th) is at position 7 in @buf.
- *
- * The bit positions 0 through @nbits-1 are valid positions in @buf.
- */
-unsigned int bitmap_ord_to_pos(const unsigned long *buf, unsigned int ord, unsigned int nbits)
-{
-	unsigned int pos;
-
-	for (pos = find_first_bit(buf, nbits);
-	     pos < nbits && ord;
-	     pos = find_next_bit(buf, nbits, pos + 1))
-		ord--;
-
-	return pos;
+	return bitmap_weight(buf, pos);
 }
 
 /**
@@ -1035,7 +1017,7 @@ void bitmap_remap(unsigned long *dst, const unsigned long *src,
 		if (n < 0 || w == 0)
 			set_bit(oldbit, dst);	/* identity map */
 		else
-			set_bit(bitmap_ord_to_pos(new, n % w, nbits), dst);
+			set_bit(find_nth_bit(new, nbits, n % w), dst);
 	}
 }
 EXPORT_SYMBOL(bitmap_remap);
@@ -1074,7 +1056,7 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
 	if (n < 0 || w == 0)
 		return oldbit;
 	else
-		return bitmap_ord_to_pos(new, n % w, bits);
+		return find_nth_bit(new, bits, n % w);
 }
 EXPORT_SYMBOL(bitmap_bitremap);
 
@@ -1198,7 +1180,7 @@ void bitmap_onto(unsigned long *dst, const unsigned long *orig,
 	 * The following code is a more efficient, but less
 	 * obvious, equivalent to the loop:
 	 *	for (m = 0; m < bitmap_weight(relmap, bits); m++) {
-	 *		n = bitmap_ord_to_pos(orig, m, bits);
+	 *		n = find_nth_bit(orig, bits, m);
 	 *		if (test_bit(m, orig))
 	 *			set_bit(n, dst);
 	 *	}

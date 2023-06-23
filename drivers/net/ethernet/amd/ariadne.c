@@ -193,7 +193,7 @@ static int ariadne_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			skb = netdev_alloc_skb(dev, pkt_len + 2);
-			if (skb == NULL) {
+			if (!skb) {
 				for (i = 0; i < RX_RING_SIZE; i++)
 					if (lowb(priv->rx_ring[(entry + i) % RX_RING_SIZE]->RMD1) & RF_OWN)
 						break;
@@ -731,7 +731,7 @@ static int ariadne_init_one(struct zorro_dev *z,
 	}
 
 	dev = alloc_etherdev(sizeof(struct ariadne_private));
-	if (dev == NULL) {
+	if (!dev) {
 		release_mem_region(base_addr, sizeof(struct Am79C960));
 		release_mem_region(mem_start, ARIADNE_RAM_SIZE);
 		return -ENOMEM;

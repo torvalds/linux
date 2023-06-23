@@ -1057,6 +1057,161 @@ cleanup:
 }
 
 /**
+ * uclogic_params_parse_ugee_v2_desc - parse the string descriptor containing
+ * pen and frame parameters returned by UGEE v2 devices.
+ *
+ * @str_desc:		String descriptor, cannot be NULL.
+ * @str_desc_size:	Size of the string descriptor.
+ * @desc_params:	Output description params list.
+ * @desc_params_size:	Size of the output description params list.
+ * @frame_type:		Output frame type.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_parse_ugee_v2_desc(const __u8 *str_desc,
+					     size_t str_desc_size,
+					     s32 *desc_params,
+					     size_t desc_params_size,
+					     enum uclogic_params_frame_type *frame_type)
+{
+	s32 pen_x_lm, pen_y_lm;
+	s32 pen_x_pm, pen_y_pm;
+	s32 pen_pressure_lm;
+	s32 frame_num_buttons;
+	s32 resolution;
+
+	/* Minimum descriptor length required, maximum seen so far is 14 */
+	const int min_str_desc_size = 12;
+
+	if (!str_desc || str_desc_size < min_str_desc_size)
+		return -EINVAL;
+
+	if (desc_params_size != UCLOGIC_RDESC_PH_ID_NUM)
+		return -EINVAL;
+
+	pen_x_lm = get_unaligned_le16(str_desc + 2);
+	pen_y_lm = get_unaligned_le16(str_desc + 4);
+	frame_num_buttons = str_desc[6];
+	*frame_type = str_desc[7];
+	pen_pressure_lm = get_unaligned_le16(str_desc + 8);
+
+	resolution = get_unaligned_le16(str_desc + 10);
+	if (resolution == 0) {
+		pen_x_pm = 0;
+		pen_y_pm = 0;
+	} else {
+		pen_x_pm = pen_x_lm * 1000 / resolution;
+		pen_y_pm = pen_y_lm * 1000 / resolution;
+	}
+
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_LM] = pen_x_lm;
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_PM] = pen_x_pm;
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] = pen_y_lm;
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_PM] = pen_y_pm;
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] = pen_pressure_lm;
+	desc_params[UCLOGIC_RDESC_FRAME_PH_ID_UM] = frame_num_buttons;
+
+	return 0;
+}
+
+/**
+ * uclogic_params_ugee_v2_init_frame_buttons() - initialize a UGEE v2 frame with
+ * buttons.
+ * @p:			Parameters to fill in, cannot be NULL.
+ * @desc_params:	Device description params list.
+ * @desc_params_size:	Size of the description params list.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_ugee_v2_init_frame_buttons(struct uclogic_params *p,
+						     const s32 *desc_params,
+						     size_t desc_params_size)
+{
+	__u8 *rdesc_frame = NULL;
+	int rc = 0;
+
+	if (!p || desc_params_size != UCLOGIC_RDESC_PH_ID_NUM)
+		return -EINVAL;
+
+	rdesc_frame = uclogic_rdesc_template_apply(
+				uclogic_rdesc_ugee_v2_frame_btn_template_arr,
+				uclogic_rdesc_ugee_v2_frame_btn_template_size,
+				desc_params, UCLOGIC_RDESC_PH_ID_NUM);
+	if (!rdesc_frame)
+		return -ENOMEM;
+
+	rc = uclogic_params_frame_init_with_desc(&p->frame_list[0],
+						 rdesc_frame,
+						 uclogic_rdesc_ugee_v2_frame_btn_template_size,
+						 UCLOGIC_RDESC_V1_FRAME_ID);
+	kfree(rdesc_frame);
+	return rc;
+}
+
+/**
+ * uclogic_params_ugee_v2_init_frame_dial() - initialize a UGEE v2 frame with a
+ * bitmap dial.
+ * @p:			Parameters to fill in, cannot be NULL.
+ * @desc_params:	Device description params list.
+ * @desc_params_size:	Size of the description params list.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_ugee_v2_init_frame_dial(struct uclogic_params *p,
+						  const s32 *desc_params,
+						  size_t desc_params_size)
+{
+	__u8 *rdesc_frame = NULL;
+	int rc = 0;
+
+	if (!p || desc_params_size != UCLOGIC_RDESC_PH_ID_NUM)
+		return -EINVAL;
+
+	rdesc_frame = uclogic_rdesc_template_apply(
+				uclogic_rdesc_ugee_v2_frame_dial_template_arr,
+				uclogic_rdesc_ugee_v2_frame_dial_template_size,
+				desc_params, UCLOGIC_RDESC_PH_ID_NUM);
+	if (!rdesc_frame)
+		return -ENOMEM;
+
+	rc = uclogic_params_frame_init_with_desc(&p->frame_list[0],
+						 rdesc_frame,
+						 uclogic_rdesc_ugee_v2_frame_dial_template_size,
+						 UCLOGIC_RDESC_V1_FRAME_ID);
+	kfree(rdesc_frame);
+	if (rc)
+		return rc;
+
+	p->frame_list[0].bitmap_dial_byte = 7;
+	return 0;
+}
+
+/**
+ * uclogic_params_ugee_v2_init_frame_mouse() - initialize a UGEE v2 frame with a
+ * mouse.
+ * @p:			Parameters to fill in, cannot be NULL.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_ugee_v2_init_frame_mouse(struct uclogic_params *p)
+{
+	int rc = 0;
+
+	if (!p)
+		return -EINVAL;
+
+	rc = uclogic_params_frame_init_with_desc(&p->frame_list[1],
+						 uclogic_rdesc_ugee_v2_frame_mouse_template_arr,
+						 uclogic_rdesc_ugee_v2_frame_mouse_template_size,
+						 UCLOGIC_RDESC_V1_FRAME_ID);
+	return rc;
+}
+
+/**
  * uclogic_params_ugee_v2_init() - initialize a UGEE graphics tablets by
  * discovering their parameters.
  *
@@ -1084,9 +1239,8 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	const int str_desc_len = 12;
 	__u8 *str_desc = NULL;
 	__u8 *rdesc_pen = NULL;
-	__u8 *rdesc_frame = NULL;
 	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
-	s32 resolution;
+	enum uclogic_params_frame_type frame_type;
 	__u8 magic_arr[] = {
 		0x02, 0xb0, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
@@ -1100,6 +1254,15 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 
 	iface = to_usb_interface(hdev->dev.parent);
 	bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
+
+	if (bInterfaceNumber == 0) {
+		rc = uclogic_params_ugee_v2_init_frame_mouse(&p);
+		if (rc)
+			goto cleanup;
+
+		goto output;
+	}
+
 	if (bInterfaceNumber != 2) {
 		uclogic_params_init_invalid(&p);
 		goto output;
@@ -1128,25 +1291,13 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 		goto output;
 	}
 
-	desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_LM] =
-		get_unaligned_le16(str_desc + 2);
-	desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] =
-		get_unaligned_le16(str_desc + 4);
-	desc_params[UCLOGIC_RDESC_FRAME_PH_ID_UM] = str_desc[6];
-	desc_params[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] =
-		get_unaligned_le16(str_desc + 8);
-	resolution = get_unaligned_le16(str_desc + 10);
-	if (resolution == 0) {
-		desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_PM] = 0;
-		desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_PM] = 0;
-	} else {
-		desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_PM] =
-			desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_LM] * 1000 /
-			resolution;
-		desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_PM] =
-			desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] * 1000 /
-			resolution;
-	}
+	rc = uclogic_params_parse_ugee_v2_desc(str_desc, str_desc_len,
+					       desc_params,
+					       ARRAY_SIZE(desc_params),
+					       &frame_type);
+	if (rc)
+		goto cleanup;
+
 	kfree(str_desc);
 	str_desc = NULL;
 
@@ -1167,24 +1318,21 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	p.pen.subreport_list[0].id = UCLOGIC_RDESC_V1_FRAME_ID;
 
 	/* Initialize the frame interface */
-	rdesc_frame = uclogic_rdesc_template_apply(
-				uclogic_rdesc_ugee_v2_frame_btn_template_arr,
-				uclogic_rdesc_ugee_v2_frame_btn_template_size,
-				desc_params, ARRAY_SIZE(desc_params));
-	if (!rdesc_frame) {
-		rc = -ENOMEM;
-		goto cleanup;
+	switch (frame_type) {
+	case UCLOGIC_PARAMS_FRAME_DIAL:
+	case UCLOGIC_PARAMS_FRAME_MOUSE:
+		rc = uclogic_params_ugee_v2_init_frame_dial(&p, desc_params,
+							    ARRAY_SIZE(desc_params));
+		break;
+	case UCLOGIC_PARAMS_FRAME_BUTTONS:
+	default:
+		rc = uclogic_params_ugee_v2_init_frame_buttons(&p, desc_params,
+							       ARRAY_SIZE(desc_params));
+		break;
 	}
 
-	rc = uclogic_params_frame_init_with_desc(&p.frame_list[0],
-						 rdesc_frame,
-						 uclogic_rdesc_ugee_v2_frame_btn_template_size,
-						 UCLOGIC_RDESC_V1_FRAME_ID);
-	kfree(rdesc_frame);
-	if (rc) {
-		uclogic_params_init_invalid(&p);
-		goto output;
-	}
+	if (rc)
+		goto cleanup;
 
 output:
 	/* Output parameters */
@@ -1433,7 +1581,11 @@ int uclogic_params_init(struct uclogic_params *params,
 		}
 		break;
 	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_PARBLO_A610_PRO):
+	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_L):
+	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_PRO_S):
 		rc = uclogic_params_ugee_v2_init(&p, hdev);
 		if (rc != 0)
 			goto cleanup;
@@ -1517,3 +1669,7 @@ cleanup:
 	uclogic_params_cleanup(&p);
 	return rc;
 }
+
+#ifdef CONFIG_HID_KUNIT_TEST
+#include "hid-uclogic-params-test.c"
+#endif

@@ -39,8 +39,6 @@
 
 #define DRIVER_DESC "OHCI S3C2410 driver"
 
-static const char hcd_name[] = "ohci-s3c2410";
-
 static struct clk *clk;
 static struct clk *usb_clk;
 
@@ -474,7 +472,6 @@ static int __init ohci_s3c2410_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&ohci_s3c2410_hc_driver, NULL);
 
 	/*

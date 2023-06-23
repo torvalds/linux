@@ -399,7 +399,7 @@ fail:
 	return status;
 }
 
-static int pcf857x_remove(struct i2c_client *client)
+static void pcf857x_remove(struct i2c_client *client)
 {
 	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct pcf857x			*gpio = i2c_get_clientdata(client);
@@ -407,8 +407,6 @@ static int pcf857x_remove(struct i2c_client *client)
 	if (pdata && pdata->teardown)
 		pdata->teardown(client, gpio->chip.base, gpio->chip.ngpio,
 				pdata->context);
-
-	return 0;
 }
 
 static void pcf857x_shutdown(struct i2c_client *client)

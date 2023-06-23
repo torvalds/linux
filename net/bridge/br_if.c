@@ -40,12 +40,21 @@ static int port_cost(struct net_device *dev)
 		switch (ecmd.base.speed) {
 		case SPEED_10000:
 			return 2;
-		case SPEED_1000:
+		case SPEED_5000:
+			return 3;
+		case SPEED_2500:
 			return 4;
+		case SPEED_1000:
+			return 5;
 		case SPEED_100:
 			return 19;
 		case SPEED_10:
 			return 100;
+		case SPEED_UNKNOWN:
+			return 100;
+		default:
+			if (ecmd.base.speed > SPEED_10000)
+				return 1;
 		}
 	}
 
@@ -567,26 +576,6 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN ||
 	    !is_valid_ether_addr(dev->dev_addr))
 		return -EINVAL;
-
-	/* Also don't allow bridging of net devices that are DSA masters, since
-	 * the bridge layer rx_handler prevents the DSA fake ethertype handler
-	 * to be invoked, so we don't get the chance to strip off and parse the
-	 * DSA switch tag protocol header (the bridge layer just returns
-	 * RX_HANDLER_CONSUMED, stopping RX processing for these frames).
-	 * The only case where that would not be an issue is when bridging can
-	 * already be offloaded, such as when the DSA master is itself a DSA
-	 * or plain switchdev port, and is bridged only with other ports from
-	 * the same hardware device.
-	 */
-	if (netdev_uses_dsa(dev)) {
-		list_for_each_entry(p, &br->port_list, list) {
-			if (!netdev_port_same_parent_id(dev, p->dev)) {
-				NL_SET_ERR_MSG(extack,
-					       "Cannot do software bridging with a DSA master");
-				return -EINVAL;
-			}
-		}
-	}
 
 	/* No bridging of bridges */
 	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit) {

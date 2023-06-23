@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gnss/u-blox,neo-6m.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: U-blox GNSS Receiver Device Tree Bindings
+title: U-blox GNSS Receiver
 
 allOf:
   - $ref: gnss-common.yaml#

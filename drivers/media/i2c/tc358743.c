@@ -964,6 +964,8 @@ static void tc358743_cec_handler(struct v4l2_subdev *sd, u16 intstatus,
 
 		v = i2c_rd32(sd, CECRCTR);
 		msg.len = v & 0x1f;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 		for (i = 0; i < msg.len; i++) {
 			v = i2c_rd32(sd, CECRBUF1 + i * 4);
 			msg.msg[i] = v & 0xff;
@@ -2169,7 +2171,7 @@ err_hdl:
 	return err;
 }
 
-static int tc358743_remove(struct i2c_client *client)
+static void tc358743_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tc358743_state *state = to_state(sd);
@@ -2185,8 +2187,6 @@ static int tc358743_remove(struct i2c_client *client)
 	mutex_destroy(&state->confctl_mutex);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&state->hdl);
-
-	return 0;
 }
 
 static const struct i2c_device_id tc358743_id[] = {

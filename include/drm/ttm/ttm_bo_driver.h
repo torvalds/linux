@@ -106,7 +106,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 				 bool interruptible, bool no_wait,
 				 struct ww_acquire_ctx *ticket)
 {
-	int ret = 0;
+	int ret;
 
 	if (no_wait) {
 		bool success;

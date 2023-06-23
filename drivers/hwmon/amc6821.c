@@ -809,7 +809,7 @@ static int amc6821_detect(
 	}
 
 	dev_info(&adapter->dev, "amc6821: chip found at 0x%02x.\n", address);
-	strlcpy(info->type, "amc6821", I2C_NAME_SIZE);
+	strscpy(info->type, "amc6821", I2C_NAME_SIZE);
 
 	return 0;
 }

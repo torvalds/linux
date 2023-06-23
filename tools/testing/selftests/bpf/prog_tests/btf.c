@@ -3936,6 +3936,19 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid type_id",
 },
 {
+	.descr = "decl_tag test #16, func proto, return type",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),				/* [1] */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),						/* [2] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DECL_TAG, 0, 0), 2), (-1),	/* [3] */
+		BTF_FUNC_PROTO_ENC(3, 0),						/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0local\0tag1"),
+	.btf_load_err = true,
+	.err_str = "Invalid return type",
+},
+{
 	.descr = "type_tag test #1",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -4651,8 +4664,8 @@ struct btf_file_test {
 };
 
 static struct btf_file_test file_tests[] = {
-	{ .file = "test_btf_newkv.o", },
-	{ .file = "test_btf_nokv.o", .btf_kv_notfound = true, },
+	{ .file = "test_btf_newkv.bpf.o", },
+	{ .file = "test_btf_nokv.bpf.o", .btf_kv_notfound = true, },
 };
 
 static void do_test_file(unsigned int test_num)

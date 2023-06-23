@@ -681,27 +681,23 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 				  unsigned int quot)
 {
 	unsigned char dafo;
-	int bits, n, m;
+	int n, m;
 
 	/* Byte size and parity */
 	switch (cflag & CSIZE) {
-	      case CS5: dafo = SAB82532_DAFO_CHL5; bits = 7; break;
-	      case CS6: dafo = SAB82532_DAFO_CHL6; bits = 8; break;
-	      case CS7: dafo = SAB82532_DAFO_CHL7; bits = 9; break;
-	      case CS8: dafo = SAB82532_DAFO_CHL8; bits = 10; break;
+	      case CS5: dafo = SAB82532_DAFO_CHL5; break;
+	      case CS6: dafo = SAB82532_DAFO_CHL6; break;
+	      case CS7: dafo = SAB82532_DAFO_CHL7; break;
+	      case CS8: dafo = SAB82532_DAFO_CHL8; break;
 	      /* Never happens, but GCC is too dumb to figure it out */
-	      default:  dafo = SAB82532_DAFO_CHL5; bits = 7; break;
+	      default:  dafo = SAB82532_DAFO_CHL5; break;
 	}
 
-	if (cflag & CSTOPB) {
+	if (cflag & CSTOPB)
 		dafo |= SAB82532_DAFO_STOP;
-		bits++;
-	}
 
-	if (cflag & PARENB) {
+	if (cflag & PARENB)
 		dafo |= SAB82532_DAFO_PARE;
-		bits++;
-	}
 
 	if (cflag & PARODD) {
 		dafo |= SAB82532_DAFO_PAR_ODD;
@@ -776,7 +772,7 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 
 /* port->lock is not held.  */
 static void sunsab_set_termios(struct uart_port *port, struct ktermios *termios,
-			       struct ktermios *old)
+			       const struct ktermios *old)
 {
 	struct uart_sunsab_port *up =
 		container_of(port, struct uart_sunsab_port, port);

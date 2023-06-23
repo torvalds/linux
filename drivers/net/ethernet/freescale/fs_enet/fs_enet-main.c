@@ -791,7 +791,7 @@ static int fs_enet_close(struct net_device *dev)
 static void fs_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 }
 
 static int fs_get_regs_len(struct net_device *dev)
@@ -882,9 +882,6 @@ static const struct ethtool_ops fs_ethtool_ops = {
 	.get_tunable = fs_get_tunable,
 	.set_tunable = fs_set_tunable,
 };
-
-extern int fs_mii_connect(struct net_device *dev);
-extern void fs_mii_disconnect(struct net_device *dev);
 
 /**************************************************************************************/
 

@@ -588,7 +588,7 @@ err:
 	return ret;
 }
 
-static int fc2580_remove(struct i2c_client *client)
+static void fc2580_remove(struct i2c_client *client)
 {
 	struct fc2580_dev *dev = i2c_get_clientdata(client);
 
@@ -598,7 +598,6 @@ static int fc2580_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&dev->hdl);
 #endif
 	kfree(dev);
-	return 0;
 }
 
 static const struct i2c_device_id fc2580_id_table[] = {

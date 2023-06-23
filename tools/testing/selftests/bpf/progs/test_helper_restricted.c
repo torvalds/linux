@@ -72,7 +72,7 @@ int tp_timer(void *ctx)
 	return 0;
 }
 
-SEC("?kprobe/sys_nanosleep")
+SEC("?kprobe")
 int kprobe_timer(void *ctx)
 {
 	timer_work();
@@ -104,7 +104,7 @@ int tp_spin_lock(void *ctx)
 	return 0;
 }
 
-SEC("?kprobe/sys_nanosleep")
+SEC("?kprobe")
 int kprobe_spin_lock(void *ctx)
 {
 	spin_lock_work();

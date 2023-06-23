@@ -22,8 +22,7 @@
 #include <linux/pinctrl/pinmux.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
-
-#include <soc/at91/pm.h>
+#include <linux/pm.h>
 
 #include "pinctrl-at91.h"
 #include "core.h"
@@ -33,16 +32,34 @@
 
 struct at91_pinctrl_mux_ops;
 
+/**
+ * struct at91_gpio_chip: at91 gpio chip
+ * @chip: gpio chip
+ * @range: gpio range
+ * @next: bank sharing same clock
+ * @pioc_hwirq: PIO bank interrupt identifier on AIC
+ * @pioc_virq: PIO bank Linux virtual interrupt
+ * @pioc_idx: PIO bank index
+ * @regbase: PIO bank virtual address
+ * @clock: associated clock
+ * @ops: at91 pinctrl mux ops
+ * @wakeups: wakeup interrupts
+ * @backups: interrupts disabled in suspend
+ * @id: gpio chip identifier
+ */
 struct at91_gpio_chip {
 	struct gpio_chip	chip;
 	struct pinctrl_gpio_range range;
-	struct at91_gpio_chip	*next;		/* Bank sharing same clock */
-	int			pioc_hwirq;	/* PIO bank interrupt identifier on AIC */
-	int			pioc_virq;	/* PIO bank Linux virtual interrupt */
-	int			pioc_idx;	/* PIO bank index */
-	void __iomem		*regbase;	/* PIO bank virtual address */
-	struct clk		*clock;		/* associated clock */
-	const struct at91_pinctrl_mux_ops *ops;	/* ops */
+	struct at91_gpio_chip	*next;
+	int			pioc_hwirq;
+	int			pioc_virq;
+	int			pioc_idx;
+	void __iomem		*regbase;
+	struct clk		*clock;
+	const struct at91_pinctrl_mux_ops *ops;
+	u32			wakeups;
+	u32			backups;
+	u32			id;
 };
 
 static struct at91_gpio_chip *gpio_chips[MAX_GPIO_BANKS];
@@ -1615,70 +1632,51 @@ static void gpio_irq_ack(struct irq_data *d)
 	/* the interrupt is already cleared before by reading ISR */
 }
 
-static u32 wakeups[MAX_GPIO_BANKS];
-static u32 backups[MAX_GPIO_BANKS];
-
 static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 {
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
-	unsigned	bank = at91_gpio->pioc_idx;
 	unsigned mask = 1 << d->hwirq;
 
-	if (unlikely(bank >= MAX_GPIO_BANKS))
-		return -EINVAL;
-
 	if (state)
-		wakeups[bank] |= mask;
+		at91_gpio->wakeups |= mask;
 	else
-		wakeups[bank] &= ~mask;
+		at91_gpio->wakeups &= ~mask;
 
 	irq_set_irq_wake(at91_gpio->pioc_virq, state);
 
 	return 0;
 }
 
-void at91_pinctrl_gpio_suspend(void)
+static int at91_gpio_suspend(struct device *dev)
 {
-	int i;
+	struct at91_gpio_chip *at91_chip = dev_get_drvdata(dev);
+	void __iomem *pio = at91_chip->regbase;
 
-	for (i = 0; i < gpio_banks; i++) {
-		void __iomem  *pio;
+	at91_chip->backups = readl_relaxed(pio + PIO_IMR);
+	writel_relaxed(at91_chip->backups, pio + PIO_IDR);
+	writel_relaxed(at91_chip->wakeups, pio + PIO_IER);
 
-		if (!gpio_chips[i])
-			continue;
+	if (!at91_chip->wakeups)
+		clk_disable_unprepare(at91_chip->clock);
+	else
+		dev_dbg(dev, "GPIO-%c may wake for %08x\n",
+			'A' + at91_chip->id, at91_chip->wakeups);
 
-		pio = gpio_chips[i]->regbase;
-
-		backups[i] = readl_relaxed(pio + PIO_IMR);
-		writel_relaxed(backups[i], pio + PIO_IDR);
-		writel_relaxed(wakeups[i], pio + PIO_IER);
-
-		if (!wakeups[i])
-			clk_disable_unprepare(gpio_chips[i]->clock);
-		else
-			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n",
-			       'A'+i, wakeups[i]);
-	}
+	return 0;
 }
 
-void at91_pinctrl_gpio_resume(void)
+static int at91_gpio_resume(struct device *dev)
 {
-	int i;
+	struct at91_gpio_chip *at91_chip = dev_get_drvdata(dev);
+	void __iomem *pio = at91_chip->regbase;
 
-	for (i = 0; i < gpio_banks; i++) {
-		void __iomem  *pio;
+	if (!at91_chip->wakeups)
+		clk_prepare_enable(at91_chip->clock);
 
-		if (!gpio_chips[i])
-			continue;
+	writel_relaxed(at91_chip->wakeups, pio + PIO_IDR);
+	writel_relaxed(at91_chip->backups, pio + PIO_IER);
 
-		pio = gpio_chips[i]->regbase;
-
-		if (!wakeups[i])
-			clk_prepare_enable(gpio_chips[i]->clock);
-
-		writel_relaxed(wakeups[i], pio + PIO_IDR);
-		writel_relaxed(backups[i], pio + PIO_IER);
-	}
+	return 0;
 }
 
 static void gpio_irq_handler(struct irq_desc *desc)
@@ -1860,6 +1858,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	}
 
 	at91_chip->chip = at91_gpio_template;
+	at91_chip->id = alias_idx;
 
 	chip = &at91_chip->chip;
 	chip->label = dev_name(&pdev->dev);
@@ -1905,6 +1904,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto gpiochip_add_err;
 
 	gpio_chips[alias_idx] = at91_chip;
+	platform_set_drvdata(pdev, at91_chip);
 	gpio_banks = max(gpio_banks, alias_idx + 1);
 
 	dev_info(&pdev->dev, "at address %p\n", at91_chip->regbase);
@@ -1920,10 +1920,15 @@ err:
 	return ret;
 }
 
+static const struct dev_pm_ops at91_gpio_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(at91_gpio_suspend, at91_gpio_resume)
+};
+
 static struct platform_driver at91_gpio_driver = {
 	.driver = {
 		.name = "gpio-at91",
 		.of_match_table = at91_gpio_of_match,
+		.pm = pm_ptr(&at91_gpio_pm_ops),
 	},
 	.probe = at91_gpio_probe,
 };

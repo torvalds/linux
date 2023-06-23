@@ -810,9 +810,15 @@ void xhci_shutdown(struct usb_hcd *hcd)
 
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
-	/* Workaround for spurious wakeups at shutdown with HSW */
-	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
+
+	/*
+	 * Workaround for spurious wakeps at shutdown with HSW, and for boot
+	 * firmware delay in ADL-P PCH if port are left in U3 at shutdown
+	 */
+	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP ||
+	    xhci->quirks & XHCI_RESET_TO_DEFAULT)
 		xhci_reset(xhci, XHCI_RESET_SHORT_USEC);
+
 	spin_unlock_irq(&xhci->lock);
 
 	xhci_cleanup_msix(xhci);
@@ -1183,7 +1189,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	/* re-initialize the HC on Restore Error, or Host Controller Error */
 	if (temp & (STS_SRE | STS_HCE)) {
 		reinit_xhc = true;
-		xhci_warn(xhci, "xHC error in resume, USBSTS 0x%x, Reinit\n", temp);
+		if (!xhci->broken_suspend)
+			xhci_warn(xhci, "xHC error in resume, USBSTS 0x%x, Reinit\n", temp);
 	}
 
 	if (reinit_xhc) {
@@ -1482,7 +1489,7 @@ EXPORT_SYMBOL_GPL(xhci_get_endpoint_index);
 /* The reverse operation to xhci_get_endpoint_index. Calculate the USB endpoint
  * address from the XHCI endpoint index.
  */
-unsigned int xhci_get_endpoint_address(unsigned int ep_index)
+static unsigned int xhci_get_endpoint_address(unsigned int ep_index)
 {
 	unsigned int number = DIV_ROUND_UP(ep_index, 2);
 	unsigned int direction = ep_index % 2 ? USB_DIR_OUT : USB_DIR_IN;
@@ -4095,7 +4102,8 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	slot_id = command->slot_id;
 
 	if (!slot_id || command->status != COMP_SUCCESS) {
-		xhci_err(xhci, "Error while assigning device slot ID\n");
+		xhci_err(xhci, "Error while assigning device slot ID: %s\n",
+			 xhci_trb_comp_code_string(command->status));
 		xhci_err(xhci, "Max number of devices this xHCI host supports is %u.\n",
 				HCS_MAX_SLOTS(
 					readl(&xhci->cap_regs->hcs_params1)));

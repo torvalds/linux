@@ -328,7 +328,7 @@ static void owl_uart_change_baudrate(struct owl_uart_port *owl_port,
 
 static void owl_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios,
-				 struct ktermios *old)
+				 const struct ktermios *old)
 {
 	struct owl_uart_port *owl_port = to_owl_uart_port(port);
 	unsigned int baud;

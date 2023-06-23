@@ -1245,7 +1245,7 @@ void hci_debugfs_create_conn(struct hci_conn *conn)
 	struct hci_dev *hdev = conn->hdev;
 	char name[6];
 
-	if (IS_ERR_OR_NULL(hdev->debugfs))
+	if (IS_ERR_OR_NULL(hdev->debugfs) || conn->debugfs)
 		return;
 
 	snprintf(name, sizeof(name), "%u", conn->handle);

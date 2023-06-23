@@ -1477,7 +1477,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1489,7 +1488,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1501,7 +1499,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1513,7 +1510,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1584,7 +1580,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1596,7 +1591,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1608,7 +1602,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1620,7 +1613,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -2254,7 +2246,7 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "FLITs received which bypassed the Slot0 Receive Buffer",
+        "BriefDescription": "FLITs received which bypassed the Slot0 Recieve Buffer",
         "Counter": "0,1,2,3",
         "EventCode": "0x31",
         "EventName": "UNC_UPI_RxL_BYPASSED.SLOT2",

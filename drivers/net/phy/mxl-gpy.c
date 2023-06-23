@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/bitfield.h>
 #include <linux/hwmon.h>
+#include <linux/mutex.h>
 #include <linux/phy.h>
 #include <linux/polynomial.h>
 #include <linux/netdevice.h>
@@ -70,6 +71,14 @@
 #define VPSPEC1_TEMP_STA	0x0E
 #define VPSPEC1_TEMP_STA_DATA	GENMASK(9, 0)
 
+/* Mailbox */
+#define VSPEC1_MBOX_DATA	0x5
+#define VSPEC1_MBOX_ADDRLO	0x6
+#define VSPEC1_MBOX_CMD		0x7
+#define VSPEC1_MBOX_CMD_ADDRHI	GENMASK(7, 0)
+#define VSPEC1_MBOX_CMD_RD	(0 << 8)
+#define VSPEC1_MBOX_CMD_READY	BIT(15)
+
 /* WoL */
 #define VPSPEC2_WOL_CTL		0x0E06
 #define VPSPEC2_WOL_AD01	0x0E08
@@ -77,7 +86,13 @@
 #define VPSPEC2_WOL_AD45	0x0E0A
 #define WOL_EN			BIT(0)
 
+/* Internal registers, access via mbox */
+#define REG_GPIO0_OUT		0xd3ce00
+
 struct gpy_priv {
+	/* serialize mailbox acesses */
+	struct mutex mbox_lock;
+
 	u8 fw_major;
 	u8 fw_minor;
 };
@@ -187,6 +202,45 @@ static int gpy_hwmon_register(struct phy_device *phydev)
 }
 #endif
 
+static int gpy_mbox_read(struct phy_device *phydev, u32 addr)
+{
+	struct gpy_priv *priv = phydev->priv;
+	int val, ret;
+	u16 cmd;
+
+	mutex_lock(&priv->mbox_lock);
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_MBOX_ADDRLO,
+			    addr);
+	if (ret)
+		goto out;
+
+	cmd = VSPEC1_MBOX_CMD_RD;
+	cmd |= FIELD_PREP(VSPEC1_MBOX_CMD_ADDRHI, addr >> 16);
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_MBOX_CMD, cmd);
+	if (ret)
+		goto out;
+
+	/* The mbox read is used in the interrupt workaround. It was observed
+	 * that a read might take up to 2.5ms. This is also the time for which
+	 * the interrupt line is stuck low. To be on the safe side, poll the
+	 * ready bit for 10ms.
+	 */
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
+					VSPEC1_MBOX_CMD, val,
+					(val & VSPEC1_MBOX_CMD_READY),
+					500, 10000, false);
+	if (ret)
+		goto out;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_MBOX_DATA);
+
+out:
+	mutex_unlock(&priv->mbox_lock);
+	return ret;
+}
+
 static int gpy_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -199,6 +253,13 @@ static int gpy_config_init(struct phy_device *phydev)
 	/* Clear all pending interrupts */
 	ret = phy_read(phydev, PHY_ISTAT);
 	return ret < 0 ? ret : 0;
+}
+
+static bool gpy_has_broken_mdint(struct phy_device *phydev)
+{
+	/* At least these PHYs are known to have broken interrupt handling */
+	return phydev->drv->phy_id == PHY_ID_GPY215B ||
+	       phydev->drv->phy_id == PHY_ID_GPY215C;
 }
 
 static int gpy_probe(struct phy_device *phydev)
@@ -218,6 +279,7 @@ static int gpy_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;
+	mutex_init(&priv->mbox_lock);
 
 	fw_version = phy_read(phydev, PHY_FWV);
 	if (fw_version < 0)
@@ -491,6 +553,29 @@ static irqreturn_t gpy_handle_interrupt(struct phy_device *phydev)
 
 	if (!(reg & PHY_IMASK_MASK))
 		return IRQ_NONE;
+
+	/* The PHY might leave the interrupt line asserted even after PHY_ISTAT
+	 * is read. To avoid interrupt storms, delay the interrupt handling as
+	 * long as the PHY drives the interrupt line. An internal bus read will
+	 * stall as long as the interrupt line is asserted, thus just read a
+	 * random register here.
+	 * Because we cannot access the internal bus at all while the interrupt
+	 * is driven by the PHY, there is no way to make the interrupt line
+	 * unstuck (e.g. by changing the pinmux to GPIO input) during that time
+	 * frame. Therefore, polling is the best we can do and won't do any more
+	 * harm.
+	 * It was observed that this bug happens on link state and link speed
+	 * changes on a GPY215B and GYP215C independent of the firmware version
+	 * (which doesn't mean that this list is exhaustive).
+	 */
+	if (gpy_has_broken_mdint(phydev) &&
+	    (reg & (PHY_IMASK_LSTC | PHY_IMASK_LSPC))) {
+		reg = gpy_mbox_read(phydev, REG_GPIO0_OUT);
+		if (reg < 0) {
+			phy_error(phydev);
+			return IRQ_NONE;
+		}
+	}
 
 	phy_trigger_machine(phydev);
 

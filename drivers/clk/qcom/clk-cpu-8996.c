@@ -49,6 +49,7 @@
  * detect voltage droops.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
@@ -59,9 +60,10 @@
 
 #include "clk-alpha-pll.h"
 #include "clk-regmap.h"
+#include "clk-regmap-mux.h"
 
 enum _pmux_input {
-	DIV_2_INDEX = 0,
+	SMUX_INDEX = 0,
 	PLL_INDEX,
 	ACD_INDEX,
 	ALT_INDEX,
@@ -74,6 +76,8 @@ enum _pmux_input {
 #define MUX_OFFSET	0x40
 #define ALT_PLL_OFFSET	0x100
 #define SSSCTL_OFFSET 0x160
+
+#define PMUX_MASK	0x3
 
 static const u8 prim_pll_regs[PLL_OFF_MAX_REGS] = {
 	[PLL_OFF_L_VAL] = 0x04,
@@ -111,16 +115,8 @@ static const struct alpha_pll_config hfpll_config = {
 	.early_output_mask = BIT(3),
 };
 
-static struct clk_alpha_pll perfcl_pll = {
-	.offset = PERFCL_REG_OFFSET,
-	.regs = prim_pll_regs,
-	.flags = SUPPORTS_DYNAMIC_UPDATE | SUPPORTS_FSM_MODE,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "perfcl_pll",
-		.parent_names = (const char *[]){ "xo" },
-		.num_parents = 1,
-		.ops = &clk_alpha_pll_huayra_ops,
-	},
+static const struct clk_parent_data pll_parent[] = {
+	{ .fw_name = "xo" },
 };
 
 static struct clk_alpha_pll pwrcl_pll = {
@@ -129,9 +125,77 @@ static struct clk_alpha_pll pwrcl_pll = {
 	.flags = SUPPORTS_DYNAMIC_UPDATE | SUPPORTS_FSM_MODE,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pwrcl_pll",
-		.parent_names = (const char *[]){ "xo" },
-		.num_parents = 1,
+		.parent_data = pll_parent,
+		.num_parents = ARRAY_SIZE(pll_parent),
 		.ops = &clk_alpha_pll_huayra_ops,
+	},
+};
+
+static struct clk_alpha_pll perfcl_pll = {
+	.offset = PERFCL_REG_OFFSET,
+	.regs = prim_pll_regs,
+	.flags = SUPPORTS_DYNAMIC_UPDATE | SUPPORTS_FSM_MODE,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "perfcl_pll",
+		.parent_data = pll_parent,
+		.num_parents = ARRAY_SIZE(pll_parent),
+		.ops = &clk_alpha_pll_huayra_ops,
+	},
+};
+
+static struct clk_fixed_factor pwrcl_pll_postdiv = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data){
+		.name = "pwrcl_pll_postdiv",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &pwrcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor perfcl_pll_postdiv = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data){
+		.name = "perfcl_pll_postdiv",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &perfcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor perfcl_pll_acd = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "perfcl_pll_acd",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &perfcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor pwrcl_pll_acd = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "pwrcl_pll_acd",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &pwrcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -153,20 +217,6 @@ static const struct alpha_pll_config altpll_config = {
 	.early_output_mask = BIT(3),
 };
 
-static struct clk_alpha_pll perfcl_alt_pll = {
-	.offset = PERFCL_REG_OFFSET + ALT_PLL_OFFSET,
-	.regs = alt_pll_regs,
-	.vco_table = alt_pll_vco_modes,
-	.num_vco = ARRAY_SIZE(alt_pll_vco_modes),
-	.flags = SUPPORTS_OFFLINE_REQ | SUPPORTS_FSM_MODE,
-	.clkr.hw.init = &(struct clk_init_data) {
-		.name = "perfcl_alt_pll",
-		.parent_names = (const char *[]){ "xo" },
-		.num_parents = 1,
-		.ops = &clk_alpha_pll_hwfsm_ops,
-	},
-};
-
 static struct clk_alpha_pll pwrcl_alt_pll = {
 	.offset = PWRCL_REG_OFFSET + ALT_PLL_OFFSET,
 	.regs = alt_pll_regs,
@@ -175,71 +225,79 @@ static struct clk_alpha_pll pwrcl_alt_pll = {
 	.flags = SUPPORTS_OFFLINE_REQ | SUPPORTS_FSM_MODE,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_alt_pll",
-		.parent_names = (const char *[]){ "xo" },
-		.num_parents = 1,
+		.parent_data = pll_parent,
+		.num_parents = ARRAY_SIZE(pll_parent),
 		.ops = &clk_alpha_pll_hwfsm_ops,
 	},
 };
 
-struct clk_cpu_8996_mux {
+static struct clk_alpha_pll perfcl_alt_pll = {
+	.offset = PERFCL_REG_OFFSET + ALT_PLL_OFFSET,
+	.regs = alt_pll_regs,
+	.vco_table = alt_pll_vco_modes,
+	.num_vco = ARRAY_SIZE(alt_pll_vco_modes),
+	.flags = SUPPORTS_OFFLINE_REQ | SUPPORTS_FSM_MODE,
+	.clkr.hw.init = &(struct clk_init_data) {
+		.name = "perfcl_alt_pll",
+		.parent_data = pll_parent,
+		.num_parents = ARRAY_SIZE(pll_parent),
+		.ops = &clk_alpha_pll_hwfsm_ops,
+	},
+};
+
+struct clk_cpu_8996_pmux {
 	u32	reg;
-	u8	shift;
-	u8	width;
 	struct notifier_block nb;
-	struct clk_hw	*pll;
-	struct clk_hw	*pll_div_2;
 	struct clk_regmap clkr;
 };
 
 static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 			       void *data);
 
-#define to_clk_cpu_8996_mux_nb(_nb) \
-	container_of(_nb, struct clk_cpu_8996_mux, nb)
+#define to_clk_cpu_8996_pmux_nb(_nb) \
+	container_of(_nb, struct clk_cpu_8996_pmux, nb)
 
-static inline struct clk_cpu_8996_mux *to_clk_cpu_8996_mux_hw(struct clk_hw *hw)
+static inline struct clk_cpu_8996_pmux *to_clk_cpu_8996_pmux_hw(struct clk_hw *hw)
 {
-	return container_of(to_clk_regmap(hw), struct clk_cpu_8996_mux, clkr);
+	return container_of(to_clk_regmap(hw), struct clk_cpu_8996_pmux, clkr);
 }
 
-static u8 clk_cpu_8996_mux_get_parent(struct clk_hw *hw)
+static u8 clk_cpu_8996_pmux_get_parent(struct clk_hw *hw)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_hw(hw);
-	u32 mask = GENMASK(cpuclk->width - 1, 0);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
 	u32 val;
 
 	regmap_read(clkr->regmap, cpuclk->reg, &val);
-	val >>= cpuclk->shift;
 
-	return val & mask;
+	return FIELD_GET(PMUX_MASK, val);
 }
 
-static int clk_cpu_8996_mux_set_parent(struct clk_hw *hw, u8 index)
+static int clk_cpu_8996_pmux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_hw(hw);
-	u32 mask = GENMASK(cpuclk->width + cpuclk->shift - 1, cpuclk->shift);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
 	u32 val;
 
-	val = index;
-	val <<= cpuclk->shift;
+	val = FIELD_PREP(PMUX_MASK, index);
 
-	return regmap_update_bits(clkr->regmap, cpuclk->reg, mask, val);
+	return regmap_update_bits(clkr->regmap, cpuclk->reg, PMUX_MASK, val);
 }
 
-static int clk_cpu_8996_mux_determine_rate(struct clk_hw *hw,
+static int clk_cpu_8996_pmux_determine_rate(struct clk_hw *hw,
 					   struct clk_rate_request *req)
 {
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_hw(hw);
-	struct clk_hw *parent = cpuclk->pll;
+	struct clk_hw *parent;
 
-	if (cpuclk->pll_div_2 && req->rate < DIV_2_THRESHOLD) {
-		if (req->rate < (DIV_2_THRESHOLD / 2))
-			return -EINVAL;
+	if (req->rate < (DIV_2_THRESHOLD / 2))
+		return -EINVAL;
 
-		parent = cpuclk->pll_div_2;
-	}
+	if (req->rate < DIV_2_THRESHOLD)
+		parent = clk_hw_get_parent_by_index(hw, SMUX_INDEX);
+	else
+		parent = clk_hw_get_parent_by_index(hw, ACD_INDEX);
+	if (!parent)
+		return -EINVAL;
 
 	req->best_parent_rate = clk_hw_round_rate(parent, req->rate);
 	req->best_parent_hw = parent;
@@ -247,83 +305,83 @@ static int clk_cpu_8996_mux_determine_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static const struct clk_ops clk_cpu_8996_mux_ops = {
-	.set_parent = clk_cpu_8996_mux_set_parent,
-	.get_parent = clk_cpu_8996_mux_get_parent,
-	.determine_rate = clk_cpu_8996_mux_determine_rate,
+static const struct clk_ops clk_cpu_8996_pmux_ops = {
+	.set_parent = clk_cpu_8996_pmux_set_parent,
+	.get_parent = clk_cpu_8996_pmux_get_parent,
+	.determine_rate = clk_cpu_8996_pmux_determine_rate,
 };
 
-static struct clk_cpu_8996_mux pwrcl_smux = {
+static const struct clk_parent_data pwrcl_smux_parents[] = {
+	{ .fw_name = "xo" },
+	{ .hw = &pwrcl_pll_postdiv.hw },
+};
+
+static const struct clk_parent_data perfcl_smux_parents[] = {
+	{ .fw_name = "xo" },
+	{ .hw = &perfcl_pll_postdiv.hw },
+};
+
+static struct clk_regmap_mux pwrcl_smux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 2,
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_smux",
-		.parent_names = (const char *[]){
-			"xo",
-			"pwrcl_pll_main",
-		},
-		.num_parents = 2,
-		.ops = &clk_cpu_8996_mux_ops,
+		.parent_data = pwrcl_smux_parents,
+		.num_parents = ARRAY_SIZE(pwrcl_smux_parents),
+		.ops = &clk_regmap_mux_closest_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_cpu_8996_mux perfcl_smux = {
+static struct clk_regmap_mux perfcl_smux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 2,
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "perfcl_smux",
-		.parent_names = (const char *[]){
-			"xo",
-			"perfcl_pll_main",
-		},
-		.num_parents = 2,
-		.ops = &clk_cpu_8996_mux_ops,
+		.parent_data = perfcl_smux_parents,
+		.num_parents = ARRAY_SIZE(perfcl_smux_parents),
+		.ops = &clk_regmap_mux_closest_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_cpu_8996_mux pwrcl_pmux = {
+static const struct clk_hw *pwrcl_pmux_parents[] = {
+	[SMUX_INDEX] = &pwrcl_smux.clkr.hw,
+	[PLL_INDEX] = &pwrcl_pll.clkr.hw,
+	[ACD_INDEX] = &pwrcl_pll_acd.hw,
+	[ALT_INDEX] = &pwrcl_alt_pll.clkr.hw,
+};
+
+static const struct clk_hw *perfcl_pmux_parents[] = {
+	[SMUX_INDEX] = &perfcl_smux.clkr.hw,
+	[PLL_INDEX] = &perfcl_pll.clkr.hw,
+	[ACD_INDEX] = &perfcl_pll_acd.hw,
+	[ALT_INDEX] = &perfcl_alt_pll.clkr.hw,
+};
+
+static struct clk_cpu_8996_pmux pwrcl_pmux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
-	.shift = 0,
-	.width = 2,
-	.pll = &pwrcl_pll.clkr.hw,
-	.pll_div_2 = &pwrcl_smux.clkr.hw,
 	.nb.notifier_call = cpu_clk_notifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_pmux",
-		.parent_names = (const char *[]){
-			"pwrcl_smux",
-			"pwrcl_pll",
-			"pwrcl_pll_acd",
-			"pwrcl_alt_pll",
-		},
-		.num_parents = 4,
-		.ops = &clk_cpu_8996_mux_ops,
+		.parent_hws = pwrcl_pmux_parents,
+		.num_parents = ARRAY_SIZE(pwrcl_pmux_parents),
+		.ops = &clk_cpu_8996_pmux_ops,
 		/* CPU clock is critical and should never be gated */
 		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 	},
 };
 
-static struct clk_cpu_8996_mux perfcl_pmux = {
+static struct clk_cpu_8996_pmux perfcl_pmux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
-	.shift = 0,
-	.width = 2,
-	.pll = &perfcl_pll.clkr.hw,
-	.pll_div_2 = &perfcl_smux.clkr.hw,
 	.nb.notifier_call = cpu_clk_notifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "perfcl_pmux",
-		.parent_names = (const char *[]){
-			"perfcl_smux",
-			"perfcl_pll",
-			"perfcl_pll_acd",
-			"perfcl_alt_pll",
-		},
-		.num_parents = 4,
-		.ops = &clk_cpu_8996_mux_ops,
+		.parent_hws = perfcl_pmux_parents,
+		.num_parents = ARRAY_SIZE(perfcl_pmux_parents),
+		.ops = &clk_cpu_8996_pmux_ops,
 		/* CPU clock is critical and should never be gated */
 		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 	},
@@ -338,15 +396,22 @@ static const struct regmap_config cpu_msm8996_regmap_config = {
 	.val_format_endian	= REGMAP_ENDIAN_LITTLE,
 };
 
+static struct clk_hw *cpu_msm8996_hw_clks[] = {
+	&pwrcl_pll_postdiv.hw,
+	&perfcl_pll_postdiv.hw,
+	&pwrcl_pll_acd.hw,
+	&perfcl_pll_acd.hw,
+};
+
 static struct clk_regmap *cpu_msm8996_clks[] = {
-	&perfcl_pll.clkr,
 	&pwrcl_pll.clkr,
-	&perfcl_alt_pll.clkr,
+	&perfcl_pll.clkr,
 	&pwrcl_alt_pll.clkr,
-	&perfcl_smux.clkr,
+	&perfcl_alt_pll.clkr,
 	&pwrcl_smux.clkr,
-	&perfcl_pmux.clkr,
+	&perfcl_smux.clkr,
 	&pwrcl_pmux.clkr,
+	&perfcl_pmux.clkr,
 };
 
 static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
@@ -354,65 +419,31 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 {
 	int i, ret;
 
-	perfcl_smux.pll = clk_hw_register_fixed_factor(dev, "perfcl_pll_main",
-						       "perfcl_pll",
-						       CLK_SET_RATE_PARENT,
-						       1, 2);
-	if (IS_ERR(perfcl_smux.pll)) {
-		dev_err(dev, "Failed to initialize perfcl_pll_main\n");
-		return PTR_ERR(perfcl_smux.pll);
-	}
-
-	pwrcl_smux.pll = clk_hw_register_fixed_factor(dev, "pwrcl_pll_main",
-						      "pwrcl_pll",
-						      CLK_SET_RATE_PARENT,
-						      1, 2);
-	if (IS_ERR(pwrcl_smux.pll)) {
-		dev_err(dev, "Failed to initialize pwrcl_pll_main\n");
-		clk_hw_unregister(perfcl_smux.pll);
-		return PTR_ERR(pwrcl_smux.pll);
+	for (i = 0; i < ARRAY_SIZE(cpu_msm8996_hw_clks); i++) {
+		ret = devm_clk_hw_register(dev, cpu_msm8996_hw_clks[i]);
+		if (ret)
+			return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cpu_msm8996_clks); i++) {
 		ret = devm_clk_register_regmap(dev, cpu_msm8996_clks[i]);
-		if (ret) {
-			clk_hw_unregister(perfcl_smux.pll);
-			clk_hw_unregister(pwrcl_smux.pll);
+		if (ret)
 			return ret;
-		}
 	}
 
-	clk_alpha_pll_configure(&perfcl_pll, regmap, &hfpll_config);
 	clk_alpha_pll_configure(&pwrcl_pll, regmap, &hfpll_config);
-	clk_alpha_pll_configure(&perfcl_alt_pll, regmap, &altpll_config);
+	clk_alpha_pll_configure(&perfcl_pll, regmap, &hfpll_config);
 	clk_alpha_pll_configure(&pwrcl_alt_pll, regmap, &altpll_config);
+	clk_alpha_pll_configure(&perfcl_alt_pll, regmap, &altpll_config);
 
 	/* Enable alt PLLs */
 	clk_prepare_enable(pwrcl_alt_pll.clkr.hw.clk);
 	clk_prepare_enable(perfcl_alt_pll.clkr.hw.clk);
 
-	clk_notifier_register(pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
-	clk_notifier_register(perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
+	devm_clk_notifier_register(dev, pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
+	devm_clk_notifier_register(dev, perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
 
 	return ret;
-}
-
-static int qcom_cpu_clk_msm8996_unregister_clks(void)
-{
-	int ret = 0;
-
-	ret = clk_notifier_unregister(pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
-	if (ret)
-		return ret;
-
-	ret = clk_notifier_unregister(perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
-	if (ret)
-		return ret;
-
-	clk_hw_unregister(perfcl_smux.pll);
-	clk_hw_unregister(pwrcl_smux.pll);
-
-	return 0;
 }
 
 #define CPU_AFINITY_MASK 0xFFF
@@ -456,22 +487,22 @@ static void qcom_cpu_clk_msm8996_acd_init(void __iomem *base)
 static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 			       void *data)
 {
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_nb(nb);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_nb(nb);
 	struct clk_notifier_data *cnd = data;
 	int ret;
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
-		ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw, ALT_INDEX);
+		ret = clk_cpu_8996_pmux_set_parent(&cpuclk->clkr.hw, ALT_INDEX);
 		qcom_cpu_clk_msm8996_acd_init(base);
 		break;
 	case POST_RATE_CHANGE:
 		if (cnd->new_rate < DIV_2_THRESHOLD)
-			ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw,
-							  DIV_2_INDEX);
+			ret = clk_cpu_8996_pmux_set_parent(&cpuclk->clkr.hw,
+							   SMUX_INDEX);
 		else
-			ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw,
-							  ACD_INDEX);
+			ret = clk_cpu_8996_pmux_set_parent(&cpuclk->clkr.hw,
+							   ACD_INDEX);
 		break;
 	default:
 		ret = 0;
@@ -513,11 +544,6 @@ static int qcom_cpu_clk_msm8996_driver_probe(struct platform_device *pdev)
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, data);
 }
 
-static int qcom_cpu_clk_msm8996_driver_remove(struct platform_device *pdev)
-{
-	return qcom_cpu_clk_msm8996_unregister_clks();
-}
-
 static const struct of_device_id qcom_cpu_clk_msm8996_match_table[] = {
 	{ .compatible = "qcom,msm8996-apcc" },
 	{}
@@ -526,7 +552,6 @@ MODULE_DEVICE_TABLE(of, qcom_cpu_clk_msm8996_match_table);
 
 static struct platform_driver qcom_cpu_clk_msm8996_driver = {
 	.probe = qcom_cpu_clk_msm8996_driver_probe,
-	.remove = qcom_cpu_clk_msm8996_driver_remove,
 	.driver = {
 		.name = "qcom-msm8996-apcc",
 		.of_match_table = qcom_cpu_clk_msm8996_match_table,

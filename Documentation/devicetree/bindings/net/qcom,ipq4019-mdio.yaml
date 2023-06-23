@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/qcom,ipq4019-mdio.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm IPQ40xx MDIO Controller Device Tree Bindings
+title: Qualcomm IPQ40xx MDIO Controller
 
 maintainers:
   - Robert Marko <robert.marko@sartura.hr>

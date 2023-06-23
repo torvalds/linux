@@ -5330,7 +5330,7 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.max_power_index = 0x7f,
 	.csi_buf_pg_num = 50,
 	.band = RTW_BAND_2G | RTW_BAND_5G,
-	.page_size = 128,
+	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x20,
 	.default_1ss_tx_path = BB_PATH_A,
 	.path_div_supported = true,
@@ -5375,6 +5375,7 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.wowlan_stub = &rtw_wowlan_stub_8822c,
 	.max_sched_scan_ssids = 4,
 #endif
+	.max_scan_ie_len = (RTW_PROBE_PG_CNT - 1) * TX_PAGE_SIZE,
 	.coex_para_ver = 0x22020720,
 	.bt_desired_ver = 0x20,
 	.scbd_support = true,

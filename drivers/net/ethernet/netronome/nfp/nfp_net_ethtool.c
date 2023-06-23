@@ -205,7 +205,7 @@ nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
 {
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 
-	strlcpy(drvinfo->driver, dev_driver_string(&pdev->dev),
+	strscpy(drvinfo->driver, dev_driver_string(&pdev->dev),
 		sizeof(drvinfo->driver));
 	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -222,10 +222,41 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
 		 nn->fw_ver.extend, nn->fw_ver.class,
 		 nn->fw_ver.major, nn->fw_ver.minor);
-	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
+	strscpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
 	nfp_get_drvinfo(nn->app, nn->pdev, vnic_version, drvinfo);
+}
+
+static int
+nfp_net_nway_reset(struct net_device *netdev)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return -EOPNOTSUPP;
+
+	if (!netif_running(netdev))
+		return 0;
+
+	err = nfp_eth_set_configured(port->app->cpp, eth_port->index, false);
+	if (err) {
+		netdev_info(netdev, "Link down failed: %d\n", err);
+		return err;
+	}
+
+	err = nfp_eth_set_configured(port->app->cpp, eth_port->index, true);
+	if (err) {
+		netdev_info(netdev, "Link up failed: %d\n", err);
+		return err;
+	}
+
+	netdev_info(netdev, "Link reset succeeded\n");
+	return 0;
 }
 
 static void
@@ -233,7 +264,7 @@ nfp_app_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
 
-	strlcpy(drvinfo->bus_info, pci_name(app->pdev),
+	strscpy(drvinfo->bus_info, pci_name(app->pdev),
 		sizeof(drvinfo->bus_info));
 	nfp_get_drvinfo(app, app->pdev, "*", drvinfo);
 }
@@ -273,20 +304,11 @@ static int
 nfp_net_get_link_ksettings(struct net_device *netdev,
 			   struct ethtool_link_ksettings *cmd)
 {
-	static const u32 ls_to_ethtool[] = {
-		[NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED]	= 0,
-		[NFP_NET_CFG_STS_LINK_RATE_UNKNOWN]	= SPEED_UNKNOWN,
-		[NFP_NET_CFG_STS_LINK_RATE_1G]		= SPEED_1000,
-		[NFP_NET_CFG_STS_LINK_RATE_10G]		= SPEED_10000,
-		[NFP_NET_CFG_STS_LINK_RATE_25G]		= SPEED_25000,
-		[NFP_NET_CFG_STS_LINK_RATE_40G]		= SPEED_40000,
-		[NFP_NET_CFG_STS_LINK_RATE_50G]		= SPEED_50000,
-		[NFP_NET_CFG_STS_LINK_RATE_100G]	= SPEED_100000,
-	};
 	struct nfp_eth_table_port *eth_port;
 	struct nfp_port *port;
 	struct nfp_net *nn;
-	u32 sts, ls;
+	unsigned int speed;
+	u16 sts;
 
 	/* Init to unknowns */
 	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
@@ -299,8 +321,13 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	if (eth_port) {
 		ethtool_link_ksettings_add_link_mode(cmd, supported, Pause);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, Pause);
-		cmd->base.autoneg = eth_port->aneg != NFP_ANEG_DISABLED ?
-			AUTONEG_ENABLE : AUTONEG_DISABLE;
+		if (eth_port->supp_aneg) {
+			ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
+			if (eth_port->aneg == NFP_ANEG_AUTO) {
+				ethtool_link_ksettings_add_link_mode(cmd, advertising, Autoneg);
+				cmd->base.autoneg = AUTONEG_ENABLE;
+			}
+		}
 		nfp_net_set_fec_link_mode(eth_port, cmd);
 	}
 
@@ -319,18 +346,15 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 		return -EOPNOTSUPP;
 	nn = netdev_priv(netdev);
 
-	sts = nn_readl(nn, NFP_NET_CFG_STS);
-
-	ls = FIELD_GET(NFP_NET_CFG_STS_LINK_RATE, sts);
-	if (ls == NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED)
+	sts = nn_readw(nn, NFP_NET_CFG_STS);
+	speed = nfp_net_lr2speed(FIELD_GET(NFP_NET_CFG_STS_LINK_RATE, sts));
+	if (!speed)
 		return -EOPNOTSUPP;
 
-	if (ls == NFP_NET_CFG_STS_LINK_RATE_UNKNOWN ||
-	    ls >= ARRAY_SIZE(ls_to_ethtool))
-		return 0;
-
-	cmd->base.speed = ls_to_ethtool[ls];
-	cmd->base.duplex = DUPLEX_FULL;
+	if (speed != SPEED_UNKNOWN) {
+		cmd->base.speed = speed;
+		cmd->base.duplex = DUPLEX_FULL;
+	}
 
 	return 0;
 }
@@ -339,6 +363,7 @@ static int
 nfp_net_set_link_ksettings(struct net_device *netdev,
 			   const struct ethtool_link_ksettings *cmd)
 {
+	bool req_aneg = (cmd->base.autoneg == AUTONEG_ENABLE);
 	struct nfp_eth_table_port *eth_port;
 	struct nfp_port *port;
 	struct nfp_nsp *nsp;
@@ -358,12 +383,24 @@ nfp_net_set_link_ksettings(struct net_device *netdev,
 	if (IS_ERR(nsp))
 		return PTR_ERR(nsp);
 
-	err = __nfp_eth_set_aneg(nsp, cmd->base.autoneg == AUTONEG_ENABLE ?
-				 NFP_ANEG_AUTO : NFP_ANEG_DISABLED);
+	if (req_aneg && !eth_port->supp_aneg) {
+		netdev_warn(netdev, "Autoneg is not supported.\n");
+		err = -EOPNOTSUPP;
+		goto err_bad_set;
+	}
+
+	err = __nfp_eth_set_aneg(nsp, req_aneg ? NFP_ANEG_AUTO : NFP_ANEG_DISABLED);
 	if (err)
 		goto err_bad_set;
+
 	if (cmd->base.speed != SPEED_UNKNOWN) {
 		u32 speed = cmd->base.speed / eth_port->lanes;
+
+		if (req_aneg) {
+			netdev_err(netdev, "Speed changing is not allowed when working on autoneg mode.\n");
+			err = -EINVAL;
+			goto err_bad_set;
+		}
 
 		err = __nfp_eth_set_speed(nsp, speed);
 		if (err)
@@ -1008,7 +1045,7 @@ nfp_port_get_fecparam(struct net_device *netdev,
 		return 0;
 
 	param->fec = nfp_port_fec_nsp_to_ethtool(eth_port->fec_modes_supported);
-	param->active_fec = nfp_port_fec_nsp_to_ethtool(eth_port->fec);
+	param->active_fec = nfp_port_fec_nsp_to_ethtool(BIT(eth_port->act_fec));
 
 	return 0;
 }
@@ -1395,6 +1432,9 @@ nfp_port_get_module_info(struct net_device *netdev,
 	u8 data;
 
 	port = nfp_port_from_netdev(netdev);
+	if (!port)
+		return -EOPNOTSUPP;
+
 	/* update port state to get latest interface */
 	set_bit(NFP_PORT_CHANGED, &port->flags);
 	eth_port = nfp_port_get_eth_port(port);
@@ -1440,15 +1480,15 @@ nfp_port_get_module_info(struct net_device *netdev,
 
 		if (data < 0x3) {
 			modinfo->type = ETH_MODULE_SFF_8436;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		} else {
 			modinfo->type = ETH_MODULE_SFF_8636;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		}
 		break;
 	case NFP_INTERFACE_QSFP28:
 		modinfo->type = ETH_MODULE_SFF_8636;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		break;
 	default:
 		netdev_err(netdev, "Unsupported module 0x%x detected\n",
@@ -1676,11 +1716,166 @@ static int nfp_net_set_phys_id(struct net_device *netdev,
 	return err;
 }
 
+#define NFP_EEPROM_LEN ETH_ALEN
+
+static int
+nfp_net_get_eeprom_len(struct net_device *netdev)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return 0;
+
+	return NFP_EEPROM_LEN;
+}
+
+static int
+nfp_net_get_nsp_hwindex(struct net_device *netdev,
+			struct nfp_nsp **nspptr,
+			u32 *index)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	struct nfp_nsp *nsp;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return -EOPNOTSUPP;
+
+	nsp = nfp_nsp_open(port->app->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		netdev_err(netdev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	if (!nfp_nsp_has_hwinfo_lookup(nsp)) {
+		netdev_err(netdev, "NSP doesn't support PF MAC generation\n");
+		nfp_nsp_close(nsp);
+		return -EOPNOTSUPP;
+	}
+
+	*nspptr = nsp;
+	*index = eth_port->eth_index;
+
+	return 0;
+}
+
+static int
+nfp_net_get_port_mac_by_hwinfo(struct net_device *netdev,
+			       u8 *mac_addr)
+{
+	char hwinfo[32] = {};
+	struct nfp_nsp *nsp;
+	u32 index;
+	int err;
+
+	err = nfp_net_get_nsp_hwindex(netdev, &nsp, &index);
+	if (err)
+		return err;
+
+	snprintf(hwinfo, sizeof(hwinfo), "eth%u.mac", index);
+	err = nfp_nsp_hwinfo_lookup(nsp, hwinfo, sizeof(hwinfo));
+	nfp_nsp_close(nsp);
+	if (err) {
+		netdev_err(netdev, "Reading persistent MAC address failed: %d\n",
+			   err);
+		return -EOPNOTSUPP;
+	}
+
+	if (sscanf(hwinfo, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+		   &mac_addr[0], &mac_addr[1], &mac_addr[2],
+		   &mac_addr[3], &mac_addr[4], &mac_addr[5]) != 6) {
+		netdev_err(netdev, "Can't parse persistent MAC address (%s)\n",
+			   hwinfo);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+nfp_net_set_port_mac_by_hwinfo(struct net_device *netdev,
+			       u8 *mac_addr)
+{
+	char hwinfo[32] = {};
+	struct nfp_nsp *nsp;
+	u32 index;
+	int err;
+
+	err = nfp_net_get_nsp_hwindex(netdev, &nsp, &index);
+	if (err)
+		return err;
+
+	snprintf(hwinfo, sizeof(hwinfo),
+		 "eth%u.mac=%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+		 index, mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
+		 mac_addr[4], mac_addr[5]);
+
+	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
+	nfp_nsp_close(nsp);
+	if (err) {
+		netdev_err(netdev, "HWinfo set failed: %d, hwinfo: %s\n",
+			   err, hwinfo);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+nfp_net_get_eeprom(struct net_device *netdev,
+		   struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	u8 buf[NFP_EEPROM_LEN] = {};
+
+	if (eeprom->len == 0)
+		return -EINVAL;
+
+	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
+	eeprom->magic = nn->pdev->vendor | (nn->pdev->device << 16);
+	memcpy(bytes, buf + eeprom->offset, eeprom->len);
+
+	return 0;
+}
+
+static int
+nfp_net_set_eeprom(struct net_device *netdev,
+		   struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	u8 buf[NFP_EEPROM_LEN] = {};
+
+	if (eeprom->len == 0)
+		return -EINVAL;
+
+	if (eeprom->magic != (nn->pdev->vendor | nn->pdev->device << 16))
+		return -EINVAL;
+
+	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
+	memcpy(buf + eeprom->offset, bytes, eeprom->len);
+	if (nfp_net_set_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.get_drvinfo		= nfp_net_get_drvinfo,
+	.nway_reset             = nfp_net_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= nfp_net_get_ringparam,
 	.set_ringparam		= nfp_net_set_ringparam,
@@ -1699,6 +1894,9 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
 	.get_dump_data		= nfp_app_get_dump_data,
+	.get_eeprom_len         = nfp_net_get_eeprom_len,
+	.get_eeprom             = nfp_net_get_eeprom,
+	.set_eeprom             = nfp_net_set_eeprom,
 	.get_module_info	= nfp_port_get_module_info,
 	.get_module_eeprom	= nfp_port_get_module_eeprom,
 	.get_coalesce           = nfp_net_get_coalesce,
@@ -1715,6 +1913,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 
 const struct ethtool_ops nfp_port_ethtool_ops = {
 	.get_drvinfo		= nfp_app_get_drvinfo,
+	.nway_reset             = nfp_net_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_strings		= nfp_port_get_strings,
 	.get_ethtool_stats	= nfp_port_get_stats,

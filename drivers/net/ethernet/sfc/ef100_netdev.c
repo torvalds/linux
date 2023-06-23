@@ -23,6 +23,7 @@
 #include "mcdi_filters.h"
 #include "rx_common.h"
 #include "ef100_sriov.h"
+#include "tc_bindings.h"
 
 static void ef100_update_name(struct efx_nic *efx)
 {
@@ -217,6 +218,7 @@ netdev_tx_t __ef100_hard_start_xmit(struct sk_buff *skb,
 		   skb->len, skb->data_len, channel->channel);
 	if (!efx->n_channels || !efx->n_tx_channels || !channel) {
 		netif_stop_queue(net_dev);
+		dev_kfree_skb_any(skb);
 		goto err;
 	}
 
@@ -245,6 +247,9 @@ static const struct net_device_ops ef100_netdev_ops = {
 	.ndo_get_phys_port_name = efx_get_phys_port_name,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer      = efx_filter_rfs,
+#endif
+#ifdef CONFIG_SFC_SRIOV
+	.ndo_setup_tc		= efx_tc_setup,
 #endif
 };
 

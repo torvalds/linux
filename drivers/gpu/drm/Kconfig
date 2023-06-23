@@ -31,6 +31,7 @@ menuconfig DRM
 config DRM_MIPI_DBI
 	tristate
 	depends on DRM
+	select DRM_KMS_HELPER
 
 config DRM_MIPI_DSI
 	bool
@@ -50,10 +51,21 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
-config DRM_DEBUG_SELFTEST
-	tristate "kselftests for DRM"
+config DRM_USE_DYNAMIC_DEBUG
+	bool "use dynamic debug to implement drm.debug"
+	default y
 	depends on DRM
-	depends on DEBUG_KERNEL
+	depends on DYNAMIC_DEBUG || DYNAMIC_DEBUG_CORE
+	depends on JUMP_LABEL
+	help
+	  Use dynamic-debug to avoid drm_debug_enabled() runtime overheads.
+	  Due to callsite counts in DRM drivers (~4k in amdgpu) and 56
+	  bytes per callsite, the .data costs can be substantial, and
+	  are therefore configurable.
+
+config DRM_KUNIT_TEST
+	tristate "KUnit tests for DRM" if !KUNIT_ALL_TESTS
+	depends on DRM && KUNIT
 	select PRIME_NUMBERS
 	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HELPER
@@ -61,19 +73,6 @@ config DRM_DEBUG_SELFTEST
 	select DRM_KMS_HELPER
 	select DRM_BUDDY
 	select DRM_EXPORT_FOR_TESTS if m
-	default n
-	help
-	  This option provides kernel modules that can be used to run
-	  various selftests on parts of the DRM api. This option is not
-	  useful for distributions or general kernels, but only for kernel
-	  developers working on DRM and associated drivers.
-
-	  If in doubt, say "N".
-
-config DRM_KUNIT_TEST
-	tristate "KUnit tests for DRM" if !KUNIT_ALL_TESTS
-	depends on DRM && KUNIT=y
-	select DRM_KMS_HELPER
 	default KUNIT_ALL_TESTS
 	help
 	  This builds unit tests for DRM. This option is not useful for
@@ -214,11 +213,11 @@ config DRM_TTM_HELPER
 	help
 	  Helpers for ttm-based gem objects
 
-config DRM_GEM_CMA_HELPER
+config DRM_GEM_DMA_HELPER
 	tristate
 	depends on DRM
 	help
-	  Choose this if you need the GEM CMA helper functions
+	  Choose this if you need the GEM DMA helper functions
 
 config DRM_GEM_SHMEM_HELPER
 	tristate
@@ -248,6 +247,13 @@ config DRM_RADEON
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
+	# radeon depends on ACPI_VIDEO when ACPI is enabled, for select to work
+	# ACPI_VIDEO's dependencies must also be selected.
+	select INPUT if ACPI
+	select ACPI_VIDEO if ACPI
+	# On x86 ACPI_VIDEO also needs ACPI_WMI
+	select X86_PLATFORM_DEVICES if ACPI && X86
+	select ACPI_WMI if ACPI && X86
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -273,6 +279,13 @@ config DRM_AMDGPU
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
 	select DRM_BUDDY
+	# amdgpu depends on ACPI_VIDEO when ACPI is enabled, for select to work
+	# ACPI_VIDEO's dependencies must also be selected.
+	select INPUT if ACPI
+	select ACPI_VIDEO if ACPI
+	# On x86 ACPI_VIDEO also needs ACPI_WMI
+	select X86_PLATFORM_DEVICES if ACPI && X86
+	select ACPI_WMI if ACPI && X86
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
 

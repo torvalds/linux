@@ -451,8 +451,8 @@ static void ag71xx_get_drvinfo(struct net_device *ndev,
 {
 	struct ag71xx *ag = netdev_priv(ndev);
 
-	strlcpy(info->driver, "ag71xx", sizeof(info->driver));
-	strlcpy(info->bus_info, of_node_full_name(ag->pdev->dev.of_node),
+	strscpy(info->driver, "ag71xx", sizeof(info->driver));
+	strscpy(info->bus_info, of_node_full_name(ag->pdev->dev.of_node),
 		sizeof(info->bus_info));
 }
 
@@ -1427,7 +1427,7 @@ static int ag71xx_open(struct net_device *ndev)
 	if (ret) {
 		netif_err(ag, link, ndev, "phylink_of_phy_connect filed with err: %i\n",
 			  ret);
-		goto err;
+		return ret;
 	}
 
 	max_frame_len = ag71xx_max_frame_len(ndev->mtu);
@@ -1448,6 +1448,7 @@ static int ag71xx_open(struct net_device *ndev)
 
 err:
 	ag71xx_rings_cleanup(ag);
+	phylink_disconnect_phy(ag->phylink);
 	return ret;
 }
 

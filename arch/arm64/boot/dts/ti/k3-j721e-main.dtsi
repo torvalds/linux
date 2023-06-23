@@ -343,7 +343,7 @@
 			compatible = "inside-secure,safexcel-eip76";
 			reg = <0x0 0x4e10000 0x0 0x7d>;
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&k3_clks 264 1>;
+			clocks = <&k3_clks 264 2>;
 		};
 	};
 

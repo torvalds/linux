@@ -902,17 +902,28 @@ static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
 }
 
 static int
-tls_device_reencrypt(struct sock *sk, struct tls_sw_context_rx *sw_ctx)
+tls_device_reencrypt(struct sock *sk, struct tls_context *tls_ctx)
 {
+	struct tls_sw_context_rx *sw_ctx = tls_sw_ctx_rx(tls_ctx);
+	const struct tls_cipher_size_desc *cipher_sz;
 	int err, offset, copy, data_len, pos;
 	struct sk_buff *skb, *skb_iter;
 	struct scatterlist sg[1];
 	struct strp_msg *rxm;
 	char *orig_buf, *buf;
 
+	switch (tls_ctx->crypto_recv.info.cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+	case TLS_CIPHER_AES_GCM_256:
+		break;
+	default:
+		return -EINVAL;
+	}
+	cipher_sz = &tls_cipher_size_desc[tls_ctx->crypto_recv.info.cipher_type];
+
 	rxm = strp_msg(tls_strp_msg(sw_ctx));
-	orig_buf = kmalloc(rxm->full_len + TLS_HEADER_SIZE +
-			   TLS_CIPHER_AES_GCM_128_IV_SIZE, sk->sk_allocation);
+	orig_buf = kmalloc(rxm->full_len + TLS_HEADER_SIZE + cipher_sz->iv,
+			   sk->sk_allocation);
 	if (!orig_buf)
 		return -ENOMEM;
 	buf = orig_buf;
@@ -927,10 +938,8 @@ tls_device_reencrypt(struct sock *sk, struct tls_sw_context_rx *sw_ctx)
 
 	sg_init_table(sg, 1);
 	sg_set_buf(&sg[0], buf,
-		   rxm->full_len + TLS_HEADER_SIZE +
-		   TLS_CIPHER_AES_GCM_128_IV_SIZE);
-	err = skb_copy_bits(skb, offset, buf,
-			    TLS_HEADER_SIZE + TLS_CIPHER_AES_GCM_128_IV_SIZE);
+		   rxm->full_len + TLS_HEADER_SIZE + cipher_sz->iv);
+	err = skb_copy_bits(skb, offset, buf, TLS_HEADER_SIZE + cipher_sz->iv);
 	if (err)
 		goto free_buf;
 
@@ -941,7 +950,7 @@ tls_device_reencrypt(struct sock *sk, struct tls_sw_context_rx *sw_ctx)
 	else
 		err = 0;
 
-	data_len = rxm->full_len - TLS_CIPHER_AES_GCM_128_TAG_SIZE;
+	data_len = rxm->full_len - cipher_sz->tag;
 
 	if (skb_pagelen(skb) > offset) {
 		copy = min_t(int, skb_pagelen(skb) - offset, data_len);
@@ -1024,7 +1033,7 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 		 * likely have initial fragments decrypted, and final ones not
 		 * decrypted. We need to reencrypt that single SKB.
 		 */
-		return tls_device_reencrypt(sk, sw_ctx);
+		return tls_device_reencrypt(sk, tls_ctx);
 	}
 
 	/* Return immediately if the record is either entirely plaintext or
@@ -1041,7 +1050,7 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 	}
 
 	ctx->resync_nh_reset = 1;
-	return tls_device_reencrypt(sk, sw_ctx);
+	return tls_device_reencrypt(sk, tls_ctx);
 }
 
 static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
@@ -1062,9 +1071,9 @@ static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
 
 int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 {
-	u16 nonce_size, tag_size, iv_size, rec_seq_size, salt_size;
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
+	const struct tls_cipher_size_desc *cipher_sz;
 	struct tls_record_info *start_marker_record;
 	struct tls_offload_context_tx *offload_ctx;
 	struct tls_crypto_info *crypto_info;
@@ -1099,44 +1108,44 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
-		nonce_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
-		tag_size = TLS_CIPHER_AES_GCM_128_TAG_SIZE;
-		iv_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
 		iv = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->iv;
-		rec_seq_size = TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE;
-		salt_size = TLS_CIPHER_AES_GCM_128_SALT_SIZE;
 		rec_seq =
 		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
+		break;
+	case TLS_CIPHER_AES_GCM_256:
+		iv = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->iv;
+		rec_seq =
+		 ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->rec_seq;
 		break;
 	default:
 		rc = -EINVAL;
 		goto release_netdev;
 	}
+	cipher_sz = &tls_cipher_size_desc[crypto_info->cipher_type];
 
 	/* Sanity-check the rec_seq_size for stack allocations */
-	if (rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
+	if (cipher_sz->rec_seq > TLS_MAX_REC_SEQ_SIZE) {
 		rc = -EINVAL;
 		goto release_netdev;
 	}
 
 	prot->version = crypto_info->version;
 	prot->cipher_type = crypto_info->cipher_type;
-	prot->prepend_size = TLS_HEADER_SIZE + nonce_size;
-	prot->tag_size = tag_size;
+	prot->prepend_size = TLS_HEADER_SIZE + cipher_sz->iv;
+	prot->tag_size = cipher_sz->tag;
 	prot->overhead_size = prot->prepend_size + prot->tag_size;
-	prot->iv_size = iv_size;
-	prot->salt_size = salt_size;
-	ctx->tx.iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
-			     GFP_KERNEL);
+	prot->iv_size = cipher_sz->iv;
+	prot->salt_size = cipher_sz->salt;
+	ctx->tx.iv = kmalloc(cipher_sz->iv + cipher_sz->salt, GFP_KERNEL);
 	if (!ctx->tx.iv) {
 		rc = -ENOMEM;
 		goto release_netdev;
 	}
 
-	memcpy(ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
+	memcpy(ctx->tx.iv + cipher_sz->salt, iv, cipher_sz->iv);
 
-	prot->rec_seq_size = rec_seq_size;
-	ctx->tx.rec_seq = kmemdup(rec_seq, rec_seq_size, GFP_KERNEL);
+	prot->rec_seq_size = cipher_sz->rec_seq;
+	ctx->tx.rec_seq = kmemdup(rec_seq, cipher_sz->rec_seq, GFP_KERNEL);
 	if (!ctx->tx.rec_seq) {
 		rc = -ENOMEM;
 		goto free_iv;

@@ -404,7 +404,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_LDPC);
 	if ((info->flags & IEEE80211_TX_CTL_STBC) && nss == 1)
 		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_STBC);
-	if (nss > 1 && sta && sta->smps_mode == IEEE80211_SMPS_DYNAMIC)
+	if (nss > 1 && sta && sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC)
 		txwi_flags |= MT_TXWI_FLAGS_MMPS;
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;

@@ -23,11 +23,6 @@
 #define NVM_MAX_SIZE		SZ_512K
 #define NVM_DATA_DWORDS		16
 
-/* Intel specific NVM offsets */
-#define NVM_DEVID		0x05
-#define NVM_VERSION		0x08
-#define NVM_FLASH_SIZE		0x45
-
 /**
  * struct tb_nvm - Structure holding NVM information
  * @dev: Owner of the NVM
@@ -35,28 +30,35 @@
  * @minor: Minor version number of the active NVM portion
  * @id: Identifier used with both NVM portions
  * @active: Active portion NVMem device
+ * @active_size: Size in bytes of the active NVM
  * @non_active: Non-active portion NVMem device
  * @buf: Buffer where the NVM image is stored before it is written to
  *	 the actual NVM flash device
+ * @buf_data_start: Where the actual image starts after skipping
+ *		    possible headers
  * @buf_data_size: Number of bytes actually consumed by the new NVM
  *		   image
  * @authenticating: The device is authenticating the new NVM
  * @flushed: The image has been flushed to the storage area
+ * @vops: Router vendor specific NVM operations (optional)
  *
  * The user of this structure needs to handle serialization of possible
  * concurrent access.
  */
 struct tb_nvm {
 	struct device *dev;
-	u8 major;
-	u8 minor;
+	u32 major;
+	u32 minor;
 	int id;
 	struct nvmem_device *active;
+	size_t active_size;
 	struct nvmem_device *non_active;
 	void *buf;
+	void *buf_data_start;
 	size_t buf_data_size;
 	bool authenticating;
 	bool flushed;
+	const struct tb_nvm_vendor_ops *vops;
 };
 
 enum tb_nvm_write_ops {
@@ -113,8 +115,8 @@ struct tb_switch_tmu {
 enum tb_clx {
 	TB_CLX_DISABLE,
 	/* CL0s and CL1 are enabled and supported together */
-	TB_CL1,
-	TB_CL2,
+	TB_CL1 = BIT(0),
+	TB_CL2 = BIT(1),
 };
 
 /**
@@ -279,12 +281,16 @@ struct tb_port {
  * @can_offline: Does the port have necessary platform support to moved
  *		 it into offline mode and back
  * @offline: The port is currently in offline mode
+ * @margining: Pointer to margining structure if enabled
  */
 struct usb4_port {
 	struct device dev;
 	struct tb_port *port;
 	bool can_offline;
 	bool offline;
+#ifdef CONFIG_USB4_DEBUGFS_MARGINING
+	struct tb_margining *margining;
+#endif
 };
 
 /**
@@ -296,6 +302,7 @@ struct usb4_port {
  * @device: Device ID of the retimer
  * @port: Pointer to the lane 0 adapter
  * @nvm: Pointer to the NVM if the retimer has one (%NULL otherwise)
+ * @no_nvm_upgrade: Prevent NVM upgrade of this retimer
  * @auth_status: Status of last NVM authentication
  */
 struct tb_retimer {
@@ -306,6 +313,7 @@ struct tb_retimer {
 	u32 device;
 	struct tb_port *port;
 	struct tb_nvm *nvm;
+	bool no_nvm_upgrade;
 	u32 auth_status;
 };
 
@@ -737,11 +745,13 @@ static inline void tb_domain_put(struct tb *tb)
 }
 
 struct tb_nvm *tb_nvm_alloc(struct device *dev);
-int tb_nvm_add_active(struct tb_nvm *nvm, size_t size, nvmem_reg_read_t reg_read);
+int tb_nvm_read_version(struct tb_nvm *nvm);
+int tb_nvm_validate(struct tb_nvm *nvm);
+int tb_nvm_write_headers(struct tb_nvm *nvm);
+int tb_nvm_add_active(struct tb_nvm *nvm, nvmem_reg_read_t reg_read);
 int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
 		     size_t bytes);
-int tb_nvm_add_non_active(struct tb_nvm *nvm, size_t size,
-			  nvmem_reg_write_t reg_write);
+int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write);
 void tb_nvm_free(struct tb_nvm *nvm);
 void tb_nvm_exit(void);
 
@@ -755,6 +765,8 @@ int tb_nvm_write_data(unsigned int address, const void *buf, size_t size,
 		      unsigned int retries, write_block_fn write_next_block,
 		      void *write_block_data);
 
+int tb_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
+		       size_t size);
 struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 				  u64 route);
 struct tb_switch *tb_switch_alloc_safe_mode(struct tb *tb,
@@ -1035,6 +1047,7 @@ void tb_port_lane_bonding_disable(struct tb_port *port);
 int tb_port_wait_for_link_width(struct tb_port *port, int width,
 				int timeout_msec);
 int tb_port_update_credits(struct tb_port *port);
+bool tb_port_is_clx_enabled(struct tb_port *port, enum tb_clx clx);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
@@ -1132,6 +1145,13 @@ void tb_xdomain_remove(struct tb_xdomain *xd);
 struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
 						 u8 depth);
 
+static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
+{
+	return tb_to_switch(xd->dev.parent);
+}
+
+int tb_retimer_nvm_read(struct tb_retimer *rt, unsigned int address, void *buf,
+			size_t size);
 int tb_retimer_scan(struct tb_port *port, bool add);
 void tb_retimer_remove_all(struct tb_port *port);
 
@@ -1174,14 +1194,22 @@ int usb4_switch_add_ports(struct tb_switch *sw);
 void usb4_switch_remove_ports(struct tb_switch *sw);
 
 int usb4_port_unlock(struct tb_port *port);
+int usb4_port_hotplug_enable(struct tb_port *port);
 int usb4_port_configure(struct tb_port *port);
 void usb4_port_unconfigure(struct tb_port *port);
-int usb4_port_configure_xdomain(struct tb_port *port);
+int usb4_port_configure_xdomain(struct tb_port *port, struct tb_xdomain *xd);
 void usb4_port_unconfigure_xdomain(struct tb_port *port);
 int usb4_port_router_offline(struct tb_port *port);
 int usb4_port_router_online(struct tb_port *port);
 int usb4_port_enumerate_retimers(struct tb_port *port);
 bool usb4_port_clx_supported(struct tb_port *port);
+int usb4_port_margining_caps(struct tb_port *port, u32 *caps);
+int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
+			unsigned int ber_level, bool timing, bool right_high,
+			u32 *results);
+int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
+			bool right_high, u32 counter);
+int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors);
 
 int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index);
 int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
@@ -1264,6 +1292,8 @@ void tb_debugfs_init(void);
 void tb_debugfs_exit(void);
 void tb_switch_debugfs_init(struct tb_switch *sw);
 void tb_switch_debugfs_remove(struct tb_switch *sw);
+void tb_xdomain_debugfs_init(struct tb_xdomain *xd);
+void tb_xdomain_debugfs_remove(struct tb_xdomain *xd);
 void tb_service_debugfs_init(struct tb_service *svc);
 void tb_service_debugfs_remove(struct tb_service *svc);
 #else
@@ -1271,6 +1301,8 @@ static inline void tb_debugfs_init(void) { }
 static inline void tb_debugfs_exit(void) { }
 static inline void tb_switch_debugfs_init(struct tb_switch *sw) { }
 static inline void tb_switch_debugfs_remove(struct tb_switch *sw) { }
+static inline void tb_xdomain_debugfs_init(struct tb_xdomain *xd) { }
+static inline void tb_xdomain_debugfs_remove(struct tb_xdomain *xd) { }
 static inline void tb_service_debugfs_init(struct tb_service *svc) { }
 static inline void tb_service_debugfs_remove(struct tb_service *svc) { }
 #endif

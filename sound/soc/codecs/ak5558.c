@@ -479,11 +479,9 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static int ak5558_i2c_remove(struct i2c_client *i2c)
+static void ak5558_i2c_remove(struct i2c_client *i2c)
 {
 	pm_runtime_disable(&i2c->dev);
-
-	return 0;
 }
 
 static const struct of_device_id ak5558_i2c_dt_ids[] __maybe_unused = {

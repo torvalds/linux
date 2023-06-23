@@ -2500,6 +2500,7 @@ static struct genl_family nl802154_fam __ro_after_init = {
 	.module = THIS_MODULE,
 	.ops = nl802154_ops,
 	.n_ops = ARRAY_SIZE(nl802154_ops),
+	.resv_start_op = NL802154_CMD_DEL_SEC_LEVEL + 1,
 	.mcgrps = nl802154_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(nl802154_mcgrps),
 };

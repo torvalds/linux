@@ -105,7 +105,7 @@ static int ecryptfs_init_lower_file(struct dentry *dentry,
 				    struct file **lower_file)
 {
 	const struct cred *cred = current_cred();
-	struct path *path = ecryptfs_dentry_to_lower_path(dentry);
+	const struct path *path = ecryptfs_dentry_to_lower_path(dentry);
 	int rc;
 
 	rc = ecryptfs_privileged_open(lower_file, path->dentry, path->mnt,

@@ -19,6 +19,8 @@
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/ioport.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/pfn.h>
@@ -49,11 +51,9 @@
 #define SMBIOS_CORE_PACKAGE_OFFSET	0x23
 #define LOONGSON_EFI_ENABLE		(1 << 3)
 
-#ifdef CONFIG_VT
-struct screen_info screen_info;
-#endif
+struct screen_info screen_info __section(".data");
 
-unsigned long fw_arg0, fw_arg1;
+unsigned long fw_arg0, fw_arg1, fw_arg2;
 DEFINE_PER_CPU(unsigned long, kernelsp);
 struct cpuinfo_loongarch cpu_data[NR_CPUS] __read_mostly;
 
@@ -122,16 +122,9 @@ static void __init parse_cpu_table(const struct dmi_header *dm)
 
 static void __init parse_bios_table(const struct dmi_header *dm)
 {
-	int bios_extern;
 	char *dmi_data = (char *)dm;
 
-	bios_extern = *(dmi_data + SMBIOS_BIOSEXTERN_OFFSET);
 	b_info.bios_size = (*(dmi_data + SMBIOS_BIOSSIZE_OFFSET) + 1) << 6;
-
-	if (bios_extern & LOONGSON_EFI_ENABLE)
-		set_bit(EFI_BOOT, &efi.flags);
-	else
-		clear_bit(EFI_BOOT, &efi.flags);
 }
 
 static void __init find_tokens(const struct dmi_header *dm, void *dummy)
@@ -194,16 +187,76 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
+static void __init arch_reserve_vmcore(void)
+{
+#ifdef CONFIG_PROC_VMCORE
+	u64 i;
+	phys_addr_t start, end;
+
+	if (!is_kdump_kernel())
+		return;
+
+	if (!elfcorehdr_size) {
+		for_each_mem_range(i, &start, &end) {
+			if (elfcorehdr_addr >= start && elfcorehdr_addr < end) {
+				/*
+				 * Reserve from the elf core header to the end of
+				 * the memory segment, that should all be kdump
+				 * reserved memory.
+				 */
+				elfcorehdr_size = end - elfcorehdr_addr;
+				break;
+			}
+		}
+	}
+
+	if (memblock_is_region_reserved(elfcorehdr_addr, elfcorehdr_size)) {
+		pr_warn("elfcorehdr is overlapped\n");
+		return;
+	}
+
+	memblock_reserve(elfcorehdr_addr, elfcorehdr_size);
+
+	pr_info("Reserving %llu KiB of memory at 0x%llx for elfcorehdr\n",
+		elfcorehdr_size >> 10, elfcorehdr_addr);
+#endif
+}
+
+static void __init arch_parse_crashkernel(void)
+{
+#ifdef CONFIG_KEXEC
+	int ret;
+	unsigned long long start;
+	unsigned long long total_mem;
+	unsigned long long crash_base, crash_size;
+
+	total_mem = memblock_phys_mem_size();
+	ret = parse_crashkernel(boot_command_line, total_mem, &crash_size, &crash_base);
+	if (ret < 0 || crash_size <= 0)
+		return;
+
+	start = memblock_phys_alloc_range(crash_size, 1, crash_base, crash_base + crash_size);
+	if (start != crash_base) {
+		pr_warn("Invalid memory region reserved for crash kernel\n");
+		return;
+	}
+
+	crashk_res.start = crash_base;
+	crashk_res.end	 = crash_base + crash_size - 1;
+#endif
+}
+
 void __init platform_init(void)
 {
-	efi_init();
+	arch_reserve_vmcore();
+	arch_parse_crashkernel();
+
 #ifdef CONFIG_ACPI_TABLE_UPGRADE
 	acpi_table_upgrade();
 #endif
 #ifdef CONFIG_ACPI
 	acpi_gbl_use_default_register_widths = false;
 	acpi_boot_table_init();
-	acpi_boot_init();
 #endif
 
 #ifdef CONFIG_NUMA
@@ -247,7 +300,7 @@ static void __init arch_mem_init(char **cmdline_p)
 	sparse_init();
 	memblock_set_bottom_up(true);
 
-	plat_swiotlb_setup();
+	swiotlb_init(true, SWIOTLB_VERBOSE);
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
@@ -299,6 +352,15 @@ static void __init resource_init(void)
 		request_resource(res, &data_resource);
 		request_resource(res, &bss_resource);
 	}
+
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start < crashk_res.end) {
+		insert_resource(&iomem_resource, &crashk_res);
+		pr_info("Reserving %ldMB of memory at %ldMB for crashkernel\n",
+			(unsigned long)((crashk_res.end - crashk_res.start + 1) >> 20),
+			(unsigned long)(crashk_res.start  >> 20));
+	}
+#endif
 }
 
 static int __init reserve_memblock_reserved_regions(void)
@@ -346,7 +408,7 @@ static void __init prefill_possible_map(void)
 	for (; i < NR_CPUS; i++)
 		set_cpu_possible(i, false);
 
-	nr_cpu_ids = possible;
+	set_nr_cpu_ids(possible);
 }
 #endif
 
@@ -356,11 +418,13 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = boot_command_line;
 
 	init_environ();
+	efi_init();
 	memblock_init();
+	pagetable_init();
 	parse_early_param();
+	reserve_initrd_mem();
 
 	platform_init();
-	pagetable_init();
 	arch_mem_init(cmdline_p);
 
 	resource_init();

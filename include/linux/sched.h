@@ -14,6 +14,7 @@
 #include <linux/pid.h>
 #include <linux/sem.h>
 #include <linux/shm.h>
+#include <linux/kmsan_types.h>
 #include <linux/mutex.h>
 #include <linux/plist.h>
 #include <linux/hrtimer.h>
@@ -81,25 +82,34 @@ struct task_group;
  */
 
 /* Used in tsk->state: */
-#define TASK_RUNNING			0x0000
-#define TASK_INTERRUPTIBLE		0x0001
-#define TASK_UNINTERRUPTIBLE		0x0002
-#define __TASK_STOPPED			0x0004
-#define __TASK_TRACED			0x0008
+#define TASK_RUNNING			0x00000000
+#define TASK_INTERRUPTIBLE		0x00000001
+#define TASK_UNINTERRUPTIBLE		0x00000002
+#define __TASK_STOPPED			0x00000004
+#define __TASK_TRACED			0x00000008
 /* Used in tsk->exit_state: */
-#define EXIT_DEAD			0x0010
-#define EXIT_ZOMBIE			0x0020
+#define EXIT_DEAD			0x00000010
+#define EXIT_ZOMBIE			0x00000020
 #define EXIT_TRACE			(EXIT_ZOMBIE | EXIT_DEAD)
 /* Used in tsk->state again: */
-#define TASK_PARKED			0x0040
-#define TASK_DEAD			0x0080
-#define TASK_WAKEKILL			0x0100
-#define TASK_WAKING			0x0200
-#define TASK_NOLOAD			0x0400
-#define TASK_NEW			0x0800
-/* RT specific auxilliary flag to mark RT lock waiters */
-#define TASK_RTLOCK_WAIT		0x1000
-#define TASK_STATE_MAX			0x2000
+#define TASK_PARKED			0x00000040
+#define TASK_DEAD			0x00000080
+#define TASK_WAKEKILL			0x00000100
+#define TASK_WAKING			0x00000200
+#define TASK_NOLOAD			0x00000400
+#define TASK_NEW			0x00000800
+#define TASK_RTLOCK_WAIT		0x00001000
+#define TASK_FREEZABLE			0x00002000
+#define __TASK_FREEZABLE_UNSAFE	       (0x00004000 * IS_ENABLED(CONFIG_LOCKDEP))
+#define TASK_FROZEN			0x00008000
+#define TASK_STATE_MAX			0x00010000
+
+#define TASK_ANY			(TASK_STATE_MAX-1)
+
+/*
+ * DO NOT ADD ANY NEW USERS !
+ */
+#define TASK_FREEZABLE_UNSAFE		(TASK_FREEZABLE | __TASK_FREEZABLE_UNSAFE)
 
 /* Convenience macros for the sake of set_current_state: */
 #define TASK_KILLABLE			(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
@@ -860,9 +870,6 @@ struct task_struct {
 	struct mm_struct		*mm;
 	struct mm_struct		*active_mm;
 
-	/* Per-thread vma caching: */
-	struct vmacache			vmacache;
-
 #ifdef SPLIT_RSS_COUNTING
 	struct task_rss_stat		rss_stat;
 #endif
@@ -914,6 +921,10 @@ struct task_struct {
 #ifdef CONFIG_MEMCG
 	unsigned			in_user_fault:1;
 #endif
+#ifdef CONFIG_LRU_GEN
+	/* whether the LRU algorithm may apply to this access */
+	unsigned			in_lru_fault:1;
+#endif
 #ifdef CONFIG_COMPAT_BRK
 	unsigned			brk_randomized:1;
 #endif
@@ -936,13 +947,17 @@ struct task_struct {
 #endif
 #ifdef CONFIG_EVENTFD
 	/* Recursion prevention for eventfd_signal() */
-	unsigned			in_eventfd_signal:1;
+	unsigned			in_eventfd:1;
 #endif
 #ifdef CONFIG_IOMMU_SVA
 	unsigned			pasid_activated:1;
 #endif
 #ifdef	CONFIG_CPU_SUP_INTEL
 	unsigned			reported_split_lock:1;
+#endif
+#ifdef CONFIG_TASK_DELAY_ACCT
+	/* delay due to memory thrashing */
+	unsigned                        in_thrashing:1;
 #endif
 
 	unsigned long			atomic_flags; /* Flags requiring atomic access. */
@@ -1355,6 +1370,10 @@ struct task_struct {
 #endif
 #endif
 
+#ifdef CONFIG_KMSAN
+	struct kmsan_ctx		kmsan_ctx;
+#endif
+
 #if IS_ENABLED(CONFIG_KUNIT)
 	struct kunit			*kunit_test;
 #endif
@@ -1381,9 +1400,6 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_TRACING
-	/* State flags for use by tracers: */
-	unsigned long			trace;
-
 	/* Bitmask and counter of trace recursion: */
 	unsigned long			trace_recursion;
 #endif /* CONFIG_TRACING */
@@ -1713,8 +1729,9 @@ extern struct pid *cad_pid;
 #define PF_MEMALLOC		0x00000800	/* Allocating memory */
 #define PF_NPROC_EXCEEDED	0x00001000	/* set_user() noticed that RLIMIT_NPROC was exceeded */
 #define PF_USED_MATH		0x00002000	/* If unset the fpu must be initialized before use */
+#define PF__HOLE__00004000	0x00004000
 #define PF_NOFREEZE		0x00008000	/* This thread should not be frozen */
-#define PF_FROZEN		0x00010000	/* Frozen for system suspend */
+#define PF__HOLE__00010000	0x00010000
 #define PF_KSWAPD		0x00020000	/* I am kswapd */
 #define PF_MEMALLOC_NOFS	0x00040000	/* All allocation requests will inherit GFP_NOFS */
 #define PF_MEMALLOC_NOIO	0x00080000	/* All allocation requests will inherit GFP_NOIO */
@@ -1722,10 +1739,14 @@ extern struct pid *cad_pid;
 						 * I am cleaning dirty pages from some other bdi. */
 #define PF_KTHREAD		0x00200000	/* I am a kernel thread */
 #define PF_RANDOMIZE		0x00400000	/* Randomize virtual address space */
+#define PF__HOLE__00800000	0x00800000
+#define PF__HOLE__01000000	0x01000000
+#define PF__HOLE__02000000	0x02000000
 #define PF_NO_SETAFFINITY	0x04000000	/* Userland is not allowed to meddle with cpus_mask */
 #define PF_MCE_EARLY		0x08000000      /* Early kill for mce process policy */
 #define PF_MEMALLOC_PIN		0x10000000	/* Allocation context constrained to zones which allow long term pinning. */
-#define PF_FREEZER_SKIP		0x40000000	/* Freezer should not count it as freezable */
+#define PF__HOLE__20000000	0x20000000
+#define PF__HOLE__40000000	0x40000000
 #define PF_SUSPEND_TASK		0x80000000      /* This thread called freeze_processes() and should not be frozen */
 
 /*

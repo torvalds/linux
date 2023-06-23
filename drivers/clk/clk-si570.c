@@ -498,10 +498,9 @@ static int si570_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int si570_remove(struct i2c_client *client)
+static void si570_remove(struct i2c_client *client)
 {
 	of_clk_del_provider(client->dev.of_node);
-	return 0;
 }
 
 static const struct of_device_id clk_si570_of_match[] = {

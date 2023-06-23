@@ -83,6 +83,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	if (err)
 		goto err;
 
+	netdev_hold(dev, &port->dev_tracker, GFP_KERNEL);
 	return 0;
 
 err:
@@ -95,6 +96,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	struct ipvl_port *port = ipvlan_port_get_rtnl(dev);
 	struct sk_buff *skb;
 
+	netdev_put(dev, &port->dev_tracker);
 	if (port->mode == IPVLAN_MODE_L3S)
 		ipvlan_l3s_unregister(port);
 	netdev_rx_handler_unregister(dev);
@@ -408,8 +410,8 @@ static int ipvlan_ethtool_get_link_ksettings(struct net_device *dev,
 static void ipvlan_ethtool_get_drvinfo(struct net_device *dev,
 				       struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, IPVLAN_DRV, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, IPV_DRV_VER, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, IPVLAN_DRV, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, IPV_DRV_VER, sizeof(drvinfo->version));
 }
 
 static u32 ipvlan_ethtool_get_msglevel(struct net_device *dev)

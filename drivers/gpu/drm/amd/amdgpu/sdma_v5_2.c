@@ -89,33 +89,6 @@ static u32 sdma_v5_2_get_reg_offset(struct amdgpu_device *adev, u32 instance, u3
 	return base + internal_offset;
 }
 
-static int sdma_v5_2_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
-{
-	int err = 0;
-	const struct sdma_firmware_header_v1_0 *hdr;
-
-	err = amdgpu_ucode_validate(sdma_inst->fw);
-	if (err)
-		return err;
-
-	hdr = (const struct sdma_firmware_header_v1_0 *)sdma_inst->fw->data;
-	sdma_inst->fw_version = le32_to_cpu(hdr->header.ucode_version);
-	sdma_inst->feature_version = le32_to_cpu(hdr->ucode_feature_version);
-
-	if (sdma_inst->feature_version >= 20)
-		sdma_inst->burst_nop = true;
-
-	return 0;
-}
-
-static void sdma_v5_2_destroy_inst_ctx(struct amdgpu_device *adev)
-{
-	release_firmware(adev->sdma.instance[0].fw);
-
-	memset((void *)adev->sdma.instance, 0,
-	       sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
-}
-
 /**
  * sdma_v5_2_init_microcode - load ucode images from disk
  *
@@ -132,9 +105,6 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
 	char fw_name[40];
-	int err = 0, i;
-	struct amdgpu_firmware_info *info = NULL;
-	const struct common_firmware_header *header = NULL;
 
 	DRM_DEBUG("\n");
 
@@ -169,42 +139,7 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", chip_name);
 
-	err = request_firmware(&adev->sdma.instance[0].fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-
-	err = sdma_v5_2_init_inst_ctx(&adev->sdma.instance[0]);
-	if (err)
-		goto out;
-
-	for (i = 1; i < adev->sdma.num_instances; i++)
-		memcpy((void *)&adev->sdma.instance[i],
-		       (void *)&adev->sdma.instance[0],
-		       sizeof(struct amdgpu_sdma_instance));
-
-	if (amdgpu_sriov_vf(adev) && (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(5, 2, 0)))
-		return 0;
-
-	DRM_DEBUG("psp_load == '%s'\n",
-		  adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
-
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
-			info->ucode_id = AMDGPU_UCODE_ID_SDMA0 + i;
-			info->fw = adev->sdma.instance[i].fw;
-			header = (const struct common_firmware_header *)info->fw->data;
-			adev->firmware.fw_size +=
-				ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
-		}
-	}
-
-out:
-	if (err) {
-		DRM_ERROR("sdma_v5_2: Failed to load firmware \"%s\"\n", fw_name);
-		sdma_v5_2_destroy_inst_ctx(adev);
-	}
-	return err;
+	return amdgpu_sdma_init_microcode(adev, fw_name, 0, true);
 }
 
 static unsigned sdma_v5_2_ring_init_cond_exec(struct amdgpu_ring *ring)
@@ -479,18 +414,10 @@ static void sdma_v5_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
  */
 static void sdma_v5_2_gfx_stop(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *sdma0 = &adev->sdma.instance[0].ring;
-	struct amdgpu_ring *sdma1 = &adev->sdma.instance[1].ring;
-	struct amdgpu_ring *sdma2 = &adev->sdma.instance[2].ring;
-	struct amdgpu_ring *sdma3 = &adev->sdma.instance[3].ring;
 	u32 rb_cntl, ib_cntl;
 	int i;
 
-	if ((adev->mman.buffer_funcs_ring == sdma0) ||
-	    (adev->mman.buffer_funcs_ring == sdma1) ||
-	    (adev->mman.buffer_funcs_ring == sdma2) ||
-	    (adev->mman.buffer_funcs_ring == sdma3))
-		amdgpu_ttm_set_buffer_funcs_status(adev, false);
+	amdgpu_sdma_unset_buffer_funcs_helper(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32_SOC15_IP(GC, sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_GFX_RB_CNTL));
@@ -1406,27 +1333,27 @@ static int sdma_v5_2_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
-	sdma_v5_2_destroy_inst_ctx(adev);
+	amdgpu_sdma_destroy_inst_ctx(adev, true);
 
 	return 0;
 }
 
 static int sdma_v5_2_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = sdma_v5_2_start(adev);
-
-	return r;
+	return sdma_v5_2_start(adev);
 }
 
 static int sdma_v5_2_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
+		/* disable the scheduler for SDMA */
+		amdgpu_sdma_unset_buffer_funcs_helper(adev);
 		return 0;
+	}
 
 	sdma_v5_2_ctx_switch_enable(adev, false);
 	sdma_v5_2_enable(adev, false);

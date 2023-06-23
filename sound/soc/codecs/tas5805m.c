@@ -522,7 +522,7 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static int tas5805m_i2c_remove(struct i2c_client *i2c)
+static void tas5805m_i2c_remove(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct tas5805m_priv *tas5805m = dev_get_drvdata(dev);
@@ -531,7 +531,6 @@ static int tas5805m_i2c_remove(struct i2c_client *i2c)
 	gpiod_set_value(tas5805m->gpio_pdn_n, 0);
 	usleep_range(10000, 15000);
 	regulator_disable(tas5805m->pvdd);
-	return 0;
 }
 
 static const struct i2c_device_id tas5805m_i2c_id[] = {

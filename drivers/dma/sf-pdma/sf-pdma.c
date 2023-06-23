@@ -405,10 +405,8 @@ static int sf_pdma_irq_init(struct platform_device *pdev, struct sf_pdma *pdma)
 		chan = &pdma->chans[i];
 
 		irq = platform_get_irq(pdev, i * 2);
-		if (irq < 0) {
-			dev_err(&pdev->dev, "ch(%d) Can't get done irq.\n", i);
+		if (irq < 0)
 			return -EINVAL;
-		}
 
 		r = devm_request_irq(&pdev->dev, irq, sf_pdma_done_isr, 0,
 				     dev_name(&pdev->dev), (void *)chan);
@@ -420,10 +418,8 @@ static int sf_pdma_irq_init(struct platform_device *pdev, struct sf_pdma *pdma)
 		chan->txirq = irq;
 
 		irq = platform_get_irq(pdev, (i * 2) + 1);
-		if (irq < 0) {
-			dev_err(&pdev->dev, "ch(%d) Can't get err irq.\n", i);
+		if (irq < 0)
 			return -EINVAL;
-		}
 
 		r = devm_request_irq(&pdev->dev, irq, sf_pdma_err_isr, 0,
 				     dev_name(&pdev->dev), (void *)chan);

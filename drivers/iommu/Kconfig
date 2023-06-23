@@ -67,6 +67,17 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 	  If unsure, say N here.
 
+config IOMMU_IO_PGTABLE_DART
+	bool "Apple DART Formats"
+	select IOMMU_IO_PGTABLE
+	depends on ARM64 || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	help
+	  Enable support for the Apple DART pagetable formats. These include
+	  the t8020 and t6000/t8110 DART formats used in Apple M1/M2 family
+	  SoCs.
+
+	  If unsure, say N here.
+
 endmenu
 
 config IOMMU_DEBUGFS
@@ -137,7 +148,7 @@ config OF_IOMMU
 
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
-	bool
+	def_bool ARM64 || IA64 || X86
 	select DMA_OPS
 	select IOMMU_API
 	select IOMMU_IOVA
@@ -294,7 +305,7 @@ config APPLE_DART
 	tristate "Apple DART IOMMU Support"
 	depends on ARCH_APPLE || (COMPILE_TEST && !GENERIC_ATOMIC64)
 	select IOMMU_API
-	select IOMMU_IO_PGTABLE_LPAE
+	select IOMMU_IO_PGTABLE_DART
 	default ARCH_APPLE
 	help
 	  Support for Apple DART (Device Address Resolution Table) IOMMUs
@@ -476,7 +487,6 @@ config VIRTIO_IOMMU
 	depends on VIRTIO
 	depends on (ARM64 || X86)
 	select IOMMU_API
-	select IOMMU_DMA
 	select INTERVAL_TREE
 	select ACPI_VIOT if ACPI
 	help

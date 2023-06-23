@@ -36,6 +36,7 @@ struct io_op_def {
 	int (*issue)(struct io_kiocb *, unsigned int);
 	int (*prep_async)(struct io_kiocb *);
 	void (*cleanup)(struct io_kiocb *);
+	void (*fail)(struct io_kiocb *);
 };
 
 extern const struct io_op_def io_op_defs[];

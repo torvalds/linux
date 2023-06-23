@@ -2361,7 +2361,8 @@ done:
 
 static s32
 brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev,
-				  u8 key_idx, bool unicast, bool multicast)
+				  int link_id, u8 key_idx, bool unicast,
+				  bool multicast)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
@@ -2395,7 +2396,8 @@ done:
 
 static s32
 brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-		       u8 key_idx, bool pairwise, const u8 *mac_addr)
+		       int link_id, u8 key_idx, bool pairwise,
+		       const u8 *mac_addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_wsec_key *key;
@@ -2432,8 +2434,8 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static s32
 brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
-		       u8 key_idx, bool pairwise, const u8 *mac_addr,
-		       struct key_params *params)
+		       int link_id, u8 key_idx, bool pairwise,
+		       const u8 *mac_addr, struct key_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -2457,8 +2459,8 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (params->key_len == 0)
-		return brcmf_cfg80211_del_key(wiphy, ndev, key_idx, pairwise,
-					      mac_addr);
+		return brcmf_cfg80211_del_key(wiphy, ndev, -1, key_idx,
+					      pairwise, mac_addr);
 
 	if (params->key_len > sizeof(key->data)) {
 		bphy_err(drvr, "Too long key length (%u)\n", params->key_len);
@@ -2553,8 +2555,9 @@ done:
 }
 
 static s32
-brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev, u8 key_idx,
-		       bool pairwise, const u8 *mac_addr, void *cookie,
+brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
+		       int link_id, u8 key_idx, bool pairwise,
+		       const u8 *mac_addr, void *cookie,
 		       void (*callback)(void *cookie,
 					struct key_params *params))
 {
@@ -2610,7 +2613,8 @@ done:
 
 static s32
 brcmf_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
-				       struct net_device *ndev, u8 key_idx)
+				       struct net_device *ndev, int link_id,
+				       u8 key_idx)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 
@@ -3160,10 +3164,7 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
 				 struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = cfg->pub;
-	struct brcmf_bss_info_le *bi;
-	const struct brcmf_tlv *tim;
-	size_t ie_len;
-	u8 *ie;
+	struct brcmf_bss_info_le *bi = NULL;
 	s32 err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -3177,29 +3178,8 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
 		bphy_err(drvr, "Could not get bss info %d\n", err);
 		goto update_bss_info_out;
 	}
-
 	bi = (struct brcmf_bss_info_le *)(cfg->extra_buf + 4);
 	err = brcmf_inform_single_bss(cfg, bi);
-	if (err)
-		goto update_bss_info_out;
-
-	ie = ((u8 *)bi) + le16_to_cpu(bi->ie_offset);
-	ie_len = le32_to_cpu(bi->ie_length);
-
-	tim = brcmf_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
-	if (!tim) {
-		/*
-		* active scan was done so we could not get dtim
-		* information out of probe response.
-		* so we speficially query dtim information to dongle.
-		*/
-		u32 var;
-		err = brcmf_fil_iovar_int_get(ifp, "dtim_assoc", &var);
-		if (err) {
-			bphy_err(drvr, "wl dtim_assoc failed (%d)\n", err);
-			goto update_bss_info_out;
-		}
-	}
 
 update_bss_info_out:
 	brcmf_dbg(TRACE, "Exit");
@@ -3984,7 +3964,6 @@ brcmf_update_pmklist(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp)
 	struct brcmf_pmk_list_le *pmk_list;
 	int i;
 	u32 npmk;
-	s32 err;
 
 	pmk_list = &cfg->pmk_list;
 	npmk = le32_to_cpu(pmk_list->npmk);
@@ -3993,10 +3972,8 @@ brcmf_update_pmklist(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp)
 	for (i = 0; i < npmk; i++)
 		brcmf_dbg(CONN, "PMK[%d]: %pM\n", i, &pmk_list->pmk[i].bssid);
 
-	err = brcmf_fil_iovar_data_set(ifp, "pmkid_info", pmk_list,
-				       sizeof(*pmk_list));
-
-	return err;
+	return brcmf_fil_iovar_data_set(ifp, "pmkid_info", pmk_list,
+			sizeof(*pmk_list));
 }
 
 static s32
@@ -5042,13 +5019,10 @@ brcmf_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
 			     struct cfg80211_beacon_data *info)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	s32 err;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	err = brcmf_config_ap_mgmt_ie(ifp->vif, info);
-
-	return err;
+	return brcmf_config_ap_mgmt_ie(ifp->vif, info);
 }
 
 static int
@@ -6431,6 +6405,7 @@ static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 	cfg->dongle_up = false;	/* dongle down */
 	brcmf_abort_scanning(cfg);
 	brcmf_deinit_priv_mem(cfg);
+	brcmf_clear_assoc_ies(cfg);
 }
 
 static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
@@ -7485,6 +7460,7 @@ static bool brmcf_use_iso3166_ccode_fallback(struct brcmf_pub *drvr)
 		return true;
 
 	switch (drvr->bus_if->chip) {
+	case BRCM_CC_43430_CHIP_ID:
 	case BRCM_CC_4345_CHIP_ID:
 	case BRCM_CC_43602_CHIP_ID:
 		return true;

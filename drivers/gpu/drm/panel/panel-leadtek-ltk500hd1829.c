@@ -477,7 +477,7 @@ static void ltk500hd1829_shutdown(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "Failed to disable panel: %d\n", ret);
 }
 
-static int ltk500hd1829_remove(struct mipi_dsi_device *dsi)
+static void ltk500hd1829_remove(struct mipi_dsi_device *dsi)
 {
 	struct ltk500hd1829 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -489,8 +489,6 @@ static int ltk500hd1829_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id ltk500hd1829_of_match[] = {

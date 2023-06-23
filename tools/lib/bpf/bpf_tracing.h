@@ -426,7 +426,7 @@ struct pt_regs;
  */
 #define BPF_PROG(name, args...)						    \
 name(unsigned long long *ctx);						    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(unsigned long long *ctx, ##args);				    \
 typeof(name(0)) name(unsigned long long *ctx)				    \
 {									    \
@@ -435,8 +435,115 @@ typeof(name(0)) name(unsigned long long *ctx)				    \
 	return ____##name(___bpf_ctx_cast(args));			    \
 	_Pragma("GCC diagnostic pop")					    \
 }									    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(unsigned long long *ctx, ##args)
+
+#ifndef ___bpf_nth2
+#define ___bpf_nth2(_, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13,	\
+		    _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, N, ...) N
+#endif
+#ifndef ___bpf_narg2
+#define ___bpf_narg2(...)	\
+	___bpf_nth2(_, ##__VA_ARGS__, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 7, 7,	\
+		    6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0)
+#endif
+
+#define ___bpf_treg_cnt(t) \
+	__builtin_choose_expr(sizeof(t) == 1, 1,	\
+	__builtin_choose_expr(sizeof(t) == 2, 1,	\
+	__builtin_choose_expr(sizeof(t) == 4, 1,	\
+	__builtin_choose_expr(sizeof(t) == 8, 1,	\
+	__builtin_choose_expr(sizeof(t) == 16, 2,	\
+			      (void)0)))))
+
+#define ___bpf_reg_cnt0()		(0)
+#define ___bpf_reg_cnt1(t, x)		(___bpf_reg_cnt0() + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt2(t, x, args...)	(___bpf_reg_cnt1(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt3(t, x, args...)	(___bpf_reg_cnt2(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt4(t, x, args...)	(___bpf_reg_cnt3(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt5(t, x, args...)	(___bpf_reg_cnt4(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt6(t, x, args...)	(___bpf_reg_cnt5(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt7(t, x, args...)	(___bpf_reg_cnt6(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt8(t, x, args...)	(___bpf_reg_cnt7(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt9(t, x, args...)	(___bpf_reg_cnt8(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt10(t, x, args...)	(___bpf_reg_cnt9(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt11(t, x, args...)	(___bpf_reg_cnt10(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt12(t, x, args...)	(___bpf_reg_cnt11(args) + ___bpf_treg_cnt(t))
+#define ___bpf_reg_cnt(args...)	 ___bpf_apply(___bpf_reg_cnt, ___bpf_narg2(args))(args)
+
+#define ___bpf_union_arg(t, x, n) \
+	__builtin_choose_expr(sizeof(t) == 1, ({ union { __u8 z[1]; t x; } ___t = { .z = {ctx[n]}}; ___t.x; }), \
+	__builtin_choose_expr(sizeof(t) == 2, ({ union { __u16 z[1]; t x; } ___t = { .z = {ctx[n]} }; ___t.x; }), \
+	__builtin_choose_expr(sizeof(t) == 4, ({ union { __u32 z[1]; t x; } ___t = { .z = {ctx[n]} }; ___t.x; }), \
+	__builtin_choose_expr(sizeof(t) == 8, ({ union { __u64 z[1]; t x; } ___t = {.z = {ctx[n]} }; ___t.x; }), \
+	__builtin_choose_expr(sizeof(t) == 16, ({ union { __u64 z[2]; t x; } ___t = {.z = {ctx[n], ctx[n + 1]} }; ___t.x; }), \
+			      (void)0)))))
+
+#define ___bpf_ctx_arg0(n, args...)
+#define ___bpf_ctx_arg1(n, t, x)		, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt1(t, x))
+#define ___bpf_ctx_arg2(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt2(t, x, args)) ___bpf_ctx_arg1(n, args)
+#define ___bpf_ctx_arg3(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt3(t, x, args)) ___bpf_ctx_arg2(n, args)
+#define ___bpf_ctx_arg4(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt4(t, x, args)) ___bpf_ctx_arg3(n, args)
+#define ___bpf_ctx_arg5(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt5(t, x, args)) ___bpf_ctx_arg4(n, args)
+#define ___bpf_ctx_arg6(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt6(t, x, args)) ___bpf_ctx_arg5(n, args)
+#define ___bpf_ctx_arg7(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt7(t, x, args)) ___bpf_ctx_arg6(n, args)
+#define ___bpf_ctx_arg8(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt8(t, x, args)) ___bpf_ctx_arg7(n, args)
+#define ___bpf_ctx_arg9(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt9(t, x, args)) ___bpf_ctx_arg8(n, args)
+#define ___bpf_ctx_arg10(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt10(t, x, args)) ___bpf_ctx_arg9(n, args)
+#define ___bpf_ctx_arg11(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt11(t, x, args)) ___bpf_ctx_arg10(n, args)
+#define ___bpf_ctx_arg12(n, t, x, args...)	, ___bpf_union_arg(t, x, n - ___bpf_reg_cnt12(t, x, args)) ___bpf_ctx_arg11(n, args)
+#define ___bpf_ctx_arg(args...)	___bpf_apply(___bpf_ctx_arg, ___bpf_narg2(args))(___bpf_reg_cnt(args), args)
+
+#define ___bpf_ctx_decl0()
+#define ___bpf_ctx_decl1(t, x)			, t x
+#define ___bpf_ctx_decl2(t, x, args...)		, t x ___bpf_ctx_decl1(args)
+#define ___bpf_ctx_decl3(t, x, args...)		, t x ___bpf_ctx_decl2(args)
+#define ___bpf_ctx_decl4(t, x, args...)		, t x ___bpf_ctx_decl3(args)
+#define ___bpf_ctx_decl5(t, x, args...)		, t x ___bpf_ctx_decl4(args)
+#define ___bpf_ctx_decl6(t, x, args...)		, t x ___bpf_ctx_decl5(args)
+#define ___bpf_ctx_decl7(t, x, args...)		, t x ___bpf_ctx_decl6(args)
+#define ___bpf_ctx_decl8(t, x, args...)		, t x ___bpf_ctx_decl7(args)
+#define ___bpf_ctx_decl9(t, x, args...)		, t x ___bpf_ctx_decl8(args)
+#define ___bpf_ctx_decl10(t, x, args...)	, t x ___bpf_ctx_decl9(args)
+#define ___bpf_ctx_decl11(t, x, args...)	, t x ___bpf_ctx_decl10(args)
+#define ___bpf_ctx_decl12(t, x, args...)	, t x ___bpf_ctx_decl11(args)
+#define ___bpf_ctx_decl(args...)	___bpf_apply(___bpf_ctx_decl, ___bpf_narg2(args))(args)
+
+/*
+ * BPF_PROG2 is an enhanced version of BPF_PROG in order to handle struct
+ * arguments. Since each struct argument might take one or two u64 values
+ * in the trampoline stack, argument type size is needed to place proper number
+ * of u64 values for each argument. Therefore, BPF_PROG2 has different
+ * syntax from BPF_PROG. For example, for the following BPF_PROG syntax:
+ *
+ *   int BPF_PROG(test2, int a, int b) { ... }
+ *
+ * the corresponding BPF_PROG2 syntax is:
+ *
+ *   int BPF_PROG2(test2, int, a, int, b) { ... }
+ *
+ * where type and the corresponding argument name are separated by comma.
+ *
+ * Use BPF_PROG2 macro if one of the arguments might be a struct/union larger
+ * than 8 bytes:
+ *
+ *   int BPF_PROG2(test_struct_arg, struct bpf_testmod_struct_arg_1, a, int, b,
+ *		   int, c, int, d, struct bpf_testmod_struct_arg_2, e, int, ret)
+ *   {
+ *        // access a, b, c, d, e, and ret directly
+ *        ...
+ *   }
+ */
+#define BPF_PROG2(name, args...)						\
+name(unsigned long long *ctx);							\
+static __always_inline typeof(name(0))						\
+____##name(unsigned long long *ctx ___bpf_ctx_decl(args));			\
+typeof(name(0)) name(unsigned long long *ctx)					\
+{										\
+	return ____##name(ctx ___bpf_ctx_arg(args));				\
+}										\
+static __always_inline typeof(name(0))						\
+____##name(unsigned long long *ctx ___bpf_ctx_decl(args))
 
 struct pt_regs;
 
@@ -460,7 +567,7 @@ struct pt_regs;
  */
 #define BPF_KPROBE(name, args...)					    \
 name(struct pt_regs *ctx);						    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args);				    \
 typeof(name(0)) name(struct pt_regs *ctx)				    \
 {									    \
@@ -469,7 +576,7 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 	return ____##name(___bpf_kprobe_args(args));			    \
 	_Pragma("GCC diagnostic pop")					    \
 }									    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args)
 
 #define ___bpf_kretprobe_args0()       ctx
@@ -484,7 +591,7 @@ ____##name(struct pt_regs *ctx, ##args)
  */
 #define BPF_KRETPROBE(name, args...)					    \
 name(struct pt_regs *ctx);						    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args);				    \
 typeof(name(0)) name(struct pt_regs *ctx)				    \
 {									    \
@@ -540,7 +647,7 @@ static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
 #define BPF_KSYSCALL(name, args...)					    \
 name(struct pt_regs *ctx);						    \
 extern _Bool LINUX_HAS_SYSCALL_WRAPPER __kconfig;			    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args);				    \
 typeof(name(0)) name(struct pt_regs *ctx)				    \
 {									    \
@@ -555,7 +662,7 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 		return ____##name(___bpf_syscall_args(args));		    \
 	_Pragma("GCC diagnostic pop")					    \
 }									    \
-static __attribute__((always_inline)) typeof(name(0))			    \
+static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args)
 
 #define BPF_KPROBE_SYSCALL BPF_KSYSCALL

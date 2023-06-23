@@ -327,7 +327,7 @@ err_free_mem:
 	return error;
 }
 
-static int as5011_remove(struct i2c_client *client)
+static void as5011_remove(struct i2c_client *client)
 {
 	struct as5011_device *as5011 = i2c_get_clientdata(client);
 
@@ -337,8 +337,6 @@ static int as5011_remove(struct i2c_client *client)
 
 	input_unregister_device(as5011->input_dev);
 	kfree(as5011);
-
-	return 0;
 }
 
 static const struct i2c_device_id as5011_id[] = {

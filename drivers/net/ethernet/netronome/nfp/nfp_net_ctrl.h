@@ -14,6 +14,9 @@
 
 #include <linux/types.h>
 
+/* 64-bit per app capabilities */
+#define NFP_NET_APP_CAP_SP_INDIFF	BIT_ULL(0) /* indifferent to port speed */
+
 /* Configuration BAR size.
  *
  * The configuration BAR is 8K in size, but due to
@@ -193,6 +196,10 @@
 #define   NFP_NET_CFG_STS_LINK_RATE_40G		  5
 #define   NFP_NET_CFG_STS_LINK_RATE_50G		  6
 #define   NFP_NET_CFG_STS_LINK_RATE_100G	  7
+/* NSP Link rate is a 16-bit word. It's determined by NSP and
+ * written to CFG BAR by NFP driver.
+ */
+#define NFP_NET_CFG_STS_NSP_LINK_RATE	0x0036
 #define NFP_NET_CFG_CAP			0x0038
 #define NFP_NET_CFG_MAX_TXRINGS		0x003c
 #define NFP_NET_CFG_MAX_RXRINGS		0x0040

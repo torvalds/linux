@@ -416,8 +416,8 @@ static int nfs4_delay_killable(long *timeout)
 {
 	might_sleep();
 
-	freezable_schedule_timeout_killable_unsafe(
-		nfs4_update_delay(timeout));
+	__set_current_state(TASK_KILLABLE|TASK_FREEZABLE_UNSAFE);
+	schedule_timeout(nfs4_update_delay(timeout));
 	if (!__fatal_signal_pending(current))
 		return 0;
 	return -EINTR;
@@ -427,7 +427,8 @@ static int nfs4_delay_interruptible(long *timeout)
 {
 	might_sleep();
 
-	freezable_schedule_timeout_interruptible_unsafe(nfs4_update_delay(timeout));
+	__set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE_UNSAFE);
+	schedule_timeout(nfs4_update_delay(timeout));
 	if (!signal_pending(current))
 		return 0;
 	return __fatal_signal_pending(current) ? -EINTR :-ERESTARTSYS;
@@ -3950,7 +3951,7 @@ static void test_fs_location_for_trunking(struct nfs4_fs_location *location,
 
 	for (i = 0; i < location->nservers; i++) {
 		struct nfs4_string *srv_loc = &location->servers[i];
-		struct sockaddr addr;
+		struct sockaddr_storage addr;
 		size_t addrlen;
 		struct xprt_create xprt_args = {
 			.ident = 0,
@@ -3973,7 +3974,7 @@ static void test_fs_location_for_trunking(struct nfs4_fs_location *location,
 						clp->cl_net, server->port);
 		if (!addrlen)
 			return;
-		xprt_args.dstaddr = &addr;
+		xprt_args.dstaddr = (struct sockaddr *)&addr;
 		xprt_args.addrlen = addrlen;
 		servername = kmalloc(srv_loc->len + 1, GFP_KERNEL);
 		if (!servername)
@@ -6607,7 +6608,7 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 	struct nfs4_delegreturndata *d_data;
 	struct pnfs_layout_hdr *lo;
 
-	d_data = (struct nfs4_delegreturndata *)data;
+	d_data = data;
 
 	if (!d_data->lr.roc && nfs4_wait_on_layoutreturn(d_data->inode, task)) {
 		nfs4_sequence_done(task, &d_data->res.seq_res);
@@ -7137,6 +7138,7 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_lockdata *data = calldata;
 	struct nfs4_lock_state *lsp = data->lsp;
+	struct nfs_server *server = NFS_SERVER(d_inode(data->ctx->dentry));
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
@@ -7144,8 +7146,7 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 	data->rpc_status = task->tk_status;
 	switch (task->tk_status) {
 	case 0:
-		renew_lease(NFS_SERVER(d_inode(data->ctx->dentry)),
-				data->timestamp);
+		renew_lease(server, data->timestamp);
 		if (data->arg.new_lock && !data->cancelled) {
 			data->fl.fl_flags &= ~(FL_SLEEP | FL_ACCESS);
 			if (locks_lock_inode_wait(lsp->ls_state->inode, &data->fl) < 0)
@@ -7165,6 +7166,8 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		if (data->arg.new_lock_owner != 0) {
 			if (!nfs4_stateid_match(&data->arg.open_stateid,
 						&lsp->ls_state->open_stateid))
+				goto out_restart;
+			else if (nfs4_async_handle_error(task, server, lsp->ls_state, NULL) == -EAGAIN)
 				goto out_restart;
 		} else if (!nfs4_stateid_match(&data->arg.lock_stateid,
 						&lsp->ls_stateid))
@@ -7406,7 +7409,8 @@ nfs4_retry_setlk_simple(struct nfs4_state *state, int cmd,
 		status = nfs4_proc_setlk(state, cmd, request);
 		if ((status != -EAGAIN) || IS_SETLK(cmd))
 			break;
-		freezable_schedule_timeout_interruptible(timeout);
+		__set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
+		schedule_timeout(timeout);
 		timeout *= 2;
 		timeout = min_t(unsigned long, NFS4_LOCK_MAXTIMEOUT, timeout);
 		status = -ERESTARTSYS;
@@ -7474,10 +7478,8 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 			break;
 
 		status = -ERESTARTSYS;
-		freezer_do_not_count();
-		wait_woken(&waiter.wait, TASK_INTERRUPTIBLE,
+		wait_woken(&waiter.wait, TASK_INTERRUPTIBLE|TASK_FREEZABLE,
 			   NFS4_LOCK_MAXTIMEOUT);
-		freezer_count();
 	} while (!signalled());
 
 	remove_wait_queue(q, &waiter.wait);
@@ -8900,7 +8902,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cred)
 void nfs4_test_session_trunk(struct rpc_clnt *clnt, struct rpc_xprt *xprt,
 			    void *data)
 {
-	struct nfs4_add_xprt_data *adata = (struct nfs4_add_xprt_data *)data;
+	struct nfs4_add_xprt_data *adata = data;
 	struct rpc_task *task;
 	int status;
 

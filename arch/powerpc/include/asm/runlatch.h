@@ -19,10 +19,9 @@ extern void __ppc64_runlatch_off(void);
 	do {							\
 		if (cpu_has_feature(CPU_FTR_CTRL) &&		\
 		    test_thread_local_flags(_TLF_RUNLATCH)) {	\
-			unsigned long msr = mfmsr();		\
 			__hard_irq_disable();			\
 			__ppc64_runlatch_off();			\
-			if (msr & MSR_EE)			\
+			if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS)) \
 				__hard_irq_enable();		\
 		}      						\
 	} while (0)
@@ -31,10 +30,9 @@ extern void __ppc64_runlatch_off(void);
 	do {							\
 		if (cpu_has_feature(CPU_FTR_CTRL) &&		\
 		    !test_thread_local_flags(_TLF_RUNLATCH)) {	\
-			unsigned long msr = mfmsr();		\
 			__hard_irq_disable();			\
 			__ppc64_runlatch_on();			\
-			if (msr & MSR_EE)			\
+			if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS)) \
 				__hard_irq_enable();		\
 		}      						\
 	} while (0)

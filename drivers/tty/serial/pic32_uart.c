@@ -50,7 +50,7 @@
  * @irq_rx_name: irq rx name
  * @irq_tx: virtual tx interrupt number
  * @irq_tx_name: irq tx name
- * @cts_gpio: clear to send gpio
+ * @cts_gpiod: clear to send GPIO
  * @dev: device descriptor
  **/
 struct pic32_sport {
@@ -65,8 +65,7 @@ struct pic32_sport {
 	const char *irq_tx_name;
 	bool enable_tx_irq;
 
-	bool hw_flow_ctrl;
-	int cts_gpio;
+	struct gpio_desc *cts_gpiod;
 
 	struct clk *clk;
 
@@ -158,25 +157,16 @@ static void pic32_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 					PIC32_UART_MODE_LPBK);
 }
 
-/* get the state of CTS input pin for this port */
-static unsigned int get_cts_state(struct pic32_sport *sport)
-{
-	/* read and invert UxCTS */
-	if (gpio_is_valid(sport->cts_gpio))
-		return !gpio_get_value(sport->cts_gpio);
-
-	return 1;
-}
-
 /* serial core request to return the state of misc UART input pins */
 static unsigned int pic32_uart_get_mctrl(struct uart_port *port)
 {
 	struct pic32_sport *sport = to_pic32_sport(port);
 	unsigned int mctrl = 0;
 
-	if (!sport->hw_flow_ctrl)
+	/* get the state of CTS input pin for this port */
+	if (!sport->cts_gpiod)
 		mctrl |= TIOCM_CTS;
-	else if (get_cts_state(sport))
+	else if (gpiod_get_value(sport->cts_gpiod))
 		mctrl |= TIOCM_CTS;
 
 	/* DSR and CD are not supported in PIC32, so return 1
@@ -609,7 +599,7 @@ static void pic32_uart_shutdown(struct uart_port *port)
 /* serial core request to change current uart setting */
 static void pic32_uart_set_termios(struct uart_port *port,
 				   struct ktermios *new,
-				   struct ktermios *old)
+				   const struct ktermios *old)
 {
 	struct pic32_sport *sport = to_pic32_sport(port);
 	unsigned int baud;
@@ -648,7 +638,7 @@ static void pic32_uart_set_termios(struct uart_port *port,
 					PIC32_UART_MODE_PDSEL0);
 	}
 	/* if hw flow ctrl, then the pins must be specified in device tree */
-	if ((new->c_cflag & CRTSCTS) && sport->hw_flow_ctrl) {
+	if ((new->c_cflag & CRTSCTS) && sport->cts_gpiod) {
 		/* enable hardware flow control */
 		pic32_uart_writel(sport, PIC32_SET(PIC32_UART_MODE),
 					PIC32_UART_MODE_UEN1);
@@ -875,7 +865,8 @@ static struct uart_driver pic32_uart_driver = {
 
 static int pic32_uart_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct pic32_sport *sport;
 	int uart_idx = 0;
 	struct resource *res_mem;
@@ -904,25 +895,10 @@ static int pic32_uart_probe(struct platform_device *pdev)
 	/* Hardware flow control: gpios
 	 * !Note: Basically, CTS is needed for reading the status.
 	 */
-	sport->hw_flow_ctrl = false;
-	sport->cts_gpio = of_get_named_gpio(np, "cts-gpios", 0);
-	if (gpio_is_valid(sport->cts_gpio)) {
-		sport->hw_flow_ctrl = true;
-
-		ret = devm_gpio_request(sport->dev,
-					sport->cts_gpio, "CTS");
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error requesting CTS GPIO\n");
-			goto err;
-		}
-
-		ret = gpio_direction_input(sport->cts_gpio);
-		if (ret) {
-			dev_err(&pdev->dev, "error setting CTS GPIO\n");
-			goto err;
-		}
-	}
+	sport->cts_gpiod = devm_gpiod_get_optional(dev, "cts", GPIOD_IN);
+	if (IS_ERR(sport->cts_gpiod))
+		return dev_err_probe(dev, PTR_ERR(sport->cts_gpiod), "error requesting CTS GPIO\n");
+	gpiod_set_consumer_name(sport->cts_gpiod, "CTS");
 
 	pic32_sports[uart_idx] = sport;
 	port = &sport->port;
@@ -943,7 +919,7 @@ static int pic32_uart_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_SERIAL_PIC32_CONSOLE
-	if (uart_console(port) && (pic32_console.flags & CON_ENABLED)) {
+	if (uart_console_enabled(port)) {
 		/* The peripheral clock has been enabled by console_setup,
 		 * so disable it till the port is used.
 		 */

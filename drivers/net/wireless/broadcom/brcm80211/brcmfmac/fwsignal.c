@@ -688,7 +688,7 @@ static void brcmf_fws_macdesc_set_name(struct brcmf_fws_info *fws,
 				       struct brcmf_fws_mac_descriptor *desc)
 {
 	if (desc == &fws->desc.other)
-		strlcpy(desc->name, "MAC-OTHER", sizeof(desc->name));
+		strscpy(desc->name, "MAC-OTHER", sizeof(desc->name));
 	else if (desc->mac_handle)
 		scnprintf(desc->name, sizeof(desc->name), "MAC-%d:%d",
 			  desc->mac_handle, desc->interface_id);
@@ -2475,7 +2475,8 @@ bool brcmf_fws_fc_active(struct brcmf_fws_info *fws)
 	return fws->fcmode != BRCMF_FWS_FCMODE_NONE;
 }
 
-void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
+void brcmf_fws_bustxcomplete(struct brcmf_fws_info *fws, struct sk_buff *skb,
+			     bool success)
 {
 	u32 hslot;
 
@@ -2483,11 +2484,14 @@ void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
 		brcmu_pkt_buf_free_skb(skb);
 		return;
 	}
-	brcmf_fws_lock(fws);
-	hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
-	brcmf_fws_txs_process(fws, BRCMF_FWS_TXSTATUS_HOST_TOSSED, hslot, 0, 0,
-			      1);
-	brcmf_fws_unlock(fws);
+
+	if (!success) {
+		brcmf_fws_lock(fws);
+		hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
+		brcmf_fws_txs_process(fws, BRCMF_FWS_TXSTATUS_HOST_TOSSED, hslot,
+				      0, 0, 1);
+		brcmf_fws_unlock(fws);
+	}
 }
 
 void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked)

@@ -151,11 +151,11 @@ static void fjes_get_drvinfo(struct net_device *netdev,
 
 	plat_dev = adapter->plat_dev;
 
-	strlcpy(drvinfo->driver, fjes_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, fjes_driver_version,
+	strscpy(drvinfo->driver, fjes_driver_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, fjes_driver_version,
 		sizeof(drvinfo->version));
 
-	strlcpy(drvinfo->fw_version, "none", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->fw_version, "none", sizeof(drvinfo->fw_version));
 	snprintf(drvinfo->bus_info, sizeof(drvinfo->bus_info),
 		 "platform:%s", plat_dev->name);
 }

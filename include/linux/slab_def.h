@@ -33,7 +33,6 @@ struct kmem_cache {
 
 	size_t colour;			/* cache colouring range */
 	unsigned int colour_off;	/* colour offset */
-	struct kmem_cache *freelist_cache;
 	unsigned int freelist_size;
 
 	/* constructor func */

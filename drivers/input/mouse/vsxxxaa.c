@@ -13,9 +13,6 @@
  */
 
 /*
- */
-
-/*
  * Building an adaptor to DE9 / DB25 RS232
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -138,12 +135,12 @@ static void vsxxxaa_detection_done(struct vsxxxaa *mouse)
 {
 	switch (mouse->type) {
 	case 0x02:
-		strlcpy(mouse->name, "DEC VSXXX-AA/-GA mouse",
+		strscpy(mouse->name, "DEC VSXXX-AA/-GA mouse",
 			sizeof(mouse->name));
 		break;
 
 	case 0x04:
-		strlcpy(mouse->name, "DEC VSXXX-AB digitizer",
+		strscpy(mouse->name, "DEC VSXXX-AB digitizer",
 			sizeof(mouse->name));
 		break;
 

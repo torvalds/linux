@@ -237,8 +237,7 @@ static int rmi_hid_read_block(struct rmi_transport_dev *xport, u16 addr,
 
 			read_input_count = data->readReport[1];
 			memcpy(buf + bytes_read, &data->readReport[2],
-				read_input_count < bytes_needed ?
-					read_input_count : bytes_needed);
+				min(read_input_count, bytes_needed));
 
 			bytes_read += read_input_count;
 			bytes_needed -= read_input_count;
@@ -347,8 +346,7 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 		return 0;
 	}
 
-	memcpy(hdata->readReport, data, size < hdata->input_report_size ?
-			size : hdata->input_report_size);
+	memcpy(hdata->readReport, data, min((u32)size, hdata->input_report_size));
 	set_bit(RMI_READ_DATA_PENDING, &hdata->flags);
 	wake_up(&hdata->wait);
 

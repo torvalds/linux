@@ -51,6 +51,7 @@
  *                  detection.
  * @skip_wake_irqs: Skip IRQs that are handled by wakeup interrupt controller
  * @disabled_for_mux: These IRQs were disabled because we muxed away.
+ * @ever_gpio:      This bit is set the first time we mux a pin to gpio_func.
  * @soc:            Reference to soc_data of platform specific data.
  * @regs:           Base addresses for the TLMM tiles.
  * @phys_base:      Physical base address
@@ -72,6 +73,7 @@ struct msm_pinctrl {
 	DECLARE_BITMAP(enabled_irqs, MAX_NR_GPIO);
 	DECLARE_BITMAP(skip_wake_irqs, MAX_NR_GPIO);
 	DECLARE_BITMAP(disabled_for_mux, MAX_NR_GPIO);
+	DECLARE_BITMAP(ever_gpio, MAX_NR_GPIO);
 
 	const struct msm_pinctrl_soc_data *soc;
 	void __iomem *regs[MAX_NR_TILES];
@@ -217,6 +219,25 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	val = msm_readl_ctl(pctrl, g);
+
+	/*
+	 * If this is the first time muxing to GPIO and the direction is
+	 * output, make sure that we're not going to be glitching the pin
+	 * by reading the current state of the pin and setting it as the
+	 * output.
+	 */
+	if (i == gpio_func && (val & BIT(g->oe_bit)) &&
+	    !test_and_set_bit(group, pctrl->ever_gpio)) {
+		u32 io_val = msm_readl_io(pctrl, g);
+
+		if (io_val & BIT(g->in_bit)) {
+			if (!(io_val & BIT(g->out_bit)))
+				msm_writel_io(io_val | BIT(g->out_bit), pctrl, g);
+		} else {
+			if (io_val & BIT(g->out_bit))
+				msm_writel_io(io_val & ~BIT(g->out_bit), pctrl, g);
+		}
+	}
 
 	if (egpio_func && i == egpio_func) {
 		if (val & BIT(g->egpio_present))

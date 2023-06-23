@@ -50,7 +50,7 @@
  * hinic_rxq_clean_stats - Clean the statistics of specific queue
  * @rxq: Logical Rx Queue
  **/
-void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
+static void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
 {
 	struct hinic_rxq_stats *rxq_stats = &rxq->rxq_stats;
 

@@ -166,7 +166,7 @@ struct dm_cache_policy_type {
 	struct dm_cache_policy_type *real;
 
 	/*
-	 * Policies may store a hint for each each cache block.
+	 * Policies may store a hint for each cache block.
 	 * Currently the size of this hint must be 0 or 4 bytes but we
 	 * expect to relax this in future.
 	 */

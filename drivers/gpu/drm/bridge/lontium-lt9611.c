@@ -813,12 +813,13 @@ static int lt9611_connector_init(struct drm_bridge *bridge, struct lt9611 *lt961
 
 	drm_connector_helper_add(&lt9611->connector,
 				 &lt9611_bridge_connector_helper_funcs);
-	drm_connector_attach_encoder(&lt9611->connector, bridge->encoder);
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
 		return -ENODEV;
 	}
+
+	drm_connector_attach_encoder(&lt9611->connector, bridge->encoder);
 
 	return 0;
 }
@@ -1216,7 +1217,7 @@ err_of_put:
 	return ret;
 }
 
-static int lt9611_remove(struct i2c_client *client)
+static void lt9611_remove(struct i2c_client *client)
 {
 	struct lt9611 *lt9611 = i2c_get_clientdata(client);
 
@@ -1228,8 +1229,6 @@ static int lt9611_remove(struct i2c_client *client)
 
 	of_node_put(lt9611->dsi1_node);
 	of_node_put(lt9611->dsi0_node);
-
-	return 0;
 }
 
 static struct i2c_device_id lt9611_id[] = {

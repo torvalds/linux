@@ -743,6 +743,7 @@ extern void default_banner(void);
 	 word 771b;				\
 	 .byte ptype;				\
 	 .byte 772b-771b;			\
+	 _ASM_ALIGN;				\
 	.popsection
 
 

@@ -58,7 +58,4 @@ void __init memblock_init(void)
 	/* Reserve the kernel text/data/bss */
 	memblock_reserve(__pa_symbol(&_text),
 			 __pa_symbol(&_end) - __pa_symbol(&_text));
-
-	/* Reserve the initrd */
-	reserve_initrd_mem();
 }

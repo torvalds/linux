@@ -738,6 +738,7 @@ struct lpfc_register {
 #define lpfc_sliport_eqdelay_id_WORD	word0
 #define LPFC_SEC_TO_USEC		1000000
 #define LPFC_SEC_TO_MSEC		1000
+#define LPFC_MSECS_TO_SECS(msecs) ((msecs) / 1000)
 
 /* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
  * reside in BAR 2.
@@ -3483,9 +3484,10 @@ struct lpfc_sli4_parameters {
 
 #define LPFC_SET_UE_RECOVERY		0x10
 #define LPFC_SET_MDS_DIAGS		0x12
-#define LPFC_SET_CGN_SIGNAL		0x1f
 #define LPFC_SET_DUAL_DUMP		0x1e
+#define LPFC_SET_CGN_SIGNAL		0x1f
 #define LPFC_SET_ENABLE_MI		0x21
+#define LPFC_SET_LD_SIGNAL		0x23
 #define LPFC_SET_ENABLE_CMF		0x24
 struct lpfc_mbx_set_feature {
 	struct mbox_header header;
@@ -3516,13 +3518,17 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_cmf_SHIFT		0
 #define lpfc_mbx_set_feature_cmf_MASK		0x00000001
 #define lpfc_mbx_set_feature_cmf_WORD		word6
+#define lpfc_mbx_set_feature_lds_qry_SHIFT	0
+#define lpfc_mbx_set_feature_lds_qry_MASK	0x00000001
+#define lpfc_mbx_set_feature_lds_qry_WORD	word6
+#define LPFC_QUERY_LDS_OP		1
 #define lpfc_mbx_set_feature_mi_SHIFT		0
 #define lpfc_mbx_set_feature_mi_MASK		0x0000ffff
 #define lpfc_mbx_set_feature_mi_WORD		word6
 #define lpfc_mbx_set_feature_milunq_SHIFT	16
 #define lpfc_mbx_set_feature_milunq_MASK	0x0000ffff
 #define lpfc_mbx_set_feature_milunq_WORD	word6
-	uint32_t word7;
+	u32 word7;
 #define lpfc_mbx_set_feature_UERP_SHIFT 0
 #define lpfc_mbx_set_feature_UERP_MASK  0x0000ffff
 #define lpfc_mbx_set_feature_UERP_WORD  word7
@@ -3536,6 +3542,8 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_CGN_acqe_freq_SHIFT 0
 #define lpfc_mbx_set_feature_CGN_acqe_freq_MASK  0x000000ff
 #define lpfc_mbx_set_feature_CGN_acqe_freq_WORD  word8
+	u32 word9;
+	u32 word10;
 };
 
 
@@ -4313,7 +4321,7 @@ struct lpfc_acqe_cgn_signal {
 struct lpfc_acqe_sli {
 	uint32_t event_data1;
 	uint32_t event_data2;
-	uint32_t reserved;
+	uint32_t event_data3;
 	uint32_t trailer;
 #define LPFC_SLI_EVENT_TYPE_PORT_ERROR		0x1
 #define LPFC_SLI_EVENT_TYPE_OVER_TEMP		0x2
@@ -4326,6 +4334,7 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN	0xF
 #define LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE	0x10
 #define LPFC_SLI_EVENT_TYPE_CGN_SIGNAL		0x11
+#define LPFC_SLI_EVENT_TYPE_RD_SIGNAL           0x12
 };
 
 /*
@@ -4798,6 +4807,9 @@ struct cmf_sync_wqe {
 #define cmf_sync_cqid_WORD	word11
 	uint32_t read_bytes;
 	uint32_t word13;
+#define cmf_sync_period_SHIFT	16
+#define cmf_sync_period_MASK	0x0000ffff
+#define cmf_sync_period_WORD	word13
 	uint32_t word14;
 	uint32_t word15;
 };
@@ -5045,22 +5057,6 @@ struct lpfc_grp_hdr {
 	{ FPIN_CONGN_SEVERITY_WARNING,		"Warning" },	\
 	{ FPIN_CONGN_SEVERITY_ERROR,		"Alarm" },	\
 }
-
-/* EDC supports two descriptors.  When allocated, it is the
- * size of this structure plus each supported descriptor.
- */
-struct lpfc_els_edc_req {
-	struct fc_els_edc               edc;       /* hdr up to descriptors */
-	struct fc_diag_cg_sig_desc      cgn_desc;  /* 1st descriptor */
-};
-
-/* Minimum structure defines for the EDC response.
- * Balance is in buffer.
- */
-struct lpfc_els_edc_rsp {
-	struct fc_els_edc_resp          edc_rsp;   /* hdr up to descriptors */
-	struct fc_diag_cg_sig_desc      cgn_desc;  /* 1st descriptor */
-};
 
 /* Used for logging FPIN messages */
 #define LPFC_FPIN_WWPN_LINE_SZ  128

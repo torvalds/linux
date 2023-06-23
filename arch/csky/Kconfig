@@ -332,7 +332,7 @@ config HIGHMEM
 	select KMAP_LOCAL
 	default y
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	default "11"
 

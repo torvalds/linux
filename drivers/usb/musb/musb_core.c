@@ -2595,9 +2595,7 @@ fail2:
 	musb_platform_exit(musb);
 
 fail1:
-	if (status != -EPROBE_DEFER)
-		dev_err(musb->controller,
-			"%s failed with status %d\n", __func__, status);
+	dev_err_probe(musb->controller, status, "%s failed\n", __func__);
 
 	musb_free(musb);
 

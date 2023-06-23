@@ -918,6 +918,11 @@ S: Ottawa, Ontario
 S: K1N 6Z9
 S: CANADA
 
+N: Vivien Didelot
+E: vivien.didelot@gmail.com
+D: DSA framework and MV88E6XXX driver
+S: Montreal, Quebec, Canada
+
 N: Jeff Dike
 E: jdike@karaya.com
 W: http://user-mode-linux.sourceforge.net
@@ -2446,6 +2451,10 @@ D: i386 task switching hacks
 S: 482 Shadowgraph Dr.
 S: San Jose, CA  95110
 S: USA
+
+N: Michal Marek
+E: michal.lkml@markovi.net
+D: Kbuild Maintainer 2009-2017
 
 N: Martin Mares
 E: mj@ucw.cz

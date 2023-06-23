@@ -86,7 +86,7 @@ do {									\
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define NOSPEC_BARRIER_SLOT   nop
-#elif defined(CONFIG_PPC_FSL_BOOK3E)
+#elif defined(CONFIG_PPC_E500)
 #define NOSPEC_BARRIER_SLOT   nop; nop
 #endif
 

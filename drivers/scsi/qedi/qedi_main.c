@@ -618,7 +618,7 @@ static int qedi_cm_alloc_mem(struct qedi_ctx *qedi)
 				sizeof(struct qedi_endpoint *)), GFP_KERNEL);
 	if (!qedi->ep_tbl)
 		return -ENOMEM;
-	port_id = prandom_u32() % QEDI_LOCAL_PORT_RANGE;
+	port_id = prandom_u32_max(QEDI_LOCAL_PORT_RANGE);
 	if (qedi_init_id_tbl(&qedi->lcl_port_tbl, QEDI_LOCAL_PORT_RANGE,
 			     QEDI_LOCAL_PORT_MIN, port_id)) {
 		qedi_cm_free_mem(qedi);

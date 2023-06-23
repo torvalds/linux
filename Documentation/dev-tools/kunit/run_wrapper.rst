@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========================
-Run Tests with kunit_tool
-=========================
+=============================
+Running tests with kunit_tool
+=============================
 
 We can either run KUnit tests using kunit_tool or can run tests
 manually, and then use kunit_tool to parse the results. To run tests
@@ -22,7 +22,7 @@ We should see the following:
 
 .. code-block::
 
-	Generating .config...
+	Configuring KUnit Kernel ...
 	Building KUnit kernel...
 	Starting KUnit kernel...
 
@@ -30,7 +30,7 @@ We may want to use the following options:
 
 .. code-block::
 
-	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all
+	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all`
 
 - ``--timeout`` sets a maximum amount of time for tests to run.
 - ``--jobs`` sets the number of threads to build the kernel.
@@ -58,8 +58,8 @@ To view kunit_tool flags (optional command-line arguments), run:
 
 	./tools/testing/kunit/kunit.py run --help
 
-Create a  ``.kunitconfig`` File
-===============================
+Creating a ``.kunitconfig`` file
+================================
 
 If we want to run a specific set of tests (rather than those listed
 in the KUnit ``defconfig``), we can provide Kconfig options in the
@@ -98,8 +98,8 @@ have not included the options dependencies.
    The build dir needs to be set for ``make menuconfig`` to
    work, therefore  by default use ``make O=.kunit menuconfig``.
 
-Configure, Build, and Run Tests
-===============================
+Configuring, building, and running tests
+========================================
 
 If we want to make manual changes to the KUnit build process, we
 can run part of the KUnit build process independently.
@@ -125,11 +125,11 @@ argument:
 
 	./tools/testing/kunit/kunit.py exec
 
-The ``run`` command discussed in section: **Run Tests with kunit_tool**,
+The ``run`` command discussed in section: **Running tests with kunit_tool**,
 is equivalent to running the above three commands in sequence.
 
-Parse Test Results
-==================
+Parsing test results
+====================
 
 KUnit tests output displays results in TAP (Test Anything Protocol)
 format. When running tests, kunit_tool parses this output and prints
@@ -152,8 +152,8 @@ standard input.
 	# Reading from stdin
 	dmesg | ./tools/testing/kunit/kunit.py parse
 
-Run Selected Test Suites
-========================
+Filtering tests
+===============
 
 By passing a bash style glob filter to the ``exec`` or ``run``
 commands, we can run a subset of the tests built into a kernel . For
@@ -165,8 +165,10 @@ example: if we only want to run KUnit resource tests, use:
 
 This uses the standard glob format with wildcard characters.
 
-Run Tests on qemu
-=================
+.. _kunit-on-qemu:
+
+Running tests on QEMU
+=====================
 
 kunit_tool supports running tests on  qemu as well as
 via UML. To run tests on qemu, by default it requires two flags:
@@ -229,8 +231,8 @@ as
 		--jobs=12 \
 		--qemu_config=./tools/testing/kunit/qemu_configs/x86_64.py
 
-Command-Line Arguments
-======================
+Running command-line arguments
+==============================
 
 kunit_tool has a number of other command-line arguments which can
 be useful for our test environment. Below are the most commonly used
@@ -249,14 +251,15 @@ command line arguments:
   compiling a kernel (using ``build`` or ``run`` commands). For example:
   to enable compiler warnings, we can pass ``--make_options W=1``.
 
-- ``--alltests``: Builds a UML kernel with all config options enabled
-  using ``make allyesconfig``. This allows us to run as many tests as
-  possible.
+- ``--alltests``: Enable a predefined set of options in order to build
+  as many tests as possible.
 
-  .. note:: It is slow and prone to breakage as new options are
-            added or modified. Instead, enable all tests
-            which have satisfied dependencies by adding
-            ``CONFIG_KUNIT_ALL_TESTS=y`` to your ``.kunitconfig``.
+  .. note:: The list of enabled options can be found in
+            ``tools/testing/kunit/configs/all_tests.config``.
+
+            If you only want to enable all tests with otherwise satisfied
+            dependencies, instead add ``CONFIG_KUNIT_ALL_TESTS=y`` to your
+            ``.kunitconfig``.
 
 - ``--kunitconfig``: Specifies the path or the directory of the ``.kunitconfig``
   file. For example:

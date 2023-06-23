@@ -20,8 +20,8 @@ static void test_tailcall_1(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall1.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall1.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -156,8 +156,8 @@ static void test_tailcall_2(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall2.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall2.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -299,7 +299,7 @@ out:
  */
 static void test_tailcall_3(void)
 {
-	test_tailcall_count("tailcall3.o");
+	test_tailcall_count("tailcall3.bpf.o");
 }
 
 /* test_tailcall_6 checks that the count value of the tail call limit
@@ -307,7 +307,7 @@ static void test_tailcall_3(void)
  */
 static void test_tailcall_6(void)
 {
-	test_tailcall_count("tailcall6.o");
+	test_tailcall_count("tailcall6.bpf.o");
 }
 
 /* test_tailcall_4 checks that the kernel properly selects indirect jump
@@ -329,8 +329,8 @@ static void test_tailcall_4(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall4.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall4.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -419,8 +419,8 @@ static void test_tailcall_5(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall5.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall5.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -507,8 +507,8 @@ static void test_tailcall_bpf2bpf_1(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf1.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf1.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -591,8 +591,8 @@ static void test_tailcall_bpf2bpf_2(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf2.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf2.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -671,8 +671,8 @@ static void test_tailcall_bpf2bpf_3(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf3.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf3.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -766,8 +766,8 @@ static void test_tailcall_bpf2bpf_4(bool noise)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf4.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf4.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 

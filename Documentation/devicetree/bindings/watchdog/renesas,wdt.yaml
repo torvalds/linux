@@ -33,6 +33,11 @@ properties:
 
       - items:
           - enum:
+              - renesas,r9a09g011-wdt    # RZ/V2M
+          - const: renesas,rzv2m-wdt     # RZ/V2M
+
+      - items:
+          - enum:
               - renesas,r8a7742-wdt      # RZ/G1H
               - renesas,r8a7743-wdt      # RZ/G1M
               - renesas,r8a7744-wdt      # RZ/G1N
@@ -65,18 +70,35 @@ properties:
           - enum:
               - renesas,r8a779a0-wdt     # R-Car V3U
               - renesas,r8a779f0-wdt     # R-Car S4-8
+              - renesas,r8a779g0-wdt     # R-Car V4H
           - const: renesas,rcar-gen4-wdt # R-Car Gen4
 
   reg:
     maxItems: 1
 
-  interrupts: true
+  interrupts:
+    minItems: 1
+    items:
+      - description: Timeout
+      - description: Parity error
 
-  interrupt-names: true
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: wdt
+      - const: perrout
 
-  clocks: true
+  clocks:
+    minItems: 1
+    items:
+      - description: Register access clock
+      - description: Main clock
 
-  clock-names: true
+  clock-names:
+    minItems: 1
+    items:
+      - const: pclk
+      - const: oscclk
 
   power-domains:
     maxItems: 1
@@ -89,6 +111,7 @@ properties:
 required:
   - compatible
   - reg
+  - interrupts
   - clocks
 
 allOf:
@@ -113,30 +136,37 @@ allOf:
           contains:
             enum:
               - renesas,rzg2l-wdt
+              - renesas,rzv2m-wdt
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+      required:
+        - clock-names
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rzg2l-wdt
     then:
       properties:
         interrupts:
-          maxItems: 2
+          minItems: 2
         interrupt-names:
-          items:
-            - const: wdt
-            - const: perrout
-        clocks:
-          items:
-            - description: Register access clock
-            - description: Main clock
-        clock-names:
-          items:
-            - const: pclk
-            - const: oscclk
+          minItems: 2
       required:
-        - clock-names
         - interrupt-names
     else:
       properties:
         interrupts:
-          maxItems: 1
-        clocks:
           maxItems: 1
 
 additionalProperties: false
@@ -145,9 +175,11 @@ examples:
   - |
     #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
     #include <dt-bindings/power/r8a7795-sysc.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
     wdt0: watchdog@e6020000 {
             compatible = "renesas,r8a7795-wdt", "renesas,rcar-gen3-wdt";
             reg = <0xe6020000 0x0c>;
+            interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 402>;
             power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
             resets = <&cpg 402>;

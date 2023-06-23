@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PowerPC 4xx related functions
  *
  * Copyright 2007 IBM Corporation.
  * Josh Boyer <jwboyer@linux.vnet.ibm.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #ifndef _POWERPC_BOOT_4XX_H_
 #define _POWERPC_BOOT_4XX_H_

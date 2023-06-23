@@ -29,7 +29,8 @@ static int temac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 
 	/* Write the PHY address to the MIIM Access Initiator register.
 	 * When the transfer completes, the PHY register value will appear
-	 * in the LSW0 register */
+	 * in the LSW0 register
+	 */
 	spin_lock_irqsave(lp->indirect_lock, flags);
 	temac_iow(lp, XTE_LSW0_OFFSET, (phy_id << 5) | reg);
 	rc = temac_indirect_in32_locked(lp, XTE_MIIMAI_OFFSET);
@@ -88,7 +89,8 @@ int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev)
 	}
 
 	/* Enable the MDIO bus by asserting the enable bit and writing
-	 * in the clock config */
+	 * in the clock config
+	 */
 	temac_indirect_out32(lp, XTE_MC_OFFSET, 1 << 6 | clk_div);
 
 	bus = devm_mdiobus_alloc(&pdev->dev);

@@ -486,7 +486,7 @@ err_disable_vdd_reg:
 	return err;
 }
 
-static int mcp4725_remove(struct i2c_client *client)
+static void mcp4725_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct mcp4725_data *data = iio_priv(indio_dev);
@@ -496,8 +496,6 @@ static int mcp4725_remove(struct i2c_client *client)
 	if (data->vref_reg)
 		regulator_disable(data->vref_reg);
 	regulator_disable(data->vdd_reg);
-
-	return 0;
 }
 
 static const struct i2c_device_id mcp4725_id[] = {

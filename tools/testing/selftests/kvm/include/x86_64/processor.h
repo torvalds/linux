@@ -748,6 +748,19 @@ struct ex_regs {
 	uint64_t rflags;
 };
 
+struct idt_entry {
+	uint16_t offset0;
+	uint16_t selector;
+	uint16_t ist : 3;
+	uint16_t : 5;
+	uint16_t type : 4;
+	uint16_t : 1;
+	uint16_t dpl : 2;
+	uint16_t p : 1;
+	uint16_t offset1;
+	uint32_t offset2; uint32_t reserved;
+};
+
 void vm_init_descriptor_tables(struct kvm_vm *vm);
 void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector,
@@ -825,6 +838,8 @@ static inline uint8_t wrmsr_safe(uint32_t msr, uint64_t val)
 	return kvm_asm_safe("wrmsr", "a"(val & -1u), "d"(val >> 32), "c"(msr));
 }
 
+bool kvm_is_tdp_enabled(void);
+
 uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 				 uint64_t vaddr);
 void vm_set_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
@@ -855,6 +870,8 @@ enum pg_level {
 #define PG_SIZE_1G PG_LEVEL_SIZE(PG_LEVEL_1G)
 
 void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level);
+void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		    uint64_t nr_bytes, int level);
 
 /*
  * Basic CPU control in CR0

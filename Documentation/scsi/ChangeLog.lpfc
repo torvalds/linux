@@ -401,7 +401,7 @@ Changes from 20041213 to 20041220
 	  structure.
 	* Integrated patch from Christoph Hellwig <hch@lst.de> Kill
 	  compile warnings on 64 bit platforms: %variables for %llx format
-	  specifiers must be caste to long long because %(u)int64_t can
+	  specifiers must be cast to long long because %(u)int64_t can
 	  just be long on 64bit platforms.
 	* Integrated patch from Christoph Hellwig <hch@lst.de> Removes
 	  dead code.

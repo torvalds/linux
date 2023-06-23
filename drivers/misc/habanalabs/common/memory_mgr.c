@@ -11,7 +11,7 @@
  * hl_mmap_mem_buf_get - increase the buffer refcount and return a pointer to
  *                        the buffer descriptor.
  *
- * @mmg: parent unifed memory manager
+ * @mmg: parent unified memory manager
  * @handle: requested buffer handle
  *
  * Find the buffer in the store and return a pointer to its descriptor.
@@ -104,7 +104,7 @@ int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf)
  * hl_mmap_mem_buf_put_handle - decrease the reference to the buffer with the
  *                              given handle.
  *
- * @mmg: parent unifed memory manager
+ * @mmg: parent unified memory manager
  * @handle: requested buffer handle
  *
  * Decrease the reference to the buffer, and release it if it was the last one.
@@ -137,7 +137,7 @@ int hl_mmap_mem_buf_put_handle(struct hl_mem_mgr *mmg, u64 handle)
 /**
  * hl_mmap_mem_buf_alloc - allocate a new mappable buffer
  *
- * @mmg: parent unifed memory manager
+ * @mmg: parent unified memory manager
  * @behavior: behavior object describing this buffer polymorphic behavior
  * @gfp: gfp flags to use for the memory allocations
  * @args: additional args passed to behavior->alloc
@@ -222,7 +222,7 @@ static const struct vm_operations_struct hl_mmap_mem_buf_vm_ops = {
 /**
  * hl_mem_mgr_mmap - map the given buffer to the user
  *
- * @mmg: unifed memory manager
+ * @mmg: unified memory manager
  * @vma: the vma object for which mmap was closed.
  * @args: additional args passed to behavior->mmap
  *
@@ -322,7 +322,7 @@ void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg)
 /**
  * hl_mem_mgr_fini - release unified memory manager
  *
- * @mmg: parent unifed memory manager
+ * @mmg: parent unified memory manager
  *
  * Release the unified memory manager. Shall be called from an interrupt context.
  */

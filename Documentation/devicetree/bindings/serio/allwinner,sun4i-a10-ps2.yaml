@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serio/allwinner,sun4i-a10-ps2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 PS2 Host Controller Device Tree Bindings
+title: Allwinner A10 PS2 Host Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

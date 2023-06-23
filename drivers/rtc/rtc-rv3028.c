@@ -521,10 +521,9 @@ static int rv3028_param_get(struct device *dev, struct rtc_param *param)
 {
 	struct rv3028_data *rv3028 = dev_get_drvdata(dev);
 	int ret;
+	u32 value;
 
 	switch(param->param) {
-		u32 value;
-
 	case RTC_PARAM_BACKUP_SWITCH_MODE:
 		ret = regmap_read(rv3028->regmap, RV3028_BACKUP, &value);
 		if (ret < 0)
@@ -554,9 +553,9 @@ static int rv3028_param_get(struct device *dev, struct rtc_param *param)
 static int rv3028_param_set(struct device *dev, struct rtc_param *param)
 {
 	struct rv3028_data *rv3028 = dev_get_drvdata(dev);
+	u8 mode;
 
 	switch(param->param) {
-		u8 mode;
 	case RTC_PARAM_BACKUP_SWITCH_MODE:
 		switch (param->uvalue) {
 		case RTC_BSM_DISABLED:

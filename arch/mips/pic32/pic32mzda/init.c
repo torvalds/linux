@@ -44,10 +44,10 @@ void __init plat_mem_setup(void)
 	pr_info(" builtin_cmdline  : %s\n", CONFIG_CMDLINE);
 #endif
 	if (dtb != __dtb_start)
-		strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
+		strscpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 
 #ifdef CONFIG_EARLY_PRINTK
-	fw_init_early_console(-1);
+	fw_init_early_console();
 #endif
 	pic32_config_init();
 }

@@ -32,6 +32,8 @@ struct workqueue_struct *fm10k_workqueue;
  **/
 static int __init fm10k_init_module(void)
 {
+	int ret;
+
 	pr_info("%s\n", fm10k_driver_string);
 	pr_info("%s\n", fm10k_copyright);
 
@@ -43,7 +45,13 @@ static int __init fm10k_init_module(void)
 
 	fm10k_dbg_init();
 
-	return fm10k_register_pci_driver();
+	ret = fm10k_register_pci_driver();
+	if (ret) {
+		fm10k_dbg_exit();
+		destroy_workqueue(fm10k_workqueue);
+	}
+
+	return ret;
 }
 module_init(fm10k_init_module);
 
@@ -1595,8 +1603,7 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 		return -ENOMEM;
 
 	/* initialize NAPI */
-	netif_napi_add(interface->netdev, &q_vector->napi,
-		       fm10k_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(interface->netdev, &q_vector->napi, fm10k_poll);
 
 	/* tie q_vector and interface together */
 	interface->q_vector[v_idx] = q_vector;

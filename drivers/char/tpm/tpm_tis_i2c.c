@@ -351,13 +351,12 @@ static int tpm_tis_i2c_probe(struct i2c_client *dev,
 				 NULL);
 }
 
-static int tpm_tis_i2c_remove(struct i2c_client *client)
+static void tpm_tis_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = i2c_get_clientdata(client);
 
 	tpm_chip_unregister(chip);
 	tpm_tis_remove(chip);
-	return 0;
 }
 
 static const struct i2c_device_id tpm_tis_i2c_id[] = {

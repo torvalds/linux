@@ -73,6 +73,7 @@ properties:
       - description: STMicroelectronics Pressure Sensors
         enum:
           - st,lps001wp-press
+          - st,lps22df
           - st,lps22hb-press
           - st,lps22hh
           - st,lps25h-press
@@ -141,6 +142,7 @@ allOf:
             - st,lis2mdl
             - st,lis3l02dq
             - st,lis3lv02dl-accel
+            - st,lps22df
             - st,lps22hb-press
             - st,lps22hh
             - st,lps25h-press

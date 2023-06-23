@@ -64,6 +64,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1375,6 +1376,10 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int err, lpitch;
 	struct fb_monspecs *specs;
 	bool found;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "tdfxfb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);
 	if (err) {

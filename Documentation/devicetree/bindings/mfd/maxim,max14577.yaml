@@ -39,6 +39,7 @@ properties:
 
   extcon:
     type: object
+    additionalProperties: false
     properties:
       compatible:
         enum:

@@ -177,7 +177,7 @@ fail:
 	return ret;
 }
 
-static int lis3lv02d_i2c_remove(struct i2c_client *client)
+static void lis3lv02d_i2c_remove(struct i2c_client *client)
 {
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 	struct lis3lv02d_platform_data *pdata = client->dev.platform_data;
@@ -190,7 +190,6 @@ static int lis3lv02d_i2c_remove(struct i2c_client *client)
 
 	regulator_bulk_free(ARRAY_SIZE(lis3->regulators),
 			    lis3_dev.regulators);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -45,6 +45,7 @@
 
 #undef DEBUG
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -941,6 +942,10 @@ static int pvr2fb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "pvrfb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {

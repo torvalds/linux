@@ -8,13 +8,12 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_plane_helper.h>
 
 #include "kmb_drv.h"
 #include "kmb_plane.h"
@@ -136,8 +135,8 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 						   new_plane_state->crtc);
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   crtc_state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
 						   can_position, true);
 }
 
@@ -404,7 +403,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	kmb_write_lcd(kmb, LCD_LAYERn_DMA_LINE_WIDTH(plane_id),
 		      (width * fb->format->cpp[0]));
 
-	addr[Y_PLANE] = drm_fb_cma_get_gem_addr(fb, new_plane_state, 0);
+	addr[Y_PLANE] = drm_fb_dma_get_gem_addr(fb, new_plane_state, 0);
 	kmb_write_lcd(kmb, LCD_LAYERn_DMA_START_ADDR(plane_id),
 		      addr[Y_PLANE] + fb->offsets[0]);
 	val = get_pixel_format(fb->format->format);
@@ -416,7 +415,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 		kmb_write_lcd(kmb, LCD_LAYERn_DMA_CB_LINE_WIDTH(plane_id),
 			      (width * fb->format->cpp[0]));
 
-		addr[U_PLANE] = drm_fb_cma_get_gem_addr(fb, new_plane_state,
+		addr[U_PLANE] = drm_fb_dma_get_gem_addr(fb, new_plane_state,
 							U_PLANE);
 		/* check if Cb/Cr is swapped*/
 		if (num_planes == 3 && (val & LCD_LAYER_CRCB_ORDER))
@@ -437,7 +436,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 				      LCD_LAYERn_DMA_CR_LINE_WIDTH(plane_id),
 				      ((width) * fb->format->cpp[0]));
 
-			addr[V_PLANE] = drm_fb_cma_get_gem_addr(fb,
+			addr[V_PLANE] = drm_fb_dma_get_gem_addr(fb,
 								new_plane_state,
 								V_PLANE);
 

@@ -365,26 +365,15 @@ static const struct etr_buf_operations etr_catu_buf_ops = {
 	.get_data = catu_get_data_etr_buf,
 };
 
-coresight_simple_reg32(struct catu_drvdata, devid, CORESIGHT_DEVID);
-coresight_simple_reg32(struct catu_drvdata, control, CATU_CONTROL);
-coresight_simple_reg32(struct catu_drvdata, status, CATU_STATUS);
-coresight_simple_reg32(struct catu_drvdata, mode, CATU_MODE);
-coresight_simple_reg32(struct catu_drvdata, axictrl, CATU_AXICTRL);
-coresight_simple_reg32(struct catu_drvdata, irqen, CATU_IRQEN);
-coresight_simple_reg64(struct catu_drvdata, sladdr,
-		       CATU_SLADDRLO, CATU_SLADDRHI);
-coresight_simple_reg64(struct catu_drvdata, inaddr,
-		       CATU_INADDRLO, CATU_INADDRHI);
-
 static struct attribute *catu_mgmt_attrs[] = {
-	&dev_attr_devid.attr,
-	&dev_attr_control.attr,
-	&dev_attr_status.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_axictrl.attr,
-	&dev_attr_irqen.attr,
-	&dev_attr_sladdr.attr,
-	&dev_attr_inaddr.attr,
+	coresight_simple_reg32(devid, CORESIGHT_DEVID),
+	coresight_simple_reg32(control, CATU_CONTROL),
+	coresight_simple_reg32(status, CATU_STATUS),
+	coresight_simple_reg32(mode, CATU_MODE),
+	coresight_simple_reg32(axictrl, CATU_AXICTRL),
+	coresight_simple_reg32(irqen, CATU_IRQEN),
+	coresight_simple_reg64(sladdr, CATU_SLADDRLO, CATU_SLADDRHI),
+	coresight_simple_reg64(inaddr, CATU_INADDRLO, CATU_INADDRHI),
 	NULL,
 };
 

@@ -360,7 +360,7 @@ void default_machine_kexec(struct kimage *image)
 	 * the RMA. On BookE there is no real MMU off mode, so we have to
 	 * keep it enabled as well (but then we have bolted TLB entries).
 	 */
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	copy_with_mmu_off = false;
 #else
 	copy_with_mmu_off = radix_enabled() ||

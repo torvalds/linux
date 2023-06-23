@@ -198,7 +198,7 @@ static int vbg_report_guest_info(struct vbg_dev *gdev)
 	req2->additions_revision = VBG_SVN_REV;
 	req2->additions_features =
 		VMMDEV_GUEST_INFO2_ADDITIONS_FEATURES_REQUESTOR_INFO;
-	strlcpy(req2->name, VBG_VERSION_STRING,
+	strscpy(req2->name, VBG_VERSION_STRING,
 		sizeof(req2->name));
 
 	/*

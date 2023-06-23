@@ -26,7 +26,7 @@
 static bool __init test_requires(void)
 {
 	/* random should be initialized for the below tests */
-	return prandom_u32() + prandom_u32() != 0;
+	return get_random_u32() + get_random_u32() != 0;
 }
 
 /*
@@ -46,7 +46,7 @@ static bool __init test_encode_decode(void)
 		unsigned long addr;
 		size_t verif_size;
 
-		prandom_bytes(&addr, sizeof(addr));
+		get_random_bytes(&addr, sizeof(addr));
 		if (addr < PAGE_SIZE)
 			addr = PAGE_SIZE;
 

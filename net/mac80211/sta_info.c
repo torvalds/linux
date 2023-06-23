@@ -274,6 +274,43 @@ link_sta_info_get_bss(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 	return NULL;
 }
 
+struct ieee80211_sta *
+ieee80211_find_sta_by_link_addrs(struct ieee80211_hw *hw,
+				 const u8 *addr,
+				 const u8 *localaddr,
+				 unsigned int *link_id)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct link_sta_info *link_sta;
+	struct rhlist_head *tmp;
+
+	for_each_link_sta_info(local, addr, link_sta, tmp) {
+		struct sta_info *sta = link_sta->sta;
+		struct ieee80211_link_data *link;
+		u8 _link_id = link_sta->link_id;
+
+		if (!localaddr) {
+			if (link_id)
+				*link_id = _link_id;
+			return &sta->sta;
+		}
+
+		link = rcu_dereference(sta->sdata->link[_link_id]);
+		if (!link)
+			continue;
+
+		if (memcmp(link->conf->addr, localaddr, ETH_ALEN))
+			continue;
+
+		if (link_id)
+			*link_id = _link_id;
+		return &sta->sta;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_link_addrs);
+
 struct sta_info *sta_info_get_by_addrs(struct ieee80211_local *local,
 				       const u8 *sta_addr, const u8 *vif_addr)
 {
@@ -339,6 +376,8 @@ static void sta_remove_link(struct sta_info *sta, unsigned int link_id,
 		sta_info_free_link(&alloc->info);
 		kfree_rcu(alloc, rcu_head);
 	}
+
+	ieee80211_sta_recalc_aggregates(&sta->sta);
 }
 
 /**
@@ -472,8 +511,12 @@ static void sta_info_add_link(struct sta_info *sta,
 	link_info->sta = sta;
 	link_info->link_id = link_id;
 	link_info->pub = link_sta;
+	link_sta->link_id = link_id;
 	rcu_assign_pointer(sta->link[link_id], link_info);
 	rcu_assign_pointer(sta->sta.link[link_id], link_sta);
+
+	link_sta->smps_mode = IEEE80211_SMPS_OFF;
+	link_sta->agg.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
 }
 
 static struct sta_info *
@@ -503,6 +546,8 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	} else {
 		sta_info_add_link(sta, 0, &sta->deflink, &sta->sta.deflink);
 	}
+
+	sta->sta.cur = &sta->sta.deflink.agg;
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
@@ -626,9 +671,6 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 			sta->sta.deflink.supp_rates[i] |= BIT(r);
 		}
 	}
-
-	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
-	sta->sta.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
 
 	sta->cparams.ce_threshold = CODEL_DISABLED_THRESHOLD;
 	sta->cparams.target = MS2TIME(20);
@@ -2085,6 +2127,44 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 }
 EXPORT_SYMBOL(ieee80211_sta_register_airtime);
 
+void ieee80211_sta_recalc_aggregates(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	struct ieee80211_link_sta *link_sta;
+	int link_id, i;
+	bool first = true;
+
+	if (!pubsta->valid_links || !pubsta->mlo) {
+		pubsta->cur = &pubsta->deflink.agg;
+		return;
+	}
+
+	rcu_read_lock();
+	for_each_sta_active_link(&sta->sdata->vif, pubsta, link_sta, link_id) {
+		if (first) {
+			sta->cur = pubsta->deflink.agg;
+			first = false;
+			continue;
+		}
+
+		sta->cur.max_amsdu_len =
+			min(sta->cur.max_amsdu_len,
+			    link_sta->agg.max_amsdu_len);
+		sta->cur.max_rc_amsdu_len =
+			min(sta->cur.max_rc_amsdu_len,
+			    link_sta->agg.max_rc_amsdu_len);
+
+		for (i = 0; i < ARRAY_SIZE(sta->cur.max_tid_amsdu_len); i++)
+			sta->cur.max_tid_amsdu_len[i] =
+				min(sta->cur.max_tid_amsdu_len[i],
+				    link_sta->agg.max_tid_amsdu_len[i]);
+	}
+	rcu_read_unlock();
+
+	pubsta->cur = &sta->cur;
+}
+EXPORT_SYMBOL(ieee80211_sta_recalc_aggregates);
+
 void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 					  struct sta_info *sta, u8 ac,
 					  u16 tx_airtime, bool tx_completed)
@@ -2777,10 +2857,13 @@ int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 
 	sta->sta.valid_links = new_links;
 
-	if (!test_sta_flag(sta, WLAN_STA_INSERTED)) {
-		ret = 0;
+	if (!test_sta_flag(sta, WLAN_STA_INSERTED))
 		goto hash;
-	}
+
+	/* Ensure the values are updated for the driver,
+	 * redone by sta_remove_link on failure.
+	 */
+	ieee80211_sta_recalc_aggregates(&sta->sta);
 
 	ret = drv_change_sta_links(sdata->local, sdata, &sta->sta,
 				   old_links, new_links);
@@ -2799,6 +2882,7 @@ hash:
 void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u16 old_links = sta->sta.valid_links;
 
 	lockdep_assert_held(&sdata->local->sta_mtx);
 
@@ -2806,8 +2890,7 @@ void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
 
 	if (test_sta_flag(sta, WLAN_STA_INSERTED))
 		drv_change_sta_links(sdata->local, sdata, &sta->sta,
-				     sta->sta.valid_links,
-				     sta->sta.valid_links & ~BIT(link_id));
+				     old_links, sta->sta.valid_links);
 
 	sta_remove_link(sta, link_id, true);
 }
@@ -2834,3 +2917,13 @@ void ieee80211_sta_set_max_amsdu_subframes(struct sta_info *sta,
 	if (val)
 		sta->sta.max_amsdu_subframes = 4 << val;
 }
+
+#ifdef CONFIG_LOCKDEP
+bool lockdep_sta_mutex_held(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	return lockdep_is_held(&sta->local->sta_mtx);
+}
+EXPORT_SYMBOL(lockdep_sta_mutex_held);
+#endif

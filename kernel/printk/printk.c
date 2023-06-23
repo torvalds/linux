@@ -220,9 +220,6 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 }
 #endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
 
-/* Number of registered extended console drivers. */
-static int nr_ext_console_drivers;
-
 /*
  * Helper macros to handle lockdep when locking/unlocking console_sem. We use
  * macros instead of functions so that _RET_IP_ contains useful information.
@@ -433,7 +430,7 @@ static struct printk_ringbuffer *prb = &printk_rb_static;
  * per_cpu_areas are initialised. This variable is set to true when
  * it's safe to access per-CPU data.
  */
-static bool __printk_percpu_data_ready __read_mostly;
+static bool __printk_percpu_data_ready __ro_after_init;
 
 bool printk_percpu_data_ready(void)
 {
@@ -2296,6 +2293,7 @@ asmlinkage __visible int _printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(_printk);
 
+static bool pr_flush(int timeout_ms, bool reset_on_progress);
 static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progress);
 
 #else /* CONFIG_PRINTK */
@@ -2330,6 +2328,7 @@ static void call_console_driver(struct console *con, const char *text, size_t le
 {
 }
 static bool suppress_message_printing(int level) { return false; }
+static bool pr_flush(int timeout_ms, bool reset_on_progress) { return true; }
 static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progress) { return true; }
 
 #endif /* CONFIG_PRINTK */
@@ -3186,9 +3185,6 @@ void register_console(struct console *newcon)
 		console_drivers->next = newcon;
 	}
 
-	if (newcon->flags & CON_EXTENDED)
-		nr_ext_console_drivers++;
-
 	newcon->dropped = 0;
 	if (newcon->flags & CON_PRINTBUFFER) {
 		/* Get a consistent copy of @syslog_seq. */
@@ -3213,9 +3209,6 @@ void register_console(struct console *newcon)
 	if (bootcon_enabled &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
-		/* We need to iterate through all boot consoles, to make
-		 * sure we print everything out, before we unregister them.
-		 */
 		for_each_console(con)
 			if (con->flags & CON_BOOT)
 				unregister_console(con);
@@ -3253,9 +3246,6 @@ int unregister_console(struct console *console)
 
 	if (res)
 		goto out_disable_unlock;
-
-	if (console->flags & CON_EXTENDED)
-		nr_ext_console_drivers--;
 
 	/*
 	 * If this isn't the last console and it has CON_CONSDEV set, we
@@ -3438,11 +3428,10 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
  * Context: Process context. May sleep while acquiring console lock.
  * Return: true if all enabled printers are caught up.
  */
-bool pr_flush(int timeout_ms, bool reset_on_progress)
+static bool pr_flush(int timeout_ms, bool reset_on_progress)
 {
 	return __pr_flush(NULL, timeout_ms, reset_on_progress);
 }
-EXPORT_SYMBOL(pr_flush);
 
 /*
  * Delayed printk version, for scheduler-internal messages:

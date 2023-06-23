@@ -294,6 +294,7 @@ struct genl_family tipc_genl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.ops		= tipc_genl_v2_ops,
 	.n_ops		= ARRAY_SIZE(tipc_genl_v2_ops),
+	.resv_start_op	= TIPC_NL_ADDR_LEGACY_GET + 1,
 };
 
 int __init tipc_netlink_start(void)

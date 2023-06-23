@@ -95,7 +95,7 @@ struct v3d_perfmon *v3d_perfmon_find(struct v3d_file_priv *v3d_priv, int id)
 void v3d_perfmon_open_file(struct v3d_file_priv *v3d_priv)
 {
 	mutex_init(&v3d_priv->perfmon.lock);
-	idr_init(&v3d_priv->perfmon.idr);
+	idr_init_base(&v3d_priv->perfmon.idr, 1);
 }
 
 static int v3d_perfmon_idr_del(int id, void *elem, void *data)

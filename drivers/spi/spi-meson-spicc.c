@@ -160,6 +160,7 @@ struct meson_spicc_device {
 	struct clk			*clk;
 	struct spi_message		*message;
 	struct spi_transfer		*xfer;
+	struct completion		done;
 	const struct meson_spicc_data	*data;
 	u8				*tx_buf;
 	u8				*rx_buf;
@@ -282,7 +283,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 		/* Disable all IRQs */
 		writel(0, spicc->base + SPICC_INTREG);
 
-		spi_finalize_current_transfer(spicc->master);
+		complete(&spicc->done);
 
 		return IRQ_HANDLED;
 	}
@@ -386,6 +387,7 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 				    struct spi_transfer *xfer)
 {
 	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	uint64_t timeout;
 
 	/* Store current transfer */
 	spicc->xfer = xfer;
@@ -410,13 +412,29 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	/* Setup burst */
 	meson_spicc_setup_burst(spicc);
 
+	/* Setup wait for completion */
+	reinit_completion(&spicc->done);
+
+	/* For each byte we wait for 8 cycles of the SPI clock */
+	timeout = 8LL * MSEC_PER_SEC * xfer->len;
+	do_div(timeout, xfer->speed_hz);
+
+	/* Add 10us delay between each fifo bursts */
+	timeout += ((xfer->len >> 4) * 10) / MSEC_PER_SEC;
+
+	/* Increase it twice and add 200 ms tolerance */
+	timeout += timeout + 200;
+
 	/* Start burst */
 	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
 
 	/* Enable interrupts */
 	writel_relaxed(SPICC_TC_EN, spicc->base + SPICC_INTREG);
 
-	return 1;
+	if (!wait_for_completion_timeout(&spicc->done, msecs_to_jiffies(timeout)))
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static int meson_spicc_prepare_message(struct spi_master *master,
@@ -537,7 +555,7 @@ static unsigned long meson_spicc_pow2_recalc_rate(struct clk_hw *hw,
 	struct clk_divider *divider = to_clk_divider(hw);
 	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
 
-	if (!spicc->master->cur_msg || !spicc->master->busy)
+	if (!spicc->master->cur_msg)
 		return 0;
 
 	return clk_divider_ops.recalc_rate(hw, parent_rate);
@@ -549,7 +567,7 @@ static int meson_spicc_pow2_determine_rate(struct clk_hw *hw,
 	struct clk_divider *divider = to_clk_divider(hw);
 	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
 
-	if (!spicc->master->cur_msg || !spicc->master->busy)
+	if (!spicc->master->cur_msg)
 		return -EINVAL;
 
 	return clk_divider_ops.determine_rate(hw, req);
@@ -561,13 +579,13 @@ static int meson_spicc_pow2_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_divider *divider = to_clk_divider(hw);
 	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
 
-	if (!spicc->master->cur_msg || !spicc->master->busy)
+	if (!spicc->master->cur_msg)
 		return -EINVAL;
 
 	return clk_divider_ops.set_rate(hw, rate, parent_rate);
 }
 
-const struct clk_ops meson_spicc_pow2_clk_ops = {
+static const struct clk_ops meson_spicc_pow2_clk_ops = {
 	.recalc_rate = meson_spicc_pow2_recalc_rate,
 	.determine_rate = meson_spicc_pow2_determine_rate,
 	.set_rate = meson_spicc_pow2_set_rate,
@@ -742,6 +760,8 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	spicc->pdev = pdev;
 	platform_set_drvdata(pdev, spicc);
+
+	init_completion(&spicc->done);
 
 	spicc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spicc->base)) {

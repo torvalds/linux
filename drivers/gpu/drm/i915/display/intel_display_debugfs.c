@@ -26,6 +26,7 @@
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_watermark.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -37,10 +38,10 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 
 	seq_printf(m, "FB tracking busy bits: 0x%08x\n",
-		   dev_priv->fb_tracking.busy_bits);
+		   dev_priv->display.fb_tracking.busy_bits);
 
 	seq_printf(m, "FB tracking flip bits: 0x%08x\n",
-		   dev_priv->fb_tracking.flip_bits);
+		   dev_priv->display.fb_tracking.flip_bits);
 
 	return 0;
 }
@@ -103,7 +104,8 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 static int i915_opregion(struct seq_file *m, void *unused)
 {
-	struct intel_opregion *opregion = &node_to_i915(m->private)->opregion;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_opregion *opregion = &i915->display.opregion;
 
 	if (opregion->header)
 		seq_write(m, opregion->header, OPREGION_SIZE);
@@ -113,7 +115,8 @@ static int i915_opregion(struct seq_file *m, void *unused)
 
 static int i915_vbt(struct seq_file *m, void *unused)
 {
-	struct intel_opregion *opregion = &node_to_i915(m->private)->opregion;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_opregion *opregion = &i915->display.opregion;
 
 	if (opregion->vbt)
 		seq_write(m, opregion->vbt, opregion->vbt_size);
@@ -129,7 +132,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct drm_framebuffer *drm_fb;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	fbdev_fb = intel_fbdev_framebuffer(dev_priv->fbdev);
+	fbdev_fb = intel_fbdev_framebuffer(dev_priv->display.fbdev.fbdev);
 	if (fbdev_fb) {
 		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
 			   fbdev_fb->base.width,
@@ -722,10 +725,11 @@ static void intel_scaler_info(struct seq_file *m, struct intel_crtc *crtc)
 
 	/* Not all platformas have a scaler */
 	if (num_scalers) {
-		seq_printf(m, "\tnum_scalers=%d, scaler_users=%x scaler_id=%d",
+		seq_printf(m, "\tnum_scalers=%d, scaler_users=%x scaler_id=%d scaling_filter=%d",
 			   num_scalers,
 			   crtc_state->scaler_state.scaler_users,
-			   crtc_state->scaler_state.scaler_id);
+			   crtc_state->scaler_state.scaler_id,
+			   crtc_state->hw.scaling_filter);
 
 		for (i = 0; i < num_scalers; i++) {
 			const struct intel_scaler *sc =
@@ -932,11 +936,11 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	drm_modeset_lock_all(dev);
 
 	seq_printf(m, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
-		   dev_priv->dpll.ref_clks.nssc,
-		   dev_priv->dpll.ref_clks.ssc);
+		   dev_priv->display.dpll.ref_clks.nssc,
+		   dev_priv->display.dpll.ref_clks.ssc);
 
-	for (i = 0; i < dev_priv->dpll.num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->dpll.shared_dplls[i];
+	for (i = 0; i < dev_priv->display.dpll.num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->display.dpll.shared_dplls[i];
 
 		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->info->name,
 			   pll->info->id);
@@ -978,58 +982,6 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 	return 0;
 }
-
-static int i915_ipc_status_show(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = m->private;
-
-	seq_printf(m, "Isochronous Priority Control: %s\n",
-			str_yes_no(dev_priv->ipc_enabled));
-	return 0;
-}
-
-static int i915_ipc_status_open(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *dev_priv = inode->i_private;
-
-	if (!HAS_IPC(dev_priv))
-		return -ENODEV;
-
-	return single_open(file, i915_ipc_status_show, dev_priv);
-}
-
-static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
-				     size_t len, loff_t *offp)
-{
-	struct seq_file *m = file->private_data;
-	struct drm_i915_private *dev_priv = m->private;
-	intel_wakeref_t wakeref;
-	bool enable;
-	int ret;
-
-	ret = kstrtobool_from_user(ubuf, len, &enable);
-	if (ret < 0)
-		return ret;
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		if (!dev_priv->ipc_enabled && enable)
-			drm_info(&dev_priv->drm,
-				 "Enabling IPC: WM will be proper only after next commit\n");
-		dev_priv->ipc_enabled = enable;
-		intel_enable_ipc(dev_priv);
-	}
-
-	return len;
-}
-
-static const struct file_operations i915_ipc_status_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_ipc_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = i915_ipc_status_write
-};
 
 static int i915_ddb_info(struct seq_file *m, void *unused)
 {
@@ -1427,9 +1379,9 @@ static int pri_wm_latency_show(struct seq_file *m, void *data)
 	const u16 *latencies;
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		latencies = dev_priv->wm.skl_latency;
+		latencies = dev_priv->display.wm.skl_latency;
 	else
-		latencies = dev_priv->wm.pri_latency;
+		latencies = dev_priv->display.wm.pri_latency;
 
 	wm_latency_show(m, latencies);
 
@@ -1442,9 +1394,9 @@ static int spr_wm_latency_show(struct seq_file *m, void *data)
 	const u16 *latencies;
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		latencies = dev_priv->wm.skl_latency;
+		latencies = dev_priv->display.wm.skl_latency;
 	else
-		latencies = dev_priv->wm.spr_latency;
+		latencies = dev_priv->display.wm.spr_latency;
 
 	wm_latency_show(m, latencies);
 
@@ -1457,9 +1409,9 @@ static int cur_wm_latency_show(struct seq_file *m, void *data)
 	const u16 *latencies;
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		latencies = dev_priv->wm.skl_latency;
+		latencies = dev_priv->display.wm.skl_latency;
 	else
-		latencies = dev_priv->wm.cur_latency;
+		latencies = dev_priv->display.wm.cur_latency;
 
 	wm_latency_show(m, latencies);
 
@@ -1550,9 +1502,9 @@ static ssize_t pri_wm_latency_write(struct file *file, const char __user *ubuf,
 	u16 *latencies;
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		latencies = dev_priv->wm.skl_latency;
+		latencies = dev_priv->display.wm.skl_latency;
 	else
-		latencies = dev_priv->wm.pri_latency;
+		latencies = dev_priv->display.wm.pri_latency;
 
 	return wm_latency_write(file, ubuf, len, offp, latencies);
 }
@@ -1565,9 +1517,9 @@ static ssize_t spr_wm_latency_write(struct file *file, const char __user *ubuf,
 	u16 *latencies;
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		latencies = dev_priv->wm.skl_latency;
+		latencies = dev_priv->display.wm.skl_latency;
 	else
-		latencies = dev_priv->wm.spr_latency;
+		latencies = dev_priv->display.wm.spr_latency;
 
 	return wm_latency_write(file, ubuf, len, offp, latencies);
 }
@@ -1580,9 +1532,9 @@ static ssize_t cur_wm_latency_write(struct file *file, const char __user *ubuf,
 	u16 *latencies;
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		latencies = dev_priv->wm.skl_latency;
+		latencies = dev_priv->display.wm.skl_latency;
 	else
-		latencies = dev_priv->wm.cur_latency;
+		latencies = dev_priv->display.wm.cur_latency;
 
 	return wm_latency_write(file, ubuf, len, offp, latencies);
 }
@@ -1617,14 +1569,14 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
 
 	/* Synchronize with everything first in case there's been an HPD
 	 * storm, but we haven't finished handling it in the kernel yet
 	 */
 	intel_synchronize_irq(dev_priv);
-	flush_work(&dev_priv->hotplug.dig_port_work);
-	flush_delayed_work(&dev_priv->hotplug.hotplug_work);
+	flush_work(&dev_priv->display.hotplug.dig_port_work);
+	flush_delayed_work(&dev_priv->display.hotplug.hotplug_work);
 
 	seq_printf(m, "Threshold: %d\n", hotplug->hpd_storm_threshold);
 	seq_printf(m, "Detected: %s\n",
@@ -1639,7 +1591,7 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
 	unsigned int new_threshold;
 	int i;
 	char *newline;
@@ -1678,7 +1630,7 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Re-enable hpd immediately if we were in an irq storm */
-	flush_delayed_work(&dev_priv->hotplug.reenable_work);
+	flush_delayed_work(&dev_priv->display.hotplug.reenable_work);
 
 	return len;
 }
@@ -1702,7 +1654,7 @@ static int i915_hpd_short_storm_ctl_show(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = m->private;
 
 	seq_printf(m, "Enabled: %s\n",
-		   str_yes_no(dev_priv->hotplug.hpd_short_storm_enabled));
+		   str_yes_no(dev_priv->display.hotplug.hpd_short_storm_enabled));
 
 	return 0;
 }
@@ -1720,7 +1672,7 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
 	char *newline;
 	char tmp[16];
 	int i;
@@ -1756,7 +1708,7 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Re-enable hpd immediately if we were in an irq storm */
-	flush_delayed_work(&dev_priv->hotplug.reenable_work);
+	flush_delayed_work(&dev_priv->display.hotplug.reenable_work);
 
 	return len;
 }
@@ -1907,7 +1859,6 @@ static const struct {
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
 	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
 	{"i915_hpd_short_storm_ctl", &i915_hpd_short_storm_ctl_fops},
-	{"i915_ipc_status", &i915_ipc_status_fops},
 	{"i915_drrs_ctl", &i915_drrs_ctl_fops},
 	{"i915_edp_psr_debug", &i915_edp_psr_debug_fops},
 };
@@ -1931,6 +1882,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(i915);
+	skl_watermark_ipc_debugfs_register(i915);
 }
 
 static int i915_panel_show(struct seq_file *m, void *data)
@@ -2137,7 +2089,7 @@ static const struct file_operations i915_dsc_fec_support_fops = {
 	.write = i915_dsc_fec_support_write
 };
 
-static int i915_dsc_bpp_show(struct seq_file *m, void *data)
+static int i915_dsc_bpc_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
 	struct drm_device *dev = connector->dev;
@@ -2160,14 +2112,14 @@ static int i915_dsc_bpp_show(struct seq_file *m, void *data)
 	}
 
 	crtc_state = to_intel_crtc_state(crtc->state);
-	seq_printf(m, "Compressed_BPP: %d\n", crtc_state->dsc.compressed_bpp);
+	seq_printf(m, "Input_BPC: %d\n", crtc_state->dsc.config.bits_per_component);
 
 out:	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
 	return ret;
 }
 
-static ssize_t i915_dsc_bpp_write(struct file *file,
+static ssize_t i915_dsc_bpc_write(struct file *file,
 				  const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
@@ -2175,33 +2127,32 @@ static ssize_t i915_dsc_bpp_write(struct file *file,
 		((struct seq_file *)file->private_data)->private;
 	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	int dsc_bpp = 0;
+	int dsc_bpc = 0;
 	int ret;
 
-	ret = kstrtoint_from_user(ubuf, len, 0, &dsc_bpp);
+	ret = kstrtoint_from_user(ubuf, len, 0, &dsc_bpc);
 	if (ret < 0)
 		return ret;
 
-	intel_dp->force_dsc_bpp = dsc_bpp;
+	intel_dp->force_dsc_bpc = dsc_bpc;
 	*offp += len;
 
 	return len;
 }
 
-static int i915_dsc_bpp_open(struct inode *inode,
+static int i915_dsc_bpc_open(struct inode *inode,
 			     struct file *file)
 {
-	return single_open(file, i915_dsc_bpp_show,
-			   inode->i_private);
+	return single_open(file, i915_dsc_bpc_show, inode->i_private);
 }
 
-static const struct file_operations i915_dsc_bpp_fops = {
+static const struct file_operations i915_dsc_bpc_fops = {
 	.owner = THIS_MODULE,
-	.open = i915_dsc_bpp_open,
+	.open = i915_dsc_bpc_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
-	.write = i915_dsc_bpp_write
+	.write = i915_dsc_bpc_write
 };
 
 /*
@@ -2271,8 +2222,8 @@ void intel_connector_debugfs_add(struct intel_connector *intel_connector)
 		debugfs_create_file("i915_dsc_fec_support", 0644, root,
 				    connector, &i915_dsc_fec_support_fops);
 
-		debugfs_create_file("i915_dsc_bpp", 0644, root,
-				    connector, &i915_dsc_bpp_fops);
+		debugfs_create_file("i915_dsc_bpc", 0644, root,
+				    connector, &i915_dsc_bpc_fops);
 	}
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||

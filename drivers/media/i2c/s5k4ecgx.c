@@ -996,7 +996,7 @@ out_err1:
 	return ret;
 }
 
-static int s5k4ecgx_remove(struct i2c_client *client)
+static void s5k4ecgx_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct s5k4ecgx *priv = to_s5k4ecgx(sd);
@@ -1006,8 +1006,6 @@ static int s5k4ecgx_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&priv->handler);
 	media_entity_cleanup(&sd->entity);
-
-	return 0;
 }
 
 static const struct i2c_device_id s5k4ecgx_id[] = {

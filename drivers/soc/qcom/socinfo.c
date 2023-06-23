@@ -104,6 +104,7 @@ static const char *const pmic_models[] = {
 	[36] = "PM8009",
 	[38] = "PM8150C",
 	[41] = "SMB2351",
+	[45] = "PM6125",
 	[47] = "PMK8350",
 	[48] = "PM8350",
 	[49] = "PM8350C",
@@ -334,6 +335,7 @@ static const struct soc_id soc_id[] = {
 	{ 482, "SM8450" },
 	{ 487, "SC7280" },
 	{ 495, "SC7180P" },
+	{ 507, "SM6375" },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)

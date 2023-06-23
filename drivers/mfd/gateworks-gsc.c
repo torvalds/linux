@@ -255,11 +255,9 @@ static int gsc_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int gsc_remove(struct i2c_client *client)
+static void gsc_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &attr_group);
-
-	return 0;
 }
 
 static struct i2c_driver gsc_driver = {

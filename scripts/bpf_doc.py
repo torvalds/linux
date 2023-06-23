@@ -10,6 +10,9 @@ from __future__ import print_function
 import argparse
 import re
 import sys, os
+import subprocess
+
+helpersDocStart = 'Start of BPF helper function descriptions:'
 
 class NoHelperFound(BaseException):
     pass
@@ -47,6 +50,10 @@ class Helper(APIElement):
     @desc: textual description of the helper function
     @ret: description of the return value of the helper function
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.enum_val = None
+
     def proto_break_down(self):
         """
         Break down helper function protocol into smaller chunks: return type,
@@ -89,6 +96,7 @@ class HeaderParser(object):
         self.commands = []
         self.desc_unique_helpers = set()
         self.define_unique_helpers = []
+        self.helper_enum_vals = {}
         self.desc_syscalls = []
         self.enum_syscalls = []
 
@@ -233,7 +241,7 @@ class HeaderParser(object):
         self.enum_syscalls = re.findall('(BPF\w+)+', bpf_cmd_str)
 
     def parse_desc_helpers(self):
-        self.seek_to('* Start of BPF helper function descriptions:',
+        self.seek_to(helpersDocStart,
                      'Could not find start of eBPF helper descriptions list')
         while True:
             try:
@@ -245,30 +253,54 @@ class HeaderParser(object):
                 break
 
     def parse_define_helpers(self):
-        # Parse the number of FN(...) in #define __BPF_FUNC_MAPPER to compare
-        # later with the number of unique function names present in description.
+        # Parse FN(...) in #define __BPF_FUNC_MAPPER to compare later with the
+        # number of unique function names present in description and use the
+        # correct enumeration value.
         # Note: seek_to(..) discards the first line below the target search text,
         # resulting in FN(unspec) being skipped and not added to self.define_unique_helpers.
         self.seek_to('#define __BPF_FUNC_MAPPER(FN)',
                      'Could not find start of eBPF helper definition list')
-        # Searches for either one or more FN(\w+) defines or a backslash for newline
-        p = re.compile('\s*(FN\(\w+\))+|\\\\')
+        # Searches for one FN(\w+) define or a backslash for newline
+        p = re.compile('\s*FN\((\w+)\)|\\\\')
         fn_defines_str = ''
+        i = 1  # 'unspec' is skipped as mentioned above
         while True:
             capture = p.match(self.line)
             if capture:
                 fn_defines_str += self.line
+                self.helper_enum_vals[capture.expand(r'bpf_\1')] = i
+                i += 1
             else:
                 break
             self.line = self.reader.readline()
         # Find the number of occurences of FN(\w+)
         self.define_unique_helpers = re.findall('FN\(\w+\)', fn_defines_str)
 
+    def assign_helper_values(self):
+        seen_helpers = set()
+        for helper in self.helpers:
+            proto = helper.proto_break_down()
+            name = proto['name']
+            try:
+                enum_val = self.helper_enum_vals[name]
+            except KeyError:
+                raise Exception("Helper %s is missing from enum bpf_func_id" % name)
+
+            # Enforce current practice of having the descriptions ordered
+            # by enum value.
+            seen_helpers.add(name)
+            desc_val = len(seen_helpers)
+            if desc_val != enum_val:
+                raise Exception("Helper %s comment order (#%d) must be aligned with its position (#%d) in enum bpf_func_id" % (name, desc_val, enum_val))
+
+            helper.enum_val = enum_val
+
     def run(self):
         self.parse_desc_syscall()
         self.parse_enum_syscall()
         self.parse_desc_helpers()
         self.parse_define_helpers()
+        self.assign_helper_values()
         self.reader.close()
 
 ###############################################################################
@@ -357,6 +389,31 @@ class PrinterRST(Printer):
 
         print('')
 
+    def get_kernel_version(self):
+        try:
+            version = subprocess.run(['git', 'describe'], cwd=linuxRoot,
+                                     capture_output=True, check=True)
+            version = version.stdout.decode().rstrip()
+        except:
+            try:
+                version = subprocess.run(['make', 'kernelversion'], cwd=linuxRoot,
+                                         capture_output=True, check=True)
+                version = version.stdout.decode().rstrip()
+            except:
+                return 'Linux'
+        return 'Linux {version}'.format(version=version)
+
+    def get_last_doc_update(self, delimiter):
+        try:
+            cmd = ['git', 'log', '-1', '--pretty=format:%cs', '--no-patch',
+                   '-L',
+                   '/{}/,/\*\//:include/uapi/linux/bpf.h'.format(delimiter)]
+            date = subprocess.run(cmd, cwd=linuxRoot,
+                                  capture_output=True, check=True)
+            return date.stdout.decode().rstrip()
+        except:
+            return ''
+
 class PrinterHelpersRST(PrinterRST):
     """
     A printer for dumping collected information about helpers as a ReStructured
@@ -378,6 +435,8 @@ list of eBPF helper functions
 -------------------------------------------------------------------------------
 
 :Manual section: 7
+:Version: {version}
+{date_field}{date}
 
 DESCRIPTION
 ===========
@@ -410,8 +469,13 @@ kernel at the top).
 HELPERS
 =======
 '''
+        kernelVersion = self.get_kernel_version()
+        lastUpdate = self.get_last_doc_update(helpersDocStart)
+
         PrinterRST.print_license(self)
-        print(header)
+        print(header.format(version=kernelVersion,
+                            date_field = ':Date: ' if lastUpdate else '',
+                            date=lastUpdate))
 
     def print_footer(self):
         footer = '''
@@ -761,7 +825,7 @@ class PrinterHelpers(Printer):
             comma = ', '
             print(one_arg, end='')
 
-        print(') = (void *) %d;' % len(self.seen_helpers))
+        print(') = (void *) %d;' % helper.enum_val)
         print('')
 
 ###############################################################################

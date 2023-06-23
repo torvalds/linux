@@ -424,8 +424,9 @@ error:
 static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 			       struct ttm_resource *mem)
 {
-	uint64_t mem_size = (u64)mem->num_pages << PAGE_SHIFT;
+	u64 mem_size = (u64)mem->num_pages << PAGE_SHIFT;
 	struct amdgpu_res_cursor cursor;
+	u64 end;
 
 	if (mem->mem_type == TTM_PL_SYSTEM ||
 	    mem->mem_type == TTM_PL_TT)
@@ -434,12 +435,21 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 		return false;
 
 	amdgpu_res_first(mem, 0, mem_size, &cursor);
+	end = cursor.start + cursor.size;
+	while (cursor.remaining) {
+		amdgpu_res_next(&cursor, cursor.size);
 
-	/* ttm_resource_ioremap only supports contiguous memory */
-	if (cursor.size != mem_size)
-		return false;
+		if (!cursor.remaining)
+			break;
 
-	return cursor.start + cursor.size <= adev->gmc.visible_vram_size;
+		/* ttm_resource_ioremap only supports contiguous memory */
+		if (end != cursor.start)
+			return false;
+
+		end = cursor.start + cursor.size;
+	}
+
+	return end <= adev->gmc.visible_vram_size;
 }
 
 /*
@@ -471,7 +481,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	adev = amdgpu_ttm_adev(bo->bdev);
 
-	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
+	if (!old_mem || (old_mem->mem_type == TTM_PL_SYSTEM &&
+			 bo->ttm == NULL)) {
 		ttm_bo_move_null(bo, new_mem);
 		goto out;
 	}
@@ -632,9 +643,6 @@ struct amdgpu_ttm_tt {
 	struct task_struct	*usertask;
 	uint32_t		userflags;
 	bool			bound;
-#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-	struct hmm_range	*range;
-#endif
 };
 
 #define ttm_to_amdgpu_ttm_tt(ptr)	container_of(ptr, struct amdgpu_ttm_tt, ttm)
@@ -647,7 +655,8 @@ struct amdgpu_ttm_tt {
  * Calling function must call amdgpu_ttm_tt_userptr_range_done() once and only
  * once afterwards to stop HMM tracking
  */
-int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
+int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages,
+				 struct hmm_range **range)
 {
 	struct ttm_tt *ttm = bo->tbo.ttm;
 	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
@@ -657,15 +666,14 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
 	bool readonly;
 	int r = 0;
 
+	/* Make sure get_user_pages_done() can cleanup gracefully */
+	*range = NULL;
+
 	mm = bo->notifier.mm;
 	if (unlikely(!mm)) {
 		DRM_DEBUG_DRIVER("BO is not registered?\n");
 		return -EFAULT;
 	}
-
-	/* Another get_user_pages is running at the same time?? */
-	if (WARN_ON(gtt->range))
-		return -EFAULT;
 
 	if (!mmget_not_zero(mm)) /* Happens during process shutdown */
 		return -ESRCH;
@@ -684,7 +692,7 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
 
 	readonly = amdgpu_ttm_tt_is_readonly(ttm);
 	r = amdgpu_hmm_range_get_pages(&bo->notifier, mm, pages, start,
-				       ttm->num_pages, &gtt->range, readonly,
+				       ttm->num_pages, range, readonly,
 				       true, NULL);
 out_unlock:
 	mmap_read_unlock(mm);
@@ -702,30 +710,24 @@ out_unlock:
  *
  * Returns: true if pages are still valid
  */
-bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
+bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
+				       struct hmm_range *range)
 {
 	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
-	bool r = false;
 
-	if (!gtt || !gtt->userptr)
+	if (!gtt || !gtt->userptr || !range)
 		return false;
 
 	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%x\n",
 		gtt->userptr, ttm->num_pages);
 
-	WARN_ONCE(!gtt->range || !gtt->range->hmm_pfns,
-		"No user pages to check\n");
+	WARN_ONCE(!range->hmm_pfns, "No user pages to check\n");
 
-	if (gtt->range) {
-		/*
-		 * FIXME: Must always hold notifier_lock for this, and must
-		 * not ignore the return code.
-		 */
-		r = amdgpu_hmm_range_get_pages_done(gtt->range);
-		gtt->range = NULL;
-	}
-
-	return !r;
+	/*
+	 * FIXME: Must always hold notifier_lock for this, and must
+	 * not ignore the return code.
+	 */
+	return !amdgpu_hmm_range_get_pages_done(range);
 }
 #endif
 
@@ -802,20 +804,6 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_device *bdev,
 	/* unmap the pages mapped to the device */
 	dma_unmap_sgtable(adev->dev, ttm->sg, direction, 0);
 	sg_free_table(ttm->sg);
-
-#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-	if (gtt->range) {
-		unsigned long i;
-
-		for (i = 0; i < ttm->num_pages; i++) {
-			if (ttm->pages[i] !=
-			    hmm_pfn_to_page(gtt->range->hmm_pfns[i]))
-				break;
-		}
-
-		WARN((i == ttm->num_pages), "Missing get_user_page_done\n");
-	}
-#endif
 }
 
 static void amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
@@ -1329,10 +1317,11 @@ uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
-	unsigned long num_pages = bo->resource->num_pages;
 	struct dma_resv_iter resv_cursor;
-	struct amdgpu_res_cursor cursor;
 	struct dma_fence *f;
+
+	if (!amdgpu_bo_is_amdgpu_bo(bo))
+		return ttm_bo_eviction_valuable(bo, place);
 
 	/* Swapout? */
 	if (bo->resource->mem_type == TTM_PL_SYSTEM)
@@ -1352,39 +1341,19 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			return false;
 	}
 
-	switch (bo->resource->mem_type) {
-	case AMDGPU_PL_PREEMPT:
-		/* Preemptible BOs don't own system resources managed by the
-		 * driver (pages, VRAM, GART space). They point to resources
-		 * owned by someone else (e.g. pageable memory in user mode
-		 * or a DMABuf). They are used in a preemptible context so we
-		 * can guarantee no deadlocks and good QoS in case of MMU
-		 * notifiers or DMABuf move notifiers from the resource owner.
-		 */
-		return false;
-	case TTM_PL_TT:
-		if (amdgpu_bo_is_amdgpu_bo(bo) &&
-		    amdgpu_bo_encrypted(ttm_to_amdgpu_bo(bo)))
-			return false;
-		return true;
-
-	case TTM_PL_VRAM:
-		/* Check each drm MM node individually */
-		amdgpu_res_first(bo->resource, 0, (u64)num_pages << PAGE_SHIFT,
-				 &cursor);
-		while (cursor.remaining) {
-			if (place->fpfn < PFN_DOWN(cursor.start + cursor.size)
-			    && !(place->lpfn &&
-				 place->lpfn <= PFN_DOWN(cursor.start)))
-				return true;
-
-			amdgpu_res_next(&cursor, cursor.size);
-		}
+	/* Preemptible BOs don't own system resources managed by the
+	 * driver (pages, VRAM, GART space). They point to resources
+	 * owned by someone else (e.g. pageable memory in user mode
+	 * or a DMABuf). They are used in a preemptible context so we
+	 * can guarantee no deadlocks and good QoS in case of MMU
+	 * notifiers or DMABuf move notifiers from the resource owner.
+	 */
+	if (bo->resource->mem_type == AMDGPU_PL_PREEMPT)
 		return false;
 
-	default:
-		break;
-	}
+	if (bo->resource->mem_type == TTM_PL_TT &&
+	    amdgpu_bo_encrypted(ttm_to_amdgpu_bo(bo)))
+		return false;
 
 	return ttm_bo_eviction_valuable(bo, place);
 }

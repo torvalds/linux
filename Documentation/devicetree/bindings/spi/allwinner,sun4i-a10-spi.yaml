@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/allwinner,sun4i-a10-spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 SPI Controller Device Tree Bindings
+title: Allwinner A10 SPI Controller
 
 allOf:
   - $ref: "spi-controller.yaml"

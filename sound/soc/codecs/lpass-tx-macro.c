@@ -259,7 +259,7 @@ struct tx_macro {
 	struct tx_mute_work tx_mute_dwork[NUM_DECIMATORS];
 	unsigned long active_ch_mask[TX_MACRO_MAX_DAIS];
 	unsigned long active_ch_cnt[TX_MACRO_MAX_DAIS];
-	unsigned long active_decimator[TX_MACRO_MAX_DAIS];
+	int active_decimator[TX_MACRO_MAX_DAIS];
 	struct regmap *regmap;
 	struct clk *mclk;
 	struct clk *npl;
@@ -268,7 +268,6 @@ struct tx_macro {
 	struct clk *fsgen;
 	struct clk_hw hw;
 	bool dec_active[NUM_DECIMATORS];
-	bool reset_swr;
 	int tx_mclk_users;
 	u16 dmic_clk_div;
 	bool bcs_enable;
@@ -823,17 +822,23 @@ static int tx_macro_tx_mixer_put(struct snd_kcontrol *kcontrol,
 	struct tx_macro *tx = snd_soc_component_get_drvdata(component);
 
 	if (enable) {
+		if (tx->active_decimator[dai_id] == dec_id)
+			return 0;
+
 		set_bit(dec_id, &tx->active_ch_mask[dai_id]);
 		tx->active_ch_cnt[dai_id]++;
 		tx->active_decimator[dai_id] = dec_id;
 	} else {
+		if (tx->active_decimator[dai_id] == -1)
+			return 0;
+
 		tx->active_ch_cnt[dai_id]--;
 		clear_bit(dec_id, &tx->active_ch_mask[dai_id]);
 		tx->active_decimator[dai_id] = -1;
 	}
 	snd_soc_dapm_mixer_update_power(widget->dapm, kcontrol, enable, update);
 
-	return 0;
+	return 1;
 }
 
 static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
@@ -1019,9 +1024,12 @@ static int tx_macro_dec_mode_put(struct snd_kcontrol *kcontrol,
 	int path = e->shift_l;
 	struct tx_macro *tx = snd_soc_component_get_drvdata(component);
 
+	if (tx->dec_mode[path] == value)
+		return 0;
+
 	tx->dec_mode[path] = value;
 
-	return 0;
+	return 1;
 }
 
 static int tx_macro_get_bcs(struct snd_kcontrol *kcontrol,
@@ -1117,6 +1125,10 @@ static int tx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	struct snd_soc_component *component = dai->component;
 	struct tx_macro *tx = snd_soc_component_get_drvdata(component);
 	u16 decimator;
+
+	/* active decimator not set yet */
+	if (tx->active_decimator[dai->id] == -1)
+		return 0;
 
 	decimator = tx->active_decimator[dai->id];
 
@@ -1702,18 +1714,14 @@ static int swclk_gate_enable(struct clk_hw *hw)
 	}
 
 	tx_macro_mclk_enable(tx, true);
-	if (tx->reset_swr)
-		regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
-				   CDC_TX_SWR_RESET_MASK,
-				   CDC_TX_SWR_RESET_ENABLE);
+	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
+			   CDC_TX_SWR_RESET_MASK, CDC_TX_SWR_RESET_ENABLE);
 
 	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
 			   CDC_TX_SWR_CLK_EN_MASK,
 			   CDC_TX_SWR_CLK_ENABLE);
-	if (tx->reset_swr)
-		regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
-				   CDC_TX_SWR_RESET_MASK, 0x0);
-	tx->reset_swr = false;
+	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
+			   CDC_TX_SWR_RESET_MASK, 0x0);
 
 	return 0;
 }
@@ -1855,7 +1863,6 @@ static int tx_macro_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, tx);
 
-	tx->reset_swr = true;
 	tx->dev = dev;
 
 	/* set MCLK and NPL rates */
@@ -1970,7 +1977,6 @@ static int __maybe_unused tx_macro_runtime_resume(struct device *dev)
 
 	regcache_cache_only(tx->regmap, false);
 	regcache_sync(tx->regmap);
-	tx->reset_swr = true;
 
 	return 0;
 err_fsgen:
@@ -1988,6 +1994,8 @@ static const struct dev_pm_ops tx_macro_pm_ops = {
 static const struct of_device_id tx_macro_dt_match[] = {
 	{ .compatible = "qcom,sc7280-lpass-tx-macro" },
 	{ .compatible = "qcom,sm8250-lpass-tx-macro" },
+	{ .compatible = "qcom,sm8450-lpass-tx-macro" },
+	{ .compatible = "qcom,sc8280xp-lpass-tx-macro" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tx_macro_dt_match);

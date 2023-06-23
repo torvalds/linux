@@ -26,7 +26,7 @@
 #include <linux/mlx5/eswitch.h>
 #include <linux/list.h>
 #include <rdma/ib_smi.h>
-#include <rdma/ib_umem.h>
+#include <rdma/ib_umem_odp.h>
 #include <rdma/lag.h>
 #include <linux/in.h>
 #include <linux/etherdevice.h>
@@ -46,7 +46,6 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
-#include <rdma/ib_umem_odp.h>
 
 #define UVERBS_MODULE_NAME mlx5_ib
 #include <rdma/uverbs_named_ioctl.h>
@@ -1825,6 +1824,9 @@ static int set_ucontext_resp(struct ib_ucontext *uctx,
 
 	if (MLX5_CAP_GEN(dev->mdev, drain_sigerr))
 		resp->comp_mask |= MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_SQD2RTS;
+
+	resp->comp_mask |=
+		MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_MKEY_UPDATE_TAG;
 
 	return 0;
 }

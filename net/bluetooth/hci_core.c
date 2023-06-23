@@ -597,6 +597,15 @@ static int hci_dev_do_reset(struct hci_dev *hdev)
 
 	/* Cancel these to avoid queueing non-chained pending work */
 	hci_dev_set_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE);
+	/* Wait for
+	 *
+	 *    if (!hci_dev_test_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE))
+	 *        queue_delayed_work(&hdev->{cmd,ncmd}_timer)
+	 *
+	 * inside RCU section to see the flag or complete scheduling.
+	 */
+	synchronize_rcu();
+	/* Explicitly cancel works in case scheduled after setting the flag. */
 	cancel_delayed_work(&hdev->cmd_timer);
 	cancel_delayed_work(&hdev->ncmd_timer);
 
@@ -714,7 +723,7 @@ static void hci_update_passive_scan_state(struct hci_dev *hdev, u8 scan)
 		hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-			hci_req_update_adv_data(hdev, hdev->cur_adv_instance);
+			hci_update_adv_data(hdev, hdev->cur_adv_instance);
 
 		mgmt_new_settings(hdev);
 	}
@@ -1706,7 +1715,8 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 				      u32 flags, u16 adv_data_len, u8 *adv_data,
 				      u16 scan_rsp_len, u8 *scan_rsp_data,
 				      u16 timeout, u16 duration, s8 tx_power,
-				      u32 min_interval, u32 max_interval)
+				      u32 min_interval, u32 max_interval,
+				      u8 mesh_handle)
 {
 	struct adv_info *adv;
 
@@ -1717,7 +1727,7 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 		memset(adv->per_adv_data, 0, sizeof(adv->per_adv_data));
 	} else {
 		if (hdev->adv_instance_cnt >= hdev->le_num_of_adv_sets ||
-		    instance < 1 || instance > hdev->le_num_of_adv_sets)
+		    instance < 1 || instance > hdev->le_num_of_adv_sets + 1)
 			return ERR_PTR(-EOVERFLOW);
 
 		adv = kzalloc(sizeof(*adv), GFP_KERNEL);
@@ -1734,6 +1744,11 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 	adv->min_interval = min_interval;
 	adv->max_interval = max_interval;
 	adv->tx_power = tx_power;
+	/* Defining a mesh_handle changes the timing units to ms,
+	 * rather than seconds, and ties the instance to the requested
+	 * mesh_tx queue.
+	 */
+	adv->mesh = mesh_handle;
 
 	hci_set_adv_instance_data(hdev, instance, adv_data_len, adv_data,
 				  scan_rsp_len, scan_rsp_data);
@@ -1762,7 +1777,7 @@ struct adv_info *hci_add_per_instance(struct hci_dev *hdev, u8 instance,
 
 	adv = hci_add_adv_instance(hdev, instance, flags, 0, NULL, 0, NULL,
 				   0, 0, HCI_ADV_TX_POWER_NO_PREFERENCE,
-				   min_interval, max_interval);
+				   min_interval, max_interval, 0);
 	if (IS_ERR(adv))
 		return adv;
 
@@ -2391,6 +2406,10 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		container_of(nb, struct hci_dev, suspend_notifier);
 	int ret = 0;
 
+	/* Userspace has full control of this device. Do nothing. */
+	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL))
+		return NOTIFY_DONE;
+
 	if (action == PM_SUSPEND_PREPARE)
 		ret = hci_suspend_dev(hdev);
 	else if (action == PM_POST_SUSPEND)
@@ -2486,6 +2505,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
 
+	INIT_LIST_HEAD(&hdev->mesh_pending);
 	INIT_LIST_HEAD(&hdev->mgmt_pending);
 	INIT_LIST_HEAD(&hdev->reject_list);
 	INIT_LIST_HEAD(&hdev->accept_list);
@@ -2744,7 +2764,8 @@ int hci_register_suspend_notifier(struct hci_dev *hdev)
 {
 	int ret = 0;
 
-	if (!test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks)) {
+	if (!hdev->suspend_notifier.notifier_call &&
+	    !test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks)) {
 		hdev->suspend_notifier.notifier_call = hci_suspend_notifier;
 		ret = register_pm_notifier(&hdev->suspend_notifier);
 	}
@@ -2756,8 +2777,11 @@ int hci_unregister_suspend_notifier(struct hci_dev *hdev)
 {
 	int ret = 0;
 
-	if (!test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks))
+	if (hdev->suspend_notifier.notifier_call) {
 		ret = unregister_pm_notifier(&hdev->suspend_notifier);
+		if (!ret)
+			hdev->suspend_notifier.notifier_call = NULL;
+	}
 
 	return ret;
 }
@@ -3469,15 +3493,27 @@ static inline int __get_blocks(struct hci_dev *hdev, struct sk_buff *skb)
 	return DIV_ROUND_UP(skb->len - HCI_ACL_HDR_SIZE, hdev->block_len);
 }
 
-static void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
+static void __check_timeout(struct hci_dev *hdev, unsigned int cnt, u8 type)
 {
-	if (!hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
-		/* ACL tx timeout must be longer than maximum
-		 * link supervision timeout (40.9 seconds) */
-		if (!cnt && time_after(jiffies, hdev->acl_last_tx +
-				       HCI_ACL_TX_TIMEOUT))
-			hci_link_tx_to(hdev, ACL_LINK);
+	unsigned long last_tx;
+
+	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
+		return;
+
+	switch (type) {
+	case LE_LINK:
+		last_tx = hdev->le_last_tx;
+		break;
+	default:
+		last_tx = hdev->acl_last_tx;
+		break;
 	}
+
+	/* tx timeout must be longer than maximum link supervision timeout
+	 * (40.9 seconds)
+	 */
+	if (!cnt && time_after(jiffies, last_tx + HCI_ACL_TX_TIMEOUT))
+		hci_link_tx_to(hdev, type);
 }
 
 /* Schedule SCO */
@@ -3535,7 +3571,7 @@ static void hci_sched_acl_pkt(struct hci_dev *hdev)
 	struct sk_buff *skb;
 	int quote;
 
-	__check_timeout(hdev, cnt);
+	__check_timeout(hdev, cnt, ACL_LINK);
 
 	while (hdev->acl_cnt &&
 	       (chan = hci_chan_sent(hdev, ACL_LINK, &quote))) {
@@ -3578,14 +3614,14 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 	int quote;
 	u8 type;
 
-	__check_timeout(hdev, cnt);
-
 	BT_DBG("%s", hdev->name);
 
 	if (hdev->dev_type == HCI_AMP)
 		type = AMP_LINK;
 	else
 		type = ACL_LINK;
+
+	__check_timeout(hdev, cnt, type);
 
 	while (hdev->block_cnt > 0 &&
 	       (chan = hci_chan_sent(hdev, type, &quote))) {
@@ -3660,7 +3696,7 @@ static void hci_sched_le(struct hci_dev *hdev)
 
 	cnt = hdev->le_pkts ? hdev->le_cnt : hdev->acl_cnt;
 
-	__check_timeout(hdev, cnt);
+	__check_timeout(hdev, cnt, LE_LINK);
 
 	tmp = cnt;
 	while (cnt && (chan = hci_chan_sent(hdev, LE_LINK, &quote))) {
@@ -4056,12 +4092,14 @@ static void hci_cmd_work(struct work_struct *work)
 			if (res < 0)
 				__hci_cmd_sync_cancel(hdev, -res);
 
+			rcu_read_lock();
 			if (test_bit(HCI_RESET, &hdev->flags) ||
 			    hci_dev_test_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE))
 				cancel_delayed_work(&hdev->cmd_timer);
 			else
-				schedule_delayed_work(&hdev->cmd_timer,
-						      HCI_CMD_TIMEOUT);
+				queue_delayed_work(hdev->workqueue, &hdev->cmd_timer,
+						   HCI_CMD_TIMEOUT);
+			rcu_read_unlock();
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);

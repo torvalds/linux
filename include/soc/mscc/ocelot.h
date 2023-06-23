@@ -392,7 +392,7 @@ enum ocelot_reg {
 	SYS_COUNT_TX_GREEN_PRIO_5,
 	SYS_COUNT_TX_GREEN_PRIO_6,
 	SYS_COUNT_TX_GREEN_PRIO_7,
-	SYS_COUNT_TX_AGING,
+	SYS_COUNT_TX_AGED,
 	SYS_COUNT_DROP_LOCAL,
 	SYS_COUNT_DROP_TAIL,
 	SYS_COUNT_DROP_YELLOW_PRIO_0,
@@ -411,6 +411,10 @@ enum ocelot_reg {
 	SYS_COUNT_DROP_GREEN_PRIO_5,
 	SYS_COUNT_DROP_GREEN_PRIO_6,
 	SYS_COUNT_DROP_GREEN_PRIO_7,
+	SYS_COUNT_SF_MATCHING_FRAMES,
+	SYS_COUNT_SF_NOT_PASSING_FRAMES,
+	SYS_COUNT_SF_NOT_PASSING_SDU,
+	SYS_COUNT_SF_RED_FRAMES,
 	SYS_RESET_CFG,
 	SYS_SR_ETYPE_CFG,
 	SYS_VLAN_ETYPE_CFG,
@@ -433,7 +437,6 @@ enum ocelot_reg {
 	SYS_MMGT_FAST,
 	SYS_EVENTS_DIF,
 	SYS_EVENTS_CORE,
-	SYS_CNT,
 	SYS_PTP_STATUS,
 	SYS_PTP_TXSTAMP,
 	SYS_PTP_NXT,
@@ -695,6 +698,112 @@ struct ocelot_stat_layout {
 	char name[ETH_GSTRING_LEN];
 };
 
+/* 32-bit counter checked for wraparound by ocelot_port_update_stats()
+ * and copied to ocelot->stats.
+ */
+#define OCELOT_STAT(kind) \
+	[OCELOT_STAT_ ## kind] = { .reg = SYS_COUNT_ ## kind }
+/* Same as above, except also exported to ethtool -S. Standard counters should
+ * only be exposed to more specific interfaces rather than by their string name.
+ */
+#define OCELOT_STAT_ETHTOOL(kind, ethtool_name) \
+	[OCELOT_STAT_ ## kind] = { .reg = SYS_COUNT_ ## kind, .name = ethtool_name }
+
+#define OCELOT_COMMON_STATS \
+	OCELOT_STAT_ETHTOOL(RX_OCTETS, "rx_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_UNICAST, "rx_unicast"), \
+	OCELOT_STAT_ETHTOOL(RX_MULTICAST, "rx_multicast"), \
+	OCELOT_STAT_ETHTOOL(RX_BROADCAST, "rx_broadcast"), \
+	OCELOT_STAT_ETHTOOL(RX_SHORTS, "rx_shorts"), \
+	OCELOT_STAT_ETHTOOL(RX_FRAGMENTS, "rx_fragments"), \
+	OCELOT_STAT_ETHTOOL(RX_JABBERS, "rx_jabbers"), \
+	OCELOT_STAT_ETHTOOL(RX_CRC_ALIGN_ERRS, "rx_crc_align_errs"), \
+	OCELOT_STAT_ETHTOOL(RX_SYM_ERRS, "rx_sym_errs"), \
+	OCELOT_STAT_ETHTOOL(RX_64, "rx_frames_below_65_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_65_127, "rx_frames_65_to_127_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_128_255, "rx_frames_128_to_255_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_256_511, "rx_frames_256_to_511_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_512_1023, "rx_frames_512_to_1023_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_1024_1526, "rx_frames_1024_to_1526_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_1527_MAX, "rx_frames_over_1526_octets"), \
+	OCELOT_STAT_ETHTOOL(RX_PAUSE, "rx_pause"), \
+	OCELOT_STAT_ETHTOOL(RX_CONTROL, "rx_control"), \
+	OCELOT_STAT_ETHTOOL(RX_LONGS, "rx_longs"), \
+	OCELOT_STAT_ETHTOOL(RX_CLASSIFIED_DROPS, "rx_classified_drops"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_0, "rx_red_prio_0"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_1, "rx_red_prio_1"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_2, "rx_red_prio_2"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_3, "rx_red_prio_3"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_4, "rx_red_prio_4"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_5, "rx_red_prio_5"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_6, "rx_red_prio_6"), \
+	OCELOT_STAT_ETHTOOL(RX_RED_PRIO_7, "rx_red_prio_7"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_0, "rx_yellow_prio_0"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_1, "rx_yellow_prio_1"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_2, "rx_yellow_prio_2"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_3, "rx_yellow_prio_3"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_4, "rx_yellow_prio_4"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_5, "rx_yellow_prio_5"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_6, "rx_yellow_prio_6"), \
+	OCELOT_STAT_ETHTOOL(RX_YELLOW_PRIO_7, "rx_yellow_prio_7"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_0, "rx_green_prio_0"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_1, "rx_green_prio_1"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_2, "rx_green_prio_2"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_3, "rx_green_prio_3"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_4, "rx_green_prio_4"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_5, "rx_green_prio_5"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_6, "rx_green_prio_6"), \
+	OCELOT_STAT_ETHTOOL(RX_GREEN_PRIO_7, "rx_green_prio_7"), \
+	OCELOT_STAT_ETHTOOL(TX_OCTETS, "tx_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_UNICAST, "tx_unicast"), \
+	OCELOT_STAT_ETHTOOL(TX_MULTICAST, "tx_multicast"), \
+	OCELOT_STAT_ETHTOOL(TX_BROADCAST, "tx_broadcast"), \
+	OCELOT_STAT_ETHTOOL(TX_COLLISION, "tx_collision"), \
+	OCELOT_STAT_ETHTOOL(TX_DROPS, "tx_drops"), \
+	OCELOT_STAT_ETHTOOL(TX_PAUSE, "tx_pause"), \
+	OCELOT_STAT_ETHTOOL(TX_64, "tx_frames_below_65_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_65_127, "tx_frames_65_to_127_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_128_255, "tx_frames_128_255_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_256_511, "tx_frames_256_511_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_512_1023, "tx_frames_512_1023_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_1024_1526, "tx_frames_1024_1526_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_1527_MAX, "tx_frames_over_1526_octets"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_0, "tx_yellow_prio_0"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_1, "tx_yellow_prio_1"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_2, "tx_yellow_prio_2"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_3, "tx_yellow_prio_3"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_4, "tx_yellow_prio_4"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_5, "tx_yellow_prio_5"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_6, "tx_yellow_prio_6"), \
+	OCELOT_STAT_ETHTOOL(TX_YELLOW_PRIO_7, "tx_yellow_prio_7"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_0, "tx_green_prio_0"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_1, "tx_green_prio_1"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_2, "tx_green_prio_2"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_3, "tx_green_prio_3"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_4, "tx_green_prio_4"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_5, "tx_green_prio_5"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_6, "tx_green_prio_6"), \
+	OCELOT_STAT_ETHTOOL(TX_GREEN_PRIO_7, "tx_green_prio_7"), \
+	OCELOT_STAT_ETHTOOL(TX_AGED, "tx_aged"), \
+	OCELOT_STAT_ETHTOOL(DROP_LOCAL, "drop_local"), \
+	OCELOT_STAT_ETHTOOL(DROP_TAIL, "drop_tail"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_0, "drop_yellow_prio_0"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_1, "drop_yellow_prio_1"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_2, "drop_yellow_prio_2"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_3, "drop_yellow_prio_3"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_4, "drop_yellow_prio_4"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_5, "drop_yellow_prio_5"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_6, "drop_yellow_prio_6"), \
+	OCELOT_STAT_ETHTOOL(DROP_YELLOW_PRIO_7, "drop_yellow_prio_7"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_0, "drop_green_prio_0"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_1, "drop_green_prio_1"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_2, "drop_green_prio_2"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_3, "drop_green_prio_3"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_4, "drop_green_prio_4"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_5, "drop_green_prio_5"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_6, "drop_green_prio_6"), \
+	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_7, "drop_green_prio_7")
+
 struct ocelot_stats_region {
 	struct list_head node;
 	u32 base;
@@ -726,6 +835,7 @@ struct ocelot_ops {
 			      struct flow_stats *stats);
 	void (*cut_through_fwd)(struct ocelot *ocelot);
 	void (*tas_clock_adjust)(struct ocelot *ocelot);
+	void (*update_stats)(struct ocelot *ocelot);
 };
 
 struct ocelot_vcap_policer {
@@ -763,6 +873,8 @@ struct ocelot_psfp_list {
 	struct list_head stream_list;
 	struct list_head sfi_list;
 	struct list_head sgi_list;
+	/* Serialize access to the lists */
+	struct mutex lock;
 };
 
 enum ocelot_sb {
@@ -898,12 +1010,15 @@ struct ocelot {
 
 	struct ocelot_psfp_list		psfp;
 
-	/* Workqueue to check statistics for overflow with its lock */
-	spinlock_t			stats_lock;
-	u64				*stats;
+	/* Workqueue to check statistics for overflow */
 	struct delayed_work		stats_work;
 	struct workqueue_struct		*stats_queue;
+	/* Lock for serializing access to the statistics array */
+	spinlock_t			stats_lock;
+	u64				*stats;
 
+	/* Lock for serializing indirect access to STAT_VIEW registers */
+	struct mutex			stat_view_lock;
 	/* Lock for serializing access to the MAC table */
 	struct mutex			mact_lock;
 	/* Lock for serializing forwarding domain changes */
@@ -1024,6 +1139,8 @@ void ocelot_deinit(struct ocelot *ocelot);
 void ocelot_init_port(struct ocelot *ocelot, int port);
 void ocelot_deinit_port(struct ocelot *ocelot, int port);
 
+void ocelot_port_setup_dsa_8021q_cpu(struct ocelot *ocelot, int cpu);
+void ocelot_port_teardown_dsa_8021q_cpu(struct ocelot *ocelot, int cpu);
 void ocelot_port_assign_dsa_8021q_cpu(struct ocelot *ocelot, int port, int cpu);
 void ocelot_port_unassign_dsa_8021q_cpu(struct ocelot *ocelot, int port);
 u32 ocelot_port_assigned_dsa_8021q_cpu_mask(struct ocelot *ocelot, int port);
@@ -1032,6 +1149,19 @@ u32 ocelot_port_assigned_dsa_8021q_cpu_mask(struct ocelot *ocelot, int port);
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data);
 void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data);
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset);
+void ocelot_port_get_stats64(struct ocelot *ocelot, int port,
+			     struct rtnl_link_stats64 *stats);
+void ocelot_port_get_pause_stats(struct ocelot *ocelot, int port,
+				 struct ethtool_pause_stats *pause_stats);
+void ocelot_port_get_rmon_stats(struct ocelot *ocelot, int port,
+				struct ethtool_rmon_stats *rmon_stats,
+				const struct ethtool_rmon_hist_range **ranges);
+void ocelot_port_get_eth_ctrl_stats(struct ocelot *ocelot, int port,
+				    struct ethtool_eth_ctrl_stats *ctrl_stats);
+void ocelot_port_get_eth_mac_stats(struct ocelot *ocelot, int port,
+				   struct ethtool_eth_mac_stats *mac_stats);
+void ocelot_port_get_eth_phy_stats(struct ocelot *ocelot, int port,
+				   struct ethtool_eth_phy_stats *phy_stats);
 int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 		       struct ethtool_ts_info *info);
 void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs);
@@ -1099,10 +1229,12 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 			const struct net_device *bridge);
 int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 			 struct net_device *bond,
-			 struct netdev_lag_upper_info *info);
+			 struct netdev_lag_upper_info *info,
+			 struct netlink_ext_ack *extack);
 void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
 			   struct net_device *bond);
 void ocelot_port_lag_change(struct ocelot *ocelot, int port, bool lag_tx_active);
+int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond);
 
 int ocelot_devlink_sb_register(struct ocelot *ocelot);
 void ocelot_devlink_sb_unregister(struct ocelot *ocelot);

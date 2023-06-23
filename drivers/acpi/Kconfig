@@ -27,9 +27,6 @@ menuconfig ACPI
 	  Management (APM) specification.  If both ACPI and APM support 
 	  are configured, ACPI is used.
 
-	  The project home page for the Linux ACPI subsystem is here:
-	  <https://01.org/linux-acpi>
-
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
@@ -212,6 +209,7 @@ config ACPI_VIDEO
 	tristate "Video"
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on ACPI_WMI || !X86
 	select THERMAL
 	help
 	  This driver implements the ACPI Extensions For Display Adapters
@@ -347,7 +345,6 @@ config ACPI_CUSTOM_DSDT_FILE
 	depends on !STANDALONE
 	help
 	  This option supports a custom DSDT by linking it into the kernel.
-	  See Documentation/admin-guide/acpi/dsdt-override.rst
 
 	  Enter the full path name to the file which includes the AmlCode
 	  or dsdt_aml_code declaration.

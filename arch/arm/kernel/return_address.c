@@ -47,6 +47,7 @@ here:
 	frame.kr_cur = NULL;
 	frame.tsk = current;
 #endif
+	frame.ex_frame = false;
 
 	walk_stackframe(&frame, save_return_addr, &data);
 

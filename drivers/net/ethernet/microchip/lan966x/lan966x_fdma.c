@@ -309,6 +309,7 @@ static void lan966x_fdma_tx_disable(struct lan966x_tx *tx)
 		lan966x, FDMA_CH_DB_DISCARD);
 
 	tx->activated = false;
+	tx->last_in_use = -1;
 }
 
 static void lan966x_fdma_tx_reload(struct lan966x_tx *tx)
@@ -413,13 +414,15 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 	/* Get the received frame and unmap it */
 	db = &rx->dcbs[rx->dcb_index].db[rx->db_index];
 	page = rx->page[rx->dcb_index][rx->db_index];
+
+	dma_sync_single_for_cpu(lan966x->dev, (dma_addr_t)db->dataptr,
+				FDMA_DCB_STATUS_BLOCKL(db->status),
+				DMA_FROM_DEVICE);
+
 	skb = build_skb(page_address(page), PAGE_SIZE << rx->page_order);
 	if (unlikely(!skb))
 		goto unmap_page;
 
-	dma_unmap_single(lan966x->dev, (dma_addr_t)db->dataptr,
-			 FDMA_DCB_STATUS_BLOCKL(db->status),
-			 DMA_FROM_DEVICE);
 	skb_put(skb, FDMA_DCB_STATUS_BLOCKL(db->status));
 
 	lan966x_ifh_get_src_port(skb->data, &src_port);
@@ -427,6 +430,10 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 
 	if (WARN_ON(src_port >= lan966x->num_phys_ports))
 		goto free_skb;
+
+	dma_unmap_single_attrs(lan966x->dev, (dma_addr_t)db->dataptr,
+			       PAGE_SIZE << rx->page_order, DMA_FROM_DEVICE,
+			       DMA_ATTR_SKIP_CPU_SYNC);
 
 	skb->dev = lan966x->ports[src_port]->dev;
 	skb_pull(skb, IFH_LEN * sizeof(u32));
@@ -453,9 +460,9 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 free_skb:
 	kfree_skb(skb);
 unmap_page:
-	dma_unmap_page(lan966x->dev, (dma_addr_t)db->dataptr,
-		       FDMA_DCB_STATUS_BLOCKL(db->status),
-		       DMA_FROM_DEVICE);
+	dma_unmap_single_attrs(lan966x->dev, (dma_addr_t)db->dataptr,
+			       PAGE_SIZE << rx->page_order, DMA_FROM_DEVICE,
+			       DMA_ATTR_SKIP_CPU_SYNC);
 	__free_pages(page, rx->page_order);
 
 	return NULL;
@@ -667,12 +674,14 @@ static int lan966x_fdma_get_max_mtu(struct lan966x *lan966x)
 	int i;
 
 	for (i = 0; i < lan966x->num_phys_ports; ++i) {
+		struct lan966x_port *port;
 		int mtu;
 
-		if (!lan966x->ports[i])
+		port = lan966x->ports[i];
+		if (!port)
 			continue;
 
-		mtu = lan966x->ports[i]->dev->mtu;
+		mtu = lan_rd(lan966x, DEV_MAC_MAXLEN_CFG(port->chip_port));
 		if (mtu > max_mtu)
 			max_mtu = mtu;
 	}
@@ -687,17 +696,14 @@ static int lan966x_qsys_sw_status(struct lan966x *lan966x)
 
 static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 {
-	void *rx_dcbs, *tx_dcbs, *tx_dcbs_buf;
-	dma_addr_t rx_dma, tx_dma;
+	dma_addr_t rx_dma;
+	void *rx_dcbs;
 	u32 size;
 	int err;
 
 	/* Store these for later to free them */
 	rx_dma = lan966x->rx.dma;
-	tx_dma = lan966x->tx.dma;
 	rx_dcbs = lan966x->rx.dcbs;
-	tx_dcbs = lan966x->tx.dcbs;
-	tx_dcbs_buf = lan966x->tx.dcbs_buf;
 
 	napi_synchronize(&lan966x->napi);
 	napi_disable(&lan966x->napi);
@@ -715,17 +721,6 @@ static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 	size = ALIGN(size, PAGE_SIZE);
 	dma_free_coherent(lan966x->dev, size, rx_dcbs, rx_dma);
 
-	lan966x_fdma_tx_disable(&lan966x->tx);
-	err = lan966x_fdma_tx_alloc(&lan966x->tx);
-	if (err)
-		goto restore_tx;
-
-	size = sizeof(struct lan966x_tx_dcb) * FDMA_DCB_MAX;
-	size = ALIGN(size, PAGE_SIZE);
-	dma_free_coherent(lan966x->dev, size, tx_dcbs, tx_dma);
-
-	kfree(tx_dcbs_buf);
-
 	lan966x_fdma_wakeup_netdev(lan966x);
 	napi_enable(&lan966x->napi);
 
@@ -734,11 +729,6 @@ restore:
 	lan966x->rx.dma = rx_dma;
 	lan966x->rx.dcbs = rx_dcbs;
 	lan966x_fdma_rx_start(&lan966x->rx);
-
-restore_tx:
-	lan966x->tx.dma = tx_dma;
-	lan966x->tx.dcbs = tx_dcbs;
-	lan966x->tx.dcbs_buf = tx_dcbs_buf;
 
 	return err;
 }
@@ -751,6 +741,8 @@ int lan966x_fdma_change_mtu(struct lan966x *lan966x)
 
 	max_mtu = lan966x_fdma_get_max_mtu(lan966x);
 	max_mtu += IFH_LEN * sizeof(u32);
+	max_mtu += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	max_mtu += VLAN_HLEN * 2;
 
 	if (round_up(max_mtu, PAGE_SIZE) / PAGE_SIZE - 1 ==
 	    lan966x->rx.page_order)
@@ -787,8 +779,7 @@ void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev)
 		return;
 
 	lan966x->fdma_ndev = dev;
-	netif_napi_add(dev, &lan966x->napi, lan966x_fdma_napi_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(dev, &lan966x->napi, lan966x_fdma_napi_poll);
 	napi_enable(&lan966x->napi);
 }
 

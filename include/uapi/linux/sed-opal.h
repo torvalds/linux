@@ -132,6 +132,18 @@ struct opal_read_write_table {
 	__u64 priv;
 };
 
+#define OPAL_FL_SUPPORTED		0x00000001
+#define OPAL_FL_LOCKING_SUPPORTED	0x00000002
+#define OPAL_FL_LOCKING_ENABLED		0x00000004
+#define OPAL_FL_LOCKED			0x00000008
+#define OPAL_FL_MBR_ENABLED		0x00000010
+#define OPAL_FL_MBR_DONE		0x00000020
+
+struct opal_status {
+	__u32 flags;
+	__u32 reserved;
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -148,5 +160,6 @@ struct opal_read_write_table {
 #define IOC_OPAL_MBR_DONE           _IOW('p', 233, struct opal_mbr_done)
 #define IOC_OPAL_WRITE_SHADOW_MBR   _IOW('p', 234, struct opal_shadow_mbr)
 #define IOC_OPAL_GENERIC_TABLE_RW   _IOW('p', 235, struct opal_read_write_table)
+#define IOC_OPAL_GET_STATUS         _IOR('p', 236, struct opal_status)
 
 #endif /* _UAPI_SED_OPAL_H */

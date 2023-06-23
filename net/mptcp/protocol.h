@@ -285,7 +285,9 @@ struct mptcp_sock {
 	u8		mpc_endpoint_id;
 	u8		recvmsg_inq:1,
 			cork:1,
-			nodelay:1;
+			nodelay:1,
+			is_sendmsg:1;
+	int		connect_flags;
 	struct work_struct work;
 	struct sk_buff  *ooo_last_skb;
 	struct rb_root  out_of_order_queue;
@@ -314,6 +316,8 @@ struct mptcp_sock {
 
 #define mptcp_for_each_subflow(__msk, __subflow)			\
 	list_for_each_entry(__subflow, &((__msk)->conn_list), node)
+#define mptcp_for_each_subflow_safe(__msk, __subflow, __tmp)			\
+	list_for_each_entry_safe(__subflow, __tmp, &((__msk)->conn_list), node)
 
 static inline void msk_owned_by_me(const struct mptcp_sock *msk)
 {
@@ -597,6 +601,7 @@ int mptcp_is_checksum_enabled(const struct net *net);
 int mptcp_allow_join_id0(const struct net *net);
 unsigned int mptcp_stale_loss_cnt(const struct net *net);
 int mptcp_get_pm_type(const struct net *net);
+void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk);
 void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 				     struct mptcp_options_received *mp_opt);
 bool __mptcp_retransmit_pending_data(struct sock *sk);

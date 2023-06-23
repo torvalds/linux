@@ -1008,13 +1008,11 @@ static int iqs62x_probe(struct i2c_client *client)
 	return ret;
 }
 
-static int iqs62x_remove(struct i2c_client *client)
+static void iqs62x_remove(struct i2c_client *client)
 {
 	struct iqs62x_core *iqs62x = i2c_get_clientdata(client);
 
 	wait_for_completion(&iqs62x->fw_done);
-
-	return 0;
 }
 
 static int __maybe_unused iqs62x_suspend(struct device *dev)

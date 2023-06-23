@@ -176,7 +176,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	priv->io->close = apbps2_close;
 	priv->io->write = apbps2_write;
 	priv->io->port_data = priv;
-	strlcpy(priv->io->name, "APBPS2 PS/2", sizeof(priv->io->name));
+	strscpy(priv->io->name, "APBPS2 PS/2", sizeof(priv->io->name));
 	snprintf(priv->io->phys, sizeof(priv->io->phys),
 		 "apbps2_%d", apbps2_idx++);
 

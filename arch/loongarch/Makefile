@@ -7,7 +7,14 @@ boot	:= arch/loongarch/boot
 
 KBUILD_DEFCONFIG := loongson3_defconfig
 
-KBUILD_IMAGE	= $(boot)/vmlinux
+image-name-y			:= vmlinux
+image-name-$(CONFIG_EFI_ZBOOT)	:= vmlinuz
+
+ifndef CONFIG_EFI_STUB
+KBUILD_IMAGE	:= $(boot)/vmlinux.elf
+else
+KBUILD_IMAGE	:= $(boot)/$(image-name-y).efi
+endif
 
 #
 # Select the object file format to substitute into the linker script.
@@ -36,15 +43,37 @@ endif
 
 cflags-y			+= -G0 -pipe -msoft-float
 LDFLAGS_vmlinux			+= -G0 -static -n -nostdlib
+
+# When the assembler supports explicit relocation hint, we must use it.
+# GCC may have -mexplicit-relocs off by default if it was built with an old
+# assembler, so we force it via an option.
+#
+# When the assembler does not supports explicit relocation hint, we can't use
+# it.  Disable it if the compiler supports it.
+#
+# If you've seen "unknown reloc hint" message building the kernel and you are
+# now wondering why "-mexplicit-relocs" is not wrapped with cc-option: the
+# combination of a "new" assembler and "old" compiler is not supported.  Either
+# upgrade the compiler or downgrade the assembler.
+ifdef CONFIG_AS_HAS_EXPLICIT_RELOCS
+cflags-y			+= -mexplicit-relocs
+KBUILD_CFLAGS_KERNEL		+= -mdirect-extern-access
+else
+cflags-y			+= $(call cc-option,-mno-explicit-relocs)
 KBUILD_AFLAGS_KERNEL		+= -Wa,-mla-global-with-pcrel
 KBUILD_CFLAGS_KERNEL		+= -Wa,-mla-global-with-pcrel
 KBUILD_AFLAGS_MODULE		+= -Wa,-mla-global-with-abs
 KBUILD_CFLAGS_MODULE		+= -fplt -Wa,-mla-global-with-abs,-mla-local-with-abs
+endif
 
 cflags-y += -ffreestanding
 cflags-y += $(call cc-option, -mno-check-zero-division)
 
+ifndef CONFIG_PHYSICAL_START
 load-y		= 0x9000000000200000
+else
+load-y		= $(CONFIG_PHYSICAL_START)
+endif
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y)
 
 drivers-$(CONFIG_PCI)		+= arch/loongarch/pci/
@@ -68,13 +97,12 @@ KBUILD_LDFLAGS	+= -m $(ld-emul)
 
 ifdef CONFIG_LOONGARCH
 CHECKFLAGS += $(shell $(CC) $(KBUILD_CFLAGS) -dM -E -x c /dev/null | \
-	egrep -vw '__GNUC_(MINOR_|PATCHLEVEL_)?_' | \
+	grep -E -vw '__GNUC_(MINOR_|PATCHLEVEL_)?_' | \
 	sed -e "s/^\#define /-D'/" -e "s/ /'='/" -e "s/$$/'/" -e 's/\$$/&&/g')
 endif
 
-head-y := arch/loongarch/kernel/head.o
-
 libs-y += arch/loongarch/lib/
+libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 
 ifeq ($(KBUILD_EXTMOD),)
 prepare: vdso_prepare
@@ -86,13 +114,13 @@ PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/loongarch/vdso $@
 
-all:	$(KBUILD_IMAGE)
+all:	$(notdir $(KBUILD_IMAGE))
 
-$(KBUILD_IMAGE): vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $(bootvars-y) $@
+vmlinux.elf vmlinux.efi vmlinuz.efi: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(bootvars-y) $(boot)/$@
 
 install:
-	$(Q)install -D -m 755 $(KBUILD_IMAGE) $(INSTALL_PATH)/vmlinux-$(KERNELRELEASE)
+	$(Q)install -D -m 755 $(KBUILD_IMAGE) $(INSTALL_PATH)/$(image-name-y)-$(KERNELRELEASE)
 	$(Q)install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
 	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
 

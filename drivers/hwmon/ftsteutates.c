@@ -739,17 +739,16 @@ static int fts_detect(struct i2c_client *client,
 	if (val != 0x11)
 		return -ENODEV;
 
-	strlcpy(info->type, fts_id[0].name, I2C_NAME_SIZE);
+	strscpy(info->type, fts_id[0].name, I2C_NAME_SIZE);
 	info->flags = 0;
 	return 0;
 }
 
-static int fts_remove(struct i2c_client *client)
+static void fts_remove(struct i2c_client *client)
 {
 	struct fts_data *data = dev_get_drvdata(&client->dev);
 
 	watchdog_unregister_device(&data->wdd);
-	return 0;
 }
 
 static int fts_probe(struct i2c_client *client)

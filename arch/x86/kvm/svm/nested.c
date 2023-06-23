@@ -55,28 +55,6 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 	nested_svm_vmexit(svm);
 }
 
-static bool nested_svm_handle_page_fault_workaround(struct kvm_vcpu *vcpu,
-						    struct x86_exception *fault)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb *vmcb = svm->vmcb;
-
- 	WARN_ON(!is_guest_mode(vcpu));
-
-	if (vmcb12_is_intercept(&svm->nested.ctl,
-				INTERCEPT_EXCEPTION_OFFSET + PF_VECTOR) &&
-	    !WARN_ON_ONCE(svm->nested.nested_run_pending)) {
-	     	vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + PF_VECTOR;
-		vmcb->control.exit_code_hi = 0;
-		vmcb->control.exit_info_1 = fault->error_code;
-		vmcb->control.exit_info_2 = fault->address;
-		nested_svm_vmexit(svm);
-		return true;
-	}
-
-	return false;
-}
-
 static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -468,7 +446,7 @@ static void nested_save_pending_event_to_vmcb12(struct vcpu_svm *svm,
 	unsigned int nr;
 
 	if (vcpu->arch.exception.injected) {
-		nr = vcpu->arch.exception.nr;
+		nr = vcpu->arch.exception.vector;
 		exit_int_info = nr | SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_EXEPT;
 
 		if (vcpu->arch.exception.has_error_code) {
@@ -781,11 +759,15 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
 
-	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb12_gpa,
-			       vmcb12->save.rip,
-			       vmcb12->control.int_ctl,
-			       vmcb12->control.event_inj,
-			       vmcb12->control.nested_ctl);
+	trace_kvm_nested_vmenter(svm->vmcb->save.rip,
+				 vmcb12_gpa,
+				 vmcb12->save.rip,
+				 vmcb12->control.int_ctl,
+				 vmcb12->control.event_inj,
+				 vmcb12->control.nested_ctl,
+				 vmcb12->control.nested_cr3,
+				 vmcb12->save.cr3,
+				 KVM_ISA_SVM);
 
 	trace_kvm_nested_intercepts(vmcb12->control.intercepts[INTERCEPT_CR] & 0xffff,
 				    vmcb12->control.intercepts[INTERCEPT_CR] >> 16,
@@ -1109,6 +1091,12 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 static void nested_svm_triple_fault(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_SHUTDOWN))
+		return;
+
+	kvm_clear_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 	nested_svm_simple_vmexit(to_svm(vcpu), SVM_EXIT_SHUTDOWN);
 }
 
@@ -1143,6 +1131,9 @@ void svm_free_nested(struct vcpu_svm *svm)
 	if (!svm->nested.initialized)
 		return;
 
+	if (WARN_ON_ONCE(svm->vmcb != svm->vmcb01.ptr))
+		svm_switch_vmcb(svm, &svm->vmcb01);
+
 	svm_vcpu_free_msrpm(svm->nested.msrpm);
 	svm->nested.msrpm = NULL;
 
@@ -1161,9 +1152,6 @@ void svm_free_nested(struct vcpu_svm *svm)
 	svm->nested.initialized = false;
 }
 
-/*
- * Forcibly leave nested mode in order to be able to reset the VCPU later on.
- */
 void svm_leave_nested(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1304,44 +1292,46 @@ int nested_svm_check_permissions(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static bool nested_exit_on_exception(struct vcpu_svm *svm)
+static bool nested_svm_is_exception_vmexit(struct kvm_vcpu *vcpu, u8 vector,
+					   u32 error_code)
 {
-	unsigned int nr = svm->vcpu.arch.exception.nr;
+	struct vcpu_svm *svm = to_svm(vcpu);
 
-	return (svm->nested.ctl.intercepts[INTERCEPT_EXCEPTION] & BIT(nr));
+	return (svm->nested.ctl.intercepts[INTERCEPT_EXCEPTION] & BIT(vector));
 }
 
-static void nested_svm_inject_exception_vmexit(struct vcpu_svm *svm)
+static void nested_svm_inject_exception_vmexit(struct kvm_vcpu *vcpu)
 {
-	unsigned int nr = svm->vcpu.arch.exception.nr;
+	struct kvm_queued_exception *ex = &vcpu->arch.exception_vmexit;
+	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 
-	vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + nr;
+	vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + ex->vector;
 	vmcb->control.exit_code_hi = 0;
 
-	if (svm->vcpu.arch.exception.has_error_code)
-		vmcb->control.exit_info_1 = svm->vcpu.arch.exception.error_code;
+	if (ex->has_error_code)
+		vmcb->control.exit_info_1 = ex->error_code;
 
 	/*
 	 * EXITINFO2 is undefined for all exception intercepts other
 	 * than #PF.
 	 */
-	if (nr == PF_VECTOR) {
-		if (svm->vcpu.arch.exception.nested_apf)
-			vmcb->control.exit_info_2 = svm->vcpu.arch.apf.nested_apf_token;
-		else if (svm->vcpu.arch.exception.has_payload)
-			vmcb->control.exit_info_2 = svm->vcpu.arch.exception.payload;
+	if (ex->vector == PF_VECTOR) {
+		if (ex->has_payload)
+			vmcb->control.exit_info_2 = ex->payload;
 		else
-			vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
-	} else if (nr == DB_VECTOR) {
-		/* See inject_pending_event.  */
-		kvm_deliver_exception_payload(&svm->vcpu);
-		if (svm->vcpu.arch.dr7 & DR7_GD) {
-			svm->vcpu.arch.dr7 &= ~DR7_GD;
-			kvm_update_dr7(&svm->vcpu);
+			vmcb->control.exit_info_2 = vcpu->arch.cr2;
+	} else if (ex->vector == DB_VECTOR) {
+		/* See kvm_check_and_inject_events().  */
+		kvm_deliver_exception_payload(vcpu, ex);
+
+		if (vcpu->arch.dr7 & DR7_GD) {
+			vcpu->arch.dr7 &= ~DR7_GD;
+			kvm_update_dr7(vcpu);
 		}
-	} else
-		WARN_ON(svm->vcpu.arch.exception.has_payload);
+	} else {
+		WARN_ON(ex->has_payload);
+	}
 
 	nested_svm_vmexit(svm);
 }
@@ -1353,10 +1343,22 @@ static inline bool nested_exit_on_init(struct vcpu_svm *svm)
 
 static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-	bool block_nested_events =
-		kvm_event_needs_reinjection(vcpu) || svm->nested.nested_run_pending;
 	struct kvm_lapic *apic = vcpu->arch.apic;
+	struct vcpu_svm *svm = to_svm(vcpu);
+	/*
+	 * Only a pending nested run blocks a pending exception.  If there is a
+	 * previously injected event, the pending exception occurred while said
+	 * event was being delivered and thus needs to be handled.
+	 */
+	bool block_nested_exceptions = svm->nested.nested_run_pending;
+	/*
+	 * New events (not exceptions) are only recognized at instruction
+	 * boundaries.  If an event needs reinjection, then KVM is handling a
+	 * VM-Exit that occurred _during_ instruction execution; new events are
+	 * blocked until the instruction completes.
+	 */
+	bool block_nested_events = block_nested_exceptions ||
+				   kvm_event_needs_reinjection(vcpu);
 
 	if (lapic_in_kernel(vcpu) &&
 	    test_bit(KVM_APIC_INIT, &apic->pending_events)) {
@@ -1368,18 +1370,16 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	if (vcpu->arch.exception.pending) {
-		/*
-		 * Only a pending nested run can block a pending exception.
-		 * Otherwise an injected NMI/interrupt should either be
-		 * lost or delivered to the nested hypervisor in the EXITINTINFO
-		 * vmcb field, while delivering the pending exception.
-		 */
-		if (svm->nested.nested_run_pending)
+	if (vcpu->arch.exception_vmexit.pending) {
+		if (block_nested_exceptions)
                         return -EBUSY;
-		if (!nested_exit_on_exception(svm))
-			return 0;
-		nested_svm_inject_exception_vmexit(svm);
+		nested_svm_inject_exception_vmexit(vcpu);
+		return 0;
+	}
+
+	if (vcpu->arch.exception.pending) {
+		if (block_nested_exceptions)
+			return -EBUSY;
 		return 0;
 	}
 
@@ -1720,8 +1720,8 @@ static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
 
 struct kvm_x86_nested_ops svm_nested_ops = {
 	.leave_nested = svm_leave_nested,
+	.is_exception_vmexit = nested_svm_is_exception_vmexit,
 	.check_events = svm_check_nested_events,
-	.handle_page_fault_workaround = nested_svm_handle_page_fault_workaround,
 	.triple_fault = nested_svm_triple_fault,
 	.get_nested_state_pages = svm_get_nested_state_pages,
 	.get_state = svm_get_nested_state,

@@ -167,8 +167,6 @@ static void vsc73xx_spi_remove(struct spi_device *spi)
 		return;
 
 	vsc73xx_remove(&vsc_spi->vsc);
-
-	spi_set_drvdata(spi, NULL);
 }
 
 static void vsc73xx_spi_shutdown(struct spi_device *spi)

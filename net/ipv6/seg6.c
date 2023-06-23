@@ -504,6 +504,7 @@ static struct genl_family seg6_genl_family __ro_after_init = {
 	.parallel_ops	= true,
 	.ops		= seg6_genl_ops,
 	.n_ops		= ARRAY_SIZE(seg6_genl_ops),
+	.resv_start_op	= SEG6_CMD_GET_TUNSRC + 1,
 	.module		= THIS_MODULE,
 };
 

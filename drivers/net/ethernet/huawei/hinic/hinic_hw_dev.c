@@ -29,7 +29,6 @@
 #include "hinic_hw_io.h"
 #include "hinic_hw_dev.h"
 
-#define IO_STATUS_TIMEOUT               100
 #define OUTBOUND_STATE_TIMEOUT          100
 #define DB_STATE_TIMEOUT                100
 
@@ -40,11 +39,6 @@
 
 enum intr_type {
 	INTR_MSIX_TYPE,
-};
-
-enum io_status {
-	IO_STOPPED = 0,
-	IO_RUNNING = 1,
 };
 
 /**
@@ -837,8 +831,8 @@ static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
 	return 0;
 }
 
-int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
-			    struct hinic_msix_config *interrupt_info)
+static int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
+				   struct hinic_msix_config *interrupt_info)
 {
 	u16 out_size = sizeof(*interrupt_info);
 	struct hinic_pfhwdev *pfhwdev;
@@ -883,7 +877,7 @@ int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
 	if (err)
 		return -EINVAL;
 
-	interrupt_info->lli_credit_cnt = temp_info.lli_timer_cnt;
+	interrupt_info->lli_credit_cnt = temp_info.lli_credit_cnt;
 	interrupt_info->lli_timer_cnt = temp_info.lli_timer_cnt;
 
 	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
@@ -1039,13 +1033,6 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 	disable_msix(hwdev);
 
 	hinic_free_hwif(hwdev->hwif);
-}
-
-int hinic_hwdev_max_num_qps(struct hinic_hwdev *hwdev)
-{
-	struct hinic_cap *nic_cap = &hwdev->nic_cap;
-
-	return nic_cap->max_qps;
 }
 
 /**

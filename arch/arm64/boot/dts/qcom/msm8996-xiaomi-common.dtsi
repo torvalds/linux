@@ -58,6 +58,14 @@
 		};
 	};
 
+	irled {
+		compatible = "pwm-ir-tx";
+		pwms = <&pm8994_lpg 1 1000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&irled_default>;
+	};
+
 	reserved-memory {
 		memory@88800000 {
 			reg = <0x0 0x88800000 0x0 0x1400000>;
@@ -295,6 +303,41 @@
 	status = "okay";
 
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pm8994_lpg {
+	status = "okay";
+
+	qcom,power-source = <1>;
+};
+
+&pmi8994_lpg {
+	status = "okay";
+
+	qcom,power-source = <1>;
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_RED>;
+		};
+	};
 };
 
 &slpi_pil {
@@ -608,6 +651,15 @@
 };
 
 &pm8994_gpios {
+	irled_default: irled-default-state {
+		pins = "gpio5";
+		function = PMIC_GPIO_FUNC_FUNC1;
+		output-low;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		power-source = <PM8994_GPIO_S4>;
+		bias-disable;
+	};
+
 	wlan_en_default: wlan-en-state {
 		pins = "gpio8";
 		function = PMIC_GPIO_FUNC_NORMAL;

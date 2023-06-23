@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/watchdog/allwinner,sun4i-a10-wdt.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Watchdog Device Tree Bindings
+title: Allwinner A10 Watchdog
 
 allOf:
   - $ref: "watchdog.yaml#"

@@ -108,7 +108,7 @@
  * @next_tx_buf_to_use:	next Tx buffer to write to
  * @next_rx_buf_to_use:	next Rx buffer to read from
  * @base_addr:		base address of the Emaclite device
- * @reset_lock:		lock used for synchronization
+ * @reset_lock:		lock to serialize xmit and tx_timeout execution
  * @deferred_skb:	holds an skb (for transmission at a later time) when the
  *			Tx buffer is not free
  * @phy_dev:		pointer to the PHY device
@@ -1060,7 +1060,7 @@ static bool get_bool(struct platform_device *ofdev, const char *s)
 static void xemaclite_ethtools_get_drvinfo(struct net_device *ndev,
 					   struct ethtool_drvinfo *ed)
 {
-	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+	strscpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
 }
 
 static const struct ethtool_ops xemaclite_ethtool_ops = {

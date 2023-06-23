@@ -189,7 +189,7 @@ static void ark3116_port_remove(struct usb_serial_port *port)
 
 static void ark3116_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);

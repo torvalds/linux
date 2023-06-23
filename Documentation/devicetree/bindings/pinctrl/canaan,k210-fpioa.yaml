@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/canaan,k210-fpioa.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Canaan Kendryte K210 FPIOA Device Tree Bindings
+title: Canaan Kendryte K210 FPIOA
 
 maintainers:
   - Damien Le Moal <damien.lemoal@wdc.com>

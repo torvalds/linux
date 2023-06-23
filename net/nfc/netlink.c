@@ -1783,6 +1783,7 @@ static struct genl_family nfc_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.ops = nfc_genl_ops,
 	.n_ops = ARRAY_SIZE(nfc_genl_ops),
+	.resv_start_op = NFC_CMD_DEACTIVATE_TARGET + 1,
 	.mcgrps = nfc_genl_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(nfc_genl_mcgrps),
 };

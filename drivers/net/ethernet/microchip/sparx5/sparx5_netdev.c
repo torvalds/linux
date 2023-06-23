@@ -7,6 +7,7 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
+#include "sparx5_tc.h"
 
 /* The IFH bit position of the first VSTAX bit. This is because the
  * VSTAX bit positions in Data sheet is starting from zero.
@@ -103,7 +104,7 @@ static int sparx5_port_open(struct net_device *ndev)
 	err = phylink_of_phy_connect(port->phylink, port->of_node, 0);
 	if (err) {
 		netdev_err(ndev, "Could not attach to PHY\n");
-		return err;
+		goto err_connect;
 	}
 
 	phylink_start(port->phylink);
@@ -115,9 +116,19 @@ static int sparx5_port_open(struct net_device *ndev)
 			err = sparx5_serdes_set(port->sparx5, port, &port->conf);
 		else
 			err = phy_power_on(port->serdes);
-		if (err)
+		if (err) {
 			netdev_err(ndev, "%s failed\n", __func__);
+			goto out_power;
+		}
 	}
+
+	return 0;
+
+out_power:
+	phylink_stop(port->phylink);
+	phylink_disconnect_phy(port->phylink);
+err_connect:
+	sparx5_port_enable(port, false);
 
 	return err;
 }
@@ -228,6 +239,7 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
 	.ndo_eth_ioctl          = sparx5_port_ioctl,
+	.ndo_setup_tc           = sparx5_port_setup_tc,
 };
 
 bool sparx5_netdevice_check(const struct net_device *dev)
@@ -240,9 +252,13 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	struct sparx5_port *spx5_port;
 	struct net_device *ndev;
 
-	ndev = devm_alloc_etherdev(sparx5->dev, sizeof(struct sparx5_port));
+	ndev = devm_alloc_etherdev_mqs(sparx5->dev, sizeof(struct sparx5_port),
+				       SPX5_PRIOS, 1);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
+
+	ndev->hw_features |= NETIF_F_HW_TC;
+	ndev->features |= NETIF_F_HW_TC;
 
 	SET_NETDEV_DEV(ndev, sparx5->dev);
 	spx5_port = netdev_priv(ndev);

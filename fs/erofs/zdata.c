@@ -7,6 +7,7 @@
 #include "zdata.h"
 #include "compress.h"
 #include <linux/prefetch.h>
+#include <linux/psi.h>
 
 #include <trace/events/erofs.h>
 
@@ -650,6 +651,38 @@ static bool should_alloc_managed_pages(struct z_erofs_decompress_frontend *fe,
 		la < fe->headoffset;
 }
 
+static int z_erofs_read_fragment(struct inode *inode, erofs_off_t pos,
+				 struct page *page, unsigned int pageofs,
+				 unsigned int len)
+{
+	struct inode *packed_inode = EROFS_I_SB(inode)->packed_inode;
+	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
+	u8 *src, *dst;
+	unsigned int i, cnt;
+
+	if (!packed_inode)
+		return -EFSCORRUPTED;
+
+	pos += EROFS_I(inode)->z_fragmentoff;
+	for (i = 0; i < len; i += cnt) {
+		cnt = min_t(unsigned int, len - i,
+			    EROFS_BLKSIZ - erofs_blkoff(pos));
+		src = erofs_bread(&buf, packed_inode,
+				  erofs_blknr(pos), EROFS_KMAP);
+		if (IS_ERR(src)) {
+			erofs_put_metabuf(&buf);
+			return PTR_ERR(src);
+		}
+
+		dst = kmap_local_page(page);
+		memcpy(dst + pageofs + i, src + erofs_blkoff(pos), cnt);
+		kunmap_local(dst);
+		pos += cnt;
+	}
+	erofs_put_metabuf(&buf);
+	return 0;
+}
+
 static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
 				struct page *page, struct page **pagepool)
 {
@@ -688,7 +721,8 @@ repeat:
 		/* didn't get a valid pcluster previously (very rare) */
 	}
 
-	if (!(map->m_flags & EROFS_MAP_MAPPED))
+	if (!(map->m_flags & EROFS_MAP_MAPPED) ||
+	    map->m_flags & EROFS_MAP_FRAGMENT)
 		goto hitted;
 
 	err = z_erofs_collector_begin(fe);
@@ -735,6 +769,24 @@ hitted:
 		zero_user_segment(page, cur, end);
 		goto next_part;
 	}
+	if (map->m_flags & EROFS_MAP_FRAGMENT) {
+		unsigned int pageofs, skip, len;
+
+		if (offset > map->m_la) {
+			pageofs = 0;
+			skip = offset - map->m_la;
+		} else {
+			pageofs = map->m_la & ~PAGE_MASK;
+			skip = 0;
+		}
+		len = min_t(unsigned int, map->m_llen - skip, end - cur);
+		err = z_erofs_read_fragment(inode, skip, page, pageofs, len);
+		if (err)
+			goto out;
+		++spiltted;
+		tight = false;
+		goto next_part;
+	}
 
 	exclusive = (!cur && (!spiltted || tight));
 	if (cur)
@@ -764,14 +816,14 @@ retry:
 	++spiltted;
 	if (fe->pcl->pageofs_out != (map->m_la & ~PAGE_MASK))
 		fe->pcl->multibases = true;
-
-	if ((map->m_flags & EROFS_MAP_FULL_MAPPED) &&
-	    fe->pcl->length == map->m_llen)
-		fe->pcl->partial = false;
 	if (fe->pcl->length < offset + end - map->m_la) {
 		fe->pcl->length = offset + end - map->m_la;
 		fe->pcl->pageofs_out = map->m_la & ~PAGE_MASK;
 	}
+	if ((map->m_flags & EROFS_MAP_FULL_MAPPED) &&
+	    !(map->m_flags & EROFS_MAP_PARTIAL_REF) &&
+	    fe->pcl->length == map->m_llen)
+		fe->pcl->partial = false;
 next_part:
 	/* shorten the remaining extent to update progress */
 	map->m_llen = offset + cur - map->m_la;
@@ -838,15 +890,13 @@ static void z_erofs_do_decompressed_bvec(struct z_erofs_decompress_backend *be,
 
 	if (!((bvec->offset + be->pcl->pageofs_out) & ~PAGE_MASK)) {
 		unsigned int pgnr;
-		struct page *oldpage;
 
 		pgnr = (bvec->offset + be->pcl->pageofs_out) >> PAGE_SHIFT;
 		DBG_BUGON(pgnr >= be->nr_pages);
-		oldpage = be->decompressed_pages[pgnr];
-		be->decompressed_pages[pgnr] = bvec->page;
-
-		if (!oldpage)
+		if (!be->decompressed_pages[pgnr]) {
+			be->decompressed_pages[pgnr] = bvec->page;
 			return;
+		}
 	}
 
 	/* (cold path) one pcluster is requested multiple times */
@@ -1365,6 +1415,8 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 	struct block_device *last_bdev;
 	unsigned int nr_bios = 0;
 	struct bio *bio = NULL;
+	unsigned long pflags;
+	int memstall = 0;
 
 	bi_private = jobqueueset_init(sb, q, fgq, force_fg);
 	qtail[JQ_BYPASS] = &q[JQ_BYPASS]->head;
@@ -1415,7 +1467,16 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 				    last_bdev != mdev.m_bdev)) {
 submit_bio_retry:
 				submit_bio(bio);
+				if (memstall) {
+					psi_memstall_leave(&pflags);
+					memstall = 0;
+				}
 				bio = NULL;
+			}
+
+			if (unlikely(PageWorkingset(page)) && !memstall) {
+				psi_memstall_enter(&pflags);
+				memstall = 1;
 			}
 
 			if (!bio) {
@@ -1445,8 +1506,11 @@ submit_bio_retry:
 			move_to_bypass_jobqueue(pcl, qtail, owned_head);
 	} while (owned_head != Z_EROFS_PCLUSTER_TAIL);
 
-	if (bio)
+	if (bio) {
 		submit_bio(bio);
+		if (memstall)
+			psi_memstall_leave(&pflags);
+	}
 
 	/*
 	 * although background is preferred, no one is pending for submission.

@@ -552,7 +552,7 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	ksz8_w_table(dev, TABLE_VLAN, addr, buf);
 }
 
-void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
+int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
 	u8 restart, speed, ctrl, link;
 	int processed = true;
@@ -560,14 +560,24 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 	u8 val1, val2;
 	u16 data = 0;
 	u8 p = phy;
+	int ret;
 
 	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
-		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
-		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
-		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
+		ret = ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
+		if (ret)
+			return ret;
+
+		ret = ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
+		if (ret)
+			return ret;
+
+		ret = ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
+		if (ret)
+			return ret;
+
 		if (restart & PORT_PHY_LOOPBACK)
 			data |= BMCR_LOOPBACK;
 		if (ctrl & PORT_FORCE_100_MBIT)
@@ -597,7 +607,10 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data |= KSZ886X_BMCR_DISABLE_LED;
 		break;
 	case MII_BMSR:
-		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		ret = ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		if (ret)
+			return ret;
+
 		data = BMSR_100FULL |
 		       BMSR_100HALF |
 		       BMSR_10FULL |
@@ -618,7 +631,10 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data = KSZ8795_ID_LO;
 		break;
 	case MII_ADVERTISE:
-		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
+		ret = ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
+		if (ret)
+			return ret;
+
 		data = ADVERTISE_CSMA;
 		if (ctrl & PORT_AUTO_NEG_SYM_PAUSE)
 			data |= ADVERTISE_PAUSE_CAP;
@@ -632,7 +648,10 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data |= ADVERTISE_10HALF;
 		break;
 	case MII_LPA:
-		ksz_pread8(dev, p, regs[P_REMOTE_STATUS], &link);
+		ret = ksz_pread8(dev, p, regs[P_REMOTE_STATUS], &link);
+		if (ret)
+			return ret;
+
 		data = LPA_SLCT;
 		if (link & PORT_REMOTE_SYM_PAUSE)
 			data |= LPA_PAUSE_CAP;
@@ -648,8 +667,14 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data |= LPA_LPACK;
 		break;
 	case PHY_REG_LINK_MD:
-		ksz_pread8(dev, p, REG_PORT_LINK_MD_CTRL, &val1);
-		ksz_pread8(dev, p, REG_PORT_LINK_MD_RESULT, &val2);
+		ret = ksz_pread8(dev, p, REG_PORT_LINK_MD_CTRL, &val1);
+		if (ret)
+			return ret;
+
+		ret = ksz_pread8(dev, p, REG_PORT_LINK_MD_RESULT, &val2);
+		if (ret)
+			return ret;
+
 		if (val1 & PORT_START_CABLE_DIAG)
 			data |= PHY_START_CABLE_DIAG;
 
@@ -664,7 +689,10 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 				FIELD_GET(PORT_CABLE_FAULT_COUNTER_L, val2));
 		break;
 	case PHY_REG_PHY_CTRL:
-		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		ret = ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		if (ret)
+			return ret;
+
 		if (link & PORT_MDIX_STATUS)
 			data |= KSZ886X_CTRL_MDIX_STAT;
 		break;
@@ -674,13 +702,16 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 	}
 	if (processed)
 		*val = data;
+
+	return 0;
 }
 
-void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
+int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
 	u8 restart, speed, ctrl, data;
 	const u16 *regs;
 	u8 p = phy;
+	int ret;
 
 	regs = dev->info->regs;
 
@@ -690,15 +721,26 @@ void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		/* Do not support PHY reset function. */
 		if (val & BMCR_RESET)
 			break;
-		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
+		ret = ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
+		if (ret)
+			return ret;
+
 		data = speed;
 		if (val & KSZ886X_BMCR_HP_MDIX)
 			data |= PORT_HP_MDIX;
 		else
 			data &= ~PORT_HP_MDIX;
-		if (data != speed)
-			ksz_pwrite8(dev, p, regs[P_SPEED_STATUS], data);
-		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
+
+		if (data != speed) {
+			ret = ksz_pwrite8(dev, p, regs[P_SPEED_STATUS], data);
+			if (ret)
+				return ret;
+		}
+
+		ret = ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
+		if (ret)
+			return ret;
+
 		data = ctrl;
 		if (ksz_is_ksz88x3(dev)) {
 			if ((val & BMCR_ANENABLE))
@@ -724,9 +766,17 @@ void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			data |= PORT_FORCE_FULL_DUPLEX;
 		else
 			data &= ~PORT_FORCE_FULL_DUPLEX;
-		if (data != ctrl)
-			ksz_pwrite8(dev, p, regs[P_FORCE_CTRL], data);
-		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
+
+		if (data != ctrl) {
+			ret = ksz_pwrite8(dev, p, regs[P_FORCE_CTRL], data);
+			if (ret)
+				return ret;
+		}
+
+		ret = ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
+		if (ret)
+			return ret;
+
 		data = restart;
 		if (val & KSZ886X_BMCR_DISABLE_LED)
 			data |= PORT_LED_OFF;
@@ -756,11 +806,19 @@ void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			data |= PORT_PHY_LOOPBACK;
 		else
 			data &= ~PORT_PHY_LOOPBACK;
-		if (data != restart)
-			ksz_pwrite8(dev, p, regs[P_NEG_RESTART_CTRL], data);
+
+		if (data != restart) {
+			ret = ksz_pwrite8(dev, p, regs[P_NEG_RESTART_CTRL],
+					  data);
+			if (ret)
+				return ret;
+		}
 		break;
 	case MII_ADVERTISE:
-		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
+		ret = ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
+		if (ret)
+			return ret;
+
 		data = ctrl;
 		data &= ~(PORT_AUTO_NEG_SYM_PAUSE |
 			  PORT_AUTO_NEG_100BTX_FD |
@@ -777,8 +835,12 @@ void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			data |= PORT_AUTO_NEG_10BT_FD;
 		if (val & ADVERTISE_10HALF)
 			data |= PORT_AUTO_NEG_10BT;
-		if (data != ctrl)
-			ksz_pwrite8(dev, p, regs[P_LOCAL_CTRL], data);
+
+		if (data != ctrl) {
+			ret = ksz_pwrite8(dev, p, regs[P_LOCAL_CTRL], data);
+			if (ret)
+				return ret;
+		}
 		break;
 	case PHY_REG_LINK_MD:
 		if (val & PHY_START_CABLE_DIAG)
@@ -787,6 +849,8 @@ void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
@@ -1187,7 +1251,6 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 		if (i == dev->phy_port_cnt)
 			break;
 		p->on = 1;
-		p->phy = 1;
 	}
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];

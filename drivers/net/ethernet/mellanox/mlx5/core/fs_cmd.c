@@ -577,7 +577,10 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 		MLX5_SET(flow_context, in_flow_context, modify_header_id,
 			 fte->action.modify_hdr->id);
 
-	MLX5_SET(flow_context, in_flow_context, ipsec_obj_id, fte->action.ipsec_obj_id);
+	MLX5_SET(flow_context, in_flow_context, encrypt_decrypt_type,
+		 fte->action.crypto.type);
+	MLX5_SET(flow_context, in_flow_context, encrypt_decrypt_obj_id,
+		 fte->action.crypto.obj_id);
 
 	vlan = MLX5_ADDR_OF(flow_context, in_flow_context, push_vlan);
 
@@ -919,13 +922,15 @@ static int mlx5_cmd_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 		max_actions = MLX5_CAP_ESW_FLOWTABLE_FDB(dev, max_modify_header_actions);
 		table_type = FS_FT_FDB;
 		break;
+	case MLX5_FLOW_NAMESPACE_KERNEL_RX_MACSEC:
 	case MLX5_FLOW_NAMESPACE_KERNEL:
 	case MLX5_FLOW_NAMESPACE_BYPASS:
 		max_actions = MLX5_CAP_FLOWTABLE_NIC_RX(dev, max_modify_header_actions);
 		table_type = FS_FT_NIC_RX;
 		break;
 	case MLX5_FLOW_NAMESPACE_EGRESS:
-	case MLX5_FLOW_NAMESPACE_EGRESS_KERNEL:
+	case MLX5_FLOW_NAMESPACE_EGRESS_IPSEC:
+	case MLX5_FLOW_NAMESPACE_EGRESS_MACSEC:
 		max_actions = MLX5_CAP_FLOWTABLE_NIC_TX(dev, max_modify_header_actions);
 		table_type = FS_FT_NIC_TX;
 		break;

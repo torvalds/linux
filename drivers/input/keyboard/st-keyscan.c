@@ -8,12 +8,14 @@
  * Based on sh_keysc.c, copyright 2008 Magnus Damm
  */
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/io.h>
+#include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/io.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #define ST_KEYSCAN_MAXKEYS 16
 

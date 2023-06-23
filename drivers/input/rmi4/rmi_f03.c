@@ -181,7 +181,7 @@ static int rmi_f03_register_pt(struct f03_data *f03)
 	serio->close = rmi_f03_pt_close;
 	serio->port_data = f03;
 
-	strlcpy(serio->name, "RMI4 PS/2 pass-through", sizeof(serio->name));
+	strscpy(serio->name, "RMI4 PS/2 pass-through", sizeof(serio->name));
 	snprintf(serio->phys, sizeof(serio->phys), "%s/serio0",
 		 dev_name(&f03->fn->dev));
 	serio->dev.parent = &f03->fn->dev;

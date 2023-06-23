@@ -1453,8 +1453,6 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 		ASSERT(key.type == BTRFS_FREE_SPACE_BITMAP_KEY);
 		ASSERT(key.objectid < end && key.objectid + key.offset <= end);
 
-		caching_ctl->progress = key.objectid;
-
 		offset = key.objectid;
 		while (offset < key.objectid + key.offset) {
 			bit = free_space_test_bit(block_group, path, offset);
@@ -1489,8 +1487,6 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 		ret = -EIO;
 		goto out;
 	}
-
-	caching_ctl->progress = (u64)-1;
 
 	ret = 0;
 out:
@@ -1531,8 +1527,6 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 		ASSERT(key.type == BTRFS_FREE_SPACE_EXTENT_KEY);
 		ASSERT(key.objectid < end && key.objectid + key.offset <= end);
 
-		caching_ctl->progress = key.objectid;
-
 		total_found += add_new_free_space(block_group, key.objectid,
 						  key.objectid + key.offset);
 		if (total_found > CACHING_CTL_WAKE_UP) {
@@ -1551,8 +1545,6 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 		ret = -EIO;
 		goto out;
 	}
-
-	caching_ctl->progress = (u64)-1;
 
 	ret = 0;
 out:

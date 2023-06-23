@@ -14,12 +14,20 @@ LIST_HEAD(dm_verity_loadpin_trusted_root_digests);
 
 static bool is_trusted_verity_target(struct dm_target *ti)
 {
+	int verity_mode;
 	u8 *root_digest;
 	unsigned int digest_size;
 	struct dm_verity_loadpin_trusted_root_digest *trd;
 	bool trusted = false;
 
 	if (!dm_is_verity_target(ti))
+		return false;
+
+	verity_mode = dm_verity_get_mode(ti);
+
+	if ((verity_mode != DM_VERITY_MODE_EIO) &&
+	    (verity_mode != DM_VERITY_MODE_RESTART) &&
+	    (verity_mode != DM_VERITY_MODE_PANIC))
 		return false;
 
 	if (dm_verity_get_root_digest(ti, &root_digest, &digest_size))

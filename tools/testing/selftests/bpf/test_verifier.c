@@ -1260,7 +1260,7 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, int *cnt)
 
 	bzero(&info, sizeof(info));
 	info.xlated_prog_len = xlated_prog_len;
-	info.xlated_prog_insns = (__u64)*buf;
+	info.xlated_prog_insns = (__u64)(unsigned long)*buf;
 	if (bpf_obj_get_info_by_fd(fd_prog, &info, &info_len)) {
 		perror("second bpf_obj_get_info_by_fd failed");
 		goto out_free_buf;
@@ -1498,7 +1498,8 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		opts.log_level = DEFAULT_LIBBPF_LOG_LEVEL;
 	opts.prog_flags = pflags;
 
-	if (prog_type == BPF_PROG_TYPE_TRACING && test->kfunc) {
+	if ((prog_type == BPF_PROG_TYPE_TRACING ||
+	     prog_type == BPF_PROG_TYPE_LSM) && test->kfunc) {
 		int attach_btf_id;
 
 		attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,

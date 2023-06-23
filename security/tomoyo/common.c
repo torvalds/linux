@@ -2057,7 +2057,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 	bool quota_exceeded = false;
 
 	va_start(args, fmt);
-	len = vsnprintf((char *) &len, 1, fmt, args) + 1;
+	len = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 	/* Write /sys/kernel/security/tomoyo/audit. */
 	va_start(args, fmt);

@@ -2,7 +2,6 @@
 
 #include <linux/reboot.h>
 #include <linux/serial_core.h>
-#include <linux/random.h>
 #include <clocksource/timer-goldfish.h>
 
 #include <asm/bootinfo.h>
@@ -93,16 +92,6 @@ int __init virt_parse_bootinfo(const struct bi_record *record)
 		data += 4;
 		virt_bi_data.virtio.irq = be32_to_cpup(data);
 		break;
-	case BI_VIRT_RNG_SEED: {
-		u16 len = be16_to_cpup(data);
-		add_bootloader_randomness(data + 2, len);
-		/*
-		 * Zero the data to preserve forward secrecy, and zero the
-		 * length to prevent kexec from using it.
-		 */
-		memzero_explicit((void *)data, len + 2);
-		break;
-	}
 	default:
 		unknown = 1;
 		break;

@@ -798,7 +798,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int ov2685_remove(struct i2c_client *client)
+static void ov2685_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2685 *ov2685 = to_ov2685(sd);
@@ -814,8 +814,6 @@ static int ov2685_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__ov2685_power_off(ov2685);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)

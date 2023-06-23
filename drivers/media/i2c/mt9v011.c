@@ -561,7 +561,7 @@ static int mt9v011_probe(struct i2c_client *c,
 	return 0;
 }
 
-static int mt9v011_remove(struct i2c_client *c)
+static void mt9v011_remove(struct i2c_client *c)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct mt9v011 *core = to_mt9v011(sd);
@@ -572,8 +572,6 @@ static int mt9v011_remove(struct i2c_client *c)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&core->ctrls);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

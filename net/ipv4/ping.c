@@ -33,6 +33,7 @@
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
 #include <linux/export.h>
+#include <linux/bpf-cgroup.h>
 #include <net/sock.h>
 #include <net/ping.h>
 #include <net/udp.h>
@@ -47,6 +48,11 @@
 #include <net/ipv6.h>
 #include <net/transp_v6.h>
 #endif
+
+#define ping_portaddr_for_each_entry(__sk, node, list) \
+	hlist_nulls_for_each_entry(__sk, node, list, sk_nulls_node)
+#define ping_portaddr_for_each_entry_rcu(__sk, node, list) \
+	hlist_nulls_for_each_entry_rcu(__sk, node, list, sk_nulls_node)
 
 struct ping_table {
 	struct hlist_nulls_head	hash[PING_HTABLE_SIZE];
@@ -191,7 +197,7 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 		return NULL;
 	}
 
-	ping_portaddr_for_each_entry(sk, hnode, hslot) {
+	ping_portaddr_for_each_entry_rcu(sk, hnode, hslot) {
 		isk = inet_sk(sk);
 
 		pr_debug("iterate\n");
@@ -294,6 +300,19 @@ void ping_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 EXPORT_SYMBOL_GPL(ping_close);
+
+static int ping_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+			    int addr_len)
+{
+	/* This check is replicated from __ip4_datagram_connect() and
+	 * intended to prevent BPF program called below from accessing bytes
+	 * that are out of the bound specified by user in addr_len.
+	 */
+	if (addr_len < sizeof(struct sockaddr_in))
+		return -EINVAL;
+
+	return BPF_CGROUP_RUN_PROG_INET4_CONNECT_LOCK(sk, uaddr);
+}
 
 /* Checks the bind address and possibly modifies sk->sk_bound_dev_if. */
 static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
@@ -603,21 +622,9 @@ int ping_getfrag(void *from, char *to,
 {
 	struct pingfakehdr *pfh = from;
 
-	if (offset == 0) {
-		fraglen -= sizeof(struct icmphdr);
-		if (fraglen < 0)
-			BUG();
-		if (!csum_and_copy_from_iter_full(to + sizeof(struct icmphdr),
-			    fraglen, &pfh->wcheck,
-			    &pfh->msg->msg_iter))
-			return -EFAULT;
-	} else if (offset < sizeof(struct icmphdr)) {
-			BUG();
-	} else {
-		if (!csum_and_copy_from_iter_full(to, fraglen, &pfh->wcheck,
-					    &pfh->msg->msg_iter))
-			return -EFAULT;
-	}
+	if (!csum_and_copy_from_iter_full(to, fraglen, &pfh->wcheck,
+					  &pfh->msg->msg_iter))
+		return -EFAULT;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	/* For IPv6, checksum each skb as we go along, as expected by
@@ -625,7 +632,7 @@ int ping_getfrag(void *from, char *to,
 	 * wcheck, it will be finalized in ping_v4_push_pending_frames.
 	 */
 	if (pfh->family == AF_INET6) {
-		skb->csum = pfh->wcheck;
+		skb->csum = csum_block_add(skb->csum, pfh->wcheck, odd);
 		skb->ip_summed = CHECKSUM_NONE;
 		pfh->wcheck = 0;
 	}
@@ -828,7 +835,8 @@ back_from_confirm:
 	pfh.family = AF_INET;
 
 	err = ip_append_data(sk, &fl4, ping_getfrag, &pfh, len,
-			0, &ipc, &rt, msg->msg_flags);
+			     sizeof(struct icmphdr), &ipc, &rt,
+			     msg->msg_flags);
 	if (err)
 		ip_flush_pending_frames(sk);
 	else
@@ -1009,6 +1017,7 @@ struct proto ping_prot = {
 	.owner =	THIS_MODULE,
 	.init =		ping_init_sock,
 	.close =	ping_close,
+	.pre_connect =	ping_pre_connect,
 	.connect =	ip4_datagram_connect,
 	.disconnect =	__udp_disconnect,
 	.setsockopt =	ip_setsockopt,

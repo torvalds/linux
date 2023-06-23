@@ -516,7 +516,7 @@ static enum pkvm_page_state hyp_get_page_state(kvm_pte_t pte)
 	if (!kvm_pte_valid(pte))
 		return PKVM_NOPAGE;
 
-	return pkvm_getstate(kvm_pgtable_stage2_pte_prot(pte));
+	return pkvm_getstate(kvm_pgtable_hyp_pte_prot(pte));
 }
 
 static int __hyp_check_page_state_range(u64 addr, u64 size,

@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
+#include <trace/events/sof_intel.h>
 #include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
@@ -113,7 +114,7 @@ static int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_
 	return ret;
 }
 
-static int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
+int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	/* stall core */
 	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
@@ -125,7 +126,7 @@ static int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_
 	return hda_dsp_core_reset_enter(sdev, core_mask);
 }
 
-static bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
+bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	int val;
 	bool is_enable;
@@ -397,8 +398,7 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 		return ret;
 	}
 
-	dev_vdbg(bus->dev, "D0I3C updated, register = 0x%x\n",
-		 snd_hdac_chip_readb(bus, VS_D0I3C));
+	trace_sof_intel_D0I3C_updated(sdev, snd_hdac_chip_readb(bus, VS_D0I3C));
 
 	return 0;
 }
@@ -620,14 +620,18 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	/*
 	 * The memory used for IMR boot loses its content in deeper than S3 state
 	 * We must not try IMR boot on next power up (as it will fail).
+	 *
+	 * In case of firmware crash or boot failure set the skip_imr_boot to true
+	 * as well in order to try to re-load the firmware to do a 'cold' boot.
 	 */
-	if (sdev->system_suspend_target > SOF_SUSPEND_S3)
+	if (sdev->system_suspend_target > SOF_SUSPEND_S3 ||
+	    sdev->fw_state == SOF_FW_CRASHED ||
+	    sdev->fw_state == SOF_FW_BOOT_FAILED)
 		hda->skip_imr_boot = true;
 
-	hda_sdw_int_enable(sdev, false);
-
-	/* disable IPC interrupts */
-	hda_dsp_ipc_int_disable(sdev);
+	ret = chip->disable_interrupts(sdev);
+	if (ret < 0)
+		return ret;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	hda_codec_jack_wake_enable(sdev, runtime_suspend);
@@ -636,11 +640,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	snd_hdac_ext_bus_link_power_down_all(bus);
 #endif
 
-	/* power down DSP */
-	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
+	ret = chip->power_down_dsp(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to power down core during suspend\n");
+		dev_err(sdev->dev, "failed to power down DSP during suspend\n");
 		return ret;
 	}
 
@@ -983,4 +985,12 @@ power_down:
 		dev_err(sdev->dev, "failed to power down core: %d with err: %d\n", core, ret1);
 
 	return ret;
+}
+
+int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
+{
+	hda_sdw_int_enable(sdev, false);
+	hda_dsp_ipc_int_disable(sdev);
+
+	return 0;
 }

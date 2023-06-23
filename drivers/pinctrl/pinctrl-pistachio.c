@@ -10,13 +10,13 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -1347,46 +1347,51 @@ static struct pistachio_gpio_bank pistachio_gpio_banks[] = {
 
 static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 {
-	struct device_node *node = pctl->dev->of_node;
 	struct pistachio_gpio_bank *bank;
 	unsigned int i;
 	int irq, ret = 0;
 
 	for (i = 0; i < pctl->nbanks; i++) {
 		char child_name[sizeof("gpioXX")];
-		struct device_node *child;
+		struct fwnode_handle *child;
 		struct gpio_irq_chip *girq;
 
 		snprintf(child_name, sizeof(child_name), "gpio%d", i);
-		child = of_get_child_by_name(node, child_name);
+		child = device_get_named_child_node(pctl->dev, child_name);
 		if (!child) {
 			dev_err(pctl->dev, "No node for bank %u\n", i);
 			ret = -ENODEV;
 			goto err;
 		}
 
-		if (!of_find_property(child, "gpio-controller", NULL)) {
+		if (!fwnode_property_present(child, "gpio-controller")) {
+			fwnode_handle_put(child);
 			dev_err(pctl->dev,
 				"No gpio-controller property for bank %u\n", i);
-			of_node_put(child);
 			ret = -ENODEV;
 			goto err;
 		}
 
-		irq = irq_of_parse_and_map(child, 0);
-		if (!irq) {
+		ret = fwnode_irq_get(child, 0);
+		if (ret < 0) {
+			fwnode_handle_put(child);
+			dev_err(pctl->dev, "Failed to retrieve IRQ for bank %u\n", i);
+			goto err;
+		}
+		if (!ret) {
+			fwnode_handle_put(child);
 			dev_err(pctl->dev, "No IRQ for bank %u\n", i);
-			of_node_put(child);
 			ret = -EINVAL;
 			goto err;
 		}
+		irq = ret;
 
 		bank = &pctl->gpio_banks[i];
 		bank->pctl = pctl;
 		bank->base = pctl->base + GPIO_BANK_BASE(i);
 
 		bank->gpio_chip.parent = pctl->dev;
-		bank->gpio_chip.of_node = child;
+		bank->gpio_chip.fwnode = child;
 
 		girq = &bank->gpio_chip.irq;
 		girq->chip = &bank->irq_chip;

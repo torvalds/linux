@@ -1215,6 +1215,7 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 		const char *page, size_t count)
 {
 	int pos = 0, len;
+	char *val;
 
 	if (subsys->subsys_discovered) {
 		pr_err("Can't set model number. %s is already assigned\n",
@@ -1237,9 +1238,11 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 			return -EINVAL;
 	}
 
-	subsys->model_number = kmemdup_nul(page, len, GFP_KERNEL);
-	if (!subsys->model_number)
+	val = kmemdup_nul(page, len, GFP_KERNEL);
+	if (!val)
 		return -ENOMEM;
+	kfree(subsys->model_number);
+	subsys->model_number = val;
 	return count;
 }
 
@@ -1281,6 +1284,30 @@ static ssize_t nvmet_subsys_attr_pi_enable_store(struct config_item *item,
 CONFIGFS_ATTR(nvmet_subsys_, attr_pi_enable);
 #endif
 
+static ssize_t nvmet_subsys_attr_qid_max_show(struct config_item *item,
+					      char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%u\n", to_subsys(item)->max_qid);
+}
+
+static ssize_t nvmet_subsys_attr_qid_max_store(struct config_item *item,
+					       const char *page, size_t cnt)
+{
+	u16 qid_max;
+
+	if (sscanf(page, "%hu\n", &qid_max) != 1)
+		return -EINVAL;
+
+	if (qid_max < 1 || qid_max > NVMET_NR_QUEUES)
+		return -EINVAL;
+
+	down_write(&nvmet_config_sem);
+	to_subsys(item)->max_qid = qid_max;
+	up_write(&nvmet_config_sem);
+	return cnt;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_qid_max);
+
 static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_allow_any_host,
 	&nvmet_subsys_attr_attr_version,
@@ -1288,6 +1315,7 @@ static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_cntlid_min,
 	&nvmet_subsys_attr_attr_cntlid_max,
 	&nvmet_subsys_attr_attr_model,
+	&nvmet_subsys_attr_attr_qid_max,
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	&nvmet_subsys_attr_attr_pi_enable,
 #endif
@@ -1811,6 +1839,7 @@ static void nvmet_host_release(struct config_item *item)
 
 #ifdef CONFIG_NVME_TARGET_AUTH
 	kfree(host->dhchap_secret);
+	kfree(host->dhchap_ctrl_secret);
 #endif
 	kfree(host);
 }

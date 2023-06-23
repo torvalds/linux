@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/mediatek-jpeg-encoder.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek JPEG Encoder Device Tree Bindings
+title: MediaTek JPEG Encoder
 
 maintainers:
   - Xia Jiang <xia.jiang@mediatek.com>

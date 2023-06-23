@@ -1080,7 +1080,7 @@ free_ctrl:
 	return ret;
 }
 
-static int imx214_remove(struct i2c_client *client)
+static void imx214_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx214 *imx214 = to_imx214(sd);
@@ -1093,8 +1093,6 @@ static int imx214_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	mutex_destroy(&imx214->mutex);
-
-	return 0;
 }
 
 static const struct of_device_id imx214_of_match[] = {

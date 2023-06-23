@@ -355,7 +355,7 @@ static void nct6791_enable_io_mapping(struct nct6775_sio_data *sio_data)
 	}
 }
 
-static int __maybe_unused nct6775_suspend(struct device *dev)
+static int nct6775_suspend(struct device *dev)
 {
 	int err;
 	u16 tmp;
@@ -386,7 +386,7 @@ out:
 	return err;
 }
 
-static int __maybe_unused nct6775_resume(struct device *dev)
+static int nct6775_resume(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	struct nct6775_sio_data *sio_data = dev_get_platdata(dev);
@@ -467,7 +467,7 @@ abort:
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(nct6775_dev_pm_ops, nct6775_suspend, nct6775_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(nct6775_dev_pm_ops, nct6775_suspend, nct6775_resume);
 
 static void
 nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio_data)
@@ -934,7 +934,7 @@ static int nct6775_platform_probe(struct platform_device *pdev)
 static struct platform_driver nct6775_driver = {
 	.driver = {
 		.name	= DRVNAME,
-		.pm	= &nct6775_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&nct6775_dev_pm_ops),
 	},
 	.probe		= nct6775_platform_probe,
 };

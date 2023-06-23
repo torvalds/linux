@@ -31,6 +31,7 @@
  */
 
 #include <linux/irq.h>
+#include <net/xdp_sock_drv.h>
 #include "en.h"
 #include "en/txrx.h"
 #include "en/xdp.h"
@@ -86,26 +87,36 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 
 static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
 {
+	bool need_wakeup = xsk_uses_need_wakeup(xskrq->xsk_pool);
 	bool busy_xsk = false, xsk_rx_alloc_err;
 
-	/* Handle the race between the application querying need_wakeup and the
-	 * driver setting it:
-	 * 1. Update need_wakeup both before and after the TX. If it goes to
-	 * "yes", it can only happen with the first update.
-	 * 2. If the application queried need_wakeup before we set it, the
-	 * packets will be transmitted anyway, even w/o a wakeup.
-	 * 3. Give a chance to clear need_wakeup after new packets were queued
-	 * for TX.
+	/* If SQ is empty, there are no TX completions to trigger NAPI, so set
+	 * need_wakeup. Do it before queuing packets for TX to avoid race
+	 * condition with userspace.
 	 */
-	mlx5e_xsk_update_tx_wakeup(xsksq);
+	if (need_wakeup && xsksq->pc == xsksq->cc)
+		xsk_set_tx_need_wakeup(xsksq->xsk_pool);
 	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
-	mlx5e_xsk_update_tx_wakeup(xsksq);
+	/* If we queued some packets for TX, no need for wakeup anymore. */
+	if (need_wakeup && xsksq->pc != xsksq->cc)
+		xsk_clear_tx_need_wakeup(xsksq->xsk_pool);
 
+	/* If WQ is empty, RX won't trigger NAPI, so set need_wakeup. Do it
+	 * before refilling to avoid race condition with userspace.
+	 */
+	if (need_wakeup && !mlx5e_rqwq_get_cur_sz(xskrq))
+		xsk_set_rx_need_wakeup(xskrq->xsk_pool);
 	xsk_rx_alloc_err = INDIRECT_CALL_2(xskrq->post_wqes,
 					   mlx5e_post_rx_mpwqes,
 					   mlx5e_post_rx_wqes,
 					   xskrq);
-	busy_xsk |= mlx5e_xsk_update_rx_wakeup(xskrq, xsk_rx_alloc_err);
+	/* Ask for wakeup if WQ is not full after refill. */
+	if (!need_wakeup)
+		busy_xsk |= xsk_rx_alloc_err;
+	else if (xsk_rx_alloc_err)
+		xsk_set_rx_need_wakeup(xskrq->xsk_pool);
+	else
+		xsk_clear_rx_need_wakeup(xskrq->xsk_pool);
 
 	return busy_xsk;
 }

@@ -400,7 +400,6 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 {
 	struct block_device *bdev = req->ns->bdev;
 	unsigned int nr_zones = bdev_nr_zones(bdev);
-	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = NULL;
 	sector_t sector = 0;
 	int ret;
@@ -409,7 +408,7 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 	};
 
 	d.zbitmap = kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(*(d.zbitmap)),
-				 GFP_NOIO, q->node);
+				 GFP_NOIO, bdev->bd_disk->node_id);
 	if (!d.zbitmap) {
 		ret = -ENOMEM;
 		goto out;

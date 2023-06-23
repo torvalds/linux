@@ -16,8 +16,6 @@
 
 #include <asm/sn/addrs.h>
 
-#define GDA_MAGIC	0x58464552
-
 /*
  * GDA Version History
  *

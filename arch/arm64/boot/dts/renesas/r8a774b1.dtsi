@@ -2191,7 +2191,6 @@
 			reg-names = "regs", "dirmap", "wbuf";
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 917>;
-			clock-names = "rpc";
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 917>;
 			#address-cells = <1>;

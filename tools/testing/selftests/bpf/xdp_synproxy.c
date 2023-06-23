@@ -193,7 +193,7 @@ static int syncookie_attach(const char *argv0, unsigned int ifindex, bool tc)
 	int prog_fd;
 	int err;
 
-	snprintf(xdp_filename, sizeof(xdp_filename), "%s_kern.o", argv0);
+	snprintf(xdp_filename, sizeof(xdp_filename), "%s_kern.bpf.o", argv0);
 	obj = bpf_object__open_file(xdp_filename, NULL);
 	err = libbpf_get_error(obj);
 	if (err < 0) {

@@ -56,9 +56,6 @@ struct dlm_lockspace_ops {
  * DLM_LSFL_TIMEWARN
  *   The dlm should emit netlink messages if locks have been waiting
  *   for a configurable amount of time.  (Unused.)
- * DLM_LSFL_FS
- *   The lockspace user is in the kernel (i.e. filesystem).  Enables
- *   direct bast/cast callbacks.
  * DLM_LSFL_NEWEXCL
  *   dlm_new_lockspace() should return -EEXIST if the lockspace exists.
  *
@@ -134,7 +131,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	     int mode,
 	     struct dlm_lksb *lksb,
 	     uint32_t flags,
-	     void *name,
+	     const void *name,
 	     unsigned int namelen,
 	     uint32_t parent_lkid,
 	     void (*lockast) (void *astarg),

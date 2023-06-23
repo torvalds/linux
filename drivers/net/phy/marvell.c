@@ -1952,7 +1952,7 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		strlcpy(data + i * ETH_GSTRING_LEN,
+		strscpy(data + i * ETH_GSTRING_LEN,
 			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
 	}
 }
@@ -2015,14 +2015,16 @@ static int m88e1510_loopback(struct phy_device *phydev, bool enable)
 		if (err < 0)
 			return err;
 
-		/* FIXME: Based on trial and error test, it seem 1G need to have
-		 * delay between soft reset and loopback enablement.
-		 */
-		if (phydev->speed == SPEED_1000)
-			msleep(1000);
+		err = phy_modify(phydev, MII_BMCR, BMCR_LOOPBACK,
+				 BMCR_LOOPBACK);
 
-		return phy_modify(phydev, MII_BMCR, BMCR_LOOPBACK,
-				  BMCR_LOOPBACK);
+		if (!err) {
+			/* It takes some time for PHY device to switch
+			 * into/out-of loopback mode.
+			 */
+			msleep(1000);
+		}
+		return err;
 	} else {
 		err = phy_modify(phydev, MII_BMCR, BMCR_LOOPBACK, 0);
 		if (err < 0)
@@ -2845,6 +2847,7 @@ static int marvell_probe(struct phy_device *phydev)
 
 static int m88e1510_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
 	struct phy_device *phydev = upstream;
 	phy_interface_t interface;
 	struct device *dev;
@@ -2856,7 +2859,7 @@ static int m88e1510_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 
 	dev = &phydev->mdio.dev;
 
-	sfp_parse_support(phydev->sfp_bus, id, supported);
+	sfp_parse_support(phydev->sfp_bus, id, supported, interfaces);
 	interface = sfp_select_interface(phydev->sfp_bus, supported);
 
 	dev_info(dev, "%s SFP module inserted\n", phy_modes(interface));

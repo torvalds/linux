@@ -118,7 +118,7 @@ int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
 	if (btrfs_fs_incompat(inode->root->fs_info, NO_HOLES))
 		return 0;
 	return clear_extent_bit(&inode->file_extent_tree, start,
-				start + len - 1, EXTENT_DIRTY, 0, 0, NULL);
+				start + len - 1, EXTENT_DIRTY, NULL);
 }
 
 static inline u32 max_ordered_sum_bytes(struct btrfs_fs_info *fs_info,
@@ -129,12 +129,20 @@ static inline u32 max_ordered_sum_bytes(struct btrfs_fs_info *fs_info,
 	return ncsums * fs_info->sectorsize;
 }
 
-int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
+/*
+ * Calculate the total size needed to allocate for an ordered sum structure
+ * spanning @bytes in the file.
+ */
+static int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info, unsigned long bytes)
+{
+	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
+
+	return sizeof(struct btrfs_ordered_sum) + num_sectors * fs_info->csum_size;
+}
+
+int btrfs_insert_hole_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
-			     u64 objectid, u64 pos,
-			     u64 disk_offset, u64 disk_num_bytes,
-			     u64 num_bytes, u64 offset, u64 ram_bytes,
-			     u8 compression, u8 encryption, u16 other_encoding)
+			     u64 objectid, u64 pos, u64 num_bytes)
 {
 	int ret = 0;
 	struct btrfs_file_extent_item *item;
@@ -157,16 +165,16 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0],
 			      struct btrfs_file_extent_item);
-	btrfs_set_file_extent_disk_bytenr(leaf, item, disk_offset);
-	btrfs_set_file_extent_disk_num_bytes(leaf, item, disk_num_bytes);
-	btrfs_set_file_extent_offset(leaf, item, offset);
+	btrfs_set_file_extent_disk_bytenr(leaf, item, 0);
+	btrfs_set_file_extent_disk_num_bytes(leaf, item, 0);
+	btrfs_set_file_extent_offset(leaf, item, 0);
 	btrfs_set_file_extent_num_bytes(leaf, item, num_bytes);
-	btrfs_set_file_extent_ram_bytes(leaf, item, ram_bytes);
+	btrfs_set_file_extent_ram_bytes(leaf, item, num_bytes);
 	btrfs_set_file_extent_generation(leaf, item, trans->transid);
 	btrfs_set_file_extent_type(leaf, item, BTRFS_FILE_EXTENT_REG);
-	btrfs_set_file_extent_compression(leaf, item, compression);
-	btrfs_set_file_extent_encryption(leaf, item, encryption);
-	btrfs_set_file_extent_other_encoding(leaf, item, other_encoding);
+	btrfs_set_file_extent_compression(leaf, item, 0);
+	btrfs_set_file_extent_encryption(leaf, item, 0);
+	btrfs_set_file_extent_other_encoding(leaf, item, 0);
 
 	btrfs_mark_buffer_dirty(leaf);
 out:
@@ -503,7 +511,8 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u8 *dst
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
-			     struct list_head *list, int search_commit)
+			     struct list_head *list, int search_commit,
+			     bool nowait)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key key;
@@ -525,6 +534,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	if (!path)
 		return -ENOMEM;
 
+	path->nowait = nowait;
 	if (search_commit) {
 		path->skip_locking = 1;
 		path->reada = READA_FORWARD;

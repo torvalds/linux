@@ -512,7 +512,8 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 	atomic64_dec(&STp->stats->in_flight);
 }
 
-static void st_scsi_execute_end(struct request *req, blk_status_t status)
+static enum rq_end_io_ret st_scsi_execute_end(struct request *req,
+					      blk_status_t status)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	struct st_request *SRpnt = req->end_io_data;
@@ -532,6 +533,7 @@ static void st_scsi_execute_end(struct request *req, blk_status_t status)
 
 	blk_rq_unmap_user(tmp);
 	blk_mq_free_request(req);
+	return RQ_END_IO_NONE;
 }
 
 static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
@@ -4246,11 +4248,10 @@ static int st_probe(struct device *dev)
 	struct st_partstat *STps;
 	struct st_buffer *buffer;
 	int i, error;
-	char *stp;
 
 	if (SDp->type != TYPE_TAPE)
 		return -ENODEV;
-	if ((stp = st_incompatible(SDp))) {
+	if (st_incompatible(SDp)) {
 		sdev_printk(KERN_INFO, SDp,
 			    "OnStream tapes are no longer supported;\n");
 		sdev_printk(KERN_INFO, SDp,

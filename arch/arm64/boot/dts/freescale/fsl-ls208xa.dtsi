@@ -239,13 +239,12 @@
 		};
 	};
 
-	timer {
+	timer: timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 13 4>, /* Physical Secure PPI, active-low */
 			     <1 14 4>, /* Physical Non-Secure PPI, active-low */
 			     <1 11 4>, /* Virtual PPI, active-low */
 			     <1 10 4>; /* Hypervisor PPI, active-low */
-		fsl,erratum-a008585;
 	};
 
 	pmu {
@@ -533,6 +532,9 @@
 			little-endian;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clock-frequency = <2500000>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(2)>;
 			status = "disabled";
 		};
 
@@ -542,6 +544,9 @@
 			little-endian;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clock-frequency = <2500000>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(2)>;
 			status = "disabled";
 		};
 

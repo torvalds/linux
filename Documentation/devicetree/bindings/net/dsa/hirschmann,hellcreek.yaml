@@ -91,8 +91,13 @@ examples:
 
                 port@0 {
                     reg = <0>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
+                    phy-mode = "mii";
+
+                    fixed-link {
+                        speed = <100>;
+                        full-duplex;
+                    };
                 };
 
                 port@2 {

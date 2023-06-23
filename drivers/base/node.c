@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
+#include <linux/hugetlb.h>
 
 static struct bus_type node_subsys = {
 	.name = "node",
@@ -433,6 +434,7 @@ static ssize_t node_read_meminfo(struct device *dev,
 			     "Node %d ShadowCallStack:%8lu kB\n"
 #endif
 			     "Node %d PageTables:     %8lu kB\n"
+			     "Node %d SecPageTables:  %8lu kB\n"
 			     "Node %d NFS_Unstable:   %8lu kB\n"
 			     "Node %d Bounce:         %8lu kB\n"
 			     "Node %d WritebackTmp:   %8lu kB\n"
@@ -459,6 +461,7 @@ static ssize_t node_read_meminfo(struct device *dev,
 			     nid, node_page_state(pgdat, NR_KERNEL_SCS_KB),
 #endif
 			     nid, K(node_page_state(pgdat, NR_PAGETABLE)),
+			     nid, K(node_page_state(pgdat, NR_SECONDARY_PAGETABLE)),
 			     nid, 0UL,
 			     nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),
 			     nid, K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
@@ -587,64 +590,9 @@ static const struct attribute_group *node_dev_groups[] = {
 	NULL
 };
 
-#ifdef CONFIG_HUGETLBFS
-/*
- * hugetlbfs per node attributes registration interface:
- * When/if hugetlb[fs] subsystem initializes [sometime after this module],
- * it will register its per node attributes for all online nodes with
- * memory.  It will also call register_hugetlbfs_with_node(), below, to
- * register its attribute registration functions with this node driver.
- * Once these hooks have been initialized, the node driver will call into
- * the hugetlb module to [un]register attributes for hot-plugged nodes.
- */
-static node_registration_func_t __hugetlb_register_node;
-static node_registration_func_t __hugetlb_unregister_node;
-
-static inline bool hugetlb_register_node(struct node *node)
-{
-	if (__hugetlb_register_node &&
-			node_state(node->dev.id, N_MEMORY)) {
-		__hugetlb_register_node(node);
-		return true;
-	}
-	return false;
-}
-
-static inline void hugetlb_unregister_node(struct node *node)
-{
-	if (__hugetlb_unregister_node)
-		__hugetlb_unregister_node(node);
-}
-
-void register_hugetlbfs_with_node(node_registration_func_t doregister,
-				  node_registration_func_t unregister)
-{
-	__hugetlb_register_node   = doregister;
-	__hugetlb_unregister_node = unregister;
-}
-#else
-static inline void hugetlb_register_node(struct node *node) {}
-
-static inline void hugetlb_unregister_node(struct node *node) {}
-#endif
-
 static void node_device_release(struct device *dev)
 {
-	struct node *node = to_node(dev);
-
-#if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_HUGETLBFS)
-	/*
-	 * We schedule the work only when a memory section is
-	 * onlined/offlined on this node. When we come here,
-	 * all the memory on this node has been offlined,
-	 * so we won't enqueue new work to this work.
-	 *
-	 * The work is using node->node_work, so we should
-	 * flush work before freeing the memory.
-	 */
-	flush_work(&node->node_work);
-#endif
-	kfree(node);
+	kfree(to_node(dev));
 }
 
 /*
@@ -663,13 +611,13 @@ static int register_node(struct node *node, int num)
 	node->dev.groups = node_dev_groups;
 	error = device_register(&node->dev);
 
-	if (error)
+	if (error) {
 		put_device(&node->dev);
-	else {
+	} else {
 		hugetlb_register_node(node);
-
 		compaction_register_node(node);
 	}
+
 	return error;
 }
 
@@ -682,8 +630,8 @@ static int register_node(struct node *node, int num)
  */
 void unregister_node(struct node *node)
 {
+	hugetlb_unregister_node(node);
 	compaction_unregister_node(node);
-	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
 	node_remove_accesses(node);
 	node_remove_caches(node);
 	device_unregister(&node->dev);
@@ -905,73 +853,7 @@ void register_memory_blocks_under_node(int nid, unsigned long start_pfn,
 			   (void *)&nid, func);
 	return;
 }
-
-#ifdef CONFIG_HUGETLBFS
-/*
- * Handle per node hstate attribute [un]registration on transistions
- * to/from memoryless state.
- */
-static void node_hugetlb_work(struct work_struct *work)
-{
-	struct node *node = container_of(work, struct node, node_work);
-
-	/*
-	 * We only get here when a node transitions to/from memoryless state.
-	 * We can detect which transition occurred by examining whether the
-	 * node has memory now.  hugetlb_register_node() already check this
-	 * so we try to register the attributes.  If that fails, then the
-	 * node has transitioned to memoryless, try to unregister the
-	 * attributes.
-	 */
-	if (!hugetlb_register_node(node))
-		hugetlb_unregister_node(node);
-}
-
-static void init_node_hugetlb_work(int nid)
-{
-	INIT_WORK(&node_devices[nid]->node_work, node_hugetlb_work);
-}
-
-static int node_memory_callback(struct notifier_block *self,
-				unsigned long action, void *arg)
-{
-	struct memory_notify *mnb = arg;
-	int nid = mnb->status_change_nid;
-
-	switch (action) {
-	case MEM_ONLINE:
-	case MEM_OFFLINE:
-		/*
-		 * offload per node hstate [un]registration to a work thread
-		 * when transitioning to/from memoryless state.
-		 */
-		if (nid != NUMA_NO_NODE)
-			schedule_work(&node_devices[nid]->node_work);
-		break;
-
-	case MEM_GOING_ONLINE:
-	case MEM_GOING_OFFLINE:
-	case MEM_CANCEL_ONLINE:
-	case MEM_CANCEL_OFFLINE:
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-#endif	/* CONFIG_HUGETLBFS */
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
-#if !defined(CONFIG_MEMORY_HOTPLUG) || !defined(CONFIG_HUGETLBFS)
-static inline int node_memory_callback(struct notifier_block *self,
-				unsigned long action, void *arg)
-{
-	return NOTIFY_OK;
-}
-
-static void init_node_hugetlb_work(int nid) { }
-
-#endif
 
 int __register_one_node(int nid)
 {
@@ -991,8 +873,6 @@ int __register_one_node(int nid)
 	}
 
 	INIT_LIST_HEAD(&node_devices[nid]->access_list);
-	/* initialize work queue for memory hot plug */
-	init_node_hugetlb_work(nid);
 	node_init_caches(nid);
 
 	return error;
@@ -1063,13 +943,8 @@ static const struct attribute_group *cpu_root_attr_groups[] = {
 	NULL,
 };
 
-#define NODE_CALLBACK_PRI	2	/* lower than SLAB */
 void __init node_dev_init(void)
 {
-	static struct notifier_block node_memory_callback_nb = {
-		.notifier_call = node_memory_callback,
-		.priority = NODE_CALLBACK_PRI,
-	};
 	int ret, i;
 
  	BUILD_BUG_ON(ARRAY_SIZE(node_state_attr) != NR_NODE_STATES);
@@ -1078,8 +953,6 @@ void __init node_dev_init(void)
 	ret = subsys_system_register(&node_subsys, cpu_root_attr_groups);
 	if (ret)
 		panic("%s() failed to register subsystem: %d\n", __func__, ret);
-
-	register_hotmemory_notifier(&node_memory_callback_nb);
 
 	/*
 	 * Create all node devices, which will properly link the node

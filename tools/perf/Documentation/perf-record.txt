@@ -400,6 +400,7 @@ following filters are defined:
 		     For the platforms with Intel Arch LBR support (12th-Gen+ client or
 		     4th-Gen Xeon+ server), the save branch type is unconditionally enabled
 		     when the taken branch stack sampling is enabled.
+	- priv: save privilege state during sampling in case binary is not available later
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
@@ -410,6 +411,7 @@ is enabled for all the sampling events. The sampled branch type is the same for 
 The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 Note that this feature may not be available on all processors.
 
+-W::
 --weight::
 Enable weightened sampling. An additional weight is recorded per sample and can be
 displayed with the weight and local_weight sort keys.  This currently works for TSX
@@ -433,8 +435,10 @@ if combined with -a or -C options.
 -D::
 --delay=::
 After starting the program, wait msecs before measuring (-1: start with events
-disabled). This is useful to filter out the startup phase of the program, which
-is often very different.
+disabled), or enable events only for specified ranges of msecs (e.g.
+-D 10-20,30-40 means wait 10 msecs, enable for 10 msecs, wait 10 msecs, enable
+for 10 msecs, then stop). Note, delaying enabling of events is useful to filter
+out the startup phase of the program, which is often very different.
 
 -I::
 --intr-regs::

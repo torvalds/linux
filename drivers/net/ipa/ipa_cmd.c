@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2021 Linaro Ltd.
+ * Copyright (C) 2019-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -32,7 +32,7 @@
  * immediate command's opcode.  The payload for a command resides in AP
  * memory and is described by a single scatterlist entry in its transaction.
  * Commands do not require a transaction completion callback, and are
- * (currently) always issued using gsi_trans_commit_wait().
+ * always issued using gsi_trans_commit_wait().
  */
 
 /* Some commands can wait until indicated pipeline stages are clear */
@@ -305,6 +305,7 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 /* Check whether offsets passed to register_write are valid */
 static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 {
+	const struct ipa_reg *reg;
 	const char *name;
 	u32 offset;
 
@@ -312,7 +313,8 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	 * offset will fit in a register write IPA immediate command.
 	 */
 	if (ipa_table_hash_support(ipa)) {
-		offset = ipa_reg_filt_rout_hash_flush_offset(ipa->version);
+		reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+		offset = ipa_reg_offset(reg);
 		name = "filter/route hash flush";
 		if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 			return false;
@@ -325,7 +327,8 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	 * worst case (highest endpoint number) offset of that endpoint
 	 * fits in the register write command field(s) that must hold it.
 	 */
-	offset = IPA_REG_ENDP_STATUS_N_OFFSET(IPA_ENDPOINT_COUNT - 1);
+	reg = ipa_reg(ipa, ENDP_STATUS);
+	offset = ipa_reg_n_offset(reg, IPA_ENDPOINT_COUNT - 1);
 	name = "maximal endpoint status";
 	if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 		return false;

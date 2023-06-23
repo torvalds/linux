@@ -604,9 +604,8 @@ static int __save_stack_trace(unsigned long *trace)
  * memory block and add it to the object_list and object_tree_root (or
  * object_phys_tree_root).
  */
-static struct kmemleak_object *__create_object(unsigned long ptr, size_t size,
-					     int min_count, gfp_t gfp,
-					     bool is_phys)
+static void __create_object(unsigned long ptr, size_t size,
+			    int min_count, gfp_t gfp, bool is_phys)
 {
 	unsigned long flags;
 	struct kmemleak_object *object, *parent;
@@ -618,7 +617,7 @@ static struct kmemleak_object *__create_object(unsigned long ptr, size_t size,
 	if (!object) {
 		pr_warn("Cannot allocate a kmemleak_object structure\n");
 		kmemleak_disable();
-		return NULL;
+		return;
 	}
 
 	INIT_LIST_HEAD(&object->object_list);
@@ -687,7 +686,6 @@ static struct kmemleak_object *__create_object(unsigned long ptr, size_t size,
 			 */
 			dump_object_info(parent);
 			kmem_cache_free(object_cache, object);
-			object = NULL;
 			goto out;
 		}
 	}
@@ -698,21 +696,20 @@ static struct kmemleak_object *__create_object(unsigned long ptr, size_t size,
 	list_add_tail_rcu(&object->object_list, &object_list);
 out:
 	raw_spin_unlock_irqrestore(&kmemleak_lock, flags);
-	return object;
 }
 
 /* Create kmemleak object which allocated with virtual address. */
-static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
-					     int min_count, gfp_t gfp)
+static void create_object(unsigned long ptr, size_t size,
+			  int min_count, gfp_t gfp)
 {
-	return __create_object(ptr, size, min_count, gfp, false);
+	__create_object(ptr, size, min_count, gfp, false);
 }
 
 /* Create kmemleak object which allocated with physical address. */
-static struct kmemleak_object *create_object_phys(unsigned long ptr, size_t size,
-					     int min_count, gfp_t gfp)
+static void create_object_phys(unsigned long ptr, size_t size,
+			       int min_count, gfp_t gfp)
 {
-	return __create_object(ptr, size, min_count, gfp, true);
+	__create_object(ptr, size, min_count, gfp, true);
 }
 
 /*
@@ -1464,6 +1461,27 @@ static void scan_gray_list(void)
 }
 
 /*
+ * Conditionally call resched() in a object iteration loop while making sure
+ * that the given object won't go away without RCU read lock by performing a
+ * get_object() if !pinned.
+ *
+ * Return: false if can't do a cond_resched() due to get_object() failure
+ *	   true otherwise
+ */
+static bool kmemleak_cond_resched(struct kmemleak_object *object, bool pinned)
+{
+	if (!pinned && !get_object(object))
+		return false;
+
+	rcu_read_unlock();
+	cond_resched();
+	rcu_read_lock();
+	if (!pinned)
+		put_object(object);
+	return true;
+}
+
+/*
  * Scan data sections and all the referenced memory blocks allocated via the
  * kernel's standard allocators. This function must be called with the
  * scan_mutex held.
@@ -1474,7 +1492,7 @@ static void kmemleak_scan(void)
 	struct zone *zone;
 	int __maybe_unused i;
 	int new_leaks = 0;
-	int loop1_cnt = 0;
+	int loop_cnt = 0;
 
 	jiffies_last_scan = jiffies;
 
@@ -1483,7 +1501,6 @@ static void kmemleak_scan(void)
 	list_for_each_entry_rcu(object, &object_list, object_list) {
 		bool obj_pinned = false;
 
-		loop1_cnt++;
 		raw_spin_lock_irq(&object->lock);
 #ifdef DEBUG
 		/*
@@ -1517,24 +1534,11 @@ static void kmemleak_scan(void)
 		raw_spin_unlock_irq(&object->lock);
 
 		/*
-		 * Do a cond_resched() to avoid soft lockup every 64k objects.
-		 * Make sure a reference has been taken so that the object
-		 * won't go away without RCU read lock.
+		 * Do a cond_resched() every 64k objects to avoid soft lockup.
 		 */
-		if (!(loop1_cnt & 0xffff)) {
-			if (!obj_pinned && !get_object(object)) {
-				/* Try the next object instead */
-				loop1_cnt--;
-				continue;
-			}
-
-			rcu_read_unlock();
-			cond_resched();
-			rcu_read_lock();
-
-			if (!obj_pinned)
-				put_object(object);
-		}
+		if (!(++loop_cnt & 0xffff) &&
+		    !kmemleak_cond_resched(object, obj_pinned))
+			loop_cnt--; /* Try again on next object */
 	}
 	rcu_read_unlock();
 
@@ -1601,7 +1605,15 @@ static void kmemleak_scan(void)
 	 * scan and color them gray until the next scan.
 	 */
 	rcu_read_lock();
+	loop_cnt = 0;
 	list_for_each_entry_rcu(object, &object_list, object_list) {
+		/*
+		 * Do a cond_resched() every 64k objects to avoid soft lockup.
+		 */
+		if (!(++loop_cnt & 0xffff) &&
+		    !kmemleak_cond_resched(object, false))
+			loop_cnt--;	/* Try again on next object */
+
 		/*
 		 * This is racy but we can save the overhead of lock/unlock
 		 * calls. The missed objects, if any, should be caught in
@@ -1635,7 +1647,15 @@ static void kmemleak_scan(void)
 	 * Scanning result reporting.
 	 */
 	rcu_read_lock();
+	loop_cnt = 0;
 	list_for_each_entry_rcu(object, &object_list, object_list) {
+		/*
+		 * Do a cond_resched() every 64k objects to avoid soft lockup.
+		 */
+		if (!(++loop_cnt & 0xffff) &&
+		    !kmemleak_cond_resched(object, false))
+			loop_cnt--;	/* Try again on next object */
+
 		/*
 		 * This is racy but we can save the overhead of lock/unlock
 		 * calls. The missed objects, if any, should be caught in

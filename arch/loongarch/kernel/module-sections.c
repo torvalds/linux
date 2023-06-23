@@ -7,7 +7,33 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-Elf_Addr module_emit_plt_entry(struct module *mod, unsigned long val)
+Elf_Addr module_emit_got_entry(struct module *mod, Elf_Addr val)
+{
+	struct mod_section *got_sec = &mod->arch.got;
+	int i = got_sec->num_entries;
+	struct got_entry *got = get_got_entry(val, got_sec);
+
+	if (got)
+		return (Elf_Addr)got;
+
+	/* There is no GOT entry for val yet, create a new one. */
+	got = (struct got_entry *)got_sec->shdr->sh_addr;
+	got[i] = emit_got_entry(val);
+
+	got_sec->num_entries++;
+	if (got_sec->num_entries > got_sec->max_entries) {
+		/*
+		 * This may happen when the module contains a GOT_HI20 without
+		 * a paired GOT_LO12. Such a module is broken, reject it.
+		 */
+		pr_err("%s: module contains bad GOT relocation\n", mod->name);
+		return 0;
+	}
+
+	return (Elf_Addr)&got[i];
+}
+
+Elf_Addr module_emit_plt_entry(struct module *mod, Elf_Addr val)
 {
 	int nr;
 	struct mod_section *plt_sec = &mod->arch.plt;
@@ -50,15 +76,25 @@ static bool duplicate_rela(const Elf_Rela *rela, int idx)
 	return false;
 }
 
-static void count_max_entries(Elf_Rela *relas, int num, unsigned int *plts)
+static void count_max_entries(Elf_Rela *relas, int num,
+			      unsigned int *plts, unsigned int *gots)
 {
 	unsigned int i, type;
 
 	for (i = 0; i < num; i++) {
 		type = ELF_R_TYPE(relas[i].r_info);
-		if (type == R_LARCH_SOP_PUSH_PLT_PCREL) {
+		switch (type) {
+		case R_LARCH_SOP_PUSH_PLT_PCREL:
+		case R_LARCH_B26:
 			if (!duplicate_rela(relas, i))
 				(*plts)++;
+			break;
+		case R_LARCH_GOT_PC_HI20:
+			if (!duplicate_rela(relas, i))
+				(*gots)++;
+			break;
+		default:
+			break; /* Do nothing. */
 		}
 	}
 }
@@ -66,18 +102,24 @@ static void count_max_entries(Elf_Rela *relas, int num, unsigned int *plts)
 int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			      char *secstrings, struct module *mod)
 {
-	unsigned int i, num_plts = 0;
+	unsigned int i, num_plts = 0, num_gots = 0;
 
 	/*
 	 * Find the empty .plt sections.
 	 */
 	for (i = 0; i < ehdr->e_shnum; i++) {
-		if (!strcmp(secstrings + sechdrs[i].sh_name, ".plt"))
+		if (!strcmp(secstrings + sechdrs[i].sh_name, ".got"))
+			mod->arch.got.shdr = sechdrs + i;
+		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".plt"))
 			mod->arch.plt.shdr = sechdrs + i;
 		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".plt.idx"))
 			mod->arch.plt_idx.shdr = sechdrs + i;
 	}
 
+	if (!mod->arch.got.shdr) {
+		pr_err("%s: module GOT section(s) missing\n", mod->name);
+		return -ENOEXEC;
+	}
 	if (!mod->arch.plt.shdr) {
 		pr_err("%s: module PLT section(s) missing\n", mod->name);
 		return -ENOEXEC;
@@ -100,8 +142,15 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (!(dst_sec->sh_flags & SHF_EXECINSTR))
 			continue;
 
-		count_max_entries(relas, num_rela, &num_plts);
+		count_max_entries(relas, num_rela, &num_plts, &num_gots);
 	}
+
+	mod->arch.got.shdr->sh_type = SHT_NOBITS;
+	mod->arch.got.shdr->sh_flags = SHF_ALLOC;
+	mod->arch.got.shdr->sh_addralign = L1_CACHE_BYTES;
+	mod->arch.got.shdr->sh_size = (num_gots + 1) * sizeof(struct got_entry);
+	mod->arch.got.num_entries = 0;
+	mod->arch.got.max_entries = num_gots;
 
 	mod->arch.plt.shdr->sh_type = SHT_NOBITS;
 	mod->arch.plt.shdr->sh_flags = SHF_EXECINSTR | SHF_ALLOC;

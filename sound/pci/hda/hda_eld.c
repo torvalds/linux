@@ -440,7 +440,8 @@ static void hdmi_print_sad_info(int i, struct cea_sad *a,
 }
 
 void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
-			     struct snd_info_buffer *buffer)
+			     struct snd_info_buffer *buffer,
+			     hda_nid_t pin_nid, int dev_id, hda_nid_t cvt_nid)
 {
 	struct parsed_hdmi_eld *e = &eld->info;
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
@@ -462,6 +463,9 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 
 	snd_iprintf(buffer, "monitor_present\t\t%d\n", eld->monitor_present);
 	snd_iprintf(buffer, "eld_valid\t\t%d\n", eld->eld_valid);
+	snd_iprintf(buffer, "codec_pin_nid\t\t0x%x\n", pin_nid);
+	snd_iprintf(buffer, "codec_dev_id\t\t0x%x\n", dev_id);
+	snd_iprintf(buffer, "codec_cvt_nid\t\t0x%x\n", cvt_nid);
 	if (!eld->eld_valid)
 		return;
 	snd_iprintf(buffer, "monitor_name\t\t%s\n", e->monitor_name);

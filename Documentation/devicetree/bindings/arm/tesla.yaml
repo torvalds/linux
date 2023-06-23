@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/tesla.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tesla Full Self Driving(FSD) platforms device tree bindings
+title: Tesla Full Self Driving(FSD) platforms
 
 maintainers:
   - Alim Akhtar <alim.akhtar@samsung.com>

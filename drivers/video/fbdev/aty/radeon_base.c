@@ -7,7 +7,7 @@
  *	Copyright 2000	Ani Joshi <ajoshi@kernel.crashing.org>
  *
  *	i2c bits from Luca Tettamanti <kronos@kronoz.cjb.net>
- *	
+ *
  *	Special thanks to ATI DevRel team for their hardware donations.
  *
  *	...Insert GPL boilerplate here...
@@ -54,6 +54,7 @@
 
 #include "radeonfb.h"
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -110,7 +111,7 @@ static const struct pci_device_id radeonfb_pci_table[] = {
 	/* Radeon IGP320M (U1) */
 	CHIP_DEF(PCI_CHIP_RS100_4336,	RS100,	CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
 	/* Radeon IGP320 (A3) */
-	CHIP_DEF(PCI_CHIP_RS100_4136,	RS100,	CHIP_HAS_CRTC2 | CHIP_IS_IGP), 
+	CHIP_DEF(PCI_CHIP_RS100_4136,	RS100,	CHIP_HAS_CRTC2 | CHIP_IS_IGP),
 	/* IGP330M/340M/350M (U2) */
 	CHIP_DEF(PCI_CHIP_RS200_4337,	RS200,	CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
 	/* IGP330/340/350 (A4) */
@@ -240,7 +241,7 @@ typedef struct {
  * interfere with anything
  */
 static reg_val common_regs[] = {
-	{ OVR_CLR, 0 },	
+	{ OVR_CLR, 0 },
 	{ OVR_WID_LEFT_RIGHT, 0 },
 	{ OVR_WID_TOP_BOTTOM, 0 },
 	{ OV0_SCALE_CNTL, 0 },
@@ -255,7 +256,7 @@ static reg_val common_regs[] = {
 /*
  * globals
  */
-        
+
 static char *mode_option;
 static char *monitor_layout;
 static bool noaccel = 0;
@@ -422,7 +423,7 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	 * ROM somewhere in the first meg. We will just ignore the copy
 	 * and use the ROM directly.
 	 */
-    
+
     	/* Fix from ATI for problem with Radeon hardware not leaving ROM enabled */
     	unsigned int temp;
 	temp = INREG(MPP_TB_CONFIG);
@@ -430,14 +431,14 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	temp |= 0x04 << 24;
 	OUTREG(MPP_TB_CONFIG, temp);
 	temp = INREG(MPP_TB_CONFIG);
-                                                                                                          
+
 	rom = pci_map_rom(dev, &rom_size);
 	if (!rom) {
 		printk(KERN_ERR "radeonfb (%s): ROM failed to map\n",
 		       pci_name(rinfo->pdev));
 		return -ENOMEM;
 	}
-	
+
 	rinfo->bios_seg = rom;
 
 	/* Very simple test to make sure it appeared */
@@ -515,7 +516,7 @@ static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 	 */
         u32  segstart;
 	void __iomem *rom_base = NULL;
-                                                
+
         for(segstart=0x000c0000; segstart<0x000f0000; segstart+=0x00001000) {
                 rom_base = ioremap(segstart, 0x10000);
 		if (rom_base == NULL)
@@ -605,16 +606,16 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	for(i=0; i<1000000; i++)
 		if (((INREG(CRTC_VLINE_CRNT_VLINE) >> 16) & 0x3ff) == 0)
 			break;
-	
+
 	stop_time = ktime_get();
-	
+
 	local_irq_enable();
 
 	total_usecs = ktime_us_delta(stop_time, start_time);
 	if (total_usecs >= 10 * USEC_PER_SEC || total_usecs == 0)
 		return -1;
 	hz = USEC_PER_SEC/(u32)total_usecs;
- 
+
 	hTotal = ((INREG(CRTC_H_TOTAL_DISP) & 0x1ff) + 1) * 8;
 	vTotal = ((INREG(CRTC_V_TOTAL_DISP) & 0x3ff) + 1);
 	vclk = (long long)hTotal * (long long)vTotal * hz;
@@ -662,7 +663,7 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 		denom *= 3;
 		break;
 	case 6:
-		denom *= 6;   
+		denom *= 6;
 		break;
 	case 7:
 		denom *= 12;
@@ -878,7 +879,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
                         v.green.length = 6;
                         v.blue.length = 5;
                         v.transp.offset = v.transp.length = 0;
-                        break;                          
+                        break;
                 case 24:
                         nom = 4;
                         den = 1;
@@ -908,7 +909,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
 		v.yres_virtual = v.yres;
 	if (v.xres_virtual < v.xres)
 		v.xres_virtual = v.xres;
-                
+
 
 	/* XXX I'm adjusting xres_virtual to the pitch, that may help XFree
 	 * with some panels, though I don't quite like this solution
@@ -929,14 +930,14 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
 
         if (v.xoffset > v.xres_virtual - v.xres)
                 v.xoffset = v.xres_virtual - v.xres - 1;
-                        
+
         if (v.yoffset > v.yres_virtual - v.yres)
                 v.yoffset = v.yres_virtual - v.yres - 1;
-         
+
         v.red.msb_right = v.green.msb_right = v.blue.msb_right =
                           v.transp.offset = v.transp.length =
                           v.transp.msb_right = 0;
-	
+
         memcpy(var, &v, sizeof(v));
 
         return 0;
@@ -951,7 +952,7 @@ static int radeonfb_pan_display (struct fb_var_screeninfo *var,
 	if ((var->xoffset + info->var.xres > info->var.xres_virtual)
 	    || (var->yoffset + info->var.yres > info->var.yres_virtual))
 		return -EINVAL;
-                
+
         if (rinfo->asleep)
         	return 0;
 
@@ -1151,7 +1152,7 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 
 	if (rinfo->asleep)
 		return 0;
-		
+
 	return radeon_screen_blank(rinfo, blank, 0);
 }
 
@@ -1401,7 +1402,7 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 		} else {
 			/* R300 uses ref_div_acc field as real ref divider */
 			OUTPLLP(PPLL_REF_DIV,
-				(mode->ppll_ref_div << R300_PPLL_REF_DIV_ACC_SHIFT), 
+				(mode->ppll_ref_div << R300_PPLL_REF_DIV_ACC_SHIFT),
 				~R300_PPLL_REF_DIV_ACC_MASK);
 		}
 	} else
@@ -1423,7 +1424,7 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 	   workaround shouldn't have any effect on them. */
 	for (i = 0; (i < 10000 && INPLL(PPLL_REF_DIV) & PPLL_ATOMIC_UPDATE_R); i++)
 		;
-	
+
 	OUTPLL(HTOTAL_CNTL, 0);
 
 	/* Clear reset & atomic update */
@@ -1510,7 +1511,7 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 
 	radeon_fifo_wait(2);
 	OUTPLL(VCLK_ECP_CNTL, mode->vclk_ecp_cntl);
-	
+
 	return;
 }
 
@@ -1735,7 +1736,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	/* Clear auto-center etc... */
 	newmode->crtc_more_cntl = rinfo->init_state.crtc_more_cntl;
 	newmode->crtc_more_cntl &= 0xfffffff0;
-	
+
 	if ((primary_mon == MT_DFP) || (primary_mon == MT_LCD)) {
 		newmode->crtc_ext_cntl = VGA_ATI_LINEAR | XCRT_CNT_EN;
 		if (mirror)
@@ -1793,7 +1794,7 @@ static int radeonfb_set_par(struct fb_info *info)
 			newmode->surface_cntl |= NONSURF_AP0_SWP_16BPP;
 			newmode->surface_cntl |= NONSURF_AP1_SWP_16BPP;
 			break;
-		case 24:	
+		case 24:
 		case 32:
 			newmode->surface_cntl |= NONSURF_AP0_SWP_32BPP;
 			newmode->surface_cntl |= NONSURF_AP1_SWP_32BPP;
@@ -2028,7 +2029,7 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 	}
 	save_crtc_gen_cntl = INREG(CRTC_GEN_CNTL);
 	save_crtc_ext_cntl = INREG(CRTC_EXT_CNTL);
-	
+
 	OUTREG(CRTC_EXT_CNTL, save_crtc_ext_cntl | CRTC_DISPLAY_DIS);
 	OUTREG(CRTC_GEN_CNTL, save_crtc_gen_cntl | CRTC_DISP_REQ_EN_B);
 	mdelay(100);
@@ -2038,7 +2039,7 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 
 #ifdef SET_MC_FB_FROM_APERTURE
 	/* Set framebuffer to be at the same address as set in PCI BAR */
-	OUTREG(MC_FB_LOCATION, 
+	OUTREG(MC_FB_LOCATION,
 		((aper_base + aper_size - 1) & 0xffff0000) | (aper_base >> 16));
 	rinfo->fb_local_base = aper_base;
 #else
@@ -2079,7 +2080,7 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 	OUTREG(CRTC_GEN_CNTL, save_crtc_gen_cntl);
 	OUTREG(CRTC_EXT_CNTL, save_crtc_ext_cntl);
 	if (rinfo->has_CRTC2)
-		OUTREG(CRTC2_GEN_CNTL, save_crtc2_gen_cntl);	
+		OUTREG(CRTC2_GEN_CNTL, save_crtc2_gen_cntl);
 
 	pr_debug("aper_base: %08x MC_FB_LOC to: %08x, MC_AGP_LOC to: %08x\n",
 		aper_base,
@@ -2239,20 +2240,10 @@ static const struct bin_attribute edid2_attr = {
 
 static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 {
-	struct apertures_struct *ap;
+	resource_size_t base = pci_resource_start(pdev, 0);
+	resource_size_t size = pci_resource_len(pdev, 0);
 
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-
-	remove_conflicting_framebuffers(ap, KBUILD_MODNAME, false);
-
-	kfree(ap);
-
-	return 0;
+	return aperture_remove_conflicting_devices(base, size, false, KBUILD_MODNAME);
 }
 
 static int radeonfb_pci_register(struct pci_dev *pdev,
@@ -2265,7 +2256,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	int err = 0;
 
 	pr_debug("radeonfb_pci_register BEGIN\n");
-	
+
 	/* Enable device in PCI config */
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
@@ -2280,9 +2271,9 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		goto err_disable;
 	}
 	rinfo = info->par;
-	rinfo->info = info;	
+	rinfo->info = info;
 	rinfo->pdev = pdev;
-	
+
 	spin_lock_init(&rinfo->reg_lock);
 	timer_setup(&rinfo->lvds_timer, radeon_lvds_timer_func, 0);
 
@@ -2521,7 +2512,7 @@ static void radeonfb_pci_unregister(struct pci_dev *pdev)
 {
         struct fb_info *info = pci_get_drvdata(pdev);
         struct radeonfb_info *rinfo = info->par;
- 
+
         if (!rinfo)
                 return;
 
@@ -2540,7 +2531,7 @@ static void radeonfb_pci_unregister(struct pci_dev *pdev)
 
         iounmap(rinfo->mmio_base);
         iounmap(rinfo->fb_base);
- 
+
 	pci_release_region(pdev, 2);
 	pci_release_region(pdev, 0);
 
@@ -2550,7 +2541,7 @@ static void radeonfb_pci_unregister(struct pci_dev *pdev)
 		fb_destroy_modedb(rinfo->mon1_modedb);
 #ifdef CONFIG_FB_RADEON_I2C
 	radeon_delete_i2c_busses(rinfo);
-#endif        
+#endif
 	fb_dealloc_cmap(&info->cmap);
         framebuffer_release(info);
 }

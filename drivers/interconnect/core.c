@@ -1057,29 +1057,25 @@ EXPORT_SYMBOL_GPL(icc_provider_add);
 /**
  * icc_provider_del() - delete previously added interconnect provider
  * @provider: the interconnect provider that will be removed from topology
- *
- * Return: 0 on success, or an error code otherwise
  */
-int icc_provider_del(struct icc_provider *provider)
+void icc_provider_del(struct icc_provider *provider)
 {
 	mutex_lock(&icc_lock);
 	if (provider->users) {
 		pr_warn("interconnect provider still has %d users\n",
 			provider->users);
 		mutex_unlock(&icc_lock);
-		return -EBUSY;
+		return;
 	}
 
 	if (!list_empty(&provider->nodes)) {
 		pr_warn("interconnect provider still has nodes\n");
 		mutex_unlock(&icc_lock);
-		return -EBUSY;
+		return;
 	}
 
 	list_del(&provider->provider_list);
 	mutex_unlock(&icc_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(icc_provider_del);
 

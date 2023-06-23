@@ -686,7 +686,6 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		if (tun)
 			xdp_rxq_info_unreg(&tfile->xdp_rxq);
 		ptr_ring_cleanup(&tfile->tx_ring, tun_ptr_free);
-		sock_put(&tfile->sk);
 	}
 }
 
@@ -702,6 +701,9 @@ static void tun_detach(struct tun_file *tfile, bool clean)
 	if (dev)
 		netdev_state_change(dev);
 	rtnl_unlock();
+
+	if (clean)
+		sock_put(&tfile->sk);
 }
 
 static void tun_detach_all(struct net_device *dev)
@@ -1459,7 +1461,8 @@ static struct sk_buff *tun_napi_alloc_frags(struct tun_file *tfile,
 	int err;
 	int i;
 
-	if (it->nr_segs > MAX_SKB_FRAGS + 1)
+	if (it->nr_segs > MAX_SKB_FRAGS + 1 ||
+	    len > (ETH_MAX_MTU - NET_SKB_PAD - NET_IP_ALIGN))
 		return ERR_PTR(-EMSGSIZE);
 
 	local_bh_disable();
@@ -1966,17 +1969,25 @@ drop:
 					  skb_headlen(skb));
 
 		if (unlikely(headlen > skb_headlen(skb))) {
+			WARN_ON_ONCE(1);
+			err = -ENOMEM;
 			dev_core_stats_rx_dropped_inc(tun->dev);
+napi_busy:
 			napi_free_frags(&tfile->napi);
 			rcu_read_unlock();
 			mutex_unlock(&tfile->napi_mutex);
-			WARN_ON(1);
-			return -ENOMEM;
+			return err;
 		}
 
-		local_bh_disable();
-		napi_gro_frags(&tfile->napi);
-		local_bh_enable();
+		if (likely(napi_schedule_prep(&tfile->napi))) {
+			local_bh_disable();
+			napi_gro_frags(&tfile->napi);
+			napi_complete(&tfile->napi);
+			local_bh_enable();
+		} else {
+			err = -EBUSY;
+			goto napi_busy;
+		}
 		mutex_unlock(&tfile->napi_mutex);
 	} else if (tfile->napi_enabled) {
 		struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
@@ -2664,7 +2675,7 @@ static ssize_t tun_flags_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
-	return sprintf(buf, "0x%x\n", tun_flags(tun));
+	return sysfs_emit(buf, "0x%x\n", tun_flags(tun));
 }
 
 static ssize_t owner_show(struct device *dev, struct device_attribute *attr,
@@ -2672,9 +2683,9 @@ static ssize_t owner_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
 	return uid_valid(tun->owner)?
-		sprintf(buf, "%u\n",
-			from_kuid_munged(current_user_ns(), tun->owner)):
-		sprintf(buf, "-1\n");
+		sysfs_emit(buf, "%u\n",
+			   from_kuid_munged(current_user_ns(), tun->owner)) :
+		sysfs_emit(buf, "-1\n");
 }
 
 static ssize_t group_show(struct device *dev, struct device_attribute *attr,
@@ -2682,9 +2693,9 @@ static ssize_t group_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
 	return gid_valid(tun->group) ?
-		sprintf(buf, "%u\n",
-			from_kgid_munged(current_user_ns(), tun->group)):
-		sprintf(buf, "-1\n");
+		sysfs_emit(buf, "%u\n",
+			   from_kgid_munged(current_user_ns(), tun->group)) :
+		sysfs_emit(buf, "-1\n");
 }
 
 static DEVICE_ATTR_RO(tun_flags);
@@ -3543,15 +3554,15 @@ static void tun_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
-		strlcpy(info->bus_info, "tun", sizeof(info->bus_info));
+		strscpy(info->bus_info, "tun", sizeof(info->bus_info));
 		break;
 	case IFF_TAP:
-		strlcpy(info->bus_info, "tap", sizeof(info->bus_info));
+		strscpy(info->bus_info, "tap", sizeof(info->bus_info));
 		break;
 	}
 }

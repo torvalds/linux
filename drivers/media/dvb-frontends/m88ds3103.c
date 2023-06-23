@@ -1914,7 +1914,7 @@ err:
 	return ret;
 }
 
-static int m88ds3103_remove(struct i2c_client *client)
+static void m88ds3103_remove(struct i2c_client *client)
 {
 	struct m88ds3103_dev *dev = i2c_get_clientdata(client);
 
@@ -1926,7 +1926,6 @@ static int m88ds3103_remove(struct i2c_client *client)
 	i2c_mux_del_adapters(dev->muxc);
 
 	kfree(dev);
-	return 0;
 }
 
 static const struct i2c_device_id m88ds3103_id_table[] = {

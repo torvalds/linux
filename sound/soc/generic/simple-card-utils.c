@@ -9,11 +9,37 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
+
+static void asoc_simple_fixup_sample_fmt(struct asoc_simple_data *data,
+					 struct snd_pcm_hw_params *params)
+{
+	int i;
+	struct snd_mask *mask = hw_param_mask(params,
+					      SNDRV_PCM_HW_PARAM_FORMAT);
+	struct {
+		char *fmt;
+		u32 val;
+	} of_sample_fmt_table[] = {
+		{ "s8",		SNDRV_PCM_FORMAT_S8},
+		{ "s16_le",	SNDRV_PCM_FORMAT_S16_LE},
+		{ "s24_le",	SNDRV_PCM_FORMAT_S24_LE},
+		{ "s24_3le",	SNDRV_PCM_FORMAT_S24_3LE},
+		{ "s32_le",	SNDRV_PCM_FORMAT_S32_LE},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(of_sample_fmt_table); i++) {
+		if (!strcmp(data->convert_sample_format,
+			    of_sample_fmt_table[i].fmt)) {
+			snd_mask_none(mask);
+			snd_mask_set(mask, of_sample_fmt_table[i].val);
+			break;
+		}
+	}
+}
 
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 			       struct snd_pcm_hw_params *params)
@@ -30,6 +56,9 @@ void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 	if (data->convert_channels)
 		channels->min =
 		channels->max = data->convert_channels;
+
+	if (data->convert_sample_format)
+		asoc_simple_fixup_sample_fmt(data, params);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
 
@@ -49,8 +78,27 @@ void asoc_simple_parse_convert(struct device_node *np,
 	/* channels transfer */
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-channels");
 	of_property_read_u32(np, prop, &data->convert_channels);
+
+	/* convert sample format */
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-sample-format");
+	of_property_read_string(np, prop, &data->convert_sample_format);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_parse_convert);
+
+/**
+ * asoc_simple_is_convert_required() - Query if HW param conversion was requested
+ * @data: Link data.
+ *
+ * Returns true if any HW param conversion was requested for this DAI link with
+ * any "convert-xxx" properties.
+ */
+bool asoc_simple_is_convert_required(const struct asoc_simple_data *data)
+{
+	return data->convert_rate ||
+	       data->convert_channels ||
+	       data->convert_sample_format;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_is_convert_required);
 
 int asoc_simple_parse_daifmt(struct device *dev,
 			     struct device_node *node,
@@ -695,12 +743,12 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 			  char *pin)
 {
 	struct device *dev = card->dev;
-	enum of_gpio_flags flags;
+	struct gpio_desc *desc;
 	char prop[128];
 	char *pin_name;
 	char *gpio_name;
 	int mask;
-	int det;
+	int error;
 
 	if (!prefix)
 		prefix = "";
@@ -708,36 +756,39 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 	sjack->gpio.gpio = -ENOENT;
 
 	if (is_hp) {
-		snprintf(prop, sizeof(prop), "%shp-det-gpio", prefix);
+		snprintf(prop, sizeof(prop), "%shp-det", prefix);
 		pin_name	= pin ? pin : "Headphones";
 		gpio_name	= "Headphone detection";
 		mask		= SND_JACK_HEADPHONE;
 	} else {
-		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
+		snprintf(prop, sizeof(prop), "%smic-det", prefix);
 		pin_name	= pin ? pin : "Mic Jack";
 		gpio_name	= "Mic detection";
 		mask		= SND_JACK_MICROPHONE;
 	}
 
-	det = of_get_named_gpio_flags(dev->of_node, prop, 0, &flags);
-	if (det == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	desc = gpiod_get_optional(dev, prop, GPIOD_IN);
+	error = PTR_ERR_OR_ZERO(desc);
+	if (error)
+		return error;
 
-	if (gpio_is_valid(det)) {
+	if (desc) {
+		error = gpiod_set_consumer_name(desc, gpio_name);
+		if (error)
+			return error;
+
 		sjack->pin.pin		= pin_name;
 		sjack->pin.mask		= mask;
 
 		sjack->gpio.name	= gpio_name;
 		sjack->gpio.report	= mask;
-		sjack->gpio.gpio	= det;
-		sjack->gpio.invert	= !!(flags & OF_GPIO_ACTIVE_LOW);
+		sjack->gpio.desc	= desc;
 		sjack->gpio.debounce_time = 150;
 
 		snd_soc_card_jack_new_pins(card, pin_name, mask, &sjack->jack,
 					   &sjack->pin, 1);
 
-		snd_soc_jack_add_gpios(&sjack->jack, 1,
-				       &sjack->gpio);
+		snd_soc_jack_add_gpios(&sjack->jack, 1, &sjack->gpio);
 	}
 
 	return 0;

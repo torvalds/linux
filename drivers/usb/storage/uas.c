@@ -283,7 +283,7 @@ static bool uas_evaluate_response_iu(struct response_iu *riu, struct scsi_cmnd *
 		set_host_byte(cmnd, DID_OK);
 		break;
 	case RC_TMF_NOT_SUPPORTED:
-		set_host_byte(cmnd, DID_TARGET_FAILURE);
+		set_host_byte(cmnd, DID_BAD_TARGET);
 		break;
 	default:
 		uas_log_cmd_state(cmnd, "response iu", response_code);

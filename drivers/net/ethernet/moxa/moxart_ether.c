@@ -29,12 +29,12 @@
 
 #include "moxart_ether.h"
 
-static inline void moxart_desc_write(u32 data, u32 *desc)
+static inline void moxart_desc_write(u32 data, __le32 *desc)
 {
 	*desc = cpu_to_le32(data);
 }
 
-static inline u32 moxart_desc_read(u32 *desc)
+static inline u32 moxart_desc_read(__le32 *desc)
 {
 	return le32_to_cpu(*desc);
 }

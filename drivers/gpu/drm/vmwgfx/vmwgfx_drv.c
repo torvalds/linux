@@ -1398,18 +1398,6 @@ static void vmw_debugfs_resource_managers_init(struct vmw_private *vmw)
 					    root, "system_mob_ttm");
 }
 
-static unsigned long
-vmw_get_unmapped_area(struct file *file, unsigned long uaddr,
-		      unsigned long len, unsigned long pgoff,
-		      unsigned long flags)
-{
-	struct drm_file *file_priv = file->private_data;
-	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
-
-	return drm_get_unmapped_area(file, uaddr, len, pgoff, flags,
-				     dev_priv->drm.vma_offset_manager);
-}
-
 static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 			      void *ptr)
 {
@@ -1576,7 +1564,6 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.compat_ioctl = vmw_compat_ioctl,
 #endif
 	.llseek = noop_llseek,
-	.get_unmapped_area = vmw_get_unmapped_area,
 };
 
 static const struct drm_driver driver = {

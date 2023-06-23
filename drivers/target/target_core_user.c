@@ -486,6 +486,7 @@ static struct genl_family tcmu_genl_family __ro_after_init = {
 	.netnsok = true,
 	.small_ops = tcmu_genl_ops,
 	.n_small_ops = ARRAY_SIZE(tcmu_genl_ops),
+	.resv_start_op = TCMU_CMD_SET_FEATURES + 1,
 };
 
 #define tcmu_cmd_set_dbi_cur(cmd, index) ((cmd)->dbi_cur = (index))

@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/phy/mediatek,tphy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek T-PHY Controller Device Tree Bindings
+title: MediaTek T-PHY Controller
 
 maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
@@ -163,6 +163,7 @@ patternProperties:
                 - PHY_TYPE_USB3
                 - PHY_TYPE_PCIE
                 - PHY_TYPE_SATA
+                - PHY_TYPE_SGMII
 
       nvmem-cells:
         items:
@@ -217,6 +218,16 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 1
         maximum: 15
+
+      mediatek,pre-emphasis:
+        description:
+          The level of pre-emphasis which used to widen the eye opening and
+          boost eye swing, the unit step is about 4.16% increment; e.g. the
+          level 1 means amplitude increases about 4.16%, the level 2 is about
+          8.3% etc. (U2 phy)
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 1
+        maximum: 3
 
       mediatek,bc12:
         description:

@@ -22,7 +22,6 @@
 #define MAX_PG_CAM_BACKUP_NUM		8
 
 #define RTW_SCAN_MAX_SSIDS		4
-#define RTW_SCAN_MAX_IE_LEN		128
 
 #define RTW_MAX_PATTERN_NUM		12
 #define RTW_MAX_PATTERN_MASK_SIZE	16
@@ -33,6 +32,7 @@
 #define RFREG_MASK			0xfffff
 #define INV_RF_DATA			0xffffffff
 #define TX_PAGE_SIZE_SHIFT		7
+#define TX_PAGE_SIZE			(1 << TX_PAGE_SIZE_SHIFT)
 
 #define RTW_CHANNEL_WIDTH_MAX		3
 #define RTW_RF_PATH_MAX			4
@@ -510,12 +510,8 @@ struct rtw_timer_list {
 
 struct rtw_channel_params {
 	u8 center_chan;
+	u8 primary_chan;
 	u8 bandwidth;
-	u8 primary_chan_idx;
-	/* center channel by different available bandwidth,
-	 * val of (bw > current bandwidth) is invalid
-	 */
-	u8 cch_by_bw[RTW_MAX_CHANNEL_WIDTH + 1];
 };
 
 struct rtw_hw_reg {
@@ -1232,6 +1228,7 @@ struct rtw_chip_info {
 	const char *wow_fw_name;
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const u8 max_sched_scan_ssids;
+	const u16 max_scan_ie_len;
 
 	/* coex paras */
 	u32 coex_para_ver;
@@ -1853,6 +1850,7 @@ struct rtw_fw_state {
 	u8 sub_index;
 	u16 h2c_version;
 	u32 feature;
+	u32 feature_ext;
 };
 
 enum rtw_sar_sources {
@@ -1896,6 +1894,7 @@ struct rtw_hal {
 	u8 current_primary_channel_index;
 	u8 current_band_width;
 	u8 current_band_type;
+	u8 primary_channel;
 
 	/* center channel for different available bandwidth,
 	 * val of (bw > current_band_width) is invalid
@@ -1967,6 +1966,7 @@ struct rtw_hw_scan_info {
 	struct ieee80211_vif *scanning_vif;
 	u8 probe_pg_size;
 	u8 op_pri_ch_idx;
+	u8 op_pri_ch;
 	u8 op_chan;
 	u8 op_bw;
 };
@@ -1978,7 +1978,7 @@ struct rtw_dev {
 	struct rtw_hci hci;
 
 	struct rtw_hw_scan_info scan_info;
-	struct rtw_chip_info *chip;
+	const struct rtw_chip_info *chip;
 	struct rtw_hal hal;
 	struct rtw_fifo_conf fifo;
 	struct rtw_fw_state fw;
@@ -2132,6 +2132,20 @@ static inline int rtw_chip_dump_fw_crash(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static inline
+enum nl80211_band rtw_hw_to_nl80211_band(enum rtw_supported_band hw_band)
+{
+	switch (hw_band) {
+	default:
+	case RTW_BAND_2G:
+		return NL80211_BAND_2GHZ;
+	case RTW_BAND_5G:
+		return NL80211_BAND_5GHZ;
+	case RTW_BAND_60G:
+		return NL80211_BAND_60GHZ;
+	}
+}
+
 void rtw_set_rx_freq_band(struct rtw_rx_pkt_stat *pkt_stat, u8 channel);
 void rtw_set_dtim_period(struct rtw_dev *rtwdev, int dtim_period);
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
@@ -2173,4 +2187,7 @@ int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 		u32 fwcd_item);
 int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size);
 void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool config_1ss);
+void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
+			u8 primary_channel, enum rtw_supported_band band,
+			enum rtw_bandwidth bandwidth);
 #endif

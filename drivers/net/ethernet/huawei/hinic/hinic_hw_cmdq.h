@@ -177,9 +177,6 @@ int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
 			   enum hinic_mod_type mod, u8 cmd,
 			   struct hinic_cmdq_buf *buf_in, u64 *out_param);
 
-int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
-		      enum hinic_set_arm_qtype q_type, u32 q_id);
-
 int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 		     void __iomem **db_area);
 

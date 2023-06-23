@@ -55,6 +55,7 @@
 	panel: panel {
 		compatible = "dataimage,scf0700c48ggu18";
 		power-supply = <&sw2_reg>;
+		backlight = <&backlight>;
 		status = "disabled";
 
 		port {

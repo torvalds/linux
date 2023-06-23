@@ -233,7 +233,7 @@ static int __init tc1100_init(void)
 	if (!wmi_has_guid(GUID))
 		return -ENODEV;
 
-	tc1100_device = platform_device_alloc("tc1100-wmi", -1);
+	tc1100_device = platform_device_alloc("tc1100-wmi", PLATFORM_DEVID_NONE);
 	if (!tc1100_device)
 		return -ENOMEM;
 

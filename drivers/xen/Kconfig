@@ -56,7 +56,7 @@ config XEN_MEMORY_HOTPLUG_LIMIT
 	depends on XEN_HAVE_PVMMU
 	depends on MEMORY_HOTPLUG
 	help
-	  Maxmium amount of memory (in GiB) that a PV guest can be
+	  Maximum amount of memory (in GiB) that a PV guest can be
 	  expanded to when using memory hotplug.
 
 	  A PV guest can have more memory than this limit if is

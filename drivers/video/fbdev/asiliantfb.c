@@ -29,6 +29,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -544,6 +545,10 @@ static int asiliantfb_pci_init(struct pci_dev *dp,
 	unsigned long addr, size;
 	struct fb_info *p;
 	int err;
+
+	err = aperture_remove_conflicting_pci_devices(dp, "asiliantfb");
+	if (err)
+		return err;
 
 	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0)
 		return -ENODEV;

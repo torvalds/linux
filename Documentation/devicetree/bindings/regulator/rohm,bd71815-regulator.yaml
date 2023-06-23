@@ -27,6 +27,7 @@ properties:
     description:
       properties for wled regulator
     $ref: regulator.yaml#
+    unevaluatedProperties: false
 
     properties:
       regulator-name:

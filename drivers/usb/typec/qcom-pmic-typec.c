@@ -195,9 +195,8 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 
 	qcom_usb->role_sw = fwnode_usb_role_switch_get(dev_fwnode(qcom_usb->dev));
 	if (IS_ERR(qcom_usb->role_sw)) {
-		if (PTR_ERR(qcom_usb->role_sw) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get role switch\n");
-		ret = PTR_ERR(qcom_usb->role_sw);
+		ret = dev_err_probe(dev, PTR_ERR(qcom_usb->role_sw),
+				    "failed to get role switch\n");
 		goto err_typec_port;
 	}
 

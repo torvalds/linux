@@ -9,6 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
+#include <linux/pci.h>
 #include <linux/xarray.h>
 #include <rdma/ib_verbs.h>
 
@@ -196,6 +197,7 @@ struct erdma_dev {
 	struct erdma_devattr attrs;
 	/* physical port state (only one port per device) */
 	enum ib_port_state state;
+	u32 mtu;
 
 	/* cmdq and aeq use the same msix vector */
 	struct erdma_irq comm_irq;
@@ -269,7 +271,7 @@ void erdma_finish_cmdq_init(struct erdma_dev *dev);
 void erdma_cmdq_destroy(struct erdma_dev *dev);
 
 void erdma_cmdq_build_reqhdr(u64 *hdr, u32 mod, u32 op);
-int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, u64 *req, u32 req_size,
+int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
 			u64 *resp0, u64 *resp1);
 void erdma_cmdq_completion_handler(struct erdma_cmdq *cmdq);
 

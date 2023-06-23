@@ -335,8 +335,6 @@ static int nand_isbad_bbm(struct nand_chip *chip, loff_t ofs)
  * @chip: NAND chip structure
  *
  * Lock the device and its controller for exclusive access
- *
- * Return: -EBUSY if the chip has been suspended, 0 otherwise
  */
 static void nand_get_device(struct nand_chip *chip)
 {
@@ -3818,6 +3816,7 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 			 struct mtd_oob_ops *ops)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_ecc_stats old_stats;
 	int ret;
 
 	ops->retlen = 0;
@@ -3829,10 +3828,19 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 
 	nand_get_device(chip);
 
+	old_stats = mtd->ecc_stats;
+
 	if (!ops->datbuf)
 		ret = nand_do_read_oob(chip, from, ops);
 	else
 		ret = nand_do_read_ops(chip, from, ops);
+
+	if (ops->stats) {
+		ops->stats->uncorrectable_errors +=
+			mtd->ecc_stats.failed - old_stats.failed;
+		ops->stats->corrected_bitflips +=
+			mtd->ecc_stats.corrected - old_stats.corrected;
+	}
 
 	nand_release_device(chip);
 	return ret;
@@ -5331,11 +5339,10 @@ static int of_get_nand_secure_regions(struct nand_chip *chip)
 int rawnand_dt_parse_gpio_cs(struct device *dev, struct gpio_desc ***cs_array,
 			     unsigned int *ncs_array)
 {
-	struct device_node *np = dev->of_node;
 	struct gpio_desc **descs;
 	int ndescs, i;
 
-	ndescs = of_gpio_named_count(np, "cs-gpios");
+	ndescs = gpiod_count(dev, "cs");
 	if (ndescs < 0) {
 		dev_dbg(dev, "No valid cs-gpios property\n");
 		return 0;
@@ -5827,7 +5834,7 @@ nand_match_ecc_req(struct nand_chip *chip,
 	int req_step = requirements->step_size;
 	int req_strength = requirements->strength;
 	int req_corr, step_size, strength, nsteps, ecc_bytes, ecc_bytes_total;
-	int best_step, best_strength, best_ecc_bytes;
+	int best_step = 0, best_strength = 0, best_ecc_bytes = 0;
 	int best_ecc_bytes_total = INT_MAX;
 	int i, j;
 
@@ -5908,7 +5915,7 @@ nand_maximize_ecc(struct nand_chip *chip,
 	int step_size, strength, nsteps, ecc_bytes, corr;
 	int best_corr = 0;
 	int best_step = 0;
-	int best_strength, best_ecc_bytes;
+	int best_strength = 0, best_ecc_bytes = 0;
 	int i, j;
 
 	for (i = 0; i < caps->nstepinfos; i++) {

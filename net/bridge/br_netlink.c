@@ -1332,7 +1332,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 
 	if (data[IFLA_BR_FDB_FLUSH]) {
 		struct net_bridge_fdb_flush_desc desc = {
-			.flags_mask = BR_FDB_STATIC
+			.flags_mask = BIT(BR_FDB_STATIC)
 		};
 
 		br_fdb_flush(br, &desc);

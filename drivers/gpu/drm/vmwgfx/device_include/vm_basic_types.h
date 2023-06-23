@@ -121,7 +121,7 @@ typedef __attribute__((aligned(32))) struct MKSGuestStatInfoEntry {
  *
  * Since the MKSGuestStatInfoEntry structures contain userlevel
  * pointers, the InstanceDescriptor also contains pointers to the
- * begining of these sections allowing the host side code to correctly
+ * beginning of these sections allowing the host side code to correctly
  * interpret the pointers.
  *
  * Because the host side code never acknowledges anything back to the

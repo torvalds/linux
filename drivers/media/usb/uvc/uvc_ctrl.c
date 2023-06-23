@@ -18,6 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-uvc.h>
 
 #include "uvcvideo.h"
 
@@ -985,35 +986,55 @@ static s32 __uvc_ctrl_get_value(struct uvc_control_mapping *mapping,
 	return value;
 }
 
+static int __uvc_ctrl_load_cur(struct uvc_video_chain *chain,
+			       struct uvc_control *ctrl)
+{
+	u8 *data;
+	int ret;
+
+	if (ctrl->loaded)
+		return 0;
+
+	data = uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT);
+
+	if ((ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR) == 0) {
+		memset(data, 0, ctrl->info.size);
+		ctrl->loaded = 1;
+
+		return 0;
+	}
+
+	if (ctrl->entity->get_cur)
+		ret = ctrl->entity->get_cur(chain->dev, ctrl->entity,
+					    ctrl->info.selector, data,
+					    ctrl->info.size);
+	else
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR,
+				     ctrl->entity->id, chain->dev->intfnum,
+				     ctrl->info.selector, data,
+				     ctrl->info.size);
+
+	if (ret < 0)
+		return ret;
+
+	ctrl->loaded = 1;
+
+	return ret;
+}
+
 static int __uvc_ctrl_get(struct uvc_video_chain *chain,
-	struct uvc_control *ctrl, struct uvc_control_mapping *mapping,
-	s32 *value)
+			  struct uvc_control *ctrl,
+			  struct uvc_control_mapping *mapping,
+			  s32 *value)
 {
 	int ret;
 
 	if ((ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR) == 0)
 		return -EACCES;
 
-	if (!ctrl->loaded) {
-		if (ctrl->entity->get_cur) {
-			ret = ctrl->entity->get_cur(chain->dev,
-				ctrl->entity,
-				ctrl->info.selector,
-				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-				ctrl->info.size);
-		} else {
-			ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR,
-				ctrl->entity->id,
-				chain->dev->intfnum,
-				ctrl->info.selector,
-				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-				ctrl->info.size);
-		}
-		if (ret < 0)
-			return ret;
-
-		ctrl->loaded = 1;
-	}
+	ret = __uvc_ctrl_load_cur(chain, ctrl);
+	if (ret < 0)
+		return ret;
 
 	*value = __uvc_ctrl_get_value(mapping,
 				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
@@ -1810,21 +1831,10 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 	 * needs to be loaded from the device to perform the read-modify-write
 	 * operation.
 	 */
-	if (!ctrl->loaded && (ctrl->info.size * 8) != mapping->size) {
-		if ((ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR) == 0) {
-			memset(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-				0, ctrl->info.size);
-		} else {
-			ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR,
-				ctrl->entity->id, chain->dev->intfnum,
-				ctrl->info.selector,
-				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
-				ctrl->info.size);
-			if (ret < 0)
-				return ret;
-		}
-
-		ctrl->loaded = 1;
+	if ((ctrl->info.size * 8) != mapping->size) {
+		ret = __uvc_ctrl_load_cur(chain, ctrl);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* Backup the current value in case we need to rollback later. */
@@ -2411,10 +2421,9 @@ static void uvc_ctrl_prune_entity(struct uvc_device *dev,
 static void uvc_ctrl_init_ctrl(struct uvc_video_chain *chain,
 			       struct uvc_control *ctrl)
 {
-	const struct uvc_control_info *info = uvc_ctrls;
-	const struct uvc_control_info *iend = info + ARRAY_SIZE(uvc_ctrls);
-	const struct uvc_control_mapping *mapping;
-	const struct uvc_control_mapping *mend;
+	const struct uvc_control_mapping *mappings;
+	unsigned int num_mappings;
+	unsigned int i;
 
 	/*
 	 * XU controls initialization requires querying the device for control
@@ -2425,7 +2434,9 @@ static void uvc_ctrl_init_ctrl(struct uvc_video_chain *chain,
 	if (UVC_ENTITY_TYPE(ctrl->entity) == UVC_VC_EXTENSION_UNIT)
 		return;
 
-	for (; info < iend; ++info) {
+	for (i = 0; i < ARRAY_SIZE(uvc_ctrls); ++i) {
+		const struct uvc_control_info *info = &uvc_ctrls[i];
+
 		if (uvc_entity_match_guid(ctrl->entity, info->entity) &&
 		    ctrl->index == info->index) {
 			uvc_ctrl_add_info(chain->dev, ctrl, info);
@@ -2452,9 +2463,11 @@ static void uvc_ctrl_init_ctrl(struct uvc_video_chain *chain,
 	 */
 	if (chain->dev->info->mappings) {
 		bool custom = false;
-		unsigned int i;
 
-		for (i = 0; (mapping = chain->dev->info->mappings[i]); ++i) {
+		for (i = 0; chain->dev->info->mappings[i]; ++i) {
+			const struct uvc_control_mapping *mapping =
+				chain->dev->info->mappings[i];
+
 			if (uvc_entity_match_guid(ctrl->entity, mapping->entity) &&
 			    ctrl->info.selector == mapping->selector) {
 				__uvc_ctrl_add_mapping(chain, ctrl, mapping);
@@ -2467,10 +2480,9 @@ static void uvc_ctrl_init_ctrl(struct uvc_video_chain *chain,
 	}
 
 	/* Process common mappings next. */
-	mapping = uvc_ctrl_mappings;
-	mend = mapping + ARRAY_SIZE(uvc_ctrl_mappings);
+	for (i = 0; i < ARRAY_SIZE(uvc_ctrl_mappings); ++i) {
+		const struct uvc_control_mapping *mapping = &uvc_ctrl_mappings[i];
 
-	for (; mapping < mend; ++mapping) {
 		if (uvc_entity_match_guid(ctrl->entity, mapping->entity) &&
 		    ctrl->info.selector == mapping->selector)
 			__uvc_ctrl_add_mapping(chain, ctrl, mapping);
@@ -2478,14 +2490,16 @@ static void uvc_ctrl_init_ctrl(struct uvc_video_chain *chain,
 
 	/* Finally process version-specific mappings. */
 	if (chain->dev->uvc_version < 0x0150) {
-		mapping = uvc_ctrl_mappings_uvc11;
-		mend = mapping + ARRAY_SIZE(uvc_ctrl_mappings_uvc11);
+		mappings = uvc_ctrl_mappings_uvc11;
+		num_mappings = ARRAY_SIZE(uvc_ctrl_mappings_uvc11);
 	} else {
-		mapping = uvc_ctrl_mappings_uvc15;
-		mend = mapping + ARRAY_SIZE(uvc_ctrl_mappings_uvc15);
+		mappings = uvc_ctrl_mappings_uvc15;
+		num_mappings = ARRAY_SIZE(uvc_ctrl_mappings_uvc15);
 	}
 
-	for (; mapping < mend; ++mapping) {
+	for (i = 0; i < num_mappings; ++i) {
+		const struct uvc_control_mapping *mapping = &mappings[i];
+
 		if (uvc_entity_match_guid(ctrl->entity, mapping->entity) &&
 		    ctrl->info.selector == mapping->selector)
 			__uvc_ctrl_add_mapping(chain, ctrl, mapping);

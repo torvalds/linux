@@ -287,6 +287,7 @@ static const struct sof_dai_types sof_dais[] = {
 	{"ACP", SOF_DAI_AMD_BT},
 	{"ACPSP", SOF_DAI_AMD_SP},
 	{"ACPDMIC", SOF_DAI_AMD_DMIC},
+	{"ACPHS", SOF_DAI_AMD_HS},
 	{"AFE", SOF_DAI_MEDIATEK_AFE},
 };
 
@@ -1011,9 +1012,6 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	}
 
 	list_for_each_entry(rtd, &card->rtd_list, list) {
-		dev_vdbg(scomp->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
-			 w->name,  w->sname, rtd->dai_link->stream_name);
-
 		/* does stream match DAI link ? */
 		if (!rtd->dai_link->stream_name ||
 		    strcmp(w->sname, rtd->dai_link->stream_name))
@@ -1032,7 +1030,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 					break;
 				}
 			}
-			if (i == rtd->num_cpus) {
+			if (i == rtd->dai_link->num_cpus) {
 				dev_err(scomp->dev, "error: can't find BE for DAI %s\n",
 					w->name);
 
@@ -1054,7 +1052,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 					break;
 				}
 			}
-			if (i == rtd->num_cpus) {
+			if (i == rtd->dai_link->num_cpus) {
 				dev_err(scomp->dev, "error: can't find BE for DAI %s\n",
 					w->name);
 
@@ -1346,16 +1344,6 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		break;
 	}
 
-	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE)) {
-		swidget->core = SOF_DSP_PRIMARY_CORE;
-	} else {
-		int core = sof_get_token_value(SOF_TKN_COMP_CORE_ID, swidget->tuples,
-					       swidget->num_tuples);
-
-		if (core >= 0)
-			swidget->core = core;
-	}
-
 	/* check token parsing reply */
 	if (ret < 0) {
 		dev_err(scomp->dev,
@@ -1365,6 +1353,16 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 				? tw->sname : "none");
 		kfree(swidget);
 		return ret;
+	}
+
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE)) {
+		swidget->core = SOF_DSP_PRIMARY_CORE;
+	} else {
+		int core = sof_get_token_value(SOF_TKN_COMP_CORE_ID, swidget->tuples,
+					       swidget->num_tuples);
+
+		if (core >= 0)
+			swidget->core = core;
 	}
 
 	/* bind widget to external event */
@@ -1537,9 +1535,6 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 
 	stream = SNDRV_PCM_STREAM_PLAYBACK;
 
-	dev_vdbg(scomp->dev, "tplg: pcm %s stream tokens: playback d0i3:%d\n",
-		 spcm->pcm.pcm_name, spcm->stream[stream].d0i3_compatible);
-
 	caps = &spcm->pcm.caps[stream];
 
 	/* allocate playback page table buffer */
@@ -1566,9 +1561,6 @@ capture:
 	/* do we need to allocate capture PCM DMA pages */
 	if (!spcm->pcm.capture)
 		return ret;
-
-	dev_vdbg(scomp->dev, "tplg: pcm %s stream tokens: capture d0i3:%d\n",
-		 spcm->pcm.pcm_name, spcm->stream[stream].d0i3_compatible);
 
 	caps = &spcm->pcm.caps[stream];
 

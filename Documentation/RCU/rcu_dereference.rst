@@ -128,10 +128,16 @@ Follow these rules to keep your RCU code working properly:
 		This sort of comparison occurs frequently when scanning
 		RCU-protected circular linked lists.
 
-		Note that if checks for being within an RCU read-side
-		critical section are not required and the pointer is never
-		dereferenced, rcu_access_pointer() should be used in place
-		of rcu_dereference().
+		Note that if the pointer comparison is done outside
+		of an RCU read-side critical section, and the pointer
+		is never dereferenced, rcu_access_pointer() should be
+		used in place of rcu_dereference().  In most cases,
+		it is best to avoid accidental dereferences by testing
+		the rcu_access_pointer() return value directly, without
+		assigning it to a variable.
+
+		Within an RCU read-side critical section, there is little
+		reason to use rcu_access_pointer().
 
 	-	The comparison is against a pointer that references memory
 		that was initialized "a long time ago."  The reason

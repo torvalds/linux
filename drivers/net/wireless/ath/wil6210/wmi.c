@@ -780,7 +780,7 @@ static void wmi_evt_ready(struct wil6210_vif *vif, int id, void *d, int len)
 		return; /* FW load will fail after timeout */
 	}
 	/* ignore MAC address, we already have it from the boot loader */
-	strlcpy(wiphy->fw_version, wil->fw_version, sizeof(wiphy->fw_version));
+	strscpy(wiphy->fw_version, wil->fw_version, sizeof(wiphy->fw_version));
 
 	if (len > offsetof(struct wmi_ready_event, rfc_read_calib_result)) {
 		wil_dbg_wmi(wil, "rfc calibration result %d\n",

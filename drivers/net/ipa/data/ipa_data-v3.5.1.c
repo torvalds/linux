@@ -179,10 +179,10 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 static const struct ipa_resource ipa_resource_src[] = {
 	[IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
-			.min = 1,	.max = 255,
+			.min = 1,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 1,	.max = 255,
+			.min = 1,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
 			.min = 1,	.max = 63,
@@ -407,11 +407,11 @@ static const struct ipa_power_data ipa_power_data = {
 /* Configuration data for an SoC having IPA v3.5.1 */
 const struct ipa_data ipa_data_v3_5_1 = {
 	.version	= IPA_VERSION_3_5_1,
-	.backward_compat = BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK |
-			   BCR_TX_NOT_USING_BRESP_FMASK |
-			   BCR_SUSPEND_L2_IRQ_FMASK |
-			   BCR_HOLB_DROP_L2_IRQ_FMASK |
-			   BCR_DUAL_TX_FMASK,
+	.backward_compat = BIT(BCR_CMDQ_L_LACK_ONE_ENTRY) |
+			   BIT(BCR_TX_NOT_USING_BRESP) |
+			   BIT(BCR_SUSPEND_L2_IRQ) |
+			   BIT(BCR_HOLB_DROP_L2_IRQ) |
+			   BIT(BCR_DUAL_TX),
 	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
 	.qsb_data	= ipa_qsb_data,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),

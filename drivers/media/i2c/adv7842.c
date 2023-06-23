@@ -2215,8 +2215,8 @@ static void adv7842_cec_isr(struct v4l2_subdev *sd, bool *handled)
 		struct cec_msg msg;
 
 		msg.len = cec_read(sd, 0x25) & 0x1f;
-		if (msg.len > 16)
-			msg.len = 16;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 
 		if (msg.len) {
 			u8 i;
@@ -3593,7 +3593,7 @@ err_hdl:
 
 /* ----------------------------------------------------------------------- */
 
-static int adv7842_remove(struct i2c_client *client)
+static void adv7842_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7842_state *state = to_state(sd);
@@ -3604,7 +3604,6 @@ static int adv7842_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	adv7842_unregister_clients(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

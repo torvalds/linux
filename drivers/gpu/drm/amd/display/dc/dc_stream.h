@@ -212,8 +212,7 @@ struct dc_stream_state {
 	/* DMCU info */
 	unsigned int abm_level;
 
-	struct periodic_interrupt_config periodic_interrupt0;
-	struct periodic_interrupt_config periodic_interrupt1;
+	struct periodic_interrupt_config periodic_interrupt;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -268,8 +267,6 @@ struct dc_stream_state {
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
 	struct mall_stream_config mall_stream_config;
-
-	bool odm_2to1_policy_applied;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -283,8 +280,7 @@ struct dc_stream_update {
 	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
 
-	struct periodic_interrupt_config *periodic_interrupt0;
-	struct periodic_interrupt_config *periodic_interrupt1;
+	struct periodic_interrupt_config *periodic_interrupt;
 
 	struct dc_info_packet *vrr_infopacket;
 	struct dc_info_packet *vsc_infopacket;

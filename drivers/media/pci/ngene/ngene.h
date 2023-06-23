@@ -596,43 +596,6 @@ struct mychip {
 	int capture_source[MIXER_ADDR_LAST + 1][2];
 };
 
-#ifdef NGENE_V4L
-struct ngene_overlay {
-	int                    tvnorm;
-	struct v4l2_rect       w;
-	enum v4l2_field        field;
-	struct v4l2_clip       *clips;
-	int                    nclips;
-	int                    setup_ok;
-};
-
-struct ngene_tvnorm {
-	int   v4l2_id;
-	char  *name;
-	u16   swidth, sheight; /* scaled standard width, height */
-	int   tuner_norm;
-	int   soundstd;
-};
-
-struct ngene_vopen {
-	struct ngene_channel      *ch;
-	enum v4l2_priority         prio;
-	int                        width;
-	int                        height;
-	int                        depth;
-	struct videobuf_queue      vbuf_q;
-	struct videobuf_queue      vbi;
-	int                        fourcc;
-	int                        picxcount;
-	int                        resources;
-	enum v4l2_buf_type         type;
-	const struct ngene_format *fmt;
-
-	const struct ngene_format *ovfmt;
-	struct ngene_overlay       ov;
-};
-#endif
-
 struct ngene_channel {
 	struct device         device;
 	struct i2c_adapter    i2c_adapter;
@@ -708,18 +671,6 @@ struct ngene_channel {
 	struct ngene_tvnorm  *tvnorms;
 	int                   tvnorm_num;
 	int                   tvnorm;
-
-#ifdef NGENE_V4L
-	int                   videousers;
-	struct v4l2_prio_state prio;
-	struct ngene_vopen    init;
-	int                   resources;
-	struct v4l2_framebuffer fbuf;
-	struct ngene_buffer  *screen;     /* overlay             */
-	struct list_head      capture;    /* video capture queue */
-	spinlock_t s_lock;
-	struct semaphore reslock;
-#endif
 
 	int running;
 
@@ -862,35 +813,6 @@ struct ngene_info {
 	int (*gate_ctrl)(struct dvb_frontend *, int);
 	int (*switch_ctrl)(struct ngene_channel *, int, int);
 };
-
-#ifdef NGENE_V4L
-struct ngene_format {
-	char *name;
-	int   fourcc;          /* video4linux 2      */
-	int   btformat;        /* BT848_COLOR_FMT_*  */
-	int   format;
-	int   btswap;          /* BT848_COLOR_CTL_*  */
-	int   depth;           /* bit/pixel          */
-	int   flags;
-	int   hshift, vshift;  /* for planar modes   */
-	int   palette;
-};
-
-#define RESOURCE_OVERLAY       1
-#define RESOURCE_VIDEO         2
-#define RESOURCE_VBI           4
-
-struct ngene_buffer {
-	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer     vb;
-
-	/* ngene specific */
-	const struct ngene_format *fmt;
-	int                        tvnorm;
-	int                        btformat;
-	int                        btswap;
-};
-#endif
 
 
 /* Provided by ngene-core.c */

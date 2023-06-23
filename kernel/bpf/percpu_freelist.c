@@ -58,23 +58,21 @@ static inline void ___pcpu_freelist_push_nmi(struct pcpu_freelist *s,
 {
 	int cpu, orig_cpu;
 
-	orig_cpu = cpu = raw_smp_processor_id();
+	orig_cpu = raw_smp_processor_id();
 	while (1) {
-		struct pcpu_freelist_head *head;
+		for_each_cpu_wrap(cpu, cpu_possible_mask, orig_cpu) {
+			struct pcpu_freelist_head *head;
 
-		head = per_cpu_ptr(s->freelist, cpu);
-		if (raw_spin_trylock(&head->lock)) {
-			pcpu_freelist_push_node(head, node);
-			raw_spin_unlock(&head->lock);
-			return;
+			head = per_cpu_ptr(s->freelist, cpu);
+			if (raw_spin_trylock(&head->lock)) {
+				pcpu_freelist_push_node(head, node);
+				raw_spin_unlock(&head->lock);
+				return;
+			}
 		}
-		cpu = cpumask_next(cpu, cpu_possible_mask);
-		if (cpu >= nr_cpu_ids)
-			cpu = 0;
 
 		/* cannot lock any per cpu lock, try extralist */
-		if (cpu == orig_cpu &&
-		    pcpu_freelist_try_push_extra(s, node))
+		if (pcpu_freelist_try_push_extra(s, node))
 			return;
 	}
 }
@@ -102,22 +100,21 @@ void pcpu_freelist_populate(struct pcpu_freelist *s, void *buf, u32 elem_size,
 			    u32 nr_elems)
 {
 	struct pcpu_freelist_head *head;
-	int i, cpu, pcpu_entries;
+	unsigned int cpu, cpu_idx, i, j, n, m;
 
-	pcpu_entries = nr_elems / num_possible_cpus() + 1;
-	i = 0;
+	n = nr_elems / num_possible_cpus();
+	m = nr_elems % num_possible_cpus();
 
+	cpu_idx = 0;
 	for_each_possible_cpu(cpu) {
-again:
 		head = per_cpu_ptr(s->freelist, cpu);
-		/* No locking required as this is not visible yet. */
-		pcpu_freelist_push_node(head, buf);
-		i++;
-		buf += elem_size;
-		if (i == nr_elems)
-			break;
-		if (i % pcpu_entries)
-			goto again;
+		j = n + (cpu_idx < m ? 1 : 0);
+		for (i = 0; i < j; i++) {
+			/* No locking required as this is not visible yet. */
+			pcpu_freelist_push_node(head, buf);
+			buf += elem_size;
+		}
+		cpu_idx++;
 	}
 }
 
@@ -125,13 +122,12 @@ static struct pcpu_freelist_node *___pcpu_freelist_pop(struct pcpu_freelist *s)
 {
 	struct pcpu_freelist_head *head;
 	struct pcpu_freelist_node *node;
-	int orig_cpu, cpu;
+	int cpu;
 
-	orig_cpu = cpu = raw_smp_processor_id();
-	while (1) {
+	for_each_cpu_wrap(cpu, cpu_possible_mask, raw_smp_processor_id()) {
 		head = per_cpu_ptr(s->freelist, cpu);
 		if (!READ_ONCE(head->first))
-			goto next_cpu;
+			continue;
 		raw_spin_lock(&head->lock);
 		node = head->first;
 		if (node) {
@@ -140,12 +136,6 @@ static struct pcpu_freelist_node *___pcpu_freelist_pop(struct pcpu_freelist *s)
 			return node;
 		}
 		raw_spin_unlock(&head->lock);
-next_cpu:
-		cpu = cpumask_next(cpu, cpu_possible_mask);
-		if (cpu >= nr_cpu_ids)
-			cpu = 0;
-		if (cpu == orig_cpu)
-			break;
 	}
 
 	/* per cpu lists are all empty, try extralist */
@@ -164,13 +154,12 @@ ___pcpu_freelist_pop_nmi(struct pcpu_freelist *s)
 {
 	struct pcpu_freelist_head *head;
 	struct pcpu_freelist_node *node;
-	int orig_cpu, cpu;
+	int cpu;
 
-	orig_cpu = cpu = raw_smp_processor_id();
-	while (1) {
+	for_each_cpu_wrap(cpu, cpu_possible_mask, raw_smp_processor_id()) {
 		head = per_cpu_ptr(s->freelist, cpu);
 		if (!READ_ONCE(head->first))
-			goto next_cpu;
+			continue;
 		if (raw_spin_trylock(&head->lock)) {
 			node = head->first;
 			if (node) {
@@ -180,12 +169,6 @@ ___pcpu_freelist_pop_nmi(struct pcpu_freelist *s)
 			}
 			raw_spin_unlock(&head->lock);
 		}
-next_cpu:
-		cpu = cpumask_next(cpu, cpu_possible_mask);
-		if (cpu >= nr_cpu_ids)
-			cpu = 0;
-		if (cpu == orig_cpu)
-			break;
 	}
 
 	/* cannot pop from per cpu lists, try extralist */

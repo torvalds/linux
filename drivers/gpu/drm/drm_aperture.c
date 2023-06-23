@@ -74,7 +74,7 @@
  * given framebuffer memory. Ownership of the framebuffer memory is achieved
  * by calling devm_aperture_acquire_from_firmware(). On success, the driver
  * is the owner of the framebuffer range. The function fails if the
- * framebuffer is already by another driver. See below for an example.
+ * framebuffer is already owned by another driver. See below for an example.
  *
  * .. code-block:: c
  *
@@ -112,7 +112,7 @@
  *
  * The generic driver is now subject to forced removal by other drivers. This
  * only works for platform drivers that support hot unplug.
- * When a driver calls drm_aperture_remove_conflicting_framebuffers() et al
+ * When a driver calls drm_aperture_remove_conflicting_framebuffers() et al.
  * for the registered framebuffer range, the aperture helpers call
  * platform_device_unregister() and the generic driver unloads itself. It
  * may not access the device's registers, framebuffer memory, ROM, etc
@@ -164,7 +164,7 @@ EXPORT_SYMBOL(devm_aperture_acquire_from_firmware);
  * @primary: also kick vga16fb if present
  * @req_driver: requesting DRM driver
  *
- * This function removes graphics device drivers which use memory range described by
+ * This function removes graphics device drivers which use the memory range described by
  * @base and @size.
  *
  * Returns:
@@ -182,8 +182,8 @@ EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
  * @pdev: PCI device
  * @req_driver: requesting DRM driver
  *
- * This function removes graphics device drivers using memory range configured
- * for any of @pdev's memory bars. The function assumes that PCI device with
+ * This function removes graphics device drivers using the memory range configured
+ * for any of @pdev's memory bars. The function assumes that a PCI device with
  * shadowed ROM drives a primary display and so kicks out vga16fb.
  *
  * Returns:

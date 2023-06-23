@@ -509,6 +509,13 @@ const struct clk_ops clk_rcg2_floor_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_rcg2_floor_ops);
 
+const struct clk_ops clk_rcg2_mux_closest_ops = {
+	.determine_rate = __clk_mux_determine_rate_closest,
+	.get_parent = clk_rcg2_get_parent,
+	.set_parent = clk_rcg2_set_parent,
+};
+EXPORT_SYMBOL_GPL(clk_rcg2_mux_closest_ops);
+
 struct frac_entry {
 	int num;
 	int den;
@@ -907,6 +914,15 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 	} else {
 		req->best_parent_hw = p2;
 	}
+
+	clk_hw_get_rate_range(req->best_parent_hw,
+			      &parent_req.min_rate, &parent_req.max_rate);
+
+	if (req->min_rate > parent_req.min_rate)
+		parent_req.min_rate = req->min_rate;
+
+	if (req->max_rate < parent_req.max_rate)
+		parent_req.max_rate = req->max_rate;
 
 	ret = __clk_determine_rate(req->best_parent_hw, &parent_req);
 	if (ret)

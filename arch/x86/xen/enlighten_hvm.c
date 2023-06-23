@@ -212,7 +212,7 @@ static void __init xen_hvm_guest_init(void)
 		return;
 
 	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT))
-		virtio_set_mem_acc_cb(virtio_require_restricted_mem_acc);
+		virtio_set_mem_acc_cb(xen_virtio_restricted_mem_acc);
 
 	init_hvm_pv_info();
 

@@ -332,6 +332,11 @@ call.
       - 0x0004
       - This control event was triggered because the minimum, maximum,
 	step or the default value of the control changed.
+    * - ``V4L2_EVENT_CTRL_CH_DIMENSIONS``
+      - 0x0008
+      - This control event was triggered because the dimensions of the
+	control changed. Note that the number of dimensions remains the
+	same.
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|

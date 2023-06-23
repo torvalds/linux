@@ -312,5 +312,55 @@
         "teardown": [
             "$TC actions flush action connmark"
         ]
+    },
+    {
+        "id": "6571",
+        "name": "Delete connmark action with valid index",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ],
+	    "$TC actions add action connmark pass index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action connmark index 20",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 20",
+        "matchPattern": "action order [0-9]+: connmark zone 0 pass.*index 20 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "3426",
+        "name": "Delete connmark action with invalid index",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action connmark pass index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action connmark index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action connmark index 20",
+        "matchPattern": "action order [0-9]+: connmark zone 0 pass.*index 20 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
     }
 ]

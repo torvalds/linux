@@ -15,6 +15,9 @@ int proc_resctrl_show(struct seq_file *m,
 
 #endif
 
+/* max value for struct rdt_domain's mbps_val */
+#define MBA_MAX_MBPS   U32_MAX
+
 /**
  * enum resctrl_conf_type - The type of configuration.
  * @CDP_NONE:	No prioritisation, both code and data are controlled or monitored.
@@ -28,6 +31,16 @@ enum resctrl_conf_type {
 };
 
 #define CDP_NUM_TYPES	(CDP_DATA + 1)
+
+/*
+ * Event IDs, the values match those used to program IA32_QM_EVTSEL before
+ * reading IA32_QM_CTR on RDT systems.
+ */
+enum resctrl_event_id {
+	QOS_L3_OCCUP_EVENT_ID		= 0x01,
+	QOS_L3_MBM_TOTAL_EVENT_ID	= 0x02,
+	QOS_L3_MBM_LOCAL_EVENT_ID	= 0x03,
+};
 
 /**
  * struct resctrl_staged_config - parsed configuration to be applied
@@ -53,6 +66,9 @@ struct resctrl_staged_config {
  * @cqm_work_cpu:	worker CPU for CQM h/w counters
  * @plr:		pseudo-locked region (if any) associated with domain
  * @staged_config:	parsed configuration to be applied
+ * @mbps_val:		When mba_sc is enabled, this holds the array of user
+ *			specified control values for mba_sc in MBps, indexed
+ *			by closid
  */
 struct rdt_domain {
 	struct list_head		list;
@@ -67,6 +83,7 @@ struct rdt_domain {
 	int				cqm_work_cpu;
 	struct pseudo_lock_region	*plr;
 	struct resctrl_staged_config	staged_config[CDP_NUM_TYPES];
+	u32				*mbps_val;
 };
 
 /**
@@ -130,8 +147,6 @@ struct resctrl_schema;
 /**
  * struct rdt_resource - attributes of a resctrl resource
  * @rid:		The index of the resource
- * @alloc_enabled:	Is allocation enabled on this machine
- * @mon_enabled:	Is monitoring enabled for this feature
  * @alloc_capable:	Is allocation available on this machine
  * @mon_capable:	Is monitor feature available on this machine
  * @num_rmid:		Number of RMIDs available
@@ -150,8 +165,6 @@ struct resctrl_schema;
  */
 struct rdt_resource {
 	int			rid;
-	bool			alloc_enabled;
-	bool			mon_enabled;
 	bool			alloc_capable;
 	bool			mon_capable;
 	int			num_rmid;
@@ -194,7 +207,50 @@ struct resctrl_schema {
 /* The number of closid supported by this resource regardless of CDP */
 u32 resctrl_arch_get_num_closid(struct rdt_resource *r);
 int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid);
+
+/*
+ * Update the ctrl_val and apply this config right now.
+ * Must be called on one of the domain's CPUs.
+ */
+int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    u32 closid, enum resctrl_conf_type t, u32 cfg_val);
+
 u32 resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			    u32 closid, enum resctrl_conf_type type);
+int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d);
+void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d);
+
+/**
+ * resctrl_arch_rmid_read() - Read the eventid counter corresponding to rmid
+ *			      for this resource and domain.
+ * @r:			resource that the counter should be read from.
+ * @d:			domain that the counter should be read from.
+ * @rmid:		rmid of the counter to read.
+ * @eventid:		eventid to read, e.g. L3 occupancy.
+ * @val:		result of the counter read in bytes.
+ *
+ * Call from process context on a CPU that belongs to domain @d.
+ *
+ * Return:
+ * 0 on success, or -EIO, -EINVAL etc on error.
+ */
+int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
+			   u32 rmid, enum resctrl_event_id eventid, u64 *val);
+
+/**
+ * resctrl_arch_reset_rmid() - Reset any private state associated with rmid
+ *			       and eventid.
+ * @r:		The domain's resource.
+ * @d:		The rmid's domain.
+ * @rmid:	The rmid whose counter values should be reset.
+ * @eventid:	The eventid whose counter values should be reset.
+ *
+ * This can be called from any CPU.
+ */
+void resctrl_arch_reset_rmid(struct rdt_resource *r, struct rdt_domain *d,
+			     u32 rmid, enum resctrl_event_id eventid);
+
+extern unsigned int resctrl_rmid_realloc_threshold;
+extern unsigned int resctrl_rmid_realloc_limit;
 
 #endif /* _RESCTRL_H */

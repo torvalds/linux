@@ -239,6 +239,7 @@
 
 #define DP_DSC_SUPPORT                      0x060   /* DP 1.4 */
 # define DP_DSC_DECOMPRESSION_IS_SUPPORTED  (1 << 0)
+# define DP_DSC_PASSTHROUGH_IS_SUPPORTED    (1 << 1)
 
 #define DP_DSC_REV                          0x061
 # define DP_DSC_MAJOR_MASK                  (0xf << 0)
@@ -1535,6 +1536,8 @@ enum drm_dp_phy {
 #define DP_SDP_VSC_EXT_VESA		0x20 /* DP 1.4 */
 #define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
 /* 0x80+ CEA-861 infoframe types */
+
+#define DP_SDP_AUDIO_INFOFRAME_HB2	0x1b
 
 /**
  * struct dp_sdp_header - DP secondary data packet header

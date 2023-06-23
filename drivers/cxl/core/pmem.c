@@ -188,6 +188,7 @@ static void cxl_nvdimm_release(struct device *dev)
 {
 	struct cxl_nvdimm *cxl_nvd = to_cxl_nvdimm(dev);
 
+	xa_destroy(&cxl_nvd->pmem_regions);
 	kfree(cxl_nvd);
 }
 
@@ -230,6 +231,7 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
 
 	dev = &cxl_nvd->dev;
 	cxl_nvd->cxlmd = cxlmd;
+	xa_init(&cxl_nvd->pmem_regions);
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_nvdimm_key);
 	device_set_pm_not_required(dev);

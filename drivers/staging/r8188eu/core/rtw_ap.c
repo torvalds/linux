@@ -935,6 +935,48 @@ u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta)
 	return beacon_updated;
 }
 
+void rtw_indicate_sta_assoc_event(struct adapter *padapter, struct sta_info *psta)
+{
+	union iwreq_data wrqu;
+	struct sta_priv *pstapriv = &padapter->stapriv;
+
+	if (!psta)
+		return;
+
+	if (psta->aid > NUM_STA)
+		return;
+
+	if (pstapriv->sta_aid[psta->aid - 1] != psta)
+		return;
+
+	wrqu.addr.sa_family = ARPHRD_ETHER;
+
+	memcpy(wrqu.addr.sa_data, psta->hwaddr, ETH_ALEN);
+
+	wireless_send_event(padapter->pnetdev, IWEVREGISTERED, &wrqu, NULL);
+}
+
+static void rtw_indicate_sta_disassoc_event(struct adapter *padapter, struct sta_info *psta)
+{
+	union iwreq_data wrqu;
+	struct sta_priv *pstapriv = &padapter->stapriv;
+
+	if (!psta)
+		return;
+
+	if (psta->aid > NUM_STA)
+		return;
+
+	if (pstapriv->sta_aid[psta->aid - 1] != psta)
+		return;
+
+	wrqu.addr.sa_family = ARPHRD_ETHER;
+
+	memcpy(wrqu.addr.sa_data, psta->hwaddr, ETH_ALEN);
+
+	wireless_send_event(padapter->pnetdev, IWEVEXPIRED, &wrqu, NULL);
+}
+
 u8 ap_free_sta(struct adapter *padapter, struct sta_info *psta,
 	       bool active, u16 reason)
 {

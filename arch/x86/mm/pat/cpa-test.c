@@ -136,10 +136,10 @@ static int pageattr_test(void)
 	failed += print_split(&sa);
 
 	for (i = 0; i < NTEST; i++) {
-		unsigned long pfn = prandom_u32() % max_pfn_mapped;
+		unsigned long pfn = prandom_u32_max(max_pfn_mapped);
 
 		addr[i] = (unsigned long)__va(pfn << PAGE_SHIFT);
-		len[i] = prandom_u32() % NPAGES;
+		len[i] = prandom_u32_max(NPAGES);
 		len[i] = min_t(unsigned long, len[i], max_pfn_mapped - pfn - 1);
 
 		if (len[i] == 0)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -93,7 +94,8 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	u8 pool_id;
 	u8 hal_ring_id;
 	int ret;
-	u8 ring_selector = 0, ring_map = 0;
+	u32 ring_selector = 0;
+	u8 ring_map = 0;
 	bool tcl_ring_retry;
 
 	if (unlikely(test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags)))
@@ -105,19 +107,13 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH11K_HW_MAX_QUEUES - 1);
 
-	/* Let the default ring selection be based on current processor
-	 * number, where one of the 3 tcl rings are selected based on
-	 * the smp_processor_id(). In case that ring
-	 * is full/busy, we resort to other available rings.
-	 * If all rings are full, we drop the packet.
-	 * //TODO Add throttling logic when all rings are full
-	 */
-	ring_selector = smp_processor_id();
+	ring_selector = ab->hw_params.hw_ops->get_ring_selector(skb);
 
 tcl_ring_sel:
 	tcl_ring_retry = false;
 
 	ti.ring_id = ring_selector % ab->hw_params.max_tx_ring;
+	ti.rbm_id = ab->hw_params.hal_params->tcl2wbm_rbm_map[ti.ring_id].rbm_id;
 
 	ring_map |= BIT(ti.ring_id);
 
@@ -129,7 +125,8 @@ tcl_ring_sel:
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
 
 	if (unlikely(ret < 0)) {
-		if (ring_map == (BIT(ab->hw_params.max_tx_ring) - 1)) {
+		if (ring_map == (BIT(ab->hw_params.max_tx_ring) - 1) ||
+		    !ab->hw_params.tcl_ring_retry) {
 			atomic_inc(&ab->soc_stats.tx_err.misc_fail);
 			return -ENOSPC;
 		}
@@ -247,7 +244,7 @@ tcl_ring_sel:
 		 * Restart ring selection if some rings are not checked yet.
 		 */
 		if (unlikely(ring_map != (BIT(ab->hw_params.max_tx_ring)) - 1) &&
-		    ab->hw_params.max_tx_ring > 1) {
+		    ab->hw_params.tcl_ring_retry && ab->hw_params.max_tx_ring > 1) {
 			tcl_ring_retry = true;
 			ring_selector++;
 		}
@@ -755,7 +752,7 @@ int ath11k_dp_tx_send_reo_cmd(struct ath11k_base *ab, struct dp_rx_tid *rx_tid,
 		return 0;
 
 	/* Can this be optimized so that we keep the pending command list only
-	 * for tid delete command to free up the resoruce on the command status
+	 * for tid delete command to free up the resource on the command status
 	 * indication?
 	 */
 	dp_cmd = kzalloc(sizeof(*dp_cmd), GFP_ATOMIC);

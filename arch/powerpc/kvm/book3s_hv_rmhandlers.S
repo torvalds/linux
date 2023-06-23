@@ -1024,7 +1024,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	/* Restore R1/R2 so we can handle faults */
 	ld	r1, HSTATE_HOST_R1(r13)
-	ld	r2, PACATOC(r13)
+	LOAD_PACA_TOC()
 
 	mfspr	r10, SPRN_SRR0
 	mfspr	r11, SPRN_SRR1
@@ -2727,8 +2727,8 @@ kvmppc_bad_host_intr:
 	std	r4, _CTR(r1)
 	std	r5, _XER(r1)
 	std	r6, SOFTE(r1)
-	ld	r2, PACATOC(r13)
-	LOAD_REG_IMMEDIATE(3, 0x7265677368657265)
+	LOAD_PACA_TOC()
+	LOAD_REG_IMMEDIATE(3, STACK_FRAME_REGS_MARKER)
 	std	r3, STACK_FRAME_OVERHEAD-16(r1)
 
 	/*

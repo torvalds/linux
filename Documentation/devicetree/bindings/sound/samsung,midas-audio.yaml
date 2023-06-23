@@ -19,6 +19,7 @@ properties:
 
   cpu:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
         maxItems: 1
@@ -28,6 +29,7 @@ properties:
 
   codec:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
         maxItems: 1

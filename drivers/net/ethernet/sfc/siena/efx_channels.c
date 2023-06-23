@@ -1317,7 +1317,7 @@ static void efx_init_napi_channel(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 
 	channel->napi_dev = efx->net_dev;
-	netif_napi_add(channel->napi_dev, &channel->napi_str, efx_poll, 64);
+	netif_napi_add(channel->napi_dev, &channel->napi_str, efx_poll);
 }
 
 void efx_siena_init_napi(struct efx_nic *efx)

@@ -115,6 +115,7 @@ static struct genl_family psample_nl_family __ro_after_init = {
 	.mcgrps		= psample_nl_mcgrps,
 	.small_ops	= psample_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(psample_nl_ops),
+	.resv_start_op	= PSAMPLE_CMD_GET_GROUP + 1,
 	.n_mcgrps	= ARRAY_SIZE(psample_nl_mcgrps),
 };
 

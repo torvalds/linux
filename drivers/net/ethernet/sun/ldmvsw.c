@@ -63,8 +63,8 @@ static struct vio_version vsw_versions[] = {
 static void vsw_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static u32 vsw_get_msglevel(struct net_device *dev)
@@ -354,8 +354,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	dev_set_drvdata(&vdev->dev, port);
 
-	netif_napi_add(dev, &port->napi, sunvnet_poll_common,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(dev, &port->napi, sunvnet_poll_common);
 
 	spin_lock_irqsave(&vp->lock, flags);
 	list_add_rcu(&port->list, &vp->port_list);

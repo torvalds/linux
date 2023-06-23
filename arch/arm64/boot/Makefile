@@ -38,3 +38,9 @@ $(obj)/Image.lzo: $(obj)/Image FORCE
 
 $(obj)/Image.zst: $(obj)/Image FORCE
 	$(call if_changed,zstd)
+
+EFI_ZBOOT_PAYLOAD	:= Image
+EFI_ZBOOT_BFD_TARGET	:= elf64-littleaarch64
+EFI_ZBOOT_MACH_TYPE	:= ARM64
+
+include $(srctree)/drivers/firmware/efi/libstub/Makefile.zboot

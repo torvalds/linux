@@ -338,7 +338,7 @@ BPF_CALL_3(bpf_get_stackid_pe, struct bpf_perf_event_data_kern *, ctx,
 	int ret;
 
 	/* perf_sample_data doesn't have callchain, use bpf_get_stackid */
-	if (!(event->attr.sample_type & __PERF_SAMPLE_CALLCHAIN_EARLY))
+	if (!(event->attr.sample_type & PERF_SAMPLE_CALLCHAIN))
 		return bpf_get_stackid((unsigned long)(ctx->regs),
 				       (unsigned long) map, flags, 0, 0);
 
@@ -506,7 +506,7 @@ BPF_CALL_4(bpf_get_stack_pe, struct bpf_perf_event_data_kern *, ctx,
 	int err = -EINVAL;
 	__u64 nr_kernel;
 
-	if (!(event->attr.sample_type & __PERF_SAMPLE_CALLCHAIN_EARLY))
+	if (!(event->attr.sample_type & PERF_SAMPLE_CALLCHAIN))
 		return __bpf_get_stack(regs, NULL, NULL, buf, size, flags);
 
 	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK |

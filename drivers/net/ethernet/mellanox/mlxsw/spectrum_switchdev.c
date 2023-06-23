@@ -3470,6 +3470,8 @@ mlxsw_sp_switchdev_vxlan_fdb_del(struct mlxsw_sp *mlxsw_sp,
 	u16 vid;
 
 	vxlan_fdb_info = &switchdev_work->vxlan_fdb_info;
+	if (!vxlan_fdb_info->offloaded)
+		return;
 
 	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
 	if (!bridge_device)

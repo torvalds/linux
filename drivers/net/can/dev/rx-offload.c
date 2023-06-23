@@ -247,7 +247,7 @@ unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 	struct net_device *dev = offload->dev;
 	struct net_device_stats *stats = &dev->stats;
 	struct sk_buff *skb;
-	u8 len;
+	unsigned int len;
 	int err;
 
 	skb = __can_get_echo_skb(dev, idx, &len, frame_len_ptr);
@@ -329,7 +329,7 @@ static int can_rx_offload_init_queue(struct net_device *dev,
 {
 	offload->dev = dev;
 
-	/* Limit queue len to 4x the weight (rounted to next power of two) */
+	/* Limit queue len to 4x the weight (rounded to next power of two) */
 	offload->skb_queue_len_max = 2 << fls(weight);
 	offload->skb_queue_len_max *= 4;
 	skb_queue_head_init(&offload->skb_queue);

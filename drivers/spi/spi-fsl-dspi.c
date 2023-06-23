@@ -1294,8 +1294,7 @@ static int dspi_probe(struct platform_device *pdev)
 	else
 		ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
 		goto out_ctlr_put;

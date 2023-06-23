@@ -534,7 +534,7 @@
 				status = "disabled";
 			};
 
-			sdma2: sdma@302c0000 {
+			sdma2: dma-controller@302c0000 {
 				compatible = "fsl,imx8mq-sdma","fsl,imx7d-sdma";
 				reg = <0x302c0000 0x10000>;
 				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
@@ -1302,7 +1302,7 @@
 				status = "disabled";
 			};
 
-			sdma1: sdma@30bd0000 {
+			sdma1: dma-controller@30bd0000 {
 				compatible = "fsl,imx8mq-sdma","fsl,imx7d-sdma";
 				reg = <0x30bd0000 0x10000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;

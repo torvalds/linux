@@ -1594,14 +1594,14 @@ static int do_object(int argc, char **argv)
 
 		err = bpf_linker__add_file(linker, file, NULL);
 		if (err) {
-			p_err("failed to link '%s': %s (%d)", file, strerror(err), err);
+			p_err("failed to link '%s': %s (%d)", file, strerror(errno), errno);
 			goto out;
 		}
 	}
 
 	err = bpf_linker__finalize(linker);
 	if (err) {
-		p_err("failed to finalize ELF file: %s (%d)", strerror(err), err);
+		p_err("failed to finalize ELF file: %s (%d)", strerror(errno), errno);
 		goto out;
 	}
 

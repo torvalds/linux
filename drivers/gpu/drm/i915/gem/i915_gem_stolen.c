@@ -18,10 +18,12 @@
 #include "gt/intel_region_lmem.h"
 #include "i915_drv.h"
 #include "i915_gem_stolen.h"
+#include "i915_pci.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_mchbar_regs.h"
+#include "intel_pci_config.h"
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
@@ -428,48 +430,29 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 	reserved_base = stolen_top;
 	reserved_size = 0;
 
-	switch (GRAPHICS_VER(i915)) {
-	case 2:
-	case 3:
-		break;
-	case 4:
-		if (!IS_G4X(i915))
-			break;
-		fallthrough;
-	case 5:
-		g4x_get_stolen_reserved(i915, uncore,
+	if (GRAPHICS_VER(i915) >= 11) {
+		icl_get_stolen_reserved(i915, uncore,
 					&reserved_base, &reserved_size);
-		break;
-	case 6:
-		gen6_get_stolen_reserved(i915, uncore,
-					 &reserved_base, &reserved_size);
-		break;
-	case 7:
-		if (IS_VALLEYVIEW(i915))
-			vlv_get_stolen_reserved(i915, uncore,
-						&reserved_base, &reserved_size);
-		else
-			gen7_get_stolen_reserved(i915, uncore,
-						 &reserved_base, &reserved_size);
-		break;
-	case 8:
-	case 9:
+	} else if (GRAPHICS_VER(i915) >= 8) {
 		if (IS_LP(i915))
 			chv_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);
 		else
 			bdw_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);
-		break;
-	default:
-		MISSING_CASE(GRAPHICS_VER(i915));
-		fallthrough;
-	case 11:
-	case 12:
-		icl_get_stolen_reserved(i915, uncore,
-					&reserved_base,
-					&reserved_size);
-		break;
+	} else if (GRAPHICS_VER(i915) >= 7) {
+		if (IS_VALLEYVIEW(i915))
+			vlv_get_stolen_reserved(i915, uncore,
+						&reserved_base, &reserved_size);
+		else
+			gen7_get_stolen_reserved(i915, uncore,
+						 &reserved_base, &reserved_size);
+	} else if (GRAPHICS_VER(i915) >= 6) {
+		gen6_get_stolen_reserved(i915, uncore,
+					 &reserved_base, &reserved_size);
+	} else if (GRAPHICS_VER(i915) >= 5 || IS_G4X(i915)) {
+		g4x_get_stolen_reserved(i915, uncore,
+					&reserved_base, &reserved_size);
 	}
 
 	/*
@@ -827,10 +810,13 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	if (WARN_ON_ONCE(instance))
 		return ERR_PTR(-ENODEV);
 
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
+
 	/* Use DSM base address instead for stolen memory */
 	dsm_base = intel_uncore_read64(uncore, GEN12_DSMBASE);
 	if (IS_DG1(uncore->i915)) {
-		lmem_size = pci_resource_len(pdev, 2);
+		lmem_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 		if (WARN_ON(lmem_size < dsm_base))
 			return ERR_PTR(-ENODEV);
 	} else {
@@ -842,11 +828,11 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	}
 
 	dsm_size = lmem_size - dsm_base;
-	if (pci_resource_len(pdev, 2) < lmem_size) {
+	if (pci_resource_len(pdev, GEN12_LMEM_BAR) < lmem_size) {
 		io_start = 0;
 		io_size = 0;
 	} else {
-		io_start = pci_resource_start(pdev, 2) + dsm_base;
+		io_start = pci_resource_start(pdev, GEN12_LMEM_BAR) + dsm_base;
 		io_size = dsm_size;
 	}
 

@@ -132,7 +132,7 @@ static void process_cmd_err(struct afu_cmd *cmd, struct scsi_cmnd *scp)
 			break;
 		case SISL_AFU_RC_OUT_OF_DATA_BUFS:
 			/* Retry */
-			scp->result = (DID_ALLOC_FAILURE << 16);
+			scp->result = (DID_ERROR << 16);
 			break;
 		default:
 			scp->result = (DID_ERROR << 16);

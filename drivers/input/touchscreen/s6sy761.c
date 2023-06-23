@@ -475,11 +475,9 @@ static int s6sy761_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int s6sy761_remove(struct i2c_client *client)
+static void s6sy761_remove(struct i2c_client *client)
 {
 	pm_runtime_disable(&client->dev);
-
-	return 0;
 }
 
 static int __maybe_unused s6sy761_runtime_suspend(struct device *dev)

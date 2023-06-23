@@ -1493,6 +1493,7 @@ struct genl_family batadv_netlink_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = batadv_netlink_ops,
 	.n_small_ops = ARRAY_SIZE(batadv_netlink_ops),
+	.resv_start_op = BATADV_CMD_SET_VLAN + 1,
 	.mcgrps = batadv_netlink_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(batadv_netlink_mcgrps),
 };

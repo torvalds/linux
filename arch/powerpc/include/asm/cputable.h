@@ -463,7 +463,7 @@ static inline void cpu_feature_keys_init(void) { }
 #define CPU_FTRS_COMPATIBLE	(CPU_FTR_PPCAS_ARCH_V2)
 
 #ifdef CONFIG_PPC64
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 #define CPU_FTRS_POSSIBLE	(CPU_FTRS_E6500 | CPU_FTRS_E5500)
 #else
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
@@ -510,7 +510,7 @@ enum {
 #elif defined(CONFIG_44x)
 	    CPU_FTRS_44X | CPU_FTRS_440x6 |
 #endif
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 	    CPU_FTRS_E500 | CPU_FTRS_E500_2 |
 #endif
 #ifdef CONFIG_PPC_E500MC
@@ -521,7 +521,7 @@ enum {
 #endif /* __powerpc64__ */
 
 #ifdef CONFIG_PPC64
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 #define CPU_FTRS_ALWAYS		(CPU_FTRS_E6500 & CPU_FTRS_E5500)
 #else
 
@@ -584,7 +584,7 @@ enum {
 #elif defined(CONFIG_44x)
 	    CPU_FTRS_44X & CPU_FTRS_440x6 &
 #endif
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 	    CPU_FTRS_E500 & CPU_FTRS_E500_2 &
 #endif
 #ifdef CONFIG_PPC_E500MC

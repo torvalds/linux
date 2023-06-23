@@ -12,16 +12,6 @@
 #include <linux/percpu.h>
 #include <linux/random.h>
 
-static inline u32 prandom_u32(void)
-{
-	return get_random_u32();
-}
-
-static inline void prandom_bytes(void *buf, size_t nbytes)
-{
-	return get_random_bytes(buf, nbytes);
-}
-
 struct rnd_state {
 	__u32 s1, s2, s3, s4;
 };
@@ -37,17 +27,20 @@ void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state);
  * prandom_u32_max - returns a pseudo-random number in interval [0, ep_ro)
  * @ep_ro: right open interval endpoint
  *
- * Returns a pseudo-random number that is in interval [0, ep_ro). Note
- * that the result depends on PRNG being well distributed in [0, ~0U]
- * u32 space. Here we use maximally equidistributed combined Tausworthe
- * generator, that is, prandom_u32(). This is useful when requesting a
- * random index of an array containing ep_ro elements, for example.
+ * Returns a pseudo-random number that is in interval [0, ep_ro). This is
+ * useful when requesting a random index of an array containing ep_ro elements,
+ * for example. The result is somewhat biased when ep_ro is not a power of 2,
+ * so do not use this for cryptographic purposes.
  *
  * Returns: pseudo-random number in interval [0, ep_ro)
  */
 static inline u32 prandom_u32_max(u32 ep_ro)
 {
-	return (u32)(((u64) prandom_u32() * ep_ro) >> 32);
+	if (__builtin_constant_p(ep_ro <= 1U << 8) && ep_ro <= 1U << 8)
+		return (get_random_u8() * ep_ro) >> 8;
+	if (__builtin_constant_p(ep_ro <= 1U << 16) && ep_ro <= 1U << 16)
+		return (get_random_u16() * ep_ro) >> 16;
+	return ((u64)get_random_u32() * ep_ro) >> 32;
 }
 
 /*

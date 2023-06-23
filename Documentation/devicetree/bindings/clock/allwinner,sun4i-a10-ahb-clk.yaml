@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/allwinner,sun4i-a10-ahb-clk.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 AHB Clock Device Tree Bindings
+title: Allwinner A10 AHB Clock
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

@@ -124,6 +124,65 @@ depth format), bit-depth reduction/dithering would kick in. In OPP, we would
 also apply a regamma function to introduce the gamma removed earlier back.
 Eventually, we output data in integer format at DIO.
 
+AMD Hardware Pipeline
+---------------------
+
+When discussing graphics on Linux, the **pipeline** term can sometimes be
+overloaded with multiple meanings, so it is important to define what we mean
+when we say **pipeline**. In the DCN driver, we use the term **hardware
+pipeline** or **pipeline** or just **pipe** as an abstraction to indicate a
+sequence of DCN blocks instantiated to address some specific configuration. DC
+core treats DCN blocks as individual resources, meaning we can build a pipeline
+by taking resources for all individual hardware blocks to compose one pipeline.
+In actuality, we can't connect an arbitrary block from one pipe to a block from
+another pipe; they are routed linearly, except for DSC, which can be
+arbitrarily assigned as needed. We have this pipeline concept for trying to
+optimize bandwidth utilization.
+
+.. kernel-figure:: pipeline_4k_no_split.svg
+
+Additionally, let's take a look at parts of the DTN log (see
+'Documentation/gpu/amdgpu/display/dc-debug.rst' for more information) since
+this log can help us to see part of this pipeline behavior in real-time::
+
+ HUBP:  format  addr_hi  width  height ...
+ [ 0]:      8h      81h   3840    2160
+ [ 1]:      0h       0h      0       0
+ [ 2]:      0h       0h      0       0
+ [ 3]:      0h       0h      0       0
+ [ 4]:      0h       0h      0       0
+ ...
+ MPCC:  OPP  DPP ...
+ [ 0]:   0h   0h ...
+
+The first thing to notice from the diagram and DTN log it is the fact that we
+have different clock domains for each part of the DCN blocks. In this example,
+we have just a single **pipeline** where the data flows from DCHUB to DIO, as
+we intuitively expect. Nonetheless, DCN is flexible, as mentioned before, and
+we can split this single pipe differently, as described in the below diagram:
+
+.. kernel-figure:: pipeline_4k_split.svg
+
+Now, if we inspect the DTN log again we can see some interesting changes::
+
+ HUBP:  format  addr_hi  width  height ...
+ [ 0]:      8h      81h   1920    2160 ...
+ ...
+ [ 4]:      0h       0h      0       0 ...
+ [ 5]:      8h      81h   1920    2160 ...
+ ...
+ MPCC:  OPP  DPP ...
+ [ 0]:   0h   0h ...
+ [ 5]:   0h   5h ...
+
+From the above example, we now split the display pipeline into two vertical
+parts of 1920x2160 (i.e., 3440x2160), and as a result, we could reduce the
+clock frequency in the DPP part. This is not only useful for saving power but
+also to better handle the required throughput. The idea to keep in mind here is
+that the pipe configuration can vary a lot according to the display
+configuration, and it is the DML's responsibility to set up all required
+configuration parameters for multiple scenarios supported by our hardware.
+
 Global Sync
 -----------
 

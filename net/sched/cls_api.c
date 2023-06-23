@@ -1977,9 +1977,6 @@ static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	bool rtnl_held = false;
 	u32 flags;
 
-	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
 replay:
 	tp_created = 0;
 
@@ -2208,9 +2205,6 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	void *fh = NULL;
 	int err;
 	bool rtnl_held = false;
-
-	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
 
 	err = nlmsg_parse_deprecated(n, sizeof(*t), tca, TCA_MAX,
 				     rtm_tca_policy, extack);
@@ -2826,10 +2820,6 @@ static int tc_ctl_chain(struct sk_buff *skb, struct nlmsghdr *n,
 	struct tcf_block *block;
 	unsigned long cl;
 	int err;
-
-	if (n->nlmsg_type != RTM_GETCHAIN &&
-	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
 
 replay:
 	q = NULL;
@@ -3639,9 +3629,6 @@ int tcf_qevent_init(struct tcf_qevent *qe, struct Qdisc *sch,
 	err = tcf_qevent_parse_block_index(block_index_attr, &block_index, extack);
 	if (err)
 		return err;
-
-	if (!block_index)
-		return 0;
 
 	qe->info.binder_type = binder_type;
 	qe->info.chain_head_change = tcf_chain_head_change_dflt;

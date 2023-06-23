@@ -390,8 +390,8 @@ static int rmi_f54_vidioc_querycap(struct file *file, void *priv,
 {
 	struct f54_data *f54 = video_drvdata(file);
 
-	strlcpy(cap->driver, F54_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, SYNAPTICS_INPUT_DEVICE_NAME, sizeof(cap->card));
+	strscpy(cap->driver, F54_NAME, sizeof(cap->driver));
+	strscpy(cap->card, SYNAPTICS_INPUT_DEVICE_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		"rmi4:%s", dev_name(&f54->fn->dev));
 
@@ -410,7 +410,7 @@ static int rmi_f54_vidioc_enum_input(struct file *file, void *priv,
 
 	i->type = V4L2_INPUT_TYPE_TOUCH;
 
-	strlcpy(i->name, rmi_f54_report_type_names[reptype], sizeof(i->name));
+	strscpy(i->name, rmi_f54_report_type_names[reptype], sizeof(i->name));
 	return 0;
 }
 
@@ -696,7 +696,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 	rmi_f54_set_input(f54, 0);
 
 	/* register video device */
-	strlcpy(f54->v4l2.name, F54_NAME, sizeof(f54->v4l2.name));
+	strscpy(f54->v4l2.name, F54_NAME, sizeof(f54->v4l2.name));
 	ret = v4l2_device_register(&fn->dev, &f54->v4l2);
 	if (ret) {
 		dev_err(&fn->dev, "Unable to register video dev.\n");

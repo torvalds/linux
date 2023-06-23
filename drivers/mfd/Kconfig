@@ -589,8 +589,8 @@ config LPC_SCH
 
 config INTEL_SOC_PMIC
 	bool "Support for Crystal Cove PMIC"
-	depends on ACPI && HAS_IOMEM && I2C=y && GPIOLIB && COMMON_CLK
-	depends on X86 || COMPILE_TEST
+	depends on HAS_IOMEM && I2C=y && GPIOLIB && COMMON_CLK
+	depends on (X86 && ACPI) || COMPILE_TEST
 	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
@@ -938,6 +938,22 @@ config MFD_MT6360
 	  PMIC part includes 2-channel BUCKs and 2-channel LDOs
 	  LDO part includes 4-channel LDOs
 
+config MFD_MT6370
+	tristate "MediaTek MT6370 SubPMIC"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C
+	help
+	  Say Y here to enable MT6370 SubPMIC functional support.
+	  It consists of a single cell battery charger with ADC monitoring, RGB
+	  LEDs, dual channel flashlight, WLED backlight driver, display bias
+	  voltage supply, one general purpose LDO, and the USB Type-C & PD
+	  controller complies with the latest USB Type-C and PD standards.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "mt6370".
+
 config MFD_MT6397
 	tristate "MediaTek MT6397 PMIC Support"
 	select MFD_CORE
@@ -962,6 +978,27 @@ config MFD_MENF21BMC
 
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc.
+
+config MFD_OCELOT
+	tristate "Microsemi Ocelot External Control Support"
+	depends on SPI_MASTER
+	select MFD_CORE
+	select REGMAP_SPI
+	help
+	  Ocelot is a family of networking chips that support multiple ethernet
+	  and fibre interfaces. In addition to networking, they contain several
+	  other functions, including pinctrl, MDIO, and communication with
+	  external chips. While some chips have an internal processor capable of
+	  running an OS, others don't. All chips can be controlled externally
+	  through different interfaces, including SPI, I2C, and PCIe.
+
+	  Say yes here to add support for Ocelot chips (VSC7511, VSC7512,
+	  VSC7513, VSC7514) controlled externally.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ocelot-soc.
+
+	  If unsure, say N.
 
 config EZX_PCAP
 	bool "Motorola EZXPCAP Support"
@@ -1096,6 +1133,16 @@ config MFD_SPMI_PMIC
 	  Say M here if you want to include support for the SPMI PMIC
 	  series as a module.  The module will be called "qcom-spmi-pmic".
 
+config MFD_SY7636A
+	tristate "Silergy SY7636A voltage regulator"
+	depends on I2C
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  Enable support for Silergy SY7636A voltage regulator.
+
+	  To enable support for building sub-devices as modules,
+	  choose M here.
+
 config MFD_RDC321X
 	tristate "RDC R-321x southbridge"
 	select MFD_CORE
@@ -1127,6 +1174,18 @@ config MFD_RT5033
 	  common support for accessing the device. The device supports multiple
 	  sub-devices like charger, fuel gauge, flash LED, current source,
 	  LDO and Buck.
+
+config MFD_RT5120
+	tristate "Richtek RT5120 Power Management IC"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  The enables support for Richtek RT5120 PMIC. It includes four high
+	  efficiency buck converters and one LDO voltage regulator. The device
+	  is targeted at providing the CPU voltage, memory, I/O and peripheral
+	  power rails in home entertainment devices.
 
 config MFD_RC5T583
 	bool "Ricoh RC5T583 Power Management system device"
@@ -1203,7 +1262,7 @@ config MFD_SI476X_CORE
 	  module will be called si476x-core.
 
 config MFD_SIMPLE_MFD_I2C
-	tristate "Simple Multi-Functional Device support (I2C)"
+	tristate
 	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C

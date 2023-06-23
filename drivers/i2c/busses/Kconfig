@@ -488,8 +488,8 @@ config I2C_BCM_KONA
 
 config I2C_BRCMSTB
 	tristate "BRCM Settop/DSL I2C controller"
-	depends on ARCH_BCM2835 || ARCH_BCM4908 || ARCH_BCMBCA || \
-		   ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
+	depends on ARCH_BCM2835 || ARCH_BCMBCA || ARCH_BRCMSTB || \
+		   BMIPS_GENERIC || COMPILE_TEST
 	default y
 	help
 	  If you say yes to this option, support will be included for the
@@ -764,6 +764,7 @@ config I2C_LPC2K
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
         depends on MELLANOX_PLATFORM && ARM64
+	depends on ACPI
 	select I2C_SLAVE
         help
           Enabling this option will add I2C SMBus support for Mellanox BlueField
@@ -1266,6 +1267,16 @@ config I2C_PARPORT
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport.
+
+config I2C_PCI1XXXX
+	tristate "PCI1XXXX I2C Host Adapter"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for
+	  Microchip PCI1XXXX's I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-mchp-pci1xxxx.
 
 config I2C_ROBOTFUZZ_OSIF
 	tristate "RobotFuzz Open Source InterFace USB adapter"

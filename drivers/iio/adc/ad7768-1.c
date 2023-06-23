@@ -539,13 +539,6 @@ static void ad7768_regulator_disable(void *data)
 	regulator_disable(st->vref);
 }
 
-static void ad7768_clk_disable(void *data)
-{
-	struct ad7768_state *st = data;
-
-	clk_disable_unprepare(st->mclk);
-}
-
 static int ad7768_set_channel_label(struct iio_dev *indio_dev,
 						int num_channels)
 {
@@ -600,17 +593,9 @@ static int ad7768_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->mclk = devm_clk_get(&spi->dev, "mclk");
+	st->mclk = devm_clk_get_enabled(&spi->dev, "mclk");
 	if (IS_ERR(st->mclk))
 		return PTR_ERR(st->mclk);
-
-	ret = clk_prepare_enable(st->mclk);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(&spi->dev, ad7768_clk_disable, st);
-	if (ret)
-		return ret;
 
 	st->mclk_freq = clk_get_rate(st->mclk);
 

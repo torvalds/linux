@@ -165,40 +165,10 @@ static inline void drv_vif_cfg_changed(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline void drv_link_info_changed(struct ieee80211_local *local,
-					 struct ieee80211_sub_if_data *sdata,
-					 struct ieee80211_bss_conf *info,
-					 int link_id, u64 changed)
-{
-	might_sleep();
-
-	if (WARN_ON_ONCE(changed & (BSS_CHANGED_BEACON |
-				    BSS_CHANGED_BEACON_ENABLED) &&
-			 sdata->vif.type != NL80211_IFTYPE_AP &&
-			 sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-			 sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
-			 sdata->vif.type != NL80211_IFTYPE_OCB))
-		return;
-
-	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE ||
-			 sdata->vif.type == NL80211_IFTYPE_NAN ||
-			 (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
-			  !sdata->vif.bss_conf.mu_mimo_owner &&
-			  !(changed & BSS_CHANGED_TXPOWER))))
-		return;
-
-	if (!check_sdata_in_driver(sdata))
-		return;
-
-	trace_drv_link_info_changed(local, sdata, info, changed);
-	if (local->ops->link_info_changed)
-		local->ops->link_info_changed(&local->hw, &sdata->vif,
-					      info, changed);
-	else if (local->ops->bss_info_changed)
-		local->ops->bss_info_changed(&local->hw, &sdata->vif,
-					     info, changed);
-	trace_drv_return_void(local);
-}
+void drv_link_info_changed(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *sdata,
+			   struct ieee80211_bss_conf *info,
+			   int link_id, u64 changed);
 
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 					struct netdev_hw_addr_list *mc_list)
@@ -256,25 +226,11 @@ static inline int drv_set_tim(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline int drv_set_key(struct ieee80211_local *local,
-			      enum set_key_cmd cmd,
-			      struct ieee80211_sub_if_data *sdata,
-			      struct ieee80211_sta *sta,
-			      struct ieee80211_key_conf *key)
-{
-	int ret;
-
-	might_sleep();
-
-	sdata = get_bss_sdata(sdata);
-	if (!check_sdata_in_driver(sdata))
-		return -EIO;
-
-	trace_drv_set_key(local, cmd, sdata, sta, key);
-	ret = local->ops->set_key(&local->hw, cmd, &sdata->vif, sta, key);
-	trace_drv_return_int(local, ret);
-	return ret;
-}
+int drv_set_key(struct ieee80211_local *local,
+		enum set_key_cmd cmd,
+		struct ieee80211_sub_if_data *sdata,
+		struct ieee80211_sta *sta,
+		struct ieee80211_key_conf *key);
 
 static inline void drv_update_tkip_key(struct ieee80211_local *local,
 				       struct ieee80211_sub_if_data *sdata,
@@ -945,52 +901,14 @@ static inline void drv_verify_link_exists(struct ieee80211_sub_if_data *sdata,
 		sdata_assert_lock(sdata);
 }
 
-static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
-					 struct ieee80211_sub_if_data *sdata,
-					 struct ieee80211_bss_conf *link_conf,
-					 struct ieee80211_chanctx *ctx)
-{
-	int ret = 0;
-
-	drv_verify_link_exists(sdata, link_conf);
-	if (!check_sdata_in_driver(sdata))
-		return -EIO;
-
-	trace_drv_assign_vif_chanctx(local, sdata, link_conf, ctx);
-	if (local->ops->assign_vif_chanctx) {
-		WARN_ON_ONCE(!ctx->driver_present);
-		ret = local->ops->assign_vif_chanctx(&local->hw,
-						     &sdata->vif,
-						     link_conf,
-						     &ctx->conf);
-	}
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
-
-static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
-					    struct ieee80211_sub_if_data *sdata,
-					    struct ieee80211_bss_conf *link_conf,
-					    struct ieee80211_chanctx *ctx)
-{
-	might_sleep();
-
-	drv_verify_link_exists(sdata, link_conf);
-	if (!check_sdata_in_driver(sdata))
-		return;
-
-	trace_drv_unassign_vif_chanctx(local, sdata, link_conf, ctx);
-	if (local->ops->unassign_vif_chanctx) {
-		WARN_ON_ONCE(!ctx->driver_present);
-		local->ops->unassign_vif_chanctx(&local->hw,
-						 &sdata->vif,
-						 link_conf,
-						 &ctx->conf);
-	}
-	trace_drv_return_void(local);
-}
-
+int drv_assign_vif_chanctx(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *sdata,
+			   struct ieee80211_bss_conf *link_conf,
+			   struct ieee80211_chanctx *ctx);
+void drv_unassign_vif_chanctx(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
+			      struct ieee80211_bss_conf *link_conf,
+			      struct ieee80211_chanctx *ctx);
 int drv_switch_vif_chanctx(struct ieee80211_local *local,
 			   struct ieee80211_vif_chanctx_switch *vifs,
 			   int n_vifs, enum ieee80211_chanctx_switch_mode mode);
@@ -1552,46 +1470,13 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline int drv_change_vif_links(struct ieee80211_local *local,
-				       struct ieee80211_sub_if_data *sdata,
-				       u16 old_links, u16 new_links,
-				       struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS])
-{
-	int ret = -EOPNOTSUPP;
-
-	might_sleep();
-
-	if (!check_sdata_in_driver(sdata))
-		return -EIO;
-
-	trace_drv_change_vif_links(local, sdata, old_links, new_links);
-	if (local->ops->change_vif_links)
-		ret = local->ops->change_vif_links(&local->hw, &sdata->vif,
-						   old_links, new_links, old);
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
-
-static inline int drv_change_sta_links(struct ieee80211_local *local,
-				       struct ieee80211_sub_if_data *sdata,
-				       struct ieee80211_sta *sta,
-				       u16 old_links, u16 new_links)
-{
-	int ret = -EOPNOTSUPP;
-
-	might_sleep();
-
-	if (!check_sdata_in_driver(sdata))
-		return -EIO;
-
-	trace_drv_change_sta_links(local, sdata, sta, old_links, new_links);
-	if (local->ops->change_sta_links)
-		ret = local->ops->change_sta_links(&local->hw, &sdata->vif, sta,
-						   old_links, new_links);
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
+int drv_change_vif_links(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata,
+			 u16 old_links, u16 new_links,
+			 struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS]);
+int drv_change_sta_links(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_sta *sta,
+			 u16 old_links, u16 new_links);
 
 #endif /* __MAC80211_DRIVER_OPS */

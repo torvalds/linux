@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2022 Linaro Ltd.
  */
 #ifndef _GSI_TRANS_H_
 #define _GSI_TRANS_H_
@@ -29,7 +29,6 @@ struct gsi_trans_pool;
  * struct gsi_trans - a GSI transaction
  *
  * Most fields in this structure for internal use by the transaction core code:
- * @links:	Links for channel transaction lists by state
  * @gsi:	GSI pointer
  * @channel_id: Channel number transaction is associated with
  * @cancelled:	If set by the core code, transaction was cancelled
@@ -50,8 +49,6 @@ struct gsi_trans_pool;
  * received.
  */
 struct gsi_trans {
-	struct list_head links;		/* gsi_channel lists */
-
 	struct gsi *gsi;
 	u8 channel_id;
 
@@ -77,7 +74,7 @@ struct gsi_trans {
 
 /**
  * gsi_trans_pool_init() - Initialize a pool of structures for transactions
- * @pool:	GSI transaction poll pointer
+ * @pool:	GSI transaction pool pointer
  * @size:	Size of elements in the pool
  * @count:	Minimum number of elements in the pool
  * @max_alloc:	Maximum number of elements allocated at a time from pool

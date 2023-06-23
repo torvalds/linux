@@ -92,6 +92,7 @@ properties:
 
   video-firmware:
     type: object
+    additionalProperties: false
 
     description: |
       Firmware subnode is needed when the platform does not

@@ -130,7 +130,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	a pointer to wordsize-sensitive structure belongs here, but most of
  *	ldiscs will happily leave it %NULL.
  *
- * @set_termios: [TTY] ``void ()(struct tty_struct *tty, struct ktermios *old)``
+ * @set_termios: [TTY] ``void ()(struct tty_struct *tty, const struct ktermios *old)``
  *
  *	This function notifies the line discpline that a change has been made
  *	to the termios structure.
@@ -227,7 +227,7 @@ struct tty_ldisc_ops {
 			unsigned long arg);
 	int	(*compat_ioctl)(struct tty_struct *tty, unsigned int cmd,
 			unsigned long arg);
-	void	(*set_termios)(struct tty_struct *tty, struct ktermios *old);
+	void	(*set_termios)(struct tty_struct *tty, const struct ktermios *old);
 	__poll_t (*poll)(struct tty_struct *tty, struct file *file,
 			     struct poll_table_struct *wait);
 	void	(*hangup)(struct tty_struct *tty);

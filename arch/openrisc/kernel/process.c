@@ -125,10 +125,6 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-}
-
 /*
  * Copy the thread-specific (arch specific) info from the current
  * process to the new one p

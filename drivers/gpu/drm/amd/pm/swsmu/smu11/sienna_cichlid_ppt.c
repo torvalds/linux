@@ -154,6 +154,7 @@ static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT]
 	MSG_MAP(SetGpoFeaturePMask,		PPSMC_MSG_SetGpoFeaturePMask,          0),
 	MSG_MAP(DisallowGpo,			PPSMC_MSG_DisallowGpo,                 0),
 	MSG_MAP(Enable2ndUSB20Port,		PPSMC_MSG_Enable2ndUSB20Port,          0),
+	MSG_MAP(DriverMode2Reset,		PPSMC_MSG_DriverMode2Reset,	       0),
 };
 
 static struct cmn2asic_mapping sienna_cichlid_clk_map[SMU_CLK_COUNT] = {
@@ -376,7 +377,13 @@ static void sienna_cichlid_check_bxco_support(struct smu_context *smu)
 		if (((adev->pdev->device == 0x73A1) &&
 		    (adev->pdev->revision == 0x00)) ||
 		    ((adev->pdev->device == 0x73BF) &&
-		    (adev->pdev->revision == 0xCF)))
+		    (adev->pdev->revision == 0xCF)) ||
+		    ((adev->pdev->device == 0x7422) &&
+		    (adev->pdev->revision == 0x00)) ||
+		    ((adev->pdev->device == 0x73A3) &&
+		    (adev->pdev->revision == 0x00)) ||
+		    ((adev->pdev->device == 0x73E3) &&
+		    (adev->pdev->revision == 0x00)))
 			smu_baco->platform_support = false;
 
 	}
@@ -4265,6 +4272,57 @@ static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
 	return 0;
 }
 
+static bool sienna_cichlid_is_mode2_reset_supported(struct smu_context *smu)
+{
+	return true;
+}
+
+static int sienna_cichlid_mode2_reset(struct smu_context *smu)
+{
+	u32 smu_version;
+	int ret = 0, index;
+	struct amdgpu_device *adev = smu->adev;
+	int timeout = 100;
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+
+	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
+						SMU_MSG_DriverMode2Reset);
+
+	mutex_lock(&smu->message_lock);
+
+	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index,
+					       SMU_RESET_MODE_2);
+
+	ret = smu_cmn_wait_for_response(smu);
+	while (ret != 0 && timeout) {
+		ret = smu_cmn_wait_for_response(smu);
+		/* Wait a bit more time for getting ACK */
+		if (ret != 0) {
+			--timeout;
+			usleep_range(500, 1000);
+			continue;
+		} else {
+			break;
+		}
+	}
+
+	if (!timeout) {
+		dev_err(adev->dev,
+			"failed to send mode2 message \tparam: 0x%08x response %#x\n",
+			SMU_RESET_MODE_2, ret);
+		goto out;
+	}
+
+	dev_info(smu->adev->dev, "restore config space...\n");
+	/* Restore the config space saved during init */
+	amdgpu_device_load_pci_state(adev->pdev);
+out:
+	mutex_unlock(&smu->message_lock);
+
+	return ret;
+}
+
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
@@ -4360,6 +4418,8 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_default_config_table_settings = sienna_cichlid_get_default_config_table_settings,
 	.set_config_table = sienna_cichlid_set_config_table,
 	.get_unique_id = sienna_cichlid_get_unique_id,
+	.mode2_reset_is_support = sienna_cichlid_is_mode2_reset_supported,
+	.mode2_reset = sienna_cichlid_mode2_reset,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)

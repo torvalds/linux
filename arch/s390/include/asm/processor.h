@@ -186,9 +186,6 @@ struct pt_regs;
 void show_registers(struct pt_regs *regs);
 void show_cacheinfo(struct seq_file *m);
 
-/* Free all resources held by a thread. */
-static inline void release_thread(struct task_struct *tsk) { }
-
 /* Free guarded storage control block */
 void guarded_storage_release(struct task_struct *tsk);
 void gs_load_bc_cb(struct pt_regs *regs);
@@ -202,7 +199,16 @@ unsigned long __get_wchan(struct task_struct *p);
 /* Has task runtime instrumentation enabled ? */
 #define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
 
-register unsigned long current_stack_pointer asm("r15");
+/* avoid using global register due to gcc bug in versions < 8.4 */
+#define current_stack_pointer (__current_stack_pointer())
+
+static __always_inline unsigned long __current_stack_pointer(void)
+{
+	unsigned long sp;
+
+	asm volatile("lgr %0,15" : "=d" (sp));
+	return sp;
+}
 
 static __always_inline unsigned short stap(void)
 {
@@ -305,23 +311,6 @@ static __always_inline void __noreturn disabled_wait(void)
 }
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
-
-extern int memcpy_real(void *, unsigned long, size_t);
-extern void memcpy_absolute(void *, void *, size_t);
-
-#define put_abs_lowcore(member, x) do {					\
-	unsigned long __abs_address = offsetof(struct lowcore, member);	\
-	__typeof__(((struct lowcore *)0)->member) __tmp = (x);		\
-									\
-	memcpy_absolute(__va(__abs_address), &__tmp, sizeof(__tmp));	\
-} while (0)
-
-#define get_abs_lowcore(x, member) do {					\
-	unsigned long __abs_address = offsetof(struct lowcore, member);	\
-	__typeof__(((struct lowcore *)0)->member) *__ptr = &(x);	\
-									\
-	memcpy_absolute(__ptr, __va(__abs_address), sizeof(*__ptr));	\
-} while (0)
 
 extern int s390_isolate_bp(void);
 extern int s390_isolate_bp_guest(void);

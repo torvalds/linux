@@ -270,7 +270,11 @@ static bool access_error(bool is_write, bool is_exec, struct vm_area_struct *vma
 		return false;
 	}
 
-	if (unlikely(!vma_is_accessible(vma)))
+	/*
+	 * Check for a read fault.  This could be caused by a read on an
+	 * inaccessible page (i.e. PROT_NONE), or a Radix MMU execute-only page.
+	 */
+	if (unlikely(!(vma->vm_flags & VM_READ)))
 		return true;
 	/*
 	 * We should ideally do the vma pkey access check here. But in the
@@ -367,7 +371,22 @@ static void sanity_check_fault(bool is_write, bool is_user,
 #elif defined(CONFIG_PPC_8xx)
 #define page_fault_is_bad(__err)	((__err) & DSISR_NOEXEC_OR_G)
 #elif defined(CONFIG_PPC64)
-#define page_fault_is_bad(__err)	((__err) & DSISR_BAD_FAULT_64S)
+static int page_fault_is_bad(unsigned long err)
+{
+	unsigned long flag = DSISR_BAD_FAULT_64S;
+
+	/*
+	 * PAPR+ v2.11 § 14.15.3.4.1 (unreleased)
+	 * If byte 0, bit 3 of pi-attribute-specifier-type in
+	 * ibm,pi-features property is defined, ignore the DSI error
+	 * which is caused by the paste instruction on the
+	 * suspended NX window.
+	 */
+	if (mmu_has_feature(MMU_FTR_NX_DSI))
+		flag &= ~DSISR_BAD_COPYPASTE;
+
+	return err & flag;
+}
 #else
 #define page_fault_is_bad(__err)	((__err) & DSISR_BAD_FAULT_32S)
 #endif

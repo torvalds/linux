@@ -786,7 +786,7 @@ static void technisat_usb2_disconnect(struct usb_interface *intf)
 {
 	struct dvb_usb_device *dev = usb_get_intfdata(intf);
 
-	/* work and stuff was only created when the device is is hot-state */
+	/* work and stuff was only created when the device is hot-state */
 	if (dev != NULL) {
 		struct technisat_usb2_state *state = dev->priv;
 		if (state != NULL)

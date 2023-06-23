@@ -52,9 +52,6 @@ static unsigned int num_devices = 1;
 static size_t huge_class_size;
 
 static const struct block_device_operations zram_devops;
-#ifdef CONFIG_ZRAM_WRITEBACK
-static const struct block_device_operations zram_wb_devops;
-#endif
 
 static void zram_free_page(struct zram *zram, size_t index);
 static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
@@ -329,8 +326,8 @@ static ssize_t idle_store(struct device *dev,
 
 	if (!sysfs_streq(buf, "all")) {
 		/*
-		 * If it did not parse as 'all' try to treat it as an integer when
-		 * we have memory tracking enabled.
+		 * If it did not parse as 'all' try to treat it as an integer
+		 * when we have memory tracking enabled.
 		 */
 		u64 age_sec;
 
@@ -345,7 +342,10 @@ static ssize_t idle_store(struct device *dev,
 	if (!init_done(zram))
 		goto out_unlock;
 
-	/* A cutoff_time of 0 marks everything as idle, this is the "all" behavior */
+	/*
+	 * A cutoff_time of 0 marks everything as idle, this is the
+	 * "all" behavior.
+	 */
 	mark_idle(zram, cutoff_time);
 	rv = len;
 
@@ -499,7 +499,7 @@ static ssize_t backing_dev_store(struct device *dev,
 		goto out;
 	}
 
-	strlcpy(file_name, buf, PATH_MAX);
+	strscpy(file_name, buf, PATH_MAX);
 	/* ignore trailing newline */
 	sz = strlen(file_name);
 	if (sz > 0 && file_name[sz - 1] == '\n')
@@ -543,17 +543,6 @@ static ssize_t backing_dev_store(struct device *dev,
 	zram->backing_dev = backing_dev;
 	zram->bitmap = bitmap;
 	zram->nr_pages = nr_pages;
-	/*
-	 * With writeback feature, zram does asynchronous IO so it's no longer
-	 * synchronous device so let's remove synchronous io flag. Othewise,
-	 * upper layer(e.g., swap) could wait IO completion rather than
-	 * (submit and return), which will cause system sluggish.
-	 * Furthermore, when the IO function returns(e.g., swap_readpage),
-	 * upper layer expects IO was done so it could deallocate the page
-	 * freely but in fact, IO is going on so finally could cause
-	 * use-after-free when the IO is really done.
-	 */
-	zram->disk->fops = &zram_wb_devops;
 	up_write(&zram->init_lock);
 
 	pr_info("setup backing device %s\n", file_name);
@@ -1031,7 +1020,7 @@ static ssize_t comp_algorithm_store(struct device *dev,
 	char compressor[ARRAY_SIZE(zram->compressor)];
 	size_t sz;
 
-	strlcpy(compressor, buf, sizeof(compressor));
+	strscpy(compressor, buf, sizeof(compressor));
 	/* ignore trailing newline */
 	sz = strlen(compressor);
 	if (sz > 0 && compressor[sz - 1] == '\n')
@@ -1267,6 +1256,9 @@ static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index,
 		struct bio_vec bvec;
 
 		zram_slot_unlock(zram, index);
+		/* A null bio means rw_page was used, we must fallback to bio */
+		if (!bio)
+			return -EOPNOTSUPP;
 
 		bvec.bv_page = page;
 		bvec.bv_len = PAGE_SIZE;
@@ -1410,9 +1402,19 @@ compress_again:
 		handle = zs_malloc(zram->mem_pool, comp_len,
 				GFP_NOIO | __GFP_HIGHMEM |
 				__GFP_MOVABLE);
-		if (!IS_ERR((void *)handle))
+		if (IS_ERR((void *)handle))
+			return PTR_ERR((void *)handle);
+
+		if (comp_len != PAGE_SIZE)
 			goto compress_again;
-		return PTR_ERR((void *)handle);
+		/*
+		 * If the page is not compressible, you need to acquire the
+		 * lock and execute the code below. The zcomp_stream_get()
+		 * call is needed to disable the cpu hotplug and grab the
+		 * zstrm buffer back. It is necessary that the dereferencing
+		 * of the zstrm variable below occurs correctly.
+		 */
+		zstrm = zcomp_stream_get(zram->comp);
 	}
 
 	alloced_pages = zs_get_total_pages(zram->mem_pool);
@@ -1710,9 +1712,6 @@ out:
 
 static void zram_reset_device(struct zram *zram)
 {
-	struct zcomp *comp;
-	u64 disksize;
-
 	down_write(&zram->init_lock);
 
 	zram->limit_pages = 0;
@@ -1722,17 +1721,15 @@ static void zram_reset_device(struct zram *zram)
 		return;
 	}
 
-	comp = zram->comp;
-	disksize = zram->disksize;
-	zram->disksize = 0;
-
 	set_capacity_and_notify(zram->disk, 0);
 	part_stat_set_all(zram->disk->part0, 0);
 
 	/* I/O operation under all of CPU are done so let's free */
-	zram_meta_free(zram, disksize);
+	zram_meta_free(zram, zram->disksize);
+	zram->disksize = 0;
 	memset(&zram->stats, 0, sizeof(zram->stats));
-	zcomp_destroy(comp);
+	zcomp_destroy(zram->comp);
+	zram->comp = NULL;
 	reset_bdev(zram);
 
 	up_write(&zram->init_lock);
@@ -1847,15 +1844,6 @@ static const struct block_device_operations zram_devops = {
 	.rw_page = zram_rw_page,
 	.owner = THIS_MODULE
 };
-
-#ifdef CONFIG_ZRAM_WRITEBACK
-static const struct block_device_operations zram_wb_devops = {
-	.open = zram_open,
-	.submit_bio = zram_submit_bio,
-	.swap_slot_free_notify = zram_slot_free_notify,
-	.owner = THIS_MODULE
-};
-#endif
 
 static DEVICE_ATTR_WO(compact);
 static DEVICE_ATTR_RW(disksize);
@@ -1974,7 +1962,7 @@ static int zram_add(void)
 	if (ret)
 		goto out_cleanup_disk;
 
-	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
+	strscpy(zram->compressor, default_compressor, sizeof(zram->compressor));
 
 	zram_debugfs_register(zram);
 	pr_info("Added device: %s\n", zram->disk->disk_name);
@@ -2125,6 +2113,8 @@ static void destroy_devices(void)
 static int __init zram_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(__NR_ZRAM_PAGEFLAGS > BITS_PER_LONG);
 
 	ret = cpuhp_setup_state_multi(CPUHP_ZCOMP_PREPARE, "block/zram:prepare",
 				      zcomp_cpu_up_prepare, zcomp_cpu_dead);

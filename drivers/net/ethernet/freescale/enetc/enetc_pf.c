@@ -516,15 +516,34 @@ static void enetc_port_si_configure(struct enetc_si *si)
 	enetc_port_wr(hw, ENETC_PSIVLANFMR, ENETC_PSIVLANFMR_VS);
 }
 
-static void enetc_configure_port_mac(struct enetc_hw *hw)
+void enetc_set_ptcmsdur(struct enetc_hw *hw, u32 *max_sdu)
 {
 	int tc;
 
-	enetc_port_wr(hw, ENETC_PM0_MAXFRM,
-		      ENETC_SET_MAXFRM(ENETC_RX_MAXFRM_SIZE));
+	for (tc = 0; tc < 8; tc++) {
+		u32 val = ENETC_MAC_MAXFRM_SIZE;
+
+		if (max_sdu[tc])
+			val = max_sdu[tc] + VLAN_ETH_HLEN;
+
+		enetc_port_wr(hw, ENETC_PTCMSDUR(tc), val);
+	}
+}
+
+void enetc_reset_ptcmsdur(struct enetc_hw *hw)
+{
+	int tc;
 
 	for (tc = 0; tc < 8; tc++)
 		enetc_port_wr(hw, ENETC_PTCMSDUR(tc), ENETC_MAC_MAXFRM_SIZE);
+}
+
+static void enetc_configure_port_mac(struct enetc_hw *hw)
+{
+	enetc_port_wr(hw, ENETC_PM0_MAXFRM,
+		      ENETC_SET_MAXFRM(ENETC_RX_MAXFRM_SIZE));
+
+	enetc_reset_ptcmsdur(hw);
 
 	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
 		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
@@ -738,6 +757,8 @@ static int enetc_pf_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			     void *type_data)
 {
 	switch (type) {
+	case TC_QUERY_CAPS:
+		return enetc_qos_query_caps(ndev, type_data);
 	case TC_SETUP_QDISC_MQPRIO:
 		return enetc_setup_tc_mqprio(ndev, type_data);
 	case TC_SETUP_QDISC_TAPRIO:

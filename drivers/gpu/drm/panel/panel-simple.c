@@ -575,12 +575,9 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
-	if (IS_ERR(panel->enable_gpio)) {
-		err = PTR_ERR(panel->enable_gpio);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "failed to request GPIO: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(panel->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(panel->enable_gpio),
+				     "failed to request GPIO\n");
 
 	err = of_drm_get_panel_orientation(dev->of_node, &panel->orientation);
 	if (err) {
@@ -696,7 +693,7 @@ free_ddc:
 	return err;
 }
 
-static int panel_simple_remove(struct device *dev)
+static void panel_simple_remove(struct device *dev)
 {
 	struct panel_simple *panel = dev_get_drvdata(dev);
 
@@ -708,8 +705,6 @@ static int panel_simple_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
-
-	return 0;
 }
 
 static void panel_simple_shutdown(struct device *dev)
@@ -2505,6 +2500,7 @@ static const struct display_timing logictechno_lt161010_2nh_timing = {
 static const struct panel_desc logictechno_lt161010_2nh = {
 	.timings = &logictechno_lt161010_2nh_timing,
 	.num_timings = 1,
+	.bpc = 6,
 	.size = {
 		.width = 154,
 		.height = 86,
@@ -2534,6 +2530,7 @@ static const struct display_timing logictechno_lt170410_2whc_timing = {
 static const struct panel_desc logictechno_lt170410_2whc = {
 	.timings = &logictechno_lt170410_2whc_timing,
 	.num_timings = 1,
+	.bpc = 8,
 	.size = {
 		.width = 217,
 		.height = 136,
@@ -2695,6 +2692,36 @@ static const struct panel_desc multi_inno_mi0700s4t_6 = {
 	.size = {
 		.width = 154,
 		.height = 86,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		     DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE |
+		     DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
+};
+
+static const struct display_timing multi_inno_mi0800ft_9_timing = {
+	.pixelclock = { 32000000, 40000000, 50000000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 16, 210, 354 },
+	.hback_porch = { 6, 26, 45 },
+	.hsync_len = { 1, 20, 40 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 1, 12, 77 },
+	.vback_porch = { 3, 13, 22 },
+	.vsync_len = { 1, 10, 20 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+		 DISPLAY_FLAGS_SYNC_POSEDGE,
+};
+
+static const struct panel_desc multi_inno_mi0800ft_9 = {
+	.timings = &multi_inno_mi0800ft_9_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 162,
+		.height = 122,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
@@ -3216,6 +3243,37 @@ static const struct panel_desc rocktech_rk101ii01d_ct = {
 		.disable = 50,
 	},
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
+static const struct display_timing samsung_ltl101al01_timing = {
+	.pixelclock = { 66663000, 66663000, 66663000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 18, 18, 18 },
+	.hback_porch = { 36, 36, 36 },
+	.hsync_len = { 16, 16, 16 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 4, 4, 4 },
+	.vback_porch = { 16, 16, 16 },
+	.vsync_len = { 3, 3, 3 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
+};
+
+static const struct panel_desc samsung_ltl101al01 = {
+	.timings = &samsung_ltl101al01_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 217,
+		.height = 135,
+	},
+	.delay = {
+		.prepare = 40,
+		.enable = 300,
+		.disable = 200,
+		.unprepare = 600,
+	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
@@ -4104,6 +4162,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "multi-inno,mi0700s4t-6",
 		.data = &multi_inno_mi0700s4t_6,
 	}, {
+		.compatible = "multi-inno,mi0800ft-9",
+		.data = &multi_inno_mi0800ft_9,
+	}, {
 		.compatible = "multi-inno,mi1010ait-1cp",
 		.data = &multi_inno_mi1010ait_1cp,
 	}, {
@@ -4163,6 +4224,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "rocktech,rk101ii01d-ct",
 		.data = &rocktech_rk101ii01d_ct,
+	}, {
+		.compatible = "samsung,ltl101al01",
+		.data = &samsung_ltl101al01,
 	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
@@ -4273,7 +4337,9 @@ static int panel_simple_platform_probe(struct platform_device *pdev)
 
 static int panel_simple_platform_remove(struct platform_device *pdev)
 {
-	return panel_simple_remove(&pdev->dev);
+	panel_simple_remove(&pdev->dev);
+
+	return 0;
 }
 
 static void panel_simple_platform_shutdown(struct platform_device *pdev)
@@ -4566,7 +4632,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	return err;
 }
 
-static int panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
+static void panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 {
 	int err;
 
@@ -4574,7 +4640,7 @@ static int panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
-	return panel_simple_remove(&dsi->dev);
+	panel_simple_remove(&dsi->dev);
 }
 
 static void panel_simple_dsi_shutdown(struct mipi_dsi_device *dsi)

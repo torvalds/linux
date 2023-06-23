@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2013 Avionic Design GmbH
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
  *
- * Based on the KMS/FB CMA helpers
+ * Based on the KMS/FB DMA helpers
  *   Copyright (C) 2012 Analog Devices Inc.
  */
 

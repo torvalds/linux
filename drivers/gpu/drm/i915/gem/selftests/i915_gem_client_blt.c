@@ -711,7 +711,7 @@ static bool bad_swizzling(struct drm_i915_private *i915)
 {
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 
-	if (i915->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+	if (i915->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
 		return true;
 
 	if (has_bit17_swizzle(ggtt->bit_6_swizzle_x) ||

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/usb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic USB Controller Device Tree Bindings
+title: Generic USB Controller
 
 maintainers:
   - Greg Kroah-Hartman <gregkh@linuxfoundation.org>

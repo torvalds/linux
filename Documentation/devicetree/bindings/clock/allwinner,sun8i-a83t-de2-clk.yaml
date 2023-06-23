@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/allwinner,sun8i-a83t-de2-clk.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A83t Display Engine 2/3 Clock Controller Device Tree Bindings
+title: Allwinner A83t Display Engine 2/3 Clock Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

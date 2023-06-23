@@ -3233,7 +3233,7 @@ static int gfar_probe(struct platform_device *ofdev)
 	/* Register for napi ...We are registering NAPI for each grp */
 	for (i = 0; i < priv->num_grps; i++) {
 		netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
-			       gfar_poll_rx_sq, NAPI_POLL_WEIGHT);
+			       gfar_poll_rx_sq);
 		netif_napi_add_tx_weight(dev, &priv->gfargrp[i].napi_tx,
 					 gfar_poll_tx_sq, 2);
 	}

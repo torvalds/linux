@@ -287,15 +287,15 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (priv->plat->has_gmac || priv->plat->has_gmac4)
-		strlcpy(info->driver, GMAC_ETHTOOL_NAME, sizeof(info->driver));
+		strscpy(info->driver, GMAC_ETHTOOL_NAME, sizeof(info->driver));
 	else if (priv->plat->has_xgmac)
-		strlcpy(info->driver, XGMAC_ETHTOOL_NAME, sizeof(info->driver));
+		strscpy(info->driver, XGMAC_ETHTOOL_NAME, sizeof(info->driver));
 	else
-		strlcpy(info->driver, MAC100_ETHTOOL_NAME,
+		strscpy(info->driver, MAC100_ETHTOOL_NAME,
 			sizeof(info->driver));
 
 	if (priv->plat->pdev) {
-		strlcpy(info->bus_info, pci_name(priv->plat->pdev),
+		strscpy(info->bus_info, pci_name(priv->plat->pdev),
 			sizeof(info->bus_info));
 	}
 }

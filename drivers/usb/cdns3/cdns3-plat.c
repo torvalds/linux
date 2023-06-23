@@ -110,8 +110,6 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 	cdns->wakeup_irq = platform_get_irq_byname_optional(pdev, "wakeup");
 	if (cdns->wakeup_irq == -EPROBE_DEFER)
 		return cdns->wakeup_irq;
-	else if (cdns->wakeup_irq == 0)
-		return -EINVAL;
 
 	if (cdns->wakeup_irq < 0) {
 		dev_dbg(dev, "couldn't get wakeup irq\n");

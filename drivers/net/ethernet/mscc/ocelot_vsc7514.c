@@ -6,6 +6,7 @@
  */
 #include <linux/dsa/ocelot.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
 #include <linux/netdevice.h>
@@ -24,6 +25,9 @@
 
 #define VSC7514_VCAP_POLICER_BASE			128
 #define VSC7514_VCAP_POLICER_MAX			191
+
+#define MEM_INIT_SLEEP_US				1000
+#define MEM_INIT_TIMEOUT_US				100000
 
 static const u32 *ocelot_regmap[TARGET_MAX] = {
 	[ANA] = vsc7514_ana_regmap,
@@ -97,378 +101,7 @@ static const struct reg_field ocelot_regfields[REGFIELD_MAX] = {
 };
 
 static const struct ocelot_stat_layout ocelot_stats_layout[OCELOT_NUM_STATS] = {
-	[OCELOT_STAT_RX_OCTETS] = {
-		.name = "rx_octets",
-		.reg = SYS_COUNT_RX_OCTETS,
-	},
-	[OCELOT_STAT_RX_UNICAST] = {
-		.name = "rx_unicast",
-		.reg = SYS_COUNT_RX_UNICAST,
-	},
-	[OCELOT_STAT_RX_MULTICAST] = {
-		.name = "rx_multicast",
-		.reg = SYS_COUNT_RX_MULTICAST,
-	},
-	[OCELOT_STAT_RX_BROADCAST] = {
-		.name = "rx_broadcast",
-		.reg = SYS_COUNT_RX_BROADCAST,
-	},
-	[OCELOT_STAT_RX_SHORTS] = {
-		.name = "rx_shorts",
-		.reg = SYS_COUNT_RX_SHORTS,
-	},
-	[OCELOT_STAT_RX_FRAGMENTS] = {
-		.name = "rx_fragments",
-		.reg = SYS_COUNT_RX_FRAGMENTS,
-	},
-	[OCELOT_STAT_RX_JABBERS] = {
-		.name = "rx_jabbers",
-		.reg = SYS_COUNT_RX_JABBERS,
-	},
-	[OCELOT_STAT_RX_CRC_ALIGN_ERRS] = {
-		.name = "rx_crc_align_errs",
-		.reg = SYS_COUNT_RX_CRC_ALIGN_ERRS,
-	},
-	[OCELOT_STAT_RX_SYM_ERRS] = {
-		.name = "rx_sym_errs",
-		.reg = SYS_COUNT_RX_SYM_ERRS,
-	},
-	[OCELOT_STAT_RX_64] = {
-		.name = "rx_frames_below_65_octets",
-		.reg = SYS_COUNT_RX_64,
-	},
-	[OCELOT_STAT_RX_65_127] = {
-		.name = "rx_frames_65_to_127_octets",
-		.reg = SYS_COUNT_RX_65_127,
-	},
-	[OCELOT_STAT_RX_128_255] = {
-		.name = "rx_frames_128_to_255_octets",
-		.reg = SYS_COUNT_RX_128_255,
-	},
-	[OCELOT_STAT_RX_256_511] = {
-		.name = "rx_frames_256_to_511_octets",
-		.reg = SYS_COUNT_RX_256_511,
-	},
-	[OCELOT_STAT_RX_512_1023] = {
-		.name = "rx_frames_512_to_1023_octets",
-		.reg = SYS_COUNT_RX_512_1023,
-	},
-	[OCELOT_STAT_RX_1024_1526] = {
-		.name = "rx_frames_1024_to_1526_octets",
-		.reg = SYS_COUNT_RX_1024_1526,
-	},
-	[OCELOT_STAT_RX_1527_MAX] = {
-		.name = "rx_frames_over_1526_octets",
-		.reg = SYS_COUNT_RX_1527_MAX,
-	},
-	[OCELOT_STAT_RX_PAUSE] = {
-		.name = "rx_pause",
-		.reg = SYS_COUNT_RX_PAUSE,
-	},
-	[OCELOT_STAT_RX_CONTROL] = {
-		.name = "rx_control",
-		.reg = SYS_COUNT_RX_CONTROL,
-	},
-	[OCELOT_STAT_RX_LONGS] = {
-		.name = "rx_longs",
-		.reg = SYS_COUNT_RX_LONGS,
-	},
-	[OCELOT_STAT_RX_CLASSIFIED_DROPS] = {
-		.name = "rx_classified_drops",
-		.reg = SYS_COUNT_RX_CLASSIFIED_DROPS,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_0] = {
-		.name = "rx_red_prio_0",
-		.reg = SYS_COUNT_RX_RED_PRIO_0,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_1] = {
-		.name = "rx_red_prio_1",
-		.reg = SYS_COUNT_RX_RED_PRIO_1,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_2] = {
-		.name = "rx_red_prio_2",
-		.reg = SYS_COUNT_RX_RED_PRIO_2,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_3] = {
-		.name = "rx_red_prio_3",
-		.reg = SYS_COUNT_RX_RED_PRIO_3,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_4] = {
-		.name = "rx_red_prio_4",
-		.reg = SYS_COUNT_RX_RED_PRIO_4,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_5] = {
-		.name = "rx_red_prio_5",
-		.reg = SYS_COUNT_RX_RED_PRIO_5,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_6] = {
-		.name = "rx_red_prio_6",
-		.reg = SYS_COUNT_RX_RED_PRIO_6,
-	},
-	[OCELOT_STAT_RX_RED_PRIO_7] = {
-		.name = "rx_red_prio_7",
-		.reg = SYS_COUNT_RX_RED_PRIO_7,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_0] = {
-		.name = "rx_yellow_prio_0",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_0,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_1] = {
-		.name = "rx_yellow_prio_1",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_1,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_2] = {
-		.name = "rx_yellow_prio_2",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_2,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_3] = {
-		.name = "rx_yellow_prio_3",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_3,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_4] = {
-		.name = "rx_yellow_prio_4",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_4,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_5] = {
-		.name = "rx_yellow_prio_5",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_5,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_6] = {
-		.name = "rx_yellow_prio_6",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_6,
-	},
-	[OCELOT_STAT_RX_YELLOW_PRIO_7] = {
-		.name = "rx_yellow_prio_7",
-		.reg = SYS_COUNT_RX_YELLOW_PRIO_7,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_0] = {
-		.name = "rx_green_prio_0",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_0,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_1] = {
-		.name = "rx_green_prio_1",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_1,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_2] = {
-		.name = "rx_green_prio_2",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_2,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_3] = {
-		.name = "rx_green_prio_3",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_3,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_4] = {
-		.name = "rx_green_prio_4",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_4,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_5] = {
-		.name = "rx_green_prio_5",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_5,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_6] = {
-		.name = "rx_green_prio_6",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_6,
-	},
-	[OCELOT_STAT_RX_GREEN_PRIO_7] = {
-		.name = "rx_green_prio_7",
-		.reg = SYS_COUNT_RX_GREEN_PRIO_7,
-	},
-	[OCELOT_STAT_TX_OCTETS] = {
-		.name = "tx_octets",
-		.reg = SYS_COUNT_TX_OCTETS,
-	},
-	[OCELOT_STAT_TX_UNICAST] = {
-		.name = "tx_unicast",
-		.reg = SYS_COUNT_TX_UNICAST,
-	},
-	[OCELOT_STAT_TX_MULTICAST] = {
-		.name = "tx_multicast",
-		.reg = SYS_COUNT_TX_MULTICAST,
-	},
-	[OCELOT_STAT_TX_BROADCAST] = {
-		.name = "tx_broadcast",
-		.reg = SYS_COUNT_TX_BROADCAST,
-	},
-	[OCELOT_STAT_TX_COLLISION] = {
-		.name = "tx_collision",
-		.reg = SYS_COUNT_TX_COLLISION,
-	},
-	[OCELOT_STAT_TX_DROPS] = {
-		.name = "tx_drops",
-		.reg = SYS_COUNT_TX_DROPS,
-	},
-	[OCELOT_STAT_TX_PAUSE] = {
-		.name = "tx_pause",
-		.reg = SYS_COUNT_TX_PAUSE,
-	},
-	[OCELOT_STAT_TX_64] = {
-		.name = "tx_frames_below_65_octets",
-		.reg = SYS_COUNT_TX_64,
-	},
-	[OCELOT_STAT_TX_65_127] = {
-		.name = "tx_frames_65_to_127_octets",
-		.reg = SYS_COUNT_TX_65_127,
-	},
-	[OCELOT_STAT_TX_128_255] = {
-		.name = "tx_frames_128_255_octets",
-		.reg = SYS_COUNT_TX_128_255,
-	},
-	[OCELOT_STAT_TX_256_511] = {
-		.name = "tx_frames_256_511_octets",
-		.reg = SYS_COUNT_TX_256_511,
-	},
-	[OCELOT_STAT_TX_512_1023] = {
-		.name = "tx_frames_512_1023_octets",
-		.reg = SYS_COUNT_TX_512_1023,
-	},
-	[OCELOT_STAT_TX_1024_1526] = {
-		.name = "tx_frames_1024_1526_octets",
-		.reg = SYS_COUNT_TX_1024_1526,
-	},
-	[OCELOT_STAT_TX_1527_MAX] = {
-		.name = "tx_frames_over_1526_octets",
-		.reg = SYS_COUNT_TX_1527_MAX,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_0] = {
-		.name = "tx_yellow_prio_0",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_0,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_1] = {
-		.name = "tx_yellow_prio_1",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_1,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_2] = {
-		.name = "tx_yellow_prio_2",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_2,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_3] = {
-		.name = "tx_yellow_prio_3",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_3,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_4] = {
-		.name = "tx_yellow_prio_4",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_4,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_5] = {
-		.name = "tx_yellow_prio_5",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_5,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_6] = {
-		.name = "tx_yellow_prio_6",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_6,
-	},
-	[OCELOT_STAT_TX_YELLOW_PRIO_7] = {
-		.name = "tx_yellow_prio_7",
-		.reg = SYS_COUNT_TX_YELLOW_PRIO_7,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_0] = {
-		.name = "tx_green_prio_0",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_0,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_1] = {
-		.name = "tx_green_prio_1",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_1,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_2] = {
-		.name = "tx_green_prio_2",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_2,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_3] = {
-		.name = "tx_green_prio_3",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_3,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_4] = {
-		.name = "tx_green_prio_4",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_4,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_5] = {
-		.name = "tx_green_prio_5",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_5,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_6] = {
-		.name = "tx_green_prio_6",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_6,
-	},
-	[OCELOT_STAT_TX_GREEN_PRIO_7] = {
-		.name = "tx_green_prio_7",
-		.reg = SYS_COUNT_TX_GREEN_PRIO_7,
-	},
-	[OCELOT_STAT_TX_AGED] = {
-		.name = "tx_aged",
-		.reg = SYS_COUNT_TX_AGING,
-	},
-	[OCELOT_STAT_DROP_LOCAL] = {
-		.name = "drop_local",
-		.reg = SYS_COUNT_DROP_LOCAL,
-	},
-	[OCELOT_STAT_DROP_TAIL] = {
-		.name = "drop_tail",
-		.reg = SYS_COUNT_DROP_TAIL,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_0] = {
-		.name = "drop_yellow_prio_0",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_0,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_1] = {
-		.name = "drop_yellow_prio_1",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_1,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_2] = {
-		.name = "drop_yellow_prio_2",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_2,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_3] = {
-		.name = "drop_yellow_prio_3",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_3,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_4] = {
-		.name = "drop_yellow_prio_4",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_4,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_5] = {
-		.name = "drop_yellow_prio_5",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_5,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_6] = {
-		.name = "drop_yellow_prio_6",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_6,
-	},
-	[OCELOT_STAT_DROP_YELLOW_PRIO_7] = {
-		.name = "drop_yellow_prio_7",
-		.reg = SYS_COUNT_DROP_YELLOW_PRIO_7,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_0] = {
-		.name = "drop_green_prio_0",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_0,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_1] = {
-		.name = "drop_green_prio_1",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_1,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_2] = {
-		.name = "drop_green_prio_2",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_2,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_3] = {
-		.name = "drop_green_prio_3",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_3,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_4] = {
-		.name = "drop_green_prio_4",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_4,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_5] = {
-		.name = "drop_green_prio_5",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_5,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_6] = {
-		.name = "drop_green_prio_6",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_6,
-	},
-	[OCELOT_STAT_DROP_GREEN_PRIO_7] = {
-		.name = "drop_green_prio_7",
-		.reg = SYS_COUNT_DROP_GREEN_PRIO_7,
-	},
+	OCELOT_COMMON_STATS,
 };
 
 static void ocelot_pll5_init(struct ocelot *ocelot)
@@ -562,27 +195,43 @@ static const struct of_device_id mscc_ocelot_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mscc_ocelot_match);
 
+static int ocelot_mem_init_status(struct ocelot *ocelot)
+{
+	unsigned int val;
+	int err;
+
+	err = regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
+				&val);
+
+	return err ?: val;
+}
+
 static int ocelot_reset(struct ocelot *ocelot)
 {
-	int retries = 100;
+	int err;
 	u32 val;
 
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
+	if (err)
+		return err;
 
-	do {
-		msleep(1);
-		regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
-				  &val);
-	} while (val && --retries);
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
 
-	if (!retries)
-		return -ETIMEDOUT;
+	/* MEM_INIT is a self-clearing bit. Wait for it to be cleared (should be
+	 * 100us) before enabling the switch core.
+	 */
+	err = readx_poll_timeout(ocelot_mem_init_status, ocelot, val, !val,
+				 MEM_INIT_SLEEP_US, MEM_INIT_TIMEOUT_US);
+	if (err)
+		return err;
 
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
 
-	return 0;
+	return regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
 }
 
 /* Watermark encode

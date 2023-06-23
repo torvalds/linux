@@ -12,26 +12,12 @@
 /*  1. BB register R/W API */
 /*  */
 
-/**
-* Function:	phy_CalculateBitShift
-*
-* OverView:	Get shifted position of the BitMask
-*
-* Input:
-*			u32		BitMask,
-*
-* Output:	none
-* Return:		u32		Return the shift bit bit position of the mask
-*/
-static	u32 phy_CalculateBitShift(u32 BitMask)
+/* Get shifted position of the bit mask */
+static u32 phy_calculate_bit_shift(u32 bitmask)
 {
-	u32 i;
+	u32 i = ffs(bitmask);
 
-	for (i = 0; i <= 31; i++) {
-		if (((BitMask >> i) & 0x1) == 1)
-			break;
-	}
-	return i;
+	return i ? i - 1 : 32;
 }
 
 /**
@@ -62,7 +48,7 @@ rtl8188e_PHY_QueryBBReg(
 	if (res)
 		return 0;
 
-	BitShift = phy_CalculateBitShift(BitMask);
+	BitShift = phy_calculate_bit_shift(BitMask);
 	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 	return ReturnValue;
 }
@@ -95,7 +81,7 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 		if (res)
 			return;
 
-		BitShift = phy_CalculateBitShift(BitMask);
+		BitShift = phy_calculate_bit_shift(BitMask);
 		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 	}
 
@@ -267,7 +253,7 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 
 	Original_Value = phy_RFSerialRead(Adapter, RegAddr);
 
-	BitShift =  phy_CalculateBitShift(BitMask);
+	BitShift =  phy_calculate_bit_shift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;
 	return Readback_Value;
 }
@@ -302,7 +288,7 @@ rtl8188e_PHY_SetRFReg(
 	/*  RF data is 12 bits only */
 	if (BitMask != bRFRegOffsetMask) {
 		Original_Value = phy_RFSerialRead(Adapter, RegAddr);
-		BitShift =  phy_CalculateBitShift(BitMask);
+		BitShift =  phy_calculate_bit_shift(BitMask);
 		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
 	}
 
@@ -337,7 +323,7 @@ s32 PHY_MACConfig8188E(struct adapter *Adapter)
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv))
+	if (ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv))
 		rtStatus = _FAIL;
 
 	/*  2010.07.13 AMPDU aggregation number B */
@@ -469,7 +455,7 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
+	if (ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
 		return _FAIL;
 
 	/*  2. If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
@@ -479,7 +465,7 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	}
 
 	/*  3. BB AGC table Initialization */
-	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
+	if (ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
 		return _FAIL;
 
 	return _SUCCESS;
@@ -518,15 +504,6 @@ PHY_BBConfig8188E(
 	CrystalCap = pHalData->CrystalCap & 0x3F;
 	rtl8188e_PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, 0x7ff800, (CrystalCap | (CrystalCap << 6)));
 
-	return rtStatus;
-}
-
-int PHY_RFConfig8188E(struct adapter *Adapter)
-{
-	int		rtStatus = _SUCCESS;
-
-	/*  RF config */
-	rtStatus = PHY_RF6052_Config8188E(Adapter);
 	return rtStatus;
 }
 

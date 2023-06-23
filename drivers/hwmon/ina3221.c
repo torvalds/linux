@@ -228,7 +228,7 @@ static int ina3221_read_value(struct ina3221_data *ina, unsigned int reg,
 	 * Shunt Voltage Sum register has 14-bit value with 1-bit shift
 	 * Other Shunt Voltage registers have 12 bits with 3-bit shift
 	 */
-	if (reg == INA3221_SHUNT_SUM)
+	if (reg == INA3221_SHUNT_SUM || reg == INA3221_CRIT_SUM)
 		*val = sign_extend32(regval >> 1, 14);
 	else
 		*val = sign_extend32(regval >> 3, 12);
@@ -465,7 +465,7 @@ static int ina3221_write_curr(struct device *dev, u32 attr,
 	 *     SHUNT_SUM: (1 / 40uV) << 1 = 1 / 20uV
 	 *     SHUNT[1-3]: (1 / 40uV) << 3 = 1 / 5uV
 	 */
-	if (reg == INA3221_SHUNT_SUM)
+	if (reg == INA3221_SHUNT_SUM || reg == INA3221_CRIT_SUM)
 		regval = DIV_ROUND_CLOSEST(voltage_uv, 20) & 0xfffe;
 	else
 		regval = DIV_ROUND_CLOSEST(voltage_uv, 5) & 0xfff8;
@@ -913,7 +913,7 @@ fail:
 	return ret;
 }
 
-static int ina3221_remove(struct i2c_client *client)
+static void ina3221_remove(struct i2c_client *client)
 {
 	struct ina3221_data *ina = dev_get_drvdata(&client->dev);
 	int i;
@@ -926,11 +926,9 @@ static int ina3221_remove(struct i2c_client *client)
 		pm_runtime_put_noidle(ina->pm_dev);
 
 	mutex_destroy(&ina->lock);
-
-	return 0;
 }
 
-static int __maybe_unused ina3221_suspend(struct device *dev)
+static int ina3221_suspend(struct device *dev)
 {
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret;
@@ -953,7 +951,7 @@ static int __maybe_unused ina3221_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ina3221_resume(struct device *dev)
+static int ina3221_resume(struct device *dev)
 {
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret;
@@ -996,11 +994,8 @@ static int __maybe_unused ina3221_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops ina3221_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(ina3221_suspend, ina3221_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ina3221_pm, ina3221_suspend, ina3221_resume,
+				 NULL);
 
 static const struct of_device_id ina3221_of_match_table[] = {
 	{ .compatible = "ti,ina3221", },
@@ -1020,7 +1015,7 @@ static struct i2c_driver ina3221_i2c_driver = {
 	.driver = {
 		.name = INA3221_DRIVER_NAME,
 		.of_match_table = ina3221_of_match_table,
-		.pm = &ina3221_pm,
+		.pm = pm_ptr(&ina3221_pm),
 	},
 	.id_table = ina3221_ids,
 };

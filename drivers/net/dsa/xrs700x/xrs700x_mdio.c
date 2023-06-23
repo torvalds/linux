@@ -140,8 +140,6 @@ static void xrs700x_mdio_remove(struct mdio_device *mdiodev)
 		return;
 
 	xrs700x_switch_remove(priv);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void xrs700x_mdio_shutdown(struct mdio_device *mdiodev)

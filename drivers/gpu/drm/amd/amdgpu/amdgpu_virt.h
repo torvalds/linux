@@ -31,6 +31,7 @@
 #define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
+#define AMDGPU_VF_MMIO_ACCESS_PROTECT  (1 << 5) /* MMIO write access is not allowed in sriov runtime */
 
 /* flags for indirect register access path supported by rlcg for sriov */
 #define AMDGPU_RLCG_GC_WRITE_LEGACY    (0x8 << 28)
@@ -253,6 +254,9 @@ struct amdgpu_virt {
 	uint32_t decode_max_frame_pixels;
 	uint32_t encode_max_dimension_pixels;
 	uint32_t encode_max_frame_pixels;
+
+	/* the ucode id to signal the autoload */
+	uint32_t autoload_ucode_id;
 };
 
 struct amdgpu_video_codec_info;
@@ -293,6 +297,9 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
+
+#define amdgpu_sriov_vf_mmio_access_protection(adev) \
+((adev)->virt.caps & AMDGPU_VF_MMIO_ACCESS_PROTECT)
 
 static inline bool is_virtual_machine(void)
 {
@@ -343,4 +350,6 @@ void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 		       u32 acc_flags, u32 hwip);
 u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		      u32 offset, u32 acc_flags, u32 hwip);
+bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev,
+			uint32_t ucode_id);
 #endif

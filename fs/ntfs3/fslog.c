@@ -3819,7 +3819,7 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 		}
 
 		log_init_pg_hdr(log, page_size, page_size, 1, 1);
-		log_create(log, l_size, 0, get_random_int(), false, false);
+		log_create(log, l_size, 0, get_random_u32(), false, false);
 
 		log->ra = ra;
 
@@ -3893,7 +3893,7 @@ check_restart_area:
 
 		/* Do some checks based on whether we have a valid log page. */
 		if (!rst_info.valid_page) {
-			open_log_count = get_random_int();
+			open_log_count = get_random_u32();
 			goto init_log_instance;
 		}
 		open_log_count = le32_to_cpu(ra2->open_log_count);
@@ -4044,7 +4044,7 @@ find_oldest:
 		memcpy(ra->clients, Add2Ptr(ra2, t16),
 		       le16_to_cpu(ra2->ra_len) - t16);
 
-		log->current_openlog_count = get_random_int();
+		log->current_openlog_count = get_random_u32();
 		ra->open_log_count = cpu_to_le32(log->current_openlog_count);
 		log->ra_size = offsetof(struct RESTART_AREA, clients) +
 			       sizeof(struct CLIENT_REC);

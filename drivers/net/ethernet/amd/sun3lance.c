@@ -341,7 +341,7 @@ static int __init lance_probe( struct net_device *dev)
 
 	/* XXX - leak? */
 	MEM = dvma_malloc_align(sizeof(struct lance_memory), 0x10000);
-	if (MEM == NULL) {
+	if (!MEM) {
 #ifdef CONFIG_SUN3
 		iounmap((void __iomem *)ioaddr);
 #endif
@@ -796,7 +796,7 @@ static int lance_rx( struct net_device *dev )
 			}
 			else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
-				if (skb == NULL) {
+				if (!skb) {
 					dev->stats.rx_dropped++;
 					head->msg_length = 0;
 					head->flag |= RMD1_OWN_CHIP;

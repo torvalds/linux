@@ -63,8 +63,7 @@ out:
 	folio_put(folio);
 }
 
-static void __damon_pa_prepare_access_check(struct damon_ctx *ctx,
-					    struct damon_region *r)
+static void __damon_pa_prepare_access_check(struct damon_region *r)
 {
 	r->sampling_addr = damon_rand(r->ar.start, r->ar.end);
 
@@ -78,7 +77,7 @@ static void damon_pa_prepare_access_checks(struct damon_ctx *ctx)
 
 	damon_for_each_target(t, ctx) {
 		damon_for_each_region(r, t)
-			__damon_pa_prepare_access_check(ctx, r);
+			__damon_pa_prepare_access_check(r);
 	}
 }
 
@@ -166,8 +165,7 @@ out:
 	return result.accessed;
 }
 
-static void __damon_pa_check_access(struct damon_ctx *ctx,
-				    struct damon_region *r)
+static void __damon_pa_check_access(struct damon_region *r)
 {
 	static unsigned long last_addr;
 	static unsigned long last_page_sz = PAGE_SIZE;
@@ -196,7 +194,7 @@ static unsigned int damon_pa_check_accesses(struct damon_ctx *ctx)
 
 	damon_for_each_target(t, ctx) {
 		damon_for_each_region(r, t) {
-			__damon_pa_check_access(ctx, r);
+			__damon_pa_check_access(r);
 			max_nr_accesses = max(r->nr_accesses, max_nr_accesses);
 		}
 	}
@@ -233,7 +231,8 @@ static unsigned long damon_pa_pageout(struct damon_region *r)
 	return applied * PAGE_SIZE;
 }
 
-static unsigned long damon_pa_mark_accessed(struct damon_region *r)
+static inline unsigned long damon_pa_mark_accessed_or_deactivate(
+		struct damon_region *r, bool mark_accessed)
 {
 	unsigned long addr, applied = 0;
 
@@ -242,27 +241,24 @@ static unsigned long damon_pa_mark_accessed(struct damon_region *r)
 
 		if (!page)
 			continue;
-		mark_page_accessed(page);
+		if (mark_accessed)
+			mark_page_accessed(page);
+		else
+			deactivate_page(page);
 		put_page(page);
 		applied++;
 	}
 	return applied * PAGE_SIZE;
 }
 
+static unsigned long damon_pa_mark_accessed(struct damon_region *r)
+{
+	return damon_pa_mark_accessed_or_deactivate(r, true);
+}
+
 static unsigned long damon_pa_deactivate_pages(struct damon_region *r)
 {
-	unsigned long addr, applied = 0;
-
-	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
-		struct page *page = damon_get_page(PHYS_PFN(addr));
-
-		if (!page)
-			continue;
-		deactivate_page(page);
-		put_page(page);
-		applied++;
-	}
-	return applied * PAGE_SIZE;
+	return damon_pa_mark_accessed_or_deactivate(r, false);
 }
 
 static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
@@ -276,7 +272,10 @@ static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
 		return damon_pa_mark_accessed(r);
 	case DAMOS_LRU_DEPRIO:
 		return damon_pa_deactivate_pages(r);
+	case DAMOS_STAT:
+		break;
 	default:
+		/* DAMOS actions that not yet supported by 'paddr'. */
 		break;
 	}
 	return 0;
@@ -288,11 +287,11 @@ static int damon_pa_scheme_score(struct damon_ctx *context,
 {
 	switch (scheme->action) {
 	case DAMOS_PAGEOUT:
-		return damon_pageout_score(context, r, scheme);
+		return damon_cold_score(context, r, scheme);
 	case DAMOS_LRU_PRIO:
 		return damon_hot_score(context, r, scheme);
 	case DAMOS_LRU_DEPRIO:
-		return damon_pageout_score(context, r, scheme);
+		return damon_cold_score(context, r, scheme);
 	default:
 		break;
 	}

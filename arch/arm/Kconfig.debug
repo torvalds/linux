@@ -1904,7 +1904,8 @@ config DEBUG_UART_8250_PALMCHIP
 
 config DEBUG_UNCOMPRESS
 	bool "Enable decompressor debugging via DEBUG_LL output"
-	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
+	depends on !ARCH_MULTIPLATFORM
+	depends on !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
 	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
 		     !DEBUG_BRCMSTB_UART && !DEBUG_SEMIHOSTING
@@ -1921,9 +1922,8 @@ config DEBUG_UNCOMPRESS
 
 config UNCOMPRESS_INCLUDE
 	string
-	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
-	default "mach/uncompress.h"
+	default "mach/uncompress.h" if ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100
+	default "debug/uncompress.h"
 
 config EARLY_PRINTK
 	bool "Early printk"

@@ -267,7 +267,7 @@ struct vpfe_device {
 	 * is different from the image window
 	 */
 	struct v4l2_rect crop;
-	/* Buffer queue used in video-buf */
+	/* Buffer queue used in vb2 */
 	struct vb2_queue buffer_queue;
 	/* Queue of filled frames */
 	struct list_head dma_queue;

@@ -293,7 +293,7 @@ ax88796c_tx_fixup(struct net_device *ndev, struct sk_buff_head *q)
 	skb_put(skb, padlen);
 
 	/* EOP header */
-	memcpy(skb_put(skb, TX_EOP_SIZE), &info.eop, TX_EOP_SIZE);
+	skb_put_data(skb, &info.eop, TX_EOP_SIZE);
 
 	skb_unlink(skb, q);
 
@@ -381,7 +381,7 @@ static int ax88796c_hard_xmit(struct ax88796c_device *ax_local)
 	return 1;
 }
 
-static int
+static netdev_tx_t
 ax88796c_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct ax88796c_device *ax_local = to_ax88796c_device(ndev);

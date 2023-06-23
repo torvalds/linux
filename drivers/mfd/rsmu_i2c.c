@@ -146,13 +146,11 @@ static int rsmu_i2c_probe(struct i2c_client *client,
 	return rsmu_core_init(rsmu);
 }
 
-static int rsmu_i2c_remove(struct i2c_client *client)
+static void rsmu_i2c_remove(struct i2c_client *client)
 {
 	struct rsmu_ddata *rsmu = i2c_get_clientdata(client);
 
 	rsmu_core_exit(rsmu);
-
-	return 0;
 }
 
 static const struct i2c_device_id rsmu_i2c_id[] = {

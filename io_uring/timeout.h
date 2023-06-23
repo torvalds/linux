@@ -27,7 +27,7 @@ int io_timeout_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd);
 __cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
 			     bool cancel_all);
 void io_queue_linked_timeout(struct io_kiocb *req);
-bool io_disarm_next(struct io_kiocb *req);
+void io_disarm_next(struct io_kiocb *req);
 
 int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_link_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);

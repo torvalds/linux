@@ -216,7 +216,7 @@ err_free_mem:
 	return err;
 }
 
-static int qt1070_remove(struct i2c_client *client)
+static void qt1070_remove(struct i2c_client *client)
 {
 	struct qt1070_data *data = i2c_get_clientdata(client);
 
@@ -225,8 +225,6 @@ static int qt1070_remove(struct i2c_client *client)
 
 	input_unregister_device(data->input);
 	kfree(data);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

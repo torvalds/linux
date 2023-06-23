@@ -157,6 +157,7 @@ config MMC_SDHCI_OF_ARASAN
 
 config MMC_SDHCI_OF_ASPEED
 	tristate "SDHCI OF support for the ASPEED SDHCI controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
 	depends on MMC_SDHCI_PLTFM
 	depends on OF && OF_ADDRESS
 	select MMC_SDHCI_IO_ACCESSORS
@@ -1074,9 +1075,10 @@ config MMC_SDHCI_OMAP
 
 config MMC_SDHCI_AM654
 	tristate "Support for the SDHCI Controller in TI's AM654 SOCs"
-	depends on MMC_SDHCI_PLTFM && OF && REGMAP_MMIO
+	depends on MMC_SDHCI_PLTFM && OF
 	select MMC_SDHCI_IO_ACCESSORS
 	select MMC_CQHCI
+	select REGMAP_MMIO
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's AM654 SOCs. The controller supports

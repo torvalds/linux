@@ -1341,6 +1341,7 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct asd_sas_port *_sas_port = NULL;
 	int phy_no;
 
@@ -1369,6 +1370,12 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 			hisi_sas_phy_down(hisi_hba, phy_no, 0, GFP_KERNEL);
 		}
 	}
+	/*
+	 * Ensure any bcast events are processed prior to calling async nexus
+	 * reset calls from hisi_sas_clear_nexus_ha() ->
+	 * hisi_sas_async_I_T_nexus_reset()
+	 */
+	sas_drain_work(sas_ha);
 }
 
 static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
@@ -1527,9 +1534,9 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 		return rc;
 	}
+	clear_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
 
 	hisi_sas_controller_reset_done(hisi_hba);
-	clear_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
 	dev_info(dev, "controller reset complete\n");
 
 	return 0;
@@ -1816,12 +1823,14 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	HISI_SAS_DECLARE_RST_WORK_ON_STACK(r);
 	ASYNC_DOMAIN_EXCLUSIVE(async);
-	int i;
+	int i, ret;
 
 	queue_work(hisi_hba->wq, &r.work);
 	wait_for_completion(r.completion);
-	if (!r.done)
-		return TMF_RESP_FUNC_FAILED;
+	if (!r.done) {
+		ret = TMF_RESP_FUNC_FAILED;
+		goto out;
+	}
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
@@ -1838,7 +1847,9 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	async_synchronize_full_domain(&async);
 	hisi_sas_release_tasks(hisi_hba);
 
-	return TMF_RESP_FUNC_COMPLETE;
+	ret = TMF_RESP_FUNC_COMPLETE;
+out:
+	return ret;
 }
 
 static int hisi_sas_query_task(struct sas_task *task)
@@ -1981,6 +1992,22 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
 	}
 }
 EXPORT_SYMBOL_GPL(hisi_sas_phy_down);
+
+void hisi_sas_phy_bcast(struct hisi_sas_phy *phy)
+{
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct hisi_hba	*hisi_hba = phy->hisi_hba;
+	struct sas_ha_struct *sha = &hisi_hba->sha;
+
+	if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
+		return;
+
+	if (test_bit(SAS_HA_FROZEN, &sha->state))
+		return;
+
+	sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD, GFP_ATOMIC);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_phy_bcast);
 
 void hisi_sas_sync_irqs(struct hisi_hba *hisi_hba)
 {
