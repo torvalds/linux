@@ -11,7 +11,7 @@
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/ump.h>
-#include "ump_convert.h"
+#include <sound/ump_convert.h>
 
 #define ump_err(ump, fmt, args...)	dev_err(&(ump)->core.dev, fmt, ##args)
 #define ump_warn(ump, fmt, args...)	dev_warn(&(ump)->core.dev, fmt, ##args)
@@ -87,7 +87,7 @@ static void snd_ump_endpoint_free(struct snd_rawmidi *rmidi)
 		ump->private_free(ump);
 
 #if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
-	snd_ump_convert_free(ump);
+	kfree(ump->out_cvts);
 #endif
 }
 
@@ -1002,7 +1002,7 @@ static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
 				goto unlock;
 		}
 		ump->legacy_out_opens++;
-		snd_ump_reset_convert_to_ump(ump, group);
+		snd_ump_convert_reset(&ump->out_cvts[group]);
 	}
 	spin_lock_irq(&ump->legacy_locks[dir]);
 	ump->legacy_substreams[dir][group] = substream;
@@ -1091,7 +1091,7 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 		ctx = &ump->out_cvts[group];
 		while (!ctx->ump_bytes &&
 		       snd_rawmidi_transmit(substream, &c, 1) > 0)
-			snd_ump_convert_to_ump(ump, group, c);
+			snd_ump_convert_to_ump(ctx, group, ump->info.protocol, c);
 		if (ctx->ump_bytes && ctx->ump_bytes <= count) {
 			size = ctx->ump_bytes;
 			memcpy(buffer, ctx->ump, size);
@@ -1113,7 +1113,7 @@ static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
 	const int dir = SNDRV_RAWMIDI_STREAM_INPUT;
 	int size;
 
-	size = snd_ump_convert_from_ump(ump, src, buf, &group);
+	size = snd_ump_convert_from_ump(src, buf, &group);
 	if (size <= 0)
 		return;
 	spin_lock_irqsave(&ump->legacy_locks[dir], flags);
@@ -1130,9 +1130,9 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	bool input, output;
 	int err;
 
-	err = snd_ump_convert_init(ump);
-	if (err < 0)
-		return err;
+	ump->out_cvts = kcalloc(16, sizeof(*ump->out_cvts), GFP_KERNEL);
+	if (!ump->out_cvts)
+		return -ENOMEM;
 
 	input = ump->core.info_flags & SNDRV_RAWMIDI_INFO_INPUT;
 	output = ump->core.info_flags & SNDRV_RAWMIDI_INFO_OUTPUT;
@@ -1140,7 +1140,7 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 			      output ? 16 : 0, input ? 16 : 0,
 			      &rmidi);
 	if (err < 0) {
-		snd_ump_convert_free(ump);
+		kfree(ump->out_cvts);
 		return err;
 	}
 
