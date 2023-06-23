@@ -409,7 +409,7 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 			     struct timespec64 *ts, enum hrtimer_mode mode)
 	__must_hold(&ctx->timeout_lock)
 {
-	struct io_cancel_data cd = { .data = user_data, };
+	struct io_cancel_data cd = { .ctx = ctx, .data = user_data, };
 	struct io_kiocb *req = io_timeout_extract(ctx, &cd);
 	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_timeout_data *data;
@@ -473,7 +473,7 @@ int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	if (!(tr->flags & IORING_TIMEOUT_UPDATE)) {
-		struct io_cancel_data cd = { .data = tr->addr, };
+		struct io_cancel_data cd = { .ctx = ctx, .data = tr->addr, };
 
 		spin_lock(&ctx->completion_lock);
 		ret = io_timeout_cancel(ctx, &cd);
