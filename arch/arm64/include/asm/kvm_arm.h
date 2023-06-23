@@ -9,6 +9,7 @@
 
 #include <asm/esr.h>
 #include <asm/memory.h>
+#include <asm/sysreg.h>
 #include <asm/types.h>
 
 /* Hyp Configuration Register (HCR) bits */
@@ -91,6 +92,9 @@
 #define HCR_HOST_NVHE_FLAGS (HCR_RW | HCR_API | HCR_APK | HCR_ATA)
 #define HCR_HOST_NVHE_PROTECTED_FLAGS (HCR_HOST_NVHE_FLAGS | HCR_TSC)
 #define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
+
+#define HCRX_GUEST_FLAGS (HCRX_EL2_SMPME)
+#define HCRX_HOST_FLAGS (HCRX_EL2_MSCEn)
 
 /* TCR_EL2 Registers bits */
 #define TCR_EL2_RES1		((1U << 31) | (1 << 23))

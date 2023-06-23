@@ -46,7 +46,7 @@
 #define KIMAGE_VADDR		(MODULES_END)
 #define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
 #define MODULES_VADDR		(_PAGE_END(VA_BITS_MIN))
-#define MODULES_VSIZE		(SZ_128M)
+#define MODULES_VSIZE		(SZ_2G)
 #define VMEMMAP_START		(-(UL(1) << (VA_BITS - VMEMMAP_SHIFT)))
 #define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
 #define PCI_IO_END		(VMEMMAP_START - SZ_8M)
@@ -204,15 +204,17 @@ static inline unsigned long kaslr_offset(void)
 	return kimage_vaddr - KIMAGE_VADDR;
 }
 
+#ifdef CONFIG_RANDOMIZE_BASE
+void kaslr_init(void);
 static inline bool kaslr_enabled(void)
 {
-	/*
-	 * The KASLR offset modulo MIN_KIMG_ALIGN is taken from the physical
-	 * placement of the image rather than from the seed, so a displacement
-	 * of less than MIN_KIMG_ALIGN means that no seed was provided.
-	 */
-	return kaslr_offset() >= MIN_KIMG_ALIGN;
+	extern bool __kaslr_is_enabled;
+	return __kaslr_is_enabled;
 }
+#else
+static inline void kaslr_init(void) { }
+static inline bool kaslr_enabled(void) { return false; }
+#endif
 
 /*
  * Allow all memory at the discovery stage. We will clip it later.

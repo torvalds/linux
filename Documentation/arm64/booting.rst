@@ -379,6 +379,12 @@ Before jumping into the kernel, the following conditions must be met:
 
     - SMCR_EL2.EZT0 (bit 30) must be initialised to 0b1.
 
+  For CPUs with Memory Copy and Memory Set instructions (FEAT_MOPS):
+
+  - If the kernel is entered at EL1 and EL2 is present:
+
+    - HCRX_EL2.MSCEn (bit 11) must be initialised to 0b1.
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
 enter the kernel in the same exception level.  Where the values documented

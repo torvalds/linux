@@ -302,6 +302,9 @@ HWCAP2_SMEB16B16
 HWCAP2_SMEF16F16
     Functionality implied by ID_AA64SMFR0_EL1.F16F16 == 0b1
 
+HWCAP2_MOPS
+    Functionality implied by ID_AA64ISAR2_EL1.MOPS == 0b0001.
+
 4. Unused AT_HWCAP bits
 -----------------------
 
