@@ -369,7 +369,7 @@
 	};
 
 	firmware {
-		scm {
+		scm: scm {
 			compatible = "qcom,scm-sc7180", "qcom,scm";
 		};
 	};
