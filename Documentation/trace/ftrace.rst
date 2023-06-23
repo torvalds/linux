@@ -2792,7 +2792,7 @@ option, and these limitations will be eliminated in the future:
   especially when larger types are truncated, whether explicitly or implicitly.
   Here are some specific cases to illustrate this point:
 
-  **Case One**::
+  **Case One**:
 
   The function narrow_to_u8 is defined as follows::
 
@@ -2811,7 +2811,7 @@ option, and these limitations will be eliminated in the future:
   If you pass 0x123456789abcdef to this function and want to narrow it,
   it may be recorded as 0x123456789abcdef instead of 0xef.
 
-  **Case Two**::
+  **Case Two**:
 
   The function error_if_not_4g_aligned is defined as follows::
 
