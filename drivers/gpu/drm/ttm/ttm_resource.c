@@ -114,7 +114,7 @@ static void ttm_lru_bulk_move_del(struct ttm_lru_bulk_move *bulk,
 	struct ttm_lru_bulk_move_pos *pos = ttm_lru_bulk_move_pos(bulk, res);
 
 	if (unlikely(WARN_ON(!pos->first || !pos->last) ||
-		     pos->first == res && pos->last == res)) {
+		     (pos->first == res && pos->last == res))) {
 		pos->first = NULL;
 		pos->last = NULL;
 	} else if (pos->first == res) {
