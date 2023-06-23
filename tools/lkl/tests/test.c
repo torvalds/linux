@@ -7,7 +7,7 @@
 
 /* circular log buffer */
 
-static char log_buf[0x10000];
+static char log_buf[0x80000];
 static char *head = log_buf, *tail = log_buf;
 
 static inline void advance(char **ptr)
