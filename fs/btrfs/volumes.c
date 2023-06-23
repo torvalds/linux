@@ -5975,12 +5975,12 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 	stripe_nr = offset >> BTRFS_STRIPE_LEN_SHIFT;
 
 	/* stripe_offset is the offset of this block in its stripe */
-	stripe_offset = offset - (stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
+	stripe_offset = offset - ((u64)stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
 
 	stripe_nr_end = round_up(offset + length, BTRFS_STRIPE_LEN) >>
 			BTRFS_STRIPE_LEN_SHIFT;
 	stripe_cnt = stripe_nr_end - stripe_nr;
-	stripe_end_offset = (stripe_nr_end << BTRFS_STRIPE_LEN_SHIFT) -
+	stripe_end_offset = ((u64)stripe_nr_end << BTRFS_STRIPE_LEN_SHIFT) -
 			    (offset + length);
 	/*
 	 * after this, stripe_nr is the number of stripes on this
@@ -6023,7 +6023,7 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 	for (i = 0; i < *num_stripes; i++) {
 		stripes[i].physical =
 			map->stripes[stripe_index].physical +
-			stripe_offset + (stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
+			stripe_offset + ((u64)stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
 		stripes[i].dev = map->stripes[stripe_index].dev;
 
 		if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
@@ -6196,9 +6196,11 @@ static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 		 * not ensured to be power of 2.
 		 */
 		*full_stripe_start =
-			rounddown(*stripe_nr, nr_data_stripes(map)) <<
+			(u64)rounddown(*stripe_nr, nr_data_stripes(map)) <<
 			BTRFS_STRIPE_LEN_SHIFT;
 
+		ASSERT(*full_stripe_start + full_stripe_len > offset);
+		ASSERT(*full_stripe_start <= offset);
 		/*
 		 * For writes to RAID56, allow to write a full stripe set, but
 		 * no straddling of stripe sets.
@@ -6221,7 +6223,7 @@ static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *
 {
 	dst->dev = map->stripes[stripe_index].dev;
 	dst->physical = map->stripes[stripe_index].physical +
-			stripe_offset + (stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
+			stripe_offset + ((u64)stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
 }
 
 int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,

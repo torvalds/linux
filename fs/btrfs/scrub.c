@@ -2266,7 +2266,7 @@ next:
 	}
 out:
 	ret2 = flush_scrub_stripes(sctx);
-	if (!ret2)
+	if (!ret)
 		ret = ret2;
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)

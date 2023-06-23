@@ -220,7 +220,12 @@ static void io_worker_exit(struct io_worker *worker)
 	list_del_rcu(&worker->all_list);
 	raw_spin_unlock(&wq->lock);
 	io_wq_dec_running(worker);
-	worker->flags = 0;
+	/*
+	 * this worker is a goner, clear ->worker_private to avoid any
+	 * inc/dec running calls that could happen as part of exit from
+	 * touching 'worker'.
+	 */
+	current->worker_private = NULL;
 
 	kfree_rcu(worker, rcu);
 	io_worker_ref_put(wq);

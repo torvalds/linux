@@ -3020,6 +3020,15 @@ static int phy_led_blink_set(struct led_classdev *led_cdev,
 	return err;
 }
 
+static void phy_leds_unregister(struct phy_device *phydev)
+{
+	struct phy_led *phyled;
+
+	list_for_each_entry(phyled, &phydev->leds, list) {
+		led_classdev_unregister(&phyled->led_cdev);
+	}
+}
+
 static int of_phy_led(struct phy_device *phydev,
 		      struct device_node *led)
 {
@@ -3053,7 +3062,7 @@ static int of_phy_led(struct phy_device *phydev,
 	init_data.fwnode = of_fwnode_handle(led);
 	init_data.devname_mandatory = true;
 
-	err = devm_led_classdev_register_ext(dev, cdev, &init_data);
+	err = led_classdev_register_ext(dev, cdev, &init_data);
 	if (err)
 		return err;
 
@@ -3082,6 +3091,7 @@ static int of_phy_leds(struct phy_device *phydev)
 		err = of_phy_led(phydev, led);
 		if (err) {
 			of_node_put(led);
+			phy_leds_unregister(phydev);
 			return err;
 		}
 	}
@@ -3303,6 +3313,9 @@ static int phy_remove(struct device *dev)
 	struct phy_device *phydev = to_phy_device(dev);
 
 	cancel_delayed_work_sync(&phydev->state_queue);
+
+	if (IS_ENABLED(CONFIG_PHYLIB_LEDS))
+		phy_leds_unregister(phydev);
 
 	phydev->state = PHY_DOWN;
 

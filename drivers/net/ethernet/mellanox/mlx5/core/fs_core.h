@@ -54,8 +54,14 @@ struct mlx5_flow_definer {
 	u32 id;
 };
 
+enum mlx5_flow_resource_owner {
+	MLX5_FLOW_RESOURCE_OWNER_FW,
+	MLX5_FLOW_RESOURCE_OWNER_SW,
+};
+
 struct mlx5_modify_hdr {
 	enum mlx5_flow_namespace_type ns_type;
+	enum mlx5_flow_resource_owner owner;
 	union {
 		struct mlx5_fs_dr_action action;
 		u32 id;
@@ -65,6 +71,7 @@ struct mlx5_modify_hdr {
 struct mlx5_pkt_reformat {
 	enum mlx5_flow_namespace_type ns_type;
 	int reformat_type; /* from mlx5_ifc */
+	enum mlx5_flow_resource_owner owner;
 	union {
 		struct mlx5_fs_dr_action action;
 		u32 id;

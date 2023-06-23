@@ -151,6 +151,8 @@ mlx5dr_action_create_dest_match_range(struct mlx5dr_domain *dmn,
 
 int mlx5dr_action_destroy(struct mlx5dr_action *action);
 
+u32 mlx5dr_action_get_pkt_reformat_id(struct mlx5dr_action *action);
+
 int mlx5dr_definer_get(struct mlx5dr_domain *dmn, u16 format_id,
 		       u8 *dw_selectors, u8 *byte_selectors,
 		       u8 *match_mask, u32 *definer_id);

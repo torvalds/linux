@@ -161,7 +161,7 @@ struct mux_adth {
 	u8 opt_ipv4v6;
 	__le32 next_table_index;
 	__le32 reserved2;
-	struct mux_adth_dg dg;
+	struct mux_adth_dg dg[];
 };
 
 /**

@@ -965,6 +965,14 @@ struct dsa_switch_ops {
 	void	(*port_disable)(struct dsa_switch *ds, int port);
 
 	/*
+	 * Compatibility between device trees defining multiple CPU ports and
+	 * drivers which are not OK to use by default the numerically smallest
+	 * CPU port of a switch for its local ports. This can return NULL,
+	 * meaning "don't know/don't care".
+	 */
+	struct dsa_port *(*preferred_default_local_cpu_port)(struct dsa_switch *ds);
+
+	/*
 	 * Port's MAC EEE settings
 	 */
 	int	(*set_mac_eee)(struct dsa_switch *ds, int port,
