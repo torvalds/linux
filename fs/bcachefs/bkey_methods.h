@@ -119,16 +119,6 @@ enum btree_update_flags {
 #define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)
 #define BTREE_TRIGGER_NOATOMIC		(1U << __BTREE_TRIGGER_NOATOMIC)
 
-#define BTREE_TRIGGER_WANTS_OLD_AND_NEW		\
-	((1U << KEY_TYPE_alloc)|		\
-	 (1U << KEY_TYPE_alloc_v2)|		\
-	 (1U << KEY_TYPE_alloc_v3)|		\
-	 (1U << KEY_TYPE_alloc_v4)|		\
-	 (1U << KEY_TYPE_stripe)|		\
-	 (1U << KEY_TYPE_inode)|		\
-	 (1U << KEY_TYPE_inode_v2)|		\
-	 (1U << KEY_TYPE_snapshot))
-
 static inline int bch2_trans_mark_key(struct btree_trans *trans,
 				      enum btree_id btree_id, unsigned level,
 				      struct bkey_s_c old, struct bkey_i *new,
