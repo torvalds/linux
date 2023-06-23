@@ -625,7 +625,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 
 		timestamp = hecc_read(priv, HECC_CANLNT);
 		err = can_rx_offload_queue_timestamp(&priv->offload, skb,
-						  timestamp);
+						     timestamp);
 		if (err)
 			ndev->stats.rx_fifo_errors++;
 	}

@@ -106,7 +106,7 @@ static void sp_technologic_init(struct sja1000_priv *priv, struct device_node *o
 
 static void sp_rzn1_init(struct sja1000_priv *priv, struct device_node *of)
 {
-	priv->flags = SJA1000_QUIRK_NO_CDR_REG;
+	priv->flags = SJA1000_QUIRK_NO_CDR_REG | SJA1000_QUIRK_RESET_ON_OVERRUN;
 }
 
 static void sp_populate(struct sja1000_priv *priv,
@@ -276,6 +276,9 @@ static int sp_probe(struct platform_device *pdev)
 	} else {
 		priv->irq_flags = IRQF_SHARED;
 	}
+
+	if (priv->flags & SJA1000_QUIRK_RESET_ON_OVERRUN)
+		priv->irq_flags |= IRQF_ONESHOT;
 
 	dev->irq = irq;
 	priv->reg_base = addr;
