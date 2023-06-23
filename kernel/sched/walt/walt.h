@@ -344,6 +344,8 @@ extern unsigned int sched_lib_mask_force;
 extern cpumask_t cpus_for_sbt_pause;
 extern unsigned int sysctl_sched_sbt_delay_windows;
 
+extern cpumask_t cpus_for_pipeline;
+
 /* WALT cpufreq interface */
 #define WALT_CPUFREQ_ROLLOVER		0x1
 #define WALT_CPUFREQ_CONTINUE		0x2
