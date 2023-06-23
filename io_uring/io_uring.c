@@ -1121,26 +1121,13 @@ static inline void io_dismantle_req(struct io_kiocb *req)
 		io_put_file(req->file);
 }
 
-static __cold void io_free_req_tw(struct io_kiocb *req, struct io_tw_state *ts)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	if (req->rsrc_node) {
-		io_tw_lock(ctx, ts);
-		io_put_rsrc_node(ctx, req->rsrc_node);
-	}
-	io_dismantle_req(req);
-	io_put_task_remote(req->task, 1);
-
-	spin_lock(&ctx->completion_lock);
-	wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
-	ctx->locked_free_nr++;
-	spin_unlock(&ctx->completion_lock);
-}
-
 __cold void io_free_req(struct io_kiocb *req)
 {
-	req->io_task_work.func = io_free_req_tw;
+	/* refs were already put, restore them for io_req_task_complete() */
+	req->flags &= ~REQ_F_REFCOUNT;
+	/* we only want to free it, don't post CQEs */
+	req->flags |= REQ_F_CQE_SKIP;
+	req->io_task_work.func = io_req_task_complete;
 	io_req_task_work_add(req);
 }
 
