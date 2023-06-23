@@ -52,6 +52,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	u16 fifo_count;
 	u32 fifo_period;
 	s64 timestamp;
+	u8 data[INV_MPU6050_OUTPUT_DATA_SIZE];
 	int int_status;
 	size_t i, nb;
 
@@ -105,24 +106,30 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		goto flush_fifo;
 	}
 
-	/* compute and process all complete datum */
+	/* compute and process only all complete datum */
 	nb = fifo_count / bytes_per_datum;
+	fifo_count = nb * bytes_per_datum;
 	/* Each FIFO data contains all sensors, so same number for FIFO and sensor data */
 	fifo_period = NSEC_PER_SEC / INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
 	inv_sensors_timestamp_interrupt(&st->timestamp, fifo_period, nb, nb, pf->timestamp);
 	inv_sensors_timestamp_apply_odr(&st->timestamp, fifo_period, nb, 0);
+
+	/* clear internal data buffer for avoiding kernel data leak */
+	memset(data, 0, sizeof(data));
+
+	/* read all data once and process every samples */
+	result = regmap_noinc_read(st->map, st->reg->fifo_r_w, st->data, fifo_count);
+	if (result)
+		goto flush_fifo;
 	for (i = 0; i < nb; ++i) {
-		result = regmap_noinc_read(st->map, st->reg->fifo_r_w,
-					   st->data, bytes_per_datum);
-		if (result)
-			goto flush_fifo;
 		/* skip first samples if needed */
 		if (st->skip_samples) {
 			st->skip_samples--;
 			continue;
 		}
+		memcpy(data, &st->data[i * bytes_per_datum], bytes_per_datum);
 		timestamp = inv_sensors_timestamp_pop(&st->timestamp);
-		iio_push_to_buffers_with_timestamp(indio_dev, st->data, timestamp);
+		iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
 	}
 
 end_session:

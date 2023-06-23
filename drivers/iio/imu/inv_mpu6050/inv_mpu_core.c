@@ -1345,6 +1345,9 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	st->reg = hw_info[st->chip_type].reg;
 	memcpy(&st->chip_config, hw_info[st->chip_type].config,
 	       sizeof(st->chip_config));
+	st->data = devm_kzalloc(regmap_get_device(st->map), st->hw->fifo_size, GFP_KERNEL);
+	if (st->data == NULL)
+		return -ENOMEM;
 
 	/* check chip self-identification */
 	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
