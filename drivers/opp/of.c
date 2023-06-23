@@ -513,11 +513,7 @@ int dev_pm_opp_of_find_icc_paths(struct device *dev,
 	for (i = 0; i < num_paths; i++) {
 		paths[i] = of_icc_get_by_index(dev, i);
 		if (IS_ERR(paths[i])) {
-			ret = PTR_ERR(paths[i]);
-			if (ret != -EPROBE_DEFER) {
-				dev_err(dev, "%s: Unable to get path%d: %d\n",
-					__func__, i, ret);
-			}
+			ret = dev_err_probe(dev, ret, "%s: Unable to get path%d\n", __func__, i);
 			goto err;
 		}
 	}
