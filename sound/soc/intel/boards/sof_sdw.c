@@ -1347,7 +1347,7 @@ static int sof_card_dai_links_create(struct device *dev,
 				if ((SDW_PART_ID(adr_link->adr_d[i].adr) !=
 				    SDW_PART_ID(adr_link->adr_d[j].adr)) ||
 				    (SDW_MFG_ID(adr_link->adr_d[i].adr) !=
-				    SDW_MFG_ID(adr_link->adr_d[i].adr))) {
+				    SDW_MFG_ID(adr_link->adr_d[j].adr))) {
 					append_codec_type = true;
 					goto out;
 				}
