@@ -382,6 +382,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 	struct symbol *sym;
 	u64 address = 0;
 	int ret = -ENOENT;
+	size_t idx;
 
 	/* This can work only for function-name based one */
 	if (!pp->function || pp->file)
@@ -392,7 +393,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 		return -EINVAL;
 
 	/* Find the address of given function */
-	map__for_each_symbol_by_name(map, pp->function, sym) {
+	map__for_each_symbol_by_name(map, pp->function, sym, idx) {
 		if (uprobes) {
 			address = sym->start;
 			if (sym->type == STT_GNU_IFUNC)
@@ -3738,7 +3739,6 @@ out:
 int show_available_funcs(const char *target, struct nsinfo *nsi,
 			 struct strfilter *_filter, bool user)
 {
-        struct rb_node *nd;
 	struct map *map;
 	struct dso *dso;
 	int ret;
@@ -3772,11 +3772,11 @@ int show_available_funcs(const char *target, struct nsinfo *nsi,
 	/* Show all (filtered) symbols */
 	setup_pager();
 
-	for (nd = rb_first_cached(&dso->symbol_names); nd; nd = rb_next(nd)) {
-		struct symbol_name_rb_node *pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
+	for (size_t i = 0; i < dso->symbol_names_len; i++) {
+		struct symbol *pos = dso->symbol_names[i];
 
-		if (strfilter__compare(_filter, pos->sym.name))
-			printf("%s\n", pos->sym.name);
+		if (strfilter__compare(_filter, pos->name))
+			printf("%s\n", pos->name);
 	}
 end:
 	map__put(map);

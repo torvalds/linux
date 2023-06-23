@@ -390,7 +390,7 @@ struct symbol *map__find_symbol(struct map *map, u64 addr)
 	return dso__find_symbol(map__dso(map), addr);
 }
 
-struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
+struct symbol *map__find_symbol_by_name_idx(struct map *map, const char *name, size_t *idx)
 {
 	struct dso *dso;
 
@@ -400,7 +400,14 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 	dso = map__dso(map);
 	dso__sort_by_name(dso);
 
-	return dso__find_symbol_by_name(dso, name);
+	return dso__find_symbol_by_name(dso, name, idx);
+}
+
+struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
+{
+	size_t idx;
+
+	return map__find_symbol_by_name_idx(map, name, &idx);
 }
 
 struct map *map__clone(struct map *from)

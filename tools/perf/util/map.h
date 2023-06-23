@@ -148,16 +148,17 @@ struct thread;
  * @map: the 'struct map *' in which symbols are iterated
  * @sym_name: the symbol name
  * @pos: the 'struct symbol *' to use as a loop cursor
+ * @idx: the cursor index in the symbol names array
  */
-#define __map__for_each_symbol_by_name(map, sym_name, pos)	\
-	for (pos = map__find_symbol_by_name(map, sym_name);	\
+#define __map__for_each_symbol_by_name(map, sym_name, pos, idx)		\
+	for (pos = map__find_symbol_by_name_idx(map, sym_name, &idx);	\
 	     pos &&						\
 	     !symbol__match_symbol_name(pos->name, sym_name,	\
 					SYMBOL_TAG_INCLUDE__DEFAULT_ONLY); \
-	     pos = symbol__next_by_name(pos))
+	     pos = dso__next_symbol_by_name(map__dso(map), &idx))
 
-#define map__for_each_symbol_by_name(map, sym_name, pos)		\
-	__map__for_each_symbol_by_name(map, sym_name, (pos))
+#define map__for_each_symbol_by_name(map, sym_name, pos, idx)	\
+	__map__for_each_symbol_by_name(map, sym_name, (pos), idx)
 
 void map__init(struct map *map,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
@@ -202,6 +203,7 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 int map__load(struct map *map);
 struct symbol *map__find_symbol(struct map *map, u64 addr);
 struct symbol *map__find_symbol_by_name(struct map *map, const char *name);
+struct symbol *map__find_symbol_by_name_idx(struct map *map, const char *name, size_t *idx);
 void map__fixup_start(struct map *map);
 void map__fixup_end(struct map *map);
 

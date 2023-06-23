@@ -150,7 +150,8 @@ struct dso {
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root_cached symbols;
-	struct rb_root_cached symbol_names;
+	struct symbol	 **symbol_names;
+	size_t		 symbol_names_len;
 	struct rb_root_cached inlined_nodes;
 	struct rb_root_cached srclines;
 	struct {
