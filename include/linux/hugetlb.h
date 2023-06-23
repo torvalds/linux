@@ -761,12 +761,6 @@ static inline void hugetlb_set_folio_subpool(struct folio *folio,
 	folio->_hugetlb_subpool = subpool;
 }
 
-static inline void hugetlb_set_page_subpool(struct page *hpage,
-					struct hugepage_subpool *subpool)
-{
-	hugetlb_set_folio_subpool(page_folio(hpage), subpool);
-}
-
 static inline struct hstate *hstate_file(struct file *f)
 {
 	return hstate_inode(file_inode(f));
