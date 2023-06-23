@@ -9,7 +9,7 @@ function ParanoidAndNotRoot()
 # $1 name $2 extra_opt
 check_no_args()
 {
-        echo -n "Checking $1 output: no args"
+        echo -n "Checking $1 output: no args "
         perf stat $2 true
         commachecker --no-args
         echo "[Success]"
