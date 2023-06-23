@@ -40,10 +40,15 @@ static const struct of_device_id mtmips_memc_match[] = {
 
 static const struct of_device_id mtmips_sysc_match[] = {
 	{ .compatible = "mediatek,mt7621-sysc" },
-	{ .compatible = "ralink,mt7620a-sysc" },
+	{ .compatible = "ralink,mt7620-sysc" },
+	{ .compatible = "ralink,mt7628-sysc" },
+	{ .compatible = "ralink,mt7688-sysc" },
 	{ .compatible = "ralink,rt2880-sysc" },
 	{ .compatible = "ralink,rt3050-sysc" },
+	{ .compatible = "ralink,rt3052-sysc" },
+	{ .compatible = "ralink,rt3352-sysc" },
 	{ .compatible = "ralink,rt3883-sysc" },
+	{ .compatible = "ralink,rt5350-sysc" },
 	{}
 };
 
