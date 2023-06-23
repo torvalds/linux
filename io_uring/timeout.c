@@ -268,16 +268,10 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 	list_for_each_entry(timeout, &ctx->timeout_list, list) {
 		struct io_kiocb *tmp = cmd_to_io_kiocb(timeout);
 
-		if (!(cd->flags & IORING_ASYNC_CANCEL_ANY) &&
-		    cd->data != tmp->cqe.user_data)
-			continue;
-		if (cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY)) {
-			if (cd->seq == tmp->work.cancel_seq)
-				continue;
-			tmp->work.cancel_seq = cd->seq;
+		if (io_cancel_req_match(tmp, cd)) {
+			req = tmp;
+			break;
 		}
-		req = tmp;
-		break;
 	}
 	if (!req)
 		return ERR_PTR(-ENOENT);

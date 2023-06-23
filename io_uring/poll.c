@@ -824,14 +824,10 @@ static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
 
 		spin_lock(&hb->lock);
 		hlist_for_each_entry(req, &hb->list, hash_node) {
-			if (!(cd->flags & IORING_ASYNC_CANCEL_ANY) &&
-			    req->file != cd->file)
-				continue;
-			if (cd->seq == req->work.cancel_seq)
-				continue;
-			req->work.cancel_seq = cd->seq;
-			*out_bucket = hb;
-			return req;
+			if (io_cancel_req_match(req, cd)) {
+				*out_bucket = hb;
+				return req;
+			}
 		}
 		spin_unlock(&hb->lock);
 	}
