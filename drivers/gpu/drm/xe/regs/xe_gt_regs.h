@@ -16,6 +16,11 @@
 #define MEDIA_GT_GSI_OFFSET				0x380000
 #define MEDIA_GT_GSI_LENGTH				0x40000
 
+/* MTL workpoint reg to get core C state and actual freq of 3D, SAMedia */
+#define MTL_MIRROR_TARGET_WP1				XE_REG(0xc60)
+#define   MTL_CAGF_MASK					REG_GENMASK(8, 0)
+#define   MTL_CC_MASK					REG_GENMASK(12, 9)
+
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0					XE_REG(0xd00)
 #define   RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK		REG_GENMASK(5, 3)
@@ -349,10 +354,12 @@
 #define   FORCEWAKE_USER			BIT(1)
 #define   FORCEWAKE_KERNEL_FALLBACK		BIT(15)
 
+#define MTL_MEDIA_MC6				XE_REG(0x138048)
+
 #define GT_CORE_STATUS				XE_REG(0x138060)
 #define   RCN_MASK				REG_GENMASK(2, 0)
-#define   GT_RC0				0
-#define   GT_RC6				3
+#define   GT_C0					0
+#define   GT_C6					3
 
 #define GT_GFX_RC6_LOCKED			XE_REG(0x138104)
 #define GT_GFX_RC6				XE_REG(0x138108)

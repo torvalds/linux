@@ -142,11 +142,17 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 		return;
 	}
 
-	sprintf(gtidle->name, "gt%d-rc\n", gt->info.id);
-	/* Multiplier for  RC6 Residency counter in units of 1.28us */
+	if (xe_gt_is_media_type(gt)) {
+		sprintf(gtidle->name, "gt%d-mc\n", gt->info.id);
+		gtidle->idle_residency = xe_guc_pc_mc6_residency;
+	} else {
+		sprintf(gtidle->name, "gt%d-rc\n", gt->info.id);
+		gtidle->idle_residency = xe_guc_pc_rc6_residency;
+	}
+
+	/* Multiplier for Residency counter in units of 1.28us */
 	gtidle->residency_multiplier = 1280;
-	gtidle->idle_residency = xe_guc_pc_rc6_residency;
-	gtidle->idle_status = xe_guc_pc_rc_status;
+	gtidle->idle_status = xe_guc_pc_c_status;
 
 	err = sysfs_create_files(kobj, gt_idle_attrs);
 	if (err) {

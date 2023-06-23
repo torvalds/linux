@@ -34,9 +34,6 @@
 #define GT_PERF_STATUS		XE_REG(0x1381b4)
 #define   GEN12_CAGF_MASK	REG_GENMASK(19, 11)
 
-#define MTL_MIRROR_TARGET_WP1	XE_REG(0xc60)
-#define   MTL_CAGF_MASK		REG_GENMASK(8, 0)
-
 #define GT_FREQUENCY_MULTIPLIER	50
 #define GEN9_FREQ_SCALER	3
 
@@ -568,22 +565,30 @@ out:
 static DEVICE_ATTR_RW(freq_max);
 
 /**
- * xe_guc_pc_rc_status - get the current Render C state
+ * xe_guc_pc_c_status - get the current GT C state
  * @pc: XE_GuC_PC instance
  */
-enum xe_gt_idle_state xe_guc_pc_rc_status(struct xe_guc_pc *pc)
+enum xe_gt_idle_state xe_guc_pc_c_status(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
-	u32 reg;
+	u32 reg, gt_c_state;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
-	reg = xe_mmio_read32(gt, GT_CORE_STATUS);
+
+	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
+		reg = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
+		gt_c_state = REG_FIELD_GET(MTL_CC_MASK, reg);
+	} else {
+		reg = xe_mmio_read32(gt, GT_CORE_STATUS);
+		gt_c_state = REG_FIELD_GET(RCN_MASK, reg);
+	}
+
 	xe_device_mem_access_put(gt_to_xe(gt));
 
-	switch (REG_FIELD_GET(RCN_MASK, reg)) {
-	case GT_RC6:
+	switch (gt_c_state) {
+	case GT_C6:
 		return GT_IDLE_C6;
-	case GT_RC0:
+	case GT_C0:
 		return GT_IDLE_C0;
 	default:
 		return GT_IDLE_UNKNOWN;
@@ -601,6 +606,22 @@ u64 xe_guc_pc_rc6_residency(struct xe_guc_pc *pc)
 
 	xe_device_mem_access_get(gt_to_xe(gt));
 	reg = xe_mmio_read32(gt, GT_GFX_RC6);
+	xe_device_mem_access_put(gt_to_xe(gt));
+
+	return reg;
+}
+
+/**
+ * xe_guc_pc_mc6_residency - mc6 residency counter
+ * @pc: Xe_GuC_PC instance
+ */
+u64 xe_guc_pc_mc6_residency(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	u64 reg;
+
+	xe_device_mem_access_get(gt_to_xe(gt));
+	reg = xe_mmio_read32(gt, MTL_MEDIA_MC6);
 	xe_device_mem_access_put(gt_to_xe(gt));
 
 	return reg;
