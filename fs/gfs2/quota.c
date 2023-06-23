@@ -473,6 +473,20 @@ static int qd_check_sync(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd,
 	return 1;
 }
 
+static int qd_bh_get_or_undo(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd)
+{
+	int error;
+
+	error = bh_get(qd);
+	if (!error)
+		return 0;
+
+	clear_bit(QDF_LOCKED, &qd->qd_flags);
+	slot_put(qd);
+	qd_put(qd);
+	return error;
+}
+
 static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 {
 	struct gfs2_quota_data *qd = NULL, *iter;
@@ -495,16 +509,11 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 	spin_unlock(&qd_lock);
 
 	if (qd) {
-		error = bh_get(qd);
-		if (error) {
-			clear_bit(QDF_LOCKED, &qd->qd_flags);
-			slot_put(qd);
-			qd_put(qd);
+		error = qd_bh_get_or_undo(sdp, qd);
+		if (error)
 			return error;
-		}
+		*qdp = qd;
 	}
-
-	*qdp = qd;
 
 	return 0;
 }
@@ -1164,15 +1173,8 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 		if (!found)
 			continue;
 
-		gfs2_assert_warn(sdp, qd->qd_change_sync);
-		if (bh_get(qd)) {
-			clear_bit(QDF_LOCKED, &qd->qd_flags);
-			slot_put(qd);
-			qd_put(qd);
-			continue;
-		}
-
-		qda[count++] = qd;
+		if (!qd_bh_get_or_undo(sdp, qd))
+			qda[count++] = qd;
 	}
 
 	if (count) {
