@@ -4,7 +4,7 @@
 #
 config QCOM_HGSL
 	tristate "Graphics driver for Hypervisor"
-	depends on QTI_QUIN_GVM
+	depends on QTI_QUIN_GVM || ARCH_QTI_VM
 	depends on MSM_HAB
 	help
 	  This driver could help commands submmitting functions for
