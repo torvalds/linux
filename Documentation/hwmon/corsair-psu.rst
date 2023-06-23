@@ -15,11 +15,11 @@ Supported devices:
 
   Corsair HX850i
 
-  Corsair HX1000i (revision 1 and 2)
+  Corsair HX1000i (Series 2022 and Series 2023)
 
   Corsair HX1200i
 
-  Corsair HX1500i
+  Corsair HX1500i (Series 2022)
 
   Corsair RM550i
 
