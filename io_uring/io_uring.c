@@ -666,7 +666,7 @@ static void __io_cq_unlock_post_flush(struct io_ring_ctx *ctx)
 	}
 }
 
-void io_cq_unlock_post(struct io_ring_ctx *ctx)
+static void io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
 {
 	io_commit_cqring(ctx);

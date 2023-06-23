@@ -110,8 +110,6 @@ static inline void io_req_task_work_add(struct io_kiocb *req)
 #define io_for_each_link(pos, head) \
 	for (pos = (head); pos; pos = pos->link)
 
-void io_cq_unlock_post(struct io_ring_ctx *ctx);
-
 static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
 						       bool overflow)
 {
