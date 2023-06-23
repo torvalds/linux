@@ -243,6 +243,7 @@ def _define_image_build(
         srcs = [],
         outs = ["modules.list.vendor_dlkm.{}".format(target)],
         cmd_bash = """
+          touch "$@"
           for module in {mod_list}; do
             basename "$$module" >> "$@"
           done
