@@ -958,10 +958,6 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
-	/* Check online status of the CPU to which the event is pinned */
-	if (event->cpu >= 0 && !cpu_online(event->cpu))
-		return -ENODEV;
-
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.
 	 */
