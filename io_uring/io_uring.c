@@ -637,18 +637,7 @@ static inline void io_cq_lock(struct io_ring_ctx *ctx)
 	spin_lock(&ctx->completion_lock);
 }
 
-/* keep it inlined for io_submit_flush_completions() */
 static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
-{
-	io_commit_cqring(ctx);
-	if (!ctx->task_complete)
-		spin_unlock(&ctx->completion_lock);
-
-	io_commit_cqring_flush(ctx);
-	io_cqring_wake(ctx);
-}
-
-static void __io_cq_unlock_post_flush(struct io_ring_ctx *ctx)
 {
 	io_commit_cqring(ctx);
 
@@ -1568,7 +1557,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 			}
 		}
 	}
-	__io_cq_unlock_post_flush(ctx);
+	__io_cq_unlock_post(ctx);
 
 	if (!wq_list_empty(&ctx->submit_state.compl_reqs)) {
 		io_free_batch_list(ctx, state->compl_reqs.first);
