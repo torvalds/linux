@@ -146,7 +146,6 @@ static bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 bool cancel_all);
 
-static void io_dismantle_req(struct io_kiocb *req);
 static void io_clean_op(struct io_kiocb *req);
 static void io_queue_sqe(struct io_kiocb *req);
 static void io_move_task_work_from_local(struct io_ring_ctx *ctx);
@@ -991,7 +990,11 @@ static void __io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 			}
 		}
 		io_put_kbuf_comp(req);
-		io_dismantle_req(req);
+		if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
+			io_clean_op(req);
+		if (!(req->flags & REQ_F_FIXED_FILE))
+			io_put_file(req->file);
+
 		rsrc_node = req->rsrc_node;
 		/*
 		 * Selected buffer deallocation in io_clean_op() assumes that
@@ -1109,16 +1112,6 @@ __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 		io_req_add_to_cache(req, ctx);
 	}
 	return true;
-}
-
-static inline void io_dismantle_req(struct io_kiocb *req)
-{
-	unsigned int flags = req->flags;
-
-	if (unlikely(flags & IO_REQ_CLEAN_FLAGS))
-		io_clean_op(req);
-	if (!(flags & REQ_F_FIXED_FILE))
-		io_put_file(req->file);
 }
 
 __cold void io_free_req(struct io_kiocb *req)
