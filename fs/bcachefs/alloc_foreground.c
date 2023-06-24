@@ -44,9 +44,9 @@ static void bch2_trans_mutex_lock_norelock(struct btree_trans *trans,
 	}
 }
 
-const char * const bch2_alloc_reserves[] = {
+const char * const bch2_watermarks[] = {
 #define x(t) #t,
-	BCH_ALLOC_RESERVES()
+	BCH_WATERMARKS()
 #undef x
 	NULL
 };
@@ -188,13 +188,13 @@ long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 	return -1;
 }
 
-static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
+static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
 {
-	switch (reserve) {
-	case RESERVE_btree:
-	case RESERVE_btree_movinggc:
+	switch (watermark) {
+	case BCH_WATERMARK_btree:
+	case BCH_WATERMARK_btree_copygc:
 		return 0;
-	case RESERVE_movinggc:
+	case BCH_WATERMARK_copygc:
 		return OPEN_BUCKETS_COUNT / 4;
 	default:
 		return OPEN_BUCKETS_COUNT / 2;
@@ -203,7 +203,7 @@ static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
 
 static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 					      u64 bucket,
-					      enum alloc_reserve reserve,
+					      enum bch_watermark watermark,
 					      const struct bch_alloc_v4 *a,
 					      struct bucket_alloc_state *s,
 					      struct closure *cl)
@@ -233,7 +233,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 
 	spin_lock(&c->freelist_lock);
 
-	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(reserve))) {
+	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(watermark))) {
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 
@@ -284,7 +284,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 }
 
 static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bch_dev *ca,
-					    enum alloc_reserve reserve, u64 free_entry,
+					    enum bch_watermark watermark, u64 free_entry,
 					    struct bucket_alloc_state *s,
 					    struct bkey_s_c freespace_k,
 					    struct closure *cl)
@@ -374,7 +374,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		}
 	}
 
-	ob = __try_alloc_bucket(c, ca, b, reserve, a, s, cl);
+	ob = __try_alloc_bucket(c, ca, b, watermark, a, s, cl);
 	if (!ob)
 		iter.path->preserve = false;
 err:
@@ -394,7 +394,7 @@ err:
 static noinline struct open_bucket *
 bch2_bucket_alloc_early(struct btree_trans *trans,
 			struct bch_dev *ca,
-			enum alloc_reserve reserve,
+			enum bch_watermark watermark,
 			struct bucket_alloc_state *s,
 			struct closure *cl)
 {
@@ -424,7 +424,7 @@ again:
 
 		s->buckets_seen++;
 
-		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, reserve, a, s, cl);
+		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, watermark, a, s, cl);
 		if (ob)
 			break;
 	}
@@ -445,7 +445,7 @@ again:
 
 static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
 						   struct bch_dev *ca,
-						   enum alloc_reserve reserve,
+						   enum bch_watermark watermark,
 						   struct bucket_alloc_state *s,
 						   struct closure *cl)
 {
@@ -474,7 +474,7 @@ again:
 
 			s->buckets_seen++;
 
-			ob = try_alloc_bucket(trans, ca, reserve,
+			ob = try_alloc_bucket(trans, ca, watermark,
 					      alloc_cursor, s, k, cl);
 			if (ob) {
 				iter.path->preserve = false;
@@ -507,7 +507,7 @@ again:
  */
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 				      struct bch_dev *ca,
-				      enum alloc_reserve reserve,
+				      enum bch_watermark watermark,
 				      struct closure *cl,
 				      struct bch_dev_usage *usage)
 {
@@ -519,7 +519,7 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 	bool waiting = false;
 again:
 	bch2_dev_usage_read_fast(ca, usage);
-	avail = dev_buckets_free(ca, *usage, reserve);
+	avail = dev_buckets_free(ca, *usage, watermark);
 
 	if (usage->d[BCH_DATA_need_discard].buckets > avail)
 		bch2_do_discards(c);
@@ -548,8 +548,8 @@ again:
 		closure_wake_up(&c->freelist_wait);
 alloc:
 	ob = likely(freespace)
-		? bch2_bucket_alloc_freelist(trans, ca, reserve, &s, cl)
-		: bch2_bucket_alloc_early(trans, ca, reserve, &s, cl);
+		? bch2_bucket_alloc_freelist(trans, ca, watermark, &s, cl)
+		: bch2_bucket_alloc_early(trans, ca, watermark, &s, cl);
 
 	if (s.skipped_need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
@@ -564,7 +564,7 @@ err:
 
 	if (!IS_ERR(ob))
 		trace_and_count(c, bucket_alloc, ca,
-				bch2_alloc_reserves[reserve],
+				bch2_watermarks[watermark],
 				ob->bucket,
 				usage->d[BCH_DATA_free].buckets,
 				avail,
@@ -575,7 +575,7 @@ err:
 				"");
 	else if (!bch2_err_matches(PTR_ERR(ob), BCH_ERR_transaction_restart))
 		trace_and_count(c, bucket_alloc_fail, ca,
-				bch2_alloc_reserves[reserve],
+				bch2_watermarks[watermark],
 				0,
 				usage->d[BCH_DATA_free].buckets,
 				avail,
@@ -589,14 +589,14 @@ err:
 }
 
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
-				      enum alloc_reserve reserve,
+				      enum bch_watermark watermark,
 				      struct closure *cl)
 {
 	struct bch_dev_usage usage;
 	struct open_bucket *ob;
 
 	bch2_trans_do(c, NULL, NULL, 0,
-		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(&trans, ca, reserve,
+		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(&trans, ca, watermark,
 							cl, &usage)));
 	return ob;
 }
@@ -629,7 +629,7 @@ static inline void bch2_dev_stripe_increment_inlined(struct bch_dev *ca,
 			       struct bch_dev_usage *usage)
 {
 	u64 *v = stripe->next_alloc + ca->dev_idx;
-	u64 free_space = dev_buckets_available(ca, RESERVE_none);
+	u64 free_space = dev_buckets_available(ca, BCH_WATERMARK_normal);
 	u64 free_space_inv = free_space
 		? div64_u64(1ULL << 48, free_space)
 		: 1ULL << 48;
@@ -692,7 +692,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		      bool *have_cache,
 		      unsigned flags,
 		      enum bch_data_type data_type,
-		      enum alloc_reserve reserve,
+		      enum bch_watermark watermark,
 		      struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -725,7 +725,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		ob = bch2_bucket_alloc_trans(trans, ca, reserve, cl, &usage);
+		ob = bch2_bucket_alloc_trans(trans, ca, watermark, cl, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		percpu_ref_put(&ca->ref);
@@ -766,7 +766,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 			 unsigned nr_replicas,
 			 unsigned *nr_effective,
 			 bool *have_cache,
-			 enum alloc_reserve reserve,
+			 enum bch_watermark watermark,
 			 unsigned flags,
 			 struct closure *cl)
 {
@@ -784,7 +784,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	if (ec_open_bucket(c, ptrs))
 		return 0;
 
-	h = bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1, reserve, cl);
+	h = bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1, watermark, cl);
 	if (IS_ERR(h))
 		return PTR_ERR(h);
 	if (!h)
@@ -879,7 +879,7 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 				    unsigned nr_replicas,
 				    unsigned *nr_effective,
 				    bool *have_cache, bool ec,
-				    enum alloc_reserve reserve,
+				    enum bch_watermark watermark,
 				    unsigned flags)
 {
 	int i, ret = 0;
@@ -901,7 +901,7 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 			u64 avail;
 
 			bch2_dev_usage_read_fast(ca, &usage);
-			avail = dev_buckets_free(ca, usage, reserve);
+			avail = dev_buckets_free(ca, usage, watermark);
 			if (!avail)
 				continue;
 
@@ -931,7 +931,7 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 			unsigned nr_replicas,
 			unsigned *nr_effective,
 			bool *have_cache,
-			enum alloc_reserve reserve,
+			enum bch_watermark watermark,
 			unsigned flags,
 			struct closure *_cl)
 {
@@ -962,7 +962,7 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 
 	ret = bucket_alloc_set_partial(c, ptrs, wp, &devs,
 				 nr_replicas, nr_effective,
-				 have_cache, erasure_code, reserve, flags);
+				 have_cache, erasure_code, watermark, flags);
 	if (ret)
 		return ret;
 
@@ -971,7 +971,7 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 					 target,
 					 nr_replicas, nr_effective,
 					 have_cache,
-					 reserve, flags, _cl);
+					 watermark, flags, _cl);
 	} else {
 retry_blocking:
 		/*
@@ -980,7 +980,7 @@ retry_blocking:
 		 */
 		ret = bch2_bucket_alloc_set_trans(trans, ptrs, &wp->stripe, &devs,
 					nr_replicas, nr_effective, have_cache,
-					flags, wp->data_type, reserve, cl);
+					flags, wp->data_type, watermark, cl);
 		if (ret &&
 		    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 		    !bch2_err_matches(ret, BCH_ERR_insufficient_devices) &&
@@ -1003,7 +1003,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 			unsigned nr_replicas,
 			unsigned *nr_effective,
 			bool *have_cache,
-			enum alloc_reserve reserve,
+			enum bch_watermark watermark,
 			unsigned flags,
 			struct closure *cl)
 {
@@ -1013,7 +1013,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 		ret = __open_bucket_add_buckets(trans, ptrs, wp,
 				devs_have, target, erasure_code,
 				nr_replicas, nr_effective, have_cache,
-				reserve, flags, cl);
+				watermark, flags, cl);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
 		    bch2_err_matches(ret, BCH_ERR_operation_blocked) ||
 		    bch2_err_matches(ret, BCH_ERR_freelist_empty) ||
@@ -1026,7 +1026,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 	ret = __open_bucket_add_buckets(trans, ptrs, wp,
 			devs_have, target, false,
 			nr_replicas, nr_effective, have_cache,
-			reserve, flags, cl);
+			watermark, flags, cl);
 	return ret < 0 ? ret : 0;
 }
 
@@ -1263,7 +1263,7 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 			     struct bch_devs_list *devs_have,
 			     unsigned nr_replicas,
 			     unsigned nr_replicas_required,
-			     enum alloc_reserve reserve,
+			     enum bch_watermark watermark,
 			     unsigned flags,
 			     struct closure *cl,
 			     struct write_point **wp_ret)
@@ -1296,7 +1296,7 @@ retry:
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
-					      &have_cache, reserve,
+					      &have_cache, watermark,
 					      flags, NULL);
 		if (!ret ||
 		    bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -1315,14 +1315,14 @@ retry:
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      0, erasure_code,
 					      nr_replicas, &nr_effective,
-					      &have_cache, reserve,
+					      &have_cache, watermark,
 					      flags, cl);
 	} else {
 allocate_blocking:
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
-					      &have_cache, reserve,
+					      &have_cache, watermark,
 					      flags, cl);
 	}
 alloc_done:

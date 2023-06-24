@@ -1333,7 +1333,7 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 static struct ec_stripe_head *
 ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 			 unsigned algo, unsigned redundancy,
-			 enum alloc_reserve reserve)
+			 enum bch_watermark watermark)
 {
 	struct ec_stripe_head *h;
 	struct bch_dev *ca;
@@ -1349,7 +1349,7 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 	h->target	= target;
 	h->algo		= algo;
 	h->redundancy	= redundancy;
-	h->reserve	= reserve;
+	h->watermark	= watermark;
 
 	rcu_read_lock();
 	h->devs = target_rw_devs(c, BCH_DATA_user, target);
@@ -1384,7 +1384,7 @@ struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
 						 unsigned target,
 						 unsigned algo,
 						 unsigned redundancy,
-						 enum alloc_reserve reserve)
+						 enum bch_watermark watermark)
 {
 	struct bch_fs *c = trans->c;
 	struct ec_stripe_head *h;
@@ -1406,21 +1406,21 @@ struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
 		if (h->target		== target &&
 		    h->algo		== algo &&
 		    h->redundancy	== redundancy &&
-		    h->reserve		== reserve) {
+		    h->watermark	== watermark) {
 			ret = bch2_trans_mutex_lock(trans, &h->lock);
 			if (ret)
 				h = ERR_PTR(ret);
 			goto found;
 		}
 
-	h = ec_new_stripe_head_alloc(c, target, algo, redundancy, reserve);
+	h = ec_new_stripe_head_alloc(c, target, algo, redundancy, watermark);
 found:
 	mutex_unlock(&c->ec_stripe_head_lock);
 	return h;
 }
 
 static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_head *h,
-				    enum alloc_reserve reserve, struct closure *cl)
+				    enum bch_watermark watermark, struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_devs_mask devs = h->devs;
@@ -1453,7 +1453,7 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 					    &nr_have_parity,
 					    &have_cache, 0,
 					    BCH_DATA_parity,
-					    reserve,
+					    watermark,
 					    cl);
 
 		open_bucket_for_each(c, &buckets, ob, i) {
@@ -1480,7 +1480,7 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 					    &nr_have_data,
 					    &have_cache, 0,
 					    BCH_DATA_user,
-					    reserve,
+					    watermark,
 					    cl);
 
 		open_bucket_for_each(c, &buckets, ob, i) {
@@ -1658,7 +1658,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 					       unsigned target,
 					       unsigned algo,
 					       unsigned redundancy,
-					       enum alloc_reserve reserve,
+					       enum bch_watermark watermark,
 					       struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -1666,7 +1666,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	bool waiting = false;
 	int ret;
 
-	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, reserve);
+	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, watermark);
 	if (!h)
 		bch_err(c, "no stripe head");
 	if (IS_ERR_OR_NULL(h))
@@ -1687,7 +1687,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		goto alloc_existing;
 
 	/* First, try to allocate a full stripe: */
-	ret =   new_stripe_alloc_buckets(trans, h, RESERVE_stripe, NULL) ?:
+	ret =   new_stripe_alloc_buckets(trans, h, BCH_WATERMARK_stripe, NULL) ?:
 		__bch2_ec_stripe_head_reserve(trans, h);
 	if (!ret)
 		goto allocate_buf;
@@ -1706,8 +1706,8 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		if (waiting || !cl || ret != -BCH_ERR_stripe_alloc_blocked)
 			goto err;
 
-		if (reserve == RESERVE_movinggc) {
-			ret =   new_stripe_alloc_buckets(trans, h, reserve, NULL) ?:
+		if (watermark == BCH_WATERMARK_copygc) {
+			ret =   new_stripe_alloc_buckets(trans, h, watermark, NULL) ?:
 				__bch2_ec_stripe_head_reserve(trans, h);
 			if (ret)
 				goto err;
@@ -1723,10 +1723,10 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		closure_wake_up(&c->freelist_wait);
 alloc_existing:
 	/*
-	 * Retry allocating buckets, with the reserve watermark for this
+	 * Retry allocating buckets, with the watermark for this
 	 * particular write:
 	 */
-	ret = new_stripe_alloc_buckets(trans, h, reserve, cl);
+	ret = new_stripe_alloc_buckets(trans, h, watermark, cl);
 	if (ret)
 		goto err;
 
@@ -1880,7 +1880,7 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
 		prt_printf(out, "target %u algo %u redundancy %u %s:\n",
 		       h->target, h->algo, h->redundancy,
-		       bch2_alloc_reserves[h->reserve]);
+		       bch2_watermarks[h->watermark]);
 
 		if (h->s)
 			prt_printf(out, "\tidx %llu blocks %u+%u allocated %u\n",
@@ -1898,7 +1898,7 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 			   s->idx, s->nr_data, s->nr_parity,
 			   atomic_read(&s->ref[STRIPE_REF_io]),
 			   atomic_read(&s->ref[STRIPE_REF_stripe]),
-			   bch2_alloc_reserves[s->h->reserve]);
+			   bch2_watermarks[s->h->watermark]);
 	}
 	mutex_unlock(&c->ec_stripe_new_lock);
 }

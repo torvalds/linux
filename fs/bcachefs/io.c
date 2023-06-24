@@ -451,7 +451,7 @@ retry:
 				&devs_have,
 				opts.data_replicas,
 				opts.data_replicas,
-				RESERVE_none, 0, &cl, &wp);
+				BCH_WATERMARK_normal, 0, &cl, &wp);
 		if (ret) {
 			bch2_trans_unlock(trans);
 			closure_sync(&cl);
@@ -1696,7 +1696,7 @@ again:
 				&op->devs_have,
 				op->nr_replicas,
 				op->nr_replicas_required,
-				op->alloc_reserve,
+				op->watermark,
 				op->flags,
 				(op->flags & (BCH_WRITE_ALLOC_NOWAIT|
 					      BCH_WRITE_ONLY_SPECIFIED_DEVS))

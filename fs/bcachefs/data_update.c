@@ -381,7 +381,7 @@ void bch2_update_unwritten_extent(struct btree_trans *trans,
 				&update->op.devs_have,
 				update->op.nr_replicas,
 				update->op.nr_replicas,
-				update->op.alloc_reserve,
+				update->op.watermark,
 				0, &cl, &wp);
 		if (bch2_err_matches(ret, BCH_ERR_operation_blocked)) {
 			bch2_trans_unlock(trans);
@@ -459,7 +459,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		bch2_compression_opt_to_type[io_opts.background_compression ?:
 					     io_opts.compression];
 	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE)
-		m->op.alloc_reserve = RESERVE_movinggc;
+		m->op.watermark = BCH_WATERMARK_copygc;
 
 	bkey_for_each_ptr(ptrs, ptr)
 		percpu_ref_get(&bch_dev_bkey_exists(c, ptr->dev)->ref);

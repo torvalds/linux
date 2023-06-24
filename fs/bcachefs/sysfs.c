@@ -850,8 +850,8 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 
 	prt_printf(out, "reserves:");
 	prt_newline(out);
-	for (i = 0; i < RESERVE_NR; i++) {
-		prt_str(out, bch2_alloc_reserves[i]);
+	for (i = 0; i < BCH_WATERMARK_NR; i++) {
+		prt_str(out, bch2_watermarks[i]);
 		prt_tab(out);
 		prt_u64(out, bch2_dev_buckets_reserved(ca, i));
 		prt_tab_rjust(out);

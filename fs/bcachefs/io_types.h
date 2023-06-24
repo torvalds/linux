@@ -119,7 +119,7 @@ struct bch_write_op {
 	unsigned		compression_type:4;
 	unsigned		nr_replicas:4;
 	unsigned		nr_replicas_required:4;
-	unsigned		alloc_reserve:3;
+	unsigned		watermark:3;
 	unsigned		incompressible:1;
 	unsigned		stripe_waited:1;
 

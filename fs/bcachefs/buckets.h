@@ -150,26 +150,26 @@ static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 
 void bch2_dev_usage_init(struct bch_dev *);
 
-static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum alloc_reserve reserve)
+static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_watermark watermark)
 {
 	s64 reserved = 0;
 
-	switch (reserve) {
-	case RESERVE_NR:
+	switch (watermark) {
+	case BCH_WATERMARK_NR:
 		unreachable();
-	case RESERVE_stripe:
+	case BCH_WATERMARK_stripe:
 		reserved += ca->mi.nbuckets >> 6;
 		fallthrough;
-	case RESERVE_none:
+	case BCH_WATERMARK_normal:
 		reserved += ca->mi.nbuckets >> 6;
 		fallthrough;
-	case RESERVE_movinggc:
+	case BCH_WATERMARK_copygc:
 		reserved += ca->nr_btree_reserve;
 		fallthrough;
-	case RESERVE_btree:
+	case BCH_WATERMARK_btree:
 		reserved += ca->nr_btree_reserve;
 		fallthrough;
-	case RESERVE_btree_movinggc:
+	case BCH_WATERMARK_btree_copygc:
 		break;
 	}
 
@@ -178,17 +178,17 @@ static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum alloc_reser
 
 static inline u64 dev_buckets_free(struct bch_dev *ca,
 				   struct bch_dev_usage usage,
-				   enum alloc_reserve reserve)
+				   enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
 		     usage.d[BCH_DATA_free].buckets -
 		     ca->nr_open_buckets -
-		     bch2_dev_buckets_reserved(ca, reserve));
+		     bch2_dev_buckets_reserved(ca, watermark));
 }
 
 static inline u64 __dev_buckets_available(struct bch_dev *ca,
 					  struct bch_dev_usage usage,
-					  enum alloc_reserve reserve)
+					  enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
 		       usage.d[BCH_DATA_free].buckets
@@ -196,13 +196,13 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 		     + usage.d[BCH_DATA_need_gc_gens].buckets
 		     + usage.d[BCH_DATA_need_discard].buckets
 		     - ca->nr_open_buckets
-		     - bch2_dev_buckets_reserved(ca, reserve));
+		     - bch2_dev_buckets_reserved(ca, watermark));
 }
 
 static inline u64 dev_buckets_available(struct bch_dev *ca,
-					enum alloc_reserve reserve)
+					enum bch_watermark watermark)
 {
-	return __dev_buckets_available(ca, bch2_dev_usage_read(ca), reserve);
+	return __dev_buckets_available(ca, bch2_dev_usage_read(ca), watermark);
 }
 
 /* Filesystem usage: */

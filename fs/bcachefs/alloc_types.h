@@ -16,20 +16,18 @@ struct bucket_alloc_state {
 	u64	skipped_nouse;
 };
 
-struct ec_bucket_buf;
-
-#define BCH_ALLOC_RESERVES()		\
-	x(btree_movinggc)		\
+#define BCH_WATERMARKS()		\
+	x(btree_copygc)			\
 	x(btree)			\
-	x(movinggc)			\
-	x(none)				\
+	x(copygc)			\
+	x(normal)			\
 	x(stripe)
 
-enum alloc_reserve {
-#define x(name)	RESERVE_##name,
-	BCH_ALLOC_RESERVES()
+enum bch_watermark {
+#define x(name)	BCH_WATERMARK_##name,
+	BCH_WATERMARKS()
 #undef x
-	RESERVE_NR,
+	BCH_WATERMARK_NR,
 };
 
 #define OPEN_BUCKETS_COUNT	1024

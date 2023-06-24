@@ -220,7 +220,7 @@ static inline u64 should_invalidate_buckets(struct bch_dev *ca,
 	u64 free = max_t(s64, 0,
 			   u.d[BCH_DATA_free].buckets
 			 + u.d[BCH_DATA_need_discard].buckets
-			 - bch2_dev_buckets_reserved(ca, RESERVE_stripe));
+			 - bch2_dev_buckets_reserved(ca, BCH_WATERMARK_stripe));
 
 	return clamp_t(s64, want_free - free, 0, u.d[BCH_DATA_cached].buckets);
 }

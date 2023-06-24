@@ -247,15 +247,15 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 	struct open_buckets ob = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	unsigned nr_reserve;
-	enum alloc_reserve alloc_reserve;
+	enum bch_watermark alloc_reserve;
 	int ret;
 
 	if (flags & BTREE_INSERT_USE_RESERVE) {
 		nr_reserve	= 0;
-		alloc_reserve	= RESERVE_btree_movinggc;
+		alloc_reserve	= BCH_WATERMARK_btree_copygc;
 	} else {
 		nr_reserve	= BTREE_NODE_RESERVE;
-		alloc_reserve	= RESERVE_btree;
+		alloc_reserve	= BCH_WATERMARK_btree;
 	}
 
 	mutex_lock(&c->btree_reserve_cache_lock);
