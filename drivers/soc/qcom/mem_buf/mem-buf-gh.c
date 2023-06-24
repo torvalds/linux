@@ -1119,7 +1119,9 @@ struct dma_buf *mem_buf_retrieve(struct mem_buf_retrieve_kernel_arg *arg)
 	buffer->uncached = false;
 	buffer->free = mem_buf_retrieve_release;
 	buffer->vmperm = mem_buf_vmperm_alloc_accept(&buffer->sg_table,
-						     arg->memparcel_hdl);
+						     arg->memparcel_hdl,
+						     arg->vmids, arg->perms,
+						     arg->nr_acl_entries);
 
 	exp_info.size = buffer->len;
 	exp_info.flags = arg->fd_flags;
