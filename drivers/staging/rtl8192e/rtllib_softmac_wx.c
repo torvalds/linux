@@ -487,11 +487,9 @@ EXPORT_SYMBOL(rtllib_wx_set_rawtx);
 int rtllib_wx_get_name(struct rtllib_device *ieee, struct iw_request_info *info,
 		       union iwreq_data *wrqu, char *extra)
 {
-	const char *b = ieee->modulation & RTLLIB_CCK_MODULATION ? "b" : "";
-	const char *g = ieee->modulation & RTLLIB_OFDM_MODULATION ? "g" : "";
 	const char *n = ieee->mode & (WIRELESS_MODE_N_24G) ? "n" : "";
 
-	scnprintf(wrqu->name, sizeof(wrqu->name), "802.11%s%s%s", b, g, n);
+	scnprintf(wrqu->name, sizeof(wrqu->name), "802.11bg%s", n);
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_wx_get_name);

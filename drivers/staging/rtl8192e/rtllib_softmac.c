@@ -35,12 +35,8 @@ static unsigned int rtllib_MFIE_rate_len(struct rtllib_device *ieee)
 {
 	unsigned int rate_len = 0;
 
-	if (ieee->modulation & RTLLIB_CCK_MODULATION)
-		rate_len = RTLLIB_CCK_RATE_LEN + 2;
-
-	if (ieee->modulation & RTLLIB_OFDM_MODULATION)
-
-		rate_len += RTLLIB_OFDM_RATE_LEN + 2;
+	rate_len = RTLLIB_CCK_RATE_LEN + 2;
+	rate_len += RTLLIB_OFDM_RATE_LEN + 2;
 
 	return rate_len;
 }
@@ -53,14 +49,12 @@ static void rtllib_MFIE_Brate(struct rtllib_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
-	if (ieee->modulation & RTLLIB_CCK_MODULATION) {
-		*tag++ = MFIE_TYPE_RATES;
-		*tag++ = 4;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_1MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_2MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_5MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_11MB;
-	}
+	*tag++ = MFIE_TYPE_RATES;
+	*tag++ = 4;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_1MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_2MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_5MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_11MB;
 
 	/* We may add an option for custom rates that specific HW
 	 * might support
@@ -72,18 +66,17 @@ static void rtllib_MFIE_Grate(struct rtllib_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
-	if (ieee->modulation & RTLLIB_OFDM_MODULATION) {
-		*tag++ = MFIE_TYPE_RATES_EX;
-		*tag++ = 8;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_6MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_9MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_12MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_18MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_24MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_36MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_48MB;
-		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_54MB;
-	}
+	*tag++ = MFIE_TYPE_RATES_EX;
+	*tag++ = 8;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_6MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_9MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_12MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_18MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_24MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_36MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_48MB;
+	*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_54MB;
+
 	/* We may add an option for custom rates that specific HW might
 	 * support
 	 */
@@ -1465,8 +1458,7 @@ static void rtllib_associate_complete_wq(void *data)
 
 	netif_carrier_on(ieee->dev);
 	ieee->is_roaming = false;
-	if (rtllib_is_54g(&ieee->current_network) &&
-	   (ieee->modulation & RTLLIB_OFDM_MODULATION)) {
+	if (rtllib_is_54g(&ieee->current_network)) {
 		ieee->rate = 108;
 		netdev_info(ieee->dev, "Using G rates:%d\n", ieee->rate);
 	} else {
@@ -1652,9 +1644,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				schedule_delayed_work(
 					   &ieee->associate_procedure_wq, 0);
 			} else {
-				if (rtllib_is_54g(&ieee->current_network) &&
-				    (ieee->modulation &
-				     RTLLIB_OFDM_MODULATION)) {
+				if (rtllib_is_54g(&ieee->current_network)) {
 					ieee->rate = 108;
 					ieee->set_wireless_mode(ieee->dev, WIRELESS_MODE_G);
 					netdev_info(ieee->dev,
@@ -2526,47 +2516,34 @@ static void rtllib_start_ibss_wq(void *data)
 		if (!ieee->wap_set)
 			eth_random_addr(ieee->current_network.bssid);
 
-		if (ieee->modulation & RTLLIB_CCK_MODULATION) {
-			ieee->current_network.rates_len = 4;
+		ieee->current_network.rates_len = 4;
+		ieee->current_network.rates[0] =
+			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_1MB;
+		ieee->current_network.rates[1] =
+			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_2MB;
+		ieee->current_network.rates[2] =
+			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_5MB;
+		ieee->current_network.rates[3] =
+			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_11MB;
 
-			ieee->current_network.rates[0] =
-				 RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_1MB;
-			ieee->current_network.rates[1] =
-				 RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_2MB;
-			ieee->current_network.rates[2] =
-				 RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_5MB;
-			ieee->current_network.rates[3] =
-				 RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_11MB;
-
-		} else {
-			ieee->current_network.rates_len = 0;
-		}
-
-		if (ieee->modulation & RTLLIB_OFDM_MODULATION) {
-			ieee->current_network.rates_ex_len = 8;
-
-			ieee->current_network.rates_ex[0] =
-						 RTLLIB_OFDM_RATE_6MB;
-			ieee->current_network.rates_ex[1] =
-						 RTLLIB_OFDM_RATE_9MB;
-			ieee->current_network.rates_ex[2] =
-						 RTLLIB_OFDM_RATE_12MB;
-			ieee->current_network.rates_ex[3] =
-						 RTLLIB_OFDM_RATE_18MB;
-			ieee->current_network.rates_ex[4] =
-						 RTLLIB_OFDM_RATE_24MB;
-			ieee->current_network.rates_ex[5] =
-						 RTLLIB_OFDM_RATE_36MB;
-			ieee->current_network.rates_ex[6] =
-						 RTLLIB_OFDM_RATE_48MB;
-			ieee->current_network.rates_ex[7] =
-						 RTLLIB_OFDM_RATE_54MB;
-
-			ieee->rate = 108;
-		} else {
-			ieee->current_network.rates_ex_len = 0;
-			ieee->rate = 22;
-		}
+		ieee->current_network.rates_ex_len = 8;
+		ieee->current_network.rates_ex[0] =
+			RTLLIB_OFDM_RATE_6MB;
+		ieee->current_network.rates_ex[1] =
+			RTLLIB_OFDM_RATE_9MB;
+		ieee->current_network.rates_ex[2] =
+			RTLLIB_OFDM_RATE_12MB;
+		ieee->current_network.rates_ex[3] =
+			RTLLIB_OFDM_RATE_18MB;
+		ieee->current_network.rates_ex[4] =
+			RTLLIB_OFDM_RATE_24MB;
+		ieee->current_network.rates_ex[5] =
+			RTLLIB_OFDM_RATE_36MB;
+		ieee->current_network.rates_ex[6] =
+			RTLLIB_OFDM_RATE_48MB;
+		ieee->current_network.rates_ex[7] =
+			RTLLIB_OFDM_RATE_54MB;
+		ieee->rate = 108;
 
 		ieee->current_network.qos_data.supported = 0;
 		ieee->set_wireless_mode(ieee->dev, WIRELESS_MODE_G);
