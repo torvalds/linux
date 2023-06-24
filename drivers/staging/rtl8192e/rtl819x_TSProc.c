@@ -8,10 +8,6 @@
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
 
-static void TsSetupTimeOut(struct timer_list *unused)
-{
-}
-
 static void TsInactTimeout(struct timer_list *unused)
 {
 }
@@ -142,9 +138,6 @@ void TSInitialize(struct rtllib_device *ieee)
 
 	for (count = 0; count < TOTAL_TS_NUM; count++) {
 		pTxTS->num = count;
-		timer_setup(&pTxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
-			    0);
-
 		timer_setup(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
 			    0);
 
@@ -167,9 +160,6 @@ void TSInitialize(struct rtllib_device *ieee)
 	for (count = 0; count < TOTAL_TS_NUM; count++) {
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->rx_pending_pkt_list);
-
-		timer_setup(&pRxTS->ts_common_info.SetupTimer, TsSetupTimeOut,
-			    0);
 
 		timer_setup(&pRxTS->ts_common_info.InactTimer, TsInactTimeout,
 			    0);
@@ -197,7 +187,6 @@ void TSInitialize(struct rtllib_device *ieee)
 static void AdmitTS(struct rtllib_device *ieee,
 		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
-	del_timer_sync(&pTsCommonInfo->SetupTimer);
 	del_timer_sync(&pTsCommonInfo->InactTimer);
 
 	if (InactTime != 0)
@@ -394,7 +383,6 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 static void RemoveTsEntry(struct rtllib_device *ieee,
 			  struct ts_common_info *pTs, enum tr_select TxRxSelect)
 {
-	del_timer_sync(&pTs->SetupTimer);
 	del_timer_sync(&pTs->InactTimer);
 	TsInitDelBA(ieee, pTs, TxRxSelect);
 
