@@ -227,22 +227,48 @@ absolutely no ABI stability guarantees.
 
 As mentioned above, a nested pointer obtained from walking a trusted pointer is
 no longer trusted, with one exception. If a struct type has a field that is
-guaranteed to be valid as long as its parent pointer is trusted, the
-``BTF_TYPE_SAFE_NESTED`` macro can be used to express that to the verifier as
-follows:
+guaranteed to be valid (trusted or rcu, as in KF_RCU description below) as long
+as its parent pointer is valid, the following macros can be used to express
+that to the verifier:
+
+* ``BTF_TYPE_SAFE_TRUSTED``
+* ``BTF_TYPE_SAFE_RCU``
+* ``BTF_TYPE_SAFE_RCU_OR_NULL``
+
+For example,
 
 .. code-block:: c
 
-	BTF_TYPE_SAFE_NESTED(struct task_struct) {
+	BTF_TYPE_SAFE_TRUSTED(struct socket) {
+		struct sock *sk;
+	};
+
+or
+
+.. code-block:: c
+
+	BTF_TYPE_SAFE_RCU(struct task_struct) {
 		const cpumask_t *cpus_ptr;
+		struct css_set __rcu *cgroups;
+		struct task_struct __rcu *real_parent;
+		struct task_struct *group_leader;
 	};
 
 In other words, you must:
 
-1. Wrap the trusted pointer type in the ``BTF_TYPE_SAFE_NESTED`` macro.
+1. Wrap the valid pointer type in a ``BTF_TYPE_SAFE_*`` macro.
 
-2. Specify the type and name of the trusted nested field. This field must match
+2. Specify the type and name of the valid nested field. This field must match
    the field in the original type definition exactly.
+
+A new type declared by a ``BTF_TYPE_SAFE_*`` macro also needs to be emitted so
+that it appears in BTF. For example, ``BTF_TYPE_SAFE_TRUSTED(struct socket)``
+is emitted in the ``type_is_trusted()`` function as follows:
+
+.. code-block:: c
+
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct socket));
+
 
 2.4.5 KF_SLEEPABLE flag
 -----------------------

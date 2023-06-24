@@ -97,4 +97,11 @@ void bpf_kfunc_call_test_mem_len_fail2(__u64 *mem, int len) __ksym;
 
 void bpf_kfunc_call_test_destructive(void) __ksym;
 
+void bpf_kfunc_call_test_offset(struct prog_test_ref_kfunc *p);
+struct prog_test_member *bpf_kfunc_call_memb_acquire(void);
+void bpf_kfunc_call_memb1_release(struct prog_test_member1 *p);
+void bpf_kfunc_call_test_fail1(struct prog_test_fail1 *p);
+void bpf_kfunc_call_test_fail2(struct prog_test_fail2 *p);
+void bpf_kfunc_call_test_fail3(struct prog_test_fail3 *p);
+void bpf_kfunc_call_test_mem_len_fail1(void *mem, int len);
 #endif /* _BPF_TESTMOD_KFUNC_H */
