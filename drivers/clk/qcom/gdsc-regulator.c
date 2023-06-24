@@ -62,7 +62,7 @@
 #define MBOX_TOUT_MS		500
 
 struct collapse_vote {
-	struct regmap	*regmap;
+	struct regmap	**regmap;
 	u32		vote_bit;
 };
 
@@ -95,6 +95,7 @@ struct gdsc {
 	int			root_clk_idx;
 	int			sw_reset_count;
 	int			path_count;
+	int			collapse_count;
 	u32			gds_timeout;
 	bool			skip_disable_before_enable;
 	bool			skip_disable;
@@ -223,15 +224,16 @@ static int gdsc_init_is_enabled(struct gdsc *sc)
 {
 	struct regmap *regmap;
 	uint32_t regval, mask;
-	int ret;
+	int ret, i;
 
 	if (!sc->toggle_logic) {
 		sc->is_gdsc_enabled = !sc->resets_asserted;
 		return 0;
 	}
 
-	if (sc->collapse_vote.regmap) {
-		regmap = sc->collapse_vote.regmap;
+	if (sc->collapse_count) {
+		for (i = 0; i < sc->collapse_count; i++)
+			regmap = sc->collapse_vote.regmap[i];
 		mask = BIT(sc->collapse_vote.vote_bit);
 	} else {
 		regmap = sc->regmap;
@@ -385,10 +387,11 @@ static int gdsc_enable(struct regulator_dev *rdev)
 			ret = gdsc_qmp_enable(sc);
 			if (ret < 0)
 				return ret;
-		} else if (sc->collapse_vote.regmap) {
-			regmap_update_bits(sc->collapse_vote.regmap, REG_OFFSET,
-					   BIT(sc->collapse_vote.vote_bit),
-					   ~BIT(sc->collapse_vote.vote_bit));
+		} else if (sc->collapse_count) {
+			for (i = 0; i < sc->collapse_count; i++)
+				regmap_update_bits(sc->collapse_vote.regmap[i], REG_OFFSET,
+						BIT(sc->collapse_vote.vote_bit),
+						~BIT(sc->collapse_vote.vote_bit));
 		} else {
 			regmap_read(sc->regmap, REG_OFFSET, &regval);
 			regval &= ~SW_COLLAPSE_MASK;
@@ -471,10 +474,11 @@ static int gdsc_disable(struct regulator_dev *rdev)
 		 */
 	} else if (sc->toggle_logic) {
 		/* Disable gdsc */
-		if (sc->collapse_vote.regmap) {
-			regmap_update_bits(sc->collapse_vote.regmap, REG_OFFSET,
-					   BIT(sc->collapse_vote.vote_bit),
-					   BIT(sc->collapse_vote.vote_bit));
+		if (sc->collapse_count) {
+			for (i = 0; i < sc->collapse_count; i++)
+				regmap_update_bits(sc->collapse_vote.regmap[i], REG_OFFSET,
+						BIT(sc->collapse_vote.vote_bit),
+						BIT(sc->collapse_vote.vote_bit));
 		} else {
 			regmap_read(sc->regmap, REG_OFFSET, &regval);
 			regval |= SW_COLLAPSE_MASK;
@@ -811,21 +815,28 @@ static int gdsc_parse_dt_data(struct gdsc *sc, struct device *dev,
 					      "qcom,support-cfg-gdscr");
 
 	if (of_find_property(dev->of_node, "qcom,collapse-vote", NULL)) {
-		ret = of_property_count_u32_elems(dev->of_node,
-						  "qcom,collapse-vote");
-		if (ret != 2) {
-			dev_err(dev, "qcom,collapse-vote needs two values\n");
-			return -EINVAL;
+		/* Decrement the collapse count by 1 */
+		sc->collapse_count = of_property_count_u32_elems(dev->of_node,
+					"qcom,collapse-vote") - 1;
+
+		sc->collapse_vote.regmap = devm_kmalloc_array(dev, sc->collapse_count,
+					sizeof(*(sc->collapse_vote).regmap), GFP_KERNEL);
+		if (!sc->collapse_vote.regmap)
+			return -ENOMEM;
+
+		for (i = 0; i < sc->collapse_count; i++) {
+			np = of_parse_phandle(dev->of_node, "qcom,collapse-vote", i);
+			if (!np)
+				return -ENODEV;
+
+			sc->collapse_vote.regmap[i] = syscon_node_to_regmap(np);
+			of_node_put(np);
+			if (IS_ERR(sc->collapse_vote.regmap[i]))
+				return PTR_ERR(sc->collapse_vote.regmap[i]);
 		}
 
-		sc->collapse_vote.regmap =
-			syscon_regmap_lookup_by_phandle(dev->of_node,
-							"qcom,collapse-vote");
-		if (IS_ERR(sc->collapse_vote.regmap))
-			return PTR_ERR(sc->collapse_vote.regmap);
-		ret = of_property_read_u32_index(dev->of_node,
-						 "qcom,collapse-vote", 1,
-						 &sc->collapse_vote.vote_bit);
+		ret = of_property_read_u32_index(dev->of_node, "qcom,collapse-vote",
+						sc->collapse_count, &sc->collapse_vote.vote_bit);
 		if (ret || sc->collapse_vote.vote_bit > 31) {
 			dev_err(dev, "qcom,collapse-vote vote_bit error\n");
 			return ret;
