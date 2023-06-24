@@ -188,10 +188,6 @@ static void AdmitTS(struct rtllib_device *ieee,
 		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
 	del_timer_sync(&pTsCommonInfo->InactTimer);
-
-	if (InactTime != 0)
-		mod_timer(&pTsCommonInfo->InactTimer, jiffies +
-			  msecs_to_jiffies(InactTime));
 }
 
 static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
