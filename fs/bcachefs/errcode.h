@@ -151,7 +151,7 @@
 	x(0,				backpointer_to_overwritten_btree_node)	\
 	x(0,				lock_fail_root_changed)			\
 	x(0,				journal_reclaim_would_deadlock)		\
-	x(0,				fsck)					\
+	x(EINVAL,			fsck)					\
 	x(BCH_ERR_fsck,			fsck_fix)				\
 	x(BCH_ERR_fsck,			fsck_ignore)				\
 	x(BCH_ERR_fsck,			fsck_errors_not_fixed)			\
