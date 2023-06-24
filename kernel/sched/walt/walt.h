@@ -54,7 +54,9 @@ enum task_event {
 };
 
 enum qos_clients {
-	STUB_CLIENT,
+	QOS_PARTIAL_HALT,
+	QOS_FMAX_CAP,
+	QOS_HIGH_PERF_CAP,
 };
 
 /* Note: this need to be in sync with migrate_type_names array */
@@ -176,6 +178,7 @@ extern int cpu_l2_sibling[WALT_NR_CPUS];
 extern void sched_update_nr_prod(int cpu, int enq);
 extern unsigned int walt_big_tasks(int cpu);
 extern void walt_rotation_checkpoint(int nr_big);
+extern void fmax_uncap_checkpoint(int nr_big, u64 window_start);
 extern void walt_fill_ta_data(struct core_ctl_notif_data *data);
 extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
 extern unsigned int sched_get_group_id(struct task_struct *p);
@@ -257,6 +260,9 @@ extern __read_mostly unsigned int sysctl_sched_force_lb_enable;
 extern const int sched_user_hint_max;
 extern unsigned int sysctl_sched_dynamic_tp_enable;
 extern unsigned int sysctl_panic_on_walt_bug;
+extern unsigned int sysctl_max_freq_partial_halt;
+extern unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
+extern unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
 extern int sched_dynamic_tp_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 
@@ -309,7 +315,6 @@ extern unsigned int __read_mostly sysctl_sched_window_stats_policy;
 extern unsigned int sysctl_sched_ravg_window_nr_ticks;
 extern unsigned int sysctl_sched_walt_rotate_big_tasks;
 extern unsigned int sysctl_sched_task_unfilter_period;
-extern unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 extern unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 extern unsigned int sysctl_sched_sync_hint_enable;
 extern unsigned int sysctl_sched_suppress_region2;
@@ -601,34 +606,6 @@ static inline int asym_cap_siblings(int cpu1, int cpu2)
 {
 	return (cpumask_test_cpu(cpu1, &asym_cap_sibling_cpus) &&
 		cpumask_test_cpu(cpu2, &asym_cap_sibling_cpus));
-}
-
-static inline bool asym_cap_sibling_group_has_capacity(int dst_cpu, int margin)
-{
-	int sib1, sib2;
-	int nr_running;
-	unsigned long total_util, total_capacity;
-
-	if (cpumask_empty(&asym_cap_sibling_cpus) ||
-			cpumask_test_cpu(dst_cpu, &asym_cap_sibling_cpus))
-		return false;
-
-	sib1 = cpumask_first(&asym_cap_sibling_cpus);
-	sib2 = cpumask_last(&asym_cap_sibling_cpus);
-
-	if (!cpu_active(sib1) || !cpu_active(sib2))
-		return false;
-
-	nr_running = cpu_rq(sib1)->cfs.h_nr_running +
-			cpu_rq(sib2)->cfs.h_nr_running;
-
-	if (nr_running <= 2)
-		return true;
-
-	total_capacity = capacity_of(sib1) + capacity_of(sib2);
-	total_util = cpu_util(sib1) + cpu_util(sib2);
-
-	return ((total_capacity * 100) > (total_util * margin));
 }
 
 /* Is frequency of two cpus synchronized with each other? */
@@ -1003,8 +980,6 @@ static inline u64 scale_time_to_util(u64 d)
 	return d;
 }
 
-#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && !is_min_cluster_cpu(cpu))
-
 void create_util_to_cost(void);
 struct compute_energy_output {
 	unsigned long	sum_util[MAX_CLUSTERS];
@@ -1025,6 +1000,10 @@ extern struct cpumask __cpu_partial_halt_mask;
 
 /* a partially halted may be used for helping smaller cpus with small tasks */
 #define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
+
+#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && \
+				!is_min_cluster_cpu(cpu) && \
+				!cpu_partial_halted(cpu))
 
 static inline bool cluster_partial_halted(void)
 {

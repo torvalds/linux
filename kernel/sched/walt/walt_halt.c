@@ -260,6 +260,27 @@ static int __ref try_drain_rqs(void *data)
 	return 0;
 }
 
+void restrict_cpus_and_freq(struct cpumask *cpus)
+{
+	s32 max_freq_val;
+	struct cpumask restrict_cpus;
+	int cpu = 0;
+
+	cpumask_copy(&restrict_cpus, cpus);
+
+	if (cpumask_intersects(cpus, cpu_partial_halt_mask) &&
+			!cpumask_intersects(cpus, cpu_halt_mask) &&
+			cluster_partial_halted()) {
+		max_freq_val = (s32)sysctl_max_freq_partial_halt;
+	} else {
+		max_freq_val = FREQ_QOS_MAX_DEFAULT_VALUE;
+		for_each_cpu(cpu, cpus)
+			cpumask_or(&restrict_cpus, &restrict_cpus, &(cpu_cluster(cpu)->cpus));
+	}
+
+	add_max_freq_qos_request(restrict_cpus, max_freq_val, QOS_PARTIAL_HALT);
+}
+
 struct task_struct *walt_drain_thread;
 
 static int halt_cpus(struct cpumask *cpus, enum pause_type type)
@@ -292,6 +313,8 @@ static int halt_cpus(struct cpumask *cpus, enum pause_type type)
 		/* guarantee mask written at this time */
 		wmb();
 	}
+
+	restrict_cpus_and_freq(cpus);
 
 	/* migrate tasks off the cpu */
 	if (type == HALT) {
@@ -333,6 +356,8 @@ static int start_cpus(struct cpumask *cpus, enum pause_type type)
 		 */
 		walt_smp_call_newidle_balance(cpu);
 	}
+
+	restrict_cpus_and_freq(cpus);
 
 	trace_halt_cpus(cpus, start_time, 0, 0);
 

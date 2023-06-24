@@ -60,7 +60,6 @@ unsigned int __read_mostly sysctl_sched_window_stats_policy;
 unsigned int sysctl_sched_ravg_window_nr_ticks;
 unsigned int sysctl_sched_walt_rotate_big_tasks;
 unsigned int sysctl_sched_task_unfilter_period;
-unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 unsigned int sysctl_sched_conservative_pl;
 unsigned int sysctl_sched_min_task_util_for_boost = 51;
@@ -82,8 +81,11 @@ unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
 unsigned int sysctl_sched_heavy_nr;
+unsigned int sysctl_max_freq_partial_halt = FREQ_QOS_MAX_DEFAULT_VALUE;
+unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_sbt_pause_cpus;
 unsigned int sysctl_sched_sbt_delay_windows;
+unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -646,6 +648,48 @@ unlock_mutex:
 
 	return ret;
 }
+
+int sched_fmax_cap_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos)
+{
+	int ret, i;
+	unsigned int *data = (unsigned int *)table->data;
+	static DEFINE_MUTEX(mutex);
+	int cap_margin_levels = num_sched_clusters;
+	int val[MAX_CLUSTERS];
+	struct ctl_table tmp = {
+		.data	= &val,
+		.maxlen	= sizeof(int) * cap_margin_levels,
+		.mode	= table->mode,
+	};
+
+	if (cap_margin_levels <= 0)
+		return -EINVAL;
+
+	mutex_lock(&mutex);
+
+	if (!write) {
+		ret = proc_dointvec(table, write, buffer, lenp, ppos);
+		goto unlock_mutex;
+	}
+
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	for (i = 0; i < cap_margin_levels; i++) {
+		if (val[i] < 0) {
+			ret = -EINVAL;
+			goto unlock_mutex;
+		}
+		data[i] = val[i];
+	}
+unlock_mutex:
+	mutex_unlock(&mutex);
+
+	return ret;
+}
 #endif /* CONFIG_PROC_SYSCTL */
 
 struct ctl_table input_boost_sysctls[] = {
@@ -777,15 +821,6 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &one_thousand,
-	},
-	{
-		.procname	= "sched_asym_cap_sibling_freq_match_pct",
-		.data		= &sysctl_sched_asym_cap_sibling_freq_match_pct,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= &one_hundred,
 	},
 	{
 		.procname	= "sched_coloc_downmigrate_ns",
@@ -1175,6 +1210,29 @@ struct ctl_table walt_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
 	},
+	{
+		.procname	= "sched_max_freq_partial_halt",
+		.data		= &sysctl_max_freq_partial_halt,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_fmax_cap",
+		.data		= &sysctl_fmax_cap,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_fmax_cap_handler,
+	},
+	{
+		.procname	= "sched_high_perf_cluster_freq_cap",
+		.data		= &high_perf_cluster_freq_cap,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_fmax_cap_handler,
+	},
 	{ }
 };
 
@@ -1201,8 +1259,6 @@ void walt_tunables(void)
 	sysctl_sched_group_upmigrate_pct = 100;
 
 	sysctl_sched_group_downmigrate_pct = 95;
-
-	sysctl_sched_asym_cap_sibling_freq_match_pct = 100;
 
 	sysctl_sched_task_unfilter_period = 100000000;
 
@@ -1231,4 +1287,9 @@ void walt_tunables(void)
 
 	for (i = 0; i < 8; i++)
 		sysctl_input_boost_freq[i] = 0;
+
+	for (i = 0; i < MAX_CLUSTERS; i++) {
+		sysctl_fmax_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+		high_perf_cluster_freq_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+	}
 }
