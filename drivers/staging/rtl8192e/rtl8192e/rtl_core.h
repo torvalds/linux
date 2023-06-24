@@ -322,7 +322,6 @@ struct r8192_priv {
 
 	bool rf_change_in_progress;
 	bool set_rf_pwr_state_in_progress;
-	bool bdisable_nic;
 
 	u8 cck_pwr_enl;
 	u16 tssi_13dBm;

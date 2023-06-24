@@ -618,8 +618,6 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 					(&priv->rtllib->pwr_save_ctrl);
 	bool init_status;
 
-	priv->bdisable_nic = false;
-
 	priv->up = 1;
 	priv->rtllib->ieee_up = 1;
 
@@ -760,7 +758,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->up_first_time = 1;
 	priv->blinked_ingpio = false;
 	priv->being_init_adapter = false;
-	priv->bdisable_nic = false;
 	priv->txringcount = 64;
 	priv->rxbuffersize = 9100;
 	priv->rxringcount = MAX_RX_COUNT;
@@ -1497,12 +1494,6 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	u8 *pda_addr = NULL;
 	int   idx;
 	u32 fwinfo_size = 0;
-
-	if (priv->bdisable_nic) {
-		netdev_warn(dev, "%s: Nic is disabled! Can't tx packet.\n",
-			    __func__);
-		return skb->len;
-	}
 
 	priv->rtllib->bAwakePktSent = true;
 
@@ -2245,20 +2236,17 @@ bool rtl92e_enable_nic(struct net_device *dev)
 
 	if (!priv->up) {
 		netdev_warn(dev, "%s(): Driver is already down!\n", __func__);
-		priv->bdisable_nic = false;
 		return false;
 	}
 
 	init_status = rtl92e_start_adapter(dev);
 	if (!init_status) {
 		netdev_warn(dev, "%s(): Initialization failed!\n", __func__);
-		priv->bdisable_nic = false;
 		return false;
 	}
 	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
 
 	rtl92e_irq_enable(dev);
-	priv->bdisable_nic = false;
 	return init_status;
 }
 
