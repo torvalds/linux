@@ -758,8 +758,6 @@ static int unix_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 static int unix_shutdown(struct socket *, int);
 static int unix_stream_sendmsg(struct socket *, struct msghdr *, size_t);
 static int unix_stream_recvmsg(struct socket *, struct msghdr *, size_t, int);
-static ssize_t unix_stream_sendpage(struct socket *, struct page *, int offset,
-				    size_t size, int flags);
 static ssize_t unix_stream_splice_read(struct socket *,  loff_t *ppos,
 				       struct pipe_inode_info *, size_t size,
 				       unsigned int flags);
@@ -852,7 +850,6 @@ static const struct proto_ops unix_stream_ops = {
 	.recvmsg =	unix_stream_recvmsg,
 	.read_skb =	unix_stream_read_skb,
 	.mmap =		sock_no_mmap,
-	.sendpage =	unix_stream_sendpage,
 	.splice_read =	unix_stream_splice_read,
 	.set_peek_off =	unix_set_peek_off,
 	.show_fdinfo =	unix_show_fdinfo,
@@ -878,7 +875,6 @@ static const struct proto_ops unix_dgram_ops = {
 	.read_skb =	unix_read_skb,
 	.recvmsg =	unix_dgram_recvmsg,
 	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
 	.set_peek_off =	unix_set_peek_off,
 	.show_fdinfo =	unix_show_fdinfo,
 };
@@ -902,7 +898,6 @@ static const struct proto_ops unix_seqpacket_ops = {
 	.sendmsg =	unix_seqpacket_sendmsg,
 	.recvmsg =	unix_seqpacket_recvmsg,
 	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
 	.set_peek_off =	unix_set_peek_off,
 	.show_fdinfo =	unix_show_fdinfo,
 };
@@ -2292,20 +2287,6 @@ pipe_err:
 out_err:
 	scm_destroy(&scm);
 	return sent ? : err;
-}
-
-static ssize_t unix_stream_sendpage(struct socket *socket, struct page *page,
-				    int offset, size_t size, int flags)
-{
-	struct bio_vec bvec;
-	struct msghdr msg = { .msg_flags = flags | MSG_SPLICE_PAGES };
-
-	if (flags & MSG_SENDPAGE_NOTLAST)
-		msg.msg_flags |= MSG_MORE;
-
-	bvec_set_page(&bvec, page, size, offset);
-	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
-	return unix_stream_sendmsg(socket, &msg, size);
 }
 
 static int unix_seqpacket_sendmsg(struct socket *sock, struct msghdr *msg,
