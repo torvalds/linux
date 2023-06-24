@@ -1478,20 +1478,15 @@ static void qcom_scm_shutdown(struct platform_device *pdev)
 }
 
 static const struct of_device_id qcom_scm_dt_match[] = {
+	{ .compatible = "qcom,scm" },
+
+	/* Legacy entries kept for backwards compatibility */
 	{ .compatible = "qcom,scm-apq8064" },
 	{ .compatible = "qcom,scm-apq8084" },
 	{ .compatible = "qcom,scm-ipq4019" },
-	{ .compatible = "qcom,scm-mdm9607" },
-	{ .compatible = "qcom,scm-msm8660" },
-	{ .compatible = "qcom,scm-msm8960" },
-	{ .compatible = "qcom,scm-msm8916" },
 	{ .compatible = "qcom,scm-msm8953" },
 	{ .compatible = "qcom,scm-msm8974" },
-	{ .compatible = "qcom,scm-msm8976" },
-	{ .compatible = "qcom,scm-msm8994" },
 	{ .compatible = "qcom,scm-msm8996" },
-	{ .compatible = "qcom,scm-sm6375" },
-	{ .compatible = "qcom,scm" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, qcom_scm_dt_match);
