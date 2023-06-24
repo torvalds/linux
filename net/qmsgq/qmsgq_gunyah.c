@@ -170,13 +170,13 @@ static void qmsgq_process_recv(struct qmsgq_gh_device *qdev, void *buf, size_t l
 
 		rx_buf->len = sizeof(*hdr) + hdr->size;
 		rx_buf->hdr_received = true;
+	}
 
-		/* Check len size, can not be smaller than amount copied*/
-		if (rx_buf->len < rx_buf->copied) {
-			pr_err("%s: Size mismatch len:%d, copied:%d\n", __func__,
-			       rx_buf->len, rx_buf->copied);
-			goto err;
-		}
+	/* Check len size, can not be smaller than amount copied*/
+	if (rx_buf->len < rx_buf->copied) {
+		pr_err("%s: Size mismatch len:%d, copied:%d\n", __func__,
+		       rx_buf->len, rx_buf->copied);
+		goto err;
 	}
 
 	if (rx_buf->len == rx_buf->copied) {
