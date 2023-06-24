@@ -807,7 +807,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	}
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
-	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
+	encrypt = crypt && crypt->ops &&
 		((strcmp(crypt->ops->name, "R-WEP") == 0 || wpa_ie_len));
 	if (ieee->ht_info->bCurrentHTSupport) {
 		tmp_ht_cap_buf = (u8 *)&(ieee->ht_info->SelfHTCap);
@@ -943,10 +943,7 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 		assoc->capability |=
 				 cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
-	if (ieee->host_encrypt)
-		crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
-	else
-		crypt = NULL;
+	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 
 	encrypt = (crypt && crypt->ops);
 
@@ -1115,7 +1112,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	if (crypt != NULL)
-		encrypt = ieee->host_encrypt && crypt && crypt->ops &&
+		encrypt = crypt && crypt->ops &&
 			  ((strcmp(crypt->ops->name, "R-WEP") == 0 ||
 			  wpa_ie_len));
 	else
@@ -2995,8 +2992,7 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY)
-		  || (ieee->host_encrypt && crypt && crypt->ops &&
-		  (strcmp(crypt->ops->name, "R-WEP") == 0));
+		  || (crypt && crypt->ops && (strcmp(crypt->ops->name, "R-WEP") == 0));
 
 	/* simply judge  */
 	if (encrypt && (wpa_ie_len == 0)) {

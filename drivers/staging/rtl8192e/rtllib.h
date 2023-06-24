@@ -1441,7 +1441,6 @@ struct rtllib_device {
 				 */
 
 	/* If the host performs {en,de}cryption, then set to 1 */
-	int host_encrypt;
 	int host_decrypt;
 
 	int ieee802_1x; /* is IEEE 802.1X used */

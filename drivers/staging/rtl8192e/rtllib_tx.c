@@ -635,8 +635,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		skb->priority = rtllib_classify(skb, IsAmsdu);
 		crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
-		encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
-			ieee->host_encrypt && crypt && crypt->ops;
+		encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) && crypt && crypt->ops;
 		if (!encrypt && ieee->ieee802_1x &&
 		    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
 			stats->tx_dropped++;

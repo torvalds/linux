@@ -98,7 +98,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->open_wep = 1;
 
 	/* Default to enabling full open WEP with host based encrypt/decrypt */
-	ieee->host_encrypt = 1;
 	ieee->host_decrypt = 1;
 	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
 
