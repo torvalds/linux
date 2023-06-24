@@ -736,6 +736,30 @@ config MSM_BOOT_STATS
 	  This figures are reported in mpm sleep clock cycles and have a
 	  resolution of 31 bits as 1 bit is used as an overflow check.
 
+choice
+	prompt "Perform Action on spinlock bug"
+	depends on DEBUG_SPINLOCK && QCOM_CPU_VENDOR_HOOKS
+
+	default DEBUG_SPINLOCK_BITE_ON_BUG
+
+	config DEBUG_SPINLOCK_BITE_ON_BUG
+		bool "Cause a Watchdog Bite on Spinlock bug"
+		depends on QCOM_WDT_CORE
+		help
+		  On a spinlock bug, cause a watchdog bite so that we can get
+		  the precise state of the system captured at the time of spin
+		  dump. This is mutually exclusive with the below
+		  DEBUG_SPINLOCK_PANIC_ON_BUG config.
+
+	config DEBUG_SPINLOCK_PANIC_ON_BUG
+		bool "Cause a Kernel Panic on Spinlock bug"
+		help
+		  On a spinlock bug, cause a kernel panic so that we can get the
+		  complete information about the system at the time of spin dump
+		  in the dmesg. This is mutually exclusive with the above
+		  DEBUG_SPINLOCK_BITE_ON_BUG.
+endchoice
+
 config USB_BAM
 	tristate "USB BAM Driver"
 	help
