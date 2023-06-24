@@ -1751,16 +1751,14 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (!MLX5_VPORT_MANAGER(dev) && !MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
+	esw = kzalloc(sizeof(*esw), GFP_KERNEL);
+	if (!esw)
+		return -ENOMEM;
+
 	err = devl_params_register(priv_to_devlink(dev), mlx5_eswitch_params,
 				   ARRAY_SIZE(mlx5_eswitch_params));
 	if (err)
-		return err;
-
-	esw = kzalloc(sizeof(*esw), GFP_KERNEL);
-	if (!esw) {
-		err = -ENOMEM;
-		goto unregister_param;
-	}
+		goto free_esw;
 
 	esw->dev = dev;
 	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
@@ -1821,10 +1819,10 @@ abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
 	debugfs_remove_recursive(esw->debugfs_root);
-	kfree(esw);
-unregister_param:
 	devl_params_unregister(priv_to_devlink(dev), mlx5_eswitch_params,
 			       ARRAY_SIZE(mlx5_eswitch_params));
+free_esw:
+	kfree(esw);
 	return err;
 }
 
@@ -1848,9 +1846,9 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw_offloads_cleanup(esw);
 	mlx5_esw_vports_cleanup(esw);
 	debugfs_remove_recursive(esw->debugfs_root);
-	kfree(esw);
 	devl_params_unregister(priv_to_devlink(esw->dev), mlx5_eswitch_params,
 			       ARRAY_SIZE(mlx5_eswitch_params));
+	kfree(esw);
 }
 
 /* Vport Administration */
@@ -1910,12 +1908,6 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 
 static bool mlx5_esw_check_port_type(struct mlx5_eswitch *esw, u16 vport_num, xa_mark_t mark)
 {
-	struct mlx5_vport *vport;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return false;
-
 	return xa_get_mark(&esw->vports, vport_num, mark);
 }
 

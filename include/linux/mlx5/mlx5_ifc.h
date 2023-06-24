@@ -1710,9 +1710,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         regexp_params[0x1];
 	u8         uar_sz[0x6];
 	u8         port_selection_cap[0x1];
-	u8         reserved_at_248[0x1];
+	u8         reserved_at_251[0x1];
 	u8         umem_uid_0[0x1];
-	u8         reserved_at_250[0x5];
+	u8         reserved_at_253[0x5];
 	u8         log_pg_sz[0x8];
 
 	u8         bf[0x1];
