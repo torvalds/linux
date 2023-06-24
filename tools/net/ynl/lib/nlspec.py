@@ -154,6 +154,9 @@ class SpecAttr(SpecElement):
         is_multi      bool, attr may repeat multiple times
         struct_name   string, name of struct definition
         sub_type      string, name of sub type
+        len           integer, optional byte length of binary types
+        display_hint  string, hint to help choose format specifier
+                      when displaying the value
     """
     def __init__(self, family, attr_set, yaml, value):
         super().__init__(family, yaml)
@@ -164,6 +167,8 @@ class SpecAttr(SpecElement):
         self.struct_name = yaml.get('struct')
         self.sub_type = yaml.get('sub-type')
         self.byte_order = yaml.get('byte-order')
+        self.len = yaml.get('len')
+        self.display_hint = yaml.get('display-hint')
 
 
 class SpecAttrSet(SpecElement):
@@ -229,12 +234,17 @@ class SpecStructMember(SpecElement):
         type        string, type of the member attribute
         byte_order  string or None for native byte order
         enum        string, name of the enum definition
+        len         integer, optional byte length of binary types
+        display_hint  string, hint to help choose format specifier
+                      when displaying the value
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
         self.type = yaml['type']
         self.byte_order = yaml.get('byte-order')
         self.enum = yaml.get('enum')
+        self.len = yaml.get('len')
+        self.display_hint = yaml.get('display-hint')
 
 
 class SpecStruct(SpecElement):

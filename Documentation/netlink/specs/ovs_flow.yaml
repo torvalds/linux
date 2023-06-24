@@ -34,6 +34,20 @@ definitions:
         type: u64
         doc: Number of matched bytes.
   -
+    name: ovs-key-ethernet
+    type: struct
+    members:
+      -
+        name: eth-src
+        type: binary
+        len: 6
+        display-hint: mac
+      -
+        name: eth-dst
+        type: binary
+        len: 6
+        display-hint: mac
+  -
     name: ovs-key-mpls
     type: struct
     members:
@@ -49,10 +63,12 @@ definitions:
         name: ipv4-src
         type: u32
         byte-order: big-endian
+        display-hint: ipv4
       -
         name: ipv4-dst
         type: u32
         byte-order: big-endian
+        display-hint: ipv4
       -
         name: ipv4-proto
         type: u8
@@ -66,6 +82,45 @@ definitions:
         name: ipv4-frag
         type: u8
         enum: ovs-frag-type
+  -
+    name: ovs-key-ipv6
+    type: struct
+    members:
+      -
+        name: ipv6-src
+        type: binary
+        len: 16
+        byte-order: big-endian
+        display-hint: ipv6
+      -
+        name: ipv6-dst
+        type: binary
+        len: 16
+        byte-order: big-endian
+        display-hint: ipv6
+      -
+        name: ipv6-label
+        type: u32
+        byte-order: big-endian
+      -
+        name: ipv6-proto
+        type: u8
+      -
+        name: ipv6-tclass
+        type: u8
+      -
+        name: ipv6-hlimit
+        type: u8
+      -
+        name: ipv6-frag
+        type: u8
+  -
+    name: ovs-key-ipv6-exthdrs
+    type: struct
+    members:
+      -
+        name: hdrs
+        type: u16
   -
     name: ovs-frag-type
     name-prefix: ovs-frag-type-
@@ -129,6 +184,51 @@ definitions:
       -
         name: icmp-code
         type: u8
+  -
+    name: ovs-key-arp
+    type: struct
+    members:
+      -
+        name: arp-sip
+        type: u32
+        byte-order: big-endian
+      -
+        name: arp-tip
+        type: u32
+        byte-order: big-endian
+      -
+        name: arp-op
+        type: u16
+        byte-order: big-endian
+      -
+        name: arp-sha
+        type: binary
+        len: 6
+        display-hint: mac
+      -
+        name: arp-tha
+        type: binary
+        len: 6
+        display-hint: mac
+  -
+    name: ovs-key-nd
+    type: struct
+    members:
+      -
+        name: nd_target
+        type: binary
+        len: 16
+        byte-order: big-endian
+      -
+        name: nd-sll
+        type: binary
+        len: 6
+        display-hint: mac
+      -
+        name: nd-tll
+        type: binary
+        len: 6
+        display-hint: mac
   -
     name: ovs-key-ct-tuple-ipv4
     type: struct
@@ -345,6 +445,7 @@ attribute-sets:
           value of the OVS_FLOW_ATTR_KEY attribute. Optional for all
           requests. Present in notifications if the flow was created with this
           attribute.
+        display-hint: uuid
       -
         name: ufid-flags
         type: u32
@@ -374,6 +475,7 @@ attribute-sets:
       -
         name: ethernet
         type: binary
+        struct: ovs-key-ethernet
         doc: struct ovs_key_ethernet
       -
         name: vlan
@@ -390,6 +492,7 @@ attribute-sets:
       -
         name: ipv6
         type: binary
+        struct: ovs-key-ipv6
         doc: struct ovs_key_ipv6
       -
         name: tcp
@@ -410,10 +513,12 @@ attribute-sets:
       -
         name: arp
         type: binary
+        struct: ovs-key-arp
         doc: struct ovs_key_arp
       -
         name: nd
         type: binary
+        struct: ovs-key-nd
         doc: struct ovs_key_nd
       -
         name: skb-mark
@@ -457,6 +562,7 @@ attribute-sets:
       -
         name: ct-labels
         type: binary
+        display-hint: hex
         doc: 16-octet connection tracking label
       -
         name: ct-orig-tuple-ipv4
@@ -486,6 +592,7 @@ attribute-sets:
       -
         name: ipv6-exthdrs
         type: binary
+        struct: ovs-key-ipv6-exthdrs
         doc: struct ovs_key_ipv6_exthdr
   -
     name: action-attrs

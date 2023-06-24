@@ -8,6 +8,8 @@ import socket
 import struct
 from struct import Struct
 import yaml
+import ipaddress
+import uuid
 
 from .nlspec import SpecFamily
 
@@ -105,6 +107,20 @@ class NlAttr:
                 else format.little
         return format.native
 
+    @classmethod
+    def formatted_string(cls, raw, display_hint):
+        if display_hint == 'mac':
+            formatted = ':'.join('%02x' % b for b in raw)
+        elif display_hint == 'hex':
+            formatted = bytes.hex(raw, ' ')
+        elif display_hint in [ 'ipv4', 'ipv6' ]:
+            formatted = format(ipaddress.ip_address(raw))
+        elif display_hint == 'uuid':
+            formatted = str(uuid.UUID(bytes=raw))
+        else:
+            formatted = raw
+        return formatted
+
     def as_scalar(self, attr_type, byte_order=None):
         format = self.get_format(attr_type, byte_order)
         return format.unpack(self.raw)[0]
@@ -124,10 +140,16 @@ class NlAttr:
         offset = 0
         for m in members:
             # TODO: handle non-scalar members
-            format = self.get_format(m.type, m.byte_order)
-            decoded = format.unpack_from(self.raw, offset)
-            offset += format.size
-            value[m.name] = decoded[0]
+            if m.type == 'binary':
+                decoded = self.raw[offset:offset+m['len']]
+                offset += m['len']
+            elif m.type in NlAttr.type_formats:
+                format = self.get_format(m.type, m.byte_order)
+                [ decoded ] = format.unpack_from(self.raw, offset)
+                offset += format.size
+            if m.display_hint:
+                decoded = self.formatted_string(decoded, m.display_hint)
+            value[m.name] = decoded
         return value
 
     def __repr__(self):
@@ -385,7 +407,7 @@ class YnlFamily(SpecFamily):
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
         elif attr["type"] == 'binary':
-            attr_payload = value
+            attr_payload = bytes.fromhex(value)
         elif attr['type'] in NlAttr.type_formats:
             format = NlAttr.get_format(attr['type'], attr.byte_order)
             attr_payload = format.pack(int(value))
@@ -421,6 +443,8 @@ class YnlFamily(SpecFamily):
             decoded = attr.as_c_array(attr_spec.sub_type)
         else:
             decoded = attr.as_bin()
+            if attr_spec.display_hint:
+                decoded = NlAttr.formatted_string(decoded, attr_spec.display_hint)
         return decoded
 
     def _decode(self, attrs, space):
