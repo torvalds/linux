@@ -1620,16 +1620,16 @@ static void migrate_zspage(struct zs_pool *pool, struct size_class *class,
 			continue;
 		}
 
-		/* Stop if there is no more space */
-		if (zspage_full(class, get_zspage(d_page)))
-			break;
-
 		used_obj = handle_to_obj(handle);
 		free_obj = obj_malloc(pool, get_zspage(d_page), handle);
 		zs_object_copy(class, free_obj, used_obj);
 		obj_idx++;
 		record_obj(handle, free_obj);
 		obj_free(class->size, used_obj);
+
+		/* Stop if there is no more space */
+		if (zspage_full(class, get_zspage(d_page)))
+			break;
 
 		/* Stop if there are no more objects to migrate */
 		if (zspage_empty(get_zspage(s_page)))
