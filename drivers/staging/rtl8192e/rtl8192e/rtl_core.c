@@ -807,8 +807,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 
 	priv->rtllib->fts = DEFAULT_FRAG_THRESHOLD;
 
-	priv->card_type = PCI;
-
 	priv->fw_info = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->fw_info)
 		netdev_err(dev,

@@ -259,12 +259,6 @@ struct r8192_priv {
 	u8		polling_timer_on;
 
 	/**********************************************************/
-
-	enum card_type {
-		PCI, MINIPCI,
-		CARDBUS, USB
-	} card_type;
-
 	struct work_struct qos_activate;
 
 	short	promisc;
