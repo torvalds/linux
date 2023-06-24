@@ -5368,7 +5368,7 @@ struct vm_area_struct *lock_mm_and_find_vma(struct mm_struct *mm,
 			goto fail;
 	}
 
-	if (expand_stack_locked(vma, addr, true))
+	if (expand_stack_locked(vma, addr))
 		goto fail;
 
 success:
@@ -5712,6 +5712,14 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 
 	if (mmap_read_lock_killable(mm))
 		return 0;
+
+	/* We might need to expand the stack to access it */
+	vma = vma_lookup(mm, addr);
+	if (!vma) {
+		vma = expand_stack(mm, addr);
+		if (!vma)
+			return 0;
+	}
 
 	/* ignore errors, just check how much was successfully transferred */
 	while (len) {

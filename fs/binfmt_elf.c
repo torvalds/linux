@@ -322,7 +322,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	 */
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
-	vma = find_extend_vma_locked(mm, bprm->p, true);
+	vma = find_extend_vma_locked(mm, bprm->p);
 	mmap_write_unlock(mm);
 	if (!vma)
 		return -EFAULT;

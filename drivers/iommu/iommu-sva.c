@@ -175,7 +175,7 @@ iommu_sva_handle_iopf(struct iommu_fault *fault, void *data)
 
 	mmap_read_lock(mm);
 
-	vma = find_extend_vma(mm, prm->addr);
+	vma = vma_lookup(mm, prm->addr);
 	if (!vma)
 		/* Unmapped area */
 		goto out_put_mm;
