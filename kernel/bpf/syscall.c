@@ -2433,6 +2433,10 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 		default:
 			return -EINVAL;
 		}
+	case BPF_PROG_TYPE_NETFILTER:
+		if (expected_attach_type == BPF_NETFILTER)
+			return 0;
+		return -EINVAL;
 	case BPF_PROG_TYPE_SYSCALL:
 	case BPF_PROG_TYPE_EXT:
 		if (expected_attach_type)
@@ -4590,7 +4594,12 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_EXT:
+		break;
 	case BPF_PROG_TYPE_NETFILTER:
+		if (attr->link_create.attach_type != BPF_NETFILTER) {
+			ret = -EINVAL;
+			goto out;
+		}
 		break;
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_TRACEPOINT:

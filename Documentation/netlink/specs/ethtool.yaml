@@ -223,7 +223,7 @@ attribute-sets:
         name: tx-min-frag-size
         type: u32
       -
-        name: tx-min-frag-size
+        name: rx-min-frag-size
         type: u32
       -
         name: verify-enabled
@@ -294,7 +294,7 @@ attribute-sets:
         name: master-slave-state
         type: u8
       -
-        name: master-slave-lanes
+        name: lanes
         type: u32
       -
         name: rate-matching
@@ -322,7 +322,7 @@ attribute-sets:
         name: ext-substate
         type: u8
       -
-        name: down-cnt
+        name: ext-down-cnt
         type: u32
   -
     name: debug
@@ -577,7 +577,7 @@ attribute-sets:
         name: phc-index
         type: u32
   -
-    name: cable-test-nft-nest-result
+    name: cable-test-ntf-nest-result
     attributes:
       -
         name: pair
@@ -586,7 +586,7 @@ attribute-sets:
         name: code
         type: u8
   -
-    name: cable-test-nft-nest-fault-length
+    name: cable-test-ntf-nest-fault-length
     attributes:
       -
         name: pair
@@ -595,16 +595,16 @@ attribute-sets:
         name: cm
         type: u32
   -
-    name: cable-test-nft-nest
+    name: cable-test-ntf-nest
     attributes:
       -
         name: result
         type: nest
-        nested-attributes: cable-test-nft-nest-result
+        nested-attributes: cable-test-ntf-nest-result
       -
         name: fault-length
         type: nest
-        nested-attributes: cable-test-nft-nest-fault-length
+        nested-attributes: cable-test-ntf-nest-fault-length
   -
     name: cable-test
     attributes:
@@ -618,7 +618,7 @@ attribute-sets:
       -
         name: nest
         type: nest
-        nested-attributes: cable-test-nft-nest
+        nested-attributes: cable-test-ntf-nest
   -
     name: cable-test-tdr-cfg
     attributes:
@@ -776,7 +776,7 @@ attribute-sets:
         name: hist-bkt-hi
         type: u32
       -
-        name: hist-bkt-val
+        name: hist-val
         type: u64
   -
     name: stats
@@ -965,7 +965,7 @@ operations:
             - duplex
             - master-slave-cfg
             - master-slave-state
-            - master-slave-lanes
+            - lanes
             - rate-matching
       dump: *linkmodes-get-op
     -
@@ -999,7 +999,7 @@ operations:
             - sqi-max
             - ext-state
             - ext-substate
-            - down-cnt
+            - ext-down-cnt
       dump: *linkstate-get-op
     -
       name: debug-get
@@ -1351,7 +1351,7 @@ operations:
         reply:
           attributes:
             - header
-            - cable-test-nft-nest
+            - cable-test-ntf-nest
     -
       name: cable-test-tdr-act
       doc: Cable test TDR.
@@ -1539,7 +1539,7 @@ operations:
             - hkey
       dump: *rss-get-op
     -
-      name: plca-get
+      name: plca-get-cfg
       doc: Get PLCA params.
 
       attribute-set: plca
@@ -1561,7 +1561,7 @@ operations:
             - burst-tmr
       dump: *plca-get-op
     -
-      name: plca-set
+      name: plca-set-cfg
       doc: Set PLCA params.
 
       attribute-set: plca
@@ -1585,7 +1585,7 @@ operations:
     -
       name: plca-ntf
       doc: Notification for change in PLCA params.
-      notify: plca-get
+      notify: plca-get-cfg
     -
       name: mm-get
       doc: Get MAC Merge configuration and state

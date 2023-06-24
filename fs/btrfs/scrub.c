@@ -134,8 +134,14 @@ struct scrub_stripe {
 	 * The errors hit during the initial read of the stripe.
 	 *
 	 * Would be utilized for error reporting and repair.
+	 *
+	 * The remaining init_nr_* records the number of errors hit, only used
+	 * by error reporting.
 	 */
 	unsigned long init_error_bitmap;
+	unsigned int init_nr_io_errors;
+	unsigned int init_nr_csum_errors;
+	unsigned int init_nr_meta_errors;
 
 	/*
 	 * The following error bitmaps are all for the current status.
@@ -1003,12 +1009,9 @@ skip:
 	sctx->stat.data_bytes_scrubbed += nr_data_sectors << fs_info->sectorsize_bits;
 	sctx->stat.tree_bytes_scrubbed += nr_meta_sectors << fs_info->sectorsize_bits;
 	sctx->stat.no_csum += nr_nodatacsum_sectors;
-	sctx->stat.read_errors +=
-		bitmap_weight(&stripe->io_error_bitmap, stripe->nr_sectors);
-	sctx->stat.csum_errors +=
-		bitmap_weight(&stripe->csum_error_bitmap, stripe->nr_sectors);
-	sctx->stat.verify_errors +=
-		bitmap_weight(&stripe->meta_error_bitmap, stripe->nr_sectors);
+	sctx->stat.read_errors += stripe->init_nr_io_errors;
+	sctx->stat.csum_errors += stripe->init_nr_csum_errors;
+	sctx->stat.verify_errors += stripe->init_nr_meta_errors;
 	sctx->stat.uncorrectable_errors +=
 		bitmap_weight(&stripe->error_bitmap, stripe->nr_sectors);
 	sctx->stat.corrected_errors += nr_repaired_sectors;
@@ -1041,6 +1044,12 @@ static void scrub_stripe_read_repair_worker(struct work_struct *work)
 	scrub_verify_one_stripe(stripe, stripe->extent_sector_bitmap);
 	/* Save the initial failed bitmap for later repair and report usage. */
 	stripe->init_error_bitmap = stripe->error_bitmap;
+	stripe->init_nr_io_errors = bitmap_weight(&stripe->io_error_bitmap,
+						  stripe->nr_sectors);
+	stripe->init_nr_csum_errors = bitmap_weight(&stripe->csum_error_bitmap,
+						    stripe->nr_sectors);
+	stripe->init_nr_meta_errors = bitmap_weight(&stripe->meta_error_bitmap,
+						    stripe->nr_sectors);
 
 	if (bitmap_empty(&stripe->init_error_bitmap, stripe->nr_sectors))
 		goto out;
@@ -1490,6 +1499,9 @@ static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
 {
 	stripe->extent_sector_bitmap = 0;
 	stripe->init_error_bitmap = 0;
+	stripe->init_nr_io_errors = 0;
+	stripe->init_nr_csum_errors = 0;
+	stripe->init_nr_meta_errors = 0;
 	stripe->error_bitmap = 0;
 	stripe->io_error_bitmap = 0;
 	stripe->csum_error_bitmap = 0;
@@ -1730,7 +1742,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 				break;
 			}
 		}
-	} else {
+	} else if (!sctx->readonly) {
 		for (int i = 0; i < nr_stripes; i++) {
 			unsigned long repaired;
 
@@ -2254,7 +2266,7 @@ next:
 	}
 out:
 	ret2 = flush_scrub_stripes(sctx);
-	if (!ret2)
+	if (!ret)
 		ret = ret2;
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)
