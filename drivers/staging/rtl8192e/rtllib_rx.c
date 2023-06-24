@@ -1035,29 +1035,27 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 	int idx = 0;
 
-	if (ieee->host_decrypt) {
-		if (skb->len >= hdrlen + 3)
-			idx = skb->data[hdrlen + 3] >> 6;
+	if (skb->len >= hdrlen + 3)
+		idx = skb->data[hdrlen + 3] >> 6;
 
-		*crypt = ieee->crypt_info.crypt[idx];
-		/* allow NULL decrypt to indicate an station specific override
-		 * for default encryption
+	*crypt = ieee->crypt_info.crypt[idx];
+	/* allow NULL decrypt to indicate an station specific override
+	 * for default encryption
+	 */
+	if (*crypt && ((*crypt)->ops == NULL ||
+		      (*crypt)->ops->decrypt_mpdu == NULL))
+		*crypt = NULL;
+
+	if (!*crypt && (fc & RTLLIB_FCTL_WEP)) {
+		/* This seems to be triggered by some (multicast?)
+		 * frames from other than current BSS, so just drop the
+		 * frames silently instead of filling system log with
+		 * these reports.
 		 */
-		if (*crypt && ((*crypt)->ops == NULL ||
-			      (*crypt)->ops->decrypt_mpdu == NULL))
-			*crypt = NULL;
-
-		if (!*crypt && (fc & RTLLIB_FCTL_WEP)) {
-			/* This seems to be triggered by some (multicast?)
-			 * frames from other than current BSS, so just drop the
-			 * frames silently instead of filling system log with
-			 * these reports.
-			 */
-			netdev_dbg(ieee->dev,
-				   "Decryption failed (not set) (SA= %pM)\n",
-				   hdr->addr2);
-			return -1;
-		}
+		netdev_dbg(ieee->dev,
+			   "Decryption failed (not set) (SA= %pM)\n",
+			   hdr->addr2);
+		return -1;
 	}
 
 	return 0;
@@ -1083,7 +1081,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		ieee->need_sw_enc = 0;
 
 	keyidx = rtllib_rx_frame_decrypt(ieee, skb, crypt);
-	if (ieee->host_decrypt && (fc & RTLLIB_FCTL_WEP) && (keyidx < 0)) {
+	if ((fc & RTLLIB_FCTL_WEP) && (keyidx < 0)) {
 		netdev_info(ieee->dev, "%s: decrypt frame error\n", __func__);
 		return -1;
 	}
@@ -1147,7 +1145,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated
 	 */
-	if (ieee->host_decrypt && (fc & RTLLIB_FCTL_WEP) &&
+	if ((fc & RTLLIB_FCTL_WEP) &&
 		rtllib_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt)) {
 		netdev_info(ieee->dev, "%s: ==>decrypt msdu error\n", __func__);
 		return -1;
