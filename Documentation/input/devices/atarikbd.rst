@@ -288,7 +288,7 @@ between 0 and large positive numbers. Excess motion below 0 is ignored. The
 command sets the maximum positive value that can be attained in the scaled
 coordinate system. Motion beyond that value is also ignored.
 
-SET MOUSE KEYCODE MOSE
+SET MOUSE KEYCODE MODE
 ----------------------
 
 ::
@@ -333,7 +333,7 @@ occur before the internally maintained coordinate is changed by one
 (independently scaled for each axis). Remember that the mouse position
 information is available only by interrogating the ikbd in the ABSOLUTE MOUSE
 POSITIONING mode unless the ikbd has been commanded to report on button press
-or release (see SET MOSE BUTTON ACTION).
+or release (see SET MOUSE BUTTON ACTION).
 
 INTERROGATE MOUSE POSITION
 --------------------------

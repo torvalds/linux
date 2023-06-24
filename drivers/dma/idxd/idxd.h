@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <linux/ioasid.h>
+#include <linux/bitmap.h>
 #include <linux/perf_event.h>
 #include <uapi/linux/idxd.h>
 #include "registers.h"
@@ -95,6 +96,8 @@ struct idxd_group {
 	u8 rdbufs_reserved;
 	int tc_a;
 	int tc_b;
+	int desc_progress_limit;
+	int batch_progress_limit;
 };
 
 struct idxd_pmu {
@@ -132,6 +135,7 @@ enum idxd_wq_state {
 enum idxd_wq_flag {
 	WQ_FLAG_DEDICATED = 0,
 	WQ_FLAG_BLOCK_ON_FAULT,
+	WQ_FLAG_ATS_DISABLE,
 };
 
 enum idxd_wq_type {
@@ -194,6 +198,8 @@ struct idxd_wq {
 	enum idxd_wq_state state;
 	unsigned long flags;
 	union wqcfg *wqcfg;
+	unsigned long *opcap_bmap;
+
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
 	union {
@@ -208,7 +214,6 @@ struct idxd_wq {
 	char name[WQ_NAME_SIZE + 1];
 	u64 max_xfer_bytes;
 	u32 max_batch_size;
-	bool ats_dis;
 };
 
 struct idxd_engine {
@@ -239,6 +244,7 @@ enum idxd_device_flag {
 	IDXD_FLAG_CONFIGURABLE = 0,
 	IDXD_FLAG_CMD_RUNNING,
 	IDXD_FLAG_PASID_ENABLED,
+	IDXD_FLAG_USER_PASID_ENABLED,
 };
 
 struct idxd_dma_dev {
@@ -298,6 +304,7 @@ struct idxd_device {
 	int rdbuf_limit;
 	int nr_rdbufs;		/* non-reserved read buffers */
 	unsigned int wqcfg_size;
+	unsigned long *wq_enable_map;
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;
@@ -307,6 +314,8 @@ struct idxd_device {
 	struct work_struct work;
 
 	struct idxd_pmu *idxd_pmu;
+
+	unsigned long *opcap_bmap;
 };
 
 /* IDXD software descriptor */
@@ -469,9 +478,20 @@ static inline bool device_pasid_enabled(struct idxd_device *idxd)
 	return test_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
 }
 
-static inline bool device_swq_supported(struct idxd_device *idxd)
+static inline bool device_user_pasid_enabled(struct idxd_device *idxd)
 {
-	return (support_enqcmd && device_pasid_enabled(idxd));
+	return test_bit(IDXD_FLAG_USER_PASID_ENABLED, &idxd->flags);
+}
+
+static inline bool wq_pasid_enabled(struct idxd_wq *wq)
+{
+	return (is_idxd_wq_kernel(wq) && device_pasid_enabled(wq->idxd)) ||
+	       (is_idxd_wq_user(wq) && device_user_pasid_enabled(wq->idxd));
+}
+
+static inline bool wq_shared_supported(struct idxd_wq *wq)
+{
+	return (support_enqcmd && wq_pasid_enabled(wq));
 }
 
 enum idxd_portal_prot {
@@ -528,6 +548,38 @@ static inline int idxd_wq_refcount(struct idxd_wq *wq)
 	return wq->client_count;
 };
 
+/*
+ * Intel IAA does not support batch processing.
+ * The max batch size of device, max batch size of wq and
+ * max batch shift of wqcfg should be always 0 on IAA.
+ */
+static inline void idxd_set_max_batch_size(int idxd_type, struct idxd_device *idxd,
+					   u32 max_batch_size)
+{
+	if (idxd_type == IDXD_TYPE_IAX)
+		idxd->max_batch_size = 0;
+	else
+		idxd->max_batch_size = max_batch_size;
+}
+
+static inline void idxd_wq_set_max_batch_size(int idxd_type, struct idxd_wq *wq,
+					      u32 max_batch_size)
+{
+	if (idxd_type == IDXD_TYPE_IAX)
+		wq->max_batch_size = 0;
+	else
+		wq->max_batch_size = max_batch_size;
+}
+
+static inline void idxd_wqcfg_set_max_batch_shift(int idxd_type, union wqcfg *wqcfg,
+						  u32 max_batch_shift)
+{
+	if (idxd_type == IDXD_TYPE_IAX)
+		wqcfg->max_batch_shift = 0;
+	else
+		wqcfg->max_batch_shift = max_batch_shift;
+}
+
 int __must_check __idxd_driver_register(struct idxd_device_driver *idxd_drv,
 					struct module *module, const char *mod_name);
 #define idxd_driver_register(driver) \
@@ -559,9 +611,7 @@ void idxd_unregister_idxd_drv(void);
 int idxd_device_drv_probe(struct idxd_dev *idxd_dev);
 void idxd_device_drv_remove(struct idxd_dev *idxd_dev);
 int drv_enable_wq(struct idxd_wq *wq);
-int __drv_enable_wq(struct idxd_wq *wq);
 void drv_disable_wq(struct idxd_wq *wq);
-void __drv_disable_wq(struct idxd_wq *wq);
 int idxd_device_init_reset(struct idxd_device *idxd);
 int idxd_device_enable(struct idxd_device *idxd);
 int idxd_device_disable(struct idxd_device *idxd);
@@ -602,8 +652,6 @@ int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc);
 /* dmaengine */
 int idxd_register_dma_device(struct idxd_device *idxd);
 void idxd_unregister_dma_device(struct idxd_device *idxd);
-int idxd_register_dma_channel(struct idxd_wq *wq);
-void idxd_unregister_dma_channel(struct idxd_wq *wq);
 void idxd_parse_completion_status(u8 status, enum dmaengine_tx_result *res);
 void idxd_dma_complete_txd(struct idxd_desc *desc,
 			   enum idxd_complete_type comp_type, bool free_desc);

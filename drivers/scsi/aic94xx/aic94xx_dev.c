@@ -159,7 +159,7 @@ static int asd_init_target_ddb(struct domain_device *dev)
 		flags |= OPEN_REQUIRED;
 		if ((dev->dev_type == SAS_SATA_DEV) ||
 		    (dev->tproto & SAS_PROTOCOL_STP)) {
-			struct smp_resp *rps_resp = &dev->sata_dev.rps_resp;
+			struct smp_rps_resp *rps_resp = &dev->sata_dev.rps_resp;
 			if (rps_resp->frame_type == SMP_RESPONSE &&
 			    rps_resp->function == SMP_REPORT_PHY_SATA &&
 			    rps_resp->result == SMP_RESP_FUNC_ACC) {

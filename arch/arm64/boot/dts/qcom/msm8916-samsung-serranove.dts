@@ -49,13 +49,13 @@
 
 		label = "GPIO Buttons";
 
-		volume-up {
+		button-volume-up {
 			label = "Volume Up";
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		home {
+		button-home {
 			label = "Home";
 			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
@@ -70,7 +70,7 @@
 
 		label = "GPIO Hall Effect Sensor";
 
-		hall-sensor {
+		event-hall-sensor {
 			label = "Hall Effect Sensor";
 			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -209,6 +209,15 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&imu_irq_default>;
+	};
+
+	magnetometer@2e {
+		compatible = "yamaha,yas537";
+		reg = <0x2e>;
+
+		mount-matrix =  "0",  "1",  "0",
+				"1",  "0",  "0",
+				"0",  "0", "-1";
 	};
 };
 

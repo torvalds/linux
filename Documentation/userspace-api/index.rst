@@ -26,6 +26,7 @@ place where this information is gathered.
    ioctl/index
    iommu
    media/index
+   netlink/index
    sysfs-platform_profile
    vduse
    futex2

@@ -18,9 +18,9 @@
 static DEFINE_IDA(fpga_region_ida);
 static struct class *fpga_region_class;
 
-struct fpga_region *fpga_region_class_find(
-	struct device *start, const void *data,
-	int (*match)(struct device *, const void *))
+struct fpga_region *
+fpga_region_class_find(struct device *start, const void *data,
+		       int (*match)(struct device *, const void *))
 {
 	struct device *dev;
 
@@ -202,7 +202,7 @@ fpga_region_register_full(struct device *parent, const struct fpga_region_info *
 	if (!region)
 		return ERR_PTR(-ENOMEM);
 
-	id = ida_simple_get(&fpga_region_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&fpga_region_ida, GFP_KERNEL);
 	if (id < 0) {
 		ret = id;
 		goto err_free;
@@ -234,7 +234,7 @@ fpga_region_register_full(struct device *parent, const struct fpga_region_info *
 	return region;
 
 err_remove:
-	ida_simple_remove(&fpga_region_ida, id);
+	ida_free(&fpga_region_ida, id);
 err_free:
 	kfree(region);
 
@@ -283,7 +283,7 @@ static void fpga_region_dev_release(struct device *dev)
 {
 	struct fpga_region *region = to_fpga_region(dev);
 
-	ida_simple_remove(&fpga_region_ida, region->dev.id);
+	ida_free(&fpga_region_ida, region->dev.id);
 	kfree(region);
 }
 

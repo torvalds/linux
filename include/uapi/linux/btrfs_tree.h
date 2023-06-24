@@ -575,7 +575,7 @@ struct btrfs_inode_extref {
 	__le64 parent_objectid;
 	__le64 index;
 	__le16 name_len;
-	__u8   name[0];
+	__u8   name[];
 	/* name goes here */
 } __attribute__ ((__packed__));
 
@@ -880,19 +880,6 @@ struct btrfs_dev_replace_item {
 #define BTRFS_BLOCK_GROUP_RESERVED	(BTRFS_AVAIL_ALLOC_BIT_SINGLE | \
 					 BTRFS_SPACE_INFO_GLOBAL_RSV)
 
-enum btrfs_raid_types {
-	BTRFS_RAID_RAID10,
-	BTRFS_RAID_RAID1,
-	BTRFS_RAID_DUP,
-	BTRFS_RAID_RAID0,
-	BTRFS_RAID_SINGLE,
-	BTRFS_RAID_RAID5,
-	BTRFS_RAID_RAID6,
-	BTRFS_RAID_RAID1C3,
-	BTRFS_RAID_RAID1C4,
-	BTRFS_NR_RAID_TYPES
-};
-
 #define BTRFS_BLOCK_GROUP_TYPE_MASK	(BTRFS_BLOCK_GROUP_DATA |    \
 					 BTRFS_BLOCK_GROUP_SYSTEM |  \
 					 BTRFS_BLOCK_GROUP_METADATA)
@@ -977,6 +964,10 @@ static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
  * Turning qouta off and on again makes it inconsistent, too.
  */
 #define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
+
+#define BTRFS_QGROUP_STATUS_FLAGS_MASK	(BTRFS_QGROUP_STATUS_FLAG_ON |		\
+					 BTRFS_QGROUP_STATUS_FLAG_RESCAN |	\
+					 BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT)
 
 #define BTRFS_QGROUP_STATUS_VERSION        1
 

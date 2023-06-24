@@ -698,7 +698,7 @@ enum auth_mode {
 
 /*
  * NB: these values are ordered carefully; there are lots of
- * of implications in any reordering.  In particular beware
+ * implications in any reordering.  In particular beware
  * that 4 is not used to avoid conflicting with IEEE80211_F_PRIVACY.
  */
 #define ATH6KL_CIPHER_WEP            0
@@ -1278,7 +1278,7 @@ struct wmi_snr_threshold_params_cmd {
 	/* "alpha" */
 	u8 weight;
 
-	/* lowest of uppper */
+	/* lowest of upper */
 	u8 thresh_above1_val;
 
 	u8 thresh_above2_val;

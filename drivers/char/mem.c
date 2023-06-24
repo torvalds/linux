@@ -101,7 +101,7 @@ static inline bool should_stop_iteration(void)
 {
 	if (need_resched())
 		cond_resched();
-	return fatal_signal_pending(current);
+	return signal_pending(current);
 }
 
 /*
@@ -480,6 +480,11 @@ static ssize_t splice_write_null(struct pipe_inode_info *pipe, struct file *out,
 	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_null);
 }
 
+static int uring_cmd_null(struct io_uring_cmd *ioucmd, unsigned int issue_flags)
+{
+	return 0;
+}
+
 static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
 {
 	size_t written = 0;
@@ -663,6 +668,7 @@ static const struct file_operations null_fops = {
 	.read_iter	= read_iter_null,
 	.write_iter	= write_iter_null,
 	.splice_write	= splice_write_null,
+	.uring_cmd	= uring_cmd_null,
 };
 
 static const struct file_operations __maybe_unused port_fops = {
@@ -706,8 +712,8 @@ static const struct memdev {
 #endif
 	 [5] = { "zero", 0666, &zero_fops, FMODE_NOWAIT },
 	 [7] = { "full", 0666, &full_fops, 0 },
-	 [8] = { "random", 0666, &random_fops, 0 },
-	 [9] = { "urandom", 0666, &urandom_fops, 0 },
+	 [8] = { "random", 0666, &random_fops, FMODE_NOWAIT },
+	 [9] = { "urandom", 0666, &urandom_fops, FMODE_NOWAIT },
 #ifdef CONFIG_PRINTK
 	[11] = { "kmsg", 0644, &kmsg_fops, 0 },
 #endif

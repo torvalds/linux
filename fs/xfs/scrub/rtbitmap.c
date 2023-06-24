@@ -40,6 +40,7 @@ xchk_setup_rt(
 /* Scrub a free extent record from the realtime bitmap. */
 STATIC int
 xchk_rtbitmap_rec(
+	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	const struct xfs_rtalloc_rec *rec,
 	void			*priv)
@@ -48,10 +49,10 @@ xchk_rtbitmap_rec(
 	xfs_rtblock_t		startblock;
 	xfs_rtblock_t		blockcount;
 
-	startblock = rec->ar_startext * tp->t_mountp->m_sb.sb_rextsize;
-	blockcount = rec->ar_extcount * tp->t_mountp->m_sb.sb_rextsize;
+	startblock = rec->ar_startext * mp->m_sb.sb_rextsize;
+	blockcount = rec->ar_extcount * mp->m_sb.sb_rextsize;
 
-	if (!xfs_verify_rtext(sc->mp, startblock, blockcount))
+	if (!xfs_verify_rtext(mp, startblock, blockcount))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }
@@ -114,7 +115,7 @@ xchk_rtbitmap(
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
-	error = xfs_rtalloc_query_all(sc->tp, xchk_rtbitmap_rec, sc);
+	error = xfs_rtalloc_query_all(sc->mp, sc->tp, xchk_rtbitmap_rec, sc);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
 

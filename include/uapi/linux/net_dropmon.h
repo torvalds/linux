@@ -29,12 +29,12 @@ struct net_dm_config_entry {
 
 struct net_dm_config_msg {
 	__u32 entries;
-	struct net_dm_config_entry options[0];
+	struct net_dm_config_entry options[];
 };
 
 struct net_dm_alert_msg {
 	__u32 entries;
-	struct net_dm_drop_point points[0];
+	struct net_dm_drop_point points[];
 };
 
 struct net_dm_user_msg {

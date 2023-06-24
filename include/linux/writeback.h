@@ -17,20 +17,12 @@ struct bio;
 DECLARE_PER_CPU(int, dirty_throttle_leaks);
 
 /*
- * The 1/4 region under the global dirty thresh is for smooth dirty throttling:
- *
- *	(thresh - thresh/DIRTY_FULL_SCOPE, thresh)
- *
- * Further beyond, all dirtier tasks will enter a loop waiting (possibly long
- * time) for the dirty pages to drop, unless written enough pages.
- *
  * The global dirty threshold is normally equal to the global dirty limit,
  * except when the system suddenly allocates a lot of anonymous memory and
  * knocks down the global dirty threshold quickly, in which case the global
  * dirty limit will follow down slowly to prevent livelocking all dirtier tasks.
  */
 #define DIRTY_SCOPE		8
-#define DIRTY_FULL_SCOPE	(DIRTY_SCOPE / 2)
 
 struct backing_dev_info;
 
@@ -80,6 +72,13 @@ struct writeback_control {
 
 	unsigned punt_to_cgroup:1;	/* cgrp punting, see __REQ_CGROUP_PUNT */
 
+	/* To enable batching of swap writes to non-block-device backends,
+	 * "plug" can be set point to a 'struct swap_iocb *'.  When all swap
+	 * writes have been submitted, if with swap_iocb is not NULL,
+	 * swap_write_unplug() should be called.
+	 */
+	struct swap_iocb **swap_plug;
+
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
 	struct inode *inode;		/* inode being written out */
@@ -94,9 +93,9 @@ struct writeback_control {
 #endif
 };
 
-static inline int wbc_to_write_flags(struct writeback_control *wbc)
+static inline blk_opf_t wbc_to_write_flags(struct writeback_control *wbc)
 {
-	int flags = 0;
+	blk_opf_t flags = 0;
 
 	if (wbc->punt_to_cgroup)
 		flags = REQ_CGROUP_PUNT;
@@ -345,34 +344,26 @@ void wb_domain_exit(struct wb_domain *dom);
 extern struct wb_domain global_wb_domain;
 
 /* These are exported to sysctl. */
-extern int dirty_background_ratio;
-extern unsigned long dirty_background_bytes;
-extern int vm_dirty_ratio;
-extern unsigned long vm_dirty_bytes;
 extern unsigned int dirty_writeback_interval;
 extern unsigned int dirty_expire_interval;
 extern unsigned int dirtytime_expire_interval;
-extern int vm_highmem_is_dirtyable;
 extern int laptop_mode;
 
-int dirty_background_ratio_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_background_bytes_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_ratio_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_bytes_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
 int dirtytime_interval_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos);
 
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
 unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh);
 
 void wb_update_bandwidth(struct bdi_writeback *wb);
+
+/* Invoke balance dirty pages in async mode. */
+#define BDP_ASYNC 0x0001
+
 void balance_dirty_pages_ratelimited(struct address_space *mapping);
+int balance_dirty_pages_ratelimited_flags(struct address_space *mapping,
+		unsigned int flags);
+
 bool wb_over_bg_thresh(struct bdi_writeback *wb);
 
 typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,

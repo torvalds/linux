@@ -532,7 +532,7 @@ int clock_pll(int fsys, int flags)
 		writel(readl(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_CKE,
 			MCF_SDRAMC_SDCR);
 
-	/* Errata - workaround for SDRAM opeartion after exiting LIMP mode */
+	/* Errata - workaround for SDRAM operation after exiting LIMP mode */
 	writel(MCF_SDRAMC_REFRESH, MCF_SDRAMC_LIMP_FIX);
 
 	/* wait for DQS logic to relock */

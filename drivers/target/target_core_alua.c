@@ -164,6 +164,9 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 	list_for_each_entry(tg_pt_gp, &dev->t10_alua.tg_pt_gps_list,
 			tg_pt_gp_list) {
+		/* Skip empty port groups */
+		if (!tg_pt_gp->tg_pt_gp_members)
+			continue;
 		/*
 		 * Check if the Target port group and Target port descriptor list
 		 * based on tg_pt_gp_members count will fit into the response payload.
@@ -385,7 +388,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 
 			/*
 			 * Extract the RELATIVE TARGET PORT IDENTIFIER to identify
-			 * the Target Port in question for the the incoming
+			 * the Target Port in question for the incoming
 			 * SET_TARGET_PORT_GROUPS op.
 			 */
 			rtpi = get_unaligned_be16(ptr + 2);
@@ -934,8 +937,7 @@ static void core_alua_queue_state_change_ua(struct t10_alua_tg_pt_gp *tg_pt_gp)
 
 		spin_lock(&lun->lun_deve_lock);
 		list_for_each_entry(se_deve, &lun->lun_deve_list, lun_link) {
-			lacl = rcu_dereference_check(se_deve->se_lun_acl,
-					lockdep_is_held(&lun->lun_deve_lock));
+			lacl = se_deve->se_lun_acl;
 
 			/*
 			 * spc4r37 p.242:

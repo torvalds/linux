@@ -14,6 +14,8 @@ properties:
     enum:
       - qcom,sc7280-lpass-rx-macro
       - qcom,sm8250-lpass-rx-macro
+      - qcom,sm8450-lpass-rx-macro
+      - qcom,sc8280xp-lpass-rx-macro
 
   reg:
     maxItems: 1
@@ -28,12 +30,17 @@ properties:
     maxItems: 5
 
   clock-names:
-    items:
-      - const: mclk
-      - const: npl
-      - const: macro
-      - const: dcodec
-      - const: fsgen
+    oneOf:
+      - items:   #for ADSP based platforms
+          - const: mclk
+          - const: npl
+          - const: macro
+          - const: dcodec
+          - const: fsgen
+      - items:   #for ADSP bypass based platforms
+          - const: mclk
+          - const: npl
+          - const: fsgen
 
   clock-output-names:
     items:

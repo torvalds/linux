@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
 
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/mmu.h>
 #include <asm/smp.h>
@@ -70,42 +69,8 @@ EXPORT_SYMBOL(agp_special_page);
 
 void MMU_init(void);
 
-/*
- * this tells the system to map all of ram with the segregs
- * (i.e. page tables) instead of the bats.
- * -- Cort
- */
-int __map_without_bats;
-int __map_without_ltlbs;
-
 /* max amount of low RAM to map in */
 unsigned long __max_low_memory = MAX_LOW_MEM;
-
-/*
- * Check for command-line options that affect what MMU_init will do.
- */
-static void __init MMU_setup(void)
-{
-	/* Check for nobats option (used in mapin_ram). */
-	if (strstr(boot_command_line, "nobats")) {
-		__map_without_bats = 1;
-	}
-
-	if (strstr(boot_command_line, "noltlbs")) {
-		__map_without_ltlbs = 1;
-	}
-	if (IS_ENABLED(CONFIG_PPC_8xx))
-		return;
-
-	if (IS_ENABLED(CONFIG_KFENCE))
-		__map_without_ltlbs = 1;
-
-	if (debug_pagealloc_enabled())
-		__map_without_ltlbs = 1;
-
-	if (strict_kernel_rwx_enabled())
-		__map_without_ltlbs = 1;
-}
 
 /*
  * MMU_init sets up the basic memory mappings for the kernel,
@@ -117,31 +82,15 @@ void __init MMU_init(void)
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:enter", 0x111);
 
-	/* parse args from command line */
-	MMU_setup();
-
-	/*
-	 * Reserve gigantic pages for hugetlb.  This MUST occur before
-	 * lowmem_end_addr is initialized below.
-	 */
-	if (memblock.memory.cnt > 1) {
-#ifndef CONFIG_WII
-		memblock_enforce_memory_limit(memblock.memory.regions[0].size);
-		pr_warn("Only using first contiguous memory region\n");
-#else
-		wii_memory_fixups();
-#endif
-	}
-
 	total_lowmem = total_memory = memblock_end_of_DRAM() - memstart_addr;
 	lowmem_end_addr = memstart_addr + total_lowmem;
 
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_85xx
 	/* Freescale Book-E parts expect lowmem to be mapped by fixed TLB
 	 * entries, so we need to adjust lowmem to match the amount we can map
 	 * in the fixed entries */
 	adjust_total_lowmem();
-#endif /* CONFIG_FSL_BOOKE */
+#endif /* CONFIG_PPC_85xx */
 
 	if (total_lowmem > __max_low_memory) {
 		total_lowmem = __max_low_memory;

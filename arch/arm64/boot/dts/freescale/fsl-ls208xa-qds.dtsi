@@ -9,6 +9,27 @@
  *
  */
 
+/* Update DPMAC connections to external PHYs, under SerDes 0x2a_0x49. */
+&dpmac9 {
+	phy-handle = <&mdio0_phy12>;
+	phy-connection-type = "sgmii";
+};
+
+&dpmac10 {
+	phy-handle = <&mdio0_phy13>;
+	phy-connection-type = "sgmii";
+};
+
+&dpmac11 {
+	phy-handle = <&mdio0_phy14>;
+	phy-connection-type = "sgmii";
+};
+
+&dpmac12 {
+	phy-handle = <&mdio0_phy15>;
+	phy-connection-type = "sgmii";
+};
+
 &esdhc {
 	mmc-hs200-1_8v;
 	status = "okay";
@@ -36,9 +57,47 @@
 	     reg = <0x2 0x0 0x10000>;
 	};
 
-	cpld@3,0 {
-	     reg = <0x3 0x0 0x10000>;
-	     compatible = "fsl,ls2080aqds-fpga", "fsl,fpga-qixis";
+	boardctrl: board-control@3,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,ls208xaqds-fpga", "fsl,fpga-qixis", "simple-mfd";
+		reg = <3 0 0x1000>;
+		ranges = <0 3 0 0x1000>;
+
+		mdio-mux-emi1@54 {
+			compatible = "mdio-mux-mmioreg", "mdio-mux";
+			mdio-parent-bus = <&emdio1>;
+			reg = <0x54 1>;		/* BRDCFG4 */
+			mux-mask = <0xe0>;	/* EMI1_MDIO */
+			#address-cells=<1>;
+			#size-cells = <0>;
+
+			/* Child MDIO buses, one for each riser card:
+			 * reg = 0x0, 0x20, 0x40, 0x60, 0x80, 0xa0.
+			 * VSC8234 PHYs on the riser cards.
+			 */
+			mdio_mux3: mdio@60 {
+				reg = <0x60>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				mdio0_phy12: mdio-phy0@1c {
+					reg = <0x1c>;
+				};
+
+				mdio0_phy13: mdio-phy1@1d {
+					reg = <0x1d>;
+				};
+
+				mdio0_phy14: mdio-phy2@1e {
+					reg = <0x1e>;
+				};
+
+				mdio0_phy15: mdio-phy3@1f {
+					reg = <0x1f>;
+				};
+			};
+		};
 	};
 };
 
@@ -104,21 +163,21 @@
 
 &dspi {
 	status = "okay";
-	dflash0: n25q128a@0 {
+	dflash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";
 		spi-max-frequency = <3000000>;
 		reg = <0>;
 	};
-	dflash1: sst25wf040b@1 {
+	dflash1: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";
 		spi-max-frequency = <3000000>;
 		reg = <1>;
 	};
-	dflash2: en25s64@2 {
+	dflash2: flash@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";
@@ -129,7 +188,7 @@
 
 &qspi {
 	status = "okay";
-	flash0: s25fl256s1@0 {
+	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";
@@ -138,7 +197,7 @@
 		spi-tx-bus-width = <4>;
 		reg = <0>;
 	};
-	flash2: s25fl256s1@2 {
+	flash2: flash@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";

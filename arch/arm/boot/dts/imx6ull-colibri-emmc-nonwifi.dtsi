@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+ OR MIT
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2021 Toradex
+ * Copyright 2022 Toradex
  */
 
 #include "imx6ull-colibri.dtsi"
@@ -8,7 +8,7 @@
 / {
 	aliases {
 		mmc0 = &usdhc2; /* eMMC */
-		mmc1 = &usdhc1; /* MMC 4bit slot */
+		mmc1 = &usdhc1; /* MMC 4-bit slot */
 	};
 
 	memory@80000000 {
@@ -154,6 +154,7 @@
 			  "SODIMM_127";
 };
 
+/* NAND */
 &gpmi {
 	status = "disabled";
 };
@@ -170,6 +171,7 @@
 	pinctrl-0 = <&pinctrl_snvs_gpio1 &pinctrl_snvs_gpio3>;
 };
 
+/* eMMC */
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2emmc>;

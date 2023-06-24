@@ -118,6 +118,13 @@ config INDIRECT_IOMEM_FALLBACK
 	  mmio accesses when the IO memory address is not a registered
 	  emulated region.
 
+config TRACE_MMIO_ACCESS
+	bool "Register read/write tracing"
+	depends on TRACING && ARCH_HAVE_TRACE_MMIO_ACCESS
+	help
+	  Create tracepoints for MMIO read/write operations. These trace events
+	  can be used for logging all MMIO read/write operations.
+
 source "lib/crypto/Kconfig"
 
 config CRC_CCITT
@@ -333,12 +340,16 @@ config LZ4HC_COMPRESS
 config LZ4_DECOMPRESS
 	tristate
 
-config ZSTD_COMPRESS
+config ZSTD_COMMON
 	select XXHASH
 	tristate
 
+config ZSTD_COMPRESS
+	select ZSTD_COMMON
+	tristate
+
 config ZSTD_DECOMPRESS
-	select XXHASH
+	select ZSTD_COMMON
 	tristate
 
 source "lib/xz/Kconfig"
@@ -517,6 +528,15 @@ config CPUMASK_OFFSTACK
 	  them on the stack.  This is a bit more expensive, but avoids
 	  stack overflow.
 
+config FORCE_NR_CPUS
+       bool "NR_CPUS is set to an actual number of CPUs"
+       depends on SMP
+       help
+         Say Yes if you have NR_CPUS set to an actual number of possible
+         CPUs in your system, not to a default value. This forces the core
+         code to rely on compile-time value and optimize kernel routines
+         better.
+
 config CPU_RMAP
 	bool
 	depends on SMP
@@ -682,15 +702,6 @@ config STACKDEPOT_ALWAYS_INIT
 	bool
 	select STACKDEPOT
 
-config STACK_HASH_ORDER
-	int "stack depot hash size (12 => 4KB, 20 => 1024KB)"
-	range 12 20
-	default 20
-	depends on STACKDEPOT
-	help
-	 Select the hash size as a power of 2 for the stackdepot hash table.
-	 Choose a lower value to reduce the memory impact.
-
 config REF_TRACKER
 	bool
 	depends on STACKTRACE_SUPPORT
@@ -736,4 +747,7 @@ config PLDMFW
 	default n
 
 config ASN1_ENCODER
+       tristate
+
+config POLYNOMIAL
        tristate

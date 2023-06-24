@@ -23,10 +23,10 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_09,
 	RTL_GIGA_MAC_VER_10,
 	RTL_GIGA_MAC_VER_11,
-	RTL_GIGA_MAC_VER_12,
-	RTL_GIGA_MAC_VER_13,
+	/* RTL_GIGA_MAC_VER_12 was handled the same as VER_17 */
+	/* RTL_GIGA_MAC_VER_13 was merged with VER_10 */
 	RTL_GIGA_MAC_VER_14,
-	RTL_GIGA_MAC_VER_16,
+	/* RTL_GIGA_MAC_VER_16 was merged with VER_10 */
 	RTL_GIGA_MAC_VER_17,
 	RTL_GIGA_MAC_VER_18,
 	RTL_GIGA_MAC_VER_19,
@@ -51,20 +51,20 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_38,
 	RTL_GIGA_MAC_VER_39,
 	RTL_GIGA_MAC_VER_40,
-	RTL_GIGA_MAC_VER_41,
+	/* support for RTL_GIGA_MAC_VER_41 has been removed */
 	RTL_GIGA_MAC_VER_42,
 	RTL_GIGA_MAC_VER_43,
 	RTL_GIGA_MAC_VER_44,
-	RTL_GIGA_MAC_VER_45,
+	/* support for RTL_GIGA_MAC_VER_45 has been removed */
 	RTL_GIGA_MAC_VER_46,
-	RTL_GIGA_MAC_VER_47,
+	/* support for RTL_GIGA_MAC_VER_47 has been removed */
 	RTL_GIGA_MAC_VER_48,
-	RTL_GIGA_MAC_VER_49,
-	RTL_GIGA_MAC_VER_50,
+	/* support for RTL_GIGA_MAC_VER_49 has been removed */
+	/* support for RTL_GIGA_MAC_VER_50 has been removed */
 	RTL_GIGA_MAC_VER_51,
 	RTL_GIGA_MAC_VER_52,
 	RTL_GIGA_MAC_VER_53,
-	RTL_GIGA_MAC_VER_60,
+	/* support for RTL_GIGA_MAC_VER_60 has been removed */
 	RTL_GIGA_MAC_VER_61,
 	RTL_GIGA_MAC_VER_63,
 	RTL_GIGA_MAC_NONE

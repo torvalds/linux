@@ -31,10 +31,10 @@ struct dac7612 {
 	struct mutex lock;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	uint8_t data[2] ____cacheline_aligned;
+	uint8_t data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int dac7612_cmd_single(struct dac7612 *priv, int channel, u16 val)

@@ -97,6 +97,7 @@ struct geni_i2c_dev {
 	struct dma_chan *tx_c;
 	struct dma_chan *rx_c;
 	bool gpi_mode;
+	bool abort_done;
 };
 
 struct geni_i2c_err_log {
@@ -203,9 +204,18 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 		dev_dbg(gi2c->se.dev, "len:%d, slv-addr:0x%x, RD/WR:%d\n",
 			gi2c->cur->len, gi2c->cur->addr, gi2c->cur->flags);
 
-	if (err != NACK && err != GENI_ABORT_DONE) {
+	switch (err) {
+	case GENI_ABORT_DONE:
+		gi2c->abort_done = true;
+		break;
+	case NACK:
+	case GENI_TIMEOUT:
+		dev_dbg(gi2c->se.dev, "%s\n", gi2c_log[err].msg);
+		break;
+	default:
 		dev_err(gi2c->se.dev, "%s\n", gi2c_log[err].msg);
 		geni_i2c_err_misc(gi2c);
+		break;
 	}
 }
 
@@ -311,21 +321,21 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 
 static void geni_i2c_abort_xfer(struct geni_i2c_dev *gi2c)
 {
-	u32 val;
 	unsigned long time_left = ABORT_TIMEOUT;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gi2c->lock, flags);
 	geni_i2c_err(gi2c, GENI_TIMEOUT);
 	gi2c->cur = NULL;
+	gi2c->abort_done = false;
 	geni_se_abort_m_cmd(&gi2c->se);
 	spin_unlock_irqrestore(&gi2c->lock, flags);
+
 	do {
 		time_left = wait_for_completion_timeout(&gi2c->done, time_left);
-		val = readl_relaxed(gi2c->se.base + SE_GENI_M_IRQ_STATUS);
-	} while (!(val & M_CMD_ABORT_EN) && time_left);
+	} while (!gi2c->abort_done && time_left);
 
-	if (!(val & M_CMD_ABORT_EN))
+	if (!time_left)
 		dev_err(gi2c->se.dev, "Timeout abort_m_cmd\n");
 }
 
@@ -484,12 +494,12 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 {
 	if (tx_buf) {
 		dma_unmap_single(gi2c->se.dev->parent, tx_addr, msg->len, DMA_TO_DEVICE);
-		i2c_put_dma_safe_msg_buf(tx_buf, msg, false);
+		i2c_put_dma_safe_msg_buf(tx_buf, msg, !gi2c->err);
 	}
 
 	if (rx_buf) {
 		dma_unmap_single(gi2c->se.dev->parent, rx_addr, msg->len, DMA_FROM_DEVICE);
-		i2c_put_dma_safe_msg_buf(rx_buf, msg, false);
+		i2c_put_dma_safe_msg_buf(rx_buf, msg, !gi2c->err);
 	}
 }
 
@@ -553,6 +563,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 	desc->callback_param = gi2c;
 
 	dmaengine_submit(desc);
+	*buf = dma_buf;
 	*dma_addr_p = addr;
 
 	return 0;
@@ -615,7 +626,6 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
 			dev_err(gi2c->se.dev, "I2C timeout gpi flags:%d addr:0x%x\n",
 				gi2c->cur->flags, gi2c->cur->addr);
 			gi2c->err = -ETIMEDOUT;
-			goto err;
 		}
 
 		if (gi2c->err) {
@@ -688,7 +698,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 	pm_runtime_put_autosuspend(gi2c->se.dev);
 	gi2c->cur = NULL;
 	gi2c->err = 0;
-	return num;
+	return ret;
 }
 
 static u32 geni_i2c_func(struct i2c_adapter *adap)
@@ -727,16 +737,14 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
 	if (IS_ERR(gi2c->tx_c)) {
 		ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->tx_c),
 				    "Failed to get tx DMA ch\n");
-		if (ret < 0)
-			goto err_tx;
+		goto err_tx;
 	}
 
 	gi2c->rx_c = dma_request_chan(gi2c->se.dev, "rx");
 	if (IS_ERR(gi2c->rx_c)) {
 		ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->rx_c),
 				    "Failed to get rx DMA ch\n");
-		if (ret < 0)
-			goto err_rx;
+		goto err_rx;
 	}
 
 	dev_dbg(gi2c->se.dev, "Grabbed GPI dma channels\n");
@@ -808,7 +816,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&gi2c->adap, gi2c);
 	gi2c->adap.dev.parent = dev;
 	gi2c->adap.dev.of_node = dev->of_node;
-	strlcpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
+	strscpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
 
 	ret = geni_icc_get(&gi2c->se, "qup-memory");
 	if (ret)

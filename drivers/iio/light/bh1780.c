@@ -202,7 +202,7 @@ out_disable_pm:
 	return ret;
 }
 
-static int bh1780_remove(struct i2c_client *client)
+static void bh1780_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct bh1780_data *bh1780 = iio_priv(indio_dev);
@@ -213,12 +213,9 @@ static int bh1780_remove(struct i2c_client *client)
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	ret = bh1780_write(bh1780, BH1780_REG_CONTROL, BH1780_POFF);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to power off\n");
-		return ret;
-	}
-
-	return 0;
+	if (ret < 0)
+		dev_err(&client->dev, "failed to power off (%pe)\n",
+			ERR_PTR(ret));
 }
 
 static int bh1780_runtime_suspend(struct device *dev)

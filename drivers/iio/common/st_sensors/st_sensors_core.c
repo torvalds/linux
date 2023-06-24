@@ -71,16 +71,18 @@ st_sensors_match_odr_error:
 
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 {
-	int err;
+	int err = 0;
 	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
+	mutex_lock(&sdata->odr_lock);
+
 	if (!sdata->sensor_settings->odr.mask)
-		return 0;
+		goto unlock_mutex;
 
 	err = st_sensors_match_odr(sdata->sensor_settings, odr, &odr_out);
 	if (err < 0)
-		goto st_sensors_match_odr_error;
+		goto unlock_mutex;
 
 	if ((sdata->sensor_settings->odr.addr ==
 					sdata->sensor_settings->pw.addr) &&
@@ -103,7 +105,9 @@ int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 	if (err >= 0)
 		sdata->odr = odr_out.hz;
 
-st_sensors_match_odr_error:
+unlock_mutex:
+	mutex_unlock(&sdata->odr_lock);
+
 	return err;
 }
 EXPORT_SYMBOL_NS(st_sensors_set_odr, IIO_ST_SENSORS);
@@ -350,7 +354,7 @@ void st_sensors_dev_name_probe(struct device *dev, char *name, int len)
 		return;
 
 	/* The name from the match takes precedence if present */
-	strlcpy(name, match, len);
+	strscpy(name, match, len);
 }
 EXPORT_SYMBOL_NS(st_sensors_dev_name_probe, IIO_ST_SENSORS);
 
@@ -360,6 +364,8 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 	struct st_sensors_platform_data *of_pdata;
 	int err = 0;
+
+	mutex_init(&sdata->odr_lock);
 
 	/* If OF/DT pdata exists, it will take precedence of anything else */
 	of_pdata = st_sensors_dev_probe(indio_dev->dev.parent, pdata);
@@ -549,26 +555,28 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 	int err;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
-		err = -EBUSY;
+	err = iio_device_claim_direct_mode(indio_dev);
+	if (err)
+		return err;
+
+	mutex_lock(&sdata->odr_lock);
+
+	err = st_sensors_set_enable(indio_dev, true);
+	if (err < 0)
 		goto out;
-	} else {
-		err = st_sensors_set_enable(indio_dev, true);
-		if (err < 0)
-			goto out;
 
-		msleep((sdata->sensor_settings->bootime * 1000) / sdata->odr);
-		err = st_sensors_read_axis_data(indio_dev, ch, val);
-		if (err < 0)
-			goto out;
+	msleep((sdata->sensor_settings->bootime * 1000) / sdata->odr);
+	err = st_sensors_read_axis_data(indio_dev, ch, val);
+	if (err < 0)
+		goto out;
 
-		*val = *val >> ch->scan_type.shift;
+	*val = *val >> ch->scan_type.shift;
 
-		err = st_sensors_set_enable(indio_dev, false);
-	}
+	err = st_sensors_set_enable(indio_dev, false);
+
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&sdata->odr_lock);
+	iio_device_release_direct_mode(indio_dev);
 
 	return err;
 }
@@ -641,7 +649,6 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	for (i = 0; i < ST_SENSORS_ODR_LIST_MAX; i++) {
 		if (sdata->sensor_settings->odr.odr_avl[i].hz == 0)
 			break;
@@ -649,7 +656,6 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
 				sdata->sensor_settings->odr.odr_avl[i].hz);
 	}
-	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
 
 	return len;
@@ -663,7 +669,6 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
@@ -673,7 +678,6 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
-	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
 
 	return len;

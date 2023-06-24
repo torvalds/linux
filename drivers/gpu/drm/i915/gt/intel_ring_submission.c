@@ -117,7 +117,9 @@ static void flush_cs_tlb(struct intel_engine_cs *engine)
 		return;
 
 	/* ring should be idle before issuing a sync flush*/
-	GEM_DEBUG_WARN_ON((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
+	if ((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0)
+		drm_warn(&engine->i915->drm, "%s not idle before sync flush!\n",
+			 engine->name);
 
 	ENGINE_WRITE_FW(engine, RING_INSTPM,
 			_MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
@@ -596,8 +598,9 @@ static void ring_context_reset(struct intel_context *ce)
 	clear_bit(CONTEXT_VALID_BIT, &ce->flags);
 }
 
-static void ring_context_ban(struct intel_context *ce,
-			     struct i915_request *rq)
+static void ring_context_revoke(struct intel_context *ce,
+				struct i915_request *rq,
+				unsigned int preempt_timeout_ms)
 {
 	struct intel_engine_cs *engine;
 
@@ -632,7 +635,7 @@ static const struct intel_context_ops ring_context_ops = {
 
 	.cancel_request = ring_context_cancel_request,
 
-	.ban = ring_context_ban,
+	.revoke = ring_context_revoke,
 
 	.pre_pin = ring_context_pre_pin,
 	.pin = ring_context_pin,
@@ -767,7 +770,7 @@ static int mi_set_context(struct i915_request *rq,
 	if (GRAPHICS_VER(i915) == 7) {
 		if (num_engines) {
 			struct intel_engine_cs *signaller;
-			i915_reg_t last_reg = {}; /* keep gcc quiet */
+			i915_reg_t last_reg = INVALID_MMIO_REG; /* keep gcc quiet */
 
 			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
 			for_each_engine(signaller, engine->gt, id) {

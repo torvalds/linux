@@ -517,6 +517,18 @@ of ftrace. Here is a list of some of the key files:
 		processing should be able to handle them. See comments in the
 		ktime_get_boot_fast_ns() function for more information.
 
+	tai:
+		This is the tai clock (CLOCK_TAI) and is derived from the wall-
+		clock time. However, this clock does not experience
+		discontinuities and backwards jumps caused by NTP inserting leap
+		seconds. Since the clock access is designed for use in tracing,
+		side effects are possible. The clock access may yield wrong
+		readouts in case the internal TAI offset is updated e.g., caused
+		by setting the system time or using adjtimex() with an offset.
+		These effects are rare and post processing should be able to
+		handle them. See comments in the ktime_get_tai_fast_ns()
+		function for more information.
+
 	To set a clock, simply echo the clock name into this file::
 
 	  # echo global > trace_clock
@@ -552,7 +564,7 @@ of ftrace. Here is a list of some of the key files:
 
 	start::
 
-		trace_fd = open("trace_marker", WR_ONLY);
+		trace_fd = open("trace_marker", O_WRONLY);
 
 	Note: Writing into the trace_marker file can also initiate triggers
 	      that are written into /sys/kernel/tracing/events/ftrace/print/trigger

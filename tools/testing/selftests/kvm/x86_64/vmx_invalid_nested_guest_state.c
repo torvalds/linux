@@ -9,7 +9,6 @@
 
 #include "kselftest.h"
 
-#define VCPU_ID	0
 #define ARBITRARY_IO_PORT 0x2000
 
 static struct kvm_vm *vm;
@@ -55,20 +54,21 @@ int main(int argc, char *argv[])
 {
 	vm_vaddr_t vmx_pages_gva;
 	struct kvm_sregs sregs;
+	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct ucall uc;
 
-	nested_vmx_check_supported();
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 
-	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 
 	/* Allocate VMX pages and shared descriptors (vmx_pages). */
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
+	vcpu_args_set(vcpu, 1, vmx_pages_gva);
 
-	vcpu_run(vm, VCPU_ID);
+	vcpu_run(vcpu);
 
-	run = vcpu_state(vm, VCPU_ID);
+	run = vcpu->run;
 
 	/*
 	 * The first exit to L0 userspace should be an I/O access from L2.
@@ -88,17 +88,17 @@ int main(int argc, char *argv[])
 	 * emulating invalid guest state for L2.
 	 */
 	memset(&sregs, 0, sizeof(sregs));
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	sregs.tr.unusable = 1;
-	vcpu_sregs_set(vm, VCPU_ID, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 
-	vcpu_run(vm, VCPU_ID);
+	vcpu_run(vcpu);
 
-	switch (get_ucall(vm, VCPU_ID, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_DONE:
 		break;
 	case UCALL_ABORT:
-		TEST_FAIL("%s", (const char *)uc.args[0]);
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
 	}

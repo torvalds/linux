@@ -46,7 +46,6 @@ I2C managed mode:
 
 			port@0 { /* RMII fixed link to master */
 				reg = <0>;
-				label = "cpu";
 				ethernet = <&master>;
 			};
 
@@ -83,7 +82,6 @@ MDIO managed mode:
 
 					port@0 {
 						reg = <0>;
-						label = "cpu";
 						ethernet = <&master>;
 					};
 

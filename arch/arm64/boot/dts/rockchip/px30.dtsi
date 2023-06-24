@@ -365,6 +365,28 @@
 		status = "disabled";
 	};
 
+	i2s0_8ch: i2s@ff060000 {
+		compatible = "rockchip,px30-i2s-tdm";
+		reg = <0x0 0xff060000 0x0 0x1000>;
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S0_TX>, <&cru SCLK_I2S0_RX>, <&cru HCLK_I2S0>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac 16>, <&dmac 17>;
+		dma-names = "tx", "rx";
+		rockchip,grf = <&grf>;
+		resets = <&cru SRST_I2S0_TX>, <&cru SRST_I2S0_RX>;
+		reset-names = "tx-m", "rx-m";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_8ch_sclktx &i2s0_8ch_sclkrx
+			     &i2s0_8ch_lrcktx &i2s0_8ch_lrckrx
+			     &i2s0_8ch_sdo0 &i2s0_8ch_sdi0
+			     &i2s0_8ch_sdo1 &i2s0_8ch_sdi1
+			     &i2s0_8ch_sdo2 &i2s0_8ch_sdi2
+			     &i2s0_8ch_sdo3 &i2s0_8ch_sdi3>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	i2s1_2ch: i2s@ff070000 {
 		compatible = "rockchip,px30-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff070000 0x0 0x1000>;
@@ -528,7 +550,7 @@
 	i2c0: i2c@ff180000 {
 		compatible = "rockchip,px30-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff180000 0x0 0x1000>;
-		clocks =  <&cru SCLK_I2C0>, <&cru PCLK_I2C0>;
+		clocks = <&cru SCLK_I2C0>, <&cru PCLK_I2C0>;
 		clock-names = "i2c", "pclk";
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";

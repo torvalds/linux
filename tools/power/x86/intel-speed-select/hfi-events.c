@@ -144,7 +144,7 @@ static int family_handler(struct nl_msg *msg, void *arg)
 			continue;
 		res->id = nla_get_u32(tb2[CTRL_ATTR_MCAST_GRP_ID]);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -181,7 +181,10 @@ struct perf_cap {
 
 static void process_hfi_event(struct perf_cap *perf_cap)
 {
-	process_level_change(perf_cap->cpu);
+	struct isst_id id;
+
+	set_isst_id(&id, perf_cap->cpu);
+	process_level_change(&id);
 }
 
 static int handle_event(struct nl_msg *n, void *arg)
@@ -190,7 +193,7 @@ static int handle_event(struct nl_msg *n, void *arg)
 	struct genlmsghdr *genlhdr = genlmsg_hdr(nlh);
 	struct nlattr *attrs[THERMAL_GENL_ATTR_MAX + 1];
 	int ret;
-	struct perf_cap perf_cap;
+	struct perf_cap perf_cap = {0};
 
 	ret = genlmsg_parse(nlh, 0, attrs, THERMAL_GENL_ATTR_MAX, NULL);
 

@@ -1,52 +1,61 @@
 [
     {
         "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer is stalled due to any number of reasons, including an L1 miss, WCB full, pagewalk, store address block or store data block, on a load that retires.",
+        "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x05",
         "EventName": "LD_HEAD.ANY_AT_RET",
+        "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xff",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer is stalled due to a core bound stall including a store address match, a DTLB miss or a page walk that detains the load from retiring.",
-        "Counter": "0,1,2,3",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5",
         "EventCode": "0x05",
         "EventName": "LD_HEAD.L1_BOUND_AT_RET",
+        "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xf4",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer is stalled due to other block cases when load subsequently retires when load subsequently retires.",
+        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer and retirement are both stalled due to other block cases.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x05",
         "EventName": "LD_HEAD.OTHER_AT_RET",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xc0",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer is stalled due to a pagewalk when load subsequently retires.",
+        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer and retirement are both stalled due to a pagewalk.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x05",
         "EventName": "LD_HEAD.PGWALK_AT_RET",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xa0",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer is stalled due to a store address match when load subsequently retires.",
+        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer and retirement are both stalled due to a store address match.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x05",
         "EventName": "LD_HEAD.ST_ADDR_AT_RET",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x84",
         "Unit": "cpu_atom"
     },
@@ -58,12 +67,13 @@
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts demand data reads that were not supplied by the L3 cache.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -73,10 +83,32 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts demand data reads that were not supplied by the L3 cache.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_MISS_LOCAL",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3F84400001",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the L3 cache.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3F84400002",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the L3 cache.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_RFO.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F84400002",
         "SampleAfterValue": "100003",
@@ -92,6 +124,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_L3_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x6",
         "Unit": "cpu_core"
     },
@@ -103,6 +136,7 @@
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -115,6 +149,7 @@
         "EventName": "MEMORY_ACTIVITY.CYCLES_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -127,11 +162,12 @@
         "EventName": "MEMORY_ACTIVITY.STALLS_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x3",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEMORY_ACTIVITY.STALLS_L2_MISS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "5",
@@ -139,11 +175,12 @@
         "EventName": "MEMORY_ACTIVITY.STALLS_L2_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x5",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEMORY_ACTIVITY.STALLS_L3_MISS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "9",
@@ -151,6 +188,7 @@
         "EventName": "MEMORY_ACTIVITY.STALLS_L3_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x9",
         "Unit": "cpu_core"
     },
@@ -283,7 +321,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Retired instructions with at least 1 store uop. This PEBS event is the trigger for stores sampled by the PEBS Store Facility.",
+        "BriefDescription": "Retired memory store access operations. A PDist event for PEBS Store Latency Facility.",
         "CollectPEBSRecord": "2",
         "Data_LA": "1",
         "EventCode": "0xcd",
@@ -295,7 +333,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were not supplied by the L3 cache.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -306,7 +344,7 @@
     },
     {
         "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the L3 cache.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",

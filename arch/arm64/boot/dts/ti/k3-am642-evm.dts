@@ -13,7 +13,7 @@
 #include "k3-am642.dtsi"
 
 / {
-	compatible =  "ti,am642-evm", "ti,am642";
+	compatible = "ti,am642-evm", "ti,am642";
 	model = "Texas Instruments AM642 EVM";
 
 	chosen {
@@ -675,4 +675,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan1_pins_default>;
 	phys = <&transceiver2>;
+};
+
+&gpmc0 {
+	status = "disabled";
+};
+
+&elm0 {
+	status = "disabled";
 };

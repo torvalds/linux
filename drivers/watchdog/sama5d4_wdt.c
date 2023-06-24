@@ -339,7 +339,6 @@ static const struct of_device_id sama5d4_wdt_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sama5d4_wdt_of_match);
 
-#ifdef CONFIG_PM_SLEEP
 static int sama5d4_wdt_suspend_late(struct device *dev)
 {
 	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
@@ -366,18 +365,17 @@ static int sama5d4_wdt_resume_early(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sama5d4_wdt_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(sama5d4_wdt_suspend_late,
-			sama5d4_wdt_resume_early)
+	LATE_SYSTEM_SLEEP_PM_OPS(sama5d4_wdt_suspend_late,
+				 sama5d4_wdt_resume_early)
 };
 
 static struct platform_driver sama5d4_wdt_driver = {
 	.probe		= sama5d4_wdt_probe,
 	.driver		= {
 		.name	= "sama5d4_wdt",
-		.pm	= &sama5d4_wdt_pm_ops,
+		.pm	= pm_sleep_ptr(&sama5d4_wdt_pm_ops),
 		.of_match_table = sama5d4_wdt_of_match,
 	}
 };

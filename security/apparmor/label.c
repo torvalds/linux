@@ -197,18 +197,18 @@ static bool vec_is_stale(struct aa_profile **vec, int n)
 	return false;
 }
 
-static bool vec_unconfined(struct aa_profile **vec, int n)
+static long union_vec_flags(struct aa_profile **vec, int n, long mask)
 {
+	long u = 0;
 	int i;
 
 	AA_BUG(!vec);
 
 	for (i = 0; i < n; i++) {
-		if (!profile_unconfined(vec[i]))
-			return false;
+		u |= vec[i]->label.flags & mask;
 	}
 
-	return true;
+	return u;
 }
 
 static int sort_cmp(const void *a, const void *b)
@@ -485,7 +485,7 @@ int aa_label_next_confined(struct aa_label *label, int i)
 }
 
 /**
- * aa_label_next_not_in_set - return the next profile of @sub not in @set
+ * __aa_label_next_not_in_set - return the next profile of @sub not in @set
  * @I: label iterator
  * @set: label to test against
  * @sub: label to if is subset of @set
@@ -1097,8 +1097,8 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		else if (k == b->size)
 			return aa_get_label(b);
 	}
-	if (vec_unconfined(new->vec, new->size))
-		new->flags |= FLAG_UNCONFINED;
+	new->flags |= union_vec_flags(new->vec, new->size, FLAG_UNCONFINED |
+					      FLAG_DEBUG1 | FLAG_DEBUG2);
 	ls = labels_set(new);
 	write_lock_irqsave(&ls->lock, flags);
 	label = __label_insert(labels_set(new), new, false);
@@ -1631,9 +1631,9 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	AA_BUG(!str && size != 0);
 	AA_BUG(!label);
 
-	if (flags & FLAG_ABS_ROOT) {
+	if (AA_DEBUG_LABEL && (flags & FLAG_ABS_ROOT)) {
 		ns = root_ns;
-		len = snprintf(str, size, "=");
+		len = snprintf(str, size, "_");
 		update_for_len(total, len, size, str);
 	} else if (!ns) {
 		ns = labels_ns(label);
@@ -1744,7 +1744,7 @@ void aa_label_xaudit(struct audit_buffer *ab, struct aa_ns *ns,
 	if (!use_label_hname(ns, label, flags) ||
 	    display_mode(ns, label, flags)) {
 		len  = aa_label_asxprint(&name, ns, label, flags, gfp);
-		if (len == -1) {
+		if (len < 0) {
 			AA_DEBUG("label print error");
 			return;
 		}
@@ -1772,7 +1772,7 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 		int len;
 
 		len = aa_label_asxprint(&str, ns, label, flags, gfp);
-		if (len == -1) {
+		if (len < 0) {
 			AA_DEBUG("label print error");
 			return;
 		}
@@ -1795,7 +1795,7 @@ void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 		int len;
 
 		len = aa_label_asxprint(&str, ns, label, flags, gfp);
-		if (len == -1) {
+		if (len < 0) {
 			AA_DEBUG("label print error");
 			return;
 		}
@@ -1895,7 +1895,8 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 	AA_BUG(!str);
 
 	str = skipn_spaces(str, n);
-	if (str == NULL || (*str == '=' && base != &root_ns->unconfined->label))
+	if (str == NULL || (AA_DEBUG_LABEL && *str == '_' &&
+			    base != &root_ns->unconfined->label))
 		return ERR_PTR(-EINVAL);
 
 	len = label_count_strn_entries(str, end - str);
@@ -2136,7 +2137,7 @@ static void __labelset_update(struct aa_ns *ns)
 }
 
 /**
- * __aa_labelset_udate_subtree - update all labels with a stale component
+ * __aa_labelset_update_subtree - update all labels with a stale component
  * @ns: ns to start update at (NOT NULL)
  *
  * Requires: @ns lock be held

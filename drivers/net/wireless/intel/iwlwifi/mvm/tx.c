@@ -794,7 +794,7 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 	int lmac = iwl_mvm_get_lmac_id(mvm->fw, band);
 
 	/* For HE redirect to trigger based fifos */
-	if (sta->he_cap.has_he && !WARN_ON(!iwl_mvm_has_new_tx_api(mvm)))
+	if (sta->deflink.he_cap.has_he && !WARN_ON(!iwl_mvm_has_new_tx_api(mvm)))
 		ac += 4;
 
 	txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, ac);
@@ -926,7 +926,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * Take the min of ieee80211 station and mvm station
 	 */
 	max_amsdu_len =
-		min_t(unsigned int, sta->max_amsdu_len,
+		min_t(unsigned int, sta->cur->max_amsdu_len,
 		      iwl_mvm_max_amsdu_size(mvm, sta, tid));
 
 	/*
@@ -935,7 +935,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * section 8.7.3 NOTE 3).
 	 */
 	if (info->flags & IEEE80211_TX_CTL_AMPDU &&
-	    !sta->vht_cap.vht_supported)
+	    !sta->deflink.vht_cap.vht_supported)
 		max_amsdu_len = min_t(unsigned int, max_amsdu_len, 4095);
 
 	/* Sub frame header + SNAP + IP header + TCP header + MSS */
@@ -1083,7 +1083,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_INVALID_STA))
 		return -1;
 
-	if (unlikely(ieee80211_is_any_nullfunc(fc)) && sta->he_cap.has_he)
+	if (unlikely(ieee80211_is_any_nullfunc(fc)) && sta->deflink.he_cap.has_he)
 		return -1;
 
 	if (unlikely(ieee80211_is_probe_resp(fc)))
@@ -1959,7 +1959,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 
 		if (mvmsta->vif)
 			chanctx_conf =
-				rcu_dereference(mvmsta->vif->chanctx_conf);
+				rcu_dereference(mvmsta->vif->bss_conf.chanctx_conf);
 
 		if (WARN_ON_ONCE(!chanctx_conf))
 			goto out;

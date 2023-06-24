@@ -19,7 +19,6 @@ Contents:
    cirrus/cs89x0
    dlink/dl2k
    davicom/dm9000
-   dec/de4x5
    dec/dmfe
    freescale/dpaa
    freescale/dpaa2/index
@@ -39,10 +38,10 @@ Contents:
    intel/iavf
    intel/ice
    marvell/octeontx2
+   marvell/octeon_ep
    mellanox/mlx5
    microsoft/netvsc
    neterion/s2io
-   neterion/vxge
    netronome/nfp
    pensando/ionic
    smsc/smc9
@@ -52,6 +51,8 @@ Contents:
    ti/am65_nuss_cpsw_switchdev
    ti/tlan
    toshiba/spider_net
+   wangxun/txgbe
+   wangxun/ngbe
 
 .. only::  subproject and html
 

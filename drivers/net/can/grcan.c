@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/io.h>
 #include <linux/can/dev.h>
 #include <linux/spinlock.h>
@@ -671,6 +672,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 				/* There are no others at this point */
 				break;
 			}
+			cf.can_id |= CAN_ERR_CNT;
 			cf.data[6] = txerr;
 			cf.data[7] = rxerr;
 			priv->can.state = state;
@@ -1343,7 +1345,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	unsigned long flags;
 	u32 oneshotmode = priv->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT;
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	/* Trying to transmit in silent mode will generate error interrupts, but
@@ -1560,6 +1562,10 @@ static const struct net_device_ops grcan_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops grcan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int grcan_setup_netdev(struct platform_device *ofdev,
 			      void __iomem *base,
 			      int irq, u32 ambafreq, bool txbug)
@@ -1576,6 +1582,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
 	dev->netdev_ops = &grcan_netdev_ops;
+	dev->ethtool_ops = &grcan_ethtool_ops;
 	dev->sysfs_groups[0] = &sysfs_grcan_group;
 
 	priv = netdev_priv(dev);
@@ -1609,7 +1616,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 		timer_setup(&priv->hang_timer, grcan_initiate_running_reset, 0);
 	}
 
-	netif_napi_add(dev, &priv->napi, grcan_poll, GRCAN_NAPI_WEIGHT);
+	netif_napi_add_weight(dev, &priv->napi, grcan_poll, GRCAN_NAPI_WEIGHT);
 
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 	dev_info(&ofdev->dev, "regs=0x%p, irq=%d, clock=%d\n",
@@ -1646,7 +1653,6 @@ static int grcan_probe(struct platform_device *ofdev)
 	 */
 	sysid_parent = of_find_node_by_path("/ambapp0");
 	if (sysid_parent) {
-		of_node_get(sysid_parent);
 		err = of_property_read_u32(sysid_parent, "systemid", &sysid);
 		if (!err && ((sysid & GRLIB_VERSION_MASK) >=
 			     GRCAN_TXBUG_SAFE_GRLIB_VERSION))

@@ -20,7 +20,7 @@
 
 int dlm_slots_version(struct dlm_header *h)
 {
-	if ((h->h_version & 0x0000FFFF) < DLM_HEADER_SLOTS)
+	if ((le32_to_cpu(h->h_version) & 0x0000FFFF) < DLM_HEADER_SLOTS)
 		return 0;
 	return 1;
 }
@@ -120,18 +120,13 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 
 	ro0 = (struct rcom_slot *)(rc->rc_buf + sizeof(struct rcom_config));
 
-	for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
-		ro->ro_nodeid = le32_to_cpu(ro->ro_nodeid);
-		ro->ro_slot = le16_to_cpu(ro->ro_slot);
-	}
-
 	log_slots(ls, gen, num_slots, ro0, NULL, 0);
 
 	list_for_each_entry(memb, &ls->ls_nodes, list) {
 		for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
-			if (ro->ro_nodeid != memb->nodeid)
+			if (le32_to_cpu(ro->ro_nodeid) != memb->nodeid)
 				continue;
-			memb->slot = ro->ro_slot;
+			memb->slot = le16_to_cpu(ro->ro_slot);
 			memb->slot_prev = memb->slot;
 			break;
 		}
@@ -539,7 +534,11 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	int i, error, neg = 0, low = -1;
 
 	/* previously removed members that we've not finished removing need to
-	   count as a negative change so the "neg" recovery steps will happen */
+	 * count as a negative change so the "neg" recovery steps will happen
+	 *
+	 * This functionality must report all member changes to lsops or
+	 * midcomms layer and must never return before.
+	 */
 
 	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
 		log_rinfo(ls, "prev removed member %d", memb->nodeid);
@@ -588,19 +587,6 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	*neg_out = neg;
 
 	error = ping_members(ls);
-	/* error -EINTR means that a new recovery action is triggered.
-	 * We ignore this recovery action and let run the new one which might
-	 * have new member configuration.
-	 */
-	if (error == -EINTR)
-		error = 0;
-
-	/* new_lockspace() may be waiting to know if the config
-	 * is good or bad
-	 */
-	ls->ls_members_result = error;
-	complete(&ls->ls_members_done);
-
 	log_rinfo(ls, "dlm_recover_members %d nodes", ls->ls_num_nodes);
 	return error;
 }
@@ -680,7 +666,16 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	if (!ls->ls_recover_begin)
 		ls->ls_recover_begin = jiffies;
 
-	dlm_lsop_recover_prep(ls);
+	/* call recover_prep ops only once and not multiple times
+	 * for each possible dlm_ls_stop() when recovery is already
+	 * stopped.
+	 *
+	 * If we successful was able to clear LSFL_RUNNING bit and
+	 * it was set we know it is the first dlm_ls_stop() call.
+	 */
+	if (new)
+		dlm_lsop_recover_prep(ls);
+
 	return 0;
 }
 

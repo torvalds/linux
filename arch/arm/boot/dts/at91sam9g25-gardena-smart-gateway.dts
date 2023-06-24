@@ -23,7 +23,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		user_btn1 {
+		button {
 			label = "USER_BTN1";
 			gpios = <&pioA 24 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;

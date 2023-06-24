@@ -661,11 +661,6 @@ const char *menu_get_prompt(struct menu *menu)
 	return NULL;
 }
 
-struct menu *menu_get_root_menu(struct menu *menu)
-{
-	return &rootmenu;
-}
-
 struct menu *menu_get_parent_menu(struct menu *menu)
 {
 	enum prop_type type;
@@ -727,8 +722,8 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 	if (!expr_eq(prop->menu->dep, prop->visible.expr))
 		get_dep_str(r, prop->visible.expr, "  Visible if: ");
 
-	menu = prop->menu->parent;
-	for (i = 0; menu && i < 8; menu = menu->parent) {
+	menu = prop->menu;
+	for (i = 0; menu != &rootmenu && i < 8; menu = menu->parent) {
 		bool accessible = menu_is_visible(menu);
 
 		submenu[i++] = menu;
@@ -738,16 +733,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 	if (head && location) {
 		jump = xmalloc(sizeof(struct jump_key));
 
-		if (menu_is_visible(prop->menu)) {
-			/*
-			 * There is not enough room to put the hint at the
-			 * beginning of the "Prompt" line. Put the hint on the
-			 * last "Location" line even when it would belong on
-			 * the former.
-			 */
-			jump->target = prop->menu;
-		} else
-			jump->target = location;
+		jump->target = location;
 
 		if (list_empty(head))
 			jump->index = 0;
@@ -763,13 +749,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 		menu = submenu[i];
 		if (jump && menu == location)
 			jump->offset = strlen(r->s);
-
-		if (menu == &rootmenu)
-			/* The real rootmenu prompt is ugly */
-			str_printf(r, "%*cMain menu", j, ' ');
-		else
-			str_printf(r, "%*c-> %s", j, ' ', menu_get_prompt(menu));
-
+		str_printf(r, "%*c-> %s", j, ' ', menu_get_prompt(menu));
 		if (menu->sym) {
 			str_printf(r, " (%s [=%s])", menu->sym->name ?
 				menu->sym->name : "<choice>",

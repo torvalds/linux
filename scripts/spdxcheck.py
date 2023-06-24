@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from ply import lex, yacc
 import locale
 import traceback
+import fnmatch
 import sys
 import git
 import re
@@ -27,6 +28,21 @@ class SPDXdata(object):
         self.exception_files = 0
         self.licenses = [ ]
         self.exceptions = { }
+
+class dirinfo(object):
+    def __init__(self):
+        self.missing = 0
+        self.total = 0
+        self.files = []
+
+    def update(self, fname, basedir, miss):
+        self.total += 1
+        self.missing += miss
+        if miss:
+            fname = './' + fname
+            bdir = os.path.dirname(fname)
+            if bdir == basedir.rstrip('/'):
+                self.files.append(fname)
 
 # Read the spdx data from the LICENSES directory
 def read_spdxdata(repo):
@@ -91,10 +107,24 @@ class id_parser(object):
         self.parser = yacc.yacc(module = self, write_tables = False, debug = False)
         self.lines_checked = 0
         self.checked = 0
+        self.excluded = 0
         self.spdx_valid = 0
         self.spdx_errors = 0
+        self.spdx_dirs = {}
+        self.dirdepth = -1
+        self.basedir = '.'
         self.curline = 0
         self.deepest = 0
+
+    def set_dirinfo(self, basedir, dirdepth):
+        if dirdepth >= 0:
+            self.basedir = basedir
+            bdir = basedir.lstrip('./').rstrip('/')
+            if bdir != '':
+                parts = bdir.split('/')
+            else:
+                parts = []
+            self.dirdepth = dirdepth + len(parts)
 
     # Validate License and Exception IDs
     def validate(self, tok):
@@ -167,6 +197,7 @@ class id_parser(object):
     def parse_lines(self, fd, maxlines, fname):
         self.checked += 1
         self.curline = 0
+        fail = 1
         try:
             for line in fd:
                 line = line.decode(locale.getpreferredencoding(False), errors='ignore')
@@ -192,6 +223,7 @@ class id_parser(object):
                 # Should we check for more SPDX ids in the same file and
                 # complain if there are any?
                 #
+                fail = 0
                 break
 
         except ParserException as pe:
@@ -203,28 +235,102 @@ class id_parser(object):
                 sys.stdout.write('%s: %d:0 %s\n' %(fname, self.curline, pe.txt))
             self.spdx_errors += 1
 
-def scan_git_tree(tree):
+        if fname == '-':
+            return
+
+        base = os.path.dirname(fname)
+        if self.dirdepth > 0:
+            parts = base.split('/')
+            i = 0
+            base = '.'
+            while i < self.dirdepth and i < len(parts) and len(parts[i]):
+                base += '/' + parts[i]
+                i += 1
+        elif self.dirdepth == 0:
+            base = self.basedir
+        else:
+            base = './' + base.rstrip('/')
+        base += '/'
+
+        di = self.spdx_dirs.get(base, dirinfo())
+        di.update(fname, base, fail)
+        self.spdx_dirs[base] = di
+
+class pattern(object):
+    def __init__(self, line):
+        self.pattern = line
+        self.match = self.match_file
+        if line == '.*':
+            self.match = self.match_dot
+        elif line.endswith('/'):
+            self.pattern = line[:-1]
+            self.match = self.match_dir
+        elif line.startswith('/'):
+            self.pattern = line[1:]
+            self.match = self.match_fn
+
+    def match_dot(self, fpath):
+        return os.path.basename(fpath).startswith('.')
+
+    def match_file(self, fpath):
+        return os.path.basename(fpath) == self.pattern
+
+    def match_fn(self, fpath):
+        return fnmatch.fnmatchcase(fpath, self.pattern)
+
+    def match_dir(self, fpath):
+        if self.match_fn(os.path.dirname(fpath)):
+            return True
+        return fpath.startswith(self.pattern)
+
+def exclude_file(fpath):
+    for rule in exclude_rules:
+        if rule.match(fpath):
+            return True
+    return False
+
+def scan_git_tree(tree, basedir, dirdepth):
+    parser.set_dirinfo(basedir, dirdepth)
     for el in tree.traverse():
-        # Exclude stuff which would make pointless noise
-        # FIXME: Put this somewhere more sensible
-        if el.path.startswith("LICENSES"):
-            continue
-        if el.path.find("license-rules.rst") >= 0:
-            continue
         if not os.path.isfile(el.path):
+            continue
+        if exclude_file(el.path):
+            parser.excluded += 1
             continue
         with open(el.path, 'rb') as fd:
             parser.parse_lines(fd, args.maxlines, el.path)
 
-def scan_git_subtree(tree, path):
+def scan_git_subtree(tree, path, dirdepth):
     for p in path.strip('/').split('/'):
         tree = tree[p]
-    scan_git_tree(tree)
+    scan_git_tree(tree, path.strip('/'), dirdepth)
+
+def read_exclude_file(fname):
+    rules = []
+    if not fname:
+        return rules
+    with open(fname) as fd:
+        for line in fd:
+            line = line.strip()
+            if line.startswith('#'):
+                continue
+            if not len(line):
+                continue
+            rules.append(pattern(line))
+    return rules
 
 if __name__ == '__main__':
 
     ap = ArgumentParser(description='SPDX expression checker')
     ap.add_argument('path', nargs='*', help='Check path or file. If not given full git tree scan. For stdin use "-"')
+    ap.add_argument('-d', '--dirs', action='store_true',
+                    help='Show [sub]directory statistics.')
+    ap.add_argument('-D', '--depth', type=int, default=-1,
+                    help='Directory depth for -d statistics. Default: unlimited')
+    ap.add_argument('-e', '--exclude',
+                    help='File containing file patterns to exclude. Default: scripts/spdxexclude')
+    ap.add_argument('-f', '--files', action='store_true',
+                    help='Show files without SPDX.')
     ap.add_argument('-m', '--maxlines', type=int, default=15,
                     help='Maximum number of lines to scan in a file. Default 15')
     ap.add_argument('-v', '--verbose', action='store_true', help='Verbose statistics output')
@@ -259,6 +365,15 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try:
+        fname = args.exclude
+        if not fname:
+            fname = os.path.join(os.path.dirname(__file__), 'spdxexclude')
+        exclude_rules = read_exclude_file(fname)
+    except Exception as ex:
+        sys.stderr.write('FAIL: Reading exclude file %s: %s\n' %(fname, ex))
+        sys.exit(1)
+
+    try:
         if len(args.path) and args.path[0] == '-':
             stdin = os.fdopen(sys.stdin.fileno(), 'rb')
             parser.parse_lines(stdin, args.maxlines, '-')
@@ -268,13 +383,21 @@ if __name__ == '__main__':
                     if os.path.isfile(p):
                         parser.parse_lines(open(p, 'rb'), args.maxlines, p)
                     elif os.path.isdir(p):
-                        scan_git_subtree(repo.head.reference.commit.tree, p)
+                        scan_git_subtree(repo.head.reference.commit.tree, p,
+                                         args.depth)
                     else:
                         sys.stderr.write('path %s does not exist\n' %p)
                         sys.exit(1)
             else:
                 # Full git tree scan
-                scan_git_tree(repo.head.commit.tree)
+                scan_git_tree(repo.head.commit.tree, '.', args.depth)
+
+            ndirs = len(parser.spdx_dirs)
+            dirsok = 0
+            if ndirs:
+                for di in parser.spdx_dirs.values():
+                    if not di.missing:
+                        dirsok += 1
 
             if args.verbose:
                 sys.stderr.write('\n')
@@ -283,10 +406,38 @@ if __name__ == '__main__':
                 sys.stderr.write('License IDs        %12d\n' %len(spdx.licenses))
                 sys.stderr.write('Exception IDs      %12d\n' %len(spdx.exceptions))
                 sys.stderr.write('\n')
+                sys.stderr.write('Files excluded:    %12d\n' %parser.excluded)
                 sys.stderr.write('Files checked:     %12d\n' %parser.checked)
                 sys.stderr.write('Lines checked:     %12d\n' %parser.lines_checked)
-                sys.stderr.write('Files with SPDX:   %12d\n' %parser.spdx_valid)
+                if parser.checked:
+                    pc = int(100 * parser.spdx_valid / parser.checked)
+                    sys.stderr.write('Files with SPDX:   %12d %3d%%\n' %(parser.spdx_valid, pc))
                 sys.stderr.write('Files with errors: %12d\n' %parser.spdx_errors)
+                if ndirs:
+                    sys.stderr.write('\n')
+                    sys.stderr.write('Directories accounted: %8d\n' %ndirs)
+                    pc = int(100 * dirsok / ndirs)
+                    sys.stderr.write('Directories complete:  %8d %3d%%\n' %(dirsok, pc))
+
+            if ndirs and ndirs != dirsok and args.dirs:
+                if args.verbose:
+                    sys.stderr.write('\n')
+                sys.stderr.write('Incomplete directories: SPDX in Files\n')
+                for f in sorted(parser.spdx_dirs.keys()):
+                    di = parser.spdx_dirs[f]
+                    if di.missing:
+                        valid = di.total - di.missing
+                        pc = int(100 * valid / di.total)
+                        sys.stderr.write('    %-80s: %5d of %5d  %3d%%\n' %(f, valid, di.total, pc))
+
+            if ndirs and ndirs != dirsok and args.files:
+                if args.verbose or args.dirs:
+                    sys.stderr.write('\n')
+                sys.stderr.write('Files without SPDX:\n')
+                for f in sorted(parser.spdx_dirs.keys()):
+                    di = parser.spdx_dirs[f]
+                    for f in sorted(di.files):
+                        sys.stderr.write('    %s\n' %f)
 
             sys.exit(0)
 

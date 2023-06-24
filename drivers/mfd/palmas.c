@@ -700,7 +700,7 @@ err_i2c:
 	return ret;
 }
 
-static int palmas_i2c_remove(struct i2c_client *i2c)
+static void palmas_i2c_remove(struct i2c_client *i2c)
 {
 	struct palmas *palmas = i2c_get_clientdata(i2c);
 	int i;
@@ -716,8 +716,6 @@ static int palmas_i2c_remove(struct i2c_client *i2c)
 		pm_power_off = NULL;
 		palmas_dev = NULL;
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id palmas_i2c_id[] = {

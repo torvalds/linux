@@ -4,9 +4,9 @@
 #define __ASM_CSKY_PROCESSOR_H
 
 #include <linux/bitops.h>
+#include <linux/cache.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>
-#include <asm/cache.h>
 #include <abi/reg_ops.h>
 #include <abi/regdef.h>
 #include <abi/switch_context.h>
@@ -68,11 +68,6 @@ do {									\
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
-
-/* Free all resources held by a thread. */
-static inline void release_thread(struct task_struct *dead_task)
-{
-}
 
 /* Prepare to copy thread state - unlazy all lazy status */
 #define prepare_to_copy(tsk)    do { } while (0)

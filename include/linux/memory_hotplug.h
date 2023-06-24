@@ -11,10 +11,10 @@ struct page;
 struct zone;
 struct pglist_data;
 struct mem_section;
-struct memory_block;
 struct memory_group;
 struct resource;
 struct vmem_altmap;
+struct dev_pagemap;
 
 #ifdef CONFIG_HAVE_ARCH_NODEDATA_EXTENSION
 /*
@@ -43,11 +43,6 @@ extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
 ({								\
 	memblock_alloc(sizeof(*pgdat), SMP_CACHE_BYTES);	\
 })
-/*
- * This definition is just for error path in node hotadd.
- * For node hotremove, we have to replace this.
- */
-#define generic_free_nodedata(pgdat)	kfree(pgdat)
 
 extern pg_data_t *node_data[];
 static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
@@ -62,9 +57,6 @@ static inline pg_data_t *generic_alloc_nodedata(int nid)
 {
 	BUG();
 	return NULL;
-}
-static inline void generic_free_nodedata(pg_data_t *pgdat)
-{
 }
 static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 {
@@ -122,6 +114,7 @@ typedef int __bitwise mhp_t;
 struct mhp_params {
 	struct vmem_altmap *altmap;
 	pgprot_t pgprot;
+	struct dev_pagemap *pgmap;
 };
 
 bool mhp_range_allowed(u64 start, u64 size, bool need_mapping);
@@ -214,6 +207,22 @@ void put_online_mems(void);
 void mem_hotplug_begin(void);
 void mem_hotplug_done(void);
 
+/* See kswapd_is_running() */
+static inline void pgdat_kswapd_lock(pg_data_t *pgdat)
+{
+	mutex_lock(&pgdat->kswapd_lock);
+}
+
+static inline void pgdat_kswapd_unlock(pg_data_t *pgdat)
+{
+	mutex_unlock(&pgdat->kswapd_lock);
+}
+
+static inline void pgdat_kswapd_lock_init(pg_data_t *pgdat)
+{
+	mutex_init(&pgdat->kswapd_lock);
+}
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 #define pfn_to_online_page(pfn)			\
 ({						\
@@ -250,6 +259,10 @@ static inline bool movable_node_is_enabled(void)
 {
 	return false;
 }
+
+static inline void pgdat_kswapd_lock(pg_data_t *pgdat) {}
+static inline void pgdat_kswapd_unlock(pg_data_t *pgdat) {}
+static inline void pgdat_kswapd_lock_init(pg_data_t *pgdat) {}
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 
 /*
@@ -331,9 +344,9 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 extern void remove_pfn_range_from_zone(struct zone *zone,
 				       unsigned long start_pfn,
 				       unsigned long nr_pages);
-extern bool is_memblock_offlined(struct memory_block *mem);
 extern int sparse_add_section(int nid, unsigned long pfn,
-		unsigned long nr_pages, struct vmem_altmap *altmap);
+		unsigned long nr_pages, struct vmem_altmap *altmap,
+		struct dev_pagemap *pgmap);
 extern void sparse_remove_section(struct mem_section *ms,
 		unsigned long pfn, unsigned long nr_pages,
 		unsigned long map_offset, struct vmem_altmap *altmap);

@@ -9,40 +9,25 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 
-struct snd_soc_acpi_mach snd_soc_acpi_intel_haswell_machines[] = {
-	{
-		.id = "INT33CA",
-		.drv_name = "haswell-audio",
-		.fw_filename = "intel/IntcSST1.bin",
-		.sof_tplg_filename = "sof-hsw.tplg",
-	},
-	{}
-};
-EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_haswell_machines);
-
 struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 	{
 		.id = "INT343A",
-		.drv_name = "broadwell-audio",
-		.fw_filename =  "intel/IntcSST2.bin",
+		.drv_name = "bdw_rt286",
 		.sof_tplg_filename = "sof-bdw-rt286.tplg",
 	},
 	{
 		.id = "10EC5650",
 		.drv_name = "bdw-rt5650",
-		.fw_filename = "intel/IntcSST2.bin",
 		.sof_tplg_filename = "sof-bdw-rt5650.tplg",
 	},
 	{
 		.id = "RT5677CE",
 		.drv_name = "bdw-rt5677",
-		.fw_filename =  "intel/IntcSST2.bin",
 		.sof_tplg_filename = "sof-bdw-rt5677.tplg",
 	},
 	{
 		.id = "INT33CA",
-		.drv_name = "haswell-audio",
-		.fw_filename = "intel/IntcSST2.bin",
+		.drv_name = "hsw_rt5640",
 		.sof_tplg_filename = "sof-bdw-rt5640.tplg",
 	},
 	{}

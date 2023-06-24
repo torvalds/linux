@@ -9,8 +9,27 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-testns=testns1
+testns=testns-$(mktemp -u "XXXXXXXX")
+
 tables="foo bar baz quux"
+global_ret=0
+eret=0
+lret=0
+
+check_result()
+{
+	local r=$1
+	local OK="PASS"
+
+	if [ $r -ne 0 ] ;then
+		OK="FAIL"
+		global_ret=$r
+	fi
+
+	echo "$OK: nft $2 test returned $r"
+
+	eret=0
+}
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
@@ -59,16 +78,66 @@ done)
 
 sleep 1
 
+ip netns exec "$testns" nft -f "$tmp"
 for i in $(seq 1 10) ; do ip netns exec "$testns" nft -f "$tmp" & done
 
 for table in $tables;do
-	randsleep=$((RANDOM%10))
+	randsleep=$((RANDOM%2))
 	sleep $randsleep
-	ip netns exec "$testns" nft delete table inet $table 2>/dev/null
+	ip netns exec "$testns" nft delete table inet $table
+	lret=$?
+	if [ $lret -ne 0 ]; then
+		eret=$lret
+	fi
 done
 
-randsleep=$((RANDOM%10))
-sleep $randsleep
+check_result $eret "add/delete"
+
+for i in $(seq 1 10) ; do
+	(echo "flush ruleset"; cat "$tmp") | ip netns exec "$testns" nft -f /dev/stdin
+
+	lret=$?
+	if [ $lret -ne 0 ]; then
+		eret=$lret
+	fi
+done
+
+check_result $eret "reload"
+
+for i in $(seq 1 10) ; do
+	(echo "flush ruleset"; cat "$tmp"
+	 echo "insert rule inet foo INPUT meta nftrace set 1"
+	 echo "insert rule inet foo OUTPUT meta nftrace set 1"
+	 ) | ip netns exec "$testns" nft -f /dev/stdin
+	lret=$?
+	if [ $lret -ne 0 ]; then
+		eret=$lret
+	fi
+
+	(echo "flush ruleset"; cat "$tmp"
+	 ) | ip netns exec "$testns" nft -f /dev/stdin
+
+	lret=$?
+	if [ $lret -ne 0 ]; then
+		eret=$lret
+	fi
+done
+
+check_result $eret "add/delete with nftrace enabled"
+
+echo "insert rule inet foo INPUT meta nftrace set 1" >> $tmp
+echo "insert rule inet foo OUTPUT meta nftrace set 1" >> $tmp
+
+for i in $(seq 1 10) ; do
+	(echo "flush ruleset"; cat "$tmp") | ip netns exec "$testns" nft -f /dev/stdin
+
+	lret=$?
+	if [ $lret -ne 0 ]; then
+		eret=1
+	fi
+done
+
+check_result $lret "add/delete with nftrace enabled"
 
 pkill -9 ping
 
@@ -76,3 +145,5 @@ wait
 
 rm -f "$tmp"
 ip netns del "$testns"
+
+exit $global_ret

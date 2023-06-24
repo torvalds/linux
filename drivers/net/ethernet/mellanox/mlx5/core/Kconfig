@@ -16,13 +16,9 @@ config MLX5_CORE
 	  Core driver for low level functionality of the ConnectX-4 and
 	  Connect-IB cards by Mellanox Technologies.
 
-config MLX5_ACCEL
-	bool
-
 config MLX5_FPGA
 	bool "Mellanox Technologies Innova support"
 	depends on MLX5_CORE
-	select MLX5_ACCEL
 	help
 	  Build support for the Innova family of network cards by Mellanox
 	  Technologies. Innova network cards are comprised of a ConnectX chip
@@ -143,71 +139,29 @@ config MLX5_CORE_IPOIB
 	help
 	  MLX5 IPoIB offloads & acceleration support.
 
-config MLX5_FPGA_IPSEC
-	bool "Mellanox Technologies IPsec Innova support"
-	depends on MLX5_CORE
-	depends on MLX5_FPGA
+config MLX5_EN_MACSEC
+	bool "Connect-X support for MACSec offload"
+	depends on MLX5_CORE_EN
+	depends on MACSEC
+	default n
 	help
-	Build IPsec support for the Innova family of network cards by Mellanox
-	Technologies. Innova network cards are comprised of a ConnectX chip
-	and an FPGA chip on one board. If you select this option, the
-	mlx5_core driver will include the Innova FPGA core and allow building
-	sandbox-specific client drivers.
+	  Build support for MACsec cryptography-offload acceleration in the NIC.
 
-config MLX5_IPSEC
+config MLX5_EN_IPSEC
 	bool "Mellanox Technologies IPsec Connect-X support"
 	depends on MLX5_CORE_EN
 	depends on XFRM_OFFLOAD
 	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
-	select MLX5_ACCEL
-	help
-	Build IPsec support for the Connect-X family of network cards by Mellanox
-	Technologies.
-	Note: If you select this option, the mlx5_core driver will include
-	IPsec support for the Connect-X family.
-
-config MLX5_EN_IPSEC
-	bool "IPSec XFRM cryptography-offload acceleration"
-	depends on MLX5_CORE_EN
-	depends on XFRM_OFFLOAD
-	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
-	depends on MLX5_FPGA_IPSEC || MLX5_IPSEC
 	help
 	  Build support for IPsec cryptography-offload acceleration in the NIC.
-	  Note: Support for hardware with this capability needs to be selected
-	  for this option to become available.
 
-config MLX5_FPGA_TLS
-	bool "Mellanox Technologies TLS Innova support"
-	depends on TLS_DEVICE
-	depends on TLS=y || MLX5_CORE=m
-	depends on MLX5_CORE_EN
-	depends on MLX5_FPGA
-	select MLX5_EN_TLS
-	help
-	Build TLS support for the Innova family of network cards by Mellanox
-	Technologies. Innova network cards are comprised of a ConnectX chip
-	and an FPGA chip on one board. If you select this option, the
-	mlx5_core driver will include the Innova FPGA core and allow building
-	sandbox-specific client drivers.
-
-config MLX5_TLS
+config MLX5_EN_TLS
 	bool "Mellanox Technologies TLS Connect-X support"
 	depends on TLS_DEVICE
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
-	select MLX5_ACCEL
-	select MLX5_EN_TLS
-	help
-	Build TLS support for the Connect-X family of network cards by Mellanox
-	Technologies.
-
-config MLX5_EN_TLS
-	bool
 	help
 	Build support for TLS cryptography-offload acceleration in the NIC.
-	Note: Support for hardware with this capability needs to be selected
-	for this option to become available.
 
 config MLX5_SW_STEERING
 	bool "Mellanox Technologies software-managed steering"

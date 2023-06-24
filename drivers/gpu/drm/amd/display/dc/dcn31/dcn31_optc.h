@@ -98,7 +98,8 @@
 	SRI(OPTC_WIDTH_CONTROL, ODM, inst),\
 	SRI(OPTC_MEMORY_CONFIG, ODM, inst),\
 	SRI(OTG_CRC_CNTL2, OTG, inst),\
-	SR(DWB_SOURCE_SELECT)
+	SR(DWB_SOURCE_SELECT),\
+	SRI(OTG_DRR_CONTROL, OTG, inst)
 
 #define OPTC_COMMON_MASK_SH_LIST_DCN3_1(mask_sh)\
 	SF(OTG0_OTG_VSTARTUP_PARAM, VSTARTUP_START, mask_sh),\
@@ -252,10 +253,15 @@
 	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DSC_MODE, mask_sh),\
 	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_STREAM_COMBINE_MODE, mask_sh),\
 	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_STREAM_SPLIT_MODE, mask_sh),\
-	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_FORMAT, mask_sh)
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_FORMAT, mask_sh),\
+	SF(OTG0_OTG_DRR_CONTROL, OTG_V_TOTAL_LAST_USED_BY_DRR, mask_sh)
 
 void dcn31_timing_generator_init(struct optc *optc1);
 
+bool optc31_immediate_disable_crtc(struct timing_generator *optc);
+
 void optc31_set_drr(struct timing_generator *optc, const struct drr_params *params);
+
+void optc3_init_odm(struct timing_generator *optc);
 
 #endif /* __DC_OPTC_DCN31_H__ */

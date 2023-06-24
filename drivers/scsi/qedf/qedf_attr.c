@@ -131,7 +131,6 @@ qedf_sysfs_write_grcdump(struct file *filep, struct kobject *kobj,
 	struct qedf_ctx *qedf = NULL;
 	long reading;
 	int ret = 0;
-	char msg[40];
 
 	if (off != 0)
 		return ret;
@@ -148,7 +147,6 @@ qedf_sysfs_write_grcdump(struct file *filep, struct kobject *kobj,
 		return ret;
 	}
 
-	memset(msg, 0, sizeof(msg));
 	switch (reading) {
 	case 0:
 		memset(qedf->grcdump, 0, qedf->grcdump_size);

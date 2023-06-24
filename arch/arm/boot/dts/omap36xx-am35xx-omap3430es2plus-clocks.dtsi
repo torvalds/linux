@@ -133,37 +133,66 @@
 		ti,bit-shift = <2>;
 	};
 
-	usbtll_ick: usbtll_ick@a18 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a18>;
-		ti,bit-shift = <2>;
+	/* CM_ICLKEN3_CORE */
+	clock@a18 {
+		compatible = "ti,clksel";
+		reg = <0xa18>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usbtll_ick: clock-usbtll-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "usbtll_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <2>;
+		};
 	};
 
-	mmchs3_ick: mmchs3_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <30>;
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		mmchs3_ick: clock-mmchs3-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mmchs3_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <30>;
+		};
 	};
 
-	mmchs3_fck: mmchs3_fck@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&core_96m_fck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <30>;
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		mmchs3_fck: clock-mmchs3-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "mmchs3_fck";
+			clocks = <&core_96m_fck>;
+			ti,bit-shift = <30>;
+		};
 	};
 
-	dss1_alwon_fck: dss1_alwon_fck_3430es2@e00 {
-		#clock-cells = <0>;
-		compatible = "ti,dss-gate-clock";
-		clocks = <&dpll4_m4x2_ck>;
-		ti,bit-shift = <0>;
-		reg = <0x0e00>;
-		ti,set-rate-parent;
+	clock@e00 {
+		compatible = "ti,clksel";
+		reg = <0xe00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		dss1_alwon_fck: clock-dss1-alwon-fck-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,dss-gate-clock";
+			clock-output-names = "dss1_alwon_fck_3430es2";
+			clocks = <&dpll4_m4x2_ck>;
+			ti,bit-shift = <0>;
+			ti,set-rate-parent;
+		};
 	};
 
 	dss_ick: dss_ick_3430es2@e10 {

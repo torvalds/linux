@@ -21,3 +21,41 @@ autocorking_size - INTEGER
 	know how/when to uncork their sockets.
 
 	Default: 64K
+
+smcr_buf_type - INTEGER
+        Controls which type of sndbufs and RMBs to use in later newly created
+        SMC-R link group. Only for SMC-R.
+
+        Default: 0 (physically contiguous sndbufs and RMBs)
+
+        Possible values:
+
+        - 0 - Use physically contiguous buffers
+        - 1 - Use virtually contiguous buffers
+        - 2 - Mixed use of the two types. Try physically contiguous buffers first.
+          If not available, use virtually contiguous buffers then.
+
+smcr_testlink_time - INTEGER
+	How frequently SMC-R link sends out TEST_LINK LLC messages to confirm
+	viability, after the last activity of connections on it. Value 0 means
+	disabling TEST_LINK.
+
+	Default: 30 seconds.
+
+wmem - INTEGER
+	Initial size of send buffer used by SMC sockets.
+	The default value inherits from net.ipv4.tcp_wmem[1].
+
+	The minimum value is 16KiB and there is no hard limit for max value, but
+	only allowed 512KiB for SMC-R and 1MiB for SMC-D.
+
+	Default: 16K
+
+rmem - INTEGER
+	Initial size of receive buffer (RMB) used by SMC sockets.
+	The default value inherits from net.ipv4.tcp_rmem[1].
+
+	The minimum value is 16KiB and there is no hard limit for max value, but
+	only allowed 512KiB for SMC-R and 1MiB for SMC-D.
+
+	Default: 128K

@@ -13,7 +13,7 @@
 #define pr_fmt(fmt) "GICv2m: " fmt
 
 #include <linux/acpi.h>
-#include <linux/dma-iommu.h>
+#include <linux/iommu.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>

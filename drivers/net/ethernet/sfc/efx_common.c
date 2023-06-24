@@ -24,6 +24,7 @@
 #include "mcdi_port_common.h"
 #include "io.h"
 #include "mcdi_pcol.h"
+#include "ef100_rep.h"
 
 static unsigned int debug = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 			     NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
@@ -51,8 +52,8 @@ static unsigned int efx_monitor_interval = 1 * HZ;
 /* Default stats update time */
 #define STATS_PERIOD_MS_DEFAULT 1000
 
-const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
-const char *const efx_reset_type_names[] = {
+static const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
+static const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_INVISIBLE]          = "INVISIBLE",
 	[RESET_TYPE_ALL]                = "ALL",
 	[RESET_TYPE_RECOVER_OR_ALL]     = "RECOVER_OR_ALL",
@@ -167,7 +168,7 @@ static void efx_mac_work(struct work_struct *data)
 
 int efx_set_mac_address(struct net_device *net_dev, void *data)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct sockaddr *addr = data;
 	u8 *new_addr = addr->sa_data;
 	u8 old_addr[6];
@@ -202,7 +203,7 @@ int efx_set_mac_address(struct net_device *net_dev, void *data)
 /* Context: netif_addr_lock held, BHs disabled. */
 void efx_set_rx_mode(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->port_enabled)
 		queue_work(efx->workqueue, &efx->mac_work);
@@ -211,7 +212,7 @@ void efx_set_rx_mode(struct net_device *net_dev)
 
 int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
 	/* If disabling RX n-tuple filtering, clear existing filters */
@@ -285,7 +286,7 @@ unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
 /* Context: process, rtnl_lock() held. */
 int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
 	rc = efx_check_disabled(efx);
@@ -600,7 +601,7 @@ void efx_stop_all(struct efx_nic *efx)
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	spin_lock_bh(&efx->stats_lock);
 	efx_nic_update_stats_atomic(efx, NULL, stats);
@@ -723,7 +724,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 /* Context: netif_tx_lock held, BHs disabled. */
 void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	netif_err(efx, tx_err, efx->net_dev,
 		  "TX stuck with port_enabled=%d: resetting channels\n",
@@ -898,7 +899,7 @@ static void efx_reset_work(struct work_struct *data)
 	 * have changed by now.  Now that we have the RTNL lock,
 	 * it cannot change again.
 	 */
-	if (efx->state == STATE_READY)
+	if (efx_net_active(efx->state))
 		(void)efx_reset(efx, method);
 
 	rtnl_unlock();
@@ -908,7 +909,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 {
 	enum reset_type method;
 
-	if (efx->state == STATE_RECOVERY) {
+	if (efx_recovering(efx->state)) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "recovering: skip scheduling %s reset\n",
 			  RESET_TYPE(type));
@@ -943,7 +944,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	/* If we're not READY then just leave the flags set as the cue
 	 * to abort probing or reschedule the reset later.
 	 */
-	if (READ_ONCE(efx->state) != STATE_READY)
+	if (!efx_net_active(READ_ONCE(efx->state)))
 		return;
 
 	/* efx_process_channel() will no longer read events once a
@@ -978,8 +979,7 @@ void efx_port_dummy_op_void(struct efx_nic *efx) {}
 /* This zeroes out and then fills in the invariants in a struct
  * efx_nic (including all sub-structures).
  */
-int efx_init_struct(struct efx_nic *efx,
-		    struct pci_dev *pci_dev, struct net_device *net_dev)
+int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev)
 {
 	int rc = -ENOMEM;
 
@@ -996,9 +996,8 @@ int efx_init_struct(struct efx_nic *efx,
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_UNINIT;
-	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
+	strscpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
-	efx->net_dev = net_dev;
 	efx->rx_prefix_size = efx->type->rx_prefix_size;
 	efx->rx_ip_align =
 		NET_IP_ALIGN ? (efx->rx_prefix_size + NET_IP_ALIGN) % 4 : 0;
@@ -1023,7 +1022,8 @@ int efx_init_struct(struct efx_nic *efx,
 	efx->rps_hash_table = kcalloc(EFX_ARFS_HASH_TABLE_SIZE,
 				      sizeof(*efx->rps_hash_table), GFP_KERNEL);
 #endif
-	efx->mdio.dev = net_dev;
+	spin_lock_init(&efx->vf_reps_lock);
+	INIT_LIST_HEAD(&efx->vf_reps);
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
 
@@ -1077,13 +1077,11 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	int rc;
 
 	efx->mem_bar = UINT_MAX;
-
-	netif_dbg(efx, probe, efx->net_dev, "initialising I/O bar=%d\n", bar);
+	pci_dbg(pci_dev, "initialising I/O bar=%d\n", bar);
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
-		netif_err(efx, probe, efx->net_dev,
-			  "failed to enable PCI device\n");
+		pci_err(pci_dev, "failed to enable PCI device\n");
 		goto fail1;
 	}
 
@@ -1091,42 +1089,40 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 
 	rc = dma_set_mask_and_coherent(&pci_dev->dev, dma_mask);
 	if (rc) {
-		netif_err(efx, probe, efx->net_dev,
-			  "could not find a suitable DMA mask\n");
+		pci_err(efx->pci_dev, "could not find a suitable DMA mask\n");
 		goto fail2;
 	}
-	netif_dbg(efx, probe, efx->net_dev,
-		  "using DMA mask %llx\n", (unsigned long long)dma_mask);
+	pci_dbg(efx->pci_dev, "using DMA mask %llx\n", (unsigned long long)dma_mask);
 
 	efx->membase_phys = pci_resource_start(efx->pci_dev, bar);
 	if (!efx->membase_phys) {
-		netif_err(efx, probe, efx->net_dev,
-			  "ERROR: No BAR%d mapping from the BIOS. "
-			  "Try pci=realloc on the kernel command line\n", bar);
+		pci_err(efx->pci_dev,
+			"ERROR: No BAR%d mapping from the BIOS. Try pci=realloc on the kernel command line\n",
+			bar);
 		rc = -ENODEV;
 		goto fail3;
 	}
 
 	rc = pci_request_region(pci_dev, bar, "sfc");
 	if (rc) {
-		netif_err(efx, probe, efx->net_dev,
-			  "request for memory BAR[%d] failed\n", bar);
+		pci_err(efx->pci_dev,
+			"request for memory BAR[%d] failed\n", bar);
 		rc = -EIO;
 		goto fail3;
 	}
 	efx->mem_bar = bar;
 	efx->membase = ioremap(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
-		netif_err(efx, probe, efx->net_dev,
-			  "could not map memory BAR[%d] at %llx+%x\n", bar,
-			  (unsigned long long)efx->membase_phys, mem_map_size);
+		pci_err(efx->pci_dev,
+			"could not map memory BAR[%d] at %llx+%x\n", bar,
+			(unsigned long long)efx->membase_phys, mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
-	netif_dbg(efx, probe, efx->net_dev,
-		  "memory BAR[%d] at %llx+%x (virtual %p)\n", bar,
-		  (unsigned long long)efx->membase_phys, mem_map_size,
-		  efx->membase);
+	pci_dbg(efx->pci_dev,
+		"memory BAR[%d] at %llx+%x (virtual %p)\n", bar,
+		(unsigned long long)efx->membase_phys, mem_map_size,
+		efx->membase);
 
 	return 0;
 
@@ -1142,7 +1138,7 @@ fail1:
 
 void efx_fini_io(struct efx_nic *efx)
 {
-	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
+	pci_dbg(efx->pci_dev, "shutting down I/O\n");
 
 	if (efx->membase) {
 		iounmap(efx->membase);
@@ -1217,13 +1213,15 @@ static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
 	rtnl_lock();
 
 	if (efx->state != STATE_DISABLED) {
-		efx->state = STATE_RECOVERY;
+		efx->state = efx_recover(efx->state);
 		efx->reset_pending = 0;
 
 		efx_device_detach_sync(efx);
 
-		efx_stop_all(efx);
-		efx_disable_interrupts(efx);
+		if (efx_net_active(efx->state)) {
+			efx_stop_all(efx);
+			efx_disable_interrupts(efx);
+		}
 
 		status = PCI_ERS_RESULT_NEED_RESET;
 	} else {
@@ -1271,7 +1269,7 @@ static void efx_io_resume(struct pci_dev *pdev)
 		netif_err(efx, hw, efx->net_dev,
 			  "efx_reset failed after PCI error (%d)\n", rc);
 	} else {
-		efx->state = STATE_READY;
+		efx->state = efx_recovered(efx->state);
 		netif_dbg(efx, hw, efx->net_dev,
 			  "Done resetting and resuming IO after PCI error.\n");
 	}
@@ -1357,7 +1355,7 @@ static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
 netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev,
 				     netdev_features_t features)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 
 	if (skb->encapsulation) {
 		if (features & NETIF_F_GSO_MASK)
@@ -1378,7 +1376,7 @@ netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev
 int efx_get_phys_port_id(struct net_device *net_dev,
 			 struct netdev_phys_item_id *ppid)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->get_phys_port_id)
 		return efx->type->get_phys_port_id(efx, ppid);
@@ -1388,9 +1386,44 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 
 int efx_get_phys_port_name(struct net_device *net_dev, char *name, size_t len)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (snprintf(name, len, "p%u", efx->port_num) >= len)
 		return -EINVAL;
 	return 0;
+}
+
+void efx_detach_reps(struct efx_nic *efx)
+{
+	struct net_device *rep_dev;
+	struct efx_rep *efv;
+
+	ASSERT_RTNL();
+	netif_dbg(efx, drv, efx->net_dev, "Detaching VF representors\n");
+	list_for_each_entry(efv, &efx->vf_reps, list) {
+		rep_dev = efv->net_dev;
+		if (!rep_dev)
+			continue;
+		netif_carrier_off(rep_dev);
+		/* See efx_device_detach_sync() */
+		netif_tx_lock_bh(rep_dev);
+		netif_tx_stop_all_queues(rep_dev);
+		netif_tx_unlock_bh(rep_dev);
+	}
+}
+
+void efx_attach_reps(struct efx_nic *efx)
+{
+	struct net_device *rep_dev;
+	struct efx_rep *efv;
+
+	ASSERT_RTNL();
+	netif_dbg(efx, drv, efx->net_dev, "Attaching VF representors\n");
+	list_for_each_entry(efv, &efx->vf_reps, list) {
+		rep_dev = efv->net_dev;
+		if (!rep_dev)
+			continue;
+		netif_tx_wake_all_queues(rep_dev);
+		netif_carrier_on(rep_dev);
+	}
 }

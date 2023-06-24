@@ -16,6 +16,7 @@
 #include <linux/bpf_local_storage.h>
 #include <linux/btf_ids.h>
 #include <linux/ima.h>
+#include <linux/bpf-cgroup.h>
 
 /* For every LSM hook that allows attachment of BPF programs, declare a nop
  * function where a BPF program can be attached.
@@ -34,6 +35,65 @@ BTF_SET_START(bpf_lsm_hooks)
 #include <linux/lsm_hook_defs.h>
 #undef LSM_HOOK
 BTF_SET_END(bpf_lsm_hooks)
+
+/* List of LSM hooks that should operate on 'current' cgroup regardless
+ * of function signature.
+ */
+BTF_SET_START(bpf_lsm_current_hooks)
+/* operate on freshly allocated sk without any cgroup association */
+#ifdef CONFIG_SECURITY_NETWORK
+BTF_ID(func, bpf_lsm_sk_alloc_security)
+BTF_ID(func, bpf_lsm_sk_free_security)
+#endif
+BTF_SET_END(bpf_lsm_current_hooks)
+
+/* List of LSM hooks that trigger while the socket is properly locked.
+ */
+BTF_SET_START(bpf_lsm_locked_sockopt_hooks)
+#ifdef CONFIG_SECURITY_NETWORK
+BTF_ID(func, bpf_lsm_socket_sock_rcv_skb)
+BTF_ID(func, bpf_lsm_sock_graft)
+BTF_ID(func, bpf_lsm_inet_csk_clone)
+BTF_ID(func, bpf_lsm_inet_conn_established)
+#endif
+BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
+
+/* List of LSM hooks that trigger while the socket is _not_ locked,
+ * but it's ok to call bpf_{g,s}etsockopt because the socket is still
+ * in the early init phase.
+ */
+BTF_SET_START(bpf_lsm_unlocked_sockopt_hooks)
+#ifdef CONFIG_SECURITY_NETWORK
+BTF_ID(func, bpf_lsm_socket_post_create)
+BTF_ID(func, bpf_lsm_socket_socketpair)
+#endif
+BTF_SET_END(bpf_lsm_unlocked_sockopt_hooks)
+
+#ifdef CONFIG_CGROUP_BPF
+void bpf_lsm_find_cgroup_shim(const struct bpf_prog *prog,
+			     bpf_func_t *bpf_func)
+{
+	const struct btf_param *args __maybe_unused;
+
+	if (btf_type_vlen(prog->aux->attach_func_proto) < 1 ||
+	    btf_id_set_contains(&bpf_lsm_current_hooks,
+				prog->aux->attach_btf_id)) {
+		*bpf_func = __cgroup_bpf_run_lsm_current;
+		return;
+	}
+
+#ifdef CONFIG_NET
+	args = btf_params(prog->aux->attach_func_proto);
+
+	if (args[0].type == btf_sock_ids[BTF_SOCK_TYPE_SOCKET])
+		*bpf_func = __cgroup_bpf_run_lsm_socket;
+	else if (args[0].type == btf_sock_ids[BTF_SOCK_TYPE_SOCK])
+		*bpf_func = __cgroup_bpf_run_lsm_sock;
+	else
+#endif
+		*bpf_func = __cgroup_bpf_run_lsm_current;
+}
+#endif
 
 int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 			const struct bpf_prog *prog)
@@ -117,9 +177,32 @@ static const struct bpf_func_proto bpf_ima_file_hash_proto = {
 	.allowed	= bpf_ima_inode_hash_allowed,
 };
 
+BPF_CALL_1(bpf_get_attach_cookie, void *, ctx)
+{
+	struct bpf_trace_run_ctx *run_ctx;
+
+	run_ctx = container_of(current->bpf_ctx, struct bpf_trace_run_ctx, run_ctx);
+	return run_ctx->bpf_cookie;
+}
+
+static const struct bpf_func_proto bpf_get_attach_cookie_proto = {
+	.func		= bpf_get_attach_cookie,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 static const struct bpf_func_proto *
 bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
+	if (prog->expected_attach_type == BPF_LSM_CGROUP) {
+		func_proto = cgroup_common_func_proto(func_id, prog);
+		if (func_proto)
+			return func_proto;
+	}
+
 	switch (func_id) {
 	case BPF_FUNC_inode_storage_get:
 		return &bpf_inode_storage_get_proto;
@@ -141,6 +224,30 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return prog->aux->sleepable ? &bpf_ima_inode_hash_proto : NULL;
 	case BPF_FUNC_ima_file_hash:
 		return prog->aux->sleepable ? &bpf_ima_file_hash_proto : NULL;
+	case BPF_FUNC_get_attach_cookie:
+		return bpf_prog_has_trampoline(prog) ? &bpf_get_attach_cookie_proto : NULL;
+#ifdef CONFIG_NET
+	case BPF_FUNC_setsockopt:
+		if (prog->expected_attach_type != BPF_LSM_CGROUP)
+			return NULL;
+		if (btf_id_set_contains(&bpf_lsm_locked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_sk_setsockopt_proto;
+		if (btf_id_set_contains(&bpf_lsm_unlocked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_unlocked_sk_setsockopt_proto;
+		return NULL;
+	case BPF_FUNC_getsockopt:
+		if (prog->expected_attach_type != BPF_LSM_CGROUP)
+			return NULL;
+		if (btf_id_set_contains(&bpf_lsm_locked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_sk_getsockopt_proto;
+		if (btf_id_set_contains(&bpf_lsm_unlocked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_unlocked_sk_getsockopt_proto;
+		return NULL;
+#endif
 	default:
 		return tracing_prog_func_proto(func_id, prog);
 	}
@@ -233,6 +340,7 @@ BTF_ID(func, bpf_lsm_task_getsecid_obj)
 BTF_ID(func, bpf_lsm_task_prctl)
 BTF_ID(func, bpf_lsm_task_setscheduler)
 BTF_ID(func, bpf_lsm_task_to_inode)
+BTF_ID(func, bpf_lsm_userns_create)
 BTF_SET_END(sleepable_lsm_hooks)
 
 bool bpf_lsm_is_sleepable_hook(u32 btf_id)

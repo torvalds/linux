@@ -27,9 +27,6 @@ menuconfig ACPI
 	  Management (APM) specification.  If both ACPI and APM support 
 	  are configured, ACPI is used.
 
-	  The project home page for the Linux ACPI subsystem is here:
-	  <https://01.org/linux-acpi>
-
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
@@ -210,8 +207,9 @@ config ACPI_TINY_POWER_BUTTON_SIGNAL
 
 config ACPI_VIDEO
 	tristate "Video"
-	depends on X86 && BACKLIGHT_CLASS_DEVICE
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on ACPI_WMI || !X86
 	select THERMAL
 	help
 	  This driver implements the ACPI Extensions For Display Adapters
@@ -255,7 +253,6 @@ config ACPI_DOCK
 
 config ACPI_CPU_FREQ_PSS
 	bool
-	select THERMAL
 
 config ACPI_PROCESSOR_CSTATE
 	def_bool y
@@ -287,6 +284,7 @@ config ACPI_PROCESSOR
 	depends on X86 || IA64 || ARM64 || LOONGARCH
 	select ACPI_PROCESSOR_IDLE
 	select ACPI_CPU_FREQ_PSS if X86 || IA64 || LOONGARCH
+	select THERMAL
 	default y
 	help
 	  This driver adds support for the ACPI Processor package. It is required
@@ -347,7 +345,6 @@ config ACPI_CUSTOM_DSDT_FILE
 	depends on !STANDALONE
 	help
 	  This option supports a custom DSDT by linking it into the kernel.
-	  See Documentation/admin-guide/acpi/dsdt-override.rst
 
 	  Enter the full path name to the file which includes the AmlCode
 	  or dsdt_aml_code declaration.
@@ -572,6 +569,21 @@ source "drivers/acpi/pmic/Kconfig"
 config ACPI_VIOT
 	bool
 
+config ACPI_PRMT
+	bool "Platform Runtime Mechanism Support"
+	depends on EFI && (X86_64 || ARM64)
+	default y
+	help
+	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a
+	  set of binary executables that can be called from the AML interpreter
+	  or directly from device drivers.
+
+	  Say Y to enable the AML interpreter to execute the PRM code.
+
+	  While this feature is optional in principle, leaving it out may
+	  substantially increase computational overhead related to the
+	  initialization of some server systems.
+
 endif	# ACPI
 
 config X86_PM_TIMER
@@ -589,18 +601,3 @@ config X86_PM_TIMER
 
 	  You should nearly always say Y here because many modern
 	  systems require this timer.
-
-config ACPI_PRMT
-	bool "Platform Runtime Mechanism Support"
-	depends on EFI && X86_64
-	default y
-	help
-	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a
-	  set of binary executables that can be called from the AML interpreter
-	  or directly from device drivers.
-
-	  Say Y to enable the AML interpreter to execute the PRM code.
-
-	  While this feature is optional in principle, leaving it out may
-	  substantially increase computational overhead related to the
-	  initialization of some server systems.

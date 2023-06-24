@@ -228,6 +228,7 @@ typedef struct ax25_dev {
 	ax25_dama_info		dama;
 #endif
 	refcount_t		refcount;
+	bool device_up;
 } ax25_dev;
 
 typedef struct ax25_cb {
@@ -235,6 +236,7 @@ typedef struct ax25_cb {
 	ax25_address		source_addr, dest_addr;
 	ax25_digi		*digipeat;
 	ax25_dev		*ax25_dev;
+	netdevice_tracker	dev_tracker;
 	unsigned char		iamdigi;
 	unsigned char		state, modulus, pidincl;
 	unsigned short		vs, vr, va;

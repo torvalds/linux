@@ -15,6 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c-mux.h>
 #include <linux/i2c.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -549,8 +550,9 @@ static int sii902x_audio_hw_params(struct device *dev, void *data,
 	unsigned long mclk_rate;
 	int i, ret;
 
-	if (daifmt->bit_clk_master || daifmt->frame_clk_master) {
-		dev_dbg(dev, "%s: I2S master mode not supported\n", __func__);
+	if (daifmt->bit_clk_provider || daifmt->frame_clk_provider) {
+		dev_dbg(dev, "%s: I2S clock provider mode not supported\n",
+			__func__);
 		return -EINVAL;
 	}
 
@@ -1143,7 +1145,7 @@ static int sii902x_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int sii902x_remove(struct i2c_client *client)
+static void sii902x_remove(struct i2c_client *client)
 
 {
 	struct sii902x *sii902x = i2c_get_clientdata(client);
@@ -1152,8 +1154,6 @@ static int sii902x_remove(struct i2c_client *client)
 	drm_bridge_remove(&sii902x->bridge);
 	regulator_bulk_disable(ARRAY_SIZE(sii902x->supplies),
 			       sii902x->supplies);
-
-	return 0;
 }
 
 static const struct of_device_id sii902x_dt_ids[] = {

@@ -94,7 +94,7 @@ enum {
 };
 
 static void blk_kick_flush(struct request_queue *q,
-			   struct blk_flush_queue *fq, unsigned int flags);
+			   struct blk_flush_queue *fq, blk_opf_t flags);
 
 static inline struct blk_flush_queue *
 blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
@@ -173,7 +173,7 @@ static void blk_flush_complete_seq(struct request *rq,
 {
 	struct request_queue *q = rq->q;
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
-	unsigned int cmd_flags;
+	blk_opf_t cmd_flags;
 
 	BUG_ON(rq->flush.seq & seq);
 	rq->flush.seq |= seq;
@@ -205,7 +205,6 @@ static void blk_flush_complete_seq(struct request *rq,
 		 * flush data request completion path.  Restore @rq for
 		 * normal completion and end it.
 		 */
-		BUG_ON(!list_empty(&rq->queuelist));
 		list_del_init(&rq->flush.list);
 		blk_flush_restore_request(rq);
 		blk_mq_end_request(rq, error);
@@ -218,7 +217,8 @@ static void blk_flush_complete_seq(struct request *rq,
 	blk_kick_flush(q, fq, cmd_flags);
 }
 
-static void flush_end_io(struct request *flush_rq, blk_status_t error)
+static enum rq_end_io_ret flush_end_io(struct request *flush_rq,
+				       blk_status_t error)
 {
 	struct request_queue *q = flush_rq->q;
 	struct list_head *running;
@@ -232,7 +232,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	if (!req_ref_put_and_test(flush_rq)) {
 		fq->rq_status = error;
 		spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
-		return;
+		return RQ_END_IO_NONE;
 	}
 
 	blk_account_io_flush(flush_rq);
@@ -269,6 +269,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	}
 
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
+	return RQ_END_IO_NONE;
 }
 
 bool is_flush_rq(struct request *rq)
@@ -290,7 +291,7 @@ bool is_flush_rq(struct request *rq)
  *
  */
 static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
-			   unsigned int flags)
+			   blk_opf_t flags)
 {
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	struct request *first_rq =
@@ -354,7 +355,8 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	blk_flush_queue_rq(flush_rq, false);
 }
 
-static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
+static enum rq_end_io_ret mq_flush_data_end_io(struct request *rq,
+					       blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
@@ -376,6 +378,7 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 
 	blk_mq_sched_restart(hctx);
+	return RQ_END_IO_NONE;
 }
 
 /**

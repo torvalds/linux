@@ -57,14 +57,13 @@
 #include <linux/console.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
+#include <linux/soc/pxa/cpu.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
-#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-#include <mach/bitfield.h>
 #include <linux/platform_data/video-pxafb.h>
 
 /*
@@ -73,6 +72,7 @@
 #define DEBUG_VAR 1
 
 #include "pxafb.h"
+#include "pxa3xx-regs.h"
 
 /* Bits which should not be set in machine configuration structures */
 #define LCCR0_INVALID_CONFIG_MASK	(LCCR0_OUM | LCCR0_BM | LCCR0_QDM |\
@@ -2042,7 +2042,7 @@ static int __init pxafb_setup_options(void)
 		return -ENODEV;
 
 	if (options)
-		strlcpy(g_options, options, sizeof(g_options));
+		strscpy(g_options, options, sizeof(g_options));
 
 	return 0;
 }

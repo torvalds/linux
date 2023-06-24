@@ -59,6 +59,7 @@ static size_t gud_xrgb8888_to_r124(u8 *dst, const struct drm_format_info *format
 	unsigned int bits_per_pixel = 8 / block_width;
 	unsigned int x, y, width, height;
 	u8 pix, *pix8, *block = dst; /* Assign to silence compiler warning */
+	struct iosys_map dst_map, vmap;
 	size_t len;
 	void *buf;
 
@@ -74,7 +75,9 @@ static size_t gud_xrgb8888_to_r124(u8 *dst, const struct drm_format_info *format
 	if (!buf)
 		return 0;
 
-	drm_fb_xrgb8888_to_gray8(buf, 0, src, fb, rect);
+	iosys_map_set_vaddr(&dst_map, buf);
+	iosys_map_set_vaddr(&vmap, src);
+	drm_fb_xrgb8888_to_gray8(&dst_map, NULL, &vmap, fb, rect);
 	pix8 = buf;
 
 	for (y = 0; y < height; y++) {
@@ -105,7 +108,8 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 	unsigned int bits_per_pixel = 8 / block_width;
 	u8 r, g, b, pix, *block = dst; /* Assign to silence compiler warning */
 	unsigned int x, y, width;
-	u32 *pix32;
+	__le32 *sbuf32;
+	u32 pix32;
 	size_t len;
 
 	/* Start on a byte boundary */
@@ -114,8 +118,8 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 	len = drm_format_info_min_pitch(format, 0, width) * drm_rect_height(rect);
 
 	for (y = rect->y1; y < rect->y2; y++) {
-		pix32 = src + (y * fb->pitches[0]);
-		pix32 += rect->x1;
+		sbuf32 = src + (y * fb->pitches[0]);
+		sbuf32 += rect->x1;
 
 		for (x = 0; x < width; x++) {
 			unsigned int pixpos = x % block_width; /* within byte from the left */
@@ -126,9 +130,10 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 				*block = 0;
 			}
 
-			r = *pix32 >> 16;
-			g = *pix32 >> 8;
-			b = *pix32++;
+			pix32 = le32_to_cpu(*sbuf32++);
+			r = pix32 >> 16;
+			g = pix32 >> 8;
+			b = pix32;
 
 			switch (format->format) {
 			case GUD_DRM_FORMAT_XRGB1111:
@@ -154,6 +159,7 @@ static int gud_prep_flush(struct gud_device *gdrm, struct drm_framebuffer *fb,
 	u8 compression = gdrm->compression;
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 	struct iosys_map map_data[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map dst;
 	void *vaddr, *buf;
 	size_t pitch, len;
 	int ret = 0;
@@ -177,6 +183,7 @@ retry:
 		buf = gdrm->compress_buf;
 	else
 		buf = gdrm->bulk_buf;
+	iosys_map_set_vaddr(&dst, buf);
 
 	/*
 	 * Imported buffers are assumed to be write-combined and thus uncached
@@ -190,23 +197,24 @@ retry:
 				goto end_cpu_access;
 			}
 		} else if (format->format == DRM_FORMAT_R8) {
-			drm_fb_xrgb8888_to_gray8(buf, 0, vaddr, fb, rect);
+			drm_fb_xrgb8888_to_gray8(&dst, NULL, map_data, fb, rect);
 		} else if (format->format == DRM_FORMAT_RGB332) {
-			drm_fb_xrgb8888_to_rgb332(buf, 0, vaddr, fb, rect);
+			drm_fb_xrgb8888_to_rgb332(&dst, NULL, map_data, fb, rect);
 		} else if (format->format == DRM_FORMAT_RGB565) {
-			drm_fb_xrgb8888_to_rgb565(buf, 0, vaddr, fb, rect, gud_is_big_endian());
+			drm_fb_xrgb8888_to_rgb565(&dst, NULL, map_data, fb, rect,
+						  gud_is_big_endian());
 		} else if (format->format == DRM_FORMAT_RGB888) {
-			drm_fb_xrgb8888_to_rgb888(buf, 0, vaddr, fb, rect);
+			drm_fb_xrgb8888_to_rgb888(&dst, NULL, map_data, fb, rect);
 		} else {
 			len = gud_xrgb8888_to_color(buf, format, vaddr, fb, rect);
 		}
 	} else if (gud_is_big_endian() && format->cpp[0] > 1) {
-		drm_fb_swab(buf, 0, vaddr, fb, rect, !import_attach);
+		drm_fb_swab(&dst, NULL, map_data, fb, rect, !import_attach);
 	} else if (compression && !import_attach && pitch == fb->pitches[0]) {
 		/* can compress directly from the framebuffer */
 		buf = vaddr + rect->y1 * pitch;
 	} else {
-		drm_fb_memcpy(buf, 0, vaddr, fb, rect);
+		drm_fb_memcpy(&dst, NULL, map_data, fb, rect);
 	}
 
 	memset(req, 0, sizeof(*req));

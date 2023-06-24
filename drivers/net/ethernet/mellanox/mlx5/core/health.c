@@ -601,7 +601,7 @@ static void mlx5_fw_reporter_err_work(struct work_struct *work)
 	fw_reporter_ctx.miss_counter = health->miss_counter;
 	if (fw_reporter_ctx.err_synd) {
 		devlink_health_report(health->fw_reporter,
-				      "FW syndrom reported", &fw_reporter_ctx);
+				      "FW syndrome reported", &fw_reporter_ctx);
 		return;
 	}
 	if (fw_reporter_ctx.miss_counter)
@@ -666,16 +666,20 @@ static void mlx5_fw_fatal_reporter_err_work(struct work_struct *work)
 	struct mlx5_fw_reporter_ctx fw_reporter_ctx;
 	struct mlx5_core_health *health;
 	struct mlx5_core_dev *dev;
+	struct devlink *devlink;
 	struct mlx5_priv *priv;
 
 	health = container_of(work, struct mlx5_core_health, fatal_report_work);
 	priv = container_of(health, struct mlx5_priv, health);
 	dev = container_of(priv, struct mlx5_core_dev, priv);
+	devlink = priv_to_devlink(dev);
 
 	enter_error_state(dev, false);
 	if (IS_ERR_OR_NULL(health->fw_fatal_reporter)) {
+		devl_lock(devlink);
 		if (mlx5_health_try_recover(dev))
 			mlx5_core_err(dev, "health recovery failed\n");
+		devl_unlock(devlink);
 		return;
 	}
 	fw_reporter_ctx.err_synd = health->synd;
@@ -698,11 +702,25 @@ static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
 		.dump = mlx5_fw_fatal_reporter_dump,
 };
 
-#define MLX5_REPORTER_FW_GRACEFUL_PERIOD 1200000
+#define MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD 180000
+#define MLX5_FW_REPORTER_PF_GRACEFUL_PERIOD 60000
+#define MLX5_FW_REPORTER_VF_GRACEFUL_PERIOD 30000
+#define MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD MLX5_FW_REPORTER_VF_GRACEFUL_PERIOD
+
 static void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct devlink *devlink = priv_to_devlink(dev);
+	u64 grace_period;
+
+	if (mlx5_core_is_ecpf(dev)) {
+		grace_period = MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD;
+	} else if (mlx5_core_is_pf(dev)) {
+		grace_period = MLX5_FW_REPORTER_PF_GRACEFUL_PERIOD;
+	} else {
+		/* VF or SF */
+		grace_period = MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD;
+	}
 
 	health->fw_reporter =
 		devlink_health_reporter_create(devlink, &mlx5_fw_reporter_ops,
@@ -714,7 +732,7 @@ static void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 	health->fw_fatal_reporter =
 		devlink_health_reporter_create(devlink,
 					       &mlx5_fw_fatal_reporter_ops,
-					       MLX5_REPORTER_FW_GRACEFUL_PERIOD,
+					       grace_period,
 					       dev);
 	if (IS_ERR(health->fw_fatal_reporter))
 		mlx5_core_warn(dev, "Failed to create fw fatal reporter, err = %ld\n",
@@ -839,9 +857,6 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 
 	health->timer.expires = jiffies + msecs_to_jiffies(poll_interval_ms);
 	add_timer(&health->timer);
-
-	if (mlx5_core_is_pf(dev) && MLX5_CAP_MCAM_REG(dev, mrtc))
-		queue_delayed_work(health->wq, &health->update_fw_log_ts_work, 0);
 }
 
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
@@ -858,6 +873,14 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
 	del_timer_sync(&health->timer);
 }
 
+void mlx5_start_health_fw_log_up(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+
+	if (mlx5_core_is_pf(dev) && MLX5_CAP_MCAM_REG(dev, mrtc))
+		queue_delayed_work(health->wq, &health->update_fw_log_ts_work, 0);
+}
+
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -869,13 +892,6 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	cancel_delayed_work_sync(&health->update_fw_log_ts_work);
 	cancel_work_sync(&health->report_work);
 	cancel_work_sync(&health->fatal_report_work);
-}
-
-void mlx5_health_flush(struct mlx5_core_dev *dev)
-{
-	struct mlx5_core_health *health = &dev->priv.health;
-
-	flush_workqueue(health->wq);
 }
 
 void mlx5_health_cleanup(struct mlx5_core_dev *dev)

@@ -30,7 +30,17 @@ typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 enum perf_tool_event {
 	PERF_TOOL_NONE		= 0,
 	PERF_TOOL_DURATION_TIME = 1,
+	PERF_TOOL_USER_TIME = 2,
+	PERF_TOOL_SYSTEM_TIME = 3,
+
+	PERF_TOOL_MAX,
 };
+
+const char *perf_tool_event__to_str(enum perf_tool_event ev);
+enum perf_tool_event perf_tool_event__from_str(const char *str);
+
+#define perf_tool_event__for_each_event(ev)		\
+	for ((ev) = PERF_TOOL_DURATION_TIME; (ev) < PERF_TOOL_MAX; ev++)
 
 /** struct evsel - event selector
  *
@@ -120,6 +130,7 @@ struct evsel {
 	bool			merged_stat;
 	bool			reset_group;
 	bool			errored;
+	bool			needs_auxtrace_mmap;
 	struct hashmap		*per_pkg_mask;
 	int			err;
 	struct {
@@ -177,6 +188,7 @@ struct perf_missing_features {
 	bool data_page_size;
 	bool code_page_size;
 	bool weight_struct;
+	bool read_lost;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -253,17 +265,23 @@ static inline bool evsel__is_bpf(struct evsel *evsel)
 
 #define EVSEL__MAX_ALIASES 8
 
-extern const char *evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES];
-extern const char *evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][EVSEL__MAX_ALIASES];
-extern const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_ALIASES];
-extern const char *evsel__hw_names[PERF_COUNT_HW_MAX];
-extern const char *evsel__sw_names[PERF_COUNT_SW_MAX];
+extern const char *const evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES];
+extern const char *const evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][EVSEL__MAX_ALIASES];
+extern const char *const evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_ALIASES];
+extern const char *const evsel__hw_names[PERF_COUNT_HW_MAX];
+extern const char *const evsel__sw_names[PERF_COUNT_SW_MAX];
 extern char *evsel__bpf_counter_events;
 bool evsel__match_bpf_counter_events(const char *name);
+int arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size);
 
 int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size);
 const char *evsel__name(struct evsel *evsel);
 const char *evsel__metric_id(const struct evsel *evsel);
+
+static inline bool evsel__is_tool(const struct evsel *evsel)
+{
+	return evsel->tool_event != PERF_TOOL_NONE;
+}
 
 const char *evsel__group_name(struct evsel *evsel);
 int evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
@@ -281,6 +299,7 @@ void evsel__set_sample_id(struct evsel *evsel, bool use_sample_identifier);
 
 void arch_evsel__set_sample_weight(struct evsel *evsel);
 void arch_evsel__fixup_new_cycles(struct perf_event_attr *attr);
+void arch__post_evsel_config(struct evsel *evsel, struct perf_event_attr *attr);
 
 int evsel__set_filter(struct evsel *evsel, const char *filter);
 int evsel__append_tp_filter(struct evsel *evsel, const char *filter);
@@ -363,6 +382,8 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 
 int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 				  u64 *timestamp);
+
+u16 evsel__id_hdr_size(struct evsel *evsel);
 
 static inline struct evsel *evsel__next(struct evsel *evsel)
 {
@@ -483,6 +504,9 @@ bool evsel__has_leader(struct evsel *evsel, struct evsel *leader);
 bool evsel__is_leader(struct evsel *evsel);
 void evsel__set_leader(struct evsel *evsel, struct evsel *leader);
 int evsel__source_count(const struct evsel *evsel);
+void evsel__remove_from_group(struct evsel *evsel, struct evsel *leader);
+
+bool arch_evsel__must_be_in_group(const struct evsel *evsel);
 
 /*
  * Macro to swap the bit-field postition and size.

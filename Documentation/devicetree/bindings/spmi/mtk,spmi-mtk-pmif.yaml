@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spmi/mtk,spmi-mtk-pmif.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek SPMI Controller Device Tree Bindings
+title: Mediatek SPMI Controller
 
 maintainers:
   - Hsin-Hsiung Wang <hsin-hsiung.wang@mediatek.com>

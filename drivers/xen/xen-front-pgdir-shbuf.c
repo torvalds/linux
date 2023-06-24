@@ -21,15 +21,6 @@
 
 #include <xen/xen-front-pgdir-shbuf.h>
 
-#ifndef GRANT_INVALID_REF
-/*
- * FIXME: usage of grant reference 0 as invalid grant reference:
- * grant reference 0 is valid, but never exposed to a PV driver,
- * because of the fact it is already in use/reserved by the PV console.
- */
-#define GRANT_INVALID_REF	0
-#endif
-
 /**
  * This structure represents the structure of a shared page
  * that contains grant references to the pages of the shared
@@ -38,6 +29,7 @@
  */
 struct xen_page_directory {
 	grant_ref_t gref_dir_next_page;
+#define XEN_GREF_LIST_END	0
 	grant_ref_t gref[1]; /* Variable length */
 };
 
@@ -83,7 +75,7 @@ grant_ref_t
 xen_front_pgdir_shbuf_get_dir_start(struct xen_front_pgdir_shbuf *buf)
 {
 	if (!buf->grefs)
-		return GRANT_INVALID_REF;
+		return INVALID_GRANT_REF;
 
 	return buf->grefs[0];
 }
@@ -97,7 +89,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_get_dir_start);
  * shared by the frontend itself) or map the provided granted
  * references onto the backing storage (buf->pages).
  *
- * \param buf shared buffer which grants to be maped.
+ * \param buf shared buffer which grants to be mapped.
  * \return zero on success or a negative number on failure.
  */
 int xen_front_pgdir_shbuf_map(struct xen_front_pgdir_shbuf *buf)
@@ -118,7 +110,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_map);
  * shared by the frontend itself) or unmap the provided granted
  * references.
  *
- * \param buf shared buffer which grants to be unmaped.
+ * \param buf shared buffer which grants to be unmapped.
  * \return zero on success or a negative number on failure.
  */
 int xen_front_pgdir_shbuf_unmap(struct xen_front_pgdir_shbuf *buf)
@@ -142,8 +134,8 @@ void xen_front_pgdir_shbuf_free(struct xen_front_pgdir_shbuf *buf)
 		int i;
 
 		for (i = 0; i < buf->num_grefs; i++)
-			if (buf->grefs[i] != GRANT_INVALID_REF)
-				gnttab_end_foreign_access(buf->grefs[i], 0UL);
+			if (buf->grefs[i] != INVALID_GRANT_REF)
+				gnttab_end_foreign_access(buf->grefs[i], NULL);
 	}
 	kfree(buf->grefs);
 	kfree(buf->directory);
@@ -355,7 +347,7 @@ static void backend_fill_page_dir(struct xen_front_pgdir_shbuf *buf)
 	}
 	/* Last page must say there is no more pages. */
 	page_dir = (struct xen_page_directory *)ptr;
-	page_dir->gref_dir_next_page = GRANT_INVALID_REF;
+	page_dir->gref_dir_next_page = XEN_GREF_LIST_END;
 }
 
 /**
@@ -384,7 +376,7 @@ static void guest_fill_page_dir(struct xen_front_pgdir_shbuf *buf)
 
 		if (grefs_left <= XEN_NUM_GREFS_PER_PAGE) {
 			to_copy = grefs_left;
-			page_dir->gref_dir_next_page = GRANT_INVALID_REF;
+			page_dir->gref_dir_next_page = XEN_GREF_LIST_END;
 		} else {
 			to_copy = XEN_NUM_GREFS_PER_PAGE;
 			page_dir->gref_dir_next_page = buf->grefs[i + 1];

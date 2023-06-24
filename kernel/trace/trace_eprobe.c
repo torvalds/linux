@@ -16,6 +16,7 @@
 #include "trace_dynevent.h"
 #include "trace_probe.h"
 #include "trace_probe_tmpl.h"
+#include "trace_probe_kernel.h"
 
 #define EPROBE_EVENT_SYSTEM "eprobes"
 
@@ -25,6 +26,9 @@ struct trace_eprobe {
 
 	/* tracepoint event */
 	const char *event_name;
+
+	/* filter string for the tracepoint */
+	char *filter_str;
 
 	struct trace_event_call *event;
 
@@ -48,6 +52,7 @@ static void trace_event_probe_cleanup(struct trace_eprobe *ep)
 	kfree(ep->event_system);
 	if (ep->event)
 		trace_event_put_ref(ep->event);
+	kfree(ep->filter_str);
 	kfree(ep);
 }
 
@@ -125,6 +130,7 @@ static bool eprobe_dyn_event_match(const char *system, const char *event,
 	 * We match the following:
 	 *  event only			- match all eprobes with event name
 	 *  system and event only	- match all system/event probes
+	 *  system only			- match all system probes
 	 *
 	 * The below has the above satisfied with more arguments:
 	 *
@@ -143,7 +149,7 @@ static bool eprobe_dyn_event_match(const char *system, const char *event,
 		return false;
 
 	/* Must match the event name */
-	if (strcmp(trace_probe_name(&ep->tp), event) != 0)
+	if (event[0] != '\0' && strcmp(trace_probe_name(&ep->tp), event) != 0)
 		return false;
 
 	/* No arguments match all */
@@ -226,6 +232,7 @@ static int trace_eprobe_tp_arg_update(struct trace_eprobe *ep, int i)
 	struct probe_arg *parg = &ep->tp.args[i];
 	struct ftrace_event_field *field;
 	struct list_head *head;
+	int ret = -ENOENT;
 
 	head = trace_get_fields(ep->event);
 	list_for_each_entry(field, head, link) {
@@ -235,9 +242,20 @@ static int trace_eprobe_tp_arg_update(struct trace_eprobe *ep, int i)
 			return 0;
 		}
 	}
+
+	/*
+	 * Argument not found on event. But allow for comm and COMM
+	 * to be used to get the current->comm.
+	 */
+	if (strcmp(parg->code->data, "COMM") == 0 ||
+	    strcmp(parg->code->data, "comm") == 0) {
+		parg->code->op = FETCH_OP_COMM;
+		ret = 0;
+	}
+
 	kfree(parg->code->data);
 	parg->code->data = NULL;
-	return -ENOENT;
+	return ret;
 }
 
 static int eprobe_event_define_fields(struct trace_event_call *event_call)
@@ -310,6 +328,27 @@ static unsigned long get_event_field(struct fetch_insn *code, void *rec)
 
 	addr = rec + field->offset;
 
+	if (is_string_field(field)) {
+		switch (field->filter_type) {
+		case FILTER_DYN_STRING:
+			val = (unsigned long)(rec + (*(unsigned int *)addr & 0xffff));
+			break;
+		case FILTER_RDYN_STRING:
+			val = (unsigned long)(addr + (*(unsigned int *)addr & 0xffff));
+			break;
+		case FILTER_STATIC_STRING:
+			val = (unsigned long)addr;
+			break;
+		case FILTER_PTR_STRING:
+			val = (unsigned long)(*(char *)addr);
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			return 0;
+		}
+		return val;
+	}
+
 	switch (field->size) {
 	case 1:
 		if (field->is_signed)
@@ -341,16 +380,38 @@ static unsigned long get_event_field(struct fetch_insn *code, void *rec)
 
 static int get_eprobe_size(struct trace_probe *tp, void *rec)
 {
+	struct fetch_insn *code;
 	struct probe_arg *arg;
 	int i, len, ret = 0;
 
 	for (i = 0; i < tp->nr_args; i++) {
 		arg = tp->args + i;
-		if (unlikely(arg->dynamic)) {
+		if (arg->dynamic) {
 			unsigned long val;
 
-			val = get_event_field(arg->code, rec);
-			len = process_fetch_insn_bottom(arg->code + 1, val, NULL, NULL);
+			code = arg->code;
+ retry:
+			switch (code->op) {
+			case FETCH_OP_TP_ARG:
+				val = get_event_field(code, rec);
+				break;
+			case FETCH_OP_IMM:
+				val = code->immediate;
+				break;
+			case FETCH_OP_COMM:
+				val = (unsigned long)current->comm;
+				break;
+			case FETCH_OP_DATA:
+				val = (unsigned long)code->data;
+				break;
+			case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
+				code++;
+				goto retry;
+			default:
+				continue;
+			}
+			code++;
+			len = process_fetch_insn_bottom(code, val, NULL, NULL);
 			if (len > 0)
 				ret += len;
 		}
@@ -368,8 +429,28 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 {
 	unsigned long val;
 
-	val = get_event_field(code, rec);
-	return process_fetch_insn_bottom(code + 1, val, dest, base);
+ retry:
+	switch (code->op) {
+	case FETCH_OP_TP_ARG:
+		val = get_event_field(code, rec);
+		break;
+	case FETCH_OP_IMM:
+		val = code->immediate;
+		break;
+	case FETCH_OP_COMM:
+		val = (unsigned long)current->comm;
+		break;
+	case FETCH_OP_DATA:
+		val = (unsigned long)code->data;
+		break;
+	case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
+		code++;
+		goto retry;
+	default:
+		return -EILSEQ;
+	}
+	code++;
+	return process_fetch_insn_bottom(code, val, dest, base);
 }
 NOKPROBE_SYMBOL(process_fetch_insn)
 
@@ -377,29 +458,14 @@ NOKPROBE_SYMBOL(process_fetch_insn)
 static nokprobe_inline int
 fetch_store_strlen_user(unsigned long addr)
 {
-	const void __user *uaddr =  (__force const void __user *)addr;
-
-	return strnlen_user_nofault(uaddr, MAX_STRING_SIZE);
+	return kern_fetch_store_strlen_user(addr);
 }
 
 /* Return the length of string -- including null terminal byte */
 static nokprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
-	int ret, len = 0;
-	u8 c;
-
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
-	if (addr < TASK_SIZE)
-		return fetch_store_strlen_user(addr);
-#endif
-
-	do {
-		ret = copy_from_kernel_nofault(&c, (u8 *)addr + len, 1);
-		len++;
-	} while (c && ret == 0 && len < MAX_STRING_SIZE);
-
-	return (ret < 0) ? ret : len;
+	return kern_fetch_store_strlen(addr);
 }
 
 /*
@@ -409,21 +475,7 @@ fetch_store_strlen(unsigned long addr)
 static nokprobe_inline int
 fetch_store_string_user(unsigned long addr, void *dest, void *base)
 {
-	const void __user *uaddr =  (__force const void __user *)addr;
-	int maxlen = get_loc_len(*(u32 *)dest);
-	void *__dest;
-	long ret;
-
-	if (unlikely(!maxlen))
-		return -ENOMEM;
-
-	__dest = get_loc_data(dest, base);
-
-	ret = strncpy_from_user_nofault(__dest, uaddr, maxlen);
-	if (ret >= 0)
-		*(u32 *)dest = make_data_loc(ret, __dest - base);
-
-	return ret;
+	return kern_fetch_store_string_user(addr, dest, base);
 }
 
 /*
@@ -433,29 +485,7 @@ fetch_store_string_user(unsigned long addr, void *dest, void *base)
 static nokprobe_inline int
 fetch_store_string(unsigned long addr, void *dest, void *base)
 {
-	int maxlen = get_loc_len(*(u32 *)dest);
-	void *__dest;
-	long ret;
-
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
-	if ((unsigned long)addr < TASK_SIZE)
-		return fetch_store_string_user(addr, dest, base);
-#endif
-
-	if (unlikely(!maxlen))
-		return -ENOMEM;
-
-	__dest = get_loc_data(dest, base);
-
-	/*
-	 * Try to get string again, since the string can be changed while
-	 * probing.
-	 */
-	ret = strncpy_from_kernel_nofault(__dest, (void *)addr, maxlen);
-	if (ret >= 0)
-		*(u32 *)dest = make_data_loc(ret, __dest - base);
-
-	return ret;
+	return kern_fetch_store_string(addr, dest, base);
 }
 
 static nokprobe_inline int
@@ -511,20 +541,17 @@ __eprobe_trace_func(struct eprobe_data *edata, void *rec)
  * functions are just stubs to fulfill what is needed to use the trigger
  * infrastructure.
  */
-static int eprobe_trigger_init(struct event_trigger_ops *ops,
-			       struct event_trigger_data *data)
+static int eprobe_trigger_init(struct event_trigger_data *data)
 {
 	return 0;
 }
 
-static void eprobe_trigger_free(struct event_trigger_ops *ops,
-				struct event_trigger_data *data)
+static void eprobe_trigger_free(struct event_trigger_data *data)
 {
 
 }
 
 static int eprobe_trigger_print(struct seq_file *m,
-				struct event_trigger_ops *ops,
 				struct event_trigger_data *data)
 {
 	/* Do not print eprobe event triggers */
@@ -536,6 +563,9 @@ static void eprobe_trigger_func(struct event_trigger_data *data,
 				struct ring_buffer_event *rbe)
 {
 	struct eprobe_data *edata = data->private_data;
+
+	if (unlikely(!rec))
+		return;
 
 	__eprobe_trace_func(edata, rec);
 }
@@ -549,7 +579,8 @@ static struct event_trigger_ops eprobe_trigger_ops = {
 
 static int eprobe_trigger_cmd_parse(struct event_command *cmd_ops,
 				    struct trace_event_file *file,
-				    char *glob, char *cmd, char *param)
+				    char *glob, char *cmd,
+				    char *param_and_filter)
 {
 	return -1;
 }
@@ -590,14 +621,15 @@ static struct event_trigger_data *
 new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 {
 	struct event_trigger_data *trigger;
+	struct event_filter *filter = NULL;
 	struct eprobe_data *edata;
+	int ret;
 
 	edata = kzalloc(sizeof(*edata), GFP_KERNEL);
 	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
 	if (!trigger || !edata) {
-		kfree(edata);
-		kfree(trigger);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	trigger->flags = EVENT_TRIGGER_FL_PROBE;
@@ -612,13 +644,25 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	trigger->cmd_ops = &event_trigger_cmd;
 
 	INIT_LIST_HEAD(&trigger->list);
-	RCU_INIT_POINTER(trigger->filter, NULL);
+
+	if (ep->filter_str) {
+		ret = create_event_filter(file->tr, ep->event,
+					ep->filter_str, false, &filter);
+		if (ret)
+			goto error;
+	}
+	RCU_INIT_POINTER(trigger->filter, filter);
 
 	edata->file = file;
 	edata->ep = ep;
 	trigger->private_data = edata;
 
 	return trigger;
+error:
+	free_event_filter(filter);
+	kfree(edata);
+	kfree(trigger);
+	return ERR_PTR(ret);
 }
 
 static int enable_eprobe(struct trace_eprobe *ep,
@@ -650,22 +694,25 @@ static struct trace_event_functions eprobe_funcs = {
 static int disable_eprobe(struct trace_eprobe *ep,
 			  struct trace_array *tr)
 {
-	struct event_trigger_data *trigger;
+	struct event_trigger_data *trigger = NULL, *iter;
 	struct trace_event_file *file;
+	struct event_filter *filter;
 	struct eprobe_data *edata;
 
 	file = find_event_file(tr, ep->event_system, ep->event_name);
 	if (!file)
 		return -ENOENT;
 
-	list_for_each_entry(trigger, &file->triggers, list) {
-		if (!(trigger->flags & EVENT_TRIGGER_FL_PROBE))
+	list_for_each_entry(iter, &file->triggers, list) {
+		if (!(iter->flags & EVENT_TRIGGER_FL_PROBE))
 			continue;
-		edata = trigger->private_data;
-		if (edata->ep == ep)
+		edata = iter->private_data;
+		if (edata->ep == ep) {
+			trigger = iter;
 			break;
+		}
 	}
-	if (list_entry_is_head(trigger, &file->triggers, list))
+	if (!trigger)
 		return -ENODEV;
 
 	list_del_rcu(&trigger->list);
@@ -676,6 +723,10 @@ static int disable_eprobe(struct trace_eprobe *ep,
 	/* Make sure nothing is using the edata or trigger */
 	tracepoint_synchronize_unregister();
 
+	filter = rcu_access_pointer(trigger->filter);
+
+	if (filter)
+		free_event_filter(filter);
 	kfree(edata);
 	kfree(trigger);
 
@@ -838,9 +889,66 @@ static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[
 	if (ret)
 		return ret;
 
-	if (ep->tp.args[i].code->op == FETCH_OP_TP_ARG)
+	if (ep->tp.args[i].code->op == FETCH_OP_TP_ARG) {
 		ret = trace_eprobe_tp_arg_update(ep, i);
+		if (ret)
+			trace_probe_log_err(0, BAD_ATTACH_ARG);
+	}
 
+	/* Handle symbols "@" */
+	if (!ret)
+		ret = traceprobe_update_arg(&ep->tp.args[i]);
+
+	return ret;
+}
+
+static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const char *argv[])
+{
+	struct event_filter *dummy = NULL;
+	int i, ret, len = 0;
+	char *p;
+
+	if (argc == 0) {
+		trace_probe_log_err(0, NO_EP_FILTER);
+		return -EINVAL;
+	}
+
+	/* Recover the filter string */
+	for (i = 0; i < argc; i++)
+		len += strlen(argv[i]) + 1;
+
+	ep->filter_str = kzalloc(len, GFP_KERNEL);
+	if (!ep->filter_str)
+		return -ENOMEM;
+
+	p = ep->filter_str;
+	for (i = 0; i < argc; i++) {
+		ret = snprintf(p, len, "%s ", argv[i]);
+		if (ret < 0)
+			goto error;
+		if (ret > len) {
+			ret = -E2BIG;
+			goto error;
+		}
+		p += ret;
+		len -= ret;
+	}
+	p[-1] = '\0';
+
+	/*
+	 * Ensure the filter string can be parsed correctly. Note, this
+	 * filter string is for the original event, not for the eprobe.
+	 */
+	ret = create_event_filter(top_trace_array(), ep->event, ep->filter_str,
+				  true, &dummy);
+	free_event_filter(dummy);
+	if (ret)
+		goto error;
+
+	return 0;
+error:
+	kfree(ep->filter_str);
+	ep->filter_str = NULL;
 	return ret;
 }
 
@@ -848,8 +956,8 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 {
 	/*
 	 * Argument syntax:
-	 *      e[:[GRP/]ENAME] SYSTEM.EVENT [FETCHARGS]
-	 * Fetch args:
+	 *      e[:[GRP/][ENAME]] SYSTEM.EVENT [FETCHARGS] [if FILTER]
+	 * Fetch args (no space):
 	 *  <name>=$<field>[:TYPE]
 	 */
 	const char *event = NULL, *group = EPROBE_EVENT_SYSTEM;
@@ -858,8 +966,9 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	struct trace_eprobe *ep = NULL;
 	char buf1[MAX_EVENT_NAME_LEN];
 	char buf2[MAX_EVENT_NAME_LEN];
-	int ret = 0;
-	int i;
+	char gbuf[MAX_EVENT_NAME_LEN];
+	int ret = 0, filter_idx = 0;
+	int i, filter_cnt;
 
 	if (argc < 2 || argv[0][0] != 'e')
 		return -ECANCELED;
@@ -869,25 +978,33 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	event = strchr(&argv[0][1], ':');
 	if (event) {
 		event++;
-		ret = traceprobe_parse_event_name(&event, &group, buf1,
+		ret = traceprobe_parse_event_name(&event, &group, gbuf,
 						  event - argv[0]);
 		if (ret)
 			goto parse_error;
-	} else {
-		strscpy(buf1, argv[1], MAX_EVENT_NAME_LEN);
-		sanitize_event_name(buf1);
+	}
+
+	trace_probe_log_set_index(1);
+	sys_event = argv[1];
+	ret = traceprobe_parse_event_name(&sys_event, &sys_name, buf2, 0);
+	if (ret || !sys_event || !sys_name) {
+		trace_probe_log_err(0, NO_EVENT_INFO);
+		goto parse_error;
+	}
+
+	if (!event) {
+		strscpy(buf1, sys_event, MAX_EVENT_NAME_LEN);
 		event = buf1;
 	}
-	if (!is_good_name(event) || !is_good_name(group))
-		goto parse_error;
 
-	sys_event = argv[1];
-	ret = traceprobe_parse_event_name(&sys_event, &sys_name, buf2,
-					  sys_event - argv[1]);
-	if (ret || !sys_name)
-		goto parse_error;
-	if (!is_good_name(sys_event) || !is_good_name(sys_name))
-		goto parse_error;
+	for (i = 2; i < argc; i++) {
+		if (!strcmp(argv[i], "if")) {
+			filter_idx = i + 1;
+			filter_cnt = argc - filter_idx;
+			argc = i;
+			break;
+		}
+	}
 
 	mutex_lock(&event_mutex);
 	event_call = find_and_get_event(sys_name, sys_event);
@@ -896,11 +1013,21 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 
 	if (IS_ERR(ep)) {
 		ret = PTR_ERR(ep);
+		if (ret == -ENODEV)
+			trace_probe_log_err(0, BAD_ATTACH_EVENT);
 		/* This must return -ENOMEM or missing event, else there is a bug */
 		WARN_ON_ONCE(ret != -ENOMEM && ret != -ENODEV);
 		ep = NULL;
 		goto error;
 	}
+
+	if (filter_idx) {
+		trace_probe_log_set_index(filter_idx);
+		ret = trace_eprobe_parse_filter(ep, filter_cnt, argv + filter_idx);
+		if (ret)
+			goto parse_error;
+	} else
+		ep->filter_str = NULL;
 
 	argc -= 2; argv += 2;
 	/* parse arguments */

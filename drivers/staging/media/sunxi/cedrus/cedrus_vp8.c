@@ -651,8 +651,7 @@ static void cedrus_vp8_irq_disable(struct cedrus_ctx *ctx)
 		     reg & ~VE_H264_CTRL_INT_MASK);
 }
 
-static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
-			     struct cedrus_run *run)
+static int cedrus_vp8_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
 	const struct v4l2_ctrl_vp8_frame *slice = run->vp8.frame_params;
 	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
@@ -661,7 +660,6 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 	dma_addr_t luma_addr, chroma_addr;
 	dma_addr_t src_buf_addr;
 	int header_size;
-	int qindex;
 	u32 reg;
 
 	cedrus_engine_enable(ctx, CEDRUS_CODEC_VP8);
@@ -805,43 +803,17 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 	reg |= VE_VP8_LF_DELTA0(slice->lf.mb_mode_delta[0]);
 	cedrus_write(dev, VE_VP8_MODE_LF_DELTA, reg);
 
-	luma_addr = cedrus_dst_buf_addr(ctx, run->dst->vb2_buf.index, 0);
-	chroma_addr = cedrus_dst_buf_addr(ctx, run->dst->vb2_buf.index, 1);
+	luma_addr = cedrus_dst_buf_addr(ctx, &run->dst->vb2_buf, 0);
+	chroma_addr = cedrus_dst_buf_addr(ctx, &run->dst->vb2_buf, 1);
 	cedrus_write(dev, VE_VP8_REC_LUMA, luma_addr);
 	cedrus_write(dev, VE_VP8_REC_CHROMA, chroma_addr);
 
-	qindex = vb2_find_timestamp(cap_q, slice->last_frame_ts, 0);
-	if (qindex >= 0) {
-		luma_addr = cedrus_dst_buf_addr(ctx, qindex, 0);
-		chroma_addr = cedrus_dst_buf_addr(ctx, qindex, 1);
-		cedrus_write(dev, VE_VP8_FWD_LUMA, luma_addr);
-		cedrus_write(dev, VE_VP8_FWD_CHROMA, chroma_addr);
-	} else {
-		cedrus_write(dev, VE_VP8_FWD_LUMA, 0);
-		cedrus_write(dev, VE_VP8_FWD_CHROMA, 0);
-	}
-
-	qindex = vb2_find_timestamp(cap_q, slice->golden_frame_ts, 0);
-	if (qindex >= 0) {
-		luma_addr = cedrus_dst_buf_addr(ctx, qindex, 0);
-		chroma_addr = cedrus_dst_buf_addr(ctx, qindex, 1);
-		cedrus_write(dev, VE_VP8_BWD_LUMA, luma_addr);
-		cedrus_write(dev, VE_VP8_BWD_CHROMA, chroma_addr);
-	} else {
-		cedrus_write(dev, VE_VP8_BWD_LUMA, 0);
-		cedrus_write(dev, VE_VP8_BWD_CHROMA, 0);
-	}
-
-	qindex = vb2_find_timestamp(cap_q, slice->alt_frame_ts, 0);
-	if (qindex >= 0) {
-		luma_addr = cedrus_dst_buf_addr(ctx, qindex, 0);
-		chroma_addr = cedrus_dst_buf_addr(ctx, qindex, 1);
-		cedrus_write(dev, VE_VP8_ALT_LUMA, luma_addr);
-		cedrus_write(dev, VE_VP8_ALT_CHROMA, chroma_addr);
-	} else {
-		cedrus_write(dev, VE_VP8_ALT_LUMA, 0);
-		cedrus_write(dev, VE_VP8_ALT_CHROMA, 0);
-	}
+	cedrus_write_ref_buf_addr(ctx, cap_q, slice->last_frame_ts,
+				  VE_VP8_FWD_LUMA, VE_VP8_FWD_CHROMA);
+	cedrus_write_ref_buf_addr(ctx, cap_q, slice->golden_frame_ts,
+				  VE_VP8_BWD_LUMA, VE_VP8_BWD_CHROMA);
+	cedrus_write_ref_buf_addr(ctx, cap_q, slice->alt_frame_ts,
+				  VE_VP8_ALT_LUMA, VE_VP8_ALT_CHROMA);
 
 	cedrus_write(dev, VE_H264_CTRL, VE_H264_CTRL_VP8 |
 		     VE_H264_CTRL_DECODE_ERR_INT |
@@ -855,6 +827,8 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 		ctx->codec.vp8.last_sharpness_level =
 			slice->lf.sharpness_level;
 	}
+
+	return 0;
 }
 
 static int cedrus_vp8_start(struct cedrus_ctx *ctx)

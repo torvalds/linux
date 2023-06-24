@@ -167,8 +167,6 @@ enum SHIFT_DIRECTION {
 #define EXT4_MB_CR0_OPTIMIZED		0x8000
 /* Avg fragment size rb tree lookup succeeded at least once for cr = 1 */
 #define EXT4_MB_CR1_OPTIMIZED		0x00010000
-/* Perform linear traversal for one group */
-#define EXT4_MB_SEARCH_NEXT_LINEAR	0x00020000
 struct ext4_allocation_request {
 	/* target inode for block we're allocating */
 	struct inode *inode;
@@ -673,6 +671,8 @@ enum {
 	/* Caller will submit data before dropping transaction handle. This
 	 * allows jbd2 to avoid submitting data before commit. */
 #define EXT4_GET_BLOCKS_IO_SUBMIT		0x0400
+	/* Caller is in the atomic contex, find extent if it has been cached */
+#define EXT4_GET_BLOCKS_CACHED_NOWAIT		0x0800
 
 /*
  * The bit position of these flags must not overlap with any of the
@@ -722,6 +722,8 @@ enum {
 #define EXT4_IOC_GETSTATE		_IOW('f', 41, __u32)
 #define EXT4_IOC_GET_ES_CACHE		_IOWR('f', 42, struct fiemap)
 #define EXT4_IOC_CHECKPOINT		_IOW('f', 43, __u32)
+#define EXT4_IOC_GETFSUUID		_IOR('f', 44, struct fsuuid)
+#define EXT4_IOC_SETFSUUID		_IOW('f', 44, struct fsuuid)
 
 #define EXT4_IOC_SHUTDOWN _IOR ('X', 125, __u32)
 
@@ -750,6 +752,15 @@ enum {
 #define EXT4_IOC_CHECKPOINT_FLAG_VALID		(EXT4_IOC_CHECKPOINT_FLAG_DISCARD | \
 						EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT | \
 						EXT4_IOC_CHECKPOINT_FLAG_DRY_RUN)
+
+/*
+ * Structure for EXT4_IOC_GETFSUUID/EXT4_IOC_SETFSUUID
+ */
+struct fsuuid {
+	__u32       fsu_len;
+	__u32       fsu_flags;
+	__u8        fsu_uuid[];
+};
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -1440,12 +1451,6 @@ struct ext4_super_block {
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_FS_ENCRYPTION
-#define DUMMY_ENCRYPTION_ENABLED(sbi) ((sbi)->s_dummy_enc_policy.policy != NULL)
-#else
-#define DUMMY_ENCRYPTION_ENABLED(sbi) (0)
-#endif
-
 /* Number of quota types we support */
 #define EXT4_MAXQUOTAS 3
 
@@ -1593,8 +1598,8 @@ struct ext4_sb_info {
 	struct list_head s_discard_list;
 	struct work_struct s_discard_work;
 	atomic_t s_retry_alloc_pending;
-	struct rb_root s_mb_avg_fragment_size_root;
-	rwlock_t s_mb_rb_lock;
+	struct list_head *s_mb_avg_fragment_size;
+	rwlock_t *s_mb_avg_fragment_size_locks;
 	struct list_head *s_mb_largest_free_orders;
 	rwlock_t *s_mb_largest_free_orders_locks;
 
@@ -2731,74 +2736,20 @@ extern int ext4_fname_setup_ci_filename(struct inode *dir,
 					 struct ext4_filename *fname);
 #endif
 
+/* ext4 encryption related stuff goes here crypto.c */
 #ifdef CONFIG_FS_ENCRYPTION
-static inline void ext4_fname_from_fscrypt_name(struct ext4_filename *dst,
-						const struct fscrypt_name *src)
-{
-	memset(dst, 0, sizeof(*dst));
+extern const struct fscrypt_operations ext4_cryptops;
 
-	dst->usr_fname = src->usr_fname;
-	dst->disk_name = src->disk_name;
-	dst->hinfo.hash = src->hash;
-	dst->hinfo.minor_hash = src->minor_hash;
-	dst->crypto_buf = src->crypto_buf;
-}
+int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
+			      int lookup, struct ext4_filename *fname);
 
-static inline int ext4_fname_setup_filename(struct inode *dir,
-					    const struct qstr *iname,
-					    int lookup,
-					    struct ext4_filename *fname)
-{
-	struct fscrypt_name name;
-	int err;
+int ext4_fname_prepare_lookup(struct inode *dir, struct dentry *dentry,
+			      struct ext4_filename *fname);
 
-	err = fscrypt_setup_filename(dir, iname, lookup, &name);
-	if (err)
-		return err;
+void ext4_fname_free_filename(struct ext4_filename *fname);
 
-	ext4_fname_from_fscrypt_name(fname, &name);
+int ext4_ioctl_get_encryption_pwsalt(struct file *filp, void __user *arg);
 
-#if IS_ENABLED(CONFIG_UNICODE)
-	err = ext4_fname_setup_ci_filename(dir, iname, fname);
-#endif
-	return err;
-}
-
-static inline int ext4_fname_prepare_lookup(struct inode *dir,
-					    struct dentry *dentry,
-					    struct ext4_filename *fname)
-{
-	struct fscrypt_name name;
-	int err;
-
-	err = fscrypt_prepare_lookup(dir, dentry, &name);
-	if (err)
-		return err;
-
-	ext4_fname_from_fscrypt_name(fname, &name);
-
-#if IS_ENABLED(CONFIG_UNICODE)
-	err = ext4_fname_setup_ci_filename(dir, &dentry->d_name, fname);
-#endif
-	return err;
-}
-
-static inline void ext4_fname_free_filename(struct ext4_filename *fname)
-{
-	struct fscrypt_name name;
-
-	name.crypto_buf = fname->crypto_buf;
-	fscrypt_free_filename(&name);
-
-	fname->crypto_buf.name = NULL;
-	fname->usr_fname = NULL;
-	fname->disk_name.name = NULL;
-
-#if IS_ENABLED(CONFIG_UNICODE)
-	kfree(fname->cf_name.name);
-	fname->cf_name.name = NULL;
-#endif
-}
 #else /* !CONFIG_FS_ENCRYPTION */
 static inline int ext4_fname_setup_filename(struct inode *dir,
 					    const struct qstr *iname,
@@ -2830,6 +2781,12 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname)
 	kfree(fname->cf_name.name);
 	fname->cf_name.name = NULL;
 #endif
+}
+
+static inline int ext4_ioctl_get_encryption_pwsalt(struct file *filp,
+						   void __user *arg)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* !CONFIG_FS_ENCRYPTION */
 
@@ -3020,6 +2977,7 @@ extern struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 extern int  ext4_write_inode(struct inode *, struct writeback_control *);
 extern int  ext4_setattr(struct user_namespace *, struct dentry *,
 			 struct iattr *);
+extern u32  ext4_dio_alignment(struct inode *inode);
 extern int  ext4_getattr(struct user_namespace *, const struct path *,
 			 struct kstat *, u32, unsigned int);
 extern void ext4_evict_inode(struct inode *);
@@ -3068,7 +3026,7 @@ int ext4_fileattr_set(struct user_namespace *mnt_userns,
 		      struct dentry *dentry, struct fileattr *fa);
 int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 extern void ext4_reset_inode_seed(struct inode *inode);
-int ext4_update_overhead(struct super_block *sb);
+int ext4_update_overhead(struct super_block *sb, bool force);
 
 /* migrate.c */
 extern int ext4_ext_migrate(struct inode *);
@@ -3110,14 +3068,14 @@ extern unsigned int ext4_list_backups(struct super_block *sb,
 
 /* super.c */
 extern struct buffer_head *ext4_sb_bread(struct super_block *sb,
-					 sector_t block, int op_flags);
+					 sector_t block, blk_opf_t op_flags);
 extern struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
 						   sector_t block);
-extern void ext4_read_bh_nowait(struct buffer_head *bh, int op_flags,
+extern void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
 				bh_end_io_t *end_io);
-extern int ext4_read_bh(struct buffer_head *bh, int op_flags,
+extern int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 			bh_end_io_t *end_io);
-extern int ext4_read_bh_lock(struct buffer_head *bh, int op_flags, bool wait);
+extern int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait);
 extern void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block);
 extern int ext4_seq_options_show(struct seq_file *seq, void *offset);
 extern int ext4_calculate_overhead(struct super_block *sb);
@@ -3454,6 +3412,8 @@ struct ext4_group_info {
 	ext4_grpblk_t	bb_first_free;	/* first free block */
 	ext4_grpblk_t	bb_free;	/* total free blocks */
 	ext4_grpblk_t	bb_fragments;	/* nr of freespace fragments */
+	int		bb_avg_fragment_size_order;	/* order of average
+							   fragment in BG */
 	ext4_grpblk_t	bb_largest_free_order;/* order of largest frag in BG */
 	ext4_group_t	bb_group;	/* Group number */
 	struct          list_head bb_prealloc_list;
@@ -3461,7 +3421,7 @@ struct ext4_group_info {
 	void            *bb_bitmap;
 #endif
 	struct rw_semaphore alloc_sem;
-	struct rb_node	bb_avg_fragment_size_rb;
+	struct list_head bb_avg_fragment_size_node;
 	struct list_head bb_largest_free_order_node;
 	ext4_grpblk_t	bb_counters[];	/* Nr of free power-of-two-block
 					 * regions, index is order.
@@ -3591,7 +3551,6 @@ extern int ext4_readpage_inline(struct inode *inode, struct page *page);
 extern int ext4_try_to_write_inline_data(struct address_space *mapping,
 					 struct inode *inode,
 					 loff_t pos, unsigned len,
-					 unsigned flags,
 					 struct page **pagep);
 extern int ext4_write_inline_data_end(struct inode *inode,
 				      loff_t pos, unsigned len,
@@ -3604,7 +3563,6 @@ ext4_journalled_write_inline_data(struct inode *inode,
 extern int ext4_da_write_inline_data_begin(struct address_space *mapping,
 					   struct inode *inode,
 					   loff_t pos, unsigned len,
-					   unsigned flags,
 					   struct page **pagep,
 					   void **fsdata);
 extern int ext4_try_add_inline_entry(handle_t *handle,
@@ -3634,9 +3592,7 @@ extern bool empty_inline_dir(struct inode *dir, int *has_inline_data);
 extern struct buffer_head *ext4_get_first_inline_block(struct inode *inode,
 					struct ext4_dir_entry_2 **parent_de,
 					int *retval);
-extern int ext4_inline_data_fiemap(struct inode *inode,
-				   struct fiemap_extent_info *fieinfo,
-				   int *has_inline, __u64 start, __u64 len);
+extern void *ext4_read_inline_link(struct inode *inode);
 
 struct iomap;
 extern int ext4_inline_data_iomap(struct inode *inode, struct iomap *iomap);
@@ -3754,7 +3710,7 @@ extern int ext4_ext_insert_extent(handle_t *, struct inode *,
 extern struct ext4_ext_path *ext4_find_extent(struct inode *, ext4_lblk_t,
 					      struct ext4_ext_path **,
 					      int flags);
-extern void ext4_ext_drop_refs(struct ext4_ext_path *);
+extern void ext4_free_ext_path(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
 extern ext4_lblk_t ext4_ext_next_allocated_block(struct ext4_ext_path *path);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
@@ -3853,7 +3809,7 @@ static inline void set_bitmap_uptodate(struct buffer_head *bh)
 extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 
 extern int ext4_resize_begin(struct super_block *sb);
-extern void ext4_resize_end(struct super_block *sb);
+extern int ext4_resize_end(struct super_block *sb, bool update_backups);
 
 static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 					      struct ext4_io_end *io_end)

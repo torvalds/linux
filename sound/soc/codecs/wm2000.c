@@ -536,7 +536,7 @@ static int wm2000_anc_transition(struct wm2000_priv *wm2000,
 {
 	struct i2c_client *i2c = wm2000->i2c;
 	int i, j;
-	int ret;
+	int ret = 0;
 
 	if (wm2000->anc_mode == mode)
 		return 0;
@@ -566,13 +566,13 @@ static int wm2000_anc_transition(struct wm2000_priv *wm2000,
 		ret = anc_transitions[i].step[j](i2c,
 						 anc_transitions[i].analogue);
 		if (ret != 0)
-			return ret;
+			break;
 	}
 
 	if (anc_transitions[i].dest == ANC_OFF)
 		clk_disable_unprepare(wm2000->mclk);
 
-	return 0;
+	return ret;
 }
 
 static int wm2000_anc_set_mode(struct wm2000_priv *wm2000)
@@ -803,12 +803,9 @@ static const struct snd_soc_component_driver soc_component_dev_wm2000 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm2000_audio_map),
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
-static int wm2000_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *i2c_id)
+static int wm2000_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm2000_priv *wm2000;
 	struct wm2000_platform_data *pdata;
@@ -941,7 +938,7 @@ static struct i2c_driver wm2000_i2c_driver = {
 	.driver = {
 		.name = "wm2000",
 	},
-	.probe = wm2000_i2c_probe,
+	.probe_new = wm2000_i2c_probe,
 	.id_table = wm2000_i2c_id,
 };
 

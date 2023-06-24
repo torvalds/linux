@@ -33,8 +33,6 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-int qxl_log_level;
-
 static bool qxl_check_device(struct qxl_device *qdev)
 {
 	struct qxl_rom *rom = qdev->rom;
@@ -165,7 +163,7 @@ int qxl_device_init(struct qxl_device *qdev,
 		 (int)qdev->surfaceram_size / 1024,
 		 (sb == 4) ? "64bit" : "32bit");
 
-	qdev->rom = ioremap(qdev->rom_base, qdev->rom_size);
+	qdev->rom = ioremap_wc(qdev->rom_base, qdev->rom_size);
 	if (!qdev->rom) {
 		pr_err("Unable to ioremap ROM\n");
 		r = -ENOMEM;
@@ -183,7 +181,7 @@ int qxl_device_init(struct qxl_device *qdev,
 		goto rom_unmap;
 	}
 
-	qdev->ram_header = ioremap(qdev->vram_base +
+	qdev->ram_header = ioremap_wc(qdev->vram_base +
 				   qdev->rom->ram_header_offset,
 				   sizeof(*qdev->ram_header));
 	if (!qdev->ram_header) {
@@ -196,7 +194,6 @@ int qxl_device_init(struct qxl_device *qdev,
 					     sizeof(struct qxl_command),
 					     QXL_COMMAND_RING_SIZE,
 					     qdev->io_base + QXL_IO_NOTIFY_CMD,
-					     false,
 					     &qdev->display_event);
 	if (!qdev->command_ring) {
 		DRM_ERROR("Unable to create command ring\n");
@@ -209,7 +206,6 @@ int qxl_device_init(struct qxl_device *qdev,
 				sizeof(struct qxl_command),
 				QXL_CURSOR_RING_SIZE,
 				qdev->io_base + QXL_IO_NOTIFY_CURSOR,
-				false,
 				&qdev->cursor_event);
 
 	if (!qdev->cursor_ring) {
@@ -221,7 +217,7 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->release_ring = qxl_ring_create(
 				&(qdev->ram_header->release_ring_hdr),
 				sizeof(uint64_t),
-				QXL_RELEASE_RING_SIZE, 0, true,
+				QXL_RELEASE_RING_SIZE, 0,
 				NULL);
 
 	if (!qdev->release_ring) {

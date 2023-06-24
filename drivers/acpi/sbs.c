@@ -632,7 +632,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 	mutex_init(&sbs->lock);
 
-	sbs->hc = acpi_driver_data(device->parent);
+	sbs->hc = acpi_driver_data(acpi_dev_parent(device));
 	sbs->device = device;
 	strcpy(acpi_device_name(device), ACPI_SBS_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_SBS_CLASS);

@@ -53,65 +53,26 @@ static SUNXI_CCU_M(wb_div_a83_clk, "wb-div", "pll-de", 0x0c, 8, 4,
 static SUNXI_CCU_M(rot_div_a83_clk, "rot-div", "pll-de", 0x0c, 0x0c, 4,
 		   CLK_SET_RATE_PARENT);
 
-static struct ccu_common *sun8i_a83t_de2_clks[] = {
+static struct ccu_common *sun8i_de2_ccu_clks[] = {
 	&mixer0_clk.common,
 	&mixer1_clk.common,
 	&wb_clk.common,
+	&rot_clk.common,
 
 	&bus_mixer0_clk.common,
 	&bus_mixer1_clk.common,
 	&bus_wb_clk.common,
+	&bus_rot_clk.common,
+
+	&mixer0_div_clk.common,
+	&mixer1_div_clk.common,
+	&wb_div_clk.common,
+	&rot_div_clk.common,
 
 	&mixer0_div_a83_clk.common,
 	&mixer1_div_a83_clk.common,
 	&wb_div_a83_clk.common,
-
-	&bus_rot_clk.common,
-	&rot_clk.common,
 	&rot_div_a83_clk.common,
-};
-
-static struct ccu_common *sun8i_h3_de2_clks[] = {
-	&mixer0_clk.common,
-	&mixer1_clk.common,
-	&wb_clk.common,
-
-	&bus_mixer0_clk.common,
-	&bus_mixer1_clk.common,
-	&bus_wb_clk.common,
-
-	&mixer0_div_clk.common,
-	&mixer1_div_clk.common,
-	&wb_div_clk.common,
-};
-
-static struct ccu_common *sun8i_v3s_de2_clks[] = {
-	&mixer0_clk.common,
-	&wb_clk.common,
-
-	&bus_mixer0_clk.common,
-	&bus_wb_clk.common,
-
-	&mixer0_div_clk.common,
-	&wb_div_clk.common,
-};
-
-static struct ccu_common *sun50i_a64_de2_clks[] = {
-	&mixer0_clk.common,
-	&mixer1_clk.common,
-	&wb_clk.common,
-
-	&bus_mixer0_clk.common,
-	&bus_mixer1_clk.common,
-	&bus_wb_clk.common,
-
-	&mixer0_div_clk.common,
-	&mixer1_div_clk.common,
-	&wb_div_clk.common,
-
-	&bus_rot_clk.common,
-	&rot_clk.common,
-	&rot_div_clk.common,
 };
 
 static struct clk_hw_onecell_data sun8i_a83t_de2_hw_clks = {
@@ -219,8 +180,8 @@ static struct ccu_reset_map sun50i_h5_de2_resets[] = {
 };
 
 static const struct sunxi_ccu_desc sun8i_a83t_de2_clk_desc = {
-	.ccu_clks	= sun8i_a83t_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_a83t_de2_clks),
+	.ccu_clks	= sun8i_de2_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_de2_ccu_clks),
 
 	.hw_clks	= &sun8i_a83t_de2_hw_clks,
 
@@ -229,8 +190,8 @@ static const struct sunxi_ccu_desc sun8i_a83t_de2_clk_desc = {
 };
 
 static const struct sunxi_ccu_desc sun8i_h3_de2_clk_desc = {
-	.ccu_clks	= sun8i_h3_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_de2_clks),
+	.ccu_clks	= sun8i_de2_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_de2_ccu_clks),
 
 	.hw_clks	= &sun8i_h3_de2_hw_clks,
 
@@ -239,8 +200,8 @@ static const struct sunxi_ccu_desc sun8i_h3_de2_clk_desc = {
 };
 
 static const struct sunxi_ccu_desc sun8i_r40_de2_clk_desc = {
-	.ccu_clks	= sun50i_a64_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun50i_a64_de2_clks),
+	.ccu_clks	= sun8i_de2_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_de2_ccu_clks),
 
 	.hw_clks	= &sun50i_a64_de2_hw_clks,
 
@@ -249,8 +210,8 @@ static const struct sunxi_ccu_desc sun8i_r40_de2_clk_desc = {
 };
 
 static const struct sunxi_ccu_desc sun8i_v3s_de2_clk_desc = {
-	.ccu_clks	= sun8i_v3s_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_v3s_de2_clks),
+	.ccu_clks	= sun8i_de2_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_de2_ccu_clks),
 
 	.hw_clks	= &sun8i_v3s_de2_hw_clks,
 
@@ -259,8 +220,8 @@ static const struct sunxi_ccu_desc sun8i_v3s_de2_clk_desc = {
 };
 
 static const struct sunxi_ccu_desc sun50i_a64_de2_clk_desc = {
-	.ccu_clks	= sun50i_a64_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun50i_a64_de2_clks),
+	.ccu_clks	= sun8i_de2_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_de2_ccu_clks),
 
 	.hw_clks	= &sun50i_a64_de2_hw_clks,
 
@@ -269,8 +230,8 @@ static const struct sunxi_ccu_desc sun50i_a64_de2_clk_desc = {
 };
 
 static const struct sunxi_ccu_desc sun50i_h5_de2_clk_desc = {
-	.ccu_clks	= sun8i_h3_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_de2_clks),
+	.ccu_clks	= sun8i_de2_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_de2_ccu_clks),
 
 	.hw_clks	= &sun8i_h3_de2_hw_clks,
 
@@ -295,29 +256,19 @@ static int sunxi_de2_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(reg);
 
 	bus_clk = devm_clk_get(&pdev->dev, "bus");
-	if (IS_ERR(bus_clk)) {
-		ret = PTR_ERR(bus_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Couldn't get bus clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(bus_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(bus_clk),
+				     "Couldn't get bus clk\n");
 
 	mod_clk = devm_clk_get(&pdev->dev, "mod");
-	if (IS_ERR(mod_clk)) {
-		ret = PTR_ERR(mod_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Couldn't get mod clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(mod_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(mod_clk),
+				     "Couldn't get mod clk\n");
 
 	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(rstc)) {
-		ret = PTR_ERR(rstc);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Couldn't get reset control: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
+				     "Couldn't get reset control\n");
 
 	/* The clocks need to be enabled for us to access the registers */
 	ret = clk_prepare_enable(bus_clk);

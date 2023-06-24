@@ -528,6 +528,11 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb,
 
 	head_room = drv_flags & MT_DRV_RX_DMA_HDR ? 0 : MT_DMA_HDR_LEN;
 	data_len = min_t(int, len, data_len - head_room);
+
+	if (len == data_len &&
+	    dev->drv->rx_check && !dev->drv->rx_check(dev, data, data_len))
+		return 0;
+
 	skb = mt76u_build_rx_skb(dev, data, data_len, buf_size);
 	if (!skb)
 		return 0;
@@ -845,8 +850,8 @@ mt76u_tx_setup_buffers(struct mt76_dev *dev, struct sk_buff *skb,
 
 static int
 mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
-		   struct sk_buff *skb, struct mt76_wcid *wcid,
-		   struct ieee80211_sta *sta)
+		   enum mt76_txq_id qid, struct sk_buff *skb,
+		   struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
@@ -858,7 +863,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		return -ENOSPC;
 
 	skb->prev = skb->next = NULL;
-	err = dev->drv->tx_prepare_skb(dev, NULL, q->qid, wcid, sta, &tx_info);
+	err = dev->drv->tx_prepare_skb(dev, NULL, qid, wcid, sta, &tx_info);
 	if (err < 0)
 		return err;
 
@@ -937,7 +942,6 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 
 		spin_lock_init(&q->lock);
 		q->hw_idx = mt76u_ac_to_hwq(dev, i);
-		q->qid = i;
 
 		dev->phy.q_tx[i] = q;
 
@@ -1068,7 +1072,7 @@ int __mt76u_init(struct mt76_dev *dev, struct usb_interface *intf,
 
 	INIT_WORK(&usb->stat_work, mt76u_tx_status_data);
 
-	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0), 1);
+	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0));
 	if (usb->data_len < 32)
 		usb->data_len = 32;
 

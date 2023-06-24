@@ -580,6 +580,7 @@ int tracing_is_enabled(void);
 void tracing_reset_online_cpus(struct array_buffer *buf);
 void tracing_reset_current(int cpu);
 void tracing_reset_all_online_cpus(void);
+void tracing_reset_all_online_cpus_unlocked(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 int tracing_open_generic_tr(struct inode *inode, struct file *filp);
 bool tracing_is_disabled(void);
@@ -1435,8 +1436,6 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 struct filter_pred;
 struct regex;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
-
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
 enum regex_type {
@@ -1453,17 +1452,6 @@ struct regex {
 	int			len;
 	int			field_len;
 	regex_match_func	match;
-};
-
-struct filter_pred {
-	filter_pred_fn_t 	fn;
-	u64 			val;
-	struct regex		regex;
-	unsigned short		*ops;
-	struct ftrace_event_field *field;
-	int 			offset;
-	int			not;
-	int 			op;
 };
 
 static inline bool is_string_field(struct ftrace_event_field *field)
@@ -1573,13 +1561,12 @@ struct enable_trigger_data {
 };
 
 extern int event_enable_trigger_print(struct seq_file *m,
-				      struct event_trigger_ops *ops,
 				      struct event_trigger_data *data);
-extern void event_enable_trigger_free(struct event_trigger_ops *ops,
-				      struct event_trigger_data *data);
+extern void event_enable_trigger_free(struct event_trigger_data *data);
 extern int event_enable_trigger_parse(struct event_command *cmd_ops,
 				      struct trace_event_file *file,
-				      char *glob, char *cmd, char *param);
+				      char *glob, char *cmd,
+				      char *param_and_filter);
 extern int event_enable_register_trigger(char *glob,
 					 struct event_trigger_data *data,
 					 struct trace_event_file *file);
@@ -1587,8 +1574,7 @@ extern void event_enable_unregister_trigger(char *glob,
 					    struct event_trigger_data *test,
 					    struct trace_event_file *file);
 extern void trigger_data_free(struct event_trigger_data *data);
-extern int event_trigger_init(struct event_trigger_ops *ops,
-			      struct event_trigger_data *data);
+extern int event_trigger_init(struct event_trigger_data *data);
 extern int trace_event_trigger_enable_disable(struct trace_event_file *file,
 					      int trigger_enable);
 extern void update_cond_flag(struct trace_event_file *file);
@@ -1629,10 +1615,11 @@ extern void event_trigger_reset_filter(struct event_command *cmd_ops,
 extern int event_trigger_register(struct event_command *cmd_ops,
 				  struct trace_event_file *file,
 				  char *glob,
-				  char *cmd,
-				  char *trigger,
-				  struct event_trigger_data *trigger_data,
-				  int *n_registered);
+				  struct event_trigger_data *trigger_data);
+extern void event_trigger_unregister(struct event_command *cmd_ops,
+				     struct trace_event_file *file,
+				     char *glob,
+				     struct event_trigger_data *trigger_data);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers
@@ -1686,12 +1673,9 @@ struct event_trigger_ops {
 					   struct trace_buffer *buffer,
 					   void *rec,
 					   struct ring_buffer_event *rbe);
-	int			(*init)(struct event_trigger_ops *ops,
-					struct event_trigger_data *data);
-	void			(*free)(struct event_trigger_ops *ops,
-					struct event_trigger_data *data);
+	int			(*init)(struct event_trigger_data *data);
+	void			(*free)(struct event_trigger_data *data);
 	int			(*print)(struct seq_file *m,
-					 struct event_trigger_ops *ops,
 					 struct event_trigger_data *data);
 };
 
@@ -2008,5 +1992,14 @@ struct trace_min_max_param {
 #define U64_STR_SIZE		24	/* 20 digits max */
 
 extern const struct file_operations trace_min_max_fops;
+
+#ifdef CONFIG_RV
+extern int rv_init_interface(void);
+#else
+static inline int rv_init_interface(void)
+{
+	return 0;
+}
+#endif
 
 #endif /* _LINUX_KERNEL_TRACE_H */

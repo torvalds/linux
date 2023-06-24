@@ -952,14 +952,14 @@ static void xgbe_napi_enable(struct xgbe_prv_data *pdata, unsigned int add)
 			channel = pdata->channel[i];
 			if (add)
 				netif_napi_add(pdata->netdev, &channel->napi,
-					       xgbe_one_poll, NAPI_POLL_WEIGHT);
+					       xgbe_one_poll);
 
 			napi_enable(&channel->napi);
 		}
 	} else {
 		if (add)
 			netif_napi_add(pdata->netdev, &pdata->napi,
-				       xgbe_all_poll, NAPI_POLL_WEIGHT);
+				       xgbe_all_poll);
 
 		napi_enable(&pdata->napi);
 	}
@@ -1673,12 +1673,10 @@ static int xgbe_prep_tso(struct sk_buff *skb, struct xgbe_packet_data *packet)
 		return ret;
 
 	if (XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, VXLAN)) {
-		packet->header_len = skb_inner_transport_offset(skb) +
-				     inner_tcp_hdrlen(skb);
+		packet->header_len = skb_inner_tcp_all_headers(skb);
 		packet->tcp_header_len = inner_tcp_hdrlen(skb);
 	} else {
-		packet->header_len = skb_transport_offset(skb) +
-				     tcp_hdrlen(skb);
+		packet->header_len = skb_tcp_all_headers(skb);
 		packet->tcp_header_len = tcp_hdrlen(skb);
 	}
 	packet->tcp_payload_len = skb->len - packet->header_len;
@@ -2784,7 +2782,7 @@ void xgbe_print_pkt(struct net_device *netdev, struct sk_buff *skb, bool tx_rx)
 
 	netdev_dbg(netdev, "Dst MAC addr: %pM\n", eth->h_dest);
 	netdev_dbg(netdev, "Src MAC addr: %pM\n", eth->h_source);
-	netdev_dbg(netdev, "Protocol: %#06hx\n", ntohs(eth->h_proto));
+	netdev_dbg(netdev, "Protocol: %#06x\n", ntohs(eth->h_proto));
 
 	for (i = 0; i < skb->len; i += 32) {
 		unsigned int len = min(skb->len - i, 32U);

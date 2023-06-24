@@ -5,12 +5,9 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180.dtsi"
-
-ap_ec_spi: &spi6 {};
-ap_h1_spi: &spi0 {};
-
 #include "sc7180-trogdor.dtsi"
+/* Must come after sc7180-trogdor.dtsi to modify cros_ec */
+#include <arm/cros-ec-keyboard.dtsi>
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
 / {
@@ -34,6 +31,10 @@ ap_h1_spi: &spi0 {};
 
 &alc5682 {
 	realtek,dmic-clk-driving-high;
+};
+
+&ap_tp_i2c {
+	status = "okay";
 };
 
 &cpu6_alert0 {

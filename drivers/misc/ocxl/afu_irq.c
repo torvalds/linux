@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Copyright 2017 IBM Corp.
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <asm/pnv-ocxl.h>
 #include <asm/xive.h>
 #include "ocxl_internal.h"

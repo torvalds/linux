@@ -100,8 +100,6 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	*tag++ = pBA->dialog_token;
 
 	if (type == ACT_ADDBARSP) {
-		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
-
 		put_unaligned_le16(StatusCode, tag);
 		tag += 2;
 	}
@@ -183,7 +181,6 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
 
 	if (skb) {
-		RT_TRACE(COMP_DBG, "====>to send ADDBAREQ!!!!!\n");
 		softmac_mgmt_xmit(skb, ieee);
 	} else {
 		netdev_dbg(ieee->dev, "Failed to generate ADDBAReq packet.\n");
@@ -238,7 +235,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 			     skb->data, skb->len);
 #endif
 
-	req = (struct rtllib_hdr_3addr *) skb->data;
+	req = (struct rtllib_hdr_3addr *)skb->data;
 	tag = (u8 *)req;
 	dst = (u8 *)(&req->addr2[0]);
 	tag += sizeof(struct rtllib_hdr_3addr);
@@ -247,10 +244,9 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaTimeoutVal = (u16 *)(tag + 5);
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
-	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from : %pM\n", dst);
 	if (!ieee->current_network.qos_data.active ||
 	    !ieee->pHTInfo->bCurrentHTSupport ||
-	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
+	    (ieee->pHTInfo->iot_action & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
 			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
@@ -282,7 +278,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBA->ba_start_seq_ctrl = *pBaStartSeqCtrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
-	   (ieee->pHTInfo->IOTAction & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
+	   (ieee->pHTInfo->iot_action & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
 		pBA->ba_param_set.field.buffer_size = 1;
 	else
 		pBA->ba_param_set.field.buffer_size = 32;
@@ -330,7 +326,6 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaParamSet = (union ba_param_set *)(tag + 5);
 	pBaTimeoutVal = (u16 *)(tag + 7);
 
-	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from : %pM\n", dst);
 	if (!ieee->current_network.qos_data.active ||
 	    !ieee->pHTInfo->bCurrentHTSupport ||
 	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
@@ -343,7 +338,6 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		goto OnADDBARsp_Reject;
 	}
 
-
 	if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
 		   (u8)(pBaParamSet->field.tid), TX_DIR, false)) {
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
@@ -354,7 +348,6 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pTS->bAddBaReqInProgress = false;
 	pPendingBA = &pTS->TxPendingBARecord;
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
-
 
 	if (pAdmittedBA->b_valid) {
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
@@ -373,7 +366,6 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			   __func__, *pStatusCode);
 		DeActivateBAEntry(ieee, pPendingBA);
 	}
-
 
 	if (*pStatusCode == ADDBA_STATUS_SUCCESS) {
 		if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {

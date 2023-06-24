@@ -8,7 +8,7 @@
 
 / {
 	model = "AST2600 EVB";
-	compatible = "aspeed,ast2600";
+	compatible = "aspeed,ast2600-evb", "aspeed,ast2600";
 
 	aliases {
 		serial4 = &uart5;
@@ -21,6 +21,26 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 
 	vcc_sdhci0: regulator-vcc-sdhci0 {
@@ -103,7 +123,7 @@
 &mac0 {
 	status = "okay";
 
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
@@ -114,7 +134,7 @@
 &mac1 {
 	status = "okay";
 
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
@@ -162,6 +182,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
+		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
 #include "openbmc-flash-layout-64.dtsi"
 	};
@@ -176,6 +197,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "pnor";
+		spi-rx-bus-width = <4>;
 		spi-max-frequency = <100000000>;
 	};
 };
@@ -187,11 +209,6 @@
 
 &i2c0 {
 	status = "okay";
-
-	temp@2e {
-		compatible = "adi,adt7490";
-		reg = <0x2e>;
-	};
 };
 
 &i2c1 {
@@ -220,10 +237,26 @@
 
 &i2c7 {
 	status = "okay";
+
+	temp@2e {
+		compatible = "adi,adt7490";
+		reg = <0x2e>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
 };
 
 &i2c8 {
 	status = "okay";
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
 };
 
 &i2c9 {
@@ -299,4 +332,19 @@
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
 	clk-phase-sd-hs = <7>, <200>;
+};
+
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
 };

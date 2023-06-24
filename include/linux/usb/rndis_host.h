@@ -2,20 +2,6 @@
 /*
  * Host Side support for RNDIS Networking Links
  * Copyright (C) 2005 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef	__LINUX_USB_RNDIS_HOST_H
@@ -197,6 +183,7 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 
 /* Flags for driver_info::data */
 #define RNDIS_DRIVER_DATA_POLL_STATUS	1	/* poll status before control */
+#define RNDIS_DRIVER_DATA_DST_MAC_FIXUP	2	/* device ignores configured MAC address */
 
 extern void rndis_status(struct usbnet *dev, struct urb *urb);
 extern int

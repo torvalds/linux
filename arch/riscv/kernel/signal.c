@@ -6,6 +6,7 @@
  * Copyright (C) 2012 Regents of the University of California
  */
 
+#include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
@@ -14,6 +15,8 @@
 
 #include <asm/ucontext.h>
 #include <asm/vdso.h>
+#include <asm/signal.h>
+#include <asm/signal32.h>
 #include <asm/switch_to.h>
 #include <asm/csr.h>
 
@@ -120,6 +123,8 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
+
+	regs->cause = -1UL;
 
 	return regs->a0;
 
@@ -261,7 +266,10 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	rseq_signal_deliver(ksig, regs);
 
 	/* Set up the stack frame */
-	ret = setup_rt_frame(ksig, oldset, regs);
+	if (is_compat_task())
+		ret = compat_setup_rt_frame(ksig, oldset, regs);
+	else
+		ret = setup_rt_frame(ksig, oldset, regs);
 
 	signal_setup_done(ret, ksig, 0);
 }

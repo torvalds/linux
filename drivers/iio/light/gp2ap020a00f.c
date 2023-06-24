@@ -1573,7 +1573,7 @@ error_regulator_disable:
 	return err;
 }
 
-static int gp2ap020a00f_remove(struct i2c_client *client)
+static void gp2ap020a00f_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct gp2ap020a00f_data *data = iio_priv(indio_dev);
@@ -1589,8 +1589,6 @@ static int gp2ap020a00f_remove(struct i2c_client *client)
 	free_irq(client->irq, indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(data->vled_reg);
-
-	return 0;
 }
 
 static const struct i2c_device_id gp2ap020a00f_id[] = {

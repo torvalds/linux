@@ -340,8 +340,7 @@ static const struct rtc_class_ops fm3130_rtc_ops = {
 
 static struct i2c_driver fm3130_driver;
 
-static int fm3130_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int fm3130_probe(struct i2c_client *client)
 {
 	struct fm3130		*fm3130;
 	int			err = -ENODEV;
@@ -518,7 +517,7 @@ static struct i2c_driver fm3130_driver = {
 	.driver = {
 		.name	= "rtc-fm3130",
 	},
-	.probe		= fm3130_probe,
+	.probe_new	= fm3130_probe,
 	.id_table	= fm3130_id,
 };
 

@@ -871,6 +871,9 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 	}
 
 	*map = kcalloc(*num_maps + nmG, sizeof(**map), GFP_KERNEL);
+	if (*map == NULL)
+		return -ENOMEM;
+
 	for (i = 0; i < (*num_maps); i++) {
 		dt_pin = be32_to_cpu(list[i]);
 		pin_num = FIELD_GET(GENMASK(31, 24), dt_pin);

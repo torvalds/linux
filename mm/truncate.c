@@ -240,7 +240,7 @@ bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
 		folio_invalidate(folio, offset, length);
 	if (!folio_test_large(folio))
 		return true;
-	if (split_huge_page(&folio->page) == 0)
+	if (split_folio(folio) == 0)
 		return true;
 	if (folio_test_dirty(folio))
 		return false;
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
  * mapping->invalidate_lock.
  *
  * Note: When this function returns, there can be a page in the process of
- * deletion (inside __delete_from_page_cache()) in the specified range.  Thus
+ * deletion (inside __filemap_remove_folio()) in the specified range.  Thus
  * mapping->nrpages can be non-zero when this function returns even after
  * truncation of the whole mapping.
  */

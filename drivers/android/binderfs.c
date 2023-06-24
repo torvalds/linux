@@ -39,7 +39,6 @@
 #define FIRST_INODE 1
 #define SECOND_INODE 2
 #define INODE_OFFSET 3
-#define INTSTRLEN 21
 #define BINDERFS_MAX_MINOR (1U << MINORBITS)
 /* Ensure that the initial ipc namespace always has devices available. */
 #define BINDERFS_MAX_MINOR_CAPPED (BINDERFS_MAX_MINOR - 4)
@@ -60,6 +59,7 @@ enum binderfs_stats_mode {
 
 struct binder_features {
 	bool oneway_spam_detection;
+	bool extended_error;
 };
 
 static const struct constant_table binderfs_param_stats[] = {
@@ -75,6 +75,7 @@ static const struct fs_parameter_spec binderfs_fs_parameters[] = {
 
 static struct binder_features binder_features = {
 	.oneway_spam_detection = true,
+	.extended_error = true,
 };
 
 static inline struct binderfs_info *BINDERFS_SB(const struct super_block *sb)
@@ -338,22 +339,10 @@ static int binderfs_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
-static void binderfs_put_super(struct super_block *sb)
-{
-	struct binderfs_info *info = sb->s_fs_info;
-
-	if (info && info->ipc_ns)
-		put_ipc_ns(info->ipc_ns);
-
-	kfree(info);
-	sb->s_fs_info = NULL;
-}
-
 static const struct super_operations binderfs_super_ops = {
 	.evict_inode    = binderfs_evict_inode,
 	.show_options	= binderfs_show_options,
 	.statfs         = simple_statfs,
-	.put_super	= binderfs_put_super,
 };
 
 static inline bool is_binderfs_control_device(const struct dentry *dentry)
@@ -615,12 +604,19 @@ static int init_binder_features(struct super_block *sb)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
+	dentry = binderfs_create_file(dir, "extended_error",
+				      &binder_features_fops,
+				      &binder_features.extended_error);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
 	return 0;
 }
 
 static int init_binder_logs(struct super_block *sb)
 {
 	struct dentry *binder_logs_root_dir, *dentry, *proc_log_dir;
+	const struct binder_debugfs_entry *db_entry;
 	struct binderfs_info *info;
 	int ret = 0;
 
@@ -631,43 +627,15 @@ static int init_binder_logs(struct super_block *sb)
 		goto out;
 	}
 
-	dentry = binderfs_create_file(binder_logs_root_dir, "stats",
-				      &binder_stats_fops, NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto out;
-	}
-
-	dentry = binderfs_create_file(binder_logs_root_dir, "state",
-				      &binder_state_fops, NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto out;
-	}
-
-	dentry = binderfs_create_file(binder_logs_root_dir, "transactions",
-				      &binder_transactions_fops, NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto out;
-	}
-
-	dentry = binderfs_create_file(binder_logs_root_dir,
-				      "transaction_log",
-				      &binder_transaction_log_fops,
-				      &binder_transaction_log);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto out;
-	}
-
-	dentry = binderfs_create_file(binder_logs_root_dir,
-				      "failed_transaction_log",
-				      &binder_transaction_log_fops,
-				      &binder_transaction_log_failed);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto out;
+	binder_for_each_debugfs_entry(db_entry) {
+		dentry = binderfs_create_file(binder_logs_root_dir,
+					      db_entry->name,
+					      db_entry->fops,
+					      db_entry->data);
+		if (IS_ERR(dentry)) {
+			ret = PTR_ERR(dentry);
+			goto out;
+		}
 	}
 
 	proc_log_dir = binderfs_create_dir(binder_logs_root_dir, "proc");
@@ -804,11 +772,27 @@ static int binderfs_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
+static void binderfs_kill_super(struct super_block *sb)
+{
+	struct binderfs_info *info = sb->s_fs_info;
+
+	/*
+	 * During inode eviction struct binderfs_info is needed.
+	 * So first wipe the super_block then free struct binderfs_info.
+	 */
+	kill_litter_super(sb);
+
+	if (info && info->ipc_ns)
+		put_ipc_ns(info->ipc_ns);
+
+	kfree(info);
+}
+
 static struct file_system_type binder_fs_type = {
 	.name			= "binder",
 	.init_fs_context	= binderfs_init_fs_context,
 	.parameters		= binderfs_fs_parameters,
-	.kill_sb		= kill_litter_super,
+	.kill_sb		= binderfs_kill_super,
 	.fs_flags		= FS_USERNS_MOUNT,
 };
 

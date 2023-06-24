@@ -70,8 +70,8 @@ static unsigned int delay_timeout = 100;
 module_param(delay_timeout, int, 0644);
 MODULE_PARM_DESC(delay_timeout, "amount of time delay for each iteration.");
 
-/* Number of iterations for cooling delay, 10 counts by default for now */
-static unsigned int delay_cnt = 10;
+/* Number of iterations for cooling delay, 600 counts by default for now */
+static unsigned int delay_cnt = 600;
 module_param(delay_cnt, int, 0644);
 MODULE_PARM_DESC(delay_cnt, "total number of iterations for time delay.");
 
@@ -193,10 +193,11 @@ static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 	return 0;
 }
 
+/* Cool the PCH when it's overheat in .suspend_noirq phase */
 static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
-	u8 pch_delay_cnt = 1;
+	int pch_delay_cnt = 0;
 	u16 pch_thr_temp, pch_cur_temp;
 
 	/* Shutdown the thermal sensor if it is not enabled by BIOS */
@@ -205,14 +206,6 @@ static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 		writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
 		return 0;
 	}
-
-	/* Do not check temperature if it is not a S0ix capable platform */
-#ifdef CONFIG_ACPI
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
-		return 0;
-#else
-	return 0;
-#endif
 
 	/* Do not check temperature if it is not s2idle */
 	if (pm_suspend_via_firmware())
@@ -232,26 +225,38 @@ static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 	 * temperature stays above threshold, notify the warning message
 	 * which helps to indentify the reason why S0ix entry was rejected.
 	 */
-	while (pch_delay_cnt <= delay_cnt) {
-		if (pch_cur_temp <= pch_thr_temp)
+	while (pch_delay_cnt < delay_cnt) {
+		if (pch_cur_temp < pch_thr_temp)
 			break;
 
-		dev_warn(&ptd->pdev->dev,
+		if (pm_wakeup_pending()) {
+			dev_warn(&ptd->pdev->dev, "Wakeup event detected, abort cooling\n");
+			return 0;
+		}
+
+		pch_delay_cnt++;
+		dev_dbg(&ptd->pdev->dev,
 			"CPU-PCH current temp [%dC] higher than the threshold temp [%dC], sleep %d times for %d ms duration\n",
 			pch_cur_temp, pch_thr_temp, pch_delay_cnt, delay_timeout);
 		msleep(delay_timeout);
 		/* Read the PCH current temperature for next cycle. */
 		pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
-		pch_delay_cnt++;
 	}
 
-	if (pch_cur_temp > pch_thr_temp)
+	if (pch_cur_temp >= pch_thr_temp)
 		dev_warn(&ptd->pdev->dev,
-			"CPU-PCH is hot [%dC] even after delay, continue to suspend. S0ix might fail\n",
-			pch_cur_temp);
-	else
-		dev_info(&ptd->pdev->dev,
-			"CPU-PCH is cool [%dC], continue to suspend\n", pch_cur_temp);
+			"CPU-PCH is hot [%dC] after %d ms delay. S0ix might fail\n",
+			pch_cur_temp, pch_delay_cnt * delay_timeout);
+	else {
+		if (pch_delay_cnt)
+			dev_info(&ptd->pdev->dev,
+				"CPU-PCH is cool [%dC] after %d ms delay\n",
+				pch_cur_temp, pch_delay_cnt * delay_timeout);
+		else
+			dev_info(&ptd->pdev->dev,
+				"CPU-PCH is cool [%dC]\n",
+				pch_cur_temp);
+	}
 
 	return 0;
 }
@@ -455,7 +460,7 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int intel_pch_thermal_suspend(struct device *device)
+static int intel_pch_thermal_suspend_noirq(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
@@ -495,7 +500,7 @@ static const struct pci_device_id intel_pch_thermal_id[] = {
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
 
 static const struct dev_pm_ops intel_pch_pm_ops = {
-	.suspend = intel_pch_thermal_suspend,
+	.suspend_noirq = intel_pch_thermal_suspend_noirq,
 	.resume = intel_pch_thermal_resume,
 };
 

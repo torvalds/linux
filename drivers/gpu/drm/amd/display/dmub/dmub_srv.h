@@ -98,8 +98,11 @@ enum dmub_asic {
 	DMUB_ASIC_DCN303,
 	DMUB_ASIC_DCN31,
 	DMUB_ASIC_DCN31B,
+	DMUB_ASIC_DCN314,
 	DMUB_ASIC_DCN315,
 	DMUB_ASIC_DCN316,
+	DMUB_ASIC_DCN32,
+	DMUB_ASIC_DCN321,
 	DMUB_ASIC_MAX,
 };
 
@@ -243,6 +246,9 @@ struct dmub_srv_hw_params {
 	bool power_optimization;
 	bool dpia_supported;
 	bool disable_dpia;
+	bool usb4_cm_version;
+	bool fw_in_system_memory;
+	bool dpia_hpd_int_enable_supported;
 };
 
 /**
@@ -307,6 +313,9 @@ struct dmub_srv_hw_funcs {
 			      const struct dmub_window *cw0,
 			      const struct dmub_window *cw1);
 
+	void (*backdoor_load_zfb_mode)(struct dmub_srv *dmub,
+			      const struct dmub_window *cw0,
+			      const struct dmub_window *cw1);
 	void (*setup_windows)(struct dmub_srv *dmub,
 			      const struct dmub_window *cw2,
 			      const struct dmub_window *cw3,
@@ -362,6 +371,7 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*get_gpint_dataout)(struct dmub_srv *dmub);
 
+	void (*configure_dmub_in_system_memory)(struct dmub_srv *dmub);
 	void (*clear_inbox0_ack_register)(struct dmub_srv *dmub);
 	uint32_t (*read_inbox0_ack_register)(struct dmub_srv *dmub);
 	void (*send_inbox0_cmd)(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
@@ -409,6 +419,7 @@ struct dmub_srv {
 	/* private: internal use only */
 	const struct dmub_srv_common_regs *regs;
 	const struct dmub_srv_dcn31_regs *regs_dcn31;
+	const struct dmub_srv_dcn32_regs *regs_dcn32;
 
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
@@ -431,6 +442,7 @@ struct dmub_srv {
 
 	/* Feature capabilities reported by fw */
 	struct dmub_feature_caps feature_caps;
+	struct dmub_visual_confirm_color visual_confirm_color;
 };
 
 /**

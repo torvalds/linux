@@ -2,18 +2,6 @@
 menu "EFI (Extensible Firmware Interface) Support"
 	depends on EFI
 
-config EFI_VARS
-	tristate "EFI Variable Support via sysfs"
-	depends on EFI && (X86 || IA64)
-	default n
-	help
-	  If you say Y here, you are able to get EFI (Extensible Firmware
-	  Interface) variable information via sysfs.  You may read,
-	  write, create, and destroy EFI variables through this interface.
-	  Note that this driver is only retained for compatibility with
-	  legacy users: new users should use the efivarfs filesystem
-	  instead.
-
 config EFI_ESRT
 	bool
 	depends on EFI && !IA64
@@ -22,6 +10,7 @@ config EFI_ESRT
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
 	depends on PSTORE
+	select UCS2_STRING
 	default y
 	help
 	  Say Y here to enable use efivars as a backend to pstore. This
@@ -91,6 +80,18 @@ config EFI_SOFT_RESERVE
 
 	  If unsure, say Y.
 
+config EFI_DXE_MEM_ATTRIBUTES
+	bool "Adjust memory attributes in EFISTUB"
+	depends on EFI && EFI_STUB && X86
+	default y
+	help
+	  UEFI specification does not guarantee all memory to be
+	  accessible for both write and execute as the kernel expects
+	  it to be.
+	  Use DXE services to check and alter memory protection
+	  attributes during boot via EFISTUB to ensure that memory
+	  ranges used by the kernel are writable and executable.
+
 config EFI_PARAMS_FROM_FDT
 	bool
 	help
@@ -104,9 +105,28 @@ config EFI_RUNTIME_WRAPPERS
 config EFI_GENERIC_STUB
 	bool
 
+config EFI_ZBOOT
+	bool "Enable the generic EFI decompressor"
+	depends on EFI_GENERIC_STUB && !ARM
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
+	help
+	  Create the bootable image as an EFI application that carries the
+	  actual kernel image in compressed form, and decompresses it into
+	  memory before executing it via LoadImage/StartImage EFI boot service
+	  calls. For compatibility with non-EFI loaders, the payload can be
+	  decompressed and executed by the loader as well, provided that the
+	  loader implements the decompression algorithm and that non-EFI boot
+	  is supported by the encapsulated image. (The compression algorithm
+	  used is described in the zboot image header)
+
 config EFI_ARMSTUB_DTB_LOADER
 	bool "Enable the DTB loader"
-	depends on EFI_GENERIC_STUB && !RISCV
+	depends on EFI_GENERIC_STUB && !RISCV && !LOONGARCH
 	default y
 	help
 	  Select this config option to add support for the dtb= command
@@ -123,7 +143,7 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 	bool "Enable the command line initrd loader" if !X86
 	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
 	default y if X86
-	depends on !RISCV
+	depends on !RISCV && !LOONGARCH
 	help
 	  Select this config option to add support for the initrd= command
 	  line parameter, allowing an initrd that resides on the same volume
@@ -133,6 +153,7 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 
 config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
+	select UCS2_STRING
 	default n
 	help
 	  This module installs a reboot hook, such that if reboot() is
@@ -180,6 +201,9 @@ config EFI_TEST
 
 	  Say Y here to enable the runtime services support via /dev/efi_test.
 	  If unsure, say N.
+
+config EFI_DEV_PATH_PARSER
+	bool
 
 config APPLE_PROPERTIES
 	bool "Apple Device Properties"
@@ -243,12 +267,58 @@ config EFI_DISABLE_PCI_DMA
 	  options "efi=disable_early_pci_dma" or "efi=no_disable_early_pci_dma"
 	  may be used to override this option.
 
-endmenu
+config EFI_EARLYCON
+	def_bool y
+	depends on SERIAL_EARLYCON && !ARM && !IA64
+	select FONT_SUPPORT
+	select ARCH_USE_MEMREMAP_PROT
+
+config EFI_CUSTOM_SSDT_OVERLAYS
+	bool "Load custom ACPI SSDT overlay from an EFI variable"
+	depends on ACPI
+	default ACPI_TABLE_UPGRADE
+	help
+	  Allow loading of an ACPI SSDT overlay from an EFI variable specified
+	  by a kernel command line option.
+
+	  See Documentation/admin-guide/acpi/ssdt-overlays.rst for more
+	  information.
+
+config EFI_DISABLE_RUNTIME
+	bool "Disable EFI runtime services support by default"
+	default y if PREEMPT_RT
+	help
+	  Allow to disable the EFI runtime services support by default. This can
+	  already be achieved by using the efi=noruntime option, but it could be
+	  useful to have this default without any kernel command line parameter.
+
+	  The EFI runtime services are disabled by default when PREEMPT_RT is
+	  enabled, because measurements have shown that some EFI functions calls
+	  might take too much time to complete, causing large latencies which is
+	  an issue for Real-Time kernels.
+
+	  This default can be overridden by using the efi=runtime option.
+
+config EFI_COCO_SECRET
+	bool "EFI Confidential Computing Secret Area Support"
+	help
+	  Confidential Computing platforms (such as AMD SEV) allow the
+	  Guest Owner to securely inject secrets during guest VM launch.
+	  The secrets are placed in a designated EFI reserved memory area.
+
+	  In order to use the secrets in the kernel, the location of the secret
+	  area (as published in the EFI config table) must be kept.
+
+	  If you say Y here, the address of the EFI secret area will be kept
+	  for usage inside the kernel.  This will allow the
+	  virt/coco/efi_secret module to access the secrets, which in turn
+	  allows userspace programs to access the injected secrets.
 
 config EFI_EMBEDDED_FIRMWARE
 	bool
-	depends on EFI
 	select CRYPTO_LIB_SHA256
+
+endmenu
 
 config UEFI_CPER
 	bool
@@ -262,25 +332,3 @@ config UEFI_CPER_X86
 	bool
 	depends on UEFI_CPER && X86
 	default y
-
-config EFI_DEV_PATH_PARSER
-	bool
-	depends on ACPI
-	default n
-
-config EFI_EARLYCON
-	def_bool y
-	depends on EFI && SERIAL_EARLYCON && !ARM && !IA64
-	select FONT_SUPPORT
-	select ARCH_USE_MEMREMAP_PROT
-
-config EFI_CUSTOM_SSDT_OVERLAYS
-	bool "Load custom ACPI SSDT overlay from an EFI variable"
-	depends on EFI && ACPI
-	default ACPI_TABLE_UPGRADE
-	help
-	  Allow loading of an ACPI SSDT overlay from an EFI variable specified
-	  by a kernel command line option.
-
-	  See Documentation/admin-guide/acpi/ssdt-overlays.rst for more
-	  information.

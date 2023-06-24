@@ -23,6 +23,7 @@
  */
 #include <linux/acpi.h>
 #include "psb_drv.h"
+#include "psb_irq.h"
 #include "psb_intel_reg.h"
 
 #define PCI_ASLE 0xe4
@@ -149,21 +150,17 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct opregion_asle *asle = dev_priv->opregion.asle;
-	struct backlight_device *bd = dev_priv->backlight_device;
 
 	DRM_DEBUG_DRIVER("asle set backlight %x\n", bclp);
 
 	if (!(bclp & ASLE_BCLP_VALID))
 		return ASLE_BACKLIGHT_FAILED;
 
-	if (bd == NULL)
-		return ASLE_BACKLIGHT_FAILED;
-
 	bclp &= ASLE_BCLP_MSK;
 	if (bclp > 255)
 		return ASLE_BACKLIGHT_FAILED;
 
-	gma_backlight_set(dev, bclp * bd->props.max_brightness / 255);
+	gma_backlight_set(dev, bclp * PSB_MAX_BRIGHTNESS / 255);
 
 	asle->cblv = (bclp * 0x64) / 0xff | ASLE_CBLV_VALID;
 
@@ -217,8 +214,8 @@ void psb_intel_opregion_enable_asle(struct drm_device *dev)
 	if (asle && system_opregion ) {
 		/* Don't do this on Medfield or other non PC like devices, they
 		   use the bit for something different altogether */
-		psb_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
-		psb_enable_pipestat(dev_priv, 1, PIPE_LEGACY_BLC_EVENT_ENABLE);
+		gma_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
+		gma_enable_pipestat(dev_priv, 1, PIPE_LEGACY_BLC_EVENT_ENABLE);
 
 		asle->tche = ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN
 								| ASLE_PFMB_EN;

@@ -56,6 +56,32 @@ static int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 	return -EOPNOTSUPP;
 }
 
+static int hns3_dcbnl_ieee_setapp(struct net_device *ndev, struct dcb_app *app)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
+
+	if (h->kinfo.dcb_ops->ieee_setapp)
+		return h->kinfo.dcb_ops->ieee_setapp(h, app);
+
+	return -EOPNOTSUPP;
+}
+
+static int hns3_dcbnl_ieee_delapp(struct net_device *ndev, struct dcb_app *app)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
+
+	if (h->kinfo.dcb_ops->ieee_setapp)
+		return h->kinfo.dcb_ops->ieee_delapp(h, app);
+
+	return -EOPNOTSUPP;
+}
+
 /* DCBX configuration */
 static u8 hns3_dcbnl_getdcbx(struct net_device *ndev)
 {
@@ -83,6 +109,8 @@ static const struct dcbnl_rtnl_ops hns3_dcbnl_ops = {
 	.ieee_setets	= hns3_dcbnl_ieee_setets,
 	.ieee_getpfc	= hns3_dcbnl_ieee_getpfc,
 	.ieee_setpfc	= hns3_dcbnl_ieee_setpfc,
+	.ieee_setapp    = hns3_dcbnl_ieee_setapp,
+	.ieee_delapp    = hns3_dcbnl_ieee_delapp,
 	.getdcbx	= hns3_dcbnl_getdcbx,
 	.setdcbx	= hns3_dcbnl_setdcbx,
 };

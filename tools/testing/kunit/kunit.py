@@ -10,6 +10,7 @@
 import argparse
 import os
 import re
+import shlex
 import sys
 import time
 
@@ -22,6 +23,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 import kunit_json
 import kunit_kernel
 import kunit_parser
+from kunit_printer import stdout
 
 class KunitStatus(Enum):
 	SUCCESS = auto()
@@ -42,18 +44,16 @@ class KunitConfigRequest:
 @dataclass
 class KunitBuildRequest(KunitConfigRequest):
 	jobs: int
-	alltests: bool
 
 @dataclass
 class KunitParseRequest:
 	raw_output: Optional[str]
-	build_dir: str
 	json: Optional[str]
 
 @dataclass
 class KunitExecRequest(KunitParseRequest):
+	build_dir: str
 	timeout: int
-	alltests: bool
 	filter_glob: str
 	kernel_args: Optional[List[str]]
 	run_isolated: Optional[str]
@@ -62,8 +62,6 @@ class KunitExecRequest(KunitParseRequest):
 class KunitRequest(KunitExecRequest, KunitBuildRequest):
 	pass
 
-
-KernelDirectoryPath = sys.argv[0].split('tools/testing/kunit/')[0]
 
 def get_kernel_root_path() -> str:
 	path = sys.argv[0] if not __file__ else __file__
@@ -74,7 +72,7 @@ def get_kernel_root_path() -> str:
 
 def config_tests(linux: kunit_kernel.LinuxSourceTree,
 		 request: KunitConfigRequest) -> KunitResult:
-	kunit_parser.print_with_timestamp('Configuring KUnit Kernel ...')
+	stdout.print_with_timestamp('Configuring KUnit Kernel ...')
 
 	config_start = time.time()
 	success = linux.build_reconfig(request.build_dir, request.make_options)
@@ -87,11 +85,10 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 
 def build_tests(linux: kunit_kernel.LinuxSourceTree,
 		request: KunitBuildRequest) -> KunitResult:
-	kunit_parser.print_with_timestamp('Building KUnit Kernel ...')
+	stdout.print_with_timestamp('Building KUnit Kernel ...')
 
 	build_start = time.time()
-	success = linux.build_kernel(request.alltests,
-				     request.jobs,
+	success = linux.build_kernel(request.jobs,
 				     request.build_dir,
 				     request.make_options)
 	build_end = time.time()
@@ -118,7 +115,7 @@ def _list_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) 
 		args.extend(request.kernel_args)
 
 	output = linux.run_kernel(args=args,
-			   timeout=None if request.alltests else request.timeout,
+			   timeout=request.timeout,
 			   filter_glob=request.filter_glob,
 			   build_dir=request.build_dir)
 	lines = kunit_parser.extract_tap_lines(output)
@@ -126,7 +123,7 @@ def _list_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) 
 	lines.pop()
 
 	# Filter out any extraneous non-test output that might have gotten mixed in.
-	return [l for l in lines if re.match('^[^\s.]+\.[^\s.]+$', l)]
+	return [l for l in lines if re.match(r'^[^\s.]+\.[^\s.]+$', l)]
 
 def _suites_from_test_list(tests: List[str]) -> List[str]:
 	"""Extracts all the suites from an ordered list of tests."""
@@ -155,19 +152,21 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 				test_glob = request.filter_glob.split('.', maxsplit=2)[1]
 				filter_globs = [g + '.'+ test_glob for g in filter_globs]
 
+	metadata = kunit_json.Metadata(arch=linux.arch(), build_dir=request.build_dir, def_config='kunit_defconfig')
+
 	test_counts = kunit_parser.TestCounts()
 	exec_time = 0.0
 	for i, filter_glob in enumerate(filter_globs):
-		kunit_parser.print_with_timestamp('Starting KUnit Kernel ({}/{})...'.format(i+1, len(filter_globs)))
+		stdout.print_with_timestamp('Starting KUnit Kernel ({}/{})...'.format(i+1, len(filter_globs)))
 
 		test_start = time.time()
 		run_result = linux.run_kernel(
 			args=request.kernel_args,
-			timeout=None if request.alltests else request.timeout,
+			timeout=request.timeout,
 			filter_glob=filter_glob,
 			build_dir=request.build_dir)
 
-		_, test_result = parse_tests(request, run_result)
+		_, test_result = parse_tests(request, metadata, run_result)
 		# run_kernel() doesn't block on the kernel exiting.
 		# That only happens after we get the last line of output from `run_result`.
 		# So exec_time here actually contains parsing + execution time, which is fine.
@@ -188,10 +187,9 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 	if test_status in (kunit_parser.TestStatus.SUCCESS, kunit_parser.TestStatus.SKIPPED):
 		return KunitStatus.SUCCESS
-	else:
-		return KunitStatus.TEST_FAILURE
+	return KunitStatus.TEST_FAILURE
 
-def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> Tuple[KunitResult, kunit_parser.Test]:
+def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input_data: Iterable[str]) -> Tuple[KunitResult, kunit_parser.Test]:
 	parse_start = time.time()
 
 	test_result = kunit_parser.Test()
@@ -205,9 +203,7 @@ def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> Tuple[
 		if request.raw_output == 'all':
 			pass
 		elif request.raw_output == 'kunit':
-			output = kunit_parser.extract_tap_lines(output)
-		else:
-			print(f'Unknown --raw_output option "{request.raw_output}"', file=sys.stderr)
+			output = kunit_parser.extract_tap_lines(output, lstrip=False)
 		for line in output:
 			print(line.rstrip())
 
@@ -216,13 +212,16 @@ def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> Tuple[
 	parse_end = time.time()
 
 	if request.json:
-		json_obj = kunit_json.get_json_result(
+		json_str = kunit_json.get_json_result(
 					test=test_result,
-					def_config='kunit_defconfig',
-					build_dir=request.build_dir,
-					json_path=request.json)
+					metadata=metadata)
 		if request.json == 'stdout':
-			print(json_obj)
+			print(json_str)
+		else:
+			with open(request.json, 'w') as f:
+				f.write(json_str)
+			stdout.print_with_timestamp("Test results stored in %s" %
+				os.path.abspath(request.json))
 
 	if test_result.status != kunit_parser.TestStatus.SUCCESS:
 		return KunitResult(KunitStatus.TEST_FAILURE, parse_end - parse_start), test_result
@@ -245,7 +244,7 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 
 	run_end = time.time()
 
-	kunit_parser.print_with_timestamp((
+	stdout.print_with_timestamp((
 		'Elapsed time: %.3fs total, %.3fs configuring, %.3fs ' +
 		'building, %.3fs running\n') % (
 				run_end - run_start,
@@ -281,22 +280,23 @@ def add_common_opts(parser) -> None:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
 			    'directory.',
-			    type=str, default='.kunit', metavar='build_dir')
+			    type=str, default='.kunit', metavar='DIR')
 	parser.add_argument('--make_options',
 			    help='X=Y make option, can be repeated.',
-			    action='append')
+			    action='append', metavar='X=Y')
 	parser.add_argument('--alltests',
-			    help='Run all KUnit tests through allyesconfig',
+			    help='Run all KUnit tests via tools/testing/kunit/configs/all_tests.config',
 			    action='store_true')
 	parser.add_argument('--kunitconfig',
 			     help='Path to Kconfig fragment that enables KUnit tests.'
 			     ' If given a directory, (e.g. lib/kunit), "/.kunitconfig" '
-			     'will get  automatically appended.',
-			     metavar='kunitconfig')
+			     'will get  automatically appended. If repeated, the files '
+			     'blindly concatenated, which might not work in all cases.',
+			     action='append', metavar='PATHS')
 	parser.add_argument('--kconfig_add',
 			     help='Additional Kconfig options to append to the '
 			     '.kunitconfig, e.g. CONFIG_KASAN=y. Can be repeated.',
-			    action='append')
+			    action='append', metavar='CONFIG_X=Y')
 
 	parser.add_argument('--arch',
 			    help=('Specifies the architecture to run tests under. '
@@ -304,7 +304,7 @@ def add_common_opts(parser) -> None:
 				  'string passed to the ARCH make param, '
 				  'e.g. i386, x86_64, arm, um, etc. Non-UML '
 				  'architectures run on QEMU.'),
-			    type=str, default='um', metavar='arch')
+			    type=str, default='um', metavar='ARCH')
 
 	parser.add_argument('--cross_compile',
 			    help=('Sets make\'s CROSS_COMPILE variable; it should '
@@ -316,18 +316,22 @@ def add_common_opts(parser) -> None:
 				  'if you have downloaded the microblaze toolchain '
 				  'from the 0-day website to a directory in your '
 				  'home directory called `toolchains`).'),
-			    metavar='cross_compile')
+			    metavar='PREFIX')
 
 	parser.add_argument('--qemu_config',
 			    help=('Takes a path to a path to a file containing '
 				  'a QemuArchParams object.'),
-			    type=str, metavar='qemu_config')
+			    type=str, metavar='FILE')
+
+	parser.add_argument('--qemu_args',
+			    help='Additional QEMU arguments, e.g. "-smp 8"',
+			    action='append', metavar='')
 
 def add_build_opts(parser) -> None:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
 			    'jobs (commands) to run simultaneously."',
-			    type=int, default=get_default_jobs(), metavar='jobs')
+			    type=int, default=get_default_jobs(), metavar='N')
 
 def add_exec_opts(parser) -> None:
 	parser.add_argument('--timeout',
@@ -336,7 +340,7 @@ def add_exec_opts(parser) -> None:
 			    'tests.',
 			    type=int,
 			    default=300,
-			    metavar='timeout')
+			    metavar='SECONDS')
 	parser.add_argument('filter_glob',
 			    help='Filter which KUnit test suites/tests run at '
 			    'boot-time, e.g. list* or list*.*del_test',
@@ -346,26 +350,50 @@ def add_exec_opts(parser) -> None:
 			    metavar='filter_glob')
 	parser.add_argument('--kernel_args',
 			    help='Kernel command-line parameters. Maybe be repeated',
-			     action='append')
+			     action='append', metavar='')
 	parser.add_argument('--run_isolated', help='If set, boot the kernel for each '
 			    'individual suite/test. This is can be useful for debugging '
 			    'a non-hermetic test, one that might pass/fail based on '
 			    'what ran before it.',
 			    type=str,
-			    choices=['suite', 'test']),
+			    choices=['suite', 'test'])
 
 def add_parse_opts(parser) -> None:
 	parser.add_argument('--raw_output', help='If set don\'t format output from kernel. '
 			    'If set to --raw_output=kunit, filters to just KUnit output.',
-			    type=str, nargs='?', const='all', default=None)
+			     type=str, nargs='?', const='all', default=None, choices=['all', 'kunit'])
 	parser.add_argument('--json',
 			    nargs='?',
 			    help='Stores test results in a JSON, and either '
 			    'prints to stdout or saves to file if a '
 			    'filename is specified',
-			    type=str, const='stdout', default=None)
+			    type=str, const='stdout', default=None, metavar='FILE')
 
-def main(argv, linux=None):
+
+def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree:
+	"""Returns a LinuxSourceTree based on the user's arguments."""
+	# Allow users to specify multiple arguments in one string, e.g. '-smp 8'
+	qemu_args: List[str] = []
+	if cli_args.qemu_args:
+		for arg in cli_args.qemu_args:
+			qemu_args.extend(shlex.split(arg))
+
+	kunitconfigs = cli_args.kunitconfig if cli_args.kunitconfig else []
+	if cli_args.alltests:
+		# Prepend so user-specified options take prio if we ever allow
+		# --kunitconfig options to have differing options.
+		kunitconfigs = [kunit_kernel.ALL_TESTS_CONFIG_PATH] + kunitconfigs
+
+	return kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+			kunitconfig_paths=kunitconfigs,
+			kconfig_add=cli_args.kconfig_add,
+			arch=cli_args.arch,
+			cross_compile=cli_args.cross_compile,
+			qemu_config_path=cli_args.qemu_config,
+			extra_qemu_args=qemu_args)
+
+
+def main(argv):
 	parser = argparse.ArgumentParser(
 			description='Helps writing and running KUnit tests.')
 	subparser = parser.add_subparsers(dest='subcommand')
@@ -412,18 +440,10 @@ def main(argv, linux=None):
 		if not os.path.exists(cli_args.build_dir):
 			os.mkdir(cli_args.build_dir)
 
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		request = KunitRequest(build_dir=cli_args.build_dir,
 				       make_options=cli_args.make_options,
 				       jobs=cli_args.jobs,
-				       alltests=cli_args.alltests,
 				       raw_output=cli_args.raw_output,
 				       json=cli_args.json,
 				       timeout=cli_args.timeout,
@@ -438,74 +458,52 @@ def main(argv, linux=None):
 				not os.path.exists(cli_args.build_dir)):
 			os.mkdir(cli_args.build_dir)
 
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		request = KunitConfigRequest(build_dir=cli_args.build_dir,
 					     make_options=cli_args.make_options)
 		result = config_tests(linux, request)
-		kunit_parser.print_with_timestamp((
+		stdout.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
 				result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'build':
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		request = KunitBuildRequest(build_dir=cli_args.build_dir,
 					    make_options=cli_args.make_options,
-					    jobs=cli_args.jobs,
-					    alltests=cli_args.alltests)
+					    jobs=cli_args.jobs)
 		result = config_and_build_tests(linux, request)
-		kunit_parser.print_with_timestamp((
+		stdout.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
 				result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'exec':
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		exec_request = KunitExecRequest(raw_output=cli_args.raw_output,
 						build_dir=cli_args.build_dir,
 						json=cli_args.json,
 						timeout=cli_args.timeout,
-						alltests=cli_args.alltests,
 						filter_glob=cli_args.filter_glob,
 						kernel_args=cli_args.kernel_args,
 						run_isolated=cli_args.run_isolated)
 		result = exec_tests(linux, exec_request)
-		kunit_parser.print_with_timestamp((
+		stdout.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'parse':
-		if cli_args.file == None:
+		if cli_args.file is None:
 			sys.stdin.reconfigure(errors='backslashreplace')  # pytype: disable=attribute-error
 			kunit_output = sys.stdin
 		else:
 			with open(cli_args.file, 'r', errors='backslashreplace') as f:
 				kunit_output = f.read().splitlines()
+		# We know nothing about how the result was created!
+		metadata = kunit_json.Metadata()
 		request = KunitParseRequest(raw_output=cli_args.raw_output,
-					    build_dir='',
 					    json=cli_args.json)
-		result, _ = parse_tests(request, kunit_output)
+		result, _ = parse_tests(request, metadata, kunit_output)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	else:

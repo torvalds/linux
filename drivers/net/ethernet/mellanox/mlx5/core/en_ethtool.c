@@ -30,24 +30,26 @@
  * SOFTWARE.
  */
 
+#include <linux/ethtool_netlink.h>
+
 #include "en.h"
 #include "en/port.h"
 #include "en/params.h"
-#include "en/xsk/pool.h"
 #include "en/ptp.h"
 #include "lib/clock.h"
+#include "en/fs_ethtool.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%04d (%.16s)",
 		 fw_rev_maj(mdev), fw_rev_min(mdev), fw_rev_sub(mdev),
 		 mdev->board_id);
-	strlcpy(drvinfo->bus_info, dev_name(mdev->device),
+	strscpy(drvinfo->bus_info, dev_name(mdev->device),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -305,12 +307,26 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 }
 
 void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
-				 struct ethtool_ringparam *param)
+				 struct ethtool_ringparam *param,
+				 struct kernel_ethtool_ringparam *kernel_param)
 {
-	param->rx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
+	/* Limitation for regular RQ. XSK RQ may clamp the queue length in
+	 * mlx5e_mpwqe_get_log_rq_size.
+	 */
+	u8 max_log_mpwrq_pkts = mlx5e_mpwrq_max_log_rq_pkts(priv->mdev,
+							    PAGE_SHIFT,
+							    MLX5E_MPWRQ_UMR_MODE_ALIGNED);
+
+	param->rx_max_pending = 1 << min_t(u8, MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE,
+					   max_log_mpwrq_pkts);
 	param->tx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE;
 	param->rx_pending     = 1 << priv->channels.params.log_rq_mtu_frames;
 	param->tx_pending     = 1 << priv->channels.params.log_sq_size;
+
+	kernel_param->tcp_data_split =
+		(priv->channels.params.packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) ?
+		ETHTOOL_TCP_DATA_SPLIT_ENABLED :
+		ETHTOOL_TCP_DATA_SPLIT_DISABLED;
 }
 
 static void mlx5e_get_ringparam(struct net_device *dev,
@@ -320,7 +336,7 @@ static void mlx5e_get_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	mlx5e_ethtool_get_ringparam(priv, param);
+	mlx5e_ethtool_get_ringparam(priv, param, kernel_param);
 }
 
 int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
@@ -395,15 +411,8 @@ void mlx5e_ethtool_get_channels(struct mlx5e_priv *priv,
 				struct ethtool_channels *ch)
 {
 	mutex_lock(&priv->state_lock);
-
 	ch->max_combined   = priv->max_nch;
 	ch->combined_count = priv->channels.params.num_channels;
-	if (priv->xsk.refcnt) {
-		/* The upper half are XSK queues. */
-		ch->max_combined *= 2;
-		ch->combined_count *= 2;
-	}
-
 	mutex_unlock(&priv->state_lock);
 }
 
@@ -437,21 +446,11 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	mutex_lock(&priv->state_lock);
 
-	/* Don't allow changing the number of channels if there is an active
-	 * XSK, because the numeration of the XSK and regular RQs will change.
-	 */
-	if (priv->xsk.refcnt) {
-		err = -EINVAL;
-		netdev_err(priv->netdev, "%s: AF_XDP is active, cannot change the number of channels\n",
-			   __func__);
-		goto out;
-	}
-
 	/* Don't allow changing the number of channels if HTB offload is active,
 	 * because the numeration of the QoS SQs will change, while per-queue
 	 * qdiscs are attached.
 	 */
-	if (priv->htb.maj_id) {
+	if (mlx5e_selq_is_htb_enabled(&priv->selq)) {
 		err = -EINVAL;
 		netdev_err(priv->netdev, "%s: HTB offload is active, cannot change the number of channels\n",
 			   __func__);
@@ -486,14 +485,14 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	arfs_enabled = opened && (priv->netdev->features & NETIF_F_NTUPLE);
 	if (arfs_enabled)
-		mlx5e_arfs_disable(priv);
+		mlx5e_arfs_disable(priv->fs);
 
 	/* Switch to new channels, set new parameters and close old ones */
 	err = mlx5e_safe_switch_params(priv, &new_params,
 				       mlx5e_num_channels_changed_ctx, NULL, true);
 
 	if (arfs_enabled) {
-		int err2 = mlx5e_arfs_enable(priv);
+		int err2 = mlx5e_arfs_enable(priv->fs);
 
 		if (err2)
 			netdev_err(priv->netdev, "%s: mlx5e_arfs_enable failed: %d\n",
@@ -1988,10 +1987,14 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 	struct mlx5e_params new_params;
 
 	if (enable) {
-		if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
-			return -EOPNOTSUPP;
-		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
-			return -EINVAL;
+		/* Checking the regular RQ here; mlx5e_validate_xsk_param called
+		 * from mlx5e_open_xsk will check for each XSK queue, and
+		 * mlx5e_safe_switch_params will be reverted if any check fails.
+		 */
+		int err = mlx5e_mpwrq_validate_regular(mdev, &priv->channels.params);
+
+		if (err)
+			return err;
 	} else if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
 		netdev_warn(netdev, "Can't set legacy RQ with HW-GRO/LRO, disable them first\n");
 		return -EINVAL;
@@ -2067,7 +2070,7 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 	 * the numeration of the QoS SQs will change, while per-queue qdiscs are
 	 * attached.
 	 */
-	if (priv->htb.maj_id) {
+	if (mlx5e_selq_is_htb_enabled(&priv->selq)) {
 		netdev_err(priv->netdev, "%s: HTB offload is active, cannot change the PTP state\n",
 			   __func__);
 		return -EINVAL;

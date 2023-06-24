@@ -24,6 +24,8 @@
 #ifndef __AMDGPU_VCN_H__
 #define __AMDGPU_VCN_H__
 
+#include "amdgpu_ras.h"
+
 #define AMDGPU_VCN_STACK_SIZE		(128*1024)
 #define AMDGPU_VCN_CONTEXT_SIZE 	(512*1024)
 
@@ -63,8 +65,6 @@
 #define VCN_ENC_CMD_REG_WRITE		0x0000000b
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
-#define VCN_VID_SOC_ADDRESS_2_0 	0x1fa00
-#define VCN1_VID_SOC_ADDRESS_3_0 	0x48200
 #define VCN_AON_SOC_ADDRESS_2_0 	0x1f800
 #define VCN1_AON_SOC_ADDRESS_3_0 	0x48000
 #define VCN_VID_IP_ADDRESS_2_0		0x0
@@ -155,14 +155,25 @@
 		}										\
 	} while (0)
 
+#define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
 #define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
 #define AMDGPU_VCN_FW_LOGGING_FLAG	(1 << 10)
 #define AMDGPU_VCN_SMU_VERSION_INFO_FLAG (1 << 11)
+#define AMDGPU_VCN_SMU_DPM_INTERFACE_FLAG (1 << 11)
+#define AMDGPU_VCN_VF_RB_SETUP_FLAG (1 << 14)
 
 #define AMDGPU_VCN_IB_FLAG_DECODE_BUFFER	0x00000001
 #define AMDGPU_VCN_CMD_FLAG_MSG_BUFFER		0x00000001
+
+#define VCN_CODEC_DISABLE_MASK_AV1  (1 << 0)
+#define VCN_CODEC_DISABLE_MASK_VP9  (1 << 1)
+#define VCN_CODEC_DISABLE_MASK_HEVC (1 << 2)
+#define VCN_CODEC_DISABLE_MASK_H264 (1 << 3)
+
+#define AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU (0)
+#define AMDGPU_VCN_SMU_DPM_INTERFACE_APU (1)
 
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
@@ -233,6 +244,10 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_vcn_fw_shared fw_shared;
 };
 
+struct amdgpu_vcn_ras {
+	struct amdgpu_ras_block_object ras_block;
+};
+
 struct amdgpu_vcn {
 	unsigned		fw_version;
 	struct delayed_work	idle_work;
@@ -244,6 +259,7 @@ struct amdgpu_vcn {
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 	uint8_t			 vcn_config[AMDGPU_MAX_VCN_INSTANCES];
+	uint32_t		 vcn_codec_disable_mask[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
 	struct mutex		 vcn_pg_lock;
 	struct mutex		vcn1_jpeg1_workaround;
@@ -252,6 +268,9 @@ struct amdgpu_vcn {
 	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
+
+	struct ras_common_if    *ras_if;
+	struct amdgpu_vcn_ras   *ras;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
@@ -271,6 +290,13 @@ struct amdgpu_fw_shared_multi_queue {
 struct amdgpu_fw_shared_sw_ring {
 	uint8_t is_enabled;
 	uint8_t padding[3];
+};
+
+struct amdgpu_fw_shared_unified_queue_struct {
+	uint8_t is_enabled;
+	uint8_t queue_mode;
+	uint8_t queue_status;
+	uint8_t padding[5];
 };
 
 struct amdgpu_fw_shared_fw_logging {
@@ -294,6 +320,28 @@ struct amdgpu_fw_shared {
 	struct amdgpu_fw_shared_sw_ring sw_ring;
 	struct amdgpu_fw_shared_fw_logging fw_log;
 	struct amdgpu_fw_shared_smu_interface_info smu_interface_info;
+};
+
+struct amdgpu_fw_shared_rb_setup {
+	uint32_t is_rb_enabled_flags;
+	uint32_t rb_addr_lo;
+	uint32_t rb_addr_hi;
+	uint32_t  rb_size;
+	uint32_t  rb4_addr_lo;
+	uint32_t  rb4_addr_hi;
+	uint32_t  rb4_size;
+	uint32_t  reserved[6];
+};
+
+struct amdgpu_vcn4_fw_shared {
+	uint32_t present_flag_0;
+	uint8_t pad[12];
+	struct amdgpu_fw_shared_unified_queue_struct sq;
+	uint8_t pad1[8];
+	struct amdgpu_fw_shared_fw_logging fw_log;
+	uint8_t pad2[20];
+	struct amdgpu_fw_shared_rb_setup rb_setup;
+	struct amdgpu_fw_shared_smu_interface_info smu_dpm_interface;
 };
 
 struct amdgpu_vcn_fwlog {
@@ -335,6 +383,7 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 int amdgpu_vcn_dec_sw_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_dec_sw_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+int amdgpu_vcn_unified_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
@@ -346,4 +395,9 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev);
 void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn);
 void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
                                    uint8_t i, struct amdgpu_vcn_inst *vcn);
+
+int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
+			struct amdgpu_irq_src *source,
+			struct amdgpu_iv_entry *entry);
+
 #endif

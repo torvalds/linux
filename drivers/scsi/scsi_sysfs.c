@@ -448,6 +448,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	struct list_head *this, *tmp;
 	struct scsi_vpd *vpd_pg80 = NULL, *vpd_pg83 = NULL;
 	struct scsi_vpd *vpd_pg0 = NULL, *vpd_pg89 = NULL;
+	struct scsi_vpd *vpd_pgb0 = NULL, *vpd_pgb1 = NULL, *vpd_pgb2 = NULL;
 	unsigned long flags;
 	struct module *mod;
 
@@ -490,6 +491,12 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 				       lockdep_is_held(&sdev->inquiry_mutex));
 	vpd_pg89 = rcu_replace_pointer(sdev->vpd_pg89, vpd_pg89,
 				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb0 = rcu_replace_pointer(sdev->vpd_pgb0, vpd_pgb0,
+				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb1 = rcu_replace_pointer(sdev->vpd_pgb1, vpd_pgb1,
+				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb2 = rcu_replace_pointer(sdev->vpd_pgb2, vpd_pgb2,
+				       lockdep_is_held(&sdev->inquiry_mutex));
 	mutex_unlock(&sdev->inquiry_mutex);
 
 	if (vpd_pg0)
@@ -500,6 +507,12 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 		kfree_rcu(vpd_pg80, rcu);
 	if (vpd_pg89)
 		kfree_rcu(vpd_pg89, rcu);
+	if (vpd_pgb0)
+		kfree_rcu(vpd_pgb0, rcu);
+	if (vpd_pgb1)
+		kfree_rcu(vpd_pgb1, rcu);
+	if (vpd_pgb2)
+		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
 	kfree(sdev);
 
@@ -560,7 +573,6 @@ struct bus_type scsi_bus_type = {
 	.pm		= &scsi_bus_pm_ops,
 #endif
 };
-EXPORT_SYMBOL_GPL(scsi_bus_type);
 
 int scsi_sysfs_register(void)
 {
@@ -816,6 +828,14 @@ store_state_field(struct device *dev, struct device_attribute *attr,
 	}
 
 	mutex_lock(&sdev->state_mutex);
+	switch (sdev->sdev_state) {
+	case SDEV_RUNNING:
+	case SDEV_OFFLINE:
+		break;
+	default:
+		mutex_unlock(&sdev->state_mutex);
+		return -EINVAL;
+	}
 	if (sdev->sdev_state == SDEV_RUNNING && state == SDEV_RUNNING) {
 		ret = 0;
 	} else {
@@ -913,6 +933,9 @@ static struct bin_attribute dev_attr_vpd_##_page = {		\
 sdev_vpd_pg_attr(pg83);
 sdev_vpd_pg_attr(pg80);
 sdev_vpd_pg_attr(pg89);
+sdev_vpd_pg_attr(pgb0);
+sdev_vpd_pg_attr(pgb1);
+sdev_vpd_pg_attr(pgb2);
 sdev_vpd_pg_attr(pg0);
 
 static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
@@ -961,6 +984,7 @@ static DEVICE_ATTR(field, S_IRUGO, show_iostat_##field, NULL)
 show_sdev_iostat(iorequest_cnt);
 show_sdev_iostat(iodone_cnt);
 show_sdev_iostat(ioerr_cnt);
+show_sdev_iostat(iotmo_cnt);
 
 static ssize_t
 sdev_show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1250,6 +1274,15 @@ static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_vpd_pg89 && !sdev->vpd_pg89)
 		return 0;
 
+	if (attr == &dev_attr_vpd_pgb0 && !sdev->vpd_pgb0)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb1 && !sdev->vpd_pgb1)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb2 && !sdev->vpd_pgb2)
+		return 0;
+
 	return S_IRUGO;
 }
 
@@ -1271,6 +1304,7 @@ static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_iorequest_cnt.attr,
 	&dev_attr_iodone_cnt.attr,
 	&dev_attr_ioerr_cnt.attr,
+	&dev_attr_iotmo_cnt.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_queue_depth.attr,
 	&dev_attr_queue_type.attr,
@@ -1296,6 +1330,9 @@ static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
 	&dev_attr_vpd_pg89,
+	&dev_attr_vpd_pgb0,
+	&dev_attr_vpd_pgb1,
+	&dev_attr_vpd_pgb2,
 	&dev_attr_inquiry,
 	NULL
 };
@@ -1448,7 +1485,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	scsi_device_set_state(sdev, SDEV_DEL);
 	mutex_unlock(&sdev->state_mutex);
 
-	blk_cleanup_queue(sdev->request_queue);
+	blk_mq_destroy_queue(sdev->request_queue);
+	kref_put(&sdev->host->tagset_refcnt, scsi_mq_free_tags);
 	cancel_work_sync(&sdev->requeue_work);
 
 	if (sdev->host->hostt->slave_destroy)

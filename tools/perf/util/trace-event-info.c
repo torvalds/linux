@@ -19,16 +19,24 @@
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <internal/lib.h> // page_size
+#include <sys/param.h>
 
 #include "trace-event.h"
+#include "tracepoint.h"
 #include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "debug.h"
 
 #define VERSION "0.6"
+#define MAX_EVENT_LENGTH 512
 
 static int output_fd;
 
+struct tracepoint_path {
+	char *system;
+	char *name;
+	struct tracepoint_path *next;
+};
 
 int bigendian(void)
 {
@@ -398,6 +406,94 @@ put_tracepoints_path(struct tracepoint_path *tps)
 		zfree(&t->system);
 		free(t);
 	}
+}
+
+static struct tracepoint_path *tracepoint_id_to_path(u64 config)
+{
+	struct tracepoint_path *path = NULL;
+	DIR *sys_dir, *evt_dir;
+	struct dirent *sys_dirent, *evt_dirent;
+	char id_buf[24];
+	int fd;
+	u64 id;
+	char evt_path[MAXPATHLEN];
+	char *dir_path;
+
+	sys_dir = tracing_events__opendir();
+	if (!sys_dir)
+		return NULL;
+
+	for_each_subsystem(sys_dir, sys_dirent) {
+		dir_path = get_events_file(sys_dirent->d_name);
+		if (!dir_path)
+			continue;
+		evt_dir = opendir(dir_path);
+		if (!evt_dir)
+			goto next;
+
+		for_each_event(dir_path, evt_dir, evt_dirent) {
+
+			scnprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path,
+				  evt_dirent->d_name);
+			fd = open(evt_path, O_RDONLY);
+			if (fd < 0)
+				continue;
+			if (read(fd, id_buf, sizeof(id_buf)) < 0) {
+				close(fd);
+				continue;
+			}
+			close(fd);
+			id = atoll(id_buf);
+			if (id == config) {
+				put_events_file(dir_path);
+				closedir(evt_dir);
+				closedir(sys_dir);
+				path = zalloc(sizeof(*path));
+				if (!path)
+					return NULL;
+				if (asprintf(&path->system, "%.*s",
+					     MAX_EVENT_LENGTH, sys_dirent->d_name) < 0) {
+					free(path);
+					return NULL;
+				}
+				if (asprintf(&path->name, "%.*s",
+					     MAX_EVENT_LENGTH, evt_dirent->d_name) < 0) {
+					zfree(&path->system);
+					free(path);
+					return NULL;
+				}
+				return path;
+			}
+		}
+		closedir(evt_dir);
+next:
+		put_events_file(dir_path);
+	}
+
+	closedir(sys_dir);
+	return NULL;
+}
+
+static struct tracepoint_path *tracepoint_name_to_path(const char *name)
+{
+	struct tracepoint_path *path = zalloc(sizeof(*path));
+	char *str = strchr(name, ':');
+
+	if (path == NULL || str == NULL) {
+		free(path);
+		return NULL;
+	}
+
+	path->system = strndup(name, str - name);
+	path->name = strdup(str+1);
+
+	if (path->system == NULL || path->name == NULL) {
+		zfree(&path->system);
+		zfree(&path->name);
+		zfree(&path);
+	}
+
+	return path;
 }
 
 static struct tracepoint_path *

@@ -18,7 +18,7 @@ static void handle_enc_init_msg(struct venc_vpu_inst *vpu, const void *data)
 					     msg->vpu_inst_addr);
 
 	/* Firmware version field value is unspecified on MT8173. */
-	if (vpu->ctx->dev->venc_pdata->chip == MTK_MT8173)
+	if (mtk_vcodec_fw_get_type(vpu->ctx->dev->fw_handler) == VPU)
 		return;
 
 	/* Check firmware version. */
@@ -222,10 +222,11 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 	return 0;
 }
 
-int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
-		   struct venc_frm_buf *frm_buf,
-		   struct mtk_vcodec_mem *bs_buf,
-		   struct venc_frame_info *frame_info)
+static int vpu_enc_encode_32bits(struct venc_vpu_inst *vpu,
+				 unsigned int bs_mode,
+				 struct venc_frm_buf *frm_buf,
+				 struct mtk_vcodec_mem *bs_buf,
+				 struct venc_frame_info *frame_info)
 {
 	const bool is_ext = MTK_ENC_CTX_IS_EXT(vpu->ctx);
 	size_t msg_size = is_ext ?
@@ -266,6 +267,73 @@ int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 			       bs_mode);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int vpu_enc_encode_34bits(struct venc_vpu_inst *vpu,
+				 unsigned int bs_mode,
+				 struct venc_frm_buf *frm_buf,
+				 struct mtk_vcodec_mem *bs_buf,
+				 struct venc_frame_info *frame_info)
+{
+	struct venc_ap_ipi_msg_enc_ext_34 out;
+	size_t msg_size = sizeof(struct venc_ap_ipi_msg_enc_ext_34);
+
+	mtk_vcodec_debug(vpu, "bs_mode %d ->", bs_mode);
+
+	memset(&out, 0, sizeof(out));
+	out.msg_id = AP_IPIMSG_ENC_ENCODE;
+	out.vpu_inst_addr = vpu->inst_addr;
+	out.bs_mode = bs_mode;
+
+	if (frm_buf) {
+		if ((frm_buf->fb_addr[0].dma_addr % 16 == 0) &&
+		    (frm_buf->fb_addr[1].dma_addr % 16 == 0) &&
+		    (frm_buf->fb_addr[2].dma_addr % 16 == 0)) {
+			out.input_addr[0] = frm_buf->fb_addr[0].dma_addr;
+			out.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
+			out.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
+		} else {
+			mtk_vcodec_err(vpu, "dma_addr not align to 16");
+			return -EINVAL;
+		}
+	}
+	if (bs_buf) {
+		out.bs_addr = bs_buf->dma_addr;
+		out.bs_size = bs_buf->size;
+	}
+	if (frame_info) {
+		out.data_item = 3;
+		out.data[0] = frame_info->frm_count;
+		out.data[1] = frame_info->skip_frm_count;
+		out.data[2] = frame_info->frm_type;
+	}
+	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
+		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_ENCODE %d fail",
+			       bs_mode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
+		   struct venc_frm_buf *frm_buf,
+		   struct mtk_vcodec_mem *bs_buf,
+		   struct venc_frame_info *frame_info)
+{
+	int ret;
+
+	if (MTK_ENC_IOVA_IS_34BIT(vpu->ctx))
+		ret = vpu_enc_encode_34bits(vpu, bs_mode,
+					    frm_buf, bs_buf, frame_info);
+	else
+		ret = vpu_enc_encode_32bits(vpu, bs_mode,
+					    frm_buf, bs_buf, frame_info);
+
+	if (ret)
+		return ret;
 
 	mtk_vcodec_debug(vpu, "bs_mode %d state %d size %d key_frm %d <-",
 			 bs_mode, vpu->state, vpu->bs_size, vpu->is_key_frm);

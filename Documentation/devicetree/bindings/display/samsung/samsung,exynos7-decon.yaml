@@ -8,7 +8,6 @@ title: Samsung Exynos7 SoC Display and Enhancement Controller (DECON)
 
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
-  - Joonyoung Shim <jy0922.shim@samsung.com>
   - Seung-Woo Kim <sw0312.kim@samsung.com>
   - Kyungmin Park <kyungmin.park@samsung.com>
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -23,7 +22,6 @@ properties:
     const: samsung,exynos7-decon
 
   clocks:
-    minItems: 4
     maxItems: 4
 
   clock-names:
@@ -38,6 +36,7 @@ properties:
 
   i80-if-timings:
     type: object
+    additionalProperties: false
     description: timing configuration for lcd i80 interface support
     properties:
       cs-setup:

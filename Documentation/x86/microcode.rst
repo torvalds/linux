@@ -6,6 +6,7 @@ The Linux Microcode Loader
 
 :Authors: - Fenghua Yu <fenghua.yu@intel.com>
           - Borislav Petkov <bp@suse.de>
+	  - Ashok Raj <ashok.raj@intel.com>
 
 The kernel has a x86 microcode loading facility which is supposed to
 provide microcode loading methods in the OS. Potential use cases are
@@ -92,15 +93,8 @@ vendor's site.
 Late loading
 ============
 
-There are two legacy user space interfaces to load microcode, either through
-/dev/cpu/microcode or through /sys/devices/system/cpu/microcode/reload file
-in sysfs.
-
-The /dev/cpu/microcode method is deprecated because it needs a special
-userspace tool for that.
-
-The easier method is simply installing the microcode packages your distro
-supplies and running::
+You simply install the microcode packages your distro supplies and
+run::
 
   # echo 1 > /sys/devices/system/cpu/microcode/reload
 
@@ -109,6 +103,110 @@ as root.
 The loading mechanism looks for microcode blobs in
 /lib/firmware/{intel-ucode,amd-ucode}. The default distro installation
 packages already put them there.
+
+Since kernel 5.19, late loading is not enabled by default.
+
+The /dev/cpu/microcode method has been removed in 5.19.
+
+Why is late loading dangerous?
+==============================
+
+Synchronizing all CPUs
+----------------------
+
+The microcode engine which receives the microcode update is shared
+between the two logical threads in a SMT system. Therefore, when
+the update is executed on one SMT thread of the core, the sibling
+"automatically" gets the update.
+
+Since the microcode can "simulate" MSRs too, while the microcode update
+is in progress, those simulated MSRs transiently cease to exist. This
+can result in unpredictable results if the SMT sibling thread happens to
+be in the middle of an access to such an MSR. The usual observation is
+that such MSR accesses cause #GPs to be raised to signal that former are
+not present.
+
+The disappearing MSRs are just one common issue which is being observed.
+Any other instruction that's being patched and gets concurrently
+executed by the other SMT sibling, can also result in similar,
+unpredictable behavior.
+
+To eliminate this case, a stop_machine()-based CPU synchronization was
+introduced as a way to guarantee that all logical CPUs will not execute
+any code but just wait in a spin loop, polling an atomic variable.
+
+While this took care of device or external interrupts, IPIs including
+LVT ones, such as CMCI etc, it cannot address other special interrupts
+that can't be shut off. Those are Machine Check (#MC), System Management
+(#SMI) and Non-Maskable interrupts (#NMI).
+
+Machine Checks
+--------------
+
+Machine Checks (#MC) are non-maskable. There are two kinds of MCEs.
+Fatal un-recoverable MCEs and recoverable MCEs. While un-recoverable
+errors are fatal, recoverable errors can also happen in kernel context
+are also treated as fatal by the kernel.
+
+On certain Intel machines, MCEs are also broadcast to all threads in a
+system. If one thread is in the middle of executing WRMSR, a MCE will be
+taken at the end of the flow. Either way, they will wait for the thread
+performing the wrmsr(0x79) to rendezvous in the MCE handler and shutdown
+eventually if any of the threads in the system fail to check in to the
+MCE rendezvous.
+
+To be paranoid and get predictable behavior, the OS can choose to set
+MCG_STATUS.MCIP. Since MCEs can be at most one in a system, if an
+MCE was signaled, the above condition will promote to a system reset
+automatically. OS can turn off MCIP at the end of the update for that
+core.
+
+System Management Interrupt
+---------------------------
+
+SMIs are also broadcast to all CPUs in the platform. Microcode update
+requests exclusive access to the core before writing to MSR 0x79. So if
+it does happen such that, one thread is in WRMSR flow, and the 2nd got
+an SMI, that thread will be stopped in the first instruction in the SMI
+handler.
+
+Since the secondary thread is stopped in the first instruction in SMI,
+there is very little chance that it would be in the middle of executing
+an instruction being patched. Plus OS has no way to stop SMIs from
+happening.
+
+Non-Maskable Interrupts
+-----------------------
+
+When thread0 of a core is doing the microcode update, if thread1 is
+pulled into NMI, that can cause unpredictable behavior due to the
+reasons above.
+
+OS can choose a variety of methods to avoid running into this situation.
+
+
+Is the microcode suitable for late loading?
+-------------------------------------------
+
+Late loading is done when the system is fully operational and running
+real workloads. Late loading behavior depends on what the base patch on
+the CPU is before upgrading to the new patch.
+
+This is true for Intel CPUs.
+
+Consider, for example, a CPU has patch level 1 and the update is to
+patch level 3.
+
+Between patch1 and patch3, patch2 might have deprecated a software-visible
+feature.
+
+This is unacceptable if software is even potentially using that feature.
+For instance, say MSR_X is no longer available after an update,
+accessing that MSR will cause a #GP fault.
+
+Basically there is no way to declare a new microcode update suitable
+for late-loading. This is another one of the problems that caused late
+loading to be not enabled by default.
 
 Builtin microcode
 =================

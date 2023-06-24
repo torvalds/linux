@@ -259,7 +259,7 @@ static bool drm_crtc_supports_legacy_gamma(struct drm_crtc *crtc)
  * @crtc: CRTC object
  * @red: red correction table
  * @green: green correction table
- * @blue: green correction table
+ * @blue: blue correction table
  * @size: size of the tables
  * @ctx: lock acquire context
  *
@@ -575,7 +575,7 @@ int drm_plane_create_color_properties(struct drm_plane *plane,
 		len++;
 	}
 
-	prop = drm_property_create_enum(dev, 0,	"COLOR_RANGE",
+	prop = drm_property_create_enum(dev, 0, "COLOR_RANGE",
 					enum_list, len);
 	if (!prop)
 		return -ENOMEM;

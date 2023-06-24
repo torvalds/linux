@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/ti,vpe.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments DRA7x Video Processing Engine (VPE) Device Tree Bindings
+title: Texas Instruments DRA7x Video Processing Engine (VPE)
 
 maintainers:
   - Benoit Parrot <bparrot@ti.com>

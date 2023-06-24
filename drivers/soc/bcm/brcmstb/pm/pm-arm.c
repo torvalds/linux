@@ -25,7 +25,6 @@
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/panic_notifier.h>
@@ -664,7 +663,20 @@ static void __iomem *brcmstb_ioremap_match(const struct of_device_id *matches,
 
 	return of_io_request_and_map(dn, index, dn->full_name);
 }
-
+/*
+ * The AON is a small domain in the SoC that can retain its state across
+ * various system wide sleep states and specific reset conditions; the
+ * AON DATA RAM is a small RAM of a few words (< 1KB) which can store
+ * persistent information across such events.
+ *
+ * The purpose of the below panic notifier is to help with notifying
+ * the bootloader that a panic occurred and so that it should try its
+ * best to preserve the DRAM contents holding that buffer for recovery
+ * by the kernel as opposed to wiping out DRAM clean again.
+ *
+ * Reference: comment from Florian Fainelli, at
+ * https://lore.kernel.org/lkml/781cafb0-8d06-8b56-907a-5175c2da196a@gmail.com
+ */
 static int brcmstb_pm_panic_notify(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
@@ -684,13 +696,14 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id = NULL;
 	struct device_node *dn;
 	void __iomem *base;
-	int ret, i;
+	int ret, i, s;
 
 	/* AON ctrl registers */
 	base = brcmstb_ioremap_match(aon_ctrl_dt_ids, 0, NULL);
 	if (IS_ERR(base)) {
 		pr_err("error mapping AON_CTRL\n");
-		return PTR_ERR(base);
+		ret = PTR_ERR(base);
+		goto aon_err;
 	}
 	ctrl.aon_ctrl_base = base;
 
@@ -700,8 +713,10 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 		/* Assume standard offset */
 		ctrl.aon_sram = ctrl.aon_ctrl_base +
 				     AON_CTRL_SYSTEM_DATA_RAM_OFS;
+		s = 0;
 	} else {
 		ctrl.aon_sram = base;
+		s = 1;
 	}
 
 	writel_relaxed(0, ctrl.aon_sram + AON_REG_PANIC);
@@ -711,7 +726,8 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 				     (const void **)&ddr_phy_data);
 	if (IS_ERR(base)) {
 		pr_err("error mapping DDR PHY\n");
-		return PTR_ERR(base);
+		ret = PTR_ERR(base);
+		goto ddr_phy_err;
 	}
 	ctrl.support_warm_boot = ddr_phy_data->supports_warm_boot;
 	ctrl.pll_status_offset = ddr_phy_data->pll_status_offset;
@@ -721,7 +737,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	ctrl.phy_a_standby_ctrl_offs = ddr_phy_data->phy_a_standby_ctrl_offs;
 	ctrl.phy_b_standby_ctrl_offs = ddr_phy_data->phy_b_standby_ctrl_offs;
 	/*
-	 * Slightly grosss to use the phy ver to get a memc,
+	 * Slightly gross to use the phy ver to get a memc,
 	 * offset but that is the only versioned things so far
 	 * we can test for.
 	 */
@@ -731,17 +747,20 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	for_each_matching_node(dn, ddr_shimphy_dt_ids) {
 		i = ctrl.num_memc;
 		if (i >= MAX_NUM_MEMC) {
+			of_node_put(dn);
 			pr_warn("too many MEMCs (max %d)\n", MAX_NUM_MEMC);
 			break;
 		}
 
 		base = of_io_request_and_map(dn, 0, dn->full_name);
 		if (IS_ERR(base)) {
+			of_node_put(dn);
 			if (!ctrl.support_warm_boot)
 				break;
 
 			pr_err("error mapping DDR SHIMPHY %d\n", i);
-			return PTR_ERR(base);
+			ret = PTR_ERR(base);
+			goto ddr_shimphy_err;
 		}
 		ctrl.memcs[i].ddr_shimphy_base = base;
 		ctrl.num_memc++;
@@ -752,14 +771,18 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	for_each_matching_node(dn, brcmstb_memc_of_match) {
 		base = of_iomap(dn, 0);
 		if (!base) {
+			of_node_put(dn);
 			pr_err("error mapping DDR Sequencer %d\n", i);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto brcmstb_memc_err;
 		}
 
 		of_id = of_match_node(brcmstb_memc_of_match, dn);
 		if (!of_id) {
 			iounmap(base);
-			return -EINVAL;
+			of_node_put(dn);
+			ret = -EINVAL;
+			goto brcmstb_memc_err;
 		}
 
 		ddr_seq_data = of_id->data;
@@ -779,20 +802,24 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	dn = of_find_matching_node(NULL, sram_dt_ids);
 	if (!dn) {
 		pr_err("SRAM not found\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto brcmstb_memc_err;
 	}
 
 	ret = brcmstb_init_sram(dn);
+	of_node_put(dn);
 	if (ret) {
 		pr_err("error setting up SRAM for PM\n");
-		return ret;
+		goto brcmstb_memc_err;
 	}
 
 	ctrl.pdev = pdev;
 
 	ctrl.s3_params = kmalloc(sizeof(*ctrl.s3_params), GFP_KERNEL);
-	if (!ctrl.s3_params)
-		return -ENOMEM;
+	if (!ctrl.s3_params) {
+		ret = -ENOMEM;
+		goto s3_params_err;
+	}
 	ctrl.s3_params_pa = dma_map_single(&pdev->dev, ctrl.s3_params,
 					   sizeof(*ctrl.s3_params),
 					   DMA_TO_DEVICE);
@@ -812,7 +839,21 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 
 out:
 	kfree(ctrl.s3_params);
+s3_params_err:
+	iounmap(ctrl.boot_sram);
+brcmstb_memc_err:
+	for (i--; i >= 0; i--)
+		iounmap(ctrl.memcs[i].ddr_ctrl);
+ddr_shimphy_err:
+	for (i = 0; i < ctrl.num_memc; i++)
+		iounmap(ctrl.memcs[i].ddr_shimphy_base);
 
+	iounmap(ctrl.memcs[0].ddr_phy_base);
+ddr_phy_err:
+	iounmap(ctrl.aon_ctrl_base);
+	if (s)
+		iounmap(ctrl.aon_sram);
+aon_err:
 	pr_warn("PM: initialization failed with code %d\n", ret);
 
 	return ret;

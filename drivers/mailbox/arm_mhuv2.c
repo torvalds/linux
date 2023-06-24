@@ -160,7 +160,8 @@ enum mhuv2_frame {
  * struct mhuv2 - MHUv2 mailbox controller data
  *
  * @mbox:	Mailbox controller belonging to the MHU frame.
- * @send/recv:	Base address of the register mapping region.
+ * @send:	Base address of the register mapping region.
+ * @recv:	Base address of the register mapping region.
  * @frame:	Frame type: RECEIVER_FRAME or SENDER_FRAME.
  * @irq:	Interrupt.
  * @windows:	Channel windows implemented by the platform.

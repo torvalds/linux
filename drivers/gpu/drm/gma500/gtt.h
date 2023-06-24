@@ -22,18 +22,18 @@ struct psb_gtt {
 	unsigned gatt_pages;
 	unsigned long stolen_size;
 	unsigned long vram_stolen_size;
-	struct rw_semaphore sem;
 };
 
 /* Exported functions */
-extern int psb_gtt_init(struct drm_device *dev, int resume);
-extern void psb_gtt_takedown(struct drm_device *dev);
-extern int psb_gtt_restore(struct drm_device *dev);
+int psb_gtt_init(struct drm_device *dev);
+void psb_gtt_fini(struct drm_device *dev);
+int psb_gtt_resume(struct drm_device *dev);
 
 int psb_gtt_allocate_resource(struct drm_psb_private *pdev, struct resource *res,
 			      const char *name, resource_size_t size, resource_size_t align,
 			      bool stolen, u32 *offset);
 
+uint32_t psb_gtt_mask_pte(uint32_t pfn, int type);
 void psb_gtt_insert_pages(struct drm_psb_private *pdev, const struct resource *res,
 			  struct page **pages);
 void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *res);

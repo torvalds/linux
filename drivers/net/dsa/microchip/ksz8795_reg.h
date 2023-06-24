@@ -14,22 +14,8 @@
 #define KS_PRIO_M			0x3
 #define KS_PRIO_S			2
 
-#define REG_CHIP_ID0			0x00
-
-#define KSZ87_FAMILY_ID			0x87
-#define KSZ88_FAMILY_ID			0x88
-
-#define REG_CHIP_ID1			0x01
-
-#define SW_CHIP_ID_M			0xF0
-#define SW_CHIP_ID_S			4
 #define SW_REVISION_M			0x0E
 #define SW_REVISION_S			1
-#define SW_START			0x01
-
-#define CHIP_ID_94			0x60
-#define CHIP_ID_95			0x90
-#define CHIP_ID_63			0x30
 
 #define KSZ8863_REG_SW_RESET		0x43
 
@@ -57,7 +43,6 @@
 #define REG_SW_CTRL_2			0x04
 
 #define UNICAST_VLAN_BOUNDARY		BIT(7)
-#define MULTICAST_STORM_DISABLE		BIT(6)
 #define SW_BACK_PRESSURE		BIT(5)
 #define FAIR_FLOW_CTRL			BIT(4)
 #define NO_EXC_COLLISION_DROP		BIT(3)
@@ -77,12 +62,8 @@
 #define SW_FLOW_CTRL			BIT(5)
 #define SW_10_MBIT			BIT(4)
 #define SW_REPLACE_VID			BIT(3)
-#define BROADCAST_STORM_RATE_HI		0x07
 
 #define REG_SW_CTRL_5			0x07
-
-#define BROADCAST_STORM_RATE_LO		0xFF
-#define BROADCAST_STORM_RATE		0x07FF
 
 #define REG_SW_CTRL_6			0x08
 
@@ -160,9 +141,6 @@
 #define PORT_DISCARD_NON_VID		BIT(5)
 #define PORT_FORCE_FLOW_CTRL		BIT(4)
 #define PORT_BACK_PRESSURE		BIT(3)
-#define PORT_TX_ENABLE			BIT(2)
-#define PORT_RX_ENABLE			BIT(1)
-#define PORT_LEARN_DISABLE		BIT(0)
 
 #define REG_PORT_1_CTRL_3		0x13
 #define REG_PORT_2_CTRL_3		0x23
@@ -192,15 +170,7 @@
 #define REG_PORT_5_CTRL_6		0x56
 
 #define PORT_MII_INTERNAL_CLOCK		BIT(7)
-#define PORT_GMII_1GPS_MODE		BIT(6)
-#define PORT_RGMII_ID_IN_ENABLE		BIT(4)
-#define PORT_RGMII_ID_OUT_ENABLE	BIT(3)
 #define PORT_GMII_MAC_MODE		BIT(2)
-#define PORT_INTERFACE_TYPE		0x3
-#define PORT_INTERFACE_MII		0
-#define PORT_INTERFACE_RMII		1
-#define PORT_INTERFACE_GMII		2
-#define PORT_INTERFACE_RGMII		3
 
 #define REG_PORT_1_CTRL_7		0x17
 #define REG_PORT_2_CTRL_7		0x27
@@ -220,8 +190,6 @@
 #define REG_PORT_4_STATUS_0		0x48
 
 /* For KSZ8765. */
-#define PORT_FIBER_MODE			BIT(7)
-
 #define PORT_REMOTE_ASYM_PAUSE		BIT(5)
 #define PORT_REMOTE_SYM_PAUSE		BIT(4)
 #define PORT_REMOTE_100BTX_FD		BIT(3)
@@ -325,7 +293,6 @@
 
 #define REG_PORT_CTRL_5			0x05
 
-#define REG_PORT_STATUS_0		0x08
 #define REG_PORT_STATUS_1		0x09
 #define REG_PORT_LINK_MD_CTRL		0x0A
 #define REG_PORT_LINK_MD_RESULT		0x0B
@@ -791,7 +758,6 @@
 #define P_TAG_CTRL			REG_PORT_CTRL_0
 #define P_MIRROR_CTRL			REG_PORT_CTRL_1
 #define P_802_1P_CTRL			REG_PORT_CTRL_2
-#define P_STP_CTRL			REG_PORT_CTRL_2
 #define P_PASS_ALL_CTRL			REG_PORT_CTRL_12
 #define P_INS_SRC_PVID_CTRL		REG_PORT_CTRL_12
 #define P_DROP_TAG_CTRL			REG_PORT_CTRL_13
@@ -815,12 +781,6 @@
 /* */
 #define REG_IND_EEE_GLOB2_LO		0x34
 #define REG_IND_EEE_GLOB2_HI		0x35
-
-/* Driver set switch broadcast storm protection at 10% rate. */
-#define BROADCAST_STORM_PROT_RATE	10
-
-/* 148,800 frames * 67 ms / 100 */
-#define BROADCAST_STORM_VALUE		9969
 
 /**
  * MIB_COUNTER_VALUE			00-00000000-3FFFFFFF

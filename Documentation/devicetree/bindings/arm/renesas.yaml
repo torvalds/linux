@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/renesas.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas SH-Mobile, R-Mobile, and R-Car Platform Device Tree Bindings
+title: Renesas SH-Mobile, R-Mobile, and R-Car Platform
 
 maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
@@ -264,6 +264,7 @@ properties:
                   - renesas,r8a779m4
                   - renesas,r8a779m5
                   - renesas,r8a779m8
+                  - renesas,r8a779mb
               - enum:
                   - renesas,r8a7795
                   - renesas,r8a77961
@@ -289,6 +290,13 @@ properties:
           - enum:
               - renesas,condor # Condor (RTP0RC77980SEB0010SS/RTP0RC77980SEB0010SA01)
               - renesas,v3hsk # V3HSK (Y-ASK-RCAR-V3H-WS10)
+          - const: renesas,r8a77980
+
+      - description: R-Car V3H2 (R8A77980A)
+        items:
+          - enum:
+              - renesas,condor-i # Condor-I (RTP0RC77980SEBS012SA01)
+          - const: renesas,r8a77980a
           - const: renesas,r8a77980
 
       - description: R-Car E3 (R8A77990)
@@ -326,6 +334,18 @@ properties:
               - renesas,spider-breakout # Spider BreakOut board (RTP8A779F0ASKB0SB0S)
           - const: renesas,spider-cpu
           - const: renesas,r8a779f0
+
+      - description: R-Car V4H (R8A779G0)
+        items:
+          - enum:
+              - renesas,white-hawk-cpu # White Hawk CPU board (RTP8A779G0ASKB0FC0SA000)
+          - const: renesas,r8a779g0
+
+      - items:
+          - enum:
+              - renesas,white-hawk-breakout # White Hawk BreakOut board (RTP8A779G0ASKB0SB0SA000)
+          - const: renesas,white-hawk-cpu
+          - const: renesas,r8a779g0
 
       - description: R-Car H3e (R8A779M0)
         items:
@@ -397,6 +417,14 @@ properties:
           - const: renesas,r8a779m8
           - const: renesas,r8a7795
 
+      - description: R-Car H3Ne-1.7G (R8A779MB)
+        items:
+          - enum:
+              - renesas,h3ulcb      # H3ULCB (R-Car Starter Kit Premier)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779mb
+          - const: renesas,r8a7795
+
       - description: RZ/N1D (R9A06G032)
         items:
           - enum:
@@ -405,6 +433,8 @@ properties:
 
       - description: RZ/G2UL (R9A07G043)
         items:
+          - enum:
+              - renesas,smarc-evk # SMARC EVK
           - enum:
               - renesas,r9a07g043u11 # RZ/G2UL Type-1
               - renesas,r9a07g043u12 # RZ/G2UL Type-2
@@ -429,6 +459,12 @@ properties:
               - renesas,r9a07g054l1 # Single Cortex-A55 RZ/V2L
               - renesas,r9a07g054l2 # Dual Cortex-A55 RZ/V2L
           - const: renesas,r9a07g054
+
+      - description: RZ/V2M (R9A09G011)
+        items:
+          - enum:
+              - renesas,rzv2mevk2   # RZ/V2M Eval Board v2.0
+          - const: renesas,r9a09g011
 
 additionalProperties: true
 

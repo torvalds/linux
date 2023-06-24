@@ -65,7 +65,7 @@ HugePages_Surp
 	may be temporarily larger than the maximum number of surplus huge
 	pages when the system is under memory pressure.
 Hugepagesize
-	is the default hugepage size (in Kb).
+	is the default hugepage size (in kB).
 Hugetlb
         is the total amount of memory (in kB), consumed by huge
         pages of all sizes.
@@ -164,8 +164,8 @@ default_hugepagesz
 	will all result in 256 2M huge pages being allocated.  Valid default
 	huge page size is architecture dependent.
 hugetlb_free_vmemmap
-	When CONFIG_HUGETLB_PAGE_FREE_VMEMMAP is set, this enables freeing
-	unused vmemmap pages associated with each HugeTLB page.
+	When CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP is set, this enables HugeTLB
+	Vmemmap Optimization (HVO).
 
 When multiple huge page sizes are supported, ``/proc/sys/vm/nr_hugepages``
 indicates the current number of pre-allocated huge pages of the default size.

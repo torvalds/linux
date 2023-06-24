@@ -15,6 +15,8 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
+#include <sound/sof/ipc4/header.h>
+#include <trace/events/sof_intel.h>
 #include "../ops.h"
 #include "hda.h"
 
@@ -65,6 +67,22 @@ int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	return 0;
 }
 
+int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
+{
+	struct sof_ipc4_msg *msg_data = msg->msg_data;
+
+	/* send the message via mailbox */
+	if (msg_data->data_size)
+		sof_mailbox_write(sdev, sdev->host_box.offset, msg_data->data_ptr,
+				  msg_data->data_size);
+
+	snd_sof_dsp_write(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE, msg_data->extension);
+	snd_sof_dsp_write(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI,
+			  msg_data->primary | HDA_DSP_REG_HIPCI_BUSY);
+
+	return 0;
+}
+
 void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
@@ -100,6 +118,77 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 	}
 }
 
+irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
+{
+	struct sof_ipc4_msg notification_data = {{ 0 }};
+	struct snd_sof_dev *sdev = context;
+	bool ipc_irq = false;
+	u32 hipcie, hipct;
+
+	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
+	if (hipcie & HDA_DSP_REG_HIPCIE_DONE) {
+		/* DSP received the message */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_DONE, 0);
+		hda_dsp_ipc_dsp_done(sdev);
+
+		ipc_irq = true;
+	}
+
+	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+	if (hipct & HDA_DSP_REG_HIPCT_BUSY) {
+		/* Message from DSP (reply or notification) */
+		u32 hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					      HDA_DSP_REG_HIPCTE);
+		u32 primary = hipct & HDA_DSP_REG_HIPCT_MSG_MASK;
+		u32 extension = hipcte & HDA_DSP_REG_HIPCTE_MSG_MASK;
+
+		/* mask BUSY interrupt */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_BUSY, 0);
+
+		if (primary & SOF_IPC4_MSG_DIR_MASK) {
+			/* Reply received */
+			if (likely(sdev->fw_state == SOF_FW_BOOT_COMPLETE)) {
+				struct sof_ipc4_msg *data = sdev->ipc->msg.reply_data;
+
+				data->primary = primary;
+				data->extension = extension;
+
+				spin_lock_irq(&sdev->ipc_lock);
+
+				snd_sof_ipc_get_reply(sdev);
+				snd_sof_ipc_reply(sdev, data->primary);
+
+				spin_unlock_irq(&sdev->ipc_lock);
+			} else {
+				dev_dbg_ratelimited(sdev->dev,
+						    "IPC reply before FW_READY: %#x|%#x\n",
+						    primary, extension);
+			}
+		} else {
+			/* Notification received */
+
+			notification_data.primary = primary;
+			notification_data.extension = extension;
+			sdev->ipc->msg.rx_data = &notification_data;
+			snd_sof_ipc_msgs_rx(sdev);
+			sdev->ipc->msg.rx_data = NULL;
+		}
+
+		/* Let DSP know that we have finished processing the message */
+		hda_dsp_ipc_host_done(sdev);
+
+		ipc_irq = true;
+	}
+
+	if (!ipc_irq)
+		/* This interrupt is not shared so no need to return IRQ_NONE. */
+		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+
+	return IRQ_HANDLED;
+}
+
 /* IPC handler thread */
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 {
@@ -124,9 +213,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		msg = hipci & HDA_DSP_REG_HIPCI_MSG_MASK;
 		msg_ext = hipcie & HDA_DSP_REG_HIPCIE_MSG_MASK;
 
-		dev_vdbg(sdev->dev,
-			 "ipc: firmware response, msg:0x%x, msg_ext:0x%x\n",
-			 msg, msg_ext);
+		trace_sof_intel_ipc_firmware_response(sdev, msg, msg_ext);
 
 		/* mask Done interrupt */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -143,16 +230,21 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		 * place, the message might not yet be marked as expecting a
 		 * reply.
 		 */
-		spin_lock_irq(&sdev->ipc_lock);
+		if (likely(sdev->fw_state == SOF_FW_BOOT_COMPLETE)) {
+			spin_lock_irq(&sdev->ipc_lock);
 
-		/* handle immediate reply from DSP core */
-		hda_dsp_ipc_get_reply(sdev);
-		snd_sof_ipc_reply(sdev, msg);
+			/* handle immediate reply from DSP core */
+			hda_dsp_ipc_get_reply(sdev);
+			snd_sof_ipc_reply(sdev, msg);
 
-		/* set the done bit */
-		hda_dsp_ipc_dsp_done(sdev);
+			/* set the done bit */
+			hda_dsp_ipc_dsp_done(sdev);
 
-		spin_unlock_irq(&sdev->ipc_lock);
+			spin_unlock_irq(&sdev->ipc_lock);
+		} else {
+			dev_dbg_ratelimited(sdev->dev, "IPC reply before FW_READY: %#x\n",
+					    msg);
+		}
 
 		ipc_irq = true;
 	}
@@ -162,9 +254,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		msg = hipct & HDA_DSP_REG_HIPCT_MSG_MASK;
 		msg_ext = hipcte & HDA_DSP_REG_HIPCTE_MSG_MASK;
 
-		dev_vdbg(sdev->dev,
-			 "ipc: firmware initiated, msg:0x%x, msg_ext:0x%x\n",
-			 msg, msg_ext);
+		trace_sof_intel_ipc_firmware_initiated(sdev, msg, msg_ext);
 
 		/* mask BUSY interrupt */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -214,12 +304,13 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 /* Check if an IPC IRQ occurred */
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	bool ret = false;
 	u32 irq_status;
 
 	/* store status */
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
-	dev_vdbg(sdev->dev, "irq handler: irq_status:0x%x\n", irq_status);
+	trace_sof_intel_hda_irq_ipc_check(sdev, irq_status);
 
 	/* invalid message ? */
 	if (irq_status == 0xffffffff)
@@ -228,6 +319,13 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	/* IPC message ? */
 	if (irq_status & HDA_DSP_ADSPIS_IPC)
 		ret = true;
+
+	/* CLDMA message ? */
+	if (irq_status & HDA_DSP_ADSPIS_CL_DMA) {
+		hda->code_loading = 0;
+		wake_up(&hda->waitq);
+		ret = false;
+	}
 
 out:
 	return ret;

@@ -154,7 +154,7 @@
 			reg = <0x0 0xfbc00000 0x0 0x100000>;
 			interrupt-map-mask = <0xf800 0 0 7>;
 			/* Add legacy interrupts for SATA devices only */
-			interrupt-map =	<0x4000 0 0 1 &gic 0 43 4>,
+			interrupt-map = <0x4000 0 0 1 &gic 0 43 4>,
 					<0x4800 0 0 1 &gic 0 44 4>;
 
 			/* 32 bit non prefetchable memory space */

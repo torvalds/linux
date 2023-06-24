@@ -370,19 +370,6 @@ static inline unsigned long __virt_to_idmap(unsigned long x)
 #define virt_to_idmap(x)	__virt_to_idmap((unsigned long)(x))
 
 /*
- * Virtual <-> DMA view memory address translations
- * Again, these are *only* valid on the kernel direct mapped RAM
- * memory.  Use of these is *deprecated* (and that doesn't mean
- * use the __ prefixed forms instead.)  See dma-mapping.h.
- */
-#ifndef __virt_to_bus
-#define __virt_to_bus	__virt_to_phys
-#define __bus_to_virt	__phys_to_virt
-#define __pfn_to_bus(x)	__pfn_to_phys(x)
-#define __bus_to_pfn(x)	__phys_to_pfn(x)
-#endif
-
-/*
  * Conversion between a struct page and a physical address.
  *
  *  page_to_pfn(page)	convert a struct page * to a PFN number

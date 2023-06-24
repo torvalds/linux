@@ -102,9 +102,9 @@ static void xlgmac_ethtool_get_drvinfo(struct net_device *netdev,
 	u32 ver = pdata->hw_feat.version;
 	u32 snpsver, devid, userver;
 
-	strlcpy(drvinfo->driver, pdata->drv_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, pdata->drv_ver, sizeof(drvinfo->version));
-	strlcpy(drvinfo->bus_info, dev_name(pdata->dev),
+	strscpy(drvinfo->driver, pdata->drv_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, pdata->drv_ver, sizeof(drvinfo->version));
+	strscpy(drvinfo->bus_info, dev_name(pdata->dev),
 		sizeof(drvinfo->bus_info));
 	/* S|SNPSVER: Synopsys-defined Version
 	 * D|DEVID: Indicates the Device family

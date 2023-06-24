@@ -48,19 +48,6 @@
 static int trace_state = TRACE_OFF;
 static bool monitor_hw;
 
-#undef EM
-#undef EMe
-
-#define EM(a, b)	[a] = #b,
-#define EMe(a, b)	[a] = #b
-
-/* drop_reasons is used to translate 'enum skb_drop_reason' to string,
- * which is reported to user space.
- */
-static const char * const drop_reasons[] = {
-	TRACE_SKB_DROP_REASON
-};
-
 /* net_dm_mutex
  *
  * An overall lock guarding every operation coming from userspace.
@@ -68,7 +55,7 @@ static const char * const drop_reasons[] = {
 static DEFINE_MUTEX(net_dm_mutex);
 
 struct net_dm_stats {
-	u64 dropped;
+	u64_stats_t dropped;
 	struct u64_stats_sync syncp;
 };
 
@@ -477,7 +464,7 @@ net_dm_hw_trap_summary_probe(void *ignore, const struct devlink *devlink,
 		goto out;
 
 	hw_entry = &hw_entries->entries[hw_entries->num_entries];
-	strlcpy(hw_entry->trap_name, metadata->trap_name,
+	strscpy(hw_entry->trap_name, metadata->trap_name,
 		NET_DM_MAX_HW_TRAP_NAME_LEN - 1);
 	hw_entry->count = 1;
 	hw_entries->num_entries++;
@@ -517,7 +504,7 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 	if (!nskb)
 		return;
 
-	if ((unsigned int)reason >= SKB_DROP_REASON_MAX)
+	if (unlikely(reason >= SKB_DROP_REASON_MAX || reason <= 0))
 		reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	cb = NET_DM_SKB_CB(nskb);
 	cb->reason = reason;
@@ -543,7 +530,7 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 unlock_free:
 	spin_unlock_irqrestore(&data->drop_queue.lock, flags);
 	u64_stats_update_begin(&data->stats.syncp);
-	data->stats.dropped++;
+	u64_stats_inc(&data->stats.dropped);
 	u64_stats_update_end(&data->stats.syncp);
 	consume_skb(nskb);
 }
@@ -877,7 +864,8 @@ net_dm_hw_metadata_copy(const struct devlink_trap_metadata *metadata)
 	}
 
 	hw_metadata->input_dev = metadata->input_dev;
-	dev_hold_track(hw_metadata->input_dev, &hw_metadata->dev_tracker, GFP_ATOMIC);
+	netdev_hold(hw_metadata->input_dev, &hw_metadata->dev_tracker,
+		    GFP_ATOMIC);
 
 	return hw_metadata;
 
@@ -893,7 +881,7 @@ free_hw_metadata:
 static void
 net_dm_hw_metadata_free(struct devlink_trap_metadata *hw_metadata)
 {
-	dev_put_track(hw_metadata->input_dev, &hw_metadata->dev_tracker);
+	netdev_put(hw_metadata->input_dev, &hw_metadata->dev_tracker);
 	kfree(hw_metadata->fa_cookie);
 	kfree(hw_metadata->trap_name);
 	kfree(hw_metadata->trap_group_name);
@@ -998,7 +986,7 @@ net_dm_hw_trap_packet_probe(void *ignore, const struct devlink *devlink,
 unlock_free:
 	spin_unlock_irqrestore(&hw_data->drop_queue.lock, flags);
 	u64_stats_update_begin(&hw_data->stats.syncp);
-	hw_data->stats.dropped++;
+	u64_stats_inc(&hw_data->stats.dropped);
 	u64_stats_update_end(&hw_data->stats.syncp);
 	net_dm_hw_metadata_free(n_hw_metadata);
 free:
@@ -1445,10 +1433,10 @@ static void net_dm_stats_read(struct net_dm_stats *stats)
 
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			dropped = cpu_stats->dropped;
+			dropped = u64_stats_read(&cpu_stats->dropped);
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		stats->dropped += dropped;
+		u64_stats_add(&stats->dropped, dropped);
 	}
 }
 
@@ -1464,7 +1452,7 @@ static int net_dm_stats_put(struct sk_buff *msg)
 		return -EMSGSIZE;
 
 	if (nla_put_u64_64bit(msg, NET_DM_ATTR_STATS_DROPPED,
-			      stats.dropped, NET_DM_ATTR_PAD))
+			      u64_stats_read(&stats.dropped), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
@@ -1489,10 +1477,10 @@ static void net_dm_hw_stats_read(struct net_dm_stats *stats)
 
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			dropped = cpu_stats->dropped;
+			dropped = u64_stats_read(&cpu_stats->dropped);
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		stats->dropped += dropped;
+		u64_stats_add(&stats->dropped, dropped);
 	}
 }
 
@@ -1508,7 +1496,7 @@ static int net_dm_hw_stats_put(struct sk_buff *msg)
 		return -EMSGSIZE;
 
 	if (nla_put_u64_64bit(msg, NET_DM_ATTR_STATS_DROPPED,
-			      stats.dropped, NET_DM_ATTR_PAD))
+			      u64_stats_read(&stats.dropped), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
@@ -1657,6 +1645,7 @@ static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= dropmon_ops,
 	.n_small_ops	= ARRAY_SIZE(dropmon_ops),
+	.resv_start_op	= NET_DM_CMD_STATS_GET + 1,
 	.mcgrps		= dropmon_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(dropmon_mcgrps),
 };

@@ -12,6 +12,8 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/string_helpers.h>
+
 #include <sound/soc.h>
 #include <sound/sof/header.h>
 #include "sof-client.h"
@@ -132,6 +134,7 @@ static int sof_probes_deinit(struct sof_client_dev *cdev)
 static int sof_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 			   void **params, size_t *num_params)
 {
+	size_t max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
 	struct sof_ipc_probe_info_params msg = {{{0}}};
 	struct sof_ipc_probe_info_params *reply;
 	size_t bytes;
@@ -140,13 +143,13 @@ static int sof_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 	*params = NULL;
 	*num_params = 0;
 
-	reply = kzalloc(SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	reply = kzalloc(max_msg_size, GFP_KERNEL);
 	if (!reply)
 		return -ENOMEM;
 	msg.rhdr.hdr.size = sizeof(msg);
 	msg.rhdr.hdr.cmd = SOF_IPC_GLB_PROBE | cmd;
 
-	ret = sof_client_ipc_tx_message(cdev, &msg, reply, SOF_IPC_MSG_MAX_SIZE);
+	ret = sof_client_ipc_tx_message(cdev, &msg, reply, max_msg_size);
 	if (ret < 0 || reply->rhdr.error < 0)
 		goto exit;
 
@@ -269,9 +272,9 @@ static int sof_probes_compr_startup(struct snd_compr_stream *cstream,
 	if (ret)
 		return ret;
 
-	ret = ops->assign(cdev, cstream, dai, &priv->extractor_stream_tag);
+	ret = ops->startup(cdev, cstream, dai, &priv->extractor_stream_tag);
 	if (ret) {
-		dev_err(dai->dev, "Failed to assign probe stream: %d\n", ret);
+		dev_err(dai->dev, "Failed to startup probe stream: %d\n", ret);
 		priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
 		sof_client_core_module_put(cdev);
 	}
@@ -309,7 +312,7 @@ exit:
 	priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
 	snd_compr_free_pages(cstream);
 
-	ret = ops->free(cdev, cstream, dai);
+	ret = ops->shutdown(cdev, cstream, dai);
 
 	sof_client_core_module_put(cdev);
 
@@ -409,79 +412,6 @@ static const struct snd_compress_ops sof_probes_compressed_ops = {
 	.copy = sof_probes_compr_copy,
 };
 
-/**
- * strsplit_u32 - Split string into sequence of u32 tokens
- * @buf:	String to split into tokens.
- * @delim:	String containing delimiter characters.
- * @tkns:	Returned u32 sequence pointer.
- * @num_tkns:	Returned number of tokens obtained.
- */
-static int strsplit_u32(char *buf, const char *delim, u32 **tkns, size_t *num_tkns)
-{
-	char *s;
-	u32 *data, *tmp;
-	size_t count = 0;
-	size_t cap = 32;
-	int ret = 0;
-
-	*tkns = NULL;
-	*num_tkns = 0;
-	data = kcalloc(cap, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	while ((s = strsep(&buf, delim)) != NULL) {
-		ret = kstrtouint(s, 0, data + count);
-		if (ret)
-			goto exit;
-		if (++count >= cap) {
-			cap *= 2;
-			tmp = krealloc(data, cap * sizeof(*data), GFP_KERNEL);
-			if (!tmp) {
-				ret = -ENOMEM;
-				goto exit;
-			}
-			data = tmp;
-		}
-	}
-
-	if (!count)
-		goto exit;
-	*tkns = kmemdup(data, count * sizeof(*data), GFP_KERNEL);
-	if (!(*tkns)) {
-		ret = -ENOMEM;
-		goto exit;
-	}
-	*num_tkns = count;
-
-exit:
-	kfree(data);
-	return ret;
-}
-
-static int tokenize_input(const char __user *from, size_t count,
-			  loff_t *ppos, u32 **tkns, size_t *num_tkns)
-{
-	char *buf;
-	int ret;
-
-	buf = kmalloc(count + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = simple_write_to_buffer(buf, count, ppos, from, count);
-	if (ret != count) {
-		ret = ret >= 0 ? -EIO : ret;
-		goto exit;
-	}
-
-	buf[count] = '\0';
-	ret = strsplit_u32(buf, ",", tkns, num_tkns);
-exit:
-	kfree(buf);
-	return ret;
-}
-
 static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 					  size_t count, loff_t *ppos)
 {
@@ -503,10 +433,9 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(dev, "debugfs read failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto exit;
 	}
 
@@ -548,8 +477,8 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 	struct sof_probes_priv *priv = cdev->data;
 	struct device *dev = &cdev->auxdev.dev;
 	struct sof_probe_point_desc *desc;
-	size_t num_tkns, bytes;
-	u32 *tkns;
+	u32 num_elems, *array;
+	size_t bytes;
 	int ret, err;
 
 	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_NODE_ID) {
@@ -557,21 +486,22 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 		return -ENOENT;
 	}
 
-	ret = tokenize_input(from, count, ppos, &tkns, &num_tkns);
+	ret = parse_int_array_user(from, count, (int **)&array);
 	if (ret < 0)
 		return ret;
-	bytes = sizeof(*tkns) * num_tkns;
-	if (!num_tkns || (bytes % sizeof(*desc))) {
+
+	num_elems = *array;
+	bytes = sizeof(*array) * num_elems;
+	if (bytes % sizeof(*desc)) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	desc = (struct sof_probe_point_desc *)tkns;
+	desc = (struct sof_probe_point_desc *)&array[1];
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto exit;
 	}
 
@@ -584,7 +514,7 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 	if (err < 0)
 		dev_err_ratelimited(dev, "debugfs write failed to idle %d\n", err);
 exit:
-	kfree(tkns);
+	kfree(array);
 	return ret;
 }
 
@@ -604,31 +534,25 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_probes_priv *priv = cdev->data;
 	struct device *dev = &cdev->auxdev.dev;
-	size_t num_tkns;
-	u32 *tkns;
 	int ret, err;
+	u32 *array;
 
 	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_NODE_ID) {
 		dev_warn(dev, "no extractor stream running\n");
 		return -ENOENT;
 	}
 
-	ret = tokenize_input(from, count, ppos, &tkns, &num_tkns);
+	ret = parse_int_array_user(from, count, (int **)&array);
 	if (ret < 0)
 		return ret;
-	if (!num_tkns) {
-		ret = -EINVAL;
-		goto exit;
-	}
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto exit;
 	}
 
-	ret = sof_probes_points_remove(cdev, tkns, num_tkns);
+	ret = sof_probes_points_remove(cdev, &array[1], array[0]);
 	if (!ret)
 		ret = count;
 
@@ -637,7 +561,7 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 	if (err < 0)
 		dev_err_ratelimited(dev, "debugfs write failed to idle %d\n", err);
 exit:
-	kfree(tkns);
+	kfree(array);
 	return ret;
 }
 
@@ -669,6 +593,7 @@ static const struct snd_soc_component_driver sof_probes_component = {
 	.name = "sof-probes-component",
 	.compress_ops = &sof_probes_compressed_ops,
 	.module_get_upon_open = 1,
+	.legacy_dai_naming = 1,
 };
 
 SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
@@ -695,6 +620,10 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	if (!sof_probes_enabled)
 		return -ENXIO;
 
+	/* only ipc3 is supported */
+	if (sof_client_get_ipc_type(cdev) != SOF_IPC)
+		return -ENXIO;
+
 	if (!dev->platform_data) {
 		dev_err(dev, "missing platform data\n");
 		return -ENODEV;
@@ -706,7 +635,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 
 	ops = dev->platform_data;
 
-	if (!ops->assign || !ops->free || !ops->set_params || !ops->trigger ||
+	if (!ops->startup || !ops->shutdown || !ops->set_params || !ops->trigger ||
 	    !ops->pointer) {
 		dev_err(dev, "missing platform callback(s)\n");
 		return -ENODEV;

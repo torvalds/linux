@@ -39,13 +39,13 @@ struct stm32_dmamux_data {
 	u32 dma_requests; /* Number of DMA requests connected to DMAMUX */
 	u32 dmamux_requests; /* Number of DMA requests routed toward DMAs */
 	spinlock_t lock; /* Protects register access */
-	unsigned long *dma_inuse; /* Used DMA channel */
+	DECLARE_BITMAP(dma_inuse, STM32_DMAMUX_MAX_DMA_REQUESTS); /* Used DMA channel */
 	u32 ccr[STM32_DMAMUX_MAX_DMA_REQUESTS]; /* Used to backup CCR register
 						 * in suspend
 						 */
 	u32 dma_reqs[]; /* Number of DMA Request per DMA masters.
 			 *  [0] holds number of DMA Masters.
-			 *  To be kept at very end end of this structure
+			 *  To be kept at very end of this structure
 			 */
 };
 
@@ -147,7 +147,7 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 	mux->request = dma_spec->args[0];
 
 	/*  craft DMA spec */
-	dma_spec->args[3] = dma_spec->args[2];
+	dma_spec->args[3] = dma_spec->args[2] | mux->chan_id << 16;
 	dma_spec->args[2] = dma_spec->args[1];
 	dma_spec->args[1] = 0;
 	dma_spec->args[0] = mux->chan_id - min;
@@ -229,12 +229,6 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 
 	stm32_dmamux->dma_requests = dma_req;
 	stm32_dmamux->dma_reqs[0] = count;
-	stm32_dmamux->dma_inuse = devm_kcalloc(&pdev->dev,
-					       BITS_TO_LONGS(dma_req),
-					       sizeof(unsigned long),
-					       GFP_KERNEL);
-	if (!stm32_dmamux->dma_inuse)
-		return -ENOMEM;
 
 	if (device_property_read_u32(&pdev->dev, "dma-requests",
 				     &stm32_dmamux->dmamux_requests)) {
@@ -267,7 +261,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rst);
 		if (ret == -EPROBE_DEFER)
 			goto err_clk;
-	} else {
+	} else if (count > 1) { /* Don't reset if there is only one dma-master */
 		reset_control_assert(rst);
 		udelay(2);
 		reset_control_deassert(rst);

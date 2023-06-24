@@ -1271,7 +1271,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 		int phy;
 
 		if (!rates[i].count || (rates[i].idx < 0))
-			continue;
+			break;
 
 		rix = rates[i].idx;
 		info->rates[i].Tries = rates[i].count;
@@ -1574,10 +1574,10 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	 * in HT IBSS when a beacon with HT-info is received after the station
 	 * has already been added.
 	 */
-	if (sta->ht_cap.ht_supported) {
+	if (sta->deflink.ht_cap.ht_supported) {
 		an->maxampdu = (1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				      sta->ht_cap.ampdu_factor)) - 1;
-		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
+				      sta->deflink.ht_cap.ampdu_factor)) - 1;
+		density = ath9k_parse_mpdudensity(sta->deflink.ht_cap.ampdu_density);
 		an->mpdudensity = density;
 	}
 
@@ -2160,7 +2160,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		fi->keyix = an->ps_key;
 	else
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
-	fi->dyn_smps = sta && sta->smps_mode == IEEE80211_SMPS_DYNAMIC;
+	fi->dyn_smps = sta && sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC;
 	fi->keytype = keytype;
 	fi->framelen = framelen;
 	fi->tx_power = txpower;

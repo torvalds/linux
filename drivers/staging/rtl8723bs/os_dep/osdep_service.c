@@ -108,56 +108,6 @@ RETURN:
 	return;
 }
 
-int rtw_change_ifname(struct adapter *padapter, const char *ifname)
-{
-	struct net_device *pnetdev;
-	struct net_device *cur_pnetdev;
-	struct rereg_nd_name_data *rereg_priv;
-	int ret;
-
-	if (!padapter)
-		goto error;
-
-	cur_pnetdev = padapter->pnetdev;
-	rereg_priv = &padapter->rereg_nd_name_priv;
-
-	/* free the old_pnetdev */
-	if (rereg_priv->old_pnetdev) {
-		free_netdev(rereg_priv->old_pnetdev);
-		rereg_priv->old_pnetdev = NULL;
-	}
-
-	if (!rtnl_is_locked())
-		unregister_netdev(cur_pnetdev);
-	else
-		unregister_netdevice(cur_pnetdev);
-
-	rereg_priv->old_pnetdev = cur_pnetdev;
-
-	pnetdev = rtw_init_netdev(padapter);
-	if (!pnetdev)
-		goto error;
-
-	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(adapter_to_dvobj(padapter)));
-
-	rtw_init_netdev_name(pnetdev, ifname);
-
-	eth_hw_addr_set(pnetdev, padapter->eeprompriv.mac_addr);
-
-	if (!rtnl_is_locked())
-		ret = register_netdev(pnetdev);
-	else
-		ret = register_netdevice(pnetdev);
-
-	if (ret != 0)
-		goto error;
-
-	return 0;
-
-error:
-	return -1;
-}
-
 void rtw_buf_free(u8 **buf, u32 *buf_len)
 {
 	if (!buf || !buf_len)

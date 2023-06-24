@@ -170,6 +170,7 @@ static const struct amdgpu_video_codec_info yc_video_codecs_decode_array[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
 };
 
 static const struct amdgpu_video_codecs yc_video_codecs_decode = {
@@ -392,9 +393,9 @@ static int nv_read_register(struct amdgpu_device *adev, u32 se_num,
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(nv_allowed_read_registers); i++) {
 		en = &nv_allowed_read_registers[i];
-		if ((i == 7 && (adev->sdma.num_instances == 1)) || /* some asics don't have SDMA1 */
-		    reg_offset !=
-		    (adev->reg_offset[en->hwip][en->inst][en->seg] + en->reg_offset))
+		if (adev->reg_offset[en->hwip][en->inst] &&
+		    reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+				   + en->reg_offset))
 			continue;
 
 		*value = nv_get_register_value(adev,
@@ -607,7 +608,12 @@ static void nv_init_doorbell_index(struct amdgpu_device *adev)
 	adev->doorbell_index.userqueue_end = AMDGPU_NAVI10_DOORBELL_USERQUEUE_END;
 	adev->doorbell_index.gfx_ring0 = AMDGPU_NAVI10_DOORBELL_GFX_RING0;
 	adev->doorbell_index.gfx_ring1 = AMDGPU_NAVI10_DOORBELL_GFX_RING1;
-	adev->doorbell_index.mes_ring = AMDGPU_NAVI10_DOORBELL_MES_RING;
+	adev->doorbell_index.gfx_userqueue_start =
+		AMDGPU_NAVI10_DOORBELL_GFX_USERQUEUE_START;
+	adev->doorbell_index.gfx_userqueue_end =
+		AMDGPU_NAVI10_DOORBELL_GFX_USERQUEUE_END;
+	adev->doorbell_index.mes_ring0 = AMDGPU_NAVI10_DOORBELL_MES_RING0;
+	adev->doorbell_index.mes_ring1 = AMDGPU_NAVI10_DOORBELL_MES_RING1;
 	adev->doorbell_index.sdma_engine[0] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0;
 	adev->doorbell_index.sdma_engine[1] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE1;
 	adev->doorbell_index.sdma_engine[2] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE2;
@@ -1115,7 +1121,7 @@ static int nv_common_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void nv_common_get_clockgating_state(void *handle, u32 *flags)
+static void nv_common_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 

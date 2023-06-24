@@ -112,7 +112,7 @@ struct pinmux_cfg_reg {
 #define SET_NR_ENUM_IDS(n)
 #endif
 	const u16 *enum_ids;
-	const u8 *var_field_width;
+	const s8 *var_field_width;
 };
 
 #define GROUP(...)	__VA_ARGS__
@@ -132,9 +132,8 @@ struct pinmux_cfg_reg {
 	.reg = r, .reg_width = r_width,					\
 	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width) +	\
 	BUILD_BUG_ON_ZERO(sizeof((const u16 []) { ids }) / sizeof(u16) != \
-			  (r_width / f_width) * (1 << f_width)),	\
-	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])	\
-		{ ids }
+			  (r_width / f_width) << f_width),		\
+	.enum_ids = (const u16 [(r_width / f_width) << f_width]) { ids }
 
 /*
  * Describe a config register consisting of several fields of different widths
@@ -143,14 +142,15 @@ struct pinmux_cfg_reg {
  *   - r_width: Width of the register (in bits)
  *   - f_widths: List of widths of the register fields (in bits), from left
  *               to right (i.e. MSB to LSB), wrapped using the GROUP() macro.
- *   - ids: For each register field (from left to right, i.e. MSB to LSB),
- *          2^f_widths[i] enum IDs must be specified, one for each possible
- *          combination of the register field bit values, all wrapped using
- *          the GROUP() macro.
+ *               Reserved fields are indicated by negating the field width.
+ *   - ids: For each non-reserved register field (from left to right, i.e. MSB
+ *          to LSB), 2^f_widths[i] enum IDs must be specified, one for each
+ *          possible combination of the register field bit values, all wrapped
+ *          using the GROUP() macro.
  */
 #define PINMUX_CFG_REG_VAR(name, r, r_width, f_widths, ids)		\
 	.reg = r, .reg_width = r_width,					\
-	.var_field_width = (const u8 []) { f_widths, 0 },		\
+	.var_field_width = (const s8 []) { f_widths, 0 },		\
 	SET_NR_ENUM_IDS(sizeof((const u16 []) { ids }) / sizeof(u16))	\
 	.enum_ids = (const u16 []) { ids }
 
@@ -162,7 +162,7 @@ struct pinmux_drive_reg_field {
 
 struct pinmux_drive_reg {
 	u32 reg;
-	const struct pinmux_drive_reg_field fields[8];
+	const struct pinmux_drive_reg_field fields[10];
 };
 
 #define PINMUX_DRIVE_REG(name, r) \
@@ -325,6 +325,7 @@ extern const struct sh_pfc_soc_info r8a77990_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77995_pinmux_info;
 extern const struct sh_pfc_soc_info r8a779a0_pinmux_info;
 extern const struct sh_pfc_soc_info r8a779f0_pinmux_info;
+extern const struct sh_pfc_soc_info r8a779g0_pinmux_info;
 extern const struct sh_pfc_soc_info sh7203_pinmux_info;
 extern const struct sh_pfc_soc_info sh7264_pinmux_info;
 extern const struct sh_pfc_soc_info sh7269_pinmux_info;
@@ -492,9 +493,13 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 11, fn, sfx, cfg)
 #define PORT_GP_12(bank, fn, sfx)	PORT_GP_CFG_12(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_14(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_13(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_12(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 12, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 12, fn, sfx, cfg)
+#define PORT_GP_13(bank, fn, sfx)	PORT_GP_CFG_13(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_14(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_13(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 13, fn, sfx, cfg)
 #define PORT_GP_14(bank, fn, sfx)	PORT_GP_CFG_14(bank, fn, sfx, 0)
 
@@ -739,14 +744,12 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  * PORTnCR helper macro for SH-Mobile/R-Mobile
  */
 #define PORTCR(nr, reg) {						\
-	PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, GROUP(2, 2, 1, 3),	\
+	PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, GROUP(-2, 2, -1, 3),	\
 			   GROUP(					\
 		/* PULMD[1:0], handled by .set_bias() */		\
-		0, 0, 0, 0,						\
 		/* IE and OE */						\
 		0, PORT##nr##_OUT, PORT##nr##_IN, 0,			\
 		/* SEC, not supported */				\
-		0, 0,							\
 		/* PTMD[2:0] */						\
 		PORT##nr##_FN0, PORT##nr##_FN1,				\
 		PORT##nr##_FN2, PORT##nr##_FN3,				\

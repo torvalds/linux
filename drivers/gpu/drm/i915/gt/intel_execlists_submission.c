@@ -107,6 +107,7 @@
  *
  */
 #include <linux/interrupt.h>
+#include <linux/string_helpers.h>
 
 #include "i915_drv.h"
 #include "i915_trace.h"
@@ -479,9 +480,9 @@ __execlists_schedule_in(struct i915_request *rq)
 
 	if (unlikely(intel_context_is_closed(ce) &&
 		     !intel_engine_has_heartbeat(engine)))
-		intel_context_set_banned(ce);
+		intel_context_set_exiting(ce);
 
-	if (unlikely(intel_context_is_banned(ce) || bad_request(rq)))
+	if (unlikely(!intel_context_is_schedulable(ce) || bad_request(rq)))
 		reset_active(rq, engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -624,8 +625,6 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 		GEM_BUG_ON(test_bit(ccid - 1, &engine->context_tag));
 		__set_bit(ccid - 1, &engine->context_tag);
 	}
-
-	lrc_update_runtime(ce);
 	intel_engine_context_out(engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 	if (engine->fw_domain && !--engine->fw_active)
@@ -662,6 +661,16 @@ static inline void execlists_schedule_out(struct i915_request *rq)
 	i915_request_put(rq);
 }
 
+static u32 map_i915_prio_to_lrc_desc_prio(int prio)
+{
+	if (prio > I915_PRIORITY_NORMAL)
+		return GEN12_CTX_PRIORITY_HIGH;
+	else if (prio < I915_PRIORITY_NORMAL)
+		return GEN12_CTX_PRIORITY_LOW;
+	else
+		return GEN12_CTX_PRIORITY_NORMAL;
+}
+
 static u64 execlists_update_context(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
@@ -670,7 +679,7 @@ static u64 execlists_update_context(struct i915_request *rq)
 
 	desc = ce->lrc.desc;
 	if (rq->engine->flags & I915_ENGINE_HAS_EU_PRIORITY)
-		desc |= lrc_desc_priority(rq_prio(rq));
+		desc |= map_i915_prio_to_lrc_desc_prio(rq_prio(rq));
 
 	/*
 	 * WaIdleLiteRestore:bdw,skl
@@ -1232,9 +1241,12 @@ static unsigned long active_preempt_timeout(struct intel_engine_cs *engine,
 	if (!rq)
 		return 0;
 
+	/* Only allow ourselves to force reset the currently active context */
+	engine->execlists.preempt_target = rq;
+
 	/* Force a fast reset for terminated contexts (ignoring sysfs!) */
 	if (unlikely(intel_context_is_banned(rq->context) || bad_request(rq)))
-		return 1;
+		return INTEL_CONTEXT_BANNED_PREEMPT_TIMEOUT_MS;
 
 	return READ_ONCE(engine->props.preempt_timeout_ms);
 }
@@ -1335,11 +1347,11 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		} else if (timeslice_expired(engine, last)) {
 			ENGINE_TRACE(engine,
 				     "expired:%s last=%llx:%lld, prio=%d, hint=%d, yield?=%s\n",
-				     yesno(timer_expired(&execlists->timer)),
+				     str_yes_no(timer_expired(&execlists->timer)),
 				     last->fence.context, last->fence.seqno,
 				     rq_prio(last),
 				     sched_engine->queue_priority_hint,
-				     yesno(timeslice_yield(execlists, last)));
+				     str_yes_no(timeslice_yield(execlists, last)));
 
 			/*
 			 * Consume this timeslice; ensure we start a new one.
@@ -1351,7 +1363,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * submission. If we don't cancel the timer now,
 			 * we will see that the timer has expired and
 			 * reschedule the tasklet; continually until the
-			 * next context switch or other preeemption event.
+			 * next context switch or other preemption event.
 			 *
 			 * Since we have decided to reschedule based on
 			 * consumption of this timeslice, if we submit the
@@ -1427,7 +1439,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			     __i915_request_is_complete(rq) ? "!" :
 			     __i915_request_has_started(rq) ? "*" :
 			     "",
-			     yesno(engine != ve->siblings[0]));
+			     str_yes_no(engine != ve->siblings[0]));
 
 		WRITE_ONCE(ve->request, NULL);
 		WRITE_ONCE(ve->base.sched_engine->queue_priority_hint, INT_MIN);
@@ -1648,12 +1660,6 @@ cancel_port_requests(struct intel_engine_execlists * const execlists,
 	cancel_timer(&execlists->preempt);
 
 	return inactive;
-}
-
-static void invalidate_csb_entries(const u64 *first, const u64 *last)
-{
-	clflush((void *)first);
-	clflush((void *)last);
 }
 
 /*
@@ -2003,15 +2009,30 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 	 * the wash as hardware, working or not, will need to do the
 	 * invalidation before.
 	 */
-	invalidate_csb_entries(&buf[0], &buf[num_entries - 1]);
+	drm_clflush_virt_range(&buf[0], num_entries * sizeof(buf[0]));
 
 	/*
 	 * We assume that any event reflects a change in context flow
 	 * and merits a fresh timeslice. We reinstall the timer after
 	 * inspecting the queue to see if we need to resumbit.
 	 */
-	if (*prev != *execlists->active) /* elide lite-restores */
+	if (*prev != *execlists->active) { /* elide lite-restores */
+		/*
+		 * Note the inherent discrepancy between the HW runtime,
+		 * recorded as part of the context switch, and the CPU
+		 * adjustment for active contexts. We have to hope that
+		 * the delay in processing the CS event is very small
+		 * and consistent. It works to our advantage to have
+		 * the CPU adjustment _undershoot_ (i.e. start later than)
+		 * the CS timestamp so we never overreport the runtime
+		 * and correct overselves later when updating from HW.
+		 */
+		if (*prev)
+			lrc_runtime_stop((*prev)->context);
+		if (*execlists->active)
+			lrc_runtime_start((*execlists->active)->context);
 		new_timeslice(execlists);
+	}
 
 	return inactive;
 }
@@ -2235,11 +2256,11 @@ static struct execlists_capture *capture_regs(struct intel_engine_cs *engine)
 	if (!cap->error)
 		goto err_cap;
 
-	cap->error->gt = intel_gt_coredump_alloc(engine->gt, gfp);
+	cap->error->gt = intel_gt_coredump_alloc(engine->gt, gfp, CORE_DUMP_FLAG_NONE);
 	if (!cap->error->gt)
 		goto err_gpu;
 
-	cap->error->gt->engine = intel_engine_coredump_alloc(engine, gfp);
+	cap->error->gt->engine = intel_engine_coredump_alloc(engine, gfp, CORE_DUMP_FLAG_NONE);
 	if (!cap->error->gt->engine)
 		goto err_gt;
 
@@ -2409,8 +2430,24 @@ static void execlists_submission_tasklet(struct tasklet_struct *t)
 	GEM_BUG_ON(inactive - post > ARRAY_SIZE(post));
 
 	if (unlikely(preempt_timeout(engine))) {
+		const struct i915_request *rq = *engine->execlists.active;
+
+		/*
+		 * If after the preempt-timeout expired, we are still on the
+		 * same active request/context as before we initiated the
+		 * preemption, reset the engine.
+		 *
+		 * However, if we have processed a CS event to switch contexts,
+		 * but not yet processed the CS event for the pending
+		 * preemption, reset the timer allowing the new context to
+		 * gracefully exit.
+		 */
 		cancel_timer(&engine->execlists.preempt);
-		engine->execlists.error_interrupt |= ERROR_PREEMPT;
+		if (rq == engine->execlists.preempt_target)
+			engine->execlists.error_interrupt |= ERROR_PREEMPT;
+		else
+			set_timer_ms(&engine->execlists.preempt,
+				     active_preempt_timeout(engine, rq));
 	}
 
 	if (unlikely(READ_ONCE(engine->execlists.error_interrupt))) {
@@ -2643,7 +2680,7 @@ unwind:
 }
 
 static const struct intel_context_ops execlists_context_ops = {
-	.flags = COPS_HAS_INFLIGHT,
+	.flags = COPS_HAS_INFLIGHT | COPS_RUNTIME_CYCLES,
 
 	.alloc = execlists_context_alloc,
 
@@ -2787,8 +2824,9 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 
 	/* Check that the GPU does indeed update the CSB entries! */
 	memset(execlists->csb_status, -1, (reset_value + 1) * sizeof(u64));
-	invalidate_csb_entries(&execlists->csb_status[0],
-			       &execlists->csb_status[reset_value]);
+	drm_clflush_virt_range(execlists->csb_status,
+			       execlists->csb_size *
+			       sizeof(execlists->csb_status));
 
 	/* Once more for luck and our trusty paranoia */
 	ENGINE_WRITE(engine, RING_CONTEXT_STATUS_PTR,
@@ -2832,7 +2870,7 @@ static void execlists_sanitize(struct intel_engine_cs *engine)
 	sanitize_hwsp(engine);
 
 	/* And scrub the dirty cachelines for the HWSP */
-	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+	drm_clflush_virt_range(engine->status_page.addr, PAGE_SIZE);
 
 	intel_engine_reset_pinned_contexts(engine);
 }
@@ -2911,7 +2949,7 @@ static int execlists_resume(struct intel_engine_cs *engine)
 
 	enable_execlists(engine);
 
-	if (engine->class == RENDER_CLASS)
+	if (engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE)
 		xehp_enable_ccs_engines(engine);
 
 	return 0;
@@ -2949,6 +2987,13 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	ring_set_paused(engine, 1);
 	intel_engine_stop_cs(engine);
 
+	/*
+	 * Wa_22011802037:gen11/gen12: In addition to stopping the cs, we need
+	 * to wait for any pending mi force wakeups
+	 */
+	if (IS_GRAPHICS_VER(engine->i915, 11, 12))
+		intel_engine_wait_for_pending_mi_fw(engine);
+
 	engine->execlists.reset_ccid = active_ccid(engine);
 }
 
@@ -2957,9 +3002,8 @@ reset_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
-	mb(); /* paranoia: read the CSB pointers from after the reset */
-	clflush(execlists->csb_write);
-	mb();
+	drm_clflush_virt_range(execlists->csb_write,
+			       sizeof(execlists->csb_write[0]));
 
 	inactive = process_csb(engine, inactive); /* drain preemption events */
 
@@ -3425,10 +3469,17 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		}
 	}
 
-	if (intel_engine_has_preemption(engine))
-		engine->emit_bb_start = gen8_emit_bb_start;
-	else
-		engine->emit_bb_start = gen8_emit_bb_start_noarb;
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+		if (intel_engine_has_preemption(engine))
+			engine->emit_bb_start = gen125_emit_bb_start;
+		else
+			engine->emit_bb_start = gen125_emit_bb_start_noarb;
+	} else {
+		if (intel_engine_has_preemption(engine))
+			engine->emit_bb_start = gen8_emit_bb_start;
+		else
+			engine->emit_bb_start = gen8_emit_bb_start_noarb;
+	}
 
 	engine->busyness = execlists_engine_busyness;
 }
@@ -3701,7 +3752,7 @@ virtual_get_sibling(struct intel_engine_cs *engine, unsigned int sibling)
 }
 
 static const struct intel_context_ops virtual_context_ops = {
-	.flags = COPS_HAS_INFLIGHT,
+	.flags = COPS_HAS_INFLIGHT | COPS_RUNTIME_CYCLES,
 
 	.alloc = virtual_context_alloc,
 

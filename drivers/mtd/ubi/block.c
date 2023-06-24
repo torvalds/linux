@@ -409,7 +409,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	ret = blk_mq_alloc_tag_set(&dev->tag_set);
 	if (ret) {
 		dev_err(disk_to_dev(dev->gd), "blk_mq_alloc_tag_set failed");
-		goto out_free_dev;;
+		goto out_free_dev;
 	}
 
 
@@ -441,7 +441,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	/*
 	 * Create one workqueue per volume (per registered block device).
-	 * Rembember workqueues are cheap, they're not threads.
+	 * Remember workqueues are cheap, they're not threads.
 	 */
 	dev->wq = alloc_workqueue("%s", 0, 0, gd->disk_name);
 	if (!dev->wq) {
@@ -467,7 +467,7 @@ out_destroy_wq:
 out_remove_minor:
 	idr_remove(&ubiblock_minor_idr, gd->first_minor);
 out_cleanup_disk:
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 out_free_tags:
 	blk_mq_free_tag_set(&dev->tag_set);
 out_free_dev:
@@ -486,7 +486,7 @@ static void ubiblock_cleanup(struct ubiblock *dev)
 	destroy_workqueue(dev->wq);
 	/* Finally destroy the blk queue */
 	dev_info(disk_to_dev(dev->gd), "released");
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 	blk_mq_free_tag_set(&dev->tag_set);
 	idr_remove(&ubiblock_minor_idr, dev->gd->first_minor);
 }

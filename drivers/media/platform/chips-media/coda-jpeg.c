@@ -283,7 +283,8 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 
 	ret = v4l2_jpeg_parse_header(buf, len, &header);
 	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev, "failed to parse header\n");
+		v4l2_err(&dev->v4l2_dev, "failed to parse JPEG header: %pe\n",
+			 ERR_PTR(ret));
 		return ret;
 	}
 
@@ -420,7 +421,7 @@ static inline void coda9_jpeg_write_huff_values(struct coda_dev *dev, u8 *bits,
 		coda_write(dev, (s32)values[i], CODA9_REG_JPEG_HUFF_DATA);
 }
 
-static int coda9_jpeg_dec_huff_setup(struct coda_ctx *ctx)
+static void coda9_jpeg_dec_huff_setup(struct coda_ctx *ctx)
 {
 	struct coda_huff_tab *huff_tab = ctx->params.jpeg_huff_tab;
 	struct coda_dev *dev = ctx->dev;
@@ -454,7 +455,6 @@ static int coda9_jpeg_dec_huff_setup(struct coda_ctx *ctx)
 	coda9_jpeg_write_huff_values(dev, huff_tab->luma_ac, 162);
 	coda9_jpeg_write_huff_values(dev, huff_tab->chroma_ac, 162);
 	coda_write(dev, 0x000, CODA9_REG_JPEG_HUFF_CTRL);
-	return 0;
 }
 
 static inline void coda9_jpeg_write_qmat_tab(struct coda_dev *dev,
@@ -1328,6 +1328,7 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 	struct coda_q_data *q_data_src, *q_data_dst;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	int chroma_interleave;
+	int scl_hor_mode, scl_ver_mode;
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -1335,27 +1336,24 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	dst_fourcc = q_data_dst->fourcc;
 
+	scl_hor_mode = coda_jpeg_scale(q_data_src->width, q_data_dst->width);
+	scl_ver_mode = coda_jpeg_scale(q_data_src->height, q_data_dst->height);
+
 	if (vb2_get_plane_payload(&src_buf->vb2_buf, 0) == 0)
 		vb2_set_plane_payload(&src_buf->vb2_buf, 0,
 				      vb2_plane_size(&src_buf->vb2_buf, 0));
 
 	chroma_format = coda9_jpeg_chroma_format(q_data_dst->fourcc);
-	if (chroma_format < 0) {
-		v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
+	if (chroma_format < 0)
 		return chroma_format;
-	}
 
 	ret = coda_jpeg_decode_header(ctx, &src_buf->vb2_buf);
 	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev, "failed to decode JPEG header: %d\n",
-			 ret);
-
 		src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
-		v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
+		v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_ERROR);
 
-		v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 		return ret;
 	}
 
@@ -1386,20 +1384,17 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 	coda_write(dev, 0, CODA9_REG_JPEG_ROT_INFO);
 	coda_write(dev, bus_req_num[chroma_format], CODA9_REG_JPEG_OP_INFO);
 	coda_write(dev, mcu_info[chroma_format], CODA9_REG_JPEG_MCU_INFO);
-	coda_write(dev, 0, CODA9_REG_JPEG_SCL_INFO);
+	if (scl_hor_mode || scl_ver_mode)
+		val = CODA9_JPEG_SCL_ENABLE | (scl_hor_mode << 2) | scl_ver_mode;
+	else
+		val = 0;
+	coda_write(dev, val, CODA9_REG_JPEG_SCL_INFO);
 	coda_write(dev, chroma_interleave, CODA9_REG_JPEG_DPB_CONFIG);
 	coda_write(dev, ctx->params.jpeg_restart_interval,
 			CODA9_REG_JPEG_RST_INTVAL);
 
-	if (ctx->params.jpeg_huff_tab) {
-		ret = coda9_jpeg_dec_huff_setup(ctx);
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to set up Huffman tables: %d\n", ret);
-			v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
-			return ret;
-		}
-	}
+	if (ctx->params.jpeg_huff_tab)
+		coda9_jpeg_dec_huff_setup(ctx);
 
 	coda9_jpeg_qmat_setup(ctx);
 

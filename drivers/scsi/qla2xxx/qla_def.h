@@ -35,6 +35,11 @@
 
 #include <uapi/scsi/fc/fc_els.h>
 
+#define QLA_DFS_DEFINE_DENTRY(_debugfs_file_name) \
+	struct dentry *dfs_##_debugfs_file_name
+#define QLA_DFS_ROOT_DEFINE_DENTRY(_debugfs_file_name) \
+	struct dentry *qla_dfs_##_debugfs_file_name
+
 /* Big endian Fibre Channel S_ID (source ID) or D_ID (destination ID). */
 typedef struct {
 	uint8_t domain;
@@ -78,7 +83,7 @@ typedef union {
 #include "qla_nvme.h"
 #define QLA2XXX_DRIVER_NAME	"qla2xxx"
 #define QLA2XXX_APIDEV		"ql2xapidev"
-#define QLA2XXX_MANUFACTURER	"QLogic Corporation"
+#define QLA2XXX_MANUFACTURER	"Marvell Semiconductor, Inc."
 
 /*
  * We have MAILBOX_REGISTER_COUNT sized arrays in a few places,
@@ -1173,6 +1178,12 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 
 /* ISP mailbox loopback echo diagnostic error code */
 #define MBS_LB_RESET	0x17
+
+/* AEN mailbox Port Diagnostics test */
+#define AEN_START_DIAG_TEST		0x0	/* start the diagnostics */
+#define AEN_DONE_DIAG_TEST_WITH_NOERR	0x1	/* Done with no errors */
+#define AEN_DONE_DIAG_TEST_WITH_ERR	0x2	/* Done with error.*/
+
 /*
  * Firmware options 1, 2, 3.
  */
@@ -2158,6 +2169,11 @@ typedef struct {
 #define CS_IOCB_ERROR		0x31	/* Generic error for IOCB request
 					   failure */
 #define CS_REJECT_RECEIVED	0x4E	/* Reject received */
+#define CS_EDIF_AUTH_ERROR	0x63	/* decrypt error */
+#define CS_EDIF_PAD_LEN_ERROR	0x65	/* pad > frame size, not 4byte align */
+#define CS_EDIF_INV_REQ		0x66	/* invalid request */
+#define CS_EDIF_SPI_ERROR	0x67	/* rx frame unable to locate sa */
+#define CS_EDIF_HDR_ERROR	0x69	/* data frame != expected len */
 #define CS_BAD_PAYLOAD		0x80	/* Driver defined */
 #define CS_UNKNOWN		0x81	/* Driver defined */
 #define CS_RETRY		0x82	/* Driver defined */
@@ -2626,7 +2642,6 @@ typedef struct fc_port {
 	struct {
 		uint32_t	enable:1;	/* device is edif enabled/req'd */
 		uint32_t	app_stop:2;
-		uint32_t	app_started:1;
 		uint32_t	aes_gmac:1;
 		uint32_t	app_sess_online:1;
 		uint32_t	tx_sa_set:1;
@@ -2637,6 +2652,7 @@ typedef struct fc_port {
 		uint32_t	rx_rekey_cnt;
 		uint64_t	tx_bytes;
 		uint64_t	rx_bytes;
+		uint8_t		sess_down_acked;
 		uint8_t		auth_state;
 		uint16_t	authok:1;
 		uint16_t	rekey_cnt;
@@ -3204,6 +3220,8 @@ struct ct_sns_rsp {
 #define GFF_NVME_OFFSET		23 /* type = 28h */
 		struct {
 			uint8_t fc4_features[128];
+#define FC4_FF_TARGET    BIT_0
+#define FC4_FF_INITIATOR BIT_1
 		} gff_id;
 		struct {
 			uint8_t reserved;
@@ -3975,6 +3993,7 @@ struct qla_hw_data {
 	/* SRB cache. */
 #define SRB_MIN_REQ     128
 	mempool_t       *srb_mempool;
+	u8 port_name[WWN_SIZE];
 
 	volatile struct {
 		uint32_t	mbox_int		:1;
@@ -4040,6 +4059,9 @@ struct qla_hw_data {
 		uint32_t	n2n_fw_acc_sec:1;
 		uint32_t	plogi_template_valid:1;
 		uint32_t	port_isolated:1;
+		uint32_t	eeh_flush:2;
+#define EEH_FLUSH_RDY  1
+#define EEH_FLUSH_DONE 2
 	} flags;
 
 	uint16_t max_exchg;
@@ -4074,6 +4096,7 @@ struct qla_hw_data {
 	uint32_t		rsp_que_len;
 	uint32_t		req_que_off;
 	uint32_t		rsp_que_off;
+	unsigned long		eeh_jif;
 
 	/* Multi queue data structs */
 	device_reg_t *mqiobase;
@@ -4256,8 +4279,8 @@ struct qla_hw_data {
 #define IS_OEM_001(ha)          ((ha)->device_type & DT_OEM_001)
 #define HAS_EXTENDED_IDS(ha)    ((ha)->device_type & DT_EXTENDED_IDS)
 #define IS_CT6_SUPPORTED(ha)	((ha)->device_type & DT_CT6_SUPPORTED)
-#define IS_MQUE_CAPABLE(ha)	((ha)->mqenable || IS_QLA83XX(ha) || \
-				IS_QLA27XX(ha) || IS_QLA28XX(ha))
+#define IS_MQUE_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
+				 IS_QLA28XX(ha))
 #define IS_BIDI_CAPABLE(ha) \
     (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 /* Bit 21 of fw_attributes decides the MCTP capabilities */
@@ -4750,6 +4773,7 @@ struct active_regions {
 		uint8_t vpd_nvram;
 		uint8_t npiv_config_0_1;
 		uint8_t npiv_config_2_3;
+		uint8_t nvme_params;
 	} aux;
 };
 
@@ -5012,6 +5036,10 @@ typedef struct scsi_qla_host {
 	u64 short_link_down_cnt;
 	struct edif_dbell e_dbell;
 	struct pur_core pur_cinfo;
+
+#define DPORT_DIAG_IN_PROGRESS                 BIT_0
+#define DPORT_DIAG_CHIP_RESET_IN_PROGRESS      BIT_1
+	uint16_t dport_status;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {
@@ -5030,6 +5058,7 @@ struct qla27xx_image_status {
 #define QLA28XX_AUX_IMG_VPD_NVRAM		BIT_1
 #define QLA28XX_AUX_IMG_NPIV_CONFIG_0_1		BIT_2
 #define QLA28XX_AUX_IMG_NPIV_CONFIG_2_3		BIT_3
+#define QLA28XX_AUX_IMG_NVME_PARAMS		BIT_4
 
 #define SET_VP_IDX	1
 #define SET_AL_PA	2
@@ -5442,5 +5471,11 @@ struct ql_vnd_tgt_stats_resp {
 
 #define IS_SESSION_DELETED(_fcport) (_fcport->disc_state == DSC_DELETE_PEND || \
 				      _fcport->disc_state == DSC_DELETED)
+
+#define DBG_FCPORT_PRFMT(_fp, _fmt, _args...) \
+	"%s: %8phC: " _fmt " (state=%d disc_state=%d scan_state=%d loopid=0x%x deleted=%d flags=0x%x)\n", \
+	__func__, _fp->port_name, ##_args, atomic_read(&_fp->state), \
+	_fp->disc_state, _fp->scan_state, _fp->loop_id, _fp->deleted, \
+	_fp->flags
 
 #endif

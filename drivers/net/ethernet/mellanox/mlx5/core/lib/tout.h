@@ -7,6 +7,7 @@
 enum mlx5_timeouts_types {
 	/* pre init timeouts (not read from FW) */
 	MLX5_TO_FW_PRE_INIT_TIMEOUT_MS,
+	MLX5_TO_FW_PRE_INIT_ON_RECOVERY_TIMEOUT_MS,
 	MLX5_TO_FW_PRE_INIT_WARN_MESSAGE_INTERVAL_MS,
 	MLX5_TO_FW_PRE_INIT_WAIT_MS,
 
@@ -34,7 +35,6 @@ int mlx5_tout_init(struct mlx5_core_dev *dev);
 void mlx5_tout_cleanup(struct mlx5_core_dev *dev);
 void mlx5_tout_query_iseg(struct mlx5_core_dev *dev);
 int mlx5_tout_query_dtor(struct mlx5_core_dev *dev);
-void mlx5_tout_set_def_val(struct mlx5_core_dev *dev);
 u64 _mlx5_tout_ms(struct mlx5_core_dev *dev, enum mlx5_timeouts_types type);
 
 #define mlx5_tout_ms(dev, type) _mlx5_tout_ms(dev, MLX5_TO_##type##_MS)

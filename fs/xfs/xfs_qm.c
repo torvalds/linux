@@ -582,9 +582,6 @@ xfs_qm_init_timelimits(
 	defq->blk.time = XFS_QM_BTIMELIMIT;
 	defq->ino.time = XFS_QM_ITIMELIMIT;
 	defq->rtb.time = XFS_QM_RTBTIMELIMIT;
-	defq->blk.warn = XFS_QM_BWARNLIMIT;
-	defq->ino.warn = XFS_QM_IWARNLIMIT;
-	defq->rtb.warn = XFS_QM_RTBWARNLIMIT;
 
 	/*
 	 * We try to get the limits from the superuser's limits fields.
@@ -608,12 +605,6 @@ xfs_qm_init_timelimits(
 		defq->ino.time = dqp->q_ino.timer;
 	if (dqp->q_rtb.timer)
 		defq->rtb.time = dqp->q_rtb.timer;
-	if (dqp->q_blk.warnings)
-		defq->blk.warn = dqp->q_blk.warnings;
-	if (dqp->q_ino.warnings)
-		defq->ino.warn = dqp->q_ino.warnings;
-	if (dqp->q_rtb.warnings)
-		defq->rtb.warn = dqp->q_rtb.warnings;
 
 	xfs_qm_dqdestroy(dqp);
 }
@@ -686,7 +677,8 @@ xfs_qm_init_quotainfo(
 	qinf->qi_shrinker.seeks = DEFAULT_SEEKS;
 	qinf->qi_shrinker.flags = SHRINKER_NUMA_AWARE;
 
-	error = register_shrinker(&qinf->qi_shrinker);
+	error = register_shrinker(&qinf->qi_shrinker, "xfs-qm:%s",
+				  mp->m_super->s_id);
 	if (error)
 		goto out_free_inos;
 
@@ -1163,7 +1155,7 @@ xfs_qm_dqusage_adjust(
 	ASSERT(ip->i_delayed_blks == 0);
 
 	if (XFS_IS_REALTIME_INODE(ip)) {
-		struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+		struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
 
 		error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
 		if (error)
@@ -1238,10 +1230,14 @@ xfs_qm_flush_one(
 	 */
 	if (!xfs_dqflock_nowait(dqp)) {
 		/* buf is pinned in-core by delwri list */
-		bp = xfs_buf_incore(mp->m_ddev_targp, dqp->q_blkno,
-				mp->m_quotainfo->qi_dqchunklen, 0);
-		if (!bp) {
-			error = -EINVAL;
+		error = xfs_buf_incore(mp->m_ddev_targp, dqp->q_blkno,
+				mp->m_quotainfo->qi_dqchunklen, 0, &bp);
+		if (error)
+			goto out_unlock;
+
+		if (!(bp->b_flags & _XBF_DELWRI_Q)) {
+			error = -EAGAIN;
+			xfs_buf_relse(bp);
 			goto out_unlock;
 		}
 		xfs_buf_unlock(bp);
@@ -1317,8 +1313,15 @@ xfs_qm_quotacheck(
 
 	error = xfs_iwalk_threaded(mp, 0, 0, xfs_qm_dqusage_adjust, 0, true,
 			NULL);
-	if (error)
+	if (error) {
+		/*
+		 * The inode walk may have partially populated the dquot
+		 * caches.  We must purge them before disabling quota and
+		 * tearing down the quotainfo, or else the dquots will leak.
+		 */
+		xfs_qm_dqpurge_all(mp);
 		goto error_return;
+	}
 
 	/*
 	 * We've made all the changes that we need to make incore.  Flush them

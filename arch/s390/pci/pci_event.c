@@ -321,9 +321,6 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 
 	zpci_dbg(3, "avl fid:%x, fh:%x, pec:%x\n",
 		 ccdf->fid, ccdf->fh, ccdf->pec);
-	zpci_err("avail CCDF:\n");
-	zpci_err_hex(ccdf, sizeof(*ccdf));
-
 	switch (ccdf->pec) {
 	case 0x0301: /* Reserved|Standby -> Configured */
 		if (!zdev) {

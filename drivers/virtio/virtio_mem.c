@@ -862,8 +862,7 @@ static void virtio_mem_sbm_notify_online(struct virtio_mem *vm,
 					 unsigned long mb_id,
 					 unsigned long start_pfn)
 {
-	const bool is_movable = page_zonenum(pfn_to_page(start_pfn)) ==
-				ZONE_MOVABLE;
+	const bool is_movable = is_zone_movable_page(pfn_to_page(start_pfn));
 	int new_state;
 
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
@@ -1158,8 +1157,7 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
  */
 static int virtio_mem_fake_offline(unsigned long pfn, unsigned long nr_pages)
 {
-	const bool is_movable = page_zonenum(pfn_to_page(pfn)) ==
-				ZONE_MOVABLE;
+	const bool is_movable = is_zone_movable_page(pfn_to_page(pfn));
 	int rc, retry_count;
 
 	/*
@@ -2476,10 +2474,10 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 				      VIRTIO_MEM_DEFAULT_OFFLINE_THRESHOLD);
 
 	/*
-	 * TODO: once alloc_contig_range() works reliably with pageblock
-	 * granularity on ZONE_NORMAL, use pageblock_nr_pages instead.
+	 * alloc_contig_range() works reliably with pageblock
+	 * granularity on ZONE_NORMAL, use pageblock_nr_pages.
 	 */
-	sb_size = PAGE_SIZE * MAX_ORDER_NR_PAGES;
+	sb_size = PAGE_SIZE * pageblock_nr_pages;
 	sb_size = max_t(uint64_t, vm->device_block_size, sb_size);
 
 	if (sb_size < memory_block_size_bytes() && !force_bbm) {

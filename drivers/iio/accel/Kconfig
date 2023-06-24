@@ -204,6 +204,8 @@ config BMA220
 config BMA400
 	tristate "Bosch BMA400 3-Axis Accelerometer Driver"
 	select REGMAP
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	select BMA400_I2C if I2C
 	select BMA400_SPI if SPI
 	help
@@ -290,7 +292,6 @@ config DA311
 
 config DMARD06
 	tristate "Domintech DMARD06 Digital Accelerometer Driver"
-	depends on OF || COMPILE_TEST
 	depends on I2C
 	help
 	  Say yes here to build support for the Domintech low-g tri-axial
@@ -539,6 +540,19 @@ config MMA9553
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma9553.
+
+config MSA311
+	tristate "MEMSensing Digital 3-Axis Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the MEMSensing MSA311
+	  accelerometer driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called msa311.
 
 config MXC4005
 	tristate "Memsic MXC4005XC 3-Axis Accelerometer Driver"

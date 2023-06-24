@@ -32,6 +32,18 @@
 #include <asm/tce.h>
 #include <asm/mmu_context.h>
 
+static struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm *kvm,
+	unsigned long liobn)
+{
+	struct kvmppc_spapr_tce_table *stt;
+
+	list_for_each_entry_lockless(stt, &kvm->arch.spapr_tce_tables, list)
+		if (stt->liobn == liobn)
+			return stt;
+
+	return NULL;
+}
+
 static unsigned long kvmppc_tce_pages(unsigned long iommu_pages)
 {
 	return ALIGN(iommu_pages * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
@@ -295,7 +307,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		return ret;
 
 	ret = -ENOMEM;
-	stt = kzalloc(struct_size(stt, pages, npages), GFP_KERNEL);
+	stt = kzalloc(struct_size(stt, pages, npages), GFP_KERNEL | __GFP_NOWARN);
 	if (!stt)
 		goto fail_acct;
 
@@ -753,3 +765,34 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kvmppc_h_stuff_tce);
+
+long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
+		      unsigned long ioba)
+{
+	struct kvmppc_spapr_tce_table *stt;
+	long ret;
+	unsigned long idx;
+	struct page *page;
+	u64 *tbl;
+
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
+	if (!stt)
+		return H_TOO_HARD;
+
+	ret = kvmppc_ioba_validate(stt, ioba, 1);
+	if (ret != H_SUCCESS)
+		return ret;
+
+	idx = (ioba >> stt->page_shift) - stt->offset;
+	page = stt->pages[idx / TCES_PER_PAGE];
+	if (!page) {
+		vcpu->arch.regs.gpr[4] = 0;
+		return H_SUCCESS;
+	}
+	tbl = (u64 *)page_address(page);
+
+	vcpu->arch.regs.gpr[4] = tbl[idx % TCES_PER_PAGE];
+
+	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_h_get_tce);

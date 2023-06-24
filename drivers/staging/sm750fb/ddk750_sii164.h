@@ -27,7 +27,7 @@ long sii164InitChip(unsigned char edgeSelect,
 		    unsigned char pllFilterEnable,
 		    unsigned char pllFilterValue);
 
-unsigned short sii164GetVendorID(void);
+unsigned short sii164_get_vendor_id(void);
 unsigned short sii164GetDeviceID(void);
 
 #ifdef SII164_FULL_FUNCTIONS

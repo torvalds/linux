@@ -67,6 +67,8 @@ enum link_training_result {
 	LINK_TRAINING_CR_FAIL_LANE23,
 	/* CR DONE bit is cleared during EQ step */
 	LINK_TRAINING_EQ_FAIL_CR,
+	/* CR DONE bit is cleared but LANE0_CR_DONE is set during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR_PARTIAL,
 	/* other failure during EQ step */
 	LINK_TRAINING_EQ_FAIL_EQ,
 	LINK_TRAINING_LQA_FAIL,
@@ -81,6 +83,7 @@ enum link_training_result {
 };
 
 enum lttpr_mode {
+	LTTPR_MODE_UNKNOWN,
 	LTTPR_MODE_NON_LTTPR,
 	LTTPR_MODE_TRANSPARENT,
 	LTTPR_MODE_NON_TRANSPARENT,
@@ -92,7 +95,6 @@ struct link_training_settings {
 	/* TODO: turn lane settings below into mandatory fields
 	 * as initial lane configuration
 	 */
-	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
@@ -245,8 +247,16 @@ union dpcd_training_lane_set {
 };
 
 
+/* AMD's copy of various payload data for MST. We have two copies of the payload table (one in DRM,
+ * one in DC) since DRM's MST helpers can't be accessed here. This stream allocation table should
+ * _ONLY_ be filled out from DM and then passed to DC, do NOT use these for _any_ kind of atomic
+ * state calculations in DM, or you will break something.
+ */
+
+struct drm_dp_mst_port;
+
 /* DP MST stream allocation (payload bandwidth number) */
-struct dp_mst_stream_allocation {
+struct dc_dp_mst_stream_allocation {
 	uint8_t vcp_id;
 	/* number of slots required for the DP stream in
 	 * transport packet */
@@ -254,11 +264,11 @@ struct dp_mst_stream_allocation {
 };
 
 /* DP MST stream allocation table */
-struct dp_mst_stream_allocation_table {
+struct dc_dp_mst_stream_allocation_table {
 	/* number of DP video streams */
 	int stream_count;
 	/* array of stream allocations */
-	struct dp_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
+	struct dc_dp_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
 };
 
 #endif /*__DAL_LINK_SERVICE_TYPES_H__*/

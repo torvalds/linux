@@ -3190,7 +3190,6 @@ static int __init u132_hcd_init(void)
 	u132_exiting = 0;
 	if (usb_disabled())
 		return -ENODEV;
-	printk(KERN_INFO "driver %s\n", hcd_name);
 	workqueue = create_singlethread_workqueue("u132");
 	if (!workqueue)
 		return -ENOMEM;

@@ -40,8 +40,18 @@ properties:
               - renesas,etheravb-r8a77980     # R-Car V3H
               - renesas,etheravb-r8a77990     # R-Car E3
               - renesas,etheravb-r8a77995     # R-Car D3
-              - renesas,etheravb-r8a779a0     # R-Car V3U
           - const: renesas,etheravb-rcar-gen3 # R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,etheravb-r8a779a0     # R-Car V3U
+              - renesas,etheravb-r8a779g0     # R-Car V4H
+          - const: renesas,etheravb-rcar-gen4 # R-Car Gen4
+
+      - items:
+          - enum:
+              - renesas,etheravb-r9a09g011 # RZ/V2M
+          - const: renesas,etheravb-rzv2m  # RZ/V2M compatible
 
       - items:
           - enum:
@@ -160,16 +170,33 @@ allOf:
             - const: arp_ns
         rx-internal-delay-ps: false
     else:
-      properties:
-        interrupts:
-          minItems: 25
-          maxItems: 25
-        interrupt-names:
-          items:
-            pattern: '^ch[0-9]+$'
-      required:
-        - interrupt-names
-        - rx-internal-delay-ps
+      if:
+        properties:
+          compatible:
+            contains:
+              const: renesas,etheravb-rzv2m
+      then:
+        properties:
+          interrupts:
+            minItems: 29
+            maxItems: 29
+          interrupt-names:
+            items:
+              pattern: '^(ch(1?)[0-9])|ch20|ch21|dia|dib|err_a|err_b|mgmt_a|mgmt_b|line3$'
+          rx-internal-delay-ps: false
+        required:
+          - interrupt-names
+      else:
+        properties:
+          interrupts:
+            minItems: 25
+            maxItems: 25
+          interrupt-names:
+            items:
+              pattern: '^ch[0-9]+$'
+        required:
+          - interrupt-names
+          - rx-internal-delay-ps
 
   - if:
       properties:
@@ -185,7 +212,7 @@ allOf:
               - renesas,etheravb-r8a77965
               - renesas,etheravb-r8a77970
               - renesas,etheravb-r8a77980
-              - renesas,etheravb-r8a779a0
+              - renesas,etheravb-rcar-gen4
     then:
       required:
         - tx-internal-delay-ps
@@ -231,17 +258,35 @@ allOf:
             - const: chi
             - const: refclk
     else:
-      properties:
-        clocks:
-          minItems: 1
-          items:
-            - description: AVB functional clock
-            - description: Optional TXC reference clock
-        clock-names:
-          minItems: 1
-          items:
-            - const: fck
-            - const: refclk
+      if:
+        properties:
+          compatible:
+            contains:
+              const: renesas,etheravb-rzv2m
+      then:
+        properties:
+          clocks:
+            items:
+              - description: Main clock
+              - description: Coherent Hub Interface clock
+              - description: gPTP reference clock
+          clock-names:
+            items:
+              - const: axi
+              - const: chi
+              - const: gptp
+      else:
+        properties:
+          clocks:
+            minItems: 1
+            items:
+              - description: AVB functional clock
+              - description: Optional TXC reference clock
+          clock-names:
+            minItems: 1
+            items:
+              - const: fck
+              - const: refclk
 
 additionalProperties: false
 

@@ -38,26 +38,6 @@ static inline uint64_t __kvm_reg_id(uint64_t type, uint64_t idx,
 					     KVM_REG_RISCV_TIMER_REG(name), \
 					     KVM_REG_SIZE_U64)
 
-static inline void get_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id,
-			   unsigned long *addr)
-{
-	struct kvm_one_reg reg;
-
-	reg.id = id;
-	reg.addr = (unsigned long)addr;
-	vcpu_get_reg(vm, vcpuid, &reg);
-}
-
-static inline void set_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id,
-			   unsigned long val)
-{
-	struct kvm_one_reg reg;
-
-	reg.id = id;
-	reg.addr = (unsigned long)&val;
-	vcpu_set_reg(vm, vcpuid, &reg);
-}
-
 /* L3 index Bit[47:39] */
 #define PGTBL_L3_INDEX_MASK			0x0000FF8000000000ULL
 #define PGTBL_L3_INDEX_SHIFT			39
@@ -119,10 +99,12 @@ static inline void set_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id,
 #define SATP_ASID_SHIFT				44
 #define SATP_ASID_MASK				_AC(0xFFFF, UL)
 
-#define SBI_EXT_EXPERIMENTAL_START	0x08000000
-#define SBI_EXT_EXPERIMENTAL_END	0x08FFFFFF
+#define SBI_EXT_EXPERIMENTAL_START		0x08000000
+#define SBI_EXT_EXPERIMENTAL_END		0x08FFFFFF
 
-#define KVM_RISCV_SELFTESTS_SBI_EXT	SBI_EXT_EXPERIMENTAL_END
+#define KVM_RISCV_SELFTESTS_SBI_EXT		SBI_EXT_EXPERIMENTAL_END
+#define KVM_RISCV_SELFTESTS_SBI_UCALL		0
+#define KVM_RISCV_SELFTESTS_SBI_UNEXP		1
 
 struct sbiret {
 	long error;

@@ -65,19 +65,22 @@ void mhi_write_reg(struct mhi_controller *mhi_cntrl, void __iomem *base,
 	mhi_cntrl->write_reg(mhi_cntrl, base + offset, val);
 }
 
-void mhi_write_reg_field(struct mhi_controller *mhi_cntrl, void __iomem *base,
-			 u32 offset, u32 mask, u32 val)
+int __must_check mhi_write_reg_field(struct mhi_controller *mhi_cntrl,
+				     void __iomem *base, u32 offset, u32 mask,
+				     u32 val)
 {
 	int ret;
 	u32 tmp;
 
 	ret = mhi_read_reg(mhi_cntrl, base, offset, &tmp);
 	if (ret)
-		return;
+		return ret;
 
 	tmp &= ~mask;
 	tmp |= (val << __ffs(mask));
 	mhi_write_reg(mhi_cntrl, base, offset, tmp);
+
+	return 0;
 }
 
 void mhi_write_db(struct mhi_controller *mhi_cntrl, void __iomem *db_addr,
@@ -427,11 +430,24 @@ irqreturn_t mhi_irq_handler(int irq_number, void *dev)
 {
 	struct mhi_event *mhi_event = dev;
 	struct mhi_controller *mhi_cntrl = mhi_event->mhi_cntrl;
-	struct mhi_event_ctxt *er_ctxt =
-		&mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
+	struct mhi_event_ctxt *er_ctxt;
 	struct mhi_ring *ev_ring = &mhi_event->ring;
-	dma_addr_t ptr = le64_to_cpu(er_ctxt->rp);
+	dma_addr_t ptr;
 	void *dev_rp;
+
+	/*
+	 * If CONFIG_DEBUG_SHIRQ is set, the IRQ handler will get invoked during __free_irq()
+	 * and by that time mhi_ctxt() would've freed. So check for the existence of mhi_ctxt
+	 * before handling the IRQs.
+	 */
+	if (!mhi_cntrl->mhi_ctxt) {
+		dev_dbg(&mhi_cntrl->mhi_dev->dev,
+			"mhi_ctxt has been freed\n");
+		return IRQ_HANDLED;
+	}
+
+	er_ctxt = &mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
+	ptr = le64_to_cpu(er_ctxt->rp);
 
 	if (!is_valid_ring_ptr(ev_ring, ptr)) {
 		dev_err(&mhi_cntrl->mhi_dev->dev,
@@ -531,18 +547,13 @@ irqreturn_t mhi_intvec_handler(int irq_number, void *dev)
 static void mhi_recycle_ev_ring_element(struct mhi_controller *mhi_cntrl,
 					struct mhi_ring *ring)
 {
-	dma_addr_t ctxt_wp;
-
 	/* Update the WP */
 	ring->wp += ring->el_size;
-	ctxt_wp = le64_to_cpu(*ring->ctxt_wp) + ring->el_size;
 
-	if (ring->wp >= (ring->base + ring->len)) {
+	if (ring->wp >= (ring->base + ring->len))
 		ring->wp = ring->base;
-		ctxt_wp = ring->iommu_base;
-	}
 
-	*ring->ctxt_wp = cpu_to_le64(ctxt_wp);
+	*ring->ctxt_wp = cpu_to_le64(ring->iommu_base + (ring->wp - ring->base));
 
 	/* Update the RP */
 	ring->rp += ring->el_size;

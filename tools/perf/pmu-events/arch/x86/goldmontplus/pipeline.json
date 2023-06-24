@@ -291,6 +291,41 @@
         "SampleAfterValue": "2000003"
     },
     {
+        "BriefDescription": "Unfilled issue slots per cycle",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.ANY",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend due to either a full resource  in the backend (RESOURCE_FULL) or due to the processor recovering from some event (RECOVERY).",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Unfilled issue slots per cycle to recover",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RECOVERY",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend because allocation is stalled waiting for a mispredicted jump to retire or other branch-like conditions (e.g. the event is relevant during certain microcode flows).   Counts all issue slots blocked while within this window including slots where uops were not available in the Instruction Queue.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Unfilled issue slots per cycle because of a full resource in the backend",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RESOURCE_FULL",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed because of a full resource in the backend.  Including but not limited to resources such as the Re-order Buffer (ROB), reservation stations (RS), load/store buffers, physical registers, or any other needed machine resource that is currently unavailable.   Note that uops must be available for consumption in order for this event to fire.  If a uop is not available (Instruction Queue is empty), this event will not count.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Loads blocked because address has 4k partial address false dependence (Precise event capable)",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -393,7 +428,7 @@
         "EventName": "MACHINE_CLEARS.SMC",
         "PDIR_COUNTER": "na",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts the number of times that the processor detects that a program is writing to a code section and has to perform a machine clear because of that modification.  Self-modifying code (SMC) causes a severe penalty in all Intel architecture processors.",
+        "PublicDescription": "Counts the number of times that the processor detects that a program is writing to a code section and has to perform a machine clear because of that modification.  Self-modifying code (SMC) causes a severe penalty in all Intel(R) architecture processors.",
         "SampleAfterValue": "20003",
         "UMask": "0x1"
     },

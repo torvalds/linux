@@ -205,7 +205,7 @@ static void do_poweroff(void)
 static void do_reboot(void)
 {
 	shutting_down = SHUTDOWN_POWEROFF; /* ? */
-	ctrl_alt_del();
+	orderly_reboot();
 }
 
 static struct shutdown_handler shutdown_handlers[] = {

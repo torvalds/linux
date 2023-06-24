@@ -141,7 +141,7 @@ do {						\
 #ifdef CONFIG_X86_32
 #define deactivate_mm(tsk, mm)			\
 do {						\
-	lazy_load_gs(0);			\
+	loadsegment(gs, 0);			\
 } while (0)
 #else
 #define deactivate_mm(tsk, mm)			\

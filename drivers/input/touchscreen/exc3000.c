@@ -220,6 +220,7 @@ static int exc3000_vendor_data_request(struct exc3000_data *data, u8 *request,
 {
 	u8 buf[EXC3000_LEN_VENDOR_REQUEST] = { 0x67, 0x00, 0x42, 0x00, 0x03 };
 	int ret;
+	unsigned long time_left;
 
 	mutex_lock(&data->query_lock);
 
@@ -233,9 +234,9 @@ static int exc3000_vendor_data_request(struct exc3000_data *data, u8 *request,
 		goto out_unlock;
 
 	if (response) {
-		ret = wait_for_completion_timeout(&data->wait_event,
-						  timeout * HZ);
-		if (ret <= 0) {
+		time_left = wait_for_completion_timeout(&data->wait_event,
+							timeout * HZ);
+		if (time_left == 0) {
 			ret = -ETIMEDOUT;
 			goto out_unlock;
 		}

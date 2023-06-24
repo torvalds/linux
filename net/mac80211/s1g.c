@@ -11,8 +11,8 @@
 void ieee80211_s1g_sta_rate_init(struct sta_info *sta)
 {
 	/* avoid indicating legacy bitrates for S1G STAs */
-	sta->tx_stats.last_rate.flags |= IEEE80211_TX_RC_S1G_MCS;
-	sta->rx_stats.last_rate =
+	sta->deflink.tx_stats.last_rate.flags |= IEEE80211_TX_RC_S1G_MCS;
+	sta->deflink.rx_stats.last_rate =
 			STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_S1G);
 }
 
@@ -111,6 +111,9 @@ ieee80211_s1g_rx_twt_setup(struct ieee80211_sub_if_data *sdata,
 					 IEEE80211_TWT_REQTYPE_SETUP_CMD);
 		goto out;
 	}
+
+	/* TWT Information not supported yet */
+	twt->control |= IEEE80211_TWT_CONTROL_RX_DISABLED;
 
 	drv_add_twt_setup(sdata->local, sdata, &sta->sta, twt);
 out:

@@ -10,6 +10,11 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
+#include <linux/time_types.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * IO submission data structure (Submission Queue Entry)
@@ -22,6 +27,10 @@ struct io_uring_sqe {
 	union {
 		__u64	off;	/* offset into file */
 		__u64	addr2;
+		struct {
+			__u32	cmd_op;
+			__u32	__pad1;
+		};
 	};
 	union {
 		__u64	addr;	/* pointer to buffer or iovecs */
@@ -45,6 +54,9 @@ struct io_uring_sqe {
 		__u32		rename_flags;
 		__u32		unlink_flags;
 		__u32		hardlink_flags;
+		__u32		xattr_flags;
+		__u32		msg_ring_flags;
+		__u32		uring_cmd_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -59,9 +71,32 @@ struct io_uring_sqe {
 	union {
 		__s32	splice_fd_in;
 		__u32	file_index;
+		struct {
+			__u16	addr_len;
+			__u16	__pad3[1];
+		};
 	};
-	__u64	__pad2[2];
+	union {
+		struct {
+			__u64	addr3;
+			__u64	__pad2[1];
+		};
+		/*
+		 * If the ring is initialized with IORING_SETUP_SQE128, then
+		 * this field is used for 80 bytes of arbitrary command data
+		 */
+		__u8	cmd[0];
+	};
 };
+
+/*
+ * If sqe->file_index is set to this for opcodes that instantiate a new
+ * direct descriptor (like openat/openat2/accept), then io_uring will allocate
+ * an available direct descriptor instead of having the application pass one
+ * in. The picked direct descriptor will be returned in cqe->res, or -ENFILE
+ * if the space is full.
+ */
+#define IORING_FILE_INDEX_ALLOC		(~0U)
 
 enum {
 	IOSQE_FIXED_FILE_BIT,
@@ -102,8 +137,35 @@ enum {
 #define IORING_SETUP_ATTACH_WQ	(1U << 5)	/* attach to existing wq */
 #define IORING_SETUP_R_DISABLED	(1U << 6)	/* start with ring disabled */
 #define IORING_SETUP_SUBMIT_ALL	(1U << 7)	/* continue submit on error */
+/*
+ * Cooperative task running. When requests complete, they often require
+ * forcing the submitter to transition to the kernel to complete. If this
+ * flag is set, work will be done when the task transitions anyway, rather
+ * than force an inter-processor interrupt reschedule. This avoids interrupting
+ * a task running in userspace, and saves an IPI.
+ */
+#define IORING_SETUP_COOP_TASKRUN	(1U << 8)
+/*
+ * If COOP_TASKRUN is set, get notified if task work is available for
+ * running and a kernel transition would be needed to run it. This sets
+ * IORING_SQ_TASKRUN in the sq ring flags. Not valid with COOP_TASKRUN.
+ */
+#define IORING_SETUP_TASKRUN_FLAG	(1U << 9)
+#define IORING_SETUP_SQE128		(1U << 10) /* SQEs are 128 byte */
+#define IORING_SETUP_CQE32		(1U << 11) /* CQEs are 32 byte */
+/*
+ * Only one task is allowed to submit requests
+ */
+#define IORING_SETUP_SINGLE_ISSUER	(1U << 12)
 
-enum {
+/*
+ * Defer running task work to get events.
+ * Rather than running bits of task work whenever the task transitions
+ * try to do it just before it is needed.
+ */
+#define IORING_SETUP_DEFER_TASKRUN	(1U << 13)
+
+enum io_uring_op {
 	IORING_OP_NOP,
 	IORING_OP_READV,
 	IORING_OP_WRITEV,
@@ -145,10 +207,26 @@ enum {
 	IORING_OP_SYMLINKAT,
 	IORING_OP_LINKAT,
 	IORING_OP_MSG_RING,
+	IORING_OP_FSETXATTR,
+	IORING_OP_SETXATTR,
+	IORING_OP_FGETXATTR,
+	IORING_OP_GETXATTR,
+	IORING_OP_SOCKET,
+	IORING_OP_URING_CMD,
+	IORING_OP_SEND_ZC,
+	IORING_OP_SENDMSG_ZC,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
 };
+
+/*
+ * sqe->uring_cmd_flags
+ * IORING_URING_CMD_FIXED	use registered buffer; pass this flag
+ *				along with setting sqe->buf_index.
+ */
+#define IORING_URING_CMD_FIXED	(1U << 0)
+
 
 /*
  * sqe->fsync_flags
@@ -182,10 +260,67 @@ enum {
  *
  * IORING_POLL_UPDATE		Update existing poll request, matching
  *				sqe->addr as the old user_data field.
+ *
+ * IORING_POLL_LEVEL		Level triggered poll.
  */
 #define IORING_POLL_ADD_MULTI	(1U << 0)
 #define IORING_POLL_UPDATE_EVENTS	(1U << 1)
 #define IORING_POLL_UPDATE_USER_DATA	(1U << 2)
+#define IORING_POLL_ADD_LEVEL		(1U << 3)
+
+/*
+ * ASYNC_CANCEL flags.
+ *
+ * IORING_ASYNC_CANCEL_ALL	Cancel all requests that match the given key
+ * IORING_ASYNC_CANCEL_FD	Key off 'fd' for cancelation rather than the
+ *				request 'user_data'
+ * IORING_ASYNC_CANCEL_ANY	Match any request
+ * IORING_ASYNC_CANCEL_FD_FIXED	'fd' passed in is a fixed descriptor
+ */
+#define IORING_ASYNC_CANCEL_ALL	(1U << 0)
+#define IORING_ASYNC_CANCEL_FD	(1U << 1)
+#define IORING_ASYNC_CANCEL_ANY	(1U << 2)
+#define IORING_ASYNC_CANCEL_FD_FIXED	(1U << 3)
+
+/*
+ * send/sendmsg and recv/recvmsg flags (sqe->ioprio)
+ *
+ * IORING_RECVSEND_POLL_FIRST	If set, instead of first attempting to send
+ *				or receive and arm poll if that yields an
+ *				-EAGAIN result, arm poll upfront and skip
+ *				the initial transfer attempt.
+ *
+ * IORING_RECV_MULTISHOT	Multishot recv. Sets IORING_CQE_F_MORE if
+ *				the handler will continue to report
+ *				CQEs on behalf of the same SQE.
+ *
+ * IORING_RECVSEND_FIXED_BUF	Use registered buffers, the index is stored in
+ *				the buf_index field.
+ */
+#define IORING_RECVSEND_POLL_FIRST	(1U << 0)
+#define IORING_RECV_MULTISHOT		(1U << 1)
+#define IORING_RECVSEND_FIXED_BUF	(1U << 2)
+
+/*
+ * accept flags stored in sqe->ioprio
+ */
+#define IORING_ACCEPT_MULTISHOT	(1U << 0)
+
+/*
+ * IORING_OP_MSG_RING command types, stored in sqe->addr
+ */
+enum {
+	IORING_MSG_DATA,	/* pass sqe->len as 'res' and off as user_data */
+	IORING_MSG_SEND_FD,	/* send a registered fd to another ring */
+};
+
+/*
+ * IORING_OP_MSG_RING flags (sqe->msg_ring_flags)
+ *
+ * IORING_MSG_RING_CQE_SKIP	Don't post a CQE to the target ring. Not
+ *				applicable for IORING_MSG_DATA, obviously.
+ */
+#define IORING_MSG_RING_CQE_SKIP	(1U << 0)
 
 /*
  * IO completion data structure (Completion Queue Entry)
@@ -194,6 +329,12 @@ struct io_uring_cqe {
 	__u64	user_data;	/* sqe->data submission passed back */
 	__s32	res;		/* result code for this event */
 	__u32	flags;
+
+	/*
+	 * If the ring is initialized with IORING_SETUP_CQE32, then this field
+	 * contains 16-bytes of padding, doubling the size of the CQE.
+	 */
+	__u64 big_cqe[];
 };
 
 /*
@@ -201,9 +342,14 @@ struct io_uring_cqe {
  *
  * IORING_CQE_F_BUFFER	If set, the upper 16 bits are the buffer ID
  * IORING_CQE_F_MORE	If set, parent SQE will generate more CQE entries
+ * IORING_CQE_F_SOCK_NONEMPTY	If set, more data to read after socket recv
+ * IORING_CQE_F_NOTIF	Set for notification CQEs. Can be used to distinct
+ * 			them from sends.
  */
 #define IORING_CQE_F_BUFFER		(1U << 0)
 #define IORING_CQE_F_MORE		(1U << 1)
+#define IORING_CQE_F_SOCK_NONEMPTY	(1U << 2)
+#define IORING_CQE_F_NOTIF		(1U << 3)
 
 enum {
 	IORING_CQE_BUFFER_SHIFT		= 16,
@@ -236,6 +382,7 @@ struct io_sqring_offsets {
  */
 #define IORING_SQ_NEED_WAKEUP	(1U << 0) /* needs io_uring_enter wakeup */
 #define IORING_SQ_CQ_OVERFLOW	(1U << 1) /* CQ ring is overflown */
+#define IORING_SQ_TASKRUN	(1U << 2) /* task should enter the kernel */
 
 struct io_cqring_offsets {
 	__u32 head;
@@ -333,6 +480,16 @@ enum {
 	IORING_REGISTER_RING_FDS		= 20,
 	IORING_UNREGISTER_RING_FDS		= 21,
 
+	/* register ring based provide buffer group */
+	IORING_REGISTER_PBUF_RING		= 22,
+	IORING_UNREGISTER_PBUF_RING		= 23,
+
+	/* sync cancelation API */
+	IORING_REGISTER_SYNC_CANCEL		= 24,
+
+	/* register a range of fixed file slots for automatic slot allocation */
+	IORING_REGISTER_FILE_ALLOC_RANGE	= 25,
+
 	/* this goes last */
 	IORING_REGISTER_LAST
 };
@@ -350,9 +507,15 @@ struct io_uring_files_update {
 	__aligned_u64 /* __s32 * */ fds;
 };
 
+/*
+ * Register a fully sparse file space, rather than pass in an array of all
+ * -1 file descriptors.
+ */
+#define IORING_RSRC_REGISTER_SPARSE	(1U << 0)
+
 struct io_uring_rsrc_register {
 	__u32 nr;
-	__u32 resv;
+	__u32 flags;
 	__u64 resv2;
 	__aligned_u64 data;
 	__aligned_u64 tags;
@@ -373,6 +536,19 @@ struct io_uring_rsrc_update2 {
 	__u32 resv2;
 };
 
+struct io_uring_notification_slot {
+	__u64 tag;
+	__u64 resv[3];
+};
+
+struct io_uring_notification_register {
+	__u32 nr_slots;
+	__u32 resv;
+	__u64 resv2;
+	__u64 data;
+	__u64 resv3;
+};
+
 /* Skip updating fd indexes set to this value in the fd table */
 #define IORING_REGISTER_FILES_SKIP	(-2)
 
@@ -390,7 +566,7 @@ struct io_uring_probe {
 	__u8 ops_len;	/* length of ops[] array below */
 	__u16 resv;
 	__u32 resv2[3];
-	struct io_uring_probe_op ops[0];
+	struct io_uring_probe_op ops[];
 };
 
 struct io_uring_restriction {
@@ -402,6 +578,38 @@ struct io_uring_restriction {
 	};
 	__u8 resv;
 	__u32 resv2[3];
+};
+
+struct io_uring_buf {
+	__u64	addr;
+	__u32	len;
+	__u16	bid;
+	__u16	resv;
+};
+
+struct io_uring_buf_ring {
+	union {
+		/*
+		 * To avoid spilling into more pages than we need to, the
+		 * ring tail is overlaid with the io_uring_buf->resv field.
+		 */
+		struct {
+			__u64	resv1;
+			__u32	resv2;
+			__u16	resv3;
+			__u16	tail;
+		};
+		struct io_uring_buf	bufs[0];
+	};
+};
+
+/* argument for IORING_(UN)REGISTER_PBUF_RING */
+struct io_uring_buf_reg {
+	__u64	ring_addr;
+	__u32	ring_entries;
+	__u16	bgid;
+	__u16	pad;
+	__u64	resv[3];
 };
 
 /*
@@ -429,5 +637,37 @@ struct io_uring_getevents_arg {
 	__u32	pad;
 	__u64	ts;
 };
+
+/*
+ * Argument for IORING_REGISTER_SYNC_CANCEL
+ */
+struct io_uring_sync_cancel_reg {
+	__u64				addr;
+	__s32				fd;
+	__u32				flags;
+	struct __kernel_timespec	timeout;
+	__u64				pad[4];
+};
+
+/*
+ * Argument for IORING_REGISTER_FILE_ALLOC_RANGE
+ * The range is specified as [off, off + len)
+ */
+struct io_uring_file_index_range {
+	__u32	off;
+	__u32	len;
+	__u64	resv;
+};
+
+struct io_uring_recvmsg_out {
+	__u32 namelen;
+	__u32 controllen;
+	__u32 payloadlen;
+	__u32 flags;
+};
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

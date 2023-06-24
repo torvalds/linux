@@ -7,7 +7,7 @@
 #include "../include/usb_ops_linux.h"
 #include "../include/rtl8188e_recv.h"
 
-unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
+static unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 {
 	unsigned int pipe = 0, ep_num = 0;
 	struct usb_device *pusbd = pdvobj->pusbdev;
@@ -106,8 +106,7 @@ u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)pxmitbuf->priv_data;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
-	if ((padapter->bDriverStopped) || (padapter->bSurpriseRemoved) ||
-	    (padapter->pwrctrlpriv.pnp_bstop_trx)) {
+	if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
 		goto exit;
 	}
@@ -141,7 +140,7 @@ u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 
 	spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 
-	purb	= pxmitbuf->pxmit_urb[0];
+	purb	= pxmitbuf->pxmit_urb;
 
 	/* translate DMA FIFO addr to pipehandle */
 	pipe = ffaddr2pipehdl(pdvobj, addr);
@@ -179,25 +178,21 @@ exit:
 
 void rtw_write_port_cancel(struct adapter *padapter)
 {
-	int i, j;
+	int i;
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)padapter->xmitpriv.pxmitbuf;
 
 	padapter->bWritePortCancel = true;
 
 	for (i = 0; i < NR_XMITBUFF; i++) {
-		for (j = 0; j < 8; j++) {
-			if (pxmitbuf->pxmit_urb[j])
-				usb_kill_urb(pxmitbuf->pxmit_urb[j]);
-		}
+		if (pxmitbuf->pxmit_urb)
+			usb_kill_urb(pxmitbuf->pxmit_urb);
 		pxmitbuf++;
 	}
 
 	pxmitbuf = (struct xmit_buf *)padapter->xmitpriv.pxmit_extbuf;
 	for (i = 0; i < NR_XMIT_EXTBUFF; i++) {
-		for (j = 0; j < 8; j++) {
-			if (pxmitbuf->pxmit_urb[j])
-				usb_kill_urb(pxmitbuf->pxmit_urb[j]);
-		}
+		if (pxmitbuf->pxmit_urb)
+			usb_kill_urb(pxmitbuf->pxmit_urb);
 		pxmitbuf++;
 	}
 }

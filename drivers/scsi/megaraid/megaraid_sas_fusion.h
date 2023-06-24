@@ -942,7 +942,7 @@ struct MR_FW_RAID_MAP {
 	u8                  reserved2[7];
 	struct MR_ARRAY_INFO       arMapInfo[MAX_RAIDMAP_ARRAYS];
 	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
-	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+	struct MR_LD_SPAN_MAP      ldSpanMap[];
 };
 
 struct IO_REQUEST_INFO {
@@ -1053,7 +1053,7 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 	struct MR_RAID_MAP_DESC_TABLE
 			raid_map_desc_table[RAID_MAP_DESC_TYPE_COUNT];
 	/* Variable Size buffer containing all data */
-	u32 raid_map_desc_data[1];
+	u32 raid_map_desc_data[];
 }; /* Dynamicaly sized RAID MAp structure */
 
 #define IEEE_SGE_FLAGS_ADDR_MASK            (0x03)
@@ -1148,7 +1148,7 @@ typedef struct LOG_BLOCK_SPAN_INFO {
 
 struct MR_FW_RAID_MAP_ALL {
 	struct MR_FW_RAID_MAP raidMap;
-	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
+	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES];
 } __attribute__ ((packed));
 
 struct MR_DRV_RAID_MAP {
@@ -1182,7 +1182,7 @@ struct MR_DRV_RAID_MAP {
 		devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES_DYN];
 	u16 ldTgtIdToLd[MAX_LOGICAL_DRIVES_DYN];
 	struct MR_ARRAY_INFO arMapInfo[MAX_API_ARRAYS_DYN];
-	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+	struct MR_LD_SPAN_MAP      ldSpanMap[];
 
 };
 
@@ -1193,7 +1193,7 @@ struct MR_DRV_RAID_MAP {
 struct MR_DRV_RAID_MAP_ALL {
 
 	struct MR_DRV_RAID_MAP raidMap;
-	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN - 1];
+	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN];
 } __packed;
 
 
@@ -1249,7 +1249,7 @@ struct MR_PD_CFG_SEQ {
 struct MR_PD_CFG_SEQ_NUM_SYNC {
 	__le32 size;
 	__le32 count;
-	struct MR_PD_CFG_SEQ seq[1];
+	struct MR_PD_CFG_SEQ seq[];
 } __packed;
 
 /* stream detection */

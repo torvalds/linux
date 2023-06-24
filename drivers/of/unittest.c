@@ -1602,7 +1602,7 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, devptr);
 
-	devptr->chip.of_node = pdev->dev.of_node;
+	devptr->chip.fwnode = dev_fwnode(&pdev->dev);
 	devptr->chip.label = "of-unittest-gpio";
 	devptr->chip.base = -1; /* dynamic allocation */
 	devptr->chip.ngpio = 5;
@@ -1611,7 +1611,7 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add_data(&devptr->chip, NULL);
 
 	unittest(!ret,
-		 "gpiochip_add_data() for node @%pOF failed, ret = %d\n", devptr->chip.of_node, ret);
+		 "gpiochip_add_data() for node @%pfw failed, ret = %d\n", devptr->chip.fwnode, ret);
 
 	if (!ret)
 		unittest_gpio_probe_pass_count++;
@@ -1620,20 +1620,19 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 
 static int unittest_gpio_remove(struct platform_device *pdev)
 {
-	struct unittest_gpio_dev *gdev = platform_get_drvdata(pdev);
+	struct unittest_gpio_dev *devptr = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for node @%pfw\n", __func__, devptr->chip.fwnode);
 
-	if (!gdev)
+	if (!devptr)
 		return -EINVAL;
 
-	if (gdev->chip.base != -1)
-		gpiochip_remove(&gdev->chip);
+	if (devptr->chip.base != -1)
+		gpiochip_remove(&devptr->chip);
 
 	platform_set_drvdata(pdev, NULL);
-	kfree(gdev);
+	kfree(devptr);
 
 	return 0;
 }
@@ -2466,7 +2465,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	adap = &std->adap;
 	i2c_set_adapdata(adap, std);
 	adap->nr = -1;
-	strlcpy(adap->name, pdev->name, sizeof(adap->name));
+	strscpy(adap->name, pdev->name, sizeof(adap->name));
 	adap->class = I2C_CLASS_DEPRECATED;
 	adap->algo = &unittest_i2c_algo;
 	adap->dev.parent = dev;
@@ -2525,13 +2524,12 @@ static int unittest_i2c_dev_probe(struct i2c_client *client,
 	return 0;
 };
 
-static int unittest_i2c_dev_remove(struct i2c_client *client)
+static void unittest_i2c_dev_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = client->dev.of_node;
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
-	return 0;
 }
 
 static const struct i2c_device_id unittest_i2c_dev_id[] = {
@@ -2602,7 +2600,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 	return 0;
 };
 
-static int unittest_i2c_mux_remove(struct i2c_client *client)
+static void unittest_i2c_mux_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = client->dev.of_node;
@@ -2610,7 +2608,6 @@ static int unittest_i2c_mux_remove(struct i2c_client *client)
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	i2c_mux_del_adapters(muxc);
-	return 0;
 }
 
 static const struct i2c_device_id unittest_i2c_mux_id[] = {
@@ -2741,6 +2738,195 @@ static inline void of_unittest_overlay_i2c_15(void) { }
 
 #endif
 
+static int of_notify(struct notifier_block *nb, unsigned long action,
+		     void *arg)
+{
+	struct of_overlay_notify_data *nd = arg;
+	struct device_node *found;
+	int ret;
+
+	/*
+	 * For overlay_16 .. overlay_19, check that returning an error
+	 * works for each of the actions by setting an arbitrary return
+	 * error number that matches the test number.  e.g. for unittest16,
+	 * ret = -EBUSY which is -16.
+	 *
+	 * OVERLAY_INFO() for the overlays is declared to expect the same
+	 * error number, so overlay_data_apply() will return no error.
+	 *
+	 * overlay_20 will return NOTIFY_DONE
+	 */
+
+	ret = 0;
+	of_node_get(nd->overlay);
+
+	switch (action) {
+
+	case OF_OVERLAY_PRE_APPLY:
+		found = of_find_node_by_name(nd->overlay, "test-unittest16");
+		if (found) {
+			of_node_put(found);
+			ret = -EBUSY;
+		}
+		break;
+
+	case OF_OVERLAY_POST_APPLY:
+		found = of_find_node_by_name(nd->overlay, "test-unittest17");
+		if (found) {
+			of_node_put(found);
+			ret = -EEXIST;
+		}
+		break;
+
+	case OF_OVERLAY_PRE_REMOVE:
+		found = of_find_node_by_name(nd->overlay, "test-unittest18");
+		if (found) {
+			of_node_put(found);
+			ret = -EXDEV;
+		}
+		break;
+
+	case OF_OVERLAY_POST_REMOVE:
+		found = of_find_node_by_name(nd->overlay, "test-unittest19");
+		if (found) {
+			of_node_put(found);
+			ret = -ENODEV;
+		}
+		break;
+
+	default:			/* should not happen */
+		of_node_put(nd->overlay);
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		return notifier_from_errno(ret);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block of_nb = {
+	.notifier_call = of_notify,
+};
+
+static void __init of_unittest_overlay_notify(void)
+{
+	int ovcs_id;
+	int ret;
+
+	ret = of_overlay_notifier_register(&of_nb);
+	unittest(!ret,
+		 "of_overlay_notifier_register() failed, ret = %d\n", ret);
+	if (ret)
+		return;
+
+	/*
+	 * The overlays are applied by overlay_data_apply()
+	 * instead of of_unittest_apply_overlay() so that they
+	 * will not be tracked.  Thus they will not be removed
+	 * by of_unittest_remove_tracked_overlays().
+	 *
+	 * Applying overlays 16 - 19 will each trigger an error for a
+	 * different action in of_notify().
+	 *
+	 * Applying overlay 20 will not trigger any error in of_notify().
+	 */
+
+	/* ---  overlay 16  --- */
+
+	EXPECT_BEGIN(KERN_INFO, "OF: overlay: overlay changeset pre-apply notifier error -16, target: /testcase-data/overlay-node/test-bus");
+
+	unittest(overlay_data_apply("overlay_16", &ovcs_id),
+		 "test OF_OVERLAY_PRE_APPLY notify injected error\n");
+
+	EXPECT_END(KERN_INFO, "OF: overlay: overlay changeset pre-apply notifier error -16, target: /testcase-data/overlay-node/test-bus");
+
+	unittest(ovcs_id, "ovcs_id not created for overlay_16\n");
+
+	/* ---  overlay 17  --- */
+
+	EXPECT_BEGIN(KERN_INFO, "OF: overlay: overlay changeset post-apply notifier error -17, target: /testcase-data/overlay-node/test-bus");
+
+	unittest(overlay_data_apply("overlay_17", &ovcs_id),
+		 "test OF_OVERLAY_POST_APPLY notify injected error\n");
+
+	EXPECT_END(KERN_INFO, "OF: overlay: overlay changeset post-apply notifier error -17, target: /testcase-data/overlay-node/test-bus");
+
+	unittest(ovcs_id, "ovcs_id not created for overlay_17\n");
+
+	if (ovcs_id) {
+		ret = of_overlay_remove(&ovcs_id);
+		unittest(!ret,
+			"overlay_17 of_overlay_remove(), ret = %d\n", ret);
+	}
+
+	/* ---  overlay 18  --- */
+
+	unittest(overlay_data_apply("overlay_18", &ovcs_id),
+		 "OF_OVERLAY_PRE_REMOVE notify injected error\n");
+
+	unittest(ovcs_id, "ovcs_id not created for overlay_18\n");
+
+	if (ovcs_id) {
+		EXPECT_BEGIN(KERN_INFO, "OF: overlay: overlay changeset pre-remove notifier error -18, target: /testcase-data/overlay-node/test-bus");
+
+		ret = of_overlay_remove(&ovcs_id);
+		EXPECT_END(KERN_INFO, "OF: overlay: overlay changeset pre-remove notifier error -18, target: /testcase-data/overlay-node/test-bus");
+		if (ret == -EXDEV) {
+			/*
+			 * change set ovcs_id should still exist
+			 */
+			unittest(1, "overlay_18 of_overlay_remove() injected error for OF_OVERLAY_PRE_REMOVE\n");
+		} else {
+			unittest(0, "overlay_18 of_overlay_remove() injected error for OF_OVERLAY_PRE_REMOVE not returned\n");
+		}
+	} else {
+		unittest(1, "ovcs_id not created for overlay_18\n");
+	}
+
+	unittest(ovcs_id, "ovcs_id removed for overlay_18\n");
+
+	/* ---  overlay 19  --- */
+
+	unittest(overlay_data_apply("overlay_19", &ovcs_id),
+		 "OF_OVERLAY_POST_REMOVE notify injected error\n");
+
+	unittest(ovcs_id, "ovcs_id not created for overlay_19\n");
+
+	if (ovcs_id) {
+		EXPECT_BEGIN(KERN_INFO, "OF: overlay: overlay changeset post-remove notifier error -19, target: /testcase-data/overlay-node/test-bus");
+		ret = of_overlay_remove(&ovcs_id);
+		EXPECT_END(KERN_INFO, "OF: overlay: overlay changeset post-remove notifier error -19, target: /testcase-data/overlay-node/test-bus");
+		if (ret == -ENODEV)
+			unittest(1, "overlay_19 of_overlay_remove() injected error for OF_OVERLAY_POST_REMOVE\n");
+		else
+			unittest(0, "overlay_19 of_overlay_remove() injected error for OF_OVERLAY_POST_REMOVE not returned\n");
+	} else {
+		unittest(1, "ovcs_id removed for overlay_19\n");
+	}
+
+	unittest(!ovcs_id, "changeset ovcs_id = %d not removed for overlay_19\n",
+		 ovcs_id);
+
+	/* ---  overlay 20  --- */
+
+	unittest(overlay_data_apply("overlay_20", &ovcs_id),
+		 "overlay notify no injected error\n");
+
+	if (ovcs_id) {
+		ret = of_overlay_remove(&ovcs_id);
+		if (ret)
+			unittest(1, "overlay_20 failed to be destroyed, ret = %d\n",
+				 ret);
+	} else {
+		unittest(1, "ovcs_id not created for overlay_20\n");
+	}
+
+	unittest(!of_overlay_notifier_unregister(&of_nb),
+		 "of_overlay_notifier_unregister() failed, ret = %d\n", ret);
+}
+
 static void __init of_unittest_overlay(void)
 {
 	struct device_node *bus_np = NULL;
@@ -2804,6 +2990,8 @@ static void __init of_unittest_overlay(void)
 
 	of_unittest_remove_tracked_overlays();
 
+	of_unittest_overlay_notify();
+
 out:
 	of_node_put(bus_np);
 }
@@ -2855,6 +3043,11 @@ OVERLAY_INFO_EXTERN(overlay_11);
 OVERLAY_INFO_EXTERN(overlay_12);
 OVERLAY_INFO_EXTERN(overlay_13);
 OVERLAY_INFO_EXTERN(overlay_15);
+OVERLAY_INFO_EXTERN(overlay_16);
+OVERLAY_INFO_EXTERN(overlay_17);
+OVERLAY_INFO_EXTERN(overlay_18);
+OVERLAY_INFO_EXTERN(overlay_19);
+OVERLAY_INFO_EXTERN(overlay_20);
 OVERLAY_INFO_EXTERN(overlay_gpio_01);
 OVERLAY_INFO_EXTERN(overlay_gpio_02a);
 OVERLAY_INFO_EXTERN(overlay_gpio_02b);
@@ -2885,6 +3078,11 @@ static struct overlay_info overlays[] = {
 	OVERLAY_INFO(overlay_12, 0),
 	OVERLAY_INFO(overlay_13, 0),
 	OVERLAY_INFO(overlay_15, 0),
+	OVERLAY_INFO(overlay_16, -EBUSY),
+	OVERLAY_INFO(overlay_17, -EEXIST),
+	OVERLAY_INFO(overlay_18, 0),
+	OVERLAY_INFO(overlay_19, 0),
+	OVERLAY_INFO(overlay_20, 0),
 	OVERLAY_INFO(overlay_gpio_01, 0),
 	OVERLAY_INFO(overlay_gpio_02a, 0),
 	OVERLAY_INFO(overlay_gpio_02b, 0),
@@ -3266,6 +3464,9 @@ static int __init of_unittest(void)
 	int res;
 
 	pr_info("start of unittest - you will see error messages\n");
+
+	/* Taint the kernel so we know we've run tests. */
+	add_taint(TAINT_TEST, LOCKDEP_STILL_OK);
 
 	/* adding data for unittest */
 

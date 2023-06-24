@@ -65,9 +65,6 @@
 #define	check_bo_null_return_void(bo)	\
 	check_null_return_void(bo, "NULL hmm buffer object.\n")
 
-#define	HMM_MAX_ORDER		3
-#define	HMM_MIN_ORDER		0
-
 #define	ISP_VM_START	0x0
 #define	ISP_VM_SIZE	(0x7FFFFFFF)	/* 2G address space */
 #define	ISP_PTR_NULL	NULL
@@ -76,15 +73,8 @@
 
 enum hmm_bo_type {
 	HMM_BO_PRIVATE,
-	HMM_BO_SHARE,
 	HMM_BO_USER,
 	HMM_BO_LAST,
-};
-
-enum hmm_page_type {
-	HMM_PAGE_TYPE_RESERVED,
-	HMM_PAGE_TYPE_DYNAMIC,
-	HMM_PAGE_TYPE_GENERAL,
 };
 
 #define	HMM_BO_MASK		0x1
@@ -96,8 +86,6 @@ enum hmm_page_type {
 #define	HMM_BO_VMAPED		0x10
 #define	HMM_BO_VMAPED_CACHED	0x20
 #define	HMM_BO_ACTIVE		0x1000
-#define	HMM_BO_MEM_TYPE_USER     0x1
-#define	HMM_BO_MEM_TYPE_PFN      0x2
 
 struct hmm_bo_device {
 	struct isp_mmu		mmu;
@@ -121,11 +109,6 @@ struct hmm_bo_device {
 	struct kmem_cache *bo_cache;
 };
 
-struct hmm_page_object {
-	struct page		*page;
-	enum hmm_page_type	type;
-};
-
 struct hmm_buffer_object {
 	struct hmm_bo_device	*bdev;
 	struct list_head	list;
@@ -136,11 +119,8 @@ struct hmm_buffer_object {
 	/* mutex protecting this BO */
 	struct mutex		mutex;
 	enum hmm_bo_type	type;
-	struct hmm_page_object	*page_obj;	/* physical pages */
-	int		from_highmem;
 	int		mmap_count;
 	int		status;
-	int		mem_type;
 	void		*vmap_addr; /* kernel virtual address by vmap */
 
 	struct rb_node	node;
@@ -218,32 +198,18 @@ void hmm_bo_ref(struct hmm_buffer_object *bo);
  */
 void hmm_bo_unref(struct hmm_buffer_object *bo);
 
-/*
- * allocate/free physical pages for the bo. will try to alloc mem
- * from highmem if from_highmem is set, and type indicate that the
- * pages will be allocated by using video driver (for share buffer)
- * or by ISP driver itself.
- */
-
 int hmm_bo_allocated(struct hmm_buffer_object *bo);
 
 /*
- * allocate/free physical pages for the bo. will try to alloc mem
- * from highmem if from_highmem is set, and type indicate that the
+ * Allocate/Free physical pages for the bo. Type indicates if the
  * pages will be allocated by using video driver (for share buffer)
  * or by ISP driver itself.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
-		       enum hmm_bo_type type, int from_highmem,
-		       const void __user *userptr, bool cached);
+		       enum hmm_bo_type type,
+		       const void __user *userptr);
 void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
-
-/*
- * get physical page info of the bo.
- */
-int hmm_bo_get_page_info(struct hmm_buffer_object *bo,
-			 struct hmm_page_object **page_obj, int *pgnr);
 
 /*
  * bind/unbind the physical pages to a virtual address space.
@@ -279,9 +245,6 @@ void hmm_bo_vunmap(struct hmm_buffer_object *bo);
  */
 int hmm_bo_mmap(struct vm_area_struct *vma,
 		struct hmm_buffer_object *bo);
-
-extern struct hmm_pool	dynamic_pool;
-extern struct hmm_pool	reserved_pool;
 
 /*
  * find the buffer object by its virtual address vaddr.

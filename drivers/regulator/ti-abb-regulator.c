@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Texas Instruments SoC Adaptive Body Bias(ABB) Regulator
  *
@@ -7,15 +8,6 @@
  * Copyright (C) 2012-2013 Texas Instruments, Inc.
  * Andrii Tseglytskyi <andrii.tseglytskyi@ti.com>
  * Nishanth Menon <nm@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -159,7 +151,7 @@ static inline void ti_abb_clear_txdone(const struct ti_abb *abb)
 };
 
 /**
- * ti_abb_wait_tranx() - waits for ABB tranxdone event
+ * ti_abb_wait_txdone() - waits for ABB tranxdone event
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
@@ -309,7 +301,7 @@ out:
  *
  * Return: 0 on success or appropriate error value when fails
  */
-static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
+static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
 	const struct regulator_desc *desc = rdev->desc;
 	struct ti_abb *abb = rdev_get_drvdata(rdev);
@@ -344,7 +336,7 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
 
 	info = &abb->info[sel];
 	/*
-	 * When Linux kernel is starting up, we are'nt sure of the
+	 * When Linux kernel is starting up, we aren't sure of the
 	 * Bias configuration that bootloader has configured.
 	 * So, we get to know the actual setting the first time
 	 * we are asked to transition.

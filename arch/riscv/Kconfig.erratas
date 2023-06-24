@@ -1,18 +1,9 @@
 menu "CPU errata selection"
 
-config RISCV_ERRATA_ALTERNATIVE
-	bool "RISC-V alternative scheme"
-	depends on !XIP_KERNEL
-	default y
-	help
-	  This Kconfig allows the kernel to automatically patch the
-	  errata required by the execution platform at run time. The
-	  code patching is performed once in the boot stages. It means
-	  that the overhead from this mechanism is just taken once.
-
 config ERRATA_SIFIVE
 	bool "SiFive errata"
-	depends on RISCV_ERRATA_ALTERNATIVE
+	depends on !XIP_KERNEL
+	select RISCV_ALTERNATIVE
 	help
 	  All SiFive errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all SiFive errata. Please say "Y"
@@ -42,4 +33,37 @@ config ERRATA_SIFIVE_CIP_1200
 
 	  If you don't know what to do here, say "Y".
 
-endmenu
+config ERRATA_THEAD
+	bool "T-HEAD errata"
+	depends on !XIP_KERNEL
+	select RISCV_ALTERNATIVE
+	help
+	  All T-HEAD errata Kconfig depend on this Kconfig. Disabling
+	  this Kconfig will disable all T-HEAD errata. Please say "Y"
+	  here if your platform uses T-HEAD CPU cores.
+
+	  Otherwise, please say "N" here to avoid unnecessary overhead.
+
+config ERRATA_THEAD_PBMT
+	bool "Apply T-Head memory type errata"
+	depends on ERRATA_THEAD && 64BIT && MMU
+	select RISCV_ALTERNATIVE_EARLY
+	default y
+	help
+	  This will apply the memory type errata to handle the non-standard
+	  memory type bits in page-table-entries on T-Head SoCs.
+
+	  If you don't know what to do here, say "Y".
+
+config ERRATA_THEAD_CMO
+	bool "Apply T-Head cache management errata"
+	depends on ERRATA_THEAD && MMU
+	select RISCV_DMA_NONCOHERENT
+	default y
+	help
+	  This will apply the cache management errata to handle the
+	  non-standard handling on non-coherent operations on T-Head SoCs.
+
+	  If you don't know what to do here, say "Y".
+
+endmenu # "CPU errata selection"

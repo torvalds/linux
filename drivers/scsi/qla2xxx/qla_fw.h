@@ -807,7 +807,7 @@ struct els_entry_24xx {
 #define EPD_ELS_COMMAND		(0 << 13)
 #define EPD_ELS_ACC		(1 << 13)
 #define EPD_ELS_RJT		(2 << 13)
-#define EPD_RX_XCHG		(3 << 13)
+#define EPD_RX_XCHG		(3 << 13)  /* terminate exchange */
 #define ECF_CLR_PASSTHRU_PEND	BIT_12
 #define ECF_INCL_FRAME_HDR	BIT_11
 #define ECF_SEC_LOGIN		BIT_3
@@ -1675,6 +1675,7 @@ struct qla_flt_location {
 #define FLT_REG_VPD_SEC_27XX_1	0x52
 #define FLT_REG_VPD_SEC_27XX_2	0xD8
 #define FLT_REG_VPD_SEC_27XX_3	0xDA
+#define FLT_REG_NVME_PARAMS_27XX	0x21
 
 /* 28xx */
 #define FLT_REG_AUX_IMG_PRI_28XX	0x125
@@ -1691,6 +1692,8 @@ struct qla_flt_location {
 #define FLT_REG_MPI_SEC_28XX		0xF0
 #define FLT_REG_PEP_PRI_28XX		0xD1
 #define FLT_REG_PEP_SEC_28XX		0xF1
+#define FLT_REG_NVME_PARAMS_PRI_28XX	0x14E
+#define FLT_REG_NVME_PARAMS_SEC_28XX	0x179
 
 struct qla_flt_region {
 	__le16	code;

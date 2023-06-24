@@ -750,6 +750,13 @@ static const struct of_device_id mse102x_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, mse102x_match_table);
 
+static const struct spi_device_id mse102x_ids[] = {
+	{ "mse1021" },
+	{ "mse1022" },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, mse102x_ids);
+
 static struct spi_driver mse102x_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -758,10 +765,11 @@ static struct spi_driver mse102x_driver = {
 	},
 	.probe = mse102x_probe_spi,
 	.remove = mse102x_remove_spi,
+	.id_table = mse102x_ids,
 };
 module_spi_driver(mse102x_driver);
 
 MODULE_DESCRIPTION("MSE102x Network driver");
-MODULE_AUTHOR("Stefan Wahren <stefan.wahren@in-tech.com>");
+MODULE_AUTHOR("Stefan Wahren <stefan.wahren@chargebyte.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:" DRV_NAME);

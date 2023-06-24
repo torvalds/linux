@@ -114,6 +114,14 @@
 #define OVERFLOW_STACK_SIZE	SZ_4K
 
 /*
+ * With the minimum frame size of [x29, x30], exactly half the combined
+ * sizes of the hyp and overflow stacks is the maximum size needed to
+ * save the unwinded stacktrace; plus an additional entry to delimit the
+ * end.
+ */
+#define NVHE_STACKTRACE_SIZE	((OVERFLOW_STACK_SIZE + PAGE_SIZE) / 2 + sizeof(long))
+
+/*
  * Alignment of kernel segments (e.g. .text, .data).
  *
  *  4 KB granule:  16 level 3 entries, with contiguous bit
@@ -174,7 +182,11 @@
 #include <linux/types.h>
 #include <asm/bug.h>
 
+#if VA_BITS > 48
 extern u64			vabits_actual;
+#else
+#define vabits_actual		((u64)VA_BITS)
+#endif
 
 extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
@@ -351,6 +363,11 @@ static inline void *phys_to_virt(phys_addr_t x)
 })
 
 void dump_mem_limit(void);
+
+static inline bool defer_reserve_crashkernel(void)
+{
+	return IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32);
+}
 #endif /* !ASSEMBLY */
 
 /*
@@ -362,6 +379,15 @@ void dump_mem_limit(void);
  */
 #if defined(CONFIG_EFI) && defined(CONFIG_ARM_GIC_V3_ITS)
 # define INIT_MEMBLOCK_RESERVED_REGIONS	(INIT_MEMBLOCK_REGIONS + NR_CPUS + 1)
+#endif
+
+/*
+ * memory regions which marked with flag MEMBLOCK_NOMAP(for example, the memory
+ * of the EFI_UNUSABLE_MEMORY type) may divide a continuous memory block into
+ * multiple parts. As a result, the number of memory regions is large.
+ */
+#ifdef CONFIG_EFI
+#define INIT_MEMBLOCK_MEMORY_REGIONS	(INIT_MEMBLOCK_REGIONS * 8)
 #endif
 
 #include <asm-generic/memory_model.h>

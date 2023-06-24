@@ -259,9 +259,8 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	u32 i;
 
 	if (!bearer_name_validate(name, &b_names)) {
-		errstr = "illegal name";
 		NL_SET_ERR_MSG(extack, "Illegal name");
-		goto rejected;
+		return res;
 	}
 
 	if (prio > TIPC_MAX_LINK_PRI && prio != TIPC_MEDIA_LINK_PRI) {
@@ -789,7 +788,7 @@ int tipc_attach_loopback(struct net *net)
 	if (!dev)
 		return -ENODEV;
 
-	dev_hold_track(dev, &tn->loopback_pt.dev_tracker, GFP_KERNEL);
+	netdev_hold(dev, &tn->loopback_pt.dev_tracker, GFP_KERNEL);
 	tn->loopback_pt.dev = dev;
 	tn->loopback_pt.type = htons(ETH_P_TIPC);
 	tn->loopback_pt.func = tipc_loopback_rcv_pkt;
@@ -802,7 +801,7 @@ void tipc_detach_loopback(struct net *net)
 	struct tipc_net *tn = tipc_net(net);
 
 	dev_remove_pack(&tn->loopback_pt);
-	dev_put_track(net->loopback_dev, &tn->loopback_pt.dev_tracker);
+	netdev_put(net->loopback_dev, &tn->loopback_pt.dev_tracker);
 }
 
 /* Caller should hold rtnl_lock to protect the bearer */

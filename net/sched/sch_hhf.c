@@ -516,9 +516,6 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 	u32 new_quantum = q->quantum;
 	u32 new_hhf_non_hh_weight = q->hhf_non_hh_weight;
 
-	if (!opt)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_HHF_MAX, opt, hhf_policy,
 					  NULL);
 	if (err < 0)

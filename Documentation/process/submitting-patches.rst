@@ -12,9 +12,8 @@ This document contains a large number of suggestions in a relatively terse
 format.  For detailed information on how the kernel development process
 works, see Documentation/process/development-process.rst. Also, read
 Documentation/process/submit-checklist.rst
-for a list of items to check before submitting code.  If you are submitting
-a driver, also read Documentation/process/submitting-drivers.rst; for device
-tree binding patches, read
+for a list of items to check before submitting code.
+For device tree binding patches, read
 Documentation/devicetree/bindings/submitting-patches.rst.
 
 This documentation assumes that you're using ``git`` to prepare your patches.
@@ -77,7 +76,7 @@ as you intend it to.
 
 The maintainer will thank you if you write your patch description in a
 form which can be easily pulled into Linux's source code management
-system, ``git``, as a "commit log".  See :ref:`explicit_in_reply_to`.
+system, ``git``, as a "commit log".  See :ref:`the_canonical_patch_format`.
 
 Solve only one problem per patch.  If your description starts to get
 long, that's a sign that you probably need to split up your patch.
@@ -227,9 +226,10 @@ Select the recipients for your patch
 You should always copy the appropriate subsystem maintainer(s) on any patch
 to code that they maintain; look through the MAINTAINERS file and the
 source code revision history to see who those maintainers are.  The
-script scripts/get_maintainer.pl can be very useful at this step.  If you
-cannot find a maintainer for the subsystem you are working on, Andrew
-Morton (akpm@linux-foundation.org) serves as a maintainer of last resort.
+script scripts/get_maintainer.pl can be very useful at this step (pass paths to
+your patches as arguments to scripts/get_maintainer.pl).  If you cannot find a
+maintainer for the subsystem you are working on, Andrew Morton
+(akpm@linux-foundation.org) serves as a maintainer of last resort.
 
 You should also normally choose at least one mailing list to receive a copy
 of your patch set.  linux-kernel@vger.kernel.org should be used by default
@@ -318,7 +318,10 @@ understands what is going on.
 Be sure to tell the reviewers what changes you are making and to thank them
 for their time.  Code review is a tiring and time-consuming process, and
 reviewers sometimes get grumpy.  Even in that case, though, respond
-politely and address the problems they have pointed out.
+politely and address the problems they have pointed out.  When sending a next
+version, add a ``patch changelog`` to the cover letter or to individual patches
+explaining difference aganst previous submission (see
+:ref:`the_canonical_patch_format`).
 
 See Documentation/process/email-clients.rst for recommendations on email
 clients and mailing list etiquette.
@@ -712,8 +715,8 @@ references.
 
 .. _backtraces:
 
-Backtraces in commit mesages
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Backtraces in commit messages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Backtraces help document the call chain leading to a problem. However,
 not all backtraces are helpful. For example, early boot call chains are

@@ -18,6 +18,7 @@
  *
  */
 
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +28,23 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
-#define KSYM_NAME_LEN		128
+#define _stringify_1(x)	#x
+#define _stringify(x)	_stringify_1(x)
+
+#define KSYM_NAME_LEN		512
+
+/*
+ * A substantially bigger size than the current maximum.
+ *
+ * It cannot be defined as an expression because it gets stringified
+ * for the fscanf() format string. Therefore, a _Static_assert() is
+ * used instead to maintain the relationship with KSYM_NAME_LEN.
+ */
+#define KSYM_NAME_LEN_BUFFER	2048
+_Static_assert(
+	KSYM_NAME_LEN_BUFFER == KSYM_NAME_LEN * 4,
+	"Please keep KSYM_NAME_LEN_BUFFER in sync with KSYM_NAME_LEN"
+);
 
 struct sym_entry {
 	unsigned long long addr;
@@ -71,9 +88,9 @@ static unsigned char best_table_len[256];
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: kallsyms [--all-symbols] "
+	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] "
 			"[--use-data-section] "
-			"[--base-relative] < in.map > out.S\n");
+			"[--base-relative] in.map > out.S\n");
 	exit(1);
 }
 
@@ -109,17 +126,16 @@ static bool is_ignored_symbol(const char *name, char type)
 
 	/* Symbol names that begin with the following are ignored.*/
 	static const char * const ignored_prefixes[] = {
-		"$",			/* local symbols for ARM, MIPS, etc. */
-		".L",			/* local labels, .LBB,.Ltmpxxx,.L__unnamed_xx,.LASANPC, etc. */
-		"__crc_",		/* modversions */
 		"__efistub_",		/* arm64 EFI stub namespace */
-		"__kvm_nvhe_",		/* arm64 non-VHE KVM namespace */
+		"__kvm_nvhe_$",		/* arm64 local symbols in non-VHE KVM namespace */
+		"__kvm_nvhe_.L",	/* arm64 local symbols in non-VHE KVM namespace */
 		"__AArch64ADRPThunk_",	/* arm64 lld */
 		"__ARMV5PILongThunk_",	/* arm lld */
 		"__ARMV7PILongThunk_",
 		"__ThumbV7PILongThunk_",
 		"__LA25Thunk_",		/* mips lld */
 		"__microLA25Thunk_",
+		"__kcfi_typeid_",	/* CFI type identifiers */
 		NULL
 	};
 
@@ -199,15 +215,15 @@ static void check_symbol_range(const char *sym, unsigned long long addr,
 
 static struct sym_entry *read_symbol(FILE *in)
 {
-	char name[500], type;
+	char name[KSYM_NAME_LEN_BUFFER+1], type;
 	unsigned long long addr;
 	unsigned int len;
 	struct sym_entry *sym;
 	int rc;
 
-	rc = fscanf(in, "%llx %c %499s\n", &addr, &type, name);
+	rc = fscanf(in, "%llx %c %" _stringify(KSYM_NAME_LEN_BUFFER) "s\n", &addr, &type, name);
 	if (rc != 3) {
-		if (rc != EOF && fgets(name, 500, in) == NULL)
+		if (rc != EOF && fgets(name, ARRAY_SIZE(name), in) == NULL)
 			fprintf(stderr, "Read error or end of file.\n");
 		return NULL;
 	}
@@ -314,12 +330,19 @@ static void shrink_table(void)
 	}
 }
 
-static void read_map(FILE *in)
+static void read_map(const char *in)
 {
+	FILE *fp;
 	struct sym_entry *sym;
 
-	while (!feof(in)) {
-		sym = read_symbol(in);
+	fp = fopen(in, "r");
+	if (!fp) {
+		perror(in);
+		exit(1);
+	}
+
+	while (!feof(fp)) {
+		sym = read_symbol(fp);
 		if (!sym)
 			continue;
 
@@ -330,12 +353,15 @@ static void read_map(FILE *in)
 			table = realloc(table, sizeof(*table) * table_size);
 			if (!table) {
 				fprintf(stderr, "out of memory\n");
+				fclose(fp);
 				exit (1);
 			}
 		}
 
 		table[table_cnt++] = sym;
 	}
+
+	fclose(fp);
 }
 
 static void output_label(const char *label)
@@ -475,12 +501,35 @@ static void write_src(void)
 		if ((i & 0xFF) == 0)
 			markers[i >> 8] = off;
 
-		printf("\t.byte 0x%02x", table[i]->len);
+		/* There cannot be any symbol of length zero. */
+		if (table[i]->len == 0) {
+			fprintf(stderr, "kallsyms failure: "
+				"unexpected zero symbol length\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/* Only lengths that fit in up-to-two-byte ULEB128 are supported. */
+		if (table[i]->len > 0x3FFF) {
+			fprintf(stderr, "kallsyms failure: "
+				"unexpected huge symbol length\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/* Encode length with ULEB128. */
+		if (table[i]->len <= 0x7F) {
+			/* Most symbols use a single byte for the length. */
+			printf("\t.byte 0x%02x", table[i]->len);
+			off += table[i]->len + 1;
+		} else {
+			/* "Big" symbols use two bytes. */
+			printf("\t.byte 0x%02x, 0x%02x",
+				(table[i]->len & 0x7F) | 0x80,
+				(table[i]->len >> 7) & 0x7F);
+			off += table[i]->len + 2;
+		}
 		for (k = 0; k < table[i]->len; k++)
 			printf(", 0x%02x", table[i]->sym[k]);
 		printf("\n");
-
-		off += table[i]->len + 1;
 	}
 	printf("\n");
 
@@ -769,24 +818,27 @@ static void record_relative_base(void)
 
 int main(int argc, char **argv)
 {
-	if (argc >= 2) {
-		int i;
-		for (i = 1; i < argc; i++) {
-			if(strcmp(argv[i], "--all-symbols") == 0)
-				all_symbols = 1;
-			else if (strcmp(argv[i], "--absolute-percpu") == 0)
-				absolute_percpu = 1;
-			else if (strcmp(argv[i], "--use-data-section") == 0)
-				use_data_section = 1;
-			else if (strcmp(argv[i], "--base-relative") == 0)
-				base_relative = 1;
-			else
-				usage();
-		}
-	} else if (argc != 1)
+	while (1) {
+		static struct option long_options[] = {
+			{"all-symbols",     no_argument, &all_symbols,     1},
+			{"absolute-percpu", no_argument, &absolute_percpu, 1},
+			{"use-data-section", no_argument, &use_data_section, 1},
+			{"base-relative",   no_argument, &base_relative,   1},
+			{},
+		};
+
+		int c = getopt_long(argc, argv, "", long_options, NULL);
+
+		if (c == -1)
+			break;
+		if (c != 0)
+			usage();
+	}
+
+	if (optind >= argc)
 		usage();
 
-	read_map(stdin);
+	read_map(argv[optind]);
 	shrink_table();
 	if (absolute_percpu)
 		make_percpus_absolute();

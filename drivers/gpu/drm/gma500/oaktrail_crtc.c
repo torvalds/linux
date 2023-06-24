@@ -8,6 +8,7 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "framebuffer.h"
 #include "gem.h"
@@ -309,7 +310,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 						   temp & ~PIPEACONF_ENABLE, i);
 				REG_READ_WITH_AUX(map->conf, i);
 			}
-			/* Wait for for the pipe disable to take effect. */
+			/* Wait for the pipe disable to take effect. */
 			gma_wait_for_vblank(dev);
 
 			temp = REG_READ_WITH_AUX(map->dpll, i);
@@ -372,9 +373,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	bool ok, is_sdvo = false;
 	bool is_lvds = false;
 	bool is_mipi = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct gma_encoder *gma_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	int i;
 	int need_aux = gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ? 1 : 0;
@@ -385,14 +386,11 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	memcpy(&gma_crtc->saved_mode,
-		mode,
-		sizeof(struct drm_display_mode));
-	memcpy(&gma_crtc->saved_adjusted_mode,
-		adjusted_mode,
-		sizeof(struct drm_display_mode));
+	drm_mode_copy(&gma_crtc->saved_mode, mode);
+	drm_mode_copy(&gma_crtc->saved_adjusted_mode, adjusted_mode);
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (!connector->encoder || connector->encoder->crtc != crtc)
 			continue;
 
@@ -409,7 +407,15 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 			is_mipi = true;
 			break;
 		}
+
+		break;
 	}
+
+	if (gma_encoder)
+		drm_object_property_get_value(&connector->base,
+			dev->mode_config.scaling_mode_property, &scalingType);
+
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* Disable the VGA plane that we never use */
 	for (i = 0; i <= need_aux; i++)
@@ -423,10 +429,6 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		REG_WRITE_WITH_AUX(map->src, ((mode->crtc_hdisplay - 1) << 16) |
 					     (mode->crtc_vdisplay - 1), i);
 	}
-
-	if (gma_encoder)
-		drm_object_property_get_value(&connector->base,
-			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {
 		/* Moorestown doesn't have register support for centering so

@@ -1809,7 +1809,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	/*
 	 * Three initial passes:
 	 *   - 1/2: Determine clobbered registers
-	 *   - 3:   Calculate program size and addrs arrray
+	 *   - 3:   Calculate program size and addrs array
 	 */
 	for (pass = 1; pass <= 3; pass++) {
 		if (bpf_jit_prog(&jit, fp, extra_pass, stack_depth)) {

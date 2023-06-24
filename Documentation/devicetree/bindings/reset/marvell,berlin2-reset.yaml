@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2015 Antoine Tenart <atenart@kernel.org>
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/reset/marvell,berlin2-reset.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Marvell Berlin reset controller
+
+maintainers:
+  - Antoine Tenart <atenart@kernel.org>
+
+description: The reset controller node must be a sub-node of the chip
+  controller node on Berlin SoCs.
+
+properties:
+  compatible:
+    const: marvell,berlin2-reset
+
+  "#reset-cells":
+    const: 2
+
+required:
+  - compatible
+  - "#reset-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    chip: chip-control@ea0000 {
+        reg = <0xea0000 0x400>;
+
+        chip_rst: reset {
+            compatible = "marvell,berlin2-reset";
+            #reset-cells = <2>;
+        };
+    };

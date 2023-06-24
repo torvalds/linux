@@ -6,8 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
-
-#define MTK_ETH_PPE_BASE		0xc00
+#include <linux/rhashtable.h>
 
 #define MTK_PPE_ENTRIES_SHIFT		3
 #define MTK_PPE_ENTRIES			(1024 << MTK_PPE_ENTRIES_SHIFT)
@@ -33,6 +32,15 @@
 #define MTK_FOE_IB1_UDP			BIT(30)
 #define MTK_FOE_IB1_STATIC		BIT(31)
 
+/* CONFIG_MEDIATEK_NETSYS_V2 */
+#define MTK_FOE_IB1_BIND_TIMESTAMP_V2	GENMASK(7, 0)
+#define MTK_FOE_IB1_BIND_VLAN_LAYER_V2	GENMASK(16, 14)
+#define MTK_FOE_IB1_BIND_PPPOE_V2	BIT(17)
+#define MTK_FOE_IB1_BIND_VLAN_TAG_V2	BIT(18)
+#define MTK_FOE_IB1_BIND_CACHE_V2	BIT(20)
+#define MTK_FOE_IB1_BIND_TTL_V2		BIT(22)
+#define MTK_FOE_IB1_PACKET_TYPE_V2	GENMASK(27, 23)
+
 enum {
 	MTK_PPE_PKT_TYPE_IPV4_HNAPT = 0,
 	MTK_PPE_PKT_TYPE_IPV4_ROUTE = 1,
@@ -48,19 +56,30 @@ enum {
 #define MTK_FOE_IB2_DEST_PORT		GENMASK(7, 5)
 #define MTK_FOE_IB2_MULTICAST		BIT(8)
 
-#define MTK_FOE_IB2_WHNAT_QID2		GENMASK(13, 12)
-#define MTK_FOE_IB2_WHNAT_DEVIDX	BIT(16)
-#define MTK_FOE_IB2_WHNAT_NAT		BIT(17)
+#define MTK_FOE_IB2_WDMA_QID2		GENMASK(13, 12)
+#define MTK_FOE_IB2_WDMA_DEVIDX		BIT(16)
+#define MTK_FOE_IB2_WDMA_WINFO		BIT(17)
 
 #define MTK_FOE_IB2_PORT_MG		GENMASK(17, 12)
 
+#define MTK_FOE_IB2_RX_IDX		GENMASK(18, 17)
 #define MTK_FOE_IB2_PORT_AG		GENMASK(23, 18)
 
 #define MTK_FOE_IB2_DSCP		GENMASK(31, 24)
 
-#define MTK_FOE_VLAN2_WHNAT_BSS		GEMMASK(5, 0)
-#define MTK_FOE_VLAN2_WHNAT_WCID	GENMASK(13, 6)
-#define MTK_FOE_VLAN2_WHNAT_RING	GENMASK(15, 14)
+/* CONFIG_MEDIATEK_NETSYS_V2 */
+#define MTK_FOE_IB2_PORT_MG_V2		BIT(7)
+#define MTK_FOE_IB2_DEST_PORT_V2	GENMASK(12, 9)
+#define MTK_FOE_IB2_MULTICAST_V2	BIT(13)
+#define MTK_FOE_IB2_WDMA_WINFO_V2	BIT(19)
+#define MTK_FOE_IB2_PORT_AG_V2		GENMASK(23, 20)
+
+#define MTK_FOE_VLAN2_WINFO_BSS		GENMASK(5, 0)
+#define MTK_FOE_VLAN2_WINFO_WCID	GENMASK(13, 6)
+#define MTK_FOE_VLAN2_WINFO_RING	GENMASK(15, 14)
+
+#define MTK_FOE_WINFO_BSS		GENMASK(5, 0)
+#define MTK_FOE_WINFO_WCID		GENMASK(15, 6)
 
 enum {
 	MTK_FOE_STATE_INVALID,
@@ -82,21 +101,21 @@ struct mtk_foe_mac_info {
 
 	u16 pppoe_id;
 	u16 src_mac_lo;
+
+	u16 minfo;
+	u16 winfo;
 };
 
+/* software-only entry type */
 struct mtk_foe_bridge {
-	u32 dest_mac_hi;
+	u8 dest_mac[ETH_ALEN];
+	u8 src_mac[ETH_ALEN];
+	u16 vlan;
 
-	u16 src_mac_lo;
-	u16 dest_mac_lo;
-
-	u32 src_mac_hi;
+	struct {} key_end;
 
 	u32 ib2;
 
-	u32 _rsv[5];
-
-	u32 udf_tsid;
 	struct mtk_foe_mac_info l2;
 };
 
@@ -202,7 +221,7 @@ struct mtk_foe_entry {
 		struct mtk_foe_ipv4_dslite dslite;
 		struct mtk_foe_ipv6 ipv6;
 		struct mtk_foe_ipv6_6rd ipv6_6rd;
-		u32 data[19];
+		u32 data[23];
 	};
 };
 
@@ -235,54 +254,106 @@ enum {
 	MTK_PPE_CPU_REASON_INVALID			= 0x1f,
 };
 
+enum {
+	MTK_FLOW_TYPE_L4,
+	MTK_FLOW_TYPE_L2,
+	MTK_FLOW_TYPE_L2_SUBFLOW,
+};
+
+struct mtk_flow_entry {
+	union {
+		struct hlist_node list;
+		struct {
+			struct rhash_head l2_node;
+			struct hlist_head l2_flows;
+		};
+	};
+	u8 type;
+	s8 wed_index;
+	u8 ppe_index;
+	u16 hash;
+	union {
+		struct mtk_foe_entry data;
+		struct {
+			struct mtk_flow_entry *base_flow;
+			struct hlist_node list;
+			struct {} end;
+		} l2_data;
+	};
+	struct rhash_head node;
+	unsigned long cookie;
+};
+
 struct mtk_ppe {
+	struct mtk_eth *eth;
 	struct device *dev;
 	void __iomem *base;
 	int version;
+	char dirname[5];
 
-	struct mtk_foe_entry *foe_table;
+	void *foe_table;
 	dma_addr_t foe_phys;
+
+	u16 foe_check_time[MTK_PPE_ENTRIES];
+	struct hlist_head *foe_flow;
+
+	struct rhashtable l2_flows;
 
 	void *acct_table;
 };
 
-int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
-		 int version);
-int mtk_ppe_start(struct mtk_ppe *ppe);
+struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
+			     int version, int index);
+void mtk_ppe_deinit(struct mtk_eth *eth);
+void mtk_ppe_start(struct mtk_ppe *ppe);
 int mtk_ppe_stop(struct mtk_ppe *ppe);
 
+void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash);
+
 static inline void
-mtk_foe_entry_clear(struct mtk_ppe *ppe, u16 hash)
+mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 {
-	ppe->foe_table[hash].ib1 = 0;
-	dma_wmb();
+	u16 now, diff;
+
+	if (!ppe)
+		return;
+
+	if (hash > MTK_PPE_HASH_MASK)
+		return;
+
+	now = (u16)jiffies;
+	diff = now - ppe->foe_check_time[hash];
+	if (diff < HZ / 10)
+		return;
+
+	ppe->foe_check_time[hash] = now;
+	__mtk_ppe_check_skb(ppe, skb, hash);
 }
 
-static inline int
-mtk_foe_entry_timestamp(struct mtk_ppe *ppe, u16 hash)
-{
-	u32 ib1 = READ_ONCE(ppe->foe_table[hash].ib1);
-
-	if (FIELD_GET(MTK_FOE_IB1_STATE, ib1) != MTK_FOE_STATE_BIND)
-		return -1;
-
-	return FIELD_GET(MTK_FOE_IB1_BIND_TIMESTAMP, ib1);
-}
-
-int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
-			  u8 pse_port, u8 *src_mac, u8 *dest_mac);
-int mtk_foe_entry_set_pse_port(struct mtk_foe_entry *entry, u8 port);
-int mtk_foe_entry_set_ipv4_tuple(struct mtk_foe_entry *entry, bool orig,
+int mtk_foe_entry_prepare(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			  int type, int l4proto, u8 pse_port, u8 *src_mac,
+			  u8 *dest_mac);
+int mtk_foe_entry_set_pse_port(struct mtk_eth *eth,
+			       struct mtk_foe_entry *entry, u8 port);
+int mtk_foe_entry_set_ipv4_tuple(struct mtk_eth *eth,
+				 struct mtk_foe_entry *entry, bool orig,
 				 __be32 src_addr, __be16 src_port,
 				 __be32 dest_addr, __be16 dest_port);
-int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
+int mtk_foe_entry_set_ipv6_tuple(struct mtk_eth *eth,
+				 struct mtk_foe_entry *entry,
 				 __be32 *src_addr, __be16 src_port,
 				 __be32 *dest_addr, __be16 dest_port);
-int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port);
-int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
-int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
-int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
-			 u16 timestamp);
-int mtk_ppe_debugfs_init(struct mtk_ppe *ppe);
+int mtk_foe_entry_set_dsa(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			  int port);
+int mtk_foe_entry_set_vlan(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			   int vid);
+int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			    int sid);
+int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			   int wdma_idx, int txq, int bss, int wcid);
+int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+int mtk_ppe_debugfs_init(struct mtk_ppe *ppe, int index);
 
 #endif

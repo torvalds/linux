@@ -86,7 +86,8 @@
 					ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
 					ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
 					ICP_QAT_CSS_SIGNATURE_LEN(handle))
-#define ICP_QAT_CSS_MAX_IMAGE_LEN   0x40000
+#define ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN    0x40000
+#define ICP_QAT_CSS_RSA3K_MAX_IMAGE_LEN    0x30000
 
 #define ICP_QAT_CTX_MODE(ae_mode) ((ae_mode) & 0xf)
 #define ICP_QAT_NN_MODE(ae_mode) (((ae_mode) >> 0x4) & 0xf)

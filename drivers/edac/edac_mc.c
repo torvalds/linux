@@ -103,7 +103,6 @@ static void edac_mc_dump_dimm(struct dimm_info *dimm)
 	edac_dbg(4, "  dimm->label = '%s'\n", dimm->label);
 	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
 	edac_dbg(4, "  dimm->grain = %d\n", dimm->grain);
-	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
 }
 
 static void edac_mc_dump_csrow(struct csrow_info *csrow)
@@ -170,61 +169,6 @@ const char * const edac_mem_types[] = {
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 
-/**
- * edac_align_ptr - Prepares the pointer offsets for a single-shot allocation
- * @p:		pointer to a pointer with the memory offset to be used. At
- *		return, this will be incremented to point to the next offset
- * @size:	Size of the data structure to be reserved
- * @n_elems:	Number of elements that should be reserved
- *
- * If 'size' is a constant, the compiler will optimize this whole function
- * down to either a no-op or the addition of a constant to the value of '*p'.
- *
- * The 'p' pointer is absolutely needed to keep the proper advancing
- * further in memory to the proper offsets when allocating the struct along
- * with its embedded structs, as edac_device_alloc_ctl_info() does it
- * above, for example.
- *
- * At return, the pointer 'p' will be incremented to be used on a next call
- * to this function.
- */
-void *edac_align_ptr(void **p, unsigned int size, int n_elems)
-{
-	unsigned int align, r;
-	void *ptr = *p;
-
-	*p += size * n_elems;
-
-	/*
-	 * 'p' can possibly be an unaligned item X such that sizeof(X) is
-	 * 'size'.  Adjust 'p' so that its alignment is at least as
-	 * stringent as what the compiler would provide for X and return
-	 * the aligned result.
-	 * Here we assume that the alignment of a "long long" is the most
-	 * stringent alignment that the compiler will ever provide by default.
-	 * As far as I know, this is a reasonable assumption.
-	 */
-	if (size > sizeof(long))
-		align = sizeof(long long);
-	else if (size > sizeof(int))
-		align = sizeof(long);
-	else if (size > sizeof(short))
-		align = sizeof(int);
-	else if (size > sizeof(char))
-		align = sizeof(short);
-	else
-		return ptr;
-
-	r = (unsigned long)ptr % align;
-
-	if (r == 0)
-		return ptr;
-
-	*p += align - r;
-
-	return (void *)(((unsigned long)ptr) + align - r);
-}
-
 static void _edac_mc_free(struct mem_ctl_info *mci)
 {
 	put_device(&mci->dev);
@@ -257,6 +201,8 @@ static void mci_release(struct device *dev)
 		}
 		kfree(mci->csrows);
 	}
+	kfree(mci->pvt_info);
+	kfree(mci->layers);
 	kfree(mci);
 }
 
@@ -392,9 +338,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
-	unsigned int idx, size, tot_dimms = 1;
+	unsigned int idx, tot_dimms = 1;
 	unsigned int tot_csrows = 1, tot_channels = 1;
-	void *pvt, *ptr = NULL;
 	bool per_rank = false;
 
 	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
@@ -416,41 +361,25 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 			per_rank = true;
 	}
 
-	/* Figure out the offsets of the various items from the start of an mc
-	 * structure.  We want the alignment of each item to be at least as
-	 * stringent as what the compiler would provide if we could simply
-	 * hardcode everything into a single struct.
-	 */
-	mci	= edac_align_ptr(&ptr, sizeof(*mci), 1);
-	layer	= edac_align_ptr(&ptr, sizeof(*layer), n_layers);
-	pvt	= edac_align_ptr(&ptr, sz_pvt, 1);
-	size	= ((unsigned long)pvt) + sz_pvt;
-
-	edac_dbg(1, "allocating %u bytes for mci data (%d %s, %d csrows/channels)\n",
-		 size,
-		 tot_dimms,
-		 per_rank ? "ranks" : "dimms",
-		 tot_csrows * tot_channels);
-
-	mci = kzalloc(size, GFP_KERNEL);
-	if (mci == NULL)
+	mci = kzalloc(sizeof(struct mem_ctl_info), GFP_KERNEL);
+	if (!mci)
 		return NULL;
+
+	mci->layers = kcalloc(n_layers, sizeof(struct edac_mc_layer), GFP_KERNEL);
+	if (!mci->layers)
+		goto error;
+
+	mci->pvt_info = kzalloc(sz_pvt, GFP_KERNEL);
+	if (!mci->pvt_info)
+		goto error;
 
 	mci->dev.release = mci_release;
 	device_initialize(&mci->dev);
 
-	/* Adjust pointers so they point within the memory we just allocated
-	 * rather than an imaginary chunk of memory located at address 0.
-	 */
-	layer = (struct edac_mc_layer *)(((char *)mci) + ((unsigned long)layer));
-	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
-
 	/* setup index and various internal pointers */
 	mci->mc_idx = mc_num;
 	mci->tot_dimms = tot_dimms;
-	mci->pvt_info = pvt;
 	mci->n_layers = n_layers;
-	mci->layers = layer;
 	memcpy(mci->layers, layers, sizeof(*layer) * n_layers);
 	mci->nr_csrows = tot_csrows;
 	mci->num_cschannel = tot_channels;

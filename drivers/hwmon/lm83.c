@@ -24,10 +24,8 @@
 #include <linux/init.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 /*
  * Addresses to scan
@@ -414,7 +412,7 @@ static int lm83_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

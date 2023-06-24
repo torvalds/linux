@@ -91,6 +91,7 @@
 #include <uapi/linux/mount.h>
 #include <linux/fsnotify.h>
 #include <linux/fanotify.h>
+#include <linux/io_uring.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -145,7 +146,7 @@ static int __init checkreqprot_setup(char *str)
 	if (!kstrtoul(str, 0, &checkreqprot)) {
 		selinux_checkreqprot_boot = checkreqprot ? 1 : 0;
 		if (checkreqprot)
-			pr_warn("SELinux: checkreqprot set to 1 via kernel parameter.  This is deprecated and will be rejected in a future kernel release.\n");
+			pr_err("SELinux: checkreqprot set to 1 via kernel parameter.  This is deprecated and will be rejected in a future kernel release.\n");
 	}
 	return 1;
 }
@@ -640,7 +641,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 * we need to skip the double mount verification.
 	 *
 	 * This does open a hole in which we will not notice if the first
-	 * mount using this sb set explict options and a second mount using
+	 * mount using this sb set explicit options and a second mount using
 	 * this sb does not set any security options.  (The first options
 	 * will be used for both mounts)
 	 */
@@ -944,10 +945,12 @@ out:
 	return rc;
 }
 
+/*
+ * NOTE: the caller is resposible for freeing the memory even if on error.
+ */
 static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct selinux_mnt_opts *opts = *mnt_opts;
-	bool is_alloc_opts = false;
 	u32 *dst_sid;
 	int rc;
 
@@ -955,7 +958,7 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 		/* eaten and completely ignored */
 		return 0;
 	if (!s)
-		return -ENOMEM;
+		return -EINVAL;
 
 	if (!selinux_initialized(&selinux_state)) {
 		pr_warn("SELinux: Unable to set superblock options before the security server is initialized\n");
@@ -967,7 +970,6 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 		if (!opts)
 			return -ENOMEM;
 		*mnt_opts = opts;
-		is_alloc_opts = true;
 	}
 
 	switch (token) {
@@ -1002,10 +1004,6 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 	return rc;
 
 err:
-	if (is_alloc_opts) {
-		kfree(opts);
-		*mnt_opts = NULL;
-	}
 	pr_warn(SEL_MOUNT_FAIL_MSG);
 	return -EINVAL;
 }
@@ -1019,7 +1017,7 @@ static int show_sid(struct seq_file *m, u32 sid)
 	rc = security_sid_to_context(&selinux_state, sid,
 					     &context, &len);
 	if (!rc) {
-		bool has_comma = context && strchr(context, ',');
+		bool has_comma = strchr(context, ',');
 
 		seq_putc(m, '=');
 		if (has_comma)
@@ -2600,8 +2598,9 @@ static int selinux_sb_eat_lsm_opts(char *options, void **mnt_opts)
 				}
 			}
 			rc = selinux_add_opt(token, arg, mnt_opts);
+			kfree(arg);
+			arg = NULL;
 			if (unlikely(rc)) {
-				kfree(arg);
 				goto free_opt;
 			}
 		} else {
@@ -2792,17 +2791,13 @@ static int selinux_fs_context_parse_param(struct fs_context *fc,
 					  struct fs_parameter *param)
 {
 	struct fs_parse_result result;
-	int opt, rc;
+	int opt;
 
 	opt = fs_parse(fc, selinux_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
-	rc = selinux_add_opt(opt, param->string, &fc->security);
-	if (!rc)
-		param->string = NULL;
-
-	return rc;
+	return selinux_add_opt(opt, param->string, &fc->security);
 }
 
 /* inode security operations */
@@ -2964,8 +2959,8 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 	 * allowed to actually create this type of anonymous inode.
 	 */
 
-	ad.type = LSM_AUDIT_DATA_INODE;
-	ad.u.inode = inode;
+	ad.type = LSM_AUDIT_DATA_ANONINODE;
+	ad.u.anonclass = name ? (const char *)name->name : "?";
 
 	return avc_has_perm(&selinux_state,
 			    tsec->sid,
@@ -4225,6 +4220,14 @@ static void selinux_task_to_inode(struct task_struct *p,
 	isec->sid = sid;
 	isec->initialized = LABEL_INITIALIZED;
 	spin_unlock(&isec->lock);
+}
+
+static int selinux_userns_create(const struct cred *cred)
+{
+	u32 sid = current_sid();
+
+	return avc_has_perm(&selinux_state, sid, sid, SECCLASS_USER_NAMESPACE,
+						USER_NAMESPACE__CREATE, NULL);
 }
 
 /* Returns error only if unable to parse addresses */
@@ -5992,7 +5995,6 @@ static int selinux_msg_queue_alloc_security(struct kern_ipc_perm *msq)
 	struct ipc_security_struct *isec;
 	struct common_audit_data ad;
 	u32 sid = current_sid();
-	int rc;
 
 	isec = selinux_ipc(msq);
 	ipc_init_security(isec, SECCLASS_MSGQ);
@@ -6000,10 +6002,9 @@ static int selinux_msg_queue_alloc_security(struct kern_ipc_perm *msq)
 	ad.type = LSM_AUDIT_DATA_IPC;
 	ad.u.ipc_id = msq->key;
 
-	rc = avc_has_perm(&selinux_state,
-			  sid, isec->sid, SECCLASS_MSGQ,
-			  MSGQ__CREATE, &ad);
-	return rc;
+	return avc_has_perm(&selinux_state,
+			    sid, isec->sid, SECCLASS_MSGQ,
+			    MSGQ__CREATE, &ad);
 }
 
 static int selinux_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
@@ -6131,7 +6132,6 @@ static int selinux_shm_alloc_security(struct kern_ipc_perm *shp)
 	struct ipc_security_struct *isec;
 	struct common_audit_data ad;
 	u32 sid = current_sid();
-	int rc;
 
 	isec = selinux_ipc(shp);
 	ipc_init_security(isec, SECCLASS_SHM);
@@ -6139,10 +6139,9 @@ static int selinux_shm_alloc_security(struct kern_ipc_perm *shp)
 	ad.type = LSM_AUDIT_DATA_IPC;
 	ad.u.ipc_id = shp->key;
 
-	rc = avc_has_perm(&selinux_state,
-			  sid, isec->sid, SECCLASS_SHM,
-			  SHM__CREATE, &ad);
-	return rc;
+	return avc_has_perm(&selinux_state,
+			    sid, isec->sid, SECCLASS_SHM,
+			    SHM__CREATE, &ad);
 }
 
 static int selinux_shm_associate(struct kern_ipc_perm *shp, int shmflg)
@@ -6216,7 +6215,6 @@ static int selinux_sem_alloc_security(struct kern_ipc_perm *sma)
 	struct ipc_security_struct *isec;
 	struct common_audit_data ad;
 	u32 sid = current_sid();
-	int rc;
 
 	isec = selinux_ipc(sma);
 	ipc_init_security(isec, SECCLASS_SEM);
@@ -6224,10 +6222,9 @@ static int selinux_sem_alloc_security(struct kern_ipc_perm *sma)
 	ad.type = LSM_AUDIT_DATA_IPC;
 	ad.u.ipc_id = sma->key;
 
-	rc = avc_has_perm(&selinux_state,
-			  sid, isec->sid, SECCLASS_SEM,
-			  SEM__CREATE, &ad);
-	return rc;
+	return avc_has_perm(&selinux_state,
+			    sid, isec->sid, SECCLASS_SEM,
+			    SEM__CREATE, &ad);
 }
 
 static int selinux_sem_associate(struct kern_ipc_perm *sma, int semflg)
@@ -6333,7 +6330,7 @@ static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
 }
 
 static int selinux_getprocattr(struct task_struct *p,
-			       char *name, char **value)
+			       const char *name, char **value)
 {
 	const struct task_security_struct *__tsec;
 	u32 sid;
@@ -6487,7 +6484,6 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
 			goto abort_change;
 
 		/* Only allow single threaded processes to change context */
-		error = -EPERM;
 		if (!current_is_single_threaded()) {
 			error = security_bounded_transition(&selinux_state,
 							    tsec->sid, sid);
@@ -6796,7 +6792,7 @@ static u32 bpf_map_fmode_to_av(fmode_t fmode)
 }
 
 /* This function will check the file pass through unix socket or binder to see
- * if it is a bpf related object. And apply correspinding checks on the bpf
+ * if it is a bpf related object. And apply corresponding checks on the bpf
  * object based on the type. The bpf maps and programs, not like other files and
  * socket, are using a shared anonymous inode inside the kernel as their inode.
  * So checking that inode cannot identify if the process have privilege to
@@ -6994,6 +6990,28 @@ static int selinux_uring_sqpoll(void)
 	return avc_has_perm(&selinux_state, sid, sid,
 			    SECCLASS_IO_URING, IO_URING__SQPOLL, NULL);
 }
+
+/**
+ * selinux_uring_cmd - check if IORING_OP_URING_CMD is allowed
+ * @ioucmd: the io_uring command structure
+ *
+ * Check to see if the current domain is allowed to execute an
+ * IORING_OP_URING_CMD against the device/file specified in @ioucmd.
+ *
+ */
+static int selinux_uring_cmd(struct io_uring_cmd *ioucmd)
+{
+	struct file *file = ioucmd->file;
+	struct inode *inode = file_inode(file);
+	struct inode_security_struct *isec = selinux_inode(inode);
+	struct common_audit_data ad;
+
+	ad.type = LSM_AUDIT_DATA_FILE;
+	ad.u.file = file;
+
+	return avc_has_perm(&selinux_state, current_sid(), isec->sid,
+			    SECCLASS_IO_URING, IO_URING__CMD, &ad);
+}
 #endif /* CONFIG_IO_URING */
 
 /*
@@ -7118,6 +7136,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(task_movememory, selinux_task_movememory),
 	LSM_HOOK_INIT(task_kill, selinux_task_kill),
 	LSM_HOOK_INIT(task_to_inode, selinux_task_to_inode),
+	LSM_HOOK_INIT(userns_create, selinux_userns_create),
 
 	LSM_HOOK_INIT(ipc_permission, selinux_ipc_permission),
 	LSM_HOOK_INIT(ipc_getsecid, selinux_ipc_getsecid),
@@ -7238,6 +7257,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 #ifdef CONFIG_IO_URING
 	LSM_HOOK_INIT(uring_override_creds, selinux_uring_override_creds),
 	LSM_HOOK_INIT(uring_sqpoll, selinux_uring_sqpoll),
+	LSM_HOOK_INIT(uring_cmd, selinux_uring_cmd),
 #endif
 
 	/*
@@ -7294,6 +7314,8 @@ static __init int selinux_init(void)
 
 	memset(&selinux_state, 0, sizeof(selinux_state));
 	enforcing_set(&selinux_state, selinux_enforcing_boot);
+	if (CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE)
+		pr_err("SELinux: CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE is non-zero.  This is deprecated and will be rejected in a future kernel release.\n");
 	checkreqprot_set(&selinux_state, selinux_checkreqprot_boot);
 	selinux_avc_init(&selinux_state.avc);
 	mutex_init(&selinux_state.status_lock);

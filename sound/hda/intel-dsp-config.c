@@ -196,6 +196,12 @@ static const struct config_entry config_table[] = {
 					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
 				}
 			},
+			{
+				.ident = "UP-WHL",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
+				}
+			},
 			{}
 		}
 	},
@@ -315,6 +321,11 @@ static const struct config_entry config_table[] = {
 		}
 	},
 	{
+		.flags = FLAG_SOF,
+		.device = 0x34c8,
+		.codec_hid =  &essx_83x6,
+	},
+	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x34c8,
 	},
@@ -356,6 +367,12 @@ static const struct config_entry config_table[] = {
 				.ident = "Google Chromebooks",
 				.matches = {
 					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{
+				.ident = "UPX-TGL",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
 				}
 			},
 			{}
@@ -402,6 +419,11 @@ static const struct config_entry config_table[] = {
 	},
 	/* Alderlake-P */
 	{
+		.flags = FLAG_SOF,
+		.device = 0x51c8,
+		.codec_hid =  &essx_83x6,
+	},
+	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x51c8,
 	},
@@ -410,6 +432,11 @@ static const struct config_entry config_table[] = {
 		.device = 0x51cd,
 	},
 	/* Alderlake-PS */
+	{
+		.flags = FLAG_SOF,
+		.device = 0x51c9,
+		.codec_hid =  &essx_83x6,
+	},
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x51c9,
@@ -432,6 +459,16 @@ static const struct config_entry config_table[] = {
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x51cb,
+	},
+	/* RaptorLake-M */
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = 0x51ce,
+	},
+	/* RaptorLake-PX */
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = 0x51cf,
 	},
 #endif
 

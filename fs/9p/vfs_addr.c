@@ -58,23 +58,35 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
  */
 static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
+	struct inode *inode = file_inode(file);
+	struct v9fs_inode *v9inode = V9FS_I(inode);
 	struct p9_fid *fid = file->private_data;
 
-	refcount_inc(&fid->count);
+	BUG_ON(!fid);
+
+	/* we might need to read from a fid that was opened write-only
+	 * for read-modify-write of page cache, use the writeback fid
+	 * for that */
+	if (rreq->origin == NETFS_READ_FOR_WRITE &&
+			(fid->mode & O_ACCMODE) == O_WRONLY) {
+		fid = v9inode->writeback_fid;
+		BUG_ON(!fid);
+	}
+
+	p9_fid_get(fid);
 	rreq->netfs_priv = fid;
 	return 0;
 }
 
 /**
- * v9fs_req_cleanup - Cleanup request initialized by v9fs_init_request
- * @mapping: unused mapping of request to cleanup
- * @priv: private data to cleanup, a fid, guaranted non-null.
+ * v9fs_free_request - Cleanup request initialized by v9fs_init_rreq
+ * @rreq: The I/O request to clean up
  */
-static void v9fs_req_cleanup(struct address_space *mapping, void *priv)
+static void v9fs_free_request(struct netfs_io_request *rreq)
 {
-	struct p9_fid *fid = priv;
+	struct p9_fid *fid = rreq->netfs_priv;
 
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 }
 
 /**
@@ -94,35 +106,34 @@ static int v9fs_begin_cache_operation(struct netfs_io_request *rreq)
 
 const struct netfs_request_ops v9fs_req_ops = {
 	.init_request		= v9fs_init_request,
+	.free_request		= v9fs_free_request,
 	.begin_cache_operation	= v9fs_begin_cache_operation,
 	.issue_read		= v9fs_issue_read,
-	.cleanup		= v9fs_req_cleanup,
 };
 
 /**
- * v9fs_release_page - release the private state associated with a page
- * @page: The page to be released
+ * v9fs_release_folio - release the private state associated with a folio
+ * @folio: The folio to be released
  * @gfp: The caller's allocation restrictions
  *
- * Returns 1 if the page can be released, false otherwise.
+ * Returns true if the page can be released, false otherwise.
  */
 
-static int v9fs_release_page(struct page *page, gfp_t gfp)
+static bool v9fs_release_folio(struct folio *folio, gfp_t gfp)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio_inode(folio);
 
 	if (folio_test_private(folio))
-		return 0;
+		return false;
 #ifdef CONFIG_9P_FSCACHE
 	if (folio_test_fscache(folio)) {
 		if (current_is_kswapd() || !(gfp & __GFP_FS))
-			return 0;
+			return false;
 		folio_wait_fscache(folio);
 	}
 #endif
 	fscache_note_page_release(v9fs_inode_cookie(V9FS_I(inode)));
-	return 1;
+	return true;
 }
 
 static void v9fs_invalidate_folio(struct folio *folio, size_t offset,
@@ -141,7 +152,7 @@ static void v9fs_write_to_cache_done(void *priv, ssize_t transferred_or_error,
 	    transferred_or_error != -ENOBUFS) {
 		version = cpu_to_le32(v9inode->qid.version);
 		fscache_invalidate(v9fs_inode_cookie(v9inode), &version,
-				   i_size_read(&v9inode->vfs_inode), 0);
+				   i_size_read(&v9inode->netfs.inode), 0);
 	}
 }
 
@@ -260,7 +271,7 @@ v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
-			    loff_t pos, unsigned int len, unsigned int flags,
+			    loff_t pos, unsigned int len,
 			    struct page **subpagep, void **fsdata)
 {
 	int retval;
@@ -275,7 +286,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	 * file.  We need to do this before we get a lock on the page in case
 	 * there's more than one writer competing for the same cache block.
 	 */
-	retval = netfs_write_begin(filp, mapping, pos, len, flags, &folio, fsdata);
+	retval = netfs_write_begin(&v9inode->netfs, filp, mapping, pos, len, &folio, fsdata);
 	if (retval < 0)
 		return retval;
 
@@ -336,13 +347,13 @@ static bool v9fs_dirty_folio(struct address_space *mapping, struct folio *folio)
 #endif
 
 const struct address_space_operations v9fs_addr_operations = {
-	.readpage = netfs_readpage,
+	.read_folio = netfs_read_folio,
 	.readahead = netfs_readahead,
 	.dirty_folio = v9fs_dirty_folio,
 	.writepage = v9fs_vfs_writepage,
 	.write_begin = v9fs_write_begin,
 	.write_end = v9fs_write_end,
-	.releasepage = v9fs_release_page,
+	.release_folio = v9fs_release_folio,
 	.invalidate_folio = v9fs_invalidate_folio,
 	.launder_folio = v9fs_launder_folio,
 	.direct_IO = v9fs_direct_IO,

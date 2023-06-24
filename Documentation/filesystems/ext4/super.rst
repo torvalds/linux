@@ -7,7 +7,7 @@ The superblock records various information about the enclosing
 filesystem, such as block counts, inode counts, supported features,
 maintenance information, and more.
 
-If the sparse\_super feature flag is set, redundant copies of the
+If the sparse_super feature flag is set, redundant copies of the
 superblock and group descriptors are kept only in the groups whose group
 number is either 0 or a power of 3, 5, or 7. If the flag is not set,
 redundant copies are kept in all groups.
@@ -27,107 +27,107 @@ The ext4 superblock is laid out as follows in
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - s\_inodes\_count
+     - __le32
+     - s_inodes_count
      - Total inode count.
    * - 0x4
-     - \_\_le32
-     - s\_blocks\_count\_lo
+     - __le32
+     - s_blocks_count_lo
      - Total block count.
    * - 0x8
-     - \_\_le32
-     - s\_r\_blocks\_count\_lo
+     - __le32
+     - s_r_blocks_count_lo
      - This number of blocks can only be allocated by the super-user.
    * - 0xC
-     - \_\_le32
-     - s\_free\_blocks\_count\_lo
+     - __le32
+     - s_free_blocks_count_lo
      - Free block count.
    * - 0x10
-     - \_\_le32
-     - s\_free\_inodes\_count
+     - __le32
+     - s_free_inodes_count
      - Free inode count.
    * - 0x14
-     - \_\_le32
-     - s\_first\_data\_block
+     - __le32
+     - s_first_data_block
      - First data block. This must be at least 1 for 1k-block filesystems and
        is typically 0 for all other block sizes.
    * - 0x18
-     - \_\_le32
-     - s\_log\_block\_size
-     - Block size is 2 ^ (10 + s\_log\_block\_size).
+     - __le32
+     - s_log_block_size
+     - Block size is 2 ^ (10 + s_log_block_size).
    * - 0x1C
-     - \_\_le32
-     - s\_log\_cluster\_size
-     - Cluster size is 2 ^ (10 + s\_log\_cluster\_size) blocks if bigalloc is
-       enabled. Otherwise s\_log\_cluster\_size must equal s\_log\_block\_size.
+     - __le32
+     - s_log_cluster_size
+     - Cluster size is 2 ^ (10 + s_log_cluster_size) blocks if bigalloc is
+       enabled. Otherwise s_log_cluster_size must equal s_log_block_size.
    * - 0x20
-     - \_\_le32
-     - s\_blocks\_per\_group
+     - __le32
+     - s_blocks_per_group
      - Blocks per group.
    * - 0x24
-     - \_\_le32
-     - s\_clusters\_per\_group
+     - __le32
+     - s_clusters_per_group
      - Clusters per group, if bigalloc is enabled. Otherwise
-       s\_clusters\_per\_group must equal s\_blocks\_per\_group.
+       s_clusters_per_group must equal s_blocks_per_group.
    * - 0x28
-     - \_\_le32
-     - s\_inodes\_per\_group
+     - __le32
+     - s_inodes_per_group
      - Inodes per group.
    * - 0x2C
-     - \_\_le32
-     - s\_mtime
+     - __le32
+     - s_mtime
      - Mount time, in seconds since the epoch.
    * - 0x30
-     - \_\_le32
-     - s\_wtime
+     - __le32
+     - s_wtime
      - Write time, in seconds since the epoch.
    * - 0x34
-     - \_\_le16
-     - s\_mnt\_count
+     - __le16
+     - s_mnt_count
      - Number of mounts since the last fsck.
    * - 0x36
-     - \_\_le16
-     - s\_max\_mnt\_count
+     - __le16
+     - s_max_mnt_count
      - Number of mounts beyond which a fsck is needed.
    * - 0x38
-     - \_\_le16
-     - s\_magic
+     - __le16
+     - s_magic
      - Magic signature, 0xEF53
    * - 0x3A
-     - \_\_le16
-     - s\_state
+     - __le16
+     - s_state
      - File system state. See super_state_ for more info.
    * - 0x3C
-     - \_\_le16
-     - s\_errors
+     - __le16
+     - s_errors
      - Behaviour when detecting errors. See super_errors_ for more info.
    * - 0x3E
-     - \_\_le16
-     - s\_minor\_rev\_level
+     - __le16
+     - s_minor_rev_level
      - Minor revision level.
    * - 0x40
-     - \_\_le32
-     - s\_lastcheck
+     - __le32
+     - s_lastcheck
      - Time of last check, in seconds since the epoch.
    * - 0x44
-     - \_\_le32
-     - s\_checkinterval
+     - __le32
+     - s_checkinterval
      - Maximum time between checks, in seconds.
    * - 0x48
-     - \_\_le32
-     - s\_creator\_os
+     - __le32
+     - s_creator_os
      - Creator OS. See the table super_creator_ for more info.
    * - 0x4C
-     - \_\_le32
-     - s\_rev\_level
+     - __le32
+     - s_rev_level
      - Revision level. See the table super_revision_ for more info.
    * - 0x50
-     - \_\_le16
-     - s\_def\_resuid
+     - __le16
+     - s_def_resuid
      - Default uid for reserved blocks.
    * - 0x52
-     - \_\_le16
-     - s\_def\_resgid
+     - __le16
+     - s_def_resgid
      - Default gid for reserved blocks.
    * -
      -
@@ -143,50 +143,50 @@ The ext4 superblock is laid out as follows in
        about a feature in either the compatible or incompatible feature set, it
        must abort and not try to meddle with things it doesn't understand...
    * - 0x54
-     - \_\_le32
-     - s\_first\_ino
+     - __le32
+     - s_first_ino
      - First non-reserved inode.
    * - 0x58
-     - \_\_le16
-     - s\_inode\_size
+     - __le16
+     - s_inode_size
      - Size of inode structure, in bytes.
    * - 0x5A
-     - \_\_le16
-     - s\_block\_group\_nr
+     - __le16
+     - s_block_group_nr
      - Block group # of this superblock.
    * - 0x5C
-     - \_\_le32
-     - s\_feature\_compat
+     - __le32
+     - s_feature_compat
      - Compatible feature set flags. Kernel can still read/write this fs even
        if it doesn't understand a flag; fsck should not do that. See the
        super_compat_ table for more info.
    * - 0x60
-     - \_\_le32
-     - s\_feature\_incompat
+     - __le32
+     - s_feature_incompat
      - Incompatible feature set. If the kernel or fsck doesn't understand one
        of these bits, it should stop. See the super_incompat_ table for more
        info.
    * - 0x64
-     - \_\_le32
-     - s\_feature\_ro\_compat
+     - __le32
+     - s_feature_ro_compat
      - Readonly-compatible feature set. If the kernel doesn't understand one of
        these bits, it can still mount read-only. See the super_rocompat_ table
        for more info.
    * - 0x68
-     - \_\_u8
-     - s\_uuid[16]
+     - __u8
+     - s_uuid[16]
      - 128-bit UUID for volume.
    * - 0x78
      - char
-     - s\_volume\_name[16]
+     - s_volume_name[16]
      - Volume label.
    * - 0x88
      - char
-     - s\_last\_mounted[64]
+     - s_last_mounted[64]
      - Directory where filesystem was last mounted.
    * - 0xC8
-     - \_\_le32
-     - s\_algorithm\_usage\_bitmap
+     - __le32
+     - s_algorithm_usage_bitmap
      - For compression (Not used in e2fsprogs/Linux)
    * -
      -
@@ -194,18 +194,18 @@ The ext4 superblock is laid out as follows in
      - Performance hints.  Directory preallocation should only happen if the
        EXT4_FEATURE_COMPAT_DIR_PREALLOC flag is on.
    * - 0xCC
-     - \_\_u8
-     - s\_prealloc\_blocks
+     - __u8
+     - s_prealloc_blocks
      - #. of blocks to try to preallocate for ... files? (Not used in
        e2fsprogs/Linux)
    * - 0xCD
-     - \_\_u8
-     - s\_prealloc\_dir\_blocks
+     - __u8
+     - s_prealloc_dir_blocks
      - #. of blocks to preallocate for directories. (Not used in
        e2fsprogs/Linux)
    * - 0xCE
-     - \_\_le16
-     - s\_reserved\_gdt\_blocks
+     - __le16
+     - s_reserved_gdt_blocks
      - Number of reserved GDT entries for future filesystem expansion.
    * -
      -
@@ -213,281 +213,281 @@ The ext4 superblock is laid out as follows in
      - Journalling support is valid only if EXT4_FEATURE_COMPAT_HAS_JOURNAL is
        set.
    * - 0xD0
-     - \_\_u8
-     - s\_journal\_uuid[16]
+     - __u8
+     - s_journal_uuid[16]
      - UUID of journal superblock
    * - 0xE0
-     - \_\_le32
-     - s\_journal\_inum
+     - __le32
+     - s_journal_inum
      - inode number of journal file.
    * - 0xE4
-     - \_\_le32
-     - s\_journal\_dev
+     - __le32
+     - s_journal_dev
      - Device number of journal file, if the external journal feature flag is
        set.
    * - 0xE8
-     - \_\_le32
-     - s\_last\_orphan
+     - __le32
+     - s_last_orphan
      - Start of list of orphaned inodes to delete.
    * - 0xEC
-     - \_\_le32
-     - s\_hash\_seed[4]
+     - __le32
+     - s_hash_seed[4]
      - HTREE hash seed.
    * - 0xFC
-     - \_\_u8
-     - s\_def\_hash\_version
+     - __u8
+     - s_def_hash_version
      - Default hash algorithm to use for directory hashes. See super_def_hash_
        for more info.
    * - 0xFD
-     - \_\_u8
-     - s\_jnl\_backup\_type
-     - If this value is 0 or EXT3\_JNL\_BACKUP\_BLOCKS (1), then the
+     - __u8
+     - s_jnl_backup_type
+     - If this value is 0 or EXT3_JNL_BACKUP_BLOCKS (1), then the
        ``s_jnl_blocks`` field contains a duplicate copy of the inode's
        ``i_block[]`` array and ``i_size``.
    * - 0xFE
-     - \_\_le16
-     - s\_desc\_size
+     - __le16
+     - s_desc_size
      - Size of group descriptors, in bytes, if the 64bit incompat feature flag
        is set.
    * - 0x100
-     - \_\_le32
-     - s\_default\_mount\_opts
+     - __le32
+     - s_default_mount_opts
      - Default mount options. See the super_mountopts_ table for more info.
    * - 0x104
-     - \_\_le32
-     - s\_first\_meta\_bg
-     - First metablock block group, if the meta\_bg feature is enabled.
+     - __le32
+     - s_first_meta_bg
+     - First metablock block group, if the meta_bg feature is enabled.
    * - 0x108
-     - \_\_le32
-     - s\_mkfs\_time
+     - __le32
+     - s_mkfs_time
      - When the filesystem was created, in seconds since the epoch.
    * - 0x10C
-     - \_\_le32
-     - s\_jnl\_blocks[17]
+     - __le32
+     - s_jnl_blocks[17]
      - Backup copy of the journal inode's ``i_block[]`` array in the first 15
-       elements and i\_size\_high and i\_size in the 16th and 17th elements,
+       elements and i_size_high and i_size in the 16th and 17th elements,
        respectively.
    * -
      -
      -
      - 64bit support is valid only if EXT4_FEATURE_COMPAT_64BIT is set.
    * - 0x150
-     - \_\_le32
-     - s\_blocks\_count\_hi
+     - __le32
+     - s_blocks_count_hi
      - High 32-bits of the block count.
    * - 0x154
-     - \_\_le32
-     - s\_r\_blocks\_count\_hi
+     - __le32
+     - s_r_blocks_count_hi
      - High 32-bits of the reserved block count.
    * - 0x158
-     - \_\_le32
-     - s\_free\_blocks\_count\_hi
+     - __le32
+     - s_free_blocks_count_hi
      - High 32-bits of the free block count.
    * - 0x15C
-     - \_\_le16
-     - s\_min\_extra\_isize
+     - __le16
+     - s_min_extra_isize
      - All inodes have at least # bytes.
    * - 0x15E
-     - \_\_le16
-     - s\_want\_extra\_isize
+     - __le16
+     - s_want_extra_isize
      - New inodes should reserve # bytes.
    * - 0x160
-     - \_\_le32
-     - s\_flags
+     - __le32
+     - s_flags
      - Miscellaneous flags. See the super_flags_ table for more info.
    * - 0x164
-     - \_\_le16
-     - s\_raid\_stride
+     - __le16
+     - s_raid_stride
      - RAID stride. This is the number of logical blocks read from or written
        to the disk before moving to the next disk. This affects the placement
        of filesystem metadata, which will hopefully make RAID storage faster.
    * - 0x166
-     - \_\_le16
-     - s\_mmp\_interval
+     - __le16
+     - s_mmp_interval
      - #. seconds to wait in multi-mount prevention (MMP) checking. In theory,
        MMP is a mechanism to record in the superblock which host and device
        have mounted the filesystem, in order to prevent multiple mounts. This
        feature does not seem to be implemented...
    * - 0x168
-     - \_\_le64
-     - s\_mmp\_block
+     - __le64
+     - s_mmp_block
      - Block # for multi-mount protection data.
    * - 0x170
-     - \_\_le32
-     - s\_raid\_stripe\_width
+     - __le32
+     - s_raid_stripe_width
      - RAID stripe width. This is the number of logical blocks read from or
        written to the disk before coming back to the current disk. This is used
        by the block allocator to try to reduce the number of read-modify-write
        operations in a RAID5/6.
    * - 0x174
-     - \_\_u8
-     - s\_log\_groups\_per\_flex
+     - __u8
+     - s_log_groups_per_flex
      - Size of a flexible block group is 2 ^ ``s_log_groups_per_flex``.
    * - 0x175
-     - \_\_u8
-     - s\_checksum\_type
+     - __u8
+     - s_checksum_type
      - Metadata checksum algorithm type. The only valid value is 1 (crc32c).
    * - 0x176
-     - \_\_le16
-     - s\_reserved\_pad
+     - __le16
+     - s_reserved_pad
      -
    * - 0x178
-     - \_\_le64
-     - s\_kbytes\_written
+     - __le64
+     - s_kbytes_written
      - Number of KiB written to this filesystem over its lifetime.
    * - 0x180
-     - \_\_le32
-     - s\_snapshot\_inum
+     - __le32
+     - s_snapshot_inum
      - inode number of active snapshot. (Not used in e2fsprogs/Linux.)
    * - 0x184
-     - \_\_le32
-     - s\_snapshot\_id
+     - __le32
+     - s_snapshot_id
      - Sequential ID of active snapshot. (Not used in e2fsprogs/Linux.)
    * - 0x188
-     - \_\_le64
-     - s\_snapshot\_r\_blocks\_count
+     - __le64
+     - s_snapshot_r_blocks_count
      - Number of blocks reserved for active snapshot's future use. (Not used in
        e2fsprogs/Linux.)
    * - 0x190
-     - \_\_le32
-     - s\_snapshot\_list
+     - __le32
+     - s_snapshot_list
      - inode number of the head of the on-disk snapshot list. (Not used in
        e2fsprogs/Linux.)
    * - 0x194
-     - \_\_le32
-     - s\_error\_count
+     - __le32
+     - s_error_count
      - Number of errors seen.
    * - 0x198
-     - \_\_le32
-     - s\_first\_error\_time
+     - __le32
+     - s_first_error_time
      - First time an error happened, in seconds since the epoch.
    * - 0x19C
-     - \_\_le32
-     - s\_first\_error\_ino
+     - __le32
+     - s_first_error_ino
      - inode involved in first error.
    * - 0x1A0
-     - \_\_le64
-     - s\_first\_error\_block
+     - __le64
+     - s_first_error_block
      - Number of block involved of first error.
    * - 0x1A8
-     - \_\_u8
-     - s\_first\_error\_func[32]
+     - __u8
+     - s_first_error_func[32]
      - Name of function where the error happened.
    * - 0x1C8
-     - \_\_le32
-     - s\_first\_error\_line
+     - __le32
+     - s_first_error_line
      - Line number where error happened.
    * - 0x1CC
-     - \_\_le32
-     - s\_last\_error\_time
+     - __le32
+     - s_last_error_time
      - Time of most recent error, in seconds since the epoch.
    * - 0x1D0
-     - \_\_le32
-     - s\_last\_error\_ino
+     - __le32
+     - s_last_error_ino
      - inode involved in most recent error.
    * - 0x1D4
-     - \_\_le32
-     - s\_last\_error\_line
+     - __le32
+     - s_last_error_line
      - Line number where most recent error happened.
    * - 0x1D8
-     - \_\_le64
-     - s\_last\_error\_block
+     - __le64
+     - s_last_error_block
      - Number of block involved in most recent error.
    * - 0x1E0
-     - \_\_u8
-     - s\_last\_error\_func[32]
+     - __u8
+     - s_last_error_func[32]
      - Name of function where the most recent error happened.
    * - 0x200
-     - \_\_u8
-     - s\_mount\_opts[64]
+     - __u8
+     - s_mount_opts[64]
      - ASCIIZ string of mount options.
    * - 0x240
-     - \_\_le32
-     - s\_usr\_quota\_inum
+     - __le32
+     - s_usr_quota_inum
      - Inode number of user `quota <quota>`__ file.
    * - 0x244
-     - \_\_le32
-     - s\_grp\_quota\_inum
+     - __le32
+     - s_grp_quota_inum
      - Inode number of group `quota <quota>`__ file.
    * - 0x248
-     - \_\_le32
-     - s\_overhead\_blocks
+     - __le32
+     - s_overhead_blocks
      - Overhead blocks/clusters in fs. (Huh? This field is always zero, which
        means that the kernel calculates it dynamically.)
    * - 0x24C
-     - \_\_le32
-     - s\_backup\_bgs[2]
-     - Block groups containing superblock backups (if sparse\_super2)
+     - __le32
+     - s_backup_bgs[2]
+     - Block groups containing superblock backups (if sparse_super2)
    * - 0x254
-     - \_\_u8
-     - s\_encrypt\_algos[4]
+     - __u8
+     - s_encrypt_algos[4]
      - Encryption algorithms in use. There can be up to four algorithms in use
        at any time; valid algorithm codes are given in the super_encrypt_ table
        below.
    * - 0x258
-     - \_\_u8
-     - s\_encrypt\_pw\_salt[16]
+     - __u8
+     - s_encrypt_pw_salt[16]
      - Salt for the string2key algorithm for encryption.
    * - 0x268
-     - \_\_le32
-     - s\_lpf\_ino
+     - __le32
+     - s_lpf_ino
      - Inode number of lost+found
    * - 0x26C
-     - \_\_le32
-     - s\_prj\_quota\_inum
+     - __le32
+     - s_prj_quota_inum
      - Inode that tracks project quotas.
    * - 0x270
-     - \_\_le32
-     - s\_checksum\_seed
-     - Checksum seed used for metadata\_csum calculations. This value is
-       crc32c(~0, $orig\_fs\_uuid).
+     - __le32
+     - s_checksum_seed
+     - Checksum seed used for metadata_csum calculations. This value is
+       crc32c(~0, $orig_fs_uuid).
    * - 0x274
-     - \_\_u8
-     - s\_wtime_hi
+     - __u8
+     - s_wtime_hi
      - Upper 8 bits of the s_wtime field.
    * - 0x275
-     - \_\_u8
-     - s\_mtime_hi
+     - __u8
+     - s_mtime_hi
      - Upper 8 bits of the s_mtime field.
    * - 0x276
-     - \_\_u8
-     - s\_mkfs_time_hi
+     - __u8
+     - s_mkfs_time_hi
      - Upper 8 bits of the s_mkfs_time field.
    * - 0x277
-     - \_\_u8
-     - s\_lastcheck_hi
-     - Upper 8 bits of the s_lastcheck_hi field.
+     - __u8
+     - s_lastcheck_hi
+     - Upper 8 bits of the s_lastcheck field.
    * - 0x278
-     - \_\_u8
-     - s\_first_error_time_hi
-     - Upper 8 bits of the s_first_error_time_hi field.
+     - __u8
+     - s_first_error_time_hi
+     - Upper 8 bits of the s_first_error_time field.
    * - 0x279
-     - \_\_u8
-     - s\_last_error_time_hi
-     - Upper 8 bits of the s_last_error_time_hi field.
+     - __u8
+     - s_last_error_time_hi
+     - Upper 8 bits of the s_last_error_time field.
    * - 0x27A
-     - \_\_u8
-     - s\_pad[2]
+     - __u8
+     - s_pad[2]
      - Zero padding.
    * - 0x27C
-     - \_\_le16
-     - s\_encoding
+     - __le16
+     - s_encoding
      - Filename charset encoding.
    * - 0x27E
-     - \_\_le16
-     - s\_encoding_flags
+     - __le16
+     - s_encoding_flags
      - Filename charset encoding flags.
    * - 0x280
-     - \_\_le32
-     - s\_orphan\_file\_inum
+     - __le32
+     - s_orphan_file_inum
      - Orphan file inode number.
    * - 0x284
-     - \_\_le32
-     - s\_reserved[94]
+     - __le32
+     - s_reserved[94]
      - Padding to the end of the block.
    * - 0x3FC
-     - \_\_le32
-     - s\_checksum
+     - __le32
+     - s_checksum
      - Superblock checksum.
 
 .. _super_state:
@@ -574,44 +574,44 @@ following:
    * - Value
      - Description
    * - 0x1
-     - Directory preallocation (COMPAT\_DIR\_PREALLOC).
+     - Directory preallocation (COMPAT_DIR_PREALLOC).
    * - 0x2
      - “imagic inodes”. Not clear from the code what this does
-       (COMPAT\_IMAGIC\_INODES).
+       (COMPAT_IMAGIC_INODES).
    * - 0x4
-     - Has a journal (COMPAT\_HAS\_JOURNAL).
+     - Has a journal (COMPAT_HAS_JOURNAL).
    * - 0x8
-     - Supports extended attributes (COMPAT\_EXT\_ATTR).
+     - Supports extended attributes (COMPAT_EXT_ATTR).
    * - 0x10
      - Has reserved GDT blocks for filesystem expansion
-       (COMPAT\_RESIZE\_INODE). Requires RO\_COMPAT\_SPARSE\_SUPER.
+       (COMPAT_RESIZE_INODE). Requires RO_COMPAT_SPARSE_SUPER.
    * - 0x20
-     - Has directory indices (COMPAT\_DIR\_INDEX).
+     - Has directory indices (COMPAT_DIR_INDEX).
    * - 0x40
      - “Lazy BG”. Not in Linux kernel, seems to have been for uninitialized
-       block groups? (COMPAT\_LAZY\_BG)
+       block groups? (COMPAT_LAZY_BG)
    * - 0x80
-     - “Exclude inode”. Not used. (COMPAT\_EXCLUDE\_INODE).
+     - “Exclude inode”. Not used. (COMPAT_EXCLUDE_INODE).
    * - 0x100
      - “Exclude bitmap”. Seems to be used to indicate the presence of
        snapshot-related exclude bitmaps? Not defined in kernel or used in
-       e2fsprogs (COMPAT\_EXCLUDE\_BITMAP).
+       e2fsprogs (COMPAT_EXCLUDE_BITMAP).
    * - 0x200
-     - Sparse Super Block, v2. If this flag is set, the SB field s\_backup\_bgs
+     - Sparse Super Block, v2. If this flag is set, the SB field s_backup_bgs
        points to the two block groups that contain backup superblocks
-       (COMPAT\_SPARSE\_SUPER2).
+       (COMPAT_SPARSE_SUPER2).
    * - 0x400
      - Fast commits supported. Although fast commits blocks are
        backward incompatible, fast commit blocks are not always
        present in the journal. If fast commit blocks are present in
        the journal, JBD2 incompat feature
-       (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT) gets
-       set (COMPAT\_FAST\_COMMIT).
+       (JBD2_FEATURE_INCOMPAT_FAST_COMMIT) gets
+       set (COMPAT_FAST_COMMIT).
    * - 0x1000
      - Orphan file allocated. This is the special file for more efficient
        tracking of unlinked but still open inodes. When there may be any
        entries in the file, we additionally set proper rocompat feature
-       (RO\_COMPAT\_ORPHAN\_PRESENT).
+       (RO_COMPAT_ORPHAN_PRESENT).
 
 .. _super_incompat:
 
@@ -625,45 +625,45 @@ following:
    * - Value
      - Description
    * - 0x1
-     - Compression (INCOMPAT\_COMPRESSION).
+     - Compression (INCOMPAT_COMPRESSION).
    * - 0x2
-     - Directory entries record the file type. See ext4\_dir\_entry\_2 below
-       (INCOMPAT\_FILETYPE).
+     - Directory entries record the file type. See ext4_dir_entry_2 below
+       (INCOMPAT_FILETYPE).
    * - 0x4
-     - Filesystem needs recovery (INCOMPAT\_RECOVER).
+     - Filesystem needs recovery (INCOMPAT_RECOVER).
    * - 0x8
-     - Filesystem has a separate journal device (INCOMPAT\_JOURNAL\_DEV).
+     - Filesystem has a separate journal device (INCOMPAT_JOURNAL_DEV).
    * - 0x10
      - Meta block groups. See the earlier discussion of this feature
-       (INCOMPAT\_META\_BG).
+       (INCOMPAT_META_BG).
    * - 0x40
-     - Files in this filesystem use extents (INCOMPAT\_EXTENTS).
+     - Files in this filesystem use extents (INCOMPAT_EXTENTS).
    * - 0x80
-     - Enable a filesystem size of 2^64 blocks (INCOMPAT\_64BIT).
+     - Enable a filesystem size of 2^64 blocks (INCOMPAT_64BIT).
    * - 0x100
-     - Multiple mount protection (INCOMPAT\_MMP).
+     - Multiple mount protection (INCOMPAT_MMP).
    * - 0x200
      - Flexible block groups. See the earlier discussion of this feature
-       (INCOMPAT\_FLEX\_BG).
+       (INCOMPAT_FLEX_BG).
    * - 0x400
      - Inodes can be used to store large extended attribute values
-       (INCOMPAT\_EA\_INODE).
+       (INCOMPAT_EA_INODE).
    * - 0x1000
-     - Data in directory entry (INCOMPAT\_DIRDATA). (Not implemented?)
+     - Data in directory entry (INCOMPAT_DIRDATA). (Not implemented?)
    * - 0x2000
      - Metadata checksum seed is stored in the superblock. This feature enables
-       the administrator to change the UUID of a metadata\_csum filesystem
+       the administrator to change the UUID of a metadata_csum filesystem
        while the filesystem is mounted; without it, the checksum definition
-       requires all metadata blocks to be rewritten (INCOMPAT\_CSUM\_SEED).
+       requires all metadata blocks to be rewritten (INCOMPAT_CSUM_SEED).
    * - 0x4000
-     - Large directory >2GB or 3-level htree (INCOMPAT\_LARGEDIR). Prior to
+     - Large directory >2GB or 3-level htree (INCOMPAT_LARGEDIR). Prior to
        this feature, directories could not be larger than 4GiB and could not
        have an htree more than 2 levels deep. If this feature is enabled,
        directories can be larger than 4GiB and have a maximum htree depth of 3.
    * - 0x8000
-     - Data in inode (INCOMPAT\_INLINE\_DATA).
+     - Data in inode (INCOMPAT_INLINE_DATA).
    * - 0x10000
-     - Encrypted inodes are present on the filesystem. (INCOMPAT\_ENCRYPT).
+     - Encrypted inodes are present on the filesystem. (INCOMPAT_ENCRYPT).
 
 .. _super_rocompat:
 
@@ -678,54 +678,54 @@ the following:
      - Description
    * - 0x1
      - Sparse superblocks. See the earlier discussion of this feature
-       (RO\_COMPAT\_SPARSE\_SUPER).
+       (RO_COMPAT_SPARSE_SUPER).
    * - 0x2
      - This filesystem has been used to store a file greater than 2GiB
-       (RO\_COMPAT\_LARGE\_FILE).
+       (RO_COMPAT_LARGE_FILE).
    * - 0x4
-     - Not used in kernel or e2fsprogs (RO\_COMPAT\_BTREE\_DIR).
+     - Not used in kernel or e2fsprogs (RO_COMPAT_BTREE_DIR).
    * - 0x8
      - This filesystem has files whose sizes are represented in units of
        logical blocks, not 512-byte sectors. This implies a very large file
-       indeed! (RO\_COMPAT\_HUGE\_FILE)
+       indeed! (RO_COMPAT_HUGE_FILE)
    * - 0x10
      - Group descriptors have checksums. In addition to detecting corruption,
        this is useful for lazy formatting with uninitialized groups
-       (RO\_COMPAT\_GDT\_CSUM).
+       (RO_COMPAT_GDT_CSUM).
    * - 0x20
      - Indicates that the old ext3 32,000 subdirectory limit no longer applies
-       (RO\_COMPAT\_DIR\_NLINK). A directory's i\_links\_count will be set to 1
+       (RO_COMPAT_DIR_NLINK). A directory's i_links_count will be set to 1
        if it is incremented past 64,999.
    * - 0x40
      - Indicates that large inodes exist on this filesystem
-       (RO\_COMPAT\_EXTRA\_ISIZE).
+       (RO_COMPAT_EXTRA_ISIZE).
    * - 0x80
-     - This filesystem has a snapshot (RO\_COMPAT\_HAS\_SNAPSHOT).
+     - This filesystem has a snapshot (RO_COMPAT_HAS_SNAPSHOT).
    * - 0x100
-     - `Quota <Quota>`__ (RO\_COMPAT\_QUOTA).
+     - `Quota <Quota>`__ (RO_COMPAT_QUOTA).
    * - 0x200
      - This filesystem supports “bigalloc”, which means that file extents are
        tracked in units of clusters (of blocks) instead of blocks
-       (RO\_COMPAT\_BIGALLOC).
+       (RO_COMPAT_BIGALLOC).
    * - 0x400
      - This filesystem supports metadata checksumming.
-       (RO\_COMPAT\_METADATA\_CSUM; implies RO\_COMPAT\_GDT\_CSUM, though
-       GDT\_CSUM must not be set)
+       (RO_COMPAT_METADATA_CSUM; implies RO_COMPAT_GDT_CSUM, though
+       GDT_CSUM must not be set)
    * - 0x800
      - Filesystem supports replicas. This feature is neither in the kernel nor
-       e2fsprogs. (RO\_COMPAT\_REPLICA)
+       e2fsprogs. (RO_COMPAT_REPLICA)
    * - 0x1000
      - Read-only filesystem image; the kernel will not mount this image
        read-write and most tools will refuse to write to the image.
-       (RO\_COMPAT\_READONLY)
+       (RO_COMPAT_READONLY)
    * - 0x2000
-     - Filesystem tracks project quotas. (RO\_COMPAT\_PROJECT)
+     - Filesystem tracks project quotas. (RO_COMPAT_PROJECT)
    * - 0x8000
-     - Verity inodes may be present on the filesystem. (RO\_COMPAT\_VERITY)
+     - Verity inodes may be present on the filesystem. (RO_COMPAT_VERITY)
    * - 0x10000
      - Indicates orphan file may have valid orphan entries and thus we need
        to clean them up when mounting the filesystem
-       (RO\_COMPAT\_ORPHAN\_PRESENT).
+       (RO_COMPAT_ORPHAN_PRESENT).
 
 .. _super_def_hash:
 
@@ -761,36 +761,36 @@ The ``s_default_mount_opts`` field is any combination of the following:
    * - Value
      - Description
    * - 0x0001
-     - Print debugging info upon (re)mount. (EXT4\_DEFM\_DEBUG)
+     - Print debugging info upon (re)mount. (EXT4_DEFM_DEBUG)
    * - 0x0002
      - New files take the gid of the containing directory (instead of the fsgid
-       of the current process). (EXT4\_DEFM\_BSDGROUPS)
+       of the current process). (EXT4_DEFM_BSDGROUPS)
    * - 0x0004
-     - Support userspace-provided extended attributes. (EXT4\_DEFM\_XATTR\_USER)
+     - Support userspace-provided extended attributes. (EXT4_DEFM_XATTR_USER)
    * - 0x0008
-     - Support POSIX access control lists (ACLs). (EXT4\_DEFM\_ACL)
+     - Support POSIX access control lists (ACLs). (EXT4_DEFM_ACL)
    * - 0x0010
-     - Do not support 32-bit UIDs. (EXT4\_DEFM\_UID16)
+     - Do not support 32-bit UIDs. (EXT4_DEFM_UID16)
    * - 0x0020
      - All data and metadata are commited to the journal.
-       (EXT4\_DEFM\_JMODE\_DATA)
+       (EXT4_DEFM_JMODE_DATA)
    * - 0x0040
      - All data are flushed to the disk before metadata are committed to the
-       journal. (EXT4\_DEFM\_JMODE\_ORDERED)
+       journal. (EXT4_DEFM_JMODE_ORDERED)
    * - 0x0060
      - Data ordering is not preserved; data may be written after the metadata
-       has been written. (EXT4\_DEFM\_JMODE\_WBACK)
+       has been written. (EXT4_DEFM_JMODE_WBACK)
    * - 0x0100
-     - Disable write flushes. (EXT4\_DEFM\_NOBARRIER)
+     - Disable write flushes. (EXT4_DEFM_NOBARRIER)
    * - 0x0200
      - Track which blocks in a filesystem are metadata and therefore should not
        be used as data blocks. This option will be enabled by default on 3.18,
-       hopefully. (EXT4\_DEFM\_BLOCK\_VALIDITY)
+       hopefully. (EXT4_DEFM_BLOCK_VALIDITY)
    * - 0x0400
      - Enable DISCARD support, where the storage device is told about blocks
-       becoming unused. (EXT4\_DEFM\_DISCARD)
+       becoming unused. (EXT4_DEFM_DISCARD)
    * - 0x0800
-     - Disable delayed allocation. (EXT4\_DEFM\_NODELALLOC)
+     - Disable delayed allocation. (EXT4_DEFM_NODELALLOC)
 
 .. _super_flags:
 
@@ -820,12 +820,12 @@ The ``s_encrypt_algos`` list can contain any of the following:
    * - Value
      - Description
    * - 0
-     - Invalid algorithm (ENCRYPTION\_MODE\_INVALID).
+     - Invalid algorithm (ENCRYPTION_MODE_INVALID).
    * - 1
-     - 256-bit AES in XTS mode (ENCRYPTION\_MODE\_AES\_256\_XTS).
+     - 256-bit AES in XTS mode (ENCRYPTION_MODE_AES_256_XTS).
    * - 2
-     - 256-bit AES in GCM mode (ENCRYPTION\_MODE\_AES\_256\_GCM).
+     - 256-bit AES in GCM mode (ENCRYPTION_MODE_AES_256_GCM).
    * - 3
-     - 256-bit AES in CBC mode (ENCRYPTION\_MODE\_AES\_256\_CBC).
+     - 256-bit AES in CBC mode (ENCRYPTION_MODE_AES_256_CBC).
 
 Total size of the superblock is 1024 bytes.

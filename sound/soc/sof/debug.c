@@ -229,14 +229,13 @@ static int memory_info_update(struct snd_sof_dev *sdev, char *buf, size_t buff_s
 	if (!reply)
 		return -ENOMEM;
 
-	ret = pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_resume_and_get(sdev->dev);
 	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(sdev->dev);
 		dev_err(sdev->dev, "error: enabling device failed: %d\n", ret);
 		goto error;
 	}
 
-	ret = sof_ipc_tx_message(sdev->ipc, msg.cmd, &msg, msg.size, reply, SOF_IPC_MSG_MAX_SIZE);
+	ret = sof_ipc_tx_message(sdev->ipc, &msg, msg.size, reply, SOF_IPC_MSG_MAX_SIZE);
 	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
 	if (ret < 0 || reply->rhdr.error < 0) {
@@ -253,9 +252,9 @@ static int memory_info_update(struct snd_sof_dev *sdev, char *buf, size_t buff_s
 	}
 
 	for (i = 0, len = 0; i < reply->num_elems; i++) {
-		ret = snprintf(buf + len, buff_size - len, "zone %d.%d used %#8x free %#8x\n",
-			       reply->elems[i].zone, reply->elems[i].id,
-			       reply->elems[i].used, reply->elems[i].free);
+		ret = scnprintf(buf + len, buff_size - len, "zone %d.%d used %#8x free %#8x\n",
+				reply->elems[i].zone, reply->elems[i].id,
+				reply->elems[i].used, reply->elems[i].free);
 		if (ret < 0)
 			goto error;
 		len += ret;
@@ -331,7 +330,7 @@ EXPORT_SYMBOL_GPL(snd_sof_dbg_memory_info_init);
 
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
-	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
+	struct snd_sof_dsp_ops *ops = sof_ops(sdev);
 	const struct snd_sof_debugfs_map *map;
 	int i;
 	int err;
@@ -429,7 +428,7 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 	}
 }
 
-void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev, const char *msg)
 {
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
 	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) {
@@ -442,8 +441,7 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 
 	/* dump vital information to the logs */
 	snd_sof_ipc_dump(sdev);
-	snd_sof_dsp_dbg_dump(sdev, "Firmware exception",
-			     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
-	snd_sof_trace_notify_for_error(sdev);
+	snd_sof_dsp_dbg_dump(sdev, msg, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+	sof_fw_trace_fw_crashed(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);

@@ -21,6 +21,7 @@
 #include "../sof-pci-dev.h"
 #include "../../amd/mach-config.h"
 #include "acp.h"
+#include "acp-dsp-offset.h"
 
 #define ACP3x_REG_START		0x1240000
 #define ACP3x_REG_END		0x125C000
@@ -44,21 +45,40 @@ static const struct resource renoir_res[] = {
 };
 
 static const struct sof_amd_acp_desc renoir_chip_info = {
+	.rev		= 3,
 	.host_bridge_id = HOST_BRIDGE_CZN,
+	.i2s_mode	= 0x04,
+	.pgfsm_base	= ACP3X_PGFSM_BASE,
+	.ext_intr_stat	= ACP3X_EXT_INTR_STAT,
+	.dsp_intr_base	= ACP3X_DSP_SW_INTR_BASE,
+	.sram_pte_offset = ACP3X_SRAM_PTE_OFFSET,
+	.i2s_pin_config_offset = ACP3X_I2S_PIN_CONFIG,
+	.hw_semaphore_offset = ACP3X_AXI2DAGB_SEM_0,
+	.acp_clkmux_sel	= ACP3X_CLKMUX_SEL,
 };
 
 static const struct sof_dev_desc renoir_desc = {
 	.machines		= snd_soc_acpi_amd_sof_machines,
+	.use_acpi_target_states	= true,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info		= &renoir_chip_info,
-	.default_fw_path	= "amd/sof",
-	.default_tplg_path	= "amd/sof-tplg",
-	.default_fw_filename	= "sof-rn.ri",
+	.ipc_supported_mask	= BIT(SOF_IPC),
+	.ipc_default		= SOF_IPC,
+	.default_fw_path = {
+		[SOF_IPC] = "amd/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "amd/sof-tplg",
+	},
+	.default_fw_filename	= {
+		[SOF_IPC] = "sof-rn.ri",
+	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_renoir_ops,
+	.ops_init		= sof_renoir_ops_init,
 };
 
 static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
@@ -93,6 +113,7 @@ static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci
 	res = devm_kzalloc(&pci->dev, sizeof(struct resource) * ARRAY_SIZE(renoir_res), GFP_KERNEL);
 	if (!res) {
 		sof_pci_remove(pci);
+		platform_device_unregister(dmic_dev);
 		return -ENOMEM;
 	}
 
@@ -157,6 +178,9 @@ static struct pci_driver snd_sof_pci_amd_rn_driver = {
 	.id_table = rn_pci_ids,
 	.probe = acp_pci_rn_probe,
 	.remove = acp_pci_rn_remove,
+	.driver = {
+		.pm = &sof_pci_pm,
+	},
 };
 module_pci_driver(snd_sof_pci_amd_rn_driver);
 

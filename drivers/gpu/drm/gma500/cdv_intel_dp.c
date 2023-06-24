@@ -29,9 +29,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "gma_display.h"
@@ -114,7 +115,7 @@ i2c_algo_dp_aux_stop(struct i2c_adapter *adapter, bool reading)
 
 /*
  * Write a single byte to the current I2C address, the
- * the I2C link must be running or this returns -EIO
+ * I2C link must be running or this returns -EIO
  */
 static int
 i2c_algo_dp_aux_put_byte(struct i2c_adapter *adapter, u8 byte)
@@ -1857,6 +1858,7 @@ done:
 static void
 cdv_intel_dp_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = gma_encoder->dev_priv;
 
@@ -1866,9 +1868,8 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 		intel_dp->panel_fixed_mode = NULL;
 	}
 	i2c_del_adapter(&intel_dp->adapter);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
@@ -1989,8 +1990,6 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-
-	drm_connector_register(connector);
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {

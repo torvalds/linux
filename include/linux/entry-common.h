@@ -63,7 +63,7 @@
 	 ARCH_EXIT_TO_USER_MODE_WORK)
 
 /**
- * arch_check_user_regs - Architecture specific sanity check for user mode regs
+ * arch_enter_from_user_mode - Architecture specific sanity check for user mode regs
  * @regs:	Pointer to currents pt_regs
  *
  * Defaults to an empty implementation. Can be replaced by architecture
@@ -73,10 +73,10 @@
  * section. Use __always_inline so the compiler cannot push it out of line
  * and make it instrumentable.
  */
-static __always_inline void arch_check_user_regs(struct pt_regs *regs);
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs);
 
-#ifndef arch_check_user_regs
-static __always_inline void arch_check_user_regs(struct pt_regs *regs) {}
+#ifndef arch_enter_from_user_mode
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs) {}
 #endif
 
 /**
@@ -253,7 +253,6 @@ static __always_inline void arch_exit_to_user_mode(void) { }
 /**
  * arch_do_signal_or_restart -  Architecture specific signal delivery function
  * @regs:	Pointer to currents pt_regs
- * @has_signal:	actual signal to handle
  *
  * Invoked from exit_to_user_mode_loop().
  */
@@ -357,7 +356,7 @@ void irqentry_exit_to_user_mode(struct pt_regs *regs);
 /**
  * struct irqentry_state - Opaque object for exception state storage
  * @exit_rcu: Used exclusively in the irqentry_*() calls; signals whether the
- *            exit path has to invoke rcu_irq_exit().
+ *            exit path has to invoke ct_irq_exit().
  * @lockdep: Used exclusively in the irqentry_nmi_*() calls; ensures that
  *           lockdep state is restored correctly on exit from nmi.
  *
@@ -395,12 +394,12 @@ typedef struct irqentry_state {
  *
  * For kernel mode entries RCU handling is done conditional. If RCU is
  * watching then the only RCU requirement is to check whether the tick has
- * to be restarted. If RCU is not watching then rcu_irq_enter() has to be
- * invoked on entry and rcu_irq_exit() on exit.
+ * to be restarted. If RCU is not watching then ct_irq_enter() has to be
+ * invoked on entry and ct_irq_exit() on exit.
  *
- * Avoiding the rcu_irq_enter/exit() calls is an optimization but also
+ * Avoiding the ct_irq_enter/exit() calls is an optimization but also
  * solves the problem of kernel mode pagefaults which can schedule, which
- * is not possible after invoking rcu_irq_enter() without undoing it.
+ * is not possible after invoking ct_irq_enter() without undoing it.
  *
  * For user mode entries irqentry_enter_from_user_mode() is invoked to
  * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit

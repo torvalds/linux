@@ -15,6 +15,8 @@
 #include "xfs_iwalk.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
@@ -35,8 +37,7 @@
 #include "xfs_health.h"
 #include "xfs_reflink.h"
 #include "xfs_ioctl.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
+#include "xfs_xattr.h"
 
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -524,7 +525,7 @@ xfs_attrmulti_attr_set(
 		args.valuelen = len;
 	}
 
-	error = xfs_attr_set(&args);
+	error = xfs_attr_change(&args);
 	if (!error && (flags & XFS_IOC_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	kfree(args.value);
@@ -813,6 +814,9 @@ xfs_bulk_ireq_setup(
 	if (XFS_INO_TO_AGNO(mp, breq->startino) >= mp->m_sb.sb_agcount)
 		return -ECANCELED;
 
+	if (hdr->flags & XFS_BULK_IREQ_NREXT64)
+		breq->flags |= XFS_IBULK_NREXT64;
+
 	return 0;
 }
 
@@ -951,6 +955,7 @@ xfs_ioc_ag_geometry(
 	struct xfs_mount	*mp,
 	void			__user *arg)
 {
+	struct xfs_perag	*pag;
 	struct xfs_ag_geometry	ageo;
 	int			error;
 
@@ -961,7 +966,12 @@ xfs_ioc_ag_geometry(
 	if (memchr_inv(&ageo.ag_reserved, 0, sizeof(ageo.ag_reserved)))
 		return -EINVAL;
 
-	error = xfs_ag_get_geometry(mp, ageo.ag_number, &ageo);
+	pag = xfs_perag_get(mp, ageo.ag_number);
+	if (!pag)
+		return -EINVAL;
+
+	error = xfs_ag_get_geometry(pag, &ageo);
+	xfs_perag_put(pag);
 	if (error)
 		return error;
 
@@ -981,7 +991,7 @@ xfs_fill_fsxattr(
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 
 	fileattr_fill_xflags(fa, xfs_ip2xflags(ip));
 
@@ -1092,7 +1102,8 @@ xfs_flags2diflags2(
 {
 	uint64_t		di_flags2 =
 		(ip->i_diflags2 & (XFS_DIFLAG2_REFLINK |
-				   XFS_DIFLAG2_BIGTIME));
+				   XFS_DIFLAG2_BIGTIME |
+				   XFS_DIFLAG2_NREXT64));
 
 	if (xflags & FS_XFLAG_DAX)
 		di_flags2 |= XFS_DIFLAG2_DAX;

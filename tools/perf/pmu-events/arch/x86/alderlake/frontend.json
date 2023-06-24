@@ -7,6 +7,7 @@
         "EventName": "BACLEARS.ANY",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
@@ -18,6 +19,7 @@
         "EventName": "ICACHE.ACCESSES",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x3",
         "Unit": "cpu_atom"
     },
@@ -29,6 +31,7 @@
         "EventName": "ICACHE.MISSES",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -40,7 +43,20 @@
         "EventName": "DECODE.LCP",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Cycles the Microcode Sequencer is busy.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x87",
+        "EventName": "DECODE.MS_BUSY",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "500009",
+        "Speculative": "1",
+        "UMask": "0x2",
         "Unit": "cpu_core"
     },
     {
@@ -51,6 +67,7 @@
         "EventName": "DSB2MITE_SWITCHES.PENALTY_CYCLES",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -295,6 +312,21 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "FRONTEND_RETIRED.MS_FLOWS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.MS_FLOWS",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x8",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "100007",
+        "TakenAlone": "1",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Retired Instructions who experienced STLB (2nd level TLB) true miss.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -310,7 +342,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FRONTEND_RETIRED.UNKNOWN_BRANCH",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc6",
@@ -332,6 +364,7 @@
         "EventName": "ICACHE_DATA.STALLS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -343,6 +376,7 @@
         "EventName": "ICACHE_TAG.STALLS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -355,6 +389,7 @@
         "EventName": "IDQ.DSB_CYCLES_ANY",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -367,6 +402,7 @@
         "EventName": "IDQ.DSB_CYCLES_OK",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -378,6 +414,7 @@
         "EventName": "IDQ.DSB_UOPS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -390,6 +427,7 @@
         "EventName": "IDQ.MITE_CYCLES_ANY",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -402,6 +440,7 @@
         "EventName": "IDQ.MITE_CYCLES_OK",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -413,6 +452,7 @@
         "EventName": "IDQ.MITE_UOPS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -425,6 +465,7 @@
         "EventName": "IDQ.MS_CYCLES_ANY",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_core"
     },
@@ -438,6 +479,7 @@
         "EventName": "IDQ.MS_SWITCHES",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_core"
     },
@@ -449,6 +491,7 @@
         "EventName": "IDQ.MS_UOPS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_core"
     },
@@ -460,6 +503,7 @@
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -472,6 +516,7 @@
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -485,6 +530,7 @@
         "Invert": "1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     }

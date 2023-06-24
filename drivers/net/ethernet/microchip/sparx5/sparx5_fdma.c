@@ -317,7 +317,7 @@ int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb)
 	next_dcb_hw = sparx5_fdma_next_dcb(tx, tx->curr_entry);
 	db_hw = &next_dcb_hw->db[0];
 	if (!(db_hw->status & FDMA_DCB_STATUS_DONE))
-		tx->dropped++;
+		return -EINVAL;
 	db = list_first_entry(&tx->db_list, struct sparx5_db, list);
 	list_move_tail(&db->list, &tx->db_list);
 	next_dcb_hw->nextptr = FDMA_DCB_INVALID_DATA;
@@ -381,7 +381,8 @@ static int sparx5_fdma_rx_alloc(struct sparx5 *sparx5)
 		}
 		sparx5_fdma_rx_add_dcb(rx, dcb, rx->dma + sizeof(*dcb) * idx);
 	}
-	netif_napi_add(rx->ndev, &rx->napi, sparx5_fdma_napi_callback, FDMA_WEIGHT);
+	netif_napi_add_weight(rx->ndev, &rx->napi, sparx5_fdma_napi_callback,
+			      FDMA_WEIGHT);
 	napi_enable(&rx->napi);
 	sparx5_fdma_rx_activate(sparx5, rx);
 	return 0;

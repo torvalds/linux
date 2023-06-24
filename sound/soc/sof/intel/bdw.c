@@ -567,7 +567,7 @@ static struct snd_soc_dai_driver bdw_dai[] = {
 };
 
 /* broadwell ops */
-static const struct snd_sof_dsp_ops sof_bdw_ops = {
+static struct snd_sof_dsp_ops sof_bdw_ops = {
 	/*Device init */
 	.probe          = bdw_probe,
 
@@ -591,7 +591,6 @@ static const struct snd_sof_dsp_ops sof_bdw_ops = {
 
 	/* ipc */
 	.send_msg	= bdw_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset = bdw_get_mailbox_offset,
 	.get_window_offset = bdw_get_window_offset,
 
@@ -614,9 +613,6 @@ static const struct snd_sof_dsp_ops sof_bdw_ops = {
 	.pcm_open	= sof_stream_pcm_open,
 	.pcm_close	= sof_stream_pcm_close,
 
-	/* Module loading */
-	.load_module    = snd_sof_parse_module_memcpy,
-
 	/*Firmware loading */
 	.load_firmware	= snd_sof_load_firmware_memcpy,
 
@@ -637,6 +633,7 @@ static const struct snd_sof_dsp_ops sof_bdw_ops = {
 static const struct sof_intel_dsp_desc bdw_chip_info = {
 	.cores_num = 1,
 	.host_managed_cores_mask = 1,
+	.hw_ip_version = SOF_INTEL_BROADWELL,
 };
 
 static const struct sof_dev_desc sof_acpi_broadwell_desc = {
@@ -646,9 +643,17 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
 	.chip_info = &bdw_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-bdw.ri",
+	.ipc_supported_mask = BIT(SOF_IPC),
+	.ipc_default = SOF_IPC,
+	.default_fw_path = {
+		[SOF_IPC] = "intel/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "intel/sof-tplg",
+	},
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-bdw.ri",
+	},
 	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
 	.ops = &sof_bdw_ops,
 };
@@ -676,11 +681,8 @@ static int sof_broadwell_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	desc = device_get_match_data(dev);
-	if (!desc)
-		return -ENODEV;
-
-	return sof_acpi_probe(pdev, device_get_match_data(dev));
+	desc = (const struct sof_dev_desc *)id->driver_data;
+	return sof_acpi_probe(pdev, desc);
 }
 
 /* acpi_driver definition */

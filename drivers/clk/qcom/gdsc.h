@@ -18,6 +18,8 @@ struct reset_controller_dev;
  * @pd: generic power domain
  * @regmap: regmap for MMIO accesses
  * @gdscr: gsdc control register
+ * @collapse_ctrl: APCS collapse-vote register
+ * @collapse_mask: APCS collapse-vote mask
  * @gds_hw_ctrl: gds_hw_ctrl register
  * @cxcs: offsets of branch registers to toggle mem/periph bits in
  * @cxc_count: number of @cxcs
@@ -28,13 +30,14 @@ struct reset_controller_dev;
  * @resets: ids of resets associated with this gdsc
  * @reset_count: number of @resets
  * @rcdev: reset controller
- * @dev: the device holding the GDSC, used for pm_runtime calls
  */
 struct gdsc {
 	struct generic_pm_domain	pd;
 	struct generic_pm_domain	*parent;
 	struct regmap			*regmap;
 	unsigned int			gdscr;
+	unsigned int			collapse_ctrl;
+	unsigned int			collapse_mask;
 	unsigned int			gds_hw_ctrl;
 	unsigned int			clamp_io_ctrl;
 	unsigned int			*cxcs;
@@ -45,6 +48,11 @@ struct gdsc {
 	const u8			pwrsts;
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_OFF		BIT(0)
+/*
+ * There is no SW control to transition a GDSC into
+ * PWRSTS_RET. This happens in HW when the parent
+ * domain goes down to a low power state
+ */
 #define PWRSTS_RET		BIT(1)
 #define PWRSTS_ON		BIT(2)
 #define PWRSTS_OFF_ON		(PWRSTS_OFF | PWRSTS_ON)
@@ -65,7 +73,6 @@ struct gdsc {
 
 	const char 			*supply;
 	struct regulator		*rsupply;
-	struct device			*dev;
 };
 
 struct gdsc_desc {

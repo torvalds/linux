@@ -121,12 +121,11 @@ err_reg:
 	return ret;
 }
 
-static int tosa_bl_remove(struct i2c_client *client)
+static void tosa_bl_remove(struct i2c_client *client)
 {
 	struct tosa_bl_data *data = i2c_get_clientdata(client);
 
 	data->bl = NULL;
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -1354,10 +1354,10 @@ static void pxa168_eth_netpoll(struct net_device *dev)
 static void pxa168_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
+	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strscpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strscpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops pxa168_ethtool_ops = {
@@ -1486,7 +1486,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	/* Hardware supports only 3 ports */
 	BUG_ON(pep->port_num > 2);
-	netif_napi_add(dev, &pep->napi, pxa168_rx_poll, pep->rx_ring_size);
+	netif_napi_add_weight(dev, &pep->napi, pxa168_rx_poll,
+			      pep->rx_ring_size);
 
 	memset(&pep->timeout, 0, sizeof(struct timer_list));
 	timer_setup(&pep->timeout, rxq_refill_timer_wrapper, 0);

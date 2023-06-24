@@ -2,8 +2,9 @@
 #ifndef _ASM_POWERPC_ASM_PROTOTYPES_H
 #define _ASM_POWERPC_ASM_PROTOTYPES_H
 /*
- * This file is for prototypes of C functions that are only called
- * from asm, and any associated variables.
+ * This file is for C prototypes of asm symbols that are EXPORTed.
+ * It allows the modversions logic to see their prototype and
+ * generate proper CRCs for them.
  *
  * Copyright 2016, Daniel Axtens, IBM Corporation.
  */
@@ -34,13 +35,8 @@ int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 		    int64_t a4, int64_t a5, int64_t a6, int64_t a7,
 		    int64_t opcode, uint64_t msr);
 
-/* prom_init (OpenFirmware) */
-unsigned long __init prom_init(unsigned long r3, unsigned long r4,
-			       unsigned long pp,
-			       unsigned long r6, unsigned long r7,
-			       unsigned long kbase);
-
 /* misc runtime */
+void enable_machine_check(void);
 extern u64 __bswapdi2(u64);
 extern s64 __lshrdi3(s64, int);
 extern s64 __ashldi3(s64, int);
@@ -59,19 +55,6 @@ void tm_abort(uint8_t cause);
 struct kvm_vcpu;
 void _kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 void _kvmppc_save_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
-
-/* Patch sites */
-extern s32 patch__call_flush_branch_caches1;
-extern s32 patch__call_flush_branch_caches2;
-extern s32 patch__call_flush_branch_caches3;
-extern s32 patch__flush_count_cache_return;
-extern s32 patch__flush_link_stack_return;
-extern s32 patch__call_kvm_flush_link_stack;
-extern s32 patch__call_kvm_flush_link_stack_p9;
-extern s32 patch__memset_nocache, patch__memcpy_nocache;
-
-extern long flush_branch_caches;
-extern long kvm_flush_link_stack;
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 void kvmppc_save_tm_hv(struct kvm_vcpu *vcpu, u64 msr, bool preserve_nv);

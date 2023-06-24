@@ -616,12 +616,14 @@ static int mt9m114_get_intg_factor(struct i2c_client *client,
 				   struct camera_mipi_info *info,
 				   const struct mt9m114_res_struct *res)
 {
-	struct atomisp_sensor_mode_data *buf = &info->data;
+	struct atomisp_sensor_mode_data *buf;
 	u32 reg_val;
 	int ret;
 
 	if (!info)
 		return -EINVAL;
+
+	buf = &info->data;
 
 	ret =  mt9m114_read_reg(client, MISENSOR_32BIT,
 				REG_PIXEL_CLK, &reg_val);
@@ -1711,7 +1713,7 @@ static const struct v4l2_subdev_ops mt9m114_ops = {
 	.sensor = &mt9m114_sensor_ops,
 };
 
-static int mt9m114_remove(struct i2c_client *client)
+static void mt9m114_remove(struct i2c_client *client)
 {
 	struct mt9m114_device *dev;
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1722,7 +1724,6 @@ static int mt9m114_remove(struct i2c_client *client)
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	kfree(dev);
-	return 0;
 }
 
 static int mt9m114_probe(struct i2c_client *client)

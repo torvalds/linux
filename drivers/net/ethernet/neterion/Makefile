@@ -4,4 +4,3 @@
 #
 
 obj-$(CONFIG_S2IO) += s2io.o
-obj-$(CONFIG_VXGE) += vxge/

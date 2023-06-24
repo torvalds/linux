@@ -1282,8 +1282,6 @@ static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 
 		ts->stat = SAS_SAM_STAT_GOOD;
 
-		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
@@ -1414,9 +1412,7 @@ static irqreturn_t int_bcast_v1_hw(int irq, void *p)
 		goto end;
 	}
 
-	if (!test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
-		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
-				      GFP_ATOMIC);
+	hisi_sas_phy_bcast(phy);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,

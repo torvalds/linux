@@ -867,8 +867,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, q);
 
 	/* find the resources */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "QuadSPI");
-	q->iobase = devm_ioremap_resource(dev, res);
+	q->iobase = devm_platform_ioremap_resource_byname(pdev, "QuadSPI");
 	if (IS_ERR(q->iobase)) {
 		ret = PTR_ERR(q->iobase);
 		goto err_put_ctrl;
@@ -876,6 +875,10 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"QuadSPI-memory");
+	if (!res) {
+		ret = -EINVAL;
+		goto err_put_ctrl;
+	}
 	q->memmap_phy = res->start;
 	/* Since there are 4 cs, map size required is 4 times ahb_buf_size */
 	q->ahb_addr = devm_ioremap(dev, q->memmap_phy,

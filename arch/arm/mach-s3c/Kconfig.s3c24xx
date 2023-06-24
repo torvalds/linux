@@ -4,6 +4,27 @@
 #		http://www.samsung.com/
 #
 # Copyright 2007 Simtec Electronics
+menuconfig ARCH_S3C24XX
+	bool "Samsung S3C24XX SoCs (deprecated, see help)"
+	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS && UNUSED_BOARD_FILES
+	select CLKSRC_SAMSUNG_PWM
+	select GPIO_SAMSUNG
+	select GPIOLIB
+	select S3C2410_WATCHDOG
+	select SAMSUNG_ATAGS
+	select WATCHDOG
+	help
+	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
+	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
+	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
+	  Samsung SMDK2410 development board (and derivatives).
+
+	  The platform is deprecated and scheduled for removal. Please reach to
+	  the maintainers of the platform and linux-samsung-soc@vger.kernel.org if
+	  you still use it.
+	  Without such feedback, the platform will be removed after 2022.
 
 if ARCH_S3C24XX
 
@@ -12,12 +33,9 @@ config PLAT_S3C24XX
 	select GPIOLIB
 	select NO_IOPORT_MAP
 	select S3C_DEV_NAND
-	select IRQ_DOMAIN
 	select COMMON_CLK
 	help
 	  Base platform code for any Samsung S3C24XX device
-
-
 
 menu "Samsung S3C24XX SoCs Support"
 
@@ -25,6 +43,7 @@ comment "S3C24XX SoCs"
 
 config CPU_S3C2410
 	bool "Samsung S3C2410"
+	depends on ARCH_MULTI_V4T
 	default y
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
@@ -36,6 +55,7 @@ config CPU_S3C2410
 
 config CPU_S3C2412
 	bool "Samsung S3C2412"
+	depends on ARCH_MULTI_V5
 	select CPU_ARM926T
 	select S3C2412_COMMON_CLK
 	select S3C2412_PM if PM_SLEEP
@@ -44,6 +64,7 @@ config CPU_S3C2412
 
 config CPU_S3C2416
 	bool "Samsung S3C2416/S3C2450"
+	depends on ARCH_MULTI_V5
 	select CPU_ARM926T
 	select S3C2416_PM if PM_SLEEP
 	select S3C2443_COMMON_CLK
@@ -52,6 +73,7 @@ config CPU_S3C2416
 
 config CPU_S3C2440
 	bool "Samsung S3C2440"
+	depends on ARCH_MULTI_V4T
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM_SLEEP
@@ -60,6 +82,7 @@ config CPU_S3C2440
 
 config CPU_S3C2442
 	bool "Samsung S3C2442"
+	depends on ARCH_MULTI_V4T
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM_SLEEP
@@ -72,6 +95,7 @@ config CPU_S3C244X
 
 config CPU_S3C2443
 	bool "Samsung S3C2443"
+	depends on ARCH_MULTI_V4T
 	select CPU_ARM920T
 	select S3C2443_COMMON_CLK
 	help
@@ -181,7 +205,6 @@ config MACH_AML_M5900
 
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
-	select ISA
 	select MACH_BAST_IDE
 	select S3C2410_COMMON_DCLK
 	select S3C2410_IOTIMING if ARM_S3C2410_CPUFREQ
@@ -268,7 +291,7 @@ config MACH_VR1000
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
 
-endif	# CPU_S3C2410
+endif # CPU_S3C2410
 
 config S3C2412_PM_SLEEP
 	bool
@@ -342,7 +365,7 @@ config MACH_VSTMS
 	help
 	  Say Y here if you are using an VSTMS board
 
-endif	# CPU_S3C2412
+endif # CPU_S3C2412
 
 if CPU_S3C2416
 
@@ -390,7 +413,7 @@ config MACH_S3C2416_DT
 	  Note: This is under development and not all peripherals can be supported
 	  with this machine file.
 
-endif	# CPU_S3C2416
+endif # CPU_S3C2416
 
 if CPU_S3C2440 || CPU_S3C2442
 
@@ -419,7 +442,7 @@ config S3C2440_PLL_16934400
 	default y if S3C24XX_PLL
 	help
 	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
-endif
+endif # CPU_S3C2440 || CPU_S3C2442
 
 if CPU_S3C2440
 
@@ -515,7 +538,7 @@ config SMDK2440_CPU2440
 	default y if ARCH_S3C2440
 	select S3C2440_XTAL_16934400
 
-endif	# CPU_S3C2440
+endif # CPU_S3C2440
 
 if CPU_S3C2442
 
@@ -532,10 +555,9 @@ config MACH_NEO1973_GTA02
 	select MFD_PCF50633
 	select PCF50633_GPIO
 	select POWER_SUPPLY
-	select S3C24XX_PWM
 	select S3C_DEV_USB_HOST
 	help
-	   Say Y here if you are using the Openmoko GTA02 / Freerunner GSM Phone
+	  Say Y here if you are using the Openmoko GTA02 / Freerunner GSM Phone
 
 config MACH_RX1950
 	bool "HP iPAQ rx1950"
@@ -544,12 +566,11 @@ config MACH_RX1950
 	select S3C2410_COMMON_DCLK
 	select S3C2410_IOTIMING if ARM_S3C2440_CPUFREQ
 	select S3C2440_XTAL_16934400
-	select S3C24XX_PWM
 	select S3C_DEV_NAND
 	help
-	   Say Y here if you're using HP iPAQ rx1950
+	  Say Y here if you're using HP iPAQ rx1950
 
-endif	# CPU_S3C2442
+endif # CPU_S3C2442
 
 if CPU_S3C2443 || CPU_S3C2416
 
@@ -558,7 +579,7 @@ config S3C2443_SETUP_SPI
 	help
 	  Common setup code for SPI GPIO configurations
 
-endif	# CPU_S3C2443 || CPU_S3C2416
+endif # CPU_S3C2443 || CPU_S3C2416
 
 if CPU_S3C2443
 
@@ -571,13 +592,13 @@ config MACH_SMDK2443
 	help
 	  Say Y here if you are using an SMDK2443
 
-endif	# CPU_S3C2443
+endif # CPU_S3C2443
 
 config PM_H1940
 	bool
 	help
 	  Internal node for H1940 and related PM
 
-endmenu	# Samsung S3C24XX SoCs Support
+endmenu # "Samsung S3C24XX SoCs Support"
 
-endif	# ARCH_S3C24XX
+endif # ARCH_S3C24XX

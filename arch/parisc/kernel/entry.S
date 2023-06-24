@@ -499,6 +499,10 @@
 	 * Finally, _PAGE_READ goes in the top bit of PL1 (so we
 	 * trigger an access rights trap in user space if the user
 	 * tries to read an unreadable page */
+#if _PAGE_SPECIAL_BIT == _PAGE_DMB_BIT
+	/* need to drop DMB bit, as it's used as SPECIAL flag */
+	depi		0,_PAGE_SPECIAL_BIT,1,\pte
+#endif
 	depd            \pte,8,7,\prot
 
 	/* PAGE_USER indicates the page can be read with user privileges,
@@ -529,6 +533,10 @@
 	 * makes the tlb entry for the differently formatted pa11
 	 * insertion instructions */
 	.macro		make_insert_tlb_11	spc,pte,prot
+#if _PAGE_SPECIAL_BIT == _PAGE_DMB_BIT
+	/* need to drop DMB bit, as it's used as SPECIAL flag */
+	depi		0,_PAGE_SPECIAL_BIT,1,\pte
+#endif
 	zdep		\spc,30,15,\prot
 	dep		\pte,8,7,\prot
 	extru,=		\pte,_PAGE_NO_CACHE_BIT,1,%r0
@@ -554,8 +562,9 @@
 	extrd,s		\pte,63,25,\pte
 	.endm
 
-	/* The alias region is an 8MB aligned 16MB to do clear and
-	 * copy user pages at addresses congruent with the user
+	/* The alias region is comprised of a pair of 4 MB regions
+	 * aligned to 8 MB. It is used to clear/copy/flush user pages
+	 * using kernel virtual addresses congruent with the user
 	 * virtual address.
 	 *
 	 * To use the alias page, you set %r26 up with the to TLB
@@ -565,13 +574,8 @@
 	.macro		do_alias	spc,tmp,tmp1,va,pte,prot,fault,patype
 	cmpib,COND(<>),n 0,\spc,\fault
 	ldil		L%(TMPALIAS_MAP_START),\tmp
-#if defined(CONFIG_64BIT) && (TMPALIAS_MAP_START >= 0x80000000)
-	/* on LP64, ldi will sign extend into the upper 32 bits,
-	 * which is behaviour we don't want */
-	depdi		0,31,32,\tmp
-#endif
 	copy		\va,\tmp1
-	depi		0,31,23,\tmp1
+	depi_safe	0,31,TMPALIAS_SIZE_BITS+1,\tmp1
 	cmpb,COND(<>),n	\tmp,\tmp1,\fault
 	mfctl		%cr19,\tmp	/* iir */
 	/* get the opcode (first six bits) into \tmp */
@@ -604,13 +608,13 @@
 	 * OK, it is in the temp alias region, check whether "from" or "to".
 	 * Check "subtle" note in pacache.S re: r23/r26.
 	 */
-#ifdef CONFIG_64BIT
-	extrd,u,*=	\va,41,1,%r0
-#else
-	extrw,u,=	\va,9,1,%r0
-#endif
+	extrw,u,=	\va,31-TMPALIAS_SIZE_BITS,1,%r0
 	or,COND(tr)	%r23,%r0,\pte
 	or		%r26,%r0,\pte
+
+	/* convert phys addr in \pte (from r23 or r26) to tlb insert format */
+	SHRREG		\pte,PAGE_SHIFT+PAGE_ADD_SHIFT-5, \pte
+	depi_safe	_PAGE_SIZE_ENCODING_DEFAULT, 31,5, \pte
 	.endm 
 
 

@@ -1034,7 +1034,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		       ETH_ALEN);
 		hton24(clc->r0.qpn, link->roce_qp->qp_num);
 		clc->r0.rmb_rkey =
-			htonl(conn->rmb_desc->mr_rx[link->link_idx]->rkey);
+			htonl(conn->rmb_desc->mr[link->link_idx]->rkey);
 		clc->r0.rmbe_idx = 1; /* for now: 1 RMB = 1 RMBE */
 		clc->r0.rmbe_alert_token = htonl(conn->alert_token_local);
 		switch (clc->hdr.type) {
@@ -1046,8 +1046,10 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 			break;
 		}
 		clc->r0.rmbe_size = conn->rmbe_size_short;
-		clc->r0.rmb_dma_addr = cpu_to_be64((u64)sg_dma_address
-				(conn->rmb_desc->sgt[link->link_idx].sgl));
+		clc->r0.rmb_dma_addr = conn->rmb_desc->is_vm ?
+			cpu_to_be64((uintptr_t)conn->rmb_desc->cpu_addr) :
+			cpu_to_be64((u64)sg_dma_address
+				    (conn->rmb_desc->sgt[link->link_idx].sgl));
 		hton24(clc->r0.psn, link->psn_initial);
 		if (version == SMC_V1) {
 			clc->hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);

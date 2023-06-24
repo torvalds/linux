@@ -26,13 +26,15 @@ static int mock_region_get_pages(struct drm_i915_gem_object *obj)
 	int err;
 
 	obj->mm.res = intel_region_ttm_resource_alloc(obj->mm.region,
+						      obj->bo_offset,
 						      obj->base.size,
 						      obj->flags);
 	if (IS_ERR(obj->mm.res))
 		return PTR_ERR(obj->mm.res);
 
 	obj->mm.rsgt = intel_region_ttm_resource_to_rsgt(obj->mm.region,
-							 obj->mm.res);
+							 obj->mm.res,
+							 obj->mm.region->min_page_size);
 	if (IS_ERR(obj->mm.rsgt)) {
 		err = PTR_ERR(obj->mm.rsgt);
 		goto err_free_resource;
@@ -57,6 +59,7 @@ static const struct drm_i915_gem_object_ops mock_region_obj_ops = {
 
 static int mock_object_init(struct intel_memory_region *mem,
 			    struct drm_i915_gem_object *obj,
+			    resource_size_t offset,
 			    resource_size_t size,
 			    resource_size_t page_size,
 			    unsigned int flags)
@@ -69,6 +72,8 @@ static int mock_object_init(struct intel_memory_region *mem,
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &mock_region_obj_ops, &lock_class, flags);
+
+	obj->bo_offset = offset;
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 

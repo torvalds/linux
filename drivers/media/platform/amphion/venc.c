@@ -33,6 +33,8 @@
 #define VENC_CAPTURE_ENABLE	BIT(1)
 #define VENC_ENABLE_MASK	(VENC_OUTPUT_ENABLE | VENC_CAPTURE_ENABLE)
 #define VENC_MAX_BUF_CNT	8
+#define VENC_MIN_BUFFER_OUT	6
+#define VENC_MIN_BUFFER_CAP	6
 
 struct venc_t {
 	struct vpu_encode_params params;
@@ -281,6 +283,9 @@ static int venc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm
 	if (!parm)
 		return -EINVAL;
 
+	if (!V4L2_TYPE_IS_OUTPUT(parm->type))
+		return -EINVAL;
+
 	if (!vpu_helper_check_type(inst, parm->type))
 		return -EINVAL;
 
@@ -300,6 +305,9 @@ static int venc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm
 	unsigned long n, d;
 
 	if (!parm)
+		return -EINVAL;
+
+	if (!V4L2_TYPE_IS_OUTPUT(parm->type))
 		return -EINVAL;
 
 	if (!vpu_helper_check_type(inst, parm->type))
@@ -423,7 +431,7 @@ static int venc_drain(struct vpu_inst *inst)
 	if (inst->state != VPU_CODEC_STATE_DRAIN)
 		return 0;
 
-	if (v4l2_m2m_num_src_bufs_ready(inst->fh.m2m_ctx))
+	if (!vpu_is_source_empty(inst))
 		return 0;
 
 	if (!venc->input_ready)
@@ -636,7 +644,7 @@ static int venc_ctrl_init(struct vpu_inst *inst)
 			  BITRATE_DEFAULT_PEAK);
 
 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
-			  V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, (1 << 16) - 1, 1, 30);
+			  V4L2_CID_MPEG_VIDEO_GOP_SIZE, 1, 8000, 1, 30);
 
 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
 			  V4L2_CID_MPEG_VIDEO_B_FRAMES, 0, 4, 1, 0);
@@ -679,6 +687,12 @@ static int venc_ctrl_init(struct vpu_inst *inst)
 			       V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME,
 			       ~(1 << V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME),
 			       V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+
+	if (inst->ctrl_handler.error) {
+		ret = inst->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&inst->ctrl_handler);
+		return ret;
+	}
 
 	ret = v4l2_ctrl_handler_setup(&inst->ctrl_handler);
 	if (ret) {
@@ -775,10 +789,20 @@ static int venc_get_one_encoded_frame(struct vpu_inst *inst,
 				      struct vb2_v4l2_buffer *vbuf)
 {
 	struct venc_t *venc = inst->priv;
+	struct vb2_v4l2_buffer *src_buf;
 
 	if (!vbuf)
 		return -EAGAIN;
 
+	src_buf = vpu_find_buf_by_sequence(inst, inst->out_format.type, frame->info.frame_id);
+	if (src_buf) {
+		v4l2_m2m_buf_copy_metadata(src_buf, vbuf, true);
+		vpu_set_buffer_state(src_buf, VPU_BUF_STATE_IDLE);
+		v4l2_m2m_src_buf_remove_by_buf(inst->fh.m2m_ctx, src_buf);
+		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+	} else {
+		vbuf->vb2_buf.timestamp = frame->info.timestamp;
+	}
 	if (!venc_get_enable(inst->priv, vbuf->vb2_buf.type)) {
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 		return 0;
@@ -800,11 +824,10 @@ static int venc_get_one_encoded_frame(struct vpu_inst *inst,
 	}
 	vb2_set_plane_payload(&vbuf->vb2_buf, 0, frame->bytesused);
 	vbuf->sequence = frame->info.frame_id;
-	vbuf->vb2_buf.timestamp = frame->info.timestamp;
 	vbuf->field = inst->cap_format.field;
 	vbuf->flags |= frame->info.pic_type;
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_IDLE);
-	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, frame->info.timestamp);
+	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 	venc->ready_count++;
 
@@ -860,33 +883,6 @@ static int venc_frame_encoded(struct vpu_inst *inst, void *arg)
 	return ret;
 }
 
-static void venc_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
-{
-	struct vb2_v4l2_buffer *vbuf;
-
-	if (!inst->fh.m2m_ctx)
-		return;
-
-	vpu_inst_lock(inst);
-	if (!venc_get_enable(inst->priv, frame->type))
-		goto exit;
-	vbuf = vpu_find_buf_by_sequence(inst, frame->type, frame->sequence);
-	if (!vbuf) {
-		dev_err(inst->dev, "[%d] can't find buf: type %d, sequence %d\n",
-			inst->id, frame->type, frame->sequence);
-		goto exit;
-	}
-
-	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_IDLE);
-	if (V4L2_TYPE_IS_OUTPUT(frame->type))
-		v4l2_m2m_src_buf_remove_by_buf(inst->fh.m2m_ctx, vbuf);
-	else
-		v4l2_m2m_dst_buf_remove_by_buf(inst->fh.m2m_ctx, vbuf);
-	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
-exit:
-	vpu_inst_unlock(inst);
-}
-
 static void venc_set_last_buffer_dequeued(struct vpu_inst *inst)
 {
 	struct venc_t *venc = inst->priv;
@@ -923,8 +919,7 @@ static void venc_cleanup(struct vpu_inst *inst)
 		return;
 
 	venc = inst->priv;
-	if (venc)
-		vfree(venc);
+	vfree(venc);
 	inst->priv = NULL;
 	vfree(inst);
 }
@@ -1252,7 +1247,6 @@ static struct vpu_inst_ops venc_inst_ops = {
 	.check_ready = venc_check_ready,
 	.input_done = venc_input_done,
 	.get_one_frame = venc_frame_encoded,
-	.buf_done = venc_buf_done,
 	.stop_done = venc_stop_done,
 	.event_notify = venc_event_notify,
 	.release = venc_release,
@@ -1333,6 +1327,8 @@ static int venc_open(struct file *file)
 	if (ret)
 		return ret;
 
+	inst->min_buffer_out = VENC_MIN_BUFFER_OUT;
+	inst->min_buffer_cap = VENC_MIN_BUFFER_CAP;
 	venc_init(file);
 
 	return 0;

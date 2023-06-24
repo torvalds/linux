@@ -108,6 +108,7 @@ config I2C_HIX5HD2
 config I2C_I801
 	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
+	select P2SB if X86
 	select CHECK_SIGNATURE if X86 && DMI
 	select I2C_SMBUS
 	help
@@ -156,6 +157,7 @@ config I2C_I801
 	    Emmitsburg (PCH)
 	    Alder Lake (PCH)
 	    Raptor Lake (PCH)
+	    Meteor Lake (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -486,8 +488,8 @@ config I2C_BCM_KONA
 
 config I2C_BRCMSTB
 	tristate "BRCM Settop/DSL I2C controller"
-	depends on ARCH_BCM2835 || ARCH_BCM4908 || ARCH_BCM_63XX || \
-		   ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
+	depends on ARCH_BCM2835 || ARCH_BCMBCA || ARCH_BRCMSTB || \
+		   BMIPS_GENERIC || COMPILE_TEST
 	default y
 	help
 	  If you say yes to this option, support will be included for the
@@ -762,6 +764,7 @@ config I2C_LPC2K
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
         depends on MELLANOX_PLATFORM && ARM64
+	depends on ACPI
 	select I2C_SLAVE
         help
           Enabling this option will add I2C SMBus support for Mellanox BlueField
@@ -780,6 +783,17 @@ config I2C_MESON
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Amlogic Meson family of SoCs.
+
+config I2C_MICROCHIP_CORE
+	tristate "Microchip FPGA I2C controller"
+	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on OF
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on Microchip FPGAs.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called i2c-microchip-core.
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
@@ -838,13 +852,13 @@ config I2C_NOMADIK
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures,
 	  as well as the STA2X11 PCIe I/O HUB.
 
-config I2C_NPCM7XX
+config I2C_NPCM
 	tristate "Nuvoton I2C Controller"
-	depends on ARCH_NPCM7XX || COMPILE_TEST
+	depends on ARCH_NPCM || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
-	  Nuvoton I2C controller, which is available on the NPCM7xx BMC
-	  controller.
+	  Nuvoton I2C controller, which is available on the NPCM BMC
+	  controllers.
 	  Driver can also support slave mode (select I2C_SLAVE).
 
 config I2C_OCORES
@@ -983,6 +997,16 @@ config I2C_RK3X
 
 	  This driver can also be built as a module. If so, the module will
 	  be called i2c-rk3x.
+
+config I2C_RZV2M
+	tristate "Renesas RZ/V2M adapter"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Renesas RZ/V2M  I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-rzv2m.
 
 config I2C_S3C2410
 	tristate "S3C/Exynos I2C Driver"
@@ -1243,6 +1267,16 @@ config I2C_PARPORT
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport.
+
+config I2C_PCI1XXXX
+	tristate "PCI1XXXX I2C Host Adapter"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for
+	  Microchip PCI1XXXX's I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-mchp-pci1xxxx.
 
 config I2C_ROBOTFUZZ_OSIF
 	tristate "RobotFuzz Open Source InterFace USB adapter"

@@ -491,7 +491,7 @@ static int moxa_write(struct tty_struct *, const unsigned char *, int);
 static unsigned int moxa_write_room(struct tty_struct *);
 static void moxa_flush_buffer(struct tty_struct *);
 static unsigned int moxa_chars_in_buffer(struct tty_struct *);
-static void moxa_set_termios(struct tty_struct *, struct ktermios *);
+static void moxa_set_termios(struct tty_struct *, const struct ktermios *);
 static void moxa_stop(struct tty_struct *);
 static void moxa_start(struct tty_struct *);
 static void moxa_hangup(struct tty_struct *);
@@ -499,7 +499,7 @@ static int moxa_tiocmget(struct tty_struct *tty);
 static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
 static void moxa_poll(struct timer_list *);
-static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
+static void moxa_set_tty_param(struct tty_struct *, const struct ktermios *);
 static void moxa_shutdown(struct tty_port *);
 static int moxa_carrier_raised(struct tty_port *);
 static void moxa_dtr_rts(struct tty_port *, int);
@@ -1602,7 +1602,7 @@ static int moxa_tiocmset(struct tty_struct *tty,
 }
 
 static void moxa_set_termios(struct tty_struct *tty,
-		struct ktermios *old_termios)
+		             const struct ktermios *old_termios)
 {
 	struct moxa_port *ch = tty->driver_data;
 
@@ -1761,7 +1761,8 @@ static void moxa_poll(struct timer_list *unused)
 
 /******************************************************************************/
 
-static void moxa_set_tty_param(struct tty_struct *tty, struct ktermios *old_termios)
+static void moxa_set_tty_param(struct tty_struct *tty,
+			       const struct ktermios *old_termios)
 {
 	register struct ktermios *ts = &tty->termios;
 	struct moxa_port *ch = tty->driver_data;

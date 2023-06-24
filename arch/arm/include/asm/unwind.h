@@ -24,6 +24,7 @@ struct unwind_idx {
 
 struct unwind_table {
 	struct list_head list;
+	struct list_head mod_list;
 	const struct unwind_idx *start;
 	const struct unwind_idx *origin;
 	const struct unwind_idx *stop;

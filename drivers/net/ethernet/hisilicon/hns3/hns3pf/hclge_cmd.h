@@ -321,7 +321,9 @@ struct hclge_config_mac_speed_dup_cmd {
 
 #define HCLGE_CFG_MAC_SPEED_CHANGE_EN_B	0
 	u8 mac_change_fec_en;
-	u8 rsv[22];
+	u8 rsv[4];
+	u8 lane_num;
+	u8 rsv1[17];
 };
 
 #define HCLGE_TQP_ENABLE_B		0
@@ -347,7 +349,9 @@ struct hclge_sfp_info_cmd {
 	u8 autoneg_ability; /* whether support autoneg */
 	__le32 speed_ability; /* speed ability for current media */
 	__le32 module_type;
-	u8 rsv[8];
+	u8 fec_ability;
+	u8 lane_num;
+	u8 rsv[6];
 };
 
 #define HCLGE_MAC_CFG_FEC_AUTO_EN_B	0
@@ -359,10 +363,25 @@ struct hclge_sfp_info_cmd {
 #define HCLGE_MAC_FEC_OFF		0
 #define HCLGE_MAC_FEC_BASER		1
 #define HCLGE_MAC_FEC_RS		2
+#define HCLGE_MAC_FEC_LLRS		3
 struct hclge_config_fec_cmd {
 	u8 fec_mode;
 	u8 default_config;
 	u8 rsv[22];
+};
+
+#define HCLGE_FEC_STATS_CMD_NUM 4
+
+struct hclge_query_fec_stats_cmd {
+	/* fec rs mode total stats */
+	__le32 rs_fec_corr_blocks;
+	__le32 rs_fec_uncorr_blocks;
+	__le32 rs_fec_error_blocks;
+	/* fec base-r mode per lanes stats */
+	u8 base_r_lane_num;
+	u8 rsv[3];
+	__le32 base_r_fec_corr_blocks;
+	__le32 base_r_fec_uncorr_blocks;
 };
 
 #define HCLGE_MAC_UPLINK_PORT		0x100

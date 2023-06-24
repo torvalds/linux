@@ -399,7 +399,7 @@ err_put_connector:
 	return ret;
 }
 
-static int wusb3801_remove(struct i2c_client *client)
+static void wusb3801_remove(struct i2c_client *client)
 {
 	struct wusb3801 *wusb3801 = i2c_get_clientdata(client);
 
@@ -411,8 +411,6 @@ static int wusb3801_remove(struct i2c_client *client)
 
 	if (wusb3801->vbus_on)
 		regulator_disable(wusb3801->vbus_supply);
-
-	return 0;
 }
 
 static const struct of_device_id wusb3801_of_match[] = {

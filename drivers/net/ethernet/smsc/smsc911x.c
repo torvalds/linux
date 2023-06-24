@@ -1037,6 +1037,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 		return ret;
 	}
 
+	/* Indicate that the MAC is responsible for managing PHY PM */
+	phydev->mac_managed_pm = true;
 	phy_attached_info(phydev);
 
 	phy_set_max_speed(phydev, SPEED_100);
@@ -1953,9 +1955,9 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 static void smsc911x_ethtool_getdrvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, SMSC_CHIPNAME, sizeof(info->driver));
-	strlcpy(info->version, SMSC_DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(dev->dev.parent),
+	strscpy(info->driver, SMSC_CHIPNAME, sizeof(info->driver));
+	strscpy(info->version, SMSC_DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 
@@ -2304,7 +2306,8 @@ static int smsc911x_init(struct net_device *dev)
 		return -ENODEV;
 
 	dev->flags |= IFF_MULTICAST;
-	netif_napi_add(dev, &pdata->napi, smsc911x_poll, SMSC_NAPI_WEIGHT);
+	netif_napi_add_weight(dev, &pdata->napi, smsc911x_poll,
+			      SMSC_NAPI_WEIGHT);
 	dev->netdev_ops = &smsc911x_netdev_ops;
 	dev->ethtool_ops = &smsc911x_ethtool_ops;
 
@@ -2586,6 +2589,8 @@ static int smsc911x_suspend(struct device *dev)
 	if (netif_running(ndev)) {
 		netif_stop_queue(ndev);
 		netif_device_detach(ndev);
+		if (!device_may_wakeup(dev))
+			phy_stop(ndev->phydev);
 	}
 
 	/* enable wake on LAN, energy detection and the external PME
@@ -2627,6 +2632,8 @@ static int smsc911x_resume(struct device *dev)
 	if (netif_running(ndev)) {
 		netif_device_attach(ndev);
 		netif_start_queue(ndev);
+		if (!device_may_wakeup(dev))
+			phy_start(ndev->phydev);
 	}
 
 	return 0;

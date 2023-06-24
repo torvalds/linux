@@ -1229,7 +1229,7 @@ struct wl1251_acx_arp_filter {
 	u8 address[16];	/* The IP address used to filter ARP packets.
 			   ARP packets that do not match this address are
 			   dropped. When the IP Version is 4, the last 12
-			   bytes of the the address are ignored. */
+			   bytes of the address are ignored. */
 } __attribute__((packed));
 
 struct wl1251_acx_ac_cfg {

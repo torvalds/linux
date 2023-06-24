@@ -969,12 +969,12 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 
 	smp_rmb();
 	if (tp->card_state == Sleeping) {
-		strlcpy(info->fw_version, "Sleep image",
+		strscpy(info->fw_version, "Sleep image",
 			sizeof(info->fw_version));
 	} else {
 		INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
 		if (typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
-			strlcpy(info->fw_version, "Unknown runtime",
+			strscpy(info->fw_version, "Unknown runtime",
 				sizeof(info->fw_version));
 		} else {
 			u32 sleep_ver = le32_to_cpu(xp_resp[0].parm2);
@@ -984,8 +984,8 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		}
 	}
 
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(pci_dev), sizeof(info->bus_info));
 }
 
 static int
@@ -2464,7 +2464,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* The chip-specific entries in the device structure. */
 	dev->netdev_ops		= &typhoon_netdev_ops;
-	netif_napi_add(dev, &tp->napi, typhoon_poll, 16);
+	netif_napi_add_weight(dev, &tp->napi, typhoon_poll, 16);
 	dev->watchdog_timeo	= TX_TIMEOUT;
 
 	dev->ethtool_ops = &typhoon_ethtool_ops;

@@ -70,9 +70,6 @@ static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-
-	pHTInfo->bAcceptAddbaReq = 1;
-
 	pHTInfo->bRegShortGI20MHz = 1;
 	pHTInfo->bRegShortGI40MHz = 1;
 
@@ -90,19 +87,19 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 	pHTInfo->AMPDU_Factor = 2;
 	pHTInfo->MPDU_Density = 0;
 
-	pHTInfo->SelfMimoPs = 3;
-	if (pHTInfo->SelfMimoPs == 2)
-		pHTInfo->SelfMimoPs = 3;
+	pHTInfo->self_mimo_ps = 3;
+	if (pHTInfo->self_mimo_ps == 2)
+		pHTInfo->self_mimo_ps = 3;
 	ieee->bTxDisableRateFallBack = 0;
 	ieee->bTxUseDriverAssingedRate = 0;
 
 	ieee->bTxEnableFwCalcDur = 1;
 
-	pHTInfo->bRegRT2RTAggregation = 1;
+	pHTInfo->reg_rt2rt_aggregation = 1;
 
-	pHTInfo->bRegRxReorderEnable = 1;
-	pHTInfo->RxReorderWinSize = 64;
-	pHTInfo->RxReorderPendingTime = 30;
+	pHTInfo->reg_rx_reorder_enable = 1;
+	pHTInfo->rx_reorder_win_size = 64;
+	pHTInfo->rx_reorder_pending_time = 30;
 }
 
 static u16 HTMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate)
@@ -254,20 +251,20 @@ static void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
-	pHTInfo->IOTRaFunc &= HT_IOT_RAFUNC_DISABLE_ALL;
+	pHTInfo->iot_ra_func &= HT_IOT_RAFUNC_DISABLE_ALL;
 
 	if (pHTInfo->IOTPeer == HT_IOT_PEER_RALINK && !bPeerRx2ss)
-		pHTInfo->IOTRaFunc |= HT_IOT_RAFUNC_PEER_1R;
+		pHTInfo->iot_ra_func |= HT_IOT_RAFUNC_PEER_1R;
 
-	if (pHTInfo->IOTAction & HT_IOT_ACT_AMSDU_ENABLE)
-		pHTInfo->IOTRaFunc |= HT_IOT_RAFUNC_TX_AMSDU;
+	if (pHTInfo->iot_action & HT_IOT_ACT_AMSDU_ENABLE)
+		pHTInfo->iot_ra_func |= HT_IOT_RAFUNC_TX_AMSDU;
 }
 
 void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo)
 {
-	pHTInfo->IOTAction = 0;
+	pHTInfo->iot_action = 0;
 	pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
-	pHTInfo->IOTRaFunc = 0;
+	pHTInfo->iot_ra_func = 0;
 }
 
 void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
@@ -300,7 +297,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	else
 		pCapELE->ChlWidth = (pHT->bRegBW40MHz ? 1 : 0);
 
-	pCapELE->MimoPwrSave		= pHT->SelfMimoPs;
+	pCapELE->MimoPwrSave		= pHT->self_mimo_ps;
 	pCapELE->GreenField		= 0;
 	pCapELE->ShortGI20Mhz		= 1;
 	pCapELE->ShortGI40Mhz		= 1;
@@ -332,16 +329,16 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->ASCap = 0;
 
 	if (bAssoc) {
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS15)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_MCS15)
 			pCapELE->MCS[1] &= 0x7f;
 
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS14)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_MCS14)
 			pCapELE->MCS[1] &= 0xbf;
 
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_ALL_2SS)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_ALL_2SS)
 			pCapELE->MCS[1] &= 0x00;
 
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
 			pCapELE->ShortGI40Mhz		= 0;
 
 		if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) {
@@ -377,7 +374,7 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 		pHTInfoEle->RIFS			= 0;
 		pHTInfoEle->PSMPAccessOnly		= 0;
 		pHTInfoEle->SrvIntGranularity		= 0;
-		pHTInfoEle->OptMode			= pHT->CurrentOpMode;
+		pHTInfoEle->OptMode			= pHT->current_op_mode;
 		pHTInfoEle->NonGFDevPresent		= 0;
 		pHTInfoEle->DualBeacon			= 0;
 		pHTInfoEle->SecondaryBeacon		= 0;
@@ -506,7 +503,7 @@ static u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS,
 }
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
-			enum ht_channel_width Bandwidth,
+			enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset);
 
 void HTOnAssocRsp(struct rtllib_device *ieee)
@@ -543,7 +540,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 #endif
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
 			  (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
-	pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
+	pHTInfo->cur_tx_bw40mhz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
 				 true : false);
 
 	pHTInfo->bCurShortGI20MHz = ((pHTInfo->bRegShortGI20MHz) ?
@@ -574,7 +571,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 			pHTInfo->bCurrentAMPDUEnable = false;
 	}
 
-	if (!pHTInfo->bRegRT2RTAggregation) {
+	if (!pHTInfo->reg_rt2rt_aggregation) {
 		if (pHTInfo->AMPDU_Factor > pPeerHTCap->MaxRxAMPDUFactor)
 			pHTInfo->CurrentAMPDUFactor =
 						 pPeerHTCap->MaxRxAMPDUFactor;
@@ -597,15 +594,14 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		}
 	}
 	if (pHTInfo->MPDU_Density > pPeerHTCap->MPDUDensity)
-		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
+		pHTInfo->current_mpdu_density = pHTInfo->MPDU_Density;
 	else
-		pHTInfo->CurrentMPDUDensity = pPeerHTCap->MPDUDensity;
-	if (pHTInfo->IOTAction & HT_IOT_ACT_TX_USE_AMSDU_8K) {
+		pHTInfo->current_mpdu_density = pPeerHTCap->MPDUDensity;
+	if (pHTInfo->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
 		pHTInfo->bCurrentAMPDUEnable = false;
 		pHTInfo->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
-		pHTInfo->ForcedAMSDUMaxSize = 7935;
 	}
-	pHTInfo->bCurRxReorderEnable = pHTInfo->bRegRxReorderEnable;
+	pHTInfo->cur_rx_reorder_enable = pHTInfo->reg_rx_reorder_enable;
 
 	if (pPeerHTCap->MCS[0] == 0)
 		pPeerHTCap->MCS[0] = 0xff;
@@ -614,8 +610,8 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	HTFilterMCSRate(ieee, pPeerHTCap->MCS, ieee->dot11HTOperationalRateSet);
 
-	pHTInfo->PeerMimoPs = pPeerHTCap->MimoPwrSave;
-	if (pHTInfo->PeerMimoPs == MIMO_PS_STATIC)
+	pHTInfo->peer_mimo_ps = pPeerHTCap->MimoPwrSave;
+	if (pHTInfo->peer_mimo_ps == MIMO_PS_STATIC)
 		pMcsFilter = MCS_FILTER_1SS;
 	else
 		pMcsFilter = MCS_FILTER_ALL;
@@ -623,7 +619,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 				   ieee->dot11HTOperationalRateSet, pMcsFilter);
 	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
-	pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
+	pHTInfo->current_op_mode = pPeerHTInfo->OptMode;
 }
 
 void HTInitializeHTInfo(struct rtllib_device *ieee)
@@ -633,17 +629,17 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	pHTInfo->bCurrentHTSupport = false;
 
 	pHTInfo->bCurBW40MHz = false;
-	pHTInfo->bCurTxBW40MHz = false;
+	pHTInfo->cur_tx_bw40mhz = false;
 
 	pHTInfo->bCurShortGI20MHz = false;
 	pHTInfo->bCurShortGI40MHz = false;
-	pHTInfo->bForcedShortGI = false;
+	pHTInfo->forced_short_gi = false;
 
 	pHTInfo->bCurSuppCCK = true;
 
 	pHTInfo->bCurrent_AMSDU_Support = false;
 	pHTInfo->nCurrent_AMSDU_MaxSize = pHTInfo->nAMSDU_MaxSize;
-	pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
+	pHTInfo->current_mpdu_density = pHTInfo->MPDU_Density;
 	pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
 	memset((void *)(&(pHTInfo->SelfHTCap)), 0,
@@ -655,17 +651,17 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	memset((void *)(&(pHTInfo->PeerHTInfoBuf)), 0,
 		sizeof(pHTInfo->PeerHTInfoBuf));
 
-	pHTInfo->bSwBwInProgress = false;
+	pHTInfo->sw_bw_in_progress = false;
 
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;
 
-	pHTInfo->bCurrentRT2RTAggregation = false;
-	pHTInfo->bCurrentRT2RTLongSlotTime = false;
+	pHTInfo->current_rt2rt_aggregation = false;
+	pHTInfo->current_rt2rt_long_slot_time = false;
 	pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 	pHTInfo->IOTPeer = 0;
-	pHTInfo->IOTAction = 0;
-	pHTInfo->IOTRaFunc = 0;
+	pHTInfo->iot_action = 0;
+	pHTInfo->iot_ra_func = 0;
 
 	{
 		u8 *RegHTSuppRateSets = &(ieee->RegHTSuppRateSet[0]);
@@ -717,51 +713,51 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 			       pNetwork->bssht.bd_ht_info_buf,
 			       pNetwork->bssht.bd_ht_info_len);
 
-		if (pHTInfo->bRegRT2RTAggregation) {
-			pHTInfo->bCurrentRT2RTAggregation =
+		if (pHTInfo->reg_rt2rt_aggregation) {
+			pHTInfo->current_rt2rt_aggregation =
 				 pNetwork->bssht.bd_rt2rt_aggregation;
-			pHTInfo->bCurrentRT2RTLongSlotTime =
+			pHTInfo->current_rt2rt_long_slot_time =
 				 pNetwork->bssht.bd_rt2rt_long_slot_time;
 			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.rt2rt_ht_mode;
 		} else {
-			pHTInfo->bCurrentRT2RTAggregation = false;
-			pHTInfo->bCurrentRT2RTLongSlotTime = false;
+			pHTInfo->current_rt2rt_aggregation = false;
+			pHTInfo->current_rt2rt_long_slot_time = false;
 			pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 		}
 
 		HTIOTPeerDetermine(ieee);
 
-		pHTInfo->IOTAction = 0;
+		pHTInfo->iot_action = 0;
 		bIOTAction = HTIOTActIsDisableMCS14(ieee, pNetwork->bssid);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_MCS14;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_MCS14;
 
 		bIOTAction = HTIOTActIsDisableMCS15(ieee);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_MCS15;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_MCS15;
 
 		bIOTAction = HTIOTActIsDisableMCSTwoSpatialStream(ieee);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_ALL_2SS;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_ALL_2SS;
 
 		bIOTAction = HTIOTActIsDisableEDCATurbo(ieee, pNetwork->bssid);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_EDCA_TURBO;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_EDCA_TURBO;
 
 		bIOTAction = HTIOTActIsMgntUseCCK6M(ieee, pNetwork);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_MGNT_USE_CCK_6M;
+			pHTInfo->iot_action |= HT_IOT_ACT_MGNT_USE_CCK_6M;
 		bIOTAction = HTIOTActIsCCDFsync(ieee);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_CDD_FSYNC;
+			pHTInfo->iot_action |= HT_IOT_ACT_CDD_FSYNC;
 	} else {
 		pHTInfo->bCurrentHTSupport = false;
-		pHTInfo->bCurrentRT2RTAggregation = false;
-		pHTInfo->bCurrentRT2RTLongSlotTime = false;
+		pHTInfo->current_rt2rt_aggregation = false;
+		pHTInfo->current_rt2rt_long_slot_time = false;
 		pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
-		pHTInfo->IOTAction = 0;
-		pHTInfo->IOTRaFunc = 0;
+		pHTInfo->iot_action = 0;
+		pHTInfo->iot_ra_func = 0;
 	}
 }
 
@@ -774,7 +770,7 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 
 	if (pHTInfo->bCurrentHTSupport) {
 		if (pNetwork->bssht.bd_ht_info_len != 0)
-			pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
+			pHTInfo->current_op_mode = pPeerHTInfo->OptMode;
 	}
 }
 EXPORT_SYMBOL(HT_update_self_and_peer_setting);
@@ -801,7 +797,7 @@ void HTUseDefaultSetting(struct rtllib_device *ieee)
 		pHTInfo->bCurrentAMPDUEnable = pHTInfo->bAMPDUEnable;
 		pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
-		pHTInfo->CurrentMPDUDensity = pHTInfo->CurrentMPDUDensity;
+		pHTInfo->current_mpdu_density = pHTInfo->current_mpdu_density;
 
 		HTFilterMCSRate(ieee, ieee->Regdot11TxHTOperationalRateSet,
 				ieee->dot11HTOperationalRateSet);
@@ -850,11 +846,11 @@ static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 
-	pHTInfo->bSwBwInProgress = false;
+	pHTInfo->sw_bw_in_progress = false;
 }
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
-			enum ht_channel_width Bandwidth,
+			enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
@@ -863,13 +859,13 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 		return;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-		Bandwidth = HT_CHANNEL_WIDTH_20;
+		bandwidth = HT_CHANNEL_WIDTH_20;
 
-	if (pHTInfo->bSwBwInProgress) {
-		pr_info("%s: bSwBwInProgress!!\n", __func__);
+	if (pHTInfo->sw_bw_in_progress) {
+		pr_info("%s: sw_bw_in_progress!!\n", __func__);
 		return;
 	}
-	if (Bandwidth == HT_CHANNEL_WIDTH_20_40) {
+	if (bandwidth == HT_CHANNEL_WIDTH_20_40) {
 		if (ieee->current_network.channel < 2 &&
 		    Offset == HT_EXTCHNL_OFFSET_LOWER)
 			Offset = HT_EXTCHNL_OFFSET_NO_EXT;
@@ -889,7 +885,7 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 	netdev_dbg(ieee->dev, "%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
 		   pHTInfo->bCurBW40MHz);
 
-	pHTInfo->bSwBwInProgress = true;
+	pHTInfo->sw_bw_in_progress = true;
 
 	HTSetConnectBwModeCallback(ieee);
 }

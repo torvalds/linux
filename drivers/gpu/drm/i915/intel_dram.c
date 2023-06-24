@@ -3,6 +3,8 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_dram.h"
@@ -136,7 +138,7 @@ skl_dram_get_dimm_info(struct drm_i915_private *i915,
 	drm_dbg_kms(&i915->drm,
 		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
 		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
-		    yesno(skl_is_16gb_dimm(dimm)));
+		    str_yes_no(skl_is_16gb_dimm(dimm)));
 }
 
 static int
@@ -165,7 +167,7 @@ skl_dram_get_channel_info(struct drm_i915_private *i915,
 		skl_is_16gb_dimm(&ch->dimm_s);
 
 	drm_dbg_kms(&i915->drm, "CH%u ranks: %u, 16Gb DIMMs: %s\n",
-		    channel, ch->ranks, yesno(ch->is_16gb_dimm));
+		    channel, ch->ranks, str_yes_no(ch->is_16gb_dimm));
 
 	return 0;
 }
@@ -214,7 +216,7 @@ skl_dram_get_channels_info(struct drm_i915_private *i915)
 	dram_info->symmetric_memory = intel_is_dram_symmetric(&ch0, &ch1);
 
 	drm_dbg_kms(&i915->drm, "Memory configuration is symmetric? %s\n",
-		    yesno(dram_info->symmetric_memory));
+		    str_yes_no(dram_info->symmetric_memory));
 
 	return 0;
 }
@@ -391,7 +393,7 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 	u32 val = 0;
 	int ret;
 
-	ret = snb_pcode_read(dev_priv, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+	ret = snb_pcode_read(&dev_priv->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
 			     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
 	if (ret)
 		return ret;
@@ -464,6 +466,42 @@ static int gen12_get_dram_info(struct drm_i915_private *i915)
 	return icl_pcode_read_mem_global_info(i915);
 }
 
+static int xelpdp_get_dram_info(struct drm_i915_private *i915)
+{
+	u32 val = intel_uncore_read(&i915->uncore, MTL_MEM_SS_INFO_GLOBAL);
+	struct dram_info *dram_info = &i915->dram_info;
+
+	switch (REG_FIELD_GET(MTL_DDR_TYPE_MASK, val)) {
+	case 0:
+		dram_info->type = INTEL_DRAM_DDR4;
+		break;
+	case 1:
+		dram_info->type = INTEL_DRAM_DDR5;
+		break;
+	case 2:
+		dram_info->type = INTEL_DRAM_LPDDR5;
+		break;
+	case 3:
+		dram_info->type = INTEL_DRAM_LPDDR4;
+		break;
+	case 4:
+		dram_info->type = INTEL_DRAM_DDR3;
+		break;
+	case 5:
+		dram_info->type = INTEL_DRAM_LPDDR3;
+		break;
+	default:
+		MISSING_CASE(val);
+		return -EINVAL;
+	}
+
+	dram_info->num_channels = REG_FIELD_GET(MTL_N_OF_POPULATED_CH_MASK, val);
+	dram_info->num_qgv_points = REG_FIELD_GET(MTL_N_OF_ENABLED_QGV_POINTS_MASK, val);
+	/* PSF GV points not supported in D14+ */
+
+	return 0;
+}
+
 void intel_dram_detect(struct drm_i915_private *i915)
 {
 	struct dram_info *dram_info = &i915->dram_info;
@@ -478,7 +516,9 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	 */
 	dram_info->wm_lv_0_adjust_needed = !IS_GEN9_LP(i915);
 
-	if (GRAPHICS_VER(i915) >= 12)
+	if (DISPLAY_VER(i915) >= 14)
+		ret = xelpdp_get_dram_info(i915);
+	else if (GRAPHICS_VER(i915) >= 12)
 		ret = gen12_get_dram_info(i915);
 	else if (GRAPHICS_VER(i915) >= 11)
 		ret = gen11_get_dram_info(i915);
@@ -492,7 +532,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
 
 	drm_dbg_kms(&i915->drm, "Watermark level 0 adjustment needed: %s\n",
-		    yesno(dram_info->wm_lv_0_adjust_needed));
+		    str_yes_no(dram_info->wm_lv_0_adjust_needed));
 }
 
 static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)

@@ -17,25 +17,32 @@
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of.h>
+#include <linux/cpu_pm.h>
+#include <linux/sched/clock.h>
 
 #include <asm/sbi.h>
 #include <asm/hwcap.h>
 
-union sbi_pmu_ctr_info {
-	unsigned long value;
-	struct {
-		unsigned long csr:12;
-		unsigned long width:6;
-#if __riscv_xlen == 32
-		unsigned long reserved:13;
-#else
-		unsigned long reserved:45;
-#endif
-		unsigned long type:1;
-	};
+PMU_FORMAT_ATTR(event, "config:0-47");
+PMU_FORMAT_ATTR(firmware, "config:63");
+
+static struct attribute *riscv_arch_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_firmware.attr,
+	NULL,
 };
 
-/**
+static struct attribute_group riscv_pmu_format_group = {
+	.name = "format",
+	.attrs = riscv_arch_formats_attr,
+};
+
+static const struct attribute_group *riscv_pmu_attr_groups[] = {
+	&riscv_pmu_format_group,
+	NULL,
+};
+
+/*
  * RISC-V doesn't have hetergenous harts yet. This need to be part of
  * per_cpu in case of harts with different pmu counters
  */
@@ -265,7 +272,6 @@ static int pmu_sbi_ctr_get_idx(struct perf_event *event)
 	struct sbiret ret;
 	int idx;
 	uint64_t cbase = 0;
-	uint64_t cmask = GENMASK_ULL(rvpmu->num_counters - 1, 0);
 	unsigned long cflags = 0;
 
 	if (event->attr.exclude_kernel)
@@ -274,8 +280,14 @@ static int pmu_sbi_ctr_get_idx(struct perf_event *event)
 		cflags |= SBI_PMU_CFG_FLAG_SET_UINH;
 
 	/* retrieve the available counter index */
-	ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_CFG_MATCH, cbase, cmask,
-			cflags, hwc->event_base, hwc->config, 0);
+#if defined(CONFIG_32BIT)
+	ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_CFG_MATCH, cbase,
+			rvpmu->cmask, cflags, hwc->event_base, hwc->config,
+			hwc->config >> 32);
+#else
+	ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_CFG_MATCH, cbase,
+			rvpmu->cmask, cflags, hwc->event_base, hwc->config, 0);
+#endif
 	if (ret.error) {
 		pr_debug("Not able to find a counter for event %lx config %llx\n",
 			hwc->event_base, hwc->config);
@@ -283,7 +295,7 @@ static int pmu_sbi_ctr_get_idx(struct perf_event *event)
 	}
 
 	idx = ret.value;
-	if (idx >= rvpmu->num_counters || !pmu_ctr_list[idx].value)
+	if (!test_bit(idx, &rvpmu->cmask) || !pmu_ctr_list[idx].value)
 		return -ENOENT;
 
 	/* Additional sanity check for the counter id */
@@ -417,8 +429,13 @@ static void pmu_sbi_ctr_start(struct perf_event *event, u64 ival)
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned long flag = SBI_PMU_START_FLAG_SET_INIT_VALUE;
 
+#if defined(CONFIG_32BIT)
 	ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_START, hwc->idx,
 			1, flag, ival, ival >> 32, 0);
+#else
+	ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_START, hwc->idx,
+			1, flag, ival, 0, 0);
+#endif
 	if (ret.error && (ret.error != SBI_ERR_ALREADY_STARTED))
 		pr_err("Starting counter idx %d failed with error %d\n",
 			hwc->idx, sbi_err_map_linux_errno(ret.error));
@@ -447,7 +464,7 @@ static int pmu_sbi_find_num_ctrs(void)
 		return sbi_err_map_linux_errno(ret.error);
 }
 
-static int pmu_sbi_get_ctrinfo(int nctr)
+static int pmu_sbi_get_ctrinfo(int nctr, unsigned long *mask)
 {
 	struct sbiret ret;
 	int i, num_hw_ctr = 0, num_fw_ctr = 0;
@@ -457,11 +474,14 @@ static int pmu_sbi_get_ctrinfo(int nctr)
 	if (!pmu_ctr_list)
 		return -ENOMEM;
 
-	for (i = 0; i <= nctr; i++) {
+	for (i = 0; i < nctr; i++) {
 		ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_GET_INFO, i, 0, 0, 0, 0, 0);
 		if (ret.error)
 			/* The logical counter ids are not expected to be contiguous */
 			continue;
+
+		*mask |= BIT(i);
+
 		cinfo.value = ret.value;
 		if (cinfo.type == SBI_PMU_CTR_TYPE_FW)
 			num_fw_ctr++;
@@ -477,12 +497,12 @@ static int pmu_sbi_get_ctrinfo(int nctr)
 
 static inline void pmu_sbi_stop_all(struct riscv_pmu *pmu)
 {
-	/**
+	/*
 	 * No need to check the error because we are disabling all the counters
 	 * which may include counters that are not enabled yet.
 	 */
 	sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_STOP,
-		  0, GENMASK_ULL(pmu->num_counters - 1, 0), 0, 0, 0, 0);
+		  0, pmu->cmask, 0, 0, 0, 0);
 }
 
 static inline void pmu_sbi_stop_hw_ctrs(struct riscv_pmu *pmu)
@@ -494,7 +514,7 @@ static inline void pmu_sbi_stop_hw_ctrs(struct riscv_pmu *pmu)
 		  cpu_hw_evt->used_hw_ctrs[0], 0, 0, 0, 0);
 }
 
-/**
+/*
  * This function starts all the used counters in two step approach.
  * Any counter that did not overflow can be start in a single step
  * while the overflowed counters need to be started with updated initialization
@@ -525,8 +545,14 @@ static inline void pmu_sbi_start_overflow_mask(struct riscv_pmu *pmu,
 			hwc = &event->hw;
 			max_period = riscv_pmu_ctr_get_width_mask(event);
 			init_val = local64_read(&hwc->prev_count) & max_period;
+#if defined(CONFIG_32BIT)
+			sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_START, idx, 1,
+				  flag, init_val, init_val >> 32, 0);
+#else
 			sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_START, idx, 1,
 				  flag, init_val, 0, 0);
+#endif
+			perf_event_update_userpage(event);
 		}
 		ctr_ovf_mask = ctr_ovf_mask >> 1;
 		idx++;
@@ -545,6 +571,7 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 	unsigned long overflow;
 	unsigned long overflowed_ctrs = 0;
 	struct cpu_hw_events *cpu_hw_evt = dev;
+	u64 start_clock = sched_clock();
 
 	if (WARN_ON_ONCE(!cpu_hw_evt))
 		return IRQ_NONE;
@@ -563,7 +590,7 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 	/* Overflow status register should only be read after counter are stopped */
 	overflow = csr_read(CSR_SSCOUNTOVF);
 
-	/**
+	/*
 	 * Overflow interrupt pending bit should only be cleared after stopping
 	 * all the counters to avoid any race condition.
 	 */
@@ -613,7 +640,9 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 			perf_event_overflow(event, &data, regs);
 		}
 	}
+
 	pmu_sbi_start_overflow_mask(pmu, overflowed_ctrs);
+	perf_sample_event_took(sched_clock() - start_clock);
 
 	return IRQ_HANDLED;
 }
@@ -623,8 +652,11 @@ static int pmu_sbi_starting_cpu(unsigned int cpu, struct hlist_node *node)
 	struct riscv_pmu *pmu = hlist_entry_safe(node, struct riscv_pmu, node);
 	struct cpu_hw_events *cpu_hw_evt = this_cpu_ptr(pmu->hw_events);
 
-	/* Enable the access for TIME csr only from the user mode now */
-	csr_write(CSR_SCOUNTEREN, 0x2);
+	/*
+	 * Enable the access for CYCLE, TIME, and INSTRET CSRs from userspace,
+	 * as is necessary to maintain uABI compatibility.
+	 */
+	csr_write(CSR_SCOUNTEREN, 0x7);
 
 	/* Stop all the counters so that they can be enabled from perf */
 	pmu_sbi_stop_all(pmu);
@@ -666,12 +698,15 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 		child = of_get_compatible_child(cpu, "riscv,cpu-intc");
 		if (!child) {
 			pr_err("Failed to find INTC node\n");
+			of_node_put(cpu);
 			return -ENODEV;
 		}
 		domain = irq_find_host(child);
 		of_node_put(child);
-		if (domain)
+		if (domain) {
+			of_node_put(cpu);
 			break;
+		}
 	}
 	if (!domain) {
 		pr_err("Failed to find INTC IRQ root domain\n");
@@ -693,11 +728,79 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 	return 0;
 }
 
+#ifdef CONFIG_CPU_PM
+static int riscv_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
+				void *v)
+{
+	struct riscv_pmu *rvpmu = container_of(b, struct riscv_pmu, riscv_pm_nb);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(rvpmu->hw_events);
+	int enabled = bitmap_weight(cpuc->used_hw_ctrs, RISCV_MAX_COUNTERS);
+	struct perf_event *event;
+	int idx;
+
+	if (!enabled)
+		return NOTIFY_OK;
+
+	for (idx = 0; idx < RISCV_MAX_COUNTERS; idx++) {
+		event = cpuc->events[idx];
+		if (!event)
+			continue;
+
+		switch (cmd) {
+		case CPU_PM_ENTER:
+			/*
+			 * Stop and update the counter
+			 */
+			riscv_pmu_stop(event, PERF_EF_UPDATE);
+			break;
+		case CPU_PM_EXIT:
+		case CPU_PM_ENTER_FAILED:
+			/*
+			 * Restore and enable the counter.
+			 *
+			 * Requires RCU read locking to be functional,
+			 * wrap the call within RCU_NONIDLE to make the
+			 * RCU subsystem aware this cpu is not idle from
+			 * an RCU perspective for the riscv_pmu_start() call
+			 * duration.
+			 */
+			RCU_NONIDLE(riscv_pmu_start(event, PERF_EF_RELOAD));
+			break;
+		default:
+			break;
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static int riscv_pm_pmu_register(struct riscv_pmu *pmu)
+{
+	pmu->riscv_pm_nb.notifier_call = riscv_pm_pmu_notify;
+	return cpu_pm_register_notifier(&pmu->riscv_pm_nb);
+}
+
+static void riscv_pm_pmu_unregister(struct riscv_pmu *pmu)
+{
+	cpu_pm_unregister_notifier(&pmu->riscv_pm_nb);
+}
+#else
+static inline int riscv_pm_pmu_register(struct riscv_pmu *pmu) { return 0; }
+static inline void riscv_pm_pmu_unregister(struct riscv_pmu *pmu) { }
+#endif
+
+static void riscv_pmu_destroy(struct riscv_pmu *pmu)
+{
+	riscv_pm_pmu_unregister(pmu);
+	cpuhp_state_remove_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->node);
+}
+
 static int pmu_sbi_device_probe(struct platform_device *pdev)
 {
 	struct riscv_pmu *pmu = NULL;
-	int num_counters;
+	unsigned long cmask = 0;
 	int ret = -ENODEV;
+	int num_counters;
 
 	pr_info("SBI PMU extension is available\n");
 	pmu = riscv_pmu_alloc();
@@ -711,7 +814,7 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 	}
 
 	/* cache all the information about counters now */
-	if (pmu_sbi_get_ctrinfo(num_counters))
+	if (pmu_sbi_get_ctrinfo(num_counters, &cmask))
 		goto out_free;
 
 	ret = pmu_sbi_setup_irqs(pmu, pdev);
@@ -720,7 +823,9 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
 	}
-	pmu->num_counters = num_counters;
+
+	pmu->pmu.attr_groups = riscv_pmu_attr_groups;
+	pmu->cmask = cmask;
 	pmu->ctr_start = pmu_sbi_ctr_start;
 	pmu->ctr_stop = pmu_sbi_ctr_stop;
 	pmu->event_map = pmu_sbi_event_map;
@@ -733,13 +838,18 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = riscv_pm_pmu_register(pmu);
+	if (ret)
+		goto out_unregister;
+
 	ret = perf_pmu_register(&pmu->pmu, "cpu", PERF_TYPE_RAW);
-	if (ret) {
-		cpuhp_state_remove_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->node);
-		return ret;
-	}
+	if (ret)
+		goto out_unregister;
 
 	return 0;
+
+out_unregister:
+	riscv_pmu_destroy(pmu);
 
 out_free:
 	kfree(pmu);

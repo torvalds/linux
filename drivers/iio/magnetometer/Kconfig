@@ -9,7 +9,6 @@ menu "Magnetometer sensors"
 config AK8974
 	tristate "Asahi Kasei AK8974 3-Axis Magnetometer"
 	depends on I2C
-	depends on OF
 	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
@@ -217,8 +216,8 @@ config YAMAHA_YAS530
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here to add support for the Yamaha YAS530 series of
-	  3-Axis Magnetometers. Right now YAS530, YAS532 and YAS533 are
-	  fully supported.
+	  3-Axis Magnetometers. YAS530, YAS532, YAS533 and YAS537 are
+	  supported.
 
 	  This driver can also be compiled as a module.
 	  To compile this driver as a module, choose M here: the module

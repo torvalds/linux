@@ -114,7 +114,7 @@
 };
 
 &pmicgpio {
-	usb_vbus_5v_pins: usb_vbus_5v_pins {
+	usb_vbus_5v_pins: usb-vbus-5v-state {
 		pins = "gpio4";
 		function = "normal";
 		output-high;

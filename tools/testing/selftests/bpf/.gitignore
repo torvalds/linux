@@ -39,7 +39,10 @@ test_cpp
 /tools
 /runqslower
 /bench
+/veristat
+/sign-file
 *.ko
 *.tmp
-xdpxceiver
+xskxceiver
 xdp_redirect_multi
+xdp_synproxy

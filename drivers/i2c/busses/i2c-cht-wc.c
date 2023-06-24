@@ -404,7 +404,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	adap->adapter.class = I2C_CLASS_HWMON;
 	adap->adapter.algo = &cht_wc_i2c_adap_algo;
 	adap->adapter.lock_ops = &cht_wc_i2c_adap_lock_ops;
-	strlcpy(adap->adapter.name, "PMIC I2C Adapter",
+	strscpy(adap->adapter.name, "PMIC I2C Adapter",
 		sizeof(adap->adapter.name));
 	adap->adapter.dev.parent = &pdev->dev;
 

@@ -14,8 +14,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-#define barrier() __asm__ __volatile__("": : :"memory")
-
 /* llvm will optimize both subprograms into exactly the same BPF assembly
  *
  * Disassembly of section .text:

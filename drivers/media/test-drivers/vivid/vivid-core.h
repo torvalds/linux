@@ -35,7 +35,9 @@
 #define MAX_HEIGHT 2160
 /* The minimum image width/height */
 #define MIN_WIDTH  16
-#define MIN_HEIGHT 16
+#define MIN_HEIGHT MIN_WIDTH
+/* Pixel Array control divider */
+#define PIXEL_ARRAY_DIV MIN_WIDTH
 /* The data_offset of plane 0 for the multiplanar formats */
 #define PLANE0_DATA_OFFSET 128
 
@@ -227,6 +229,7 @@ struct vivid_dev {
 	struct v4l2_ctrl		*bitmask;
 	struct v4l2_ctrl		*int_menu;
 	struct v4l2_ctrl		*ro_int32;
+	struct v4l2_ctrl		*pixel_array;
 	struct v4l2_ctrl		*test_pattern;
 	struct v4l2_ctrl		*colorspace;
 	struct v4l2_ctrl		*rgb_range_cap;
@@ -609,5 +612,7 @@ static inline bool vivid_is_hdmi_out(const struct vivid_dev *dev)
 {
 	return dev->output_type[dev->output] == HDMI;
 }
+
+bool vivid_validate_fb(const struct v4l2_framebuffer *a);
 
 #endif

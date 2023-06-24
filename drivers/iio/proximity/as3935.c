@@ -65,7 +65,7 @@ struct as3935_state {
 		u8 chan;
 		s64 timestamp __aligned(8);
 	} scan;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec as3935_channels[] = {

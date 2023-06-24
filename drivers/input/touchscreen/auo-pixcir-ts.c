@@ -10,6 +10,7 @@
  * Copyright (c) 2008 QUALCOMM USA, INC.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -19,10 +20,9 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
-#include <linux/input/auo-pixcir-ts.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/property.h>
 
 /*
  * Coordinate calculation:
@@ -69,6 +69,16 @@
 #define AUO_PIXCIR_INT_RELEASE		(1 << 4)
 #define AUO_PIXCIR_INT_ENABLE		(1 << 3)
 #define AUO_PIXCIR_INT_POL_HIGH		(1 << 2)
+
+/*
+ * Interrupt modes:
+ * periodical:		interrupt is asserted periodicaly
+ * compare coordinates:	interrupt is asserted when coordinates change
+ * indicate touch:	interrupt is asserted during touch
+ */
+#define AUO_PIXCIR_INT_PERIODICAL	0x00
+#define AUO_PIXCIR_INT_COMP_COORD	0x01
+#define AUO_PIXCIR_INT_TOUCH_IND	0x02
 #define AUO_PIXCIR_INT_MODE_MASK	0x03
 
 /*
@@ -103,10 +113,14 @@
 struct auo_pixcir_ts {
 	struct i2c_client	*client;
 	struct input_dev	*input;
-	const struct auo_pixcir_ts_platdata *pdata;
+	struct gpio_desc	*gpio_int;
+	struct gpio_desc	*gpio_rst;
 	char			phys[32];
 
-	/* special handling for touch_indicate interupt mode */
+	unsigned int		x_max;
+	unsigned int		y_max;
+
+	/* special handling for touch_indicate interrupt mode */
 	bool			touch_ind_mode;
 
 	wait_queue_head_t	wait;
@@ -125,7 +139,6 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 				   struct auo_point_t *point)
 {
 	struct i2c_client *client = ts->client;
-	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	uint8_t raw_coord[8];
 	uint8_t raw_area[4];
 	int i, ret;
@@ -152,8 +165,8 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 		point[i].coord_y =
 			raw_coord[4 * i + 3] << 8 | raw_coord[4 * i + 2];
 
-		if (point[i].coord_x > pdata->x_max ||
-		    point[i].coord_y > pdata->y_max) {
+		if (point[i].coord_x > ts->x_max ||
+		    point[i].coord_y > ts->y_max) {
 			dev_warn(&client->dev, "coordinates (%d,%d) invalid\n",
 				point[i].coord_x, point[i].coord_y);
 			point[i].coord_x = point[i].coord_y = 0;
@@ -171,7 +184,6 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 static irqreturn_t auo_pixcir_interrupt(int irq, void *dev_id)
 {
 	struct auo_pixcir_ts *ts = dev_id;
-	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	struct auo_point_t point[AUO_PIXCIR_REPORT_POINTS];
 	int i;
 	int ret;
@@ -182,7 +194,7 @@ static irqreturn_t auo_pixcir_interrupt(int irq, void *dev_id)
 
 		/* check for up event in touch touch_ind_mode */
 		if (ts->touch_ind_mode) {
-			if (gpio_get_value(pdata->gpio_int) == 0) {
+			if (gpiod_get_value_cansleep(ts->gpio_int) == 0) {
 				input_mt_sync(ts->input);
 				input_report_key(ts->input, BTN_TOUCH, 0);
 				input_sync(ts->input);
@@ -278,11 +290,9 @@ static int auo_pixcir_power_mode(struct auo_pixcir_ts *ts, int mode)
 	return 0;
 }
 
-static int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
-					   int int_setting)
+static int auo_pixcir_int_config(struct auo_pixcir_ts *ts, int int_setting)
 {
 	struct i2c_client *client = ts->client;
-	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_INT_SETTING);
@@ -304,7 +314,7 @@ static int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
 		return ret;
 	}
 
-	ts->touch_ind_mode = pdata->int_setting == AUO_PIXCIR_INT_TOUCH_IND;
+	ts->touch_ind_mode = int_setting == AUO_PIXCIR_INT_TOUCH_IND;
 
 	return 0;
 }
@@ -465,78 +475,22 @@ unlock:
 static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
 			 auo_pixcir_suspend, auo_pixcir_resume);
 
-#ifdef CONFIG_OF
-static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
-{
-	struct auo_pixcir_ts_platdata *pdata;
-	struct device_node *np = dev->of_node;
-
-	if (!np)
-		return ERR_PTR(-ENOENT);
-
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	pdata->gpio_int = of_get_gpio(np, 0);
-	if (!gpio_is_valid(pdata->gpio_int)) {
-		dev_err(dev, "failed to get interrupt gpio\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	pdata->gpio_rst = of_get_gpio(np, 1);
-	if (!gpio_is_valid(pdata->gpio_rst)) {
-		dev_err(dev, "failed to get reset gpio\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (of_property_read_u32(np, "x-size", &pdata->x_max)) {
-		dev_err(dev, "failed to get x-size property\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (of_property_read_u32(np, "y-size", &pdata->y_max)) {
-		dev_err(dev, "failed to get y-size property\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	/* default to asserting the interrupt when the screen is touched */
-	pdata->int_setting = AUO_PIXCIR_INT_TOUCH_IND;
-
-	return pdata;
-}
-#else
-static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
-{
-	return ERR_PTR(-EINVAL);
-}
-#endif
-
 static void auo_pixcir_reset(void *data)
 {
 	struct auo_pixcir_ts *ts = data;
 
-	gpio_set_value(ts->pdata->gpio_rst, 0);
+	gpiod_set_value_cansleep(ts->gpio_rst, 1);
 }
 
 static int auo_pixcir_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
-	const struct auo_pixcir_ts_platdata *pdata;
 	struct auo_pixcir_ts *ts;
 	struct input_dev *input_dev;
 	int version;
 	int error;
 
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
-		pdata = auo_pixcir_parse_dt(&client->dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
-
-	ts = devm_kzalloc(&client->dev,
-			  sizeof(struct auo_pixcir_ts), GFP_KERNEL);
+	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
 
@@ -546,7 +500,6 @@ static int auo_pixcir_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	ts->pdata = pdata;
 	ts->client = client;
 	ts->input = input_dev;
 	ts->touch_ind_mode = 0;
@@ -555,6 +508,16 @@ static int auo_pixcir_probe(struct i2c_client *client,
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
+
+	if (device_property_read_u32(&client->dev, "x-size", &ts->x_max)) {
+		dev_err(&client->dev, "failed to get x-size property\n");
+		return -EINVAL;
+	}
+
+	if (device_property_read_u32(&client->dev, "y-size", &ts->y_max)) {
+		dev_err(&client->dev, "failed to get y-size property\n");
+		return -EINVAL;
+	}
 
 	input_dev->name = "AUO-Pixcir touchscreen";
 	input_dev->phys = ts->phys;
@@ -569,38 +532,41 @@ static int auo_pixcir_probe(struct i2c_client *client,
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 
 	/* For single touch */
-	input_set_abs_params(input_dev, ABS_X, 0, pdata->x_max, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, pdata->y_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, ts->x_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, ts->y_max, 0, 0);
 
 	/* For multi touch */
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0,
-			     pdata->x_max, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
-			     pdata->y_max, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0,
-			     AUO_PIXCIR_MAX_AREA, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR, 0,
-			     AUO_PIXCIR_MAX_AREA, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, ts->x_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
+			     0, AUO_PIXCIR_MAX_AREA, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR,
+			     0, AUO_PIXCIR_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 
 	input_set_drvdata(ts->input, ts);
 
-	error = devm_gpio_request_one(&client->dev, pdata->gpio_int,
-				      GPIOF_DIR_IN, "auo_pixcir_ts_int");
+	ts->gpio_int = devm_gpiod_get_index(&client->dev, NULL, 0, GPIOD_IN);
+	error = PTR_ERR_OR_ZERO(ts->gpio_int);
 	if (error) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			pdata->gpio_int, error);
+		dev_err(&client->dev,
+			"request of int gpio failed: %d\n", error);
 		return error;
 	}
 
-	error = devm_gpio_request_one(&client->dev, pdata->gpio_rst,
-				      GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
-				      "auo_pixcir_ts_rst");
+	gpiod_set_consumer_name(ts->gpio_int, "auo_pixcir_ts_int");
+
+	/* Take the chip out of reset */
+	ts->gpio_rst = devm_gpiod_get_index(&client->dev, NULL, 1,
+					    GPIOD_OUT_LOW);
+	error = PTR_ERR_OR_ZERO(ts->gpio_rst);
 	if (error) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			pdata->gpio_rst, error);
+		dev_err(&client->dev,
+			"request of reset gpio failed: %d\n", error);
 		return error;
 	}
+
+	gpiod_set_consumer_name(ts->gpio_rst, "auo_pixcir_ts_rst");
 
 	error = devm_add_action_or_reset(&client->dev, auo_pixcir_reset, ts);
 	if (error) {
@@ -619,13 +585,14 @@ static int auo_pixcir_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "firmware version 0x%X\n", version);
 
-	error = auo_pixcir_int_config(ts, pdata->int_setting);
+	/* default to asserting the interrupt when the screen is touched */
+	error = auo_pixcir_int_config(ts, AUO_PIXCIR_INT_TOUCH_IND);
 	if (error)
 		return error;
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, auo_pixcir_interrupt,
-					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					  IRQF_ONESHOT,
 					  input_dev->name, ts);
 	if (error) {
 		dev_err(&client->dev, "irq %d requested failed, %d\n",

@@ -7,12 +7,24 @@
 #ifndef BTRFS_SEND_H
 #define BTRFS_SEND_H
 
-#include "ctree.h"
+#include <linux/types.h>
 
 #define BTRFS_SEND_STREAM_MAGIC "btrfs-stream"
-#define BTRFS_SEND_STREAM_VERSION 1
+/* Conditional support for the upcoming protocol version. */
+#ifdef CONFIG_BTRFS_DEBUG
+#define BTRFS_SEND_STREAM_VERSION 3
+#else
+#define BTRFS_SEND_STREAM_VERSION 2
+#endif
 
-#define BTRFS_SEND_BUF_SIZE SZ_64K
+/*
+ * In send stream v1, no command is larger than 64K. In send stream v2, no limit
+ * should be assumed.
+ */
+#define BTRFS_SEND_BUF_SIZE_V1				SZ_64K
+
+struct inode;
+struct btrfs_ioctl_send_args;
 
 enum btrfs_tlv_type {
 	BTRFS_TLV_U8,
@@ -46,87 +58,126 @@ struct btrfs_tlv_header {
 
 /* commands */
 enum btrfs_send_cmd {
-	BTRFS_SEND_C_UNSPEC,
+	BTRFS_SEND_C_UNSPEC		= 0,
 
 	/* Version 1 */
-	BTRFS_SEND_C_SUBVOL,
-	BTRFS_SEND_C_SNAPSHOT,
+	BTRFS_SEND_C_SUBVOL		= 1,
+	BTRFS_SEND_C_SNAPSHOT		= 2,
 
-	BTRFS_SEND_C_MKFILE,
-	BTRFS_SEND_C_MKDIR,
-	BTRFS_SEND_C_MKNOD,
-	BTRFS_SEND_C_MKFIFO,
-	BTRFS_SEND_C_MKSOCK,
-	BTRFS_SEND_C_SYMLINK,
+	BTRFS_SEND_C_MKFILE		= 3,
+	BTRFS_SEND_C_MKDIR		= 4,
+	BTRFS_SEND_C_MKNOD		= 5,
+	BTRFS_SEND_C_MKFIFO		= 6,
+	BTRFS_SEND_C_MKSOCK		= 7,
+	BTRFS_SEND_C_SYMLINK		= 8,
 
-	BTRFS_SEND_C_RENAME,
-	BTRFS_SEND_C_LINK,
-	BTRFS_SEND_C_UNLINK,
-	BTRFS_SEND_C_RMDIR,
+	BTRFS_SEND_C_RENAME		= 9,
+	BTRFS_SEND_C_LINK		= 10,
+	BTRFS_SEND_C_UNLINK		= 11,
+	BTRFS_SEND_C_RMDIR		= 12,
 
-	BTRFS_SEND_C_SET_XATTR,
-	BTRFS_SEND_C_REMOVE_XATTR,
+	BTRFS_SEND_C_SET_XATTR		= 13,
+	BTRFS_SEND_C_REMOVE_XATTR	= 14,
 
-	BTRFS_SEND_C_WRITE,
-	BTRFS_SEND_C_CLONE,
+	BTRFS_SEND_C_WRITE		= 15,
+	BTRFS_SEND_C_CLONE		= 16,
 
-	BTRFS_SEND_C_TRUNCATE,
-	BTRFS_SEND_C_CHMOD,
-	BTRFS_SEND_C_CHOWN,
-	BTRFS_SEND_C_UTIMES,
+	BTRFS_SEND_C_TRUNCATE		= 17,
+	BTRFS_SEND_C_CHMOD		= 18,
+	BTRFS_SEND_C_CHOWN		= 19,
+	BTRFS_SEND_C_UTIMES		= 20,
 
-	BTRFS_SEND_C_END,
-	BTRFS_SEND_C_UPDATE_EXTENT,
-	__BTRFS_SEND_C_MAX_V1,
+	BTRFS_SEND_C_END		= 21,
+	BTRFS_SEND_C_UPDATE_EXTENT	= 22,
+	BTRFS_SEND_C_MAX_V1		= 22,
 
 	/* Version 2 */
-	__BTRFS_SEND_C_MAX_V2,
+	BTRFS_SEND_C_FALLOCATE		= 23,
+	BTRFS_SEND_C_FILEATTR		= 24,
+	BTRFS_SEND_C_ENCODED_WRITE	= 25,
+	BTRFS_SEND_C_MAX_V2		= 25,
 
+	/* Version 3 */
+	BTRFS_SEND_C_ENABLE_VERITY	= 26,
+	BTRFS_SEND_C_MAX_V3		= 26,
 	/* End */
-	__BTRFS_SEND_C_MAX,
+	BTRFS_SEND_C_MAX		= 26,
 };
-#define BTRFS_SEND_C_MAX (__BTRFS_SEND_C_MAX - 1)
 
 /* attributes in send stream */
 enum {
-	BTRFS_SEND_A_UNSPEC,
+	BTRFS_SEND_A_UNSPEC		= 0,
 
-	BTRFS_SEND_A_UUID,
-	BTRFS_SEND_A_CTRANSID,
+	/* Version 1 */
+	BTRFS_SEND_A_UUID		= 1,
+	BTRFS_SEND_A_CTRANSID		= 2,
 
-	BTRFS_SEND_A_INO,
-	BTRFS_SEND_A_SIZE,
-	BTRFS_SEND_A_MODE,
-	BTRFS_SEND_A_UID,
-	BTRFS_SEND_A_GID,
-	BTRFS_SEND_A_RDEV,
-	BTRFS_SEND_A_CTIME,
-	BTRFS_SEND_A_MTIME,
-	BTRFS_SEND_A_ATIME,
-	BTRFS_SEND_A_OTIME,
+	BTRFS_SEND_A_INO		= 3,
+	BTRFS_SEND_A_SIZE		= 4,
+	BTRFS_SEND_A_MODE		= 5,
+	BTRFS_SEND_A_UID		= 6,
+	BTRFS_SEND_A_GID		= 7,
+	BTRFS_SEND_A_RDEV		= 8,
+	BTRFS_SEND_A_CTIME		= 9,
+	BTRFS_SEND_A_MTIME		= 10,
+	BTRFS_SEND_A_ATIME		= 11,
+	BTRFS_SEND_A_OTIME		= 12,
 
-	BTRFS_SEND_A_XATTR_NAME,
-	BTRFS_SEND_A_XATTR_DATA,
+	BTRFS_SEND_A_XATTR_NAME		= 13,
+	BTRFS_SEND_A_XATTR_DATA		= 14,
 
-	BTRFS_SEND_A_PATH,
-	BTRFS_SEND_A_PATH_TO,
-	BTRFS_SEND_A_PATH_LINK,
+	BTRFS_SEND_A_PATH		= 15,
+	BTRFS_SEND_A_PATH_TO		= 16,
+	BTRFS_SEND_A_PATH_LINK		= 17,
 
-	BTRFS_SEND_A_FILE_OFFSET,
-	BTRFS_SEND_A_DATA,
+	BTRFS_SEND_A_FILE_OFFSET	= 18,
+	/*
+	 * As of send stream v2, this attribute is special: it must be the last
+	 * attribute in a command, its header contains only the type, and its
+	 * length is implicitly the remaining length of the command.
+	 */
+	BTRFS_SEND_A_DATA		= 19,
 
-	BTRFS_SEND_A_CLONE_UUID,
-	BTRFS_SEND_A_CLONE_CTRANSID,
-	BTRFS_SEND_A_CLONE_PATH,
-	BTRFS_SEND_A_CLONE_OFFSET,
-	BTRFS_SEND_A_CLONE_LEN,
+	BTRFS_SEND_A_CLONE_UUID		= 20,
+	BTRFS_SEND_A_CLONE_CTRANSID	= 21,
+	BTRFS_SEND_A_CLONE_PATH		= 22,
+	BTRFS_SEND_A_CLONE_OFFSET	= 23,
+	BTRFS_SEND_A_CLONE_LEN		= 24,
 
-	__BTRFS_SEND_A_MAX,
+	BTRFS_SEND_A_MAX_V1		= 24,
+
+	/* Version 2 */
+	BTRFS_SEND_A_FALLOCATE_MODE	= 25,
+
+	/*
+	 * File attributes from the FS_*_FL namespace (i_flags, xflags),
+	 * translated to BTRFS_INODE_* bits (BTRFS_INODE_FLAG_MASK) and stored
+	 * in btrfs_inode_item::flags (represented by btrfs_inode::flags and
+	 * btrfs_inode::ro_flags).
+	 */
+	BTRFS_SEND_A_FILEATTR		= 26,
+
+	BTRFS_SEND_A_UNENCODED_FILE_LEN	= 27,
+	BTRFS_SEND_A_UNENCODED_LEN	= 28,
+	BTRFS_SEND_A_UNENCODED_OFFSET	= 29,
+	/*
+	 * COMPRESSION and ENCRYPTION default to NONE (0) if omitted from
+	 * BTRFS_SEND_C_ENCODED_WRITE.
+	 */
+	BTRFS_SEND_A_COMPRESSION	= 30,
+	BTRFS_SEND_A_ENCRYPTION		= 31,
+	BTRFS_SEND_A_MAX_V2		= 31,
+
+	/* Version 3 */
+	BTRFS_SEND_A_VERITY_ALGORITHM	= 32,
+	BTRFS_SEND_A_VERITY_BLOCK_SIZE	= 33,
+	BTRFS_SEND_A_VERITY_SALT_DATA	= 34,
+	BTRFS_SEND_A_VERITY_SIG_DATA	= 35,
+	BTRFS_SEND_A_MAX_V3		= 35,
+
+	__BTRFS_SEND_A_MAX		= 35,
 };
-#define BTRFS_SEND_A_MAX (__BTRFS_SEND_A_MAX - 1)
 
-#ifdef __KERNEL__
 long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg);
-#endif
 
 #endif

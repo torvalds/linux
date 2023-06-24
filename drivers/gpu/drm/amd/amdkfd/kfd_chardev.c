@@ -65,6 +65,25 @@ static int kfd_char_dev_major = -1;
 static struct class *kfd_class;
 struct device *kfd_device;
 
+static inline struct kfd_process_device *kfd_lock_pdd_by_id(struct kfd_process *p, __u32 gpu_id)
+{
+	struct kfd_process_device *pdd;
+
+	mutex_lock(&p->mutex);
+	pdd = kfd_process_device_data_by_id(p, gpu_id);
+
+	if (pdd)
+		return pdd;
+
+	mutex_unlock(&p->mutex);
+	return NULL;
+}
+
+static inline void kfd_unlock_pdd(struct kfd_process_device *pdd)
+{
+	mutex_unlock(&pdd->process->mutex);
+}
+
 int kfd_chardev_init(void)
 {
 	int err = 0;
@@ -280,6 +299,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	struct kfd_process_device *pdd;
 	struct queue_properties q_properties;
 	uint32_t doorbell_offset_in_process = 0;
+	struct amdgpu_bo *wptr_bo = NULL;
 
 	memset(&q_properties, 0, sizeof(struct queue_properties));
 
@@ -307,12 +327,55 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
+	if (!pdd->doorbell_index &&
+	    kfd_alloc_process_doorbells(dev, &pdd->doorbell_index) < 0) {
+		err = -ENOMEM;
+		goto err_alloc_doorbells;
+	}
+
+	/* Starting with GFX11, wptr BOs must be mapped to GART for MES to determine work
+	 * on unmapped queues for usermode queue oversubscription (no aggregated doorbell)
+	 */
+	if (dev->shared_resources.enable_mes &&
+			((dev->adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK)
+			>> AMDGPU_MES_API_VERSION_SHIFT) >= 2) {
+		struct amdgpu_bo_va_mapping *wptr_mapping;
+		struct amdgpu_vm *wptr_vm;
+
+		wptr_vm = drm_priv_to_vm(pdd->drm_priv);
+		err = amdgpu_bo_reserve(wptr_vm->root.bo, false);
+		if (err)
+			goto err_wptr_map_gart;
+
+		wptr_mapping = amdgpu_vm_bo_lookup_mapping(
+				wptr_vm, args->write_pointer_address >> PAGE_SHIFT);
+		amdgpu_bo_unreserve(wptr_vm->root.bo);
+		if (!wptr_mapping) {
+			pr_err("Failed to lookup wptr bo\n");
+			err = -EINVAL;
+			goto err_wptr_map_gart;
+		}
+
+		wptr_bo = wptr_mapping->bo_va->base.bo;
+		if (wptr_bo->tbo.base.size > PAGE_SIZE) {
+			pr_err("Requested GART mapping for wptr bo larger than one page\n");
+			err = -EINVAL;
+			goto err_wptr_map_gart;
+		}
+
+		err = amdgpu_amdkfd_map_gtt_bo_to_gart(dev->adev, wptr_bo);
+		if (err) {
+			pr_err("Failed to map wptr bo to GART\n");
+			goto err_wptr_map_gart;
+		}
+	}
+
 	pr_debug("Creating queue for PASID 0x%x on gpu 0x%x\n",
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id, NULL, NULL, NULL,
-			&doorbell_offset_in_process);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id, wptr_bo,
+			NULL, NULL, NULL, &doorbell_offset_in_process);
 	if (err != 0)
 		goto err_create_queue;
 
@@ -344,6 +407,10 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	return 0;
 
 err_create_queue:
+	if (wptr_bo)
+		amdgpu_amdkfd_free_gtt_mem(dev->adev, wptr_bo);
+err_wptr_map_gart:
+err_alloc_doorbells:
 err_bind_process:
 err_pdd:
 	mutex_unlock(&p->mutex);
@@ -809,14 +876,11 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 				void *data)
 {
 	struct kfd_ioctl_wait_events_args *args = data;
-	int err;
 
-	err = kfd_wait_on_events(p, args->num_events,
+	return kfd_wait_on_events(p, args->num_events,
 			(void __user *)args->events_ptr,
 			(args->wait_for_all != 0),
-			args->timeout, &args->wait_result);
-
-	return err;
+			&args->timeout, &args->wait_result);
 }
 static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
 					struct kfd_process *p, void *data)
@@ -944,8 +1008,6 @@ err_drm_file:
 
 bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
-	struct kfd_local_mem_info mem_info;
-
 	if (debug_largebar) {
 		pr_debug("Simulate large-bar allocation on non large-bar machine\n");
 		return true;
@@ -954,11 +1016,23 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 	if (dev->use_iommu_v2)
 		return false;
 
-	amdgpu_amdkfd_get_local_mem_info(dev->adev, &mem_info);
-	if (mem_info.local_mem_size_private == 0 &&
-			mem_info.local_mem_size_public > 0)
+	if (dev->local_mem_info.local_mem_size_private == 0 &&
+			dev->local_mem_info.local_mem_size_public > 0)
 		return true;
 	return false;
+}
+
+static int kfd_ioctl_get_available_memory(struct file *filep,
+					  struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_available_memory_args *args = data;
+	struct kfd_process_device *pdd = kfd_lock_pdd_by_id(p, args->gpu_id);
+
+	if (!pdd)
+		return -EINVAL;
+	args->available = amdgpu_amdkfd_get_available_memory(pdd->dev->adev);
+	kfd_unlock_pdd(pdd);
+	return 0;
 }
 
 static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
@@ -1022,6 +1096,10 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 			goto err_unlock;
 		}
 		offset = kfd_get_process_doorbells(pdd);
+		if (!offset) {
+			err = -ENOMEM;
+			goto err_unlock;
+		}
 	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
 		if (args->size != PAGE_SIZE) {
 			err = -EINVAL;
@@ -1128,14 +1206,6 @@ err_pdd:
 	return ret;
 }
 
-static bool kfd_flush_tlb_after_unmap(struct kfd_dev *dev)
-{
-	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
-		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1) &&
-		dev->adev->sdma.instance[0].fw_version >= 18) ||
-		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 0);
-}
-
 static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 					struct kfd_process *p, void *data)
 {
@@ -1146,7 +1216,6 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 	long err = 0;
 	int i;
 	uint32_t *devices_arr = NULL;
-	bool table_freed = false;
 
 	if (!args->n_devices) {
 		pr_debug("Device IDs array empty\n");
@@ -1208,7 +1277,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 
 		err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 			peer_pdd->dev->adev, (struct kgd_mem *)mem,
-			peer_pdd->drm_priv, &table_freed);
+			peer_pdd->drm_priv);
 		if (err) {
 			struct pci_dev *pdev = peer_pdd->dev->adev->pdev;
 
@@ -1233,13 +1302,11 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 	}
 
 	/* Flush TLBs after waiting for the page table updates to complete */
-	if (table_freed || !kfd_flush_tlb_after_unmap(dev)) {
-		for (i = 0; i < args->n_devices; i++) {
-			peer_pdd = kfd_process_device_data_by_id(p, devices_arr[i]);
-			if (WARN_ON_ONCE(!peer_pdd))
-				continue;
-			kfd_flush_tlb(peer_pdd, TLB_FLUSH_LEGACY);
-		}
+	for (i = 0; i < args->n_devices; i++) {
+		peer_pdd = kfd_process_device_data_by_id(p, devices_arr[i]);
+		if (WARN_ON_ONCE(!peer_pdd))
+			continue;
+		kfd_flush_tlb(peer_pdd, TLB_FLUSH_LEGACY);
 	}
 	kfree(devices_arr);
 
@@ -1517,6 +1584,8 @@ static int kfd_ioctl_smi_events(struct file *filep,
 	return kfd_smi_event_open(pdd->dev, &args->anon_fd);
 }
 
+#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+
 static int kfd_ioctl_set_xnack_mode(struct file *filep,
 				    struct kfd_process *p, void *data)
 {
@@ -1527,22 +1596,29 @@ static int kfd_ioctl_set_xnack_mode(struct file *filep,
 	if (args->xnack_enabled >= 0) {
 		if (!list_empty(&p->pqm.queues)) {
 			pr_debug("Process has user queues running\n");
-			mutex_unlock(&p->mutex);
-			return -EBUSY;
+			r = -EBUSY;
+			goto out_unlock;
 		}
-		if (args->xnack_enabled && !kfd_process_xnack_mode(p, true))
+
+		if (p->xnack_enabled == args->xnack_enabled)
+			goto out_unlock;
+
+		if (args->xnack_enabled && !kfd_process_xnack_mode(p, true)) {
 			r = -EPERM;
-		else
-			p->xnack_enabled = args->xnack_enabled;
+			goto out_unlock;
+		}
+
+		r = svm_range_switch_xnack_reserve_mem(p, args->xnack_enabled);
 	} else {
 		args->xnack_enabled = p->xnack_enabled;
 	}
+
+out_unlock:
 	mutex_unlock(&p->mutex);
 
 	return r;
 }
 
-#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
 static int kfd_ioctl_svm(struct file *filep, struct kfd_process *p, void *data)
 {
 	struct kfd_ioctl_svm_args *args = data;
@@ -1562,6 +1638,11 @@ static int kfd_ioctl_svm(struct file *filep, struct kfd_process *p, void *data)
 	return r;
 }
 #else
+static int kfd_ioctl_set_xnack_mode(struct file *filep,
+				    struct kfd_process *p, void *data)
+{
+	return -EPERM;
+}
 static int kfd_ioctl_svm(struct file *filep, struct kfd_process *p, void *data)
 {
 	return -EPERM;
@@ -1869,7 +1950,7 @@ static int criu_checkpoint(struct file *filep,
 {
 	int ret;
 	uint32_t num_devices, num_bos, num_objects;
-	uint64_t priv_size, priv_offset = 0;
+	uint64_t priv_size, priv_offset = 0, bo_priv_offset;
 
 	if (!args->devices || !args->bos || !args->priv_data)
 		return -EINVAL;
@@ -1913,38 +1994,34 @@ static int criu_checkpoint(struct file *filep,
 	if (ret)
 		goto exit_unlock;
 
-	ret = criu_checkpoint_bos(p, num_bos, (uint8_t __user *)args->bos,
-			    (uint8_t __user *)args->priv_data, &priv_offset);
-	if (ret)
-		goto exit_unlock;
+	/* Leave room for BOs in the private data. They need to be restored
+	 * before events, but we checkpoint them last to simplify the error
+	 * handling.
+	 */
+	bo_priv_offset = priv_offset;
+	priv_offset += num_bos * sizeof(struct kfd_criu_bo_priv_data);
 
 	if (num_objects) {
 		ret = kfd_criu_checkpoint_queues(p, (uint8_t __user *)args->priv_data,
 						 &priv_offset);
 		if (ret)
-			goto close_bo_fds;
+			goto exit_unlock;
 
 		ret = kfd_criu_checkpoint_events(p, (uint8_t __user *)args->priv_data,
 						 &priv_offset);
 		if (ret)
-			goto close_bo_fds;
+			goto exit_unlock;
 
 		ret = kfd_criu_checkpoint_svm(p, (uint8_t __user *)args->priv_data, &priv_offset);
 		if (ret)
-			goto close_bo_fds;
+			goto exit_unlock;
 	}
 
-close_bo_fds:
-	if (ret) {
-		/* If IOCTL returns err, user assumes all FDs opened in criu_dump_bos are closed */
-		uint32_t i;
-		struct kfd_criu_bo_bucket *bo_buckets = (struct kfd_criu_bo_bucket *) args->bos;
-
-		for (i = 0; i < num_bos; i++) {
-			if (bo_buckets[i].alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)
-				close_fd(bo_buckets[i].dmabuf_fd);
-		}
-	}
+	/* This must be the last thing in this function that can fail.
+	 * Otherwise we leak dmabuf file descriptors.
+	 */
+	ret = criu_checkpoint_bos(p, num_bos, (uint8_t __user *)args->bos,
+			   (uint8_t __user *)args->priv_data, &bo_priv_offset);
 
 exit_unlock:
 	mutex_unlock(&p->mutex);
@@ -2086,6 +2163,12 @@ static int criu_restore_devices(struct kfd_process *p,
 			ret = PTR_ERR(pdd);
 			goto exit;
 		}
+
+		if (!pdd->doorbell_index &&
+		    kfd_alloc_process_doorbells(pdd->dev, &pdd->doorbell_index) < 0) {
+			ret = -ENOMEM;
+			goto exit;
+		}
 	}
 
 	/*
@@ -2114,6 +2197,8 @@ static int criu_restore_memory_of_gpu(struct kfd_process_device *pdd,
 			return -EINVAL;
 
 		offset = kfd_get_process_doorbells(pdd);
+		if (!offset)
+			return -ENOMEM;
 	} else if (bo_bucket->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
 		/* MMIO BOs need remapped bus address */
 		if (bo_bucket->size != PAGE_SIZE) {
@@ -2206,8 +2291,8 @@ static int criu_restore_bo(struct kfd_process *p,
 		if (IS_ERR(peer_pdd))
 			return PTR_ERR(peer_pdd);
 
-		ret = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(peer->adev, kgd_mem, peer_pdd->drm_priv,
-							    NULL);
+		ret = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(peer->adev, kgd_mem,
+							    peer_pdd->drm_priv);
 		if (ret) {
 			pr_err("Failed to map to gpu %d/%d\n", j, p->n_pdds);
 			return ret;
@@ -2375,7 +2460,7 @@ static int criu_restore(struct file *filep,
 	 * Set the process to evicted state to avoid running any new queues before all the memory
 	 * mappings are ready.
 	 */
-	ret = kfd_process_evict_queues(p);
+	ret = kfd_process_evict_queues(p, KFD_QUEUE_EVICTION_CRIU_RESTORE);
 	if (ret)
 		goto exit_unlock;
 
@@ -2494,7 +2579,7 @@ static int criu_process_info(struct file *filep,
 		goto err_unlock;
 	}
 
-	ret = kfd_process_evict_queues(p);
+	ret = kfd_process_evict_queues(p, KFD_QUEUE_EVICTION_CRIU_CHECKPOINT);
 	if (ret)
 		goto err_unlock;
 
@@ -2662,6 +2747,8 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_CRIU_OP,
 			kfd_ioctl_criu, KFD_IOC_FLAG_CHECKPOINT_RESTORE),
 
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_AVAILABLE_MEMORY,
+			kfd_ioctl_get_available_memory, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
@@ -2786,7 +2873,6 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 		      struct vm_area_struct *vma)
 {
 	phys_addr_t address;
-	int ret;
 
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 		return -EINVAL;
@@ -2806,12 +2892,11 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 		 process->pasid, (unsigned long long) vma->vm_start,
 		 address, vma->vm_flags, PAGE_SIZE);
 
-	ret = io_remap_pfn_range(vma,
+	return io_remap_pfn_range(vma,
 				vma->vm_start,
 				address >> PAGE_SHIFT,
 				PAGE_SIZE,
 				vma->vm_page_prot);
-	return ret;
 }
 
 

@@ -15,51 +15,59 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - exar,xra1202
-      - maxim,max7310
-      - maxim,max7312
-      - maxim,max7313
-      - maxim,max7315
-      - maxim,max7319
-      - maxim,max7320
-      - maxim,max7321
-      - maxim,max7322
-      - maxim,max7323
-      - maxim,max7324
-      - maxim,max7325
-      - maxim,max7326
-      - maxim,max7327
-      - nxp,pca6416
-      - nxp,pca9505
-      - nxp,pca9506
-      - nxp,pca9534
-      - nxp,pca9535
-      - nxp,pca9536
-      - nxp,pca9537
-      - nxp,pca9538
-      - nxp,pca9539
-      - nxp,pca9554
-      - nxp,pca9555
-      - nxp,pca9556
-      - nxp,pca9557
-      - nxp,pca9574
-      - nxp,pca9575
-      - nxp,pca9698
-      - nxp,pcal6416
-      - nxp,pcal6524
-      - nxp,pcal9535
-      - nxp,pcal9554b
-      - nxp,pcal9555a
-      - onnn,cat9554
-      - onnn,pca9654
-      - ti,pca6107
-      - ti,pca9536
-      - ti,tca6408
-      - ti,tca6416
-      - ti,tca6424
-      - ti,tca9539
-      - ti,tca9554
+    oneOf:
+      - items:
+          - const: diodes,pi4ioe5v6534q
+          - const: nxp,pcal6534
+      - items:
+          - enum:
+              - exar,xra1202
+              - maxim,max7310
+              - maxim,max7312
+              - maxim,max7313
+              - maxim,max7315
+              - maxim,max7319
+              - maxim,max7320
+              - maxim,max7321
+              - maxim,max7322
+              - maxim,max7323
+              - maxim,max7324
+              - maxim,max7325
+              - maxim,max7326
+              - maxim,max7327
+              - nxp,pca6408
+              - nxp,pca6416
+              - nxp,pca9505
+              - nxp,pca9506
+              - nxp,pca9534
+              - nxp,pca9535
+              - nxp,pca9536
+              - nxp,pca9537
+              - nxp,pca9538
+              - nxp,pca9539
+              - nxp,pca9554
+              - nxp,pca9555
+              - nxp,pca9556
+              - nxp,pca9557
+              - nxp,pca9574
+              - nxp,pca9575
+              - nxp,pca9698
+              - nxp,pcal6408
+              - nxp,pcal6416
+              - nxp,pcal6524
+              - nxp,pcal6534
+              - nxp,pcal9535
+              - nxp,pcal9554b
+              - nxp,pcal9555a
+              - onnn,cat9554
+              - onnn,pca9654
+              - ti,pca6107
+              - ti,pca9536
+              - ti,tca6408
+              - ti,tca6416
+              - ti,tca6424
+              - ti,tca9539
+              - ti,tca9554
 
   reg:
     maxItems: 1

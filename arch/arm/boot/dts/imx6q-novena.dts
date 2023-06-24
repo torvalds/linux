@@ -86,7 +86,7 @@
 			linux,code = <KEY_POWER>;
 		};
 
-		lid {
+		lid-event {
 			label = "Lid";
 			gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
 			linux,input-type = <5>;	/* EV_SW */
@@ -99,7 +99,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_leds_novena>;
 
-		heartbeat {
+		led-heartbeat {
 			label = "novena:white:panel";
 			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";

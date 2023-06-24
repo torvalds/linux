@@ -20,6 +20,7 @@
 #include "bnxt_ulp.h"
 #include "bnxt_ptp.h"
 #include "bnxt_coredump.h"
+#include "bnxt_nvm_defs.h"
 
 static void __bnxt_fw_recover(struct bnxt *bp)
 {
@@ -45,7 +46,7 @@ bnxt_dl_flash_update(struct devlink *dl,
 	}
 
 	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
-	rc = bnxt_flash_package_from_fw_obj(bp->dev, params->fw, 0);
+	rc = bnxt_flash_package_from_fw_obj(bp->dev, params->fw, 0, extack);
 	if (!rc)
 		devlink_flash_update_status_notify(dl, "Flashing done", NULL, 0, 0);
 	else
@@ -610,6 +611,64 @@ static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action acti
 	return rc;
 }
 
+static bool bnxt_nvm_test(struct bnxt *bp, struct netlink_ext_ack *extack)
+{
+	bool rc = false;
+	u32 datalen;
+	u16 index;
+	u8 *buf;
+
+	if (bnxt_find_nvram_item(bp->dev, BNX_DIR_TYPE_VPD,
+				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
+				 &index, NULL, &datalen) || !datalen) {
+		NL_SET_ERR_MSG_MOD(extack, "nvm test vpd entry error");
+		return false;
+	}
+
+	buf = kzalloc(datalen, GFP_KERNEL);
+	if (!buf) {
+		NL_SET_ERR_MSG_MOD(extack, "insufficient memory for nvm test");
+		return false;
+	}
+
+	if (bnxt_get_nvram_item(bp->dev, index, 0, datalen, buf)) {
+		NL_SET_ERR_MSG_MOD(extack, "nvm test vpd read error");
+		goto done;
+	}
+
+	if (bnxt_flash_nvram(bp->dev, BNX_DIR_TYPE_VPD, BNX_DIR_ORDINAL_FIRST,
+			     BNX_DIR_EXT_NONE, 0, 0, buf, datalen)) {
+		NL_SET_ERR_MSG_MOD(extack, "nvm test vpd write error");
+		goto done;
+	}
+
+	rc = true;
+
+done:
+	kfree(buf);
+	return rc;
+}
+
+static bool bnxt_dl_selftest_check(struct devlink *dl, unsigned int id,
+				   struct netlink_ext_ack *extack)
+{
+	return id == DEVLINK_ATTR_SELFTEST_ID_FLASH;
+}
+
+static enum devlink_selftest_status bnxt_dl_selftest_run(struct devlink *dl,
+							 unsigned int id,
+							 struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+
+	if (id == DEVLINK_ATTR_SELFTEST_ID_FLASH)
+		return bnxt_nvm_test(bp, extack) ?
+				DEVLINK_SELFTEST_STATUS_PASS :
+				DEVLINK_SELFTEST_STATUS_FAIL;
+
+	return DEVLINK_SELFTEST_STATUS_SKIP;
+}
+
 static const struct devlink_ops bnxt_dl_ops = {
 #ifdef CONFIG_BNXT_SRIOV
 	.eswitch_mode_set = bnxt_dl_eswitch_mode_set,
@@ -622,6 +681,8 @@ static const struct devlink_ops bnxt_dl_ops = {
 	.reload_limits	  = BIT(DEVLINK_RELOAD_LIMIT_NO_RESET),
 	.reload_down	  = bnxt_dl_reload_down,
 	.reload_up	  = bnxt_dl_reload_up,
+	.selftest_check	  = bnxt_dl_selftest_check,
+	.selftest_run	  = bnxt_dl_selftest_run,
 };
 
 static const struct devlink_ops bnxt_vf_dl_ops;
@@ -979,9 +1040,11 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
-	rc = bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_SRT_PATCH);
-	if (rc)
-		return rc;
+	if (BNXT_CHIP_P5(bp)) {
+		rc = bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_SRT_PATCH);
+		if (rc)
+			return rc;
+	}
 	return bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_CRT_PATCH);
 
 }
@@ -1244,6 +1307,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	if (rc)
 		goto err_dl_port_unreg;
 
+	devlink_set_features(dl, DEVLINK_F_RELOAD);
 out:
 	devlink_register(dl);
 	return 0;

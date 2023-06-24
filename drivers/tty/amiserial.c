@@ -12,7 +12,7 @@
  * (non hardware specific) changes to serial.c.
  *
  * The port is registered with the tty driver as minor device 64, and
- * therefore other ports should should only use 65 upwards.
+ * therefore other ports should only use 65 upwards.
  *
  * Richard Lucock 28/12/99
  *
@@ -51,6 +51,7 @@
 #include <linux/seq_file.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
+#include <linux/serial_core.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
@@ -93,7 +94,7 @@ static struct tty_driver *serial_driver;
 static unsigned char current_ctl_bits;
 
 static void change_speed(struct tty_struct *tty, struct serial_state *info,
-		struct ktermios *old);
+			 const struct ktermios *old);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 
@@ -283,12 +284,12 @@ static void transmit_chars(struct serial_state *info)
 
 	amiga_custom.serdat = info->xmit.buf[info->xmit.tail++] | 0x100;
 	mb();
-	info->xmit.tail = info->xmit.tail & (SERIAL_XMIT_SIZE-1);
+	info->xmit.tail = info->xmit.tail & (UART_XMIT_SIZE - 1);
 	info->icount.tx++;
 
 	if (CIRC_CNT(info->xmit.head,
 		     info->xmit.tail,
-		     SERIAL_XMIT_SIZE) < WAKEUP_CHARS)
+		     UART_XMIT_SIZE) < WAKEUP_CHARS)
 		tty_wakeup(info->tport.tty);
 
 #ifdef SERIAL_DEBUG_INTR
@@ -565,7 +566,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
  * the specified baud rate for a serial port.
  */
 static void change_speed(struct tty_struct *tty, struct serial_state *info,
-			 struct ktermios *old_termios)
+			 const struct ktermios *old_termios)
 {
 	struct tty_port *port = &info->tport;
 	int	quot = 0, baud_base, baud;
@@ -588,10 +589,8 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	}
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
-#endif
 
 	/* Determine divisor based on baud rate */
 	baud = tty_get_baud_rate(tty);
@@ -710,13 +709,13 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	local_irq_save(flags);
 	if (CIRC_SPACE(info->xmit.head,
 		       info->xmit.tail,
-		       SERIAL_XMIT_SIZE) == 0) {
+		       UART_XMIT_SIZE) == 0) {
 		local_irq_restore(flags);
 		return 0;
 	}
 
 	info->xmit.buf[info->xmit.head++] = ch;
-	info->xmit.head &= SERIAL_XMIT_SIZE-1;
+	info->xmit.head &= UART_XMIT_SIZE - 1;
 	local_irq_restore(flags);
 	return 1;
 }
@@ -755,15 +754,14 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	while (1) {
 		c = CIRC_SPACE_TO_END(info->xmit.head,
 				      info->xmit.tail,
-				      SERIAL_XMIT_SIZE);
+				      UART_XMIT_SIZE);
 		if (count < c)
 			c = count;
 		if (c <= 0) {
 			break;
 		}
 		memcpy(info->xmit.buf + info->xmit.head, buf, c);
-		info->xmit.head = ((info->xmit.head + c) &
-				   (SERIAL_XMIT_SIZE-1));
+		info->xmit.head = (info->xmit.head + c) & (UART_XMIT_SIZE - 1);
 		buf += c;
 		count -= c;
 		ret += c;
@@ -790,14 +788,14 @@ static unsigned int rs_write_room(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 
-	return CIRC_SPACE(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
+	return CIRC_SPACE(info->xmit.head, info->xmit.tail, UART_XMIT_SIZE);
 }
 
 static unsigned int rs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 
-	return CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
+	return CIRC_CNT(info->xmit.head, info->xmit.tail, UART_XMIT_SIZE);
 }
 
 static void rs_flush_buffer(struct tty_struct *tty)
@@ -1171,7 +1169,7 @@ static int rs_ioctl(struct tty_struct *tty,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, const struct ktermios *old_termios)
 {
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;

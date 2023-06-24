@@ -187,14 +187,10 @@ static int attiny_update_status(struct backlight_device *bl)
 {
 	struct attiny_lcd *state = bl_get_data(bl);
 	struct regmap *regmap = state->regmap;
-	int brightness = bl->props.brightness;
+	int brightness = backlight_get_brightness(bl);
 	int ret, i;
 
 	mutex_lock(&state->lock);
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
 
 	for (i = 0; i < 10; i++) {
 		ret = regmap_write(regmap, REG_PWM, brightness);
@@ -364,7 +360,6 @@ static int attiny_i2c_probe(struct i2c_client *i2c,
 	state->gc.parent = &i2c->dev;
 	state->gc.label = i2c->name;
 	state->gc.owner = THIS_MODULE;
-	state->gc.of_node = i2c->dev.of_node;
 	state->gc.base = -1;
 	state->gc.ngpio = NUM_GPIO;
 
@@ -386,13 +381,11 @@ error:
 	return ret;
 }
 
-static int attiny_i2c_remove(struct i2c_client *client)
+static void attiny_i2c_remove(struct i2c_client *client)
 {
 	struct attiny_lcd *state = i2c_get_clientdata(client);
 
 	mutex_destroy(&state->lock);
-
-	return 0;
 }
 
 static const struct of_device_id attiny_dt_ids[] = {

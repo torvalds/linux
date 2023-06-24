@@ -11,56 +11,39 @@
 #include <asm/archrandom.h>
 #include <asm/sections.h>
 
-static int __init x86_rdrand_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_RDRAND);
-	setup_clear_cpu_cap(X86_FEATURE_RDSEED);
-	return 1;
-}
-__setup("nordrand", x86_rdrand_setup);
-
 /*
  * RDRAND has Built-In-Self-Test (BIST) that runs on every invocation.
- * Run the instruction a few times as a sanity check.
- * If it fails, it is simple to disable RDRAND here.
+ * Run the instruction a few times as a sanity check. Also make sure
+ * it's not outputting the same value over and over, which has happened
+ * as a result of past CPU bugs.
+ *
+ * If it fails, it is simple to disable RDRAND and RDSEED here.
  */
-#define SANITY_CHECK_LOOPS 8
 
-#ifdef CONFIG_ARCH_RANDOM
 void x86_init_rdrand(struct cpuinfo_x86 *c)
 {
-	unsigned int changed = 0;
-	unsigned long tmp, prev;
-	int i;
+	enum { SAMPLES = 8, MIN_CHANGE = 5 };
+	unsigned long sample, prev;
+	bool failure = false;
+	size_t i, changed;
 
 	if (!cpu_has(c, X86_FEATURE_RDRAND))
 		return;
 
-	for (i = 0; i < SANITY_CHECK_LOOPS; i++) {
-		if (!rdrand_long(&tmp)) {
-			clear_cpu_cap(c, X86_FEATURE_RDRAND);
-			pr_warn_once("rdrand: disabled\n");
-			return;
+	for (changed = 0, i = 0; i < SAMPLES; ++i) {
+		if (!rdrand_long(&sample)) {
+			failure = true;
+			break;
 		}
+		changed += i && sample != prev;
+		prev = sample;
 	}
+	if (changed < MIN_CHANGE)
+		failure = true;
 
-	/*
-	 * Stupid sanity-check whether RDRAND does *actually* generate
-	 * some at least random-looking data.
-	 */
-	prev = tmp;
-	for (i = 0; i < SANITY_CHECK_LOOPS; i++) {
-		if (rdrand_long(&tmp)) {
-			if (prev != tmp)
-				changed++;
-
-			prev = tmp;
-		}
+	if (failure) {
+		clear_cpu_cap(c, X86_FEATURE_RDRAND);
+		clear_cpu_cap(c, X86_FEATURE_RDSEED);
+		pr_emerg("RDRAND is not reliable on this platform; disabling.\n");
 	}
-
-	if (WARN_ON_ONCE(!changed))
-		pr_emerg(
-"RDRAND gives funky smelling output, might consider not using it by booting with \"nordrand\"");
-
 }
-#endif

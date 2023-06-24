@@ -302,7 +302,6 @@ static int tee_ioctl_shm_alloc(struct tee_context *ctx,
 		return PTR_ERR(shm);
 
 	data.id = shm->id;
-	data.flags = shm->flags;
 	data.size = shm->size;
 
 	if (copy_to_user(udata, &data, sizeof(data)))
@@ -339,7 +338,6 @@ tee_ioctl_shm_register(struct tee_context *ctx,
 		return PTR_ERR(shm);
 
 	data.id = shm->id;
-	data.flags = shm->flags;
 	data.length = shm->size;
 
 	if (copy_to_user(udata, &data, sizeof(data)))
@@ -1075,7 +1073,7 @@ EXPORT_SYMBOL_GPL(tee_device_unregister);
 /**
  * tee_get_drvdata() - Return driver_data pointer
  * @teedev:	Device containing the driver_data pointer
- * @returns the driver_data pointer supplied to tee_register().
+ * @returns the driver_data pointer supplied to tee_device_alloc().
  */
 void *tee_get_drvdata(struct tee_device *teedev)
 {

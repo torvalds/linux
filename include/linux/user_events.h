@@ -20,15 +20,6 @@
 #define USER_EVENTS_SYSTEM "user_events"
 #define USER_EVENTS_PREFIX "u:"
 
-/* Bits 0-6 are for known probe types, Bit 7 is for unknown probes */
-#define EVENT_BIT_FTRACE 0
-#define EVENT_BIT_PERF 1
-#define EVENT_BIT_OTHER 7
-
-#define EVENT_STATUS_FTRACE (1 << EVENT_BIT_FTRACE)
-#define EVENT_STATUS_PERF (1 << EVENT_BIT_PERF)
-#define EVENT_STATUS_OTHER (1 << EVENT_BIT_OTHER)
-
 /* Create dynamic location entry within a 32-bit value */
 #define DYN_LOC(offset, size) ((size) << 16 | (offset))
 
@@ -45,12 +36,12 @@ struct user_reg {
 	/* Input: Pointer to string with event name, description and flags */
 	__u64 name_args;
 
-	/* Output: Byte index of the event within the status page */
-	__u32 status_index;
+	/* Output: Bitwise index of the event within the status page */
+	__u32 status_bit;
 
 	/* Output: Index of the event to use when writing data */
 	__u32 write_index;
-};
+} __attribute__((__packed__));
 
 #define DIAG_IOC_MAGIC '*'
 

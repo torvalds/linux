@@ -225,6 +225,7 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
+	struct device *dma_dev = shost->dma_dev;
 
 	INIT_LIST_HEAD(&sas_host->rphy_list);
 	mutex_init(&sas_host->lock);
@@ -235,6 +236,11 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	if (sas_bsg_initialize(shost, NULL))
 		dev_printk(KERN_ERR, dev, "fail to a bsg device %d\n",
 			   shost->host_no);
+
+	if (dma_dev->dma_mask) {
+		shost->opt_sectors = min_t(unsigned int, shost->max_sectors,
+				dma_opt_mapping_size(dma_dev) >> SECTOR_SHIFT);
+	}
 
 	return 0;
 }
@@ -716,12 +722,17 @@ int sas_phy_add(struct sas_phy *phy)
 	int error;
 
 	error = device_add(&phy->dev);
-	if (!error) {
-		transport_add_device(&phy->dev);
-		transport_configure_device(&phy->dev);
-	}
+	if (error)
+		return error;
 
-	return error;
+	error = transport_add_device(&phy->dev);
+	if (error) {
+		device_del(&phy->dev);
+		return error;
+	}
+	transport_configure_device(&phy->dev);
+
+	return 0;
 }
 EXPORT_SYMBOL(sas_phy_add);
 

@@ -772,7 +772,7 @@ static int ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval, int optlen)
 
 	if (optlen < GROUP_FILTER_SIZE(0))
 		return -EINVAL;
-	if (optlen > sysctl_optmem_max)
+	if (optlen > READ_ONCE(sysctl_optmem_max))
 		return -ENOBUFS;
 
 	gsf = memdup_sockptr(optval, optlen);
@@ -782,7 +782,7 @@ static int ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval, int optlen)
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
 	err = -ENOBUFS;
 	if (gsf->gf_numsrc >= 0x1ffffff ||
-	    gsf->gf_numsrc > sock_net(sk)->ipv4.sysctl_igmp_max_msf)
+	    gsf->gf_numsrc > READ_ONCE(sock_net(sk)->ipv4.sysctl_igmp_max_msf))
 		goto out_free_gsf;
 
 	err = -EINVAL;
@@ -808,7 +808,7 @@ static int compat_ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 
 	if (optlen < size0)
 		return -EINVAL;
-	if (optlen > sysctl_optmem_max - 4)
+	if (optlen > READ_ONCE(sysctl_optmem_max) - 4)
 		return -ENOBUFS;
 
 	p = kmalloc(optlen + 4, GFP_KERNEL);
@@ -832,7 +832,7 @@ static int compat_ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
 	err = -ENOBUFS;
-	if (n > sock_net(sk)->ipv4.sysctl_igmp_max_msf)
+	if (n > READ_ONCE(sock_net(sk)->ipv4.sysctl_igmp_max_msf))
 		goto out_free_gsf;
 	err = set_mcast_msfilter(sk, gf32->gf_interface, n, gf32->gf_fmode,
 				 &gf32->gf_group, gf32->gf_slist_flex);
@@ -888,8 +888,8 @@ static int compat_ip_mcast_join_leave(struct sock *sk, int optname,
 
 DEFINE_STATIC_KEY_FALSE(ip4_min_ttl);
 
-static int do_ip_setsockopt(struct sock *sk, int level, int optname,
-		sockptr_t optval, unsigned int optlen)
+int do_ip_setsockopt(struct sock *sk, int level, int optname,
+		     sockptr_t optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);
@@ -944,7 +944,7 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	err = 0;
 	if (needs_rtnl)
 		rtnl_lock();
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 
 	switch (optname) {
 	case IP_OPTIONS:
@@ -1233,7 +1233,7 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		if (optlen < IP_MSFILTER_SIZE(0))
 			goto e_inval;
-		if (optlen > sysctl_optmem_max) {
+		if (optlen > READ_ONCE(sysctl_optmem_max)) {
 			err = -ENOBUFS;
 			break;
 		}
@@ -1244,7 +1244,7 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		}
 		/* numsrc >= (1G-4) overflow in 32 bits */
 		if (msf->imsf_numsrc >= 0x3ffffffcU ||
-		    msf->imsf_numsrc > net->ipv4.sysctl_igmp_max_msf) {
+		    msf->imsf_numsrc > READ_ONCE(net->ipv4.sysctl_igmp_max_msf)) {
 			kfree(msf);
 			err = -ENOBUFS;
 			break;
@@ -1333,14 +1333,14 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	case IP_IPSEC_POLICY:
 	case IP_XFRM_POLICY:
 		err = -EPERM;
-		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+		if (!sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 			break;
 		err = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
 	case IP_TRANSPARENT:
-		if (!!val && !ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
-		    !ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
+		if (!!val && !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
+		    !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
 			err = -EPERM;
 			break;
 		}
@@ -1368,13 +1368,13 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		err = -ENOPROTOOPT;
 		break;
 	}
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
 	return err;
 
 e_inval:
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
 	return -EINVAL;
@@ -1462,37 +1462,37 @@ static bool getsockopt_needs_rtnl(int optname)
 	return false;
 }
 
-static int ip_get_mcast_msfilter(struct sock *sk, void __user *optval,
-		int __user *optlen, int len)
+static int ip_get_mcast_msfilter(struct sock *sk, sockptr_t optval,
+				 sockptr_t optlen, int len)
 {
 	const int size0 = offsetof(struct group_filter, gf_slist_flex);
-	struct group_filter __user *p = optval;
 	struct group_filter gsf;
-	int num;
+	int num, gsf_size;
 	int err;
 
 	if (len < size0)
 		return -EINVAL;
-	if (copy_from_user(&gsf, p, size0))
+	if (copy_from_sockptr(&gsf, optval, size0))
 		return -EFAULT;
 
 	num = gsf.gf_numsrc;
-	err = ip_mc_gsfget(sk, &gsf, p->gf_slist_flex);
+	err = ip_mc_gsfget(sk, &gsf, optval,
+			   offsetof(struct group_filter, gf_slist_flex));
 	if (err)
 		return err;
 	if (gsf.gf_numsrc < num)
 		num = gsf.gf_numsrc;
-	if (put_user(GROUP_FILTER_SIZE(num), optlen) ||
-	    copy_to_user(p, &gsf, size0))
+	gsf_size = GROUP_FILTER_SIZE(num);
+	if (copy_to_sockptr(optlen, &gsf_size, sizeof(int)) ||
+	    copy_to_sockptr(optval, &gsf, size0))
 		return -EFAULT;
 	return 0;
 }
 
-static int compat_ip_get_mcast_msfilter(struct sock *sk, void __user *optval,
-		int __user *optlen, int len)
+static int compat_ip_get_mcast_msfilter(struct sock *sk, sockptr_t optval,
+					sockptr_t optlen, int len)
 {
 	const int size0 = offsetof(struct compat_group_filter, gf_slist_flex);
-	struct compat_group_filter __user *p = optval;
 	struct compat_group_filter gf32;
 	struct group_filter gf;
 	int num;
@@ -1500,7 +1500,7 @@ static int compat_ip_get_mcast_msfilter(struct sock *sk, void __user *optval,
 
 	if (len < size0)
 		return -EINVAL;
-	if (copy_from_user(&gf32, p, size0))
+	if (copy_from_sockptr(&gf32, optval, size0))
 		return -EFAULT;
 
 	gf.gf_interface = gf32.gf_interface;
@@ -1508,21 +1508,24 @@ static int compat_ip_get_mcast_msfilter(struct sock *sk, void __user *optval,
 	num = gf.gf_numsrc = gf32.gf_numsrc;
 	gf.gf_group = gf32.gf_group;
 
-	err = ip_mc_gsfget(sk, &gf, p->gf_slist_flex);
+	err = ip_mc_gsfget(sk, &gf, optval,
+			   offsetof(struct compat_group_filter, gf_slist_flex));
 	if (err)
 		return err;
 	if (gf.gf_numsrc < num)
 		num = gf.gf_numsrc;
 	len = GROUP_FILTER_SIZE(num) - (sizeof(gf) - sizeof(gf32));
-	if (put_user(len, optlen) ||
-	    put_user(gf.gf_fmode, &p->gf_fmode) ||
-	    put_user(gf.gf_numsrc, &p->gf_numsrc))
+	if (copy_to_sockptr(optlen, &len, sizeof(int)) ||
+	    copy_to_sockptr_offset(optval, offsetof(struct compat_group_filter, gf_fmode),
+				   &gf.gf_fmode, sizeof(gf.gf_fmode)) ||
+	    copy_to_sockptr_offset(optval, offsetof(struct compat_group_filter, gf_numsrc),
+				   &gf.gf_numsrc, sizeof(gf.gf_numsrc)))
 		return -EFAULT;
 	return 0;
 }
 
-static int do_ip_getsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, int __user *optlen)
+int do_ip_getsockopt(struct sock *sk, int level, int optname,
+		     sockptr_t optval, sockptr_t optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	bool needs_rtnl = getsockopt_needs_rtnl(optname);
@@ -1535,14 +1538,14 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	if (ip_mroute_opt(optname))
 		return ip_mroute_getsockopt(sk, optname, optval, optlen);
 
-	if (get_user(len, optlen))
+	if (copy_from_sockptr(&len, optlen, sizeof(int)))
 		return -EFAULT;
 	if (len < 0)
 		return -EINVAL;
 
 	if (needs_rtnl)
 		rtnl_lock();
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 
 	switch (optname) {
 	case IP_OPTIONS:
@@ -1558,17 +1561,19 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			memcpy(optbuf, &inet_opt->opt,
 			       sizeof(struct ip_options) +
 			       inet_opt->opt.optlen);
-		release_sock(sk);
+		sockopt_release_sock(sk);
 
-		if (opt->optlen == 0)
-			return put_user(0, optlen);
+		if (opt->optlen == 0) {
+			len = 0;
+			return copy_to_sockptr(optlen, &len, sizeof(int));
+		}
 
 		ip_options_undo(opt);
 
 		len = min_t(unsigned int, len, opt->optlen);
-		if (put_user(len, optlen))
+		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
-		if (copy_to_user(optval, opt->__data, len))
+		if (copy_to_sockptr(optval, opt->__data, len))
 			return -EFAULT;
 		return 0;
 	}
@@ -1606,7 +1611,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	{
 		struct net *net = sock_net(sk);
 		val = (inet->uc_ttl == -1 ?
-		       net->ipv4.sysctl_ip_default_ttl :
+		       READ_ONCE(net->ipv4.sysctl_ip_default_ttl) :
 		       inet->uc_ttl);
 		break;
 	}
@@ -1632,7 +1637,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			dst_release(dst);
 		}
 		if (!val) {
-			release_sock(sk);
+			sockopt_release_sock(sk);
 			return -ENOTCONN;
 		}
 		break;
@@ -1657,11 +1662,11 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		struct in_addr addr;
 		len = min_t(unsigned int, len, sizeof(struct in_addr));
 		addr.s_addr = inet->mc_addr;
-		release_sock(sk);
+		sockopt_release_sock(sk);
 
-		if (put_user(len, optlen))
+		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
-		if (copy_to_user(optval, &addr, len))
+		if (copy_to_sockptr(optval, &addr, len))
 			return -EFAULT;
 		return 0;
 	}
@@ -1673,12 +1678,11 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			err = -EINVAL;
 			goto out;
 		}
-		if (copy_from_user(&msf, optval, IP_MSFILTER_SIZE(0))) {
+		if (copy_from_sockptr(&msf, optval, IP_MSFILTER_SIZE(0))) {
 			err = -EFAULT;
 			goto out;
 		}
-		err = ip_mc_msfget(sk, &msf,
-				   (struct ip_msfilter __user *)optval, optlen);
+		err = ip_mc_msfget(sk, &msf, optval, optlen);
 		goto out;
 	}
 	case MCAST_MSFILTER:
@@ -1695,13 +1699,18 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	{
 		struct msghdr msg;
 
-		release_sock(sk);
+		sockopt_release_sock(sk);
 
 		if (sk->sk_type != SOCK_STREAM)
 			return -ENOPROTOOPT;
 
-		msg.msg_control_is_user = true;
-		msg.msg_control_user = optval;
+		if (optval.is_kernel) {
+			msg.msg_control_is_user = false;
+			msg.msg_control = optval.kernel;
+		} else {
+			msg.msg_control_is_user = true;
+			msg.msg_control_user = optval.user;
+		}
 		msg.msg_controllen = len;
 		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
 
@@ -1722,7 +1731,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
 		}
 		len -= msg.msg_controllen;
-		return put_user(len, optlen);
+		return copy_to_sockptr(optlen, &len, sizeof(int));
 	}
 	case IP_FREEBIND:
 		val = inet->freebind;
@@ -1734,29 +1743,29 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		val = inet->min_ttl;
 		break;
 	default:
-		release_sock(sk);
+		sockopt_release_sock(sk);
 		return -ENOPROTOOPT;
 	}
-	release_sock(sk);
+	sockopt_release_sock(sk);
 
 	if (len < sizeof(int) && len > 0 && val >= 0 && val <= 255) {
 		unsigned char ucval = (unsigned char)val;
 		len = 1;
-		if (put_user(len, optlen))
+		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
-		if (copy_to_user(optval, &ucval, 1))
+		if (copy_to_sockptr(optval, &ucval, 1))
 			return -EFAULT;
 	} else {
 		len = min_t(unsigned int, sizeof(int), len);
-		if (put_user(len, optlen))
+		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
-		if (copy_to_user(optval, &val, len))
+		if (copy_to_sockptr(optval, &val, len))
 			return -EFAULT;
 	}
 	return 0;
 
 out:
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
 	return err;
@@ -1767,7 +1776,8 @@ int ip_getsockopt(struct sock *sk, int level,
 {
 	int err;
 
-	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+	err = do_ip_getsockopt(sk, level, optname,
+			       USER_SOCKPTR(optval), USER_SOCKPTR(optlen));
 
 #if IS_ENABLED(CONFIG_BPFILTER_UMH)
 	if (optname >= BPFILTER_IPT_SO_GET_INFO &&

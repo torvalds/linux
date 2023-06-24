@@ -21,8 +21,8 @@
 		serial0 = &uart1;	/* DBGU */
 		serial1 = &uart4;	/* mikro BUS 1 */
 		serial2 = &uart2;	/* mikro BUS 2 */
-		i2c1	= &i2c1;
-		i2c2	= &i2c3;
+		i2c1 = &i2c1;
+		i2c2 = &i2c3;
 	};
 
 	chosen {
@@ -478,13 +478,13 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
 
-		pb4 {
+		button {
 			label = "USER";
 			gpios = <&pioA PIN_PA29 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;

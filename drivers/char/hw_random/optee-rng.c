@@ -115,7 +115,7 @@ static size_t get_optee_rng_data(struct optee_rng_private *pvt_data,
 static int optee_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
 	struct optee_rng_private *pvt_data = to_optee_rng_private(rng);
-	size_t read = 0, rng_size = 0;
+	size_t read = 0, rng_size;
 	int timeout = 1;
 	u8 *data = buf;
 

@@ -305,7 +305,7 @@ static int __init xenbus_probe_backend_init(void)
 
 	register_xenstore_notifier(&xenstore_notifier);
 
-	if (register_shrinker(&backend_memory_shrinker))
+	if (register_shrinker(&backend_memory_shrinker, "xen-backend"))
 		pr_warn("shrinker registration failed\n");
 
 	return 0;

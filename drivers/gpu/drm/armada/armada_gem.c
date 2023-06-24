@@ -107,11 +107,11 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 	}
 
 	/*
-	 * We could grab something from CMA if it's enabled, but that
+	 * We could grab something from DMA if it's enabled, but that
 	 * involves building in a problem:
 	 *
-	 * CMA's interface uses dma_alloc_coherent(), which provides us
-	 * with an CPU virtual address and a device address.
+	 * GEM DMA helper interface uses dma_alloc_coherent(), which provides
+	 * us with an CPU virtual address and a device address.
 	 *
 	 * The CPU virtual address may be either an address in the kernel
 	 * direct mapped region (for example, as it would be on x86) or

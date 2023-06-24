@@ -204,6 +204,30 @@ static void __skb_flow_dissect_icmp(const struct sk_buff *skb,
 	skb_flow_get_icmp_tci(skb, key_icmp, data, thoff, hlen);
 }
 
+static void __skb_flow_dissect_l2tpv3(const struct sk_buff *skb,
+				      struct flow_dissector *flow_dissector,
+				      void *target_container, const void *data,
+				      int nhoff, int hlen)
+{
+	struct flow_dissector_key_l2tpv3 *key_l2tpv3;
+	struct {
+		__be32 session_id;
+	} *hdr, _hdr;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_L2TPV3))
+		return;
+
+	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
+	if (!hdr)
+		return;
+
+	key_l2tpv3 = skb_flow_dissector_target(flow_dissector,
+					       FLOW_DISSECTOR_KEY_L2TPV3,
+					       target_container);
+
+	key_l2tpv3->session_id = hdr->session_id;
+}
+
 void skb_flow_dissect_meta(const struct sk_buff *skb,
 			   struct flow_dissector *flow_dissector,
 			   void *target_container)
@@ -272,7 +296,7 @@ skb_flow_dissect_ct(const struct sk_buff *skb,
 	key->ct_zone = ct->zone.id;
 #endif
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)
-	key->ct_mark = ct->mark;
+	key->ct_mark = READ_ONCE(ct->mark);
 #endif
 
 	cl = nf_ct_labels_find(ct);
@@ -866,8 +890,8 @@ static void __skb_flow_bpf_to_target(const struct bpf_flow_keys *flow_keys,
 	}
 }
 
-bool bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
-		      __be16 proto, int nhoff, int hlen, unsigned int flags)
+u32 bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
+		     __be16 proto, int nhoff, int hlen, unsigned int flags)
 {
 	struct bpf_flow_keys *flow_keys = ctx->flow_keys;
 	u32 result;
@@ -892,7 +916,12 @@ bool bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
 	flow_keys->thoff = clamp_t(u16, flow_keys->thoff,
 				   flow_keys->nhoff, hlen);
 
-	return result == BPF_OK;
+	return result;
+}
+
+static bool is_pppoe_ses_hdr_valid(const struct pppoe_hdr *hdr)
+{
+	return hdr->ver == 1 && hdr->type == 1 && hdr->code == 0;
 }
 
 /**
@@ -1003,6 +1032,7 @@ bool __skb_flow_dissect(const struct net *net,
 			};
 			__be16 n_proto = proto;
 			struct bpf_prog *prog;
+			u32 result;
 
 			if (skb) {
 				ctx.skb = skb;
@@ -1014,13 +1044,16 @@ bool __skb_flow_dissect(const struct net *net,
 			}
 
 			prog = READ_ONCE(run_array->items[0].prog);
-			ret = bpf_flow_dissect(prog, &ctx, n_proto, nhoff,
-					       hlen, flags);
+			result = bpf_flow_dissect(prog, &ctx, n_proto, nhoff,
+						  hlen, flags);
+			if (result == BPF_FLOW_DISSECTOR_CONTINUE)
+				goto dissect_continue;
 			__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
 						 target_container);
 			rcu_read_unlock();
-			return ret;
+			return result == BPF_OK;
 		}
+dissect_continue:
 		rcu_read_unlock();
 	}
 
@@ -1033,6 +1066,16 @@ bool __skb_flow_dissect(const struct net *net,
 							  FLOW_DISSECTOR_KEY_ETH_ADDRS,
 							  target_container);
 		memcpy(key_eth_addrs, eth, sizeof(*key_eth_addrs));
+	}
+
+	if (dissector_uses_key(flow_dissector,
+			       FLOW_DISSECTOR_KEY_NUM_OF_VLANS)) {
+		struct flow_dissector_key_num_of_vlans *key_num_of_vlans;
+
+		key_num_of_vlans = skb_flow_dissector_target(flow_dissector,
+							     FLOW_DISSECTOR_KEY_NUM_OF_VLANS,
+							     target_container);
+		key_num_of_vlans->num_of_vlans = 0;
 	}
 
 proto_again:
@@ -1158,6 +1201,16 @@ proto_again:
 			nhoff += sizeof(*vlan);
 		}
 
+		if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_NUM_OF_VLANS) &&
+		    !(key_control->flags & FLOW_DIS_ENCAPSULATION)) {
+			struct flow_dissector_key_num_of_vlans *key_nvs;
+
+			key_nvs = skb_flow_dissector_target(flow_dissector,
+							    FLOW_DISSECTOR_KEY_NUM_OF_VLANS,
+							    target_container);
+			key_nvs->num_of_vlans++;
+		}
+
 		if (dissector_vlan == FLOW_DISSECTOR_KEY_MAX) {
 			dissector_vlan = FLOW_DISSECTOR_KEY_VLAN;
 		} else if (dissector_vlan == FLOW_DISSECTOR_KEY_VLAN) {
@@ -1194,25 +1247,59 @@ proto_again:
 			struct pppoe_hdr hdr;
 			__be16 proto;
 		} *hdr, _hdr;
+		u16 ppp_proto;
+
 		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
 		if (!hdr) {
 			fdret = FLOW_DISSECT_RET_OUT_BAD;
 			break;
 		}
 
-		nhoff += PPPOE_SES_HLEN;
-		switch (hdr->proto) {
-		case htons(PPP_IP):
-			proto = htons(ETH_P_IP);
-			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
-			break;
-		case htons(PPP_IPV6):
-			proto = htons(ETH_P_IPV6);
-			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
-			break;
-		default:
+		if (!is_pppoe_ses_hdr_valid(&hdr->hdr)) {
 			fdret = FLOW_DISSECT_RET_OUT_BAD;
 			break;
+		}
+
+		/* least significant bit of the most significant octet
+		 * indicates if protocol field was compressed
+		 */
+		ppp_proto = ntohs(hdr->proto);
+		if (ppp_proto & 0x0100) {
+			ppp_proto = ppp_proto >> 8;
+			nhoff += PPPOE_SES_HLEN - 1;
+		} else {
+			nhoff += PPPOE_SES_HLEN;
+		}
+
+		if (ppp_proto == PPP_IP) {
+			proto = htons(ETH_P_IP);
+			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
+		} else if (ppp_proto == PPP_IPV6) {
+			proto = htons(ETH_P_IPV6);
+			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
+		} else if (ppp_proto == PPP_MPLS_UC) {
+			proto = htons(ETH_P_MPLS_UC);
+			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
+		} else if (ppp_proto == PPP_MPLS_MC) {
+			proto = htons(ETH_P_MPLS_MC);
+			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
+		} else if (ppp_proto_is_valid(ppp_proto)) {
+			fdret = FLOW_DISSECT_RET_OUT_GOOD;
+		} else {
+			fdret = FLOW_DISSECT_RET_OUT_BAD;
+			break;
+		}
+
+		if (dissector_uses_key(flow_dissector,
+				       FLOW_DISSECTOR_KEY_PPPOE)) {
+			struct flow_dissector_key_pppoe *key_pppoe;
+
+			key_pppoe = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_PPPOE,
+							      target_container);
+			key_pppoe->session_id = hdr->hdr.sid;
+			key_pppoe->ppp_proto = htons(ppp_proto);
+			key_pppoe->type = htons(ETH_P_PPP_SES);
 		}
 		break;
 	}
@@ -1438,6 +1525,10 @@ ip_proto_again:
 		__skb_flow_dissect_icmp(skb, flow_dissector, target_container,
 					data, nhoff, hlen);
 		break;
+	case IPPROTO_L2TP:
+		__skb_flow_dissect_l2tpv3(skb, flow_dissector, target_container,
+					  data, nhoff, hlen);
+		break;
 
 	default:
 		break;
@@ -1552,9 +1643,8 @@ static inline void __flow_hash_consistentify(struct flow_keys *keys)
 
 	switch (keys->control.addr_type) {
 	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
-		addr_diff = (__force u32)keys->addrs.v4addrs.dst -
-			    (__force u32)keys->addrs.v4addrs.src;
-		if (addr_diff < 0)
+		if ((__force u32)keys->addrs.v4addrs.dst <
+		    (__force u32)keys->addrs.v4addrs.src)
 			swap(keys->addrs.v4addrs.src, keys->addrs.v4addrs.dst);
 
 		if ((__force u16)keys->ports.dst <

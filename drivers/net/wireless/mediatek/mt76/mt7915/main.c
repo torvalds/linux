@@ -42,10 +42,6 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		if (ret)
 			goto out;
 
-		ret = mt7915_mcu_set_scs(dev, 0, true);
-		if (ret)
-			goto out;
-
 		mt7915_mac_enable_nf(dev, 0);
 	}
 
@@ -55,10 +51,6 @@ static int mt7915_start(struct ieee80211_hw *hw)
 			goto out;
 
 		ret = mt7915_mcu_set_mac(dev, 1, true, true);
-		if (ret)
-			goto out;
-
-		ret = mt7915_mcu_set_scs(dev, 1, true);
 		if (ret)
 			goto out;
 
@@ -174,14 +166,14 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
 
 	for (i = 0; i < ARRAY_SIZE(mvif->bitrate_mask.control); i++) {
 		mvif->bitrate_mask.control[i].gi = NL80211_TXRATE_DEFAULT_GI;
-		mvif->bitrate_mask.control[i].he_gi = GENMASK(7, 0);
-		mvif->bitrate_mask.control[i].he_ltf = GENMASK(7, 0);
+		mvif->bitrate_mask.control[i].he_gi = 0xff;
+		mvif->bitrate_mask.control[i].he_ltf = 0xff;
 		mvif->bitrate_mask.control[i].legacy = GENMASK(31, 0);
-		memset(mvif->bitrate_mask.control[i].ht_mcs, GENMASK(7, 0),
+		memset(mvif->bitrate_mask.control[i].ht_mcs, 0xff,
 		       sizeof(mvif->bitrate_mask.control[i].ht_mcs));
-		memset(mvif->bitrate_mask.control[i].vht_mcs, GENMASK(15, 0),
+		memset(mvif->bitrate_mask.control[i].vht_mcs, 0xff,
 		       sizeof(mvif->bitrate_mask.control[i].vht_mcs));
-		memset(mvif->bitrate_mask.control[i].he_mcs, GENMASK(15, 0),
+		memset(mvif->bitrate_mask.control[i].he_mcs, 0xff,
 		       sizeof(mvif->bitrate_mask.control[i].he_mcs));
 	}
 }
@@ -204,8 +196,8 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	    is_zero_ether_addr(vif->addr))
 		phy->monitor_vif = vif;
 
-	mvif->mt76.idx = ffs(~dev->mt76.vif_mask) - 1;
-	if (mvif->mt76.idx >= MT7915_MAX_INTERFACES) {
+	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
+	if (mvif->mt76.idx >= (MT7915_MAX_INTERFACES << dev->dbdc_support)) {
 		ret = -ENOSPC;
 		goto out;
 	}
@@ -227,7 +219,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	dev->mt76.vif_mask |= BIT(mvif->mt76.idx);
+	dev->mt76.vif_mask |= BIT_ULL(mvif->mt76.idx);
 	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 
 	idx = MT7915_WTBL_RESERVED - mvif->mt76.idx;
@@ -235,7 +227,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	INIT_LIST_HEAD(&mvif->sta.rc_list);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.ext_phy = ext_phy;
+	mvif->sta.wcid.phy_idx = ext_phy;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mt76_packet_id_init(&mvif->sta.wcid);
@@ -243,10 +235,9 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	mt7915_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 	if (vif->txq) {
 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-		mtxq->wcid = &mvif->sta.wcid;
+		mtxq->wcid = idx;
 	}
 
 	if (vif->type != NL80211_IFTYPE_AP &&
@@ -259,6 +250,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 
 	mt7915_mcu_add_bss_info(phy, vif, true);
 	mt7915_mcu_add_sta(dev, vif, NULL, true);
+	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 
 out:
 	mutex_unlock(&dev->mt76.mutex);
@@ -290,7 +282,7 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->mt76.vif_mask &= ~BIT(mvif->mt76.idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->mt76.idx);
 	phy->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
 	mutex_unlock(&dev->mt76.mutex);
 
@@ -486,7 +478,8 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static int
-mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
@@ -581,7 +574,7 @@ mt7915_update_bss_color(struct ieee80211_hw *hw,
 static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
-				    u32 changed)
+				    u64 changed)
 {
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
@@ -601,7 +594,7 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		mt7915_mcu_add_bss_info(phy, vif, info->assoc);
+		mt7915_mcu_add_bss_info(phy, vif, vif->cfg.assoc);
 		mt7915_mcu_add_obss_spr(dev, vif, info->he_obss_pd.enable);
 	}
 
@@ -630,8 +623,10 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 		mt7915_update_bss_color(hw, vif, &info->he_bss_color);
 
 	if (changed & (BSS_CHANGED_BEACON |
-		       BSS_CHANGED_BEACON_ENABLED))
-		mt7915_mcu_add_beacon(hw, vif, info->enable_beacon);
+		       BSS_CHANGED_BEACON_ENABLED |
+		       BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
+		       BSS_CHANGED_FILS_DISCOVERY))
+		mt7915_mcu_add_beacon(hw, vif, info->enable_beacon, changed);
 
 	mutex_unlock(&dev->mt76.mutex);
 }
@@ -644,7 +639,7 @@ mt7915_channel_switch_beacon(struct ieee80211_hw *hw,
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7915_mcu_add_beacon(hw, vif, true);
+	mt7915_mcu_add_beacon(hw, vif, true, BSS_CHANGED_BEACON);
 	mutex_unlock(&dev->mt76.mutex);
 }
 
@@ -666,7 +661,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
-	msta->wcid.ext_phy = ext_phy;
+	msta->wcid.phy_idx = ext_phy;
 	msta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	msta->jiffies = jiffies;
 
@@ -1015,6 +1010,23 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
 	}
 	sinfo->txrate.flags = txrate->flags;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
+
+	/* offloading flows bypass networking stack, so driver counts and
+	 * reports sta statistics via NL80211_STA_INFO when WED is active.
+	 */
+	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
+		sinfo->tx_bytes = msta->wcid.stats.tx_bytes;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
+
+		sinfo->tx_packets = msta->wcid.stats.tx_packets;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_PACKETS);
+
+		sinfo->tx_failed = msta->wcid.stats.tx_failed;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
+
+		sinfo->tx_retries = msta->wcid.stats.tx_retries;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
+	}
 }
 
 static void mt7915_sta_rc_work(void *data, struct ieee80211_sta *sta)
@@ -1152,8 +1164,15 @@ static const char mt7915_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"rx_fifo_full_cnt",
 	"rx_mpdu_cnt",
 	"channel_idle_cnt",
+	"primary_cca_busy_time",
+	"secondary_cca_busy_time",
+	"primary_energy_detect_time",
+	"cck_mdrdy_time",
+	"ofdm_mdrdy_time",
+	"green_mdrdy_time",
 	"rx_vector_mismatch_cnt",
 	"rx_delimiter_fail_cnt",
+	"rx_mrdy_cnt",
 	"rx_len_mismatch_cnt",
 	"rx_ampdu_cnt",
 	"rx_ampdu_bytes_cnt",
@@ -1222,7 +1241,7 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 	if (msta->vif->mt76.idx != wi->idx)
 		return;
 
-	mt76_ethtool_worker(wi, &msta->stats);
+	mt76_ethtool_worker(wi, &msta->wcid.stats);
 }
 
 static
@@ -1293,8 +1312,15 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	data[ei++] = mib->rx_fifo_full_cnt;
 	data[ei++] = mib->rx_mpdu_cnt;
 	data[ei++] = mib->channel_idle_cnt;
+	data[ei++] = mib->primary_cca_busy_time;
+	data[ei++] = mib->secondary_cca_busy_time;
+	data[ei++] = mib->primary_energy_detect_time;
+	data[ei++] = mib->cck_mdrdy_time;
+	data[ei++] = mib->ofdm_mdrdy_time;
+	data[ei++] = mib->green_mdrdy_time;
 	data[ei++] = mib->rx_vector_mismatch_cnt;
 	data[ei++] = mib->rx_delimiter_fail_cnt;
+	data[ei++] = mib->rx_mrdy_cnt;
 	data[ei++] = mib->rx_len_mismatch_cnt;
 	data[ei++] = mib->rx_ampdu_cnt;
 	data[ei++] = mib->rx_ampdu_bytes_cnt;
@@ -1381,6 +1407,39 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+static int
+mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct net_device_path_ctx *ctx,
+			     struct net_device_path *path)
+{
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
+	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+
+	if (!mtk_wed_device_active(wed))
+		return -ENODEV;
+
+	if (msta->wcid.idx > 0xff)
+		return -EIO;
+
+	path->type = DEV_PATH_MTK_WDMA;
+	path->dev = ctx->dev;
+	path->mtk_wdma.wdma_idx = wed->wdma_idx;
+	path->mtk_wdma.bss = mvif->mt76.idx;
+	path->mtk_wdma.wcid = msta->wcid.idx;
+	path->mtk_wdma.queue = phy != &dev->phy;
+
+	ctx->dev = NULL;
+
+	return 0;
+}
+#endif
+
 const struct ieee80211_ops mt7915_ops = {
 	.tx = mt7915_tx,
 	.start = mt7915_start,
@@ -1428,4 +1487,7 @@ const struct ieee80211_ops mt7915_ops = {
 	.sta_add_debugfs = mt7915_sta_add_debugfs,
 #endif
 	.set_radar_background = mt7915_set_radar_background,
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	.net_fill_forward_path = mt7915_net_fill_forward_path,
+#endif
 };

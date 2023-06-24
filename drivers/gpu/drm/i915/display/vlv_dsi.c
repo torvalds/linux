@@ -782,6 +782,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	enum port port;
@@ -821,9 +822,9 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		u32 val;
 
 		/* Disable DPOunit clock gating, can stall pipe */
-		val = intel_de_read(dev_priv, DSPCLK_GATE_D);
+		val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
 		val |= DPOUNIT_CLOCK_GATE_DISABLE;
-		intel_de_write(dev_priv, DSPCLK_GATE_D, val);
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
 	}
 
 	if (!IS_GEMINILAKE(dev_priv))
@@ -838,7 +839,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	 * the delay in that case. If there is no deassert-seq, then an
 	 * unconditional msleep is used to give the panel time to power-on.
 	 */
-	if (dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
+	if (connector->panel.vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
 		intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	} else {
@@ -997,9 +998,9 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 
 		vlv_dsi_pll_disable(encoder);
 
-		val = intel_de_read(dev_priv, DSPCLK_GATE_D);
+		val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
 		val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
-		intel_de_write(dev_priv, DSPCLK_GATE_D, val);
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
 	}
 
 	/* Assert reset */
@@ -1276,13 +1277,12 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 		pclk = vlv_dsi_get_pclk(encoder, pipe_config);
 	}
 
-	if (intel_dsi->dual_link)
-		pclk *= 2;
+	pipe_config->port_clock = pclk;
 
-	if (pclk) {
-		pipe_config->hw.adjusted_mode.crtc_clock = pclk;
-		pipe_config->port_clock = pclk;
-	}
+	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	pipe_config->hw.adjusted_mode.crtc_clock = pclk;
+	if (intel_dsi->dual_link)
+		pipe_config->hw.adjusted_mode.crtc_clock *= 2;
 }
 
 /* return txclkesc cycles in terms of divider and duration in us */
@@ -1660,6 +1660,8 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 	u32 allowed_scalers;
 
 	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
@@ -1673,8 +1675,8 @@ static void vlv_dsi_add_properties(struct intel_connector *connector)
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
 						       intel_dsi_get_panel_orientation(connector),
-						       connector->panel.fixed_mode->hdisplay,
-						       connector->panel.fixed_mode->vdisplay);
+						       fixed_mode->hdisplay,
+						       fixed_mode->vdisplay);
 }
 
 #define NS_KHZ_RATIO		1000000
@@ -1688,7 +1690,8 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	struct intel_connector *connector = intel_dsi->attached_connector;
+	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
@@ -1857,7 +1860,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *current_mode, *fixed_mode;
+	struct drm_display_mode *current_mode;
 	enum port port;
 	enum pipe pipe;
 
@@ -1868,9 +1871,9 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 		return;
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
+		dev_priv->display.dsi.mmio_base = BXT_MIPI_BASE;
 	else
-		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
+		dev_priv->display.dsi.mmio_base = VLV_MIPI_BASE;
 
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
 	if (!intel_dsi)
@@ -1922,13 +1925,18 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	if (dev_priv->vbt.dsi.config->dual_link)
+	intel_bios_init_panel(dev_priv, &intel_connector->panel, NULL, NULL);
+
+	if (intel_connector->panel.vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
 	else
 		intel_dsi->ports = BIT(port);
 
-	intel_dsi->dcs_backlight_ports = dev_priv->vbt.dsi.bl_ports;
-	intel_dsi->dcs_cabc_ports = dev_priv->vbt.dsi.cabc_ports;
+	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.bl_ports & ~intel_dsi->ports))
+		intel_connector->panel.vbt.dsi.bl_ports &= intel_dsi->ports;
+
+	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.cabc_ports & ~intel_dsi->ports))
+		intel_connector->panel.vbt.dsi.cabc_ports &= intel_dsi->ports;
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -1978,15 +1986,16 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	mutex_lock(&dev->mode_config.mutex);
-	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (!fixed_mode) {
+	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		drm_dbg_kms(&dev_priv->drm, "no fixed mode\n");
 		goto err_cleanup_connector;
 	}
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(intel_connector);
+
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	vlv_dsi_add_properties(intel_connector);

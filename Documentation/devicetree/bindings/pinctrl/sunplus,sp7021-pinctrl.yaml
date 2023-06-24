@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/pinctrl/sunplus,sp7021-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sunplus SP7021 Pin Controller Device Tree Bindings
+title: Sunplus SP7021 Pin Controller
 
 maintainers:
   - Dvorkin Dmitry <dvorkin@tibbo.com>
@@ -288,11 +288,14 @@ required:
 
 additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 examples:
   - |
     #include <dt-bindings/pinctrl/sppctl-sp7021.h>
 
-    pinctl@9c000100 {
+    pinctrl@9c000100 {
         compatible = "sunplus,sp7021-pctl";
         reg = <0x9c000100 0x100>, <0x9c000300 0x100>,
               <0x9c0032e4 0x1c>, <0x9c000080 0x20>;

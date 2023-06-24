@@ -2020,7 +2020,6 @@ u16 hpi_meter_get_peak(u32 h_control, short an_peakdB[HPI_MAX_CHANNELS]
 		HPI_CONTROL_GET_STATE);
 	if (hpi_handle_indexes(h_control, &hm.adapter_index, &hm.obj_index))
 		return HPI_ERROR_INVALID_HANDLE;
-	hm.obj_index = hm.obj_index;
 	hm.u.c.attribute = HPI_METER_PEAK;
 
 	hpi_send_recv(&hm, &hr);

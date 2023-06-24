@@ -1072,7 +1072,7 @@ err_pm_put:
 	return err;
 }
 
-static int __maybe_unused rcar_pcie_resume(struct device *dev)
+static int rcar_pcie_resume(struct device *dev)
 {
 	struct rcar_pcie_host *host = dev_get_drvdata(dev);
 	struct rcar_pcie *pcie = &host->pcie;
@@ -1127,7 +1127,7 @@ static int rcar_pcie_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops rcar_pcie_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, rcar_pcie_resume)
+	SYSTEM_SLEEP_PM_OPS(NULL, rcar_pcie_resume)
 	.resume_noirq = rcar_pcie_resume_noirq,
 };
 

@@ -48,15 +48,19 @@ struct iomap_ops {
 	unsigned int (*read16be)(const void __iomem *);
 	unsigned int (*read32)(const void __iomem *);
 	unsigned int (*read32be)(const void __iomem *);
+#ifdef CONFIG_64BIT
 	u64 (*read64)(const void __iomem *);
 	u64 (*read64be)(const void __iomem *);
+#endif
 	void (*write8)(u8, void __iomem *);
 	void (*write16)(u16, void __iomem *);
 	void (*write16be)(u16, void __iomem *);
 	void (*write32)(u32, void __iomem *);
 	void (*write32be)(u32, void __iomem *);
+#ifdef CONFIG_64BIT
 	void (*write64)(u64, void __iomem *);
 	void (*write64be)(u64, void __iomem *);
+#endif
 	void (*read8r)(const void __iomem *, void *, unsigned long);
 	void (*read16r)(const void __iomem *, void *, unsigned long);
 	void (*read32r)(const void __iomem *, void *, unsigned long);
@@ -175,6 +179,7 @@ static unsigned int iomem_read32be(const void __iomem *addr)
 	return __raw_readl(addr);
 }
 
+#ifdef CONFIG_64BIT
 static u64 iomem_read64(const void __iomem *addr)
 {
 	return readq(addr);
@@ -184,6 +189,7 @@ static u64 iomem_read64be(const void __iomem *addr)
 {
 	return __raw_readq(addr);
 }
+#endif
 
 static void iomem_write8(u8 datum, void __iomem *addr)
 {
@@ -210,15 +216,17 @@ static void iomem_write32be(u32 datum, void __iomem *addr)
 	__raw_writel(datum, addr);
 }
 
+#ifdef CONFIG_64BIT
 static void iomem_write64(u64 datum, void __iomem *addr)
 {
-	writel(datum, addr);
+	writeq(datum, addr);
 }
 
 static void iomem_write64be(u64 datum, void __iomem *addr)
 {
-	__raw_writel(datum, addr);
+	__raw_writeq(datum, addr);
 }
+#endif
 
 static void iomem_read8r(const void __iomem *addr, void *dst, unsigned long count)
 {
@@ -274,15 +282,19 @@ static const struct iomap_ops iomem_ops = {
 	.read16be = iomem_read16be,
 	.read32 = iomem_read32,
 	.read32be = iomem_read32be,
+#ifdef CONFIG_64BIT
 	.read64 = iomem_read64,
 	.read64be = iomem_read64be,
+#endif
 	.write8 = iomem_write8,
 	.write16 = iomem_write16,
 	.write16be = iomem_write16be,
 	.write32 = iomem_write32,
 	.write32be = iomem_write32be,
+#ifdef CONFIG_64BIT
 	.write64 = iomem_write64,
 	.write64be = iomem_write64be,
+#endif
 	.read8r = iomem_read8r,
 	.read16r = iomem_read16r,
 	.read32r = iomem_read32r,
@@ -332,6 +344,7 @@ unsigned int ioread32be(const void __iomem *addr)
 	return *((u32 *)addr);
 }
 
+#ifdef CONFIG_64BIT
 u64 ioread64(const void __iomem *addr)
 {
 	if (unlikely(INDIRECT_ADDR(addr)))
@@ -345,26 +358,7 @@ u64 ioread64be(const void __iomem *addr)
 		return iomap_ops[ADDR_TO_REGION(addr)]->read64be(addr);
 	return *((u64 *)addr);
 }
-
-u64 ioread64_lo_hi(const void __iomem *addr)
-{
-	u32 low, high;
-
-	low = ioread32(addr);
-	high = ioread32(addr + sizeof(u32));
-
-	return low + ((u64)high << 32);
-}
-
-u64 ioread64_hi_lo(const void __iomem *addr)
-{
-	u32 low, high;
-
-	high = ioread32(addr + sizeof(u32));
-	low = ioread32(addr);
-
-	return low + ((u64)high << 32);
-}
+#endif
 
 void iowrite8(u8 datum, void __iomem *addr)
 {
@@ -411,6 +405,7 @@ void iowrite32be(u32 datum, void __iomem *addr)
 	}
 }
 
+#ifdef CONFIG_64BIT
 void iowrite64(u64 datum, void __iomem *addr)
 {
 	if (unlikely(INDIRECT_ADDR(addr))) {
@@ -428,18 +423,7 @@ void iowrite64be(u64 datum, void __iomem *addr)
 		*((u64 *)addr) = datum;
 	}
 }
-
-void iowrite64_lo_hi(u64 val, void __iomem *addr)
-{
-	iowrite32(val, addr);
-	iowrite32(val >> 32, addr + sizeof(u32));
-}
-
-void iowrite64_hi_lo(u64 val, void __iomem *addr)
-{
-	iowrite32(val >> 32, addr + sizeof(u32));
-	iowrite32(val, addr);
-}
+#endif
 
 /* Repeating interfaces */
 
@@ -544,19 +528,19 @@ EXPORT_SYMBOL(ioread16);
 EXPORT_SYMBOL(ioread16be);
 EXPORT_SYMBOL(ioread32);
 EXPORT_SYMBOL(ioread32be);
+#ifdef CONFIG_64BIT
 EXPORT_SYMBOL(ioread64);
 EXPORT_SYMBOL(ioread64be);
-EXPORT_SYMBOL(ioread64_lo_hi);
-EXPORT_SYMBOL(ioread64_hi_lo);
+#endif
 EXPORT_SYMBOL(iowrite8);
 EXPORT_SYMBOL(iowrite16);
 EXPORT_SYMBOL(iowrite16be);
 EXPORT_SYMBOL(iowrite32);
 EXPORT_SYMBOL(iowrite32be);
+#ifdef CONFIG_64BIT
 EXPORT_SYMBOL(iowrite64);
 EXPORT_SYMBOL(iowrite64be);
-EXPORT_SYMBOL(iowrite64_lo_hi);
-EXPORT_SYMBOL(iowrite64_hi_lo);
+#endif
 EXPORT_SYMBOL(ioread8_rep);
 EXPORT_SYMBOL(ioread16_rep);
 EXPORT_SYMBOL(ioread32_rep);

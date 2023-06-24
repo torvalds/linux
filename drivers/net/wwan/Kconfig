@@ -94,7 +94,7 @@ config RPMSG_WWAN_CTRL
 
 config IOSM
 	tristate "IOSM Driver for Intel M.2 WWAN Device"
-	depends on INTEL_IOMMU
+	depends on PCI
 	select NET_DEVLINK
 	select RELAY if WWAN_DEBUGFS
 	help
@@ -102,6 +102,20 @@ config IOSM
 
 	  If you have one of those Intel M.2 WWAN Modules and wish to use it in
 	  Linux say Y/M here.
+
+	  If unsure, say N.
+
+config MTK_T7XX
+	tristate "MediaTek PCIe 5G WWAN modem T7xx device"
+	depends on PCI
+	help
+	  Enables MediaTek PCIe based 5G WWAN modem (T7xx series) device.
+	  Adapts WWAN framework and provides network interface like wwan0
+	  and tty interfaces like wwan0at0 (AT protocol), wwan0mbim0
+	  (MBIM protocol), etc.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mtk_t7xx.
 
 	  If unsure, say N.
 

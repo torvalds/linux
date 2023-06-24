@@ -212,9 +212,9 @@ static void exfat_free_namebuf(struct exfat_dentry_namebuf *nb)
 
 /* skip iterating emit_dots when dir is empty */
 #define ITER_POS_FILLED_DOTS    (2)
-static int exfat_iterate(struct file *filp, struct dir_context *ctx)
+static int exfat_iterate(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	struct inode *tmp;
 	struct exfat_dir_entry de;
@@ -228,7 +228,7 @@ static int exfat_iterate(struct file *filp, struct dir_context *ctx)
 	mutex_lock(&EXFAT_SB(sb)->s_lock);
 
 	cpos = ctx->pos;
-	if (!dir_emit_dots(filp, ctx))
+	if (!dir_emit_dots(file, ctx))
 		goto unlock;
 
 	if (ctx->pos == ITER_POS_FILLED_DOTS) {

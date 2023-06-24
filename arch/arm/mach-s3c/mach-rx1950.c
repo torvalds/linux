@@ -643,9 +643,15 @@ static struct s3c2410_platform_nand rx1950_nand_info = {
 };
 
 static struct s3c2410_udc_mach_info rx1950_udc_cfg __initdata = {
-	.vbus_pin = S3C2410_GPG(5),
-	.vbus_pin_inverted = 1,
-	.pullup_pin = S3C2410_GPJ(5),
+};
+
+static struct gpiod_lookup_table rx1950_udc_gpio_table = {
+	.dev_id = "s3c2410-usbgadget",
+	.table = {
+		GPIO_LOOKUP("GPIOG", 5, "vbus", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("GPIOJ", 5, "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct s3c2410_ts_mach_info rx1950_ts_cfg __initdata = {
@@ -847,6 +853,7 @@ static void __init rx1950_init_machine(void)
 	gpio_direction_output(S3C2410_GPJ(6), 0);
 
 	pwm_add_table(rx1950_pwm_lookup, ARRAY_SIZE(rx1950_pwm_lookup));
+	gpiod_add_lookup_table(&rx1950_udc_gpio_table);
 	gpiod_add_lookup_table(&rx1950_audio_gpio_table);
 	gpiod_add_lookup_table(&rx1950_bat_gpio_table);
 	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
@@ -868,6 +875,7 @@ static void __init rx1950_reserve(void)
 MACHINE_START(RX1950, "HP iPAQ RX1950")
     /* Maintainers: Vasily Khoruzhick */
 	.atag_offset = 0x100,
+	.nr_irqs	= NR_IRQS_S3C2442,
 	.map_io = rx1950_map_io,
 	.reserve	= rx1950_reserve,
 	.init_irq	= s3c2442_init_irq,

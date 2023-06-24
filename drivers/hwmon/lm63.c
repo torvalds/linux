@@ -996,11 +996,11 @@ static int lm63_detect(struct i2c_client *client,
 	}
 
 	if (chip_id == 0x41 && address == 0x4c)
-		strlcpy(info->type, "lm63", I2C_NAME_SIZE);
+		strscpy(info->type, "lm63", I2C_NAME_SIZE);
 	else if (chip_id == 0x51 && (address == 0x18 || address == 0x4e))
-		strlcpy(info->type, "lm64", I2C_NAME_SIZE);
+		strscpy(info->type, "lm64", I2C_NAME_SIZE);
 	else if (chip_id == 0x49 && address == 0x4c)
-		strlcpy(info->type, "lm96163", I2C_NAME_SIZE);
+		strscpy(info->type, "lm96163", I2C_NAME_SIZE);
 	else
 		return -ENODEV;
 

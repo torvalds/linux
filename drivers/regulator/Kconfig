@@ -546,6 +546,16 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX597X
+	tristate "Maxim 597x power switch and monitor"
+	depends on I2C
+	depends on OF
+	depends on MFD_MAX597X
+	help
+	  This driver controls a Maxim 5970/5978 switch via I2C bus.
+	  The MAX5970/5978 is a smart switch with no output regulation, but
+	  fault protection and voltage and current monitoring capabilities.
+
 config REGULATOR_MAX77620
 	tristate "Maxim 77620/MAX20024 voltage regulator"
 	depends on MFD_MAX77620 || COMPILE_TEST
@@ -777,6 +787,24 @@ config REGULATOR_MT6323
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6331
+	tristate "MediaTek MT6331 PMIC"
+	depends on MFD_MT6397
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6331 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface
+
+config REGULATOR_MT6332
+	tristate "MediaTek MT6332 PMIC"
+	depends on MFD_MT6397
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6332 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface
+
 config REGULATOR_MT6358
 	tristate "MediaTek MT6358 PMIC"
 	depends on MFD_MT6397
@@ -803,6 +831,14 @@ config REGULATOR_MT6360
 	  This is support MT6360 PMIC/LDO part include
 	  2-channel buck with Thermal Shutdown and Overload Protection
 	  6-channel High PSRR and Low Dropout LDO.
+
+config REGULATOR_MT6370
+	tristate "MT6370 SubPMIC Regulator"
+	depends on MFD_MT6370
+	help
+	  Say Y here to enable MT6370 regulator support.
+	  This driver supports the control for DisplayBias voltages and one
+	  general purpose LDO which is commonly used to drive the vibrator.
 
 config REGULATOR_MT6380
 	tristate "MediaTek MT6380 PMIC"
@@ -1047,6 +1083,16 @@ config REGULATOR_RT5033
 	  RT5033 PMIC. The device supports multiple regulators like
 	  current source, LDO and Buck.
 
+config REGULATOR_RT5120
+	tristate "Richtek RT5120 PMIC Regulators"
+	depends on MFD_RT5120
+	help
+	  This adds support for voltage regulator in Richtek RT5120 PMIC.
+	  It integrates 4 channels buck controller, 1 channel LDO, 1 EXTEN
+	  to control external power source. Only BUCK1 is adjustable from
+	  600mV to 1395mV, per step 6.250mV. The others are all fixed voltage
+	  by external hardware circuit.
+
 config REGULATOR_RT5190A
 	tristate "Richtek RT5190A PMIC"
 	depends on I2C
@@ -1056,6 +1102,16 @@ config REGULATOR_RT5190A
 	  It integratas 1 channel buck controller, 3 channels high efficiency
 	  buck converters, 1 LDO, mute AC OFF depop function, with the general
 	  I2C control interface.
+
+config REGULATOR_RT5759
+	tristate "Richtek RT5759 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT5759.
+	  The RT5759 is a high-performance, synchronous step-down DC-DC
+	  converter that can deliver up to 9A output current from 3V to 6.5V
+	  input supply.
 
 config REGULATOR_RT6160
 	tristate "Richtek RT6160 BuckBoost voltage regulator"
@@ -1157,6 +1213,13 @@ config REGULATOR_SLG51000
 	  The SLG51000 is seven compact and customizable low dropout
 	  regulators.
 
+config REGULATOR_SM5703
+	tristate "Silicon Mitus SM5703 regulators"
+	depends on MFD_SM5703
+	help
+	  This driver provides support for voltage regulators of SM5703
+	  multi-function device.
+
 config REGULATOR_STM32_BOOSTER
 	tristate "STMicroelectronics STM32 BOOSTER"
 	depends on ARCH_STM32 || COMPILE_TEST
@@ -1219,6 +1282,7 @@ config REGULATOR_STW481X_VMMC
 
 config REGULATOR_SY7636A
 	tristate "Silergy SY7636A voltage regulator"
+	depends on MFD_SY7636A
 	help
 	  This driver supports Silergy SY3686A voltage regulator.
 
@@ -1338,6 +1402,15 @@ config REGULATOR_TPS65218
 	  provides six step-down converters and one general-purpose LDO
 	  voltage regulators. It supports software based voltage control
 	  for different voltage domains
+
+config REGULATOR_TPS65219
+	tristate "TI TPS65219 Power regulators"
+	depends on MFD_TPS65219 && OF
+	help
+	  This driver supports TPS65219 voltage regulator chips.
+	  TPS65219 series of PMICs have 3 single phase BUCKs & 4 LDOs
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains.
 
 config REGULATOR_TPS6524X
 	tristate "TI TPS6524X Power regulators"

@@ -497,7 +497,7 @@ set_flags:
 	}
 	opcode = QLCNIC_TX_ETHER_PKT;
 	if (skb_is_gso(skb)) {
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 		first_desc->hdr_length = hdr_len;
 		opcode = (protocol == ETH_P_IPV6) ? QLCNIC_TX_TCP_LSO6 :
@@ -1586,17 +1586,15 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 		sds_ring = &recv_ctx->sds_rings[ring];
 		if (qlcnic_check_multi_tx(adapter) &&
 		    !adapter->ahw->diag_test) {
-			netif_napi_add(netdev, &sds_ring->napi, qlcnic_rx_poll,
-				       NAPI_POLL_WEIGHT);
+			netif_napi_add(netdev, &sds_ring->napi,
+				       qlcnic_rx_poll);
 		} else {
 			if (ring == (adapter->drv_sds_rings - 1))
 				netif_napi_add(netdev, &sds_ring->napi,
-					       qlcnic_poll,
-					       NAPI_POLL_WEIGHT);
+					       qlcnic_poll);
 			else
 				netif_napi_add(netdev, &sds_ring->napi,
-					       qlcnic_rx_poll,
-					       NAPI_POLL_WEIGHT);
+					       qlcnic_rx_poll);
 		}
 	}
 
@@ -1608,8 +1606,8 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 	if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test) {
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
-			netif_tx_napi_add(netdev, &tx_ring->napi, qlcnic_tx_poll,
-				       NAPI_POLL_WEIGHT);
+			netif_napi_add_tx(netdev, &tx_ring->napi,
+					  qlcnic_tx_poll);
 		}
 	}
 
@@ -2115,17 +2113,14 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 		if (adapter->flags & QLCNIC_MSIX_ENABLED) {
 			if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
 				netif_napi_add(netdev, &sds_ring->napi,
-					       qlcnic_83xx_rx_poll,
-					       NAPI_POLL_WEIGHT);
+					       qlcnic_83xx_rx_poll);
 			else
 				netif_napi_add(netdev, &sds_ring->napi,
-					       qlcnic_83xx_msix_sriov_vf_poll,
-					       NAPI_POLL_WEIGHT);
+					       qlcnic_83xx_msix_sriov_vf_poll);
 
 		} else {
 			netif_napi_add(netdev, &sds_ring->napi,
-				       qlcnic_83xx_poll,
-				       NAPI_POLL_WEIGHT);
+				       qlcnic_83xx_poll);
 		}
 	}
 
@@ -2138,9 +2133,8 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 	    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
-			netif_tx_napi_add(netdev, &tx_ring->napi,
-				       qlcnic_83xx_msix_tx_poll,
-				       NAPI_POLL_WEIGHT);
+			netif_napi_add_tx(netdev, &tx_ring->napi,
+					  qlcnic_83xx_msix_tx_poll);
 		}
 	}
 

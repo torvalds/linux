@@ -27,10 +27,61 @@ extern unsigned int __sw_hweight32(unsigned int w);
 extern unsigned long __sw_hweight64(__u64 w);
 
 /*
+ * Defined here because those may be needed by architecture-specific static
+ * inlines.
+ */
+
+#include <asm-generic/bitops/generic-non-atomic.h>
+
+/*
+ * Many architecture-specific non-atomic bitops contain inline asm code and due
+ * to that the compiler can't optimize them to compile-time expressions or
+ * constants. In contrary, generic_*() helpers are defined in pure C and
+ * compilers optimize them just well.
+ * Therefore, to make `unsigned long foo = 0; __set_bit(BAR, &foo)` effectively
+ * equal to `unsigned long foo = BIT(BAR)`, pick the generic C alternative when
+ * the arguments can be resolved at compile time. That expression itself is a
+ * constant and doesn't bring any functional changes to the rest of cases.
+ * The casts to `uintptr_t` are needed to mitigate `-Waddress` warnings when
+ * passing a bitmap from .bss or .data (-> `!!addr` is always true).
+ */
+#define bitop(op, nr, addr)						\
+	((__builtin_constant_p(nr) &&					\
+	  __builtin_constant_p((uintptr_t)(addr) != (uintptr_t)NULL) &&	\
+	  (uintptr_t)(addr) != (uintptr_t)NULL &&			\
+	  __builtin_constant_p(*(const unsigned long *)(addr))) ?	\
+	 const##op(nr, addr) : op(nr, addr))
+
+#define __set_bit(nr, addr)		bitop(___set_bit, nr, addr)
+#define __clear_bit(nr, addr)		bitop(___clear_bit, nr, addr)
+#define __change_bit(nr, addr)		bitop(___change_bit, nr, addr)
+#define __test_and_set_bit(nr, addr)	bitop(___test_and_set_bit, nr, addr)
+#define __test_and_clear_bit(nr, addr)	bitop(___test_and_clear_bit, nr, addr)
+#define __test_and_change_bit(nr, addr)	bitop(___test_and_change_bit, nr, addr)
+#define test_bit(nr, addr)		bitop(_test_bit, nr, addr)
+#define test_bit_acquire(nr, addr)	bitop(_test_bit_acquire, nr, addr)
+
+/*
  * Include this here because some architectures need generic_ffs/fls in
  * scope
  */
 #include <asm/bitops.h>
+
+/* Check that the bitops prototypes are sane */
+#define __check_bitop_pr(name)						\
+	static_assert(__same_type(arch_##name, generic_##name) &&	\
+		      __same_type(const_##name, generic_##name) &&	\
+		      __same_type(_##name, generic_##name))
+
+__check_bitop_pr(__set_bit);
+__check_bitop_pr(__clear_bit);
+__check_bitop_pr(__change_bit);
+__check_bitop_pr(__test_and_set_bit);
+__check_bitop_pr(__test_and_clear_bit);
+__check_bitop_pr(__test_and_change_bit);
+__check_bitop_pr(test_bit);
+
+#undef __check_bitop_pr
 
 static inline int get_bitmask_order(unsigned int count)
 {
@@ -197,6 +248,25 @@ static inline unsigned long __ffs64(u64 word)
 }
 
 /**
+ * fns - find N'th set bit in a word
+ * @word: The word to search
+ * @n: Bit to find
+ */
+static inline unsigned long fns(unsigned long word, unsigned int n)
+{
+	unsigned int bit;
+
+	while (word) {
+		bit = __ffs(word);
+		if (n-- == 0)
+			return bit;
+		__clear_bit(bit, &word);
+	}
+
+	return BITS_PER_LONG;
+}
+
+/**
  * assign_bit - Assign value to a bit in memory
  * @nr: the bit to set
  * @addr: the address to start counting from
@@ -277,10 +347,10 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
 	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
 	typeof(*(ptr)) old__, new__;				\
 								\
+	old__ = READ_ONCE(*(ptr));				\
 	do {							\
-		old__ = READ_ONCE(*(ptr));			\
 		new__ = (old__ & ~mask__) | bits__;		\
-	} while (cmpxchg(ptr, old__, new__) != old__);		\
+	} while (!try_cmpxchg(ptr, &old__, new__));		\
 								\
 	old__;							\
 })
@@ -292,11 +362,12 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
 	const typeof(*(ptr)) clear__ = (clear), test__ = (test);\
 	typeof(*(ptr)) old__, new__;				\
 								\
+	old__ = READ_ONCE(*(ptr));				\
 	do {							\
-		old__ = READ_ONCE(*(ptr));			\
+		if (old__ & test__)				\
+			break;					\
 		new__ = old__ & ~clear__;			\
-	} while (!(old__ & test__) &&				\
-		 cmpxchg(ptr, old__, new__) != old__);		\
+	} while (!try_cmpxchg(ptr, &old__, new__));		\
 								\
 	!(old__ & test__);					\
 })

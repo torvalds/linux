@@ -26,7 +26,6 @@
 #include <net/udp.h>
 
 
-static unsigned int nat_net_id;
 static struct tc_action_ops act_nat_ops;
 
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
@@ -37,7 +36,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action **a, struct tcf_proto *tp,
 			u32 flags, struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, nat_net_id);
+	struct tc_action_net *tn = net_generic(net, act_nat_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -289,23 +288,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_nat_walker(struct net *net, struct sk_buff *skb,
-			  struct netlink_callback *cb, int type,
-			  const struct tc_action_ops *ops,
-			  struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, nat_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_nat_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, nat_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
 	.id		=	TCA_ID_NAT,
@@ -313,27 +295,25 @@ static struct tc_action_ops act_nat_ops = {
 	.act		=	tcf_nat_act,
 	.dump		=	tcf_nat_dump,
 	.init		=	tcf_nat_init,
-	.walk		=	tcf_nat_walker,
-	.lookup		=	tcf_nat_search,
 	.size		=	sizeof(struct tcf_nat),
 };
 
 static __net_init int nat_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, nat_net_id);
+	struct tc_action_net *tn = net_generic(net, act_nat_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_nat_ops);
 }
 
 static void __net_exit nat_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, nat_net_id);
+	tc_action_net_exit(net_list, act_nat_ops.net_id);
 }
 
 static struct pernet_operations nat_net_ops = {
 	.init = nat_init_net,
 	.exit_batch = nat_exit_net,
-	.id   = &nat_net_id,
+	.id   = &act_nat_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

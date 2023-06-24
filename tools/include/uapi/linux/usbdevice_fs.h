@@ -131,7 +131,7 @@ struct usbdevfs_urb {
 	unsigned int signr;	/* signal to be sent on completion,
 				  or 0 if none should be sent. */
 	void __user *usercontext;
-	struct usbdevfs_iso_packet_desc iso_frame_desc[0];
+	struct usbdevfs_iso_packet_desc iso_frame_desc[];
 };
 
 /* ioctls for talking directly to drivers */
@@ -176,7 +176,7 @@ struct usbdevfs_disconnect_claim {
 struct usbdevfs_streams {
 	unsigned int num_streams; /* Not used by USBDEVFS_FREE_STREAMS */
 	unsigned int num_eps;
-	unsigned char eps[0];
+	unsigned char eps[];
 };
 
 /*

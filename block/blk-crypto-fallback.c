@@ -152,23 +152,25 @@ static void blk_crypto_fallback_encrypt_endio(struct bio *enc_bio)
 
 	src_bio->bi_status = enc_bio->bi_status;
 
-	bio_put(enc_bio);
+	bio_uninit(enc_bio);
+	kfree(enc_bio);
 	bio_endio(src_bio);
 }
 
 static struct bio *blk_crypto_fallback_clone_bio(struct bio *bio_src)
 {
+	unsigned int nr_segs = bio_segments(bio_src);
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	struct bio *bio;
 
-	bio = bio_kmalloc(GFP_NOIO, bio_segments(bio_src));
+	bio = bio_kmalloc(nr_segs, GFP_NOIO);
 	if (!bio)
 		return NULL;
-	bio->bi_bdev		= bio_src->bi_bdev;
+	bio_init(bio, bio_src->bi_bdev, bio->bi_inline_vecs, nr_segs,
+		 bio_src->bi_opf);
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
-	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_ioprio		= bio_src->bi_ioprio;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
@@ -177,7 +179,6 @@ static struct bio *blk_crypto_fallback_clone_bio(struct bio *bio_src)
 		bio->bi_io_vec[bio->bi_vcnt++] = bv;
 
 	bio_clone_blkg_association(bio, bio_src);
-	blkcg_bio_issue_init(bio);
 
 	return bio;
 }
@@ -363,8 +364,8 @@ out_release_keyslot:
 	blk_crypto_put_keyslot(slot);
 out_put_enc_bio:
 	if (enc_bio)
-		bio_put(enc_bio);
-
+		bio_uninit(enc_bio);
+	kfree(enc_bio);
 	return ret;
 }
 
@@ -538,7 +539,7 @@ static int blk_crypto_fallback_init(void)
 	if (blk_crypto_fallback_inited)
 		return 0;
 
-	prandom_bytes(blank_key, BLK_CRYPTO_MAX_KEY_SIZE);
+	get_random_bytes(blank_key, BLK_CRYPTO_MAX_KEY_SIZE);
 
 	err = bioset_init(&crypto_bio_split, 64, 0, 0);
 	if (err)

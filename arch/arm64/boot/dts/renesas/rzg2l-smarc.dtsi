@@ -14,6 +14,25 @@
 / {
 	aliases {
 		serial1 = &scif2;
+		i2c3 = &i2c3;
+	};
+};
+
+&cpu_dai {
+	sound-dai = <&ssi0>;
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	wm8978: codec@1a {
+		compatible = "wlf,wm8978";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
 	};
 };
 
@@ -33,3 +52,14 @@
 	status = "okay";
 };
 #endif
+
+&ssi0 {
+	pinctrl-0 = <&ssi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&vccq_sdhi1 {
+	gpios = <&pinctrl RZG2L_GPIO(39, 1) GPIO_ACTIVE_HIGH>;
+};

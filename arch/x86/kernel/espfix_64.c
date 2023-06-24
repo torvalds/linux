@@ -100,7 +100,7 @@ static void init_espfix_random(void)
 	 * This is run before the entropy pools are initialized,
 	 * but this is hopefully better than nothing.
 	 */
-	if (!arch_get_random_long(&rand)) {
+	if (!arch_get_random_longs(&rand, 1)) {
 		/* The constant is an arbitrary large prime */
 		rand = rdtsc();
 		rand *= 0xc345c6b72fd16123UL;

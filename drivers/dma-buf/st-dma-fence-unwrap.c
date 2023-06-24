@@ -4,27 +4,19 @@
  * Copyright (C) 2022 Advanced Micro Devices, Inc.
  */
 
+#include <linux/dma-fence.h>
+#include <linux/dma-fence-array.h>
+#include <linux/dma-fence-chain.h>
 #include <linux/dma-fence-unwrap.h>
-#if 0
-#include <linux/kernel.h>
-#include <linux/kthread.h>
-#include <linux/mm.h>
-#include <linux/sched/signal.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/random.h>
-#endif
 
 #include "selftest.h"
 
 #define CHAIN_SZ (4 << 10)
 
-static inline struct mock_fence {
+struct mock_fence {
 	struct dma_fence base;
 	spinlock_t lock;
-} *to_mock_fence(struct dma_fence *f) {
-	return container_of(f, struct mock_fence, base);
-}
+};
 
 static const char *mock_name(struct dma_fence *f)
 {
@@ -45,7 +37,8 @@ static struct dma_fence *mock_fence(void)
 		return NULL;
 
 	spin_lock_init(&f->lock);
-	dma_fence_init(&f->base, &mock_ops, &f->lock, 0, 0);
+	dma_fence_init(&f->base, &mock_ops, &f->lock,
+		       dma_fence_context_alloc(1), 1);
 
 	return &f->base;
 }
@@ -59,7 +52,7 @@ static struct dma_fence *mock_array(unsigned int num_fences, ...)
 
 	fences = kcalloc(num_fences, sizeof(*fences), GFP_KERNEL);
 	if (!fences)
-		return NULL;
+		goto error_put;
 
 	va_start(valist, num_fences);
 	for (i = 0; i < num_fences; ++i)
@@ -70,13 +63,17 @@ static struct dma_fence *mock_array(unsigned int num_fences, ...)
 				       dma_fence_context_alloc(1),
 				       1, false);
 	if (!array)
-		goto cleanup;
+		goto error_free;
 	return &array->base;
 
-cleanup:
-	for (i = 0; i < num_fences; ++i)
-		dma_fence_put(fences[i]);
+error_free:
 	kfree(fences);
+
+error_put:
+	va_start(valist, num_fences);
+	for (i = 0; i < num_fences; ++i)
+		dma_fence_put(va_arg(valist, typeof(*fences)));
+	va_end(valist);
 	return NULL;
 }
 
@@ -105,6 +102,8 @@ static int sanitycheck(void *arg)
 	if (!f)
 		return -ENOMEM;
 
+	dma_fence_enable_sw_signaling(f);
+
 	array = mock_array(1, f);
 	if (!array)
 		return -ENOMEM;
@@ -113,7 +112,6 @@ static int sanitycheck(void *arg)
 	if (!chain)
 		return -ENOMEM;
 
-	dma_fence_signal(f);
 	dma_fence_put(chain);
 	return err;
 }
@@ -128,11 +126,15 @@ static int unwrap_array(void *arg)
 	if (!f1)
 		return -ENOMEM;
 
+	dma_fence_enable_sw_signaling(f1);
+
 	f2 = mock_fence();
 	if (!f2) {
 		dma_fence_put(f1);
 		return -ENOMEM;
 	}
+
+	dma_fence_enable_sw_signaling(f2);
 
 	array = mock_array(2, f1, f2);
 	if (!array)
@@ -154,10 +156,8 @@ static int unwrap_array(void *arg)
 		err = -EINVAL;
 	}
 
-	dma_fence_signal(f1);
-	dma_fence_signal(f2);
 	dma_fence_put(array);
-	return 0;
+	return err;
 }
 
 static int unwrap_chain(void *arg)
@@ -170,11 +170,15 @@ static int unwrap_chain(void *arg)
 	if (!f1)
 		return -ENOMEM;
 
+	dma_fence_enable_sw_signaling(f1);
+
 	f2 = mock_fence();
 	if (!f2) {
 		dma_fence_put(f1);
 		return -ENOMEM;
 	}
+
+	dma_fence_enable_sw_signaling(f2);
 
 	chain = mock_chain(f1, f2);
 	if (!chain)
@@ -196,10 +200,8 @@ static int unwrap_chain(void *arg)
 		err = -EINVAL;
 	}
 
-	dma_fence_signal(f1);
-	dma_fence_signal(f2);
 	dma_fence_put(chain);
-	return 0;
+	return err;
 }
 
 static int unwrap_chain_array(void *arg)
@@ -212,11 +214,15 @@ static int unwrap_chain_array(void *arg)
 	if (!f1)
 		return -ENOMEM;
 
+	dma_fence_enable_sw_signaling(f1);
+
 	f2 = mock_fence();
 	if (!f2) {
 		dma_fence_put(f1);
 		return -ENOMEM;
 	}
+
+	dma_fence_enable_sw_signaling(f2);
 
 	array = mock_array(2, f1, f2);
 	if (!array)
@@ -242,10 +248,123 @@ static int unwrap_chain_array(void *arg)
 		err = -EINVAL;
 	}
 
-	dma_fence_signal(f1);
-	dma_fence_signal(f2);
 	dma_fence_put(chain);
-	return 0;
+	return err;
+}
+
+static int unwrap_merge(void *arg)
+{
+	struct dma_fence *fence, *f1, *f2, *f3;
+	struct dma_fence_unwrap iter;
+	int err = 0;
+
+	f1 = mock_fence();
+	if (!f1)
+		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f1);
+
+	f2 = mock_fence();
+	if (!f2) {
+		err = -ENOMEM;
+		goto error_put_f1;
+	}
+
+	dma_fence_enable_sw_signaling(f2);
+
+	f3 = dma_fence_unwrap_merge(f1, f2);
+	if (!f3) {
+		err = -ENOMEM;
+		goto error_put_f2;
+	}
+
+	dma_fence_unwrap_for_each(fence, &iter, f3) {
+		if (fence == f1) {
+			dma_fence_put(f1);
+			f1 = NULL;
+		} else if (fence == f2) {
+			dma_fence_put(f2);
+			f2 = NULL;
+		} else {
+			pr_err("Unexpected fence!\n");
+			err = -EINVAL;
+		}
+	}
+
+	if (f1 || f2) {
+		pr_err("Not all fences seen!\n");
+		err = -EINVAL;
+	}
+
+	dma_fence_put(f3);
+error_put_f2:
+	dma_fence_put(f2);
+error_put_f1:
+	dma_fence_put(f1);
+	return err;
+}
+
+static int unwrap_merge_complex(void *arg)
+{
+	struct dma_fence *fence, *f1, *f2, *f3, *f4, *f5;
+	struct dma_fence_unwrap iter;
+	int err = -ENOMEM;
+
+	f1 = mock_fence();
+	if (!f1)
+		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f1);
+
+	f2 = mock_fence();
+	if (!f2)
+		goto error_put_f1;
+
+	dma_fence_enable_sw_signaling(f2);
+
+	f3 = dma_fence_unwrap_merge(f1, f2);
+	if (!f3)
+		goto error_put_f2;
+
+	/* The resulting array has the fences in reverse */
+	f4 = dma_fence_unwrap_merge(f2, f1);
+	if (!f4)
+		goto error_put_f3;
+
+	/* Signaled fences should be filtered, the two arrays merged. */
+	f5 = dma_fence_unwrap_merge(f3, f4, dma_fence_get_stub());
+	if (!f5)
+		goto error_put_f4;
+
+	err = 0;
+	dma_fence_unwrap_for_each(fence, &iter, f5) {
+		if (fence == f1) {
+			dma_fence_put(f1);
+			f1 = NULL;
+		} else if (fence == f2) {
+			dma_fence_put(f2);
+			f2 = NULL;
+		} else {
+			pr_err("Unexpected fence!\n");
+			err = -EINVAL;
+		}
+	}
+
+	if (f1 || f2) {
+		pr_err("Not all fences seen!\n");
+		err = -EINVAL;
+	}
+
+	dma_fence_put(f5);
+error_put_f4:
+	dma_fence_put(f4);
+error_put_f3:
+	dma_fence_put(f3);
+error_put_f2:
+	dma_fence_put(f2);
+error_put_f1:
+	dma_fence_put(f1);
+	return err;
 }
 
 int dma_fence_unwrap(void)
@@ -255,6 +374,8 @@ int dma_fence_unwrap(void)
 		SUBTEST(unwrap_array),
 		SUBTEST(unwrap_chain),
 		SUBTEST(unwrap_chain_array),
+		SUBTEST(unwrap_merge),
+		SUBTEST(unwrap_merge_complex),
 	};
 
 	return subtests(tests, NULL);

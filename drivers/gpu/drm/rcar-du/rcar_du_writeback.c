@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * rcar_du_writeback.c  --  R-Car Display Unit Writeback Support
+ * R-Car Display Unit Writeback Support
  *
  * Copyright (C) 2019 Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_device.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_writeback.h>
 
@@ -164,8 +166,8 @@ static int rcar_du_wb_enc_atomic_check(struct drm_encoder *encoder,
 
 	wb_state->format = rcar_du_format_info(fb->format->format);
 	if (wb_state->format == NULL) {
-		dev_dbg(dev->dev, "%s: unsupported format %08x\n", __func__,
-			fb->format->format);
+		dev_dbg(dev->dev, "%s: unsupported format %p4cc\n", __func__,
+			&fb->format->format);
 		return -EINVAL;
 	}
 
@@ -200,7 +202,6 @@ int rcar_du_writeback_init(struct rcar_du_device *rcdu,
 {
 	struct drm_writeback_connector *wb_conn = &rcrtc->writeback;
 
-	wb_conn->encoder.possible_crtcs = 1 << drm_crtc_index(&rcrtc->crtc);
 	drm_connector_helper_add(&wb_conn->base,
 				 &rcar_du_wb_conn_helper_funcs);
 
@@ -208,7 +209,8 @@ int rcar_du_writeback_init(struct rcar_du_device *rcdu,
 					    &rcar_du_wb_conn_funcs,
 					    &rcar_du_wb_enc_helper_funcs,
 					    writeback_formats,
-					    ARRAY_SIZE(writeback_formats));
+					    ARRAY_SIZE(writeback_formats),
+					    1 << drm_crtc_index(&rcrtc->crtc));
 }
 
 void rcar_du_writeback_setup(struct rcar_du_crtc *rcrtc,

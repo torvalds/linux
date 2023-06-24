@@ -9,6 +9,36 @@
 #include "i915_drv.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dsb.h"
+
+struct i915_vma;
+
+enum dsb_id {
+	INVALID_DSB = -1,
+	DSB1,
+	DSB2,
+	DSB3,
+	MAX_DSB_PER_PIPE
+};
+
+struct intel_dsb {
+	enum dsb_id id;
+	u32 *cmd_buf;
+	struct i915_vma *vma;
+
+	/*
+	 * free_pos will point the first free entry position
+	 * and help in calculating tail of command buffer.
+	 */
+	int free_pos;
+
+	/*
+	 * ins_start_offset will help to store start address of the dsb
+	 * instuction and help in identifying the batch of auto-increment
+	 * register.
+	 */
+	u32 ins_start_offset;
+};
 
 #define DSB_BUF_SIZE    (2 * PAGE_SIZE)
 
@@ -283,14 +313,12 @@ void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
 
 	obj = i915_gem_object_create_internal(i915, DSB_BUF_SIZE);
 	if (IS_ERR(obj)) {
-		drm_err(&i915->drm, "Gem object creation failed\n");
 		kfree(dsb);
 		goto out;
 	}
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {
-		drm_err(&i915->drm, "Vma creation failed\n");
 		i915_gem_object_put(obj);
 		kfree(dsb);
 		goto out;
@@ -298,7 +326,6 @@ void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
 
 	buf = i915_gem_object_pin_map_unlocked(vma->obj, I915_MAP_WC);
 	if (IS_ERR(buf)) {
-		drm_err(&i915->drm, "Command buffer creation failed\n");
 		i915_vma_unpin_and_release(&vma, I915_VMA_RELEASE_MAP);
 		kfree(dsb);
 		goto out;
@@ -311,6 +338,10 @@ void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
 	dsb->ins_start_offset = 0;
 	crtc_state->dsb = dsb;
 out:
+	if (!crtc_state->dsb)
+		drm_info(&i915->drm,
+			 "DSB queue setup failed, will fallback to MMIO for display HW programming\n");
+
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 

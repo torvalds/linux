@@ -8,13 +8,39 @@
 #include <subcmd/parse-options.h>
 
 extern const struct option check_options[];
-extern bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
-	    lto, vmlinux, mcount, noinstr, backup, sls, dryrun,
-	    ibt;
+
+struct opts {
+	/* actions: */
+	bool dump_orc;
+	bool hack_jump_label;
+	bool hack_noinstr;
+	bool ibt;
+	bool mcount;
+	bool noinstr;
+	bool orc;
+	bool retpoline;
+	bool rethunk;
+	bool unret;
+	bool sls;
+	bool stackval;
+	bool static_call;
+	bool uaccess;
+
+	/* options: */
+	bool backtrace;
+	bool backup;
+	bool dryrun;
+	bool link;
+	bool module;
+	bool no_unreachable;
+	bool sec_address;
+	bool stats;
+};
+
+extern struct opts opts;
 
 extern int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
 
-extern int cmd_check(int argc, const char **argv);
-extern int cmd_orc(int argc, const char **argv);
+extern int objtool_run(int argc, const char **argv);
 
 #endif /* _BUILTIN_H */

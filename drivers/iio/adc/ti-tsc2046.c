@@ -8,7 +8,9 @@
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
 
 #include <asm/unaligned.h>
 
@@ -139,6 +141,7 @@ enum tsc2046_state {
 struct tsc2046_adc_priv {
 	struct spi_device *spi;
 	const struct tsc2046_adc_dcfg *dcfg;
+	struct regulator *vref_reg;
 
 	struct iio_trigger *trig;
 	struct hrtimer trig_timer;
@@ -173,6 +176,7 @@ struct tsc2046_adc_priv {
 	u32 scan_interval_us;
 	u32 time_per_scan_us;
 	u32 time_per_bit_ns;
+	unsigned int vref_mv;
 
 	struct tsc2046_adc_ch_cfg ch_cfg[TI_TSC2046_MAX_CHAN];
 };
@@ -252,7 +256,9 @@ static u8 tsc2046_adc_get_cmd(struct tsc2046_adc_priv *priv, int ch_idx,
 	case TI_TSC2046_ADDR_AUX:
 	case TI_TSC2046_ADDR_VBAT:
 	case TI_TSC2046_ADDR_TEMP0:
-		pd |= TI_TSC2046_SER | TI_TSC2046_PD1_VREF_ON;
+		pd |= TI_TSC2046_SER;
+		if (!priv->vref_reg)
+			pd |= TI_TSC2046_PD1_VREF_ON;
 	}
 
 	return TI_TSC2046_START | FIELD_PREP(TI_TSC2046_ADDR, ch_idx) | pd;
@@ -468,7 +474,7 @@ static int tsc2046_adc_read_raw(struct iio_dev *indio_dev,
 		 * So, it is better to use external voltage-divider driver
 		 * instead, which is calculating complete chain.
 		 */
-		*val = TI_TSC2046_INT_VREF;
+		*val = priv->vref_mv;
 		*val2 = chan->scan_type.realbits;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	}
@@ -740,6 +746,49 @@ static void tsc2046_adc_parse_fwnode(struct tsc2046_adc_priv *priv)
 	}
 }
 
+static void tsc2046_adc_regulator_disable(void *data)
+{
+	struct tsc2046_adc_priv *priv = data;
+
+	regulator_disable(priv->vref_reg);
+}
+
+static int tsc2046_adc_configure_regulator(struct tsc2046_adc_priv *priv)
+{
+	struct device *dev = &priv->spi->dev;
+	int ret;
+
+	priv->vref_reg = devm_regulator_get_optional(dev, "vref");
+	if (IS_ERR(priv->vref_reg)) {
+		/* If regulator exists but can't be get, return an error */
+		if (PTR_ERR(priv->vref_reg) != -ENODEV)
+			return PTR_ERR(priv->vref_reg);
+		priv->vref_reg = NULL;
+	}
+	if (!priv->vref_reg) {
+		/* Use internal reference */
+		priv->vref_mv = TI_TSC2046_INT_VREF;
+		return 0;
+	}
+
+	ret = regulator_enable(priv->vref_reg);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, tsc2046_adc_regulator_disable,
+				       priv);
+	if (ret)
+		return ret;
+
+	ret = regulator_get_voltage(priv->vref_reg);
+	if (ret < 0)
+		return ret;
+
+	priv->vref_mv = ret / MILLI;
+
+	return 0;
+}
+
 static int tsc2046_adc_probe(struct spi_device *spi)
 {
 	const struct tsc2046_adc_dcfg *dcfg;
@@ -756,6 +805,11 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	}
 
 	dcfg = device_get_match_data(dev);
+	if (!dcfg) {
+		const struct spi_device_id *id = spi_get_device_id(spi);
+
+		dcfg = (const struct tsc2046_adc_dcfg *)id->driver_data;
+	}
 	if (!dcfg)
 		return -EINVAL;
 
@@ -776,10 +830,14 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	priv->spi = spi;
 
 	indio_dev->name = TI_TSC2046_NAME;
-	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_TRIGGERED;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dcfg->channels;
 	indio_dev->num_channels = dcfg->num_channels;
 	indio_dev->info = &tsc2046_adc_info;
+
+	ret = tsc2046_adc_configure_regulator(priv);
+	if (ret)
+		return ret;
 
 	tsc2046_adc_parse_fwnode(priv);
 
@@ -833,11 +891,18 @@ static const struct of_device_id ads7950_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ads7950_of_table);
 
+static const struct spi_device_id tsc2046_adc_spi_ids[] = {
+	{ "tsc2046e-adc", (unsigned long)&tsc2046_adc_dcfg_tsc2046e },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, tsc2046_adc_spi_ids);
+
 static struct spi_driver tsc2046_adc_driver = {
 	.driver = {
 		.name = "tsc2046",
 		.of_match_table = ads7950_of_table,
 	},
+	.id_table = tsc2046_adc_spi_ids,
 	.probe = tsc2046_adc_probe,
 };
 module_spi_driver(tsc2046_adc_driver);

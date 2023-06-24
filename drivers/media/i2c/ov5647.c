@@ -1448,7 +1448,7 @@ mutex_destroy:
 	return ret;
 }
 
-static int ov5647_remove(struct i2c_client *client)
+static void ov5647_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5647 *sensor = to_sensor(sd);
@@ -1459,8 +1459,6 @@ static int ov5647_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	pm_runtime_disable(&client->dev);
 	mutex_destroy(&sensor->lock);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov5647_pm_ops = {

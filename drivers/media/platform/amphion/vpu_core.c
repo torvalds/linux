@@ -89,7 +89,7 @@ static int vpu_core_boot_done(struct vpu_core *core)
 		core->supported_instance_count = min(core->supported_instance_count, count);
 	}
 	core->fw_version = fw_version;
-	core->state = VPU_CORE_ACTIVE;
+	vpu_core_set_state(core, VPU_CORE_ACTIVE);
 
 	return 0;
 }
@@ -172,10 +172,26 @@ int vpu_alloc_dma(struct vpu_core *core, struct vpu_buffer *buf)
 	return __vpu_alloc_dma(core->dev, buf);
 }
 
-static void vpu_core_check_hang(struct vpu_core *core)
+void vpu_core_set_state(struct vpu_core *core, enum vpu_core_state state)
 {
-	if (core->hang_mask)
-		core->state = VPU_CORE_HANG;
+	if (state != core->state)
+		vpu_trace(core->dev, "vpu core state change from %d to %d\n", core->state, state);
+	core->state = state;
+	if (core->state == VPU_CORE_DEINIT)
+		core->hang_mask = 0;
+}
+
+static void vpu_core_update_state(struct vpu_core *core)
+{
+	if (!vpu_iface_get_power_state(core)) {
+		if (core->request_count)
+			vpu_core_set_state(core, VPU_CORE_HANG);
+		else
+			vpu_core_set_state(core, VPU_CORE_DEINIT);
+
+	} else if (core->state == VPU_CORE_ACTIVE && core->hang_mask) {
+		vpu_core_set_state(core, VPU_CORE_HANG);
+	}
 }
 
 static struct vpu_core *vpu_core_find_proper_by_type(struct vpu_dev *vpu, u32 type)
@@ -188,11 +204,13 @@ static struct vpu_core *vpu_core_find_proper_by_type(struct vpu_dev *vpu, u32 ty
 		dev_dbg(c->dev, "instance_mask = 0x%lx, state = %d\n", c->instance_mask, c->state);
 		if (c->type != type)
 			continue;
+		mutex_lock(&c->lock);
+		vpu_core_update_state(c);
+		mutex_unlock(&c->lock);
 		if (c->state == VPU_CORE_DEINIT) {
 			core = c;
 			break;
 		}
-		vpu_core_check_hang(c);
 		if (c->state != VPU_CORE_ACTIVE)
 			continue;
 		if (c->request_count < request_count) {
@@ -257,13 +275,7 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	}
 
 	list_add_tail(&core->list, &vpu->cores);
-
 	vpu_core_get_vpu(core);
-
-	if (vpu_iface_get_power_state(core))
-		ret = vpu_core_restore(core);
-	if (ret)
-		goto error;
 
 	return 0;
 error:
@@ -362,7 +374,10 @@ struct vpu_core *vpu_request_core(struct vpu_dev *vpu, enum vpu_core_type type)
 	pm_runtime_resume_and_get(core->dev);
 
 	if (core->state == VPU_CORE_DEINIT) {
-		ret = vpu_core_boot(core, true);
+		if (vpu_iface_get_power_state(core))
+			ret = vpu_core_restore(core);
+		else
+			ret = vpu_core_boot(core, true);
 		if (ret) {
 			pm_runtime_put_sync(core->dev);
 			mutex_unlock(&core->lock);
@@ -412,6 +427,12 @@ int vpu_inst_register(struct vpu_inst *inst)
 	}
 
 	mutex_lock(&core->lock);
+	if (core->state != VPU_CORE_ACTIVE) {
+		dev_err(core->dev, "vpu core is not active, state = %d\n", core->state);
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	if (inst->id >= 0 && inst->id < core->supported_instance_count)
 		goto exit;
 
@@ -453,11 +474,16 @@ int vpu_inst_unregister(struct vpu_inst *inst)
 		vpu_core_release_instance(core, inst->id);
 		inst->id = VPU_INST_NULL_ID;
 	}
-	vpu_core_check_hang(core);
+	vpu_core_update_state(core);
 	if (core->state == VPU_CORE_HANG && !core->instance_mask) {
+		int err;
+
 		dev_info(core->dev, "reset hang core\n");
-		if (!vpu_core_sw_reset(core)) {
-			core->state = VPU_CORE_ACTIVE;
+		mutex_unlock(&core->lock);
+		err = vpu_core_sw_reset(core);
+		mutex_lock(&core->lock);
+		if (!err) {
+			vpu_core_set_state(core, VPU_CORE_ACTIVE);
 			core->hang_mask = 0;
 		}
 	}
@@ -607,7 +633,7 @@ static int vpu_core_probe(struct platform_device *pdev)
 	mutex_init(&core->cmd_lock);
 	init_completion(&core->cmp);
 	init_waitqueue_head(&core->ack_wq);
-	core->state = VPU_CORE_DEINIT;
+	vpu_core_set_state(core, VPU_CORE_DEINIT);
 
 	core->res = of_device_get_match_data(dev);
 	if (!core->res)
@@ -756,33 +782,18 @@ static int __maybe_unused vpu_core_resume(struct device *dev)
 	mutex_lock(&core->lock);
 	pm_runtime_resume_and_get(dev);
 	vpu_core_get_vpu(core);
-	if (core->state != VPU_CORE_SNAPSHOT)
-		goto exit;
 
-	if (!vpu_iface_get_power_state(core)) {
-		if (!list_empty(&core->instances)) {
+	if (core->request_count) {
+		if (!vpu_iface_get_power_state(core))
 			ret = vpu_core_boot(core, false);
-			if (ret) {
-				dev_err(core->dev, "%s boot fail\n", __func__);
-				core->state = VPU_CORE_DEINIT;
-				goto exit;
-			}
-		} else {
-			core->state = VPU_CORE_DEINIT;
-		}
-	} else {
-		if (!list_empty(&core->instances)) {
+		else
 			ret = vpu_core_sw_reset(core);
-			if (ret) {
-				dev_err(core->dev, "%s sw_reset fail\n", __func__);
-				core->state = VPU_CORE_HANG;
-				goto exit;
-			}
+		if (ret) {
+			dev_err(core->dev, "resume fail\n");
+			vpu_core_set_state(core, VPU_CORE_HANG);
 		}
-		core->state = VPU_CORE_ACTIVE;
 	}
-
-exit:
+	vpu_core_update_state(core);
 	pm_runtime_put_sync(dev);
 	mutex_unlock(&core->lock);
 
@@ -796,18 +807,11 @@ static int __maybe_unused vpu_core_suspend(struct device *dev)
 	int ret = 0;
 
 	mutex_lock(&core->lock);
-	if (core->state == VPU_CORE_ACTIVE) {
-		if (!list_empty(&core->instances)) {
-			ret = vpu_core_snapshot(core);
-			if (ret) {
-				mutex_unlock(&core->lock);
-				return ret;
-			}
-		}
-
-		core->state = VPU_CORE_SNAPSHOT;
-	}
+	if (core->request_count)
+		ret = vpu_core_snapshot(core);
 	mutex_unlock(&core->lock);
+	if (ret)
+		return ret;
 
 	vpu_core_cancel_work(core);
 

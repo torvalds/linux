@@ -17,8 +17,7 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 		       struct net_device *mirred_dev,
 		       int out_index,
 		       struct netlink_ext_ack *extack,
-		       struct net_device **encap_dev,
-		       bool *encap_valid);
+		       struct net_device **encap_dev);
 
 int mlx5e_attach_decap(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,

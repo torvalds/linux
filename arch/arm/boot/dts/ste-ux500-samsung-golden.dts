@@ -35,6 +35,14 @@
 			polling-delay = <0>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&bat_therm>;
+
+			trips {
+				battery-crit-hi {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 
@@ -302,6 +310,10 @@
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
+				};
+
+				ab8500_fg {
+					line-impedance-micro-ohms = <36000>;
 				};
 
 				regulator {

@@ -29,11 +29,14 @@
 #define NAU_FVCO_MAX 100000000
 #define NAU_FVCO_MIN 90000000
 
+#define NAU8821_BUTTON SND_JACK_BTN_0
+
 /* the maximum frequency of CLK_ADC and CLK_DAC */
 #define CLK_DA_AD_MAX 6144000
 
 static int nau8821_configure_sysclk(struct nau8821 *nau8821,
 	int clk_id, unsigned int freq);
+static bool nau8821_is_jack_inserted(struct regmap *regmap);
 
 struct nau8821_fll {
 	int mclk_src;
@@ -493,7 +496,33 @@ static int nau8821_output_dac_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int system_clock_control(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct nau8821 *nau8821 = snd_soc_component_get_drvdata(component);
+
+	if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		dev_dbg(nau8821->dev, "system clock control : POWER OFF\n");
+		/* Set clock source to disable or internal clock before the
+		 * playback or capture end. Codec needs clock for Jack
+		 * detection and button press if jack inserted; otherwise,
+		 * the clock should be closed.
+		 */
+		if (nau8821_is_jack_inserted(nau8821->regmap)) {
+			nau8821_configure_sysclk(nau8821,
+				NAU8821_CLK_INTERNAL, 0);
+		} else {
+			nau8821_configure_sysclk(nau8821, NAU8821_CLK_DIS, 0);
+		}
+	}
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget nau8821_dapm_widgets[] = {
+	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_NOPM, 0, 0,
+		system_clock_control, SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("MICBIAS", NAU8821_R74_MIC_BIAS,
 		NAU8821_MICBIAS_POWERUP_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DMIC Clock", SND_SOC_NOPM, 0, 0,
@@ -605,6 +634,9 @@ static const struct snd_soc_dapm_route nau8821_dapm_routes[] = {
 	{"AIFTX", NULL, "ADCL Digital path"},
 	{"AIFTX", NULL, "ADCR Digital path"},
 
+	{"AIFTX", NULL, "System Clock"},
+	{"AIFRX", NULL, "System Clock"},
+
 	{"DDACL", NULL, "AIFRX"},
 	{"DDACR", NULL, "AIFRX"},
 
@@ -638,28 +670,40 @@ static const struct snd_soc_dapm_route nau8821_dapm_routes[] = {
 	{"HPOR", NULL, "Class G"},
 };
 
-static int nau8821_clock_check(struct nau8821 *nau8821,
-	int stream, int rate, int osr)
+static const struct nau8821_osr_attr *
+nau8821_get_osr(struct nau8821 *nau8821, int stream)
 {
-	int osrate = 0;
+	unsigned int osr;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(nau8821->regmap, NAU8821_R2C_DAC_CTRL1, &osr);
+		osr &= NAU8821_DAC_OVERSAMPLE_MASK;
 		if (osr >= ARRAY_SIZE(osr_dac_sel))
-			return -EINVAL;
-		osrate = osr_dac_sel[osr].osr;
+			return NULL;
+		return &osr_dac_sel[osr];
 	} else {
+		regmap_read(nau8821->regmap, NAU8821_R2B_ADC_RATE, &osr);
+		osr &= NAU8821_ADC_SYNC_DOWN_MASK;
 		if (osr >= ARRAY_SIZE(osr_adc_sel))
-			return -EINVAL;
-		osrate = osr_adc_sel[osr].osr;
+			return NULL;
+		return &osr_adc_sel[osr];
 	}
+}
 
-	if (!osrate || rate * osrate > CLK_DA_AD_MAX) {
-		dev_err(nau8821->dev,
-			"exceed the maximum frequency of CLK_ADC or CLK_DAC");
+static int nau8821_dai_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8821 *nau8821 = snd_soc_component_get_drvdata(component);
+	const struct nau8821_osr_attr *osr;
+
+	osr = nau8821_get_osr(nau8821, substream->stream);
+	if (!osr || !osr->osr)
 		return -EINVAL;
-	}
 
-	return 0;
+	return snd_pcm_hw_constraint_minmax(substream->runtime,
+					    SNDRV_PCM_HW_PARAM_RATE,
+					    0, CLK_DA_AD_MAX / osr->osr);
 }
 
 static int nau8821_hw_params(struct snd_pcm_substream *substream,
@@ -667,7 +711,8 @@ static int nau8821_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct nau8821 *nau8821 = snd_soc_component_get_drvdata(component);
-	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, clk_div;
+	unsigned int val_len = 0, ctrl_val, bclk_fs, clk_div;
+	const struct nau8821_osr_attr *osr;
 
 	nau8821->fs = params_rate(params);
 	/* CLK_DAC or CLK_ADC = OSR * FS
@@ -676,27 +721,19 @@ static int nau8821_hw_params(struct snd_pcm_substream *substream,
 	 * values must be selected such that the maximum frequency is less
 	 * than 6.144 MHz.
 	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_read(nau8821->regmap, NAU8821_R2C_DAC_CTRL1, &osr);
-		osr &= NAU8821_DAC_OVERSAMPLE_MASK;
-		if (nau8821_clock_check(nau8821, substream->stream,
-			nau8821->fs, osr)) {
-			return -EINVAL;
-		}
+	osr = nau8821_get_osr(nau8821, substream->stream);
+	if (!osr || !osr->osr)
+		return -EINVAL;
+	if (nau8821->fs * osr->osr > CLK_DA_AD_MAX)
+		return -EINVAL;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		regmap_update_bits(nau8821->regmap, NAU8821_R03_CLK_DIVIDER,
 			NAU8821_CLK_DAC_SRC_MASK,
-			osr_dac_sel[osr].clk_src << NAU8821_CLK_DAC_SRC_SFT);
-	} else {
-		regmap_read(nau8821->regmap, NAU8821_R2B_ADC_RATE, &osr);
-		osr &= NAU8821_ADC_SYNC_DOWN_MASK;
-		if (nau8821_clock_check(nau8821, substream->stream,
-			nau8821->fs, osr)) {
-			return -EINVAL;
-		}
+			osr->clk_src << NAU8821_CLK_DAC_SRC_SFT);
+	else
 		regmap_update_bits(nau8821->regmap, NAU8821_R03_CLK_DIVIDER,
 			NAU8821_CLK_ADC_SRC_MASK,
-			osr_adc_sel[osr].clk_src << NAU8821_CLK_ADC_SRC_SFT);
-	}
+			osr->clk_src << NAU8821_CLK_ADC_SRC_SFT);
 
 	/* make BCLK and LRC divde configuration if the codec as master. */
 	regmap_read(nau8821->regmap, NAU8821_R1D_I2S_PCM_CTRL2, &ctrl_val);
@@ -811,6 +848,7 @@ static int nau8821_digital_mute(struct snd_soc_dai *dai, int mute,
 }
 
 static const struct snd_soc_dai_ops nau8821_dai_ops = {
+	.startup = nau8821_dai_startup,
 	.hw_params = nau8821_hw_params,
 	.set_fmt = nau8821_set_dai_fmt,
 	.mute_stream = nau8821_digital_mute,
@@ -911,6 +949,20 @@ static void nau8821_eject_jack(struct nau8821 *nau8821)
 	/* Recover to normal channel input */
 	regmap_update_bits(regmap, NAU8821_R2B_ADC_RATE,
 			NAU8821_ADC_R_SRC_EN, 0);
+	if (nau8821->key_enable) {
+		regmap_update_bits(regmap, NAU8821_R0F_INTERRUPT_MASK,
+			NAU8821_IRQ_KEY_RELEASE_EN |
+			NAU8821_IRQ_KEY_PRESS_EN,
+			NAU8821_IRQ_KEY_RELEASE_EN |
+			NAU8821_IRQ_KEY_PRESS_EN);
+		regmap_update_bits(regmap,
+			NAU8821_R12_INTERRUPT_DIS_CTRL,
+			NAU8821_IRQ_KEY_RELEASE_DIS |
+			NAU8821_IRQ_KEY_PRESS_DIS,
+			NAU8821_IRQ_KEY_RELEASE_DIS |
+			NAU8821_IRQ_KEY_PRESS_DIS);
+	}
+
 }
 
 static void nau8821_jdet_work(struct work_struct *work)
@@ -940,6 +992,15 @@ static void nau8821_jdet_work(struct work_struct *work)
 		 */
 		regmap_update_bits(regmap, NAU8821_R2B_ADC_RATE,
 			NAU8821_ADC_R_SRC_EN, NAU8821_ADC_R_SRC_EN);
+		if (nau8821->key_enable) {
+			regmap_update_bits(regmap, NAU8821_R0F_INTERRUPT_MASK,
+				NAU8821_IRQ_KEY_RELEASE_EN |
+				NAU8821_IRQ_KEY_PRESS_EN, 0);
+			regmap_update_bits(regmap,
+				NAU8821_R12_INTERRUPT_DIS_CTRL,
+				NAU8821_IRQ_KEY_RELEASE_DIS |
+				NAU8821_IRQ_KEY_PRESS_DIS, 0);
+		}
 	} else {
 		dev_dbg(nau8821->dev, "Headphone connected\n");
 		event |= SND_JACK_HEADPHONE;
@@ -999,6 +1060,13 @@ static irqreturn_t nau8821_interrupt(int irq, void *data)
 		nau8821_eject_jack(nau8821);
 		event_mask |= SND_JACK_HEADSET;
 		clear_irq = NAU8821_JACK_EJECT_IRQ_MASK;
+	} else if (active_irq & NAU8821_KEY_SHORT_PRESS_IRQ) {
+		event |= NAU8821_BUTTON;
+		event_mask |= NAU8821_BUTTON;
+		clear_irq = NAU8821_KEY_SHORT_PRESS_IRQ;
+	} else if (active_irq & NAU8821_KEY_RELEASE_IRQ) {
+		event_mask = NAU8821_BUTTON;
+		clear_irq = NAU8821_KEY_RELEASE_IRQ;
 	} else if ((active_irq & NAU8821_JACK_INSERT_IRQ_MASK) ==
 		NAU8821_JACK_INSERT_DETECTED) {
 		regmap_update_bits(regmap, NAU8821_R71_ANALOG_ADC_1,
@@ -1430,7 +1498,6 @@ static const struct snd_soc_component_driver nau8821_component_driver = {
 	.dapm_routes		= nau8821_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(nau8821_dapm_routes),
 	.suspend_bias_off	= 1,
-	.non_legacy_dai_naming	= 1,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
@@ -1490,6 +1557,7 @@ static void nau8821_print_device_properties(struct nau8821 *nau8821)
 		nau8821->jack_eject_debounce);
 	dev_dbg(dev, "dmic-clk-threshold:       %d\n",
 		nau8821->dmic_clk_threshold);
+	dev_dbg(dev, "key_enable:       %d\n", nau8821->key_enable);
 }
 
 static int nau8821_read_device_properties(struct device *dev,
@@ -1503,6 +1571,8 @@ static int nau8821_read_device_properties(struct device *dev,
 		"nuvoton,jkdet-pull-enable");
 	nau8821->jkdet_pull_up = device_property_read_bool(dev,
 		"nuvoton,jkdet-pull-up");
+	nau8821->key_enable = device_property_read_bool(dev,
+		"nuvoton,key-enable");
 	ret = device_property_read_u32(dev, "nuvoton,jkdet-polarity",
 		&nau8821->jkdet_polarity);
 	if (ret)
@@ -1626,8 +1696,7 @@ static int nau8821_setup_irq(struct nau8821 *nau8821)
 	return 0;
 }
 
-static int nau8821_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int nau8821_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8821 *nau8821 = dev_get_platdata(&i2c->dev);
@@ -1666,15 +1735,6 @@ static int nau8821_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int nau8821_i2c_remove(struct i2c_client *i2c_client)
-{
-	struct nau8821 *nau8821 = i2c_get_clientdata(i2c_client);
-
-	devm_free_irq(nau8821->dev, nau8821->irq, nau8821);
-
-	return 0;
-}
-
 static const struct i2c_device_id nau8821_i2c_ids[] = {
 	{ "nau8821", 0 },
 	{ }
@@ -1703,8 +1763,7 @@ static struct i2c_driver nau8821_driver = {
 		.of_match_table = of_match_ptr(nau8821_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8821_acpi_match),
 	},
-	.probe = nau8821_i2c_probe,
-	.remove = nau8821_i2c_remove,
+	.probe_new = nau8821_i2c_probe,
 	.id_table = nau8821_i2c_ids,
 };
 module_i2c_driver(nau8821_driver);

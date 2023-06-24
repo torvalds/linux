@@ -48,6 +48,16 @@ properties:
       - const: usb
       - const: pcie
 
+  interconnects:
+    maxItems: 4
+
+  interconnect-names:
+    items:
+      - const: noc-pcie
+      - const: usb1
+      - const: usb2
+      - const: pcie
+
 required:
   - compatible
   - reg

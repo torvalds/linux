@@ -34,6 +34,20 @@
 .endm
 
 /*
+ * This expands to a sequence of register clears for regs start to end
+ * inclusive, of the form:
+ *
+ *   li rN, 0
+ */
+.macro ZEROIZE_REGS start, end
+	.Lreg=\start
+	.rept (\end - \start + 1)
+	li	.Lreg, 0
+	.Lreg=.Lreg+1
+	.endr
+.endm
+
+/*
  * Macros for storing registers into and loading registers from
  * exception frames.
  */
@@ -48,6 +62,14 @@
 #define SAVE_NVGPRS(base)		SAVE_GPRS(13, 31, base)
 #define REST_NVGPRS(base)		REST_GPRS(13, 31, base)
 #endif
+
+#define	ZEROIZE_GPRS(start, end)	ZEROIZE_REGS start, end
+#ifdef __powerpc64__
+#define	ZEROIZE_NVGPRS()		ZEROIZE_GPRS(14, 31)
+#else
+#define	ZEROIZE_NVGPRS()		ZEROIZE_GPRS(13, 31)
+#endif
+#define	ZEROIZE_GPR(n)			ZEROIZE_GPRS(n, n)
 
 #define SAVE_GPR(n, base)		SAVE_GPRS(n, n, base)
 #define REST_GPR(n, base)		REST_GPRS(n, n, base)
@@ -149,7 +171,7 @@
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define STK_GOT		24
 #define __STK_PARAM(i)	(32 + ((i)-3)*8)
 #else
@@ -158,7 +180,7 @@
 #endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 
 #define _GLOBAL(name) \
 	.align 2 ; \
@@ -305,6 +327,12 @@ n:
 
 #ifdef __powerpc64__
 
+#define __LOAD_PACA_TOC(reg)			\
+	ld	reg,PACATOC(r13)
+
+#define LOAD_PACA_TOC()				\
+	__LOAD_PACA_TOC(r2)
+
 #define LOAD_REG_IMMEDIATE(reg, expr) __LOAD_REG_IMMEDIATE reg, expr
 
 #define LOAD_REG_IMMEDIATE_SYM(reg, tmp, expr)	\
@@ -315,7 +343,19 @@ n:
 	rldimi	reg, tmp, 32, 0
 
 #define LOAD_REG_ADDR(reg,name)			\
-	ld	reg,name@got(r2)
+	addis	reg,r2,name@toc@ha;		\
+	addi	reg,reg,name@toc@l
+
+#ifdef CONFIG_PPC_BOOK3E_64
+/*
+ * This is used in register-constrained interrupt handlers. Not to be used
+ * by BOOK3S. ld complains with "got/toc optimization is not supported" if r2
+ * is not used for the TOC offset, so use @got(tocreg). If the interrupt
+ * handlers saved r2 instead, LOAD_REG_ADDR could be used.
+ */
+#define LOAD_REG_ADDR_ALTTOC(reg,tocreg,name)	\
+	ld	reg,name@got(tocreg)
+#endif
 
 #define LOAD_REG_ADDRBASE(reg,name)	LOAD_REG_ADDR(reg,name)
 #define ADDROFF(name)			0
@@ -342,7 +382,7 @@ n:
 #endif
 
 /* various errata or part fixups */
-#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_E500)
 #define MFTB(dest)			\
 90:	mfspr dest, SPRN_TBRL;		\
 BEGIN_FTR_SECTION_NESTED(96);		\
@@ -709,7 +749,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
  * kernel is built for.
  */
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 #define FIXUP_ENDIAN
 #else
 /*
@@ -749,7 +789,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	.long 0x2402004c; /* hrfid				*/ \
 191:
 
-#endif /* !CONFIG_PPC_BOOK3E */
+#endif /* !CONFIG_PPC_BOOK3E_64 */
 
 #endif /*  __ASSEMBLY__ */
 
@@ -768,7 +808,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	stringify_in_c(.llong (_target);)	\
 	stringify_in_c(.previous)
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 #define BTB_FLUSH(reg)			\
 	lis reg,BUCSR_INIT@h;		\
 	ori reg,reg,BUCSR_INIT@l;	\
@@ -776,6 +816,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	isync;
 #else
 #define BTB_FLUSH(reg)
-#endif /* CONFIG_PPC_FSL_BOOK3E */
+#endif /* CONFIG_PPC_E500 */
 
 #endif /* _ASM_POWERPC_PPC_ASM_H */

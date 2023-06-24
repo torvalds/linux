@@ -8,6 +8,7 @@
 
 #include "i915_reg_defs.h"
 
+#define RING_EXCC(base)				_MMIO((base) + 0x28)
 #define RING_TAIL(base)				_MMIO((base) + 0x30)
 #define   TAIL_ADDR				0x001FFFF8
 #define RING_HEAD(base)				_MMIO((base) + 0x34)
@@ -109,6 +110,7 @@
 #define RING_SBBSTATE(base)			_MMIO((base) + 0x118) /* hsw+ */
 #define RING_SBBADDR_UDW(base)			_MMIO((base) + 0x11c) /* gen8+ */
 #define RING_BBADDR(base)			_MMIO((base) + 0x140)
+#define RING_BB_OFFSET(base)			_MMIO((base) + 0x158)
 #define RING_BBADDR_UDW(base)			_MMIO((base) + 0x168) /* gen8+ */
 #define CCID(base)				_MMIO((base) + 0x180)
 #define   CCID_EN				BIT(0)
@@ -133,6 +135,8 @@
 		(REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, (dst) << 1) | \
 		 REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, (src) << 1))
 
+#define RING_CSCMDOP(base)			_MMIO((base) + 0x20c)
+
 /*
  * CMD_CCTL read/write fields take a MOCS value and _not_ a table index.
  * The lsb of each can be considered a separate enabling bit for encryption.
@@ -147,6 +151,8 @@
 #define CMD_CCTL_MOCS_OVERRIDE(write, read)				      \
 		(REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, (write) << 1) | \
 		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
+
+#define RING_PREDICATE_RESULT(base)		_MMIO((base) + 0x3b8) /* gen12+ */
 
 #define MI_PREDICATE_RESULT_2(base)		_MMIO((base) + 0x3bc)
 #define   LOWER_SLICE_ENABLED			(1 << 0)
@@ -171,6 +177,7 @@
 #define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	REG_BIT(2)
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	REG_BIT(3)
 #define	  GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE	REG_BIT(8)
+#define RING_CTX_SR_CTL(base)			_MMIO((base) + 0x244)
 #define RING_SEMA_WAIT_POLL(base)		_MMIO((base) + 0x24c)
 #define GEN8_RING_PDP_UDW(base, n)		_MMIO((base) + 0x270 + (n) * 8 + 4)
 #define GEN8_RING_PDP_LDW(base, n)		_MMIO((base) + 0x270 + (n) * 8)
@@ -181,6 +188,7 @@
 #define   GFX_SURFACE_FAULT_ENABLE		(1 << 12)
 #define   GFX_REPLAY_MODE			(1 << 11)
 #define   GFX_PSMI_GRANULARITY			(1 << 10)
+#define   GEN12_GFX_PREFETCH_DISABLE		REG_BIT(10)
 #define   GFX_PPGTT_ENABLE			(1 << 9)
 #define   GEN8_GFX_PPGTT_48B			(1 << 7)
 #define   GFX_FORWARD_VBLANK_MASK		(3 << 5)
@@ -192,7 +200,9 @@
 #define RING_TIMESTAMP_UDW(base)		_MMIO((base) + 0x358 + 4)
 #define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
 #define RING_CTX_TIMESTAMP(base)		_MMIO((base) + 0x3a8) /* gen8+ */
+#define RING_PREDICATE_RESULT(base)		_MMIO((base) + 0x3b8)
 #define RING_FORCE_TO_NONPRIV(base, i)		_MMIO(((base) + 0x4D0) + (i) * 4)
+#define   RING_FORCE_TO_NONPRIV_DENY		REG_BIT(30)
 #define   RING_FORCE_TO_NONPRIV_ADDRESS_MASK	REG_GENMASK(25, 2)
 #define   RING_FORCE_TO_NONPRIV_ACCESS_RW	(0 << 28)    /* CFL+ & Gen11+ */
 #define   RING_FORCE_TO_NONPRIV_ACCESS_RD	(1 << 28)
@@ -205,7 +215,9 @@
 #define   RING_FORCE_TO_NONPRIV_RANGE_64	(3 << 0)
 #define   RING_FORCE_TO_NONPRIV_RANGE_MASK	(3 << 0)
 #define   RING_FORCE_TO_NONPRIV_MASK_VALID	\
-	(RING_FORCE_TO_NONPRIV_RANGE_MASK | RING_FORCE_TO_NONPRIV_ACCESS_MASK)
+	(RING_FORCE_TO_NONPRIV_RANGE_MASK | \
+	 RING_FORCE_TO_NONPRIV_ACCESS_MASK | \
+	 RING_FORCE_TO_NONPRIV_DENY)
 #define   RING_MAX_NONPRIV_SLOTS  12
 
 #define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)

@@ -39,6 +39,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
+#include <linux/power_supply.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -108,6 +109,7 @@
 #define PMC_USB_DEBOUNCE_DEL		0xec
 #define PMC_USB_AO			0xf0
 
+#define PMC_SCRATCH37			0x130
 #define PMC_SCRATCH41			0x140
 
 #define PMC_WAKE2_MASK			0x160
@@ -294,6 +296,17 @@ struct tegra_wake_event {
 	} gpio;
 };
 
+#define TEGRA_WAKE_SIMPLE(_name, _id)			\
+	{						\
+		.name = _name,				\
+		.id = _id,				\
+		.irq = 0,				\
+		.gpio = {				\
+			.instance = UINT_MAX,		\
+			.pin = UINT_MAX,		\
+		},					\
+	}
+
 #define TEGRA_WAKE_IRQ(_name, _id, _irq)		\
 	{						\
 		.name = _name,				\
@@ -394,6 +407,8 @@ struct tegra_pmc_soc {
  * @domain: IRQ domain provided by the PMC
  * @irq: chip implementation for the IRQ domain
  * @clk_nb: pclk clock changes handler
+ * @core_domain_state_synced: flag marking the core domain's state as synced
+ * @core_domain_registered: flag marking the core domain as registered
  */
 struct tegra_pmc {
 	struct device *dev;
@@ -1099,8 +1114,7 @@ static struct notifier_block tegra_pmc_reboot_notifier = {
 	.notifier_call = tegra_pmc_reboot_notify,
 };
 
-static int tegra_pmc_restart_notify(struct notifier_block *this,
-				    unsigned long action, void *data)
+static void tegra_pmc_restart(void)
 {
 	u32 value;
 
@@ -1108,14 +1122,31 @@ static int tegra_pmc_restart_notify(struct notifier_block *this,
 	value = tegra_pmc_readl(pmc, PMC_CNTRL);
 	value |= PMC_CNTRL_MAIN_RST;
 	tegra_pmc_writel(pmc, value, PMC_CNTRL);
+}
+
+static int tegra_pmc_restart_handler(struct sys_off_data *data)
+{
+	tegra_pmc_restart();
 
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block tegra_pmc_restart_handler = {
-	.notifier_call = tegra_pmc_restart_notify,
-	.priority = 128,
-};
+static int tegra_pmc_power_off_handler(struct sys_off_data *data)
+{
+	/*
+	 * Reboot Nexus 7 into special bootloader mode if USB cable is
+	 * connected in order to display battery status and power off.
+	 */
+	if (of_machine_is_compatible("asus,grouper") &&
+	    power_supply_is_system_supplied()) {
+		const u32 go_to_charger_mode = 0xa5a55a5a;
+
+		tegra_pmc_writel(pmc, go_to_charger_mode, PMC_SCRATCH37);
+		tegra_pmc_restart();
+	}
+
+	return NOTIFY_DONE;
+}
 
 static int powergate_show(struct seq_file *s, void *data)
 {
@@ -1364,7 +1395,7 @@ tegra_pmc_core_pd_opp_to_performance_state(struct generic_pm_domain *genpd,
 static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 {
 	struct generic_pm_domain *genpd;
-	const char *rname = "core";
+	const char *rname[] = { "core", NULL};
 	int err;
 
 	genpd = devm_kzalloc(pmc->dev, sizeof(*genpd), GFP_KERNEL);
@@ -1375,7 +1406,7 @@ static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 	genpd->set_performance_state = tegra_pmc_core_pd_set_performance_state;
 	genpd->opp_to_performance_state = tegra_pmc_core_pd_opp_to_performance_state;
 
-	err = devm_pm_opp_set_regulators(pmc->dev, &rname, 1);
+	err = devm_pm_opp_set_regulators(pmc->dev, rname);
 	if (err)
 		return dev_err_probe(pmc->dev, err,
 				     "failed to set core OPP regulator\n");
@@ -2219,6 +2250,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 	for (i = 0; i < soc->num_wake_events; i++) {
 		const struct tegra_wake_event *event = &soc->wake_events[i];
 
+		/* IRQ and simple wake events */
 		if (fwspec->param_count == 2) {
 			struct irq_fwspec spec;
 
@@ -2230,6 +2262,12 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 							    &pmc->irq, pmc);
 			if (err < 0)
 				break;
+
+			/* simple hierarchies stop at the PMC level */
+			if (event->irq == 0) {
+				err = irq_domain_disconnect_hierarchy(domain->parent, virq);
+				break;
+			}
 
 			spec.fwnode = &pmc->dev->of_node->fwnode;
 			spec.param_count = 3;
@@ -2243,6 +2281,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 			break;
 		}
 
+		/* GPIO wake events */
 		if (fwspec->param_count == 3) {
 			if (event->gpio.instance != fwspec->param[0] ||
 			    event->gpio.pin != fwspec->param[1])
@@ -2254,7 +2293,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 
 			/* GPIO hierarchies stop at the PMC level */
 			if (!err && domain->parent)
- 				err = irq_domain_disconnect_hierarchy(domain->parent,
+				err = irq_domain_disconnect_hierarchy(domain->parent,
 								      virq);
 			break;
 		}
@@ -2865,16 +2904,45 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		pmc->scratch = base;
 	}
 
-	pmc->clk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(pmc->clk)) {
-		err = PTR_ERR(pmc->clk);
+	pmc->clk = devm_clk_get_optional(&pdev->dev, "pclk");
+	if (IS_ERR(pmc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pmc->clk),
+				     "failed to get pclk\n");
 
-		if (err != -ENOENT) {
-			dev_err(&pdev->dev, "failed to get pclk: %d\n", err);
-			return err;
-		}
+	/*
+	 * PMC should be last resort for restarting since it soft-resets
+	 * CPU without resetting everything else.
+	 */
+	err = devm_register_reboot_notifier(&pdev->dev,
+					    &tegra_pmc_reboot_notifier);
+	if (err) {
+		dev_err(&pdev->dev, "unable to register reboot notifier, %d\n",
+			err);
+		return err;
+	}
 
-		pmc->clk = NULL;
+	err = devm_register_sys_off_handler(&pdev->dev,
+					    SYS_OFF_MODE_RESTART,
+					    SYS_OFF_PRIO_LOW,
+					    tegra_pmc_restart_handler, NULL);
+	if (err) {
+		dev_err(&pdev->dev, "failed to register sys-off handler: %d\n",
+			err);
+		return err;
+	}
+
+	/*
+	 * PMC should be primary power-off method if it soft-resets CPU,
+	 * asking bootloader to shutdown hardware.
+	 */
+	err = devm_register_sys_off_handler(&pdev->dev,
+					    SYS_OFF_MODE_POWER_OFF,
+					    SYS_OFF_PRIO_FIRMWARE,
+					    tegra_pmc_power_off_handler, NULL);
+	if (err) {
+		dev_err(&pdev->dev, "failed to register sys-off handler: %d\n",
+			err);
+		return err;
 	}
 
 	/*
@@ -2908,28 +2976,13 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 			goto cleanup_sysfs;
 	}
 
-	err = devm_register_reboot_notifier(&pdev->dev,
-					    &tegra_pmc_reboot_notifier);
-	if (err) {
-		dev_err(&pdev->dev, "unable to register reboot notifier, %d\n",
-			err);
-		goto cleanup_debugfs;
-	}
-
-	err = register_restart_handler(&tegra_pmc_restart_handler);
-	if (err) {
-		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
-			err);
-		goto cleanup_debugfs;
-	}
-
 	err = tegra_pmc_pinctrl_init(pmc);
 	if (err)
-		goto cleanup_restart_handler;
+		goto cleanup_debugfs;
 
 	err = tegra_pmc_regmap_init(pmc);
 	if (err < 0)
-		goto cleanup_restart_handler;
+		goto cleanup_debugfs;
 
 	err = tegra_powergate_init(pmc, pdev->dev.of_node);
 	if (err < 0)
@@ -2952,8 +3005,6 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 cleanup_powergates:
 	tegra_powergate_remove_all(pdev->dev.of_node);
-cleanup_restart_handler:
-	unregister_restart_handler(&tegra_pmc_restart_handler);
 cleanup_debugfs:
 	debugfs_remove(pmc->debugfs);
 cleanup_sysfs:
@@ -3718,6 +3769,13 @@ static const struct tegra_wake_event tegra194_wake_events[] = {
 	TEGRA_WAKE_IRQ("pmu", 24, 209),
 	TEGRA_WAKE_GPIO("power", 29, 1, TEGRA194_AON_GPIO(EE, 4)),
 	TEGRA_WAKE_IRQ("rtc", 73, 10),
+	TEGRA_WAKE_SIMPLE("usb3-port-0", 76),
+	TEGRA_WAKE_SIMPLE("usb3-port-1", 77),
+	TEGRA_WAKE_SIMPLE("usb3-port-2-3", 78),
+	TEGRA_WAKE_SIMPLE("usb2-port-0", 79),
+	TEGRA_WAKE_SIMPLE("usb2-port-1", 80),
+	TEGRA_WAKE_SIMPLE("usb2-port-2", 81),
+	TEGRA_WAKE_SIMPLE("usb2-port-3", 82),
 };
 
 static const struct tegra_pmc_soc tegra194_pmc_soc = {
@@ -3766,7 +3824,7 @@ static const struct tegra_pmc_regs tegra234_pmc_regs = {
 };
 
 static const char * const tegra234_reset_sources[] = {
-	"SYS_RESET_N",
+	"SYS_RESET_N",	/* 0x0 */
 	"AOWDT",
 	"BCCPLEXWDT",
 	"BPMPWDT",
@@ -3774,19 +3832,36 @@ static const char * const tegra234_reset_sources[] = {
 	"SPEWDT",
 	"APEWDT",
 	"LCCPLEXWDT",
-	"SENSOR",
-	"AOTAG",
-	"VFSENSOR",
+	"SENSOR",	/* 0x8 */
+	NULL,
+	NULL,
 	"MAINSWRST",
 	"SC7",
 	"HSM",
-	"CSITE",
+	NULL,
 	"RCEWDT",
-	"PVA0WDT",
-	"PVA1WDT",
-	"L1A_ASYNC",
+	NULL,		/* 0x10 */
+	NULL,
+	NULL,
 	"BPMPBOOT",
 	"FUSECRC",
+	"DCEWDT",
+	"PSCWDT",
+	"PSC",
+	"CSITE_SW",	/* 0x18 */
+	"POD",
+	"SCPM",
+	"VREFRO_POWERBAD",
+	"VMON",
+	"FMON",
+	"FSI_R5WDT",
+	"FSI_THERM",
+	"FSI_R52C0WDT",	/* 0x20 */
+	"FSI_R52C1WDT",
+	"FSI_R52C2WDT",
+	"FSI_R52C3WDT",
+	"FSI_FMON",
+	"FSI_VMON",	/* 0x25 */
 };
 
 static const struct tegra_wake_event tegra234_wake_events[] = {
@@ -3969,7 +4044,7 @@ static int __init tegra_pmc_early_init(void)
 		return -ENXIO;
 	}
 
-	if (np) {
+	if (of_device_is_available(np)) {
 		pmc->soc = match->data;
 
 		if (pmc->soc->maybe_tz_only)

@@ -44,7 +44,7 @@ These devices will appear on the system as ``/dev/gpiochip0`` thru
 found in the kernel tree ``tools/gpio`` subdirectory.
 
 For structured and managed applications, we recommend that you make use of the
-libgpiod_ library. This provides helper abstractions, command line utlities
+libgpiod_ library. This provides helper abstractions, command line utilities
 and arbitration for multiple simultaneous consumers on the same GPIO chip.
 
 .. _libgpiod: https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/

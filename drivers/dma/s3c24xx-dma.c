@@ -202,7 +202,7 @@ struct s3c24xx_dma_phy {
  * struct s3c24xx_dma_chan - this structure wraps a DMA ENGINE channel
  * @id: the id of the channel
  * @name: name of the channel
- * @vc: wrappped virtual channel
+ * @vc: wrapped virtual channel
  * @phy: the physical channel utilized by this channel, if there is one
  * @runtime_addr: address for RX/TX according to the runtime config
  * @at: active transaction on this channel
@@ -1094,7 +1094,7 @@ static int s3c24xx_dma_init_virtual_channels(struct s3c24xx_dma_engine *s3cdma,
 	INIT_LIST_HEAD(&dmadev->channels);
 
 	/*
-	 * Register as many many memcpy as we have physical channels,
+	 * Register as many memcpy as we have physical channels,
 	 * we won't always be able to use all but the code will have
 	 * to cope with that situation.
 	 */

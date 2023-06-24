@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
+#include <trace/events/dlm.h>
+
 #include "dlm_internal.h"
 #include "lockspace.h"
 #include "lock.h"
@@ -108,11 +110,11 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.parent = kb32->i.lock.parent;
 		kb->i.lock.xid = kb32->i.lock.xid;
 		kb->i.lock.timeout = kb32->i.lock.timeout;
-		kb->i.lock.castparam = (void *)(long)kb32->i.lock.castparam;
-		kb->i.lock.castaddr = (void *)(long)kb32->i.lock.castaddr;
-		kb->i.lock.bastparam = (void *)(long)kb32->i.lock.bastparam;
-		kb->i.lock.bastaddr = (void *)(long)kb32->i.lock.bastaddr;
-		kb->i.lock.lksb = (void *)(long)kb32->i.lock.lksb;
+		kb->i.lock.castparam = (__user void *)(long)kb32->i.lock.castparam;
+		kb->i.lock.castaddr = (__user void *)(long)kb32->i.lock.castaddr;
+		kb->i.lock.bastparam = (__user void *)(long)kb32->i.lock.bastparam;
+		kb->i.lock.bastaddr = (__user void *)(long)kb32->i.lock.bastaddr;
+		kb->i.lock.lksb = (__user void *)(long)kb32->i.lock.lksb;
 		memcpy(kb->i.lock.lvb, kb32->i.lock.lvb, DLM_USER_LVB_LEN);
 		memcpy(kb->i.lock.name, kb32->i.lock.name, namelen);
 	}
@@ -127,9 +129,9 @@ static void compat_output(struct dlm_lock_result *res,
 	res32->version[1] = res->version[1];
 	res32->version[2] = res->version[2];
 
-	res32->user_astaddr = (__u32)(long)res->user_astaddr;
-	res32->user_astparam = (__u32)(long)res->user_astparam;
-	res32->user_lksb = (__u32)(long)res->user_lksb;
+	res32->user_astaddr = (__u32)(__force long)res->user_astaddr;
+	res32->user_astparam = (__u32)(__force long)res->user_astparam;
+	res32->user_lksb = (__u32)(__force long)res->user_lksb;
 	res32->bast_mode = res->bast_mode;
 
 	res32->lvb_offset = res->lvb_offset;
@@ -184,7 +186,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		return;
 
 	ls = lkb->lkb_resource->res_ls;
-	mutex_lock(&ls->ls_clear_proc_locks);
+	spin_lock(&ls->ls_clear_proc_locks);
 
 	/* If ORPHAN/DEAD flag is set, it means the process is dead so an ast
 	   can't be delivered.  For ORPHAN's, dlm_clear_proc_locks() freed
@@ -230,7 +232,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		spin_unlock(&proc->locks_spin);
 	}
  out:
-	mutex_unlock(&ls->ls_clear_proc_locks);
+	spin_unlock(&ls->ls_clear_proc_locks);
 }
 
 static int device_user_lock(struct dlm_user_proc *proc,
@@ -250,6 +252,14 @@ static int device_user_lock(struct dlm_user_proc *proc,
 		goto out;
 	}
 
+#ifdef CONFIG_DLM_DEPRECATED_API
+	if (params->timeout)
+		pr_warn_once("========================================================\n"
+			     "WARNING: the lkb timeout feature is being deprecated and\n"
+			     "         will be removed in v6.2!\n"
+			     "========================================================\n");
+#endif
+
 	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
 	if (!ua)
 		goto out;
@@ -262,23 +272,34 @@ static int device_user_lock(struct dlm_user_proc *proc,
 	ua->xid = params->xid;
 
 	if (params->flags & DLM_LKF_CONVERT) {
+#ifdef CONFIG_DLM_DEPRECATED_API
 		error = dlm_user_convert(ls, ua,
 				         params->mode, params->flags,
 				         params->lkid, params->lvb,
 					 (unsigned long) params->timeout);
+#else
+		error = dlm_user_convert(ls, ua,
+					 params->mode, params->flags,
+					 params->lkid, params->lvb);
+#endif
 	} else if (params->flags & DLM_LKF_ORPHAN) {
 		error = dlm_user_adopt_orphan(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
-					 (unsigned long) params->timeout,
 					 &lkid);
 		if (!error)
 			error = lkid;
 	} else {
+#ifdef CONFIG_DLM_DEPRECATED_API
 		error = dlm_user_request(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
 					 (unsigned long) params->timeout);
+#else
+		error = dlm_user_request(ls, ua,
+					 params->mode, params->flags,
+					 params->name, params->namelen);
+#endif
 		if (!error)
 			error = ua->lksb.sb_lkid;
 	}
@@ -402,9 +423,9 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	error = dlm_new_lockspace(params->name, dlm_config.ci_cluster_name, params->flags,
-				  DLM_USER_LVB_LEN, NULL, NULL, NULL,
-				  &lockspace);
+	error = dlm_new_user_lockspace(params->name, dlm_config.ci_cluster_name,
+				       params->flags, DLM_USER_LVB_LEN, NULL,
+				       NULL, NULL, &lockspace);
 	if (error)
 		return error;
 
@@ -863,7 +884,9 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 		goto try_another;
 	}
 
-	if (cb.flags & DLM_CB_CAST) {
+	if (cb.flags & DLM_CB_BAST) {
+		trace_dlm_bast(lkb->lkb_resource->res_ls, lkb, cb.mode);
+	} else if (cb.flags & DLM_CB_CAST) {
 		new_mode = cb.mode;
 
 		if (!cb.sb_status && lkb->lkb_lksb->sb_lvbptr &&
@@ -872,6 +895,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 
 		lkb->lkb_lksb->sb_status = cb.sb_status;
 		lkb->lkb_lksb->sb_flags = cb.sb_flags;
+		trace_dlm_ast(lkb->lkb_resource->res_ls, lkb);
 	}
 
 	rv = copy_result_to_user(lkb->lkb_ua,

@@ -318,7 +318,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 		}
 
 		/*
-		 * Determine if this is an entry that can satisify the
+		 * Determine if this is an entry that can satisfy the
 		 * request Check to make sure entry is large enough to
 		 * satisfy request.
 		 */

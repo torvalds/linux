@@ -28,6 +28,7 @@
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_dmc.h"
+#include "intel_dmc_regs.h"
 
 /**
  * DOC: DMC Firmware Support
@@ -36,6 +37,10 @@
  * engine to save and restore the state of display engine when it enter into
  * low-power state and comes back to normal.
  */
+
+#define DMC_VERSION(major, minor)	((major) << 16 | (minor))
+#define DMC_VERSION_MAJOR(version)	((version) >> 16)
+#define DMC_VERSION_MINOR(version)	((version) & 0xffff)
 
 #define DMC_PATH(platform, major, minor) \
 	"i915/"				 \
@@ -47,8 +52,12 @@
 
 #define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
 
-#define ADLP_DMC_PATH			DMC_PATH(adlp, 2, 14)
-#define ADLP_DMC_VERSION_REQUIRED	DMC_VERSION(2, 14)
+#define DG2_DMC_PATH			DMC_PATH(dg2, 2, 07)
+#define DG2_DMC_VERSION_REQUIRED	DMC_VERSION(2, 07)
+MODULE_FIRMWARE(DG2_DMC_PATH);
+
+#define ADLP_DMC_PATH			DMC_PATH(adlp, 2, 16)
+#define ADLP_DMC_VERSION_REQUIRED	DMC_VERSION(2, 16)
 MODULE_FIRMWARE(ADLP_DMC_PATH);
 
 #define ADLS_DMC_PATH			DMC_PATH(adls, 2, 01)
@@ -239,9 +248,14 @@ struct stepping_info {
 	char substepping;
 };
 
+static bool has_dmc_id_fw(struct drm_i915_private *i915, int dmc_id)
+{
+	return i915->display.dmc.dmc_info[dmc_id].payload;
+}
+
 bool intel_dmc_has_payload(struct drm_i915_private *i915)
 {
-	return i915->dmc.dmc_info[DMC_FW_MAIN].payload;
+	return has_dmc_id_fw(i915, DMC_FW_MAIN);
 }
 
 static const struct stepping_info *
@@ -263,6 +277,136 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 	intel_de_posting_read(dev_priv, DC_STATE_DEBUG);
 }
 
+static void disable_event_handler(struct drm_i915_private *i915,
+				  i915_reg_t ctl_reg, i915_reg_t htp_reg)
+{
+	intel_de_write(i915, ctl_reg,
+		       REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+				      DMC_EVT_CTL_TYPE_EDGE_0_1) |
+		       REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+				      DMC_EVT_CTL_EVENT_ID_FALSE));
+	intel_de_write(i915, htp_reg, 0);
+}
+
+static void
+disable_flip_queue_event(struct drm_i915_private *i915,
+			 i915_reg_t ctl_reg, i915_reg_t htp_reg)
+{
+	u32 event_ctl;
+	u32 event_htp;
+
+	event_ctl = intel_de_read(i915, ctl_reg);
+	event_htp = intel_de_read(i915, htp_reg);
+	if (event_ctl != (DMC_EVT_CTL_ENABLE |
+			  DMC_EVT_CTL_RECURRING |
+			  REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+					 DMC_EVT_CTL_TYPE_EDGE_0_1) |
+			  REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+					 DMC_EVT_CTL_EVENT_ID_CLK_MSEC)) ||
+	    !event_htp) {
+		drm_dbg_kms(&i915->drm,
+			    "Unexpected DMC event configuration (control %08x htp %08x)\n",
+			    event_ctl, event_htp);
+		return;
+	}
+
+	disable_event_handler(i915, ctl_reg, htp_reg);
+}
+
+static bool
+get_flip_queue_event_regs(struct drm_i915_private *i915, int dmc_id,
+			  i915_reg_t *ctl_reg, i915_reg_t *htp_reg)
+{
+	switch (dmc_id) {
+	case DMC_FW_MAIN:
+		if (DISPLAY_VER(i915) == 12) {
+			*ctl_reg = DMC_EVT_CTL(i915, dmc_id, 3);
+			*htp_reg = DMC_EVT_HTP(i915, dmc_id, 3);
+
+			return true;
+		}
+		break;
+	case DMC_FW_PIPEA ... DMC_FW_PIPED:
+		if (IS_DG2(i915)) {
+			*ctl_reg = DMC_EVT_CTL(i915, dmc_id, 2);
+			*htp_reg = DMC_EVT_HTP(i915, dmc_id, 2);
+
+			return true;
+		}
+		break;
+	}
+
+	return false;
+}
+
+static void
+disable_all_flip_queue_events(struct drm_i915_private *i915)
+{
+	int dmc_id;
+
+	/* TODO: check if the following applies to all D13+ platforms. */
+	if (!IS_DG2(i915) && !IS_TIGERLAKE(i915))
+		return;
+
+	for (dmc_id = 0; dmc_id < DMC_FW_MAX; dmc_id++) {
+		i915_reg_t ctl_reg;
+		i915_reg_t htp_reg;
+
+		if (!has_dmc_id_fw(i915, dmc_id))
+			continue;
+
+		if (!get_flip_queue_event_regs(i915, dmc_id, &ctl_reg, &htp_reg))
+			continue;
+
+		disable_flip_queue_event(i915, ctl_reg, htp_reg);
+	}
+}
+
+static void disable_all_event_handlers(struct drm_i915_private *i915)
+{
+	int id;
+
+	/* TODO: disable the event handlers on pre-GEN12 platforms as well */
+	if (DISPLAY_VER(i915) < 12)
+		return;
+
+	for (id = DMC_FW_MAIN; id < DMC_FW_MAX; id++) {
+		int handler;
+
+		if (!has_dmc_id_fw(i915, id))
+			continue;
+
+		for (handler = 0; handler < DMC_EVENT_HANDLER_COUNT_GEN12; handler++)
+			disable_event_handler(i915,
+					      DMC_EVT_CTL(i915, id, handler),
+					      DMC_EVT_HTP(i915, id, handler));
+	}
+}
+
+static void pipedmc_clock_gating_wa(struct drm_i915_private *i915, bool enable)
+{
+	enum pipe pipe;
+
+	if (DISPLAY_VER(i915) != 13)
+		return;
+
+	/*
+	 * Wa_16015201720:adl-p,dg2
+	 * The WA requires clock gating to be disabled all the time
+	 * for pipe A and B.
+	 * For pipe C and D clock gating needs to be disabled only
+	 * during initializing the firmware.
+	 */
+	if (enable)
+		for (pipe = PIPE_A; pipe <= PIPE_D; pipe++)
+			intel_de_rmw(i915, CLKGATE_DIS_PSL_EXT(pipe),
+				     0, PIPEDMC_GATING_DIS);
+	else
+		for (pipe = PIPE_C; pipe <= PIPE_D; pipe++)
+			intel_de_rmw(i915, CLKGATE_DIS_PSL_EXT(pipe),
+				     PIPEDMC_GATING_DIS, 0);
+}
+
 /**
  * intel_dmc_load_program() - write the firmware from memory to register.
  * @dev_priv: i915 drm device.
@@ -273,20 +417,15 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
  */
 void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 {
-	struct intel_dmc *dmc = &dev_priv->dmc;
+	struct intel_dmc *dmc = &dev_priv->display.dmc;
 	u32 id, i;
 
-	if (!HAS_DMC(dev_priv)) {
-		drm_err(&dev_priv->drm,
-			"No DMC support available for this platform\n");
+	if (!intel_dmc_has_payload(dev_priv))
 		return;
-	}
 
-	if (!dev_priv->dmc.dmc_info[DMC_FW_MAIN].payload) {
-		drm_err(&dev_priv->drm,
-			"Tried to program CSR with empty payload\n");
-		return;
-	}
+	pipedmc_clock_gating_wa(dev_priv, true);
+
+	disable_all_event_handlers(dev_priv);
 
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
@@ -309,9 +448,46 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	dev_priv->dmc.dc_state = 0;
+	dev_priv->display.dmc.dc_state = 0;
 
 	gen9_set_dc_state_debugmask(dev_priv);
+
+	/*
+	 * Flip queue events need to be disabled before enabling DC5/6.
+	 * i915 doesn't use the flip queue feature, so disable it already
+	 * here.
+	 */
+	disable_all_flip_queue_events(dev_priv);
+
+	pipedmc_clock_gating_wa(dev_priv, false);
+}
+
+/**
+ * intel_dmc_disable_program() - disable the firmware
+ * @i915: i915 drm device
+ *
+ * Disable all event handlers in the firmware, making sure the firmware is
+ * inactive after the display is uninitialized.
+ */
+void intel_dmc_disable_program(struct drm_i915_private *i915)
+{
+	if (!intel_dmc_has_payload(i915))
+		return;
+
+	pipedmc_clock_gating_wa(i915, true);
+	disable_all_event_handlers(i915);
+	pipedmc_clock_gating_wa(i915, false);
+}
+
+void assert_dmc_loaded(struct drm_i915_private *i915)
+{
+	drm_WARN_ONCE(&i915->drm,
+		      !intel_de_read(i915, DMC_PROGRAM(i915->display.dmc.dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)),
+		      "DMC program storage start is NULL\n");
+	drm_WARN_ONCE(&i915->drm, !intel_de_read(i915, DMC_SSP_BASE),
+		      "DMC SSP Base Not fine\n");
+	drm_WARN_ONCE(&i915->drm, !intel_de_read(i915, DMC_HTP_SKL),
+		      "DMC HTP Not fine\n");
 }
 
 static bool fw_info_matches_stepping(const struct intel_fw_info *fw_info,
@@ -343,7 +519,7 @@ static void dmc_set_fw_offset(struct intel_dmc *dmc,
 {
 	unsigned int i, id;
 
-	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), display.dmc);
 
 	for (i = 0; i < num_entries; i++) {
 		id = package_ver <= 1 ? DMC_FW_MAIN : fw_info[i].dmc_id;
@@ -371,7 +547,7 @@ static bool dmc_mmio_addr_sanity_check(struct intel_dmc *dmc,
 				       const u32 *mmioaddr, u32 mmio_count,
 				       int header_ver, u8 dmc_id)
 {
-	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), display.dmc);
 	u32 start_range, end_range;
 	int i;
 
@@ -409,7 +585,7 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 			       const struct intel_dmc_header_base *dmc_header,
 			       size_t rem_size, u8 dmc_id)
 {
-	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), display.dmc);
 	struct dmc_fw_info *dmc_info = &dmc->dmc_info[dmc_id];
 	unsigned int header_len_bytes, dmc_header_size, payload_size, i;
 	const u32 *mmioaddr, *mmiodata;
@@ -520,7 +696,7 @@ parse_dmc_fw_package(struct intel_dmc *dmc,
 		     const struct stepping_info *si,
 		     size_t rem_size)
 {
-	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), display.dmc);
 	u32 package_size = sizeof(struct intel_package_header);
 	u32 num_entries, max_entries;
 	const struct intel_fw_info *fw_info;
@@ -574,7 +750,7 @@ static u32 parse_dmc_fw_css(struct intel_dmc *dmc,
 			    struct intel_css_header *css_header,
 			    size_t rem_size)
 {
-	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), display.dmc);
 
 	if (rem_size < sizeof(struct intel_css_header)) {
 		drm_err(&i915->drm, "Truncated DMC firmware, refusing.\n");
@@ -611,7 +787,7 @@ static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
 	struct intel_dmc_header_base *dmc_header;
-	struct intel_dmc *dmc = &dev_priv->dmc;
+	struct intel_dmc *dmc = &dev_priv->display.dmc;
 	struct stepping_info display_info = { '*', '*'};
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv, &display_info);
 	u32 readcount = 0;
@@ -638,7 +814,7 @@ static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 	readcount += r;
 
 	for (id = 0; id < DMC_FW_MAX; id++) {
-		if (!dev_priv->dmc.dmc_info[id].present)
+		if (!dev_priv->display.dmc.dmc_info[id].present)
 			continue;
 
 		offset = readcount + dmc->dmc_info[id].dmc_offset * 4;
@@ -654,15 +830,15 @@ static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 
 static void intel_dmc_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
-	dev_priv->dmc.wakeref =
+	drm_WARN_ON(&dev_priv->drm, dev_priv->display.dmc.wakeref);
+	dev_priv->display.dmc.wakeref =
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
 
 static void intel_dmc_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
 	intel_wakeref_t wakeref __maybe_unused =
-		fetch_and_zero(&dev_priv->dmc.wakeref);
+		fetch_and_zero(&dev_priv->display.dmc.wakeref);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 }
@@ -673,10 +849,10 @@ static void dmc_load_work_fn(struct work_struct *work)
 	struct intel_dmc *dmc;
 	const struct firmware *fw = NULL;
 
-	dev_priv = container_of(work, typeof(*dev_priv), dmc.work);
-	dmc = &dev_priv->dmc;
+	dev_priv = container_of(work, typeof(*dev_priv), display.dmc.work);
+	dmc = &dev_priv->display.dmc;
 
-	request_firmware(&fw, dev_priv->dmc.fw_path, dev_priv->drm.dev);
+	request_firmware(&fw, dev_priv->display.dmc.fw_path, dev_priv->drm.dev);
 	parse_dmc_fw(dev_priv, fw);
 
 	if (intel_dmc_has_payload(dev_priv)) {
@@ -685,7 +861,7 @@ static void dmc_load_work_fn(struct work_struct *work)
 
 		drm_info(&dev_priv->drm,
 			 "Finished loading DMC firmware %s (v%u.%u)\n",
-			 dev_priv->dmc.fw_path, DMC_VERSION_MAJOR(dmc->version),
+			 dev_priv->display.dmc.fw_path, DMC_VERSION_MAJOR(dmc->version),
 			 DMC_VERSION_MINOR(dmc->version));
 	} else {
 		drm_notice(&dev_priv->drm,
@@ -708,9 +884,9 @@ static void dmc_load_work_fn(struct work_struct *work)
  */
 void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_dmc *dmc = &dev_priv->dmc;
+	struct intel_dmc *dmc = &dev_priv->display.dmc;
 
-	INIT_WORK(&dev_priv->dmc.work, dmc_load_work_fn);
+	INIT_WORK(&dev_priv->display.dmc.work, dmc_load_work_fn);
 
 	if (!HAS_DMC(dev_priv))
 		return;
@@ -725,7 +901,11 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_dmc_runtime_pm_get(dev_priv);
 
-	if (IS_ALDERLAKE_P(dev_priv)) {
+	if (IS_DG2(dev_priv)) {
+		dmc->fw_path = DG2_DMC_PATH;
+		dmc->required_version = DG2_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
+	} else if (IS_ALDERLAKE_P(dev_priv)) {
 		dmc->fw_path = ADLP_DMC_PATH;
 		dmc->required_version = ADLP_DMC_VERSION_REQUIRED;
 		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
@@ -741,7 +921,7 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 		dmc->fw_path = RKL_DMC_PATH;
 		dmc->required_version = RKL_DMC_VERSION_REQUIRED;
 		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER(dev_priv) >= 12) {
+	} else if (IS_TIGERLAKE(dev_priv)) {
 		dmc->fw_path = TGL_DMC_PATH;
 		dmc->required_version = TGL_DMC_VERSION_REQUIRED;
 		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
@@ -789,7 +969,7 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 	}
 
 	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", dmc->fw_path);
-	schedule_work(&dev_priv->dmc.work);
+	schedule_work(&dev_priv->display.dmc.work);
 }
 
 /**
@@ -805,7 +985,7 @@ void intel_dmc_ucode_suspend(struct drm_i915_private *dev_priv)
 	if (!HAS_DMC(dev_priv))
 		return;
 
-	flush_work(&dev_priv->dmc.work);
+	flush_work(&dev_priv->display.dmc.work);
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!intel_dmc_has_payload(dev_priv))
@@ -847,8 +1027,106 @@ void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_dmc_ucode_suspend(dev_priv);
-	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->display.dmc.wakeref);
 
 	for (id = 0; id < DMC_FW_MAX; id++)
-		kfree(dev_priv->dmc.dmc_info[id].payload);
+		kfree(dev_priv->display.dmc.dmc_info[id].payload);
+}
+
+void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
+				 struct drm_i915_private *i915)
+{
+	struct intel_dmc *dmc = &i915->display.dmc;
+
+	if (!HAS_DMC(i915))
+		return;
+
+	i915_error_printf(m, "DMC loaded: %s\n",
+			  str_yes_no(intel_dmc_has_payload(i915)));
+	i915_error_printf(m, "DMC fw version: %d.%d\n",
+			  DMC_VERSION_MAJOR(dmc->version),
+			  DMC_VERSION_MINOR(dmc->version));
+}
+
+static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	intel_wakeref_t wakeref;
+	struct intel_dmc *dmc;
+	i915_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
+
+	if (!HAS_DMC(i915))
+		return -ENODEV;
+
+	dmc = &i915->display.dmc;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	seq_printf(m, "fw loaded: %s\n",
+		   str_yes_no(intel_dmc_has_payload(i915)));
+	seq_printf(m, "path: %s\n", dmc->fw_path);
+	seq_printf(m, "Pipe A fw support: %s\n",
+		   str_yes_no(GRAPHICS_VER(i915) >= 12));
+	seq_printf(m, "Pipe A fw loaded: %s\n",
+		   str_yes_no(dmc->dmc_info[DMC_FW_PIPEA].payload));
+	seq_printf(m, "Pipe B fw support: %s\n",
+		   str_yes_no(IS_ALDERLAKE_P(i915)));
+	seq_printf(m, "Pipe B fw loaded: %s\n",
+		   str_yes_no(dmc->dmc_info[DMC_FW_PIPEB].payload));
+
+	if (!intel_dmc_has_payload(i915))
+		goto out;
+
+	seq_printf(m, "version: %d.%d\n", DMC_VERSION_MAJOR(dmc->version),
+		   DMC_VERSION_MINOR(dmc->version));
+
+	if (DISPLAY_VER(i915) >= 12) {
+		if (IS_DGFX(i915)) {
+			dc5_reg = DG1_DMC_DEBUG_DC5_COUNT;
+		} else {
+			dc5_reg = TGL_DMC_DEBUG_DC5_COUNT;
+			dc6_reg = TGL_DMC_DEBUG_DC6_COUNT;
+		}
+
+		/*
+		 * NOTE: DMC_DEBUG3 is a general purpose reg.
+		 * According to B.Specs:49196 DMC f/w reuses DC5/6 counter
+		 * reg for DC3CO debugging and validation,
+		 * but TGL DMC f/w is using DMC_DEBUG3 reg for DC3CO counter.
+		 */
+		seq_printf(m, "DC3CO count: %d\n",
+			   intel_de_read(i915, IS_DGFX(i915) ?
+					 DG1_DMC_DEBUG3 : TGL_DMC_DEBUG3));
+	} else {
+		dc5_reg = IS_BROXTON(i915) ? BXT_DMC_DC3_DC5_COUNT :
+			SKL_DMC_DC3_DC5_COUNT;
+		if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
+			dc6_reg = SKL_DMC_DC5_DC6_COUNT;
+	}
+
+	seq_printf(m, "DC3 -> DC5 count: %d\n", intel_de_read(i915, dc5_reg));
+	if (i915_mmio_reg_valid(dc6_reg))
+		seq_printf(m, "DC5 -> DC6 count: %d\n",
+			   intel_de_read(i915, dc6_reg));
+
+out:
+	seq_printf(m, "program base: 0x%08x\n",
+		   intel_de_read(i915, DMC_PROGRAM(dmc->dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)));
+	seq_printf(m, "ssp base: 0x%08x\n",
+		   intel_de_read(i915, DMC_SSP_BASE));
+	seq_printf(m, "htp: 0x%08x\n", intel_de_read(i915, DMC_HTP_SKL));
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_dmc_debugfs_status);
+
+void intel_dmc_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_dmc_info", 0444, minor->debugfs_root,
+			    i915, &intel_dmc_debugfs_status_fops);
 }

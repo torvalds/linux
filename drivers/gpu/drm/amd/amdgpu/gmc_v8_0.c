@@ -1690,7 +1690,7 @@ static int gmc_v8_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void gmc_v8_0_get_clockgating_state(void *handle, u32 *flags)
+static void gmc_v8_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

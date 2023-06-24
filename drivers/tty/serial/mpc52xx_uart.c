@@ -38,6 +38,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
 
@@ -99,7 +101,7 @@ struct psc_ops {
 	void		(*cw_restore_ints)(struct uart_port *port);
 	unsigned int	(*set_baudrate)(struct uart_port *port,
 					struct ktermios *new,
-					struct ktermios *old);
+					const struct ktermios *old);
 	int		(*clock_alloc)(struct uart_port *port);
 	void		(*clock_relse)(struct uart_port *port);
 	int		(*clock)(struct uart_port *port, int enable);
@@ -285,7 +287,7 @@ static void mpc52xx_psc_cw_restore_ints(struct uart_port *port)
 
 static unsigned int mpc5200_psc_set_baudrate(struct uart_port *port,
 					     struct ktermios *new,
-					     struct ktermios *old)
+					     const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -303,7 +305,7 @@ static unsigned int mpc5200_psc_set_baudrate(struct uart_port *port,
 
 static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 					      struct ktermios *new,
-					      struct ktermios *old)
+					      const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -531,7 +533,7 @@ static void mpc512x_psc_cw_restore_ints(struct uart_port *port)
 
 static unsigned int mpc512x_psc_set_baudrate(struct uart_port *port,
 					     struct ktermios *new,
-					     struct ktermios *old)
+					     const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -754,9 +756,6 @@ static void mpc512x_psc_get_irq(struct uart_port *port, struct device_node *np)
 	port->irqflags = IRQF_SHARED;
 	port->irq = psc_fifoc_irq;
 }
-#endif
-
-#ifdef CONFIG_PPC_MPC512x
 
 #define PSC_5125(port) ((struct mpc5125_psc __iomem *)((port)->membase))
 #define FIFO_5125(port) ((struct mpc512x_psc_fifo __iomem *)(PSC_5125(port)+1))
@@ -881,7 +880,7 @@ static inline void mpc5125_set_divisor(struct mpc5125_psc __iomem *psc,
 
 static unsigned int mpc5125_psc_set_baudrate(struct uart_port *port,
 					     struct ktermios *new,
-					     struct ktermios *old)
+					     const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -1168,7 +1167,7 @@ mpc52xx_uart_shutdown(struct uart_port *port)
 
 static void
 mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
-			 struct ktermios *old)
+			 const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned char mr1, mr2;
@@ -1365,7 +1364,7 @@ static const struct uart_ops mpc52xx_uart_ops = {
 /* Interrupt handling                                                       */
 /* ======================================================================== */
 
-static inline unsigned int
+static inline bool
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
@@ -1426,7 +1425,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 	return psc_ops->raw_rx_rdy(port);
 }
 
-static inline int
+static inline bool
 mpc52xx_uart_int_tx_chars(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
@@ -1436,13 +1435,13 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 		psc_ops->write_char(port, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
-		return 1;
+		return true;
 	}
 
 	/* Nothing to do ? */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		mpc52xx_uart_stop_tx(port);
-		return 0;
+		return false;
 	}
 
 	/* Send chars */
@@ -1461,23 +1460,23 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 	/* Maybe we're done after all */
 	if (uart_circ_empty(xmit)) {
 		mpc52xx_uart_stop_tx(port);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static irqreturn_t
 mpc5xxx_uart_process_int(struct uart_port *port)
 {
 	unsigned long pass = ISR_PASS_LIMIT;
-	unsigned int keepgoing;
+	bool keepgoing;
 	u8 status;
 
 	/* While we have stuff to do, we continue */
 	do {
 		/* If we don't find anything to do, we stop */
-		keepgoing = 0;
+		keepgoing = false;
 
 		psc_ops->rx_clr_irq(port);
 		if (psc_ops->rx_rdy(port))
@@ -1496,7 +1495,7 @@ mpc5xxx_uart_process_int(struct uart_port *port)
 
 		/* Limit number of iteration */
 		if (!(--pass))
-			keepgoing = 0;
+			keepgoing = false;
 
 	} while (keepgoing);
 
@@ -1631,7 +1630,7 @@ mpc52xx_console_setup(struct console *co, char *options)
 		return ret;
 	}
 
-	uartclk = mpc5xxx_get_bus_frequency(np);
+	uartclk = mpc5xxx_fwnode_get_bus_frequency(of_fwnode_handle(np));
 	if (uartclk == 0) {
 		pr_debug("Could not find uart clock frequency!\n");
 		return -EINVAL;
@@ -1748,7 +1747,7 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 	/* set the uart clock to the input clock of the psc, the different
 	 * prescalers are taken into account in the set_baudrate() methods
 	 * of the respective chip */
-	uartclk = mpc5xxx_get_bus_frequency(op->dev.of_node);
+	uartclk = mpc5xxx_get_bus_frequency(&op->dev);
 	if (uartclk == 0) {
 		dev_dbg(&op->dev, "Could not find uart clock frequency!\n");
 		return -EINVAL;

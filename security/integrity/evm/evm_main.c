@@ -36,42 +36,36 @@ static const char * const integrity_status_msg[] = {
 int evm_hmac_attrs;
 
 static struct xattr_list evm_config_default_xattrnames[] = {
-	{.name = XATTR_NAME_SELINUX,
-#ifdef CONFIG_SECURITY_SELINUX
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SELINUX,
+	 .enabled = IS_ENABLED(CONFIG_SECURITY_SELINUX)
 	},
-	{.name = XATTR_NAME_SMACK,
-#ifdef CONFIG_SECURITY_SMACK
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACK,
+	 .enabled = IS_ENABLED(CONFIG_SECURITY_SMACK)
 	},
-	{.name = XATTR_NAME_SMACKEXEC,
-#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACKEXEC,
+	 .enabled = IS_ENABLED(CONFIG_EVM_EXTRA_SMACK_XATTRS)
 	},
-	{.name = XATTR_NAME_SMACKTRANSMUTE,
-#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACKTRANSMUTE,
+	 .enabled = IS_ENABLED(CONFIG_EVM_EXTRA_SMACK_XATTRS)
 	},
-	{.name = XATTR_NAME_SMACKMMAP,
-#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACKMMAP,
+	 .enabled = IS_ENABLED(CONFIG_EVM_EXTRA_SMACK_XATTRS)
 	},
-	{.name = XATTR_NAME_APPARMOR,
-#ifdef CONFIG_SECURITY_APPARMOR
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_APPARMOR,
+	 .enabled = IS_ENABLED(CONFIG_SECURITY_APPARMOR)
 	},
-	{.name = XATTR_NAME_IMA,
-#ifdef CONFIG_IMA_APPRAISE
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_IMA,
+	 .enabled = IS_ENABLED(CONFIG_IMA_APPRAISE)
 	},
-	{.name = XATTR_NAME_CAPS,
+	{
+	 .name = XATTR_NAME_CAPS,
 	 .enabled = true
 	},
 };
@@ -436,7 +430,7 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 	struct inode *inode = d_backing_inode(dentry);
 
 	if (!evm_key_loaded() || !S_ISREG(inode->i_mode) || evm_fixmode)
-		return 0;
+		return INTEGRITY_PASS;
 	return evm_verify_hmac(dentry, NULL, NULL, 0, NULL);
 }
 
@@ -463,10 +457,21 @@ static int evm_xattr_acl_change(struct user_namespace *mnt_userns,
 	int rc;
 
 	/*
-	 * user_ns is not relevant here, ACL_USER/ACL_GROUP don't have impact
-	 * on the inode mode (see posix_acl_equiv_mode()).
+	 * An earlier comment here mentioned that the idmappings for
+	 * ACL_{GROUP,USER} don't matter since EVM is only interested in the
+	 * mode stored as part of POSIX ACLs. Nonetheless, if it must translate
+	 * from the uapi POSIX ACL representation to the VFS internal POSIX ACL
+	 * representation it should do so correctly. There's no guarantee that
+	 * we won't change POSIX ACLs in a way that ACL_{GROUP,USER} matters
+	 * for the mode at some point and it's difficult to keep track of all
+	 * the LSM and integrity modules and what they do to POSIX ACLs.
+	 *
+	 * Frankly, EVM shouldn't try to interpret the uapi struct for POSIX
+	 * ACLs it received. It requires knowledge that only the VFS is
+	 * guaranteed to have.
 	 */
-	acl = posix_acl_from_xattr(&init_user_ns, xattr_value, xattr_value_len);
+	acl = vfs_set_acl_prepare(mnt_userns, i_user_ns(inode),
+				  xattr_value, xattr_value_len);
 	if (IS_ERR_OR_NULL(acl))
 		return 1;
 
@@ -755,13 +760,14 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 }
 
-static int evm_attr_change(struct dentry *dentry, struct iattr *attr)
+static int evm_attr_change(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_backing_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 
-	if ((!(ia_valid & ATTR_UID) || uid_eq(attr->ia_uid, inode->i_uid)) &&
-	    (!(ia_valid & ATTR_GID) || gid_eq(attr->ia_gid, inode->i_gid)) &&
+	if (!i_uid_needs_update(mnt_userns, attr, inode) &&
+	    !i_gid_needs_update(mnt_userns, attr, inode) &&
 	    (!(ia_valid & ATTR_MODE) || attr->ia_mode == inode->i_mode))
 		return 0;
 
@@ -775,7 +781,8 @@ static int evm_attr_change(struct dentry *dentry, struct iattr *attr)
  * Permit update of file attributes when files have a valid EVM signature,
  * except in the case of them having an immutable portable signature.
  */
-int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int evm_inode_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		      struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
 	enum integrity_status evm_status;
@@ -801,7 +808,7 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	if (evm_status == INTEGRITY_PASS_IMMUTABLE &&
-	    !evm_attr_change(dentry, attr))
+	    !evm_attr_change(mnt_userns, dentry, attr))
 		return 0;
 
 	integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),

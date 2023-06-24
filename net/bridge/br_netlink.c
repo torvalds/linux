@@ -589,9 +589,13 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	}
 
 done:
+	if (af) {
+		if (nlmsg_get_pos(skb) - (void *)af > nla_attr_size(0))
+			nla_nest_end(skb, af);
+		else
+			nla_nest_cancel(skb, af);
+	}
 
-	if (af)
-		nla_nest_end(skb, af);
 	nlmsg_end(skb, nlh);
 	return 0;
 
@@ -1326,8 +1330,13 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		br_recalculate_fwd_mask(br);
 	}
 
-	if (data[IFLA_BR_FDB_FLUSH])
-		br_fdb_flush(br);
+	if (data[IFLA_BR_FDB_FLUSH]) {
+		struct net_bridge_fdb_flush_desc desc = {
+			.flags_mask = BIT(BR_FDB_STATIC)
+		};
+
+		br_fdb_flush(br, &desc);
+	}
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (data[IFLA_BR_MCAST_ROUTER]) {
@@ -1765,10 +1774,10 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 			if (v->vid == pvid)
 				vxi.flags |= BRIDGE_VLAN_INFO_PVID;
 			br_vlan_get_stats(v, &stats);
-			vxi.rx_bytes = stats.rx_bytes;
-			vxi.rx_packets = stats.rx_packets;
-			vxi.tx_bytes = stats.tx_bytes;
-			vxi.tx_packets = stats.tx_packets;
+			vxi.rx_bytes = u64_stats_read(&stats.rx_bytes);
+			vxi.rx_packets = u64_stats_read(&stats.rx_packets);
+			vxi.tx_bytes = u64_stats_read(&stats.tx_bytes);
+			vxi.tx_packets = u64_stats_read(&stats.tx_packets);
 
 			if (nla_put(skb, BRIDGE_XSTATS_VLAN, sizeof(vxi), &vxi))
 				goto nla_put_failure;

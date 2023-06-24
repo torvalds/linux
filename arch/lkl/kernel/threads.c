@@ -162,10 +162,9 @@ static void thread_bootstrap(void *_tba)
 	do_exit(0);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long esp,
-		unsigned long unused, struct task_struct *p,
-		unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long esp = (unsigned long)args->fn;
 	struct thread_info *ti = task_thread_info(p);
 	struct thread_bootstrap_arg *tba;
 
@@ -179,7 +178,7 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 		return -ENOMEM;
 
 	tba->f = (int (*)(void *))esp;
-	tba->arg = (void *)unused;
+	tba->arg = (void *)args->fn_arg;
 	tba->ti = ti;
 
 	ti->tid = lkl_ops->thread_create(thread_bootstrap, tba);

@@ -19,12 +19,10 @@ extern void (*mach_get_model) (char *model);
 extern void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
 extern int (*mach_hwclk)(int, struct rtc_time*);
-extern unsigned int (*mach_get_ss)(void);
 extern int (*mach_get_rtc_pll)(struct rtc_pll_info *);
 extern int (*mach_set_rtc_pll)(struct rtc_pll_info *);
 extern void (*mach_reset)( void );
 extern void (*mach_halt)( void );
-extern void (*mach_power_off)( void );
 extern unsigned long (*mach_hd_init) (unsigned long, unsigned long);
 extern void (*mach_hd_setup)(char *, int *);
 extern void (*mach_heartbeat) (int);

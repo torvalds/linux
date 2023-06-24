@@ -5,6 +5,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -352,7 +353,7 @@ static int mt6360_adc_probe(struct platform_device *pdev)
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
-static const struct of_device_id __maybe_unused mt6360_adc_of_id[] = {
+static const struct of_device_id mt6360_adc_of_id[] = {
 	{ .compatible = "mediatek,mt6360-adc", },
 	{}
 };

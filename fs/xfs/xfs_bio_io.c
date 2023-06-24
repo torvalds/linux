@@ -15,7 +15,7 @@ xfs_rw_bdev(
 	sector_t		sector,
 	unsigned int		count,
 	char			*data,
-	unsigned int		op)
+	enum req_op		op)
 
 {
 	unsigned int		is_vmalloc = is_vmalloc_addr(data);

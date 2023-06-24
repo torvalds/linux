@@ -15,32 +15,12 @@ struct mlxsw_sp_router_nve_decap {
 	u8 valid:1;
 };
 
-struct mlxsw_sp_fib_entry_op_ctx {
-	u8 bulk_ok:1, /* Indicate to the low-level op it is ok to bulk
-		       * the actual entry with the one that is the next
-		       * in queue.
-		       */
-	   initialized:1; /* Bit that the low-level op sets in case
-			   * the context priv is initialized.
-			   */
-	struct list_head fib_entry_priv_list;
-	unsigned long event;
-	unsigned long ll_priv[];
-};
-
-static inline void
-mlxsw_sp_fib_entry_op_ctx_clear(struct mlxsw_sp_fib_entry_op_ctx *op_ctx)
-{
-	WARN_ON_ONCE(!list_empty(&op_ctx->fib_entry_priv_list));
-	memset(op_ctx, 0, sizeof(*op_ctx));
-	INIT_LIST_HEAD(&op_ctx->fib_entry_priv_list);
-}
-
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif **rifs;
 	struct idr rif_mac_profiles_idr;
 	atomic_t rif_mac_profiles_count;
+	atomic_t rifs_count;
 	u8 max_rif_mac_profile;
 	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
@@ -56,6 +36,7 @@ struct mlxsw_sp_router {
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
+		atomic_t neigh_count;
 	} neighs_update;
 	struct delayed_work nexthop_probe_dw;
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
@@ -66,18 +47,13 @@ struct mlxsw_sp_router {
 	struct notifier_block netevent_nb;
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inet6addr_nb;
+	struct notifier_block netdevice_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
-	struct work_struct fib_event_work;
-	struct list_head fib_event_queue;
-	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
-	/* One set of ops for each protocol: IPv4 and IPv6 */
-	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
 	u16 lb_rif_index;
-	struct mlxsw_sp_router_xm *xm;
 	const struct mlxsw_sp_adj_grp_size_range *adj_grp_size_ranges;
 	size_t adj_grp_size_ranges_count;
 	struct delayed_work nh_grp_activity_dw;
@@ -85,48 +61,6 @@ struct mlxsw_sp_router {
 	bool inc_parsing_depth;
 	refcount_t num_groups;
 	u32 adj_trap_index;
-};
-
-struct mlxsw_sp_fib_entry_priv {
-	refcount_t refcnt;
-	struct list_head list; /* Member in op_ctx->fib_entry_priv_list */
-	unsigned long priv[];
-};
-
-enum mlxsw_sp_fib_entry_op {
-	MLXSW_SP_FIB_ENTRY_OP_WRITE,
-	MLXSW_SP_FIB_ENTRY_OP_UPDATE,
-	MLXSW_SP_FIB_ENTRY_OP_DELETE,
-};
-
-/* Low-level router ops. Basically this is to handle the different
- * register sets to work with ordinary and XM trees and FIB entries.
- */
-struct mlxsw_sp_router_ll_ops {
-	int (*init)(struct mlxsw_sp *mlxsw_sp, u16 vr_id,
-		    enum mlxsw_sp_l3proto proto);
-	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
-	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
-	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
-	size_t fib_entry_op_ctx_size;
-	size_t fib_entry_priv_size;
-	void (*fib_entry_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-			       enum mlxsw_sp_l3proto proto, enum mlxsw_sp_fib_entry_op op,
-			       u16 virtual_router, u8 prefix_len, unsigned char *addr,
-			       struct mlxsw_sp_fib_entry_priv *priv);
-	void (*fib_entry_act_remote_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-					  enum mlxsw_reg_ralue_trap_action trap_action,
-					  u16 trap_id, u32 adjacency_index, u16 ecmp_size);
-	void (*fib_entry_act_local_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-					 enum mlxsw_reg_ralue_trap_action trap_action,
-					 u16 trap_id, u16 local_erif);
-	void (*fib_entry_act_ip2me_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx);
-	void (*fib_entry_act_ip2me_tun_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-					     u32 tunnel_ptr);
-	int (*fib_entry_commit)(struct mlxsw_sp *mlxsw_sp,
-				struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-				bool *postponed_for_bulk);
-	bool (*fib_entry_is_committed)(struct mlxsw_sp_fib_entry_priv *priv);
 };
 
 struct mlxsw_sp_rif_ipip_lb;
@@ -148,7 +82,6 @@ struct mlxsw_sp_ipip_entry;
 
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
-u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
 u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_rif_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif);
@@ -229,11 +162,5 @@ int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
 struct net_device *
 mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev);
-
-extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
-
-int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp);
-void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp);
-bool mlxsw_sp_router_xm_ipv4_is_supported(const struct mlxsw_sp *mlxsw_sp);
 
 #endif /* _MLXSW_ROUTER_H_*/

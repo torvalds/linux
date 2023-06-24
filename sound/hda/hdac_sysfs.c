@@ -22,7 +22,7 @@ static ssize_t type##_show(struct device *dev,			\
 			   char *buf)				\
 {								\
 	struct hdac_device *codec = dev_to_hdac_dev(dev);	\
-	return sprintf(buf, "0x%x\n", codec->type);		\
+	return sysfs_emit(buf, "0x%x\n", codec->type);		\
 } \
 static DEVICE_ATTR_RO(type)
 
@@ -32,8 +32,8 @@ static ssize_t type##_show(struct device *dev,			\
 					char *buf)		\
 {								\
 	struct hdac_device *codec = dev_to_hdac_dev(dev);	\
-	return sprintf(buf, "%s\n",				\
-		       codec->type ? codec->type : "");		\
+	return sysfs_emit(buf, "%s\n",				\
+			  codec->type ? codec->type : "");	\
 } \
 static DEVICE_ATTR_RO(type)
 
@@ -161,7 +161,7 @@ static struct kobj_type widget_ktype = {
 static ssize_t caps_show(struct hdac_device *codec, hda_nid_t nid,
 			struct widget_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08x\n", get_wcaps(codec, nid));
+	return sysfs_emit(buf, "0x%08x\n", get_wcaps(codec, nid));
 }
 
 static ssize_t pin_caps_show(struct hdac_device *codec, hda_nid_t nid,
@@ -169,8 +169,8 @@ static ssize_t pin_caps_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 		return 0;
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_PIN_CAP));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_PIN_CAP));
 }
 
 static ssize_t pin_cfg_show(struct hdac_device *codec, hda_nid_t nid,
@@ -182,7 +182,7 @@ static ssize_t pin_cfg_show(struct hdac_device *codec, hda_nid_t nid,
 		return 0;
 	if (snd_hdac_read(codec, nid, AC_VERB_GET_CONFIG_DEFAULT, 0, &val))
 		return 0;
-	return sprintf(buf, "0x%08x\n", val);
+	return sysfs_emit(buf, "0x%08x\n", val);
 }
 
 static bool has_pcm_cap(struct hdac_device *codec, hda_nid_t nid)
@@ -203,8 +203,8 @@ static ssize_t pcm_caps_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	if (!has_pcm_cap(codec, nid))
 		return 0;
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_PCM));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_PCM));
 }
 
 static ssize_t pcm_formats_show(struct hdac_device *codec, hda_nid_t nid,
@@ -212,8 +212,8 @@ static ssize_t pcm_formats_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	if (!has_pcm_cap(codec, nid))
 		return 0;
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_STREAM));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_STREAM));
 }
 
 static ssize_t amp_in_caps_show(struct hdac_device *codec, hda_nid_t nid,
@@ -221,8 +221,8 @@ static ssize_t amp_in_caps_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	if (nid != codec->afg && !(get_wcaps(codec, nid) & AC_WCAP_IN_AMP))
 		return 0;
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_AMP_IN_CAP));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_AMP_IN_CAP));
 }
 
 static ssize_t amp_out_caps_show(struct hdac_device *codec, hda_nid_t nid,
@@ -230,8 +230,8 @@ static ssize_t amp_out_caps_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	if (nid != codec->afg && !(get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
 		return 0;
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_AMP_OUT_CAP));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_AMP_OUT_CAP));
 }
 
 static ssize_t power_caps_show(struct hdac_device *codec, hda_nid_t nid,
@@ -239,15 +239,15 @@ static ssize_t power_caps_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	if (nid != codec->afg && !(get_wcaps(codec, nid) & AC_WCAP_POWER))
 		return 0;
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_POWER_STATE));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_POWER_STATE));
 }
 
 static ssize_t gpio_caps_show(struct hdac_device *codec, hda_nid_t nid,
 			      struct widget_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08x\n",
-		       snd_hdac_read_parm(codec, nid, AC_PAR_GPIO_CAP));
+	return sysfs_emit(buf, "0x%08x\n",
+			  snd_hdac_read_parm(codec, nid, AC_PAR_GPIO_CAP));
 }
 
 static ssize_t connections_show(struct hdac_device *codec, hda_nid_t nid,
@@ -261,8 +261,8 @@ static ssize_t connections_show(struct hdac_device *codec, hda_nid_t nid,
 	if (nconns <= 0)
 		return nconns;
 	for (i = 0; i < nconns; i++)
-		ret += sprintf(buf + ret, "%s0x%02x", i ? " " : "", list[i]);
-	ret += sprintf(buf + ret, "\n");
+		ret += sysfs_emit_at(buf,  ret, "%s0x%02x", i ? " " : "", list[i]);
+	ret += sysfs_emit_at(buf, ret, "\n");
 	return ret;
 }
 
@@ -346,8 +346,10 @@ static int add_widget_node(struct kobject *parent, hda_nid_t nid,
 		return -ENOMEM;
 	kobject_init(kobj, &widget_ktype);
 	err = kobject_add(kobj, parent, "%02x", nid);
-	if (err < 0)
+	if (err < 0) {
+		kobject_put(kobj);
 		return err;
+	}
 	err = sysfs_create_group(kobj, group);
 	if (err < 0) {
 		kobject_put(kobj);

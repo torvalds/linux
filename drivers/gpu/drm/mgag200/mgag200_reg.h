@@ -96,7 +96,7 @@
 #define MGAREG_SRCORG		0x2cb4
 #define MGAREG_DSTORG		0x2cb8
 
-/* add or or this to one of the previous "power registers" to start
+/* add or this to one of the previous "power registers" to start
    the drawing engine */
 
 #define MGAREG_EXEC		0x0100
@@ -252,8 +252,10 @@
 
 #define MGAREG_CRTCEXT0_OFFSET_MASK	GENMASK(5, 4)
 
+#define MGAREG_CRTCEXT1_VRSTEN		BIT(7)
 #define MGAREG_CRTCEXT1_VSYNCOFF	BIT(5)
 #define MGAREG_CRTCEXT1_HSYNCOFF	BIT(4)
+#define MGAREG_CRTCEXT1_HRSTEN		BIT(3)
 
 #define MGAREG_CRTCEXT3_MGAMODE		BIT(7)
 

@@ -9,6 +9,7 @@
 #include <linux/uidgid.h>
 #include <net/inet_frag.h>
 #include <linux/rcupdate.h>
+#include <linux/seqlock.h>
 #include <linux/siphash.h>
 
 struct ctl_table_header;
@@ -33,6 +34,7 @@ struct inet_hashinfo;
 struct inet_timewait_death_row {
 	refcount_t		tw_refcount;
 
+	/* Padding to avoid false sharing, tw_refcount can be often written */
 	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
 	int			sysctl_max_tw_buckets;
 };
@@ -40,7 +42,7 @@ struct inet_timewait_death_row {
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
-	struct inet_timewait_death_row *tcp_death_row;
+	struct inet_timewait_death_row tcp_death_row;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
@@ -169,6 +171,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_pacing_ca_ratio;
 	int sysctl_tcp_wmem[3];
 	int sysctl_tcp_rmem[3];
+	unsigned int sysctl_tcp_child_ehash_entries;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
 	unsigned long sysctl_tcp_comp_sack_slack_ns;
 	int sysctl_max_syn_backlog;
@@ -178,6 +181,8 @@ struct netns_ipv4 {
 	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
+	u32 tcp_challenge_timestamp;
+	u32 tcp_challenge_count;
 
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;

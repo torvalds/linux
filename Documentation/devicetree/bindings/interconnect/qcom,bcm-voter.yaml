@@ -45,20 +45,20 @@ additionalProperties: false
 
 examples:
   # Example 1: apps bcm_voter on SDM845 SoC should be defined inside &apps_rsc node
-  # as defined in Documentation/devicetree/bindings/soc/qcom/rpmh-rsc.txt
+  # as defined in Documentation/devicetree/bindings/soc/qcom/qcom,rpmh-rsc.yaml
   - |
 
-    apps_bcm_voter: bcm_voter {
+    apps_bcm_voter: bcm-voter {
         compatible = "qcom,bcm-voter";
     };
 
   # Example 2: disp bcm_voter on SDM845 should be defined inside &disp_rsc node
-  # as defined in Documentation/devicetree/bindings/soc/qcom/rpmh-rsc.txt
+  # as defined in Documentation/devicetree/bindings/soc/qcom/qcom,rpmh-rsc.yaml
   - |
 
     #include <dt-bindings/interconnect/qcom,icc.h>
 
-    disp_bcm_voter: bcm_voter {
+    disp_bcm_voter: bcm-voter {
         compatible = "qcom,bcm-voter";
         qcom,tcs-wait = <QCOM_ICC_TAG_AMC>;
     };

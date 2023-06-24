@@ -1829,7 +1829,7 @@ nvme_fc_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 
-	return __nvme_fc_exit_request(set->driver_data, op);
+	return __nvme_fc_exit_request(to_fc_ctrl(set->driver_data), op);
 }
 
 static int
@@ -1898,6 +1898,24 @@ nvme_fc_ctrl_ioerr_work(struct work_struct *work)
 
 	nvme_fc_error_recovery(ctrl, "transport detected io error");
 }
+
+/*
+ * nvme_fc_io_getuuid - Routine called to get the appid field
+ * associated with request by the lldd
+ * @req:IO request from nvme fc to driver
+ * Returns: UUID if there is an appid associated with VM or
+ * NULL if the user/libvirt has not set the appid to VM
+ */
+char *nvme_fc_io_getuuid(struct nvmefc_fcp_req *req)
+{
+	struct nvme_fc_fcp_op *op = fcp_req_to_fcp_op(req);
+	struct request *rq = op->rq;
+
+	if (!IS_ENABLED(CONFIG_BLK_CGROUP_FC_APPID) || !rq->bio)
+		return NULL;
+	return blkcg_get_fc_appid(rq->bio);
+}
+EXPORT_SYMBOL_GPL(nvme_fc_io_getuuid);
 
 static void
 nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
@@ -2117,7 +2135,7 @@ static int
 nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
 		unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct nvme_fc_ctrl *ctrl = set->driver_data;
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(set->driver_data);
 	struct nvme_fcp_op_w_sgl *op = blk_mq_rq_to_pdu(rq);
 	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
 	struct nvme_fc_queue *queue = &ctrl->queues[queue_idx];
@@ -2188,36 +2206,28 @@ nvme_fc_term_aen_ops(struct nvme_fc_ctrl *ctrl)
 	}
 }
 
-static inline void
-__nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, struct nvme_fc_ctrl *ctrl,
-		unsigned int qidx)
+static inline int
+__nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, void *data, unsigned int qidx)
 {
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(data);
 	struct nvme_fc_queue *queue = &ctrl->queues[qidx];
 
 	hctx->driver_data = queue;
 	queue->hctx = hctx;
+	return 0;
 }
 
 static int
-nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
-		unsigned int hctx_idx)
+nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, void *data, unsigned int hctx_idx)
 {
-	struct nvme_fc_ctrl *ctrl = data;
-
-	__nvme_fc_init_hctx(hctx, ctrl, hctx_idx + 1);
-
-	return 0;
+	return __nvme_fc_init_hctx(hctx, data, hctx_idx + 1);
 }
 
 static int
 nvme_fc_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
-	struct nvme_fc_ctrl *ctrl = data;
-
-	__nvme_fc_init_hctx(hctx, ctrl, hctx_idx);
-
-	return 0;
+	return __nvme_fc_init_hctx(hctx, data, hctx_idx);
 }
 
 static void
@@ -2373,10 +2383,8 @@ nvme_fc_ctrl_free(struct kref *ref)
 		container_of(ref, struct nvme_fc_ctrl, ref);
 	unsigned long flags;
 
-	if (ctrl->ctrl.tagset) {
-		blk_cleanup_queue(ctrl->ctrl.connect_q);
-		blk_mq_free_tag_set(&ctrl->tag_set);
-	}
+	if (ctrl->ctrl.tagset)
+		nvme_remove_io_tag_set(&ctrl->ctrl);
 
 	/* remove from rport list */
 	spin_lock_irqsave(&ctrl->rport->lock, flags);
@@ -2384,9 +2392,7 @@ nvme_fc_ctrl_free(struct kref *ref)
 	spin_unlock_irqrestore(&ctrl->rport->lock, flags);
 
 	nvme_start_admin_queue(&ctrl->ctrl);
-	blk_cleanup_queue(ctrl->ctrl.admin_q);
-	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
-	blk_mq_free_tag_set(&ctrl->admin_tag_set);
+	nvme_remove_admin_tag_set(&ctrl->ctrl);
 
 	kfree(ctrl->queues);
 
@@ -2438,8 +2444,7 @@ nvme_fc_nvme_ctrl_freed(struct nvme_ctrl *nctrl)
  * status. The done path will return the io request back to the block
  * layer with an error status.
  */
-static bool
-nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
+static bool nvme_fc_terminate_exchange(struct request *req, void *data)
 {
 	struct nvme_ctrl *nctrl = data;
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
@@ -2516,6 +2521,8 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_fc_terminate_exchange, &ctrl->ctrl);
 	blk_mq_tagset_wait_completed_request(&ctrl->admin_tag_set);
+	if (start_queues)
+		nvme_start_admin_queue(&ctrl->ctrl);
 }
 
 static void
@@ -2547,8 +2554,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 	nvme_reset_ctrl(&ctrl->ctrl);
 }
 
-static enum blk_eh_timer_return
-nvme_fc_timeout(struct request *rq, bool reserved)
+static enum blk_eh_timer_return nvme_fc_timeout(struct request *rq)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_ctrl *ctrl = op->ctrl;
@@ -2842,9 +2848,9 @@ nvme_fc_complete_rq(struct request *rq)
 	nvme_fc_ctrl_put(ctrl);
 }
 
-static int nvme_fc_map_queues(struct blk_mq_tag_set *set)
+static void nvme_fc_map_queues(struct blk_mq_tag_set *set)
 {
-	struct nvme_fc_ctrl *ctrl = set->driver_data;
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(set->driver_data);
 	int i;
 
 	for (i = 0; i < set->nr_maps; i++) {
@@ -2862,7 +2868,6 @@ static int nvme_fc_map_queues(struct blk_mq_tag_set *set)
 		else
 			blk_mq_map_queues(map);
 	}
-	return 0;
 }
 
 static const struct blk_mq_ops nvme_fc_mq_ops = {
@@ -2897,32 +2902,16 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 
 	nvme_fc_init_io_queues(ctrl);
 
-	memset(&ctrl->tag_set, 0, sizeof(ctrl->tag_set));
-	ctrl->tag_set.ops = &nvme_fc_mq_ops;
-	ctrl->tag_set.queue_depth = ctrl->ctrl.opts->queue_size;
-	ctrl->tag_set.reserved_tags = NVMF_RESERVED_TAGS;
-	ctrl->tag_set.numa_node = ctrl->ctrl.numa_node;
-	ctrl->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
-	ctrl->tag_set.cmd_size =
-		struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
-			    ctrl->lport->ops->fcprqst_priv_sz);
-	ctrl->tag_set.driver_data = ctrl;
-	ctrl->tag_set.nr_hw_queues = ctrl->ctrl.queue_count - 1;
-	ctrl->tag_set.timeout = NVME_IO_TIMEOUT;
-
-	ret = blk_mq_alloc_tag_set(&ctrl->tag_set);
+	ret = nvme_alloc_io_tag_set(&ctrl->ctrl, &ctrl->tag_set,
+			&nvme_fc_mq_ops, BLK_MQ_F_SHOULD_MERGE,
+			struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
+				    ctrl->lport->ops->fcprqst_priv_sz));
 	if (ret)
 		return ret;
 
-	ctrl->ctrl.tagset = &ctrl->tag_set;
-
-	ret = nvme_ctrl_init_connect_q(&(ctrl->ctrl));
-	if (ret)
-		goto out_free_tag_set;
-
 	ret = nvme_fc_create_hw_io_queues(ctrl, ctrl->ctrl.sqsize + 1);
 	if (ret)
-		goto out_cleanup_blk_queue;
+		goto out_cleanup_tagset;
 
 	ret = nvme_fc_connect_io_queues(ctrl, ctrl->ctrl.sqsize + 1);
 	if (ret)
@@ -2934,10 +2923,8 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 
 out_delete_hw_queues:
 	nvme_fc_delete_hw_io_queues(ctrl);
-out_cleanup_blk_queue:
-	blk_cleanup_queue(ctrl->ctrl.connect_q);
-out_free_tag_set:
-	blk_mq_free_tag_set(&ctrl->tag_set);
+out_cleanup_tagset:
+	nvme_remove_io_tag_set(&ctrl->ctrl);
 	nvme_fc_free_io_queues(ctrl);
 
 	/* force put free routine to ignore io queues */
@@ -3148,15 +3135,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 			"to maxcmd\n",
 			opts->queue_size, ctrl->ctrl.maxcmd);
 		opts->queue_size = ctrl->ctrl.maxcmd;
-	}
-
-	if (opts->queue_size > ctrl->ctrl.sqsize + 1) {
-		/* warn if sqsize is lower than queue_size */
-		dev_warn(ctrl->ctrl.device,
-			"queue_size %zu > ctrl sqsize %u, reducing "
-			"to sqsize\n",
-			opts->queue_size, ctrl->ctrl.sqsize + 1);
-		opts->queue_size = ctrl->ctrl.sqsize + 1;
+		ctrl->ctrl.sqsize = opts->queue_size - 1;
 	}
 
 	ret = nvme_fc_init_aen_ops(ctrl);
@@ -3529,35 +3508,12 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	nvme_fc_init_queue(ctrl, 0);
 
-	memset(&ctrl->admin_tag_set, 0, sizeof(ctrl->admin_tag_set));
-	ctrl->admin_tag_set.ops = &nvme_fc_admin_mq_ops;
-	ctrl->admin_tag_set.queue_depth = NVME_AQ_MQ_TAG_DEPTH;
-	ctrl->admin_tag_set.reserved_tags = NVMF_RESERVED_TAGS;
-	ctrl->admin_tag_set.numa_node = ctrl->ctrl.numa_node;
-	ctrl->admin_tag_set.cmd_size =
-		struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
-			    ctrl->lport->ops->fcprqst_priv_sz);
-	ctrl->admin_tag_set.driver_data = ctrl;
-	ctrl->admin_tag_set.nr_hw_queues = 1;
-	ctrl->admin_tag_set.timeout = NVME_ADMIN_TIMEOUT;
-	ctrl->admin_tag_set.flags = BLK_MQ_F_NO_SCHED;
-
-	ret = blk_mq_alloc_tag_set(&ctrl->admin_tag_set);
+	ret = nvme_alloc_admin_tag_set(&ctrl->ctrl, &ctrl->admin_tag_set,
+			&nvme_fc_admin_mq_ops, BLK_MQ_F_NO_SCHED,
+			struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
+				    ctrl->lport->ops->fcprqst_priv_sz));
 	if (ret)
 		goto out_free_queues;
-	ctrl->ctrl.admin_tagset = &ctrl->admin_tag_set;
-
-	ctrl->ctrl.fabrics_q = blk_mq_init_queue(&ctrl->admin_tag_set);
-	if (IS_ERR(ctrl->ctrl.fabrics_q)) {
-		ret = PTR_ERR(ctrl->ctrl.fabrics_q);
-		goto out_free_admin_tag_set;
-	}
-
-	ctrl->ctrl.admin_q = blk_mq_init_queue(&ctrl->admin_tag_set);
-	if (IS_ERR(ctrl->ctrl.admin_q)) {
-		ret = PTR_ERR(ctrl->ctrl.admin_q);
-		goto out_cleanup_fabrics_q;
-	}
 
 	/*
 	 * Would have been nice to init io queues tag set as well.
@@ -3568,7 +3524,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_fc_ctrl_ops, 0);
 	if (ret)
-		goto out_cleanup_admin_q;
+		goto out_cleanup_tagset;
 
 	/* at this point, teardown path changes to ref counting on nvme ctrl */
 
@@ -3623,12 +3579,8 @@ fail_ctrl:
 
 	return ERR_PTR(-EIO);
 
-out_cleanup_admin_q:
-	blk_cleanup_queue(ctrl->ctrl.admin_q);
-out_cleanup_fabrics_q:
-	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
-out_free_admin_tag_set:
-	blk_mq_free_tag_set(&ctrl->admin_tag_set);
+out_cleanup_tagset:
+	nvme_remove_admin_tag_set(&ctrl->ctrl);
 out_free_queues:
 	kfree(ctrl->queues);
 out_free_ida:
@@ -3831,6 +3783,9 @@ process_local_list:
 	return count;
 }
 
+static DEVICE_ATTR(nvme_discovery, 0200, NULL, nvme_fc_nvme_discovery_store);
+
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
 /* Parse the cgroup id from a buf and return the length of cgrpid */
 static int fc_parse_cgrpid(const char *buf, u64 *id)
 {
@@ -3854,13 +3809,12 @@ static int fc_parse_cgrpid(const char *buf, u64 *id)
 }
 
 /*
- * fc_update_appid: Parse and update the appid in the blkcg associated with
- * cgroupid.
- * @buf: buf contains both cgrpid and appid info
- * @count: size of the buffer
+ * Parse and update the appid in the blkcg associated with the cgroupid.
  */
-static int fc_update_appid(const char *buf, size_t count)
+static ssize_t fc_appid_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
+	size_t orig_count = count;
 	u64 cgrp_id;
 	int appid_len = 0;
 	int cgrpid_len = 0;
@@ -3885,25 +3839,16 @@ static int fc_update_appid(const char *buf, size_t count)
 	ret = blkcg_set_fc_appid(app_id, cgrp_id, sizeof(app_id));
 	if (ret < 0)
 		return ret;
-	return count;
+	return orig_count;
 }
-
-static ssize_t fc_appid_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int ret  = 0;
-
-	ret = fc_update_appid(buf, count);
-	if (ret < 0)
-		return -EINVAL;
-	return count;
-}
-static DEVICE_ATTR(nvme_discovery, 0200, NULL, nvme_fc_nvme_discovery_store);
 static DEVICE_ATTR(appid_store, 0200, NULL, fc_appid_store);
+#endif /* CONFIG_BLK_CGROUP_FC_APPID */
 
 static struct attribute *nvme_fc_attrs[] = {
 	&dev_attr_nvme_discovery.attr,
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
 	&dev_attr_appid_store.attr,
+#endif
 	NULL
 };
 

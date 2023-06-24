@@ -2,9 +2,7 @@
 /* Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
  *
  * This module is not a complete tagger implementation. It only provides
- * primitives for taggers that rely on 802.1Q VLAN tags to use. The
- * dsa_8021q_netdev_ops is registered for API compliance and not used
- * directly by callers.
+ * primitives for taggers that rely on 802.1Q VLAN tags to use.
  */
 #include <linux/if_vlan.h>
 #include <linux/dsa/8021q.h>
@@ -196,15 +194,7 @@ static bool
 dsa_port_tag_8021q_vlan_match(struct dsa_port *dp,
 			      struct dsa_notifier_tag_8021q_vlan_info *info)
 {
-	struct dsa_switch *ds = dp->ds;
-
-	if (dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp))
-		return true;
-
-	if (ds->dst->index == info->tree_index && ds->index == info->sw_index)
-		return dp->index == info->port;
-
-	return false;
+	return dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp) || dp == info->dp;
 }
 
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
@@ -340,7 +330,7 @@ static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
 	if (!dsa_port_is_user(dp))
 		return 0;
 
-	master = dp->cpu_dp->master;
+	master = dsa_port_to_master(dp);
 
 	err = dsa_port_tag_8021q_vlan_add(dp, vid, false);
 	if (err) {
@@ -369,7 +359,7 @@ static void dsa_tag_8021q_port_teardown(struct dsa_switch *ds, int port)
 	if (!dsa_port_is_user(dp))
 		return;
 
-	master = dp->cpu_dp->master;
+	master = dsa_port_to_master(dp);
 
 	dsa_port_tag_8021q_vlan_del(dp, vid, false);
 

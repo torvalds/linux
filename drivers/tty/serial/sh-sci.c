@@ -1407,10 +1407,8 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	spin_lock_irq(&port->lock);
 	head = xmit->head;
 	tail = xmit->tail;
-	buf = s->tx_dma_addr + (tail & (UART_XMIT_SIZE - 1));
-	s->tx_dma_len = min_t(unsigned int,
-		CIRC_CNT(head, tail, UART_XMIT_SIZE),
-		CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE));
+	buf = s->tx_dma_addr + tail;
+	s->tx_dma_len = CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE);
 	if (!s->tx_dma_len) {
 		/* Transmit buffer has been flushed */
 		spin_unlock_irq(&port->lock);
@@ -2367,7 +2365,7 @@ static void sci_reset(struct uart_port *port)
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
-			    struct ktermios *old)
+		            const struct ktermios *old)
 {
 	unsigned int baud, smr_val = SCSMR_ASYNC, scr_val = 0, i, bits;
 	unsigned int brr = 255, cks = 0, srr = 15, dl = 0, sccks = 0;
@@ -2379,8 +2377,12 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	int best_clk = -1;
 	unsigned long flags;
 
-	if ((termios->c_cflag & CSIZE) == CS7)
+	if ((termios->c_cflag & CSIZE) == CS7) {
 		smr_val |= SCSMR_CHR;
+	} else {
+		termios->c_cflag &= ~CSIZE;
+		termios->c_cflag |= CS8;
+	}
 	if (termios->c_cflag & PARENB)
 		smr_val |= SCSMR_PE;
 	if (termios->c_cflag & PARODD)

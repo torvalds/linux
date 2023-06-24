@@ -256,14 +256,14 @@
 		pinctrl-0 = <&cf_gtr_rear_button_pins &cf_gtr_front_button_pins>;
 		pinctrl-names = "default";
 
-		button_0 {
+		button-0 {
 			label = "Rear Button";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
 			linux,code = <BTN_0>;
 		};
 
-		button_1 {
+		button-1 {
 			label = "Front Button";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
@@ -365,7 +365,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "w25q32", "jedec,spi-nor";

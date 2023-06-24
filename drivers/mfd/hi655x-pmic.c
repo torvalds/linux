@@ -9,14 +9,13 @@
  * Fei  Wang <w.f@huawei.com>
  */
 
-#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/hi655x-pmic.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -94,7 +93,6 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 	int ret;
 	struct hi655x_pmic *pmic;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	void __iomem *base;
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
@@ -120,21 +118,12 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 
 	hi655x_local_irq_clear(pmic->regmap);
 
-	pmic->gpio = of_get_named_gpio(np, "pmic-gpios", 0);
-	if (!gpio_is_valid(pmic->gpio)) {
-		dev_err(dev, "Failed to get the pmic-gpios\n");
-		return -ENODEV;
-	}
+	pmic->gpio = devm_gpiod_get_optional(dev, "pmic", GPIOD_IN);
+	if (IS_ERR(pmic->gpio))
+		return dev_err_probe(dev, PTR_ERR(pmic->gpio),
+				"Failed to request hi655x pmic-gpio");
 
-	ret = devm_gpio_request_one(dev, pmic->gpio, GPIOF_IN,
-				    "hi655x_pmic_irq");
-	if (ret < 0) {
-		dev_err(dev, "Failed to request gpio %d  ret = %d\n",
-			pmic->gpio, ret);
-		return ret;
-	}
-
-	ret = regmap_add_irq_chip(pmic->regmap, gpio_to_irq(pmic->gpio),
+	ret = regmap_add_irq_chip(pmic->regmap, gpiod_to_irq(pmic->gpio),
 				  IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND, 0,
 				  &hi655x_irq_chip, &pmic->irq_data);
 	if (ret) {
@@ -149,7 +138,7 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 			      regmap_irq_get_domain(pmic->irq_data));
 	if (ret) {
 		dev_err(dev, "Failed to register device %d\n", ret);
-		regmap_del_irq_chip(gpio_to_irq(pmic->gpio), pmic->irq_data);
+		regmap_del_irq_chip(gpiod_to_irq(pmic->gpio), pmic->irq_data);
 		return ret;
 	}
 
@@ -160,7 +149,7 @@ static int hi655x_pmic_remove(struct platform_device *pdev)
 {
 	struct hi655x_pmic *pmic = platform_get_drvdata(pdev);
 
-	regmap_del_irq_chip(gpio_to_irq(pmic->gpio), pmic->irq_data);
+	regmap_del_irq_chip(gpiod_to_irq(pmic->gpio), pmic->irq_data);
 	mfd_remove_devices(&pdev->dev);
 	return 0;
 }

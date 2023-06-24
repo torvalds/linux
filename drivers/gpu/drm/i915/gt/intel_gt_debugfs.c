@@ -6,8 +6,10 @@
 #include <linux/debugfs.h>
 
 #include "i915_drv.h"
+#include "intel_gt.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_engines_debugfs.h"
+#include "intel_gt_mcr.h"
 #include "intel_gt_pm_debugfs.h"
 #include "intel_sseu_debugfs.h"
 #include "pxp/intel_pxp_debugfs.h"
@@ -29,7 +31,7 @@ int intel_gt_debugfs_reset_show(struct intel_gt *gt, u64 *val)
 	}
 }
 
-int intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val)
+void intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val)
 {
 	/* Flush any previous reset before applying for a new one */
 	wait_event(gt->reset.queue,
@@ -37,7 +39,6 @@ int intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val)
 
 	intel_gt_handle_error(gt, val, I915_ERROR_CAPTURE,
 			      "Manually reset engine mask to %llx", val);
-	return 0;
 }
 
 /*
@@ -51,16 +52,30 @@ static int __intel_gt_debugfs_reset_show(void *data, u64 *val)
 
 static int __intel_gt_debugfs_reset_store(void *data, u64 val)
 {
-	return intel_gt_debugfs_reset_store(data, val);
+	intel_gt_debugfs_reset_store(data, val);
+
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(reset_fops, __intel_gt_debugfs_reset_show,
 			__intel_gt_debugfs_reset_store, "%llu\n");
 
+static int steering_show(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct intel_gt *gt = m->private;
+
+	intel_gt_mcr_report_steering(&p, gt, true);
+
+	return 0;
+}
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(steering);
+
 static void gt_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "reset", &reset_fops, NULL },
+		{ "steering", &steering_fops },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);

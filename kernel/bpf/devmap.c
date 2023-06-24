@@ -48,6 +48,7 @@
 #include <net/xdp.h>
 #include <linux/filter.h>
 #include <trace/events/xdp.h>
+#include <linux/btf_ids.h>
 
 #define DEV_CREATE_FLAG_MASK \
 	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
@@ -162,13 +163,13 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	if (!capable(CAP_NET_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	dtab = kzalloc(sizeof(*dtab), GFP_USER | __GFP_ACCOUNT);
+	dtab = bpf_map_area_alloc(sizeof(*dtab), NUMA_NO_NODE);
 	if (!dtab)
 		return ERR_PTR(-ENOMEM);
 
 	err = dev_map_init_map(dtab, attr);
 	if (err) {
-		kfree(dtab);
+		bpf_map_area_free(dtab);
 		return ERR_PTR(err);
 	}
 
@@ -239,7 +240,7 @@ static void dev_map_free(struct bpf_map *map)
 		bpf_map_area_free(dtab->netdev_map);
 	}
 
-	kfree(dtab);
+	bpf_map_area_free(dtab);
 }
 
 static int dev_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
@@ -476,7 +477,7 @@ static inline int __xdp_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 	if (!dev->netdev_ops->ndo_xdp_xmit)
 		return -EOPNOTSUPP;
 
-	err = xdp_ok_fwd_dev(dev, xdpf->len);
+	err = xdp_ok_fwd_dev(dev, xdp_get_frame_len(xdpf));
 	if (unlikely(err))
 		return err;
 
@@ -535,7 +536,7 @@ static bool is_valid_dst(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf)
 	    !obj->dev->netdev_ops->ndo_xdp_xmit)
 		return false;
 
-	if (xdp_ok_fwd_dev(obj->dev, xdpf->len))
+	if (xdp_ok_fwd_dev(obj->dev, xdp_get_frame_len(xdpf)))
 		return false;
 
 	return true;
@@ -844,7 +845,7 @@ static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
 	struct bpf_dtab_netdev *dev;
 
 	dev = bpf_map_kmalloc_node(&dtab->map, sizeof(*dev),
-				   GFP_ATOMIC | __GFP_NOWARN,
+				   GFP_NOWAIT | __GFP_NOWARN,
 				   dtab->map.numa_node);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
@@ -1005,7 +1006,7 @@ static int dev_hash_map_redirect(struct bpf_map *map, u32 ifindex, u64 flags)
 				      __dev_map_hash_lookup_elem);
 }
 
-static int dev_map_btf_id;
+BTF_ID_LIST_SINGLE(dev_map_btf_ids, struct, bpf_dtab)
 const struct bpf_map_ops dev_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = dev_map_alloc,
@@ -1015,12 +1016,10 @@ const struct bpf_map_ops dev_map_ops = {
 	.map_update_elem = dev_map_update_elem,
 	.map_delete_elem = dev_map_delete_elem,
 	.map_check_btf = map_check_no_btf,
-	.map_btf_name = "bpf_dtab",
-	.map_btf_id = &dev_map_btf_id,
+	.map_btf_id = &dev_map_btf_ids[0],
 	.map_redirect = dev_map_redirect,
 };
 
-static int dev_map_hash_map_btf_id;
 const struct bpf_map_ops dev_map_hash_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = dev_map_alloc,
@@ -1030,8 +1029,7 @@ const struct bpf_map_ops dev_map_hash_ops = {
 	.map_update_elem = dev_map_hash_update_elem,
 	.map_delete_elem = dev_map_hash_delete_elem,
 	.map_check_btf = map_check_no_btf,
-	.map_btf_name = "bpf_dtab",
-	.map_btf_id = &dev_map_hash_map_btf_id,
+	.map_btf_id = &dev_map_btf_ids[0],
 	.map_redirect = dev_hash_map_redirect,
 };
 

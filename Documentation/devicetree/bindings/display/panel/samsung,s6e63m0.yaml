@@ -24,6 +24,10 @@ properties:
   default-brightness: true
   max-brightness: true
 
+  spi-3wire: true
+  spi-cpha: true
+  spi-cpol: true
+
   vdd3-supply:
     description: VDD regulator
 

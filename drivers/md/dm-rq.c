@@ -43,7 +43,6 @@ unsigned dm_get_reserved_rq_based_ios(void)
 	return __dm_get_module_param(&reserved_rq_based_ios,
 				     RESERVED_REQUEST_BASED_IOS, DM_RESERVED_MAX_IOS);
 }
-EXPORT_SYMBOL_GPL(dm_get_reserved_rq_based_ios);
 
 static unsigned dm_get_blk_mq_nr_hw_queues(void)
 {
@@ -239,7 +238,7 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 		dm_requeue_original_request(tio, true);
 		break;
 	default:
-		DMWARN("unimplemented target endio return value: %d", r);
+		DMCRIT("unimplemented target endio return value: %d", r);
 		BUG();
 	}
 }
@@ -293,11 +292,13 @@ static void dm_kill_unmapped_request(struct request *rq, blk_status_t error)
 	dm_complete_request(rq, error);
 }
 
-static void end_clone_request(struct request *clone, blk_status_t error)
+static enum rq_end_io_ret end_clone_request(struct request *clone,
+					    blk_status_t error)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
 	dm_complete_request(tio->orig, error);
+	return RQ_END_IO_NONE;
 }
 
 static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
@@ -319,7 +320,7 @@ static int setup_clone(struct request *clone, struct request *rq,
 {
 	int r;
 
-	r = blk_rq_prep_clone(clone, rq, &tio->md->bs, gfp_mask,
+	r = blk_rq_prep_clone(clone, rq, &tio->md->mempools->bs, gfp_mask,
 			      dm_rq_bio_constructor, tio);
 	if (r)
 		return r;
@@ -408,7 +409,7 @@ static int map_request(struct dm_rq_target_io *tio)
 		dm_kill_unmapped_request(rq, BLK_STS_IOERR);
 		break;
 	default:
-		DMWARN("unimplemented target map return value: %d", r);
+		DMCRIT("unimplemented target map return value: %d", r);
 		BUG();
 	}
 

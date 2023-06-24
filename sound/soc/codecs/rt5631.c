@@ -1666,7 +1666,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5631 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id rt5631_i2c_id[] = {
@@ -1699,8 +1698,7 @@ static const struct regmap_config rt5631_regmap_config = {
 	.use_single_write = true,
 };
 
-static int rt5631_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5631_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5631_priv *rt5631;
 	int ret;
@@ -1722,17 +1720,15 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int rt5631_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void rt5631_i2c_remove(struct i2c_client *client)
+{}
 
 static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {
 		.name = "rt5631",
 		.of_match_table = of_match_ptr(rt5631_i2c_dt_ids),
 	},
-	.probe = rt5631_i2c_probe,
+	.probe_new = rt5631_i2c_probe,
 	.remove   = rt5631_i2c_remove,
 	.id_table = rt5631_i2c_id,
 };

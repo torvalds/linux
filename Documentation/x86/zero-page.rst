@@ -19,6 +19,7 @@ Offset/Size	Proto	Name			Meaning
 058/008		ALL	tboot_addr      	Physical address of tboot shared page
 060/010		ALL	ist_info		Intel SpeedStep (IST) BIOS support information
 						(struct ist_info)
+070/008		ALL	acpi_rsdp_addr		Physical address of ACPI RSDP table
 080/010		ALL	hd0_info		hd0 disk parameter, OBSOLETE!!
 090/010		ALL	hd1_info		hd1 disk parameter, OBSOLETE!!
 0A0/010		ALL	sys_desc_table		System description table (struct sys_desc_table),
@@ -27,6 +28,7 @@ Offset/Size	Proto	Name			Meaning
 0C0/004		ALL	ext_ramdisk_image	ramdisk_image high 32bits
 0C4/004		ALL	ext_ramdisk_size	ramdisk_size high 32bits
 0C8/004		ALL	ext_cmd_line_ptr	cmd_line_ptr high 32bits
+13C/004		ALL	cc_blob_address		Physical address of Confidential Computing blob
 140/080		ALL	edid_info		Video mode setup (struct edid_info)
 1C0/020		ALL	efi_info		EFI 32 information (struct efi_info)
 1E0/004		ALL	alt_mem_k		Alternative mem check, in KB

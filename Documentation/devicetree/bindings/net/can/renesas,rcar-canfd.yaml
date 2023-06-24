@@ -23,6 +23,7 @@ properties:
               - renesas,r8a774e1-canfd     # RZ/G2H
               - renesas,r8a7795-canfd      # R-Car H3
               - renesas,r8a7796-canfd      # R-Car M3-W
+              - renesas,r8a77961-canfd     # R-Car M3-W+
               - renesas,r8a77965-canfd     # R-Car M3-N
               - renesas,r8a77970-canfd     # R-Car V3M
               - renesas,r8a77980-canfd     # R-Car V3H
@@ -32,6 +33,7 @@ properties:
 
       - items:
           - enum:
+              - renesas,r9a07g043-canfd    # RZ/G2UL
               - renesas,r9a07g044-canfd    # RZ/G2{L,LC}
               - renesas,r9a07g054-canfd    # RZ/V2L
           - const: renesas,rzg2l-canfd     # RZ/G2L family
@@ -86,6 +88,7 @@ required:
   - compatible
   - reg
   - interrupts
+  - interrupt-names
   - clocks
   - clock-names
   - power-domains
@@ -134,7 +137,6 @@ then:
         - const: rstc_n
 
   required:
-    - interrupt-names
     - reset-names
 else:
   properties:
@@ -165,6 +167,7 @@ examples:
             reg = <0xe66c0000 0x8000>;
             interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "ch_int", "g_int";
             clocks = <&cpg CPG_MOD 914>,
                      <&cpg CPG_CORE R8A7795_CLK_CANFD>,
                      <&can_clk>;

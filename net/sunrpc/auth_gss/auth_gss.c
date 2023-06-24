@@ -1340,14 +1340,11 @@ gss_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 /*
  * Lookup RPCSEC_GSS cred for the current process
  */
-static struct rpc_cred *
-gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
+static struct rpc_cred *gss_lookup_cred(struct rpc_auth *auth,
+					struct auth_cred *acred, int flags)
 {
-	gfp_t gfp = GFP_KERNEL;
-
-	if (flags & RPCAUTH_LOOKUP_ASYNC)
-		gfp = GFP_NOWAIT | __GFP_NOWARN;
-	return rpcauth_lookup_credcache(auth, acred, flags, gfp);
+	return rpcauth_lookup_credcache(auth, acred, flags,
+					rpc_task_gfp_mask());
 }
 
 static struct rpc_cred *
@@ -1992,7 +1989,7 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 		goto unwrap_failed;
 	mic.len = len;
 	mic.data = kmalloc(len, GFP_KERNEL);
-	if (!mic.data)
+	if (ZERO_OR_NULL_PTR(mic.data))
 		goto unwrap_failed;
 	if (read_bytes_from_xdr_buf(rcv_buf, offset, mic.data, mic.len))
 		goto unwrap_failed;

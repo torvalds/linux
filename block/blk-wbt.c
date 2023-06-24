@@ -451,7 +451,7 @@ static bool close_io(struct rq_wb *rwb)
 
 #define REQ_HIPRIO	(REQ_SYNC | REQ_META | REQ_PRIO)
 
-static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
+static inline unsigned int get_limit(struct rq_wb *rwb, blk_opf_t opf)
 {
 	unsigned int limit;
 
@@ -462,7 +462,7 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 	if (!rwb_enabled(rwb))
 		return UINT_MAX;
 
-	if ((rw & REQ_OP_MASK) == REQ_OP_DISCARD)
+	if ((opf & REQ_OP_MASK) == REQ_OP_DISCARD)
 		return rwb->wb_background;
 
 	/*
@@ -473,9 +473,9 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 	 * the idle limit, or go to normal if we haven't had competing
 	 * IO for a bit.
 	 */
-	if ((rw & REQ_HIPRIO) || wb_recent_wait(rwb) || current_is_kswapd())
+	if ((opf & REQ_HIPRIO) || wb_recent_wait(rwb) || current_is_kswapd())
 		limit = rwb->rq_depth.max_depth;
-	else if ((rw & REQ_BACKGROUND) || close_io(rwb)) {
+	else if ((opf & REQ_BACKGROUND) || close_io(rwb)) {
 		/*
 		 * If less than 100ms since we completed unrelated IO,
 		 * limit us to half the depth for background writeback.
@@ -490,13 +490,13 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 struct wbt_wait_data {
 	struct rq_wb *rwb;
 	enum wbt_flags wb_acct;
-	unsigned long rw;
+	blk_opf_t opf;
 };
 
 static bool wbt_inflight_cb(struct rq_wait *rqw, void *private_data)
 {
 	struct wbt_wait_data *data = private_data;
-	return rq_wait_inc_below(rqw, get_limit(data->rwb, data->rw));
+	return rq_wait_inc_below(rqw, get_limit(data->rwb, data->opf));
 }
 
 static void wbt_cleanup_cb(struct rq_wait *rqw, void *private_data)
@@ -510,13 +510,13 @@ static void wbt_cleanup_cb(struct rq_wait *rqw, void *private_data)
  * the timer to kick off queuing again.
  */
 static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
-		       unsigned long rw)
+		       blk_opf_t opf)
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	struct wbt_wait_data data = {
 		.rwb = rwb,
 		.wb_acct = wb_acct,
-		.rw = rw,
+		.opf = opf,
 	};
 
 	rq_qos_wait(rqw, &data, wbt_inflight_cb, wbt_cleanup_cb);
@@ -670,7 +670,7 @@ u64 wbt_default_latency_nsec(struct request_queue *q)
 
 static int wbt_data_dir(const struct request *rq)
 {
-	const int op = req_op(rq);
+	const enum req_op op = req_op(rq);
 
 	if (op == REQ_OP_READ)
 		return READ;
@@ -820,6 +820,7 @@ int wbt_init(struct request_queue *q)
 {
 	struct rq_wb *rwb;
 	int i;
+	int ret;
 
 	rwb = kzalloc(sizeof(*rwb), GFP_KERNEL);
 	if (!rwb)
@@ -840,19 +841,26 @@ int wbt_init(struct request_queue *q)
 	rwb->last_comp = rwb->last_issue = jiffies;
 	rwb->win_nsec = RWB_WINDOW_NSEC;
 	rwb->enable_state = WBT_STATE_ON_DEFAULT;
-	rwb->wc = 1;
+	rwb->wc = test_bit(QUEUE_FLAG_WC, &q->queue_flags);
 	rwb->rq_depth.default_depth = RWB_DEF_DEPTH;
+	rwb->min_lat_nsec = wbt_default_latency_nsec(q);
+
+	wbt_queue_depth_changed(&rwb->rqos);
 
 	/*
 	 * Assign rwb and add the stats callback.
 	 */
-	rq_qos_add(q, &rwb->rqos);
+	ret = rq_qos_add(q, &rwb->rqos);
+	if (ret)
+		goto err_free;
+
 	blk_stat_add_callback(q, rwb->cb);
 
-	rwb->min_lat_nsec = wbt_default_latency_nsec(q);
-
-	wbt_queue_depth_changed(&rwb->rqos);
-	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
-
 	return 0;
+
+err_free:
+	blk_stat_free_callback(rwb->cb);
+	kfree(rwb);
+	return ret;
+
 }

@@ -271,8 +271,8 @@ static int optee_ffa_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 				  unsigned long start)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
-	const struct ffa_dev_ops *ffa_ops = optee->ffa.ffa_ops;
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
+	const struct ffa_mem_ops *mem_ops = ffa_dev->ops->mem_ops;
 	struct ffa_mem_region_attributes mem_attr = {
 		.receiver = ffa_dev->vm_id,
 		.attrs = FFA_MEM_RW,
@@ -294,14 +294,14 @@ static int optee_ffa_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	if (rc)
 		return rc;
 	args.sg = sgt.sgl;
-	rc = ffa_ops->memory_share(ffa_dev, &args);
+	rc = mem_ops->memory_share(&args);
 	sg_free_table(&sgt);
 	if (rc)
 		return rc;
 
 	rc = optee_shm_add_ffa_handle(optee, shm, args.g_handle);
 	if (rc) {
-		ffa_ops->memory_reclaim(args.g_handle, 0);
+		mem_ops->memory_reclaim(args.g_handle, 0);
 		return rc;
 	}
 
@@ -314,8 +314,9 @@ static int optee_ffa_shm_unregister(struct tee_context *ctx,
 				    struct tee_shm *shm)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
-	const struct ffa_dev_ops *ffa_ops = optee->ffa.ffa_ops;
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
+	const struct ffa_msg_ops *msg_ops = ffa_dev->ops->msg_ops;
+	const struct ffa_mem_ops *mem_ops = ffa_dev->ops->mem_ops;
 	u64 global_handle = shm->sec_world_id;
 	struct ffa_send_direct_data data = {
 		.data0 = OPTEE_FFA_UNREGISTER_SHM,
@@ -327,11 +328,11 @@ static int optee_ffa_shm_unregister(struct tee_context *ctx,
 	optee_shm_rem_ffa_handle(optee, global_handle);
 	shm->sec_world_id = 0;
 
-	rc = ffa_ops->sync_send_receive(ffa_dev, &data);
+	rc = msg_ops->sync_send_receive(ffa_dev, &data);
 	if (rc)
 		pr_err("Unregister SHM id 0x%llx rc %d\n", global_handle, rc);
 
-	rc = ffa_ops->memory_reclaim(global_handle, 0);
+	rc = mem_ops->memory_reclaim(global_handle, 0);
 	if (rc)
 		pr_err("mem_reclaim: 0x%llx %d", global_handle, rc);
 
@@ -342,7 +343,7 @@ static int optee_ffa_shm_unregister_supp(struct tee_context *ctx,
 					 struct tee_shm *shm)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
-	const struct ffa_dev_ops *ffa_ops = optee->ffa.ffa_ops;
+	const struct ffa_mem_ops *mem_ops;
 	u64 global_handle = shm->sec_world_id;
 	int rc;
 
@@ -353,7 +354,8 @@ static int optee_ffa_shm_unregister_supp(struct tee_context *ctx,
 	 */
 
 	optee_shm_rem_ffa_handle(optee, global_handle);
-	rc = ffa_ops->memory_reclaim(global_handle, 0);
+	mem_ops = optee->ffa.ffa_dev->ops->mem_ops;
+	rc = mem_ops->memory_reclaim(global_handle, 0);
 	if (rc)
 		pr_err("mem_reclaim: 0x%llx %d", global_handle, rc);
 
@@ -529,8 +531,8 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 				   struct optee_msg_arg *rpc_arg)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
-	const struct ffa_dev_ops *ffa_ops = optee->ffa.ffa_ops;
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
+	const struct ffa_msg_ops *msg_ops = ffa_dev->ops->msg_ops;
 	struct optee_call_waiter w;
 	u32 cmd = data->data0;
 	u32 w4 = data->data1;
@@ -541,7 +543,7 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-		rc = ffa_ops->sync_send_receive(ffa_dev, data);
+		rc = msg_ops->sync_send_receive(ffa_dev, data);
 		if (rc)
 			goto done;
 
@@ -576,7 +578,7 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 		 * OP-TEE has returned with a RPC request.
 		 *
 		 * Note that data->data4 (passed in register w7) is already
-		 * filled in by ffa_ops->sync_send_receive() returning
+		 * filled in by ffa_mem_ops->sync_send_receive() returning
 		 * above.
 		 */
 		cond_resched();
@@ -601,6 +603,7 @@ done:
  * optee_ffa_do_call_with_arg() - Do a FF-A call to enter OP-TEE in secure world
  * @ctx:	calling context
  * @shm:	shared memory holding the message to pass to secure world
+ * @offs:	offset of the message in @shm
  *
  * Does a FF-A call to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -609,24 +612,33 @@ done:
  */
 
 static int optee_ffa_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *shm)
+				      struct tee_shm *shm, u_int offs)
 {
 	struct ffa_send_direct_data data = {
 		.data0 = OPTEE_FFA_YIELDING_CALL_WITH_ARG,
 		.data1 = (u32)shm->sec_world_id,
 		.data2 = (u32)(shm->sec_world_id >> 32),
-		.data3 = shm->offset,
+		.data3 = offs,
 	};
 	struct optee_msg_arg *arg;
 	unsigned int rpc_arg_offs;
 	struct optee_msg_arg *rpc_arg;
 
-	arg = tee_shm_get_va(shm, 0);
+	/*
+	 * The shared memory object has to start on a page when passed as
+	 * an argument struct. This is also what the shm pool allocator
+	 * returns, but check this before calling secure world to catch
+	 * eventual errors early in case something changes.
+	 */
+	if (shm->offset)
+		return -EINVAL;
+
+	arg = tee_shm_get_va(shm, offs);
 	if (IS_ERR(arg))
 		return PTR_ERR(arg);
 
 	rpc_arg_offs = OPTEE_MSG_GET_ARG_SIZE(arg->num_params);
-	rpc_arg = tee_shm_get_va(shm, rpc_arg_offs);
+	rpc_arg = tee_shm_get_va(shm, offs + rpc_arg_offs);
 	if (IS_ERR(rpc_arg))
 		return PTR_ERR(rpc_arg);
 
@@ -642,14 +654,15 @@ static int optee_ffa_do_call_with_arg(struct tee_context *ctx,
  */
 
 static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
-					const struct ffa_dev_ops *ops)
+					const struct ffa_ops *ops)
 {
+	const struct ffa_msg_ops *msg_ops = ops->msg_ops;
 	struct ffa_send_direct_data data = { OPTEE_FFA_GET_API_VERSION };
 	int rc;
 
-	ops->mode_32bit_set(ffa_dev);
+	msg_ops->mode_32bit_set(ffa_dev);
 
-	rc = ops->sync_send_receive(ffa_dev, &data);
+	rc = msg_ops->sync_send_receive(ffa_dev, &data);
 	if (rc) {
 		pr_err("Unexpected error %d\n", rc);
 		return false;
@@ -662,7 +675,7 @@ static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
 	}
 
 	data = (struct ffa_send_direct_data){ OPTEE_FFA_GET_OS_VERSION };
-	rc = ops->sync_send_receive(ffa_dev, &data);
+	rc = msg_ops->sync_send_receive(ffa_dev, &data);
 	if (rc) {
 		pr_err("Unexpected error %d\n", rc);
 		return false;
@@ -677,13 +690,14 @@ static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
 }
 
 static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
-				    const struct ffa_dev_ops *ops,
-				    unsigned int *rpc_arg_count)
+				    const struct ffa_ops *ops,
+				    u32 *sec_caps,
+				    unsigned int *rpc_param_count)
 {
 	struct ffa_send_direct_data data = { OPTEE_FFA_EXCHANGE_CAPABILITIES };
 	int rc;
 
-	rc = ops->sync_send_receive(ffa_dev, &data);
+	rc = ops->msg_ops->sync_send_receive(ffa_dev, &data);
 	if (rc) {
 		pr_err("Unexpected error %d", rc);
 		return false;
@@ -693,7 +707,8 @@ static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 		return false;
 	}
 
-	*rpc_arg_count = (u8)data.data1;
+	*rpc_param_count = (u8)data.data1;
+	*sec_caps = data.data2;
 
 	return true;
 }
@@ -759,7 +774,7 @@ static const struct optee_ops optee_ffa_ops = {
 
 static void optee_ffa_remove(struct ffa_device *ffa_dev)
 {
-	struct optee *optee = ffa_dev->dev.driver_data;
+	struct optee *optee = ffa_dev_get_drvdata(ffa_dev);
 
 	optee_remove_common(optee);
 
@@ -771,25 +786,26 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 
 static int optee_ffa_probe(struct ffa_device *ffa_dev)
 {
-	const struct ffa_dev_ops *ffa_ops;
-	unsigned int rpc_arg_count;
+	const struct ffa_ops *ffa_ops;
+	unsigned int rpc_param_count;
 	struct tee_shm_pool *pool;
 	struct tee_device *teedev;
 	struct tee_context *ctx;
+	u32 arg_cache_flags = 0;
 	struct optee *optee;
+	u32 sec_caps;
 	int rc;
 
-	ffa_ops = ffa_dev_ops_get(ffa_dev);
-	if (!ffa_ops) {
-		pr_warn("failed \"method\" init: ffa\n");
-		return -ENOENT;
-	}
+	ffa_ops = ffa_dev->ops;
 
 	if (!optee_ffa_api_is_compatbile(ffa_dev, ffa_ops))
 		return -EINVAL;
 
-	if (!optee_ffa_exchange_caps(ffa_dev, ffa_ops, &rpc_arg_count))
+	if (!optee_ffa_exchange_caps(ffa_dev, ffa_ops, &sec_caps,
+				     &rpc_param_count))
 		return -EINVAL;
+	if (sec_caps & OPTEE_FFA_SEC_CAP_ARG_OFFSET)
+		arg_cache_flags |= OPTEE_SHM_ARG_SHARED;
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee)
@@ -804,8 +820,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 
 	optee->ops = &optee_ffa_ops;
 	optee->ffa.ffa_dev = ffa_dev;
-	optee->ffa.ffa_ops = ffa_ops;
-	optee->rpc_arg_count = rpc_arg_count;
+	optee->rpc_param_count = rpc_param_count;
 
 	teedev = tee_device_alloc(&optee_ffa_clnt_desc, NULL, optee->pool,
 				  optee);
@@ -838,6 +853,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	mutex_init(&optee->call_queue.mutex);
 	INIT_LIST_HEAD(&optee->call_queue.waiters);
 	optee_supp_init(&optee->supp);
+	optee_shm_arg_cache_init(optee, arg_cache_flags);
 	ffa_dev_set_drvdata(ffa_dev, optee);
 	ctx = teedev_open(optee->teedev);
 	if (IS_ERR(ctx)) {

@@ -144,7 +144,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_pins_wakeup>;
 
-		wowlan {
+		button-wowlan {
 			label = "Wake on WiFi";
 			gpios = <&pio 113 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_WAKEUP>;
@@ -230,6 +230,10 @@
 	status = "okay";
 };
 
+&cci {
+	proc-supply = <&mt6358_vproc12_reg>;
+};
+
 &cpu0 {
 	proc-supply = <&mt6358_vproc12_reg>;
 };
@@ -276,6 +280,7 @@
 		avee-supply = <&ppvarp_lcd>;
 		pp1800-supply = <&pp1800_lcd>;
 		backlight = <&backlight_lcd0>;
+		rotation = <270>;
 		port {
 			panel_in: endpoint {
 				remote-endpoint = <&dsi_out>;
@@ -378,7 +383,7 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	cap-sdio-irq;
 	non-removable;
 	no-mmc;
@@ -817,6 +822,10 @@
 	};
 };
 
+&mfg_async {
+	domain-supply = <&mt6358_vsram_gpu_reg>;
+};
+
 &mfg {
 	domain-supply = <&mt6358_vgpu_reg>;
 };
@@ -849,7 +858,7 @@
 	mediatek,pad-select = <0>;
 	status = "okay";
 
-	w25q64dw: spi-flash@0 {
+	w25q64dw: flash@0 {
 		compatible = "winbond,w25q64dw", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <25000000>;

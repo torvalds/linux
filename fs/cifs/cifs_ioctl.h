@@ -91,6 +91,13 @@ struct smb3_notify {
 	bool	watch_tree;
 } __packed;
 
+struct smb3_notify_info {
+	__u32	completion_filter;
+	bool	watch_tree;
+	__u32   data_len; /* size of notify data below */
+	__u8	notify_data[];
+} __packed;
+
 #define CIFS_IOCTL_MAGIC	0xCF
 #define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
 #define CIFS_IOC_SET_INTEGRITY  _IO(CIFS_IOCTL_MAGIC, 4)
@@ -100,6 +107,7 @@ struct smb3_notify {
 #define CIFS_DUMP_KEY _IOWR(CIFS_IOCTL_MAGIC, 8, struct smb3_key_debug_info)
 #define CIFS_IOC_NOTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_notify)
 #define CIFS_DUMP_FULL_KEY _IOWR(CIFS_IOCTL_MAGIC, 10, struct smb3_full_key_debug_info)
+#define CIFS_IOC_NOTIFY_INFO _IOWR(CIFS_IOCTL_MAGIC, 11, struct smb3_notify_info)
 #define CIFS_IOC_SHUTDOWN _IOR ('X', 125, __u32)
 
 /*

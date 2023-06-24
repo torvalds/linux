@@ -7,7 +7,7 @@ This file documents some driver-specific aspects of the UVC driver, such as
 driver-specific ioctls and implementation notes.
 
 Questions and remarks can be sent to the Linux UVC development mailing list at
-linux-uvc-devel@lists.berlios.de.
+linux-media@vger.kernel.org.
 
 
 Extension Unit (XU) support

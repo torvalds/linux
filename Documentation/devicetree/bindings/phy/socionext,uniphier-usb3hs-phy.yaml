@@ -31,27 +31,15 @@ properties:
     const: 0
 
   clocks:
-    minItems: 1
+    minItems: 2
     maxItems: 3
 
-  clock-names:
-    oneOf:
-      - const: link          # for PXs2
-      - items:               # for PXs3 with phy-ext
-          - const: link
-          - const: phy
-          - const: phy-ext
-      - items:               # for others
-          - const: link
-          - const: phy
+  clock-names: true
 
   resets:
     maxItems: 2
 
-  reset-names:
-    items:
-      - const: link
-      - const: phy
+  reset-names: true
 
   vbus-supply:
     description: A phandle to the regulator for USB VBUS
@@ -73,6 +61,77 @@ properties:
       All of the 3 parameters associated with the above names are
       required for each port, if any one is omitted, the trimming data
       of the port will not be set at all.
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pro5-usb3-hsphy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: gio
+            - const: link
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: gio
+            - const: link
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - socionext,uniphier-pxs2-usb3-hsphy
+              - socionext,uniphier-ld20-usb3-hsphy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: link
+            - const: phy
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: link
+            - const: phy
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - socionext,uniphier-pxs3-usb3-hsphy
+              - socionext,uniphier-nx1-usb3-hsphy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 3
+        clock-names:
+          minItems: 2
+          items:
+            - const: link
+            - const: phy
+            - const: phy-ext
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: link
+            - const: phy
 
 required:
   - compatible

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Elan I2C/SMBus Touchpad device whitelist
  *
@@ -10,10 +11,6 @@
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
  * copyright (c) 2011-2012 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Trademarks are the property of their respective owners.
  */

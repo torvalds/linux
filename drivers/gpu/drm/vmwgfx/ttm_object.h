@@ -96,7 +96,7 @@ struct ttm_object_device;
  *
  * This struct is intended to be used as a base struct for objects that
  * are visible to user-space. It provides a global name, race-safe
- * access and refcounting, minimal access contol and hooks for unref actions.
+ * access and refcounting, minimal access control and hooks for unref actions.
  */
 
 struct ttm_base_object {
@@ -138,7 +138,7 @@ struct ttm_prime_object {
  *
  * @tfile: Pointer to a struct ttm_object_file.
  * @base: The struct ttm_base_object to initialize.
- * @shareable: This object is shareable with other applcations.
+ * @shareable: This object is shareable with other applications.
  * (different @tfile pointers.)
  * @type: The object type.
  * @refcount_release: See the struct ttm_base_object description.

@@ -3120,18 +3120,17 @@ static int set_aif_sample_format(struct snd_soc_component *component,
 	unsigned int width;
 	int ret;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (snd_pcm_format_width(format)) {
+	case 16:
 		width = FV_WL_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		width = FV_WL_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_3LE:
+	case 24:
 		width = FV_WL_24;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		width = FV_WL_32;
 		break;
 	default:
@@ -3326,6 +3325,7 @@ static const struct snd_soc_component_driver soc_component_dev_tscs454 = {
 	.num_dapm_routes = ARRAY_SIZE(tscs454_intercon),
 	.controls =	tscs454_snd_controls,
 	.num_controls = ARRAY_SIZE(tscs454_snd_controls),
+	.endianness = 1,
 };
 
 #define TSCS454_RATES SNDRV_PCM_RATE_8000_96000
@@ -3400,8 +3400,7 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 static char const * const src_names[] = {
 	"xtal", "mclk1", "mclk2", "bclk"};
 
-static int tscs454_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int tscs454_i2c_probe(struct i2c_client *i2c)
 {
 	struct tscs454 *tscs454;
 	int src;
@@ -3474,7 +3473,7 @@ static struct i2c_driver tscs454_i2c_driver = {
 		.name = "tscs454",
 		.of_match_table = tscs454_of_match,
 	},
-	.probe =    tscs454_i2c_probe,
+	.probe_new = tscs454_i2c_probe,
 	.id_table = tscs454_i2c_id,
 };
 

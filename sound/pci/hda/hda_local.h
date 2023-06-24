@@ -348,6 +348,7 @@ void snd_hda_apply_verbs(struct hda_codec *codec);
 void snd_hda_apply_pincfgs(struct hda_codec *codec,
 			   const struct hda_pintbl *cfg);
 void snd_hda_apply_fixup(struct hda_codec *codec, int action);
+void __snd_hda_apply_fixup(struct hda_codec *codec, int id, int action, int depth);
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
 			const struct snd_pci_quirk *quirk,
@@ -711,7 +712,8 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 
 #ifdef CONFIG_SND_PROC_FS
 void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
-			     struct snd_info_buffer *buffer);
+			     struct snd_info_buffer *buffer,
+			     hda_nid_t pin_nid, int dev_id, hda_nid_t cvt_nid);
 void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
 			     struct snd_info_buffer *buffer);
 #endif

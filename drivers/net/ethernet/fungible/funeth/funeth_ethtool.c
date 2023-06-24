@@ -78,6 +78,7 @@ static const char * const txq_stat_names[] = {
 	"tx_cso",
 	"tx_tso",
 	"tx_encapsulated_tso",
+	"tx_uso",
 	"tx_more",
 	"tx_queue_stops",
 	"tx_queue_restarts",
@@ -778,6 +779,7 @@ static void fun_get_ethtool_stats(struct net_device *netdev,
 		ADD_STAT(txs.tx_cso);
 		ADD_STAT(txs.tx_tso);
 		ADD_STAT(txs.tx_encap_tso);
+		ADD_STAT(txs.tx_uso);
 		ADD_STAT(txs.tx_more);
 		ADD_STAT(txs.tx_nstops);
 		ADD_STAT(txs.tx_nrestarts);
@@ -1116,6 +1118,39 @@ static int fun_set_fecparam(struct net_device *netdev,
 	return fun_port_write_cmd(fp, FUN_ADMIN_PORT_KEY_FEC, fec_mode);
 }
 
+static int fun_get_port_module_page(struct net_device *netdev,
+				    const struct ethtool_module_eeprom *req,
+				    struct netlink_ext_ack *extack)
+{
+	union {
+		struct fun_admin_port_req req;
+		struct fun_admin_port_xcvr_read_rsp rsp;
+	} cmd;
+	struct funeth_priv *fp = netdev_priv(netdev);
+	int rc;
+
+	if (fp->port_caps & FUN_PORT_CAP_VPORT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Specified port is virtual, only physical ports have modules");
+		return -EOPNOTSUPP;
+	}
+
+	cmd.req.common = FUN_ADMIN_REQ_COMMON_INIT2(FUN_ADMIN_OP_PORT,
+						    sizeof(cmd.req));
+	cmd.req.u.xcvr_read =
+		FUN_ADMIN_PORT_XCVR_READ_REQ_INIT(0, netdev->dev_port,
+						  req->bank, req->page,
+						  req->offset, req->length,
+						  req->i2c_address);
+	rc = fun_submit_admin_sync_cmd(fp->fdev, &cmd.req.common, &cmd.rsp,
+				       sizeof(cmd.rsp), 0);
+	if (rc)
+		return rc;
+
+	memcpy(req->data, cmd.rsp.data, req->length);
+	return req->length;
+}
+
 static const struct ethtool_ops fun_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -1154,6 +1189,7 @@ static const struct ethtool_ops fun_ethtool_ops = {
 	.get_eth_mac_stats   = fun_get_802_3_stats,
 	.get_eth_ctrl_stats  = fun_get_802_3_ctrl_stats,
 	.get_rmon_stats      = fun_get_rmon_stats,
+	.get_module_eeprom_by_page = fun_get_port_module_page,
 };
 
 void fun_set_ethtool_ops(struct net_device *netdev)

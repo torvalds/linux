@@ -81,6 +81,15 @@ static void __resctrl_sched_in(void)
 	}
 }
 
+static inline unsigned int resctrl_arch_round_mon_val(unsigned int val)
+{
+	unsigned int scale = boot_cpu_data.x86_cache_occ_scale;
+
+	/* h/w works in units of "boot_cpu_data.x86_cache_occ_scale" */
+	val /= scale;
+	return val * scale;
+}
+
 static inline void resctrl_sched_in(void)
 {
 	if (static_branch_likely(&rdt_enable_key))

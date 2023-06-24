@@ -30,11 +30,11 @@ DAMON provides below interfaces for different users.
   <sysfs_interface>`.  This will be removed after next LTS kernel is released,
   so users should move to the :ref:`sysfs interface <sysfs_interface>`.
 - *Kernel Space Programming Interface.*
-  :doc:`This </vm/damon/api>` is for kernel space programmers.  Using this,
+  :doc:`This </mm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
   writing kernel space DAMON application programs for you.  You can even extend
   DAMON for various address spaces.  For detail, please refer to the interface
-  :doc:`document </vm/damon/api>`.
+  :doc:`document </mm/damon/api>`.
 
 .. _sysfs_interface:
 
@@ -50,10 +50,10 @@ For a short example, users can monitor the virtual address space of a given
 workload as below. ::
 
     # cd /sys/kernel/mm/damon/admin/
-    # echo 1 > kdamonds/nr && echo 1 > kdamonds/0/contexts/nr
+    # echo 1 > kdamonds/nr_kdamonds && echo 1 > kdamonds/0/contexts/nr_contexts
     # echo vaddr > kdamonds/0/contexts/0/operations
-    # echo 1 > kdamonds/0/contexts/0/targets/nr
-    # echo $(pidof <workload>) > kdamonds/0/contexts/0/targets/0/pid
+    # echo 1 > kdamonds/0/contexts/0/targets/nr_targets
+    # echo $(pidof <workload>) > kdamonds/0/contexts/0/targets/0/pid_target
     # echo on > kdamonds/0/state
 
 Files Hierarchy
@@ -68,7 +68,7 @@ comma (","). ::
     │ kdamonds/nr_kdamonds
     │ │ 0/state,pid
     │ │ │ contexts/nr_contexts
-    │ │ │ │ 0/operations
+    │ │ │ │ 0/avail_operations,operations
     │ │ │ │ │ monitoring_attrs/
     │ │ │ │ │ │ intervals/sample_us,aggr_us,update_us
     │ │ │ │ │ │ nr_regions/min,max
@@ -121,10 +121,11 @@ In each kdamond directory, two files (``state`` and ``pid``) and one directory
 
 Reading ``state`` returns ``on`` if the kdamond is currently running, or
 ``off`` if it is not running.  Writing ``on`` or ``off`` makes the kdamond be
-in the state.  Writing ``update_schemes_stats`` to ``state`` file updates the
-contents of stats files for each DAMON-based operation scheme of the kdamond.
-For details of the stats, please refer to :ref:`stats section
-<sysfs_schemes_stats>`.
+in the state.  Writing ``commit`` to the ``state`` file makes kdamond reads the
+user inputs in the sysfs files except ``state`` file again.  Writing
+``update_schemes_stats`` to ``state`` file updates the contents of stats files
+for each DAMON-based operation scheme of the kdamond.  For details of the
+stats, please refer to :ref:`stats section <sysfs_schemes_stats>`.
 
 If the state is ``on``, reading ``pid`` shows the pid of the kdamond thread.
 
@@ -143,16 +144,27 @@ be written to the file.
 contexts/<N>/
 -------------
 
-In each context directory, one file (``operations``) and three directories
-(``monitoring_attrs``, ``targets``, and ``schemes``) exist.
+In each context directory, two files (``avail_operations`` and ``operations``)
+and three directories (``monitoring_attrs``, ``targets``, and ``schemes``)
+exist.
 
 DAMON supports multiple types of monitoring operations, including those for
-virtual address space and the physical address space.  You can set and get what
-type of monitoring operations DAMON will use for the context by writing one of
-below keywords to, and reading from the file.
+virtual address space and the physical address space.  You can get the list of
+available monitoring operations set on the currently running kernel by reading
+``avail_operations`` file.  Based on the kernel configuration, the file will
+list some or all of below keywords.
 
  - vaddr: Monitor virtual address spaces of specific processes
+ - fvaddr: Monitor fixed virtual address ranges
  - paddr: Monitor the physical address space of the system
+
+Please refer to :ref:`regions sysfs directory <sysfs_regions>` for detailed
+differences between the operations sets in terms of the monitoring target
+regions.
+
+You can set and get what type of monitoring operations DAMON will use for the
+context by writing one of the keywords listed in ``avail_operations`` file and
+reading from the ``operations`` file.
 
 contexts/<N>/monitoring_attrs/
 ------------------------------
@@ -173,7 +185,7 @@ controls the monitoring overhead, exist.  You can set and get the values by
 writing to and rading from the files.
 
 For more details about the intervals and monitoring regions range, please refer
-to the Design document (:doc:`/vm/damon/design`).
+to the Design document (:doc:`/mm/damon/design`).
 
 contexts/<N>/targets/
 ---------------------
@@ -192,6 +204,8 @@ If you wrote ``vaddr`` to the ``contexts/<N>/operations``, each target should
 be a process.  You can specify the process to DAMON by writing the pid of the
 process to the ``pid_target`` file.
 
+.. _sysfs_regions:
+
 targets/<N>/regions
 -------------------
 
@@ -202,9 +216,10 @@ can be covered.  However, users could want to set the initial monitoring region
 to specific address ranges.
 
 In contrast, DAMON do not automatically sets and updates the monitoring target
-regions when ``paddr`` monitoring operations set is being used (``paddr`` is
-written to the ``contexts/<N>/operations``).  Therefore, users should set the
-monitoring target regions by themselves in the case.
+regions when ``fvaddr`` or ``paddr`` monitoring operations sets are being used
+(``fvaddr`` or ``paddr`` have written to the ``contexts/<N>/operations``).
+Therefore, users should set the monitoring target regions by themselves in the
+cases.
 
 For such cases, users can explicitly set the initial monitoring target regions
 as they want, by writing proper values to the files under this directory.
@@ -249,6 +264,8 @@ that can be written to and read from the file and their meaning are as below.
  - ``pageout``: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
  - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
  - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
+ - ``lru_prio``: Prioritize the region on its LRU lists.
+ - ``lru_deprio``: Deprioritize the region on its LRU lists.
  - ``stat``: Do nothing but count the statistics
 
 schemes/<N>/access_pattern/
@@ -349,12 +366,12 @@ memory rate becomes larger than 60%, or lower than 30%". ::
     # echo 1 > kdamonds/0/contexts/0/schemes/nr_schemes
     # cd kdamonds/0/contexts/0/schemes/0
     # # set the basic access pattern and the action
-    # echo 4096 > access_patterns/sz/min
-    # echo 8192 > access_patterns/sz/max
-    # echo 0 > access_patterns/nr_accesses/min
-    # echo 5 > access_patterns/nr_accesses/max
-    # echo 10 > access_patterns/age/min
-    # echo 20 > access_patterns/age/max
+    # echo 4096 > access_pattern/sz/min
+    # echo 8192 > access_pattern/sz/max
+    # echo 0 > access_pattern/nr_accesses/min
+    # echo 5 > access_pattern/nr_accesses/max
+    # echo 10 > access_pattern/age/min
+    # echo 20 > access_pattern/age/max
     # echo pageout > action
     # # set quotas
     # echo 10 > quotas/ms
@@ -376,6 +393,11 @@ the files as above.  Above is only for an example.
 debugfs Interface
 =================
 
+.. note::
+
+  DAMON debugfs interface will be removed after next LTS kernel is released, so
+  users should move to the :ref:`sysfs interface <sysfs_interface>`.
+
 DAMON exports eight files, ``attrs``, ``target_ids``, ``init_regions``,
 ``schemes``, ``monitor_on``, ``kdamond_pid``, ``mk_contexts`` and
 ``rm_contexts`` under its debugfs directory, ``<debugfs>/damon/``.
@@ -387,7 +409,7 @@ Attributes
 Users can get and set the ``sampling interval``, ``aggregation interval``,
 ``update interval``, and min/max number of monitoring target regions by
 reading from and writing to the ``attrs`` file.  To know about the monitoring
-attributes in detail, please refer to the :doc:`/vm/damon/design`.  For
+attributes in detail, please refer to the :doc:`/mm/damon/design`.  For
 example, below commands set those values to 5 ms, 100 ms, 1,000 ms, 10 and
 1000, and then check it again::
 

@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
@@ -62,20 +63,25 @@ struct stm32_adc_priv;
  * @regs:	common registers for all instances
  * @clk_sel:	clock selection routine
  * @max_clk_rate_hz: maximum analog clock rate (Hz, from datasheet)
+ * @ipid:	adc identification number
  * @has_syscfg: SYSCFG capability flags
  * @num_irqs:	number of interrupt lines
+ * @num_adcs:   maximum number of ADC instances in the common registers
  */
 struct stm32_adc_priv_cfg {
 	const struct stm32_adc_common_regs *regs;
 	int (*clk_sel)(struct platform_device *, struct stm32_adc_priv *);
 	u32 max_clk_rate_hz;
+	u32 ipid;
 	unsigned int has_syscfg;
 	unsigned int num_irqs;
+	unsigned int num_adcs;
 };
 
 /**
  * struct stm32_adc_priv - stm32 ADC core private data
  * @irq:		irq(s) for ADC block
+ * @nb_adc_max:		actual maximum number of instance per ADC block
  * @domain:		irq domain reference
  * @aclk:		clock reference for the analog circuitry
  * @bclk:		bus clock common for all ADCs, depends on part used
@@ -93,6 +99,7 @@ struct stm32_adc_priv_cfg {
  */
 struct stm32_adc_priv {
 	int				irq[STM32_ADC_MAX_ADCS];
+	unsigned int			nb_adc_max;
 	struct irq_domain		*domain;
 	struct clk			*aclk;
 	struct clk			*bclk;
@@ -352,11 +359,11 @@ static void stm32_adc_irq_handler(struct irq_desc *desc)
 	 * before invoking the interrupt handler (e.g. call ISR only for
 	 * IRQ-enabled ADCs).
 	 */
-	for (i = 0; i < priv->cfg->num_irqs; i++) {
+	for (i = 0; i < priv->nb_adc_max; i++) {
 		if ((status & priv->cfg->regs->eoc_msk[i] &&
 		     stm32_adc_eoc_enabled(priv, i)) ||
 		     (status & priv->cfg->regs->ovr_msk[i]))
-			generic_handle_irq(irq_find_mapping(priv->domain, i));
+			generic_handle_domain_irq(priv->domain, i);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -422,7 +429,7 @@ static void stm32_adc_irq_remove(struct platform_device *pdev,
 	int hwirq;
 	unsigned int i;
 
-	for (hwirq = 0; hwirq < STM32_ADC_MAX_ADCS; hwirq++)
+	for (hwirq = 0; hwirq < priv->nb_adc_max; hwirq++)
 		irq_dispose_mapping(irq_find_mapping(priv->domain, hwirq));
 	irq_domain_remove(priv->domain);
 
@@ -640,6 +647,49 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 	return 0;
 }
 
+static int stm32_adc_probe_identification(struct platform_device *pdev,
+					  struct stm32_adc_priv *priv)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *child;
+	const char *compat;
+	int ret, count = 0;
+	u32 id, val;
+
+	if (!priv->cfg->ipid)
+		return 0;
+
+	id = FIELD_GET(STM32MP1_IPIDR_MASK,
+		       readl_relaxed(priv->common.base + STM32MP1_ADC_IPDR));
+	if (id != priv->cfg->ipid) {
+		dev_err(&pdev->dev, "Unexpected IP version: 0x%x", id);
+		return -EINVAL;
+	}
+
+	for_each_child_of_node(np, child) {
+		ret = of_property_read_string(child, "compatible", &compat);
+		if (ret)
+			continue;
+		/* Count child nodes with stm32 adc compatible */
+		if (strstr(compat, "st,stm32") && strstr(compat, "adc"))
+			count++;
+	}
+
+	val = readl_relaxed(priv->common.base + STM32MP1_ADC_HWCFGR0);
+	priv->nb_adc_max = FIELD_GET(STM32MP1_ADCNUM_MASK, val);
+	if (count > priv->nb_adc_max) {
+		dev_err(&pdev->dev, "Unexpected child number: %d", count);
+		return -EINVAL;
+	}
+
+	val = readl_relaxed(priv->common.base + STM32MP1_ADC_VERR);
+	dev_dbg(&pdev->dev, "ADC version: %lu.%lu\n",
+		FIELD_GET(STM32MP1_MAJREV_MASK, val),
+		FIELD_GET(STM32MP1_MINREV_MASK, val));
+
+	return 0;
+}
+
 static int stm32_adc_probe(struct platform_device *pdev)
 {
 	struct stm32_adc_priv *priv;
@@ -659,6 +709,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 
 	priv->cfg = (const struct stm32_adc_priv_cfg *)
 		of_match_device(dev->driver->of_match_table, dev)->data;
+	priv->nb_adc_max = priv->cfg->num_adcs;
 	spin_lock_init(&priv->common.lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -700,6 +751,10 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	ret = stm32_adc_core_hw_start(dev);
 	if (ret)
 		goto err_pm_stop;
+
+	ret = stm32_adc_probe_identification(pdev, priv);
+	if (ret < 0)
+		goto err_hw_stop;
 
 	ret = regulator_get_voltage(priv->vref);
 	if (ret < 0) {
@@ -792,6 +847,7 @@ static const struct stm32_adc_priv_cfg stm32f4_adc_priv_cfg = {
 	.clk_sel = stm32f4_adc_clk_sel,
 	.max_clk_rate_hz = 36000000,
 	.num_irqs = 1,
+	.num_adcs = 3,
 };
 
 static const struct stm32_adc_priv_cfg stm32h7_adc_priv_cfg = {
@@ -800,13 +856,15 @@ static const struct stm32_adc_priv_cfg stm32h7_adc_priv_cfg = {
 	.max_clk_rate_hz = 36000000,
 	.has_syscfg = HAS_VBOOSTER,
 	.num_irqs = 1,
+	.num_adcs = 2,
 };
 
 static const struct stm32_adc_priv_cfg stm32mp1_adc_priv_cfg = {
 	.regs = &stm32h7_adc_common_regs,
 	.clk_sel = stm32h7_adc_clk_sel,
-	.max_clk_rate_hz = 40000000,
+	.max_clk_rate_hz = 36000000,
 	.has_syscfg = HAS_VBOOSTER | HAS_ANASWVDD,
+	.ipid = STM32MP15_IPIDR_NUMBER,
 	.num_irqs = 2,
 };
 

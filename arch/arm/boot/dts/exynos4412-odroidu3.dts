@@ -9,6 +9,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/leds/common.h>
 #include "exynos4412-odroid-common.dtsi"
 #include "exynos4412-prime.dtsi"
 
@@ -37,7 +38,8 @@
 	leds {
 		compatible = "gpio-leds";
 		led1 {
-			label = "led1:heart";
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_BLUE>;
 			gpios = <&gpc1 0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
@@ -119,8 +121,8 @@
 	phys = <&exynos_usbphy 2>, <&exynos_usbphy 3>;
 	phy-names = "hsic0", "hsic1";
 
-	ethernet: usbether@2 {
-		compatible = "usb0424,9730";
+	ethernet: ethernet@2 {
+		compatible = "usb424,9730";
 		reg = <2>;
 		local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
 	};

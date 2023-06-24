@@ -19,7 +19,7 @@
 /*
  * KVM_ARM64_SYS_REG(sys_reg_id): Helper macro to convert
  * SYS_* register definitions in asm/sysreg.h to use in KVM
- * calls such as get_reg() and set_reg().
+ * calls such as vcpu_get_reg() and vcpu_set_reg().
  */
 #define KVM_ARM64_SYS_REG(sys_reg_id)			\
 	ARM64_SYS_REG(sys_reg_Op0(sys_reg_id),		\
@@ -47,25 +47,9 @@
 
 #define MPIDR_HWID_BITMASK (0xff00fffffful)
 
-static inline void get_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id, uint64_t *addr)
-{
-	struct kvm_one_reg reg;
-	reg.id = id;
-	reg.addr = (uint64_t)addr;
-	vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, &reg);
-}
-
-static inline void set_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id, uint64_t val)
-{
-	struct kvm_one_reg reg;
-	reg.id = id;
-	reg.addr = (uint64_t)&val;
-	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
-}
-
-void aarch64_vcpu_setup(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_vcpu_init *init);
-void aarch64_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
-			      struct kvm_vcpu_init *init, void *guest_code);
+void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init);
+struct kvm_vcpu *aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+				  struct kvm_vcpu_init *init, void *guest_code);
 
 struct ex_regs {
 	u64 regs[31];
@@ -117,7 +101,7 @@ void aarch64_get_supported_page_sizes(uint32_t ipa,
 				      bool *ps4k, bool *ps16k, bool *ps64k);
 
 void vm_init_descriptor_tables(struct kvm_vm *vm);
-void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 
 typedef void(*handler_fn)(struct ex_regs *);
 void vm_install_exception_handler(struct kvm_vm *vm,
@@ -184,5 +168,29 @@ static inline void local_irq_disable(void)
 {
 	asm volatile("msr daifset, #3" : : : "memory");
 }
+
+/**
+ * struct arm_smccc_res - Result from SMC/HVC call
+ * @a0-a3 result values from registers 0 to 3
+ */
+struct arm_smccc_res {
+	unsigned long a0;
+	unsigned long a1;
+	unsigned long a2;
+	unsigned long a3;
+};
+
+/**
+ * smccc_hvc - Invoke a SMCCC function using the hvc conduit
+ * @function_id: the SMCCC function to be called
+ * @arg0-arg6: SMCCC function arguments, corresponding to registers x1-x7
+ * @res: pointer to write the return values from registers x0-x3
+ *
+ */
+void smccc_hvc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
+	       uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5,
+	       uint64_t arg6, struct arm_smccc_res *res);
+
+uint32_t guest_get_vcpuid(void);
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */

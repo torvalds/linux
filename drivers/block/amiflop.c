@@ -1802,7 +1802,7 @@ static int fd_alloc_disk(int drive, int system)
 	unit[drive].gendisk[system] = disk;
 	err = add_disk(disk);
 	if (err)
-		blk_cleanup_disk(disk);
+		put_disk(disk);
 	return err;
 }
 

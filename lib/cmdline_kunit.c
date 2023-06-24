@@ -76,7 +76,7 @@ static void cmdline_test_lead_int(struct kunit *test)
 		int rc = cmdline_test_values[i];
 		int offset;
 
-		sprintf(in, "%u%s", get_random_int() % 256, str);
+		sprintf(in, "%u%s", get_random_u8(), str);
 		/* Only first '-' after the number will advance the pointer */
 		offset = strlen(in) - strlen(str) + !!(rc == 2);
 		cmdline_do_one_test(test, in, rc, offset);
@@ -94,7 +94,7 @@ static void cmdline_test_tail_int(struct kunit *test)
 		int rc = strcmp(str, "") ? (strcmp(str, "-") ? 0 : 1) : 1;
 		int offset;
 
-		sprintf(in, "%s%u", str, get_random_int() % 256);
+		sprintf(in, "%s%u", str, get_random_u8());
 		/*
 		 * Only first and leading '-' not followed by integer
 		 * will advance the pointer.

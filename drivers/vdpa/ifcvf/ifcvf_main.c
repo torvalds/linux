@@ -290,16 +290,16 @@ static int ifcvf_request_config_irq(struct ifcvf_adapter *adapter)
 	struct ifcvf_hw *vf = &adapter->vf;
 	int config_vector, ret;
 
-	if (vf->msix_vector_status == MSIX_VECTOR_DEV_SHARED)
-		return 0;
-
 	if (vf->msix_vector_status == MSIX_VECTOR_PER_VQ_AND_CONFIG)
-		/* vector 0 ~ vf->nr_vring for vqs, num vf->nr_vring vector for config interrupt */
 		config_vector = vf->nr_vring;
-
-	if (vf->msix_vector_status ==  MSIX_VECTOR_SHARED_VQ_AND_CONFIG)
+	else if (vf->msix_vector_status ==  MSIX_VECTOR_SHARED_VQ_AND_CONFIG)
 		/* vector 0 for vqs and 1 for config interrupt */
 		config_vector = 1;
+	else if (vf->msix_vector_status == MSIX_VECTOR_DEV_SHARED)
+		/* re-use the vqs vector */
+		return 0;
+	else
+		return -EINVAL;
 
 	snprintf(vf->config_msix_name, 256, "ifcvf[%s]-config\n",
 		 pci_name(pdev));
@@ -626,6 +626,11 @@ static size_t ifcvf_vdpa_get_config_size(struct vdpa_device *vdpa_dev)
 	return  vf->config_size;
 }
 
+static u32 ifcvf_vdpa_get_vq_group(struct vdpa_device *vdpa, u16 idx)
+{
+	return 0;
+}
+
 static void ifcvf_vdpa_get_config(struct vdpa_device *vdpa_dev,
 				  unsigned int offset,
 				  void *buf, unsigned int len)
@@ -680,7 +685,7 @@ static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_devic
 }
 
 /*
- * IFCVF currently does't have on-chip IOMMU, so not
+ * IFCVF currently doesn't have on-chip IOMMU, so not
  * implemented set_map()/dma_map()/dma_unmap()
  */
 static const struct vdpa_config_ops ifc_vdpa_ops = {
@@ -704,6 +709,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_device_id	= ifcvf_vdpa_get_device_id,
 	.get_vendor_id	= ifcvf_vdpa_get_vendor_id,
 	.get_vq_align	= ifcvf_vdpa_get_vq_align,
+	.get_vq_group	= ifcvf_vdpa_get_vq_group,
 	.get_config_size	= ifcvf_vdpa_get_config_size,
 	.get_config	= ifcvf_vdpa_get_config,
 	.set_config	= ifcvf_vdpa_set_config,
@@ -746,59 +752,35 @@ static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 {
 	struct ifcvf_vdpa_mgmt_dev *ifcvf_mgmt_dev;
 	struct ifcvf_adapter *adapter;
+	struct vdpa_device *vdpa_dev;
 	struct pci_dev *pdev;
 	struct ifcvf_hw *vf;
-	struct device *dev;
-	int ret, i;
+	int ret;
 
 	ifcvf_mgmt_dev = container_of(mdev, struct ifcvf_vdpa_mgmt_dev, mdev);
-	if (ifcvf_mgmt_dev->adapter)
+	if (!ifcvf_mgmt_dev->adapter)
 		return -EOPNOTSUPP;
 
-	pdev = ifcvf_mgmt_dev->pdev;
-	dev = &pdev->dev;
-	adapter = vdpa_alloc_device(struct ifcvf_adapter, vdpa,
-				    dev, &ifc_vdpa_ops, name, false);
-	if (IS_ERR(adapter)) {
-		IFCVF_ERR(pdev, "Failed to allocate vDPA structure");
-		return PTR_ERR(adapter);
-	}
-
-	ifcvf_mgmt_dev->adapter = adapter;
-	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
-
+	adapter = ifcvf_mgmt_dev->adapter;
 	vf = &adapter->vf;
-	vf->dev_type = get_dev_type(pdev);
-	vf->base = pcim_iomap_table(pdev);
+	pdev = adapter->pdev;
+	vdpa_dev = &adapter->vdpa;
 
-	adapter->pdev = pdev;
-	adapter->vdpa.dma_dev = &pdev->dev;
+	if (name)
+		ret = dev_set_name(&vdpa_dev->dev, "%s", name);
+	else
+		ret = dev_set_name(&vdpa_dev->dev, "vdpa%u", vdpa_dev->index);
 
-	ret = ifcvf_init_hw(vf, pdev);
-	if (ret) {
-		IFCVF_ERR(pdev, "Failed to init IFCVF hw\n");
-		goto err;
-	}
-
-	for (i = 0; i < vf->nr_vring; i++)
-		vf->vring[i].irq = -EINVAL;
-
-	vf->hw_features = ifcvf_get_hw_features(vf);
-	vf->config_size = ifcvf_get_config_size(vf);
-
-	adapter->vdpa.mdev = &ifcvf_mgmt_dev->mdev;
 	ret = _vdpa_register_device(&adapter->vdpa, vf->nr_vring);
 	if (ret) {
+		put_device(&adapter->vdpa.dev);
 		IFCVF_ERR(pdev, "Failed to register to vDPA bus");
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	put_device(&adapter->vdpa.dev);
-	return ret;
 }
+
 
 static void ifcvf_vdpa_dev_del(struct vdpa_mgmt_dev *mdev, struct vdpa_device *dev)
 {
@@ -818,14 +800,73 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ifcvf_vdpa_mgmt_dev *ifcvf_mgmt_dev;
 	struct device *dev = &pdev->dev;
+	struct ifcvf_adapter *adapter;
+	struct ifcvf_hw *vf;
 	u32 dev_type;
-	int ret;
+	int ret, i;
+
+	ret = pcim_enable_device(pdev);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to enable device\n");
+		return ret;
+	}
+	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2) | BIT(4),
+				 IFCVF_DRIVER_NAME);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to request MMIO region\n");
+		return ret;
+	}
+
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (ret) {
+		IFCVF_ERR(pdev, "No usable DMA configuration\n");
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, ifcvf_free_irq_vectors, pdev);
+	if (ret) {
+		IFCVF_ERR(pdev,
+			  "Failed for adding devres for freeing irq vectors\n");
+		return ret;
+	}
+
+	pci_set_master(pdev);
+
+	adapter = vdpa_alloc_device(struct ifcvf_adapter, vdpa,
+				    dev, &ifc_vdpa_ops, 1, 1, NULL, false);
+	if (IS_ERR(adapter)) {
+		IFCVF_ERR(pdev, "Failed to allocate vDPA structure");
+		return PTR_ERR(adapter);
+	}
+
+	vf = &adapter->vf;
+	vf->dev_type = get_dev_type(pdev);
+	vf->base = pcim_iomap_table(pdev);
+
+	adapter->pdev = pdev;
+	adapter->vdpa.dma_dev = &pdev->dev;
+
+	ret = ifcvf_init_hw(vf, pdev);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to init IFCVF hw\n");
+		return ret;
+	}
+
+	for (i = 0; i < vf->nr_vring; i++)
+		vf->vring[i].irq = -EINVAL;
+
+	vf->hw_features = ifcvf_get_hw_features(vf);
+	vf->config_size = ifcvf_get_config_size(vf);
 
 	ifcvf_mgmt_dev = kzalloc(sizeof(struct ifcvf_vdpa_mgmt_dev), GFP_KERNEL);
 	if (!ifcvf_mgmt_dev) {
 		IFCVF_ERR(pdev, "Failed to alloc memory for the vDPA management device\n");
 		return -ENOMEM;
 	}
+
+	ifcvf_mgmt_dev->mdev.ops = &ifcvf_vdpa_mgmt_dev_ops;
+	ifcvf_mgmt_dev->mdev.device = dev;
+	ifcvf_mgmt_dev->adapter = adapter;
 
 	dev_type = get_dev_type(pdev);
 	switch (dev_type) {
@@ -841,37 +882,11 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err;
 	}
 
-	ifcvf_mgmt_dev->mdev.ops = &ifcvf_vdpa_mgmt_dev_ops;
-	ifcvf_mgmt_dev->mdev.device = dev;
-	ifcvf_mgmt_dev->pdev = pdev;
+	ifcvf_mgmt_dev->mdev.max_supported_vqs = vf->nr_vring;
+	ifcvf_mgmt_dev->mdev.supported_features = vf->hw_features;
 
-	ret = pcim_enable_device(pdev);
-	if (ret) {
-		IFCVF_ERR(pdev, "Failed to enable device\n");
-		goto err;
-	}
+	adapter->vdpa.mdev = &ifcvf_mgmt_dev->mdev;
 
-	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2) | BIT(4),
-				 IFCVF_DRIVER_NAME);
-	if (ret) {
-		IFCVF_ERR(pdev, "Failed to request MMIO region\n");
-		goto err;
-	}
-
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (ret) {
-		IFCVF_ERR(pdev, "No usable DMA configuration\n");
-		goto err;
-	}
-
-	ret = devm_add_action_or_reset(dev, ifcvf_free_irq_vectors, pdev);
-	if (ret) {
-		IFCVF_ERR(pdev,
-			  "Failed for adding devres for freeing irq vectors\n");
-		goto err;
-	}
-
-	pci_set_master(pdev);
 
 	ret = vdpa_mgmtdev_register(&ifcvf_mgmt_dev->mdev);
 	if (ret) {
@@ -879,6 +894,8 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			  "Failed to initialize the management interfaces\n");
 		goto err;
 	}
+
+	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	return 0;
 

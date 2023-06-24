@@ -93,7 +93,7 @@ struct btrfs_qgroup_inherit {
 	__u64	num_ref_copies;
 	__u64	num_excl_copies;
 	struct btrfs_qgroup_limit lim;
-	__u64	qgroups[0];
+	__u64	qgroups[];
 };
 
 struct btrfs_ioctl_qgroup_limit_args {
@@ -289,6 +289,12 @@ struct btrfs_ioctl_fs_info_args {
  */
 #define BTRFS_FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID	(1ULL << 1)
 #define BTRFS_FEATURE_COMPAT_RO_VERITY			(1ULL << 2)
+
+/*
+ * Put all block group items into a dedicated block group tree, greatly
+ * reducing mount time for large filesystem due to better locality.
+ */
+#define BTRFS_FEATURE_COMPAT_RO_BLOCK_GROUP_TREE	(1ULL << 3)
 
 #define BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF	(1ULL << 0)
 #define BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL	(1ULL << 1)
@@ -561,7 +567,7 @@ struct btrfs_ioctl_search_args_v2 {
 	__u64 buf_size;		   /* in - size of buffer
 					    * out - on EOVERFLOW: needed size
 					    *       to store item */
-	__u64 buf[0];                       /* out - found items */
+	__u64 buf[];                       /* out - found items */
 };
 
 struct btrfs_ioctl_clone_range_args {
@@ -632,7 +638,7 @@ struct btrfs_ioctl_same_args {
 	__u16 dest_count;	/* in - total elements in info array */
 	__u16 reserved1;
 	__u32 reserved2;
-	struct btrfs_ioctl_same_extent_info info[0];
+	struct btrfs_ioctl_same_extent_info info[];
 };
 
 struct btrfs_ioctl_space_info {
@@ -644,7 +650,7 @@ struct btrfs_ioctl_space_info {
 struct btrfs_ioctl_space_args {
 	__u64 space_slots;
 	__u64 total_spaces;
-	struct btrfs_ioctl_space_info spaces[0];
+	struct btrfs_ioctl_space_info spaces[];
 };
 
 struct btrfs_data_container {
@@ -652,7 +658,7 @@ struct btrfs_data_container {
 	__u32	bytes_missing;	/* out -- additional bytes needed for result */
 	__u32	elem_cnt;	/* out */
 	__u32	elem_missed;	/* out */
-	__u64	val[0];		/* out */
+	__u64	val[];		/* out */
 };
 
 struct btrfs_ioctl_ino_path_args {
@@ -777,11 +783,19 @@ struct btrfs_ioctl_received_subvol_args {
  */
 #define BTRFS_SEND_FLAG_VERSION			0x8
 
+/*
+ * Send compressed data using the ENCODED_WRITE command instead of decompressing
+ * the data and sending it with the WRITE command. This requires protocol
+ * version >= 2.
+ */
+#define BTRFS_SEND_FLAG_COMPRESSED		0x10
+
 #define BTRFS_SEND_FLAG_MASK \
 	(BTRFS_SEND_FLAG_NO_FILE_DATA | \
 	 BTRFS_SEND_FLAG_OMIT_STREAM_HEADER | \
 	 BTRFS_SEND_FLAG_OMIT_END_CMD | \
-	 BTRFS_SEND_FLAG_VERSION)
+	 BTRFS_SEND_FLAG_VERSION | \
+	 BTRFS_SEND_FLAG_COMPRESSED)
 
 struct btrfs_ioctl_send_args {
 	__s64 send_fd;			/* in */

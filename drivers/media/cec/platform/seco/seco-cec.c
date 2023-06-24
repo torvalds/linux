@@ -31,28 +31,16 @@ struct secocec_data {
 	int irq;
 };
 
-#define smb_wr16(cmd, data) smb_word_op(CMD_WORD_DATA, SECOCEC_MICRO_ADDRESS, \
-					     cmd, data, SMBUS_WRITE, NULL)
-#define smb_rd16(cmd, res) smb_word_op(CMD_WORD_DATA, SECOCEC_MICRO_ADDRESS, \
+#define smb_wr16(cmd, data) smb_word_op(SECOCEC_MICRO_ADDRESS, \
+					cmd, data, SMBUS_WRITE, NULL)
+#define smb_rd16(cmd, res) smb_word_op(SECOCEC_MICRO_ADDRESS, \
 				       cmd, 0, SMBUS_READ, res)
 
-static int smb_word_op(short data_format, u16 slave_addr, u8 cmd, u16 data,
+static int smb_word_op(u16 slave_addr, u8 cmd, u16 data,
 		       u8 operation, u16 *result)
 {
 	unsigned int count;
-	short _data_format;
 	int status = 0;
-
-	switch (data_format) {
-	case CMD_BYTE_DATA:
-		_data_format = BRA_SMB_CMD_BYTE_DATA;
-		break;
-	case CMD_WORD_DATA:
-		_data_format = BRA_SMB_CMD_WORD_DATA;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	/* Active wait until ready */
 	for (count = 0; count <= SMBTIMEOUT; ++count) {
@@ -75,7 +63,7 @@ static int smb_word_op(short data_format, u16 slave_addr, u8 cmd, u16 data,
 		outb((u8)(data >> 8), HDAT1);
 	}
 
-	outb(BRA_START + _data_format, HCNT);
+	outb(BRA_START + BRA_SMB_CMD_WORD_DATA, HCNT);
 
 	for (count = 0; count <= SMBTIMEOUT; count++) {
 		if (!(inb(HSTS) & BRA_HOST_BUSY))

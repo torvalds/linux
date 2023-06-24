@@ -26,6 +26,16 @@
 #include "dc_features.h"
 #include "display_mode_enums.h"
 
+/**
+ * DOC: overview
+ *
+ * Most of the DML code is automatically generated and tested via hardware
+ * description language. Usually, we use the reference _vcs_dpi in the code
+ * where VCS means "Verilog Compiled Simulator" and DPI stands for "Direct
+ * Programmer Interface". In other words, those structs can be used to
+ * interface with Verilog with other languages such as C.
+ */
+
 #ifndef __DISPLAY_MODE_STRUCTS_H__
 #define __DISPLAY_MODE_STRUCTS_H__
 
@@ -54,12 +64,102 @@ typedef struct _vcs_dpi_display_rq_regs_st display_rq_regs_st;
 typedef struct _vcs_dpi_display_dlg_sys_params_st display_dlg_sys_params_st;
 typedef struct _vcs_dpi_display_arb_params_st display_arb_params_st;
 
+typedef struct {
+	double UrgentWatermark;
+	double WritebackUrgentWatermark;
+	double DRAMClockChangeWatermark;
+	double FCLKChangeWatermark;
+	double WritebackDRAMClockChangeWatermark;
+	double WritebackFCLKChangeWatermark;
+	double StutterExitWatermark;
+	double StutterEnterPlusExitWatermark;
+	double Z8StutterExitWatermark;
+	double Z8StutterEnterPlusExitWatermark;
+	double USRRetrainingWatermark;
+} Watermarks;
+
+typedef struct {
+	double UrgentLatency;
+	double ExtraLatency;
+	double WritebackLatency;
+	double DRAMClockChangeLatency;
+	double FCLKChangeLatency;
+	double SRExitTime;
+	double SREnterPlusExitTime;
+	double SRExitZ8Time;
+	double SREnterPlusExitZ8Time;
+	double USRRetrainingLatencyPlusSMNLatency;
+} Latencies;
+
+typedef struct {
+	double Dppclk;
+	double Dispclk;
+	double PixelClock;
+	double DCFClkDeepSleep;
+	unsigned int DPPPerSurface;
+	bool ScalerEnabled;
+	enum dm_rotation_angle SourceRotation;
+	unsigned int ViewportHeight;
+	unsigned int ViewportHeightChroma;
+	unsigned int BlockWidth256BytesY;
+	unsigned int BlockHeight256BytesY;
+	unsigned int BlockWidth256BytesC;
+	unsigned int BlockHeight256BytesC;
+	unsigned int BlockWidthY;
+	unsigned int BlockHeightY;
+	unsigned int BlockWidthC;
+	unsigned int BlockHeightC;
+	unsigned int InterlaceEnable;
+	unsigned int NumberOfCursors;
+	unsigned int VBlank;
+	unsigned int HTotal;
+	unsigned int HActive;
+	bool DCCEnable;
+	enum odm_combine_mode ODMMode;
+	enum source_format_class SourcePixelFormat;
+	enum dm_swizzle_mode SurfaceTiling;
+	unsigned int BytePerPixelY;
+	unsigned int BytePerPixelC;
+	bool ProgressiveToInterlaceUnitInOPP;
+	double VRatio;
+	double VRatioChroma;
+	unsigned int VTaps;
+	unsigned int VTapsChroma;
+	unsigned int PitchY;
+	unsigned int DCCMetaPitchY;
+	unsigned int PitchC;
+	unsigned int DCCMetaPitchC;
+	bool ViewportStationary;
+	unsigned int ViewportXStart;
+	unsigned int ViewportYStart;
+	unsigned int ViewportXStartC;
+	unsigned int ViewportYStartC;
+	bool FORCE_ONE_ROW_FOR_FRAME;
+	unsigned int SwathHeightY;
+	unsigned int SwathHeightC;
+} DmlPipe;
+
+typedef struct {
+	double UrgentLatency;
+	double ExtraLatency;
+	double WritebackLatency;
+	double DRAMClockChangeLatency;
+	double FCLKChangeLatency;
+	double SRExitTime;
+	double SREnterPlusExitTime;
+	double SRExitZ8Time;
+	double SREnterPlusExitZ8Time;
+	double USRRetrainingLatency;
+	double SMNLatency;
+} SOCParametersList;
+
 struct _vcs_dpi_voltage_scaling_st {
 	int state;
 	double dscclk_mhz;
 	double dcfclk_mhz;
 	double socclk_mhz;
 	double phyclk_d18_mhz;
+	double phyclk_d32_mhz;
 	double dram_speed_mts;
 	double fabricclk_mhz;
 	double dispclk_mhz;
@@ -69,8 +169,20 @@ struct _vcs_dpi_voltage_scaling_st {
 	double dtbclk_mhz;
 };
 
+/**
+ * _vcs_dpi_soc_bounding_box_st: SOC definitions
+ *
+ * This struct maintains the SOC Bounding Box information for the ASIC; it
+ * defines things such as clock, voltage, performance, etc. Usually, we load
+ * these values from VBIOS; if something goes wrong, we use some hard-coded
+ * values, which will enable the ASIC to light up with limitations.
+ */
 struct _vcs_dpi_soc_bounding_box_st {
 	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+	/**
+	 * @num_states: It represents the total of Display Power Management
+	 * (DPM) supported by the specific ASIC.
+	 */
 	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
@@ -80,6 +192,16 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double urgent_latency_pixel_data_only_us;
 	double urgent_latency_pixel_mixed_with_vm_data_us;
 	double urgent_latency_vm_data_only_us;
+	double usr_retraining_latency_us;
+	double smn_latency_us;
+	double fclk_change_latency_us;
+	double mall_allocated_for_dcn_mbytes;
+	double pct_ideal_fabric_bw_after_urgent;
+	double pct_ideal_dram_bw_after_urgent_strobe;
+	double max_avg_fabric_bw_use_normal_percent;
+	double max_avg_dram_bw_use_normal_strobe_percent;
+	enum dm_prefetch_modes allow_for_pstate_or_stutter_in_vblank_final;
+	bool dram_clock_change_requirement_final;
 	double writeback_latency_us;
 	double ideal_dram_bw_after_urgent_percent;
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_only; // PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelDataOnly
@@ -126,6 +248,14 @@ struct _vcs_dpi_soc_bounding_box_st {
 	enum self_refresh_affinity allow_dram_self_refresh_or_dram_clock_change_in_vblank;
 };
 
+/**
+ * @_vcs_dpi_ip_params_st: IP configuraion for DCN blocks
+ *
+ * In this struct you can find the DCN configuration associated to the specific
+ * ASIC. For example, here we can save how many DPPs the ASIC is using and it
+ * is available.
+ *
+ */
 struct _vcs_dpi_ip_params_st {
 	bool use_min_dcfclk;
 	bool clamp_min_dcfclk;
@@ -148,6 +278,9 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int dpp_output_buffer_pixels;
 	unsigned int opp_output_buffer_lines;
 	unsigned int pixel_chunk_size_kbytes;
+	unsigned int alpha_pixel_chunk_size_kbytes;
+	unsigned int min_pixel_chunk_size_bytes;
+	unsigned int dcc_meta_buffer_size_bytes;
 	unsigned char pte_enable;
 	unsigned int pte_chunk_size_kbytes;
 	unsigned int meta_chunk_size_kbytes;
@@ -168,12 +301,16 @@ struct _vcs_dpi_ip_params_st {
 	double writeback_min_hscl_ratio;
 	double writeback_min_vscl_ratio;
 	unsigned int maximum_dsc_bits_per_component;
+	unsigned int maximum_pixels_per_line_per_dsc_unit;
 	unsigned int writeback_max_hscl_taps;
 	unsigned int writeback_max_vscl_taps;
 	unsigned int writeback_line_buffer_luma_buffer_size;
 	unsigned int writeback_line_buffer_chroma_buffer_size;
 
 	unsigned int max_page_table_levels;
+	/**
+	 * @max_num_dpp: Maximum number of DPP supported in the target ASIC.
+	 */
 	unsigned int max_num_dpp;
 	unsigned int max_num_otg;
 	unsigned int cursor_chunk_size;
@@ -224,6 +361,13 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
 	unsigned int bug_forcing_LC_req_same_size_fixed;
 	unsigned int number_of_cursors;
+	unsigned int max_num_dp2p0_outputs;
+	unsigned int max_num_dp2p0_streams;
+	unsigned int VBlankNomDefaultUS;
+
+	/* DM workarounds */
+	double dsc_delay_factor_wa; // TODO: Remove after implementing root cause fix
+	double min_prefetch_in_strobe_us;
 };
 
 struct _vcs_dpi_display_xfc_params_st {
@@ -250,6 +394,8 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	bool hostvm_levels_force_en;
 	unsigned int hostvm_levels_force;
 	int source_scan;
+	int source_rotation; // new in dml32
+	unsigned int det_size_override; // use to populate DETSizeOverride in vba struct
 	int sw_mode;
 	int macro_tile_size;
 	unsigned int surface_width_y;
@@ -264,6 +410,15 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	unsigned int viewport_height_c;
 	unsigned int viewport_width_max;
 	unsigned int viewport_height_max;
+	unsigned int viewport_x_y;
+	unsigned int viewport_x_c;
+	bool viewport_stationary;
+	unsigned int dcc_rate_luma;
+	unsigned int gpuvm_min_page_size_kbytes;
+	unsigned int use_mall_for_pstate_change;
+	unsigned int use_mall_for_static_screen;
+	bool force_one_row_for_frame;
+	bool pte_buffer_mode;
 	unsigned int data_pitch;
 	unsigned int data_pitch_c;
 	unsigned int meta_pitch;
@@ -296,8 +451,15 @@ struct writeback_st {
 	int wb_vtaps_luma;
 	int wb_htaps_chroma;
 	int wb_vtaps_chroma;
+	unsigned int wb_htaps;
+	unsigned int wb_vtaps;
 	double wb_hratio;
 	double wb_vratio;
+};
+
+struct display_audio_params_st {
+	unsigned int   audio_sample_rate_khz;
+	int    		   audio_sample_layout;
 };
 
 struct _vcs_dpi_display_output_params_st {
@@ -313,6 +475,11 @@ struct _vcs_dpi_display_output_params_st {
 	int dsc_slices;
 	int max_audio_sample_rate;
 	struct writeback_st wb;
+	struct display_audio_params_st audio;
+	unsigned int output_bpc;
+	int dp_rate;
+	unsigned int dp_multistream_id;
+	bool dp_multistream_en;
 };
 
 struct _vcs_dpi_scaler_ratio_depth_st {
@@ -347,6 +514,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int htotal;
 	unsigned int vtotal;
 	unsigned int vfront_porch;
+	unsigned int vblank_nom;
 	unsigned int vactive;
 	unsigned int hactive;
 	unsigned int vstartup_start;
@@ -361,6 +529,10 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char use_maximum_vstartup;
 	unsigned int vtotal_max;
 	unsigned int vtotal_min;
+	unsigned int refresh_rate;
+	bool synchronize_timings;
+	unsigned int odm_combine_policy;
+	bool drr_display;
 };
 
 struct _vcs_dpi_display_pipe_params_st {
@@ -558,6 +730,9 @@ struct _vcs_dpi_display_arb_params_st {
 	int max_req_outstanding;
 	int min_req_outstanding;
 	int sat_level_us;
+	int hvm_min_req_outstand_commit_threshold;
+	int hvm_max_qos_commit_threshold;
+	int compbuf_reserved_space_kbytes;
 };
 
 #endif /*__DISPLAY_MODE_STRUCTS_H__*/

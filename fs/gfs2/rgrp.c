@@ -1196,9 +1196,8 @@ static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
  * Returns: errno
  */
 
-int gfs2_rgrp_go_instantiate(struct gfs2_holder *gh)
+int gfs2_rgrp_go_instantiate(struct gfs2_glock *gl)
 {
-	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_rgrpd *rgd = gl->gl_object;
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	unsigned int length = rgd->rd_length;
@@ -1315,7 +1314,7 @@ int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 	u64 blk;
 	sector_t start = 0;
 	sector_t nr_blks = 0;
-	int rv;
+	int rv = -EIO;
 	unsigned int x;
 	u32 trimmed = 0;
 	u8 diff;
@@ -1371,7 +1370,7 @@ fail:
 	if (sdp->sd_args.ar_discard)
 		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem\n", rv);
 	sdp->sd_args.ar_discard = 0;
-	return -EIO;
+	return rv;
 }
 
 /**
@@ -1386,7 +1385,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 {
 	struct inode *inode = file_inode(filp);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct request_queue *q = bdev_get_queue(sdp->sd_vfs->s_bdev);
+	struct block_device *bdev = sdp->sd_vfs->s_bdev;
 	struct buffer_head *bh;
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_rgrpd *rgd_end;
@@ -1405,7 +1404,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		return -EROFS;
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(bdev))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&r, argp, sizeof(r)))
@@ -1418,8 +1417,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	start = r.start >> bs_shift;
 	end = start + (r.len >> bs_shift);
 	minlen = max_t(u64, r.minlen, sdp->sd_sb.sb_bsize);
-	minlen = max_t(u64, minlen,
-		       q->limits.discard_granularity) >> bs_shift;
+	minlen = max_t(u64, minlen, bdev_discard_granularity(bdev)) >> bs_shift;
 
 	if (end <= start || minlen > sdp->sd_max_rg_data)
 		return -EINVAL;
@@ -2721,12 +2719,15 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
  * gfs2_rlist_alloc - all RGs have been added to the rlist, now allocate
  *      and initialize an array of glock holders for them
  * @rlist: the list of resource groups
+ * @state: the state we're requesting
+ * @flags: the modifier flags
  *
  * FIXME: Don't use NOFAIL
  *
  */
 
-void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist)
+void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist,
+		      unsigned int state, u16 flags)
 {
 	unsigned int x;
 
@@ -2734,8 +2735,8 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist)
 				      sizeof(struct gfs2_holder),
 				      GFP_NOFS | __GFP_NOFAIL);
 	for (x = 0; x < rlist->rl_rgrps; x++)
-		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl, LM_ST_EXCLUSIVE,
-				 LM_FLAG_NODE_SCOPE, &rlist->rl_ghs[x]);
+		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl, state, flags,
+				 &rlist->rl_ghs[x]);
 }
 
 /**

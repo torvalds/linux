@@ -7,8 +7,8 @@
 #include <linux/dma-mapping.h>
 #include <net/addrconf.h>
 #include <rdma/uverbs_ioctl.h>
+
 #include "rxe.h"
-#include "rxe_loc.h"
 #include "rxe_queue.h"
 #include "rxe_hw_counters.h"
 
@@ -115,7 +115,7 @@ static void rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
 {
 	struct rxe_ucontext *uc = to_ruc(ibuc);
 
-	rxe_put(uc);
+	rxe_cleanup(uc);
 }
 
 static int rxe_port_immutable(struct ib_device *dev, u32 port_num,
@@ -149,7 +149,7 @@ static int rxe_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rxe_pd *pd = to_rpd(ibpd);
 
-	rxe_put(pd);
+	rxe_cleanup(pd);
 	return 0;
 }
 
@@ -176,7 +176,8 @@ static int rxe_create_ah(struct ib_ah *ibah,
 	if (err)
 		return err;
 
-	err = rxe_add_to_pool(&rxe->ah_pool, ah);
+	err = rxe_add_to_pool_ah(&rxe->ah_pool, ah,
+			init_attr->flags & RDMA_CREATE_AH_SLEEPABLE);
 	if (err)
 		return err;
 
@@ -188,7 +189,7 @@ static int rxe_create_ah(struct ib_ah *ibah,
 		err = copy_to_user(&uresp->ah_num, &ah->ah_num,
 					 sizeof(uresp->ah_num));
 		if (err) {
-			rxe_put(ah);
+			rxe_cleanup(ah);
 			return -EFAULT;
 		}
 	} else if (ah->is_user) {
@@ -197,6 +198,8 @@ static int rxe_create_ah(struct ib_ah *ibah,
 	}
 
 	rxe_init_av(init_attr->ah_attr, &ah->av);
+	rxe_finalize(ah);
+
 	return 0;
 }
 
@@ -228,7 +231,8 @@ static int rxe_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct rxe_ah *ah = to_rah(ibah);
 
-	rxe_put(ah);
+	rxe_cleanup_ah(ah, flags & RDMA_DESTROY_AH_SLEEPABLE);
+
 	return 0;
 }
 
@@ -258,7 +262,6 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 
 	recv_wqe = queue_producer_addr(rq->queue, QUEUE_TYPE_TO_DRIVER);
 	recv_wqe->wr_id = ibwr->wr_id;
-	recv_wqe->num_sge = num_sge;
 
 	memcpy(recv_wqe->dma.sge, ibwr->sg_list,
 	       num_sge * sizeof(struct ib_sge));
@@ -286,36 +289,35 @@ static int rxe_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init,
 	struct rxe_srq *srq = to_rsrq(ibsrq);
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
-	if (init->srq_type != IB_SRQT_BASIC)
-		return -EOPNOTSUPP;
-
 	if (udata) {
 		if (udata->outlen < sizeof(*uresp))
 			return -EINVAL;
 		uresp = udata->outbuf;
 	}
 
-	err = rxe_srq_chk_attr(rxe, NULL, &init->attr, IB_SRQ_INIT_MASK);
+	if (init->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
+
+	err = rxe_srq_chk_init(rxe, init);
 	if (err)
-		goto err1;
+		return err;
 
 	err = rxe_add_to_pool(&rxe->srq_pool, srq);
 	if (err)
-		goto err1;
+		return err;
 
 	rxe_get(pd);
 	srq->pd = pd;
 
 	err = rxe_srq_from_init(rxe, srq, init, udata, uresp);
 	if (err)
-		goto err2;
+		goto err_cleanup;
 
 	return 0;
 
-err2:
-	rxe_put(pd);
-	rxe_put(srq);
-err1:
+err_cleanup:
+	rxe_cleanup(srq);
+
 	return err;
 }
 
@@ -339,16 +341,12 @@ static int rxe_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 
 	err = rxe_srq_chk_attr(rxe, srq, attr, mask);
 	if (err)
-		goto err1;
+		return err;
 
 	err = rxe_srq_from_attr(rxe, srq, attr, mask, &ucmd, udata);
 	if (err)
-		goto err1;
-
+		return err;
 	return 0;
-
-err1:
-	return err;
 }
 
 static int rxe_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
@@ -368,11 +366,7 @@ static int rxe_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct rxe_srq *srq = to_rsrq(ibsrq);
 
-	if (srq->rq.queue)
-		rxe_queue_cleanup(srq->rq.queue);
-
-	rxe_put(srq->pd);
-	rxe_put(srq);
+	rxe_cleanup(srq);
 	return 0;
 }
 
@@ -439,10 +433,11 @@ static int rxe_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init,
 	if (err)
 		goto qp_init;
 
+	rxe_finalize(qp);
 	return 0;
 
 qp_init:
-	rxe_put(qp);
+	rxe_cleanup(qp);
 	return err;
 }
 
@@ -495,8 +490,7 @@ static int rxe_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	if (ret)
 		return ret;
 
-	rxe_qp_destroy(qp);
-	rxe_put(qp);
+	rxe_cleanup(qp);
 	return 0;
 }
 
@@ -531,12 +525,10 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 			 const struct ib_send_wr *ibwr)
 {
 	wr->wr_id = ibwr->wr_id;
-	wr->num_sge = ibwr->num_sge;
 	wr->opcode = ibwr->opcode;
 	wr->send_flags = ibwr->send_flags;
 
 	if (qp_type(qp) == IB_QPT_UD ||
-	    qp_type(qp) == IB_QPT_SMI ||
 	    qp_type(qp) == IB_QPT_GSI) {
 		struct ib_ah *ibah = ud_wr(ibwr)->ah;
 
@@ -807,9 +799,15 @@ static int rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
 
+	/* See IBA C11-17: The CI shall return an error if this Verb is
+	 * invoked while a Work Queue is still associated with the CQ.
+	 */
+	if (atomic_read(&cq->num_wq))
+		return -EINVAL;
+
 	rxe_cq_disable(cq);
 
-	rxe_put(cq);
+	rxe_cleanup(cq);
 	return 0;
 }
 
@@ -903,7 +901,10 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 		return ERR_PTR(-ENOMEM);
 
 	rxe_get(pd);
-	rxe_mr_init_dma(pd, access, mr);
+	mr->ibmr.pd = ibpd;
+
+	rxe_mr_init_dma(access, mr);
+	rxe_finalize(mr);
 
 	return &mr->ibmr;
 }
@@ -927,16 +928,18 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 
 
 	rxe_get(pd);
+	mr->ibmr.pd = ibpd;
 
-	err = rxe_mr_init_user(pd, start, length, iova, access, mr);
+	err = rxe_mr_init_user(rxe, start, length, iova, access, mr);
 	if (err)
 		goto err3;
+
+	rxe_finalize(mr);
 
 	return &mr->ibmr;
 
 err3:
-	rxe_put(pd);
-	rxe_put(mr);
+	rxe_cleanup(mr);
 err2:
 	return ERR_PTR(err);
 }
@@ -959,40 +962,54 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	}
 
 	rxe_get(pd);
+	mr->ibmr.pd = ibpd;
 
-	err = rxe_mr_init_fast(pd, max_num_sg, mr);
+	err = rxe_mr_init_fast(max_num_sg, mr);
 	if (err)
 		goto err2;
+
+	rxe_finalize(mr);
 
 	return &mr->ibmr;
 
 err2:
-	rxe_put(pd);
-	rxe_put(mr);
+	rxe_cleanup(mr);
 err1:
 	return ERR_PTR(err);
 }
 
-/* build next_map_set from scatterlist
- * The IB_WR_REG_MR WR will swap map_sets
- */
+static int rxe_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct rxe_mr *mr = to_rmr(ibmr);
+	struct rxe_map *map;
+	struct rxe_phys_buf *buf;
+
+	if (unlikely(mr->nbuf == mr->num_buf))
+		return -ENOMEM;
+
+	map = mr->map[mr->nbuf / RXE_BUF_PER_MAP];
+	buf = &map->buf[mr->nbuf % RXE_BUF_PER_MAP];
+
+	buf->addr = addr;
+	buf->size = ibmr->page_size;
+	mr->nbuf++;
+
+	return 0;
+}
+
 static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 			 int sg_nents, unsigned int *sg_offset)
 {
 	struct rxe_mr *mr = to_rmr(ibmr);
-	struct rxe_map_set *set = mr->next_map_set;
 	int n;
 
-	set->nbuf = 0;
+	mr->nbuf = 0;
 
-	n = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, rxe_mr_set_page);
+	n = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, rxe_set_page);
 
-	set->va = ibmr->iova;
-	set->iova = ibmr->iova;
-	set->length = ibmr->length;
-	set->page_shift = ilog2(ibmr->page_size);
-	set->page_mask = ibmr->page_size - 1;
-	set->offset = set->iova & set->page_mask;
+	mr->page_shift = ilog2(ibmr->page_size);
+	mr->page_mask = ibmr->page_size - 1;
+	mr->offset = ibmr->iova & mr->page_mask;
 
 	return n;
 }

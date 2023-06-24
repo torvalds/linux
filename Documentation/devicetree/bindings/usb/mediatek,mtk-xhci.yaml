@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/usb/mediatek,mtk-xhci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek USB3 xHCI Device Tree Bindings
+title: MediaTek USB3 xHCI
 
 maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
@@ -31,6 +31,7 @@ properties:
           - mediatek,mt8173-xhci
           - mediatek,mt8183-xhci
           - mediatek,mt8186-xhci
+          - mediatek,mt8188-xhci
           - mediatek,mt8192-xhci
           - mediatek,mt8195-xhci
       - const: mediatek,mtk-xhci
@@ -57,6 +58,7 @@ properties:
       - description: optional, wakeup interrupt used to support runtime PM
 
   interrupt-names:
+    minItems: 1
     items:
       - const: host
       - const: wakeup
@@ -112,6 +114,9 @@ properties:
 
   vbus-supply:
     description: Regulator of USB VBUS5v
+
+  resets:
+    maxItems: 1
 
   usb3-lpm-capable: true
 

@@ -1600,18 +1600,10 @@ static void btc8821a1ant_act_wifi_con_bt_acl_busy(struct btc_coexist *btcoexist,
 			coex_dm->auto_tdma_adjust = false;
 		}
 	} else if (bt_link_info->hid_exist && bt_link_info->a2dp_exist) {
-		/* HID+A2DP */
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-					     true, 14);
-			coex_dm->auto_tdma_adjust = false;
-		} else {
-			/*for low BT RSSI*/
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-					     true, 14);
-			coex_dm->auto_tdma_adjust = false;
-		}
+		/* HID+A2DP (no need to consider BT RSSI) */
+		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
+				     true, 14);
+		coex_dm->auto_tdma_adjust = false;
 
 		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
 	} else if ((bt_link_info->pan_only) ||

@@ -6,7 +6,6 @@
 
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/iommu.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -813,8 +812,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * acceptable because the guest is usually CPU-limited and MSI
 	 * remapping doesn't become a performance bottleneck.
 	 */
-	if (iommu_capable(vmd->dev->dev.bus, IOMMU_CAP_INTR_REMAP) ||
-	    !(features & VMD_FEAT_CAN_BYPASS_MSI_REMAP) ||
+	if (!(features & VMD_FEAT_CAN_BYPASS_MSI_REMAP) ||
 	    offset[0] || offset[1]) {
 		ret = vmd_alloc_irqs(vmd);
 		if (ret)
@@ -853,6 +851,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	vmd_attach_resources(vmd);
 	if (vmd->irq_domain)
 		dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
+	else
+		dev_set_msi_domain(&vmd->bus->dev,
+				   dev_get_msi_domain(&vmd->dev->dev));
 
 	vmd_acpi_begin();
 
@@ -897,7 +898,8 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (vmd->instance < 0)
 		return vmd->instance;
 
-	vmd->name = kasprintf(GFP_KERNEL, "vmd%d", vmd->instance);
+	vmd->name = devm_kasprintf(&dev->dev, GFP_KERNEL, "vmd%d",
+				   vmd->instance);
 	if (!vmd->name) {
 		err = -ENOMEM;
 		goto out_release_instance;
@@ -935,7 +937,6 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
  out_release_instance:
 	ida_simple_remove(&vmd_instance_ida, vmd->instance);
-	kfree(vmd->name);
 	return err;
 }
 
@@ -958,7 +959,6 @@ static void vmd_remove(struct pci_dev *dev)
 	vmd_detach_resources(vmd);
 	vmd_remove_irq_domain(vmd);
 	ida_simple_remove(&vmd_instance_ida, vmd->instance);
-	kfree(vmd->name);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1009,6 +1009,14 @@ static const struct pci_device_id vmd_ids[] = {
 				VMD_FEAT_HAS_BUS_RESTRICTIONS |
 				VMD_FEAT_OFFSET_FIRST_VECTOR,},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xa77f),
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS |
+				VMD_FEAT_OFFSET_FIRST_VECTOR,},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7d0b),
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS |
+				VMD_FEAT_OFFSET_FIRST_VECTOR,},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xad0b),
 		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
 				VMD_FEAT_HAS_BUS_RESTRICTIONS |
 				VMD_FEAT_OFFSET_FIRST_VECTOR,},

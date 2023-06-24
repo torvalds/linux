@@ -1,3 +1,4 @@
+.. SPDX-License-Identifier: GPL-2.0-only
 .. include:: <isonum.txt>
 
 =====================
@@ -8,9 +9,6 @@ VFIO Mediated devices
 :Author: Neo Jia <cjia@nvidia.com>
 :Author: Kirti Wankhede <kwankhede@nvidia.com>
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 2 as
-published by the Free Software Foundation.
 
 
 Virtual Function I/O (VFIO) Mediated devices[1]
@@ -60,19 +58,19 @@ devices as examples, as these devices are the first devices to use this module::
      |  MDEV CORE    |
      |   MODULE      |
      |   mdev.ko     |
-     | +-----------+ |  mdev_register_device() +--------------+
+     | +-----------+ |  mdev_register_parent() +--------------+
      | |           | +<------------------------+              |
      | |           | |                         |  nvidia.ko   |<-> physical
      | |           | +------------------------>+              |    device
      | |           | |        callbacks        +--------------+
      | | Physical  | |
-     | |  device   | |  mdev_register_device() +--------------+
+     | |  device   | |  mdev_register_parent() +--------------+
      | | interface | |<------------------------+              |
      | |           | |                         |  i915.ko     |<-> physical
      | |           | +------------------------>+              |    device
      | |           | |        callbacks        +--------------+
      | |           | |
-     | |           | |  mdev_register_device() +--------------+
+     | |           | |  mdev_register_parent() +--------------+
      | |           | +<------------------------+              |
      | |           | |                         | ccw_device.ko|<-> physical
      | |           | +------------------------>+              |    device
@@ -105,6 +103,8 @@ structure to represent a mediated device's driver::
      struct mdev_driver {
 	     int  (*probe)  (struct mdev_device *dev);
 	     void (*remove) (struct mdev_device *dev);
+	     unsigned int (*get_available)(struct mdev_type *mtype);
+	     ssize_t (*show_description)(struct mdev_type *mtype, char *buf);
 	     struct device_driver    driver;
      };
 
@@ -113,39 +113,21 @@ to register and unregister itself with the core driver:
 
 * Register::
 
-    extern int  mdev_register_driver(struct mdev_driver *drv);
+    int mdev_register_driver(struct mdev_driver *drv);
 
 * Unregister::
 
-    extern void mdev_unregister_driver(struct mdev_driver *drv);
+    void mdev_unregister_driver(struct mdev_driver *drv);
 
-The mediated bus driver is responsible for adding mediated devices to the VFIO
-group when devices are bound to the driver and removing mediated devices from
-the VFIO when devices are unbound from the driver.
-
-
-Physical Device Driver Interface
---------------------------------
-
-The physical device driver interface provides the mdev_parent_ops[3] structure
-to define the APIs to manage work in the mediated core driver that is related
-to the physical device.
-
-The structures in the mdev_parent_ops structure are as follows:
-
-* dev_attr_groups: attributes of the parent device
-* mdev_attr_groups: attributes of the mediated device
-* supported_config: attributes to define supported configurations
-* device_driver: device driver to bind for mediated device instances
-
-The mdev_parent_ops also still has various functions pointers.  Theses exist
-for historical reasons only and shall not be used for new drivers.
+The mediated bus driver's probe function should create a vfio_device on top of
+the mdev_device and connect it to an appropriate implementation of
+vfio_device_ops.
 
 When a driver wants to add the GUID creation sysfs to an existing device it has
 probe'd to then it should call::
 
-	extern int  mdev_register_device(struct device *dev,
-	                                 const struct mdev_parent_ops *ops);
+    int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
+			struct mdev_driver *mdev_driver);
 
 This will provide the 'mdev_supported_types/XX/create' files which can then be
 used to trigger the creation of a mdev_device. The created mdev_device will be
@@ -153,7 +135,7 @@ attached to the specified driver.
 
 When the driver needs to remove itself it calls::
 
-	extern void mdev_unregister_device(struct device *dev);
+    void mdev_unregister_parent(struct mdev_parent *parent);
 
 Which will unbind and destroy all the created mdevs and remove the sysfs files.
 
@@ -219,17 +201,14 @@ Directories and files under the sysfs for Each Physical Device
 
 	sprintf(buf, "%s-%s", dev_driver_string(parent->dev), group->name);
 
-  (or using mdev_parent_dev(mdev) to arrive at the parent device outside
-  of the core mdev code)
-
 * device_api
 
-  This attribute should show which device API is being created, for example,
+  This attribute shows which device API is being created, for example,
   "vfio-pci" for a PCI device.
 
 * available_instances
 
-  This attribute should show the number of devices of type <type-id> that can be
+  This attribute shows the number of devices of type <type-id> that can be
   created.
 
 * [device]
@@ -239,11 +218,11 @@ Directories and files under the sysfs for Each Physical Device
 
 * name
 
-  This attribute should show human readable name. This is optional attribute.
+  This attribute shows a human readable name.
 
 * description
 
-  This attribute should show brief features/description of the type. This is
+  This attribute can show brief features/description of the type. This is an
   optional attribute.
 
 Directories and Files Under the sysfs for Each mdev Device
@@ -279,10 +258,10 @@ Translation APIs for Mediated Devices
 The following APIs are provided for translating user pfn to host pfn in a VFIO
 driver::
 
-	extern int vfio_pin_pages(struct device *dev, unsigned long *user_pfn,
-				  int npage, int prot, unsigned long *phys_pfn);
+	int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
+				  int npage, int prot, struct page **pages);
 
-	extern int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn,
+	void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova,
 				    int npage);
 
 These functions call back into the back-end IOMMU module by using the pin_pages

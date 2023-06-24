@@ -37,8 +37,9 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include "en_accel/ipsec_rxtx.h"
-#include "en_accel/tls.h"
-#include "en_accel/tls_rxtx.h"
+#include "en_accel/ktls.h"
+#include "en_accel/ktls_txrx.h"
+#include <en_accel/macsec.h>
 #include "en.h"
 #include "en/txrx.h"
 
@@ -124,14 +125,24 @@ static inline bool mlx5e_accel_tx_begin(struct net_device *dev,
 
 #ifdef CONFIG_MLX5_EN_TLS
 	/* May send SKBs and WQEs. */
-	if (mlx5e_tls_skb_offloaded(skb))
-		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &state->tls)))
+	if (mlx5e_ktls_skb_offloaded(skb))
+		if (unlikely(!mlx5e_ktls_handle_tx_skb(dev, sq, skb,
+						       &state->tls)))
 			return false;
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
 	if (test_bit(MLX5E_SQ_STATE_IPSEC, &sq->state) && xfrm_offload(skb)) {
 		if (unlikely(!mlx5e_ipsec_handle_tx_skb(dev, skb, &state->ipsec)))
+			return false;
+	}
+#endif
+
+#ifdef CONFIG_MLX5_EN_MACSEC
+	if (unlikely(mlx5e_macsec_skb_is_offload(skb))) {
+		struct mlx5e_priv *priv = netdev_priv(dev);
+
+		if (unlikely(!mlx5e_macsec_handle_tx_skb(priv->macsec, skb)))
 			return false;
 	}
 #endif
@@ -162,6 +173,11 @@ static inline void mlx5e_accel_tx_eseg(struct mlx5e_priv *priv,
 		mlx5e_ipsec_tx_build_eseg(priv, skb, eseg);
 #endif
 
+#ifdef CONFIG_MLX5_EN_MACSEC
+	if (unlikely(mlx5e_macsec_skb_is_offload(skb)))
+		mlx5e_macsec_tx_build_eseg(priv->macsec, skb, eseg);
+#endif
+
 #if IS_ENABLED(CONFIG_GENEVE)
 	if (skb->encapsulation && skb->ip_summed == CHECKSUM_PARTIAL)
 		mlx5e_tx_tunnel_accel(skb, eseg, ihs);
@@ -174,7 +190,7 @@ static inline void mlx5e_accel_tx_finish(struct mlx5e_txqsq *sq,
 					 struct mlx5_wqe_inline_seg *inlseg)
 {
 #ifdef CONFIG_MLX5_EN_TLS
-	mlx5e_tls_handle_tx_wqe(&wqe->ctrl, &state->tls);
+	mlx5e_ktls_handle_tx_wqe(&wqe->ctrl, &state->tls);
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
@@ -192,5 +208,15 @@ static inline int mlx5e_accel_init_rx(struct mlx5e_priv *priv)
 static inline void mlx5e_accel_cleanup_rx(struct mlx5e_priv *priv)
 {
 	mlx5e_ktls_cleanup_rx(priv);
+}
+
+static inline int mlx5e_accel_init_tx(struct mlx5e_priv *priv)
+{
+	return mlx5e_ktls_init_tx(priv);
+}
+
+static inline void mlx5e_accel_cleanup_tx(struct mlx5e_priv *priv)
+{
+	mlx5e_ktls_cleanup_tx(priv);
 }
 #endif /* __MLX5E_EN_ACCEL_H__ */

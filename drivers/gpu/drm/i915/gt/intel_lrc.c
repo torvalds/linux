@@ -662,6 +662,21 @@ static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 		return -1;
 }
 
+static int lrc_ring_bb_offset(const struct intel_engine_cs *engine)
+{
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		return 0x80;
+	else if (GRAPHICS_VER(engine->i915) >= 12)
+		return 0x70;
+	else if (GRAPHICS_VER(engine->i915) >= 9)
+		return 0x64;
+	else if (GRAPHICS_VER(engine->i915) >= 8 &&
+		 engine->class == RENDER_CLASS)
+		return 0xc4;
+	else
+		return -1;
+}
+
 static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 {
 	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
@@ -768,6 +783,7 @@ static void init_common_regs(u32 * const regs,
 			     bool inhibit)
 {
 	u32 ctl;
+	int loc;
 
 	ctl = _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH);
 	ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
@@ -778,7 +794,11 @@ static void init_common_regs(u32 * const regs,
 					   CTX_CTRL_RS_CTX_ENABLE);
 	regs[CTX_CONTEXT_CONTROL] = ctl;
 
-	regs[CTX_TIMESTAMP] = ce->runtime.last;
+	regs[CTX_TIMESTAMP] = ce->stats.runtime.last;
+
+	loc = lrc_ring_bb_offset(engine);
+	if (loc != -1)
+		regs[loc + 1] = 0;
 }
 
 static void init_wa_bb_regs(u32 * const regs,
@@ -904,6 +924,24 @@ check_redzone(const void *vaddr, const struct intel_engine_cs *engine)
 			     engine->name);
 }
 
+static u32 context_wa_bb_offset(const struct intel_context *ce)
+{
+	return PAGE_SIZE * ce->wa_bb_page;
+}
+
+static u32 *context_indirect_bb(const struct intel_context *ce)
+{
+	void *ptr;
+
+	GEM_BUG_ON(!ce->wa_bb_page);
+
+	ptr = ce->lrc_reg_state;
+	ptr -= LRC_STATE_OFFSET; /* back to start of context image */
+	ptr += context_wa_bb_offset(ce);
+
+	return ptr;
+}
+
 void lrc_init_state(struct intel_context *ce,
 		    struct intel_engine_cs *engine,
 		    void *state)
@@ -922,11 +960,44 @@ void lrc_init_state(struct intel_context *ce,
 	/* Clear the ppHWSP (inc. per-context counters) */
 	memset(state, 0, PAGE_SIZE);
 
+	/* Clear the indirect wa and storage */
+	if (ce->wa_bb_page)
+		memset(state + context_wa_bb_offset(ce), 0, PAGE_SIZE);
+
 	/*
 	 * The second page of the context object contains some registers which
 	 * must be set up prior to the first execution.
 	 */
 	__lrc_init_regs(state + LRC_STATE_OFFSET, ce, engine, inhibit);
+}
+
+u32 lrc_indirect_bb(const struct intel_context *ce)
+{
+	return i915_ggtt_offset(ce->state) + context_wa_bb_offset(ce);
+}
+
+static u32 *setup_predicate_disable_wa(const struct intel_context *ce, u32 *cs)
+{
+	/* If predication is active, this will be noop'ed */
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT | (4 - 2);
+	*cs++ = lrc_indirect_bb(ce) + DG2_PREDICATE_RESULT_WA;
+	*cs++ = 0;
+	*cs++ = 0; /* No predication */
+
+	/* predicated end, only terminates if SET_PREDICATE_RESULT:0 is clear */
+	*cs++ = MI_BATCH_BUFFER_END | BIT(15);
+	*cs++ = MI_SET_PREDICATE | MI_SET_PREDICATE_DISABLE;
+
+	/* Instructions are no longer predicated (disabled), we can proceed */
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT | (4 - 2);
+	*cs++ = lrc_indirect_bb(ce) + DG2_PREDICATE_RESULT_WA;
+	*cs++ = 0;
+	*cs++ = 1; /* enable predication before the next BB */
+
+	*cs++ = MI_BATCH_BUFFER_END;
+	GEM_BUG_ON(offset_in_page(cs) > DG2_PREDICATE_RESULT_WA);
+
+	return cs;
 }
 
 static struct i915_vma *
@@ -1191,6 +1262,23 @@ dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
+/*
+ * The bspec's tuning guide asks us to program a vertical watermark value of
+ * 0x3FF.  However this register is not saved/restored properly by the
+ * hardware, so we're required to apply the desired value via INDIRECT_CTX
+ * batch buffer to ensure the value takes effect properly.  All other bits
+ * in this register should remain at 0 (the hardware default).
+ */
+static u32 *
+dg2_emit_draw_watermark_setting(u32 *cs)
+{
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(DRAW_WATERMARK);
+	*cs++ = REG_FIELD_PREP(VERT_WM_VAL, 0x3FF);
+
+	return cs;
+}
+
 static u32 *
 gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 {
@@ -1207,6 +1295,15 @@ gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_B0, STEP_C0) ||
 	    IS_DG2_G11(ce->engine->i915))
 		cs = gen8_emit_pipe_control(cs, PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE, 0);
+
+	/* hsdes: 1809175790 */
+	if (!HAS_FLAT_CCS(ce->engine->i915))
+		cs = gen12_emit_aux_table_inv(ce->engine->gt,
+					      cs, GEN12_GFX_CCS_AUX_NV);
+
+	/* Wa_16014892111 */
+	if (IS_DG2(ce->engine->i915))
+		cs = dg2_emit_draw_watermark_setting(cs);
 
 	return cs;
 }
@@ -1225,25 +1322,17 @@ gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
 						    PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE,
 						    0);
 
+	/* hsdes: 1809175790 */
+	if (!HAS_FLAT_CCS(ce->engine->i915)) {
+		if (ce->engine->class == VIDEO_DECODE_CLASS)
+			cs = gen12_emit_aux_table_inv(ce->engine->gt,
+						      cs, GEN12_VD0_AUX_NV);
+		else if (ce->engine->class == VIDEO_ENHANCEMENT_CLASS)
+			cs = gen12_emit_aux_table_inv(ce->engine->gt,
+						      cs, GEN12_VE0_AUX_NV);
+	}
+
 	return cs;
-}
-
-static u32 context_wa_bb_offset(const struct intel_context *ce)
-{
-	return PAGE_SIZE * ce->wa_bb_page;
-}
-
-static u32 *context_indirect_bb(const struct intel_context *ce)
-{
-	void *ptr;
-
-	GEM_BUG_ON(!ce->wa_bb_page);
-
-	ptr = ce->lrc_reg_state;
-	ptr -= LRC_STATE_OFFSET; /* back to start of context image */
-	ptr += context_wa_bb_offset(ce);
-
-	return ptr;
 }
 
 static void
@@ -1259,9 +1348,11 @@ setup_indirect_ctx_bb(const struct intel_context *ce,
 	while ((unsigned long)cs % CACHELINE_BYTES)
 		*cs++ = MI_NOOP;
 
+	GEM_BUG_ON(cs - start > DG2_PREDICATE_RESULT_BB / sizeof(*start));
+	setup_predicate_disable_wa(ce, start + DG2_PREDICATE_RESULT_BB / sizeof(*start));
+
 	lrc_setup_indirect_ctx(ce->lrc_reg_state, engine,
-			       i915_ggtt_offset(ce->state) +
-			       context_wa_bb_offset(ce),
+			       lrc_indirect_bb(ce),
 			       (cs - start) * sizeof(*cs));
 }
 
@@ -1722,11 +1813,12 @@ err:
 	}
 }
 
-static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)
+static void st_runtime_underflow(struct intel_context_stats *stats, s32 dt)
 {
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-	ce->runtime.num_underflow++;
-	ce->runtime.max_underflow = max_t(u32, ce->runtime.max_underflow, -dt);
+	stats->runtime.num_underflow++;
+	stats->runtime.max_underflow =
+		max_t(u32, stats->runtime.max_underflow, -dt);
 #endif
 }
 
@@ -1743,25 +1835,25 @@ static u32 lrc_get_runtime(const struct intel_context *ce)
 
 void lrc_update_runtime(struct intel_context *ce)
 {
+	struct intel_context_stats *stats = &ce->stats;
 	u32 old;
 	s32 dt;
 
-	if (intel_context_is_barrier(ce))
+	old = stats->runtime.last;
+	stats->runtime.last = lrc_get_runtime(ce);
+	dt = stats->runtime.last - old;
+	if (!dt)
 		return;
-
-	old = ce->runtime.last;
-	ce->runtime.last = lrc_get_runtime(ce);
-	dt = ce->runtime.last - old;
 
 	if (unlikely(dt < 0)) {
 		CE_TRACE(ce, "runtime underflow: last=%u, new=%u, delta=%d\n",
-			 old, ce->runtime.last, dt);
-		st_update_runtime_underflow(ce, dt);
+			 old, stats->runtime.last, dt);
+		st_runtime_underflow(stats, dt);
 		return;
 	}
 
-	ewma_runtime_add(&ce->runtime.avg, dt);
-	ce->runtime.total += dt;
+	ewma_runtime_add(&stats->runtime.avg, dt);
+	stats->runtime.total += dt;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

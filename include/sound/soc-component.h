@@ -169,8 +169,17 @@ struct snd_soc_component_driver {
 	unsigned int idle_bias_on:1;
 	unsigned int suspend_bias_off:1;
 	unsigned int use_pmdown_time:1; /* care pmdown_time at stop */
+	/*
+	 * Indicates that the component does not care about the endianness of
+	 * PCM audio data and the core will ensure that both LE and BE variants
+	 * of each used format are present. Typically this is because the
+	 * component sits behind a bus that abstracts away the endian of the
+	 * original data, ie. one for which the transmission endian is defined
+	 * (I2S/SLIMbus/SoundWire), or the concept of endian doesn't exist (PDM,
+	 * analogue).
+	 */
 	unsigned int endianness:1;
-	unsigned int non_legacy_dai_naming:1;
+	unsigned int legacy_dai_naming:1;
 
 	/* this component uses topology and ignore machine driver FEs */
 	const char *ignore_machine;
@@ -337,11 +346,6 @@ static inline int snd_soc_component_cache_sync(
 	struct snd_soc_component *component)
 {
 	return regcache_sync(component->regmap);
-}
-
-static inline int snd_soc_component_is_codec(struct snd_soc_component *component)
-{
-	return component->driver->non_legacy_dai_naming;
 }
 
 void snd_soc_component_set_aux(struct snd_soc_component *component,

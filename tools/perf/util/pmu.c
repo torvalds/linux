@@ -690,7 +690,7 @@ static int is_arm_pmu_core(const char *name)
 	return file_available(path);
 }
 
-static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
+char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 {
 	char *cpuid;
 	static bool printed;
@@ -710,36 +710,9 @@ static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 	return cpuid;
 }
 
-const struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
+__weak const struct pmu_events_table *pmu_events_table__find(void)
 {
-	const struct pmu_events_map *map;
-	char *cpuid = perf_pmu__getcpuid(pmu);
-	int i;
-
-	/* on some platforms which uses cpus map, cpuid can be NULL for
-	 * PMUs other than CORE PMUs.
-	 */
-	if (!cpuid)
-		return NULL;
-
-	i = 0;
-	for (;;) {
-		map = &pmu_events_map[i++];
-		if (!map->table) {
-			map = NULL;
-			break;
-		}
-
-		if (!strcmp_cpuid_str(map->cpuid, cpuid))
-			break;
-	}
-	free(cpuid);
-	return map;
-}
-
-const struct pmu_events_map *__weak pmu_events_map__find(void)
-{
-	return perf_pmu__find_map(NULL);
+	return perf_pmu__find_table(NULL);
 }
 
 /*
@@ -818,81 +791,63 @@ out:
 	return res;
 }
 
+struct pmu_add_cpu_aliases_map_data {
+	struct list_head *head;
+	const char *name;
+	const char *cpu_name;
+	struct perf_pmu *pmu;
+};
+
+static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
+					const struct pmu_events_table *table __maybe_unused,
+					void *vdata)
+{
+	struct pmu_add_cpu_aliases_map_data *data = vdata;
+	const char *pname = pe->pmu ? pe->pmu : data->cpu_name;
+
+	if (!pe->name)
+		return 0;
+
+	if (data->pmu->is_uncore && pmu_uncore_alias_match(pname, data->name))
+		goto new_alias;
+
+	if (strcmp(pname, data->name))
+		return 0;
+
+new_alias:
+	/* need type casts to override 'const' */
+	__perf_pmu__new_alias(data->head, NULL, (char *)pe->name, (char *)pe->desc,
+			      (char *)pe->event, pe);
+	return 0;
+}
+
 /*
  * From the pmu_events_map, find the table of PMU events that corresponds
  * to the current running CPU. Then, add all PMU events from that table
  * as aliases.
  */
-void pmu_add_cpu_aliases_map(struct list_head *head, struct perf_pmu *pmu,
-			     const struct pmu_events_map *map)
+void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
+			       const struct pmu_events_table *table)
 {
-	int i;
-	const char *name = pmu->name;
-	/*
-	 * Found a matching PMU events table. Create aliases
-	 */
-	i = 0;
-	while (1) {
-		const char *cpu_name = is_arm_pmu_core(name) ? name : "cpu";
-		const struct pmu_event *pe = &map->table[i++];
-		const char *pname = pe->pmu ? pe->pmu : cpu_name;
+	struct pmu_add_cpu_aliases_map_data data = {
+		.head = head,
+		.name = pmu->name,
+		.cpu_name = is_arm_pmu_core(pmu->name) ? pmu->name : "cpu",
+		.pmu = pmu,
+	};
 
-		if (!pe->name) {
-			if (pe->metric_group || pe->metric_name)
-				continue;
-			break;
-		}
-
-		if (pmu->is_uncore && pmu_uncore_alias_match(pname, name))
-			goto new_alias;
-
-		if (strcmp(pname, name))
-			continue;
-
-new_alias:
-		/* need type casts to override 'const' */
-		__perf_pmu__new_alias(head, NULL, (char *)pe->name,
-				(char *)pe->desc, (char *)pe->event,
-				pe);
-	}
+	pmu_events_table_for_each_event(table, pmu_add_cpu_aliases_map_callback, &data);
 }
 
 static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
-	const struct pmu_events_map *map;
+	const struct pmu_events_table *table;
 
-	map = perf_pmu__find_map(pmu);
-	if (!map)
+	table = perf_pmu__find_table(pmu);
+	if (!table)
 		return;
 
-	pmu_add_cpu_aliases_map(head, pmu, map);
-}
-
-void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
-{
-	int i = 0;
-
-	while (1) {
-		const struct pmu_sys_events *event_table;
-		int j = 0;
-
-		event_table = &pmu_sys_event_tables[i++];
-
-		if (!event_table->table)
-			break;
-
-		while (1) {
-			const struct pmu_event *pe = &event_table->table[j++];
-			int ret;
-
-			if (!pe->name && !pe->metric_group && !pe->metric_name)
-				break;
-
-			ret = fn(pe, data);
-			if (ret)
-				break;
-		}
-	}
+	pmu_add_cpu_aliases_table(head, pmu, table);
 }
 
 struct pmu_sys_event_iter_data {
@@ -900,7 +855,9 @@ struct pmu_sys_event_iter_data {
 	struct perf_pmu *pmu;
 };
 
-static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe, void *data)
+static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
+				       const struct pmu_events_table *table __maybe_unused,
+				       void *data)
 {
 	struct pmu_sys_event_iter_data *idata = data;
 	struct perf_pmu *pmu = idata->pmu;
@@ -1046,6 +1003,23 @@ err:
 		free(pmu->name);
 	free(pmu);
 	return NULL;
+}
+
+void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
+{
+	struct perf_pmu_format *format;
+
+	/* fake pmu doesn't have format list */
+	if (pmu == &perf_pmu__fake)
+		return;
+
+	list_for_each_entry(format, &pmu->format, list)
+		if (format->value >= PERF_PMU_FORMAT_VALUE_CONFIG_END) {
+			pr_warning("WARNING: '%s' format '%s' requires 'perf_event_attr::config%d'"
+				   "which is not supported by this version of perf!\n",
+				   pmu->name, format->name, format->value);
+			return;
+		}
 }
 
 static struct perf_pmu *pmu_find(const char *name)
@@ -1225,7 +1199,7 @@ static char *pmu_formats_string(struct list_head *formats)
 	struct perf_pmu_format *format;
 	char *str = NULL;
 	struct strbuf buf = STRBUF_INIT;
-	unsigned i = 0;
+	unsigned int i = 0;
 
 	if (!formats)
 		return NULL;
@@ -1890,7 +1864,11 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 	const char *sysfs = sysfs__mountpoint();
 	DIR *caps_dir;
 	struct dirent *evt_ent;
-	int nr_caps = 0;
+
+	if (pmu->caps_initialized)
+		return pmu->nr_caps;
+
+	pmu->nr_caps = 0;
 
 	if (!sysfs)
 		return -1;
@@ -1898,8 +1876,10 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 	snprintf(caps_path, PATH_MAX,
 		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/caps", sysfs, pmu->name);
 
-	if (stat(caps_path, &st) < 0)
+	if (stat(caps_path, &st) < 0) {
+		pmu->caps_initialized = true;
 		return 0;	/* no error if caps does not exist */
+	}
 
 	caps_dir = opendir(caps_path);
 	if (!caps_dir)
@@ -1926,13 +1906,14 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 			continue;
 		}
 
-		nr_caps++;
+		pmu->nr_caps++;
 		fclose(file);
 	}
 
 	closedir(caps_dir);
 
-	return nr_caps;
+	pmu->caps_initialized = true;
+	return pmu->nr_caps;
 }
 
 void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,

@@ -23,7 +23,7 @@ struct tcf_walker {
 };
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
-int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
+void unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
 struct tcf_block_ext_info {
 	enum flow_block_binder_type binder_type;
@@ -80,6 +80,19 @@ int tcf_classify(struct sk_buff *skb,
 		 const struct tcf_block *block,
 		 const struct tcf_proto *tp, struct tcf_result *res,
 		 bool compat_mode);
+
+static inline bool tc_cls_stats_dump(struct tcf_proto *tp,
+				     struct tcf_walker *arg,
+				     void *filter)
+{
+	if (arg->count >= arg->skip && arg->fn(tp, filter, arg) < 0) {
+		arg->stop = 1;
+		return false;
+	}
+
+	arg->count++;
+	return true;
+}
 
 #else
 static inline bool tcf_block_shared(struct tcf_block *block)
@@ -195,6 +208,18 @@ tcf_unbind_filter(struct tcf_proto *tp, struct tcf_result *r)
 	if (!q)
 		return;
 	__tcf_unbind_filter(q, r);
+}
+
+static inline void tc_cls_bind_class(u32 classid, unsigned long cl,
+				     void *q, struct tcf_result *res,
+				     unsigned long base)
+{
+	if (res->classid == classid) {
+		if (cl)
+			__tcf_bind_filter(q, res, base);
+		else
+			__tcf_unbind_filter(q, res);
+	}
 }
 
 struct tcf_exts {
@@ -547,10 +572,12 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 
 int tc_setup_offload_action(struct flow_action *flow_action,
-			    const struct tcf_exts *exts);
+			    const struct tcf_exts *exts,
+			    struct netlink_ext_ack *extack);
 void tc_cleanup_offload_action(struct flow_action *flow_action);
 int tc_setup_action(struct flow_action *flow_action,
-		    struct tc_action *actions[]);
+		    struct tc_action *actions[],
+		    struct netlink_ext_ack *extack);
 
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		     void *type_data, bool err_stop, bool rtnl_held);

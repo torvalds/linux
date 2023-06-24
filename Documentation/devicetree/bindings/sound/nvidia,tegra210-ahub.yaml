@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra210-ahub.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra210 AHUB Device Tree Bindings
+title: Tegra210 AHUB
 
 description: |
   The Audio Hub (AHUB) comprises a collection of hardware accelerators
@@ -105,6 +105,14 @@ patternProperties:
   '^amixer@[0-9a-f]+$':
     type: object
     $ref: nvidia,tegra210-mixer.yaml#
+
+  '^asrc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra186-asrc.yaml#
+
+  '^processing-engine@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-ope.yaml#
 
 required:
   - compatible

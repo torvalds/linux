@@ -55,6 +55,8 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/sas_ata.h>
 #include <linux/atomic.h>
+#include <linux/blk-mq.h>
+#include <linux/blk-mq-pci.h>
 #include "pm8001_defs.h"
 
 #define DRV_NAME		"pm80xx"
@@ -172,6 +174,7 @@ struct forensic_data {
 struct pm8001_dispatch {
 	char *name;
 	int (*chip_init)(struct pm8001_hba_info *pm8001_ha);
+	void (*chip_post_init)(struct pm8001_hba_info *pm8001_ha);
 	int (*chip_soft_rst)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_rst)(struct pm8001_hba_info *pm8001_ha);
 	int (*chip_ioremap)(struct pm8001_hba_info *pm8001_ha);
@@ -609,7 +612,7 @@ struct fw_control_info {
 	operations.*/
 	u32			reserved;/* padding required for 64 bit
 	alignment */
-	u8			buffer[1];/* Start of buffer */
+	u8			buffer[];/* Start of buffer */
 };
 struct fw_control_ex {
 	struct fw_control_info *fw_control;

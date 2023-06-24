@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2020-2021 HabanaLabs, Ltd.
+ * Copyright 2020-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -68,7 +68,8 @@ struct hl_eq_ecc_data {
 	__le64 ecc_address;
 	__le64 ecc_syndrom;
 	__u8 memory_wrapper_idx;
-	__u8 pad[7];
+	__u8 is_critical;
+	__u8 pad[6];
 };
 
 enum hl_sm_sei_cause {
@@ -98,27 +99,265 @@ struct hl_eq_fw_alive {
 	__u8 pad[7];
 };
 
-enum hl_pcie_addr_dec_cause {
-	PCIE_ADDR_DEC_HBW_ERR_RESP,
-	PCIE_ADDR_DEC_LBW_ERR_RESP,
-	PCIE_ADDR_DEC_TLP_BLOCKED_BY_RR
+struct hl_eq_intr_cause {
+	__le64 intr_cause_data;
 };
 
-struct hl_eq_pcie_addr_dec_data {
-	/* enum hl_pcie_addr_dec_cause */
-	__u8 addr_dec_cause;
-	__u8 pad[7];
+struct hl_eq_pcie_drain_ind_data {
+	struct hl_eq_intr_cause intr_cause;
+	__le64 drain_wr_addr_lbw;
+	__le64 drain_rd_addr_lbw;
+	__le64 drain_wr_addr_hbw;
+	__le64 drain_rd_addr_hbw;
+};
+
+struct hl_eq_razwi_lbw_info_regs {
+	__le32 rr_aw_razwi_reg;
+	__le32 rr_aw_razwi_id_reg;
+	__le32 rr_ar_razwi_reg;
+	__le32 rr_ar_razwi_id_reg;
+};
+
+struct hl_eq_razwi_hbw_info_regs {
+	__le32 rr_aw_razwi_hi_reg;
+	__le32 rr_aw_razwi_lo_reg;
+	__le32 rr_aw_razwi_id_reg;
+	__le32 rr_ar_razwi_hi_reg;
+	__le32 rr_ar_razwi_lo_reg;
+	__le32 rr_ar_razwi_id_reg;
+};
+
+/* razwi_happened masks */
+#define RAZWI_HAPPENED_HBW	0x1
+#define RAZWI_HAPPENED_LBW	0x2
+#define RAZWI_HAPPENED_AW	0x4
+#define RAZWI_HAPPENED_AR	0x8
+
+struct hl_eq_razwi_info {
+	__le32 razwi_happened_mask;
+	union {
+		struct hl_eq_razwi_lbw_info_regs lbw;
+		struct hl_eq_razwi_hbw_info_regs hbw;
+	};
+	__le32 pad;
+};
+
+struct hl_eq_razwi_with_intr_cause {
+	struct hl_eq_razwi_info razwi_info;
+	struct hl_eq_intr_cause intr_cause;
+};
+
+#define HBM_CA_ERR_CMD_LIFO_LEN		8
+#define HBM_RD_ERR_DATA_LIFO_LEN	8
+#define HBM_WR_PAR_CMD_LIFO_LEN		11
+
+enum hl_hbm_sei_cause {
+	/* Command/address parity error event is split into 2 events due to
+	 * size limitation: ODD suffix for odd HBM CK_t cycles and EVEN  suffix
+	 * for even HBM CK_t cycles
+	 */
+	HBM_SEI_CMD_PARITY_EVEN,
+	HBM_SEI_CMD_PARITY_ODD,
+	/* Read errors can be reflected as a combination of SERR/DERR/parity
+	 * errors. Therefore, we define one event for all read error types.
+	 * LKD will perform further proccessing.
+	 */
+	HBM_SEI_READ_ERR,
+	HBM_SEI_WRITE_DATA_PARITY_ERR,
+	HBM_SEI_CATTRIP,
+	HBM_SEI_MEM_BIST_FAIL,
+	HBM_SEI_DFI,
+	HBM_SEI_INV_TEMP_READ_OUT,
+	HBM_SEI_BIST_FAIL,
+};
+
+/* Masks for parsing hl_hbm_sei_headr fields */
+#define HBM_ECC_SERR_CNTR_MASK		0xFF
+#define HBM_ECC_DERR_CNTR_MASK		0xFF00
+#define HBM_RD_PARITY_CNTR_MASK		0xFF0000
+
+/* HBM index and MC index are known by the event_id */
+struct hl_hbm_sei_header {
+	union {
+		/* relevant only in case of HBM read error */
+		struct {
+			__u8 ecc_serr_cnt;
+			__u8 ecc_derr_cnt;
+			__u8 read_par_cnt;
+			__u8 reserved;
+		};
+		/* All other cases */
+		__le32 cnt;
+	};
+	__u8 sei_cause;		/* enum hl_hbm_sei_cause */
+	__u8 mc_channel;		/* range: 0-3 */
+	__u8 mc_pseudo_channel;	/* range: 0-7 */
+	__u8 is_critical;
+};
+
+#define HBM_RD_ADDR_SID_SHIFT		0
+#define HBM_RD_ADDR_SID_MASK		0x1
+#define HBM_RD_ADDR_BG_SHIFT		1
+#define HBM_RD_ADDR_BG_MASK		0x6
+#define HBM_RD_ADDR_BA_SHIFT		3
+#define HBM_RD_ADDR_BA_MASK		0x18
+#define HBM_RD_ADDR_COL_SHIFT		5
+#define HBM_RD_ADDR_COL_MASK		0x7E0
+#define HBM_RD_ADDR_ROW_SHIFT		11
+#define HBM_RD_ADDR_ROW_MASK		0x3FFF800
+
+struct hbm_rd_addr {
+	union {
+		/* bit fields are only for FW use */
+		struct {
+			u32 dbg_rd_err_addr_sid:1;
+			u32 dbg_rd_err_addr_bg:2;
+			u32 dbg_rd_err_addr_ba:2;
+			u32 dbg_rd_err_addr_col:6;
+			u32 dbg_rd_err_addr_row:15;
+			u32 reserved:6;
+		};
+		__le32 rd_addr_val;
+	};
+};
+
+#define HBM_RD_ERR_BEAT_SHIFT		2
+/* dbg_rd_err_misc fields: */
+/* Read parity is calculated per DW on every beat */
+#define HBM_RD_ERR_PAR_ERR_BEAT0_SHIFT	0
+#define HBM_RD_ERR_PAR_ERR_BEAT0_MASK	0x3
+#define HBM_RD_ERR_PAR_DATA_BEAT0_SHIFT	8
+#define HBM_RD_ERR_PAR_DATA_BEAT0_MASK	0x300
+/* ECC is calculated per PC on every beat */
+#define HBM_RD_ERR_SERR_BEAT0_SHIFT	16
+#define HBM_RD_ERR_SERR_BEAT0_MASK	0x10000
+#define HBM_RD_ERR_DERR_BEAT0_SHIFT	24
+#define HBM_RD_ERR_DERR_BEAT0_MASK	0x100000
+
+struct hl_eq_hbm_sei_read_err_intr_info {
+	/* DFI_RD_ERR_REP_ADDR */
+	struct hbm_rd_addr dbg_rd_err_addr;
+	/* DFI_RD_ERR_REP_ERR */
+	union {
+		struct {
+			/* bit fields are only for FW use */
+			u32 dbg_rd_err_par:8;
+			u32 dbg_rd_err_par_data:8;
+			u32 dbg_rd_err_serr:4;
+			u32 dbg_rd_err_derr:4;
+			u32 reserved:8;
+		};
+		__le32 dbg_rd_err_misc;
+	};
+	/* DFI_RD_ERR_REP_DM */
+	__le32 dbg_rd_err_dm;
+	/* DFI_RD_ERR_REP_SYNDROME */
+	__le32 dbg_rd_err_syndrome;
+	/* DFI_RD_ERR_REP_DATA */
+	__le32 dbg_rd_err_data[HBM_RD_ERR_DATA_LIFO_LEN];
+};
+
+struct hl_eq_hbm_sei_ca_par_intr_info {
+	/* 14 LSBs */
+	__le16 dbg_row[HBM_CA_ERR_CMD_LIFO_LEN];
+	/* 18 LSBs */
+	__le32 dbg_col[HBM_CA_ERR_CMD_LIFO_LEN];
+};
+
+#define WR_PAR_LAST_CMD_COL_SHIFT	0
+#define WR_PAR_LAST_CMD_COL_MASK	0x3F
+#define WR_PAR_LAST_CMD_BG_SHIFT	6
+#define WR_PAR_LAST_CMD_BG_MASK		0xC0
+#define WR_PAR_LAST_CMD_BA_SHIFT	8
+#define WR_PAR_LAST_CMD_BA_MASK		0x300
+#define WR_PAR_LAST_CMD_SID_SHIFT	10
+#define WR_PAR_LAST_CMD_SID_MASK	0x400
+
+/* Row address isn't latched */
+struct hbm_sei_wr_cmd_address {
+	/* DFI_DERR_LAST_CMD */
+	union {
+		struct {
+			/* bit fields are only for FW use */
+			u32 col:6;
+			u32 bg:2;
+			u32 ba:2;
+			u32 sid:1;
+			u32 reserved:21;
+		};
+		__le32 dbg_wr_cmd_addr;
+	};
+};
+
+struct hl_eq_hbm_sei_wr_par_intr_info {
+	/* entry 0: WR command address from the 1st cycle prior to the error
+	 * entry 1: WR command address from the 2nd cycle prior to the error
+	 * and so on...
+	 */
+	struct hbm_sei_wr_cmd_address dbg_last_wr_cmds[HBM_WR_PAR_CMD_LIFO_LEN];
+	/* derr[0:1] - 1st HBM cycle DERR output
+	 * derr[2:3] - 2nd HBM cycle DERR output
+	 */
+	__u8 dbg_derr;
+	/* extend to reach 8B */
+	__u8 pad[3];
+};
+
+/*
+ * this struct represents the following sei causes:
+ * command parity, ECC double error, ECC single error, dfi error, cattrip,
+ * temperature read-out, read parity error and write parity error.
+ * some only use the header while some have extra data.
+ */
+struct hl_eq_hbm_sei_data {
+	struct hl_hbm_sei_header hdr;
+	union {
+		struct hl_eq_hbm_sei_ca_par_intr_info ca_parity_even_info;
+		struct hl_eq_hbm_sei_ca_par_intr_info ca_parity_odd_info;
+		struct hl_eq_hbm_sei_read_err_intr_info read_err_info;
+		struct hl_eq_hbm_sei_wr_par_intr_info wr_parity_info;
+	};
+};
+
+/* Engine/farm arc interrupt type */
+enum hl_engine_arc_interrupt_type {
+	/* Qman/farm ARC DCCM QUEUE FULL interrupt type */
+	ENGINE_ARC_DCCM_QUEUE_FULL_IRQ = 1
+};
+
+/* Data structure specifies details of payload of DCCM QUEUE FULL interrupt */
+struct hl_engine_arc_dccm_queue_full_irq {
+	/* Queue index value which caused DCCM QUEUE FULL */
+	__le32 queue_index;
+	__le32 pad;
+};
+
+/* Data structure specifies details of QM/FARM ARC interrupt */
+struct hl_eq_engine_arc_intr_data {
+	/* ARC engine id e.g.  DCORE0_TPC0_QM_ARC, DCORE0_TCP1_QM_ARC */
+	__le32 engine_id;
+	__le32 intr_type; /* enum hl_engine_arc_interrupt_type */
+	/* More info related to the interrupt e.g. queue index
+	 * incase of DCCM_QUEUE_FULL interrupt.
+	 */
+	__le64 payload;
+	__le64 pad[5];
 };
 
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
 		struct hl_eq_ecc_data ecc_data;
-		struct hl_eq_hbm_ecc_data hbm_ecc_data;
+		struct hl_eq_hbm_ecc_data hbm_ecc_data;	/* Gaudi1 HBM */
 		struct hl_eq_sm_sei_data sm_sei_data;
 		struct cpucp_pkt_sync_err pkt_sync_err;
 		struct hl_eq_fw_alive fw_alive;
-		struct hl_eq_pcie_addr_dec_data pcie_addr_dec_data;
+		struct hl_eq_intr_cause intr_cause;
+		struct hl_eq_pcie_drain_ind_data pcie_drain_ind_data;
+		struct hl_eq_razwi_info razwi_info;
+		struct hl_eq_razwi_with_intr_cause razwi_with_intr_cause;
+		struct hl_eq_hbm_sei_data sei_data;	/* Gaudi2 HBM */
+		struct hl_eq_engine_arc_intr_data arc_data;
 		__le64 data[7];
 	};
 };
@@ -389,6 +628,24 @@ enum pq_init_status {
  *
  * CPUCP_PACKET_ENGINE_CORE_ASID_SET -
  *       Packet to perform engine core ASID configuration
+ *
+ * CPUCP_PACKET_SEC_ATTEST_GET -
+ *       Get the attestaion data that is collected during various stages of the
+ *       boot sequence. the attestation data is also hashed with some unique
+ *       number (nonce) provided by the host to prevent replay attacks.
+ *       public key and certificate also provided as part of the FW response.
+ *
+ * CPUCP_PACKET_MONITOR_DUMP_GET -
+ *       Get monitors registers dump from the CpuCP kernel.
+ *       The CPU will put the registers dump in the a buffer allocated by the driver
+ *       which address is passed via the CpuCp packet. In addition, the host's driver
+ *       passes the max size it allows the CpuCP to write to the structure, to prevent
+ *       data corruption in case of mismatched driver/FW versions.
+ *       Relevant only to Gaudi.
+ *
+ * CPUCP_PACKET_ACTIVE_STATUS_SET -
+ *       LKD sends FW indication whether device is free or in use, this indication is reported
+ *       also to the BMC.
  */
 
 enum cpucp_packet_id {
@@ -439,6 +696,18 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_POWER_SET,			/* internal */
 	CPUCP_PACKET_RESERVED,			/* not used */
 	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
+	CPUCP_PACKET_RESERVED2,			/* not used */
+	CPUCP_PACKET_SEC_ATTEST_GET,		/* internal */
+	CPUCP_PACKET_RESERVED3,			/* not used */
+	CPUCP_PACKET_RESERVED4,			/* not used */
+	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
+	CPUCP_PACKET_RESERVED5,			/* not used */
+	CPUCP_PACKET_RESERVED6,			/* not used */
+	CPUCP_PACKET_RESERVED7,			/* not used */
+	CPUCP_PACKET_RESERVED8,			/* not used */
+	CPUCP_PACKET_RESERVED9,			/* not used */
+	CPUCP_PACKET_ACTIVE_STATUS_SET,		/* internal */
+	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -531,6 +800,9 @@ struct cpucp_packet {
 		 * result cannot be used to hold general purpose data.
 		 */
 		__le32 status_mask;
+
+		/* random, used once number, for security packets */
+		__le32 nonce;
 	};
 
 	/* For NIC requests */
@@ -555,10 +827,31 @@ struct cpucp_array_data_packet {
 	__le32 data[];
 };
 
+enum cpucp_led_index {
+	CPUCP_LED0_INDEX = 0,
+	CPUCP_LED1_INDEX,
+	CPUCP_LED2_INDEX
+};
+
+/*
+ * enum cpucp_packet_rc - Error return code
+ * @cpucp_packet_success	-> in case of success.
+ * @cpucp_packet_invalid	-> this is to support Goya and Gaudi platform.
+ * @cpucp_packet_fault		-> in case of processing error like failing to
+ *                                 get device binding or semaphore etc.
+ * @cpucp_packet_invalid_pkt	-> when cpucp packet is un-supported. This is
+ *                                 supported Greco onwards.
+ * @cpucp_packet_invalid_params	-> when checking parameter like length of buffer
+ *				   or attribute value etc. Supported Greco onwards.
+ * @cpucp_packet_rc_max		-> It indicates size of enum so should be at last.
+ */
 enum cpucp_packet_rc {
 	cpucp_packet_success,
 	cpucp_packet_invalid,
-	cpucp_packet_fault
+	cpucp_packet_fault,
+	cpucp_packet_invalid_pkt,
+	cpucp_packet_invalid_params,
+	cpucp_packet_rc_max
 };
 
 /*
@@ -576,7 +869,10 @@ enum cpucp_temp_type {
 	cpucp_temp_offset = 19,
 	cpucp_temp_lowest = 21,
 	cpucp_temp_highest = 22,
-	cpucp_temp_reset_history = 23
+	cpucp_temp_reset_history = 23,
+	cpucp_temp_warn = 24,
+	cpucp_temp_max_crit = 25,
+	cpucp_temp_max_warn = 26,
 };
 
 enum cpucp_in_attributes {
@@ -686,6 +982,7 @@ enum pll_index {
 enum rl_index {
 	TPC_RL = 0,
 	MME_RL,
+	EDMA_RL,
 };
 
 enum pvt_index {
@@ -769,10 +1066,23 @@ struct cpucp_security_info {
  * @infineon_second_stage_version: Infineon 2nd stage DC-DC version.
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
+ * @tpc_binning_mask: TPC binning mask, 1 bit per TPC instance
+ *                    (0 = functional, 1 = binned)
+ * @decoder_binning_mask: Decoder binning mask, 1 bit per decoder instance
+ *                        (0 = functional, 1 = binned), maximum 1 per dcore
+ * @sram_binning: Categorize SRAM functionality
+ *                (0 = fully functional, 1 = lower-half is not functional,
+ *                 2 = upper-half is not functional)
  * @sec_info: security information
  * @pll_map: Bit map of supported PLLs for current ASIC version.
  * @mme_binning_mask: MME binning mask,
- *                   (0 = functional, 1 = binned)
+ *                    bits [0:6]   <==> dcore0 mme fma
+ *                    bits [7:13]  <==> dcore1 mme fma
+ *                    bits [14:20] <==> dcore0 mme ima
+ *                    bits [21:27] <==> dcore1 mme ima
+ *                    For each group, if the 6th bit is set then first 5 bits
+ *                    represent the col's idx [0-31], otherwise these bits are
+ *                    ignored, and col idx 32 is binned. 7th bit is don't care.
  * @dram_binning_mask: DRAM binning mask, 1 bit per dram instance
  *                     (0 = functional 1 = binned)
  * @memory_repair_flag: eFuse flag indicating memory repair
@@ -780,6 +1090,8 @@ struct cpucp_security_info {
  *                     (0 = functional 1 = binned)
  * @xbar_binning_mask: Xbar binning mask, 1 bit per Xbar instance
  *                     (0 = functional 1 = binned)
+ * @interposer_version: Interposer version programmed in eFuse
+ * @substrate_version: Substrate version programmed in eFuse
  * @fw_os_version: Firmware OS Version
  */
 struct cpucp_info {
@@ -796,16 +1108,18 @@ struct cpucp_info {
 	__le32 infineon_second_stage_version;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
-	__le64 reserved3;
-	__le64 reserved4;
-	__u8 reserved5;
+	__le64 tpc_binning_mask;
+	__le64 decoder_binning_mask;
+	__u8 sram_binning;
 	__u8 dram_binning_mask;
 	__u8 memory_repair_flag;
 	__u8 edma_binning_mask;
 	__u8 xbar_binning_mask;
-	__u8 pad[3];
+	__u8 interposer_version;
+	__u8 substrate_version;
+	__u8 reserved2;
 	struct cpucp_security_info sec_info;
-	__le32 reserved6;
+	__le32 reserved3;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
 	__u8 fw_os_version[VERSION_MAX_LEN];
@@ -820,6 +1134,7 @@ enum cpucp_serdes_type {
 	TYPE_2_SERDES_TYPE,
 	HLS1_SERDES_TYPE,
 	HLS1H_SERDES_TYPE,
+	HLS2_SERDES_TYPE,
 	UNKNOWN_SERDES_TYPE,
 	MAX_NUM_SERDES_TYPE = UNKNOWN_SERDES_TYPE
 };
@@ -833,7 +1148,26 @@ struct cpucp_nic_info {
 	__u8 qsfp_eeprom[CPUCP_NIC_QSFP_EEPROM_MAX_LEN];
 	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
 	__le16 serdes_type; /* enum cpucp_serdes_type */
+	__le16 tx_swap_map[CPUCP_MAX_NICS];
 	__u8 reserved[6];
+};
+
+#define PAGE_DISCARD_MAX	64
+
+struct page_discard_info {
+	__u8 num_entries;
+	__u8 reserved[7];
+	__le32 mmu_page_idx[PAGE_DISCARD_MAX];
+};
+
+/*
+ * struct ser_val - the SER (symbol error rate) value is represented by "integer * 10 ^ -exp".
+ * @integer: the integer part of the SER value;
+ * @exp: the exponent part of the SER value.
+ */
+struct ser_val {
+	__le16 integer;
+	__le16 exp;
 };
 
 /*
@@ -887,6 +1221,100 @@ struct cpucp_hbm_row_replaced_rows_info {
 	__le16 num_replaced_rows;
 	__u8 pad[6];
 	struct cpucp_hbm_row_info replaced_rows[CPUCP_HBM_ROW_REPLACE_MAX];
+};
+
+enum cpu_reset_status {
+	CPU_RST_STATUS_NA = 0,
+	CPU_RST_STATUS_SOFT_RST_DONE = 1,
+};
+
+#define SEC_PCR_DATA_BUF_SZ	256
+#define SEC_PCR_QUOTE_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
+#define SEC_SIGNATURE_BUF_SZ	255	/* (256 - 1) 1 byte used for size */
+#define SEC_PUB_DATA_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
+#define SEC_CERTIFICATE_BUF_SZ	2046	/* (2048 - 2) 2 bytes used for size */
+
+/*
+ * struct cpucp_sec_attest_info - attestation report of the boot
+ * @pcr_data: raw values of the PCR registers
+ * @pcr_num_reg: number of PCR registers in the pcr_data array
+ * @pcr_reg_len: length of each PCR register in the pcr_data array (bytes)
+ * @nonce: number only used once. random number provided by host. this also
+ *	    passed to the quote command as a qualifying data.
+ * @pcr_quote_len: length of the attestation quote data (bytes)
+ * @pcr_quote: attestation report data structure
+ * @quote_sig_len: length of the attestation report signature (bytes)
+ * @quote_sig: signature structure of the attestation report
+ * @pub_data_len: length of the public data (bytes)
+ * @public_data: public key for the signed attestation
+ *		 (outPublic + name + qualifiedName)
+ * @certificate_len: length of the certificate (bytes)
+ * @certificate: certificate for the attestation signing key
+ */
+struct cpucp_sec_attest_info {
+	__u8 pcr_data[SEC_PCR_DATA_BUF_SZ];
+	__u8 pcr_num_reg;
+	__u8 pcr_reg_len;
+	__le16 pad0;
+	__le32 nonce;
+	__le16 pcr_quote_len;
+	__u8 pcr_quote[SEC_PCR_QUOTE_BUF_SZ];
+	__u8 quote_sig_len;
+	__u8 quote_sig[SEC_SIGNATURE_BUF_SZ];
+	__le16 pub_data_len;
+	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
+	__le16 certificate_len;
+	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
+};
+
+/*
+ * struct cpucp_dev_info_signed - device information signed by a secured device
+ * @info: device information structure as defined above
+ * @nonce: number only used once. random number provided by host. this number is
+ *	   hashed and signed along with the device information.
+ * @info_sig_len: length of the attestation signature (bytes)
+ * @info_sig: signature of the info + nonce data.
+ * @pub_data_len: length of the public data (bytes)
+ * @public_data: public key info signed info data
+ *		 (outPublic + name + qualifiedName)
+ * @certificate_len: length of the certificate (bytes)
+ * @certificate: certificate for the signing key
+ */
+struct cpucp_dev_info_signed {
+	struct cpucp_info info;	/* assumed to be 64bit aligned */
+	__le32 nonce;
+	__le32 pad0;
+	__u8 info_sig_len;
+	__u8 info_sig[SEC_SIGNATURE_BUF_SZ];
+	__le16 pub_data_len;
+	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
+	__le16 certificate_len;
+	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
+};
+
+/*
+ * struct dcore_monitor_regs_data - DCORE monitor regs data.
+ * the structure follows sync manager block layout. relevant only to Gaudi.
+ * @mon_pay_addrl: array of payload address low bits.
+ * @mon_pay_addrh: array of payload address high bits.
+ * @mon_pay_data: array of payload data.
+ * @mon_arm: array of monitor arm.
+ * @mon_status: array of monitor status.
+ */
+struct dcore_monitor_regs_data {
+	__le32 mon_pay_addrl[512];
+	__le32 mon_pay_addrh[512];
+	__le32 mon_pay_data[512];
+	__le32 mon_arm[512];
+	__le32 mon_status[512];
+};
+
+/* contains SM data for each SYNC_MNGR (relevant only to Gaudi) */
+struct cpucp_monitor_dump {
+	struct dcore_monitor_regs_data sync_mngr_w_s;
+	struct dcore_monitor_regs_data sync_mngr_e_s;
+	struct dcore_monitor_regs_data sync_mngr_w_n;
+	struct dcore_monitor_regs_data sync_mngr_e_n;
 };
 
 #endif /* CPUCP_IF_H */

@@ -591,7 +591,7 @@ static __maybe_unused int arche_platform_suspend(struct device *dev)
 static __maybe_unused int arche_platform_resume(struct device *dev)
 {
 	/*
-	 * Atleast for ES2 we have to meet the delay requirement between
+	 * At least for ES2 we have to meet the delay requirement between
 	 * unipro switch and AP bridge init, depending on whether bridge is in
 	 * OFF state or standby state.
 	 *

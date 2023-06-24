@@ -310,7 +310,7 @@ static int tsl2563_get_adc(struct tsl2563_chip *chip)
 		goto out;
 
 	if (!chip->int_enabled) {
-		cancel_delayed_work(&chip->poweroff_work);
+		cancel_delayed_work_sync(&chip->poweroff_work);
 
 		if (!tsl2563_get_power(chip)) {
 			ret = tsl2563_set_power(chip, 1);
@@ -638,7 +638,7 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 		chip->intr &= ~0x30;
 		chip->intr |= 0x10;
 		/* ensure the chip is actually on */
-		cancel_delayed_work(&chip->poweroff_work);
+		cancel_delayed_work_sync(&chip->poweroff_work);
 		if (!tsl2563_get_power(chip)) {
 			ret = tsl2563_set_power(chip, 1);
 			if (ret)
@@ -796,22 +796,19 @@ fail:
 	return err;
 }
 
-static int tsl2563_remove(struct i2c_client *client)
+static void tsl2563_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (!chip->int_enabled)
-		cancel_delayed_work(&chip->poweroff_work);
+		cancel_delayed_work_sync(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
 	chip->intr &= ~0x30;
 	i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | TSL2563_REG_INT,
 				  chip->intr);
-	flush_scheduled_work();
 	tsl2563_set_power(chip, 0);
-
-	return 0;
 }
 
 static int tsl2563_suspend(struct device *dev)

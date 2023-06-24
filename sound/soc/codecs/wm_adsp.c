@@ -97,13 +97,13 @@ struct wm_adsp_system_config_xm_hdr {
 	__be32 wdma[8];
 	__be32 build_job_name[3];
 	__be32 build_job_number;
-};
+} __packed;
 
 struct wm_halo_system_config_xm_hdr {
 	__be32 halo_heartbeat;
 	__be32 build_job_name[3];
 	__be32 build_job_number;
-};
+} __packed;
 
 struct wm_adsp_alg_xm_struct {
 	__be32 magic;
@@ -114,13 +114,13 @@ struct wm_adsp_alg_xm_struct {
 	__be32 high_water_mark;
 	__be32 low_water_mark;
 	__be64 smoothed_power;
-};
+} __packed;
 
 struct wm_adsp_host_buf_coeff_v1 {
 	__be32 host_buf_ptr;		/* Host buffer pointer */
 	__be32 versions;		/* Version numbers */
 	__be32 name[4];			/* The buffer name */
-};
+} __packed;
 
 struct wm_adsp_buffer {
 	__be32 buf1_base;		/* Base addr of first buffer area */
@@ -141,7 +141,7 @@ struct wm_adsp_buffer {
 	__be32 min_free;		/* min free space since stream start */
 	__be32 blocks_written[2];	/* total blocks written (64 bit) */
 	__be32 words_written[2];	/* total words written (64 bit) */
-};
+} __packed;
 
 struct wm_adsp_compr;
 
@@ -333,7 +333,7 @@ int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct wm_adsp *dsp = snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int ret = 1;
 
 	if (ucontrol->value.enumerated.item[0] == dsp[e->shift_l].fw)
 		return 0;
@@ -675,20 +675,11 @@ static void wm_adsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 		      unsigned int alg, void *buf, size_t len)
 {
-	struct cs_dsp_coeff_ctl *cs_ctl;
+	struct cs_dsp_coeff_ctl *cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
 	struct wm_coeff_ctl *ctl;
 	struct snd_kcontrol *kcontrol;
 	char ctl_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int ret;
-
-	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
-	if (!cs_ctl)
-		return -EINVAL;
-
-	ctl = cs_ctl->priv;
-
-	if (len > cs_ctl->len)
-		return -EINVAL;
 
 	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
 	if (ret)
@@ -696,6 +687,8 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 
 	if (cs_ctl->flags & WMFW_CTL_FLAG_SYS)
 		return 0;
+
+	ctl = cs_ctl->priv;
 
 	if (dsp->component->name_prefix)
 		snprintf(ctl_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
@@ -720,16 +713,8 @@ EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
 int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 		     unsigned int alg, void *buf, size_t len)
 {
-	struct cs_dsp_coeff_ctl *cs_ctl;
-
-	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
-	if (!cs_ctl)
-		return -EINVAL;
-
-	if (len > cs_ctl->len)
-		return -EINVAL;
-
-	return cs_dsp_coeff_read_ctrl(cs_ctl, 0, buf, len);
+	return cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg),
+				      0, buf, len);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
@@ -997,7 +982,7 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_sync(dapm);
 	}
 
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
 
@@ -1617,7 +1602,9 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 	if (list_empty(&dsp->buffer_list)) {
 		/* Fall back to legacy support */
 		ret = wm_adsp_buffer_parse_legacy(dsp);
-		if (ret)
+		if (ret == -ENODEV)
+			adsp_info(dsp, "Legacy support not available\n");
+		else if (ret)
 			adsp_warn(dsp, "Failed to parse legacy: %d\n", ret);
 	}
 

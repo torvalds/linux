@@ -33,14 +33,14 @@
 #include "dc_bios_types.h"
 #include "mem_input.h"
 #include "hubp.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "mpc.h"
-#endif
 #include "dwb.h"
 #include "mcif_wb.h"
 #include "panel_cntl.h"
 
 #define MAX_CLOCK_SOURCES 7
+#define MAX_SVP_PHANTOM_STREAMS 2
+#define MAX_SVP_PHANTOM_PLANES 2
 
 void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 		uint32_t controller_id);
@@ -98,6 +98,7 @@ struct resource_funcs {
 	struct panel_cntl*(*panel_cntl_create)(
 		const struct panel_cntl_init_data *panel_cntl_init_data);
 	struct link_encoder *(*link_enc_create)(
+			struct dc_context *ctx,
 			const struct encoder_init_data *init);
 	/* Create a minimal link encoder object with no dc_link object
 	 * associated with it. */
@@ -145,10 +146,37 @@ struct resource_funcs {
 		struct dc *dc,
 		struct dc_state *context);
 
+	/*
+	 * Acquires a free pipe for the head pipe.
+	 * The head pipe is first pipe in the current context that matches the stream
+	 *  and does not have a top pipe or prev_odm_pipe.
+	 */
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
 			struct dc_state *context,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
+
+	/*
+	 * Acquires a free pipe for the head pipe with some additional checks for odm.
+	 * The head pipe is passed in as an argument unlike acquire_idle_pipe_for_layer
+	 *  where it is read from the context.  So this allows us look for different
+	 *  idle_pipe if the head_pipes are different ( ex. in odm 2:1 when we have
+	 *  a left and right pipe ).
+	 *
+	 * It also checks the old context to see if:
+	 *
+	 * 1. a pipe has already been allocated for the head pipe.  If so, it will
+	 *  try to select that pipe as the idle pipe if it is available in the current
+	 *  context.
+	 * 2. if the head_pipe is on the left, it will check if the right pipe has
+	 *  a pipe already allocated.  If so, it will not use that pipe if it is
+	 *  selected as the idle pipe.
+	 */
+	struct pipe_ctx *(*acquire_idle_pipe_for_head_pipe_in_layer)(
+			struct dc_state *context,
+			const struct resource_pool *pool,
+			struct dc_stream_state *stream,
+			struct pipe_ctx *head_pipe);
 
 	enum dc_status (*validate_plane)(const struct dc_plane_state *plane_state, struct dc_caps *caps);
 
@@ -181,7 +209,6 @@ struct resource_funcs {
 	void (*update_bw_bounding_box)(
 			struct dc *dc,
 			struct clk_bw_params *bw_params);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool (*acquire_post_bldn_3dlut)(
 			struct resource_context *res_ctx,
 			const struct resource_pool *pool,
@@ -194,10 +221,20 @@ struct resource_funcs {
 			const struct resource_pool *pool,
 			struct dc_3dlut **lut,
 			struct dc_transfer_func **shaper);
-#endif
+
 	enum dc_status (*add_dsc_to_stream_resource)(
 			struct dc *dc, struct dc_state *state,
 			struct dc_stream_state *stream);
+
+	void (*add_phantom_pipes)(
+            struct dc *dc,
+            struct dc_state *context,
+            display_e2e_pipe_params_st *pipes,
+			unsigned int pipe_cnt,
+            unsigned int index);
+
+	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context);
+	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
 };
 
 struct audio_support{
@@ -254,10 +291,9 @@ struct resource_pool {
 	struct hpo_dp_stream_encoder *hpo_dp_stream_enc[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_count;
 	struct hpo_dp_link_encoder *hpo_dp_link_enc[MAX_HPO_DP2_LINK_ENCODERS];
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dc_3dlut *mpc_lut[MAX_PIPES];
 	struct dc_transfer_func *mpc_shaper[MAX_PIPES];
-#endif
+
 	struct {
 		unsigned int xtalin_clock_inKhz;
 		unsigned int dccg_ref_clock_inKhz;
@@ -286,9 +322,7 @@ struct resource_pool {
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct abm *multiple_abms[MAX_PIPES];
-#endif
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
@@ -339,6 +373,9 @@ struct link_resource {
 	struct hpo_dp_link_encoder *hpo_dp_link_enc;
 };
 
+struct link_config {
+	struct dc_link_settings dp_link_settings;
+};
 union pipe_update_flags {
 	struct {
 		uint32_t enable : 1;
@@ -365,12 +402,23 @@ struct pipe_ctx {
 	struct dc_stream_state *stream;
 
 	struct plane_resource plane_res;
+
+	/**
+	 * @stream_res: Reference to DCN resource components such OPP and DSC.
+	 */
 	struct stream_resource stream_res;
 	struct link_resource link_res;
 
 	struct clock_source *clock_source;
 
 	struct pll_settings pll_settings;
+
+	/* link config records software decision for what link config should be
+	 * enabled given current link capability and stream during hw resource
+	 * mapping. This is to decouple the dependency on link capability during
+	 * dc commit or update.
+	 */
+	struct link_config link_config;
 
 	uint8_t pipe_idx;
 	uint8_t pipe_idx_syncd;
@@ -380,7 +428,6 @@ struct pipe_ctx {
 	struct pipe_ctx *next_odm_pipe;
 	struct pipe_ctx *prev_odm_pipe;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
@@ -390,11 +437,10 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_e2e_pipe_params_st dml_input;
 	int det_buffer_size_kb;
 	bool unbounded_req;
-#endif
+
 	union pipe_update_flags update_flags;
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
-	bool vtp_locked;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -419,9 +465,7 @@ struct resource_context {
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
-#endif
 };
 
 struct dce_bw_output {
@@ -450,6 +494,8 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
+	unsigned int legacy_svp_drr_stream_index;
+	bool legacy_svp_drr_stream_index_valid;
 };
 
 union bw_output {
@@ -484,9 +530,7 @@ struct dc_state {
 
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct dcn_bw_internal_vars dcn_bw_vars;
-#endif
 
 	struct clk_mgr *clk_mgr;
 
@@ -495,6 +539,13 @@ struct dc_state {
 	struct {
 		unsigned int stutter_period_us;
 	} perf_params;
+};
+
+struct dc_bounding_box_max_clk {
+	int max_dcfclk_mhz;
+	int max_dispclk_mhz;
+	int max_dppclk_mhz;
+	int max_phyclk_mhz;
 };
 
 #endif /* _CORE_TYPES_H_ */

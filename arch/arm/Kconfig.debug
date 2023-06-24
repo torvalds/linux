@@ -210,6 +210,26 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on the FLEXCOM3 port of SAMA7G5.
 
+	config DEBUG_AT91_LAN966_FLEXCOM
+		bool "Kernel low-level debugging on LAN966 FLEXCOM USART"
+		select DEBUG_AT91_UART
+		depends on SOC_LAN966
+		help
+		Say Y here if you want kernel low-level debugging support
+		on the FLEXCOM port of LAN966.
+
+		DEBUG_UART_PHYS | DEBUG_UART_VIRT
+
+		0xe0040200      | 0xfd040200     | FLEXCOM0
+		0xe0044200      | 0xfd044200     | FLEXCOM1
+		0xe0060200      | 0xfd060200     | FLEXCOM2
+		0xe0064200      | 0xfd064200     | FLEXCOM3
+		0xe0070200      | 0xfd070200     | FLEXCOM4
+
+		By default, enabling FLEXCOM3 port. Based on requirement, use
+		DEBUG_UART_PHYS and DEBUG_UART_VIRT configurations from above
+		table.
+
 	config DEBUG_BCM2835
 		bool "Kernel low-level debugging on BCM2835 PL011 UART"
 		depends on ARCH_BCM2835 && ARCH_MULTI_V6
@@ -251,7 +271,7 @@ choice
 
 	config DEBUG_BCM63XX_UART
 		bool "Kernel low-level debugging on BCM63XX UART"
-		depends on ARCH_BCM_63XX
+		depends on ARCH_BCMBCA
 
 	config DEBUG_BERLIN_UART
 		bool "Marvell Berlin SoC Debug UART"
@@ -1685,6 +1705,7 @@ config DEBUG_UART_PHYS
 	default 0xd4017000 if DEBUG_MMP_UART2
 	default 0xd4018000 if DEBUG_MMP_UART3
 	default 0xe0000000 if DEBUG_SPEAR13XX
+	default 0xe0064200 if DEBUG_AT91_LAN966_FLEXCOM
 	default 0xe1824200 if DEBUG_AT91_SAMA7G5_FLEXCOM3
 	default 0xe4007000 if DEBUG_HIP04_UART
 	default 0xe6c40000 if DEBUG_RMOBILE_SCIFA0
@@ -1805,6 +1826,7 @@ config DEBUG_UART_VIRT
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
 	default 0xfcfe8600 if DEBUG_BCM63XX_UART
 	default 0xfd000000 if DEBUG_SPEAR3XX || DEBUG_SPEAR13XX
+	default 0xfd064200 if DEBUG_AT91_LAN966_FLEXCOM
 	default 0xfd531000 if DEBUG_STIH41X_SBC_ASC1
 	default 0xfd883000 if DEBUG_ALPINE_UART0
 	default 0xfdd32000 if DEBUG_STIH41X_ASC2
@@ -1837,9 +1859,9 @@ config DEBUG_UART_VIRT
 	default 0xfec00000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
 	default 0xfec00003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
 	default 0xfef36000 if DEBUG_HIGHBANK_UART
-	default 0xfefb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
-	default 0xfefb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
-	default 0xfefb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
+	default 0xff0b0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
+	default 0xff0b0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
+	default 0xff0b9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
 	default 0xffd01000 if DEBUG_HIP01_UART
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
@@ -1882,7 +1904,8 @@ config DEBUG_UART_8250_PALMCHIP
 
 config DEBUG_UNCOMPRESS
 	bool "Enable decompressor debugging via DEBUG_LL output"
-	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
+	depends on !ARCH_MULTIPLATFORM
+	depends on !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
 	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
 		     !DEBUG_BRCMSTB_UART && !DEBUG_SEMIHOSTING
@@ -1899,9 +1922,8 @@ config DEBUG_UNCOMPRESS
 
 config UNCOMPRESS_INCLUDE
 	string
-	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
-	default "mach/uncompress.h"
+	default "mach/uncompress.h" if ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100
+	default "debug/uncompress.h"
 
 config EARLY_PRINTK
 	bool "Early printk"

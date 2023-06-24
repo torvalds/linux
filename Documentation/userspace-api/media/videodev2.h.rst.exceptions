@@ -70,6 +70,7 @@ replace symbol V4L2_COLORSPACE_REC709 :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_SMPTE170M :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_SMPTE240M :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_SRGB :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_LAST :c:type:`v4l2_colorspace`
 
 # Documented enum v4l2_xfer_func
 replace symbol V4L2_XFER_FUNC_709 :c:type:`v4l2_xfer_func`
@@ -81,6 +82,7 @@ replace symbol V4L2_XFER_FUNC_NONE :c:type:`v4l2_xfer_func`
 replace symbol V4L2_XFER_FUNC_SMPTE2084 :c:type:`v4l2_xfer_func`
 replace symbol V4L2_XFER_FUNC_SMPTE240M :c:type:`v4l2_xfer_func`
 replace symbol V4L2_XFER_FUNC_SRGB :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_LAST :c:type:`v4l2_xfer_func`
 
 # Documented enum v4l2_ycbcr_encoding
 replace symbol V4L2_YCBCR_ENC_601 :c:type:`v4l2_ycbcr_encoding`
@@ -92,6 +94,7 @@ replace symbol V4L2_YCBCR_ENC_SYCC :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_XV601 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_XV709 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_SMPTE240M :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_LAST :c:type:`v4l2_ycbcr_encoding`
 
 # Documented enum v4l2_hsv_encoding
 replace symbol V4L2_HSV_ENC_180 :c:type:`v4l2_hsv_encoding`
@@ -153,6 +156,11 @@ replace symbol V4L2_CTRL_TYPE_VP9_COMPRESSED_HDR :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_TYPE_VP9_FRAME :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_TYPE_HDR10_CLL_INFO :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_TYPE_HDR10_MASTERING_DISPLAY :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_HEVC_SPS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_HEVC_PPS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_HEVC_SLICE_PARAMS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_HEVC_SCALING_MATRIX :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_HEVC_DECODE_PARAMS :c:type:`v4l2_ctrl_type`
 
 # V4L2 capability defines
 replace define V4L2_CAP_VIDEO_CAPTURE device-capabilities
@@ -379,6 +387,7 @@ replace define V4L2_CTRL_FLAG_VOLATILE control-flags
 replace define V4L2_CTRL_FLAG_HAS_PAYLOAD control-flags
 replace define V4L2_CTRL_FLAG_EXECUTE_ON_WRITE control-flags
 replace define V4L2_CTRL_FLAG_MODIFY_LAYOUT control-flags
+replace define V4L2_CTRL_FLAG_DYNAMIC_ARRAY control-flags
 
 replace define V4L2_CTRL_FLAG_NEXT_CTRL control
 replace define V4L2_CTRL_FLAG_NEXT_COMPOUND control
@@ -505,6 +514,7 @@ replace define V4L2_EVENT_PRIVATE_START event-type
 replace define V4L2_EVENT_CTRL_CH_VALUE ctrl-changes-flags
 replace define V4L2_EVENT_CTRL_CH_FLAGS ctrl-changes-flags
 replace define V4L2_EVENT_CTRL_CH_RANGE ctrl-changes-flags
+replace define V4L2_EVENT_CTRL_CH_DIMENSIONS ctrl-changes-flags
 
 replace define V4L2_EVENT_SRC_CH_RESOLUTION src-changes-flags
 

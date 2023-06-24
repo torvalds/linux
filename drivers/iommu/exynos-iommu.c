@@ -135,6 +135,11 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define CFG_SYSSEL	(1 << 22) /* System MMU 3.2 only */
 #define CFG_FLPDCACHE	(1 << 20) /* System MMU 3.2+ only */
 
+#define CTRL_VM_ENABLE			BIT(0)
+#define CTRL_VM_FAULT_MODE_STALL	BIT(3)
+#define CAPA0_CAPA1_EXIST		BIT(11)
+#define CAPA1_VCR_ENABLED		BIT(14)
+
 /* common registers */
 #define REG_MMU_CTRL		0x000
 #define REG_MMU_CFG		0x004
@@ -148,28 +153,19 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define MAKE_MMU_VER(maj, min)	((((maj) & 0xF) << 7) | ((min) & 0x7F))
 
 /* v1.x - v3.x registers */
-#define REG_MMU_FLUSH		0x00C
-#define REG_MMU_FLUSH_ENTRY	0x010
-#define REG_PT_BASE_ADDR	0x014
-#define REG_INT_STATUS		0x018
-#define REG_INT_CLEAR		0x01C
-
 #define REG_PAGE_FAULT_ADDR	0x024
 #define REG_AW_FAULT_ADDR	0x028
 #define REG_AR_FAULT_ADDR	0x02C
 #define REG_DEFAULT_SLAVE_ADDR	0x030
 
 /* v5.x registers */
-#define REG_V5_PT_BASE_PFN	0x00C
-#define REG_V5_MMU_FLUSH_ALL	0x010
-#define REG_V5_MMU_FLUSH_ENTRY	0x014
-#define REG_V5_MMU_FLUSH_RANGE	0x018
-#define REG_V5_MMU_FLUSH_START	0x020
-#define REG_V5_MMU_FLUSH_END	0x024
-#define REG_V5_INT_STATUS	0x060
-#define REG_V5_INT_CLEAR	0x064
 #define REG_V5_FAULT_AR_VA	0x070
 #define REG_V5_FAULT_AW_VA	0x080
+
+/* v7.x registers */
+#define REG_V7_CAPA0		0x870
+#define REG_V7_CAPA1		0x874
+#define REG_V7_CTRL_VM		0x8000
 
 #define has_sysmmu(dev)		(dev_iommu_priv_get(dev) != NULL)
 
@@ -251,6 +247,21 @@ struct exynos_iommu_domain {
 };
 
 /*
+ * SysMMU version specific data. Contains offsets for the registers which can
+ * be found in different SysMMU variants, but have different offset values.
+ */
+struct sysmmu_variant {
+	u32 pt_base;		/* page table base address (physical) */
+	u32 flush_all;		/* invalidate all TLB entries */
+	u32 flush_entry;	/* invalidate specific TLB entry */
+	u32 flush_range;	/* invalidate TLB entries in specified range */
+	u32 flush_start;	/* start address of range invalidation */
+	u32 flush_end;		/* end address of range invalidation */
+	u32 int_status;		/* interrupt status information */
+	u32 int_clear;		/* clear the interrupt */
+};
+
+/*
  * This structure hold all data of a single SYSMMU controller, this includes
  * hw resources like registers and clocks, pointers and list nodes to connect
  * it to all other structures, internal state and parameters read from device
@@ -274,6 +285,45 @@ struct sysmmu_drvdata {
 	unsigned int version;		/* our version */
 
 	struct iommu_device iommu;	/* IOMMU core handle */
+	const struct sysmmu_variant *variant; /* version specific data */
+
+	/* v7 fields */
+	bool has_vcr;			/* virtual machine control register */
+};
+
+#define SYSMMU_REG(data, reg) ((data)->sfrbase + (data)->variant->reg)
+
+/* SysMMU v1..v3 */
+static const struct sysmmu_variant sysmmu_v1_variant = {
+	.flush_all	= 0x0c,
+	.flush_entry	= 0x10,
+	.pt_base	= 0x14,
+	.int_status	= 0x18,
+	.int_clear	= 0x1c,
+};
+
+/* SysMMU v5 and v7 (non-VM capable) */
+static const struct sysmmu_variant sysmmu_v5_variant = {
+	.pt_base	= 0x0c,
+	.flush_all	= 0x10,
+	.flush_entry	= 0x14,
+	.flush_range	= 0x18,
+	.flush_start	= 0x20,
+	.flush_end	= 0x24,
+	.int_status	= 0x60,
+	.int_clear	= 0x64,
+};
+
+/* SysMMU v7: VM capable register set */
+static const struct sysmmu_variant sysmmu_v7_vm_variant = {
+	.pt_base	= 0x800c,
+	.flush_all	= 0x8010,
+	.flush_entry	= 0x8014,
+	.flush_range	= 0x8018,
+	.flush_start	= 0x8020,
+	.flush_end	= 0x8024,
+	.int_status	= 0x60,
+	.int_clear	= 0x64,
 };
 
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
@@ -304,10 +354,7 @@ static bool sysmmu_block(struct sysmmu_drvdata *data)
 
 static void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data)
 {
-	if (MMU_MAJ_VER(data->version) < 5)
-		writel(0x1, data->sfrbase + REG_MMU_FLUSH);
-	else
-		writel(0x1, data->sfrbase + REG_V5_MMU_FLUSH_ALL);
+	writel(0x1, SYSMMU_REG(data, flush_all));
 }
 
 static void __sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
@@ -315,34 +362,30 @@ static void __sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 {
 	unsigned int i;
 
-	if (MMU_MAJ_VER(data->version) < 5) {
+	if (MMU_MAJ_VER(data->version) < 5 || num_inv == 1) {
 		for (i = 0; i < num_inv; i++) {
 			writel((iova & SPAGE_MASK) | 1,
-				     data->sfrbase + REG_MMU_FLUSH_ENTRY);
+			       SYSMMU_REG(data, flush_entry));
 			iova += SPAGE_SIZE;
 		}
 	} else {
-		if (num_inv == 1) {
-			writel((iova & SPAGE_MASK) | 1,
-				     data->sfrbase + REG_V5_MMU_FLUSH_ENTRY);
-		} else {
-			writel((iova & SPAGE_MASK),
-				     data->sfrbase + REG_V5_MMU_FLUSH_START);
-			writel((iova & SPAGE_MASK) + (num_inv - 1) * SPAGE_SIZE,
-				     data->sfrbase + REG_V5_MMU_FLUSH_END);
-			writel(1, data->sfrbase + REG_V5_MMU_FLUSH_RANGE);
-		}
+		writel(iova & SPAGE_MASK, SYSMMU_REG(data, flush_start));
+		writel((iova & SPAGE_MASK) + (num_inv - 1) * SPAGE_SIZE,
+		       SYSMMU_REG(data, flush_end));
+		writel(0x1, SYSMMU_REG(data, flush_range));
 	}
 }
 
 static void __sysmmu_set_ptbase(struct sysmmu_drvdata *data, phys_addr_t pgd)
 {
-	if (MMU_MAJ_VER(data->version) < 5)
-		writel(pgd, data->sfrbase + REG_PT_BASE_ADDR);
-	else
-		writel(pgd >> PAGE_SHIFT,
-			     data->sfrbase + REG_V5_PT_BASE_PFN);
+	u32 pt_base;
 
+	if (MMU_MAJ_VER(data->version) < 5)
+		pt_base = pgd;
+	else
+		pt_base = pgd >> SPAGE_ORDER;
+
+	writel(pt_base, SYSMMU_REG(data, pt_base));
 	__sysmmu_tlb_invalidate(data);
 }
 
@@ -362,6 +405,20 @@ static void __sysmmu_disable_clocks(struct sysmmu_drvdata *data)
 	clk_disable_unprepare(data->clk_master);
 }
 
+static bool __sysmmu_has_capa1(struct sysmmu_drvdata *data)
+{
+	u32 capa0 = readl(data->sfrbase + REG_V7_CAPA0);
+
+	return capa0 & CAPA0_CAPA1_EXIST;
+}
+
+static void __sysmmu_get_vcr(struct sysmmu_drvdata *data)
+{
+	u32 capa1 = readl(data->sfrbase + REG_V7_CAPA1);
+
+	data->has_vcr = capa1 & CAPA1_VCR_ENABLED;
+}
+
 static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 {
 	u32 ver;
@@ -378,6 +435,19 @@ static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 
 	dev_dbg(data->sysmmu, "hardware version: %d.%d\n",
 		MMU_MAJ_VER(data->version), MMU_MIN_VER(data->version));
+
+	if (MMU_MAJ_VER(data->version) < 5) {
+		data->variant = &sysmmu_v1_variant;
+	} else if (MMU_MAJ_VER(data->version) < 7) {
+		data->variant = &sysmmu_v5_variant;
+	} else {
+		if (__sysmmu_has_capa1(data))
+			__sysmmu_get_vcr(data);
+		if (data->has_vcr)
+			data->variant = &sysmmu_v7_vm_variant;
+		else
+			data->variant = &sysmmu_v5_variant;
+	}
 
 	__sysmmu_disable_clocks(data);
 }
@@ -406,19 +476,14 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	const struct sysmmu_fault_info *finfo;
 	unsigned int i, n, itype;
 	sysmmu_iova_t fault_addr;
-	unsigned short reg_status, reg_clear;
 	int ret = -ENOSYS;
 
 	WARN_ON(!data->active);
 
 	if (MMU_MAJ_VER(data->version) < 5) {
-		reg_status = REG_INT_STATUS;
-		reg_clear = REG_INT_CLEAR;
 		finfo = sysmmu_faults;
 		n = ARRAY_SIZE(sysmmu_faults);
 	} else {
-		reg_status = REG_V5_INT_STATUS;
-		reg_clear = REG_V5_INT_CLEAR;
 		finfo = sysmmu_v5_faults;
 		n = ARRAY_SIZE(sysmmu_v5_faults);
 	}
@@ -427,7 +492,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 
 	clk_enable(data->clk_master);
 
-	itype = __ffs(readl(data->sfrbase + reg_status));
+	itype = __ffs(readl(SYSMMU_REG(data, int_status)));
 	for (i = 0; i < n; i++, finfo++)
 		if (finfo->bit == itype)
 			break;
@@ -444,7 +509,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	/* fault is not recovered by fault handler */
 	BUG_ON(ret != 0);
 
-	writel(1 << itype, data->sfrbase + reg_clear);
+	writel(1 << itype, SYSMMU_REG(data, int_clear));
 
 	sysmmu_unblock(data);
 
@@ -486,6 +551,18 @@ static void __sysmmu_init_config(struct sysmmu_drvdata *data)
 	writel(cfg, data->sfrbase + REG_MMU_CFG);
 }
 
+static void __sysmmu_enable_vid(struct sysmmu_drvdata *data)
+{
+	u32 ctrl;
+
+	if (MMU_MAJ_VER(data->version) < 7 || !data->has_vcr)
+		return;
+
+	ctrl = readl(data->sfrbase + REG_V7_CTRL_VM);
+	ctrl |= CTRL_VM_ENABLE | CTRL_VM_FAULT_MODE_STALL;
+	writel(ctrl, data->sfrbase + REG_V7_CTRL_VM);
+}
+
 static void __sysmmu_enable(struct sysmmu_drvdata *data)
 {
 	unsigned long flags;
@@ -496,6 +573,7 @@ static void __sysmmu_enable(struct sysmmu_drvdata *data)
 	writel(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
 	__sysmmu_init_config(data);
 	__sysmmu_set_ptbase(data, data->pgtable);
+	__sysmmu_enable_vid(data);
 	writel(CTRL_ENABLE, data->sfrbase + REG_MMU_CTRL);
 	data->active = true;
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -551,7 +629,7 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 		 * 64KB page can be one of 16 consecutive sets.
 		 */
 		if (MMU_MAJ_VER(data->version) == 2)
-			num_inv = min_t(unsigned int, size / PAGE_SIZE, 64);
+			num_inv = min_t(unsigned int, size / SPAGE_SIZE, 64);
 
 		if (sysmmu_block(data)) {
 			__sysmmu_tlb_invalidate_entry(data, iova, num_inv);
@@ -623,6 +701,8 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
 
+	__sysmmu_get_version(data);
+
 	ret = iommu_device_sysfs_add(&data->iommu, &pdev->dev, NULL,
 				     dev_name(data->sysmmu));
 	if (ret)
@@ -630,11 +710,10 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 
 	ret = iommu_device_register(&data->iommu, &exynos_iommu_ops, dev);
 	if (ret)
-		return ret;
+		goto err_iommu_register;
 
 	platform_set_drvdata(pdev, data);
 
-	__sysmmu_get_version(data);
 	if (PG_ENT_SHIFT < 0) {
 		if (MMU_MAJ_VER(data->version) < 5) {
 			PG_ENT_SHIFT = SYSMMU_PG_ENT_SHIFT;
@@ -644,6 +723,14 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 			PG_ENT_SHIFT = SYSMMU_V5_PG_ENT_SHIFT;
 			LV1_PROT = SYSMMU_V5_LV1_PROT;
 			LV2_PROT = SYSMMU_V5_LV2_PROT;
+		}
+	}
+
+	if (MMU_MAJ_VER(data->version) >= 5) {
+		ret = dma_set_mask(dev, DMA_BIT_MASK(36));
+		if (ret) {
+			dev_err(dev, "Unable to set DMA mask: %d\n", ret);
+			goto err_dma_set_mask;
 		}
 	}
 
@@ -657,6 +744,12 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	return 0;
+
+err_dma_set_mask:
+	iommu_device_unregister(&data->iommu);
+err_iommu_register:
+	iommu_device_sysfs_remove(&data->iommu);
+	return ret;
 }
 
 static int __maybe_unused exynos_sysmmu_suspend(struct device *dev)
@@ -1251,9 +1344,6 @@ static void exynos_iommu_release_device(struct device *dev)
 	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
 	struct sysmmu_drvdata *data;
 
-	if (!has_sysmmu(dev))
-		return;
-
 	if (owner->domain) {
 		struct iommu_group *group = iommu_group_get(dev);
 
@@ -1356,16 +1446,7 @@ static int __init exynos_iommu_init(void)
 		goto err_zero_lv2;
 	}
 
-	ret = bus_set_iommu(&platform_bus_type, &exynos_iommu_ops);
-	if (ret) {
-		pr_err("%s: Failed to register exynos-iommu driver.\n",
-								__func__);
-		goto err_set_iommu;
-	}
-
 	return 0;
-err_set_iommu:
-	kmem_cache_free(lv2table_kmem_cache, zero_lv2_table);
 err_zero_lv2:
 	platform_driver_unregister(&exynos_sysmmu_driver);
 err_reg_driver:

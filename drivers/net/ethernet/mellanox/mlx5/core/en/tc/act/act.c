@@ -6,70 +6,42 @@
 #include "en/tc_priv.h"
 #include "mlx5_core.h"
 
-/* Must be aligned with enum flow_action_id. */
 static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
-	&mlx5e_tc_act_accept,
-	&mlx5e_tc_act_drop,
-	&mlx5e_tc_act_trap,
-	&mlx5e_tc_act_goto,
-	&mlx5e_tc_act_mirred,
-	&mlx5e_tc_act_mirred,
-	&mlx5e_tc_act_redirect_ingress,
-	NULL, /* FLOW_ACTION_MIRRED_INGRESS, */
-	&mlx5e_tc_act_vlan,
-	&mlx5e_tc_act_vlan,
-	&mlx5e_tc_act_vlan_mangle,
-	&mlx5e_tc_act_tun_encap,
-	&mlx5e_tc_act_tun_decap,
-	&mlx5e_tc_act_pedit,
-	&mlx5e_tc_act_pedit,
-	&mlx5e_tc_act_csum,
-	NULL, /* FLOW_ACTION_MARK, */
-	&mlx5e_tc_act_ptype,
-	NULL, /* FLOW_ACTION_PRIORITY, */
-	NULL, /* FLOW_ACTION_WAKE, */
-	NULL, /* FLOW_ACTION_QUEUE, */
-	&mlx5e_tc_act_sample,
-	NULL, /* FLOW_ACTION_POLICE, */
-	&mlx5e_tc_act_ct,
-	NULL, /* FLOW_ACTION_CT_METADATA, */
-	&mlx5e_tc_act_mpls_push,
-	&mlx5e_tc_act_mpls_pop,
-	NULL, /* FLOW_ACTION_MPLS_MANGLE, */
-	NULL, /* FLOW_ACTION_GATE, */
-	NULL, /* FLOW_ACTION_PPPOE_PUSH, */
-	NULL, /* FLOW_ACTION_JUMP, */
-	NULL, /* FLOW_ACTION_PIPE, */
-	&mlx5e_tc_act_vlan,
-	&mlx5e_tc_act_vlan,
+	[FLOW_ACTION_ACCEPT] = &mlx5e_tc_act_accept,
+	[FLOW_ACTION_DROP] = &mlx5e_tc_act_drop,
+	[FLOW_ACTION_TRAP] = &mlx5e_tc_act_trap,
+	[FLOW_ACTION_GOTO] = &mlx5e_tc_act_goto,
+	[FLOW_ACTION_REDIRECT] = &mlx5e_tc_act_mirred,
+	[FLOW_ACTION_MIRRED] = &mlx5e_tc_act_mirred,
+	[FLOW_ACTION_REDIRECT_INGRESS] = &mlx5e_tc_act_redirect_ingress,
+	[FLOW_ACTION_VLAN_PUSH] = &mlx5e_tc_act_vlan,
+	[FLOW_ACTION_VLAN_POP] = &mlx5e_tc_act_vlan,
+	[FLOW_ACTION_VLAN_MANGLE] = &mlx5e_tc_act_vlan_mangle,
+	[FLOW_ACTION_TUNNEL_ENCAP] = &mlx5e_tc_act_tun_encap,
+	[FLOW_ACTION_TUNNEL_DECAP] = &mlx5e_tc_act_tun_decap,
+	[FLOW_ACTION_MANGLE] = &mlx5e_tc_act_pedit,
+	[FLOW_ACTION_ADD] = &mlx5e_tc_act_pedit,
+	[FLOW_ACTION_CSUM] = &mlx5e_tc_act_csum,
+	[FLOW_ACTION_PTYPE] = &mlx5e_tc_act_ptype,
+	[FLOW_ACTION_SAMPLE] = &mlx5e_tc_act_sample,
+	[FLOW_ACTION_POLICE] = &mlx5e_tc_act_police,
+	[FLOW_ACTION_CT] = &mlx5e_tc_act_ct,
+	[FLOW_ACTION_MPLS_PUSH] = &mlx5e_tc_act_mpls_push,
+	[FLOW_ACTION_MPLS_POP] = &mlx5e_tc_act_mpls_pop,
+	[FLOW_ACTION_VLAN_PUSH_ETH] = &mlx5e_tc_act_vlan,
+	[FLOW_ACTION_VLAN_POP_ETH] = &mlx5e_tc_act_vlan,
 };
 
-/* Must be aligned with enum flow_action_id. */
 static struct mlx5e_tc_act *tc_acts_nic[NUM_FLOW_ACTIONS] = {
-	&mlx5e_tc_act_accept,
-	&mlx5e_tc_act_drop,
-	NULL, /* FLOW_ACTION_TRAP, */
-	&mlx5e_tc_act_goto,
-	&mlx5e_tc_act_mirred_nic,
-	NULL, /* FLOW_ACTION_MIRRED, */
-	NULL, /* FLOW_ACTION_REDIRECT_INGRESS, */
-	NULL, /* FLOW_ACTION_MIRRED_INGRESS, */
-	NULL, /* FLOW_ACTION_VLAN_PUSH, */
-	NULL, /* FLOW_ACTION_VLAN_POP, */
-	NULL, /* FLOW_ACTION_VLAN_MANGLE, */
-	NULL, /* FLOW_ACTION_TUNNEL_ENCAP, */
-	NULL, /* FLOW_ACTION_TUNNEL_DECAP, */
-	&mlx5e_tc_act_pedit,
-	&mlx5e_tc_act_pedit,
-	&mlx5e_tc_act_csum,
-	&mlx5e_tc_act_mark,
-	NULL, /* FLOW_ACTION_PTYPE, */
-	NULL, /* FLOW_ACTION_PRIORITY, */
-	NULL, /* FLOW_ACTION_WAKE, */
-	NULL, /* FLOW_ACTION_QUEUE, */
-	NULL, /* FLOW_ACTION_SAMPLE, */
-	NULL, /* FLOW_ACTION_POLICE, */
-	&mlx5e_tc_act_ct,
+	[FLOW_ACTION_ACCEPT] = &mlx5e_tc_act_accept,
+	[FLOW_ACTION_DROP] = &mlx5e_tc_act_drop,
+	[FLOW_ACTION_GOTO] = &mlx5e_tc_act_goto,
+	[FLOW_ACTION_REDIRECT] = &mlx5e_tc_act_mirred_nic,
+	[FLOW_ACTION_MANGLE] = &mlx5e_tc_act_pedit,
+	[FLOW_ACTION_ADD] = &mlx5e_tc_act_pedit,
+	[FLOW_ACTION_CSUM] = &mlx5e_tc_act_csum,
+	[FLOW_ACTION_MARK] = &mlx5e_tc_act_mark,
+	[FLOW_ACTION_CT] = &mlx5e_tc_act_ct,
 };
 
 /**
@@ -106,8 +78,8 @@ mlx5e_tc_act_init_parse_state(struct mlx5e_tc_act_parse_state *parse_state,
 {
 	memset(parse_state, 0, sizeof(*parse_state));
 	parse_state->flow = flow;
-	parse_state->num_actions = flow_action->num_entries;
 	parse_state->extack = extack;
+	parse_state->flow_action = flow_action;
 }
 
 void

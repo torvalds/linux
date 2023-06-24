@@ -241,7 +241,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->enqueue = dep->trb_enqueue;
 		__entry->dequeue = dep->trb_dequeue;
 	),
-	TP_printk("%s: trb %p (E%d:D%d) buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
+	TP_printk("%s: trb %p (E%d:D%d) buf %08x%08x size %s%d ctrl %08x sofn %08x (%c%c%c%c:%c%c:%s)",
 		__get_str(name), __entry->trb, __entry->enqueue,
 		__entry->dequeue, __entry->bph, __entry->bpl,
 		({char *s;
@@ -267,6 +267,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 			s = "";
 		} s; }),
 		DWC3_TRB_SIZE_LENGTH(__entry->size), __entry->ctrl,
+		DWC3_TRB_CTRL_GET_SID_SOFN(__entry->ctrl),
 		__entry->ctrl & DWC3_TRB_CTRL_HWO ? 'H' : 'h',
 		__entry->ctrl & DWC3_TRB_CTRL_LST ? 'L' : 'l',
 		__entry->ctrl & DWC3_TRB_CTRL_CHN ? 'C' : 'c',

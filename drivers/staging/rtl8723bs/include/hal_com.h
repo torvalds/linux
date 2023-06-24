@@ -147,16 +147,7 @@ u8 GetHalDefVar(struct adapter *adapter, enum hal_def_variable variable,
 
 bool eqNByte(u8 *str1, u8 *str2, u32 num);
 
-bool IsHexDigit(char chTmp);
-
 u32 MapCharToHexDigit(char chTmp);
-
-bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove);
-
-bool GetFractionValueFromString(char *szStr, u8 *pInteger, u8 *pFraction,
-				u32 *pu4bMove);
-
-bool IsCommentString(char *szStr);
 
 bool ParseQualifiedString(char *In, u32 *Start, char *Out, char LeftQualifier,
 			  char RightQualifier);

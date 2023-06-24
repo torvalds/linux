@@ -15,6 +15,7 @@ properties:
       - ti,j721e-sa2ul
       - ti,am654-sa2ul
       - ti,am64-sa2ul
+      - ti,am62-sa3ul
 
   reg:
     maxItems: 1
@@ -33,8 +34,6 @@ properties:
       - const: tx
       - const: rx1
       - const: rx2
-
-  dma-coherent: true
 
   "#address-cells":
     const: 2
@@ -71,16 +70,6 @@ required:
   - dmas
   - dma-names
 
-if:
-  properties:
-    compatible:
-      enum:
-        - ti,j721e-sa2ul
-        - ti,am654-sa2ul
-then:
-  required:
-    - dma-coherent
-
 additionalProperties: false
 
 examples:
@@ -94,5 +83,4 @@ examples:
         dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,
                <&main_udmap 0x4001>;
         dma-names = "tx", "rx1", "rx2";
-        dma-coherent;
     };

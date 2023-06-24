@@ -11,6 +11,7 @@
  */
 
 #include <linux/thermal.h>
+#include <linux/minmax.h>
 #include <trace/events/thermal.h>
 
 #include "thermal_core.h"
@@ -52,10 +53,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 
 	if (!instance->initialized) {
 		if (throttle) {
-			next_target = (cur_state + 1) >= instance->upper ?
-					instance->upper :
-					((cur_state + 1) < instance->lower ?
-					instance->lower : (cur_state + 1));
+			next_target = clamp((cur_state + 1), instance->lower, instance->upper);
 		} else {
 			next_target = THERMAL_NO_TARGET;
 		}
@@ -66,15 +64,8 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	switch (trend) {
 	case THERMAL_TREND_RAISING:
 		if (throttle) {
-			next_target = cur_state < instance->upper ?
-				    (cur_state + 1) : instance->upper;
-			if (next_target < instance->lower)
-				next_target = instance->lower;
+			next_target = clamp((cur_state + 1), instance->lower, instance->upper);
 		}
-		break;
-	case THERMAL_TREND_RAISE_FULL:
-		if (throttle)
-			next_target = instance->upper;
 		break;
 	case THERMAL_TREND_DROPPING:
 		if (cur_state <= instance->lower) {
@@ -82,18 +73,9 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 				next_target = THERMAL_NO_TARGET;
 		} else {
 			if (!throttle) {
-				next_target = cur_state - 1;
-				if (next_target > instance->upper)
-					next_target = instance->upper;
+				next_target = clamp((cur_state - 1), instance->lower, instance->upper);
 			}
 		}
-		break;
-	case THERMAL_TREND_DROP_FULL:
-		if (cur_state == instance->lower) {
-			if (!throttle)
-				next_target = THERMAL_NO_TARGET;
-		} else
-			next_target = instance->lower;
 		break;
 	default:
 		break;
@@ -135,8 +117,6 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%d]:trend=%d,throttle=%d\n",
 				trip, trip_type, trip_temp, trend, throttle);
 
-	mutex_lock(&tz->lock);
-
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != trip)
 			continue;
@@ -163,8 +143,6 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 		instance->cdev->updated = false; /* cdev needs update */
 		mutex_unlock(&instance->cdev->lock);
 	}
-
-	mutex_unlock(&tz->lock);
 }
 
 /**
@@ -182,14 +160,12 @@ static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 {
 	struct thermal_instance *instance;
 
-	thermal_zone_trip_update(tz, trip);
+	lockdep_assert_held(&tz->lock);
 
-	mutex_lock(&tz->lock);
+	thermal_zone_trip_update(tz, trip);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
 		thermal_cdev_update(instance->cdev);
-
-	mutex_unlock(&tz->lock);
 
 	return 0;
 }

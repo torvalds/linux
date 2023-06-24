@@ -7,13 +7,15 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 #include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 
 #include "sti_compositor.h"
 #include "sti_gdp.h"
@@ -406,7 +408,7 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_gdp *gdp)
 		    (hw_nvn != gdp->node_list[i].top_field_paddr))
 			return &gdp->node_list[i];
 
-	/* in hazardious cases restart with the first node */
+	/* in hazardous cases restart with the first node */
 	DRM_ERROR("inconsistent NVN for %s: 0x%08X\n",
 			sti_plane_to_str(&gdp->plane), hw_nvn);
 
@@ -656,8 +658,8 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 		return -EINVAL;
 	}
 
-	if (!drm_fb_cma_get_gem_obj(fb, 0)) {
-		DRM_ERROR("Can't get CMA GEM object for fb\n");
+	if (!drm_fb_dma_get_gem_obj(fb, 0)) {
+		DRM_ERROR("Can't get DMA GEM object for fb\n");
 		return -EINVAL;
 	}
 
@@ -712,7 +714,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	struct drm_display_mode *mode;
 	int dst_x, dst_y, dst_w, dst_h;
 	int src_x, src_y, src_w, src_h;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	struct sti_gdp_node_list *list;
 	struct sti_gdp_node_list *curr_list;
 	struct sti_gdp_node *top_field, *btm_field;
@@ -776,15 +778,15 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	top_field->gam_gdp_ctl |= sti_gdp_get_alpharange(format);
 	top_field->gam_gdp_ppt &= ~GAM_GDP_PPT_IGNORE;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->format->format,
-			 (unsigned long)cma_obj->paddr);
+			 (unsigned long) dma_obj->dma_addr);
 
 	/* pixel memory location */
 	bpp = fb->format->cpp[0];
-	top_field->gam_gdp_pml = (u32)cma_obj->paddr + fb->offsets[0];
+	top_field->gam_gdp_pml = (u32) dma_obj->dma_addr + fb->offsets[0];
 	top_field->gam_gdp_pml += src_x * bpp;
 	top_field->gam_gdp_pml += src_y * fb->pitches[0];
 
@@ -829,7 +831,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	dev_dbg(gdp->dev, "Current NVN:0x%X\n",
 		readl(gdp->regs + GAM_GDP_NVN_OFFSET));
 	dev_dbg(gdp->dev, "Posted buff: %lx current buff: %x\n",
-		(unsigned long)cma_obj->paddr,
+		(unsigned long) dma_obj->dma_addr,
 		readl(gdp->regs + GAM_GDP_PML_OFFSET));
 
 	if (!curr_list) {

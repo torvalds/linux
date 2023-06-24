@@ -34,6 +34,7 @@ enum cpu_boot_err {
 	CPU_BOOT_ERR_BINNING_FAIL = 19,
 	CPU_BOOT_ERR_TPM_FAIL = 20,
 	CPU_BOOT_ERR_TMP_THRESH_INIT_FAIL = 21,
+	CPU_BOOT_ERR_EEPROM_FAIL = 22,
 	CPU_BOOT_ERR_ENABLED = 31,
 	CPU_BOOT_ERR_SCND_EN = 63,
 	CPU_BOOT_ERR_LAST = 64 /* we have 2 registers of 32 bits */
@@ -115,6 +116,9 @@ enum cpu_boot_err {
  * CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL	Failed to set threshold for tmperature
  *					sensor.
  *
+ * CPU_BOOT_ERR_EEPROM_FAIL		Failed reading EEPROM data. Defaults
+ *					are used.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -139,6 +143,7 @@ enum cpu_boot_err {
 #define CPU_BOOT_ERR0_BINNING_FAIL		(1 << CPU_BOOT_ERR_BINNING_FAIL)
 #define CPU_BOOT_ERR0_TPM_FAIL			(1 << CPU_BOOT_ERR_TPM_FAIL)
 #define CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL	(1 << CPU_BOOT_ERR_TMP_THRESH_INIT_FAIL)
+#define CPU_BOOT_ERR0_EEPROM_FAIL		(1 << CPU_BOOT_ERR_EEPROM_FAIL)
 #define CPU_BOOT_ERR0_ENABLED			(1 << CPU_BOOT_ERR_ENABLED)
 #define CPU_BOOT_ERR1_ENABLED			(1 << CPU_BOOT_ERR_ENABLED)
 
@@ -426,7 +431,9 @@ struct cpu_dyn_regs {
 	__le32 gic_host_ints_irq;
 	__le32 gic_host_soft_rst_irq;
 	__le32 gic_rot_qm_irq_ctrl;
-	__le32 reserved1[22];		/* reserve for future use */
+	__le32 cpu_rst_status;
+	__le32 eng_arc_irq_ctrl;
+	__le32 reserved1[20];		/* reserve for future use */
 };
 
 /* TODO: remove the desc magic after the code is updated to use message */
@@ -463,6 +470,26 @@ enum comms_msg_type {
 	HL_COMMS_RESET_CAUSE_TYPE = 1,
 	HL_COMMS_FW_CFG_SKIP_TYPE = 2,
 	HL_COMMS_BINNING_CONF_TYPE = 3,
+};
+
+/*
+ * Binning information shared between LKD and FW
+ * @tpc_mask - TPC binning information
+ * @dec_mask - Decoder binning information
+ * @hbm_mask - HBM binning information
+ * @edma_mask - EDMA binning information
+ * @mme_mask_l - MME binning information lower 32
+ * @mme_mask_h - MME binning information upper 32
+ * @reserved - reserved field for 64 bit alignment
+ */
+struct lkd_fw_binning_info {
+	__le64 tpc_mask;
+	__le32 dec_mask;
+	__le32 hbm_mask;
+	__le32 edma_mask;
+	__le32 mme_mask_l;
+	__le32 mme_mask_h;
+	__le32 reserved;
 };
 
 /* TODO: remove this struct after the code is updated to use message */
@@ -525,6 +552,7 @@ struct lkd_fw_comms_msg {
 		struct {
 			__u8 fw_cfg_skip; /* 1 - skip, 0 - don't skip */
 		};
+		struct lkd_fw_binning_info binning_info;
 	};
 };
 

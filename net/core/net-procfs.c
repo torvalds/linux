@@ -4,6 +4,8 @@
 #include <linux/seq_file.h>
 #include <net/wext.h>
 
+#include "dev.h"
+
 #define BUCKET_SPACE (32 - NETDEV_HASHBITS - 1)
 
 #define get_bucket(x) ((x) >> BUCKET_SPACE)

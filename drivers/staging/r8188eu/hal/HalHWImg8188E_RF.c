@@ -130,7 +130,37 @@ static u32 Array_RadioA_1T_8188E[] = {
 		0x000, 0x00033E60,
 };
 
-enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
+static void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
+				  u32 Data, u32 RegAddr)
+{
+	if (Addr == 0xffe) {
+		msleep(50);
+	} else if (Addr == 0xfd) {
+		mdelay(5);
+	} else if (Addr == 0xfc) {
+		mdelay(1);
+	} else if (Addr == 0xfb) {
+		udelay(50);
+	} else if (Addr == 0xfa) {
+		udelay(5);
+	} else if (Addr == 0xf9) {
+		udelay(1);
+	} else {
+		rtl8188e_PHY_SetRFReg(pDM_Odm->Adapter, RegAddr, bRFRegOffsetMask, Data);
+		/*  Add 1us delay between BB/RF register setting. */
+		udelay(1);
+	}
+}
+
+static void odm_ConfigRF_RadioA_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Data)
+{
+	u32  content = 0x1000; /*  RF_Content: radioa_txt */
+	u32 maskforPhySet = (u32)(content & 0xE000);
+
+	odm_ConfigRFReg_8188E(pDM_Odm, Addr, Data, Addr | maskforPhySet);
+}
+
+int ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 {
 	#define READ_NEXT_PAIR(v1, v2, i) do	\
 		 { i += 2; v1 = Array[i];	\
@@ -138,13 +168,12 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 
 	u32     hex         = 0;
 	u32     i           = 0;
-	u32     ArrayLen    = sizeof(Array_RadioA_1T_8188E) / sizeof(u32);
+	u32     ArrayLen    = ARRAY_SIZE(Array_RadioA_1T_8188E);
 	u32    *Array       = Array_RadioA_1T_8188E;
 	bool		biol = false;
 	struct adapter *Adapter =  pDM_Odm->Adapter;
 	struct xmit_frame *pxmit_frame = NULL;
 	u8 bndy_cnt = 1;
-	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 
 	hex += ODM_ITRF_USB << 8;
 	hex += ODM_CE << 16;
@@ -155,7 +184,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 		pxmit_frame = rtw_IOL_accquire_xmit_frame(Adapter);
 		if (!pxmit_frame) {
 			pr_info("rtw_IOL_accquire_xmit_frame failed\n");
-			return HAL_STATUS_FAILURE;
+			return -ENOMEM;
 		}
 	}
 
@@ -232,9 +261,9 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 	}
 	if (biol) {
 		if (!rtl8188e_IOL_exec_cmds_sync(pDM_Odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
-			rst = HAL_STATUS_FAILURE;
 			pr_info("~~~ IOL Config %s Failed !!!\n", __func__);
+			return -1;
 		}
 	}
-	return rst;
+	return 0;
 }

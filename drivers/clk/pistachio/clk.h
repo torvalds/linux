@@ -31,10 +31,10 @@ struct pistachio_mux {
 	unsigned int shift;
 	unsigned int num_parents;
 	const char *name;
-	const char **parents;
+	const char *const *parents;
 };
 
-#define PNAME(x) static const char *x[] __initconst
+#define PNAME(x) static const char *const x[] __initconst
 
 #define MUX(_id, _name, _pnames, _reg, _shift)			\
 	{							\

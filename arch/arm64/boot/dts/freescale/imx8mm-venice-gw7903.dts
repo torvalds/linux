@@ -33,13 +33,13 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		user-pb {
+		key-user-pb {
 			label = "user_pb";
 			gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_0>;
 		};
 
-		user-pb1x {
+		key-user-pb1x {
 			label = "user_pb1x";
 			linux,code = <BTN_1>;
 			interrupt-parent = <&gsc>;
@@ -53,7 +53,7 @@
 			interrupts = <1>;
 		};
 
-		eeprom-wp {
+		key-eeprom-wp {
 			label = "eeprom_wp";
 			linux,code = <BTN_3>;
 			interrupt-parent = <&gsc>;
@@ -250,7 +250,7 @@
 };
 
 &gpio2 {
-	gpio-line-names = "dig2_in", "dig2_out#", "", "", "", "", "", "",
+	gpio-line-names = "dig2_in", "dig2_out#", "dig2_ctl", "", "", "", "dig1_ctl", "",
 		"dig1_out#", "dig1_in", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "";
@@ -540,6 +540,7 @@
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	fsl,clkreq-unsupported;
 	clocks = <&pcie0_refclk>;
+	clock-names = "ref";
 	status = "okay";
 };
 
@@ -629,6 +630,8 @@
 			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x40000041 /* RS232# */
 			MX8MM_IOMUXC_SD1_DATA7_GPIO2_IO9	0x40000041 /* DIG1_IN */
 			MX8MM_IOMUXC_SD1_DATA6_GPIO2_IO8	0x40000041 /* DIG1_OUT */
+			MX8MM_IOMUXC_SD1_DATA4_GPIO2_IO6	0x40000041 /* DIG1_CTL */
+			MX8MM_IOMUXC_SD1_DATA0_GPIO2_IO2	0x40000041 /* DIG2_CTL */
 			MX8MM_IOMUXC_SD1_CLK_GPIO2_IO0		0x40000041 /* DIG2_IN */
 			MX8MM_IOMUXC_SD1_CMD_GPIO2_IO1		0x40000041 /* DIG2_OUT */
 			MX8MM_IOMUXC_ECSPI1_MOSI_GPIO5_IO7	0x40000041 /* SIM1DET# */

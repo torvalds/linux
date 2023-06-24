@@ -910,7 +910,7 @@ free_flash:
 	return err;
 }
 
-static int lm3554_remove(struct i2c_client *client)
+static void lm3554_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct lm3554 *flash = to_lm3554(sd);
@@ -926,8 +926,6 @@ static int lm3554_remove(struct i2c_client *client)
 	lm3554_gpio_uninit(client);
 
 	kfree(flash);
-
-	return 0;
 }
 
 static const struct dev_pm_ops lm3554_pm_ops = {

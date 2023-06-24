@@ -46,12 +46,6 @@ static inline void scatterwalk_advance(struct scatter_walk *walk,
 	walk->offset += nbytes;
 }
 
-static inline unsigned int scatterwalk_aligned(struct scatter_walk *walk,
-					       unsigned int alignmask)
-{
-	return !(walk->offset & alignmask);
-}
-
 static inline struct page *scatterwalk_page(struct scatter_walk *walk)
 {
 	return sg_page(walk->sg) + (walk->offset >> PAGE_SHIFT);

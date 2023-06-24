@@ -205,9 +205,12 @@ struct thread_struct {
 #define start_thread(regs, new_pc, new_sp) \
 	do { \
 		unsigned long syscall = (regs)->syscall; \
+		unsigned long current_aregs[16]; \
+		memcpy(current_aregs, (regs)->areg, sizeof(current_aregs)); \
 		memset((regs), 0, sizeof(*(regs))); \
 		(regs)->pc = (new_pc); \
 		(regs)->ps = USER_PS_VALUE; \
+		memcpy((regs)->areg, current_aregs, sizeof(current_aregs)); \
 		(regs)->areg[1] = (new_sp); \
 		(regs)->areg[0] = 0; \
 		(regs)->wmask = 1; \
@@ -220,9 +223,6 @@ struct thread_struct {
 /* Forward declaration */
 struct task_struct;
 struct mm_struct;
-
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while(0)
 
 extern unsigned long __get_wchan(struct task_struct *p);
 
@@ -244,6 +244,13 @@ extern unsigned long __get_wchan(struct task_struct *p);
 	 unsigned int v; \
 	 __asm__ __volatile__ ("rsr %0, "__stringify(sr) : "=a"(v)); \
 	 v; \
+	 })
+
+#define xtensa_xsr(x, sr) \
+	({ \
+	 unsigned int __v__ = (unsigned int)(x); \
+	 __asm__ __volatile__ ("xsr %0, " __stringify(sr) : "+a"(__v__)); \
+	 __v__; \
 	 })
 
 #if XCHAL_HAVE_EXTERN_REGS

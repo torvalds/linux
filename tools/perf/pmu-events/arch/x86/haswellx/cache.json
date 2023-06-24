@@ -20,7 +20,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "L1D miss oustandings duration in cycles",
+        "BriefDescription": "L1D miss outstanding duration in cycles",
         "Counter": "2",
         "CounterHTOff": "2",
         "EventCode": "0x48",
@@ -592,7 +592,7 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "All retired load uops.",
+        "BriefDescription": "Retired load uops.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
@@ -600,11 +600,12 @@
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
         "PEBS": "1",
+        "PublicDescription": "Counts all retired load uops. This event accounts for SW prefetch uops of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW.",
         "SampleAfterValue": "2000003",
         "UMask": "0x81"
     },
     {
-        "BriefDescription": "All retired store uops.",
+        "BriefDescription": "Retired store uops.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
@@ -613,6 +614,7 @@
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
         "L1_Hit_Indication": "1",
         "PEBS": "1",
+        "PublicDescription": "Counts all retired store uops.",
         "SampleAfterValue": "2000003",
         "UMask": "0x82"
     },
@@ -689,7 +691,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and noncacheable code read requests",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB0",
@@ -832,9 +834,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0244",
+        "MSRValue": "0x4003C0244",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch code reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -847,7 +848,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -858,9 +858,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0091",
+        "MSRValue": "0x4003C0091",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch data reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -873,7 +872,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C07F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -884,9 +882,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C07F7",
+        "MSRValue": "0x4003C07F7",
         "Offcore": "1",
-        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -899,7 +896,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C8FFF",
         "Offcore": "1",
-        "PublicDescription": "Counts all requests hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -912,7 +908,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0122",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch RFOs hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -923,9 +918,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0122",
+        "MSRValue": "0x4003C0122",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand & prefetch RFOs hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -938,7 +932,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0004",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand code reads hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -949,9 +942,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0004",
+        "MSRValue": "0x4003C0004",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand code reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -964,7 +956,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
         "Offcore": "1",
-        "PublicDescription": "Counts demand data reads hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -975,9 +966,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0001",
+        "MSRValue": "0x4003C0001",
         "Offcore": "1",
-        "PublicDescription": "Counts demand data reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -990,7 +980,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0002",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand data writes (RFOs) hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1001,9 +990,8 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0002",
+        "MSRValue": "0x4003C0002",
         "Offcore": "1",
-        "PublicDescription": "Counts all demand data writes (RFOs) hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1016,7 +1004,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0040",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1029,7 +1016,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0010",
         "Offcore": "1",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1042,7 +1028,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0020",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1055,7 +1040,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0200",
         "Offcore": "1",
-        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1068,7 +1052,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0080",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1081,7 +1064,6 @@
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0100",
         "Offcore": "1",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs hit in the L3",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

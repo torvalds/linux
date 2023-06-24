@@ -4,9 +4,13 @@
 #ifndef __MLX5_LAG_H__
 #define __MLX5_LAG_H__
 
+#include <linux/debugfs.h>
+
+#define MLX5_LAG_MAX_HASH_BUCKETS 16
 #include "mlx5_core.h"
 #include "mp.h"
 #include "port_sel.h"
+#include "mpesw.h"
 
 enum {
 	MLX5_LAG_P1,
@@ -14,16 +18,22 @@ enum {
 };
 
 enum {
-	MLX5_LAG_FLAG_ROCE   = 1 << 0,
-	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
-	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,
-	MLX5_LAG_FLAG_READY = 1 << 3,
-	MLX5_LAG_FLAG_HASH_BASED = 1 << 4,
+	MLX5_LAG_FLAG_NDEVS_READY,
 };
 
-#define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV |\
-			     MLX5_LAG_FLAG_MULTIPATH | \
-			     MLX5_LAG_FLAG_HASH_BASED)
+enum {
+	MLX5_LAG_MODE_FLAG_HASH_BASED,
+	MLX5_LAG_MODE_FLAG_SHARED_FDB,
+	MLX5_LAG_MODE_FLAG_FDB_SEL_MODE_NATIVE,
+};
+
+enum mlx5_lag_mode {
+	MLX5_LAG_MODE_NONE,
+	MLX5_LAG_MODE_ROCE,
+	MLX5_LAG_MODE_SRIOV,
+	MLX5_LAG_MODE_MULTIPATH,
+	MLX5_LAG_MODE_MPESW,
+};
 
 struct lag_func {
 	struct mlx5_core_dev *dev;
@@ -40,14 +50,30 @@ struct lag_tracker {
 	enum netdev_lag_hash hash_type;
 };
 
+enum mpesw_op {
+	MLX5_MPESW_OP_ENABLE,
+	MLX5_MPESW_OP_DISABLE,
+};
+
+struct mlx5_mpesw_work_st {
+	struct work_struct work;
+	struct mlx5_lag    *lag;
+	enum mpesw_op	   op;
+	struct completion  comp;
+	int result;
+};
+
 /* LAG data of a ConnectX card.
  * It serves both its phys functions.
  */
 struct mlx5_lag {
-	u8                        flags;
+	enum mlx5_lag_mode        mode;
+	unsigned long		  mode_flags;
+	unsigned long		  state_flags;
+	u8			  ports;
+	u8			  buckets;
 	int			  mode_changes_in_progress;
-	bool			  shared_fdb;
-	u8                        v2p_map[MLX5_MAX_PORTS];
+	u8			  v2p_map[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
 	struct kref               ref;
 	struct lag_func           pf[MLX5_MAX_PORTS];
 	struct lag_tracker        tracker;
@@ -56,7 +82,20 @@ struct mlx5_lag {
 	struct notifier_block     nb;
 	struct lag_mp             lag_mp;
 	struct mlx5_lag_port_sel  port_sel;
+	/* Protect lag fields/state changes */
+	struct mutex		  lock;
+	struct lag_mpesw	  lag_mpesw;
 };
+
+static inline bool mlx5_is_lag_supported(struct mlx5_core_dev *dev)
+{
+	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
+	    !MLX5_CAP_GEN(dev, lag_master) ||
+	    MLX5_CAP_GEN(dev, num_lag_ports) < 2 ||
+	    MLX5_CAP_GEN(dev, num_lag_ports) > MLX5_MAX_PORTS)
+		return false;
+	return true;
+}
 
 static inline struct mlx5_lag *
 mlx5_lag_dev(struct mlx5_core_dev *dev)
@@ -67,22 +106,33 @@ mlx5_lag_dev(struct mlx5_core_dev *dev)
 static inline bool
 __mlx5_lag_is_active(struct mlx5_lag *ldev)
 {
-	return !!(ldev->flags & MLX5_LAG_MODE_FLAGS);
+	return ldev->mode != MLX5_LAG_MODE_NONE;
 }
 
 static inline bool
 mlx5_lag_is_ready(struct mlx5_lag *ldev)
 {
-	return ldev->flags & MLX5_LAG_FLAG_READY;
+	return test_bit(MLX5_LAG_FLAG_NDEVS_READY, &ldev->state_flags);
 }
 
 void mlx5_modify_lag(struct mlx5_lag *ldev,
 		     struct lag_tracker *tracker);
 int mlx5_activate_lag(struct mlx5_lag *ldev,
 		      struct lag_tracker *tracker,
-		      u8 flags,
+		      enum mlx5_lag_mode mode,
 		      bool shared_fdb);
 int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
 				struct net_device *ndev);
+bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev);
+void mlx5_lag_del_mpesw_rule(struct mlx5_core_dev *dev);
+int mlx5_lag_add_mpesw_rule(struct mlx5_core_dev *dev);
+
+char *mlx5_get_str_port_sel_mode(enum mlx5_lag_mode mode, unsigned long flags);
+void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
+			   u8 *ports, int *num_enabled);
+
+void mlx5_ldev_add_debugfs(struct mlx5_core_dev *dev);
+void mlx5_ldev_remove_debugfs(struct dentry *dbg);
+void mlx5_disable_lag(struct mlx5_lag *ldev);
 
 #endif /* __MLX5_LAG_H__ */

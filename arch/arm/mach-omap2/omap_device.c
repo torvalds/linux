@@ -96,9 +96,6 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
  * omap_device, this function adds an entry in the clkdev table of the
  * form <dev-id=dev_name, con-id=role> if it does not exist already.
  *
- * The function is called from inside omap_device_build_ss(), after
- * omap_device_register.
- *
  * This allows drivers to get a pointer to its optional clocks based on its role
  * by calling clk_get(<dev*>, <role>).
  * In the case of the main clock, a "fck" alias is used.
@@ -472,23 +469,6 @@ struct dev_pm_domain omap_device_pm_domain = {
 					      _od_resume_noirq)
 	}
 };
-
-/**
- * omap_device_register - register an omap_device with one omap_hwmod
- * @pdev: the platform device (omap_device) to register.
- *
- * Register the omap_device structure.  This currently just calls
- * platform_device_register() on the underlying platform_device.
- * Returns the return value of platform_device_register().
- */
-int omap_device_register(struct platform_device *pdev)
-{
-	pr_debug("omap_device: %s: registering\n", pdev->name);
-
-	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
-	return platform_device_add(pdev);
-}
-
 
 /* Public functions for use by device drivers through struct platform_data */
 

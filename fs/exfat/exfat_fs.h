@@ -27,9 +27,9 @@ enum exfat_error_mode {
  * exfat nls lossy flag
  */
 enum {
-	NLS_NAME_NO_LOSSY,	/* no lossy */
-	NLS_NAME_LOSSY,		/* just detected incorrect filename(s) */
-	NLS_NAME_OVERLEN,	/* the length is over than its limit */
+	NLS_NAME_NO_LOSSY =	0,	/* no lossy */
+	NLS_NAME_LOSSY =	1 << 0,	/* just detected incorrect filename(s) */
+	NLS_NAME_OVERLEN =	1 << 1,	/* the length is over than its limit */
 };
 
 #define EXFAT_HASH_BITS		8
@@ -203,6 +203,7 @@ struct exfat_mount_options {
 	/* on error: continue, panic, remount-ro */
 	enum exfat_error_mode errors;
 	unsigned utf8:1, /* Use of UTF-8 character set */
+		 sys_tz:1, /* Use local timezone */
 		 discard:1, /* Issue discard requests on deletions */
 		 keep_last_dots:1; /* Keep trailing periods in paths */
 	int time_offset; /* Offset of timestamps from UTC (in minutes) */
@@ -381,6 +382,12 @@ static inline int exfat_sector_to_cluster(struct exfat_sb_info *sbi,
 		EXFAT_RESERVED_CLUSTERS;
 }
 
+static inline bool is_valid_cluster(struct exfat_sb_info *sbi,
+		unsigned int clus)
+{
+	return clus >= EXFAT_FIRST_CLUSTER && clus < sbi->num_clusters;
+}
+
 /* super.c */
 int exfat_set_volume_dirty(struct super_block *sb);
 int exfat_clear_volume_dirty(struct super_block *sb);
@@ -476,6 +483,7 @@ struct inode *exfat_build_inode(struct super_block *sb,
 void exfat_hash_inode(struct inode *inode, loff_t i_pos);
 void exfat_unhash_inode(struct inode *inode);
 struct inode *exfat_iget(struct super_block *sb, loff_t i_pos);
+int __exfat_write_inode(struct inode *inode, int sync);
 int exfat_write_inode(struct inode *inode, struct writeback_control *wbc);
 void exfat_evict_inode(struct inode *inode);
 int exfat_block_truncate_page(struct inode *inode, loff_t from);
@@ -501,14 +509,16 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 #define exfat_fs_error_ratelimit(sb, fmt, args...) \
 		__exfat_fs_error(sb, __ratelimit(&EXFAT_SB(sb)->ratelimit), \
 		fmt, ## args)
-void exfat_msg(struct super_block *sb, const char *lv, const char *fmt, ...)
-		__printf(3, 4) __cold;
+
+/* expand to pr_*() with prefix */
 #define exfat_err(sb, fmt, ...)						\
-	exfat_msg(sb, KERN_ERR, fmt, ##__VA_ARGS__)
+	pr_err("exFAT-fs (%s): " fmt "\n", (sb)->s_id, ##__VA_ARGS__)
 #define exfat_warn(sb, fmt, ...)					\
-	exfat_msg(sb, KERN_WARNING, fmt, ##__VA_ARGS__)
+	pr_warn("exFAT-fs (%s): " fmt "\n", (sb)->s_id, ##__VA_ARGS__)
 #define exfat_info(sb, fmt, ...)					\
-	exfat_msg(sb, KERN_INFO, fmt, ##__VA_ARGS__)
+	pr_info("exFAT-fs (%s): " fmt "\n", (sb)->s_id, ##__VA_ARGS__)
+#define exfat_debug(sb, fmt, ...)					\
+	pr_debug("exFAT-fs (%s): " fmt "\n", (sb)->s_id, ##__VA_ARGS__)
 
 void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 		u8 tz, __le16 time, __le16 date, u8 time_cs);

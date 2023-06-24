@@ -44,7 +44,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mvif->idx = ffs(~dev->mt76.vif_mask) - 1;
+	mvif->idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->idx >= MT7603_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
@@ -65,7 +65,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	idx = MT7603_WTBL_RESERVED - 1 - mvif->idx;
-	dev->mt76.vif_mask |= BIT(mvif->idx);
+	dev->mt76.vif_mask |= BIT_ULL(mvif->idx);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
 	mvif->sta.wcid.hw_key_idx = -1;
@@ -75,7 +75,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mt7603_wtbl_init(dev, idx, mvif->idx, bc_addr);
 
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-	mtxq->wcid = &mvif->sta.wcid;
+	mtxq->wcid = idx;
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 
 out:
@@ -106,7 +106,7 @@ mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	spin_unlock_bh(&dev->sta_poll_lock);
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->mt76.vif_mask &= ~BIT(mvif->idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->idx);
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_packet_id_flush(&dev->mt76, &mvif->sta.wcid);
@@ -297,7 +297,7 @@ mt7603_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 
 static void
 mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *info, u32 changed)
+			struct ieee80211_bss_conf *info, u64 changed)
 {
 	struct mt7603_dev *dev = hw->priv;
 	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
@@ -305,7 +305,7 @@ mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BSSID)) {
-		if (info->assoc || info->ibss_joined) {
+		if (vif->cfg.assoc || vif->cfg.ibss_joined) {
 			mt76_wr(dev, MT_BSSID0(mvif->idx),
 				get_unaligned_le32(info->bssid));
 			mt76_wr(dev, MT_BSSID1(mvif->idx),
@@ -527,7 +527,8 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 
 static int
-mt7603_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+mt7603_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7603_dev *dev = hw->priv;
@@ -657,7 +658,7 @@ mt7603_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mt7603_wtbl_set_rates(dev, msta, NULL, msta->rates);
 	msta->rate_probe = false;
 	mt7603_wtbl_set_smps(dev, msta,
-			     sta->smps_mode == IEEE80211_SMPS_DYNAMIC);
+			     sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC);
 	spin_unlock_bh(&dev->mt76.lock);
 }
 

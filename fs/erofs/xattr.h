@@ -39,9 +39,7 @@ static inline unsigned int xattrblock_offset(struct erofs_sb_info *sbi,
 #ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler erofs_xattr_user_handler;
 extern const struct xattr_handler erofs_xattr_trusted_handler;
-#ifdef CONFIG_EROFS_FS_SECURITY
 extern const struct xattr_handler erofs_xattr_security_handler;
-#endif
 
 static inline const struct xattr_handler *erofs_xattr_handler(unsigned int idx)
 {

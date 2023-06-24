@@ -24,6 +24,15 @@ properties:
     maxItems: 1
     description: virtual channel number of a DSI peripheral
 
+  clock-names:
+    const: refclk
+
+  clocks:
+    maxItems: 1
+    description: |
+        Optional external clock connected to REF_CLK input.
+        The clock rate must be in 10..154 MHz range.
+
   enable-gpios:
     description: Bridge EN pin, chip is reset when EN is low.
 
@@ -41,9 +50,25 @@ properties:
 
     properties:
       port@0:
-        $ref: /schemas/graph.yaml#/properties/port
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description:
           Video port for MIPI DSI input
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              data-lanes:
+                description: array of physical DSI data lane indexes.
+                minItems: 1
+                items:
+                  - const: 1
+                  - const: 2
+                  - const: 3
+                  - const: 4
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/allwinner,sun4i-a10-usb-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 USB PHY Device Tree Bindings
+title: Allwinner A10 USB PHY
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

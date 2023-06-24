@@ -11,14 +11,15 @@ maintainers:
 
 description: |
   The MTK ADSP mailbox Inter-Processor Communication (IPC) enables the SoC
-  to ommunicate with ADSP by passing messages through two mailbox channels.
+  to communicate with ADSP by passing messages through two mailbox channels.
   The MTK ADSP mailbox IPC also provides the ability for one processor to
   signal the other processor using interrupts.
 
 properties:
   compatible:
-    items:
-      - const: mediatek,mt8195-adsp-mbox
+    enum:
+      - mediatek,mt8195-adsp-mbox
+      - mediatek,mt8186-adsp-mbox
 
   "#mbox-cells":
     const: 0

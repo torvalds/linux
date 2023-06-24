@@ -1544,7 +1544,7 @@ error:
 	return ret;
 }
 
-static int ov2659_remove(struct i2c_client *client)
+static void ov2659_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2659 *ov2659 = to_ov2659(sd);
@@ -1558,8 +1558,6 @@ static int ov2659_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		ov2659_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov2659_pm_ops = {

@@ -25,7 +25,7 @@ void serial_test_netcnt(void)
 	if (!ASSERT_OK_PTR(skel, "netcnt_prog__open_and_load"))
 		return;
 
-	nproc = get_nprocs_conf();
+	nproc = bpf_num_possible_cpus();
 	percpu_netcnt = malloc(sizeof(*percpu_netcnt) * nproc);
 	if (!ASSERT_OK_PTR(percpu_netcnt, "malloc(percpu_netcnt)"))
 		goto err;

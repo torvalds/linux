@@ -149,13 +149,11 @@ static int rt5033_battery_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rt5033_battery_remove(struct i2c_client *client)
+static void rt5033_battery_remove(struct i2c_client *client)
 {
 	struct rt5033_battery *battery = i2c_get_clientdata(client);
 
 	power_supply_unregister(battery->psy);
-
-	return 0;
 }
 
 static const struct i2c_device_id rt5033_battery_id[] = {

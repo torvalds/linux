@@ -9,7 +9,7 @@ Requires node properties:
 	"arm,vexpress-power"
 	"arm,vexpress-energy"
 - "arm,vexpress-sysreg,func" when controlled via vexpress-sysreg
-  (see Documentation/devicetree/bindings/arm/vexpress-sysreg.txt
+  (see Documentation/devicetree/bindings/arm/vexpress-config.yaml
   for more details)
 
 Optional node properties:

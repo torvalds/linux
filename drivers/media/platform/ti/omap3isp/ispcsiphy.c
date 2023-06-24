@@ -31,7 +31,8 @@ static void csiphy_routing_cfg_3630(struct isp_csiphy *phy,
 
 	switch (iface) {
 	default:
-	/* Should not happen in practice, but let's keep the compiler happy. */
+		/* Should not happen in practice, but let's keep the compiler happy. */
+		return;
 	case ISP_INTERFACE_CCP2B_PHY1:
 		reg &= ~OMAP3630_CONTROL_CAMERA_PHY_CTRL_CSI1_RX_SEL_PHY2;
 		shift = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_PHY1_SHIFT;

@@ -10,7 +10,6 @@
 #include <linux/spinlock.h>
 #include <linux/msi.h>
 
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -37,8 +36,8 @@ static void ics_rtas_unmask_irq(struct irq_data *d)
 
 	server = xics_get_irq_server(d->irq, irq_data_get_affinity_mask(d), 0);
 
-	call_status = rtas_call_reentrant(ibm_set_xive, 3, 1, NULL, hw_irq,
-					  server, DEFAULT_PRIORITY);
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, hw_irq, server,
+				DEFAULT_PRIORITY);
 	if (call_status != 0) {
 		printk(KERN_ERR
 			"%s: ibm_set_xive irq %u server %x returned %d\n",
@@ -47,7 +46,7 @@ static void ics_rtas_unmask_irq(struct irq_data *d)
 	}
 
 	/* Now unmask the interrupt (often a no-op) */
-	call_status = rtas_call_reentrant(ibm_int_on, 1, 1, NULL, hw_irq);
+	call_status = rtas_call(ibm_int_on, 1, 1, NULL, hw_irq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_on irq=%u returned %d\n",
 			__func__, hw_irq, call_status);
@@ -69,7 +68,7 @@ static void ics_rtas_mask_real_irq(unsigned int hw_irq)
 	if (hw_irq == XICS_IPI)
 		return;
 
-	call_status = rtas_call_reentrant(ibm_int_off, 1, 1, NULL, hw_irq);
+	call_status = rtas_call(ibm_int_off, 1, 1, NULL, hw_irq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_off irq=%u returned %d\n",
 			__func__, hw_irq, call_status);
@@ -77,8 +76,8 @@ static void ics_rtas_mask_real_irq(unsigned int hw_irq)
 	}
 
 	/* Have to set XIVE to 0xff to be able to remove a slot */
-	call_status = rtas_call_reentrant(ibm_set_xive, 3, 1, NULL, hw_irq,
-					  xics_default_server, 0xff);
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, hw_irq,
+				xics_default_server, 0xff);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_set_xive(0xff) irq=%u returned %d\n",
 			__func__, hw_irq, call_status);
@@ -109,7 +108,7 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 	if (hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS)
 		return -1;
 
-	status = rtas_call_reentrant(ibm_get_xive, 1, 3, xics_status, hw_irq);
+	status = rtas_call(ibm_get_xive, 1, 3, xics_status, hw_irq);
 
 	if (status) {
 		printk(KERN_ERR "%s: ibm,get-xive irq=%u returns %d\n",
@@ -127,8 +126,8 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 	pr_debug("%s: irq %d [hw 0x%x] server: 0x%x\n", __func__, d->irq,
 		 hw_irq, irq_server);
 
-	status = rtas_call_reentrant(ibm_set_xive, 3, 1, NULL,
-				     hw_irq, irq_server, xics_status[1]);
+	status = rtas_call(ibm_set_xive, 3, 1, NULL,
+			   hw_irq, irq_server, xics_status[1]);
 
 	if (status) {
 		printk(KERN_ERR "%s: ibm,set-xive irq=%u returns %d\n",
@@ -159,7 +158,7 @@ static int ics_rtas_check(struct ics *ics, unsigned int hw_irq)
 		return -EINVAL;
 
 	/* Check if RTAS knows about this interrupt */
-	rc = rtas_call_reentrant(ibm_get_xive, 1, 3, status, hw_irq);
+	rc = rtas_call(ibm_get_xive, 1, 3, status, hw_irq);
 	if (rc)
 		return -ENXIO;
 
@@ -175,7 +174,7 @@ static long ics_rtas_get_server(struct ics *ics, unsigned long vec)
 {
 	int rc, status[2];
 
-	rc = rtas_call_reentrant(ibm_get_xive, 1, 3, status, vec);
+	rc = rtas_call(ibm_get_xive, 1, 3, status, vec);
 	if (rc)
 		return -1;
 	return status[0];

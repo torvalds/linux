@@ -171,7 +171,7 @@
 		};
 
 		pm660_gpios: gpios@c000 {
-			compatible = "qcom,pm660-gpio";
+			compatible = "qcom,pm660-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
 			gpio-ranges = <&pm660_gpios 0 0 13>;
@@ -187,7 +187,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm660_spmi_regulators: pm660-regulators {
+		pm660_spmi_regulators: regulators {
 			compatible = "qcom,pm660-regulators";
 		};
 	};

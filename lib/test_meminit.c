@@ -67,16 +67,23 @@ static int __init do_alloc_pages_order(int order, int *total_failures)
 	size_t size = PAGE_SIZE << order;
 
 	page = alloc_pages(GFP_KERNEL, order);
+	if (!page)
+		goto err;
 	buf = page_address(page);
 	fill_with_garbage(buf, size);
 	__free_pages(page, order);
 
 	page = alloc_pages(GFP_KERNEL, order);
+	if (!page)
+		goto err;
 	buf = page_address(page);
 	if (count_nonzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	__free_pages(page, order);
+	return 1;
+err:
+	(*total_failures)++;
 	return 1;
 }
 
@@ -100,14 +107,21 @@ static int __init do_kmalloc_size(size_t size, int *total_failures)
 	void *buf;
 
 	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		goto err;
 	fill_with_garbage(buf, size);
 	kfree(buf);
 
 	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		goto err;
 	if (count_nonzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	kfree(buf);
+	return 1;
+err:
+	(*total_failures)++;
 	return 1;
 }
 
@@ -117,14 +131,21 @@ static int __init do_vmalloc_size(size_t size, int *total_failures)
 	void *buf;
 
 	buf = vmalloc(size);
+	if (!buf)
+		goto err;
 	fill_with_garbage(buf, size);
 	vfree(buf);
 
 	buf = vmalloc(size);
+	if (!buf)
+		goto err;
 	if (count_nonzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	vfree(buf);
+	return 1;
+err:
+	(*total_failures)++;
 	return 1;
 }
 
@@ -279,13 +300,18 @@ static int __init do_kmem_cache_rcu_persistent(int size, int *total_failures)
 	c = kmem_cache_create("test_cache", size, size, SLAB_TYPESAFE_BY_RCU,
 			      NULL);
 	buf = kmem_cache_alloc(c, GFP_KERNEL);
+	if (!buf)
+		goto out;
 	saved_ptr = buf;
 	fill_with_garbage(buf, size);
 	buf_contents = kmalloc(size, GFP_KERNEL);
-	if (!buf_contents)
+	if (!buf_contents) {
+		kmem_cache_free(c, buf);
 		goto out;
+	}
 	used_objects = kmalloc_array(maxiter, sizeof(void *), GFP_KERNEL);
 	if (!used_objects) {
+		kmem_cache_free(c, buf);
 		kfree(buf_contents);
 		goto out;
 	}
@@ -306,11 +332,14 @@ static int __init do_kmem_cache_rcu_persistent(int size, int *total_failures)
 		}
 	}
 
+	for (iter = 0; iter < maxiter; iter++)
+		kmem_cache_free(c, used_objects[iter]);
+
 free_out:
-	kmem_cache_destroy(c);
 	kfree(buf_contents);
 	kfree(used_objects);
 out:
+	kmem_cache_destroy(c);
 	*total_failures += fail;
 	return 1;
 }

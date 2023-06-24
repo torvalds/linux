@@ -46,7 +46,12 @@ static void ice_free_vf_entries(struct ice_pf *pf)
  */
 static void ice_vf_vsi_release(struct ice_vf *vf)
 {
-	ice_vsi_release(ice_get_vf_vsi(vf));
+	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
+
+	if (WARN_ON(!vsi))
+		return;
+
+	ice_vsi_release(vsi);
 	ice_vf_invalidate_vsi(vf);
 }
 
@@ -104,6 +109,8 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 
 	hw = &pf->hw;
 	vsi = ice_get_vf_vsi(vf);
+	if (WARN_ON(!vsi))
+		return;
 
 	dev = ice_pf_to_dev(pf);
 	wr32(hw, VPINT_ALLOC(vf->vf_id), 0);
@@ -341,6 +348,9 @@ static void ice_ena_vf_q_mappings(struct ice_vf *vf, u16 max_txq, u16 max_rxq)
 	struct ice_hw *hw = &vf->pf->hw;
 	u32 reg;
 
+	if (WARN_ON(!vsi))
+		return;
+
 	/* set regardless of mapping mode */
 	wr32(hw, VPLAN_TXQ_MAPENA(vf->vf_id), VPLAN_TXQ_MAPENA_TX_ENA_M);
 
@@ -385,6 +395,9 @@ static void ice_ena_vf_q_mappings(struct ice_vf *vf, u16 max_txq, u16 max_rxq)
 static void ice_ena_vf_mappings(struct ice_vf *vf)
 {
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
+
+	if (WARN_ON(!vsi))
+		return;
 
 	ice_ena_vf_msix_mappings(vf);
 	ice_ena_vf_q_mappings(vf, vsi->alloc_txq, vsi->alloc_rxq);
@@ -1128,6 +1141,8 @@ static struct ice_vf *ice_get_vf_from_pfq(struct ice_pf *pf, u16 pfq)
 		u16 rxq_idx;
 
 		vsi = ice_get_vf_vsi(vf);
+		if (!vsi)
+			continue;
 
 		ice_for_each_rxq(vsi, rxq_idx)
 			if (vsi->rxq_map[rxq_idx] == pfq) {
@@ -1295,39 +1310,6 @@ out_put_vf:
 }
 
 /**
- * ice_unicast_mac_exists - check if the unicast MAC exists on the PF's switch
- * @pf: PF used to reference the switch's rules
- * @umac: unicast MAC to compare against existing switch rules
- *
- * Return true on the first/any match, else return false
- */
-static bool ice_unicast_mac_exists(struct ice_pf *pf, u8 *umac)
-{
-	struct ice_sw_recipe *mac_recipe_list =
-		&pf->hw.switch_info->recp_list[ICE_SW_LKUP_MAC];
-	struct ice_fltr_mgmt_list_entry *list_itr;
-	struct list_head *rule_head;
-	struct mutex *rule_lock; /* protect MAC filter list access */
-
-	rule_head = &mac_recipe_list->filt_rules;
-	rule_lock = &mac_recipe_list->filt_rule_lock;
-
-	mutex_lock(rule_lock);
-	list_for_each_entry(list_itr, rule_head, list_entry) {
-		u8 *existing_mac = &list_itr->fltr_info.l_data.mac.mac_addr[0];
-
-		if (ether_addr_equal(existing_mac, umac)) {
-			mutex_unlock(rule_lock);
-			return true;
-		}
-	}
-
-	mutex_unlock(rule_lock);
-
-	return false;
-}
-
-/**
  * ice_set_vf_mac
  * @netdev: network interface device structure
  * @vf_id: VF identifier
@@ -1360,13 +1342,6 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		goto out_put_vf;
-
-	if (ice_unicast_mac_exists(pf, mac)) {
-		netdev_err(netdev, "Unicast MAC %pM already exists on this PF. Preventing setting VF %u unicast MAC address to %pM\n",
-			   mac, vf_id, mac);
-		ret = -EINVAL;
-		goto out_put_vf;
-	}
 
 	mutex_lock(&vf->cfg_lock);
 
@@ -1521,8 +1496,15 @@ static int ice_calc_all_vfs_min_tx_rate(struct ice_pf *pf)
 static bool
 ice_min_tx_rate_oversubscribed(struct ice_vf *vf, int min_tx_rate)
 {
-	int link_speed_mbps = ice_get_link_speed_mbps(ice_get_vf_vsi(vf));
-	int all_vfs_min_tx_rate = ice_calc_all_vfs_min_tx_rate(vf->pf);
+	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
+	int all_vfs_min_tx_rate;
+	int link_speed_mbps;
+
+	if (WARN_ON(!vsi))
+		return false;
+
+	link_speed_mbps = ice_get_link_speed_mbps(vsi);
+	all_vfs_min_tx_rate = ice_calc_all_vfs_min_tx_rate(vf->pf);
 
 	/* this VF's previous rate is being overwritten */
 	all_vfs_min_tx_rate -= vf->min_tx_rate;
@@ -1566,13 +1548,7 @@ ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 		goto out_put_vf;
 
 	vsi = ice_get_vf_vsi(vf);
-
-	/* when max_tx_rate is zero that means no max Tx rate limiting, so only
-	 * check if max_tx_rate is non-zero
-	 */
-	if (max_tx_rate && min_tx_rate > max_tx_rate) {
-		dev_err(dev, "Cannot set min Tx rate %d Mbps greater than max Tx rate %d Mbps\n",
-			min_tx_rate, max_tx_rate);
+	if (!vsi) {
 		ret = -EINVAL;
 		goto out_put_vf;
 	}

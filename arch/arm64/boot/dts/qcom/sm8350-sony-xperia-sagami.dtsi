@@ -49,7 +49,7 @@
 
 		/* For reasons still unknown, GAssist key and Camera Focus/Shutter don't work.. */
 
-		vol-down {
+		key-vol-down {
 			label = "Volume Down";
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&pmk8350_gpios 3 GPIO_ACTIVE_LOW>;
@@ -222,8 +222,8 @@
 &tlmm {
 	gpio-reserved-ranges = <44 4>;
 
-	ts_int_default: ts-int-default {
-		pin = "gpio23";
+	ts_int_default: ts-int-default-state {
+		pins = "gpio23";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

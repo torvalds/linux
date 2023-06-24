@@ -5,6 +5,7 @@
 
 .. _process_index:
 
+=============================================
 Working with the kernel development community
 =============================================
 
@@ -40,7 +41,6 @@ Other guides to the community that are of interest to most developers are:
    :maxdepth: 1
 
    changes
-   submitting-drivers
    stable-api-nonsense
    management-style
    stable-kernel-rules

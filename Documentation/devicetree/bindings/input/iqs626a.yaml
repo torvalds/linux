@@ -449,6 +449,7 @@ patternProperties:
     patternProperties:
       "^event-(prox|touch|deep)(-alt)?$":
         type: object
+        $ref: input.yaml#
         description:
           Represents a proximity, touch or deep-touch event reported by the
           channel in response to a decrease in counts. Node names suffixed with
@@ -487,20 +488,14 @@ patternProperties:
               Specifies the hysteresis for the event (touch and deep-touch
               events only).
 
-          linux,code:
-            $ref: /schemas/types.yaml#/definitions/uint32
-            description: Numeric key or switch code associated with the event.
+          linux,code: true
 
           linux,input-type:
-            $ref: /schemas/types.yaml#/definitions/uint32
             enum: [1, 5]
             description:
               Specifies whether the event is to be interpreted as a key (1) or
               a switch (5). By default, Hall-channel events are interpreted as
               switches and all others are interpreted as keys.
-
-        dependencies:
-          linux,input-type: ["linux,code"]
 
         additionalProperties: false
 
@@ -511,6 +506,7 @@ patternProperties:
 
   "^trackpad-3x[2-3]$":
     type: object
+    $ref: input.yaml#
     description:
       Represents all channels associated with the trackpad. The channels are
       collectively active if the trackpad is defined and inactive otherwise.
@@ -679,7 +675,6 @@ patternProperties:
           Specifies the raw count filter strength during low-power mode.
 
       linux,keycodes:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 6
         description: |
@@ -751,7 +746,7 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-            iqs626a@44 {
+            touch@44 {
                     #address-cells = <1>;
                     #size-cells = <0>;
 

@@ -16,6 +16,7 @@ config SOC_IMX28
 config ARCH_MXS
 	bool "Freescale MXS (i.MX23, i.MX28) support"
 	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select GPIOLIB
 	select MXS_TIMER
 	select PINCTRL

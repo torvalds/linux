@@ -281,7 +281,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	}
 	rdma_restrack_add(&pd->res);
 
-	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
+	if (device->attrs.kernel_cap_flags & IBK_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
 	else
 		mr_access_flags |= IB_ACCESS_LOCAL_WRITE;
@@ -308,7 +308,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 
 		pd->__internal_mr = mr;
 
-		if (!(device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY))
+		if (!(device->attrs.kernel_cap_flags & IBK_LOCAL_DMA_LKEY))
 			pd->local_dma_lkey = pd->__internal_mr->lkey;
 
 		if (flags & IB_PD_UNSAFE_GLOBAL_RKEY)
@@ -1038,7 +1038,7 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 	ret = pd->device->ops.create_srq(srq, srq_init_attr, udata);
 	if (ret) {
 		rdma_restrack_put(&srq->res);
-		atomic_dec(&srq->pd->usecnt);
+		atomic_dec(&pd->usecnt);
 		if (srq->srq_type == IB_SRQT_XRC && srq->ext.xrc.xrcd)
 			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
 		if (ib_srq_has_cq(srq->srq_type))
@@ -2131,8 +2131,8 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct ib_mr *mr;
 
 	if (access_flags & IB_ACCESS_ON_DEMAND) {
-		if (!(pd->device->attrs.device_cap_flags &
-		      IB_DEVICE_ON_DEMAND_PAGING)) {
+		if (!(pd->device->attrs.kernel_cap_flags &
+		      IBK_ON_DEMAND_PAGING)) {
 			pr_debug("ODP support not available\n");
 			return ERR_PTR(-EINVAL);
 		}
@@ -2149,6 +2149,8 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->pd = pd;
 	mr->dm = NULL;
 	atomic_inc(&pd->usecnt);
+	mr->iova =  virt_addr;
+	mr->length = length;
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
 	rdma_restrack_parent_name(&mr->res, &pd->res);

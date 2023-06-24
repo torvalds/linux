@@ -231,6 +231,15 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	return 0;
 }
 
+/* Check if the device is wakeable */
+static bool hci_uart_wakeup(struct hci_dev *hdev)
+{
+	/* HCI UART devices are assumed to be wakeable by default.
+	 * Implement wakeup callback to override this behavior.
+	 */
+	return true;
+}
+
 /** hci_uart_write_wakeup - transmit buffer wakeup
  * @serdev: serial device
  *
@@ -301,11 +310,12 @@ int hci_uart_register_device(struct hci_uart *hu,
 
 	serdev_device_set_client_ops(hu->serdev, &hci_serdev_client_ops);
 
+	if (percpu_init_rwsem(&hu->proto_lock))
+		return -ENOMEM;
+
 	err = serdev_device_open(hu->serdev);
 	if (err)
-		return err;
-
-	percpu_init_rwsem(&hu->proto_lock);
+		goto err_rwsem;
 
 	err = p->open(hu);
 	if (err)
@@ -342,6 +352,8 @@ int hci_uart_register_device(struct hci_uart *hu,
 	hdev->flush = hci_uart_flush;
 	hdev->send  = hci_uart_send_frame;
 	hdev->setup = hci_uart_setup;
+	if (!hdev->wakeup)
+		hdev->wakeup = hci_uart_wakeup;
 	SET_HCIDEV_DEV(hdev, &hu->serdev->dev);
 
 	if (test_bit(HCI_UART_NO_SUSPEND_NOTIFIER, &hu->flags))
@@ -378,6 +390,8 @@ err_alloc:
 	p->close(hu);
 err_open:
 	serdev_device_close(hu->serdev);
+err_rwsem:
+	percpu_free_rwsem(&hu->proto_lock);
 	return err;
 }
 EXPORT_SYMBOL_GPL(hci_uart_register_device);
@@ -399,5 +413,6 @@ void hci_uart_unregister_device(struct hci_uart *hu)
 		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		serdev_device_close(hu->serdev);
 	}
+	percpu_free_rwsem(&hu->proto_lock);
 }
 EXPORT_SYMBOL_GPL(hci_uart_unregister_device);

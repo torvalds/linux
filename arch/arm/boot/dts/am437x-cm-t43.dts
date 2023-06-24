@@ -302,7 +302,7 @@
 		&edma 17 0>;
 	dma-names = "tx0", "rx0";
 
-	flash: w25q64cvzpig@0 {
+	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

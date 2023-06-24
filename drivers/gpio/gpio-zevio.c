@@ -11,7 +11,6 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
 
@@ -53,22 +52,23 @@
 #define ZEVIO_GPIO_BIT(gpio) (gpio&7)
 
 struct zevio_gpio {
+	struct gpio_chip        chip;
 	spinlock_t		lock;
-	struct of_mm_gpio_chip	chip;
+	void __iomem		*regs;
 };
 
 static inline u32 zevio_gpio_port_get(struct zevio_gpio *c, unsigned pin,
 					unsigned port_offset)
 {
 	unsigned section_offset = ((pin >> 3) & 3)*ZEVIO_GPIO_SECTION_SIZE;
-	return readl(IOMEM(c->chip.regs + section_offset + port_offset));
+	return readl(IOMEM(c->regs + section_offset + port_offset));
 }
 
 static inline void zevio_gpio_port_set(struct zevio_gpio *c, unsigned pin,
 					unsigned port_offset, u32 val)
 {
 	unsigned section_offset = ((pin >> 3) & 3)*ZEVIO_GPIO_SECTION_SIZE;
-	writel(val, IOMEM(c->chip.regs + section_offset + port_offset));
+	writel(val, IOMEM(c->regs + section_offset + port_offset));
 }
 
 /* Functions for struct gpio_chip */
@@ -178,12 +178,15 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, controller);
 
 	/* Copy our reference */
-	controller->chip.gc = zevio_gpio_chip;
-	controller->chip.gc.parent = &pdev->dev;
+	controller->chip = zevio_gpio_chip;
+	controller->chip.parent = &pdev->dev;
 
-	status = of_mm_gpiochip_add_data(pdev->dev.of_node,
-					 &(controller->chip),
-					 controller);
+	controller->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(controller->regs))
+		return dev_err_probe(&pdev->dev, PTR_ERR(controller->regs),
+				     "failed to ioremap memory resource\n");
+
+	status = devm_gpiochip_add_data(&pdev->dev, &controller->chip, controller);
 	if (status) {
 		dev_err(&pdev->dev, "failed to add gpiochip: %d\n", status);
 		return status;
@@ -192,10 +195,10 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	spin_lock_init(&controller->lock);
 
 	/* Disable interrupts, they only cause errors */
-	for (i = 0; i < controller->chip.gc.ngpio; i += 8)
+	for (i = 0; i < controller->chip.ngpio; i += 8)
 		zevio_gpio_port_set(controller, i, ZEVIO_GPIO_INT_MASK, 0xFF);
 
-	dev_dbg(controller->chip.gc.parent, "ZEVIO GPIO controller set up!\n");
+	dev_dbg(controller->chip.parent, "ZEVIO GPIO controller set up!\n");
 
 	return 0;
 }

@@ -19,7 +19,6 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 
 #ifndef ENOTSUPP
@@ -27,14 +26,14 @@
 #endif
 
 #define CG_PATH	"/foo"
-#define CONNECT4_PROG_PATH	"./connect4_prog.o"
-#define CONNECT6_PROG_PATH	"./connect6_prog.o"
-#define SENDMSG4_PROG_PATH	"./sendmsg4_prog.o"
-#define SENDMSG6_PROG_PATH	"./sendmsg6_prog.o"
-#define RECVMSG4_PROG_PATH	"./recvmsg4_prog.o"
-#define RECVMSG6_PROG_PATH	"./recvmsg6_prog.o"
-#define BIND4_PROG_PATH		"./bind4_prog.o"
-#define BIND6_PROG_PATH		"./bind6_prog.o"
+#define CONNECT4_PROG_PATH	"./connect4_prog.bpf.o"
+#define CONNECT6_PROG_PATH	"./connect6_prog.bpf.o"
+#define SENDMSG4_PROG_PATH	"./sendmsg4_prog.bpf.o"
+#define SENDMSG6_PROG_PATH	"./sendmsg6_prog.bpf.o"
+#define RECVMSG4_PROG_PATH	"./recvmsg4_prog.bpf.o"
+#define RECVMSG6_PROG_PATH	"./recvmsg6_prog.bpf.o"
+#define BIND4_PROG_PATH		"./bind4_prog.bpf.o"
+#define BIND6_PROG_PATH		"./bind6_prog.bpf.o"
 
 #define SERV4_IP		"192.168.1.254"
 #define SERV4_REWRITE_IP	"127.0.0.1"
@@ -1417,6 +1416,9 @@ int main(int argc, char **argv)
 	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
 		goto err;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (run_tests(cgfd))
 		goto err;

@@ -701,25 +701,12 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 
 static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
-	int r;
-
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-		vega10_reg_base_init(adev);
-		break;
 	case CHIP_RENOIR:
-		/* It's safe to do ip discovery here for Renoir,
-		 * it doesn't support SRIOV. */
-		if (amdgpu_discovery) {
-			r = amdgpu_discovery_reg_base_init(adev);
-			if (r == 0)
-				break;
-			DRM_WARN("failed to init reg base from ip discovery table, "
-				 "fallback to legacy init method\n");
-		}
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
@@ -1224,22 +1211,17 @@ static int soc15_common_sw_fini(void *handle)
 	return 0;
 }
 
-static void soc15_doorbell_range_init(struct amdgpu_device *adev)
+static void soc15_sdma_doorbell_range_init(struct amdgpu_device *adev)
 {
 	int i;
-	struct amdgpu_ring *ring;
 
-	/* sdma/ih doorbell range are programed by hypervisor */
+	/* sdma doorbell range is programed by hypervisor */
 	if (!amdgpu_sriov_vf(adev)) {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
-			ring = &adev->sdma.instance[i].ring;
 			adev->nbio.funcs->sdma_doorbell_range(adev, i,
-				ring->use_doorbell, ring->doorbell_index,
+				true, adev->doorbell_index.sdma_engine[i] << 1,
 				adev->doorbell_index.sdma_doorbell_range);
 		}
-
-		adev->nbio.funcs->ih_doorbell_range(adev, adev->irq.ih.use_doorbell,
-						adev->irq.ih.doorbell_index);
 	}
 }
 
@@ -1264,10 +1246,11 @@ static int soc15_common_hw_init(void *handle)
 	soc15_enable_doorbell_aperture(adev, true);
 	/* HW doorbell routing policy: doorbell writing not
 	 * in SDMA/IH/MM/ACV range will be routed to CP. So
-	 * we need to init SDMA/IH/MM/ACV doorbell range prior
-	 * to CP ip block init and ring test.
+	 * we need to init SDMA doorbell range prior
+	 * to CP ip block init and ring test.  IH already
+	 * happens before CP.
 	 */
-	soc15_doorbell_range_init(adev);
+	soc15_sdma_doorbell_range_init(adev);
 
 	return 0;
 }
@@ -1419,7 +1402,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
+static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

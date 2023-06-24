@@ -281,6 +281,14 @@
 	firmware-name = "qcom/sm8350/microsoft/cdsp.mbn";
 };
 
+&i2c10 {
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+};
+
 &ipa {
 	status = "okay";
 
@@ -293,6 +301,10 @@
 };
 
 &qupv3_id_0 {
+	status = "okay";
+};
+
+&qupv3_id_1 {
 	status = "okay";
 };
 
@@ -324,9 +336,7 @@
 	status = "okay";
 
 	vdda-phy-supply = <&vreg_l5b_0p88>;
-	vdda-max-microamp = <91600>;
 	vdda-pll-supply = <&vreg_l6b_1p2>;
-	vdda-pll-max-microamp = <19000>;
 };
 
 &usb_1 {

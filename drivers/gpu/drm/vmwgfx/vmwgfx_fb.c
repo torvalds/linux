@@ -26,6 +26,7 @@
  *
  **************************************************************************/
 
+#include <linux/fb.h>
 #include <linux/pci.h>
 
 #include <drm/drm_fourcc.h>
@@ -316,19 +317,18 @@ static int vmw_fb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static void vmw_deferred_io(struct fb_info *info,
-			    struct list_head *pagelist)
+static void vmw_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	struct vmw_fb_par *par = info->par;
 	unsigned long start, end, min, max;
 	unsigned long flags;
-	struct page *page;
+	struct fb_deferred_io_pageref *pageref;
 	int y1, y2;
 
 	min = ULONG_MAX;
 	max = 0;
-	list_for_each_entry(page, pagelist, lru) {
-		start = page->index << PAGE_SHIFT;
+	list_for_each_entry(pageref, pagereflist, list) {
+		start = pageref->offset;
 		end = start + PAGE_SIZE - 1;
 		min = min(min, start);
 		max = max(max, end);
@@ -619,6 +619,7 @@ static const struct fb_ops vmw_fb_ops = {
 	.fb_imageblit = vmw_fb_imageblit,
 	.fb_pan_display = vmw_fb_pan_display,
 	.fb_blank = vmw_fb_blank,
+	.fb_mmap = fb_deferred_io_mmap,
 };
 
 int vmw_fb_init(struct vmw_private *vmw_priv)

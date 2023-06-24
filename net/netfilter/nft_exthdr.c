@@ -266,7 +266,7 @@ static void nft_exthdr_tcp_set_eval(const struct nft_expr *expr,
 
 		switch (priv->len) {
 		case 2:
-			old.v16 = get_unaligned((u16 *)(opt + offset));
+			old.v16 = (__force __be16)get_unaligned((u16 *)(opt + offset));
 			new.v16 = (__force __be16)nft_reg_load16(
 				&regs->data[priv->sreg]);
 
@@ -281,18 +281,18 @@ static void nft_exthdr_tcp_set_eval(const struct nft_expr *expr,
 			if (old.v16 == new.v16)
 				return;
 
-			put_unaligned(new.v16, (u16*)(opt + offset));
+			put_unaligned(new.v16, (__be16*)(opt + offset));
 			inet_proto_csum_replace2(&tcph->check, pkt->skb,
 						 old.v16, new.v16, false);
 			break;
 		case 4:
-			new.v32 = regs->data[priv->sreg];
-			old.v32 = get_unaligned((u32 *)(opt + offset));
+			new.v32 = nft_reg_load_be32(&regs->data[priv->sreg]);
+			old.v32 = (__force __be32)get_unaligned((u32 *)(opt + offset));
 
 			if (old.v32 == new.v32)
 				return;
 
-			put_unaligned(new.v32, (u32*)(opt + offset));
+			put_unaligned(new.v32, (__be32*)(opt + offset));
 			inet_proto_csum_replace4(&tcph->check, pkt->skb,
 						 old.v32, new.v32, false);
 			break;

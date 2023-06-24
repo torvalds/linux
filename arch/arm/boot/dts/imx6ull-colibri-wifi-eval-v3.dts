@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2018 Toradex AG
+ * Copyright 2018-2022 Toradex
  */
 
 /dts-v1/;

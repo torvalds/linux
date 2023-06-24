@@ -14,6 +14,7 @@
 
 #include <linux/cpu.h>
 #include <linux/errno.h>
+#include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -36,14 +37,15 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/memblock.h>
 #include <linux/swiotlb.h>
+#include <linux/seq_buf.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
@@ -72,11 +74,26 @@
 #include <asm/svm.h>
 #include <asm/dtl.h>
 #include <asm/hvconsole.h>
+#include <asm/setup.h>
 
 #include "pseries.h"
 
 DEFINE_STATIC_KEY_FALSE(shared_processor);
 EXPORT_SYMBOL(shared_processor);
+
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+struct static_key paravirt_steal_enabled;
+struct static_key paravirt_steal_rq_enabled;
+
+static bool steal_acc = true;
+static int __init parse_no_stealacc(char *arg)
+{
+	steal_acc = false;
+	return 0;
+}
+
+early_param("no-steal-acc", parse_no_stealacc);
+#endif
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
@@ -168,6 +185,18 @@ static void __init fwnmi_init(void)
 	}
 #endif
 }
+
+/*
+ * Affix a device for the first timer to the platform bus if
+ * we have firmware support for the H_WATCHDOG hypercall.
+ */
+static __init int pseries_wdt_init(void)
+{
+	if (firmware_has_feature(FW_FEATURE_WATCHDOG))
+		platform_device_register_simple("pseries-wdt", 0, NULL, 0);
+	return 0;
+}
+machine_subsys_initcall(pseries, pseries_wdt_init);
 
 static void pseries_8259_cascade(struct irq_desc *desc)
 {
@@ -421,16 +450,6 @@ void pseries_disable_reloc_on_exc(void)
 }
 EXPORT_SYMBOL(pseries_disable_reloc_on_exc);
 
-#ifdef CONFIG_KEXEC_CORE
-static void pSeries_machine_kexec(struct kimage *image)
-{
-	if (firmware_has_feature(FW_FEATURE_SET_MODE))
-		pseries_disable_reloc_on_exc();
-
-	default_machine_kexec(image);
-}
-#endif
-
 #ifdef __LITTLE_ENDIAN__
 void pseries_big_endian_exceptions(void)
 {
@@ -658,7 +677,7 @@ static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
 	 */
 	num_res = of_read_number(&indexes[NUM_RES_PROPERTY], 1);
 	if (resno >= num_res)
-		return 0; /* or an errror */
+		return 0; /* or an error */
 
 	i = START_OF_ENTRIES + NEXT_ENTRY * resno;
 	switch (value) {
@@ -762,7 +781,7 @@ static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
 
 	if (!pdev->is_physfn)
 		return;
-	/*Firmware must support open sriov otherwise dont configure*/
+	/*Firmware must support open sriov otherwise don't configure*/
 	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
 	if (indexes)
 		of_pci_parse_iov_addrs(pdev, indexes);
@@ -812,9 +831,8 @@ static void __init pSeries_setup_arch(void)
 	fwnmi_init();
 
 	pseries_setup_security_mitigations();
-#ifdef CONFIG_PPC_64S_HASH_MMU
-	pseries_lpar_read_hblkrm_characteristics();
-#endif
+	if (!radix_enabled())
+		pseries_lpar_read_hblkrm_characteristics();
 
 	/* By default, only probe PCI (can be overridden by rtas_pci) */
 	pci_add_flags(PCI_PROBE_ONLY);
@@ -831,6 +849,11 @@ static void __init pSeries_setup_arch(void)
 		if (lppaca_shared_proc(get_lppaca())) {
 			static_branch_enable(&shared_processor);
 			pv_spinlocks_init();
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+			static_key_slow_inc(&paravirt_steal_enabled);
+			if (steal_acc)
+				static_key_slow_inc(&paravirt_steal_rq_enabled);
+#endif
 		}
 
 		ppc_md.power_save = pseries_lpar_idle;
@@ -849,9 +872,7 @@ static void __init pSeries_setup_arch(void)
 	}
 
 	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
-
-	if (swiotlb_force == SWIOTLB_FORCE)
-		ppc_swiotlb_enable = 1;
+	pseries_rng_init();
 }
 
 static void pseries_panic(char *str)
@@ -991,12 +1012,41 @@ static void __init pSeries_cmo_feature_init(void)
 	pr_debug(" <- fw_cmo_feature_init()\n");
 }
 
+static void __init pseries_add_hw_description(void)
+{
+	struct device_node *dn;
+	const char *s;
+
+	dn = of_find_node_by_path("/openprom");
+	if (dn) {
+		if (of_property_read_string(dn, "model", &s) == 0)
+			seq_buf_printf(&ppc_hw_desc, "of:%s ", s);
+
+		of_node_put(dn);
+	}
+
+	dn = of_find_node_by_path("/hypervisor");
+	if (dn) {
+		if (of_property_read_string(dn, "compatible", &s) == 0)
+			seq_buf_printf(&ppc_hw_desc, "hv:%s ", s);
+
+		of_node_put(dn);
+		return;
+	}
+
+	if (of_property_read_bool(of_root, "ibm,powervm-partition") ||
+	    of_property_read_bool(of_root, "ibm,fw-net-version"))
+		seq_buf_printf(&ppc_hw_desc, "hv:phyp ");
+}
+
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
  */
 static void __init pseries_init(void)
 {
 	pr_debug(" -> pseries_init()\n");
+
+	pseries_add_hw_description();
 
 #ifdef CONFIG_HVC_CONSOLE
 	if (firmware_has_feature(FW_FEATURE_LPAR))
@@ -1099,7 +1149,7 @@ define_machine(pseries) {
 	.machine_check_exception = pSeries_machine_check_exception,
 	.machine_check_log_err	= pSeries_machine_check_log_err,
 #ifdef CONFIG_KEXEC_CORE
-	.machine_kexec          = pSeries_machine_kexec,
+	.machine_kexec          = pseries_machine_kexec,
 	.kexec_cpu_down         = pseries_kexec_cpu_down,
 #endif
 #ifdef CONFIG_MEMORY_HOTPLUG

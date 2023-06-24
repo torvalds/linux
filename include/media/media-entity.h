@@ -17,6 +17,7 @@
 #include <linux/fwnode.h>
 #include <linux/list.h>
 #include <linux/media.h>
+#include <linux/minmax.h>
 #include <linux/types.h>
 
 /* Enums used internally at the media controller to represent graphs */
@@ -99,12 +100,34 @@ struct media_graph {
 /**
  * struct media_pipeline - Media pipeline related information
  *
- * @streaming_count:	Streaming start count - streaming stop count
- * @graph:		Media graph walk during pipeline start / stop
+ * @allocated:		Media pipeline allocated and freed by the framework
+ * @mdev:		The media device the pipeline is part of
+ * @pads:		List of media_pipeline_pad
+ * @start_count:	Media pipeline start - stop count
  */
 struct media_pipeline {
-	int streaming_count;
-	struct media_graph graph;
+	bool allocated;
+	struct media_device *mdev;
+	struct list_head pads;
+	int start_count;
+};
+
+/**
+ * struct media_pipeline_pad - A pad part of a media pipeline
+ *
+ * @list:		Entry in the media_pad pads list
+ * @pipe:		The media_pipeline that the pad is part of
+ * @pad:		The media pad
+ *
+ * This structure associate a pad with a media pipeline. Instances of
+ * media_pipeline_pad are created by media_pipeline_start() when it builds the
+ * pipeline, and stored in the &media_pad.pads list. media_pipeline_stop()
+ * removes the entries from the list and deletes them.
+ */
+struct media_pipeline_pad {
+	struct list_head list;
+	struct media_pipeline *pipe;
+	struct media_pad *pad;
 };
 
 /**
@@ -186,6 +209,8 @@ enum media_pad_signal_type {
  * @flags:	Pad flags, as defined in
  *		:ref:`include/uapi/linux/media.h <media_header>`
  *		(seek for ``MEDIA_PAD_FL_*``)
+ * @pipe:	Pipeline this pad belongs to. Use media_entity_pipeline() to
+ *		access this field.
  */
 struct media_pad {
 	struct media_gobj graph_obj;	/* must be first field in struct */
@@ -193,6 +218,12 @@ struct media_pad {
 	u16 index;
 	enum media_pad_signal_type sig_type;
 	unsigned long flags;
+
+	/*
+	 * The fields below are private, and should only be accessed via
+	 * appropriate functions.
+	 */
+	struct media_pipeline *pipe;
 };
 
 /**
@@ -206,6 +237,14 @@ struct media_pad {
  * @link_validate:	Return whether a link is valid from the entity point of
  *			view. The media_pipeline_start() function
  *			validates all links by calling this operation. Optional.
+ * @has_pad_interdep:	Return whether a two pads inside the entity are
+ *			interdependent. If two pads are interdependent they are
+ *			part of the same pipeline and enabling one of the pads
+ *			means that the other pad will become "locked" and
+ *			doesn't allow configuration changes. pad0 and pad1 are
+ *			guaranteed to not both be sinks or sources.
+ *			Optional: If the operation isn't implemented all pads
+ *			will be considered as interdependent.
  *
  * .. note::
  *
@@ -219,6 +258,8 @@ struct media_entity_operations {
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
 	int (*link_validate)(struct media_link *link);
+	bool (*has_pad_interdep)(struct media_entity *entity, unsigned int pad0,
+				 unsigned int pad1);
 };
 
 /**
@@ -269,7 +310,6 @@ enum media_entity_type {
  * @links:	List of data links.
  * @ops:	Entity operations.
  * @use_count:	Use count for the entity.
- * @pipe:	Pipeline this entity belongs to.
  * @info:	Union with devnode information.  Kept just for backward
  *		compatibility.
  * @info.dev:	Contains device major and minor info.
@@ -305,8 +345,6 @@ struct media_entity {
 
 	int use_count;
 
-	struct media_pipeline *pipe;
-
 	union {
 		struct {
 			u32 major;
@@ -314,6 +352,18 @@ struct media_entity {
 		} dev;
 	} info;
 };
+
+/**
+ * media_entity_for_each_pad - Iterate on all pads in an entity
+ * @entity: The entity the pads belong to
+ * @iter: The iterator pad
+ *
+ * Iterate on all pads in a media entity.
+ */
+#define media_entity_for_each_pad(entity, iter)			\
+	for (iter = (entity)->pads;				\
+	     iter < &(entity)->pads[(entity)->num_pads];	\
+	     ++iter)
 
 /**
  * struct media_interface - A media interface graph object.
@@ -426,15 +476,15 @@ static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
 }
 
 /**
- * __media_entity_enum_init - Initialise an entity enumeration
+ * media_entity_enum_init - Initialise an entity enumeration
  *
  * @ent_enum: Entity enumeration to be initialised
- * @idx_max: Maximum number of entities in the enumeration
+ * @mdev: The related media device
  *
- * Return: Returns zero on success or a negative error code.
+ * Return: zero on success or a negative error code.
  */
-__must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
-					  int idx_max);
+__must_check int media_entity_enum_init(struct media_entity_enum *ent_enum,
+					struct media_device *mdev);
 
 /**
  * media_entity_enum_cleanup - Release resources of an entity enumeration
@@ -848,7 +898,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
 
 /**
- * media_entity_remote_pad - Find the pad at the remote end of a link
+ * media_pad_remote_pad_first - Find the first pad at the remote end of a link
  * @pad: Pad at the local end of the link
  *
  * Search for a remote pad connected to the given pad by iterating over all
@@ -857,7 +907,83 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * Return: returns a pointer to the pad at the remote end of the first found
  * enabled link, or %NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
+struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
+
+/**
+ * media_pad_remote_pad_unique - Find a remote pad connected to a pad
+ * @pad: The pad
+ *
+ * Search for and return a remote pad connected to @pad through an enabled
+ * link. If multiple (or no) remote pads are found, an error is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source at a time on a given pad.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad);
+
+/**
+ * media_entity_remote_pad_unique - Find a remote pad connected to an entity
+ * @entity: The entity
+ * @type: The type of pad to find (MEDIA_PAD_FL_SINK or MEDIA_PAD_FL_SOURCE)
+ *
+ * Search for and return a remote pad of @type connected to @entity through an
+ * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source or sink at a time.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+struct media_pad *
+media_entity_remote_pad_unique(const struct media_entity *entity,
+			       unsigned int type);
+
+/**
+ * media_entity_remote_source_pad_unique - Find a remote source pad connected to
+ *	an entity
+ * @entity: The entity
+ *
+ * Search for and return a remote source pad connected to @entity through an
+ * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source at a time.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+static inline struct media_pad *
+media_entity_remote_source_pad_unique(const struct media_entity *entity)
+{
+	return media_entity_remote_pad_unique(entity, MEDIA_PAD_FL_SOURCE);
+}
+
+/**
+ * media_pad_is_streaming - Test if a pad is part of a streaming pipeline
+ * @pad: The pad
+ *
+ * Return: True if the pad is part of a pipeline started with the
+ * media_pipeline_start() function, false otherwise.
+ */
+static inline bool media_pad_is_streaming(const struct media_pad *pad)
+{
+	return pad->pipe;
+}
 
 /**
  * media_entity_is_streaming - Test if an entity is part of a streaming pipeline
@@ -868,8 +994,48 @@ struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
  */
 static inline bool media_entity_is_streaming(const struct media_entity *entity)
 {
-	return entity->pipe;
+	struct media_pad *pad;
+
+	media_entity_for_each_pad(entity, pad) {
+		if (media_pad_is_streaming(pad))
+			return true;
+	}
+
+	return false;
 }
+
+/**
+ * media_entity_pipeline - Get the media pipeline an entity is part of
+ * @entity: The entity
+ *
+ * DEPRECATED: use media_pad_pipeline() instead.
+ *
+ * This function returns the media pipeline that an entity has been associated
+ * with when constructing the pipeline with media_pipeline_start(). The pointer
+ * remains valid until media_pipeline_stop() is called.
+ *
+ * In general, entities can be part of multiple pipelines, when carrying
+ * multiple streams (either on different pads, or on the same pad using
+ * multiplexed streams). This function is to be used only for entities that
+ * do not support multiple pipelines.
+ *
+ * Return: The media_pipeline the entity is part of, or NULL if the entity is
+ * not part of any pipeline.
+ */
+struct media_pipeline *media_entity_pipeline(struct media_entity *entity);
+
+/**
+ * media_pad_pipeline - Get the media pipeline a pad is part of
+ * @pad: The pad
+ *
+ * This function returns the media pipeline that a pad has been associated
+ * with when constructing the pipeline with media_pipeline_start(). The pointer
+ * remains valid until media_pipeline_stop() is called.
+ *
+ * Return: The media_pipeline the pad is part of, or NULL if the pad is
+ * not part of any pipeline.
+ */
+struct media_pipeline *media_pad_pipeline(struct media_pad *pad);
 
 /**
  * media_entity_get_fwnode_pad - Get pad number from fwnode
@@ -949,53 +1115,66 @@ struct media_entity *media_graph_walk_next(struct media_graph *graph);
 
 /**
  * media_pipeline_start - Mark a pipeline as streaming
- * @entity: Starting entity
- * @pipe: Media pipeline to be assigned to all entities in the pipeline.
+ * @pad: Starting pad
+ * @pipe: Media pipeline to be assigned to all pads in the pipeline.
  *
- * Mark all entities connected to a given entity through enabled links, either
+ * Mark all pads connected to a given pad through enabled links, either
  * directly or indirectly, as streaming. The given pipeline object is assigned
- * to every entity in the pipeline and stored in the media_entity pipe field.
+ * to every pad in the pipeline and stored in the media_pad pipe field.
  *
  * Calls to this function can be nested, in which case the same number of
  * media_pipeline_stop() calls will be required to stop streaming. The
  * pipeline pointer must be identical for all nested calls to
  * media_pipeline_start().
  */
-__must_check int media_pipeline_start(struct media_entity *entity,
+__must_check int media_pipeline_start(struct media_pad *pad,
 				      struct media_pipeline *pipe);
 /**
  * __media_pipeline_start - Mark a pipeline as streaming
  *
- * @entity: Starting entity
- * @pipe: Media pipeline to be assigned to all entities in the pipeline.
+ * @pad: Starting pad
+ * @pipe: Media pipeline to be assigned to all pads in the pipeline.
  *
  * ..note:: This is the non-locking version of media_pipeline_start()
  */
-__must_check int __media_pipeline_start(struct media_entity *entity,
+__must_check int __media_pipeline_start(struct media_pad *pad,
 					struct media_pipeline *pipe);
 
 /**
  * media_pipeline_stop - Mark a pipeline as not streaming
- * @entity: Starting entity
+ * @pad: Starting pad
  *
- * Mark all entities connected to a given entity through enabled links, either
- * directly or indirectly, as not streaming. The media_entity pipe field is
+ * Mark all pads connected to a given pads through enabled links, either
+ * directly or indirectly, as not streaming. The media_pad pipe field is
  * reset to %NULL.
  *
  * If multiple calls to media_pipeline_start() have been made, the same
  * number of calls to this function are required to mark the pipeline as not
  * streaming.
  */
-void media_pipeline_stop(struct media_entity *entity);
+void media_pipeline_stop(struct media_pad *pad);
 
 /**
  * __media_pipeline_stop - Mark a pipeline as not streaming
  *
- * @entity: Starting entity
+ * @pad: Starting pad
  *
  * .. note:: This is the non-locking version of media_pipeline_stop()
  */
-void __media_pipeline_stop(struct media_entity *entity);
+void __media_pipeline_stop(struct media_pad *pad);
+
+/**
+ * media_pipeline_alloc_start - Mark a pipeline as streaming
+ * @pad: Starting pad
+ *
+ * media_pipeline_alloc_start() is similar to media_pipeline_start() but instead
+ * of working on a given pipeline the function will use an existing pipeline if
+ * the pad is already part of a pipeline, or allocate a new pipeline.
+ *
+ * Calls to media_pipeline_alloc_start() must be matched with
+ * media_pipeline_stop().
+ */
+__must_check int media_pipeline_alloc_start(struct media_pad *pad);
 
 /**
  * media_devnode_create() - creates and initializes a device node interface
@@ -1030,7 +1209,6 @@ __must_check media_devnode_create(struct media_device *mdev,
  * removed.
  */
 void media_devnode_remove(struct media_intf_devnode *devnode);
-struct media_link *
 
 /**
  * media_create_intf_link() - creates a link between an entity and an interface
@@ -1061,6 +1239,7 @@ struct media_link *
  *    the interface and media_device_register_entity() should be called for the
  *    interface that will be part of the link.
  */
+struct media_link *
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
 				    u32 flags);
@@ -1120,5 +1299,54 @@ void media_remove_intf_links(struct media_interface *intf);
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\
 	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)
+
+/**
+ * media_create_ancillary_link() - create an ancillary link between two
+ *				   instances of &media_entity
+ *
+ * @primary:	pointer to the primary &media_entity
+ * @ancillary:	pointer to the ancillary &media_entity
+ *
+ * Create an ancillary link between two entities, indicating that they
+ * represent two connected pieces of hardware that form a single logical unit.
+ * A typical example is a camera lens controller being linked to the sensor that
+ * it is supporting.
+ *
+ * The function sets both MEDIA_LNK_FL_ENABLED and MEDIA_LNK_FL_IMMUTABLE for
+ * the new link.
+ */
+struct media_link *
+media_create_ancillary_link(struct media_entity *primary,
+			    struct media_entity *ancillary);
+
+/**
+ * __media_entity_next_link() - Iterate through a &media_entity's links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ * @link_type:	one of the MEDIA_LNK_FL_LINK_TYPE flags
+ *
+ * Return the next link against an entity matching a specific link type. This
+ * allows iteration through an entity's links whilst guaranteeing all of the
+ * returned links are of the given type.
+ */
+struct media_link *__media_entity_next_link(struct media_entity *entity,
+					    struct media_link *link,
+					    unsigned long link_type);
+
+/**
+ * for_each_media_entity_data_link() - Iterate through an entity's data links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ *
+ * Iterate over a &media_entity's data links
+ */
+#define for_each_media_entity_data_link(entity, link)			\
+	for (link = __media_entity_next_link(entity, NULL,		\
+					     MEDIA_LNK_FL_DATA_LINK);	\
+	     link;							\
+	     link = __media_entity_next_link(entity, link,		\
+					     MEDIA_LNK_FL_DATA_LINK))
 
 #endif

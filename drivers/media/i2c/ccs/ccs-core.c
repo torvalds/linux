@@ -121,7 +121,7 @@ void ccs_replace_limit(struct ccs_sensor *sensor,
 
 	linfo = &ccs_limits[ccs_limit_offsets[limit].info];
 
-	dev_dbg(&client->dev, "quirk: 0x%8.8x \"%s\" %u = %d, 0x%x\n",
+	dev_dbg(&client->dev, "quirk: 0x%8.8x \"%s\" %u = %u, 0x%x\n",
 		linfo->reg, linfo->name, offset, val, val);
 
 	ccs_assign_limit(ptr, ccs_reg_width(linfo->reg), val);
@@ -288,7 +288,7 @@ static int ccs_read_frame_fmt(struct ccs_sensor *sensor)
 				CCS_FRAME_FORMAT_DESCRIPTOR_4_PIXELS_MASK;
 		} else {
 			dev_dbg(&client->dev,
-				"invalid frame format model type %d\n",
+				"invalid frame format model type %u\n",
 				fmt_model_type);
 			return -EINVAL;
 		}
@@ -320,7 +320,7 @@ static int ccs_read_frame_fmt(struct ccs_sensor *sensor)
 		}
 
 		dev_dbg(&client->dev,
-			"%s pixels: %d %s (pixelcode %u)\n",
+			"%s pixels: %u %s (pixelcode %u)\n",
 			what, pixels, which, pixelcode);
 
 		if (i < ncol_desc) {
@@ -353,9 +353,9 @@ static int ccs_read_frame_fmt(struct ccs_sensor *sensor)
 		sensor->image_start = sensor->embedded_end;
 	}
 
-	dev_dbg(&client->dev, "embedded data from lines %d to %d\n",
+	dev_dbg(&client->dev, "embedded data from lines %u to %u\n",
 		sensor->embedded_start, sensor->embedded_end);
-	dev_dbg(&client->dev, "image data starts at line %d\n",
+	dev_dbg(&client->dev, "image data starts at line %u\n",
 		sensor->image_start);
 
 	return 0;
@@ -571,7 +571,7 @@ static u32 ccs_pixel_order(struct ccs_sensor *sensor)
 
 	flip ^= sensor->hvflip_inv_mask;
 
-	dev_dbg(&client->dev, "flip %d\n", flip);
+	dev_dbg(&client->dev, "flip %u\n", flip);
 	return sensor->default_pixel_order ^ flip;
 }
 
@@ -1056,18 +1056,18 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 
 	type = CCS_LIM(sensor, DATA_FORMAT_MODEL_TYPE);
 
-	dev_dbg(&client->dev, "data_format_model_type %d\n", type);
+	dev_dbg(&client->dev, "data_format_model_type %u\n", type);
 
 	rval = ccs_read(sensor, PIXEL_ORDER, &pixel_order);
 	if (rval)
 		return rval;
 
 	if (pixel_order >= ARRAY_SIZE(pixel_order_str)) {
-		dev_dbg(&client->dev, "bad pixel order %d\n", pixel_order);
+		dev_dbg(&client->dev, "bad pixel order %u\n", pixel_order);
 		return -EINVAL;
 	}
 
-	dev_dbg(&client->dev, "pixel order %d (%s)\n", pixel_order,
+	dev_dbg(&client->dev, "pixel order %u (%s)\n", pixel_order,
 		pixel_order_str[pixel_order]);
 
 	switch (type) {
@@ -1105,7 +1105,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 			    (fmt & CCS_DATA_FORMAT_DESCRIPTOR_COMPRESSED_MASK))
 				continue;
 
-			dev_dbg(&client->dev, "jolly good! %d\n", j);
+			dev_dbg(&client->dev, "jolly good! %u\n", j);
 
 			sensor->default_mbus_frame_fmts |= 1 << j;
 		}
@@ -1602,8 +1602,11 @@ static int ccs_power_on(struct device *dev)
 			usleep_range(1000, 2000);
 		} while (--retry);
 
-		if (!reset)
-			return -EIO;
+		if (!reset) {
+			dev_err(dev, "software reset failed\n");
+			rval = -EIO;
+			goto out_cci_addr_fail;
+		}
 	}
 
 	if (sensor->hwcfg.i2c_addr_alt) {
@@ -1999,7 +2002,7 @@ static int ccs_enum_mbus_code(struct v4l2_subdev *subdev,
 
 	mutex_lock(&sensor->mutex);
 
-	dev_err(&client->dev, "subdev %s, pad %d, index %d\n",
+	dev_err(&client->dev, "subdev %s, pad %u, index %u\n",
 		subdev->name, code->pad, code->index);
 
 	if (subdev != &sensor->src->sd || code->pad != CCS_PAD_SRC) {
@@ -2017,7 +2020,7 @@ static int ccs_enum_mbus_code(struct v4l2_subdev *subdev,
 
 		if (idx == code->index) {
 			code->code = ccs_csi_data_formats[i].code;
-			dev_err(&client->dev, "found index %d, i %d, code %x\n",
+			dev_err(&client->dev, "found index %u, i %u, code %x\n",
 				code->index, i, code->code);
 			rval = 0;
 			break;
@@ -2386,7 +2389,7 @@ static void ccs_set_compose_scaler(struct v4l2_subdev *subdev,
 	max_m = clamp(max_m, CCS_LIM(sensor, SCALER_M_MIN),
 		      CCS_LIM(sensor, SCALER_M_MAX));
 
-	dev_dbg(&client->dev, "scaling: a %d b %d max_m %d\n", a, b, max_m);
+	dev_dbg(&client->dev, "scaling: a %u b %u max_m %u\n", a, b, max_m);
 
 	min = min(max_m, min(a, b));
 	max = min(max_m, max(a, b));
@@ -2416,7 +2419,7 @@ static void ccs_set_compose_scaler(struct v4l2_subdev *subdev,
 			sel->r.height,
 			sel->flags);
 
-		dev_dbg(&client->dev, "trying factor %d (%d)\n", try[i], i);
+		dev_dbg(&client->dev, "trying factor %u (%u)\n", try[i], i);
 
 		if (this > best) {
 			scale_m = try[i];
@@ -3183,7 +3186,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	u32 rotation;
-	int i;
+	unsigned int i;
 	int rval;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0,
@@ -3221,8 +3224,6 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		goto out_err;
 	}
 
-	dev_dbg(dev, "lanes %u\n", hwcfg->lanes);
-
 	rval = fwnode_property_read_u32(fwnode, "rotation", &rotation);
 	if (!rval) {
 		switch (rotation) {
@@ -3244,7 +3245,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	if (rval)
 		dev_info(dev, "can't get clock-frequency\n");
 
-	dev_dbg(dev, "clk %d, mode %d\n", hwcfg->ext_clk,
+	dev_dbg(dev, "clk %u, mode %u\n", hwcfg->ext_clk,
 		hwcfg->csi_signalling_mode);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
@@ -3263,7 +3264,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 
 	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
 		hwcfg->op_sys_clock[i] = bus_cfg.link_frequencies[i];
-		dev_dbg(dev, "freq %d: %lld\n", i, hwcfg->op_sys_clock[i]);
+		dev_dbg(dev, "freq %u: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
 	v4l2_fwnode_endpoint_free(&bus_cfg);
@@ -3664,7 +3665,7 @@ out_power_off:
 	return rval;
 }
 
-static int ccs_remove(struct i2c_client *client)
+static void ccs_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
@@ -3686,8 +3687,6 @@ static int ccs_remove(struct i2c_client *client)
 	kfree(sensor->ccs_limits);
 	kvfree(sensor->sdata.backing);
 	kvfree(sensor->mdata.backing);
-
-	return 0;
 }
 
 static const struct ccs_device smia_device = {

@@ -36,8 +36,10 @@ config ARC
 	select HAVE_KERNEL_LZMA
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_PERF_EVENTS
+	select HAVE_SYSCALL_TRACEPOINTS
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select OF
@@ -552,7 +554,7 @@ config ARC_BUILTIN_DTB_NAME
 
 endmenu	 # "ARC Architecture Configuration"
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	default "12" if ARC_HUGEPAGE_16M
 	default "11"

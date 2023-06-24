@@ -30,8 +30,7 @@ qed-$(CONFIG_QED_OOO) += qed_ooo.o
 
 qed-$(CONFIG_QED_NVMETCP) +=	\
 	qed_nvmetcp.o		\
-	qed_nvmetcp_fw_funcs.o	\
-	qed_nvmetcp_ip_services.o
+	qed_nvmetcp_fw_funcs.o
 
 qed-$(CONFIG_QED_RDMA) +=	\
 	qed_iwarp.o		\

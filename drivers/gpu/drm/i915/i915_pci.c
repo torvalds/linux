@@ -26,55 +26,61 @@
 #include <drm/drm_drv.h>
 #include <drm/i915_pciids.h>
 
+#include "gt/intel_gt_regs.h"
+#include "gt/intel_sa_media.h"
+
 #include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_pci.h"
 #include "i915_reg.h"
+#include "intel_pci_config.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
-	.graphics.ver = (x), \
-	.media.ver = (x), \
-	.display.ver = (x)
+	.__runtime.graphics.ip.ver = (x), \
+	.__runtime.media.ip.ver = (x), \
+	.__runtime.display.ip.ver = (x)
+
+#define NO_DISPLAY .__runtime.pipe_mask = 0
 
 #define I845_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 	}
 
 #define I9XX_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 	}
 
 #define IVB_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
 	}
 
 #define HSW_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
 		[TRANSCODER_EDP] = PIPE_EDP_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -82,44 +88,44 @@
 	}
 
 #define CHV_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = CHV_PIPE_C_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = CHV_TRANSCODER_C_OFFSET, \
 	}
 
 #define I845_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 	}
 
 #define I9XX_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = CURSOR_B_OFFSET, \
 	}
 
 #define CHV_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = CURSOR_B_OFFSET, \
 		[PIPE_C] = CHV_CURSOR_C_OFFSET, \
 	}
 
 #define IVB_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
 	}
 
 #define TGL_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
@@ -127,53 +133,57 @@
 	}
 
 #define I9XX_COLORS \
-	.color = { .gamma_lut_size = 256 }
+	.display.color = { .gamma_lut_size = 256 }
 #define I965_COLORS \
-	.color = { .gamma_lut_size = 129, \
+	.display.color = { .gamma_lut_size = 129, \
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define ILK_COLORS \
-	.color = { .gamma_lut_size = 1024 }
+	.display.color = { .gamma_lut_size = 1024 }
 #define IVB_COLORS \
-	.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
+	.display.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
 #define CHV_COLORS \
-	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	.display.color = { \
+		.degamma_lut_size = 65, .gamma_lut_size = 257, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define GLK_COLORS \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-					DRM_COLOR_LUT_EQUAL_CHANNELS, \
+	.display.color = { \
+		.degamma_lut_size = 33, .gamma_lut_size = 1024, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
 #define ICL_COLORS \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-					DRM_COLOR_LUT_EQUAL_CHANNELS, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	.display.color = { \
+		.degamma_lut_size = 33, .gamma_lut_size = 262145, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
+		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 
 /* Keep in gen based order, and chronological order within a gen */
 
 #define GEN_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K
 
 #define GEN_DEFAULT_REGIONS \
-	.memory_regions = REGION_SMEM | REGION_STOLEN_SMEM
+	.__runtime.memory_regions = REGION_SMEM | REGION_STOLEN_SMEM
 
 #define I830_FEATURES \
 	GEN(2), \
 	.is_mobile = 1, \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_overlay = 1, \
 	.display.cursor_needs_physical = 1, \
 	.display.overlay_needs_physical = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
+	.has_3d_pipeline = 1, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
-	.platform_engine_mask = BIT(RCS0), \
+	.__runtime.platform_engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
 	.dma_mask_size = 32, \
@@ -185,15 +195,16 @@
 
 #define I845_FEATURES \
 	GEN(2), \
-	.display.pipe_mask = BIT(PIPE_A), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A), \
+	.__runtime.pipe_mask = BIT(PIPE_A), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A), \
 	.display.has_overlay = 1, \
 	.display.overlay_needs_physical = 1, \
 	.display.has_gmch = 1, \
+	.has_3d_pipeline = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
-	.platform_engine_mask = BIT(RCS0), \
+	.__runtime.platform_engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
 	.dma_mask_size = 32, \
@@ -216,22 +227,23 @@ static const struct intel_device_info i845g_info = {
 static const struct intel_device_info i85x_info = {
 	I830_FEATURES,
 	PLATFORM(INTEL_I85X),
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 };
 
 static const struct intel_device_info i865g_info = {
 	I845_FEATURES,
 	PLATFORM(INTEL_I865G),
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 };
 
 #define GEN3_FEATURES \
 	GEN(3), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.platform_engine_mask = BIT(RCS0), \
+	.__runtime.platform_engine_mask = BIT(RCS0), \
+	.has_3d_pipeline = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	.dma_mask_size = 32, \
@@ -260,7 +272,7 @@ static const struct intel_device_info i915gm_info = {
 	.display.has_overlay = 1,
 	.display.overlay_needs_physical = 1,
 	.display.supports_tv = 1,
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 	.hws_needs_physical = 1,
 	.unfenced_needs_alignment = 1,
 };
@@ -285,7 +297,7 @@ static const struct intel_device_info i945gm_info = {
 	.display.has_overlay = 1,
 	.display.overlay_needs_physical = 1,
 	.display.supports_tv = 1,
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 	.hws_needs_physical = 1,
 	.unfenced_needs_alignment = 1,
 };
@@ -317,12 +329,13 @@ static const struct intel_device_info pnv_m_info = {
 
 #define GEN4_FEATURES \
 	GEN(4), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.platform_engine_mask = BIT(RCS0), \
+	.__runtime.platform_engine_mask = BIT(RCS0), \
+	.has_3d_pipeline = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	.dma_mask_size = 36, \
@@ -344,7 +357,7 @@ static const struct intel_device_info i965gm_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_I965GM),
 	.is_mobile = 1,
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 	.display.has_overlay = 1,
 	.display.supports_tv = 1,
 	.hws_needs_physical = 1,
@@ -354,7 +367,7 @@ static const struct intel_device_info i965gm_info = {
 static const struct intel_device_info g45_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_G45),
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -362,18 +375,19 @@ static const struct intel_device_info gm45_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_GM45),
 	.is_mobile = 1,
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 	.display.supports_tv = 1,
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
 #define GEN5_FEATURES \
 	GEN(5), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0), \
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0), \
+	.has_3d_pipeline = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	/* ilk does support rc6, but we do not implement [power] contexts */ \
@@ -395,24 +409,25 @@ static const struct intel_device_info ilk_m_info = {
 	PLATFORM(INTEL_IRONLAKE),
 	.is_mobile = 1,
 	.has_rps = true,
-	.display.fbc_mask = BIT(INTEL_FBC_A),
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),
 };
 
 #define GEN6_FEATURES \
 	GEN(6), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
-	.display.fbc_mask = BIT(INTEL_FBC_A), \
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A), \
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
+	.has_3d_pipeline = 1, \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_rps = true, \
 	.dma_mask_size = 40, \
-	.ppgtt_type = INTEL_PPGTT_ALIASING, \
-	.ppgtt_size = 31, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING, \
+	.__runtime.ppgtt_size = 31, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
 	ILK_COLORS, \
@@ -451,11 +466,12 @@ static const struct intel_device_info snb_m_gt2_info = {
 
 #define GEN7_FEATURES  \
 	GEN(7), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C), \
 	.display.has_hotplug = 1, \
-	.display.fbc_mask = BIT(INTEL_FBC_A), \
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A), \
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
+	.has_3d_pipeline = 1, \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
@@ -463,8 +479,8 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.has_reset_engine = true, \
 	.has_rps = true, \
 	.dma_mask_size = 40, \
-	.ppgtt_type = INTEL_PPGTT_ALIASING, \
-	.ppgtt_size = 31, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING, \
+	.__runtime.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
 	IVB_COLORS, \
@@ -505,9 +521,8 @@ static const struct intel_device_info ivb_m_gt2_info = {
 static const struct intel_device_info ivb_q_info = {
 	GEN7_FEATURES,
 	PLATFORM(INTEL_IVYBRIDGE),
+	NO_DISPLAY,
 	.gt = 2,
-	.display.pipe_mask = 0, /* legal, last one wins */
-	.display.cpu_transcoder_mask = 0,
 	.has_l3_dpf = 1,
 };
 
@@ -515,8 +530,8 @@ static const struct intel_device_info vlv_info = {
 	PLATFORM(INTEL_VALLEYVIEW),
 	GEN(7),
 	.is_lp = 1,
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_reset_engine = true,
@@ -524,12 +539,12 @@ static const struct intel_device_info vlv_info = {
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
 	.dma_mask_size = 40,
-	.ppgtt_type = INTEL_PPGTT_ALIASING,
-	.ppgtt_size = 31,
+	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING,
+	.__runtime.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
-	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
+	.display.mmio_offset = VLV_DISPLAY_BASE,
 	I9XX_PIPE_OFFSETS,
 	I9XX_CURSOR_OFFSETS,
 	I965_COLORS,
@@ -539,8 +554,8 @@ static const struct intel_device_info vlv_info = {
 
 #define G75_FEATURES  \
 	GEN7_FEATURES, \
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP), \
 	.display.has_ddi = 1, \
 	.display.has_fpga_dbg = 1, \
@@ -574,8 +589,8 @@ static const struct intel_device_info hsw_gt3_info = {
 	GEN(8), \
 	.has_logical_ring_contexts = 1, \
 	.dma_mask_size = 39, \
-	.ppgtt_type = INTEL_PPGTT_FULL, \
-	.ppgtt_size = 48, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL, \
+	.__runtime.ppgtt_size = 48, \
 	.has_64bit_reloc = 1
 
 #define BDW_PLATFORM \
@@ -603,18 +618,18 @@ static const struct intel_device_info bdw_rsvd_info = {
 static const struct intel_device_info bdw_gt3_info = {
 	BDW_PLATFORM,
 	.gt = 3,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 static const struct intel_device_info chv_info = {
 	PLATFORM(INTEL_CHERRYVIEW),
 	GEN(8),
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
 	.display.has_hotplug = 1,
 	.is_lp = 1,
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
@@ -622,12 +637,12 @@ static const struct intel_device_info chv_info = {
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
 	.dma_mask_size = 39,
-	.ppgtt_type = INTEL_PPGTT_FULL,
-	.ppgtt_size = 32,
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL,
+	.__runtime.ppgtt_size = 32,
 	.has_reset_engine = 1,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
-	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.display.mmio_offset = VLV_DISPLAY_BASE,
 	CHV_PIPE_OFFSETS,
 	CHV_CURSOR_OFFSETS,
 	CHV_COLORS,
@@ -636,21 +651,21 @@ static const struct intel_device_info chv_info = {
 };
 
 #define GEN9_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		I915_GTT_PAGE_SIZE_64K
 
 #define GEN9_FEATURES \
 	GEN8_FEATURES, \
 	GEN(9), \
 	GEN9_DEFAULT_PAGE_SIZES, \
-	.display.has_dmc = 1, \
+	.__runtime.has_dmc = 1, \
 	.has_gt_uc = 1, \
-	.display.has_hdcp = 1, \
+	.__runtime.has_hdcp = 1, \
 	.display.has_ipc = 1, \
 	.display.has_psr = 1, \
 	.display.has_psr_hw_tracking = 1, \
-	.dbuf.size = 896 - 4, /* 4 blocks for bypass path allocation */ \
-	.dbuf.slice_mask = BIT(DBUF_S1)
+	.display.dbuf.size = 896 - 4, /* 4 blocks for bypass path allocation */ \
+	.display.dbuf.slice_mask = BIT(DBUF_S1)
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
@@ -668,7 +683,7 @@ static const struct intel_device_info skl_gt2_info = {
 
 #define SKL_GT3_PLUS_PLATFORM \
 	SKL_PLATFORM, \
-	.platform_engine_mask = \
+	.__runtime.platform_engine_mask = \
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1)
 
 
@@ -685,30 +700,31 @@ static const struct intel_device_info skl_gt4_info = {
 #define GEN9_LP_FEATURES \
 	GEN(9), \
 	.is_lp = 1, \
-	.dbuf.slice_mask = BIT(DBUF_S1), \
+	.display.dbuf.slice_mask = BIT(DBUF_S1), \
 	.display.has_hotplug = 1, \
-	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
 		BIT(TRANSCODER_DSI_A) | BIT(TRANSCODER_DSI_C), \
+	.has_3d_pipeline = 1, \
 	.has_64bit_reloc = 1, \
 	.display.has_ddi = 1, \
 	.display.has_fpga_dbg = 1, \
-	.display.fbc_mask = BIT(INTEL_FBC_A), \
-	.display.has_hdcp = 1, \
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A), \
+	.__runtime.has_hdcp = 1, \
 	.display.has_psr = 1, \
 	.display.has_psr_hw_tracking = 1, \
 	.has_runtime_pm = 1, \
-	.display.has_dmc = 1, \
+	.__runtime.has_dmc = 1, \
 	.has_rc6 = 1, \
 	.has_rps = true, \
 	.display.has_dp_mst = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_gt_uc = 1, \
 	.dma_mask_size = 39, \
-	.ppgtt_type = INTEL_PPGTT_FULL, \
-	.ppgtt_size = 48, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL, \
+	.__runtime.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
@@ -722,14 +738,14 @@ static const struct intel_device_info skl_gt4_info = {
 static const struct intel_device_info bxt_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_BROXTON),
-	.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
+	.display.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
 };
 
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
-	.display.ver = 10,
-	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
+	.__runtime.display.ip.ver = 10,
+	.display.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
 	GLK_COLORS,
 };
 
@@ -750,7 +766,7 @@ static const struct intel_device_info kbl_gt2_info = {
 static const struct intel_device_info kbl_gt3_info = {
 	KBL_PLATFORM,
 	.gt = 3,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
@@ -771,7 +787,7 @@ static const struct intel_device_info cfl_gt2_info = {
 static const struct intel_device_info cfl_gt3_info = {
 	CFL_PLATFORM,
 	.gt = 3,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
@@ -790,18 +806,18 @@ static const struct intel_device_info cml_gt2_info = {
 };
 
 #define GEN11_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K | \
-		      I915_GTT_PAGE_SIZE_2M
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		I915_GTT_PAGE_SIZE_64K |		\
+		I915_GTT_PAGE_SIZE_2M
 
 #define GEN11_FEATURES \
 	GEN9_FEATURES, \
 	GEN11_DEFAULT_PAGE_SIZES, \
 	.display.abox_mask = BIT(0), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
@@ -809,7 +825,7 @@ static const struct intel_device_info cml_gt2_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -819,42 +835,42 @@ static const struct intel_device_info cml_gt2_info = {
 	}, \
 	GEN(11), \
 	ICL_COLORS, \
-	.dbuf.size = 2048, \
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
-	.display.has_dsc = 1, \
+	.display.dbuf.size = 2048, \
+	.display.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
+	.__runtime.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	.has_logical_ring_elsq = 1
 
 static const struct intel_device_info icl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ICELAKE),
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 };
 
 static const struct intel_device_info ehl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
-	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
-	.ppgtt_size = 36,
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
+	.__runtime.ppgtt_size = 36,
 };
 
 static const struct intel_device_info jsl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_JASPERLAKE),
-	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
-	.ppgtt_size = 36,
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
+	.__runtime.ppgtt_size = 36,
 };
 
 #define GEN12_FEATURES \
 	GEN11_FEATURES, \
 	GEN(12), \
 	.display.abox_mask = GENMASK(2, 1), \
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
@@ -862,7 +878,7 @@ static const struct intel_device_info jsl_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -879,7 +895,7 @@ static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_TIGERLAKE),
 	.display.has_modular_fia = 1,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 };
 
@@ -887,78 +903,72 @@ static const struct intel_device_info rkl_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_ROCKETLAKE),
 	.display.abox_mask = BIT(0),
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C),
 	.display.has_hti = 1,
 	.display.has_psr_hw_tracking = 0,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0),
 };
 
 #define DGFX_FEATURES \
-	.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
+	.__runtime.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
 	.has_llc = 0, \
 	.has_pxp = 0, \
 	.has_snoop = 1, \
-	.is_dgfx = 1
+	.is_dgfx = 1, \
+	.has_heci_gscfi = 1
 
 static const struct intel_device_info dg1_info = {
 	GEN12_FEATURES,
 	DGFX_FEATURES,
-	.graphics.rel = 10,
+	.__runtime.graphics.ip.rel = 10,
 	PLATFORM(INTEL_DG1),
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) |
 		BIT(VCS0) | BIT(VCS2),
 	/* Wa_16011227922 */
-	.ppgtt_size = 47,
+	.__runtime.ppgtt_size = 47,
 };
 
 static const struct intel_device_info adl_s_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_ALDERLAKE_S),
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.display.has_hti = 1,
 	.display.has_psr_hw_tracking = 0,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 	.dma_mask_size = 39,
 };
 
-#define XE_LPD_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
-		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
-		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
-	}
-
 #define XE_LPD_FEATURES \
 	.display.abox_mask = GENMASK(1, 0),					\
-	.color = { .degamma_lut_size = 128, .gamma_lut_size = 1024,		\
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
-					DRM_COLOR_LUT_EQUAL_CHANNELS,		\
+	.display.color = {							\
+		.degamma_lut_size = 128, .gamma_lut_size = 1024,		\
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
+				     DRM_COLOR_LUT_EQUAL_CHANNELS,		\
 	},									\
-	.dbuf.size = 4096,							\
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |		\
+	.display.dbuf.size = 4096,						\
+	.display.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |	\
 		BIT(DBUF_S4),							\
 	.display.has_ddi = 1,							\
-	.display.has_dmc = 1,							\
+	.__runtime.has_dmc = 1,							\
 	.display.has_dp_mst = 1,						\
 	.display.has_dsb = 1,							\
-	.display.has_dsc = 1,							\
-	.display.fbc_mask = BIT(INTEL_FBC_A),					\
+	.__runtime.has_dsc = 1,							\
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A),					\
 	.display.has_fpga_dbg = 1,						\
-	.display.has_hdcp = 1,							\
+	.__runtime.has_hdcp = 1,						\
 	.display.has_hotplug = 1,						\
 	.display.has_ipc = 1,							\
 	.display.has_psr = 1,							\
-	.display.ver = 13,							\
-	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),	\
-	.pipe_offsets = {							\
+	.__runtime.display.ip.ver = 13,							\
+	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),	\
+	.display.pipe_offsets = {						\
 		[TRANSCODER_A] = PIPE_A_OFFSET,					\
 		[TRANSCODER_B] = PIPE_B_OFFSET,					\
 		[TRANSCODER_C] = PIPE_C_OFFSET,					\
@@ -966,7 +976,7 @@ static const struct intel_device_info adl_s_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET,				\
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET,				\
 	},									\
-	.trans_offsets = {							\
+	.display.trans_offsets = {						\
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET,				\
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET,				\
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET,				\
@@ -974,36 +984,37 @@ static const struct intel_device_info adl_s_info = {
 		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET,			\
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET,			\
 	},									\
-	XE_LPD_CURSOR_OFFSETS
+	TGL_CURSOR_OFFSETS
 
 static const struct intel_device_info adl_p_info = {
 	GEN12_FEATURES,
 	XE_LPD_FEATURES,
 	PLATFORM(INTEL_ALDERLAKE_P),
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 			       BIT(TRANSCODER_C) | BIT(TRANSCODER_D) |
 			       BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1),
 	.display.has_cdclk_crawl = 1,
 	.display.has_modular_fia = 1,
 	.display.has_psr_hw_tracking = 0,
-	.platform_engine_mask =
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.ppgtt_size = 48,
+	.__runtime.ppgtt_size = 48,
 	.dma_mask_size = 39,
 };
 
 #undef GEN
 
 #define XE_HP_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K | \
-		      I915_GTT_PAGE_SIZE_2M
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		I915_GTT_PAGE_SIZE_64K |		\
+		I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
-	.graphics.ver = 12, \
-	.graphics.rel = 50, \
+	.__runtime.graphics.ip.ver = 12, \
+	.__runtime.graphics.ip.rel = 50, \
 	XE_HP_PAGE_SIZES, \
 	.dma_mask_size = 46, \
+	.has_3d_pipeline = 1, \
 	.has_64bit_reloc = 1, \
 	.has_flat_ccs = 1, \
 	.has_global_mocs = 1, \
@@ -1011,17 +1022,17 @@ static const struct intel_device_info adl_p_info = {
 	.has_llc = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_elsq = 1, \
-	.has_mslices = 1, \
+	.has_mslice_steering = 1, \
 	.has_rc6 = 1, \
 	.has_reset_engine = 1, \
 	.has_rps = 1, \
 	.has_runtime_pm = 1, \
-	.ppgtt_size = 48, \
-	.ppgtt_type = INTEL_PPGTT_FULL
+	.__runtime.ppgtt_size = 48, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL
 
 #define XE_HPM_FEATURES \
-	.media.ver = 12, \
-	.media.rel = 50
+	.__runtime.media.ip.ver = 12, \
+	.__runtime.media.ip.rel = 50
 
 __maybe_unused
 static const struct intel_device_info xehpsdv_info = {
@@ -1029,36 +1040,114 @@ static const struct intel_device_info xehpsdv_info = {
 	XE_HPM_FEATURES,
 	DGFX_FEATURES,
 	PLATFORM(INTEL_XEHPSDV),
-	.display = { },
+	NO_DISPLAY,
 	.has_64k_pages = 1,
 	.needs_compact_pt = 1,
-	.platform_engine_mask =
+	.has_media_ratio_mode = 1,
+	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
 		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
 		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
-		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7),
+		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7) |
+		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
 	.require_force_probe = 1,
 };
 
-__maybe_unused
+#define DG2_FEATURES \
+	XE_HP_FEATURES, \
+	XE_HPM_FEATURES, \
+	DGFX_FEATURES, \
+	.__runtime.graphics.ip.rel = 55, \
+	.__runtime.media.ip.rel = 55, \
+	PLATFORM(INTEL_DG2), \
+	.has_4tile = 1, \
+	.has_64k_pages = 1, \
+	.has_guc_deprivilege = 1, \
+	.has_heci_pxp = 1, \
+	.needs_compact_pt = 1, \
+	.has_media_ratio_mode = 1, \
+	.__runtime.platform_engine_mask = \
+		BIT(RCS0) | BIT(BCS0) | \
+		BIT(VECS0) | BIT(VECS1) | \
+		BIT(VCS0) | BIT(VCS2) | \
+		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3)
+
 static const struct intel_device_info dg2_info = {
-	XE_HP_FEATURES,
-	XE_HPM_FEATURES,
+	DG2_FEATURES,
 	XE_LPD_FEATURES,
-	DGFX_FEATURES,
-	.graphics.rel = 55,
-	.media.rel = 55,
-	PLATFORM(INTEL_DG2),
-	.has_guc_deprivilege = 1,
-	.has_64k_pages = 1,
-	.needs_compact_pt = 1,
-	.platform_engine_mask =
-		BIT(RCS0) | BIT(BCS0) |
-		BIT(VECS0) | BIT(VECS1) |
-		BIT(VCS0) | BIT(VCS2),
-	.require_force_probe = 1,
-	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 			       BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
+	.require_force_probe = 1,
+};
+
+static const struct intel_device_info ats_m_info = {
+	DG2_FEATURES,
+	NO_DISPLAY,
+	.require_force_probe = 1,
+	.tuning_thread_rr_after_dep = 1,
+};
+
+#define XE_HPC_FEATURES \
+	XE_HP_FEATURES, \
+	.dma_mask_size = 52, \
+	.has_3d_pipeline = 0, \
+	.has_guc_deprivilege = 1, \
+	.has_l3_ccs_read = 1, \
+	.has_mslice_steering = 0, \
+	.has_one_eu_per_fuse_bit = 1
+
+__maybe_unused
+static const struct intel_device_info pvc_info = {
+	XE_HPC_FEATURES,
+	XE_HPM_FEATURES,
+	DGFX_FEATURES,
+	.__runtime.graphics.ip.rel = 60,
+	.__runtime.media.ip.rel = 60,
+	PLATFORM(INTEL_PONTEVECCHIO),
+	NO_DISPLAY,
+	.has_flat_ccs = 0,
+	.__runtime.platform_engine_mask =
+		BIT(BCS0) |
+		BIT(VCS0) |
+		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
+	.require_force_probe = 1,
+};
+
+#define XE_LPDP_FEATURES	\
+	XE_LPD_FEATURES,	\
+	.__runtime.display.ip.ver = 14,	\
+	.display.has_cdclk_crawl = 1, \
+	.__runtime.fbc_mask = BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B)
+
+static const struct intel_gt_definition xelpmp_extra_gt[] = {
+	{
+		.type = GT_MEDIA,
+		.name = "Standalone Media GT",
+		.gsi_offset = MTL_MEDIA_GSI_BASE,
+		.engine_mask = BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+	},
+	{}
+};
+
+__maybe_unused
+static const struct intel_device_info mtl_info = {
+	XE_HP_FEATURES,
+	XE_LPDP_FEATURES,
+	/*
+	 * Real graphics IP version will be obtained from hardware GMD_ID
+	 * register.  Value provided here is just for sanity checking.
+	 */
+	.__runtime.graphics.ip.ver = 12,
+	.__runtime.graphics.ip.rel = 70,
+	.__runtime.media.ip.ver = 13,
+	PLATFORM(INTEL_METEORLAKE),
+	.display.has_modular_fia = 1,
+	.extra_gt_list = xelpmp_extra_gt,
+	.has_flat_ccs = 0,
+	.has_snoop = 1,
+	.__runtime.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
+	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(CCS0),
+	.require_force_probe = 1,
 };
 
 #undef PLATFORM
@@ -1140,6 +1229,10 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_ADLN_IDS(&adl_p_info),
 	INTEL_DG1_IDS(&dg1_info),
 	INTEL_RPLS_IDS(&adl_s_info),
+	INTEL_RPLP_IDS(&adl_p_info),
+	INTEL_DG2_IDS(&dg2_info),
+	INTEL_ATS_M_IDS(&ats_m_info),
+	INTEL_MTL_IDS(&mtl_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -1187,6 +1280,27 @@ static bool force_probe(u16 device_id, const char *devices)
 	return ret;
 }
 
+bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
+{
+	if (!pci_resource_flags(pdev, bar))
+		return false;
+
+	if (pci_resource_flags(pdev, bar) & IORESOURCE_UNSET)
+		return false;
+
+	if (!pci_resource_len(pdev, bar))
+		return false;
+
+	return true;
+}
+
+static bool intel_mmio_bar_valid(struct pci_dev *pdev, struct intel_device_info *intel_info)
+{
+	int gttmmaddr_bar = intel_info->__runtime.graphics.ip.ver == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
+
+	return i915_pci_resource_valid(pdev, gttmmaddr_bar);
+}
+
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
@@ -1211,6 +1325,9 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
+
+	if (!intel_mmio_bar_valid(pdev, intel_info))
+		return -ENXIO;
 
 	/* Detect if we need to wait for other drivers early on */
 	if (intel_modeset_probe_defer(pdev))

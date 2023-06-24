@@ -856,6 +856,8 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	rpf->mem.addr[1] = cfg->mem[1];
 	rpf->mem.addr[2] = cfg->mem[2];
 
+	rpf->format.flags = cfg->premult ? V4L2_PIX_FMT_FLAG_PREMUL_ALPHA : 0;
+
 	vsp1->drm->inputs[rpf_index].crop = cfg->src;
 	vsp1->drm->inputs[rpf_index].compose = cfg->dst;
 	vsp1->drm->inputs[rpf_index].zpos = cfg->zpos;

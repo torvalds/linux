@@ -111,7 +111,7 @@ and its resource dependencies. It is described by the following properties:
 
 The wcnss node can also have an subnode named "smd-edge" that describes the SMD
 edge, channels and devices related to the WCNSS.
-See ../soc/qcom/qcom,smd.txt for details on how to describe the SMD edge.
+See ../soc/qcom/qcom,smd.yaml for details on how to describe the SMD edge.
 
 = EXAMPLE
 The following example describes the resources needed to boot control the WCNSS,

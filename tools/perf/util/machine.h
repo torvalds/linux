@@ -18,6 +18,7 @@ struct symbol;
 struct target;
 struct thread;
 union perf_event;
+struct machines;
 
 /* Native host kernel uses -1 as pid index in machine */
 #define	HOST_KERNEL_ID			(-1)
@@ -47,6 +48,7 @@ struct machine {
 	bool		  single_address_space;
 	char		  *root_dir;
 	char		  *mmap_name;
+	char		  *kallsyms_filename;
 	struct threads    threads[THREADS__TABLE_SIZE];
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;
@@ -55,10 +57,12 @@ struct machine {
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
+	size_t		  current_tid_sz;
 	union { /* Tool specific area */
 		void	  *priv;
 		u64	  db_id;
 	};
+	struct machines   *machines;
 	bool		  trampolines_mapped;
 };
 
@@ -162,10 +166,11 @@ void machines__process_guests(struct machines *machines,
 
 struct machine *machines__add(struct machines *machines, pid_t pid,
 			      const char *root_dir);
-struct machine *machines__find_host(struct machines *machines);
 struct machine *machines__find(struct machines *machines, pid_t pid);
 struct machine *machines__findnew(struct machines *machines, pid_t pid);
 struct machine *machines__find_guest(struct machines *machines, pid_t pid);
+struct thread *machines__findnew_guest_code(struct machines *machines, pid_t pid);
+struct thread *machine__findnew_guest_code(struct machine *machine, pid_t pid);
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 void machines__set_comm_exec(struct machines *machines, bool comm_exec);
@@ -259,6 +264,11 @@ typedef int (*machine__dso_t)(struct dso *dso, struct machine *machine, void *pr
 
 int machine__for_each_dso(struct machine *machine, machine__dso_t fn,
 			  void *priv);
+
+typedef int (*machine__map_t)(struct map *map, void *priv);
+int machine__for_each_kernel_map(struct machine *machine, machine__map_t fn,
+				 void *priv);
+
 int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);

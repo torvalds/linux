@@ -45,7 +45,7 @@ int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 
 	memset(&key, 0, sizeof(key));
 
-	sharename = extract_sharename(tcon->treeName);
+	sharename = extract_sharename(tcon->tree_name);
 	if (IS_ERR(sharename)) {
 		cifs_dbg(FYI, "%s: couldn't extract sharename\n", __func__);
 		return -EINVAL;
@@ -101,13 +101,13 @@ void cifs_fscache_get_inode_cookie(struct inode *inode)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
-	cifs_fscache_fill_coherency(&cifsi->vfs_inode, &cd);
+	cifs_fscache_fill_coherency(&cifsi->netfs.inode, &cd);
 
-	cifsi->netfs_ctx.cache =
+	cifsi->netfs.cache =
 		fscache_acquire_cookie(tcon->fscache, 0,
 				       &cifsi->uniqueid, sizeof(cifsi->uniqueid),
 				       &cd, sizeof(cd),
-				       i_size_read(&cifsi->vfs_inode));
+				       i_size_read(&cifsi->netfs.inode));
 }
 
 void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update)
@@ -131,7 +131,7 @@ void cifs_fscache_release_inode_cookie(struct inode *inode)
 	if (cookie) {
 		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cookie);
 		fscache_relinquish_cookie(cookie, false);
-		cifsi->netfs_ctx.cache = NULL;
+		cifsi->netfs.cache = NULL;
 	}
 }
 

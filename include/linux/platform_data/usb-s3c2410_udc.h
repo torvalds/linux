@@ -22,12 +22,6 @@ enum s3c2410_udc_cmd_e {
 struct s3c2410_udc_mach_info {
 	void	(*udc_command)(enum s3c2410_udc_cmd_e);
 	void	(*vbus_draw)(unsigned int ma);
-
-	unsigned int pullup_pin;
-	unsigned int pullup_pin_inverted;
-
-	unsigned int vbus_pin;
-	unsigned char vbus_pin_inverted;
 };
 
 extern void __init s3c24xx_udc_set_platdata(struct s3c2410_udc_mach_info *);

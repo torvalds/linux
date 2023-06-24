@@ -526,15 +526,13 @@ static int vpx3220_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int vpx3220_remove(struct i2c_client *client)
+static void vpx3220_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct vpx3220 *decoder = to_vpx3220(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-
-	return 0;
 }
 
 static const struct i2c_device_id vpx3220_id[] = {

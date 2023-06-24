@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2017-2018, The Linux foundation. All rights reserved.
 
+/* Disable MMIO tracing to prevent excessive logging of unwanted MMIO traces */
+#define __DISABLE_TRACE_MMIO__
+
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/io.h>
@@ -19,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
 
 /* UART specific GENI registers */
 #define SE_UART_LOOPBACK_CFG		0x22c
@@ -148,12 +152,6 @@ static int handle_rx_uart(struct uart_port *uport, u32 bytes, bool drop);
 static unsigned int qcom_geni_serial_tx_empty(struct uart_port *port);
 static void qcom_geni_serial_stop_rx(struct uart_port *uport);
 static void qcom_geni_serial_handle_rx(struct uart_port *uport, bool drop);
-
-static const unsigned long root_freq[] = {7372800, 14745600, 19200000, 29491200,
-					32000000, 48000000, 51200000, 64000000,
-					80000000, 96000000, 100000000,
-					102400000, 112000000, 120000000,
-					128000000};
 
 #define to_dev_port(ptr, member) \
 		container_of(ptr, struct qcom_geni_serial_port, member)
@@ -507,7 +505,7 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 		 */
 		qcom_geni_serial_poll_tx_done(uport);
 
-		if (uart_circ_chars_pending(&uport->state->xmit)) {
+		if (!uart_circ_empty(&uport->state->xmit)) {
 			irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
 			writel(irq_en | M_TX_FIFO_WATERMARK_EN,
 					uport->membase + SE_GENI_M_IRQ_EN);
@@ -946,37 +944,70 @@ static int qcom_geni_serial_startup(struct uart_port *uport)
 	return 0;
 }
 
-static unsigned long get_clk_cfg(unsigned long clk_freq)
+static unsigned long find_clk_rate_in_tol(struct clk *clk, unsigned int desired_clk,
+			unsigned int *clk_div, unsigned int percent_tol)
 {
-	int i;
+	unsigned long freq;
+	unsigned long div, maxdiv;
+	u64 mult;
+	unsigned long offset, abs_tol, achieved;
 
-	for (i = 0; i < ARRAY_SIZE(root_freq); i++) {
-		if (!(root_freq[i] % clk_freq))
-			return root_freq[i];
+	abs_tol = div_u64((u64)desired_clk * percent_tol, 100);
+	maxdiv = CLK_DIV_MSK >> CLK_DIV_SHFT;
+	div = 1;
+	while (div <= maxdiv) {
+		mult = (u64)div * desired_clk;
+		if (mult != (unsigned long)mult)
+			break;
+
+		offset = div * abs_tol;
+		freq = clk_round_rate(clk, mult - offset);
+
+		/* Can only get lower if we're done */
+		if (freq < mult - offset)
+			break;
+
+		/*
+		 * Re-calculate div in case rounding skipped rates but we
+		 * ended up at a good one, then check for a match.
+		 */
+		div = DIV_ROUND_CLOSEST(freq, desired_clk);
+		achieved = DIV_ROUND_CLOSEST(freq, div);
+		if (achieved <= desired_clk + abs_tol &&
+		    achieved >= desired_clk - abs_tol) {
+			*clk_div = div;
+			return freq;
+		}
+
+		div = DIV_ROUND_UP(freq, desired_clk);
 	}
+
 	return 0;
 }
 
-static unsigned long get_clk_div_rate(unsigned int baud,
+static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
 			unsigned int sampling_rate, unsigned int *clk_div)
 {
 	unsigned long ser_clk;
 	unsigned long desired_clk;
 
 	desired_clk = baud * sampling_rate;
-	ser_clk = get_clk_cfg(desired_clk);
-	if (!ser_clk) {
-		pr_err("%s: Can't find matching DFS entry for baud %d\n",
-								__func__, baud);
-		return ser_clk;
-	}
+	if (!desired_clk)
+		return 0;
 
-	*clk_div = ser_clk / desired_clk;
+	/*
+	 * try to find a clock rate within 2% tolerance, then within 5%
+	 */
+	ser_clk = find_clk_rate_in_tol(clk, desired_clk, clk_div, 2);
+	if (!ser_clk)
+		ser_clk = find_clk_rate_in_tol(clk, desired_clk, clk_div, 5);
+
 	return ser_clk;
 }
 
 static void qcom_geni_serial_set_termios(struct uart_port *uport,
-				struct ktermios *termios, struct ktermios *old)
+					 struct ktermios *termios,
+					 const struct ktermios *old)
 {
 	unsigned int baud;
 	u32 bits_per_char;
@@ -1003,9 +1034,17 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 	if (ver >= QUP_SE_VERSION_2_5)
 		sampling_rate /= 2;
 
-	clk_rate = get_clk_div_rate(baud, sampling_rate, &clk_div);
-	if (!clk_rate)
+	clk_rate = get_clk_div_rate(port->se.clk, baud,
+		sampling_rate, &clk_div);
+	if (!clk_rate) {
+		dev_err(port->se.dev,
+			"Couldn't find suitable clock rate for %u\n",
+			baud * sampling_rate);
 		goto out_restart_rx;
+	}
+
+	dev_dbg(port->se.dev, "desired_rate-%u, clk_rate-%lu, clk_div-%u\n",
+			baud * sampling_rate, clk_rate, clk_div);
 
 	uport->uartclk = clk_rate;
 	dev_pm_opp_set_rate(uport->dev, clk_rate);
@@ -1290,6 +1329,7 @@ static const struct uart_ops qcom_geni_console_pops = {
 	.stop_tx = qcom_geni_serial_stop_tx,
 	.start_tx = qcom_geni_serial_start_tx,
 	.stop_rx = qcom_geni_serial_stop_rx,
+	.start_rx = qcom_geni_serial_start_rx,
 	.set_termios = qcom_geni_serial_set_termios,
 	.startup = qcom_geni_serial_startup,
 	.request_port = qcom_geni_serial_request_port,
@@ -1486,7 +1526,7 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 	 * even with no_console_suspend
 	 */
 	if (uart_console(uport)) {
-		geni_icc_set_tag(&port->se, 0x3);
+		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ACTIVE_ONLY);
 		geni_icc_set_bw(&port->se);
 	}
 	return uart_suspend_port(private_data->drv, uport);
@@ -1501,7 +1541,7 @@ static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 
 	ret = uart_resume_port(private_data->drv, uport);
 	if (uart_console(uport)) {
-		geni_icc_set_tag(&port->se, 0x7);
+		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ALWAYS);
 		geni_icc_set_bw(&port->se);
 	}
 	return ret;

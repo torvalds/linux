@@ -15,10 +15,9 @@
 #include <linux/parser.h>
 #include <linux/suspend.h>
 
+#include <linux/clk.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/platform_data/atmel.h>
-
-#include <soc/at91/pm.h>
 
 #include <asm/cacheflush.h>
 #include <asm/fncpy.h>
@@ -27,6 +26,7 @@
 
 #include "generic.h"
 #include "pm.h"
+#include "sam_secure.h"
 
 #define BACKUP_DDR_PHY_CALIBRATION	(9)
 
@@ -47,8 +47,8 @@ struct at91_pm_bu {
 	unsigned long ddr_phy_calibration[BACKUP_DDR_PHY_CALIBRATION];
 };
 
-/*
- * struct at91_pm_sfrbu_offsets: registers mapping for SFRBU
+/**
+ * struct at91_pm_sfrbu_regs - registers mapping for SFRBU
  * @pswbu: power switch BU control registers
  */
 struct at91_pm_sfrbu_regs {
@@ -61,13 +61,64 @@ struct at91_pm_sfrbu_regs {
 };
 
 /**
+ * enum at91_pm_eth_clk - Ethernet clock indexes
+ * @AT91_PM_ETH_PCLK: pclk index
+ * @AT91_PM_ETH_HCLK: hclk index
+ * @AT91_PM_ETH_MAX_CLK: max index
+ */
+enum at91_pm_eth_clk {
+	AT91_PM_ETH_PCLK,
+	AT91_PM_ETH_HCLK,
+	AT91_PM_ETH_MAX_CLK,
+};
+
+/**
+ * enum at91_pm_eth - Ethernet controller indexes
+ * @AT91_PM_G_ETH: gigabit Ethernet controller index
+ * @AT91_PM_E_ETH: megabit Ethernet controller index
+ * @AT91_PM_MAX_ETH: max index
+ */
+enum at91_pm_eth {
+	AT91_PM_G_ETH,
+	AT91_PM_E_ETH,
+	AT91_PM_MAX_ETH,
+};
+
+/**
+ * struct at91_pm_quirk_eth - AT91 PM Ethernet quirks
+ * @dev: Ethernet device
+ * @np: Ethernet device node
+ * @clks: Ethernet clocks
+ * @modes: power management mode that this quirk applies to
+ * @dns_modes: do not suspend modes: stop suspending if Ethernet is configured
+ *	       as wakeup source but buggy and no other wakeup source is
+ *	       available
+ */
+struct at91_pm_quirk_eth {
+	struct device *dev;
+	struct device_node *np;
+	struct clk_bulk_data clks[AT91_PM_ETH_MAX_CLK];
+	u32 modes;
+	u32 dns_modes;
+};
+
+/**
+ * struct at91_pm_quirks - AT91 PM quirks
+ * @eth: Ethernet quirks
+ */
+struct at91_pm_quirks {
+	struct at91_pm_quirk_eth eth[AT91_PM_MAX_ETH];
+};
+
+/**
  * struct at91_soc_pm - AT91 SoC power management data structure
  * @config_shdwc_ws: wakeup sources configuration function for SHDWC
  * @config_pmc_ws: wakeup srouces configuration function for PMC
  * @ws_ids: wakup sources of_device_id array
+ * @bu: backup unit mapped data (for backup mode)
+ * @quirks: PM quirks
  * @data: PM data to be used on last phase of suspend
  * @sfrbu_regs: SFRBU registers mapping
- * @bu: backup unit mapped data (for backup mode)
  * @memcs: memory chip select
  */
 struct at91_soc_pm {
@@ -75,19 +126,22 @@ struct at91_soc_pm {
 	int (*config_pmc_ws)(void __iomem *pmc, u32 mode, u32 polarity);
 	const struct of_device_id *ws_ids;
 	struct at91_pm_bu *bu;
+	struct at91_pm_quirks quirks;
 	struct at91_pm_data data;
 	struct at91_pm_sfrbu_regs sfrbu_regs;
 	void *memcs;
 };
 
 /**
- * enum at91_pm_iomaps:	IOs that needs to be mapped for different PM modes
+ * enum at91_pm_iomaps - IOs that needs to be mapped for different PM modes
  * @AT91_PM_IOMAP_SHDWC:	SHDWC controller
  * @AT91_PM_IOMAP_SFRBU:	SFRBU controller
+ * @AT91_PM_IOMAP_ETHC:		Ethernet controller
  */
 enum at91_pm_iomaps {
 	AT91_PM_IOMAP_SHDWC,
 	AT91_PM_IOMAP_SFRBU,
+	AT91_PM_IOMAP_ETHC,
 };
 
 #define AT91_PM_IOMAP(name)	BIT(AT91_PM_IOMAP_##name)
@@ -146,7 +200,7 @@ static const struct wakeup_source_info ws_info[] = {
 
 static const struct of_device_id sama5d2_ws_ids[] = {
 	{ .compatible = "atmel,sama5d2-gem",		.data = &ws_info[0] },
-	{ .compatible = "atmel,at91rm9200-rtc",		.data = &ws_info[1] },
+	{ .compatible = "atmel,sama5d2-rtc",		.data = &ws_info[1] },
 	{ .compatible = "atmel,sama5d3-udc",		.data = &ws_info[2] },
 	{ .compatible = "atmel,at91rm9200-ohci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
@@ -157,24 +211,24 @@ static const struct of_device_id sama5d2_ws_ids[] = {
 };
 
 static const struct of_device_id sam9x60_ws_ids[] = {
-	{ .compatible = "atmel,at91sam9x5-rtc",		.data = &ws_info[1] },
+	{ .compatible = "microchip,sam9x60-rtc",	.data = &ws_info[1] },
 	{ .compatible = "atmel,at91rm9200-ohci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
 	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
-	{ .compatible = "atmel,at91sam9260-rtt",	.data = &ws_info[4] },
+	{ .compatible = "microchip,sam9x60-rtt",	.data = &ws_info[4] },
 	{ .compatible = "cdns,sam9x60-macb",		.data = &ws_info[5] },
 	{ /* sentinel */ }
 };
 
 static const struct of_device_id sama7g5_ws_ids[] = {
-	{ .compatible = "atmel,at91sam9x5-rtc",		.data = &ws_info[1] },
+	{ .compatible = "microchip,sama7g5-rtc",	.data = &ws_info[1] },
 	{ .compatible = "microchip,sama7g5-ohci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
 	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
 	{ .compatible = "microchip,sama7g5-sdhci",	.data = &ws_info[3] },
-	{ .compatible = "atmel,at91sam9260-rtt",	.data = &ws_info[4] },
+	{ .compatible = "microchip,sama7g5-rtt",	.data = &ws_info[4] },
 	{ /* sentinel */ }
 };
 
@@ -261,6 +315,141 @@ static int at91_sam9x60_config_pmc_ws(void __iomem *pmc, u32 mode, u32 polarity)
 	writel(mode, pmc + AT91_PMC_FSMR);
 
 	return 0;
+}
+
+static bool at91_pm_eth_quirk_is_valid(struct at91_pm_quirk_eth *eth)
+{
+	struct platform_device *pdev;
+
+	/* Interface NA in DT. */
+	if (!eth->np)
+		return false;
+
+	/* No quirks for this interface and current suspend mode. */
+	if (!(eth->modes & BIT(soc_pm.data.mode)))
+		return false;
+
+	if (!eth->dev) {
+		/* Driver not probed. */
+		pdev = of_find_device_by_node(eth->np);
+		if (!pdev)
+			return false;
+		eth->dev = &pdev->dev;
+	}
+
+	/* No quirks if device isn't a wakeup source. */
+	if (!device_may_wakeup(eth->dev)) {
+		put_device(eth->dev);
+		return false;
+	}
+
+	/* put_device(eth->dev) is called at the end of suspend. */
+	return true;
+}
+
+static int at91_pm_config_quirks(bool suspend)
+{
+	struct at91_pm_quirk_eth *eth;
+	int i, j, ret, tmp;
+
+	/*
+	 * Ethernet IPs who's device_node pointers are stored into
+	 * soc_pm.quirks.eth[].np cannot handle WoL packets while in ULP0, ULP1
+	 * or both due to a hardware bug. If they receive WoL packets while in
+	 * ULP0 or ULP1 IPs could stop working or the whole system could stop
+	 * working. We cannot handle this scenario in the ethernet driver itself
+	 * as the driver is common to multiple vendors and also we only know
+	 * here, in this file, if we suspend to ULP0 or ULP1 mode. Thus handle
+	 * these scenarios here, as quirks.
+	 */
+	for (i = 0; i < AT91_PM_MAX_ETH; i++) {
+		eth = &soc_pm.quirks.eth[i];
+
+		if (!at91_pm_eth_quirk_is_valid(eth))
+			continue;
+
+		/*
+		 * For modes in dns_modes mask the system blocks if quirk is not
+		 * applied but if applied the interface doesn't act at WoL
+		 * events. Thus take care to avoid suspending if this interface
+		 * is the only configured wakeup source.
+		 */
+		if (suspend && eth->dns_modes & BIT(soc_pm.data.mode)) {
+			int ws_count = 0;
+#ifdef CONFIG_PM_SLEEP
+			struct wakeup_source *ws;
+
+			for_each_wakeup_source(ws) {
+				if (ws->dev == eth->dev)
+					continue;
+
+				ws_count++;
+				break;
+			}
+#endif
+
+			/*
+			 * Checking !ws is good for all platforms with issues
+			 * even when both G_ETH and E_ETH are available as dns_modes
+			 * is populated only on G_ETH interface.
+			 */
+			if (!ws_count) {
+				pr_err("AT91: PM: Ethernet cannot resume from WoL!");
+				ret = -EPERM;
+				put_device(eth->dev);
+				eth->dev = NULL;
+				/* No need to revert clock settings for this eth. */
+				i--;
+				goto clk_unconfigure;
+			}
+		}
+
+		if (suspend) {
+			clk_bulk_disable_unprepare(AT91_PM_ETH_MAX_CLK, eth->clks);
+		} else {
+			ret = clk_bulk_prepare_enable(AT91_PM_ETH_MAX_CLK,
+						      eth->clks);
+			if (ret)
+				goto clk_unconfigure;
+			/*
+			 * Release the reference to eth->dev taken in
+			 * at91_pm_eth_quirk_is_valid().
+			 */
+			put_device(eth->dev);
+			eth->dev = NULL;
+		}
+	}
+
+	return 0;
+
+clk_unconfigure:
+	/*
+	 * In case of resume we reach this point if clk_prepare_enable() failed.
+	 * we don't want to revert the previous clk_prepare_enable() for the
+	 * other IP.
+	 */
+	for (j = i; j >= 0; j--) {
+		eth = &soc_pm.quirks.eth[j];
+		if (suspend) {
+			if (!at91_pm_eth_quirk_is_valid(eth))
+				continue;
+
+			tmp = clk_bulk_prepare_enable(AT91_PM_ETH_MAX_CLK, eth->clks);
+			if (tmp) {
+				pr_err("AT91: PM: failed to enable %s clocks\n",
+				       j == AT91_PM_G_ETH ? "geth" : "eth");
+			}
+		} else {
+			/*
+			 * Release the reference to eth->dev taken in
+			 * at91_pm_eth_quirk_is_valid().
+			 */
+			put_device(eth->dev);
+			eth->dev = NULL;
+		}
+	}
+
+	return ret;
 }
 
 /*
@@ -350,9 +539,41 @@ extern u32 at91_pm_suspend_in_sram_sz;
 
 static int at91_suspend_finish(unsigned long val)
 {
+	unsigned char modified_gray_code[] = {
+		0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x04, 0x05, 0x0c, 0x0d,
+		0x0e, 0x0f, 0x0a, 0x0b, 0x08, 0x09, 0x18, 0x19, 0x1a, 0x1b,
+		0x1e, 0x1f, 0x1c, 0x1d, 0x14, 0x15, 0x16, 0x17, 0x12, 0x13,
+		0x10, 0x11,
+	};
+	unsigned int tmp, index;
 	int i;
 
 	if (soc_pm.data.mode == AT91_PM_BACKUP && soc_pm.data.ramc_phy) {
+		/*
+		 * Bootloader will perform DDR recalibration and will try to
+		 * restore the ZQ0SR0 with the value saved here. But the
+		 * calibration is buggy and restoring some values from ZQ0SR0
+		 * is forbidden and risky thus we need to provide processed
+		 * values for these (modified gray code values).
+		 */
+		tmp = readl(soc_pm.data.ramc_phy + DDR3PHY_ZQ0SR0);
+
+		/* Store pull-down output impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SR0_PDO_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] = modified_gray_code[index];
+
+		/* Store pull-up output impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SR0_PUO_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] |= modified_gray_code[index];
+
+		/* Store pull-down on-die termination impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SR0_PDODT_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] |= modified_gray_code[index];
+
+		/* Store pull-up on-die termination impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SRO_PUODT_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] |= modified_gray_code[index];
+
 		/*
 		 * The 1st 8 words of memory might get corrupted in the process
 		 * of DDR PHY recalibration; it is saved here in securam and it
@@ -427,15 +648,11 @@ static void at91_pm_suspend(suspend_state_t state)
  */
 static int at91_pm_enter(suspend_state_t state)
 {
-#ifdef CONFIG_PINCTRL_AT91
-	/*
-	 * FIXME: this is needed to communicate between the pinctrl driver and
-	 * the PM implementation in the machine. Possibly part of the PM
-	 * implementation should be moved down into the pinctrl driver and get
-	 * called as part of the generic suspend/resume path.
-	 */
-	at91_pinctrl_gpio_suspend();
-#endif
+	int ret;
+
+	ret = at91_pm_config_quirks(true);
+	if (ret)
+		return ret;
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
@@ -461,9 +678,7 @@ static int at91_pm_enter(suspend_state_t state)
 	}
 
 error:
-#ifdef CONFIG_PINCTRL_AT91
-	at91_pinctrl_gpio_resume();
-#endif
+	at91_pm_config_quirks(false);
 	return 0;
 }
 
@@ -868,10 +1083,6 @@ static int __init at91_pm_backup_init(void)
 		of_scan_flat_dt(at91_pm_backup_scan_memcs, &located);
 		if (!located)
 			goto securam_fail;
-
-		/* DDR3PHY_ZQ0SR0 */
-		soc_pm.bu->ddr_phy_calibration[0] = readl(soc_pm.data.ramc_phy +
-							  0x188);
 	}
 
 	return 0;
@@ -881,6 +1092,35 @@ securam_fail:
 	return ret;
 }
 
+static void __init at91_pm_secure_init(void)
+{
+	int suspend_mode;
+	struct arm_smccc_res res;
+
+	suspend_mode = soc_pm.data.suspend_mode;
+
+	res = sam_smccc_call(SAMA5_SMC_SIP_SET_SUSPEND_MODE,
+			     suspend_mode, 0);
+	if (res.a0 == 0) {
+		pr_info("AT91: Secure PM: suspend mode set to %s\n",
+			pm_modes[suspend_mode].pattern);
+		return;
+	}
+
+	pr_warn("AT91: Secure PM: %s mode not supported !\n",
+		pm_modes[suspend_mode].pattern);
+
+	res = sam_smccc_call(SAMA5_SMC_SIP_GET_SUSPEND_MODE, 0, 0);
+	if (res.a0 == 0) {
+		pr_warn("AT91: Secure PM: failed to get default mode\n");
+		return;
+	}
+
+	pr_info("AT91: Secure PM: using default suspend mode %s\n",
+		pm_modes[suspend_mode].pattern);
+
+	soc_pm.data.suspend_mode = res.a1;
+}
 static const struct of_device_id atmel_shdwc_ids[] = {
 	{ .compatible = "atmel,sama5d2-shdwc" },
 	{ .compatible = "microchip,sam9x60-shdwc" },
@@ -888,10 +1128,99 @@ static const struct of_device_id atmel_shdwc_ids[] = {
 	{ /* sentinel. */ }
 };
 
+static const struct of_device_id gmac_ids[] __initconst = {
+	{ .compatible = "atmel,sama5d3-gem" },
+	{ .compatible = "atmel,sama5d2-gem" },
+	{ .compatible = "atmel,sama5d29-gem" },
+	{ .compatible = "microchip,sama7g5-gem" },
+	{ },
+};
+
+static const struct of_device_id emac_ids[] __initconst = {
+	{ .compatible = "atmel,sama5d3-macb" },
+	{ .compatible = "microchip,sama7g5-emac" },
+	{ },
+};
+
+/*
+ * Replaces _mode_to_replace with a supported mode that doesn't depend
+ * on controller pointed by _map_bitmask
+ * @_maps: u32 array containing AT91_PM_IOMAP() flags and indexed by AT91
+ * PM mode
+ * @_map_bitmask: AT91_PM_IOMAP() bitmask; if _mode_to_replace depends on
+ * controller represented by _map_bitmask, _mode_to_replace needs to be
+ * updated
+ * @_mode_to_replace: standby_mode or suspend_mode that need to be
+ * updated
+ * @_mode_to_check: standby_mode or suspend_mode; this is needed here
+ * to avoid having standby_mode and suspend_mode set with the same AT91
+ * PM mode
+ */
+#define AT91_PM_REPLACE_MODE(_maps, _map_bitmask, _mode_to_replace,	\
+			     _mode_to_check)				\
+	do {								\
+		if (((_maps)[(_mode_to_replace)]) & (_map_bitmask)) {	\
+			int _mode_to_use, _mode_complementary;		\
+			/* Use ULP0 if it doesn't need _map_bitmask. */	\
+			if (!((_maps)[AT91_PM_ULP0] & (_map_bitmask))) {\
+				_mode_to_use = AT91_PM_ULP0;		\
+				_mode_complementary = AT91_PM_STANDBY;	\
+			} else {					\
+				_mode_to_use = AT91_PM_STANDBY;		\
+				_mode_complementary = AT91_PM_STANDBY;	\
+			}						\
+									\
+			if ((_mode_to_check) != _mode_to_use)		\
+				(_mode_to_replace) = _mode_to_use;	\
+			else						\
+				(_mode_to_replace) = _mode_complementary;\
+		}							\
+	} while (0)
+
+/*
+ * Replaces standby and suspend modes with default supported modes:
+ * ULP0 and STANDBY.
+ * @_maps: u32 array indexed by AT91 PM mode containing AT91_PM_IOMAP()
+ * flags
+ * @_map: controller specific name; standby and suspend mode need to be
+ * replaced in order to not depend on this controller
+ */
+#define AT91_PM_REPLACE_MODES(_maps, _map)				\
+	do {								\
+		AT91_PM_REPLACE_MODE((_maps), BIT(AT91_PM_IOMAP_##_map),\
+				     (soc_pm.data.standby_mode),	\
+				     (soc_pm.data.suspend_mode));	\
+		AT91_PM_REPLACE_MODE((_maps), BIT(AT91_PM_IOMAP_##_map),\
+				     (soc_pm.data.suspend_mode),	\
+				     (soc_pm.data.standby_mode));	\
+	} while (0)
+
+static int __init at91_pm_get_eth_clks(struct device_node *np,
+				       struct clk_bulk_data *clks)
+{
+	clks[AT91_PM_ETH_PCLK].clk = of_clk_get_by_name(np, "pclk");
+	if (IS_ERR(clks[AT91_PM_ETH_PCLK].clk))
+		return PTR_ERR(clks[AT91_PM_ETH_PCLK].clk);
+
+	clks[AT91_PM_ETH_HCLK].clk = of_clk_get_by_name(np, "hclk");
+	if (IS_ERR(clks[AT91_PM_ETH_HCLK].clk))
+		return PTR_ERR(clks[AT91_PM_ETH_HCLK].clk);
+
+	return 0;
+}
+
+static int __init at91_pm_eth_clks_empty(struct clk_bulk_data *clks)
+{
+	return IS_ERR(clks[AT91_PM_ETH_PCLK].clk) ||
+	       IS_ERR(clks[AT91_PM_ETH_HCLK].clk);
+}
+
 static void __init at91_pm_modes_init(const u32 *maps, int len)
 {
+	struct at91_pm_quirk_eth *gmac = &soc_pm.quirks.eth[AT91_PM_G_ETH];
+	struct at91_pm_quirk_eth *emac = &soc_pm.quirks.eth[AT91_PM_E_ETH];
 	struct device_node *np;
-	int ret, mode;
+	int ret;
 
 	ret = at91_pm_backup_init();
 	if (ret) {
@@ -906,17 +1235,7 @@ static void __init at91_pm_modes_init(const u32 *maps, int len)
 		np = of_find_matching_node(NULL, atmel_shdwc_ids);
 		if (!np) {
 			pr_warn("%s: failed to find shdwc!\n", __func__);
-
-			/* Use ULP0 if it doesn't needs SHDWC.*/
-			if (!(maps[AT91_PM_ULP0] & AT91_PM_IOMAP(SHDWC)))
-				mode = AT91_PM_ULP0;
-			else
-				mode = AT91_PM_STANDBY;
-
-			if (maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(SHDWC))
-				soc_pm.data.standby_mode = mode;
-			if (maps[soc_pm.data.suspend_mode] & AT91_PM_IOMAP(SHDWC))
-				soc_pm.data.suspend_mode = mode;
+			AT91_PM_REPLACE_MODES(maps, SHDWC);
 		} else {
 			soc_pm.data.shdwc = of_iomap(np, 0);
 			of_node_put(np);
@@ -928,27 +1247,48 @@ static void __init at91_pm_modes_init(const u32 *maps, int len)
 		np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-sfrbu");
 		if (!np) {
 			pr_warn("%s: failed to find sfrbu!\n", __func__);
-
-			/*
-			 * Use ULP0 if it doesn't need SHDWC or if SHDWC
-			 * was already located.
-			 */
-			if (!(maps[AT91_PM_ULP0] & AT91_PM_IOMAP(SHDWC)) ||
-			    soc_pm.data.shdwc)
-				mode = AT91_PM_ULP0;
-			else
-				mode = AT91_PM_STANDBY;
-
-			if (maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(SFRBU))
-				soc_pm.data.standby_mode = mode;
-			if (maps[soc_pm.data.suspend_mode] & AT91_PM_IOMAP(SFRBU))
-				soc_pm.data.suspend_mode = mode;
+			AT91_PM_REPLACE_MODES(maps, SFRBU);
 		} else {
 			soc_pm.data.sfrbu = of_iomap(np, 0);
 			of_node_put(np);
 		}
 	}
 
+	if ((at91_is_pm_mode_active(AT91_PM_ULP1) ||
+	     at91_is_pm_mode_active(AT91_PM_ULP0) ||
+	     at91_is_pm_mode_active(AT91_PM_ULP0_FAST)) &&
+	    (maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(ETHC) ||
+	     maps[soc_pm.data.suspend_mode] & AT91_PM_IOMAP(ETHC))) {
+		np = of_find_matching_node(NULL, gmac_ids);
+		if (!np) {
+			np = of_find_matching_node(NULL, emac_ids);
+			if (np)
+				goto get_emac_clks;
+			AT91_PM_REPLACE_MODES(maps, ETHC);
+			goto unmap_unused_nodes;
+		} else {
+			gmac->np = np;
+			at91_pm_get_eth_clks(np, gmac->clks);
+		}
+
+		np = of_find_matching_node(NULL, emac_ids);
+		if (!np) {
+			if (at91_pm_eth_clks_empty(gmac->clks))
+				AT91_PM_REPLACE_MODES(maps, ETHC);
+		} else {
+get_emac_clks:
+			emac->np = np;
+			ret = at91_pm_get_eth_clks(np, emac->clks);
+			if (ret && at91_pm_eth_clks_empty(gmac->clks)) {
+				of_node_put(gmac->np);
+				of_node_put(emac->np);
+				gmac->np = NULL;
+				emac->np = NULL;
+			}
+		}
+	}
+
+unmap_unused_nodes:
 	/* Unmap all unnecessary. */
 	if (soc_pm.data.shdwc &&
 	    !(maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(SHDWC) ||
@@ -1184,17 +1524,30 @@ void __init sama5_pm_init(void)
 	static const int modes[] __initconst = {
 		AT91_PM_STANDBY, AT91_PM_ULP0, AT91_PM_ULP0_FAST,
 	};
+	static const u32 iomaps[] __initconst = {
+		[AT91_PM_ULP0]		= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP0_FAST]	= AT91_PM_IOMAP(ETHC),
+	};
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5))
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
+	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
 	ret = at91_dt_ramc(false);
 	if (ret)
 		return;
 
 	at91_pm_init(NULL);
+
+	/* Quirks applies to ULP0, ULP0 fast and ULP1 modes. */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP0) |
+						 BIT(AT91_PM_ULP0_FAST) |
+						 BIT(AT91_PM_ULP1);
+	/* Do not suspend in ULP0, ULP0 fast if GETH is the only wakeup source. */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0) |
+						     BIT(AT91_PM_ULP0_FAST);
 }
 
 void __init sama5d2_pm_init(void)
@@ -1204,7 +1557,10 @@ void __init sama5d2_pm_init(void)
 		AT91_PM_BACKUP,
 	};
 	static const u32 iomaps[] __initconst = {
-		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SHDWC),
+		[AT91_PM_ULP0]		= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP0_FAST]	= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SHDWC) |
+					  AT91_PM_IOMAP(ETHC),
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SHDWC) |
 					  AT91_PM_IOMAP(SFRBU),
 	};
@@ -1212,6 +1568,12 @@ void __init sama5d2_pm_init(void)
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
 		return;
+
+	if (IS_ENABLED(CONFIG_ATMEL_SECURE_PM)) {
+		pr_warn("AT91: Secure PM: ignoring standby mode\n");
+		at91_pm_secure_init();
+		return;
+	}
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
@@ -1229,6 +1591,17 @@ void __init sama5d2_pm_init(void)
 	soc_pm.sfrbu_regs.pswbu.ctrl = BIT(0);
 	soc_pm.sfrbu_regs.pswbu.softsw = BIT(1);
 	soc_pm.sfrbu_regs.pswbu.state = BIT(3);
+
+	/* Quirk applies to ULP0, ULP0 fast and ULP1 modes. */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP0) |
+						 BIT(AT91_PM_ULP0_FAST) |
+						 BIT(AT91_PM_ULP1);
+	/*
+	 * Do not suspend in ULP0, ULP0 fast if GETH is the only wakeup
+	 * source.
+	 */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0) |
+						     BIT(AT91_PM_ULP0_FAST);
 }
 
 void __init sama7_pm_init(void)
@@ -1239,7 +1612,8 @@ void __init sama7_pm_init(void)
 	static const u32 iomaps[] __initconst = {
 		[AT91_PM_ULP0]		= AT91_PM_IOMAP(SFRBU),
 		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SFRBU) |
-					  AT91_PM_IOMAP(SHDWC),
+					  AT91_PM_IOMAP(SHDWC) |
+					  AT91_PM_IOMAP(ETHC),
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SFRBU) |
 					  AT91_PM_IOMAP(SHDWC),
 	};
@@ -1264,6 +1638,10 @@ void __init sama7_pm_init(void)
 	soc_pm.sfrbu_regs.pswbu.ctrl = BIT(0);
 	soc_pm.sfrbu_regs.pswbu.softsw = BIT(1);
 	soc_pm.sfrbu_regs.pswbu.state = BIT(2);
+
+	/* Quirks applies to ULP1 for both Ethernet interfaces. */
+	soc_pm.quirks.eth[AT91_PM_E_ETH].modes = BIT(AT91_PM_ULP1);
+	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP1);
 }
 
 static int __init at91_pm_modes_select(char *str)

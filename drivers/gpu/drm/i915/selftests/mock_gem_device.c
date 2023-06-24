@@ -73,7 +73,7 @@ static void mock_device_release(struct drm_device *dev)
 	destroy_workqueue(i915->wq);
 
 	intel_region_ttm_device_fini(i915);
-	intel_gt_driver_late_release(to_gt(i915));
+	intel_gt_driver_late_release_all(i915);
 	intel_memory_regions_driver_release(i915);
 
 	drm_mode_config_cleanup(&i915->drm);
@@ -111,6 +111,12 @@ static struct dev_pm_domain pm_domain = {
 		.runtime_resume = pm_domain_resume,
 	},
 };
+
+static void mock_gt_probe(struct drm_i915_private *i915)
+{
+	i915->gt[0] = &i915->gt0;
+	i915->gt[0]->name = "Mock GT";
+}
 
 struct drm_i915_private *mock_gem_device(void)
 {
@@ -167,24 +173,24 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
 
-	mkwrite_device_info(i915)->graphics.ver = -1;
+	RUNTIME_INFO(i915)->graphics.ip.ver = -1;
 
-	mkwrite_device_info(i915)->page_sizes =
+	RUNTIME_INFO(i915)->page_sizes =
 		I915_GTT_PAGE_SIZE_4K |
 		I915_GTT_PAGE_SIZE_64K |
 		I915_GTT_PAGE_SIZE_2M;
 
-	mkwrite_device_info(i915)->memory_regions = REGION_SMEM;
+	RUNTIME_INFO(i915)->memory_regions = REGION_SMEM;
 	intel_memory_regions_hw_probe(i915);
 
 	spin_lock_init(&i915->gpu_error.lock);
 
 	i915_gem_init__mm(i915);
-	intel_gt_init_early(to_gt(i915), i915);
-	__intel_gt_init_early(to_gt(i915), i915);
+	intel_root_gt_init_early(i915);
 	mock_uncore_init(&i915->uncore, i915);
 	atomic_inc(&to_gt(i915)->wakeref.count); /* disable; no hw support */
 	to_gt(i915)->awake = -ENODEV;
+	mock_gt_probe(i915);
 
 	ret = intel_region_ttm_device_init(i915);
 	if (ret)
@@ -204,7 +210,7 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_init_ggtt(to_gt(i915));
 	to_gt(i915)->vm = i915_vm_get(&to_gt(i915)->ggtt->vm);
 
-	mkwrite_device_info(i915)->platform_engine_mask = BIT(0);
+	RUNTIME_INFO(i915)->platform_engine_mask = BIT(0);
 	to_gt(i915)->info.engine_mask = BIT(0);
 
 	to_gt(i915)->engine[RCS0] = mock_engine(i915, "mock", RCS0);
@@ -229,7 +235,7 @@ err_unlock:
 err_drv:
 	intel_region_ttm_device_fini(i915);
 err_ttm:
-	intel_gt_driver_late_release(to_gt(i915));
+	intel_gt_driver_late_release_all(i915);
 	intel_memory_regions_driver_release(i915);
 	drm_mode_config_cleanup(&i915->drm);
 	mock_destroy_device(i915);

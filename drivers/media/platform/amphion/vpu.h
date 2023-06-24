@@ -119,7 +119,6 @@ struct vpu_mbox {
 enum vpu_core_state {
 	VPU_CORE_DEINIT = 0,
 	VPU_CORE_ACTIVE,
-	VPU_CORE_SNAPSHOT,
 	VPU_CORE_HANG
 };
 
@@ -258,6 +257,7 @@ struct vpu_inst {
 	struct vpu_format cap_format;
 	u32 min_buffer_cap;
 	u32 min_buffer_out;
+	u32 total_input_count;
 
 	struct v4l2_rect crop;
 	u32 colorspace;

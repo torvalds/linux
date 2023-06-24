@@ -77,6 +77,7 @@
 
 /* Register bit fields for R-Car VIN */
 /* Video n Main Control Register bits */
+#define VNMC_INF_MASK		(7 << 16)
 #define VNMC_DPINE		(1 << 27) /* Gen3 specific */
 #define VNMC_SCLE		(1 << 26) /* Gen3 specific */
 #define VNMC_FOC		(1 << 21)
@@ -88,6 +89,7 @@
 #define VNMC_INF_RAW8		(4 << 16)
 #define VNMC_INF_YUV16		(5 << 16)
 #define VNMC_INF_RGB888		(6 << 16)
+#define VNMC_INF_RGB666		(7 << 16)
 #define VNMC_VUP		(1 << 10)
 #define VNMC_IM_ODD		(0 << 3)
 #define VNMC_IM_ODD_EVEN	(1 << 3)
@@ -707,6 +709,29 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	}
 
+	/* Make sure input interface and input format is valid. */
+	if (vin->info->model == RCAR_GEN3) {
+		switch (vnmc & VNMC_INF_MASK) {
+		case VNMC_INF_YUV8_BT656:
+		case VNMC_INF_YUV10_BT656:
+		case VNMC_INF_YUV16:
+		case VNMC_INF_RGB666:
+			if (vin->is_csi) {
+				vin_err(vin, "Invalid setting in MIPI CSI2\n");
+				return -EINVAL;
+			}
+			break;
+		case VNMC_INF_RAW8:
+			if (!vin->is_csi) {
+				vin_err(vin, "Invalid setting in Digital Pins\n");
+				return -EINVAL;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	/* Enable VSYNC Field Toggle mode after one VSYNC input */
 	if (vin->info->model == RCAR_GEN3)
 		dmr2 = VNDMR2_FTEV;
@@ -1219,8 +1244,6 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 
 static int rvin_set_stream(struct rvin_dev *vin, int on)
 {
-	struct media_pipeline *pipe;
-	struct media_device *mdev;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
 	int ret;
@@ -1233,14 +1256,14 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 		return ret == -ENOIOCTLCMD ? 0 : ret;
 	}
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
 	if (!on) {
-		media_pipeline_stop(&vin->vdev.entity);
+		video_device_pipeline_stop(&vin->vdev);
 		return v4l2_subdev_call(sd, video, s_stream, 0);
 	}
 
@@ -1248,17 +1271,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	if (ret)
 		return ret;
 
-	/*
-	 * The graph lock needs to be taken to protect concurrent
-	 * starts of multiple VIN instances as they might share
-	 * a common subdevice down the line and then should use
-	 * the same pipe.
-	 */
-	mdev = vin->vdev.entity.graph_obj.mdev;
-	mutex_lock(&mdev->graph_mutex);
-	pipe = sd->entity.pipe ? sd->entity.pipe : &vin->vdev.pipe;
-	ret = __media_pipeline_start(&vin->vdev.entity, pipe);
-	mutex_unlock(&mdev->graph_mutex);
+	ret = video_device_pipeline_alloc_start(&vin->vdev);
 	if (ret)
 		return ret;
 
@@ -1266,7 +1279,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	if (ret == -ENOIOCTLCMD)
 		ret = 0;
 	if (ret)
-		media_pipeline_stop(&vin->vdev.entity);
+		video_device_pipeline_stop(&vin->vdev);
 
 	return ret;
 }

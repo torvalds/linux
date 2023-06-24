@@ -1300,8 +1300,8 @@ static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 			IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
 			IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_RC_RNR_NAK_GEN |
 			IB_DEVICE_PORT_ACTIVE_EVENT | IB_DEVICE_SRQ_RESIZE |
-			IB_DEVICE_MEM_MGT_EXTENSIONS |
-			IB_DEVICE_RDMA_NETDEV_OPA;
+			IB_DEVICE_MEM_MGT_EXTENSIONS;
+	rdi->dparms.props.kernel_cap_flags = IBK_RDMA_NETDEV_OPA;
 	rdi->dparms.props.page_size_cap = PAGE_SIZE;
 	rdi->dparms.props.vendor_id = dd->oui1 << 16 | dd->oui2 << 8 | dd->oui3;
 	rdi->dparms.props.vendor_part_id = dd->pcidev->device;
@@ -1447,12 +1447,10 @@ static int shut_down_port(struct rvt_dev_info *rdi, u32 port_num)
 	struct hfi1_ibdev *verbs_dev = dev_from_rdi(rdi);
 	struct hfi1_devdata *dd = dd_from_dev(verbs_dev);
 	struct hfi1_pportdata *ppd = &dd->pport[port_num - 1];
-	int ret;
 
 	set_link_down_reason(ppd, OPA_LINKDOWN_REASON_UNKNOWN, 0,
 			     OPA_LINKDOWN_REASON_UNKNOWN);
-	ret = set_link_state(ppd, HLS_DN_DOWNDEF);
-	return ret;
+	return set_link_state(ppd, HLS_DN_DOWNDEF);
 }
 
 static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
@@ -1801,7 +1799,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	ib_set_device_ops(ibdev, &hfi1_dev_ops);
 
-	strlcpy(ibdev->node_desc, init_utsname()->nodename,
+	strscpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
 
 	/*

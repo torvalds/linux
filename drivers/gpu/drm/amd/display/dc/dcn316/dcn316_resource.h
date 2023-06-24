@@ -31,6 +31,8 @@
 #define TO_DCN316_RES_POOL(pool)\
 	container_of(pool, struct dcn316_resource_pool, base)
 
+extern struct _vcs_dpi_ip_params_st dcn3_16_ip;
+
 struct dcn316_resource_pool {
 	struct resource_pool base;
 };

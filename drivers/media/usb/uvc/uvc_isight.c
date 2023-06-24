@@ -14,7 +14,8 @@
 
 #include "uvcvideo.h"
 
-/* Built-in iSight webcams implements most of UVC 1.0 except a
+/*
+ * Built-in iSight webcams implements most of UVC 1.0 except a
  * different packet format. Instead of sending a header at the
  * beginning of each isochronous transfer payload, the webcam sends a
  * single header per image (on its own in a packet), followed by
@@ -65,7 +66,8 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 		buf->state = UVC_BUF_STATE_ACTIVE;
 	}
 
-	/* Mark the buffer as done if we're at the beginning of a new frame.
+	/*
+	 * Mark the buffer as done if we're at the beginning of a new frame.
 	 *
 	 * Empty buffers (bytesused == 0) don't trigger end of frame detection
 	 * as it doesn't make sense to return an empty buffer.
@@ -75,7 +77,8 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 		return -EAGAIN;
 	}
 
-	/* Copy the video data to the buffer. Skip header packets, as they
+	/*
+	 * Copy the video data to the buffer. Skip header packets, as they
 	 * contain no data.
 	 */
 	if (!is_header) {
@@ -109,7 +112,9 @@ void uvc_video_decode_isight(struct uvc_urb *uvc_urb, struct uvc_buffer *buf,
 				urb->iso_frame_desc[i].status);
 		}
 
-		/* Decode the payload packet.
+		/*
+		 * Decode the payload packet.
+		 *
 		 * uvc_video_decode is entered twice when a frame transition
 		 * has been detected because the end of frame can only be
 		 * reliably detected when the first packet of the new frame

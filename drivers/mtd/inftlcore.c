@@ -136,7 +136,7 @@ static void inftl_remove_dev(struct mtd_blktrans_dev *dev)
 int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		   size_t *retlen, uint8_t *buf)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -156,7 +156,7 @@ int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		    size_t *retlen, uint8_t *buf)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -176,7 +176,7 @@ int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 static int inftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 		       size_t *retlen, uint8_t *buf, uint8_t *oob)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;

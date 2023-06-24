@@ -348,6 +348,7 @@ struct gdma_context {
 	struct completion	eq_test_event;
 	u32			test_event_eq_id;
 
+	bool			is_pf;
 	void __iomem		*bar0_va;
 	void __iomem		*shm_base;
 	void __iomem		*db_page_base;
@@ -469,6 +470,15 @@ struct gdma_eqe {
 #define GDMA_REG_DB_PAGE_SIZE	0x10
 #define GDMA_REG_SHM_OFFSET	0x18
 
+#define GDMA_PF_REG_DB_PAGE_SIZE	0xD0
+#define GDMA_PF_REG_DB_PAGE_OFF		0xC8
+#define GDMA_PF_REG_SHM_OFF		0x70
+
+#define GDMA_SRIOV_REG_CFG_BASE_OFF	0x108
+
+#define MANA_PF_DEVICE_ID 0x00B9
+#define MANA_VF_DEVICE_ID 0x00BA
+
 struct gdma_posted_wqe_info {
 	u32 wqe_size_in_bu;
 };
@@ -488,7 +498,14 @@ enum {
 
 #define GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT BIT(0)
 
-#define GDMA_DRV_CAP_FLAGS1 GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT
+/* Advertise to the NIC firmware: the NAPI work_done variable race is fixed,
+ * so the driver is able to reliably support features like busy_poll.
+ */
+#define GDMA_DRV_CAP_FLAG_1_NAPI_WKDONE_FIX BIT(2)
+
+#define GDMA_DRV_CAP_FLAGS1 \
+	(GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT | \
+	 GDMA_DRV_CAP_FLAG_1_NAPI_WKDONE_FIX)
 
 #define GDMA_DRV_CAP_FLAGS2 0
 

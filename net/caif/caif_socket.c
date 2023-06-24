@@ -47,7 +47,7 @@ enum caif_states {
 struct caifsock {
 	struct sock sk; /* must be first member */
 	struct cflayer layer;
-	u32 flow_state;
+	unsigned long flow_state;
 	struct caif_connect_request conn_req;
 	struct mutex readlock;
 	struct dentry *debugfs_socket_dir;
@@ -56,38 +56,32 @@ struct caifsock {
 
 static int rx_flow_is_on(struct caifsock *cf_sk)
 {
-	return test_bit(RX_FLOW_ON_BIT,
-			(void *) &cf_sk->flow_state);
+	return test_bit(RX_FLOW_ON_BIT, &cf_sk->flow_state);
 }
 
 static int tx_flow_is_on(struct caifsock *cf_sk)
 {
-	return test_bit(TX_FLOW_ON_BIT,
-			(void *) &cf_sk->flow_state);
+	return test_bit(TX_FLOW_ON_BIT, &cf_sk->flow_state);
 }
 
 static void set_rx_flow_off(struct caifsock *cf_sk)
 {
-	 clear_bit(RX_FLOW_ON_BIT,
-		 (void *) &cf_sk->flow_state);
+	clear_bit(RX_FLOW_ON_BIT, &cf_sk->flow_state);
 }
 
 static void set_rx_flow_on(struct caifsock *cf_sk)
 {
-	 set_bit(RX_FLOW_ON_BIT,
-			(void *) &cf_sk->flow_state);
+	set_bit(RX_FLOW_ON_BIT, &cf_sk->flow_state);
 }
 
 static void set_tx_flow_off(struct caifsock *cf_sk)
 {
-	 clear_bit(TX_FLOW_ON_BIT,
-		(void *) &cf_sk->flow_state);
+	clear_bit(TX_FLOW_ON_BIT, &cf_sk->flow_state);
 }
 
 static void set_tx_flow_on(struct caifsock *cf_sk)
 {
-	 set_bit(TX_FLOW_ON_BIT,
-		(void *) &cf_sk->flow_state);
+	set_bit(TX_FLOW_ON_BIT, &cf_sk->flow_state);
 }
 
 static void caif_read_lock(struct sock *sk)
@@ -282,7 +276,7 @@ static int caif_seqpkt_recvmsg(struct socket *sock, struct msghdr *m,
 	if (flags & MSG_OOB)
 		goto read_error;
 
-	skb = skb_recv_datagram(sk, flags, 0 , &ret);
+	skb = skb_recv_datagram(sk, flags, &ret);
 	if (!skb)
 		goto read_error;
 	copylen = skb->len;

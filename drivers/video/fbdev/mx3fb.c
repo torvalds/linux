@@ -26,7 +26,7 @@
 #include <linux/dma/ipu-dma.h>
 #include <linux/backlight.h>
 
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 #include <linux/platform_data/video-mx3fb.h>
 
 #include <asm/io.h>

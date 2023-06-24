@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <stdbool.h>
-#include <stddef.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-struct task_struct;
-
-SEC("fentry/__set_task_comm")
-int BPF_PROG(prog1, struct task_struct *tsk, const char *buf, bool exec)
+SEC("fentry/bpf_modify_return_test")
+int BPF_PROG(fentry_test, int a, int *b)
 {
 	return 0;
 }
 
-SEC("fexit/__set_task_comm")
-int BPF_PROG(prog2, struct task_struct *tsk, const char *buf, bool exec)
+SEC("fmod_ret/bpf_modify_return_test")
+int BPF_PROG(fmod_ret_test, int a, int *b, int ret)
+{
+	return 0;
+}
+
+SEC("fexit/bpf_modify_return_test")
+int BPF_PROG(fexit_test, int a, int *b, int ret)
 {
 	return 0;
 }

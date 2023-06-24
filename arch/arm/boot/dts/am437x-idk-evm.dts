@@ -98,14 +98,12 @@
 		vin-supply = <&v1_5dreg>;
 	};
 
-	gpio_keys: gpio_keys {
+	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pins_default>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		switch0 {
+		switch-0 {
 			label = "power-button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
@@ -437,7 +435,7 @@
 	pinctrl-1 = <&qspi_pins_sleep>;
 
 	spi-max-frequency = <48000000>;
-	m25p80@0 {
+	flash@0 {
 		compatible = "mx66l51235l";
 		spi-max-frequency = <48000000>;
 		reg = <0>;

@@ -165,7 +165,7 @@ no_valid_dev_replace_entry_found:
 		 */
 		if (btrfs_find_device(fs_info->fs_devices, &args)) {
 			btrfs_err(fs_info,
-			"replace devid present without an active replace item");
+"replace without active item, run 'device scan --forget' on the target device");
 			ret = -EUCLEAN;
 		} else {
 			dev_replace->srcdev = NULL;
@@ -474,6 +474,7 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 	struct btrfs_dev_extent *dev_extent = NULL;
 	struct btrfs_block_group *cache;
 	struct btrfs_trans_handle *trans;
+	int iter_ret = 0;
 	int ret = 0;
 	u64 chunk_offset;
 
@@ -524,29 +525,8 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 	key.type = BTRFS_DEV_EXTENT_KEY;
 	key.offset = 0;
 
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto free_path;
-	if (ret > 0) {
-		if (path->slots[0] >=
-		    btrfs_header_nritems(path->nodes[0])) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0)
-				goto free_path;
-			if (ret > 0) {
-				ret = 0;
-				goto free_path;
-			}
-		} else {
-			ret = 0;
-		}
-	}
-
-	while (1) {
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		struct extent_buffer *leaf = path->nodes[0];
-		int slot = path->slots[0];
-
-		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
 		if (found_key.objectid != src_dev->devid)
 			break;
@@ -557,30 +537,20 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 		if (found_key.offset < key.offset)
 			break;
 
-		dev_extent = btrfs_item_ptr(leaf, slot, struct btrfs_dev_extent);
+		dev_extent = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_dev_extent);
 
 		chunk_offset = btrfs_dev_extent_chunk_offset(leaf, dev_extent);
 
 		cache = btrfs_lookup_block_group(fs_info, chunk_offset);
 		if (!cache)
-			goto skip;
+			continue;
 
-		spin_lock(&cache->lock);
-		cache->to_copy = 1;
-		spin_unlock(&cache->lock);
-
+		set_bit(BLOCK_GROUP_FLAG_TO_COPY, &cache->runtime_flags);
 		btrfs_put_block_group(cache);
-
-skip:
-		ret = btrfs_next_item(root, path);
-		if (ret != 0) {
-			if (ret > 0)
-				ret = 0;
-			break;
-		}
 	}
+	if (iter_ret < 0)
+		ret = iter_ret;
 
-free_path:
 	btrfs_free_path(path);
 unlock:
 	mutex_unlock(&fs_info->chunk_mutex);
@@ -604,7 +574,7 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 		return true;
 
 	spin_lock(&cache->lock);
-	if (cache->removed) {
+	if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &cache->runtime_flags)) {
 		spin_unlock(&cache->lock);
 		return true;
 	}
@@ -614,7 +584,8 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 	ASSERT(!IS_ERR(em));
 	map = em->map_lookup;
 
-	num_extents = cur_extent = 0;
+	num_extents = 0;
+	cur_extent = 0;
 	for (i = 0; i < map->num_stripes; i++) {
 		/* We have more device extent to copy */
 		if (srcdev != map->stripes[i].dev)
@@ -636,9 +607,7 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 	}
 
 	/* Last stripe on this device */
-	spin_lock(&cache->lock);
-	cache->to_copy = 0;
-	spin_unlock(&cache->lock);
+	clear_bit(BLOCK_GROUP_FLAG_TO_COPY, &cache->runtime_flags);
 
 	return true;
 }
@@ -881,6 +850,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				       int scrub_ret)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *tgt_device;
 	struct btrfs_device *src_device;
 	struct btrfs_root *root = fs_info->tree_root;
@@ -930,12 +900,12 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		WARN_ON(ret);
 
 		/* Prevent write_all_supers() during the finishing procedure */
-		mutex_lock(&fs_info->fs_devices->device_list_mutex);
+		mutex_lock(&fs_devices->device_list_mutex);
 		/* Prevent new chunks being allocated on the source device */
 		mutex_lock(&fs_info->chunk_mutex);
 
 		if (!list_empty(&src_device->post_commit_list)) {
-			mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+			mutex_unlock(&fs_devices->device_list_mutex);
 			mutex_unlock(&fs_info->chunk_mutex);
 		} else {
 			break;
@@ -972,7 +942,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 error:
 		up_write(&dev_replace->rwsem);
 		mutex_unlock(&fs_info->chunk_mutex);
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+		mutex_unlock(&fs_devices->device_list_mutex);
 		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
 			btrfs_destroy_dev_replace_tgtdev(tgt_device);
@@ -1001,8 +971,8 @@ error:
 
 	btrfs_assign_next_active_device(src_device, tgt_device);
 
-	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
-	fs_info->fs_devices->rw_devices++;
+	list_add(&tgt_device->dev_alloc_list, &fs_devices->alloc_list);
+	fs_devices->rw_devices++;
 
 	up_write(&dev_replace->rwsem);
 	btrfs_rm_dev_replace_blocked(fs_info);
@@ -1025,7 +995,7 @@ error:
 	 * belong to this filesystem.
 	 */
 	mutex_unlock(&fs_info->chunk_mutex);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	/* replace the sysfs entry */
 	btrfs_sysfs_remove_device(src_device);
@@ -1154,8 +1124,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		up_write(&dev_replace->rwsem);
 
 		/* Scrub for replace must not be running in suspended state */
-		ret = btrfs_scrub_cancel(fs_info);
-		ASSERT(ret != -ENOTCONN);
+		btrfs_scrub_cancel(fs_info);
 
 		trans = btrfs_start_transaction(root, 0);
 		if (IS_ERR(trans)) {
@@ -1312,11 +1281,6 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 		break;
 	}
 	return 1;
-}
-
-void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
-{
-	percpu_counter_inc(&fs_info->dev_replace.bio_counter);
 }
 
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)

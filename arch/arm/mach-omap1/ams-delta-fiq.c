@@ -21,7 +21,9 @@
 #include <linux/platform_device.h>
 
 #include <asm/fiq.h>
+#include <linux/soc/ti/omap1-io.h>
 
+#include "hardware.h"
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"
 

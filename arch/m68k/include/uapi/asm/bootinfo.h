@@ -34,7 +34,7 @@
 struct bi_record {
 	__be16 tag;			/* tag ID */
 	__be16 size;			/* size of record (in bytes) */
-	__be32 data[0];			/* data */
+	__be32 data[];			/* data */
 };
 
 
@@ -64,6 +64,13 @@ struct mem_info {
 					/* (struct mem_info) */
 #define BI_COMMAND_LINE		0x0007	/* kernel command line parameters */
 					/* (string) */
+/*
+ * A random seed used to initialize the RNG. Record format:
+ *
+ *   - length       [ 2 bytes, 16-bit big endian ]
+ *   - seed data    [ `length` bytes, padded to preserve 4-byte struct alignment ]
+ */
+#define BI_RNG_SEED		0x0008
 
 
     /*
@@ -83,6 +90,7 @@ struct mem_info {
 #define MACH_SUN3X		11
 #define MACH_M54XX		12
 #define MACH_M5441X		13
+#define MACH_VIRT		14
 
 
     /*
@@ -167,7 +175,7 @@ struct bootversion {
 	struct {
 		__be32 machtype;
 		__be32 version;
-	} machversions[0];
+	} machversions[];
 } __packed;
 
 #endif /* __ASSEMBLY__ */

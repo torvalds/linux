@@ -105,14 +105,20 @@
 			interrupts = <2>, <3>;
 		};
 
-		wdt: watchdog@1000009c {
-			compatible = "brcm,bcm7038-wdt";
-			reg = <0x1000009c 0xc>;
+		timer-mfd@10000080 {
+			compatible = "brcm,bcm7038-twd", "simple-mfd", "syscon";
+			reg = <0x10000080 0x30>;
+			ranges = <0x0 0x10000080 0x30>;
 
-			clocks = <&periph_osc>;
-			clock-names = "refclk";
+			wdt: watchdog@1c {
+				compatible = "brcm,bcm7038-wdt";
+				reg = <0x1c 0xc>;
 
-			timeout-sec = <30>;
+				clocks = <&periph_osc>;
+				clock-names = "refclk";
+
+				timeout-sec = <30>;
+			};
 		};
 
 		uart0: serial@10000180 {

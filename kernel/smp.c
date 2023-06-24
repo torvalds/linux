@@ -96,7 +96,7 @@ static DEFINE_PER_CPU_ALIGNED(struct call_function_data, cfd_data);
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct llist_head, call_single_queue);
 
-static void flush_smp_call_function_queue(bool warn_cpu_offline);
+static void __flush_smp_call_function_queue(bool warn_cpu_offline);
 
 int smpcfd_prepare_cpu(unsigned int cpu)
 {
@@ -141,7 +141,7 @@ int smpcfd_dying_cpu(unsigned int cpu)
 	 * ensure that the outgoing CPU doesn't go offline with work
 	 * still pending.
 	 */
-	flush_smp_call_function_queue(false);
+	__flush_smp_call_function_queue(false);
 	irq_work_run();
 	return 0;
 }
@@ -174,16 +174,18 @@ static int __init csdlock_debug(char *str)
 	if (val)
 		static_branch_enable(&csdlock_debug_enabled);
 
-	return 0;
+	return 1;
 }
-early_param("csdlock_debug", csdlock_debug);
+__setup("csdlock_debug=", csdlock_debug);
 
 static DEFINE_PER_CPU(call_single_data_t *, cur_csd);
 static DEFINE_PER_CPU(smp_call_func_t, cur_csd_func);
 static DEFINE_PER_CPU(void *, cur_csd_info);
 static DEFINE_PER_CPU(struct cfd_seq_local, cfd_seq_local);
 
-#define CSD_LOCK_TIMEOUT (5ULL * NSEC_PER_SEC)
+static ulong csd_lock_timeout = 5000;  /* CSD lock timeout in milliseconds. */
+module_param(csd_lock_timeout, ulong, 0444);
+
 static atomic_t csd_bug_count = ATOMIC_INIT(0);
 static u64 cfd_seq;
 
@@ -329,6 +331,7 @@ static bool csd_lock_wait_toolong(struct __call_single_data *csd, u64 ts0, u64 *
 	u64 ts2, ts_delta;
 	call_single_data_t *cpu_cur_csd;
 	unsigned int flags = READ_ONCE(csd->node.u_flags);
+	unsigned long long csd_lock_timeout_ns = csd_lock_timeout * NSEC_PER_MSEC;
 
 	if (!(flags & CSD_FLAG_LOCK)) {
 		if (!unlikely(*bug_id))
@@ -341,7 +344,7 @@ static bool csd_lock_wait_toolong(struct __call_single_data *csd, u64 ts0, u64 *
 
 	ts2 = sched_clock();
 	ts_delta = ts2 - *ts1;
-	if (likely(ts_delta <= CSD_LOCK_TIMEOUT))
+	if (likely(ts_delta <= csd_lock_timeout_ns || csd_lock_timeout_ns == 0))
 		return false;
 
 	firsttime = !*bug_id;
@@ -367,8 +370,7 @@ static bool csd_lock_wait_toolong(struct __call_single_data *csd, u64 ts0, u64 *
 	if (cpu >= 0) {
 		if (static_branch_unlikely(&csdlock_debug_extended))
 			csd_lock_print_extended(csd, cpu);
-		if (!trigger_single_cpu_backtrace(cpu))
-			dump_cpu_task(cpu);
+		dump_cpu_task(cpu);
 		if (!cpu_cur_csd) {
 			pr_alert("csd: Re-sending CSD lock (#%d) IPI from CPU#%02d to CPU#%02d\n", *bug_id, raw_smp_processor_id(), cpu);
 			arch_send_call_function_single_ipi(cpu);
@@ -541,11 +543,11 @@ void generic_smp_call_function_single_interrupt(void)
 {
 	cfd_seq_store(this_cpu_ptr(&cfd_seq_local)->gotipi, CFD_SEQ_NOCPU,
 		      smp_processor_id(), CFD_SEQ_GOTIPI);
-	flush_smp_call_function_queue(true);
+	__flush_smp_call_function_queue(true);
 }
 
 /**
- * flush_smp_call_function_queue - Flush pending smp-call-function callbacks
+ * __flush_smp_call_function_queue - Flush pending smp-call-function callbacks
  *
  * @warn_cpu_offline: If set to 'true', warn if callbacks were queued on an
  *		      offline CPU. Skip this check if set to 'false'.
@@ -558,7 +560,7 @@ void generic_smp_call_function_single_interrupt(void)
  * Loop through the call_single_queue and run all the queued callbacks.
  * Must be called with interrupts disabled.
  */
-static void flush_smp_call_function_queue(bool warn_cpu_offline)
+static void __flush_smp_call_function_queue(bool warn_cpu_offline)
 {
 	call_single_data_t *csd, *csd_next;
 	struct llist_node *entry, *prev;
@@ -681,8 +683,22 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 		      smp_processor_id(), CFD_SEQ_HDLEND);
 }
 
-void flush_smp_call_function_from_idle(void)
+
+/**
+ * flush_smp_call_function_queue - Flush pending smp-call-function callbacks
+ *				   from task context (idle, migration thread)
+ *
+ * When TIF_POLLING_NRFLAG is supported and a CPU is in idle and has it
+ * set, then remote CPUs can avoid sending IPIs and wake the idle CPU by
+ * setting TIF_NEED_RESCHED. The idle task on the woken up CPU has to
+ * handle queued SMP function calls before scheduling.
+ *
+ * The migration thread has to ensure that an eventually pending wakeup has
+ * been handled before it migrates a task.
+ */
+void flush_smp_call_function_queue(void)
 {
+	unsigned int was_pending;
 	unsigned long flags;
 
 	if (llist_empty(this_cpu_ptr(&call_single_queue)))
@@ -691,9 +707,11 @@ void flush_smp_call_function_from_idle(void)
 	cfd_seq_store(this_cpu_ptr(&cfd_seq_local)->idle, CFD_SEQ_NOCPU,
 		      smp_processor_id(), CFD_SEQ_IDLE);
 	local_irq_save(flags);
-	flush_smp_call_function_queue(true);
+	/* Get the already pending soft interrupts for RT enabled kernels */
+	was_pending = local_softirq_pending();
+	__flush_smp_call_function_queue(true);
 	if (local_softirq_pending())
-		do_softirq();
+		do_softirq_post_smp_call_flush(was_pending);
 
 	local_irq_restore(flags);
 }
@@ -1051,7 +1069,7 @@ static int __init nrcpus(char *str)
 	int nr_cpus;
 
 	if (get_option(&str, &nr_cpus) && nr_cpus > 0 && nr_cpus < nr_cpu_ids)
-		nr_cpu_ids = nr_cpus;
+		set_nr_cpu_ids(nr_cpus);
 
 	return 0;
 }
@@ -1069,14 +1087,16 @@ static int __init maxcpus(char *str)
 
 early_param("maxcpus", maxcpus);
 
+#if (NR_CPUS > 1) && !defined(CONFIG_FORCE_NR_CPUS)
 /* Setup number of possible processor ids */
 unsigned int nr_cpu_ids __read_mostly = NR_CPUS;
 EXPORT_SYMBOL(nr_cpu_ids);
+#endif
 
 /* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
 void __init setup_nr_cpu_ids(void)
 {
-	nr_cpu_ids = find_last_bit(cpumask_bits(cpu_possible_mask),NR_CPUS) + 1;
+	set_nr_cpu_ids(find_last_bit(cpumask_bits(cpu_possible_mask), NR_CPUS) + 1);
 }
 
 /* Called by boot processor to activate the rest. */

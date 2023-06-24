@@ -826,7 +826,7 @@ static int mos77xx_calc_num_ports(struct usb_serial *serial,
 		/*
 		 * The 7715 uses the first bulk in/out endpoint pair for the
 		 * parallel port, and the second for the serial port. We swap
-		 * the endpoint descriptors here so that the the first and
+		 * the endpoint descriptors here so that the first and
 		 * only registered port structure uses the serial-port
 		 * endpoints.
 		 */
@@ -1356,7 +1356,7 @@ static int send_cmd_write_baud_rate(struct moschip_port *mos7720_port,
  */
 static void change_port_settings(struct tty_struct *tty,
 				 struct moschip_port *mos7720_port,
-				 struct ktermios *old_termios)
+				 const struct ktermios *old_termios)
 {
 	struct usb_serial_port *port;
 	struct usb_serial *serial;
@@ -1494,7 +1494,8 @@ static void change_port_settings(struct tty_struct *tty,
  *	termios structure.
  */
 static void mos7720_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				struct usb_serial_port *port,
+				const struct ktermios *old_termios)
 {
 	int status;
 	struct moschip_port *mos7720_port;

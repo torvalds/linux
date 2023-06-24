@@ -31,7 +31,6 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <asm/mach/arch.h>
@@ -208,7 +207,7 @@ static struct spi_board_info littleton_spi_devices[] __initdata = {
 };
 
 static struct gpiod_lookup_table littleton_spi_gpio_table = {
-	.dev_id = "pxa2xx-spi.2",
+	.dev_id = "spi2",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", LITTLETON_GPIO_LCD_CS, "cs", 0, GPIO_ACTIVE_LOW),
 		{ },

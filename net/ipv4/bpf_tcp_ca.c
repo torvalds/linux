@@ -14,18 +14,6 @@
 /* "extern" is to avoid sparse warning.  It is only used in bpf_struct_ops.c. */
 extern struct bpf_struct_ops bpf_tcp_congestion_ops;
 
-static u32 optional_ops[] = {
-	offsetof(struct tcp_congestion_ops, init),
-	offsetof(struct tcp_congestion_ops, release),
-	offsetof(struct tcp_congestion_ops, set_state),
-	offsetof(struct tcp_congestion_ops, cwnd_event),
-	offsetof(struct tcp_congestion_ops, in_ack_event),
-	offsetof(struct tcp_congestion_ops, pkts_acked),
-	offsetof(struct tcp_congestion_ops, min_tso_segs),
-	offsetof(struct tcp_congestion_ops, sndbuf_expand),
-	offsetof(struct tcp_congestion_ops, cong_control),
-};
-
 static u32 unsupported_ops[] = {
 	offsetof(struct tcp_congestion_ops, get_info),
 };
@@ -49,18 +37,6 @@ static int bpf_tcp_ca_init(struct btf *btf)
 	tcp_sock_type = btf_type_by_id(btf, tcp_sock_id);
 
 	return 0;
-}
-
-static bool is_optional(u32 member_offset)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(optional_ops); i++) {
-		if (member_offset == optional_ops[i])
-			return true;
-	}
-
-	return false;
 }
 
 static bool is_unsupported(u32 member_offset)
@@ -111,6 +87,12 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 	}
 
 	switch (off) {
+	case offsetof(struct sock, sk_pacing_rate):
+		end = offsetofend(struct sock, sk_pacing_rate);
+		break;
+	case offsetof(struct sock, sk_pacing_status):
+		end = offsetofend(struct sock, sk_pacing_status);
+		break;
 	case bpf_ctx_range(struct inet_connection_sock, icsk_ca_priv):
 		end = offsetofend(struct inet_connection_sock, icsk_ca_priv);
 		break;
@@ -142,7 +124,7 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 		return -EACCES;
 	}
 
-	return NOT_INIT;
+	return 0;
 }
 
 BPF_CALL_2(bpf_tcp_send_ack, struct tcp_sock *, tp, u32, rcv_nxt)
@@ -215,17 +197,17 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	}
 }
 
-BTF_SET_START(bpf_tcp_ca_check_kfunc_ids)
-BTF_ID(func, tcp_reno_ssthresh)
-BTF_ID(func, tcp_reno_cong_avoid)
-BTF_ID(func, tcp_reno_undo_cwnd)
-BTF_ID(func, tcp_slow_start)
-BTF_ID(func, tcp_cong_avoid_ai)
-BTF_SET_END(bpf_tcp_ca_check_kfunc_ids)
+BTF_SET8_START(bpf_tcp_ca_check_kfunc_ids)
+BTF_ID_FLAGS(func, tcp_reno_ssthresh)
+BTF_ID_FLAGS(func, tcp_reno_cong_avoid)
+BTF_ID_FLAGS(func, tcp_reno_undo_cwnd)
+BTF_ID_FLAGS(func, tcp_slow_start)
+BTF_ID_FLAGS(func, tcp_cong_avoid_ai)
+BTF_SET8_END(bpf_tcp_ca_check_kfunc_ids)
 
 static const struct btf_kfunc_id_set bpf_tcp_ca_kfunc_set = {
-	.owner     = THIS_MODULE,
-	.check_set = &bpf_tcp_ca_check_kfunc_ids,
+	.owner = THIS_MODULE,
+	.set   = &bpf_tcp_ca_check_kfunc_ids,
 };
 
 static const struct bpf_verifier_ops bpf_tcp_ca_verifier_ops = {
@@ -240,7 +222,6 @@ static int bpf_tcp_ca_init_member(const struct btf_type *t,
 {
 	const struct tcp_congestion_ops *utcp_ca;
 	struct tcp_congestion_ops *tcp_ca;
-	int prog_fd;
 	u32 moff;
 
 	utcp_ca = (const struct tcp_congestion_ops *)udata;
@@ -261,14 +242,6 @@ static int bpf_tcp_ca_init_member(const struct btf_type *t,
 			return -EEXIST;
 		return 1;
 	}
-
-	if (!btf_type_resolve_func_ptr(btf_vmlinux, member->type, NULL))
-		return 0;
-
-	/* Ensure bpf_prog is provided for compulsory func ptr */
-	prog_fd = (int)(*(unsigned long *)(udata + moff));
-	if (!prog_fd && !is_optional(moff) && !is_unsupported(moff))
-		return -EINVAL;
 
 	return 0;
 }

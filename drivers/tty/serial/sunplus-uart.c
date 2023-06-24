@@ -333,7 +333,7 @@ static void sunplus_shutdown(struct uart_port *port)
 
 static void sunplus_set_termios(struct uart_port *port,
 				struct ktermios *termios,
-				struct ktermios *oldtermios)
+				const struct ktermios *oldtermios)
 {
 	u32 ext, div, div_l, div_h, baud, lcr;
 	u32 clk = port->uartclk;
@@ -498,7 +498,7 @@ static const struct uart_ops sunplus_uart_ops = {
 };
 
 #ifdef CONFIG_SERIAL_SUNPLUS_CONSOLE
-struct sunplus_uart_port *sunplus_console_ports[SUP_UART_NR];
+static struct sunplus_uart_port *sunplus_console_ports[SUP_UART_NR];
 
 static void sunplus_uart_console_putchar(struct uart_port *port,
 					 unsigned char ch)

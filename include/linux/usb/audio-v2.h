@@ -2,9 +2,6 @@
 /*
  * Copyright (c) 2010 Daniel Mack <daniel@caiaq.de>
  *
- * This software is distributed under the terms of the GNU General Public
- * License ("GPL") version 2, as published by the Free Software Foundation.
- *
  * This file holds USB constants and structures defined
  * by the USB Device Class Definition for Audio Devices in version 2.0.
  * Comments below reference relevant sections of the documents contained

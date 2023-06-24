@@ -4,18 +4,13 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/bitmap.h>
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_regs.h"
 #include "intel_sseu_debugfs.h"
-
-static void sseu_copy_subslices(const struct sseu_dev_info *sseu,
-				int slice, u8 *to_mask)
-{
-	int offset = slice * sseu->ss_stride;
-
-	memcpy(&to_mask[offset], &sseu->subslice_mask[offset], sseu->ss_stride);
-}
 
 static void cherryview_sseu_device_status(struct intel_gt *gt,
 					  struct sseu_dev_info *sseu)
@@ -39,7 +34,7 @@ static void cherryview_sseu_device_status(struct intel_gt *gt,
 			continue;
 
 		sseu->slice_mask = BIT(0);
-		sseu->subslice_mask[0] |= BIT(ss);
+		sseu->subslice_mask.hsw[0] |= BIT(ss);
 		eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
@@ -90,7 +85,7 @@ static void gen11_sseu_device_status(struct intel_gt *gt,
 			continue;
 
 		sseu->slice_mask |= BIT(s);
-		sseu_copy_subslices(&info->sseu, s, sseu->subslice_mask);
+		sseu->subslice_mask.hsw[s] = info->sseu.subslice_mask.hsw[s];
 
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
@@ -145,21 +140,17 @@ static void gen9_sseu_device_status(struct intel_gt *gt,
 		sseu->slice_mask |= BIT(s);
 
 		if (IS_GEN9_BC(gt->i915))
-			sseu_copy_subslices(&info->sseu, s,
-					    sseu->subslice_mask);
+			sseu->subslice_mask.hsw[s] = info->sseu.subslice_mask.hsw[s];
 
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
-			u8 ss_idx = s * info->sseu.ss_stride +
-				    ss / BITS_PER_BYTE;
 
 			if (IS_GEN9_LP(gt->i915)) {
 				if (!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
 					/* skip disabled subslice */
 					continue;
 
-				sseu->subslice_mask[ss_idx] |=
-					BIT(ss % BITS_PER_BYTE);
+				sseu->subslice_mask.hsw[s] |= BIT(ss);
 			}
 
 			eu_cnt = eu_reg[2 * s + ss / 2] & eu_mask[ss % 2];
@@ -186,8 +177,7 @@ static void bdw_sseu_device_status(struct intel_gt *gt,
 	if (sseu->slice_mask) {
 		sseu->eu_per_subslice = info->sseu.eu_per_subslice;
 		for (s = 0; s < fls(sseu->slice_mask); s++)
-			sseu_copy_subslices(&info->sseu, s,
-					    sseu->subslice_mask);
+			sseu->subslice_mask.hsw[s] = info->sseu.subslice_mask.hsw[s];
 		sseu->eu_total = sseu->eu_per_subslice *
 				 intel_sseu_subslice_total(sseu);
 
@@ -206,7 +196,6 @@ static void i915_print_sseu_info(struct seq_file *m,
 				 const struct sseu_dev_info *sseu)
 {
 	const char *type = is_available_info ? "Available" : "Enabled";
-	int s;
 
 	seq_printf(m, "  %s Slice Mask: %04x\n", type,
 		   sseu->slice_mask);
@@ -214,10 +203,7 @@ static void i915_print_sseu_info(struct seq_file *m,
 		   hweight8(sseu->slice_mask));
 	seq_printf(m, "  %s Subslice Total: %u\n", type,
 		   intel_sseu_subslice_total(sseu));
-	for (s = 0; s < fls(sseu->slice_mask); s++) {
-		seq_printf(m, "  %s Slice%i subslices: %u\n", type,
-			   s, intel_sseu_subslices_per_slice(sseu, s));
-	}
+	intel_sseu_print_ss_info(type, sseu, m);
 	seq_printf(m, "  %s EU Total: %u\n", type,
 		   sseu->eu_total);
 	seq_printf(m, "  %s EU Per Subslice: %u\n", type,
@@ -226,16 +212,16 @@ static void i915_print_sseu_info(struct seq_file *m,
 	if (!is_available_info)
 		return;
 
-	seq_printf(m, "  Has Pooled EU: %s\n", yesno(has_pooled_eu));
+	seq_printf(m, "  Has Pooled EU: %s\n", str_yes_no(has_pooled_eu));
 	if (has_pooled_eu)
 		seq_printf(m, "  Min EU in pool: %u\n", sseu->min_eu_in_pool);
 
 	seq_printf(m, "  Has Slice Power Gating: %s\n",
-		   yesno(sseu->has_slice_pg));
+		   str_yes_no(sseu->has_slice_pg));
 	seq_printf(m, "  Has Subslice Power Gating: %s\n",
-		   yesno(sseu->has_subslice_pg));
+		   str_yes_no(sseu->has_subslice_pg));
 	seq_printf(m, "  Has EU Power Gating: %s\n",
-		   yesno(sseu->has_eu_pg));
+		   str_yes_no(sseu->has_eu_pg));
 }
 
 /*
@@ -246,7 +232,7 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	const struct intel_gt_info *info = &gt->info;
-	struct sseu_dev_info sseu;
+	struct sseu_dev_info *sseu;
 	intel_wakeref_t wakeref;
 
 	if (GRAPHICS_VER(i915) < 8)
@@ -256,23 +242,29 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 	i915_print_sseu_info(m, true, HAS_POOLED_EU(i915), &info->sseu);
 
 	seq_puts(m, "SSEU Device Status\n");
-	memset(&sseu, 0, sizeof(sseu));
-	intel_sseu_set_info(&sseu, info->sseu.max_slices,
+
+	sseu = kzalloc(sizeof(*sseu), GFP_KERNEL);
+	if (!sseu)
+		return -ENOMEM;
+
+	intel_sseu_set_info(sseu, info->sseu.max_slices,
 			    info->sseu.max_subslices,
 			    info->sseu.max_eus_per_subslice);
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		if (IS_CHERRYVIEW(i915))
-			cherryview_sseu_device_status(gt, &sseu);
+			cherryview_sseu_device_status(gt, sseu);
 		else if (IS_BROADWELL(i915))
-			bdw_sseu_device_status(gt, &sseu);
+			bdw_sseu_device_status(gt, sseu);
 		else if (GRAPHICS_VER(i915) == 9)
-			gen9_sseu_device_status(gt, &sseu);
+			gen9_sseu_device_status(gt, sseu);
 		else if (GRAPHICS_VER(i915) >= 11)
-			gen11_sseu_device_status(gt, &sseu);
+			gen11_sseu_device_status(gt, sseu);
 	}
 
-	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), &sseu);
+	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), sseu);
+
+	kfree(sseu);
 
 	return 0;
 }
@@ -285,22 +277,22 @@ static int sseu_status_show(struct seq_file *m, void *unused)
 }
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_status);
 
-static int rcs_topology_show(struct seq_file *m, void *unused)
+static int sseu_topology_show(struct seq_file *m, void *unused)
 {
 	struct intel_gt *gt = m->private;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_sseu_print_topology(&gt->info.sseu, &p);
+	intel_sseu_print_topology(gt->i915, &gt->info.sseu, &p);
 
 	return 0;
 }
-DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rcs_topology);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_topology);
 
 void intel_sseu_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "sseu_status", &sseu_status_fops, NULL },
-		{ "rcs_topology", &rcs_topology_fops, NULL },
+		{ "sseu_topology", &sseu_topology_fops, NULL },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);

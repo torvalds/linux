@@ -108,6 +108,7 @@ if:
     - reg
 
 then:
+  $ref: /schemas/spi/spi-peripheral-props.yaml#
   not:
     required:
       - mdc-gpios
@@ -188,7 +189,6 @@ examples:
                             };
                             port@5 {
                                     reg = <5>;
-                                    label = "cpu";
                                     ethernet = <&gmac0>;
                                     phy-mode = "rgmii";
                                     fixed-link {
@@ -276,7 +276,6 @@ examples:
                             };
                             port@6 {
                                     reg = <6>;
-                                    label = "cpu";
                                     ethernet = <&fec1>;
                                     phy-mode = "rgmii";
                                     tx-internal-delay-ps = <2000>;

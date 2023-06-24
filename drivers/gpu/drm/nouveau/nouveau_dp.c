@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_connector.h"
@@ -107,7 +107,7 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	struct nv50_mstm *mstm = nv_encoder->dp.mstm;
 	enum drm_connector_status status;
 	u8 *dpcd = nv_encoder->dp.dpcd;
-	int ret = NOUVEAU_DP_NONE;
+	int ret = NOUVEAU_DP_NONE, hpd;
 
 	/* If we've already read the DPCD on an eDP device, we don't need to
 	 * reread it as it won't change
@@ -132,6 +132,16 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 			goto out;
 		}
 	}
+
+	/* Check status of HPD pin before attempting an AUX transaction that
+	 * would result in a number of (futile) retries on a connector which
+	 * has no display plugged.
+	 *
+	 * TODO: look into checking this before probing I2C to detect DVI/HDMI
+	 */
+	hpd = nvif_conn_hpd_status(&nv_connector->conn);
+	if (hpd == NVIF_CONN_HPD_STATUS_NOT_PRESENT)
+		goto out;
 
 	status = nouveau_dp_probe_dpcd(nv_connector, nv_encoder);
 	if (status == connector_status_disconnected)

@@ -3,7 +3,7 @@
 #define _ASM_POWERPC_KEXEC_H
 #ifdef __KERNEL__
 
-#if defined(CONFIG_FSL_BOOKE) || defined(CONFIG_44x)
+#if defined(CONFIG_PPC_85xx) || defined(CONFIG_44x)
 
 /*
  * On FSL-BookE we setup a 1:1 mapping which covers the first 2GiB of memory
@@ -83,6 +83,7 @@ extern void default_machine_crash_shutdown(struct pt_regs *regs);
 extern int crash_shutdown_register(crash_shutdown_t handler);
 extern int crash_shutdown_unregister(crash_shutdown_t handler);
 
+extern void crash_kexec_prepare(void);
 extern void crash_kexec_secondary(struct pt_regs *regs);
 int __init overlaps_crashkernel(unsigned long start, unsigned long size);
 extern void reserve_crashkernel(void);
@@ -97,6 +98,11 @@ void relocate_new_kernel(unsigned long indirection_page, unsigned long reboot_co
 			 unsigned long start_address) __noreturn;
 
 void kexec_copy_flush(struct kimage *image);
+
+#if defined(CONFIG_CRASH_DUMP) && defined(CONFIG_PPC_RTAS)
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
+#define crash_free_reserved_phys_range crash_free_reserved_phys_range
+#endif
 
 #ifdef CONFIG_KEXEC_FILE
 extern const struct kexec_file_ops kexec_elf64_ops;
@@ -119,6 +125,15 @@ int setup_purgatory(struct kimage *image, const void *slave_code,
 
 #ifdef CONFIG_PPC64
 struct kexec_buf;
+
+int arch_kexec_kernel_image_probe(struct kimage *image, void *buf, unsigned long buf_len);
+#define arch_kexec_kernel_image_probe arch_kexec_kernel_image_probe
+
+int arch_kimage_file_post_load_cleanup(struct kimage *image);
+#define arch_kimage_file_post_load_cleanup arch_kimage_file_post_load_cleanup
+
+int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf);
+#define arch_kexec_locate_mem_hole arch_kexec_locate_mem_hole
 
 int load_crashdump_segments_ppc64(struct kimage *image,
 				  struct kexec_buf *kbuf);

@@ -13,6 +13,7 @@
 #include <linux/ktime.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-crypto-profile.h>
+#include <linux/jump_label.h>
 
 #include <trace/events/block.h>
 
@@ -20,6 +21,8 @@
 #include "dm-ima.h"
 
 #define DM_RESERVED_MAX_IOS		1024
+
+struct dm_io;
 
 struct dm_kobject_holder {
 	struct kobject kobj;
@@ -31,6 +34,14 @@ struct dm_kobject_holder {
  * DM targets must _not_ deference a mapped_device or dm_table to directly
  * access their members!
  */
+
+/*
+ * For mempools pre-allocation at the table loading time.
+ */
+struct dm_md_mempools {
+	struct bio_set bs;
+	struct bio_set io_bs;
+};
 
 struct mapped_device {
 	struct mutex suspend_lock;
@@ -82,6 +93,14 @@ struct mapped_device {
 	spinlock_t deferred_lock;
 	struct bio_list deferred;
 
+	/*
+	 * requeue work context is needed for cloning one new bio
+	 * to represent the dm_io to be requeued, since each
+	 * dm_io may point to the original bio from FS.
+	 */
+	struct work_struct requeue_work;
+	struct dm_io *requeue_list;
+
 	void *interface_ptr;
 
 	/*
@@ -109,8 +128,7 @@ struct mapped_device {
 	/*
 	 * io objects are allocated from here.
 	 */
-	struct bio_set io_bs;
-	struct bio_set bs;
+	struct dm_md_mempools *mempools;
 
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
@@ -153,6 +171,10 @@ static inline struct dm_stats *dm_get_stats(struct mapped_device *md)
 {
 	return &md->stats;
 }
+
+DECLARE_STATIC_KEY_FALSE(stats_enabled);
+DECLARE_STATIC_KEY_FALSE(swap_bios_enabled);
+DECLARE_STATIC_KEY_FALSE(zoned_enabled);
 
 static inline bool dm_emulate_zone_append(struct mapped_device *md)
 {
@@ -204,6 +226,13 @@ struct dm_table {
 #endif
 };
 
+static inline struct dm_target *dm_table_get_target(struct dm_table *t,
+						    unsigned int index)
+{
+	BUG_ON(index >= t->num_targets);
+	return t->targets + index;
+}
+
 /*
  * One of these is allocated per clone bio.
  */
@@ -218,6 +247,9 @@ struct dm_target_io {
 	sector_t old_sector;
 	struct bio clone;
 };
+#define DM_TARGET_IO_BIO_OFFSET (offsetof(struct dm_target_io, clone))
+#define DM_IO_BIO_OFFSET \
+	(offsetof(struct dm_target_io, clone) + offsetof(struct dm_io, tio))
 
 /*
  * dm_target_io flags
@@ -237,6 +269,12 @@ static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
 	tio->flags |= (1U << bit);
 }
 
+static inline bool dm_tio_is_normal(struct dm_target_io *tio)
+{
+	return (dm_tio_flagged(tio, DM_TIO_INSIDE_DM_IO) &&
+		!dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
+}
+
 /*
  * One of these is allocated per original bio.
  * It contains the first clone used for that original.
@@ -245,16 +283,20 @@ static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
 struct dm_io {
 	unsigned short magic;
 	blk_short_t flags;
-	atomic_t io_count;
-	struct mapped_device *md;
-	struct bio *orig_bio;
-	blk_status_t status;
 	spinlock_t lock;
 	unsigned long start_time;
 	void *data;
-	struct hlist_node node;
-	struct task_struct *map_task;
+	struct dm_io *next;
 	struct dm_stats_aux stats_aux;
+	blk_status_t status;
+	atomic_t io_count;
+	struct mapped_device *md;
+
+	/* The three fields represent mapped part of original bio */
+	struct bio *orig_bio;
+	unsigned int sector_offset; /* offset to end of orig_bio */
+	unsigned int sectors;
+
 	/* last member of dm_target_io is 'struct bio' */
 	struct dm_target_io tio;
 };
@@ -263,8 +305,8 @@ struct dm_io {
  * dm_io flags
  */
 enum {
-	DM_IO_START_ACCT,
-	DM_IO_ACCOUNTED
+	DM_IO_ACCOUNTED,
+	DM_IO_WAS_SPLIT
 };
 
 static inline bool dm_io_flagged(struct dm_io *io, unsigned int bit)
@@ -277,12 +319,7 @@ static inline void dm_io_set_flag(struct dm_io *io, unsigned int bit)
 	io->flags |= (1U << bit);
 }
 
-static inline void dm_io_inc_pending(struct dm_io *io)
-{
-	atomic_inc(&io->io_count);
-}
-
-void dm_io_dec_pending(struct dm_io *io, blk_status_t error);
+void dm_io_rewind(struct dm_io *io, struct bio_set *bs);
 
 static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
 {

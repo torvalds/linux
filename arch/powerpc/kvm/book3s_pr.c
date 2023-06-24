@@ -499,7 +499,6 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	if (msr & MSR_POW) {
 		if (!vcpu->arch.pending_exceptions) {
 			kvm_vcpu_halt(vcpu);
-			kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 			vcpu->stat.generic.halt_wakeup++;
 
 			/* Unset POW bit after we woke up */
@@ -1287,7 +1286,7 @@ int kvmppc_handle_exit_pr(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 
 		/* Get last sc for papr */
 		if (vcpu->arch.papr_enabled) {
-			/* The sc instuction points SRR0 to the next inst */
+			/* The sc instruction points SRR0 to the next inst */
 			emul = kvmppc_get_last_inst(vcpu, INST_SC, &last_sc);
 			if (emul != EMULATE_DONE) {
 				kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) - 4);

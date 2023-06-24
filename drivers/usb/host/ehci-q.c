@@ -645,7 +645,7 @@ qh_urb_transaction (
 		token |= (1 /* "in" */ << 8);
 	/* else it's already initted to "out" pid (0 << 8) */
 
-	maxpacket = usb_maxpacket(urb->dev, urb->pipe, !is_input);
+	maxpacket = usb_endpoint_maxp(&urb->ep->desc);
 
 	/*
 	 * buffer gets wrapped in one or more qtds;
@@ -1162,7 +1162,7 @@ submit_async (
  * This is done in two parts: first SETUP req for GetDesc is sent then
  * 15 seconds later, the IN stage for GetDesc starts to req data from dev
  *
- * is_setup : i/p arguement decides which of the two stage needs to be
+ * is_setup : i/p argument decides which of the two stage needs to be
  * performed; TRUE - SETUP and FALSE - IN+STATUS
  * Returns 0 if success
  */
@@ -1218,7 +1218,7 @@ static int ehci_submit_single_step_set_feature(
 
 	token |= (1 /* "in" */ << 8);  /*This is IN stage*/
 
-	maxpacket = usb_maxpacket(urb->dev, urb->pipe, 0);
+	maxpacket = usb_endpoint_maxp(&urb->ep->desc);
 
 	qtd_fill(ehci, qtd, buf, len, token, maxpacket);
 

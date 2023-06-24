@@ -739,8 +739,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (!deve_tmp->se_lun_acl)
 				continue;
 
-			lacl_tmp = rcu_dereference_check(deve_tmp->se_lun_acl,
-						lockdep_is_held(&lun_tmp->lun_deve_lock));
+			lacl_tmp = deve_tmp->se_lun_acl;
 			nacl_tmp = lacl_tmp->se_lun_nacl;
 			/*
 			 * Skip the matching struct se_node_acl that is allocated
@@ -784,8 +783,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			 * the original *pr_reg is processed in
 			 * __core_scsi3_add_registration()
 			 */
-			dest_lun = rcu_dereference_check(deve_tmp->se_lun,
-				kref_read(&deve_tmp->pr_kref) != 0);
+			dest_lun = deve_tmp->se_lun;
 
 			pr_reg_atp = __core_scsi3_do_alloc_registration(dev,
 						nacl_tmp, dest_lun, deve_tmp,
@@ -1437,34 +1435,26 @@ static void core_scsi3_nodeacl_undepend_item(struct se_node_acl *nacl)
 
 static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
 {
-	struct se_lun_acl *lun_acl;
-
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
-	lun_acl = rcu_dereference_check(se_deve->se_lun_acl,
-				kref_read(&se_deve->pr_kref) != 0);
-	if (!lun_acl)
+	if (!se_deve->se_lun_acl)
 		return 0;
 
-	return target_depend_item(&lun_acl->se_lun_group.cg_item);
+	return target_depend_item(&se_deve->se_lun_acl->se_lun_group.cg_item);
 }
 
 static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 {
-	struct se_lun_acl *lun_acl;
-
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
-	lun_acl = rcu_dereference_check(se_deve->se_lun_acl,
-				kref_read(&se_deve->pr_kref) != 0);
-	if (!lun_acl) {
+	if (!se_deve->se_lun_acl) {
 		kref_put(&se_deve->pr_kref, target_pr_kref_release);
 		return;
 	}
 
-	target_undepend_item(&lun_acl->se_lun_group.cg_item);
+	target_undepend_item(&se_deve->se_lun_acl->se_lun_group.cg_item);
 	kref_put(&se_deve->pr_kref, target_pr_kref_release);
 }
 
@@ -1751,8 +1741,7 @@ core_scsi3_decode_spec_i_port(
 		 * and then call __core_scsi3_add_registration() in the
 		 * 2nd loop which will never fail.
 		 */
-		dest_lun = rcu_dereference_check(dest_se_deve->se_lun,
-				kref_read(&dest_se_deve->pr_kref) != 0);
+		dest_lun = dest_se_deve->se_lun;
 
 		dest_pr_reg = __core_scsi3_alloc_registration(cmd->se_dev,
 					dest_node_acl, dest_lun, dest_se_deve,
@@ -2967,12 +2956,27 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 			__core_scsi3_complete_pro_preempt(dev, pr_reg_n,
 				(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list : NULL,
 				type, scope, preempt_type);
-
-			if (preempt_type == PREEMPT_AND_ABORT)
-				core_scsi3_release_preempt_and_abort(
-					&preempt_and_abort_list, pr_reg_n);
 		}
+
 		spin_unlock(&dev->dev_reservation_lock);
+
+		/*
+		 * SPC-4 5.12.11.2.6 Preempting and aborting
+		 * The actions described in this subclause shall be performed
+		 * for all I_T nexuses that are registered with the non-zero
+		 * SERVICE ACTION RESERVATION KEY value, without regard for
+		 * whether the preempted I_T nexuses hold the persistent
+		 * reservation. If the SERVICE ACTION RESERVATION KEY field is
+		 * set to zero and an all registrants persistent reservation is
+		 * present, the device server shall abort all commands for all
+		 * registered I_T nexuses.
+		 */
+		if (preempt_type == PREEMPT_AND_ABORT) {
+			core_tmr_lun_reset(dev, NULL, &preempt_and_abort_list,
+					   cmd);
+			core_scsi3_release_preempt_and_abort(
+				&preempt_and_abort_list, pr_reg_n);
+		}
 
 		if (pr_tmpl->pr_aptpl_active)
 			core_scsi3_update_and_write_aptpl(cmd->se_dev, true);
@@ -3033,7 +3037,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 		if (calling_it_nexus)
 			continue;
 
-		if (pr_reg->pr_res_key != sa_res_key)
+		if (sa_res_key && pr_reg->pr_res_key != sa_res_key)
 			continue;
 
 		pr_reg_nacl = pr_reg->pr_reg_nacl;
@@ -3436,8 +3440,6 @@ after_iport_check:
 	 *       transport protocols where port names are not required;
 	 * d) Register the reservation key specified in the SERVICE ACTION
 	 *    RESERVATION KEY field;
-	 * e) Retain the reservation key specified in the SERVICE ACTION
-	 *    RESERVATION KEY field and associated information;
 	 *
 	 * Also, It is not an error for a REGISTER AND MOVE service action to
 	 * register an I_T nexus that is already registered with the same
@@ -3446,8 +3448,7 @@ after_iport_check:
 	dest_pr_reg = __core_scsi3_locate_pr_reg(dev, dest_node_acl,
 					iport_ptr);
 	if (!dest_pr_reg) {
-		struct se_lun *dest_lun = rcu_dereference_check(dest_se_deve->se_lun,
-				kref_read(&dest_se_deve->pr_kref) != 0);
+		struct se_lun *dest_lun = dest_se_deve->se_lun;
 
 		spin_unlock(&dev->dev_reservation_lock);
 		if (core_scsi3_alloc_registration(cmd->se_dev, dest_node_acl,
@@ -3460,6 +3461,12 @@ after_iport_check:
 		dest_pr_reg = __core_scsi3_locate_pr_reg(dev, dest_node_acl,
 						iport_ptr);
 		new_reg = 1;
+	} else {
+		/*
+		 * e) Retain the reservation key specified in the SERVICE ACTION
+		 *    RESERVATION KEY field and associated information;
+		 */
+		dest_pr_reg->pr_res_key = sa_res_key;
 	}
 	/*
 	 * f) Release the persistent reservation for the persistent reservation

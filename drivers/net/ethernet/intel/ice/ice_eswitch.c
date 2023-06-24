@@ -133,8 +133,8 @@ static int ice_eswitch_setup_env(struct ice_pf *pf)
 	if (ice_vsi_add_vlan_zero(uplink_vsi))
 		goto err_def_rx;
 
-	if (!ice_is_dflt_vsi_in_use(uplink_vsi->vsw)) {
-		if (ice_set_dflt_vsi(uplink_vsi->vsw, uplink_vsi))
+	if (!ice_is_dflt_vsi_in_use(uplink_vsi->port_info)) {
+		if (ice_set_dflt_vsi(uplink_vsi))
 			goto err_def_rx;
 		rule_added = true;
 	}
@@ -151,7 +151,7 @@ err_override_control:
 	ice_vsi_update_security(uplink_vsi, ice_vsi_ctx_clear_allow_override);
 err_override_uplink:
 	if (rule_added)
-		ice_clear_dflt_vsi(uplink_vsi->vsw);
+		ice_clear_dflt_vsi(uplink_vsi);
 err_def_rx:
 	ice_fltr_add_mac_and_broadcast(uplink_vsi,
 				       uplink_vsi->port_info->mac.perm_addr,
@@ -292,8 +292,8 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 		if (max_vsi_num < vsi->vsi_num)
 			max_vsi_num = vsi->vsi_num;
 
-		netif_napi_add(vf->repr->netdev, &vf->repr->q_vector->napi, ice_napi_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(vf->repr->netdev, &vf->repr->q_vector->napi,
+			       ice_napi_poll);
 
 		netif_keep_dst(vf->repr->netdev);
 	}
@@ -411,7 +411,7 @@ static void ice_eswitch_release_env(struct ice_pf *pf)
 
 	ice_vsi_update_security(ctrl_vsi, ice_vsi_ctx_clear_allow_override);
 	ice_vsi_update_security(uplink_vsi, ice_vsi_ctx_clear_allow_override);
-	ice_clear_dflt_vsi(uplink_vsi->vsw);
+	ice_clear_dflt_vsi(uplink_vsi);
 	ice_fltr_add_mac_and_broadcast(uplink_vsi,
 				       uplink_vsi->port_info->mac.perm_addr,
 				       ICE_FWD_TO_VSI);

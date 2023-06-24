@@ -35,6 +35,7 @@ struct ath11k_spectral {
 	u16 count;
 	u8 fft_size;
 	bool enabled;
+	bool is_primary;
 };
 
 #ifdef CONFIG_ATH11K_SPECTRAL

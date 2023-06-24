@@ -769,8 +769,10 @@ int __init omap2_control_base_init(void)
 		data = (struct control_init_data *)match->data;
 
 		mem = of_iomap(np, 0);
-		if (!mem)
+		if (!mem) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		if (data->index == TI_CLKM_CTRL) {
 			omap2_ctrl_base = mem;
@@ -810,22 +812,24 @@ int __init omap_control_init(void)
 		if (scm_conf) {
 			syscon = syscon_node_to_regmap(scm_conf);
 
-			if (IS_ERR(syscon))
-				return PTR_ERR(syscon);
+			if (IS_ERR(syscon)) {
+				ret = PTR_ERR(syscon);
+				goto of_node_put;
+			}
 
 			if (of_get_child_by_name(scm_conf, "clocks")) {
 				ret = omap2_clk_provider_init(scm_conf,
 							      data->index,
 							      syscon, NULL);
 				if (ret)
-					return ret;
+					goto of_node_put;
 			}
 		} else {
 			/* No scm_conf found, direct access */
 			ret = omap2_clk_provider_init(np, data->index, NULL,
 						      data->mem);
 			if (ret)
-				return ret;
+				goto of_node_put;
 		}
 	}
 
@@ -836,6 +840,11 @@ int __init omap_control_init(void)
 	}
 
 	return 0;
+
+of_node_put:
+	of_node_put(np);
+	return ret;
+
 }
 
 /**

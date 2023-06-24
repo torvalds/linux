@@ -648,7 +648,7 @@ int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 }
 
 /* call under rcu_read_lock */
-bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+static bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 {
 	int res = __legitimize_mnt(bastard, seq);
 	if (likely(!res))
@@ -1760,7 +1760,7 @@ out_unlock:
 /*
  * Is the caller allowed to modify his namespace?
  */
-static inline bool may_mount(void)
+bool may_mount(void)
 {
 	return ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN);
 }
@@ -4026,8 +4026,9 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
 				     const struct mount *mnt)
 {
-	return !(kattr->attr_set & MNT_READONLY) ||
-	       (mnt->mnt.mnt_flags & MNT_READONLY);
+	return (!(kattr->attr_set & MNT_READONLY) ||
+		(mnt->mnt.mnt_flags & MNT_READONLY)) &&
+	       !kattr->mnt_userns;
 }
 
 static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
@@ -4237,6 +4238,13 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 		err = -EPERM;
 		goto out_fput;
 	}
+
+	/* We're not controlling the target namespace. */
+	if (!ns_capable(mnt_userns, CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out_fput;
+	}
+
 	kattr->mnt_userns = get_user_ns(mnt_userns);
 
 out_fput:

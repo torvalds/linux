@@ -51,7 +51,8 @@ struct edif_dbell {
 	enum db_flags_t		db_flags;
 	spinlock_t		db_lock;
 	struct  list_head	head;
-	struct	completion	dbell;
+	struct bsg_job *dbell_bsg_job;
+	unsigned long bsg_expire;
 };
 
 #define SA_UPDATE_IOCB_TYPE            0x71    /* Security Association Update IOCB entry */
@@ -139,5 +140,9 @@ struct enode {
 #define EDIF_NEGOTIATION_PENDING(_fcport) \
 	(DBELL_ACTIVE(_fcport->vha) && \
 	 (_fcport->disc_state == DSC_LOGIN_AUTH_PEND))
+
+#define EDIF_SESS_DELETE(_s) \
+	(qla_ini_mode_enabled(_s->vha) && (_s->disc_state == DSC_DELETE_PEND || \
+	 _s->disc_state == DSC_DELETED))
 
 #endif	/* __QLA_EDIF_H */

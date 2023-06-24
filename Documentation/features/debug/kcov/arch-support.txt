@@ -11,9 +11,9 @@
     |         arm: |  ok  |
     |       arm64: |  ok  |
     |        csky: | TODO |
-    |       h8300: | TODO |
     |     hexagon: | TODO |
     |        ia64: | TODO |
+    |       loong: | TODO |
     |        m68k: | TODO |
     |  microblaze: | TODO |
     |        mips: |  ok  |
@@ -27,5 +27,5 @@
     |       sparc: | TODO |
     |          um: |  ok  |
     |         x86: |  ok  |
-    |      xtensa: | TODO |
+    |      xtensa: |  ok  |
     -----------------------

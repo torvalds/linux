@@ -3,17 +3,15 @@
 #
 # link vmlinux
 #
-# vmlinux is linked from the objects selected by $(KBUILD_VMLINUX_OBJS) and
-# $(KBUILD_VMLINUX_LIBS). Most are built-in.a files from top-level directories
-# in the kernel tree, others are specified in arch/$(ARCH)/Makefile.
+# vmlinux is linked from the objects in vmlinux.a and $(KBUILD_VMLINUX_LIBS).
+# vmlinux.a contains objects that are linked unconditionally.
 # $(KBUILD_VMLINUX_LIBS) are archives which are linked conditionally
 # (not within --whole-archive), and do not require symbol indexes added.
 #
 # vmlinux
 #   ^
 #   |
-#   +--< $(KBUILD_VMLINUX_OBJS)
-#   |    +--< init/built-in.a drivers/built-in.a mm/built-in.a + more
+#   +--< vmlinux.a
 #   |
 #   +--< $(KBUILD_VMLINUX_LIBS)
 #   |    +--< lib/lib.a + more
@@ -45,118 +43,6 @@ info()
 	printf "  %-7s %s\n" "${1}" "${2}"
 }
 
-# Generate a linker script to ensure correct ordering of initcalls.
-gen_initcalls()
-{
-	info GEN .tmp_initcalls.lds
-
-	${PYTHON3} ${srctree}/scripts/jobserver-exec		\
-	${PERL} ${srctree}/scripts/generate_initcall_order.pl	\
-		${KBUILD_VMLINUX_OBJS} ${KBUILD_VMLINUX_LIBS}	\
-		> .tmp_initcalls.lds
-}
-
-# If CONFIG_LTO_CLANG is selected, collect generated symbol versions into
-# .tmp_symversions.lds
-gen_symversions()
-{
-	info GEN .tmp_symversions.lds
-	rm -f .tmp_symversions.lds
-
-	for o in ${KBUILD_VMLINUX_OBJS} ${KBUILD_VMLINUX_LIBS}; do
-		if [ -f ${o}.symversions ]; then
-			cat ${o}.symversions >> .tmp_symversions.lds
-		fi
-	done
-}
-
-# Link of vmlinux.o used for section mismatch analysis
-# ${1} output file
-modpost_link()
-{
-	local objects
-	local lds=""
-
-	objects="--whole-archive				\
-		${KBUILD_VMLINUX_OBJS}				\
-		--no-whole-archive				\
-		--start-group					\
-		${KBUILD_VMLINUX_LIBS}				\
-		--end-group"
-
-	if is_enabled CONFIG_LTO_CLANG; then
-		gen_initcalls
-		lds="-T .tmp_initcalls.lds"
-
-		if is_enabled CONFIG_MODVERSIONS; then
-			gen_symversions
-			lds="${lds} -T .tmp_symversions.lds"
-		fi
-
-		# This might take a while, so indicate that we're doing
-		# an LTO link
-		info LTO ${1}
-	else
-		info LD ${1}
-	fi
-
-	${LD} ${KBUILD_LDFLAGS} -r -o ${1} ${lds} ${objects}
-}
-
-objtool_link()
-{
-	local objtoolcmd;
-	local objtoolopt;
-
-	if is_enabled CONFIG_STACK_VALIDATION && \
-	   ( is_enabled CONFIG_LTO_CLANG || is_enabled CONFIG_X86_KERNEL_IBT ); then
-
-		# Don't perform vmlinux validation unless explicitly requested,
-		# but run objtool on vmlinux.o now that we have an object file.
-		if is_enabled CONFIG_UNWINDER_ORC; then
-			objtoolcmd="orc generate"
-		fi
-
-		objtoolopt="${objtoolopt} --lto"
-
-		if is_enabled CONFIG_X86_KERNEL_IBT; then
-			objtoolopt="${objtoolopt} --ibt"
-		fi
-
-		if is_enabled CONFIG_FTRACE_MCOUNT_USE_OBJTOOL; then
-			objtoolopt="${objtoolopt} --mcount"
-		fi
-	fi
-
-	if is_enabled CONFIG_VMLINUX_VALIDATION; then
-		objtoolopt="${objtoolopt} --noinstr"
-	fi
-
-	if [ -n "${objtoolopt}" ]; then
-		if [ -z "${objtoolcmd}" ]; then
-			objtoolcmd="check"
-		fi
-		objtoolopt="${objtoolopt} --vmlinux"
-		if ! is_enabled CONFIG_FRAME_POINTER; then
-			objtoolopt="${objtoolopt} --no-fp"
-		fi
-		if is_enabled CONFIG_GCOV_KERNEL; then
-			objtoolopt="${objtoolopt} --no-unreachable"
-		fi
-		if is_enabled CONFIG_RETPOLINE; then
-			objtoolopt="${objtoolopt} --retpoline"
-		fi
-		if is_enabled CONFIG_X86_SMAP; then
-			objtoolopt="${objtoolopt} --uaccess"
-		fi
-		if is_enabled CONFIG_SLS; then
-			objtoolopt="${objtoolopt} --sls"
-		fi
-		info OBJTOOL ${1}
-		tools/objtool/objtool ${objtoolcmd} ${objtoolopt} ${1}
-	fi
-}
-
 # Link of vmlinux
 # ${1} - output file
 # ${2}, ${3}, ... - optional extra .o files
@@ -179,9 +65,15 @@ vmlinux_link()
 		objs=vmlinux.o
 		libs=
 	else
-		objs="${KBUILD_VMLINUX_OBJS}"
+		objs=vmlinux.a
 		libs="${KBUILD_VMLINUX_LIBS}"
 	fi
+
+	if is_enabled CONFIG_MODULES; then
+		objs="${objs} .vmlinux.export.o"
+	fi
+
+	objs="${objs} init/version-timestamp.o"
 
 	if [ "${SRCARCH}" = "um" ]; then
 		wl=-Wl,
@@ -269,7 +161,7 @@ kallsyms()
 	fi
 
 	info KSYMS ${2}
-	${NM} -n ${1} | scripts/kallsyms ${kallsymopt} > ${2}
+	scripts/kallsyms ${kallsymopt} ${1} > ${2}
 }
 
 # Perform one step in kallsyms generation, including temporary linking of
@@ -282,7 +174,8 @@ kallsyms_step()
 	kallsyms_S=${kallsyms_vmlinux}.S
 
 	vmlinux_link ${kallsyms_vmlinux} "${kallsymso_prev}" ${btf_vmlinux_bin_o}
-	kallsyms ${kallsyms_vmlinux} ${kallsyms_S}
+	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms
+	kallsyms ${kallsyms_vmlinux}.syms ${kallsyms_S}
 
 	info AS ${kallsyms_S}
 	${CC} ${NOSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS} \
@@ -294,6 +187,7 @@ kallsyms_step()
 # See mksymap for additional details
 mksysmap()
 {
+	info NM ${2}
 	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2}
 }
 
@@ -306,15 +200,9 @@ sorttable()
 cleanup()
 {
 	rm -f .btf.*
-	rm -f .tmp_System.map
-	rm -f .tmp_initcalls.lds
-	rm -f .tmp_symversions.lds
-	rm -f .tmp_vmlinux*
 	rm -f System.map
 	rm -f vmlinux
 	rm -f vmlinux.map
-	rm -f vmlinux.o
-	rm -f .vmlinux.d
 }
 
 # Use "make V=1" to debug this script
@@ -329,35 +217,7 @@ if [ "$1" = "clean" ]; then
 	exit 0
 fi
 
-# Update version
-info GEN .version
-if [ -r .version ]; then
-	VERSION=$(expr 0$(cat .version) + 1)
-	echo $VERSION > .version
-else
-	rm -f .version
-	echo 1 > .version
-fi;
-
-# final build of init/
-${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init need-builtin=1
-
-if [ -e scripts/mod/modpost ]; then
-#link vmlinux.o
-modpost_link vmlinux.o
-objtool_link vmlinux.o
-
-# modpost vmlinux.o to check for section mismatches
-${MAKE} -f "${srctree}/scripts/Makefile.modpost" MODPOST_VMLINUX=1
-
-info MODINFO modules.builtin.modinfo
-${OBJCOPY} -j .modinfo -O binary vmlinux.o modules.builtin.modinfo
-
-info GEN modules.builtin
-# The second line aids cases where multiple modules share the same object.
-tr '\0' '\n' < modules.builtin.modinfo | sed -n 's/^[[:alnum:]:_]*\.file=//p' |
-	tr ' ' '\n' | uniq | sed -e 's:^:kernel/:' -e 's/$/.ko/' > modules.builtin
-fi
+${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init init/version-timestamp.o
 
 btf_vmlinux_bin_o=""
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
@@ -417,7 +277,6 @@ if is_enabled CONFIG_DEBUG_INFO_BTF && is_enabled CONFIG_BPF; then
 	${RESOLVE_BTFIDS} vmlinux
 fi
 
-info SYSMAP System.map
 mksysmap vmlinux System.map
 
 if is_enabled CONFIG_BUILDTIME_TABLE_SORT; then
@@ -430,9 +289,7 @@ fi
 
 # step a (see comment above)
 if is_enabled CONFIG_KALLSYMS; then
-	mksysmap ${kallsyms_vmlinux} .tmp_System.map
-
-	if ! cmp -s System.map .tmp_System.map; then
+	if ! cmp -s System.map ${kallsyms_vmlinux}.syms; then
 		echo >&2 Inconsistent kallsyms data
 		echo >&2 Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
 		exit 1

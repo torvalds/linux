@@ -466,6 +466,30 @@ Description:	Show status of f2fs superblock in real time.
 		0x4000 SBI_IS_FREEZING       freefs is in process
 		====== ===================== =================================
 
+What:		/sys/fs/f2fs/<disk>/stat/cp_status
+Date:		September 2022
+Contact:	"Chao Yu" <chao.yu@oppo.com>
+Description:	Show status of f2fs checkpoint in real time.
+
+		=============================== ==============================
+		cp flag				value
+		CP_UMOUNT_FLAG			0x00000001
+		CP_ORPHAN_PRESENT_FLAG		0x00000002
+		CP_COMPACT_SUM_FLAG		0x00000004
+		CP_ERROR_FLAG			0x00000008
+		CP_FSCK_FLAG			0x00000010
+		CP_FASTBOOT_FLAG		0x00000020
+		CP_CRC_RECOVERY_FLAG		0x00000040
+		CP_NAT_BITS_FLAG		0x00000080
+		CP_TRIMMED_FLAG			0x00000100
+		CP_NOCRC_RECOVERY_FLAG		0x00000200
+		CP_LARGE_NAT_BITMAP_FLAG	0x00000400
+		CP_QUOTA_NEED_FSCK_FLAG		0x00000800
+		CP_DISABLED_FLAG		0x00001000
+		CP_DISABLED_QUICK_FLAG		0x00002000
+		CP_RESIZEFS_FLAG		0x00004000
+		=============================== ==============================
+
 What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
 Date:		January 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
@@ -580,3 +604,33 @@ Date:		January 2022
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Controls max # of node block writes to be used for roll forward
 		recovery. This can limit the roll forward recovery time.
+
+What:		/sys/fs/f2fs/<disk>/unusable_blocks_per_sec
+Date:		June 2022
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Shows the number of unusable blocks in a section which was defined by
+		the zone capacity reported by underlying zoned device.
+
+What:		/sys/fs/f2fs/<disk>/current_atomic_write
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the total current atomic write block count, which is not committed yet.
+		This is a read-only entry.
+
+What:		/sys/fs/f2fs/<disk>/peak_atomic_write
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the peak value of total current atomic write block count after boot.
+		If you write "0" here, you can initialize to "0".
+
+What:		/sys/fs/f2fs/<disk>/committed_atomic_block
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the accumulated total committed atomic write block count after boot.
+		If you write "0" here, you can initialize to "0".
+
+What:		/sys/fs/f2fs/<disk>/revoked_atomic_block
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the accumulated total revoked atomic write block count after boot.
+		If you write "0" here, you can initialize to "0".

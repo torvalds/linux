@@ -250,20 +250,20 @@ static int afe4404_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct afe4404_data *afe = iio_priv(indio_dev);
-	unsigned int value_reg = afe4404_channel_values[chan->address];
-	unsigned int led_field = afe4404_channel_leds[chan->address];
-	unsigned int offdac_field = afe4404_channel_offdacs[chan->address];
+	unsigned int value_reg, led_field, offdac_field;
 	int ret;
 
 	switch (chan->type) {
 	case IIO_INTENSITY:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
+			value_reg = afe4404_channel_values[chan->address];
 			ret = regmap_read(afe->regmap, value_reg, val);
 			if (ret)
 				return ret;
 			return IIO_VAL_INT;
 		case IIO_CHAN_INFO_OFFSET:
+			offdac_field = afe4404_channel_offdacs[chan->address];
 			ret = regmap_field_read(afe->fields[offdac_field], val);
 			if (ret)
 				return ret;
@@ -273,6 +273,7 @@ static int afe4404_read_raw(struct iio_dev *indio_dev,
 	case IIO_CURRENT:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
+			led_field = afe4404_channel_leds[chan->address];
 			ret = regmap_field_read(afe->fields[led_field], val);
 			if (ret)
 				return ret;
@@ -295,19 +296,20 @@ static int afe4404_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct afe4404_data *afe = iio_priv(indio_dev);
-	unsigned int led_field = afe4404_channel_leds[chan->address];
-	unsigned int offdac_field = afe4404_channel_offdacs[chan->address];
+	unsigned int led_field, offdac_field;
 
 	switch (chan->type) {
 	case IIO_INTENSITY:
 		switch (mask) {
 		case IIO_CHAN_INFO_OFFSET:
+			offdac_field = afe4404_channel_offdacs[chan->address];
 			return regmap_field_write(afe->fields[offdac_field], val);
 		}
 		break;
 	case IIO_CURRENT:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
+			led_field = afe4404_channel_leds[chan->address];
 			return regmap_field_write(afe->fields[led_field], val);
 		}
 		break;
@@ -415,7 +417,7 @@ static const struct of_device_id afe4404_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, afe4404_of_match);
 
-static int __maybe_unused afe4404_suspend(struct device *dev)
+static int afe4404_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct afe4404_data *afe = iio_priv(indio_dev);
@@ -436,7 +438,7 @@ static int __maybe_unused afe4404_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused afe4404_resume(struct device *dev)
+static int afe4404_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct afe4404_data *afe = iio_priv(indio_dev);
@@ -456,7 +458,8 @@ static int __maybe_unused afe4404_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(afe4404_pm_ops, afe4404_suspend, afe4404_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(afe4404_pm_ops, afe4404_suspend,
+				afe4404_resume);
 
 static int afe4404_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -577,7 +580,7 @@ disable_reg:
 	return ret;
 }
 
-static int afe4404_remove(struct i2c_client *client)
+static void afe4404_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct afe4404_data *afe = iio_priv(indio_dev);
@@ -591,12 +594,8 @@ static int afe4404_remove(struct i2c_client *client)
 		iio_trigger_unregister(afe->trig);
 
 	ret = regulator_disable(afe->regulator);
-	if (ret) {
+	if (ret)
 		dev_err(afe->dev, "Unable to disable regulator\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static const struct i2c_device_id afe4404_ids[] = {
@@ -609,7 +608,7 @@ static struct i2c_driver afe4404_i2c_driver = {
 	.driver = {
 		.name = AFE4404_DRIVER_NAME,
 		.of_match_table = afe4404_of_match,
-		.pm = &afe4404_pm_ops,
+		.pm = pm_sleep_ptr(&afe4404_pm_ops),
 	},
 	.probe = afe4404_probe,
 	.remove = afe4404_remove,

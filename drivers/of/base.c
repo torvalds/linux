@@ -561,7 +561,7 @@ EXPORT_SYMBOL(of_device_is_compatible);
  *  a NULL terminated array of strings. Returns the best match
  *  score or 0.
  */
-int of_device_compatible_match(struct device_node *device,
+int of_device_compatible_match(const struct device_node *device,
 			       const char *const *compat)
 {
 	unsigned int tmp, score = 0;
@@ -578,6 +578,7 @@ int of_device_compatible_match(struct device_node *device,
 
 	return score;
 }
+EXPORT_SYMBOL_GPL(of_device_compatible_match);
 
 /**
  * of_machine_is_compatible - Test root of device tree for a given compatible value
@@ -1228,7 +1229,7 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 	if (!compatible || strlen(compatible) > cplen)
 		return -ENODEV;
 	p = strchr(compatible, ',');
-	strlcpy(modalias, p ? p + 1 : compatible, len);
+	strscpy(modalias, p ? p + 1 : compatible, len);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_modalias_node);
@@ -1919,6 +1920,8 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			of_property_read_string(of_aliases, "stdout", &name);
 		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
+		if (of_stdout)
+			of_stdout->fwnode.flags |= FWNODE_FLAG_BEST_EFFORT;
 	}
 
 	if (!of_aliases)
@@ -2077,7 +2080,7 @@ struct device_node *of_find_next_cache_node(const struct device_node *np)
  *
  * @cpu: cpu number(logical index) for which the last cache level is needed
  *
- * Return: The the level at which the last cache is present. It is exactly
+ * Return: The level at which the last cache is present. It is exactly
  * same as  the total number of cache levels for the given logical cpu.
  */
 int of_find_last_cache_level(unsigned int cpu)
@@ -2086,12 +2089,13 @@ int of_find_last_cache_level(unsigned int cpu)
 	struct device_node *prev = NULL, *np = of_cpu_device_node_get(cpu);
 
 	while (np) {
+		of_node_put(prev);
 		prev = np;
-		of_node_put(np);
 		np = of_find_next_cache_node(np);
 	}
 
 	of_property_read_u32(prev, "cache-level", &cache_level);
+	of_node_put(prev);
 
 	return cache_level;
 }

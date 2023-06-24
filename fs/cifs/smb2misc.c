@@ -16,6 +16,7 @@
 #include "smb2status.h"
 #include "smb2glob.h"
 #include "nterr.h"
+#include "cached_dir.h"
 
 static int
 check_smb2_hdr(struct smb2_hdr *shdr, __u64 mid)
@@ -132,15 +133,19 @@ static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len,
 }
 
 int
-smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
+smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *server)
 {
+	struct TCP_Server_Info *pserver;
 	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;
 	struct smb2_pdu *pdu = (struct smb2_pdu *)shdr;
-	__u64 mid;
-	__u32 clc_len;  /* calculated length */
-	int command;
-	int pdu_size = sizeof(struct smb2_pdu);
 	int hdr_size = sizeof(struct smb2_hdr);
+	int pdu_size = sizeof(struct smb2_pdu);
+	int command;
+	__u32 calc_len; /* calculated length */
+	__u64 mid;
+
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
 
 	/*
 	 * Add function to do table lookup of StructureSize by command
@@ -154,7 +159,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 
 		/* decrypt frame now that it is completely read in */
 		spin_lock(&cifs_tcp_ses_lock);
-		list_for_each_entry(iter, &srvr->smb_ses_list, smb_ses_list) {
+		list_for_each_entry(iter, &pserver->smb_ses_list, smb_ses_list) {
 			if (iter->Suid == le64_to_cpu(thdr->SessionId)) {
 				ses = iter;
 				break;
@@ -221,30 +226,33 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		}
 	}
 
-	clc_len = smb2_calc_size(buf, srvr);
+	calc_len = smb2_calc_size(buf);
 
-	if (shdr->Command == SMB2_NEGOTIATE)
-		clc_len += get_neg_ctxt_len(shdr, len, clc_len);
+	/* For SMB2_IOCTL, OutputOffset and OutputLength are optional, so might
+	 * be 0, and not a real miscalculation */
+	if (command == SMB2_IOCTL_HE && calc_len == 0)
+		return 0;
 
-	if (len != clc_len) {
-		cifs_dbg(FYI, "Calculated size %u length %u mismatch mid %llu\n",
-			 clc_len, len, mid);
+	if (command == SMB2_NEGOTIATE_HE)
+		calc_len += get_neg_ctxt_len(shdr, len, calc_len);
+
+	if (len != calc_len) {
 		/* create failed on symlink */
 		if (command == SMB2_CREATE_HE &&
 		    shdr->Status == STATUS_STOPPED_ON_SYMLINK)
 			return 0;
 		/* Windows 7 server returns 24 bytes more */
-		if (clc_len + 24 == len && command == SMB2_OPLOCK_BREAK_HE)
+		if (calc_len + 24 == len && command == SMB2_OPLOCK_BREAK_HE)
 			return 0;
 		/* server can return one byte more due to implied bcc[0] */
-		if (clc_len == len + 1)
+		if (calc_len == len + 1)
 			return 0;
 
 		/*
 		 * Some windows servers (win2016) will pad also the final
 		 * PDU in a compound to 8 bytes.
 		 */
-		if (((clc_len + 7) & ~7) == len)
+		if (ALIGN(calc_len, 8) == len)
 			return 0;
 
 		/*
@@ -253,12 +261,18 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		 * SMB2/SMB3 frame length (header + smb2 response specific data)
 		 * Some windows servers also pad up to 8 bytes when compounding.
 		 */
-		if (clc_len < len)
+		if (calc_len < len)
 			return 0;
 
-		pr_warn_once(
-			"srv rsp too short, len %d not %d. cmd:%d mid:%llu\n",
-			len, clc_len, command, mid);
+		/* Only log a message if len was really miscalculated */
+		if (unlikely(cifsFYI))
+			cifs_dbg(FYI, "Server response too short: calculated "
+				 "length %u doesn't match read length %u (cmd=%d, mid=%llu)\n",
+				 calc_len, len, command, mid);
+		else
+			pr_warn("Server response too short: calculated length "
+				"%u doesn't match read length %u (cmd=%d, mid=%llu)\n",
+				calc_len, len, command, mid);
 
 		return 1;
 	}
@@ -400,9 +414,9 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *shdr)
  * portion, the number of word parameters and the data portion of the message.
  */
 unsigned int
-smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
+smb2_calc_size(void *buf)
 {
-	struct smb2_pdu *pdu = (struct smb2_pdu *)buf;
+	struct smb2_pdu *pdu = buf;
 	struct smb2_hdr *shdr = &pdu->hdr;
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */
@@ -598,64 +612,63 @@ smb2_tcon_find_pending_open_lease(struct cifs_tcon *tcon,
 }
 
 static bool
-smb2_is_valid_lease_break(char *buffer)
+smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 {
 	struct smb2_lease_break *rsp = (struct smb2_lease_break *)buffer;
-	struct TCP_Server_Info *server;
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifs_pending_open *open;
 
 	cifs_dbg(FYI, "Checking for lease break\n");
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-			list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
-				spin_lock(&tcon->open_file_lock);
-				cifs_stats_inc(
-				    &tcon->stats.cifs_stats.num_oplock_brks);
-				if (smb2_tcon_has_lease(tcon, rsp)) {
-					spin_unlock(&tcon->open_file_lock);
-					spin_unlock(&cifs_tcp_ses_lock);
-					return true;
-				}
-				open = smb2_tcon_find_pending_open_lease(tcon,
-									 rsp);
-				if (open) {
-					__u8 lease_key[SMB2_LEASE_KEY_SIZE];
-					struct tcon_link *tlink;
-
-					tlink = cifs_get_tlink(open->tlink);
-					memcpy(lease_key, open->lease_key,
-					       SMB2_LEASE_KEY_SIZE);
-					spin_unlock(&tcon->open_file_lock);
-					spin_unlock(&cifs_tcp_ses_lock);
-					smb2_queue_pending_open_break(tlink,
-								      lease_key,
-								      rsp->NewLeaseState);
-					return true;
-				}
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
+			spin_lock(&tcon->open_file_lock);
+			cifs_stats_inc(
+				       &tcon->stats.cifs_stats.num_oplock_brks);
+			if (smb2_tcon_has_lease(tcon, rsp)) {
 				spin_unlock(&tcon->open_file_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
+				return true;
+			}
+			open = smb2_tcon_find_pending_open_lease(tcon,
+								 rsp);
+			if (open) {
+				__u8 lease_key[SMB2_LEASE_KEY_SIZE];
+				struct tcon_link *tlink;
 
-				if (tcon->crfid.is_valid &&
-				    !memcmp(rsp->LeaseKey,
-					    tcon->crfid.fid->lease_key,
-					    SMB2_LEASE_KEY_SIZE)) {
-					tcon->crfid.time = 0;
-					INIT_WORK(&tcon->crfid.lease_break,
-						  smb2_cached_lease_break);
-					queue_work(cifsiod_wq,
-						   &tcon->crfid.lease_break);
-					spin_unlock(&cifs_tcp_ses_lock);
-					return true;
-				}
+				tlink = cifs_get_tlink(open->tlink);
+				memcpy(lease_key, open->lease_key,
+				       SMB2_LEASE_KEY_SIZE);
+				spin_unlock(&tcon->open_file_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
+				smb2_queue_pending_open_break(tlink,
+							      lease_key,
+							      rsp->NewLeaseState);
+				return true;
+			}
+			spin_unlock(&tcon->open_file_lock);
+
+			if (cached_dir_lease_break(tcon, rsp->LeaseKey)) {
+				spin_unlock(&cifs_tcp_ses_lock);
+				return true;
 			}
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "Can not process lease break - no lease matched\n");
+	trace_smb3_lease_not_found(le32_to_cpu(rsp->CurrentLeaseState),
+				   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+				   le64_to_cpu(rsp->hdr.SessionId),
+				   *((u64 *)rsp->LeaseKey),
+				   *((u64 *)&rsp->LeaseKey[8]));
+
 	return false;
 }
 
@@ -663,6 +676,7 @@ bool
 smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 {
 	struct smb2_oplock_break *rsp = (struct smb2_oplock_break *)buffer;
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *cinode;
@@ -676,16 +690,19 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	if (rsp->StructureSize !=
 				smb2_rsp_struct_sizes[SMB2_OPLOCK_BREAK_HE]) {
 		if (le16_to_cpu(rsp->StructureSize) == 44)
-			return smb2_is_valid_lease_break(buffer);
+			return smb2_is_valid_lease_break(buffer, server);
 		else
 			return false;
 	}
 
 	cifs_dbg(FYI, "oplock level 0x%x\n", rsp->OplockLevel);
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 
 			spin_lock(&tcon->open_file_lock);
@@ -726,6 +743,10 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "No file id matched, oplock break ignored\n");
+	trace_smb3_oplock_not_found(0 /* no xid */, rsp->PersistentFid,
+				  le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+				  le64_to_cpu(rsp->hdr.SessionId));
+
 	return true;
 }
 
@@ -798,7 +819,7 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 		if (tcon->ses)
 			server = tcon->ses->server;
 
-		cifs_server_dbg(FYI, "tid=%u: tcon is closing, skipping async close retry of fid %llu %llu\n",
+		cifs_server_dbg(FYI, "tid=0x%x: tcon is closing, skipping async close retry of fid %llu %llu\n",
 				tcon->tid, persistent_fid, volatile_fid);
 
 		return 0;
@@ -858,8 +879,8 @@ smb311_update_preauth_hash(struct cifs_ses *ses, struct TCP_Server_Info *server,
 			   struct kvec *iov, int nvec)
 {
 	int i, rc;
-	struct sdesc *d;
 	struct smb2_hdr *hdr;
+	struct shash_desc *sha512 = NULL;
 
 	hdr = (struct smb2_hdr *)iov[0].iov_base;
 	/* neg prot are always taken */
@@ -889,14 +910,14 @@ ok:
 	if (rc)
 		return rc;
 
-	d = server->secmech.sdescsha512;
-	rc = crypto_shash_init(&d->shash);
+	sha512 = server->secmech.sha512;
+	rc = crypto_shash_init(sha512);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not init sha512 shash\n", __func__);
 		return rc;
 	}
 
-	rc = crypto_shash_update(&d->shash, ses->preauth_sha_hash,
+	rc = crypto_shash_update(sha512, ses->preauth_sha_hash,
 				 SMB2_PREAUTH_HASH_SIZE);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not update sha512 shash\n", __func__);
@@ -904,8 +925,7 @@ ok:
 	}
 
 	for (i = 0; i < nvec; i++) {
-		rc = crypto_shash_update(&d->shash,
-					 iov[i].iov_base, iov[i].iov_len);
+		rc = crypto_shash_update(sha512, iov[i].iov_base, iov[i].iov_len);
 		if (rc) {
 			cifs_dbg(VFS, "%s: Could not update sha512 shash\n",
 				 __func__);
@@ -913,7 +933,7 @@ ok:
 		}
 	}
 
-	rc = crypto_shash_final(&d->shash, ses->preauth_sha_hash);
+	rc = crypto_shash_final(sha512, ses->preauth_sha_hash);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not finalize sha512 shash\n",
 			 __func__);

@@ -11,9 +11,10 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
-#include <sys/socket.h>
 
 /* veth_src --- veth_src_fwd --- veth_det_fwd --- veth_dst
  *           |                                 |
@@ -115,6 +116,19 @@ static bool bpf_fwd(void)
 	return test < TCP_IP4_RT_FWD;
 }
 
+static __u8 get_proto(void)
+{
+	switch (test) {
+	case UDP_IP4:
+	case UDP_IP6:
+	case UDP_IP4_RT_FWD:
+	case UDP_IP6_RT_FWD:
+		return IPPROTO_UDP;
+	default:
+		return IPPROTO_TCP;
+	}
+}
+
 /* -1: parse error: TC_ACT_SHOT
  *  0: not testing traffic: TC_ACT_OK
  * >0: first byte is the inet_proto, second byte has the netns
@@ -122,11 +136,16 @@ static bool bpf_fwd(void)
  */
 static int skb_get_type(struct __sk_buff *skb)
 {
+	__u16 dst_ns_port = __bpf_htons(50000 + test);
 	void *data_end = ctx_ptr(skb->data_end);
 	void *data = ctx_ptr(skb->data);
 	__u8 inet_proto = 0, ns = 0;
 	struct ipv6hdr *ip6h;
+	__u16 sport, dport;
 	struct iphdr *iph;
+	struct tcphdr *th;
+	struct udphdr *uh;
+	void *trans;
 
 	switch (skb->protocol) {
 	case __bpf_htons(ETH_P_IP):
@@ -138,6 +157,7 @@ static int skb_get_type(struct __sk_buff *skb)
 		else if (iph->saddr == ip4_dst)
 			ns = DST_NS;
 		inet_proto = iph->protocol;
+		trans = iph + 1;
 		break;
 	case __bpf_htons(ETH_P_IPV6):
 		ip6h = data + sizeof(struct ethhdr);
@@ -148,15 +168,43 @@ static int skb_get_type(struct __sk_buff *skb)
 		else if (v6_equal(ip6h->saddr, (struct in6_addr)ip6_dst))
 			ns = DST_NS;
 		inet_proto = ip6h->nexthdr;
+		trans = ip6h + 1;
 		break;
 	default:
 		return 0;
 	}
 
-	if ((inet_proto != IPPROTO_TCP && inet_proto != IPPROTO_UDP) || !ns)
+	/* skb is not from src_ns or dst_ns.
+	 * skb is not the testing IPPROTO.
+	 */
+	if (!ns || inet_proto != get_proto())
 		return 0;
 
-	return (ns << 8 | inet_proto);
+	switch (inet_proto) {
+	case IPPROTO_TCP:
+		th = trans;
+		if (th + 1 > data_end)
+			return -1;
+		sport = th->source;
+		dport = th->dest;
+		break;
+	case IPPROTO_UDP:
+		uh = trans;
+		if (uh + 1 > data_end)
+			return -1;
+		sport = uh->source;
+		dport = uh->dest;
+		break;
+	default:
+		return 0;
+	}
+
+	/* The skb is the testing traffic */
+	if ((ns == SRC_NS && dport == dst_ns_port) ||
+	    (ns == DST_NS && sport == dst_ns_port))
+		return (ns << 8 | inet_proto);
+
+	return 0;
 }
 
 /* format: direction@iface@netns

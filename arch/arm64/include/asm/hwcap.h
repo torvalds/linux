@@ -85,7 +85,7 @@
 #define KERNEL_HWCAP_PACA		__khwcap_feature(PACA)
 #define KERNEL_HWCAP_PACG		__khwcap_feature(PACG)
 
-#define __khwcap2_feature(x)		(const_ilog2(HWCAP2_ ## x) + 32)
+#define __khwcap2_feature(x)		(const_ilog2(HWCAP2_ ## x) + 64)
 #define KERNEL_HWCAP_DCPODP		__khwcap2_feature(DCPODP)
 #define KERNEL_HWCAP_SVE2		__khwcap2_feature(SVE2)
 #define KERNEL_HWCAP_SVEAES		__khwcap2_feature(SVEAES)
@@ -109,6 +109,17 @@
 #define KERNEL_HWCAP_AFP		__khwcap2_feature(AFP)
 #define KERNEL_HWCAP_RPRES		__khwcap2_feature(RPRES)
 #define KERNEL_HWCAP_MTE3		__khwcap2_feature(MTE3)
+#define KERNEL_HWCAP_SME		__khwcap2_feature(SME)
+#define KERNEL_HWCAP_SME_I16I64		__khwcap2_feature(SME_I16I64)
+#define KERNEL_HWCAP_SME_F64F64		__khwcap2_feature(SME_F64F64)
+#define KERNEL_HWCAP_SME_I8I32		__khwcap2_feature(SME_I8I32)
+#define KERNEL_HWCAP_SME_F16F32		__khwcap2_feature(SME_F16F32)
+#define KERNEL_HWCAP_SME_B16F32		__khwcap2_feature(SME_B16F32)
+#define KERNEL_HWCAP_SME_F32F32		__khwcap2_feature(SME_F32F32)
+#define KERNEL_HWCAP_SME_FA64		__khwcap2_feature(SME_FA64)
+#define KERNEL_HWCAP_WFXT		__khwcap2_feature(WFXT)
+#define KERNEL_HWCAP_EBF16		__khwcap2_feature(EBF16)
+#define KERNEL_HWCAP_SVE_EBF16		__khwcap2_feature(SVE_EBF16)
 
 /*
  * This yields a mask that user programs can use to figure out what

@@ -233,8 +233,8 @@ static inline void add_powernv_state(int index, const char *name,
 				     unsigned int exit_latency,
 				     u64 psscr_val, u64 psscr_mask)
 {
-	strlcpy(powernv_states[index].name, name, CPUIDLE_NAME_LEN);
-	strlcpy(powernv_states[index].desc, name, CPUIDLE_NAME_LEN);
+	strscpy(powernv_states[index].name, name, CPUIDLE_NAME_LEN);
+	strscpy(powernv_states[index].desc, name, CPUIDLE_NAME_LEN);
 	powernv_states[index].flags = flags;
 	powernv_states[index].target_residency = target_residency;
 	powernv_states[index].exit_latency = exit_latency;

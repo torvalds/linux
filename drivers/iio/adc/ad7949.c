@@ -86,7 +86,7 @@ struct ad7949_adc_chip {
 	u8 resolution;
 	u16 cfg;
 	unsigned int current_channel;
-	u16 buffer ____cacheline_aligned;
+	u16 buffer __aligned(IIO_DMA_MINALIGN);
 	__be16 buf8b;
 };
 
@@ -400,7 +400,7 @@ static int ad7949_spi_probe(struct spi_device *spi)
 
 	ret = ad7949_spi_init(ad7949_adc);
 	if (ret) {
-		dev_err(dev, "enable to init this device: %d\n", ret);
+		dev_err(dev, "fail to init this device: %d\n", ret);
 		return ret;
 	}
 

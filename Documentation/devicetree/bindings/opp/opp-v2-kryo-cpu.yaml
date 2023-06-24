@@ -17,10 +17,10 @@ description: |
   the CPU frequencies subset and voltage value of each OPP varies based on
   the silicon variant in use.
   Qualcomm Technologies, Inc. Process Voltage Scaling Tables
-  defines the voltage and frequency value based on the msm-id in SMEM
-  and speedbin blown in the efuse combination.
-  The qcom-cpufreq-nvmem driver reads the msm-id and efuse value from the SoC
-  to provide the OPP framework with required information (existing HW bitmap).
+  defines the voltage and frequency value based on the speedbin blown in
+  the efuse combination.
+  The qcom-cpufreq-nvmem driver reads the efuse value from the SoC to provide
+  the OPP framework with required information (existing HW bitmap).
   This is used to determine the voltage and frequency value for each OPP of
   operating-points-v2 table when it is parsed by the OPP framework.
 
@@ -40,6 +40,7 @@ properties:
 patternProperties:
   '^opp-?[0-9]+$':
     type: object
+    additionalProperties: false
 
     properties:
       opp-hz: true
@@ -50,15 +51,11 @@ patternProperties:
         description: |
           A single 32 bit bitmap value, representing compatible HW.
           Bitmap:
-          0:  MSM8996 V3, speedbin 0
-          1:  MSM8996 V3, speedbin 1
-          2:  MSM8996 V3, speedbin 2
-          3:  unused
-          4:  MSM8996 SG, speedbin 0
-          5:  MSM8996 SG, speedbin 1
-          6:  MSM8996 SG, speedbin 2
-          7-31:  unused
-        maximum: 0x77
+          0:  MSM8996, speedbin 0
+          1:  MSM8996, speedbin 1
+          2:  MSM8996, speedbin 2
+          3-31:  unused
+        maximum: 0x7
 
       clock-latency-ns: true
 
@@ -102,6 +99,8 @@ examples:
                 capacity-dmips-mhz = <1024>;
                 clocks = <&kryocc 0>;
                 operating-points-v2 = <&cluster0_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
                 #cooling-cells = <2>;
                 next-level-cache = <&L2_0>;
                 L2_0: l2-cache {
@@ -119,6 +118,8 @@ examples:
                 capacity-dmips-mhz = <1024>;
                 clocks = <&kryocc 0>;
                 operating-points-v2 = <&cluster0_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
                 #cooling-cells = <2>;
                 next-level-cache = <&L2_0>;
             };
@@ -132,6 +133,8 @@ examples:
                 capacity-dmips-mhz = <1024>;
                 clocks = <&kryocc 1>;
                 operating-points-v2 = <&cluster1_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
                 #cooling-cells = <2>;
                 next-level-cache = <&L2_1>;
                 L2_1: l2-cache {
@@ -149,6 +152,8 @@ examples:
                 capacity-dmips-mhz = <1024>;
                 clocks = <&kryocc 1>;
                 operating-points-v2 = <&cluster1_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
                 #cooling-cells = <2>;
                 next-level-cache = <&L2_1>;
             };
@@ -184,20 +189,23 @@ examples:
             opp-307200000 {
                 opp-hz = /bits/ 64 <307200000>;
                 opp-microvolt = <905000 905000 1140000>;
-                opp-supported-hw = <0x77>;
+                opp-supported-hw = <0x7>;
                 clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp1>;
+            };
+            opp-1401600000 {
+                opp-hz = /bits/ 64 <1401600000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x5>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp2>;
             };
             opp-1593600000 {
                 opp-hz = /bits/ 64 <1593600000>;
                 opp-microvolt = <1140000 905000 1140000>;
-                opp-supported-hw = <0x71>;
+                opp-supported-hw = <0x1>;
                 clock-latency-ns = <200000>;
-            };
-            opp-2188800000 {
-                opp-hz = /bits/ 64 <2188800000>;
-                opp-microvolt = <1140000 905000 1140000>;
-                opp-supported-hw = <0x10>;
-                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp3>;
             };
         };
 
@@ -209,26 +217,30 @@ examples:
             opp-307200000 {
                 opp-hz = /bits/ 64 <307200000>;
                 opp-microvolt = <905000 905000 1140000>;
-                opp-supported-hw = <0x77>;
+                opp-supported-hw = <0x7>;
                 clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp1>;
             };
-            opp-1593600000 {
-                opp-hz = /bits/ 64 <1593600000>;
+            opp-1804800000 {
+                opp-hz = /bits/ 64 <1804800000>;
                 opp-microvolt = <1140000 905000 1140000>;
-                opp-supported-hw = <0x70>;
+                opp-supported-hw = <0x6>;
                 clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp4>;
+            };
+            opp-1900800000 {
+                opp-hz = /bits/ 64 <1900800000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x4>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp5>;
             };
             opp-2150400000 {
                 opp-hz = /bits/ 64 <2150400000>;
                 opp-microvolt = <1140000 905000 1140000>;
-                opp-supported-hw = <0x31>;
+                opp-supported-hw = <0x1>;
                 clock-latency-ns = <200000>;
-            };
-            opp-2342400000 {
-                opp-hz = /bits/ 64 <2342400000>;
-                opp-microvolt = <1140000 905000 1140000>;
-                opp-supported-hw = <0x10>;
-                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp6>;
             };
         };
 

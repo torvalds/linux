@@ -666,8 +666,7 @@ static u8 pata_macio_bmdma_status(struct ata_port *ap)
 	 * a multi-block transfer.
 	 *
 	 * - The dbdma fifo hasn't yet finished flushing to
-	 * to system memory when the disk interrupt occurs.
-	 *
+	 * system memory when the disk interrupt occurs.
 	 */
 
 	/* First check for errors */
@@ -1028,7 +1027,7 @@ static void pmac_macio_calc_timing_masks(struct pata_macio_priv *priv,
 		}
 		i++;
 	}
-	dev_dbg(priv->dev, "Supported masks: PIO=%lx, MWDMA=%lx, UDMA=%lx\n",
+	dev_dbg(priv->dev, "Supported masks: PIO=%x, MWDMA=%x, UDMA=%x\n",
 		pinfo->pio_mask, pinfo->mwdma_mask, pinfo->udma_mask);
 }
 

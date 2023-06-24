@@ -632,11 +632,11 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 	common = &(ch->common[VPIF_VIDEO_INDEX]);
 
 	if (VPIF_CHANNEL1_VIDEO == ch->channel_id)
-		common->set_addr = ch1_set_videobuf_addr;
+		common->set_addr = ch1_set_video_buf_addr;
 	else if (2 == muxmode)
-		common->set_addr = ch0_set_videobuf_addr_yc_nmux;
+		common->set_addr = ch0_set_video_buf_addr_yc_nmux;
 	else
-		common->set_addr = ch0_set_videobuf_addr;
+		common->set_addr = ch0_set_video_buf_addr;
 }
 
 /**
@@ -1067,8 +1067,6 @@ static int vpif_querycap(struct file *file, void  *priv,
 	struct vpif_capture_config *config = vpif_dev->platform_data;
 
 	strscpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(vpif_dev));
 	strscpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;

@@ -89,7 +89,7 @@ static void sxgbe_enable_eee_mode(const struct sxgbe_priv_data *priv)
 
 void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
 {
-	/* Exit and disable EEE in case of we are are in LPI state. */
+	/* Exit and disable EEE in case of we are in LPI state. */
 	priv->hw->mac->reset_eee_mode(priv->ioaddr);
 	del_timer_sync(&priv->eee_ctrl_timer);
 	priv->tx_path_in_lpi_mode = false;
@@ -2143,7 +2143,7 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 		pr_info("Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
-	netif_napi_add(ndev, &priv->napi, sxgbe_poll, 64);
+	netif_napi_add(ndev, &priv->napi, sxgbe_poll);
 
 	spin_lock_init(&priv->stats_lock);
 

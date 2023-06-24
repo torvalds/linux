@@ -1511,7 +1511,7 @@
 		compatible = "gpio-keys";
 		interrupt-parent = <&gpio>;
 
-		dock-hall-sensor {
+		switch-dock-hall-sensor {
 			label = "Lid sensor";
 			gpios = <&gpio TEGRA_GPIO(S, 6) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -1521,7 +1521,7 @@
 			wakeup-source;
 		};
 
-		lineout-detect {
+		switch-lineout-detect {
 			label = "Audio dock line-out detect";
 			gpios = <&gpio TEGRA_GPIO(X, 3) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -1544,7 +1544,7 @@
 		compatible = "gpio-keys";
 		interrupt-parent = <&gpio>;
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -1553,7 +1553,7 @@
 			wakeup-source;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -1562,7 +1562,7 @@
 			wakeup-source;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio TEGRA_GPIO(Q, 3) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

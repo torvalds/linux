@@ -11,6 +11,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/entry-common.h>
 #include <linux/hardirq.h>
 #include <linux/log2.h>
 #include <linux/kprobes.h>
@@ -29,6 +30,8 @@
 #include <asm/switch_to.h>
 #include <asm/ctl_reg.h>
 #include <asm/asm-offsets.h>
+#include <asm/pai.h>
+
 #include <linux/kvm_host.h>
 
 struct mcck_struct {
@@ -61,7 +64,7 @@ static inline unsigned long nmi_get_mcesa_size(void)
  * structure. The structure is required for machine check happening
  * early in the boot process.
  */
-static struct mcesa boot_mcesa __initdata __aligned(MCESA_MAX_SIZE);
+static struct mcesa boot_mcesa __aligned(MCESA_MAX_SIZE);
 
 void __init nmi_alloc_mcesa_early(u64 *mcesad)
 {
@@ -169,10 +172,12 @@ void __s390_handle_mcck(void)
 	}
 }
 
-void noinstr s390_handle_mcck(void)
+void noinstr s390_handle_mcck(struct pt_regs *regs)
 {
 	trace_hardirqs_off();
+	pai_kernel_enter(regs);
 	__s390_handle_mcck();
+	pai_kernel_exit(regs);
 	trace_hardirqs_on();
 }
 /*
@@ -393,11 +398,12 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 	static unsigned long long last_ipd;
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
+	irqentry_state_t irq_state;
 	union mci mci;
 	unsigned long mcck_dam_code;
 	int mcck_pending = 0;
 
-	nmi_enter();
+	irq_state = irqentry_nmi_enter(regs);
 
 	if (user_mode(regs))
 		update_timer_mcck();
@@ -500,14 +506,14 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 	clear_cpu_flag(CIF_MCCK_GUEST);
 
 	if (user_mode(regs) && mcck_pending) {
-		nmi_exit();
+		irqentry_nmi_exit(regs, irq_state);
 		return 1;
 	}
 
 	if (mcck_pending)
 		schedule_mcck_handler();
 
-	nmi_exit();
+	irqentry_nmi_exit(regs, irq_state);
 	return 0;
 }
 NOKPROBE_SYMBOL(s390_do_machine_check);

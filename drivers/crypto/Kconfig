@@ -133,98 +133,6 @@ config CRYPTO_PAES_S390
 	  Select this option if you want to use the paes cipher
 	  for example to use protected key encrypted devices.
 
-config CRYPTO_SHA1_S390
-	tristate "SHA1 digest algorithm"
-	depends on S390
-	select CRYPTO_HASH
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
-
-	  It is available as of z990.
-
-config CRYPTO_SHA256_S390
-	tristate "SHA256 digest algorithm"
-	depends on S390
-	select CRYPTO_HASH
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA256 secure hash standard (DFIPS 180-2).
-
-	  It is available as of z9.
-
-config CRYPTO_SHA512_S390
-	tristate "SHA384 and SHA512 digest algorithm"
-	depends on S390
-	select CRYPTO_HASH
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA512 secure hash standard.
-
-	  It is available as of z10.
-
-config CRYPTO_SHA3_256_S390
-	tristate "SHA3_224 and SHA3_256 digest algorithm"
-	depends on S390
-	select CRYPTO_HASH
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA3_256 secure hash standard.
-
-	  It is available as of z14.
-
-config CRYPTO_SHA3_512_S390
-	tristate "SHA3_384 and SHA3_512 digest algorithm"
-	depends on S390
-	select CRYPTO_HASH
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA3_512 secure hash standard.
-
-	  It is available as of z14.
-
-config CRYPTO_DES_S390
-	tristate "DES and Triple DES cipher algorithms"
-	depends on S390
-	select CRYPTO_ALGAPI
-	select CRYPTO_SKCIPHER
-	select CRYPTO_LIB_DES
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
-
-	  As of z990 the ECB and CBC mode are hardware accelerated.
-	  As of z196 the CTR mode is hardware accelerated.
-
-config CRYPTO_AES_S390
-	tristate "AES cipher algorithms"
-	depends on S390
-	select CRYPTO_ALGAPI
-	select CRYPTO_SKCIPHER
-	help
-	  This is the s390 hardware accelerated implementation of the
-	  AES cipher algorithms (FIPS-197).
-
-	  As of z9 the ECB and CBC modes are hardware accelerated
-	  for 128 bit keys.
-	  As of z10 the ECB and CBC modes are hardware accelerated
-	  for all AES key sizes.
-	  As of z196 the CTR mode is hardware accelerated for all AES
-	  key sizes and XTS mode is hardware accelerated for 256 and
-	  512 bit keys.
-
-config CRYPTO_CHACHA_S390
-	tristate "ChaCha20 stream cipher"
-	depends on S390
-	select CRYPTO_ALGAPI
-	select CRYPTO_SKCIPHER
-	select CRYPTO_CHACHA20
-	help
-	  This is the s390 SIMD implementation of the ChaCha20 stream
-	  cipher (RFC 7539).
-
-	  It is available as of z13.
-
 config S390_PRNG
 	tristate "Pseudo random number generator device driver"
 	depends on S390
@@ -237,29 +145,6 @@ config S390_PRNG
 	  pseudo-random-number device through the char device /dev/prandom.
 
 	  It is available as of z9.
-
-config CRYPTO_GHASH_S390
-	tristate "GHASH hash function"
-	depends on S390
-	select CRYPTO_HASH
-	help
-	  This is the s390 hardware accelerated implementation of GHASH,
-	  the hash function used in GCM (Galois/Counter mode).
-
-	  It is available as of z196.
-
-config CRYPTO_CRC32_S390
-	tristate "CRC-32 algorithms"
-	depends on S390
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  Select this option if you want to use hardware accelerated
-	  implementations of CRC algorithms.  With this option, you
-	  can optimize the computation of CRC-32 (IEEE 802.3 Ethernet)
-	  and CRC-32C (Castagnoli).
-
-	  It is available with IBM z13 or later.
 
 config CRYPTO_DEV_NIAGARA2
 	tristate "Niagara2 Stream Processing Unit driver"
@@ -917,9 +802,7 @@ source "drivers/crypto/amlogic/Kconfig"
 config CRYPTO_DEV_SA2UL
 	tristate "Support for TI security accelerator"
 	depends on ARCH_K3 || COMPILE_TEST
-	select ARM64_CRYPTO
 	select CRYPTO_AES
-	select CRYPTO_AES_ARM64
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
 	select CRYPTO_SHA1
@@ -933,5 +816,6 @@ config CRYPTO_DEV_SA2UL
 	  acceleration for cryptographic algorithms on these devices.
 
 source "drivers/crypto/keembay/Kconfig"
+source "drivers/crypto/aspeed/Kconfig"
 
 endif # CRYPTO_HW

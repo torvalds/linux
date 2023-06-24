@@ -36,6 +36,13 @@
 #define SR_SD		_AC(0x8000000000000000, UL) /* FS/XS dirty */
 #endif
 
+#ifdef CONFIG_64BIT
+#define SR_UXL		_AC(0x300000000, UL) /* XLEN mask for U-mode */
+#define SR_UXL_32	_AC(0x100000000, UL) /* XLEN = 32 for U-mode */
+#define SR_UXL_64	_AC(0x200000000, UL) /* XLEN = 64 for U-mode */
+#define SR_UXL_SHIFT	32
+#endif
+
 /* SATP flags */
 #ifndef CONFIG_64BIT
 #define SATP_PPN	_AC(0x003FFFFF, UL)
@@ -117,6 +124,7 @@
 #define HGATP_MODE_SV32X4	_AC(1, UL)
 #define HGATP_MODE_SV39X4	_AC(8, UL)
 #define HGATP_MODE_SV48X4	_AC(9, UL)
+#define HGATP_MODE_SV57X4	_AC(10, UL)
 
 #define HGATP32_MODE_SHIFT	31
 #define HGATP32_VMID_SHIFT	22
@@ -147,6 +155,18 @@
 #define VSIP_VALID_MASK		((_AC(1, UL) << IRQ_S_SOFT) | \
 				 (_AC(1, UL) << IRQ_S_TIMER) | \
 				 (_AC(1, UL) << IRQ_S_EXT))
+
+/* xENVCFG flags */
+#define ENVCFG_STCE			(_AC(1, ULL) << 63)
+#define ENVCFG_PBMTE			(_AC(1, ULL) << 62)
+#define ENVCFG_CBZE			(_AC(1, UL) << 7)
+#define ENVCFG_CBCFE			(_AC(1, UL) << 6)
+#define ENVCFG_CBIE_SHIFT		4
+#define ENVCFG_CBIE			(_AC(0x3, UL) << ENVCFG_CBIE_SHIFT)
+#define ENVCFG_CBIE_ILL			_AC(0x0, UL)
+#define ENVCFG_CBIE_FLUSH		_AC(0x1, UL)
+#define ENVCFG_CBIE_INV			_AC(0x3, UL)
+#define ENVCFG_FIOM			_AC(0x1, UL)
 
 /* symbolic CSR names: */
 #define CSR_CYCLE		0xc00
@@ -227,6 +247,9 @@
 #define CSR_SIP			0x144
 #define CSR_SATP		0x180
 
+#define CSR_STIMECMP		0x14D
+#define CSR_STIMECMPH		0x15D
+
 #define CSR_VSSTATUS		0x200
 #define CSR_VSIE		0x204
 #define CSR_VSTVEC		0x205
@@ -236,6 +259,8 @@
 #define CSR_VSTVAL		0x243
 #define CSR_VSIP		0x244
 #define CSR_VSATP		0x280
+#define CSR_VSTIMECMP		0x24D
+#define CSR_VSTIMECMPH		0x25D
 
 #define CSR_HSTATUS		0x600
 #define CSR_HEDELEG		0x602
@@ -244,7 +269,9 @@
 #define CSR_HTIMEDELTA		0x605
 #define CSR_HCOUNTEREN		0x606
 #define CSR_HGEIE		0x607
+#define CSR_HENVCFG		0x60a
 #define CSR_HTIMEDELTAH		0x615
+#define CSR_HENVCFGH		0x61a
 #define CSR_HTVAL		0x643
 #define CSR_HIP			0x644
 #define CSR_HVIP		0x645
@@ -256,6 +283,8 @@
 #define CSR_MISA		0x301
 #define CSR_MIE			0x304
 #define CSR_MTVEC		0x305
+#define CSR_MENVCFG		0x30a
+#define CSR_MENVCFGH		0x31a
 #define CSR_MSCRATCH		0x340
 #define CSR_MEPC		0x341
 #define CSR_MCAUSE		0x342

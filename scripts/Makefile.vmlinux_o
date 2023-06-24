@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+PHONY := __default
+__default: vmlinux.o modules.builtin.modinfo modules.builtin
+
+include include/config/auto.conf
+include $(srctree)/scripts/Kbuild.include
+
+# for objtool
+include $(srctree)/scripts/Makefile.lib
+
+# Generate a linker script to ensure correct ordering of initcalls for Clang LTO
+# ---------------------------------------------------------------------------
+
+quiet_cmd_gen_initcalls_lds = GEN     $@
+      cmd_gen_initcalls_lds = \
+	$(PYTHON3) $(srctree)/scripts/jobserver-exec \
+	$(PERL) $(real-prereqs) > $@
+
+.tmp_initcalls.lds: $(srctree)/scripts/generate_initcall_order.pl \
+		vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
+	$(call if_changed,gen_initcalls_lds)
+
+targets := .tmp_initcalls.lds
+
+ifdef CONFIG_LTO_CLANG
+initcalls-lds := .tmp_initcalls.lds
+endif
+
+# objtool for vmlinux.o
+# ---------------------------------------------------------------------------
+#
+# For LTO and IBT, objtool doesn't run on individual translation units.
+# Run everything on vmlinux instead.
+
+objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
+
+vmlinux-objtool-args-$(delay-objtool)			+= $(objtool-args-y)
+vmlinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --no-unreachable
+vmlinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr $(if $(CONFIG_CPU_UNRET_ENTRY), --unret)
+
+objtool-args = $(vmlinux-objtool-args-y) --link
+
+# Link of vmlinux.o used for section mismatch analysis
+# ---------------------------------------------------------------------------
+
+quiet_cmd_ld_vmlinux.o = LD      $@
+      cmd_ld_vmlinux.o = \
+	$(LD) ${KBUILD_LDFLAGS} -r -o $@ \
+	$(addprefix -T , $(initcalls-lds)) \
+	--whole-archive vmlinux.a --no-whole-archive \
+	--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
+	$(cmd_objtool)
+
+define rule_ld_vmlinux.o
+	$(call cmd_and_savecmd,ld_vmlinux.o)
+	$(call cmd,gen_objtooldep)
+endef
+
+vmlinux.o: $(initcalls-lds) vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
+	$(call if_changed_rule,ld_vmlinux.o)
+
+targets += vmlinux.o
+
+# module.builtin.modinfo
+# ---------------------------------------------------------------------------
+
+OBJCOPYFLAGS_modules.builtin.modinfo := -j .modinfo -O binary
+
+targets += modules.builtin.modinfo
+modules.builtin.modinfo: vmlinux.o FORCE
+	$(call if_changed,objcopy)
+
+# module.builtin
+# ---------------------------------------------------------------------------
+
+# The second line aids cases where multiple modules share the same object.
+
+quiet_cmd_modules_builtin = GEN     $@
+      cmd_modules_builtin = \
+	tr '\0' '\n' < $< | \
+	sed -n 's/^[[:alnum:]:_]*\.file=//p' | \
+	tr ' ' '\n' | uniq | sed -e 's:^:kernel/:' -e 's/$$/.ko/' > $@
+
+targets += modules.builtin
+modules.builtin: modules.builtin.modinfo FORCE
+	$(call if_changed,modules_builtin)
+
+# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# ---------------------------------------------------------------------------
+
+PHONY += FORCE
+FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building above, using $(if_changed{,_dep}). As an
+# optimization, we don't need to read them if the target does not
+# exist, we will rebuild anyway in that case.
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+
+.PHONY: $(PHONY)

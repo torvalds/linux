@@ -473,7 +473,8 @@ enum {
  */
 
 struct disk_info {
-	struct md_rdev	*rdev, *replacement;
+	struct md_rdev	__rcu *rdev;
+	struct md_rdev  __rcu *replacement;
 	struct page	*extra_page; /* extra page to use in prexor */
 };
 
@@ -560,6 +561,16 @@ struct r5pending_data {
 	struct bio_list bios;
 };
 
+struct raid5_percpu {
+	struct page	*spare_page; /* Used when checking P/Q in raid6 */
+	void		*scribble;  /* space for constructing buffer
+				     * lists and performing address
+				     * conversions
+				     */
+	int             scribble_obj_size;
+	local_lock_t    lock;
+};
+
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	/* only protect corresponding hash list and inactive_list */
@@ -635,15 +646,7 @@ struct r5conf {
 					    */
 	int			recovery_disabled;
 	/* per cpu variables */
-	struct raid5_percpu {
-		struct page	*spare_page; /* Used when checking P/Q in raid6 */
-		void		*scribble;  /* space for constructing buffer
-					     * lists and performing address
-					     * conversions
-					     */
-		int             scribble_obj_size;
-		local_lock_t    lock;
-	} __percpu *percpu;
+	struct raid5_percpu __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;
 	struct hlist_node node;
@@ -800,16 +803,24 @@ raid5_get_dev_page(struct stripe_head *sh, int disk_idx)
 }
 #endif
 
-extern void md_raid5_kick_device(struct r5conf *conf);
-extern int raid5_set_cache_size(struct mddev *mddev, int size);
-extern sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
-extern void raid5_release_stripe(struct stripe_head *sh);
-extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
-				     int previous, int *dd_idx,
-				     struct stripe_head *sh);
-extern struct stripe_head *
-raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
-			int previous, int noblock, int noquiesce);
-extern int raid5_calc_degraded(struct r5conf *conf);
-extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
+void md_raid5_kick_device(struct r5conf *conf);
+int raid5_set_cache_size(struct mddev *mddev, int size);
+sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
+void raid5_release_stripe(struct stripe_head *sh);
+sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
+		int previous, int *dd_idx, struct stripe_head *sh);
+
+struct stripe_request_ctx;
+/* get stripe from previous generation (when reshaping) */
+#define R5_GAS_PREVIOUS		(1 << 0)
+/* do not block waiting for a free stripe */
+#define R5_GAS_NOBLOCK		(1 << 1)
+/* do not block waiting for quiesce to be released */
+#define R5_GAS_NOQUIESCE	(1 << 2)
+struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
+		struct stripe_request_ctx *ctx, sector_t sector,
+		unsigned int flags);
+
+int raid5_calc_degraded(struct r5conf *conf);
+int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif

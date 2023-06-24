@@ -49,6 +49,8 @@
 		reg = <0x75>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		idle-state = <0>;
+
 		i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -100,7 +102,7 @@
 
 &dspi {
 	status = "okay";
-	dflash0: n25q512a@0 {
+	dflash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";

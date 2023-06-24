@@ -93,24 +93,17 @@ struct nf_ip_net {
 #endif
 };
 
-struct ct_pcpu {
-	spinlock_t		lock;
-	struct hlist_nulls_head unconfirmed;
-	struct hlist_nulls_head dying;
-};
-
 struct netns_ct {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
+	u8 ctnetlink_has_listener;
 	bool ecache_dwork_pending;
 #endif
 	u8			sysctl_log_invalid; /* Log invalid packets */
 	u8			sysctl_events;
 	u8			sysctl_acct;
-	u8			sysctl_auto_assign_helper;
 	u8			sysctl_tstamp;
 	u8			sysctl_checksum;
 
-	struct ct_pcpu __percpu *pcpu_lists;
 	struct ip_conntrack_stat __percpu *stat;
 	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
 	struct nf_ip_net	nf_ct_proto;

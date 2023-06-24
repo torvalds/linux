@@ -22,6 +22,8 @@
  *
  */
 
+#include <linux/string_helpers.h>
+
 #include <drm/drm_print.h>
 #include <drm/i915_pciids.h>
 
@@ -29,6 +31,7 @@
 #include "display/intel_de.h"
 #include "intel_device_info.h"
 #include "i915_drv.h"
+#include "i915_utils.h"
 
 #define PLATFORM_NAME(x) [INTEL_##x] = #x
 static const char * const platform_names[] = {
@@ -69,6 +72,8 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(ALDERLAKE_P),
 	PLATFORM_NAME(XEHPSDV),
 	PLATFORM_NAME(DG2),
+	PLATFORM_NAME(PONTEVECCHIO),
+	PLATFORM_NAME(METEORLAKE),
 };
 #undef PLATFORM_NAME
 
@@ -83,46 +88,57 @@ const char *intel_platform_name(enum intel_platform platform)
 	return platform_names[platform];
 }
 
-void intel_device_info_print_static(const struct intel_device_info *info,
-				    struct drm_printer *p)
+void intel_device_info_print(const struct intel_device_info *info,
+			     const struct intel_runtime_info *runtime,
+			     struct drm_printer *p)
 {
-	if (info->graphics.rel)
-		drm_printf(p, "graphics version: %u.%02u\n", info->graphics.ver,
-			   info->graphics.rel);
+	if (runtime->graphics.ip.rel)
+		drm_printf(p, "graphics version: %u.%02u\n",
+			   runtime->graphics.ip.ver,
+			   runtime->graphics.ip.rel);
 	else
-		drm_printf(p, "graphics version: %u\n", info->graphics.ver);
+		drm_printf(p, "graphics version: %u\n",
+			   runtime->graphics.ip.ver);
 
-	if (info->media.rel)
-		drm_printf(p, "media version: %u.%02u\n", info->media.ver, info->media.rel);
+	if (runtime->media.ip.rel)
+		drm_printf(p, "media version: %u.%02u\n",
+			   runtime->media.ip.ver,
+			   runtime->media.ip.rel);
 	else
-		drm_printf(p, "media version: %u\n", info->media.ver);
+		drm_printf(p, "media version: %u\n",
+			   runtime->media.ip.ver);
 
-	if (info->display.rel)
-		drm_printf(p, "display version: %u.%02u\n", info->display.ver, info->display.rel);
+	if (runtime->display.ip.rel)
+		drm_printf(p, "display version: %u.%02u\n",
+			   runtime->display.ip.ver,
+			   runtime->display.ip.rel);
 	else
-		drm_printf(p, "display version: %u\n", info->display.ver);
+		drm_printf(p, "display version: %u\n",
+			   runtime->display.ip.ver);
 
 	drm_printf(p, "gt: %d\n", info->gt);
-	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
-	drm_printf(p, "page-sizes: %x\n", info->page_sizes);
+	drm_printf(p, "memory-regions: %x\n", runtime->memory_regions);
+	drm_printf(p, "page-sizes: %x\n", runtime->page_sizes);
 	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
-	drm_printf(p, "ppgtt-size: %d\n", info->ppgtt_size);
-	drm_printf(p, "ppgtt-type: %d\n", info->ppgtt_type);
+	drm_printf(p, "ppgtt-size: %d\n", runtime->ppgtt_size);
+	drm_printf(p, "ppgtt-type: %d\n", runtime->ppgtt_type);
 	drm_printf(p, "dma_mask_size: %u\n", info->dma_mask_size);
 
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->name))
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
 	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
 
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->display.name))
+	drm_printf(p, "has_pooled_eu: %s\n", str_yes_no(runtime->has_pooled_eu));
+
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->display.name))
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
-}
 
-void intel_device_info_print_runtime(const struct intel_runtime_info *info,
-				     struct drm_printer *p)
-{
-	drm_printf(p, "rawclk rate: %u kHz\n", info->rawclk_freq);
+	drm_printf(p, "has_hdcp: %s\n", str_yes_no(runtime->has_hdcp));
+	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
+	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
+
+	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
 #undef INTEL_VGA_DEVICE
@@ -178,8 +194,31 @@ static const u16 subplatform_n_ids[] = {
 	INTEL_ADLN_IDS(0),
 };
 
-static const u16 subplatform_rpls_ids[] = {
+static const u16 subplatform_rpl_ids[] = {
 	INTEL_RPLS_IDS(0),
+	INTEL_RPLP_IDS(0),
+};
+
+static const u16 subplatform_g10_ids[] = {
+	INTEL_DG2_G10_IDS(0),
+	INTEL_ATS_M150_IDS(0),
+};
+
+static const u16 subplatform_g11_ids[] = {
+	INTEL_DG2_G11_IDS(0),
+	INTEL_ATS_M75_IDS(0),
+};
+
+static const u16 subplatform_g12_ids[] = {
+	INTEL_DG2_G12_IDS(0),
+};
+
+static const u16 subplatform_m_ids[] = {
+	INTEL_MTL_M_IDS(0),
+};
+
+static const u16 subplatform_p_ids[] = {
+	INTEL_MTL_P_IDS(0),
 };
 
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
@@ -224,9 +263,24 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	} else if (find_devid(devid, subplatform_n_ids,
 				ARRAY_SIZE(subplatform_n_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_N);
-	} else if (find_devid(devid, subplatform_rpls_ids,
-			      ARRAY_SIZE(subplatform_rpls_ids))) {
-		mask = BIT(INTEL_SUBPLATFORM_RPL_S);
+	} else if (find_devid(devid, subplatform_rpl_ids,
+			      ARRAY_SIZE(subplatform_rpl_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_RPL);
+	} else if (find_devid(devid, subplatform_g10_ids,
+			      ARRAY_SIZE(subplatform_g10_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_G10);
+	} else if (find_devid(devid, subplatform_g11_ids,
+			      ARRAY_SIZE(subplatform_g11_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_G11);
+	} else if (find_devid(devid, subplatform_g12_ids,
+			      ARRAY_SIZE(subplatform_g12_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_G12);
+	} else if (find_devid(devid, subplatform_m_ids,
+			      ARRAY_SIZE(subplatform_m_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_M);
+	} else if (find_devid(devid, subplatform_p_ids,
+			      ARRAY_SIZE(subplatform_p_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_P);
 	}
 
 	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_MASK);
@@ -321,55 +375,55 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			drm_info(&dev_priv->drm,
 				 "Display fused off, disabling\n");
-			info->display.pipe_mask = 0;
-			info->display.cpu_transcoder_mask = 0;
-			info->display.fbc_mask = 0;
+			runtime->pipe_mask = 0;
+			runtime->cpu_transcoder_mask = 0;
+			runtime->fbc_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
 			drm_info(&dev_priv->drm, "PipeC fused off\n");
-			info->display.pipe_mask &= ~BIT(PIPE_C);
-			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			runtime->pipe_mask &= ~BIT(PIPE_C);
+			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 	} else if (HAS_DISPLAY(dev_priv) && DISPLAY_VER(dev_priv) >= 9) {
 		u32 dfsm = intel_de_read(dev_priv, SKL_DFSM);
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
-			info->display.pipe_mask &= ~BIT(PIPE_A);
-			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
-			info->display.fbc_mask &= ~BIT(INTEL_FBC_A);
+			runtime->pipe_mask &= ~BIT(PIPE_A);
+			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
+			runtime->fbc_mask &= ~BIT(INTEL_FBC_A);
 		}
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
-			info->display.pipe_mask &= ~BIT(PIPE_B);
-			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
+			runtime->pipe_mask &= ~BIT(PIPE_B);
+			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
 		}
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE) {
-			info->display.pipe_mask &= ~BIT(PIPE_C);
-			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			runtime->pipe_mask &= ~BIT(PIPE_C);
+			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 
 		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
-			info->display.pipe_mask &= ~BIT(PIPE_D);
-			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
+			runtime->pipe_mask &= ~BIT(PIPE_D);
+			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
 		}
 
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
-			info->display.has_hdcp = 0;
+			runtime->has_hdcp = 0;
 
 		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
-			info->display.fbc_mask = 0;
+			runtime->fbc_mask = 0;
 
 		if (DISPLAY_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
-			info->display.has_dmc = 0;
+			runtime->has_dmc = 0;
 
 		if (DISPLAY_VER(dev_priv) >= 10 &&
 		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
-			info->display.has_dsc = 0;
+			runtime->has_dsc = 0;
 	}
 
-	if (GRAPHICS_VER(dev_priv) == 6 && intel_vtd_active(dev_priv)) {
+	if (GRAPHICS_VER(dev_priv) == 6 && i915_vtd_active(dev_priv)) {
 		drm_info(&dev_priv->drm,
 			 "Disabling ppGTT for VT-d support\n");
-		info->ppgtt_type = INTEL_PPGTT_NONE;
+		runtime->ppgtt_type = INTEL_PPGTT_NONE;
 	}
 
 	runtime->rawclk_freq = intel_read_rawclk(dev_priv);
@@ -379,8 +433,14 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		dev_priv->drm.driver_features &= ~(DRIVER_MODESET |
 						   DRIVER_ATOMIC);
 		memset(&info->display, 0, sizeof(info->display));
+
+		runtime->cpu_transcoder_mask = 0;
 		memset(runtime->num_sprites, 0, sizeof(runtime->num_sprites));
 		memset(runtime->num_scalers, 0, sizeof(runtime->num_scalers));
+		runtime->fbc_mask = 0;
+		runtime->has_hdcp = false;
+		runtime->has_dmc = false;
+		runtime->has_dsc = false;
 	}
 }
 
@@ -388,6 +448,6 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p)
 {
 	drm_printf(p, "Has logical contexts? %s\n",
-		   yesno(caps->has_logical_contexts));
+		   str_yes_no(caps->has_logical_contexts));
 	drm_printf(p, "scheduler: %x\n", caps->scheduler);
 }

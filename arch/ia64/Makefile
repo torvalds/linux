@@ -44,7 +44,6 @@ quiet_cmd_objcopy = OBJCOPY $@
 cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
 
 KBUILD_CFLAGS += $(cflags-y)
-head-y := arch/ia64/kernel/head.o
 
 libs-y				+= arch/ia64/lib/
 
@@ -72,8 +71,9 @@ archheaders:
 
 CLEAN_FILES += vmlinux.gz
 
-install: vmlinux.gz
-	sh $(srctree)/arch/ia64/install.sh $(KERNELRELEASE) $< System.map "$(INSTALL_PATH)"
+install: KBUILD_IMAGE := vmlinux.gz
+install:
+	$(call cmd,install)
 
 define archhelp
   echo '* compressed	- Build compressed kernel image'

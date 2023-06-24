@@ -20,6 +20,7 @@ properties:
       - mediatek,mt8173-vcodec-enc-vp8
       - mediatek,mt8173-vcodec-enc
       - mediatek,mt8183-vcodec-enc
+      - mediatek,mt8188-vcodec-enc
       - mediatek,mt8192-vcodec-enc
       - mediatek,mt8195-vcodec-enc
 
@@ -62,6 +63,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Describes point to scp.
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

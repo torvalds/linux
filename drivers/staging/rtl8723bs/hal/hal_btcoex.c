@@ -1113,11 +1113,6 @@ void EXhalbtcoutsrc_Periodical(struct btc_coexist *pBtCoexist)
 /* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_SetChipType(u8 chipType)
-{
-	GLBtCoexist.boardInfo.btChipType = BTC_CHIP_RTL8723B;
-}
-
 void EXhalbtcoutsrc_SetAntNum(u8 type, u8 antNum)
 {
 	if (BT_COEX_ANT_TYPE_PG == type) {
@@ -1188,9 +1183,6 @@ void hal_btcoex_SetChipType(struct adapter *padapter, u8 chipType)
 
 
 	pHalData = GET_HAL_DATA(padapter);
-	pHalData->bt_coexist.btChipType = chipType;
-
-	EXhalbtcoutsrc_SetChipType(chipType);
 }
 
 void hal_btcoex_SetPgAntNum(struct adapter *padapter, u8 antNum)
@@ -1289,11 +1281,6 @@ void hal_btcoex_Handler(struct adapter *padapter)
 s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 {
 	return (s32)GLBtCoexist.btInfo.bBtCtrlAggBufSize;
-}
-
-void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual)
-{
-	GLBtCoexist.bManualControl = bmanual;
 }
 
 bool hal_btcoex_IsBtControlLps(struct adapter *padapter)

@@ -38,6 +38,9 @@
 #include "xfs_pwork.h"
 #include "xfs_ag.h"
 #include "xfs_defer.h"
+#include "xfs_attr_item.h"
+#include "xfs_xattr.h"
+#include "xfs_iunlink_item.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -348,8 +351,10 @@ xfs_setup_dax_always(
 		goto disable_dax;
 	}
 
-	if (xfs_has_reflink(mp)) {
-		xfs_alert(mp, "DAX and reflink cannot be used together!");
+	if (xfs_has_reflink(mp) &&
+	    bdev_is_partition(mp->m_ddev_targp->bt_bdev)) {
+		xfs_alert(mp,
+			"DAX and reflink cannot work with multi-partitions!");
 		return -EINVAL;
 	}
 
@@ -648,7 +653,7 @@ xfs_fs_destroy_inode(
 static void
 xfs_fs_dirty_inode(
 	struct inode			*inode,
-	int				flag)
+	int				flags)
 {
 	struct xfs_inode		*ip = XFS_I(inode);
 	struct xfs_mount		*mp = ip->i_mount;
@@ -656,7 +661,13 @@ xfs_fs_dirty_inode(
 
 	if (!(inode->i_sb->s_flags & SB_LAZYTIME))
 		return;
-	if (flag != I_DIRTY_SYNC || !(inode->i_state & I_DIRTY_TIME))
+
+	/*
+	 * Only do the timestamp update if the inode is dirty (I_DIRTY_SYNC)
+	 * and has dirty timestamp (I_DIRTY_TIME). I_DIRTY_TIME can be passed
+	 * in flags possibly together with I_DIRTY_SYNC.
+	 */
+	if ((flags & ~I_DIRTY_TIME) != I_DIRTY_SYNC || !(flags & I_DIRTY_TIME))
 		return;
 
 	if (xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp))
@@ -795,8 +806,11 @@ xfs_fs_statfs(
 	xfs_extlen_t		lsize;
 	int64_t			ffree;
 
-	/* Wait for whatever inactivations are in progress. */
-	xfs_inodegc_flush(mp);
+	/*
+	 * Expedite background inodegc but don't wait. We do not want to block
+	 * here waiting hours for a billion extent file to be truncated.
+	 */
+	xfs_inodegc_push(mp);
 
 	statp->f_type = XFS_SUPER_MAGIC;
 	statp->f_namelen = MAXNAMELEN - 1;
@@ -843,9 +857,11 @@ xfs_fs_statfs(
 
 	if (XFS_IS_REALTIME_MOUNT(mp) &&
 	    (ip->i_diflags & (XFS_DIFLAG_RTINHERIT | XFS_DIFLAG_REALTIME))) {
+		s64	freertx;
+
 		statp->f_blocks = sbp->sb_rblocks;
-		statp->f_bavail = statp->f_bfree =
-			sbp->sb_frextents * sbp->sb_rextsize;
+		freertx = percpu_counter_sum_positive(&mp->m_frextents);
+		statp->f_bavail = statp->f_bfree = freertx * sbp->sb_rextsize;
 	}
 
 	return 0;
@@ -1015,8 +1031,14 @@ xfs_init_percpu_counters(
 	if (error)
 		goto free_fdblocks;
 
+	error = percpu_counter_init(&mp->m_frextents, 0, GFP_KERNEL);
+	if (error)
+		goto free_delalloc;
+
 	return 0;
 
+free_delalloc:
+	percpu_counter_destroy(&mp->m_delalloc_blks);
 free_fdblocks:
 	percpu_counter_destroy(&mp->m_fdblocks);
 free_ifree:
@@ -1033,6 +1055,7 @@ xfs_reinit_percpu_counters(
 	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
 	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
 	percpu_counter_set(&mp->m_fdblocks, mp->m_sb.sb_fdblocks);
+	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
 }
 
 static void
@@ -1045,6 +1068,7 @@ xfs_destroy_percpu_counters(
 	ASSERT(xfs_is_shutdown(mp) ||
 	       percpu_counter_sum(&mp->m_delalloc_blks) == 0);
 	percpu_counter_destroy(&mp->m_delalloc_blks);
+	percpu_counter_destroy(&mp->m_frextents);
 }
 
 static int
@@ -1062,7 +1086,7 @@ xfs_inodegc_init_percpu(
 		gc = per_cpu_ptr(mp->m_inodegc, cpu);
 		init_llist_head(&gc->list);
 		gc->items = 0;
-		INIT_WORK(&gc->work, xfs_inodegc_worker);
+		INIT_DELAYED_WORK(&gc->work, xfs_inodegc_worker);
 	}
 	return 0;
 }
@@ -1608,14 +1632,10 @@ xfs_fs_fill_super(
 			goto out_filestream_unmount;
 	}
 
-	if (xfs_has_discard(mp)) {
-		struct request_queue *q = bdev_get_queue(sb->s_bdev);
-
-		if (!blk_queue_discard(q)) {
-			xfs_warn(mp, "mounting with \"discard\" option, but "
-					"the device does not support discard");
-			mp->m_features &= ~XFS_FEAT_DISCARD;
-		}
+	if (xfs_has_discard(mp) && !bdev_max_discard_sectors(sb->s_bdev)) {
+		xfs_warn(mp,
+	"mounting with \"discard\" option, but the device does not support discard");
+		mp->m_features &= ~XFS_FEAT_DISCARD;
 	}
 
 	if (xfs_has_reflink(mp)) {
@@ -1638,6 +1658,10 @@ xfs_fs_fill_super(
 		error = -EINVAL;
 		goto out_filestream_unmount;
 	}
+
+	if (xfs_has_large_extent_counts(mp))
+		xfs_warn(mp,
+	"EXPERIMENTAL Large extent counts feature in use. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)
@@ -1951,11 +1975,19 @@ xfs_init_caches(void)
 {
 	int		error;
 
+	xfs_buf_cache = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
+					 SLAB_HWCACHE_ALIGN |
+					 SLAB_RECLAIM_ACCOUNT |
+					 SLAB_MEM_SPREAD,
+					 NULL);
+	if (!xfs_buf_cache)
+		goto out;
+
 	xfs_log_ticket_cache = kmem_cache_create("xfs_log_ticket",
 						sizeof(struct xlog_ticket),
 						0, 0, NULL);
 	if (!xfs_log_ticket_cache)
-		goto out;
+		goto out_destroy_buf_cache;
 
 	error = xfs_btree_init_cur_caches();
 	if (error)
@@ -1996,18 +2028,14 @@ xfs_init_caches(void)
 		goto out_destroy_trans_cache;
 
 	xfs_efd_cache = kmem_cache_create("xfs_efd_item",
-					(sizeof(struct xfs_efd_log_item) +
-					(XFS_EFD_MAX_FAST_EXTENTS - 1) *
-					sizeof(struct xfs_extent)),
-					0, 0, NULL);
+			xfs_efd_log_item_sizeof(XFS_EFD_MAX_FAST_EXTENTS),
+			0, 0, NULL);
 	if (!xfs_efd_cache)
 		goto out_destroy_buf_item_cache;
 
 	xfs_efi_cache = kmem_cache_create("xfs_efi_item",
-					 (sizeof(struct xfs_efi_log_item) +
-					 (XFS_EFI_MAX_FAST_EXTENTS - 1) *
-					 sizeof(struct xfs_extent)),
-					 0, 0, NULL);
+			xfs_efi_log_item_sizeof(XFS_EFI_MAX_FAST_EXTENTS),
+			0, 0, NULL);
 	if (!xfs_efi_cache)
 		goto out_destroy_efd_cache;
 
@@ -2069,8 +2097,32 @@ xfs_init_caches(void)
 	if (!xfs_bui_cache)
 		goto out_destroy_bud_cache;
 
+	xfs_attrd_cache = kmem_cache_create("xfs_attrd_item",
+					    sizeof(struct xfs_attrd_log_item),
+					    0, 0, NULL);
+	if (!xfs_attrd_cache)
+		goto out_destroy_bui_cache;
+
+	xfs_attri_cache = kmem_cache_create("xfs_attri_item",
+					    sizeof(struct xfs_attri_log_item),
+					    0, 0, NULL);
+	if (!xfs_attri_cache)
+		goto out_destroy_attrd_cache;
+
+	xfs_iunlink_cache = kmem_cache_create("xfs_iul_item",
+					     sizeof(struct xfs_iunlink_item),
+					     0, 0, NULL);
+	if (!xfs_iunlink_cache)
+		goto out_destroy_attri_cache;
+
 	return 0;
 
+ out_destroy_attri_cache:
+	kmem_cache_destroy(xfs_attri_cache);
+ out_destroy_attrd_cache:
+	kmem_cache_destroy(xfs_attrd_cache);
+ out_destroy_bui_cache:
+	kmem_cache_destroy(xfs_bui_cache);
  out_destroy_bud_cache:
 	kmem_cache_destroy(xfs_bud_cache);
  out_destroy_cui_cache:
@@ -2105,6 +2157,8 @@ xfs_init_caches(void)
 	xfs_btree_destroy_cur_caches();
  out_destroy_log_ticket_cache:
 	kmem_cache_destroy(xfs_log_ticket_cache);
+ out_destroy_buf_cache:
+	kmem_cache_destroy(xfs_buf_cache);
  out:
 	return -ENOMEM;
 }
@@ -2117,6 +2171,9 @@ xfs_destroy_caches(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
+	kmem_cache_destroy(xfs_iunlink_cache);
+	kmem_cache_destroy(xfs_attri_cache);
+	kmem_cache_destroy(xfs_attrd_cache);
 	kmem_cache_destroy(xfs_bui_cache);
 	kmem_cache_destroy(xfs_bud_cache);
 	kmem_cache_destroy(xfs_cui_cache);
@@ -2135,6 +2192,7 @@ xfs_destroy_caches(void)
 	xfs_defer_destroy_item_caches();
 	xfs_btree_destroy_cur_caches();
 	kmem_cache_destroy(xfs_log_ticket_cache);
+	kmem_cache_destroy(xfs_buf_cache);
 }
 
 STATIC int __init
@@ -2180,6 +2238,7 @@ xfs_cpu_dead(
 	list_for_each_entry_safe(mp, n, &xfs_mount_list, m_mount_list) {
 		spin_unlock(&xfs_mount_list_lock);
 		xfs_inodegc_cpu_dead(mp, cpu);
+		xlog_cil_pcp_dead(mp->m_log, cpu);
 		spin_lock(&xfs_mount_list_lock);
 	}
 	spin_unlock(&xfs_mount_list_lock);
@@ -2239,13 +2298,9 @@ init_xfs_fs(void)
 	if (error)
 		goto out_destroy_wq;
 
-	error = xfs_buf_init();
-	if (error)
-		goto out_mru_cache_uninit;
-
 	error = xfs_init_procfs();
 	if (error)
-		goto out_buf_terminate;
+		goto out_mru_cache_uninit;
 
 	error = xfs_sysctl_register();
 	if (error)
@@ -2302,8 +2357,6 @@ init_xfs_fs(void)
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
 	xfs_cleanup_procfs();
- out_buf_terminate:
-	xfs_buf_terminate();
  out_mru_cache_uninit:
 	xfs_mru_cache_uninit();
  out_destroy_wq:
@@ -2329,7 +2382,6 @@ exit_xfs_fs(void)
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
-	xfs_buf_terminate();
 	xfs_mru_cache_uninit();
 	xfs_destroy_workqueues();
 	xfs_destroy_caches();

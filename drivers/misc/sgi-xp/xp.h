@@ -334,10 +334,6 @@ extern int (*xp_cpu_to_nasid) (int);
 extern enum xp_retval (*xp_expand_memprotect) (unsigned long, unsigned long);
 extern enum xp_retval (*xp_restrict_memprotect) (unsigned long, unsigned long);
 
-extern u64 xp_nofault_PIOR_target;
-extern int xp_nofault_PIOR(void *);
-extern int xp_error_PIOR(void);
-
 extern struct device *xp;
 extern enum xp_retval xp_init_uv(void);
 extern void xp_exit_uv(void);

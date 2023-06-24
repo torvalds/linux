@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/wlf,wm8978.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Wolfson WM8978 Codec Device Tree Bindings
+title: Wolfson WM8978 Codec
 
 maintainers:
   - patches@opensource.cirrus.com

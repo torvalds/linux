@@ -18,11 +18,13 @@
 #include <linux/pwm.h>
 #include <linux/regulator/consumer.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_format_helper.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
@@ -39,16 +41,15 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-#define SSD130X_DATA				0x40
-#define SSD130X_COMMAND				0x80
-
+#define SSD130X_PAGE_COL_START_LOW		0x00
+#define SSD130X_PAGE_COL_START_HIGH		0x10
 #define SSD130X_SET_ADDRESS_MODE		0x20
 #define SSD130X_SET_COL_RANGE			0x21
 #define SSD130X_SET_PAGE_RANGE			0x22
 #define SSD130X_CONTRAST			0x81
 #define SSD130X_SET_LOOKUP_TABLE		0x91
 #define SSD130X_CHARGE_PUMP			0x8d
-#define SSD130X_SEG_REMAP_ON			0xa1
+#define SSD130X_SET_SEG_REMAP			0xa0
 #define SSD130X_DISPLAY_OFF			0xae
 #define SSD130X_SET_MULTIPLEX_RATIO		0xa8
 #define SSD130X_DISPLAY_ON			0xaf
@@ -61,7 +62,14 @@
 #define SSD130X_SET_COM_PINS_CONFIG		0xda
 #define SSD130X_SET_VCOMH			0xdb
 
-#define SSD130X_SET_COM_SCAN_DIR_MASK		GENMASK(3, 2)
+#define SSD130X_PAGE_COL_START_MASK		GENMASK(3, 0)
+#define SSD130X_PAGE_COL_START_HIGH_SET(val)	FIELD_PREP(SSD130X_PAGE_COL_START_MASK, (val) >> 4)
+#define SSD130X_PAGE_COL_START_LOW_SET(val)	FIELD_PREP(SSD130X_PAGE_COL_START_MASK, (val))
+#define SSD130X_START_PAGE_ADDRESS_MASK		GENMASK(2, 0)
+#define SSD130X_START_PAGE_ADDRESS_SET(val)	FIELD_PREP(SSD130X_START_PAGE_ADDRESS_MASK, (val))
+#define SSD130X_SET_SEG_REMAP_MASK		GENMASK(0, 0)
+#define SSD130X_SET_SEG_REMAP_SET(val)		FIELD_PREP(SSD130X_SET_SEG_REMAP_MASK, (val))
+#define SSD130X_SET_COM_SCAN_DIR_MASK		GENMASK(3, 3)
 #define SSD130X_SET_COM_SCAN_DIR_SET(val)	FIELD_PREP(SSD130X_SET_COM_SCAN_DIR_MASK, (val))
 #define SSD130X_SET_CLOCK_DIV_MASK		GENMASK(3, 0)
 #define SSD130X_SET_CLOCK_DIV_SET(val)		FIELD_PREP(SSD130X_SET_CLOCK_DIV_MASK, (val))
@@ -84,6 +92,38 @@
 #define SSD130X_SET_AREA_COLOR_MODE_LOW_POWER	0x05
 
 #define MAX_CONTRAST 255
+
+const struct ssd130x_deviceinfo ssd130x_variants[] = {
+	[SH1106_ID] = {
+		.default_vcomh = 0x40,
+		.default_dclk_div = 1,
+		.default_dclk_frq = 5,
+		.page_mode_only = 1,
+	},
+	[SSD1305_ID] = {
+		.default_vcomh = 0x34,
+		.default_dclk_div = 1,
+		.default_dclk_frq = 7,
+	},
+	[SSD1306_ID] = {
+		.default_vcomh = 0x20,
+		.default_dclk_div = 1,
+		.default_dclk_frq = 8,
+		.need_chargepump = 1,
+	},
+	[SSD1307_ID] = {
+		.default_vcomh = 0x20,
+		.default_dclk_div = 2,
+		.default_dclk_frq = 12,
+		.need_pwm = 1,
+	},
+	[SSD1309_ID] = {
+		.default_vcomh = 0x34,
+		.default_dclk_div = 1,
+		.default_dclk_frq = 10,
+	}
+};
+EXPORT_SYMBOL_NS_GPL(ssd130x_variants, DRM_SSD130X);
 
 static inline struct ssd130x_device *drm_to_ssd130x(struct drm_device *drm)
 {
@@ -128,6 +168,7 @@ out_end:
 	return ret;
 }
 
+/* Set address range for horizontal/vertical addressing modes */
 static int ssd130x_set_col_range(struct ssd130x_device *ssd130x,
 				 u8 col_start, u8 cols)
 {
@@ -161,6 +202,26 @@ static int ssd130x_set_page_range(struct ssd130x_device *ssd130x,
 
 	ssd130x->page_start = page_start;
 	ssd130x->page_end = page_end;
+	return 0;
+}
+
+/* Set page and column start address for page addressing mode */
+static int ssd130x_set_page_pos(struct ssd130x_device *ssd130x,
+				u8 page_start, u8 col_start)
+{
+	int ret;
+	u32 page, col_low, col_high;
+
+	page = SSD130X_START_PAGE_ADDRESS |
+	       SSD130X_START_PAGE_ADDRESS_SET(page_start);
+	col_low = SSD130X_PAGE_COL_START_LOW |
+		  SSD130X_PAGE_COL_START_LOW_SET(col_start);
+	col_high = SSD130X_PAGE_COL_START_HIGH |
+		   SSD130X_PAGE_COL_START_HIGH_SET(col_start);
+	ret = ssd130x_write_cmd(ssd130x, 3, page, col_low, col_high);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -235,7 +296,7 @@ static void ssd130x_power_off(struct ssd130x_device *ssd130x)
 
 static int ssd130x_init(struct ssd130x_device *ssd130x)
 {
-	u32 precharge, dclk, com_invdir, compins, chargepump;
+	u32 precharge, dclk, com_invdir, compins, chargepump, seg_remap;
 	int ret;
 
 	/* Set initial contrast */
@@ -244,11 +305,11 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 		return ret;
 
 	/* Set segment re-map */
-	if (ssd130x->seg_remap) {
-		ret = ssd130x_write_cmd(ssd130x, 1, SSD130X_SEG_REMAP_ON);
-		if (ret < 0)
-			return ret;
-	}
+	seg_remap = (SSD130X_SET_SEG_REMAP |
+		     SSD130X_SET_SEG_REMAP_SET(ssd130x->seg_remap));
+	ret = ssd130x_write_cmd(ssd130x, 1, seg_remap);
+	if (ret < 0)
+		return ret;
 
 	/* Set COM direction */
 	com_invdir = (SSD130X_SET_COM_SCAN_DIR |
@@ -291,7 +352,7 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 
 	/* Set precharge period in number of ticks from the internal clock */
 	precharge = (SSD130X_SET_PRECHARGE_PERIOD1_SET(ssd130x->prechargep1) |
-		     SSD130X_SET_PRECHARGE_PERIOD1_SET(ssd130x->prechargep2));
+		     SSD130X_SET_PRECHARGE_PERIOD2_SET(ssd130x->prechargep2));
 	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_PRECHARGE_PERIOD, precharge);
 	if (ret < 0)
 		return ret;
@@ -340,6 +401,11 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 		}
 	}
 
+	/* Switch to page addressing mode */
+	if (ssd130x->page_address_mode)
+		return ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_ADDRESS_MODE,
+					 SSD130X_SET_ADDRESS_MODE_PAGE);
+
 	/* Switch to horizontal addressing mode */
 	return ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_ADDRESS_MODE,
 				 SSD130X_SET_ADDRESS_MODE_HORIZONTAL);
@@ -353,10 +419,13 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	unsigned int width = drm_rect_width(rect);
 	unsigned int height = drm_rect_height(rect);
 	unsigned int line_length = DIV_ROUND_UP(width, 8);
-	unsigned int pages = DIV_ROUND_UP(y % 8 + height, 8);
+	unsigned int pages = DIV_ROUND_UP(height, 8);
+	struct drm_device *drm = &ssd130x->drm;
 	u32 array_idx = 0;
 	int ret, i, j, k;
 	u8 *data_array = NULL;
+
+	drm_WARN_ONCE(drm, y % 8 != 0, "y must be aligned to screen page\n");
 
 	data_array = kcalloc(width, pages, GFP_KERNEL);
 	if (!data_array)
@@ -391,21 +460,24 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	 *  (5) A4 B4 C4 D4 E4 F4 G4 H4
 	 */
 
-	ret = ssd130x_set_col_range(ssd130x, ssd130x->col_offset + x, width);
-	if (ret < 0)
-		goto out_free;
+	if (!ssd130x->page_address_mode) {
+		/* Set address range for horizontal addressing mode */
+		ret = ssd130x_set_col_range(ssd130x, ssd130x->col_offset + x, width);
+		if (ret < 0)
+			goto out_free;
 
-	ret = ssd130x_set_page_range(ssd130x, ssd130x->page_offset + y / 8, pages);
-	if (ret < 0)
-		goto out_free;
+		ret = ssd130x_set_page_range(ssd130x, ssd130x->page_offset + y / 8, pages);
+		if (ret < 0)
+			goto out_free;
+	}
 
-	for (i = y / 8; i < y / 8 + pages; i++) {
+	for (i = 0; i < pages; i++) {
 		int m = 8;
 
 		/* Last page may be partial */
-		if (8 * (i + 1) > ssd130x->height)
+		if (8 * (y / 8 + i + 1) > ssd130x->height)
 			m = ssd130x->height % 8;
-		for (j = x; j < x + width; j++) {
+		for (j = 0; j < width; j++) {
 			u8 data = 0;
 
 			for (k = 0; k < m; k++) {
@@ -416,9 +488,29 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 			}
 			data_array[array_idx++] = data;
 		}
+
+		/*
+		 * In page addressing mode, the start address needs to be reset,
+		 * and each page then needs to be written out separately.
+		 */
+		if (ssd130x->page_address_mode) {
+			ret = ssd130x_set_page_pos(ssd130x,
+						   ssd130x->page_offset + i,
+						   ssd130x->col_offset + x);
+			if (ret < 0)
+				goto out_free;
+
+			ret = ssd130x_write_data(ssd130x, data_array, width);
+			if (ret < 0)
+				goto out_free;
+
+			array_idx = 0;
+		}
 	}
 
-	ret = ssd130x_write_data(ssd130x, data_array, width * pages);
+	/* Write out update in one go if we aren't using page addressing mode */
+	if (!ssd130x->page_address_mode)
+		ret = ssd130x_write_data(ssd130x, data_array, width * pages);
 
 out_free:
 	kfree(data_array);
@@ -435,7 +527,8 @@ static void ssd130x_clear_screen(struct ssd130x_device *ssd130x)
 		.y2 = ssd130x->height,
 	};
 
-	buf = kcalloc(ssd130x->width, ssd130x->height, GFP_KERNEL);
+	buf = kcalloc(DIV_ROUND_UP(ssd130x->width, 8), ssd130x->height,
+		      GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -444,114 +537,50 @@ static void ssd130x_clear_screen(struct ssd130x_device *ssd130x)
 	kfree(buf);
 }
 
-static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct iosys_map *map,
+static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct iosys_map *vmap,
 				struct drm_rect *rect)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(fb->dev);
-	void *vmap = map->vaddr; /* TODO: Use mapping abstraction properly */
+	struct iosys_map dst;
+	unsigned int dst_pitch;
 	int ret = 0;
 	u8 *buf = NULL;
 
-	buf = kcalloc(fb->width, fb->height, GFP_KERNEL);
+	/* Align y to display page boundaries */
+	rect->y1 = round_down(rect->y1, 8);
+	rect->y2 = min_t(unsigned int, round_up(rect->y2, 8), ssd130x->height);
+
+	dst_pitch = DIV_ROUND_UP(drm_rect_width(rect), 8);
+	buf = kcalloc(dst_pitch, drm_rect_height(rect), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	drm_fb_xrgb8888_to_mono_reversed(buf, 0, vmap, fb, rect);
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		goto out_free;
+
+	iosys_map_set_vaddr(&dst, buf);
+	drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, vmap, fb, rect);
+
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
 	ssd130x_update_rect(ssd130x, buf, rect);
 
+out_free:
 	kfree(buf);
 
 	return ret;
 }
 
-static int ssd130x_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
-					   const struct drm_display_mode *mode)
+static void ssd130x_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						       struct drm_atomic_state *state)
 {
-	struct ssd130x_device *ssd130x = drm_to_ssd130x(pipe->crtc.dev);
-
-	if (mode->hdisplay != ssd130x->mode.hdisplay &&
-	    mode->vdisplay != ssd130x->mode.vdisplay)
-		return MODE_ONE_SIZE;
-
-	if (mode->hdisplay != ssd130x->mode.hdisplay)
-		return MODE_ONE_WIDTH;
-
-	if (mode->vdisplay != ssd130x->mode.vdisplay)
-		return MODE_ONE_HEIGHT;
-
-	return MODE_OK;
-}
-
-static void ssd130x_display_pipe_enable(struct drm_simple_display_pipe *pipe,
-					struct drm_crtc_state *crtc_state,
-					struct drm_plane_state *plane_state)
-{
-	struct ssd130x_device *ssd130x = drm_to_ssd130x(pipe->crtc.dev);
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_device *drm = &ssd130x->drm;
-	int idx, ret;
-
-	ret = ssd130x_power_on(ssd130x);
-	if (ret)
-		return;
-
-	ret = ssd130x_init(ssd130x);
-	if (ret)
-		goto out_power_off;
-
-	if (!drm_dev_enter(drm, &idx))
-		goto out_power_off;
-
-	ssd130x_fb_blit_rect(plane_state->fb, &shadow_plane_state->data[0], &plane_state->dst);
-
-	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_ON);
-
-	backlight_enable(ssd130x->bl_dev);
-
-	drm_dev_exit(idx);
-
-	return;
-out_power_off:
-	ssd130x_power_off(ssd130x);
-}
-
-static void ssd130x_display_pipe_disable(struct drm_simple_display_pipe *pipe)
-{
-	struct ssd130x_device *ssd130x = drm_to_ssd130x(pipe->crtc.dev);
-	struct drm_device *drm = &ssd130x->drm;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	ssd130x_clear_screen(ssd130x);
-
-	backlight_disable(ssd130x->bl_dev);
-
-	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_OFF);
-
-	ssd130x_power_off(ssd130x);
-
-	drm_dev_exit(idx);
-}
-
-static void ssd130x_display_pipe_update(struct drm_simple_display_pipe *pipe,
-					struct drm_plane_state *old_plane_state)
-{
-	struct ssd130x_device *ssd130x = drm_to_ssd130x(pipe->crtc.dev);
-	struct drm_plane_state *plane_state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct drm_device *drm = &ssd130x->drm;
+	struct drm_device *drm = plane->dev;
 	struct drm_rect src_clip, dst_clip;
 	int idx;
-
-	if (!fb)
-		return;
-
-	if (!pipe->crtc.state->active)
-		return;
 
 	if (!drm_atomic_helper_damage_merged(old_plane_state, plane_state, &src_clip))
 		return;
@@ -568,15 +597,132 @@ static void ssd130x_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs ssd130x_pipe_funcs = {
-	.mode_valid = ssd130x_display_pipe_mode_valid,
-	.enable = ssd130x_display_pipe_enable,
-	.disable = ssd130x_display_pipe_disable,
-	.update = ssd130x_display_pipe_update,
-	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
+static void ssd130x_primary_plane_helper_atomic_disable(struct drm_plane *plane,
+							struct drm_atomic_state *state)
+{
+	struct drm_device *drm = plane->dev;
+	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
+	int idx;
+
+	if (!drm_dev_enter(drm, &idx))
+		return;
+
+	ssd130x_clear_screen(ssd130x);
+
+	drm_dev_exit(idx);
+}
+
+static const struct drm_plane_helper_funcs ssd130x_primary_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = drm_plane_helper_atomic_check,
+	.atomic_update = ssd130x_primary_plane_helper_atomic_update,
+	.atomic_disable = ssd130x_primary_plane_helper_atomic_disable,
 };
 
-static int ssd130x_connector_get_modes(struct drm_connector *connector)
+static const struct drm_plane_funcs ssd130x_primary_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
+};
+
+static enum drm_mode_status ssd130x_crtc_helper_mode_valid(struct drm_crtc *crtc,
+							   const struct drm_display_mode *mode)
+{
+	struct ssd130x_device *ssd130x = drm_to_ssd130x(crtc->dev);
+
+	if (mode->hdisplay != ssd130x->mode.hdisplay &&
+	    mode->vdisplay != ssd130x->mode.vdisplay)
+		return MODE_ONE_SIZE;
+	else if (mode->hdisplay != ssd130x->mode.hdisplay)
+		return MODE_ONE_WIDTH;
+	else if (mode->vdisplay != ssd130x->mode.vdisplay)
+		return MODE_ONE_HEIGHT;
+
+	return MODE_OK;
+}
+
+static int ssd130x_crtc_helper_atomic_check(struct drm_crtc *crtc,
+					    struct drm_atomic_state *new_state)
+{
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	int ret;
+
+	ret = drm_atomic_helper_check_crtc_state(new_crtc_state, false);
+	if (ret)
+		return ret;
+
+	return drm_atomic_add_affected_planes(new_state, crtc);
+}
+
+/*
+ * The CRTC is always enabled. Screen updates are performed by
+ * the primary plane's atomic_update function. Disabling clears
+ * the screen in the primary plane's atomic_disable function.
+ */
+static const struct drm_crtc_helper_funcs ssd130x_crtc_helper_funcs = {
+	.mode_valid = ssd130x_crtc_helper_mode_valid,
+	.atomic_check = ssd130x_crtc_helper_atomic_check,
+};
+
+static void ssd130x_crtc_reset(struct drm_crtc *crtc)
+{
+	struct drm_device *drm = crtc->dev;
+	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
+
+	ssd130x_init(ssd130x);
+
+	drm_atomic_helper_crtc_reset(crtc);
+}
+
+static const struct drm_crtc_funcs ssd130x_crtc_funcs = {
+	.reset = ssd130x_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
+static void ssd130x_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						 struct drm_atomic_state *state)
+{
+	struct drm_device *drm = encoder->dev;
+	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
+	int ret;
+
+	ret = ssd130x_power_on(ssd130x);
+	if (ret)
+		return;
+
+	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_ON);
+
+	backlight_enable(ssd130x->bl_dev);
+}
+
+static void ssd130x_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						  struct drm_atomic_state *state)
+{
+	struct drm_device *drm = encoder->dev;
+	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
+
+	backlight_disable(ssd130x->bl_dev);
+
+	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_OFF);
+
+	ssd130x_power_off(ssd130x);
+}
+
+static const struct drm_encoder_helper_funcs ssd130x_encoder_helper_funcs = {
+	.atomic_enable = ssd130x_encoder_helper_atomic_enable,
+	.atomic_disable = ssd130x_encoder_helper_atomic_disable,
+};
+
+static const struct drm_encoder_funcs ssd130x_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static int ssd130x_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(connector->dev);
 	struct drm_display_mode *mode;
@@ -596,7 +742,7 @@ static int ssd130x_connector_get_modes(struct drm_connector *connector)
 }
 
 static const struct drm_connector_helper_funcs ssd130x_connector_helper_funcs = {
-	.get_modes = ssd130x_connector_get_modes,
+	.get_modes = ssd130x_connector_helper_get_modes,
 };
 
 static const struct drm_connector_funcs ssd130x_connector_funcs = {
@@ -707,7 +853,15 @@ static int ssd130x_init_modeset(struct ssd130x_device *ssd130x)
 	struct device *dev = ssd130x->dev;
 	struct drm_device *drm = &ssd130x->drm;
 	unsigned long max_width, max_height;
+	struct drm_plane *primary_plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	int ret;
+
+	/*
+	 * Modesetting
+	 */
 
 	ret = drmm_mode_config_init(drm);
 	if (ret) {
@@ -734,24 +888,64 @@ static int ssd130x_init_modeset(struct ssd130x_device *ssd130x)
 	drm->mode_config.preferred_depth = 32;
 	drm->mode_config.funcs = &ssd130x_mode_config_funcs;
 
-	ret = drm_connector_init(drm, &ssd130x->connector, &ssd130x_connector_funcs,
+	/* Primary plane */
+
+	primary_plane = &ssd130x->primary_plane;
+	ret = drm_universal_plane_init(drm, primary_plane, 0, &ssd130x_primary_plane_funcs,
+				       ssd130x_formats, ARRAY_SIZE(ssd130x_formats),
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		dev_err(dev, "DRM primary plane init failed: %d\n", ret);
+		return ret;
+	}
+
+	drm_plane_helper_add(primary_plane, &ssd130x_primary_plane_helper_funcs);
+
+	drm_plane_enable_fb_damage_clips(primary_plane);
+
+	/* CRTC */
+
+	crtc = &ssd130x->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
+					&ssd130x_crtc_funcs, NULL);
+	if (ret) {
+		dev_err(dev, "DRM crtc init failed: %d\n", ret);
+		return ret;
+	}
+
+	drm_crtc_helper_add(crtc, &ssd130x_crtc_helper_funcs);
+
+	/* Encoder */
+
+	encoder = &ssd130x->encoder;
+	ret = drm_encoder_init(drm, encoder, &ssd130x_encoder_funcs,
+			       DRM_MODE_ENCODER_NONE, NULL);
+	if (ret) {
+		dev_err(dev, "DRM encoder init failed: %d\n", ret);
+		return ret;
+	}
+
+	drm_encoder_helper_add(encoder, &ssd130x_encoder_helper_funcs);
+
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	/* Connector */
+
+	connector = &ssd130x->connector;
+	ret = drm_connector_init(drm, connector, &ssd130x_connector_funcs,
 				 DRM_MODE_CONNECTOR_Unknown);
 	if (ret) {
 		dev_err(dev, "DRM connector init failed: %d\n", ret);
 		return ret;
 	}
 
-	drm_connector_helper_add(&ssd130x->connector, &ssd130x_connector_helper_funcs);
+	drm_connector_helper_add(connector, &ssd130x_connector_helper_funcs);
 
-	ret = drm_simple_display_pipe_init(drm, &ssd130x->pipe, &ssd130x_pipe_funcs,
-					   ssd130x_formats, ARRAY_SIZE(ssd130x_formats),
-					   NULL, &ssd130x->connector);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
-		dev_err(dev, "DRM simple display pipeline init failed: %d\n", ret);
+		dev_err(dev, "DRM attach connector to encoder failed: %d\n", ret);
 		return ret;
 	}
-
-	drm_plane_enable_fb_damage_clips(&ssd130x->pipe.plane);
 
 	drm_mode_config_reset(drm);
 
@@ -794,6 +988,9 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap)
 	ssd130x->regmap = regmap;
 	ssd130x->device_info = device_get_match_data(dev);
 
+	if (ssd130x->device_info->page_mode_only)
+		ssd130x->page_address_mode = 1;
+
 	ssd130x_parse_properties(ssd130x);
 
 	ret = ssd130x_get_resources(ssd130x);
@@ -824,11 +1021,9 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap)
 }
 EXPORT_SYMBOL_GPL(ssd130x_probe);
 
-int ssd130x_remove(struct ssd130x_device *ssd130x)
+void ssd130x_remove(struct ssd130x_device *ssd130x)
 {
 	drm_dev_unplug(&ssd130x->drm);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ssd130x_remove);
 

@@ -173,7 +173,7 @@ mcp251xfd_handle_rxif_one(struct mcp251xfd_priv *priv,
 	}
 
 	mcp251xfd_hw_rx_obj_to_skb(priv, hw_rx_obj, skb);
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, hw_rx_obj->ts);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, hw_rx_obj->ts);
 	if (err)
 		stats->rx_fifo_errors++;
 

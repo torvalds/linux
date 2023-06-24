@@ -107,7 +107,7 @@ static void register_region_with_uffd(char *addr, size_t len)
 
 int main(int argc, char *argv[])
 {
-	size_t length;
+	size_t length = 0;
 
 	if (argc != 2 && argc != 3) {
 		printf("Usage: %s [length_in_MB] <hugetlb_file>\n", argv[0]);
@@ -177,6 +177,12 @@ int main(int argc, char *argv[])
 	ret = read_bytes(addr, length);
 
 	munmap(addr, length);
+
+	addr = mremap(addr, length, length, 0);
+	if (addr != MAP_FAILED) {
+		printf("mremap: Expected failure, but call succeeded\n");
+		exit(1);
+	}
 
 	close(fd);
 	unlink(argv[argc-1]);

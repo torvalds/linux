@@ -208,10 +208,8 @@ static int usb_conn_probe(struct platform_device *pdev)
 	if (PTR_ERR(info->vbus) == -ENODEV)
 		info->vbus = NULL;
 
-	if (IS_ERR(info->vbus)) {
-		ret = PTR_ERR(info->vbus);
-		return dev_err_probe(dev, ret, "failed to get vbus :%d\n", ret);
-	}
+	if (IS_ERR(info->vbus))
+		return dev_err_probe(dev, PTR_ERR(info->vbus), "failed to get vbus\n");
 
 	info->role_sw = usb_role_switch_get(dev);
 	if (IS_ERR(info->role_sw))
@@ -257,6 +255,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
+	device_set_wakeup_capable(&pdev->dev, true);
 
 	/* Perform initial detection */
 	usb_conn_queue_dwork(info, 0);
@@ -286,6 +285,14 @@ static int __maybe_unused usb_conn_suspend(struct device *dev)
 {
 	struct usb_conn_info *info = dev_get_drvdata(dev);
 
+	if (device_may_wakeup(dev)) {
+		if (info->id_gpiod)
+			enable_irq_wake(info->id_irq);
+		if (info->vbus_gpiod)
+			enable_irq_wake(info->vbus_irq);
+		return 0;
+	}
+
 	if (info->id_gpiod)
 		disable_irq(info->id_irq);
 	if (info->vbus_gpiod)
@@ -299,6 +306,14 @@ static int __maybe_unused usb_conn_suspend(struct device *dev)
 static int __maybe_unused usb_conn_resume(struct device *dev)
 {
 	struct usb_conn_info *info = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		if (info->id_gpiod)
+			disable_irq_wake(info->id_irq);
+		if (info->vbus_gpiod)
+			disable_irq_wake(info->vbus_irq);
+		return 0;
+	}
 
 	pinctrl_pm_select_default_state(dev);
 

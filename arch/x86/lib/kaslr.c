@@ -11,7 +11,7 @@
 #include <asm/msr.h>
 #include <asm/archrandom.h>
 #include <asm/e820/api.h>
-#include <asm/io.h>
+#include <asm/shared/io.h>
 
 /*
  * When built for the regular kernel, several functions need to be stubbed out

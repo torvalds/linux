@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP clkctrl clock support
  *
  * Copyright (C) 2017 Texas Instruments, Inc.
  *
  * Tero Kristo <t-kristo@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -232,8 +224,7 @@ static struct clk_hw *_ti_omap4_clkctrl_xlate(struct of_phandle_args *clkspec,
 					      void *data)
 {
 	struct omap_clkctrl_provider *provider = data;
-	struct omap_clkctrl_clk *entry;
-	bool found = false;
+	struct omap_clkctrl_clk *entry = NULL, *iter;
 
 	if (clkspec->args_count != 2)
 		return ERR_PTR(-EINVAL);
@@ -241,15 +232,15 @@ static struct clk_hw *_ti_omap4_clkctrl_xlate(struct of_phandle_args *clkspec,
 	pr_debug("%s: looking for %x:%x\n", __func__,
 		 clkspec->args[0], clkspec->args[1]);
 
-	list_for_each_entry(entry, &provider->clocks, node) {
-		if (entry->reg_offset == clkspec->args[0] &&
-		    entry->bit_offset == clkspec->args[1]) {
-			found = true;
+	list_for_each_entry(iter, &provider->clocks, node) {
+		if (iter->reg_offset == clkspec->args[0] &&
+		    iter->bit_offset == clkspec->args[1]) {
+			entry = iter;
 			break;
 		}
 	}
 
-	if (!found)
+	if (!entry)
 		return ERR_PTR(-EINVAL);
 
 	return entry->clk;
@@ -528,10 +519,6 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	int ret;
 	char *c;
 	u16 soc_mask = 0;
-
-	if (!(ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) &&
-	    of_node_name_eq(node, "clk"))
-		ti_clk_features.flags |= TI_CLK_CLKCTRL_COMPAT;
 
 	addrp = of_get_address(node, 0, NULL, NULL);
 	addr = (u32)of_translate_address(node, addrp);

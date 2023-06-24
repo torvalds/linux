@@ -156,7 +156,8 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	}
 
 	if (base == 0) {
-		pr_info("failed to allocate memory for node '%s'\n", uname);
+		pr_err("failed to allocate memory for node '%s': size %lu MiB\n",
+		       uname, (unsigned long)(size / SZ_1M));
 		return -ENOMEM;
 	}
 

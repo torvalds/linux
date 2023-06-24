@@ -646,8 +646,8 @@ static void men_z135_shutdown(struct uart_port *port)
 }
 
 static void men_z135_set_termios(struct uart_port *port,
-				struct ktermios *termios,
-				struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	struct men_z135_port *uart = to_men_z135(port);
 	unsigned int baud;
@@ -833,7 +833,6 @@ static int men_z135_probe(struct mcb_device *mdev,
 	uart->port.iotype = UPIO_MEM;
 	uart->port.ops = &men_z135_ops;
 	uart->port.irq = mcb_get_irq(mdev);
-	uart->port.iotype = UPIO_MEM;
 	uart->port.flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	uart->port.line = line++;
 	uart->port.dev = dev;

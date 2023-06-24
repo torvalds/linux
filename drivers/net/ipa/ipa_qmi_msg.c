@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 #include <linux/stddef.h>
 #include <linux/soc/qcom/qmi.h>
@@ -311,7 +311,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v4_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -332,7 +332,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v6_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -496,7 +496,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x1b,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v4_hash_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -517,7 +517,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x1c,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v6_hash_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,

@@ -35,11 +35,6 @@ unsigned int nf_ct_helper_hsize __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_helper_hsize);
 static unsigned int nf_ct_helper_count __read_mostly;
 
-static bool nf_ct_auto_assign_helper __read_mostly = false;
-module_param_named(nf_conntrack_helper, nf_ct_auto_assign_helper, bool, 0644);
-MODULE_PARM_DESC(nf_conntrack_helper,
-		 "Enable automatic conntrack helper assignment (default 0)");
-
 static DEFINE_MUTEX(nf_ct_nat_helpers_mutex);
 static struct list_head nf_ct_nat_helpers __read_mostly;
 
@@ -49,24 +44,6 @@ static unsigned int helper_hash(const struct nf_conntrack_tuple *tuple)
 {
 	return (((tuple->src.l3num << 8) | tuple->dst.protonum) ^
 		(__force __u16)tuple->src.u.all) % nf_ct_helper_hsize;
-}
-
-static struct nf_conntrack_helper *
-__nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
-{
-	struct nf_conntrack_helper *helper;
-	struct nf_conntrack_tuple_mask mask = { .src.u.all = htons(0xFFFF) };
-	unsigned int h;
-
-	if (!nf_ct_helper_count)
-		return NULL;
-
-	h = helper_hash(tuple);
-	hlist_for_each_entry_rcu(helper, &nf_ct_helper_hash[h], hnode) {
-		if (nf_ct_tuple_src_mask_cmp(tuple, &helper->tuple, &mask))
-			return helper;
-	}
-	return NULL;
 }
 
 struct nf_conntrack_helper *
@@ -165,7 +142,7 @@ nf_nat_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 	if (!nat) {
 		snprintf(mod_name, sizeof(mod_name), "%s", h->nat_mod_name);
 		rcu_read_unlock();
-		request_module(mod_name);
+		request_module("%s", mod_name);
 
 		rcu_read_lock();
 		nat = nf_conntrack_nat_helper_find(mod_name);
@@ -209,33 +186,11 @@ nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_ext_add);
 
-static struct nf_conntrack_helper *
-nf_ct_lookup_helper(struct nf_conn *ct, struct net *net)
-{
-	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
-
-	if (!cnet->sysctl_auto_assign_helper) {
-		if (cnet->auto_assign_helper_warned)
-			return NULL;
-		if (!__nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple))
-			return NULL;
-		pr_info("nf_conntrack: default automatic helper assignment "
-			"has been turned off for security reasons and CT-based "
-			"firewall rule not found. Use the iptables CT target "
-			"to attach helpers instead.\n");
-		cnet->auto_assign_helper_warned = true;
-		return NULL;
-	}
-
-	return __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-}
-
 int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			      gfp_t flags)
 {
 	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conn_help *help;
-	struct net *net = nf_ct_net(ct);
 
 	/* We already got a helper explicitly attached. The function
 	 * nf_conntrack_alter_reply - in case NAT is in use - asks for looking
@@ -246,23 +201,21 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	if (test_bit(IPS_HELPER_BIT, &ct->status))
 		return 0;
 
-	if (tmpl != NULL) {
-		help = nfct_help(tmpl);
-		if (help != NULL) {
-			helper = help->helper;
-			set_bit(IPS_HELPER_BIT, &ct->status);
-		}
+	if (WARN_ON_ONCE(!tmpl))
+		return 0;
+
+	help = nfct_help(tmpl);
+	if (help != NULL) {
+		helper = rcu_dereference(help->helper);
+		set_bit(IPS_HELPER_BIT, &ct->status);
 	}
 
 	help = nfct_help(ct);
 
 	if (helper == NULL) {
-		helper = nf_ct_lookup_helper(ct, net);
-		if (helper == NULL) {
-			if (help)
-				RCU_INIT_POINTER(help->helper, NULL);
-			return 0;
-		}
+		if (help)
+			RCU_INIT_POINTER(help->helper, NULL);
+		return 0;
 	}
 
 	if (help == NULL) {
@@ -468,11 +421,6 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 
 	nf_ct_expect_iterate_destroy(expect_iter_me, NULL);
 	nf_ct_iterate_destroy(unhelp, me);
-
-	/* Maybe someone has gotten the helper already when unhelp above.
-	 * So need to wait it.
-	 */
-	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
 
@@ -549,19 +497,6 @@ void nf_nat_helper_unregister(struct nf_conntrack_nat_helper *nat)
 	mutex_unlock(&nf_ct_nat_helpers_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_nat_helper_unregister);
-
-void nf_ct_set_auto_assign_helper_warned(struct net *net)
-{
-	nf_ct_pernet(net)->auto_assign_helper_warned = true;
-}
-EXPORT_SYMBOL_GPL(nf_ct_set_auto_assign_helper_warned);
-
-void nf_conntrack_helper_pernet_init(struct net *net)
-{
-	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
-
-	cnet->sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
-}
 
 int nf_conntrack_helper_init(void)
 {

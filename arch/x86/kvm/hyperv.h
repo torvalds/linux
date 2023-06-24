@@ -23,6 +23,9 @@
 
 #include <linux/kvm_host.h>
 
+/* "Hv#1" signature */
+#define HYPERV_CPUID_SIGNATURE_EAX 0x31237648
+
 /*
  * The #defines related to the synthetic debugger are required by KDNet, but
  * they are not documented in the Hyper-V TLFS because the synthetic debugger
@@ -141,7 +144,8 @@ void kvm_hv_request_tsc_page_update(struct kvm *kvm);
 
 void kvm_hv_init_vm(struct kvm *kvm);
 void kvm_hv_destroy_vm(struct kvm *kvm);
-void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu);
+int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu);
+void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu, bool hyperv_enabled);
 int kvm_hv_set_enforce_cpuid(struct kvm_vcpu *vcpu, bool enforce);
 int kvm_vm_ioctl_hv_eventfd(struct kvm *kvm, struct kvm_hyperv_eventfd *args);
 int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,

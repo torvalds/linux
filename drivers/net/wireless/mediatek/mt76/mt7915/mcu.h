@@ -6,45 +6,11 @@
 
 #include "../mt76_connac_mcu.h"
 
-struct mt7915_mcu_txd {
-	__le32 txd[8];
-
-	__le16 len;
-	__le16 pq_id;
-
-	u8 cid;
-	u8 pkt_type;
-	u8 set_query; /* FW don't care */
-	u8 seq;
-
-	u8 uc_d2b0_rev;
-	u8 ext_cid;
-	u8 s2d_index;
-	u8 ext_cid_ack;
-
-	u32 reserved[5];
-} __packed __aligned(4);
-
 enum {
 	MCU_ATE_SET_TRX = 0x1,
 	MCU_ATE_SET_FREQ_OFFSET = 0xa,
 	MCU_ATE_SET_SLOT_TIME = 0x13,
 	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
-};
-
-struct mt7915_mcu_rxd {
-	__le32 rxd[6];
-
-	__le16 len;
-	__le16 pkt_type_id;
-
-	u8 eid;
-	u8 seq;
-	__le16 __rsv;
-
-	u8 ext_eid;
-	u8 __rsv1[2];
-	u8 s2d_index;
 };
 
 struct mt7915_mcu_thermal_ctrl {
@@ -63,7 +29,7 @@ struct mt7915_mcu_thermal_ctrl {
 } __packed;
 
 struct mt7915_mcu_thermal_notify {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	struct mt7915_mcu_thermal_ctrl ctrl;
 	__le32 temperature;
@@ -71,7 +37,7 @@ struct mt7915_mcu_thermal_notify {
 } __packed;
 
 struct mt7915_mcu_csa_notify {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 omac_idx;
 	u8 csa_count;
@@ -80,7 +46,7 @@ struct mt7915_mcu_csa_notify {
 } __packed;
 
 struct mt7915_mcu_bcc_notify {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 band_idx;
 	u8 omac_idx;
@@ -89,7 +55,7 @@ struct mt7915_mcu_bcc_notify {
 } __packed;
 
 struct mt7915_mcu_rdd_report {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 band_idx;
 	u8 long_detected;
@@ -267,9 +233,6 @@ struct mt7915_mcu_muru_stats {
 #define WMM_TXOP_SET		BIT(3)
 #define WMM_PARAM_SET		GENMASK(3, 0)
 
-#define MCU_PQ_ID(p, q)			(((p) << 15) | ((q) << 10))
-#define MCU_PKT_ID			0xa0
-
 enum {
 	MCU_FW_LOG_WM,
 	MCU_FW_LOG_WA,
@@ -302,16 +265,6 @@ enum mcu_mmps_mode {
 	MCU_MMPS_DYNAMIC,
 	MCU_MMPS_RSV,
 	MCU_MMPS_DISABLE,
-};
-
-enum {
-	SCS_SEND_DATA,
-	SCS_SET_MANUAL_PD_TH,
-	SCS_CONFIG,
-	SCS_ENABLE,
-	SCS_SHOW_INFO,
-	SCS_GET_GLO_ADDR,
-	SCS_GET_GLO_ADDR_EVENT,
 };
 
 struct bss_info_bmc_rate {
@@ -414,11 +367,23 @@ struct bss_info_bcn_cont {
 	__le16 pkt_len;
 } __packed __aligned(4);
 
+struct bss_info_inband_discovery {
+	__le16 tag;
+	__le16 len;
+	u8 tx_type;
+	u8 tx_mode;
+	u8 tx_interval;
+	u8 enable;
+	__le16 rsv;
+	__le16 prob_rsp_len;
+} __packed __aligned(4);
+
 enum {
 	BSS_INFO_BCN_CSA,
 	BSS_INFO_BCN_BCC,
 	BSS_INFO_BCN_MBSSID,
 	BSS_INFO_BCN_CONTENT,
+	BSS_INFO_BCN_DISCOV,
 	BSS_INFO_BCN_MAX
 };
 
@@ -473,6 +438,26 @@ enum {
 	MURU_GET_TXC_TX_STATS = 151,
 };
 
+enum {
+	SER_QUERY,
+	/* recovery */
+	SER_SET_RECOVER_L1,
+	SER_SET_RECOVER_L2,
+	SER_SET_RECOVER_L3_RX_ABORT,
+	SER_SET_RECOVER_L3_TX_ABORT,
+	SER_SET_RECOVER_L3_TX_DISABLE,
+	SER_SET_RECOVER_L3_BF,
+	/* action */
+	SER_ENABLE = 2,
+	SER_RECOVER
+};
+
+#define MT7915_MAX_BEACON_SIZE		512
+#define MT7915_MAX_INBAND_FRAME_SIZE	256
+#define MT7915_MAX_BSS_OFFLOAD_SIZE	(MT7915_MAX_BEACON_SIZE +	  \
+					 MT7915_MAX_INBAND_FRAME_SIZE +	  \
+					 MT7915_BEACON_UPDATE_SIZE)
+
 #define MT7915_BSS_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_omac) +	\
 					 sizeof(struct bss_info_basic) +\
@@ -486,6 +471,7 @@ enum {
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_bcn_cntdwn) + \
 					 sizeof(struct bss_info_bcn_mbss) + \
-					 sizeof(struct bss_info_bcn_cont))
+					 sizeof(struct bss_info_bcn_cont) + \
+					 sizeof(struct bss_info_inband_discovery))
 
 #endif

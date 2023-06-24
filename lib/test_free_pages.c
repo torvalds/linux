@@ -17,7 +17,7 @@ static void test_free_pages(gfp_t gfp)
 
 	for (i = 0; i < 1000 * 1000; i++) {
 		unsigned long addr = __get_free_pages(gfp, 3);
-		struct page *page = virt_to_page(addr);
+		struct page *page = virt_to_page((void *)addr);
 
 		/* Simulate page cache getting a speculative reference */
 		get_page(page);

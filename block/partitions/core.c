@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
-#include <linux/blktrace_api.h>
 #include <linux/raid/detect.h>
 #include "check.h"
 
@@ -200,21 +199,13 @@ static ssize_t part_ro_show(struct device *dev,
 static ssize_t part_alignment_offset_show(struct device *dev,
 					  struct device_attribute *attr, char *buf)
 {
-	struct block_device *bdev = dev_to_bdev(dev);
-
-	return sprintf(buf, "%u\n",
-		queue_limit_alignment_offset(&bdev_get_queue(bdev)->limits,
-				bdev->bd_start_sect));
+	return sprintf(buf, "%u\n", bdev_alignment_offset(dev_to_bdev(dev)));
 }
 
 static ssize_t part_discard_alignment_show(struct device *dev,
 					   struct device_attribute *attr, char *buf)
 {
-	struct block_device *bdev = dev_to_bdev(dev);
-
-	return sprintf(buf, "%u\n",
-		queue_limit_discard_alignment(&bdev_get_queue(bdev)->limits,
-				bdev->bd_start_sect));
+	return sprintf(buf, "%u\n", bdev_discard_alignment(dev_to_bdev(dev)));
 }
 
 static DEVICE_ATTR(partition, 0444, part_partition_show, NULL);
@@ -339,7 +330,7 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	case BLK_ZONED_HA:
 		pr_info("%s: disabling host aware zoned block device support due to partitions\n",
 			disk->disk_name);
-		blk_queue_set_zoned(disk, BLK_ZONED_NONE);
+		disk_set_zoned(disk, BLK_ZONED_NONE);
 		break;
 	case BLK_ZONED_NONE:
 		break;
@@ -486,7 +477,7 @@ int bdev_del_partition(struct gendisk *disk, int partno)
 		goto out_unlock;
 
 	ret = -EBUSY;
-	if (part->bd_openers)
+	if (atomic_read(&part->bd_openers))
 		goto out_unlock;
 
 	delete_partition(part);
@@ -605,6 +596,9 @@ static int blk_add_partitions(struct gendisk *disk)
 	if (disk->flags & GENHD_FL_NO_PART)
 		return 0;
 
+	if (test_bit(GD_SUPPRESS_PART_SCAN, &disk->state))
+		return 0;
+
 	state = check_partition(disk);
 	if (!state)
 		return 0;
@@ -713,25 +707,19 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
 	struct address_space *mapping = state->disk->part0->bd_inode->i_mapping;
-	struct page *page;
+	struct folio *folio;
 
 	if (n >= get_capacity(state->disk)) {
 		state->access_beyond_eod = true;
-		return NULL;
+		goto out;
 	}
 
-	page = read_mapping_page(mapping,
-			(pgoff_t)(n >> (PAGE_SHIFT - 9)), NULL);
-	if (IS_ERR(page))
+	folio = read_mapping_folio(mapping, n >> PAGE_SECTORS_SHIFT, NULL);
+	if (IS_ERR(folio))
 		goto out;
-	if (PageError(page))
-		goto out_put_page;
 
-	p->v = page;
-	return (unsigned char *)page_address(page) +
-			((n & ((1 << (PAGE_SHIFT - 9)) - 1)) << SECTOR_SHIFT);
-out_put_page:
-	put_page(page);
+	p->v = folio;
+	return folio_address(folio) + offset_in_folio(folio, n * SECTOR_SIZE);
 out:
 	p->v = NULL;
 	return NULL;

@@ -260,7 +260,7 @@ EXPORT_SYMBOL_GPL(__class_create);
  */
 void class_destroy(struct class *cls)
 {
-	if ((cls == NULL) || (IS_ERR(cls)))
+	if (IS_ERR_OR_NULL(cls))
 		return;
 
 	class_unregister(cls);

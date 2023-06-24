@@ -592,7 +592,7 @@ static void mrp_join_timer_arm(struct mrp_applicant *app)
 {
 	unsigned long delay;
 
-	delay = (u64)msecs_to_jiffies(mrp_join_time) * prandom_u32() >> 32;
+	delay = prandom_u32_max(msecs_to_jiffies(mrp_join_time));
 	mod_timer(&app->join_timer, jiffies + delay);
 }
 

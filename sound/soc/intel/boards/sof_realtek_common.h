@@ -32,11 +32,16 @@ void sof_rt1015p_codec_conf(struct snd_soc_card *card);
 #define RT1015_DEV0_NAME	"i2c-10EC1015:00"
 #define RT1015_DEV1_NAME	"i2c-10EC1015:01"
 
-void sof_rt1015_dai_link(struct snd_soc_dai_link *link, unsigned int fs);
+void sof_rt1015_dai_link(struct snd_soc_dai_link *link);
 void sof_rt1015_codec_conf(struct snd_soc_card *card);
 
 #define RT1308_CODEC_DAI	"rt1308-aif"
 #define RT1308_DEV0_NAME	"i2c-10EC1308:00"
 void sof_rt1308_dai_link(struct snd_soc_dai_link *link);
+
+#define RT1019P_CODEC_DAI	"HiFi"
+#define RT1019P_DEV0_NAME	"RTL1019:00"
+
+void sof_rt1019p_dai_link(struct snd_soc_dai_link *link);
 
 #endif /* __SOF_REALTEK_COMMON_H */

@@ -100,7 +100,6 @@ struct pmc_type {
 	int has_deep_sleep;
 };
 
-static struct platform_device *pmc_dev;
 static int has_deep_sleep, deep_sleeping;
 static int pmc_irq;
 static struct mpc83xx_pmc __iomem *pmc_regs;
@@ -319,27 +318,43 @@ static const struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.end = mpc83xx_suspend_end,
 };
 
-static const struct of_device_id pmc_match[];
+static struct pmc_type pmc_types[] = {
+	{
+		.has_deep_sleep = 1,
+	},
+	{
+		.has_deep_sleep = 0,
+	}
+};
+
+static const struct of_device_id pmc_match[] = {
+	{
+		.compatible = "fsl,mpc8313-pmc",
+		.data = &pmc_types[0],
+	},
+	{
+		.compatible = "fsl,mpc8349-pmc",
+		.data = &pmc_types[1],
+	},
+	{}
+};
+
 static int pmc_probe(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	const struct pmc_type *type;
 	int ret = 0;
 
-	match = of_match_device(pmc_match, &ofdev->dev);
-	if (!match)
+	type = of_device_get_match_data(&ofdev->dev);
+	if (!type)
 		return -EINVAL;
-
-	type = match->data;
 
 	if (!of_device_is_available(np))
 		return -ENODEV;
 
 	has_deep_sleep = type->has_deep_sleep;
 	immrbase = get_immrbase();
-	pmc_dev = ofdev;
 
 	is_pci_agent = mpc83xx_is_pci_agent();
 	if (is_pci_agent < 0)
@@ -404,39 +419,13 @@ out:
 	return ret;
 }
 
-static int pmc_remove(struct platform_device *ofdev)
-{
-	return -EPERM;
-};
-
-static struct pmc_type pmc_types[] = {
-	{
-		.has_deep_sleep = 1,
-	},
-	{
-		.has_deep_sleep = 0,
-	}
-};
-
-static const struct of_device_id pmc_match[] = {
-	{
-		.compatible = "fsl,mpc8313-pmc",
-		.data = &pmc_types[0],
-	},
-	{
-		.compatible = "fsl,mpc8349-pmc",
-		.data = &pmc_types[1],
-	},
-	{}
-};
-
 static struct platform_driver pmc_driver = {
 	.driver = {
 		.name = "mpc83xx-pmc",
 		.of_match_table = pmc_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = pmc_probe,
-	.remove = pmc_remove
 };
 
 builtin_platform_driver(pmc_driver);

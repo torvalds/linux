@@ -4,13 +4,14 @@
 $id: http://devicetree.org/schemas/mtd/spi-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SPI-NAND flash device tree bindings
+title: SPI-NAND flash
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 allOf:
   - $ref: "nand-chip.yaml#"
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:

@@ -131,7 +131,7 @@ static void handler_call_die(const char *handler_name)
 }
 
 /*
- * Insert val into into the dictionary and decrement the reference counter.
+ * Insert val into the dictionary and decrement the reference counter.
  * This is necessary for dictionaries since PyDict_SetItemString() does not
  * steal a reference, as opposed to PyTuple_SetItem().
  */
@@ -392,6 +392,18 @@ static const char *get_dsoname(struct map *map)
 	return dsoname;
 }
 
+static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
+{
+	unsigned long offset;
+
+	if (al->addr < sym->end)
+		offset = al->addr - sym->start;
+	else
+		offset = al->addr - al->map->start - sym->start;
+
+	return offset;
+}
+
 static PyObject *python_process_callchain(struct perf_sample *sample,
 					 struct evsel *evsel,
 					 struct addr_location *al)
@@ -443,6 +455,25 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 					_PyUnicode_FromStringAndSize(node->ms.sym->name,
 							node->ms.sym->namelen));
 			pydict_set_item_string_decref(pyelem, "sym", pysym);
+
+			if (node->ms.map) {
+				struct map *map = node->ms.map;
+				struct addr_location node_al;
+				unsigned long offset;
+
+				node_al.addr = map->map_ip(map, node->ip);
+				node_al.map  = map;
+				offset = get_offset(node->ms.sym, &node_al);
+
+				pydict_set_item_string_decref(
+					pyelem, "sym_off",
+					PyLong_FromUnsignedLongLong(offset));
+			}
+			if (node->srcline && strcmp(":0", node->srcline)) {
+				pydict_set_item_string_decref(
+					pyelem, "sym_srcline",
+					_PyUnicode_FromString(node->srcline));
+			}
 		}
 
 		if (node->ms.map) {
@@ -518,18 +549,6 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 
 exit:
 	return pylist;
-}
-
-static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
-{
-	unsigned long offset;
-
-	if (al->addr < sym->end)
-		offset = al->addr - sym->start;
-	else
-		offset = al->addr - al->map->start - sym->start;
-
-	return offset;
 }
 
 static int get_symoff(struct symbol *sym, struct addr_location *al,
@@ -623,15 +642,19 @@ exit:
 	return pylist;
 }
 
-static PyObject *get_sample_value_as_tuple(struct sample_read_value *value)
+static PyObject *get_sample_value_as_tuple(struct sample_read_value *value,
+					   u64 read_format)
 {
 	PyObject *t;
 
-	t = PyTuple_New(2);
+	t = PyTuple_New(3);
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 	PyTuple_SetItem(t, 0, PyLong_FromUnsignedLongLong(value->id));
 	PyTuple_SetItem(t, 1, PyLong_FromUnsignedLongLong(value->value));
+	if (read_format & PERF_FORMAT_LOST)
+		PyTuple_SetItem(t, 2, PyLong_FromUnsignedLongLong(value->lost));
+
 	return t;
 }
 
@@ -662,12 +685,17 @@ static void set_sample_read_in_dict(PyObject *dict_sample,
 		Py_FatalError("couldn't create Python list");
 
 	if (read_format & PERF_FORMAT_GROUP) {
-		for (i = 0; i < sample->read.group.nr; i++) {
-			PyObject *t = get_sample_value_as_tuple(&sample->read.group.values[i]);
+		struct sample_read_value *v = sample->read.group.values;
+
+		i = 0;
+		sample_read_group__for_each(v, sample->read.group.nr, read_format) {
+			PyObject *t = get_sample_value_as_tuple(v, read_format);
 			PyList_SET_ITEM(values, i, t);
+			i++;
 		}
 	} else {
-		PyObject *t = get_sample_value_as_tuple(&sample->read.one);
+		PyObject *t = get_sample_value_as_tuple(&sample->read.one,
+							read_format);
 		PyList_SET_ITEM(values, 0, t);
 	}
 	pydict_set_item_string_decref(dict_sample, "values", values);
@@ -736,12 +764,22 @@ static void set_regs_in_dict(PyObject *dict,
 }
 
 static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
-			    const char *dso_field, const char *sym_field,
-			    const char *symoff_field)
+			    const char *dso_field, const char *dso_bid_field,
+			    const char *dso_map_start, const char *dso_map_end,
+			    const char *sym_field, const char *symoff_field)
 {
+	char sbuild_id[SBUILD_ID_SIZE];
+
 	if (al->map) {
 		pydict_set_item_string_decref(dict, dso_field,
 			_PyUnicode_FromString(al->map->dso->name));
+		build_id__sprintf(&al->map->dso->bid, sbuild_id);
+		pydict_set_item_string_decref(dict, dso_bid_field,
+			_PyUnicode_FromString(sbuild_id));
+		pydict_set_item_string_decref(dict, dso_map_start,
+			PyLong_FromUnsignedLong(al->map->start));
+		pydict_set_item_string_decref(dict, dso_map_end,
+			PyLong_FromUnsignedLong(al->map->end));
 	}
 	if (al->sym) {
 		pydict_set_item_string_decref(dict, sym_field,
@@ -821,7 +859,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
 			_PyUnicode_FromString(thread__comm_str(al->thread)));
-	set_sym_in_dict(dict, al, "dso", "symbol", "symoff");
+	set_sym_in_dict(dict, al, "dso", "dso_bid", "dso_map_start", "dso_map_end",
+			"symbol", "symoff");
 
 	pydict_set_item_string_decref(dict, "callchain", callchain);
 
@@ -831,13 +870,22 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	brstacksym = python_process_brstacksym(sample, al->thread);
 	pydict_set_item_string_decref(dict, "brstacksym", brstacksym);
 
+	if (sample->machine_pid) {
+		pydict_set_item_string_decref(dict_sample, "machine_pid",
+				_PyLong_FromLong(sample->machine_pid));
+		pydict_set_item_string_decref(dict_sample, "vcpu",
+				_PyLong_FromLong(sample->vcpu));
+	}
+
 	pydict_set_item_string_decref(dict_sample, "cpumode",
 			_PyLong_FromLong((unsigned long)sample->cpumode));
 
 	if (addr_al) {
 		pydict_set_item_string_decref(dict_sample, "addr_correlates_sym",
 			PyBool_FromLong(1));
-		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_symbol", "addr_symoff");
+		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_dso_bid",
+				"addr_dso_map_start", "addr_dso_map_end",
+				"addr_symbol", "addr_symoff");
 	}
 
 	if (sample->flags)
@@ -1477,7 +1525,7 @@ static void python_do_process_switch(union perf_event *event,
 		np_tid = event->context_switch.next_prev_tid;
 	}
 
-	t = tuple_new(9);
+	t = tuple_new(11);
 	if (!t)
 		return;
 
@@ -1490,6 +1538,8 @@ static void python_do_process_switch(union perf_event *event,
 	tuple_set_s32(t, 6, machine->pid);
 	tuple_set_bool(t, 7, out);
 	tuple_set_bool(t, 8, out_preempt);
+	tuple_set_s32(t, 9, sample->machine_pid);
+	tuple_set_s32(t, 10, sample->vcpu);
 
 	call_object(handler, t, handler_name);
 
@@ -1527,7 +1577,7 @@ static void python_process_auxtrace_error(struct perf_session *session __maybe_u
 		msg = (const char *)&e->time;
 	}
 
-	t = tuple_new(9);
+	t = tuple_new(11);
 
 	tuple_set_u32(t, 0, e->type);
 	tuple_set_u32(t, 1, e->code);
@@ -1538,6 +1588,8 @@ static void python_process_auxtrace_error(struct perf_session *session __maybe_u
 	tuple_set_u64(t, 6, tm);
 	tuple_set_string(t, 7, msg);
 	tuple_set_u32(t, 8, cpumode);
+	tuple_set_s32(t, 9, e->machine_pid);
+	tuple_set_s32(t, 10, e->vcpu);
 
 	call_object(handler, t, handler_name);
 
@@ -2074,7 +2126,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\t\tfor node in common_callchain:");
 		fprintf(ofp, "\n\t\t\tif 'sym' in node:");
-		fprintf(ofp, "\n\t\t\t\tprint(\"\\t[%%x] %%s\" %% (node['ip'], node['sym']['name']))");
+		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x] %%s%%s%%s%%s\" %% (");
+		fprintf(ofp, "\n\t\t\t\t\tnode['ip'], node['sym']['name'],");
+		fprintf(ofp, "\n\t\t\t\t\t\"+0x{:x}\".format(node['sym_off']) if 'sym_off' in node else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" ({})\".format(node['dso'])  if 'dso' in node else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" \" + node['sym_srcline'] if 'sym_srcline' in node else \"\"))");
 		fprintf(ofp, "\n\t\t\telse:");
 		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (node['ip']))\n\n");
 		fprintf(ofp, "\t\tprint()\n\n");

@@ -68,6 +68,9 @@ config DAMON_DBGFS
 
 	  If unsure, say N.
 
+	  This will be removed after >5.15.y LTS kernel is released, so users
+	  should move to the sysfs interface (DAMON_SYSFS).
+
 config DAMON_DBGFS_KUNIT_TEST
 	bool "Test for damon debugfs interface" if !KUNIT_ALL_TESTS
 	depends on DAMON_DBGFS && KUNIT=y
@@ -91,5 +94,13 @@ config DAMON_RECLAIM
 	  This is suggested to be used as a proactive and lightweight
 	  reclamation under light memory pressure, while the traditional page
 	  scanning-based reclamation is used for heavy pressure.
+
+config DAMON_LRU_SORT
+	bool "Build DAMON-based LRU-lists sorting (DAMON_LRU_SORT)"
+	depends on DAMON_PADDR
+	help
+	  This builds the DAMON-based LRU-lists sorting subsystem.  It tries to
+	  protect frequently accessed (hot) pages while rarely accessed (cold)
+	  pages reclaimed first under memory pressure.
 
 endmenu

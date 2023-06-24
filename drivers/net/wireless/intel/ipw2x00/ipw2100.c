@@ -3501,7 +3501,7 @@ static void ipw2100_msg_free(struct ipw2100_priv *priv)
 	priv->msg_buffers = NULL;
 }
 
-static ssize_t show_pci(struct device *d, struct device_attribute *attr,
+static ssize_t pci_show(struct device *d, struct device_attribute *attr,
 			char *buf)
 {
 	struct pci_dev *pci_dev = to_pci_dev(d);
@@ -3521,34 +3521,34 @@ static ssize_t show_pci(struct device *d, struct device_attribute *attr,
 	return out - buf;
 }
 
-static DEVICE_ATTR(pci, 0444, show_pci, NULL);
+static DEVICE_ATTR_RO(pci);
 
-static ssize_t show_cfg(struct device *d, struct device_attribute *attr,
+static ssize_t cfg_show(struct device *d, struct device_attribute *attr,
 			char *buf)
 {
 	struct ipw2100_priv *p = dev_get_drvdata(d);
 	return sprintf(buf, "0x%08x\n", (int)p->config);
 }
 
-static DEVICE_ATTR(cfg, 0444, show_cfg, NULL);
+static DEVICE_ATTR_RO(cfg);
 
-static ssize_t show_status(struct device *d, struct device_attribute *attr,
+static ssize_t status_show(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ipw2100_priv *p = dev_get_drvdata(d);
 	return sprintf(buf, "0x%08x\n", (int)p->status);
 }
 
-static DEVICE_ATTR(status, 0444, show_status, NULL);
+static DEVICE_ATTR_RO(status);
 
-static ssize_t show_capability(struct device *d, struct device_attribute *attr,
+static ssize_t capability_show(struct device *d, struct device_attribute *attr,
 			       char *buf)
 {
 	struct ipw2100_priv *p = dev_get_drvdata(d);
 	return sprintf(buf, "0x%08x\n", (int)p->capability);
 }
 
-static DEVICE_ATTR(capability, 0444, show_capability, NULL);
+static DEVICE_ATTR_RO(capability);
 
 #define IPW2100_REG(x) { IPW_ ##x, #x }
 static const struct {
@@ -3785,7 +3785,7 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(NIC_MANF_DATE_TIME, "MANF Date/Time STAMP"),
 	    IPW2100_ORD(UCODE_VERSION, "Ucode Version"),};
 
-static ssize_t show_registers(struct device *d, struct device_attribute *attr,
+static ssize_t registers_show(struct device *d, struct device_attribute *attr,
 			      char *buf)
 {
 	int i;
@@ -3805,9 +3805,9 @@ static ssize_t show_registers(struct device *d, struct device_attribute *attr,
 	return out - buf;
 }
 
-static DEVICE_ATTR(registers, 0444, show_registers, NULL);
+static DEVICE_ATTR_RO(registers);
 
-static ssize_t show_hardware(struct device *d, struct device_attribute *attr,
+static ssize_t hardware_show(struct device *d, struct device_attribute *attr,
 			     char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -3846,9 +3846,9 @@ static ssize_t show_hardware(struct device *d, struct device_attribute *attr,
 	return out - buf;
 }
 
-static DEVICE_ATTR(hardware, 0444, show_hardware, NULL);
+static DEVICE_ATTR_RO(hardware);
 
-static ssize_t show_memory(struct device *d, struct device_attribute *attr,
+static ssize_t memory_show(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -3905,7 +3905,7 @@ static ssize_t show_memory(struct device *d, struct device_attribute *attr,
 	return len;
 }
 
-static ssize_t store_memory(struct device *d, struct device_attribute *attr,
+static ssize_t memory_store(struct device *d, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -3940,9 +3940,9 @@ static ssize_t store_memory(struct device *d, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(memory, 0644, show_memory, store_memory);
+static DEVICE_ATTR_RW(memory);
 
-static ssize_t show_ordinals(struct device *d, struct device_attribute *attr,
+static ssize_t ordinals_show(struct device *d, struct device_attribute *attr,
 			     char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -3976,9 +3976,9 @@ static ssize_t show_ordinals(struct device *d, struct device_attribute *attr,
 	return len;
 }
 
-static DEVICE_ATTR(ordinals, 0444, show_ordinals, NULL);
+static DEVICE_ATTR_RO(ordinals);
 
-static ssize_t show_stats(struct device *d, struct device_attribute *attr,
+static ssize_t stats_show(struct device *d, struct device_attribute *attr,
 			  char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -3997,7 +3997,7 @@ static ssize_t show_stats(struct device *d, struct device_attribute *attr,
 	return out - buf;
 }
 
-static DEVICE_ATTR(stats, 0444, show_stats, NULL);
+static DEVICE_ATTR_RO(stats);
 
 static int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 {
@@ -4043,7 +4043,7 @@ static int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 	return 0;
 }
 
-static ssize_t show_internals(struct device *d, struct device_attribute *attr,
+static ssize_t internals_show(struct device *d, struct device_attribute *attr,
 			      char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -4095,9 +4095,9 @@ static ssize_t show_internals(struct device *d, struct device_attribute *attr,
 	return len;
 }
 
-static DEVICE_ATTR(internals, 0444, show_internals, NULL);
+static DEVICE_ATTR_RO(internals);
 
-static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
+static ssize_t bssinfo_show(struct device *d, struct device_attribute *attr,
 			    char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -4140,7 +4140,7 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 	return out - buf;
 }
 
-static DEVICE_ATTR(bssinfo, 0444, show_bssinfo, NULL);
+static DEVICE_ATTR_RO(bssinfo);
 
 #ifdef CONFIG_IPW2100_DEBUG
 static ssize_t debug_level_show(struct device_driver *d, char *buf)
@@ -4165,7 +4165,7 @@ static ssize_t debug_level_store(struct device_driver *d,
 static DRIVER_ATTR_RW(debug_level);
 #endif				/* CONFIG_IPW2100_DEBUG */
 
-static ssize_t show_fatal_error(struct device *d,
+static ssize_t fatal_error_show(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -4190,7 +4190,7 @@ static ssize_t show_fatal_error(struct device *d,
 	return out - buf;
 }
 
-static ssize_t store_fatal_error(struct device *d,
+static ssize_t fatal_error_store(struct device *d,
 				 struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
@@ -4199,16 +4199,16 @@ static ssize_t store_fatal_error(struct device *d,
 	return count;
 }
 
-static DEVICE_ATTR(fatal_error, 0644, show_fatal_error, store_fatal_error);
+static DEVICE_ATTR_RW(fatal_error);
 
-static ssize_t show_scan_age(struct device *d, struct device_attribute *attr,
+static ssize_t scan_age_show(struct device *d, struct device_attribute *attr,
 			     char *buf)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
 	return sprintf(buf, "%d\n", priv->ieee->scan_age);
 }
 
-static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
+static ssize_t scan_age_store(struct device *d, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -4232,9 +4232,9 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(scan_age, 0644, show_scan_age, store_scan_age);
+static DEVICE_ATTR_RW(scan_age);
 
-static ssize_t show_rf_kill(struct device *d, struct device_attribute *attr,
+static ssize_t rf_kill_show(struct device *d, struct device_attribute *attr,
 			    char *buf)
 {
 	/* 0 - RF kill not enabled
@@ -4278,7 +4278,7 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 	return 1;
 }
 
-static ssize_t store_rf_kill(struct device *d, struct device_attribute *attr,
+static ssize_t rf_kill_store(struct device *d, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
@@ -4286,7 +4286,7 @@ static ssize_t store_rf_kill(struct device *d, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(rf_kill, 0644, show_rf_kill, store_rf_kill);
+static DEVICE_ATTR_RW(rf_kill);
 
 static struct attribute *ipw2100_sysfs_entries[] = {
 	&dev_attr_hardware.attr,
@@ -5907,8 +5907,8 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	char fw_ver[64], ucode_ver[64];
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 
 	ipw2100_get_fwversion(priv, fw_ver, sizeof(fw_ver));
 	ipw2100_get_ucodeversion(priv, ucode_ver, sizeof(ucode_ver));
@@ -5916,7 +5916,7 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 	snprintf(info->fw_version, sizeof(info->fw_version), "%s:%d:%s",
 		 fw_ver, priv->eeprom_version, ucode_ver);
 
-	strlcpy(info->bus_info, pci_name(priv->pci_dev),
+	strscpy(info->bus_info, pci_name(priv->pci_dev),
 		sizeof(info->bus_info));
 }
 
@@ -6529,7 +6529,7 @@ static struct pci_driver ipw2100_pci_driver = {
 	.shutdown = ipw2100_shutdown,
 };
 
-/**
+/*
  * Initialize the ipw2100 driver/module
  *
  * @returns 0 if ok, < 0 errno node con error.
@@ -6561,7 +6561,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * Cleanup ipw2100 driver registration
  */
 static void __exit ipw2100_exit(void)

@@ -23,16 +23,16 @@
 #include <linux/spi/ads7846.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/keypad-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/omap7xx.h>
+#include "hardware.h"
+#include "omap7xx.h"
 #include "mmc.h"
-
-#include <mach/irqs.h>
-#include <mach/usb.h>
-
+#include "irqs.h"
+#include "usb.h"
 #include "common.h"
 
 /* LCD register definition */
@@ -141,13 +141,6 @@
 #define HTCPLD_GPIO_DOWN_DPAD		HTCPLD_BASE(7, 4)
 #define HTCPLD_GPIO_ENTER_DPAD		HTCPLD_BASE(7, 3)
 
-/*
- * The htcpld chip requires a gpio write to a specific line
- * to re-enable interrupts after one has occurred.
- */
-#define HTCPLD_GPIO_INT_RESET_HI	HTCPLD_BASE(2, 7)
-#define HTCPLD_GPIO_INT_RESET_LO	HTCPLD_BASE(2, 0)
-
 /* Chip 5 */
 #define HTCPLD_IRQ_RIGHT_KBD		HTCPLD_IRQ(0, 7)
 #define HTCPLD_IRQ_UP_KBD		HTCPLD_IRQ(0, 6)
@@ -170,7 +163,7 @@ static const unsigned int htc_herald_keymap[] = {
 	KEY(3, 0, KEY_VOLUMEUP), /* Volume up */
 	KEY(4, 0, KEY_F2),  /* Right bar (landscape) */
 	KEY(5, 0, KEY_MAIL), /* Win key (portrait) */
-	KEY(6, 0, KEY_DIRECTORY), /* Right bar (protrait) */
+	KEY(6, 0, KEY_DIRECTORY), /* Right bar (portrait) */
 	KEY(0, 1, KEY_LEFTCTRL), /* Windows key */
 	KEY(1, 1, KEY_COMMA),
 	KEY(2, 1, KEY_M),
@@ -348,8 +341,6 @@ static struct htcpld_chip_platform_data htcpld_chips[] = {
 };
 
 static struct htcpld_core_platform_data htcpld_pfdata = {
-	.int_reset_gpio_hi = HTCPLD_GPIO_INT_RESET_HI,
-	.int_reset_gpio_lo = HTCPLD_GPIO_INT_RESET_LO,
 	.i2c_adapter_id	   = 1,
 
 	.chip		   = htcpld_chips,

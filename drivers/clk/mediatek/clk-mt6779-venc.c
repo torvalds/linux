@@ -30,26 +30,23 @@ static const struct mtk_gate venc_clks[] = {
 	GATE_VENC_I(CLK_VENC_GCON_GALS, "venc_gals", "venc_sel", 28),
 };
 
-static const struct of_device_id of_match_clk_mt6779_venc[] = {
-	{ .compatible = "mediatek,mt6779-vencsys", },
-	{}
+static const struct mtk_clk_desc venc_desc = {
+	.clks = venc_clks,
+	.num_clks = ARRAY_SIZE(venc_clks),
 };
 
-static int clk_mt6779_venc_probe(struct platform_device *pdev)
-{
-	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_VENC_GCON_NR_CLK);
-
-	mtk_clk_register_gates(node, venc_clks, ARRAY_SIZE(venc_clks),
-			       clk_data);
-
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
-}
+static const struct of_device_id of_match_clk_mt6779_venc[] = {
+	{
+		.compatible = "mediatek,mt6779-vencsys",
+		.data = &venc_desc,
+	}, {
+		/* sentinel */
+	}
+};
 
 static struct platform_driver clk_mt6779_venc_drv = {
-	.probe = clk_mt6779_venc_probe,
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt6779-venc",
 		.of_match_table = of_match_clk_mt6779_venc,

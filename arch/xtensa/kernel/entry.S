@@ -28,15 +28,6 @@
 #include <asm/tlbflush.h>
 #include <variant/tie-asm.h>
 
-/* Unimplemented features. */
-
-#undef KERNEL_STACK_OVERFLOW_CHECK
-
-/* Not well tested.
- *
- * - fast_coprocessor
- */
-
 /*
  * Macro to find first bit set in WINDOWBASE from the left + 1
  *
@@ -178,28 +169,26 @@ _user_exception:
 
 	/* Save only live registers. */
 
-UABI_W	_bbsi.l	a2, 1, 1f
+UABI_W	_bbsi.l	a2, 1, .Lsave_window_registers
 	s32i	a4, a1, PT_AREG4
 	s32i	a5, a1, PT_AREG5
 	s32i	a6, a1, PT_AREG6
 	s32i	a7, a1, PT_AREG7
-UABI_W	_bbsi.l	a2, 2, 1f
+UABI_W	_bbsi.l	a2, 2, .Lsave_window_registers
 	s32i	a8, a1, PT_AREG8
 	s32i	a9, a1, PT_AREG9
 	s32i	a10, a1, PT_AREG10
 	s32i	a11, a1, PT_AREG11
-UABI_W	_bbsi.l	a2, 3, 1f
+UABI_W	_bbsi.l	a2, 3, .Lsave_window_registers
 	s32i	a12, a1, PT_AREG12
 	s32i	a13, a1, PT_AREG13
 	s32i	a14, a1, PT_AREG14
 	s32i	a15, a1, PT_AREG15
 
 #if defined(USER_SUPPORT_WINDOWED)
-	_bnei	a2, 1, 1f		# only one valid frame?
+	/* If only one valid frame skip saving regs. */
 
-	/* Only one valid frame, skip saving regs. */
-
-	j	2f
+	beqi	a2, 1, common_exception
 
 	/* Save the remaining registers.
 	 * We have to save all registers up to the first '1' from
@@ -208,8 +197,8 @@ UABI_W	_bbsi.l	a2, 3, 1f
 	 * All register frames starting from the top field to the marked '1'
 	 * must be saved.
 	 */
-
-1:	addi	a3, a2, -1		# eliminate '1' in bit 0: yyyyxxww0
+.Lsave_window_registers:
+	addi	a3, a2, -1		# eliminate '1' in bit 0: yyyyxxww0
 	neg	a3, a3			# yyyyxxww0 -> YYYYXXWW1+1
 	and	a3, a3, a2		# max. only one bit is set
 
@@ -250,7 +239,7 @@ UABI_W	_bbsi.l	a2, 3, 1f
 
 	/* We are back to the original stack pointer (a1) */
 #endif
-2:	/* Now, jump to the common exception handler. */
+	/* Now, jump to the common exception handler. */
 
 	j	common_exception
 
@@ -350,15 +339,6 @@ KABI_W	_bbsi.l	a2, 3, 1f
 	l32i	a0, a1, PT_AREG0	# restore saved a0
 	wsr	a0, depc
 
-#ifdef KERNEL_STACK_OVERFLOW_CHECK
-
-	/*  Stack overflow check, for debugging  */
-	extui	a2, a1, TASK_SIZE_BITS,XX
-	movi	a3, SIZE??
-	_bge	a2, a3, out_of_stack_panic
-
-#endif
-
 /*
  * This is the common exception handler.
  * We get here from the user exception handler or simply by falling through
@@ -442,7 +422,6 @@ KABI_W	or	a3, a3, a0
 	moveqz	a3, a0, a2		# a3 = LOCKLEVEL iff interrupt
 KABI_W	movi	a2, PS_WOE_MASK
 KABI_W	or	a3, a3, a2
-	rsr	a2, exccause
 #endif
 
 	/* restore return address (or 0 if return to userspace) */
@@ -469,42 +448,56 @@ KABI_W	or	a3, a3, a2
 
 	save_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
 	
+#ifdef CONFIG_TRACE_IRQFLAGS
+	rsr		abi_tmp0, ps
+	extui		abi_tmp0, abi_tmp0, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	beqz		abi_tmp0, 1f
+	abi_call	trace_hardirqs_off
+1:
+#endif
+#ifdef CONFIG_CONTEXT_TRACKING_USER
+	l32i		abi_tmp0, a1, PT_PS
+	bbci.l		abi_tmp0, PS_UM_BIT, 1f
+	abi_call	user_exit_callable
+1:
+#endif
+
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
 
-	rsr	a4, excsave1
-	addx4	a4, a2, a4
-	l32i	a4, a4, EXC_TABLE_DEFAULT		# load handler
-	mov	abi_arg1, a2			# pass EXCCAUSE
-	mov	abi_arg0, a1			# pass stack frame
+	l32i		abi_arg1, a1, PT_EXCCAUSE	# pass EXCCAUSE
+	rsr		abi_tmp0, excsave1
+	addx4		abi_tmp0, abi_arg1, abi_tmp0
+	l32i		abi_tmp0, abi_tmp0, EXC_TABLE_DEFAULT	# load handler
+	mov		abi_arg0, a1			# pass stack frame
 
 	/* Call the second-level handler */
 
-	abi_callx	a4
+	abi_callx	abi_tmp0
 
 	/* Jump here for exception exit */
 	.global common_exception_return
 common_exception_return:
 
 #if XTENSA_FAKE_NMI
-	l32i	abi_tmp0, a1, PT_EXCCAUSE
-	movi	abi_tmp1, EXCCAUSE_MAPPED_NMI
-	l32i	abi_saved1, a1, PT_PS
-	beq	abi_tmp0, abi_tmp1, .Lrestore_state
+	l32i		abi_tmp0, a1, PT_EXCCAUSE
+	movi		abi_tmp1, EXCCAUSE_MAPPED_NMI
+	l32i		abi_saved1, a1, PT_PS
+	beq		abi_tmp0, abi_tmp1, .Lrestore_state
 #endif
 .Ltif_loop:
-	irq_save a2, a3
+	irq_save	abi_tmp0, abi_tmp1
 #ifdef CONFIG_TRACE_IRQFLAGS
 	abi_call	trace_hardirqs_off
 #endif
 
 	/* Jump if we are returning from kernel exceptions. */
 
-	l32i	abi_saved1, a1, PT_PS
-	GET_THREAD_INFO(a2, a1)
-	l32i	a4, a2, TI_FLAGS
-	_bbci.l	abi_saved1, PS_UM_BIT, .Lexit_tif_loop_kernel
+	l32i		abi_saved1, a1, PT_PS
+	GET_THREAD_INFO(abi_tmp0, a1)
+	l32i		abi_saved0, abi_tmp0, TI_FLAGS
+	_bbci.l		abi_saved1, PS_UM_BIT, .Lexit_tif_loop_kernel
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
@@ -513,75 +506,80 @@ common_exception_return:
 	 * Note that we don't disable interrupts here. 
 	 */
 
-	_bbsi.l	a4, TIF_NEED_RESCHED, .Lresched
-	movi	a2, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL
-	bnone	a4, a2, .Lexit_tif_loop_user
+	_bbsi.l		abi_saved0, TIF_NEED_RESCHED, .Lresched
+	movi		abi_tmp0, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL
+	bnone		abi_saved0, abi_tmp0, .Lexit_tif_loop_user
 
-	l32i	a4, a1, PT_DEPC
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
+	l32i		abi_tmp0, a1, PT_DEPC
+	bgeui		abi_tmp0, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
 
 	/* Call do_signal() */
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	abi_call	trace_hardirqs_on
 #endif
-	rsil	a2, 0
-	mov	abi_arg0, a1
+	rsil		abi_tmp0, 0
+	mov		abi_arg0, a1
 	abi_call	do_notify_resume	# int do_notify_resume(struct pt_regs*)
-	j	.Ltif_loop
+	j		.Ltif_loop
 
 .Lresched:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	abi_call	trace_hardirqs_on
 #endif
-	rsil	a2, 0
+	rsil		abi_tmp0, 0
 	abi_call	schedule	# void schedule (void)
-	j	.Ltif_loop
+	j		.Ltif_loop
 
 .Lexit_tif_loop_kernel:
 #ifdef CONFIG_PREEMPTION
-	_bbci.l	a4, TIF_NEED_RESCHED, .Lrestore_state
+	_bbci.l		abi_saved0, TIF_NEED_RESCHED, .Lrestore_state
 
 	/* Check current_thread_info->preempt_count */
 
-	l32i	a4, a2, TI_PRE_COUNT
-	bnez	a4, .Lrestore_state
+	l32i		abi_tmp1, abi_tmp0, TI_PRE_COUNT
+	bnez		abi_tmp1, .Lrestore_state
 	abi_call	preempt_schedule_irq
 #endif
-	j	.Lrestore_state
+	j		.Lrestore_state
 
 .Lexit_tif_loop_user:
+#ifdef CONFIG_CONTEXT_TRACKING_USER
+	abi_call	user_enter_callable
+#endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	_bbci.l	a4, TIF_DB_DISABLED, 1f
+	_bbci.l		abi_saved0, TIF_DB_DISABLED, 1f
 	abi_call	restore_dbreak
 1:
 #endif
 #ifdef CONFIG_DEBUG_TLB_SANITY
-	l32i	a4, a1, PT_DEPC
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
+	l32i		abi_tmp0, a1, PT_DEPC
+	bgeui		abi_tmp0, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
 	abi_call	check_tlb_sanity
 #endif
 
 .Lrestore_state:
 #ifdef CONFIG_TRACE_IRQFLAGS
-	extui	a4, abi_saved1, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
-	bgei	a4, LOCKLEVEL, 1f
+	extui		abi_tmp0, abi_saved1, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei		abi_tmp0, LOCKLEVEL, 1f
 	abi_call	trace_hardirqs_on
 1:
 #endif
-	/* Restore optional registers. */
+	/*
+	 * Restore optional registers.
+	 * abi_arg* are used as temporary registers here.
+	 */
 
-	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
+	load_xtregs_opt a1 abi_tmp0 abi_arg0 abi_arg1 abi_arg2 abi_arg3 PT_XTREGS_OPT
 
 	/* Restore SCOMPARE1 */
 
 #if XCHAL_HAVE_S32C1I
-	l32i    a2, a1, PT_SCOMPARE1
-	wsr     a2, scompare1
+	l32i		abi_tmp0, a1, PT_SCOMPARE1
+	wsr		abi_tmp0, scompare1
 #endif
-	wsr	abi_saved1, ps		/* disable interrupts */
-
-	_bbci.l	abi_saved1, PS_UM_BIT, kernel_exception_exit
+	wsr		abi_saved1, ps		/* disable interrupts */
+	_bbci.l		abi_saved1, PS_UM_BIT, kernel_exception_exit
 
 user_exception_exit:
 
@@ -795,7 +793,7 @@ ENDPROC(kernel_exception)
 ENTRY(debug_exception)
 
 	rsr	a0, SREG_EPS + XCHAL_DEBUGLEVEL
-	bbsi.l	a0, PS_EXCM_BIT, 1f	# exception mode
+	bbsi.l	a0, PS_EXCM_BIT, .Ldebug_exception_in_exception	# exception mode
 
 	/* Set EPC1 and EXCCAUSE */
 
@@ -814,10 +812,10 @@ ENTRY(debug_exception)
 
 	/* Switch to kernel/user stack, restore jump vector, and save a0 */
 
-	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
-
+	bbsi.l	a2, PS_UM_BIT, .Ldebug_exception_user	# jump if user mode
 	addi	a2, a1, -16 - PT_KERNEL_SIZE	# assume kernel stack
-3:
+
+.Ldebug_exception_continue:
 	l32i	a0, a3, DT_DEBUG_SAVE
 	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_AREG0
@@ -845,10 +843,12 @@ ENTRY(debug_exception)
 	bbsi.l	a2, PS_UM_BIT, _user_exception
 	j	_kernel_exception
 
-2:	rsr	a2, excsave1
+.Ldebug_exception_user:
+	rsr	a2, excsave1
 	l32i	a2, a2, EXC_TABLE_KSTK	# load kernel stack pointer
-	j	3b
+	j	.Ldebug_exception_continue
 
+.Ldebug_exception_in_exception:
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	/* Debug exception while in exception mode. This may happen when
 	 * window overflow/underflow handler or fast exception handler hits
@@ -856,8 +856,8 @@ ENTRY(debug_exception)
 	 * breakpoints, single-step faulting instruction and restore data
 	 * breakpoints.
 	 */
-1:
-	bbci.l	a0, PS_UM_BIT, 1b	# jump if kernel mode
+
+	bbci.l	a0, PS_UM_BIT, .Ldebug_exception_in_exception	# jump if kernel mode
 
 	rsr	a0, debugcause
 	bbsi.l	a0, DEBUGCAUSE_DBREAK_BIT, .Ldebug_save_dbreak
@@ -901,7 +901,7 @@ ENTRY(debug_exception)
 	rfi	XCHAL_DEBUGLEVEL
 #else
 	/* Debug exception while in exception mode. Should not happen. */
-1:	j	1b	// FIXME!!
+	j	.Ldebug_exception_in_exception	// FIXME!!
 #endif
 
 ENDPROC(debug_exception)
@@ -1056,6 +1056,11 @@ ENTRY(fast_illegal_instruction_user)
 	movi	a3, PS_WOE_MASK
 	or	a0, a0, a3
 	wsr	a0, ps
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+	GET_THREAD_INFO(a3, a2)
+	rsr	a0, epc1
+	s32i	a0, a3, TI_PS_WOE_FIX_ADDR
+#endif
 	l32i	a3, a2, PT_AREG3
 	l32i	a0, a2, PT_AREG0
 	rsr	a2, depc
@@ -1630,12 +1635,13 @@ ENTRY(fast_second_level_miss)
 
 	GET_CURRENT(a1,a2)
 	l32i	a0, a1, TASK_MM		# tsk->mm
-	beqz	a0, 9f
+	beqz	a0, .Lfast_second_level_miss_no_mm
 
-8:	rsr	a3, excvaddr		# fault address
+.Lfast_second_level_miss_continue:
+	rsr	a3, excvaddr		# fault address
 	_PGD_OFFSET(a0, a3, a1)
 	l32i	a0, a0, 0		# read pmdval
-	beqz	a0, 2f
+	beqz	a0, .Lfast_second_level_miss_no_pmd
 
 	/* Read ptevaddr and convert to top of page-table page.
 	 *
@@ -1678,12 +1684,13 @@ ENTRY(fast_second_level_miss)
 	addi	a3, a3, DTLB_WAY_PGD
 	add	a1, a1, a3		# ... + way_number
 
-3:	wdtlb	a0, a1
+.Lfast_second_level_miss_wdtlb:
+	wdtlb	a0, a1
 	dsync
 
 	/* Exit critical section. */
-
-4:	rsr	a3, excsave1
+.Lfast_second_level_miss_skip_wdtlb:
+	rsr	a3, excsave1
 	movi	a0, 0
 	s32i	a0, a3, EXC_TABLE_FIXUP
 
@@ -1707,19 +1714,21 @@ ENTRY(fast_second_level_miss)
 	esync
 	rfde
 
-9:	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
-	bnez	a0, 8b
+.Lfast_second_level_miss_no_mm:
+	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
+	bnez	a0, .Lfast_second_level_miss_continue
 
 	/* Even more unlikely case active_mm == 0.
 	 * We can get here with NMI in the middle of context_switch that
 	 * touches vmalloc area.
 	 */
 	movi	a0, init_mm
-	j	8b
+	j	.Lfast_second_level_miss_continue
 
+.Lfast_second_level_miss_no_pmd:
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
 
-2:	/* Special case for cache aliasing.
+	/* Special case for cache aliasing.
 	 * We (should) only get here if a clear_user_page, copy_user_page
 	 * or the aliased cache flush functions got preemptively interrupted 
 	 * by another task. Re-establish temporary mapping to the 
@@ -1729,24 +1738,24 @@ ENTRY(fast_second_level_miss)
 	/* We shouldn't be in a double exception */
 
 	l32i	a0, a2, PT_DEPC
-	bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 2f
+	bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lfast_second_level_miss_slow
 
 	/* Make sure the exception originated in the special functions */
 
 	movi	a0, __tlbtemp_mapping_start
 	rsr	a3, epc1
-	bltu	a3, a0, 2f
+	bltu	a3, a0, .Lfast_second_level_miss_slow
 	movi	a0, __tlbtemp_mapping_end
-	bgeu	a3, a0, 2f
+	bgeu	a3, a0, .Lfast_second_level_miss_slow
 
 	/* Check if excvaddr was in one of the TLBTEMP_BASE areas. */
 
 	movi	a3, TLBTEMP_BASE_1
 	rsr	a0, excvaddr
-	bltu	a0, a3, 2f
+	bltu	a0, a3, .Lfast_second_level_miss_slow
 
 	addi	a1, a0, -TLBTEMP_SIZE
-	bgeu	a1, a3, 2f
+	bgeu	a1, a3, .Lfast_second_level_miss_slow
 
 	/* Check if we have to restore an ITLB mapping. */
 
@@ -1772,19 +1781,19 @@ ENTRY(fast_second_level_miss)
 
 	mov	a0, a6
 	movnez	a0, a7, a3
-	j	3b
+	j	.Lfast_second_level_miss_wdtlb
 
 	/* ITLB entry. We only use dst in a6. */
 
 1:	witlb	a6, a1
 	isync
-	j	4b
+	j	.Lfast_second_level_miss_skip_wdtlb
 
 
 #endif	// DCACHE_WAY_SIZE > PAGE_SIZE
 
-
-2:	/* Invalid PGD, default exception handling */
+	/* Invalid PGD, default exception handling */
+.Lfast_second_level_miss_slow:
 
 	rsr	a1, depc
 	s32i	a1, a2, PT_AREG2
@@ -1824,12 +1833,13 @@ ENTRY(fast_store_prohibited)
 
 	GET_CURRENT(a1,a2)
 	l32i	a0, a1, TASK_MM		# tsk->mm
-	beqz	a0, 9f
+	beqz	a0, .Lfast_store_no_mm
 
-8:	rsr	a1, excvaddr		# fault address
+.Lfast_store_continue:
+	rsr	a1, excvaddr		# fault address
 	_PGD_OFFSET(a0, a1, a3)
 	l32i	a0, a0, 0
-	beqz	a0, 2f
+	beqz	a0, .Lfast_store_slow
 
 	/*
 	 * Note that we test _PAGE_WRITABLE_BIT only if PTE is present
@@ -1839,8 +1849,8 @@ ENTRY(fast_store_prohibited)
 	_PTE_OFFSET(a0, a1, a3)
 	l32i	a3, a0, 0		# read pteval
 	movi	a1, _PAGE_CA_INVALID
-	ball	a3, a1, 2f
-	bbci.l	a3, _PAGE_WRITABLE_BIT, 2f
+	ball	a3, a1, .Lfast_store_slow
+	bbci.l	a3, _PAGE_WRITABLE_BIT, .Lfast_store_slow
 
 	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_HW_WRITE
 	or	a3, a3, a1
@@ -1868,7 +1878,6 @@ ENTRY(fast_store_prohibited)
 	l32i	a2, a2, PT_DEPC
 
 	bgeui	a2, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-
 	rsr	a2, depc
 	rfe
 
@@ -1878,11 +1887,17 @@ ENTRY(fast_store_prohibited)
 	esync
 	rfde
 
-9:	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
-	j	8b
+.Lfast_store_no_mm:
+	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
+	j	.Lfast_store_continue
 
-2:	/* If there was a problem, handle fault in C */
-
+	/* If there was a problem, handle fault in C */
+.Lfast_store_slow:
+	rsr	a1, excvaddr
+	pdtlb	a0, a1
+	bbci.l	a0, DTLB_HIT_BIT, 1f
+	idtlb	a0
+1:
 	rsr	a3, depc	# still holds a2
 	s32i	a3, a2, PT_AREG2
 	mov	a1, a2
@@ -2071,8 +2086,16 @@ ENTRY(_switch_to)
 
 #if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
 	l32i	a3, a5, THREAD_CPENABLE
-	xsr	a3, cpenable
-	s32i	a3, a4, THREAD_CPENABLE
+#ifdef CONFIG_SMP
+	beqz	a3, 1f
+	memw			# pairs with memw (2) in fast_coprocessor
+	l32i	a6, a5, THREAD_CP_OWNER_CPU
+	l32i	a7, a5, THREAD_CPU
+	beq	a6, a7, 1f	# load 0 into CPENABLE if current CPU is not the owner
+	movi	a3, 0
+1:
+#endif
+	wsr	a3, cpenable
 #endif
 
 #if XCHAL_HAVE_EXCLUSIVE
@@ -2147,3 +2170,95 @@ ENTRY(ret_from_kernel_thread)
 	j		common_exception_return
 
 ENDPROC(ret_from_kernel_thread)
+
+#ifdef CONFIG_HIBERNATION
+
+	.section	.bss, "aw"
+	.align	4
+.Lsaved_regs:
+#if defined(__XTENSA_WINDOWED_ABI__)
+	.fill	2, 4
+#elif defined(__XTENSA_CALL0_ABI__)
+	.fill	6, 4
+#else
+#error Unsupported Xtensa ABI
+#endif
+	.align	XCHAL_NCP_SA_ALIGN
+.Lsaved_user_regs:
+	.fill	XTREGS_USER_SIZE, 1
+
+	.previous
+
+ENTRY(swsusp_arch_suspend)
+
+	abi_entry_default
+
+	movi		a2, .Lsaved_regs
+	movi		a3, .Lsaved_user_regs
+	s32i		a0, a2, 0
+	s32i		a1, a2, 4
+	save_xtregs_user a3 a4 a5 a6 a7 a8 0
+#if defined(__XTENSA_WINDOWED_ABI__)
+	spill_registers_kernel
+#elif defined(__XTENSA_CALL0_ABI__)
+	s32i		a12, a2, 8
+	s32i		a13, a2, 12
+	s32i		a14, a2, 16
+	s32i		a15, a2, 20
+#else
+#error Unsupported Xtensa ABI
+#endif
+	abi_call	swsusp_save
+	mov		a2, abi_rv
+	abi_ret_default
+
+ENDPROC(swsusp_arch_suspend)
+
+ENTRY(swsusp_arch_resume)
+
+	abi_entry_default
+
+#if defined(__XTENSA_WINDOWED_ABI__)
+	spill_registers_kernel
+#endif
+
+	movi		a2, restore_pblist
+	l32i		a2, a2, 0
+
+.Lcopy_pbe:
+	l32i		a3, a2, PBE_ADDRESS
+	l32i		a4, a2, PBE_ORIG_ADDRESS
+
+	__loopi		a3, a9, PAGE_SIZE, 16
+	l32i		a5, a3, 0
+	l32i		a6, a3, 4
+	l32i		a7, a3, 8
+	l32i		a8, a3, 12
+	addi		a3, a3, 16
+	s32i		a5, a4, 0
+	s32i		a6, a4, 4
+	s32i		a7, a4, 8
+	s32i		a8, a4, 12
+	addi		a4, a4, 16
+	__endl		a3, a9
+
+	l32i		a2, a2, PBE_NEXT
+	bnez		a2, .Lcopy_pbe
+
+	movi		a2, .Lsaved_regs
+	movi		a3, .Lsaved_user_regs
+	l32i		a0, a2, 0
+	l32i		a1, a2, 4
+	load_xtregs_user a3 a4 a5 a6 a7 a8 0
+#if defined(__XTENSA_CALL0_ABI__)
+	l32i		a12, a2, 8
+	l32i		a13, a2, 12
+	l32i		a14, a2, 16
+	l32i		a15, a2, 20
+#endif
+	movi		a2, 0
+	abi_ret_default
+
+ENDPROC(swsusp_arch_resume)
+
+#endif

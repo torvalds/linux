@@ -8,7 +8,6 @@ title: Samsung Exynos5433 SoC Display and Enhancement Controller (DECON)
 
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
-  - Joonyoung Shim <jy0922.shim@samsung.com>
   - Seung-Woo Kim <sw0312.kim@samsung.com>
   - Kyungmin Park <kyungmin.park@samsung.com>
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -25,7 +24,6 @@ properties:
       - samsung,exynos5433-decon-tv
 
   clocks:
-    minItems: 11
     maxItems: 11
 
   clock-names:
@@ -60,7 +58,6 @@ properties:
       - const: te
 
   iommus:
-    minItems: 2
     maxItems: 2
 
   iommu-names:

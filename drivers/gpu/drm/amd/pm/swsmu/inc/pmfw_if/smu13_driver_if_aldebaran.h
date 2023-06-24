@@ -519,7 +519,22 @@ typedef struct {
 } EccInfo_t;
 
 typedef struct {
-	EccInfo_t  EccInfo[ALDEBARAN_UMC_CHANNEL_NUM];
+	uint64_t mca_umc_status;
+	uint64_t mca_umc_addr;
+
+	uint16_t ce_count_lo_chip;
+	uint16_t ce_count_hi_chip;
+
+	uint32_t eccPadding;
+
+	uint64_t mca_ceumc_addr;
+} EccInfo_V2_t;
+
+typedef struct {
+	union {
+		EccInfo_t  EccInfo[ALDEBARAN_UMC_CHANNEL_NUM];
+		EccInfo_V2_t EccInfo_V2[ALDEBARAN_UMC_CHANNEL_NUM];
+	};
 } EccInfoTable_t;
 
 // These defines are used with the following messages:

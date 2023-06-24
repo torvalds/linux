@@ -443,19 +443,25 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 void wl1251_tx_complete(struct wl1251 *wl)
 {
 	int i, result_index, num_complete = 0, queue_len;
-	struct tx_result result[FW_TX_CMPLT_BLOCK_SIZE], *result_ptr;
+	struct tx_result *result, *result_ptr;
 	unsigned long flags;
 
 	if (unlikely(wl->state != WL1251_STATE_ON))
 		return;
 
+	result = kmalloc_array(FW_TX_CMPLT_BLOCK_SIZE, sizeof(*result), GFP_KERNEL);
+	if (!result) {
+		wl1251_error("can not allocate result buffer");
+		return;
+	}
+
 	/* First we read the result */
-	wl1251_mem_read(wl, wl->data_path->tx_complete_addr,
-			    result, sizeof(result));
+	wl1251_mem_read(wl, wl->data_path->tx_complete_addr, result,
+			FW_TX_CMPLT_BLOCK_SIZE * sizeof(*result));
 
 	result_index = wl->next_tx_complete;
 
-	for (i = 0; i < ARRAY_SIZE(result); i++) {
+	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++) {
 		result_ptr = &result[result_index];
 
 		if (result_ptr->done_1 == 1 &&
@@ -538,6 +544,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 
 	}
 
+	kfree(result);
 	wl->next_tx_complete = result_index;
 }
 

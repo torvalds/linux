@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device driver for the the HMC5843 multi-chip module designed
+ * Device driver for the HMC5843 multi-chip module designed
  * for low field magnetic sensing.
  *
  * Copyright (C) 2010 Texas Instruments
@@ -603,19 +603,19 @@ static const struct iio_info hmc5843_info = {
 
 static const unsigned long hmc5843_scan_masks[] = {0x7, 0};
 
-int hmc5843_common_suspend(struct device *dev)
+static int hmc5843_common_suspend(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
 				HMC5843_MODE_SLEEP);
 }
-EXPORT_SYMBOL_NS(hmc5843_common_suspend, IIO_HMC5843);
 
-int hmc5843_common_resume(struct device *dev)
+static int hmc5843_common_resume(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
 		HMC5843_MODE_CONVERSION_CONTINUOUS);
 }
-EXPORT_SYMBOL_NS(hmc5843_common_resume, IIO_HMC5843);
+EXPORT_NS_SIMPLE_DEV_PM_OPS(hmc5843_pm_ops, hmc5843_common_suspend,
+			    hmc5843_common_resume, IIO_HMC5843);
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 			 enum hmc5843_ids id, const char *name)

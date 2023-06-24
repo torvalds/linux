@@ -189,8 +189,8 @@ static int hclgevf_get_basic_info(struct hclgevf_dev *hdev)
 	basic_info = (struct hclge_basic_info *)resp_msg;
 
 	hdev->hw_tc_map = basic_info->hw_tc_map;
-	hdev->mbx_api_version = basic_info->mbx_api_version;
-	caps = basic_info->pf_caps;
+	hdev->mbx_api_version = le16_to_cpu(basic_info->mbx_api_version);
+	caps = le32_to_cpu(basic_info->pf_caps);
 	if (test_bit(HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, &caps))
 		set_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps);
 
@@ -223,10 +223,8 @@ static int hclgevf_get_port_base_vlan_filter_state(struct hclgevf_dev *hdev)
 static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_TQPS_RSS_INFO_LEN	6
-#define HCLGEVF_TQPS_ALLOC_OFFSET	0
-#define HCLGEVF_TQPS_RSS_SIZE_OFFSET	2
-#define HCLGEVF_TQPS_RX_BUFFER_LEN_OFFSET	4
 
+	struct hclge_mbx_vf_queue_info *queue_info;
 	u8 resp_msg[HCLGEVF_TQPS_RSS_INFO_LEN];
 	struct hclge_vf_to_pf_msg send_msg;
 	int status;
@@ -241,12 +239,10 @@ static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 		return status;
 	}
 
-	memcpy(&hdev->num_tqps, &resp_msg[HCLGEVF_TQPS_ALLOC_OFFSET],
-	       sizeof(u16));
-	memcpy(&hdev->rss_size_max, &resp_msg[HCLGEVF_TQPS_RSS_SIZE_OFFSET],
-	       sizeof(u16));
-	memcpy(&hdev->rx_buf_len, &resp_msg[HCLGEVF_TQPS_RX_BUFFER_LEN_OFFSET],
-	       sizeof(u16));
+	queue_info = (struct hclge_mbx_vf_queue_info *)resp_msg;
+	hdev->num_tqps = le16_to_cpu(queue_info->num_tqps);
+	hdev->rss_size_max = le16_to_cpu(queue_info->rss_size);
+	hdev->rx_buf_len = le16_to_cpu(queue_info->rx_buf_len);
 
 	return 0;
 }
@@ -254,9 +250,8 @@ static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 static int hclgevf_get_queue_depth(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_TQPS_DEPTH_INFO_LEN	4
-#define HCLGEVF_TQPS_NUM_TX_DESC_OFFSET	0
-#define HCLGEVF_TQPS_NUM_RX_DESC_OFFSET	2
 
+	struct hclge_mbx_vf_queue_depth *queue_depth;
 	u8 resp_msg[HCLGEVF_TQPS_DEPTH_INFO_LEN];
 	struct hclge_vf_to_pf_msg send_msg;
 	int ret;
@@ -271,10 +266,9 @@ static int hclgevf_get_queue_depth(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
-	memcpy(&hdev->num_tx_desc, &resp_msg[HCLGEVF_TQPS_NUM_TX_DESC_OFFSET],
-	       sizeof(u16));
-	memcpy(&hdev->num_rx_desc, &resp_msg[HCLGEVF_TQPS_NUM_RX_DESC_OFFSET],
-	       sizeof(u16));
+	queue_depth = (struct hclge_mbx_vf_queue_depth *)resp_msg;
+	hdev->num_tx_desc = le16_to_cpu(queue_depth->num_tx_desc);
+	hdev->num_rx_desc = le16_to_cpu(queue_depth->num_rx_desc);
 
 	return 0;
 }
@@ -288,11 +282,11 @@ static u16 hclgevf_get_qid_global(struct hnae3_handle *handle, u16 queue_id)
 	int ret;
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_GET_QID_IN_PF, 0);
-	memcpy(send_msg.data, &queue_id, sizeof(queue_id));
+	*(__le16 *)send_msg.data = cpu_to_le16(queue_id);
 	ret = hclgevf_send_mbx_msg(hdev, &send_msg, true, resp_data,
 				   sizeof(resp_data));
 	if (!ret)
-		qid_in_pf = *(u16 *)resp_data;
+		qid_in_pf = le16_to_cpu(*(__le16 *)resp_data);
 
 	return qid_in_pf;
 }
@@ -985,7 +979,7 @@ static int hclgevf_update_mac_list(struct hnae3_handle *handle,
 
 	/* if the mac addr is already in the mac list, no need to add a new
 	 * one into it, just check the mac addr state, convert it to a new
-	 * new state, or just remove it, or do nothing.
+	 * state, or just remove it, or do nothing.
 	 */
 	mac_node = hclgevf_find_mac_node(list, addr);
 	if (mac_node) {
@@ -1245,11 +1239,8 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 				   __be16 proto, u16 vlan_id,
 				   bool is_kill)
 {
-#define HCLGEVF_VLAN_MBX_IS_KILL_OFFSET	0
-#define HCLGEVF_VLAN_MBX_VLAN_ID_OFFSET	1
-#define HCLGEVF_VLAN_MBX_PROTO_OFFSET	3
-
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct hclge_mbx_vlan_filter *vlan_filter;
 	struct hclge_vf_to_pf_msg send_msg;
 	int ret;
 
@@ -1271,11 +1262,11 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_VLAN,
 			       HCLGE_MBX_VLAN_FILTER);
-	send_msg.data[HCLGEVF_VLAN_MBX_IS_KILL_OFFSET] = is_kill;
-	memcpy(&send_msg.data[HCLGEVF_VLAN_MBX_VLAN_ID_OFFSET], &vlan_id,
-	       sizeof(vlan_id));
-	memcpy(&send_msg.data[HCLGEVF_VLAN_MBX_PROTO_OFFSET], &proto,
-	       sizeof(proto));
+	vlan_filter = (struct hclge_mbx_vlan_filter *)send_msg.data;
+	vlan_filter->is_kill = is_kill;
+	vlan_filter->vlan_id = cpu_to_le16(vlan_id);
+	vlan_filter->proto = cpu_to_le16(be16_to_cpu(proto));
+
 	/* when remove hw vlan filter failed, record the vlan id,
 	 * and try to remove it from hw later, to be consistence
 	 * with stack.
@@ -1347,7 +1338,7 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle)
 
 	for (i = 1; i < handle->kinfo.num_tqps; i++) {
 		hclgevf_build_send_msg(&send_msg, HCLGE_MBX_QUEUE_RESET, 0);
-		memcpy(send_msg.data, &i, sizeof(i));
+		*(__le16 *)send_msg.data = cpu_to_le16(i);
 		ret = hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
 		if (ret)
 			return ret;
@@ -1359,10 +1350,13 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle)
 static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct hclge_mbx_mtu_info *mtu_info;
 	struct hclge_vf_to_pf_msg send_msg;
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_MTU, 0);
-	memcpy(send_msg.data, &new_mtu, sizeof(new_mtu));
+	mtu_info = (struct hclge_mbx_mtu_info *)send_msg.data;
+	mtu_info->mtu = cpu_to_le32(new_mtu);
+
 	return hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
 }
 
@@ -2131,7 +2125,7 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev)
 	struct hclge_desc desc;
 	int ret;
 
-	if (!hnae3_dev_gro_supported(hdev))
+	if (!hnae3_ae_dev_gro_supported(hdev->ae_dev))
 		return 0;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGE_OPC_GRO_GENERIC_CONFIG,
@@ -2963,7 +2957,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
-	/* ensure vf tbl list as empty before init*/
+	/* ensure vf tbl list as empty before init */
 	ret = hclgevf_clear_vport_list(hdev);
 	if (ret) {
 		dev_err(&pdev->dev,
@@ -3183,7 +3177,7 @@ static int hclgevf_get_status(struct hnae3_handle *handle)
 
 static void hclgevf_get_ksettings_an_result(struct hnae3_handle *handle,
 					    u8 *auto_neg, u32 *speed,
-					    u8 *duplex)
+					    u8 *duplex, u32 *lane_num)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
@@ -3315,7 +3309,7 @@ static void hclgevf_get_regs(struct hnae3_handle *handle, u32 *version,
 		for (i = 0; i < reg_um; i++)
 			*reg++ = hclgevf_read_dev(&hdev->hw,
 						  ring_reg_addr_list[i] +
-						  0x200 * j);
+						  HCLGEVF_TQP_REG_SIZE * j);
 		for (i = 0; i < separator_num; i++)
 			*reg++ = SEPARATOR_VALUE;
 	}
@@ -3333,7 +3327,7 @@ static void hclgevf_get_regs(struct hnae3_handle *handle, u32 *version,
 }
 
 void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
-					u8 *port_base_vlan_info, u8 data_size)
+				struct hclge_mbx_port_base_vlan *port_base_vlan)
 {
 	struct hnae3_handle *nic = &hdev->nic;
 	struct hclge_vf_to_pf_msg send_msg;
@@ -3358,7 +3352,7 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 	/* send msg to PF and wait update port based vlan info */
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_VLAN,
 			       HCLGE_MBX_PORT_BASE_VLAN_CFG);
-	memcpy(send_msg.data, port_base_vlan_info, data_size);
+	memcpy(send_msg.data, port_base_vlan, sizeof(*port_base_vlan));
 	ret = hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 	if (!ret) {
 		if (state == HNAE3_PORT_BASE_VLAN_DISABLE)
@@ -3435,7 +3429,7 @@ static struct hnae3_ae_algo ae_algovf = {
 	.pdev_id_table = ae_algovf_pci_tbl,
 };
 
-static int hclgevf_init(void)
+static int __init hclgevf_init(void)
 {
 	pr_info("%s is initializing\n", HCLGEVF_NAME);
 
@@ -3450,7 +3444,7 @@ static int hclgevf_init(void)
 	return 0;
 }
 
-static void hclgevf_exit(void)
+static void __exit hclgevf_exit(void)
 {
 	hnae3_unregister_ae_algo(&ae_algovf);
 	destroy_workqueue(hclgevf_wq);

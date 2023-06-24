@@ -423,7 +423,7 @@ void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 	int len;
 
 	va_start(args, fmt);
-	len = vsnprintf((char *) &len, 1, fmt, args) + 1;
+	len = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 	va_start(args, fmt);
 	tomoyo_write_log2(r, len, fmt, args);

@@ -98,6 +98,7 @@ enum irdma_term_mpa_errors {
 enum irdma_qp_event_type {
 	IRDMA_QP_EVENT_CATASTROPHIC,
 	IRDMA_QP_EVENT_ACCESS_ERR,
+	IRDMA_QP_EVENT_REQ_ERR,
 };
 
 enum irdma_hw_stats_index_32b {

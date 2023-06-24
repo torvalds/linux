@@ -80,7 +80,6 @@ void rtl8188e_PHY_SetRFReg(struct adapter *adapter, u32 regaddr, u32 mask, u32 d
 /* MAC/BB/RF HAL config */
 int PHY_MACConfig8188E(struct adapter *adapter);
 int PHY_BBConfig8188E(struct adapter *adapter);
-int PHY_RFConfig8188E(struct adapter *adapter);
 
 /*  BB TX Power R/W */
 void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);

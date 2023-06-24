@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clk driver for NXP LPC18xx/LPC43xx Clock Generation Unit (CGU)
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk-provider.h>
@@ -609,7 +606,7 @@ static void __init lpc18xx_cgu_register_source_clks(struct device_node *np,
 	if (IS_ERR(clk))
 		pr_warn("%s: failed to register irc clk\n", __func__);
 
-	/* Register crystal oscillator controlller */
+	/* Register crystal oscillator controller */
 	parents[0] = of_clk_get_parent_name(np, 0);
 	clk = clk_register_gate(NULL, clk_src_names[CLK_SRC_OSC], parents[0],
 				0, base + LPC18XX_CGU_XTAL_OSC_CTRL,

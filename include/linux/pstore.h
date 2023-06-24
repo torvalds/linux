@@ -57,6 +57,9 @@ struct pstore_info;
  * @size:	size of @buf
  * @ecc_notice_size:
  *		ECC information for @buf
+ * @priv:	pointer for backend specific use, will be
+ *		kfree()d by the pstore core if non-NULL
+ *		when the record is freed.
  *
  * Valid for PSTORE_TYPE_DMESG @type:
  *
@@ -74,6 +77,7 @@ struct pstore_record {
 	char			*buf;
 	ssize_t			size;
 	ssize_t			ecc_notice_size;
+	void			*priv;
 
 	int			count;
 	enum kmsg_dump_reason	reason;

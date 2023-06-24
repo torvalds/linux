@@ -3,6 +3,7 @@
 #define _FUTEX_H
 
 #include <linux/futex.h>
+#include <linux/rtmutex.h>
 #include <linux/sched/wake_q.h>
 
 #ifdef CONFIG_PREEMPT_RT

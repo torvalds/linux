@@ -36,7 +36,7 @@ struct pcf857x_platform_data {
 	int		(*setup)(struct i2c_client *client,
 					int gpio, unsigned ngpio,
 					void *context);
-	int		(*teardown)(struct i2c_client *client,
+	void		(*teardown)(struct i2c_client *client,
 					int gpio, unsigned ngpio,
 					void *context);
 	void		*context;

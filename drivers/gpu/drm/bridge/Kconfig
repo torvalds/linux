@@ -32,6 +32,7 @@ config DRM_CHIPONE_ICN6211
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL_BRIDGE
+	select REGMAP_I2C
 	help
 	  ICN6211 is MIPI-DSI/RGB Converter bridge from chipone.
 
@@ -74,12 +75,27 @@ config DRM_DISPLAY_CONNECTOR
 	  on ARM-based platforms. Saying Y here when this driver is not needed
 	  will not cause any issue.
 
+config DRM_FSL_LDB
+	tristate "Freescale i.MX8MP LDB bridge"
+	depends on OF
+	depends on ARCH_MXC || COMPILE_TEST
+	select DRM_KMS_HELPER
+	select DRM_PANEL_BRIDGE
+	help
+	  Support for i.MX8MP DPI-to-LVDS on-SoC encoder.
+
 config DRM_ITE_IT6505
         tristate "ITE IT6505 DisplayPort bridge"
         depends on OF
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HELPER
+        select DRM_DP_AUX_BUS
         select DRM_KMS_HELPER
         select DRM_DP_HELPER
         select EXTCON
+        select CRYPTO
+        select CRYPTO_HASH
         help
           ITE IT6505 DisplayPort bridge chip driver.
 
@@ -98,6 +114,19 @@ config DRM_LONTIUM_LT8912B
 
 	  Say M here if you want to support this hardware as a module.
 	  The module will be named "lontium-lt8912b".
+
+config DRM_LONTIUM_LT9211
+	tristate "Lontium LT9211 DSI/LVDS/DPI bridge"
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select REGMAP_I2C
+	help
+	  Driver for Lontium LT9211 Single/Dual-Link DSI/LVDS or Single DPI
+	  input to Single-link/Dual-Link DSI/LVDS or Single DPI output bridge
+	  chip.
+	  Please say Y if you have such hardware.
 
 config DRM_LONTIUM_LT9611
 	tristate "Lontium LT9611 DSI/HDMI bridge"
@@ -191,8 +220,9 @@ config DRM_PARADE_PS8622
 config DRM_PARADE_PS8640
 	tristate "Parade PS8640 MIPI DSI to eDP Converter"
 	depends on OF
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_DP_AUX_BUS
-	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL
@@ -263,9 +293,11 @@ config DRM_TOSHIBA_TC358764
 config DRM_TOSHIBA_TC358767
 	tristate "Toshiba TC358767 eDP bridge"
 	depends on OF
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
+	select DRM_MIPI_DSI
 	select DRM_PANEL
 	help
 	  Toshiba TC358767 eDP bridge chip driver.
@@ -283,13 +315,30 @@ config DRM_TOSHIBA_TC358768
 config DRM_TOSHIBA_TC358775
 	tristate "Toshiba TC358775 DSI/LVDS bridge"
 	depends on OF
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
 	select DRM_MIPI_DSI
 	help
 	  Toshiba TC358775 DSI/LVDS bridge chip driver.
+
+config DRM_TI_DLPC3433
+	tristate "TI DLPC3433 Display controller"
+	depends on DRM && DRM_PANEL
+	depends on OF
+	select DRM_MIPI_DSI
+	help
+	  TI DLPC3433 is a MIPI DSI based display controller bridge
+	  for processing high resolution DMD based projectors.
+
+	  It has a flexible configuration of MIPI DSI and DPI signal
+	  input that produces a DMD output in RGB565, RGB666, RGB888
+	  formats.
+
+	  It supports upto 720p resolution with 60 and 120 Hz refresh
+	  rates.
 
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"
@@ -311,7 +360,8 @@ config DRM_TI_SN65DSI83
 config DRM_TI_SN65DSI86
 	tristate "TI SN65DSI86 DSI to eDP bridge"
 	depends on OF
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
@@ -334,6 +384,8 @@ source "drivers/gpu/drm/bridge/analogix/Kconfig"
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
 
 source "drivers/gpu/drm/bridge/cadence/Kconfig"
+
+source "drivers/gpu/drm/bridge/imx/Kconfig"
 
 source "drivers/gpu/drm/bridge/synopsys/Kconfig"
 

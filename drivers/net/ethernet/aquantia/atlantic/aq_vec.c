@@ -10,11 +10,6 @@
  */
 
 #include "aq_vec.h"
-#include "aq_nic.h"
-#include "aq_ring.h"
-#include "aq_hw.h"
-
-#include <linux/netdevice.h>
 
 struct aq_vec_s {
 	const struct aq_hw_ops *aq_hw_ops;
@@ -124,8 +119,7 @@ struct aq_vec_s *aq_vec_alloc(struct aq_nic_s *aq_nic, unsigned int idx,
 	self->tx_rings = 0;
 	self->rx_rings = 0;
 
-	netif_napi_add(aq_nic_get_ndev(aq_nic), &self->napi,
-		       aq_vec_poll, AQ_CFG_NAPI_WEIGHT);
+	netif_napi_add(aq_nic_get_ndev(aq_nic), &self->napi, aq_vec_poll);
 
 err_exit:
 	return self;
@@ -153,9 +147,23 @@ int aq_vec_ring_alloc(struct aq_vec_s *self, struct aq_nic_s *aq_nic,
 
 		aq_nic_set_tx_ring(aq_nic, idx_ring, ring);
 
+		if (xdp_rxq_info_reg(&self->ring[i][AQ_VEC_RX_ID].xdp_rxq,
+				     aq_nic->ndev, idx,
+				     self->napi.napi_id) < 0) {
+			err = -ENOMEM;
+			goto err_exit;
+		}
+		if (xdp_rxq_info_reg_mem_model(&self->ring[i][AQ_VEC_RX_ID].xdp_rxq,
+					       MEM_TYPE_PAGE_SHARED, NULL) < 0) {
+			xdp_rxq_info_unreg(&self->ring[i][AQ_VEC_RX_ID].xdp_rxq);
+			err = -ENOMEM;
+			goto err_exit;
+		}
+
 		ring = aq_ring_rx_alloc(&self->ring[i][AQ_VEC_RX_ID], aq_nic,
 					idx_ring, aq_nic_cfg);
 		if (!ring) {
+			xdp_rxq_info_unreg(&self->ring[i][AQ_VEC_RX_ID].xdp_rxq);
 			err = -ENOMEM;
 			goto err_exit;
 		}
@@ -300,8 +308,10 @@ void aq_vec_ring_free(struct aq_vec_s *self)
 	for (i = 0U; self->tx_rings > i; ++i) {
 		ring = self->ring[i];
 		aq_ring_free(&ring[AQ_VEC_TX_ID]);
-		if (i < self->rx_rings)
+		if (i < self->rx_rings) {
+			xdp_rxq_info_unreg(&ring[AQ_VEC_RX_ID].xdp_rxq);
 			aq_ring_free(&ring[AQ_VEC_RX_ID]);
+		}
 	}
 
 	self->tx_rings = 0;

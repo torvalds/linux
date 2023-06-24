@@ -295,17 +295,17 @@ static int mlxsw_sp_dpipe_erif_table_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
-	return devlink_dpipe_table_register(devlink,
-					    MLXSW_SP_DPIPE_TABLE_NAME_ERIF,
-					    &mlxsw_sp_erif_ops,
-					    mlxsw_sp, false);
+	return devl_dpipe_table_register(devlink,
+					 MLXSW_SP_DPIPE_TABLE_NAME_ERIF,
+					 &mlxsw_sp_erif_ops,
+					 mlxsw_sp, false);
 }
 
 static void mlxsw_sp_dpipe_erif_table_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
-	devlink_dpipe_table_unregister(devlink, MLXSW_SP_DPIPE_TABLE_NAME_ERIF);
+	devl_dpipe_table_unregister(devlink, MLXSW_SP_DPIPE_TABLE_NAME_ERIF);
 }
 
 static int mlxsw_sp_dpipe_table_host_matches_dump(struct sk_buff *skb, int type)
@@ -749,25 +749,25 @@ static int mlxsw_sp_dpipe_host4_table_init(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
-	err = devlink_dpipe_table_register(devlink,
-					   MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
-					   &mlxsw_sp_host4_ops,
-					   mlxsw_sp, false);
+	err = devl_dpipe_table_register(devlink,
+					MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
+					&mlxsw_sp_host4_ops,
+					mlxsw_sp, false);
 	if (err)
 		return err;
 
-	err = devlink_dpipe_table_resource_set(devlink,
-					       MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
-					       MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
-					       MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST4);
+	err = devl_dpipe_table_resource_set(devlink,
+					    MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
+					    MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
+					    MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST4);
 	if (err)
 		goto err_resource_set;
 
 	return 0;
 
 err_resource_set:
-	devlink_dpipe_table_unregister(devlink,
-				       MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
+	devl_dpipe_table_unregister(devlink,
+				    MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
 	return err;
 }
 
@@ -775,8 +775,8 @@ static void mlxsw_sp_dpipe_host4_table_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
-	devlink_dpipe_table_unregister(devlink,
-				       MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
+	devl_dpipe_table_unregister(devlink,
+				    MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
 }
 
 static int
@@ -826,25 +826,25 @@ static int mlxsw_sp_dpipe_host6_table_init(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
-	err = devlink_dpipe_table_register(devlink,
-					   MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
-					   &mlxsw_sp_host6_ops,
-					   mlxsw_sp, false);
+	err = devl_dpipe_table_register(devlink,
+					MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
+					&mlxsw_sp_host6_ops,
+					mlxsw_sp, false);
 	if (err)
 		return err;
 
-	err = devlink_dpipe_table_resource_set(devlink,
-					       MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
-					       MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
-					       MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST6);
+	err = devl_dpipe_table_resource_set(devlink,
+					    MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
+					    MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
+					    MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST6);
 	if (err)
 		goto err_resource_set;
 
 	return 0;
 
 err_resource_set:
-	devlink_dpipe_table_unregister(devlink,
-				       MLXSW_SP_DPIPE_TABLE_NAME_HOST6);
+	devl_dpipe_table_unregister(devlink,
+				    MLXSW_SP_DPIPE_TABLE_NAME_HOST6);
 	return err;
 }
 
@@ -852,8 +852,8 @@ static void mlxsw_sp_dpipe_host6_table_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
-	devlink_dpipe_table_unregister(devlink,
-				       MLXSW_SP_DPIPE_TABLE_NAME_HOST6);
+	devl_dpipe_table_unregister(devlink,
+				    MLXSW_SP_DPIPE_TABLE_NAME_HOST6);
 }
 
 static int mlxsw_sp_dpipe_table_adj_matches_dump(void *priv,
@@ -1231,25 +1231,25 @@ static int mlxsw_sp_dpipe_adj_table_init(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
-	err = devlink_dpipe_table_register(devlink,
-					   MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
-					   &mlxsw_sp_dpipe_table_adj_ops,
-					   mlxsw_sp, false);
+	err = devl_dpipe_table_register(devlink,
+					MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
+					&mlxsw_sp_dpipe_table_adj_ops,
+					mlxsw_sp, false);
 	if (err)
 		return err;
 
-	err = devlink_dpipe_table_resource_set(devlink,
-					       MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
-					       MLXSW_SP_RESOURCE_KVD_LINEAR,
-					       MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_ADJ);
+	err = devl_dpipe_table_resource_set(devlink,
+					    MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
+					    MLXSW_SP_RESOURCE_KVD_LINEAR,
+					    MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_ADJ);
 	if (err)
 		goto err_resource_set;
 
 	return 0;
 
 err_resource_set:
-	devlink_dpipe_table_unregister(devlink,
-				       MLXSW_SP_DPIPE_TABLE_NAME_ADJ);
+	devl_dpipe_table_unregister(devlink,
+				    MLXSW_SP_DPIPE_TABLE_NAME_ADJ);
 	return err;
 }
 
@@ -1257,8 +1257,8 @@ static void mlxsw_sp_dpipe_adj_table_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
-	devlink_dpipe_table_unregister(devlink,
-				       MLXSW_SP_DPIPE_TABLE_NAME_ADJ);
+	devl_dpipe_table_unregister(devlink,
+				    MLXSW_SP_DPIPE_TABLE_NAME_ADJ);
 }
 
 int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp)
@@ -1266,10 +1266,8 @@ int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
-	err = devlink_dpipe_headers_register(devlink,
-					     &mlxsw_sp_dpipe_headers);
-	if (err)
-		return err;
+	devl_dpipe_headers_register(devlink, &mlxsw_sp_dpipe_headers);
+
 	err = mlxsw_sp_dpipe_erif_table_init(mlxsw_sp);
 	if (err)
 		goto err_erif_table_init;
@@ -1294,7 +1292,7 @@ err_host6_table_init:
 err_host4_table_init:
 	mlxsw_sp_dpipe_erif_table_fini(mlxsw_sp);
 err_erif_table_init:
-	devlink_dpipe_headers_unregister(priv_to_devlink(mlxsw_sp->core));
+	devl_dpipe_headers_unregister(priv_to_devlink(mlxsw_sp->core));
 	return err;
 }
 
@@ -1306,5 +1304,5 @@ void mlxsw_sp_dpipe_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_dpipe_host6_table_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_host4_table_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_erif_table_fini(mlxsw_sp);
-	devlink_dpipe_headers_unregister(devlink);
+	devl_dpipe_headers_unregister(devlink);
 }

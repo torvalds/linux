@@ -37,9 +37,8 @@
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/sched.h>
@@ -261,7 +260,7 @@ static int srf04_probe(struct platform_device *pdev)
 
 	data = iio_priv(indio_dev);
 	data->dev = dev;
-	data->cfg = of_match_device(of_srf04_match, dev)->data;
+	data->cfg = device_get_match_data(dev);
 
 	mutex_init(&data->lock);
 	init_completion(&data->rising);
@@ -289,10 +288,8 @@ static int srf04_probe(struct platform_device *pdev)
 		return PTR_ERR(data->gpiod_power);
 	}
 	if (data->gpiod_power) {
-
-		if (of_property_read_u32(dev->of_node, "startup-time-ms",
-						&data->startup_time_ms))
-			data->startup_time_ms = 100;
+		data->startup_time_ms = 100;
+		device_property_read_u32(dev, "startup-time-ms", &data->startup_time_ms);
 		dev_dbg(dev, "using power gpio: startup-time-ms=%d\n",
 							data->startup_time_ms);
 	}
@@ -362,7 +359,7 @@ static int srf04_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused srf04_pm_runtime_suspend(struct device *dev)
+static int  srf04_pm_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = container_of(dev,
 						struct platform_device, dev);
@@ -374,7 +371,7 @@ static int __maybe_unused srf04_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused srf04_pm_runtime_resume(struct device *dev)
+static int srf04_pm_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = container_of(dev,
 						struct platform_device, dev);
@@ -388,8 +385,8 @@ static int __maybe_unused srf04_pm_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops srf04_pm_ops = {
-	SET_RUNTIME_PM_OPS(srf04_pm_runtime_suspend,
-				srf04_pm_runtime_resume, NULL)
+	RUNTIME_PM_OPS(srf04_pm_runtime_suspend,
+		       srf04_pm_runtime_resume, NULL)
 };
 
 static struct platform_driver srf04_driver = {
@@ -398,7 +395,7 @@ static struct platform_driver srf04_driver = {
 	.driver		= {
 		.name		= "srf04-gpio",
 		.of_match_table	= of_srf04_match,
-		.pm		= &srf04_pm_ops,
+		.pm		= pm_ptr(&srf04_pm_ops),
 	},
 };
 

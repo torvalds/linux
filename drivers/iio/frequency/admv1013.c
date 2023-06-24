@@ -100,7 +100,7 @@ struct admv1013_state {
 	unsigned int		input_mode;
 	unsigned int		quad_se_mode;
 	bool			det_en;
-	u8			data[3] ____cacheline_aligned;
+	u8			data[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int __admv1013_spi_read(struct admv1013_state *st, unsigned int reg,

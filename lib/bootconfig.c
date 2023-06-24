@@ -12,6 +12,19 @@
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/string.h>
+
+#ifdef CONFIG_BOOT_CONFIG_EMBED
+/* embedded_bootconfig_data is defined in bootconfig-data.S */
+extern __visible const char embedded_bootconfig_data[];
+extern __visible const char embedded_bootconfig_data_end[];
+
+const char * __init xbc_get_embedded_bootconfig(size_t *size)
+{
+	*size = embedded_bootconfig_data_end - embedded_bootconfig_data;
+	return (*size) ? embedded_bootconfig_data : NULL;
+}
+#endif
+
 #else /* !__KERNEL__ */
 /*
  * NOTE: This is only for tools/bootconfig, because tools/bootconfig will

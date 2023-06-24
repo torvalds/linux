@@ -64,6 +64,7 @@
 	debug messages will or will not be logged. Each flag must be preceded
 	by either '+' or '-'. The flags are:
 		a	all perf events
+		e	output only on errors (size configurable - see linkperf:perf-config[1])
 		o	output to stdout
 
 	If supported, the 'q' option may be repeated to increase the effect.

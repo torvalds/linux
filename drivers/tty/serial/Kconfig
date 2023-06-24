@@ -127,6 +127,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 on-chip serial port support"
+	depends on COMMON_CLK
 	depends on ARCH_AT91 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -324,6 +325,7 @@ config SERIAL_MAX310X
 	depends on SPI_MASTER
 	select SERIAL_CORE
 	select REGMAP_SPI if SPI_MASTER
+	select REGMAP_I2C if I2C
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
 	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
@@ -426,7 +428,7 @@ config SERIAL_PXA
 
 config SERIAL_PXA_NON8250
 	bool
-	depends on !SERIAL_8250
+	depends on !SERIAL_8250 || COMPILE_TEST
 
 config SERIAL_PXA_CONSOLE
 	bool "Console on PXA serial port (DEPRECATED)"
@@ -601,21 +603,6 @@ config SERIAL_MUX_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	default y
 
-config PDC_CONSOLE
-	bool "PDC software console support"
-	depends on PARISC && !SERIAL_MUX && VT
-	help
-	  Saying Y here will enable the software based PDC console to be 
-	  used as the system console.  This is useful for machines in 
-	  which the hardware based console has not been written yet.  The
-	  following steps must be completed to use the PDC console:
-
-	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
-	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
-	    3. Add device ttyB0 to /etc/securetty (if you want to log on as
-		 root on this console.)
-	    4. Change the kernel command console parameter to: console=ttyB0
-
 config SERIAL_SUNSAB
 	tristate "Sun Siemens SAB82532 serial support"
 	depends on SPARC && PCI
@@ -654,7 +641,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on SUPERH || ARCH_RENESAS || H8300 || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 
@@ -663,7 +650,6 @@ config SERIAL_SH_SCI_NR_UARTS
 	range 1 64 if 64BIT
 	range 1 32 if !64BIT
 	depends on SERIAL_SH_SCI
-	default "3" if H8300
 	default "10" if SUPERH
 	default "18" if ARCH_RENESAS
 	default "2"
@@ -679,7 +665,7 @@ config SERIAL_SH_SCI_EARLYCON
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
-	default ARCH_RENESAS || H8300
+	default ARCH_RENESAS
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support" if EXPERT
@@ -783,7 +769,7 @@ config SERIAL_PMACZILOG_CONSOLE
 
 config SERIAL_CPM
 	tristate "CPM SCC/SMC serial port support"
-	depends on CPM2 || CPM1
+	depends on CPM2 || CPM1 || (PPC32 && COMPILE_TEST)
 	select SERIAL_CORE
 	help
 	  This driver supports the SCC and SMC serial ports on Motorola 
@@ -807,7 +793,7 @@ config SERIAL_CPM_CONSOLE
 
 config SERIAL_PIC32
 	tristate "Microchip PIC32 serial support"
-	depends on MACH_PIC32
+	depends on MACH_PIC32 || (MIPS && COMPILE_TEST)
 	select SERIAL_CORE
 	help
 	  If you have a PIC32, this driver supports the serial ports.
@@ -818,7 +804,7 @@ config SERIAL_PIC32
 
 config SERIAL_PIC32_CONSOLE
 	bool "PIC32 serial console support"
-	depends on SERIAL_PIC32
+	depends on SERIAL_PIC32=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have a PIC32, this driver supports the putting a console on one
@@ -889,23 +875,6 @@ config SERIAL_TXX9_CONSOLE
 config SERIAL_TXX9_STDSERIAL
 	bool "TX39XX/49XX SIO act as standard serial"
 	depends on !SERIAL_8250 && SERIAL_TXX9
-
-config SERIAL_VR41XX
-	tristate "NEC VR4100 series Serial Interface Unit support"
-	depends on CPU_VR41XX
-	select SERIAL_CORE
-	help
-	  If you have a NEC VR4100 series processor and you want to use
-	  Serial Interface Unit(SIU) or Debug Serial Interface Unit(DSIU)
-	  (not include VR4111/VR4121 DSIU), say Y.  Otherwise, say N.
-
-config SERIAL_VR41XX_CONSOLE
-	bool "Enable NEC VR4100 series Serial Interface Unit console"
-	depends on SERIAL_VR41XX=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have a NEC VR4100 series processor and you want to use
-	  a console on a serial port, say Y.  Otherwise, say N.
 
 config SERIAL_JSM
 	tristate "Digi International NEO and Classic PCI Support"
@@ -1100,8 +1069,8 @@ config SERIAL_TIMBERDALE
 config SERIAL_BCM63XX
 	tristate "Broadcom BCM63xx/BCM33xx UART support"
 	select SERIAL_CORE
-	depends on ARCH_BCM4908 || ARCH_BCM_63XX || BCM63XX || BMIPS_GENERIC || COMPILE_TEST
-	default ARCH_BCM4908 || ARCH_BCM_63XX || BCM63XX || BMIPS_GENERIC
+	depends on ARCH_BCMBCA || BCM63XX || BMIPS_GENERIC || COMPILE_TEST
+	default ARCH_BCMBCA || BCM63XX || BMIPS_GENERIC
 	help
 	  This enables the driver for the onchip UART core found on
 	  the following chipsets:
@@ -1247,7 +1216,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"
-	depends on HAVE_CLK && ATH79
+	depends on (HAVE_CLK && ATH79) || (MIPS && COMPILE_TEST)
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
@@ -1342,7 +1311,7 @@ config SERIAL_FSL_LPUART
 
 config SERIAL_FSL_LPUART_CONSOLE
 	bool "Console on Freescale lpuart serial port"
-	depends on SERIAL_FSL_LPUART=y
+	depends on SERIAL_FSL_LPUART
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
@@ -1443,6 +1412,7 @@ config SERIAL_STM32_CONSOLE
 	bool "Support for console on STM32"
 	depends on SERIAL_STM32=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_MVEBU_UART
 	bool "Marvell EBU serial port support"

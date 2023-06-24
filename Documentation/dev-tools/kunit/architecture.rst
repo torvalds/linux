@@ -6,8 +6,8 @@ KUnit Architecture
 
 The KUnit architecture can be divided into two parts:
 
-- Kernel testing library
-- kunit_tool (Command line test harness)
+- `In-Kernel Testing Framework`_
+- `kunit_tool (Command Line Test Harness)`_
 
 In-Kernel Testing Framework
 ===========================
@@ -125,7 +125,7 @@ All expectations/assertions are formatted as:
 		  ``void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)``.
 
 		- ``kunit_try_catch_throw`` calls function:
-		  ``void complete_and_exit(struct completion *, long) __noreturn;``
+		  ``void kthread_complete_and_exit(struct completion *, long) __noreturn;``
 		  and terminates the special thread context.
 
 - ``<op>`` denotes a check with options: ``TRUE`` (supplied property

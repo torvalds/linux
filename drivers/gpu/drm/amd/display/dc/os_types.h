@@ -27,16 +27,17 @@
 #ifndef _OS_TYPES_H_
 #define _OS_TYPES_H_
 
+#include <linux/slab.h>
 #include <linux/kgdb.h>
 #include <linux/kref.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/mm.h>
 
 #include <asm/byteorder.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_print.h>
-#include <drm/dp/drm_dp_helper.h>
 
 #include "cgs_common.h"
 

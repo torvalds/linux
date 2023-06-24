@@ -42,9 +42,9 @@ config SND_ATMEL_SOC_SSC_DMA
 config SND_AT91_SOC_SAM9G20_WM8731
 	tristate "SoC Audio support for WM8731-based At91sam9g20 evaluation board"
 	depends on ARCH_AT91 || COMPILE_TEST
-	depends on ATMEL_SSC && SND_SOC_I2C_AND_SPI
+	depends on ATMEL_SSC && I2C
 	select SND_ATMEL_SOC_SSC_PDC
-	select SND_SOC_WM8731
+	select SND_SOC_WM8731_I2C
 	help
 	  Say Y if you want to add support for SoC audio on WM8731-based
 	  AT91sam9g20 evaluation board.

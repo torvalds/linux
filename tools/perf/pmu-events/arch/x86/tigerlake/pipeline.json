@@ -12,6 +12,17 @@
         "UMask": "0x9"
     },
     {
+        "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.ANY",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware Examples include AD (page Access Dirty), FP and AVX related assists.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x7"
+    },
+    {
         "BriefDescription": "All branch instructions retired.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -421,13 +432,13 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Cycles where no uops were executed, the Reservation Station was not empty, the Store Buffer was full and there was no outstanding load.",
+        "BriefDescription": "Cycles no uop executed while RS was not empty, the SB was not full and there was no outstanding load.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
-        "PublicDescription": "Counts cycles during which no uops were executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was not empty, the Store Buffer (SB) was not full and there was no outstanding load.",
         "SampleAfterValue": "1000003",
         "UMask": "0x80"
     },

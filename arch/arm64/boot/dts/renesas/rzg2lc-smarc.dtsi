@@ -29,7 +29,7 @@
 #define SW_RSPI_CAN	1
 #endif
 
-#if (SW_SCIF_CAN & SW_RSPI_CAN)
+#if (SW_SCIF_CAN && SW_RSPI_CAN)
 #error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to HW routing"
 #endif
 
@@ -43,6 +43,7 @@
 / {
 	aliases {
 		serial1 = &scif1;
+		i2c2 = &i2c2;
 	};
 };
 
@@ -58,6 +59,24 @@
 	status = "disabled";
 };
 #endif
+
+&cpu_dai {
+	sound-dai = <&ssi0>;
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	wm8978: codec@1a {
+		compatible = "wlf,wm8978";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+	};
+};
 
 /*
  * To enable SCIF1 (SER0) on PMOD1 (CN7), On connector board
@@ -75,3 +94,22 @@
 	status = "okay";
 };
 #endif
+
+&ssi0 {
+	pinctrl-0 = <&ssi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+#if (SW_RSPI_CAN)
+&spi1 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
+#endif
+
+&vccq_sdhi1 {
+	gpios = <&pinctrl RZG2L_GPIO(39, 1) GPIO_ACTIVE_HIGH>;
+};

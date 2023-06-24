@@ -2407,7 +2407,7 @@
 
 				adc {
 					#io-channel-cells = <1>;
-					compatible ="ti,am4372-adc";
+					compatible = "ti,am4372-adc";
 				};
 			};
 		};

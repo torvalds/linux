@@ -5,6 +5,8 @@
 
 #include <linux/prandom.h>
 
+#include <uapi/drm/i915_drm.h>
+
 #include "intel_memory_region.h"
 #include "i915_drv.h"
 #include "i915_ttm_buddy_manager.h"
@@ -17,7 +19,7 @@ static const struct {
 		.class = INTEL_MEMORY_SYSTEM,
 		.instance = 0,
 	},
-	[INTEL_REGION_LMEM] = {
+	[INTEL_REGION_LMEM_0] = {
 		.class = INTEL_MEMORY_LOCAL,
 		.instance = 0,
 	},
@@ -196,8 +198,7 @@ void intel_memory_region_debug(struct intel_memory_region *mr,
 	if (mr->region_private)
 		ttm_resource_manager_debug(mr->region_private, printer);
 	else
-		drm_printf(printer, "total:%pa, available:%pa bytes\n",
-			   &mr->total, &mr->avail);
+		drm_printf(printer, "total:%pa bytes\n", &mr->total);
 }
 
 static int intel_memory_region_memtest(struct intel_memory_region *mem,
@@ -240,7 +241,6 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mem->min_page_size = min_page_size;
 	mem->ops = ops;
 	mem->total = size;
-	mem->avail = mem->total;
 	mem->type = type;
 	mem->instance = instance;
 
@@ -275,6 +275,20 @@ void intel_memory_region_set_name(struct intel_memory_region *mem,
 	va_start(ap, fmt);
 	vsnprintf(mem->name, sizeof(mem->name), fmt, ap);
 	va_end(ap);
+}
+
+void intel_memory_region_avail(struct intel_memory_region *mr,
+			       u64 *avail, u64 *visible_avail)
+{
+	if (mr->type == INTEL_MEMORY_LOCAL) {
+		i915_ttm_buddy_man_avail(mr->region_private,
+					 avail, visible_avail);
+		*avail <<= PAGE_SHIFT;
+		*visible_avail <<= PAGE_SHIFT;
+	} else {
+		*avail = mr->total;
+		*visible_avail = mr->total;
+	}
 }
 
 void intel_memory_region_destroy(struct intel_memory_region *mem)

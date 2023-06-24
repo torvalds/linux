@@ -93,7 +93,10 @@ union ctlreg0 {
 		unsigned long tcx  : 1;	/* Transactional-Execution control */
 		unsigned long pifo : 1;	/* Transactional-Execution Program-
 					   Interruption-Filtering Override */
-		unsigned long	   : 22;
+		unsigned long	   : 3;
+		unsigned long ccc  : 1; /* Cryptography counter control */
+		unsigned long pec  : 1; /* PAI extension control */
+		unsigned long	   : 17;
 		unsigned long	   : 3;
 		unsigned long lap  : 1; /* Low-address-protection control */
 		unsigned long	   : 4;

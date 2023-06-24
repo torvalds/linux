@@ -194,7 +194,7 @@ EXPORT_SYMBOL(register_tcf_proto_ops);
 
 static struct workqueue_struct *tc_filter_wq;
 
-int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
+void unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 {
 	struct tcf_proto_ops *t;
 	int rc = -ENOENT;
@@ -214,7 +214,8 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 		}
 	}
 	write_unlock(&cls_mod_lock);
-	return rc;
+
+	WARN(rc, "unregister tc filter kind(%s) failed %d\n", ops->kind, rc);
 }
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
 
@@ -1976,9 +1977,6 @@ static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	bool rtnl_held = false;
 	u32 flags;
 
-	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
 replay:
 	tp_created = 0;
 
@@ -2136,6 +2134,7 @@ replay:
 	}
 
 	if (chain->tmplt_ops && chain->tmplt_ops != tp->ops) {
+		tfilter_put(tp, fh);
 		NL_SET_ERR_MSG(extack, "Chain template is set to a different filter kind");
 		err = -EINVAL;
 		goto errout;
@@ -2206,9 +2205,6 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	void *fh = NULL;
 	int err;
 	bool rtnl_held = false;
-
-	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
 
 	err = nlmsg_parse_deprecated(n, sizeof(*t), tca, TCA_MAX,
 				     rtm_tca_policy, extack);
@@ -2824,10 +2820,6 @@ static int tc_ctl_chain(struct sk_buff *skb, struct nlmsghdr *n,
 	struct tcf_block *block;
 	unsigned long cl;
 	int err;
-
-	if (n->nlmsg_type != RTM_GETCHAIN &&
-	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
 
 replay:
 	q = NULL;
@@ -3513,22 +3505,27 @@ EXPORT_SYMBOL(tc_cleanup_offload_action);
 
 static int tc_setup_offload_act(struct tc_action *act,
 				struct flow_action_entry *entry,
-				u32 *index_inc)
+				u32 *index_inc,
+				struct netlink_ext_ack *extack)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (act->ops->offload_act_setup)
-		return act->ops->offload_act_setup(act, entry, index_inc, true);
-	else
+	if (act->ops->offload_act_setup) {
+		return act->ops->offload_act_setup(act, entry, index_inc, true,
+						   extack);
+	} else {
+		NL_SET_ERR_MSG(extack, "Action does not support offload");
 		return -EOPNOTSUPP;
+	}
 #else
 	return 0;
 #endif
 }
 
 int tc_setup_action(struct flow_action *flow_action,
-		    struct tc_action *actions[])
+		    struct tc_action *actions[],
+		    struct netlink_ext_ack *extack)
 {
-	int i, j, index, err = 0;
+	int i, j, k, index, err = 0;
 	struct tc_action *act;
 
 	BUILD_BUG_ON(TCA_ACT_HW_STATS_ANY != FLOW_ACTION_HW_STATS_ANY);
@@ -3548,14 +3545,18 @@ int tc_setup_action(struct flow_action *flow_action,
 		if (err)
 			goto err_out_locked;
 
-		entry->hw_stats = tc_act_hw_stats(act->hw_stats);
-		entry->hw_index = act->tcfa_index;
 		index = 0;
-		err = tc_setup_offload_act(act, entry, &index);
-		if (!err)
-			j += index;
-		else
+		err = tc_setup_offload_act(act, entry, &index, extack);
+		if (err)
 			goto err_out_locked;
+
+		for (k = 0; k < index ; k++) {
+			entry[k].hw_stats = tc_act_hw_stats(act->hw_stats);
+			entry[k].hw_index = act->tcfa_index;
+		}
+
+		j += index;
+
 		spin_unlock_bh(&act->tcfa_lock);
 	}
 
@@ -3570,13 +3571,14 @@ err_out_locked:
 }
 
 int tc_setup_offload_action(struct flow_action *flow_action,
-			    const struct tcf_exts *exts)
+			    const struct tcf_exts *exts,
+			    struct netlink_ext_ack *extack)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (!exts)
 		return 0;
 
-	return tc_setup_action(flow_action, exts->actions);
+	return tc_setup_action(flow_action, exts->actions, extack);
 #else
 	return 0;
 #endif
@@ -3627,9 +3629,6 @@ int tcf_qevent_init(struct tcf_qevent *qe, struct Qdisc *sch,
 	err = tcf_qevent_parse_block_index(block_index_attr, &block_index, extack);
 	if (err)
 		return err;
-
-	if (!block_index)
-		return 0;
 
 	qe->info.binder_type = binder_type;
 	qe->info.chain_head_change = tcf_chain_head_change_dflt;

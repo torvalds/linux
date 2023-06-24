@@ -1266,6 +1266,26 @@ TRACE_EVENT(xprt_reserve,
 	)
 );
 
+TRACE_EVENT(xs_data_ready,
+	TP_PROTO(
+		const struct rpc_xprt *xprt
+	),
+
+	TP_ARGS(xprt),
+
+	TP_STRUCT__entry(
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+	),
+
+	TP_fast_assign(
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+	),
+
+	TP_printk("peer=[%s]:%s", __get_str(addr), __get_str(port))
+);
+
 TRACE_EVENT(xs_stream_read_data,
 	TP_PROTO(struct rpc_xprt *xprt, ssize_t err, size_t total),
 
@@ -1989,20 +2009,24 @@ TRACE_EVENT(svc_wake_up,
 
 TRACE_EVENT(svc_alloc_arg_err,
 	TP_PROTO(
-		unsigned int pages
+		unsigned int requested,
+		unsigned int allocated
 	),
 
-	TP_ARGS(pages),
+	TP_ARGS(requested, allocated),
 
 	TP_STRUCT__entry(
-		__field(unsigned int, pages)
+		__field(unsigned int, requested)
+		__field(unsigned int, allocated)
 	),
 
 	TP_fast_assign(
-		__entry->pages = pages;
+		__entry->requested = requested;
+		__entry->allocated = allocated;
 	),
 
-	TP_printk("pages=%u", __entry->pages)
+	TP_printk("requested=%u allocated=%u",
+		__entry->requested, __entry->allocated)
 );
 
 DECLARE_EVENT_CLASS(svc_deferred_event,
@@ -2015,19 +2039,17 @@ DECLARE_EVENT_CLASS(svc_deferred_event,
 	TP_STRUCT__entry(
 		__field(const void *, dr)
 		__field(u32, xid)
-		__array(__u8, addr, INET6_ADDRSTRLEN + 10)
+		__sockaddr(addr, dr->addrlen)
 	),
 
 	TP_fast_assign(
 		__entry->dr = dr;
-		__entry->xid = be32_to_cpu(*(__be32 *)(dr->args +
-						       (dr->xprt_hlen>>2)));
-		snprintf(__entry->addr, sizeof(__entry->addr) - 1,
-			 "%pISpc", (struct sockaddr *)&dr->addr);
+		__entry->xid = be32_to_cpu(*(__be32 *)dr->args);
+		__assign_sockaddr(addr, &dr->addr, dr->addrlen);
 	),
 
-	TP_printk("addr=%s dr=%p xid=0x%08x", __entry->addr, __entry->dr,
-		__entry->xid)
+	TP_printk("addr=%pISpc dr=%p xid=0x%08x", __get_sockaddr(addr),
+		__entry->dr, __entry->xid)
 );
 
 #define DEFINE_SVC_DEFERRED_EVENT(name) \

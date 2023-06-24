@@ -59,7 +59,7 @@ int ips_leave(struct adapter *padapter)
 			pwrpriv->rf_pwrstate = rf_on;
 		}
 
-		if ((_WEP40_ == psecuritypriv->dot11PrivacyAlgrthm) || (_WEP104_ == psecuritypriv->dot11PrivacyAlgrthm)) {
+		if ((psecuritypriv->dot11PrivacyAlgrthm == _WEP40_) || (psecuritypriv->dot11PrivacyAlgrthm == _WEP104_)) {
 			set_channel_bwmode(padapter, padapter->mlmeextpriv.cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 			for (keyid = 0; keyid < 4; keyid++) {
 				if (pmlmepriv->key_mask & BIT(keyid)) {
@@ -89,7 +89,7 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 	struct wifidirect_info	*pwdinfo = &adapter->wdinfo;
 	bool ret = false;
 
-	if (adapter->pwrctrlpriv.ips_deny_time >= jiffies)
+	if (time_after_eq(adapter->pwrctrlpriv.ips_deny_time, jiffies))
 		goto exit;
 
 	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE | WIFI_SITE_MONITOR) ||
@@ -133,9 +133,8 @@ void rtw_ps_processor(struct adapter *padapter)
 	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
-	if ((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts % 4) == 0)) {
+	if (pwrpriv->rf_pwrstate == rf_on) {
 		pwrpriv->change_rfpwrstate = rf_off;
-
 		ips_enter(padapter);
 	}
 exit:
@@ -177,6 +176,19 @@ static bool PS_RDY_CHECK(struct adapter *padapter)
 	return true;
 }
 
+void rtw_set_firmware_ps_mode(struct adapter *adapter, u8 mode)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+
+	/* Force leave RF low power mode for 1T1R to prevent
+	 * conflicting setting in firmware power saving sequence.
+	 */
+	if (mode != PS_MODE_ACTIVE)
+		ODM_RF_Saving(odmpriv, true);
+	rtl8188e_set_FwPwrMode_cmd(adapter, mode);
+}
+
 void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
@@ -186,7 +198,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 		return;
 
 	if (pwrpriv->pwr_mode == ps_mode) {
-		if (PS_MODE_ACTIVE == ps_mode)
+		if (ps_mode == PS_MODE_ACTIVE)
 			return;
 
 		if ((pwrpriv->smart_ps == smart_ps) &&
@@ -194,11 +206,10 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			return;
 	}
 
-	/* if (pwrpriv->pwr_mode == PS_MODE_ACTIVE) */
 	if (ps_mode == PS_MODE_ACTIVE) {
 		if (pwdinfo->opp_ps == 0) {
 			pwrpriv->pwr_mode = ps_mode;
-			SetHwReg8188EU(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtw_set_firmware_ps_mode(padapter, ps_mode);
 			pwrpriv->bFwCurrentInPSMode = false;
 		}
 	} else {
@@ -207,14 +218,35 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			pwrpriv->pwr_mode = ps_mode;
 			pwrpriv->smart_ps = smart_ps;
 			pwrpriv->bcn_ant_mode = bcn_ant_mode;
-			SetHwReg8188EU(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtw_set_firmware_ps_mode(padapter, ps_mode);
 
 			/*  Set CTWindow after LPS */
 			if (pwdinfo->opp_ps == 1)
 				p2p_ps_wk_cmd(padapter, P2P_PS_ENABLE, 0);
 		}
 	}
+}
 
+static bool lps_rf_on(struct adapter *adapter)
+{
+	int res;
+	u32 reg;
+
+	/* When we halt NIC, we should check if FW LPS is leave. */
+	if (adapter->pwrctrlpriv.rf_pwrstate == rf_off) {
+		/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
+		/*  because Fw is unload. */
+		return true;
+	}
+
+	res = rtw_read32(adapter, REG_RCR, &reg);
+	if (res)
+		return false;
+
+	if (reg & 0x00070000)
+		return false;
+
+	return true;
 }
 
 /*
@@ -223,16 +255,13 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
  *	-1:	Timeout
  *	-2:	Other error
  */
-s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
+static s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 {
-	u32 start_time;
-	u8 bAwake = false;
+	unsigned long timeout = jiffies + msecs_to_jiffies(delay_ms);
 	s32 err = 0;
 
-	start_time = jiffies;
 	while (1) {
-		GetHwReg8188EU(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
-		if (bAwake)
+		if (lps_rf_on(padapter))
 			break;
 
 		if (padapter->bSurpriseRemoved) {
@@ -240,11 +269,11 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 			break;
 		}
 
-		if (rtw_get_passing_time_ms(start_time) > delay_ms) {
+		if (time_after(jiffies, timeout)) {
 			err = -1;
 			break;
 		}
-		rtw_usleep_os(100);
+		msleep(1);
 	}
 
 	return err;
@@ -329,13 +358,12 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->ips_mode_req = padapter->registrypriv.ips_mode;
 
 	pwrctrlpriv->pwr_state_check_interval = RTW_PWR_STATE_CHK_INTERVAL;
-	pwrctrlpriv->pwr_state_check_cnts = 0;
 	pwrctrlpriv->bInSuspend = false;
 	pwrctrlpriv->bkeepfwalive = false;
 
 	pwrctrlpriv->LpsIdleCount = 0;
 	pwrctrlpriv->power_mgnt = padapter->registrypriv.power_mgnt;/*  PS_MODE_MIN; */
-	pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt) ? true : false;
+	pwrctrlpriv->bLeisurePs = pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE;
 
 	pwrctrlpriv->bFwCurrentInPSMode = false;
 
@@ -346,58 +374,38 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	timer_setup(&pwrctrlpriv->pwr_state_check_timer, pwr_state_check_handler, 0);
 }
 
-/*
-* rtw_pwr_wakeup - Wake the NIC up from: 1)IPS. 2)USB autosuspend
-* @adapter: pointer to struct adapter structure
-* @ips_deffer_ms: the ms wiil prevent from falling into IPS after wakeup
-* Return _SUCCESS or _FAIL
-*/
-
-int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *caller)
+/* Wake the NIC up from: 1)IPS 2)USB autosuspend */
+int rtw_pwr_wakeup(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int ret = _SUCCESS;
-	u32 start = jiffies;
+	unsigned long timeout = jiffies + msecs_to_jiffies(3000);
+	unsigned long deny_time;
+	int ret;
 
-	if (pwrpriv->ips_deny_time < jiffies + rtw_ms_to_systime(ips_deffer_ms))
-		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
-
-	if (pwrpriv->ps_processing) {
-		while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
-			msleep(10);
-	}
-
-	/* System suspend is not allowed to wakeup */
-	if (pwrpriv->bInSuspend) {
-		while (pwrpriv->bInSuspend &&
-		       (rtw_get_passing_time_ms(start) <= 3000 ||
-		       (rtw_get_passing_time_ms(start) <= 500)))
-				msleep(10);
-	}
+	while (pwrpriv->ps_processing && time_before(jiffies, timeout))
+		msleep(10);
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */
-	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-		ret = _SUCCESS;
+	/* Below goto is a success path taken for already linked devices */
+	ret = 0;
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
+		goto exit;
+
+	if (pwrpriv->rf_pwrstate == rf_off && ips_leave(padapter) == _FAIL) {
+		ret = -ENOMEM;
 		goto exit;
 	}
-	if (rf_off == pwrpriv->rf_pwrstate) {
-		if (_FAIL ==  ips_leave(padapter)) {
-			ret = _FAIL;
-			goto exit;
-		}
-	}
 
-	/* TODO: the following checking need to be merged... */
-	if (padapter->bDriverStopped || !padapter->bup ||
-	    !padapter->hw_init_completed) {
-		ret = false;
+	if (padapter->bDriverStopped || !padapter->bup || !padapter->hw_init_completed) {
+		ret = -EBUSY;
 		goto exit;
 	}
 
 exit:
-	if (pwrpriv->ips_deny_time < jiffies + rtw_ms_to_systime(ips_deffer_ms))
-		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+	deny_time = jiffies + msecs_to_jiffies(RTW_PWR_STATE_CHK_INTERVAL);
+	if (time_before(pwrpriv->ips_deny_time, deny_time))
+		pwrpriv->ips_deny_time = deny_time;
 	return ret;
 }
 
@@ -408,12 +416,12 @@ int rtw_pm_set_lps(struct adapter *padapter, u8 mode)
 
 	if (mode < PS_MODE_NUM) {
 		if (pwrctrlpriv->power_mgnt != mode) {
-			if (PS_MODE_ACTIVE == mode)
+			if (mode == PS_MODE_ACTIVE)
 				LeaveAllPowerSaveMode(padapter);
 			else
 				pwrctrlpriv->LpsIdleCount = 2;
 			pwrctrlpriv->power_mgnt = mode;
-			pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt) ? true : false;
+			pwrctrlpriv->bLeisurePs = pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE;
 		}
 	} else {
 		ret = -EINVAL;
@@ -431,7 +439,7 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
 		return 0;
 	} else if (mode == IPS_NONE) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
-		if ((padapter->bSurpriseRemoved == 0) && (_FAIL == rtw_pwr_wakeup(padapter)))
+		if ((padapter->bSurpriseRemoved == 0) && rtw_pwr_wakeup(padapter))
 			return -EFAULT;
 	} else {
 		return -EINVAL;

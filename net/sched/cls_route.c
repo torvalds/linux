@@ -424,6 +424,11 @@ static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 			return -EINVAL;
 	}
 
+	if (!nhandle) {
+		NL_SET_ERR_MSG(extack, "Replacing with handle of 0 is invalid");
+		return -EINVAL;
+	}
+
 	h1 = to_hash(nhandle);
 	b = rtnl_dereference(head->table[h1]);
 	if (!b) {
@@ -477,8 +482,13 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	int err;
 	bool new = true;
 
+	if (!handle) {
+		NL_SET_ERR_MSG(extack, "Creating with handle of 0 is invalid");
+		return -EINVAL;
+	}
+
 	if (opt == NULL)
-		return handle ? -EINVAL : 0;
+		return -EINVAL;
 
 	err = nla_parse_nested_deprecated(tb, TCA_ROUTE4_MAX, opt,
 					  route4_policy, NULL);
@@ -486,7 +496,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	fold = *arg;
-	if (fold && handle && fold->handle != handle)
+	if (fold && fold->handle != handle)
 			return -EINVAL;
 
 	err = -ENOBUFS;
@@ -526,7 +536,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	rcu_assign_pointer(f->next, f1);
 	rcu_assign_pointer(*fp, f);
 
-	if (fold && fold->handle && f->handle != fold->handle) {
+	if (fold) {
 		th = to_hash(fold->handle);
 		h = from_hash(fold->handle >> 16);
 		b = rtnl_dereference(head->table[th]);
@@ -577,15 +587,8 @@ static void route4_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 				for (f = rtnl_dereference(b->ht[h1]);
 				     f;
 				     f = rtnl_dereference(f->next)) {
-					if (arg->count < arg->skip) {
-						arg->count++;
-						continue;
-					}
-					if (arg->fn(tp, f, arg) < 0) {
-						arg->stop = 1;
+					if (!tc_cls_stats_dump(tp, arg, f))
 						return;
-					}
-					arg->count++;
 				}
 			}
 		}
@@ -646,12 +649,7 @@ static void route4_bind_class(void *fh, u32 classid, unsigned long cl, void *q,
 {
 	struct route4_filter *f = fh;
 
-	if (f && f->res.classid == classid) {
-		if (cl)
-			__tcf_bind_filter(q, &f->res, base);
-		else
-			__tcf_unbind_filter(q, &f->res);
-	}
+	tc_cls_bind_class(classid, cl, q, &f->res, base);
 }
 
 static struct tcf_proto_ops cls_route4_ops __read_mostly = {

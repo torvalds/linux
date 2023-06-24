@@ -35,11 +35,17 @@ struct btf *btf__load_from_kernel_by_id(__u32 id)
 }
 #endif
 
-int __weak bpf_prog_load(enum bpf_prog_type prog_type,
-			 const char *prog_name __maybe_unused,
-			 const char *license,
-			 const struct bpf_insn *insns, size_t insn_cnt,
-			 const struct bpf_prog_load_opts *opts)
+#ifndef HAVE_LIBBPF_BPF_PROG_LOAD
+LIBBPF_API int bpf_load_program(enum bpf_prog_type type,
+				const struct bpf_insn *insns, size_t insns_cnt,
+				const char *license, __u32 kern_version,
+				char *log_buf, size_t log_buf_sz);
+
+int bpf_prog_load(enum bpf_prog_type prog_type,
+		  const char *prog_name __maybe_unused,
+		  const char *license,
+		  const struct bpf_insn *insns, size_t insn_cnt,
+		  const struct bpf_prog_load_opts *opts)
 {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -47,8 +53,10 @@ int __weak bpf_prog_load(enum bpf_prog_type prog_type,
 				opts->kern_version, opts->log_buf, opts->log_size);
 #pragma GCC diagnostic pop
 }
+#endif
 
-struct bpf_program * __weak
+#ifndef HAVE_LIBBPF_BPF_OBJECT__NEXT_PROGRAM
+struct bpf_program *
 bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
 {
 #pragma GCC diagnostic push
@@ -56,8 +64,10 @@ bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
 	return bpf_program__next(prev, obj);
 #pragma GCC diagnostic pop
 }
+#endif
 
-struct bpf_map * __weak
+#ifndef HAVE_LIBBPF_BPF_OBJECT__NEXT_MAP
+struct bpf_map *
 bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 {
 #pragma GCC diagnostic push
@@ -65,8 +75,10 @@ bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 	return bpf_map__next(prev, obj);
 #pragma GCC diagnostic pop
 }
+#endif
 
-const void * __weak
+#ifndef HAVE_LIBBPF_BTF__RAW_DATA
+const void *
 btf__raw_data(const struct btf *btf_ro, __u32 *size)
 {
 #pragma GCC diagnostic push
@@ -74,6 +86,7 @@ btf__raw_data(const struct btf *btf_ro, __u32 *size)
 	return btf__get_raw_data(btf_ro, size);
 #pragma GCC diagnostic pop
 }
+#endif
 
 static int snprintf_hex(char *buf, size_t size, unsigned char *data, size_t len)
 {

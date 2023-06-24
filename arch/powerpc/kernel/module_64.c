@@ -31,7 +31,7 @@
    this, and makes other things simpler.  Anton?
    --RR.  */
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 
 static func_desc_t func_desc(unsigned long addr)
 {
@@ -122,7 +122,7 @@ static u32 ppc64_stub_insns[] = {
 	/* Save current r2 value in magic place on the stack. */
 	PPC_RAW_STD(_R2, _R1, R2_STACK_OFFSET),
 	PPC_RAW_LD(_R12, _R11, 32),
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* Set up new r2 from function descriptor */
 	PPC_RAW_LD(_R2, _R11, 40),
 #endif
@@ -194,7 +194,7 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 
 			/* Sort the relocation information based on a symbol and
 			 * addend key. This is a stable O(n*log n) complexity
-			 * alogrithm but it will reduce the complexity of
+			 * algorithm but it will reduce the complexity of
 			 * count_relocs() to linear complexity O(n)
 			 */
 			sort((void *)sechdrs[i].sh_addr,
@@ -361,7 +361,7 @@ static inline int create_ftrace_stub(struct ppc64_stub_entry *entry,
 	entry->jump[1] |= PPC_HA(reladdr);
 	entry->jump[2] |= PPC_LO(reladdr);
 
-	/* Eventhough we don't use funcdata in the stub, it's needed elsewhere. */
+	/* Even though we don't use funcdata in the stub, it's needed elsewhere. */
 	entry->funcdata = func_desc(addr);
 	entry->magic = STUB_MAGIC;
 
@@ -653,8 +653,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			}
 
 			/* Only replace bits 2 through 26 */
-			value = (*(uint32_t *)location & ~0x03fffffc)
-				| (value & 0x03fffffc);
+			value = (*(uint32_t *)location & ~PPC_LI_MASK) | PPC_LI(value);
 
 			if (patch_instruction((u32 *)location, ppc_inst(value)))
 				return -EFAULT;

@@ -115,7 +115,7 @@ iser_create_fastreg_desc(struct iser_device *device,
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
-	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (ib_dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		mr_type = IB_MR_TYPE_SG_GAPS;
 	else
 		mr_type = IB_MR_TYPE_MEM_REG;
@@ -246,6 +246,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	device = ib_conn->device;
 	ib_dev = device->ib_device;
 
+	/* +1 for drain */
 	if (ib_conn->pi_support)
 		max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
 	else
@@ -267,7 +268,8 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	init_attr.qp_context = (void *)ib_conn;
 	init_attr.send_cq = ib_conn->cq;
 	init_attr.recv_cq = ib_conn->cq;
-	init_attr.cap.max_recv_wr = ISER_QP_MAX_RECV_DTOS;
+	/* +1 for drain */
+	init_attr.cap.max_recv_wr = ISER_QP_MAX_RECV_DTOS + 1;
 	init_attr.cap.max_send_sge = 2;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
@@ -485,7 +487,7 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 				 iser_conn, err);
 
 		/* block until all flush errors are consumed */
-		ib_drain_sq(ib_conn->qp);
+		ib_drain_qp(ib_conn->qp);
 	}
 
 	return 1;
@@ -517,7 +519,7 @@ static void iser_calc_scsi_params(struct iser_conn *iser_conn,
 	 * (head and tail) for a single page worth data, so one additional
 	 * entry is required.
 	 */
-	if (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (attr->kernel_cap_flags & IBK_SG_GAPS_REG)
 		reserved_mr_pages = 0;
 	else
 		reserved_mr_pages = 1;
@@ -562,8 +564,8 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 
 	/* connection T10-PI support */
 	if (iser_pi_enable) {
-		if (!(device->ib_device->attrs.device_cap_flags &
-		      IB_DEVICE_INTEGRITY_HANDOVER)) {
+		if (!(device->ib_device->attrs.kernel_cap_flags &
+		      IBK_INTEGRITY_HANDOVER)) {
 			iser_warn("T10-PI requested but not supported on %s, "
 				  "continue without T10-PI\n",
 				  dev_name(&ib_conn->device->ib_device->dev));

@@ -188,9 +188,9 @@ static void qeth_get_drvinfo(struct net_device *dev,
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	strlcpy(info->driver, IS_LAYER2(card) ? "qeth_l2" : "qeth_l3",
+	strscpy(info->driver, IS_LAYER2(card) ? "qeth_l2" : "qeth_l3",
 		sizeof(info->driver));
-	strlcpy(info->fw_version, card->info.mcl_level,
+	strscpy(info->fw_version, card->info.mcl_level,
 		sizeof(info->fw_version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s/%s/%s",
 		 CARD_RDEV_ID(card), CARD_WDEV_ID(card), CARD_DDEV_ID(card));
@@ -428,8 +428,8 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct qeth_card *card = netdev->ml_priv;
-	struct qeth_link_info link_info;
 
+	QETH_CARD_TEXT(card, 4, "ethtglks");
 	cmd->base.speed = card->info.link_info.speed;
 	cmd->base.duplex = card->info.link_info.duplex;
 	cmd->base.port = card->info.link_info.port;
@@ -438,16 +438,6 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 	cmd->base.mdio_support = 0;
 	cmd->base.eth_tp_mdix = ETH_TP_MDI_INVALID;
 	cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
-
-	/* Check if we can obtain more accurate information.	 */
-	if (!qeth_query_card_info(card, &link_info)) {
-		if (link_info.speed != SPEED_UNKNOWN)
-			cmd->base.speed = link_info.speed;
-		if (link_info.duplex != DUPLEX_UNKNOWN)
-			cmd->base.duplex = link_info.duplex;
-		if (link_info.port != PORT_OTHER)
-			cmd->base.port = link_info.port;
-	}
 
 	qeth_set_ethtool_link_modes(cmd, card->info.link_info.link_mode);
 

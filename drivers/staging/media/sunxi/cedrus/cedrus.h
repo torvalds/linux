@@ -81,6 +81,8 @@ struct cedrus_h265_run {
 	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
 	const struct v4l2_ctrl_hevc_decode_params	*decode_params;
 	const struct v4l2_ctrl_hevc_scaling_matrix	*scaling_matrix;
+	const u32					*entry_points;
+	u32						entry_points_count;
 };
 
 struct cedrus_vp8_run {
@@ -146,6 +148,8 @@ struct cedrus_ctx {
 			ssize_t		mv_col_buf_unit_size;
 			void		*neighbor_info_buf;
 			dma_addr_t	neighbor_info_buf_addr;
+			void		*entry_points_buf;
+			dma_addr_t	entry_points_buf_addr;
 		} h265;
 		struct {
 			unsigned int	last_frame_p_type;
@@ -162,7 +166,7 @@ struct cedrus_dec_ops {
 	void (*irq_clear)(struct cedrus_ctx *ctx);
 	void (*irq_disable)(struct cedrus_ctx *ctx);
 	enum cedrus_irq_status (*irq_status)(struct cedrus_ctx *ctx);
-	void (*setup)(struct cedrus_ctx *ctx, struct cedrus_run *run);
+	int (*setup)(struct cedrus_ctx *ctx, struct cedrus_run *run);
 	int (*start)(struct cedrus_ctx *ctx);
 	void (*stop)(struct cedrus_ctx *ctx);
 	void (*trigger)(struct cedrus_ctx *ctx);
@@ -233,19 +237,23 @@ static inline dma_addr_t cedrus_buf_addr(struct vb2_buffer *buf,
 }
 
 static inline dma_addr_t cedrus_dst_buf_addr(struct cedrus_ctx *ctx,
-					     int index, unsigned int plane)
+					     struct vb2_buffer *buf,
+					     unsigned int plane)
 {
-	struct vb2_buffer *buf = NULL;
-	struct vb2_queue *vq;
-
-	if (index < 0)
-		return 0;
-
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
-	if (vq)
-		buf = vb2_get_buffer(vq, index);
-
 	return buf ? cedrus_buf_addr(buf, &ctx->dst_fmt, plane) : 0;
+}
+
+static inline void cedrus_write_ref_buf_addr(struct cedrus_ctx *ctx,
+					     struct vb2_queue *q,
+					     u64 timestamp,
+					     u32 luma_reg,
+					     u32 chroma_reg)
+{
+	struct cedrus_dev *dev = ctx->dev;
+	struct vb2_buffer *buf = vb2_find_buffer(q, timestamp);
+
+	cedrus_write(dev, luma_reg, cedrus_dst_buf_addr(ctx, buf, 0));
+	cedrus_write(dev, chroma_reg, cedrus_dst_buf_addr(ctx, buf, 1));
 }
 
 static inline struct cedrus_buffer *
@@ -261,5 +269,6 @@ vb2_to_cedrus_buffer(const struct vb2_buffer *p)
 }
 
 void *cedrus_find_control_data(struct cedrus_ctx *ctx, u32 id);
+u32 cedrus_get_num_of_controls(struct cedrus_ctx *ctx, u32 id);
 
 #endif

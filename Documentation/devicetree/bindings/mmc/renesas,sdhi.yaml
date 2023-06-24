@@ -56,11 +56,15 @@ properties:
               - renesas,sdhi-r8a77980  # R-Car V3H
               - renesas,sdhi-r8a77990  # R-Car E3
               - renesas,sdhi-r8a77995  # R-Car D3
-              - renesas,sdhi-r8a779a0  # R-Car V3U
               - renesas,sdhi-r9a07g043 # RZ/G2UL
               - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
               - renesas,sdhi-r9a07g054 # RZ/V2L
           - const: renesas,rcar-gen3-sdhi # R-Car Gen3 or RZ/G2
+      - items:
+          - enum:
+              - renesas,sdhi-r8a779a0  # R-Car V3U
+              - renesas,sdhi-r8a779f0  # R-Car S4-8
+          - const: renesas,rcar-gen4-sdhi # R-Car Gen4
 
   reg:
     maxItems: 1
@@ -84,6 +88,9 @@ properties:
       enum:
         - tx
         - rx
+
+  iommus:
+    maxItems: 1
 
   power-domains:
     maxItems: 1
@@ -141,6 +148,7 @@ allOf:
               enum:
                 - renesas,rcar-gen2-sdhi
                 - renesas,rcar-gen3-sdhi
+                - renesas,rcar-gen4-sdhi
       then:
         properties:
           clocks:

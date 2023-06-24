@@ -101,9 +101,6 @@ static inline int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *val
 #ifdef CONFIG_FUNCTION_TRACER
 
 extern int ftrace_enabled;
-extern int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     void *buffer, size_t *lenp, loff_t *ppos);
 
 #ifndef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS
 
@@ -211,6 +208,43 @@ enum {
 	FTRACE_OPS_FL_DIRECT			= BIT(17),
 };
 
+/*
+ * FTRACE_OPS_CMD_* commands allow the ftrace core logic to request changes
+ * to a ftrace_ops. Note, the requests may fail.
+ *
+ * ENABLE_SHARE_IPMODIFY_SELF - enable a DIRECT ops to work on the same
+ *                              function as an ops with IPMODIFY. Called
+ *                              when the DIRECT ops is being registered.
+ *                              This is called with both direct_mutex and
+ *                              ftrace_lock are locked.
+ *
+ * ENABLE_SHARE_IPMODIFY_PEER - enable a DIRECT ops to work on the same
+ *                              function as an ops with IPMODIFY. Called
+ *                              when the other ops (the one with IPMODIFY)
+ *                              is being registered.
+ *                              This is called with direct_mutex locked.
+ *
+ * DISABLE_SHARE_IPMODIFY_PEER - disable a DIRECT ops to work on the same
+ *                               function as an ops with IPMODIFY. Called
+ *                               when the other ops (the one with IPMODIFY)
+ *                               is being unregistered.
+ *                               This is called with direct_mutex locked.
+ */
+enum ftrace_ops_cmd {
+	FTRACE_OPS_CMD_ENABLE_SHARE_IPMODIFY_SELF,
+	FTRACE_OPS_CMD_ENABLE_SHARE_IPMODIFY_PEER,
+	FTRACE_OPS_CMD_DISABLE_SHARE_IPMODIFY_PEER,
+};
+
+/*
+ * For most ftrace_ops_cmd,
+ * Returns:
+ *        0 - Success.
+ *        Negative on failure. The return value is dependent on the
+ *        callback.
+ */
+typedef int (*ftrace_ops_func_t)(struct ftrace_ops *op, enum ftrace_ops_cmd cmd);
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* The hash used to know what functions callbacks trace */
 struct ftrace_ops_hash {
@@ -253,6 +287,7 @@ struct ftrace_ops {
 	unsigned long			trampoline;
 	unsigned long			trampoline_size;
 	struct list_head		list;
+	ftrace_ops_func_t		ops_func;
 #endif
 };
 
@@ -303,6 +338,8 @@ int unregister_ftrace_function(struct ftrace_ops *ops);
 extern void ftrace_stub(unsigned long a0, unsigned long a1,
 			struct ftrace_ops *op, struct ftrace_regs *fregs);
 
+
+int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *addrs);
 #else /* !CONFIG_FUNCTION_TRACER */
 /*
  * (un)register_ftrace_function must be a macro since the ops parameter
@@ -313,6 +350,10 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1,
 static inline void ftrace_kill(void) { }
 static inline void ftrace_free_init_mem(void) { }
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
+static inline int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *addrs)
+{
+	return -EOPNOTSUPP;
+}
 #endif /* CONFIG_FUNCTION_TRACER */
 
 struct ftrace_func_entry {
@@ -337,6 +378,7 @@ unsigned long ftrace_find_rec_direct(unsigned long ip);
 int register_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr);
 int unregister_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr);
 int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr);
+int modify_ftrace_direct_multi_nolock(struct ftrace_ops *ops, unsigned long addr);
 
 #else
 struct ftrace_ops;
@@ -378,6 +420,10 @@ static inline int unregister_ftrace_direct_multi(struct ftrace_ops *ops, unsigne
 	return -ENODEV;
 }
 static inline int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
+{
+	return -ENODEV;
+}
+static inline int modify_ftrace_direct_multi_nolock(struct ftrace_ops *ops, unsigned long addr)
 {
 	return -ENODEV;
 }
@@ -449,8 +495,8 @@ static inline void stack_tracer_enable(void) { }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-int ftrace_arch_code_modify_prepare(void);
-int ftrace_arch_code_modify_post_process(void);
+void ftrace_arch_code_modify_prepare(void);
+void ftrace_arch_code_modify_post_process(void);
 
 enum ftrace_bug_type {
 	FTRACE_BUG_UNKNOWN,
@@ -1076,47 +1122,6 @@ static inline void unpause_graph_tracing(void) { }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef CONFIG_TRACING
-
-/* flags for current->trace */
-enum {
-	TSK_TRACE_FL_TRACE_BIT	= 0,
-	TSK_TRACE_FL_GRAPH_BIT	= 1,
-};
-enum {
-	TSK_TRACE_FL_TRACE	= 1 << TSK_TRACE_FL_TRACE_BIT,
-	TSK_TRACE_FL_GRAPH	= 1 << TSK_TRACE_FL_GRAPH_BIT,
-};
-
-static inline void set_tsk_trace_trace(struct task_struct *tsk)
-{
-	set_bit(TSK_TRACE_FL_TRACE_BIT, &tsk->trace);
-}
-
-static inline void clear_tsk_trace_trace(struct task_struct *tsk)
-{
-	clear_bit(TSK_TRACE_FL_TRACE_BIT, &tsk->trace);
-}
-
-static inline int test_tsk_trace_trace(struct task_struct *tsk)
-{
-	return tsk->trace & TSK_TRACE_FL_TRACE;
-}
-
-static inline void set_tsk_trace_graph(struct task_struct *tsk)
-{
-	set_bit(TSK_TRACE_FL_GRAPH_BIT, &tsk->trace);
-}
-
-static inline void clear_tsk_trace_graph(struct task_struct *tsk)
-{
-	clear_bit(TSK_TRACE_FL_GRAPH_BIT, &tsk->trace);
-}
-
-static inline int test_tsk_trace_graph(struct task_struct *tsk)
-{
-	return tsk->trace & TSK_TRACE_FL_GRAPH;
-}
-
 enum ftrace_dump_mode;
 
 extern enum ftrace_dump_mode ftrace_dump_on_oops;

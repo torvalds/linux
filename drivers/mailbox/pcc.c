@@ -654,7 +654,7 @@ static int pcc_mbox_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	pcc_mbox_ctrl = devm_kmalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
+	pcc_mbox_ctrl = devm_kzalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
 	if (!pcc_mbox_ctrl) {
 		rc = -ENOMEM;
 		goto err;
@@ -676,7 +676,7 @@ static int pcc_mbox_probe(struct platform_device *pdev)
 
 		if (pcct_entry->type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE &&
 		    !pcc_mbox_ctrl->txdone_irq) {
-			pr_err("Plaform Interrupt flag must be set to 1");
+			pr_err("Platform Interrupt flag must be set to 1");
 			rc = -EINVAL;
 			goto err;
 		}

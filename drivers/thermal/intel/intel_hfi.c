@@ -243,8 +243,6 @@ static void hfi_update_work_fn(struct work_struct *work)
 
 	hfi_instance = container_of(to_delayed_work(work), struct hfi_instance,
 				    update_work);
-	if (!hfi_instance)
-		return;
 
 	update_capabilities(hfi_instance);
 }

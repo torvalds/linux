@@ -380,11 +380,9 @@ static int am65_cpsw_ethtool_op_begin(struct net_device *ndev)
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	int ret;
 
-	ret = pm_runtime_get_sync(common->dev);
-	if (ret < 0) {
+	ret = pm_runtime_resume_and_get(common->dev);
+	if (ret < 0)
 		dev_err(common->dev, "ethtool begin failed %d\n", ret);
-		pm_runtime_put_noidle(common->dev);
-	}
 
 	return ret;
 }
@@ -404,9 +402,9 @@ static void am65_cpsw_get_drvinfo(struct net_device *ndev,
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 
-	strlcpy(info->driver, dev_driver_string(common->dev),
+	strscpy(info->driver, dev_driver_string(common->dev),
 		sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(common->dev), sizeof(info->bus_info));
+	strscpy(info->bus_info, dev_name(common->dev), sizeof(info->bus_info));
 }
 
 static u32 am65_cpsw_get_msglevel(struct net_device *ndev)

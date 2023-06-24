@@ -12,9 +12,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
@@ -63,13 +64,13 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	dma_addr_t start, end;
 	u64 dma_base_and_ceiling;
 
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
+	gem = drm_fb_dma_get_gem_obj(fb, 0);
 
-	start = gem->paddr + fb->offsets[0] +
+	start = gem->dma_addr + fb->offsets[0] +
 		crtc->y * fb->pitches[0] +
 		crtc->x * fb->format->cpp[0];
 
@@ -433,7 +434,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 
 	set_scanout(crtc, fb);
 
-	crtc->hwmode = crtc->state->adjusted_mode;
+	drm_mode_copy(&crtc->hwmode, &crtc->state->adjusted_mode);
 
 	tilcdc_crtc->hvtotal_us =
 		tilcdc_mode_hvtotal(&crtc->hwmode);
@@ -996,7 +997,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	if (stat & LCDC_FRAME_DONE) {
 		tilcdc_crtc->frame_done = true;
 		wake_up(&tilcdc_crtc->frame_done_wq);
-		/* rev 1 lcdc appears to hang if irq is not disbaled here */
+		/* rev 1 lcdc appears to hang if irq is not disabled here */
 		if (priv->rev == 1)
 			tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
 				     LCDC_V1_FRAME_DONE_INT_ENA);

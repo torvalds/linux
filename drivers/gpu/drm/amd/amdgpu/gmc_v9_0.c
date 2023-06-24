@@ -896,6 +896,7 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	uint32_t seq;
 	uint16_t queried_pasid;
 	bool ret;
+	u32 usec_timeout = amdgpu_sriov_vf(adev) ? SRIOV_USEC_TIMEOUT : adev->usec_timeout;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 
@@ -935,7 +936,7 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 		amdgpu_ring_commit(ring);
 		spin_unlock(&adev->gfx.kiq.ring_lock);
-		r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
+		r = amdgpu_fence_wait_polling(ring, seq, usec_timeout);
 		if (r < 1) {
 			dev_err(adev->dev, "wait for kiq fence error: %ld.\n", r);
 			up_read(&adev->reset_domain->sem);
@@ -1102,10 +1103,13 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 			*flags |= AMDGPU_PDE_BFS(0x9);
 
 	} else if (level == AMDGPU_VM_PDB0) {
-		if (*flags & AMDGPU_PDE_PTE)
+		if (*flags & AMDGPU_PDE_PTE) {
 			*flags &= ~AMDGPU_PDE_PTE;
-		else
+			if (!(*flags & AMDGPU_PTE_VALID))
+				*addr |= 1 << PAGE_SHIFT;
+		} else {
 			*flags |= AMDGPU_PTE_TF;
+		}
 	}
 }
 
@@ -1624,12 +1628,15 @@ static int gmc_v9_0_sw_init(void *handle)
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 47);
 		else
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
+			adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	case IP_VERSION(9, 4, 1):
 		adev->num_vmhubs = 3;
 
 		/* Keep the vm size same with Vega20 */
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	default:
 		break;
@@ -1948,7 +1955,7 @@ static int gmc_v9_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static void gmc_v9_0_get_clockgating_state(void *handle, u32 *flags)
+static void gmc_v9_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 

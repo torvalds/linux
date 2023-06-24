@@ -42,7 +42,7 @@ static int regmap_sdw_mbq_read(void *context, unsigned int reg, unsigned int *va
 	return 0;
 }
 
-static struct regmap_bus regmap_sdw_mbq = {
+static const struct regmap_bus regmap_sdw_mbq = {
 	.reg_read = regmap_sdw_mbq_read,
 	.reg_write = regmap_sdw_mbq_write,
 	.reg_format_endian_default = REGMAP_ENDIAN_LITTLE,

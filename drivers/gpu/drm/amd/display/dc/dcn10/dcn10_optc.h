@@ -521,13 +521,17 @@ struct dcn_optc_registers {
 	type OTG_CRC_DATA_FORMAT;\
 	type OTG_V_TOTAL_LAST_USED_BY_DRR;
 
+#define TG_REG_FIELD_LIST_DCN3_2(type) \
+	type OTG_H_TIMING_DIV_MODE_MANUAL;
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
+	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 };
 
 struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
+	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 };
 
 struct optc {
@@ -553,6 +557,7 @@ struct optc {
 	int vupdate_offset;
 	int vupdate_width;
 	int vready_offset;
+	struct dc_crtc_timing orginal_patched_timing;
 	enum signal_type signal;
 };
 
@@ -578,6 +583,8 @@ struct dcn_otg_state {
 	uint32_t underflow_occurred_status;
 	uint32_t otg_enabled;
 	uint32_t blank_enabled;
+	uint32_t vertical_interrupt1_en;
+	uint32_t vertical_interrupt1_line;
 	uint32_t vertical_interrupt2_en;
 	uint32_t vertical_interrupt2_line;
 };
@@ -647,7 +654,6 @@ void optc1_set_blank(struct timing_generator *optc,
 		bool enable_blanking);
 
 bool optc1_is_blanked(struct timing_generator *optc);
-bool optc1_is_locked(struct timing_generator *optc);
 
 void optc1_program_blank_color(
 		struct timing_generator *optc,

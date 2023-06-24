@@ -162,7 +162,7 @@ struct ade7854_state {
 			 int bits);
 	int irq;
 	struct mutex buf_lock;
-	u8 tx[ADE7854_MAX_TX] ____cacheline_aligned;
+	u8 tx[ADE7854_MAX_TX] __aligned(IIO_DMA_MINALIGN);
 	u8 rx[ADE7854_MAX_RX];
 
 };

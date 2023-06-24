@@ -6,6 +6,7 @@
 #include <linux/circ_buf.h>
 #include <linux/ktime.h>
 #include <linux/time64.h>
+#include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
 
 #include "i915_drv.h"
@@ -170,7 +171,7 @@ static int ct_control_enable(struct intel_guc_ct *ct, bool enable)
 				     GUC_CTB_CONTROL_ENABLE : GUC_CTB_CONTROL_DISABLE);
 	if (unlikely(err))
 		CT_PROBE_ERROR(ct, "Failed to control/%s CTB (%pe)\n",
-			       enabledisable(enable), ERR_PTR(err));
+			       str_enable_disable(enable), ERR_PTR(err));
 
 	return err;
 }
@@ -454,6 +455,7 @@ corrupted:
 
 /**
  * wait_for_ct_request_update - Wait for CT request state update.
+ * @ct:		pointer to CT
  * @req:	pointer to pending request
  * @status:	placeholder for status
  *
@@ -466,9 +468,10 @@ corrupted:
  * *	0 response received (status is valid)
  * *	-ETIMEDOUT no response within hardcoded timeout
  */
-static int wait_for_ct_request_update(struct ct_request *req, u32 *status)
+static int wait_for_ct_request_update(struct intel_guc_ct *ct, struct ct_request *req, u32 *status)
 {
 	int err;
+	bool ct_enabled;
 
 	/*
 	 * Fast commands should complete in less than 10us, so sample quickly
@@ -480,12 +483,15 @@ static int wait_for_ct_request_update(struct ct_request *req, u32 *status)
 #define GUC_CTB_RESPONSE_TIMEOUT_SHORT_MS 10
 #define GUC_CTB_RESPONSE_TIMEOUT_LONG_MS 1000
 #define done \
-	(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, READ_ONCE(req->status)) == \
+	(!(ct_enabled = intel_guc_ct_enabled(ct)) || \
+	 FIELD_GET(GUC_HXG_MSG_0_ORIGIN, READ_ONCE(req->status)) == \
 	 GUC_HXG_ORIGIN_GUC)
 	err = wait_for_us(done, GUC_CTB_RESPONSE_TIMEOUT_SHORT_MS);
 	if (err)
 		err = wait_for(done, GUC_CTB_RESPONSE_TIMEOUT_LONG_MS);
 #undef done
+	if (!ct_enabled)
+		err = -ENODEV;
 
 	*status = req->status;
 	return err;
@@ -702,11 +708,18 @@ retry:
 
 	intel_guc_notify(ct_to_guc(ct));
 
-	err = wait_for_ct_request_update(&request, status);
+	err = wait_for_ct_request_update(ct, &request, status);
 	g2h_release_space(ct, GUC_CTB_HXG_MSG_MAX_LEN);
 	if (unlikely(err)) {
-		CT_ERROR(ct, "No response for request %#x (fence %u)\n",
-			 action[0], request.fence);
+		if (err == -ENODEV)
+			/* wait_for_ct_request_update returns -ENODEV on reset/suspend in progress.
+			 * In this case, output is debug rather than error info
+			 */
+			CT_DEBUG(ct, "Request %#x (fence %u) cancelled as CTB is disabled\n",
+				 action[0], request.fence);
+		else
+			CT_ERROR(ct, "No response for request %#x (fence %u)\n",
+				 action[0], request.fence);
 		goto unlink;
 	}
 
@@ -770,8 +783,9 @@ int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 
 	ret = ct_send(ct, action, len, response_buf, response_buf_size, &status);
 	if (unlikely(ret < 0)) {
-		CT_ERROR(ct, "Sending action %#x failed (%pe) status=%#X\n",
-			 action[0], ERR_PTR(ret), status);
+		if (ret != -ENODEV)
+			CT_ERROR(ct, "Sending action %#x failed (%pe) status=%#X\n",
+				 action[0], ERR_PTR(ret), status);
 	} else if (unlikely(ret)) {
 		CT_DEBUG(ct, "send action %#x returned %d (%#x)\n",
 			 action[0], ret, ret);
@@ -815,8 +829,22 @@ static int ct_read(struct intel_guc_ct *ct, struct ct_incoming_msg **msg)
 	if (unlikely(ctb->broken))
 		return -EPIPE;
 
-	if (unlikely(desc->status))
-		goto corrupted;
+	if (unlikely(desc->status)) {
+		u32 status = desc->status;
+
+		if (status & GUC_CTB_STATUS_UNUSED) {
+			/*
+			 * Potentially valid if a CLIENT_RESET request resulted in
+			 * contexts/engines being reset. But should never happen as
+			 * no contexts should be active when CLIENT_RESET is sent.
+			 */
+			CT_ERROR(ct, "Unexpected G2H after GuC has stopped!\n");
+			status &= ~GUC_CTB_STATUS_UNUSED;
+		}
+
+		if (status)
+			goto corrupted;
+	}
 
 	GEM_BUG_ON(head > size);
 
@@ -1202,7 +1230,7 @@ void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 void intel_guc_ct_print_info(struct intel_guc_ct *ct,
 			     struct drm_printer *p)
 {
-	drm_printf(p, "CT %s\n", enableddisabled(ct->enabled));
+	drm_printf(p, "CT %s\n", str_enabled_disabled(ct->enabled));
 
 	if (!ct->enabled)
 		return;

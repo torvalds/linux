@@ -200,11 +200,11 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 
 
 /*
- * 1024 is big enough for saturating fast SCSI LUNs.
+ * 4096 is big enough for saturating fast SCSI LUNs.
  */
 int scsi_device_max_queue_depth(struct scsi_device *sdev)
 {
-	return min_t(int, sdev->host->can_queue, 1024);
+	return min_t(int, sdev->host->can_queue, 4096);
 }
 
 /**
@@ -321,6 +321,31 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 	return get_unaligned_be16(&buffer[2]) + 4;
 }
 
+static int scsi_get_vpd_size(struct scsi_device *sdev, u8 page)
+{
+	unsigned char vpd_header[SCSI_VPD_HEADER_SIZE] __aligned(4);
+	int result;
+
+	/*
+	 * Fetch the VPD page header to find out how big the page
+	 * is. This is done to prevent problems on legacy devices
+	 * which can not handle allocation lengths as large as
+	 * potentially requested by the caller.
+	 */
+	result = scsi_vpd_inquiry(sdev, vpd_header, page, sizeof(vpd_header));
+	if (result < 0)
+		return 0;
+
+	if (result < SCSI_VPD_HEADER_SIZE) {
+		dev_warn_once(&sdev->sdev_gendev,
+			      "%s: short VPD page 0x%02x length: %d bytes\n",
+			      __func__, page, result);
+		return 0;
+	}
+
+	return result;
+}
+
 /**
  * scsi_get_vpd_page - Get Vital Product Data from a SCSI device
  * @sdev: The device to ask
@@ -330,47 +355,38 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
  *
  * SCSI devices may optionally supply Vital Product Data.  Each 'page'
  * of VPD is defined in the appropriate SCSI document (eg SPC, SBC).
- * If the device supports this VPD page, this routine returns a pointer
- * to a buffer containing the data from that page.  The caller is
- * responsible for calling kfree() on this pointer when it is no longer
- * needed.  If we cannot retrieve the VPD page this routine returns %NULL.
+ * If the device supports this VPD page, this routine fills @buf
+ * with the data from that page and return 0. If the VPD page is not
+ * supported or its content cannot be retrieved, -EINVAL is returned.
  */
 int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
 		      int buf_len)
 {
-	int i, result;
+	int result, vpd_len;
 
-	if (sdev->skip_vpd_pages)
-		goto fail;
+	if (!scsi_device_supports_vpd(sdev))
+		return -EINVAL;
 
-	/* Ask for all the pages supported by this device */
-	result = scsi_vpd_inquiry(sdev, buf, 0, buf_len);
-	if (result < 4)
-		goto fail;
+	vpd_len = scsi_get_vpd_size(sdev, page);
+	if (vpd_len <= 0)
+		return -EINVAL;
 
-	/* If the user actually wanted this page, we can skip the rest */
-	if (page == 0)
-		return 0;
+	vpd_len = min(vpd_len, buf_len);
 
-	for (i = 4; i < min(result, buf_len); i++)
-		if (buf[i] == page)
-			goto found;
-
-	if (i < result && i >= buf_len)
-		/* ran off the end of the buffer, give us benefit of doubt */
-		goto found;
-	/* The device claims it doesn't support the requested page */
-	goto fail;
-
- found:
-	result = scsi_vpd_inquiry(sdev, buf, page, buf_len);
+	/*
+	 * Fetch the actual page. Since the appropriate size was reported
+	 * by the device it is now safe to ask for something bigger.
+	 */
+	memset(buf, 0, buf_len);
+	result = scsi_vpd_inquiry(sdev, buf, page, vpd_len);
 	if (result < 0)
-		goto fail;
+		return -EINVAL;
+	else if (result > vpd_len)
+		dev_warn_once(&sdev->sdev_gendev,
+			      "%s: VPD page 0x%02x result %d > %d bytes\n",
+			      __func__, page, result, vpd_len);
 
 	return 0;
-
- fail:
-	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
 
@@ -384,9 +400,17 @@ EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
 static struct scsi_vpd *scsi_get_vpd_buf(struct scsi_device *sdev, u8 page)
 {
 	struct scsi_vpd *vpd_buf;
-	int vpd_len = SCSI_VPD_PG_LEN, result;
+	int vpd_len, result;
+
+	vpd_len = scsi_get_vpd_size(sdev, page);
+	if (vpd_len <= 0)
+		return NULL;
 
 retry_pg:
+	/*
+	 * Fetch the actual page. Since the appropriate size was reported
+	 * by the device it is now safe to ask for something bigger.
+	 */
 	vpd_buf = kmalloc(sizeof(*vpd_buf) + vpd_len, GFP_KERNEL);
 	if (!vpd_buf)
 		return NULL;
@@ -397,6 +421,9 @@ retry_pg:
 		return NULL;
 	}
 	if (result > vpd_len) {
+		dev_warn_once(&sdev->sdev_gendev,
+			      "%s: VPD page 0x%02x result %d > %d bytes\n",
+			      __func__, page, result, vpd_len);
 		vpd_len = result;
 		kfree(vpd_buf);
 		goto retry_pg;
@@ -456,6 +483,12 @@ void scsi_attach_vpd(struct scsi_device *sdev)
 			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83);
 		if (vpd_buf->data[i] == 0x89)
 			scsi_update_vpd_page(sdev, 0x89, &sdev->vpd_pg89);
+		if (vpd_buf->data[i] == 0xb0)
+			scsi_update_vpd_page(sdev, 0xb0, &sdev->vpd_pgb0);
+		if (vpd_buf->data[i] == 0xb1)
+			scsi_update_vpd_page(sdev, 0xb1, &sdev->vpd_pgb1);
+		if (vpd_buf->data[i] == 0xb2)
+			scsi_update_vpd_page(sdev, 0xb2, &sdev->vpd_pgb2);
 	}
 	kfree(vpd_buf);
 }
@@ -476,21 +509,30 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 {
 	unsigned char cmd[16];
 	struct scsi_sense_hdr sshdr;
-	int result;
+	int result, request_len;
 
 	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
 		return -EINVAL;
+
+	/* RSOC header + size of command we are asking about */
+	request_len = 4 + COMMAND_SIZE(opcode);
+	if (request_len > len) {
+		dev_warn_once(&sdev->sdev_gendev,
+			      "%s: len %u bytes, opcode 0x%02x needs %u\n",
+			      __func__, len, opcode, request_len);
+		return -EINVAL;
+	}
 
 	memset(cmd, 0, 16);
 	cmd[0] = MAINTENANCE_IN;
 	cmd[1] = MI_REPORT_SUPPORTED_OPERATION_CODES;
 	cmd[2] = 1;		/* One command format */
 	cmd[3] = opcode;
-	put_unaligned_be32(len, &cmd[6]);
+	put_unaligned_be32(request_len, &cmd[6]);
 	memset(buffer, 0, len);
 
-	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer, len,
-				  &sshdr, 30 * HZ, 3, NULL);
+	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
+				  request_len, &sshdr, 30 * HZ, 3, NULL);
 
 	if (result < 0)
 		return result;

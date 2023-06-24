@@ -525,7 +525,7 @@ arp_suppression()
 
 	log_test "neigh_suppress: on / neigh exists: yes"
 
-	# Delete the neighbour from the the SVI. A single ARP request should be
+	# Delete the neighbour from the SVI. A single ARP request should be
 	# received by the remote VTEP
 	RET=0
 

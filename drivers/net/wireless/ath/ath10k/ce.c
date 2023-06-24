@@ -1323,7 +1323,7 @@ EXPORT_SYMBOL(ath10k_ce_per_engine_service);
 /*
  * Handler for per-engine interrupts on ALL active CEs.
  * This is used in cases where the system is sharing a
- * single interrput for all CEs
+ * single interrupt for all CEs
  */
 
 void ath10k_ce_per_engine_service_any(struct ath10k *ar)

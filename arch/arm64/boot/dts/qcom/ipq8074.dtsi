@@ -7,13 +7,17 @@
 #include <dt-bindings/clock/qcom,gcc-ipq8074.h>
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
 	model = "Qualcomm Technologies, Inc. IPQ8074";
 	compatible = "qcom,ipq8074";
+	interrupt-parent = <&intc>;
 
 	clocks {
 		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";
-			clock-frequency = <32000>;
+			clock-frequency = <32768>;
 			#clock-cells = <0>;
 		};
 
@@ -119,7 +123,7 @@
 				<&xo>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			resets =  <&gcc GCC_USB1_PHY_BCR>,
+			resets = <&gcc GCC_USB1_PHY_BCR>,
 				<&gcc GCC_USB3PHY_1_PHY_BCR>;
 			reset-names = "phy","common";
 			status = "disabled";
@@ -130,7 +134,7 @@
 				      <0x00058800 0x1f8>,     /* PCS  */
 				      <0x00058600 0x044>;     /* PCS misc*/
 				#phy-cells = <0>;
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clocks = <&gcc GCC_USB1_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "gcc_usb1_pipe_clk_src";
@@ -162,7 +166,7 @@
 				<&xo>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			resets =  <&gcc GCC_USB0_PHY_BCR>,
+			resets = <&gcc GCC_USB0_PHY_BCR>,
 				<&gcc GCC_USB3PHY_0_PHY_BCR>;
 			reset-names = "phy","common";
 			status = "disabled";
@@ -173,7 +177,7 @@
 				      <0x00078800 0x1f8>,     /* PCS  */
 				      <0x00078600 0x044>;     /* PCS misc*/
 				#phy-cells = <0>;
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clocks = <&gcc GCC_USB0_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "gcc_usb0_pipe_clk_src";
@@ -195,7 +199,7 @@
 
 		pcie_qmp0: phy@86000 {
 			compatible = "qcom,ipq8074-qmp-pcie-phy";
-			reg = <0x00086000 0x1000>;
+			reg = <0x00086000 0x1c4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -223,7 +227,7 @@
 
 		pcie_qmp1: phy@8e000 {
 			compatible = "qcom,ipq8074-qmp-pcie-phy";
-			reg = <0x0008e000 0x1000>;
+			reg = <0x0008e000 0x1c4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -347,6 +351,7 @@
 			compatible = "qcom,gcc-ipq8074";
 			reg = <0x01800000 0x80000>;
 			#clock-cells = <0x1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <0x1>;
 		};
 
@@ -375,19 +380,20 @@
 			cell-index = <0>;
 		};
 
-		sdhc_1: sdhci@7824900 {
+		sdhc_1: mmc@7824900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x7824900 0x500>, <0x7824000 0x800>;
-			reg-names = "hc_mem", "core_mem";
+			reg-names = "hc", "core";
 
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
-			clocks = <&xo>,
-				 <&gcc GCC_SDCC1_AHB_CLK>,
-				 <&gcc GCC_SDCC1_APPS_CLK>;
-			clock-names = "xo", "iface", "core";
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>,
+				 <&xo>;
+			clock-names = "iface", "core", "xo";
+			resets = <&gcc GCC_SDCC1_BCR>;
 			max-frequency = <384000000>;
 			mmc-ddr-1_8v;
 			mmc-hs200-1_8v;
@@ -467,12 +473,12 @@
 			#size-cells = <0>;
 			reg = <0x078b6000 0x600>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				<&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
-			clock-names = "iface", "core";
+			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
 			clock-frequency = <400000>;
-			dmas = <&blsp_dma 15>, <&blsp_dma 14>;
-			dma-names = "rx", "tx";
+			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
+			dma-names = "tx", "rx";
 			pinctrl-0 = <&i2c_0_pins>;
 			pinctrl-names = "default";
 			status = "disabled";
@@ -484,12 +490,12 @@
 			#size-cells = <0>;
 			reg = <0x078b7000 0x600>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				<&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>;
-			clock-names = "iface", "core";
+			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
 			clock-frequency = <100000>;
-			dmas = <&blsp_dma 17>, <&blsp_dma 16>;
-			dma-names = "rx", "tx";
+			dmas = <&blsp_dma 16>, <&blsp_dma 17>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -499,12 +505,12 @@
 			#size-cells = <0>;
 			reg = <0x78b9000 0x600>;
 			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				 <&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>;
-			clock-names = "iface", "core";
+			clocks = <&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
 			clock-frequency = <400000>;
-			dmas = <&blsp_dma 21>, <&blsp_dma 20>;
-			dma-names = "rx", "tx";
+			dmas = <&blsp_dma 20>, <&blsp_dma 21>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -514,12 +520,12 @@
 			#size-cells = <0>;
 			reg = <0x078ba000 0x600>;
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				 <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>;
-			clock-names = "iface", "core";
+			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
 			clock-frequency = <100000>;
-			dmas = <&blsp_dma 23>, <&blsp_dma 22>;
-			dma-names = "rx", "tx";
+			dmas = <&blsp_dma 22>, <&blsp_dma 23>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -534,7 +540,7 @@
 			status = "disabled";
 		};
 
-		qpic_nand: nand@79b0000 {
+		qpic_nand: nand-controller@79b0000 {
 			compatible = "qcom,ipq8074-nand";
 			reg = <0x079b0000 0x10000>;
 			#address-cells = <1>;
@@ -553,7 +559,7 @@
 		};
 
 		usb_0: usb@8af8800 {
-			compatible = "qcom,dwc3";
+			compatible = "qcom,ipq8074-dwc3", "qcom,dwc3";
 			reg = <0x08af8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -563,8 +569,8 @@
 				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
 				<&gcc GCC_USB0_MOCK_UTMI_CLK>;
-			clock-names = "sys_noc_axi",
-				"master",
+			clock-names = "cfg_noc",
+				"core",
 				"sleep",
 				"mock_utmi";
 
@@ -575,10 +581,12 @@
 						<133330000>,
 						<19200000>;
 
+			power-domains = <&gcc USB0_GDSC>;
+
 			resets = <&gcc GCC_USB0_BCR>;
 			status = "disabled";
 
-			dwc_0: dwc3@8a00000 {
+			dwc_0: usb@8a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x8a00000 0xcd00>;
 				interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
@@ -593,7 +601,7 @@
 		};
 
 		usb_1: usb@8cf8800 {
-			compatible = "qcom,dwc3";
+			compatible = "qcom,ipq8074-dwc3", "qcom,dwc3";
 			reg = <0x08cf8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -603,8 +611,8 @@
 				<&gcc GCC_USB1_MASTER_CLK>,
 				<&gcc GCC_USB1_SLEEP_CLK>,
 				<&gcc GCC_USB1_MOCK_UTMI_CLK>;
-			clock-names = "sys_noc_axi",
-				"master",
+			clock-names = "cfg_noc",
+				"core",
 				"sleep",
 				"mock_utmi";
 
@@ -615,10 +623,12 @@
 						<133330000>,
 						<19200000>;
 
+			power-domains = <&gcc USB1_GDSC>;
+
 			resets = <&gcc GCC_USB1_BCR>;
 			status = "disabled";
 
-			dwc_1: dwc3@8c00000 {
+			dwc_1: usb@8c00000 {
 				compatible = "snps,dwc3";
 				reg = <0x8c00000 0xcd00>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
@@ -648,20 +658,20 @@
 			};
 		};
 
-		timer {
-			compatible = "arm,armv8-timer";
-			interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-		};
-
 		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt";
 			reg = <0xb017000 0x1000>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&sleep_clk>;
 			timeout-sec = <30>;
+		};
+
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,ipq8074-apcs-apps-global";
+			reg = <0x0b111000 0x1000>;
+
+			#clock-cells = <1>;
+			#mbox-cells = <1>;
 		};
 
 		timer@b120000 {
@@ -846,5 +856,13 @@
 				      "axi_m_sticky";
 			status = "disabled";
 		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 };

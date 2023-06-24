@@ -58,7 +58,7 @@ config ARCH_USE_GNU_PROPERTY
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || (SUPERH && !MMU))
+	depends on ARM || ((M68K || SUPERH || XTENSA) && !MMU)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -141,45 +141,6 @@ config BINFMT_ZFLAT
 	select ZLIB_INFLATE
 	help
 	  Support FLAT format compressed binaries
-
-config BINFMT_SHARED_FLAT
-	bool "Enable shared FLAT support"
-	depends on BINFMT_FLAT
-	help
-	  Support FLAT shared libraries
-
-config HAVE_AOUT
-       def_bool n
-
-config BINFMT_AOUT
-	tristate "Kernel support for a.out and ECOFF binaries"
-	depends on HAVE_AOUT
-	help
-	  A.out (Assembler.OUTput) is a set of formats for libraries and
-	  executables used in the earliest versions of UNIX.  Linux used
-	  the a.out formats QMAGIC and ZMAGIC until they were replaced
-	  with the ELF format.
-
-	  The conversion to ELF started in 1995.  This option is primarily
-	  provided for historical interest and for the benefit of those
-	  who need to run binaries from that era.
-
-	  Most people should answer N here.  If you think you may have
-	  occasional use for this format, enable module support above
-	  and answer M here to compile this support as a module called
-	  binfmt_aout.
-
-	  If any crucial components of your system (such as /sbin/init
-	  or /lib/ld.so) are still in a.out format, you will have to
-	  say Y here.
-
-config OSF4_COMPAT
-	bool "OSF/1 v4 readv/writev compatibility"
-	depends on ALPHA && BINFMT_AOUT
-	help
-	  Say Y if you are using OSF/1 binaries (like Netscape and Acrobat)
-	  with v4 shared libraries freely available from Compaq. If you're
-	  going to use shared libraries from Tru64 version 5.0 or later, say N.
 
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"

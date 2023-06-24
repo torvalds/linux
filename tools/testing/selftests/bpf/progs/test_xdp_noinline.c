@@ -239,7 +239,7 @@ bool parse_udp(void *data, void *data_end,
 	udp = data + off;
 
 	if (udp + 1 > data_end)
-		return 0;
+		return false;
 	if (!is_icmp) {
 		pckt->flow.port16[0] = udp->source;
 		pckt->flow.port16[1] = udp->dest;
@@ -247,7 +247,7 @@ bool parse_udp(void *data, void *data_end,
 		pckt->flow.port16[0] = udp->dest;
 		pckt->flow.port16[1] = udp->source;
 	}
-	return 1;
+	return true;
 }
 
 static __attribute__ ((noinline))
@@ -261,7 +261,7 @@ bool parse_tcp(void *data, void *data_end,
 
 	tcp = data + off;
 	if (tcp + 1 > data_end)
-		return 0;
+		return false;
 	if (tcp->syn)
 		pckt->flags |= (1 << 1);
 	if (!is_icmp) {
@@ -271,7 +271,7 @@ bool parse_tcp(void *data, void *data_end,
 		pckt->flow.port16[0] = tcp->dest;
 		pckt->flow.port16[1] = tcp->source;
 	}
-	return 1;
+	return true;
 }
 
 static __attribute__ ((noinline))
@@ -287,7 +287,7 @@ bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	void *data;
 
 	if (bpf_xdp_adjust_head(xdp, 0 - (int)sizeof(struct ipv6hdr)))
-		return 0;
+		return false;
 	data = (void *)(long)xdp->data;
 	data_end = (void *)(long)xdp->data_end;
 	new_eth = data;
@@ -295,7 +295,7 @@ bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	old_eth = data + sizeof(struct ipv6hdr);
 	if (new_eth + 1 > data_end ||
 	    old_eth + 1 > data_end || ip6h + 1 > data_end)
-		return 0;
+		return false;
 	memcpy(new_eth->eth_dest, cval->mac, 6);
 	memcpy(new_eth->eth_source, old_eth->eth_dest, 6);
 	new_eth->eth_proto = 56710;
@@ -314,7 +314,7 @@ bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	ip6h->saddr.in6_u.u6_addr32[2] = 3;
 	ip6h->saddr.in6_u.u6_addr32[3] = ip_suffix;
 	memcpy(ip6h->daddr.in6_u.u6_addr32, dst->dstv6, 16);
-	return 1;
+	return true;
 }
 
 static __attribute__ ((noinline))
@@ -335,7 +335,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	ip_suffix <<= 15;
 	ip_suffix ^= pckt->flow.src;
 	if (bpf_xdp_adjust_head(xdp, 0 - (int)sizeof(struct iphdr)))
-		return 0;
+		return false;
 	data = (void *)(long)xdp->data;
 	data_end = (void *)(long)xdp->data_end;
 	new_eth = data;
@@ -343,7 +343,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	old_eth = data + sizeof(struct iphdr);
 	if (new_eth + 1 > data_end ||
 	    old_eth + 1 > data_end || iph + 1 > data_end)
-		return 0;
+		return false;
 	memcpy(new_eth->eth_dest, cval->mac, 6);
 	memcpy(new_eth->eth_source, old_eth->eth_dest, 6);
 	new_eth->eth_proto = 8;
@@ -367,8 +367,8 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 		csum += *next_iph_u16++;
 	iph->check = ~((csum & 0xffff) + (csum >> 16));
 	if (bpf_xdp_adjust_head(xdp, (int)sizeof(struct iphdr)))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static __attribute__ ((noinline))
@@ -386,10 +386,10 @@ bool decap_v6(struct xdp_md *xdp, void **data, void **data_end, bool inner_v4)
 	else
 		new_eth->eth_proto = 56710;
 	if (bpf_xdp_adjust_head(xdp, (int)sizeof(struct ipv6hdr)))
-		return 0;
+		return false;
 	*data = (void *)(long)xdp->data;
 	*data_end = (void *)(long)xdp->data_end;
-	return 1;
+	return true;
 }
 
 static __attribute__ ((noinline))
@@ -404,10 +404,10 @@ bool decap_v4(struct xdp_md *xdp, void **data, void **data_end)
 	memcpy(new_eth->eth_dest, old_eth->eth_dest, 6);
 	new_eth->eth_proto = 8;
 	if (bpf_xdp_adjust_head(xdp, (int)sizeof(struct iphdr)))
-		return 0;
+		return false;
 	*data = (void *)(long)xdp->data;
 	*data_end = (void *)(long)xdp->data_end;
-	return 1;
+	return true;
 }
 
 static __attribute__ ((noinline))
@@ -564,22 +564,22 @@ static bool get_packet_dst(struct real_definition **real,
 	hash = get_packet_hash(pckt, hash_16bytes);
 	if (hash != 0x358459b7 /* jhash of ipv4 packet */  &&
 	    hash != 0x2f4bc6bb /* jhash of ipv6 packet */)
-		return 0;
+		return false;
 	key = 2 * vip_info->vip_num + hash % 2;
 	real_pos = bpf_map_lookup_elem(&ch_rings, &key);
 	if (!real_pos)
-		return 0;
+		return false;
 	key = *real_pos;
 	*real = bpf_map_lookup_elem(&reals, &key);
 	if (!(*real))
-		return 0;
+		return false;
 	if (!(vip_info->flags & (1 << 1))) {
 		__u32 conn_rate_key = 512 + 2;
 		struct lb_stats *conn_rate_stats =
 		    bpf_map_lookup_elem(&stats, &conn_rate_key);
 
 		if (!conn_rate_stats)
-			return 1;
+			return true;
 		cur_time = bpf_ktime_get_ns();
 		if ((cur_time - conn_rate_stats->v2) >> 32 > 0xffFFFF) {
 			conn_rate_stats->v1 = 1;
@@ -587,14 +587,14 @@ static bool get_packet_dst(struct real_definition **real,
 		} else {
 			conn_rate_stats->v1 += 1;
 			if (conn_rate_stats->v1 >= 1)
-				return 1;
+				return true;
 		}
 		if (pckt->flow.proto == IPPROTO_UDP)
 			new_dst_lru.atime = cur_time;
 		new_dst_lru.pos = key;
 		bpf_map_update_elem(lru_map, &pckt->flow, &new_dst_lru, 0);
 	}
-	return 1;
+	return true;
 }
 
 __attribute__ ((noinline))

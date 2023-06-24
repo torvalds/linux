@@ -189,7 +189,7 @@ static void ark3116_port_remove(struct usb_serial_port *port)
 
 static void ark3116_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
@@ -208,10 +208,9 @@ static void ark3116_set_termios(struct tty_struct *tty,
 		lcr |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
 		lcr |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		lcr |= UART_LCR_SPAR;
-#endif
+
 	/* handshake control */
 	hcr = (cflag & CRTSCTS) ? 0x03 : 0x00;
 

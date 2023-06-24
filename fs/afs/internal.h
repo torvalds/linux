@@ -122,7 +122,7 @@ struct afs_call {
 	};
 	struct afs_operation	*op;
 	unsigned int		server_index;
-	atomic_t		usage;
+	refcount_t		ref;
 	enum afs_call_state	state;
 	spinlock_t		state_lock;
 	int			error;		/* error code */
@@ -137,7 +137,6 @@ struct afs_call {
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
 	bool			upgrade;	/* T to request service upgrade */
-	bool			have_reply_time; /* T if have got reply_time */
 	bool			intr;		/* T if interruptible */
 	bool			unmarshalling_error; /* T if an unmarshalling error occurred */
 	u16			service_id;	/* Actual service ID (after upgrade) */
@@ -151,7 +150,7 @@ struct afs_call {
 		} __attribute__((packed));
 		__be64		tmp64;
 	};
-	ktime_t			reply_time;	/* Time of first reply packet */
+	ktime_t			issue_time;	/* Time of issue of operation */
 };
 
 struct afs_call_type {
@@ -311,7 +310,7 @@ struct afs_net {
 	atomic_t		n_lookup;	/* Number of lookups done */
 	atomic_t		n_reval;	/* Number of dentries needing revalidation */
 	atomic_t		n_inval;	/* Number of invalidations by the server */
-	atomic_t		n_relpg;	/* Number of invalidations by releasepage */
+	atomic_t		n_relpg;	/* Number of invalidations by release_folio */
 	atomic_t		n_read_dir;	/* Number of directory pages read */
 	atomic_t		n_dir_cr;	/* Number of directory entry creation edits */
 	atomic_t		n_dir_rm;	/* Number of directory entry removal edits */
@@ -365,7 +364,7 @@ struct afs_cell {
 	struct hlist_node	proc_link;	/* /proc cell list link */
 	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
 	time64_t		last_inactive;	/* Time of last drop of usage count */
-	atomic_t		ref;		/* Struct refcount */
+	refcount_t		ref;		/* Struct refcount */
 	atomic_t		active;		/* Active usage counter */
 	unsigned long		flags;
 #define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
@@ -410,7 +409,7 @@ struct afs_vlserver {
 #define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS not AFS */
 #define AFS_VLSERVER_FL_RESPONDING 3		/* VL server is responding */
 	rwlock_t		lock;		/* Lock on addresses */
-	atomic_t		usage;
+	refcount_t		ref;
 	unsigned int		rtt;		/* Server's current RTT in uS */
 
 	/* Probe state */
@@ -446,7 +445,7 @@ struct afs_vlserver_entry {
 
 struct afs_vlserver_list {
 	struct rcu_head		rcu;
-	atomic_t		usage;
+	refcount_t		ref;
 	u8			nr_servers;
 	u8			index;		/* Server currently in use */
 	u8			preferred;	/* Preferred server */
@@ -517,7 +516,7 @@ struct afs_server {
 #define AFS_SERVER_FL_NO_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_NO_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
 #define AFS_SERVER_FL_HAS_FS64	19		/* Fileserver supports FS.{Fetch,Store}Data64 */
-	atomic_t		ref;		/* Object refcount */
+	refcount_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
 	unsigned int		rtt;		/* Server's current RTT in uS */
@@ -571,7 +570,7 @@ struct afs_volume {
 		struct rcu_head	rcu;
 		afs_volid_t	vid;		/* volume ID */
 	};
-	atomic_t		usage;
+	refcount_t		ref;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		cell_node;	/* Link in cell->volumes */
@@ -619,12 +618,7 @@ enum afs_lock_state {
  * leak from one inode to another.
  */
 struct afs_vnode {
-	struct {
-		/* These must be contiguous */
-		struct inode	vfs_inode;	/* the VFS's inode record */
-		struct netfs_i_context netfs_ctx; /* Netfslib context */
-	};
-
+	struct netfs_inode	netfs;		/* Netfslib context and vfs inode */
 	struct afs_volume	*volume;	/* volume on which vnode resides */
 	struct afs_fid		fid;		/* the file identifier for this inode */
 	struct afs_file_status	status;		/* AFS status info for this file */
@@ -675,7 +669,7 @@ struct afs_vnode {
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	return netfs_i_cookie(&vnode->vfs_inode);
+	return netfs_i_cookie(&vnode->netfs);
 #else
 	return NULL;
 #endif
@@ -685,7 +679,7 @@ static inline void afs_vnode_set_cache(struct afs_vnode *vnode,
 				       struct fscache_cookie *cookie)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	vnode->netfs_ctx.cache = cookie;
+	vnode->netfs.cache = cookie;
 #endif
 }
 
@@ -892,7 +886,7 @@ static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int fl
 
 	afs_set_cache_aux(vnode, &aux);
 	fscache_invalidate(afs_vnode_cache(vnode), &aux,
-			   i_size_read(&vnode->vfs_inode), flags);
+			   i_size_read(&vnode->netfs.inode), flags);
 }
 
 /*
@@ -1217,7 +1211,7 @@ static inline struct afs_net *afs_i2net(struct inode *inode)
 
 static inline struct afs_net *afs_v2net(struct afs_vnode *vnode)
 {
-	return afs_i2net(&vnode->vfs_inode);
+	return afs_i2net(&vnode->netfs.inode);
 }
 
 static inline struct afs_net *afs_sock2net(struct sock *sk)
@@ -1498,14 +1492,14 @@ extern int afs_end_vlserver_operation(struct afs_vl_cursor *);
  */
 static inline struct afs_vlserver *afs_get_vlserver(struct afs_vlserver *vlserver)
 {
-	atomic_inc(&vlserver->usage);
+	refcount_inc(&vlserver->ref);
 	return vlserver;
 }
 
 static inline struct afs_vlserver_list *afs_get_vlserverlist(struct afs_vlserver_list *vllist)
 {
 	if (vllist)
-		atomic_inc(&vllist->usage);
+		refcount_inc(&vllist->ref);
 	return vllist;
 }
 
@@ -1535,7 +1529,7 @@ bool afs_dirty_folio(struct address_space *, struct folio *);
 #define afs_dirty_folio filemap_dirty_folio
 #endif
 extern int afs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata);
 extern int afs_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
@@ -1593,12 +1587,12 @@ extern void yfs_fs_store_opaque_acl2(struct afs_operation *);
  */
 static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
 {
-	return container_of(inode, struct afs_vnode, vfs_inode);
+	return container_of(inode, struct afs_vnode, netfs.inode);
 }
 
 static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 {
-	return &vnode->vfs_inode;
+	return &vnode->netfs.inode;
 }
 
 /*
@@ -1621,8 +1615,8 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
  */
 static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
 {
-	i_size_write(&vnode->vfs_inode, size);
-	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
+	i_size_write(&vnode->netfs.inode, size);
+	vnode->netfs.inode.i_blocks = ((size + 1023) >> 10) << 1;
 }
 
 /*

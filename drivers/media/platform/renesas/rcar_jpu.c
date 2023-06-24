@@ -670,8 +670,6 @@ static int jpu_querycap(struct file *file, void *priv,
 		strscpy(cap->card, DRV_NAME " decoder", sizeof(cap->card));
 
 	strscpy(cap->driver, DRV_NAME, sizeof(cap->driver));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(ctx->jpu->dev));
 	memset(cap->reserved, 0, sizeof(cap->reserved));
 
 	return 0;

@@ -18,7 +18,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/of_irq.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/units.h>
 
@@ -177,7 +177,7 @@ struct adxl355_data {
 			u8 buf[14];
 			s64 ts;
 		} buffer;
-	} ____cacheline_aligned;
+	} __aligned(IIO_DMA_MINALIGN);
 };
 
 static int adxl355_set_op_mode(struct adxl355_data *data,
@@ -745,10 +745,7 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	/*
-	 * TODO: Would be good to move it to the generic version.
-	 */
-	irq = of_irq_get_byname(dev->of_node, "DRDY");
+	irq = fwnode_irq_get_byname(dev_fwnode(dev), "DRDY");
 	if (irq > 0) {
 		ret = adxl355_probe_trigger(indio_dev, irq);
 		if (ret)

@@ -17,10 +17,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -1182,14 +1183,13 @@ static const struct of_device_id xadc_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, xadc_of_match_table);
 
-static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
-	unsigned int *conf, int irq)
+static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 {
 	struct device *dev = indio_dev->dev.parent;
 	struct xadc *xadc = iio_priv(indio_dev);
 	const struct iio_chan_spec *channel_templates;
 	struct iio_chan_spec *channels, *chan;
-	struct device_node *chan_node, *child;
+	struct fwnode_handle *chan_node, *child;
 	unsigned int max_channels;
 	unsigned int num_channels;
 	const char *external_mux;
@@ -1200,7 +1200,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 
 	*conf = 0;
 
-	ret = of_property_read_string(np, "xlnx,external-mux", &external_mux);
+	ret = device_property_read_string(dev, "xlnx,external-mux", &external_mux);
 	if (ret < 0 || strcasecmp(external_mux, "none") == 0)
 		xadc->external_mux_mode = XADC_EXTERNAL_MUX_NONE;
 	else if (strcasecmp(external_mux, "single") == 0)
@@ -1211,8 +1211,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 		return -EINVAL;
 
 	if (xadc->external_mux_mode != XADC_EXTERNAL_MUX_NONE) {
-		ret = of_property_read_u32(np, "xlnx,external-mux-channel",
-					&ext_mux_chan);
+		ret = device_property_read_u32(dev, "xlnx,external-mux-channel", &ext_mux_chan);
 		if (ret < 0)
 			return ret;
 
@@ -1247,33 +1246,31 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	num_channels = 9;
 	chan = &channels[9];
 
-	chan_node = of_get_child_by_name(np, "xlnx,channels");
-	if (chan_node) {
-		for_each_child_of_node(chan_node, child) {
-			if (num_channels >= max_channels) {
-				of_node_put(child);
-				break;
-			}
-
-			ret = of_property_read_u32(child, "reg", &reg);
-			if (ret || reg > 16)
-				continue;
-
-			if (of_property_read_bool(child, "xlnx,bipolar"))
-				chan->scan_type.sign = 's';
-
-			if (reg == 0) {
-				chan->scan_index = 11;
-				chan->address = XADC_REG_VPVN;
-			} else {
-				chan->scan_index = 15 + reg;
-				chan->address = XADC_REG_VAUX(reg - 1);
-			}
-			num_channels++;
-			chan++;
+	chan_node = device_get_named_child_node(dev, "xlnx,channels");
+	fwnode_for_each_child_node(chan_node, child) {
+		if (num_channels >= max_channels) {
+			fwnode_handle_put(child);
+			break;
 		}
+
+		ret = fwnode_property_read_u32(child, "reg", &reg);
+		if (ret || reg > 16)
+			continue;
+
+		if (fwnode_property_read_bool(child, "xlnx,bipolar"))
+			chan->scan_type.sign = 's';
+
+		if (reg == 0) {
+			chan->scan_index = 11;
+			chan->address = XADC_REG_VPVN;
+		} else {
+			chan->scan_index = 15 + reg;
+			chan->address = XADC_REG_VAUX(reg - 1);
+		}
+		num_channels++;
+		chan++;
 	}
-	of_node_put(chan_node);
+	fwnode_handle_put(chan_node);
 
 	/* No IRQ => no events */
 	if (irq <= 0) {
@@ -1299,13 +1296,6 @@ static const char * const xadc_type_names[] = {
 	[XADC_TYPE_US] = "xilinx-system-monitor",
 };
 
-static void xadc_clk_disable_unprepare(void *data)
-{
-	struct clk *clk = data;
-
-	clk_disable_unprepare(clk);
-}
-
 static void xadc_cancel_delayed_work(void *data)
 {
 	struct delayed_work *work = data;
@@ -1316,7 +1306,6 @@ static void xadc_cancel_delayed_work(void *data)
 static int xadc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *id;
 	const struct xadc_ops *ops;
 	struct iio_dev *indio_dev;
 	unsigned int bipolar_mask;
@@ -1326,14 +1315,9 @@ static int xadc_probe(struct platform_device *pdev)
 	int irq;
 	int i;
 
-	if (!dev->of_node)
-		return -ENODEV;
-
-	id = of_match_node(xadc_of_match_table, dev->of_node);
-	if (!id)
+	ops = device_get_match_data(dev);
+	if (!ops)
 		return -EINVAL;
-
-	ops = id->data;
 
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq < 0 &&
@@ -1345,7 +1329,7 @@ static int xadc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xadc = iio_priv(indio_dev);
-	xadc->ops = id->data;
+	xadc->ops = ops;
 	init_completion(&xadc->completion);
 	mutex_init(&xadc->mutex);
 	spin_lock_init(&xadc->lock);
@@ -1359,7 +1343,7 @@ static int xadc_probe(struct platform_device *pdev)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &xadc_info;
 
-	ret = xadc_parse_dt(indio_dev, dev->of_node, &conf0, irq);
+	ret = xadc_parse_dt(indio_dev, &conf0, irq);
 	if (ret)
 		return ret;
 
@@ -1383,18 +1367,9 @@ static int xadc_probe(struct platform_device *pdev)
 		}
 	}
 
-	xadc->clk = devm_clk_get(dev, NULL);
+	xadc->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(xadc->clk))
 		return PTR_ERR(xadc->clk);
-
-	ret = clk_prepare_enable(xadc->clk);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev,
-				       xadc_clk_disable_unprepare, xadc->clk);
-	if (ret)
-		return ret;
 
 	/*
 	 * Make sure not to exceed the maximum samplerate since otherwise the

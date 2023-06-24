@@ -12,9 +12,10 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const u8 *he_cap_ie, u8 he_cap_len,
 				    const struct ieee80211_eht_cap_elem *eht_cap_ie_elem,
-				    u8 eht_cap_len, struct sta_info *sta)
+				    u8 eht_cap_len,
+				    struct link_sta_info *link_sta)
 {
-	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.eht_cap;
+	struct ieee80211_sta_eht_cap *eht_cap = &link_sta->pub->eht_cap;
 	struct ieee80211_he_cap_elem *he_cap_ie_elem = (void *)he_cap_ie;
 	u8 eht_ppe_size = 0;
 	u8 mcs_nss_size;
@@ -29,7 +30,9 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	mcs_nss_size = ieee80211_eht_mcs_nss_size(he_cap_ie_elem,
-						  &eht_cap_ie_elem->fixed);
+						  &eht_cap_ie_elem->fixed,
+						  sdata->vif.type ==
+							NL80211_IFTYPE_STATION);
 
 	eht_total_size += mcs_nss_size;
 
@@ -71,6 +74,6 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 
 	eht_cap->has_eht = true;
 
-	sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
-	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+	link_sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(link_sta);
+	link_sta->pub->bandwidth = ieee80211_sta_cur_vht_bw(link_sta);
 }

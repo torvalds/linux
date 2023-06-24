@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * rcar_lvds.c  --  R-Car LVDS Encoder
+ * R-Car LVDS Encoder
  *
  * Copyright (C) 2013-2018 Renesas Electronics Corporation
  *
@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -305,7 +306,7 @@ static void rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds, unsigned int freq)
  * Clock - D3/E3 only
  */
 
-int rcar_lvds_clk_enable(struct drm_bridge *bridge, unsigned long freq)
+int rcar_lvds_pclk_enable(struct drm_bridge *bridge, unsigned long freq)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	int ret;
@@ -323,9 +324,9 @@ int rcar_lvds_clk_enable(struct drm_bridge *bridge, unsigned long freq)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rcar_lvds_clk_enable);
+EXPORT_SYMBOL_GPL(rcar_lvds_pclk_enable);
 
-void rcar_lvds_clk_disable(struct drm_bridge *bridge)
+void rcar_lvds_pclk_disable(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
@@ -338,7 +339,7 @@ void rcar_lvds_clk_disable(struct drm_bridge *bridge)
 
 	clk_disable_unprepare(lvds->clocks.mod);
 }
-EXPORT_SYMBOL_GPL(rcar_lvds_clk_disable);
+EXPORT_SYMBOL_GPL(rcar_lvds_pclk_disable);
 
 /* -----------------------------------------------------------------------------
  * Bridge

@@ -1231,7 +1231,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	hdlc->attach = ucc_hdlc_attach;
 	hdlc->xmit = ucc_hdlc_tx;
-	netif_napi_add(dev, &uhdlc_priv->napi, ucc_hdlc_poll, 32);
+	netif_napi_add_weight(dev, &uhdlc_priv->napi, ucc_hdlc_poll, 32);
 	if (register_hdlc_device(dev)) {
 		ret = -ENOBUFS;
 		pr_err("ucc_hdlc: unable to register hdlc device\n");

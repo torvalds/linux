@@ -98,8 +98,6 @@ void hinic_notify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
 
 int hinic_pci_sriov_disable(struct pci_dev *dev);
 
-int hinic_pci_sriov_enable(struct pci_dev *dev, int num_vfs);
-
 int hinic_vf_func_init(struct hinic_hwdev *hwdev);
 
 void hinic_vf_func_free(struct hinic_hwdev *hwdev);

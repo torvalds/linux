@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-The Contents of inode.i\_block
+The Contents of inode.i_block
 ------------------------------
 
 Depending on the type of file an inode describes, the 60 bytes of
@@ -47,7 +47,7 @@ In ext4, the file to logical block map has been replaced with an extent
 tree. Under the old scheme, allocating a contiguous run of 1,000 blocks
 requires an indirect block to map all 1,000 entries; with extents, the
 mapping is reduced to a single ``struct ext4_extent`` with
-``ee_len = 1000``. If flex\_bg is enabled, it is possible to allocate
+``ee_len = 1000``. If flex_bg is enabled, it is possible to allocate
 very large files with a single extent, at a considerable reduction in
 metadata block use, and some improvement in disk efficiency. The inode
 must have the extents flag (0x80000) flag set for this feature to be in
@@ -76,28 +76,28 @@ which is 12 bytes long:
      - Name
      - Description
    * - 0x0
-     - \_\_le16
-     - eh\_magic
+     - __le16
+     - eh_magic
      - Magic number, 0xF30A.
    * - 0x2
-     - \_\_le16
-     - eh\_entries
+     - __le16
+     - eh_entries
      - Number of valid entries following the header.
    * - 0x4
-     - \_\_le16
-     - eh\_max
+     - __le16
+     - eh_max
      - Maximum number of entries that could follow the header.
    * - 0x6
-     - \_\_le16
-     - eh\_depth
+     - __le16
+     - eh_depth
      - Depth of this extent node in the extent tree. 0 = this extent node
        points to data blocks; otherwise, this extent node points to other
        extent nodes. The extent tree can be at most 5 levels deep: a logical
        block number can be at most ``2^32``, and the smallest ``n`` that
        satisfies ``4*(((blocksize - 12)/12)^n) >= 2^32`` is 5.
    * - 0x8
-     - \_\_le32
-     - eh\_generation
+     - __le32
+     - eh_generation
      - Generation of the tree. (Used by Lustre, but not standard ext4).
 
 Internal nodes of the extent tree, also known as index nodes, are
@@ -112,22 +112,22 @@ recorded as ``struct ext4_extent_idx``, and are 12 bytes long:
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - ei\_block
+     - __le32
+     - ei_block
      - This index node covers file blocks from 'block' onward.
    * - 0x4
-     - \_\_le32
-     - ei\_leaf\_lo
+     - __le32
+     - ei_leaf_lo
      - Lower 32-bits of the block number of the extent node that is the next
        level lower in the tree. The tree node pointed to can be either another
        internal node or a leaf node, described below.
    * - 0x8
-     - \_\_le16
-     - ei\_leaf\_hi
+     - __le16
+     - ei_leaf_hi
      - Upper 16-bits of the previous field.
    * - 0xA
-     - \_\_u16
-     - ei\_unused
+     - __u16
+     - ei_unused
      -
 
 Leaf nodes of the extent tree are recorded as ``struct ext4_extent``,
@@ -142,24 +142,24 @@ and are also 12 bytes long:
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - ee\_block
+     - __le32
+     - ee_block
      - First file block number that this extent covers.
    * - 0x4
-     - \_\_le16
-     - ee\_len
+     - __le16
+     - ee_len
      - Number of blocks covered by extent. If the value of this field is <=
        32768, the extent is initialized. If the value of the field is > 32768,
        the extent is uninitialized and the actual extent length is ``ee_len`` -
        32768. Therefore, the maximum length of a initialized extent is 32768
        blocks, and the maximum length of an uninitialized extent is 32767.
    * - 0x6
-     - \_\_le16
-     - ee\_start\_hi
+     - __le16
+     - ee_start_hi
      - Upper 16-bits of the block number to which this extent points.
    * - 0x8
-     - \_\_le32
-     - ee\_start\_lo
+     - __le32
+     - ee_start_lo
      - Lower 32-bits of the block number to which this extent points.
 
 Prior to the introduction of metadata checksums, the extent header +
@@ -182,8 +182,8 @@ including) the checksum itself.
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - eb\_checksum
+     - __le32
+     - eb_checksum
      - Checksum of the extent block, crc32c(uuid+inum+igeneration+extentblock)
 
 Inline Data

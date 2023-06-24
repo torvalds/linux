@@ -283,6 +283,12 @@ config PPC_EARLY_DEBUG_MEMCONS
 	  This console provides input and output buffers stored within the
 	  kernel BSS and should be safe to select on any system. A debugger
 	  can then be used to read kernel output or send input to the console.
+
+config PPC_EARLY_DEBUG_16550
+	bool "Serial 16550"
+	depends on PPC_UDBG_16550
+	help
+	  Select this to enable early debugging via Serial 16550 console
 endchoice
 
 config PPC_MEMCONS_OUTPUT_SIZE
@@ -304,7 +310,6 @@ config PPC_MEMCONS_INPUT_SIZE
 config PPC_EARLY_DEBUG_OPAL
 	def_bool y
 	depends on PPC_EARLY_DEBUG_OPAL_RAW || PPC_EARLY_DEBUG_OPAL_HVSI
-
 
 config PPC_EARLY_DEBUG_HVSI_VTERMNO
 	hex "vterm number to use with early debug HVSI"
@@ -355,6 +360,15 @@ config PPC_EARLY_DEBUG_CPM_ADDR
 	  platform probing is done, all platforms selected must
 	  share the same address.
 
+config PPC_EARLY_DEBUG_16550_PHYSADDR
+	hex "Early debug Serial 16550 physical address"
+	depends on PPC_EARLY_DEBUG_16550
+
+config PPC_EARLY_DEBUG_16550_STRIDE
+	int "Early debug Serial 16550 stride"
+	depends on PPC_EARLY_DEBUG_16550
+	default 1
+
 config FAIL_IOMMU
 	bool "Fault-injection capability for IOMMU"
 	depends on FAULT_INJECTION
@@ -374,4 +388,6 @@ config PPC_FAST_ENDIAN_SWITCH
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0xe0000000
+	default 0xe0000000 if PPC32
+	default 0xa80e000000000000 if PPC_BOOK3S_64
+	default 0xa8001c0000000000 if PPC_BOOK3E_64

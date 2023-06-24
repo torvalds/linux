@@ -25,6 +25,7 @@
 #include <linux/times.h>
 #include <linux/posix-timers.h>
 #include <linux/security.h>
+#include <linux/random.h>
 #include <linux/suspend.h>
 #include <linux/tty.h>
 #include <linux/signal.h>
@@ -116,6 +117,12 @@
 #endif
 #ifndef SVE_GET_VL
 # define SVE_GET_VL()		(-EINVAL)
+#endif
+#ifndef SME_SET_VL
+# define SME_SET_VL(a)		(-EINVAL)
+#endif
+#ifndef SME_GET_VL
+# define SME_GET_VL()		(-EINVAL)
 #endif
 #ifndef PAC_RESET_KEYS
 # define PAC_RESET_KEYS(a, b)	(-EINVAL)
@@ -490,7 +497,7 @@ static void flag_nproc_exceeded(struct cred *new)
 	 * for programs doing set*uid()+execve() by harmlessly deferring the
 	 * failure to the execve() stage.
 	 */
-	if (is_ucounts_overlimit(new->ucounts, UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)) &&
+	if (is_rlimit_overlimit(new->ucounts, UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)) &&
 			new->user != INIT_USER)
 		current->flags |= PF_NPROC_EXCEEDED;
 	else
@@ -1360,6 +1367,7 @@ SYSCALL_DEFINE2(sethostname, char __user *, name, int, len)
 	if (!copy_from_user(tmp, name, len)) {
 		struct new_utsname *u;
 
+		add_device_randomness(tmp, len);
 		down_write(&uts_sem);
 		u = utsname();
 		memcpy(u->nodename, tmp, len);
@@ -1413,6 +1421,7 @@ SYSCALL_DEFINE2(setdomainname, char __user *, name, int, len)
 	if (!copy_from_user(tmp, name, len)) {
 		struct new_utsname *u;
 
+		add_device_randomness(tmp, len);
 		down_write(&uts_sem);
 		u = utsname();
 		memcpy(u->domainname, tmp, len);
@@ -2540,6 +2549,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		break;
 	case PR_SVE_GET_VL:
 		error = SVE_GET_VL();
+		break;
+	case PR_SME_SET_VL:
+		error = SME_SET_VL(arg2);
+		break;
+	case PR_SME_GET_VL:
+		error = SME_GET_VL();
 		break;
 	case PR_GET_SPECULATION_CTRL:
 		if (arg3 || arg4 || arg5)

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/Devicetree/index.rst
+:Original: Documentation/devicetree/index.rst
 
 :翻译:
 
@@ -24,21 +24,16 @@ Open Firmware 和 Devicetree
 
    usage-model
    of_unittest
-
-Todolist:
-
-*   kernel-api
+   kernel-api
 
 Devicetree Overlays
 ===================
 .. toctree::
    :maxdepth: 1
 
-Todolist:
-
-*   changesets
-*   dynamic-resolution-notes
-*   overlay-notes
+   changesets
+   dynamic-resolution-notes
+   overlay-notes
 
 Devicetree Bindings
 ===================

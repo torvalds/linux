@@ -66,7 +66,7 @@
 	prepare		crypto_aes_inv_sbox, .LReverse_ShiftRows, \temp
 	.endm
 
-	/* apply SubBytes transformation using the the preloaded Sbox */
+	/* apply SubBytes transformation using the preloaded Sbox */
 	.macro		sub_bytes, in
 	sub		v9.16b, \in\().16b, v15.16b
 	tbl		\in\().16b, {v16.16b-v19.16b}, \in\().16b

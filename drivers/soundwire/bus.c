@@ -7,14 +7,16 @@
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
+#include <linux/soundwire/sdw_type.h>
 #include "bus.h"
 #include "sysfs_local.h"
 
-static DEFINE_IDA(sdw_ida);
+static DEFINE_IDA(sdw_bus_ida);
+static DEFINE_IDA(sdw_peripheral_ida);
 
 static int sdw_get_id(struct sdw_bus *bus)
 {
-	int rc = ida_alloc(&sdw_ida, GFP_KERNEL);
+	int rc = ida_alloc(&sdw_bus_ida, GFP_KERNEL);
 
 	if (rc < 0)
 		return rc;
@@ -74,7 +76,6 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 
 	/*
 	 * Initialize multi_link flag
-	 * TODO: populate this flag by reading property from FW node
 	 */
 	bus->multi_link = false;
 	if (bus->ops->read_prop) {
@@ -156,9 +157,11 @@ static int sdw_delete_slave(struct device *dev, void *data)
 
 	mutex_lock(&bus->bus_lock);
 
-	if (slave->dev_num) /* clear dev_num if assigned */
+	if (slave->dev_num) { /* clear dev_num if assigned */
 		clear_bit(slave->dev_num, bus->assigned);
-
+		if (bus->dev_num_ida_min)
+			ida_free(&sdw_peripheral_ida, slave->dev_num);
+	}
 	list_del_init(&slave->node);
 	mutex_unlock(&bus->bus_lock);
 
@@ -178,7 +181,7 @@ void sdw_bus_master_delete(struct sdw_bus *bus)
 	sdw_master_device_del(bus);
 
 	sdw_bus_debugfs_exit(bus);
-	ida_free(&sdw_ida, bus->id);
+	ida_free(&sdw_bus_ida, bus->id);
 }
 EXPORT_SYMBOL(sdw_bus_master_delete);
 
@@ -295,6 +298,38 @@ int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg)
 
 	return ret;
 }
+
+/**
+ * sdw_show_ping_status() - Direct report of PING status, to be used by Peripheral drivers
+ * @bus: SDW bus
+ * @sync_delay: Delay before reading status
+ */
+void sdw_show_ping_status(struct sdw_bus *bus, bool sync_delay)
+{
+	u32 status;
+
+	if (!bus->ops->read_ping_status)
+		return;
+
+	/*
+	 * wait for peripheral to sync if desired. 10-15ms should be more than
+	 * enough in most cases.
+	 */
+	if (sync_delay)
+		usleep_range(10000, 15000);
+
+	mutex_lock(&bus->msg_lock);
+
+	status = bus->ops->read_ping_status(bus);
+
+	mutex_unlock(&bus->msg_lock);
+
+	if (!status)
+		dev_warn(bus->dev, "%s: no peripherals attached\n", __func__);
+	else
+		dev_dbg(bus->dev, "PING status: %#x\n", status);
+}
+EXPORT_SYMBOL(sdw_show_ping_status);
 
 /**
  * sdw_transfer_defer() - Asynchronously transfer message to a SDW Slave device
@@ -536,11 +571,9 @@ int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
 	int ret;
 
-	ret = pm_runtime_get_sync(&slave->dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(&slave->dev);
+	ret = pm_runtime_resume_and_get(&slave->dev);
+	if (ret < 0 && ret != -EACCES)
 		return ret;
-	}
 
 	ret = sdw_nread_no_pm(slave, addr, count, val);
 
@@ -562,11 +595,9 @@ int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
 	int ret;
 
-	ret = pm_runtime_get_sync(&slave->dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(&slave->dev);
+	ret = pm_runtime_resume_and_get(&slave->dev);
+	if (ret < 0 && ret != -EACCES)
 		return ret;
-	}
 
 	ret = sdw_nwrite_no_pm(slave, addr, count, val);
 
@@ -642,10 +673,18 @@ static int sdw_get_device_num(struct sdw_slave *slave)
 {
 	int bit;
 
-	bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
-	if (bit == SDW_MAX_DEVICES) {
-		bit = -ENODEV;
-		goto err;
+	if (slave->bus->dev_num_ida_min) {
+		bit = ida_alloc_range(&sdw_peripheral_ida,
+				      slave->bus->dev_num_ida_min, SDW_MAX_DEVICES,
+				      GFP_KERNEL);
+		if (bit < 0)
+			goto err;
+	} else {
+		bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
+		if (bit == SDW_MAX_DEVICES) {
+			bit = -ENODEV;
+			goto err;
+		}
 	}
 
 	/*
@@ -722,7 +761,7 @@ void sdw_extract_slave_id(struct sdw_bus *bus,
 }
 EXPORT_SYMBOL(sdw_extract_slave_id);
 
-static int sdw_program_device_num(struct sdw_bus *bus)
+static int sdw_program_device_num(struct sdw_bus *bus, bool *programmed)
 {
 	u8 buf[SDW_NUM_DEV_ID_REGISTERS] = {0};
 	struct sdw_slave *slave, *_s;
@@ -731,6 +770,8 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 	bool found;
 	int count = 0, ret;
 	u64 addr;
+
+	*programmed = false;
 
 	/* No Slave, so use raw xfer api */
 	ret = sdw_fill_msg(&msg, NULL, SDW_SCP_DEVID_0,
@@ -767,6 +808,16 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 				found = true;
 
 				/*
+				 * To prevent skipping state-machine stages don't
+				 * program a device until we've seen it UNATTACH.
+				 * Must return here because no other device on #0
+				 * can be detected until this one has been
+				 * assigned a device ID.
+				 */
+				if (slave->status != SDW_SLAVE_UNATTACHED)
+					return 0;
+
+				/*
 				 * Assign a new dev_num to this Slave and
 				 * not mark it present. It will be marked
 				 * present after it reports ATTACHED on new
@@ -779,6 +830,8 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 						ret);
 					return ret;
 				}
+
+				*programmed = true;
 
 				break;
 			}
@@ -819,13 +872,13 @@ static void sdw_modify_slave_status(struct sdw_slave *slave,
 	mutex_lock(&bus->bus_lock);
 
 	dev_vdbg(bus->dev,
-		 "%s: changing status slave %d status %d new status %d\n",
-		 __func__, slave->dev_num, slave->status, status);
+		 "changing status slave %d status %d new status %d\n",
+		 slave->dev_num, slave->status, status);
 
 	if (status == SDW_SLAVE_UNATTACHED) {
 		dev_dbg(&slave->dev,
-			"%s: initializing enumeration and init completion for Slave %d\n",
-			__func__, slave->dev_num);
+			"initializing enumeration and init completion for Slave %d\n",
+			slave->dev_num);
 
 		init_completion(&slave->enumeration_complete);
 		init_completion(&slave->initialization_complete);
@@ -833,8 +886,8 @@ static void sdw_modify_slave_status(struct sdw_slave *slave,
 	} else if ((status == SDW_SLAVE_ATTACHED) &&
 		   (slave->status == SDW_SLAVE_UNATTACHED)) {
 		dev_dbg(&slave->dev,
-			"%s: signaling enumeration completion for Slave %d\n",
-			__func__, slave->dev_num);
+			"signaling enumeration completion for Slave %d\n",
+			slave->dev_num);
 
 		complete(&slave->enumeration_complete);
 	}
@@ -846,15 +899,21 @@ static int sdw_slave_clk_stop_callback(struct sdw_slave *slave,
 				       enum sdw_clk_stop_mode mode,
 				       enum sdw_clk_stop_type type)
 {
-	int ret;
+	int ret = 0;
 
-	if (slave->ops && slave->ops->clk_stop) {
-		ret = slave->ops->clk_stop(slave, mode, type);
-		if (ret < 0)
-			return ret;
+	mutex_lock(&slave->sdw_dev_lock);
+
+	if (slave->probed)  {
+		struct device *dev = &slave->dev;
+		struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+		if (drv->ops && drv->ops->clk_stop)
+			ret = drv->ops->clk_stop(slave, mode, type);
 	}
 
-	return 0;
+	mutex_unlock(&slave->sdw_dev_lock);
+
+	return ret;
 }
 
 static int sdw_slave_clk_stop_prepare(struct sdw_slave *slave,
@@ -1506,10 +1565,9 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 
 	sdw_modify_slave_status(slave, SDW_SLAVE_ALERT);
 
-	ret = pm_runtime_get_sync(&slave->dev);
+	ret = pm_runtime_resume_and_get(&slave->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err(&slave->dev, "Failed to resume device: %d\n", ret);
-		pm_runtime_put_noidle(&slave->dev);
 		return ret;
 	}
 
@@ -1596,7 +1654,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			port = buf2[0] & SDW_SCP_INTSTAT2_PORT4_10;
 			for_each_set_bit(bit, &port, 8) {
 				/* scp2 ports start from 4 */
-				port_num = bit + 3;
+				port_num = bit + 4;
 				sdw_handle_port_interrupt(slave,
 						port_num,
 						&port_status[port_num]);
@@ -1608,7 +1666,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			port = buf2[1] & SDW_SCP_INTSTAT3_PORT11_14;
 			for_each_set_bit(bit, &port, 8) {
 				/* scp3 ports start from 11 */
-				port_num = bit + 10;
+				port_num = bit + 11;
 				sdw_handle_port_interrupt(slave,
 						port_num,
 						&port_status[port_num]);
@@ -1616,14 +1674,24 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		}
 
 		/* Update the Slave driver */
-		if (slave_notify && slave->ops &&
-		    slave->ops->interrupt_callback) {
-			slave_intr.sdca_cascade = sdca_cascade;
-			slave_intr.control_port = clear;
-			memcpy(slave_intr.port, &port_status,
-			       sizeof(slave_intr.port));
+		if (slave_notify) {
+			mutex_lock(&slave->sdw_dev_lock);
 
-			slave->ops->interrupt_callback(slave, &slave_intr);
+			if (slave->probed) {
+				struct device *dev = &slave->dev;
+				struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+				if (drv->ops && drv->ops->interrupt_callback) {
+					slave_intr.sdca_cascade = sdca_cascade;
+					slave_intr.control_port = clear;
+					memcpy(slave_intr.port, &port_status,
+					       sizeof(slave_intr.port));
+
+					drv->ops->interrupt_callback(slave, &slave_intr);
+				}
+			}
+
+			mutex_unlock(&slave->sdw_dev_lock);
 		}
 
 		/* Ack interrupt */
@@ -1697,29 +1765,21 @@ io_err:
 static int sdw_update_slave_status(struct sdw_slave *slave,
 				   enum sdw_slave_status status)
 {
-	unsigned long time;
+	int ret = 0;
 
-	if (!slave->probed) {
-		/*
-		 * the slave status update is typically handled in an
-		 * interrupt thread, which can race with the driver
-		 * probe, e.g. when a module needs to be loaded.
-		 *
-		 * make sure the probe is complete before updating
-		 * status.
-		 */
-		time = wait_for_completion_timeout(&slave->probe_complete,
-				msecs_to_jiffies(DEFAULT_PROBE_TIMEOUT));
-		if (!time) {
-			dev_err(&slave->dev, "Probe not complete, timed out\n");
-			return -ETIMEDOUT;
-		}
+	mutex_lock(&slave->sdw_dev_lock);
+
+	if (slave->probed) {
+		struct device *dev = &slave->dev;
+		struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+		if (drv->ops && drv->ops->update_status)
+			ret = drv->ops->update_status(slave, status);
 	}
 
-	if (!slave->ops || !slave->ops->update_status)
-		return 0;
+	mutex_unlock(&slave->sdw_dev_lock);
 
-	return slave->ops->update_status(slave, status);
+	return ret;
 }
 
 /**
@@ -1732,7 +1792,7 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 {
 	enum sdw_slave_status prev_status;
 	struct sdw_slave *slave;
-	bool attached_initializing;
+	bool attached_initializing, id_programmed;
 	int i, ret = 0;
 
 	/* first check if any Slaves fell off the bus */
@@ -1753,19 +1813,33 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 			dev_warn(&slave->dev, "Slave %d state check1: UNATTACHED, status was %d\n",
 				 i, slave->status);
 			sdw_modify_slave_status(slave, SDW_SLAVE_UNATTACHED);
+
+			/* Ensure driver knows that peripheral unattached */
+			ret = sdw_update_slave_status(slave, status[i]);
+			if (ret < 0)
+				dev_warn(&slave->dev, "Update Slave status failed:%d\n", ret);
 		}
 	}
 
 	if (status[0] == SDW_SLAVE_ATTACHED) {
 		dev_dbg(bus->dev, "Slave attached, programming device number\n");
-		ret = sdw_program_device_num(bus);
-		if (ret < 0)
-			dev_err(bus->dev, "Slave attach failed: %d\n", ret);
+
 		/*
-		 * programming a device number will have side effects,
-		 * so we deal with other devices at a later time
+		 * Programming a device number will have side effects,
+		 * so we deal with other devices at a later time.
+		 * This relies on those devices reporting ATTACHED, which will
+		 * trigger another call to this function. This will only
+		 * happen if at least one device ID was programmed.
+		 * Error returns from sdw_program_device_num() are currently
+		 * ignored because there's no useful recovery that can be done.
+		 * Returning the error here could result in the current status
+		 * of other devices not being handled, because if no device IDs
+		 * were programmed there's nothing to guarantee a status change
+		 * to trigger another call to this function.
 		 */
-		return ret;
+		sdw_program_device_num(bus, &id_programmed);
+		if (id_programmed)
+			return 0;
 	}
 
 	/* Continue to check other slave statuses */
@@ -1834,10 +1908,22 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 				"Update Slave status failed:%d\n", ret);
 		if (attached_initializing) {
 			dev_dbg(&slave->dev,
-				"%s: signaling initialization completion for Slave %d\n",
-				__func__, slave->dev_num);
+				"signaling initialization completion for Slave %d\n",
+				slave->dev_num);
 
 			complete(&slave->initialization_complete);
+
+			/*
+			 * If the manager became pm_runtime active, the peripherals will be
+			 * restarted and attach, but their pm_runtime status may remain
+			 * suspended. If the 'update_slave_status' callback initiates
+			 * any sort of deferred processing, this processing would not be
+			 * cancelled on pm_runtime suspend.
+			 * To avoid such zombie states, we queue a request to resume.
+			 * This would be a no-op in case the peripheral was being resumed
+			 * by e.g. the ALSA/ASoC framework.
+			 */
+			pm_request_resume(&slave->dev);
 		}
 	}
 

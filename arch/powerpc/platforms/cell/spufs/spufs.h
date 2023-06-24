@@ -76,7 +76,7 @@ struct spu_context {
 	struct address_space *mss;	   /* 'mss' area mappings. */
 	struct address_space *psmap;	   /* 'psmap' area mappings. */
 	struct mutex mapping_lock;
-	u64 object_id;		   /* user space pointer for oprofile */
+	u64 object_id;		   /* user space pointer for GNU Debugger */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
 	struct mutex state_mutex;
@@ -232,7 +232,7 @@ extern const struct spufs_tree_descr spufs_dir_debug_contents[];
 extern struct spufs_calls spufs_calls;
 struct coredump_params;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
-long spufs_create(struct path *nd, struct dentry *dentry, unsigned int flags,
+long spufs_create(const struct path *nd, struct dentry *dentry, unsigned int flags,
 			umode_t mode, struct file *filp);
 /* ELF coredump callbacks for writing SPU ELF notes */
 extern int spufs_coredump_extra_notes_size(void);
@@ -333,7 +333,6 @@ void spufs_stop_callback(struct spu *spu, int irq);
 void spufs_mfc_callback(struct spu *spu);
 void spufs_dma_callback(struct spu *spu, int type);
 
-extern struct spu_coredump_calls spufs_coredump_calls;
 struct spufs_coredump_reader {
 	char *name;
 	ssize_t (*dump)(struct spu_context *ctx, struct coredump_params *cprm);
@@ -341,7 +340,6 @@ struct spufs_coredump_reader {
 	size_t size;
 };
 extern const struct spufs_coredump_reader spufs_coredump_read[];
-extern int spufs_coredump_num_notes;
 
 extern int spu_init_csa(struct spu_state *csa);
 extern void spu_fini_csa(struct spu_state *csa);

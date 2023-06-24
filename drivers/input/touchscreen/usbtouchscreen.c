@@ -1654,6 +1654,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (id->driver_info == DEVTYPE_IGNORE)
 		return -ENODEV;
 
+	if (id->driver_info >= ARRAY_SIZE(usbtouch_dev_info))
+		return -ENODEV;
+
 	endpoint = usbtouch_get_input_endpoint(intf->cur_altsetting);
 	if (!endpoint)
 		return -ENXIO;
@@ -1705,7 +1708,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	usbtouch->input = input_dev;
 
 	if (udev->manufacturer)
-		strlcpy(usbtouch->name, udev->manufacturer, sizeof(usbtouch->name));
+		strscpy(usbtouch->name, udev->manufacturer, sizeof(usbtouch->name));
 
 	if (udev->product) {
 		if (udev->manufacturer)

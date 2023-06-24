@@ -61,7 +61,8 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 		struct dma_fence *fence;
 		int rel = 0;
 
-		dma_resv_iter_begin(&cursor, bo->tbo.base.resv, true);
+		dma_resv_iter_begin(&cursor, bo->tbo.base.resv,
+				    DMA_RESV_USAGE_BOOKKEEP);
 		dma_resv_for_each_fence_unlocked(&cursor, fence) {
 			if (dma_resv_iter_is_restarted(&cursor))
 				rel = 0;

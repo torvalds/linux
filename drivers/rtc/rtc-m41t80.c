@@ -989,7 +989,7 @@ static int m41t80_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int m41t80_remove(struct i2c_client *client)
+static void m41t80_remove(struct i2c_client *client)
 {
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
@@ -999,8 +999,6 @@ static int m41t80_remove(struct i2c_client *client)
 		unregister_reboot_notifier(&wdt_notifier);
 	}
 #endif
-
-	return 0;
 }
 
 static struct i2c_driver m41t80_driver = {

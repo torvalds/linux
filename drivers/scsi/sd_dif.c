@@ -59,8 +59,6 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 			bi.profile = &t10_pi_type1_crc;
 
 	bi.tuple_size = sizeof(struct t10_pi_tuple);
-	sd_printk(KERN_NOTICE, sdkp,
-		  "Enabling DIX %s protection\n", bi.profile->name);
 
 	if (dif && type) {
 		bi.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
@@ -72,11 +70,11 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 			bi.tag_size = sizeof(u16) + sizeof(u32);
 		else
 			bi.tag_size = sizeof(u16);
-
-		sd_printk(KERN_NOTICE, sdkp, "DIF application tag size %u\n",
-			  bi.tag_size);
 	}
 
+	sd_printk(KERN_NOTICE, sdkp,
+		  "Enabling DIX %s, application tag size %u bytes\n",
+		  bi.profile->name, bi.tag_size);
 out:
 	blk_integrity_register(disk, &bi);
 }

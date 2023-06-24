@@ -63,7 +63,7 @@
 	gpio@6000d000 {
 		init-mode-hog {
 			gpio-hog;
-			gpios =	<TEGRA_GPIO(DD, 7) GPIO_ACTIVE_HIGH>,
+			gpios = <TEGRA_GPIO(DD, 7) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(CC, 6) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 			output-low;
@@ -820,7 +820,7 @@
 			vddio-supply = <&vdd_1v8>;
 
 			device-wakeup-gpios = <&gpio TEGRA_GPIO(U, 1) GPIO_ACTIVE_HIGH>;
-			shutdown-gpios =      <&gpio TEGRA_GPIO(U, 0) GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&gpio TEGRA_GPIO(U, 0) GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -833,7 +833,7 @@
 		status = "okay";
 
 		touchscreen@10 {
-			compatible ="elan,ektf3624";
+			compatible = "elan,ektf3624";
 			reg = <0x10>;
 
 			interrupt-parent = <&gpio>;
@@ -1124,7 +1124,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		hall-sensor {
+		switch-hall-sensor {
 			label = "Lid";
 			gpios = <&gpio TEGRA_GPIO(S, 6) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -1134,7 +1134,7 @@
 			wakeup-source;
 		};
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -1143,7 +1143,7 @@
 			wakeup-source;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -1152,7 +1152,7 @@
 			wakeup-source;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio TEGRA_GPIO(Q, 3) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

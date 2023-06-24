@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
+#include "input-core-private.h"
 #include "input-poller.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -142,6 +143,8 @@ static void input_pass_values(struct input_dev *dev,
 	struct input_handle *handle;
 	struct input_value *v;
 
+	lockdep_assert_held(&dev->event_lock);
+
 	if (!count)
 		return;
 
@@ -172,44 +175,6 @@ static void input_pass_values(struct input_dev *dev,
 			}
 		}
 	}
-}
-
-static void input_pass_event(struct input_dev *dev,
-			     unsigned int type, unsigned int code, int value)
-{
-	struct input_value vals[] = { { type, code, value } };
-
-	input_pass_values(dev, vals, ARRAY_SIZE(vals));
-}
-
-/*
- * Generate software autorepeat event. Note that we take
- * dev->event_lock here to avoid racing with input_event
- * which may cause keys get "stuck".
- */
-static void input_repeat_key(struct timer_list *t)
-{
-	struct input_dev *dev = from_timer(dev, t, timer);
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (test_bit(dev->repeat_key, dev->key) &&
-	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
-		struct input_value vals[] =  {
-			{ EV_KEY, dev->repeat_key, 2 },
-			input_value_sync
-		};
-
-		input_set_timestamp(dev, ktime_get());
-		input_pass_values(dev, vals, ARRAY_SIZE(vals));
-
-		if (dev->rep[REP_PERIOD])
-			mod_timer(&dev->timer, jiffies +
-					msecs_to_jiffies(dev->rep[REP_PERIOD]));
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 #define INPUT_IGNORE_EVENT	0
@@ -274,6 +239,10 @@ static int input_get_disposition(struct input_dev *dev,
 {
 	int disposition = INPUT_IGNORE_EVENT;
 	int value = *pval;
+
+	/* filter-out events from inhibited devices */
+	if (dev->inhibited)
+		return INPUT_IGNORE_EVENT;
 
 	switch (type) {
 
@@ -375,19 +344,9 @@ static int input_get_disposition(struct input_dev *dev,
 	return disposition;
 }
 
-static void input_handle_event(struct input_dev *dev,
-			       unsigned int type, unsigned int code, int value)
+static void input_event_dispose(struct input_dev *dev, int disposition,
+				unsigned int type, unsigned int code, int value)
 {
-	int disposition;
-
-	/* filter-out events from inhibited devices */
-	if (dev->inhibited)
-		return;
-
-	disposition = input_get_disposition(dev, type, code, &value);
-	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
-		add_input_randomness(type, code, value);
-
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
 		dev->event(dev, type, code, value);
 
@@ -426,7 +385,22 @@ static void input_handle_event(struct input_dev *dev,
 		input_pass_values(dev, dev->vals, dev->num_vals);
 		dev->num_vals = 0;
 	}
+}
 
+void input_handle_event(struct input_dev *dev,
+			unsigned int type, unsigned int code, int value)
+{
+	int disposition;
+
+	lockdep_assert_held(&dev->event_lock);
+
+	disposition = input_get_disposition(dev, type, code, &value);
+	if (disposition != INPUT_IGNORE_EVENT) {
+		if (type != EV_SYN)
+			add_input_randomness(type, code, value);
+
+		input_event_dispose(dev, disposition, type, code, value);
+	}
 }
 
 /**
@@ -613,7 +587,7 @@ static void __input_release_device(struct input_handle *handle)
 					    lockdep_is_held(&dev->mutex));
 	if (grabber == handle) {
 		rcu_assign_pointer(dev->grab, NULL);
-		/* Make sure input_pass_event() notices that grab is gone */
+		/* Make sure input_pass_values() notices that grab is gone */
 		synchronize_rcu();
 
 		list_for_each_entry(handle, &dev->h_list, d_node)
@@ -736,7 +710,7 @@ void input_close_device(struct input_handle *handle)
 
 	if (!--handle->open) {
 		/*
-		 * synchronize_rcu() makes sure that input_pass_event()
+		 * synchronize_rcu() makes sure that input_pass_values()
 		 * completed and that no more input events are delivered
 		 * through this handle
 		 */
@@ -751,22 +725,21 @@ EXPORT_SYMBOL(input_close_device);
  * Simulate keyup events for all keys that are marked as pressed.
  * The function must be called with dev->event_lock held.
  */
-static void input_dev_release_keys(struct input_dev *dev)
+static bool input_dev_release_keys(struct input_dev *dev)
 {
 	bool need_sync = false;
 	int code;
 
+	lockdep_assert_held(&dev->event_lock);
+
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for_each_set_bit(code, dev->key, KEY_CNT) {
-			input_pass_event(dev, EV_KEY, code, 0);
+			input_handle_event(dev, EV_KEY, code, 0);
 			need_sync = true;
 		}
-
-		if (need_sync)
-			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
-
-		memset(dev->key, 0, sizeof(dev->key));
 	}
+
+	return need_sync;
 }
 
 /*
@@ -793,7 +766,8 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * generate events even after we done here but they will not
 	 * reach any handlers.
 	 */
-	input_dev_release_keys(dev);
+	if (input_dev_release_keys(dev))
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		handle->open = 0;
@@ -1004,12 +978,16 @@ int input_set_keycode(struct input_dev *dev,
 	} else if (test_bit(EV_KEY, dev->evbit) &&
 		   !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
 		   __test_and_clear_bit(old_keycode, dev->key)) {
-		struct input_value vals[] =  {
-			{ EV_KEY, old_keycode, 0 },
-			input_value_sync
-		};
-
-		input_pass_values(dev, vals, ARRAY_SIZE(vals));
+		/*
+		 * We have to use input_event_dispose() here directly instead
+		 * of input_handle_event() because the key we want to release
+		 * here is considered no longer supported by the device and
+		 * input_handle_event() will ignore it.
+		 */
+		input_event_dispose(dev, INPUT_PASS_TO_HANDLERS,
+				    EV_KEY, old_keycode, 0);
+		input_event_dispose(dev, INPUT_PASS_TO_HANDLERS | INPUT_FLUSH,
+				    EV_SYN, SYN_REPORT, 1);
 	}
 
  out:
@@ -1784,7 +1762,8 @@ void input_reset_device(struct input_dev *dev)
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	input_dev_toggle(dev, true);
-	input_dev_release_keys(dev);
+	if (input_dev_release_keys(dev))
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	mutex_unlock(&dev->mutex);
@@ -1793,8 +1772,6 @@ EXPORT_SYMBOL(input_reset_device);
 
 static int input_inhibit_device(struct input_dev *dev)
 {
-	int ret = 0;
-
 	mutex_lock(&dev->mutex);
 
 	if (dev->inhibited)
@@ -1808,7 +1785,9 @@ static int input_inhibit_device(struct input_dev *dev)
 	}
 
 	spin_lock_irq(&dev->event_lock);
+	input_mt_release_slots(dev);
 	input_dev_release_keys(dev);
+	input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 	input_dev_toggle(dev, false);
 	spin_unlock_irq(&dev->event_lock);
 
@@ -1816,7 +1795,7 @@ static int input_inhibit_device(struct input_dev *dev)
 
 out:
 	mutex_unlock(&dev->mutex);
-	return ret;
+	return 0;
 }
 
 static int input_uninhibit_device(struct input_dev *dev)
@@ -1859,7 +1838,8 @@ static int input_dev_suspend(struct device *dev)
 	 * Keys that are pressed now are unlikely to be
 	 * still pressed when we resume.
 	 */
-	input_dev_release_keys(input_dev);
+	if (input_dev_release_keys(input_dev))
+		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
 	/* Turn off LEDs and sounds, if any are active. */
 	input_dev_toggle(input_dev, false);
@@ -1893,7 +1873,8 @@ static int input_dev_freeze(struct device *dev)
 	 * Keys that are pressed now are unlikely to be
 	 * still pressed when we resume.
 	 */
-	input_dev_release_keys(input_dev);
+	if (input_dev_release_keys(input_dev))
+		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
 	spin_unlock_irq(&input_dev->event_lock);
 
@@ -2259,6 +2240,34 @@ static void devm_input_device_unregister(struct device *dev, void *res)
 	dev_dbg(dev, "%s: unregistering device %s\n",
 		__func__, dev_name(&input->dev));
 	__input_unregister_device(input);
+}
+
+/*
+ * Generate software autorepeat event. Note that we take
+ * dev->event_lock here to avoid racing with input_event
+ * which may cause keys get "stuck".
+ */
+static void input_repeat_key(struct timer_list *t)
+{
+	struct input_dev *dev = from_timer(dev, t, timer);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	if (!dev->inhibited &&
+	    test_bit(dev->repeat_key, dev->key) &&
+	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
+
+		input_set_timestamp(dev, ktime_get());
+		input_handle_event(dev, EV_KEY, dev->repeat_key, 2);
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
+
+		if (dev->rep[REP_PERIOD])
+			mod_timer(&dev->timer, jiffies +
+					msecs_to_jiffies(dev->rep[REP_PERIOD]));
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 /**

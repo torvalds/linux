@@ -46,7 +46,6 @@ struct svm_range_bo {
 	spinlock_t			list_lock;
 	struct amdgpu_amdkfd_fence	*eviction_fence;
 	struct work_struct		eviction_work;
-	struct svm_range_list		*svms;
 	uint32_t			evicting;
 	struct work_struct		release_work;
 };
@@ -125,7 +124,7 @@ struct svm_range {
 	uint32_t			actual_loc;
 	uint8_t				granularity;
 	atomic_t			invalid;
-	uint64_t			validate_timestamp;
+	ktime_t				validate_timestamp;
 	struct mmu_interval_notifier	notifier;
 	struct svm_work_list_item	work_item;
 	struct list_head		deferred_list;
@@ -133,6 +132,7 @@ struct svm_range {
 	DECLARE_BITMAP(bitmap_access, MAX_GPU_INSTANCE);
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
 	bool				validated_once;
+	bool				mapped_to_gpu;
 };
 
 static inline void svm_range_lock(struct svm_range *prange)
@@ -181,8 +181,6 @@ void schedule_deferred_list_work(struct svm_range_list *svms);
 void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 			 unsigned long offset, unsigned long npages);
 void svm_range_free_dma_mappings(struct svm_range *prange);
-void svm_range_prefault(struct svm_range *prange, struct mm_struct *mm,
-			void *owner);
 int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
 		       uint64_t *svm_priv_data_size);
 int kfd_criu_checkpoint_svm(struct kfd_process *p,
@@ -203,6 +201,10 @@ void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_s
 #define KFD_IS_SVM_API_SUPPORTED(dev) ((dev)->pgmap.type != 0)
 
 void svm_range_bo_unref_async(struct svm_range_bo *svm_bo);
+
+void svm_range_set_max_pages(struct amdgpu_device *adev);
+int svm_range_switch_xnack_reserve_mem(struct kfd_process *p, bool xnack_enabled);
+
 #else
 
 struct kfd_process;

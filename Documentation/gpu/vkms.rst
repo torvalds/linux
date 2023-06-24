@@ -102,12 +102,6 @@ Debugging:
 
 - kms_plane: some test cases are failing due to timeout on capturing CRC;
 
-- kms_flip: when running test cases in sequence, some successful individual
-  test cases are failing randomly; when individually, some successful test
-  cases display in the log the following error::
-
-  [drm:vkms_prepare_fb [vkms]] ERROR vmap failed: -4
-
 Virtual hardware (vblank-less) mode:
 
 - VKMS already has support for vblanks simulated via hrtimers, which can be
@@ -124,15 +118,10 @@ Add Plane Features
 
 There's lots of plane features we could add support for:
 
-- Clearing primary plane: clear primary plane before plane composition (at the
-  start) for correctness of pixel blend ops. It also guarantees alpha channel
-  is cleared in the target buffer for stable crc. [Good to get started]
-
 - ARGB format on primary plane: blend the primary plane into background with
   translucent alpha.
 
-- Support when the primary plane isn't exactly matching the output size: blend
-  the primary plane into the black background.
+- Add background color KMS property[Good to get started].
 
 - Full alpha blending on all planes.
 

@@ -4,6 +4,8 @@
  *   Copyright (C) 2018 Namjae Jeon <linkinjeon@kernel.org>
  */
 
+#include <linux/user_namespace.h>
+
 #include "smb_common.h"
 #include "server.h"
 #include "misc.h"
@@ -140,8 +142,10 @@ int ksmbd_verify_smb_message(struct ksmbd_work *work)
 
 	hdr = work->request_buf;
 	if (*(__le32 *)hdr->Protocol == SMB1_PROTO_NUMBER &&
-	    hdr->Command == SMB_COM_NEGOTIATE)
+	    hdr->Command == SMB_COM_NEGOTIATE) {
+		work->conn->outstanding_credits++;
 		return 0;
+	}
 
 	return -EINVAL;
 }
@@ -623,8 +627,8 @@ int ksmbd_override_fsids(struct ksmbd_work *work)
 	if (!cred)
 		return -ENOMEM;
 
-	cred->fsuid = make_kuid(current_user_ns(), uid);
-	cred->fsgid = make_kgid(current_user_ns(), gid);
+	cred->fsuid = make_kuid(&init_user_ns, uid);
+	cred->fsgid = make_kgid(&init_user_ns, gid);
 
 	gi = groups_alloc(0);
 	if (!gi) {

@@ -27,7 +27,7 @@
  */
 
 
-#ifdef	CONFIG_PPC_FSL_BOOK3E
+#ifdef	CONFIG_PPC_E500
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
 #define WDTP_MASK	(WDTP(0x3f))
 #else
@@ -45,7 +45,7 @@ MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 
 /* For the specified period, determine the number of seconds
  * corresponding to the reset time.  There will be a watchdog
@@ -74,7 +74,7 @@ static unsigned long long period_to_sec(unsigned int period)
 /*
  * This procedure will find the highest period which will give a timeout
  * greater than the one required. e.g. for a bus speed of 66666666 and
- * and a parameter of 2 secs, then this procedure will return a value of 38.
+ * a parameter of 2 secs, then this procedure will return a value of 38.
  */
 static unsigned int sec_to_period(unsigned int secs)
 {
@@ -88,7 +88,7 @@ static unsigned int sec_to_period(unsigned int secs)
 
 #define MAX_WDT_TIMEOUT		period_to_sec(1)
 
-#else /* CONFIG_PPC_FSL_BOOK3E */
+#else /* CONFIG_PPC_E500 */
 
 static unsigned long long period_to_sec(unsigned int period)
 {
@@ -102,7 +102,7 @@ static unsigned int sec_to_period(unsigned int secs)
 
 #define MAX_WDT_TIMEOUT		3	/* from Kconfig */
 
-#endif /* !CONFIG_PPC_FSL_BOOK3E */
+#endif /* !CONFIG_PPC_E500 */
 
 static void __booke_wdt_set(void *data)
 {

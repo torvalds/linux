@@ -894,7 +894,7 @@ module_exit(rds_exit);
 
 u32 rds_gen_num;
 
-static int rds_init(void)
+static int __init rds_init(void)
 {
 	int ret;
 

@@ -31,7 +31,6 @@
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 #include <asm/string.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/xmon.h>
 #include <asm/processor.h>
@@ -117,7 +116,7 @@ struct bpt {
 static struct bpt bpts[NBPTS];
 static struct bpt dabr[HBP_NUM_MAX];
 static struct bpt *iabr;
-static unsigned bpinstr = 0x7fe00008;	/* trap */
+static unsigned int bpinstr = PPC_RAW_TRAP();
 
 #define BP_NUM(bp)	((bp) - bpts + 1)
 
@@ -196,7 +195,7 @@ static int do_spu_cmd(void);
 #ifdef CONFIG_44x
 static void dump_tlb_44x(void);
 #endif
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 static void dump_tlb_book3e(void);
 #endif
 
@@ -289,11 +288,11 @@ Commands:\n\
   t	print backtrace\n\
   x	exit monitor and recover\n\
   X	exit monitor and don't recover\n"
-#if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_BOOK3E)
+#if defined(CONFIG_PPC_BOOK3S_64)
 "  u	dump segment table or SLB\n"
 #elif defined(CONFIG_PPC_BOOK3S_32)
 "  u	dump segment registers\n"
-#elif defined(CONFIG_44x) || defined(CONFIG_PPC_BOOK3E)
+#elif defined(CONFIG_44x) || defined(CONFIG_PPC_BOOK3E_64)
 "  u	dump TLB\n"
 #endif
 "  U	show uptime information\n"
@@ -373,7 +372,7 @@ static void write_ciabr(unsigned long ciabr)
  * set_ciabr() - set the CIABR
  * @addr:	The value to set.
  *
- * This function sets the correct privilege value into the the HW
+ * This function sets the correct privilege value into the HW
  * breakpoint address before writing it up in the CIABR register.
  */
 static void set_ciabr(unsigned long addr)
@@ -921,9 +920,9 @@ static void insert_bpts(void)
 			bp->enabled = 0;
 			continue;
 		}
-		if (IS_MTMSRD(instr) || IS_RFID(instr)) {
-			printf("Breakpoint at %lx is on an mtmsrd or rfid "
-			       "instruction, disabling it\n", bp->address);
+		if (!can_single_step(ppc_inst_val(instr))) {
+			printf("Breakpoint at %lx is on an instruction that can't be single stepped, disabling it\n",
+					bp->address);
 			bp->enabled = 0;
 			continue;
 		}
@@ -1167,7 +1166,7 @@ cmds(struct pt_regs *excp)
 		case 'u':
 			dump_tlb_44x();
 			break;
-#elif defined(CONFIG_PPC_BOOK3E)
+#elif defined(CONFIG_PPC_BOOK3E_64)
 		case 'u':
 			dump_tlb_book3e();
 			break;
@@ -1243,8 +1242,7 @@ static void bootcmds(void)
 	} else if (cmd == 'h') {
 		ppc_md.halt();
 	} else if (cmd == 'p') {
-		if (pm_power_off)
-			pm_power_off();
+		do_kernel_power_off();
 	}
 }
 
@@ -1470,9 +1468,8 @@ static long check_bp_loc(unsigned long addr)
 		printf("Can't read instruction at address %lx\n", addr);
 		return 0;
 	}
-	if (IS_MTMSRD(instr) || IS_RFID(instr)) {
-		printf("Breakpoints may not be placed on mtmsrd or rfid "
-		       "instructions\n");
+	if (!can_single_step(ppc_inst_val(instr))) {
+		printf("Breakpoints may not be placed on instructions that can't be single stepped\n");
 		return 0;
 	}
 	return 1;
@@ -2024,7 +2021,7 @@ static void dump_206_sprs(void)
 	if (!cpu_has_feature(CPU_FTR_ARCH_206))
 		return;
 
-	/* Actually some of these pre-date 2.06, but whatevs */
+	/* Actually some of these pre-date 2.06, but whatever */
 
 	printf("srr0   = %.16lx  srr1  = %.16lx dsisr  = %.8lx\n",
 		mfspr(SPRN_SRR0), mfspr(SPRN_SRR1), mfspr(SPRN_DSISR));
@@ -2689,7 +2686,7 @@ static void dump_one_paca(int cpu)
 	DUMP(p, rfi_flush_fallback_area, "%-*px");
 #endif
 	DUMP(p, dscr_default, "%#-*llx");
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	DUMP(p, pgd, "%-*px");
 	DUMP(p, kernel_pgd, "%-*px");
 	DUMP(p, tcd_ptr, "%-*px");
@@ -2704,7 +2701,7 @@ static void dump_one_paca(int cpu)
 	DUMP(p, canary, "%#-*lx");
 #endif
 	DUMP(p, saved_r1, "%#-*llx");
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	DUMP(p, trap_save, "%#-*x");
 #endif
 	DUMP(p, irq_soft_mask, "%#-*x");
@@ -3050,7 +3047,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 		dotted = 0;
 		last_inst = inst;
 		if (praddr)
-			printf(REG"  %s", adr, ppc_inst_as_str(inst));
+			printf(REG"  %08lx", adr, ppc_inst_as_ulong(inst));
 		printf("\t");
 		if (!ppc_inst_prefixed(inst))
 			dump_func(ppc_inst_val(inst), adr);
@@ -3826,7 +3823,7 @@ static void dump_tlb_44x(void)
 }
 #endif /* CONFIG_44x */
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 static void dump_tlb_book3e(void)
 {
 	u32 mmucfg, pidmask, lpidmask;
@@ -3968,7 +3965,7 @@ static void dump_tlb_book3e(void)
 		}
 	}
 }
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_BOOK3E_64 */
 
 static void xmon_init(int enable)
 {

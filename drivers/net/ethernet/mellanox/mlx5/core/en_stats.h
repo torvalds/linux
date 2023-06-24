@@ -273,6 +273,10 @@ struct mlx5e_qcounter_stats {
 	u32 rx_if_down_packets;
 };
 
+#define VNIC_ENV_GET(vnic_env_stats, c) \
+	MLX5_GET(query_vnic_env_out, (vnic_env_stats)->query_vnic_env_out, \
+		 vport_env.c)
+
 struct mlx5e_vnic_env_stats {
 	__be64 query_vnic_env_out[MLX5_ST_SZ_QW(query_vnic_env_out)];
 };
@@ -453,6 +457,8 @@ struct mlx5e_ptp_cq_stats {
 	u64 err_cqe;
 	u64 abort;
 	u64 abort_abs_diff_ns;
+	u64 resync_cqe;
+	u64 resync_event;
 };
 
 struct mlx5e_stats {
@@ -482,8 +488,8 @@ extern MLX5E_DECLARE_STATS_GRP(per_prio);
 extern MLX5E_DECLARE_STATS_GRP(pme);
 extern MLX5E_DECLARE_STATS_GRP(channels);
 extern MLX5E_DECLARE_STATS_GRP(per_port_buff_congest);
-extern MLX5E_DECLARE_STATS_GRP(ipsec_hw);
 extern MLX5E_DECLARE_STATS_GRP(ipsec_sw);
 extern MLX5E_DECLARE_STATS_GRP(ptp);
+extern MLX5E_DECLARE_STATS_GRP(macsec_hw);
 
 #endif /* __MLX5_EN_STATS_H__ */

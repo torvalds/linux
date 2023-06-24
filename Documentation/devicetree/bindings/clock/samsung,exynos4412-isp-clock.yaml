@@ -61,4 +61,3 @@ examples:
         clocks = <&clock CLK_ACLK200>, <&clock CLK_ACLK400_MCUISP>;
         clock-names = "aclk200", "aclk400_mcuisp";
     };
-

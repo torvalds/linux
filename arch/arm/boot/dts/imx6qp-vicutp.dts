@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "imx6qp.dtsi"
 #include "imx6qdl-vicut1.dtsi"
+#include "imx6qdl-vicut1-12inch.dtsi"
 
 / {
 	model = "Kverneland UT1P Board";

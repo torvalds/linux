@@ -83,6 +83,12 @@
 #define SUPPORT_ECCTABLE_SMU_VERSION 0x00442a00
 
 /*
+ * SMU support mca_ceumc_addr in ECCTABLE since version 68.55.0,
+ * use this to check mca_ceumc_addr record whether support
+ */
+#define SUPPORT_ECCTABLE_V2_SMU_VERSION 0x00443700
+
+/*
  * SMU support BAD CHENNEL info MSG since version 68.51.00,
  * use this to check ECCTALE feature whether support
  */
@@ -549,12 +555,13 @@ static int aldebaran_get_clk_table(struct smu_context *smu,
 				   struct pp_clock_levels_with_latency *clocks,
 				   struct smu_13_0_dpm_table *dpm_table)
 {
-	int i, count;
+	uint32_t i;
 
-	count = (dpm_table->count > MAX_NUM_CLOCKS) ? MAX_NUM_CLOCKS : dpm_table->count;
-	clocks->num_levels = count;
+	clocks->num_levels = min_t(uint32_t,
+				   dpm_table->count,
+				   (uint32_t)PP_MAX_CLOCK_LEVELS);
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < clocks->num_levels; i++) {
 		clocks->data[i].clocks_in_khz =
 			dpm_table->dpm_levels[i].value * 1000;
 		clocks->data[i].latency_in_us = 0;
@@ -650,6 +657,12 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_THROTTLER_STATUS:
 		*value = metrics->ThrottlerStatus;
 		break;
+	case METRICS_UNIQUE_ID_UPPER32:
+		*value = metrics->PublicSerialNumUpper32;
+		break;
+	case METRICS_UNIQUE_ID_LOWER32:
+		*value = metrics->PublicSerialNumLower32;
+		break;
 	default:
 		*value = UINT_MAX;
 		break;
@@ -733,7 +746,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
-	uint32_t display_levels;
+	int display_levels;
 	uint32_t freq_values[3] = {0};
 	uint32_t min_clk, max_clk;
 
@@ -765,7 +778,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		display_levels = clocks.num_levels;
+		display_levels = (clocks.num_levels == 1) ? 1 : 2;
 
 		min_clk = pstate_table->gfxclk_pstate.curr.min;
 		max_clk = pstate_table->gfxclk_pstate.curr.max;
@@ -775,30 +788,20 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 
 		/* fine-grained dpm has only 2 levels */
 		if (now > min_clk && now < max_clk) {
-			display_levels = clocks.num_levels + 1;
+			display_levels++;
 			freq_values[2] = max_clk;
 			freq_values[1] = now;
 		}
 
-		/*
-		 * For DPM disabled case, there will be only one clock level.
-		 * And it's safe to assume that is always the current clock.
-		 */
-		if (display_levels == clocks.num_levels) {
-			for (i = 0; i < clocks.num_levels; i++)
-				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
-					freq_values[i],
-					(clocks.num_levels == 1) ?
-						"*" :
-						(aldebaran_freqs_in_same_level(
-							 freq_values[i], now) ?
-							 "*" :
-							 ""));
-		} else {
-			for (i = 0; i < display_levels; i++)
-				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
-						freq_values[i], i == 1 ? "*" : "");
-		}
+		for (i = 0; i < display_levels; i++)
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+				freq_values[i],
+				(display_levels == 1) ?
+					"*" :
+					(aldebaran_freqs_in_same_level(
+						 freq_values[i], now) ?
+						 "*" :
+						 ""));
 
 		break;
 
@@ -1614,16 +1617,12 @@ static void aldebaran_i2c_control_fini(struct smu_context *smu)
 static void aldebaran_get_unique_id(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	SmuMetrics_t *metrics = smu->smu_table.metrics_table;
 	uint32_t upper32 = 0, lower32 = 0;
-	int ret;
 
-	ret = smu_cmn_get_metrics_table(smu, NULL, false);
-	if (ret)
+	if (aldebaran_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_UPPER32, &upper32))
 		goto out;
-
-	upper32 = metrics->PublicSerialNumUpper32;
-	lower32 = metrics->PublicSerialNumLower32;
+	if (aldebaran_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_LOWER32, &lower32))
+		goto out;
 
 out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
@@ -1641,6 +1640,15 @@ static bool aldebaran_is_baco_supported(struct smu_context *smu)
 static int aldebaran_set_df_cstate(struct smu_context *smu,
 				   enum pp_df_cstate state)
 {
+	struct amdgpu_device *adev = smu->adev;
+
+	/*
+	 * Aldebaran does not need the cstate disablement
+	 * prerequisite for gpu reset.
+	 */
+	if (amdgpu_in_reset(adev) || adev->in_suspend)
+		return 0;
+
 	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state, NULL);
 }
 
@@ -1664,6 +1672,7 @@ static const struct throttling_logging_label {
 	uint32_t feature_mask;
 	const char *label;
 } logging_label[] = {
+	{(1U << THROTTLER_TEMP_GPU_BIT), "GPU"},
 	{(1U << THROTTLER_TEMP_MEM_BIT), "HBM"},
 	{(1U << THROTTLER_TEMP_VR_GFX_BIT), "VR of GFX rail"},
 	{(1U << THROTTLER_TEMP_VR_MEM_BIT), "VR of HBM rail"},
@@ -1800,7 +1809,8 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_3);
 }
 
-static int aldebaran_check_ecc_table_support(struct smu_context *smu)
+static int aldebaran_check_ecc_table_support(struct smu_context *smu,
+		int *ecctable_version)
 {
 	uint32_t if_version = 0xff, smu_version = 0xff;
 	int ret = 0;
@@ -1813,6 +1823,11 @@ static int aldebaran_check_ecc_table_support(struct smu_context *smu)
 
 	if (smu_version < SUPPORT_ECCTABLE_SMU_VERSION)
 		ret = -EOPNOTSUPP;
+	else if (smu_version >= SUPPORT_ECCTABLE_SMU_VERSION &&
+			smu_version < SUPPORT_ECCTABLE_V2_SMU_VERSION)
+		*ecctable_version = 1;
+	else
+		*ecctable_version = 2;
 
 	return ret;
 }
@@ -1824,9 +1839,10 @@ static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
 	EccInfoTable_t *ecc_table = NULL;
 	struct ecc_info_per_ch *ecc_info_per_channel = NULL;
 	int i, ret = 0;
+	int table_version = 0;
 	struct umc_ecc_info *eccinfo = (struct umc_ecc_info *)table;
 
-	ret = aldebaran_check_ecc_table_support(smu);
+	ret = aldebaran_check_ecc_table_support(smu, &table_version);
 	if (ret)
 		return ret;
 
@@ -1842,16 +1858,33 @@ static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
 
 	ecc_table = (EccInfoTable_t *)smu_table->ecc_table;
 
-	for (i = 0; i < ALDEBARAN_UMC_CHANNEL_NUM; i++) {
-		ecc_info_per_channel = &(eccinfo->ecc[i]);
-		ecc_info_per_channel->ce_count_lo_chip =
-			ecc_table->EccInfo[i].ce_count_lo_chip;
-		ecc_info_per_channel->ce_count_hi_chip =
-			ecc_table->EccInfo[i].ce_count_hi_chip;
-		ecc_info_per_channel->mca_umc_status =
-			ecc_table->EccInfo[i].mca_umc_status;
-		ecc_info_per_channel->mca_umc_addr =
-			ecc_table->EccInfo[i].mca_umc_addr;
+	if (table_version == 1) {
+		for (i = 0; i < ALDEBARAN_UMC_CHANNEL_NUM; i++) {
+			ecc_info_per_channel = &(eccinfo->ecc[i]);
+			ecc_info_per_channel->ce_count_lo_chip =
+				ecc_table->EccInfo[i].ce_count_lo_chip;
+			ecc_info_per_channel->ce_count_hi_chip =
+				ecc_table->EccInfo[i].ce_count_hi_chip;
+			ecc_info_per_channel->mca_umc_status =
+				ecc_table->EccInfo[i].mca_umc_status;
+			ecc_info_per_channel->mca_umc_addr =
+				ecc_table->EccInfo[i].mca_umc_addr;
+		}
+	} else if (table_version == 2) {
+		for (i = 0; i < ALDEBARAN_UMC_CHANNEL_NUM; i++) {
+			ecc_info_per_channel = &(eccinfo->ecc[i]);
+			ecc_info_per_channel->ce_count_lo_chip =
+				ecc_table->EccInfo_V2[i].ce_count_lo_chip;
+			ecc_info_per_channel->ce_count_hi_chip =
+				ecc_table->EccInfo_V2[i].ce_count_hi_chip;
+			ecc_info_per_channel->mca_umc_status =
+				ecc_table->EccInfo_V2[i].mca_umc_status;
+			ecc_info_per_channel->mca_umc_addr =
+				ecc_table->EccInfo_V2[i].mca_umc_addr;
+			ecc_info_per_channel->mca_ceumc_addr =
+				ecc_table->EccInfo_V2[i].mca_ceumc_addr;
+		}
+		eccinfo->record_ce_addr_supported = 1;
 	}
 
 	return ret;
@@ -2114,4 +2147,5 @@ void aldebaran_set_ppt_funcs(struct smu_context *smu)
 	smu->clock_map = aldebaran_clk_map;
 	smu->feature_map = aldebaran_feature_mask_map;
 	smu->table_map = aldebaran_table_map;
+	smu_v13_0_set_smu_mailbox_registers(smu);
 }

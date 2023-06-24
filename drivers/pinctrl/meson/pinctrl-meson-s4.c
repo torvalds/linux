@@ -575,6 +575,7 @@ static struct meson_pmx_group meson_s4_periphs_groups[] = {
 	GROUP(tdm_d2_c,			4),
 	GROUP(tdm_d3_c,			4),
 	GROUP(tdm_fs1_c,		4),
+	GROUP(tdm_sclk1_c,		4),
 	GROUP(mclk_1_c,			4),
 	GROUP(tdm_d4_c,			4),
 	GROUP(tdm_d5_c,			4),
@@ -936,7 +937,7 @@ static const char * const iso7816_groups[] = {
 };
 
 static const char * const tdm_groups[] = {
-	"tdm_d2_c", "tdm_d3_c", "tdm_fs1_c", "tdm_d4_c", "tdm_d5_c",
+	"tdm_d2_c", "tdm_d3_c", "tdm_fs1_c", "tdm_d4_c", "tdm_d5_c", "tdm_sclk1_c",
 	"tdm_fs1_d", "tdm_d4_d", "tdm_d3_d", "tdm_d2_d", "tdm_sclk1_d",
 	"tdm_sclk1_h", "tdm_fs1_h", "tdm_d2_h", "tdm_d3_h", "tdm_d4_h",
 	"tdm_d1", "tdm_d0", "tdm_fs0", "tdm_sclk0", "tdm_fs2", "tdm_sclk2",

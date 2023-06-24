@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * VPIF header file
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef VPIF_H
@@ -330,10 +322,10 @@ static inline void channel1_intr_enable(int enable)
 }
 
 /* inline function to set buffer addresses in case of Y/C non mux mode */
-static inline void ch0_set_videobuf_addr_yc_nmux(unsigned long top_strt_luma,
-						 unsigned long btm_strt_luma,
-						 unsigned long top_strt_chroma,
-						 unsigned long btm_strt_chroma)
+static inline void ch0_set_video_buf_addr_yc_nmux(unsigned long top_strt_luma,
+						  unsigned long btm_strt_luma,
+						  unsigned long top_strt_chroma,
+						  unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH0_TOP_STRT_ADD_LUMA);
 	regw(btm_strt_luma, VPIF_CH0_BTM_STRT_ADD_LUMA);
@@ -342,10 +334,10 @@ static inline void ch0_set_videobuf_addr_yc_nmux(unsigned long top_strt_luma,
 }
 
 /* inline function to set buffer addresses in VPIF registers for video data */
-static inline void ch0_set_videobuf_addr(unsigned long top_strt_luma,
-					 unsigned long btm_strt_luma,
-					 unsigned long top_strt_chroma,
-					 unsigned long btm_strt_chroma)
+static inline void ch0_set_video_buf_addr(unsigned long top_strt_luma,
+					  unsigned long btm_strt_luma,
+					  unsigned long top_strt_chroma,
+					  unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH0_TOP_STRT_ADD_LUMA);
 	regw(btm_strt_luma, VPIF_CH0_BTM_STRT_ADD_LUMA);
@@ -353,10 +345,10 @@ static inline void ch0_set_videobuf_addr(unsigned long top_strt_luma,
 	regw(btm_strt_chroma, VPIF_CH0_BTM_STRT_ADD_CHROMA);
 }
 
-static inline void ch1_set_videobuf_addr(unsigned long top_strt_luma,
-					 unsigned long btm_strt_luma,
-					 unsigned long top_strt_chroma,
-					 unsigned long btm_strt_chroma)
+static inline void ch1_set_video_buf_addr(unsigned long top_strt_luma,
+					  unsigned long btm_strt_luma,
+					  unsigned long top_strt_chroma,
+					  unsigned long btm_strt_chroma)
 {
 
 	regw(top_strt_luma, VPIF_CH1_TOP_STRT_ADD_LUMA);
@@ -546,10 +538,10 @@ static inline void channel3_clipping_enable(int enable)
 }
 
 /* inline function to set buffer addresses in case of Y/C non mux mode */
-static inline void ch2_set_videobuf_addr_yc_nmux(unsigned long top_strt_luma,
-						 unsigned long btm_strt_luma,
-						 unsigned long top_strt_chroma,
-						 unsigned long btm_strt_chroma)
+static inline void ch2_set_video_buf_addr_yc_nmux(unsigned long top_strt_luma,
+						  unsigned long btm_strt_luma,
+						  unsigned long top_strt_chroma,
+						  unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH2_TOP_STRT_ADD_LUMA);
 	regw(btm_strt_luma, VPIF_CH2_BTM_STRT_ADD_LUMA);
@@ -558,10 +550,10 @@ static inline void ch2_set_videobuf_addr_yc_nmux(unsigned long top_strt_luma,
 }
 
 /* inline function to set buffer addresses in VPIF registers for video data */
-static inline void ch2_set_videobuf_addr(unsigned long top_strt_luma,
-					 unsigned long btm_strt_luma,
-					 unsigned long top_strt_chroma,
-					 unsigned long btm_strt_chroma)
+static inline void ch2_set_video_buf_addr(unsigned long top_strt_luma,
+					  unsigned long btm_strt_luma,
+					  unsigned long top_strt_chroma,
+					  unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH2_TOP_STRT_ADD_LUMA);
 	regw(btm_strt_luma, VPIF_CH2_BTM_STRT_ADD_LUMA);
@@ -569,10 +561,10 @@ static inline void ch2_set_videobuf_addr(unsigned long top_strt_luma,
 	regw(btm_strt_chroma, VPIF_CH2_BTM_STRT_ADD_CHROMA);
 }
 
-static inline void ch3_set_videobuf_addr(unsigned long top_strt_luma,
-					 unsigned long btm_strt_luma,
-					 unsigned long top_strt_chroma,
-					 unsigned long btm_strt_chroma)
+static inline void ch3_set_video_buf_addr(unsigned long top_strt_luma,
+					  unsigned long btm_strt_luma,
+					  unsigned long top_strt_chroma,
+					  unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH3_TOP_STRT_ADD_LUMA);
 	regw(btm_strt_luma, VPIF_CH3_BTM_STRT_ADD_LUMA);
@@ -582,18 +574,18 @@ static inline void ch3_set_videobuf_addr(unsigned long top_strt_luma,
 
 /* inline function to set buffer addresses in VPIF registers for vbi data */
 static inline void ch2_set_vbi_addr(unsigned long top_strt_luma,
-					 unsigned long btm_strt_luma,
-					 unsigned long top_strt_chroma,
-					 unsigned long btm_strt_chroma)
+				    unsigned long btm_strt_luma,
+				    unsigned long top_strt_chroma,
+				    unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH2_TOP_STRT_ADD_VANC);
 	regw(btm_strt_luma, VPIF_CH2_BTM_STRT_ADD_VANC);
 }
 
 static inline void ch3_set_vbi_addr(unsigned long top_strt_luma,
-					 unsigned long btm_strt_luma,
-					 unsigned long top_strt_chroma,
-					 unsigned long btm_strt_chroma)
+				    unsigned long btm_strt_luma,
+				    unsigned long top_strt_chroma,
+				    unsigned long btm_strt_chroma)
 {
 	regw(top_strt_luma, VPIF_CH3_TOP_STRT_ADD_VANC);
 	regw(btm_strt_luma, VPIF_CH3_BTM_STRT_ADD_VANC);
@@ -685,4 +677,3 @@ struct vpif_params {
 };
 
 #endif				/* End of #ifndef VPIF_H */
-

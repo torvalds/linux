@@ -15,7 +15,6 @@
 #include <linux/pmu.h>
 #include <linux/atomic.h>
 #include <linux/export.h>
-#include <asm/prom.h>
 #include <asm/backlight.h>
 
 #define OLD_BACKLIGHT_MAX 15

@@ -20,20 +20,20 @@ possible source of information on its own, the EM framework intervenes as an
 abstraction layer which standardizes the format of power cost tables in the
 kernel, hence enabling to avoid redundant work.
 
-The power values might be expressed in milli-Watts or in an 'abstract scale'.
+The power values might be expressed in micro-Watts or in an 'abstract scale'.
 Multiple subsystems might use the EM and it is up to the system integrator to
 check that the requirements for the power value scale types are met. An example
 can be found in the Energy-Aware Scheduler documentation
 Documentation/scheduler/sched-energy.rst. For some subsystems like thermal or
 powercap power values expressed in an 'abstract scale' might cause issues.
 These subsystems are more interested in estimation of power used in the past,
-thus the real milli-Watts might be needed. An example of these requirements can
+thus the real micro-Watts might be needed. An example of these requirements can
 be found in the Intelligent Power Allocation in
 Documentation/driver-api/thermal/power_allocator.rst.
 Kernel subsystems might implement automatic detection to check whether EM
 registered devices have inconsistent scale (based on EM internal flag).
 Important thing to keep in mind is that when the power values are expressed in
-an 'abstract scale' deriving real energy in milli-Joules would not be possible.
+an 'abstract scale' deriving real energy in micro-Joules would not be possible.
 
 The figure below depicts an example of drivers (Arm-specific here, but the
 approach is applicable to any architecture) providing power costs to the EM
@@ -98,7 +98,7 @@ Drivers are expected to register performance domains into the EM framework by
 calling the following API::
 
   int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
-		struct em_data_callback *cb, cpumask_t *cpus, bool milliwatts);
+		struct em_data_callback *cb, cpumask_t *cpus, bool microwatts);
 
 Drivers must provide a callback function returning <frequency, power> tuples
 for each performance state. The callback function provided by the driver is free
@@ -106,10 +106,10 @@ to fetch data from any relevant location (DT, firmware, ...), and by any mean
 deemed necessary. Only for CPU devices, drivers must specify the CPUs of the
 performance domains using cpumask. For other devices than CPUs the last
 argument must be set to NULL.
-The last argument 'milliwatts' is important to set with correct value. Kernel
+The last argument 'microwatts' is important to set with correct value. Kernel
 subsystems which use EM might rely on this flag to check if all EM devices use
 the same scale. If there are different scales, these subsystems might decide
-to: return warning/error, stop working or panic.
+to return warning/error, stop working or panic.
 See Section 3. for an example of driver implementing this
 callback, or Section 2.4 for further documentation on this API
 
@@ -122,6 +122,26 @@ The  EM can also be registered using OPP framework and information in DT
 allows a platform to register EM power values which are reflecting total power
 (static + dynamic). These power values might be coming directly from
 experiments and measurements.
+
+Registration of 'artificial' EM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There is an option to provide a custom callback for drivers missing detailed
+knowledge about power value for each performance state. The callback
+.get_cost() is optional and provides the 'cost' values used by the EAS.
+This is useful for platforms that only provide information on relative
+efficiency between CPU types, where one could use the information to
+create an abstract power model. But even an abstract power model can
+sometimes be hard to fit in, given the input power value size restrictions.
+The .get_cost() allows to provide the 'cost' values which reflect the
+efficiency of the CPUs. This would allow to provide EAS information which
+has different relation than what would be forced by the EM internal
+formulas calculating 'cost' values. To register an EM for such platform, the
+driver must set the flag 'microwatts' to 0, provide .get_power() callback
+and provide .get_cost() callback. The EM framework would handle such platform
+properly during registration. A flag EM_PERF_DOMAIN_ARTIFICIAL is set for such
+platform. Special care should be taken by other frameworks which are using EM
+to test and treat this flag properly.
 
 Registration of 'simple' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -181,8 +201,8 @@ EM framework::
 
   -> drivers/cpufreq/foo_cpufreq.c
 
-  01	static int est_power(unsigned long *mW, unsigned long *KHz,
-  02			struct device *dev)
+  01	static int est_power(struct device *dev, unsigned long *mW,
+  02			unsigned long *KHz)
   03	{
   04		long freq, power;
   05

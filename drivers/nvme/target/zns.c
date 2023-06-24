@@ -34,8 +34,7 @@ static int validate_conv_zones_cb(struct blk_zone *z,
 
 bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 {
-	struct request_queue *q = ns->bdev->bd_disk->queue;
-	u8 zasl = nvmet_zasl(queue_max_zone_append_sectors(q));
+	u8 zasl = nvmet_zasl(bdev_max_zone_append_sectors(ns->bdev));
 	struct gendisk *bd_disk = ns->bdev->bd_disk;
 	int ret;
 
@@ -58,10 +57,10 @@ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 	 * zones, reject the device. Otherwise, use report zones to detect if
 	 * the device has conventional zones.
 	 */
-	if (ns->bdev->bd_disk->queue->conv_zones_bitmap)
+	if (ns->bdev->bd_disk->conv_zones_bitmap)
 		return false;
 
-	ret = blkdev_report_zones(ns->bdev, 0, blkdev_nr_zones(bd_disk),
+	ret = blkdev_report_zones(ns->bdev, 0, bdev_nr_zones(ns->bdev),
 				  validate_conv_zones_cb, NULL);
 	if (ret < 0)
 		return false;
@@ -101,6 +100,7 @@ void nvmet_execute_identify_cns_cs_ns(struct nvmet_req *req)
 	struct nvme_id_ns_zns *id_zns;
 	u64 zsze;
 	u16 status;
+	u32 mar, mor;
 
 	if (le32_to_cpu(req->cmd->identify.nsid) == NVME_NSID_ALL) {
 		req->error_loc = offsetof(struct nvme_identify, nsid);
@@ -131,8 +131,20 @@ void nvmet_execute_identify_cns_cs_ns(struct nvmet_req *req)
 	zsze = (bdev_zone_sectors(req->ns->bdev) << 9) >>
 					req->ns->blksize_shift;
 	id_zns->lbafe[0].zsze = cpu_to_le64(zsze);
-	id_zns->mor = cpu_to_le32(bdev_max_open_zones(req->ns->bdev));
-	id_zns->mar = cpu_to_le32(bdev_max_active_zones(req->ns->bdev));
+
+	mor = bdev_max_open_zones(req->ns->bdev);
+	if (!mor)
+		mor = U32_MAX;
+	else
+		mor--;
+	id_zns->mor = cpu_to_le32(mor);
+
+	mar = bdev_max_active_zones(req->ns->bdev);
+	if (!mar)
+		mar = U32_MAX;
+	else
+		mar--;
+	id_zns->mar = cpu_to_le32(mar);
 
 done:
 	status = nvmet_copy_to_sgl(req, 0, id_zns, sizeof(*id_zns));
@@ -242,7 +254,7 @@ static unsigned long nvmet_req_nr_zones_from_slba(struct nvmet_req *req)
 {
 	unsigned int sect = nvmet_lba_to_sect(req->ns, req->cmd->zmr.slba);
 
-	return blkdev_nr_zones(req->ns->bdev->bd_disk) -
+	return bdev_nr_zones(req->ns->bdev) -
 		(sect >> ilog2(bdev_zone_sectors(req->ns->bdev)));
 }
 
@@ -309,7 +321,7 @@ void nvmet_bdev_execute_zone_mgmt_recv(struct nvmet_req *req)
 	queue_work(zbd_wq, &req->z.zmgmt_work);
 }
 
-static inline enum req_opf zsa_req_op(u8 zsa)
+static inline enum req_op zsa_req_op(u8 zsa)
 {
 	switch (zsa) {
 	case NVME_ZONE_OPEN:
@@ -387,8 +399,7 @@ static int zmgmt_send_scan_cb(struct blk_zone *z, unsigned i, void *d)
 static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 {
 	struct block_device *bdev = req->ns->bdev;
-	unsigned int nr_zones = blkdev_nr_zones(bdev->bd_disk);
-	struct request_queue *q = bdev_get_queue(bdev);
+	unsigned int nr_zones = bdev_nr_zones(bdev);
 	struct bio *bio = NULL;
 	sector_t sector = 0;
 	int ret;
@@ -397,7 +408,7 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 	};
 
 	d.zbitmap = kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(*(d.zbitmap)),
-				 GFP_NOIO, q->node);
+				 GFP_NOIO, bdev->bd_disk->node_id);
 	if (!d.zbitmap) {
 		ret = -ENOMEM;
 		goto out;
@@ -414,8 +425,8 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 		ret = 0;
 	}
 
-	while (sector < get_capacity(bdev->bd_disk)) {
-		if (test_bit(blk_queue_zone_no(q, sector), d.zbitmap)) {
+	while (sector < bdev_nr_sectors(bdev)) {
+		if (test_bit(disk_zone_no(bdev->bd_disk, sector), d.zbitmap)) {
 			bio = blk_next_bio(bio, bdev, 0,
 				zsa_req_op(req->cmd->zms.zsa) | REQ_SYNC,
 				GFP_KERNEL);
@@ -423,7 +434,7 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 			/* This may take a while, so be nice to others */
 			cond_resched();
 		}
-		sector += blk_queue_zone_sectors(q);
+		sector += bdev_zone_sectors(bdev);
 	}
 
 	if (bio) {
@@ -466,7 +477,7 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 {
 	struct nvmet_req *req = container_of(w, struct nvmet_req, z.zmgmt_work);
 	sector_t sect = nvmet_lba_to_sect(req->ns, req->cmd->zms.slba);
-	enum req_opf op = zsa_req_op(req->cmd->zms.zsa);
+	enum req_op op = zsa_req_op(req->cmd->zms.zsa);
 	struct block_device *bdev = req->ns->bdev;
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
 	u16 status = NVME_SC_SUCCESS;
@@ -526,7 +537,7 @@ static void nvmet_bdev_zone_append_bio_done(struct bio *bio)
 void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 {
 	sector_t sect = nvmet_lba_to_sect(req->ns, req->cmd->rw.slba);
-	const unsigned int op = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
+	const blk_opf_t opf = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
 	u16 status = NVME_SC_SUCCESS;
 	unsigned int total_len = 0;
 	struct scatterlist *sg;
@@ -557,9 +568,9 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 	if (nvmet_use_inline_bvec(req)) {
 		bio = &req->z.inline_bio;
 		bio_init(bio, req->ns->bdev, req->inline_bvec,
-			 ARRAY_SIZE(req->inline_bvec), op);
+			 ARRAY_SIZE(req->inline_bvec), opf);
 	} else {
-		bio = bio_alloc(req->ns->bdev, req->sg_cnt, op, GFP_KERNEL);
+		bio = bio_alloc(req->ns->bdev, req->sg_cnt, opf, GFP_KERNEL);
 	}
 
 	bio->bi_end_io = nvmet_bdev_zone_append_bio_done;

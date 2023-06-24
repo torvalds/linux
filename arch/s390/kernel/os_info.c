@@ -13,8 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <asm/checksum.h>
-#include <asm/lowcore.h>
+#include <asm/abs_lowcore.h>
 #include <asm/os_info.h>
+#include <asm/maccess.h>
 #include <asm/asm-offsets.h>
 
 /*
@@ -57,13 +58,16 @@ void os_info_entry_add(int nr, void *ptr, u64 size)
  */
 void __init os_info_init(void)
 {
-	void *ptr = &os_info;
+	struct lowcore *abs_lc;
+	unsigned long flags;
 
 	os_info.version_major = OS_INFO_VERSION_MAJOR;
 	os_info.version_minor = OS_INFO_VERSION_MINOR;
 	os_info.magic = OS_INFO_MAGIC;
 	os_info.csum = os_info_csum(&os_info);
-	put_abs_lowcore(os_info, __pa(ptr));
+	abs_lc = get_abs_lowcore(&flags);
+	abs_lc->os_info = __pa(&os_info);
+	put_abs_lowcore(abs_lc, flags);
 }
 
 #ifdef CONFIG_CRASH_DUMP

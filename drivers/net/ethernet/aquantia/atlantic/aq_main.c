@@ -14,16 +14,21 @@
 #include "aq_ptp.h"
 #include "aq_filters.h"
 #include "aq_hw_utils.h"
+#include "aq_vec.h"
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <net/pkt_cls.h>
+#include <linux/filter.h>
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR(AQ_CFG_DRV_AUTHOR);
 MODULE_DESCRIPTION(AQ_CFG_DRV_DESC);
+
+DEFINE_STATIC_KEY_FALSE(aq_xdp_locking_key);
+EXPORT_SYMBOL(aq_xdp_locking_key);
 
 static const char aq_ndev_driver_name[] = AQ_CFG_DRV_NAME;
 
@@ -53,7 +58,7 @@ struct net_device *aq_ndev_alloc(void)
 	return ndev;
 }
 
-static int aq_ndev_open(struct net_device *ndev)
+int aq_ndev_open(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	int err = 0;
@@ -83,17 +88,14 @@ err_exit:
 	return err;
 }
 
-static int aq_ndev_close(struct net_device *ndev)
+int aq_ndev_close(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	int err = 0;
 
 	err = aq_nic_stop(aq_nic);
-	if (err < 0)
-		goto err_exit;
 	aq_nic_deinit(aq_nic, true);
 
-err_exit:
 	return err;
 }
 
@@ -126,8 +128,18 @@ static netdev_tx_t aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *nd
 
 static int aq_ndev_change_mtu(struct net_device *ndev, int new_mtu)
 {
+	int new_frame_size = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct bpf_prog *prog;
 	int err;
+
+	prog = READ_ONCE(aq_nic->xdp_prog);
+	if (prog && !prog->aux->xdp_has_frags &&
+	    new_frame_size > AQ_CFG_RX_FRAME_MAX) {
+		netdev_err(ndev, "Illegal MTU %d for XDP prog without frags\n",
+			   ndev->mtu);
+		return -EOPNOTSUPP;
+	}
 
 	err = aq_nic_set_mtu(aq_nic, new_mtu + ETH_HLEN);
 
@@ -202,6 +214,25 @@ static int aq_ndev_set_features(struct net_device *ndev,
 
 err_exit:
 	return err;
+}
+
+static netdev_features_t aq_ndev_fix_features(struct net_device *ndev,
+					      netdev_features_t features)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct bpf_prog *prog;
+
+	if (!(features & NETIF_F_RXCSUM))
+		features &= ~NETIF_F_LRO;
+
+	prog = READ_ONCE(aq_nic->xdp_prog);
+	if (prog && !prog->aux->xdp_has_frags &&
+	    aq_nic->xdp_prog && features & NETIF_F_LRO) {
+		netdev_err(ndev, "LRO is not supported with single buffer XDP, disabling\n");
+		features &= ~NETIF_F_LRO;
+	}
+
+	return features;
 }
 
 static int aq_ndev_set_mac_address(struct net_device *ndev, void *addr)
@@ -410,6 +441,56 @@ static int aq_ndo_setup_tc(struct net_device *dev, enum tc_setup_type type,
 				      mqprio->qopt.prio_tc_map);
 }
 
+static int aq_xdp_setup(struct net_device *ndev, struct bpf_prog *prog,
+			struct netlink_ext_ack *extack)
+{
+	bool need_update, running = netif_running(ndev);
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct bpf_prog *old_prog;
+
+	if (prog && !prog->aux->xdp_has_frags) {
+		if (ndev->mtu > AQ_CFG_RX_FRAME_MAX) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "prog does not support XDP frags");
+			return -EOPNOTSUPP;
+		}
+
+		if (prog && ndev->features & NETIF_F_LRO) {
+			netdev_err(ndev,
+				   "LRO is not supported with single buffer XDP, disabling\n");
+			ndev->features &= ~NETIF_F_LRO;
+		}
+	}
+
+	need_update = !!aq_nic->xdp_prog != !!prog;
+	if (running && need_update)
+		aq_ndev_close(ndev);
+
+	old_prog = xchg(&aq_nic->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	if (!old_prog && prog)
+		static_branch_inc(&aq_xdp_locking_key);
+	else if (old_prog && !prog)
+		static_branch_dec(&aq_xdp_locking_key);
+
+	if (running && need_update)
+		return aq_ndev_open(ndev);
+
+	return 0;
+}
+
+static int aq_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return aq_xdp_setup(dev, xdp->prog, xdp->extack);
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct net_device_ops aq_ndev_ops = {
 	.ndo_open = aq_ndev_open,
 	.ndo_stop = aq_ndev_close,
@@ -418,10 +499,13 @@ static const struct net_device_ops aq_ndev_ops = {
 	.ndo_change_mtu = aq_ndev_change_mtu,
 	.ndo_set_mac_address = aq_ndev_set_mac_address,
 	.ndo_set_features = aq_ndev_set_features,
+	.ndo_fix_features = aq_ndev_fix_features,
 	.ndo_eth_ioctl = aq_ndev_ioctl,
 	.ndo_vlan_rx_add_vid = aq_ndo_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = aq_ndo_vlan_rx_kill_vid,
 	.ndo_setup_tc = aq_ndo_setup_tc,
+	.ndo_bpf = aq_xdp,
+	.ndo_xdp_xmit = aq_xdp_xmit,
 };
 
 static int __init aq_ndev_init_module(void)

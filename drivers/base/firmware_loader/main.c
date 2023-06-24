@@ -35,6 +35,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 #include <linux/security.h>
+#include <linux/zstd.h>
 #include <linux/xz.h>
 
 #include <generated/utsrelease.h>
@@ -91,9 +92,9 @@ static inline struct fw_priv *to_fw_priv(struct kref *ref)
  * guarding for corner cases a global lock should be OK */
 DEFINE_MUTEX(fw_lock);
 
-static struct firmware_cache fw_cache;
+struct firmware_cache fw_cache;
 
-static void fw_state_init(struct fw_priv *fw_priv)
+void fw_state_init(struct fw_priv *fw_priv)
 {
 	struct fw_state *fw_st = &fw_priv->fw_st;
 
@@ -163,13 +164,9 @@ static struct fw_priv *__lookup_fw_priv(const char *fw_name)
 }
 
 /* Returns 1 for batching firmware requests with the same name */
-static int alloc_lookup_fw_priv(const char *fw_name,
-				struct firmware_cache *fwc,
-				struct fw_priv **fw_priv,
-				void *dbuf,
-				size_t size,
-				size_t offset,
-				u32 opt_flags)
+int alloc_lookup_fw_priv(const char *fw_name, struct firmware_cache *fwc,
+			 struct fw_priv **fw_priv, void *dbuf, size_t size,
+			 size_t offset, u32 opt_flags)
 {
 	struct fw_priv *tmp;
 
@@ -224,7 +221,7 @@ static void __free_fw_priv(struct kref *ref)
 	kfree(fw_priv);
 }
 
-static void free_fw_priv(struct fw_priv *fw_priv)
+void free_fw_priv(struct fw_priv *fw_priv)
 {
 	struct firmware_cache *fwc = fw_priv->fwc;
 	spin_lock(&fwc->lock);
@@ -253,6 +250,8 @@ void fw_free_paged_buf(struct fw_priv *fw_priv)
 	fw_priv->pages = NULL;
 	fw_priv->page_array_size = 0;
 	fw_priv->nr_pages = 0;
+	fw_priv->data = NULL;
+	fw_priv->size = 0;
 }
 
 int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed)
@@ -305,9 +304,73 @@ int fw_map_paged_buf(struct fw_priv *fw_priv)
 #endif
 
 /*
+ * ZSTD-compressed firmware support
+ */
+#ifdef CONFIG_FW_LOADER_COMPRESS_ZSTD
+static int fw_decompress_zstd(struct device *dev, struct fw_priv *fw_priv,
+			      size_t in_size, const void *in_buffer)
+{
+	size_t len, out_size, workspace_size;
+	void *workspace, *out_buf;
+	zstd_dctx *ctx;
+	int err;
+
+	if (fw_priv->allocated_size) {
+		out_size = fw_priv->allocated_size;
+		out_buf = fw_priv->data;
+	} else {
+		zstd_frame_header params;
+
+		if (zstd_get_frame_header(&params, in_buffer, in_size) ||
+		    params.frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+			dev_dbg(dev, "%s: invalid zstd header\n", __func__);
+			return -EINVAL;
+		}
+		out_size = params.frameContentSize;
+		out_buf = vzalloc(out_size);
+		if (!out_buf)
+			return -ENOMEM;
+	}
+
+	workspace_size = zstd_dctx_workspace_bound();
+	workspace = kvzalloc(workspace_size, GFP_KERNEL);
+	if (!workspace) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	ctx = zstd_init_dctx(workspace, workspace_size);
+	if (!ctx) {
+		dev_dbg(dev, "%s: failed to initialize context\n", __func__);
+		err = -EINVAL;
+		goto error;
+	}
+
+	len = zstd_decompress_dctx(ctx, out_buf, out_size, in_buffer, in_size);
+	if (zstd_is_error(len)) {
+		dev_dbg(dev, "%s: failed to decompress: %d\n", __func__,
+			zstd_get_error_code(len));
+		err = -EINVAL;
+		goto error;
+	}
+
+	if (!fw_priv->allocated_size)
+		fw_priv->data = out_buf;
+	fw_priv->size = len;
+	err = 0;
+
+ error:
+	kvfree(workspace);
+	if (err && !fw_priv->allocated_size)
+		vfree(out_buf);
+	return err;
+}
+#endif /* CONFIG_FW_LOADER_COMPRESS_ZSTD */
+
+/*
  * XZ-compressed firmware support
  */
-#ifdef CONFIG_FW_LOADER_COMPRESS
+#ifdef CONFIG_FW_LOADER_COMPRESS_XZ
 /* show an error and return the standard error code */
 static int fw_decompress_xz_error(struct device *dev, enum xz_ret xz_ret)
 {
@@ -372,11 +435,11 @@ static int fw_decompress_xz_pages(struct device *dev, struct fw_priv *fw_priv,
 
 		/* decompress onto the new allocated page */
 		page = fw_priv->pages[fw_priv->nr_pages - 1];
-		xz_buf.out = kmap(page);
+		xz_buf.out = kmap_local_page(page);
 		xz_buf.out_pos = 0;
 		xz_buf.out_size = PAGE_SIZE;
 		xz_ret = xz_dec_run(xz_dec, &xz_buf);
-		kunmap(page);
+		kunmap_local(xz_buf.out);
 		fw_priv->size += xz_buf.out_pos;
 		/* partial decompression means either end or error */
 		if (xz_buf.out_pos != PAGE_SIZE)
@@ -401,7 +464,7 @@ static int fw_decompress_xz(struct device *dev, struct fw_priv *fw_priv,
 	else
 		return fw_decompress_xz_pages(dev, fw_priv, in_size, in_buffer);
 }
-#endif /* CONFIG_FW_LOADER_COMPRESS */
+#endif /* CONFIG_FW_LOADER_COMPRESS_XZ */
 
 /* direct firmware loading support */
 static char fw_path_para[256];
@@ -771,7 +834,12 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	if (!(opt_flags & FW_OPT_PARTIAL))
 		nondirect = true;
 
-#ifdef CONFIG_FW_LOADER_COMPRESS
+#ifdef CONFIG_FW_LOADER_COMPRESS_ZSTD
+	if (ret == -ENOENT && nondirect)
+		ret = fw_get_filesystem_firmware(device, fw->priv, ".zst",
+						 fw_decompress_zstd);
+#endif
+#ifdef CONFIG_FW_LOADER_COMPRESS_XZ
 	if (ret == -ENOENT && nondirect)
 		ret = fw_get_filesystem_firmware(device, fw->priv, ".xz",
 						 fw_decompress_xz);

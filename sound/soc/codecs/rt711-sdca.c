@@ -34,7 +34,7 @@ static int rt711_sdca_index_write(struct rt711_sdca_priv *rt711,
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
-		dev_err(rt711->component->dev,
+		dev_err(&rt711->slave->dev,
 			"Failed to set private value: %06x <= %04x ret=%d\n",
 			addr, value, ret);
 
@@ -50,7 +50,7 @@ static int rt711_sdca_index_read(struct rt711_sdca_priv *rt711,
 
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
-		dev_err(rt711->component->dev,
+		dev_err(&rt711->slave->dev,
 			"Failed to get private value: %06x => %04x ret=%d\n",
 			addr, *value, ret);
 
@@ -294,7 +294,7 @@ static void rt711_sdca_jack_detect_handler(struct work_struct *work)
 	if (!rt711->hs_jack)
 		return;
 
-	if (!rt711->component->card->instantiated)
+	if (!rt711->component->card || !rt711->component->card->instantiated)
 		return;
 
 	/* SDW_SCP_SDCA_INT_SDCA_0 is used for jack detection */
@@ -487,16 +487,27 @@ static int rt711_sdca_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt711->hs_jack = hs_jack;
 
-	if (!rt711->hw_init) {
-		dev_dbg(&rt711->slave->dev,
-			"%s hw_init not ready yet\n", __func__);
+	ret = pm_runtime_resume_and_get(component->dev);
+	if (ret < 0) {
+		if (ret != -EACCES) {
+			dev_err(component->dev, "%s: failed to resume %d\n", __func__, ret);
+			return ret;
+		}
+
+		/* pm_runtime not enabled yet */
+		dev_dbg(component->dev,	"%s: skipping jack init for now\n", __func__);
 		return 0;
 	}
 
 	rt711_sdca_jack_init(rt711);
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
+
 	return 0;
 }
 
@@ -1183,19 +1194,16 @@ static int rt711_sdca_parse_dt(struct rt711_sdca_priv *rt711, struct device *dev
 static int rt711_sdca_probe(struct snd_soc_component *component)
 {
 	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt711_sdca_parse_dt(rt711, &rt711->slave->dev);
 	rt711->component = component;
 
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
 	return 0;
-}
-
-static void rt711_sdca_remove(struct snd_soc_component *component)
-{
-	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
-
-	regcache_cache_only(rt711->regmap, true);
-	regcache_cache_only(rt711->mbq_regmap, true);
 }
 
 static const struct snd_soc_component_driver soc_sdca_dev_rt711 = {
@@ -1207,7 +1215,7 @@ static const struct snd_soc_component_driver soc_sdca_dev_rt711 = {
 	.dapm_routes = rt711_sdca_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt711_sdca_audio_map),
 	.set_jack = rt711_sdca_set_jack_detect,
-	.remove = rt711_sdca_remove,
+	.endianness = 1,
 };
 
 static int rt711_sdca_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
@@ -1411,7 +1419,11 @@ int rt711_sdca_init(struct device *dev, struct regmap *regmap,
 	rt711->regmap = regmap;
 	rt711->mbq_regmap = mbq_regmap;
 
+	mutex_init(&rt711->calibrate_mutex);
 	mutex_init(&rt711->disable_irq_lock);
+
+	INIT_DELAYED_WORK(&rt711->jack_detect_work, rt711_sdca_jack_detect_handler);
+	INIT_DELAYED_WORK(&rt711->jack_btn_check_work, rt711_sdca_btn_check_handler);
 
 	/*
 	 * Mark hw_init to false
@@ -1543,14 +1555,6 @@ int rt711_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	/* ge_exclusive_inbox_en disable */
 	rt711_sdca_index_update_bits(rt711, RT711_VENDOR_HDA_CTL,
 		RT711_PUSH_BTN_INT_CTL0, 0x20, 0x00);
-
-	if (!rt711->first_hw_init) {
-		INIT_DELAYED_WORK(&rt711->jack_detect_work,
-			rt711_sdca_jack_detect_handler);
-		INIT_DELAYED_WORK(&rt711->jack_btn_check_work,
-			rt711_sdca_btn_check_handler);
-		mutex_init(&rt711->calibrate_mutex);
-	}
 
 	/* calibration */
 	ret = rt711_sdca_calibration(rt711);

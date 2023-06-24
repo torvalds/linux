@@ -20,6 +20,7 @@ properties:
       - sprd,sc2723-adc
       - sprd,sc2730-adc
       - sprd,sc2731-adc
+      - sprd,ump9620-adc
 
   reg:
     maxItems: 1
@@ -33,13 +34,39 @@ properties:
   hwlocks:
     maxItems: 1
 
-  nvmem-cells:
-    maxItems: 2
+  nvmem-cells: true
 
-  nvmem-cell-names:
-    items:
-      - const: big_scale_calib
-      - const: small_scale_calib
+  nvmem-cell-names: true
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - sprd,ump9620-adc
+    then:
+      properties:
+        nvmem-cells:
+          maxItems: 2
+        nvmem-cell-names:
+          items:
+            - const: big_scale_calib
+            - const: small_scale_calib
+
+    else:
+      properties:
+        nvmem-cells:
+          maxItems: 6
+        nvmem-cell-names:
+          items:
+            - const: big_scale_calib1
+            - const: big_scale_calib2
+            - const: small_scale_calib1
+            - const: small_scale_calib2
+            - const: vbat_det_cal1
+            - const: vbat_det_cal2
 
 required:
   - compatible
@@ -67,6 +94,27 @@ examples:
             hwlocks = <&hwlock 4>;
             nvmem-cells = <&adc_big_scale>, <&adc_small_scale>;
             nvmem-cell-names = "big_scale_calib", "small_scale_calib";
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        adc@504 {
+            compatible = "sprd,ump9620-adc";
+            reg = <0x504>;
+            interrupt-parent = <&ump9620_pmic>;
+            interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+            #io-channel-cells = <1>;
+            hwlocks = <&hwlock 4>;
+            nvmem-cells = <&adc_bcal1>, <&adc_bcal2>,
+                          <&adc_scal1>, <&adc_scal2>,
+                          <&vbat_det_cal1>, <&vbat_det_cal2>;
+            nvmem-cell-names = "big_scale_calib1", "big_scale_calib2",
+                               "small_scale_calib1", "small_scale_calib2",
+                               "vbat_det_cal1", "vbat_det_cal2";
         };
     };
 ...

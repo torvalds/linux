@@ -769,21 +769,6 @@ __initcall(sclp_vt220_tty_init);
 
 #ifdef CONFIG_SCLP_VT220_CONSOLE
 
-static void __sclp_vt220_flush_buffer(void)
-{
-	unsigned long flags;
-
-	sclp_vt220_emit_current();
-	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	del_timer(&sclp_vt220_timer);
-	while (sclp_vt220_queue_running) {
-		spin_unlock_irqrestore(&sclp_vt220_lock, flags);
-		sclp_sync_wait();
-		spin_lock_irqsave(&sclp_vt220_lock, flags);
-	}
-	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
-}
-
 static void
 sclp_vt220_con_write(struct console *con, const char *buf, unsigned int count)
 {
@@ -797,22 +782,41 @@ sclp_vt220_con_device(struct console *c, int *index)
 	return sclp_vt220_driver;
 }
 
+/*
+ * This panic/reboot notifier runs in atomic context, so
+ * locking restrictions apply to prevent potential lockups.
+ */
 static int
 sclp_vt220_notify(struct notifier_block *self,
 			  unsigned long event, void *data)
 {
-	__sclp_vt220_flush_buffer();
-	return NOTIFY_OK;
+	unsigned long flags;
+
+	if (spin_is_locked(&sclp_vt220_lock))
+		return NOTIFY_DONE;
+
+	sclp_vt220_emit_current();
+
+	spin_lock_irqsave(&sclp_vt220_lock, flags);
+	del_timer(&sclp_vt220_timer);
+	while (sclp_vt220_queue_running) {
+		spin_unlock_irqrestore(&sclp_vt220_lock, flags);
+		sclp_sync_wait();
+		spin_lock_irqsave(&sclp_vt220_lock, flags);
+	}
+	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
+
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = sclp_vt220_notify,
-	.priority = 1,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 static struct notifier_block on_reboot_nb = {
 	.notifier_call = sclp_vt220_notify,
-	.priority = 1,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 /* Structure needed to register with printk */

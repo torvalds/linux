@@ -26,11 +26,8 @@
 
 #include "inno_hdmi.h"
 
-#define to_inno_hdmi(x)	container_of(x, struct inno_hdmi, x)
-
 struct hdmi_data_info {
 	int vic;
-	bool sink_is_hdmi;
 	bool sink_has_audio;
 	unsigned int enc_in_format;
 	unsigned int enc_out_format;
@@ -56,7 +53,7 @@ struct inno_hdmi {
 	void __iomem *regs;
 
 	struct drm_connector	connector;
-	struct drm_encoder	encoder;
+	struct rockchip_encoder	encoder;
 
 	struct inno_hdmi_i2c *i2c;
 	struct i2c_adapter *ddc;
@@ -66,6 +63,18 @@ struct inno_hdmi {
 	struct hdmi_data_info	hdmi_data;
 	struct drm_display_mode previous_mode;
 };
+
+static struct inno_hdmi *encoder_to_inno_hdmi(struct drm_encoder *encoder)
+{
+	struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
+
+	return container_of(rkencoder, struct inno_hdmi, encoder);
+}
+
+static struct inno_hdmi *connector_to_inno_hdmi(struct drm_connector *connector)
+{
+	return container_of(connector, struct inno_hdmi, connector);
+}
 
 enum {
 	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,
@@ -433,6 +442,8 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 			   struct drm_display_mode *mode)
 {
+	struct drm_display_info *display = &hdmi->connector.display_info;
+
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
 
 	hdmi->hdmi_data.enc_in_format = HDMI_COLORSPACE_RGB;
@@ -452,13 +463,13 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 
 	/* Set HDMI Mode */
 	hdmi_writeb(hdmi, HDMI_HDCP_CTRL,
-		    v_HDMI_DVI(hdmi->hdmi_data.sink_is_hdmi));
+		    v_HDMI_DVI(display->is_hdmi));
 
 	inno_hdmi_config_video_timing(hdmi, mode);
 
 	inno_hdmi_config_video_csc(hdmi);
 
-	if (hdmi->hdmi_data.sink_is_hdmi) {
+	if (display->is_hdmi) {
 		inno_hdmi_config_video_avi(hdmi, mode);
 		inno_hdmi_config_video_vsi(hdmi, mode);
 	}
@@ -483,7 +494,7 @@ static void inno_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *mode,
 				       struct drm_display_mode *adj_mode)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	struct inno_hdmi *hdmi = encoder_to_inno_hdmi(encoder);
 
 	inno_hdmi_setup(hdmi, adj_mode);
 
@@ -493,14 +504,14 @@ static void inno_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	struct inno_hdmi *hdmi = encoder_to_inno_hdmi(encoder);
 
 	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
 static void inno_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	struct inno_hdmi *hdmi = encoder_to_inno_hdmi(encoder);
 
 	inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 }
@@ -536,7 +547,7 @@ static struct drm_encoder_helper_funcs inno_hdmi_encoder_helper_funcs = {
 static enum drm_connector_status
 inno_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
+	struct inno_hdmi *hdmi = connector_to_inno_hdmi(connector);
 
 	return (hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG) ?
 		connector_status_connected : connector_status_disconnected;
@@ -544,7 +555,7 @@ inno_hdmi_connector_detect(struct drm_connector *connector, bool force)
 
 static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
+	struct inno_hdmi *hdmi = connector_to_inno_hdmi(connector);
 	struct edid *edid;
 	int ret = 0;
 
@@ -553,7 +564,6 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, hdmi->ddc);
 	if (edid) {
-		hdmi->hdmi_data.sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->hdmi_data.sink_has_audio = drm_detect_monitor_audio(edid);
 		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
@@ -599,7 +609,7 @@ static struct drm_connector_helper_funcs inno_hdmi_connector_helper_funcs = {
 
 static int inno_hdmi_register(struct drm_device *drm, struct inno_hdmi *hdmi)
 {
-	struct drm_encoder *encoder = &hdmi->encoder;
+	struct drm_encoder *encoder = &hdmi->encoder.encoder;
 	struct device *dev = hdmi->dev;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
@@ -879,7 +889,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	return 0;
 err_cleanup_hdmi:
 	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+	hdmi->encoder.encoder.funcs->destroy(&hdmi->encoder.encoder);
 err_put_adapter:
 	i2c_put_adapter(hdmi->ddc);
 err_disable_clk:
@@ -893,7 +903,7 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+	hdmi->encoder.encoder.funcs->destroy(&hdmi->encoder.encoder);
 
 	i2c_put_adapter(hdmi->ddc);
 	clk_disable_unprepare(hdmi->pclk);

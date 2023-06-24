@@ -776,7 +776,7 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
  *	@qc: Command on going
  *	@bytes: number of bytes
  *
- *	Transfer Transfer data from/to the ATAPI device.
+ *	Transfer data from/to the ATAPI device.
  *
  *	LOCKING:
  *	Inherited from caller.

@@ -6,13 +6,7 @@
 static int fun_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			   struct netlink_ext_ack *extack)
 {
-	int err;
-
-	err = devlink_info_driver_name_put(req, KBUILD_MODNAME);
-	if (err)
-		return err;
-
-	return 0;
+	return devlink_info_driver_name_put(req, KBUILD_MODNAME);
 }
 
 static const struct devlink_ops fun_dl_ops = {

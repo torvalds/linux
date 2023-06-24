@@ -89,7 +89,7 @@
 
 &spi0 {
 	status = "okay";
-	spi-flash@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		spi-max-frequency = <8000000>;
 		reg = <0>;
@@ -104,7 +104,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>; /* CS0 */
-		spi-flash@9 {
+		flash@9 {
 			compatible = "jedec,spi-nor";
 			spi-max-frequency = <8000000>;
 			reg = <0x9>; /* SPI */
@@ -170,40 +170,40 @@
 
 &axi {
 	sfp_eth60: sfp-eth60 {
-		compatible	   = "sff,sfp";
-		i2c-bus            = <&i2c_sfp1>;
-		tx-disable-gpios   = <&sgpio_out2 28 0 GPIO_ACTIVE_LOW>;
+		compatible	 = "sff,sfp";
+		i2c-bus = <&i2c_sfp1>;
+		tx-disable-gpios = <&sgpio_out2 28 0 GPIO_ACTIVE_LOW>;
 		rate-select0-gpios = <&sgpio_out2 28 1 GPIO_ACTIVE_HIGH>;
-		los-gpios          = <&sgpio_in2 28 0 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpios     = <&sgpio_in2 28 1 GPIO_ACTIVE_LOW>;
-		tx-fault-gpios     = <&sgpio_in2 28 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sgpio_in2 28 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sgpio_in2 28 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios = <&sgpio_in2 28 2 GPIO_ACTIVE_HIGH>;
 	};
 	sfp_eth61: sfp-eth61 {
-		compatible         = "sff,sfp";
-		i2c-bus            = <&i2c_sfp2>;
-		tx-disable-gpios   = <&sgpio_out2 29 0 GPIO_ACTIVE_LOW>;
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c_sfp2>;
+		tx-disable-gpios = <&sgpio_out2 29 0 GPIO_ACTIVE_LOW>;
 		rate-select0-gpios = <&sgpio_out2 29 1 GPIO_ACTIVE_HIGH>;
-		los-gpios          = <&sgpio_in2 29 0 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpios     = <&sgpio_in2 29 1 GPIO_ACTIVE_LOW>;
-		tx-fault-gpios     = <&sgpio_in2 29 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sgpio_in2 29 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sgpio_in2 29 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios = <&sgpio_in2 29 2 GPIO_ACTIVE_HIGH>;
 	};
 	sfp_eth62: sfp-eth62 {
-		compatible         = "sff,sfp";
-		i2c-bus            = <&i2c_sfp3>;
-		tx-disable-gpios   = <&sgpio_out2 30 0 GPIO_ACTIVE_LOW>;
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c_sfp3>;
+		tx-disable-gpios = <&sgpio_out2 30 0 GPIO_ACTIVE_LOW>;
 		rate-select0-gpios = <&sgpio_out2 30 1 GPIO_ACTIVE_HIGH>;
-		los-gpios          = <&sgpio_in2 30 0 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpios     = <&sgpio_in2 30 1 GPIO_ACTIVE_LOW>;
-		tx-fault-gpios     = <&sgpio_in2 30 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sgpio_in2 30 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sgpio_in2 30 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios = <&sgpio_in2 30 2 GPIO_ACTIVE_HIGH>;
 	};
 	sfp_eth63: sfp-eth63 {
-		compatible         = "sff,sfp";
-		i2c-bus            = <&i2c_sfp4>;
-		tx-disable-gpios   = <&sgpio_out2 31 0 GPIO_ACTIVE_LOW>;
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c_sfp4>;
+		tx-disable-gpios = <&sgpio_out2 31 0 GPIO_ACTIVE_LOW>;
 		rate-select0-gpios = <&sgpio_out2 31 1 GPIO_ACTIVE_HIGH>;
-		los-gpios          = <&sgpio_in2 31 0 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpios     = <&sgpio_in2 31 1 GPIO_ACTIVE_LOW>;
-		tx-fault-gpios     = <&sgpio_in2 31 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sgpio_in2 31 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sgpio_in2 31 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios = <&sgpio_in2 31 2 GPIO_ACTIVE_HIGH>;
 	};
 };
 

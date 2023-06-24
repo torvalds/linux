@@ -22,7 +22,7 @@ config CLKEVT_I8253
 config I8253_LOCK
 	bool
 
-config OMAP_DM_TIMER
+config OMAP_DM_SYSTIMER
 	bool
 	select TIMER_OF
 
@@ -56,6 +56,13 @@ config DIGICOLOR_TIMER
 	help
 	  Enables the support for the digicolor timer driver.
 
+config OMAP_DM_TIMER
+	bool "OMAP dual-mode timer driver" if ARCH_K3 || COMPILE_TEST
+	default y if ARCH_K3
+	select TIMER_OF
+	help
+	  Enables the support for the TI dual-mode timer driver.
+
 config DW_APB_TIMER
 	bool "DW APB timer driver" if COMPILE_TEST
 	help
@@ -80,7 +87,7 @@ config IXP4XX_TIMER
 	bool "Intel XScale IXP4xx timer driver" if COMPILE_TEST
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
-	select TIMER_OF if OF
+	select TIMER_OF
 	help
 	  Enables support for the Intel XScale IXP4xx SoC timer.
 
@@ -149,6 +156,14 @@ config TEGRA_TIMER
 	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  Enables support for the Tegra driver.
+
+config TEGRA186_TIMER
+	bool "NVIDIA Tegra186 timer driver"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on WATCHDOG && WATCHDOG_CORE
+	help
+	  Enables support for the timers and watchdogs found on NVIDIA
+	  Tegra186 and later SoCs.
 
 config VT8500_TIMER
 	bool "VT8500 timer driver" if COMPILE_TEST
@@ -367,7 +382,7 @@ config ARM_GT_INITIAL_PRESCALER_VAL
 	depends on ARM_GLOBAL_TIMER
 	help
 	  When the ARM global timer initializes, its current rate is declared
-	  to the kernel and maintained forever. Should it's parent clock
+	  to the kernel and maintained forever. Should its parent clock
 	  change, the driver tries to fix the timer's internal prescaler.
 	  On some machs (i.e. Zynq) the initial prescaler value thus poses
 	  bounds about how much the parent clock is allowed to decrease or
@@ -419,7 +434,7 @@ config ATMEL_TCB_CLKSRC
 config CLKSRC_EXYNOS_MCT
 	bool "Exynos multi core timer driver" if COMPILE_TEST
 	depends on ARM || ARM64
-	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_ARTPEC || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
@@ -567,26 +582,6 @@ config CLKSRC_PXA
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
 
-config H8300_TMR8
-	bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the 8 bits timer for the H8300 platform.
-
-config H8300_TMR16
-	bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the 16 bits timer for the H8300 platform with the
-	  H83069 CPU.
-
-config H8300_TPU
-	bool "Clocksource for the H8300 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the clocksource for the H8300 platform with the
-	  H8S2678 CPU.
-
 config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
 	depends on (ARM || ARM64) && HAVE_CLK
@@ -616,6 +611,14 @@ config CLKSRC_ST_LPC
 	help
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
+
+config GXP_TIMER
+	bool "GXP timer driver" if COMPILE_TEST && !ARCH_HPE
+	default ARCH_HPE
+	select TIMER_OF if OF
+	help
+	  Provides a driver for the timer control found on HPE
+	  GXP SOCs. This is required for all GXP SOCs.
 
 config RISCV_TIMER
 	bool "Timer for the RISC-V platform" if COMPILE_TEST
@@ -710,5 +713,12 @@ config MICROCHIP_PIT64B
 	  based system. It supports the oneshot, the periodic
 	  modes and high resolution. It is used as a clocksource
 	  and a clockevent.
+
+config GOLDFISH_TIMER
+	bool "Clocksource using goldfish-rtc"
+	depends on M68K || COMPILE_TEST
+	depends on RTC_DRV_GOLDFISH
+	help
+	  Support for the timer/counter of goldfish-rtc
 
 endmenu

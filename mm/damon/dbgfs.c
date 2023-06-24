@@ -55,9 +55,9 @@ static ssize_t dbgfs_attrs_read(struct file *file,
 
 	mutex_lock(&ctx->kdamond_lock);
 	ret = scnprintf(kbuf, ARRAY_SIZE(kbuf), "%lu %lu %lu %lu %lu\n",
-			ctx->sample_interval, ctx->aggr_interval,
-			ctx->ops_update_interval, ctx->min_nr_regions,
-			ctx->max_nr_regions);
+			ctx->attrs.sample_interval, ctx->attrs.aggr_interval,
+			ctx->attrs.ops_update_interval,
+			ctx->attrs.min_nr_regions, ctx->attrs.max_nr_regions);
 	mutex_unlock(&ctx->kdamond_lock);
 
 	return simple_read_from_buffer(buf, count, ppos, kbuf, ret);
@@ -67,7 +67,7 @@ static ssize_t dbgfs_attrs_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct damon_ctx *ctx = file->private_data;
-	unsigned long s, a, r, minr, maxr;
+	struct damon_attrs attrs;
 	char *kbuf;
 	ssize_t ret;
 
@@ -76,7 +76,10 @@ static ssize_t dbgfs_attrs_write(struct file *file,
 		return PTR_ERR(kbuf);
 
 	if (sscanf(kbuf, "%lu %lu %lu %lu %lu",
-				&s, &a, &r, &minr, &maxr) != 5) {
+				&attrs.sample_interval, &attrs.aggr_interval,
+				&attrs.ops_update_interval,
+				&attrs.min_nr_regions,
+				&attrs.max_nr_regions) != 5) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -87,7 +90,7 @@ static ssize_t dbgfs_attrs_write(struct file *file,
 		goto unlock_out;
 	}
 
-	ret = damon_set_attrs(ctx, s, a, r, minr, maxr);
+	ret = damon_set_attrs(ctx, &attrs);
 	if (!ret)
 		ret = count;
 unlock_out:
@@ -95,6 +98,31 @@ unlock_out:
 out:
 	kfree(kbuf);
 	return ret;
+}
+
+/*
+ * Return corresponding dbgfs' scheme action value (int) for the given
+ * damos_action if the given damos_action value is valid and supported by
+ * dbgfs, negative error code otherwise.
+ */
+static int damos_action_to_dbgfs_scheme_action(enum damos_action action)
+{
+	switch (action) {
+	case DAMOS_WILLNEED:
+		return 0;
+	case DAMOS_COLD:
+		return 1;
+	case DAMOS_PAGEOUT:
+		return 2;
+	case DAMOS_HUGEPAGE:
+		return 3;
+	case DAMOS_NOHUGEPAGE:
+		return 4;
+	case DAMOS_STAT:
+		return 5;
+	default:
+		return -EINVAL;
+	}
 }
 
 static ssize_t sprint_schemes(struct damon_ctx *c, char *buf, ssize_t len)
@@ -106,10 +134,13 @@ static ssize_t sprint_schemes(struct damon_ctx *c, char *buf, ssize_t len)
 	damon_for_each_scheme(s, c) {
 		rc = scnprintf(&buf[written], len - written,
 				"%lu %lu %u %u %u %u %d %lu %lu %lu %u %u %u %d %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
-				s->min_sz_region, s->max_sz_region,
-				s->min_nr_accesses, s->max_nr_accesses,
-				s->min_age_region, s->max_age_region,
-				s->action,
+				s->pattern.min_sz_region,
+				s->pattern.max_sz_region,
+				s->pattern.min_nr_accesses,
+				s->pattern.max_nr_accesses,
+				s->pattern.min_age_region,
+				s->pattern.max_age_region,
+				damos_action_to_dbgfs_scheme_action(s->action),
 				s->quota.ms, s->quota.sz,
 				s->quota.reset_interval,
 				s->quota.weight_sz,
@@ -160,18 +191,27 @@ static void free_schemes_arr(struct damos **schemes, ssize_t nr_schemes)
 	kfree(schemes);
 }
 
-static bool damos_action_valid(int action)
+/*
+ * Return corresponding damos_action for the given dbgfs input for a scheme
+ * action if the input is valid, negative error code otherwise.
+ */
+static enum damos_action dbgfs_scheme_action_to_damos_action(int dbgfs_action)
 {
-	switch (action) {
-	case DAMOS_WILLNEED:
-	case DAMOS_COLD:
-	case DAMOS_PAGEOUT:
-	case DAMOS_HUGEPAGE:
-	case DAMOS_NOHUGEPAGE:
-	case DAMOS_STAT:
-		return true;
+	switch (dbgfs_action) {
+	case 0:
+		return DAMOS_WILLNEED;
+	case 1:
+		return DAMOS_COLD;
+	case 2:
+		return DAMOS_PAGEOUT;
+	case 3:
+		return DAMOS_HUGEPAGE;
+	case 4:
+		return DAMOS_NOHUGEPAGE;
+	case 5:
+		return DAMOS_STAT;
 	default:
-		return false;
+		return -EINVAL;
 	}
 }
 
@@ -187,9 +227,8 @@ static struct damos **str_to_schemes(const char *str, ssize_t len,
 	struct damos *scheme, **schemes;
 	const int max_nr_schemes = 256;
 	int pos = 0, parsed, ret;
-	unsigned long min_sz, max_sz;
-	unsigned int min_nr_a, max_nr_a, min_age, max_age;
-	unsigned int action;
+	unsigned int action_input;
+	enum damos_action action;
 
 	schemes = kmalloc_array(max_nr_schemes, sizeof(scheme),
 			GFP_KERNEL);
@@ -198,13 +237,18 @@ static struct damos **str_to_schemes(const char *str, ssize_t len,
 
 	*nr_schemes = 0;
 	while (pos < len && *nr_schemes < max_nr_schemes) {
+		struct damos_access_pattern pattern = {};
 		struct damos_quota quota = {};
 		struct damos_watermarks wmarks;
 
 		ret = sscanf(&str[pos],
 				"%lu %lu %u %u %u %u %u %lu %lu %lu %u %u %u %u %lu %lu %lu %lu%n",
-				&min_sz, &max_sz, &min_nr_a, &max_nr_a,
-				&min_age, &max_age, &action, &quota.ms,
+				&pattern.min_sz_region, &pattern.max_sz_region,
+				&pattern.min_nr_accesses,
+				&pattern.max_nr_accesses,
+				&pattern.min_age_region,
+				&pattern.max_age_region,
+				&action_input, &quota.ms,
 				&quota.sz, &quota.reset_interval,
 				&quota.weight_sz, &quota.weight_nr_accesses,
 				&quota.weight_age, &wmarks.metric,
@@ -212,10 +256,13 @@ static struct damos **str_to_schemes(const char *str, ssize_t len,
 				&wmarks.low, &parsed);
 		if (ret != 18)
 			break;
-		if (!damos_action_valid(action))
+		action = dbgfs_scheme_action_to_damos_action(action_input);
+		if ((int)action < 0)
 			goto fail;
 
-		if (min_sz > max_sz || min_nr_a > max_nr_a || min_age > max_age)
+		if (pattern.min_sz_region > pattern.max_sz_region ||
+		    pattern.min_nr_accesses > pattern.max_nr_accesses ||
+		    pattern.min_age_region > pattern.max_age_region)
 			goto fail;
 
 		if (wmarks.high < wmarks.mid || wmarks.high < wmarks.low ||
@@ -223,8 +270,7 @@ static struct damos **str_to_schemes(const char *str, ssize_t len,
 			goto fail;
 
 		pos += parsed;
-		scheme = damon_new_scheme(min_sz, max_sz, min_nr_a, max_nr_a,
-				min_age, max_age, action, &quota, &wmarks);
+		scheme = damon_new_scheme(&pattern, action, &quota, &wmarks);
 		if (!scheme)
 			goto fail;
 
@@ -261,11 +307,9 @@ static ssize_t dbgfs_schemes_write(struct file *file, const char __user *buf,
 		goto unlock_out;
 	}
 
-	ret = damon_set_schemes(ctx, schemes, nr_schemes);
-	if (!ret) {
-		ret = count;
-		nr_schemes = 0;
-	}
+	damon_set_schemes(ctx, schemes, nr_schemes);
+	ret = count;
+	nr_schemes = 0;
 
 unlock_out:
 	mutex_unlock(&ctx->kdamond_lock);
@@ -273,11 +317,6 @@ unlock_out:
 out:
 	kfree(kbuf);
 	return ret;
-}
-
-static inline bool target_has_pid(const struct damon_ctx *ctx)
-{
-	return ctx->ops.id == DAMON_OPS_VADDR;
 }
 
 static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
@@ -288,7 +327,7 @@ static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
 	int rc;
 
 	damon_for_each_target(t, ctx) {
-		if (target_has_pid(ctx))
+		if (damon_target_has_pid(ctx))
 			/* Show pid numbers to debugfs users */
 			id = pid_vnr(t->pid);
 		else
@@ -415,7 +454,7 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
 	struct damon_target *t, *next;
 
 	damon_for_each_target_safe(t, next, ctx) {
-		if (target_has_pid(ctx))
+		if (damon_target_has_pid(ctx))
 			put_pid(t->pid);
 		damon_destroy_target(t);
 	}
@@ -425,11 +464,11 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
 		if (!t) {
 			damon_for_each_target_safe(t, next, ctx)
 				damon_destroy_target(t);
-			if (target_has_pid(ctx))
+			if (damon_target_has_pid(ctx))
 				dbgfs_put_pids(pids, nr_targets);
 			return -ENOMEM;
 		}
-		if (target_has_pid(ctx))
+		if (damon_target_has_pid(ctx))
 			t->pid = pids[i];
 		damon_add_target(ctx, t);
 	}
@@ -722,7 +761,7 @@ static void dbgfs_before_terminate(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next;
 
-	if (!target_has_pid(ctx))
+	if (!damon_target_has_pid(ctx))
 		return;
 
 	mutex_lock(&ctx->kdamond_lock);
@@ -787,6 +826,9 @@ static int dbgfs_mk_context(char *name)
 		return -ENOENT;
 
 	new_dir = debugfs_create_dir(name, root);
+	/* Below check is required for a potential duplicated name case */
+	if (IS_ERR(new_dir))
+		return PTR_ERR(new_dir);
 	dbgfs_dirs[dbgfs_nr_ctxs] = new_dir;
 
 	new_ctx = dbgfs_new_ctx();
@@ -848,8 +890,10 @@ out:
 static int dbgfs_rm_context(char *name)
 {
 	struct dentry *root, *dir, **new_dirs;
+	struct inode *inode;
 	struct damon_ctx **new_ctxs;
 	int i, j;
+	int ret = 0;
 
 	if (damon_nr_running_ctxs())
 		return -EBUSY;
@@ -862,16 +906,24 @@ static int dbgfs_rm_context(char *name)
 	if (!dir)
 		return -ENOENT;
 
+	inode = d_inode(dir);
+	if (!S_ISDIR(inode->i_mode)) {
+		ret = -EINVAL;
+		goto out_dput;
+	}
+
 	new_dirs = kmalloc_array(dbgfs_nr_ctxs - 1, sizeof(*dbgfs_dirs),
 			GFP_KERNEL);
-	if (!new_dirs)
-		return -ENOMEM;
+	if (!new_dirs) {
+		ret = -ENOMEM;
+		goto out_dput;
+	}
 
 	new_ctxs = kmalloc_array(dbgfs_nr_ctxs - 1, sizeof(*dbgfs_ctxs),
 			GFP_KERNEL);
 	if (!new_ctxs) {
-		kfree(new_dirs);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_new_dirs;
 	}
 
 	for (i = 0, j = 0; i < dbgfs_nr_ctxs; i++) {
@@ -891,7 +943,13 @@ static int dbgfs_rm_context(char *name)
 	dbgfs_ctxs = new_ctxs;
 	dbgfs_nr_ctxs--;
 
-	return 0;
+	goto out_dput;
+
+out_new_dirs:
+	kfree(new_dirs);
+out_dput:
+	dput(dir);
+	return ret;
 }
 
 static ssize_t dbgfs_rm_context_write(struct file *file,
@@ -1010,7 +1068,7 @@ static int __init __damon_dbgfs_init(void)
 				fops[i]);
 	dbgfs_fill_ctx_dir(dbgfs_root, dbgfs_ctxs[0]);
 
-	dbgfs_dirs = kmalloc_array(1, sizeof(dbgfs_root), GFP_KERNEL);
+	dbgfs_dirs = kmalloc(sizeof(dbgfs_root), GFP_KERNEL);
 	if (!dbgfs_dirs) {
 		debugfs_remove(dbgfs_root);
 		return -ENOMEM;

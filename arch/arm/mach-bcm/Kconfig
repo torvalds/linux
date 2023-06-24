@@ -54,8 +54,6 @@ config ARCH_BCM_NSP
 	select ARM_ERRATA_775420
 	select ARM_ERRATA_764369 if SMP
 	select ARM_TIMER_SP804
-	select THERMAL
-	select THERMAL_OF
 	help
 	  Support for Broadcom Northstar Plus SoC.
 	  Broadcom Northstar Plus family of SoCs are used for switching control
@@ -182,23 +180,6 @@ config ARCH_BCM_53573
 	  The base chip is BCM53573 and there are some packaging modifications
 	  like BCM47189 and BCM47452.
 
-config ARCH_BCM_63XX
-	bool "Broadcom BCM63xx DSL SoC"
-	depends on ARCH_MULTI_V7
-	select ARCH_HAS_RESET_CONTROLLER
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369 if SMP
-	select ARM_GIC
-	select ARM_GLOBAL_TIMER
-	select CACHE_L2X0
-	select HAVE_ARM_ARCH_TIMER
-	select HAVE_ARM_TWD if SMP
-	select HAVE_ARM_SCU if SMP
-	help
-	  This enables support for systems based on Broadcom DSL SoCs.
-	  It currently supports the 'BCM63XX' ARM-based family, which includes
-	  the BCM63138 variant.
-
 config ARCH_BRCMSTB
 	bool "Broadcom BCM7XXX based boards"
 	depends on ARCH_MULTI_V7
@@ -217,5 +198,59 @@ config ARCH_BRCMSTB
 
 	  This enables support for Broadcom ARM-based set-top box chipsets,
 	  including the 7445 family of chips.
+
+menuconfig ARCH_BCMBCA
+	bool "Broadcom Broadband Carrier Access (BCA) origin SoC"
+	depends on ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  Say Y if you intend to run the kernel on a Broadcom Broadband ARM-based
+	  BCA chipset.
+
+	  This enables support for Broadcom BCA ARM-based broadband chipsets,
+	  including the DSL, PON and Wireless family of chips.
+
+comment "BCMBCA sub platforms"
+
+if ARCH_BCMBCA
+
+config ARCH_BCMBCA_CORTEXA7
+	bool "Cortex-A7 SoCs"
+	help
+	  Say Y if you intend to run the kernel on a Broadcom Broadband ARM A7
+	  based chipset.
+
+	  This enables support for Broadcom BCA ARM A7 broadband chipsets,
+	  including various DSL, PON and Wireless family of chips.
+
+config ARCH_BCMBCA_CORTEXA9
+	bool "Cortex-A9 SoCS"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_GLOBAL_TIMER
+	select CACHE_L2X0
+	select HAVE_ARM_TWD if SMP
+	select HAVE_ARM_SCU if SMP
+	help
+	  Say Y if you intend to run the kernel on a Broadcom Broadband ARM A9
+	  based BCA chipset.
+
+	  This enables support for Broadcom BCA ARM A9 broadband chipset. Currently
+	  only DSL chip BCM63138.
+
+config ARCH_BCMBCA_BRAHMAB15
+	bool "Brahma-B15 SoCs"
+	select ARM_ERRATA_798181 if SMP
+	help
+	  Say Y if you intend to run the kernel on a Broadcom Broadband ARM B15
+	  based BCA chipset.
+
+	  This enables support for Broadcom BCA ARM B15 broadband chipset. Currently
+	  only DSL chip BCM63148.
+
+endif
 
 endif

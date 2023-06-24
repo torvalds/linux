@@ -483,6 +483,19 @@ config OPEN_DICE
 
 	  If unsure, say N.
 
+config VCPU_STALL_DETECTOR
+	tristate "Guest vCPU stall detector"
+	depends on OF && HAS_IOMEM
+	help
+	  When this driver is bound inside a KVM guest, it will
+	  periodically "pet" an MMIO stall detector device from each vCPU
+	  and allow the host to detect vCPU stalls.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vcpu_stall_detector.
+
+	  If you do not intend to run this kernel as a guest, say N.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -500,4 +513,5 @@ source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/habanalabs/Kconfig"
 source "drivers/misc/uacce/Kconfig"
 source "drivers/misc/pvpanic/Kconfig"
+source "drivers/misc/mchp_pci1xxxx/Kconfig"
 endmenu

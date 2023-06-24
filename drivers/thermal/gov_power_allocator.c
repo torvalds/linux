@@ -392,8 +392,6 @@ static int allocate_power(struct thermal_zone_device *tz,
 	int i, num_actors, total_weight, ret = 0;
 	int trip_max_desired_temperature = params->trip_max_desired_temperature;
 
-	mutex_lock(&tz->lock);
-
 	num_actors = 0;
 	total_weight = 0;
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
@@ -404,10 +402,8 @@ static int allocate_power(struct thermal_zone_device *tz,
 		}
 	}
 
-	if (!num_actors) {
-		ret = -ENODEV;
-		goto unlock;
-	}
+	if (!num_actors)
+		return -ENODEV;
 
 	/*
 	 * We need to allocate five arrays of the same size:
@@ -421,10 +417,8 @@ static int allocate_power(struct thermal_zone_device *tz,
 	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*extra_actor_power));
 	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*weighted_req_power));
 	req_power = kcalloc(num_actors * 5, sizeof(*req_power), GFP_KERNEL);
-	if (!req_power) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	if (!req_power)
+		return -ENOMEM;
 
 	max_power = &req_power[num_actors];
 	granted_power = &req_power[2 * num_actors];
@@ -496,8 +490,6 @@ static int allocate_power(struct thermal_zone_device *tz,
 				      control_temp - tz->temperature);
 
 	kfree(req_power);
-unlock:
-	mutex_unlock(&tz->lock);
 
 	return ret;
 }
@@ -527,7 +519,7 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 	last_active = INVALID_TRIP;
 	last_passive = INVALID_TRIP;
 
-	for (i = 0; i < tz->trips; i++) {
+	for (i = 0; i < tz->num_trips; i++) {
 		enum thermal_trip_type type;
 		int ret;
 
@@ -576,7 +568,6 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 	struct power_allocator_params *params = tz->governor_data;
 	u32 req_power;
 
-	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		struct thermal_cooling_device *cdev = instance->cdev;
 
@@ -598,7 +589,6 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 
 		mutex_unlock(&instance->cdev->lock);
 	}
-	mutex_unlock(&tz->lock);
 }
 
 /**
@@ -668,7 +658,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 
 	get_governor_trips(tz, params);
 
-	if (tz->trips > 0) {
+	if (tz->num_trips > 0) {
 		ret = tz->ops->get_trip_temp(tz,
 					params->trip_max_desired_temperature,
 					&control_temp);
@@ -711,6 +701,8 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 	int switch_on_temp, control_temp;
 	struct power_allocator_params *params = tz->governor_data;
 	bool update;
+
+	lockdep_assert_held(&tz->lock);
 
 	/*
 	 * We get called for every trip point but we only need to do

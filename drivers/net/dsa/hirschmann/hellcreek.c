@@ -128,6 +128,16 @@ static void hellcreek_select_prio(struct hellcreek *hellcreek, int prio)
 	hellcreek_write(hellcreek, val, HR_PSEL);
 }
 
+static void hellcreek_select_port_prio(struct hellcreek *hellcreek, int port,
+				       int prio)
+{
+	u16 val = port << HR_PSEL_PTWSEL_SHIFT;
+
+	val |= prio << HR_PSEL_PRTCWSEL_SHIFT;
+
+	hellcreek_write(hellcreek, val, HR_PSEL);
+}
+
 static void hellcreek_select_counter(struct hellcreek *hellcreek, int counter)
 {
 	u16 val = counter << HR_CSEL_SHIFT;
@@ -288,7 +298,7 @@ static void hellcreek_get_strings(struct dsa_switch *ds, int port,
 	for (i = 0; i < ARRAY_SIZE(hellcreek_counter); ++i) {
 		const struct hellcreek_counter *counter = &hellcreek_counter[i];
 
-		strlcpy(data + i * ETH_GSTRING_LEN,
+		strscpy(data + i * ETH_GSTRING_LEN,
 			counter->name, ETH_GSTRING_LEN);
 	}
 }
@@ -1537,6 +1547,45 @@ out:
 	return ret;
 }
 
+static void hellcreek_setup_maxsdu(struct hellcreek *hellcreek, int port,
+				   const struct tc_taprio_qopt_offload *schedule)
+{
+	int tc;
+
+	for (tc = 0; tc < 8; ++tc) {
+		u32 max_sdu = schedule->max_sdu[tc] + VLAN_ETH_HLEN - ETH_FCS_LEN;
+		u16 val;
+
+		if (!schedule->max_sdu[tc])
+			continue;
+
+		dev_dbg(hellcreek->dev, "Configure max-sdu %u for tc %d on port %d\n",
+			max_sdu, tc, port);
+
+		hellcreek_select_port_prio(hellcreek, port, tc);
+
+		val = (max_sdu & HR_PTPRTCCFG_MAXSDU_MASK) << HR_PTPRTCCFG_MAXSDU_SHIFT;
+
+		hellcreek_write(hellcreek, val, HR_PTPRTCCFG);
+	}
+}
+
+static void hellcreek_reset_maxsdu(struct hellcreek *hellcreek, int port)
+{
+	int tc;
+
+	for (tc = 0; tc < 8; ++tc) {
+		u16 val;
+
+		hellcreek_select_port_prio(hellcreek, port, tc);
+
+		val = (HELLCREEK_DEFAULT_MAX_SDU & HR_PTPRTCCFG_MAXSDU_MASK)
+			<< HR_PTPRTCCFG_MAXSDU_SHIFT;
+
+		hellcreek_write(hellcreek, val, HR_PTPRTCCFG);
+	}
+}
+
 static void hellcreek_setup_gcl(struct hellcreek *hellcreek, int port,
 				const struct tc_taprio_qopt_offload *schedule)
 {
@@ -1720,7 +1769,10 @@ static int hellcreek_port_set_schedule(struct dsa_switch *ds, int port,
 	}
 	hellcreek_port->current_schedule = taprio_offload_get(taprio);
 
-	/* Then select port */
+	/* Configure max sdu */
+	hellcreek_setup_maxsdu(hellcreek, port, hellcreek_port->current_schedule);
+
+	/* Select tdg */
 	hellcreek_select_tgd(hellcreek, port);
 
 	/* Enable gating and keep defaults */
@@ -1772,7 +1824,10 @@ static int hellcreek_port_del_schedule(struct dsa_switch *ds, int port)
 		hellcreek_port->current_schedule = NULL;
 	}
 
-	/* Then select port */
+	/* Reset max sdu */
+	hellcreek_reset_maxsdu(hellcreek, port);
+
+	/* Select tgd */
 	hellcreek_select_tgd(hellcreek, port);
 
 	/* Disable gating and return to regular switching flow */
@@ -1809,22 +1864,43 @@ static bool hellcreek_validate_schedule(struct hellcreek *hellcreek,
 	return true;
 }
 
+static int hellcreek_tc_query_caps(struct tc_query_caps_base *base)
+{
+	switch (base->type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_caps *caps = base->caps;
+
+		caps->supports_queue_max_sdu = true;
+
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int hellcreek_port_setup_tc(struct dsa_switch *ds, int port,
 				   enum tc_setup_type type, void *type_data)
 {
-	struct tc_taprio_qopt_offload *taprio = type_data;
 	struct hellcreek *hellcreek = ds->priv;
 
-	if (type != TC_SETUP_QDISC_TAPRIO)
+	switch (type) {
+	case TC_QUERY_CAPS:
+		return hellcreek_tc_query_caps(type_data);
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_qopt_offload *taprio = type_data;
+
+		if (!hellcreek_validate_schedule(hellcreek, taprio))
+			return -EOPNOTSUPP;
+
+		if (taprio->enable)
+			return hellcreek_port_set_schedule(ds, port, taprio);
+
+		return hellcreek_port_del_schedule(ds, port);
+	}
+	default:
 		return -EOPNOTSUPP;
-
-	if (!hellcreek_validate_schedule(hellcreek, taprio))
-		return -EOPNOTSUPP;
-
-	if (taprio->enable)
-		return hellcreek_port_set_schedule(ds, port, taprio);
-
-	return hellcreek_port_del_schedule(ds, port);
+	}
 }
 
 static const struct dsa_switch_ops hellcreek_ds_ops = {
@@ -1894,11 +1970,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 		if (!port->counter_values)
 			return -ENOMEM;
 
-		port->vlan_dev_bitmap =
-			devm_kcalloc(dev,
-				     BITS_TO_LONGS(VLAN_N_VID),
-				     sizeof(unsigned long),
-				     GFP_KERNEL);
+		port->vlan_dev_bitmap = devm_bitmap_zalloc(dev, VLAN_N_VID,
+							   GFP_KERNEL);
 		if (!port->vlan_dev_bitmap)
 			return -ENOMEM;
 
@@ -1999,7 +2072,6 @@ static int hellcreek_remove(struct platform_device *pdev)
 	hellcreek_hwtstamp_free(hellcreek);
 	hellcreek_ptp_free(hellcreek);
 	dsa_unregister_switch(hellcreek->ds);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -465,12 +465,9 @@ char *smk_parse_smack(const char *string, int len)
 	if (i == 0 || i >= SMK_LONGLABEL)
 		return ERR_PTR(-EINVAL);
 
-	smack = kzalloc(i + 1, GFP_NOFS);
-	if (smack == NULL)
+	smack = kstrndup(string, i, GFP_NOFS);
+	if (!smack)
 		return ERR_PTR(-ENOMEM);
-
-	strncpy(smack, string, i);
-
 	return smack;
 }
 

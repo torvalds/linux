@@ -2,7 +2,7 @@
 /*
  */
 
-/**
+/*
  * Both AR2315 and AR2316 chips have PCI interface unit, which supports DMA
  * and interrupt. PCI interface supports MMIO access method, but does not
  * seem to support I/O ports.

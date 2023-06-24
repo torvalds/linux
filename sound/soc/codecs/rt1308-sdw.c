@@ -50,6 +50,7 @@ static bool rt1308_volatile_register(struct device *dev, unsigned int reg)
 	case 0x3008:
 	case 0x300a:
 	case 0xc000:
+	case 0xc710:
 	case 0xc860 ... 0xc863:
 	case 0xc870 ... 0xc873:
 		return true;
@@ -200,6 +201,7 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(dev);
 	int ret = 0;
+	unsigned int tmp;
 
 	if (rt1308->hw_init)
 		return 0;
@@ -231,6 +233,10 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	/* sw reset */
 	regmap_write(rt1308->regmap, RT1308_SDW_RESET, 0);
 
+	regmap_read(rt1308->regmap, 0xc710, &tmp);
+	rt1308->hw_ver = tmp;
+	dev_dbg(dev, "%s, hw_ver=0x%x\n", __func__, rt1308->hw_ver);
+
 	/* initial settings */
 	regmap_write(rt1308->regmap, 0xc103, 0xc0);
 	regmap_write(rt1308->regmap, 0xc030, 0x17);
@@ -246,8 +252,14 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt1308->regmap, 0xc062, 0x05);
 	regmap_write(rt1308->regmap, 0xc171, 0x07);
 	regmap_write(rt1308->regmap, 0xc173, 0x0d);
-	regmap_write(rt1308->regmap, 0xc311, 0x7f);
-	regmap_write(rt1308->regmap, 0xc900, 0x90);
+	if (rt1308->hw_ver == RT1308_VER_C) {
+		regmap_write(rt1308->regmap, 0xc311, 0x7f);
+		regmap_write(rt1308->regmap, 0xc300, 0x09);
+	} else {
+		regmap_write(rt1308->regmap, 0xc311, 0x4f);
+		regmap_write(rt1308->regmap, 0xc300, 0x0b);
+	}
+	regmap_write(rt1308->regmap, 0xc900, 0x5a);
 	regmap_write(rt1308->regmap, 0xc1a0, 0x84);
 	regmap_write(rt1308->regmap, 0xc1a1, 0x01);
 	regmap_write(rt1308->regmap, 0xc360, 0x78);
@@ -257,7 +269,6 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt1308->regmap, 0xc070, 0x00);
 	regmap_write(rt1308->regmap, 0xc100, 0xd7);
 	regmap_write(rt1308->regmap, 0xc101, 0xd7);
-	regmap_write(rt1308->regmap, 0xc300, 0x09);
 
 	if (rt1308->first_hw_init) {
 		regcache_cache_bypass(rt1308->regmap, false);
@@ -608,13 +619,26 @@ static const struct sdw_slave_ops rt1308_slave_ops = {
 	.bus_config = rt1308_bus_config,
 };
 
+static int rt1308_sdw_component_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_sdw_rt1308 = {
+	.probe = rt1308_sdw_component_probe,
 	.controls = rt1308_snd_controls,
 	.num_controls = ARRAY_SIZE(rt1308_snd_controls),
 	.dapm_widgets = rt1308_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rt1308_dapm_widgets),
 	.dapm_routes = rt1308_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(rt1308_dapm_routes),
+	.endianness = 1,
 };
 
 static const struct snd_soc_dai_ops rt1308_aif_dai_ops = {
@@ -690,6 +714,16 @@ static int rt1308_sdw_probe(struct sdw_slave *slave,
 	return 0;
 }
 
+static int rt1308_sdw_remove(struct sdw_slave *slave)
+{
+	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(&slave->dev);
+
+	if (rt1308->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
+}
+
 static const struct sdw_device_id rt1308_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x1308, 0x2, 0, 0),
 	{},
@@ -726,6 +760,8 @@ static int __maybe_unused rt1308_dev_resume(struct device *dev)
 				msecs_to_jiffies(RT1308_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 
@@ -749,6 +785,7 @@ static struct sdw_driver rt1308_sdw_driver = {
 		.pm = &rt1308_pm,
 	},
 	.probe = rt1308_sdw_probe,
+	.remove = rt1308_sdw_remove,
 	.ops = &rt1308_slave_ops,
 	.id_table = rt1308_id,
 };

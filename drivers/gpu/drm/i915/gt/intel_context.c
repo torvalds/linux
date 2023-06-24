@@ -386,7 +386,7 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 	ce->ring = NULL;
 	ce->ring_size = SZ_4K;
 
-	ewma_runtime_init(&ce->runtime.avg);
+	ewma_runtime_init(&ce->stats.runtime.avg);
 
 	ce->vm = i915_vm_get(engine->gt->vm);
 
@@ -400,7 +400,7 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 	INIT_LIST_HEAD(&ce->guc_state.fences);
 	INIT_LIST_HEAD(&ce->guc_state.requests);
 
-	ce->guc_id.id = GUC_INVALID_LRC_ID;
+	ce->guc_id.id = GUC_INVALID_CONTEXT_ID;
 	INIT_LIST_HEAD(&ce->guc_id.link);
 
 	INIT_LIST_HEAD(&ce->destroyed_link);
@@ -574,6 +574,54 @@ void intel_context_bind_parent_child(struct intel_context *parent,
 	list_add_tail(&child->parallel.child_link,
 		      &parent->parallel.child_list);
 	child->parallel.parent = parent;
+}
+
+u64 intel_context_get_total_runtime_ns(const struct intel_context *ce)
+{
+	u64 total, active;
+
+	total = ce->stats.runtime.total;
+	if (ce->ops->flags & COPS_RUNTIME_CYCLES)
+		total *= ce->engine->gt->clock_period_ns;
+
+	active = READ_ONCE(ce->stats.active);
+	if (active)
+		active = intel_context_clock() - active;
+
+	return total + active;
+}
+
+u64 intel_context_get_avg_runtime_ns(struct intel_context *ce)
+{
+	u64 avg = ewma_runtime_read(&ce->stats.runtime.avg);
+
+	if (ce->ops->flags & COPS_RUNTIME_CYCLES)
+		avg *= ce->engine->gt->clock_period_ns;
+
+	return avg;
+}
+
+bool intel_context_ban(struct intel_context *ce, struct i915_request *rq)
+{
+	bool ret = intel_context_set_banned(ce);
+
+	trace_intel_context_ban(ce);
+
+	if (ce->ops->revoke)
+		ce->ops->revoke(ce, rq,
+				INTEL_CONTEXT_BANNED_PREEMPT_TIMEOUT_MS);
+
+	return ret;
+}
+
+bool intel_context_revoke(struct intel_context *ce)
+{
+	bool ret = intel_context_set_exiting(ce);
+
+	if (ce->ops->revoke)
+		ce->ops->revoke(ce, NULL, ce->engine->props.preempt_timeout_ms);
+
+	return ret;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

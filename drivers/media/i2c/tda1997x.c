@@ -2517,7 +2517,6 @@ static struct snd_soc_component_driver tda1997x_codec_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int tda1997x_probe(struct i2c_client *client,
@@ -2798,6 +2797,7 @@ err_free_mutex:
 	cancel_delayed_work(&state->delayed_work_enable_hpd);
 	mutex_destroy(&state->page_lock);
 	mutex_destroy(&state->lock);
+	tda1997x_set_power(state, 0);
 err_free_state:
 	kfree(state);
 	dev_err(&client->dev, "%s failed: %d\n", __func__, ret);
@@ -2805,7 +2805,7 @@ err_free_state:
 	return ret;
 }
 
-static int tda1997x_remove(struct i2c_client *client)
+static void tda1997x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tda1997x_state *state = to_state(sd);
@@ -2827,8 +2827,6 @@ static int tda1997x_remove(struct i2c_client *client)
 	mutex_destroy(&state->lock);
 
 	kfree(state);
-
-	return 0;
 }
 
 static struct i2c_driver tda1997x_i2c_driver = {

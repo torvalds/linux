@@ -39,6 +39,8 @@
 /* TLS socket options */
 #define TLS_TX			1	/* Set transmit parameters */
 #define TLS_RX			2	/* Set receive parameters */
+#define TLS_TX_ZEROCOPY_RO	3	/* TX zerocopy (only sendfile now) */
+#define TLS_RX_EXPECT_NO_PAD	4	/* Attempt opportunistic zero-copy */
 
 /* Supported versions */
 #define TLS_VERSION_MINOR(ver)	((ver) & 0xFF)
@@ -98,6 +100,20 @@
 #define TLS_CIPHER_SM4_CCM_TAG_SIZE		16
 #define TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE		8
 
+#define TLS_CIPHER_ARIA_GCM_128				57
+#define TLS_CIPHER_ARIA_GCM_128_IV_SIZE			8
+#define TLS_CIPHER_ARIA_GCM_128_KEY_SIZE		16
+#define TLS_CIPHER_ARIA_GCM_128_SALT_SIZE		4
+#define TLS_CIPHER_ARIA_GCM_128_TAG_SIZE		16
+#define TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE		8
+
+#define TLS_CIPHER_ARIA_GCM_256				58
+#define TLS_CIPHER_ARIA_GCM_256_IV_SIZE			8
+#define TLS_CIPHER_ARIA_GCM_256_KEY_SIZE		32
+#define TLS_CIPHER_ARIA_GCM_256_SALT_SIZE		4
+#define TLS_CIPHER_ARIA_GCM_256_TAG_SIZE		16
+#define TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE		8
+
 #define TLS_SET_RECORD_TYPE	1
 #define TLS_GET_RECORD_TYPE	2
 
@@ -154,12 +170,30 @@ struct tls12_crypto_info_sm4_ccm {
 	unsigned char rec_seq[TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE];
 };
 
+struct tls12_crypto_info_aria_gcm_128 {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_ARIA_GCM_128_IV_SIZE];
+	unsigned char key[TLS_CIPHER_ARIA_GCM_128_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_ARIA_GCM_128_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE];
+};
+
+struct tls12_crypto_info_aria_gcm_256 {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_ARIA_GCM_256_IV_SIZE];
+	unsigned char key[TLS_CIPHER_ARIA_GCM_256_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_ARIA_GCM_256_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE];
+};
+
 enum {
 	TLS_INFO_UNSPEC,
 	TLS_INFO_VERSION,
 	TLS_INFO_CIPHER,
 	TLS_INFO_TXCONF,
 	TLS_INFO_RXCONF,
+	TLS_INFO_ZC_RO_TX,
+	TLS_INFO_RX_NO_PAD,
 	__TLS_INFO_MAX,
 };
 #define TLS_INFO_MAX (__TLS_INFO_MAX - 1)

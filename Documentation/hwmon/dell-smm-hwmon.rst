@@ -46,6 +46,9 @@ temp[1-10]_input                RO      Temperature reading in milli-degrees
 temp[1-10]_label                RO      Temperature sensor label.
 =============================== ======= =======================================
 
+Due to the nature of the SMM interface, each pwmX attribute controls
+fan number X.
+
 Disabling automatic BIOS fan control
 ------------------------------------
 
@@ -85,6 +88,13 @@ probe the BIOS on your machine and discover the appropriate codes.
  __ https://github.com/clopez/dellfan/
 
 Again, when you find new codes, we'd be happy to have your patches!
+
+``thermal`` interface
+---------------------------
+
+The driver also exports the fans as thermal cooling devices with
+``type`` set to ``dell-smm-fan[1-3]``. This allows for easy fan control
+using one of the thermal governors.
 
 Module parameters
 -----------------
@@ -323,6 +333,8 @@ Reading of fan types causes erratic fan behaviour.      Studio XPS 8000
                                                         Studio XPS 8100
 
                                                         Inspiron 580
+
+                                                        Inspiron 3505
 
 Fan-related SMM calls take too long (about 500ms).      Inspiron 7720
 

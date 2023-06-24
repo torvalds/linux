@@ -84,17 +84,14 @@ void flush_thread(void)
 #endif
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-	/* do nothing */
-}
-
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
-int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
 
@@ -114,11 +111,11 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 
 	childregs = task_pt_regs(p);
 	p->thread.sp = (unsigned long) childregs;
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
-		childregs->regs[4] = arg;
-		childregs->regs[5] = usp;
+		childregs->regs[4] = (unsigned long) args->fn_arg;
+		childregs->regs[5] = (unsigned long) args->fn;
 		childregs->sr = SR_MD;
 #if defined(CONFIG_SH_FPU)
 		childregs->sr |= SR_FD;

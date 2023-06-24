@@ -101,18 +101,18 @@ ip -n ${NS3} link set dev veth33 up
 
 mkdir $BPF_DIR
 bpftool prog loadall \
-	xdp_redirect_map.o $BPF_DIR/progs type xdp \
+	xdp_redirect_map.bpf.o $BPF_DIR/progs type xdp \
 	pinmaps $BPF_DIR/maps
 bpftool map update pinned $BPF_DIR/maps/tx_port key 0 0 0 0 value 122 0 0 0
 bpftool map update pinned $BPF_DIR/maps/tx_port key 1 0 0 0 value 133 0 0 0
 bpftool map update pinned $BPF_DIR/maps/tx_port key 2 0 0 0 value 111 0 0 0
-ip link set dev veth1 xdp pinned $BPF_DIR/progs/redirect_map_0
-ip link set dev veth2 xdp pinned $BPF_DIR/progs/redirect_map_1
-ip link set dev veth3 xdp pinned $BPF_DIR/progs/redirect_map_2
+ip link set dev veth1 xdp pinned $BPF_DIR/progs/xdp_redirect_map_0
+ip link set dev veth2 xdp pinned $BPF_DIR/progs/xdp_redirect_map_1
+ip link set dev veth3 xdp pinned $BPF_DIR/progs/xdp_redirect_map_2
 
-ip -n ${NS1} link set dev veth11 xdp obj xdp_dummy.o sec xdp
-ip -n ${NS2} link set dev veth22 xdp obj xdp_tx.o sec xdp
-ip -n ${NS3} link set dev veth33 xdp obj xdp_dummy.o sec xdp
+ip -n ${NS1} link set dev veth11 xdp obj xdp_dummy.bpf.o sec xdp
+ip -n ${NS2} link set dev veth22 xdp obj xdp_tx.bpf.o sec xdp
+ip -n ${NS3} link set dev veth33 xdp obj xdp_dummy.bpf.o sec xdp
 
 trap cleanup EXIT
 

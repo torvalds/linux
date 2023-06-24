@@ -52,12 +52,24 @@ void machine_restart(char *cmd)
 {
 	do_kernel_restart(cmd);
 
+	__asm__("l.nop 13");
+
 	/* Give a grace period for failure to restart of 1s */
 	mdelay(1000);
 
 	/* Whoops - the platform was unable to reboot. Tell the user! */
 	pr_emerg("Reboot failed -- System halted\n");
 	while (1);
+}
+
+/*
+ * This is used if pm_power_off has not been set by a power management
+ * driver, in this case we can assume we are on a simulator.  On
+ * OpenRISC simulators l.nop 1 will trigger the simulator exit.
+ */
+static void default_power_off(void)
+{
+	__asm__("l.nop 1");
 }
 
 /*
@@ -75,7 +87,10 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	printk(KERN_INFO "*** MACHINE POWER OFF ***\n");
-	__asm__("l.nop 1");
+	if (pm_power_off != NULL)
+		pm_power_off();
+	else
+		default_power_off();
 }
 
 /*
@@ -89,7 +104,7 @@ void arch_cpu_idle(void)
 		mtspr(SPR_PMR, mfspr(SPR_PMR) | SPR_PMR_DME);
 }
 
-void (*pm_power_off) (void) = machine_power_off;
+void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
@@ -108,10 +123,6 @@ void show_regs(struct pt_regs *regs)
 	show_regs_print_info(KERN_DEFAULT);
 	/* __PHX__ cleanup this mess */
 	show_registers(regs);
-}
-
-void release_thread(struct task_struct *dead_task)
-{
 }
 
 /*
@@ -152,9 +163,11 @@ extern asmlinkage void ret_from_fork(void);
  */
 
 int
-copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
-	    struct task_struct *p, unsigned long tls)
+copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct pt_regs *userregs;
 	struct pt_regs *kregs;
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
@@ -172,10 +185,10 @@ copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 	sp -= sizeof(struct pt_regs);
 	kregs = (struct pt_regs *)sp;
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(kregs, 0, sizeof(struct pt_regs));
-		kregs->gpr[20] = usp; /* fn, kernel thread */
-		kregs->gpr[22] = arg;
+		kregs->gpr[20] = (unsigned long)args->fn;
+		kregs->gpr[22] = (unsigned long)args->fn_arg;
 	} else {
 		*userregs = *current_pt_regs();
 

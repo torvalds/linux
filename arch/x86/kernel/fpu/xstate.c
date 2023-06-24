@@ -142,7 +142,8 @@ static unsigned int xfeature_get_offset(u64 xcomp_bv, int xfeature)
 	 * Non-compacted format and legacy features use the cached fixed
 	 * offsets.
 	 */
-	if (!cpu_feature_enabled(X86_FEATURE_XSAVES) || xfeature <= XFEATURE_SSE)
+	if (!cpu_feature_enabled(X86_FEATURE_XCOMPACTED) ||
+	    xfeature <= XFEATURE_SSE)
 		return xstate_offsets[xfeature];
 
 	/*
@@ -359,7 +360,7 @@ static void __init setup_init_fpu_buf(void)
 
 	print_xstate_features();
 
-	xstate_init_xcomp_bv(&init_fpstate.regs.xsave, fpu_kernel_cfg.max_features);
+	xstate_init_xcomp_bv(&init_fpstate.regs.xsave, init_fpstate.xfeatures);
 
 	/*
 	 * Init all the features state with header.xfeatures being 0x0
@@ -369,12 +370,12 @@ static void __init setup_init_fpu_buf(void)
 	/*
 	 * All components are now in init state. Read the state back so
 	 * that init_fpstate contains all non-zero init state. This only
-	 * works with XSAVE, but not with XSAVEOPT and XSAVES because
+	 * works with XSAVE, but not with XSAVEOPT and XSAVEC/S because
 	 * those use the init optimization which skips writing data for
 	 * components in init state.
 	 *
 	 * XSAVE could be used, but that would require to reshuffle the
-	 * data when XSAVES is available because XSAVES uses xstate
+	 * data when XSAVEC/S is available because XSAVEC/S uses xstate
 	 * compaction. But doing so is a pointless exercise because most
 	 * components have an all zeros init state except for the legacy
 	 * ones (FP and SSE). Those can be saved with FXSAVE into the
@@ -584,7 +585,8 @@ static unsigned int xstate_calculate_size(u64 xfeatures, bool compacted)
  */
 static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
 {
-	bool compacted = cpu_feature_enabled(X86_FEATURE_XSAVES);
+	bool compacted = cpu_feature_enabled(X86_FEATURE_XCOMPACTED);
+	bool xsaves = cpu_feature_enabled(X86_FEATURE_XSAVES);
 	unsigned int size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	int i;
 
@@ -595,7 +597,7 @@ static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
 		 * Supervisor state components can be managed only by
 		 * XSAVES.
 		 */
-		if (!compacted && xfeature_is_supervisor(i)) {
+		if (!xsaves && xfeature_is_supervisor(i)) {
 			XSTATE_WARN_ON(1);
 			return false;
 		}
@@ -612,8 +614,11 @@ static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
  * the size of the *user* states.  If we use it to size a buffer
  * that we use 'XSAVES' on, we could potentially overflow the
  * buffer because 'XSAVES' saves system states too.
+ *
+ * This also takes compaction into account. So this works for
+ * XSAVEC as well.
  */
-static unsigned int __init get_xsaves_size(void)
+static unsigned int __init get_compacted_size(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 	/*
@@ -623,6 +628,10 @@ static unsigned int __init get_xsaves_size(void)
 	 *    containing all the state components
 	 *    corresponding to bits currently set in
 	 *    XCR0 | IA32_XSS.
+	 *
+	 * When XSAVES is not available but XSAVEC is (virt), then there
+	 * are no supervisor states, but XSAVEC still uses compacted
+	 * format.
 	 */
 	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
 	return ebx;
@@ -632,13 +641,13 @@ static unsigned int __init get_xsaves_size(void)
  * Get the total size of the enabled xstates without the independent supervisor
  * features.
  */
-static unsigned int __init get_xsaves_size_no_independent(void)
+static unsigned int __init get_xsave_compacted_size(void)
 {
 	u64 mask = xfeatures_mask_independent();
 	unsigned int size;
 
 	if (!mask)
-		return get_xsaves_size();
+		return get_compacted_size();
 
 	/* Disable independent features. */
 	wrmsrl(MSR_IA32_XSS, xfeatures_mask_supervisor());
@@ -647,7 +656,7 @@ static unsigned int __init get_xsaves_size_no_independent(void)
 	 * Ask the hardware what size is required of the buffer.
 	 * This is the size required for the task->fpu buffer.
 	 */
-	size = get_xsaves_size();
+	size = get_compacted_size();
 
 	/* Re-enable independent features so XSAVES will work on them again. */
 	wrmsrl(MSR_IA32_XSS, xfeatures_mask_supervisor() | mask);
@@ -669,47 +678,30 @@ static unsigned int __init get_xsave_size_user(void)
 	return ebx;
 }
 
-/*
- * Will the runtime-enumerated 'xstate_size' fit in the init
- * task's statically-allocated buffer?
- */
-static bool __init is_supported_xstate_size(unsigned int test_xstate_size)
-{
-	if (test_xstate_size <= sizeof(init_fpstate.regs))
-		return true;
-
-	pr_warn("x86/fpu: xstate buffer too small (%zu < %d), disabling xsave\n",
-			sizeof(init_fpstate.regs), test_xstate_size);
-	return false;
-}
-
 static int __init init_xstate_size(void)
 {
 	/* Recompute the context size for enabled features: */
 	unsigned int user_size, kernel_size, kernel_default_size;
-	bool compacted = cpu_feature_enabled(X86_FEATURE_XSAVES);
+	bool compacted = cpu_feature_enabled(X86_FEATURE_XCOMPACTED);
 
 	/* Uncompacted user space size */
 	user_size = get_xsave_size_user();
 
 	/*
-	 * XSAVES kernel size includes supervisor states and
-	 * uses compacted format when available.
+	 * XSAVES kernel size includes supervisor states and uses compacted
+	 * format. XSAVEC uses compacted format, but does not save
+	 * supervisor states.
 	 *
-	 * XSAVE does not support supervisor states so
-	 * kernel and user size is identical.
+	 * XSAVE[OPT] do not support supervisor states so kernel and user
+	 * size is identical.
 	 */
 	if (compacted)
-		kernel_size = get_xsaves_size_no_independent();
+		kernel_size = get_xsave_compacted_size();
 	else
 		kernel_size = user_size;
 
 	kernel_default_size =
 		xstate_calculate_size(fpu_kernel_cfg.default_features, compacted);
-
-	/* Ensure we have the space to store all default enabled features. */
-	if (!is_supported_xstate_size(kernel_default_size))
-		return -EINVAL;
 
 	if (!paranoid_xstate_size_valid(kernel_size))
 		return -EINVAL;
@@ -813,8 +805,11 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	if (!cpu_feature_enabled(X86_FEATURE_XFD))
 		fpu_kernel_cfg.max_features &= ~XFEATURE_MASK_USER_DYNAMIC;
 
-	fpu_kernel_cfg.max_features &= XFEATURE_MASK_USER_SUPPORTED |
-			      XFEATURE_MASK_SUPERVISOR_SUPPORTED;
+	if (!cpu_feature_enabled(X86_FEATURE_XSAVES))
+		fpu_kernel_cfg.max_features &= XFEATURE_MASK_USER_SUPPORTED;
+	else
+		fpu_kernel_cfg.max_features &= XFEATURE_MASK_USER_SUPPORTED |
+					XFEATURE_MASK_SUPERVISOR_SUPPORTED;
 
 	fpu_user_cfg.max_features = fpu_kernel_cfg.max_features;
 	fpu_user_cfg.max_features &= XFEATURE_MASK_USER_SUPPORTED;
@@ -837,6 +832,11 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	 */
 	init_fpstate.xfd = fpu_user_cfg.max_features & XFEATURE_MASK_USER_DYNAMIC;
 
+	/* Set up compaction feature bit */
+	if (cpu_feature_enabled(X86_FEATURE_XSAVEC) ||
+	    cpu_feature_enabled(X86_FEATURE_XSAVES))
+		setup_force_cpu_cap(X86_FEATURE_XCOMPACTED);
+
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();
 
@@ -857,6 +857,19 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	update_regset_xstate_info(fpu_user_cfg.max_size,
 				  fpu_user_cfg.max_features);
 
+	/*
+	 * init_fpstate excludes dynamic states as they are large but init
+	 * state is zero.
+	 */
+	init_fpstate.size		= fpu_kernel_cfg.default_size;
+	init_fpstate.xfeatures		= fpu_kernel_cfg.default_features;
+
+	if (init_fpstate.size > sizeof(init_fpstate.regs)) {
+		pr_warn("x86/fpu: init_fpstate buffer too small (%zu < %d), disabling XSAVE\n",
+			sizeof(init_fpstate.regs), init_fpstate.size);
+		goto out_disable;
+	}
+
 	setup_init_fpu_buf();
 
 	/*
@@ -873,7 +886,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
 		fpu_kernel_cfg.max_features,
 		fpu_kernel_cfg.max_size,
-		boot_cpu_has(X86_FEATURE_XSAVES) ? "compacted" : "standard");
+		boot_cpu_has(X86_FEATURE_XCOMPACTED) ? "compacted" : "standard");
 	return;
 
 out_disable:
@@ -917,7 +930,7 @@ static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 	if (WARN_ON_ONCE(!xfeature_enabled(xfeature_nr)))
 		return NULL;
 
-	if (cpu_feature_enabled(X86_FEATURE_XSAVES)) {
+	if (cpu_feature_enabled(X86_FEATURE_XCOMPACTED)) {
 		if (WARN_ON_ONCE(!(xcomp_bv & BIT_ULL(xfeature_nr))))
 			return NULL;
 	}
@@ -1112,6 +1125,15 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 	 */
 	mask = fpstate->user_xfeatures;
 
+	/*
+	 * Dynamic features are not present in init_fpstate. When they are
+	 * in an all zeros init state, remove those from 'mask' to zero
+	 * those features in the user buffer instead of retrieving them
+	 * from init_fpstate.
+	 */
+	if (fpu_state_size_dynamic())
+		mask &= (header.xfeatures | xinit->header.xcomp_bv);
+
 	for_each_extended_xfeature(i, mask) {
 		/*
 		 * If there was a feature or alignment gap, zero the space
@@ -1215,7 +1237,7 @@ static int copy_uabi_to_xstate(struct fpstate *fpstate, const void *kbuf,
 	}
 
 	for (i = 0; i < XFEATURE_MAX; i++) {
-		u64 mask = ((u64)1 << i);
+		mask = BIT_ULL(i);
 
 		if (hdr.xfeatures & mask) {
 			void *dst = __raw_xsave_addr(xsave, i);
@@ -1525,7 +1547,7 @@ static int __xstate_request_perm(u64 permitted, u64 requested, bool guest)
 	 * vendors into extending XFD for the pre AMX states, especially
 	 * AVX512.
 	 */
-	bool compacted = cpu_feature_enabled(X86_FEATURE_XSAVES);
+	bool compacted = cpu_feature_enabled(X86_FEATURE_XCOMPACTED);
 	struct fpu *fpu = &current->group_leader->thread.fpu;
 	struct fpu_state_perm *perm;
 	unsigned int ksize, usize;
@@ -1687,15 +1709,12 @@ EXPORT_SYMBOL_GPL(xstate_get_guest_group_perm);
  * e.g. for AMX which requires XFEATURE_XTILE_CFG(17) and
  * XFEATURE_XTILE_DATA(18) this would be XFEATURE_XTILE_DATA(18).
  */
-long fpu_xstate_prctl(struct task_struct *tsk, int option, unsigned long arg2)
+long fpu_xstate_prctl(int option, unsigned long arg2)
 {
 	u64 __user *uptr = (u64 __user *)arg2;
 	u64 permitted, supported;
 	unsigned long idx = arg2;
 	bool guest = false;
-
-	if (tsk != current)
-		return -EPERM;
 
 	switch (option) {
 	case ARCH_GET_XCOMP_SUPP:

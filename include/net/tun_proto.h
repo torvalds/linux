@@ -1,7 +1,8 @@
 #ifndef __NET_TUN_PROTO_H
 #define __NET_TUN_PROTO_H
 
-#include <linux/kernel.h>
+#include <linux/if_ether.h>
+#include <linux/types.h>
 
 /* One byte protocol values as defined by VXLAN-GPE and NSH. These will
  * hopefully get a shared IANA registry.

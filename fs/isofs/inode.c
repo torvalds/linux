@@ -1174,9 +1174,9 @@ struct buffer_head *isofs_bread(struct inode *inode, sector_t block)
 	return sb_bread(inode->i_sb, blknr);
 }
 
-static int isofs_readpage(struct file *file, struct page *page)
+static int isofs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, isofs_get_block);
+	return mpage_read_folio(folio, isofs_get_block);
 }
 
 static void isofs_readahead(struct readahead_control *rac)
@@ -1190,7 +1190,7 @@ static sector_t _isofs_bmap(struct address_space *mapping, sector_t block)
 }
 
 static const struct address_space_operations isofs_aops = {
-	.readpage = isofs_readpage,
+	.read_folio = isofs_read_folio,
 	.readahead = isofs_readahead,
 	.bmap = _isofs_bmap
 };
@@ -1277,13 +1277,11 @@ static int isofs_read_level3_size(struct inode *inode)
 	} while (more_entries);
 out:
 	kfree(tmpde);
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 	return 0;
 
 out_nomem:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 	return -ENOMEM;
 
 out_noread:
@@ -1486,8 +1484,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	ret = 0;
 out:
 	kfree(tmpde);
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 	return ret;
 
 out_badread:

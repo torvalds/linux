@@ -3,6 +3,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8960.h>
+#include <dt-bindings/clock/qcom,lcc-msm8960.h>
 #include <dt-bindings/mfd/qcom-rpm.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 
@@ -56,14 +57,14 @@
 	};
 
 	clocks {
-		cxo_board {
+		cxo_board: cxo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
 			clock-output-names = "cxo_board";
 		};
 
-		pxo_board {
+		pxo_board: pxo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <27000000>;
@@ -130,6 +131,10 @@
 			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
+			clocks = <&cxo_board>,
+				 <&pxo_board>,
+				 <&lcc PLL4>;
+			clock-names = "cxo", "pxo", "pll4";
 		};
 
 		lcc: clock-controller@28000000 {
@@ -137,6 +142,20 @@
 			reg = <0x28000000 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			clocks = <&pxo_board>,
+				 <&gcc PLL4_VOTE>,
+				 <0>,
+				 <0>, <0>,
+				 <0>, <0>,
+				 <0>;
+			clock-names = "pxo",
+				      "pll4_vote",
+				      "mi2s_codec_clk",
+				      "codec_i2s_mic_codec_clk",
+				      "spare_i2s_mic_codec_clk",
+				      "codec_i2s_spkr_codec_clk",
+				      "spare_i2s_spkr_codec_clk",
+				      "pcm_codec_clk";
 		};
 
 		clock-controller@4000000 {
@@ -145,22 +164,38 @@
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
 			#reset-cells = <1>;
+			clocks = <&pxo_board>,
+				 <&gcc PLL3>,
+				 <&gcc PLL8_VOTE>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>;
+			clock-names = "pxo",
+				      "pll3",
+				      "pll8_vote",
+				      "dsi1pll",
+				      "dsi1pllbyte",
+				      "dsi2pll",
+				      "dsi2pllbyte",
+				      "hdmipll";
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible	= "qcom,kpss-gcc", "syscon";
-			reg		= <0x2011000 0x1000>;
+			compatible = "qcom,kpss-gcc", "syscon";
+			reg = <0x2011000 0x1000>;
 		};
 
-		rpm@108000 {
-			compatible	= "qcom,rpm-msm8960";
-			reg		= <0x108000 0x1000>;
-			qcom,ipc	= <&l2cc 0x8 2>;
+		rpm: rpm@108000 {
+			compatible = "qcom,rpm-msm8960";
+			reg = <0x108000 0x1000>;
+			qcom,ipc = <&l2cc 0x8 2>;
 
-			interrupts	= <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
-					  <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
-					  <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
-			interrupt-names	= "ack", "err", "wakeup";
+			interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "ack", "err", "wakeup";
 
 			regulators {
 				compatible = "qcom,rpm-pm8921-regulators";
@@ -268,16 +303,16 @@
 			#size-cells = <1>;
 			ranges;
 			sdcc1: mmc@12400000 {
-				status		= "disabled";
-				compatible	= "arm,pl18x", "arm,primecell";
+				status = "disabled";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				reg		= <0x12400000 0x8000>;
-				interrupts	= <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <8>;
-				max-frequency	= <96000000>;
+				reg = <0x12400000 0x8000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <8>;
+				max-frequency = <96000000>;
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
@@ -285,18 +320,18 @@
 			};
 
 			sdcc3: mmc@12180000 {
-				compatible	= "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				status		= "disabled";
-				reg		= <0x12180000 0x8000>;
-				interrupts	= <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <4>;
+				status = "disabled";
+				reg = <0x12180000 0x8000>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <4>;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				max-frequency	= <192000000>;
+				max-frequency = <192000000>;
 				no-1-8-v;
 				vmmc-supply = <&vsdcc_fixed>;
 			};
@@ -307,7 +342,7 @@
 			reg = <0x1a400000 0x100>;
 		};
 
-		gsbi@16000000 {
+		gsbi1: gsbi@16000000 {
 			compatible = "qcom,gsbi-v1.0.0";
 			cell-index = <1>;
 			reg = <0x16000000 0x100>;
@@ -317,7 +352,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			spi@16080000 {
+			gsbi1_spi: spi@16080000 {
 				compatible = "qcom,spi-qup-v1.1.1";
 				#address-cells = <1>;
 				#size-cells = <0>;

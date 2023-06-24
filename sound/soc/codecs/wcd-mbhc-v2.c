@@ -1191,7 +1191,7 @@ correct_plug_type:
 				pt_gnd_mic_swap_cnt = 0;
 				plug_type = wcd_mbhc_get_plug_from_adc(mbhc, output_mv);
 				continue;
-			} else if (cross_conn < 0) /* Error */
+			} else /* Error if (cross_conn < 0) */
 				continue;
 
 			if (pt_gnd_mic_swap_cnt == GND_MIC_SWAP_THRESHOLD) {
@@ -1306,7 +1306,7 @@ exit:
 static irqreturn_t wcd_mbhc_adc_hs_ins_irq(int irq, void *data)
 {
 	struct wcd_mbhc *mbhc = data;
-	u8 clamp_state = 0;
+	u8 clamp_state;
 	u8 clamp_retry = WCD_MBHC_FAKE_INS_RETRY;
 
 	/*

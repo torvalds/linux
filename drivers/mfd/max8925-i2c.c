@@ -198,14 +198,13 @@ static int max8925_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int max8925_remove(struct i2c_client *client)
+static void max8925_remove(struct i2c_client *client)
 {
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	max8925_device_exit(chip);
 	i2c_unregister_device(chip->adc);
 	i2c_unregister_device(chip->rtc);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

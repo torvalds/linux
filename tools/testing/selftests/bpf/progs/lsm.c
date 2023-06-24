@@ -4,6 +4,7 @@
  * Copyright 2020 Google LLC.
  */
 
+#include "bpf_misc.h"
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -160,7 +161,7 @@ int BPF_PROG(test_task_free, struct task_struct *task)
 
 int copy_test = 0;
 
-SEC("fentry.s/__x64_sys_setdomainname")
+SEC("fentry.s/" SYS_PREFIX "sys_setdomainname")
 int BPF_PROG(test_sys_setdomainname, struct pt_regs *regs)
 {
 	void *ptr = (void *)PT_REGS_PARM1(regs);

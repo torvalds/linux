@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -8,6 +8,16 @@
 #define __iwl_fw_api_scan_h__
 
 /* Scan Commands, Responses, Notifications */
+
+/**
+ * enum iwl_scan_subcmd_ids - scan commands
+ */
+enum iwl_scan_subcmd_ids {
+	/**
+	 * @OFFLOAD_MATCH_INFO_NOTIF: &struct iwl_scan_offload_match_info
+	 */
+	OFFLOAD_MATCH_INFO_NOTIF = 0xFC,
+};
 
 /* Max number of IEs for direct SSID scans in a command */
 #define PROBE_OPTION_MAX		20
@@ -1165,7 +1175,7 @@ struct iwl_scan_offload_profiles_query_v1 {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match_v1 matches[0];
+	struct iwl_scan_offload_profile_match_v1 matches[];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
 
 /**
@@ -1188,7 +1198,7 @@ struct iwl_scan_offload_profile_match {
 } __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_2 */
 
 /**
- * struct iwl_scan_offload_profiles_query - match results query response
+ * struct iwl_scan_offload_match_info - match results information
  * @matched_profiles: bitmap of matched profiles, referencing the
  *	matches passed in the scan offload request
  * @last_scan_age: age of the last offloaded scan
@@ -1200,7 +1210,7 @@ struct iwl_scan_offload_profile_match {
  * @reserved: reserved
  * @matches: array of match information, one for each match
  */
-struct iwl_scan_offload_profiles_query {
+struct iwl_scan_offload_match_info {
 	__le32 matched_profiles;
 	__le32 last_scan_age;
 	__le32 n_scans_done;
@@ -1209,8 +1219,10 @@ struct iwl_scan_offload_profiles_query {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match matches[0];
-} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 */
+	struct iwl_scan_offload_profile_match matches[];
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 and
+	     * SCAN_OFFLOAD_MATCH_INFO_NOTIFICATION_S_VER_1
+	     */
 
 /**
  * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration

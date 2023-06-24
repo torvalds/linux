@@ -1224,7 +1224,7 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
  *  @budget : maximum number of packets that the current CPU can receive from
  *	      all interfaces.
  *  Description :
- *   This function implements the the reception process.
+ *   This function implements the reception process.
  *   Also it runs the TX completion thread
  */
 static int xgmac_poll(struct napi_struct *napi, int budget)
@@ -1792,7 +1792,7 @@ static int xgmac_probe(struct platform_device *pdev)
 		netdev_warn(ndev, "MAC address %pM not valid",
 			 ndev->dev_addr);
 
-	netif_napi_add(ndev, &priv->napi, xgmac_poll, 64);
+	netif_napi_add(ndev, &priv->napi, xgmac_poll);
 	ret = register_netdev(ndev);
 	if (ret)
 		goto err_reg;

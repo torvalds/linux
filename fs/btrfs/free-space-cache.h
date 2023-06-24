@@ -113,7 +113,6 @@ int btrfs_add_free_space_async_trimmed(struct btrfs_block_group *block_group,
 				       u64 bytenr, u64 size);
 int btrfs_remove_free_space(struct btrfs_block_group *block_group,
 			    u64 bytenr, u64 size);
-void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl);
 void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group);
 bool btrfs_is_free_space_trimmed(struct btrfs_block_group *block_group);
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group *block_group,

@@ -81,6 +81,8 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 
+#include "dml/dcn30/dcn30_fpu.h"
+
 #include "dml/dcn30/display_mode_vba_30.h"
 #include "dml/dcn301/dcn301_fpu.h"
 #include "vm_helper.h"
@@ -632,7 +634,7 @@ static const struct dcn20_vmid_mask vmid_masks = {
 		DCN20_VMID_MASK_SH_LIST(_MASK)
 };
 
-static const struct resource_caps res_cap_dcn301 = {
+static struct resource_caps res_cap_dcn301 = {
 	.num_timing_generator = 4,
 	.num_opp = 4,
 	.num_video_plane = 4,
@@ -698,6 +700,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
 	.use_max_lb = false,
+	.exit_idle_opt_for_cursor_updates = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -849,7 +852,7 @@ static struct hubbub *dcn301_hubbub_create(struct dc_context *ctx)
 		vmid->masks = &vmid_masks;
 	}
 
-	 hubbub3->num_vmid = res_cap_dcn301.num_vmid;
+	hubbub3->num_vmid = res_cap_dcn301.num_vmid;
 
 	return &hubbub3->base;
 }
@@ -888,6 +891,7 @@ static const struct encoder_feature_support link_enc_feature = {
 };
 
 static struct link_encoder *dcn301_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1426,6 +1430,8 @@ static bool dcn301_resource_construct(
 
 	ctx->dc_bios->regs = &bios_regs;
 
+	if (dc->ctx->asic_id.chip_id == DEVICE_ID_VGH_1435)
+		res_cap_dcn301.num_pll = 2;
 	pool->base.res_cap = &res_cap_dcn301;
 
 	pool->base.funcs = &dcn301_res_pool_funcs;

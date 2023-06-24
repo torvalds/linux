@@ -12,10 +12,14 @@
 #include <linux/iio/iio.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
+
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 /* register map */
 #define LTC2983_STATUS_REG			0x0000
@@ -200,11 +204,11 @@ struct ltc2983_data {
 	u8 num_channels;
 	u8 iio_channels;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 * Holds the converted temperature
 	 */
-	__be32 temp ____cacheline_aligned;
+	__be32 temp __aligned(IIO_DMA_MINALIGN);
 };
 
 struct ltc2983_sensor {
@@ -219,7 +223,7 @@ struct ltc2983_sensor {
 
 struct ltc2983_custom_sensor {
 	/* raw table sensor data */
-	u8 *table;
+	void *table;
 	size_t size;
 	/* address offset */
 	s8 offset;
@@ -377,25 +381,25 @@ static int __ltc2983_chan_custom_sensor_assign(struct ltc2983_data *st,
 	return regmap_bulk_write(st->regmap, reg, custom->table, custom->size);
 }
 
-static struct ltc2983_custom_sensor *__ltc2983_custom_sensor_new(
-						struct ltc2983_data *st,
-						const struct device_node *np,
-						const char *propname,
-						const bool is_steinhart,
-						const u32 resolution,
-						const bool has_signed)
+static struct ltc2983_custom_sensor *
+__ltc2983_custom_sensor_new(struct ltc2983_data *st, const struct fwnode_handle *fn,
+			    const char *propname, const bool is_steinhart,
+			    const u32 resolution, const bool has_signed)
 {
 	struct ltc2983_custom_sensor *new_custom;
-	u8 index, n_entries, tbl = 0;
 	struct device *dev = &st->spi->dev;
 	/*
 	 * For custom steinhart, the full u32 is taken. For all the others
 	 * the MSB is discarded.
 	 */
 	const u8 n_size = is_steinhart ? 4 : 3;
-	const u8 e_size = is_steinhart ? sizeof(u32) : sizeof(u64);
+	u8 index, n_entries;
+	int ret;
 
-	n_entries = of_property_count_elems_of_size(np, propname, e_size);
+	if (is_steinhart)
+		n_entries = fwnode_property_count_u32(fn, propname);
+	else
+		n_entries = fwnode_property_count_u64(fn, propname);
 	/* n_entries must be an even number */
 	if (!n_entries || (n_entries % 2) != 0) {
 		dev_err(dev, "Number of entries either 0 or not even\n");
@@ -409,8 +413,8 @@ static struct ltc2983_custom_sensor *__ltc2983_custom_sensor_new(
 	new_custom->size = n_entries * n_size;
 	/* check Steinhart size */
 	if (is_steinhart && new_custom->size != LTC2983_CUSTOM_STEINHART_SIZE) {
-		dev_err(dev, "Steinhart sensors size(%zu) must be 24",
-							new_custom->size);
+		dev_err(dev, "Steinhart sensors size(%zu) must be %u\n", new_custom->size,
+			LTC2983_CUSTOM_STEINHART_SIZE);
 		return ERR_PTR(-EINVAL);
 	}
 	/* Check space on the table. */
@@ -423,21 +427,33 @@ static struct ltc2983_custom_sensor *__ltc2983_custom_sensor_new(
 	}
 
 	/* allocate the table */
-	new_custom->table = devm_kzalloc(dev, new_custom->size, GFP_KERNEL);
+	if (is_steinhart)
+		new_custom->table = devm_kcalloc(dev, n_entries, sizeof(u32), GFP_KERNEL);
+	else
+		new_custom->table = devm_kcalloc(dev, n_entries, sizeof(u64), GFP_KERNEL);
 	if (!new_custom->table)
 		return ERR_PTR(-ENOMEM);
 
-	for (index = 0; index < n_entries; index++) {
-		u64 temp = 0, j;
-		/*
-		 * Steinhart sensors are configured with raw values in the
-		 * devicetree. For the other sensors we must convert the
-		 * value to raw. The odd index's correspond to temperarures
-		 * and always have 1/1024 of resolution. Temperatures also
-		 * come in kelvin, so signed values is not possible
-		 */
-		if (!is_steinhart) {
-			of_property_read_u64_index(np, propname, index, &temp);
+	/*
+	 * Steinhart sensors are configured with raw values in the firmware
+	 * node. For the other sensors we must convert the value to raw.
+	 * The odd index's correspond to temperatures and always have 1/1024
+	 * of resolution. Temperatures also come in Kelvin, so signed values
+	 * are not possible.
+	 */
+	if (is_steinhart) {
+		ret = fwnode_property_read_u32_array(fn, propname, new_custom->table, n_entries);
+		if (ret < 0)
+			return ERR_PTR(ret);
+
+		cpu_to_be32_array(new_custom->table, new_custom->table, n_entries);
+	} else {
+		ret = fwnode_property_read_u64_array(fn, propname, new_custom->table, n_entries);
+		if (ret < 0)
+			return ERR_PTR(ret);
+
+		for (index = 0; index < n_entries; index++) {
+			u64 temp = ((u64 *)new_custom->table)[index];
 
 			if ((index % 2) != 0)
 				temp = __convert_to_raw(temp, 1024);
@@ -445,16 +461,9 @@ static struct ltc2983_custom_sensor *__ltc2983_custom_sensor_new(
 				temp = __convert_to_raw_sign(temp, resolution);
 			else
 				temp = __convert_to_raw(temp, resolution);
-		} else {
-			u32 t32;
 
-			of_property_read_u32_index(np, propname, index, &t32);
-			temp = t32;
+			put_unaligned_be24(temp, new_custom->table + index * 3);
 		}
-
-		for (j = 0; j < n_size; j++)
-			new_custom->table[tbl++] =
-				temp >> (8 * (n_size - j - 1));
 	}
 
 	new_custom->is_steinhart = is_steinhart;
@@ -597,13 +606,12 @@ static int ltc2983_adc_assign_chan(struct ltc2983_data *st,
 	return __ltc2983_chan_assign_common(st, sensor, chan_val);
 }
 
-static struct ltc2983_sensor *ltc2983_thermocouple_new(
-					const struct device_node *child,
-					struct ltc2983_data *st,
-					const struct ltc2983_sensor *sensor)
+static struct ltc2983_sensor *
+ltc2983_thermocouple_new(const struct fwnode_handle *child, struct ltc2983_data *st,
+			 const struct ltc2983_sensor *sensor)
 {
 	struct ltc2983_thermocouple *thermo;
-	struct device_node *phandle;
+	struct fwnode_handle *ref;
 	u32 oc_current;
 	int ret;
 
@@ -611,11 +619,10 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 	if (!thermo)
 		return ERR_PTR(-ENOMEM);
 
-	if (of_property_read_bool(child, "adi,single-ended"))
+	if (fwnode_property_read_bool(child, "adi,single-ended"))
 		thermo->sensor_config = LTC2983_THERMOCOUPLE_SGL(1);
 
-	ret = of_property_read_u32(child, "adi,sensor-oc-current-microamp",
-				   &oc_current);
+	ret = fwnode_property_read_u32(child, "adi,sensor-oc-current-microamp", &oc_current);
 	if (!ret) {
 		switch (oc_current) {
 		case 10:
@@ -651,20 +658,18 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 		return ERR_PTR(-EINVAL);
 	}
 
-	phandle = of_parse_phandle(child, "adi,cold-junction-handle", 0);
-	if (phandle) {
-		int ret;
-
-		ret = of_property_read_u32(phandle, "reg",
-					   &thermo->cold_junction_chan);
+	ref = fwnode_find_reference(child, "adi,cold-junction-handle", 0);
+	if (IS_ERR(ref)) {
+		ref = NULL;
+	} else {
+		ret = fwnode_property_read_u32(ref, "reg", &thermo->cold_junction_chan);
 		if (ret) {
 			/*
 			 * This would be catched later but we can just return
 			 * the error right away.
 			 */
 			dev_err(&st->spi->dev, "Property reg must be given\n");
-			of_node_put(phandle);
-			return ERR_PTR(-EINVAL);
+			goto fail;
 		}
 	}
 
@@ -676,8 +681,8 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 							     propname, false,
 							     16384, true);
 		if (IS_ERR(thermo->custom)) {
-			of_node_put(phandle);
-			return ERR_CAST(thermo->custom);
+			ret = PTR_ERR(thermo->custom);
+			goto fail;
 		}
 	}
 
@@ -685,37 +690,41 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 	thermo->sensor.fault_handler = ltc2983_thermocouple_fault_handler;
 	thermo->sensor.assign_chan = ltc2983_thermocouple_assign_chan;
 
-	of_node_put(phandle);
+	fwnode_handle_put(ref);
 	return &thermo->sensor;
+
+fail:
+	fwnode_handle_put(ref);
+	return ERR_PTR(ret);
 }
 
-static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
-					  struct ltc2983_data *st,
-					  const struct ltc2983_sensor *sensor)
+static struct ltc2983_sensor *
+ltc2983_rtd_new(const struct fwnode_handle *child, struct ltc2983_data *st,
+		const struct ltc2983_sensor *sensor)
 {
 	struct ltc2983_rtd *rtd;
 	int ret = 0;
 	struct device *dev = &st->spi->dev;
-	struct device_node *phandle;
+	struct fwnode_handle *ref;
 	u32 excitation_current = 0, n_wires = 0;
 
 	rtd = devm_kzalloc(dev, sizeof(*rtd), GFP_KERNEL);
 	if (!rtd)
 		return ERR_PTR(-ENOMEM);
 
-	phandle = of_parse_phandle(child, "adi,rsense-handle", 0);
-	if (!phandle) {
+	ref = fwnode_find_reference(child, "adi,rsense-handle", 0);
+	if (IS_ERR(ref)) {
 		dev_err(dev, "Property adi,rsense-handle missing or invalid");
-		return ERR_PTR(-EINVAL);
+		return ERR_CAST(ref);
 	}
 
-	ret = of_property_read_u32(phandle, "reg", &rtd->r_sense_chan);
+	ret = fwnode_property_read_u32(ref, "reg", &rtd->r_sense_chan);
 	if (ret) {
 		dev_err(dev, "Property reg must be given\n");
 		goto fail;
 	}
 
-	ret = of_property_read_u32(child, "adi,number-of-wires", &n_wires);
+	ret = fwnode_property_read_u32(child, "adi,number-of-wires", &n_wires);
 	if (!ret) {
 		switch (n_wires) {
 		case 2:
@@ -738,9 +747,9 @@ static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
 		}
 	}
 
-	if (of_property_read_bool(child, "adi,rsense-share")) {
+	if (fwnode_property_read_bool(child, "adi,rsense-share")) {
 		/* Current rotation is only available with rsense sharing */
-		if (of_property_read_bool(child, "adi,current-rotate")) {
+		if (fwnode_property_read_bool(child, "adi,current-rotate")) {
 			if (n_wires == 2 || n_wires == 3) {
 				dev_err(dev,
 					"Rotation not allowed for 2/3 Wire RTDs");
@@ -803,8 +812,8 @@ static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
 							  "adi,custom-rtd",
 							  false, 2048, false);
 		if (IS_ERR(rtd->custom)) {
-			of_node_put(phandle);
-			return ERR_CAST(rtd->custom);
+			ret = PTR_ERR(rtd->custom);
+			goto fail;
 		}
 	}
 
@@ -812,8 +821,8 @@ static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
 	rtd->sensor.fault_handler = ltc2983_common_fault_handler;
 	rtd->sensor.assign_chan = ltc2983_rtd_assign_chan;
 
-	ret = of_property_read_u32(child, "adi,excitation-current-microamp",
-				   &excitation_current);
+	ret = fwnode_property_read_u32(child, "adi,excitation-current-microamp",
+				       &excitation_current);
 	if (ret) {
 		/* default to 5uA */
 		rtd->excitation_current = 1;
@@ -852,23 +861,22 @@ static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
 		}
 	}
 
-	of_property_read_u32(child, "adi,rtd-curve", &rtd->rtd_curve);
+	fwnode_property_read_u32(child, "adi,rtd-curve", &rtd->rtd_curve);
 
-	of_node_put(phandle);
+	fwnode_handle_put(ref);
 	return &rtd->sensor;
 fail:
-	of_node_put(phandle);
+	fwnode_handle_put(ref);
 	return ERR_PTR(ret);
 }
 
-static struct ltc2983_sensor *ltc2983_thermistor_new(
-					const struct device_node *child,
-					struct ltc2983_data *st,
-					const struct ltc2983_sensor *sensor)
+static struct ltc2983_sensor *
+ltc2983_thermistor_new(const struct fwnode_handle *child, struct ltc2983_data *st,
+		       const struct ltc2983_sensor *sensor)
 {
 	struct ltc2983_thermistor *thermistor;
 	struct device *dev = &st->spi->dev;
-	struct device_node *phandle;
+	struct fwnode_handle *ref;
 	u32 excitation_current = 0;
 	int ret = 0;
 
@@ -876,23 +884,23 @@ static struct ltc2983_sensor *ltc2983_thermistor_new(
 	if (!thermistor)
 		return ERR_PTR(-ENOMEM);
 
-	phandle = of_parse_phandle(child, "adi,rsense-handle", 0);
-	if (!phandle) {
+	ref = fwnode_find_reference(child, "adi,rsense-handle", 0);
+	if (IS_ERR(ref)) {
 		dev_err(dev, "Property adi,rsense-handle missing or invalid");
-		return ERR_PTR(-EINVAL);
+		return ERR_CAST(ref);
 	}
 
-	ret = of_property_read_u32(phandle, "reg", &thermistor->r_sense_chan);
+	ret = fwnode_property_read_u32(ref, "reg", &thermistor->r_sense_chan);
 	if (ret) {
 		dev_err(dev, "rsense channel must be configured...\n");
 		goto fail;
 	}
 
-	if (of_property_read_bool(child, "adi,single-ended")) {
+	if (fwnode_property_read_bool(child, "adi,single-ended")) {
 		thermistor->sensor_config = LTC2983_THERMISTOR_SGL(1);
-	} else if (of_property_read_bool(child, "adi,rsense-share")) {
+	} else if (fwnode_property_read_bool(child, "adi,rsense-share")) {
 		/* rotation is only possible if sharing rsense */
-		if (of_property_read_bool(child, "adi,current-rotate"))
+		if (fwnode_property_read_bool(child, "adi,current-rotate"))
 			thermistor->sensor_config =
 						LTC2983_THERMISTOR_C_ROTATE(1);
 		else
@@ -926,16 +934,16 @@ static struct ltc2983_sensor *ltc2983_thermistor_new(
 								 steinhart,
 								 64, false);
 		if (IS_ERR(thermistor->custom)) {
-			of_node_put(phandle);
-			return ERR_CAST(thermistor->custom);
+			ret = PTR_ERR(thermistor->custom);
+			goto fail;
 		}
 	}
 	/* set common parameters */
 	thermistor->sensor.fault_handler = ltc2983_common_fault_handler;
 	thermistor->sensor.assign_chan = ltc2983_thermistor_assign_chan;
 
-	ret = of_property_read_u32(child, "adi,excitation-current-nanoamp",
-				   &excitation_current);
+	ret = fwnode_property_read_u32(child, "adi,excitation-current-nanoamp",
+				       &excitation_current);
 	if (ret) {
 		/* Auto range is not allowed for custom sensors */
 		if (sensor->type >= LTC2983_SENSOR_THERMISTOR_STEINHART)
@@ -999,17 +1007,16 @@ static struct ltc2983_sensor *ltc2983_thermistor_new(
 		}
 	}
 
-	of_node_put(phandle);
+	fwnode_handle_put(ref);
 	return &thermistor->sensor;
 fail:
-	of_node_put(phandle);
+	fwnode_handle_put(ref);
 	return ERR_PTR(ret);
 }
 
-static struct ltc2983_sensor *ltc2983_diode_new(
-					const struct device_node *child,
-					const struct ltc2983_data *st,
-					const struct ltc2983_sensor *sensor)
+static struct ltc2983_sensor *
+ltc2983_diode_new(const struct fwnode_handle *child, const struct ltc2983_data *st,
+		  const struct ltc2983_sensor *sensor)
 {
 	struct ltc2983_diode *diode;
 	u32 temp = 0, excitation_current = 0;
@@ -1019,13 +1026,13 @@ static struct ltc2983_sensor *ltc2983_diode_new(
 	if (!diode)
 		return ERR_PTR(-ENOMEM);
 
-	if (of_property_read_bool(child, "adi,single-ended"))
+	if (fwnode_property_read_bool(child, "adi,single-ended"))
 		diode->sensor_config = LTC2983_DIODE_SGL(1);
 
-	if (of_property_read_bool(child, "adi,three-conversion-cycles"))
+	if (fwnode_property_read_bool(child, "adi,three-conversion-cycles"))
 		diode->sensor_config |= LTC2983_DIODE_3_CONV_CYCLE(1);
 
-	if (of_property_read_bool(child, "adi,average-on"))
+	if (fwnode_property_read_bool(child, "adi,average-on"))
 		diode->sensor_config |= LTC2983_DIODE_AVERAGE_ON(1);
 
 	/* validate channel index */
@@ -1040,8 +1047,8 @@ static struct ltc2983_sensor *ltc2983_diode_new(
 	diode->sensor.fault_handler = ltc2983_common_fault_handler;
 	diode->sensor.assign_chan = ltc2983_diode_assign_chan;
 
-	ret = of_property_read_u32(child, "adi,excitation-current-microamp",
-				   &excitation_current);
+	ret = fwnode_property_read_u32(child, "adi,excitation-current-microamp",
+				       &excitation_current);
 	if (!ret) {
 		switch (excitation_current) {
 		case 10:
@@ -1064,7 +1071,7 @@ static struct ltc2983_sensor *ltc2983_diode_new(
 		}
 	}
 
-	of_property_read_u32(child, "adi,ideal-factor-value", &temp);
+	fwnode_property_read_u32(child, "adi,ideal-factor-value", &temp);
 
 	/* 2^20 resolution */
 	diode->ideal_factor_value = __convert_to_raw(temp, 1048576);
@@ -1072,7 +1079,7 @@ static struct ltc2983_sensor *ltc2983_diode_new(
 	return &diode->sensor;
 }
 
-static struct ltc2983_sensor *ltc2983_r_sense_new(struct device_node *child,
+static struct ltc2983_sensor *ltc2983_r_sense_new(struct fwnode_handle *child,
 					struct ltc2983_data *st,
 					const struct ltc2983_sensor *sensor)
 {
@@ -1091,7 +1098,7 @@ static struct ltc2983_sensor *ltc2983_r_sense_new(struct device_node *child,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = of_property_read_u32(child, "adi,rsense-val-milli-ohms", &temp);
+	ret = fwnode_property_read_u32(child, "adi,rsense-val-milli-ohms", &temp);
 	if (ret) {
 		dev_err(&st->spi->dev, "Property adi,rsense-val-milli-ohms missing\n");
 		return ERR_PTR(-EINVAL);
@@ -1110,7 +1117,7 @@ static struct ltc2983_sensor *ltc2983_r_sense_new(struct device_node *child,
 	return &rsense->sensor;
 }
 
-static struct ltc2983_sensor *ltc2983_adc_new(struct device_node *child,
+static struct ltc2983_sensor *ltc2983_adc_new(struct fwnode_handle *child,
 					 struct ltc2983_data *st,
 					 const struct ltc2983_sensor *sensor)
 {
@@ -1120,7 +1127,7 @@ static struct ltc2983_sensor *ltc2983_adc_new(struct device_node *child,
 	if (!adc)
 		return ERR_PTR(-ENOMEM);
 
-	if (of_property_read_bool(child, "adi,single-ended"))
+	if (fwnode_property_read_bool(child, "adi,single-ended"))
 		adc->single_ended = true;
 
 	if (!adc->single_ended &&
@@ -1264,17 +1271,15 @@ static irqreturn_t ltc2983_irq_handler(int irq, void *data)
 
 static int ltc2983_parse_dt(struct ltc2983_data *st)
 {
-	struct device_node *child;
 	struct device *dev = &st->spi->dev;
+	struct fwnode_handle *child;
 	int ret = 0, chan = 0, channel_avail_mask = 0;
 
-	of_property_read_u32(dev->of_node, "adi,mux-delay-config-us",
-			     &st->mux_delay_config);
+	device_property_read_u32(dev, "adi,mux-delay-config-us", &st->mux_delay_config);
 
-	of_property_read_u32(dev->of_node, "adi,filter-notch-freq",
-			     &st->filter_notch_freq);
+	device_property_read_u32(dev, "adi,filter-notch-freq", &st->filter_notch_freq);
 
-	st->num_channels = of_get_available_child_count(dev->of_node);
+	st->num_channels = device_get_child_node_count(dev);
 	if (!st->num_channels) {
 		dev_err(&st->spi->dev, "At least one channel must be given!");
 		return -EINVAL;
@@ -1286,10 +1291,10 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 		return -ENOMEM;
 
 	st->iio_channels = st->num_channels;
-	for_each_available_child_of_node(dev->of_node, child) {
+	device_for_each_child_node(dev, child) {
 		struct ltc2983_sensor sensor;
 
-		ret = of_property_read_u32(child, "reg", &sensor.chan);
+		ret = fwnode_property_read_u32(child, "reg", &sensor.chan);
 		if (ret) {
 			dev_err(dev, "reg property must given for child nodes\n");
 			goto put_child;
@@ -1299,8 +1304,8 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 		if (sensor.chan < LTC2983_MIN_CHANNELS_NR ||
 		    sensor.chan > LTC2983_MAX_CHANNELS_NR) {
 			ret = -EINVAL;
-			dev_err(dev,
-				"chan:%d must be from 1 to 20\n", sensor.chan);
+			dev_err(dev, "chan:%d must be from %u to %u\n", sensor.chan,
+				LTC2983_MIN_CHANNELS_NR, LTC2983_MAX_CHANNELS_NR);
 			goto put_child;
 		} else if (channel_avail_mask & BIT(sensor.chan)) {
 			ret = -EINVAL;
@@ -1308,8 +1313,7 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 			goto put_child;
 		}
 
-		ret = of_property_read_u32(child, "adi,sensor-type",
-					       &sensor.type);
+		ret = fwnode_property_read_u32(child, "adi,sensor-type", &sensor.type);
 		if (ret) {
 			dev_err(dev,
 				"adi,sensor-type property must given for child nodes\n");
@@ -1363,7 +1367,7 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 
 	return 0;
 put_child:
-	of_node_put(child);
+	fwnode_handle_put(child);
 	return ret;
 }
 
@@ -1380,13 +1384,6 @@ static int ltc2983_setup(struct ltc2983_data *st, bool assign_iio)
 		dev_err(&st->spi->dev, "Device startup timed out\n");
 		return ret;
 	}
-
-	st->iio_chan = devm_kzalloc(&st->spi->dev,
-				    st->iio_channels * sizeof(*st->iio_chan),
-				    GFP_KERNEL);
-
-	if (!st->iio_chan)
-		return -ENOMEM;
 
 	ret = regmap_update_bits(st->regmap, LTC2983_GLOBAL_CONFIG_REG,
 				 LTC2983_NOTCH_FREQ_MASK,
@@ -1510,6 +1507,12 @@ static int ltc2983_probe(struct spi_device *spi)
 		gpiod_set_value_cansleep(gpio, 0);
 	}
 
+	st->iio_chan = devm_kzalloc(&spi->dev,
+				    st->iio_channels * sizeof(*st->iio_chan),
+				    GFP_KERNEL);
+	if (!st->iio_chan)
+		return -ENOMEM;
+
 	ret = ltc2983_setup(st, true);
 	if (ret)
 		return ret;
@@ -1530,7 +1533,7 @@ static int ltc2983_probe(struct spi_device *spi)
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static int __maybe_unused ltc2983_resume(struct device *dev)
+static int ltc2983_resume(struct device *dev)
 {
 	struct ltc2983_data *st = spi_get_drvdata(to_spi_device(dev));
 	int dummy;
@@ -1541,14 +1544,15 @@ static int __maybe_unused ltc2983_resume(struct device *dev)
 	return ltc2983_setup(st, false);
 }
 
-static int __maybe_unused ltc2983_suspend(struct device *dev)
+static int ltc2983_suspend(struct device *dev)
 {
 	struct ltc2983_data *st = spi_get_drvdata(to_spi_device(dev));
 
 	return regmap_write(st->regmap, LTC2983_STATUS_REG, LTC2983_SLEEP);
 }
 
-static SIMPLE_DEV_PM_OPS(ltc2983_pm_ops, ltc2983_suspend, ltc2983_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ltc2983_pm_ops, ltc2983_suspend,
+				ltc2983_resume);
 
 static const struct spi_device_id ltc2983_id_table[] = {
 	{ "ltc2983" },
@@ -1566,7 +1570,7 @@ static struct spi_driver ltc2983_driver = {
 	.driver = {
 		.name = "ltc2983",
 		.of_match_table = ltc2983_of_match,
-		.pm = &ltc2983_pm_ops,
+		.pm = pm_sleep_ptr(&ltc2983_pm_ops),
 	},
 	.probe = ltc2983_probe,
 	.id_table = ltc2983_id_table,

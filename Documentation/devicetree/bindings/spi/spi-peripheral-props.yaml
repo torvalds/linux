@@ -16,7 +16,7 @@ description:
   their own separate schema that should be referenced from here.
 
 maintainers:
-  - Pratyush Yadav <p.yadav@ti.com>
+  - Mark Brown <broonie@kernel.org>
 
 properties:
   reg:
@@ -28,21 +28,6 @@ properties:
           maximum: 256
     description:
       Chip select used by the device.
-
-  spi-3wire:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description:
-      The device requires 3-wire mode.
-
-  spi-cpha:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description:
-      The device requires shifted clock phase (CPHA) mode.
-
-  spi-cpol:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description:
-      The device requires inverse clock polarity (CPOL) mode.
 
   spi-cs-high:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -70,6 +55,11 @@ properties:
   spi-rx-delay-us:
     description:
       Delay, in microseconds, after a read transfer.
+
+  rx-sample-delay-ns:
+    description: SPI Rx sample delay offset, unit is nanoseconds.
+      The delay from the default sample time before the actual
+      sample of the rxd input signal occurs.
 
   spi-tx-bus-width:
     description:
@@ -112,5 +102,6 @@ properties:
 allOf:
   - $ref: cdns,qspi-nor-peripheral-props.yaml#
   - $ref: samsung,spi-peripheral-props.yaml#
+  - $ref: nvidia,tegra210-quad-peripheral-props.yaml#
 
 additionalProperties: true

@@ -73,8 +73,8 @@
 		touchscreen-size-x = <540>;
 		touchscreen-size-y = <960>;
 
-		vdd-supply = <&reg_vdd_tsp>;
-		vddo-supply = <&pm8916_l6>;
+		vcca-supply = <&reg_vdd_tsp_a>;
+		vdd-supply = <&pm8916_l6>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_default>;
@@ -123,14 +123,6 @@
 
 	tkey_led_en_default: tkey-led-en-default {
 		pins = "gpio60";
-		function = "gpio";
-
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	ts_int_default: ts-int-default {
-		pins = "gpio13";
 		function = "gpio";
 
 		drive-strength = <2>;

@@ -19,8 +19,8 @@
 #include "internal.h"
 
 /* Setup RDDM vector table for RDDM transfer and program RXVEC */
-void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
-		      struct image_info *img_info)
+int mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
+		     struct image_info *img_info)
 {
 	struct mhi_buf *mhi_buf = img_info->mhi_buf;
 	struct bhi_vec_entry *bhi_vec = img_info->bhi_vec;
@@ -28,6 +28,7 @@ void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	u32 sequence_id;
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < img_info->entries - 1; i++, mhi_buf++, bhi_vec++) {
 		bhi_vec->dma_addr = mhi_buf->dma_addr;
@@ -45,11 +46,17 @@ void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 	mhi_write_reg(mhi_cntrl, base, BHIE_RXVECSIZE_OFFS, mhi_buf->len);
 	sequence_id = MHI_RANDOM_U32_NONZERO(BHIE_RXVECSTATUS_SEQNUM_BMSK);
 
-	mhi_write_reg_field(mhi_cntrl, base, BHIE_RXVECDB_OFFS,
-			    BHIE_RXVECDB_SEQNUM_BMSK, sequence_id);
+	ret = mhi_write_reg_field(mhi_cntrl, base, BHIE_RXVECDB_OFFS,
+				  BHIE_RXVECDB_SEQNUM_BMSK, sequence_id);
+	if (ret) {
+		dev_err(dev, "Failed to write sequence ID for BHIE_RXVECDB\n");
+		return ret;
+	}
 
 	dev_dbg(dev, "Address: %p and len: 0x%zx sequence: %u\n",
 		&mhi_buf->dma_addr, mhi_buf->len, sequence_id);
+
+	return 0;
 }
 
 /* Collect RDDM buffer during kernel panic */
@@ -198,9 +205,12 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 
 	mhi_write_reg(mhi_cntrl, base, BHIE_TXVECSIZE_OFFS, mhi_buf->len);
 
-	mhi_write_reg_field(mhi_cntrl, base, BHIE_TXVECDB_OFFS,
-			    BHIE_TXVECDB_SEQNUM_BMSK, sequence_id);
+	ret = mhi_write_reg_field(mhi_cntrl, base, BHIE_TXVECDB_OFFS,
+				  BHIE_TXVECDB_SEQNUM_BMSK, sequence_id);
 	read_unlock_bh(pm_lock);
+
+	if (ret)
+		return ret;
 
 	/* Wait for the image download to complete */
 	ret = wait_event_timeout(mhi_cntrl->state_event,

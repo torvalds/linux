@@ -12,12 +12,13 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
 
 #include "framebuffer.h"
 #include "gem.h"
 #include "gma_display.h"
-#include "psb_drv.h"
+#include "psb_irq.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 
@@ -27,17 +28,21 @@
 bool gma_pipe_has_type(struct drm_crtc *crtc, int type)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *l_entry;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 
-	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->encoder && connector->encoder->crtc == crtc) {
 			struct gma_encoder *gma_encoder =
-						gma_attached_encoder(l_entry);
-			if (gma_encoder->type == type)
+						gma_attached_encoder(connector);
+			if (gma_encoder->type == type) {
+				drm_connector_list_iter_end(&conn_iter);
 				return true;
+			}
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return false;
 }
@@ -172,9 +177,9 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 	}
 }
 
-int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
-		       u32 size,
-		       struct drm_modeset_acquire_ctx *ctx)
+static int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, u32 size,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	gma_crtc_load_lut(crtc);
 
@@ -319,10 +324,9 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	REG_WRITE(DSPARB, 0x3F3E);
 }
 
-int gma_crtc_cursor_set(struct drm_crtc *crtc,
-			struct drm_file *file_priv,
-			uint32_t handle,
-			uint32_t width, uint32_t height)
+static int gma_crtc_cursor_set(struct drm_crtc *crtc,
+			       struct drm_file *file_priv, uint32_t handle,
+			       uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
@@ -391,11 +395,9 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			goto unref_cursor;
 		}
 
-		/* Prevent overflow */
-		if (pobj->npage > 4)
-			cursor_pages = 4;
-		else
-			cursor_pages = pobj->npage;
+		cursor_pages = obj->size / PAGE_SIZE;
+		if (cursor_pages > 4)
+			cursor_pages = 4; /* Prevent overflow */
 
 		/* Copy the cursor to cursor mem */
 		tmp_dst = dev_priv->vram_addr + cursor_pobj->offset;
@@ -437,7 +439,7 @@ unref_cursor:
 	return ret;
 }
 
-int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
+static int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
@@ -530,15 +532,18 @@ int gma_crtc_page_flip(struct drm_crtc *crtc,
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		gma_crtc->page_flip_event = event;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 
 		/* Call this locked if we want an event at vblank interrupt. */
 		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 		if (ret) {
-			gma_crtc->page_flip_event = NULL;
-			drm_crtc_vblank_put(crtc);
+			spin_lock_irqsave(&dev->event_lock, flags);
+			if (gma_crtc->page_flip_event) {
+				gma_crtc->page_flip_event = NULL;
+				drm_crtc_vblank_put(crtc);
+			}
+			spin_unlock_irqrestore(&dev->event_lock, flags);
 		}
-
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	} else {
 		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 	}
@@ -550,22 +555,17 @@ int gma_crtc_page_flip(struct drm_crtc *crtc,
 	return ret;
 }
 
-int gma_crtc_set_config(struct drm_mode_set *set,
-			struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int ret;
-
-	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set, ctx);
-
-	pm_runtime_forbid(dev->dev);
-	ret = drm_crtc_helper_set_config(set, ctx);
-	pm_runtime_allow(dev->dev);
-
-	return ret;
-}
+const struct drm_crtc_funcs gma_crtc_funcs = {
+	.cursor_set = gma_crtc_cursor_set,
+	.cursor_move = gma_crtc_cursor_move,
+	.gamma_set = gma_crtc_gamma_set,
+	.set_config = drm_crtc_helper_set_config,
+	.destroy = gma_crtc_destroy,
+	.page_flip = gma_crtc_page_flip,
+	.enable_vblank = gma_crtc_enable_vblank,
+	.disable_vblank = gma_crtc_disable_vblank,
+	.get_vblank_counter = gma_crtc_get_vblank_counter,
+};
 
 /*
  * Save HW states of given crtc

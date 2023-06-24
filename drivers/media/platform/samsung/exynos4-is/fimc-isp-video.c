@@ -312,7 +312,7 @@ static int isp_video_release(struct file *file)
 	is_singular_file = v4l2_fh_is_singular_file(file);
 
 	if (is_singular_file && ivc->streaming) {
-		media_pipeline_stop(entity);
+		video_device_pipeline_stop(&ivc->ve.vdev);
 		ivc->streaming = 0;
 	}
 
@@ -465,7 +465,7 @@ static int isp_video_pipeline_validate(struct fimc_isp *isp)
 			return -EPIPE;
 
 		/* Retrieve format at the source pad */
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -490,10 +490,9 @@ static int isp_video_streamon(struct file *file, void *priv,
 {
 	struct fimc_isp *isp = video_drvdata(file);
 	struct exynos_video_entity *ve = &isp->video_capture.ve;
-	struct media_entity *me = &ve->vdev.entity;
 	int ret;
 
-	ret = media_pipeline_start(me, &ve->pipe->mp);
+	ret = video_device_pipeline_start(&ve->vdev, &ve->pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -508,7 +507,7 @@ static int isp_video_streamon(struct file *file, void *priv,
 	isp->video_capture.streaming = 1;
 	return 0;
 p_stop:
-	media_pipeline_stop(me);
+	video_device_pipeline_stop(&ve->vdev);
 	return ret;
 }
 
@@ -523,7 +522,7 @@ static int isp_video_streamoff(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	media_pipeline_stop(&video->ve.vdev.entity);
+	video_device_pipeline_stop(&video->ve.vdev);
 	video->streaming = 0;
 	return 0;
 }

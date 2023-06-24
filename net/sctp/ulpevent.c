@@ -1063,7 +1063,7 @@ void sctp_ulpevent_read_nxtinfo(const struct sctp_ulpevent *event,
 	struct sk_buff *skb;
 	int err;
 
-	skb = sctp_skb_recv_datagram(sk, MSG_PEEK, 1, &err);
+	skb = sctp_skb_recv_datagram(sk, MSG_PEEK | MSG_DONTWAIT, &err);
 	if (skb != NULL) {
 		__sctp_ulpevent_read_nxtinfo(sctp_skb2event(skb),
 					     msghdr, skb);

@@ -26,6 +26,7 @@
 
 #include <linux/dma-direction.h>
 #include <drm/gpu_scheduler.h>
+#include "amdgpu_vram_mgr.h"
 #include "amdgpu.h"
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
@@ -38,14 +39,7 @@
 
 #define AMDGPU_POISON	0xd0bed0be
 
-struct amdgpu_vram_mgr {
-	struct ttm_resource_manager manager;
-	struct drm_mm mm;
-	spinlock_t lock;
-	struct list_head reservations_pending;
-	struct list_head reserved_pages;
-	atomic64_t vis_usage;
-};
+struct hmm_range;
 
 struct amdgpu_gtt_mgr {
 	struct ttm_resource_manager manager;
@@ -157,15 +151,19 @@ void amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type);
 
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages);
-bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm);
+int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages,
+				 struct hmm_range **range);
+bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
+				       struct hmm_range *range);
 #else
 static inline int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
-					       struct page **pages)
+					       struct page **pages,
+					       struct hmm_range **range)
 {
 	return -EPERM;
 }
-static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
+static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
+						     struct hmm_range *range)
 {
 	return false;
 }

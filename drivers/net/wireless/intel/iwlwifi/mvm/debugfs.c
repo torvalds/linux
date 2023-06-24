@@ -430,14 +430,16 @@ static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_sta *sta,
 		return -EBUSY;
 
 	if (amsdu_len) {
-		mvmsta->orig_amsdu_len = sta->max_amsdu_len;
-		sta->max_amsdu_len = amsdu_len;
-		for (i = 0; i < ARRAY_SIZE(sta->max_tid_amsdu_len); i++)
-			sta->max_tid_amsdu_len[i] = amsdu_len;
+		mvmsta->orig_amsdu_len = sta->cur->max_amsdu_len;
+		sta->deflink.agg.max_amsdu_len = amsdu_len;
+		sta->deflink.agg.max_amsdu_len = amsdu_len;
+		for (i = 0; i < ARRAY_SIZE(sta->deflink.agg.max_tid_amsdu_len); i++)
+			sta->deflink.agg.max_tid_amsdu_len[i] = amsdu_len;
 	} else {
-		sta->max_amsdu_len = mvmsta->orig_amsdu_len;
+		sta->deflink.agg.max_amsdu_len = mvmsta->orig_amsdu_len;
 		mvmsta->orig_amsdu_len = 0;
 	}
+
 	return count;
 }
 
@@ -451,7 +453,7 @@ static ssize_t iwl_dbgfs_amsdu_len_read(struct file *file,
 	char buf[32];
 	int pos;
 
-	pos = scnprintf(buf, sizeof(buf), "current %d ", sta->max_amsdu_len);
+	pos = scnprintf(buf, sizeof(buf), "current %d ", sta->cur->max_amsdu_len);
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "stored %d\n",
 			 mvmsta->orig_amsdu_len);
 
@@ -1233,7 +1235,7 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 
 	mvm->hw->extra_beacon_tailroom = len;
 
-	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL);
+	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL, 0);
 	if (!beacon)
 		goto out_err;
 

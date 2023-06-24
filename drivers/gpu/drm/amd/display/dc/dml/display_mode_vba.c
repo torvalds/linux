@@ -111,6 +111,22 @@ dml_get_attr_func(tcalc, mode_lib->vba.TCalc);
 dml_get_attr_func(fraction_of_urgent_bandwidth, mode_lib->vba.FractionOfUrgentBandwidth);
 dml_get_attr_func(fraction_of_urgent_bandwidth_imm_flip, mode_lib->vba.FractionOfUrgentBandwidthImmediateFlip);
 
+
+dml_get_attr_func(cstate_max_cap_mode, mode_lib->vba.DCHUBBUB_ARB_CSTATE_MAX_CAP_MODE);
+dml_get_attr_func(comp_buffer_size_kbytes, mode_lib->vba.CompressedBufferSizeInkByte);
+dml_get_attr_func(pixel_chunk_size_in_kbyte, mode_lib->vba.PixelChunkSizeInKByte);
+dml_get_attr_func(alpha_pixel_chunk_size_in_kbyte, mode_lib->vba.AlphaPixelChunkSizeInKByte);
+dml_get_attr_func(meta_chunk_size_in_kbyte, mode_lib->vba.MetaChunkSize);
+dml_get_attr_func(min_pixel_chunk_size_in_byte, mode_lib->vba.MinPixelChunkSizeBytes);
+dml_get_attr_func(min_meta_chunk_size_in_byte, mode_lib->vba.MinMetaChunkSizeBytes);
+dml_get_attr_func(fclk_watermark, mode_lib->vba.Watermark.FCLKChangeWatermark);
+dml_get_attr_func(usr_retraining_watermark, mode_lib->vba.Watermark.USRRetrainingWatermark);
+
+dml_get_attr_func(comp_buffer_reserved_space_kbytes, mode_lib->vba.CompBufReservedSpaceKBytes);
+dml_get_attr_func(comp_buffer_reserved_space_64bytes, mode_lib->vba.CompBufReservedSpace64B);
+dml_get_attr_func(comp_buffer_reserved_space_zs, mode_lib->vba.CompBufReservedSpaceZs);
+dml_get_attr_func(unbounded_request_enabled, mode_lib->vba.UnboundedRequestEnabled);
+
 #define dml_get_pipe_attr_func(attr, var)  double get_##attr(struct display_mode_lib *mode_lib, const display_e2e_pipe_params_st *pipes, unsigned int num_pipes, unsigned int which_pipe) \
 {\
 	unsigned int which_plane; \
@@ -165,6 +181,27 @@ dml_get_pipe_attr_func(vupdate_width, mode_lib->vba.VUpdateWidthPix);
 dml_get_pipe_attr_func(vready_offset, mode_lib->vba.VReadyOffsetPix);
 dml_get_pipe_attr_func(vready_at_or_after_vsync, mode_lib->vba.VREADY_AT_OR_AFTER_VSYNC);
 dml_get_pipe_attr_func(min_dst_y_next_start, mode_lib->vba.MIN_DST_Y_NEXT_START);
+dml_get_pipe_attr_func(dst_y_per_pte_row_nom_l, mode_lib->vba.DST_Y_PER_PTE_ROW_NOM_L);
+dml_get_pipe_attr_func(dst_y_per_pte_row_nom_c, mode_lib->vba.DST_Y_PER_PTE_ROW_NOM_C);
+dml_get_pipe_attr_func(dst_y_per_meta_row_nom_l, mode_lib->vba.DST_Y_PER_META_ROW_NOM_L);
+dml_get_pipe_attr_func(dst_y_per_meta_row_nom_c, mode_lib->vba.DST_Y_PER_META_ROW_NOM_C);
+dml_get_pipe_attr_func(refcyc_per_pte_group_nom_l_in_us, mode_lib->vba.time_per_pte_group_nom_luma);
+dml_get_pipe_attr_func(refcyc_per_pte_group_nom_c_in_us, mode_lib->vba.time_per_pte_group_nom_chroma);
+dml_get_pipe_attr_func(refcyc_per_pte_group_vblank_l_in_us, mode_lib->vba.time_per_pte_group_vblank_luma);
+dml_get_pipe_attr_func(refcyc_per_pte_group_vblank_c_in_us, mode_lib->vba.time_per_pte_group_vblank_chroma);
+dml_get_pipe_attr_func(refcyc_per_pte_group_flip_l_in_us, mode_lib->vba.time_per_pte_group_flip_luma);
+dml_get_pipe_attr_func(refcyc_per_pte_group_flip_c_in_us, mode_lib->vba.time_per_pte_group_flip_chroma);
+dml_get_pipe_attr_func(vstartup_calculated, mode_lib->vba.VStartup);
+dml_get_pipe_attr_func(dpte_row_height_linear_c, mode_lib->vba.dpte_row_height_linear_chroma);
+dml_get_pipe_attr_func(swath_height_l, mode_lib->vba.SwathHeightY);
+dml_get_pipe_attr_func(swath_height_c, mode_lib->vba.SwathHeightC);
+dml_get_pipe_attr_func(det_stored_buffer_size_l_bytes, mode_lib->vba.DETBufferSizeY);
+dml_get_pipe_attr_func(det_stored_buffer_size_c_bytes, mode_lib->vba.DETBufferSizeC);
+dml_get_pipe_attr_func(dpte_group_size_in_bytes, mode_lib->vba.dpte_group_bytes);
+dml_get_pipe_attr_func(vm_group_size_in_bytes, mode_lib->vba.vm_group_bytes);
+dml_get_pipe_attr_func(dpte_row_height_linear_l, mode_lib->vba.dpte_row_height_linear);
+dml_get_pipe_attr_func(pte_buffer_mode, mode_lib->vba.PTE_BUFFER_MODE);
+dml_get_pipe_attr_func(subviewport_lines_needed_in_mall, mode_lib->vba.SubViewportLinesNeededInMALL);
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
@@ -200,6 +237,67 @@ double get_total_prefetch_bw(
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k)
 		total_prefetch_bw += mode_lib->vba.PrefetchBandwidth[k];
 	return total_prefetch_bw;
+}
+
+unsigned int get_total_surface_size_in_mall_bytes(
+		struct display_mode_lib *mode_lib,
+		const display_e2e_pipe_params_st *pipes,
+		unsigned int num_pipes)
+{
+	unsigned int k;
+	unsigned int size = 0.0;
+	recalculate_params(mode_lib, pipes, num_pipes);
+	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k)
+		size += mode_lib->vba.SurfaceSizeInMALL[k];
+	return size;
+}
+
+static unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx)
+{
+	int pipe_idx = -1;
+	int i;
+
+	ASSERT(plane_idx < DC__NUM_DPP__MAX);
+
+	for (i = 0; i < DC__NUM_DPP__MAX ; i++) {
+		if (plane_idx == mode_lib->vba.pipe_plane[i]) {
+			pipe_idx = i;
+			break;
+		}
+	}
+	ASSERT(pipe_idx >= 0);
+
+	return pipe_idx;
+}
+
+
+double get_det_buffer_size_kbytes(struct display_mode_lib *mode_lib, const display_e2e_pipe_params_st *pipes,
+		unsigned int num_pipes, unsigned int pipe_idx)
+{
+	unsigned int plane_idx;
+	double det_buf_size_kbytes;
+
+	recalculate_params(mode_lib, pipes, num_pipes);
+	plane_idx = mode_lib->vba.pipe_plane[pipe_idx];
+
+	dml_print("DML::%s: num_pipes=%d pipe_idx=%d plane_idx=%0d\n", __func__, num_pipes, pipe_idx, plane_idx);
+	det_buf_size_kbytes = mode_lib->vba.DETBufferSizeInKByte[plane_idx]; // per hubp DET buffer size
+
+	dml_print("DML::%s: det_buf_size_kbytes=%3.2f\n", __func__, det_buf_size_kbytes);
+
+	return det_buf_size_kbytes;
+}
+
+bool get_is_phantom_pipe(struct display_mode_lib *mode_lib, const display_e2e_pipe_params_st *pipes,
+		unsigned int num_pipes, unsigned int pipe_idx)
+{
+	unsigned int plane_idx;
+
+	recalculate_params(mode_lib, pipes, num_pipes);
+	plane_idx = mode_lib->vba.pipe_plane[pipe_idx];
+	dml_print("DML::%s: num_pipes=%d pipe_idx=%d UseMALLForPStateChange=%0d\n", __func__, num_pipes, pipe_idx,
+			mode_lib->vba.UsesMALLForPStateChange[plane_idx]);
+	return (mode_lib->vba.UsesMALLForPStateChange[plane_idx] == dm_use_mall_pstate_change_phantom_pipe);
 }
 
 static void fetch_socbb_params(struct display_mode_lib *mode_lib)
@@ -241,6 +339,21 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 			soc->max_avg_sdp_bw_use_normal_percent;
 	mode_lib->vba.SRExitZ8Time = soc->sr_exit_z8_time_us;
 	mode_lib->vba.SREnterPlusExitZ8Time = soc->sr_enter_plus_exit_z8_time_us;
+	mode_lib->vba.FCLKChangeLatency = soc->fclk_change_latency_us;
+	mode_lib->vba.USRRetrainingLatency = soc->usr_retraining_latency_us;
+	mode_lib->vba.SMNLatency = soc->smn_latency_us;
+	mode_lib->vba.MALLAllocatedForDCNFinal = soc->mall_allocated_for_dcn_mbytes;
+
+	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencySTROBE = soc->pct_ideal_dram_bw_after_urgent_strobe;
+	mode_lib->vba.MaxAveragePercentOfIdealFabricBWDisplayCanUseInNormalSystemOperation =
+			soc->max_avg_fabric_bw_use_normal_percent;
+	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperationSTROBE =
+			soc->max_avg_dram_bw_use_normal_strobe_percent;
+
+	mode_lib->vba.DRAMClockChangeRequirementFinal = soc->dram_clock_change_requirement_final;
+	mode_lib->vba.FCLKChangeRequirementFinal = 1;
+	mode_lib->vba.USRRetrainingRequiredFinal = 1;
+	mode_lib->vba.AllowForPStateChangeOrStutterInVBlankFinal = soc->allow_for_pstate_or_stutter_in_vblank_final;
 	mode_lib->vba.DRAMClockChangeLatency = soc->dram_clock_change_latency_us;
 	mode_lib->vba.DummyPStateCheck = soc->dram_clock_change_latency_us == soc->dummy_pstate_latency_us;
 	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
@@ -283,6 +396,7 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.SOCCLKPerState[i] = soc->clock_limits[i].socclk_mhz;
 		mode_lib->vba.PHYCLKPerState[i] = soc->clock_limits[i].phyclk_mhz;
 		mode_lib->vba.PHYCLKD18PerState[i] = soc->clock_limits[i].phyclk_d18_mhz;
+		mode_lib->vba.PHYCLKD32PerState[i] = soc->clock_limits[i].phyclk_d32_mhz;
 		mode_lib->vba.MaxDppclk[i] = soc->clock_limits[i].dppclk_mhz;
 		mode_lib->vba.MaxDSCCLK[i] = soc->clock_limits[i].dscclk_mhz;
 		mode_lib->vba.DRAMSpeedPerState[i] = soc->clock_limits[i].dram_speed_mts;
@@ -325,6 +439,18 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.COMPBUF_RESERVED_SPACE_ZS = ip->compbuf_reserved_space_zs;
 	mode_lib->vba.MaximumDSCBitsPerComponent = ip->maximum_dsc_bits_per_component;
 	mode_lib->vba.DSC422NativeSupport = ip->dsc422_native_support;
+    /* In DCN3.2, nomDETInKByte should be initialized correctly. */
+	mode_lib->vba.nomDETInKByte = ip->det_buffer_size_kbytes;
+	mode_lib->vba.CompbufReservedSpace64B  = ip->compbuf_reserved_space_64b;
+	mode_lib->vba.CompbufReservedSpaceZs = ip->compbuf_reserved_space_zs;
+	mode_lib->vba.CompressedBufferSegmentSizeInkByteFinal = ip->compressed_buffer_segment_size_in_kbytes;
+	mode_lib->vba.LineBufferSizeFinal = ip->line_buffer_size_bits;
+	mode_lib->vba.AlphaPixelChunkSizeInKByte = ip->alpha_pixel_chunk_size_kbytes; // not ysed
+	mode_lib->vba.MinPixelChunkSizeBytes = ip->min_pixel_chunk_size_bytes; // not used
+	mode_lib->vba.MaximumPixelsPerLinePerDSCUnit = ip->maximum_pixels_per_line_per_dsc_unit;
+	mode_lib->vba.MaxNumDP2p0Outputs = ip->max_num_dp2p0_outputs;
+	mode_lib->vba.MaxNumDP2p0Streams = ip->max_num_dp2p0_streams;
+	mode_lib->vba.DCCMetaBufferSizeBytes = ip->dcc_meta_buffer_size_bytes;
 
 	mode_lib->vba.PixelChunkSizeInKByte = ip->pixel_chunk_size_kbytes;
 	mode_lib->vba.MetaChunkSize = ip->meta_chunk_size_kbytes;
@@ -399,6 +525,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		visited[k] = false;
 
 	mode_lib->vba.NumberOfActivePlanes = 0;
+	mode_lib->vba.NumberOfActiveSurfaces = 0;
 	mode_lib->vba.ImmediateFlipSupport = false;
 	for (j = 0; j < mode_lib->vba.cache_num_pipes; ++j) {
 		display_pipe_source_params_st *src = &pipes[j].pipe.src;
@@ -429,6 +556,22 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				src->viewport_y_y;
 		mode_lib->vba.ViewportYStartC[mode_lib->vba.NumberOfActivePlanes] =
 				src->viewport_y_c;
+		mode_lib->vba.SourceRotation[mode_lib->vba.NumberOfActiveSurfaces] = src->source_rotation;
+		mode_lib->vba.ViewportXStartY[mode_lib->vba.NumberOfActiveSurfaces] = src->viewport_x_y;
+		mode_lib->vba.ViewportXStartC[mode_lib->vba.NumberOfActiveSurfaces] = src->viewport_x_c;
+		// TODO: Assign correct value to viewport_stationary
+		mode_lib->vba.ViewportStationary[mode_lib->vba.NumberOfActivePlanes] =
+				src->viewport_stationary;
+		mode_lib->vba.UsesMALLForPStateChange[mode_lib->vba.NumberOfActivePlanes] = src->use_mall_for_pstate_change;
+		mode_lib->vba.UseMALLForStaticScreen[mode_lib->vba.NumberOfActivePlanes] = src->use_mall_for_static_screen;
+		mode_lib->vba.GPUVMMinPageSizeKBytes[mode_lib->vba.NumberOfActivePlanes] = src->gpuvm_min_page_size_kbytes;
+		mode_lib->vba.RefreshRate[mode_lib->vba.NumberOfActivePlanes] = dst->refresh_rate; //todo remove this
+		mode_lib->vba.OutputLinkDPRate[mode_lib->vba.NumberOfActivePlanes] = dout->dp_rate;
+		mode_lib->vba.ODMUse[mode_lib->vba.NumberOfActivePlanes] = dst->odm_combine_policy;
+		mode_lib->vba.DETSizeOverride[mode_lib->vba.NumberOfActivePlanes] = src->det_size_override;
+		//TODO: Need to assign correct values to dp_multistream vars
+		mode_lib->vba.OutputMultistreamEn[mode_lib->vba.NumberOfActiveSurfaces] = dout->dp_multistream_en;
+		mode_lib->vba.OutputMultistreamId[mode_lib->vba.NumberOfActiveSurfaces] = dout->dp_multistream_id;
 		mode_lib->vba.PitchY[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch;
 		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_y;
 		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_y;
@@ -454,6 +597,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.HTotal[mode_lib->vba.NumberOfActivePlanes] = dst->htotal;
 		mode_lib->vba.VTotal[mode_lib->vba.NumberOfActivePlanes] = dst->vtotal;
 		mode_lib->vba.VFrontPorch[mode_lib->vba.NumberOfActivePlanes] = dst->vfront_porch;
+		mode_lib->vba.VBlankNom[mode_lib->vba.NumberOfActivePlanes] = dst->vblank_nom;
 		mode_lib->vba.DCCFractionOfZeroSizeRequestsLuma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_fraction_of_zs_req_luma;
 		mode_lib->vba.DCCFractionOfZeroSizeRequestsChroma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_fraction_of_zs_req_chroma;
 		mode_lib->vba.DCCEnable[mode_lib->vba.NumberOfActivePlanes] =
@@ -481,7 +625,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.skip_dio_check[mode_lib->vba.NumberOfActivePlanes] =
 				dout->is_virtual;
 
-		if (!dout->dsc_enable)
+		if (dout->dsc_enable)
 			mode_lib->vba.ForcedOutputLinkBPP[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpp;
 		else
 			mode_lib->vba.ForcedOutputLinkBPP[mode_lib->vba.NumberOfActivePlanes] = 0.0;
@@ -555,6 +699,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.PixelClock[mode_lib->vba.NumberOfActivePlanes] = dst->pixel_rate_mhz;
 		mode_lib->vba.PixelClockBackEnd[mode_lib->vba.NumberOfActivePlanes] = dst->pixel_rate_mhz;
 		mode_lib->vba.DPPCLK[mode_lib->vba.NumberOfActivePlanes] = clks->dppclk_mhz;
+		mode_lib->vba.DRRDisplay[mode_lib->vba.NumberOfActiveSurfaces] = dst->drr_display;
 		if (ip->is_line_buffer_bpp_fixed)
 			mode_lib->vba.LBBitPerPixel[mode_lib->vba.NumberOfActivePlanes] =
 					ip->line_buffer_fixed_bpp;
@@ -677,6 +822,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		}
 
 		mode_lib->vba.NumberOfActivePlanes++;
+		mode_lib->vba.NumberOfActiveSurfaces++;
 	}
 
 	// handle overlays through BlendingAndTiming
@@ -701,6 +847,11 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			PlaneVisited[j] = true;
 		}
 	}
+
+	mode_lib->vba.SynchronizeTimingsFinal = pipes[0].pipe.dest.synchronize_timings;
+	mode_lib->vba.DCCProgrammingAssumesScanDirectionUnknownFinal = false;
+
+	mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment = 0;
 
 	mode_lib->vba.UseUnboundedRequesting = dm_unbounded_requesting;
 	for (k = 0; k < mode_lib->vba.cache_num_pipes; ++k) {
@@ -745,6 +896,32 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.GPUVMEnable = mode_lib->vba.GPUVMEnable && !!ip->gpuvm_enable;
 	mode_lib->vba.HostVMEnable = mode_lib->vba.HostVMEnable && !!ip->hostvm_enable;
+
+	for (k = 0; k < mode_lib->vba.cache_num_pipes; ++k) {
+		mode_lib->vba.ForceOneRowForFrame[k] = pipes[k].pipe.src.force_one_row_for_frame;
+		mode_lib->vba.PteBufferMode[k] = pipes[k].pipe.src.pte_buffer_mode;
+
+		if (mode_lib->vba.PteBufferMode[k] == 0 && mode_lib->vba.GPUVMEnable) {
+			if (mode_lib->vba.ForceOneRowForFrame[k] ||
+				(mode_lib->vba.GPUVMMinPageSizeKBytes[k] > 64*1024) ||
+				(mode_lib->vba.UsesMALLForPStateChange[k] != dm_use_mall_pstate_change_disable) ||
+				(mode_lib->vba.UseMALLForStaticScreen[k] != dm_use_mall_static_screen_disable)) {
+#ifdef __DML_VBA_DEBUG__
+				dml_print("DML::%s: ERROR: Invalid PteBufferMode=%d for plane %0d!\n",
+						__func__, mode_lib->vba.PteBufferMode[k], k);
+				dml_print("DML::%s:  -  ForceOneRowForFrame     = %d\n",
+						__func__, mode_lib->vba.ForceOneRowForFrame[k]);
+				dml_print("DML::%s:  -  GPUVMMinPageSizeKBytes  = %d\n",
+						__func__, mode_lib->vba.GPUVMMinPageSizeKBytes[k]);
+				dml_print("DML::%s:  -  UseMALLForPStateChange  = %d\n",
+						__func__, (int) mode_lib->vba.UsesMALLForPStateChange[k]);
+				dml_print("DML::%s:  -  UseMALLForStaticScreen  = %d\n",
+						__func__, (int) mode_lib->vba.UseMALLForStaticScreen[k]);
+#endif
+				ASSERT(0);
+			}
+		}
+	}
 }
 
 /**
@@ -792,7 +969,7 @@ static void recalculate_params(
 	}
 }
 
-bool Calculate256BBlockSizes(
+void Calculate256BBlockSizes(
 		enum source_format_class SourcePixelFormat,
 		enum dm_swizzle_mode SurfaceTiling,
 		unsigned int BytePerPixelY,
@@ -830,7 +1007,6 @@ bool Calculate256BBlockSizes(
 		*BlockWidth256BytesY = 256 / BytePerPixelY / *BlockHeight256BytesY;
 		*BlockWidth256BytesC = 256 / BytePerPixelC / *BlockHeight256BytesC;
 	}
-	return true;
 }
 
 bool CalculateMinAndMaxPrefetchMode(
@@ -896,6 +1072,7 @@ void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib)
 	soc_bounding_box_st *soc = &mode_lib->vba.soc;
 	unsigned int k;
 	unsigned int total_pipes = 0;
+	unsigned int pipe_idx = 0;
 
 	mode_lib->vba.VoltageLevel = mode_lib->vba.cache_pipes[0].clks_cfg.voltage;
 	mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel][mode_lib->vba.maxMpcComb];
@@ -917,6 +1094,11 @@ void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib)
 	// Total Available Pipes Support Check
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 		total_pipes += mode_lib->vba.DPPPerPlane[k];
+		pipe_idx = get_pipe_idx(mode_lib, k);
+		if (mode_lib->vba.cache_pipes[pipe_idx].clks_cfg.dppclk_mhz > 0.0)
+			mode_lib->vba.DPPCLK[k] = mode_lib->vba.cache_pipes[pipe_idx].clks_cfg.dppclk_mhz;
+		else
+			mode_lib->vba.DPPCLK[k] = soc->clock_limits[mode_lib->vba.VoltageLevel].dppclk_mhz;
 	}
 	ASSERT(total_pipes <= DC__NUM_DPP__MAX);
 }

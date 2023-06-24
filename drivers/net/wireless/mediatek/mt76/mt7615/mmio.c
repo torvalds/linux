@@ -145,7 +145,7 @@ static void mt7615_irq_tasklet(struct tasklet_struct *t)
 		return;
 
 	dev->reset_state = mcu_int;
-	ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
+	queue_work(dev->mt76.wq, &dev->reset_work);
 	wake_up(&dev->reset_wait);
 }
 
@@ -186,14 +186,14 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
-		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7615_txp_common),
+		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_txp_common),
 		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
 		.token_size = MT7615_TOKEN_SIZE,
 		.tx_prepare_skb = mt7615_tx_prepare_skb,
-		.tx_complete_skb = mt7615_tx_complete_skb,
+		.tx_complete_skb = mt76_connac_tx_complete_skb,
 		.rx_check = mt7615_rx_check,
 		.rx_skb = mt7615_queue_rx_skb,
 		.rx_poll_complete = mt7615_rx_poll_complete,

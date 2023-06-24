@@ -124,15 +124,15 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	unsigned int depth = ep->re_max_fr_depth;
 	struct scatterlist *sg;
 	struct ib_mr *frmr;
-	int rc;
+
+	sg = kcalloc_node(depth, sizeof(*sg), XPRTRDMA_GFP_FLAGS,
+			  ibdev_to_node(ep->re_id->device));
+	if (!sg)
+		return -ENOMEM;
 
 	frmr = ib_alloc_mr(ep->re_pd, ep->re_mrtype, depth);
 	if (IS_ERR(frmr))
 		goto out_mr_err;
-
-	sg = kmalloc_array(depth, sizeof(*sg), GFP_KERNEL);
-	if (!sg)
-		goto out_list_err;
 
 	mr->mr_xprt = r_xprt;
 	mr->mr_ibmr = frmr;
@@ -146,13 +146,9 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	return 0;
 
 out_mr_err:
-	rc = PTR_ERR(frmr);
-	trace_xprtrdma_frwr_alloc(mr, rc);
-	return rc;
-
-out_list_err:
-	ib_dereg_mr(frmr);
-	return -ENOMEM;
+	kfree(sg);
+	trace_xprtrdma_frwr_alloc(mr, PTR_ERR(frmr));
+	return PTR_ERR(frmr);
 }
 
 /**
@@ -195,7 +191,7 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 	ep->re_attr.cap.max_recv_sge = 1;
 
 	ep->re_mrtype = IB_MR_TYPE_MEM_REG;
-	if (attrs->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (attrs->kernel_cap_flags & IBK_SG_GAPS_REG)
 		ep->re_mrtype = IB_MR_TYPE_SG_GAPS;
 
 	/* Quirk: Some devices advertise a large max_fast_reg_page_list_len

@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include "qcom-ipq8064-v2.0.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ8065";
+	compatible = "qcom,ipq8065", "qcom,ipq8064";
+};

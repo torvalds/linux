@@ -48,15 +48,7 @@ struct ocelot_port_private {
 	struct net_device *dev;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
-	u8 chip_port;
 	struct ocelot_port_tc tc;
-};
-
-struct ocelot_dump_ctx {
-	struct net_device *dev;
-	struct sk_buff *skb;
-	struct netlink_callback *cb;
-	int idx;
 };
 
 /* A (PGID) port mask structure, encoding the 2^ocelot->num_phys_ports
@@ -85,8 +77,6 @@ struct ocelot_multicast {
 int ocelot_bridge_num_find(struct ocelot *ocelot,
 			   const struct net_device *bridge);
 
-int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,
-			    bool is_static, void *data);
 int ocelot_mact_learn(struct ocelot *ocelot, int port,
 		      const unsigned char mac[ETH_ALEN],
 		      unsigned int vid, enum macaccess_entry_type type);
@@ -115,6 +105,9 @@ int ocelot_trap_del(struct ocelot *ocelot, int port, unsigned long cookie);
 struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
 					struct netlink_ext_ack *extack);
 void ocelot_mirror_put(struct ocelot *ocelot);
+
+int ocelot_stats_init(struct ocelot *ocelot);
+void ocelot_stats_deinit(struct ocelot *ocelot);
 
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;

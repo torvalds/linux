@@ -25,6 +25,7 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
+#include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_mipi_dsi.h>
 
@@ -32,6 +33,7 @@
 #include "icl_dsi_regs.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
+#include "intel_backlight_regs.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
 #include "intel_connector.h"
@@ -399,8 +401,8 @@ static void get_dsi_io_power_domains(struct drm_i915_private *dev_priv,
 		intel_dsi->io_wakeref[port] =
 			intel_display_power_get(dev_priv,
 						port == PORT_A ?
-						POWER_DOMAIN_PORT_DDI_A_IO :
-						POWER_DOMAIN_PORT_DDI_B_IO);
+						POWER_DOMAIN_PORT_DDI_IO_A :
+						POWER_DOMAIN_PORT_DDI_IO_B);
 	}
 }
 
@@ -640,13 +642,13 @@ static void gen11_dsi_gate_clocks(struct intel_encoder *encoder)
 	u32 tmp;
 	enum phy phy;
 
-	mutex_lock(&dev_priv->dpll.lock);
+	mutex_lock(&dev_priv->display.dpll.lock);
 	tmp = intel_de_read(dev_priv, ICL_DPCLKA_CFGCR0);
 	for_each_dsi_phy(phy, intel_dsi->phys)
 		tmp |= ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 
 	intel_de_write(dev_priv, ICL_DPCLKA_CFGCR0, tmp);
-	mutex_unlock(&dev_priv->dpll.lock);
+	mutex_unlock(&dev_priv->display.dpll.lock);
 }
 
 static void gen11_dsi_ungate_clocks(struct intel_encoder *encoder)
@@ -656,13 +658,13 @@ static void gen11_dsi_ungate_clocks(struct intel_encoder *encoder)
 	u32 tmp;
 	enum phy phy;
 
-	mutex_lock(&dev_priv->dpll.lock);
+	mutex_lock(&dev_priv->display.dpll.lock);
 	tmp = intel_de_read(dev_priv, ICL_DPCLKA_CFGCR0);
 	for_each_dsi_phy(phy, intel_dsi->phys)
 		tmp &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 
 	intel_de_write(dev_priv, ICL_DPCLKA_CFGCR0, tmp);
-	mutex_unlock(&dev_priv->dpll.lock);
+	mutex_unlock(&dev_priv->display.dpll.lock);
 }
 
 static bool gen11_dsi_is_clock_enabled(struct intel_encoder *encoder)
@@ -692,7 +694,7 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 	enum phy phy;
 	u32 val;
 
-	mutex_lock(&dev_priv->dpll.lock);
+	mutex_lock(&dev_priv->display.dpll.lock);
 
 	val = intel_de_read(dev_priv, ICL_DPCLKA_CFGCR0);
 	for_each_dsi_phy(phy, intel_dsi->phys) {
@@ -708,7 +710,7 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 
 	intel_de_posting_read(dev_priv, ICL_DPCLKA_CFGCR0);
 
-	mutex_unlock(&dev_priv->dpll.lock);
+	mutex_unlock(&dev_priv->display.dpll.lock);
 }
 
 static void
@@ -1425,8 +1427,8 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
 		intel_display_power_put(dev_priv,
 					port == PORT_A ?
-					POWER_DOMAIN_PORT_DDI_A_IO :
-					POWER_DOMAIN_PORT_DDI_B_IO,
+					POWER_DOMAIN_PORT_DDI_IO_A :
+					POWER_DOMAIN_PORT_DDI_IO_B,
 					wakeref);
 	}
 
@@ -1627,6 +1629,8 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 
 	/* FIXME: initialize from VBT */
 	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
+
+	vdsc_cfg->pic_height = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 
 	ret = intel_dsc_compute_params(crtc_state);
 	if (ret)
@@ -1861,7 +1865,8 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	struct intel_connector *connector = intel_dsi->attached_connector;
+	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
 	u32 ths_prepare_ns, tclk_trail_ns;
@@ -1967,6 +1972,8 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 
 static void icl_dsi_add_properties(struct intel_connector *connector)
 {
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 	u32 allowed_scalers;
 
 	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
@@ -1979,9 +1986,9 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
-				intel_dsi_get_panel_orientation(connector),
-				connector->panel.fixed_mode->hdisplay,
-				connector->panel.fixed_mode->vdisplay);
+						       intel_dsi_get_panel_orientation(connector),
+						       fixed_mode->hdisplay,
+						       fixed_mode->vdisplay);
 }
 
 void icl_dsi_init(struct drm_i915_private *dev_priv)
@@ -1991,7 +1998,6 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *fixed_mode;
 	enum port port;
 
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
@@ -2047,25 +2053,31 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	/* attach connector to encoder */
 	intel_connector_attach_encoder(intel_connector, encoder);
 
+	intel_bios_init_panel(dev_priv, &intel_connector->panel, NULL, NULL);
+
 	mutex_lock(&dev->mode_config.mutex);
-	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (!fixed_mode) {
+	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		drm_err(&dev_priv->drm, "DSI fixed mode info missing\n");
 		goto err;
 	}
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(intel_connector);
+
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
-	if (dev_priv->vbt.dsi.config->dual_link)
+	if (intel_connector->panel.vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_B);
 	else
 		intel_dsi->ports = BIT(port);
 
-	intel_dsi->dcs_backlight_ports = dev_priv->vbt.dsi.bl_ports;
-	intel_dsi->dcs_cabc_ports = dev_priv->vbt.dsi.cabc_ports;
+	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.bl_ports & ~intel_dsi->ports))
+		intel_connector->panel.vbt.dsi.bl_ports &= intel_dsi->ports;
+
+	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.cabc_ports & ~intel_dsi->ports))
+		intel_connector->panel.vbt.dsi.cabc_ports &= intel_dsi->ports;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		struct intel_dsi_host *host;

@@ -20,4 +20,29 @@
 # define swab64s __swab64s
 # define swahw32s __swahw32s
 # define swahb32s __swahb32s
+
+static inline void swab16_array(u16 *buf, unsigned int words)
+{
+	while (words--) {
+		swab16s(buf);
+		buf++;
+	}
+}
+
+static inline void swab32_array(u32 *buf, unsigned int words)
+{
+	while (words--) {
+		swab32s(buf);
+		buf++;
+	}
+}
+
+static inline void swab64_array(u64 *buf, unsigned int words)
+{
+	while (words--) {
+		swab64s(buf);
+		buf++;
+	}
+}
+
 #endif /* _LINUX_SWAB_H */

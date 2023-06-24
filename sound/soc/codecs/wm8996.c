@@ -2695,8 +2695,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8996 = {
 	.set_pll		= wm8996_set_fll,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
-
 };
 
 #define WM8996_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
@@ -2755,8 +2753,7 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 	},
 };
 
-static int wm8996_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8996_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8996_priv *wm8996;
 	int ret, i;
@@ -3068,7 +3065,7 @@ err:
 	return ret;
 }
 
-static int wm8996_i2c_remove(struct i2c_client *client)
+static void wm8996_i2c_remove(struct i2c_client *client)
 {
 	struct wm8996_priv *wm8996 = i2c_get_clientdata(client);
 
@@ -3077,8 +3074,6 @@ static int wm8996_i2c_remove(struct i2c_client *client)
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 		gpio_free(wm8996->pdata.ldo_ena);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id wm8996_i2c_id[] = {
@@ -3091,7 +3086,7 @@ static struct i2c_driver wm8996_i2c_driver = {
 	.driver = {
 		.name = "wm8996",
 	},
-	.probe =    wm8996_i2c_probe,
+	.probe_new = wm8996_i2c_probe,
 	.remove =   wm8996_i2c_remove,
 	.id_table = wm8996_i2c_id,
 };

@@ -14,6 +14,7 @@
 
 #include <dt-bindings/sound/tlv320adc3xxx.h>
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/io.h>
@@ -1025,7 +1026,9 @@ static const struct gpio_chip adc3xxx_gpio_chip = {
 
 static void adc3xxx_free_gpio(struct adc3xxx *adc3xxx)
 {
+#ifdef CONFIG_GPIOLIB
 	gpiochip_remove(&adc3xxx->gpio_chip);
+#endif
 }
 
 static void adc3xxx_init_gpio(struct adc3xxx *adc3xxx)
@@ -1152,20 +1155,20 @@ static int adc3xxx_hw_params(struct snd_pcm_substream *substream,
 		return i;
 
 	/* select data word length */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		iface_len = ADC3XXX_IFACE_16BITS;
 		width = 16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface_len = ADC3XXX_IFACE_20BITS;
 		width = 20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface_len = ADC3XXX_IFACE_24BITS;
 		width = 24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface_len = ADC3XXX_IFACE_32BITS;
 		width = 32;
 		break;
@@ -1252,8 +1255,7 @@ static int adc3xxx_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	int master = 0;
 	int ret;
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
 		master = 1;
 		clkdir = ADC3XXX_BCLK_MASTER | ADC3XXX_WCLK_MASTER;
@@ -1335,13 +1337,21 @@ static const struct snd_soc_component_driver soc_component_dev_adc3xxx = {
 	.num_dapm_widgets	= ARRAY_SIZE(adc3xxx_dapm_widgets),
 	.dapm_routes		= adc3xxx_intercon,
 	.num_dapm_routes	= ARRAY_SIZE(adc3xxx_intercon),
+	.endianness		= 1,
 };
 
-static int adc3xxx_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static const struct i2c_device_id adc3xxx_i2c_id[] = {
+	{ "tlv320adc3001", ADC3001 },
+	{ "tlv320adc3101", ADC3101 },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, adc3xxx_i2c_id);
+
+static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct adc3xxx *adc3xxx = NULL;
+	const struct i2c_device_id *id;
 	int ret;
 
 	adc3xxx = devm_kzalloc(dev, sizeof(struct adc3xxx), GFP_KERNEL);
@@ -1394,6 +1404,7 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, adc3xxx);
 
+	id = i2c_match_id(adc3xxx_i2c_id, i2c);
 	adc3xxx->type = id->driver_data;
 
 	/* Reset codec chip */
@@ -1418,7 +1429,7 @@ err_unprepare_mclk:
 	return ret;
 }
 
-static int __exit adc3xxx_i2c_remove(struct i2c_client *client)
+static void __exit adc3xxx_i2c_remove(struct i2c_client *client)
 {
 	struct adc3xxx *adc3xxx = i2c_get_clientdata(client);
 
@@ -1426,7 +1437,6 @@ static int __exit adc3xxx_i2c_remove(struct i2c_client *client)
 		clk_disable_unprepare(adc3xxx->mclk);
 	adc3xxx_free_gpio(adc3xxx);
 	snd_soc_unregister_component(&client->dev);
-	return 0;
 }
 
 static const struct of_device_id tlv320adc3xxx_of_match[] = {
@@ -1436,20 +1446,13 @@ static const struct of_device_id tlv320adc3xxx_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tlv320adc3xxx_of_match);
 
-static const struct i2c_device_id adc3xxx_i2c_id[] = {
-	{ "tlv320adc3001", ADC3001 },
-	{ "tlv320adc3101", ADC3101 },
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, adc3xxx_i2c_id);
-
 static struct i2c_driver adc3xxx_i2c_driver = {
 	.driver = {
 		   .name = "tlv320adc3xxx-codec",
 		   .of_match_table = tlv320adc3xxx_of_match,
 		  },
-	.probe = adc3xxx_i2c_probe,
-	.remove = adc3xxx_i2c_remove,
+	.probe_new = adc3xxx_i2c_probe,
+	.remove = __exit_p(adc3xxx_i2c_remove),
 	.id_table = adc3xxx_i2c_id,
 };
 

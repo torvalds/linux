@@ -529,7 +529,7 @@ static void lowcomms_write_space(struct sock *sk)
 		return;
 
 	if (!test_and_set_bit(CF_CONNECTED, &con->flags)) {
-		log_print("successful connected to node %d", con->nodeid);
+		log_print("connected to node %d", con->nodeid);
 		queue_work(send_workqueue, &con->swork);
 		return;
 	}
@@ -1303,6 +1303,10 @@ static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
 	return msg;
 }
 
+/* avoid false positive for nodes_srcu, unlock happens in
+ * dlm_lowcomms_commit_msg which is a must call if success
+ */
+#ifndef __CHECKER__
 struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
 				     char **ppc, void (*cb)(void *data),
 				     void *data)
@@ -1332,10 +1336,13 @@ struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
 		return NULL;
 	}
 
+	/* for dlm_lowcomms_commit_msg() */
+	kref_get(&msg->ref);
 	/* we assume if successful commit must called */
 	msg->idx = idx;
 	return msg;
 }
+#endif
 
 static void _dlm_lowcomms_commit_msg(struct dlm_msg *msg)
 {
@@ -1362,11 +1369,18 @@ out:
 	return;
 }
 
+/* avoid false positive for nodes_srcu, lock was happen in
+ * dlm_lowcomms_new_msg
+ */
+#ifndef __CHECKER__
 void dlm_lowcomms_commit_msg(struct dlm_msg *msg)
 {
 	_dlm_lowcomms_commit_msg(msg);
 	srcu_read_unlock(&connections_srcu, msg->idx);
+	/* because dlm_lowcomms_new_msg() */
+	kref_put(&msg->ref, dlm_msg_release);
 }
+#endif
 
 void dlm_lowcomms_put_msg(struct dlm_msg *msg)
 {
@@ -1789,7 +1803,7 @@ static int dlm_listen_for_all(void)
 				  SOCK_STREAM, dlm_proto_ops->proto, &sock);
 	if (result < 0) {
 		log_print("Can't create comms socket: %d", result);
-		goto out;
+		return result;
 	}
 
 	sock_set_mark(sock->sk, dlm_config.ci_mark);
@@ -1921,7 +1935,7 @@ static int dlm_sctp_connect(struct connection *con, struct socket *sock,
 		return ret;
 
 	if (!test_and_set_bit(CF_CONNECTED, &con->flags))
-		log_print("successful connected to node %d", con->nodeid);
+		log_print("connected to node %d", con->nodeid);
 
 	return 0;
 }

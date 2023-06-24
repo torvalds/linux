@@ -379,6 +379,56 @@ out_err:
 	return rc;
 }
 
+/*
+ * Swap driver iternal copy relation.
+ */
+static int
+dasd_ioctl_copy_pair_swap(struct block_device *bdev, void __user *argp)
+{
+	struct dasd_copypair_swap_data_t data;
+	struct dasd_device *device;
+	int rc;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	device = dasd_device_from_gendisk(bdev->bd_disk);
+	if (!device)
+		return -ENODEV;
+
+	if (copy_from_user(&data, argp, sizeof(struct dasd_copypair_swap_data_t))) {
+		dasd_put_device(device);
+		return -EFAULT;
+	}
+	if (memchr_inv(data.reserved, 0, sizeof(data.reserved))) {
+		pr_warn("%s: Invalid swap data specified\n",
+			dev_name(&device->cdev->dev));
+		dasd_put_device(device);
+		return DASD_COPYPAIRSWAP_INVALID;
+	}
+	if (bdev_is_partition(bdev)) {
+		pr_warn("%s: The specified DASD is a partition and cannot be swapped\n",
+			dev_name(&device->cdev->dev));
+		dasd_put_device(device);
+		return DASD_COPYPAIRSWAP_INVALID;
+	}
+	if (!device->copy) {
+		pr_warn("%s: The specified DASD has no copy pair set up\n",
+			dev_name(&device->cdev->dev));
+		dasd_put_device(device);
+		return -ENODEV;
+	}
+	if (!device->discipline->copy_pair_swap) {
+		dasd_put_device(device);
+		return -EOPNOTSUPP;
+	}
+	rc = device->discipline->copy_pair_swap(device, data.primary,
+						data.secondary);
+	dasd_put_device(device);
+
+	return rc;
+}
+
 #ifdef CONFIG_DASD_PROFILE
 /*
  * Reset device profile information
@@ -636,6 +686,9 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	case BIODASDRAS:
 		rc = dasd_ioctl_release_space(bdev, argp);
+		break;
+	case BIODASDCOPYPAIRSWAP:
+		rc = dasd_ioctl_copy_pair_swap(bdev, argp);
 		break;
 	default:
 		/* if the discipline has an ioctl method try it. */

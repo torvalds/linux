@@ -56,7 +56,8 @@ static inline bool feats_ok(struct tdescr *td)
  * at sizeof(ucontext_t).
  */
 static __always_inline bool get_current_context(struct tdescr *td,
-						ucontext_t *dest_uc)
+						ucontext_t *dest_uc,
+						size_t dest_sz)
 {
 	static volatile bool seen_already;
 
@@ -64,7 +65,7 @@ static __always_inline bool get_current_context(struct tdescr *td,
 	/* it's a genuine invocation..reinit */
 	seen_already = 0;
 	td->live_uc_valid = 0;
-	td->live_sz = sizeof(*dest_uc);
+	td->live_sz = dest_sz;
 	memset(dest_uc, 0x00, td->live_sz);
 	td->live_uc = dest_uc;
 	/*

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  */
 
 #include <linux/gpio/driver.h>
@@ -134,13 +126,11 @@ static int tpic2810_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int tpic2810_remove(struct i2c_client *client)
+static void tpic2810_remove(struct i2c_client *client)
 {
 	struct tpic2810 *gpio = i2c_get_clientdata(client);
 
 	gpiochip_remove(&gpio->chip);
-
-	return 0;
 }
 
 static const struct i2c_device_id tpic2810_id_table[] = {

@@ -447,6 +447,13 @@ static int ak4458_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_component_update_bits(component, AK4458_0B_CONTROL7,
 				      AK4458_DCHAIN_MASK, dchn);
 
+	if (ak4458->drvdata->type == AK4497) {
+		ret = snd_soc_component_update_bits(component, AK4458_09_DSD2,
+						    0x4, (ak4458->dsd_path << 2));
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = ak4458_rstn_control(component, 0);
 	if (ret)
 		return ret;
@@ -629,48 +636,6 @@ static void ak4458_reset(struct ak4458_priv *ak4458, bool active)
 	}
 }
 
-static int ak4458_init(struct snd_soc_component *component)
-{
-	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
-	int ret;
-
-	/* External Mute ON */
-	if (ak4458->mute_gpiod)
-		gpiod_set_value_cansleep(ak4458->mute_gpiod, 1);
-
-	ak4458_reset(ak4458, false);
-
-	ret = snd_soc_component_update_bits(component, AK4458_00_CONTROL1,
-			    0x80, 0x80);   /* ACKS bit = 1; 10000000 */
-	if (ret < 0)
-		return ret;
-
-	if (ak4458->drvdata->type == AK4497) {
-		ret = snd_soc_component_update_bits(component, AK4458_09_DSD2,
-						    0x4, (ak4458->dsd_path << 2));
-		if (ret < 0)
-			return ret;
-	}
-
-	return ak4458_rstn_control(component, 1);
-}
-
-static int ak4458_probe(struct snd_soc_component *component)
-{
-	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
-
-	ak4458->fs = 48000;
-
-	return ak4458_init(component);
-}
-
-static void ak4458_remove(struct snd_soc_component *component)
-{
-	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
-
-	ak4458_reset(ak4458, true);
-}
-
 #ifdef CONFIG_PM
 static int __maybe_unused ak4458_runtime_suspend(struct device *dev)
 {
@@ -714,8 +679,6 @@ static int __maybe_unused ak4458_runtime_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 static const struct snd_soc_component_driver soc_codec_dev_ak4458 = {
-	.probe			= ak4458_probe,
-	.remove			= ak4458_remove,
 	.controls		= ak4458_snd_controls,
 	.num_controls		= ARRAY_SIZE(ak4458_snd_controls),
 	.dapm_widgets		= ak4458_dapm_widgets,
@@ -725,12 +688,9 @@ static const struct snd_soc_component_driver soc_codec_dev_ak4458 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_component_driver soc_codec_dev_ak4497 = {
-	.probe			= ak4458_probe,
-	.remove			= ak4458_remove,
 	.controls		= ak4497_snd_controls,
 	.num_controls		= ARRAY_SIZE(ak4497_snd_controls),
 	.dapm_widgets		= ak4497_dapm_widgets,
@@ -740,7 +700,6 @@ static const struct snd_soc_component_driver soc_codec_dev_ak4497 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4458_regmap = {
@@ -822,15 +781,17 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 
 	pm_runtime_enable(&i2c->dev);
 	regcache_cache_only(ak4458->regmap, true);
+	ak4458_reset(ak4458, false);
 
 	return 0;
 }
 
-static int ak4458_i2c_remove(struct i2c_client *i2c)
+static void ak4458_i2c_remove(struct i2c_client *i2c)
 {
-	pm_runtime_disable(&i2c->dev);
+	struct ak4458_priv *ak4458 = i2c_get_clientdata(i2c);
 
-	return 0;
+	ak4458_reset(ak4458, true);
+	pm_runtime_disable(&i2c->dev);
 }
 
 static const struct of_device_id ak4458_of_match[] = {

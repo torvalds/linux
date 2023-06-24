@@ -42,9 +42,7 @@ quiet_cmd_chk_bindings = CHKDT   $@
 
 quiet_cmd_mk_schema = SCHEMA  $@
       cmd_mk_schema = f=$$(mktemp) ; \
-                      $(if $(DT_MK_SCHEMA_FLAGS), \
-                           printf '%s\n' $(real-prereqs), \
-                           $(find_all_cmd)) > $$f ; \
+                      $(find_all_cmd) > $$f ; \
                       $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
 		      rm -f $$f
 
@@ -77,3 +75,6 @@ always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dtb,
 # build artifacts here before they are processed by scripts/Makefile.clean
 clean-files = $(shell find $(obj) \( -name '*.example.dts' -o \
 			-name '*.example.dtb' \) -delete 2>/dev/null)
+
+dt_compatible_check: $(obj)/processed-schema.json
+	$(Q)$(srctree)/scripts/dtc/dt-extract-compatibles $(srctree) | xargs dt-check-compatible -v -s $<

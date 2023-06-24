@@ -163,6 +163,8 @@ static const char *zynqmp_pmux_get_function_name(struct pinctrl_dev *pctldev,
  * @num_groups:	Number of function groups.
  *
  * Get function's group count and group names.
+ *
+ * Return: 0
  */
 static int zynqmp_pmux_get_function_groups(struct pinctrl_dev *pctldev,
 					   unsigned int selector,

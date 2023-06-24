@@ -28,11 +28,11 @@ TRACE_EVENT(ci_log,
 	TP_ARGS(ci, vaf),
 	TP_STRUCT__entry(
 		__string(name, dev_name(ci->dev))
-		__dynamic_array(char, msg, CHIPIDEA_MSG_MAX)
+		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
 		__assign_str(name, dev_name(ci->dev));
-		vsnprintf(__get_str(msg), CHIPIDEA_MSG_MAX, vaf->fmt, *vaf->va);
+		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(name), __get_str(msg))
 );

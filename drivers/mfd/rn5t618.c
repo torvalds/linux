@@ -241,7 +241,7 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 	return rn5t618_irq_init(priv);
 }
 
-static int rn5t618_i2c_remove(struct i2c_client *i2c)
+static void rn5t618_i2c_remove(struct i2c_client *i2c)
 {
 	if (i2c == rn5t618_pm_power_off) {
 		rn5t618_pm_power_off = NULL;
@@ -249,8 +249,6 @@ static int rn5t618_i2c_remove(struct i2c_client *i2c)
 	}
 
 	unregister_restart_handler(&rn5t618_restart_handler);
-
-	return 0;
 }
 
 static int __maybe_unused rn5t618_i2c_suspend(struct device *dev)

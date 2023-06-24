@@ -20,6 +20,8 @@ set -e
 # yard. Stale files stay in this file for a while (for some release cycles?),
 # then will be really dead and removed from the code base entirely.
 
+rm -f arch/powerpc/purgatory/kexec-purgatory.c
+
 # These were previously generated source files. When you are building the kernel
 # with O=, make sure to remove the stale files in the output tree. Otherwise,
 # the build system wrongly compiles the stale ones.
@@ -40,4 +42,8 @@ if [ -n "${building_out_of_srctree}" ]; then
 	done
 fi
 
+rm -f arch/riscv/purgatory/kexec-purgatory.c
+
 rm -f scripts/extract-cert
+
+rm -f arch/x86/purgatory/kexec-purgatory.c

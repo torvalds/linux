@@ -119,8 +119,8 @@
 
 			vdd: buck3 {
 				regulator-name = "vdd";
-				regulator-min-microvolt = <2900000>;
-				regulator-max-microvolt = <2900000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <0>;
 				regulator-over-current-protection;

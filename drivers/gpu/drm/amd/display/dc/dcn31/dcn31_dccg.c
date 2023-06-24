@@ -43,7 +43,7 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
-static void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
+void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -160,8 +160,9 @@ static void dccg31_disable_dpstreamclk(struct dccg *dccg, int otg_inst)
 
 void dccg31_set_dpstreamclk(
 		struct dccg *dccg,
-		enum hdmistreamclk_source src,
-		int otg_inst)
+		enum streamclk_source src,
+		int otg_inst,
+		int dp_hpo_inst)
 {
 	if (src == REFCLK)
 		dccg31_disable_dpstreamclk(dccg, otg_inst);
@@ -339,7 +340,7 @@ void dccg31_disable_symclk32_le(
 	}
 }
 
-static void dccg31_disable_dscclk(struct dccg *dccg, int inst)
+void dccg31_disable_dscclk(struct dccg *dccg, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -374,7 +375,7 @@ static void dccg31_disable_dscclk(struct dccg *dccg, int inst)
 	}
 }
 
-static void dccg31_enable_dscclk(struct dccg *dccg, int inst)
+void dccg31_enable_dscclk(struct dccg *dccg, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -511,14 +512,12 @@ void dccg31_set_physymclk(
 }
 
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
-static void dccg31_set_dtbclk_dto(
+void dccg31_set_dtbclk_dto(
 		struct dccg *dccg,
-		int dtbclk_inst,
-		int req_dtbclk_khz,
-		int num_odm_segments,
-		const struct dc_crtc_timing *timing)
+		const struct dtbclk_dto_params *params)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	int req_dtbclk_khz = params->pixclk_khz;
 	uint32_t dtbdto_div;
 
 	/* Mode	                DTBDTO Rate       DTBCLK_DTO<x>_DIV Register
@@ -529,73 +528,69 @@ static void dccg31_set_dtbclk_dto(
 	 * DSC native 4:2:2     pixel rate/2      4
 	 * Other modes          pixel rate        8
 	 */
-	if (num_odm_segments == 4) {
+	if (params->num_odm_segments == 4) {
 		dtbdto_div = 2;
-		req_dtbclk_khz = req_dtbclk_khz / 4;
-	} else if ((num_odm_segments == 2) ||
-			(timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
-			(timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
-					&& !timing->dsc_cfg.ycbcr422_simple)) {
+		req_dtbclk_khz = params->pixclk_khz / 4;
+	} else if ((params->num_odm_segments == 2) ||
+			(params->timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
+			(params->timing->flags.DSC && params->timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
+					&& !params->timing->dsc_cfg.ycbcr422_simple)) {
 		dtbdto_div = 4;
-		req_dtbclk_khz = req_dtbclk_khz / 2;
+		req_dtbclk_khz = params->pixclk_khz / 2;
 	} else
 		dtbdto_div = 8;
 
-	if (dccg->ref_dtbclk_khz && req_dtbclk_khz) {
+	if (params->ref_dtbclk_khz && req_dtbclk_khz) {
 		uint32_t modulo, phase;
 
 		// phase / modulo = dtbclk / dtbclk ref
-		modulo = dccg->ref_dtbclk_khz * 1000;
-		phase = div_u64((((unsigned long long)modulo * req_dtbclk_khz) + dccg->ref_dtbclk_khz - 1),
-			dccg->ref_dtbclk_khz);
+		modulo = params->ref_dtbclk_khz * 1000;
+		phase = div_u64((((unsigned long long)modulo * req_dtbclk_khz) + params->ref_dtbclk_khz - 1),
+				params->ref_dtbclk_khz);
 
-		REG_UPDATE(OTG_PIXEL_RATE_CNTL[dtbclk_inst],
-				DTBCLK_DTO_DIV[dtbclk_inst], dtbdto_div);
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_DIV[params->otg_inst], dtbdto_div);
 
-		REG_WRITE(DTBCLK_DTO_MODULO[dtbclk_inst], modulo);
-		REG_WRITE(DTBCLK_DTO_PHASE[dtbclk_inst], phase);
+		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], modulo);
+		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], phase);
 
-		REG_UPDATE(OTG_PIXEL_RATE_CNTL[dtbclk_inst],
-				DTBCLK_DTO_ENABLE[dtbclk_inst], 1);
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_ENABLE[params->otg_inst], 1);
 
-		REG_WAIT(OTG_PIXEL_RATE_CNTL[dtbclk_inst],
-				DTBCLKDTO_ENABLE_STATUS[dtbclk_inst], 1,
+		REG_WAIT(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLKDTO_ENABLE_STATUS[params->otg_inst], 1,
 				1, 100);
 
 		/* The recommended programming sequence to enable DTBCLK DTO to generate
 		 * valid pixel HPO DPSTREAM ENCODER, specifies that DTO source select should
 		 * be set only after DTO is enabled
 		 */
-		REG_UPDATE(OTG_PIXEL_RATE_CNTL[dtbclk_inst],
-				PIPE_DTO_SRC_SEL[dtbclk_inst], 1);
-
-		dccg->dtbclk_khz[dtbclk_inst] = req_dtbclk_khz;
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				PIPE_DTO_SRC_SEL[params->otg_inst], 1);
 	} else {
-		REG_UPDATE_3(OTG_PIXEL_RATE_CNTL[dtbclk_inst],
-				DTBCLK_DTO_ENABLE[dtbclk_inst], 0,
-				PIPE_DTO_SRC_SEL[dtbclk_inst], 0,
-				DTBCLK_DTO_DIV[dtbclk_inst], dtbdto_div);
+		REG_UPDATE_3(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_ENABLE[params->otg_inst], 0,
+				PIPE_DTO_SRC_SEL[params->otg_inst], 0,
+				DTBCLK_DTO_DIV[params->otg_inst], dtbdto_div);
 
-		REG_WRITE(DTBCLK_DTO_MODULO[dtbclk_inst], 0);
-		REG_WRITE(DTBCLK_DTO_PHASE[dtbclk_inst], 0);
-
-		dccg->dtbclk_khz[dtbclk_inst] = 0;
+		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], 0);
+		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], 0);
 	}
 }
 
 void dccg31_set_audio_dtbclk_dto(
 		struct dccg *dccg,
-		uint32_t req_audio_dtbclk_khz)
+		const struct dtbclk_dto_params *params)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
-	if (dccg->ref_dtbclk_khz && req_audio_dtbclk_khz) {
+	if (params->ref_dtbclk_khz && params->req_audio_dtbclk_khz) {
 		uint32_t modulo, phase;
 
 		// phase / modulo = dtbclk / dtbclk ref
-		modulo = dccg->ref_dtbclk_khz * 1000;
-		phase = div_u64((((unsigned long long)modulo * req_audio_dtbclk_khz) + dccg->ref_dtbclk_khz - 1),
-			dccg->ref_dtbclk_khz);
+		modulo = params->ref_dtbclk_khz * 1000;
+		phase = div_u64((((unsigned long long)modulo * params->req_audio_dtbclk_khz) + params->ref_dtbclk_khz - 1),
+			params->ref_dtbclk_khz);
 
 
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_MODULO, modulo);
@@ -606,20 +601,16 @@ void dccg31_set_audio_dtbclk_dto(
 
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO_SEL, 4);  //  04 - DCCG_AUDIO_DTO_SEL_AUDIO_DTO_DTBCLK
-
-		dccg->audio_dtbclk_khz = req_audio_dtbclk_khz;
 	} else {
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_PHASE, 0);
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_MODULO, 0);
 
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO_SEL, 3);  //  03 - DCCG_AUDIO_DTO_SEL_NO_AUDIO_DTO
-
-		dccg->audio_dtbclk_khz = 0;
 	}
 }
 
-static void dccg31_get_dccg_ref_freq(struct dccg *dccg,
+void dccg31_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,
 		unsigned int *dccg_ref_freq_inKhz)
 {
@@ -631,7 +622,7 @@ static void dccg31_get_dccg_ref_freq(struct dccg *dccg,
 	return;
 }
 
-static void dccg31_set_dispclk_change_mode(
+void dccg31_set_dispclk_change_mode(
 	struct dccg *dccg,
 	enum dentist_dispclk_change_mode change_mode)
 {
@@ -673,6 +664,24 @@ void dccg31_init(struct dccg *dccg)
 	}
 }
 
+void dccg31_otg_add_pixel(struct dccg *dccg,
+				 uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_ADD_PIXEL[otg_inst], 1);
+}
+
+void dccg31_otg_drop_pixel(struct dccg *dccg,
+				  uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_DROP_PIXEL[otg_inst], 1);
+}
+
 static const struct dccg_funcs dccg31_funcs = {
 	.update_dpp_dto = dccg31_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
@@ -685,6 +694,9 @@ static const struct dccg_funcs dccg31_funcs = {
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg31_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
+	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
+	.otg_add_pixel = dccg31_otg_add_pixel,
+	.otg_drop_pixel = dccg31_otg_drop_pixel,
 	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,

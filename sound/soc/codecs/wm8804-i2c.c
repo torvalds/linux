@@ -14,8 +14,7 @@
 
 #include "wm8804.h"
 
-static int wm8804_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8804_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 
@@ -26,10 +25,9 @@ static int wm8804_i2c_probe(struct i2c_client *i2c,
 	return wm8804_probe(&i2c->dev, regmap);
 }
 
-static int wm8804_i2c_remove(struct i2c_client *i2c)
+static void wm8804_i2c_remove(struct i2c_client *i2c)
 {
 	wm8804_remove(&i2c->dev);
-	return 0;
 }
 
 static const struct i2c_device_id wm8804_i2c_id[] = {
@@ -62,7 +60,7 @@ static struct i2c_driver wm8804_i2c_driver = {
 		.of_match_table = of_match_ptr(wm8804_of_match),
 		.acpi_match_table = ACPI_PTR(wm8804_acpi_match),
 	},
-	.probe = wm8804_i2c_probe,
+	.probe_new = wm8804_i2c_probe,
 	.remove = wm8804_i2c_remove,
 	.id_table = wm8804_i2c_id
 };

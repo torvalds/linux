@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Texas Instruments Incorporated
  * Authors:	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *		Sandeep Nair <sandeep_n@ti.com>
  *		Cyril Chemparathy <cyril@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -415,9 +407,8 @@ static int of_channel_match_helper(struct device_node *np, const char *name,
 void *knav_dma_open_channel(struct device *dev, const char *name,
 					struct knav_dma_cfg *config)
 {
-	struct knav_dma_chan *chan;
-	struct knav_dma_device *dma;
-	bool found = false;
+	struct knav_dma_device *dma = NULL, *iter1;
+	struct knav_dma_chan *chan = NULL, *iter2;
 	int chan_num = -1;
 	const char *instance;
 
@@ -444,33 +435,32 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 	}
 
 	/* Look for correct dma instance */
-	list_for_each_entry(dma, &kdev->list, list) {
-		if (!strcmp(dma->name, instance)) {
-			found = true;
+	list_for_each_entry(iter1, &kdev->list, list) {
+		if (!strcmp(iter1->name, instance)) {
+			dma = iter1;
 			break;
 		}
 	}
-	if (!found) {
+	if (!dma) {
 		dev_err(kdev->dev, "No DMA instance with name %s\n", instance);
 		return (void *)-EINVAL;
 	}
 
 	/* Look for correct dma channel from dma instance */
-	found = false;
-	list_for_each_entry(chan, &dma->chan_list, list) {
+	list_for_each_entry(iter2, &dma->chan_list, list) {
 		if (config->direction == DMA_MEM_TO_DEV) {
-			if (chan->channel == chan_num) {
-				found = true;
+			if (iter2->channel == chan_num) {
+				chan = iter2;
 				break;
 			}
 		} else {
-			if (chan->flow == chan_num) {
-				found = true;
+			if (iter2->flow == chan_num) {
+				chan = iter2;
 				break;
 			}
 		}
 	}
-	if (!found) {
+	if (!chan) {
 		dev_err(kdev->dev, "channel %d is not in DMA %s\n",
 				chan_num, instance);
 		return (void *)-EINVAL;
@@ -747,9 +737,8 @@ static int knav_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&kdev->list);
 
 	pm_runtime_enable(kdev->dev);
-	ret = pm_runtime_get_sync(kdev->dev);
+	ret = pm_runtime_resume_and_get(kdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(kdev->dev);
 		dev_err(kdev->dev, "unable to enable pktdma, err %d\n", ret);
 		goto err_pm_disable;
 	}

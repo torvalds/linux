@@ -93,6 +93,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	nfs_file_set_open_context(filp, ctx);
 	nfs_fscache_open_file(inode, filp);
 	err = 0;
+	filp->f_mode |= FMODE_CAN_ODIRECT;
 
 out_put_ctx:
 	put_nfs_open_context(ctx);
@@ -328,7 +329,7 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 	char *read_name = NULL;
 	int len, status = 0;
 
-	server = NFS_SERVER(ss_mnt->mnt_root->d_inode);
+	server = NFS_SB(ss_mnt->mnt_sb);
 
 	if (!fattr)
 		return ERR_PTR(-ENOMEM);
@@ -339,6 +340,11 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 		goto out;
 	}
 
+	if (!S_ISREG(fattr->mode)) {
+		res = ERR_PTR(-EBADF);
+		goto out;
+	}
+
 	res = ERR_PTR(-ENOMEM);
 	len = strlen(SSC_READ_NAME_BODY) + 16;
 	read_name = kzalloc(len, GFP_KERNEL);
@@ -346,7 +352,7 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 		goto out;
 	snprintf(read_name, len, SSC_READ_NAME_BODY, read_name_gen++);
 
-	r_ino = nfs_fhget(ss_mnt->mnt_root->d_inode->i_sb, src_fh, fattr);
+	r_ino = nfs_fhget(ss_mnt->mnt_sb, src_fh, fattr);
 	if (IS_ERR(r_ino)) {
 		res = ERR_CAST(r_ino);
 		goto out_free_name;
@@ -356,6 +362,7 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 				     r_ino->i_fop);
 	if (IS_ERR(filep)) {
 		res = ERR_CAST(filep);
+		iput(r_ino);
 		goto out_free_name;
 	}
 

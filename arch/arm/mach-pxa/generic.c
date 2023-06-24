@@ -17,15 +17,18 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/soc/pxa/cpu.h>
+#include <linux/soc/pxa/smemc.h>
+#include <linux/clk/pxa.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 
-#include <mach/irqs.h>
-#include <mach/reset.h>
-#include <mach/smemc.h>
-#include <mach/pxa3xx-regs.h>
+#include "addr-map.h"
+#include "irqs.h"
+#include "reset.h"
+#include "smemc.h"
+#include "pxa3xx-regs.h"
 
 #include "generic.h"
 #include <clocksource/pxa.h>
@@ -46,28 +49,47 @@ void clear_reset_status(unsigned int mask)
 void __init pxa_timer_init(void)
 {
 	if (cpu_is_pxa25x())
-		pxa25x_clocks_init();
+		pxa25x_clocks_init(io_p2v(0x41300000));
 	if (cpu_is_pxa27x())
-		pxa27x_clocks_init();
+		pxa27x_clocks_init(io_p2v(0x41300000));
 	if (cpu_is_pxa3xx())
-		pxa3xx_clocks_init();
+		pxa3xx_clocks_init(io_p2v(0x41340000), io_p2v(0x41350000));
 	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000));
 }
 
-/*
- * Get the clock frequency as reflected by CCCR and the turbo flag.
- * We assume these values have been applied via a fcs.
- * If info is not 0 we also display the current settings.
- */
-unsigned int get_clk_frequency_khz(int info)
+void pxa_smemc_set_pcmcia_timing(int sock, u32 mcmem, u32 mcatt, u32 mcio)
 {
-	if (cpu_is_pxa25x())
-		return pxa25x_get_clk_frequency_khz(info);
-	else if (cpu_is_pxa27x())
-		return pxa27x_get_clk_frequency_khz(info);
-	return 0;
+	__raw_writel(mcmem, MCMEM(sock));
+	__raw_writel(mcatt, MCATT(sock));
+	__raw_writel(mcio, MCIO(sock));
 }
-EXPORT_SYMBOL(get_clk_frequency_khz);
+EXPORT_SYMBOL_GPL(pxa_smemc_set_pcmcia_timing);
+
+void pxa_smemc_set_pcmcia_socket(int nr)
+{
+	switch (nr) {
+	case 0:
+		__raw_writel(0, MECR);
+		break;
+	case 1:
+		/*
+		 * We have at least one socket, so set MECR:CIT
+		 * (Card Is There)
+		 */
+		__raw_writel(MECR_CIT, MECR);
+		break;
+	case 2:
+		/* Set CIT and MECR:NOS (Number Of Sockets) */
+		__raw_writel(MECR_CIT | MECR_NOS, MECR);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(pxa_smemc_set_pcmcia_socket);
+
+void __iomem *pxa_smemc_get_mdrefr(void)
+{
+	return MDREFR;
+}
 
 /*
  * Intel PXA2xx internal register mapping.

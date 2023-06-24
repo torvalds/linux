@@ -25,7 +25,6 @@
 
 #define REG_CHIP_ID2__1			0x0002
 
-#define CHIP_ID_63			0x63
 #define CHIP_ID_66			0x66
 #define CHIP_ID_67			0x67
 #define CHIP_ID_77			0x77
@@ -166,7 +165,6 @@
 
 #define SW_DOUBLE_TAG			BIT(7)
 #define SW_RESET			BIT(1)
-#define SW_START			BIT(0)
 
 #define REG_SW_MAC_ADDR_0		0x0302
 #define REG_SW_MAC_ADDR_1		0x0303
@@ -191,8 +189,9 @@
 
 #define SW_VLAN_ENABLE			BIT(7)
 #define SW_DROP_INVALID_VID		BIT(6)
-#define SW_AGE_CNT_M			0x7
+#define SW_AGE_CNT_M			GENMASK(5, 3)
 #define SW_AGE_CNT_S			3
+#define SW_AGE_PERIOD_10_8_M		GENMASK(10, 8)
 #define SW_RESV_MCAST_ENABLE		BIT(2)
 #define SW_HASH_OPTION_M		0x03
 #define SW_HASH_OPTION_CRC		1
@@ -227,6 +226,7 @@
 #define SW_PRIO_LOWEST_DA_SA		3
 
 #define REG_SW_LUE_CTRL_3		0x0313
+#define SW_AGE_PERIOD_7_0_M		GENMASK(7, 0)
 
 #define REG_SW_LUE_INT_STATUS		0x0314
 #define REG_SW_LUE_INT_ENABLE		0x0315
@@ -266,7 +266,6 @@
 
 #define REG_SW_MAC_CTRL_1		0x0331
 
-#define MULTICAST_STORM_DISABLE		BIT(6)
 #define SW_BACK_PRESSURE		BIT(5)
 #define FAIR_FLOW_CTRL			BIT(4)
 #define NO_EXC_COLLISION_DROP		BIT(3)
@@ -277,12 +276,8 @@
 #define REG_SW_MAC_CTRL_2		0x0332
 
 #define SW_REPLACE_VID			BIT(3)
-#define BROADCAST_STORM_RATE_HI		0x07
 
 #define REG_SW_MAC_CTRL_3		0x0333
-
-#define BROADCAST_STORM_RATE_LO		0xFF
-#define BROADCAST_STORM_RATE		0x07FF
 
 #define REG_SW_MAC_CTRL_4		0x0334
 
@@ -426,12 +421,9 @@
 
 #define REG_SW_ALU_STAT_CTRL__4		0x041C
 
-#define ALU_STAT_INDEX_M		(BIT(4) - 1)
-#define ALU_STAT_INDEX_S		16
 #define ALU_RESV_MCAST_INDEX_M		(BIT(6) - 1)
 #define ALU_STAT_START			BIT(7)
 #define ALU_RESV_MCAST_ADDR		BIT(1)
-#define ALU_STAT_READ			BIT(0)
 
 #define REG_SW_ALU_VAL_A		0x0420
 
@@ -1185,35 +1177,11 @@
 #define PORT_LINK_STATUS_FAIL		BIT(0)
 
 /* 3 - xMII */
-#define REG_PORT_XMII_CTRL_0		0x0300
-
 #define PORT_SGMII_SEL			BIT(7)
-#define PORT_MII_FULL_DUPLEX		BIT(6)
-#define PORT_MII_100MBIT		BIT(4)
 #define PORT_GRXC_ENABLE		BIT(0)
 
-#define REG_PORT_XMII_CTRL_1		0x0301
-
 #define PORT_RMII_CLK_SEL		BIT(7)
-/* S1 */
-#define PORT_MII_1000MBIT_S1		BIT(6)
-/* S2 */
-#define PORT_MII_NOT_1GBIT		BIT(6)
 #define PORT_MII_SEL_EDGE		BIT(5)
-#define PORT_RGMII_ID_IG_ENABLE		BIT(4)
-#define PORT_RGMII_ID_EG_ENABLE		BIT(3)
-#define PORT_MII_MAC_MODE		BIT(2)
-#define PORT_MII_SEL_M			0x3
-/* S1 */
-#define PORT_MII_SEL_S1			0x0
-#define PORT_RMII_SEL_S1		0x1
-#define PORT_GMII_SEL_S1		0x2
-#define PORT_RGMII_SEL_S1		0x3
-/* S2 */
-#define PORT_RGMII_SEL			0x0
-#define PORT_RMII_SEL			0x1
-#define PORT_GMII_SEL			0x2
-#define PORT_MII_SEL			0x3
 
 /* 4 - MAC */
 #define REG_PORT_MAC_CTRL_0		0x0400
@@ -1269,8 +1237,6 @@
 /* 5 - MIB Counters */
 #define REG_PORT_MIB_CTRL_STAT__4	0x0500
 
-#define MIB_COUNTER_OVERFLOW		BIT(31)
-#define MIB_COUNTER_VALID		BIT(30)
 #define MIB_COUNTER_READ		BIT(25)
 #define MIB_COUNTER_FLUSH_FREEZE	BIT(24)
 #define MIB_COUNTER_INDEX_M		(BIT(8) - 1)
@@ -1586,10 +1552,6 @@
 
 #define REG_PORT_LUE_MSTP_STATE		0x0B04
 
-#define PORT_TX_ENABLE			BIT(2)
-#define PORT_RX_ENABLE			BIT(1)
-#define PORT_LEARN_DISABLE		BIT(0)
-
 /* C - PTP */
 
 #define REG_PTP_PORT_RX_DELAY__2	0x0C00
@@ -1633,11 +1595,7 @@
 #define P_BCAST_STORM_CTRL		REG_PORT_MAC_CTRL_0
 #define P_PRIO_CTRL			REG_PORT_MRI_PRIO_CTRL
 #define P_MIRROR_CTRL			REG_PORT_MRI_MIRROR_CTRL
-#define P_STP_CTRL			REG_PORT_LUE_MSTP_STATE
 #define P_PHY_CTRL			REG_PORT_PHY_CTRL
-#define P_NEG_RESTART_CTRL		REG_PORT_PHY_CTRL
-#define P_LINK_STATUS			REG_PORT_PHY_STATUS
-#define P_SPEED_STATUS			REG_PORT_PHY_PHY_CTRL
 #define P_RATE_LIMIT_CTRL		REG_PORT_MAC_IN_RATE_LIMIT
 
 #define S_LINK_AGING_CTRL		REG_SW_LUE_CTRL_1
@@ -1656,12 +1614,6 @@
 
 #define PTP_TRIG_UNIT_M			(BIT(MAX_TRIG_UNIT) - 1)
 #define PTP_TS_UNIT_M			(BIT(MAX_TIMESTAMP_UNIT) - 1)
-
-/* Driver set switch broadcast storm protection at 10% rate. */
-#define BROADCAST_STORM_PROT_RATE	10
-
-/* 148,800 frames * 67 ms / 100 */
-#define BROADCAST_STORM_VALUE		9969
 
 #define KSZ9477_MAX_FRAME_SIZE		9000
 

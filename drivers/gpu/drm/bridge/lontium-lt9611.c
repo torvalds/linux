@@ -5,7 +5,9 @@
  */
 
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
@@ -578,20 +580,24 @@ static struct lt9611_mode *lt9611_find_mode(const struct drm_display_mode *mode)
 }
 
 /* connector funcs */
-static enum drm_connector_status
-lt9611_connector_detect(struct drm_connector *connector, bool force)
+static enum drm_connector_status __lt9611_detect(struct lt9611 *lt9611)
 {
-	struct lt9611 *lt9611 = connector_to_lt9611(connector);
 	unsigned int reg_val = 0;
 	int connected = 0;
 
 	regmap_read(lt9611->regmap, 0x825e, &reg_val);
-	connected  = (reg_val & BIT(0));
+	connected  = (reg_val & (BIT(2) | BIT(0)));
 
 	lt9611->status = connected ?  connector_status_connected :
 				connector_status_disconnected;
 
 	return lt9611->status;
+}
+
+static enum drm_connector_status
+lt9611_connector_detect(struct drm_connector *connector, bool force)
+{
+	return __lt9611_detect(connector_to_lt9611(connector));
 }
 
 static int lt9611_read_edid(struct lt9611 *lt9611)
@@ -700,7 +706,9 @@ lt9611_connector_mode_valid(struct drm_connector *connector,
 }
 
 /* bridge funcs */
-static void lt9611_bridge_enable(struct drm_bridge *bridge)
+static void
+lt9611_bridge_atomic_enable(struct drm_bridge *bridge,
+			    struct drm_bridge_state *old_bridge_state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 
@@ -721,7 +729,9 @@ static void lt9611_bridge_enable(struct drm_bridge *bridge)
 	regmap_write(lt9611->regmap, 0x8130, 0xea);
 }
 
-static void lt9611_bridge_disable(struct drm_bridge *bridge)
+static void
+lt9611_bridge_atomic_disable(struct drm_bridge *bridge,
+			     struct drm_bridge_state *old_bridge_state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	int ret;
@@ -803,12 +813,13 @@ static int lt9611_connector_init(struct drm_bridge *bridge, struct lt9611 *lt961
 
 	drm_connector_helper_add(&lt9611->connector,
 				 &lt9611_bridge_connector_helper_funcs);
-	drm_connector_attach_encoder(&lt9611->connector, bridge->encoder);
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
 		return -ENODEV;
 	}
+
+	drm_connector_attach_encoder(&lt9611->connector, bridge->encoder);
 
 	return 0;
 }
@@ -856,7 +867,9 @@ static void lt9611_bridge_pre_enable(struct drm_bridge *bridge)
 	lt9611->sleep = false;
 }
 
-static void lt9611_bridge_post_disable(struct drm_bridge *bridge)
+static void
+lt9611_bridge_atomic_post_disable(struct drm_bridge *bridge,
+				  struct drm_bridge_state *old_bridge_state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 
@@ -887,17 +900,7 @@ static void lt9611_bridge_mode_set(struct drm_bridge *bridge,
 
 static enum drm_connector_status lt9611_bridge_detect(struct drm_bridge *bridge)
 {
-	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
-	unsigned int reg_val = 0;
-	int connected;
-
-	regmap_read(lt9611->regmap, 0x825e, &reg_val);
-	connected  = reg_val & BIT(0);
-
-	lt9611->status = connected ?  connector_status_connected :
-				connector_status_disconnected;
-
-	return lt9611->status;
+	return __lt9611_detect(bridge_to_lt9611(bridge));
 }
 
 static struct edid *lt9611_bridge_get_edid(struct drm_bridge *bridge,
@@ -916,16 +919,47 @@ static void lt9611_bridge_hpd_enable(struct drm_bridge *bridge)
 	lt9611_enable_hpd_interrupts(lt9611);
 }
 
+#define MAX_INPUT_SEL_FORMATS	1
+
+static u32 *
+lt9611_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
+				 struct drm_bridge_state *bridge_state,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state,
+				 u32 output_fmt,
+				 unsigned int *num_input_fmts)
+{
+	u32 *input_fmts;
+
+	*num_input_fmts = 0;
+
+	input_fmts = kcalloc(MAX_INPUT_SEL_FORMATS, sizeof(*input_fmts),
+			     GFP_KERNEL);
+	if (!input_fmts)
+		return NULL;
+
+	/* This is the DSI-end bus format */
+	input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_input_fmts = 1;
+
+	return input_fmts;
+}
+
 static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 	.attach = lt9611_bridge_attach,
 	.mode_valid = lt9611_bridge_mode_valid,
-	.enable = lt9611_bridge_enable,
-	.disable = lt9611_bridge_disable,
-	.post_disable = lt9611_bridge_post_disable,
 	.mode_set = lt9611_bridge_mode_set,
 	.detect = lt9611_bridge_detect,
 	.get_edid = lt9611_bridge_get_edid,
 	.hpd_enable = lt9611_bridge_hpd_enable,
+
+	.atomic_enable = lt9611_bridge_atomic_enable,
+	.atomic_disable = lt9611_bridge_atomic_disable,
+	.atomic_post_disable = lt9611_bridge_atomic_post_disable,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = lt9611_atomic_get_input_bus_fmts,
 };
 
 static int lt9611_parse_dt(struct device *dev,
@@ -1183,7 +1217,7 @@ err_of_put:
 	return ret;
 }
 
-static int lt9611_remove(struct i2c_client *client)
+static void lt9611_remove(struct i2c_client *client)
 {
 	struct lt9611 *lt9611 = i2c_get_clientdata(client);
 
@@ -1195,8 +1229,6 @@ static int lt9611_remove(struct i2c_client *client)
 
 	of_node_put(lt9611->dsi1_node);
 	of_node_put(lt9611->dsi0_node);
-
-	return 0;
 }
 
 static struct i2c_device_id lt9611_id[] = {

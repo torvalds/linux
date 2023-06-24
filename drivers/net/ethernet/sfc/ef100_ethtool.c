@@ -26,7 +26,7 @@ ef100_ethtool_get_ringparam(struct net_device *net_dev,
 			    struct kernel_ethtool_ringparam *kernel_ring,
 			    struct netlink_ext_ack *extack)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	ring->rx_max_pending = EFX_EF100_MAX_DMAQ_SIZE;
 	ring->tx_max_pending = EFX_EF100_MAX_DMAQ_SIZE;
@@ -43,6 +43,8 @@ const struct ethtool_ops ef100_ethtool_ops = {
 	.get_pauseparam         = efx_ethtool_get_pauseparam,
 	.set_pauseparam         = efx_ethtool_set_pauseparam,
 	.get_sset_count		= efx_ethtool_get_sset_count,
+	.get_priv_flags		= efx_ethtool_get_priv_flags,
+	.set_priv_flags		= efx_ethtool_set_priv_flags,
 	.self_test		= efx_ethtool_self_test,
 	.get_strings		= efx_ethtool_get_strings,
 	.get_link_ksettings	= efx_ethtool_get_link_ksettings,

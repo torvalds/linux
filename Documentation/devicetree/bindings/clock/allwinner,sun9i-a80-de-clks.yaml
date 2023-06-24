@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/allwinner,sun9i-a80-de-clks.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A80 Display Engine Clock Controller Device Tree Bindings
+title: Allwinner A80 Display Engine Clock Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

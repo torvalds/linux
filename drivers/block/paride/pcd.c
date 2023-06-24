@@ -956,7 +956,7 @@ out_unreg_cdrom:
 out_pi_release:
 	pi_release(cd->pi);
 out_free_disk:
-	blk_cleanup_disk(cd->disk);
+	put_disk(cd->disk);
 out_free_tag_set:
 	blk_mq_free_tag_set(&cd->tag_set);
 	return ret;
@@ -1029,7 +1029,7 @@ static void __exit pcd_exit(void)
 		unregister_cdrom(&cd->info);
 		del_gendisk(cd->disk);
 		pi_release(cd->pi);
-		blk_cleanup_disk(cd->disk);
+		put_disk(cd->disk);
 
 		blk_mq_free_tag_set(&cd->tag_set);
 	}

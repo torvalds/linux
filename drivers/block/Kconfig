@@ -248,15 +248,6 @@ config BLK_DEV_NBD
 
 	  If unsure, say N.
 
-config BLK_DEV_SX8
-	tristate "Promise SATA SX8 support"
-	depends on PCI
-	help
-	  Saying Y or M here will enable support for the 
-	  Promise SATA SX8 controllers.
-
-	  Use devices /dev/sx8/$N and /dev/sx8/$Np$M.
-
 config BLK_DEV_RAM
 	tristate "RAM block device support"
 	help
@@ -407,6 +398,21 @@ config BLK_DEV_RBD
 	  More information at http://ceph.newdream.net/.
 
 	  If unsure, say N.
+
+config BLK_DEV_UBLK
+	tristate "Userspace block driver (Experimental)"
+	select IO_URING
+	help
+	  io_uring based userspace block driver. Together with ublk server, ublk
+	  has been working well, but interface with userspace or command data
+	  definition isn't finalized yet, and might change according to future
+	  requirement, so mark is as experimental now.
+
+	  Say Y if you want to get better performance because task_work_add()
+	  can be used in IO path for replacing io_uring cmd, which will become
+	  shared between IO tasks and ubq daemon, meantime task_work_add() can
+	  can handle batch more effectively, but task_work_add() isn't exported
+	  for module, so ublk has to be built to kernel.
 
 source "drivers/block/rnbd/Kconfig"
 

@@ -493,7 +493,14 @@ static struct platform_device *jive_devices[] __initdata = {
 };
 
 static struct s3c2410_udc_mach_info jive_udc_cfg __initdata = {
-	.vbus_pin	= S3C2410_GPG(1),		/* detect is on GPG1 */
+};
+
+static struct gpiod_lookup_table jive_udc_gpio_table = {
+	.dev_id = "s3c2410-usbgadget",
+	.table = {
+		GPIO_LOOKUP("GPIOG", 1, "vbus", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /* Jive power management device */
@@ -669,6 +676,7 @@ static void __init jive_machine_init(void)
 
 	pm_power_off = jive_power_off;
 
+	gpiod_add_lookup_table(&jive_udc_gpio_table);
 	gpiod_add_lookup_table(&jive_lcdspi_gpiod_table);
 	gpiod_add_lookup_table(&jive_wm8750_gpiod_table);
 	platform_add_devices(jive_devices, ARRAY_SIZE(jive_devices));
@@ -677,7 +685,7 @@ static void __init jive_machine_init(void)
 MACHINE_START(JIVE, "JIVE")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
-
+	.nr_irqs	= NR_IRQS_S3C2412,
 	.init_irq	= s3c2412_init_irq,
 	.map_io		= jive_map_io,
 	.init_machine	= jive_machine_init,

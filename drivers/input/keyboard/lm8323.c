@@ -752,7 +752,7 @@ fail1:
 	return err;
 }
 
-static int lm8323_remove(struct i2c_client *client)
+static void lm8323_remove(struct i2c_client *client)
 {
 	struct lm8323_chip *lm = i2c_get_clientdata(client);
 	int i;
@@ -769,8 +769,6 @@ static int lm8323_remove(struct i2c_client *client)
 			led_classdev_unregister(&lm->pwm[i].cdev);
 
 	kfree(lm);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

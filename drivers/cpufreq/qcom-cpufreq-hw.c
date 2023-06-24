@@ -13,8 +13,10 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/units.h>
 
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
@@ -25,8 +27,6 @@
 #define LUT_TURBO_IND			1
 
 #define GT_IRQ_STATUS			BIT(2)
-
-#define HZ_PER_KHZ			1000
 
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
@@ -57,6 +57,8 @@ struct qcom_cpufreq_data {
 	struct cpufreq_policy *policy;
 
 	bool per_core_dcvs;
+
+	struct freq_qos_request throttle_freq_req;
 };
 
 static unsigned long cpu_hw_rate, xo_rate;
@@ -317,13 +319,15 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	if (IS_ERR(opp)) {
 		dev_warn(dev, "Can't find the OPP for throttling: %pe!\n", opp);
 	} else {
-		throttled_freq = freq_hz / HZ_PER_KHZ;
-
-		/* Update thermal pressure (the boost frequencies are accepted) */
-		arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
-
 		dev_pm_opp_put(opp);
 	}
+
+	throttled_freq = freq_hz / HZ_PER_KHZ;
+
+	freq_qos_update_request(&data->throttle_freq_req, throttled_freq);
+
+	/* Update thermal pressure (the boost frequencies are accepted) */
+	arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
@@ -414,6 +418,14 @@ static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
 	if (data->throttle_irq < 0)
 		return data->throttle_irq;
 
+	ret = freq_qos_add_request(&policy->constraints,
+				   &data->throttle_freq_req, FREQ_QOS_MAX,
+				   FREQ_QOS_MAX_DEFAULT_VALUE);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to add freq constraint (%d)\n", ret);
+		return ret;
+	}
+
 	data->cancel_throttle = false;
 	data->policy = policy;
 
@@ -428,7 +440,7 @@ static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
 		return 0;
 	}
 
-	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
+	ret = irq_set_affinity_and_hint(data->throttle_irq, policy->cpus);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
 			data->irq_name, data->throttle_irq);
@@ -442,7 +454,14 @@ static int qcom_cpufreq_hw_cpu_online(struct cpufreq_policy *policy)
 	struct platform_device *pdev = cpufreq_get_driver_data();
 	int ret;
 
-	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
+	if (data->throttle_irq <= 0)
+		return 0;
+
+	mutex_lock(&data->throttle_lock);
+	data->cancel_throttle = false;
+	mutex_unlock(&data->throttle_lock);
+
+	ret = irq_set_affinity_and_hint(data->throttle_irq, policy->cpus);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
 			data->irq_name, data->throttle_irq);
@@ -462,13 +481,18 @@ static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
 	mutex_unlock(&data->throttle_lock);
 
 	cancel_delayed_work_sync(&data->throttle_work);
-	irq_set_affinity_hint(data->throttle_irq, NULL);
+	irq_set_affinity_and_hint(data->throttle_irq, NULL);
+	disable_irq_nosync(data->throttle_irq);
 
 	return 0;
 }
 
 static void qcom_cpufreq_hw_lmh_exit(struct qcom_cpufreq_data *data)
 {
+	if (data->throttle_irq <= 0)
+		return;
+
+	freq_qos_remove_request(&data->throttle_freq_req);
 	free_irq(data->throttle_irq, data);
 }
 

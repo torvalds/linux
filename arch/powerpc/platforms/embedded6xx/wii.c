@@ -13,13 +13,11 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/seq_file.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
-#include <mm/mmu_decl.h>
 
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/udbg.h>
 
@@ -48,19 +46,6 @@
 
 static void __iomem *hw_ctrl;
 static void __iomem *hw_gpio;
-
-static int __init page_aligned(unsigned long x)
-{
-	return !(x & (PAGE_SIZE-1));
-}
-
-void __init wii_memory_fixups(void)
-{
-	struct memblock_region *p = memblock.memory.regions;
-
-	BUG_ON(memblock.memory.cnt != 2);
-	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
-}
 
 static void __noreturn wii_spin(void)
 {

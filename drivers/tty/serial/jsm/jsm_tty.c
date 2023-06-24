@@ -300,8 +300,8 @@ static void jsm_tty_close(struct uart_port *port)
 }
 
 static void jsm_tty_set_termios(struct uart_port *port,
-				 struct ktermios *termios,
-				 struct ktermios *old_termios)
+				struct ktermios *termios,
+				const struct ktermios *old_termios)
 {
 	unsigned long lock_flags;
 	struct jsm_channel *channel =

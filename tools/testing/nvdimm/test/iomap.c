@@ -62,16 +62,14 @@ struct nfit_test_resource *get_nfit_res(resource_size_t resource)
 }
 EXPORT_SYMBOL(get_nfit_res);
 
-static void __iomem *__nfit_test_ioremap(resource_size_t offset, unsigned long size,
-		void __iomem *(*fallback_fn)(resource_size_t, unsigned long))
-{
-	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
-
-	if (nfit_res)
-		return (void __iomem *) nfit_res->buf + offset
-			- nfit_res->res.start;
-	return fallback_fn(offset, size);
-}
+#define __nfit_test_ioremap(offset, size, fallback_fn) ({		\
+	struct nfit_test_resource *nfit_res = get_nfit_res(offset);	\
+	nfit_res ?							\
+		(void __iomem *) nfit_res->buf + (offset)		\
+			- nfit_res->res.start				\
+	:								\
+		fallback_fn((offset), (size)) ;				\
+})
 
 void __iomem *__wrap_devm_ioremap(struct device *dev,
 		resource_size_t offset, unsigned long size)

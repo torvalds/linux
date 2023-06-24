@@ -112,8 +112,7 @@ time, although different tasklets can run simultaneously.
 .. warning::
 
     The name 'tasklet' is misleading: they have nothing to do with
-    'tasks', and probably more to do with some bad vodka Alexey
-    Kuznetsov had at the time.
+    'tasks'.
 
 You can tell you are in a softirq (or tasklet) using the
 :c:func:`in_softirq()` macro (``include/linux/preempt.h``).
@@ -121,7 +120,7 @@ You can tell you are in a softirq (or tasklet) using the
 .. warning::
 
     Beware that this will return a false positive if a
-    :ref:`botton half lock <local_bh_disable>` is held.
+    :ref:`bottom half lock <local_bh_disable>` is held.
 
 Some Basic Rules
 ================
@@ -290,8 +289,8 @@ userspace.
     Unlike :c:func:`put_user()` and :c:func:`get_user()`, they
     return the amount of uncopied data (ie. 0 still means success).
 
-[Yes, this moronic interface makes me cringe. The flamewar comes up
-every year or so. --RR.]
+[Yes, this objectionable interface makes me cringe. The flamewar comes
+up every year or so. --RR.]
 
 The functions may sleep implicitly. This should never be called outside
 user context (it makes no sense), with interrupts disabled, or a
@@ -645,8 +644,9 @@ names in development kernels; this is not done just to keep everyone on
 their toes: it reflects a fundamental change (eg. can no longer be
 called with interrupts on, or does extra checks, or doesn't do checks
 which were caught before). Usually this is accompanied by a fairly
-complete note to the linux-kernel mailing list; search the archive.
-Simply doing a global replace on the file usually makes things **worse**.
+complete note to the appropriate kernel development mailing list; search
+the archives. Simply doing a global replace on the file usually makes
+things **worse**.
 
 Initializing structure members
 ------------------------------
@@ -723,14 +723,14 @@ Putting Your Stuff in the Kernel
 In order to get your stuff into shape for official inclusion, or even to
 make a neat patch, there's administrative work to be done:
 
--  Figure out whose pond you've been pissing in. Look at the top of the
-   source files, inside the ``MAINTAINERS`` file, and last of all in the
-   ``CREDITS`` file. You should coordinate with this person to make sure
-   you're not duplicating effort, or trying something that's already
-   been rejected.
+-  Figure out who are the owners of the code you've been modifying. Look
+   at the top of the source files, inside the ``MAINTAINERS`` file, and
+   last of all in the ``CREDITS`` file. You should coordinate with these
+   people to make sure you're not duplicating effort, or trying something
+   that's already been rejected.
 
-   Make sure you put your name and EMail address at the top of any files
-   you create or mangle significantly. This is the first place people
+   Make sure you put your name and email address at the top of any files
+   you create or modify significantly. This is the first place people
    will look when they find a bug, or when **they** want to make a change.
 
 -  Usually you want a configuration option for your kernel hack. Edit
@@ -748,15 +748,14 @@ make a neat patch, there's administrative work to be done:
    can usually just add a "obj-$(CONFIG_xxx) += xxx.o" line. The syntax
    is documented in ``Documentation/kbuild/makefiles.rst``.
 
--  Put yourself in ``CREDITS`` if you've done something noteworthy,
-   usually beyond a single file (your name should be at the top of the
-   source files anyway). ``MAINTAINERS`` means you want to be consulted
-   when changes are made to a subsystem, and hear about bugs; it implies
-   a more-than-passing commitment to some part of the code.
+-  Put yourself in ``CREDITS`` if you consider what you've done
+   noteworthy, usually beyond a single file (your name should be at the
+   top of the source files anyway). ``MAINTAINERS`` means you want to be
+   consulted when changes are made to a subsystem, and hear about bugs;
+   it implies a more-than-passing commitment to some part of the code.
 
 -  Finally, don't forget to read
-   ``Documentation/process/submitting-patches.rst`` and possibly
-   ``Documentation/process/submitting-drivers.rst``.
+   ``Documentation/process/submitting-patches.rst``
 
 Kernel Cantrips
 ===============

@@ -1058,7 +1058,7 @@ restart:
 
 /*
  * Expand static jid arrays if necessary (by increments of RECOVER_SIZE_INC)
- * to accomodate the largest slot number.  (NB dlm slot numbers start at 1,
+ * to accommodate the largest slot number.  (NB dlm slot numbers start at 1,
  * gfs2 jids start at 0, so jid = slot - 1)
  */
 
@@ -1302,7 +1302,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	memcpy(cluster, table, strlen(table) - strlen(fsname));
 	fsname++;
 
-	flags = DLM_LSFL_FS | DLM_LSFL_NEWEXCL;
+	flags = DLM_LSFL_NEWEXCL;
 
 	/*
 	 * create/join lockspace

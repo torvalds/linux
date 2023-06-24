@@ -7,8 +7,8 @@
 #include <sys/prctl.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include <sys/resource.h>
 #include "trace_helpers.h"
+#include "bpf_util.h"
 
 #ifdef __mips__
 #define	MAX_ENTRIES  6000 /* MIPS n64 syscalls start at 5000 */
@@ -25,7 +25,7 @@ static void install_accept_all_seccomp(void)
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
 	};
 	struct sock_fprog prog = {
-		.len = (unsigned short)(sizeof(filter)/sizeof(filter[0])),
+		.len = (unsigned short)ARRAY_SIZE(filter),
 		.filter = filter,
 	};
 	if (prctl(PR_SET_SECCOMP, 2, &prog))

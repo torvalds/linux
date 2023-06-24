@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 #include "qcom-msm8660.dtsi"
@@ -158,6 +159,19 @@
 				};
 			};
 
+			dragon_gsbi3_i2c_pins: gsbi3_i2c {
+				mux {
+					pins = "gpio43", "gpio44";
+					function = "gsbi3";
+				};
+				pinconf {
+					pins = "gpio43", "gpio44";
+					drive-strength = <8>;
+					/* These have external pull-up 2.2kOhm to 1.8V */
+					bias-disable;
+				};
+			};
+
 			dragon_gsbi8_i2c_pins: gsbi8_i2c {
 				mux {
 					pins = "gpio64", "gpio65";
@@ -239,6 +253,22 @@
 					bias-pull-up;
 				};
 			};
+
+			dragon_tma340_gpios: tma340 {
+				reset {
+					/* RESET line, TS_ATTN, WAKE_CTP */
+					pins = "gpio58";
+					function = "gpio";
+					drive-strength = <6>;
+					bias-disable;
+				};
+				irq {
+					pins = "gpio61"; /* IRQ line */
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
 		};
 
 		qcom,ssbi@500000 {
@@ -273,7 +303,7 @@
 				};
 
 				gpio@150 {
-					dragon_ethernet_gpios: ethernet-gpios {
+					dragon_ethernet_gpios: ethernet-state {
 						pinconf {
 							pins = "gpio7";
 							function = "normal";
@@ -282,7 +312,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_bmp085_gpios: bmp085-gpios {
+					dragon_bmp085_gpios: bmp085-state {
 						pinconf {
 							pins = "gpio16";
 							function = "normal";
@@ -291,7 +321,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_mpu3050_gpios: mpu3050-gpios {
+					dragon_mpu3050_gpios: mpu3050-state {
 						pinconf {
 							pins = "gpio17";
 							function = "normal";
@@ -300,7 +330,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_sdcc3_gpios: sdcc3-gpios {
+					dragon_sdcc3_gpios: sdcc3-state {
 						pinconf {
 							pins = "gpio22";
 							function = "normal";
@@ -309,7 +339,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_sdcc5_gpios: sdcc5-gpios {
+					dragon_sdcc5_gpios: sdcc5-state {
 						pinconf {
 							pins = "gpio26";
 							function = "normal";
@@ -319,7 +349,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_ak8975_gpios: ak8975-gpios {
+					dragon_ak8975_gpios: ak8975-state {
 						pinconf {
 							pins = "gpio33";
 							function = "normal";
@@ -328,9 +358,9 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_cm3605_gpios: cm3605-gpios {
+					dragon_cm3605_gpios: cm3605-state {
 						/* Pin 34 connected to the proxy IRQ */
-						pinconf_gpio34 {
+						gpio34-pins {
 							pins = "gpio34";
 							function = "normal";
 							input-enable;
@@ -338,7 +368,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 						/* Pin 35 connected to ASET */
-						pinconf_gpio35 {
+						gpio35-pins {
 							pins = "gpio35";
 							function = "normal";
 							output-high;
@@ -346,7 +376,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_veth_gpios: veth-gpios {
+					dragon_veth_gpios: veth-state {
 						pinconf {
 							pins = "gpio40";
 							function = "normal";
@@ -416,6 +446,7 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x131>;
 					label = "pm8058:red";
+					color = <LED_COLOR_ID_RED>;
 					default-state = "off";
 				};
 				led@132 {
@@ -426,6 +457,7 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x132>;
 					label = "pm8058:yellow";
+					color = <LED_COLOR_ID_YELLOW>;
 					default-state = "off";
 					linux,default-trigger = "mmc0";
 				};
@@ -433,8 +465,49 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x133>;
 					label = "pm8058:green";
+					function = LED_FUNCTION_HEARTBEAT;
+					color = <LED_COLOR_ID_GREEN>;
 					default-state = "on";
 					linux,default-trigger = "heartbeat";
+				};
+			};
+		};
+
+		gsbi@16200000 {
+			qcom,mode = <GSBI_PROT_I2C>;
+			status = "okay";
+
+			gsbi3_i2c: i2c@16280000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&dragon_gsbi3_i2c_pins>;
+				status = "okay";
+
+				touchscreen@24 {
+					compatible = "cypress,cy8ctma340";
+					reg = <0x24>;
+					/* Certainly we can do at least 400 kHz */
+					clock-frequency = <400000>;
+					/* IRQ on GPIO61 called /CTP_INT */
+					interrupt-parent = <&tlmm>;
+					interrupts = <61 IRQ_TYPE_EDGE_FALLING>;
+					/*
+					 * The I2C bus is using a PCA9306 level translator from L16A
+					 * to L2B so these two voltages are needed and L16A is
+					 * kind of the IO voltage, however L16Aisn't really fed to
+					 * the TMA340, which relies entirely on L2B (PM8901 L2).
+					 */
+					vcpin-supply = <&pm8058_l16>;
+					vdd-supply = <&pm8901_l2>;
+					/* GPIO58, called WAKE_CTP */
+					reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+					touchscreen-size-x = <480>;
+					touchscreen-size-y = <800>;
+					active-interval-ms = <0>;
+					touch-timeout-ms = <255>;
+					lowpower-interval-ms = <10>;
+					bootloader-key = /bits/ 8 <0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&dragon_tma340_gpios>;
 				};
 			};
 		};
@@ -629,7 +702,8 @@
 					bias-pull-down;
 				};
 				l2 {
-					regulator-min-microvolt = <2850000>;
+					/* TMA340 requires strictly 3.3V */
+					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					bias-pull-down;
 				};

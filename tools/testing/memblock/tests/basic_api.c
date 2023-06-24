@@ -4,21 +4,30 @@
 #include "basic_api.h"
 
 #define EXPECTED_MEMBLOCK_REGIONS			128
+#define FUNC_ADD					"memblock_add"
+#define FUNC_RESERVE					"memblock_reserve"
+#define FUNC_REMOVE					"memblock_remove"
+#define FUNC_FREE					"memblock_free"
+#define FUNC_TRIM					"memblock_trim_memory"
 
 static int memblock_initialization_check(void)
 {
-	assert(memblock.memory.regions);
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.max == EXPECTED_MEMBLOCK_REGIONS);
-	assert(strcmp(memblock.memory.name, "memory") == 0);
+	PREFIX_PUSH();
 
-	assert(memblock.reserved.regions);
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.memory.max == EXPECTED_MEMBLOCK_REGIONS);
-	assert(strcmp(memblock.reserved.name, "reserved") == 0);
+	ASSERT_NE(memblock.memory.regions, NULL);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.max, EXPECTED_MEMBLOCK_REGIONS);
+	ASSERT_EQ(strcmp(memblock.memory.name, "memory"), 0);
 
-	assert(!memblock.bottom_up);
-	assert(memblock.current_limit == MEMBLOCK_ALLOC_ANYWHERE);
+	ASSERT_NE(memblock.reserved.regions, NULL);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.memory.max, EXPECTED_MEMBLOCK_REGIONS);
+	ASSERT_EQ(strcmp(memblock.reserved.name, "reserved"), 0);
+
+	ASSERT_EQ(memblock.bottom_up, false);
+	ASSERT_EQ(memblock.current_limit, MEMBLOCK_ALLOC_ANYWHERE);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -26,8 +35,8 @@ static int memblock_initialization_check(void)
 /*
  * A simple test that adds a memory block of a specified base address
  * and size to the collection of available memory regions (memblock.memory).
- * It checks if a new entry was created and if region counter and total memory
- * were correctly updated.
+ * Expect to create a new entry. The region counter and total memory get
+ * updated.
  */
 static int memblock_add_simple_check(void)
 {
@@ -40,23 +49,27 @@ static int memblock_add_simple_check(void)
 		.size = SZ_4M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r.base, r.size);
 
-	assert(rgn->base == r.base);
-	assert(rgn->size == r.size);
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A simple test that adds a memory block of a specified base address, size
+ * A simple test that adds a memory block of a specified base address, size,
  * NUMA node and memory flags to the collection of available memory regions.
- * It checks if the new entry, region counter and total memory size have
- * expected values.
+ * Expect to create a new entry. The region counter and total memory get
+ * updated.
  */
 static int memblock_add_node_simple_check(void)
 {
@@ -69,27 +82,37 @@ static int memblock_add_node_simple_check(void)
 		.size = SZ_16M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add_node(r.base, r.size, 1, MEMBLOCK_HOTPLUG);
 
-	assert(rgn->base == r.base);
-	assert(rgn->size == r.size);
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
 #ifdef CONFIG_NUMA
-	assert(rgn->nid == 1);
+	ASSERT_EQ(rgn->nid, 1);
 #endif
-	assert(rgn->flags == MEMBLOCK_HOTPLUG);
+	ASSERT_EQ(rgn->flags, MEMBLOCK_HOTPLUG);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
  * A test that tries to add two memory blocks that don't overlap with one
- * another. It checks if two correctly initialized entries were added to the
- * collection of available memory regions (memblock.memory) and if this
- * change was reflected in memblock.memory's total size and region counter.
+ * another:
+ *
+ *  |        +--------+        +--------+  |
+ *  |        |   r1   |        |   r2   |  |
+ *  +--------+--------+--------+--------+--+
+ *
+ * Expect to add two correctly initialized entries to the collection of
+ * available memory regions (memblock.memory). The total size and
+ * region counter fields get updated.
  */
 static int memblock_add_disjoint_check(void)
 {
@@ -107,28 +130,42 @@ static int memblock_add_disjoint_check(void)
 		.size = SZ_8K
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1.size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
 
-	assert(rgn2->base == r2.base);
-	assert(rgn2->size == r2.size);
+	ASSERT_EQ(rgn2->base, r2.base);
+	ASSERT_EQ(rgn2->size, r2.size);
 
-	assert(memblock.memory.cnt == 2);
-	assert(memblock.memory.total_size == r1.size + r2.size);
+	ASSERT_EQ(memblock.memory.cnt, 2);
+	ASSERT_EQ(memblock.memory.total_size, r1.size + r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to add two memory blocks, where the second one overlaps
- * with the beginning of the first entry (that is r1.base < r2.base + r2.size).
- * After this, it checks if two entries are merged into one region that starts
- * at r2.base and has size of two regions minus their intersection. It also
- * verifies the reported total size of the available memory and region counter.
+ * A test that tries to add two memory blocks r1 and r2, where r2 overlaps
+ * with the beginning of r1 (that is r1.base < r2.base + r2.size):
+ *
+ *  |    +----+----+------------+          |
+ *  |    |    |r2  |   r1       |          |
+ *  +----+----+----+------------+----------+
+ *       ^    ^
+ *       |    |
+ *       |    r1.base
+ *       |
+ *       r2.base
+ *
+ * Expect to merge the two entries into one region that starts at r2.base
+ * and has size of two regions minus their intersection. The total size of
+ * the available memory is updated, and the region counter stays the same.
  */
 static int memblock_add_overlap_top_check(void)
 {
@@ -146,28 +183,41 @@ static int memblock_add_overlap_top_check(void)
 		.size = SZ_512M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r1.base - r2.base) + r1.size;
 
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to add two memory blocks, where the second one overlaps
- * with the end of the first entry (that is r2.base < r1.base + r1.size).
- * After this, it checks if two entries are merged into one region that starts
- * at r1.base and has size of two regions minus their intersection. It verifies
- * that memblock can still see only one entry and has a correct total size of
- * the available memory.
+ * A test that tries to add two memory blocks r1 and r2, where r2 overlaps
+ * with the end of r1 (that is r2.base < r1.base + r1.size):
+ *
+ *  |  +--+------+----------+              |
+ *  |  |  | r1   | r2       |              |
+ *  +--+--+------+----------+--------------+
+ *     ^  ^
+ *     |  |
+ *     |  r2.base
+ *     |
+ *     r1.base
+ *
+ * Expect to merge the two entries into one region that starts at r1.base
+ * and has size of two regions minus their intersection. The total size of
+ * the available memory is updated, and the region counter stays the same.
  */
 static int memblock_add_overlap_bottom_check(void)
 {
@@ -185,27 +235,39 @@ static int memblock_add_overlap_bottom_check(void)
 		.size = SZ_1G
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r2.base - r1.base) + r2.size;
 
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to add two memory blocks, where the second one is
- * within the range of the first entry (that is r1.base < r2.base &&
- * r2.base + r2.size < r1.base + r1.size). It checks if two entries are merged
- * into one region that stays the same. The counter and total size of available
- * memory are expected to not be updated.
+ * A test that tries to add two memory blocks r1 and r2, where r2 is
+ * within the range of r1 (that is r1.base < r2.base &&
+ * r2.base + r2.size < r1.base + r1.size):
+ *
+ *  |   +-------+--+-----------------------+
+ *  |   |       |r2|      r1               |
+ *  +---+-------+--+-----------------------+
+ *      ^
+ *      |
+ *      r1.base
+ *
+ * Expect to merge two entries into one region that stays the same.
+ * The counter and total size of available memory are not updated.
  */
 static int memblock_add_within_check(void)
 {
@@ -222,22 +284,26 @@ static int memblock_add_within_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r1.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A simple test that tries to add the same memory block twice. The counter
- * and total size of available memory are expected to not be updated.
+ * A simple test that tries to add the same memory block twice. Expect
+ * the counter and total size of available memory to not be updated.
  */
 static int memblock_add_twice_check(void)
 {
@@ -246,19 +312,123 @@ static int memblock_add_twice_check(void)
 		.size = SZ_2M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 
 	memblock_add(r.base, r.size);
 	memblock_add(r.base, r.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r.size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to add two memory blocks that don't overlap with one
+ * another and then add a third memory block in the space between the first two:
+ *
+ *  |        +--------+--------+--------+  |
+ *  |        |   r1   |   r3   |   r2   |  |
+ *  +--------+--------+--------+--------+--+
+ *
+ * Expect to merge the three entries into one region that starts at r1.base
+ * and has size of r1.size + r2.size + r3.size. The region counter and total
+ * size of the available memory are updated.
+ */
+static int memblock_add_between_check(void)
+{
+	struct memblock_region *rgn;
+	phys_addr_t total_size;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r1 = {
+		.base = SZ_1G,
+		.size = SZ_8K
+	};
+	struct region r2 = {
+		.base = SZ_1G + SZ_16K,
+		.size = SZ_8K
+	};
+	struct region r3 = {
+		.base = SZ_1G + SZ_8K,
+		.size = SZ_8K
+	};
+
+	PREFIX_PUSH();
+
+	total_size = r1.size + r2.size + r3.size;
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_add(r3.base, r3.size);
+
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A simple test that tries to add a memory block r when r extends past
+ * PHYS_ADDR_MAX:
+ *
+ *                               +--------+
+ *                               |    r   |
+ *                               +--------+
+ *  |                            +----+
+ *  |                            | rgn|
+ *  +----------------------------+----+
+ *
+ * Expect to add a memory block of size PHYS_ADDR_MAX - r.base. Expect the
+ * total size of available memory and the counter to be updated.
+ */
+static int memblock_add_near_max_check(void)
+{
+	struct memblock_region *rgn;
+	phys_addr_t total_size;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r = {
+		.base = PHYS_ADDR_MAX - SZ_1M,
+		.size = SZ_2M
+	};
+
+	PREFIX_PUSH();
+
+	total_size = PHYS_ADDR_MAX - r.base;
+
+	reset_memblock_regions();
+	memblock_add(r.base, r.size);
+
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, total_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_add_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_ADD);
+	test_print("Running %s tests...\n", FUNC_ADD);
+
 	memblock_add_simple_check();
 	memblock_add_node_simple_check();
 	memblock_add_disjoint_check();
@@ -266,16 +436,20 @@ static int memblock_add_checks(void)
 	memblock_add_overlap_bottom_check();
 	memblock_add_within_check();
 	memblock_add_twice_check();
+	memblock_add_between_check();
+	memblock_add_near_max_check();
+
+	prefix_pop();
 
 	return 0;
 }
 
- /*
-  * A simple test that marks a memory block of a specified base address
-  * and size as reserved and to the collection of reserved memory regions
-  * (memblock.reserved). It checks if a new entry was created and if region
-  * counter and total memory size were correctly updated.
-  */
+/*
+ * A simple test that marks a memory block of a specified base address
+ * and size as reserved and to the collection of reserved memory regions
+ * (memblock.reserved). Expect to create a new entry. The region counter
+ * and total memory size are updated.
+ */
 static int memblock_reserve_simple_check(void)
 {
 	struct memblock_region *rgn;
@@ -287,20 +461,29 @@ static int memblock_reserve_simple_check(void)
 		.size = SZ_128M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r.base, r.size);
 
-	assert(rgn->base == r.base);
-	assert(rgn->size == r.size);
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to mark two memory blocks that don't overlap as reserved
- * and checks if two entries were correctly added to the collection of reserved
- * memory regions (memblock.reserved) and if this change was reflected in
- * memblock.reserved's total size and region counter.
+ * A test that tries to mark two memory blocks that don't overlap as reserved:
+ *
+ *  |        +--+      +----------------+  |
+ *  |        |r1|      |       r2       |  |
+ *  +--------+--+------+----------------+--+
+ *
+ * Expect to add two entries to the collection of reserved memory regions
+ * (memblock.reserved). The total size and region counter for
+ * memblock.reserved are updated.
  */
 static int memblock_reserve_disjoint_check(void)
 {
@@ -318,30 +501,43 @@ static int memblock_reserve_disjoint_check(void)
 		.size = SZ_512M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1.size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
 
-	assert(rgn2->base == r2.base);
-	assert(rgn2->size == r2.size);
+	ASSERT_EQ(rgn2->base, r2.base);
+	ASSERT_EQ(rgn2->size, r2.size);
 
-	assert(memblock.reserved.cnt == 2);
-	assert(memblock.reserved.total_size == r1.size + r2.size);
+	ASSERT_EQ(memblock.reserved.cnt, 2);
+	ASSERT_EQ(memblock.reserved.total_size, r1.size + r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to mark two memory blocks as reserved, where the
- * second one overlaps with the beginning of the first (that is
- * r1.base < r2.base + r2.size).
- * It checks if two entries are merged into one region that starts at r2.base
- * and has size of two regions minus their intersection. The test also verifies
- * that memblock can still see only one entry and has a correct total size of
- * the reserved memory.
+ * A test that tries to mark two memory blocks r1 and r2 as reserved,
+ * where r2 overlaps with the beginning of r1 (that is
+ * r1.base < r2.base + r2.size):
+ *
+ *  |  +--------------+--+--------------+  |
+ *  |  |       r2     |  |     r1       |  |
+ *  +--+--------------+--+--------------+--+
+ *     ^              ^
+ *     |              |
+ *     |              r1.base
+ *     |
+ *     r2.base
+ *
+ * Expect to merge two entries into one region that starts at r2.base and
+ * has size of two regions minus their intersection. The total size of the
+ * reserved memory is updated, and the region counter is not updated.
  */
 static int memblock_reserve_overlap_top_check(void)
 {
@@ -359,29 +555,42 @@ static int memblock_reserve_overlap_top_check(void)
 		.size = SZ_1G
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r1.base - r2.base) + r1.size;
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to mark two memory blocks as reserved, where the
- * second one overlaps with the end of the first entry (that is
- * r2.base < r1.base + r1.size).
- * It checks if two entries are merged into one region that starts at r1.base
- * and has size of two regions minus their intersection. It verifies that
- * memblock can still see only one entry and has a correct total size of the
- * reserved memory.
+ * A test that tries to mark two memory blocks r1 and r2 as reserved,
+ * where r2 overlaps with the end of r1 (that is
+ * r2.base < r1.base + r1.size):
+ *
+ *  |  +--------------+--+--------------+  |
+ *  |  |       r1     |  |     r2       |  |
+ *  +--+--------------+--+--------------+--+
+ *     ^              ^
+ *     |              |
+ *     |              r2.base
+ *     |
+ *     r1.base
+ *
+ * Expect to merge two entries into one region that starts at r1.base and
+ * has size of two regions minus their intersection. The total size of the
+ * reserved memory is updated, and the region counter is not updated.
  */
 static int memblock_reserve_overlap_bottom_check(void)
 {
@@ -399,28 +608,41 @@ static int memblock_reserve_overlap_bottom_check(void)
 		.size = SZ_128K
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r2.base - r1.base) + r2.size;
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to mark two memory blocks as reserved, where the second
- * one is within the range of the first entry (that is
- * (r1.base < r2.base) && (r2.base + r2.size < r1.base + r1.size)).
- * It checks if two entries are merged into one region that stays the
- * same. The counter and total size of available memory are expected to not be
- * updated.
+ * A test that tries to mark two memory blocks r1 and r2 as reserved,
+ * where r2 is within the range of r1 (that is
+ * (r1.base < r2.base) && (r2.base + r2.size < r1.base + r1.size)):
+ *
+ *  | +-----+--+---------------------------|
+ *  | |     |r2|          r1               |
+ *  +-+-----+--+---------------------------+
+ *    ^     ^
+ *    |     |
+ *    |     r2.base
+ *    |
+ *    r1.base
+ *
+ * Expect to merge two entries into one region that stays the same. The
+ * counter and total size of available memory are not updated.
  */
 static int memblock_reserve_within_check(void)
 {
@@ -437,22 +659,26 @@ static int memblock_reserve_within_check(void)
 		.size = SZ_64K
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r1.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
  * A simple test that tries to reserve the same memory block twice.
- * The region counter and total size of reserved memory are expected to not
+ * Expect the region counter and total size of reserved memory to not
  * be updated.
  */
 static int memblock_reserve_twice_check(void)
@@ -462,37 +688,153 @@ static int memblock_reserve_twice_check(void)
 		.size = SZ_2M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 
 	memblock_reserve(r.base, r.size);
 	memblock_reserve(r.base, r.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r.size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to mark two memory blocks that don't overlap as reserved
+ * and then reserve a third memory block in the space between the first two:
+ *
+ *  |        +--------+--------+--------+  |
+ *  |        |   r1   |   r3   |   r2   |  |
+ *  +--------+--------+--------+--------+--+
+ *
+ * Expect to merge the three entries into one reserved region that starts at
+ * r1.base and has size of r1.size + r2.size + r3.size. The region counter and
+ * total for memblock.reserved are updated.
+ */
+static int memblock_reserve_between_check(void)
+{
+	struct memblock_region *rgn;
+	phys_addr_t total_size;
+
+	rgn = &memblock.reserved.regions[0];
+
+	struct region r1 = {
+		.base = SZ_1G,
+		.size = SZ_8K
+	};
+	struct region r2 = {
+		.base = SZ_1G + SZ_16K,
+		.size = SZ_8K
+	};
+	struct region r3 = {
+		.base = SZ_1G + SZ_8K,
+		.size = SZ_8K
+	};
+
+	PREFIX_PUSH();
+
+	total_size = r1.size + r2.size + r3.size;
+
+	reset_memblock_regions();
+	memblock_reserve(r1.base, r1.size);
+	memblock_reserve(r2.base, r2.size);
+	memblock_reserve(r3.base, r3.size);
+
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
+
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A simple test that tries to reserve a memory block r when r extends past
+ * PHYS_ADDR_MAX:
+ *
+ *                               +--------+
+ *                               |    r   |
+ *                               +--------+
+ *  |                            +----+
+ *  |                            | rgn|
+ *  +----------------------------+----+
+ *
+ * Expect to reserve a memory block of size PHYS_ADDR_MAX - r.base. Expect the
+ * total size of reserved memory and the counter to be updated.
+ */
+static int memblock_reserve_near_max_check(void)
+{
+	struct memblock_region *rgn;
+	phys_addr_t total_size;
+
+	rgn = &memblock.reserved.regions[0];
+
+	struct region r = {
+		.base = PHYS_ADDR_MAX - SZ_1M,
+		.size = SZ_2M
+	};
+
+	PREFIX_PUSH();
+
+	total_size = PHYS_ADDR_MAX - r.base;
+
+	reset_memblock_regions();
+	memblock_reserve(r.base, r.size);
+
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, total_size);
+
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_reserve_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_RESERVE);
+	test_print("Running %s tests...\n", FUNC_RESERVE);
+
 	memblock_reserve_simple_check();
 	memblock_reserve_disjoint_check();
 	memblock_reserve_overlap_top_check();
 	memblock_reserve_overlap_bottom_check();
 	memblock_reserve_within_check();
 	memblock_reserve_twice_check();
+	memblock_reserve_between_check();
+	memblock_reserve_near_max_check();
+
+	prefix_pop();
 
 	return 0;
 }
 
- /*
-  * A simple test that tries to remove the first entry of the array of
-  * available memory regions. By "removing" a region we mean overwriting it
-  * with the next region in memblock.memory. To check this is the case, the
-  * test adds two memory blocks and verifies that the value of the latter
-  * was used to erase r1 region.  It also checks if the region counter and
-  * total size were updated to expected values.
-  */
+/*
+ * A simple test that tries to remove a region r1 from the array of
+ * available memory regions. By "removing" a region we mean overwriting it
+ * with the next region r2 in memblock.memory:
+ *
+ *  |  ......          +----------------+  |
+ *  |  : r1 :          |       r2       |  |
+ *  +--+----+----------+----------------+--+
+ *                     ^
+ *                     |
+ *                     rgn.base
+ *
+ * Expect to add two memory blocks r1 and r2 and then remove r1 so that
+ * r2 is the first available region. The region counter and total size
+ * are updated.
+ */
 static int memblock_remove_simple_check(void)
 {
 	struct memblock_region *rgn;
@@ -508,25 +850,40 @@ static int memblock_remove_simple_check(void)
 		.size = SZ_4M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 	memblock_remove(r1.base, r1.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == r2.size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, r2.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r2.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
- /*
-  * A test that tries to remove a region that was not registered as available
-  * memory (i.e. has no corresponding entry in memblock.memory). It verifies
-  * that array, regions counter and total size were not modified.
-  */
+/*
+ * A test that tries to remove a region r2 that was not registered as
+ * available memory (i.e. has no corresponding entry in memblock.memory):
+ *
+ *                     +----------------+
+ *                     |       r2       |
+ *                     +----------------+
+ *  |  +----+                              |
+ *  |  | r1 |                              |
+ *  +--+----+------------------------------+
+ *     ^
+ *     |
+ *     rgn.base
+ *
+ * Expect the array, regions counter and total size to not be modified.
+ */
 static int memblock_remove_absent_check(void)
 {
 	struct memblock_region *rgn;
@@ -542,25 +899,41 @@ static int memblock_remove_absent_check(void)
 		.size = SZ_1G
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r1.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to remove a region which overlaps with the beginning of
- * the already existing entry r1 (that is r1.base < r2.base + r2.size). It
- * checks if only the intersection of both regions is removed from the available
- * memory pool. The test also checks if the regions counter and total size are
- * updated to expected values.
+ * A test that tries to remove a region r2 that overlaps with the
+ * beginning of the already existing entry r1
+ * (that is r1.base < r2.base + r2.size):
+ *
+ *           +-----------------+
+ *           |       r2        |
+ *           +-----------------+
+ *  |                 .........+--------+  |
+ *  |                 :     r1 |  rgn   |  |
+ *  +-----------------+--------+--------+--+
+ *                    ^        ^
+ *                    |        |
+ *                    |        rgn.base
+ *                    r1.base
+ *
+ * Expect that only the intersection of both regions is removed from the
+ * available memory pool. The regions counter and total size are updated.
  */
 static int memblock_remove_overlap_top_check(void)
 {
@@ -578,6 +951,8 @@ static int memblock_remove_overlap_top_check(void)
 		.size = SZ_32M
 	};
 
+	PREFIX_PUSH();
+
 	r1_end = r1.base + r1.size;
 	r2_end = r2.base + r2.size;
 	total_size = r1_end - r2_end;
@@ -586,21 +961,33 @@ static int memblock_remove_overlap_top_check(void)
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn->base == r1.base + r2.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base + r2.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to remove a region which overlaps with the end of the
- * first entry (that is r2.base < r1.base + r1.size). It checks if only the
- * intersection of both regions is removed from the available memory pool.
- * The test also checks if the regions counter and total size are updated to
- * expected values.
+ * A test that tries to remove a region r2 that overlaps with the end of
+ * the already existing region r1 (that is r2.base < r1.base + r1.size):
+ *
+ *        +--------------------------------+
+ *        |               r2               |
+ *        +--------------------------------+
+ *  | +---+.....                           |
+ *  | |rgn| r1 :                           |
+ *  +-+---+----+---------------------------+
+ *    ^
+ *    |
+ *    r1.base
+ *
+ * Expect that only the intersection of both regions is removed from the
+ * available memory pool. The regions counter and total size are updated.
  */
 static int memblock_remove_overlap_bottom_check(void)
 {
@@ -618,28 +1005,43 @@ static int memblock_remove_overlap_bottom_check(void)
 		.size = SZ_256M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = r2.base - r1.base;
 
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
+
 	return 0;
 }
 
 /*
- * A test that tries to remove a region which is within the range of the
- * already existing entry (that is
- * (r1.base < r2.base) && (r2.base + r2.size < r1.base + r1.size)).
- * It checks if the region is split into two - one that ends at r2.base and
- * second that starts at r2.base + size, with appropriate sizes. The test
- * also checks if the region counter and total size were updated to
- * expected values.
+ * A test that tries to remove a region r2 that is within the range of
+ * the already existing entry r1 (that is
+ * (r1.base < r2.base) && (r2.base + r2.size < r1.base + r1.size)):
+ *
+ *                  +----+
+ *                  | r2 |
+ *                  +----+
+ *  | +-------------+....+---------------+ |
+ *  | |     rgn1    | r1 |     rgn2      | |
+ *  +-+-------------+----+---------------+-+
+ *    ^
+ *    |
+ *    r1.base
+ *
+ * Expect that the region is split into two - one that ends at r2.base and
+ * another that starts at r2.base + r2.size, with appropriate sizes. The
+ * region counter and total size are updated.
  */
 static int memblock_remove_within_check(void)
 {
@@ -658,6 +1060,8 @@ static int memblock_remove_within_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	r1_size = r2.base - r1.base;
 	r2_size = (r1.base + r1.size) - (r2.base + r2.size);
 	total_size = r1_size + r2_size;
@@ -666,36 +1070,203 @@ static int memblock_remove_within_check(void)
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1_size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1_size);
 
-	assert(rgn2->base == r2.base + r2.size);
-	assert(rgn2->size == r2_size);
+	ASSERT_EQ(rgn2->base, r2.base + r2.size);
+	ASSERT_EQ(rgn2->size, r2_size);
 
-	assert(memblock.memory.cnt == 2);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 2);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A simple test that tries to remove a region r1 from the array of
+ * available memory regions when r1 is the only available region.
+ * Expect to add a memory block r1 and then remove r1 so that a dummy
+ * region is added. The region counter stays the same, and the total size
+ * is updated.
+ */
+static int memblock_remove_only_region_check(void)
+{
+	struct memblock_region *rgn;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r1 = {
+		.base = SZ_2K,
+		.size = SZ_4K
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_remove(r1.base, r1.size);
+
+	ASSERT_EQ(rgn->base, 0);
+	ASSERT_EQ(rgn->size, 0);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, 0);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A simple test that tries remove a region r2 from the array of available
+ * memory regions when r2 extends past PHYS_ADDR_MAX:
+ *
+ *                               +--------+
+ *                               |   r2   |
+ *                               +--------+
+ *  |                        +---+....+
+ *  |                        |rgn|    |
+ *  +------------------------+---+----+
+ *
+ * Expect that only the portion between PHYS_ADDR_MAX and r2.base is removed.
+ * Expect the total size of available memory to be updated and the counter to
+ * not be updated.
+ */
+static int memblock_remove_near_max_check(void)
+{
+	struct memblock_region *rgn;
+	phys_addr_t total_size;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r1 = {
+		.base = PHYS_ADDR_MAX - SZ_2M,
+		.size = SZ_2M
+	};
+
+	struct region r2 = {
+		.base = PHYS_ADDR_MAX - SZ_1M,
+		.size = SZ_2M
+	};
+
+	PREFIX_PUSH();
+
+	total_size = r1.size - (PHYS_ADDR_MAX - r2.base);
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_remove(r2.base, r2.size);
+
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to remove a region r3 that overlaps with two existing
+ * regions r1 and r2:
+ *
+ *            +----------------+
+ *            |       r3       |
+ *            +----------------+
+ *  |    +----+.....   ........+--------+
+ *  |    |    |r1  :   :       |r2      |     |
+ *  +----+----+----+---+-------+--------+-----+
+ *
+ * Expect that only the intersections of r1 with r3 and r2 with r3 are removed
+ * from the available memory pool. Expect the total size of available memory to
+ * be updated and the counter to not be updated.
+ */
+static int memblock_remove_overlap_two_check(void)
+{
+	struct memblock_region *rgn1, *rgn2;
+	phys_addr_t new_r1_size, new_r2_size, r2_end, r3_end, total_size;
+
+	rgn1 = &memblock.memory.regions[0];
+	rgn2 = &memblock.memory.regions[1];
+
+	struct region r1 = {
+		.base = SZ_16M,
+		.size = SZ_32M
+	};
+	struct region r2 = {
+		.base = SZ_64M,
+		.size = SZ_64M
+	};
+	struct region r3 = {
+		.base = SZ_32M,
+		.size = SZ_64M
+	};
+
+	PREFIX_PUSH();
+
+	r2_end = r2.base + r2.size;
+	r3_end = r3.base + r3.size;
+	new_r1_size = r3.base - r1.base;
+	new_r2_size = r2_end - r3_end;
+	total_size = new_r1_size + new_r2_size;
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_remove(r3.base, r3.size);
+
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, new_r1_size);
+
+	ASSERT_EQ(rgn2->base, r3_end);
+	ASSERT_EQ(rgn2->size, new_r2_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 2);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_remove_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_REMOVE);
+	test_print("Running %s tests...\n", FUNC_REMOVE);
+
 	memblock_remove_simple_check();
 	memblock_remove_absent_check();
 	memblock_remove_overlap_top_check();
 	memblock_remove_overlap_bottom_check();
 	memblock_remove_within_check();
+	memblock_remove_only_region_check();
+	memblock_remove_near_max_check();
+	memblock_remove_overlap_two_check();
+
+	prefix_pop();
 
 	return 0;
 }
 
 /*
- * A simple test that tries to free a memory block that was marked earlier
- * as reserved. By "freeing" a region we mean overwriting it with the next
- * entry in memblock.reserved. To check this is the case, the test reserves
- * two memory regions and verifies that the value of the latter was used to
- * erase r1 region.
- * The test also checks if the region counter and total size were updated.
+ * A simple test that tries to free a memory block r1 that was marked
+ * earlier as reserved. By "freeing" a region we mean overwriting it with
+ * the next entry r2 in memblock.reserved:
+ *
+ *  |              ......           +----+ |
+ *  |              : r1 :           | r2 | |
+ *  +--------------+----+-----------+----+-+
+ *                                  ^
+ *                                  |
+ *                                  rgn.base
+ *
+ * Expect to reserve two memory regions and then erase r1 region with the
+ * value of r2. The region counter and total size are updated.
  */
 static int memblock_free_simple_check(void)
 {
@@ -712,25 +1283,40 @@ static int memblock_free_simple_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 	memblock_free((void *)r1.base, r1.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == r2.size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, r2.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r2.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
- /*
-  * A test that tries to free a region that was not marked as reserved
-  * (i.e. has no corresponding entry in memblock.reserved). It verifies
-  * that array, regions counter and total size were not modified.
-  */
+/*
+ * A test that tries to free a region r2 that was not marked as reserved
+ * (i.e. has no corresponding entry in memblock.reserved):
+ *
+ *                     +----------------+
+ *                     |       r2       |
+ *                     +----------------+
+ *  |  +----+                              |
+ *  |  | r1 |                              |
+ *  +--+----+------------------------------+
+ *     ^
+ *     |
+ *     rgn.base
+ *
+ * The array, regions counter and total size are not modified.
+ */
 static int memblock_free_absent_check(void)
 {
 	struct memblock_region *rgn;
@@ -746,25 +1332,41 @@ static int memblock_free_absent_check(void)
 		.size = SZ_128M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r1.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to free a region which overlaps with the beginning of
- * the already existing entry r1 (that is r1.base < r2.base + r2.size). It
- * checks if only the intersection of both regions is freed. The test also
- * checks if the regions counter and total size are updated to expected
- * values.
+ * A test that tries to free a region r2 that overlaps with the beginning
+ * of the already existing entry r1 (that is r1.base < r2.base + r2.size):
+ *
+ *     +----+
+ *     | r2 |
+ *     +----+
+ *  |    ...+--------------+               |
+ *  |    :  |    r1        |               |
+ *  +----+--+--------------+---------------+
+ *       ^  ^
+ *       |  |
+ *       |  rgn.base
+ *       |
+ *       r1.base
+ *
+ * Expect that only the intersection of both regions is freed. The
+ * regions counter and total size are updated.
  */
 static int memblock_free_overlap_top_check(void)
 {
@@ -782,26 +1384,38 @@ static int memblock_free_overlap_top_check(void)
 		.size = SZ_8M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r1.size + r1.base) - (r2.base + r2.size);
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn->base == r2.base + r2.size);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r2.base + r2.size);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to free a region which overlaps with the end of the
- * first entry (that is r2.base < r1.base + r1.size). It checks if only the
- * intersection of both regions is freed. The test also checks if the
- * regions counter and total size are updated to expected values.
+ * A test that tries to free a region r2 that overlaps with the end of
+ * the already existing entry r1 (that is r2.base < r1.base + r1.size):
+ *
+ *                   +----------------+
+ *                   |       r2       |
+ *                   +----------------+
+ *  |    +-----------+.....                |
+ *  |    |       r1  |    :                |
+ *  +----+-----------+----+----------------+
+ *
+ * Expect that only the intersection of both regions is freed. The
+ * regions counter and total size are updated.
  */
 static int memblock_free_overlap_bottom_check(void)
 {
@@ -819,29 +1433,43 @@ static int memblock_free_overlap_bottom_check(void)
 		.size = SZ_32M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = r2.base - r1.base;
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 /*
- * A test that tries to free a region which is within the range of the
- * already existing entry (that is
- * (r1.base < r2.base) && (r2.base + r2.size < r1.base + r1.size)).
- * It checks if the region is split into two - one that ends at r2.base and
- * second that starts at r2.base + size, with appropriate sizes. It is
- * expected that the region counter and total size fields were updated t
- * reflect that change.
+ * A test that tries to free a region r2 that is within the range of the
+ * already existing entry r1 (that is
+ * (r1.base < r2.base) && (r2.base + r2.size < r1.base + r1.size)):
+ *
+ *                    +----+
+ *                    | r2 |
+ *                    +----+
+ *  |    +------------+....+---------------+
+ *  |    |    rgn1    | r1 |     rgn2      |
+ *  +----+------------+----+---------------+
+ *       ^
+ *       |
+ *       r1.base
+ *
+ * Expect that the region is split into two - one that ends at r2.base and
+ * another that starts at r2.base + r2.size, with appropriate sizes. The
+ * region counter and total size fields are updated.
  */
 static int memblock_free_within_check(void)
 {
@@ -860,6 +1488,8 @@ static int memblock_free_within_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	r1_size = r2.base - r1.base;
 	r2_size = (r1.base + r1.size) - (r2.base + r2.size);
 	total_size = r1_size + r2_size;
@@ -868,25 +1498,449 @@ static int memblock_free_within_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1_size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1_size);
 
-	assert(rgn2->base == r2.base + r2.size);
-	assert(rgn2->size == r2_size);
+	ASSERT_EQ(rgn2->base, r2.base + r2.size);
+	ASSERT_EQ(rgn2->size, r2_size);
 
-	assert(memblock.reserved.cnt == 2);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 2);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A simple test that tries to free a memory block r1 that was marked
+ * earlier as reserved when r1 is the only available region.
+ * Expect to reserve a memory block r1 and then free r1 so that r1 is
+ * overwritten with a dummy region. The region counter stays the same,
+ * and the total size is updated.
+ */
+static int memblock_free_only_region_check(void)
+{
+	struct memblock_region *rgn;
+
+	rgn = &memblock.reserved.regions[0];
+
+	struct region r1 = {
+		.base = SZ_2K,
+		.size = SZ_4K
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_reserve(r1.base, r1.size);
+	memblock_free((void *)r1.base, r1.size);
+
+	ASSERT_EQ(rgn->base, 0);
+	ASSERT_EQ(rgn->size, 0);
+
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, 0);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A simple test that tries free a region r2 when r2 extends past PHYS_ADDR_MAX:
+ *
+ *                               +--------+
+ *                               |   r2   |
+ *                               +--------+
+ *  |                        +---+....+
+ *  |                        |rgn|    |
+ *  +------------------------+---+----+
+ *
+ * Expect that only the portion between PHYS_ADDR_MAX and r2.base is freed.
+ * Expect the total size of reserved memory to be updated and the counter to
+ * not be updated.
+ */
+static int memblock_free_near_max_check(void)
+{
+	struct memblock_region *rgn;
+	phys_addr_t total_size;
+
+	rgn = &memblock.reserved.regions[0];
+
+	struct region r1 = {
+		.base = PHYS_ADDR_MAX - SZ_2M,
+		.size = SZ_2M
+	};
+
+	struct region r2 = {
+		.base = PHYS_ADDR_MAX - SZ_1M,
+		.size = SZ_2M
+	};
+
+	PREFIX_PUSH();
+
+	total_size = r1.size - (PHYS_ADDR_MAX - r2.base);
+
+	reset_memblock_regions();
+	memblock_reserve(r1.base, r1.size);
+	memblock_free((void *)r2.base, r2.size);
+
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
+
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to free a reserved region r3 that overlaps with two
+ * existing reserved regions r1 and r2:
+ *
+ *            +----------------+
+ *            |       r3       |
+ *            +----------------+
+ *  |    +----+.....   ........+--------+
+ *  |    |    |r1  :   :       |r2      |     |
+ *  +----+----+----+---+-------+--------+-----+
+ *
+ * Expect that only the intersections of r1 with r3 and r2 with r3 are freed
+ * from the collection of reserved memory. Expect the total size of reserved
+ * memory to be updated and the counter to not be updated.
+ */
+static int memblock_free_overlap_two_check(void)
+{
+	struct memblock_region *rgn1, *rgn2;
+	phys_addr_t new_r1_size, new_r2_size, r2_end, r3_end, total_size;
+
+	rgn1 = &memblock.reserved.regions[0];
+	rgn2 = &memblock.reserved.regions[1];
+
+	struct region r1 = {
+		.base = SZ_16M,
+		.size = SZ_32M
+	};
+	struct region r2 = {
+		.base = SZ_64M,
+		.size = SZ_64M
+	};
+	struct region r3 = {
+		.base = SZ_32M,
+		.size = SZ_64M
+	};
+
+	PREFIX_PUSH();
+
+	r2_end = r2.base + r2.size;
+	r3_end = r3.base + r3.size;
+	new_r1_size = r3.base - r1.base;
+	new_r2_size = r2_end - r3_end;
+	total_size = new_r1_size + new_r2_size;
+
+	reset_memblock_regions();
+	memblock_reserve(r1.base, r1.size);
+	memblock_reserve(r2.base, r2.size);
+	memblock_free((void *)r3.base, r3.size);
+
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, new_r1_size);
+
+	ASSERT_EQ(rgn2->base, r3_end);
+	ASSERT_EQ(rgn2->size, new_r2_size);
+
+	ASSERT_EQ(memblock.reserved.cnt, 2);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_free_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_FREE);
+	test_print("Running %s tests...\n", FUNC_FREE);
+
 	memblock_free_simple_check();
 	memblock_free_absent_check();
 	memblock_free_overlap_top_check();
 	memblock_free_overlap_bottom_check();
 	memblock_free_within_check();
+	memblock_free_only_region_check();
+	memblock_free_near_max_check();
+	memblock_free_overlap_two_check();
+
+	prefix_pop();
+
+	return 0;
+}
+
+static int memblock_set_bottom_up_check(void)
+{
+	prefix_push("memblock_set_bottom_up");
+
+	memblock_set_bottom_up(false);
+	ASSERT_EQ(memblock.bottom_up, false);
+	memblock_set_bottom_up(true);
+	ASSERT_EQ(memblock.bottom_up, true);
+
+	reset_memblock_attributes();
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_bottom_up_check(void)
+{
+	prefix_push("memblock_bottom_up");
+
+	memblock_set_bottom_up(false);
+	ASSERT_EQ(memblock_bottom_up(), memblock.bottom_up);
+	ASSERT_EQ(memblock_bottom_up(), false);
+	memblock_set_bottom_up(true);
+	ASSERT_EQ(memblock_bottom_up(), memblock.bottom_up);
+	ASSERT_EQ(memblock_bottom_up(), true);
+
+	reset_memblock_attributes();
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_bottom_up_checks(void)
+{
+	test_print("Running memblock_*bottom_up tests...\n");
+
+	prefix_reset();
+	memblock_set_bottom_up_check();
+	prefix_reset();
+	memblock_bottom_up_check();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when both ends of the memory region are
+ * aligned. Expect that the memory will not be trimmed. Expect the counter to
+ * not be updated.
+ */
+static int memblock_trim_memory_aligned_check(void)
+{
+	struct memblock_region *rgn;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r = {
+		.base = alignment,
+		.size = alignment * 4
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_add(r.base, r.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when there are two available regions, r1 and
+ * r2. Region r1 is aligned on both ends and region r2 is unaligned on one end
+ * and smaller than the alignment:
+ *
+ *                                     alignment
+ *                                     |--------|
+ * |        +-----------------+        +------+   |
+ * |        |        r1       |        |  r2  |   |
+ * +--------+-----------------+--------+------+---+
+ *          ^        ^        ^        ^      ^
+ *          |________|________|________|      |
+ *                            |               Unaligned address
+ *                Aligned addresses
+ *
+ * Expect that r1 will not be trimmed and r2 will be removed. Expect the
+ * counter to be updated.
+ */
+static int memblock_trim_memory_too_small_check(void)
+{
+	struct memblock_region *rgn;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r1 = {
+		.base = alignment,
+		.size = alignment * 2
+	};
+	struct region r2 = {
+		.base = alignment * 4,
+		.size = alignment - SZ_2
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when there are two available regions, r1 and
+ * r2. Region r1 is aligned on both ends and region r2 is unaligned at the base
+ * and aligned at the end:
+ *
+ *                               Unaligned address
+ *                                       |
+ *                                       v
+ * |        +-----------------+          +---------------+   |
+ * |        |        r1       |          |      r2       |   |
+ * +--------+-----------------+----------+---------------+---+
+ *          ^        ^        ^        ^        ^        ^
+ *          |________|________|________|________|________|
+ *                            |
+ *                    Aligned addresses
+ *
+ * Expect that r1 will not be trimmed and r2 will be trimmed at the base.
+ * Expect the counter to not be updated.
+ */
+static int memblock_trim_memory_unaligned_base_check(void)
+{
+	struct memblock_region *rgn1, *rgn2;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+	phys_addr_t offset = SZ_2;
+	phys_addr_t new_r2_base, new_r2_size;
+
+	rgn1 = &memblock.memory.regions[0];
+	rgn2 = &memblock.memory.regions[1];
+
+	struct region r1 = {
+		.base = alignment,
+		.size = alignment * 2
+	};
+	struct region r2 = {
+		.base = alignment * 4 + offset,
+		.size = alignment * 2 - offset
+	};
+
+	PREFIX_PUSH();
+
+	new_r2_base = r2.base + (alignment - offset);
+	new_r2_size = r2.size - (alignment - offset);
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
+
+	ASSERT_EQ(rgn2->base, new_r2_base);
+	ASSERT_EQ(rgn2->size, new_r2_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 2);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when there are two available regions, r1 and
+ * r2. Region r1 is aligned on both ends and region r2 is aligned at the base
+ * and unaligned at the end:
+ *
+ *                                             Unaligned address
+ *                                                     |
+ *                                                     v
+ * |        +-----------------+        +---------------+   |
+ * |        |        r1       |        |      r2       |   |
+ * +--------+-----------------+--------+---------------+---+
+ *          ^        ^        ^        ^        ^        ^
+ *          |________|________|________|________|________|
+ *                            |
+ *                    Aligned addresses
+ *
+ * Expect that r1 will not be trimmed and r2 will be trimmed at the end.
+ * Expect the counter to not be updated.
+ */
+static int memblock_trim_memory_unaligned_end_check(void)
+{
+	struct memblock_region *rgn1, *rgn2;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+	phys_addr_t offset = SZ_2;
+	phys_addr_t new_r2_size;
+
+	rgn1 = &memblock.memory.regions[0];
+	rgn2 = &memblock.memory.regions[1];
+
+	struct region r1 = {
+		.base = alignment,
+		.size = alignment * 2
+	};
+	struct region r2 = {
+		.base = alignment * 4,
+		.size = alignment * 2 - offset
+	};
+
+	PREFIX_PUSH();
+
+	new_r2_size = r2.size - (alignment - offset);
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
+
+	ASSERT_EQ(rgn2->base, r2.base);
+	ASSERT_EQ(rgn2->size, new_r2_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 2);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_trim_memory_checks(void)
+{
+	prefix_reset();
+	prefix_push(FUNC_TRIM);
+	test_print("Running %s tests...\n", FUNC_TRIM);
+
+	memblock_trim_memory_aligned_check();
+	memblock_trim_memory_too_small_check();
+	memblock_trim_memory_unaligned_base_check();
+	memblock_trim_memory_unaligned_end_check();
+
+	prefix_pop();
 
 	return 0;
 }
@@ -898,6 +1952,8 @@ int memblock_basic_checks(void)
 	memblock_reserve_checks();
 	memblock_remove_checks();
 	memblock_free_checks();
+	memblock_bottom_up_checks();
+	memblock_trim_memory_checks();
 
 	return 0;
 }

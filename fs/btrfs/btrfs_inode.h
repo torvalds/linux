@@ -65,6 +65,8 @@ enum {
 	 * on the same file.
 	 */
 	BTRFS_INODE_VERITY_IN_PROGRESS,
+	/* Set when this inode is a free space inode. */
+	BTRFS_INODE_FREE_SPACE_INODE,
 };
 
 /* in memory btrfs inode */
@@ -94,7 +96,8 @@ struct btrfs_inode {
 	/* special utility tree used to record which mirrors have already been
 	 * tried when checksums fail for a given block
 	 */
-	struct extent_io_tree io_failure_tree;
+	struct rb_root io_failure_tree;
+	spinlock_t io_failure_lock;
 
 	/*
 	 * Keep track of where the inode has extent items mapped in order to
@@ -250,11 +253,6 @@ struct btrfs_inode {
 	struct inode vfs_inode;
 };
 
-static inline u32 btrfs_inode_sectorsize(const struct btrfs_inode *inode)
-{
-	return inode->root->fs_info->sectorsize;
-}
-
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
@@ -272,25 +270,30 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
 	return (unsigned long)h;
 }
 
-static inline void btrfs_insert_inode_hash(struct inode *inode)
-{
-	unsigned long h = btrfs_inode_hash(inode->i_ino, BTRFS_I(inode)->root);
+#if BITS_PER_LONG == 32
 
-	__insert_inode_hash(inode, h);
-}
-
+/*
+ * On 32 bit systems the i_ino of struct inode is 32 bits (unsigned long), so
+ * we use the inode's location objectid which is a u64 to avoid truncation.
+ */
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
 	u64 ino = inode->location.objectid;
 
-	/*
-	 * !ino: btree_inode
-	 * type == BTRFS_ROOT_ITEM_KEY: subvol dir
-	 */
-	if (!ino || inode->location.type == BTRFS_ROOT_ITEM_KEY)
+	/* type == BTRFS_ROOT_ITEM_KEY: subvol dir */
+	if (inode->location.type == BTRFS_ROOT_ITEM_KEY)
 		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
+
+#else
+
+static inline u64 btrfs_ino(const struct btrfs_inode *inode)
+{
+	return inode->vfs_inode.i_ino;
+}
+
+#endif
 
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
@@ -300,14 +303,7 @@ static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 
 static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = inode->root;
-
-	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
-		return true;
-	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
-		return true;
-	return false;
+	return test_bit(BTRFS_INODE_FREE_SPACE_INODE, &inode->runtime_flags);
 }
 
 static inline bool is_data_inode(struct inode *inode)
@@ -394,31 +390,6 @@ static inline bool btrfs_inode_can_compress(const struct btrfs_inode *inode)
 		return false;
 	return true;
 }
-
-struct btrfs_dio_private {
-	struct inode *inode;
-
-	/*
-	 * Since DIO can use anonymous page, we cannot use page_offset() to
-	 * grab the file offset, thus need a dedicated member for file offset.
-	 */
-	u64 file_offset;
-	u64 disk_bytenr;
-	/* Used for bio::bi_size */
-	u32 bytes;
-
-	/*
-	 * References to this structure. There is one reference per in-flight
-	 * bio plus one while we're still setting up.
-	 */
-	refcount_t refs;
-
-	/* dio_bio came from fs/direct-io.c */
-	struct bio *dio_bio;
-
-	/* Array of checksums */
-	u8 csums[];
-};
 
 /*
  * btrfs_inode_item stores flags in a u64, btrfs_inode stores them in two

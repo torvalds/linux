@@ -520,6 +520,10 @@ void __init opal_flash_update_init(void)
 {
 	int ret;
 
+	/* Firmware update is not supported by firmware */
+	if (!opal_check_token(OPAL_FLASH_VALIDATE))
+		return;
+
 	/* Allocate validate image buffer */
 	validate_flash_data.buf = kzalloc(VALIDATE_BUF_SIZE, GFP_KERNEL);
 	if (!validate_flash_data.buf) {

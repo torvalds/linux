@@ -23,6 +23,7 @@
 #include "dns_resolve.h"
 #endif
 #include "fs_context.h"
+#include "cached_dir.h"
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -69,12 +70,14 @@ sesInfoAlloc(void)
 	ret_buf = kzalloc(sizeof(struct cifs_ses), GFP_KERNEL);
 	if (ret_buf) {
 		atomic_inc(&sesInfoAllocCount);
-		ret_buf->status = CifsNew;
+		spin_lock_init(&ret_buf->ses_lock);
+		ret_buf->ses_status = SES_NEW;
 		++ret_buf->ses_count;
 		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		mutex_init(&ret_buf->session_mutex);
 		spin_lock_init(&ret_buf->iface_lock);
+		INIT_LIST_HEAD(&ret_buf->iface_list);
 		spin_lock_init(&ret_buf->chan_lock);
 	}
 	return ret_buf;
@@ -83,6 +86,8 @@ sesInfoAlloc(void)
 void
 sesInfoFree(struct cifs_ses *buf_to_free)
 {
+	struct cifs_server_iface *iface = NULL, *niface = NULL;
+
 	if (buf_to_free == NULL) {
 		cifs_dbg(FYI, "Null buffer passed to sesInfoFree\n");
 		return;
@@ -95,9 +100,12 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
-	kfree(buf_to_free->workstation_name);
 	kfree_sensitive(buf_to_free->auth_key.response);
-	kfree(buf_to_free->iface_list);
+	spin_lock(&buf_to_free->iface_lock);
+	list_for_each_entry_safe(iface, niface, &buf_to_free->iface_list,
+				 iface_head)
+		kref_put(&iface->refcount, release_iface);
+	spin_unlock(&buf_to_free->iface_lock);
 	kfree_sensitive(buf_to_free);
 }
 
@@ -109,8 +117,8 @@ tconInfoAlloc(void)
 	ret_buf = kzalloc(sizeof(*ret_buf), GFP_KERNEL);
 	if (!ret_buf)
 		return NULL;
-	ret_buf->crfid.fid = kzalloc(sizeof(*ret_buf->crfid.fid), GFP_KERNEL);
-	if (!ret_buf->crfid.fid) {
+	ret_buf->cfids = init_cached_dirs();
+	if (!ret_buf->cfids) {
 		kfree(ret_buf);
 		return NULL;
 	}
@@ -118,10 +126,10 @@ tconInfoAlloc(void)
 	atomic_inc(&tconInfoAllocCount);
 	ret_buf->status = TID_NEW;
 	++ret_buf->tc_count;
+	spin_lock_init(&ret_buf->tc_lock);
 	INIT_LIST_HEAD(&ret_buf->openFileList);
 	INIT_LIST_HEAD(&ret_buf->tcon_list);
 	spin_lock_init(&ret_buf->open_file_lock);
-	mutex_init(&ret_buf->crfid.fid_mutex);
 	spin_lock_init(&ret_buf->stat_lock);
 	atomic_set(&ret_buf->num_local_opens, 0);
 	atomic_set(&ret_buf->num_remote_opens, 0);
@@ -130,17 +138,17 @@ tconInfoAlloc(void)
 }
 
 void
-tconInfoFree(struct cifs_tcon *buf_to_free)
+tconInfoFree(struct cifs_tcon *tcon)
 {
-	if (buf_to_free == NULL) {
+	if (tcon == NULL) {
 		cifs_dbg(FYI, "Null buffer passed to tconInfoFree\n");
 		return;
 	}
+	free_cached_dirs(tcon->cfids);
 	atomic_dec(&tconInfoAllocCount);
-	kfree(buf_to_free->nativeFileSystem);
-	kfree_sensitive(buf_to_free->password);
-	kfree(buf_to_free->crfid.fid);
-	kfree(buf_to_free);
+	kfree(tcon->nativeFileSystem);
+	kfree_sensitive(tcon->password);
+	kfree(tcon);
 }
 
 struct smb_hdr *
@@ -164,9 +172,9 @@ cifs_buf_get(void)
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
 	memset(ret_buf, 0, buf_size + 3);
-	atomic_inc(&bufAllocCount);
+	atomic_inc(&buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_inc(&totBufAllocCount);
+	atomic_inc(&total_buf_alloc_count);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	return ret_buf;
@@ -181,7 +189,7 @@ cifs_buf_release(void *buf_to_free)
 	}
 	mempool_free(buf_to_free, cifs_req_poolp);
 
-	atomic_dec(&bufAllocCount);
+	atomic_dec(&buf_alloc_count);
 	return;
 }
 
@@ -197,9 +205,9 @@ cifs_small_buf_get(void)
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
-	atomic_inc(&smBufAllocCount);
+	atomic_inc(&small_buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_inc(&totSmBufAllocCount);
+	atomic_inc(&total_small_buf_alloc_count);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	return ret_buf;
@@ -215,7 +223,7 @@ cifs_small_buf_release(void *buf_to_free)
 	}
 	mempool_free(buf_to_free, cifs_sm_req_poolp);
 
-	atomic_dec(&smBufAllocCount);
+	atomic_dec(&small_buf_alloc_count);
 	return;
 }
 
@@ -346,7 +354,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 	/* otherwise, there is enough to get to the BCC */
 	if (check_smb_hdr(smb))
 		return -EIO;
-	clc_len = smbCalcSize(smb, server);
+	clc_len = smbCalcSize(smb);
 
 	if (4 + rfclen != total_read) {
 		cifs_dbg(VFS, "Length read does not match RFC1001 length %d\n",
@@ -392,7 +400,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 {
 	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
-	struct list_head *tmp, *tmp1, *tmp2;
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *pCifsInode;
@@ -457,20 +465,19 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
 		return false;
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
+
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &srv->smb_ses_list) {
-		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
-		list_for_each(tmp1, &ses->tcon_list) {
-			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->tid != buf->Tid)
 				continue;
 
 			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
 			spin_lock(&tcon->open_file_lock);
-			list_for_each(tmp2, &tcon->openFileList) {
-				netfile = list_entry(tmp2, struct cifsFileInfo,
-						     tlist);
+			list_for_each_entry(netfile, &tcon->openFileList, tlist) {
 				if (pSMB->Fid != netfile->fid.netfid)
 					continue;
 
@@ -522,7 +529,7 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		cifs_sb->mnt_cifs_serverino_autodisabled = true;
 		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s\n",
-			 tcon ? tcon->treeName : "new server");
+			 tcon ? tcon->tree_name : "new server");
 		cifs_dbg(VFS, "The server doesn't seem to support them properly or the files might be on different servers (DFS)\n");
 		cifs_dbg(VFS, "Hardlinks will not be recognized on this mount. Consider mounting with the \"noserverino\" option to silence this message.\n");
 
@@ -536,11 +543,11 @@ void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 	if (oplock == OPLOCK_EXCLUSIVE) {
 		cinode->oplock = CIFS_CACHE_WRITE_FLG | CIFS_CACHE_READ_FLG;
 		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+			 &cinode->netfs.inode);
 	} else if (oplock == OPLOCK_READ) {
 		cinode->oplock = CIFS_CACHE_READ_FLG;
 		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+			 &cinode->netfs.inode);
 	} else
 		cinode->oplock = 0;
 }
@@ -734,6 +741,8 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
+				cifs_del_deferred_close(cfile);
+
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
 					break;
@@ -755,16 +764,16 @@ void
 cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *cfile;
-	struct list_head *tmp;
 	struct file_list *tmp_list, *tmp_next_list;
 	struct list_head file_head;
 
 	INIT_LIST_HEAD(&file_head);
 	spin_lock(&tcon->open_file_lock);
-	list_for_each(tmp, &tcon->openFileList) {
-		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
+				cifs_del_deferred_close(cfile);
+
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
 					break;
@@ -785,7 +794,6 @@ void
 cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 {
 	struct cifsFileInfo *cfile;
-	struct list_head *tmp;
 	struct file_list *tmp_list, *tmp_next_list;
 	struct list_head file_head;
 	void *page;
@@ -794,12 +802,13 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 	INIT_LIST_HEAD(&file_head);
 	page = alloc_dentry_path();
 	spin_lock(&tcon->open_file_lock);
-	list_for_each(tmp, &tcon->openFileList) {
-		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		full_path = build_path_from_dentry(cfile->dentry, page);
 		if (strstr(full_path, path)) {
 			if (delayed_work_pending(&cfile->deferred)) {
 				if (cancel_delayed_work(&cfile->deferred)) {
+					cifs_del_deferred_close(cfile);
+
 					tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 					if (tmp_list == NULL)
 						break;
@@ -819,7 +828,7 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 	free_dentry_path(page);
 }
 
-/* parses DFS refferal V3 structure
+/* parses DFS referral V3 structure
  * caller is responsible for freeing target_nodes
  * returns:
  * - on success - 0
@@ -1021,7 +1030,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	saved_len = count;
 
 	while (count && npages < max_pages) {
-		rc = iov_iter_get_pages(iter, pages, count, max_pages, &start);
+		rc = iov_iter_get_pages2(iter, pages, count, max_pages, &start);
 		if (rc < 0) {
 			cifs_dbg(VFS, "Couldn't get user pages (rc=%zd)\n", rc);
 			break;
@@ -1033,7 +1042,6 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 			break;
 		}
 
-		iov_iter_advance(iter, rc);
 		count -= rc;
 		rc += start;
 		cur_npages = DIV_ROUND_UP(rc, PAGE_SIZE);
@@ -1067,59 +1075,58 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 /**
  * cifs_alloc_hash - allocate hash and hash context together
  * @name: The name of the crypto hash algo
- * @shash: Where to put the pointer to the hash algo
- * @sdesc: Where to put the pointer to the hash descriptor
+ * @sdesc: SHASH descriptor where to put the pointer to the hash TFM
  *
  * The caller has to make sure @sdesc is initialized to either NULL or
- * a valid context. Both can be freed via cifs_free_hash().
+ * a valid context. It can be freed via cifs_free_hash().
  */
 int
-cifs_alloc_hash(const char *name,
-		struct crypto_shash **shash, struct sdesc **sdesc)
+cifs_alloc_hash(const char *name, struct shash_desc **sdesc)
 {
 	int rc = 0;
-	size_t size;
+	struct crypto_shash *alg = NULL;
 
-	if (*sdesc != NULL)
+	if (*sdesc)
 		return 0;
 
-	*shash = crypto_alloc_shash(name, 0, 0);
-	if (IS_ERR(*shash)) {
-		cifs_dbg(VFS, "Could not allocate crypto %s\n", name);
-		rc = PTR_ERR(*shash);
-		*shash = NULL;
+	alg = crypto_alloc_shash(name, 0, 0);
+	if (IS_ERR(alg)) {
+		cifs_dbg(VFS, "Could not allocate shash TFM '%s'\n", name);
+		rc = PTR_ERR(alg);
 		*sdesc = NULL;
 		return rc;
 	}
 
-	size = sizeof(struct shash_desc) + crypto_shash_descsize(*shash);
-	*sdesc = kmalloc(size, GFP_KERNEL);
+	*sdesc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(alg), GFP_KERNEL);
 	if (*sdesc == NULL) {
-		cifs_dbg(VFS, "no memory left to allocate crypto %s\n", name);
-		crypto_free_shash(*shash);
-		*shash = NULL;
+		cifs_dbg(VFS, "no memory left to allocate shash TFM '%s'\n", name);
+		crypto_free_shash(alg);
 		return -ENOMEM;
 	}
 
-	(*sdesc)->shash.tfm = *shash;
+	(*sdesc)->tfm = alg;
 	return 0;
 }
 
 /**
  * cifs_free_hash - free hash and hash context together
- * @shash: Where to find the pointer to the hash algo
- * @sdesc: Where to find the pointer to the hash descriptor
+ * @sdesc: Where to find the pointer to the hash TFM
  *
- * Freeing a NULL hash or context is safe.
+ * Freeing a NULL descriptor is safe.
  */
 void
-cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
+cifs_free_hash(struct shash_desc **sdesc)
 {
-	kfree(*sdesc);
+	if (unlikely(!sdesc) || !*sdesc)
+		return;
+
+	if ((*sdesc)->tfm) {
+		crypto_free_shash((*sdesc)->tfm);
+		(*sdesc)->tfm = NULL;
+	}
+
+	kfree_sensitive(*sdesc);
 	*sdesc = NULL;
-	if (*shash)
-		crypto_free_shash(*shash);
-	*shash = NULL;
 }
 
 /**
@@ -1210,18 +1217,23 @@ static struct super_block *__cifs_get_super(void (*f)(struct super_block *, void
 		.data = data,
 		.sb = NULL,
 	};
+	struct file_system_type **fs_type = (struct file_system_type *[]) {
+		&cifs_fs_type, &smb3_fs_type, NULL,
+	};
 
-	iterate_supers_type(&cifs_fs_type, f, &sd);
-
-	if (!sd.sb)
-		return ERR_PTR(-EINVAL);
-	/*
-	 * Grab an active reference in order to prevent automounts (DFS links)
-	 * of expiring and then freeing up our cifs superblock pointer while
-	 * we're doing failover.
-	 */
-	cifs_sb_active(sd.sb);
-	return sd.sb;
+	for (; *fs_type; fs_type++) {
+		iterate_supers_type(*fs_type, f, &sd);
+		if (sd.sb) {
+			/*
+			 * Grab an active reference in order to prevent automounts (DFS links)
+			 * of expiring and then freeing up our cifs superblock pointer while
+			 * we're doing failover.
+			 */
+			cifs_sb_active(sd.sb);
+			return sd.sb;
+		}
+	}
+	return ERR_PTR(-EINVAL);
 }
 
 static void __cifs_put_super(struct super_block *sb)
@@ -1309,7 +1321,7 @@ int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
  * for "\<server>\<dfsname>\<linkpath>" DFS reference,
  * where <dfsname> contains non-ASCII unicode symbols.
  *
- * Check such DFS reference and emulate -ENOENT if it is actual.
+ * Check such DFS reference.
  */
 int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
 				       struct cifs_tcon *tcon,
@@ -1319,7 +1331,7 @@ int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
 	char *treename, *dfspath, sep;
 	int treenamelen, linkpathlen, rc;
 
-	treename = tcon->treeName;
+	treename = tcon->tree_name;
 	/* MS-DFSC: All paths in REQ_GET_DFS_REFERRAL and RESP_GET_DFS_REFERRAL
 	 * messages MUST be encoded with exactly one leading backslash, not two
 	 * leading backslashes.
@@ -1341,10 +1353,6 @@ int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
 		cifs_dbg(FYI, "DFS ref '%s' is found, emulate -EREMOTE\n",
 			 dfspath);
 		rc = -EREMOTE;
-	} else if (rc == -EEXIST) {
-		cifs_dbg(FYI, "DFS ref '%s' is not found, emulate -ENOENT\n",
-			 dfspath);
-		rc = -ENOENT;
 	} else {
 		cifs_dbg(FYI, "%s: dfs_cache_find returned %d\n", __func__, rc);
 	}

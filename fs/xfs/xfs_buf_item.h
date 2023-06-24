@@ -8,15 +8,18 @@
 
 /* kernel only definitions */
 
+struct xfs_buf;
+struct xfs_mount;
+
 /* buf log item flags */
-#define	XFS_BLI_HOLD		0x01
-#define	XFS_BLI_DIRTY		0x02
-#define	XFS_BLI_STALE		0x04
-#define	XFS_BLI_LOGGED		0x08
-#define	XFS_BLI_INODE_ALLOC_BUF	0x10
-#define XFS_BLI_STALE_INODE	0x20
-#define	XFS_BLI_INODE_BUF	0x40
-#define	XFS_BLI_ORDERED		0x80
+#define	XFS_BLI_HOLD		(1u << 0)
+#define	XFS_BLI_DIRTY		(1u << 1)
+#define	XFS_BLI_STALE		(1u << 2)
+#define	XFS_BLI_LOGGED		(1u << 3)
+#define	XFS_BLI_INODE_ALLOC_BUF	(1u << 4)
+#define XFS_BLI_STALE_INODE	(1u << 5)
+#define	XFS_BLI_INODE_BUF	(1u << 6)
+#define	XFS_BLI_ORDERED		(1u << 7)
 
 #define XFS_BLI_FLAGS \
 	{ XFS_BLI_HOLD,		"HOLD" }, \
@@ -27,11 +30,6 @@
 	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }, \
 	{ XFS_BLI_INODE_BUF,	"INODE_BUF" }, \
 	{ XFS_BLI_ORDERED,	"ORDERED" }
-
-
-struct xfs_buf;
-struct xfs_mount;
-struct xfs_buf_log_item;
 
 /*
  * This is the in core log item structure used to track information

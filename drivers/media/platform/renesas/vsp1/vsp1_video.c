@@ -50,7 +50,7 @@ vsp1_video_remote_subdev(struct media_pad *local, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_pad(local);
+	remote = media_pad_remote_pad_first(local);
 	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
 
@@ -305,7 +305,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
  * @video: the video node
  *
  * This function completes the current buffer by filling its sequence number,
- * time stamp and payload size, and hands it back to the videobuf core.
+ * time stamp and payload size, and hands it back to the vb2 core.
  *
  * Return the next queued buffer or NULL if the queue is empty.
  */
@@ -927,7 +927,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	}
 	mutex_unlock(&pipe->lock);
 
-	media_pipeline_stop(&video->video.entity);
+	video_device_pipeline_stop(&video->video);
 	vsp1_video_release_buffers(video);
 	vsp1_video_pipeline_put(pipe);
 }
@@ -959,8 +959,6 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 
 	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
 	strscpy(cap->card, video->video.name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(video->vsp1->dev));
 
 	return 0;
 }
@@ -1032,7 +1030,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct vsp1_pipeline *pipe;
 	int ret;
 
-	if (video->queue.owner && video->queue.owner != file->private_data)
+	if (vb2_queue_is_busy(&video->queue, file))
 		return -EBUSY;
 
 	/*
@@ -1048,7 +1046,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return PTR_ERR(pipe);
 	}
 
-	ret = __media_pipeline_start(&video->video.entity, &pipe->pipe);
+	ret = __video_device_pipeline_start(&video->video, &pipe->pipe);
 	if (ret < 0) {
 		mutex_unlock(&mdev->graph_mutex);
 		goto err_pipe;
@@ -1072,7 +1070,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	return 0;
 
 err_stop:
-	media_pipeline_stop(&video->video.entity);
+	video_device_pipeline_stop(&video->video);
 err_pipe:
 	vsp1_video_pipeline_put(pipe);
 	return ret;
@@ -1129,20 +1127,10 @@ static int vsp1_video_open(struct file *file)
 static int vsp1_video_release(struct file *file)
 {
 	struct vsp1_video *video = video_drvdata(file);
-	struct v4l2_fh *vfh = file->private_data;
 
-	mutex_lock(&video->lock);
-	if (video->queue.owner == vfh) {
-		vb2_queue_release(&video->queue);
-		video->queue.owner = NULL;
-	}
-	mutex_unlock(&video->lock);
+	vb2_fop_release(file);
 
 	vsp1_device_put(video->vsp1);
-
-	v4l2_fh_release(file);
-
-	file->private_data = NULL;
 
 	return 0;
 }

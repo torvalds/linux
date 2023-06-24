@@ -12,18 +12,31 @@
 #include <linux/iio/driver.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/property.h>
+
+#include <asm/unaligned.h>
 
 #include "ltc2497.h"
+
+enum ltc2497_chip_type {
+	TYPE_LTC2497,
+	TYPE_LTC2499,
+};
 
 struct ltc2497_driverdata {
 	/* this must be the first member */
 	struct ltc2497core_driverdata common_ddata;
 	struct i2c_client *client;
+	u32 recv_size;
+	u32 sub_lsb;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	__be32 buf ____cacheline_aligned;
+	union {
+		__be32 d32;
+		u8 d8[3];
+	} data __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
@@ -34,13 +47,43 @@ static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
 	int ret;
 
 	if (val) {
-		ret = i2c_master_recv(st->client, (char *)&st->buf, 3);
+		if (st->recv_size == 3)
+			ret = i2c_master_recv(st->client, (char *)&st->data.d8,
+					      st->recv_size);
+		else
+			ret = i2c_master_recv(st->client, (char *)&st->data.d32,
+					      st->recv_size);
 		if (ret < 0) {
 			dev_err(&st->client->dev, "i2c_master_recv failed\n");
 			return ret;
 		}
 
-		*val = (be32_to_cpu(st->buf) >> 14) - (1 << 17);
+		/*
+		 * The data format is 16/24 bit 2s complement, but with an upper sign bit on the
+		 * resolution + 1 position, which is set for positive values only. Given this
+		 * bit's value, subtracting BIT(resolution + 1) from the ADC's result is
+		 * equivalent to a sign extension.
+		 */
+		if (st->recv_size == 3) {
+			*val = (get_unaligned_be24(st->data.d8) >> st->sub_lsb)
+				- BIT(ddata->chip_info->resolution + 1);
+		} else {
+			*val = (be32_to_cpu(st->data.d32) >> st->sub_lsb)
+				- BIT(ddata->chip_info->resolution + 1);
+		}
+
+		/*
+		 * The part started a new conversion at the end of the above i2c
+		 * transfer, so if the address didn't change since the last call
+		 * everything is fine and we can return early.
+		 * If not (which should only happen when some sort of bulk
+		 * conversion is implemented) we have to program the new
+		 * address. Note that this probably fails as the conversion that
+		 * was triggered above is like not complete yet and the two
+		 * operations have to be done in a single transfer.
+		 */
+		if (ddata->addr_prev == address)
+			return 0;
 	}
 
 	ret = i2c_smbus_write_byte(st->client,
@@ -54,9 +97,11 @@ static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
 static int ltc2497_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	const struct ltc2497_chip_info *chip_info;
 	struct iio_dev *indio_dev;
 	struct ltc2497_driverdata *st;
 	struct device *dev = &client->dev;
+	u32 resolution;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_WRITE_BYTE))
@@ -71,26 +116,46 @@ static int ltc2497_probe(struct i2c_client *client,
 	st->client = client;
 	st->common_ddata.result_and_measure = ltc2497_result_and_measure;
 
+	chip_info = device_get_match_data(dev);
+	if (!chip_info)
+		chip_info = (const struct ltc2497_chip_info *)id->driver_data;
+	st->common_ddata.chip_info = chip_info;
+
+	resolution = chip_info->resolution;
+	st->sub_lsb = 31 - (resolution + 1);
+	st->recv_size = BITS_TO_BYTES(resolution) + 1;
+
 	return ltc2497core_probe(dev, indio_dev);
 }
 
-static int ltc2497_remove(struct i2c_client *client)
+static void ltc2497_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	ltc2497core_remove(indio_dev);
-
-	return 0;
 }
 
+static const struct ltc2497_chip_info ltc2497_info[] = {
+	[TYPE_LTC2497] = {
+		.resolution = 16,
+		.name = NULL,
+	},
+	[TYPE_LTC2499] = {
+		.resolution = 24,
+		.name = "ltc2499",
+	},
+};
+
 static const struct i2c_device_id ltc2497_id[] = {
-	{ "ltc2497", 0 },
+	{ "ltc2497", (kernel_ulong_t)&ltc2497_info[TYPE_LTC2497] },
+	{ "ltc2499", (kernel_ulong_t)&ltc2497_info[TYPE_LTC2499] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc2497_id);
 
 static const struct of_device_id ltc2497_of_match[] = {
-	{ .compatible = "lltc,ltc2497", },
+	{ .compatible = "lltc,ltc2497", .data = &ltc2497_info[TYPE_LTC2497] },
+	{ .compatible = "lltc,ltc2499", .data = &ltc2497_info[TYPE_LTC2499] },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ltc2497_of_match);

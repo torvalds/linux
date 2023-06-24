@@ -160,6 +160,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 			}
 			evsel->core.attr.freq = 0;
 			evsel->core.attr.sample_period = arm_spe_pmu->default_config->sample_period;
+			evsel->needs_auxtrace_mmap = true;
 			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -256,7 +257,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		evsel__set_sample_bit(arm_spe_evsel, PHYS_ADDR);
 
 	/* Add dummy event to keep tracking */
-	err = parse_events(evlist, "dummy:u", NULL);
+	err = parse_event(evlist, "dummy:u");
 	if (err)
 		return err;
 

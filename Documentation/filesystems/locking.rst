@@ -79,7 +79,8 @@ prototypes::
 	int (*atomic_open)(struct inode *, struct dentry *,
 				struct file *, unsigned open_flag,
 				umode_t create_mode);
-	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*tmpfile) (struct user_namespace *, struct inode *,
+			struct file *, umode_t);
 	int (*fileattr_set)(struct user_namespace *mnt_userns,
 			    struct dentry *dentry, struct fileattr *fa);
 	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
@@ -237,65 +238,64 @@ address_space_operations
 prototypes::
 
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
-	int (*readpage)(struct file *, struct page *);
+	int (*read_folio)(struct file *, struct folio *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	bool (*dirty_folio)(struct address_space *, struct folio *folio);
 	void (*readahead)(struct readahead_control *);
 	int (*write_begin)(struct file *, struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned flags,
+				loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata);
 	int (*write_end)(struct file *, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
-	int (*releasepage) (struct page *, int);
-	void (*freepage)(struct page *);
+	bool (*release_folio)(struct folio *, gfp_t);
+	void (*free_folio)(struct folio *);
 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
-	bool (*isolate_page) (struct page *, isolate_mode_t);
-	int (*migratepage)(struct address_space *, struct page *, struct page *);
-	void (*putback_page) (struct page *);
+	int (*migrate_folio)(struct address_space *, struct folio *dst,
+			struct folio *src, enum migrate_mode);
 	int (*launder_folio)(struct folio *);
 	bool (*is_partially_uptodate)(struct folio *, size_t from, size_t count);
 	int (*error_remove_page)(struct address_space *, struct page *);
-	int (*swap_activate)(struct file *);
+	int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 	int (*swap_deactivate)(struct file *);
+	int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
 
 locking rules:
-	All except dirty_folio and freepage may block
+	All except dirty_folio and free_folio may block
 
 ======================	======================== =========	===============
-ops			PageLocked(page)	 i_rwsem	invalidate_lock
+ops			folio locked		 i_rwsem	invalidate_lock
 ======================	======================== =========	===============
 writepage:		yes, unlocks (see below)
-readpage:		yes, unlocks				shared
+read_folio:		yes, unlocks				shared
 writepages:
-dirty_folio		maybe
+dirty_folio:		maybe
 readahead:		yes, unlocks				shared
 write_begin:		locks the page		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
 invalidate_folio:	yes					exclusive
-releasepage:		yes
-freepage:		yes
+release_folio:		yes
+free_folio:		yes
 direct_IO:
-isolate_page:		yes
-migratepage:		yes (both)
-putback_page:		yes
+migrate_folio:		yes (both)
 launder_folio:		yes
 is_partially_uptodate:	yes
 error_remove_page:	yes
 swap_activate:		no
 swap_deactivate:	no
+swap_rw:		yes, unlocks
 ======================	======================== =========	===============
 
-->write_begin(), ->write_end() and ->readpage() may be called from
+->write_begin(), ->write_end() and ->read_folio() may be called from
 the request handler (/dev/loop).
 
-->readpage() unlocks the page, either synchronously or via I/O
+->read_folio() unlocks the folio, either synchronously or via I/O
 completion.
 
-->readahead() unlocks the pages that I/O is attempted on like ->readpage().
+->readahead() unlocks the folios that I/O is attempted on like ->read_folio().
 
 ->writepage() is used for two purposes: for "memory cleansing" and for
 "sync".  These are quite different operations and the behaviour may differ
@@ -372,12 +372,12 @@ invalidate_lock before invalidating page cache in truncate / hole punch
 path (and thus calling into ->invalidate_folio) to block races between page
 cache invalidation and page cache filling functions (fault, read, ...).
 
-->releasepage() is called when the kernel is about to try to drop the
-buffers from the page in preparation for freeing it.  It returns zero to
-indicate that the buffers are (or may be) freeable.  If ->releasepage is zero,
-the kernel assumes that the fs has no private interest in the buffers.
+->release_folio() is called when the kernel is about to try to drop the
+buffers from the folio in preparation for freeing it.  It returns false to
+indicate that the buffers are (or may be) freeable.  If ->release_folio is
+NULL, the kernel assumes that the fs has no private interest in the buffers.
 
-->freepage() is called when the kernel is done dropping the page
+->free_folio() is called when the kernel has dropped the folio
 from the page cache.
 
 ->launder_folio() may be called prior to releasing a folio if
@@ -386,14 +386,18 @@ cleaned, or an error value if not. Note that in order to prevent the folio
 getting mapped back in and redirtied, it needs to be kept locked
 across the entire operation.
 
-->swap_activate will be called with a non-zero argument on
-files backing (non block device backed) swapfiles. A return value
-of zero indicates success, in which case this file can be used for
-backing swapspace. The swapspace operations will be proxied to the
-address space operations.
+->swap_activate() will be called to prepare the given file for swap.  It
+should perform any validation and preparation necessary to ensure that
+writes can be performed with minimal memory allocation.  It should call
+add_swap_extent(), or the helper iomap_swapfile_activate(), and return
+the number of extents added.  If IO should be submitted through
+->swap_rw(), it should set SWP_FS_OPS, otherwise IO will be submitted
+directly to the block device ``sis->bdev``.
 
 ->swap_deactivate() will be called in the sys_swapoff()
 path after ->swap_activate() returned success.
+
+->swap_rw will be called for swap IO if SWP_FS_OPS was set by ->swap_activate().
 
 file_lock_operations
 ====================
@@ -428,6 +432,8 @@ prototypes::
 	void (*lm_break)(struct file_lock *); /* break_lease callback */
 	int (*lm_change)(struct file_lock **, int);
 	bool (*lm_breaker_owns_lease)(struct file_lock *);
+        bool (*lm_lock_expirable)(struct file_lock *);
+        void (*lm_expire_lock)(void);
 
 locking rules:
 
@@ -439,6 +445,8 @@ lm_grant:		no		no			no
 lm_break:		yes		no			no
 lm_change		yes		no			no
 lm_breaker_owns_lease:	yes     	no			no
+lm_lock_expirable	yes		no			no
+lm_expire_lock		no		no			yes
 ======================	=============	=================	=========
 
 buffer_head

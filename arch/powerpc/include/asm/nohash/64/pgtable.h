@@ -25,7 +25,7 @@
 /*
  * Define the address range of the kernel non-linear virtual area
  */
-#define KERN_VIRT_START ASM_CONST(0x8000000000000000)
+#define KERN_VIRT_START ASM_CONST(0xc000100000000000)
 #define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
 
 /*
@@ -38,15 +38,16 @@
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
 /*
- * The second half of the kernel virtual space is used for IO mappings,
+ * The third quarter of the kernel virtual space is used for IO mappings,
  * it's itself carved into the PIO region (ISA and PHB IO space) and
  * the ioremap space
  *
  *  ISA_IO_BASE = KERN_IO_START, 64K reserved area
  *  PHB_IO_BASE = ISA_IO_BASE + 64K to ISA_IO_BASE + 2G, PHB IO spaces
- * IOREMAP_BASE = ISA_IO_BASE + 2G to VMALLOC_START + PGTABLE_RANGE
+ * IOREMAP_BASE = ISA_IO_BASE + 2G to KERN_IO_START + KERN_IO_SIZE
  */
 #define KERN_IO_START	(KERN_VIRT_START + (KERN_VIRT_SIZE >> 1))
+#define KERN_IO_SIZE	(KERN_VIRT_SIZE >> 2)
 #define FULL_IO_SIZE	0x80000000ul
 #define  ISA_IO_BASE	(KERN_IO_START)
 #define  ISA_IO_END	(KERN_IO_START + 0x10000ul)
@@ -54,20 +55,8 @@
 #define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
 #define IOREMAP_START	(ioremap_bot)
-#define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE - FIXADDR_SIZE)
+#define IOREMAP_END	(KERN_IO_START + KERN_IO_SIZE - FIXADDR_SIZE)
 #define FIXADDR_SIZE	SZ_32M
-
-
-/*
- * Region IDs
- */
-#define REGION_SHIFT		60UL
-#define REGION_MASK		(0xfUL << REGION_SHIFT)
-#define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
-
-#define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
-#define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
-#define USER_REGION_ID		(0UL)
 
 /*
  * Defines the address of the vmemap area, in its own region on
@@ -81,9 +70,7 @@
 /*
  * Include the PTE bits definitions
  */
-#include <asm/nohash/pte-book3e.h>
-
-#define _PAGE_SAO	0
+#include <asm/nohash/pte-e500.h>
 
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
 

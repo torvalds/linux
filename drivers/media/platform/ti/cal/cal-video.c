@@ -47,13 +47,9 @@ static char *fourcc_to_str(u32 fmt)
 static int cal_querycap(struct file *file, void *priv,
 			struct v4l2_capability *cap)
 {
-	struct cal_ctx *ctx = video_drvdata(file);
-
 	strscpy(cap->driver, CAL_MODULE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, CAL_MODULE_NAME, sizeof(cap->card));
 
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", dev_name(ctx->cal->dev));
 	return 0;
 }
 
@@ -195,7 +191,7 @@ static int cal_legacy_try_fmt_vid_cap(struct file *file, void *priv,
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_format_info *fmtinfo;
 	struct v4l2_subdev_frame_size_enum fse;
-	int ret, found;
+	int found;
 
 	fmtinfo = find_format_by_pix(ctx, f->fmt.pix.pixelformat);
 	if (!fmtinfo) {
@@ -210,12 +206,13 @@ static int cal_legacy_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.field = ctx->v_fmt.fmt.pix.field;
 
 	/* check for/find a valid width/height */
-	ret = 0;
 	found = false;
 	fse.pad = 0;
 	fse.code = fmtinfo->code;
 	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	for (fse.index = 0; ; fse.index++) {
+		int ret;
+
 		ret = v4l2_subdev_call(ctx->phy->source, pad, enum_frame_size,
 				       NULL, &fse);
 		if (ret)
@@ -689,7 +686,7 @@ static int cal_video_check_format(struct cal_ctx *ctx)
 	const struct v4l2_mbus_framefmt *format;
 	struct media_pad *remote_pad;
 
-	remote_pad = media_entity_remote_pad(&ctx->pad);
+	remote_pad = media_pad_remote_pad_first(&ctx->pad);
 	if (!remote_pad)
 		return -ENODEV;
 
@@ -711,7 +708,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	dma_addr_t addr;
 	int ret;
 
-	ret = media_pipeline_start(&ctx->vdev.entity, &ctx->phy->pipe);
+	ret = video_device_pipeline_alloc_start(&ctx->vdev);
 	if (ret < 0) {
 		ctx_err(ctx, "Failed to start media pipeline: %d\n", ret);
 		goto error_release_buffers;
@@ -764,7 +761,7 @@ error_stop:
 	cal_ctx_unprepare(ctx);
 
 error_pipeline:
-	media_pipeline_stop(&ctx->vdev.entity);
+	video_device_pipeline_stop(&ctx->vdev);
 error_release_buffers:
 	cal_release_buffers(ctx, VB2_BUF_STATE_QUEUED);
 
@@ -785,7 +782,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 
 	cal_release_buffers(ctx, VB2_BUF_STATE_ERROR);
 
-	media_pipeline_stop(&ctx->vdev.entity);
+	video_device_pipeline_stop(&ctx->vdev);
 }
 
 static const struct vb2_ops cal_video_qops = {

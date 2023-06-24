@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/blkdev.h>
 #include <linux/wait.h>
 #include <linux/rbtree.h>
 #include <linux/kthread.h>
@@ -230,20 +231,13 @@ static __init int bdi_class_init(void)
 }
 postcore_initcall(bdi_class_init);
 
-static int bdi_init(struct backing_dev_info *bdi);
-
 static int __init default_bdi_init(void)
 {
-	int err;
-
 	bdi_wq = alloc_workqueue("writeback", WQ_MEM_RECLAIM | WQ_UNBOUND |
 				 WQ_SYSFS, 0);
 	if (!bdi_wq)
 		return -ENOMEM;
-
-	err = bdi_init(&noop_backing_dev_info);
-
-	return err;
+	return 0;
 }
 subsys_initcall(default_bdi_init);
 
@@ -266,10 +260,10 @@ void wb_wakeup_delayed(struct bdi_writeback *wb)
 	unsigned long timeout;
 
 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-	spin_lock_bh(&wb->work_lock);
+	spin_lock_irq(&wb->work_lock);
 	if (test_bit(WB_registered, &wb->state))
 		queue_delayed_work(bdi_wq, &wb->dwork, timeout);
-	spin_unlock_bh(&wb->work_lock);
+	spin_unlock_irq(&wb->work_lock);
 }
 
 static void wb_update_bandwidth_workfn(struct work_struct *work)
@@ -340,12 +334,12 @@ static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb);
 static void wb_shutdown(struct bdi_writeback *wb)
 {
 	/* Make sure nobody queues further work */
-	spin_lock_bh(&wb->work_lock);
+	spin_lock_irq(&wb->work_lock);
 	if (!test_and_clear_bit(WB_registered, &wb->state)) {
-		spin_unlock_bh(&wb->work_lock);
+		spin_unlock_irq(&wb->work_lock);
 		return;
 	}
-	spin_unlock_bh(&wb->work_lock);
+	spin_unlock_irq(&wb->work_lock);
 
 	cgwb_remove_from_bdi_list(wb);
 	/*
@@ -390,7 +384,6 @@ static void cgwb_release_workfn(struct work_struct *work)
 {
 	struct bdi_writeback *wb = container_of(work, struct bdi_writeback,
 						release_work);
-	struct blkcg *blkcg = css_to_blkcg(wb->blkcg_css);
 	struct backing_dev_info *bdi = wb->bdi;
 
 	mutex_lock(&wb->bdi->cgwb_release_mutex);
@@ -401,7 +394,7 @@ static void cgwb_release_workfn(struct work_struct *work)
 	mutex_unlock(&wb->bdi->cgwb_release_mutex);
 
 	/* triggers blkg destruction if no online users left */
-	blkcg_unpin_online(blkcg);
+	blkcg_unpin_online(wb->blkcg_css);
 
 	fprop_local_destroy_percpu(&wb->memcg_completions);
 
@@ -446,7 +439,6 @@ static int cgwb_create(struct backing_dev_info *bdi,
 {
 	struct mem_cgroup *memcg;
 	struct cgroup_subsys_state *blkcg_css;
-	struct blkcg *blkcg;
 	struct list_head *memcg_cgwb_list, *blkcg_cgwb_list;
 	struct bdi_writeback *wb;
 	unsigned long flags;
@@ -454,9 +446,8 @@ static int cgwb_create(struct backing_dev_info *bdi,
 
 	memcg = mem_cgroup_from_css(memcg_css);
 	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
-	blkcg = css_to_blkcg(blkcg_css);
 	memcg_cgwb_list = &memcg->cgwb_list;
-	blkcg_cgwb_list = &blkcg->cgwb_list;
+	blkcg_cgwb_list = blkcg_get_cgwb_list(blkcg_css);
 
 	/* look up again under lock and discard on blkcg mismatch */
 	spin_lock_irqsave(&cgwb_lock, flags);
@@ -511,7 +502,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
 			list_add(&wb->memcg_node, memcg_cgwb_list);
 			list_add(&wb->blkcg_node, blkcg_cgwb_list);
-			blkcg_pin_online(blkcg);
+			blkcg_pin_online(blkcg_css);
 			css_get(memcg_css);
 			css_get(blkcg_css);
 		}
@@ -724,18 +715,19 @@ void wb_memcg_offline(struct mem_cgroup *memcg)
 
 /**
  * wb_blkcg_offline - kill all wb's associated with a blkcg being offlined
- * @blkcg: blkcg being offlined
+ * @css: blkcg being offlined
  *
  * Also prevents creation of any new wb's associated with @blkcg.
  */
-void wb_blkcg_offline(struct blkcg *blkcg)
+void wb_blkcg_offline(struct cgroup_subsys_state *css)
 {
 	struct bdi_writeback *wb, *next;
+	struct list_head *list = blkcg_get_cgwb_list(css);
 
 	spin_lock_irq(&cgwb_lock);
-	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_node)
+	list_for_each_entry_safe(wb, next, list, blkcg_node)
 		cgwb_kill(wb);
-	blkcg->cgwb_list.next = NULL;	/* prevent new wb's */
+	list->next = NULL;	/* prevent new wb's */
 	spin_unlock_irq(&cgwb_lock);
 }
 
@@ -782,10 +774,8 @@ static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
-static int bdi_init(struct backing_dev_info *bdi)
+int bdi_init(struct backing_dev_info *bdi)
 {
-	int ret;
-
 	bdi->dev = NULL;
 
 	kref_init(&bdi->refcnt);
@@ -796,9 +786,7 @@ static int bdi_init(struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&bdi->wb_list);
 	init_waitqueue_head(&bdi->wb_waitq);
 
-	ret = cgwb_bdi_init(bdi);
-
-	return ret;
+	return cgwb_bdi_init(bdi);
 }
 
 struct backing_dev_info *bdi_alloc(int node_id)

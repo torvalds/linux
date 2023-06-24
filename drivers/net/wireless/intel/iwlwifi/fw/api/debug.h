@@ -240,7 +240,7 @@ struct iwl_mfu_assert_dump_notif {
 	__le16   index_num;
 	__le16   parts_num;
 	__le32   data_size;
-	__le32   data[0];
+	__le32   data[];
 } __packed; /* MFU_DUMP_ASSERT_API_S_VER_1 */
 
 /**
@@ -276,7 +276,7 @@ struct iwl_mvm_marker {
 	u8 marker_id;
 	__le16 reserved;
 	__le64 timestamp;
-	__le32 metadata[0];
+	__le32 metadata[];
 } __packed; /* MARKER_API_S_VER_1 */
 
 /**

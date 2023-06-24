@@ -885,7 +885,7 @@ static int netlbl_unlabel_staticadd(struct sk_buff *skb,
 
 	/* Don't allow users to add both IPv4 and IPv6 addresses for a
 	 * single entry.  However, allow users to create two entries, one each
-	 * for IPv4 and IPv4, with the same LSM security context which should
+	 * for IPv4 and IPv6, with the same LSM security context which should
 	 * achieve the same result. */
 	if (!info->attrs[NLBL_UNLABEL_A_SECCTX] ||
 	    !info->attrs[NLBL_UNLABEL_A_IFACE] ||
@@ -1374,6 +1374,7 @@ static struct genl_family netlbl_unlabel_gnl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = netlbl_unlabel_genl_ops,
 	.n_small_ops = ARRAY_SIZE(netlbl_unlabel_genl_ops),
+	.resv_start_op = NLBL_UNLABEL_C_STATICLISTDEF + 1,
 };
 
 /*

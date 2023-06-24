@@ -80,13 +80,13 @@
 	#size-cells = <0>;
 
 	hub@1 {
-		compatible = "usb0424,9514";
+		compatible = "usb424,9514";
 		reg = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethernet: usbether@1 {
-			compatible = "usb0424,ec00";
+		ethernet: ethernet@1 {
+			compatible = "usb424,ec00";
 			reg = <1>;
 			local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
 		};

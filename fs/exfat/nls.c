@@ -509,7 +509,7 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 	}
 
 	if (unilen > MAX_NAME_LENGTH) {
-		exfat_err(sb, "failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
+		exfat_debug(sb, "failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
 			  __func__, len, unilen, MAX_NAME_LENGTH);
 		return -ENAMETOOLONG;
 	}
@@ -671,7 +671,7 @@ static int exfat_load_upcase_table(struct super_block *sb,
 
 		bh = sb_bread(sb, sector);
 		if (!bh) {
-			exfat_err(sb, "failed to read sector(0x%llx)\n",
+			exfat_err(sb, "failed to read sector(0x%llx)",
 				  (unsigned long long)sector);
 			ret = -EIO;
 			goto free_table;

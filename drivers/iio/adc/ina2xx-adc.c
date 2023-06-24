@@ -550,7 +550,7 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 	bool val;
 	int ret;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret)
 		return ret;
 
@@ -1027,7 +1027,6 @@ static int ina2xx_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 
 	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &ina2xx_setup_ops);
 	if (ret)
 		return ret;
@@ -1035,16 +1034,20 @@ static int ina2xx_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int ina2xx_remove(struct i2c_client *client)
+static void ina2xx_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
+	int ret;
 
 	iio_device_unregister(indio_dev);
 
 	/* Powerdown */
-	return regmap_update_bits(chip->regmap, INA2XX_CONFIG,
-				  INA2XX_MODE_MASK, 0);
+	ret = regmap_update_bits(chip->regmap, INA2XX_CONFIG,
+				 INA2XX_MODE_MASK, 0);
+	if (ret)
+		dev_warn(&client->dev, "Failed to power down device (%pe)\n",
+			 ERR_PTR(ret));
 }
 
 static const struct i2c_device_id ina2xx_id[] = {

@@ -15,6 +15,7 @@
 #include <linux/iio/driver.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #include "ltc2497.h"
 
@@ -24,10 +25,10 @@ struct ltc2496_driverdata {
 	struct spi_device *spi;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	unsigned char rxbuf[3] ____cacheline_aligned;
+	unsigned char rxbuf[3] __aligned(IIO_DMA_MINALIGN);
 	unsigned char txbuf[3];
 };
 
@@ -74,6 +75,7 @@ static int ltc2496_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 	st->common_ddata.result_and_measure = ltc2496_result_and_measure;
+	st->common_ddata.chip_info = device_get_match_data(dev);
 
 	return ltc2497core_probe(dev, indio_dev);
 }
@@ -85,8 +87,13 @@ static void ltc2496_remove(struct spi_device *spi)
 	ltc2497core_remove(indio_dev);
 }
 
+static const struct ltc2497_chip_info ltc2496_info = {
+	.resolution = 16,
+	.name = NULL,
+};
+
 static const struct of_device_id ltc2496_of_match[] = {
-	{ .compatible = "lltc,ltc2496", },
+	{ .compatible = "lltc,ltc2496", .data = &ltc2496_info, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ltc2496_of_match);

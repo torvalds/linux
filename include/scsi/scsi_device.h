@@ -100,6 +100,10 @@ struct scsi_vpd {
 	unsigned char	data[];
 };
 
+enum scsi_vpd_parameters {
+	SCSI_VPD_HEADER_SIZE = 4,
+};
+
 struct scsi_device {
 	struct Scsi_Host *host;
 	struct request_queue *request_queue;
@@ -141,11 +145,14 @@ struct scsi_device {
 	const char * model;		/* ... after scan; point to static string */
 	const char * rev;		/* ... "nullnullnullnull" before scan */
 
-#define SCSI_VPD_PG_LEN                255
 	struct scsi_vpd __rcu *vpd_pg0;
 	struct scsi_vpd __rcu *vpd_pg83;
 	struct scsi_vpd __rcu *vpd_pg80;
 	struct scsi_vpd __rcu *vpd_pg89;
+	struct scsi_vpd __rcu *vpd_pgb0;
+	struct scsi_vpd __rcu *vpd_pgb1;
+	struct scsi_vpd __rcu *vpd_pgb2;
+
 	struct scsi_target      *sdev_target;
 
 	blist_flags_t		sdev_bflags; /* black/white flags as also found in
@@ -224,6 +231,7 @@ struct scsi_device {
 	atomic_t iorequest_cnt;
 	atomic_t iodone_cnt;
 	atomic_t ioerr_cnt;
+	atomic_t iotmo_cnt;
 
 	struct device		sdev_gendev,
 				sdev_dev;
@@ -450,7 +458,7 @@ extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 extern int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
 			unsigned char *sense, struct scsi_sense_hdr *sshdr,
-			int timeout, int retries, u64 flags,
+			int timeout, int retries, blk_opf_t flags,
 			req_flags_t rq_flags, int *resid);
 /* Make sure any sense buffer is the correct size. */
 #define scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,	\

@@ -154,8 +154,8 @@ static int rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_sge = min(device->attrs.max_send_sge, RDS_IB_MAX_SGE);
 
 	rds_ibdev->odp_capable =
-		!!(device->attrs.device_cap_flags &
-		   IB_DEVICE_ON_DEMAND_PAGING) &&
+		!!(device->attrs.kernel_cap_flags &
+		   IBK_ON_DEMAND_PAGING) &&
 		!!(device->attrs.odp_caps.per_transport_caps.rc_odp_caps &
 		   IB_ODP_SUPPORT_WRITE) &&
 		!!(device->attrs.odp_caps.per_transport_caps.rc_odp_caps &

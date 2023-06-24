@@ -98,7 +98,7 @@ extern u64 PERF_REG_EXTENDED_MASK;
 /* PowerISA v2.07 format attribute structure*/
 extern const struct attribute_group isa207_pmu_format_group;
 
-int p9_dd21_bl_ev[] = {
+static int p9_dd21_bl_ev[] = {
 	PM_MRK_ST_DONE_L2,
 	PM_RADIX_PWC_L1_HIT,
 	PM_FLOP_CMPL,
@@ -112,7 +112,7 @@ int p9_dd21_bl_ev[] = {
 	PM_DISP_HELD_SYNC_HOLD,
 };
 
-int p9_dd22_bl_ev[] = {
+static int p9_dd22_bl_ev[] = {
 	PM_DTLB_MISS_16G,
 	PM_DERAT_MISS_2M,
 	PM_DTLB_MISS_2M,
@@ -258,9 +258,19 @@ static const struct attribute_group power9_pmu_format_group = {
 	.attrs = power9_pmu_format_attr,
 };
 
+static struct attribute *power9_pmu_caps_attrs[] = {
+	NULL
+};
+
+static struct attribute_group power9_pmu_caps_group = {
+	.name  = "caps",
+	.attrs = power9_pmu_caps_attrs,
+};
+
 static const struct attribute_group *power9_pmu_attr_groups[] = {
 	&power9_pmu_format_group,
 	&power9_pmu_events_group,
+	&power9_pmu_caps_group,
 	NULL,
 };
 
@@ -457,9 +467,7 @@ int __init init_power9_pmu(void)
 	int rc = 0;
 	unsigned int pvr = mfspr(SPRN_PVR);
 
-	/* Comes from cpu_specs[] */
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power9"))
+	if (PVR_VER(pvr) != PVR_POWER9)
 		return -ENODEV;
 
 	/* Blacklist events */

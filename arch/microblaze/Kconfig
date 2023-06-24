@@ -38,14 +38,12 @@ config MICROBLAZE
 	select OF_EARLY_FLATTREE
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
-	select VIRT_TO_BUS
 	select CPU_NO_EFFICIENT_FFS
 	select MMU_GATHER_NO_RANGE
 	select SPARSE_IRQ
 	select ZONE_DMA
 	select TRACE_IRQFLAGS_SUPPORT
 	select GENERIC_IRQ_MULTI_HANDLER
-	select HANDLE_DOMAIN_IRQ
 
 # Endianness selection
 choice
@@ -205,6 +203,16 @@ config TASK_SIZE_BOOL
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000"
+
+config MB_MANAGER
+	bool "Support for Microblaze Manager"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option enables API for configuring the MicroBlaze manager
+	  control register, which is consumed by the break handler to
+	  block the break.
+
+	  Say N here unless you know what you are doing.
 
 endmenu
 

@@ -15,26 +15,66 @@ struct drm_i915_private;
 struct intel_gt;
 struct drm_printer;
 
-#define GEN_MAX_SLICES		(3) /* SKL upper bound */
-#define GEN_MAX_SUBSLICES	(32) /* XEHPSDV upper bound */
-#define GEN_SSEU_STRIDE(max_entries) DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
-#define GEN_MAX_SUBSLICE_STRIDE GEN_SSEU_STRIDE(GEN_MAX_SUBSLICES)
-#define GEN_MAX_EUS		(16) /* TGL upper bound */
-#define GEN_MAX_EU_STRIDE GEN_SSEU_STRIDE(GEN_MAX_EUS)
+/*
+ * Maximum number of slices on older platforms.  Slices no longer exist
+ * starting on Xe_HP ("gslices," "cslices," etc. are a different concept and
+ * are not expressed through fusing).
+ */
+#define GEN_MAX_HSW_SLICES		3
+
+/*
+ * Maximum number of subslices that can exist within a HSW-style slice.  This
+ * is only relevant to pre-Xe_HP platforms (Xe_HP and beyond use the
+ * I915_MAX_SS_FUSE_BITS value below).
+ */
+#define GEN_MAX_SS_PER_HSW_SLICE	6
+
+/*
+ * Maximum number of 32-bit registers used by hardware to express the
+ * enabled/disabled subslices.
+ */
+#define I915_MAX_SS_FUSE_REGS	2
+#define I915_MAX_SS_FUSE_BITS	(I915_MAX_SS_FUSE_REGS * 32)
+
+/* Maximum number of EUs that can exist within a subslice or DSS. */
+#define GEN_MAX_EUS_PER_SS		16
+
+#define SSEU_MAX(a, b)			((a) > (b) ? (a) : (b))
+
+/* The maximum number of bits needed to express each subslice/DSS independently */
+#define GEN_SS_MASK_SIZE		SSEU_MAX(I915_MAX_SS_FUSE_BITS, \
+						 GEN_MAX_HSW_SLICES * GEN_MAX_SS_PER_HSW_SLICE)
+
+#define GEN_SSEU_STRIDE(max_entries)	DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
+#define GEN_MAX_SUBSLICE_STRIDE		GEN_SSEU_STRIDE(GEN_SS_MASK_SIZE)
+#define GEN_MAX_EU_STRIDE		GEN_SSEU_STRIDE(GEN_MAX_EUS_PER_SS)
 
 #define GEN_DSS_PER_GSLICE	4
 #define GEN_DSS_PER_CSLICE	8
 #define GEN_DSS_PER_MSLICE	8
 
-#define GEN_MAX_GSLICES		(GEN_MAX_SUBSLICES / GEN_DSS_PER_GSLICE)
-#define GEN_MAX_CSLICES		(GEN_MAX_SUBSLICES / GEN_DSS_PER_CSLICE)
+#define GEN_MAX_GSLICES		(I915_MAX_SS_FUSE_BITS / GEN_DSS_PER_GSLICE)
+#define GEN_MAX_CSLICES		(I915_MAX_SS_FUSE_BITS / GEN_DSS_PER_CSLICE)
+
+typedef union {
+	u8 hsw[GEN_MAX_HSW_SLICES];
+
+	/* Bitmap compatible with linux/bitmap.h; may exceed size of u64 */
+	unsigned long xehp[BITS_TO_LONGS(I915_MAX_SS_FUSE_BITS)];
+} intel_sseu_ss_mask_t;
+
+#define XEHP_BITMAP_BITS(mask)	((int)BITS_PER_TYPE(typeof(mask.xehp)))
 
 struct sseu_dev_info {
 	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
-	u8 geometry_subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
-	u8 compute_subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
-	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES * GEN_MAX_EU_STRIDE];
+	intel_sseu_ss_mask_t subslice_mask;
+	intel_sseu_ss_mask_t geometry_subslice_mask;
+	intel_sseu_ss_mask_t compute_subslice_mask;
+	union {
+		u16 hsw[GEN_MAX_HSW_SLICES][GEN_MAX_SS_PER_HSW_SLICE];
+		u16 xehp[I915_MAX_SS_FUSE_BITS];
+	} eu_mask;
+
 	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
@@ -43,14 +83,16 @@ struct sseu_dev_info {
 	u8 has_slice_pg:1;
 	u8 has_subslice_pg:1;
 	u8 has_eu_pg:1;
+	/*
+	 * For Xe_HP and beyond, the hardware no longer has traditional slices
+	 * so we just report the entire DSS pool under a fake "slice 0."
+	 */
+	u8 has_xehp_dss:1;
 
 	/* Topology fields */
 	u8 max_slices;
 	u8 max_subslices;
 	u8 max_eus_per_subslice;
-
-	u8 ss_stride;
-	u8 eu_stride;
 };
 
 /*
@@ -68,7 +110,7 @@ intel_sseu_from_device_info(const struct sseu_dev_info *sseu)
 {
 	struct intel_sseu value = {
 		.slice_mask = sseu->slice_mask,
-		.subslice_mask = sseu->subslice_mask[0],
+		.subslice_mask = sseu->subslice_mask.hsw[0],
 		.min_eus_per_subslice = sseu->max_eus_per_subslice,
 		.max_eus_per_subslice = sseu->max_eus_per_subslice,
 	};
@@ -80,18 +122,28 @@ static inline bool
 intel_sseu_has_subslice(const struct sseu_dev_info *sseu, int slice,
 			int subslice)
 {
-	u8 mask;
-	int ss_idx = subslice / BITS_PER_BYTE;
-
 	if (slice >= sseu->max_slices ||
 	    subslice >= sseu->max_subslices)
 		return false;
 
-	GEM_BUG_ON(ss_idx >= sseu->ss_stride);
+	if (sseu->has_xehp_dss)
+		return test_bit(subslice, sseu->subslice_mask.xehp);
+	else
+		return sseu->subslice_mask.hsw[slice] & BIT(subslice);
+}
 
-	mask = sseu->subslice_mask[slice * sseu->ss_stride + ss_idx];
-
-	return mask & BIT(subslice % BITS_PER_BYTE);
+/*
+ * Used to obtain the index of the first DSS.  Can start searching from the
+ * beginning of a specific dss group (e.g., gslice, cslice, etc.) if
+ * groupsize and groupnum are non-zero.
+ */
+static inline unsigned int
+intel_sseu_find_first_xehp_dss(const struct sseu_dev_info *sseu, int groupsize,
+			       int groupnum)
+{
+	return find_next_bit(sseu->subslice_mask.xehp,
+			     XEHP_BITMAP_BITS(sseu->subslice_mask),
+			     groupnum * groupsize);
 }
 
 void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
@@ -101,14 +153,10 @@ unsigned int
 intel_sseu_subslice_total(const struct sseu_dev_info *sseu);
 
 unsigned int
-intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
+intel_sseu_get_hsw_subslices(const struct sseu_dev_info *sseu, u8 slice);
 
-u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice);
-
-u32 intel_sseu_get_compute_subslices(const struct sseu_dev_info *sseu);
-
-void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
-			      u8 *subslice_mask, u32 ss_mask);
+intel_sseu_ss_mask_t
+intel_sseu_get_compute_subslices(const struct sseu_dev_info *sseu);
 
 void intel_sseu_info_init(struct intel_gt *gt);
 
@@ -116,9 +164,19 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 			 const struct intel_sseu *req_sseu);
 
 void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p);
-void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
+void intel_sseu_print_topology(struct drm_i915_private *i915,
+			       const struct sseu_dev_info *sseu,
 			       struct drm_printer *p);
 
-u16 intel_slicemask_from_dssmask(u64 dss_mask, int dss_per_slice);
+u16 intel_slicemask_from_xehp_dssmask(intel_sseu_ss_mask_t dss_mask, int dss_per_slice);
+
+int intel_sseu_copy_eumask_to_user(void __user *to,
+				   const struct sseu_dev_info *sseu);
+int intel_sseu_copy_ssmask_to_user(void __user *to,
+				   const struct sseu_dev_info *sseu);
+
+void intel_sseu_print_ss_info(const char *type,
+			      const struct sseu_dev_info *sseu,
+			      struct seq_file *m);
 
 #endif /* __INTEL_SSEU_H__ */

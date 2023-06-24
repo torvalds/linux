@@ -29,9 +29,7 @@ obj-$(CONFIG_PCMCIA_SA11XX_BASE)		+= sa11xx_base.o
 obj-$(CONFIG_PCMCIA_SA1100)			+= sa1100_cs.o
 obj-$(CONFIG_PCMCIA_SA1111)			+= sa1111_cs.o
 obj-$(CONFIG_PCMCIA_BCM63XX)			+= bcm63xx_pcmcia.o
-obj-$(CONFIG_PCMCIA_VRC4171)			+= vrc4171_card.o
 obj-$(CONFIG_OMAP_CF)				+= omap_cf.o
-obj-$(CONFIG_AT91_CF)				+= at91_cf.o
 obj-$(CONFIG_ELECTRA_CF)			+= electra_cf.o
 obj-$(CONFIG_PCMCIA_ALCHEMY_DEVBOARD)		+= db1xxx_ss.o
 obj-$(CONFIG_PCMCIA_MAX1600)			+= max1600.o
@@ -50,18 +48,5 @@ sa1100_cs-$(CONFIG_SA1100_SIMPAD)		+= sa1100_simpad.o
 
 pxa2xx-obj-$(CONFIG_MACH_MAINSTONE)		+= pxa2xx_mainstone.o
 pxa2xx-obj-$(CONFIG_PXA_SHARPSL)		+= pxa2xx_sharpsl.o
-pxa2xx-obj-$(CONFIG_ARCOM_PCMCIA)		+= pxa2xx_viper.o
-pxa2xx-obj-$(CONFIG_TRIZEPS_PCMCIA)		+= pxa2xx_trizeps4.o
-pxa2xx-obj-$(CONFIG_MACH_PALMTX)		+= pxa2xx_palmtx.o
-pxa2xx-obj-$(CONFIG_MACH_PALMTC)		+= pxa2xx_palmtc.o
-pxa2xx-obj-$(CONFIG_MACH_PALMLD)		+= pxa2xx_palmld.o
-pxa2xx-obj-$(CONFIG_MACH_E740)			+= pxa2xx_e740.o
-pxa2xx-obj-$(CONFIG_MACH_VPAC270)		+= pxa2xx_vpac270.o
-pxa2xx-obj-$(CONFIG_MACH_BALLOON3)		+= pxa2xx_balloon3.o
-pxa2xx-obj-$(CONFIG_MACH_COLIBRI)		+= pxa2xx_colibri.o
-pxa2xx-obj-$(CONFIG_MACH_COLIBRI320)		+= pxa2xx_colibri.o
-pxa2xx-obj-$(CONFIG_MACH_H4700)			+= pxa2xx_hx4700.o
-
 obj-$(CONFIG_PCMCIA_PXA2XX)			+= pxa2xx_base.o $(pxa2xx-obj-y)
-
 obj-$(CONFIG_PCMCIA_XXS1500)			+= xxs1500_ss.o

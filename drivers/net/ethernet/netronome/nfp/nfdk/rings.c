@@ -168,10 +168,12 @@ nfp_nfdk_print_tx_descs(struct seq_file *file,
 	 NFP_NET_CFG_CTRL_L2BC | NFP_NET_CFG_CTRL_L2MC |		\
 	 NFP_NET_CFG_CTRL_RXCSUM | NFP_NET_CFG_CTRL_TXCSUM |		\
 	 NFP_NET_CFG_CTRL_RXVLAN |					\
+	 NFP_NET_CFG_CTRL_RXVLAN_V2 | NFP_NET_CFG_CTRL_RXQINQ |		\
+	 NFP_NET_CFG_CTRL_TXVLAN_V2 |					\
 	 NFP_NET_CFG_CTRL_GATHER | NFP_NET_CFG_CTRL_LSO |		\
 	 NFP_NET_CFG_CTRL_CTAG_FILTER | NFP_NET_CFG_CTRL_CMSG_DATA |	\
 	 NFP_NET_CFG_CTRL_RINGCFG | NFP_NET_CFG_CTRL_IRQMOD |		\
-	 NFP_NET_CFG_CTRL_TXRWB |					\
+	 NFP_NET_CFG_CTRL_TXRWB | NFP_NET_CFG_CTRL_VEPA |		\
 	 NFP_NET_CFG_CTRL_VXLAN | NFP_NET_CFG_CTRL_NVGRE |		\
 	 NFP_NET_CFG_CTRL_BPF | NFP_NET_CFG_CTRL_LSO2 |			\
 	 NFP_NET_CFG_CTRL_RSS2 | NFP_NET_CFG_CTRL_CSUM_COMPLETE |	\
@@ -181,6 +183,7 @@ const struct nfp_dp_ops nfp_nfdk_ops = {
 	.version		= NFP_NFD_VER_NFDK,
 	.tx_min_desc_per_pkt	= NFDK_TX_DESC_PER_SIMPLE_PKT,
 	.cap_mask		= NFP_NFDK_CFG_CTRL_SUPPORTED,
+	.dma_mask		= DMA_BIT_MASK(48),
 	.poll			= nfp_nfdk_poll,
 	.ctrl_poll		= nfp_nfdk_ctrl_poll,
 	.xmit			= nfp_nfdk_tx,

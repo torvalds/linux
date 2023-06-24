@@ -29,14 +29,13 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_MULTI_RECONNECT,
 	CEPHFS_FEATURE_DELEG_INO,
 	CEPHFS_FEATURE_METRIC_COLLECT,
+	CEPHFS_FEATURE_ALTERNATE_NAME,
+	CEPHFS_FEATURE_NOTIFY_SESSION_STATE,
+	CEPHFS_FEATURE_OP_GETVXATTR,
 
-	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_METRIC_COLLECT,
+	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_OP_GETVXATTR,
 };
 
-/*
- * This will always have the highest feature bit value
- * as the last element of the array.
- */
 #define CEPHFS_FEATURES_CLIENT_SUPPORTED {	\
 	0, 1, 2, 3, 4, 5, 6, 7,			\
 	CEPHFS_FEATURE_MIMIC,			\
@@ -45,10 +44,9 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_MULTI_RECONNECT,		\
 	CEPHFS_FEATURE_DELEG_INO,		\
 	CEPHFS_FEATURE_METRIC_COLLECT,		\
-						\
-	CEPHFS_FEATURE_MAX,			\
+	CEPHFS_FEATURE_NOTIFY_SESSION_STATE,	\
+	CEPHFS_FEATURE_OP_GETVXATTR,		\
 }
-#define CEPHFS_FEATURES_CLIENT_REQUIRED {}
 
 /*
  * Some lock dependencies:
@@ -340,6 +338,8 @@ struct ceph_mds_request {
 	long long	  r_dir_ordered_cnt;
 	int		  r_readdir_cache_idx;
 
+	int		  r_feature_needed;
+
 	struct ceph_cap_reservation r_caps_reservation;
 };
 
@@ -579,9 +579,10 @@ static inline int ceph_wait_on_async_create(struct inode *inode)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	return wait_on_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT,
-			   TASK_INTERRUPTIBLE);
+			   TASK_KILLABLE);
 }
 
+extern int ceph_wait_on_conflict_unlink(struct dentry *dentry);
 extern u64 ceph_get_deleg_ino(struct ceph_mds_session *session);
 extern int ceph_restore_deleg_ino(struct ceph_mds_session *session, u64 ino);
 #endif

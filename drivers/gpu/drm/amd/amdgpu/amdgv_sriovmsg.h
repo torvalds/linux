@@ -1,34 +1,33 @@
 /*
- * Copyright 2018-2019 Advanced Micro Devices, Inc.
+ * Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #ifndef AMDGV_SRIOV_MSG__H_
 #define AMDGV_SRIOV_MSG__H_
 
 /* unit in kilobytes */
-#define AMD_SRIOV_MSG_VBIOS_OFFSET              0
-#define AMD_SRIOV_MSG_VBIOS_SIZE_KB             64
-#define AMD_SRIOV_MSG_DATAEXCHANGE_OFFSET_KB    AMD_SRIOV_MSG_VBIOS_SIZE_KB
-#define AMD_SRIOV_MSG_DATAEXCHANGE_SIZE_KB      4
+#define AMD_SRIOV_MSG_VBIOS_OFFSET	     0
+#define AMD_SRIOV_MSG_VBIOS_SIZE_KB	     64
+#define AMD_SRIOV_MSG_DATAEXCHANGE_OFFSET_KB AMD_SRIOV_MSG_VBIOS_SIZE_KB
+#define AMD_SRIOV_MSG_DATAEXCHANGE_SIZE_KB   4
 
 /*
  * layout
@@ -51,10 +50,10 @@
  * v2 defined in amdgim
  * v3 current
  */
-#define AMD_SRIOV_MSG_FW_VRAM_PF2VF_VER			2
-#define AMD_SRIOV_MSG_FW_VRAM_VF2PF_VER			3
+#define AMD_SRIOV_MSG_FW_VRAM_PF2VF_VER 2
+#define AMD_SRIOV_MSG_FW_VRAM_VF2PF_VER 3
 
-#define AMD_SRIOV_MSG_RESERVE_UCODE		24
+#define AMD_SRIOV_MSG_RESERVE_UCODE 24
 
 #define AMD_SRIOV_MSG_RESERVE_VCN_INST 4
 
@@ -71,6 +70,7 @@ enum amd_sriov_ucode_engine_id {
 	AMD_SRIOV_UCODE_ID_RLC_SRLS,
 	AMD_SRIOV_UCODE_ID_MEC,
 	AMD_SRIOV_UCODE_ID_MEC2,
+	AMD_SRIOV_UCODE_ID_IMU,
 	AMD_SRIOV_UCODE_ID_SOS,
 	AMD_SRIOV_UCODE_ID_ASD,
 	AMD_SRIOV_UCODE_ID_TA_RAS,
@@ -83,19 +83,19 @@ enum amd_sriov_ucode_engine_id {
 	AMD_SRIOV_UCODE_ID__MAX
 };
 
-#pragma pack(push, 1) 	// PF2VF / VF2PF data areas are byte packed
+#pragma pack(push, 1) // PF2VF / VF2PF data areas are byte packed
 
 union amd_sriov_msg_feature_flags {
 	struct {
-		uint32_t  error_log_collect  : 1;
-		uint32_t  host_load_ucodes   : 1;
-		uint32_t  host_flr_vramlost  : 1;
-		uint32_t  mm_bw_management   : 1;
-		uint32_t  pp_one_vf_mode     : 1;
-		uint32_t  reg_indirect_acc   : 1;
-		uint32_t  reserved           : 26;
+		uint32_t error_log_collect : 1;
+		uint32_t host_load_ucodes  : 1;
+		uint32_t host_flr_vramlost : 1;
+		uint32_t mm_bw_management  : 1;
+		uint32_t pp_one_vf_mode	   : 1;
+		uint32_t reg_indirect_acc  : 1;
+		uint32_t reserved	   : 26;
 	} flags;
-	uint32_t      all;
+	uint32_t all;
 };
 
 union amd_sriov_reg_access_flags {
@@ -110,10 +110,10 @@ union amd_sriov_reg_access_flags {
 
 union amd_sriov_msg_os_info {
 	struct {
-		uint32_t  windows            : 1;
-		uint32_t  reserved           : 31;
+		uint32_t windows  : 1;
+		uint32_t reserved : 31;
 	} info;
-	uint32_t      all;
+	uint32_t all;
 };
 
 struct amd_sriov_msg_uuid_info {
@@ -156,6 +156,7 @@ struct amd_sriov_msg_pf2vf_info_header {
 	uint32_t reserved[2];
 };
 
+#define AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE (48)
 struct amd_sriov_msg_pf2vf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_pf2vf_info_header header;
@@ -204,10 +205,10 @@ struct amd_sriov_msg_pf2vf_info {
 	} mm_bw_management[AMD_SRIOV_MSG_RESERVE_VCN_INST];
 	/* UUID info */
 	struct amd_sriov_msg_uuid_info uuid_info;
-	/* pcie atomic Ops info */
-	uint32_t pcie_atomic_ops_enabled_flags;
+	/* PCIE atomic ops support flag */
+	uint32_t pcie_atomic_ops_support_flags;
 	/* reserved */
-	uint32_t reserved[256 - 48];
+	uint32_t reserved[256 - AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE];
 };
 
 struct amd_sriov_msg_vf2pf_info_header {
@@ -219,12 +220,13 @@ struct amd_sriov_msg_vf2pf_info_header {
 	uint32_t reserved[2];
 };
 
+#define AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE (70)
 struct amd_sriov_msg_vf2pf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_vf2pf_info_header header;
 	uint32_t checksum;
 	/* driver version */
-	uint8_t  driver_version[64];
+	uint8_t driver_version[64];
 	/* driver certification, 1=WHQL, 0=None */
 	uint32_t driver_cert;
 	/* guest OS type and version */
@@ -258,13 +260,13 @@ struct amd_sriov_msg_vf2pf_info {
 	uint32_t fb_size;
 	/* guest ucode data, each one is 1.25 Dword */
 	struct {
-		uint8_t  id;
+		uint8_t id;
 		uint32_t version;
 	} ucode_info[AMD_SRIOV_MSG_RESERVE_UCODE];
 	uint64_t dummy_page_addr;
 
 	/* reserved */
-	uint32_t reserved[256-70];
+	uint32_t reserved[256 - AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE];
 };
 
 /* mailbox message send from guest to host  */
@@ -276,7 +278,7 @@ enum amd_sriov_mailbox_request_message {
 	MB_REQ_MSG_REQ_GPU_RESET_ACCESS,
 	MB_REQ_MSG_REQ_GPU_INIT_DATA,
 
-	MB_REQ_MSG_LOG_VF_ERROR       = 200,
+	MB_REQ_MSG_LOG_VF_ERROR = 200,
 };
 
 /* mailbox message send from host to guest  */
@@ -298,17 +300,15 @@ enum amd_sriov_gpu_init_data_version {
 	GPU_INIT_DATA_READY_V1 = 1,
 };
 
-#pragma pack(pop)	// Restore previous packing option
+#pragma pack(pop) // Restore previous packing option
 
 /* checksum function between host and guest */
-unsigned int amd_sriov_msg_checksum(void *obj,
-				unsigned long obj_size,
-				unsigned int key,
-				unsigned int checksum);
+unsigned int amd_sriov_msg_checksum(void *obj, unsigned long obj_size, unsigned int key,
+				    unsigned int checksum);
 
 /* assertion at compile time */
 #ifdef __linux__
-#define stringification(s) _stringification(s)
+#define stringification(s)  _stringification(s)
 #define _stringification(s) #s
 
 _Static_assert(
@@ -319,13 +319,11 @@ _Static_assert(
 	sizeof(struct amd_sriov_msg_pf2vf_info) == AMD_SRIOV_MSG_SIZE_KB << 10,
 	"amd_sriov_msg_pf2vf_info must be " stringification(AMD_SRIOV_MSG_SIZE_KB) " KB");
 
-_Static_assert(
-	AMD_SRIOV_MSG_RESERVE_UCODE % 4 == 0,
-	"AMD_SRIOV_MSG_RESERVE_UCODE must be multiple of 4");
+_Static_assert(AMD_SRIOV_MSG_RESERVE_UCODE % 4 == 0,
+	       "AMD_SRIOV_MSG_RESERVE_UCODE must be multiple of 4");
 
-_Static_assert(
-	AMD_SRIOV_MSG_RESERVE_UCODE > AMD_SRIOV_UCODE_ID__MAX,
-	"AMD_SRIOV_MSG_RESERVE_UCODE must be bigger than AMD_SRIOV_UCODE_ID__MAX");
+_Static_assert(AMD_SRIOV_MSG_RESERVE_UCODE > AMD_SRIOV_UCODE_ID__MAX,
+	       "AMD_SRIOV_MSG_RESERVE_UCODE must be bigger than AMD_SRIOV_UCODE_ID__MAX");
 
 #undef _stringification
 #undef stringification

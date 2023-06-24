@@ -16,6 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/soc/mediatek/infracfg.h>
 
+#include "mt6795-pm-domains.h"
 #include "mt8167-pm-domains.h"
 #include "mt8173-pm-domains.h"
 #include "mt8183-pm-domains.h"
@@ -392,7 +393,7 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err_probe(scpsys->dev, ret,
-				      "%pOF: failed to get clk at index %d: %d\n", node, i, ret);
+				      "%pOF: failed to get clk at index %d\n", node, i);
 			goto err_put_clocks;
 		}
 
@@ -404,8 +405,8 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err_probe(scpsys->dev, ret,
-				      "%pOF: failed to get clk at index %d: %d\n", node,
-				      i + clk_ind, ret);
+				      "%pOF: failed to get clk at index %d\n", node,
+				      i + clk_ind);
 			goto err_put_subsys_clocks;
 		}
 
@@ -428,6 +429,9 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 			dev_err(scpsys->dev, "%pOF: failed to power on domain: %d\n", node, ret);
 			goto err_put_subsys_clocks;
 		}
+
+		if (MTK_SCPD_CAPS(pd, MTK_SCPD_ALWAYS_ON))
+			pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 	}
 
 	if (scpsys->domains[id]) {
@@ -555,6 +559,10 @@ static void scpsys_domain_cleanup(struct scpsys *scpsys)
 }
 
 static const struct of_device_id scpsys_of_match[] = {
+	{
+		.compatible = "mediatek,mt6795-power-controller",
+		.data = &mt6795_scpsys_data,
+	},
 	{
 		.compatible = "mediatek,mt8167-power-controller",
 		.data = &mt8167_scpsys_data,

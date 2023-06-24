@@ -222,7 +222,7 @@ union es58x_urb_cmd {
 		u8 cmd_type;
 		u8 cmd_id;
 	} __packed;
-	u8 raw_cmd[0];
+	DECLARE_FLEX_ARRAY(u8, raw_cmd);
 };
 
 /**
@@ -380,7 +380,6 @@ struct es58x_operators {
  * @timestamps: a temporary buffer to store the time stamps before
  *	feeding them to es58x_can_get_echo_skb(). Can only be used
  *	in RX branches.
- * @rx_max_packet_size: Maximum length of bulk-in URB.
  * @num_can_ch: Number of CAN channel (i.e. number of elements of @netdev).
  * @opened_channel_cnt: number of channels opened. Free of race
  *	conditions because its two users (net_device_ops:ndo_open()
@@ -401,8 +400,8 @@ struct es58x_device {
 	const struct es58x_parameters *param;
 	const struct es58x_operators *ops;
 
-	int rx_pipe;
-	int tx_pipe;
+	unsigned int rx_pipe;
+	unsigned int tx_pipe;
 
 	struct usb_anchor rx_urbs;
 	struct usb_anchor tx_urbs_busy;
@@ -414,7 +413,6 @@ struct es58x_device {
 
 	u64 timestamps[ES58X_ECHO_BULK_MAX];
 
-	u16 rx_max_packet_size;
 	u8 num_can_ch;
 	u8 opened_channel_cnt;
 

@@ -21,7 +21,6 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -100,35 +99,44 @@ MODULE_PARM_DESC(mem, "megabytes available to " MBOCHS_NAME " devices");
 #define MBOCHS_TYPE_2 "medium"
 #define MBOCHS_TYPE_3 "large"
 
-static const struct mbochs_type {
-	const char *name;
+static struct mbochs_type {
+	struct mdev_type type;
 	u32 mbytes;
 	u32 max_x;
 	u32 max_y;
 } mbochs_types[] = {
 	{
-		.name	= MBOCHS_CLASS_NAME "-" MBOCHS_TYPE_1,
+		.type.sysfs_name	= MBOCHS_TYPE_1,
+		.type.pretty_name	= MBOCHS_CLASS_NAME "-" MBOCHS_TYPE_1,
 		.mbytes = 4,
 		.max_x  = 800,
 		.max_y  = 600,
 	}, {
-		.name	= MBOCHS_CLASS_NAME "-" MBOCHS_TYPE_2,
+		.type.sysfs_name	= MBOCHS_TYPE_2,
+		.type.pretty_name	= MBOCHS_CLASS_NAME "-" MBOCHS_TYPE_2,
 		.mbytes = 16,
 		.max_x  = 1920,
 		.max_y  = 1440,
 	}, {
-		.name	= MBOCHS_CLASS_NAME "-" MBOCHS_TYPE_3,
+		.type.sysfs_name	= MBOCHS_TYPE_3,
+		.type.pretty_name	= MBOCHS_CLASS_NAME "-" MBOCHS_TYPE_3,
 		.mbytes = 64,
 		.max_x  = 0,
 		.max_y  = 0,
 	},
 };
 
+static struct mdev_type *mbochs_mdev_types[] = {
+	&mbochs_types[0].type,
+	&mbochs_types[1].type,
+	&mbochs_types[2].type,
+};
 
 static dev_t		mbochs_devt;
 static struct class	*mbochs_class;
 static struct cdev	mbochs_cdev;
 static struct device	mbochs_dev;
+static struct mdev_parent mbochs_parent;
 static atomic_t mbochs_avail_mbytes;
 static const struct vfio_device_ops mbochs_dev_ops;
 
@@ -505,13 +513,14 @@ static int mbochs_reset(struct mdev_state *mdev_state)
 	return 0;
 }
 
-static int mbochs_probe(struct mdev_device *mdev)
+static int mbochs_init_dev(struct vfio_device *vdev)
 {
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
+	struct mdev_device *mdev = to_mdev_device(vdev->dev);
+	struct mbochs_type *type =
+		container_of(mdev->type, struct mbochs_type, type);
 	int avail_mbytes = atomic_read(&mbochs_avail_mbytes);
-	const struct mbochs_type *type =
-		&mbochs_types[mdev_get_type_group_id(mdev)];
-	struct device *dev = mdev_dev(mdev);
-	struct mdev_state *mdev_state;
 	int ret = -ENOMEM;
 
 	do {
@@ -520,14 +529,9 @@ static int mbochs_probe(struct mdev_device *mdev)
 	} while (!atomic_try_cmpxchg(&mbochs_avail_mbytes, &avail_mbytes,
 				     avail_mbytes - type->mbytes));
 
-	mdev_state = kzalloc(sizeof(struct mdev_state), GFP_KERNEL);
-	if (mdev_state == NULL)
-		goto err_avail;
-	vfio_init_group_dev(&mdev_state->vdev, &mdev->dev, &mbochs_dev_ops);
-
 	mdev_state->vconfig = kzalloc(MBOCHS_CONFIG_SPACE_SIZE, GFP_KERNEL);
-	if (mdev_state->vconfig == NULL)
-		goto err_mem;
+	if (!mdev_state->vconfig)
+		goto err_avail;
 
 	mdev_state->memsize = type->mbytes * 1024 * 1024;
 	mdev_state->pagecount = mdev_state->memsize >> PAGE_SHIFT;
@@ -535,10 +539,7 @@ static int mbochs_probe(struct mdev_device *mdev)
 				    sizeof(struct page *),
 				    GFP_KERNEL);
 	if (!mdev_state->pages)
-		goto err_mem;
-
-	dev_info(dev, "%s: %s, %d MB, %ld pages\n", __func__,
-		 type->name, type->mbytes, mdev_state->pagecount);
+		goto err_vconfig;
 
 	mutex_init(&mdev_state->ops_lock);
 	mdev_state->mdev = mdev;
@@ -553,19 +554,47 @@ static int mbochs_probe(struct mdev_device *mdev)
 	mbochs_create_config_space(mdev_state);
 	mbochs_reset(mdev_state);
 
-	ret = vfio_register_emulated_iommu_dev(&mdev_state->vdev);
-	if (ret)
-		goto err_mem;
-	dev_set_drvdata(&mdev->dev, mdev_state);
+	dev_info(vdev->dev, "%s: %s, %d MB, %ld pages\n", __func__,
+		 type->type.pretty_name, type->mbytes, mdev_state->pagecount);
 	return 0;
-err_mem:
-	vfio_uninit_group_dev(&mdev_state->vdev);
-	kfree(mdev_state->pages);
+
+err_vconfig:
 	kfree(mdev_state->vconfig);
-	kfree(mdev_state);
 err_avail:
 	atomic_add(type->mbytes, &mbochs_avail_mbytes);
 	return ret;
+}
+
+static int mbochs_probe(struct mdev_device *mdev)
+{
+	struct mdev_state *mdev_state;
+	int ret = -ENOMEM;
+
+	mdev_state = vfio_alloc_device(mdev_state, vdev, &mdev->dev,
+				       &mbochs_dev_ops);
+	if (IS_ERR(mdev_state))
+		return PTR_ERR(mdev_state);
+
+	ret = vfio_register_emulated_iommu_dev(&mdev_state->vdev);
+	if (ret)
+		goto err_put_vdev;
+	dev_set_drvdata(&mdev->dev, mdev_state);
+	return 0;
+
+err_put_vdev:
+	vfio_put_device(&mdev_state->vdev);
+	return ret;
+}
+
+static void mbochs_release_dev(struct vfio_device *vdev)
+{
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
+
+	atomic_add(mdev_state->type->mbytes, &mbochs_avail_mbytes);
+	kfree(mdev_state->pages);
+	kfree(mdev_state->vconfig);
+	vfio_free_device(vdev);
 }
 
 static void mbochs_remove(struct mdev_device *mdev)
@@ -573,11 +602,7 @@ static void mbochs_remove(struct mdev_device *mdev)
 	struct mdev_state *mdev_state = dev_get_drvdata(&mdev->dev);
 
 	vfio_unregister_group_dev(&mdev_state->vdev);
-	vfio_uninit_group_dev(&mdev_state->vdev);
-	atomic_add(mdev_state->type->mbytes, &mbochs_avail_mbytes);
-	kfree(mdev_state->pages);
-	kfree(mdev_state->vconfig);
-	kfree(mdev_state);
+	vfio_put_device(&mdev_state->vdev);
 }
 
 static ssize_t mbochs_read(struct vfio_device *vdev, char __user *buf,
@@ -1325,78 +1350,27 @@ static const struct attribute_group *mdev_dev_groups[] = {
 	NULL,
 };
 
-static ssize_t name_show(struct mdev_type *mtype,
-			 struct mdev_type_attribute *attr, char *buf)
+static ssize_t mbochs_show_description(struct mdev_type *mtype, char *buf)
 {
-	const struct mbochs_type *type =
-		&mbochs_types[mtype_get_type_group_id(mtype)];
-
-	return sprintf(buf, "%s\n", type->name);
-}
-static MDEV_TYPE_ATTR_RO(name);
-
-static ssize_t description_show(struct mdev_type *mtype,
-				struct mdev_type_attribute *attr, char *buf)
-{
-	const struct mbochs_type *type =
-		&mbochs_types[mtype_get_type_group_id(mtype)];
+	struct mbochs_type *type =
+		container_of(mtype, struct mbochs_type, type);
 
 	return sprintf(buf, "virtual display, %d MB video memory\n",
 		       type ? type->mbytes  : 0);
 }
-static MDEV_TYPE_ATTR_RO(description);
 
-static ssize_t available_instances_show(struct mdev_type *mtype,
-					struct mdev_type_attribute *attr,
-					char *buf)
+static unsigned int mbochs_get_available(struct mdev_type *mtype)
 {
-	const struct mbochs_type *type =
-		&mbochs_types[mtype_get_type_group_id(mtype)];
-	int count = atomic_read(&mbochs_avail_mbytes) / type->mbytes;
+	struct mbochs_type *type =
+		container_of(mtype, struct mbochs_type, type);
 
-	return sprintf(buf, "%d\n", count);
+	return atomic_read(&mbochs_avail_mbytes) / type->mbytes;
 }
-static MDEV_TYPE_ATTR_RO(available_instances);
-
-static ssize_t device_api_show(struct mdev_type *mtype,
-			       struct mdev_type_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
-}
-static MDEV_TYPE_ATTR_RO(device_api);
-
-static struct attribute *mdev_types_attrs[] = {
-	&mdev_type_attr_name.attr,
-	&mdev_type_attr_description.attr,
-	&mdev_type_attr_device_api.attr,
-	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
-
-static struct attribute_group mdev_type_group1 = {
-	.name  = MBOCHS_TYPE_1,
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group mdev_type_group2 = {
-	.name  = MBOCHS_TYPE_2,
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group mdev_type_group3 = {
-	.name  = MBOCHS_TYPE_3,
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group *mdev_type_groups[] = {
-	&mdev_type_group1,
-	&mdev_type_group2,
-	&mdev_type_group3,
-	NULL,
-};
 
 static const struct vfio_device_ops mbochs_dev_ops = {
 	.close_device = mbochs_close_device,
+	.init = mbochs_init_dev,
+	.release = mbochs_release_dev,
 	.read = mbochs_read,
 	.write = mbochs_write,
 	.ioctl = mbochs_ioctl,
@@ -1404,6 +1378,7 @@ static const struct vfio_device_ops mbochs_dev_ops = {
 };
 
 static struct mdev_driver mbochs_driver = {
+	.device_api = VFIO_DEVICE_API_PCI_STRING,
 	.driver = {
 		.name = "mbochs",
 		.owner = THIS_MODULE,
@@ -1412,12 +1387,8 @@ static struct mdev_driver mbochs_driver = {
 	},
 	.probe = mbochs_probe,
 	.remove	= mbochs_remove,
-};
-
-static const struct mdev_parent_ops mdev_fops = {
-	.owner			= THIS_MODULE,
-	.device_driver		= &mbochs_driver,
-	.supported_type_groups	= mdev_type_groups,
+	.get_available = mbochs_get_available,
+	.show_description = mbochs_show_description,
 };
 
 static const struct file_operations vd_fops = {
@@ -1462,7 +1433,9 @@ static int __init mbochs_dev_init(void)
 	if (ret)
 		goto err_class;
 
-	ret = mdev_register_device(&mbochs_dev, &mdev_fops);
+	ret = mdev_register_parent(&mbochs_parent, &mbochs_dev, &mbochs_driver,
+				   mbochs_mdev_types,
+				   ARRAY_SIZE(mbochs_mdev_types));
 	if (ret)
 		goto err_device;
 
@@ -1483,7 +1456,7 @@ err_cdev:
 static void __exit mbochs_dev_exit(void)
 {
 	mbochs_dev.bus = NULL;
-	mdev_unregister_device(&mbochs_dev);
+	mdev_unregister_parent(&mbochs_parent);
 
 	device_unregister(&mbochs_dev);
 	mdev_unregister_driver(&mbochs_driver);

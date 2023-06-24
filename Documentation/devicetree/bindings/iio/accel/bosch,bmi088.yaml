@@ -17,12 +17,12 @@ description: |
 properties:
   compatible:
     enum:
+      - bosch,bmi085-accel
       - bosch,bmi088-accel
+      - bosch,bmi090l-accel
 
   reg:
     maxItems: 1
-
-  spi-max-frequency: true
 
   vdd-supply: true
 
@@ -48,7 +48,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

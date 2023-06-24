@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices AD2552R DAC device driver
 
 maintainers:
-  - Mihail Chindris <mihail.chindris@analog.com>
+  - Nuno Sá <nuno.sa@analog.com>
 
 description: |
   Bindings for the Analog Devices AD3552R DAC device and similar.
@@ -78,6 +78,7 @@ patternProperties:
 
       custom-output-range-config:
         type: object
+        additionalProperties: false
         description: Configuration of custom range when
           adi,output-range-microvolt is not present.
           The formulas for calculation the output voltages are

@@ -18,6 +18,8 @@
 #include "cgx.h"
 #include "lmac_common.h"
 #include "npc.h"
+#include "rvu_npc_hash.h"
+#include "mcs.h"
 
 #define DEBUGFS_DIR_NAME "octeontx2"
 
@@ -226,6 +228,350 @@ static const struct file_operations rvu_dbg_##name##_fops = { \
 
 static void print_nix_qsize(struct seq_file *filp, struct rvu_pfvf *pfvf);
 
+static int rvu_dbg_mcs_port_stats_display(struct seq_file *filp, void *unused, int dir)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_port_stats stats;
+	int lmac;
+
+	seq_puts(filp, "\n port stats\n");
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(lmac, &mcs->hw->lmac_bmap, mcs->hw->lmac_cnt) {
+		mcs_get_port_stats(mcs, &stats, lmac, dir);
+		seq_printf(filp, "port%d: Tcam Miss: %lld\n", lmac, stats.tcam_miss_cnt);
+		seq_printf(filp, "port%d: Parser errors: %lld\n", lmac, stats.parser_err_cnt);
+
+		if (dir == MCS_RX && mcs->hw->mcs_blks > 1)
+			seq_printf(filp, "port%d: Preempt error: %lld\n", lmac,
+				   stats.preempt_err_cnt);
+		if (dir == MCS_TX)
+			seq_printf(filp, "port%d: Sectag insert error: %lld\n", lmac,
+				   stats.sectag_insert_err_cnt);
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+static int rvu_dbg_mcs_rx_port_stats_display(struct seq_file *filp, void *unused)
+{
+	return rvu_dbg_mcs_port_stats_display(filp, unused, MCS_RX);
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_rx_port_stats, mcs_rx_port_stats_display, NULL);
+
+static int rvu_dbg_mcs_tx_port_stats_display(struct seq_file *filp, void *unused)
+{
+	return rvu_dbg_mcs_port_stats_display(filp, unused, MCS_TX);
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_tx_port_stats, mcs_tx_port_stats_display, NULL);
+
+static int rvu_dbg_mcs_sa_stats_display(struct seq_file *filp, void *unused, int dir)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_sa_stats stats;
+	struct rsrc_bmap *map;
+	int sa_id;
+
+	if (dir == MCS_TX) {
+		map = &mcs->tx.sa;
+		mutex_lock(&mcs->stats_lock);
+		for_each_set_bit(sa_id, map->bmap, mcs->hw->sa_entries) {
+			seq_puts(filp, "\n TX SA stats\n");
+			mcs_get_sa_stats(mcs, &stats, sa_id, MCS_TX);
+			seq_printf(filp, "sa%d: Pkts encrypted: %lld\n", sa_id,
+				   stats.pkt_encrypt_cnt);
+
+			seq_printf(filp, "sa%d: Pkts protected: %lld\n", sa_id,
+				   stats.pkt_protected_cnt);
+		}
+		mutex_unlock(&mcs->stats_lock);
+		return 0;
+	}
+
+	/* RX stats */
+	map = &mcs->rx.sa;
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(sa_id, map->bmap, mcs->hw->sa_entries) {
+		seq_puts(filp, "\n RX SA stats\n");
+		mcs_get_sa_stats(mcs, &stats, sa_id, MCS_RX);
+		seq_printf(filp, "sa%d: Invalid pkts: %lld\n", sa_id, stats.pkt_invalid_cnt);
+		seq_printf(filp, "sa%d: Pkts no sa error: %lld\n", sa_id, stats.pkt_nosaerror_cnt);
+		seq_printf(filp, "sa%d: Pkts not valid: %lld\n", sa_id, stats.pkt_notvalid_cnt);
+		seq_printf(filp, "sa%d: Pkts ok: %lld\n", sa_id, stats.pkt_ok_cnt);
+		seq_printf(filp, "sa%d: Pkts no sa: %lld\n", sa_id, stats.pkt_nosa_cnt);
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+static int rvu_dbg_mcs_rx_sa_stats_display(struct seq_file *filp, void *unused)
+{
+	return rvu_dbg_mcs_sa_stats_display(filp, unused, MCS_RX);
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_rx_sa_stats, mcs_rx_sa_stats_display, NULL);
+
+static int rvu_dbg_mcs_tx_sa_stats_display(struct seq_file *filp, void *unused)
+{
+	return rvu_dbg_mcs_sa_stats_display(filp, unused, MCS_TX);
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_tx_sa_stats, mcs_tx_sa_stats_display, NULL);
+
+static int rvu_dbg_mcs_tx_sc_stats_display(struct seq_file *filp, void *unused)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_sc_stats stats;
+	struct rsrc_bmap *map;
+	int sc_id;
+
+	map = &mcs->tx.sc;
+	seq_puts(filp, "\n SC stats\n");
+
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(sc_id, map->bmap, mcs->hw->sc_entries) {
+		mcs_get_sc_stats(mcs, &stats, sc_id, MCS_TX);
+		seq_printf(filp, "\n=======sc%d======\n\n", sc_id);
+		seq_printf(filp, "sc%d: Pkts encrypted: %lld\n", sc_id, stats.pkt_encrypt_cnt);
+		seq_printf(filp, "sc%d: Pkts protected: %lld\n", sc_id, stats.pkt_protected_cnt);
+
+		if (mcs->hw->mcs_blks == 1) {
+			seq_printf(filp, "sc%d: Octets encrypted: %lld\n", sc_id,
+				   stats.octet_encrypt_cnt);
+			seq_printf(filp, "sc%d: Octets protected: %lld\n", sc_id,
+				   stats.octet_protected_cnt);
+		}
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_tx_sc_stats, mcs_tx_sc_stats_display, NULL);
+
+static int rvu_dbg_mcs_rx_sc_stats_display(struct seq_file *filp, void *unused)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_sc_stats stats;
+	struct rsrc_bmap *map;
+	int sc_id;
+
+	map = &mcs->rx.sc;
+	seq_puts(filp, "\n SC stats\n");
+
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(sc_id, map->bmap, mcs->hw->sc_entries) {
+		mcs_get_sc_stats(mcs, &stats, sc_id, MCS_RX);
+		seq_printf(filp, "\n=======sc%d======\n\n", sc_id);
+		seq_printf(filp, "sc%d: Cam hits: %lld\n", sc_id, stats.hit_cnt);
+		seq_printf(filp, "sc%d: Invalid pkts: %lld\n", sc_id, stats.pkt_invalid_cnt);
+		seq_printf(filp, "sc%d: Late pkts: %lld\n", sc_id, stats.pkt_late_cnt);
+		seq_printf(filp, "sc%d: Notvalid pkts: %lld\n", sc_id, stats.pkt_notvalid_cnt);
+		seq_printf(filp, "sc%d: Unchecked pkts: %lld\n", sc_id, stats.pkt_unchecked_cnt);
+
+		if (mcs->hw->mcs_blks > 1) {
+			seq_printf(filp, "sc%d: Delay pkts: %lld\n", sc_id, stats.pkt_delay_cnt);
+			seq_printf(filp, "sc%d: Pkts ok: %lld\n", sc_id, stats.pkt_ok_cnt);
+		}
+		if (mcs->hw->mcs_blks == 1) {
+			seq_printf(filp, "sc%d: Octets decrypted: %lld\n", sc_id,
+				   stats.octet_decrypt_cnt);
+			seq_printf(filp, "sc%d: Octets validated: %lld\n", sc_id,
+				   stats.octet_validate_cnt);
+		}
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_rx_sc_stats, mcs_rx_sc_stats_display, NULL);
+
+static int rvu_dbg_mcs_flowid_stats_display(struct seq_file *filp, void *unused, int dir)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_flowid_stats stats;
+	struct rsrc_bmap *map;
+	int flow_id;
+
+	seq_puts(filp, "\n Flowid stats\n");
+
+	if (dir == MCS_RX)
+		map = &mcs->rx.flow_ids;
+	else
+		map = &mcs->tx.flow_ids;
+
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(flow_id, map->bmap, mcs->hw->tcam_entries) {
+		mcs_get_flowid_stats(mcs, &stats, flow_id, dir);
+		seq_printf(filp, "Flowid%d: Hit:%lld\n", flow_id, stats.tcam_hit_cnt);
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+static int rvu_dbg_mcs_tx_flowid_stats_display(struct seq_file *filp, void *unused)
+{
+	return rvu_dbg_mcs_flowid_stats_display(filp, unused, MCS_TX);
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_tx_flowid_stats, mcs_tx_flowid_stats_display, NULL);
+
+static int rvu_dbg_mcs_rx_flowid_stats_display(struct seq_file *filp, void *unused)
+{
+	return rvu_dbg_mcs_flowid_stats_display(filp, unused, MCS_RX);
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_rx_flowid_stats, mcs_rx_flowid_stats_display, NULL);
+
+static int rvu_dbg_mcs_tx_secy_stats_display(struct seq_file *filp, void *unused)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_secy_stats stats;
+	struct rsrc_bmap *map;
+	int secy_id;
+
+	map = &mcs->tx.secy;
+	seq_puts(filp, "\n MCS TX secy stats\n");
+
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(secy_id, map->bmap, mcs->hw->secy_entries) {
+		mcs_get_tx_secy_stats(mcs, &stats, secy_id);
+		seq_printf(filp, "\n=======Secy%d======\n\n", secy_id);
+		seq_printf(filp, "secy%d: Ctrl bcast pkts: %lld\n", secy_id,
+			   stats.ctl_pkt_bcast_cnt);
+		seq_printf(filp, "secy%d: Ctrl Mcast pkts: %lld\n", secy_id,
+			   stats.ctl_pkt_mcast_cnt);
+		seq_printf(filp, "secy%d: Ctrl ucast pkts: %lld\n", secy_id,
+			   stats.ctl_pkt_ucast_cnt);
+		seq_printf(filp, "secy%d: Ctrl octets: %lld\n", secy_id, stats.ctl_octet_cnt);
+		seq_printf(filp, "secy%d: Unctrl bcast cnt: %lld\n", secy_id,
+			   stats.unctl_pkt_bcast_cnt);
+		seq_printf(filp, "secy%d: Unctrl mcast pkts: %lld\n", secy_id,
+			   stats.unctl_pkt_mcast_cnt);
+		seq_printf(filp, "secy%d: Unctrl ucast pkts: %lld\n", secy_id,
+			   stats.unctl_pkt_ucast_cnt);
+		seq_printf(filp, "secy%d: Unctrl octets: %lld\n", secy_id, stats.unctl_octet_cnt);
+		seq_printf(filp, "secy%d: Octet encrypted: %lld\n", secy_id,
+			   stats.octet_encrypted_cnt);
+		seq_printf(filp, "secy%d: octet protected: %lld\n", secy_id,
+			   stats.octet_protected_cnt);
+		seq_printf(filp, "secy%d: Pkts on active sa: %lld\n", secy_id,
+			   stats.pkt_noactivesa_cnt);
+		seq_printf(filp, "secy%d: Pkts too long: %lld\n", secy_id, stats.pkt_toolong_cnt);
+		seq_printf(filp, "secy%d: Pkts untagged: %lld\n", secy_id, stats.pkt_untagged_cnt);
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_tx_secy_stats, mcs_tx_secy_stats_display, NULL);
+
+static int rvu_dbg_mcs_rx_secy_stats_display(struct seq_file *filp, void *unused)
+{
+	struct mcs *mcs = filp->private;
+	struct mcs_secy_stats stats;
+	struct rsrc_bmap *map;
+	int secy_id;
+
+	map = &mcs->rx.secy;
+	seq_puts(filp, "\n MCS secy stats\n");
+
+	mutex_lock(&mcs->stats_lock);
+	for_each_set_bit(secy_id, map->bmap, mcs->hw->secy_entries) {
+		mcs_get_rx_secy_stats(mcs, &stats, secy_id);
+		seq_printf(filp, "\n=======Secy%d======\n\n", secy_id);
+		seq_printf(filp, "secy%d: Ctrl bcast pkts: %lld\n", secy_id,
+			   stats.ctl_pkt_bcast_cnt);
+		seq_printf(filp, "secy%d: Ctrl Mcast pkts: %lld\n", secy_id,
+			   stats.ctl_pkt_mcast_cnt);
+		seq_printf(filp, "secy%d: Ctrl ucast pkts: %lld\n", secy_id,
+			   stats.ctl_pkt_ucast_cnt);
+		seq_printf(filp, "secy%d: Ctrl octets: %lld\n", secy_id, stats.ctl_octet_cnt);
+		seq_printf(filp, "secy%d: Unctrl bcast cnt: %lld\n", secy_id,
+			   stats.unctl_pkt_bcast_cnt);
+		seq_printf(filp, "secy%d: Unctrl mcast pkts: %lld\n", secy_id,
+			   stats.unctl_pkt_mcast_cnt);
+		seq_printf(filp, "secy%d: Unctrl ucast pkts: %lld\n", secy_id,
+			   stats.unctl_pkt_ucast_cnt);
+		seq_printf(filp, "secy%d: Unctrl octets: %lld\n", secy_id, stats.unctl_octet_cnt);
+		seq_printf(filp, "secy%d: Octet decrypted: %lld\n", secy_id,
+			   stats.octet_decrypted_cnt);
+		seq_printf(filp, "secy%d: octet validated: %lld\n", secy_id,
+			   stats.octet_validated_cnt);
+		seq_printf(filp, "secy%d: Pkts on disable port: %lld\n", secy_id,
+			   stats.pkt_port_disabled_cnt);
+		seq_printf(filp, "secy%d: Octets validated: %lld\n", secy_id, stats.pkt_badtag_cnt);
+		seq_printf(filp, "secy%d: Octets validated: %lld\n", secy_id, stats.pkt_nosa_cnt);
+		seq_printf(filp, "secy%d: Pkts with nosaerror: %lld\n", secy_id,
+			   stats.pkt_nosaerror_cnt);
+		seq_printf(filp, "secy%d: Tagged ctrl pkts: %lld\n", secy_id,
+			   stats.pkt_tagged_ctl_cnt);
+		seq_printf(filp, "secy%d: Untaged pkts: %lld\n", secy_id, stats.pkt_untaged_cnt);
+		seq_printf(filp, "secy%d: Ctrl pkts: %lld\n", secy_id, stats.pkt_ctl_cnt);
+		if (mcs->hw->mcs_blks > 1)
+			seq_printf(filp, "secy%d: pkts notag: %lld\n", secy_id,
+				   stats.pkt_notag_cnt);
+	}
+	mutex_unlock(&mcs->stats_lock);
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(mcs_rx_secy_stats, mcs_rx_secy_stats_display, NULL);
+
+static void rvu_dbg_mcs_init(struct rvu *rvu)
+{
+	struct mcs *mcs;
+	char dname[10];
+	int i;
+
+	if (!rvu->mcs_blk_cnt)
+		return;
+
+	rvu->rvu_dbg.mcs_root = debugfs_create_dir("mcs", rvu->rvu_dbg.root);
+
+	for (i = 0; i < rvu->mcs_blk_cnt; i++) {
+		mcs = mcs_get_pdata(i);
+
+		sprintf(dname, "mcs%d", i);
+		rvu->rvu_dbg.mcs = debugfs_create_dir(dname,
+						      rvu->rvu_dbg.mcs_root);
+
+		rvu->rvu_dbg.mcs_rx = debugfs_create_dir("rx_stats", rvu->rvu_dbg.mcs);
+
+		debugfs_create_file("flowid", 0600, rvu->rvu_dbg.mcs_rx, mcs,
+				    &rvu_dbg_mcs_rx_flowid_stats_fops);
+
+		debugfs_create_file("secy", 0600, rvu->rvu_dbg.mcs_rx, mcs,
+				    &rvu_dbg_mcs_rx_secy_stats_fops);
+
+		debugfs_create_file("sc", 0600, rvu->rvu_dbg.mcs_rx, mcs,
+				    &rvu_dbg_mcs_rx_sc_stats_fops);
+
+		debugfs_create_file("sa", 0600, rvu->rvu_dbg.mcs_rx, mcs,
+				    &rvu_dbg_mcs_rx_sa_stats_fops);
+
+		debugfs_create_file("port", 0600, rvu->rvu_dbg.mcs_rx, mcs,
+				    &rvu_dbg_mcs_rx_port_stats_fops);
+
+		rvu->rvu_dbg.mcs_tx = debugfs_create_dir("tx_stats", rvu->rvu_dbg.mcs);
+
+		debugfs_create_file("flowid", 0600, rvu->rvu_dbg.mcs_tx, mcs,
+				    &rvu_dbg_mcs_tx_flowid_stats_fops);
+
+		debugfs_create_file("secy", 0600, rvu->rvu_dbg.mcs_tx, mcs,
+				    &rvu_dbg_mcs_tx_secy_stats_fops);
+
+		debugfs_create_file("sc", 0600, rvu->rvu_dbg.mcs_tx, mcs,
+				    &rvu_dbg_mcs_tx_sc_stats_fops);
+
+		debugfs_create_file("sa", 0600, rvu->rvu_dbg.mcs_tx, mcs,
+				    &rvu_dbg_mcs_tx_sa_stats_fops);
+
+		debugfs_create_file("port", 0600, rvu->rvu_dbg.mcs_tx, mcs,
+				    &rvu_dbg_mcs_tx_port_stats_fops);
+	}
+}
+
 #define LMT_MAPTBL_ENTRY_SIZE 16
 /* Dump LMTST map table */
 static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
@@ -248,7 +594,7 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	tbl_base = rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_MAP_BASE);
 
@@ -407,7 +753,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	/* Get the maximum width of a column */
 	lf_str_size = get_max_column_width(rvu);
@@ -534,6 +880,8 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 		sprintf(lmac, "LMAC%d", lmac_id);
 		seq_printf(filp, "%s\t0x%x\t\tNIX%d\t\t%s\t%s\n",
 			   dev_name(&pdev->dev), pcifunc, blkid, cgx, lmac);
+
+		pci_dev_put(pdev);
 	}
 	return 0;
 }
@@ -2220,6 +2568,7 @@ static int cgx_print_dmac_flt(struct seq_file *s, int lmac_id)
 		}
 	}
 
+	pci_dev_put(pdev);
 	return 0;
 }
 
@@ -2600,6 +2949,170 @@ static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(npc_mcam_rules, npc_mcam_show_rules, NULL);
 
+static int rvu_dbg_npc_exact_show_entries(struct seq_file *s, void *unused)
+{
+	struct npc_exact_table_entry *mem_entry[NPC_EXACT_TBL_MAX_WAYS] = { 0 };
+	struct npc_exact_table_entry *cam_entry;
+	struct npc_exact_table *table;
+	struct rvu *rvu = s->private;
+	int i, j;
+
+	u8 bitmap = 0;
+
+	table = rvu->hw->table;
+
+	mutex_lock(&table->lock);
+
+	/* Check if there is at least one entry in mem table */
+	if (!table->mem_tbl_entry_cnt)
+		goto dump_cam_table;
+
+	/* Print table headers */
+	seq_puts(s, "\n\tExact Match MEM Table\n");
+	seq_puts(s, "Index\t");
+
+	for (i = 0; i < table->mem_table.ways; i++) {
+		mem_entry[i] = list_first_entry_or_null(&table->lhead_mem_tbl_entry[i],
+							struct npc_exact_table_entry, list);
+
+		seq_printf(s, "Way-%d\t\t\t\t\t", i);
+	}
+
+	seq_puts(s, "\n");
+	for (i = 0; i < table->mem_table.ways; i++)
+		seq_puts(s, "\tChan  MAC                     \t");
+
+	seq_puts(s, "\n\n");
+
+	/* Print mem table entries */
+	for (i = 0; i < table->mem_table.depth; i++) {
+		bitmap = 0;
+		for (j = 0; j < table->mem_table.ways; j++) {
+			if (!mem_entry[j])
+				continue;
+
+			if (mem_entry[j]->index != i)
+				continue;
+
+			bitmap |= BIT(j);
+		}
+
+		/* No valid entries */
+		if (!bitmap)
+			continue;
+
+		seq_printf(s, "%d\t", i);
+		for (j = 0; j < table->mem_table.ways; j++) {
+			if (!(bitmap & BIT(j))) {
+				seq_puts(s, "nil\t\t\t\t\t");
+				continue;
+			}
+
+			seq_printf(s, "0x%x %pM\t\t\t", mem_entry[j]->chan,
+				   mem_entry[j]->mac);
+			mem_entry[j] = list_next_entry(mem_entry[j], list);
+		}
+		seq_puts(s, "\n");
+	}
+
+dump_cam_table:
+
+	if (!table->cam_tbl_entry_cnt)
+		goto done;
+
+	seq_puts(s, "\n\tExact Match CAM Table\n");
+	seq_puts(s, "index\tchan\tMAC\n");
+
+	/* Traverse cam table entries */
+	list_for_each_entry(cam_entry, &table->lhead_cam_tbl_entry, list) {
+		seq_printf(s, "%d\t0x%x\t%pM\n", cam_entry->index, cam_entry->chan,
+			   cam_entry->mac);
+	}
+
+done:
+	mutex_unlock(&table->lock);
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(npc_exact_entries, npc_exact_show_entries, NULL);
+
+static int rvu_dbg_npc_exact_show_info(struct seq_file *s, void *unused)
+{
+	struct npc_exact_table *table;
+	struct rvu *rvu = s->private;
+	int i;
+
+	table = rvu->hw->table;
+
+	seq_puts(s, "\n\tExact Table Info\n");
+	seq_printf(s, "Exact Match Feature : %s\n",
+		   rvu->hw->cap.npc_exact_match_enabled ? "enabled" : "disable");
+	if (!rvu->hw->cap.npc_exact_match_enabled)
+		return 0;
+
+	seq_puts(s, "\nMCAM Index\tMAC Filter Rules Count\n");
+	for (i = 0; i < table->num_drop_rules; i++)
+		seq_printf(s, "%d\t\t%d\n", i, table->cnt_cmd_rules[i]);
+
+	seq_puts(s, "\nMcam Index\tPromisc Mode Status\n");
+	for (i = 0; i < table->num_drop_rules; i++)
+		seq_printf(s, "%d\t\t%s\n", i, table->promisc_mode[i] ? "on" : "off");
+
+	seq_puts(s, "\n\tMEM Table Info\n");
+	seq_printf(s, "Ways : %d\n", table->mem_table.ways);
+	seq_printf(s, "Depth : %d\n", table->mem_table.depth);
+	seq_printf(s, "Mask : 0x%llx\n", table->mem_table.mask);
+	seq_printf(s, "Hash Mask : 0x%x\n", table->mem_table.hash_mask);
+	seq_printf(s, "Hash Offset : 0x%x\n", table->mem_table.hash_offset);
+
+	seq_puts(s, "\n\tCAM Table Info\n");
+	seq_printf(s, "Depth : %d\n", table->cam_table.depth);
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(npc_exact_info, npc_exact_show_info, NULL);
+
+static int rvu_dbg_npc_exact_drop_cnt(struct seq_file *s, void *unused)
+{
+	struct npc_exact_table *table;
+	struct rvu *rvu = s->private;
+	struct npc_key_field *field;
+	u16 chan, pcifunc;
+	int blkaddr, i;
+	u64 cfg, cam1;
+	char *str;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	table = rvu->hw->table;
+
+	field = &rvu->hw->mcam.rx_key_fields[NPC_CHAN];
+
+	seq_puts(s, "\n\t Exact Hit on drop status\n");
+	seq_puts(s, "\npcifunc\tmcam_idx\tHits\tchan\tstatus\n");
+
+	for (i = 0; i < table->num_drop_rules; i++) {
+		pcifunc = rvu_npc_exact_drop_rule_to_pcifunc(rvu, i);
+		cfg = rvu_read64(rvu, blkaddr, NPC_AF_MCAMEX_BANKX_CFG(i, 0));
+
+		/* channel will be always in keyword 0 */
+		cam1 = rvu_read64(rvu, blkaddr,
+				  NPC_AF_MCAMEX_BANKX_CAMX_W0(i, 0, 1));
+		chan = field->kw_mask[0] & cam1;
+
+		str = (cfg & 1) ? "enabled" : "disabled";
+
+		seq_printf(s, "0x%x\t%d\t\t%llu\t0x%x\t%s\n", pcifunc, i,
+			   rvu_read64(rvu, blkaddr,
+				      NPC_AF_MATCH_STATX(table->counter_idx[i])),
+			   chan, str);
+	}
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(npc_exact_drop_cnt, npc_exact_drop_cnt, NULL);
+
 static void rvu_dbg_npc_init(struct rvu *rvu)
 {
 	rvu->rvu_dbg.npc = debugfs_create_dir("npc", rvu->rvu_dbg.root);
@@ -2608,8 +3121,22 @@ static void rvu_dbg_npc_init(struct rvu *rvu)
 			    &rvu_dbg_npc_mcam_info_fops);
 	debugfs_create_file("mcam_rules", 0444, rvu->rvu_dbg.npc, rvu,
 			    &rvu_dbg_npc_mcam_rules_fops);
+
 	debugfs_create_file("rx_miss_act_stats", 0444, rvu->rvu_dbg.npc, rvu,
 			    &rvu_dbg_npc_rx_miss_act_fops);
+
+	if (!rvu->hw->cap.npc_exact_match_enabled)
+		return;
+
+	debugfs_create_file("exact_entries", 0444, rvu->rvu_dbg.npc, rvu,
+			    &rvu_dbg_npc_exact_entries_fops);
+
+	debugfs_create_file("exact_info", 0444, rvu->rvu_dbg.npc, rvu,
+			    &rvu_dbg_npc_exact_info_fops);
+
+	debugfs_create_file("exact_drop_cnt", 0444, rvu->rvu_dbg.npc, rvu,
+			    &rvu_dbg_npc_exact_drop_cnt_fops);
+
 }
 
 static int cpt_eng_sts_display(struct seq_file *filp, u8 eng_type)
@@ -2874,6 +3401,7 @@ create:
 	rvu_dbg_npc_init(rvu);
 	rvu_dbg_cpt_init(rvu, BLKADDR_CPT0);
 	rvu_dbg_cpt_init(rvu, BLKADDR_CPT1);
+	rvu_dbg_mcs_init(rvu);
 }
 
 void rvu_dbg_exit(struct rvu *rvu)

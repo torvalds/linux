@@ -82,9 +82,6 @@ install: scripts_unifdef
 		$(subst -j,-j$(NPROC),$(findstring -j,$(MAKEFLAGS))) \
 		$(INSTALL_PATH)/include
 
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
-
 define archhelp
   echo '  install	- Install library and headers to INSTALL_PATH/{lib,include}'
 endef

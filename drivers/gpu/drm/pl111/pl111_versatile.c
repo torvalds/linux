@@ -18,6 +18,8 @@
 #include <linux/regmap.h>
 #include <linux/vexpress.h>
 
+#include <drm/drm_fourcc.h>
+
 #include "pl111_versatile.h"
 #include "pl111_drm.h"
 
@@ -402,6 +404,7 @@ static int pl111_vexpress_clcd_init(struct device *dev, struct device_node *np,
 		if (of_device_is_compatible(child, "arm,pl111")) {
 			has_coretile_clcd = true;
 			ct_clcd = child;
+			of_node_put(child);
 			break;
 		}
 		if (of_device_is_compatible(child, "arm,hdlcd")) {

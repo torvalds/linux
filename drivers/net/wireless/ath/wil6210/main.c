@@ -1305,7 +1305,7 @@ void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len)
 			board_file = WIL_BOARD_FILE_NAME;
 	}
 
-	strlcpy(buf, board_file, len);
+	strscpy(buf, board_file, len);
 }
 
 static int wil_get_bl_info(struct wil6210_priv *wil)

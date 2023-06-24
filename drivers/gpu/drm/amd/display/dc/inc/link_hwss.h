@@ -37,9 +37,12 @@ struct dc_link;
 struct link_resource;
 struct pipe_ctx;
 struct encoder_set_dp_phy_pattern_param;
+struct link_mst_stream_allocation_table;
 
 struct link_hwss_ext {
-	/* function pointers below require check for NULL at all time
+	/* function pointers below may require to check for NULL if caller
+	 * considers missing implementation as expected in some cases or none
+	 * critical to be investigated immediately
 	 * *********************************************************************
 	 */
 	void (*set_hblank_min_symbol_width)(struct pipe_ctx *pipe_ctx,
@@ -52,16 +55,16 @@ struct link_hwss_ext {
 			enum signal_type signal,
 			enum clock_source_id clock_source,
 			const struct dc_link_settings *link_settings);
-	void (*disable_dp_link_output)(struct dc_link *link,
-			const struct link_resource *link_res,
-			enum signal_type signal);
 	void (*set_dp_link_test_pattern)(struct dc_link *link,
 			const struct link_resource *link_res,
 			struct encoder_set_dp_phy_pattern_param *tp_params);
 	void (*set_dp_lane_settings)(struct dc_link *link,
-		const struct link_resource *link_res,
-		const struct dc_link_settings *link_settings,
-		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
+			const struct link_resource *link_res,
+			const struct dc_link_settings *link_settings,
+			const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
+	void (*update_stream_allocation_table)(struct dc_link *link,
+			const struct link_resource *link_res,
+			const struct link_mst_stream_allocation_table *table);
 };
 
 struct link_hwss {
@@ -72,6 +75,10 @@ struct link_hwss {
 	 */
 	void (*setup_stream_encoder)(struct pipe_ctx *pipe_ctx);
 	void (*reset_stream_encoder)(struct pipe_ctx *pipe_ctx);
+	void (*setup_stream_attribute)(struct pipe_ctx *pipe_ctx);
+	void (*disable_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal);
 };
 #endif /* __DC_LINK_HWSS_H__ */
 

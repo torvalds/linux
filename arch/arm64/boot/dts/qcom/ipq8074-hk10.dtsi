@@ -7,11 +7,6 @@
 #include "ipq8074.dtsi"
 
 / {
-	#address-cells = <0x2>;
-	#size-cells = <0x2>;
-
-	interrupt-parent = <&intc>;
-
 	aliases {
 		serial0 = &blsp1_uart5;
 	};
@@ -29,7 +24,7 @@
 &blsp1_spi1 {
 	status = "ok";
 
-	m25p80@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
@@ -44,12 +39,12 @@
 
 &pcie0 {
 	status = "ok";
-	perst-gpio = <&tlmm 58 0x1>;
+	perst-gpios = <&tlmm 58 0x1>;
 };
 
 &pcie1 {
 	status = "ok";
-	perst-gpio = <&tlmm 61 0x1>;
+	perst-gpios = <&tlmm 61 0x1>;
 };
 
 &pcie_phy0 {

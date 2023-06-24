@@ -55,7 +55,7 @@ MODULE_DEVICE_TABLE(spi, st_uvis25_spi_id_table);
 static struct spi_driver st_uvis25_driver = {
 	.driver = {
 		.name = "st_uvis25_spi",
-		.pm = &st_uvis25_pm_ops,
+		.pm = pm_sleep_ptr(&st_uvis25_pm_ops),
 		.of_match_table = st_uvis25_spi_of_match,
 	},
 	.probe = st_uvis25_spi_probe,

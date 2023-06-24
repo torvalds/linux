@@ -1913,8 +1913,8 @@ static int wcd934x_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		slim_stream_unprepare(dai_data->sruntime);
 		slim_stream_disable(dai_data->sruntime);
+		slim_stream_unprepare(dai_data->sruntime);
 		break;
 	default:
 		break;
@@ -5847,6 +5847,7 @@ static const struct snd_soc_component_driver wcd934x_component_drv = {
 	.dapm_routes = wcd934x_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(wcd934x_audio_map),
 	.set_jack = wcd934x_codec_set_jack,
+	.endianness = 1,
 };
 
 static int wcd934x_codec_parse_data(struct wcd934x_codec *wcd)

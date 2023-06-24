@@ -7,19 +7,10 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
-#include <linux/of.h>
-#include <linux/of_mdio.h>
-#include <linux/of_platform.h>
-#include <linux/of_net.h>
 #include <linux/netdevice.h>
 #include <linux/sysfs.h>
-#include <linux/phy_fixed.h>
 #include <linux/ptp_classify.h>
-#include <linux/etherdevice.h>
 
 #include "dsa_priv.h"
 
@@ -467,46 +458,6 @@ struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
 }
 EXPORT_SYMBOL_GPL(dsa_port_from_netdev);
 
-int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct dsa_mac_addr *a;
-	int err = 0;
-
-	mutex_lock(&dp->addr_lists_lock);
-
-	list_for_each_entry(a, &dp->fdbs, list) {
-		err = cb(ds, port, a->addr, a->vid, a->db);
-		if (err)
-			break;
-	}
-
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(dsa_port_walk_fdbs);
-
-int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct dsa_mac_addr *a;
-	int err = 0;
-
-	mutex_lock(&dp->addr_lists_lock);
-
-	list_for_each_entry(a, &dp->mdbs, list) {
-		err = cb(ds, port, a->addr, a->vid, a->db);
-		if (err)
-			break;
-	}
-
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(dsa_port_walk_mdbs);
-
 bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b)
 {
 	if (a->type != b->type)
@@ -585,8 +536,16 @@ static int __init dsa_init_module(void)
 	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
 				THIS_MODULE);
 
+	rc = rtnl_link_register(&dsa_link_ops);
+	if (rc)
+		goto netlink_register_fail;
+
 	return 0;
 
+netlink_register_fail:
+	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
+	dsa_slave_unregister_notifier();
+	dev_remove_pack(&dsa_pack_type);
 register_notifier_fail:
 	destroy_workqueue(dsa_owq);
 
@@ -596,6 +555,7 @@ module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	rtnl_link_unregister(&dsa_link_ops);
 	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
 
 	dsa_slave_unregister_notifier();

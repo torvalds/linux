@@ -437,7 +437,7 @@ static int ceph_parse_deleg_inos(void **p, void *end,
 	ceph_decode_32_safe(p, end, sets, bad);
 	dout("got %u sets of delegated inodes\n", sets);
 	while (sets--) {
-		u64 start, len, ino;
+		u64 start, len;
 
 		ceph_decode_64_safe(p, end, start, bad);
 		ceph_decode_64_safe(p, end, len, bad);
@@ -449,14 +449,14 @@ static int ceph_parse_deleg_inos(void **p, void *end,
 			continue;
 		}
 		while (len--) {
-			int err = xa_insert(&s->s_delegated_inos, ino = start++,
+			int err = xa_insert(&s->s_delegated_inos, start++,
 					    DELEGATED_INO_AVAILABLE,
 					    GFP_KERNEL);
 			if (!err) {
 				dout("added delegated inode 0x%llx\n",
 				     start - 1);
 			} else if (err == -EBUSY) {
-				pr_warn("ceph: MDS delegated inode 0x%llx more than once.\n",
+				pr_warn("MDS delegated inode 0x%llx more than once.\n",
 					start - 1);
 			} else {
 				return err;
@@ -653,6 +653,79 @@ static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
 	if (!info->dir_entries)
 		return;
 	free_pages((unsigned long)info->dir_entries, get_order(info->dir_buf_size));
+}
+
+/*
+ * In async unlink case the kclient won't wait for the first reply
+ * from MDS and just drop all the links and unhash the dentry and then
+ * succeeds immediately.
+ *
+ * For any new create/link/rename,etc requests followed by using the
+ * same file names we must wait for the first reply of the inflight
+ * unlink request, or the MDS possibly will fail these following
+ * requests with -EEXIST if the inflight async unlink request was
+ * delayed for some reasons.
+ *
+ * And the worst case is that for the none async openc request it will
+ * successfully open the file if the CDentry hasn't been unlinked yet,
+ * but later the previous delayed async unlink request will remove the
+ * CDenty. That means the just created file is possiblly deleted later
+ * by accident.
+ *
+ * We need to wait for the inflight async unlink requests to finish
+ * when creating new files/directories by using the same file names.
+ */
+int ceph_wait_on_conflict_unlink(struct dentry *dentry)
+{
+	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
+	struct dentry *pdentry = dentry->d_parent;
+	struct dentry *udentry, *found = NULL;
+	struct ceph_dentry_info *di;
+	struct qstr dname;
+	u32 hash = dentry->d_name.hash;
+	int err;
+
+	dname.name = dentry->d_name.name;
+	dname.len = dentry->d_name.len;
+
+	rcu_read_lock();
+	hash_for_each_possible_rcu(fsc->async_unlink_conflict, di,
+				   hnode, hash) {
+		udentry = di->dentry;
+
+		spin_lock(&udentry->d_lock);
+		if (udentry->d_name.hash != hash)
+			goto next;
+		if (unlikely(udentry->d_parent != pdentry))
+			goto next;
+		if (!hash_hashed(&di->hnode))
+			goto next;
+
+		if (!test_bit(CEPH_DENTRY_ASYNC_UNLINK_BIT, &di->flags))
+			pr_warn("%s dentry %p:%pd async unlink bit is not set\n",
+				__func__, dentry, dentry);
+
+		if (!d_same_name(udentry, pdentry, &dname))
+			goto next;
+
+		spin_unlock(&udentry->d_lock);
+		found = dget(udentry);
+		break;
+next:
+		spin_unlock(&udentry->d_lock);
+	}
+	rcu_read_unlock();
+
+	if (likely(!found))
+		return 0;
+
+	dout("%s dentry %p:%pd conflict with old %p:%pd\n", __func__,
+	     dentry, dentry, found, found);
+
+	err = wait_on_bit(&di->flags, CEPH_DENTRY_ASYNC_UNLINK_BIT,
+			  TASK_KILLABLE);
+	dput(found);
+	return err;
 }
 
 
@@ -1220,14 +1293,17 @@ static int encode_supported_features(void **p, void *end)
 	if (count > 0) {
 		size_t i;
 		size_t size = FEATURE_BYTES(count);
+		unsigned long bit;
 
 		if (WARN_ON_ONCE(*p + 4 + size > end))
 			return -ERANGE;
 
 		ceph_encode_32(p, size);
 		memset(*p, 0, size);
-		for (i = 0; i < count; i++)
-			((unsigned char*)(*p))[i / 8] |= BIT(feature_bits[i] % 8);
+		for (i = 0; i < count; i++) {
+			bit = feature_bits[i];
+			((unsigned char *)(*p))[bit / 8] |= BIT(bit % 8);
+		}
 		*p += size;
 	} else {
 		if (WARN_ON_ONCE(*p + 4 > end))
@@ -1564,7 +1640,7 @@ int ceph_iterate_session_caps(struct ceph_mds_session *session,
 	p = session->s_caps.next;
 	while (p != &session->s_caps) {
 		cap = list_entry(p, struct ceph_cap, session_caps);
-		inode = igrab(&cap->ci->vfs_inode);
+		inode = igrab(&cap->ci->netfs.inode);
 		if (!inode) {
 			p = p->next;
 			continue;
@@ -1622,7 +1698,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	int iputs;
 
 	dout("removing cap %p, ci is %p, inode is %p\n",
-	     cap, ci, &ci->vfs_inode);
+	     cap, ci, &ci->netfs.inode);
 	spin_lock(&ci->i_ceph_lock);
 	iputs = ceph_purge_inode_cap(inode, cap, &invalidate);
 	spin_unlock(&ci->i_ceph_lock);
@@ -2242,6 +2318,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	INIT_LIST_HEAD(&req->r_unsafe_dir_item);
 	INIT_LIST_HEAD(&req->r_unsafe_target_item);
 	req->r_fmode = -1;
+	req->r_feature_needed = -1;
 	kref_init(&req->r_kref);
 	RB_CLEAR_NODE(&req->r_node);
 	INIT_LIST_HEAD(&req->r_wait);
@@ -2651,7 +2728,28 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 	struct ceph_mds_client *mdsc = session->s_mdsc;
 	struct ceph_mds_request_head_old *rhead;
 	struct ceph_msg *msg;
-	int flags = 0;
+	int flags = 0, max_retry;
+
+	/*
+	 * The type of 'r_attempts' in kernel 'ceph_mds_request'
+	 * is 'int', while in 'ceph_mds_request_head' the type of
+	 * 'num_retry' is '__u8'. So in case the request retries
+	 *  exceeding 256 times, the MDS will receive a incorrect
+	 *  retry seq.
+	 *
+	 * In this case it's ususally a bug in MDS and continue
+	 * retrying the request makes no sense.
+	 *
+	 * In future this could be fixed in ceph code, so avoid
+	 * using the hardcode here.
+	 */
+	max_retry = sizeof_field(struct ceph_mds_request_head, num_retry);
+	max_retry = 1 << (max_retry * BITS_PER_BYTE);
+	if (req->r_attempts >= max_retry) {
+		pr_warn_ratelimited("%s request tid %llu seq overflow\n",
+				    __func__, req->r_tid);
+		return -EMULTIHOP;
+	}
 
 	req->r_attempts++;
 	if (req->r_inode) {
@@ -2663,7 +2761,7 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 		else
 			req->r_sent_on_mseq = -1;
 	}
-	dout("prepare_send_request %p tid %lld %s (attempt %d)\n", req,
+	dout("%s %p tid %lld %s (attempt %d)\n", __func__, req,
 	     req->r_tid, ceph_mds_op_name(req->r_op), req->r_attempts);
 
 	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
@@ -2819,6 +2917,16 @@ static void __do_request(struct ceph_mds_client *mdsc,
 
 	dout("do_request mds%d session %p state %s\n", mds, session,
 	     ceph_session_state_name(session->s_state));
+
+	/*
+	 * The old ceph will crash the MDSs when see unknown OPs
+	 */
+	if (req->r_feature_needed > 0 &&
+	    !test_bit(req->r_feature_needed, &session->s_features)) {
+		err = -EOPNOTSUPP;
+		goto out_session;
+	}
+
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
 	    session->s_state != CEPH_MDS_SESSION_HUNG) {
 		/*
@@ -2862,6 +2970,64 @@ static void __do_request(struct ceph_mds_client *mdsc,
 
 	if (req->r_request_started == 0)   /* note request start time */
 		req->r_request_started = jiffies;
+
+	/*
+	 * For async create we will choose the auth MDS of frag in parent
+	 * directory to send the request and ususally this works fine, but
+	 * if the migrated the dirtory to another MDS before it could handle
+	 * it the request will be forwarded.
+	 *
+	 * And then the auth cap will be changed.
+	 */
+	if (test_bit(CEPH_MDS_R_ASYNC, &req->r_req_flags) && req->r_num_fwd) {
+		struct ceph_dentry_info *di = ceph_dentry(req->r_dentry);
+		struct ceph_inode_info *ci;
+		struct ceph_cap *cap;
+
+		/*
+		 * The request maybe handled very fast and the new inode
+		 * hasn't been linked to the dentry yet. We need to wait
+		 * for the ceph_finish_async_create(), which shouldn't be
+		 * stuck too long or fail in thoery, to finish when forwarding
+		 * the request.
+		 */
+		if (!d_inode(req->r_dentry)) {
+			err = wait_on_bit(&di->flags, CEPH_DENTRY_ASYNC_CREATE_BIT,
+					  TASK_KILLABLE);
+			if (err) {
+				mutex_lock(&req->r_fill_mutex);
+				set_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags);
+				mutex_unlock(&req->r_fill_mutex);
+				goto out_session;
+			}
+		}
+
+		ci = ceph_inode(d_inode(req->r_dentry));
+
+		spin_lock(&ci->i_ceph_lock);
+		cap = ci->i_auth_cap;
+		if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE && mds != cap->mds) {
+			dout("do_request session changed for auth cap %d -> %d\n",
+			     cap->session->s_mds, session->s_mds);
+
+			/* Remove the auth cap from old session */
+			spin_lock(&cap->session->s_cap_lock);
+			cap->session->s_nr_caps--;
+			list_del_init(&cap->session_caps);
+			spin_unlock(&cap->session->s_cap_lock);
+
+			/* Add the auth cap to the new session */
+			cap->mds = mds;
+			cap->session = session;
+			spin_lock(&session->s_cap_lock);
+			session->s_nr_caps++;
+			list_add_tail(&cap->session_caps, &session->s_caps);
+			spin_unlock(&session->s_cap_lock);
+
+			change_auth_cap_ses(ci, session);
+		}
+		spin_unlock(&ci->i_ceph_lock);
+	}
 
 	err = __send_request(session, req, false);
 
@@ -3265,6 +3431,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	int err = -EINVAL;
 	void *p = msg->front.iov_base;
 	void *end = p + msg->front.iov_len;
+	bool aborted = false;
 
 	ceph_decode_need(&p, end, 2*sizeof(u32), bad);
 	next_mds = ceph_decode_32(&p);
@@ -3273,16 +3440,41 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	mutex_lock(&mdsc->mutex);
 	req = lookup_get_request(mdsc, tid);
 	if (!req) {
+		mutex_unlock(&mdsc->mutex);
 		dout("forward tid %llu to mds%d - req dne\n", tid, next_mds);
-		goto out;  /* dup reply? */
+		return;  /* dup reply? */
 	}
 
 	if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
 		dout("forward tid %llu aborted, unregistering\n", tid);
 		__unregister_request(mdsc, req);
 	} else if (fwd_seq <= req->r_num_fwd) {
-		dout("forward tid %llu to mds%d - old seq %d <= %d\n",
-		     tid, next_mds, req->r_num_fwd, fwd_seq);
+		/*
+		 * The type of 'num_fwd' in ceph 'MClientRequestForward'
+		 * is 'int32_t', while in 'ceph_mds_request_head' the
+		 * type is '__u8'. So in case the request bounces between
+		 * MDSes exceeding 256 times, the client will get stuck.
+		 *
+		 * In this case it's ususally a bug in MDS and continue
+		 * bouncing the request makes no sense.
+		 *
+		 * In future this could be fixed in ceph code, so avoid
+		 * using the hardcode here.
+		 */
+		int max = sizeof_field(struct ceph_mds_request_head, num_fwd);
+		max = 1 << (max * BITS_PER_BYTE);
+		if (req->r_num_fwd >= max) {
+			mutex_lock(&req->r_fill_mutex);
+			req->r_err = -EMULTIHOP;
+			set_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags);
+			mutex_unlock(&req->r_fill_mutex);
+			aborted = true;
+			pr_warn_ratelimited("forward tid %llu seq overflow\n",
+					    tid);
+		} else {
+			dout("forward tid %llu to mds%d - old seq %d <= %d\n",
+			     tid, next_mds, req->r_num_fwd, fwd_seq);
+		}
 	} else {
 		/* resend. forward race not possible; mds would drop */
 		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
@@ -3294,9 +3486,12 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		put_request_session(req);
 		__do_request(mdsc, req);
 	}
-	ceph_mdsc_put_request(req);
-out:
 	mutex_unlock(&mdsc->mutex);
+
+	/* kick calling process */
+	if (aborted)
+		complete_request(mdsc, req);
+	ceph_mdsc_put_request(req);
 	return;
 
 bad:
@@ -3375,13 +3570,17 @@ static void handle_session(struct ceph_mds_session *session,
 	}
 
 	if (msg_version >= 5) {
-		u32 flags;
-		/* version >= 4, struct_v, struct_cv, len, metric_spec */
-	        ceph_decode_skip_n(&p, end, 2 + sizeof(u32) * 2, bad);
+		u32 flags, len;
+
+		/* version >= 4 */
+		ceph_decode_skip_16(&p, end, bad); /* struct_v, struct_cv */
+		ceph_decode_32_safe(&p, end, len, bad); /* len */
+		ceph_decode_skip_n(&p, end, len, bad); /* metric_spec */
+
 		/* version >= 5, flags   */
-                ceph_decode_32_safe(&p, end, flags, bad);
+		ceph_decode_32_safe(&p, end, flags, bad);
 		if (flags & CEPH_SESSION_BLOCKLISTED) {
-		        pr_warn("mds%d session blocklisted\n", session->s_mds);
+			pr_warn("mds%d session blocklisted\n", session->s_mds);
 			blocklisted = true;
 		}
 	}
@@ -3410,11 +3609,26 @@ static void handle_session(struct ceph_mds_session *session,
 	case CEPH_SESSION_OPEN:
 		if (session->s_state == CEPH_MDS_SESSION_RECONNECTING)
 			pr_info("mds%d reconnect success\n", session->s_mds);
-		session->s_state = CEPH_MDS_SESSION_OPEN;
-		session->s_features = features;
-		renewed_caps(mdsc, session, 0);
-		if (test_bit(CEPHFS_FEATURE_METRIC_COLLECT, &session->s_features))
-			metric_schedule_delayed(&mdsc->metric);
+
+		if (session->s_state == CEPH_MDS_SESSION_OPEN) {
+			pr_notice("mds%d is already opened\n", session->s_mds);
+		} else {
+			session->s_state = CEPH_MDS_SESSION_OPEN;
+			session->s_features = features;
+			renewed_caps(mdsc, session, 0);
+			if (test_bit(CEPHFS_FEATURE_METRIC_COLLECT,
+				     &session->s_features))
+				metric_schedule_delayed(&mdsc->metric);
+		}
+
+		/*
+		 * The connection maybe broken and the session in client
+		 * side has been reinitialized, need to update the seq
+		 * anyway.
+		 */
+		if (!session->s_seq && seq)
+			session->s_seq = seq;
+
 		wake = 1;
 		if (mdsc->stopping)
 			__close_session(mdsc, session);
@@ -4396,12 +4610,6 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 	memcpy((void *)(lease + 1) + 4,
 	       dentry->d_name.name, dentry->d_name.len);
 	spin_unlock(&dentry->d_lock);
-	/*
-	 * if this is a preemptive lease RELEASE, no need to
-	 * flush request stream, since the actual request will
-	 * soon follow.
-	 */
-	msg->more_to_follow = (action == CEPH_MDS_LEASE_RELEASE);
 
 	ceph_con_send(&session->s_con, msg);
 }
@@ -4696,15 +4904,17 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 }
 
 /*
- * wait for all write mds requests to flush.
+ * flush the mdlog and wait for all write mds requests to flush.
  */
-static void wait_unsafe_requests(struct ceph_mds_client *mdsc, u64 want_tid)
+static void flush_mdlog_and_wait_mdsc_unsafe_requests(struct ceph_mds_client *mdsc,
+						 u64 want_tid)
 {
 	struct ceph_mds_request *req = NULL, *nextreq;
+	struct ceph_mds_session *last_session = NULL;
 	struct rb_node *n;
 
 	mutex_lock(&mdsc->mutex);
-	dout("wait_unsafe_requests want %lld\n", want_tid);
+	dout("%s want %lld\n", __func__, want_tid);
 restart:
 	req = __get_oldest_req(mdsc);
 	while (req && req->r_tid <= want_tid) {
@@ -4716,14 +4926,32 @@ restart:
 			nextreq = NULL;
 		if (req->r_op != CEPH_MDS_OP_SETFILELOCK &&
 		    (req->r_op & CEPH_MDS_OP_WRITE)) {
+			struct ceph_mds_session *s = req->r_session;
+
+			if (!s) {
+				req = nextreq;
+				continue;
+			}
+
 			/* write op */
 			ceph_mdsc_get_request(req);
 			if (nextreq)
 				ceph_mdsc_get_request(nextreq);
+			s = ceph_get_mds_session(s);
 			mutex_unlock(&mdsc->mutex);
-			dout("wait_unsafe_requests  wait on %llu (want %llu)\n",
+
+			/* send flush mdlog request to MDS */
+			if (last_session != s) {
+				send_flush_mdlog(s);
+				ceph_put_mds_session(last_session);
+				last_session = s;
+			} else {
+				ceph_put_mds_session(s);
+			}
+			dout("%s wait on %llu (want %llu)\n", __func__,
 			     req->r_tid, want_tid);
 			wait_for_completion(&req->r_safe_completion);
+
 			mutex_lock(&mdsc->mutex);
 			ceph_mdsc_put_request(req);
 			if (!nextreq)
@@ -4738,7 +4966,8 @@ restart:
 		req = nextreq;
 	}
 	mutex_unlock(&mdsc->mutex);
-	dout("wait_unsafe_requests done\n");
+	ceph_put_mds_session(last_session);
+	dout("%s done\n", __func__);
 }
 
 void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
@@ -4767,7 +4996,7 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 	dout("sync want tid %lld flush_seq %lld\n",
 	     want_tid, want_flush);
 
-	wait_unsafe_requests(mdsc, want_tid);
+	flush_mdlog_and_wait_mdsc_unsafe_requests(mdsc, want_tid);
 	wait_caps_flush(mdsc, want_flush);
 }
 

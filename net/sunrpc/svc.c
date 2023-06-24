@@ -356,15 +356,21 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	}
 }
 
-/*
- * Use the mapping mode to choose a pool for a given CPU.
- * Used when enqueueing an incoming RPC.  Always returns
- * a non-NULL pool pointer.
+/**
+ * svc_pool_for_cpu - Select pool to run a thread on this cpu
+ * @serv: An RPC service
+ *
+ * Use the active CPU and the svc_pool_map's mode setting to
+ * select the svc thread pool to use. Once initialized, the
+ * svc_pool_map does not change.
+ *
+ * Return value:
+ *   A pointer to an svc_pool
  */
-struct svc_pool *
-svc_pool_for_cpu(struct svc_serv *serv, int cpu)
+struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 {
 	struct svc_pool_map *m = &svc_pool_map;
+	int cpu = raw_smp_processor_id();
 	unsigned int pidx = 0;
 
 	if (serv->sv_nrpools <= 1)
@@ -1199,7 +1205,7 @@ svc_generic_init_request(struct svc_rqst *rqstp,
 		goto err_bad_proc;
 
 	/* Initialize storage for argp and resp */
-	memset(rqstp->rq_argp, 0, procp->pc_argsize);
+	memset(rqstp->rq_argp, 0, procp->pc_argzero);
 	memset(rqstp->rq_resp, 0, procp->pc_ressize);
 
 	/* Bump per-procedure stats counter */
@@ -1238,10 +1244,10 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto err_short_len;
 
 	/* Will be turned off by GSS integrity and privacy services */
-	set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
+	__set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 	/* Will be turned off only when NFSv4 Sessions are used */
-	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
-	clear_bit(RQ_DROPME, &rqstp->rq_flags);
+	__set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
+	__clear_bit(RQ_DROPME, &rqstp->rq_flags);
 
 	svc_putu32(resv, rqstp->rq_xid);
 
@@ -1428,8 +1434,7 @@ svc_process(struct svc_rqst *rqstp)
 {
 	struct kvec		*argv = &rqstp->rq_arg.head[0];
 	struct kvec		*resv = &rqstp->rq_res.head[0];
-	struct svc_serv		*serv = rqstp->rq_server;
-	u32			dir;
+	__be32			dir;
 
 #if IS_ENABLED(CONFIG_FAIL_SUNRPC)
 	if (!fail_sunrpc.ignore_server_disconnect &&
@@ -1444,7 +1449,7 @@ svc_process(struct svc_rqst *rqstp)
 	rqstp->rq_next_page = &rqstp->rq_respages[1];
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
 	resv->iov_len = 0;
-	rqstp->rq_res.pages = rqstp->rq_respages + 1;
+	rqstp->rq_res.pages = rqstp->rq_next_page;
 	rqstp->rq_res.len = 0;
 	rqstp->rq_res.page_base = 0;
 	rqstp->rq_res.page_len = 0;
@@ -1452,18 +1457,17 @@ svc_process(struct svc_rqst *rqstp)
 	rqstp->rq_res.tail[0].iov_base = NULL;
 	rqstp->rq_res.tail[0].iov_len = 0;
 
-	dir  = svc_getnl(argv);
-	if (dir != 0) {
-		/* direction != CALL */
-		svc_printk(rqstp, "bad direction %d, dropping request\n", dir);
-		serv->sv_stats->rpcbadfmt++;
+	dir = svc_getu32(argv);
+	if (dir != rpc_call)
+		goto out_baddir;
+	if (!svc_process_common(rqstp, argv, resv))
 		goto out_drop;
-	}
+	return svc_send(rqstp);
 
-	/* Returns 1 for send, 0 for drop */
-	if (likely(svc_process_common(rqstp, argv, resv)))
-		return svc_send(rqstp);
-
+out_baddir:
+	svc_printk(rqstp, "bad direction 0x%08x, dropping request\n",
+		   be32_to_cpu(dir));
+	rqstp->rq_server->sv_stats->rpcbadfmt++;
 out_drop:
 	svc_drop(rqstp);
 	return 0;
@@ -1550,8 +1554,12 @@ out:
 EXPORT_SYMBOL_GPL(bc_svc_process);
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
-/*
- * Return (transport-specific) limit on the rpc payload.
+/**
+ * svc_max_payload - Return transport-specific limit on the RPC payload
+ * @rqstp: RPC transaction context
+ *
+ * Returns the maximum number of payload bytes the current transport
+ * allows.
  */
 u32 svc_max_payload(const struct svc_rqst *rqstp)
 {

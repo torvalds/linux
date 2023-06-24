@@ -32,8 +32,6 @@
 #define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 #define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
 
-#define PCH_GBE_TX_WEIGHT         64
-#define PCH_GBE_RX_WEIGHT         64
 #define PCH_GBE_RX_BUFFER_WRITE   16
 
 /* Initialize the wake-on-LAN settings */
@@ -1145,6 +1143,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 		buffer_info->dma = 0;
 		buffer_info->time_stamp = 0;
 		tx_ring->next_to_use = ring_num;
+		dev_kfree_skb_any(skb);
 		return;
 	}
 	buffer_info->mapped = true;
@@ -1469,7 +1468,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		   tx_desc->gbec_status, tx_desc->dma_status);
 
 	unused = PCH_GBE_DESC_UNUSED(tx_ring);
-	thresh = tx_ring->count - PCH_GBE_TX_WEIGHT;
+	thresh = tx_ring->count - NAPI_POLL_WEIGHT;
 	if ((tx_desc->gbec_status == DSC_INIT16) && (unused < thresh))
 	{  /* current marked clean, tx queue filling up, do extra clean */
 		int j, k;
@@ -1482,13 +1481,13 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 
 		/* current marked clean, scan for more that need cleaning. */
 		k = i;
-		for (j = 0; j < PCH_GBE_TX_WEIGHT; j++)
+		for (j = 0; j < NAPI_POLL_WEIGHT; j++)
 		{
 			tx_desc = PCH_GBE_TX_DESC(*tx_ring, k);
 			if (tx_desc->gbec_status != DSC_INIT16) break; /*found*/
 			if (++k >= tx_ring->count) k = 0;  /*increment, wrap*/
 		}
-		if (j < PCH_GBE_TX_WEIGHT) {
+		if (j < NAPI_POLL_WEIGHT) {
 			netdev_dbg(adapter->netdev,
 				   "clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
 				   unused, j, i, k, tx_ring->next_to_use,
@@ -1547,7 +1546,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
 
 		/* weight of a sort for tx, to avoid endless transmit cleanup */
-		if (cleaned_count++ == PCH_GBE_TX_WEIGHT) {
+		if (cleaned_count++ == NAPI_POLL_WEIGHT) {
 			cleaned = false;
 			break;
 		}
@@ -2461,6 +2460,7 @@ static void pch_gbe_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 
 	pch_gbe_phy_hw_reset(&adapter->hw);
+	pci_dev_put(adapter->ptp_pdev);
 
 	free_netdev(netdev);
 }
@@ -2518,8 +2518,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
-	netif_napi_add(netdev, &adapter->napi,
-		       pch_gbe_napi_poll, PCH_GBE_RX_WEIGHT);
+	netif_napi_add(netdev, &adapter->napi, pch_gbe_napi_poll);
 	netdev->hw_features = NETIF_F_RXCSUM |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features = netdev->hw_features;
@@ -2536,7 +2535,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	/* setup the private structure */
 	ret = pch_gbe_sw_init(adapter);
 	if (ret)
-		goto err_free_netdev;
+		goto err_put_dev;
 
 	/* Initialize PHY */
 	ret = pch_gbe_init_phy(adapter);
@@ -2594,6 +2593,8 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 err_free_adapter:
 	pch_gbe_phy_hw_reset(&adapter->hw);
+err_put_dev:
+	pci_dev_put(adapter->ptp_pdev);
 err_free_netdev:
 	free_netdev(netdev);
 	return ret;

@@ -594,7 +594,7 @@ static void serial_txx9_shutdown(struct uart_port *up)
 
 static void
 serial_txx9_set_termios(struct uart_port *up, struct ktermios *termios,
-		       struct ktermios *old)
+			const struct ktermios *old)
 {
 	unsigned int cval, fcr = 0;
 	unsigned long flags;
@@ -618,6 +618,8 @@ serial_txx9_set_termios(struct uart_port *up, struct ktermios *termios,
 	case CS6:	/* not supported */
 	case CS8:
 		cval |= TXX9_SILCR_UMODE_8BIT;
+		termios->c_cflag &= ~CSIZE;
+		termios->c_cflag |= CS8;
 		break;
 	}
 

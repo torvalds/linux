@@ -12,6 +12,7 @@
  *  i740fb by Patrick LERDA, v0.9
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -159,7 +160,7 @@ static int i740fb_setup_ddc_bus(struct fb_info *info)
 {
 	struct i740fb_par *par = info->par;
 
-	strlcpy(par->ddc_adapter.name, info->fix.id,
+	strscpy(par->ddc_adapter.name, info->fix.id,
 		sizeof(par->ddc_adapter.name));
 	par->ddc_adapter.owner		= THIS_MODULE;
 	par->ddc_adapter.class		= I2C_CLASS_DDC;
@@ -400,7 +401,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 	u32 xres, right, hslen, left, xtotal;
 	u32 yres, lower, vslen, upper, ytotal;
 	u32 vxres, xoffset, vyres, yoffset;
-	u32 bpp, base, dacspeed24, mem;
+	u32 bpp, base, dacspeed24, mem, freq;
 	u8 r7;
 	int i;
 
@@ -643,7 +644,12 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 	par->atc[VGA_ATC_OVERSCAN] = 0;
 
 	/* Calculate VCLK that most closely matches the requested dot clock */
-	i740_calc_vclk((((u32)1e9) / var->pixclock) * (u32)(1e3), par);
+	freq = (((u32)1e9) / var->pixclock) * (u32)(1e3);
+	if (freq < I740_RFREQ_FIX) {
+		fb_dbg(info, "invalid pixclock\n");
+		freq = I740_RFREQ_FIX;
+	}
+	i740_calc_vclk(freq, par);
 
 	/* Since we program the clocks ourselves, always use VCLK2. */
 	par->misc |= 0x0C;
@@ -1007,6 +1013,10 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int ret, tmp;
 	bool found = false;
 	u8 *edid;
+
+	ret = aperture_remove_conflicting_pci_devices(dev, "i740fb");
+	if (ret)
+		return ret;
 
 	info = framebuffer_alloc(sizeof(struct i740fb_par), &(dev->dev));
 	if (!info)

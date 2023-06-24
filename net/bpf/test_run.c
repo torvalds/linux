@@ -551,8 +551,13 @@ struct sock * noinline bpf_kfunc_call_test3(struct sock *sk)
 	return sk;
 }
 
+struct prog_test_member1 {
+	int a;
+};
+
 struct prog_test_member {
-	u64 c;
+	struct prog_test_member1 m;
+	int c;
 };
 
 struct prog_test_ref_kfunc {
@@ -560,29 +565,88 @@ struct prog_test_ref_kfunc {
 	int b;
 	struct prog_test_member memb;
 	struct prog_test_ref_kfunc *next;
+	refcount_t cnt;
 };
 
 static struct prog_test_ref_kfunc prog_test_struct = {
 	.a = 42,
 	.b = 108,
 	.next = &prog_test_struct,
+	.cnt = REFCOUNT_INIT(1),
 };
 
 noinline struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
 {
-	/* randomly return NULL */
-	if (get_jiffies_64() % 2)
-		return NULL;
+	refcount_inc(&prog_test_struct.cnt);
 	return &prog_test_struct;
+}
+
+noinline struct prog_test_member *
+bpf_kfunc_call_memb_acquire(void)
+{
+	WARN_ON_ONCE(1);
+	return NULL;
 }
 
 noinline void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 {
+	if (!p)
+		return;
+
+	refcount_dec(&p->cnt);
 }
 
 noinline void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 {
+}
+
+noinline void bpf_kfunc_call_memb1_release(struct prog_test_member1 *p)
+{
+	WARN_ON_ONCE(1);
+}
+
+static int *__bpf_kfunc_call_test_get_mem(struct prog_test_ref_kfunc *p, const int size)
+{
+	if (size > 2 * sizeof(int))
+		return NULL;
+
+	return (int *)p;
+}
+
+noinline int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p, const int rdwr_buf_size)
+{
+	return __bpf_kfunc_call_test_get_mem(p, rdwr_buf_size);
+}
+
+noinline int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size)
+{
+	return __bpf_kfunc_call_test_get_mem(p, rdonly_buf_size);
+}
+
+/* the next 2 ones can't be really used for testing expect to ensure
+ * that the verifier rejects the call.
+ * Acquire functions must return struct pointers, so these ones are
+ * failing.
+ */
+noinline int *bpf_kfunc_call_test_acq_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size)
+{
+	return __bpf_kfunc_call_test_get_mem(p, rdonly_buf_size);
+}
+
+noinline void bpf_kfunc_call_int_mem_release(int *p)
+{
+}
+
+noinline struct prog_test_ref_kfunc *
+bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **pp, int a, int b)
+{
+	struct prog_test_ref_kfunc *p = READ_ONCE(*pp);
+
+	if (!p)
+		return NULL;
+	refcount_inc(&p->cnt);
+	return p;
 }
 
 struct prog_test_pass1 {
@@ -659,40 +723,44 @@ noinline void bpf_kfunc_call_test_mem_len_fail2(u64 *mem, int len)
 {
 }
 
+noinline void bpf_kfunc_call_test_ref(struct prog_test_ref_kfunc *p)
+{
+}
+
+noinline void bpf_kfunc_call_test_destructive(void)
+{
+}
+
 __diag_pop();
 
 ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
 
-BTF_SET_START(test_sk_check_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test1)
-BTF_ID(func, bpf_kfunc_call_test2)
-BTF_ID(func, bpf_kfunc_call_test3)
-BTF_ID(func, bpf_kfunc_call_test_acquire)
-BTF_ID(func, bpf_kfunc_call_test_release)
-BTF_ID(func, bpf_kfunc_call_memb_release)
-BTF_ID(func, bpf_kfunc_call_test_pass_ctx)
-BTF_ID(func, bpf_kfunc_call_test_pass1)
-BTF_ID(func, bpf_kfunc_call_test_pass2)
-BTF_ID(func, bpf_kfunc_call_test_fail1)
-BTF_ID(func, bpf_kfunc_call_test_fail2)
-BTF_ID(func, bpf_kfunc_call_test_fail3)
-BTF_ID(func, bpf_kfunc_call_test_mem_len_pass1)
-BTF_ID(func, bpf_kfunc_call_test_mem_len_fail1)
-BTF_ID(func, bpf_kfunc_call_test_mem_len_fail2)
-BTF_SET_END(test_sk_check_kfunc_ids)
-
-BTF_SET_START(test_sk_acquire_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_acquire)
-BTF_SET_END(test_sk_acquire_kfunc_ids)
-
-BTF_SET_START(test_sk_release_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_release)
-BTF_ID(func, bpf_kfunc_call_memb_release)
-BTF_SET_END(test_sk_release_kfunc_ids)
-
-BTF_SET_START(test_sk_ret_null_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_acquire)
-BTF_SET_END(test_sk_ret_null_kfunc_ids)
+BTF_SET8_START(test_sk_check_kfunc_ids)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test3)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_acquire, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_memb_acquire, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_memb_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_memb1_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_get_rdwr_mem, KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_get_rdonly_mem, KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_acq_rdonly_mem, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_int_mem_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_kptr_get, KF_ACQUIRE | KF_RET_NULL | KF_KPTR_GET)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass_ctx)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail3)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_pass1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
+BTF_SET8_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
 			   u32 size, u32 headroom, u32 tailroom)
@@ -706,6 +774,7 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
 	if (user_size > size)
 		return ERR_PTR(-EMSGSIZE);
 
+	size = SKB_DATA_ALIGN(size);
 	data = kzalloc(size + headroom + tailroom, GFP_USER);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
@@ -911,6 +980,9 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 {
 	struct qdisc_skb_cb *cb = (struct qdisc_skb_cb *)skb->cb;
 
+	if (!skb->len)
+		return -EINVAL;
+
 	if (!__skb)
 		return 0;
 
@@ -968,7 +1040,7 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 		cb->pkt_len = skb->len;
 	} else {
 		if (__skb->wire_len < skb->len ||
-		    __skb->wire_len > GSO_MAX_SIZE)
+		    __skb->wire_len > GSO_LEGACY_MAX_SIZE)
 			return -EINVAL;
 		cb->pkt_len = __skb->wire_len;
 	}
@@ -1376,9 +1448,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	void *data;
 	int ret;
 
-	if (prog->type != BPF_PROG_TYPE_FLOW_DISSECTOR)
-		return -EINVAL;
-
 	if (kattr->test.flags || kattr->test.cpu || kattr->test.batch_size)
 		return -EINVAL;
 
@@ -1442,9 +1511,6 @@ int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kat
 	struct bpf_sk_lookup *user_ctx;
 	u32 retval, duration;
 	int ret = -EINVAL;
-
-	if (prog->type != BPF_PROG_TYPE_SK_LOOKUP)
-		return -EINVAL;
 
 	if (kattr->test.flags || kattr->test.cpu || kattr->test.batch_size)
 		return -EINVAL;
@@ -1579,15 +1645,35 @@ out:
 }
 
 static const struct btf_kfunc_id_set bpf_prog_test_kfunc_set = {
-	.owner        = THIS_MODULE,
-	.check_set    = &test_sk_check_kfunc_ids,
-	.acquire_set  = &test_sk_acquire_kfunc_ids,
-	.release_set  = &test_sk_release_kfunc_ids,
-	.ret_null_set = &test_sk_ret_null_kfunc_ids,
+	.owner = THIS_MODULE,
+	.set   = &test_sk_check_kfunc_ids,
 };
+
+BTF_ID_LIST(bpf_prog_test_dtor_kfunc_ids)
+BTF_ID(struct, prog_test_ref_kfunc)
+BTF_ID(func, bpf_kfunc_call_test_release)
+BTF_ID(struct, prog_test_member)
+BTF_ID(func, bpf_kfunc_call_memb_release)
 
 static int __init bpf_prog_test_run_init(void)
 {
-	return register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_prog_test_kfunc_set);
+	const struct btf_id_dtor_kfunc bpf_prog_test_dtor_kfunc[] = {
+		{
+		  .btf_id       = bpf_prog_test_dtor_kfunc_ids[0],
+		  .kfunc_btf_id = bpf_prog_test_dtor_kfunc_ids[1]
+		},
+		{
+		  .btf_id	= bpf_prog_test_dtor_kfunc_ids[2],
+		  .kfunc_btf_id = bpf_prog_test_dtor_kfunc_ids[3],
+		},
+	};
+	int ret;
+
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_prog_test_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_prog_test_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &bpf_prog_test_kfunc_set);
+	return ret ?: register_btf_id_dtor_kfuncs(bpf_prog_test_dtor_kfunc,
+						  ARRAY_SIZE(bpf_prog_test_dtor_kfunc),
+						  THIS_MODULE);
 }
 late_initcall(bpf_prog_test_run_init);

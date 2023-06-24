@@ -696,7 +696,7 @@ int cypress_init(struct psmouse *psmouse)
 err_exit:
 	/*
 	 * Reset Cypress Trackpad as a standard mouse. Then
-	 * let psmouse driver commmunicating with it as default PS2 mouse.
+	 * let psmouse driver communicating with it as default PS2 mouse.
 	 */
 	cypress_reset(psmouse);
 

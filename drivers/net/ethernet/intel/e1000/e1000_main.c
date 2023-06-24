@@ -1012,7 +1012,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->netdev_ops = &e1000_netdev_ops;
 	e1000_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-	netif_napi_add(netdev, &adapter->napi, e1000_clean, 64);
+	netif_napi_add(netdev, &adapter->napi, e1000_clean);
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
@@ -2708,7 +2708,7 @@ static int e1000_tso(struct e1000_adapter *adapter,
 		if (err < 0)
 			return err;
 
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		mss = skb_shinfo(skb)->gso_size;
 		if (protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
@@ -3139,7 +3139,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		max_per_txd = min(mss << 2, max_per_txd);
 		max_txd_pwr = fls(max_per_txd) - 1;
 
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		if (skb->data_len && hdr_len == len) {
 			switch (hw->mac_type) {
 			case e1000_82544: {

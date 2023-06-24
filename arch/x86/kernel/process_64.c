@@ -553,6 +553,7 @@ void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp, bool x32)
  * Kprobes not supported here. Set the probe on schedule instead.
  * Function graph tracer not supported too.
  */
+__no_kmsan_checks
 __visible __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
@@ -844,7 +845,7 @@ SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 
 	ret = do_arch_prctl_64(current, option, arg2);
 	if (ret == -EINVAL)
-		ret = do_arch_prctl_common(current, option, arg2);
+		ret = do_arch_prctl_common(option, arg2);
 
 	return ret;
 }
@@ -852,7 +853,7 @@ SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 #ifdef CONFIG_IA32_EMULATION
 COMPAT_SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 {
-	return do_arch_prctl_common(current, option, arg2);
+	return do_arch_prctl_common(option, arg2);
 }
 #endif
 

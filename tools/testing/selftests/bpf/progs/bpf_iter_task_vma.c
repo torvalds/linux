@@ -20,6 +20,8 @@ char _license[] SEC("license") = "GPL";
 #define D_PATH_BUF_SIZE 1024
 char d_path_buf[D_PATH_BUF_SIZE] = {};
 __u32 pid = 0;
+__u32 one_task = 0;
+__u32 one_task_error = 0;
 
 SEC("iter/task_vma") int proc_maps(struct bpf_iter__task_vma *ctx)
 {
@@ -33,8 +35,11 @@ SEC("iter/task_vma") int proc_maps(struct bpf_iter__task_vma *ctx)
 		return 0;
 
 	file = vma->vm_file;
-	if (task->tgid != pid)
+	if (task->tgid != pid) {
+		if (one_task)
+			one_task_error = 1;
 		return 0;
+	}
 	perm_str[0] = (vma->vm_flags & VM_READ) ? 'r' : '-';
 	perm_str[1] = (vma->vm_flags & VM_WRITE) ? 'w' : '-';
 	perm_str[2] = (vma->vm_flags & VM_EXEC) ? 'x' : '-';

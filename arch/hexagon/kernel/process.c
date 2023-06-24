@@ -50,9 +50,11 @@ void arch_cpu_idle(void)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct thread_info *ti = task_thread_info(p);
 	struct hexagon_switch_stack *ss;
 	struct pt_regs *childregs;
@@ -73,11 +75,11 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 						    sizeof(*ss));
 	ss->lr = (unsigned long)ret_from_fork;
 	p->thread.switch_sp = ss;
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* r24 <- fn, r25 <- arg */
-		ss->r24 = usp;
-		ss->r25 = arg;
+		ss->r24 = (unsigned long)args->fn;
+		ss->r25 = (unsigned long)args->fn_arg;
 		pt_set_kmode(childregs);
 		return 0;
 	}
@@ -108,13 +110,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 	 */
 
 	return 0;
-}
-
-/*
- * Release any architecture-specific resources locked by thread
- */
-void release_thread(struct task_struct *dead_task)
-{
 }
 
 /*

@@ -1443,7 +1443,7 @@ void gserial_resume(struct gserial *gser)
 }
 EXPORT_SYMBOL_GPL(gserial_resume);
 
-static int userial_init(void)
+static int __init userial_init(void)
 {
 	struct tty_driver *driver;
 	unsigned			i;
@@ -1496,7 +1496,7 @@ fail:
 }
 module_init(userial_init);
 
-static void userial_cleanup(void)
+static void __exit userial_cleanup(void)
 {
 	tty_unregister_driver(gs_tty_driver);
 	tty_driver_kref_put(gs_tty_driver);

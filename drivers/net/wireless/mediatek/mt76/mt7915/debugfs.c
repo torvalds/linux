@@ -23,9 +23,9 @@ mt7915_implicit_txbf_set(void *data, u64 val)
 {
 	struct mt7915_dev *dev = data;
 
-	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
-		return -EBUSY;
-
+	/* The existing connected stations shall reconnect to apply
+	 * new implicit txbf configuration.
+	 */
 	dev->ibf = !!val;
 
 	return mt7915_mcu_set_txbf(dev, MT_BF_TYPE_UPDATE);
@@ -44,35 +44,113 @@ mt7915_implicit_txbf_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_implicit_txbf, mt7915_implicit_txbf_get,
 			 mt7915_implicit_txbf_set, "%lld\n");
 
-/* test knob of system layer 1/2 error recovery */
-static int mt7915_ser_trigger_set(void *data, u64 val)
+/* test knob of system error recovery */
+static ssize_t
+mt7915_fw_ser_set(struct file *file, const char __user *user_buf,
+		  size_t count, loff_t *ppos)
 {
-	enum {
-		SER_SET_RECOVER_L1 = 1,
-		SER_SET_RECOVER_L2,
-		SER_ENABLE = 2,
-		SER_RECOVER
-	};
-	struct mt7915_dev *dev = data;
+	struct mt7915_phy *phy = file->private_data;
+	struct mt7915_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	char buf[16];
 	int ret = 0;
+	u16 val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	if (count && buf[count - 1] == '\n')
+		buf[count - 1] = '\0';
+	else
+		buf[count] = '\0';
+
+	if (kstrtou16(buf, 0, &val))
+		return -EINVAL;
 
 	switch (val) {
+	case SER_QUERY:
+		/* grab firmware SER stats */
+		ret = mt7915_mcu_set_ser(dev, 0, 0, ext_phy);
+		break;
 	case SER_SET_RECOVER_L1:
 	case SER_SET_RECOVER_L2:
-		ret = mt7915_mcu_set_ser(dev, SER_ENABLE, BIT(val), 0);
+	case SER_SET_RECOVER_L3_RX_ABORT:
+	case SER_SET_RECOVER_L3_TX_ABORT:
+	case SER_SET_RECOVER_L3_TX_DISABLE:
+	case SER_SET_RECOVER_L3_BF:
+		ret = mt7915_mcu_set_ser(dev, SER_ENABLE, BIT(val), ext_phy);
 		if (ret)
 			return ret;
 
-		return mt7915_mcu_set_ser(dev, SER_RECOVER, val, 0);
+		ret = mt7915_mcu_set_ser(dev, SER_RECOVER, val, ext_phy);
+		break;
 	default:
 		break;
 	}
 
+	return ret ? ret : count;
+}
+
+static ssize_t
+mt7915_fw_ser_get(struct file *file, char __user *user_buf,
+		  size_t count, loff_t *ppos)
+{
+	struct mt7915_phy *phy = file->private_data;
+	struct mt7915_dev *dev = phy->dev;
+	char *buff;
+	int desc = 0;
+	ssize_t ret;
+	static const size_t bufsz = 400;
+
+	buff = kmalloc(bufsz, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_STATUS        = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_SER_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PLE_ERR       = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PLE_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PLE_ERR_1     = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PLE1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PLE_ERR_AMSDU = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PLE_AMSDU_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PSE_ERR       = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PSE_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PSE_ERR_1     = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PSE1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR6_B0 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN0_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR6_B1 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR7_B0 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN0_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR7_B1 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN1_STATS));
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	kfree(buff);
 	return ret;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_ser_trigger, NULL,
-			 mt7915_ser_trigger_set, "%lld\n");
+static const struct file_operations mt7915_fw_ser_ops = {
+	.write = mt7915_fw_ser_set,
+	.read = mt7915_fw_ser_get,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
 
 static int
 mt7915_radar_trigger(void *data, u64 val)
@@ -95,7 +173,7 @@ mt7915_muru_debug_set(void *data, u64 val)
 	struct mt7915_dev *dev = data;
 
 	dev->muru_debug = val;
-	mt7915_mcu_muru_debug_set(dev, data);
+	mt7915_mcu_muru_debug_set(dev, dev->muru_debug);
 
 	return 0;
 }
@@ -369,20 +447,20 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
 	bool tx, rx, en;
 	int ret;
 
-	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
+	dev->fw.debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
 
-	if (dev->fw_debug_bin)
+	if (dev->fw.debug_bin)
 		val = 16;
 	else
-		val = dev->fw_debug_wm;
+		val = dev->fw.debug_wm;
 
-	tx = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(1));
-	rx = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(2));
-	en = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(0));
+	tx = dev->fw.debug_wm || (dev->fw.debug_bin & BIT(1));
+	rx = dev->fw.debug_wm || (dev->fw.debug_bin & BIT(2));
+	en = dev->fw.debug_wm || (dev->fw.debug_bin & BIT(0));
 
 	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, val);
 	if (ret)
-		return ret;
+		goto out;
 
 	for (debug = DEBUG_TXCMD; debug <= DEBUG_RPT_RX; debug++) {
 		if (debug == DEBUG_RPT_RX)
@@ -392,16 +470,20 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
 
 		ret = mt7915_mcu_fw_dbg_ctrl(dev, debug, val);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	/* WM CPU info record control */
 	mt76_clear(dev, MT_CPU_UTIL_CTRL, BIT(0));
-	mt76_wr(dev, MT_DIC_CMD_REG_CMD, BIT(2) | BIT(13) | !dev->fw_debug_wm);
+	mt76_wr(dev, MT_DIC_CMD_REG_CMD, BIT(2) | BIT(13) | !dev->fw.debug_wm);
 	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_MASK_CLR_ADDR, BIT(5));
 	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_SOFT_ADDR, BIT(5));
 
-	return 0;
+out:
+	if (ret)
+		dev->fw.debug_wm = 0;
+
+	return ret;
 }
 
 static int
@@ -409,7 +491,7 @@ mt7915_fw_debug_wm_get(void *data, u64 *val)
 {
 	struct mt7915_dev *dev = data;
 
-	*val = dev->fw_debug_wm;
+	*val = dev->fw.debug_wm;
 
 	return 0;
 }
@@ -423,14 +505,19 @@ mt7915_fw_debug_wa_set(void *data, u64 val)
 	struct mt7915_dev *dev = data;
 	int ret;
 
-	dev->fw_debug_wa = val ? MCU_FW_LOG_TO_HOST : 0;
+	dev->fw.debug_wa = val ? MCU_FW_LOG_TO_HOST : 0;
 
-	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, dev->fw_debug_wa);
+	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, dev->fw.debug_wa);
 	if (ret)
-		return ret;
+		goto out;
 
-	return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET), MCU_WA_PARAM_PDMA_RX,
-				 !!dev->fw_debug_wa, 0);
+	ret = mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+				MCU_WA_PARAM_PDMA_RX, !!dev->fw.debug_wa, 0);
+out:
+	if (ret)
+		dev->fw.debug_wa = 0;
+
+	return ret;
 }
 
 static int
@@ -438,7 +525,7 @@ mt7915_fw_debug_wa_get(void *data, u64 *val)
 {
 	struct mt7915_dev *dev = data;
 
-	*val = dev->fw_debug_wa;
+	*val = dev->fw.debug_wa;
 
 	return 0;
 }
@@ -485,11 +572,11 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
 	if (!dev->relay_fwlog)
 		return -ENOMEM;
 
-	dev->fw_debug_bin = val;
+	dev->fw.debug_bin = val;
 
 	relay_reset(dev->relay_fwlog);
 
-	return mt7915_fw_debug_wm_set(dev, dev->fw_debug_wm);
+	return mt7915_fw_debug_wm_set(dev, dev->fw.debug_wm);
 }
 
 static int
@@ -497,7 +584,7 @@ mt7915_fw_debug_bin_get(void *data, u64 *val)
 {
 	struct mt7915_dev *dev = data;
 
-	*val = dev->fw_debug_bin;
+	*val = dev->fw.debug_bin;
 
 	return 0;
 }
@@ -510,7 +597,13 @@ mt7915_fw_util_wm_show(struct seq_file *file, void *data)
 {
 	struct mt7915_dev *dev = file->private;
 
-	if (dev->fw_debug_wm) {
+	seq_printf(file, "Program counter: 0x%x\n", mt76_rr(dev, MT_WM_MCU_PC));
+	seq_printf(file, "Exception state: 0x%x\n",
+		   is_mt7915(&dev->mt76) ?
+		   (u32)mt76_get_field(dev, MT_FW_EXCEPTION, GENMASK(15, 8)) :
+		   (u32)mt76_get_field(dev, MT_FW_EXCEPTION, GENMASK(7, 0)));
+
+	if (dev->fw.debug_wm) {
 		seq_printf(file, "Busy: %u%%  Peak busy: %u%%\n",
 			   mt76_rr(dev, MT_CPU_UTIL_BUSY_PCT),
 			   mt76_rr(dev, MT_CPU_UTIL_PEAK_BUSY_PCT));
@@ -529,7 +622,9 @@ mt7915_fw_util_wa_show(struct seq_file *file, void *data)
 {
 	struct mt7915_dev *dev = file->private;
 
-	if (dev->fw_debug_wa)
+	seq_printf(file, "Program counter: 0x%x\n", mt76_rr(dev, MT_WA_MCU_PC));
+
+	if (dev->fw.debug_wa)
 		return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(QUERY),
 					 MCU_WA_PARAM_CPU_UTIL, 0, 0);
 
@@ -867,6 +962,37 @@ mt7915_twt_stats(struct seq_file *s, void *data)
 	return 0;
 }
 
+/* The index of RF registers use the generic regidx, combined with two parts:
+ * WF selection [31:28] and offset [27:0].
+ */
+static int
+mt7915_rf_regval_get(void *data, u64 *val)
+{
+	struct mt7915_dev *dev = data;
+	u32 regval;
+	int ret;
+
+	ret = mt7915_mcu_rf_regval(dev, dev->mt76.debugfs_reg, &regval, false);
+	if (ret)
+		return ret;
+
+	*val = regval;
+
+	return 0;
+}
+
+static int
+mt7915_rf_regval_set(void *data, u64 val)
+{
+	struct mt7915_dev *dev = data;
+	u32 val32 = val;
+
+	return mt7915_mcu_rf_regval(dev, dev->mt76.debugfs_reg, &val32, true);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7915_rf_regval_get,
+			 mt7915_rf_regval_set, "0x%08llx\n");
+
 int mt7915_init_debugfs(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
@@ -884,6 +1010,7 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 	debugfs_create_file("xmit-queues", 0400, dir, phy,
 			    &mt7915_xmit_queues_fops);
 	debugfs_create_file("tx_stats", 0400, dir, phy, &mt7915_tx_stats_fops);
+	debugfs_create_file("fw_ser", 0600, dir, phy, &mt7915_fw_ser_ops);
 	debugfs_create_file("fw_debug_wm", 0600, dir, dev, &fops_fw_debug_wm);
 	debugfs_create_file("fw_debug_wa", 0600, dir, dev, &fops_fw_debug_wa);
 	debugfs_create_file("fw_debug_bin", 0600, dir, dev, &fops_fw_debug_bin);
@@ -897,7 +1024,8 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 			    &mt7915_rate_txpower_fops);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
 				    mt7915_twt_stats);
-	debugfs_create_file("ser_trigger", 0200, dir, dev, &fops_ser_trigger);
+	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
+
 	if (!dev->dbdc_support || phy->band_idx) {
 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 				   &dev->hw_pattern);
@@ -1017,8 +1145,8 @@ static ssize_t mt7915_sta_fixed_rate_set(struct file *file,
 
 	phy.ldpc = (phy.bw || phy.ldpc) * GENMASK(2, 0);
 	for (i = 0; i <= phy.bw; i++) {
-		phy.sgi |= gi << (i << sta->he_cap.has_he);
-		phy.he_ltf |= he_ltf << (i << sta->he_cap.has_he);
+		phy.sgi |= gi << (i << sta->deflink.he_cap.has_he);
+		phy.he_ltf |= he_ltf << (i << sta->deflink.he_cap.has_he);
 	}
 	field = RATE_PARAM_FIXED;
 

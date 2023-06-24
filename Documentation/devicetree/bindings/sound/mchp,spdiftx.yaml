@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/sound/mchp,spdiftx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip S/PDIF Tx Controller Device Tree Bindings
+title: Microchip S/PDIF Tx Controller
 
 maintainers:
   - Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
 description:
-  The Microchip Sony/Philips Digital Interface Transmitter is a serial port 
+  The Microchip Sony/Philips Digital Interface Transmitter is a serial port
   compliant with the IEC-60958 standard.
 
 properties:

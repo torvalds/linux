@@ -26,29 +26,23 @@ static const char *const rxrpc_conn_states[RXRPC_CONN__NR_STATES] = {
  */
 static void *rxrpc_call_seq_start(struct seq_file *seq, loff_t *_pos)
 	__acquires(rcu)
-	__acquires(rxnet->call_lock)
 {
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 
 	rcu_read_lock();
-	read_lock(&rxnet->call_lock);
-	return seq_list_start_head(&rxnet->calls, *_pos);
+	return seq_list_start_head_rcu(&rxnet->calls, *_pos);
 }
 
 static void *rxrpc_call_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 
-	return seq_list_next(v, &rxnet->calls, pos);
+	return seq_list_next_rcu(v, &rxnet->calls, pos);
 }
 
 static void rxrpc_call_seq_stop(struct seq_file *seq, void *v)
-	__releases(rxnet->call_lock)
 	__releases(rcu)
 {
-	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
-
-	read_unlock(&rxnet->call_lock);
 	rcu_read_unlock();
 }
 
@@ -107,7 +101,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   call->cid,
 		   call->call_id,
 		   rxrpc_is_service_call(call) ? "Svc" : "Clt",
-		   atomic_read(&call->usage),
+		   refcount_read(&call->ref),
 		   rxrpc_call_states[call->state],
 		   call->abort_code,
 		   call->debug_id,
@@ -189,7 +183,7 @@ print:
 		   conn->service_id,
 		   conn->proto.cid,
 		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
-		   atomic_read(&conn->usage),
+		   refcount_read(&conn->ref),
 		   rxrpc_conn_states[conn->state],
 		   key_serial(conn->params.key),
 		   atomic_read(&conn->serial),
@@ -239,7 +233,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   " %3u %5u %6llus %8u %8u\n",
 		   lbuff,
 		   rbuff,
-		   atomic_read(&peer->usage),
+		   refcount_read(&peer->ref),
 		   peer->cong_cwnd,
 		   peer->mtu,
 		   now - peer->last_tx_at,
@@ -333,4 +327,73 @@ const struct seq_operations rxrpc_peer_seq_ops = {
 	.next   = rxrpc_peer_seq_next,
 	.stop   = rxrpc_peer_seq_stop,
 	.show   = rxrpc_peer_seq_show,
+};
+
+/*
+ * Generate a list of extant virtual local endpoints in /proc/net/rxrpc/locals
+ */
+static int rxrpc_local_seq_show(struct seq_file *seq, void *v)
+{
+	struct rxrpc_local *local;
+	char lbuff[50];
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq,
+			 "Proto Local                                          "
+			 " Use Act\n");
+		return 0;
+	}
+
+	local = hlist_entry(v, struct rxrpc_local, link);
+
+	sprintf(lbuff, "%pISpc", &local->srx.transport);
+
+	seq_printf(seq,
+		   "UDP   %-47.47s %3u %3u\n",
+		   lbuff,
+		   refcount_read(&local->ref),
+		   atomic_read(&local->active_users));
+
+	return 0;
+}
+
+static void *rxrpc_local_seq_start(struct seq_file *seq, loff_t *_pos)
+	__acquires(rcu)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+	unsigned int n;
+
+	rcu_read_lock();
+
+	if (*_pos >= UINT_MAX)
+		return NULL;
+
+	n = *_pos;
+	if (n == 0)
+		return SEQ_START_TOKEN;
+
+	return seq_hlist_start_rcu(&rxnet->local_endpoints, n - 1);
+}
+
+static void *rxrpc_local_seq_next(struct seq_file *seq, void *v, loff_t *_pos)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+
+	if (*_pos >= UINT_MAX)
+		return NULL;
+
+	return seq_hlist_next_rcu(v, &rxnet->local_endpoints, _pos);
+}
+
+static void rxrpc_local_seq_stop(struct seq_file *seq, void *v)
+	__releases(rcu)
+{
+	rcu_read_unlock();
+}
+
+const struct seq_operations rxrpc_local_seq_ops = {
+	.start  = rxrpc_local_seq_start,
+	.next   = rxrpc_local_seq_next,
+	.stop   = rxrpc_local_seq_stop,
+	.show   = rxrpc_local_seq_show,
 };

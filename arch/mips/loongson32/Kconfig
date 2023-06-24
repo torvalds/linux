@@ -46,7 +46,7 @@ menuconfig CEVT_CSRC_LS1X
 	  If unsure, say N.
 
 choice
-	prompt  "Select clockevent/clocksource"
+	prompt "Select clockevent/clocksource"
 	depends on CEVT_CSRC_LS1X
 	default TIMER_USE_PWM0
 

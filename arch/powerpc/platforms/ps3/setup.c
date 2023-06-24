@@ -13,13 +13,13 @@
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/time.h>
 #include <asm/iommu.h>
 #include <asm/udbg.h>
-#include <asm/prom.h>
 #include <asm/lv1call.h>
 #include <asm/ps3gpu.h>
 

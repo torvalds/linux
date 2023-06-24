@@ -65,6 +65,11 @@ static const struct ipu3_cio2_fmt formats[] = {
 		.fourcc		= V4L2_PIX_FMT_IPU3_SRGGB10,
 		.mipicode	= 0x2b,
 		.bpp		= 10,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+		.fourcc		= V4L2_PIX_FMT_IPU3_Y10,
+		.mipicode	= 0x2b,
+		.bpp		= 10,
 	},
 };
 
@@ -984,7 +989,7 @@ static int cio2_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return r;
 	}
 
-	r = media_pipeline_start(&q->vdev.entity, &q->pipe);
+	r = video_device_pipeline_start(&q->vdev, &q->pipe);
 	if (r)
 		goto fail_pipeline;
 
@@ -1004,7 +1009,7 @@ static int cio2_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 fail_csi2_subdev:
 	cio2_hw_exit(cio2, q);
 fail_hw:
-	media_pipeline_stop(&q->vdev.entity);
+	video_device_pipeline_stop(&q->vdev);
 fail_pipeline:
 	dev_dbg(dev, "failed to start streaming (%d)\n", r);
 	cio2_vb2_return_all_buffers(q, VB2_BUF_STATE_QUEUED);
@@ -1025,7 +1030,7 @@ static void cio2_vb2_stop_streaming(struct vb2_queue *vq)
 	cio2_hw_exit(cio2, q);
 	synchronize_irq(cio2->pci_dev->irq);
 	cio2_vb2_return_all_buffers(q, VB2_BUF_STATE_ERROR);
-	media_pipeline_stop(&q->vdev.entity);
+	video_device_pipeline_stop(&q->vdev);
 	pm_runtime_put(dev);
 	cio2->streaming = false;
 }
@@ -1046,12 +1051,8 @@ static const struct vb2_ops cio2_vb2_ops = {
 static int cio2_v4l2_querycap(struct file *file, void *fh,
 			      struct v4l2_capability *cap)
 {
-	struct cio2_device *cio2 = video_drvdata(file);
-
 	strscpy(cap->driver, CIO2_NAME, sizeof(cap->driver));
 	strscpy(cap->card, CIO2_DEVICE_NAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "PCI:%s", pci_name(cio2->pci_dev));
 
 	return 0;
 }
@@ -1322,7 +1323,7 @@ static int cio2_video_link_validate(struct media_link *link)
 	struct v4l2_subdev_format source_fmt;
 	int ret;
 
-	if (!media_entity_remote_pad(entity->pads)) {
+	if (!media_pad_remote_pad_first(entity->pads)) {
 		dev_info(dev, "video node %s pad not connected\n", vd->name);
 		return -ENOTCONN;
 	}
@@ -1777,8 +1778,6 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	cio2->media_dev.dev = dev;
 	strscpy(cio2->media_dev.model, CIO2_DEVICE_NAME,
 		sizeof(cio2->media_dev.model));
-	snprintf(cio2->media_dev.bus_info, sizeof(cio2->media_dev.bus_info),
-		 "PCI:%s", pci_name(cio2->pci_dev));
 	cio2->media_dev.hw_revision = 0;
 
 	media_device_init(&cio2->media_dev);

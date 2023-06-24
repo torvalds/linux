@@ -35,7 +35,7 @@ properties:
 
   clock-names:
     description: |
-      "enable" for UART module enable clock, "uart" for UART clock, "source" 
+      "enable" for UART module enable clock, "uart" for UART clock, "source"
       for UART source (parent) clock.
     items:
       - const: enable

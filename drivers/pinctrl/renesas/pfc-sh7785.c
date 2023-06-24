@@ -5,7 +5,6 @@
  *  Copyright (C) 2008  Magnus Damm
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <cpu/sh7785.h>
 
@@ -1025,9 +1024,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PD1_FN, PD1_OUT, PD1_IN, 0,
 		PD0_FN, PD0_OUT, PD0_IN, 0 ))
 	},
-	{ PINMUX_CFG_REG("PECR", 0xffe70008, 16, 2, GROUP(
-		0, 0, 0, 0,
-		0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("PECR", 0xffe70008, 16,
+			     GROUP(-4, 2, 2, 2, 2, 2, 2),
+			     GROUP(
+		/* RESERVED [4] */
 		PE5_FN, PE5_OUT, PE5_IN, 0,
 		PE4_FN, PE4_OUT, PE4_IN, 0,
 		PE3_FN, PE3_OUT, PE3_IN, 0,
@@ -1095,13 +1095,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PL1_FN, PL1_OUT, PL1_IN, 0,
 		PL0_FN, PL0_OUT, PL0_IN, 0 ))
 	},
-	{ PINMUX_CFG_REG("PMCR", 0xffe70016, 16, 2, GROUP(
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("PMCR", 0xffe70016, 16,
+			     GROUP(-12, 2, 2),
+			     GROUP(
+		/* RESERVED [12] */
 		PM1_FN, PM1_OUT, PM1_IN, 0,
 		PM0_FN, PM0_OUT, PM0_IN, 0 ))
 	},
@@ -1115,9 +1112,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PN1_FN, PN1_OUT, PN1_IN, 0,
 		PN0_FN, PN0_OUT, PN0_IN, 0 ))
 	},
-	{ PINMUX_CFG_REG("PPCR", 0xffe7001a, 16, 2, GROUP(
-		0, 0, 0, 0,
-		0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("PPCR", 0xffe7001a, 16,
+			     GROUP(-4, 2, 2, 2, 2, 2, 2),
+			     GROUP(
+		/* RESERVED [4] */
 		PP5_FN, PP5_OUT, PP5_IN, 0,
 		PP4_FN, PP4_OUT, PP4_IN, 0,
 		PP3_FN, PP3_OUT, PP3_IN, 0,
@@ -1125,21 +1123,20 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PP1_FN, PP1_OUT, PP1_IN, 0,
 		PP0_FN, PP0_OUT, PP0_IN, 0 ))
 	},
-	{ PINMUX_CFG_REG("PQCR", 0xffe7001c, 16, 2, GROUP(
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("PQCR", 0xffe7001c, 16,
+			     GROUP(-6, 2, 2, 2, 2, 2),
+			     GROUP(
+		/* RESERVED [6] */
 		PQ4_FN, PQ4_OUT, PQ4_IN, 0,
 		PQ3_FN, PQ3_OUT, PQ3_IN, 0,
 		PQ2_FN, PQ2_OUT, PQ2_IN, 0,
 		PQ1_FN, PQ1_OUT, PQ1_IN, 0,
 		PQ0_FN, PQ0_OUT, PQ0_IN, 0 ))
 	},
-	{ PINMUX_CFG_REG("PRCR", 0xffe7001e, 16, 2, GROUP(
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("PRCR", 0xffe7001e, 16,
+			     GROUP(-8, 2, 2, 2, 2),
+			     GROUP(
+		/* RESERVED [8] */
 		PR3_FN, PR3_OUT, PR3_IN, 0,
 		PR2_FN, PR2_OUT, PR2_IN, 0,
 		PR1_FN, PR1_OUT, PR1_IN, 0,
@@ -1163,20 +1160,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		P1MSEL1_0, P1MSEL1_1,
 		P1MSEL0_0, P1MSEL0_1 ))
 	},
-	{ PINMUX_CFG_REG("P2MSELR", 0xffe70082, 16, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("P2MSELR", 0xffe70082, 16,
+			     GROUP(-13, 1, 1, 1),
+			     GROUP(
+		/* RESERVED [13] */
 		P2MSEL2_0, P2MSEL2_1,
 		P2MSEL1_0, P2MSEL1_1,
 		P2MSEL0_0, P2MSEL0_1 ))

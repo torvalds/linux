@@ -17,6 +17,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/suspend.h>
 
 #include "../sleep.h"
@@ -26,6 +27,10 @@
 static bool sleep_no_lps0 __read_mostly;
 module_param(sleep_no_lps0, bool, 0644);
 MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
+
+static bool prefer_microsoft_dsm_guid __read_mostly;
+module_param(prefer_microsoft_dsm_guid, bool, 0644);
+MODULE_PARM_DESC(prefer_microsoft_dsm_guid, "Prefer using Microsoft GUID in LPS0 device _DSM evaluation");
 
 static const struct acpi_device_id lps0_device_ids[] = {
 	{"PNP0D80", },
@@ -363,41 +368,132 @@ out:
 	return ret;
 }
 
+struct amd_lps0_hid_device_data {
+	const unsigned int rev_id;
+	const bool check_off_by_one;
+	const bool prefer_amd_guid;
+};
+
+static const struct amd_lps0_hid_device_data amd_picasso = {
+	.rev_id = 0,
+	.check_off_by_one = true,
+	.prefer_amd_guid = false,
+};
+
+static const struct amd_lps0_hid_device_data amd_cezanne = {
+	.rev_id = 0,
+	.check_off_by_one = false,
+	.prefer_amd_guid = false,
+};
+
+static const struct amd_lps0_hid_device_data amd_rembrandt = {
+	.rev_id = 2,
+	.check_off_by_one = false,
+	.prefer_amd_guid = true,
+};
+
+static const struct acpi_device_id amd_hid_ids[] = {
+	{"AMD0004",	(kernel_ulong_t)&amd_picasso,	},
+	{"AMD0005",	(kernel_ulong_t)&amd_picasso,	},
+	{"AMDI0005",	(kernel_ulong_t)&amd_picasso,	},
+	{"AMDI0006",	(kernel_ulong_t)&amd_cezanne,	},
+	{"AMDI0007",	(kernel_ulong_t)&amd_rembrandt,	},
+	{}
+};
+
+static int lps0_prefer_microsoft(const struct dmi_system_id *id)
+{
+	pr_debug("Preferring Microsoft GUID.\n");
+	prefer_microsoft_dsm_guid = true;
+	return 0;
+}
+
+static const struct dmi_system_id s2idle_dmi_table[] __initconst = {
+	{
+		/*
+		 * ASUS TUF Gaming A17 FA707RE
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216101
+		 */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ASUS TUF Gaming A17"),
+		},
+	},
+	{
+		/* ASUS ROG Zephyrus G14 (2022) */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ROG Zephyrus G14 GA402"),
+		},
+	},
+	{
+		/*
+		 * Lenovo Yoga Slim 7 Pro X 14ARH7
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216473 : 82V2
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216438 : 82TL
+		 */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82"),
+		},
+	},
+	{
+		/*
+		 * ASUSTeK COMPUTER INC. ROG Flow X13 GV301RE_GV301RE
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/2148
+		 */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ROG Flow X13 GV301"),
+		},
+	},
+	{
+		/*
+		 * ASUSTeK COMPUTER INC. ROG Flow X16 GV601RW_GV601RW
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/2148
+		 */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ROG Flow X16 GV601"),
+		},
+	},
+	{}
+};
+
 static int lps0_device_attach(struct acpi_device *adev,
 			      const struct acpi_device_id *not_used)
 {
 	if (lps0_device_handle)
 		return 0;
 
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
-		return 0;
-
+	lps0_dsm_func_mask_microsoft = validate_dsm(adev->handle,
+						    ACPI_LPS0_DSM_UUID_MICROSOFT, 0,
+						    &lps0_dsm_guid_microsoft);
 	if (acpi_s2idle_vendor_amd()) {
-		/* AMD0004, AMD0005, AMDI0005:
-		 * - Should use rev_id 0x0
-		 * - function mask > 0x3: Should use AMD method, but has off by one bug
-		 * - function mask = 0x3: Should use Microsoft method
-		 * AMDI0006:
-		 * - should use rev_id 0x0
-		 * - function mask = 0x3: Should use Microsoft method
-		 * AMDI0007:
-		 * - Should use rev_id 0x2
-		 * - Should only use AMD method
-		 */
-		const char *hid = acpi_device_hid(adev);
-		rev_id = strcmp(hid, "AMDI0007") ? 0 : 2;
+		static const struct acpi_device_id *dev_id;
+		const struct amd_lps0_hid_device_data *data;
+
+		for (dev_id = &amd_hid_ids[0]; dev_id->id[0]; dev_id++)
+			if (acpi_dev_hid_uid_match(adev, dev_id->id, NULL))
+				break;
+		if (dev_id->id[0])
+			data = (const struct amd_lps0_hid_device_data *) dev_id->driver_data;
+		else
+			data = &amd_rembrandt;
+		rev_id = data->rev_id;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID_AMD, rev_id, &lps0_dsm_guid);
-		lps0_dsm_func_mask_microsoft = validate_dsm(adev->handle,
-					ACPI_LPS0_DSM_UUID_MICROSOFT, 0,
-					&lps0_dsm_guid_microsoft);
-		if (lps0_dsm_func_mask > 0x3 && (!strcmp(hid, "AMD0004") ||
-						 !strcmp(hid, "AMD0005") ||
-						 !strcmp(hid, "AMDI0005"))) {
+		if (lps0_dsm_func_mask > 0x3 && data->check_off_by_one) {
 			lps0_dsm_func_mask = (lps0_dsm_func_mask << 1) | 0x1;
 			acpi_handle_debug(adev->handle, "_DSM UUID %s: Adjusted function mask: 0x%x\n",
 					  ACPI_LPS0_DSM_UUID_AMD, lps0_dsm_func_mask);
-		} else if (lps0_dsm_func_mask_microsoft > 0 && !strcmp(hid, "AMDI0007")) {
+		} else if (lps0_dsm_func_mask_microsoft > 0 && data->prefer_amd_guid &&
+				!prefer_microsoft_dsm_guid) {
 			lps0_dsm_func_mask_microsoft = -EINVAL;
 			acpi_handle_debug(adev->handle, "_DSM Using AMD method\n");
 		}
@@ -405,7 +501,8 @@ static int lps0_device_attach(struct acpi_device *adev,
 		rev_id = 1;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID, rev_id, &lps0_dsm_guid);
-		lps0_dsm_func_mask_microsoft = -EINVAL;
+		if (!prefer_microsoft_dsm_guid)
+			lps0_dsm_func_mask_microsoft = -EINVAL;
 	}
 
 	if (lps0_dsm_func_mask < 0 && lps0_dsm_func_mask_microsoft < 0)
@@ -419,11 +516,15 @@ static int lps0_device_attach(struct acpi_device *adev,
 		lpi_device_get_constraints();
 
 	/*
-	 * Use suspend-to-idle by default if the default suspend mode was not
-	 * set from the command line.
+	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set in
+	 * the FADT and the default suspend mode was not set from the command
+	 * line.
 	 */
-	if (mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
+	if ((acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) &&
+	    mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3) {
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
+		pr_info("Low-power S0 idle used by default for system suspend\n");
+	}
 
 	/*
 	 * Some LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U, require the
@@ -483,6 +584,19 @@ int acpi_s2idle_prepare_late(void)
 	return 0;
 }
 
+void acpi_s2idle_check(void)
+{
+	struct acpi_s2idle_dev_ops *handler;
+
+	if (!lps0_device_handle || sleep_no_lps0)
+		return;
+
+	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_node) {
+		if (handler->check)
+			handler->check();
+	}
+}
+
 void acpi_s2idle_restore_early(void)
 {
 	struct acpi_s2idle_dev_ops *handler;
@@ -524,26 +638,30 @@ static const struct platform_s2idle_ops acpi_s2idle_ops_lps0 = {
 	.begin = acpi_s2idle_begin,
 	.prepare = acpi_s2idle_prepare,
 	.prepare_late = acpi_s2idle_prepare_late,
+	.check = acpi_s2idle_check,
 	.wake = acpi_s2idle_wake,
 	.restore_early = acpi_s2idle_restore_early,
 	.restore = acpi_s2idle_restore,
 	.end = acpi_s2idle_end,
 };
 
-void acpi_s2idle_setup(void)
+void __init acpi_s2idle_setup(void)
 {
+	dmi_check_system(s2idle_dmi_table);
 	acpi_scan_add_handler(&lps0_handler);
 	s2idle_set_ops(&acpi_s2idle_ops_lps0);
 }
 
 int acpi_register_lps0_dev(struct acpi_s2idle_dev_ops *arg)
 {
+	unsigned int sleep_flags;
+
 	if (!lps0_device_handle || sleep_no_lps0)
 		return -ENODEV;
 
-	lock_system_sleep();
+	sleep_flags = lock_system_sleep();
 	list_add(&arg->list_node, &lps0_s2idle_devops_head);
-	unlock_system_sleep();
+	unlock_system_sleep(sleep_flags);
 
 	return 0;
 }
@@ -551,12 +669,14 @@ EXPORT_SYMBOL_GPL(acpi_register_lps0_dev);
 
 void acpi_unregister_lps0_dev(struct acpi_s2idle_dev_ops *arg)
 {
+	unsigned int sleep_flags;
+
 	if (!lps0_device_handle || sleep_no_lps0)
 		return;
 
-	lock_system_sleep();
+	sleep_flags = lock_system_sleep();
 	list_del(&arg->list_node);
-	unlock_system_sleep();
+	unlock_system_sleep(sleep_flags);
 }
 EXPORT_SYMBOL_GPL(acpi_unregister_lps0_dev);
 

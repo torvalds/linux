@@ -107,7 +107,7 @@ EXPORT_SYMBOL_GPL(omap_vout_try_window);
 /* Given a new render window in new_win, adjust the window to the
  * nearest supported configuration.  The image cropping window in crop
  * will also be adjusted if necessary.  Preference is given to keeping the
- * the window as close to the requested configuration as possible.  If
+ * window as close to the requested configuration as possible.  If
  * successful, new_win, vout->win, and crop are updated.
  * Returns zero if successful, or -EINVAL if the requested preview window is
  * impossible and cannot reasonably be adjusted.
@@ -314,7 +314,7 @@ unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr)
 
 	if (virt_addr) {
 		while (size > 0) {
-			SetPageReserved(virt_to_page(addr));
+			SetPageReserved(virt_to_page((void *)addr));
 			addr += PAGE_SIZE;
 			size -= PAGE_SIZE;
 		}
@@ -335,7 +335,7 @@ void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
 	order = get_order(size);
 
 	while (size > 0) {
-		ClearPageReserved(virt_to_page(addr));
+		ClearPageReserved(virt_to_page((void *)addr));
 		addr += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}

@@ -1081,7 +1081,7 @@ exit:
  * struct available..
  */
 
-/* This generally cooresponds to the debugfs fw_stats file */
+/* This generally corresponds to the debugfs fw_stats file */
 static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_pkts_nic",
 	"tx_bytes_nic",

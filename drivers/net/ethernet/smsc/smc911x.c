@@ -140,7 +140,7 @@ static void PRINT_PKT(u_char *buf, int length)
 	pr_cont("\n");
 }
 #else
-#define PRINT_PKT(x...)  do { } while (0)
+static inline void PRINT_PKT(u_char *buf, int length) { }
 #endif
 
 
@@ -430,7 +430,7 @@ static inline void	 smc911x_rcv(struct net_device *dev)
 		SMC_PULL_DATA(lp, data, pkt_len+2+3);
 
 		DBG(SMC_DEBUG_PKTS, dev, "Received packet\n");
-		PRINT_PKT(data, ((pkt_len - 4) <= 64) ? pkt_len - 4 : 64);
+		PRINT_PKT(data, min(pkt_len - 4, 64U));
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 		dev->stats.rx_packets++;
@@ -480,7 +480,7 @@ static void smc911x_hardware_send_pkt(struct net_device *dev)
 	SMC_SET_TX_FIFO(lp, cmdB);
 
 	DBG(SMC_DEBUG_PKTS, dev, "Transmitted packet\n");
-	PRINT_PKT(buf, len <= 64 ? len : 64);
+	PRINT_PKT(buf, min(len, 64U));
 
 	/* Send pkt via PIO or DMA */
 #ifdef SMC_USE_DMA
@@ -1509,9 +1509,9 @@ smc911x_ethtool_set_link_ksettings(struct net_device *dev,
 static void
 smc911x_ethtool_getdrvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, CARDNAME, sizeof(info->driver));
-	strlcpy(info->version, version, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(dev->dev.parent),
+	strscpy(info->driver, CARDNAME, sizeof(info->driver));
+	strscpy(info->version, version, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 

@@ -58,6 +58,7 @@ u32 tegra_read_chipid(void);
 u8 tegra_get_chip_id(void);
 u8 tegra_get_platform(void);
 bool tegra_is_silicon(void);
+int tegra194_miscreg_mask_serror(void);
 #else
 static struct tegra_sku_info tegra_sku_info __maybe_unused;
 
@@ -92,6 +93,11 @@ static inline u8 tegra_get_platform(void)
 }
 
 static inline bool tegra_is_silicon(void)
+{
+	return false;
+}
+
+static inline int tegra194_miscreg_mask_serror(void)
 {
 	return false;
 }

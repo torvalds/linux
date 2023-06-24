@@ -611,7 +611,7 @@ static struct media_entity *dcmi_find_source(struct stm32_dcmi *dcmi)
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -622,7 +622,6 @@ static struct media_entity *dcmi_find_source(struct stm32_dcmi *dcmi)
 }
 
 static int dcmi_pipeline_s_fmt(struct stm32_dcmi *dcmi,
-			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *format)
 {
 	struct media_entity *entity = &dcmi->source->entity;
@@ -664,7 +663,7 @@ static int dcmi_pipeline_s_fmt(struct stm32_dcmi *dcmi,
 			format->format.width, format->format.height);
 
 		fmt.pad = pad->index;
-		ret = v4l2_subdev_call(subdev, pad, set_fmt, sd_state, &fmt);
+		ret = v4l2_subdev_call(subdev, pad, set_fmt, NULL, &fmt);
 		if (ret < 0) {
 			dev_err(dcmi->dev, "%s: Failed to set format 0x%x %ux%u on \"%s\":%d pad (%d)\n",
 				__func__, format->format.code,
@@ -682,7 +681,7 @@ static int dcmi_pipeline_s_fmt(struct stm32_dcmi *dcmi,
 		}
 
 		/* Walk to next entity */
-		sink_pad = media_entity_remote_pad(src_pad);
+		sink_pad = media_pad_remote_pad_first(src_pad);
 		if (!sink_pad || !is_media_entity_v4l2_subdev(sink_pad->entity))
 			break;
 
@@ -706,7 +705,7 @@ static int dcmi_pipeline_s_stream(struct stm32_dcmi *dcmi, int state)
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -752,7 +751,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err_unlocked;
 	}
 
-	ret = media_pipeline_start(&dcmi->vdev->entity, &dcmi->pipeline);
+	ret = video_device_pipeline_start(dcmi->vdev, &dcmi->pipeline);
 	if (ret < 0) {
 		dev_err(dcmi->dev, "%s: Failed to start streaming, media pipeline start error (%d)\n",
 			__func__, ret);
@@ -866,7 +865,7 @@ err_pipeline_stop:
 	dcmi_pipeline_stop(dcmi);
 
 err_media_pipeline_stop:
-	media_pipeline_stop(&dcmi->vdev->entity);
+	video_device_pipeline_stop(dcmi->vdev);
 
 err_pm_put:
 	pm_runtime_put(dcmi->dev);
@@ -893,7 +892,7 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 
 	dcmi_pipeline_stop(dcmi);
 
-	media_pipeline_stop(&dcmi->vdev->entity);
+	video_device_pipeline_stop(dcmi->vdev);
 
 	spin_lock_irq(&dcmi->irqlock);
 
@@ -999,10 +998,6 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	const struct dcmi_format *sd_fmt;
 	struct dcmi_framesize sd_fsize;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_subdev_pad_config pad_cfg;
-	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1037,8 +1032,7 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	}
 
 	v4l2_fill_mbus_format(&format.format, pix, sd_fmt->mbus_code);
-	ret = v4l2_subdev_call(dcmi->source, pad, set_fmt,
-			       &pad_state, &format);
+	ret = v4l2_subdev_call_state_try(dcmi->source, pad, set_fmt, &format);
 	if (ret < 0)
 		return ret;
 
@@ -1115,7 +1109,7 @@ static int dcmi_set_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f)
 	mf->width = sd_framesize.width;
 	mf->height = sd_framesize.height;
 
-	ret = dcmi_pipeline_s_fmt(dcmi, NULL, &format);
+	ret = dcmi_pipeline_s_fmt(dcmi, &format);
 	if (ret < 0)
 		return ret;
 
@@ -1187,10 +1181,6 @@ static int dcmi_set_sensor_format(struct stm32_dcmi *dcmi,
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
-	struct v4l2_subdev_pad_config pad_cfg;
-	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
 	int ret;
 
 	sd_fmt = find_format_by_fourcc(dcmi, pix->pixelformat);
@@ -1203,8 +1193,7 @@ static int dcmi_set_sensor_format(struct stm32_dcmi *dcmi,
 	}
 
 	v4l2_fill_mbus_format(&format.format, pix, sd_fmt->mbus_code);
-	ret = v4l2_subdev_call(dcmi->source, pad, set_fmt,
-			       &pad_state, &format);
+	ret = v4l2_subdev_call_state_try(dcmi->source, pad, set_fmt, &format);
 	if (ret < 0)
 		return ret;
 
@@ -1592,24 +1581,30 @@ static int dcmi_set_default_fmt(struct stm32_dcmi *dcmi)
 	return 0;
 }
 
-/*
- * FIXME: For the time being we only support subdevices
- * which expose RGB & YUV "parallel form" mbus code (_2X8).
- * Nevertheless, this allows to support serial source subdevices
- * and serial to parallel bridges which conform to this.
- */
 static const struct dcmi_format dcmi_formats[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.mbus_code = MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.bpp = 2,
 	}, {
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.mbus_code = MEDIA_BUS_FMT_RGB565_1X16,
+		.bpp = 2,
+	}, {
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.mbus_code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp = 2,
 	}, {
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.mbus_code = MEDIA_BUS_FMT_YUYV8_1X16,
+		.bpp = 2,
+	}, {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.mbus_code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.bpp = 2,
 	}, {
 		.fourcc = V4L2_PIX_FMT_JPEG,
@@ -1631,6 +1626,54 @@ static const struct dcmi_format dcmi_formats[] = {
 		.fourcc = V4L2_PIX_FMT_SRGGB8,
 		.mbus_code = MEDIA_BUS_FMT_SRGGB8_1X8,
 		.bpp = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR10,
+		.mbus_code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG10,
+		.mbus_code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG10,
+		.mbus_code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB10,
+		.mbus_code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR12,
+		.mbus_code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG12,
+		.mbus_code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG12,
+		.mbus_code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB12,
+		.mbus_code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR14,
+		.mbus_code = MEDIA_BUS_FMT_SBGGR14_1X14,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG14,
+		.mbus_code = MEDIA_BUS_FMT_SGBRG14_1X14,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG14,
+		.mbus_code = MEDIA_BUS_FMT_SGRBG14_1X14,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB14,
+		.mbus_code = MEDIA_BUS_FMT_SRGGB14_1X14,
+		.bpp = 2,
 	},
 };
 
@@ -1997,8 +2040,6 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	/* Initialize media device */
 	strscpy(dcmi->mdev.model, DRV_NAME, sizeof(dcmi->mdev.model));
-	snprintf(dcmi->mdev.bus_info, sizeof(dcmi->mdev.bus_info),
-		 "platform:%s", DRV_NAME);
 	dcmi->mdev.dev = &pdev->dev;
 	media_device_init(&dcmi->mdev);
 

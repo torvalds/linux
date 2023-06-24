@@ -30,8 +30,7 @@ DEFAULT_COMMAND="./test_progs"
 MOUNT_DIR="mnt"
 ROOTFS_IMAGE="root.img"
 OUTPUT_DIR="$HOME/.bpf_selftests"
-KCONFIG_URL="https://raw.githubusercontent.com/libbpf/libbpf/master/travis-ci/vmtest/configs/config-latest.${ARCH}"
-KCONFIG_API_URL="https://api.github.com/repos/libbpf/libbpf/contents/travis-ci/vmtest/configs/config-latest.${ARCH}"
+KCONFIG_REL_PATHS=("tools/testing/selftests/bpf/config" "tools/testing/selftests/bpf/config.${ARCH}")
 INDEX_URL="https://raw.githubusercontent.com/libbpf/ci/master/INDEX"
 NUM_COMPILE_JOBS="$(nproc)"
 LOG_FILE_BASE="$(date +"bpf_selftests.%Y-%m-%d_%H-%M-%S")"
@@ -269,27 +268,57 @@ is_rel_path()
 	[[ ${path:0:1} != "/" ]]
 }
 
+do_update_kconfig()
+{
+	local kernel_checkout="$1"
+	local kconfig_file="$2"
+
+	rm -f "$kconfig_file" 2> /dev/null
+
+	for config in "${KCONFIG_REL_PATHS[@]}"; do
+		local kconfig_src="${kernel_checkout}/${config}"
+		cat "$kconfig_src" >> "$kconfig_file"
+	done
+}
+
 update_kconfig()
 {
-	local kconfig_file="$1"
-	local update_command="curl -sLf ${KCONFIG_URL} -o ${kconfig_file}"
-	# Github does not return the "last-modified" header when retrieving the
-	# raw contents of the file. Use the API call to get the last-modified
-	# time of the kernel config and only update the config if it has been
-	# updated after the previously cached config was created. This avoids
-	# unnecessarily compiling the kernel and selftests.
-	if [[ -f "${kconfig_file}" ]]; then
-		local last_modified_date="$(curl -sL -D - "${KCONFIG_API_URL}" -o /dev/null | \
-			grep "last-modified" | awk -F ': ' '{print $2}')"
-		local remote_modified_timestamp="$(date -d "${last_modified_date}" +"%s")"
-		local local_creation_timestamp="$(stat -c %Y "${kconfig_file}")"
+	local kernel_checkout="$1"
+	local kconfig_file="$2"
 
-		if [[ "${remote_modified_timestamp}" -gt "${local_creation_timestamp}" ]]; then
-			${update_command}
-		fi
+	if [[ -f "${kconfig_file}" ]]; then
+		local local_modified="$(stat -c %Y "${kconfig_file}")"
+
+		for config in "${KCONFIG_REL_PATHS[@]}"; do
+			local kconfig_src="${kernel_checkout}/${config}"
+			local src_modified="$(stat -c %Y "${kconfig_src}")"
+			# Only update the config if it has been updated after the
+			# previously cached config was created. This avoids
+			# unnecessarily compiling the kernel and selftests.
+			if [[ "${src_modified}" -gt "${local_modified}" ]]; then
+				do_update_kconfig "$kernel_checkout" "$kconfig_file"
+				# Once we have found one outdated configuration
+				# there is no need to check other ones.
+				break
+			fi
+		done
 	else
-		${update_command}
+		do_update_kconfig "$kernel_checkout" "$kconfig_file"
 	fi
+}
+
+catch()
+{
+	local exit_code=$1
+	local exit_status_file="${OUTPUT_DIR}/${EXIT_STATUS_FILE}"
+	# This is just a cleanup and the directory may
+	# have already been unmounted. So, don't let this
+	# clobber the error code we intend to return.
+	unmount_image || true
+	if [[ -f "${exit_status_file}" ]]; then
+		exit_code="$(cat ${exit_status_file})"
+	fi
+	exit ${exit_code}
 }
 
 main()
@@ -304,7 +333,7 @@ main()
 	local exit_command="poweroff -f"
 	local debug_shell="no"
 
-	while getopts 'hskid:j:' opt; do
+	while getopts ':hskid:j:' opt; do
 		case ${opt} in
 		i)
 			update_image="yes"
@@ -337,6 +366,8 @@ main()
 		esac
 	done
 	shift $((OPTIND -1))
+
+	trap 'catch "$?"' EXIT
 
 	if [[ $# -eq 0  && "${debug_shell}" == "no" ]]; then
 		echo "No command specified, will run ${DEFAULT_COMMAND} in the vm"
@@ -372,7 +403,7 @@ main()
 
 	mkdir -p "${OUTPUT_DIR}"
 	mkdir -p "${mount_dir}"
-	update_kconfig "${kconfig_file}"
+	update_kconfig "${kernel_checkout}" "${kconfig_file}"
 
 	recompile_kernel "${kernel_checkout}" "${make_command}"
 
@@ -393,21 +424,5 @@ main()
 		echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
 	fi
 }
-
-catch()
-{
-	local exit_code=$1
-	local exit_status_file="${OUTPUT_DIR}/${EXIT_STATUS_FILE}"
-	# This is just a cleanup and the directory may
-	# have already been unmounted. So, don't let this
-	# clobber the error code we intend to return.
-	unmount_image || true
-	if [[ -f "${exit_status_file}" ]]; then
-		exit_code="$(cat ${exit_status_file})"
-	fi
-	exit ${exit_code}
-}
-
-trap 'catch "$?"' EXIT
 
 main "$@"

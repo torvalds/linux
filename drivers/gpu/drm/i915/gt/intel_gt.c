@@ -11,30 +11,37 @@
 #include "pxp/intel_pxp.h"
 
 #include "i915_drv.h"
+#include "i915_perf_oa_regs.h"
 #include "intel_context.h"
+#include "intel_engine_pm.h"
 #include "intel_engine_regs.h"
+#include "intel_ggtt_gmch.h"
 #include "intel_gt.h"
 #include "intel_gt_buffer_pool.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_debugfs.h"
+#include "intel_gt_mcr.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
 #include "intel_migrate.h"
 #include "intel_mocs.h"
+#include "intel_pci_config.h"
 #include "intel_pm.h"
 #include "intel_rc6.h"
 #include "intel_renderstate.h"
 #include "intel_rps.h"
+#include "intel_sa_media.h"
+#include "intel_gt_sysfs.h"
 #include "intel_uncore.h"
 #include "shmem_utils.h"
 
-void __intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
+void intel_gt_common_init_early(struct intel_gt *gt)
 {
-	spin_lock_init(&gt->irq_lock);
+	spin_lock_init(gt->irq_lock);
 
-	mutex_init(&gt->tlb_invalidate_lock);
-
+	INIT_LIST_HEAD(&gt->lmem_userfault_list);
+	mutex_init(&gt->lmem_userfault_lock);
 	INIT_LIST_HEAD(&gt->closed_vma);
 	spin_lock_init(&gt->closed_lock);
 
@@ -45,23 +52,36 @@ void __intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	intel_gt_init_reset(gt);
 	intel_gt_init_requests(gt);
 	intel_gt_init_timelines(gt);
+	mutex_init(&gt->tlb.invalidate_lock);
+	seqcount_mutex_init(&gt->tlb.seqno, &gt->tlb.invalidate_lock);
 	intel_gt_pm_init_early(gt);
 
 	intel_uc_init_early(&gt->uc);
 	intel_rps_init_early(&gt->rps);
 }
 
-void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
+/* Preliminary initialization of Tile 0 */
+int intel_root_gt_init_early(struct drm_i915_private *i915)
 {
+	struct intel_gt *gt = to_gt(i915);
+
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
+	gt->irq_lock = drmm_kzalloc(&i915->drm, sizeof(*gt->irq_lock), GFP_KERNEL);
+	if (!gt->irq_lock)
+		return -ENOMEM;
+
+	intel_gt_common_init_early(gt);
+
+	return 0;
 }
 
-int intel_gt_probe_lmem(struct intel_gt *gt)
+static int intel_gt_probe_lmem(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
+	unsigned int instance = gt->info.id;
+	int id = INTEL_REGION_LMEM_0 + instance;
 	struct intel_memory_region *mem;
-	int id;
 	int err;
 
 	mem = intel_gt_setup_lmem(gt);
@@ -76,9 +96,8 @@ int intel_gt_probe_lmem(struct intel_gt *gt)
 		return err;
 	}
 
-	id = INTEL_REGION_LMEM;
-
 	mem->id = id;
+	mem->instance = instance;
 
 	intel_memory_region_set_name(mem, "local%u", mem->instance);
 
@@ -96,72 +115,13 @@ int intel_gt_assign_ggtt(struct intel_gt *gt)
 	return gt->ggtt ? 0 : -ENOMEM;
 }
 
-static const struct intel_mmio_range icl_l3bank_steering_table[] = {
-	{ 0x00B100, 0x00B3FF },
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_mslice_steering_table[] = {
-	{ 0x004000, 0x004AFF },
-	{ 0x00C800, 0x00CFFF },
-	{ 0x00DD00, 0x00DDFF },
-	{ 0x00E900, 0x00FFFF }, /* 0xEA00 - OxEFFF is unused */
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_lncf_steering_table[] = {
-	{ 0x00B000, 0x00B0FF },
-	{ 0x00D800, 0x00D8FF },
-	{},
-};
-
-static const struct intel_mmio_range dg2_lncf_steering_table[] = {
-	{ 0x00B000, 0x00B0FF },
-	{ 0x00D880, 0x00D8FF },
-	{},
-};
-
-static u16 slicemask(struct intel_gt *gt, int count)
-{
-	u64 dss_mask = intel_sseu_get_subslices(&gt->info.sseu, 0);
-
-	return intel_slicemask_from_dssmask(dss_mask, count);
-}
-
 int intel_gt_init_mmio(struct intel_gt *gt)
 {
-	struct drm_i915_private *i915 = gt->i915;
-
 	intel_gt_init_clock_frequency(gt);
 
 	intel_uc_init_mmio(&gt->uc);
 	intel_sseu_info_init(gt);
-
-	/*
-	 * An mslice is unavailable only if both the meml3 for the slice is
-	 * disabled *and* all of the DSS in the slice (quadrant) are disabled.
-	 */
-	if (HAS_MSLICES(i915))
-		gt->info.mslice_mask =
-			slicemask(gt, GEN_DSS_PER_MSLICE) |
-			(intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
-			 GEN12_MEML3_EN_MASK);
-
-	if (IS_DG2(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
-		gt->steering_table[LNCF] = dg2_lncf_steering_table;
-	} else if (IS_XEHPSDV(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
-		gt->steering_table[LNCF] = xehpsdv_lncf_steering_table;
-	} else if (GRAPHICS_VER(i915) >= 11 &&
-		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 50)) {
-		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
-		gt->info.l3bank_mask =
-			~intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
-			GEN10_L3BANK_MASK;
-	} else if (HAS_MSLICES(i915)) {
-		MISSING_CASE(INTEL_INFO(i915)->platform);
-	}
+	intel_gt_mcr_init(gt);
 
 	return intel_engines_init_mmio(gt);
 }
@@ -439,14 +399,17 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 {
 	wmb();
 	if (GRAPHICS_VER(gt->i915) < 6)
-		intel_gtt_chipset_flush();
+		intel_ggtt_gmch_flush();
 }
 
 void intel_gt_driver_register(struct intel_gt *gt)
 {
+	intel_gsc_init(&gt->gsc, gt->i915);
+
 	intel_rps_driver_register(&gt->rps);
 
 	intel_gt_debugfs_register(gt);
+	intel_gt_sysfs_register(gt);
 }
 
 static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
@@ -662,8 +625,13 @@ int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout)
 			return -EINTR;
 	}
 
-	return timeout ? timeout : intel_uc_wait_for_idle(&gt->uc,
-							  remaining_timeout);
+	if (timeout)
+		return timeout;
+
+	if (remaining_timeout < 0)
+		remaining_timeout = 0;
+
+	return intel_uc_wait_for_idle(&gt->uc, remaining_timeout);
 }
 
 int intel_gt_init(struct intel_gt *gt)
@@ -711,6 +679,11 @@ int intel_gt_init(struct intel_gt *gt)
 	err = intel_gt_resume(gt);
 	if (err)
 		goto err_uc_init;
+
+	err = intel_gt_init_hwconfig(gt);
+	if (err)
+		drm_err(&gt->i915->drm, "Failed to retrieve hwconfig table: %pe\n",
+			ERR_PTR(err));
 
 	err = __engines_record_defaults(gt);
 	if (err)
@@ -765,7 +738,9 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
 
+	intel_gt_sysfs_unregister(gt);
 	intel_rps_driver_unregister(&gt->rps);
+	intel_gsc_fini(&gt->gsc);
 
 	intel_pxp_fini(&gt->pxp);
 
@@ -793,143 +768,171 @@ void intel_gt_driver_release(struct intel_gt *gt)
 	intel_gt_pm_fini(gt);
 	intel_gt_fini_scratch(gt);
 	intel_gt_fini_buffer_pool(gt);
+	intel_gt_fini_hwconfig(gt);
 }
 
-void intel_gt_driver_late_release(struct intel_gt *gt)
+void intel_gt_driver_late_release_all(struct drm_i915_private *i915)
 {
+	struct intel_gt *gt;
+	unsigned int id;
+
 	/* We need to wait for inflight RCU frees to release their grip */
 	rcu_barrier();
 
-	intel_uc_driver_late_release(&gt->uc);
-	intel_gt_fini_requests(gt);
-	intel_gt_fini_reset(gt);
-	intel_gt_fini_timelines(gt);
-	intel_engines_free(gt);
-}
-
-/**
- * intel_gt_reg_needs_read_steering - determine whether a register read
- *     requires explicit steering
- * @gt: GT structure
- * @reg: the register to check steering requirements for
- * @type: type of multicast steering to check
- *
- * Determines whether @reg needs explicit steering of a specific type for
- * reads.
- *
- * Returns false if @reg does not belong to a register range of the given
- * steering type, or if the default (subslice-based) steering IDs are suitable
- * for @type steering too.
- */
-static bool intel_gt_reg_needs_read_steering(struct intel_gt *gt,
-					     i915_reg_t reg,
-					     enum intel_steering_type type)
-{
-	const u32 offset = i915_mmio_reg_offset(reg);
-	const struct intel_mmio_range *entry;
-
-	if (likely(!intel_gt_needs_read_steering(gt, type)))
-		return false;
-
-	for (entry = gt->steering_table[type]; entry->end; entry++) {
-		if (offset >= entry->start && offset <= entry->end)
-			return true;
-	}
-
-	return false;
-}
-
-/**
- * intel_gt_get_valid_steering - determines valid IDs for a class of MCR steering
- * @gt: GT structure
- * @type: multicast register type
- * @sliceid: Slice ID returned
- * @subsliceid: Subslice ID returned
- *
- * Determines sliceid and subsliceid values that will steer reads
- * of a specific multicast register class to a valid value.
- */
-static void intel_gt_get_valid_steering(struct intel_gt *gt,
-					enum intel_steering_type type,
-					u8 *sliceid, u8 *subsliceid)
-{
-	switch (type) {
-	case L3BANK:
-		GEM_DEBUG_WARN_ON(!gt->info.l3bank_mask); /* should be impossible! */
-
-		*sliceid = 0;		/* unused */
-		*subsliceid = __ffs(gt->info.l3bank_mask);
-		break;
-	case MSLICE:
-		GEM_DEBUG_WARN_ON(!gt->info.mslice_mask); /* should be impossible! */
-
-		*sliceid = __ffs(gt->info.mslice_mask);
-		*subsliceid = 0;	/* unused */
-		break;
-	case LNCF:
-		GEM_DEBUG_WARN_ON(!gt->info.mslice_mask); /* should be impossible! */
-
-		/*
-		 * An LNCF is always present if its mslice is present, so we
-		 * can safely just steer to LNCF 0 in all cases.
-		 */
-		*sliceid = __ffs(gt->info.mslice_mask) << 1;
-		*subsliceid = 0;	/* unused */
-		break;
-	default:
-		MISSING_CASE(type);
-		*sliceid = 0;
-		*subsliceid = 0;
+	for_each_gt(gt, i915, id) {
+		intel_uc_driver_late_release(&gt->uc);
+		intel_gt_fini_requests(gt);
+		intel_gt_fini_reset(gt);
+		intel_gt_fini_timelines(gt);
+		mutex_destroy(&gt->tlb.invalidate_lock);
+		intel_engines_free(gt);
 	}
 }
 
-/**
- * intel_gt_read_register_fw - reads a GT register with support for multicast
- * @gt: GT structure
- * @reg: register to read
- *
- * This function will read a GT register.  If the register is a multicast
- * register, the read will be steered to a valid instance (i.e., one that
- * isn't fused off or powered down by power gating).
- *
- * Returns the value from a valid instance of @reg.
- */
-u32 intel_gt_read_register_fw(struct intel_gt *gt, i915_reg_t reg)
+static int intel_gt_tile_setup(struct intel_gt *gt, phys_addr_t phys_addr)
 {
-	int type;
-	u8 sliceid, subsliceid;
+	int ret;
 
-	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, &sliceid,
-						    &subsliceid);
-			return intel_uncore_read_with_mcr_steering_fw(gt->uncore,
-								      reg,
-								      sliceid,
-								      subsliceid);
+	if (!gt_is_root(gt)) {
+		struct intel_uncore *uncore;
+		spinlock_t *irq_lock;
+
+		uncore = drmm_kzalloc(&gt->i915->drm, sizeof(*uncore), GFP_KERNEL);
+		if (!uncore)
+			return -ENOMEM;
+
+		irq_lock = drmm_kzalloc(&gt->i915->drm, sizeof(*irq_lock), GFP_KERNEL);
+		if (!irq_lock)
+			return -ENOMEM;
+
+		gt->uncore = uncore;
+		gt->irq_lock = irq_lock;
+
+		intel_gt_common_init_early(gt);
+	}
+
+	intel_uncore_init_early(gt->uncore, gt);
+	intel_wakeref_auto_init(&gt->userfault_wakeref, gt->uncore->rpm);
+
+	ret = intel_uncore_setup_mmio(gt->uncore, phys_addr);
+	if (ret)
+		return ret;
+
+	gt->phys_addr = phys_addr;
+
+	return 0;
+}
+
+int intel_gt_probe_all(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct intel_gt *gt = &i915->gt0;
+	const struct intel_gt_definition *gtdef;
+	phys_addr_t phys_addr;
+	unsigned int mmio_bar;
+	unsigned int i;
+	int ret;
+
+	mmio_bar = GRAPHICS_VER(i915) == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
+	phys_addr = pci_resource_start(pdev, mmio_bar);
+
+	/*
+	 * We always have at least one primary GT on any device
+	 * and it has been already initialized early during probe
+	 * in i915_driver_probe()
+	 */
+	gt->i915 = i915;
+	gt->name = "Primary GT";
+	gt->info.engine_mask = RUNTIME_INFO(i915)->platform_engine_mask;
+
+	drm_dbg(&i915->drm, "Setting up %s\n", gt->name);
+	ret = intel_gt_tile_setup(gt, phys_addr);
+	if (ret)
+		return ret;
+
+	i915->gt[0] = gt;
+
+	if (!HAS_EXTRA_GT_LIST(i915))
+		return 0;
+
+	for (i = 1, gtdef = &INTEL_INFO(i915)->extra_gt_list[i - 1];
+	     gtdef->name != NULL;
+	     i++, gtdef = &INTEL_INFO(i915)->extra_gt_list[i - 1]) {
+		gt = drmm_kzalloc(&i915->drm, sizeof(*gt), GFP_KERNEL);
+		if (!gt) {
+			ret = -ENOMEM;
+			goto err;
 		}
+
+		gt->i915 = i915;
+		gt->name = gtdef->name;
+		gt->type = gtdef->type;
+		gt->info.engine_mask = gtdef->engine_mask;
+		gt->info.id = i;
+
+		drm_dbg(&i915->drm, "Setting up %s\n", gt->name);
+		if (GEM_WARN_ON(range_overflows_t(resource_size_t,
+						  gtdef->mapping_base,
+						  SZ_16M,
+						  pci_resource_len(pdev, mmio_bar)))) {
+			ret = -ENODEV;
+			goto err;
+		}
+
+		switch (gtdef->type) {
+		case GT_TILE:
+			ret = intel_gt_tile_setup(gt, phys_addr + gtdef->mapping_base);
+			break;
+
+		case GT_MEDIA:
+			ret = intel_sa_mediagt_setup(gt, phys_addr + gtdef->mapping_base,
+						     gtdef->gsi_offset);
+			break;
+
+		case GT_PRIMARY:
+			/* Primary GT should not appear in extra GT list */
+		default:
+			MISSING_CASE(gtdef->type);
+			ret = -ENODEV;
+		}
+
+		if (ret)
+			goto err;
+
+		i915->gt[i] = gt;
 	}
 
-	return intel_uncore_read_fw(gt->uncore, reg);
+	return 0;
+
+err:
+	i915_probe_error(i915, "Failed to initialize %s! (%d)\n", gtdef->name, ret);
+	intel_gt_release_all(i915);
+
+	return ret;
 }
 
-u32 intel_gt_read_register(struct intel_gt *gt, i915_reg_t reg)
+int intel_gt_tiles_init(struct drm_i915_private *i915)
 {
-	int type;
-	u8 sliceid, subsliceid;
+	struct intel_gt *gt;
+	unsigned int id;
+	int ret;
 
-	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, &sliceid,
-						    &subsliceid);
-			return intel_uncore_read_with_mcr_steering(gt->uncore,
-								   reg,
-								   sliceid,
-								   subsliceid);
-		}
+	for_each_gt(gt, i915, id) {
+		ret = intel_gt_probe_lmem(gt);
+		if (ret)
+			return ret;
 	}
 
-	return intel_uncore_read(gt->uncore, reg);
+	return 0;
+}
+
+void intel_gt_release_all(struct drm_i915_private *i915)
+{
+	struct intel_gt *gt;
+	unsigned int id;
+
+	for_each_gt(gt, i915, id)
+		i915->gt[id] = NULL;
 }
 
 void intel_gt_info_print(const struct intel_gt_info *info,
@@ -967,7 +970,7 @@ get_reg_and_bit(const struct intel_engine_cs *engine, const bool gen8,
 	return rb;
 }
 
-void intel_gt_invalidate_tlbs(struct intel_gt *gt)
+static void mmio_invalidate_full(struct intel_gt *gt)
 {
 	static const i915_reg_t gen8_regs[] = {
 		[RENDER_CLASS]			= GEN8_RTCR,
@@ -980,16 +983,15 @@ void intel_gt_invalidate_tlbs(struct intel_gt *gt)
 		[VIDEO_DECODE_CLASS]		= GEN12_VD_TLB_INV_CR,
 		[VIDEO_ENHANCEMENT_CLASS]	= GEN12_VE_TLB_INV_CR,
 		[COPY_ENGINE_CLASS]		= GEN12_BLT_TLB_INV_CR,
+		[COMPUTE_CLASS]			= GEN12_COMPCTX_TLB_INV_CR,
 	};
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
+	intel_engine_mask_t awake, tmp;
 	enum intel_engine_id id;
 	const i915_reg_t *regs;
 	unsigned int num = 0;
-
-	if (I915_SELFTEST_ONLY(gt->awake == -ENODEV))
-		return;
 
 	if (GRAPHICS_VER(i915) == 12) {
 		regs = gen12_regs;
@@ -1005,14 +1007,46 @@ void intel_gt_invalidate_tlbs(struct intel_gt *gt)
 			  "Platform does not implement TLB invalidation!"))
 		return;
 
-	GEM_TRACE("\n");
-
-	assert_rpm_wakelock_held(&i915->runtime_pm);
-
-	mutex_lock(&gt->tlb_invalidate_lock);
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
+	spin_lock_irq(&uncore->lock); /* serialise invalidate with GT reset */
+
+	awake = 0;
 	for_each_engine(engine, gt, id) {
+		struct reg_and_bit rb;
+
+		if (!intel_engine_pm_is_awake(engine))
+			continue;
+
+		rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
+		if (!i915_mmio_reg_offset(rb.reg))
+			continue;
+
+		if (GRAPHICS_VER(i915) == 12 && (engine->class == VIDEO_DECODE_CLASS ||
+		    engine->class == VIDEO_ENHANCEMENT_CLASS ||
+		    engine->class == COMPUTE_CLASS))
+			rb.bit = _MASKED_BIT_ENABLE(rb.bit);
+
+		intel_uncore_write_fw(uncore, rb.reg, rb.bit);
+		awake |= engine->mask;
+	}
+
+	GT_TRACE(gt, "invalidated engines %08x\n", awake);
+
+	/* Wa_2207587034:tgl,dg1,rkl,adl-s,adl-p */
+	if (awake &&
+	    (IS_TIGERLAKE(i915) ||
+	     IS_DG1(i915) ||
+	     IS_ROCKETLAKE(i915) ||
+	     IS_ALDERLAKE_S(i915) ||
+	     IS_ALDERLAKE_P(i915)))
+		intel_uncore_write_fw(uncore, GEN12_OA_TLB_INV_CR, 1);
+
+	spin_unlock_irq(&uncore->lock);
+
+	for_each_engine_masked(engine, gt, awake, tmp) {
+		struct reg_and_bit rb;
+
 		/*
 		 * HW architecture suggest typical invalidation time at 40us,
 		 * with pessimistic cases up to 100us and a recommendation to
@@ -1020,13 +1054,8 @@ void intel_gt_invalidate_tlbs(struct intel_gt *gt)
 		 */
 		const unsigned int timeout_us = 100;
 		const unsigned int timeout_ms = 4;
-		struct reg_and_bit rb;
 
 		rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
-		if (!i915_mmio_reg_offset(rb.reg))
-			continue;
-
-		intel_uncore_write_fw(uncore, rb.reg, rb.bit);
 		if (__intel_wait_for_register_fw(uncore,
 						 rb.reg, rb.bit, 0,
 						 timeout_us, timeout_ms,
@@ -1043,5 +1072,38 @@ void intel_gt_invalidate_tlbs(struct intel_gt *gt)
 	 * transitions.
 	 */
 	intel_uncore_forcewake_put_delayed(uncore, FORCEWAKE_ALL);
-	mutex_unlock(&gt->tlb_invalidate_lock);
+}
+
+static bool tlb_seqno_passed(const struct intel_gt *gt, u32 seqno)
+{
+	u32 cur = intel_gt_tlb_seqno(gt);
+
+	/* Only skip if a *full* TLB invalidate barrier has passed */
+	return (s32)(cur - ALIGN(seqno, 2)) > 0;
+}
+
+void intel_gt_invalidate_tlb(struct intel_gt *gt, u32 seqno)
+{
+	intel_wakeref_t wakeref;
+
+	if (I915_SELFTEST_ONLY(gt->awake == -ENODEV))
+		return;
+
+	if (intel_gt_is_wedged(gt))
+		return;
+
+	if (tlb_seqno_passed(gt, seqno))
+		return;
+
+	with_intel_gt_pm_if_awake(gt, wakeref) {
+		mutex_lock(&gt->tlb.invalidate_lock);
+		if (tlb_seqno_passed(gt, seqno))
+			goto unlock;
+
+		mmio_invalidate_full(gt);
+
+		write_seqcount_invalidate(&gt->tlb.seqno);
+unlock:
+		mutex_unlock(&gt->tlb.invalidate_lock);
+	}
 }

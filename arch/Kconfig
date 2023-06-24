@@ -24,6 +24,13 @@ config KEXEC_ELF
 config HAVE_IMA_KEXEC
 	bool
 
+config ARCH_HAS_SUBPAGE_FAULTS
+	bool
+	help
+	  Select if the architecture can check permissions at sub-page
+	  granularity (e.g. arm64 MTE). The probe_user_*() functions
+	  must be implemented.
+
 config HOTPLUG_SMT
 	bool
 
@@ -35,6 +42,7 @@ config KPROBES
 	depends on MODULES
 	depends on HAVE_KPROBES
 	select KALLSYMS
+	select TASKS_RCU if PREEMPTION
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
@@ -45,7 +53,7 @@ config KPROBES
 config JUMP_LABEL
 	bool "Optimize very unlikely/likely branches"
 	depends on HAVE_ARCH_JUMP_LABEL
-	depends on CC_HAS_ASM_GOTO
+	select OBJTOOL if HAVE_JUMP_LABEL_HACK
 	help
 	 This option enables a transparent branch optimization that
 	 makes certain almost-always-true or almost-always-false branch
@@ -214,6 +222,9 @@ config HAVE_FUNCTION_DESCRIPTORS
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 
+config TRACE_IRQFLAGS_NMI_SUPPORT
+	bool
+
 #
 # An arch should select this if it provides all these things:
 #
@@ -344,6 +355,12 @@ config HAVE_RSEQ
 	  This symbol should be selected by an architecture if it
 	  supports an implementation of restartable sequences.
 
+config HAVE_RUST
+	bool
+	help
+	  This symbol should be selected by an architecture if it
+	  supports Rust.
+
 config HAVE_FUNCTION_ARG_ACCESS_API
 	bool
 	help
@@ -428,6 +445,13 @@ config MMU_GATHER_PAGE_SIZE
 	bool
 
 config MMU_GATHER_NO_RANGE
+	bool
+	select MMU_GATHER_MERGE_VMAS
+
+config MMU_GATHER_NO_FLUSH_CACHE
+	bool
+
+config MMU_GATHER_MERGE_VMAS
 	bool
 
 config MMU_GATHER_NO_GATHER
@@ -720,14 +744,13 @@ config ARCH_SUPPORTS_CFI_CLANG
 	  An architecture should select this option if it can support Clang's
 	  Control-Flow Integrity (CFI) checking.
 
+config ARCH_USES_CFI_TRAPS
+	bool
+
 config CFI_CLANG
 	bool "Use Clang's Control Flow Integrity (CFI)"
-	depends on LTO_CLANG && ARCH_SUPPORTS_CFI_CLANG
-	# Clang >= 12:
-	# - https://bugs.llvm.org/show_bug.cgi?id=46258
-	# - https://bugs.llvm.org/show_bug.cgi?id=47479
-	depends on CLANG_VERSION >= 120000
-	select KALLSYMS
+	depends on ARCH_SUPPORTS_CFI_CLANG
+	depends on $(cc-option,-fsanitize=kcfi)
 	help
 	  This option enables Clang’s forward-edge Control Flow Integrity
 	  (CFI) checking, where the compiler injects a runtime check to each
@@ -738,16 +761,6 @@ config CFI_CLANG
 	  found from Clang's documentation:
 
 	    https://clang.llvm.org/docs/ControlFlowIntegrity.html
-
-config CFI_CLANG_SHADOW
-	bool "Use CFI shadow to speed up cross-module checks"
-	default y
-	depends on CFI_CLANG && MODULES
-	help
-	  If you select this option, the kernel builds a fast look-up table of
-	  CFI check functions in loaded modules to reduce performance overhead.
-
-	  If unsure, say Y.
 
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"
@@ -768,7 +781,7 @@ config HAVE_ARCH_WITHIN_STACK_FRAMES
 	  and similar) by implementing an inline arch_within_stack_frames(),
 	  which is used by CONFIG_HARDENED_USERCOPY.
 
-config HAVE_CONTEXT_TRACKING
+config HAVE_CONTEXT_TRACKING_USER
 	bool
 	help
 	  Provide kernel/user boundaries probes necessary for subsystems
@@ -776,10 +789,10 @@ config HAVE_CONTEXT_TRACKING
 	  Syscalls need to be wrapped inside user_exit()-user_enter(), either
 	  optimized behind static key or through the slow path using TIF_NOHZ
 	  flag. Exceptions handlers must be wrapped as well. Irqs are already
-	  protected inside rcu_irq_enter/rcu_irq_exit() but preemption or signal
+	  protected inside ct_irq_enter/ct_irq_exit() but preemption or signal
 	  handling on irq exit still need to be protected.
 
-config HAVE_CONTEXT_TRACKING_OFFSTACK
+config HAVE_CONTEXT_TRACKING_USER_OFFSTACK
 	bool
 	help
 	  Architecture neither relies on exception_enter()/exception_exit()
@@ -791,7 +804,7 @@ config HAVE_CONTEXT_TRACKING_OFFSTACK
 
 	  - Critical entry code isn't preemptible (or better yet:
 	    not interruptible).
-	  - No use of RCU read side critical sections, unless rcu_nmi_enter()
+	  - No use of RCU read side critical sections, unless ct_nmi_enter()
 	    got called.
 	  - No use of instrumentation, unless instrumentation_begin() got
 	    called.
@@ -892,6 +905,12 @@ config HAVE_UNDERSCORE_SYMBOL_PREFIX
 	  Some architectures generate an _ in front of C symbols; things like
 	  module loading and assembly files need to know about this.
 
+config ARCH_WANTS_MODULES_DATA_IN_VMALLOC
+	bool
+	help
+	  For architectures like powerpc/32 which have constraints on module
+	  allocation and need to allocate module data outside of module area.
+
 config HAVE_IRQ_EXIT_ON_IRQ_STACK
 	bool
 	help
@@ -907,6 +926,9 @@ config HAVE_SOFTIRQ_ON_OWN_STACK
 	help
 	  Architecture provides a function to run __do_softirq() on a
 	  separate stack.
+
+config SOFTIRQ_ON_OWN_STACK
+	def_bool HAVE_SOFTIRQ_ON_OWN_STACK && !PREEMPT_RT
 
 config ALTERNATE_USER_ADDRESS_SPACE
 	bool
@@ -1013,12 +1035,10 @@ config PAGE_SIZE_LESS_THAN_64KB
 	depends on !IA64_PAGE_SIZE_64KB
 	depends on !PAGE_SIZE_64KB
 	depends on !PARISC_PAGE_SIZE_64KB
-	depends on !PPC_64K_PAGES
 	depends on PAGE_SIZE_LESS_THAN_256KB
 
 config PAGE_SIZE_LESS_THAN_256KB
 	def_bool y
-	depends on !PPC_256K_PAGES
 	depends on !PAGE_SIZE_256KB
 
 # This allows to use a set of generic functions to determine mmap base
@@ -1032,11 +1052,27 @@ config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	depends on MMU
 	select ARCH_HAS_ELF_RANDOMIZE
 
+config HAVE_OBJTOOL
+	bool
+
+config HAVE_JUMP_LABEL_HACK
+	bool
+
+config HAVE_NOINSTR_HACK
+	bool
+
+config HAVE_NOINSTR_VALIDATION
+	bool
+
+config HAVE_UACCESS_VALIDATION
+	bool
+	select OBJTOOL
+
 config HAVE_STACK_VALIDATION
 	bool
 	help
-	  Architecture supports the 'objtool check' host tool command, which
-	  performs compile-time stack metadata validation.
+	  Architecture supports objtool compile-time frame pointer rule
+	  validation.
 
 config HAVE_RELIABLE_STACKTRACE
 	bool
@@ -1306,6 +1342,7 @@ config HAVE_STATIC_CALL
 config HAVE_STATIC_CALL_INLINE
 	bool
 	depends on HAVE_STATIC_CALL
+	select OBJTOOL
 
 config HAVE_PREEMPT_DYNAMIC
 	bool
@@ -1330,7 +1367,7 @@ config HAVE_PREEMPT_DYNAMIC_CALL
 
 config HAVE_PREEMPT_DYNAMIC_KEY
 	bool
-	depends on HAVE_ARCH_JUMP_LABEL && CC_HAS_ASM_GOTO
+	depends on HAVE_ARCH_JUMP_LABEL
 	select HAVE_PREEMPT_DYNAMIC
 	help
 	   An architecture should select this if it can handle the preemption
@@ -1375,12 +1412,23 @@ config ARCH_HAS_ELFCORE_COMPAT
 config ARCH_HAS_PARANOID_L1D_FLUSH
 	bool
 
+config ARCH_HAVE_TRACE_MMIO_ACCESS
+	bool
+
 config DYNAMIC_SIGFRAME
 	bool
 
 # Select, if arch has a named attribute group bound to NUMA device nodes.
 config HAVE_ARCH_NODE_DEV_GROUP
 	bool
+
+config ARCH_HAS_NONLEAF_PMD_YOUNG
+	bool
+	help
+	  Architectures that select this option are capable of setting the
+	  accessed bit in non-leaf PMD entries when using them as part of linear
+	  address translations. Page table walkers that clear the accessed bit
+	  may use this capability to reduce their search space.
 
 source "kernel/gcov/Kconfig"
 

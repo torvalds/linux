@@ -858,7 +858,7 @@ static int cxgb4vf_open(struct net_device *dev)
 	 */
 	err = t4vf_update_port_info(pi);
 	if (err < 0)
-		return err;
+		goto err_unwind;
 
 	/*
 	 * Note that this interface is up and start everything up ...
@@ -1553,8 +1553,8 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 {
 	struct adapter *adapter = netdev2adap(dev);
 
-	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
+	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u.%u, TP %u.%u.%u.%u",
@@ -2859,7 +2859,7 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
  *				address stored on the adapter
  *	@adapter: The adapter
  *
- *	Find the the port mask for the VF based on the index of mac
+ *	Find the port mask for the VF based on the index of mac
  *	address stored in the adapter. If no mac address is stored on
  *	the adapter for the VF, use the port mask received from the
  *	firmware.

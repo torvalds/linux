@@ -17,6 +17,7 @@ struct sec_alg_res {
 	dma_addr_t a_ivin_dma;
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
+	u16 depth;
 };
 
 /* Cipher request of SEC private */
@@ -115,11 +116,11 @@ struct sec_cipher_ctx {
 /* SEC queue context which defines queue's relatives */
 struct sec_qp_ctx {
 	struct hisi_qp *qp;
-	struct sec_req *req_list[QM_Q_DEPTH];
+	struct sec_req **req_list;
 	struct idr req_idr;
-	struct sec_alg_res res[QM_Q_DEPTH];
+	struct sec_alg_res *res;
 	struct sec_ctx *ctx;
-	struct mutex req_lock;
+	spinlock_t req_lock;
 	struct list_head backlog;
 	struct hisi_acc_sgl_pool *c_in_pool;
 	struct hisi_acc_sgl_pool *c_out_pool;
@@ -143,10 +144,10 @@ struct sec_ctx {
 	/* Threshold for fake busy, trigger to return -EBUSY to user */
 	u32 fake_req_limit;
 
-	/* Currrent cyclic index to select a queue for encipher */
+	/* Current cyclic index to select a queue for encipher */
 	atomic_t enc_qcyclic;
 
-	 /* Currrent cyclic index to select a queue for decipher */
+	 /* Current cyclic index to select a queue for decipher */
 	atomic_t dec_qcyclic;
 
 	enum sec_alg_type alg_type;
@@ -191,8 +192,37 @@ struct sec_dev {
 	bool iommu_used;
 };
 
+enum sec_cap_type {
+	SEC_QM_NFE_MASK_CAP = 0x0,
+	SEC_QM_RESET_MASK_CAP,
+	SEC_QM_OOO_SHUTDOWN_MASK_CAP,
+	SEC_QM_CE_MASK_CAP,
+	SEC_NFE_MASK_CAP,
+	SEC_RESET_MASK_CAP,
+	SEC_OOO_SHUTDOWN_MASK_CAP,
+	SEC_CE_MASK_CAP,
+	SEC_CLUSTER_NUM_CAP,
+	SEC_CORE_TYPE_NUM_CAP,
+	SEC_CORE_NUM_CAP,
+	SEC_CORES_PER_CLUSTER_NUM_CAP,
+	SEC_CORE_ENABLE_BITMAP,
+	SEC_DRV_ALG_BITMAP_LOW,
+	SEC_DRV_ALG_BITMAP_HIGH,
+	SEC_DEV_ALG_BITMAP_LOW,
+	SEC_DEV_ALG_BITMAP_HIGH,
+	SEC_CORE1_ALG_BITMAP_LOW,
+	SEC_CORE1_ALG_BITMAP_HIGH,
+	SEC_CORE2_ALG_BITMAP_LOW,
+	SEC_CORE2_ALG_BITMAP_HIGH,
+	SEC_CORE3_ALG_BITMAP_LOW,
+	SEC_CORE3_ALG_BITMAP_HIGH,
+	SEC_CORE4_ALG_BITMAP_LOW,
+	SEC_CORE4_ALG_BITMAP_HIGH,
+};
+
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
 struct hisi_qp **sec_create_qps(void);
 int sec_register_to_crypto(struct hisi_qm *qm);
 void sec_unregister_from_crypto(struct hisi_qm *qm);
+u64 sec_get_alg_bitmap(struct hisi_qm *qm, u32 high, u32 low);
 #endif

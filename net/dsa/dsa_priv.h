@@ -54,18 +54,15 @@ struct dsa_notifier_ageing_time_info {
 
 /* DSA_NOTIFIER_BRIDGE_* */
 struct dsa_notifier_bridge_info {
+	const struct dsa_port *dp;
 	struct dsa_bridge bridge;
-	int tree_index;
-	int sw_index;
-	int port;
 	bool tx_fwd_offload;
 	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_FDB_* */
 struct dsa_notifier_fdb_info {
-	int sw_index;
-	int port;
+	const struct dsa_port *dp;
 	const unsigned char *addr;
 	u16 vid;
 	struct dsa_db db;
@@ -81,34 +78,29 @@ struct dsa_notifier_lag_fdb_info {
 
 /* DSA_NOTIFIER_MDB_* */
 struct dsa_notifier_mdb_info {
+	const struct dsa_port *dp;
 	const struct switchdev_obj_port_mdb *mdb;
-	int sw_index;
-	int port;
 	struct dsa_db db;
 };
 
 /* DSA_NOTIFIER_LAG_* */
 struct dsa_notifier_lag_info {
+	const struct dsa_port *dp;
 	struct dsa_lag lag;
-	int sw_index;
-	int port;
-
 	struct netdev_lag_upper_info *info;
+	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_VLAN_* */
 struct dsa_notifier_vlan_info {
+	const struct dsa_port *dp;
 	const struct switchdev_obj_port_vlan *vlan;
-	int sw_index;
-	int port;
 	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_MTU */
 struct dsa_notifier_mtu_info {
-	bool targeted_match;
-	int sw_index;
-	int port;
+	const struct dsa_port *dp;
 	int mtu;
 };
 
@@ -119,9 +111,7 @@ struct dsa_notifier_tag_proto_info {
 
 /* DSA_NOTIFIER_TAG_8021Q_VLAN_* */
 struct dsa_notifier_tag_8021q_vlan_info {
-	int tree_index;
-	int sw_index;
-	int port;
+	const struct dsa_port *dp;
 	u16 vid;
 };
 
@@ -195,6 +185,11 @@ static inline int dsa_tag_protocol_overhead(const struct dsa_device_ops *ops)
 /* master.c */
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp);
 void dsa_master_teardown(struct net_device *dev);
+int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
+			 struct netdev_lag_upper_info *uinfo,
+			 struct netlink_ext_ack *extack);
+void dsa_master_lag_teardown(struct net_device *lag_dev,
+			     struct dsa_port *cpu_dp);
 
 static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 						       int device, int port)
@@ -211,7 +206,11 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 	return NULL;
 }
 
+/* netlink.c */
+extern struct rtnl_link_ops dsa_link_ops __read_mostly;
+
 /* port.c */
+bool dsa_port_supports_hwtstamp(struct dsa_port *dp, struct ifreq *ifr);
 void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 			       const struct dsa_device_ops *tag_ops);
 int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age);
@@ -241,8 +240,7 @@ int dsa_port_mst_enable(struct dsa_port *dp, bool on,
 			struct netlink_ext_ack *extack);
 int dsa_port_vlan_msti(struct dsa_port *dp,
 		       const struct switchdev_vlan_msti *msti);
-int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
-			bool targeted_match);
+int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu);
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
@@ -297,12 +295,16 @@ int dsa_port_mrp_add_ring_role(const struct dsa_port *dp,
 int dsa_port_mrp_del_ring_role(const struct dsa_port *dp,
 			       const struct switchdev_obj_ring_role_mrp *mrp);
 int dsa_port_phylink_create(struct dsa_port *dp);
-int dsa_port_link_register_of(struct dsa_port *dp);
-void dsa_port_link_unregister_of(struct dsa_port *dp);
+void dsa_port_phylink_destroy(struct dsa_port *dp);
+int dsa_shared_port_link_register_of(struct dsa_port *dp);
+void dsa_shared_port_link_unregister_of(struct dsa_port *dp);
 int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr);
 void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr);
 int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast);
 void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast);
+void dsa_port_set_host_flood(struct dsa_port *dp, bool uc, bool mc);
+int dsa_port_change_master(struct dsa_port *dp, struct net_device *master,
+			   struct netlink_ext_ack *extack);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
@@ -316,8 +318,12 @@ int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);
 int dsa_slave_register_notifier(void);
 void dsa_slave_unregister_notifier(void);
+void dsa_slave_sync_ha(struct net_device *dev);
+void dsa_slave_unsync_ha(struct net_device *dev);
 void dsa_slave_setup_tagger(struct net_device *slave);
 int dsa_slave_change_mtu(struct net_device *dev, int new_mtu);
+int dsa_slave_change_master(struct net_device *dev, struct net_device *master,
+			    struct netlink_ext_ack *extack);
 int dsa_slave_manage_vlan_filtering(struct net_device *dev,
 				    bool vlan_filtering);
 
@@ -333,7 +339,7 @@ dsa_slave_to_master(const struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
-	return dp->cpu_dp->master;
+	return dsa_port_to_master(dp);
 }
 
 /* If under a bridge with vlan_filtering=0, make sure to send pvid-tagged
@@ -553,10 +559,10 @@ void dsa_lag_map(struct dsa_switch_tree *dst, struct dsa_lag *lag);
 void dsa_lag_unmap(struct dsa_switch_tree *dst, struct dsa_lag *lag);
 struct dsa_lag *dsa_tree_lag_find(struct dsa_switch_tree *dst,
 				  const struct net_device *lag_dev);
+struct net_device *dsa_tree_find_first_master(struct dsa_switch_tree *dst);
 int dsa_tree_notify(struct dsa_switch_tree *dst, unsigned long e, void *v);
 int dsa_broadcast(unsigned long e, void *v);
 int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
-			      struct net_device *master,
 			      const struct dsa_device_ops *tag_ops,
 			      const struct dsa_device_ops *old_tag_ops);
 void dsa_tree_master_admin_state_change(struct dsa_switch_tree *dst,

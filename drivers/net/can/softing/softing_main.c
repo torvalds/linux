@@ -5,6 +5,7 @@
  * - Kurt Van Dijck, EIA Electronics
  */
 
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
@@ -59,7 +60,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	uint8_t buf[DPRAM_TX_SIZE];
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	spin_lock(&card->spin);
@@ -611,8 +612,12 @@ static const struct net_device_ops softing_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops softing_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct can_bittiming_const softing_btr_const = {
-	.name = "softing",
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -649,6 +654,7 @@ static struct net_device *softing_netdev_create(struct softing *card,
 
 	netdev->flags |= IFF_ECHO;
 	netdev->netdev_ops = &softing_netdev_ops;
+	netdev->ethtool_ops = &softing_ethtool_ops;
 	priv->can.do_set_mode = softing_candev_set_mode;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
@@ -846,7 +852,7 @@ platform_resource_failed:
 
 static struct platform_driver softing_driver = {
 	.driver = {
-		.name = "softing",
+		.name = KBUILD_MODNAME,
 	},
 	.probe = softing_pdev_probe,
 	.remove = softing_pdev_remove,

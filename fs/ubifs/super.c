@@ -2191,7 +2191,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/*
 	 * UBIFS provides 'backing_dev_info' in order to disable read-ahead. For
-	 * UBIFS, I/O is not deferred, it is done immediately in readpage,
+	 * UBIFS, I/O is not deferred, it is done immediately in read_folio,
 	 * which means the user would have to wait not just for their own I/O
 	 * but the read-ahead I/O as well i.e. completely pointless.
 	 *
@@ -2430,7 +2430,7 @@ static int __init ubifs_init(void)
 	if (!ubifs_inode_slab)
 		return -ENOMEM;
 
-	err = register_shrinker(&ubifs_shrinker_info);
+	err = register_shrinker(&ubifs_shrinker_info, "ubifs-slab");
 	if (err)
 		goto out_slab;
 

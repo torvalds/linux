@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define __NO_FORTIFY
 #include <linux/types.h>
 #include <linux/module.h>
 
@@ -27,10 +28,10 @@ EXPORT_SYMBOL(strstr);
 #ifndef __x86_64__
 extern void *memcpy(void *, const void *, size_t);
 EXPORT_SYMBOL(memcpy);
-#endif
-
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memset);
+#endif
+
 EXPORT_SYMBOL(printf);
 
 /* Here, instead, I can provide a fake prototype. Yes, someone cares: genksyms.

@@ -351,7 +351,7 @@ static void read_symtabs(FILE *fp)
 
 static void read_relocs(FILE *fp)
 {
-	static unsigned long base = 0;
+	static unsigned long base;
 	int i, j;
 
 	if (!base) {

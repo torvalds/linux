@@ -25,7 +25,8 @@ struct _aarch64_ctx *get_header(struct _aarch64_ctx *head, uint32_t magic,
 	return found;
 }
 
-bool validate_extra_context(struct extra_context *extra, char **err)
+bool validate_extra_context(struct extra_context *extra, char **err,
+			    void **extra_data, size_t *extra_size)
 {
 	struct _aarch64_ctx *term;
 
@@ -33,7 +34,7 @@ bool validate_extra_context(struct extra_context *extra, char **err)
 		return false;
 
 	fprintf(stderr, "Validating EXTRA...\n");
-	term = GET_RESV_NEXT_HEAD(extra);
+	term = GET_RESV_NEXT_HEAD(&extra->head);
 	if (!term || term->magic || term->size) {
 		*err = "Missing terminator after EXTRA context";
 		return false;
@@ -42,10 +43,13 @@ bool validate_extra_context(struct extra_context *extra, char **err)
 		*err = "Extra DATAP misaligned";
 	else if (extra->size & 0x0fUL)
 		*err = "Extra SIZE misaligned";
-	else if (extra->datap != (uint64_t)term + sizeof(*term))
+	else if (extra->datap != (uint64_t)term + 0x10UL)
 		*err = "Extra DATAP misplaced (not contiguous)";
 	if (*err)
 		return false;
+
+	*extra_data = (void *)extra->datap;
+	*extra_size = extra->size;
 
 	return true;
 }
@@ -75,15 +79,44 @@ bool validate_sve_context(struct sve_context *sve, char **err)
 	return true;
 }
 
+bool validate_za_context(struct za_context *za, char **err)
+{
+	/* Size will be rounded up to a multiple of 16 bytes */
+	size_t regs_size
+		= ((ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(za->vl)) + 15) / 16) * 16;
+
+	if (!za || !err)
+		return false;
+
+	/* Either a bare za_context or a za_context followed by regs data */
+	if ((za->head.size != sizeof(struct za_context)) &&
+	    (za->head.size != regs_size)) {
+		*err = "bad size for ZA context";
+		return false;
+	}
+
+	if (!sve_vl_valid(za->vl)) {
+		*err = "SME VL in ZA context invalid";
+
+		return false;
+	}
+
+	return true;
+}
+
 bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 {
 	bool terminated = false;
 	size_t offs = 0;
 	int flags = 0;
+	int new_flags;
 	struct extra_context *extra = NULL;
 	struct sve_context *sve = NULL;
+	struct za_context *za = NULL;
 	struct _aarch64_ctx *head =
 		(struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
+	void *extra_data = NULL;
+	size_t extra_sz = 0;
 
 	if (!err)
 		return false;
@@ -94,12 +127,24 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			return false;
 		}
 
+		new_flags = 0;
+
 		switch (head->magic) {
 		case 0:
-			if (head->size)
+			if (head->size) {
 				*err = "Bad size for terminator";
-			else
+			} else if (extra_data) {
+				/* End of main data, walking the extra data */
+				head = extra_data;
+				resv_sz = extra_sz;
+				offs = 0;
+
+				extra_data = NULL;
+				extra_sz = 0;
+				continue;
+			} else {
 				terminated = true;
+			}
 			break;
 		case FPSIMD_MAGIC:
 			if (flags & FPSIMD_CTX)
@@ -107,7 +152,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			else if (head->size !=
 				 sizeof(struct fpsimd_context))
 				*err = "Bad size for fpsimd_context";
-			flags |= FPSIMD_CTX;
+			new_flags |= FPSIMD_CTX;
 			break;
 		case ESR_MAGIC:
 			if (head->size != sizeof(struct esr_context))
@@ -118,7 +163,14 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 				*err = "Multiple SVE_MAGIC";
 			/* Size is validated in validate_sve_context() */
 			sve = (struct sve_context *)head;
-			flags |= SVE_CTX;
+			new_flags |= SVE_CTX;
+			break;
+		case ZA_MAGIC:
+			if (flags & ZA_CTX)
+				*err = "Multiple ZA_MAGIC";
+			/* Size is validated in validate_za_context() */
+			za = (struct za_context *)head;
+			new_flags |= ZA_CTX;
 			break;
 		case EXTRA_MAGIC:
 			if (flags & EXTRA_CTX)
@@ -126,7 +178,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			else if (head->size !=
 				 sizeof(struct extra_context))
 				*err = "Bad size for extra_context";
-			flags |= EXTRA_CTX;
+			new_flags |= EXTRA_CTX;
 			extra = (struct extra_context *)head;
 			break;
 		case KSFT_BAD_MAGIC:
@@ -159,12 +211,18 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			return false;
 		}
 
-		if (flags & EXTRA_CTX)
-			if (!validate_extra_context(extra, err))
+		if (new_flags & EXTRA_CTX)
+			if (!validate_extra_context(extra, err,
+						    &extra_data, &extra_sz))
 				return false;
-		if (flags & SVE_CTX)
+		if (new_flags & SVE_CTX)
 			if (!validate_sve_context(sve, err))
 				return false;
+		if (new_flags & ZA_CTX)
+			if (!validate_za_context(za, err))
+				return false;
+
+		flags |= new_flags;
 
 		head = GET_RESV_NEXT_HEAD(head);
 	}

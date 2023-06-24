@@ -94,19 +94,18 @@ static void ocelot_fdma_activate_chan(struct ocelot *ocelot, dma_addr_t dma,
 	ocelot_fdma_writel(ocelot, MSCC_FDMA_CH_ACTIVATE, BIT(chan));
 }
 
+static u32 ocelot_fdma_read_ch_safe(struct ocelot *ocelot)
+{
+	return ocelot_fdma_readl(ocelot, MSCC_FDMA_CH_SAFE);
+}
+
 static int ocelot_fdma_wait_chan_safe(struct ocelot *ocelot, int chan)
 {
-	unsigned long timeout;
 	u32 safe;
 
-	timeout = jiffies + usecs_to_jiffies(OCELOT_FDMA_CH_SAFE_TIMEOUT_US);
-	do {
-		safe = ocelot_fdma_readl(ocelot, MSCC_FDMA_CH_SAFE);
-		if (safe & BIT(chan))
-			return 0;
-	} while (time_after(jiffies, timeout));
-
-	return -ETIMEDOUT;
+	return readx_poll_timeout_atomic(ocelot_fdma_read_ch_safe, ocelot, safe,
+					 safe & BIT(chan), 0,
+					 OCELOT_FDMA_CH_SAFE_TIMEOUT_US);
 }
 
 static void ocelot_fdma_dcb_set_data(struct ocelot_fdma_dcb *dcb,
@@ -799,8 +798,8 @@ void ocelot_fdma_netdev_init(struct ocelot *ocelot, struct net_device *dev)
 		return;
 
 	fdma->ndev = dev;
-	netif_napi_add(dev, &fdma->napi, ocelot_fdma_napi_poll,
-		       OCELOT_FDMA_WEIGHT);
+	netif_napi_add_weight(dev, &fdma->napi, ocelot_fdma_napi_poll,
+			      OCELOT_FDMA_WEIGHT);
 }
 
 void ocelot_fdma_netdev_deinit(struct ocelot *ocelot, struct net_device *dev)

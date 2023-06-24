@@ -67,6 +67,7 @@ properties:
       - gmii
       - sgmii
       - qsgmii
+      - qusgmii
       - tbi
       - rev-mii
       - rmii
@@ -133,12 +134,6 @@ properties:
       and is useful for determining certain configuration settings
       such as flow control thresholds.
 
-  rx-internal-delay-ps:
-    description: |
-      RGMII Receive Clock Delay defined in pico seconds.
-      This is used for controllers that have configurable RX internal delays.
-      If this property is present then the MAC applies the RX delay.
-
   sfp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -149,12 +144,6 @@ properties:
     description:
       The size of the controller\'s transmit fifo in bytes. This
       is used for components that can have configurable fifo sizes.
-
-  tx-internal-delay-ps:
-    description: |
-      RGMII Transmit Clock Delay defined in pico seconds.
-      This is used for controllers that have configurable TX internal delays.
-      If this property is present then the MAC applies the TX delay.
 
   managed:
     description:
@@ -167,70 +156,88 @@ properties:
       - in-band-status
 
   fixed-link:
-    allOf:
-      - if:
-          type: array
-        then:
-          deprecated: true
-          items:
-            - minimum: 0
-              maximum: 31
-              description:
-                Emulated PHY ID, choose any but unique to the all
-                specified fixed-links
+    oneOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+        deprecated: true
+        items:
+          - minimum: 0
+            maximum: 31
+            description:
+              Emulated PHY ID, choose any but unique to the all
+              specified fixed-links
 
-            - enum: [0, 1]
-              description:
-                Duplex configuration. 0 for half duplex or 1 for
-                full duplex
+          - enum: [0, 1]
+            description:
+              Duplex configuration. 0 for half duplex or 1 for
+              full duplex
 
-            - enum: [10, 100, 1000, 2500, 10000]
-              description:
-                Link speed in Mbits/sec.
+          - enum: [10, 100, 1000, 2500, 10000]
+            description:
+              Link speed in Mbits/sec.
 
-            - enum: [0, 1]
-              description:
-                Pause configuration. 0 for no pause, 1 for pause
+          - enum: [0, 1]
+            description:
+              Pause configuration. 0 for no pause, 1 for pause
 
-            - enum: [0, 1]
-              description:
-                Asymmetric pause configuration. 0 for no asymmetric
-                pause, 1 for asymmetric pause
+          - enum: [0, 1]
+            description:
+              Asymmetric pause configuration. 0 for no asymmetric
+              pause, 1 for asymmetric pause
+      - type: object
+        additionalProperties: false
+        properties:
+          speed:
+            description:
+              Link speed.
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [10, 100, 1000, 2500, 10000]
 
+          full-duplex:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description:
+              Indicates that full-duplex is used. When absent, half
+              duplex is assumed.
 
-      - if:
-          type: object
-        then:
-          properties:
-            speed:
-              description:
-                Link speed.
-              $ref: /schemas/types.yaml#/definitions/uint32
-              enum: [10, 100, 1000, 2500, 10000]
+          pause:
+            $ref: /schemas/types.yaml#definitions/flag
+            description:
+              Indicates that pause should be enabled.
 
-            full-duplex:
-              $ref: /schemas/types.yaml#/definitions/flag
-              description:
-                Indicates that full-duplex is used. When absent, half
-                duplex is assumed.
+          asym-pause:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description:
+              Indicates that asym_pause should be enabled.
 
-            pause:
-              $ref: /schemas/types.yaml#definitions/flag
-              description:
-                Indicates that pause should be enabled.
+          link-gpios:
+            maxItems: 1
+            description:
+              GPIO to determine if the link is up
 
-            asym-pause:
-              $ref: /schemas/types.yaml#/definitions/flag
-              description:
-                Indicates that asym_pause should be enabled.
+        required:
+          - speed
 
-            link-gpios:
-              maxItems: 1
-              description:
-                GPIO to determine if the link is up
-
-          required:
-            - speed
+allOf:
+  - if:
+      properties:
+        phy-mode:
+          contains:
+            enum:
+              - rgmii
+              - rgmii-rxid
+              - rgmii-txid
+              - rgmii-id
+    then:
+      properties:
+        rx-internal-delay-ps:
+          description:
+            RGMII Receive Clock Delay defined in pico seconds.This is used for
+            controllers that have configurable RX internal delays. If this
+            property is present then the MAC applies the RX delay.
+        tx-internal-delay-ps:
+          description:
+            RGMII Transmit Clock Delay defined in pico seconds.This is used for
+            controllers that have configurable TX internal delays. If this
+            property is present then the MAC applies the TX delay.
 
 additionalProperties: true
 

@@ -269,11 +269,7 @@ static int rtw_debugfs_get_rsvd_page(struct seq_file *m, void *v)
 	for (i = 0 ; i < buf_size ; i += 8) {
 		if (i % page_size == 0)
 			seq_printf(m, "PAGE %d\n", (i + offset) / page_size);
-		seq_printf(m, "%2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x\n",
-			   *(buf + i), *(buf + i + 1),
-			   *(buf + i + 2), *(buf + i + 3),
-			   *(buf + i + 4), *(buf + i + 5),
-			   *(buf + i + 6), *(buf + i + 7));
+		seq_printf(m, "%8ph\n", buf + i);
 	}
 	vfree(buf);
 
@@ -625,11 +621,13 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 	struct rtw_debugfs_priv *debugfs_priv = m->private;
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw_hal *hal = &rtwdev->hal;
-	u8 path, rate;
+	u8 path, rate, bw, ch, regd;
 	struct rtw_power_params pwr_param = {0};
-	u8 bw = hal->current_band_width;
-	u8 ch = hal->current_channel;
-	u8 regd = rtw_regd_get(rtwdev);
+
+	mutex_lock(&rtwdev->mutex);
+	bw = hal->current_band_width;
+	ch = hal->current_channel;
+	regd = rtw_regd_get(rtwdev);
 
 	seq_printf(m, "channel: %u\n", ch);
 	seq_printf(m, "bandwidth: %u\n", bw);
@@ -671,6 +669,7 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 	}
 
 	mutex_unlock(&hal->tx_power_mutex);
+	mutex_unlock(&rtwdev->mutex);
 
 	return 0;
 }

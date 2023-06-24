@@ -14,7 +14,7 @@
 #include <linux/soc/mmp/cputype.h>
 #include "regs-usb.h"
 
-int __init pxa_register_device(struct pxa_device_desc *desc,
+int __init mmp_register_device(struct mmp_device_desc *desc,
 				void *data, size_t size)
 {
 	struct platform_device *pdev;
@@ -238,7 +238,7 @@ void pxa_usb_phy_deinit(void __iomem *phy_reg)
 static u64 __maybe_unused usb_dma_mask = ~(u32)0;
 
 #if IS_ENABLED(CONFIG_PHY_PXA_USB)
-struct resource pxa168_usb_phy_resources[] = {
+static struct resource pxa168_usb_phy_resources[] = {
 	[0] = {
 		.start	= PXA168_U2O_PHYBASE,
 		.end	= PXA168_U2O_PHYBASE + USB_PHY_RANGE,
@@ -259,7 +259,7 @@ struct platform_device pxa168_device_usb_phy = {
 #endif /* CONFIG_PHY_PXA_USB */
 
 #if IS_ENABLED(CONFIG_USB_MV_UDC)
-struct resource pxa168_u2o_resources[] = {
+static struct resource pxa168_u2o_resources[] = {
 	/* regbase */
 	[0] = {
 		.start	= PXA168_U2O_REGBASE + U2x_CAPREGS_OFFSET,
@@ -294,7 +294,7 @@ struct platform_device pxa168_device_u2o = {
 #endif /* CONFIG_USB_MV_UDC */
 
 #if IS_ENABLED(CONFIG_USB_EHCI_MV_U2O)
-struct resource pxa168_u2oehci_resources[] = {
+static struct resource pxa168_u2oehci_resources[] = {
 	[0] = {
 		.start	= PXA168_U2O_REGBASE,
 		.end	= PXA168_U2O_REGBASE + USB_REG_RANGE,
@@ -321,7 +321,7 @@ struct platform_device pxa168_device_u2oehci = {
 #endif
 
 #if IS_ENABLED(CONFIG_USB_MV_OTG)
-struct resource pxa168_u2ootg_resources[] = {
+static struct resource pxa168_u2ootg_resources[] = {
 	/* regbase */
 	[0] = {
 		.start	= PXA168_U2O_REGBASE + U2x_CAPREGS_OFFSET,

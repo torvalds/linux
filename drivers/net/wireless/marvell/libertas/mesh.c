@@ -109,9 +109,9 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 
 		if (priv->mesh_dev) {
 			mesh_wdev = priv->mesh_dev->ieee80211_ptr;
-			ie->val.mesh_id_len = mesh_wdev->mesh_id_up_len;
-			memcpy(ie->val.mesh_id, mesh_wdev->ssid,
-						mesh_wdev->mesh_id_up_len);
+			ie->val.mesh_id_len = mesh_wdev->u.mesh.id_up_len;
+			memcpy(ie->val.mesh_id, mesh_wdev->u.mesh.id,
+						mesh_wdev->u.mesh.id_up_len);
 		}
 
 		ie->len = sizeof(struct mrvl_meshie_val) -
@@ -986,8 +986,8 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	mesh_wdev->wiphy = priv->wdev->wiphy;
 
 	if (priv->mesh_tlv) {
-		sprintf(mesh_wdev->ssid, "mesh");
-		mesh_wdev->mesh_id_up_len = 4;
+		sprintf(mesh_wdev->u.mesh.id, "mesh");
+		mesh_wdev->u.mesh.id_up_len = 4;
 	}
 
 	mesh_wdev->netdev = mesh_dev;

@@ -58,7 +58,7 @@ static void dsa_master_get_regs(struct net_device *dev,
 	}
 
 	cpu_info = (struct ethtool_drvinfo *)data;
-	strlcpy(cpu_info->driver, "dsa", sizeof(cpu_info->driver));
+	strscpy(cpu_info->driver, "dsa", sizeof(cpu_info->driver));
 	data += sizeof(*cpu_info);
 	cpu_regs = (struct ethtool_regs *)data;
 	data += sizeof(*cpu_regs);
@@ -204,8 +204,7 @@ static int dsa_master_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		 * switch in the tree that is PTP capable.
 		 */
 		list_for_each_entry(dp, &dst->ports, list)
-			if (dp->ds->ops->port_hwtstamp_get ||
-			    dp->ds->ops->port_hwtstamp_set)
+			if (dsa_port_supports_hwtstamp(dp, ifr))
 				return -EBUSY;
 		break;
 	}
@@ -225,6 +224,9 @@ static int dsa_master_ethtool_setup(struct net_device *dev)
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch *ds = cpu_dp->ds;
 	struct ethtool_ops *ops;
+
+	if (netif_is_lag_master(dev))
+		return 0;
 
 	ops = devm_kzalloc(ds->dev, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
@@ -250,6 +252,9 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
+	if (netif_is_lag_master(dev))
+		return;
+
 	dev->ethtool_ops = cpu_dp->orig_ethtool_ops;
 	cpu_dp->orig_ethtool_ops = NULL;
 }
@@ -257,6 +262,9 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 static void dsa_netdev_ops_set(struct net_device *dev,
 			       const struct dsa_netdevice_ops *ops)
 {
+	if (netif_is_lag_master(dev))
+		return;
+
 	dev->dsa_ptr->netdev_ops = ops;
 }
 
@@ -307,7 +315,7 @@ static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
 		 */
 		goto out;
 
-	err = dsa_tree_change_tag_proto(cpu_dp->ds->dst, dev, new_tag_ops,
+	err = dsa_tree_change_tag_proto(cpu_dp->ds->dst, new_tag_ops,
 					old_tag_ops);
 	if (err) {
 		/* On failure the old tagger is restored, so we don't need the
@@ -355,12 +363,14 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	mtu = ETH_DATA_LEN + dsa_tag_protocol_overhead(tag_ops);
 
 	/* The DSA master must use SET_NETDEV_DEV for this to work. */
-	consumer_link = device_link_add(ds->dev, dev->dev.parent,
-					DL_FLAG_AUTOREMOVE_CONSUMER);
-	if (!consumer_link)
-		netdev_err(dev,
-			   "Failed to create a device link to DSA switch %s\n",
-			   dev_name(ds->dev));
+	if (!netif_is_lag_master(dev)) {
+		consumer_link = device_link_add(ds->dev, dev->dev.parent,
+						DL_FLAG_AUTOREMOVE_CONSUMER);
+		if (!consumer_link)
+			netdev_err(dev,
+				   "Failed to create a device link to DSA switch %s\n",
+				   dev_name(ds->dev));
+	}
 
 	/* The switch driver may not implement ->port_change_mtu(), case in
 	 * which dsa_slave_change_mtu() will not update the master MTU either,
@@ -416,4 +426,53 @@ void dsa_master_teardown(struct net_device *dev)
 	 * without the tag and go through the regular receive path.
 	 */
 	wmb();
+}
+
+int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
+			 struct netdev_lag_upper_info *uinfo,
+			 struct netlink_ext_ack *extack)
+{
+	bool master_setup = false;
+	int err;
+
+	if (!netdev_uses_dsa(lag_dev)) {
+		err = dsa_master_setup(lag_dev, cpu_dp);
+		if (err)
+			return err;
+
+		master_setup = true;
+	}
+
+	err = dsa_port_lag_join(cpu_dp, lag_dev, uinfo, extack);
+	if (err) {
+		if (extack && !extack->_msg)
+			NL_SET_ERR_MSG_MOD(extack,
+					   "CPU port failed to join LAG");
+		goto out_master_teardown;
+	}
+
+	return 0;
+
+out_master_teardown:
+	if (master_setup)
+		dsa_master_teardown(lag_dev);
+	return err;
+}
+
+/* Tear down a master if there isn't any other user port on it,
+ * optionally also destroying LAG information.
+ */
+void dsa_master_lag_teardown(struct net_device *lag_dev,
+			     struct dsa_port *cpu_dp)
+{
+	struct net_device *upper;
+	struct list_head *iter;
+
+	dsa_port_lag_leave(cpu_dp, lag_dev);
+
+	netdev_for_each_upper_dev_rcu(lag_dev, upper, iter)
+		if (dsa_slave_dev_check(upper))
+			return;
+
+	dsa_master_teardown(lag_dev);
 }

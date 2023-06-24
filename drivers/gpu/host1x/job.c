@@ -175,7 +175,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		map = host1x_bo_pin(dev, bo, direction, &client->cache);
+		map = host1x_bo_pin(dev, bo, direction, NULL);
 		if (IS_ERR(map)) {
 			err = PTR_ERR(map);
 			goto unpin;
@@ -222,7 +222,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		map = host1x_bo_pin(host->dev, g->bo, DMA_TO_DEVICE, &host->cache);
+		map = host1x_bo_pin(host->dev, g->bo, DMA_TO_DEVICE, NULL);
 		if (IS_ERR(map)) {
 			err = PTR_ERR(map);
 			goto unpin;

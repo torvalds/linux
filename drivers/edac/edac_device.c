@@ -47,99 +47,67 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 }
 #endif				/* CONFIG_EDAC_DEBUG */
 
-struct edac_device_ctl_info *edac_device_alloc_ctl_info(
-	unsigned sz_private,
-	char *edac_device_name, unsigned nr_instances,
-	char *edac_block_name, unsigned nr_blocks,
-	unsigned offset_value,		/* zero, 1, or other based offset */
-	struct edac_dev_sysfs_block_attribute *attrib_spec, unsigned nr_attrib,
-	int device_index)
+/*
+ * @off_val: zero, 1, or other based offset
+ */
+struct edac_device_ctl_info *
+edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instances,
+			   char *blk_name, unsigned nr_blocks, unsigned off_val,
+			   struct edac_dev_sysfs_block_attribute *attrib_spec,
+			   unsigned nr_attrib, int device_index)
 {
-	struct edac_device_ctl_info *dev_ctl;
-	struct edac_device_instance *dev_inst, *inst;
-	struct edac_device_block *dev_blk, *blk_p, *blk;
 	struct edac_dev_sysfs_block_attribute *dev_attrib, *attrib_p, *attrib;
-	unsigned total_size;
-	unsigned count;
+	struct edac_device_block *dev_blk, *blk_p, *blk;
+	struct edac_device_instance *dev_inst, *inst;
+	struct edac_device_ctl_info *dev_ctl;
 	unsigned instance, block, attr;
-	void *pvt, *p;
+	void *pvt;
 	int err;
 
 	edac_dbg(4, "instances=%d blocks=%d\n", nr_instances, nr_blocks);
 
-	/* Calculate the size of memory we need to allocate AND
-	 * determine the offsets of the various item arrays
-	 * (instance,block,attrib) from the start of an  allocated structure.
-	 * We want the alignment of each item  (instance,block,attrib)
-	 * to be at least as stringent as what the compiler would
-	 * provide if we could simply hardcode everything into a single struct.
-	 */
-	p = NULL;
-	dev_ctl = edac_align_ptr(&p, sizeof(*dev_ctl), 1);
-
-	/* Calc the 'end' offset past end of ONE ctl_info structure
-	 * which will become the start of the 'instance' array
-	 */
-	dev_inst = edac_align_ptr(&p, sizeof(*dev_inst), nr_instances);
-
-	/* Calc the 'end' offset past the instance array within the ctl_info
-	 * which will become the start of the block array
-	 */
-	count = nr_instances * nr_blocks;
-	dev_blk = edac_align_ptr(&p, sizeof(*dev_blk), count);
-
-	/* Calc the 'end' offset past the dev_blk array
-	 * which will become the start of the attrib array, if any.
-	 */
-	/* calc how many nr_attrib we need */
-	if (nr_attrib > 0)
-		count *= nr_attrib;
-	dev_attrib = edac_align_ptr(&p, sizeof(*dev_attrib), count);
-
-	/* Calc the 'end' offset past the attributes array */
-	pvt = edac_align_ptr(&p, sz_private, 1);
-
-	/* 'pvt' now points to where the private data area is.
-	 * At this point 'pvt' (like dev_inst,dev_blk and dev_attrib)
-	 * is baselined at ZERO
-	 */
-	total_size = ((unsigned long)pvt) + sz_private;
-
-	/* Allocate the amount of memory for the set of control structures */
-	dev_ctl = kzalloc(total_size, GFP_KERNEL);
-	if (dev_ctl == NULL)
+	dev_ctl = kzalloc(sizeof(struct edac_device_ctl_info), GFP_KERNEL);
+	if (!dev_ctl)
 		return NULL;
 
-	/* Adjust pointers so they point within the actual memory we
-	 * just allocated rather than an imaginary chunk of memory
-	 * located at address 0.
-	 * 'dev_ctl' points to REAL memory, while the others are
-	 * ZERO based and thus need to be adjusted to point within
-	 * the allocated memory.
-	 */
-	dev_inst = (struct edac_device_instance *)
-		(((char *)dev_ctl) + ((unsigned long)dev_inst));
-	dev_blk = (struct edac_device_block *)
-		(((char *)dev_ctl) + ((unsigned long)dev_blk));
-	dev_attrib = (struct edac_dev_sysfs_block_attribute *)
-		(((char *)dev_ctl) + ((unsigned long)dev_attrib));
-	pvt = sz_private ? (((char *)dev_ctl) + ((unsigned long)pvt)) : NULL;
+	dev_inst = kcalloc(nr_instances, sizeof(struct edac_device_instance), GFP_KERNEL);
+	if (!dev_inst)
+		goto free;
 
-	/* Begin storing the information into the control info structure */
-	dev_ctl->dev_idx = device_index;
-	dev_ctl->nr_instances = nr_instances;
 	dev_ctl->instances = dev_inst;
-	dev_ctl->pvt_info = pvt;
+
+	dev_blk = kcalloc(nr_instances * nr_blocks, sizeof(struct edac_device_block), GFP_KERNEL);
+	if (!dev_blk)
+		goto free;
+
+	dev_ctl->blocks = dev_blk;
+
+	if (nr_attrib) {
+		dev_attrib = kcalloc(nr_attrib, sizeof(struct edac_dev_sysfs_block_attribute),
+				     GFP_KERNEL);
+		if (!dev_attrib)
+			goto free;
+
+		dev_ctl->attribs = dev_attrib;
+	}
+
+	if (pvt_sz) {
+		pvt = kzalloc(pvt_sz, GFP_KERNEL);
+		if (!pvt)
+			goto free;
+
+		dev_ctl->pvt_info = pvt;
+	}
+
+	dev_ctl->dev_idx	= device_index;
+	dev_ctl->nr_instances	= nr_instances;
 
 	/* Default logging of CEs and UEs */
 	dev_ctl->log_ce = 1;
 	dev_ctl->log_ue = 1;
 
 	/* Name of this edac device */
-	snprintf(dev_ctl->name,sizeof(dev_ctl->name),"%s",edac_device_name);
-
-	edac_dbg(4, "edac_dev=%p next after end=%p\n",
-		 dev_ctl, pvt + sz_private);
+	snprintf(dev_ctl->name, sizeof(dev_ctl->name),"%s", dev_name);
 
 	/* Initialize every Instance */
 	for (instance = 0; instance < nr_instances; instance++) {
@@ -150,15 +118,14 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		inst->blocks = blk_p;
 
 		/* name of this instance */
-		snprintf(inst->name, sizeof(inst->name),
-			 "%s%u", edac_device_name, instance);
+		snprintf(inst->name, sizeof(inst->name), "%s%u", dev_name, instance);
 
 		/* Initialize every block in each instance */
 		for (block = 0; block < nr_blocks; block++) {
 			blk = &blk_p[block];
 			blk->instance = inst;
 			snprintf(blk->name, sizeof(blk->name),
-				 "%s%d", edac_block_name, block+offset_value);
+				 "%s%d", blk_name, block + off_val);
 
 			edac_dbg(4, "instance=%d inst_p=%p block=#%d block_p=%p name='%s'\n",
 				 instance, inst, block, blk, blk->name);
@@ -210,10 +177,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	 * Initialize the 'root' kobj for the edac_device controller
 	 */
 	err = edac_device_register_sysfs_main_kobj(dev_ctl);
-	if (err) {
-		kfree(dev_ctl);
-		return NULL;
-	}
+	if (err)
+		goto free;
 
 	/* at this point, the root kobj is valid, and in order to
 	 * 'free' the object, then the function:
@@ -223,6 +188,11 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	 */
 
 	return dev_ctl;
+
+free:
+	__edac_device_free_ctl_info(dev_ctl);
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(edac_device_alloc_ctl_info);
 

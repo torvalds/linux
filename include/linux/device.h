@@ -387,6 +387,75 @@ struct dev_msi_info {
 };
 
 /**
+ * enum device_physical_location_panel - Describes which panel surface of the
+ * system's housing the device connection point resides on.
+ * @DEVICE_PANEL_TOP: Device connection point is on the top panel.
+ * @DEVICE_PANEL_BOTTOM: Device connection point is on the bottom panel.
+ * @DEVICE_PANEL_LEFT: Device connection point is on the left panel.
+ * @DEVICE_PANEL_RIGHT: Device connection point is on the right panel.
+ * @DEVICE_PANEL_FRONT: Device connection point is on the front panel.
+ * @DEVICE_PANEL_BACK: Device connection point is on the back panel.
+ * @DEVICE_PANEL_UNKNOWN: The panel with device connection point is unknown.
+ */
+enum device_physical_location_panel {
+	DEVICE_PANEL_TOP,
+	DEVICE_PANEL_BOTTOM,
+	DEVICE_PANEL_LEFT,
+	DEVICE_PANEL_RIGHT,
+	DEVICE_PANEL_FRONT,
+	DEVICE_PANEL_BACK,
+	DEVICE_PANEL_UNKNOWN,
+};
+
+/**
+ * enum device_physical_location_vertical_position - Describes vertical
+ * position of the device connection point on the panel surface.
+ * @DEVICE_VERT_POS_UPPER: Device connection point is at upper part of panel.
+ * @DEVICE_VERT_POS_CENTER: Device connection point is at center part of panel.
+ * @DEVICE_VERT_POS_LOWER: Device connection point is at lower part of panel.
+ */
+enum device_physical_location_vertical_position {
+	DEVICE_VERT_POS_UPPER,
+	DEVICE_VERT_POS_CENTER,
+	DEVICE_VERT_POS_LOWER,
+};
+
+/**
+ * enum device_physical_location_horizontal_position - Describes horizontal
+ * position of the device connection point on the panel surface.
+ * @DEVICE_HORI_POS_LEFT: Device connection point is at left part of panel.
+ * @DEVICE_HORI_POS_CENTER: Device connection point is at center part of panel.
+ * @DEVICE_HORI_POS_RIGHT: Device connection point is at right part of panel.
+ */
+enum device_physical_location_horizontal_position {
+	DEVICE_HORI_POS_LEFT,
+	DEVICE_HORI_POS_CENTER,
+	DEVICE_HORI_POS_RIGHT,
+};
+
+/**
+ * struct device_physical_location - Device data related to physical location
+ * of the device connection point.
+ * @panel: Panel surface of the system's housing that the device connection
+ *         point resides on.
+ * @vertical_position: Vertical position of the device connection point within
+ *                     the panel.
+ * @horizontal_position: Horizontal position of the device connection point
+ *                       within the panel.
+ * @dock: Set if the device connection point resides in a docking station or
+ *        port replicator.
+ * @lid: Set if this device connection point resides on the lid of laptop
+ *       system.
+ */
+struct device_physical_location {
+	enum device_physical_location_panel panel;
+	enum device_physical_location_vertical_position vertical_position;
+	enum device_physical_location_horizontal_position horizontal_position;
+	bool dock;
+	bool lid;
+};
+
+/**
  * struct device - The basic device structure
  * @parent:	The device's "parent" device, the device to which it is attached.
  * 		In most cases, a parent device is some sort of bus or host
@@ -400,8 +469,6 @@ struct dev_msi_info {
  * 		This identifies the device type and carries type-specific
  * 		information.
  * @mutex:	Mutex to synchronize calls to its driver.
- * @lockdep_mutex: An optional debug lock that a subsystem can use as a
- * 		peer lock to gain localized lockdep coverage of the device_lock.
  * @bus:	Type of bus device is on.
  * @driver:	Which driver has allocated this
  * @platform_data: Platform data specific to the device.
@@ -453,6 +520,8 @@ struct dev_msi_info {
  * 		device (i.e. the bus driver that discovered the device).
  * @iommu_group: IOMMU group the device belongs to.
  * @iommu:	Per device generic IOMMU runtime data
+ * @physical_location: Describes physical location of the device connection
+ *		point in the system housing.
  * @removable:  Whether the device can be removed from the system. This
  *              should be set by the subsystem / bus driver that discovered
  *              the device.
@@ -499,9 +568,6 @@ struct device {
 					   core doesn't touch it */
 	void		*driver_data;	/* Driver data, set and get with
 					   dev_set_drvdata/dev_get_drvdata */
-#ifdef CONFIG_PROVE_LOCKING
-	struct mutex		lockdep_mutex;
-#endif
 	struct mutex		mutex;	/* mutex to synchronize calls to
 					 * its driver.
 					 */
@@ -566,6 +632,8 @@ struct device {
 	void	(*release)(struct device *dev);
 	struct iommu_group	*iommu_group;
 	struct dev_iommu	*iommu;
+
+	struct device_physical_location *physical_location;
 
 	enum device_removable	removable;
 
@@ -837,6 +905,8 @@ struct device *device_find_child(struct device *dev, void *data,
 				 int (*match)(struct device *dev, void *data));
 struct device *device_find_child_by_name(struct device *parent,
 					 const char *name);
+struct device *device_find_any_child(struct device *parent);
+
 int device_rename(struct device *dev, const char *new_name);
 int device_move(struct device *dev, struct device *new_parent,
 		enum dpm_order dpm_order);
@@ -849,6 +919,49 @@ static inline bool device_supports_offline(struct device *dev)
 {
 	return dev->bus && dev->bus->offline && dev->bus->online;
 }
+
+#define __device_lock_set_class(dev, name, key)                        \
+do {                                                                   \
+	struct device *__d2 __maybe_unused = dev;                      \
+	lock_set_class(&__d2->mutex.dep_map, name, key, 0, _THIS_IP_); \
+} while (0)
+
+/**
+ * device_lock_set_class - Specify a temporary lock class while a device
+ *			   is attached to a driver
+ * @dev: device to modify
+ * @key: lock class key data
+ *
+ * This must be called with the device_lock() already held, for example
+ * from driver ->probe(). Take care to only override the default
+ * lockdep_no_validate class.
+ */
+#ifdef CONFIG_LOCKDEP
+#define device_lock_set_class(dev, key)                                    \
+do {                                                                       \
+	struct device *__d = dev;                                          \
+	dev_WARN_ONCE(__d, !lockdep_match_class(&__d->mutex,               \
+						&__lockdep_no_validate__), \
+		 "overriding existing custom lock class\n");               \
+	__device_lock_set_class(__d, #key, key);                           \
+} while (0)
+#else
+#define device_lock_set_class(dev, key) __device_lock_set_class(dev, #key, key)
+#endif
+
+/**
+ * device_lock_reset_class - Return a device to the default lockdep novalidate state
+ * @dev: device to modify
+ *
+ * This must be called with the device_lock() already held, for example
+ * from driver ->remove().
+ */
+#define device_lock_reset_class(dev) \
+do { \
+	struct device *__d __maybe_unused = dev;                       \
+	lock_set_novalidate_class(&__d->mutex.dep_map, "&dev->mutex",  \
+				  _THIS_IP_);                          \
+} while (0)
 
 void lock_device_hotplug(void);
 void unlock_device_hotplug(void);

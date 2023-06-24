@@ -1,0 +1,12 @@
+[
+    {
+        "BriefDescription": "PCU PCLK Clockticks",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x01",
+        "EventName": "UNC_P_CLOCKTICKS",
+        "PerPkg": "1",
+        "UMaskExt": "0x00000000",
+        "Unit": "PCU"
+    }
+]

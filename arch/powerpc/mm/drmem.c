@@ -11,7 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/memblock.h>
-#include <asm/prom.h>
+#include <linux/slab.h>
 #include <asm/drmem.h>
 
 static int n_root_addr_cells, n_root_size_cells;

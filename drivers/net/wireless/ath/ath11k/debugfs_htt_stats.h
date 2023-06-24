@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef DEBUG_HTT_STATS_H
@@ -629,7 +630,7 @@ struct htt_tx_hwq_tried_mpdu_cnt_hist_tlv_v {
  * completing the burst, we identify the txop used in the burst and
  * incr the corresponding bin.
  * Each bin represents 1ms & we have 10 bins in this histogram.
- * they are deined in FW using the following macros
+ * they are defined in FW using the following macros
  * #define WAL_MAX_TXOP_USED_CNT_HISTOGRAM 10
  * #define WAL_TXOP_USED_HISTOGRAM_INTERVAL 1000 ( 1 ms )
  */
@@ -682,6 +683,7 @@ struct htt_tx_selfgen_ax_stats_tlv {
 	u32 ax_bsr_trigger;
 	u32 ax_mu_bar_trigger;
 	u32 ax_mu_rts_trigger;
+	u32 ax_ulmumimo_trigger;
 };
 
 struct htt_tx_selfgen_ac_err_stats_tlv {
@@ -712,12 +714,14 @@ struct htt_tx_selfgen_ax_err_stats_tlv {
 	u32 ax_bsr_trigger_err;
 	u32 ax_mu_bar_trigger_err;
 	u32 ax_mu_rts_trigger_err;
+	u32 ax_ulmumimo_trigger_err;
 };
 
 /* == TX MU STATS == */
 #define HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS 4
 #define HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS 8
 #define HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS    74
+#define HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS 8
 
 struct htt_tx_pdev_mu_mimo_sch_stats_tlv {
 	/* mu-mimo sw sched cmd stats */
@@ -734,6 +738,24 @@ struct htt_tx_pdev_mu_mimo_sch_stats_tlv {
 	u32 ac_mu_mimo_sch_nusers[HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS];
 	u32 ax_mu_mimo_sch_nusers[HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS];
 	u32 ax_ofdma_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	u32 ax_ul_ofdma_basic_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	u32 ax_ul_ofdma_bsr_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	u32 ax_ul_ofdma_bar_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	u32 ax_ul_ofdma_brp_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+
+	/* UL MU-MIMO */
+	/* ax_ul_mumimo_basic_sch_nusers[i] is the number of basic triggers sent
+	 * for (i+1) users
+	 */
+	u32 ax_ul_mumimo_basic_sch_nusers[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS];
+
+	/* ax_ul_mumimo_brp_sch_nusers[i] is the number of brp triggers sent
+	 * for (i+1) users
+	 */
+	u32 ax_ul_mumimo_brp_sch_nusers[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS];
+
+	u32 ac_mu_mimo_sch_posted_per_grp_sz[HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS];
+	u32 ax_mu_mimo_sch_posted_per_grp_sz[HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS];
 };
 
 struct htt_tx_pdev_mu_mimo_mpdu_stats_tlv {
@@ -1297,6 +1319,8 @@ struct htt_tx_pdev_rate_stats_tlv {
 #define HTT_RX_PDEV_STATS_NUM_PREAMBLE_TYPES       HTT_STATS_PREAM_COUNT
 #define HTT_RX_PDEV_MAX_OFDMA_NUM_USER             8
 #define HTT_RX_PDEV_STATS_RXEVM_MAX_PILOTS_PER_NSS 16
+#define HTT_RX_PDEV_STATS_NUM_RU_SIZE_COUNTERS     6
+#define HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER          8
 
 struct htt_rx_pdev_rate_stats_tlv {
 	u32 mac_id__word;
@@ -1375,6 +1399,21 @@ struct htt_rx_pdev_rate_stats_tlv {
 	u32 per_chain_rssi_pkt_type;
 	s8 rx_per_chain_rssi_in_dbm[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS]
 				   [HTT_RX_PDEV_STATS_NUM_BW_COUNTERS];
+
+	u32 rx_su_ndpa;
+	u32 rx_11ax_su_txbf_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+	u32 rx_mu_ndpa;
+	u32 rx_11ax_mu_txbf_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+	u32 rx_br_poll;
+	u32 rx_11ax_dl_ofdma_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+	u32 rx_11ax_dl_ofdma_ru[HTT_RX_PDEV_STATS_NUM_RU_SIZE_COUNTERS];
+
+	u32 rx_ulmumimo_non_data_ppdu[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
+	u32 rx_ulmumimo_data_ppdu[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
+	u32 rx_ulmumimo_mpdu_ok[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
+	u32 rx_ulmumimo_mpdu_fail[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
+	u32 rx_ulofdma_non_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
+	u32 rx_ulofdma_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
 };
 
 /* == RX PDEV/SOC STATS == */
@@ -1858,7 +1897,7 @@ struct htt_phy_counters_tlv {
 	u32 phytx_abort_cnt;
 	/* number of times rx abort initiated by phy */
 	u32 phyrx_abort_cnt;
-	/* number of rx defered count initiated by phy */
+	/* number of rx deferred count initiated by phy */
 	u32 phyrx_defer_abort_cnt;
 	/* number of sizing events generated at LSTF */
 	u32 rx_gain_adj_lstf_event_cnt;

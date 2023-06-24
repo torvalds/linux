@@ -783,7 +783,7 @@ static void swim_cleanup_floppy_disk(struct floppy_state *fs)
 	if (fs->registered)
 		del_gendisk(fs->disk);
 
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 	blk_mq_free_tag_set(&fs->tag_set);
 }
 

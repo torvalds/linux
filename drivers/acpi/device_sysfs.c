@@ -376,7 +376,7 @@ eject_store(struct device *d, struct device_attribute *attr,
 		return -EINVAL;
 
 	if ((!acpi_device->handler || !acpi_device->handler->hotplug.enabled)
-	    && !acpi_device->driver)
+	    && !d->driver)
 		return -ENODEV;
 
 	status = acpi_get_type(acpi_device->handle, &not_used);

@@ -266,9 +266,6 @@ on downward growing arches, it looks like this:
 
 struct mm_struct;
 
-/* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
-
 extern unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])

@@ -25,5 +25,6 @@ int btrfs_check_node(struct extent_buffer *node);
 
 int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 			    struct btrfs_chunk *chunk, u64 logical);
+int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner);
 
 #endif

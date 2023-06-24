@@ -134,24 +134,6 @@ static DEFINE_MUTEX(vcm_lock);
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev);
 
-/*
- * Legacy/stub behavior copied from upstream platform_camera.c.  The
- * atomisp driver relies on these values being non-NULL in a few
- * places, even though they are hard-coded in all current
- * implementations.
- */
-const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void)
-{
-	static const struct atomisp_camera_caps caps = {
-		.sensor_num = 1,
-		.sensor = {
-			{ .stream_num = 1, },
-		},
-	};
-	return &caps;
-}
-EXPORT_SYMBOL_GPL(atomisp_get_default_camera_caps);
-
 const struct atomisp_platform_data *atomisp_get_platform_data(void)
 {
 	return &pdata;
@@ -1066,6 +1048,38 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 	return ret;
 }
 
+static int camera_sensor_csi_alloc(struct v4l2_subdev *sd, u32 port, u32 lanes,
+				   u32 format, u32 bayer_order)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct camera_mipi_info *csi;
+
+	csi = kzalloc(sizeof(*csi), GFP_KERNEL);
+	if (!csi)
+		return -ENOMEM;
+
+	csi->port = port;
+	csi->num_lanes = lanes;
+	csi->input_format = format;
+	csi->raw_bayer_order = bayer_order;
+	v4l2_set_subdev_hostdata(sd, csi);
+	csi->metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
+	csi->metadata_effective_width = NULL;
+	dev_info(&client->dev,
+		 "camera pdata: port: %d lanes: %d order: %8.8x\n",
+		 port, lanes, bayer_order);
+
+	return 0;
+}
+
+static void camera_sensor_csi_free(struct v4l2_subdev *sd)
+{
+	struct camera_mipi_info *csi;
+
+	csi = v4l2_get_subdev_hostdata(sd);
+	kfree(csi);
+}
+
 static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1074,8 +1088,11 @@ static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 	if (!client || !gs)
 		return -ENODEV;
 
-	return camera_sensor_csi(sd, gs->csi_port, gs->csi_lanes,
-				 gs->csi_fmt, gs->csi_bayer, flag);
+	if (flag)
+		return camera_sensor_csi_alloc(sd, gs->csi_port, gs->csi_lanes,
+					       gs->csi_fmt, gs->csi_bayer);
+	camera_sensor_csi_free(sd);
+	return 0;
 }
 
 static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
@@ -1207,15 +1224,13 @@ static int gmin_get_config_dsm_var(struct device *dev,
 	if (!strcmp(var, "CamClk"))
 		return -EINVAL;
 
-	obj = acpi_evaluate_dsm(handle, &atomisp_dsm_guid, 0, 0, NULL);
+	/* Return on unexpected object type */
+	obj = acpi_evaluate_dsm_typed(handle, &atomisp_dsm_guid, 0, 0, NULL,
+				      ACPI_TYPE_PACKAGE);
 	if (!obj) {
 		dev_info_once(dev, "Didn't find ACPI _DSM table.\n");
 		return -EINVAL;
 	}
-
-	/* Return on unexpected object type */
-	if (obj->type != ACPI_TYPE_PACKAGE)
-		return -EINVAL;
 
 #if 0 /* Just for debugging purposes */
 	for (i = 0; i < obj->package.count; i++) {
@@ -1284,7 +1299,7 @@ static int gmin_get_config_var(struct device *maindev,
 	const struct dmi_system_id *id;
 	struct device *dev = maindev;
 	char var8[CFG_VAR_NAME_MAX];
-	struct efivar_entry *ev;
+	efi_status_t status;
 	int i, ret;
 
 	/* For sensors, try first to use the _DSM table */
@@ -1326,32 +1341,17 @@ static int gmin_get_config_var(struct device *maindev,
 	for (i = 0; i < sizeof(var8) && var8[i]; i++)
 		var16[i] = var8[i];
 
-	/* Not sure this API usage is kosher; efivar_entry_get()'s
-	 * implementation simply uses VariableName and VendorGuid from
-	 * the struct and ignores the rest, but it seems like there
-	 * ought to be an "official" efivar_entry registered
-	 * somewhere?
-	 */
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-	if (!ev)
-		return -ENOMEM;
-	memcpy(&ev->var.VariableName, var16, sizeof(var16));
-	ev->var.VendorGuid = GMIN_CFG_VAR_EFI_GUID;
-	ev->var.DataSize = *out_len;
-
-	ret = efivar_entry_get(ev, &ev->var.Attributes,
-			       &ev->var.DataSize, ev->var.Data);
-	if (ret == 0) {
-		memcpy(out, ev->var.Data, ev->var.DataSize);
-		*out_len = ev->var.DataSize;
+	status = EFI_UNSUPPORTED;
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
+		status = efi.get_variable(var16, &GMIN_CFG_VAR_EFI_GUID, NULL,
+					  (unsigned long *)out_len, out);
+	if (status == EFI_SUCCESS) {
 		dev_info(maindev, "found EFI entry for '%s'\n", var8);
 	} else if (is_gmin) {
 		dev_info(maindev, "Failed to find EFI gmin variable %s\n", var8);
 	} else {
 		dev_info(maindev, "Failed to find EFI variable %s\n", var8);
 	}
-
-	kfree(ev);
 
 	return ret;
 }
@@ -1374,35 +1374,6 @@ int gmin_get_var_int(struct device *dev, bool is_gmin, const char *var, int def)
 	return ret ? def : result;
 }
 EXPORT_SYMBOL_GPL(gmin_get_var_int);
-
-int camera_sensor_csi(struct v4l2_subdev *sd, u32 port,
-		      u32 lanes, u32 format, u32 bayer_order, int flag)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct camera_mipi_info *csi = NULL;
-
-	if (flag) {
-		csi = kzalloc(sizeof(*csi), GFP_KERNEL);
-		if (!csi)
-			return -ENOMEM;
-		csi->port = port;
-		csi->num_lanes = lanes;
-		csi->input_format = format;
-		csi->raw_bayer_order = bayer_order;
-		v4l2_set_subdev_hostdata(sd, (void *)csi);
-		csi->metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
-		csi->metadata_effective_width = NULL;
-		dev_info(&client->dev,
-			 "camera pdata: port: %d lanes: %d order: %8.8x\n",
-			 port, lanes, bayer_order);
-	} else {
-		csi = v4l2_get_subdev_hostdata(sd);
-		kfree(csi);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(camera_sensor_csi);
 
 /* PCI quirk: The BYT ISP advertises PCI runtime PM but it doesn't
  * work.  Disable so the kernel framework doesn't hang the device

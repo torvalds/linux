@@ -21,14 +21,17 @@
 #include <linux/errno.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
+#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
+#include <linux/string.h>
+#include <linux/thermal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
@@ -46,8 +49,11 @@
 #define I8K_SMM_GET_DELL_SIG1	0xfea3
 #define I8K_SMM_GET_DELL_SIG2	0xffa3
 
+/* in usecs */
+#define DELL_SMM_MAX_DURATION  250000
+
 #define I8K_FAN_MULT		30
-#define I8K_FAN_MAX_RPM		30000
+#define I8K_FAN_RPM_THRESHOLD	1000
 #define I8K_MAX_TEMP		127
 
 #define I8K_FN_NONE		0x00
@@ -78,6 +84,11 @@ struct dell_smm_data {
 	bool fan[DELL_SMM_NO_FANS];
 	int fan_type[DELL_SMM_NO_FANS];
 	int *fan_nominal_speed[DELL_SMM_NO_FANS];
+};
+
+struct dell_smm_cooling_data {
+	u8 fan_num;
+	struct dell_smm_data *data;
 };
 
 MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
@@ -119,7 +130,7 @@ struct smm_regs {
 	unsigned int edx;
 	unsigned int esi;
 	unsigned int edi;
-} __packed;
+};
 
 static const char * const temp_labels[] = {
 	"CPU",
@@ -164,74 +175,35 @@ static int i8k_smm_func(void *par)
 	struct smm_regs *regs = par;
 	int eax = regs->eax;
 	int ebx = regs->ebx;
+	unsigned char carry;
 	long long duration;
-	int rc;
 
 	/* SMM requires CPU 0 */
 	if (smp_processor_id() != 0)
 		return -EBUSY;
 
-#if defined(CONFIG_X86_64)
-	asm volatile("pushq %%rax\n\t"
-		"movl 0(%%rax),%%edx\n\t"
-		"pushq %%rdx\n\t"
-		"movl 4(%%rax),%%ebx\n\t"
-		"movl 8(%%rax),%%ecx\n\t"
-		"movl 12(%%rax),%%edx\n\t"
-		"movl 16(%%rax),%%esi\n\t"
-		"movl 20(%%rax),%%edi\n\t"
-		"popq %%rax\n\t"
-		"out %%al,$0xb2\n\t"
-		"out %%al,$0x84\n\t"
-		"xchgq %%rax,(%%rsp)\n\t"
-		"movl %%ebx,4(%%rax)\n\t"
-		"movl %%ecx,8(%%rax)\n\t"
-		"movl %%edx,12(%%rax)\n\t"
-		"movl %%esi,16(%%rax)\n\t"
-		"movl %%edi,20(%%rax)\n\t"
-		"popq %%rdx\n\t"
-		"movl %%edx,0(%%rax)\n\t"
-		"pushfq\n\t"
-		"popq %%rax\n\t"
-		"andl $1,%%eax\n"
-		: "=a"(rc)
-		:    "a"(regs)
-		:    "%ebx", "%ecx", "%edx", "%esi", "%edi", "memory");
-#else
-	asm volatile("pushl %%eax\n\t"
-	    "movl 0(%%eax),%%edx\n\t"
-	    "push %%edx\n\t"
-	    "movl 4(%%eax),%%ebx\n\t"
-	    "movl 8(%%eax),%%ecx\n\t"
-	    "movl 12(%%eax),%%edx\n\t"
-	    "movl 16(%%eax),%%esi\n\t"
-	    "movl 20(%%eax),%%edi\n\t"
-	    "popl %%eax\n\t"
-	    "out %%al,$0xb2\n\t"
-	    "out %%al,$0x84\n\t"
-	    "xchgl %%eax,(%%esp)\n\t"
-	    "movl %%ebx,4(%%eax)\n\t"
-	    "movl %%ecx,8(%%eax)\n\t"
-	    "movl %%edx,12(%%eax)\n\t"
-	    "movl %%esi,16(%%eax)\n\t"
-	    "movl %%edi,20(%%eax)\n\t"
-	    "popl %%edx\n\t"
-	    "movl %%edx,0(%%eax)\n\t"
-	    "lahf\n\t"
-	    "shrl $8,%%eax\n\t"
-	    "andl $1,%%eax\n"
-	    : "=a"(rc)
-	    :    "a"(regs)
-	    :    "%ebx", "%ecx", "%edx", "%esi", "%edi", "memory");
-#endif
-	if (rc != 0 || (regs->eax & 0xffff) == 0xffff || regs->eax == eax)
-		rc = -EINVAL;
+	asm volatile("out %%al,$0xb2\n\t"
+		     "out %%al,$0x84\n\t"
+		     "setc %0\n"
+		     : "=mr" (carry),
+		       "+a" (regs->eax),
+		       "+b" (regs->ebx),
+		       "+c" (regs->ecx),
+		       "+d" (regs->edx),
+		       "+S" (regs->esi),
+		       "+D" (regs->edi));
 
 	duration = ktime_us_delta(ktime_get(), calltime);
-	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lld usecs)\n", eax, ebx,
-		 (rc ? 0xffff : regs->eax & 0xffff), duration);
+	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x carry: %d (took %7lld usecs)\n",
+		 eax, ebx, regs->eax & 0xffff, carry, duration);
 
-	return rc;
+	if (duration > DELL_SMM_MAX_DURATION)
+		pr_warn_once("SMM call took %lld usecs!\n", duration);
+
+	if (carry || (regs->eax & 0xffff) == 0xffff || regs->eax == eax)
+		return -EINVAL;
+
+	return 0;
 }
 
 /*
@@ -318,7 +290,7 @@ static int __init i8k_get_fan_nominal_speed(const struct dell_smm_data *data, u8
 	if (data->disallow_fan_support)
 		return -EINVAL;
 
-	return i8k_smm(&regs) ? : (regs.eax & 0xffff) * data->i8k_fan_mult;
+	return i8k_smm(&regs) ? : (regs.eax & 0xffff);
 }
 
 /*
@@ -638,9 +610,50 @@ static void __init i8k_init_procfs(struct device *dev)
 
 #endif
 
-/*
- * Hwmon interface
- */
+static int dell_smm_get_max_state(struct thermal_cooling_device *dev, unsigned long *state)
+{
+	struct dell_smm_cooling_data *cdata = dev->devdata;
+
+	*state = cdata->data->i8k_fan_max;
+
+	return 0;
+}
+
+static int dell_smm_get_cur_state(struct thermal_cooling_device *dev, unsigned long *state)
+{
+	struct dell_smm_cooling_data *cdata = dev->devdata;
+	int ret;
+
+	ret = i8k_get_fan_status(cdata->data, cdata->fan_num);
+	if (ret < 0)
+		return ret;
+
+	*state = ret;
+
+	return 0;
+}
+
+static int dell_smm_set_cur_state(struct thermal_cooling_device *dev, unsigned long state)
+{
+	struct dell_smm_cooling_data *cdata = dev->devdata;
+	struct dell_smm_data *data = cdata->data;
+	int ret;
+
+	if (state > data->i8k_fan_max)
+		return -EINVAL;
+
+	mutex_lock(&data->i8k_mutex);
+	ret = i8k_set_fan(data, cdata->fan_num, (int)state);
+	mutex_unlock(&data->i8k_mutex);
+
+	return ret;
+}
+
+static const struct thermal_cooling_device_ops dell_smm_cooling_ops = {
+	.get_max_state = dell_smm_get_max_state,
+	.get_cur_state = dell_smm_get_cur_state,
+	.set_cur_state = dell_smm_set_cur_state,
+};
 
 static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
 				   int channel)
@@ -727,6 +740,7 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 			 long *val)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
+	int mult = data->i8k_fan_mult;
 	int ret;
 
 	switch (type) {
@@ -755,11 +769,11 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 
 			return 0;
 		case hwmon_fan_min:
-			*val = data->fan_nominal_speed[channel][0];
+			*val = data->fan_nominal_speed[channel][0] * mult;
 
 			return 0;
 		case hwmon_fan_max:
-			*val = data->fan_nominal_speed[channel][data->i8k_fan_max];
+			*val = data->fan_nominal_speed[channel][data->i8k_fan_max] * mult;
 
 			return 0;
 		case hwmon_fan_target:
@@ -770,7 +784,7 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 			if (ret > data->i8k_fan_max)
 				ret = data->i8k_fan_max;
 
-			*val = data->fan_nominal_speed[channel][ret];
+			*val = data->fan_nominal_speed[channel][ret] * mult;
 
 			return 0;
 		default:
@@ -941,6 +955,37 @@ static const struct hwmon_chip_info dell_smm_chip_info = {
 	.info = dell_smm_info,
 };
 
+static int __init dell_smm_init_cdev(struct device *dev, u8 fan_num)
+{
+	struct dell_smm_data *data = dev_get_drvdata(dev);
+	struct thermal_cooling_device *cdev;
+	struct dell_smm_cooling_data *cdata;
+	int ret = 0;
+	char *name;
+
+	name = kasprintf(GFP_KERNEL, "dell-smm-fan%u", fan_num + 1);
+	if (!name)
+		return -ENOMEM;
+
+	cdata = devm_kmalloc(dev, sizeof(*cdata), GFP_KERNEL);
+	if (cdata) {
+		cdata->fan_num = fan_num;
+		cdata->data = data;
+		cdev = devm_thermal_of_cooling_device_register(dev, NULL, name, cdata,
+							       &dell_smm_cooling_ops);
+		if (IS_ERR(cdev)) {
+			devm_kfree(dev, cdata);
+			ret = PTR_ERR(cdev);
+		}
+	} else {
+		ret = -ENOMEM;
+	}
+
+	kfree(name);
+
+	return ret;
+}
+
 static int __init dell_smm_init_hwmon(struct device *dev)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
@@ -967,6 +1012,15 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 			continue;
 
 		data->fan[i] = true;
+
+		/* the cooling device is not critical, ignore failures */
+		if (IS_REACHABLE(CONFIG_THERMAL)) {
+			err = dell_smm_init_cdev(dev, i);
+			if (err < 0)
+				dev_warn(dev, "Failed to register cooling device for fan %u\n",
+					 i + 1);
+		}
+
 		data->fan_nominal_speed[i] = devm_kmalloc_array(dev, data->i8k_fan_max + 1,
 								sizeof(*data->fan_nominal_speed[i]),
 								GFP_KERNEL);
@@ -982,6 +1036,13 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 				break;
 			}
 			data->fan_nominal_speed[i][state] = err;
+			/*
+			 * Autodetect fan multiplier based on nominal rpm if multiplier
+			 * was not specified as module param or in DMI. If fan reports
+			 * rpm value too high then set multiplier to 1.
+			 */
+			if (!fan_mult && err > I8K_FAN_RPM_THRESHOLD)
+				data->i8k_fan_mult = 1;
 		}
 	}
 
@@ -1028,6 +1089,13 @@ static const struct i8k_config_data i8k_config_data[] __initconst = {
 };
 
 static const struct dmi_system_id i8k_dmi_table[] __initconst = {
+	{
+		.ident = "Dell G5 5590",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "G5 5590"),
+		},
+	},
 	{
 		.ident = "Dell Inspiron",
 		.matches = {
@@ -1262,6 +1330,14 @@ static const struct dmi_system_id i8k_whitelist_fan_control[] __initconst = {
 		},
 		.driver_data = (void *)&i8k_fan_control_data[I8K_FAN_34A3_35A3],
 	},
+	{
+		.ident = "Dell XPS 13 7390",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "XPS 13 7390"),
+		},
+		.driver_data = (void *)&i8k_fan_control_data[I8K_FAN_34A3_35A3],
+	},
 	{ }
 };
 
@@ -1270,27 +1346,30 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 	struct dell_smm_data *data;
 	const struct dmi_system_id *id, *fan_control;
 	int ret;
-	u8 fan;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct dell_smm_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	mutex_init(&data->i8k_mutex);
-	data->i8k_fan_mult = I8K_FAN_MULT;
-	data->i8k_fan_max = I8K_FAN_HIGH;
 	platform_set_drvdata(pdev, data);
 
 	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
-		dev_warn(&pdev->dev, "broken Dell BIOS detected, disallow fan support\n");
-		if (!force)
+		if (!force) {
+			dev_notice(&pdev->dev, "Disabling fan support due to BIOS bugs\n");
 			data->disallow_fan_support = true;
+		} else {
+			dev_warn(&pdev->dev, "Enabling fan support despite BIOS bugs\n");
+		}
 	}
 
 	if (dmi_check_system(i8k_blacklist_fan_type_dmi_table)) {
-		dev_warn(&pdev->dev, "broken Dell BIOS detected, disallow fan type call\n");
-		if (!force)
+		if (!force) {
+			dev_notice(&pdev->dev, "Disabling fan type call due to BIOS bugs\n");
 			data->disallow_fan_type_call = true;
+		} else {
+			dev_warn(&pdev->dev, "Enabling fan type call despite BIOS bugs\n");
+		}
 	}
 
 	strscpy(data->bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION),
@@ -1313,7 +1392,9 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 			fan_max = conf->fan_max;
 	}
 
-	data->i8k_fan_max = fan_max ? : I8K_FAN_HIGH;	/* Must not be 0 */
+	/* All options must not be 0 */
+	data->i8k_fan_mult = fan_mult ? : I8K_FAN_MULT;
+	data->i8k_fan_max = fan_max ? : I8K_FAN_HIGH;
 	data->i8k_pwm_mult = DIV_ROUND_UP(255, data->i8k_fan_max);
 
 	fan_control = dmi_first_match(i8k_whitelist_fan_control);
@@ -1323,25 +1404,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 		data->manual_fan = control->manual_fan;
 		data->auto_fan = control->auto_fan;
 		dev_info(&pdev->dev, "enabling support for setting automatic/manual fan control\n");
-	}
-
-	if (!fan_mult) {
-		/*
-		 * Autodetect fan multiplier based on nominal rpm
-		 * If fan reports rpm value too high then set multiplier to 1
-		 */
-		for (fan = 0; fan < DELL_SMM_NO_FANS; ++fan) {
-			ret = i8k_get_fan_nominal_speed(data, fan, data->i8k_fan_max);
-			if (ret < 0)
-				continue;
-
-			if (ret > I8K_FAN_MAX_RPM)
-				data->i8k_fan_mult = 1;
-			break;
-		}
-	} else {
-		/* Fan multiplier was specified in module param or in dmi */
-		data->i8k_fan_mult = fan_mult;
 	}
 
 	ret = dell_smm_init_hwmon(&pdev->dev);

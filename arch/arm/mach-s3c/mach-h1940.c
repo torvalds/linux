@@ -167,9 +167,15 @@ static struct gpio_chip h1940_latch_gpiochip = {
 };
 
 static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
-	.vbus_pin		= S3C2410_GPG(5),
-	.vbus_pin_inverted	= 1,
-	.pullup_pin		= H1940_LATCH_USB_DP,
+};
+
+static struct gpiod_lookup_table h1940_udc_gpio_table = {
+	.dev_id = "s3c2410-usbgadget",
+	.table = {
+		GPIO_LOOKUP("GPIOG", 5, "vbus", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("H1940_LATCH", 7, "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct s3c2410_ts_mach_info h1940_ts_cfg __initdata = {
@@ -725,6 +731,7 @@ static void __init h1940_init(void)
 	u32 tmp;
 
 	s3c24xx_fb_set_platdata(&h1940_fb_info);
+	gpiod_add_lookup_table(&h1940_udc_gpio_table);
 	gpiod_add_lookup_table(&h1940_mmc_gpio_table);
 	gpiod_add_lookup_table(&h1940_audio_gpio_table);
 	gpiod_add_lookup_table(&h1940_bat_gpio_table);
@@ -793,6 +800,7 @@ static void __init h1940_init(void)
 MACHINE_START(H1940, "IPAQ-H1940")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.map_io		= h1940_map_io,
 	.reserve	= h1940_reserve,
 	.init_irq	= s3c2410_init_irq,

@@ -11,6 +11,34 @@
 #include <linux/types.h>
 #include "optee_private.h"
 
+#define MAX_ARG_PARAM_COUNT	6
+
+/*
+ * How much memory we allocate for each entry. This doesn't have to be a
+ * single page, but it makes sense to keep at least keep it as multiples of
+ * the page size.
+ */
+#define SHM_ENTRY_SIZE		PAGE_SIZE
+
+/*
+ * We need to have a compile time constant to be able to determine the
+ * maximum needed size of the bit field.
+ */
+#define MIN_ARG_SIZE		OPTEE_MSG_GET_ARG_SIZE(MAX_ARG_PARAM_COUNT)
+#define MAX_ARG_COUNT_PER_ENTRY	(SHM_ENTRY_SIZE / MIN_ARG_SIZE)
+
+/*
+ * Shared memory for argument structs are cached here. The number of
+ * arguments structs that can fit is determined at runtime depending on the
+ * needed RPC parameter count reported by secure world
+ * (optee->rpc_param_count).
+ */
+struct optee_shm_arg_entry {
+	struct list_head list_node;
+	struct tee_shm *shm;
+	DECLARE_BITMAP(map, MAX_ARG_COUNT_PER_ENTRY);
+};
+
 void optee_cq_wait_init(struct optee_call_queue *cq,
 			struct optee_call_waiter *w)
 {
@@ -104,37 +132,149 @@ static struct optee_session *find_session(struct optee_context_data *ctxdata,
 	return NULL;
 }
 
-struct tee_shm *optee_get_msg_arg(struct tee_context *ctx, size_t num_params,
-				  struct optee_msg_arg **msg_arg)
+void optee_shm_arg_cache_init(struct optee *optee, u32 flags)
+{
+	INIT_LIST_HEAD(&optee->shm_arg_cache.shm_args);
+	mutex_init(&optee->shm_arg_cache.mutex);
+	optee->shm_arg_cache.flags = flags;
+}
+
+void optee_shm_arg_cache_uninit(struct optee *optee)
+{
+	struct list_head *head = &optee->shm_arg_cache.shm_args;
+	struct optee_shm_arg_entry *entry;
+
+	mutex_destroy(&optee->shm_arg_cache.mutex);
+	while (!list_empty(head)) {
+		entry = list_first_entry(head, struct optee_shm_arg_entry,
+					 list_node);
+		list_del(&entry->list_node);
+		if (find_first_bit(entry->map, MAX_ARG_COUNT_PER_ENTRY) !=
+		     MAX_ARG_COUNT_PER_ENTRY) {
+			pr_err("Freeing non-free entry\n");
+		}
+		tee_shm_free(entry->shm);
+		kfree(entry);
+	}
+}
+
+size_t optee_msg_arg_size(size_t rpc_param_count)
+{
+	size_t sz = OPTEE_MSG_GET_ARG_SIZE(MAX_ARG_PARAM_COUNT);
+
+	if (rpc_param_count)
+		sz += OPTEE_MSG_GET_ARG_SIZE(rpc_param_count);
+
+	return sz;
+}
+
+/**
+ * optee_get_msg_arg() - Provide shared memory for argument struct
+ * @ctx:	Caller TEE context
+ * @num_params:	Number of parameter to store
+ * @entry_ret:	Entry pointer, needed when freeing the buffer
+ * @shm_ret:	Shared memory buffer
+ * @offs_ret:	Offset of argument strut in shared memory buffer
+ *
+ * @returns a pointer to the argument struct in memory, else an ERR_PTR
+ */
+struct optee_msg_arg *optee_get_msg_arg(struct tee_context *ctx,
+					size_t num_params,
+					struct optee_shm_arg_entry **entry_ret,
+					struct tee_shm **shm_ret,
+					u_int *offs_ret)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
-	size_t sz = OPTEE_MSG_GET_ARG_SIZE(num_params);
-	struct tee_shm *shm;
+	size_t sz = optee_msg_arg_size(optee->rpc_param_count);
+	struct optee_shm_arg_entry *entry;
 	struct optee_msg_arg *ma;
+	size_t args_per_entry;
+	u_long bit;
+	u_int offs;
+	void *res;
 
-	/*
-	 * rpc_arg_count is set to the number of allocated parameters in
-	 * the RPC argument struct if a second MSG arg struct is expected.
-	 * The second arg struct will then be used for RPC.
-	 */
-	if (optee->rpc_arg_count)
-		sz += OPTEE_MSG_GET_ARG_SIZE(optee->rpc_arg_count);
+	if (num_params > MAX_ARG_PARAM_COUNT)
+		return ERR_PTR(-EINVAL);
 
-	shm = tee_shm_alloc_priv_buf(ctx, sz);
-	if (IS_ERR(shm))
-		return shm;
+	if (optee->shm_arg_cache.flags & OPTEE_SHM_ARG_SHARED)
+		args_per_entry = SHM_ENTRY_SIZE / sz;
+	else
+		args_per_entry = 1;
 
-	ma = tee_shm_get_va(shm, 0);
-	if (IS_ERR(ma)) {
-		tee_shm_free(shm);
-		return (void *)ma;
+	mutex_lock(&optee->shm_arg_cache.mutex);
+	list_for_each_entry(entry, &optee->shm_arg_cache.shm_args, list_node) {
+		bit = find_first_zero_bit(entry->map, MAX_ARG_COUNT_PER_ENTRY);
+		if (bit < args_per_entry)
+			goto have_entry;
 	}
 
-	memset(ma, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
-	ma->num_params = num_params;
-	*msg_arg = ma;
+	/*
+	 * No entry was found, let's allocate a new.
+	 */
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		res = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 
-	return shm;
+	if (optee->shm_arg_cache.flags & OPTEE_SHM_ARG_ALLOC_PRIV)
+		res = tee_shm_alloc_priv_buf(ctx, SHM_ENTRY_SIZE);
+	else
+		res = tee_shm_alloc_kernel_buf(ctx, SHM_ENTRY_SIZE);
+
+	if (IS_ERR(res)) {
+		kfree(entry);
+		goto out;
+	}
+	entry->shm = res;
+	list_add(&entry->list_node, &optee->shm_arg_cache.shm_args);
+	bit = 0;
+
+have_entry:
+	offs = bit * sz;
+	res = tee_shm_get_va(entry->shm, offs);
+	if (IS_ERR(res))
+		goto out;
+	ma = res;
+	set_bit(bit, entry->map);
+	memset(ma, 0, sz);
+	ma->num_params = num_params;
+	*entry_ret = entry;
+	*shm_ret = entry->shm;
+	*offs_ret = offs;
+out:
+	mutex_unlock(&optee->shm_arg_cache.mutex);
+	return res;
+}
+
+/**
+ * optee_free_msg_arg() - Free previsouly obtained shared memory
+ * @ctx:	Caller TEE context
+ * @entry:	Pointer returned when the shared memory was obtained
+ * @offs:	Offset of shared memory buffer to free
+ *
+ * This function frees the shared memory obtained with optee_get_msg_arg().
+ */
+void optee_free_msg_arg(struct tee_context *ctx,
+			struct optee_shm_arg_entry *entry, u_int offs)
+{
+	struct optee *optee = tee_get_drvdata(ctx->teedev);
+	size_t sz = optee_msg_arg_size(optee->rpc_param_count);
+	u_long bit;
+
+	if (offs > SHM_ENTRY_SIZE || offs % sz) {
+		pr_err("Invalid offs %u\n", offs);
+		return;
+	}
+	bit = offs / sz;
+
+	mutex_lock(&optee->shm_arg_cache.mutex);
+
+	if (!test_bit(bit, entry->map))
+		pr_err("Bit pos %lu is already free\n", bit);
+	clear_bit(bit, entry->map);
+
+	mutex_unlock(&optee->shm_arg_cache.mutex);
 }
 
 int optee_open_session(struct tee_context *ctx,
@@ -143,16 +283,19 @@ int optee_open_session(struct tee_context *ctx,
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_context_data *ctxdata = ctx->data;
-	int rc;
+	struct optee_shm_arg_entry *entry;
 	struct tee_shm *shm;
 	struct optee_msg_arg *msg_arg;
 	struct optee_session *sess = NULL;
 	uuid_t client_uuid;
+	u_int offs;
+	int rc;
 
 	/* +2 for the meta parameters added below */
-	shm = optee_get_msg_arg(ctx, arg->num_params + 2, &msg_arg);
-	if (IS_ERR(shm))
-		return PTR_ERR(shm);
+	msg_arg = optee_get_msg_arg(ctx, arg->num_params + 2,
+				    &entry, &shm, &offs);
+	if (IS_ERR(msg_arg))
+		return PTR_ERR(msg_arg);
 
 	msg_arg->cmd = OPTEE_MSG_CMD_OPEN_SESSION;
 	msg_arg->cancel_id = arg->cancel_id;
@@ -185,7 +328,7 @@ int optee_open_session(struct tee_context *ctx,
 		goto out;
 	}
 
-	if (optee->ops->do_call_with_arg(ctx, shm)) {
+	if (optee->ops->do_call_with_arg(ctx, shm, offs)) {
 		msg_arg->ret = TEEC_ERROR_COMMUNICATION;
 		msg_arg->ret_origin = TEEC_ORIGIN_COMMS;
 	}
@@ -212,26 +355,28 @@ int optee_open_session(struct tee_context *ctx,
 		arg->ret_origin = msg_arg->ret_origin;
 	}
 out:
-	tee_shm_free(shm);
+	optee_free_msg_arg(ctx, entry, offs);
 
 	return rc;
 }
 
 int optee_close_session_helper(struct tee_context *ctx, u32 session)
 {
-	struct tee_shm *shm;
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
+	struct optee_shm_arg_entry *entry;
 	struct optee_msg_arg *msg_arg;
+	struct tee_shm *shm;
+	u_int offs;
 
-	shm = optee_get_msg_arg(ctx, 0, &msg_arg);
-	if (IS_ERR(shm))
-		return PTR_ERR(shm);
+	msg_arg = optee_get_msg_arg(ctx, 0, &entry, &shm, &offs);
+	if (IS_ERR(msg_arg))
+		return PTR_ERR(msg_arg);
 
 	msg_arg->cmd = OPTEE_MSG_CMD_CLOSE_SESSION;
 	msg_arg->session = session;
-	optee->ops->do_call_with_arg(ctx, shm);
+	optee->ops->do_call_with_arg(ctx, shm, offs);
 
-	tee_shm_free(shm);
+	optee_free_msg_arg(ctx, entry, offs);
 
 	return 0;
 }
@@ -259,9 +404,11 @@ int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_context_data *ctxdata = ctx->data;
-	struct tee_shm *shm;
+	struct optee_shm_arg_entry *entry;
 	struct optee_msg_arg *msg_arg;
 	struct optee_session *sess;
+	struct tee_shm *shm;
+	u_int offs;
 	int rc;
 
 	/* Check that the session is valid */
@@ -271,9 +418,10 @@ int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
 	if (!sess)
 		return -EINVAL;
 
-	shm = optee_get_msg_arg(ctx, arg->num_params, &msg_arg);
-	if (IS_ERR(shm))
-		return PTR_ERR(shm);
+	msg_arg = optee_get_msg_arg(ctx, arg->num_params,
+				    &entry, &shm, &offs);
+	if (IS_ERR(msg_arg))
+		return PTR_ERR(msg_arg);
 	msg_arg->cmd = OPTEE_MSG_CMD_INVOKE_COMMAND;
 	msg_arg->func = arg->func;
 	msg_arg->session = arg->session;
@@ -284,7 +432,7 @@ int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
 	if (rc)
 		goto out;
 
-	if (optee->ops->do_call_with_arg(ctx, shm)) {
+	if (optee->ops->do_call_with_arg(ctx, shm, offs)) {
 		msg_arg->ret = TEEC_ERROR_COMMUNICATION;
 		msg_arg->ret_origin = TEEC_ORIGIN_COMMS;
 	}
@@ -298,7 +446,7 @@ int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
 	arg->ret = msg_arg->ret;
 	arg->ret_origin = msg_arg->ret_origin;
 out:
-	tee_shm_free(shm);
+	optee_free_msg_arg(ctx, entry, offs);
 	return rc;
 }
 
@@ -306,9 +454,11 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_context_data *ctxdata = ctx->data;
-	struct tee_shm *shm;
+	struct optee_shm_arg_entry *entry;
 	struct optee_msg_arg *msg_arg;
 	struct optee_session *sess;
+	struct tee_shm *shm;
+	u_int offs;
 
 	/* Check that the session is valid */
 	mutex_lock(&ctxdata->mutex);
@@ -317,16 +467,16 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session)
 	if (!sess)
 		return -EINVAL;
 
-	shm = optee_get_msg_arg(ctx, 0, &msg_arg);
-	if (IS_ERR(shm))
-		return PTR_ERR(shm);
+	msg_arg = optee_get_msg_arg(ctx, 0, &entry, &shm, &offs);
+	if (IS_ERR(msg_arg))
+		return PTR_ERR(msg_arg);
 
 	msg_arg->cmd = OPTEE_MSG_CMD_CANCEL;
 	msg_arg->session = session;
 	msg_arg->cancel_id = cancel_id;
-	optee->ops->do_call_with_arg(ctx, shm);
+	optee->ops->do_call_with_arg(ctx, shm, offs);
 
-	tee_shm_free(shm);
+	optee_free_msg_arg(ctx, entry, offs);
 	return 0;
 }
 
@@ -342,15 +492,18 @@ static bool is_normal_memory(pgprot_t p)
 #endif
 }
 
-static int __check_mem_type(struct vm_area_struct *vma, unsigned long end)
+static int __check_mem_type(struct mm_struct *mm, unsigned long start,
+				unsigned long end)
 {
-	while (vma && is_normal_memory(vma->vm_page_prot)) {
-		if (vma->vm_end >= end)
-			return 0;
-		vma = vma->vm_next;
+	struct vm_area_struct *vma;
+	VMA_ITERATOR(vmi, mm, start);
+
+	for_each_vma_range(vmi, vma, end) {
+		if (!is_normal_memory(vma->vm_page_prot))
+			return -EINVAL;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 int optee_check_mem_type(unsigned long start, size_t num_pages)
@@ -362,12 +515,11 @@ int optee_check_mem_type(unsigned long start, size_t num_pages)
 	 * Allow kernel address to register with OP-TEE as kernel
 	 * pages are configured as normal memory only.
 	 */
-	if (virt_addr_valid(start))
+	if (virt_addr_valid((void *)start) || is_vmalloc_addr((void *)start))
 		return 0;
 
 	mmap_read_lock(mm);
-	rc = __check_mem_type(find_vma(mm, start),
-			      start + num_pages * PAGE_SIZE);
+	rc = __check_mem_type(mm, start, start + num_pages * PAGE_SIZE);
 	mmap_read_unlock(mm);
 
 	return rc;

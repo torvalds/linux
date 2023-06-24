@@ -6,6 +6,7 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <linux/buffer_head.h>
+#include <linux/blkdev.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -79,12 +80,6 @@ int exfat_ent_set(struct super_block *sb, unsigned int loc,
 	exfat_mirror_bh(sb, sec, bh);
 	brelse(bh);
 	return 0;
-}
-
-static inline bool is_valid_cluster(struct exfat_sb_info *sbi,
-		unsigned int clus)
-{
-	return clus >= EXFAT_FIRST_CLUSTER && clus < sbi->num_clusters;
 }
 
 int exfat_ent_get(struct super_block *sb, unsigned int loc,
@@ -274,10 +269,8 @@ int exfat_zeroed_cluster(struct inode *dir, unsigned int clu)
 {
 	struct super_block *sb = dir->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
-	int nr_bhs = MAX_BUF_PER_PAGE;
-	sector_t blknr, last_blknr;
-	int err, i, n;
+	struct buffer_head *bh;
+	sector_t blknr, last_blknr, i;
 
 	blknr = exfat_cluster_to_sector(sbi, clu);
 	last_blknr = blknr + sbi->sect_per_clus;
@@ -291,30 +284,23 @@ int exfat_zeroed_cluster(struct inode *dir, unsigned int clu)
 	}
 
 	/* Zeroing the unused blocks on this cluster */
-	while (blknr < last_blknr) {
-		for (n = 0; n < nr_bhs && blknr < last_blknr; n++, blknr++) {
-			bhs[n] = sb_getblk(sb, blknr);
-			if (!bhs[n]) {
-				err = -ENOMEM;
-				goto release_bhs;
-			}
-			memset(bhs[n]->b_data, 0, sb->s_blocksize);
-		}
+	for (i = blknr; i < last_blknr; i++) {
+		bh = sb_getblk(sb, i);
+		if (!bh)
+			return -ENOMEM;
 
-		err = exfat_update_bhs(bhs, n, IS_DIRSYNC(dir));
-		if (err)
-			goto release_bhs;
-
-		for (i = 0; i < n; i++)
-			brelse(bhs[i]);
+		memset(bh->b_data, 0, sb->s_blocksize);
+		set_buffer_uptodate(bh);
+		mark_buffer_dirty(bh);
+		brelse(bh);
 	}
-	return 0;
 
-release_bhs:
-	exfat_err(sb, "failed zeroed sect %llu\n", (unsigned long long)blknr);
-	for (i = 0; i < n; i++)
-		bforget(bhs[i]);
-	return err;
+	if (IS_DIRSYNC(dir))
+		return sync_blockdev_range(sb->s_bdev,
+				EXFAT_BLK_TO_B(blknr, sb),
+				EXFAT_BLK_TO_B(last_blknr, sb) - 1);
+
+	return 0;
 }
 
 int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
@@ -344,7 +330,7 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 	/* find new cluster */
 	if (hint_clu == EXFAT_EOF_CLUSTER) {
 		if (sbi->clu_srch_ptr < EXFAT_FIRST_CLUSTER) {
-			exfat_err(sb, "sbi->clu_srch_ptr is invalid (%u)\n",
+			exfat_err(sb, "sbi->clu_srch_ptr is invalid (%u)",
 				  sbi->clu_srch_ptr);
 			sbi->clu_srch_ptr = EXFAT_FIRST_CLUSTER;
 		}

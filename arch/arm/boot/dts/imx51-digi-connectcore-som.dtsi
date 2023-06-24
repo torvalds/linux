@@ -34,22 +34,22 @@
 
 		regulators {
 			sw1_reg: sw1 {
-				regulator-min-microvolt = <1000000>;
+				regulator-min-microvolt = <1050000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
 
 			sw2_reg: sw2 {
-				regulator-min-microvolt = <1225000>;
-				regulator-max-microvolt = <1225000>;
+				regulator-min-microvolt = <1175000>;
+				regulator-max-microvolt = <1275000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
 
 			sw3_reg: sw3 {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-min-microvolt = <1150000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
@@ -102,18 +102,6 @@
 				regulator-always-on;
 			};
 
-			vgen1_reg: vgen1 {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
-				regulator-always-on;
-			};
-
-			vgen2_reg: vgen2 {
-				regulator-min-microvolt = <3150000>;
-				regulator-max-microvolt = <3150000>;
-				regulator-always-on;
-			};
-
 			vgen3_reg: vgen3 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
@@ -123,8 +111,6 @@
 			vusb_reg: vusb {
 				regulator-always-on;
 			};
-
-			gpo1_reg: gpo1 { };
 
 			gpo2_reg: gpo2 { };
 
@@ -198,6 +184,7 @@
 &usbotg {
 	phy_type = "utmi_wide";
 	disable-over-current;
+	vbus-supply = <&swbst_reg>;
 	/* Device role is not known, keep status disabled */
 };
 

@@ -14,7 +14,6 @@
 #include <bpf/libbpf.h>
 
 #include <bpf/bpf_endian.h>
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
@@ -1373,7 +1372,7 @@ static struct sysctl_test tests[] = {
 	},
 	{
 		"C prog: deny all writes",
-		.prog_file = "./test_sysctl_prog.o",
+		.prog_file = "./test_sysctl_prog.bpf.o",
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "net/ipv4/tcp_mem",
 		.open_flags = O_WRONLY,
@@ -1382,7 +1381,7 @@ static struct sysctl_test tests[] = {
 	},
 	{
 		"C prog: deny access by name",
-		.prog_file = "./test_sysctl_prog.o",
+		.prog_file = "./test_sysctl_prog.bpf.o",
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "net/ipv4/route/mtu_expires",
 		.open_flags = O_RDONLY,
@@ -1390,7 +1389,7 @@ static struct sysctl_test tests[] = {
 	},
 	{
 		"C prog: read tcp_mem",
-		.prog_file = "./test_sysctl_prog.o",
+		.prog_file = "./test_sysctl_prog.bpf.o",
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "net/ipv4/tcp_mem",
 		.open_flags = O_RDONLY,
@@ -1561,7 +1560,7 @@ static int run_test_case(int cgfd, struct sysctl_test *test)
 			goto err;
 	}
 
-	if (bpf_prog_attach(progfd, cgfd, atype, BPF_F_ALLOW_OVERRIDE) == -1) {
+	if (bpf_prog_attach(progfd, cgfd, atype, BPF_F_ALLOW_OVERRIDE) < 0) {
 		if (test->result == ATTACH_REJECT)
 			goto out;
 		else
@@ -1617,6 +1616,9 @@ int main(int argc, char **argv)
 	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
 		goto err;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (run_tests(cgfd))
 		goto err;

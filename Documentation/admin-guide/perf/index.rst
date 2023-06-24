@@ -9,6 +9,7 @@ Performance monitor support
 
    hisi-pmu
    hisi-pcie-pmu
+   hns3-pmu
    imx-ddr
    qcom_l2_pmu
    qcom_l3_pmu
@@ -17,3 +18,4 @@ Performance monitor support
    xgene-pmu
    arm_dsu_pmu
    thunderx2-pmu
+   alibaba_pmu

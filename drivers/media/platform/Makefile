@@ -24,6 +24,7 @@ obj-y += samsung/
 obj-y += st/
 obj-y += sunxi/
 obj-y += ti/
+obj-y += verisilicon/
 obj-y += via/
 obj-y += xilinx/
 

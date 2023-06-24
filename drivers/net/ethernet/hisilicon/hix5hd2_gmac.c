@@ -550,7 +550,7 @@ static int hix5hd2_rx(struct net_device *dev, int limit)
 		skb->protocol = eth_type_trans(skb, dev);
 		napi_gro_receive(&priv->napi, skb);
 		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += skb->len;
+		dev->stats.rx_bytes += len;
 next:
 		pos = dma_ring_incr(pos, RX_DESC_NUM);
 	}
@@ -1243,7 +1243,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_phy_node;
 
-	netif_napi_add(ndev, &priv->napi, hix5hd2_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(ndev, &priv->napi, hix5hd2_poll);
 
 	if (HAS_CAP_TSO(priv->hw_cap)) {
 		ret = hix5hd2_init_sg_desc_queue(priv);

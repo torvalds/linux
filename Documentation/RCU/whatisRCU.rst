@@ -6,13 +6,15 @@ What is RCU?  --  "Read, Copy, Update"
 Please note that the "What is RCU?" LWN series is an excellent place
 to start learning about RCU:
 
-| 1.	What is RCU, Fundamentally?  http://lwn.net/Articles/262464/
-| 2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
-| 3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
-| 4.	The RCU API, 2010 Edition    http://lwn.net/Articles/418853/
-| 	2010 Big API Table           http://lwn.net/Articles/419086/
-| 5.	The RCU API, 2014 Edition    http://lwn.net/Articles/609904/
-|	2014 Big API Table           http://lwn.net/Articles/609973/
+| 1.	What is RCU, Fundamentally?  https://lwn.net/Articles/262464/
+| 2.	What is RCU? Part 2: Usage   https://lwn.net/Articles/263130/
+| 3.	RCU part 3: the RCU API      https://lwn.net/Articles/264090/
+| 4.	The RCU API, 2010 Edition    https://lwn.net/Articles/418853/
+| 	2010 Big API Table           https://lwn.net/Articles/419086/
+| 5.	The RCU API, 2014 Edition    https://lwn.net/Articles/609904/
+|	2014 Big API Table           https://lwn.net/Articles/609973/
+| 6.	The RCU API, 2019 Edition    https://lwn.net/Articles/777036/
+|	2019 Big API Table           https://lwn.net/Articles/777165/
 
 
 What is RCU?
@@ -224,7 +226,7 @@ synchronize_rcu()
 	be delayed.  This property results in system resilience in face
 	of denial-of-service attacks.  Code using call_rcu() should limit
 	update rate in order to gain this same sort of resilience.  See
-	checklist.txt for some approaches to limiting the update rate.
+	checklist.rst for some approaches to limiting the update rate.
 
 rcu_assign_pointer()
 ^^^^^^^^^^^^^^^^^^^^
@@ -318,7 +320,7 @@ rcu_dereference()
 	must prohibit.	The rcu_dereference_protected() variant takes
 	a lockdep expression to indicate which locks must be acquired
 	by the caller. If the indicated protection is not provided,
-	a lockdep splat is emitted.  See Documentation/RCU/Design/Requirements/Requirements.rst
+	a lockdep splat is emitted.  See Design/Requirements/Requirements.rst
 	and the API's code comments for more details and example usage.
 
 .. 	[2] If the list_for_each_entry_rcu() instance might be used by
@@ -399,8 +401,7 @@ for specialized uses, but are relatively uncommon.
 
 This section shows a simple use of the core RCU API to protect a
 global pointer to a dynamically allocated structure.  More-typical
-uses of RCU may be found in :ref:`listRCU.rst <list_rcu_doc>`,
-:ref:`arrayRCU.rst <array_rcu_doc>`, and :ref:`NMI-RCU.rst <NMI_rcu_doc>`.
+uses of RCU may be found in listRCU.rst, arrayRCU.rst, and NMI-RCU.rst.
 ::
 
 	struct foo {
@@ -482,10 +483,9 @@ So, to sum up:
 	RCU read-side critical sections that might be referencing that
 	data item.
 
-See checklist.txt for additional rules to follow when using RCU.
-And again, more-typical uses of RCU may be found in :ref:`listRCU.rst
-<list_rcu_doc>`, :ref:`arrayRCU.rst <array_rcu_doc>`, and :ref:`NMI-RCU.rst
-<NMI_rcu_doc>`.
+See checklist.rst for additional rules to follow when using RCU.
+And again, more-typical uses of RCU may be found in listRCU.rst,
+arrayRCU.rst, and NMI-RCU.rst.
 
 .. _4_whatisRCU:
 
@@ -579,7 +579,7 @@ to avoid having to write your own callback::
 
 	kfree_rcu(old_fp, rcu);
 
-Again, see checklist.txt for additional rules governing the use of RCU.
+Again, see checklist.rst for additional rules governing the use of RCU.
 
 .. _5_whatisRCU:
 
@@ -663,7 +663,7 @@ been able to write-acquire the lock otherwise.  The smp_mb__after_spinlock()
 promotes synchronize_rcu() to a full memory barrier in compliance with
 the "Memory-Barrier Guarantees" listed in:
 
-	Documentation/RCU/Design/Requirements/Requirements.rst
+	Design/Requirements/Requirements.rst
 
 It is possible to nest rcu_read_lock(), since reader-writer locks may
 be recursively acquired.  Note also that rcu_read_lock() is immune
@@ -917,13 +917,18 @@ which an RCU reference is held include:
 The understanding that RCU provides a reference that only prevents a
 change of type is particularly visible with objects allocated from a
 slab cache marked ``SLAB_TYPESAFE_BY_RCU``.  RCU operations may yield a
-reference to an object from such a cache that has been concurrently
-freed and the memory reallocated to a completely different object,
-though of the same type.  In this case RCU doesn't even protect the
-identity of the object from changing, only its type.  So the object
-found may not be the one expected, but it will be one where it is safe
-to take a reference or spinlock and then confirm that the identity
-matches the expectations.
+reference to an object from such a cache that has been concurrently freed
+and the memory reallocated to a completely different object, though of
+the same type.  In this case RCU doesn't even protect the identity of the
+object from changing, only its type.  So the object found may not be the
+one expected, but it will be one where it is safe to take a reference
+(and then potentially acquiring a spinlock), allowing subsequent code
+to check whether the identity matches expectations.  It is tempting
+to simply acquire the spinlock without first taking the reference, but
+unfortunately any spinlock in a ``SLAB_TYPESAFE_BY_RCU`` object must be
+initialized after each and every call to kmem_cache_alloc(), which renders
+reference-free spinlock acquisition completely unsafe.  Therefore, when
+using ``SLAB_TYPESAFE_BY_RCU``, make proper use of a reference counter.
 
 With traditional reference counting -- such as that implemented by the
 kref library in Linux -- there is typically code that runs when the last
@@ -1059,13 +1064,19 @@ SRCU: Initialization/cleanup::
 	init_srcu_struct
 	cleanup_srcu_struct
 
-All: lockdep-checked RCU-protected pointer access::
+All: lockdep-checked RCU utility APIs::
 
-	rcu_access_pointer
-	rcu_dereference_raw
 	RCU_LOCKDEP_WARN
 	rcu_sleep_check
 	RCU_NONIDLE
+
+All: Unchecked RCU-protected pointer access::
+
+	rcu_dereference_raw
+
+All: Unchecked RCU-protected pointer access with dereferencing prohibited::
+
+	rcu_access_pointer
 
 See the comment headers in the source code (or the docbook generated
 from them) for more information.

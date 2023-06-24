@@ -21,7 +21,7 @@ struct v4l2_subdev *fimc_find_remote_sensor(struct media_entity *entity)
 
 	while (pad->flags & MEDIA_PAD_FL_SINK) {
 		/* source pad */
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -41,8 +41,6 @@ void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap)
 {
 	strscpy(cap->driver, dev->driver->name, sizeof(cap->driver));
 	strscpy(cap->card, dev->driver->name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-				"platform:%s", dev_name(dev));
 }
 EXPORT_SYMBOL(__fimc_vidioc_querycap);
 

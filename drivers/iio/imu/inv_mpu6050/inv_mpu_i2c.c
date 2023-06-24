@@ -29,6 +29,7 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 
 	switch (st->chip_type) {
 	case INV_ICM20608:
+	case INV_ICM20608D:
 	case INV_ICM20609:
 	case INV_ICM20689:
 	case INV_ICM20602:
@@ -156,7 +157,7 @@ out_del_mux:
 	return result;
 }
 
-static int inv_mpu_remove(struct i2c_client *client)
+static void inv_mpu_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
@@ -165,8 +166,6 @@ static int inv_mpu_remove(struct i2c_client *client)
 		inv_mpu_acpi_delete_mux_client(client);
 		i2c_mux_del_adapters(st->muxc);
 	}
-
-	return 0;
 }
 
 /*
@@ -182,6 +181,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu9250", INV_MPU9250},
 	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
+	{"icm20608d", INV_ICM20608D},
 	{"icm20609", INV_ICM20609},
 	{"icm20689", INV_ICM20689},
 	{"icm20602", INV_ICM20602},
@@ -224,6 +224,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,icm20608",
 		.data = (void *)INV_ICM20608
+	},
+	{
+		.compatible = "invensense,icm20608d",
+		.data = (void *)INV_ICM20608D
 	},
 	{
 		.compatible = "invensense,icm20609",

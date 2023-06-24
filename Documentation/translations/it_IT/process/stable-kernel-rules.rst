@@ -41,10 +41,10 @@ Regole sul tipo di patch che vengono o non vengono accettate nei sorgenti
 Procedura per sottomettere patch per i sorgenti -stable
 -------------------------------------------------------
 
- - Una patch di sicurezza non dovrebbero essere gestite (solamente) dal processo
-   di revisione -stable, ma dovrebbe seguire le procedure descritte in
-   :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`.
-
+.. note::
+  Una patch di sicurezza non dovrebbe essere gestita (solamente) dal processo
+  di revisione -stable, ma dovrebbe seguire le procedure descritte in
+  :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`.
 
 Per tutte le altre sottomissioni, scegliere una delle seguenti procedure
 ------------------------------------------------------------------------
@@ -90,9 +90,9 @@ L':ref:`it_option_2` e l':ref:`it_option_3` sono più utili quando, al momento
 dell'inclusione dei sorgenti principali, si ritiene che non debbano essere
 incluse anche in quelli stabili (per esempio, perché si crede che si dovrebbero
 fare più verifiche per eventuali regressioni). L':ref:`it_option_3` è
-particolarmente utile se la patch ha bisogno di qualche modifica per essere
-applicata ad un kernel più vecchio (per esempio, perché nel frattempo l'API è
-cambiata).
+particolarmente utile se una patch dev'essere riportata su una versione
+precedente (per esempio la patch richiede modifiche a causa di cambiamenti di
+API).
 
 Notate che per l':ref:`it_option_3`, se la patch è diversa da quella nei
 sorgenti principali (per esempio perché è stato necessario un lavoro di
@@ -167,9 +167,18 @@ Ciclo di una revisione
    della lista linux-kernel obietta la bontà della patch, sollevando problemi
    che i manutentori ed i membri non avevano compreso, allora la patch verrà
    rimossa dalla coda.
- - Alla fine del ciclo di revisione tutte le patch che hanno ricevuto l'ACK
-   verranno aggiunte per il prossimo rilascio -stable, e successivamente
-   questo nuovo rilascio verrà fatto.
+ - Le patch che hanno ricevuto un ACK verranno inviate nuovamente come parte di
+   un rilascio candidato (-rc) al fine di essere verificate dagli sviluppatori e
+   dai testatori.
+ - Solitamente si pubblica solo una -rc, tuttavia se si riscontrano problemi
+   importanti, alcune patch potrebbero essere modificate o essere scartate,
+   oppure nuove patch potrebbero essere messe in coda. Dunque, verranno pubblicate
+   nuove -rc e così via finché non si ritiene che non vi siano più problemi.
+ - Si può rispondere ad una -rc scrivendo sulla lista di discussione un'email
+   con l'etichetta "Tested-by:". Questa etichetta verrà raccolta ed aggiunta al
+   commit rilascio.
+ - Alla fine del ciclo di revisione il nuovo rilascio -stable conterrà tutte le
+   patch che erano in coda e sono state verificate.
  - Le patch di sicurezza verranno accettate nei sorgenti -stable direttamente
    dalla squadra per la sicurezza del kernel, e non passerà per il normale
    ciclo di revisione. Contattate la suddetta squadra per maggiori dettagli
@@ -186,8 +195,19 @@ Sorgenti
  - Il rilascio definitivo, e marchiato, di tutti i kernel stabili può essere
    trovato in rami distinti per versione al seguente indirizzo:
 
-	https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
+ - I rilasci candidati di tutti i kernel stabili possono essere trovati al
+   seguente indirizzo:
+
+    https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git/
+
+
+   .. warning::
+     I sorgenti -stable-rc sono un'istantanea dei sorgenti stable-queue e
+     subirà frequenti modifiche, dunque verrà anche trapiantato spesso.
+     Dovrebbe essere usato solo allo scopo di verifica (per esempio in un
+     sistema di CI)
 
 Comitato per la revisione
 -------------------------

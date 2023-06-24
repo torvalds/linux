@@ -60,9 +60,13 @@
 #define EXYNOS850_CLUSTER0_NONCPU_INT_EN	0x1244
 #define EXYNOS850_CLUSTER1_NONCPU_OUT		0x1620
 #define EXYNOS850_CLUSTER1_NONCPU_INT_EN	0x1644
+#define EXYNOSAUTOV9_CLUSTER1_NONCPU_OUT	0x1520
+#define EXYNOSAUTOV9_CLUSTER1_NONCPU_INT_EN	0x1544
 
 #define EXYNOS850_CLUSTER0_WDTRESET_BIT		24
 #define EXYNOS850_CLUSTER1_WDTRESET_BIT		23
+#define EXYNOSAUTOV9_CLUSTER0_WDTRESET_BIT	25
+#define EXYNOSAUTOV9_CLUSTER1_WDTRESET_BIT	24
 
 /**
  * DOC: Quirk flags for different Samsung watchdog IP-cores
@@ -236,6 +240,30 @@ static const struct s3c2410_wdt_variant drv_data_exynos850_cl1 = {
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
 };
 
+static const struct s3c2410_wdt_variant drv_data_exynosautov9_cl0 = {
+	.mask_reset_reg = EXYNOS850_CLUSTER0_NONCPU_INT_EN,
+	.mask_bit = 2,
+	.mask_reset_inv = true,
+	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = EXYNOSAUTOV9_CLUSTER0_WDTRESET_BIT,
+	.cnt_en_reg = EXYNOS850_CLUSTER0_NONCPU_OUT,
+	.cnt_en_bit = 7,
+	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET |
+		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
+};
+
+static const struct s3c2410_wdt_variant drv_data_exynosautov9_cl1 = {
+	.mask_reset_reg = EXYNOSAUTOV9_CLUSTER1_NONCPU_INT_EN,
+	.mask_bit = 2,
+	.mask_reset_inv = true,
+	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = EXYNOSAUTOV9_CLUSTER1_WDTRESET_BIT,
+	.cnt_en_reg = EXYNOSAUTOV9_CLUSTER1_NONCPU_OUT,
+	.cnt_en_bit = 7,
+	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET |
+		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
+};
+
 static const struct of_device_id s3c2410_wdt_match[] = {
 	{ .compatible = "samsung,s3c2410-wdt",
 	  .data = &drv_data_s3c2410 },
@@ -249,6 +277,8 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	  .data = &drv_data_exynos7 },
 	{ .compatible = "samsung,exynos850-wdt",
 	  .data = &drv_data_exynos850_cl0 },
+	{ .compatible = "samsung,exynosautov9-wdt",
+	  .data = &drv_data_exynosautov9_cl0 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
@@ -630,8 +660,9 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_OF
-	/* Choose Exynos850 driver data w.r.t. cluster index */
-	if (variant == &drv_data_exynos850_cl0) {
+	/* Choose Exynos850/ExynosAutov9 driver data w.r.t. cluster index */
+	if (variant == &drv_data_exynos850_cl0 ||
+	    variant == &drv_data_exynosautov9_cl0) {
 		u32 index;
 		int err;
 
@@ -644,9 +675,11 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 
 		switch (index) {
 		case 0:
-			return &drv_data_exynos850_cl0;
+			return variant;
 		case 1:
-			return &drv_data_exynos850_cl1;
+			return (variant == &drv_data_exynos850_cl0) ?
+				&drv_data_exynos850_cl1 :
+				&drv_data_exynosautov9_cl1;
 		default:
 			dev_err(dev, "wrong cluster index: %u\n", index);
 			return NULL;
@@ -845,8 +878,6 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 	s3c2410wdt_stop(&wdt->wdt_device);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int s3c2410wdt_suspend(struct device *dev)
 {
 	int ret;
@@ -885,10 +916,9 @@ static int s3c2410wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops, s3c2410wdt_suspend,
-			s3c2410wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops,
+				s3c2410wdt_suspend, s3c2410wdt_resume);
 
 static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
@@ -897,7 +927,7 @@ static struct platform_driver s3c2410wdt_driver = {
 	.id_table	= s3c2410_wdt_ids,
 	.driver		= {
 		.name	= "s3c2410-wdt",
-		.pm	= &s3c2410wdt_pm_ops,
+		.pm	= pm_sleep_ptr(&s3c2410wdt_pm_ops),
 		.of_match_table	= of_match_ptr(s3c2410_wdt_match),
 	},
 };

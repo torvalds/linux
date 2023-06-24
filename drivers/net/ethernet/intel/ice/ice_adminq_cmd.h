@@ -601,12 +601,30 @@ struct ice_aqc_sw_rules {
 	__le32 addr_low;
 };
 
+/* Add switch rule response:
+ * Content of return buffer is same as the input buffer. The status field and
+ * LUT index are updated as part of the response
+ */
+struct ice_aqc_sw_rules_elem_hdr {
+	__le16 type; /* Switch rule type, one of T_... */
+#define ICE_AQC_SW_RULES_T_LKUP_RX		0x0
+#define ICE_AQC_SW_RULES_T_LKUP_TX		0x1
+#define ICE_AQC_SW_RULES_T_LG_ACT		0x2
+#define ICE_AQC_SW_RULES_T_VSI_LIST_SET		0x3
+#define ICE_AQC_SW_RULES_T_VSI_LIST_CLEAR	0x4
+#define ICE_AQC_SW_RULES_T_PRUNE_LIST_SET	0x5
+#define ICE_AQC_SW_RULES_T_PRUNE_LIST_CLEAR	0x6
+	__le16 status;
+} __packed __aligned(sizeof(__le16));
+
 /* Add/Update/Get/Remove lookup Rx/Tx command/response entry
  * This structures describes the lookup rules and associated actions. "index"
  * is returned as part of a response to a successful Add command, and can be
  * used to identify the rule for Update/Get/Remove commands.
  */
 struct ice_sw_rule_lkup_rx_tx {
+	struct ice_aqc_sw_rules_elem_hdr hdr;
+
 	__le16 recipe_id;
 #define ICE_SW_RECIPE_LOGICAL_PORT_FWD		10
 	/* Source port for LOOKUP_RX and source VSI in case of LOOKUP_TX */
@@ -683,14 +701,16 @@ struct ice_sw_rule_lkup_rx_tx {
 	 * lookup-type
 	 */
 	__le16 hdr_len;
-	u8 hdr[];
-};
+	u8 hdr_data[];
+} __packed __aligned(sizeof(__le16));
 
 /* Add/Update/Remove large action command/response entry
  * "index" is returned as part of a response to a successful Add command, and
  * can be used to identify the action for Update/Get/Remove commands.
  */
 struct ice_sw_rule_lg_act {
+	struct ice_aqc_sw_rules_elem_hdr hdr;
+
 	__le16 index; /* Index in large action table */
 	__le16 size;
 	/* Max number of large actions */
@@ -744,45 +764,19 @@ struct ice_sw_rule_lg_act {
 #define ICE_LG_ACT_STAT_COUNT_S		3
 #define ICE_LG_ACT_STAT_COUNT_M		(0x7F << ICE_LG_ACT_STAT_COUNT_S)
 	__le32 act[]; /* array of size for actions */
-};
+} __packed __aligned(sizeof(__le16));
 
 /* Add/Update/Remove VSI list command/response entry
  * "index" is returned as part of a response to a successful Add command, and
  * can be used to identify the VSI list for Update/Get/Remove commands.
  */
 struct ice_sw_rule_vsi_list {
+	struct ice_aqc_sw_rules_elem_hdr hdr;
+
 	__le16 index; /* Index of VSI/Prune list */
 	__le16 number_vsi;
 	__le16 vsi[]; /* Array of number_vsi VSI numbers */
-};
-
-/* Query VSI list command/response entry */
-struct ice_sw_rule_vsi_list_query {
-	__le16 index;
-	DECLARE_BITMAP(vsi_list, ICE_MAX_VSI);
-} __packed;
-
-/* Add switch rule response:
- * Content of return buffer is same as the input buffer. The status field and
- * LUT index are updated as part of the response
- */
-struct ice_aqc_sw_rules_elem {
-	__le16 type; /* Switch rule type, one of T_... */
-#define ICE_AQC_SW_RULES_T_LKUP_RX		0x0
-#define ICE_AQC_SW_RULES_T_LKUP_TX		0x1
-#define ICE_AQC_SW_RULES_T_LG_ACT		0x2
-#define ICE_AQC_SW_RULES_T_VSI_LIST_SET		0x3
-#define ICE_AQC_SW_RULES_T_VSI_LIST_CLEAR	0x4
-#define ICE_AQC_SW_RULES_T_PRUNE_LIST_SET	0x5
-#define ICE_AQC_SW_RULES_T_PRUNE_LIST_CLEAR	0x6
-	__le16 status;
-	union {
-		struct ice_sw_rule_lkup_rx_tx lkup_tx_rx;
-		struct ice_sw_rule_lg_act lg_act;
-		struct ice_sw_rule_vsi_list vsi_list;
-		struct ice_sw_rule_vsi_list_query vsi_list_query;
-	} __packed pdata;
-};
+} __packed __aligned(sizeof(__le16));
 
 /* Query PFC Mode (direct 0x0302)
  * Set PFC Mode (direct 0x0303)
@@ -1401,7 +1395,7 @@ struct ice_aqc_get_link_topo {
 	u8 rsvd[9];
 };
 
-/* Read I2C (direct, 0x06E2) */
+/* Read/Write I2C (direct, 0x06E2/0x06E3) */
 struct ice_aqc_i2c {
 	struct ice_aqc_link_topo_addr topo_addr;
 	__le16 i2c_addr;
@@ -1411,7 +1405,7 @@ struct ice_aqc_i2c {
 
 	u8 rsvd;
 	__le16 i2c_bus_addr;
-	u8 rsvd2[4];
+	u8 i2c_data[4]; /* Used only by write command, reserved in read. */
 };
 
 /* Read I2C Response (direct, 0x06E2) */
@@ -1426,6 +1420,56 @@ struct ice_aqc_set_port_id_led {
 	u8 ident_mode;
 #define ICE_AQC_PORT_IDENT_LED_BLINK	BIT(0)
 #define ICE_AQC_PORT_IDENT_LED_ORIG	0
+	u8 rsvd[13];
+};
+
+/* Get Port Options (indirect, 0x06EA) */
+struct ice_aqc_get_port_options {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 port_options_count;
+#define ICE_AQC_PORT_OPT_COUNT_M	GENMASK(3, 0)
+#define ICE_AQC_PORT_OPT_MAX		16
+
+	u8 innermost_phy_index;
+	u8 port_options;
+#define ICE_AQC_PORT_OPT_ACTIVE_M	GENMASK(3, 0)
+#define ICE_AQC_PORT_OPT_VALID		BIT(7)
+
+	u8 pending_port_option_status;
+#define ICE_AQC_PENDING_PORT_OPT_IDX_M	GENMASK(3, 0)
+#define ICE_AQC_PENDING_PORT_OPT_VALID	BIT(7)
+
+	u8 rsvd[2];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_get_port_options_elem {
+	u8 pmd;
+#define ICE_AQC_PORT_OPT_PMD_COUNT_M	GENMASK(3, 0)
+
+	u8 max_lane_speed;
+#define ICE_AQC_PORT_OPT_MAX_LANE_M	GENMASK(3, 0)
+#define ICE_AQC_PORT_OPT_MAX_LANE_100M	0
+#define ICE_AQC_PORT_OPT_MAX_LANE_1G	1
+#define ICE_AQC_PORT_OPT_MAX_LANE_2500M	2
+#define ICE_AQC_PORT_OPT_MAX_LANE_5G	3
+#define ICE_AQC_PORT_OPT_MAX_LANE_10G	4
+#define ICE_AQC_PORT_OPT_MAX_LANE_25G	5
+#define ICE_AQC_PORT_OPT_MAX_LANE_50G	6
+#define ICE_AQC_PORT_OPT_MAX_LANE_100G	7
+
+	u8 global_scid[2];
+	u8 phy_scid[2];
+	u8 pf2port_cid[2];
+};
+
+/* Set Port Option (direct, 0x06EB) */
+struct ice_aqc_set_port_option {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 selected_port_option;
 	u8 rsvd[13];
 };
 
@@ -1495,6 +1539,12 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_PERST_FLAG		1
 #define ICE_AQC_NVM_EMPR_FLAG		2
 #define ICE_AQC_NVM_EMPR_ENA		BIT(0) /* Write Activate reply only */
+	/* For Write Activate, several flags are sent as part of a separate
+	 * flags2 field using a separate byte. For simplicity of the software
+	 * interface, we pass the flags as a 16 bit value so these flags are
+	 * all offset by 8 bits
+	 */
+#define ICE_AQC_NVM_ACTIV_REQ_EMPR	BIT(8) /* NVM Write Activate only */
 	__le16 module_typeid;
 	__le16 length;
 #define ICE_AQC_NVM_ERASE_LEN	0xFFFF
@@ -2088,6 +2138,8 @@ struct ice_aq_desc {
 		struct ice_aqc_gpio read_write_gpio;
 		struct ice_aqc_sff_eeprom read_write_sff_param;
 		struct ice_aqc_set_port_id_led set_port_id_led;
+		struct ice_aqc_get_port_options get_port_options;
+		struct ice_aqc_set_port_option set_port_option;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_set_port_params set_port_params;
 		struct ice_aqc_sw_rules sw_rules;
@@ -2130,7 +2182,7 @@ struct ice_aq_desc {
 		struct ice_aqc_get_link_status get_link_status;
 		struct ice_aqc_event_lan_overflow lan_overflow;
 		struct ice_aqc_get_link_topo get_link_topo;
-		struct ice_aqc_i2c read_i2c;
+		struct ice_aqc_i2c read_write_i2c;
 		struct ice_aqc_read_i2c_resp read_i2c_resp;
 	} params;
 };
@@ -2247,7 +2299,10 @@ enum ice_adminq_opc {
 	ice_aqc_opc_set_mac_lb				= 0x0620,
 	ice_aqc_opc_get_link_topo			= 0x06E0,
 	ice_aqc_opc_read_i2c				= 0x06E2,
+	ice_aqc_opc_write_i2c				= 0x06E3,
 	ice_aqc_opc_set_port_id_led			= 0x06E9,
+	ice_aqc_opc_get_port_options			= 0x06EA,
+	ice_aqc_opc_set_port_option			= 0x06EB,
 	ice_aqc_opc_set_gpio				= 0x06EC,
 	ice_aqc_opc_get_gpio				= 0x06ED,
 	ice_aqc_opc_sff_eeprom				= 0x06EE,

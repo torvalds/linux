@@ -4,7 +4,6 @@
  */
 
 #ifndef __ASSEMBLY__
-#include <plat/sram.h>
 
 extern void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 				u32 base_cs, u32 force_unlock);
@@ -13,6 +12,10 @@ extern void omap2_sram_reprogram_sdrc(u32 perf_level, u32 dll_val,
 extern u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass);
 
 extern void omap3_sram_restore_context(void);
+
+extern int __init omap_sram_init(void);
+
+extern void *omap_sram_push(void *funcp, unsigned long size);
 
 /* Do not use these */
 extern void omap24xx_sram_reprogram_clock(u32 ckctl, u32 dpllctl);

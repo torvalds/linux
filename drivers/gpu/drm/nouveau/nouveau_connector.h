@@ -26,17 +26,17 @@
 
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
-
+#include <nvif/conn.h>
 #include <nvif/notify.h>
 
 #include <nvhw/class/cl507d.h>
 #include <nvhw/class/cl907d.h>
 #include <nvhw/drf.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_util.h>
 
 #include "nouveau_crtc.h"
@@ -123,9 +123,13 @@ struct nouveau_connector {
 	u8 index;
 	u8 *dcb;
 
+	struct nvif_conn conn;
 	struct nvif_notify hpd;
 
 	struct drm_dp_aux aux;
+
+	/* The fixed DP encoder for this connector, if there is one */
+	struct nouveau_encoder *dp_encoder;
 
 	int dithering_mode;
 	int scaling_mode;

@@ -110,7 +110,7 @@
 		spi-max-frequency = <12500000>;
 		interrupt-parent = <&gpio>;
 		interrupt-names = "udc";
-		interrupts = <0 2>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -168,12 +168,12 @@
 
 &gpio {
 	/* IRQs for Max3421 */
-	xirq0 {
+	xirq0-hog {
 		gpio-hog;
 		gpios = <UNIPHIER_GPIO_IRQ(0) 1>;
 		input;
 	};
-	xirq10 {
+	xirq10-hog {
 		gpio-hog;
 		gpios = <UNIPHIER_GPIO_IRQ(10) 1>;
 		input;

@@ -398,7 +398,7 @@ static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
 	oldmcr = inb(io + UART_MCR);
 	outb(0, io + UART_MCR);
 	mxser_set_must_xon1_value(io, 0x11);
-	if ((hwid = inb(io + UART_MCR)) != 0) {
+	if (inb(io + UART_MCR) != 0) {
 		outb(oldmcr, io + UART_MCR);
 		return MOXA_OTHER_UART;
 	}
@@ -528,7 +528,6 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 	outb(quot >> 8, info->ioaddr + UART_DLM);	/* MS of divisor */
 	outb(cval, info->ioaddr + UART_LCR);	/* reset DLAB */
 
-#ifdef BOTHER
 	if (C_BAUD(tty) == BOTHER) {
 		quot = MXSER_BAUD_BASE % newspd;
 		quot *= 8;
@@ -539,9 +538,9 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 			quot /= newspd;
 
 		mxser_set_must_enum_value(info->ioaddr, quot);
-	} else
-#endif
+	} else {
 		mxser_set_must_enum_value(info->ioaddr, 0);
+	}
 
 	return 0;
 }
@@ -572,7 +571,8 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
  * This routine is called to set the UART divisor registers to match
  * the specified baud rate for a serial port.
  */
-static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_termios)
+static void mxser_change_speed(struct tty_struct *tty,
+			       const struct ktermios *old_termios)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned cflag, cval;
@@ -1349,7 +1349,8 @@ static void mxser_start(struct tty_struct *tty)
 	spin_unlock_irqrestore(&info->slock, flags);
 }
 
-static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void mxser_set_termios(struct tty_struct *tty,
+			      const struct ktermios *old_termios)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;

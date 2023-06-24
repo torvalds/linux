@@ -747,6 +747,8 @@
 	cru: clock-controller@ff760000 {
 		compatible = "rockchip,rk3368-cru";
 		reg = <0x0 0xff760000 0x0 0x1000>;
+		clocks = <&xin24m>;
+		clock-names = "xin24m";
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
@@ -1082,7 +1084,7 @@
 
 		gmac {
 			rgmii_pins: rgmii-pins {
-				rockchip,pins =	<3 RK_PC6 1 &pcfg_pull_none>,
+				rockchip,pins = <3 RK_PC6 1 &pcfg_pull_none>,
 						<3 RK_PD0 1 &pcfg_pull_none>,
 						<3 RK_PC3 1 &pcfg_pull_none>,
 						<3 RK_PB0 1 &pcfg_pull_none_12ma>,
@@ -1100,7 +1102,7 @@
 			};
 
 			rmii_pins: rmii-pins {
-				rockchip,pins =	<3 RK_PC6 1 &pcfg_pull_none>,
+				rockchip,pins = <3 RK_PC6 1 &pcfg_pull_none>,
 						<3 RK_PD0 1 &pcfg_pull_none>,
 						<3 RK_PC3 1 &pcfg_pull_none>,
 						<3 RK_PB0 1 &pcfg_pull_none_12ma>,
@@ -1255,7 +1257,7 @@
 
 		spdif {
 			spdif_tx: spdif-tx {
-				rockchip,pins =	<2 RK_PC7 1 &pcfg_pull_none>;
+				rockchip,pins = <2 RK_PC7 1 &pcfg_pull_none>;
 			};
 		};
 

@@ -950,8 +950,8 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 		params->fpn_config.data = NULL;
 	}
 	if (!params->fpn_config.data) {
-		params->fpn_config.data = kvmalloc(height * width *
-						   sizeof(short), GFP_KERNEL);
+		params->fpn_config.data = kvmalloc(array3_size(height, width, sizeof(short)),
+						   GFP_KERNEL);
 		if (!params->fpn_config.data) {
 			IA_CSS_ERROR("out of memory");
 			IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
@@ -2072,8 +2072,7 @@ static bool realloc_isp_css_mm_buf(
     size_t *curr_size,
     size_t needed_size,
     bool force,
-    int *err,
-    uint16_t mmgr_attribute)
+    int *err)
 {
 	s32 id;
 
@@ -2095,11 +2094,7 @@ static bool realloc_isp_css_mm_buf(
 
 	id = IA_CSS_REFCOUNT_PARAM_BUFFER;
 	ia_css_refcount_decrement(id, *curr_buf);
-	*curr_buf = ia_css_refcount_increment(id, hmm_alloc(needed_size,
-							    HMM_BO_PRIVATE, 0,
-							    NULL,
-							    mmgr_attribute));
-
+	*curr_buf = ia_css_refcount_increment(id, hmm_alloc(needed_size));
 	if (!*curr_buf) {
 		*err = -ENOMEM;
 		*curr_size = 0;
@@ -2122,7 +2117,7 @@ static bool reallocate_buffer(
 	IA_CSS_ENTER_PRIVATE("void");
 
 	ret = realloc_isp_css_mm_buf(curr_buf,
-				     curr_size, needed_size, force, err, 0);
+				     curr_size, needed_size, force, err);
 
 	IA_CSS_LEAVE_PRIVATE("ret=%d", ret);
 	return ret;
@@ -2161,7 +2156,7 @@ ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 	me->hmem_size = CEIL_MUL(me->hmem_size, HIVE_ISP_DDR_WORD_BYTES);
 
 	me->size = me->dmem_size + me->vmem_size * 2 + me->hmem_size;
-	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
+	me->data_ptr = hmm_alloc(me->size);
 	if (me->data_ptr == mmgr_NULL) {
 		kvfree(me);
 		me = NULL;
@@ -2211,7 +2206,7 @@ ia_css_metadata_allocate(const struct ia_css_metadata_info *metadata_info)
 
 	md->info = *metadata_info;
 	md->exp_id = 0;
-	md->address = hmm_alloc(metadata_info->size, HMM_BO_PRIVATE, 0, NULL, 0);
+	md->address = hmm_alloc(metadata_info->size);
 	if (md->address == mmgr_NULL)
 		goto error;
 
@@ -2364,13 +2359,13 @@ sh_css_create_isp_params(struct ia_css_stream *stream,
 	ddr_ptrs_size->isp_param = params_size;
 	ddr_ptrs->isp_param =
 	ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_BUFFER,
-				  hmm_alloc(params_size, HMM_BO_PRIVATE, 0, NULL, 0));
+				  hmm_alloc(params_size));
 	succ &= (ddr_ptrs->isp_param != mmgr_NULL);
 
 	ddr_ptrs_size->macc_tbl = sizeof(struct ia_css_macc_table);
 	ddr_ptrs->macc_tbl =
 	ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_BUFFER,
-				  hmm_alloc(sizeof(struct ia_css_macc_table), HMM_BO_PRIVATE, 0, NULL, 0));
+				  hmm_alloc(sizeof(struct ia_css_macc_table)));
 	succ &= (ddr_ptrs->macc_tbl != mmgr_NULL);
 
 	*isp_params_out = params;
@@ -2584,14 +2579,10 @@ sh_css_params_init(void)
 		for (i = 0; i < SH_CSS_MAX_STAGES; i++) {
 			xmem_sp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
-						  hmm_alloc(sizeof(struct sh_css_sp_stage),
-							    HMM_BO_PRIVATE, 0, NULL,
-							    ATOMISP_MAP_FLAG_CLEARED));
+						  hmm_alloc(sizeof(struct sh_css_sp_stage)));
 			xmem_isp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
-						  hmm_alloc(sizeof(struct sh_css_sp_stage),
-							    HMM_BO_PRIVATE, 0, NULL,
-							    ATOMISP_MAP_FLAG_CLEARED));
+						  hmm_alloc(sizeof(struct sh_css_sp_stage)));
 
 			if ((xmem_sp_stage_ptrs[p][i] == mmgr_NULL) ||
 			    (xmem_isp_stage_ptrs[p][i] == mmgr_NULL)) {
@@ -2599,6 +2590,9 @@ sh_css_params_init(void)
 				IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
 				return -ENOMEM;
 			}
+
+			hmm_set(xmem_sp_stage_ptrs[p][i], 0, sizeof(struct sh_css_sp_stage));
+			hmm_set(xmem_isp_stage_ptrs[p][i], 0, sizeof(struct sh_css_sp_stage));
 		}
 	}
 
@@ -2609,13 +2603,9 @@ sh_css_params_init(void)
 
 	sp_ddr_ptrs = ia_css_refcount_increment(-1,
 						hmm_alloc(CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
-								   HIVE_ISP_DDR_WORD_BYTES),
-							  HMM_BO_PRIVATE, 0, NULL,
-							  ATOMISP_MAP_FLAG_CLEARED));
+								   HIVE_ISP_DDR_WORD_BYTES)));
 	xmem_sp_group_ptrs = ia_css_refcount_increment(-1,
-						       hmm_alloc(sizeof(struct sh_css_sp_group),
-								 HMM_BO_PRIVATE, 0, NULL,
-								 ATOMISP_MAP_FLAG_CLEARED));
+						       hmm_alloc(sizeof(struct sh_css_sp_group)));
 
 	if ((sp_ddr_ptrs == mmgr_NULL) ||
 	    (xmem_sp_group_ptrs == mmgr_NULL)) {
@@ -2623,6 +2613,9 @@ sh_css_params_init(void)
 		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
 		return -ENOMEM;
 	}
+	hmm_set(sp_ddr_ptrs, 0, CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
+					 HIVE_ISP_DDR_WORD_BYTES));
+	hmm_set(xmem_sp_group_ptrs, 0, sizeof(struct sh_css_sp_group));
 	IA_CSS_LEAVE_ERR_PRIVATE(0);
 	return 0;
 }
@@ -2667,7 +2660,7 @@ int ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	}
 
 	if (!stream_started) {
-		pipe->scaler_pp_lut = hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
+		pipe->scaler_pp_lut = hmm_alloc(sizeof(zoom_table));
 
 		if (pipe->scaler_pp_lut == mmgr_NULL) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
@@ -2709,7 +2702,7 @@ int sh_css_params_map_and_store_default_gdc_lut(void)
 
 	host_lut_store((void *)zoom_table);
 
-	default_gdc_lut = hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
+	default_gdc_lut = hmm_alloc(sizeof(zoom_table));
 
 	if (default_gdc_lut == mmgr_NULL)
 		return -ENOMEM;
@@ -3802,7 +3795,7 @@ static int write_ia_css_isp_parameter_set_info_to_ddr(
 	assert(out);
 
 	*out = ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_SET_POOL,
-					 hmm_alloc(sizeof(struct ia_css_isp_parameter_set_info), HMM_BO_PRIVATE, 0, NULL, 0));
+					 hmm_alloc(sizeof(struct ia_css_isp_parameter_set_info)));
 	succ = (*out != mmgr_NULL);
 	if (succ)
 		hmm_store(*out,

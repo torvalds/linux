@@ -1101,7 +1101,11 @@ struct smb2_change_notify_rsp {
 #define SMB2_CREATE_REQUEST_LEASE		"RqLs"
 #define SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2	"DH2Q"
 #define SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2	"DH2C"
-#define SMB2_CREATE_TAG_POSIX          "\x93\xAD\x25\x50\x9C\xB4\x11\xE7\xB4\x23\x83\xDE\x96\x8B\xCD\x7C"
+#define SMB2_CREATE_TAG_POSIX		"\x93\xAD\x25\x50\x9C\xB4\x11\xE7\xB4\x23\x83\xDE\x96\x8B\xCD\x7C"
+#define SMB2_CREATE_APP_INSTANCE_ID	"\x45\xBC\xA6\x6A\xEF\xA7\xF7\x4A\x90\x08\xFA\x46\x2E\x14\x4D\x74"
+#define SMB2_CREATE_APP_INSTANCE_VERSION "\xB9\x82\xD0\xB7\x3B\x56\x07\x4F\xA0\x7B\x52\x4A\x81\x16\xA0\x10"
+#define SVHDX_OPEN_DEVICE_CONTEXT	"\x9C\xCB\xCF\x9E\x04\xC1\xE6\x43\x98\x0E\x15\x8D\xA1\xF6\xEC\x83"
+#define SMB2_CREATE_TAG_AAPL			"AAPL"
 
 /* Flag (SMB3 open response) values */
 #define SMB2_CREATE_FLAG_REPARSEPOINT 0x01
@@ -1244,6 +1248,106 @@ struct file_zero_data_information {
 	__le64	BeyondFinalZero;
 } __packed;
 
+/* See MS-FSCC 2.3.7 */
+struct duplicate_extents_to_file {
+	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
+	__u64 VolatileFileHandle;
+	__le64 SourceFileOffset;
+	__le64 TargetFileOffset;
+	__le64 ByteCount;  /* Bytes to be copied */
+} __packed;
+
+/* See MS-FSCC 2.3.8 */
+#define DUPLICATE_EXTENTS_DATA_EX_SOURCE_ATOMIC	0x00000001
+struct duplicate_extents_to_file_ex {
+	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
+	__u64 VolatileFileHandle;
+	__le64 SourceFileOffset;
+	__le64 TargetFileOffset;
+	__le64 ByteCount;  /* Bytes to be copied */
+	__le32 Flags;
+	__le32 Reserved;
+} __packed;
+
+
+/* See MS-FSCC 2.3.20 */
+struct fsctl_get_integrity_information_rsp {
+	__le16	ChecksumAlgorithm;
+	__le16	Reserved;
+	__le32	Flags;
+	__le32	ChecksumChunkSizeInBytes;
+	__le32	ClusterSizeInBytes;
+} __packed;
+
+/* See MS-FSCC 2.3.55 */
+struct fsctl_query_file_regions_req {
+	__le64	FileOffset;
+	__le64	Length;
+	__le32	DesiredUsage;
+	__le32	Reserved;
+} __packed;
+
+/* DesiredUsage flags see MS-FSCC 2.3.56.1 */
+#define FILE_USAGE_INVALID_RANGE	0x00000000
+#define FILE_USAGE_VALID_CACHED_DATA	0x00000001
+#define FILE_USAGE_NONCACHED_DATA	0x00000002
+
+struct file_region_info {
+	__le64	FileOffset;
+	__le64	Length;
+	__le32	DesiredUsage;
+	__le32	Reserved;
+} __packed;
+
+/* See MS-FSCC 2.3.56 */
+struct fsctl_query_file_region_rsp {
+	__le32 Flags;
+	__le32 TotalRegionEntryCount;
+	__le32 RegionEntryCount;
+	__u32  Reserved;
+	struct  file_region_info Regions[];
+} __packed;
+
+/* See MS-FSCC 2.3.58 */
+struct fsctl_query_on_disk_vol_info_rsp {
+	__le64	DirectoryCount;
+	__le64	FileCount;
+	__le16	FsFormatMajVersion;
+	__le16	FsFormatMinVersion;
+	__u8	FsFormatName[24];
+	__le64	FormatTime;
+	__le64	LastUpdateTime;
+	__u8	CopyrightInfo[68];
+	__u8	AbstractInfo[68];
+	__u8	FormatImplInfo[68];
+	__u8	LastModifyImplInfo[68];
+} __packed;
+
+/* See MS-FSCC 2.3.73 */
+struct fsctl_set_integrity_information_req {
+	__le16	ChecksumAlgorithm;
+	__le16	Reserved;
+	__le32	Flags;
+} __packed;
+
+/* See MS-FSCC 2.3.75 */
+struct fsctl_set_integrity_info_ex_req {
+	__u8	EnableIntegrity;
+	__u8	KeepState;
+	__u16	Reserved;
+	__le32	Flags;
+	__u8	Version;
+	__u8	Reserved2[7];
+} __packed;
+
+/* Integrity ChecksumAlgorithm choices for above */
+#define	CHECKSUM_TYPE_NONE	0x0000
+#define	CHECKSUM_TYPE_CRC64	0x0002
+#define	CHECKSUM_TYPE_UNCHANGED	0xFFFF	/* set only */
+
+/* Integrity flags for above */
+#define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
+
 /* Reparse structures - see MS-FSCC 2.1.2 */
 
 /* struct fsctl_reparse_info_req is empty, only response structs (see below) */
@@ -1304,13 +1408,6 @@ struct validate_negotiate_info_rsp {
 	__le16 Dialect; /* Dialect in use for the connection */
 } __packed;
 
-struct duplicate_extents_to_file {
-	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
-	__u64 VolatileFileHandle;
-	__le64 SourceFileOffset;
-	__le64 TargetFileOffset;
-	__le64 ByteCount;  /* Bytes to be copied */
-} __packed;
 
 /* Possible InfoType values */
 #define SMB2_O_INFO_FILE	0x01
@@ -1419,6 +1516,7 @@ struct smb2_query_info_rsp {
  *	PDU query infolevel structure definitions
  */
 
+/* See MS-FSCC 2.3.52 */
 struct file_allocated_range_buffer {
 	__le64	file_offset;
 	__le64	length;

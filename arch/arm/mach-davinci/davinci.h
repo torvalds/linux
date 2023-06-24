@@ -1,18 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file contains the processor specific definitions
  * of the TI DM644x, DM355, DM365, and DM646x.
  *
  * Copyright (C) 2011 Texas Instruments Incorporated
  * Copyright (c) 2007 Deep Root Systems, LLC
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __DAVINCI_H
 #define __DAVINCI_H
@@ -25,7 +17,8 @@
 #include <linux/platform_data/davinci_asp.h>
 #include <linux/platform_data/edma.h>
 #include <linux/platform_data/keyscan-davinci.h>
-#include <mach/hardware.h>
+
+#include "hardware.h"
 
 #include <media/davinci/vpfe_capture.h>
 #include <media/davinci/vpif_types.h>

@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/twl.h>

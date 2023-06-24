@@ -15,6 +15,7 @@
 #include <linux/swapops.h>
 #include <linux/thread_info.h>
 #include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/uio.h>
 
 #include <asm/barrier.h>
@@ -47,16 +48,12 @@ static void mte_sync_page_tags(struct page *page, pte_t old_pte,
 	if (!pte_is_tagged)
 		return;
 
-	page_kasan_tag_reset(page);
 	/*
-	 * We need smp_wmb() in between setting the flags and clearing the
-	 * tags because if another thread reads page->flags and builds a
-	 * tagged address out of it, there is an actual dependency to the
-	 * memory access, but on the current thread we do not guarantee that
-	 * the new page->flags are visible before the tags were updated.
+	 * Test PG_mte_tagged again in case it was racing with another
+	 * set_pte_at().
 	 */
-	smp_wmb();
-	mte_clear_page_tags(page_address(page));
+	if (!test_and_set_bit(PG_mte_tagged, &page->flags))
+		mte_clear_page_tags(page_address(page));
 }
 
 void mte_sync_tags(pte_t old_pte, pte_t pte)
@@ -72,7 +69,7 @@ void mte_sync_tags(pte_t old_pte, pte_t pte)
 
 	/* if PG_mte_tagged is set, tags have already been initialised */
 	for (i = 0; i < nr_pages; i++, page++) {
-		if (!test_and_set_bit(PG_mte_tagged, &page->flags))
+		if (!test_bit(PG_mte_tagged, &page->flags))
 			mte_sync_page_tags(page, old_pte, check_swap,
 					   pte_is_tagged);
 	}
@@ -109,7 +106,8 @@ int memcmp_pages(struct page *page1, struct page *page2)
 static inline void __mte_enable_kernel(const char *mode, unsigned long tcf)
 {
 	/* Enable MTE Sync Mode for EL1. */
-	sysreg_clear_set(sctlr_el1, SCTLR_ELx_TCF_MASK, tcf);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_TCF_MASK,
+			 SYS_FIELD_PREP(SCTLR_EL1, TCF, tcf));
 	isb();
 
 	pr_info_once("MTE: enabled in %s mode at EL1\n", mode);
@@ -125,12 +123,12 @@ void mte_enable_kernel_sync(void)
 	WARN_ONCE(system_uses_mte_async_or_asymm_mode(),
 			"MTE async mode enabled system wide!");
 
-	__mte_enable_kernel("synchronous", SCTLR_ELx_TCF_SYNC);
+	__mte_enable_kernel("synchronous", SCTLR_EL1_TCF_SYNC);
 }
 
 void mte_enable_kernel_async(void)
 {
-	__mte_enable_kernel("asynchronous", SCTLR_ELx_TCF_ASYNC);
+	__mte_enable_kernel("asynchronous", SCTLR_EL1_TCF_ASYNC);
 
 	/*
 	 * MTE async mode is set system wide by the first PE that
@@ -147,7 +145,7 @@ void mte_enable_kernel_async(void)
 void mte_enable_kernel_asymm(void)
 {
 	if (cpus_have_cap(ARM64_MTE_ASYMM)) {
-		__mte_enable_kernel("asymmetric", SCTLR_ELx_TCF_ASYMM);
+		__mte_enable_kernel("asymmetric", SCTLR_EL1_TCF_ASYMM);
 
 		/*
 		 * MTE asymm mode behaves as async mode for store
@@ -219,11 +217,11 @@ static void mte_update_sctlr_user(struct task_struct *task)
 	 * default order.
 	 */
 	if (resolved_mte_tcf & MTE_CTRL_TCF_ASYMM)
-		sctlr |= SCTLR_EL1_TCF0_ASYMM;
+		sctlr |= SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF0, ASYMM);
 	else if (resolved_mte_tcf & MTE_CTRL_TCF_ASYNC)
-		sctlr |= SCTLR_EL1_TCF0_ASYNC;
+		sctlr |= SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF0, ASYNC);
 	else if (resolved_mte_tcf & MTE_CTRL_TCF_SYNC)
-		sctlr |= SCTLR_EL1_TCF0_SYNC;
+		sctlr |= SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF0, SYNC);
 	task->thread.sctlr_user = sctlr;
 }
 
@@ -242,6 +240,11 @@ static void mte_update_gcr_excl(struct task_struct *task)
 		SYS_GCR_EL1);
 }
 
+#ifdef CONFIG_KASAN_HW_TAGS
+/* Only called from assembly, silence sparse */
+void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
+				 __le32 *updptr, int nr_inst);
+
 void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 				 __le32 *updptr, int nr_inst)
 {
@@ -250,6 +253,7 @@ void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 	if (kasan_hw_tags_enabled())
 		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
 }
+#endif
 
 void mte_thread_init_user(void)
 {
@@ -286,6 +290,49 @@ void mte_thread_switch(struct task_struct *next)
 	mte_check_tfsr_el1();
 }
 
+void mte_cpu_setup(void)
+{
+	u64 rgsr;
+
+	/*
+	 * CnP must be enabled only after the MAIR_EL1 register has been set
+	 * up. Inconsistent MAIR_EL1 between CPUs sharing the same TLB may
+	 * lead to the wrong memory type being used for a brief window during
+	 * CPU power-up.
+	 *
+	 * CnP is not a boot feature so MTE gets enabled before CnP, but let's
+	 * make sure that is the case.
+	 */
+	BUG_ON(read_sysreg(ttbr0_el1) & TTBR_CNP_BIT);
+	BUG_ON(read_sysreg(ttbr1_el1) & TTBR_CNP_BIT);
+
+	/* Normal Tagged memory type at the corresponding MAIR index */
+	sysreg_clear_set(mair_el1,
+			 MAIR_ATTRIDX(MAIR_ATTR_MASK, MT_NORMAL_TAGGED),
+			 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_TAGGED,
+				      MT_NORMAL_TAGGED));
+
+	write_sysreg_s(KERNEL_GCR_EL1, SYS_GCR_EL1);
+
+	/*
+	 * If GCR_EL1.RRND=1 is implemented the same way as RRND=0, then
+	 * RGSR_EL1.SEED must be non-zero for IRG to produce
+	 * pseudorandom numbers. As RGSR_EL1 is UNKNOWN out of reset, we
+	 * must initialize it.
+	 */
+	rgsr = (read_sysreg(CNTVCT_EL0) & SYS_RGSR_EL1_SEED_MASK) <<
+	       SYS_RGSR_EL1_SEED_SHIFT;
+	if (rgsr == 0)
+		rgsr = 1 << SYS_RGSR_EL1_SEED_SHIFT;
+	write_sysreg_s(rgsr, SYS_RGSR_EL1);
+
+	/* clear any pending tag check faults in TFSR*_EL1 */
+	write_sysreg_s(0, SYS_TFSR_EL1);
+	write_sysreg_s(0, SYS_TFSRE0_EL1);
+
+	local_flush_tlb_all();
+}
+
 void mte_suspend_enter(void)
 {
 	if (!system_supports_mte())
@@ -300,6 +347,14 @@ void mte_suspend_enter(void)
 
 	/* Report SYS_TFSR_EL1 before suspend entry */
 	mte_check_tfsr_el1();
+}
+
+void mte_suspend_exit(void)
+{
+	if (!system_supports_mte())
+		return;
+
+	mte_cpu_setup();
 }
 
 long set_mte_ctrl(struct task_struct *task, unsigned long arg)
@@ -546,3 +601,32 @@ static int register_mte_tcf_preferred_sysctl(void)
 	return 0;
 }
 subsys_initcall(register_mte_tcf_preferred_sysctl);
+
+/*
+ * Return 0 on success, the number of bytes not probed otherwise.
+ */
+size_t mte_probe_user_range(const char __user *uaddr, size_t size)
+{
+	const char __user *end = uaddr + size;
+	int err = 0;
+	char val;
+
+	__raw_get_user(val, uaddr, err);
+	if (err)
+		return size;
+
+	uaddr = PTR_ALIGN(uaddr, MTE_GRANULE_SIZE);
+	while (uaddr < end) {
+		/*
+		 * A read is sufficient for mte, the caller should have probed
+		 * for the pte write permission if required.
+		 */
+		__raw_get_user(val, uaddr, err);
+		if (err)
+			return end - uaddr;
+		uaddr += MTE_GRANULE_SIZE;
+	}
+	(void)val;
+
+	return 0;
+}

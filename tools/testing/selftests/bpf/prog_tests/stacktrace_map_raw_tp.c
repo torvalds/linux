@@ -5,7 +5,7 @@ void test_stacktrace_map_raw_tp(void)
 {
 	const char *prog_name = "oncpu";
 	int control_map_fd, stackid_hmap_fd, stackmap_fd;
-	const char *file = "./test_stacktrace_map.o";
+	const char *file = "./test_stacktrace_map.bpf.o";
 	__u32 key, val, duration = 0;
 	int err, prog_fd;
 	struct bpf_program *prog;

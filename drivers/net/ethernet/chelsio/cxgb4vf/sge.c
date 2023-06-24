@@ -2336,7 +2336,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	if (ret)
 		goto err;
 
-	netif_napi_add(dev, &rspq->napi, napi_rx_handler, 64);
+	netif_napi_add(dev, &rspq->napi, napi_rx_handler);
 	rspq->cur_desc = rspq->desc;
 	rspq->cidx = 0;
 	rspq->gen = 1;

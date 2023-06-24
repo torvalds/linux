@@ -74,7 +74,12 @@ struct switch_stack {
 
 #define PTRACE_GET_THREAD_AREA    25
 
+#define PTRACE_GETFDPIC	31
+
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
+
+#define PTRACE_GETFDPIC_EXEC	0
+#define PTRACE_GETFDPIC_INTERP	1
 
 #endif /* __ASSEMBLY__ */
 #endif /* _UAPI_M68K_PTRACE_H */

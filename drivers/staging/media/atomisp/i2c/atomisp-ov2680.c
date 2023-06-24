@@ -841,8 +841,6 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	if (!ov2680_info)
 		return -EINVAL;
 
-	mutex_lock(&dev->input_lock);
-
 	res = v4l2_find_nearest_size(ov2680_res_preview,
 				     ARRAY_SIZE(ov2680_res_preview), width,
 				     height, fmt->width, fmt->height);
@@ -855,19 +853,22 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		sd_state->pads->try_fmt = *fmt;
-		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
 
 	dev_dbg(&client->dev, "%s: %dx%d\n",
 		__func__, fmt->width, fmt->height);
 
+	mutex_lock(&dev->input_lock);
+
 	/* s_power has not been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
 	ret = ov2680_write_reg_array(client, dev->res->regs);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev,
 			"ov2680 write resolution register err: %d\n", ret);
+		goto err;
+	}
 
 	vts = dev->res->lines_per_frame;
 
@@ -876,8 +877,10 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		vts = dev->exposure + OV2680_INTEGRATION_TIME_MARGIN;
 
 	ret = ov2680_write_reg(client, 2, OV2680_TIMING_VTS_H, vts);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev, "ov2680 write vts err: %d\n", ret);
+		goto err;
+	}
 
 	ret = ov2680_get_intg_factor(client, ov2680_info, res);
 	if (ret) {
@@ -894,11 +897,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	if (v_flag)
 		ov2680_v_flip(sd, v_flag);
 
-	/*
-	 * ret = startup(sd);
-	 * if (ret)
-	 * dev_err(&client->dev, "ov2680 startup err\n");
-	 */
+	dev->res = res;
 err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
@@ -1135,7 +1134,7 @@ static const struct v4l2_subdev_ops ov2680_ops = {
 	.sensor = &ov2680_sensor_ops,
 };
 
-static int ov2680_remove(struct i2c_client *client)
+static void ov2680_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
@@ -1148,8 +1147,6 @@ static int ov2680_remove(struct i2c_client *client)
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	kfree(dev);
-
-	return 0;
 }
 
 static int ov2680_probe(struct i2c_client *client)

@@ -528,7 +528,7 @@ static int lkl_test_kasan(void)
 #define KASAN_CMD_LINE
 #endif
 
-#define CMD_LINE "mem=16M loglevel=8 " KASAN_CMD_LINE
+#define CMD_LINE "mem=32M loglevel=8 " KASAN_CMD_LINE
 
 static int lkl_test_start_kernel(void)
 {

@@ -38,7 +38,6 @@
 #include <linux/kthread.h>
 #include <linux/of_platform.h>
 
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -318,24 +317,26 @@ static void do_attach(struct i2c_adapter *adapter)
 	if (x.running || strncmp(adapter->name, "uni-n", 5))
 		return;
 
+	of_node_get(adapter->dev.of_node);
 	np = of_find_compatible_node(adapter->dev.of_node, NULL, "MAC,ds1775");
 	if (np) {
 		of_node_put(np);
 	} else {
-		strlcpy(info.type, "MAC,ds1775", I2C_NAME_SIZE);
+		strscpy(info.type, "MAC,ds1775", I2C_NAME_SIZE);
 		i2c_new_scanned_device(adapter, &info, scan_ds1775, NULL);
 	}
 
+	of_node_get(adapter->dev.of_node);
 	np = of_find_compatible_node(adapter->dev.of_node, NULL, "MAC,adm1030");
 	if (np) {
 		of_node_put(np);
 	} else {
-		strlcpy(info.type, "MAC,adm1030", I2C_NAME_SIZE);
+		strscpy(info.type, "MAC,adm1030", I2C_NAME_SIZE);
 		i2c_new_scanned_device(adapter, &info, scan_adm1030, NULL);
 	}
 }
 
-static int
+static void
 do_remove(struct i2c_client *client)
 {
 	if (x.running) {
@@ -349,8 +350,6 @@ do_remove(struct i2c_client *client)
 		x.fan = NULL;
 	else
 		printk(KERN_ERR "g4fan: bad client\n");
-
-	return 0;
 }
 
 static int

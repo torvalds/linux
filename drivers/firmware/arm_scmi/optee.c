@@ -64,6 +64,22 @@ enum scmi_optee_pta_cmd {
 	 * [in]     value[0].b: Requested capabilities mask (enum pta_scmi_caps)
 	 */
 	PTA_SCMI_CMD_GET_CHANNEL = 3,
+
+	/*
+	 * PTA_SCMI_CMD_PROCESS_MSG_CHANNEL - Process SCMI message in a MSG
+	 * buffer pointed by memref parameters
+	 *
+	 * [in]     value[0].a: Channel handle
+	 * [in]     memref[1]: Message buffer (MSG and SCMI payload)
+	 * [out]    memref[2]: Response buffer (MSG and SCMI payload)
+	 *
+	 * Shared memories used for SCMI message/response are MSG buffers
+	 * referenced by param[1] and param[2]. MSG transport protocol
+	 * uses a 32bit header to carry SCMI meta-data (protocol ID and
+	 * protocol message ID) followed by the effective SCMI message
+	 * payload.
+	 */
+	PTA_SCMI_CMD_PROCESS_MSG_CHANNEL = 4,
 };
 
 /*
@@ -72,9 +88,17 @@ enum scmi_optee_pta_cmd {
  * PTA_SCMI_CAPS_SMT_HEADER
  * When set, OP-TEE supports command using SMT header protocol (SCMI shmem) in
  * shared memory buffers to carry SCMI protocol synchronisation information.
+ *
+ * PTA_SCMI_CAPS_MSG_HEADER
+ * When set, OP-TEE supports command using MSG header protocol in an OP-TEE
+ * shared memory to carry SCMI protocol synchronisation information and SCMI
+ * message payload.
  */
 #define PTA_SCMI_CAPS_NONE		0
 #define PTA_SCMI_CAPS_SMT_HEADER	BIT(0)
+#define PTA_SCMI_CAPS_MSG_HEADER	BIT(1)
+#define PTA_SCMI_CAPS_MASK		(PTA_SCMI_CAPS_SMT_HEADER | \
+					 PTA_SCMI_CAPS_MSG_HEADER)
 
 /**
  * struct scmi_optee_channel - Description of an OP-TEE SCMI channel
@@ -82,19 +106,25 @@ enum scmi_optee_pta_cmd {
  * @channel_id: OP-TEE channel ID used for this transport
  * @tee_session: TEE session identifier
  * @caps: OP-TEE SCMI channel capabilities
+ * @rx_len: Response size
  * @mu: Mutex protection on channel access
  * @cinfo: SCMI channel information
  * @shmem: Virtual base address of the shared memory
- * @tee_shm: Reference to TEE shared memory or NULL if using static shmem
+ * @req: Shared memory protocol handle for SCMI request and synchronous response
+ * @tee_shm: TEE shared memory handle @req or NULL if using IOMEM shmem
  * @link: Reference in agent's channel list
  */
 struct scmi_optee_channel {
 	u32 channel_id;
 	u32 tee_session;
 	u32 caps;
+	u32 rx_len;
 	struct mutex mu;
 	struct scmi_chan_info *cinfo;
-	struct scmi_shared_mem __iomem *shmem;
+	union {
+		struct scmi_shared_mem __iomem *shmem;
+		struct scmi_msg_payld *msg;
+	} req;
 	struct tee_shm *tee_shm;
 	struct list_head link;
 };
@@ -178,8 +208,8 @@ static int get_capabilities(struct scmi_optee_agent *agent)
 
 	caps = param[0].u.value.a;
 
-	if (!(caps & PTA_SCMI_CAPS_SMT_HEADER)) {
-		dev_err(agent->dev, "OP-TEE SCMI PTA doesn't support SMT\n");
+	if (!(caps & (PTA_SCMI_CAPS_SMT_HEADER | PTA_SCMI_CAPS_MSG_HEADER))) {
+		dev_err(agent->dev, "OP-TEE SCMI PTA doesn't support SMT and MSG\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -193,8 +223,13 @@ static int get_channel(struct scmi_optee_channel *channel)
 	struct device *dev = scmi_optee_private->dev;
 	struct tee_ioctl_invoke_arg arg = { };
 	struct tee_param param[1] = { };
-	unsigned int caps = PTA_SCMI_CAPS_SMT_HEADER;
+	unsigned int caps = 0;
 	int ret;
+
+	if (channel->tee_shm)
+		caps = PTA_SCMI_CAPS_MSG_HEADER;
+	else
+		caps = PTA_SCMI_CAPS_SMT_HEADER;
 
 	arg.func = PTA_SCMI_CMD_GET_CHANNEL;
 	arg.session = channel->tee_session;
@@ -220,24 +255,16 @@ static int get_channel(struct scmi_optee_channel *channel)
 
 static int invoke_process_smt_channel(struct scmi_optee_channel *channel)
 {
-	struct tee_ioctl_invoke_arg arg = { };
-	struct tee_param param[2] = { };
+	struct tee_ioctl_invoke_arg arg = {
+		.func = PTA_SCMI_CMD_PROCESS_SMT_CHANNEL,
+		.session = channel->tee_session,
+		.num_params = 1,
+	};
+	struct tee_param param[1] = { };
 	int ret;
 
-	arg.session = channel->tee_session;
 	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
 	param[0].u.value.a = channel->channel_id;
-
-	if (channel->tee_shm) {
-		param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
-		param[1].u.memref.shm = channel->tee_shm;
-		param[1].u.memref.size = SCMI_OPTEE_MAX_MSG_SIZE;
-		arg.num_params = 2;
-		arg.func = PTA_SCMI_CMD_PROCESS_SMT_CHANNEL_MESSAGE;
-	} else {
-		arg.num_params = 1;
-		arg.func = PTA_SCMI_CMD_PROCESS_SMT_CHANNEL;
-	}
 
 	ret = tee_client_invoke_func(scmi_optee_private->tee_ctx, &arg, param);
 	if (ret < 0 || arg.ret) {
@@ -245,6 +272,40 @@ static int invoke_process_smt_channel(struct scmi_optee_channel *channel)
 			channel->channel_id, ret, arg.ret);
 		return -EIO;
 	}
+
+	return 0;
+}
+
+static int invoke_process_msg_channel(struct scmi_optee_channel *channel, size_t msg_size)
+{
+	struct tee_ioctl_invoke_arg arg = {
+		.func = PTA_SCMI_CMD_PROCESS_MSG_CHANNEL,
+		.session = channel->tee_session,
+		.num_params = 3,
+	};
+	struct tee_param param[3] = { };
+	int ret;
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = channel->channel_id;
+
+	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT;
+	param[1].u.memref.shm = channel->tee_shm;
+	param[1].u.memref.size = msg_size;
+
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT;
+	param[2].u.memref.shm = channel->tee_shm;
+	param[2].u.memref.size = SCMI_OPTEE_MAX_MSG_SIZE;
+
+	ret = tee_client_invoke_func(scmi_optee_private->tee_ctx, &arg, param);
+	if (ret < 0 || arg.ret) {
+		dev_err(scmi_optee_private->dev, "Can't invoke channel %u: %d / %#x\n",
+			channel->channel_id, ret, arg.ret);
+		return -EIO;
+	}
+
+	/* Save response size */
+	channel->rx_len = param[2].u.memref.size;
 
 	return 0;
 }
@@ -279,7 +340,27 @@ static void scmi_optee_clear_channel(struct scmi_chan_info *cinfo)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
-	shmem_clear_channel(channel->shmem);
+	if (!channel->tee_shm)
+		shmem_clear_channel(channel->req.shmem);
+}
+
+static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *channel)
+{
+	const size_t msg_size = SCMI_OPTEE_MAX_MSG_SIZE;
+	void *shbuf;
+
+	channel->tee_shm = tee_shm_alloc_kernel_buf(scmi_optee_private->tee_ctx, msg_size);
+	if (IS_ERR(channel->tee_shm)) {
+		dev_err(channel->cinfo->dev, "shmem allocation failed\n");
+		return -ENOMEM;
+	}
+
+	shbuf = tee_shm_get_va(channel->tee_shm, 0);
+	memset(shbuf, 0, msg_size);
+	channel->req.msg = shbuf;
+	channel->rx_len = msg_size;
+
+	return 0;
 }
 
 static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
@@ -304,8 +385,8 @@ static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 
 	size = resource_size(&res);
 
-	channel->shmem = devm_ioremap(dev, res.start, size);
-	if (!channel->shmem) {
+	channel->req.shmem = devm_ioremap(dev, res.start, size);
+	if (!channel->req.shmem) {
 		dev_err(dev, "Failed to ioremap SCMI Tx shared memory\n");
 		ret = -EADDRNOTAVAIL;
 		goto out;
@@ -325,7 +406,7 @@ static int setup_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 	if (of_find_property(cinfo->dev->of_node, "shmem", NULL))
 		return setup_static_shmem(dev, cinfo, channel);
 	else
-		return -ENOMEM;
+		return setup_dynamic_shmem(dev, channel);
 }
 
 static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *dev, bool tx)
@@ -405,27 +486,22 @@ static int scmi_optee_chan_free(int id, void *p, void *data)
 	return 0;
 }
 
-static struct scmi_shared_mem __iomem *
-get_channel_shm(struct scmi_optee_channel *chan, struct scmi_xfer *xfer)
-{
-	if (!chan)
-		return NULL;
-
-	return chan->shmem;
-}
-
-
 static int scmi_optee_send_message(struct scmi_chan_info *cinfo,
 				   struct scmi_xfer *xfer)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
-	struct scmi_shared_mem __iomem *shmem = get_channel_shm(channel, xfer);
 	int ret;
 
 	mutex_lock(&channel->mu);
-	shmem_tx_prepare(shmem, xfer);
 
-	ret = invoke_process_smt_channel(channel);
+	if (channel->tee_shm) {
+		msg_tx_prepare(channel->req.msg, xfer);
+		ret = invoke_process_msg_channel(channel, msg_command_size(xfer));
+	} else {
+		shmem_tx_prepare(channel->req.shmem, xfer, cinfo);
+		ret = invoke_process_smt_channel(channel);
+	}
+
 	if (ret)
 		mutex_unlock(&channel->mu);
 
@@ -436,9 +512,11 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 				      struct scmi_xfer *xfer)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
-	struct scmi_shared_mem __iomem *shmem = get_channel_shm(channel, xfer);
 
-	shmem_fetch_response(shmem, xfer);
+	if (channel->tee_shm)
+		msg_fetch_response(channel->req.msg, channel->rx_len, xfer);
+	else
+		shmem_fetch_response(channel->req.shmem, xfer);
 }
 
 static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret,

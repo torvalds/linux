@@ -2,6 +2,9 @@
 #include <test_progs.h>
 #include "kprobe_multi.skel.h"
 #include "trace_helpers.h"
+#include "kprobe_multi_empty.skel.h"
+#include "bpf/libbpf_internal.h"
+#include "bpf/hashmap.h"
 
 static void kprobe_multi_test_run(struct kprobe_multi *skel, bool test_return)
 {
@@ -140,14 +143,14 @@ test_attach_api(const char *pattern, struct bpf_kprobe_multi_opts *opts)
 		goto cleanup;
 
 	skel->bss->pid = getpid();
-	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						      pattern, opts);
 	if (!ASSERT_OK_PTR(link1, "bpf_program__attach_kprobe_multi_opts"))
 		goto cleanup;
 
 	if (opts) {
 		opts->retprobe = true;
-		link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe,
+		link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe_manual,
 							      pattern, opts);
 		if (!ASSERT_OK_PTR(link2, "bpf_program__attach_kprobe_multi_opts"))
 			goto cleanup;
@@ -232,7 +235,7 @@ static void test_attach_api_fails(void)
 	skel->bss->pid = getpid();
 
 	/* fail_1 - pattern and opts NULL */
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     NULL, NULL);
 	if (!ASSERT_ERR_PTR(link, "fail_1"))
 		goto cleanup;
@@ -246,7 +249,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = ARRAY_SIZE(syms);
 	opts.cookies = NULL;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     NULL, &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_2"))
 		goto cleanup;
@@ -260,7 +263,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = ARRAY_SIZE(syms);
 	opts.cookies = NULL;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_3"))
 		goto cleanup;
@@ -274,7 +277,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = ARRAY_SIZE(syms);
 	opts.cookies = NULL;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_4"))
 		goto cleanup;
@@ -288,7 +291,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = 0;
 	opts.cookies = cookies;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_5"))
 		goto cleanup;
@@ -299,6 +302,153 @@ static void test_attach_api_fails(void)
 cleanup:
 	bpf_link__destroy(link);
 	kprobe_multi__destroy(skel);
+}
+
+static inline __u64 get_time_ns(void)
+{
+	struct timespec t;
+
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	return (__u64) t.tv_sec * 1000000000 + t.tv_nsec;
+}
+
+static size_t symbol_hash(const void *key, void *ctx __maybe_unused)
+{
+	return str_hash((const char *) key);
+}
+
+static bool symbol_equal(const void *key1, const void *key2, void *ctx __maybe_unused)
+{
+	return strcmp((const char *) key1, (const char *) key2) == 0;
+}
+
+static int get_syms(char ***symsp, size_t *cntp)
+{
+	size_t cap = 0, cnt = 0, i;
+	char *name, **syms = NULL;
+	struct hashmap *map;
+	char buf[256];
+	FILE *f;
+	int err = 0;
+
+	/*
+	 * The available_filter_functions contains many duplicates,
+	 * but other than that all symbols are usable in kprobe multi
+	 * interface.
+	 * Filtering out duplicates by using hashmap__add, which won't
+	 * add existing entry.
+	 */
+	f = fopen("/sys/kernel/debug/tracing/available_filter_functions", "r");
+	if (!f)
+		return -EINVAL;
+
+	map = hashmap__new(symbol_hash, symbol_equal, NULL);
+	if (IS_ERR(map)) {
+		err = libbpf_get_error(map);
+		goto error;
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		/* skip modules */
+		if (strchr(buf, '['))
+			continue;
+		if (sscanf(buf, "%ms$*[^\n]\n", &name) != 1)
+			continue;
+		/*
+		 * We attach to almost all kernel functions and some of them
+		 * will cause 'suspicious RCU usage' when fprobe is attached
+		 * to them. Filter out the current culprits - arch_cpu_idle
+		 * default_idle and rcu_* functions.
+		 */
+		if (!strcmp(name, "arch_cpu_idle"))
+			continue;
+		if (!strcmp(name, "default_idle"))
+			continue;
+		if (!strncmp(name, "rcu_", 4))
+			continue;
+		if (!strcmp(name, "bpf_dispatcher_xdp_func"))
+			continue;
+		if (!strncmp(name, "__ftrace_invalid_address__",
+			     sizeof("__ftrace_invalid_address__") - 1))
+			continue;
+		err = hashmap__add(map, name, NULL);
+		if (err) {
+			free(name);
+			if (err == -EEXIST)
+				continue;
+			goto error;
+		}
+		err = libbpf_ensure_mem((void **) &syms, &cap,
+					sizeof(*syms), cnt + 1);
+		if (err) {
+			free(name);
+			goto error;
+		}
+		syms[cnt] = name;
+		cnt++;
+	}
+
+	*symsp = syms;
+	*cntp = cnt;
+
+error:
+	fclose(f);
+	hashmap__free(map);
+	if (err) {
+		for (i = 0; i < cnt; i++)
+			free(syms[cnt]);
+		free(syms);
+	}
+	return err;
+}
+
+void serial_test_kprobe_multi_bench_attach(void)
+{
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	struct kprobe_multi_empty *skel = NULL;
+	long attach_start_ns, attach_end_ns;
+	long detach_start_ns, detach_end_ns;
+	double attach_delta, detach_delta;
+	struct bpf_link *link = NULL;
+	char **syms = NULL;
+	size_t cnt = 0, i;
+
+	if (!ASSERT_OK(get_syms(&syms, &cnt), "get_syms"))
+		return;
+
+	skel = kprobe_multi_empty__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi_empty__open_and_load"))
+		goto cleanup;
+
+	opts.syms = (const char **) syms;
+	opts.cnt = cnt;
+
+	attach_start_ns = get_time_ns();
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_empty,
+						     NULL, &opts);
+	attach_end_ns = get_time_ns();
+
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
+		goto cleanup;
+
+	detach_start_ns = get_time_ns();
+	bpf_link__destroy(link);
+	detach_end_ns = get_time_ns();
+
+	attach_delta = (attach_end_ns - attach_start_ns) / 1000000000.0;
+	detach_delta = (detach_end_ns - detach_start_ns) / 1000000000.0;
+
+	printf("%s: found %lu functions\n", __func__, cnt);
+	printf("%s: attached in %7.3lfs\n", __func__, attach_delta);
+	printf("%s: detached in %7.3lfs\n", __func__, detach_delta);
+
+cleanup:
+	kprobe_multi_empty__destroy(skel);
+	if (syms) {
+		for (i = 0; i < cnt; i++)
+			free(syms[i]);
+		free(syms);
+	}
 }
 
 void test_kprobe_multi_test(void)

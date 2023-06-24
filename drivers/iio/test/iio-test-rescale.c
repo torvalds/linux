@@ -29,7 +29,7 @@ struct rescale_tc_data {
 	const char *expected_off;
 };
 
-const struct rescale_tc_data scale_cases[] = {
+static const struct rescale_tc_data scale_cases[] = {
 	/*
 	 * Typical use cases
 	 */
@@ -477,7 +477,7 @@ const struct rescale_tc_data scale_cases[] = {
 	},
 };
 
-const struct rescale_tc_data offset_cases[] = {
+static const struct rescale_tc_data offset_cases[] = {
 	/*
 	 * Typical use cases
 	 */
@@ -708,3 +708,8 @@ static struct kunit_suite iio_rescale_test_suite = {
 	.test_cases = iio_rescale_test_cases,
 };
 kunit_test_suite(iio_rescale_test_suite);
+
+MODULE_AUTHOR("Liam Beguin <liambeguin@gmail.com>");
+MODULE_DESCRIPTION("Test IIO rescale conversion functions");
+MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_RESCALE);

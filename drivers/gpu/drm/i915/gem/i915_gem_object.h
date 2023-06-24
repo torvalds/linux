@@ -520,14 +520,11 @@ i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin_pages(obj);
 }
 
-struct dma_fence *
-i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj);
-
-void i915_gem_object_set_moving_fence(struct drm_i915_gem_object *obj,
-				      struct dma_fence *fence);
-
+int i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj,
+				     struct dma_fence **fence);
 int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				      bool intr);
+bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj);
 
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
@@ -546,7 +543,7 @@ struct i915_vma * __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     struct i915_gem_ww_ctx *ww,
 				     u32 alignment,
-				     const struct i915_ggtt_view *view,
+				     const struct i915_gtt_view *view,
 				     unsigned int flags);
 
 void i915_gem_object_make_unshrinkable(struct drm_i915_gem_object *obj);
@@ -611,6 +608,10 @@ bool i915_gem_object_migratable(struct drm_i915_gem_object *obj);
 int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
 			    struct i915_gem_ww_ctx *ww,
 			    enum intel_region_id id);
+int __i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			      struct i915_gem_ww_ctx *ww,
+			      enum intel_region_id id,
+			      unsigned int flags);
 
 bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
 				 enum intel_region_id id);
@@ -620,6 +621,8 @@ int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
 
 bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 					enum intel_memory_type type);
+
+bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj);
 
 int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			 size_t size, struct intel_memory_region *mr,

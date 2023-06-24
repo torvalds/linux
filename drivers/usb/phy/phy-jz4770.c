@@ -321,27 +321,18 @@ static int jz4770_phy_probe(struct platform_device *pdev)
 	}
 
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		err = PTR_ERR(priv->clk);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get clock\n");
-		return err;
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "Failed to get clock\n");
 
 	priv->vcc_supply = devm_regulator_get(dev, "vcc");
-	if (IS_ERR(priv->vcc_supply)) {
-		err = PTR_ERR(priv->vcc_supply);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get regulator\n");
-		return err;
-	}
+	if (IS_ERR(priv->vcc_supply))
+		return dev_err_probe(dev, PTR_ERR(priv->vcc_supply),
+				     "Failed to get regulator\n");
 
 	err = usb_add_phy(&priv->phy, USB_PHY_TYPE_USB2);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Unable to register PHY\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Unable to register PHY\n");
 
 	return devm_add_action_or_reset(dev, ingenic_usb_phy_remove, &priv->phy);
 }

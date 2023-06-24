@@ -125,7 +125,7 @@ implementation of that functionality. To support the historical interface of
 mmap() through files in /proc/bus/pci, platforms may also set HAVE_PCI_MMAP.
 
 Alternatively, platforms which set HAVE_PCI_MMAP may provide their own
-implementation of pci_mmap_page_range() instead of defining
+implementation of pci_mmap_resource_range() instead of defining
 ARCH_GENERIC_PCI_MMAP_RESOURCE.
 
 Platforms which support write-combining maps of PCI resources must define

@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2021
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/sunplus,sp7021-clkc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SP7021 SoC Clock Controller
+
+maintainers:
+  - Qin Jian <qinjian@cqplus1.com>
+
+properties:
+  compatible:
+    const: sunplus,sp7021-clkc
+
+  reg:
+    maxItems: 3
+
+  clocks:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    extclk: osc0 {
+      compatible = "fixed-clock";
+      #clock-cells = <0>;
+      clock-frequency = <27000000>;
+      clock-output-names = "extclk";
+    };
+
+    clkc: clock-controller@9c000004 {
+      compatible = "sunplus,sp7021-clkc";
+      reg = <0x9c000004 0x28>,
+            <0x9c000200 0x44>,
+            <0x9c000268 0x08>;
+      clocks = <&extclk>;
+      #clock-cells = <1>;
+    };
+
+...

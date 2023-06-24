@@ -94,6 +94,24 @@ static u16 bcm_sf2_reg_led_base(struct bcm_sf2_priv *priv, int port)
 	return REG_SWITCH_STATUS;
 }
 
+static u32 bcm_sf2_port_override_offset(struct bcm_sf2_priv *priv, int port)
+{
+	switch (priv->type) {
+	case BCM4908_DEVICE_ID:
+	case BCM7445_DEVICE_ID:
+		return port == 8 ? CORE_STS_OVERRIDE_IMP :
+				   CORE_STS_OVERRIDE_GMIIP_PORT(port);
+	case BCM7278_DEVICE_ID:
+		return port == 8 ? CORE_STS_OVERRIDE_IMP2 :
+				   CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+	default:
+		WARN_ONCE(1, "Unsupported device: %d\n", priv->type);
+	}
+
+	/* RO fallback register */
+	return REG_SWITCH_STATUS;
+}
+
 /* Return the number of active ports, not counting the IMP (CPU) port */
 static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 {
@@ -141,7 +159,7 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int i;
-	u32 reg, offset;
+	u32 reg;
 
 	/* Enable the port memories */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -167,21 +185,6 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	b53_brcm_hdr_setup(ds, port);
 
 	if (port == 8) {
-		if (priv->type == BCM4908_DEVICE_ID ||
-		    priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_IMP;
-		else
-			offset = CORE_STS_OVERRIDE_IMP2;
-
-		/* Force link status for IMP port */
-		reg = core_readl(priv, offset);
-		reg |= (MII_SW_OR | LINK_STS);
-		if (priv->type == BCM4908_DEVICE_ID)
-			reg |= GMII_SPEED_UP_2G;
-		else
-			reg &= ~GMII_SPEED_UP_2G;
-		core_writel(priv, reg, offset);
-
 		/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
 		reg = core_readl(priv, CORE_IMP_CTL);
 		reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
@@ -812,17 +815,10 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 	if (priv->wol_ports_mask & BIT(port))
 		return;
 
-	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
-		if (priv->type == BCM4908_DEVICE_ID ||
-		    priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
-		else
-			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
-
-		reg = core_readl(priv, offset);
-		reg &= ~LINK_STS;
-		core_writel(priv, reg, offset);
-	}
+	offset = bcm_sf2_port_override_offset(priv, port);
+	reg = core_readl(priv, offset);
+	reg &= ~LINK_STS;
+	core_writel(priv, reg, offset);
 
 	bcm_sf2_sw_mac_link_set(ds, port, interface, false);
 }
@@ -836,50 +832,55 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->dev->ports[port].eee;
+	u32 reg_rgmii_ctrl = 0;
+	u32 reg, offset;
 
 	bcm_sf2_sw_mac_link_set(ds, port, interface, true);
 
-	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
-		u32 reg_rgmii_ctrl = 0;
-		u32 reg, offset;
+	offset = bcm_sf2_port_override_offset(priv, port);
 
-		if (priv->type == BCM4908_DEVICE_ID ||
-		    priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
-		else
-			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+	if (phy_interface_mode_is_rgmii(interface) ||
+	    interface == PHY_INTERFACE_MODE_MII ||
+	    interface == PHY_INTERFACE_MODE_REVMII) {
+		reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, port);
+		reg = reg_readl(priv, reg_rgmii_ctrl);
+		reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
 
-		if (interface == PHY_INTERFACE_MODE_RGMII ||
-		    interface == PHY_INTERFACE_MODE_RGMII_TXID ||
-		    interface == PHY_INTERFACE_MODE_MII ||
-		    interface == PHY_INTERFACE_MODE_REVMII) {
-			reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, port);
-			reg = reg_readl(priv, reg_rgmii_ctrl);
-			reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
+		if (tx_pause)
+			reg |= TX_PAUSE_EN;
+		if (rx_pause)
+			reg |= RX_PAUSE_EN;
 
-			if (tx_pause)
-				reg |= TX_PAUSE_EN;
-			if (rx_pause)
-				reg |= RX_PAUSE_EN;
-
-			reg_writel(priv, reg, reg_rgmii_ctrl);
-		}
-
-		reg = SW_OVERRIDE | LINK_STS;
-		switch (speed) {
-		case SPEED_1000:
-			reg |= SPDSTS_1000 << SPEED_SHIFT;
-			break;
-		case SPEED_100:
-			reg |= SPDSTS_100 << SPEED_SHIFT;
-			break;
-		}
-
-		if (duplex == DUPLEX_FULL)
-			reg |= DUPLX_MODE;
-
-		core_writel(priv, reg, offset);
+		reg_writel(priv, reg, reg_rgmii_ctrl);
 	}
+
+	reg = LINK_STS;
+	if (port == 8) {
+		if (priv->type == BCM4908_DEVICE_ID)
+			reg |= GMII_SPEED_UP_2G;
+		reg |= MII_SW_OR;
+	} else {
+		reg |= SW_OVERRIDE;
+	}
+
+	switch (speed) {
+	case SPEED_1000:
+		reg |= SPDSTS_1000 << SPEED_SHIFT;
+		break;
+	case SPEED_100:
+		reg |= SPDSTS_100 << SPEED_SHIFT;
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		reg |= DUPLX_MODE;
+
+	if (tx_pause)
+		reg |= TXFLOW_CNTL;
+	if (rx_pause)
+		reg |= RXFLOW_CNTL;
+
+	core_writel(priv, reg, offset);
 
 	if (mode == MLO_AN_PHY && phydev)
 		p->eee_enabled = b53_eee_init(ds, port, phydev);
@@ -982,7 +983,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = dsa_to_port(ds, port)->cpu_dp->master;
+	struct net_device *p = dsa_port_to_master(dsa_to_port(ds, port));
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol = { };
 
@@ -1006,7 +1007,7 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = dsa_to_port(ds, port)->cpu_dp->master;
+	struct net_device *p = dsa_port_to_master(dsa_to_port(ds, port));
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	struct ethtool_wolinfo pwol =  { };
@@ -1549,8 +1550,6 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk);
 	if (priv->type == BCM7278_DEVICE_ID)
 		reset_control_assert(priv->rcdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

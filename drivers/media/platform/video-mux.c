@@ -118,7 +118,7 @@ static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
 		return -EINVAL;
 	}
 
-	pad = media_entity_remote_pad(&sd->entity.pads[vmux->active]);
+	pad = media_pad_remote_pad_first(&sd->entity.pads[vmux->active]);
 	if (!pad) {
 		dev_err(sd->dev, "Failed to find remote source pad\n");
 		return -ENOLINK;
@@ -442,9 +442,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	vmux->mux = devm_mux_control_get(dev, NULL);
 	if (IS_ERR(vmux->mux)) {
 		ret = PTR_ERR(vmux->mux);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get mux: %d\n", ret);
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to get mux\n");
 	}
 
 	mutex_init(&vmux->lock);

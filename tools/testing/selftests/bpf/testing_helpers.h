@@ -12,3 +12,11 @@ int bpf_test_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 			  size_t insns_cnt, const char *license,
 			  __u32 kern_version, char *log_buf,
 			  size_t log_buf_sz);
+
+/*
+ * below function is exported for testing in prog_test test
+ */
+struct test_filter_set;
+int parse_test_list(const char *s,
+		    struct test_filter_set *test_set,
+		    bool is_glob_pattern);

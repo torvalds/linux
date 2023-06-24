@@ -153,50 +153,46 @@ static int check_acpi_tpm2(struct device *dev)
 #endif
 
 static int tpm_tcg_read_bytes(struct tpm_tis_data *data, u32 addr, u16 len,
-			      u8 *result)
+			      u8 *result, enum tpm_tis_io_mode io_mode)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
+	__le16 result_le16;
+	__le32 result_le32;
 
-	while (len--)
-		*result++ = ioread8(phy->iobase + addr);
+	switch (io_mode) {
+	case TPM_TIS_PHYS_8:
+		while (len--)
+			*result++ = ioread8(phy->iobase + addr);
+		break;
+	case TPM_TIS_PHYS_16:
+		result_le16 = cpu_to_le16(ioread16(phy->iobase + addr));
+		memcpy(result, &result_le16, sizeof(u16));
+		break;
+	case TPM_TIS_PHYS_32:
+		result_le32 = cpu_to_le32(ioread32(phy->iobase + addr));
+		memcpy(result, &result_le32, sizeof(u32));
+		break;
+	}
 
 	return 0;
 }
 
 static int tpm_tcg_write_bytes(struct tpm_tis_data *data, u32 addr, u16 len,
-			       const u8 *value)
+			       const u8 *value, enum tpm_tis_io_mode io_mode)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	while (len--)
-		iowrite8(*value++, phy->iobase + addr);
-
-	return 0;
-}
-
-static int tpm_tcg_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
-{
-	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	*result = ioread16(phy->iobase + addr);
-
-	return 0;
-}
-
-static int tpm_tcg_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
-{
-	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	*result = ioread32(phy->iobase + addr);
-
-	return 0;
-}
-
-static int tpm_tcg_write32(struct tpm_tis_data *data, u32 addr, u32 value)
-{
-	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	iowrite32(value, phy->iobase + addr);
+	switch (io_mode) {
+	case TPM_TIS_PHYS_8:
+		while (len--)
+			iowrite8(*value++, phy->iobase + addr);
+		break;
+	case TPM_TIS_PHYS_16:
+		return -EINVAL;
+	case TPM_TIS_PHYS_32:
+		iowrite32(le32_to_cpu(*((__le32 *)value)), phy->iobase + addr);
+		break;
+	}
 
 	return 0;
 }
@@ -204,9 +200,6 @@ static int tpm_tcg_write32(struct tpm_tis_data *data, u32 addr, u32 value)
 static const struct tpm_tis_phy_ops tpm_tcg = {
 	.read_bytes = tpm_tcg_read_bytes,
 	.write_bytes = tpm_tcg_write_bytes,
-	.read16 = tpm_tcg_read16,
-	.read32 = tpm_tcg_read32,
-	.write32 = tpm_tcg_write32,
 };
 
 static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info)

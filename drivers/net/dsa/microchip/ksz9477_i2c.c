@@ -41,7 +41,7 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c,
 	if (i2c->dev.platform_data)
 		dev->pdata = i2c->dev.platform_data;
 
-	ret = ksz9477_switch_register(dev);
+	ret = ksz_switch_register(dev);
 
 	/* Main DSA driver may not be started yet. */
 	if (ret)
@@ -52,16 +52,12 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int ksz9477_i2c_remove(struct i2c_client *i2c)
+static void ksz9477_i2c_remove(struct i2c_client *i2c)
 {
 	struct ksz_device *dev = i2c_get_clientdata(i2c);
 
 	if (dev)
 		ksz_switch_remove(dev);
-
-	i2c_set_clientdata(i2c, NULL);
-
-	return 0;
 }
 
 static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
@@ -71,8 +67,8 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->shutdown)
-		dev->dev_ops->shutdown(dev);
+	if (dev->dev_ops->reset)
+		dev->dev_ops->reset(dev);
 
 	dsa_switch_shutdown(dev->ds);
 
@@ -87,12 +83,34 @@ static const struct i2c_device_id ksz9477_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, ksz9477_i2c_id);
 
 static const struct of_device_id ksz9477_dt_ids[] = {
-	{ .compatible = "microchip,ksz9477" },
-	{ .compatible = "microchip,ksz9897" },
-	{ .compatible = "microchip,ksz9893" },
-	{ .compatible = "microchip,ksz9563" },
-	{ .compatible = "microchip,ksz9567" },
-	{ .compatible = "microchip,ksz8563" },
+	{
+		.compatible = "microchip,ksz9477",
+		.data = &ksz_switch_chips[KSZ9477]
+	},
+	{
+		.compatible = "microchip,ksz9896",
+		.data = &ksz_switch_chips[KSZ9896]
+	},
+	{
+		.compatible = "microchip,ksz9897",
+		.data = &ksz_switch_chips[KSZ9897]
+	},
+	{
+		.compatible = "microchip,ksz9893",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz8563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9567",
+		.data = &ksz_switch_chips[KSZ9567]
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);

@@ -1360,7 +1360,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
 	struct gswip_pce_table_entry mac_bridge = {0,};
-	unsigned int cpu_port = priv->hw_info->cpu_port;
+	unsigned int max_ports = priv->hw_info->max_ports;
 	int fid = -1;
 	int i;
 	int err;
@@ -1368,7 +1368,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	if (!bridge)
 		return -EINVAL;
 
-	for (i = cpu_port; i < ARRAY_SIZE(priv->vlans); i++) {
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge) {
 			fid = priv->vlans[i].fid;
 			break;
@@ -1426,8 +1426,9 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 
 		err = gswip_pce_table_entry_read(priv, &mac_bridge);
 		if (err) {
-			dev_err(priv->dev, "failed to write mac bridge: %d\n",
-				err);
+			dev_err(priv->dev,
+				"failed to read mac bridge entry %d: %d\n",
+				i, err);
 			return err;
 		}
 
@@ -1988,11 +1989,9 @@ static int gswip_gphy_fw_probe(struct gswip_priv *priv,
 	}
 
 	gphy_fw->reset = of_reset_control_array_get_exclusive(gphy_fw_np);
-	if (IS_ERR(gphy_fw->reset)) {
-		if (PTR_ERR(gphy_fw->reset) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to lookup gphy reset\n");
-		return PTR_ERR(gphy_fw->reset);
-	}
+	if (IS_ERR(gphy_fw->reset))
+		return dev_err_probe(dev, PTR_ERR(gphy_fw->reset),
+				     "Failed to lookup gphy reset\n");
 
 	return gswip_gphy_fw_load(priv, gphy_fw);
 }
@@ -2069,8 +2068,10 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	for_each_available_child_of_node(gphy_fw_list_np, gphy_fw_np) {
 		err = gswip_gphy_fw_probe(priv, &priv->gphy_fw[i],
 					  gphy_fw_np, i);
-		if (err)
+		if (err) {
+			of_node_put(gphy_fw_np);
 			goto remove_gphy;
+		}
 		i++;
 	}
 
@@ -2227,8 +2228,6 @@ static int gswip_remove(struct platform_device *pdev)
 
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -210,7 +210,7 @@ static int tdo_tl070wsh30_panel_probe(struct mipi_dsi_device *dsi)
 	return mipi_dsi_attach(dsi);
 }
 
-static int tdo_tl070wsh30_panel_remove(struct mipi_dsi_device *dsi)
+static void tdo_tl070wsh30_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct tdo_tl070wsh30_panel *tdo_tl070wsh30 = mipi_dsi_get_drvdata(dsi);
 	int err;
@@ -222,8 +222,6 @@ static int tdo_tl070wsh30_panel_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&tdo_tl070wsh30->base);
 	drm_panel_disable(&tdo_tl070wsh30->base);
 	drm_panel_unprepare(&tdo_tl070wsh30->base);
-
-	return 0;
 }
 
 static void tdo_tl070wsh30_panel_shutdown(struct mipi_dsi_device *dsi)

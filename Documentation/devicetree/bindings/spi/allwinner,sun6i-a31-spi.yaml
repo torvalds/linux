@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/allwinner,sun6i-a31-spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 SPI Controller Device Tree Bindings
+title: Allwinner A31 SPI Controller
 
 allOf:
   - $ref: "spi-controller.yaml"
@@ -26,6 +26,7 @@ properties:
               - allwinner,sun8i-r40-spi
               - allwinner,sun50i-h6-spi
               - allwinner,sun50i-h616-spi
+              - allwinner,suniv-f1c100s-spi
           - const: allwinner,sun8i-h3-spi
 
   reg:

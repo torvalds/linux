@@ -3,7 +3,7 @@
  * Surface Platform Profile / Performance Mode driver for Surface System
  * Aggregator Module (thermal subsystem).
  *
- * Copyright (C) 2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2021-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <asm/unaligned.h>

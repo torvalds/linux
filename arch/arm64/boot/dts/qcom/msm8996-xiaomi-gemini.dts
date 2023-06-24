@@ -8,6 +8,7 @@
 #include "msm8996-xiaomi-common.dtsi"
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
+#include <dt-bindings/sound/qcom,wcd9335.h>
 #include <dt-bindings/input/ti-drv260x.h>
 
 / {
@@ -130,6 +131,11 @@
 	status = "okay";
 };
 
+&mss_pil {
+	firmware-name = "qcom/msm8996/gemini/mba.mbn",
+			"qcom/msm8996/gemini/modem.mbn";
+};
+
 &q6asmdai {
 	dai@0 {
 		reg = <0>;
@@ -144,10 +150,14 @@
 	};
 };
 
+&slpi_pil {
+	firmware-name = "qcom/msm8996/gemini/slpi.mbn";
+};
+
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "gemini";
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 		"MM_DL1",  "MultiMedia1 Playback",
 		"MM_DL2",  "MultiMedia2 Playback",
 		"MultiMedia3 Capture", "MM_UL3";
@@ -184,7 +194,7 @@
 		};
 
 		codec {
-			sound-dai = <&wcd9335 6>;
+			sound-dai = <&wcd9335 AIF4_PB>;
 		};
 	};
 
@@ -199,7 +209,7 @@
 		};
 
 		codec {
-			sound-dai = <&wcd9335 1>;
+			sound-dai = <&wcd9335 AIF1_CAP>;
 		};
 	};
 };
@@ -248,7 +258,7 @@
 		"UIM_BATT_ALARM",	/* GPIO_21 */
 		"NC";			/* GPIO_22 */
 
-	divclk2_pin_a: divclk2 {
+	divclk2_pin_a: divclk2-state {
 		pins = "gpio16";
 		function = PMIC_GPIO_FUNC_FUNC2;
 		bias-disable;

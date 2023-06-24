@@ -18,7 +18,6 @@
 struct r8a73a4_cpg {
 	struct clk_onecell_data data;
 	spinlock_t lock;
-	void __iomem *reg;
 };
 
 #define CPG_CKSCR	0xc0
@@ -59,7 +58,7 @@ static const struct clk_div_table div4_div_table[] = {
 
 static struct clk * __init
 r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
-			     const char *name)
+			   void __iomem *base, const char *name)
 {
 	const struct clk_div_table *table = NULL;
 	const char *parent_name;
@@ -69,7 +68,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 
 
 	if (!strcmp(name, "main")) {
-		u32 ckscr = readl(cpg->reg + CPG_CKSCR);
+		u32 ckscr = readl(base + CPG_CKSCR);
 
 		switch ((ckscr >> 28) & 3) {
 		case 0:	/* extal1 */
@@ -93,14 +92,14 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 		 * clock implementation and we currently have no need to change
 		 * the multiplier value.
 		 */
-		u32 value = readl(cpg->reg + CPG_PLL0CR);
+		u32 value = readl(base + CPG_PLL0CR);
 
 		parent_name = "main";
 		mult = ((value >> 24) & 0x7f) + 1;
 		if (value & BIT(20))
 			div = 2;
 	} else if (!strcmp(name, "pll1")) {
-		u32 value = readl(cpg->reg + CPG_PLL1CR);
+		u32 value = readl(base + CPG_PLL1CR);
 
 		parent_name = "main";
 		/* XXX: enable bit? */
@@ -123,7 +122,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 		default:
 			return ERR_PTR(-EINVAL);
 		}
-		value = readl(cpg->reg + cr);
+		value = readl(base + cr);
 		switch ((value >> 5) & 7) {
 		case 0:
 			parent_name = "main";
@@ -159,7 +158,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 			shift = 0;
 		}
 		div *= 32;
-		mult = 0x20 - ((readl(cpg->reg + CPG_FRQCRC) >> shift) & 0x1f);
+		mult = 0x20 - ((readl(base + CPG_FRQCRC) >> shift) & 0x1f);
 	} else {
 		struct div4_clk *c;
 
@@ -181,7 +180,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 						 mult, div);
 	} else {
 		return clk_register_divider_table(NULL, name, parent_name, 0,
-						  cpg->reg + reg, shift, 4, 0,
+						  base + reg, shift, 4, 0,
 						  table, &cpg->lock);
 	}
 }
@@ -189,6 +188,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 static void __init r8a73a4_cpg_clocks_init(struct device_node *np)
 {
 	struct r8a73a4_cpg *cpg;
+	void __iomem *base;
 	struct clk **clks;
 	unsigned int i;
 	int num_clks;
@@ -213,8 +213,8 @@ static void __init r8a73a4_cpg_clocks_init(struct device_node *np)
 	cpg->data.clks = clks;
 	cpg->data.clk_num = num_clks;
 
-	cpg->reg = of_iomap(np, 0);
-	if (WARN_ON(cpg->reg == NULL))
+	base = of_iomap(np, 0);
+	if (WARN_ON(base == NULL))
 		return;
 
 	for (i = 0; i < num_clks; ++i) {
@@ -224,7 +224,7 @@ static void __init r8a73a4_cpg_clocks_init(struct device_node *np)
 		of_property_read_string_index(np, "clock-output-names", i,
 					      &name);
 
-		clk = r8a73a4_cpg_register_clock(np, cpg, name);
+		clk = r8a73a4_cpg_register_clock(np, cpg, base, name);
 		if (IS_ERR(clk))
 			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
 			       __func__, np, name, PTR_ERR(clk));

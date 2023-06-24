@@ -5,8 +5,6 @@
 
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
-#include "../include/xmit_osdep.h"
-#include "../include/recv_osdep.h"
 #include "../include/hal_intf.h"
 #include "../include/rtw_ioctl.h"
 #include "../include/usb_osintf.h"
@@ -17,13 +15,12 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
 MODULE_AUTHOR("Realtek Semiconductor Corp.");
-MODULE_VERSION(DRIVERVERSION);
+MODULE_FIRMWARE(FW_RTL8188EU);
 
 #define CONFIG_BR_EXT_BRNAME "br0"
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 
 /* module param defaults */
-static int rtw_chip_version = 0x00;
 static int rtw_rfintfs = HWPI;
 static int rtw_lbkmode;/* RTL8712_AIR_TRX; */
 static int rtw_network_mode = Ndis802_11IBSS;/* Ndis802_11Infrastructure; infra, ad-hoc, auto */
@@ -66,9 +63,9 @@ static int rtw_uapsd_acvo_en;
 
 static int rtw_led_enable = 1;
 
-int rtw_ht_enable = 1;
-int rtw_cbw40_enable = 3; /*  0 :disable, bit(0): enable 2.4g, bit(1): enable 5g */
-int rtw_ampdu_enable = 1;/* for enable tx_ampdu */
+static int rtw_ht_enable = 1;
+static int rtw_cbw40_enable = 3; /*  0 :disable, bit(0): enable 2.4g, bit(1): enable 5g */
+static int rtw_ampdu_enable = 1;/* for enable tx_ampdu */
 static int rtw_rx_stbc = 1;/*  0: disable, bit(0):enable 2.4g, bit(1):enable 5g, default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ */
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto */
 
@@ -105,7 +102,6 @@ char *rtw_initmac;  /*  temp mac address if users want to use instead of the mac
 
 module_param(rtw_initmac, charp, 0644);
 module_param(rtw_channel_plan, int, 0644);
-module_param(rtw_chip_version, int, 0644);
 module_param(rtw_rfintfs, int, 0644);
 module_param(rtw_lbkmode, int, 0644);
 module_param(rtw_network_mode, int, 0644);
@@ -152,7 +148,6 @@ static uint loadparam(struct adapter *padapter)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
-	registry_par->chip_version = (u8)rtw_chip_version;
 	registry_par->rfintfs = (u8)rtw_rfintfs;
 	registry_par->lbkmode = (u8)rtw_lbkmode;
 	registry_par->network_mode  = (u8)rtw_network_mode;
@@ -441,7 +436,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 u8 rtw_reset_drv_sw(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	/* hal_priv */
 	rtl8188eu_init_default_value(padapter);
@@ -456,8 +450,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING);
-
-	pwrctrlpriv->pwr_state_check_cnts = 0;
 
 	/* mlmeextpriv */
 	padapter->mlmeextpriv.sitesurvey_res.state = SCAN_DISABLE;
@@ -490,10 +482,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
 	reset_global_wifidirect_info(padapter);
 
-	if (init_mlme_ext_priv(padapter) == _FAIL) {
-		dev_err(dvobj_to_dev(padapter->dvobj), "init_mlme_ext_priv failed\n");
-		goto free_mlme_priv;
-	}
+	init_mlme_ext_priv(padapter);
 
 	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_xmit_priv failed\n");
@@ -534,7 +523,6 @@ free_xmit_priv:
 free_mlme_ext:
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
-free_mlme_priv:
 	rtw_free_mlme_priv(&padapter->mlmepriv);
 
 free_evt_priv:
@@ -628,16 +616,10 @@ void netdev_br_init(struct net_device *netdev)
 	rcu_read_unlock();
 }
 
-int _netdev_open(struct net_device *pnetdev)
+static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-
-	if (pwrctrlpriv->ps_flag) {
-		padapter->net_closed = false;
-		goto netdev_open_normal_process;
-	}
 
 	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
@@ -648,7 +630,7 @@ int _netdev_open(struct net_device *pnetdev)
 		if (status == _FAIL)
 			goto netdev_open_error;
 
-		pr_info("MAC Address = %pM\n", pnetdev->dev_addr);
+		netdev_dbg(pnetdev, "MAC Address = %pM\n", pnetdev->dev_addr);
 
 		status = rtw_start_drv_threads(padapter);
 		if (status == _FAIL) {
@@ -681,7 +663,6 @@ int _netdev_open(struct net_device *pnetdev)
 
 	netdev_br_init(pnetdev);
 
-netdev_open_normal_process:
 	return 0;
 
 netdev_open_error:
@@ -750,9 +731,49 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 	padapter->bCardDisableWOHSM = false;
 }
 
+static void rtw_fifo_cleanup(struct adapter *adapter)
+{
+	struct pwrctrl_priv *pwrpriv = &adapter->pwrctrlpriv;
+	u8 trycnt = 100;
+	int res;
+	u32 reg;
+
+	/* pause tx */
+	rtw_write8(adapter, REG_TXPAUSE, 0xff);
+
+	/* keep sn */
+	/* FIXME: return an error to caller */
+	res = rtw_read16(adapter, REG_NQOS_SEQ, &adapter->xmitpriv.nqos_ssn);
+	if (res)
+		return;
+
+	if (!pwrpriv->bkeepfwalive) {
+		/* RX DMA stop */
+		res = rtw_read32(adapter, REG_RXPKT_NUM, &reg);
+		if (res)
+			return;
+
+		rtw_write32(adapter, REG_RXPKT_NUM,
+			    (reg | RW_RELEASE_EN));
+		do {
+			res = rtw_read32(adapter, REG_RXPKT_NUM, &reg);
+			if (res)
+				continue;
+
+			if (!(reg & RXDMA_IDLE))
+				break;
+		} while (trycnt--);
+
+		/* RQPN Load 0 */
+		rtw_write16(adapter, REG_RQPN_NPQ, 0x0);
+		rtw_write32(adapter, REG_RQPN, 0x80000000);
+		mdelay(10);
+	}
+}
+
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	SetHwReg8188EU(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
+	rtw_fifo_cleanup(padapter);
 
 	if (padapter->intf_stop)
 		padapter->intf_stop(padapter);

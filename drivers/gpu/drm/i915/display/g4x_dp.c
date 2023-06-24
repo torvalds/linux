@@ -5,12 +5,15 @@
  * DisplayPort support for G4x,ILK,SNB,IVB,VLV,CHV (HSW+ handled by the DDI code).
  */
 
+#include <linux/string_helpers.h>
+
 #include "g4x_dp.h"
 #include "intel_audio.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
@@ -22,58 +25,37 @@
 #include "intel_pps.h"
 #include "vlv_sideband.h"
 
-struct dp_link_dpll {
-	int clock;
-	struct dpll dpll;
+static const struct dpll g4x_dpll[] = {
+	{ .dot = 162000, .p1 = 2, .p2 = 10, .n = 2, .m1 = 23, .m2 = 8, },
+	{ .dot = 270000, .p1 = 1, .p2 = 10, .n = 1, .m1 = 14, .m2 = 2, },
 };
 
-static const struct dp_link_dpll g4x_dpll[] = {
-	{ 162000,
-		{ .p1 = 2, .p2 = 10, .n = 2, .m1 = 23, .m2 = 8 } },
-	{ 270000,
-		{ .p1 = 1, .p2 = 10, .n = 1, .m1 = 14, .m2 = 2 } }
+static const struct dpll pch_dpll[] = {
+	{ .dot = 162000, .p1 = 2, .p2 = 10, .n = 1, .m1 = 12, .m2 = 9, },
+	{ .dot = 270000, .p1 = 1, .p2 = 10, .n = 2, .m1 = 14, .m2 = 8, },
 };
 
-static const struct dp_link_dpll pch_dpll[] = {
-	{ 162000,
-		{ .p1 = 2, .p2 = 10, .n = 1, .m1 = 12, .m2 = 9 } },
-	{ 270000,
-		{ .p1 = 1, .p2 = 10, .n = 2, .m1 = 14, .m2 = 8 } }
+static const struct dpll vlv_dpll[] = {
+	{ .dot = 162000, .p1 = 3, .p2 = 2, .n = 5, .m1 = 3, .m2 = 81, },
+	{ .dot = 270000, .p1 = 2, .p2 = 2, .n = 1, .m1 = 2, .m2 = 27, },
 };
 
-static const struct dp_link_dpll vlv_dpll[] = {
-	{ 162000,
-		{ .p1 = 3, .p2 = 2, .n = 5, .m1 = 3, .m2 = 81 } },
-	{ 270000,
-		{ .p1 = 2, .p2 = 2, .n = 1, .m1 = 2, .m2 = 27 } }
-};
-
-/*
- * CHV supports eDP 1.4 that have  more link rates.
- * Below only provides the fixed rate but exclude variable rate.
- */
-static const struct dp_link_dpll chv_dpll[] = {
-	/*
-	 * CHV requires to program fractional division for m2.
-	 * m2 is stored in fixed point format using formula below
-	 * (m2_int << 22) | m2_fraction
-	 */
-	{ 162000,	/* m2_int = 32, m2_fraction = 1677722 */
-		{ .p1 = 4, .p2 = 2, .n = 1, .m1 = 2, .m2 = 0x819999a } },
-	{ 270000,	/* m2_int = 27, m2_fraction = 0 */
-		{ .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } },
+static const struct dpll chv_dpll[] = {
+	/* m2 is .22 binary fixed point  */
+	{ .dot = 162000, .p1 = 4, .p2 = 2, .n = 1, .m1 = 2, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 270000, .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 /* 27.0 */ },
 };
 
 const struct dpll *vlv_get_dpll(struct drm_i915_private *i915)
 {
-	return IS_CHERRYVIEW(i915) ? &chv_dpll[0].dpll : &vlv_dpll[0].dpll;
+	return IS_CHERRYVIEW(i915) ? &chv_dpll[0] : &vlv_dpll[0];
 }
 
 void g4x_dp_set_clock(struct intel_encoder *encoder,
 		      struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct dp_link_dpll *divisor = NULL;
+	const struct dpll *divisor = NULL;
 	int i, count = 0;
 
 	if (IS_G4X(dev_priv)) {
@@ -92,8 +74,8 @@ void g4x_dp_set_clock(struct intel_encoder *encoder,
 
 	if (divisor && count) {
 		for (i = 0; i < count; i++) {
-			if (pipe_config->port_clock == divisor[i].clock) {
-				pipe_config->dpll = divisor[i].dpll;
+			if (pipe_config->port_clock == divisor[i].dot) {
+				pipe_config->dpll = divisor[i];
 				pipe_config->clock_set = true;
 				break;
 			}
@@ -192,7 +174,7 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 	I915_STATE_WARN(cur_state != state,
 			"[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
 			dig_port->base.base.base.id, dig_port->base.base.name,
-			onoff(state), onoff(cur_state));
+			str_on_off(state), str_on_off(cur_state));
 }
 #define assert_dp_port_disabled(d) assert_dp_port((d), false)
 
@@ -202,7 +184,7 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"eDP PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
+			str_on_off(state), str_on_off(cur_state));
 }
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
@@ -413,26 +395,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		intel_dotclock_calculate(pipe_config->port_clock,
 					 &pipe_config->dp_m_n);
 
-	if (intel_dp_is_edp(intel_dp) && dev_priv->vbt.edp.bpp &&
-	    pipe_config->pipe_bpp > dev_priv->vbt.edp.bpp) {
-		/*
-		 * This is a big fat ugly hack.
-		 *
-		 * Some machines in UEFI boot mode provide us a VBT that has 18
-		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
-		 * unknown we fail to light up. Yet the same BIOS boots up with
-		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
-		 * max, not what it tells us to use.
-		 *
-		 * Note: This will still be broken if the eDP panel is not lit
-		 * up by the BIOS, and thus we can't get the mode at module
-		 * load.
-		 */
-		drm_dbg_kms(&dev_priv->drm,
-			    "pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
-			    pipe_config->pipe_bpp, dev_priv->vbt.edp.bpp);
-		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
-	}
+	if (intel_dp_is_edp(intel_dp))
+		intel_edp_fixup_vbt_bpp(encoder, pipe_config->pipe_bpp);
 }
 
 static void
@@ -514,9 +478,7 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 
 	intel_dp->link_trained = false;
 
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
+	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
 
 	/*
 	 * Make sure the panel is off before trying to change the mode.
@@ -677,9 +639,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 dp_reg = intel_de_read(dev_priv, intel_dp->output_reg);
-	enum pipe pipe = crtc->pipe;
 	intel_wakeref_t wakeref;
 
 	if (drm_WARN_ON(&dev_priv->drm, dp_reg & DP_PORT_EN))
@@ -713,11 +673,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	intel_dp_start_link_train(intel_dp, pipe_config);
 	intel_dp_stop_link_train(intel_dp, pipe_config);
 
-	if (pipe_config->has_audio) {
-		drm_dbg(&dev_priv->drm, "Enabling DP audio on pipe %c\n",
-			pipe_name(pipe));
-		intel_audio_codec_enable(encoder, pipe_config, conn_state);
-	}
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void g4x_enable_dp(struct intel_atomic_state *state,
@@ -1213,7 +1169,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 static bool ibx_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.pch_hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.pch_hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, SDEISR) & bit;
 }
@@ -1267,7 +1223,7 @@ static bool gm45_digital_port_connected(struct intel_encoder *encoder)
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, DEISR) & bit;
 }
@@ -1402,7 +1358,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
-	intel_encoder->power_domain = intel_port_to_power_domain(port);
+	intel_encoder->power_domain = intel_display_power_ddi_lanes_domain(dev_priv, port);
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)
 			intel_encoder->pipe_mask = BIT(PIPE_C);

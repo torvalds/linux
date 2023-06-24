@@ -23,6 +23,7 @@ struct drm_i915_mocs_table {
 	unsigned int n_entries;
 	const struct drm_i915_mocs_entry *table;
 	u8 uc_index;
+	u8 wb_index; /* Only used on HAS_L3_CCS_READ() platforms */
 	u8 unused_entries_index;
 };
 
@@ -47,6 +48,7 @@ struct drm_i915_mocs_table {
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
+#define PVC_NUM_MOCS_ENTRIES	3
 
 /* (e)LLC caching options */
 /*
@@ -204,6 +206,14 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 	/* No AOM; Age:DC - L3 + LLC */ \
 	MOCS_ENTRY(15, \
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* Bypass LLC - Uncached (EHL+) */ \
+	MOCS_ENTRY(16, \
+		   LE_1_UC | LE_TC_1_LLC | LE_SCF(1), \
+		   L3_1_UC), \
+	/* Bypass LLC - L3 (Read-Only) (EHL+) */ \
+	MOCS_ENTRY(17, \
+		   LE_1_UC | LE_TC_1_LLC | LE_SCF(1), \
 		   L3_3_WB), \
 	/* Self-Snoop - L3 + LLC */ \
 	MOCS_ENTRY(18, \
@@ -394,6 +404,17 @@ static const struct drm_i915_mocs_entry dg2_mocs_table_g10_ax[] = {
 	MOCS_ENTRY(3, 0, L3_3_WB | L3_LKUP(1)),
 };
 
+static const struct drm_i915_mocs_entry pvc_mocs_table[] = {
+	/* Error */
+	MOCS_ENTRY(0, 0, L3_3_WB),
+
+	/* UC */
+	MOCS_ENTRY(1, 0, L3_1_UC),
+
+	/* WB */
+	MOCS_ENTRY(2, 0, L3_3_WB),
+};
+
 enum {
 	HAS_GLOBAL_MOCS = BIT(0),
 	HAS_ENGINE_MOCS = BIT(1),
@@ -423,7 +444,14 @@ static unsigned int get_mocs_settings(const struct drm_i915_private *i915,
 	memset(table, 0, sizeof(struct drm_i915_mocs_table));
 
 	table->unused_entries_index = I915_MOCS_PTE;
-	if (IS_DG2(i915)) {
+	if (IS_PONTEVECCHIO(i915)) {
+		table->size = ARRAY_SIZE(pvc_mocs_table);
+		table->table = pvc_mocs_table;
+		table->n_entries = PVC_NUM_MOCS_ENTRIES;
+		table->uc_index = 1;
+		table->wb_index = 2;
+		table->unused_entries_index = 2;
+	} else if (IS_DG2(i915)) {
 		if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_A0, STEP_B0)) {
 			table->size = ARRAY_SIZE(dg2_mocs_table_g10_ax);
 			table->table = dg2_mocs_table_g10_ax;
@@ -622,6 +650,8 @@ void intel_set_mocs_index(struct intel_gt *gt)
 
 	get_mocs_settings(gt->i915, &table);
 	gt->mocs.uc_index = table.uc_index;
+	if (HAS_L3_CCS_READ(gt->i915))
+		gt->mocs.wb_index = table.wb_index;
 }
 
 void intel_mocs_init(struct intel_gt *gt)

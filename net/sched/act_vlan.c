@@ -16,7 +16,6 @@
 #include <linux/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_vlan.h>
 
-static unsigned int vlan_net_id;
 static struct tc_action_ops act_vlan_ops;
 
 static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
@@ -117,7 +116,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -333,16 +332,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
 static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 				  u64 drops, u64 lastuse, bool hw)
 {
@@ -351,13 +340,6 @@ static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 
 	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
-}
-
-static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
-
-	return tcf_idr_search(tn, a, index);
 }
 
 static size_t tcf_vlan_get_fill_size(const struct tc_action *act)
@@ -369,7 +351,8 @@ static size_t tcf_vlan_get_fill_size(const struct tc_action *act)
 }
 
 static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
-				      u32 *index_inc, bool bind)
+				      u32 *index_inc, bool bind,
+				      struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
@@ -398,6 +381,7 @@ static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
 			tcf_vlan_push_eth(entry->vlan_push_eth.src, entry->vlan_push_eth.dst, act);
 			break;
 		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported vlan action mode offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;
@@ -436,30 +420,28 @@ static struct tc_action_ops act_vlan_ops = {
 	.dump		=	tcf_vlan_dump,
 	.init		=	tcf_vlan_init,
 	.cleanup	=	tcf_vlan_cleanup,
-	.walk		=	tcf_vlan_walker,
 	.stats_update	=	tcf_vlan_stats_update,
 	.get_fill_size	=	tcf_vlan_get_fill_size,
-	.lookup		=	tcf_vlan_search,
 	.offload_act_setup =	tcf_vlan_offload_act_setup,
 	.size		=	sizeof(struct tcf_vlan),
 };
 
 static __net_init int vlan_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_vlan_ops);
 }
 
 static void __net_exit vlan_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, vlan_net_id);
+	tc_action_net_exit(net_list, act_vlan_ops.net_id);
 }
 
 static struct pernet_operations vlan_net_ops = {
 	.init = vlan_init_net,
 	.exit_batch = vlan_exit_net,
-	.id   = &vlan_net_id,
+	.id   = &act_vlan_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

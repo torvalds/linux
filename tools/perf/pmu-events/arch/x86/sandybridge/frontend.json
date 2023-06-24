@@ -176,7 +176,7 @@
         "CounterMask": "1",
         "EventCode": "0x79",
         "EventName": "IDQ.MS_CYCLES",
-        "PublicDescription": "This event counts cycles during which the microcode sequencer assisted the front-end in delivering uops.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.  See the Intel 64 and IA-32 Architectures Optimization Reference Manual for more information.",
+        "PublicDescription": "This event counts cycles during which the microcode sequencer assisted the front-end in delivering uops.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.  See the Intel(R) 64 and IA-32 Architectures Optimization Reference Manual for more information.",
         "SampleAfterValue": "2000003",
         "UMask": "0x30"
     },

@@ -22,8 +22,12 @@ properties:
     pattern: "^usi@[0-9a-f]+$"
 
   compatible:
-    enum:
-      - samsung,exynos850-usi   # for USIv2 (Exynos850, ExynosAutoV9)
+    oneOf:
+      - items:
+          - const: samsung,exynosautov9-usi
+          - const: samsung,exynos850-usi
+      - enum:
+          - samsung,exynos850-usi
 
   reg: true
 
@@ -77,7 +81,7 @@ patternProperties:
     description: Child node describing underlying UART/serial
 
   "^spi@[0-9a-f]+$":
-    type: object
+    $ref: /schemas/spi/samsung,spi.yaml
     description: Child node describing underlying SPI
 
 required:

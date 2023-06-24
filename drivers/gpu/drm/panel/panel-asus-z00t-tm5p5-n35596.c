@@ -215,13 +215,8 @@ static const struct drm_panel_funcs tm5p5_nt35596_panel_funcs = {
 static int tm5p5_nt35596_bl_update_status(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
-	u16 brightness = bl->props.brightness;
+	u16 brightness = backlight_get_brightness(bl);
 	int ret;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
-	    bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
-		brightness = 0;
 
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
@@ -326,7 +321,7 @@ static int tm5p5_nt35596_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
+static void tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
 {
 	struct tm5p5_nt35596 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -337,8 +332,6 @@ static int tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
 			"Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id tm5p5_nt35596_of_match[] = {

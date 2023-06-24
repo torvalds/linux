@@ -90,7 +90,7 @@ int smbd_max_send_size = 1364;
 int smbd_max_fragmented_recv_size = 1024 * 1024;
 
 /*  The maximum single-message size which can be received */
-int smbd_max_receive_size = 8192;
+int smbd_max_receive_size = 1364;
 
 /* The timeout to initiate send of a keepalive message on idle */
 int smbd_keep_alive_interval = 120;
@@ -99,7 +99,7 @@ int smbd_keep_alive_interval = 120;
  * User configurable initial values for RDMA transport
  * The actual values used may be lower and are limited to hardware capabilities
  */
-/* Default maximum number of SGEs in a RDMA write/read */
+/* Default maximum number of pages in a single RDMA write/read */
 int smbd_max_frmr_depth = 2048;
 
 /* If payload is less than this byte, use RDMA send/recv not read/write */
@@ -270,7 +270,7 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct smbd_request *request =
 		container_of(wc->wr_cqe, struct smbd_request, cqe);
 
-	log_rdma_send(INFO, "smbd_request %p completed wc->status=%d\n",
+	log_rdma_send(INFO, "smbd_request 0x%p completed wc->status=%d\n",
 		request, wc->status);
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_SEND) {
@@ -448,7 +448,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct smbd_connection *info = response->info;
 	int data_length = 0;
 
-	log_rdma_recv(INFO, "response=%p type=%d wc status=%d wc opcode %d byte_len=%d pkey_index=%x\n",
+	log_rdma_recv(INFO, "response=0x%p type=%d wc status=%d wc opcode %d byte_len=%d pkey_index=%u\n",
 		      response, response->type, wc->status, wc->opcode,
 		      wc->byte_len, wc->pkey_index);
 
@@ -649,7 +649,7 @@ static int smbd_ia_open(
 		smbd_max_frmr_depth,
 		info->id->device->attrs.max_fast_reg_page_list_len);
 	info->mr_type = IB_MR_TYPE_MEM_REG;
-	if (info->id->device->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (info->id->device->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		info->mr_type = IB_MR_TYPE_SG_GAPS;
 
 	info->pd = ib_alloc_pd(info->id->device, 0);
@@ -723,7 +723,7 @@ static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 	send_wr.opcode = IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	log_rdma_send(INFO, "sge addr=%llx length=%x lkey=%x\n",
+	log_rdma_send(INFO, "sge addr=0x%llx length=%u lkey=0x%x\n",
 		request->sge[0].addr,
 		request->sge[0].length, request->sge[0].lkey);
 
@@ -792,7 +792,7 @@ static int smbd_post_send(struct smbd_connection *info,
 
 	for (i = 0; i < request->num_sge; i++) {
 		log_rdma_send(INFO,
-			"rdma_request sge[%d] addr=%llu length=%u\n",
+			"rdma_request sge[%d] addr=0x%llx length=%u\n",
 			i, request->sge[i].addr, request->sge[i].length);
 		ib_dma_sync_single_for_device(
 			info->id->device,
@@ -1017,9 +1017,9 @@ static int smbd_post_send_data(
 {
 	int i;
 	u32 data_length = 0;
-	struct scatterlist sgl[SMBDIRECT_MAX_SGE];
+	struct scatterlist sgl[SMBDIRECT_MAX_SEND_SGE - 1];
 
-	if (n_vec > SMBDIRECT_MAX_SGE) {
+	if (n_vec > SMBDIRECT_MAX_SEND_SGE - 1) {
 		cifs_dbg(VFS, "Can't fit data to SGL, n_vec=%d\n", n_vec);
 		return -EINVAL;
 	}
@@ -1079,7 +1079,7 @@ static int smbd_negotiate(struct smbd_connection *info)
 
 	response->type = SMBD_NEGOTIATE_RESP;
 	rc = smbd_post_recv(info, response);
-	log_rdma_event(INFO, "smbd_post_recv rc=%d iov.addr=%llx iov.length=%x iov.lkey=%x\n",
+	log_rdma_event(INFO, "smbd_post_recv rc=%d iov.addr=0x%llx iov.length=%u iov.lkey=0x%x\n",
 		       rc, response->sge.addr,
 		       response->sge.length, response->sge.lkey);
 	if (rc)
@@ -1350,7 +1350,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	wait_event(info->wait_send_pending,
 		atomic_read(&info->send_pending) == 0);
 
-	/* It's not posssible for upper layer to get to reassembly */
+	/* It's not possible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
 	do {
 		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
@@ -1382,9 +1382,9 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "freeing mr list\n");
 	wake_up_interruptible_all(&info->wait_mr);
 	while (atomic_read(&info->mr_used_count)) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		msleep(1000);
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 	}
 	destroy_mr_list(info);
 
@@ -1539,7 +1539,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 	if (smbd_send_credit_target > info->id->device->attrs.max_cqe ||
 	    smbd_send_credit_target > info->id->device->attrs.max_qp_wr) {
-		log_rdma_event(ERR, "consider lowering send_credit_target = %d. Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
+		log_rdma_event(ERR, "consider lowering send_credit_target = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
 			       smbd_send_credit_target,
 			       info->id->device->attrs.max_cqe,
 			       info->id->device->attrs.max_qp_wr);
@@ -1548,7 +1548,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 	if (smbd_receive_credit_max > info->id->device->attrs.max_cqe ||
 	    smbd_receive_credit_max > info->id->device->attrs.max_qp_wr) {
-		log_rdma_event(ERR, "consider lowering receive_credit_max = %d. Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
+		log_rdma_event(ERR, "consider lowering receive_credit_max = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
 			       smbd_receive_credit_max,
 			       info->id->device->attrs.max_cqe,
 			       info->id->device->attrs.max_qp_wr);
@@ -1562,17 +1562,15 @@ static struct smbd_connection *_smbd_get_connection(
 	info->max_receive_size = smbd_max_receive_size;
 	info->keep_alive_interval = smbd_keep_alive_interval;
 
-	if (info->id->device->attrs.max_send_sge < SMBDIRECT_MAX_SGE) {
+	if (info->id->device->attrs.max_send_sge < SMBDIRECT_MAX_SEND_SGE ||
+	    info->id->device->attrs.max_recv_sge < SMBDIRECT_MAX_RECV_SGE) {
 		log_rdma_event(ERR,
-			"warning: device max_send_sge = %d too small\n",
-			info->id->device->attrs.max_send_sge);
-		log_rdma_event(ERR, "Queue Pair creation may fail\n");
-	}
-	if (info->id->device->attrs.max_recv_sge < SMBDIRECT_MAX_SGE) {
-		log_rdma_event(ERR,
-			"warning: device max_recv_sge = %d too small\n",
+			"device %.*s max_send_sge/max_recv_sge = %d/%d too small\n",
+			IB_DEVICE_NAME_MAX,
+			info->id->device->name,
+			info->id->device->attrs.max_send_sge,
 			info->id->device->attrs.max_recv_sge);
-		log_rdma_event(ERR, "Queue Pair creation may fail\n");
+		goto config_failed;
 	}
 
 	info->send_cq = NULL;
@@ -1598,8 +1596,8 @@ static struct smbd_connection *_smbd_get_connection(
 	qp_attr.qp_context = info;
 	qp_attr.cap.max_send_wr = info->send_credit_target;
 	qp_attr.cap.max_recv_wr = info->receive_credit_max;
-	qp_attr.cap.max_send_sge = SMBDIRECT_MAX_SGE;
-	qp_attr.cap.max_recv_sge = SMBDIRECT_MAX_SGE;
+	qp_attr.cap.max_send_sge = SMBDIRECT_MAX_SEND_SGE;
+	qp_attr.cap.max_recv_sge = SMBDIRECT_MAX_RECV_SGE;
 	qp_attr.cap.max_inline_data = 0;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	qp_attr.qp_type = IB_QPT_RC;
@@ -1986,10 +1984,11 @@ int smbd_send(struct TCP_Server_Info *server,
 	int num_rqst, struct smb_rqst *rqst_array)
 {
 	struct smbd_connection *info = server->smbd_conn;
-	struct kvec vec;
+	struct kvec vecs[SMBDIRECT_MAX_SEND_SGE - 1];
 	int nvecs;
 	int size;
 	unsigned int buflen, remaining_data_length;
+	unsigned int offset, remaining_vec_data_length;
 	int start, i, j;
 	int max_iov_size =
 		info->max_send_size - sizeof(struct smbd_data_transfer);
@@ -1998,10 +1997,8 @@ int smbd_send(struct TCP_Server_Info *server,
 	struct smb_rqst *rqst;
 	int rqst_idx;
 
-	if (info->transport_status != SMBD_CONNECTED) {
-		rc = -EAGAIN;
-		goto done;
-	}
+	if (info->transport_status != SMBD_CONNECTED)
+		return -EAGAIN;
 
 	/*
 	 * Add in the page array if there is one. The caller needs to set
@@ -2012,125 +2009,95 @@ int smbd_send(struct TCP_Server_Info *server,
 	for (i = 0; i < num_rqst; i++)
 		remaining_data_length += smb_rqst_len(server, &rqst_array[i]);
 
-	if (remaining_data_length > info->max_fragmented_send_size) {
+	if (unlikely(remaining_data_length > info->max_fragmented_send_size)) {
+		/* assertion: payload never exceeds negotiated maximum */
 		log_write(ERR, "payload size %d > max size %d\n",
 			remaining_data_length, info->max_fragmented_send_size);
-		rc = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
 	log_write(INFO, "num_rqst=%d total length=%u\n",
 			num_rqst, remaining_data_length);
 
 	rqst_idx = 0;
-next_rqst:
-	rqst = &rqst_array[rqst_idx];
-	iov = rqst->rq_iov;
+	do {
+		rqst = &rqst_array[rqst_idx];
+		iov = rqst->rq_iov;
 
-	cifs_dbg(FYI, "Sending smb (RDMA): idx=%d smb_len=%lu\n",
-		rqst_idx, smb_rqst_len(server, rqst));
-	for (i = 0; i < rqst->rq_nvec; i++)
-		dump_smb(iov[i].iov_base, iov[i].iov_len);
-
-
-	log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d rq_tailsz=%d buflen=%lu\n",
-		  rqst_idx, rqst->rq_nvec, rqst->rq_npages, rqst->rq_pagesz,
-		  rqst->rq_tailsz, smb_rqst_len(server, rqst));
-
-	start = i = 0;
-	buflen = 0;
-	while (true) {
-		buflen += iov[i].iov_len;
-		if (buflen > max_iov_size) {
-			if (i > start) {
-				remaining_data_length -=
-					(buflen-iov[i].iov_len);
-				log_write(INFO, "sending iov[] from start=%d i=%d nvecs=%d remaining_data_length=%d\n",
-					  start, i, i - start,
-					  remaining_data_length);
-				rc = smbd_post_send_data(
-					info, &iov[start], i-start,
-					remaining_data_length);
-				if (rc)
-					goto done;
-			} else {
-				/* iov[start] is too big, break it */
-				nvecs = (buflen+max_iov_size-1)/max_iov_size;
-				log_write(INFO, "iov[%d] iov_base=%p buflen=%d break to %d vectors\n",
-					  start, iov[start].iov_base,
-					  buflen, nvecs);
-				for (j = 0; j < nvecs; j++) {
-					vec.iov_base =
-						(char *)iov[start].iov_base +
-						j*max_iov_size;
-					vec.iov_len = max_iov_size;
-					if (j == nvecs-1)
-						vec.iov_len =
-							buflen -
-							max_iov_size*(nvecs-1);
-					remaining_data_length -= vec.iov_len;
-					log_write(INFO,
-						"sending vec j=%d iov_base=%p iov_len=%zu remaining_data_length=%d\n",
-						  j, vec.iov_base, vec.iov_len,
-						  remaining_data_length);
-					rc = smbd_post_send_data(
-						info, &vec, 1,
-						remaining_data_length);
-					if (rc)
-						goto done;
-				}
-				i++;
-				if (i == rqst->rq_nvec)
-					break;
-			}
-			start = i;
-			buflen = 0;
-		} else {
-			i++;
-			if (i == rqst->rq_nvec) {
-				/* send out all remaining vecs */
-				remaining_data_length -= buflen;
-				log_write(INFO, "sending iov[] from start=%d i=%d nvecs=%d remaining_data_length=%d\n",
-					  start, i, i - start,
-					  remaining_data_length);
-				rc = smbd_post_send_data(info, &iov[start],
-					i-start, remaining_data_length);
-				if (rc)
-					goto done;
-				break;
-			}
+		cifs_dbg(FYI, "Sending smb (RDMA): idx=%d smb_len=%lu\n",
+			rqst_idx, smb_rqst_len(server, rqst));
+		remaining_vec_data_length = 0;
+		for (i = 0; i < rqst->rq_nvec; i++) {
+			remaining_vec_data_length += iov[i].iov_len;
+			dump_smb(iov[i].iov_base, iov[i].iov_len);
 		}
-		log_write(INFO, "looping i=%d buflen=%d\n", i, buflen);
-	}
 
-	/* now sending pages if there are any */
-	for (i = 0; i < rqst->rq_npages; i++) {
-		unsigned int offset;
+		log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d rq_tailsz=%d buflen=%lu\n",
+			  rqst_idx, rqst->rq_nvec,
+			  rqst->rq_npages, rqst->rq_pagesz,
+			  rqst->rq_tailsz, smb_rqst_len(server, rqst));
 
-		rqst_page_get_length(rqst, i, &buflen, &offset);
-		nvecs = (buflen + max_iov_size - 1) / max_iov_size;
-		log_write(INFO, "sending pages buflen=%d nvecs=%d\n",
-			buflen, nvecs);
-		for (j = 0; j < nvecs; j++) {
-			size = max_iov_size;
-			if (j == nvecs-1)
-				size = buflen - j*max_iov_size;
-			remaining_data_length -= size;
-			log_write(INFO, "sending pages i=%d offset=%d size=%d remaining_data_length=%d\n",
-				  i, j * max_iov_size + offset, size,
-				  remaining_data_length);
-			rc = smbd_post_send_page(
-				info, rqst->rq_pages[i],
-				j*max_iov_size + offset,
-				size, remaining_data_length);
+		start = 0;
+		offset = 0;
+		do {
+			buflen = 0;
+			i = start;
+			j = 0;
+			while (i < rqst->rq_nvec &&
+				j < SMBDIRECT_MAX_SEND_SGE - 1 &&
+				buflen < max_iov_size) {
+
+				vecs[j].iov_base = iov[i].iov_base + offset;
+				if (buflen + iov[i].iov_len > max_iov_size) {
+					vecs[j].iov_len =
+						max_iov_size - iov[i].iov_len;
+					buflen = max_iov_size;
+					offset = vecs[j].iov_len;
+				} else {
+					vecs[j].iov_len =
+						iov[i].iov_len - offset;
+					buflen += vecs[j].iov_len;
+					offset = 0;
+					++i;
+				}
+				++j;
+			}
+
+			remaining_vec_data_length -= buflen;
+			remaining_data_length -= buflen;
+			log_write(INFO, "sending %s iov[%d] from start=%d nvecs=%d remaining_data_length=%d\n",
+					remaining_vec_data_length > 0 ?
+						"partial" : "complete",
+					rqst->rq_nvec, start, j,
+					remaining_data_length);
+
+			start = i;
+			rc = smbd_post_send_data(info, vecs, j, remaining_data_length);
 			if (rc)
 				goto done;
-		}
-	}
+		} while (remaining_vec_data_length > 0);
 
-	rqst_idx++;
-	if (rqst_idx < num_rqst)
-		goto next_rqst;
+		/* now sending pages if there are any */
+		for (i = 0; i < rqst->rq_npages; i++) {
+			rqst_page_get_length(rqst, i, &buflen, &offset);
+			nvecs = (buflen + max_iov_size - 1) / max_iov_size;
+			log_write(INFO, "sending pages buflen=%d nvecs=%d\n",
+				buflen, nvecs);
+			for (j = 0; j < nvecs; j++) {
+				size = min_t(unsigned int, max_iov_size, remaining_data_length);
+				remaining_data_length -= size;
+				log_write(INFO, "sending pages i=%d offset=%d size=%d remaining_data_length=%d\n",
+					  i, j * max_iov_size + offset, size,
+					  remaining_data_length);
+				rc = smbd_post_send_page(
+					info, rqst->rq_pages[i],
+					j*max_iov_size + offset,
+					size, remaining_data_length);
+				if (rc)
+					goto done;
+			}
+		}
+	} while (++rqst_idx < num_rqst);
 
 done:
 	/*

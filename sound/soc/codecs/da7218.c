@@ -3040,7 +3040,6 @@ static const struct snd_soc_component_driver soc_component_dev_da7218 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 
@@ -3258,8 +3257,19 @@ static const struct regmap_config da7218_regmap_config = {
  * I2C layer
  */
 
-static int da7218_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static const struct i2c_device_id da7218_i2c_id[];
+
+static inline int da7218_i2c_get_id(struct i2c_client *i2c)
+{
+	const struct i2c_device_id *id = i2c_match_id(da7218_i2c_id, i2c);
+
+	if (id)
+		return (uintptr_t)id->driver_data;
+	else
+		return -EINVAL;
+}
+
+static int da7218_i2c_probe(struct i2c_client *i2c)
 {
 	struct da7218_priv *da7218;
 	int ret;
@@ -3273,7 +3283,7 @@ static int da7218_i2c_probe(struct i2c_client *i2c,
 	if (i2c->dev.of_node)
 		da7218->dev_id = da7218_of_get_id(&i2c->dev);
 	else
-		da7218->dev_id = id->driver_data;
+		da7218->dev_id = da7218_i2c_get_id(i2c);
 
 	if ((da7218->dev_id != DA7217_DEV_ID) &&
 	    (da7218->dev_id != DA7218_DEV_ID)) {
@@ -3311,7 +3321,7 @@ static struct i2c_driver da7218_i2c_driver = {
 		.name = "da7218",
 		.of_match_table = da7218_of_match,
 	},
-	.probe		= da7218_i2c_probe,
+	.probe_new	= da7218_i2c_probe,
 	.id_table	= da7218_i2c_id,
 };
 

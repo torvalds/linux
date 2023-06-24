@@ -171,7 +171,7 @@ out_einval:
 }
 EXPORT_SYMBOL(register_qdisc);
 
-int unregister_qdisc(struct Qdisc_ops *qops)
+void unregister_qdisc(struct Qdisc_ops *qops)
 {
 	struct Qdisc_ops *q, **qp;
 	int err = -ENOENT;
@@ -186,7 +186,8 @@ int unregister_qdisc(struct Qdisc_ops *qops)
 		err = 0;
 	}
 	write_unlock(&qdisc_mod_lock);
-	return err;
+
+	WARN(err, "unregister qdisc(%s) failed\n", qops->id);
 }
 EXPORT_SYMBOL(unregister_qdisc);
 
@@ -194,7 +195,7 @@ EXPORT_SYMBOL(unregister_qdisc);
 void qdisc_get_default(char *name, size_t len)
 {
 	read_lock(&qdisc_mod_lock);
-	strlcpy(name, default_qdisc_ops->id, len);
+	strscpy(name, default_qdisc_ops->id, len);
 	read_unlock(&qdisc_mod_lock);
 }
 
@@ -867,6 +868,23 @@ void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
 }
 EXPORT_SYMBOL(qdisc_offload_graft_helper);
 
+void qdisc_offload_query_caps(struct net_device *dev,
+			      enum tc_setup_type type,
+			      void *caps, size_t caps_len)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	struct tc_query_caps_base base = {
+		.type = type,
+		.caps = caps,
+	};
+
+	memset(caps, 0, caps_len);
+
+	if (ops->ndo_setup_tc)
+		ops->ndo_setup_tc(dev, TC_QUERY_CAPS, &base);
+}
+EXPORT_SYMBOL(qdisc_offload_query_caps);
+
 static void qdisc_offload_graft_root(struct net_device *dev,
 				     struct Qdisc *new, struct Qdisc *old,
 				     struct netlink_ext_ack *extack)
@@ -1081,11 +1099,12 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 
 skip:
 		if (!ingress) {
-			notify_and_destroy(net, skb, n, classid,
-					   rtnl_dereference(dev->qdisc), new);
+			old = rtnl_dereference(dev->qdisc);
 			if (new && !new->ops->attach)
 				qdisc_refcount_inc(new);
 			rcu_assign_pointer(dev->qdisc, new ? : &noop_qdisc);
+
+			notify_and_destroy(net, skb, n, classid, old, new);
 
 			if (new && new->ops->attach)
 				new->ops->attach(new);
@@ -1163,7 +1182,7 @@ static int qdisc_block_indexes_set(struct Qdisc *sch, struct nlattr **tca,
 
 static struct Qdisc *qdisc_create(struct net_device *dev,
 				  struct netdev_queue *dev_queue,
-				  struct Qdisc *p, u32 parent, u32 handle,
+				  u32 parent, u32 handle,
 				  struct nlattr **tca, int *errp,
 				  struct netlink_ext_ack *extack)
 {
@@ -1292,7 +1311,7 @@ err_out5:
 	if (ops->destroy)
 		ops->destroy(sch);
 err_out3:
-	dev_put_track(dev, &sch->dev_tracker);
+	netdev_put(dev, &sch->dev_tracker);
 	qdisc_free(sch);
 err_out2:
 	module_put(ops->owner);
@@ -1424,10 +1443,6 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 	struct Qdisc *p = NULL;
 	int err;
 
-	if ((n->nlmsg_type != RTM_GETQDISC) &&
-	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
 	err = nlmsg_parse_deprecated(n, sizeof(*tcm), tca, TCA_MAX,
 				     rtm_tca_policy, extack);
 	if (err < 0)
@@ -1507,9 +1522,6 @@ static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 	u32 clid;
 	struct Qdisc *q, *p;
 	int err;
-
-	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
 
 replay:
 	/* Reinit, just in case something touches this. */
@@ -1640,7 +1652,7 @@ create_n_graft:
 	}
 	if (clid == TC_H_INGRESS) {
 		if (dev_ingress_queue(dev)) {
-			q = qdisc_create(dev, dev_ingress_queue(dev), p,
+			q = qdisc_create(dev, dev_ingress_queue(dev),
 					 tcm->tcm_parent, tcm->tcm_parent,
 					 tca, &err, extack);
 		} else {
@@ -1657,7 +1669,7 @@ create_n_graft:
 		else
 			dev_queue = netdev_get_tx_queue(dev, 0);
 
-		q = qdisc_create(dev, dev_queue, p,
+		q = qdisc_create(dev, dev_queue,
 				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err, extack);
 	}
@@ -1904,7 +1916,7 @@ static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 {
 	struct tcf_bind_args *a = (void *)arg;
 
-	if (tp->ops->bind_class) {
+	if (n && tp->ops->bind_class) {
 		struct Qdisc *q = tcf_block_q(tp->chain->block);
 
 		sch_tree_lock(q);
@@ -1991,10 +2003,6 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 	u32 clid;
 	u32 qid;
 	int err;
-
-	if ((n->nlmsg_type != RTM_GETTCLASS) &&
-	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
 
 	err = nlmsg_parse_deprecated(n, sizeof(*tcm), tca, TCA_MAX,
 				     rtm_tca_policy, extack);

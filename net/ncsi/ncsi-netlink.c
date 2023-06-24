@@ -768,6 +768,7 @@ static struct genl_family ncsi_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = ncsi_ops,
 	.n_small_ops = ARRAY_SIZE(ncsi_ops),
+	.resv_start_op = NCSI_CMD_SET_CHANNEL_MASK + 1,
 };
 
 static int __init ncsi_init_netlink(void)

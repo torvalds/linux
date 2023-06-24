@@ -563,12 +563,12 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
 	if (VPIF_CHANNEL3_VIDEO == ch->channel_id) {
-		common->set_addr = ch3_set_videobuf_addr;
+		common->set_addr = ch3_set_video_buf_addr;
 	} else {
 		if (2 == muxmode)
-			common->set_addr = ch2_set_videobuf_addr_yc_nmux;
+			common->set_addr = ch2_set_video_buf_addr_yc_nmux;
 		else
-			common->set_addr = ch2_set_videobuf_addr;
+			common->set_addr = ch2_set_video_buf_addr;
 	}
 }
 
@@ -585,8 +585,6 @@ static int vpif_querycap(struct file *file, void  *priv,
 	struct vpif_display_config *config = vpif_dev->platform_data;
 
 	strscpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(vpif_dev));
 	strscpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;
@@ -1286,8 +1284,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 		}
 
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
+		vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 	err = vpif_probe_complete();
 	if (err)

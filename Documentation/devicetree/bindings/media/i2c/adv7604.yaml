@@ -60,7 +60,8 @@ properties:
       enables hot-plug detection.
 
   default-input:
-    maxItems: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
     description:
       Select which input is selected after reset.
 

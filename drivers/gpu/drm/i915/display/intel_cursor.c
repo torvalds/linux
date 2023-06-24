@@ -6,8 +6,8 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_damage_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_fourcc.h>
 
 #include "intel_atomic.h"
@@ -19,9 +19,9 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
-#include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_watermark.h"
 
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
@@ -143,8 +143,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_HELPER_NO_SCALING,
-						DRM_PLANE_HELPER_NO_SCALING,
+						DRM_PLANE_NO_SCALING,
+						DRM_PLANE_NO_SCALING,
 						true);
 	if (ret)
 		return ret;
@@ -152,6 +152,11 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	/* Use the unclipped src/dst rectangles, which we program to hw */
 	plane_state->uapi.src = src;
 	plane_state->uapi.dst = dst;
+
+	/* final plane coordinates will be relative to the plane's pipe */
+	drm_rect_translate(&plane_state->uapi.dst,
+			   -crtc_state->pipe_src.x1,
+			   -crtc_state->pipe_src.y1);
 
 	ret = intel_cursor_check_surface(plane_state);
 	if (ret)
@@ -255,7 +260,6 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 cntl = 0, base = 0, pos = 0, size = 0;
-	unsigned long irqflags;
 
 	if (plane_state && plane_state->uapi.visible) {
 		unsigned int width = drm_rect_width(&plane_state->uapi.dst);
@@ -269,8 +273,6 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 		base = intel_cursor_base(plane_state);
 		pos = intel_cursor_position(plane_state);
 	}
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	/* On these chipsets we can only modify the base/size/stride
 	 * whilst the cursor is disabled.
@@ -290,8 +292,6 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 	} else {
 		intel_de_write_fw(dev_priv, CURPOS(PIPE_A), pos);
 	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i845_cursor_disable_arm(struct intel_plane *plane,
@@ -492,7 +492,6 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 	u32 cntl = 0, base = 0, pos = 0, fbc_ctl = 0;
-	unsigned long irqflags;
 
 	if (plane_state && plane_state->uapi.visible) {
 		int width = drm_rect_width(&plane_state->uapi.dst);
@@ -507,8 +506,6 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 		base = intel_cursor_base(plane_state);
 		pos = intel_cursor_position(plane_state);
 	}
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	/*
 	 * On some platforms writing CURCNTR first will also
@@ -555,8 +552,6 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, CURPOS(pipe), pos);
 		intel_de_write_fw(dev_priv, CURBASE(pipe), base);
 	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i9xx_cursor_disable_arm(struct intel_plane *plane,
@@ -637,7 +632,7 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 * FIXME bigjoiner fastpath would be good
 	 */
 	if (!crtc_state->hw.active || intel_crtc_needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe || crtc_state->bigjoiner)
+	    crtc_state->update_pipe || crtc_state->bigjoiner_pipes)
 		goto slow;
 
 	/*
@@ -715,12 +710,22 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 */
 	crtc_state->active_planes = new_crtc_state->active_planes;
 
+	/*
+	 * Technically we should do a vblank evasion here to make
+	 * sure all the cursor registers update on the same frame.
+	 * For now just make sure the register writes happen as
+	 * quickly as possible to minimize the race window.
+	 */
+	local_irq_disable();
+
 	if (new_plane_state->uapi.visible) {
 		intel_plane_update_noarm(plane, crtc_state, new_plane_state);
 		intel_plane_update_arm(plane, crtc_state, new_plane_state);
 	} else {
 		intel_plane_disable_arm(plane, crtc_state);
 	}
+
+	local_irq_enable();
 
 	intel_plane_unpin_fb(old_plane_state);
 

@@ -50,9 +50,6 @@ void flush_instruction_cache_local(void); /* flushes local code-cache only */
  */
 DEFINE_SPINLOCK(pa_tlb_flush_lock);
 
-/* Swapper page setup lock. */
-DEFINE_SPINLOCK(pa_swapper_pg_lock);
-
 #if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
 int pa_serialize_tlb_flushes __ro_after_init;
 #endif
@@ -549,7 +546,7 @@ extern void purge_kernel_dcache_page_asm(unsigned long);
 extern void clear_user_page_asm(void *, unsigned long);
 extern void copy_user_page_asm(void *, void *, unsigned long);
 
-void flush_kernel_dcache_page_addr(void *addr)
+void flush_kernel_dcache_page_addr(const void *addr)
 {
 	unsigned long flags;
 
@@ -660,15 +657,20 @@ static inline unsigned long mm_total_size(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
 	unsigned long usize = 0;
+	VMA_ITERATOR(vmi, mm, 0);
 
-	for (vma = mm->mmap; vma && usize < parisc_cache_flush_threshold; vma = vma->vm_next)
+	for_each_vma(vmi, vma) {
+		if (usize >= parisc_cache_flush_threshold)
+			break;
 		usize += vma->vm_end - vma->vm_start;
+	}
 	return usize;
 }
 
 void flush_cache_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
+	VMA_ITERATOR(vmi, mm, 0);
 
 	/*
 	 * Flushing the whole cache on each cpu takes forever on
@@ -688,7 +690,7 @@ void flush_cache_mm(struct mm_struct *mm)
 	}
 
 	/* Flush mm */
-	for (vma = mm->mmap; vma; vma = vma->vm_next)
+	for_each_vma(vmi, vma)
 		flush_cache_pages(vma, vma->vm_start, vma->vm_end);
 }
 
@@ -722,7 +724,10 @@ void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned lon
 		return;
 
 	if (parisc_requires_coherency()) {
-		flush_user_cache_page(vma, vmaddr);
+		if (vma->vm_flags & VM_SHARED)
+			flush_data_cache();
+		else
+			flush_user_cache_page(vma, vmaddr);
 		return;
 	}
 
@@ -753,6 +758,9 @@ void invalidate_kernel_vmap_range(void *vaddr, int size)
 {
 	unsigned long start = (unsigned long)vaddr;
 	unsigned long end = start + size;
+
+	/* Ensure DMA is complete */
+	asm_syncdma();
 
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    (unsigned long)size >= parisc_cache_flush_threshold) {

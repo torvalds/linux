@@ -199,7 +199,7 @@ static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
 	"renesas,r8a7792",
 	"renesas,r8a7793",
 	"renesas,r8a7794",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(RCAR_GEN2_DT, "Generic R-Car Gen2 (Flattened Device Tree)")
@@ -215,7 +215,7 @@ static const char * const rz_g1_boards_compat_dt[] __initconst = {
 	"renesas,r8a7744",
 	"renesas,r8a7745",
 	"renesas,r8a77470",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(RZ_G1_DT, "Generic RZ/G1 (Flattened Device Tree)")

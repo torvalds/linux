@@ -12,15 +12,16 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include "core.h"
@@ -135,9 +136,32 @@ struct ingenic_pinctrl {
 struct ingenic_gpio_chip {
 	struct ingenic_pinctrl *jzpc;
 	struct gpio_chip gc;
-	struct irq_chip irq_chip;
 	unsigned int irq, reg_base;
 };
+
+static const unsigned long enabled_socs =
+	IS_ENABLED(CONFIG_MACH_JZ4730) << ID_JZ4730 |
+	IS_ENABLED(CONFIG_MACH_JZ4740) << ID_JZ4740 |
+	IS_ENABLED(CONFIG_MACH_JZ4725B) << ID_JZ4725B |
+	IS_ENABLED(CONFIG_MACH_JZ4750) << ID_JZ4750 |
+	IS_ENABLED(CONFIG_MACH_JZ4755) << ID_JZ4755 |
+	IS_ENABLED(CONFIG_MACH_JZ4760) << ID_JZ4760 |
+	IS_ENABLED(CONFIG_MACH_JZ4770) << ID_JZ4770 |
+	IS_ENABLED(CONFIG_MACH_JZ4775) << ID_JZ4775 |
+	IS_ENABLED(CONFIG_MACH_JZ4780) << ID_JZ4780 |
+	IS_ENABLED(CONFIG_MACH_X1000) << ID_X1000 |
+	IS_ENABLED(CONFIG_MACH_X1500) << ID_X1500 |
+	IS_ENABLED(CONFIG_MACH_X1830) << ID_X1830 |
+	IS_ENABLED(CONFIG_MACH_X2000) << ID_X2000 |
+	IS_ENABLED(CONFIG_MACH_X2100) << ID_X2100;
+
+static bool
+is_soc_or_above(const struct ingenic_pinctrl *jzpc, enum jz_version version)
+{
+	return (enabled_socs >> version) &&
+		(!(enabled_socs & GENMASK(version - 1, 0))
+		 || jzpc->info->version >= version);
+}
 
 static const u32 jz4730_pull_ups[4] = {
 	0x3fa3320f, 0xf200ffff, 0xffffffff, 0xffffffff,
@@ -643,7 +667,7 @@ static u8 jz4755_lcd_24bit_funcs[] = { 1, 1, 1, 1, 0, 0, };
 static const struct group_desc jz4755_groups[] = {
 	INGENIC_PIN_GROUP("uart0-data", jz4755_uart0_data, 0),
 	INGENIC_PIN_GROUP("uart0-hwflow", jz4755_uart0_hwflow, 0),
-	INGENIC_PIN_GROUP("uart1-data", jz4755_uart1_data, 0),
+	INGENIC_PIN_GROUP("uart1-data", jz4755_uart1_data, 1),
 	INGENIC_PIN_GROUP("uart2-data", jz4755_uart2_data, 1),
 	INGENIC_PIN_GROUP("ssi-dt-b", jz4755_ssi_dt_b, 0),
 	INGENIC_PIN_GROUP("ssi-dt-f", jz4755_ssi_dt_f, 0),
@@ -697,7 +721,7 @@ static const char *jz4755_ssi_groups[] = {
 	"ssi-ce1-b", "ssi-ce1-f",
 };
 static const char *jz4755_mmc0_groups[] = { "mmc0-1bit", "mmc0-4bit", };
-static const char *jz4755_mmc1_groups[] = { "mmc0-1bit", "mmc0-4bit", };
+static const char *jz4755_mmc1_groups[] = { "mmc1-1bit", "mmc1-4bit", };
 static const char *jz4755_i2c_groups[] = { "i2c-data", };
 static const char *jz4755_cim_groups[] = { "cim-data", };
 static const char *jz4755_lcd_groups[] = {
@@ -3242,7 +3266,7 @@ static u32 ingenic_gpio_read_reg(struct ingenic_gpio_chip *jzgc, u8 reg)
 static void ingenic_gpio_set_bit(struct ingenic_gpio_chip *jzgc,
 		u8 reg, u8 offset, bool set)
 {
-	if (jzgc->jzpc->info->version == ID_JZ4730) {
+	if (!is_soc_or_above(jzgc->jzpc, ID_JZ4740)) {
 		regmap_update_bits(jzgc->jzpc->map, jzgc->reg_base + reg,
 				BIT(offset), set ? BIT(offset) : 0);
 		return;
@@ -3300,9 +3324,9 @@ static inline bool ingenic_gpio_get_value(struct ingenic_gpio_chip *jzgc,
 static void ingenic_gpio_set_value(struct ingenic_gpio_chip *jzgc,
 				   u8 offset, int value)
 {
-	if (jzgc->jzpc->info->version >= ID_JZ4770)
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770))
 		ingenic_gpio_set_bit(jzgc, JZ4770_GPIO_PAT0, offset, !!value);
-	else if (jzgc->jzpc->info->version >= ID_JZ4740)
+	else if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, JZ4740_GPIO_DATA, offset, !!value);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_DATA, offset, !!value);
@@ -3337,10 +3361,10 @@ static void irq_set_type(struct ingenic_gpio_chip *jzgc,
 		break;
 	}
 
-	if (jzgc->jzpc->info->version >= ID_JZ4770) {
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770)) {
 		reg1 = JZ4770_GPIO_PAT1;
 		reg2 = JZ4770_GPIO_PAT0;
-	} else if (jzgc->jzpc->info->version >= ID_JZ4740) {
+	} else if (is_soc_or_above(jzgc->jzpc, ID_JZ4740)) {
 		reg1 = JZ4740_GPIO_TRIG;
 		reg2 = JZ4740_GPIO_DIR;
 	} else {
@@ -3350,12 +3374,12 @@ static void irq_set_type(struct ingenic_gpio_chip *jzgc,
 		return;
 	}
 
-	if (jzgc->jzpc->info->version >= ID_X2000) {
+	if (is_soc_or_above(jzgc->jzpc, ID_X2000)) {
 		ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, val1);
 		ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, val2);
 		ingenic_gpio_shadow_set_bit_load(jzgc);
 		ingenic_gpio_set_bit(jzgc, X2000_GPIO_EDG, offset, val3);
-	} else if (jzgc->jzpc->info->version >= ID_X1000) {
+	} else if (is_soc_or_above(jzgc->jzpc, ID_X1000)) {
 		ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, val1);
 		ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, val2);
 		ingenic_gpio_shadow_set_bit_load(jzgc);
@@ -3369,9 +3393,9 @@ static void ingenic_gpio_irq_mask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
-	if (jzgc->jzpc->info->version >= ID_JZ4740)
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, GPIO_MSK, irq, true);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_GPIMR, irq, true);
@@ -3381,9 +3405,9 @@ static void ingenic_gpio_irq_unmask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
-	if (jzgc->jzpc->info->version >= ID_JZ4740)
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, GPIO_MSK, irq, false);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_GPIMR, irq, false);
@@ -3393,11 +3417,13 @@ static void ingenic_gpio_irq_enable(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
-	if (jzgc->jzpc->info->version >= ID_JZ4770)
+	gpiochip_enable_irq(gc, irq);
+
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770))
 		ingenic_gpio_set_bit(jzgc, JZ4770_GPIO_INT, irq, true);
-	else if (jzgc->jzpc->info->version >= ID_JZ4740)
+	else if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, JZ4740_GPIO_SELECT, irq, true);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_GPIER, irq, true);
@@ -3409,27 +3435,29 @@ static void ingenic_gpio_irq_disable(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	ingenic_gpio_irq_mask(irqd);
 
-	if (jzgc->jzpc->info->version >= ID_JZ4770)
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770))
 		ingenic_gpio_set_bit(jzgc, JZ4770_GPIO_INT, irq, false);
-	else if (jzgc->jzpc->info->version >= ID_JZ4740)
+	else if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, JZ4740_GPIO_SELECT, irq, false);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_GPIER, irq, false);
+
+	gpiochip_disable_irq(gc, irq);
 }
 
 static void ingenic_gpio_irq_ack(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 	bool high;
 
 	if ((irqd_get_trigger_type(irqd) == IRQ_TYPE_EDGE_BOTH) &&
-		(jzgc->jzpc->info->version < ID_X2000)) {
+	    !is_soc_or_above(jzgc->jzpc, ID_X2000)) {
 		/*
 		 * Switch to an interrupt for the opposite edge to the one that
 		 * triggered the interrupt being ACKed.
@@ -3441,9 +3469,9 @@ static void ingenic_gpio_irq_ack(struct irq_data *irqd)
 			irq_set_type(jzgc, irq, IRQ_TYPE_LEVEL_HIGH);
 	}
 
-	if (jzgc->jzpc->info->version >= ID_JZ4770)
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770))
 		ingenic_gpio_set_bit(jzgc, JZ4770_GPIO_FLAG, irq, false);
-	else if (jzgc->jzpc->info->version >= ID_JZ4740)
+	else if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, JZ4740_GPIO_DATA, irq, true);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_GPFR, irq, false);
@@ -3453,6 +3481,7 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
@@ -3468,18 +3497,18 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		irq_set_handler_locked(irqd, handle_bad_irq);
 	}
 
-	if ((type == IRQ_TYPE_EDGE_BOTH) && (jzgc->jzpc->info->version < ID_X2000)) {
+	if ((type == IRQ_TYPE_EDGE_BOTH) && !is_soc_or_above(jzgc->jzpc, ID_X2000)) {
 		/*
 		 * The hardware does not support interrupts on both edges. The
 		 * best we can do is to set up a single-edge interrupt and then
 		 * switch to the opposing edge when ACKing the interrupt.
 		 */
-		bool high = ingenic_gpio_get_value(jzgc, irqd->hwirq);
+		bool high = ingenic_gpio_get_value(jzgc, irq);
 
 		type = high ? IRQ_TYPE_LEVEL_LOW : IRQ_TYPE_LEVEL_HIGH;
 	}
 
-	irq_set_type(jzgc, irqd->hwirq, type);
+	irq_set_type(jzgc, irq, type);
 	return 0;
 }
 
@@ -3500,9 +3529,9 @@ static void ingenic_gpio_irq_handler(struct irq_desc *desc)
 
 	chained_irq_enter(irq_chip, desc);
 
-	if (jzgc->jzpc->info->version >= ID_JZ4770)
+	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770))
 		flag = ingenic_gpio_read_reg(jzgc, JZ4770_GPIO_FLAG);
-	else if (jzgc->jzpc->info->version >= ID_JZ4740)
+	else if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		flag = ingenic_gpio_read_reg(jzgc, JZ4740_GPIO_FLAG);
 	else
 		flag = ingenic_gpio_read_reg(jzgc, JZ4730_GPIO_GPFR);
@@ -3547,14 +3576,14 @@ static inline void ingenic_config_pin(struct ingenic_pinctrl *jzpc,
 	unsigned int offt = pin / PINS_PER_GPIO_CHIP;
 
 	if (set) {
-		if (jzpc->info->version >= ID_JZ4740)
+		if (is_soc_or_above(jzpc, ID_JZ4740))
 			regmap_write(jzpc->map, offt * jzpc->info->reg_offset +
 					REG_SET(reg), BIT(idx));
 		else
 			regmap_set_bits(jzpc->map, offt * jzpc->info->reg_offset +
 					reg, BIT(idx));
 	} else {
-		if (jzpc->info->version >= ID_JZ4740)
+		if (is_soc_or_above(jzpc, ID_JZ4740))
 			regmap_write(jzpc->map, offt * jzpc->info->reg_offset +
 					REG_CLEAR(reg), BIT(idx));
 		else
@@ -3613,12 +3642,12 @@ static int ingenic_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	struct ingenic_pinctrl *jzpc = jzgc->jzpc;
 	unsigned int pin = gc->base + offset;
 
-	if (jzpc->info->version >= ID_JZ4770) {
+	if (is_soc_or_above(jzpc, ID_JZ4770)) {
 		if (ingenic_get_pin_config(jzpc, pin, JZ4770_GPIO_INT) ||
 		    ingenic_get_pin_config(jzpc, pin, JZ4770_GPIO_PAT1))
 			return GPIO_LINE_DIRECTION_IN;
 		return GPIO_LINE_DIRECTION_OUT;
-	} else if (jzpc->info->version == ID_JZ4730) {
+	} else if (!is_soc_or_above(jzpc, ID_JZ4740)) {
 		if (!ingenic_get_pin_config(jzpc, pin, JZ4730_GPIO_GPDIR))
 			return GPIO_LINE_DIRECTION_IN;
 		return GPIO_LINE_DIRECTION_OUT;
@@ -3644,21 +3673,44 @@ static const struct pinctrl_ops ingenic_pctlops = {
 static int ingenic_gpio_irq_request(struct irq_data *data)
 {
 	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t irq = irqd_to_hwirq(data);
 	int ret;
 
-	ret = ingenic_gpio_direction_input(gpio_chip, data->hwirq);
+	ret = ingenic_gpio_direction_input(gpio_chip, irq);
 	if (ret)
 		return ret;
 
-	return gpiochip_reqres_irq(gpio_chip, data->hwirq);
+	return gpiochip_reqres_irq(gpio_chip, irq);
 }
 
 static void ingenic_gpio_irq_release(struct irq_data *data)
 {
 	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t irq = irqd_to_hwirq(data);
 
-	return gpiochip_relres_irq(gpio_chip, data->hwirq);
+	return gpiochip_relres_irq(gpio_chip, irq);
 }
+
+static void ingenic_gpio_irq_print_chip(struct irq_data *data, struct seq_file *p)
+{
+	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+
+	seq_printf(p, "%s", gpio_chip->label);
+}
+
+static const struct irq_chip ingenic_gpio_irqchip = {
+	.irq_enable		= ingenic_gpio_irq_enable,
+	.irq_disable		= ingenic_gpio_irq_disable,
+	.irq_unmask		= ingenic_gpio_irq_unmask,
+	.irq_mask		= ingenic_gpio_irq_mask,
+	.irq_ack		= ingenic_gpio_irq_ack,
+	.irq_set_type		= ingenic_gpio_irq_set_type,
+	.irq_set_wake		= ingenic_gpio_irq_set_wake,
+	.irq_request_resources	= ingenic_gpio_irq_request,
+	.irq_release_resources	= ingenic_gpio_irq_release,
+	.irq_print_chip		= ingenic_gpio_irq_print_chip,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_IMMUTABLE,
+};
 
 static int ingenic_pinmux_set_pin_fn(struct ingenic_pinctrl *jzpc,
 		int pin, int func)
@@ -3669,18 +3721,18 @@ static int ingenic_pinmux_set_pin_fn(struct ingenic_pinctrl *jzpc,
 	dev_dbg(jzpc->dev, "set pin P%c%u to function %u\n",
 			'A' + offt, idx, func);
 
-	if (jzpc->info->version >= ID_X1000) {
+	if (is_soc_or_above(jzpc, ID_X1000)) {
 		ingenic_shadow_config_pin(jzpc, pin, JZ4770_GPIO_INT, false);
 		ingenic_shadow_config_pin(jzpc, pin, GPIO_MSK, false);
 		ingenic_shadow_config_pin(jzpc, pin, JZ4770_GPIO_PAT1, func & 0x2);
 		ingenic_shadow_config_pin(jzpc, pin, JZ4770_GPIO_PAT0, func & 0x1);
 		ingenic_shadow_config_pin_load(jzpc, pin);
-	} else if (jzpc->info->version >= ID_JZ4770) {
+	} else if (is_soc_or_above(jzpc, ID_JZ4770)) {
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_INT, false);
 		ingenic_config_pin(jzpc, pin, GPIO_MSK, false);
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_PAT1, func & 0x2);
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_PAT0, func & 0x1);
-	} else if (jzpc->info->version >= ID_JZ4740) {
+	} else if (is_soc_or_above(jzpc, ID_JZ4740)) {
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_FUNC, true);
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_TRIG, func & 0x2);
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_SELECT, func & 0x1);
@@ -3738,16 +3790,16 @@ static int ingenic_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	dev_dbg(pctldev->dev, "set pin P%c%u to %sput\n",
 			'A' + offt, idx, input ? "in" : "out");
 
-	if (jzpc->info->version >= ID_X1000) {
+	if (is_soc_or_above(jzpc, ID_X1000)) {
 		ingenic_shadow_config_pin(jzpc, pin, JZ4770_GPIO_INT, false);
 		ingenic_shadow_config_pin(jzpc, pin, GPIO_MSK, true);
 		ingenic_shadow_config_pin(jzpc, pin, JZ4770_GPIO_PAT1, input);
 		ingenic_shadow_config_pin_load(jzpc, pin);
-	} else if (jzpc->info->version >= ID_JZ4770) {
+	} else if (is_soc_or_above(jzpc, ID_JZ4770)) {
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_INT, false);
 		ingenic_config_pin(jzpc, pin, GPIO_MSK, true);
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_PAT1, input);
-	} else if (jzpc->info->version >= ID_JZ4740) {
+	} else if (is_soc_or_above(jzpc, ID_JZ4740)) {
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_SELECT, false);
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_DIR, !input);
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_FUNC, false);
@@ -3779,7 +3831,7 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 	unsigned int bias, reg;
 	bool pull, pullup, pulldown;
 
-	if (jzpc->info->version >= ID_X2000) {
+	if (is_soc_or_above(jzpc, ID_X2000)) {
 		pullup = ingenic_get_pin_config(jzpc, pin, X2000_GPIO_PEPU) &&
 				!ingenic_get_pin_config(jzpc, pin, X2000_GPIO_PEPD) &&
 				(jzpc->info->pull_ups[offt] & BIT(idx));
@@ -3787,7 +3839,7 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 				!ingenic_get_pin_config(jzpc, pin, X2000_GPIO_PEPU) &&
 				(jzpc->info->pull_downs[offt] & BIT(idx));
 
-	} else if (jzpc->info->version >= ID_X1830) {
+	} else if (is_soc_or_above(jzpc, ID_X1830)) {
 		unsigned int half = PINS_PER_GPIO_CHIP / 2;
 		unsigned int idxh = (pin % half) * 2;
 
@@ -3804,9 +3856,9 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 		pulldown = (bias == GPIO_PULL_DOWN) && (jzpc->info->pull_downs[offt] & BIT(idx));
 
 	} else {
-		if (jzpc->info->version >= ID_JZ4770)
+		if (is_soc_or_above(jzpc, ID_JZ4770))
 			pull = !ingenic_get_pin_config(jzpc, pin, JZ4770_GPIO_PEN);
-		else if (jzpc->info->version >= ID_JZ4740)
+		else if (is_soc_or_above(jzpc, ID_JZ4740))
 			pull = !ingenic_get_pin_config(jzpc, pin, JZ4740_GPIO_PULL_DIS);
 		else
 			pull = ingenic_get_pin_config(jzpc, pin, JZ4730_GPIO_GPPUR);
@@ -3835,9 +3887,9 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-		if (jzpc->info->version >= ID_X2000)
+		if (is_soc_or_above(jzpc, ID_X2000))
 			reg = X2000_GPIO_SMT;
-		else if (jzpc->info->version >= ID_X1830)
+		else if (is_soc_or_above(jzpc, ID_X1830))
 			reg = X1830_GPIO_SMT;
 		else
 			return -EINVAL;
@@ -3846,9 +3898,9 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	case PIN_CONFIG_SLEW_RATE:
-		if (jzpc->info->version >= ID_X2000)
+		if (is_soc_or_above(jzpc, ID_X2000))
 			reg = X2000_GPIO_SR;
-		else if (jzpc->info->version >= ID_X1830)
+		else if (is_soc_or_above(jzpc, ID_X1830))
 			reg = X1830_GPIO_SR;
 		else
 			return -EINVAL;
@@ -3867,7 +3919,7 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 static void ingenic_set_bias(struct ingenic_pinctrl *jzpc,
 		unsigned int pin, unsigned int bias)
 {
-	if (jzpc->info->version >= ID_X2000) {
+	if (is_soc_or_above(jzpc, ID_X2000)) {
 		switch (bias) {
 		case GPIO_PULL_UP:
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPD, false);
@@ -3885,7 +3937,7 @@ static void ingenic_set_bias(struct ingenic_pinctrl *jzpc,
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPD, false);
 		}
 
-	} else if (jzpc->info->version >= ID_X1830) {
+	} else if (is_soc_or_above(jzpc, ID_X1830)) {
 		unsigned int idx = pin % PINS_PER_GPIO_CHIP;
 		unsigned int half = PINS_PER_GPIO_CHIP / 2;
 		unsigned int idxh = (pin % half) * 2;
@@ -3903,9 +3955,9 @@ static void ingenic_set_bias(struct ingenic_pinctrl *jzpc,
 					REG_SET(X1830_GPIO_PEH), bias << idxh);
 		}
 
-	} else if (jzpc->info->version >= ID_JZ4770) {
+	} else if (is_soc_or_above(jzpc, ID_JZ4770)) {
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_PEN, !bias);
-	} else if (jzpc->info->version >= ID_JZ4740) {
+	} else if (is_soc_or_above(jzpc, ID_JZ4740)) {
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_PULL_DIS, !bias);
 	} else {
 		ingenic_config_pin(jzpc, pin, JZ4730_GPIO_GPPUR, bias);
@@ -3915,7 +3967,7 @@ static void ingenic_set_bias(struct ingenic_pinctrl *jzpc,
 static void ingenic_set_schmitt_trigger(struct ingenic_pinctrl *jzpc,
 		unsigned int pin, bool enable)
 {
-	if (jzpc->info->version >= ID_X2000)
+	if (is_soc_or_above(jzpc, ID_X2000))
 		ingenic_config_pin(jzpc, pin, X2000_GPIO_SMT, enable);
 	else
 		ingenic_config_pin(jzpc, pin, X1830_GPIO_SMT, enable);
@@ -3924,9 +3976,9 @@ static void ingenic_set_schmitt_trigger(struct ingenic_pinctrl *jzpc,
 static void ingenic_set_output_level(struct ingenic_pinctrl *jzpc,
 				     unsigned int pin, bool high)
 {
-	if (jzpc->info->version >= ID_JZ4770)
+	if (is_soc_or_above(jzpc, ID_JZ4770))
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_PAT0, high);
-	else if (jzpc->info->version >= ID_JZ4740)
+	else if (is_soc_or_above(jzpc, ID_JZ4740))
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_DATA, high);
 	else
 		ingenic_config_pin(jzpc, pin, JZ4730_GPIO_DATA, high);
@@ -3935,7 +3987,7 @@ static void ingenic_set_output_level(struct ingenic_pinctrl *jzpc,
 static void ingenic_set_slew_rate(struct ingenic_pinctrl *jzpc,
 		unsigned int pin, unsigned int slew)
 {
-	if (jzpc->info->version >= ID_X2000)
+	if (is_soc_or_above(jzpc, ID_X2000))
 		ingenic_config_pin(jzpc, pin, X2000_GPIO_SR, slew);
 	else
 		ingenic_config_pin(jzpc, pin, X1830_GPIO_SR, slew);
@@ -3991,7 +4043,7 @@ static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-			if (jzpc->info->version < ID_X1830)
+			if (!is_soc_or_above(jzpc, ID_X1830))
 				return -EINVAL;
 
 			ingenic_set_schmitt_trigger(jzpc, pin, arg);
@@ -4006,7 +4058,7 @@ static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		case PIN_CONFIG_SLEW_RATE:
-			if (jzpc->info->version < ID_X1830)
+			if (!is_soc_or_above(jzpc, ID_X1830))
 				return -EINVAL;
 
 			ingenic_set_slew_rate(jzpc, pin, arg);
@@ -4100,7 +4152,7 @@ static const struct of_device_id ingenic_gpio_of_matches[] __initconst = {
 };
 
 static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
-				     struct device_node *node)
+				     struct fwnode_handle *fwnode)
 {
 	struct ingenic_gpio_chip *jzgc;
 	struct device *dev = jzpc->dev;
@@ -4108,7 +4160,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	unsigned int bank;
 	int err;
 
-	err = of_property_read_u32(node, "reg", &bank);
+	err = fwnode_property_read_u32(fwnode, "reg", &bank);
 	if (err) {
 		dev_err(dev, "Cannot read \"reg\" property: %i\n", err);
 		return err;
@@ -4133,7 +4185,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 
 	jzgc->gc.ngpio = 32;
 	jzgc->gc.parent = dev;
-	jzgc->gc.of_node = node;
+	jzgc->gc.fwnode = fwnode;
 	jzgc->gc.owner = THIS_MODULE;
 
 	jzgc->gc.set = ingenic_gpio_set;
@@ -4144,24 +4196,15 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->gc.request = gpiochip_generic_request;
 	jzgc->gc.free = gpiochip_generic_free;
 
-	jzgc->irq = irq_of_parse_and_map(node, 0);
-	if (!jzgc->irq)
+	err = fwnode_irq_get(fwnode, 0);
+	if (err < 0)
+		return err;
+	if (!err)
 		return -EINVAL;
-
-	jzgc->irq_chip.name = jzgc->gc.label;
-	jzgc->irq_chip.irq_enable = ingenic_gpio_irq_enable;
-	jzgc->irq_chip.irq_disable = ingenic_gpio_irq_disable;
-	jzgc->irq_chip.irq_unmask = ingenic_gpio_irq_unmask;
-	jzgc->irq_chip.irq_mask = ingenic_gpio_irq_mask;
-	jzgc->irq_chip.irq_ack = ingenic_gpio_irq_ack;
-	jzgc->irq_chip.irq_set_type = ingenic_gpio_irq_set_type;
-	jzgc->irq_chip.irq_set_wake = ingenic_gpio_irq_set_wake;
-	jzgc->irq_chip.irq_request_resources = ingenic_gpio_irq_request;
-	jzgc->irq_chip.irq_release_resources = ingenic_gpio_irq_release;
-	jzgc->irq_chip.flags = IRQCHIP_MASK_ON_SUSPEND;
+	jzgc->irq = err;
 
 	girq = &jzgc->gc.irq;
-	girq->chip = &jzgc->irq_chip;
+	gpio_irq_chip_set_chip(girq, &ingenic_gpio_irqchip);
 	girq->parent_handler = ingenic_gpio_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
@@ -4187,12 +4230,12 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl_desc;
 	void __iomem *base;
 	const struct ingenic_chip_info *chip_info;
-	struct device_node *node;
 	struct regmap_config regmap_config;
+	struct fwnode_handle *fwnode;
 	unsigned int i;
 	int err;
 
-	chip_info = of_device_get_match_data(dev);
+	chip_info = device_get_match_data(dev);
 	if (!chip_info) {
 		dev_err(dev, "Unsupported SoC\n");
 		return -EINVAL;
@@ -4279,11 +4322,11 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, jzpc->map);
 
-	for_each_child_of_node(dev->of_node, node) {
-		if (of_match_node(ingenic_gpio_of_matches, node)) {
-			err = ingenic_gpio_probe(jzpc, node);
+	device_for_each_child_node(dev, fwnode) {
+		if (of_match_node(ingenic_gpio_of_matches, to_of_node(fwnode))) {
+			err = ingenic_gpio_probe(jzpc, fwnode);
 			if (err) {
-				of_node_put(node);
+				fwnode_handle_put(fwnode);
 				return err;
 			}
 		}

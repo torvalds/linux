@@ -70,8 +70,19 @@
 
 #define TXn_TRAN_DRVR_EMP_EN                    0x0078
 
+struct qcom_edp_cfg {
+	bool is_dp;
+
+	/* DP PHY swing and pre_emphasis tables */
+	const u8 (*swing_hbr_rbr)[4][4];
+	const u8 (*swing_hbr3_hbr2)[4][4];
+	const u8 (*pre_emphasis_hbr_rbr)[4][4];
+	const u8 (*pre_emphasis_hbr3_hbr2)[4][4];
+};
+
 struct qcom_edp {
 	struct device *dev;
+	const struct qcom_edp_cfg *cfg;
 
 	struct phy *phy;
 
@@ -89,10 +100,84 @@ struct qcom_edp {
 	struct regulator_bulk_data supplies[2];
 };
 
+static const u8 dp_swing_hbr_rbr[4][4] = {
+	{ 0x08, 0x0f, 0x16, 0x1f },
+	{ 0x11, 0x1e, 0x1f, 0xff },
+	{ 0x16, 0x1f, 0xff, 0xff },
+	{ 0x1f, 0xff, 0xff, 0xff }
+};
+
+static const u8 dp_pre_emp_hbr_rbr[4][4] = {
+	{ 0x00, 0x0d, 0x14, 0x1a },
+	{ 0x00, 0x0e, 0x15, 0xff },
+	{ 0x00, 0x0e, 0xff, 0xff },
+	{ 0x03, 0xff, 0xff, 0xff }
+};
+
+static const u8 dp_swing_hbr2_hbr3[4][4] = {
+	{ 0x02, 0x12, 0x16, 0x1a },
+	{ 0x09, 0x19, 0x1f, 0xff },
+	{ 0x10, 0x1f, 0xff, 0xff },
+	{ 0x1f, 0xff, 0xff, 0xff }
+};
+
+static const u8 dp_pre_emp_hbr2_hbr3[4][4] = {
+	{ 0x00, 0x0c, 0x15, 0x1b },
+	{ 0x02, 0x0e, 0x16, 0xff },
+	{ 0x02, 0x11, 0xff, 0xff },
+	{ 0x04, 0xff, 0xff, 0xff }
+};
+
+static const struct qcom_edp_cfg dp_phy_cfg = {
+	.is_dp = true,
+	.swing_hbr_rbr = &dp_swing_hbr_rbr,
+	.swing_hbr3_hbr2 = &dp_swing_hbr2_hbr3,
+	.pre_emphasis_hbr_rbr = &dp_pre_emp_hbr_rbr,
+	.pre_emphasis_hbr3_hbr2 = &dp_pre_emp_hbr2_hbr3,
+};
+
+static const u8 edp_swing_hbr_rbr[4][4] = {
+	{ 0x07, 0x0f, 0x16, 0x1f },
+	{ 0x0d, 0x16, 0x1e, 0xff },
+	{ 0x11, 0x1b, 0xff, 0xff },
+	{ 0x16, 0xff, 0xff, 0xff }
+};
+
+static const u8 edp_pre_emp_hbr_rbr[4][4] = {
+	{ 0x05, 0x12, 0x17, 0x1d },
+	{ 0x05, 0x11, 0x18, 0xff },
+	{ 0x06, 0x11, 0xff, 0xff },
+	{ 0x00, 0xff, 0xff, 0xff }
+};
+
+static const u8 edp_swing_hbr2_hbr3[4][4] = {
+	{ 0x0b, 0x11, 0x17, 0x1c },
+	{ 0x10, 0x19, 0x1f, 0xff },
+	{ 0x19, 0x1f, 0xff, 0xff },
+	{ 0x1f, 0xff, 0xff, 0xff }
+};
+
+static const u8 edp_pre_emp_hbr2_hbr3[4][4] = {
+	{ 0x08, 0x11, 0x17, 0x1b },
+	{ 0x00, 0x0c, 0x13, 0xff },
+	{ 0x05, 0x10, 0xff, 0xff },
+	{ 0x00, 0xff, 0xff, 0xff }
+};
+
+static const struct qcom_edp_cfg edp_phy_cfg = {
+	.is_dp = false,
+	.swing_hbr_rbr = &edp_swing_hbr_rbr,
+	.swing_hbr3_hbr2 = &edp_swing_hbr2_hbr3,
+	.pre_emphasis_hbr_rbr = &edp_pre_emp_hbr_rbr,
+	.pre_emphasis_hbr3_hbr2 = &edp_pre_emp_hbr2_hbr3,
+};
+
 static int qcom_edp_phy_init(struct phy *phy)
 {
 	struct qcom_edp *edp = phy_get_drvdata(phy);
+	const struct qcom_edp_cfg *cfg = edp->cfg;
 	int ret;
+	u8 cfg8;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(edp->supplies), edp->supplies);
 	if (ret)
@@ -117,6 +202,13 @@ static int qcom_edp_phy_init(struct phy *phy)
 	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
 	       edp->edp + DP_PHY_PD_CTL);
 
+	if (cfg && cfg->is_dp)
+		cfg8 = 0xb7;
+	else
+		cfg8 = 0x37;
+
+	writel(0xfc, edp->edp + DP_PHY_MODE);
+
 	writel(0x00, edp->edp + DP_PHY_AUX_CFG0);
 	writel(0x13, edp->edp + DP_PHY_AUX_CFG1);
 	writel(0x24, edp->edp + DP_PHY_AUX_CFG2);
@@ -125,7 +217,7 @@ static int qcom_edp_phy_init(struct phy *phy)
 	writel(0x26, edp->edp + DP_PHY_AUX_CFG5);
 	writel(0x0a, edp->edp + DP_PHY_AUX_CFG6);
 	writel(0x03, edp->edp + DP_PHY_AUX_CFG7);
-	writel(0x37, edp->edp + DP_PHY_AUX_CFG8);
+	writel(cfg8, edp->edp + DP_PHY_AUX_CFG8);
 	writel(0x03, edp->edp + DP_PHY_AUX_CFG9);
 
 	writel(PHY_AUX_STOP_ERR_MASK | PHY_AUX_DEC_ERR_MASK |
@@ -142,14 +234,60 @@ out_disable_supplies:
 	return ret;
 }
 
+static int qcom_edp_set_voltages(struct qcom_edp *edp, const struct phy_configure_opts_dp *dp_opts)
+{
+	const struct qcom_edp_cfg *cfg = edp->cfg;
+	unsigned int v_level = 0;
+	unsigned int p_level = 0;
+	u8 ldo_config;
+	u8 swing;
+	u8 emph;
+	int i;
+
+	if (!cfg)
+		return 0;
+
+	for (i = 0; i < dp_opts->lanes; i++) {
+		v_level = max(v_level, dp_opts->voltage[i]);
+		p_level = max(p_level, dp_opts->pre[i]);
+	}
+
+	if (dp_opts->link_rate <= 2700) {
+		swing = (*cfg->swing_hbr_rbr)[v_level][p_level];
+		emph = (*cfg->pre_emphasis_hbr_rbr)[v_level][p_level];
+	} else {
+		swing = (*cfg->swing_hbr3_hbr2)[v_level][p_level];
+		emph = (*cfg->pre_emphasis_hbr3_hbr2)[v_level][p_level];
+	}
+
+	if (swing == 0xff || emph == 0xff)
+		return -EINVAL;
+
+	ldo_config = (cfg && cfg->is_dp) ? 0x1 : 0x0;
+
+	writel(ldo_config, edp->tx0 + TXn_LDO_CONFIG);
+	writel(swing, edp->tx0 + TXn_TX_DRV_LVL);
+	writel(emph, edp->tx0 + TXn_TX_EMP_POST1_LVL);
+
+	writel(ldo_config, edp->tx1 + TXn_LDO_CONFIG);
+	writel(swing, edp->tx1 + TXn_TX_DRV_LVL);
+	writel(emph, edp->tx1 + TXn_TX_EMP_POST1_LVL);
+
+	return 0;
+}
+
 static int qcom_edp_phy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
 	const struct phy_configure_opts_dp *dp_opts = &opts->dp;
 	struct qcom_edp *edp = phy_get_drvdata(phy);
+	int ret = 0;
 
 	memcpy(&edp->dp_opts, dp_opts, sizeof(*dp_opts));
 
-	return 0;
+	if (dp_opts->set_voltages)
+		ret = qcom_edp_set_voltages(edp, dp_opts);
+
+	return ret;
 }
 
 static int qcom_edp_configure_ssc(const struct qcom_edp *edp)
@@ -272,31 +410,30 @@ static int qcom_edp_configure_pll(const struct qcom_edp *edp)
 	return 0;
 }
 
-static int qcom_edp_set_vco_div(const struct qcom_edp *edp)
+static int qcom_edp_set_vco_div(const struct qcom_edp *edp, unsigned long *pixel_freq)
 {
 	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
-	unsigned long pixel_freq;
 	u32 vco_div;
 
 	switch (dp_opts->link_rate) {
 	case 1620:
 		vco_div = 0x1;
-		pixel_freq = 1620000000UL / 2;
+		*pixel_freq = 1620000000UL / 2;
 		break;
 
 	case 2700:
 		vco_div = 0x1;
-		pixel_freq = 2700000000UL / 2;
+		*pixel_freq = 2700000000UL / 2;
 		break;
 
 	case 5400:
 		vco_div = 0x2;
-		pixel_freq = 5400000000UL / 4;
+		*pixel_freq = 5400000000UL / 4;
 		break;
 
 	case 8100:
 		vco_div = 0x0;
-		pixel_freq = 8100000000UL / 6;
+		*pixel_freq = 8100000000UL / 6;
 		break;
 
 	default:
@@ -306,18 +443,20 @@ static int qcom_edp_set_vco_div(const struct qcom_edp *edp)
 
 	writel(vco_div, edp->edp + DP_PHY_VCO_DIV);
 
-	clk_set_rate(edp->dp_link_hw.clk, dp_opts->link_rate * 100000);
-	clk_set_rate(edp->dp_pixel_hw.clk, pixel_freq);
-
 	return 0;
 }
 
 static int qcom_edp_phy_power_on(struct phy *phy)
 {
 	const struct qcom_edp *edp = phy_get_drvdata(phy);
+	const struct qcom_edp_cfg *cfg = edp->cfg;
+	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
+	unsigned long pixel_freq;
+	u8 ldo_config;
 	int timeout;
 	int ret;
 	u32 val;
+	u8 cfg1;
 
 	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
 	       DP_PHY_PD_CTL_LANE_0_1_PWRDN | DP_PHY_PD_CTL_LANE_2_3_PWRDN |
@@ -330,8 +469,11 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	if (timeout)
 		return timeout;
 
-	writel(0x01, edp->tx0 + TXn_LDO_CONFIG);
-	writel(0x01, edp->tx1 + TXn_LDO_CONFIG);
+
+	ldo_config = (cfg && cfg->is_dp) ? 0x1 : 0x0;
+
+	writel(ldo_config, edp->tx0 + TXn_LDO_CONFIG);
+	writel(ldo_config, edp->tx1 + TXn_LDO_CONFIG);
 	writel(0x00, edp->tx0 + TXn_LANE_MODE_1);
 	writel(0x00, edp->tx1 + TXn_LANE_MODE_1);
 
@@ -363,7 +505,7 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	writel(0x01, edp->tx1 + TXn_TRAN_DRVR_EMP_EN);
 	writel(0x04, edp->tx1 + TXn_TX_BAND);
 
-	ret = qcom_edp_set_vco_div(edp);
+	ret = qcom_edp_set_vco_div(edp, &pixel_freq);
 	if (ret)
 		return ret;
 
@@ -398,19 +540,46 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	writel(0x1f, edp->tx0 + TXn_TX_DRV_LVL);
 	writel(0x1f, edp->tx1 + TXn_TX_DRV_LVL);
 
-	writel(0x4, edp->tx0 + TXn_HIGHZ_DRVR_EN);
-	writel(0x3, edp->tx0 + TXn_TRANSCEIVER_BIAS_EN);
-	writel(0x4, edp->tx1 + TXn_HIGHZ_DRVR_EN);
-	writel(0x0, edp->tx1 + TXn_TRANSCEIVER_BIAS_EN);
-	writel(0x3, edp->edp + DP_PHY_CFG_1);
+	if (edp->dp_opts.lanes == 1) {
+		bias0_en = 0x01;
+		bias1_en = 0x00;
+		drvr0_en = 0x06;
+		drvr1_en = 0x07;
+		cfg1 = 0x1;
+	} else if (edp->dp_opts.lanes == 2) {
+		bias0_en = 0x03;
+		bias1_en = 0x00;
+		drvr0_en = 0x04;
+		drvr1_en = 0x07;
+		cfg1 = 0x3;
+	} else {
+		bias0_en = 0x03;
+		bias1_en = 0x03;
+		drvr0_en = 0x04;
+		drvr1_en = 0x04;
+		cfg1 = 0xf;
+	}
+
+	writel(drvr0_en, edp->tx0 + TXn_HIGHZ_DRVR_EN);
+	writel(bias0_en, edp->tx0 + TXn_TRANSCEIVER_BIAS_EN);
+	writel(drvr1_en, edp->tx1 + TXn_HIGHZ_DRVR_EN);
+	writel(bias1_en, edp->tx1 + TXn_TRANSCEIVER_BIAS_EN);
+	writel(cfg1, edp->edp + DP_PHY_CFG_1);
 
 	writel(0x18, edp->edp + DP_PHY_CFG);
 	usleep_range(100, 1000);
 
 	writel(0x19, edp->edp + DP_PHY_CFG);
 
-	return readl_poll_timeout(edp->edp + DP_PHY_STATUS,
-				  val, val & BIT(1), 500, 10000);
+	ret = readl_poll_timeout(edp->edp + DP_PHY_STATUS,
+				 val, val & BIT(1), 500, 10000);
+	if (ret)
+		return ret;
+
+	clk_set_rate(edp->dp_link_hw.clk, edp->dp_opts.link_rate * 100000);
+	clk_set_rate(edp->dp_pixel_hw.clk, pixel_freq);
+
+	return 0;
 }
 
 static int qcom_edp_phy_power_off(struct phy *phy)
@@ -571,21 +740,24 @@ static int qcom_edp_clks_register(struct qcom_edp *edp, struct device_node *np)
 {
 	struct clk_hw_onecell_data *data;
 	struct clk_init_data init = { };
+	char name[64];
 	int ret;
 
 	data = devm_kzalloc(edp->dev, struct_size(data, hws, 2), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	snprintf(name, sizeof(name), "%s::link_clk", dev_name(edp->dev));
 	init.ops = &qcom_edp_dp_link_clk_ops;
-	init.name = "edp_phy_pll_link_clk";
+	init.name = name;
 	edp->dp_link_hw.init = &init;
 	ret = devm_clk_hw_register(edp->dev, &edp->dp_link_hw);
 	if (ret)
 		return ret;
 
+	snprintf(name, sizeof(name), "%s::vco_div_clk", dev_name(edp->dev));
 	init.ops = &qcom_edp_dp_pixel_clk_ops;
-	init.name = "edp_phy_pll_vco_div_clk";
+	init.name = name;
 	edp->dp_pixel_hw.init = &init;
 	ret = devm_clk_hw_register(edp->dev, &edp->dp_pixel_hw);
 	if (ret)
@@ -610,6 +782,7 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	edp->dev = dev;
+	edp->cfg = of_device_get_match_data(&pdev->dev);
 
 	edp->edp = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(edp->edp))
@@ -639,6 +812,18 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = regulator_set_load(edp->supplies[0].consumer, 21800); /* 1.2 V vdda-phy */
+	if (ret) {
+		dev_err(dev, "failed to set load at %s\n", edp->supplies[0].supply);
+		return ret;
+	}
+
+	ret = regulator_set_load(edp->supplies[1].consumer, 36000); /* 0.9 V vdda-pll */
+	if (ret) {
+		dev_err(dev, "failed to set load at %s\n", edp->supplies[1].supply);
+		return ret;
+	}
+
 	ret = qcom_edp_clks_register(edp, pdev->dev.of_node);
 	if (ret)
 		return ret;
@@ -658,6 +843,8 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 static const struct of_device_id qcom_edp_phy_match_table[] = {
 	{ .compatible = "qcom,sc7280-edp-phy" },
 	{ .compatible = "qcom,sc8180x-edp-phy" },
+	{ .compatible = "qcom,sc8280xp-dp-phy", .data = &dp_phy_cfg },
+	{ .compatible = "qcom,sc8280xp-edp-phy", .data = &edp_phy_cfg },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_edp_phy_match_table);

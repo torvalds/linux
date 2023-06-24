@@ -80,7 +80,7 @@
  *
  * Note that the source rectangle must fully lie within the bounds of the
  * &drm_framebuffer. The destination rectangle can lie outside of the visible
- * area of the current mode of the CRTC. It must be apprpriately clipped by the
+ * area of the current mode of the CRTC. It must be appropriately clipped by the
  * driver, which can be done by calling drm_plane_helper_check_update(). Drivers
  * are also allowed to round the subpixel sampling positions appropriately, but
  * only to the next full pixel. No pixel outside of the source rectangle may
@@ -317,7 +317,7 @@ EXPORT_SYMBOL(drm_plane_create_rotation_property);
  *                       DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
  *                       DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_Y);
  *
- * to eliminate the DRM_MODE_ROTATE_X flag. Depending on what kind of
+ * to eliminate the DRM_MODE_REFLECT_X flag. Depending on what kind of
  * transforms the hardware supports, this function may not
  * be able to produce a supported transform, so the caller should
  * check the result afterwards.

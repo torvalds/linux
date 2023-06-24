@@ -132,7 +132,7 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
-	delayed_rsv->full = 0;
+	delayed_rsv->full = false;
 	spin_unlock(&delayed_rsv->lock);
 	trans->delayed_ref_updates = 0;
 }
@@ -175,7 +175,7 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 	if (num_bytes)
 		delayed_refs_rsv->reserved += num_bytes;
 	if (delayed_refs_rsv->reserved >= delayed_refs_rsv->size)
-		delayed_refs_rsv->full = 1;
+		delayed_refs_rsv->full = true;
 	spin_unlock(&delayed_refs_rsv->lock);
 
 	if (num_bytes)
@@ -930,7 +930,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	is_system = (generic_ref->tree_ref.owning_root == BTRFS_CHUNK_TREE_OBJECTID);
 
 	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
-	BUG_ON(extent_op && extent_op->is_data);
 	ref = kmem_cache_alloc(btrfs_delayed_tree_ref_cachep, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;
@@ -1103,8 +1102,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	init_delayed_ref_head(head_ref, NULL, bytenr, num_bytes, 0, 0,
-			      BTRFS_UPDATE_DELAYED_HEAD, extent_op->is_data,
-			      false);
+			      BTRFS_UPDATE_DELAYED_HEAD, false, false);
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;

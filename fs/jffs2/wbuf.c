@@ -1035,7 +1035,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 {
 	int i, ret;
 	int cmlen = min_t(int, c->oobavail, OOB_CM_SIZE);
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	ops.mode = MTD_OPS_AUTO_OOB;
 	ops.ooblen = NR_OOB_SCAN_PAGES * c->oobavail;
@@ -1076,7 +1076,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c,
 				 struct jffs2_eraseblock *jeb)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int ret, cmlen = min_t(int, c->oobavail, OOB_CM_SIZE);
 
 	ops.mode = MTD_OPS_AUTO_OOB;
@@ -1101,7 +1101,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 				 struct jffs2_eraseblock *jeb)
 {
 	int ret;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int cmlen = min_t(int, c->oobavail, OOB_CM_SIZE);
 
 	ops.mode = MTD_OPS_AUTO_OOB;

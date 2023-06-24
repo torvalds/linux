@@ -79,14 +79,13 @@ static void tcf_mirred_release(struct tc_action *a)
 
 	/* last reference to action, no need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
-	dev_put_track(dev, &m->tcfm_dev_tracker);
+	netdev_put(dev, &m->tcfm_dev_tracker);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 	[TCA_MIRRED_PARMS]	= { .len = sizeof(struct tc_mirred) },
 };
 
-static unsigned int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
@@ -94,7 +93,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct tcf_proto *tp,
 			   u32 flags, struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+	struct tc_action_net *tn = net_generic(net, act_mirred_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -181,7 +180,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		mac_header_xmit = dev_is_mac_header_xmit(ndev);
 		odev = rcu_replace_pointer(m->tcfm_dev, ndev,
 					  lockdep_is_held(&m->tcf_lock));
-		dev_put_track(odev, &m->tcfm_dev_tracker);
+		netdev_put(odev, &m->tcfm_dev_tracker);
 		netdev_tracker_alloc(ndev, &m->tcfm_dev_tracker, GFP_ATOMIC);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
@@ -306,8 +305,7 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 
 		/* let's the caller reinsert the packet, if possible */
 		if (use_reinsert) {
-			res->ingress = want_ingress;
-			err = tcf_mirred_forward(res->ingress, skb);
+			err = tcf_mirred_forward(want_ingress, skb);
 			if (err)
 				tcf_action_inc_overlimit_qstats(&m->common);
 			__this_cpu_dec(mirred_rec_level);
@@ -373,23 +371,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_mirred_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static int mirred_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
 {
@@ -402,7 +383,7 @@ static int mirred_device_event(struct notifier_block *unused,
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
 			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
-				dev_put_track(dev, &m->tcfm_dev_tracker);
+				netdev_put(dev, &m->tcfm_dev_tracker);
 				/* Note : no rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
@@ -460,7 +441,8 @@ static void tcf_offload_mirred_get_dev(struct flow_action_entry *entry,
 }
 
 static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
-					u32 *index_inc, bool bind)
+					u32 *index_inc, bool bind,
+					struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
@@ -478,6 +460,7 @@ static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
 			entry->id = FLOW_ACTION_MIRRED_INGRESS;
 			tcf_offload_mirred_get_dev(entry, act);
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported mirred offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;
@@ -508,8 +491,6 @@ static struct tc_action_ops act_mirred_ops = {
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_release,
 	.init		=	tcf_mirred_init,
-	.walk		=	tcf_mirred_walker,
-	.lookup		=	tcf_mirred_search,
 	.get_fill_size	=	tcf_mirred_get_fill_size,
 	.offload_act_setup =	tcf_mirred_offload_act_setup,
 	.size		=	sizeof(struct tcf_mirred),
@@ -518,20 +499,20 @@ static struct tc_action_ops act_mirred_ops = {
 
 static __net_init int mirred_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+	struct tc_action_net *tn = net_generic(net, act_mirred_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_mirred_ops);
 }
 
 static void __net_exit mirred_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, mirred_net_id);
+	tc_action_net_exit(net_list, act_mirred_ops.net_id);
 }
 
 static struct pernet_operations mirred_net_ops = {
 	.init = mirred_init_net,
 	.exit_batch = mirred_exit_net,
-	.id   = &mirred_net_id,
+	.id   = &act_mirred_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

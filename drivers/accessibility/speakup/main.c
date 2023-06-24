@@ -470,7 +470,7 @@ static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
 			c |= 0x100;
 		}
 
-		ch = inverse_translate(vc, c, 1);
+		ch = inverse_translate(vc, c, true);
 		*attribs = (w & 0xff00) >> 8;
 	}
 	return ch;
@@ -1778,7 +1778,7 @@ static void speakup_con_update(struct vc_data *vc)
 {
 	unsigned long flags;
 
-	if (!speakup_console[vc->vc_num] || spk_parked)
+	if (!speakup_console[vc->vc_num] || spk_parked || !synth)
 		return;
 	if (!spin_trylock_irqsave(&speakup_info.spinlock, flags))
 		/* Speakup output, discard */

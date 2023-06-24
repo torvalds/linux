@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/snps,dw-umctl2-ddrc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare Universal Multi-Protocol Memory Controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Manish Narani <manish.narani@xilinx.com>
+  - Michal Simek <michal.simek@xilinx.com>
+
+description: |
+  Synopsys DesignWare Enhanced uMCTL2 DDR Memory Controller is capable of
+  working with the memory devices supporting up to (LP)DDR4 protocol. It can
+  be equipped with SEC/DEC ECC feature if DRAM data bus width is either
+  16-bits or 32-bits or 64-bits wide.
+
+  For instance the ZynqMP DDR controller is based on the DW uMCTL2 v2.40a
+  controller. It has an optional SEC/DEC ECC support in 64- and 32-bits
+  bus width configurations.
+
+properties:
+  compatible:
+    oneOf:
+      - deprecated: true
+        description: Synopsys DW uMCTL2 DDR controller v3.80a
+        const: snps,ddrc-3.80a
+      - description: Synopsys DW uMCTL2 DDR controller
+        const: snps,dw-umctl2-ddrc
+      - description: Xilinx ZynqMP DDR controller v2.40a
+        const: xlnx,zynqmp-ddrc-2.40a
+
+  interrupts:
+    description:
+      DW uMCTL2 DDRC IP-core provides individual IRQ signal for each event":"
+      ECC Corrected Error, ECC Uncorrected Error, ECC Address Protection,
+      Scrubber-Done signal, DFI Parity/CRC Error. Some platforms may have the
+      signals merged before they reach the IRQ controller or have some of them
+      absent in case if the corresponding feature is unavailable/disabled.
+    minItems: 1
+    maxItems: 5
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 5
+    oneOf:
+      - description: Common ECC CE/UE/Scrubber/DFI Errors IRQ
+        items:
+          - const: ecc
+      - description: Individual ECC CE/UE/Scrubber/DFI Errors IRQs
+        items:
+          enum: [ ecc_ce, ecc_ue, ecc_ap, ecc_sbr, dfi_e ]
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description:
+      A standard set of the clock sources contains CSRs bus clock, AXI-ports
+      reference clock, DDRC core clock, Scrubber standalone clock
+      (synchronous to the DDRC clock).
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      enum: [ pclk, aclk, core, sbr ]
+
+  resets:
+    description:
+      Each clock domain can have separate reset signal.
+    minItems: 1
+    maxItems: 4
+
+  reset-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      enum: [ prst, arst, core, sbr ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    memory-controller@fd070000 {
+      compatible = "xlnx,zynqmp-ddrc-2.40a";
+      reg = <0xfd070000 0x30000>;
+
+      interrupt-parent = <&gic>;
+      interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "ecc";
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    memory-controller@3d400000 {
+      compatible = "snps,dw-umctl2-ddrc";
+      reg = <0x3d400000 0x400000>;
+
+      interrupts = <147 IRQ_TYPE_LEVEL_HIGH>, <148 IRQ_TYPE_LEVEL_HIGH>,
+                   <149 IRQ_TYPE_LEVEL_HIGH>, <150 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "ecc_ce", "ecc_ue", "ecc_sbr", "dfi_e";
+
+      clocks = <&pclk>, <&aclk>, <&core_clk>, <&sbr_clk>;
+      clock-names = "pclk", "aclk", "core", "sbr";
+    };
+...

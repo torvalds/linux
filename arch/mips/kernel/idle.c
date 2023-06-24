@@ -228,7 +228,7 @@ void __init check_wait(void)
 			break;
 
 		/*
-		 * Another rev is incremeting c0_count at a reduced clock
+		 * Another rev is incrementing c0_count at a reduced clock
 		 * rate while in WAIT mode.  So we basically have the choice
 		 * between using the cp0 timer as clocksource or avoiding
 		 * the WAIT instruction.  Until more details are known,

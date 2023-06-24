@@ -44,9 +44,12 @@ config ARCH_RZG2L
 	bool
 	select PM
 	select PM_GENERIC_DOMAINS
+	select RENESAS_RZG2L_IRQC
 
 config ARCH_RZN1
 	bool
+	select PM
+	select PM_GENERIC_DOMAINS
 	select ARM_AMBA
 
 if ARM && ARCH_RENESAS
@@ -268,6 +271,13 @@ config ARCH_R8A779A0
 	help
 	  This enables support for the Renesas R-Car V3U SoC.
 
+config ARCH_R8A779G0
+	bool "ARM64 Platform support for R-Car V4H"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A779G0
+	help
+	  This enables support for the Renesas R-Car V4H SoC.
+
 config ARCH_R8A774C0
 	bool "ARM64 Platform support for RZ/G2E"
 	select ARCH_RCAR_GEN3
@@ -296,6 +306,12 @@ config ARCH_R8A774B1
 	help
 	  This enables support for the Renesas RZ/G2N SoC.
 
+config ARCH_R9A07G043
+	bool "ARM64 Platform support for RZ/G2UL"
+	select ARCH_RZG2L
+	help
+	  This enables support for the Renesas RZ/G2UL SoC variants.
+
 config ARCH_R9A07G044
 	bool "ARM64 Platform support for RZ/G2L"
 	select ARCH_RZG2L
@@ -308,7 +324,24 @@ config ARCH_R9A07G054
 	help
 	  This enables support for the Renesas RZ/V2L SoC variants.
 
+config ARCH_R9A09G011
+	bool "ARM64 Platform support for RZ/V2M"
+	select PM
+	select PM_GENERIC_DOMAINS
+	help
+	  This enables support for the Renesas RZ/V2M SoC.
+
 endif # ARM64
+
+if RISCV
+
+config ARCH_R9A07G043
+	bool "RISC-V Platform support for RZ/Five"
+	select ARCH_RZG2L
+	help
+	  This enables support for the Renesas RZ/Five SoC.
+
+endif # RISCV
 
 config RST_RCAR
 	bool "Reset Controller support for R-Car" if COMPILE_TEST
@@ -377,6 +410,10 @@ config SYSC_R8A77970
 
 config SYSC_R8A779A0
 	bool "System Controller support for R-Car V3U" if COMPILE_TEST
+	select SYSC_RCAR_GEN4
+
+config SYSC_R8A779G0
+	bool "System Controller support for R-Car V4H" if COMPILE_TEST
 	select SYSC_RCAR_GEN4
 
 config SYSC_RMOBILE

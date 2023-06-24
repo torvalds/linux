@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/Devicetree/usage-model.rst
+:Original: Documentation/devicetree/usage-model.rst
 
 :翻译:
 
@@ -120,24 +120,24 @@ dt_compat列表（如果你好奇，该列表定义在arch/arm/include/asm/mach/
 表示什么。在Documentation/devicetree/bindings中添加兼容字符串的文档。
 
 同样在ARM上，对于每个machine_desc，内核会查看是否有任何dt_compat列表条
-目出现在兼容属性中。如果有，那么该机器_desc就是驱动该机器的候选者。在搜索
+目出现在兼容属性中。如果有，那么该machine_desc就是驱动该机器的候选者。在搜索
 了整个machine_descs表之后，setup_machine_fdt()根据每个machine_desc
 在兼容属性中匹配的条目，返回 “最兼容” 的machine_desc。如果没有找到匹配
 的machine_desc，那么它将返回NULL。
 
 这个方案背后的原因是观察到，在大多数情况下，如果它们都使用相同的SoC或相同
-系列的SoC，一个机器_desc可以支持大量的电路板。然而，不可避免地会有一些例
+系列的SoC，一个machine_desc可以支持大量的电路板。然而，不可避免地会有一些例
 外情况，即特定的板子需要特殊的设置代码，这在一般情况下是没有用的。特殊情况
 可以通过在通用设置代码中明确检查有问题的板子来处理，但如果超过几个情况下，
 这样做很快就会变得很难看和/或无法维护。
 
-相反，兼容列表允许通用机器_desc通过在dt_compat列表中指定“不太兼容”的值
+相反，兼容列表允许通用machine_desc通过在dt_compat列表中指定“不太兼容”的值
 来提供对广泛的通用板的支持。在上面的例子中，通用板支持可以声称与“ti,ompa3”
 或“ti,ompa3450”兼容。如果在最初的beagleboard上发现了一个bug，需要在
 早期启动时使用特殊的变通代码，那么可以添加一个新的machine_desc，实现变通，
 并且只在“ti,omap3-beagleboard”上匹配。
 
-PowerPC使用了一个稍微不同的方案，它从每个机器_desc中调用.probe()钩子，
+PowerPC使用了一个稍微不同的方案，它从每个machine_desc中调用.probe()钩子，
 并使用第一个返回TRUE的钩子。然而，这种方法没有考虑到兼容列表的优先级，对于
 新的架构支持可能应该避免。
 

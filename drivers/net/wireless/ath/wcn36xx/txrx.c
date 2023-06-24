@@ -16,6 +16,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/random.h>
 #include "txrx.h"
 
 static inline int get_rssi0(struct wcn36xx_rx_bd *bd)
@@ -278,6 +279,7 @@ static void wcn36xx_update_survey(struct wcn36xx *wcn, int rssi, int snr,
 	struct ieee80211_supported_band *sband;
 	int idx;
 	int i;
+	u8 snr_sample = snr & 0xff;
 
 	idx = 0;
 	if (band == NL80211_BAND_5GHZ)
@@ -297,6 +299,8 @@ static void wcn36xx_update_survey(struct wcn36xx *wcn, int rssi, int snr,
 	wcn->chan_survey[idx].rssi = rssi;
 	wcn->chan_survey[idx].snr = snr;
 	spin_unlock(&wcn->survey_lock);
+
+	add_device_randomness(&snr_sample, sizeof(snr_sample));
 }
 
 int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
@@ -698,4 +702,33 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	}
 
 	return ret;
+}
+
+void wcn36xx_process_tx_rate(struct ani_global_class_a_stats_info *stats, struct rate_info *info)
+{
+	/* tx_rate is in units of 500kbps; mac80211 wants them in 100kbps */
+	if (stats->tx_rate_flags & HAL_TX_RATE_LEGACY)
+		info->legacy = stats->tx_rate * 5;
+
+	info->flags = 0;
+	info->mcs = stats->mcs_index;
+	info->nss = 1;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_HT20 | HAL_TX_RATE_HT40))
+		info->flags |= RATE_INFO_FLAGS_MCS;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_VHT20 | HAL_TX_RATE_VHT40 | HAL_TX_RATE_VHT80))
+		info->flags |= RATE_INFO_FLAGS_VHT_MCS;
+
+	if (stats->tx_rate_flags & HAL_TX_RATE_SGI)
+		info->flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_HT20 | HAL_TX_RATE_VHT20))
+		info->bw = RATE_INFO_BW_20;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_HT40 | HAL_TX_RATE_VHT40))
+		info->bw = RATE_INFO_BW_40;
+
+	if (stats->tx_rate_flags & HAL_TX_RATE_VHT80)
+		info->bw = RATE_INFO_BW_80;
 }

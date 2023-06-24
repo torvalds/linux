@@ -24,12 +24,14 @@ struct btrfs_free_cluster;
 struct map_lookup;
 struct extent_buffer;
 struct btrfs_work;
-struct __btrfs_workqueue;
+struct btrfs_workqueue;
 struct btrfs_qgroup_extent_record;
 struct btrfs_qgroup;
 struct extent_io_tree;
 struct prelim_ref;
 struct btrfs_space_info;
+struct btrfs_raid_bio;
+struct raid56_bio_trace_info;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -82,7 +84,6 @@ struct btrfs_space_info;
 	EM( IO_TREE_FS_EXCLUDED_EXTENTS,  "EXCLUDED_EXTENTS")	    \
 	EM( IO_TREE_BTREE_INODE_IO,	  "BTREE_INODE_IO")	    \
 	EM( IO_TREE_INODE_IO,		  "INODE_IO")		    \
-	EM( IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE")	    \
 	EM( IO_TREE_RELOC_BLOCKS,	  "RELOC_BLOCKS")	    \
 	EM( IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES")      \
 	EM( IO_TREE_ROOT_DIRTY_LOG_PAGES, "ROOT_DIRTY_LOG_PAGES")   \
@@ -152,7 +153,6 @@ FLUSH_STATES
 	{ EXTENT_NODATASUM,		"NODATASUM"},		\
 	{ EXTENT_CLEAR_META_RESV,	"CLEAR_META_RESV"},	\
 	{ EXTENT_NEED_WAIT,		"NEED_WAIT"},		\
-	{ EXTENT_DAMAGED,		"DAMAGED"},		\
 	{ EXTENT_NORESERVE,		"NORESERVE"},		\
 	{ EXTENT_QGROUP_RESERVED,	"QGROUP_RESERVED"},	\
 	{ EXTENT_CLEAR_DATA_RESV,	"CLEAR_DATA_RESV"},	\
@@ -594,6 +594,70 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_put,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_range,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first_range,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_for_logging,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_split,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_dec_test_pending,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_mark_finished,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
 );
 
 DECLARE_EVENT_CLASS(btrfs__writepage,
@@ -1344,13 +1408,13 @@ TRACE_EVENT(alloc_extent_state,
 
 	TP_STRUCT__entry(
 		__field(const struct extent_state *, state)
-		__field(gfp_t, mask)
+		__field(unsigned long, mask)
 		__field(const void*, ip)
 	),
 
 	TP_fast_assign(
 		__entry->state	= state,
-		__entry->mask	= mask,
+		__entry->mask	= (__force unsigned long)mask,
 		__entry->ip	= (const void *)IP
 	),
 
@@ -1457,42 +1521,36 @@ DEFINE_EVENT(btrfs__work, btrfs_ordered_sched,
 	TP_ARGS(work)
 );
 
-DECLARE_EVENT_CLASS(btrfs__workqueue,
+DECLARE_EVENT_CLASS(btrfs_workqueue,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq,
-		 const char *name, int high),
+	TP_PROTO(const struct btrfs_workqueue *wq, const char *name),
 
-	TP_ARGS(wq, name, high),
+	TP_ARGS(wq, name),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	const void *,	wq			)
 		__string(	name,	name			)
-		__field(	int ,	high			)
 	),
 
 	TP_fast_assign_btrfs(btrfs_workqueue_owner(wq),
 		__entry->wq		= wq;
 		__assign_str(name, name);
-		__entry->high		= high;
 	),
 
-	TP_printk_btrfs("name=%s%s wq=%p", __get_str(name),
-		  __print_flags(__entry->high, "",
-				{(WQ_HIGHPRI),	"-high"}),
+	TP_printk_btrfs("name=%s wq=%p", __get_str(name),
 		  __entry->wq)
 );
 
-DEFINE_EVENT(btrfs__workqueue, btrfs_workqueue_alloc,
+DEFINE_EVENT(btrfs_workqueue, btrfs_workqueue_alloc,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq,
-		 const char *name, int high),
+	TP_PROTO(const struct btrfs_workqueue *wq, const char *name),
 
-	TP_ARGS(wq, name, high)
+	TP_ARGS(wq, name)
 );
 
-DECLARE_EVENT_CLASS(btrfs__workqueue_done,
+DECLARE_EVENT_CLASS(btrfs_workqueue_done,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq),
+	TP_PROTO(const struct btrfs_workqueue *wq),
 
 	TP_ARGS(wq),
 
@@ -1507,9 +1565,9 @@ DECLARE_EVENT_CLASS(btrfs__workqueue_done,
 	TP_printk_btrfs("wq=%p", __entry->wq)
 );
 
-DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
+DEFINE_EVENT(btrfs_workqueue_done, btrfs_workqueue_destroy,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq),
+	TP_PROTO(const struct btrfs_workqueue *wq),
 
 	TP_ARGS(wq)
 );
@@ -2262,6 +2320,98 @@ DEFINE_EVENT(btrfs__space_info_update, update_bytes_pinned,
 		 const struct btrfs_space_info *sinfo, u64 old, s64 diff),
 
 	TP_ARGS(fs_info, sinfo, old, diff)
+);
+
+DECLARE_EVENT_CLASS(btrfs_raid56_bio,
+
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	full_stripe	)
+		__field(	u64,	physical	)
+		__field(	u64,	devid		)
+		__field(	u32,	offset		)
+		__field(	u32,	len		)
+		__field(	u8,	opf		)
+		__field(	u8,	total_stripes	)
+		__field(	u8,	real_stripes	)
+		__field(	u8,	nr_data		)
+		__field(	u8,	stripe_nr	)
+	),
+
+	TP_fast_assign_btrfs(rbio->bioc->fs_info,
+		__entry->full_stripe	= rbio->bioc->raid_map[0];
+		__entry->physical	= bio->bi_iter.bi_sector << SECTOR_SHIFT;
+		__entry->len		= bio->bi_iter.bi_size;
+		__entry->opf		= bio_op(bio);
+		__entry->devid		= trace_info->devid;
+		__entry->offset		= trace_info->offset;
+		__entry->stripe_nr	= trace_info->stripe_nr;
+		__entry->total_stripes	= rbio->bioc->num_stripes;
+		__entry->real_stripes	= rbio->real_stripes;
+		__entry->nr_data	= rbio->nr_data;
+	),
+	/*
+	 * For type output, we need to output things like "DATA1"
+	 * (the first data stripe), "DATA2" (the second data stripe),
+	 * "PQ1" (P stripe),"PQ2" (Q stripe), "REPLACE0" (replace target device).
+	 */
+	TP_printk_btrfs(
+"full_stripe=%llu devid=%lld type=%s%d offset=%d opf=0x%x physical=%llu len=%u",
+		__entry->full_stripe, __entry->devid,
+		(__entry->stripe_nr < __entry->nr_data) ? "DATA" :
+			((__entry->stripe_nr < __entry->real_stripes) ? "PQ" :
+			 "REPLACE"),
+		(__entry->stripe_nr < __entry->nr_data) ?
+			(__entry->stripe_nr + 1) :
+			((__entry->stripe_nr < __entry->real_stripes) ?
+			 (__entry->stripe_nr - __entry->nr_data + 1) : 0),
+		__entry->offset, __entry->opf, __entry->physical, __entry->len)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_read_partial,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_write_stripe,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_write_stripe,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_read,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_read_recover,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
 );
 
 #endif /* _TRACE_BTRFS_H */

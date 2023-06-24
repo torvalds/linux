@@ -308,14 +308,9 @@ static int iceland_ih_sw_fini(void *handle)
 
 static int iceland_ih_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = iceland_ih_irq_init(adev);
-	if (r)
-		return r;
-
-	return 0;
+	return iceland_ih_irq_init(adev);
 }
 
 static int iceland_ih_hw_fini(void *handle)

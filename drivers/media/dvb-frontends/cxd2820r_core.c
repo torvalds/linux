@@ -705,7 +705,7 @@ err:
 	return ret;
 }
 
-static int cxd2820r_remove(struct i2c_client *client)
+static void cxd2820r_remove(struct i2c_client *client)
 {
 	struct cxd2820r_priv *priv = i2c_get_clientdata(client);
 
@@ -721,8 +721,6 @@ static int cxd2820r_remove(struct i2c_client *client)
 	regmap_exit(priv->regmap[0]);
 
 	kfree(priv);
-
-	return 0;
 }
 
 static const struct i2c_device_id cxd2820r_id_table[] = {

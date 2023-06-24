@@ -1053,7 +1053,7 @@ check_hwcfg_error:
 	return ret;
 }
 
-static int ov2740_remove(struct i2c_client *client)
+static void ov2740_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2740 *ov2740 = to_ov2740(sd);
@@ -1063,8 +1063,6 @@ static int ov2740_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(&client->dev);
 	mutex_destroy(&ov2740->mutex);
-
-	return 0;
 }
 
 static int ov2740_nvmem_read(void *priv, unsigned int off, void *val,

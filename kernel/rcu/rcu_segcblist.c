@@ -505,10 +505,10 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 		WRITE_ONCE(rsclp->tails[j], rsclp->tails[RCU_DONE_TAIL]);
 
 	/*
-	 * Callbacks moved, so clean up the misordered ->tails[] pointers
-	 * that now point into the middle of the list of ready-to-invoke
-	 * callbacks.  The overall effect is to copy down the later pointers
-	 * into the gap that was created by the now-ready segments.
+	 * Callbacks moved, so there might be an empty RCU_WAIT_TAIL
+	 * and a non-empty RCU_NEXT_READY_TAIL.  If so, copy the
+	 * RCU_NEXT_READY_TAIL segment to fill the RCU_WAIT_TAIL gap
+	 * created by the now-ready-to-invoke segments.
 	 */
 	for (j = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++, j++) {
 		if (rsclp->tails[j] == rsclp->tails[RCU_NEXT_TAIL])

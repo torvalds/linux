@@ -51,6 +51,9 @@ properties:
 
   sdhci-caps-mask: true
 
+  dma-coherent:
+    type: boolean
+
   # PHY output tap delays:
   # Used to delay the data valid window and align it to the sampling clock.
   # Binding needs to be provided for each supported speed mode otherwise the
@@ -185,6 +188,13 @@ properties:
   ti,clkbuf-sel:
     description: Clock Delay Buffer Select
     $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  ti,fails-without-test-cd:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      When present, indicates that the CD line is not connected
+      and the controller is required to be forced into Test mode
+      to set the TESTCD bit.
 
 required:
   - compatible

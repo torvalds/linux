@@ -550,15 +550,12 @@ static struct irq_chip msc313_gpio_irqchip = {
  * so we need to provide the fwspec. Essentially gpiochip_populate_parent_fwspec_twocell
  * that puts GIC_SPI into the first cell.
  */
-static void *msc313_gpio_populate_parent_fwspec(struct gpio_chip *gc,
-					     unsigned int parent_hwirq,
-					     unsigned int parent_type)
+static int msc313_gpio_populate_parent_fwspec(struct gpio_chip *gc,
+					      union gpio_irq_fwspec *gfwspec,
+					      unsigned int parent_hwirq,
+					      unsigned int parent_type)
 {
-	struct irq_fwspec *fwspec;
-
-	fwspec = kmalloc(sizeof(*fwspec), GFP_KERNEL);
-	if (!fwspec)
-		return NULL;
+	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
 	fwspec->fwnode = gc->irq.parent_domain->fwnode;
 	fwspec->param_count = 3;
@@ -566,7 +563,7 @@ static void *msc313_gpio_populate_parent_fwspec(struct gpio_chip *gc,
 	fwspec->param[1] = parent_hwirq;
 	fwspec->param[2] = parent_type;
 
-	return fwspec;
+	return 0;
 }
 
 static int msc313e_gpio_child_to_parent_hwirq(struct gpio_chip *chip,

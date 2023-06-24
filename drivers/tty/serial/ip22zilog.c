@@ -873,7 +873,7 @@ ip22zilog_convert_to_zs(struct uart_ip22zilog_port *up, unsigned int cflag,
 /* The port lock is not held.  */
 static void
 ip22zilog_set_termios(struct uart_port *port, struct ktermios *termios,
-		      struct ktermios *old)
+		      const struct ktermios *old)
 {
 	struct uart_ip22zilog_port *up =
 		container_of(port, struct uart_ip22zilog_port, port);

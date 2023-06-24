@@ -73,10 +73,10 @@ void vpu_v4l2_set_error(struct vpu_inst *inst)
 	if (inst->fh.m2m_ctx) {
 		src_q = v4l2_m2m_get_src_vq(inst->fh.m2m_ctx);
 		dst_q = v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx);
-		if (src_q)
-			src_q->error = 1;
-		if (dst_q)
-			dst_q->error = 1;
+		src_q->error = 1;
+		dst_q->error = 1;
+		wake_up(&src_q->done_wq);
+		wake_up(&dst_q->done_wq);
 	}
 	vpu_inst_unlock(inst);
 }
@@ -125,6 +125,19 @@ int vpu_set_last_buffer_dequeued(struct vpu_inst *inst)
 	wake_up(&q->done_wq);
 	vpu_notify_eos(inst);
 	return 0;
+}
+
+bool vpu_is_source_empty(struct vpu_inst *inst)
+{
+	struct v4l2_m2m_buffer *buf = NULL;
+
+	if (!inst->fh.m2m_ctx)
+		return true;
+	v4l2_m2m_for_each_src_buf(inst->fh.m2m_ctx, buf) {
+		if (vpu_get_buffer_state(&buf->vb) == VPU_BUF_STATE_IDLE)
+			return false;
+	}
+	return true;
 }
 
 const struct vpu_format *vpu_try_fmt_common(struct vpu_inst *inst, struct v4l2_format *f)
@@ -232,6 +245,49 @@ int vpu_process_capture_buffer(struct vpu_inst *inst)
 		return -EINVAL;
 
 	return call_vop(inst, process_capture, &vbuf->vb2_buf);
+}
+
+struct vb2_v4l2_buffer *vpu_next_src_buf(struct vpu_inst *inst)
+{
+	struct vb2_v4l2_buffer *src_buf = v4l2_m2m_next_src_buf(inst->fh.m2m_ctx);
+
+	if (!src_buf || vpu_get_buffer_state(src_buf) == VPU_BUF_STATE_IDLE)
+		return NULL;
+
+	while (vpu_vb_is_codecconfig(src_buf)) {
+		v4l2_m2m_src_buf_remove(inst->fh.m2m_ctx);
+		vpu_set_buffer_state(src_buf, VPU_BUF_STATE_IDLE);
+		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+
+		src_buf = v4l2_m2m_next_src_buf(inst->fh.m2m_ctx);
+		if (!src_buf || vpu_get_buffer_state(src_buf) == VPU_BUF_STATE_IDLE)
+			return NULL;
+	}
+
+	return src_buf;
+}
+
+void vpu_skip_frame(struct vpu_inst *inst, int count)
+{
+	struct vb2_v4l2_buffer *src_buf;
+	enum vb2_buffer_state state;
+	int i = 0;
+
+	if (count <= 0)
+		return;
+
+	while (i < count) {
+		src_buf = v4l2_m2m_src_buf_remove(inst->fh.m2m_ctx);
+		if (!src_buf || vpu_get_buffer_state(src_buf) == VPU_BUF_STATE_IDLE)
+			return;
+		if (vpu_get_buffer_state(src_buf) == VPU_BUF_STATE_DECODED)
+			state = VB2_BUF_STATE_DONE;
+		else
+			state = VB2_BUF_STATE_ERROR;
+		i++;
+		vpu_set_buffer_state(src_buf, VPU_BUF_STATE_IDLE);
+		v4l2_m2m_buf_done(src_buf, state);
+	}
 }
 
 struct vb2_v4l2_buffer *vpu_find_buf_by_sequence(struct vpu_inst *inst, u32 type, u32 sequence)
@@ -342,6 +398,10 @@ static int vpu_vb2_queue_setup(struct vb2_queue *vq,
 		return 0;
 	}
 
+	if (V4L2_TYPE_IS_OUTPUT(vq->type))
+		*buf_count = max_t(unsigned int, *buf_count, inst->min_buffer_out);
+	else
+		*buf_count = max_t(unsigned int, *buf_count, inst->min_buffer_cap);
 	*plane_count = cur_fmt->num_planes;
 	for (i = 0; i < cur_fmt->num_planes; i++)
 		psize[i] = cur_fmt->sizeimage[i];
@@ -440,10 +500,12 @@ static int vpu_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
 		  fmt->sizeimage[1], fmt->bytesperline[1],
 		  fmt->sizeimage[2], fmt->bytesperline[2],
 		  q->num_buffers);
-	call_void_vop(inst, start, q->type);
 	vb2_clear_last_buffer_dequeued(q);
+	ret = call_vop(inst, start, q->type);
+	if (ret)
+		vpu_vb2_buffers_return(inst, q->type, VB2_BUF_STATE_QUEUED);
 
-	return 0;
+	return ret;
 }
 
 static void vpu_vb2_stop_streaming(struct vb2_queue *q)
@@ -541,6 +603,10 @@ static int vpu_v4l2_release(struct vpu_inst *inst)
 		inst->workqueue = NULL;
 	}
 
+	if (inst->fh.m2m_ctx) {
+		v4l2_m2m_ctx_release(inst->fh.m2m_ctx);
+		inst->fh.m2m_ctx = NULL;
+	}
 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
 	mutex_destroy(&inst->lock);
 	v4l2_fh_del(&inst->fh);
@@ -622,13 +688,6 @@ int vpu_v4l2_close(struct file *file)
 	struct vpu_inst *inst = to_inst(file);
 
 	vpu_trace(vpu->dev, "tgid = %d, pid = %d, inst = %p\n", inst->tgid, inst->pid, inst);
-
-	vpu_inst_lock(inst);
-	if (inst->fh.m2m_ctx) {
-		v4l2_m2m_ctx_release(inst->fh.m2m_ctx);
-		inst->fh.m2m_ctx = NULL;
-	}
-	vpu_inst_unlock(inst);
 
 	call_void_vop(inst, release);
 	vpu_inst_unregister(inst);

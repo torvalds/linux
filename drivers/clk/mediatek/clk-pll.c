@@ -243,7 +243,6 @@ static int mtk_pll_prepare(struct clk_hw *hw)
 {
 	struct mtk_clk_pll *pll = to_mtk_clk_pll(hw);
 	u32 r;
-	u32 div_en_mask;
 
 	r = readl(pll->pwr_addr) | CON0_PWR_ON;
 	writel(r, pll->pwr_addr);
@@ -256,9 +255,8 @@ static int mtk_pll_prepare(struct clk_hw *hw)
 	r = readl(pll->en_addr) | BIT(pll->data->pll_en_bit);
 	writel(r, pll->en_addr);
 
-	div_en_mask = pll->data->en_mask & ~CON0_BASE_EN;
-	if (div_en_mask) {
-		r = readl(pll->base_addr + REG_CON0) | div_en_mask;
+	if (pll->data->en_mask) {
+		r = readl(pll->base_addr + REG_CON0) | pll->data->en_mask;
 		writel(r, pll->base_addr + REG_CON0);
 	}
 
@@ -279,7 +277,6 @@ static void mtk_pll_unprepare(struct clk_hw *hw)
 {
 	struct mtk_clk_pll *pll = to_mtk_clk_pll(hw);
 	u32 r;
-	u32 div_en_mask;
 
 	if (pll->data->flags & HAVE_RST_BAR) {
 		r = readl(pll->base_addr + REG_CON0);
@@ -289,9 +286,8 @@ static void mtk_pll_unprepare(struct clk_hw *hw)
 
 	__mtk_pll_tuner_disable(pll);
 
-	div_en_mask = pll->data->en_mask & ~CON0_BASE_EN;
-	if (div_en_mask) {
-		r = readl(pll->base_addr + REG_CON0) & ~div_en_mask;
+	if (pll->data->en_mask) {
+		r = readl(pll->base_addr + REG_CON0) & ~pll->data->en_mask;
 		writel(r, pll->base_addr + REG_CON0);
 	}
 
@@ -314,12 +310,12 @@ static const struct clk_ops mtk_pll_ops = {
 	.set_rate	= mtk_pll_set_rate,
 };
 
-static struct clk *mtk_clk_register_pll(const struct mtk_pll_data *data,
+static struct clk_hw *mtk_clk_register_pll(const struct mtk_pll_data *data,
 		void __iomem *base)
 {
 	struct mtk_clk_pll *pll;
 	struct clk_init_data init = {};
-	struct clk *clk;
+	int ret;
 	const char *parent_name = "clk26m";
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
@@ -354,36 +350,36 @@ static struct clk *mtk_clk_register_pll(const struct mtk_pll_data *data,
 		init.parent_names = &parent_name;
 	init.num_parents = 1;
 
-	clk = clk_register(NULL, &pll->hw);
+	ret = clk_hw_register(NULL, &pll->hw);
 
-	if (IS_ERR(clk))
+	if (ret) {
 		kfree(pll);
+		return ERR_PTR(ret);
+	}
 
-	return clk;
+	return &pll->hw;
 }
 
-static void mtk_clk_unregister_pll(struct clk *clk)
+static void mtk_clk_unregister_pll(struct clk_hw *hw)
 {
-	struct clk_hw *hw;
 	struct mtk_clk_pll *pll;
 
-	hw = __clk_get_hw(clk);
 	if (!hw)
 		return;
 
 	pll = to_mtk_clk_pll(hw);
 
-	clk_unregister(clk);
+	clk_hw_unregister(hw);
 	kfree(pll);
 }
 
 int mtk_clk_register_plls(struct device_node *node,
 			  const struct mtk_pll_data *plls, int num_plls,
-			  struct clk_onecell_data *clk_data)
+			  struct clk_hw_onecell_data *clk_data)
 {
 	void __iomem *base;
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	base = of_iomap(node, 0);
 	if (!base) {
@@ -394,20 +390,21 @@ int mtk_clk_register_plls(struct device_node *node,
 	for (i = 0; i < num_plls; i++) {
 		const struct mtk_pll_data *pll = &plls[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[pll->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[pll->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
 				node, pll->id);
 			continue;
 		}
 
-		clk = mtk_clk_register_pll(pll, base);
+		hw = mtk_clk_register_pll(pll, base);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", pll->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", pll->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->clks[pll->id] = clk;
+		clk_data->hws[pll->id] = hw;
 	}
 
 	return 0;
@@ -416,27 +413,26 @@ err:
 	while (--i >= 0) {
 		const struct mtk_pll_data *pll = &plls[i];
 
-		mtk_clk_unregister_pll(clk_data->clks[pll->id]);
-		clk_data->clks[pll->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_pll(clk_data->hws[pll->id]);
+		clk_data->hws[pll->id] = ERR_PTR(-ENOENT);
 	}
 
 	iounmap(base);
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_plls);
 
-static __iomem void *mtk_clk_pll_get_base(struct clk *clk,
+static __iomem void *mtk_clk_pll_get_base(struct clk_hw *hw,
 					  const struct mtk_pll_data *data)
 {
-	struct clk_hw *hw = __clk_get_hw(clk);
 	struct mtk_clk_pll *pll = to_mtk_clk_pll(hw);
 
 	return pll->base_addr - data->reg;
 }
 
 void mtk_clk_unregister_plls(const struct mtk_pll_data *plls, int num_plls,
-			     struct clk_onecell_data *clk_data)
+			     struct clk_hw_onecell_data *clk_data)
 {
 	__iomem void *base = NULL;
 	int i;
@@ -447,7 +443,7 @@ void mtk_clk_unregister_plls(const struct mtk_pll_data *plls, int num_plls,
 	for (i = num_plls; i > 0; i--) {
 		const struct mtk_pll_data *pll = &plls[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[pll->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[pll->id]))
 			continue;
 
 		/*
@@ -456,10 +452,10 @@ void mtk_clk_unregister_plls(const struct mtk_pll_data *plls, int num_plls,
 		 * pointer to the I/O region base address. We have to fetch
 		 * it from one of the registered clks.
 		 */
-		base = mtk_clk_pll_get_base(clk_data->clks[pll->id], pll);
+		base = mtk_clk_pll_get_base(clk_data->hws[pll->id], pll);
 
-		mtk_clk_unregister_pll(clk_data->clks[pll->id]);
-		clk_data->clks[pll->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_pll(clk_data->hws[pll->id]);
+		clk_data->hws[pll->id] = ERR_PTR(-ENOENT);
 	}
 
 	iounmap(base);

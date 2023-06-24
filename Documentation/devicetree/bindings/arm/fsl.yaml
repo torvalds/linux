@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/fsl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale i.MX Platforms Device Tree Bindings
+title: Freescale i.MX Platforms
 
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
@@ -172,7 +172,7 @@ properties:
               - karo,tx53                     # Ka-Ro electronics TX53 module
               - kiebackpeter,imx53-ddc        # K+P imx53 DDC
               - kiebackpeter,imx53-hsc        # K+P imx53 HSC
-              - menlo,m53menlo
+              - menlo,m53menlo                # i.MX53 Menlo board
               - voipac,imx53-dmm-668          # Voipac i.MX53 X53-DMM-668
           - const: fsl,imx53
 
@@ -192,6 +192,7 @@ properties:
         items:
           - enum:
               - auvidea,h100              # Auvidea H100
+              - bosch,imx6q-acc           # Bosch ACC i.MX6 Dual
               - boundary,imx6q-nitrogen6_max
               - boundary,imx6q-nitrogen6_som2
               - boundary,imx6q-nitrogen6x
@@ -320,6 +321,7 @@ properties:
           - enum:
               - toradex,apalis_imx6q-ixora      # Apalis iMX6Q/D Module on Ixora Carrier Board
               - toradex,apalis_imx6q-ixora-v1.1 # Apalis iMX6Q/D Module on Ixora V1.1 Carrier Board
+              - toradex,apalis_imx6q-ixora-v1.2 # Apalis iMX6Q/D Module on Ixora V1.2 Carrier Board
               - toradex,apalis_imx6q-eval       # Apalis iMX6Q/D Module on Apalis Evaluation Board
           - const: toradex,apalis_imx6q
           - const: fsl,imx6q
@@ -411,7 +413,6 @@ properties:
               - technologic,imx6dl-ts4900
               - technologic,imx6dl-ts7970
               - toradex,colibri_imx6dl      # Colibri iMX6 Modules
-              - toradex,colibri_imx6dl-v1_1 # Colibri iMX6 V1.1 Modules
               - udoo,imx6dl-udoo          # Udoo i.MX6 Dual-lite Board
               - vdl,lanmcu                # Van der Laan LANMCU board
               - wand,imx6dl-wandboard     # Wandboard i.MX6 Dual Lite Board
@@ -488,15 +489,11 @@ properties:
       - description: i.MX6DL Boards with Toradex Colibri iMX6DL/S Modules
         items:
           - enum:
+              - toradex,colibri_imx6dl-aster        # Colibri iMX6DL/S Module on Aster Board
               - toradex,colibri_imx6dl-eval-v3      # Colibri iMX6DL/S Module on Colibri Evaluation Board V3
+              - toradex,colibri_imx6dl-iris         # Colibri iMX6DL/S Module on Iris Board
+              - toradex,colibri_imx6dl-iris-v2      # Colibri iMX6DL/S Module on Iris Board V2
           - const: toradex,colibri_imx6dl           # Colibri iMX6DL/S Module
-          - const: fsl,imx6dl
-
-      - description: i.MX6DL Boards with Toradex Colibri iMX6DL/S V1.1 Modules
-        items:
-          - enum:
-              - toradex,colibri_imx6dl-v1_1-eval-v3 # Colibri iMX6DL/S V1.1 M. on Colibri Evaluation Board V3
-          - const: toradex,colibri_imx6dl-v1_1      # Colibri iMX6DL/S V1.1 Module
           - const: fsl,imx6dl
 
       - description: i.MX6S DHCOM DRC02 Board
@@ -557,8 +554,7 @@ properties:
               - engicam,imx6ul-isiot      # Engicam Is.IoT MX6UL eMMC/NAND Starter kit
               - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
               - karo,imx6ul-tx6ul         # Ka-Ro electronics TXUL-0010 Module
-              - kontron,imx6ul-n6310-som  # Kontron N6310 SOM
-              - kontron,imx6ul-n6311-som  # Kontron N6311 SOM
+              - kontron,sl-imx6ul         # Kontron SL i.MX6UL SoM
               - prt,prti6g                # Protonic PRTI6G Board
               - technexion,imx6ul-pico-dwarf   # TechNexion i.MX6UL Pico-Dwarf
               - technexion,imx6ul-pico-hobbit  # TechNexion i.MX6UL Pico-Hobbit
@@ -594,23 +590,39 @@ properties:
           - const: phytec,imx6ul-pcl063   # PHYTEC phyCORE-i.MX 6UL
           - const: fsl,imx6ul
 
-      - description: Kontron N6310 S Board
+      - description: Kontron BL i.MX6UL (N631X S) Board
         items:
-          - const: kontron,imx6ul-n6310-s
-          - const: kontron,imx6ul-n6310-som
+          - const: kontron,bl-imx6ul       # Kontron BL i.MX6UL Carrier Board
+          - const: kontron,sl-imx6ul       # Kontron SL i.MX6UL SoM
           - const: fsl,imx6ul
 
-      - description: Kontron N6311 S Board
+      - description: Kontron BL i.MX6UL 43 (N631X S 43) Board
         items:
-          - const: kontron,imx6ul-n6311-s
-          - const: kontron,imx6ul-n6311-som
+          - const: kontron,bl-imx6ul-43    # Kontron BL i.MX6UL Carrier Board with 4.3" Display
+          - const: kontron,bl-imx6ul       # Kontron BL i.MX6UL Carrier Board
+          - const: kontron,sl-imx6ul       # Kontron SL i.MX6UL SoM
           - const: fsl,imx6ul
 
-      - description: Kontron N6310 S 43 Board
+      - description: TQ-Systems TQMa6UL1 SoM on MBa6ULx board
         items:
-          - const: kontron,imx6ul-n6310-s-43
-          - const: kontron,imx6ul-n6310-s
-          - const: kontron,imx6ul-n6310-som
+          - enum:
+              - tq,imx6ul-tqma6ul1-mba6ulx
+          - const: tq,imx6ul-tqma6ul1      # MCIMX6G1
+          - const: fsl,imx6ul
+
+      - description: TQ-Systems TQMa6UL2 SoM on MBa6ULx board
+        items:
+          - enum:
+              - tq,imx6ul-tqma6ul2-mba6ulx
+          - const: tq,imx6ul-tqma6ul2      # MCIMX6G2
+          - const: fsl,imx6ul
+
+      - description: TQ-Systems TQMa6ULxL SoM on MBa6ULx[L] board
+        items:
+          - enum:
+              - tq,imx6ul-tqma6ul2l-mba6ulx # using LGA adapter
+              - tq,imx6ul-tqma6ul2l-mba6ulxl
+          - const: tq,imx6ul-tqma6ul2l      # MCIMX6G2, LGA SoM variant
           - const: fsl,imx6ul
 
       - description: i.MX6ULL based Boards
@@ -618,7 +630,7 @@ properties:
           - enum:
               - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
               - joz,jozacp                # JOZ Access Point
-              - kontron,imx6ull-n6411-som # Kontron N6411 SOM
+              - kontron,sl-imx6ull        # Kontron SL i.MX6ULL SoM
               - myir,imx6ull-mys-6ulx-eval # MYiR Tech iMX6ULL Evaluation Board
               - toradex,colibri-imx6ull      # Colibri iMX6ULL Modules
               - toradex,colibri-imx6ull-emmc # Colibri iMX6ULL 1GB (eMMC) Module
@@ -640,31 +652,64 @@ properties:
           - const: phytec,imx6ull-pcl063  # PHYTEC phyCORE-i.MX 6ULL
           - const: fsl,imx6ull
 
+      - description: i.MX6ULL PHYTEC phyGATE-Tauri
+        items:
+          - enum:
+              - phytec,imx6ull-phygate-tauri-emmc
+              - phytec,imx6ull-phygate-tauri-nand
+          - const: phytec,imx6ull-phygate-tauri # PHYTEC phyGATE-Tauri with i.MX6 ULL
+          - const: phytec,imx6ull-pcl063        # PHYTEC phyCORE-i.MX 6ULL
+          - const: fsl,imx6ull
+
       - description: i.MX6ULL Boards with Toradex Colibri iMX6ULL Modules
         items:
           - enum:
-              - toradex,colibri-imx6ull-eval      # Colibri iMX6ULL Module on Colibri Evaluation Board
+              - toradex,colibri-imx6ull-aster     # Aster Carrier Board
+              - toradex,colibri-imx6ull-eval      # Colibri Evaluation Board V3
+              - toradex,colibri-imx6ull-iris      # Iris Carrier Board
+              - toradex,colibri-imx6ull-iris-v2   # Iris V2 Carrier Board
           - const: toradex,colibri-imx6ull        # Colibri iMX6ULL Module
-          - const: fsl,imx6dl
+          - const: fsl,imx6ull
 
       - description: i.MX6ULL Boards with Toradex Colibri iMX6ULL 1GB (eMMC) Module
         items:
           - enum:
-              - toradex,colibri-imx6ull-emmc-eval # Colibri iMX6ULL 1GB (eMMC) M. on Colibri Evaluation Board
-          - const: toradex,colibri-imx6ull-emmc   # Colibri iMX6ULL 1GB (eMMC) Module
-          - const: fsl,imx6dl
+              - toradex,colibri-imx6ull-emmc-aster     # Aster Carrier Board
+              - toradex,colibri-imx6ull-emmc-eval      # Colibri Evaluation B. V3
+              - toradex,colibri-imx6ull-emmc-iris      # Iris Carrier Board
+              - toradex,colibri-imx6ull-emmc-iris-v2   # Iris V2 Carrier Board
+          - const: toradex,colibri-imx6ull-emmc        # Colibri iMX6ULL 1GB (eMMC) Module
+          - const: fsl,imx6ull
 
       - description: i.MX6ULL Boards with Toradex Colibri iMX6ULL Wi-Fi / BT Modules
         items:
           - enum:
-              - toradex,colibri-imx6ull-wifi-eval # Colibri iMX6ULL Wi-Fi / BT M. on Colibri Evaluation Board
-          - const: toradex,colibri-imx6ull-wifi   # Colibri iMX6ULL Wi-Fi / BT Module
-          - const: fsl,imx6dl
+              - toradex,colibri-imx6ull-wifi-eval     # Colibri Eval. B. V3
+              - toradex,colibri-imx6ull-wifi-aster    # Aster Carrier Board
+              - toradex,colibri-imx6ull-wifi-iris     # Iris Carrier Board
+              - toradex,colibri-imx6ull-wifi-iris-v2  # Iris V2 Carrier Board
+          - const: toradex,colibri-imx6ull-wifi       # Colibri iMX6ULL Wi-Fi / BT Module
+          - const: fsl,imx6ull
 
-      - description: Kontron N6411 S Board
+      - description: Kontron BL i.MX6ULL (N6411 S) Board
         items:
-          - const: kontron,imx6ull-n6411-s
-          - const: kontron,imx6ull-n6411-som
+          - const: kontron,bl-imx6ull   # Kontron BL i.MX6ULL Carrier Board
+          - const: kontron,sl-imx6ull   # Kontron SL i.MX6ULL SoM
+          - const: fsl,imx6ull
+
+      - description: TQ Systems TQMa6ULLx SoM on MBa6ULx board
+        items:
+          - enum:
+              - tq,imx6ull-tqma6ull2-mba6ulx
+          - const: tq,imx6ull-tqma6ull2      # MCIMX6Y2
+          - const: fsl,imx6ull
+
+      - description: TQ Systems TQMa6ULLxL SoM on MBa6ULx[L] board
+        items:
+          - enum:
+              - tq,imx6ull-tqma6ull2l-mba6ulx # using LGA adapter
+              - tq,imx6ull-tqma6ull2l-mba6ulxl
+          - const: tq,imx6ull-tqma6ull2l      # MCIMX6Y2, LGA SoM variant
           - const: fsl,imx6ull
 
       - description: i.MX6ULZ based Boards
@@ -687,6 +732,8 @@ properties:
           - enum:
               - toradex,colibri-imx7s-aster     # Module on Aster Carrier Board
               - toradex,colibri-imx7s-eval-v3   # Module on Colibri Evaluation Board V3
+              - toradex,colibri-imx7s-iris      # Module on Iris Carrier Board
+              - toradex,colibri-imx7s-iris-v2   # Module on Iris Carrier Board V2
           - const: toradex,colibri-imx7s
           - const: fsl,imx7s
 
@@ -707,6 +754,7 @@ properties:
               - kam,imx7d-flex-concentrator-mfg   # Kamstrup OMNIA Flex Concentrator in manufacturing mode
               - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
               - remarkable,imx7d-remarkable2  # i.MX7D ReMarkable 2 E-Ink Tablet
+              - storopack,imx7d-smegw01       # Storopack i.MX7D SMEGW01
               - technexion,imx7d-pico-dwarf   # TechNexion i.MX7D Pico-Dwarf
               - technexion,imx7d-pico-hobbit  # TechNexion i.MX7D Pico-Hobbit
               - technexion,imx7d-pico-nymph   # TechNexion i.MX7D Pico-Nymph
@@ -737,8 +785,10 @@ properties:
       - description: i.MX7D Boards with Toradex Colibri i.MX7D Module
         items:
           - enum:
-              - toradex,colibri-imx7d-aster   # Colibri iMX7D Module on Aster Carrier Board
-              - toradex,colibri-imx7d-eval-v3 # Colibri iMX7D Module on Colibri Evaluation Board V3
+              - toradex,colibri-imx7d-aster   # Aster Carrier Board
+              - toradex,colibri-imx7d-eval-v3 # Colibri Evaluation Board V3
+              - toradex,colibri-imx7d-iris    # Iris Carrier Board
+              - toradex,colibri-imx7d-iris-v2 # Iris Carrier Board V2
           - const: toradex,colibri-imx7d
           - const: fsl,imx7d
 
@@ -747,6 +797,8 @@ properties:
           - enum:
               - toradex,colibri-imx7d-emmc-aster    # Module on Aster Carrier Board
               - toradex,colibri-imx7d-emmc-eval-v3  # Module on Colibri Evaluation Board V3
+              - toradex,colibri-imx7d-emmc-iris     # Module on Iris Carrier Board
+              - toradex,colibri-imx7d-emmc-iris-v2  # Module on Iris Carrier Board V2
           - const: toradex,colibri-imx7d-emmc
           - const: fsl,imx7d
 
@@ -762,16 +814,20 @@ properties:
           - enum:
               - beacon,imx8mm-beacon-kit  # i.MX8MM Beacon Development Kit
               - boundary,imx8mm-nitrogen8mm  # i.MX8MM Nitrogen Board
+              - dmo,imx8mm-data-modul-edm-sbc # i.MX8MM eDM SBC
               - emtrion,emcon-mx8mm-avari # emCON-MX8MM SoM on Avari Base
               - fsl,imx8mm-ddr4-evk       # i.MX8MM DDR4 EVK Board
               - fsl,imx8mm-evk            # i.MX8MM EVK Board
+              - gateworks,imx8mm-gw7904
               - gw,imx8mm-gw71xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw72xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw73xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw7901          # i.MX8MM Gateworks Board
               - gw,imx8mm-gw7902          # i.MX8MM Gateworks Board
               - gw,imx8mm-gw7903          # i.MX8MM Gateworks Board
-              - kontron,imx8mm-n801x-som  # i.MX8MM Kontron SL (N801X) SOM
+              - kontron,imx8mm-sl         # i.MX8MM Kontron SL (N801X) SOM
+              - kontron,imx8mm-osm-s      # i.MX8MM Kontron OSM-S (N802X) SOM
+              - menlo,mx8menlo            # i.MX8MM Menlo board with Verdin SoM
               - toradex,verdin-imx8mm     # Verdin iMX8M Mini Modules
               - toradex,verdin-imx8mm-nonwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
               - toradex,verdin-imx8mm-wifi  # Verdin iMX8M Mini Wi-Fi / BT Modules
@@ -789,8 +845,14 @@ properties:
 
       - description: Kontron BL i.MX8MM (N801X S) Board
         items:
-          - const: kontron,imx8mm-n801x-s
-          - const: kontron,imx8mm-n801x-som
+          - const: kontron,imx8mm-bl
+          - const: kontron,imx8mm-sl
+          - const: fsl,imx8mm
+
+      - description: Kontron BL i.MX8MM OSM-S (N802X S) Board
+        items:
+          - const: kontron,imx8mm-bl-osm-s
+          - const: kontron,imx8mm-osm-s
           - const: fsl,imx8mm
 
       - description: Toradex Boards with Verdin iMX8M Mini Modules
@@ -809,6 +871,12 @@ properties:
               - toradex,verdin-imx8mm-wifi-dev    # Verdin iMX8M Mini Wi-Fi / BT M. on Verdin Development B.
           - const: toradex,verdin-imx8mm-wifi     # Verdin iMX8M Mini Wi-Fi / BT Module
           - const: toradex,verdin-imx8mm          # Verdin iMX8M Mini Module
+          - const: fsl,imx8mm
+
+      - description: PHYTEC phyCORE-i.MX8MM SoM based boards
+        items:
+          - const: phytec,imx8mm-phyboard-polis-rdk # phyBOARD-Polis RDK
+          - const: phytec,imx8mm-phycore-som        # phyCORE-i.MX8MM SoM
           - const: fsl,imx8mm
 
       - description: Variscite VAR-SOM-MX8MM based boards
@@ -834,6 +902,7 @@ properties:
               - beacon,imx8mn-beacon-kit  # i.MX8MN Beacon Development Kit
               - bsh,imx8mn-bsh-smm-s2     # i.MX8MN BSH SystemMaster S2
               - bsh,imx8mn-bsh-smm-s2pro  # i.MX8MN BSH SystemMaster S2 PRO
+              - fsl,imx8mn-ddr3l-evk      # i.MX8MN DDR3L EVK Board
               - fsl,imx8mn-ddr4-evk       # i.MX8MN DDR4 EVK Board
               - fsl,imx8mn-evk            # i.MX8MN LPDDR4 EVK Board
               - gw,imx8mn-gw7902          # i.MX8MM Gateworks Board
@@ -859,13 +928,63 @@ properties:
       - description: i.MX8MP based Boards
         items:
           - enum:
+              - dh,imx8mp-dhcom-som       # i.MX8MP DHCOM SoM
+              - dh,imx8mp-dhcom-pdk2      # i.MX8MP DHCOM SoM on PDK2 board
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
+              - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
+              - toradex,verdin-imx8mp     # Verdin iMX8M Plus Modules
+              - toradex,verdin-imx8mp-nonwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
+              - toradex,verdin-imx8mp-wifi  # Verdin iMX8M Plus Wi-Fi / BT Modules
+          - const: fsl,imx8mp
+
+      - description: Avnet (MSC Branded) Boards with SM2S i.MX8M Plus Modules
+        items:
+          - const: avnet,sm2s-imx8mp-14N0600E-ep1 # SM2S-IMX8PLUS-14N0600E on SM2-MB-EP1 Carrier Board
+          - const: avnet,sm2s-imx8mp-14N0600E     # 14N0600E variant of SM2S-IMX8PLUS SoM
+          - const: avnet,sm2s-imx8mp              # SM2S-IMX8PLUS SoM
+          - const: fsl,imx8mp
+
+      - description: Engicam i.Core MX8M Plus SoM based boards
+        items:
+          - enum:
+              - engicam,icore-mx8mp-edimm2.2       # i.MX8MP Engicam i.Core MX8M Plus EDIMM2.2 Starter Kit
+          - const: engicam,icore-mx8mp             # i.MX8MP Engicam i.Core MX8M Plus SoM
           - const: fsl,imx8mp
 
       - description: PHYTEC phyCORE-i.MX8MP SoM based boards
         items:
           - const: phytec,imx8mp-phyboard-pollux-rdk # phyBOARD-Pollux RDK
           - const: phytec,imx8mp-phycore-som         # phyCORE-i.MX8MP SoM
+          - const: fsl,imx8mp
+
+      - description: Toradex Boards with Verdin iMX8M Plus Modules
+        items:
+          - enum:
+              - toradex,verdin-imx8mp-nonwifi-dahlia # Verdin iMX8M Plus Module on Dahlia
+              - toradex,verdin-imx8mp-nonwifi-dev    # Verdin iMX8M Plus Module on Verdin Development Board
+          - const: toradex,verdin-imx8mp-nonwifi     # Verdin iMX8M Plus Module without Wi-Fi / BT
+          - const: toradex,verdin-imx8mp             # Verdin iMX8M Plus Module
+          - const: fsl,imx8mp
+
+      - description: Toradex Boards with Verdin iMX8M Plus Wi-Fi / BT Modules
+        items:
+          - enum:
+              - toradex,verdin-imx8mp-wifi-dahlia # Verdin iMX8M Plus Wi-Fi / BT Module on Dahlia
+              - toradex,verdin-imx8mp-wifi-dev    # Verdin iMX8M Plus Wi-Fi / BT M. on Verdin Development B.
+          - const: toradex,verdin-imx8mp-wifi     # Verdin iMX8M Plus Wi-Fi / BT Module
+          - const: toradex,verdin-imx8mp          # Verdin iMX8M Plus Module
+          - const: fsl,imx8mp
+
+      - description:
+          TQMa8MPxL is a series of LGA SOM featuring NXP i.MX8MP system-on-chip
+          variants. It is designed to be soldered on different carrier boards.
+          All CPU variants use the same device tree hence only one compatible
+          is needed. MBa8MPxL mainboard can be used as starterkit or in a boxed
+          version as an industrial computing device.
+        items:
+          - enum:
+              - tq,imx8mp-tqma8mpql-mba8mpxl # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM on MBa8MPxL
+          - const: tq,imx8mp-tqma8mpql       # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM
           - const: fsl,imx8mp
 
       - description: i.MX8MQ based Boards
@@ -923,6 +1042,12 @@ properties:
               - toradex,colibri-imx8x     # Colibri iMX8X Modules
           - const: fsl,imx8qxp
 
+      - description: i.MX8DXL based Boards
+        items:
+          - enum:
+              - fsl,imx8dxl-evk           # i.MX8DXL EVK Board
+          - const: fsl,imx8dxl
+
       - description: i.MX8QXP Boards with Toradex Coilbri iMX8X Modules
         items:
           - enum:
@@ -935,6 +1060,12 @@ properties:
           - enum:
               - fsl,imx8ulp-evk           # i.MX8ULP EVK Board
           - const: fsl,imx8ulp
+
+      - description: i.MX93 based Boards
+        items:
+          - enum:
+              - fsl,imx93-11x11-evk       # i.MX93 11x11 EVK Board
+          - const: fsl,imx93
 
       - description:
           Freescale Vybrid Platform Device Tree Bindings
@@ -999,6 +1130,7 @@ properties:
       - description: LS1021A based Boards
         items:
           - enum:
+              - fsl,ls1021a-iot
               - fsl,ls1021a-moxa-uc-8410a
               - fsl,ls1021a-qds
               - fsl,ls1021a-tsn

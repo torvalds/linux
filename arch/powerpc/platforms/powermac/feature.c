@@ -31,7 +31,6 @@
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/dbdma.h>
@@ -2633,31 +2632,31 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		if (!macio_chips[i].of_node)
 			break;
 		if (macio_chips[i].of_node == node)
-			return;
+			goto out_put;
 	}
 
 	if (i >= MAX_MACIO_CHIPS) {
 		printk(KERN_ERR "pmac_feature: Please increase MAX_MACIO_CHIPS !\n");
 		printk(KERN_ERR "pmac_feature: %pOF skipped\n", node);
-		return;
+		goto out_put;
 	}
 	addrp = of_get_pci_address(node, 0, &size, NULL);
 	if (addrp == NULL) {
 		printk(KERN_ERR "pmac_feature: %pOF: can't find base !\n",
 		       node);
-		return;
+		goto out_put;
 	}
 	addr = of_translate_address(node, addrp);
 	if (addr == 0) {
 		printk(KERN_ERR "pmac_feature: %pOF, can't translate base !\n",
 		       node);
-		return;
+		goto out_put;
 	}
 	base = ioremap(addr, (unsigned long)size);
 	if (!base) {
 		printk(KERN_ERR "pmac_feature: %pOF, can't map mac-io chip !\n",
 		       node);
-		return;
+		goto out_put;
 	}
 	if (type == macio_keylargo || type == macio_keylargo2) {
 		const u32 *did = of_get_property(node, "device-id", NULL);
@@ -2678,6 +2677,11 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		macio_chips[i].rev = *revp;
 	printk(KERN_INFO "Found a %s mac-io controller, rev: %d, mapped at 0x%p\n",
 		macio_names[type], macio_chips[i].rev, macio_chips[i].base);
+
+	return;
+
+out_put:
+	of_node_put(node);
 }
 
 static int __init

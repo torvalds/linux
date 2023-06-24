@@ -36,6 +36,18 @@
         "BriefDescription": "Attributable Level 1 data TLB refill"
     },
     {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, load",
+        "EventCode": "0x06",
+        "EventName": "LD_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, load"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, store",
+        "EventCode": "0x07",
+        "EventName": "ST_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, store"
+    },
+    {
         "PublicDescription": "Instruction architecturally executed",
         "EventCode": "0x08",
         "EventName": "INST_RETIRED",
@@ -58,6 +70,30 @@
         "EventCode": "0x0b",
         "EventName": "CID_WRITE_RETIRED",
         "BriefDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, software change of the PC",
+        "EventCode": "0x0C",
+        "EventName": "PC_WRITE_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, software change of the PC"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, immediate branch",
+        "EventCode": "0x0D",
+        "EventName": "BR_IMMED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, immediate branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, procedure return",
+        "EventCode": "0x0E",
+        "EventName": "BR_RETURN_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, procedure return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, unaligned",
+        "EventCode": "0x0F",
+        "EventName": "UNALIGNED_LDST_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, unaligned"
     },
     {
         "PublicDescription": "Mispredicted or not predicted branch speculatively executed",
@@ -142,6 +178,12 @@
         "EventCode": "0x1D",
         "EventName": "BUS_CYCLES",
         "BriefDescription": "Bus cycle"
+    },
+    {
+        "PublicDescription": "Level 1 data cache allocation without refill",
+        "EventCode": "0x1F",
+        "EventName": "L1D_CACHE_ALLOCATE",
+        "BriefDescription": "Level 1 data cache allocation without refill"
     },
     {
         "PublicDescription": "Attributable Level 2 data cache allocation without refill",
@@ -258,6 +300,12 @@
         "BriefDescription": "Last level cache miss, read"
     },
     {
+        "PublicDescription": "Attributable memory read access to another socket in a multi-socket system",
+        "EventCode": "0x38",
+        "EventName": "REMOTE_ACCESS_RD",
+        "BriefDescription": "Attributable memory read access to another socket in a multi-socket system"
+    },
+    {
         "PublicDescription": "Level 1 data cache long-latency read miss.  The counter counts each memory read access counted by L1D_CACHE that incurs additional latency because it returns data from outside the Level 1 data or unified cache of this processing element.",
         "EventCode": "0x39",
         "EventName": "L1D_CACHE_LMISS_RD",
@@ -358,6 +406,24 @@
         "EventCode": "0x400C",
         "EventName": "TRB_WRAP",
         "BriefDescription": "Trace buffer current write pointer wrapped"
+    },
+    {
+        "PublicDescription": "PMU overflow, counters accessible to EL1 and EL0",
+        "EventCode": "0x400D",
+        "EventName": "PMU_OVFS",
+        "BriefDescription": "PMU overflow, counters accessible to EL1 and EL0"
+    },
+    {
+        "PublicDescription": "Trace buffer Trigger Event",
+        "EventCode": "0x400E",
+        "EventName": "TRB_TRIG",
+        "BriefDescription": "Trace buffer Trigger Event"
+    },
+    {
+        "PublicDescription": "PMU overflow, counters reserved for use by EL2",
+        "EventCode": "0x400F",
+        "EventName": "PMU_HOVFS",
+        "BriefDescription": "PMU overflow, counters reserved for use by EL2"
     },
     {
         "PublicDescription": "PE Trace Unit external output 0",

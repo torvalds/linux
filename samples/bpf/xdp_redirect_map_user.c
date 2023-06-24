@@ -40,6 +40,8 @@ static const struct option long_options[] = {
 	{}
 };
 
+static int verbose = 0;
+
 int main(int argc, char **argv)
 {
 	struct bpf_devmap_val devmap_val = {};
@@ -79,6 +81,7 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			sample_switch_mode();
+			verbose = 1;
 			break;
 		case 's':
 			mask |= SAMPLE_REDIRECT_MAP_CNT;
@@ -134,6 +137,12 @@ int main(int argc, char **argv)
 			ret = EXIT_FAIL;
 			goto end_destroy;
 		}
+		if (verbose)
+			printf("Egress ifindex:%d using src MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+			       ifindex_out,
+			       skel->rodata->tx_mac_addr[0], skel->rodata->tx_mac_addr[1],
+			       skel->rodata->tx_mac_addr[2], skel->rodata->tx_mac_addr[3],
+			       skel->rodata->tx_mac_addr[4], skel->rodata->tx_mac_addr[5]);
 	}
 
 	skel->rodata->from_match[0] = ifindex_in;

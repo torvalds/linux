@@ -9,8 +9,8 @@
  */
 
 #include <linux/spinlock.h>
-#include <linux/intel-iommu.h>
 
+#include "iommu.h"
 #include "perf.h"
 
 static DEFINE_SPINLOCK(latency_lock);

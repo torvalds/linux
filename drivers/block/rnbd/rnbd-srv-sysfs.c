@@ -38,14 +38,13 @@ static struct kobj_type dev_ktype = {
 };
 
 int rnbd_srv_create_dev_sysfs(struct rnbd_srv_dev *dev,
-			       struct block_device *bdev,
-			       const char *dev_name)
+			       struct block_device *bdev)
 {
 	struct kobject *bdev_kobj;
 	int ret;
 
 	ret = kobject_init_and_add(&dev->dev_kobj, &dev_ktype,
-				   rnbd_devs_kobj, dev_name);
+				   rnbd_devs_kobj, "%pg", bdev);
 	if (ret) {
 		kobject_put(&dev->dev_kobj);
 		return ret;

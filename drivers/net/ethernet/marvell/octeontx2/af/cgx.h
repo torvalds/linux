@@ -92,7 +92,7 @@
 
 #define CGX_COMMAND_REG			CGXX_SCRATCH1_REG
 #define CGX_EVENT_REG			CGXX_SCRATCH0_REG
-#define CGX_CMD_TIMEOUT			2200 /* msecs */
+#define CGX_CMD_TIMEOUT			5000 /* msecs */
 #define DEFAULT_PAUSE_TIME		0x7FF
 
 #define CGX_LMAC_FWI			0

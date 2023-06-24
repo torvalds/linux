@@ -66,6 +66,20 @@ table inet filter {
 EOF
 }
 
+load_pbr_ruleset() {
+	local netns=$1
+
+ip netns exec ${netns} nft -f /dev/stdin <<EOF
+table inet filter {
+	chain forward {
+		type filter hook forward priority raw;
+		fib saddr . iif oif gt 0 accept
+		log drop
+	}
+}
+EOF
+}
+
 load_ruleset_count() {
 	local netns=$1
 
@@ -174,6 +188,7 @@ test_ping() {
 ip netns exec ${nsrouter} sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
 ip netns exec ${nsrouter} sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
 ip netns exec ${nsrouter} sysctl net.ipv4.conf.veth1.forwarding=1 > /dev/null
+ip netns exec ${nsrouter} sysctl net.ipv4.conf.all.rp_filter=0 > /dev/null
 ip netns exec ${nsrouter} sysctl net.ipv4.conf.veth0.rp_filter=0 > /dev/null
 
 sleep 3
@@ -219,4 +234,40 @@ sleep 2
 ip netns exec ${ns1} ping -c 3 -q 1c3::c01d > /dev/null
 check_fib_counter 3 ${nsrouter} 1c3::c01d || exit 1
 
+# delete all rules
+ip netns exec ${ns1} nft flush ruleset
+ip netns exec ${ns2} nft flush ruleset
+ip netns exec ${nsrouter} nft flush ruleset
+
+ip -net ${ns1} addr add 10.0.1.99/24 dev eth0
+ip -net ${ns1} addr add dead:1::99/64 dev eth0
+
+ip -net ${ns1} addr del 10.0.2.99/24 dev eth0
+ip -net ${ns1} addr del dead:2::99/64 dev eth0
+
+ip -net ${nsrouter} addr del dead:2::1/64 dev veth0
+
+# ... pbr ruleset for the router, check iif+oif.
+load_pbr_ruleset ${nsrouter}
+if [ $? -ne 0 ] ; then
+	echo "SKIP: Could not load fib forward ruleset"
+	exit $ksft_skip
+fi
+
+ip -net ${nsrouter} rule add from all table 128
+ip -net ${nsrouter} rule add from all iif veth0 table 129
+ip -net ${nsrouter} route add table 128 to 10.0.1.0/24 dev veth0
+ip -net ${nsrouter} route add table 129 to 10.0.2.0/24 dev veth1
+
+# drop main ipv4 table
+ip -net ${nsrouter} -4 rule delete table main
+
+test_ping 10.0.2.99 dead:2::99
+if [ $? -ne 0 ] ; then
+	ip -net ${nsrouter} nft list ruleset
+	echo "FAIL: fib mismatch in pbr setup"
+	exit 1
+fi
+
+echo "PASS: fib expression forward check with policy based routing"
 exit 0

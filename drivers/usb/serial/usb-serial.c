@@ -295,7 +295,7 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
  *
  * Shut down a USB serial port. Serialized against activate by the
  * tport mutex and kept to matching open/close pairs
- * of calls by the initialized flag.
+ * of calls by the tty-port initialized flag.
  *
  * Not called if tty is console.
  */
@@ -519,7 +519,8 @@ static int serial_ioctl(struct tty_struct *tty,
 	return retval;
 }
 
-static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void serial_set_termios(struct tty_struct *tty,
+		               const struct ktermios *old)
 {
 	struct usb_serial_port *port = tty->driver_data;
 

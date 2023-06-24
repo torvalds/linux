@@ -52,13 +52,14 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <mach/tc.h>
-#include <mach/mux.h>
+#include <linux/soc/ti/omap1-io.h>
+#include "tc.h"
 #include <linux/omap-dma.h>
 #include <clocksource/timer-ti-dm.h>
 
-#include <mach/irqs.h>
-
+#include "hardware.h"
+#include "mux.h"
+#include "irqs.h"
 #include "iomap.h"
 #include "clock.h"
 #include "pm.h"

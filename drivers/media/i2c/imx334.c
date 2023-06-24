@@ -1089,7 +1089,7 @@ error_mutex_destroy:
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_remove(struct i2c_client *client)
+static void imx334_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx334 *imx334 = to_imx334(sd);
@@ -1102,8 +1102,6 @@ static int imx334_remove(struct i2c_client *client)
 	pm_runtime_suspended(&client->dev);
 
 	mutex_destroy(&imx334->mutex);
-
-	return 0;
 }
 
 static const struct dev_pm_ops imx334_pm_ops = {

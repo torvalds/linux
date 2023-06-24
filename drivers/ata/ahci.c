@@ -324,7 +324,6 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x1d02), board_ahci }, /* PBG AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1d04), board_ahci }, /* PBG RAID */
 	{ PCI_VDEVICE(INTEL, 0x1d06), board_ahci }, /* PBG RAID */
-	{ PCI_VDEVICE(INTEL, 0x2826), board_ahci }, /* PBG/Lewisburg RAID*/
 	{ PCI_VDEVICE(INTEL, 0x2323), board_ahci }, /* DH89xxCC AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1e02), board_ahci }, /* Panther Point AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1e03), board_ahci_low_power }, /* Panther M AHCI */
@@ -367,7 +366,9 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x1f3e), board_ahci_avn }, /* Avoton RAID */
 	{ PCI_VDEVICE(INTEL, 0x1f3f), board_ahci_avn }, /* Avoton RAID */
 	{ PCI_VDEVICE(INTEL, 0x2823), board_ahci }, /* Wellsburg/Lewisburg AHCI*/
-	{ PCI_VDEVICE(INTEL, 0x2827), board_ahci }, /* Wellsburg/Lewisburg RAID*/
+	{ PCI_VDEVICE(INTEL, 0x2826), board_ahci }, /* *burg SATA0 'RAID' */
+	{ PCI_VDEVICE(INTEL, 0x2827), board_ahci }, /* *burg SATA1 'RAID' */
+	{ PCI_VDEVICE(INTEL, 0x282f), board_ahci }, /* *burg SATA2 'RAID' */
 	{ PCI_VDEVICE(INTEL, 0x43d4), board_ahci }, /* Rocket Lake PCH-H RAID */
 	{ PCI_VDEVICE(INTEL, 0x43d5), board_ahci }, /* Rocket Lake PCH-H RAID */
 	{ PCI_VDEVICE(INTEL, 0x43d6), board_ahci }, /* Rocket Lake PCH-H RAID */
@@ -656,7 +657,7 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 {
 	if (pdev->vendor == PCI_VENDOR_ID_JMICRON && pdev->device == 0x2361) {
 		dev_info(&pdev->dev, "JMB361 has only one port\n");
-		hpriv->force_port_map = 1;
+		hpriv->saved_port_map = 1;
 	}
 
 	/*
@@ -689,7 +690,7 @@ static void ahci_pci_init_controller(struct ata_host *host)
 			mv = 2;
 		else
 			mv = 4;
-		port_mmio = __ahci_port_base(host, mv);
+		port_mmio = __ahci_port_base(hpriv, mv);
 
 		writel(0, port_mmio + PORT_IRQ_MASK);
 
@@ -1608,15 +1609,12 @@ static void ahci_update_initial_lpm_policy(struct ata_port *ap,
 		goto update_policy;
 	}
 
-#ifdef CONFIG_ACPI
-	if (policy > ATA_LPM_MED_POWER &&
-	    (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
+	if (policy > ATA_LPM_MED_POWER && pm_suspend_default_s2idle()) {
 		if (hpriv->cap & HOST_CAP_PART)
 			policy = ATA_LPM_MIN_POWER_WITH_PARTIAL;
 		else if (hpriv->cap & HOST_CAP_SSC)
 			policy = ATA_LPM_MIN_POWER;
 	}
-#endif
 
 update_policy:
 	if (policy >= ATA_LPM_UNKNOWN && policy <= ATA_LPM_MIN_POWER)

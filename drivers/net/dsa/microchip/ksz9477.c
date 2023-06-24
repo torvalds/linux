@@ -17,147 +17,7 @@
 
 #include "ksz9477_reg.h"
 #include "ksz_common.h"
-
-/* Used with variable features to indicate capabilities. */
-#define GBIT_SUPPORT			BIT(0)
-#define NEW_XMII			BIT(1)
-#define IS_9893				BIT(2)
-
-static const struct {
-	int index;
-	char string[ETH_GSTRING_LEN];
-} ksz9477_mib_names[TOTAL_SWITCH_COUNTER_NUM] = {
-	{ 0x00, "rx_hi" },
-	{ 0x01, "rx_undersize" },
-	{ 0x02, "rx_fragments" },
-	{ 0x03, "rx_oversize" },
-	{ 0x04, "rx_jabbers" },
-	{ 0x05, "rx_symbol_err" },
-	{ 0x06, "rx_crc_err" },
-	{ 0x07, "rx_align_err" },
-	{ 0x08, "rx_mac_ctrl" },
-	{ 0x09, "rx_pause" },
-	{ 0x0A, "rx_bcast" },
-	{ 0x0B, "rx_mcast" },
-	{ 0x0C, "rx_ucast" },
-	{ 0x0D, "rx_64_or_less" },
-	{ 0x0E, "rx_65_127" },
-	{ 0x0F, "rx_128_255" },
-	{ 0x10, "rx_256_511" },
-	{ 0x11, "rx_512_1023" },
-	{ 0x12, "rx_1024_1522" },
-	{ 0x13, "rx_1523_2000" },
-	{ 0x14, "rx_2001" },
-	{ 0x15, "tx_hi" },
-	{ 0x16, "tx_late_col" },
-	{ 0x17, "tx_pause" },
-	{ 0x18, "tx_bcast" },
-	{ 0x19, "tx_mcast" },
-	{ 0x1A, "tx_ucast" },
-	{ 0x1B, "tx_deferred" },
-	{ 0x1C, "tx_total_col" },
-	{ 0x1D, "tx_exc_col" },
-	{ 0x1E, "tx_single_col" },
-	{ 0x1F, "tx_mult_col" },
-	{ 0x80, "rx_total" },
-	{ 0x81, "tx_total" },
-	{ 0x82, "rx_discards" },
-	{ 0x83, "tx_discards" },
-};
-
-struct ksz9477_stats_raw {
-	u64 rx_hi;
-	u64 rx_undersize;
-	u64 rx_fragments;
-	u64 rx_oversize;
-	u64 rx_jabbers;
-	u64 rx_symbol_err;
-	u64 rx_crc_err;
-	u64 rx_align_err;
-	u64 rx_mac_ctrl;
-	u64 rx_pause;
-	u64 rx_bcast;
-	u64 rx_mcast;
-	u64 rx_ucast;
-	u64 rx_64_or_less;
-	u64 rx_65_127;
-	u64 rx_128_255;
-	u64 rx_256_511;
-	u64 rx_512_1023;
-	u64 rx_1024_1522;
-	u64 rx_1523_2000;
-	u64 rx_2001;
-	u64 tx_hi;
-	u64 tx_late_col;
-	u64 tx_pause;
-	u64 tx_bcast;
-	u64 tx_mcast;
-	u64 tx_ucast;
-	u64 tx_deferred;
-	u64 tx_total_col;
-	u64 tx_exc_col;
-	u64 tx_single_col;
-	u64 tx_mult_col;
-	u64 rx_total;
-	u64 tx_total;
-	u64 rx_discards;
-	u64 tx_discards;
-};
-
-static void ksz9477_r_mib_stats64(struct ksz_device *dev, int port)
-{
-	struct rtnl_link_stats64 *stats;
-	struct ksz9477_stats_raw *raw;
-	struct ksz_port_mib *mib;
-
-	mib = &dev->ports[port].mib;
-	stats = &mib->stats64;
-	raw = (struct ksz9477_stats_raw *)mib->counters;
-
-	spin_lock(&mib->stats64_lock);
-
-	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast;
-	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast;
-
-	/* HW counters are counting bytes + FCS which is not acceptable
-	 * for rtnl_link_stats64 interface
-	 */
-	stats->rx_bytes = raw->rx_total - stats->rx_packets * ETH_FCS_LEN;
-	stats->tx_bytes = raw->tx_total - stats->tx_packets * ETH_FCS_LEN;
-
-	stats->rx_length_errors = raw->rx_undersize + raw->rx_fragments +
-		raw->rx_oversize;
-
-	stats->rx_crc_errors = raw->rx_crc_err;
-	stats->rx_frame_errors = raw->rx_align_err;
-	stats->rx_dropped = raw->rx_discards;
-	stats->rx_errors = stats->rx_length_errors + stats->rx_crc_errors +
-		stats->rx_frame_errors  + stats->rx_dropped;
-
-	stats->tx_window_errors = raw->tx_late_col;
-	stats->tx_fifo_errors = raw->tx_discards;
-	stats->tx_aborted_errors = raw->tx_exc_col;
-	stats->tx_errors = stats->tx_window_errors + stats->tx_fifo_errors +
-		stats->tx_aborted_errors;
-
-	stats->multicast = raw->rx_mcast;
-	stats->collisions = raw->tx_total_col;
-
-	spin_unlock(&mib->stats64_lock);
-}
-
-static void ksz9477_get_stats64(struct dsa_switch *ds, int port,
-			       struct rtnl_link_stats64 *s)
-{
-	struct ksz_device *dev = ds->priv;
-	struct ksz_port_mib *mib;
-
-	mib = &dev->ports[port].mib;
-
-	spin_lock(&mib->stats64_lock);
-	memcpy(s, &mib->stats64, sizeof(*s));
-	spin_unlock(&mib->stats64_lock);
-}
+#include "ksz9477.h"
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
@@ -183,9 +43,8 @@ static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 			   bits, set ? bits : 0);
 }
 
-static int ksz9477_change_mtu(struct dsa_switch *ds, int port, int mtu)
+int ksz9477_change_mtu(struct ksz_device *dev, int port, int mtu)
 {
-	struct ksz_device *dev = ds->priv;
 	u16 frame_size, max_frame = 0;
 	int i;
 
@@ -194,14 +53,14 @@ static int ksz9477_change_mtu(struct dsa_switch *ds, int port, int mtu)
 	/* Cache the per-port MTU setting */
 	dev->ports[port].max_frame = frame_size;
 
-	for (i = 0; i < dev->port_cnt; i++)
+	for (i = 0; i < dev->info->port_cnt; i++)
 		max_frame = max(max_frame, dev->ports[i].max_frame);
 
 	return regmap_update_bits(dev->regmap[1], REG_SW_MTU__2,
 				  REG_SW_MTU_MASK, max_frame);
 }
 
-static int ksz9477_max_mtu(struct dsa_switch *ds, int port)
+int ksz9477_max_mtu(struct ksz_device *dev, int port)
 {
 	return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
 }
@@ -311,7 +170,7 @@ static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev)
 					10, 1000);
 }
 
-static int ksz9477_reset_switch(struct ksz_device *dev)
+int ksz9477_reset_switch(struct ksz_device *dev)
 {
 	u8 data8;
 	u32 data32;
@@ -334,11 +193,10 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 	ksz_write32(dev, REG_SW_PORT_INT_MASK__4, 0x7F);
 	ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data32);
 
-	/* set broadcast storm protection 10% rate */
-	regmap_update_bits(dev->regmap[1], REG_SW_MAC_CTRL_2,
-			   BROADCAST_STORM_RATE,
-			   (BROADCAST_STORM_VALUE *
-			   BROADCAST_STORM_PROT_RATE) / 100);
+	/* KSZ9893 compatible chips do not support refclk configuration */
+	if (dev->chip_id == KSZ9893_CHIP_ID ||
+	    dev->chip_id == KSZ8563_CHIP_ID)
+		return 0;
 
 	data8 = SW_ENABLE_REFCLKO;
 	if (dev->synclko_disable)
@@ -350,8 +208,7 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 	return 0;
 }
 
-static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
-			      u64 *cnt)
+void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 {
 	struct ksz_port *p = &dev->ports[port];
 	unsigned int val;
@@ -378,14 +235,14 @@ static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 	*cnt += data;
 }
 
-static void ksz9477_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
-			      u64 *dropped, u64 *cnt)
+void ksz9477_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
+		       u64 *dropped, u64 *cnt)
 {
-	addr = ksz9477_mib_names[addr].index;
+	addr = dev->info->mib_names[addr].index;
 	ksz9477_r_mib_cnt(dev, port, addr, cnt);
 }
 
-static void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
+void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 {
 	u32 val = freeze ? MIB_COUNTER_FLUSH_FREEZE : 0;
 	struct ksz_port *p = &dev->ports[port];
@@ -399,7 +256,7 @@ static void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 	mutex_unlock(&p->mib.cnt_mutex);
 }
 
-static void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
+void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 {
 	struct ksz_port_mib *mib = &dev->ports[port].mib;
 
@@ -410,27 +267,22 @@ static void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 	ksz_write8(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FLUSH);
 	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, 0);
 	mutex_unlock(&mib->cnt_mutex);
-
-	mib->cnt_ptr = 0;
-	memset(mib->counters, 0, dev->mib_cnt * sizeof(u64));
 }
 
-static enum dsa_tag_protocol ksz9477_get_tag_protocol(struct dsa_switch *ds,
-						      int port,
-						      enum dsa_tag_protocol mp)
+static void ksz9477_r_phy_quirks(struct ksz_device *dev, u16 addr, u16 reg,
+				 u16 *data)
 {
-	enum dsa_tag_protocol proto = DSA_TAG_PROTO_KSZ9477;
-	struct ksz_device *dev = ds->priv;
-
-	if (dev->features & IS_9893)
-		proto = DSA_TAG_PROTO_KSZ9893;
-	return proto;
+	/* KSZ8563R do not have extended registers but BMSR_ESTATEN and
+	 * BMSR_ERCAP bits are set.
+	 */
+	if (dev->chip_id == KSZ8563_CHIP_ID && reg == MII_BMSR)
+		*data &= ~(BMSR_ESTATEN | BMSR_ERCAP);
 }
 
-static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
+int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 {
-	struct ksz_device *dev = ds->priv;
 	u16 val = 0xffff;
+	int ret;
 
 	/* No real PHY after this. Simulate the PHY.
 	 * A fixed PHY can be setup in the device tree, but this function is
@@ -438,7 +290,7 @@ static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
 	 * For RGMII PHY there is no way to access it so the fixed PHY should
 	 * be used.  For SGMII PHY the supporting code will be added later.
 	 */
-	if (addr >= dev->phy_port_cnt) {
+	if (!dev->info->internal_phy[addr]) {
 		struct ksz_port *p = &dev->ports[addr];
 
 		switch (reg) {
@@ -471,114 +323,58 @@ static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
 			break;
 		}
 	} else {
-		ksz_pread16(dev, addr, 0x100 + (reg << 1), &val);
+		ret = ksz_pread16(dev, addr, 0x100 + (reg << 1), &val);
+		if (ret)
+			return ret;
+
+		ksz9477_r_phy_quirks(dev, addr, reg, &val);
 	}
 
-	return val;
-}
-
-static int ksz9477_phy_write16(struct dsa_switch *ds, int addr, int reg,
-			       u16 val)
-{
-	struct ksz_device *dev = ds->priv;
-
-	/* No real PHY after this. */
-	if (addr >= dev->phy_port_cnt)
-		return 0;
-
-	/* No gigabit support.  Do not write to this register. */
-	if (!(dev->features & GBIT_SUPPORT) && reg == MII_CTRL1000)
-		return 0;
-	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
+	*data = val;
 
 	return 0;
 }
 
-static void ksz9477_get_strings(struct dsa_switch *ds, int port,
-				u32 stringset, uint8_t *buf)
+int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
-	int i;
+	/* No real PHY after this. */
+	if (!dev->info->internal_phy[addr])
+		return 0;
 
-	if (stringset != ETH_SS_STATS)
-		return;
-
-	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
-		memcpy(buf + i * ETH_GSTRING_LEN, ksz9477_mib_names[i].string,
-		       ETH_GSTRING_LEN);
-	}
+	return ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
 }
 
-static void ksz9477_cfg_port_member(struct ksz_device *dev, int port,
-				    u8 member)
+void ksz9477_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 {
 	ksz_pwrite32(dev, port, REG_PORT_VLAN_MEMBERSHIP__4, member);
 }
 
-static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
-				       u8 state)
+void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 {
-	struct ksz_device *dev = ds->priv;
-	struct ksz_port *p = &dev->ports[port];
-	u8 data;
-
-	ksz_pread8(dev, port, P_STP_CTRL, &data);
-	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-
-	switch (state) {
-	case BR_STATE_DISABLED:
-		data |= PORT_LEARN_DISABLE;
-		break;
-	case BR_STATE_LISTENING:
-		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		break;
-	case BR_STATE_LEARNING:
-		data |= PORT_RX_ENABLE;
-		break;
-	case BR_STATE_FORWARDING:
-		data |= (PORT_TX_ENABLE | PORT_RX_ENABLE);
-		break;
-	case BR_STATE_BLOCKING:
-		data |= PORT_LEARN_DISABLE;
-		break;
-	default:
-		dev_err(ds->dev, "invalid STP state: %d\n", state);
-		return;
-	}
-
-	ksz_pwrite8(dev, port, P_STP_CTRL, data);
-	p->stp_state = state;
-
-	ksz_update_port_member(dev, port);
-}
-
-static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
-{
+	const u16 *regs = dev->info->regs;
 	u8 data;
 
 	regmap_update_bits(dev->regmap[0], REG_SW_LUE_CTRL_2,
 			   SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S,
 			   SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
 
-	if (port < dev->port_cnt) {
+	if (port < dev->info->port_cnt) {
 		/* flush individual port */
-		ksz_pread8(dev, port, P_STP_CTRL, &data);
+		ksz_pread8(dev, port, regs[P_STP_CTRL], &data);
 		if (!(data & PORT_LEARN_DISABLE))
-			ksz_pwrite8(dev, port, P_STP_CTRL,
+			ksz_pwrite8(dev, port, regs[P_STP_CTRL],
 				    data | PORT_LEARN_DISABLE);
 		ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_DYN_MAC_TABLE, true);
-		ksz_pwrite8(dev, port, P_STP_CTRL, data);
+		ksz_pwrite8(dev, port, regs[P_STP_CTRL], data);
 	} else {
 		/* flush all */
 		ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_STP_TABLE, true);
 	}
 }
 
-static int ksz9477_port_vlan_filtering(struct dsa_switch *ds, int port,
-				       bool flag,
-				       struct netlink_ext_ack *extack)
+int ksz9477_port_vlan_filtering(struct ksz_device *dev, int port,
+				bool flag, struct netlink_ext_ack *extack)
 {
-	struct ksz_device *dev = ds->priv;
-
 	if (flag) {
 		ksz_port_cfg(dev, port, REG_PORT_LUE_CTRL,
 			     PORT_VLAN_LOOKUP_VID_0, true);
@@ -592,11 +388,10 @@ static int ksz9477_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int ksz9477_port_vlan_add(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_vlan *vlan,
-				 struct netlink_ext_ack *extack)
+int ksz9477_port_vlan_add(struct ksz_device *dev, int port,
+			  const struct switchdev_obj_port_vlan *vlan,
+			  struct netlink_ext_ack *extack)
 {
-	struct ksz_device *dev = ds->priv;
 	u32 vlan_table[3];
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	int err;
@@ -629,10 +424,9 @@ static int ksz9477_port_vlan_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int ksz9477_port_vlan_del(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_vlan *vlan)
+int ksz9477_port_vlan_del(struct ksz_device *dev, int port,
+			  const struct switchdev_obj_port_vlan *vlan)
 {
-	struct ksz_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	u32 vlan_table[3];
 	u16 pvid;
@@ -663,11 +457,9 @@ static int ksz9477_port_vlan_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int ksz9477_port_fdb_add(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid,
-				struct dsa_db db)
+int ksz9477_fdb_add(struct ksz_device *dev, int port,
+		    const unsigned char *addr, u16 vid, struct dsa_db db)
 {
-	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
 	u32 data;
 	int ret = 0;
@@ -721,11 +513,9 @@ exit:
 	return ret;
 }
 
-static int ksz9477_port_fdb_del(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid,
-				struct dsa_db db)
+int ksz9477_fdb_del(struct ksz_device *dev, int port,
+		    const unsigned char *addr, u16 vid, struct dsa_db db)
 {
-	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
 	u32 data;
 	int ret = 0;
@@ -812,10 +602,9 @@ static void ksz9477_convert_alu(struct alu_struct *alu, u32 *alu_table)
 	alu->mac[5] = alu_table[3] & 0xFF;
 }
 
-static int ksz9477_port_fdb_dump(struct dsa_switch *ds, int port,
-				 dsa_fdb_dump_cb_t *cb, void *data)
+int ksz9477_fdb_dump(struct ksz_device *dev, int port,
+		     dsa_fdb_dump_cb_t *cb, void *data)
 {
-	struct ksz_device *dev = ds->priv;
 	int ret = 0;
 	u32 ksz_data;
 	u32 alu_table[4];
@@ -842,6 +631,9 @@ static int ksz9477_port_fdb_dump(struct dsa_switch *ds, int port,
 			goto exit;
 		}
 
+		if (!(ksz_data & ALU_VALID))
+			continue;
+
 		/* read ALU table */
 		ksz9477_read_table(dev, alu_table);
 
@@ -864,16 +656,19 @@ exit:
 	return ret;
 }
 
-static int ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb,
-				struct dsa_db db)
+int ksz9477_mdb_add(struct ksz_device *dev, int port,
+		    const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
 {
-	struct ksz_device *dev = ds->priv;
 	u32 static_table[4];
+	const u8 *shifts;
+	const u32 *masks;
 	u32 data;
 	int index;
 	u32 mac_hi, mac_lo;
 	int err = 0;
+
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	mac_hi = ((mdb->addr[0] << 8) | mdb->addr[1]);
 	mac_lo = ((mdb->addr[2] << 24) | (mdb->addr[3] << 16));
@@ -881,10 +676,10 @@ static int ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&dev->alu_mutex);
 
-	for (index = 0; index < dev->num_statics; index++) {
+	for (index = 0; index < dev->info->num_statics; index++) {
 		/* find empty slot first */
-		data = (index << ALU_STAT_INDEX_S) |
-			ALU_STAT_READ | ALU_STAT_START;
+		data = (index << shifts[ALU_STAT_INDEX]) |
+			masks[ALU_STAT_READ] | ALU_STAT_START;
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
@@ -912,7 +707,7 @@ static int ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 	}
 
 	/* no available entry */
-	if (index == dev->num_statics) {
+	if (index == dev->info->num_statics) {
 		err = -ENOSPC;
 		goto exit;
 	}
@@ -928,7 +723,7 @@ static int ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 
 	ksz9477_write_table(dev, static_table);
 
-	data = (index << ALU_STAT_INDEX_S) | ALU_STAT_START;
+	data = (index << shifts[ALU_STAT_INDEX]) | ALU_STAT_START;
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
@@ -940,16 +735,19 @@ exit:
 	return err;
 }
 
-static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb,
-				struct dsa_db db)
+int ksz9477_mdb_del(struct ksz_device *dev, int port,
+		    const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
 {
-	struct ksz_device *dev = ds->priv;
 	u32 static_table[4];
+	const u8 *shifts;
+	const u32 *masks;
 	u32 data;
 	int index;
 	int ret = 0;
 	u32 mac_hi, mac_lo;
+
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	mac_hi = ((mdb->addr[0] << 8) | mdb->addr[1]);
 	mac_lo = ((mdb->addr[2] << 24) | (mdb->addr[3] << 16));
@@ -957,10 +755,10 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&dev->alu_mutex);
 
-	for (index = 0; index < dev->num_statics; index++) {
+	for (index = 0; index < dev->info->num_statics; index++) {
 		/* find empty slot first */
-		data = (index << ALU_STAT_INDEX_S) |
-			ALU_STAT_READ | ALU_STAT_START;
+		data = (index << shifts[ALU_STAT_INDEX]) |
+			masks[ALU_STAT_READ] | ALU_STAT_START;
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
@@ -986,7 +784,7 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 	}
 
 	/* no available entry */
-	if (index == dev->num_statics)
+	if (index == dev->info->num_statics)
 		goto exit;
 
 	/* clear port */
@@ -1002,7 +800,7 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 
 	ksz9477_write_table(dev, static_table);
 
-	data = (index << ALU_STAT_INDEX_S) | ALU_STAT_START;
+	data = (index << shifts[ALU_STAT_INDEX]) | ALU_STAT_START;
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
@@ -1016,11 +814,10 @@ exit:
 	return ret;
 }
 
-static int ksz9477_port_mirror_add(struct dsa_switch *ds, int port,
-				   struct dsa_mall_mirror_tc_entry *mirror,
-				   bool ingress, struct netlink_ext_ack *extack)
+int ksz9477_port_mirror_add(struct ksz_device *dev, int port,
+			    struct dsa_mall_mirror_tc_entry *mirror,
+			    bool ingress, struct netlink_ext_ack *extack)
 {
-	struct ksz_device *dev = ds->priv;
 	u8 data;
 	int p;
 
@@ -1028,7 +825,7 @@ static int ksz9477_port_mirror_add(struct dsa_switch *ds, int port,
 	 * Check if any of the port is already set for sniffing
 	 * If yes, instruct the user to remove the previous entry & exit
 	 */
-	for (p = 0; p < dev->port_cnt; p++) {
+	for (p = 0; p < dev->info->port_cnt; p++) {
 		/* Skip the current sniffing port */
 		if (p == mirror->to_local_port)
 			continue;
@@ -1056,10 +853,9 @@ static int ksz9477_port_mirror_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
-				    struct dsa_mall_mirror_tc_entry *mirror)
+void ksz9477_port_mirror_del(struct ksz_device *dev, int port,
+			     struct dsa_mall_mirror_tc_entry *mirror)
 {
-	struct ksz_device *dev = ds->priv;
 	bool in_use = false;
 	u8 data;
 	int p;
@@ -1071,7 +867,7 @@ static void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
 
 
 	/* Check if any of the port is still referring to sniffer port */
-	for (p = 0; p < dev->port_cnt; p++) {
+	for (p = 0; p < dev->info->port_cnt; p++) {
 		ksz_pread8(dev, p, P_MIRROR_CTRL, &data);
 
 		if ((data & (PORT_MIRROR_RX | PORT_MIRROR_TX))) {
@@ -1086,142 +882,18 @@ static void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
 			     PORT_MIRROR_SNIFFER, false);
 }
 
-static bool ksz9477_get_gbit(struct ksz_device *dev, u8 data)
-{
-	bool gbit;
-
-	if (dev->features & NEW_XMII)
-		gbit = !(data & PORT_MII_NOT_1GBIT);
-	else
-		gbit = !!(data & PORT_MII_1000MBIT_S1);
-	return gbit;
-}
-
-static void ksz9477_set_gbit(struct ksz_device *dev, bool gbit, u8 *data)
-{
-	if (dev->features & NEW_XMII) {
-		if (gbit)
-			*data &= ~PORT_MII_NOT_1GBIT;
-		else
-			*data |= PORT_MII_NOT_1GBIT;
-	} else {
-		if (gbit)
-			*data |= PORT_MII_1000MBIT_S1;
-		else
-			*data &= ~PORT_MII_1000MBIT_S1;
-	}
-}
-
-static int ksz9477_get_xmii(struct ksz_device *dev, u8 data)
-{
-	int mode;
-
-	if (dev->features & NEW_XMII) {
-		switch (data & PORT_MII_SEL_M) {
-		case PORT_MII_SEL:
-			mode = 0;
-			break;
-		case PORT_RMII_SEL:
-			mode = 1;
-			break;
-		case PORT_GMII_SEL:
-			mode = 2;
-			break;
-		default:
-			mode = 3;
-		}
-	} else {
-		switch (data & PORT_MII_SEL_M) {
-		case PORT_MII_SEL_S1:
-			mode = 0;
-			break;
-		case PORT_RMII_SEL_S1:
-			mode = 1;
-			break;
-		case PORT_GMII_SEL_S1:
-			mode = 2;
-			break;
-		default:
-			mode = 3;
-		}
-	}
-	return mode;
-}
-
-static void ksz9477_set_xmii(struct ksz_device *dev, int mode, u8 *data)
-{
-	u8 xmii;
-
-	if (dev->features & NEW_XMII) {
-		switch (mode) {
-		case 0:
-			xmii = PORT_MII_SEL;
-			break;
-		case 1:
-			xmii = PORT_RMII_SEL;
-			break;
-		case 2:
-			xmii = PORT_GMII_SEL;
-			break;
-		default:
-			xmii = PORT_RGMII_SEL;
-			break;
-		}
-	} else {
-		switch (mode) {
-		case 0:
-			xmii = PORT_MII_SEL_S1;
-			break;
-		case 1:
-			xmii = PORT_RMII_SEL_S1;
-			break;
-		case 2:
-			xmii = PORT_GMII_SEL_S1;
-			break;
-		default:
-			xmii = PORT_RGMII_SEL_S1;
-			break;
-		}
-	}
-	*data &= ~PORT_MII_SEL_M;
-	*data |= xmii;
-}
-
 static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 {
 	phy_interface_t interface;
 	bool gbit;
-	int mode;
-	u8 data8;
 
-	if (port < dev->phy_port_cnt)
+	if (dev->info->internal_phy[port])
 		return PHY_INTERFACE_MODE_NA;
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-	gbit = ksz9477_get_gbit(dev, data8);
-	mode = ksz9477_get_xmii(dev, data8);
-	switch (mode) {
-	case 2:
-		interface = PHY_INTERFACE_MODE_GMII;
-		if (gbit)
-			break;
-		fallthrough;
-	case 0:
-		interface = PHY_INTERFACE_MODE_MII;
-		break;
-	case 1:
-		interface = PHY_INTERFACE_MODE_RMII;
-		break;
-	default:
-		interface = PHY_INTERFACE_MODE_RGMII;
-		if (data8 & PORT_RGMII_ID_EG_ENABLE)
-			interface = PHY_INTERFACE_MODE_RGMII_TXID;
-		if (data8 & PORT_RGMII_ID_IG_ENABLE) {
-			interface = PHY_INTERFACE_MODE_RGMII_RXID;
-			if (data8 & PORT_RGMII_ID_EG_ENABLE)
-				interface = PHY_INTERFACE_MODE_RGMII_ID;
-		}
-		break;
-	}
+
+	gbit = ksz_get_gbit(dev, port);
+
+	interface = ksz_get_xmii(dev, port, gbit);
+
 	return interface;
 }
 
@@ -1260,7 +932,7 @@ static void ksz9477_phy_errata_setup(struct ksz_device *dev, int port)
 	/* Energy Efficient Ethernet (EEE) feature select must
 	 * be manually disabled (except on KSZ8565 which is 100Mbit)
 	 */
-	if (dev->features & GBIT_SUPPORT)
+	if (dev->info->gbit_capable[port])
 		ksz9477_port_mmd_write(dev, port, 0x07, 0x3c, 0x0000);
 
 	/* Register settings are required to meet data sheet
@@ -1281,12 +953,46 @@ static void ksz9477_phy_errata_setup(struct ksz_device *dev, int port)
 	ksz9477_port_mmd_write(dev, port, 0x1c, 0x20, 0xeeee);
 }
 
-static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
+void ksz9477_get_caps(struct ksz_device *dev, int port,
+		      struct phylink_config *config)
 {
-	struct ksz_port *p = &dev->ports[port];
+	config->mac_capabilities = MAC_10 | MAC_100 | MAC_ASYM_PAUSE |
+				   MAC_SYM_PAUSE;
+
+	if (dev->info->gbit_capable[port])
+		config->mac_capabilities |= MAC_1000FD;
+}
+
+int ksz9477_set_ageing_time(struct ksz_device *dev, unsigned int msecs)
+{
+	u32 secs = msecs / 1000;
+	u8 value;
+	u8 data;
+	int ret;
+
+	value = FIELD_GET(SW_AGE_PERIOD_7_0_M, secs);
+
+	ret = ksz_write8(dev, REG_SW_LUE_CTRL_3, value);
+	if (ret < 0)
+		return ret;
+
+	data = FIELD_GET(SW_AGE_PERIOD_10_8_M, secs);
+
+	ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &value);
+	if (ret < 0)
+		return ret;
+
+	value &= ~SW_AGE_CNT_M;
+	value |= FIELD_PREP(SW_AGE_CNT_M, data);
+
+	return ksz_write8(dev, REG_SW_LUE_CTRL_0, value);
+}
+
+void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
+{
 	struct dsa_switch *ds = dev->ds;
-	u8 data8, member;
 	u16 data16;
+	u8 member;
 
 	/* enable tag tail for host port */
 	if (cpu_port)
@@ -1313,57 +1019,19 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable 802.1p priority */
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_PRIO_ENABLE, true);
 
-	if (port < dev->phy_port_cnt) {
+	if (dev->info->internal_phy[port]) {
 		/* do not force flow control */
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     false);
 
-		if (dev->phy_errata_9477)
+		if (dev->info->phy_errata_9477)
 			ksz9477_phy_errata_setup(dev, port);
 	} else {
 		/* force flow control */
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     true);
-
-		/* configure MAC to 1G & RGMII mode */
-		ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-		switch (p->interface) {
-		case PHY_INTERFACE_MODE_MII:
-			ksz9477_set_xmii(dev, 0, &data8);
-			ksz9477_set_gbit(dev, false, &data8);
-			p->phydev.speed = SPEED_100;
-			break;
-		case PHY_INTERFACE_MODE_RMII:
-			ksz9477_set_xmii(dev, 1, &data8);
-			ksz9477_set_gbit(dev, false, &data8);
-			p->phydev.speed = SPEED_100;
-			break;
-		case PHY_INTERFACE_MODE_GMII:
-			ksz9477_set_xmii(dev, 2, &data8);
-			ksz9477_set_gbit(dev, true, &data8);
-			p->phydev.speed = SPEED_1000;
-			break;
-		default:
-			ksz9477_set_xmii(dev, 3, &data8);
-			ksz9477_set_gbit(dev, true, &data8);
-			data8 &= ~PORT_RGMII_ID_IG_ENABLE;
-			data8 &= ~PORT_RGMII_ID_EG_ENABLE;
-			if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-			    p->interface == PHY_INTERFACE_MODE_RGMII_RXID)
-				data8 |= PORT_RGMII_ID_IG_ENABLE;
-			if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-			    p->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-				data8 |= PORT_RGMII_ID_EG_ENABLE;
-			/* On KSZ9893, disable RGMII in-band status support */
-			if (dev->features & IS_9893)
-				data8 &= ~PORT_MII_MAC_MODE;
-			p->phydev.speed = SPEED_1000;
-			break;
-		}
-		ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
-		p->phydev.duplex = 1;
 	}
 
 	if (cpu_port)
@@ -1374,18 +1042,19 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	ksz9477_cfg_port_member(dev, port, member);
 
 	/* clear pending interrupts */
-	if (port < dev->phy_port_cnt)
+	if (dev->info->internal_phy[port])
 		ksz_pread16(dev, port, REG_PORT_PHY_INT_ENABLE, &data16);
 }
 
-static void ksz9477_config_cpu_port(struct dsa_switch *ds)
+void ksz9477_config_cpu_port(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p;
 	int i;
 
-	for (i = 0; i < dev->port_cnt; i++) {
-		if (dsa_is_cpu_port(ds, i) && (dev->cpu_ports & (1 << i))) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
+		if (dsa_is_cpu_port(ds, i) &&
+		    (dev->info->cpu_ports & (1 << i))) {
 			phy_interface_t interface;
 			const char *prev_msg;
 			const char *prev_mode;
@@ -1425,43 +1094,53 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 			/* enable cpu port */
 			ksz9477_port_setup(dev, i, true);
-			p->on = 1;
 		}
 	}
 
-	for (i = 0; i < dev->port_cnt; i++) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
 		if (i == dev->cpu_port)
 			continue;
-		p = &dev->ports[i];
-
-		ksz9477_port_stp_state_set(ds, i, BR_STATE_DISABLED);
-		p->on = 1;
-		if (i < dev->phy_port_cnt)
-			p->phy = 1;
-		if (dev->chip_id == 0x00947700 && i == 6) {
-			p->sgmii = 1;
-
-			/* SGMII PHY detection code is not implemented yet. */
-			p->phy = 0;
-		}
+		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 	}
 }
 
-static int ksz9477_setup(struct dsa_switch *ds)
+int ksz9477_enable_stp_addr(struct ksz_device *dev)
+{
+	const u32 *masks;
+	u32 data;
+	int ret;
+
+	masks = dev->info->masks;
+
+	/* Enable Reserved multicast table */
+	ksz_cfg(dev, REG_SW_LUE_CTRL_0, SW_RESV_MCAST_ENABLE, true);
+
+	/* Set the Override bit for forwarding BPDU packet to CPU */
+	ret = ksz_write32(dev, REG_SW_ALU_VAL_B,
+			  ALU_V_OVERRIDE | BIT(dev->cpu_port));
+	if (ret < 0)
+		return ret;
+
+	data = ALU_STAT_START | ALU_RESV_MCAST_ADDR | masks[ALU_STAT_WRITE];
+
+	ret = ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
+	if (ret < 0)
+		return ret;
+
+	/* wait to be finished */
+	ret = ksz9477_wait_alu_sta_ready(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "Failed to update Reserved Multicast table\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int ksz9477_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
 	int ret = 0;
-
-	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
-				       dev->num_vlans, GFP_KERNEL);
-	if (!dev->vlan_cache)
-		return -ENOMEM;
-
-	ret = ksz9477_reset_switch(dev);
-	if (ret) {
-		dev_err(ds->dev, "failed to reset switch\n");
-		return ret;
-	}
 
 	/* Required for port partitioning. */
 	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
@@ -1479,67 +1158,26 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	ksz9477_config_cpu_port(ds);
-
-	ksz_cfg(dev, REG_SW_MAC_CTRL_1, MULTICAST_STORM_DISABLE, true);
-
 	/* queue based egress rate limit */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_5, SW_OUT_RATE_LIMIT_QUEUE_BASED, true);
 
 	/* enable global MIB counter freeze function */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
 
-	/* start switch */
-	ksz_cfg(dev, REG_SW_OPERATION, SW_START, true);
-
-	ksz_init_mib_timer(dev);
-
-	ds->configure_vlan_while_not_filtering = false;
-
 	return 0;
 }
 
-static const struct dsa_switch_ops ksz9477_switch_ops = {
-	.get_tag_protocol	= ksz9477_get_tag_protocol,
-	.setup			= ksz9477_setup,
-	.phy_read		= ksz9477_phy_read16,
-	.phy_write		= ksz9477_phy_write16,
-	.phylink_mac_link_down	= ksz_mac_link_down,
-	.port_enable		= ksz_enable_port,
-	.get_strings		= ksz9477_get_strings,
-	.get_ethtool_stats	= ksz_get_ethtool_stats,
-	.get_sset_count		= ksz_sset_count,
-	.port_bridge_join	= ksz_port_bridge_join,
-	.port_bridge_leave	= ksz_port_bridge_leave,
-	.port_stp_state_set	= ksz9477_port_stp_state_set,
-	.port_fast_age		= ksz_port_fast_age,
-	.port_vlan_filtering	= ksz9477_port_vlan_filtering,
-	.port_vlan_add		= ksz9477_port_vlan_add,
-	.port_vlan_del		= ksz9477_port_vlan_del,
-	.port_fdb_dump		= ksz9477_port_fdb_dump,
-	.port_fdb_add		= ksz9477_port_fdb_add,
-	.port_fdb_del		= ksz9477_port_fdb_del,
-	.port_mdb_add           = ksz9477_port_mdb_add,
-	.port_mdb_del           = ksz9477_port_mdb_del,
-	.port_mirror_add	= ksz9477_port_mirror_add,
-	.port_mirror_del	= ksz9477_port_mirror_del,
-	.get_stats64		= ksz9477_get_stats64,
-	.port_change_mtu	= ksz9477_change_mtu,
-	.port_max_mtu		= ksz9477_max_mtu,
-};
-
-static u32 ksz9477_get_port_addr(int port, int offset)
+u32 ksz9477_get_port_addr(int port, int offset)
 {
 	return PORT_CTRL_ADDR(port, offset);
 }
 
-static int ksz9477_switch_detect(struct ksz_device *dev)
+int ksz9477_switch_init(struct ksz_device *dev)
 {
 	u8 data8;
-	u8 id_hi;
-	u8 id_lo;
-	u32 id32;
 	int ret;
+
+	dev->port_mask = (1 << dev->info->port_cnt) - 1;
 
 	/* turn off SPI DO Edge select */
 	ret = ksz_read8(dev, REG_SW_GLOBAL_SERIAL_CTRL_0, &data8);
@@ -1551,205 +1189,13 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 	if (ret)
 		return ret;
 
-	/* read chip id */
-	ret = ksz_read32(dev, REG_CHIP_ID0__1, &id32);
-	if (ret)
-		return ret;
-	ret = ksz_read8(dev, REG_GLOBAL_OPTIONS, &data8);
-	if (ret)
-		return ret;
-
-	/* Number of ports can be reduced depending on chip. */
-	dev->phy_port_cnt = 5;
-
-	/* Default capability is gigabit capable. */
-	dev->features = GBIT_SUPPORT;
-
-	dev_dbg(dev->dev, "Switch detect: ID=%08x%02x\n", id32, data8);
-	id_hi = (u8)(id32 >> 16);
-	id_lo = (u8)(id32 >> 8);
-	if ((id_lo & 0xf) == 3) {
-		/* Chip is from KSZ9893 design. */
-		dev_info(dev->dev, "Found KSZ9893\n");
-		dev->features |= IS_9893;
-
-		/* Chip does not support gigabit. */
-		if (data8 & SW_QW_ABLE)
-			dev->features &= ~GBIT_SUPPORT;
-		dev->phy_port_cnt = 2;
-	} else {
-		dev_info(dev->dev, "Found KSZ9477 or compatible\n");
-		/* Chip uses new XMII register definitions. */
-		dev->features |= NEW_XMII;
-
-		/* Chip does not support gigabit. */
-		if (!(data8 & SW_GIGABIT_ABLE))
-			dev->features &= ~GBIT_SUPPORT;
-	}
-
-	/* Change chip id to known ones so it can be matched against them. */
-	id32 = (id_hi << 16) | (id_lo << 8);
-
-	dev->chip_id = id32;
-
 	return 0;
 }
 
-struct ksz_chip_data {
-	u32 chip_id;
-	const char *dev_name;
-	int num_vlans;
-	int num_alus;
-	int num_statics;
-	int cpu_ports;
-	int port_cnt;
-	bool phy_errata_9477;
-};
-
-static const struct ksz_chip_data ksz9477_switch_chips[] = {
-	{
-		.chip_id = 0x00947700,
-		.dev_name = "KSZ9477",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x7F,	/* can be configured as cpu port */
-		.port_cnt = 7,		/* total physical port count */
-		.phy_errata_9477 = true,
-	},
-	{
-		.chip_id = 0x00989700,
-		.dev_name = "KSZ9897",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x7F,	/* can be configured as cpu port */
-		.port_cnt = 7,		/* total physical port count */
-		.phy_errata_9477 = true,
-	},
-	{
-		.chip_id = 0x00989300,
-		.dev_name = "KSZ9893",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x07,	/* can be configured as cpu port */
-		.port_cnt = 3,		/* total port count */
-	},
-	{
-		.chip_id = 0x00956700,
-		.dev_name = "KSZ9567",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x7F,	/* can be configured as cpu port */
-		.port_cnt = 7,		/* total physical port count */
-		.phy_errata_9477 = true,
-	},
-};
-
-static int ksz9477_switch_init(struct ksz_device *dev)
-{
-	int i;
-
-	dev->ds->ops = &ksz9477_switch_ops;
-
-	for (i = 0; i < ARRAY_SIZE(ksz9477_switch_chips); i++) {
-		const struct ksz_chip_data *chip = &ksz9477_switch_chips[i];
-
-		if (dev->chip_id == chip->chip_id) {
-			dev->name = chip->dev_name;
-			dev->num_vlans = chip->num_vlans;
-			dev->num_alus = chip->num_alus;
-			dev->num_statics = chip->num_statics;
-			dev->port_cnt = chip->port_cnt;
-			dev->cpu_ports = chip->cpu_ports;
-			dev->phy_errata_9477 = chip->phy_errata_9477;
-
-			break;
-		}
-	}
-
-	/* no switch found */
-	if (!dev->port_cnt)
-		return -ENODEV;
-
-	dev->port_mask = (1 << dev->port_cnt) - 1;
-
-	dev->reg_mib_cnt = SWITCH_COUNTER_NUM;
-	dev->mib_cnt = TOTAL_SWITCH_COUNTER_NUM;
-
-	dev->ports = devm_kzalloc(dev->dev,
-				  dev->port_cnt * sizeof(struct ksz_port),
-				  GFP_KERNEL);
-	if (!dev->ports)
-		return -ENOMEM;
-	for (i = 0; i < dev->port_cnt; i++) {
-		spin_lock_init(&dev->ports[i].mib.stats64_lock);
-		mutex_init(&dev->ports[i].mib.cnt_mutex);
-		dev->ports[i].mib.counters =
-			devm_kzalloc(dev->dev,
-				     sizeof(u64) *
-				     (TOTAL_SWITCH_COUNTER_NUM + 1),
-				     GFP_KERNEL);
-		if (!dev->ports[i].mib.counters)
-			return -ENOMEM;
-	}
-
-	/* set the real number of ports */
-	dev->ds->num_ports = dev->port_cnt;
-
-	return 0;
-}
-
-static void ksz9477_switch_exit(struct ksz_device *dev)
+void ksz9477_switch_exit(struct ksz_device *dev)
 {
 	ksz9477_reset_switch(dev);
 }
-
-static const struct ksz_dev_ops ksz9477_dev_ops = {
-	.get_port_addr = ksz9477_get_port_addr,
-	.cfg_port_member = ksz9477_cfg_port_member,
-	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
-	.port_setup = ksz9477_port_setup,
-	.r_mib_cnt = ksz9477_r_mib_cnt,
-	.r_mib_pkt = ksz9477_r_mib_pkt,
-	.r_mib_stat64 = ksz9477_r_mib_stats64,
-	.freeze_mib = ksz9477_freeze_mib,
-	.port_init_cnt = ksz9477_port_init_cnt,
-	.shutdown = ksz9477_reset_switch,
-	.detect = ksz9477_switch_detect,
-	.init = ksz9477_switch_init,
-	.exit = ksz9477_switch_exit,
-};
-
-int ksz9477_switch_register(struct ksz_device *dev)
-{
-	int ret, i;
-	struct phy_device *phydev;
-
-	ret = ksz_switch_register(dev, &ksz9477_dev_ops);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < dev->phy_port_cnt; ++i) {
-		if (!dsa_is_user_port(dev->ds, i))
-			continue;
-
-		phydev = dsa_to_port(dev->ds, i)->slave->phydev;
-
-		/* The MAC actually cannot run in 1000 half-duplex mode. */
-		phy_remove_link_mode(phydev,
-				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
-
-		/* PHY does not support gigabit. */
-		if (!(dev->features & GBIT_SUPPORT))
-			phy_remove_link_mode(phydev,
-					     ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(ksz9477_switch_register);
 
 MODULE_AUTHOR("Woojung Huh <Woojung.Huh@microchip.com>");
 MODULE_DESCRIPTION("Microchip KSZ9477 Series Switch DSA Driver");

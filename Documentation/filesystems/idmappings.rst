@@ -369,6 +369,11 @@ kernel maps the caller's userspace id down into a kernel id according to the
 caller's idmapping and then maps that kernel id up according to the
 filesystem's idmapping.
 
+Let's see some examples with caller/filesystem idmapping but without mount
+idmappings. This will exhibit some problems we can hit. After that we will
+revisit/reconsider these examples, this time using mount idmappings, to see how
+they can solve the problems we observed before.
+
 Example 1
 ~~~~~~~~~
 
@@ -656,7 +661,7 @@ idmappings::
  mount idmapping:      u0:k10000:r10000
 
 Assume a file owned by ``u1000`` is read from disk. The filesystem maps this id
-to ``k21000`` according to it's idmapping. This is what is stored in the
+to ``k21000`` according to its idmapping. This is what is stored in the
 inode's ``i_uid`` and ``i_gid`` fields.
 
 When the caller queries the ownership of this file via ``stat()`` the kernel

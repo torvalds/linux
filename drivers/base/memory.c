@@ -558,7 +558,7 @@ static ssize_t hard_offline_page_store(struct device *dev,
 	if (kstrtoull(buf, 0, &pfn) < 0)
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
-	ret = memory_failure(pfn, 0);
+	ret = memory_failure(pfn, MF_SW_SIMULATED);
 	if (ret == -EOPNOTSUPP)
 		ret = 0;
 	return ret ? ret : count;
@@ -636,10 +636,9 @@ static int __add_memory_block(struct memory_block *memory)
 	}
 	ret = xa_err(xa_store(&memory_blocks, memory->dev.id, memory,
 			      GFP_KERNEL));
-	if (ret) {
-		put_device(&memory->dev);
+	if (ret)
 		device_unregister(&memory->dev);
-	}
+
 	return ret;
 }
 
@@ -868,12 +867,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		unregister_memory_block_under_nodes(mem);
 		remove_memory_block(mem);
 	}
-}
-
-/* return true if the memory block is offlined, otherwise, return false */
-bool is_memblock_offlined(struct memory_block *mem)
-{
-	return mem->state == MEM_OFFLINE;
 }
 
 static struct attribute *memory_root_attrs[] = {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_du_plane.c  --  R-Car Display Unit Planes
+ * R-Car Display Unit Planes
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
@@ -9,12 +9,13 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_group.h"
@@ -340,7 +341,7 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 
 	if (state->source == RCAR_DU_PLANE_MEMORY) {
 		struct drm_framebuffer *fb = state->state.fb;
-		struct drm_gem_cma_object *gem;
+		struct drm_gem_dma_object *gem;
 		unsigned int i;
 
 		if (state->format->planes == 2)
@@ -349,8 +350,8 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 			pitch = fb->pitches[0] * 8 / state->format->bpp;
 
 		for (i = 0; i < state->format->planes; ++i) {
-			gem = drm_fb_cma_get_gem_obj(fb, i);
-			dma[i] = gem->paddr + fb->offsets[i];
+			gem = drm_fb_dma_get_gem_obj(fb, i);
+			dma[i] = gem->dma_addr + fb->offsets[i];
 		}
 	} else {
 		pitch = drm_rect_width(&state->state.src) >> 16;
@@ -505,11 +506,29 @@ static void rcar_du_plane_setup_format_gen3(struct rcar_du_group *rgrp,
 					    unsigned int index,
 					    const struct rcar_du_plane_state *state)
 {
-	rcar_du_plane_write(rgrp, index, PnMR,
-			    PnMR_SPIM_TP_OFF | state->format->pnmr);
+	struct rcar_du_device *rcdu = rgrp->dev;
+	u32 pnmr = state->format->pnmr | PnMR_SPIM_TP_OFF;
+
+	if (rcdu->info->features & RCAR_DU_FEATURE_NO_BLENDING) {
+		/* No blending. ALP and EOR are not supported. */
+		pnmr &= ~(PnMR_SPIM_ALP | PnMR_SPIM_EOR);
+	}
+
+	rcar_du_plane_write(rgrp, index, PnMR, pnmr);
 
 	rcar_du_plane_write(rgrp, index, PnDDCR4,
 			    state->format->edf | PnDDCR4_CODE);
+
+	/*
+	 * On Gen3, some DU channels have two planes, each being wired to a
+	 * separate VSPD instance. The DU can then blend two planes. While
+	 * this feature isn't used by the driver, issues related to alpha
+	 * blending (such as incorrect colors or planes being invisible) may
+	 * still occur if the PnALPHAR register has a stale value. Set the
+	 * register to 0 to avoid this.
+	 */
+
+	rcar_du_plane_write(rgrp, index, PnALPHAR, 0);
 }
 
 static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
@@ -593,8 +612,8 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret < 0)
 		return ret;
@@ -606,8 +625,8 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 
 	*format = rcar_du_format_info(state->fb->format->format);
 	if (*format == NULL) {
-		dev_dbg(dev->dev, "%s: unsupported format %08x\n", __func__,
-			state->fb->format->format);
+		dev_dbg(dev->dev, "%s: unsupported format %p4cc\n", __func__,
+			&state->fb->format->format);
 		return -EINVAL;
 	}
 

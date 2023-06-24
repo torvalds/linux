@@ -30,21 +30,21 @@
 #ifndef AMDGPU_MODE_H
 #define AMDGPU_MODE_H
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_probe_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/hrtimer.h>
 #include "amdgpu_irq.h"
 
-#include <drm/dp/drm_dp_mst_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include "modules/inc/mod_freesync.h"
 #include "amdgpu_dm_irq_params.h"
 
@@ -349,14 +349,10 @@ struct amdgpu_mode_info {
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 struct amdgpu_backlight_privdata {
 	struct amdgpu_encoder *encoder;
 	uint8_t negative;
 };
-
-#endif
 
 struct amdgpu_atom_ss {
 	uint16_t percentage;
@@ -591,19 +587,6 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 			unsigned int pipe, unsigned int flags, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode);
-
-int amdgpu_display_gem_fb_init(struct drm_device *dev,
-			       struct amdgpu_framebuffer *rfb,
-			       const struct drm_mode_fb_cmd2 *mode_cmd,
-			       struct drm_gem_object *obj);
-int amdgpu_display_gem_fb_verify_and_init(
-	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
-	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
-	struct drm_gem_object *obj);
-int amdgpu_display_framebuffer_init(struct drm_device *dev,
-				    struct amdgpu_framebuffer *rfb,
-				    const struct drm_mode_fb_cmd2 *mode_cmd,
-				    struct drm_gem_object *obj);
 
 int amdgpufb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 

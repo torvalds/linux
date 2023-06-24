@@ -166,9 +166,13 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	int ret = QLA_SUCCESS;
 	fc_port_t *fcport;
 
-	if (vha->hw->flags.edif_enabled)
+	if (vha->hw->flags.edif_enabled) {
+		if (DBELL_ACTIVE(vha))
+			qla2x00_post_aen_work(vha, FCH_EVT_VENDOR_UNIQUE,
+			    FCH_EVT_VENDOR_UNIQUE_VPORT_DOWN);
 		/* delete sessions and flush sa_indexes */
 		qla2x00_wait_for_sess_deletion(vha);
+	}
 
 	if (vha->hw->flags.fw_started)
 		ret = qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
@@ -591,7 +595,6 @@ qla25xx_free_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	}
 	kfree(req->outstanding_cmds);
 	kfree(req);
-	req = NULL;
 }
 
 static void
@@ -617,7 +620,6 @@ qla25xx_free_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 		mutex_unlock(&ha->vport_lock);
 	}
 	kfree(rsp);
-	rsp = NULL;
 }
 
 int

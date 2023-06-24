@@ -48,4 +48,14 @@ config UCSI_ACPI
 	  To compile the driver as a module, choose M here: the module will be
 	  called ucsi_acpi
 
+config UCSI_STM32G0
+	tristate "UCSI Interface Driver for STM32G0"
+	depends on I2C
+	help
+	  This driver enables UCSI support on platforms that expose a STM32G0
+	  Type-C controller over I2C interface.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called ucsi_stm32g0.
+
 endif

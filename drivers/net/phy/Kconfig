@@ -83,6 +83,13 @@ config ADIN_PHY
 	  - ADIN1300 - Robust,Industrial, Low Latency 10/100/1000 Gigabit
 	    Ethernet PHY
 
+config ADIN1100_PHY
+	tristate "Analog Devices Industrial Ethernet T1L PHYs"
+	help
+	  Adds support for the Analog Devices Industrial T1L Ethernet PHYs.
+	  Currently supports the:
+	  - ADIN1100 - Robust,Industrial, Low Power 10BASE-T1L Ethernet PHY
+
 config AQUANTIA_PHY
 	tristate "Aquantia PHYs"
 	help
@@ -97,6 +104,8 @@ config AX88796B_PHY
 config BROADCOM_PHY
 	tristate "Broadcom 54XX PHYs"
 	select BCM_NET_PHYLIB
+	select BCM_NET_PHYPTP if NETWORK_PHY_TIMESTAMPING
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481, BCM54810 and BCM5482 PHYs.
@@ -151,6 +160,9 @@ config BCM_CYGNUS_PHY
 	  BCM58303 & BCM58305 Broadcom Cygnus SoCs.
 
 config BCM_NET_PHYLIB
+	tristate
+
+config BCM_NET_PHYPTP
 	tristate
 
 config CICADA_PHY
@@ -209,6 +221,8 @@ config MARVELL_88X2222_PHY
 
 config MAXLINEAR_GPHY
 	tristate "Maxlinear Ethernet PHYs"
+	select POLYNOMIAL if HWMON
+	depends on HWMON || HWMON=n
 	help
 	  Support for the Maxlinear GPY115, GPY211, GPY212, GPY215,
 	  GPY241, GPY245 PHYs.
@@ -334,6 +348,12 @@ config DP83869_PHY
 	help
 	  Currently supports the DP83869 PHY.  This PHY supports copper and
 	  fiber connections.
+
+config DP83TD510_PHY
+	tristate "Texas Instruments DP83TD510 Ethernet 10Base-T1L PHY"
+	help
+	  Support for the DP83TD510 Ethernet 10Base-T1L PHY. This PHY supports
+	  a 10M single pair Ethernet connection for up to 1000 meter cable.
 
 config VITESSE_PHY
 	tristate "Vitesse PHYs"

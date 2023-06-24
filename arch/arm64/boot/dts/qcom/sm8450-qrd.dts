@@ -342,7 +342,29 @@
 	};
 };
 
+&pcie0 {
+	status = "okay";
+};
+
+&pcie0_phy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l5b_0p88>;
+	vdda-pll-supply = <&vreg_l6b_1p2>;
+};
+
+&gpi_dma0 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+};
+
 &qupv3_id_0 {
+	status = "okay";
+};
+
+&qupv3_id_2 {
 	status = "okay";
 };
 
@@ -364,6 +386,18 @@
 &remoteproc_slpi {
 	status = "okay";
 	firmware-name = "qcom/sm8450/slpi.mbn";
+};
+
+&spi4 {
+	status = "okay";
+};
+
+&spi18 {
+	status = "okay";
+};
+
+&spi19 {
+	status = "okay";
 };
 
 &tlmm {
@@ -390,8 +424,6 @@
 
 	vdda-phy-supply = <&vreg_l5b_0p88>;
 	vdda-pll-supply = <&vreg_l6b_1p2>;
-	vdda-max-microamp = <173000>;
-	vdda-pll-max-microamp = <24900>;
 };
 
 &usb_1 {

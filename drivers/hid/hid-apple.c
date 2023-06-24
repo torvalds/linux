@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <linux/string.h>
 
 #include "hid-ids.h"
 
@@ -35,16 +36,17 @@
 #define APPLE_NUMLOCK_EMULATION	BIT(8)
 #define APPLE_RDESC_BATTERY	BIT(9)
 #define APPLE_BACKLIGHT_CTL	BIT(10)
+#define APPLE_IS_NON_APPLE	BIT(11)
 
 #define APPLE_FLAG_FKEY		0x01
 
 #define HID_COUNTRY_INTERNATIONAL_ISO	13
 #define APPLE_BATTERY_TIMEOUT_MS	60000
 
-static unsigned int fnmode = 1;
+static unsigned int fnmode = 3;
 module_param(fnmode, uint, 0644);
 MODULE_PARM_DESC(fnmode, "Mode of fn key on Apple keyboards (0 = disabled, "
-		"[1] = fkeyslast, 2 = fkeysfirst)");
+		"1 = fkeyslast, 2 = fkeysfirst, [3] = auto)");
 
 static int iso_layout = -1;
 module_param(iso_layout, int, 0644);
@@ -62,6 +64,10 @@ module_param(swap_fn_leftctrl, uint, 0644);
 MODULE_PARM_DESC(swap_fn_leftctrl, "Swap the Fn and left Control keys. "
 		"(For people who want to keep PC keyboard muscle memory. "
 		"[0] = as-is, Mac layout, 1 = swapped, PC layout)");
+
+struct apple_non_apple_keyboard {
+	char *name;
+};
 
 struct apple_sc_backlight {
 	struct led_classdev cdev;
@@ -311,6 +317,27 @@ static const struct apple_key_translation swapped_fn_leftctrl_keys[] = {
 	{ }
 };
 
+static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
+	{ "SONiX USB DEVICE" },
+	{ "Keychron" },
+	{ "AONE" },
+	{ "GANSS" }
+};
+
+static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(non_apple_keyboards); i++) {
+		char *non_apple = non_apple_keyboards[i].name;
+
+		if (strncmp(hdev->name, non_apple, strlen(non_apple)) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 static inline void apple_setup_key_translation(struct input_dev *input,
 		const struct apple_key_translation *table)
 {
@@ -349,6 +376,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	const struct apple_key_translation *trans, *table;
 	bool do_translate;
 	u16 code = 0;
+	unsigned int real_fnmode;
 
 	u16 fn_keycode = (swap_fn_leftctrl) ? (KEY_LEFTCTRL) : (KEY_FN);
 
@@ -359,7 +387,13 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		return 1;
 	}
 
-	if (fnmode) {
+	if (fnmode == 3) {
+		real_fnmode = (asc->quirks & APPLE_IS_NON_APPLE) ? 2 : 1;
+	} else {
+		real_fnmode = fnmode;
+	}
+
+	if (real_fnmode) {
 		if (hid->product == USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI ||
 		    hid->product == USB_DEVICE_ID_APPLE_ALU_WIRELESS_ISO ||
 		    hid->product == USB_DEVICE_ID_APPLE_ALU_WIRELESS_JIS ||
@@ -406,7 +440,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 
 			if (!code) {
 				if (trans->flags & APPLE_FLAG_FKEY) {
-					switch (fnmode) {
+					switch (real_fnmode) {
 					case 1:
 						do_translate = !asc->fn_on;
 						break;
@@ -658,6 +692,11 @@ static int apple_input_configured(struct hid_device *hdev,
 	if ((asc->quirks & APPLE_HAS_FN) && !asc->fn_found) {
 		hid_info(hdev, "Fn key not found (Apple Wireless Keyboard clone?), disabling Fn key handling\n");
 		asc->quirks &= ~APPLE_HAS_FN;
+	}
+
+	if (apple_is_non_apple_keyboard(hdev)) {
+		hid_info(hdev, "Non-apple keyboard detected; function keys will default to fnmode=2 behavior\n");
+		asc->quirks |= APPLE_IS_NON_APPLE;
 	}
 
 	return 0;

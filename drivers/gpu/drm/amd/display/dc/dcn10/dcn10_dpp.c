@@ -436,38 +436,54 @@ void dpp1_set_cursor_position(
 		uint32_t height)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
-	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
+	int x_pos = pos->x - param->viewport.x;
+	int y_pos = pos->y - param->viewport.y;
+	int x_hotspot = pos->x_hotspot;
+	int y_hotspot = pos->y_hotspot;
+	int src_x_offset = x_pos - pos->x_hotspot;
+	int src_y_offset = y_pos - pos->y_hotspot;
+	int cursor_height = (int)height;
+	int cursor_width = (int)width;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
-	// Cursor width/height and hotspots need to be rotated for offset calculation
+	// Transform cursor width / height and hotspots for offset calculations
 	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
-		swap(width, height);
+		swap(cursor_height, cursor_width);
+		swap(x_hotspot, y_hotspot);
+
 		if (param->rotation == ROTATION_ANGLE_90) {
-			src_x_offset = pos->x - pos->y_hotspot - param->viewport.x;
-			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
+			// hotspot = (-y, x)
+			src_x_offset = x_pos - (cursor_width - x_hotspot);
+			src_y_offset = y_pos - y_hotspot;
+		} else if (param->rotation == ROTATION_ANGLE_270) {
+			// hotspot = (y, -x)
+			src_x_offset = x_pos - x_hotspot;
+			src_y_offset = y_pos - (cursor_height - y_hotspot);
 		}
 	} else if (param->rotation == ROTATION_ANGLE_180) {
-		src_x_offset = pos->x - param->viewport.x;
-		src_y_offset = pos->y - param->viewport.y;
-	}
+		// hotspot = (-x, -y)
+		if (!param->mirror)
+			src_x_offset = x_pos - (cursor_width - x_hotspot);
 
+		src_y_offset = y_pos - (cursor_height - y_hotspot);
+	}
 
 	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
-	if (src_x_offset + (int)width <= 0)
+	if (src_x_offset + cursor_width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	if (src_y_offset >= (int)param->viewport.height)
 		cur_en = 0;  /* not visible beyond bottom edge*/
 
-	if (src_y_offset + (int)height <= 0)
+	if (src_y_offset + cursor_height <= 0)
 		cur_en = 0;  /* not visible beyond top edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL,
 			CUR0_ENABLE, cur_en);
 
+	dpp_base->pos.cur0_ctl.bits.cur0_enable = cur_en;
 }
 
 void dpp1_cnv_set_optional_cursor_attributes(

@@ -10,6 +10,7 @@
 #include <asm/mmu.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
+#include <asm/firmware.h>
 
 #include <linux/pkeys.h>
 #include <linux/of_fdt.h>

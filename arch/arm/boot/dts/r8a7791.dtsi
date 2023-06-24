@@ -161,6 +161,7 @@
 			compatible = "renesas,r8a7791-wdt",
 				     "renesas,rcar-gen2-wdt";
 			reg = <0 0xe6020000 0 0x0c>;
+			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 402>;
 			power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
 			resets = <&cpg 402>;
@@ -607,7 +608,7 @@
 			status = "disabled";
 		};
 
-		usbphy: usb-phy@e6590100 {
+		usbphy: usb-phy-controller@e6590100 {
 			compatible = "renesas,usb-phy-r8a7791",
 				     "renesas,rcar-gen2-usb-phy";
 			reg = <0 0xe6590100 0 0x100>;
@@ -619,11 +620,11 @@
 			resets = <&cpg 704>;
 			status = "disabled";
 
-			usb0: usb-channel@0 {
+			usb0: usb-phy@0 {
 				reg = <0>;
 				#phy-cells = <1>;
 			};
-			usb2: usb-channel@2 {
+			usb2: usb-phy@2 {
 				reg = <2>;
 				#phy-cells = <1>;
 			};

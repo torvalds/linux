@@ -85,7 +85,26 @@ union dpcd_psr_configuration {
 		unsigned char LINE_CAPTURE_INDICATION   : 1;
 		/* For eDP 1.4, PSR v2*/
 		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
-		unsigned char RESERVED                  : 2;
+		unsigned char ENABLE_PSR2               : 1;
+		/* For eDP 1.5, PSR v2 w/ early transport */
+		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_alpm_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char IRQ_HPD_ENABLE            : 1;
+		unsigned char RESERVED                  : 6;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_sink_active_vtotal_control_mode {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char RESERVED                  : 7;
 	} bits;
 	unsigned char raw;
 };
@@ -200,6 +219,8 @@ struct link_encoder_funcs {
 		struct link_encoder *enc,
 		enum encoder_type_select sel,
 		uint32_t hpo_inst);
+	void (*set_dig_output_mode)(
+			struct link_encoder *enc, uint8_t pix_per_container);
 };
 
 /*

@@ -856,6 +856,74 @@ ssize_t erst_read(u64 record_id, struct cper_record_header *record,
 }
 EXPORT_SYMBOL_GPL(erst_read);
 
+static void erst_clear_cache(u64 record_id)
+{
+	int i;
+	u64 *entries;
+
+	mutex_lock(&erst_record_id_cache.lock);
+
+	entries = erst_record_id_cache.entries;
+	for (i = 0; i < erst_record_id_cache.len; i++) {
+		if (entries[i] == record_id)
+			entries[i] = APEI_ERST_INVALID_RECORD_ID;
+	}
+	__erst_record_id_cache_compact();
+
+	mutex_unlock(&erst_record_id_cache.lock);
+}
+
+ssize_t erst_read_record(u64 record_id, struct cper_record_header *record,
+		size_t buflen, size_t recordlen, const guid_t *creatorid)
+{
+	ssize_t len;
+
+	/*
+	 * if creatorid is NULL, read any record for erst-dbg module
+	 */
+	if (creatorid == NULL) {
+		len = erst_read(record_id, record, buflen);
+		if (len == -ENOENT)
+			erst_clear_cache(record_id);
+
+		return len;
+	}
+
+	len = erst_read(record_id, record, buflen);
+	/*
+	 * if erst_read return value is -ENOENT skip to next record_id,
+	 * and clear the record_id cache.
+	 */
+	if (len == -ENOENT) {
+		erst_clear_cache(record_id);
+		goto out;
+	}
+
+	if (len < 0)
+		goto out;
+
+	/*
+	 * if erst_read return value is less than record head length,
+	 * consider it as -EIO, and clear the record_id cache.
+	 */
+	if (len < recordlen) {
+		len = -EIO;
+		erst_clear_cache(record_id);
+		goto out;
+	}
+
+	/*
+	 * if creatorid is not wanted, consider it as not found,
+	 * for skipping to next record_id.
+	 */
+	if (!guid_equal(&record->creator_id, creatorid))
+		len = -ENOENT;
+
+out:
+	return len;
+}
+EXPORT_SYMBOL_GPL(erst_read_record);
+
 int erst_clear(u64 record_id)
 {
 	int rc, i;
@@ -952,14 +1020,10 @@ static int reader_pos;
 
 static int erst_open_pstore(struct pstore_info *psi)
 {
-	int rc;
-
 	if (erst_disable)
 		return -ENODEV;
 
-	rc = erst_get_record_id_begin(&reader_pos);
-
-	return rc;
+	return erst_get_record_id_begin(&reader_pos);
 }
 
 static int erst_close_pstore(struct pstore_info *psi)
@@ -996,16 +1060,13 @@ skip:
 		goto out;
 	}
 
-	len = erst_read(record_id, &rcd->hdr, rcd_len);
+	len = erst_read_record(record_id, &rcd->hdr, rcd_len, sizeof(*rcd),
+			&CPER_CREATOR_PSTORE);
 	/* The record may be cleared by others, try read next record */
 	if (len == -ENOENT)
 		goto skip;
-	else if (len < 0 || len < sizeof(*rcd)) {
-		rc = -EIO;
+	else if (len < 0)
 		goto out;
-	}
-	if (!guid_equal(&rcd->hdr.creator_id, &CPER_CREATOR_PSTORE))
-		goto skip;
 
 	record->buf = kmalloc(len, GFP_KERNEL);
 	if (record->buf == NULL) {

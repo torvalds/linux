@@ -41,12 +41,12 @@ degli sviluppatori:
    :maxdepth: 1
 
    changes
-   submitting-drivers
    stable-api-nonsense
    management-style
    stable-kernel-rules
    submit-checklist
    kernel-docs
+   maintainers
 
 Ed infine, qui ci sono alcune guide più tecniche che son state messe qua solo
 perché non si è trovato un posto migliore.

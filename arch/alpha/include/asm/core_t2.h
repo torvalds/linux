@@ -360,6 +360,7 @@ struct el_t2_frame_corrected {
 
 #define vip	volatile int *
 #define vuip	volatile unsigned int *
+#define vulp	volatile unsigned long *
 
 extern inline u8 t2_inb(unsigned long addr)
 {
@@ -399,6 +400,17 @@ extern inline u32 t2_inl(unsigned long addr)
 extern inline void t2_outl(u32 b, unsigned long addr)
 {
 	*(vuip) ((addr << 5) + T2_IO + 0x18) = b;
+	mb();
+}
+
+extern inline u64 t2_inq(unsigned long addr)
+{
+	return *(vulp) ((addr << 5) + T2_IO + 0x18);
+}
+
+extern inline void t2_outq(u64 b, unsigned long addr)
+{
+	*(vulp) ((addr << 5) + T2_IO + 0x18) = b;
 	mb();
 }
 
@@ -572,7 +584,7 @@ __EXTERN_INLINE int t2_is_mmio(const volatile void __iomem *addr)
    it doesn't make sense to merge the pio and mmio routines.  */
 
 #define IOPORT(OS, NS)							\
-__EXTERN_INLINE unsigned int t2_ioread##NS(const void __iomem *xaddr)		\
+__EXTERN_INLINE u##NS t2_ioread##NS(const void __iomem *xaddr)		\
 {									\
 	if (t2_is_mmio(xaddr))						\
 		return t2_read##OS(xaddr);				\
@@ -590,11 +602,13 @@ __EXTERN_INLINE void t2_iowrite##NS(u##NS b, void __iomem *xaddr)	\
 IOPORT(b, 8)
 IOPORT(w, 16)
 IOPORT(l, 32)
+IOPORT(q, 64)
 
 #undef IOPORT
 
 #undef vip
 #undef vuip
+#undef vulp
 
 #undef __IO_PREFIX
 #define __IO_PREFIX		t2

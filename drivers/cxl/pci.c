@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/pci-doe.h>
 #include <linux/io.h>
 #include "cxlmem.h"
 #include "cxlpci.h"
@@ -48,8 +49,7 @@
  */
 static unsigned short mbox_ready_timeout = 60;
 module_param(mbox_ready_timeout, ushort, 0644);
-MODULE_PARM_DESC(mbox_ready_timeout,
-		 "seconds to wait for mailbox ready / memory active status");
+MODULE_PARM_DESC(mbox_ready_timeout, "seconds to wait for mailbox ready");
 
 static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 {
@@ -177,9 +177,10 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 	mbox_cmd->return_code =
 		FIELD_GET(CXLDEV_MBOX_STATUS_RET_CODE_MASK, status_reg);
 
-	if (mbox_cmd->return_code != 0) {
-		dev_dbg(dev, "Mailbox operation had an error\n");
-		return 0;
+	if (mbox_cmd->return_code != CXL_MBOX_CMD_RC_SUCCESS) {
+		dev_dbg(dev, "Mailbox operation had an error: %s\n",
+			cxl_mbox_cmd_rc2str(mbox_cmd));
+		return 0; /* completed but caller must check return_code */
 	}
 
 	/* #7 */
@@ -386,162 +387,45 @@ static int cxl_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
 	return rc;
 }
 
-static int wait_for_valid(struct cxl_dev_state *cxlds)
+static void cxl_pci_destroy_doe(void *mbs)
 {
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-	int d = cxlds->cxl_dvsec, rc;
-	u32 val;
-
-	/*
-	 * Memory_Info_Valid: When set, indicates that the CXL Range 1 Size high
-	 * and Size Low registers are valid. Must be set within 1 second of
-	 * deassertion of reset to CXL device. Likely it is already set by the
-	 * time this runs, but otherwise give a 1.5 second timeout in case of
-	 * clock skew.
-	 */
-	rc = pci_read_config_dword(pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(0), &val);
-	if (rc)
-		return rc;
-
-	if (val & CXL_DVSEC_MEM_INFO_VALID)
-		return 0;
-
-	msleep(1500);
-
-	rc = pci_read_config_dword(pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(0), &val);
-	if (rc)
-		return rc;
-
-	if (val & CXL_DVSEC_MEM_INFO_VALID)
-		return 0;
-
-	return -ETIMEDOUT;
+	xa_destroy(mbs);
 }
 
-/*
- * Wait up to @mbox_ready_timeout for the device to report memory
- * active.
- */
-static int wait_for_media_ready(struct cxl_dev_state *cxlds)
+static void devm_cxl_pci_create_doe(struct cxl_dev_state *cxlds)
 {
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-	int d = cxlds->cxl_dvsec;
-	bool active = false;
-	u64 md_status;
-	int rc, i;
+	struct device *dev = cxlds->dev;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	u16 off = 0;
 
-	rc = wait_for_valid(cxlds);
-	if (rc)
-		return rc;
-
-	for (i = mbox_ready_timeout; i; i--) {
-		u32 temp;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(0), &temp);
-		if (rc)
-			return rc;
-
-		active = FIELD_GET(CXL_DVSEC_MEM_ACTIVE, temp);
-		if (active)
-			break;
-		msleep(1000);
+	xa_init(&cxlds->doe_mbs);
+	if (devm_add_action(&pdev->dev, cxl_pci_destroy_doe, &cxlds->doe_mbs)) {
+		dev_err(dev, "Failed to create XArray for DOE's\n");
+		return;
 	}
-
-	if (!active) {
-		dev_err(&pdev->dev,
-			"timeout awaiting memory active after %d seconds\n",
-			mbox_ready_timeout);
-		return -ETIMEDOUT;
-	}
-
-	md_status = readq(cxlds->regs.memdev + CXLMDEV_STATUS_OFFSET);
-	if (!CXLMDEV_READY(md_status))
-		return -EIO;
-
-	return 0;
-}
-
-static int cxl_dvsec_ranges(struct cxl_dev_state *cxlds)
-{
-	struct cxl_endpoint_dvsec_info *info = &cxlds->info;
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-	int d = cxlds->cxl_dvsec;
-	int hdm_count, rc, i;
-	u16 cap, ctrl;
-
-	if (!d)
-		return -ENXIO;
-
-	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CAP_OFFSET, &cap);
-	if (rc)
-		return rc;
-
-	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CTRL_OFFSET, &ctrl);
-	if (rc)
-		return rc;
-
-	if (!(cap & CXL_DVSEC_MEM_CAPABLE))
-		return -ENXIO;
 
 	/*
-	 * It is not allowed by spec for MEM.capable to be set and have 0 legacy
-	 * HDM decoders (values > 2 are also undefined as of CXL 2.0). As this
-	 * driver is for a spec defined class code which must be CXL.mem
-	 * capable, there is no point in continuing to enable CXL.mem.
+	 * Mailbox creation is best effort.  Higher layers must determine if
+	 * the lack of a mailbox for their protocol is a device failure or not.
 	 */
-	hdm_count = FIELD_GET(CXL_DVSEC_HDM_COUNT_MASK, cap);
-	if (!hdm_count || hdm_count > 2)
-		return -EINVAL;
+	pci_doe_for_each_off(pdev, off) {
+		struct pci_doe_mb *doe_mb;
 
-	rc = wait_for_valid(cxlds);
-	if (rc)
-		return rc;
+		doe_mb = pcim_doe_create_mb(pdev, off);
+		if (IS_ERR(doe_mb)) {
+			dev_err(dev, "Failed to create MB object for MB @ %x\n",
+				off);
+			continue;
+		}
 
-	info->mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
+		if (xa_insert(&cxlds->doe_mbs, off, doe_mb, GFP_KERNEL)) {
+			dev_err(dev, "xa_insert failed to insert MB @ %x\n",
+				off);
+			continue;
+		}
 
-	for (i = 0; i < hdm_count; i++) {
-		u64 base, size;
-		u32 temp;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_SIZE_HIGH(i), &temp);
-		if (rc)
-			return rc;
-
-		size = (u64)temp << 32;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(i), &temp);
-		if (rc)
-			return rc;
-
-		size |= temp & CXL_DVSEC_MEM_SIZE_LOW_MASK;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_BASE_HIGH(i), &temp);
-		if (rc)
-			return rc;
-
-		base = (u64)temp << 32;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_BASE_LOW(i), &temp);
-		if (rc)
-			return rc;
-
-		base |= temp & CXL_DVSEC_MEM_BASE_LOW_MASK;
-
-		info->dvsec_range[i] = (struct range) {
-			.start = base,
-			.end = base + size - 1
-		};
-
-		if (size)
-			info->ranges++;
+		dev_dbg(dev, "Created DOE mailbox @%x\n", off);
 	}
-
-	return 0;
 }
 
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -573,8 +457,6 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_warn(&pdev->dev,
 			 "Device DVSEC not present, skip CXL.mem init\n");
 
-	cxlds->wait_media_ready = wait_for_media_ready;
-
 	rc = cxl_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map);
 	if (rc)
 		return rc;
@@ -594,6 +476,8 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	cxlds->component_reg_phys = cxl_regmap_to_base(pdev, &map);
 
+	devm_cxl_pci_create_doe(cxlds);
+
 	rc = cxl_pci_setup_mailbox(cxlds);
 	if (rc)
 		return rc;
@@ -610,16 +494,11 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = cxl_dvsec_ranges(cxlds);
-	if (rc)
-		dev_warn(&pdev->dev,
-			 "Failed to get DVSEC range information (%d)\n", rc);
-
 	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	if (range_len(&cxlds->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
+	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM))
 		rc = devm_cxl_add_nvdimm(&pdev->dev, cxlmd);
 
 	return rc;

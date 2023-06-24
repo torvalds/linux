@@ -34,58 +34,15 @@
 		};
 	};
 
-	regulators: regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		vdd_1v8: fixed-regulator-vdd_1v8@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "VDD_1V8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-			status = "okay";
-		};
-
-		vdd_1v15: fixed-regulator-vdd_1v15@1 {
-			compatible = "regulator-fixed";
-			regulator-name = "VDD_1V15";
-			regulator-min-microvolt = <1150000>;
-			regulator-max-microvolt = <1150000>;
-			regulator-always-on;
-			status = "okay";
-		};
-
-		vdd1_3v3: fixed-regulator-vdd1_3v3@2 {
-			compatible = "regulator-fixed";
-			regulator-name = "VDD1_3V3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-			status = "okay";
-		};
-
-		vdd2_3v3: regulator-fixed-vdd2_3v3@3 {
-			compatible = "regulator-fixed";
-			regulator-name = "VDD2_3V3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-			status = "okay";
-		};
-	};
-
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
-		status = "okay";
 
-		sw1 {
+		button-1 {
 			label = "SW1";
 			gpios = <&pioD 18 GPIO_ACTIVE_LOW>;
-			linux,code=<KEY_PROG1>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};
@@ -111,6 +68,42 @@
 			gpios = <&pioB 13 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	vdd_1v8: fixed-regulator-vdd_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vdd_1v15: fixed-regulator-vdd_1v15 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_1V15";
+		regulator-min-microvolt = <1150000>;
+		regulator-max-microvolt = <1150000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vdd1_3v3: fixed-regulator-vdd1_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD1_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vdd2_3v3: regulator-fixed-vdd2_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD2_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		status = "okay";
 	};
 };
 
@@ -233,10 +226,9 @@
 		status = "okay";
 
 		eeprom@53 {
-			compatible = "atmel,24c32";
+			compatible = "atmel,24c02";
 			reg = <0x53>;
 			pagesize = <16>;
-			size = <128>;
 			status = "okay";
 		};
 	};
@@ -266,8 +258,9 @@
 	status = "okay";
 
 	uart1: serial@200 {
-		compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
+		compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
 		reg = <0x200 0x200>;
+		atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 		interrupts = <14 IRQ_TYPE_LEVEL_HIGH 7>;
 		dmas = <&dma0
 			(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |

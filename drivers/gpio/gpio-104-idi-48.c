@@ -6,8 +6,7 @@
  * This driver supports the following ACCES devices: 104-IDI-48A,
  * 104-IDI-48AC, 104-IDI-48B, and 104-IDI-48BC.
  */
-#include <linux/bitmap.h>
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
@@ -20,6 +19,11 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
+#include <linux/types.h>
+
+#include "gpio-i8255.h"
+
+MODULE_IMPORT_NS(I8255);
 
 #define IDI_48_EXTENT 8
 #define MAX_NUM_IDI_48 max_num_isa_dev(IDI_48_EXTENT)
@@ -30,76 +34,66 @@ module_param_hw_array(base, uint, ioport, &num_idi_48, 0);
 MODULE_PARM_DESC(base, "ACCES 104-IDI-48 base addresses");
 
 static unsigned int irq[MAX_NUM_IDI_48];
-module_param_hw_array(irq, uint, irq, NULL, 0);
+static unsigned int num_irq;
+module_param_hw_array(irq, uint, irq, &num_irq, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-IDI-48 interrupt line numbers");
+
+/**
+ * struct idi_48_reg - device register structure
+ * @port0:	Port 0 Inputs
+ * @unused:	Unused
+ * @port1:	Port 1 Inputs
+ * @irq:	Read: IRQ Status Register/IRQ Clear
+ *		Write: IRQ Enable/Disable
+ */
+struct idi_48_reg {
+	u8 port0[3];
+	u8 unused;
+	u8 port1[3];
+	u8 irq;
+};
 
 /**
  * struct idi_48_gpio - GPIO device private data structure
  * @chip:	instance of the gpio_chip
  * @lock:	synchronization lock to prevent I/O race conditions
- * @ack_lock:	synchronization lock to prevent IRQ handler race conditions
  * @irq_mask:	input bits affected by interrupts
- * @base:	base port address of the GPIO device
+ * @reg:	I/O address offset for the device registers
  * @cos_enb:	Change-Of-State IRQ enable boundaries mask
  */
 struct idi_48_gpio {
 	struct gpio_chip chip;
-	raw_spinlock_t lock;
-	spinlock_t ack_lock;
+	spinlock_t lock;
 	unsigned char irq_mask[6];
-	unsigned base;
+	struct idi_48_reg __iomem *reg;
 	unsigned char cos_enb;
 };
 
-static int idi_48_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+static int idi_48_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	return 0;
 }
 
-static int idi_48_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int idi_48_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	unsigned i;
-	static const unsigned int register_offset[6] = { 0, 1, 2, 4, 5, 6 };
-	unsigned base_offset;
-	unsigned mask;
+	void __iomem *const ppi = idi48gpio->reg;
 
-	for (i = 0; i < 48; i += 8)
-		if (offset < i + 8) {
-			base_offset = register_offset[i / 8];
-			mask = BIT(offset - i);
-
-			return !!(inb(idi48gpio->base + base_offset) & mask);
-		}
-
-	/* The following line should never execute since offset < 48 */
-	return 0;
+	return i8255_get(ppi, offset);
 }
 
 static int idi_48_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	unsigned long *bits)
 {
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	unsigned long offset;
-	unsigned long gpio_mask;
-	static const size_t ports[] = { 0, 1, 2, 4, 5, 6 };
-	unsigned int port_addr;
-	unsigned long port_state;
+	void __iomem *const ppi = idi48gpio->reg;
 
-	/* clear bits array to a clean slate */
-	bitmap_zero(bits, chip->ngpio);
-
-	for_each_set_clump8(offset, gpio_mask, mask, ARRAY_SIZE(ports) * 8) {
-		port_addr = idi48gpio->base + ports[offset / 8];
-		port_state = inb(port_addr) & gpio_mask;
-
-		bitmap_set_value8(bits, port_state, offset);
-	}
+	i8255_get_multiple(ppi, mask, bits, chip->ngpio);
 
 	return 0;
 }
@@ -112,67 +106,58 @@ static void idi_48_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	const unsigned offset = irqd_to_hwirq(data);
-	unsigned i;
-	unsigned mask;
-	unsigned boundary;
+	const unsigned int offset = irqd_to_hwirq(data);
+	const unsigned long boundary = offset / 8;
+	const unsigned long mask = BIT(offset % 8);
 	unsigned long flags;
 
-	for (i = 0; i < 48; i += 8)
-		if (offset < i + 8) {
-			mask = BIT(offset - i);
-			boundary = i / 8;
+	spin_lock_irqsave(&idi48gpio->lock, flags);
 
-			idi48gpio->irq_mask[boundary] &= ~mask;
+	idi48gpio->irq_mask[boundary] &= ~mask;
+	gpiochip_disable_irq(chip, offset);
 
-			if (!idi48gpio->irq_mask[boundary]) {
-				idi48gpio->cos_enb &= ~BIT(boundary);
+	/* Exit early if there are still input lines with IRQ unmasked */
+	if (idi48gpio->irq_mask[boundary])
+		goto exit;
 
-				raw_spin_lock_irqsave(&idi48gpio->lock, flags);
+	idi48gpio->cos_enb &= ~BIT(boundary);
 
-				outb(idi48gpio->cos_enb, idi48gpio->base + 7);
+	iowrite8(idi48gpio->cos_enb, &idi48gpio->reg->irq);
 
-				raw_spin_unlock_irqrestore(&idi48gpio->lock, flags);
-			}
-
-			return;
-		}
+exit:
+	spin_unlock_irqrestore(&idi48gpio->lock, flags);
 }
 
 static void idi_48_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	const unsigned offset = irqd_to_hwirq(data);
-	unsigned i;
-	unsigned mask;
-	unsigned boundary;
-	unsigned prev_irq_mask;
+	const unsigned int offset = irqd_to_hwirq(data);
+	const unsigned long boundary = offset / 8;
+	const unsigned long mask = BIT(offset % 8);
+	unsigned int prev_irq_mask;
 	unsigned long flags;
 
-	for (i = 0; i < 48; i += 8)
-		if (offset < i + 8) {
-			mask = BIT(offset - i);
-			boundary = i / 8;
-			prev_irq_mask = idi48gpio->irq_mask[boundary];
+	spin_lock_irqsave(&idi48gpio->lock, flags);
 
-			idi48gpio->irq_mask[boundary] |= mask;
+	prev_irq_mask = idi48gpio->irq_mask[boundary];
 
-			if (!prev_irq_mask) {
-				idi48gpio->cos_enb |= BIT(boundary);
+	gpiochip_enable_irq(chip, offset);
+	idi48gpio->irq_mask[boundary] |= mask;
 
-				raw_spin_lock_irqsave(&idi48gpio->lock, flags);
+	/* Exit early if IRQ was already unmasked for this boundary */
+	if (prev_irq_mask)
+		goto exit;
 
-				outb(idi48gpio->cos_enb, idi48gpio->base + 7);
+	idi48gpio->cos_enb |= BIT(boundary);
 
-				raw_spin_unlock_irqrestore(&idi48gpio->lock, flags);
-			}
+	iowrite8(idi48gpio->cos_enb, &idi48gpio->reg->irq);
 
-			return;
-		}
+exit:
+	spin_unlock_irqrestore(&idi48gpio->lock, flags);
 }
 
-static int idi_48_irq_set_type(struct irq_data *data, unsigned flow_type)
+static int idi_48_irq_set_type(struct irq_data *data, unsigned int flow_type)
 {
 	/* The only valid irq types are none and both-edges */
 	if (flow_type != IRQ_TYPE_NONE &&
@@ -182,12 +167,14 @@ static int idi_48_irq_set_type(struct irq_data *data, unsigned flow_type)
 	return 0;
 }
 
-static struct irq_chip idi_48_irqchip = {
+static const struct irq_chip idi_48_irqchip = {
 	.name = "104-idi-48",
 	.irq_ack = idi_48_irq_ack,
 	.irq_mask = idi_48_irq_mask,
 	.irq_unmask = idi_48_irq_unmask,
-	.irq_set_type = idi_48_irq_set_type
+	.irq_set_type = idi_48_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static irqreturn_t idi_48_irq_handler(int irq, void *dev_id)
@@ -200,17 +187,13 @@ static irqreturn_t idi_48_irq_handler(int irq, void *dev_id)
 	unsigned long gpio;
 	struct gpio_chip *const chip = &idi48gpio->chip;
 
-	spin_lock(&idi48gpio->ack_lock);
+	spin_lock(&idi48gpio->lock);
 
-	raw_spin_lock(&idi48gpio->lock);
-
-	cos_status = inb(idi48gpio->base + 7);
-
-	raw_spin_unlock(&idi48gpio->lock);
+	cos_status = ioread8(&idi48gpio->reg->irq);
 
 	/* IRQ Status (bit 6) is active low (0 = IRQ generated by device) */
 	if (cos_status & BIT(6)) {
-		spin_unlock(&idi48gpio->ack_lock);
+		spin_unlock(&idi48gpio->lock);
 		return IRQ_NONE;
 	}
 
@@ -228,7 +211,7 @@ static irqreturn_t idi_48_irq_handler(int irq, void *dev_id)
 		}
 	}
 
-	spin_unlock(&idi48gpio->ack_lock);
+	spin_unlock(&idi48gpio->lock);
 
 	return IRQ_HANDLED;
 }
@@ -250,8 +233,8 @@ static int idi_48_irq_init_hw(struct gpio_chip *gc)
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(gc);
 
 	/* Disable IRQ by default */
-	outb(0, idi48gpio->base + 7);
-	inb(idi48gpio->base + 7);
+	iowrite8(0, &idi48gpio->reg->irq);
+	ioread8(&idi48gpio->reg->irq);
 
 	return 0;
 }
@@ -273,6 +256,10 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
+	idi48gpio->reg = devm_ioport_map(dev, base[id], IDI_48_EXTENT);
+	if (!idi48gpio->reg)
+		return -ENOMEM;
+
 	idi48gpio->chip.label = name;
 	idi48gpio->chip.parent = dev;
 	idi48gpio->chip.owner = THIS_MODULE;
@@ -283,10 +270,9 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	idi48gpio->chip.direction_input = idi_48_gpio_direction_input;
 	idi48gpio->chip.get = idi_48_gpio_get;
 	idi48gpio->chip.get_multiple = idi_48_gpio_get_multiple;
-	idi48gpio->base = base[id];
 
 	girq = &idi48gpio->chip.irq;
-	girq->chip = &idi_48_irqchip;
+	gpio_irq_chip_set_chip(girq, &idi_48_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
@@ -295,8 +281,7 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	girq->handler = handle_edge_irq;
 	girq->init_hw = idi_48_irq_init_hw;
 
-	raw_spin_lock_init(&idi48gpio->lock);
-	spin_lock_init(&idi48gpio->ack_lock);
+	spin_lock_init(&idi48gpio->lock);
 
 	err = devm_gpiochip_add_data(dev, &idi48gpio->chip, idi48gpio);
 	if (err) {
@@ -320,7 +305,7 @@ static struct isa_driver idi_48_driver = {
 		.name = "104-idi-48"
 	},
 };
-module_isa_driver(idi_48_driver, num_idi_48);
+module_isa_driver_with_irq(idi_48_driver, num_idi_48, num_irq);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-IDI-48 GPIO driver");

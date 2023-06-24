@@ -12,8 +12,9 @@
 
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
-#include "i915_gemfs.h"
 #include "i915_gem_object.h"
+#include "i915_gem_tiling.h"
+#include "i915_gemfs.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 
@@ -74,7 +75,7 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 	if (size > resource_size(&mr->region))
 		return -ENOMEM;
 
-	if (sg_alloc_table(st, page_count, GFP_KERNEL))
+	if (sg_alloc_table(st, page_count, GFP_KERNEL | __GFP_NOWARN))
 		return -ENOMEM;
 
 	/*
@@ -136,7 +137,7 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 				 * trigger the out-of-memory killer and for
 				 * this we want __GFP_RETRY_MAYFAIL.
 				 */
-				gfp |= __GFP_RETRY_MAYFAIL;
+				gfp |= __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
 			}
 		} while (1);
 
@@ -193,7 +194,7 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	struct intel_memory_region *mem = obj->mm.region;
 	struct address_space *mapping = obj->base.filp->f_mapping;
 	const unsigned long page_count = obj->base.size / PAGE_SIZE;
-	unsigned int max_segment = i915_sg_segment_size();
+	unsigned int max_segment = i915_sg_segment_size(i915->drm.dev);
 	struct sg_table *st;
 	struct sgt_iter sgt_iter;
 	struct page *page;
@@ -208,7 +209,7 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 rebuild_st:
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	st = kmalloc(sizeof(*st), GFP_KERNEL | __GFP_NOWARN);
 	if (!st)
 		return -ENOMEM;
 
@@ -368,14 +369,14 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	__start_cpu_write(obj);
 	/*
-	 * On non-LLC platforms, force the flush-on-acquire if this is ever
+	 * On non-LLC igfx platforms, force the flush-on-acquire if this is ever
 	 * swapped-in. Our async flush path is not trust worthy enough yet(and
 	 * happens in the wrong order), and with some tricks it's conceivable
 	 * for userspace to change the cache-level to I915_CACHE_NONE after the
 	 * pages are swapped-in, and since execbuf binds the object before doing
 	 * the async flush, we have a race window.
 	 */
-	if (!HAS_LLC(i915))
+	if (!HAS_LLC(i915) && !IS_DGFX(i915))
 		obj->cache_dirty = true;
 }
 
@@ -408,6 +409,7 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	     const struct drm_i915_gem_pwrite *arg)
 {
 	struct address_space *mapping = obj->base.filp->f_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
 	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
 	u64 remain, offset;
 	unsigned int pg;
@@ -465,9 +467,8 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 		if (err)
 			return err;
 
-		err = pagecache_write_begin(obj->base.filp, mapping,
-					    offset, len, 0,
-					    &page, &data);
+		err = aops->write_begin(obj->base.filp, mapping, offset, len,
+					&page, &data);
 		if (err < 0)
 			return err;
 
@@ -477,9 +478,8 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 						      len);
 		kunmap_atomic(vaddr);
 
-		err = pagecache_write_end(obj->base.filp, mapping,
-					  offset, len, len - unwritten,
-					  page, data);
+		err = aops->write_end(obj->base.filp, mapping, offset, len,
+				      len - unwritten, page, data);
 		if (err < 0)
 			return err;
 
@@ -552,6 +552,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 
 static int shmem_object_init(struct intel_memory_region *mem,
 			     struct drm_i915_gem_object *obj,
+			     resource_size_t offset,
 			     resource_size_t size,
 			     resource_size_t page_size,
 			     unsigned int flags)
@@ -622,6 +623,7 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 {
 	struct drm_i915_gem_object *obj;
 	struct file *file;
+	const struct address_space_operations *aops;
 	resource_size_t offset;
 	int err;
 
@@ -633,15 +635,15 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 
 	file = obj->base.filp;
+	aops = file->f_mapping->a_ops;
 	offset = 0;
 	do {
 		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);
 		struct page *page;
 		void *pgdata, *vaddr;
 
-		err = pagecache_write_begin(file, file->f_mapping,
-					    offset, len, 0,
-					    &page, &pgdata);
+		err = aops->write_begin(file, file->f_mapping, offset, len,
+					&page, &pgdata);
 		if (err < 0)
 			goto fail;
 
@@ -649,9 +651,8 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 		memcpy(vaddr, data, len);
 		kunmap(page);
 
-		err = pagecache_write_end(file, file->f_mapping,
-					  offset, len, len,
-					  page, pgdata);
+		err = aops->write_end(file, file->f_mapping, offset, len, len,
+				      page, pgdata);
 		if (err < 0)
 			goto fail;
 
@@ -669,17 +670,10 @@ fail:
 
 static int init_shmem(struct intel_memory_region *mem)
 {
-	int err;
-
-	err = i915_gemfs_init(mem->i915);
-	if (err) {
-		DRM_NOTE("Unable to create a private tmpfs mount, hugepage support will be disabled(%d).\n",
-			 err);
-	}
-
+	i915_gemfs_init(mem->i915);
 	intel_memory_region_set_name(mem, "system");
 
-	return 0; /* Don't error, we can simply fallback to the kernel mnt */
+	return 0; /* We have fallback to the kernel mnt if gemfs init failed. */
 }
 
 static int release_shmem(struct intel_memory_region *mem)

@@ -132,6 +132,12 @@
 #define I2S_SLAVE_MODE 0x08
 #define AUDIO_LAYOUT   0x01
 
+#define HPD_DET_TIMER_BIT0_7   0xea
+#define HPD_DET_TIMER_BIT8_15  0xeb
+#define HPD_DET_TIMER_BIT16_23 0xec
+/* HPD debounce time 2ms for 27M clock */
+#define HPD_TIME               54000
+
 #define AUDIO_CONTROL_REGISTER 0xe6
 #define TDM_TIMING_MODE 0x08
 
@@ -426,9 +432,9 @@ struct anx7625_platform_data {
 	int mipi_lanes;
 	int audio_en;
 	int dp_lane0_swing_reg_cnt;
-	int lane0_reg_data[DP_TX_SWING_REG_CNT];
+	u8 lane0_reg_data[DP_TX_SWING_REG_CNT];
 	int dp_lane1_swing_reg_cnt;
-	int lane1_reg_data[DP_TX_SWING_REG_CNT];
+	u8 lane1_reg_data[DP_TX_SWING_REG_CNT];
 	u32 low_power_mode;
 	struct device_node *mipi_host_node;
 };

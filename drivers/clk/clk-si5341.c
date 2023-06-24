@@ -1547,8 +1547,7 @@ static const struct attribute *si5341_attributes[] = {
 	NULL
 };
 
-static int si5341_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int si5341_probe(struct i2c_client *client)
 {
 	struct clk_si5341 *data;
 	struct clk_init_data init;
@@ -1797,7 +1796,7 @@ cleanup:
 	return err;
 }
 
-static int si5341_remove(struct i2c_client *client)
+static void si5341_remove(struct i2c_client *client)
 {
 	struct clk_si5341 *data = i2c_get_clientdata(client);
 	int i;
@@ -1808,8 +1807,6 @@ static int si5341_remove(struct i2c_client *client)
 		if (data->clk[i].vddo_reg)
 			regulator_disable(data->clk[i].vddo_reg);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id si5341_id[] = {
@@ -1837,7 +1834,7 @@ static struct i2c_driver si5341_driver = {
 		.name = "si5341",
 		.of_match_table = clk_si5341_of_match,
 	},
-	.probe		= si5341_probe,
+	.probe_new	= si5341_probe,
 	.remove		= si5341_remove,
 	.id_table	= si5341_id,
 };

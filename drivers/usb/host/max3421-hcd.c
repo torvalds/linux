@@ -312,7 +312,7 @@ static const int hrsl_to_error[] = {
 
 /*
  * See https://www.beyondlogic.org/usbnutshell/usb4.shtml#Control for a
- * reasonable overview of how control transfers use the the IN/OUT
+ * reasonable overview of how control transfers use the IN/OUT
  * tokens.
  */
 #define MAX3421_HXFR_BULK_IN(ep)	(0x00 | (ep))	/* bulk or interrupt */
@@ -546,7 +546,7 @@ max3421_transfer_out(struct usb_hcd *hcd, struct urb *urb, int fast_retransmit)
 		return MAX3421_HXFR_BULK_OUT(epnum);
 	}
 
-	max_packet = usb_maxpacket(urb->dev, urb->pipe, 1);
+	max_packet = usb_maxpacket(urb->dev, urb->pipe);
 
 	if (max_packet > MAX3421_FIFO_SIZE) {
 		/*
@@ -952,7 +952,7 @@ max3421_transfer_in_done(struct usb_hcd *hcd, struct urb *urb)
 	 * USB 2.0 Section 5.3.2 Pipes: packets must be full size
 	 * except for last one.
 	 */
-	max_packet = usb_maxpacket(urb->dev, urb->pipe, 0);
+	max_packet = usb_maxpacket(urb->dev, urb->pipe);
 	if (max_packet > MAX3421_FIFO_SIZE) {
 		/*
 		 * We do not support isochronous transfers at this
@@ -998,7 +998,7 @@ max3421_transfer_out_done(struct usb_hcd *hcd, struct urb *urb)
 		 * max_packet as an indicator that the end of the
 		 * packet has been reached).
 		 */
-		u32 max_packet = usb_maxpacket(urb->dev, urb->pipe, 1);
+		u32 max_packet = usb_maxpacket(urb->dev, urb->pipe);
 
 		if (max3421_hcd->curr_len == max_packet)
 			return 0;

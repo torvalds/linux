@@ -51,6 +51,7 @@ config KVM_BOOK3S_HV_POSSIBLE
 config KVM_BOOK3S_32
 	tristate "KVM support for PowerPC book3s_32 processors"
 	depends on PPC_BOOK3S_32 && !SMP && !PTE_64BIT
+	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_BOOK3S_32_HANDLER
 	select KVM_BOOK3S_PR_POSSIBLE
@@ -105,6 +106,7 @@ config KVM_BOOK3S_64_HV
 config KVM_BOOK3S_64_PR
 	tristate "KVM support without using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
+	depends on !CONTEXT_TRACKING_USER
 	select KVM_BOOK3S_PR_POSSIBLE
 	help
 	  Support running guest kernels in virtual machines on processors
@@ -128,8 +130,25 @@ config KVM_BOOK3S_64_PR
 	  and system calls on the host.
 
 config KVM_BOOK3S_HV_EXIT_TIMING
-	bool "Detailed timing for hypervisor real-mode code"
+	bool
+
+config KVM_BOOK3S_HV_P9_TIMING
+	bool "Detailed timing for the P9 entry point"
+	select KVM_BOOK3S_HV_EXIT_TIMING
 	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS
+	help
+	  Calculate time taken for each vcpu during vcpu entry and
+	  exit, time spent inside the guest and time spent handling
+	  hypercalls and page faults. The total, minimum and maximum
+	  times in nanoseconds together with the number of executions
+	  are reported in debugfs in kvm/vm#/vcpu#/timings.
+
+	  If unsure, say N.
+
+config KVM_BOOK3S_HV_P8_TIMING
+	bool "Detailed timing for hypervisor real-mode code (for POWER8)"
+	select KVM_BOOK3S_HV_EXIT_TIMING
+	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS && !KVM_BOOK3S_HV_P9_TIMING
 	help
 	  Calculate time taken for each vcpu in the real-mode guest entry,
 	  exit, and interrupt handling code, plus time spent in the guest
@@ -149,7 +168,7 @@ config KVM_BOOK3S_HV_NESTED_PMU_WORKAROUND
 	  Old nested HV capable Linux guests have a bug where they don't
 	  reflect the PMU in-use status of their L2 guest to the L0 host
 	  while the L2 PMU registers are live. This can result in loss
-          of L2 PMU register state, causing perf to not work correctly in
+	  of L2 PMU register state, causing perf to not work correctly in
 	  L2 guests.
 
 	  Selecting this option for the L0 host implements a workaround for
@@ -172,7 +191,8 @@ config KVM_EXIT_TIMING
 
 config KVM_E500V2
 	bool "KVM support for PowerPC E500v2 processors"
-	depends on E500 && !PPC_E500MC
+	depends on PPC_E500 && !PPC_E500MC
+	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_MMIO
 	select MMU_NOTIFIER
@@ -188,6 +208,7 @@ config KVM_E500V2
 config KVM_E500MC
 	bool "KVM support for PowerPC E500MC/E5500/E6500 processors"
 	depends on PPC_E500MC
+	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
@@ -203,7 +224,7 @@ config KVM_E500MC
 
 config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
-	depends on KVM && E500
+	depends on KVM && PPC_E500
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING

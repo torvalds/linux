@@ -18,6 +18,7 @@
 #include <linux/moduleparam.h>
 #include <sound/hda_register.h>
 #include <sound/pcm_params.h>
+#include <trace/events/sof_intel.h>
 #include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
@@ -192,84 +193,11 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 		goto found;
 	}
 
-	switch (sof_hda_position_quirk) {
-	case SOF_HDA_POSITION_QUIRK_USE_SKYLAKE_LEGACY:
-		/*
-		 * This legacy code, inherited from the Skylake driver,
-		 * mixes DPIB registers and DPIB DDR updates and
-		 * does not seem to follow any known hardware recommendations.
-		 * It's not clear e.g. why there is a different flow
-		 * for capture and playback, the only information that matters is
-		 * what traffic class is used, and on all SOF-enabled platforms
-		 * only VC0 is supported so the work-around was likely not necessary
-		 * and quite possibly wrong.
-		 */
-
-		/* DPIB/posbuf position mode:
-		 * For Playback, Use DPIB register from HDA space which
-		 * reflects the actual data transferred.
-		 * For Capture, Use the position buffer for pointer, as DPIB
-		 * is not accurate enough, its update may be completed
-		 * earlier than the data written to DDR.
-		 */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-					       AZX_REG_VS_SDXDPIB_XBASE +
-					       (AZX_REG_VS_SDXDPIB_XINTERVAL *
-						hstream->index));
-		} else {
-			/*
-			 * For capture stream, we need more workaround to fix the
-			 * position incorrect issue:
-			 *
-			 * 1. Wait at least 20us before reading position buffer after
-			 * the interrupt generated(IOC), to make sure position update
-			 * happens on frame boundary i.e. 20.833uSec for 48KHz.
-			 * 2. Perform a dummy Read to DPIB register to flush DMA
-			 * position value.
-			 * 3. Read the DMA Position from posbuf. Now the readback
-			 * value should be >= period boundary.
-			 */
-			usleep_range(20, 21);
-			snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-					 AZX_REG_VS_SDXDPIB_XBASE +
-					 (AZX_REG_VS_SDXDPIB_XINTERVAL *
-					  hstream->index));
-			pos = snd_hdac_stream_get_pos_posbuf(hstream);
-		}
-		break;
-	case SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS:
-		/*
-		 * In case VC1 traffic is disabled this is the recommended option
-		 */
-		pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       AZX_REG_VS_SDXDPIB_XBASE +
-				       (AZX_REG_VS_SDXDPIB_XINTERVAL *
-					hstream->index));
-		break;
-	case SOF_HDA_POSITION_QUIRK_USE_DPIB_DDR_UPDATE:
-		/*
-		 * This is the recommended option when VC1 is enabled.
-		 * While this isn't needed for SOF platforms it's added for
-		 * consistency and debug.
-		 */
-		pos = snd_hdac_stream_get_pos_posbuf(hstream);
-		break;
-	default:
-		dev_err_once(sdev->dev, "hda_position_quirk value %d not supported\n",
-			     sof_hda_position_quirk);
-		pos = 0;
-		break;
-	}
-
-	if (pos >= hstream->bufsize)
-		pos = 0;
-
+	pos = hda_dsp_stream_get_position(hstream, substream->stream, true);
 found:
 	pos = bytes_to_frames(substream->runtime, pos);
 
-	dev_vdbg(sdev->dev, "PCM: stream %d dir %d position %lu\n",
-		 hstream->index, substream->stream, pos);
+	trace_sof_intel_hda_dsp_pcm(sdev, hstream, substream, pos);
 	return pos;
 }
 

@@ -465,7 +465,7 @@ int cxgbit_setup_np(struct iscsi_np *np, struct sockaddr_storage *ksockaddr)
 }
 
 static void
-cxgbit_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
+cxgbit_set_conn_info(struct iscsi_np *np, struct iscsit_conn *conn,
 		     struct cxgbit_sock *csk)
 {
 	conn->login_family = np->np_sockaddr.ss_family;
@@ -473,7 +473,7 @@ cxgbit_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
 	conn->local_sockaddr = csk->com.local_addr;
 }
 
-int cxgbit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
+int cxgbit_accept_np(struct iscsi_np *np, struct iscsit_conn *conn)
 {
 	struct cxgbit_np *cnp = np->np_context;
 	struct cxgbit_sock *csk;
@@ -717,7 +717,7 @@ void cxgbit_abort_conn(struct cxgbit_sock *csk)
 
 static void __cxgbit_free_conn(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	bool release = false;
 
 	pr_debug("%s: state %d\n",
@@ -751,7 +751,7 @@ static void __cxgbit_free_conn(struct cxgbit_sock *csk)
 		cxgbit_put_csk(csk);
 }
 
-void cxgbit_free_conn(struct iscsi_conn *conn)
+void cxgbit_free_conn(struct iscsit_conn *conn)
 {
 	__cxgbit_free_conn(conn->context);
 }
@@ -1202,7 +1202,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
 
 	opt2 |= T5_ISS_F;
-	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
+	rpl5->iss = cpu_to_be32((get_random_u32() & ~7UL) - 1);
 
 	opt2 |= T5_OPT_2_VALID_F;
 

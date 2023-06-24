@@ -45,33 +45,6 @@
 #include "ttm_tt.h"
 #include "ttm_pool.h"
 
-/**
- * struct ttm_lru_bulk_move_pos
- *
- * @first: first BO in the bulk move range
- * @last: last BO in the bulk move range
- *
- * Positions for a lru bulk move.
- */
-struct ttm_lru_bulk_move_pos {
-	struct ttm_buffer_object *first;
-	struct ttm_buffer_object *last;
-};
-
-/**
- * struct ttm_lru_bulk_move
- *
- * @tt: first/last lru entry for BOs in the TT domain
- * @vram: first/last lru entry for BOs in the VRAM domain
- * @swap: first/last lru entry for BOs on the swap list
- *
- * Helper structure for bulk moves on the LRU list.
- */
-struct ttm_lru_bulk_move {
-	struct ttm_lru_bulk_move_pos tt[TTM_MAX_BO_PRIORITY];
-	struct ttm_lru_bulk_move_pos vram[TTM_MAX_BO_PRIORITY];
-};
-
 /*
  * ttm_bo.c
  */
@@ -133,7 +106,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 				 bool interruptible, bool no_wait,
 				 struct ww_acquire_ctx *ticket)
 {
-	int ret = 0;
+	int ret;
 
 	if (no_wait) {
 		bool success;
@@ -182,7 +155,7 @@ static inline void
 ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
 {
 	spin_lock(&bo->bdev->lru_lock);
-	ttm_bo_move_to_lru_tail(bo, bo->resource, NULL);
+	ttm_bo_move_to_lru_tail(bo);
 	spin_unlock(&bo->bdev->lru_lock);
 }
 
@@ -272,7 +245,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct ttm_resource *new_mem);
 
 /**
- * ttm_bo_move_accel_cleanup.
+ * ttm_bo_move_sync_cleanup.
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @new_mem: struct ttm_resource indicating where to move.
@@ -280,13 +253,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * Special case of ttm_bo_move_accel_cleanup where the bo is guaranteed
  * by the caller to be idle. Typically used after memcpy buffer moves.
  */
-static inline void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
-					    struct ttm_resource *new_mem)
-{
-	int ret = ttm_bo_move_accel_cleanup(bo, NULL, true, false, new_mem);
-
-	WARN_ON(ret);
-}
+void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
+			      struct ttm_resource *new_mem);
 
 /**
  * ttm_bo_pipeline_gutting.

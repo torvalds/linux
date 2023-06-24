@@ -5,7 +5,6 @@
  *
  **************************************************************************/
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
@@ -37,28 +36,17 @@ static int oaktrail_output_init(struct drm_device *dev)
  *	Provide the low level interfaces for the Moorestown backlight
  */
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-
 #define MRST_BLC_MAX_PWM_REG_FREQ	    0xFFFF
 #define BLC_PWM_PRECISION_FACTOR 100	/* 10000000 */
 #define BLC_PWM_FREQ_CALC_CONSTANT 32
 #define MHz 1000000
 #define BLC_ADJUSTMENT_MAX 100
 
-static struct backlight_device *oaktrail_backlight_device;
-static int oaktrail_brightness;
-
-static int oaktrail_set_brightness(struct backlight_device *bd)
+static void oaktrail_set_brightness(struct drm_device *dev, int level)
 {
-	struct drm_device *dev = bl_get_data(oaktrail_backlight_device);
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int level = bd->props.brightness;
 	u32 blc_pwm_ctl;
 	u32 max_pwm_blc;
-
-	/* Percentage 1-100% being valid */
-	if (level < 1)
-		level = 1;
 
 	if (gma_power_begin(dev, 0)) {
 		/* Calculate and set the brightness value */
@@ -82,19 +70,9 @@ static int oaktrail_set_brightness(struct backlight_device *bd)
 		REG_WRITE(BLC_PWM_CTL, (max_pwm_blc << 16) | blc_pwm_ctl);
 		gma_power_end(dev);
 	}
-	oaktrail_brightness = level;
-	return 0;
 }
 
-static int oaktrail_get_brightness(struct backlight_device *bd)
-{
-	/* return locally cached var instead of HW read (due to DPST etc.) */
-	/* FIXME: ideally return actual value in case firmware fiddled with
-	   it */
-	return oaktrail_brightness;
-}
-
-static int device_backlight_init(struct drm_device *dev)
+static int oaktrail_backlight_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long core_clock;
@@ -123,43 +101,10 @@ static int device_backlight_init(struct drm_device *dev)
 		REG_WRITE(BLC_PWM_CTL, value | (value << 16));
 		gma_power_end(dev);
 	}
+
+	oaktrail_set_brightness(dev, PSB_MAX_BRIGHTNESS);
 	return 0;
 }
-
-static const struct backlight_ops oaktrail_ops = {
-	.get_brightness = oaktrail_get_brightness,
-	.update_status  = oaktrail_set_brightness,
-};
-
-static int oaktrail_backlight_init(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int ret;
-	struct backlight_properties props;
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = 100;
-	props.type = BACKLIGHT_PLATFORM;
-
-	oaktrail_backlight_device = backlight_device_register("oaktrail-bl",
-				NULL, (void *)dev, &oaktrail_ops, &props);
-
-	if (IS_ERR(oaktrail_backlight_device))
-		return PTR_ERR(oaktrail_backlight_device);
-
-	ret = device_backlight_init(dev);
-	if (ret < 0) {
-		backlight_device_unregister(oaktrail_backlight_device);
-		return ret;
-	}
-	oaktrail_backlight_device->props.brightness = 100;
-	oaktrail_backlight_device->props.max_brightness = 100;
-	backlight_update_status(oaktrail_backlight_device);
-	dev_priv->backlight_device = oaktrail_backlight_device;
-	return 0;
-}
-
-#endif
 
 /*
  *	Provide the Moorestown specific chip logic and low level methods
@@ -501,12 +446,9 @@ static const struct psb_offset oaktrail_regmap[2] = {
 static int oaktrail_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
-	if (pci_enable_msi(pdev))
-		dev_warn(dev->dev, "Enabling MSI failed!\n");
-
+	dev_priv->use_msi = true;
 	dev_priv->regmap = oaktrail_regmap;
 
 	ret = mid_chip_setup(dev);
@@ -545,13 +487,12 @@ const struct psb_ops oaktrail_chip_ops = {
 	.chip_setup = oaktrail_chip_setup,
 	.chip_teardown = oaktrail_teardown,
 	.crtc_helper = &oaktrail_helper_funcs,
-	.crtc_funcs = &gma_intel_crtc_funcs,
 
 	.output_init = oaktrail_output_init,
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	.backlight_init = oaktrail_backlight_init,
-#endif
+	.backlight_set = oaktrail_set_brightness,
+	.backlight_name = "oaktrail-bl",
 
 	.save_regs = oaktrail_save_display_registers,
 	.restore_regs = oaktrail_restore_display_registers,

@@ -2,8 +2,6 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/string.h>
-/* For the CLR_() macros */
-#include <pthread.h>
 
 #include <sched.h>
 #include <perf/mmap.h>
@@ -330,7 +328,21 @@ found_exit:
 out_delete_evlist:
 	evlist__delete(evlist);
 out:
-	return (err < 0 || errs > 0) ? -1 : 0;
+	if (err == -EACCES)
+		return TEST_SKIP;
+	if (err < 0 || errs != 0)
+		return TEST_FAIL;
+	return TEST_OK;
 }
 
-DEFINE_SUITE("PERF_RECORD_* events & perf_sample fields", PERF_RECORD);
+static struct test_case tests__PERF_RECORD[] = {
+	TEST_CASE_REASON("PERF_RECORD_* events & perf_sample fields",
+			 PERF_RECORD,
+			 "permissions"),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__PERF_RECORD = {
+	.desc = "PERF_RECORD_* events & perf_sample fields",
+	.test_cases = tests__PERF_RECORD,
+};

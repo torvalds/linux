@@ -51,6 +51,6 @@
 
 #define CLK_BUS_DRAM		56
 
-#define CLK_NUMBER		(CLK_BUS_HDCP + 1)
+#define CLK_NUMBER		(CLK_PLL_SYSTEM_32K + 1)
 
 #endif /* _CCU_SUN50I_H616_H_ */

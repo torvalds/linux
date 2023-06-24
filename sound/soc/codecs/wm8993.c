@@ -1621,11 +1621,9 @@ static const struct snd_soc_component_driver soc_component_dev_wm8993 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
-static int wm8993_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8993_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8993_priv *wm8993;
 	unsigned int reg;
@@ -1724,15 +1722,13 @@ err_enable:
 	return ret;
 }
 
-static int wm8993_i2c_remove(struct i2c_client *i2c)
+static void wm8993_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8993_priv *wm8993 = i2c_get_clientdata(i2c);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, wm8993);
 	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-
-	return 0;
 }
 
 static const struct i2c_device_id wm8993_i2c_id[] = {
@@ -1745,7 +1741,7 @@ static struct i2c_driver wm8993_i2c_driver = {
 	.driver = {
 		.name = "wm8993",
 	},
-	.probe =    wm8993_i2c_probe,
+	.probe_new = wm8993_i2c_probe,
 	.remove =   wm8993_i2c_remove,
 	.id_table = wm8993_i2c_id,
 };

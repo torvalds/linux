@@ -1159,8 +1159,8 @@ static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus,
 	}
 
 	tasklet_setup(&ts->base.reclaim_tq, qtnf_reclaim_tasklet_fn);
-	netif_napi_add(&bus->mux_dev, &bus->mux_napi,
-		       qtnf_topaz_rx_poll, 10);
+	netif_napi_add_weight(&bus->mux_dev, &bus->mux_napi,
+			      qtnf_topaz_rx_poll, 10);
 
 	ipc_int.fn = qtnf_topaz_ipc_gen_ep_int;
 	ipc_int.arg = ts;

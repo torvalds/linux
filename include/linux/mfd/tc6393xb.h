@@ -22,14 +22,11 @@ struct tc6393xb_platform_data {
 	u16	scr_gper;	/* GP Enable */
 
 	int	(*enable)(struct platform_device *dev);
-	int	(*disable)(struct platform_device *dev);
+	void	(*disable)(struct platform_device *dev);
 	int	(*suspend)(struct platform_device *dev);
 	int	(*resume)(struct platform_device *dev);
 
 	int	irq_base;	/* base for subdevice irqs */
-	int	gpio_base;
-	int	(*setup)(struct platform_device *dev);
-	void	(*teardown)(struct platform_device *dev);
 
 	struct tmio_nand_data	*nand_data;
 	struct tmio_fb_data	*fb_data;

@@ -27,9 +27,11 @@ static const char * const component_names[] = {
 	[INDEX_MEMCTRL]		= "MemoryControllerId",
 	[INDEX_CHANNEL]		= "ChannelId",
 	[INDEX_DIMM]		= "DimmSlotId",
+	[INDEX_CS]		= "ChipSelect",
 	[INDEX_NM_MEMCTRL]	= "NmMemoryControllerId",
 	[INDEX_NM_CHANNEL]	= "NmChannelId",
 	[INDEX_NM_DIMM]		= "NmDimmSlotId",
+	[INDEX_NM_CS]		= "NmChipSelect",
 };
 
 static int component_indices[ARRAY_SIZE(component_names)];
@@ -40,7 +42,7 @@ static char *adxl_msg;
 static unsigned long adxl_nm_bitmap;
 
 static char skx_msg[MSG_SIZE];
-static skx_decode_f skx_decode;
+static skx_decode_f driver_decode;
 static skx_show_retry_log_f skx_show_retry_rd_err_log;
 static u64 skx_tolm, skx_tohm;
 static LIST_HEAD(dev_edac_list);
@@ -139,10 +141,13 @@ static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_me
 			       (int)adxl_values[component_indices[INDEX_NM_CHANNEL]] : -1;
 		res->dimm    = (adxl_nm_bitmap & BIT_NM_DIMM) ?
 			       (int)adxl_values[component_indices[INDEX_NM_DIMM]] : -1;
+		res->cs      = (adxl_nm_bitmap & BIT_NM_CS) ?
+			       (int)adxl_values[component_indices[INDEX_NM_CS]] : -1;
 	} else {
 		res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
 		res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
 		res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+		res->cs      = (int)adxl_values[component_indices[INDEX_CS]];
 	}
 
 	if (res->imc > NUM_IMC - 1 || res->imc < 0) {
@@ -173,6 +178,8 @@ static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_me
 			break;
 	}
 
+	res->decoded_by_adxl = true;
+
 	return true;
 }
 
@@ -183,7 +190,7 @@ void skx_set_mem_cfg(bool mem_cfg_2lm)
 
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log)
 {
-	skx_decode = decode;
+	driver_decode = decode;
 	skx_show_retry_rd_err_log = show_retry_log;
 }
 
@@ -591,19 +598,19 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			break;
 		}
 	}
-	if (adxl_component_count) {
+	if (res->decoded_by_adxl) {
 		len = snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
 			 mscod, errcode, adxl_msg);
 	} else {
 		len = snprintf(skx_msg, MSG_SIZE,
-			 "%s%s err_code:0x%04x:0x%04x socket:%d imc:%d rank:%d bg:%d ba:%d row:0x%x col:0x%x",
+			 "%s%s err_code:0x%04x:0x%04x ProcessorSocketId:0x%x MemoryControllerId:0x%x PhysicalRankId:0x%x Row:0x%x Column:0x%x Bank:0x%x BankGroup:0x%x",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
 			 mscod, errcode,
 			 res->socket, res->imc, res->rank,
-			 res->bank_group, res->bank_address, res->row, res->column);
+			 res->row, res->column, res->bank_address, res->bank_group);
 	}
 
 	if (skx_show_retry_rd_err_log)
@@ -649,13 +656,14 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 		return NOTIFY_DONE;
 
 	memset(&res, 0, sizeof(res));
+	res.mce  = mce;
 	res.addr = mce->addr;
 
-	if (adxl_component_count) {
-		if (!skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce)))
+	/* Try driver decoder first */
+	if (!(driver_decode && driver_decode(&res))) {
+		/* Then try firmware decoder (ACPI DSM methods) */
+		if (!(adxl_component_count && skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce))))
 			return NOTIFY_DONE;
-	} else if (!skx_decode || !skx_decode(&res)) {
-		return NOTIFY_DONE;
 	}
 
 	mci = res.dev->imc[res.imc].mci;

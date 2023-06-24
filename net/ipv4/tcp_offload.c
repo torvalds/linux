@@ -195,12 +195,9 @@ struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb)
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*th);
-	th = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen)) {
-		th = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!th))
-			goto out;
-	}
+	th = skb_gro_header(skb, hlen, off);
+	if (unlikely(!th))
+		goto out;
 
 	thlen = th->doff * 4;
 	if (thlen < sizeof(*th))
@@ -258,7 +255,15 @@ found:
 
 	mss = skb_shinfo(p)->gso_size;
 
-	flush |= (len - 1) >= mss;
+	/* If skb is a GRO packet, make sure its gso_size matches prior packet mss.
+	 * If it is a single frame, do not aggregate it if its length
+	 * is bigger than our mss.
+	 */
+	if (unlikely(skb_is_gso(skb)))
+		flush |= (mss != skb_shinfo(skb)->gso_size);
+	else
+		flush |= (len - 1) >= mss;
+
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 #ifdef CONFIG_TLS_DEVICE
 	flush |= p->decrypted ^ skb->decrypted;
@@ -272,7 +277,12 @@ found:
 	tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
 
 out_check_final:
-	flush = len < mss;
+	/* Force a flush if last segment is smaller than mss. */
+	if (unlikely(skb_is_gso(skb)))
+		flush = len != NAPI_GRO_CB(skb)->count * skb_shinfo(skb)->gso_size;
+	else
+		flush = len < mss;
+
 	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
 					TCP_FLAG_RST | TCP_FLAG_SYN |
 					TCP_FLAG_FIN));

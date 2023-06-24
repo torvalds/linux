@@ -291,14 +291,6 @@ static const struct rtc_class_ops mxc_rtc_ops = {
 	.alarm_irq_enable	= mxc_rtc_alarm_irq_enable,
 };
 
-static void mxc_rtc_action(void *p)
-{
-	struct rtc_plat_data *pdata = p;
-
-	clk_disable_unprepare(pdata->clk_ref);
-	clk_disable_unprepare(pdata->clk_ipg);
-}
-
 static int mxc_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
@@ -311,7 +303,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->devtype = (enum imx_rtc_type)of_device_get_match_data(&pdev->dev);
+	pdata->devtype = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
@@ -341,32 +333,17 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		rtc->range_max = (1 << 16) * 86400ULL - 1;
 	}
 
-	pdata->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	pdata->clk_ipg = devm_clk_get_enabled(&pdev->dev, "ipg");
 	if (IS_ERR(pdata->clk_ipg)) {
 		dev_err(&pdev->dev, "unable to get ipg clock!\n");
 		return PTR_ERR(pdata->clk_ipg);
 	}
 
-	ret = clk_prepare_enable(pdata->clk_ipg);
-	if (ret)
-		return ret;
-
-	pdata->clk_ref = devm_clk_get(&pdev->dev, "ref");
+	pdata->clk_ref = devm_clk_get_enabled(&pdev->dev, "ref");
 	if (IS_ERR(pdata->clk_ref)) {
-		clk_disable_unprepare(pdata->clk_ipg);
 		dev_err(&pdev->dev, "unable to get ref clock!\n");
 		return PTR_ERR(pdata->clk_ref);
 	}
-
-	ret = clk_prepare_enable(pdata->clk_ref);
-	if (ret) {
-		clk_disable_unprepare(pdata->clk_ipg);
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&pdev->dev, mxc_rtc_action, pdata);
-	if (ret)
-		return ret;
 
 	rate = clk_get_rate(pdata->clk_ref);
 

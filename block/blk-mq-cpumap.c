@@ -32,7 +32,7 @@ static int get_first_sibling(unsigned int cpu)
 	return cpu;
 }
 
-int blk_mq_map_queues(struct blk_mq_queue_map *qmap)
+void blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 {
 	unsigned int *map = qmap->mq_map;
 	unsigned int nr_queues = qmap->nr_queues;
@@ -70,8 +70,6 @@ int blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 				map[cpu] = map[first_sibling];
 		}
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(blk_mq_map_queues);
 

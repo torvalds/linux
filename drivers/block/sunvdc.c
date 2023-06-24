@@ -886,7 +886,7 @@ static int probe_disk(struct vdc_port *port)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(g);
+	put_disk(g);
 out_free_tag:
 	blk_mq_free_tag_set(&port->tag_set);
 	return err;
@@ -1070,7 +1070,7 @@ static void vdc_port_remove(struct vio_dev *vdev)
 		del_timer_sync(&port->vio.timer);
 
 		del_gendisk(port->disk);
-		blk_cleanup_disk(port->disk);
+		put_disk(port->disk);
 		blk_mq_free_tag_set(&port->tag_set);
 
 		vdc_free_tx_ring(port);

@@ -22,15 +22,18 @@
 
 #include <drm/drm_auth.h>
 #include <drm/drm_connector.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_utils.h>
-#include <drm/drm_print.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 #include <drm/drm_privacy_screen_consumer.h>
 #include <drm/drm_sysfs.h>
+#include <drm/drm_utils.h>
 
+#include <linux/fb.h>
 #include <linux/uaccess.h>
 
 #include "drm_crtc_internal.h"
@@ -212,23 +215,11 @@ void drm_connector_free_work_fn(struct work_struct *work)
 	}
 }
 
-/**
- * drm_connector_init - Init a preallocated connector
- * @dev: DRM device
- * @connector: the connector to init
- * @funcs: callbacks for this connector
- * @connector_type: user visible type of the connector
- *
- * Initialises a preallocated connector. Connectors should be
- * subclassed as part of driver connector objects.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_connector_init(struct drm_device *dev,
-		       struct drm_connector *connector,
-		       const struct drm_connector_funcs *funcs,
-		       int connector_type)
+static int __drm_connector_init(struct drm_device *dev,
+				struct drm_connector *connector,
+				const struct drm_connector_funcs *funcs,
+				int connector_type,
+				struct i2c_adapter *ddc)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
@@ -250,7 +241,7 @@ int drm_connector_init(struct drm_device *dev,
 	connector->funcs = funcs;
 
 	/* connector index is used with 32bit bitmasks */
-	ret = ida_simple_get(&config->connector_ida, 0, 32, GFP_KERNEL);
+	ret = ida_alloc_max(&config->connector_ida, 31, GFP_KERNEL);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("Failed to allocate %s connector index: %d\n",
 			      drm_connector_enum_list[connector_type].name,
@@ -262,7 +253,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
-		ida_simple_get(connector_ida, 1, 0, GFP_KERNEL);
+		ida_alloc_min(connector_ida, 1, GFP_KERNEL);
 	if (connector->connector_type_id < 0) {
 		ret = connector->connector_type_id;
 		goto out_put_id;
@@ -275,6 +266,9 @@ int drm_connector_init(struct drm_device *dev,
 		ret = -ENOMEM;
 		goto out_put_type_id;
 	}
+
+	/* provide ddc symlink in sysfs */
+	connector->ddc = ddc;
 
 	INIT_LIST_HEAD(&connector->global_connector_list_entry);
 	INIT_LIST_HEAD(&connector->probed_modes);
@@ -322,15 +316,47 @@ int drm_connector_init(struct drm_device *dev,
 	connector->debugfs_entry = NULL;
 out_put_type_id:
 	if (ret)
-		ida_simple_remove(connector_ida, connector->connector_type_id);
+		ida_free(connector_ida, connector->connector_type_id);
 out_put_id:
 	if (ret)
-		ida_simple_remove(&config->connector_ida, connector->index);
+		ida_free(&config->connector_ida, connector->index);
 out_put:
 	if (ret)
 		drm_mode_object_unregister(dev, &connector->base);
 
 	return ret;
+}
+
+/**
+ * drm_connector_init - Init a preallocated connector
+ * @dev: DRM device
+ * @connector: the connector to init
+ * @funcs: callbacks for this connector
+ * @connector_type: user visible type of the connector
+ *
+ * Initialises a preallocated connector. Connectors should be
+ * subclassed as part of driver connector objects.
+ *
+ * At driver unload time the driver's &drm_connector_funcs.destroy hook
+ * should call drm_connector_cleanup() and free the connector structure.
+ * The connector structure should not be allocated with devm_kzalloc().
+ *
+ * Note: consider using drmm_connector_init() instead of
+ * drm_connector_init() to let the DRM managed resource infrastructure
+ * take care of cleanup and deallocation.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_init(struct drm_device *dev,
+		       struct drm_connector *connector,
+		       const struct drm_connector_funcs *funcs,
+		       int connector_type)
+{
+	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
+		return -EINVAL;
+
+	return __drm_connector_init(dev, connector, funcs, connector_type, NULL);
 }
 EXPORT_SYMBOL(drm_connector_init);
 
@@ -345,7 +371,15 @@ EXPORT_SYMBOL(drm_connector_init);
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
  *
+ * At driver unload time the driver's &drm_connector_funcs.destroy hook
+ * should call drm_connector_cleanup() and free the connector structure.
+ * The connector structure should not be allocated with devm_kzalloc().
+ *
  * Ensures that the ddc field of the connector is correctly set.
+ *
+ * Note: consider using drmm_connector_init() instead of
+ * drm_connector_init_with_ddc() to let the DRM managed resource
+ * infrastructure take care of cleanup and deallocation.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -356,18 +390,63 @@ int drm_connector_init_with_ddc(struct drm_device *dev,
 				int connector_type,
 				struct i2c_adapter *ddc)
 {
+	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
+		return -EINVAL;
+
+	return __drm_connector_init(dev, connector, funcs, connector_type, ddc);
+}
+EXPORT_SYMBOL(drm_connector_init_with_ddc);
+
+static void drm_connector_cleanup_action(struct drm_device *dev,
+					 void *ptr)
+{
+	struct drm_connector *connector = ptr;
+
+	drm_connector_cleanup(connector);
+}
+
+/**
+ * drmm_connector_init - Init a preallocated connector
+ * @dev: DRM device
+ * @connector: the connector to init
+ * @funcs: callbacks for this connector
+ * @connector_type: user visible type of the connector
+ * @ddc: optional pointer to the associated ddc adapter
+ *
+ * Initialises a preallocated connector. Connectors should be
+ * subclassed as part of driver connector objects.
+ *
+ * Cleanup is automatically handled with a call to
+ * drm_connector_cleanup() in a DRM-managed action.
+ *
+ * The connector structure should be allocated with drmm_kzalloc().
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drmm_connector_init(struct drm_device *dev,
+			struct drm_connector *connector,
+			const struct drm_connector_funcs *funcs,
+			int connector_type,
+			struct i2c_adapter *ddc)
+{
 	int ret;
 
-	ret = drm_connector_init(dev, connector, funcs, connector_type);
+	if (drm_WARN_ON(dev, funcs && funcs->destroy))
+		return -EINVAL;
+
+	ret = __drm_connector_init(dev, connector, funcs, connector_type, ddc);
 	if (ret)
 		return ret;
 
-	/* provide ddc symlink in sysfs */
-	connector->ddc = ddc;
+	ret = drmm_add_action_or_reset(dev, drm_connector_cleanup_action,
+				       connector);
+	if (ret)
+		return ret;
 
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(drm_connector_init_with_ddc);
+EXPORT_SYMBOL(drmm_connector_init);
 
 /**
  * drm_connector_attach_edid_property - attach edid property.
@@ -479,11 +558,10 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->modes, head)
 		drm_mode_remove(connector, mode);
 
-	ida_simple_remove(&drm_connector_enum_list[connector->connector_type].ida,
+	ida_free(&drm_connector_enum_list[connector->connector_type].ida,
 			  connector->connector_type_id);
 
-	ida_simple_remove(&dev->mode_config.connector_ida,
-			  connector->index);
+	ida_free(&dev->mode_config.connector_ida, connector->index);
 
 	kfree(connector->display_info.bus_formats);
 	drm_mode_object_unregister(dev, &connector->base);
@@ -515,6 +593,9 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  * which can be hotplugged after drm_dev_register() has been called already,
  * e.g. DP MST connectors. All other connectors will be registered automatically
  * when calling drm_dev_register().
+ *
+ * When the connector is no longer available, callers must call
+ * drm_connector_unregister().
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -572,9 +653,8 @@ EXPORT_SYMBOL(drm_connector_register);
  * @connector: the connector to unregister
  *
  * Unregister userspace interfaces for a connector. Only call this for
- * connectors which have registered explicitly by calling drm_dev_register(),
- * since connectors are unregistered automatically when drm_dev_unregister() is
- * called.
+ * connectors which have been registered explicitly by calling
+ * drm_connector_register().
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
@@ -1486,40 +1566,6 @@ int drm_connector_attach_content_type_property(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_attach_content_type_property);
 
-
-/**
- * drm_hdmi_avi_infoframe_content_type() - fill the HDMI AVI infoframe
- *                                         content type information, based
- *                                         on correspondent DRM property.
- * @frame: HDMI AVI infoframe
- * @conn_state: DRM display connector state
- *
- */
-void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
-					 const struct drm_connector_state *conn_state)
-{
-	switch (conn_state->content_type) {
-	case DRM_MODE_CONTENT_TYPE_GRAPHICS:
-		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
-		break;
-	case DRM_MODE_CONTENT_TYPE_CINEMA:
-		frame->content_type = HDMI_CONTENT_TYPE_CINEMA;
-		break;
-	case DRM_MODE_CONTENT_TYPE_GAME:
-		frame->content_type = HDMI_CONTENT_TYPE_GAME;
-		break;
-	case DRM_MODE_CONTENT_TYPE_PHOTO:
-		frame->content_type = HDMI_CONTENT_TYPE_PHOTO;
-		break;
-	default:
-		/* Graphics is the default(0) */
-		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
-	}
-
-	frame->itc = conn_state->content_type != DRM_MODE_CONTENT_TYPE_NO_DATA;
-}
-EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
-
 /**
  * drm_connector_attach_tv_margin_properties - attach TV connector margin
  * 	properties
@@ -2112,80 +2158,6 @@ int drm_connector_set_tile_property(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_connector_set_tile_property);
 
 /**
- * drm_connector_update_edid_property - update the edid property of a connector
- * @connector: drm connector
- * @edid: new value of the edid property
- *
- * This function creates a new blob modeset object and assigns its id to the
- * connector's edid property.
- * Since we also parse tile information from EDID's displayID block, we also
- * set the connector's tile property here. See drm_connector_set_tile_property()
- * for more details.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int drm_connector_update_edid_property(struct drm_connector *connector,
-				       const struct edid *edid)
-{
-	struct drm_device *dev = connector->dev;
-	size_t size = 0;
-	int ret;
-	const struct edid *old_edid;
-
-	/* ignore requests to set edid when overridden */
-	if (connector->override_edid)
-		return 0;
-
-	if (edid)
-		size = EDID_LENGTH * (1 + edid->extensions);
-
-	/* Set the display info, using edid if available, otherwise
-	 * resetting the values to defaults. This duplicates the work
-	 * done in drm_add_edid_modes, but that function is not
-	 * consistently called before this one in all drivers and the
-	 * computation is cheap enough that it seems better to
-	 * duplicate it rather than attempt to ensure some arbitrary
-	 * ordering of calls.
-	 */
-	if (edid)
-		drm_add_display_info(connector, edid);
-	else
-		drm_reset_display_info(connector);
-
-	drm_update_tile_info(connector, edid);
-
-	if (connector->edid_blob_ptr) {
-		old_edid = (const struct edid *)connector->edid_blob_ptr->data;
-		if (old_edid) {
-			if (!drm_edid_are_equal(edid, old_edid)) {
-				DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Edid was changed.\n",
-					      connector->base.id, connector->name);
-
-				connector->epoch_counter += 1;
-				DRM_DEBUG_KMS("Updating change counter to %llu\n",
-					      connector->epoch_counter);
-			}
-		}
-	}
-
-	drm_object_property_set_value(&connector->base,
-				      dev->mode_config.non_desktop_property,
-				      connector->display_info.non_desktop);
-
-	ret = drm_property_replace_global_blob(dev,
-					       &connector->edid_blob_ptr,
-					       size,
-					       edid,
-					       &connector->base,
-					       dev->mode_config.edid_property);
-	if (ret)
-		return ret;
-	return drm_connector_set_tile_property(connector);
-}
-EXPORT_SYMBOL(drm_connector_update_edid_property);
-
-/**
  * drm_connector_set_link_status_property - Set link status property of a connector
  * @connector: drm connector
  * @link_status: new value of link status property (0: Good, 1: Bad)
@@ -2354,6 +2326,9 @@ EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
  * It is allowed to call this function with a panel_orientation of
  * DRM_MODE_PANEL_ORIENTATION_UNKNOWN, in which case it is a no-op.
  *
+ * The function shouldn't be called in panel after drm is registered (i.e.
+ * drm_dev_register() is called in drm).
+ *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -2422,6 +2397,33 @@ int drm_connector_set_panel_orientation_with_quirk(
 						   panel_orientation);
 }
 EXPORT_SYMBOL(drm_connector_set_panel_orientation_with_quirk);
+
+/**
+ * drm_connector_set_orientation_from_panel -
+ *	set the connector's panel_orientation from panel's callback.
+ * @connector: connector for which to init the panel-orientation property.
+ * @panel: panel that can provide orientation information.
+ *
+ * Drm drivers should call this function before drm_dev_register().
+ * Orientation is obtained from panel's .get_orientation() callback.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_set_orientation_from_panel(
+	struct drm_connector *connector,
+	struct drm_panel *panel)
+{
+	enum drm_panel_orientation orientation;
+
+	if (panel && panel->funcs && panel->funcs->get_orientation)
+		orientation = panel->funcs->get_orientation(panel);
+	else
+		orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+
+	return drm_connector_set_panel_orientation(connector, orientation);
+}
+EXPORT_SYMBOL(drm_connector_set_orientation_from_panel);
 
 static const struct drm_prop_enum_list privacy_screen_enum[] = {
 	{ PRIVACY_SCREEN_DISABLED,		"Disabled" },

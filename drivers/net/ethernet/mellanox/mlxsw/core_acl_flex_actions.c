@@ -737,8 +737,9 @@ mlxsw_afa_cookie_create(struct mlxsw_afa *mlxsw_afa,
 	if (!cookie)
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&cookie->ref_count, 1);
-	memcpy(&cookie->fa_cookie, fa_cookie,
-	       sizeof(*fa_cookie) + fa_cookie->cookie_len);
+	cookie->fa_cookie = *fa_cookie;
+	memcpy(cookie->fa_cookie.cookie, fa_cookie->cookie,
+	       fa_cookie->cookie_len);
 
 	err = rhashtable_insert_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
 				     mlxsw_afa_cookie_ht_params);
@@ -1164,7 +1165,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
  * trap control. In addition, the Trap / Discard action enables activating
  * SPAN (port mirroring).
  *
- * The Trap with userdef action action has the same functionality as
+ * The Trap with userdef action has the same functionality as
  * the Trap action with addition of user defined value that can be set
  * and used by higher layer applications.
  */

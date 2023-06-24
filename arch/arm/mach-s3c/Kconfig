@@ -43,12 +43,12 @@ config SAMSUNG_ATAGS
 	def_bool n
 	depends on ATAGS
 	help
-	   This option enables ATAGS based boot support code for
-	   Samsung platforms, including static platform devices, legacy
-	   clock, timer and interrupt initialization, etc.
+	  This option enables ATAGS based boot support code for
+	  Samsung platforms, including static platform devices, legacy
+	  clock, timer and interrupt initialization, etc.
 
-	   Platforms that support only DT based boot need not to select
-	   this option.
+	  Platforms that support only DT based boot need not to select
+	  this option.
 
 if SAMSUNG_ATAGS
 
@@ -102,7 +102,7 @@ config S3C_DEV_HSMMC3
 config S3C_DEV_HWMON
 	bool
 	help
-	    Compile in platform device definitions for HWMON
+	  Compile in platform device definitions for HWMON
 
 config S3C_DEV_I2C1
 	bool
@@ -194,7 +194,7 @@ config S3C64XX_DEV_SPI0
 config SAMSUNG_DEV_TS
 	bool
 	help
-	    Common in platform device definitions for touchscreen device
+	  Common in platform device definitions for touchscreen device
 
 config SAMSUNG_DEV_KEYPAD
 	bool
@@ -206,14 +206,6 @@ config SAMSUNG_DEV_PWM
 	default y if ARCH_S3C24XX
 	help
 	  Compile in platform device definition for PWM Timer
-
-config S3C24XX_PWM
-	bool "PWM device support"
-	select PWM
-	select PWM_SAMSUNG
-	help
-	  Support for exporting the PWM timer blocks via the pwm device
-	  system
 
 config GPIO_SAMSUNG
 	def_bool y

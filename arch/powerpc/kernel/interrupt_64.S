@@ -13,16 +13,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/ptrace.h>
 
-	.section	".toc","aw"
-SYS_CALL_TABLE:
-	.tc sys_call_table[TC],sys_call_table
-
-#ifdef CONFIG_COMPAT
-COMPAT_SYS_CALL_TABLE:
-	.tc compat_sys_call_table[TC],compat_sys_call_table
-#endif
-	.previous
-
 	.align 7
 
 .macro DEBUG_SRR_VALID srr
@@ -67,16 +57,11 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
 	std	r2,GPR2(r1)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	mfcr	r12
 	li	r11,0
-	/* Can we avoid saving r3-r8 in common case? */
-	std	r3,GPR3(r1)
-	std	r4,GPR4(r1)
-	std	r5,GPR5(r1)
-	std	r6,GPR6(r1)
-	std	r7,GPR7(r1)
-	std	r8,GPR8(r1)
+	/* Save syscall parameters in r3-r8 */
+	SAVE_GPRS(3, 8, r1)
 	/* Zero r9-r12, this should only be required when restoring all GPRs */
 	std	r11,GPR9(r1)
 	std	r11,GPR10(r1)
@@ -91,9 +76,12 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 	li	r11,\trapnr
 	std	r11,_TRAP(r1)
 	std	r12,_CCR(r1)
-	addi	r10,r1,STACK_FRAME_OVERHEAD
-	ld	r11,exception_marker@toc(r2)
-	std	r11,-16(r10)		/* "regshere" marker */
+	std	r3,ORIG_GPR3(r1)
+	/* Calling convention has r3 = regs, r4 = orig r0 */
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r0
+	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
+	std	r11,-16(r3)		/* "regshere" marker */
 
 BEGIN_FTR_SECTION
 	HMT_MEDIUM
@@ -108,8 +96,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * but this is the best we can do.
 	 */
 
-	/* Calling convention has r9 = orig r0, r10 = regs */
-	mr	r9,r0
 	bl	system_call_exception
 
 .Lsyscall_vectored_\name\()_exit:
@@ -148,17 +134,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	/* Could zero these as per ABI, but we may consider a stricter ABI
 	 * which preserves these if libc implementations can benefit, so
 	 * restore them for now until further measurement is done. */
-	ld	r0,GPR0(r1)
-	ld	r4,GPR4(r1)
-	ld	r5,GPR5(r1)
-	ld	r6,GPR6(r1)
-	ld	r7,GPR7(r1)
-	ld	r8,GPR8(r1)
+	REST_GPR(0, r1)
+	REST_GPRS(4, 8, r1)
 	/* Zero volatile regs that may contain sensitive kernel data */
-	li	r9,0
-	li	r10,0
-	li	r11,0
-	li	r12,0
+	ZEROIZE_GPRS(9, 12)
 	mtspr	SPRN_XER,r0
 
 	/*
@@ -181,7 +160,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r5,_XER(r1)
 
 	REST_NVGPRS(r1)
-	ld	r0,GPR0(r1)
+	REST_GPR(0, r1)
 	mtcr	r2
 	mtctr	r3
 	mtlr	r4
@@ -195,7 +174,7 @@ syscall_vectored_\name\()_restart:
 _ASM_NOKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
 	addi	r4,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
@@ -219,16 +198,6 @@ system_call_vectored common 0x3000
  */
 system_call_vectored sigill 0x7ff0
 
-
-/*
- * Entered via kernel return set up by kernel/sstep.c, must match entry regs
- */
-	.globl system_call_vectored_emulate
-system_call_vectored_emulate:
-_ASM_NOKPROBE_SYMBOL(system_call_vectored_emulate)
-	li	r10,IRQS_ALL_DISABLED
-	stb	r10,PACAIRQSOFTMASK(r13)
-	b	system_call_vectored_common
 #endif /* CONFIG_PPC_BOOK3S */
 
 	.balign IFETCH_ALIGN_BYTES
@@ -250,21 +219,16 @@ _ASM_NOKPROBE_SYMBOL(system_call_common)
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
 	std	r2,GPR2(r1)
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 START_BTB_FLUSH_SECTION
 	BTB_FLUSH(r10)
 END_BTB_FLUSH_SECTION
 #endif
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	mfcr	r12
 	li	r11,0
-	/* Can we avoid saving r3-r8 in common case? */
-	std	r3,GPR3(r1)
-	std	r4,GPR4(r1)
-	std	r5,GPR5(r1)
-	std	r6,GPR6(r1)
-	std	r7,GPR7(r1)
-	std	r8,GPR8(r1)
+	/* Save syscall parameters in r3-r8 */
+	SAVE_GPRS(3, 8, r1)
 	/* Zero r9-r12, this should only be required when restoring all GPRs */
 	std	r11,GPR9(r1)
 	std	r11,GPR10(r1)
@@ -285,9 +249,12 @@ END_BTB_FLUSH_SECTION
 	std	r10,_LINK(r1)
 	std	r11,_TRAP(r1)
 	std	r12,_CCR(r1)
-	addi	r10,r1,STACK_FRAME_OVERHEAD
-	ld	r11,exception_marker@toc(r2)
-	std	r11,-16(r10)		/* "regshere" marker */
+	std	r3,ORIG_GPR3(r1)
+	/* Calling convention has r3 = regs, r4 = orig r0 */
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r0
+	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
+	std	r11,-16(r3)		/* "regshere" marker */
 
 #ifdef CONFIG_PPC_BOOK3S
 	li	r11,1
@@ -308,8 +275,6 @@ END_BTB_FLUSH_SECTION
 	wrteei	1
 #endif
 
-	/* Calling convention has r9 = orig r0, r10 = regs */
-	mr	r9,r0
 	bl	system_call_exception
 
 .Lsyscall_exit:
@@ -353,16 +318,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	cmpdi	r3,0
 	bne	.Lsyscall_restore_regs
 	/* Zero volatile regs that may contain sensitive kernel data */
-	li	r0,0
-	li	r4,0
-	li	r5,0
-	li	r6,0
-	li	r7,0
-	li	r8,0
-	li	r9,0
-	li	r10,0
-	li	r11,0
-	li	r12,0
+	ZEROIZE_GPR(0)
+	ZEROIZE_GPRS(4, 12)
 	mtctr	r0
 	mtspr	SPRN_XER,r0
 .Lsyscall_restore_regs_cont:
@@ -388,7 +345,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	REST_NVGPRS(r1)
 	mtctr	r3
 	mtspr	SPRN_XER,r4
-	ld	r0,GPR0(r1)
+	REST_GPR(0, r1)
 	REST_GPRS(4, 12, r1)
 	b	.Lsyscall_restore_regs_cont
 .Lsyscall_rst_end:
@@ -398,7 +355,7 @@ syscall_restart:
 _ASM_NOKPROBE_SYMBOL(syscall_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
 	addi	r4,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
@@ -545,7 +502,7 @@ interrupt_return_\srr\()_user_restart:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
@@ -569,15 +526,63 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	ld	r11,SOFTE(r1)
 	cmpwi	r11,IRQS_ENABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bne	1f
+	beq	.Linterrupt_return_\srr\()_soft_enabled
+
+	/*
+	 * Returning to soft-disabled context.
+	 * Check if a MUST_HARD_MASK interrupt has become pending, in which
+	 * case we need to disable MSR[EE] in the return context.
+	 *
+	 * The MSR[EE] check catches among other things the short incoherency
+	 * in hard_irq_disable() between clearing MSR[EE] and setting
+	 * PACA_IRQ_HARD_DIS.
+	 */
+	ld	r12,_MSR(r1)
+	andi.	r10,r12,MSR_EE
+	beq	.Lfast_kernel_interrupt_return_\srr\() // EE already disabled
+	lbz	r11,PACAIRQHAPPENED(r13)
+	andi.	r10,r11,PACA_IRQ_MUST_HARD_MASK
+	bne	1f // HARD_MASK is pending
+	// No HARD_MASK pending, clear possible HARD_DIS set by interrupt
+	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
+	stb	r11,PACAIRQHAPPENED(r13)
+	b	.Lfast_kernel_interrupt_return_\srr\()
+
+
+1:	/* Must clear MSR_EE from _MSR */
+#ifdef CONFIG_PPC_BOOK3S
+	li	r10,0
+	/* Clear valid before changing _MSR */
+	.ifc \srr,srr
+	stb	r10,PACASRR_VALID(r13)
+	.else
+	stb	r10,PACAHSRR_VALID(r13)
+	.endif
+#endif
+	xori	r12,r12,MSR_EE
+	std	r12,_MSR(r1)
+	b	.Lfast_kernel_interrupt_return_\srr\()
+
+.Linterrupt_return_\srr\()_soft_enabled:
+	/*
+	 * In the soft-enabled case, need to double-check that we have no
+	 * pending interrupts that might have come in before we reached the
+	 * restart section of code, and restart the exit so those can be
+	 * handled.
+	 *
+	 * If there are none, it is be possible that the interrupt still
+	 * has PACA_IRQ_HARD_DIS set, which needs to be cleared for the
+	 * interrupted context. This clear will not clobber a new pending
+	 * interrupt coming in, because we're in the restart section, so
+	 * such would return to the restart location.
+	 */
 #ifdef CONFIG_PPC_BOOK3S
 	lbz	r11,PACAIRQHAPPENED(r13)
 	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
 	bne-	interrupt_return_\srr\()_kernel_restart
 #endif
 	li	r11,0
-	stb	r11,PACAIRQHAPPENED(r13) # clear out possible HARD_DIS
-1:
+	stb	r11,PACAIRQHAPPENED(r13) // clear the possible HARD_DIS
 
 .Lfast_kernel_interrupt_return_\srr\():
 	cmpdi	cr1,r3,0
@@ -629,7 +634,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	mtspr	SPRN_XER,r5
 
 	/*
-	 * Leaving a stale exception_marker on the stack can confuse
+	 * Leaving a stale STACK_FRAME_REGS_MARKER on the stack can confuse
 	 * the reliable stack unwinder later on. Clear it.
 	 */
 	std	r0,STACK_FRAME_OVERHEAD-16(r1)
@@ -678,7 +683,7 @@ interrupt_return_\srr\()_kernel_restart:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
@@ -721,7 +726,7 @@ _GLOBAL(ret_from_kernel_thread)
 	REST_NVGPRS(r1)
 	mtctr	r14
 	mr	r3,r15
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	mr	r12,r14
 #endif
 	bctrl

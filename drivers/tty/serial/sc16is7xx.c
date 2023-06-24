@@ -1015,7 +1015,7 @@ static void sc16is7xx_break_ctl(struct uart_port *port, int break_state)
 
 static void sc16is7xx_set_termios(struct uart_port *port,
 				  struct ktermios *termios,
-				  struct ktermios *old)
+				  const struct ktermios *old)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
@@ -1127,23 +1127,13 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static int sc16is7xx_config_rs485(struct uart_port *port,
+static int sc16is7xx_config_rs485(struct uart_port *port, struct ktermios *termios,
 				  struct serial_rs485 *rs485)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 	if (rs485->flags & SER_RS485_ENABLED) {
-		bool rts_during_rx, rts_during_tx;
-
-		rts_during_rx = rs485->flags & SER_RS485_RTS_AFTER_SEND;
-		rts_during_tx = rs485->flags & SER_RS485_RTS_ON_SEND;
-
-		if (rts_during_rx == rts_during_tx)
-			dev_err(port->dev,
-				"unsupported RTS signalling on_send:%d after_send:%d - exactly one of RS485 RTS flags should be set\n",
-				rts_during_tx, rts_during_rx);
-
 		/*
 		 * RTS signal is handled by HW, it's timing can't be influenced.
 		 * However, it's sometimes useful to delay TX even without RTS
@@ -1153,7 +1143,6 @@ static int sc16is7xx_config_rs485(struct uart_port *port,
 			return -EINVAL;
 	}
 
-	port->rs485 = *rs485;
 	one->config.flags |= SC16IS7XX_RECONF_RS485;
 	kthread_queue_work(&s->kworker, &one->reg_work);
 
@@ -1364,6 +1353,12 @@ static int sc16is7xx_gpio_direction_output(struct gpio_chip *chip,
 }
 #endif
 
+static const struct serial_rs485 sc16is7xx_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_AFTER_SEND,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,	/* Not supported but keep returning -EINVAL */
+};
+
 static int sc16is7xx_probe(struct device *dev,
 			   const struct sc16is7xx_devtype *devtype,
 			   struct regmap *regmap, int irq)
@@ -1466,6 +1461,7 @@ static int sc16is7xx_probe(struct device *dev,
 		s->p[i].port.iotype	= UPIO_PORT;
 		s->p[i].port.uartclk	= freq;
 		s->p[i].port.rs485_config = sc16is7xx_config_rs485;
+		s->p[i].port.rs485_supported = sc16is7xx_rs485_supported;
 		s->p[i].port.ops	= &sc16is7xx_ops;
 		s->p[i].old_mctrl	= 0;
 		s->p[i].port.line	= sc16is7xx_alloc_line();
@@ -1693,11 +1689,9 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 	return sc16is7xx_probe(&i2c->dev, devtype, regmap, i2c->irq);
 }
 
-static int sc16is7xx_i2c_remove(struct i2c_client *client)
+static void sc16is7xx_i2c_remove(struct i2c_client *client)
 {
 	sc16is7xx_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id sc16is7xx_i2c_id_table[] = {

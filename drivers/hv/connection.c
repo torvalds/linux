@@ -47,6 +47,8 @@ EXPORT_SYMBOL_GPL(vmbus_proto_version);
 
 /*
  * Table of VMBus versions listed from newest to oldest.
+ * VERSION_WIN7 and VERSION_WS2008 are no longer supported in
+ * Linux guests and are not listed.
  */
 static __u32 vmbus_versions[] = {
 	VERSION_WIN10_V5_3,
@@ -56,9 +58,7 @@ static __u32 vmbus_versions[] = {
 	VERSION_WIN10_V4_1,
 	VERSION_WIN10,
 	VERSION_WIN8_1,
-	VERSION_WIN8,
-	VERSION_WIN7,
-	VERSION_WS2008
+	VERSION_WIN8
 };
 
 /*
@@ -170,6 +170,14 @@ int vmbus_connect(void)
 		ret = -ENOMEM;
 		goto cleanup;
 	}
+
+	vmbus_connection.rescind_work_queue =
+		create_workqueue("hv_vmbus_rescind");
+	if (!vmbus_connection.rescind_work_queue) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+	vmbus_connection.ignore_any_offer_msg = false;
 
 	vmbus_connection.handle_primary_chan_wq =
 		create_workqueue("hv_pri_chan");
@@ -357,6 +365,9 @@ void vmbus_disconnect(void)
 	if (vmbus_connection.handle_primary_chan_wq)
 		destroy_workqueue(vmbus_connection.handle_primary_chan_wq);
 
+	if (vmbus_connection.rescind_work_queue)
+		destroy_workqueue(vmbus_connection.rescind_work_queue);
+
 	if (vmbus_connection.work_queue)
 		destroy_workqueue(vmbus_connection.work_queue);
 
@@ -420,34 +431,29 @@ struct vmbus_channel *relid2channel(u32 relid)
 void vmbus_on_event(unsigned long data)
 {
 	struct vmbus_channel *channel = (void *) data;
-	unsigned long time_limit = jiffies + 2;
+	void (*callback_fn)(void *context);
 
 	trace_vmbus_on_event(channel);
 
 	hv_debug_delay_test(channel, INTERRUPT_DELAY);
-	do {
-		void (*callback_fn)(void *);
 
-		/* A channel once created is persistent even when
-		 * there is no driver handling the device. An
-		 * unloading driver sets the onchannel_callback to NULL.
-		 */
-		callback_fn = READ_ONCE(channel->onchannel_callback);
-		if (unlikely(callback_fn == NULL))
-			return;
+	/* A channel once created is persistent even when
+	 * there is no driver handling the device. An
+	 * unloading driver sets the onchannel_callback to NULL.
+	 */
+	callback_fn = READ_ONCE(channel->onchannel_callback);
+	if (unlikely(!callback_fn))
+		return;
 
-		(*callback_fn)(channel->channel_callback_context);
+	(*callback_fn)(channel->channel_callback_context);
 
-		if (channel->callback_mode != HV_CALL_BATCHED)
-			return;
+	if (channel->callback_mode != HV_CALL_BATCHED)
+		return;
 
-		if (likely(hv_end_read(&channel->inbound) == 0))
-			return;
+	if (likely(hv_end_read(&channel->inbound) == 0))
+		return;
 
-		hv_begin_read(&channel->inbound);
-	} while (likely(time_before(jiffies, time_limit)));
-
-	/* The time limit (2 jiffies) has been reached */
+	hv_begin_read(&channel->inbound);
 	tasklet_schedule(&channel->callback_event);
 }
 

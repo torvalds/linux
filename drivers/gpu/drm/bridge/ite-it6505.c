@@ -21,13 +21,13 @@
 
 #include <crypto/hash.h>
 
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_hdcp.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -506,6 +506,9 @@ static int it6505_read(struct it6505 *it6505, unsigned int reg_addr)
 	int err;
 	struct device *dev = &it6505->client->dev;
 
+	if (!it6505->powered)
+		return -ENODEV;
+
 	err = regmap_read(it6505->regmap, reg_addr, &value);
 	if (err < 0) {
 		dev_err(dev, "read failed reg[0x%x] err: %d", reg_addr, err);
@@ -520,6 +523,9 @@ static int it6505_write(struct it6505 *it6505, unsigned int reg_addr,
 {
 	int err;
 	struct device *dev = &it6505->client->dev;
+
+	if (!it6505->powered)
+		return -ENODEV;
 
 	err = regmap_write(it6505->regmap, reg_addr, reg_val);
 
@@ -538,6 +544,9 @@ static int it6505_set_bits(struct it6505 *it6505, unsigned int reg,
 	int err;
 	struct device *dev = &it6505->client->dev;
 
+	if (!it6505->powered)
+		return -ENODEV;
+
 	err = regmap_update_bits(it6505->regmap, reg, mask, value);
 	if (err < 0) {
 		dev_err(dev, "write reg[0x%x] = 0x%x mask = 0x%x failed err %d",
@@ -554,7 +563,7 @@ static void it6505_debug_print(struct it6505 *it6505, unsigned int reg,
 	struct device *dev = &it6505->client->dev;
 	int val;
 
-	if (likely(!(__drm_debug & DRM_UT_DRIVER)))
+	if (!drm_debug_enabled(DRM_UT_DRIVER))
 		return;
 
 	val = it6505_read(it6505, reg);
@@ -682,7 +691,7 @@ static void it6505_calc_video_info(struct it6505 *it6505)
 	DRM_DEV_DEBUG_DRIVER(dev, "hactive_start:%d, vactive_start:%d",
 			     hdes, vdes);
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 3; i++) {
 		it6505_set_bits(it6505, REG_DATA_CTRL0, ENABLE_PCLK_COUNTER,
 				ENABLE_PCLK_COUNTER);
 		usleep_range(10000, 15000);
@@ -699,7 +708,7 @@ static void it6505_calc_video_info(struct it6505 *it6505)
 		return;
 	}
 
-	sum /= 10;
+	sum /= 3;
 	pclk = 13500 * 2048 / sum;
 	it6505->video_info.clock = pclk;
 	it6505->video_info.hdisplay = hdew;
@@ -737,8 +746,9 @@ static int it6505_drm_dp_link_probe(struct drm_dp_aux *aux,
 	return 0;
 }
 
-static int it6505_drm_dp_link_power_up(struct drm_dp_aux *aux,
-				       struct it6505_drm_dp_link *link)
+static int it6505_drm_dp_link_set_power(struct drm_dp_aux *aux,
+					struct it6505_drm_dp_link *link,
+					u8 mode)
 {
 	u8 value;
 	int err;
@@ -752,18 +762,20 @@ static int it6505_drm_dp_link_power_up(struct drm_dp_aux *aux,
 		return err;
 
 	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D0;
+	value |= mode;
 
 	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
 	if (err < 0)
 		return err;
 
-	/*
-	 * According to the DP 1.1 specification, a "Sink Device must exit the
-	 * power saving state within 1 ms" (Section 2.5.3.1, Table 5-52, "Sink
-	 * Control Field" (register 0x600).
-	 */
-	usleep_range(1000, 2000);
+	if (mode == DP_SET_POWER_D0) {
+		/*
+		 * According to the DP 1.1 specification, a "Sink Device must
+		 * exit the power saving state within 1 ms" (Section 2.5.3.1,
+		 * Table 5-52, "Sink Control Field" (register 0x600).
+		 */
+		usleep_range(1000, 2000);
+	}
 
 	return 0;
 }
@@ -2338,8 +2350,6 @@ static void it6505_irq_hpd(struct it6505 *it6505)
 
 		if (!it6505_get_video_status(it6505))
 			it6505_video_reset(it6505);
-
-		it6505_calc_video_info(it6505);
 	} else {
 		memset(it6505->dpcd, 0, sizeof(it6505->dpcd));
 
@@ -2556,12 +2566,11 @@ static int it6505_poweron(struct it6505 *it6505)
 		usleep_range(10000, 20000);
 	}
 
+	it6505->powered = true;
 	it6505_reset_logic(it6505);
 	it6505_int_mask_enable(it6505);
 	it6505_init(it6505);
 	it6505_lane_off(it6505);
-
-	it6505->powered = true;
 
 	return 0;
 }
@@ -2624,7 +2633,8 @@ static enum drm_connector_status it6505_detect(struct it6505 *it6505)
 	if (it6505_get_sink_hpd_status(it6505)) {
 		it6505_aux_on(it6505);
 		it6505_drm_dp_link_probe(&it6505->aux, &it6505->link);
-		it6505_drm_dp_link_power_up(&it6505->aux, &it6505->link);
+		it6505_drm_dp_link_set_power(&it6505->aux, &it6505->link,
+					     DP_SET_POWER_D0);
 		it6505->auto_train_retry = AUTO_TRAIN_RETRY;
 
 		if (it6505->dpcd[0] == 0) {
@@ -2950,6 +2960,9 @@ static void it6505_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	it6505_int_mask_enable(it6505);
 	it6505_video_reset(it6505);
+
+	it6505_drm_dp_link_set_power(&it6505->aux, &it6505->link,
+				     DP_SET_POWER_D0);
 }
 
 static void it6505_bridge_atomic_disable(struct drm_bridge *bridge,
@@ -2960,8 +2973,11 @@ static void it6505_bridge_atomic_disable(struct drm_bridge *bridge,
 
 	DRM_DEV_DEBUG_DRIVER(dev, "start");
 
-	if (it6505->powered)
+	if (it6505->powered) {
+		it6505_drm_dp_link_set_power(&it6505->aux, &it6505->link,
+					     DP_SET_POWER_D3);
 		it6505_video_disable(it6505);
+	}
 }
 
 static enum drm_connector_status
@@ -3037,7 +3053,7 @@ static int it6505_init_pdata(struct it6505 *it6505)
 		return PTR_ERR(pdata->ovdd);
 	}
 
-	pdata->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	pdata->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->gpiod_reset)) {
 		dev_err(dev, "gpiod_reset gpio not found");
 		return PTR_ERR(pdata->gpiod_reset);
@@ -3309,7 +3325,7 @@ static int it6505_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int it6505_i2c_remove(struct i2c_client *client)
+static void it6505_i2c_remove(struct i2c_client *client)
 {
 	struct it6505 *it6505 = i2c_get_clientdata(client);
 
@@ -3317,8 +3333,6 @@ static int it6505_i2c_remove(struct i2c_client *client)
 	drm_dp_aux_unregister(&it6505->aux);
 	it6505_debugfs_remove(it6505);
 	it6505_poweroff(it6505);
-
-	return 0;
 }
 
 static const struct i2c_device_id it6505_id[] = {

@@ -6,6 +6,7 @@
 
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -977,12 +978,12 @@ err_of_put:
 	return ret;
 }
 
-static int lt9611uxc_remove(struct i2c_client *client)
+static void lt9611uxc_remove(struct i2c_client *client)
 {
 	struct lt9611uxc *lt9611uxc = i2c_get_clientdata(client);
 
 	disable_irq(client->irq);
-	flush_scheduled_work();
+	cancel_work_sync(&lt9611uxc->work);
 	lt9611uxc_audio_exit(lt9611uxc);
 	drm_bridge_remove(&lt9611uxc->bridge);
 
@@ -992,8 +993,6 @@ static int lt9611uxc_remove(struct i2c_client *client)
 
 	of_node_put(lt9611uxc->dsi1_node);
 	of_node_put(lt9611uxc->dsi0_node);
-
-	return 0;
 }
 
 static struct i2c_device_id lt9611uxc_id[] = {

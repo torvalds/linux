@@ -1402,7 +1402,6 @@ efct_hw_command(struct efct_hw *hw, u8 *cmd, u32 opts, void *cb, void *arg)
 		mutex_lock(&hw->bmbx_lock);
 		bmbx = hw->sli.bmbx.virt;
 
-		memset(bmbx, 0, SLI4_BMBX_SIZE);
 		memcpy(bmbx, cmd, SLI4_BMBX_SIZE);
 
 		if (sli_bmbx_command(&hw->sli) == 0) {

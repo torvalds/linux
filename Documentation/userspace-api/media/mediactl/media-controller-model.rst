@@ -33,3 +33,9 @@ are:
 
 -  An **interface link** is a point-to-point bidirectional control
    connection between a Linux Kernel interface and an entity.
+
+- An **ancillary link** is a point-to-point connection denoting that two
+  entities form a single logical unit. For example this could represent the
+  fact that a particular camera sensor and lens controller form a single
+  physical module, meaning this lens controller drives the lens for this
+  camera sensor.

@@ -22,6 +22,7 @@ struct lan966x_mac_entry {
 	u16 vid;
 	u16 port_index;
 	int row;
+	bool lag;
 };
 
 struct lan966x_mac_raw_entry {
@@ -69,12 +70,14 @@ static void lan966x_mac_select(struct lan966x *lan966x,
 	lan_wr(mach, lan966x, ANA_MACHDATA);
 }
 
-static int __lan966x_mac_learn(struct lan966x *lan966x, int pgid,
-			       bool cpu_copy,
-			       const unsigned char mac[ETH_ALEN],
-			       unsigned int vid,
-			       enum macaccess_entry_type type)
+static int __lan966x_mac_learn_locked(struct lan966x *lan966x, int pgid,
+				      bool cpu_copy,
+				      const unsigned char mac[ETH_ALEN],
+				      unsigned int vid,
+				      enum macaccess_entry_type type)
 {
+	lockdep_assert_held(&lan966x->mac_lock);
+
 	lan966x_mac_select(lan966x, mac, vid);
 
 	/* Issue a write command */
@@ -87,6 +90,21 @@ static int __lan966x_mac_learn(struct lan966x *lan966x, int pgid,
 	       lan966x, ANA_MACACCESS);
 
 	return lan966x_mac_wait_for_completion(lan966x);
+}
+
+static int __lan966x_mac_learn(struct lan966x *lan966x, int pgid,
+			       bool cpu_copy,
+			       const unsigned char mac[ETH_ALEN],
+			       unsigned int vid,
+			       enum macaccess_entry_type type)
+{
+	int ret;
+
+	spin_lock(&lan966x->mac_lock);
+	ret = __lan966x_mac_learn_locked(lan966x, pgid, cpu_copy, mac, vid, type);
+	spin_unlock(&lan966x->mac_lock);
+
+	return ret;
 }
 
 /* The mask of the front ports is encoded inside the mac parameter via a call
@@ -113,11 +131,23 @@ int lan966x_mac_learn(struct lan966x *lan966x, int port,
 	return __lan966x_mac_learn(lan966x, port, false, mac, vid, type);
 }
 
-int lan966x_mac_forget(struct lan966x *lan966x,
-		       const unsigned char mac[ETH_ALEN],
-		       unsigned int vid,
-		       enum macaccess_entry_type type)
+static int lan966x_mac_learn_locked(struct lan966x *lan966x, int port,
+				    const unsigned char mac[ETH_ALEN],
+				    unsigned int vid,
+				    enum macaccess_entry_type type)
 {
+	WARN_ON(type != ENTRYTYPE_NORMAL && type != ENTRYTYPE_LOCKED);
+
+	return __lan966x_mac_learn_locked(lan966x, port, false, mac, vid, type);
+}
+
+static int lan966x_mac_forget_locked(struct lan966x *lan966x,
+				     const unsigned char mac[ETH_ALEN],
+				     unsigned int vid,
+				     enum macaccess_entry_type type)
+{
+	lockdep_assert_held(&lan966x->mac_lock);
+
 	lan966x_mac_select(lan966x, mac, vid);
 
 	/* Issue a forget command */
@@ -126,6 +156,20 @@ int lan966x_mac_forget(struct lan966x *lan966x,
 	       lan966x, ANA_MACACCESS);
 
 	return lan966x_mac_wait_for_completion(lan966x);
+}
+
+int lan966x_mac_forget(struct lan966x *lan966x,
+		       const unsigned char mac[ETH_ALEN],
+		       unsigned int vid,
+		       enum macaccess_entry_type type)
+{
+	int ret;
+
+	spin_lock(&lan966x->mac_lock);
+	ret = lan966x_mac_forget_locked(lan966x, mac, vid, type);
+	spin_unlock(&lan966x->mac_lock);
+
+	return ret;
 }
 
 int lan966x_mac_cpu_learn(struct lan966x *lan966x, const char *addr, u16 vid)
@@ -156,19 +200,21 @@ void lan966x_mac_init(struct lan966x *lan966x)
 	INIT_LIST_HEAD(&lan966x->mac_entries);
 }
 
-static struct lan966x_mac_entry *lan966x_mac_alloc_entry(const unsigned char *mac,
-							 u16 vid, u16 port_index)
+static struct lan966x_mac_entry *lan966x_mac_alloc_entry(struct lan966x_port *port,
+							 const unsigned char *mac,
+							 u16 vid)
 {
 	struct lan966x_mac_entry *mac_entry;
 
-	mac_entry = kzalloc(sizeof(*mac_entry), GFP_KERNEL);
+	mac_entry = kzalloc(sizeof(*mac_entry), GFP_ATOMIC);
 	if (!mac_entry)
 		return NULL;
 
 	memcpy(mac_entry->mac, mac, ETH_ALEN);
 	mac_entry->vid = vid;
-	mac_entry->port_index = port_index;
+	mac_entry->port_index = port->chip_port;
 	mac_entry->row = LAN966X_MAC_INVALID_ROW;
+	mac_entry->lag = port->bond ? true : false;
 	return mac_entry;
 }
 
@@ -179,7 +225,6 @@ static struct lan966x_mac_entry *lan966x_mac_find_entry(struct lan966x *lan966x,
 	struct lan966x_mac_entry *res = NULL;
 	struct lan966x_mac_entry *mac_entry;
 
-	spin_lock(&lan966x->mac_lock);
 	list_for_each_entry(mac_entry, &lan966x->mac_entries, list) {
 		if (mac_entry->vid == vid &&
 		    ether_addr_equal(mac, mac_entry->mac) &&
@@ -188,7 +233,6 @@ static struct lan966x_mac_entry *lan966x_mac_find_entry(struct lan966x *lan966x,
 			break;
 		}
 	}
-	spin_unlock(&lan966x->mac_lock);
 
 	return res;
 }
@@ -231,8 +275,11 @@ int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
 {
 	struct lan966x_mac_entry *mac_entry;
 
-	if (lan966x_mac_lookup(lan966x, addr, vid, ENTRYTYPE_NORMAL))
+	spin_lock(&lan966x->mac_lock);
+	if (lan966x_mac_lookup(lan966x, addr, vid, ENTRYTYPE_NORMAL)) {
+		spin_unlock(&lan966x->mac_lock);
 		return 0;
+	}
 
 	/* In case the entry already exists, don't add it again to SW,
 	 * just update HW, but we need to look in the actual HW because
@@ -241,20 +288,25 @@ int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
 	 * add the entry but without the extern_learn flag.
 	 */
 	mac_entry = lan966x_mac_find_entry(lan966x, addr, vid, port->chip_port);
-	if (mac_entry)
-		return lan966x_mac_learn(lan966x, port->chip_port,
-					 addr, vid, ENTRYTYPE_LOCKED);
+	if (mac_entry) {
+		spin_unlock(&lan966x->mac_lock);
+		goto mac_learn;
+	}
 
-	mac_entry = lan966x_mac_alloc_entry(addr, vid, port->chip_port);
-	if (!mac_entry)
+	mac_entry = lan966x_mac_alloc_entry(port, addr, vid);
+	if (!mac_entry) {
+		spin_unlock(&lan966x->mac_lock);
 		return -ENOMEM;
+	}
 
-	spin_lock(&lan966x->mac_lock);
 	list_add_tail(&mac_entry->list, &lan966x->mac_entries);
 	spin_unlock(&lan966x->mac_lock);
 
+	lan966x_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED, addr, vid,
+				   port->bond ?: port->dev);
+
+mac_learn:
 	lan966x_mac_learn(lan966x, port->chip_port, addr, vid, ENTRYTYPE_LOCKED);
-	lan966x_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED, addr, vid, port->dev);
 
 	return 0;
 }
@@ -269,8 +321,9 @@ int lan966x_mac_del_entry(struct lan966x *lan966x, const unsigned char *addr,
 				 list) {
 		if (mac_entry->vid == vid &&
 		    ether_addr_equal(addr, mac_entry->mac)) {
-			lan966x_mac_forget(lan966x, mac_entry->mac, mac_entry->vid,
-					   ENTRYTYPE_LOCKED);
+			lan966x_mac_forget_locked(lan966x, mac_entry->mac,
+						  mac_entry->vid,
+						  ENTRYTYPE_LOCKED);
 
 			list_del(&mac_entry->list);
 			kfree(mac_entry);
@@ -281,6 +334,50 @@ int lan966x_mac_del_entry(struct lan966x *lan966x, const unsigned char *addr,
 	return 0;
 }
 
+void lan966x_mac_lag_replace_port_entry(struct lan966x *lan966x,
+					struct lan966x_port *src,
+					struct lan966x_port *dst)
+{
+	struct lan966x_mac_entry *mac_entry;
+
+	spin_lock(&lan966x->mac_lock);
+	list_for_each_entry(mac_entry, &lan966x->mac_entries, list) {
+		if (mac_entry->port_index == src->chip_port &&
+		    mac_entry->lag) {
+			lan966x_mac_forget_locked(lan966x, mac_entry->mac,
+						  mac_entry->vid,
+						  ENTRYTYPE_LOCKED);
+
+			lan966x_mac_learn_locked(lan966x, dst->chip_port,
+						 mac_entry->mac, mac_entry->vid,
+						 ENTRYTYPE_LOCKED);
+			mac_entry->port_index = dst->chip_port;
+		}
+	}
+	spin_unlock(&lan966x->mac_lock);
+}
+
+void lan966x_mac_lag_remove_port_entry(struct lan966x *lan966x,
+				       struct lan966x_port *src)
+{
+	struct lan966x_mac_entry *mac_entry, *tmp;
+
+	spin_lock(&lan966x->mac_lock);
+	list_for_each_entry_safe(mac_entry, tmp, &lan966x->mac_entries,
+				 list) {
+		if (mac_entry->port_index == src->chip_port &&
+		    mac_entry->lag) {
+			lan966x_mac_forget_locked(lan966x, mac_entry->mac,
+						  mac_entry->vid,
+						  ENTRYTYPE_LOCKED);
+
+			list_del(&mac_entry->list);
+			kfree(mac_entry);
+		}
+	}
+	spin_unlock(&lan966x->mac_lock);
+}
+
 void lan966x_mac_purge_entries(struct lan966x *lan966x)
 {
 	struct lan966x_mac_entry *mac_entry, *tmp;
@@ -288,8 +385,8 @@ void lan966x_mac_purge_entries(struct lan966x *lan966x)
 	spin_lock(&lan966x->mac_lock);
 	list_for_each_entry_safe(mac_entry, tmp, &lan966x->mac_entries,
 				 list) {
-		lan966x_mac_forget(lan966x, mac_entry->mac, mac_entry->vid,
-				   ENTRYTYPE_LOCKED);
+		lan966x_mac_forget_locked(lan966x, mac_entry->mac,
+					  mac_entry->vid, ENTRYTYPE_LOCKED);
 
 		list_del(&mac_entry->list);
 		kfree(mac_entry);
@@ -325,9 +422,13 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 {
 	struct lan966x_mac_entry *mac_entry, *tmp;
 	unsigned char mac[ETH_ALEN] __aligned(2);
+	struct list_head mac_deleted_entries;
+	struct lan966x_port *port;
 	u32 dest_idx;
 	u32 column;
 	u16 vid;
+
+	INIT_LIST_HEAD(&mac_deleted_entries);
 
 	spin_lock(&lan966x->mac_lock);
 	list_for_each_entry_safe(mac_entry, tmp, &lan966x->mac_entries, list) {
@@ -362,19 +463,26 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 		}
 
 		if (!found) {
-			/* Notify the bridge that the entry doesn't exist
-			 * anymore in the HW and remove the entry from the SW
-			 * list
-			 */
-			lan966x_mac_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
-					      mac_entry->mac, mac_entry->vid,
-					      lan966x->ports[mac_entry->port_index]->dev);
-
 			list_del(&mac_entry->list);
-			kfree(mac_entry);
+			/* Move the entry from SW list to a tmp list such that
+			 * it would be deleted later
+			 */
+			list_add_tail(&mac_entry->list, &mac_deleted_entries);
 		}
 	}
 	spin_unlock(&lan966x->mac_lock);
+
+	list_for_each_entry_safe(mac_entry, tmp, &mac_deleted_entries, list) {
+		/* Notify the bridge that the entry doesn't exist
+		 * anymore in the HW
+		 */
+		port = lan966x->ports[mac_entry->port_index];
+		lan966x_mac_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+				      mac_entry->mac, mac_entry->vid,
+				      port->bond ?: port->dev);
+		list_del(&mac_entry->list);
+		kfree(mac_entry);
+	}
 
 	/* Now go to the list of columns and see if any entry was not in the SW
 	 * list, then that means that the entry is new so it needs to notify the
@@ -396,18 +504,26 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 		if (WARN_ON(dest_idx >= lan966x->num_phys_ports))
 			continue;
 
-		mac_entry = lan966x_mac_alloc_entry(mac, vid, dest_idx);
-		if (!mac_entry)
+		spin_lock(&lan966x->mac_lock);
+		mac_entry = lan966x_mac_find_entry(lan966x, mac, vid, dest_idx);
+		if (mac_entry) {
+			spin_unlock(&lan966x->mac_lock);
+			continue;
+		}
+
+		port = lan966x->ports[dest_idx];
+		mac_entry = lan966x_mac_alloc_entry(port, mac, vid);
+		if (!mac_entry) {
+			spin_unlock(&lan966x->mac_lock);
 			return;
+		}
 
 		mac_entry->row = row;
-
-		spin_lock(&lan966x->mac_lock);
 		list_add_tail(&mac_entry->list, &lan966x->mac_entries);
 		spin_unlock(&lan966x->mac_lock);
 
 		lan966x_mac_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
-				      mac, vid, lan966x->ports[dest_idx]->dev);
+				      mac, vid, port->bond ?: port->dev);
 	}
 }
 
@@ -424,6 +540,7 @@ irqreturn_t lan966x_mac_irq_handler(struct lan966x *lan966x)
 	       lan966x, ANA_MACTINDX);
 
 	while (1) {
+		spin_lock(&lan966x->mac_lock);
 		lan_rmw(ANA_MACACCESS_MAC_TABLE_CMD_SET(MACACCESS_CMD_SYNC_GET_NEXT),
 			ANA_MACACCESS_MAC_TABLE_CMD,
 			lan966x, ANA_MACACCESS);
@@ -447,12 +564,15 @@ irqreturn_t lan966x_mac_irq_handler(struct lan966x *lan966x)
 			stop = false;
 
 		if (column == LAN966X_MAC_COLUMNS - 1 &&
-		    index == 0 && stop)
+		    index == 0 && stop) {
+			spin_unlock(&lan966x->mac_lock);
 			break;
+		}
 
 		entry[column].mach = lan_rd(lan966x, ANA_MACHDATA);
 		entry[column].macl = lan_rd(lan966x, ANA_MACLDATA);
 		entry[column].maca = lan_rd(lan966x, ANA_MACACCESS);
+		spin_unlock(&lan966x->mac_lock);
 
 		/* Once all the columns are read process them */
 		if (column == LAN966X_MAC_COLUMNS - 1) {

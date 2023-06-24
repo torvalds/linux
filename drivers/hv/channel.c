@@ -1022,11 +1022,13 @@ void vmbus_close(struct vmbus_channel *channel)
 EXPORT_SYMBOL_GPL(vmbus_close);
 
 /**
- * vmbus_sendpacket() - Send the specified buffer on the given channel
+ * vmbus_sendpacket_getid() - Send the specified buffer on the given channel
  * @channel: Pointer to vmbus_channel structure
  * @buffer: Pointer to the buffer you want to send the data from.
  * @bufferlen: Maximum size of what the buffer holds.
  * @requestid: Identifier of the request
+ * @trans_id: Identifier of the transaction associated to this request, if
+ *            the send is successful; undefined, otherwise.
  * @type: Type of packet that is being sent e.g. negotiate, time
  *	  packet etc.
  * @flags: 0 or VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED
@@ -1036,8 +1038,8 @@ EXPORT_SYMBOL_GPL(vmbus_close);
  *
  * Mainly used by Hyper-V drivers.
  */
-int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
-			   u32 bufferlen, u64 requestid,
+int vmbus_sendpacket_getid(struct vmbus_channel *channel, void *buffer,
+			   u32 bufferlen, u64 requestid, u64 *trans_id,
 			   enum vmbus_packet_type type, u32 flags)
 {
 	struct vmpacket_descriptor desc;
@@ -1063,7 +1065,31 @@ int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	return hv_ringbuffer_write(channel, bufferlist, num_vecs, requestid);
+	return hv_ringbuffer_write(channel, bufferlist, num_vecs, requestid, trans_id);
+}
+EXPORT_SYMBOL(vmbus_sendpacket_getid);
+
+/**
+ * vmbus_sendpacket() - Send the specified buffer on the given channel
+ * @channel: Pointer to vmbus_channel structure
+ * @buffer: Pointer to the buffer you want to send the data from.
+ * @bufferlen: Maximum size of what the buffer holds.
+ * @requestid: Identifier of the request
+ * @type: Type of packet that is being sent e.g. negotiate, time
+ *	  packet etc.
+ * @flags: 0 or VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED
+ *
+ * Sends data in @buffer directly to Hyper-V via the vmbus.
+ * This will send the data unparsed to Hyper-V.
+ *
+ * Mainly used by Hyper-V drivers.
+ */
+int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
+		     u32 bufferlen, u64 requestid,
+		     enum vmbus_packet_type type, u32 flags)
+{
+	return vmbus_sendpacket_getid(channel, buffer, bufferlen,
+				      requestid, NULL, type, flags);
 }
 EXPORT_SYMBOL(vmbus_sendpacket);
 
@@ -1122,7 +1148,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	return hv_ringbuffer_write(channel, bufferlist, 3, requestid);
+	return hv_ringbuffer_write(channel, bufferlist, 3, requestid, NULL);
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);
 
@@ -1160,7 +1186,7 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	return hv_ringbuffer_write(channel, bufferlist, 3, requestid);
+	return hv_ringbuffer_write(channel, bufferlist, 3, requestid, NULL);
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_mpb_desc);
 
@@ -1226,12 +1252,12 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 	if (!channel->rqstor_size)
 		return VMBUS_NO_RQSTOR;
 
-	spin_lock_irqsave(&rqstor->req_lock, flags);
+	lock_requestor(channel, flags);
 	current_id = rqstor->next_request_id;
 
 	/* Requestor array is full */
 	if (current_id >= rqstor->size) {
-		spin_unlock_irqrestore(&rqstor->req_lock, flags);
+		unlock_requestor(channel, flags);
 		return VMBUS_RQST_ERROR;
 	}
 
@@ -1241,15 +1267,76 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 	/* The already held spin lock provides atomicity */
 	bitmap_set(rqstor->req_bitmap, current_id, 1);
 
-	spin_unlock_irqrestore(&rqstor->req_lock, flags);
+	unlock_requestor(channel, flags);
 
 	/*
 	 * Cannot return an ID of 0, which is reserved for an unsolicited
-	 * message from Hyper-V.
+	 * message from Hyper-V; Hyper-V does not acknowledge (respond to)
+	 * VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED requests with ID of
+	 * 0 sent by the guest.
 	 */
 	return current_id + 1;
 }
 EXPORT_SYMBOL_GPL(vmbus_next_request_id);
+
+/* As in vmbus_request_addr_match() but without the requestor lock */
+u64 __vmbus_request_addr_match(struct vmbus_channel *channel, u64 trans_id,
+			       u64 rqst_addr)
+{
+	struct vmbus_requestor *rqstor = &channel->requestor;
+	u64 req_addr;
+
+	/* Check rqstor has been initialized */
+	if (!channel->rqstor_size)
+		return VMBUS_NO_RQSTOR;
+
+	/* Hyper-V can send an unsolicited message with ID of 0 */
+	if (!trans_id)
+		return VMBUS_RQST_ERROR;
+
+	/* Data corresponding to trans_id is stored at trans_id - 1 */
+	trans_id--;
+
+	/* Invalid trans_id */
+	if (trans_id >= rqstor->size || !test_bit(trans_id, rqstor->req_bitmap))
+		return VMBUS_RQST_ERROR;
+
+	req_addr = rqstor->req_arr[trans_id];
+	if (rqst_addr == VMBUS_RQST_ADDR_ANY || req_addr == rqst_addr) {
+		rqstor->req_arr[trans_id] = rqstor->next_request_id;
+		rqstor->next_request_id = trans_id;
+
+		/* The already held spin lock provides atomicity */
+		bitmap_clear(rqstor->req_bitmap, trans_id, 1);
+	}
+
+	return req_addr;
+}
+EXPORT_SYMBOL_GPL(__vmbus_request_addr_match);
+
+/*
+ * vmbus_request_addr_match - Clears/removes @trans_id from the @channel's
+ * requestor, provided the memory address stored at @trans_id equals @rqst_addr
+ * (or provided @rqst_addr matches the sentinel value VMBUS_RQST_ADDR_ANY).
+ *
+ * Returns the memory address stored at @trans_id, or VMBUS_RQST_ERROR if
+ * @trans_id is not contained in the requestor.
+ *
+ * Acquires and releases the requestor spin lock.
+ */
+u64 vmbus_request_addr_match(struct vmbus_channel *channel, u64 trans_id,
+			     u64 rqst_addr)
+{
+	unsigned long flags;
+	u64 req_addr;
+
+	lock_requestor(channel, flags);
+	req_addr = __vmbus_request_addr_match(channel, trans_id, rqst_addr);
+	unlock_requestor(channel, flags);
+
+	return req_addr;
+}
+EXPORT_SYMBOL_GPL(vmbus_request_addr_match);
 
 /*
  * vmbus_request_addr - Returns the memory address stored at @trans_id
@@ -1260,37 +1347,6 @@ EXPORT_SYMBOL_GPL(vmbus_next_request_id);
  */
 u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id)
 {
-	struct vmbus_requestor *rqstor = &channel->requestor;
-	unsigned long flags;
-	u64 req_addr;
-
-	/* Check rqstor has been initialized */
-	if (!channel->rqstor_size)
-		return VMBUS_NO_RQSTOR;
-
-	/* Hyper-V can send an unsolicited message with ID of 0 */
-	if (!trans_id)
-		return trans_id;
-
-	spin_lock_irqsave(&rqstor->req_lock, flags);
-
-	/* Data corresponding to trans_id is stored at trans_id - 1 */
-	trans_id--;
-
-	/* Invalid trans_id */
-	if (trans_id >= rqstor->size || !test_bit(trans_id, rqstor->req_bitmap)) {
-		spin_unlock_irqrestore(&rqstor->req_lock, flags);
-		return VMBUS_RQST_ERROR;
-	}
-
-	req_addr = rqstor->req_arr[trans_id];
-	rqstor->req_arr[trans_id] = rqstor->next_request_id;
-	rqstor->next_request_id = trans_id;
-
-	/* The already held spin lock provides atomicity */
-	bitmap_clear(rqstor->req_bitmap, trans_id, 1);
-
-	spin_unlock_irqrestore(&rqstor->req_lock, flags);
-	return req_addr;
+	return vmbus_request_addr_match(channel, trans_id, VMBUS_RQST_ADDR_ANY);
 }
 EXPORT_SYMBOL_GPL(vmbus_request_addr);

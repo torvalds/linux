@@ -119,7 +119,8 @@ int nfp_flower_offload_one_police(struct nfp_app *app, bool ingress,
 
 static int nfp_policer_validate(const struct flow_action *action,
 				const struct flow_action_entry *act,
-				struct netlink_ext_ack *extack)
+				struct netlink_ext_ack *extack,
+				bool ingress)
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -127,11 +128,20 @@ static int nfp_policer_validate(const struct flow_action *action,
 		return -EOPNOTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+	if (ingress) {
+		if (act->police.notexceed.act_id != FLOW_ACTION_CONTINUE &&
+		    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Offload not supported when conform action is not continue or ok");
+			return -EOPNOTSUPP;
+		}
+	} else {
+		if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+		    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Offload not supported when conform action is not pipe or ok");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
@@ -217,7 +227,7 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 			return -EOPNOTSUPP;
 		}
 
-		err = nfp_policer_validate(&flow->rule->action, action, extack);
+		err = nfp_policer_validate(&flow->rule->action, action, extack, true);
 		if (err)
 			return err;
 
@@ -534,7 +544,7 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 	}
 }
 
-/* offload tc action, currently only for tc police */
+/* Offload tc action, currently only for tc police */
 
 static const struct rhashtable_params stats_meter_table_params = {
 	.key_offset	= offsetof(struct nfp_meter_entry, meter_id),
@@ -686,17 +696,23 @@ nfp_act_install_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	bool pps_support, pps;
 	bool add = false;
 	u64 rate;
+	int err;
 
 	pps_support = !!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_PPS);
 
 	for (i = 0 ; i < action_num; i++) {
-		/*set qos associate data for this interface */
+		/* Set qos associate data for this interface */
 		action = paction + i;
 		if (action->id != FLOW_ACTION_POLICE) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "unsupported offload: qos rate limit offload requires police action");
 			continue;
 		}
+
+		err = nfp_policer_validate(&fl_act->action, action, extack, false);
+		if (err)
+			return err;
+
 		if (action->police.rate_bytes_ps > 0) {
 			rate = action->police.rate_bytes_ps;
 			burst = action->police.burst;
@@ -736,7 +752,7 @@ nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	u32 meter_id;
 	bool pps;
 
-	/*delete qos associate data for this interface */
+	/* Delete qos associate data for this interface */
 	if (fl_act->id != FLOW_ACTION_POLICE) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: qos rate limit offload requires police action");

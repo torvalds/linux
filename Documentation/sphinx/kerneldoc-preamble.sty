@@ -20,13 +20,13 @@
 %  - Indent of 2 chars is preserved for ease of comparison.
 % Summary of changes from default params:
 %   Width of page number (\@pnumwidth): 1.55em -> 2.7em
-%   Width of chapter number:            1.5em  -> 1.8em
-%   Indent of section number:           1.5em  -> 1.8em
+%   Width of chapter number:            1.5em  -> 2.4em
+%   Indent of section number:           1.5em  -> 2.4em
 %   Width of section number:            2.6em  -> 3.2em
-%   Indent of sebsection number:        4.1em  -> 5em
+%   Indent of subsection number:        4.1em  -> 5.6em
 %   Width of subsection number:         3.5em  -> 4.3em
 %
-% These params can have 4 digit page counts, 2 digit chapter counts,
+% These params can have 4 digit page counts, 3 digit chapter counts,
 % section counts of 4 digits + 1 period (e.g., 18.10), and subsection counts
 % of 5 digits + 2 periods (e.g., 18.7.13).
 \makeatletter
@@ -37,7 +37,7 @@
   \ifnum \c@tocdepth >\m@ne
     \addpenalty{-\@highpenalty}%
     \vskip 1.0em \@plus\p@
-    \setlength\@tempdima{1.8em}%
+    \setlength\@tempdima{2.4em}%
     \begingroup
       \parindent \z@ \rightskip \@pnumwidth
       \parfillskip -\@pnumwidth
@@ -51,8 +51,8 @@
     \endgroup
   \fi}
 %% Redefine \l@section and \l@subsection
-\renewcommand*\l@section{\@dottedtocline{1}{1.8em}{3.2em}}
-\renewcommand*\l@subsection{\@dottedtocline{2}{5em}{4.3em}}
+\renewcommand*\l@section{\@dottedtocline{1}{2.4em}{3.2em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{5.6em}{4.3em}}
 \makeatother
 %% Sphinx < 1.8 doesn't have \sphinxtableofcontentshook
 \providecommand{\sphinxtableofcontentshook}{}
@@ -70,8 +70,16 @@
 
 % Translations have Asian (CJK) characters which are only displayed if
 % xeCJK is used
+\usepackage{ifthen}
+\newboolean{enablecjk}
+\setboolean{enablecjk}{false}
 \IfFontExistsTF{Noto Sans CJK SC}{
-    % Load xeCJK when CJK font is available
+    \IfFileExists{xeCJK.sty}{
+	\setboolean{enablecjk}{true}
+    }{}
+}{}
+\ifthenelse{\boolean{enablecjk}}{
+    % Load xeCJK when both the Noto Sans CJK font and xeCJK.sty are available.
     \usepackage{xeCJK}
     % Noto CJK fonts don't provide slant shape. [AutoFakeSlant] permits
     % its emulation.
@@ -196,7 +204,7 @@
     % Inactivate CJK after tableofcontents
     \apptocmd{\sphinxtableofcontents}{\kerneldocCJKoff}{}{}
     \xeCJKsetup{CJKspace = true}% For inter-phrase space of Korean TOC
-}{ % No CJK font found
+}{ % Don't enable CJK
     % Custom macros to on/off CJK and switch CJK fonts (Dummy)
     \newcommand{\kerneldocCJKon}{}
     \newcommand{\kerneldocCJKoff}{}
@@ -204,14 +212,16 @@
     %% and ignore the argument (#1) in their definitions, whole contents of
     %% CJK chapters can be ignored.
     \newcommand{\kerneldocBeginSC}[1]{%
-	%% Put a note on missing CJK fonts in place of zh_CN translation.
-	\begin{sphinxadmonition}{note}{Note on missing fonts:}
+	%% Put a note on missing CJK fonts or the xecjk package in place of
+	%% zh_CN translation.
+	\begin{sphinxadmonition}{note}{Note on missing fonts and a package:}
 	    Translations of Simplified Chinese (zh\_CN), Traditional Chinese
 	    (zh\_TW), Korean (ko\_KR), and Japanese (ja\_JP) were skipped
-	    due to the lack of suitable font families.
+	    due to the lack of suitable font families and/or the texlive-xecjk
+	    package.
 
 	    If you want them, please install ``Noto Sans CJK'' font families
-	    by following instructions from
+	    along with the texlive-xecjk package by following instructions from
 	    \sphinxcode{./scripts/sphinx-pre-install}.
 	    Having optional ``Noto Serif CJK'' font families will improve
 	    the looks of those translations.

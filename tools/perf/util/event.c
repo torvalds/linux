@@ -76,6 +76,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_TIME_CONV]			= "TIME_CONV",
 	[PERF_RECORD_HEADER_FEATURE]		= "FEATURE",
 	[PERF_RECORD_COMPRESSED]		= "COMPRESSED",
+	[PERF_RECORD_FINISHED_INIT]		= "FINISHED_INIT",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -683,9 +684,12 @@ static bool check_address_range(struct intlist *addr_list, int addr_range,
 int machine__resolve(struct machine *machine, struct addr_location *al,
 		     struct perf_sample *sample)
 {
-	struct thread *thread = machine__findnew_thread(machine, sample->pid,
-							sample->tid);
+	struct thread *thread;
 
+	if (symbol_conf.guest_code && !machine__is_host(machine))
+		thread = machine__findnew_guest_code(machine, sample->pid);
+	else
+		thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL)
 		return -1;
 

@@ -62,8 +62,13 @@ typedef struct {
 
 #define SA_RESTORER	0x04000000U
 
+#ifdef __powerpc64__
+#define MINSIGSTKSZ	8192
+#define SIGSTKSZ	32768
+#else
 #define MINSIGSTKSZ	2048
 #define SIGSTKSZ	8192
+#endif
 
 #include <asm-generic/signal-defs.h>
 

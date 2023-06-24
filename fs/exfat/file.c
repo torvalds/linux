@@ -101,7 +101,6 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	int evict = (ei->dir.dir == DIR_DELETED) ? 1 : 0;
 
 	/* check if the given file ID is opened */
 	if (ei->type != TYPE_FILE && ei->type != TYPE_DIR)
@@ -149,50 +148,19 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	if (ei->type == TYPE_FILE)
 		ei->attr |= ATTR_ARCHIVE;
 
-	/* update the directory entry */
-	if (!evict) {
-		struct timespec64 ts;
-		struct exfat_dentry *ep, *ep2;
-		struct exfat_entry_set_cache *es;
-		int err;
-
-		es = exfat_get_dentry_set(sb, &(ei->dir), ei->entry,
-				ES_ALL_ENTRIES);
-		if (!es)
-			return -EIO;
-		ep = exfat_get_dentry_cached(es, 0);
-		ep2 = exfat_get_dentry_cached(es, 1);
-
-		ts = current_time(inode);
-		exfat_set_entry_time(sbi, &ts,
-				&ep->dentry.file.modify_tz,
-				&ep->dentry.file.modify_time,
-				&ep->dentry.file.modify_date,
-				&ep->dentry.file.modify_time_cs);
-		ep->dentry.file.attr = cpu_to_le16(ei->attr);
-
-		/* File size should be zero if there is no cluster allocated */
-		if (ei->start_clu == EXFAT_EOF_CLUSTER) {
-			ep2->dentry.stream.valid_size = 0;
-			ep2->dentry.stream.size = 0;
-		} else {
-			ep2->dentry.stream.valid_size = cpu_to_le64(new_size);
-			ep2->dentry.stream.size = ep2->dentry.stream.valid_size;
-		}
-
-		if (new_size == 0) {
-			/* Any directory can not be truncated to zero */
-			WARN_ON(ei->type != TYPE_FILE);
-
-			ep2->dentry.stream.flags = ALLOC_FAT_CHAIN;
-			ep2->dentry.stream.start_clu = EXFAT_FREE_CLUSTER;
-		}
-
-		exfat_update_dir_chksum_with_entry_set(es);
-		err = exfat_free_dentry_set(es, inode_needs_sync(inode));
-		if (err)
-			return err;
-	}
+	/*
+	 * update the directory entry
+	 *
+	 * If the directory entry is updated by mark_inode_dirty(), the
+	 * directory entry will be written after a writeback cycle of
+	 * updating the bitmap/FAT, which may result in clusters being
+	 * freed but referenced by the directory entry in the event of a
+	 * sudden power failure.
+	 * __exfat_write_inode() is called for directory entry, bitmap
+	 * and FAT to be written in a same writeback.
+	 */
+	if (__exfat_write_inode(inode, inode_needs_sync(inode)))
+		return -EIO;
 
 	/* cut off from the FAT chain */
 	if (ei->flags == ALLOC_FAT_CHAIN && last_clu != EXFAT_FREE_CLUSTER &&
@@ -242,12 +210,6 @@ void exfat_truncate(struct inode *inode, loff_t size)
 	err = __exfat_truncate(inode, i_size_read(inode));
 	if (err)
 		goto write_size;
-
-	inode->i_ctime = inode->i_mtime = current_time(inode);
-	if (IS_DIRSYNC(inode))
-		exfat_sync_inode(inode);
-	else
-		mark_inode_dirty(inode);
 
 	inode->i_blocks = round_up(i_size_read(inode), sbi->cluster_size) >>
 				inode->i_blkbits;
@@ -330,6 +292,12 @@ int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 			attr->ia_valid &= ~ATTR_MODE;
 	}
 
+	if (attr->ia_valid & ATTR_SIZE)
+		inode->i_mtime = inode->i_ctime = current_time(inode);
+
+	setattr_copy(&init_user_ns, inode, attr);
+	exfat_truncate_atime(&inode->i_atime);
+
 	if (attr->ia_valid & ATTR_SIZE) {
 		error = exfat_block_truncate_page(inode, attr->ia_size);
 		if (error)
@@ -337,13 +305,15 @@ int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 		down_write(&EXFAT_I(inode)->truncate_lock);
 		truncate_setsize(inode, attr->ia_size);
+
+		/*
+		 * __exfat_write_inode() is called from exfat_truncate(), inode
+		 * is already written by it, so mark_inode_dirty() is unneeded.
+		 */
 		exfat_truncate(inode, attr->ia_size);
 		up_write(&EXFAT_I(inode)->truncate_lock);
-	}
-
-	setattr_copy(&init_user_ns, inode, attr);
-	exfat_truncate_atime(&inode->i_atime);
-	mark_inode_dirty(inode);
+	} else
+		mark_inode_dirty(inode);
 
 out:
 	return error;
@@ -351,21 +321,20 @@ out:
 
 static int exfat_ioctl_fitrim(struct inode *inode, unsigned long arg)
 {
-	struct request_queue *q = bdev_get_queue(inode->i_sb->s_bdev);
 	struct fstrim_range range;
 	int ret = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(inode->i_sb->s_bdev))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&range, (struct fstrim_range __user *)arg, sizeof(range)))
 		return -EFAULT;
 
 	range.minlen = max_t(unsigned int, range.minlen,
-				q->limits.discard_granularity);
+				bdev_discard_granularity(inode->i_sb->s_bdev));
 
 	ret = exfat_trim_fs(inode, &range);
 	if (ret < 0)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -33,6 +34,7 @@
 #include <uapi/linux/kfd_ioctl.h>
 #include "amdgpu_ras.h"
 #include "amdgpu_umc.h"
+#include "amdgpu_reset.h"
 
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
@@ -73,9 +75,6 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		return;
 
 	adev->kfd.dev = kgd2kfd_probe(adev, vf);
-
-	if (adev->kfd.dev)
-		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
 }
 
 /**
@@ -100,7 +99,18 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 	 * The first num_doorbells are used by amdgpu.
 	 * amdkfd takes whatever's left in the aperture.
 	 */
-	if (adev->doorbell.size > adev->doorbell.num_doorbells * sizeof(u32)) {
+	if (adev->enable_mes) {
+		/*
+		 * With MES enabled, we only need to initialize
+		 * the base address. The size and offset are
+		 * not initialized as AMDGPU manages the whole
+		 * doorbell space.
+		 */
+		*aperture_base = adev->doorbell.base;
+		*aperture_size = 0;
+		*start_offset = 0;
+	} else if (adev->doorbell.size > adev->doorbell.num_doorbells *
+						sizeof(u32)) {
 		*aperture_base = adev->doorbell.base;
 		*aperture_size = adev->doorbell.size;
 		*start_offset = adev->doorbell.num_doorbells * sizeof(u32);
@@ -109,6 +119,23 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 		*aperture_size = 0;
 		*start_offset = 0;
 	}
+}
+
+
+static void amdgpu_amdkfd_reset_work(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  kfd.reset_work);
+
+	struct amdgpu_reset_context reset_context;
+
+	memset(&reset_context, 0, sizeof(reset_context));
+
+	reset_context.method = AMD_RESET_METHOD_NONE;
+	reset_context.reset_req_dev = adev;
+	clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+	amdgpu_device_gpu_recover(adev, NULL, &reset_context);
 }
 
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
@@ -128,7 +155,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 					  AMDGPU_GMC_HOLE_START),
 			.drm_render_minor = adev_to_drm(adev)->render->index,
 			.sdma_doorbell_idx = adev->doorbell_index.sdma_engine,
-
+			.enable_mes = adev->enable_mes,
 		};
 
 		/* this is going to have a few of the MSBs set that we need to
@@ -169,6 +196,10 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 		adev->kfd.init_complete = kgd2kfd_device_init(adev->kfd.dev,
 						adev_to_drm(adev), &gpu_resources);
+
+		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
+
+		INIT_WORK(&adev->kfd.reset_work, amdgpu_amdkfd_reset_work);
 	}
 }
 
@@ -177,6 +208,7 @@ void amdgpu_amdkfd_device_fini_sw(struct amdgpu_device *adev)
 	if (adev->kfd.dev) {
 		kgd2kfd_device_exit(adev->kfd.dev);
 		adev->kfd.dev = NULL;
+		amdgpu_amdkfd_total_mem_size -= adev->gmc.real_vram_size;
 	}
 }
 
@@ -236,7 +268,8 @@ int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
 void amdgpu_amdkfd_gpu_reset(struct amdgpu_device *adev)
 {
 	if (amdgpu_device_should_recover_gpu(adev))
-		amdgpu_device_gpu_recover(adev, NULL);
+		amdgpu_reset_domain_schedule(adev->reset_domain,
+					     &adev->kfd.reset_work);
 }
 
 int amdgpu_amdkfd_alloc_gtt_mem(struct amdgpu_device *adev, size_t size,
@@ -652,6 +685,7 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 	ib->length_dw = ib_len;
 	/* This works for NO_HWS. TODO: need to handle without knowing VMID */
 	job->vmid = vmid;
+	job->num_ibs = 1;
 
 	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);
 
@@ -660,6 +694,8 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 		goto err_ib_sched;
 	}
 
+	/* Drop the initial kref_init count (see drm_sched_main as example) */
+	dma_fence_put(f);
 	ret = dma_fence_wait(f, false);
 
 err_ib_sched:
@@ -670,6 +706,13 @@ err:
 
 void amdgpu_amdkfd_set_compute_idle(struct amdgpu_device *adev, bool idle)
 {
+	/* Temporary workaround to fix issues observed in some
+	 * compute applications when GFXOFF is enabled on GFX11.
+	 */
+	if (IP_VERSION_MAJ(adev->ip_versions[GC_HWIP][0]) == 11) {
+		pr_debug("GFXOFF is %s\n", idle ? "enabled" : "disabled");
+		amdgpu_gfx_off_ctrl(adev, idle);
+	}
 	amdgpu_dpm_switch_power_profile(adev,
 					PP_SMC_POWER_PROFILE_COMPUTE,
 					!idle);
@@ -703,7 +746,8 @@ int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 {
 	bool all_hub = false;
 
-	if (adev->family == AMDGPU_FAMILY_AI)
+	if (adev->family == AMDGPU_FAMILY_AI ||
+	    adev->family == AMDGPU_FAMILY_RV)
 		all_hub = true;
 
 	return amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, flush_type, all_hub);
@@ -718,9 +762,13 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bo
 {
 	struct ras_err_data err_data = {0, 0, 0, NULL};
 
-	/* CPU MCA will handle page retirement if connected_to_cpu is 1 */
-	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_poison_handler(adev, &err_data, reset);
-	else if (reset)
-		amdgpu_amdkfd_gpu_reset(adev);
+	amdgpu_umc_poison_handler(adev, &err_data, reset);
+}
+
+bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev)
+{
+	if (adev->gfx.ras && adev->gfx.ras->query_utcl2_poison_status)
+		return adev->gfx.ras->query_utcl2_poison_status(adev);
+	else
+		return false;
 }

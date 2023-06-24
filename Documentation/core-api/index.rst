@@ -18,9 +18,12 @@ it.
 
    kernel-api
    workqueue
+   watch_queue
    printk-basics
    printk-formats
+   printk-index
    symbol-namespaces
+   asm-annotations
 
 Data structures and low-level utilities
 =======================================
@@ -34,15 +37,17 @@ Library functionality that is used throughout the kernel.
    kref
    assoc_array
    xarray
+   maple_tree
    idr
    circular-buffers
    rbtree
    generic-radix-tree
    packing
-   bus-virt-phys-mapping
    this_cpu_ops
    timekeeping
    errseq
+   wrappers/atomic_t
+   wrappers/atomic_bitops
 
 Low level entry and exit
 ========================
@@ -66,6 +71,7 @@ Documentation/locking/index.rst for more related documentation.
    local_ops
    padata
    ../RCU/index
+   wrappers/memory-barriers.rst
 
 Low-level hardware management
 =============================
@@ -85,7 +91,7 @@ Memory management
 =================
 
 How to allocate and use memory in the kernel.  Note that there is a lot
-more memory-management documentation in Documentation/vm/index.rst.
+more memory-management documentation in Documentation/mm/index.rst.
 
 .. toctree::
    :maxdepth: 1

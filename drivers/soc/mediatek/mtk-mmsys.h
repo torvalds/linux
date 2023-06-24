@@ -87,10 +87,16 @@ struct mtk_mmsys_routes {
 };
 
 struct mtk_mmsys_driver_data {
+	const resource_size_t io_start;
 	const char *clk_driver;
 	const struct mtk_mmsys_routes *routes;
 	const unsigned int num_routes;
 	const u16 sw0_rst_offset;
+};
+
+struct mtk_mmsys_match_data {
+	unsigned short num_drv_data;
+	const struct mtk_mmsys_driver_data *drv_data[];
 };
 
 /*

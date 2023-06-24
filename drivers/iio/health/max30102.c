@@ -542,7 +542,6 @@ static int max30102_probe(struct i2c_client *client,
 	}
 
 	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &max30102_buffer_setup_ops);
 	if (ret)
 		return ret;
@@ -593,15 +592,13 @@ static int max30102_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int max30102_remove(struct i2c_client *client)
+static void max30102_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct max30102_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	max30102_set_power(data, false);
-
-	return 0;
 }
 
 static const struct i2c_device_id max30102_id[] = {

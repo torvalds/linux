@@ -16,9 +16,8 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 
-#define MAX_SYMBOL_LEN	64
-static char symbol[MAX_SYMBOL_LEN] = "kernel_clone";
-module_param_string(symbol, symbol, sizeof(symbol), 0644);
+static char symbol[KSYM_NAME_LEN] = "kernel_clone";
+module_param_string(symbol, symbol, KSYM_NAME_LEN, 0644);
 
 /* For each probe you need to allocate a kprobe structure */
 static struct kprobe kp = {

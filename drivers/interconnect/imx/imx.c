@@ -10,6 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/interconnect-provider.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -21,8 +22,10 @@
 /* private icc_node data */
 struct imx_icc_node {
 	const struct imx_icc_node_desc *desc;
+	const struct imx_icc_noc_setting *setting;
 	struct device *qos_dev;
 	struct dev_pm_qos_request qos_req;
+	struct imx_icc_provider *imx_provider;
 };
 
 static int imx_icc_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
@@ -37,7 +40,29 @@ static int imx_icc_node_set(struct icc_node *node)
 {
 	struct device *dev = node->provider->dev;
 	struct imx_icc_node *node_data = node->data;
+	void __iomem *base;
+	u32 prio;
 	u64 freq;
+
+	if (node_data->setting && node->peak_bw) {
+		base = node_data->setting->reg + node_data->imx_provider->noc_base;
+		if (node_data->setting->mode == IMX_NOC_MODE_FIXED) {
+			prio = node_data->setting->prio_level;
+			prio = PRIORITY_COMP_MARK | (prio << 8) | prio;
+			writel(prio, base + IMX_NOC_PRIO_REG);
+			writel(node_data->setting->mode, base + IMX_NOC_MODE_REG);
+			writel(node_data->setting->ext_control, base + IMX_NOC_EXT_CTL_REG);
+			dev_dbg(dev, "%s: mode: 0x%x, prio: 0x%x, ext_control: 0x%x\n",
+				node_data->desc->name, node_data->setting->mode, prio,
+				node_data->setting->ext_control);
+		} else if (node_data->setting->mode == IMX_NOC_MODE_UNCONFIGURED) {
+			dev_dbg(dev, "%s: mode not unconfigured\n", node_data->desc->name);
+		} else {
+			dev_info(dev, "%s: mode: %d not supported\n",
+				 node_data->desc->name, node_data->setting->mode);
+			return -EOPNOTSUPP;
+		}
+	}
 
 	if (!node_data->qos_dev)
 		return 0;
@@ -61,6 +86,12 @@ static int imx_icc_node_set(struct icc_node *node)
 
 static int imx_icc_set(struct icc_node *src, struct icc_node *dst)
 {
+	int ret;
+
+	ret = imx_icc_node_set(src);
+	if (ret)
+		return ret;
+
 	return imx_icc_node_set(dst);
 }
 
@@ -128,9 +159,11 @@ static int imx_icc_node_init_qos(struct icc_provider *provider,
 				      DEV_PM_QOS_MIN_FREQUENCY, 0);
 }
 
-static struct icc_node *imx_icc_node_add(struct icc_provider *provider,
-					 const struct imx_icc_node_desc *node_desc)
+static struct icc_node *imx_icc_node_add(struct imx_icc_provider *imx_provider,
+					 const struct imx_icc_node_desc *node_desc,
+					 const struct imx_icc_noc_setting *setting)
 {
+	struct icc_provider *provider = &imx_provider->provider;
 	struct device *dev = provider->dev;
 	struct imx_icc_node *node_data;
 	struct icc_node *node;
@@ -157,6 +190,8 @@ static struct icc_node *imx_icc_node_add(struct icc_provider *provider,
 	node->name = node_desc->name;
 	node->data = node_data;
 	node_data->desc = node_desc;
+	node_data->setting = setting;
+	node_data->imx_provider = imx_provider;
 	icc_node_add(node, provider);
 
 	if (node_desc->adj) {
@@ -178,10 +213,12 @@ static void imx_icc_unregister_nodes(struct icc_provider *provider)
 		imx_icc_node_destroy(node);
 }
 
-static int imx_icc_register_nodes(struct icc_provider *provider,
+static int imx_icc_register_nodes(struct imx_icc_provider *imx_provider,
 				  const struct imx_icc_node_desc *descs,
-				  int count)
+				  int count,
+				  const struct imx_icc_noc_setting *settings)
 {
+	struct icc_provider *provider = &imx_provider->provider;
 	struct icc_onecell_data *provider_data = provider->data;
 	int ret;
 	int i;
@@ -191,7 +228,8 @@ static int imx_icc_register_nodes(struct icc_provider *provider,
 		const struct imx_icc_node_desc *node_desc = &descs[i];
 		size_t j;
 
-		node = imx_icc_node_add(provider, node_desc);
+		node = imx_icc_node_add(imx_provider, node_desc,
+					settings ? &settings[node_desc->id] : NULL);
 		if (IS_ERR(node)) {
 			ret = dev_err_probe(provider->dev, PTR_ERR(node),
 					    "failed to add %s\n", node_desc->name);
@@ -229,32 +267,44 @@ static int get_max_node_id(struct imx_icc_node_desc *nodes, int nodes_count)
 }
 
 int imx_icc_register(struct platform_device *pdev,
-		     struct imx_icc_node_desc *nodes, int nodes_count)
+		     struct imx_icc_node_desc *nodes, int nodes_count,
+		     struct imx_icc_noc_setting *settings)
 {
 	struct device *dev = &pdev->dev;
 	struct icc_onecell_data *data;
+	struct imx_icc_provider *imx_provider;
 	struct icc_provider *provider;
-	int max_node_id;
+	int num_nodes;
 	int ret;
 
 	/* icc_onecell_data is indexed by node_id, unlike nodes param */
-	max_node_id = get_max_node_id(nodes, nodes_count);
-	data = devm_kzalloc(dev, struct_size(data, nodes, max_node_id),
+	num_nodes = get_max_node_id(nodes, nodes_count) + 1;
+	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	data->num_nodes = max_node_id;
+	data->num_nodes = num_nodes;
 
-	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
-	if (!provider)
+	imx_provider = devm_kzalloc(dev, sizeof(*imx_provider), GFP_KERNEL);
+	if (!imx_provider)
 		return -ENOMEM;
+	provider = &imx_provider->provider;
 	provider->set = imx_icc_set;
 	provider->get_bw = imx_icc_get_bw;
 	provider->aggregate = icc_std_aggregate;
 	provider->xlate = of_icc_xlate_onecell;
 	provider->data = data;
 	provider->dev = dev->parent;
-	platform_set_drvdata(pdev, provider);
+	platform_set_drvdata(pdev, imx_provider);
+
+	if (settings) {
+		imx_provider->noc_base = devm_of_iomap(dev, provider->dev->of_node, 0, NULL);
+		if (IS_ERR(imx_provider->noc_base)) {
+			ret = PTR_ERR(imx_provider->noc_base);
+			dev_err(dev, "Error mapping NoC: %d\n", ret);
+			return ret;
+		}
+	}
 
 	ret = icc_provider_add(provider);
 	if (ret) {
@@ -262,7 +312,7 @@ int imx_icc_register(struct platform_device *pdev,
 		return ret;
 	}
 
-	ret = imx_icc_register_nodes(provider, nodes, nodes_count);
+	ret = imx_icc_register_nodes(imx_provider, nodes, nodes_count, settings);
 	if (ret)
 		goto provider_del;
 
@@ -274,13 +324,13 @@ provider_del:
 }
 EXPORT_SYMBOL_GPL(imx_icc_register);
 
-int imx_icc_unregister(struct platform_device *pdev)
+void imx_icc_unregister(struct platform_device *pdev)
 {
-	struct icc_provider *provider = platform_get_drvdata(pdev);
+	struct imx_icc_provider *imx_provider = platform_get_drvdata(pdev);
 
-	imx_icc_unregister_nodes(provider);
+	imx_icc_unregister_nodes(&imx_provider->provider);
 
-	return icc_provider_del(provider);
+	icc_provider_del(&imx_provider->provider);
 }
 EXPORT_SYMBOL_GPL(imx_icc_unregister);
 

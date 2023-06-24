@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2021 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -108,8 +108,6 @@
 
 /* Assignment of route table entries to the modem and AP */
 #define IPA_ROUTE_MODEM_MIN		0
-#define IPA_ROUTE_MODEM_COUNT		8
-
 #define IPA_ROUTE_AP_MIN		IPA_ROUTE_MODEM_COUNT
 #define IPA_ROUTE_AP_COUNT \
 		(IPA_ROUTE_COUNT_MAX - IPA_ROUTE_MODEM_COUNT)
@@ -386,8 +384,9 @@ void ipa_table_reset(struct ipa *ipa, bool modem)
 
 int ipa_table_hash_flush(struct ipa *ipa)
 {
-	u32 offset = ipa_reg_filt_rout_hash_flush_offset(ipa->version);
+	const struct ipa_reg *reg;
 	struct gsi_trans *trans;
+	u32 offset;
 	u32 val;
 
 	if (!ipa_table_hash_support(ipa))
@@ -399,8 +398,13 @@ int ipa_table_hash_flush(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	val = IPV4_FILTER_HASH_FMASK | IPV6_FILTER_HASH_FMASK;
-	val |= IPV6_ROUTER_HASH_FMASK | IPV4_ROUTER_HASH_FMASK;
+	reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+	offset = ipa_reg_offset(reg);
+
+	val = ipa_reg_bit(reg, IPV6_ROUTER_HASH);
+	val |= ipa_reg_bit(reg, IPV6_FILTER_HASH);
+	val |= ipa_reg_bit(reg, IPV4_ROUTER_HASH);
+	val |= ipa_reg_bit(reg, IPV4_FILTER_HASH);
 
 	ipa_cmd_register_write_add(trans, offset, val, val, false);
 
@@ -518,15 +522,18 @@ int ipa_table_setup(struct ipa *ipa)
 static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
+	struct ipa *ipa = endpoint->ipa;
+	const struct ipa_reg *reg;
 	u32 offset;
 	u32 val;
 
-	offset = IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(endpoint_id);
+	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
 
+	offset = ipa_reg_n_offset(reg, endpoint_id);
 	val = ioread32(endpoint->ipa->reg_virt + offset);
 
 	/* Zero all filter-related fields, preserving the rest */
-	u32p_replace_bits(&val, 0, IPA_REG_ENDP_FILTER_HASH_MSK_ALL);
+	val &= ~ipa_reg_fmask(reg, FILTER_HASH_MSK_ALL);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -567,13 +574,17 @@ static bool ipa_route_id_modem(u32 route_id)
  */
 static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 {
-	u32 offset = IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(route_id);
+	const struct ipa_reg *reg;
+	u32 offset;
 	u32 val;
+
+	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+	offset = ipa_reg_n_offset(reg, route_id);
 
 	val = ioread32(ipa->reg_virt + offset);
 
 	/* Zero all route-related fields, preserving the rest */
-	u32p_replace_bits(&val, 0, IPA_REG_ENDP_ROUTER_HASH_MSK_ALL);
+	val &= ~ipa_reg_fmask(reg, ROUTER_HASH_MSK_ALL);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }

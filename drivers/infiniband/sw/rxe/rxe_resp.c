@@ -21,6 +21,7 @@ enum resp_states {
 	RESPST_CHK_RKEY,
 	RESPST_EXECUTE,
 	RESPST_READ_REPLY,
+	RESPST_ATOMIC_REPLY,
 	RESPST_COMPLETE,
 	RESPST_ACKNOWLEDGE,
 	RESPST_CLEANUP,
@@ -55,6 +56,7 @@ static char *resp_state_name[] = {
 	[RESPST_CHK_RKEY]			= "CHK_RKEY",
 	[RESPST_EXECUTE]			= "EXECUTE",
 	[RESPST_READ_REPLY]			= "READ_REPLY",
+	[RESPST_ATOMIC_REPLY]			= "ATOMIC_REPLY",
 	[RESPST_COMPLETE]			= "COMPLETE",
 	[RESPST_ACKNOWLEDGE]			= "ACKNOWLEDGE",
 	[RESPST_CLEANUP]			= "CLEANUP",
@@ -277,7 +279,6 @@ static enum resp_states check_op_valid(struct rxe_qp *qp,
 		break;
 
 	case IB_QPT_UD:
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 		break;
 
@@ -449,7 +450,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	if (rkey_is_mw(rkey)) {
 		mw = rxe_lookup_mw(qp, access, rkey);
 		if (!mw) {
-			pr_err("%s: no MW matches rkey %#x\n", __func__, rkey);
+			pr_debug("%s: no MW matches rkey %#x\n",
+					__func__, rkey);
 			state = RESPST_ERR_RKEY_VIOLATION;
 			goto err;
 		}
@@ -469,7 +471,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	} else {
 		mr = lookup_mr(qp->pd, access, rkey, RXE_LOOKUP_REMOTE);
 		if (!mr) {
-			pr_err("%s: no MR matches rkey %#x\n", __func__, rkey);
+			pr_debug("%s: no MR matches rkey %#x\n",
+					__func__, rkey);
 			state = RESPST_ERR_RKEY_VIOLATION;
 			goto err;
 		}
@@ -550,50 +553,106 @@ out:
 	return rc;
 }
 
+static struct resp_res *rxe_prepare_res(struct rxe_qp *qp,
+					struct rxe_pkt_info *pkt,
+					int type)
+{
+	struct resp_res *res;
+	u32 pkts;
+
+	res = &qp->resp.resources[qp->resp.res_head];
+	rxe_advance_resp_resource(qp);
+	free_rd_atomic_resource(res);
+
+	res->type = type;
+	res->replay = 0;
+
+	switch (type) {
+	case RXE_READ_MASK:
+		res->read.va = qp->resp.va + qp->resp.offset;
+		res->read.va_org = qp->resp.va + qp->resp.offset;
+		res->read.resid = qp->resp.resid;
+		res->read.length = qp->resp.resid;
+		res->read.rkey = qp->resp.rkey;
+
+		pkts = max_t(u32, (reth_len(pkt) + qp->mtu - 1)/qp->mtu, 1);
+		res->first_psn = pkt->psn;
+		res->cur_psn = pkt->psn;
+		res->last_psn = (pkt->psn + pkts - 1) & BTH_PSN_MASK;
+
+		res->state = rdatm_res_state_new;
+		break;
+	case RXE_ATOMIC_MASK:
+		res->first_psn = pkt->psn;
+		res->last_psn = pkt->psn;
+		res->cur_psn = pkt->psn;
+		break;
+	}
+
+	return res;
+}
+
 /* Guarantee atomicity of atomic operations at the machine level. */
 static DEFINE_SPINLOCK(atomic_ops_lock);
 
-static enum resp_states process_atomic(struct rxe_qp *qp,
-				       struct rxe_pkt_info *pkt)
+static enum resp_states atomic_reply(struct rxe_qp *qp,
+					 struct rxe_pkt_info *pkt)
 {
 	u64 *vaddr;
 	enum resp_states ret;
 	struct rxe_mr *mr = qp->resp.mr;
+	struct resp_res *res = qp->resp.res;
+	u64 value;
 
-	if (mr->state != RXE_MR_STATE_VALID) {
-		ret = RESPST_ERR_RKEY_VIOLATION;
-		goto out;
+	if (!res) {
+		res = rxe_prepare_res(qp, pkt, RXE_ATOMIC_MASK);
+		qp->resp.res = res;
 	}
 
-	vaddr = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset, sizeof(u64));
+	if (!res->replay) {
+		if (mr->state != RXE_MR_STATE_VALID) {
+			ret = RESPST_ERR_RKEY_VIOLATION;
+			goto out;
+		}
 
-	/* check vaddr is 8 bytes aligned. */
-	if (!vaddr || (uintptr_t)vaddr & 7) {
-		ret = RESPST_ERR_MISALIGNED_ATOMIC;
-		goto out;
+		vaddr = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset,
+					sizeof(u64));
+
+		/* check vaddr is 8 bytes aligned. */
+		if (!vaddr || (uintptr_t)vaddr & 7) {
+			ret = RESPST_ERR_MISALIGNED_ATOMIC;
+			goto out;
+		}
+
+		spin_lock_bh(&atomic_ops_lock);
+		res->atomic.orig_val = value = *vaddr;
+
+		if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP) {
+			if (value == atmeth_comp(pkt))
+				value = atmeth_swap_add(pkt);
+		} else {
+			value += atmeth_swap_add(pkt);
+		}
+
+		*vaddr = value;
+		spin_unlock_bh(&atomic_ops_lock);
+
+		qp->resp.msn++;
+
+		/* next expected psn, read handles this separately */
+		qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
+		qp->resp.ack_psn = qp->resp.psn;
+
+		qp->resp.opcode = pkt->opcode;
+		qp->resp.status = IB_WC_SUCCESS;
 	}
 
-	spin_lock_bh(&atomic_ops_lock);
-
-	qp->resp.atomic_orig = *vaddr;
-
-	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP ||
-	    pkt->opcode == IB_OPCODE_RD_COMPARE_SWAP) {
-		if (*vaddr == atmeth_comp(pkt))
-			*vaddr = atmeth_swap_add(pkt);
-	} else {
-		*vaddr += atmeth_swap_add(pkt);
-	}
-
-	spin_unlock_bh(&atomic_ops_lock);
-
-	ret = RESPST_NONE;
+	ret = RESPST_ACKNOWLEDGE;
 out:
 	return ret;
 }
 
 static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
-					  struct rxe_pkt_info *pkt,
 					  struct rxe_pkt_info *ack,
 					  int opcode,
 					  int payload,
@@ -631,7 +690,7 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	}
 
 	if (ack->mask & RXE_ATMACK_MASK)
-		atmack_set_orig(ack, qp->resp.atomic_orig);
+		atmack_set_orig(ack, qp->resp.res->atomic.orig_val);
 
 	err = rxe_prepare(&qp->pri_av, ack, skb);
 	if (err) {
@@ -640,34 +699,6 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	}
 
 	return skb;
-}
-
-static struct resp_res *rxe_prepare_read_res(struct rxe_qp *qp,
-					struct rxe_pkt_info *pkt)
-{
-	struct resp_res *res;
-	u32 pkts;
-
-	res = &qp->resp.resources[qp->resp.res_head];
-	rxe_advance_resp_resource(qp);
-	free_rd_atomic_resource(qp, res);
-
-	res->type = RXE_READ_MASK;
-	res->replay = 0;
-	res->read.va = qp->resp.va + qp->resp.offset;
-	res->read.va_org = qp->resp.va + qp->resp.offset;
-	res->read.resid = qp->resp.resid;
-	res->read.length = qp->resp.resid;
-	res->read.rkey = qp->resp.rkey;
-
-	pkts = max_t(u32, (reth_len(pkt) + qp->mtu - 1)/qp->mtu, 1);
-	res->first_psn = pkt->psn;
-	res->cur_psn = pkt->psn;
-	res->last_psn = (pkt->psn + pkts - 1) & BTH_PSN_MASK;
-
-	res->state = rdatm_res_state_new;
-
-	return res;
 }
 
 /**
@@ -740,7 +771,7 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	struct rxe_mr *mr;
 
 	if (!res) {
-		res = rxe_prepare_read_res(qp, req_pkt);
+		res = rxe_prepare_res(qp, req_pkt, RXE_READ_MASK);
 		qp->resp.res = res;
 	}
 
@@ -773,15 +804,15 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 
 	payload = min_t(int, res->read.resid, mtu);
 
-	skb = prepare_ack_packet(qp, req_pkt, &ack_pkt, opcode, payload,
+	skb = prepare_ack_packet(qp, &ack_pkt, opcode, payload,
 				 res->cur_psn, AETH_ACK_UNLIMITED);
-	if (!skb)
+	if (!skb) {
+		rxe_put(mr);
 		return RESPST_ERR_RNR;
+	}
 
-	err = rxe_mr_copy(mr, res->read.va, payload_addr(&ack_pkt),
-			  payload, RXE_FROM_MR_OBJ);
-	if (err)
-		pr_err("Failed copying memory\n");
+	rxe_mr_copy(mr, res->read.va, payload_addr(&ack_pkt),
+		    payload, RXE_FROM_MR_OBJ);
 	if (mr)
 		rxe_put(mr);
 
@@ -792,10 +823,8 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	}
 
 	err = rxe_xmit_packet(qp, &ack_pkt, skb);
-	if (err) {
-		pr_err("Failed sending RDMA reply.\n");
+	if (err)
 		return RESPST_ERR_RNR;
-	}
 
 	res->read.va += payload;
 	res->read.resid -= payload;
@@ -834,7 +863,6 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 
 	if (pkt->mask & RXE_SEND_MASK) {
 		if (qp_type(qp) == IB_QPT_UD ||
-		    qp_type(qp) == IB_QPT_SMI ||
 		    qp_type(qp) == IB_QPT_GSI) {
 			if (skb->protocol == htons(ETH_P_IP)) {
 				memset(&hdr.reserved, 0,
@@ -861,9 +889,7 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 		qp->resp.msn++;
 		return RESPST_READ_REPLY;
 	} else if (pkt->mask & RXE_ATOMIC_MASK) {
-		err = process_atomic(qp, pkt);
-		if (err)
-			return err;
+		return RESPST_ATOMIC_REPLY;
 	} else {
 		/* Unreachable */
 		WARN_ON_ONCE(1);
@@ -1000,62 +1026,41 @@ finish:
 		return RESPST_CLEANUP;
 }
 
-static int send_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
-		    u8 syndrome, u32 psn)
+
+static int send_common_ack(struct rxe_qp *qp, u8 syndrome, u32 psn,
+				  int opcode, const char *msg)
 {
-	int err = 0;
+	int err;
 	struct rxe_pkt_info ack_pkt;
 	struct sk_buff *skb;
 
-	skb = prepare_ack_packet(qp, pkt, &ack_pkt, IB_OPCODE_RC_ACKNOWLEDGE,
-				 0, psn, syndrome);
-	if (!skb) {
-		err = -ENOMEM;
-		goto err1;
-	}
+	skb = prepare_ack_packet(qp, &ack_pkt, opcode, 0, psn, syndrome);
+	if (!skb)
+		return -ENOMEM;
 
 	err = rxe_xmit_packet(qp, &ack_pkt, skb);
 	if (err)
-		pr_err_ratelimited("Failed sending ack\n");
+		pr_err_ratelimited("Failed sending %s\n", msg);
 
-err1:
 	return err;
 }
 
-static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
-			   u8 syndrome)
+static int send_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 {
-	int rc = 0;
-	struct rxe_pkt_info ack_pkt;
-	struct sk_buff *skb;
-	struct resp_res *res;
+	return send_common_ack(qp, syndrome, psn,
+			IB_OPCODE_RC_ACKNOWLEDGE, "ACK");
+}
 
-	skb = prepare_ack_packet(qp, pkt, &ack_pkt,
-				 IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE, 0, pkt->psn,
-				 syndrome);
-	if (!skb) {
-		rc = -ENOMEM;
-		goto out;
-	}
+static int send_atomic_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
+{
+	int ret = send_common_ack(qp, syndrome, psn,
+			IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE, "ATOMIC ACK");
 
-	res = &qp->resp.resources[qp->resp.res_head];
-	free_rd_atomic_resource(qp, res);
-	rxe_advance_resp_resource(qp);
-
-	skb_get(skb);
-	res->type = RXE_ATOMIC_MASK;
-	res->atomic.skb = skb;
-	res->first_psn = ack_pkt.psn;
-	res->last_psn  = ack_pkt.psn;
-	res->cur_psn   = ack_pkt.psn;
-
-	rc = rxe_xmit_packet(qp, &ack_pkt, skb);
-	if (rc) {
-		pr_err_ratelimited("Failed sending ack\n");
-		rxe_put(qp);
-	}
-out:
-	return rc;
+	/* have to clear this since it is used to trigger
+	 * long read replies
+	 */
+	qp->resp.res = NULL;
+	return ret;
 }
 
 static enum resp_states acknowledge(struct rxe_qp *qp,
@@ -1065,11 +1070,11 @@ static enum resp_states acknowledge(struct rxe_qp *qp,
 		return RESPST_CLEANUP;
 
 	if (qp->resp.aeth_syndrome != AETH_ACK_UNLIMITED)
-		send_ack(qp, pkt, qp->resp.aeth_syndrome, pkt->psn);
+		send_ack(qp, qp->resp.aeth_syndrome, pkt->psn);
 	else if (pkt->mask & RXE_ATOMIC_MASK)
-		send_atomic_ack(qp, pkt, AETH_ACK_UNLIMITED);
+		send_atomic_ack(qp, AETH_ACK_UNLIMITED, pkt->psn);
 	else if (bth_ack(pkt))
-		send_ack(qp, pkt, AETH_ACK_UNLIMITED, pkt->psn);
+		send_ack(qp, AETH_ACK_UNLIMITED, pkt->psn);
 
 	return RESPST_CLEANUP;
 }
@@ -1122,7 +1127,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 	if (pkt->mask & RXE_SEND_MASK ||
 	    pkt->mask & RXE_WRITE_MASK) {
 		/* SEND. Ack again and cleanup. C9-105. */
-		send_ack(qp, pkt, AETH_ACK_UNLIMITED, prev_psn);
+		send_ack(qp, AETH_ACK_UNLIMITED, prev_psn);
 		return RESPST_CLEANUP;
 	} else if (pkt->mask & RXE_READ_MASK) {
 		struct resp_res *res;
@@ -1176,14 +1181,11 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 		/* Find the operation in our list of responder resources. */
 		res = find_resource(qp, pkt->psn);
 		if (res) {
-			skb_get(res->atomic.skb);
-			/* Resend the result. */
-			rc = rxe_xmit_packet(qp, pkt, res->atomic.skb);
-			if (rc) {
-				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
-				rc = RESPST_CLEANUP;
-				goto out;
-			}
+			res->replay = 1;
+			res->cur_psn = pkt->psn;
+			qp->resp.res = res;
+			rc = RESPST_ATOMIC_REPLY;
+			goto out;
 		}
 
 		/* Resource not found. Class D error. Drop the request. */
@@ -1263,16 +1265,15 @@ int rxe_responder(void *arg)
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	enum resp_states state;
 	struct rxe_pkt_info *pkt = NULL;
-	int ret = 0;
+	int ret;
 
-	rxe_get(qp);
+	if (!rxe_get(qp))
+		return -EAGAIN;
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
-	if (!qp->valid) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!qp->valid)
+		goto exit;
 
 	switch (qp->resp.state) {
 	case QP_STATE_RESET:
@@ -1318,6 +1319,9 @@ int rxe_responder(void *arg)
 		case RESPST_READ_REPLY:
 			state = read_reply(qp, pkt);
 			break;
+		case RESPST_ATOMIC_REPLY:
+			state = atomic_reply(qp, pkt);
+			break;
 		case RESPST_ACKNOWLEDGE:
 			state = acknowledge(qp, pkt);
 			break;
@@ -1329,7 +1333,7 @@ int rxe_responder(void *arg)
 			break;
 		case RESPST_ERR_PSN_OUT_OF_SEQ:
 			/* RC only - Class B. Drop packet. */
-			send_ack(qp, pkt, AETH_NAK_PSN_SEQ_ERROR, qp->resp.psn);
+			send_ack(qp, AETH_NAK_PSN_SEQ_ERROR, qp->resp.psn);
 			state = RESPST_CLEANUP;
 			break;
 
@@ -1351,7 +1355,7 @@ int rxe_responder(void *arg)
 			if (qp_type(qp) == IB_QPT_RC) {
 				rxe_counter_inc(rxe, RXE_CNT_SND_RNR);
 				/* RC - class B */
-				send_ack(qp, pkt, AETH_RNR_NAK |
+				send_ack(qp, AETH_RNR_NAK |
 					 (~AETH_TYPE_MASK &
 					 qp->attr.min_rnr_timer),
 					 pkt->psn);
@@ -1440,7 +1444,7 @@ int rxe_responder(void *arg)
 
 		case RESPST_ERROR:
 			qp->resp.goto_error = 0;
-			pr_warn("qp#%d moved to error state\n", qp_num(qp));
+			pr_debug("qp#%d moved to error state\n", qp_num(qp));
 			rxe_qp_error(qp);
 			goto exit;
 
@@ -1449,9 +1453,16 @@ int rxe_responder(void *arg)
 		}
 	}
 
+	/* A non-zero return value will cause rxe_do_task to
+	 * exit its loop and end the tasklet. A zero return
+	 * will continue looping and return to rxe_responder
+	 */
+done:
+	ret = 0;
+	goto out;
 exit:
 	ret = -EAGAIN;
-done:
+out:
 	rxe_put(qp);
 	return ret;
 }

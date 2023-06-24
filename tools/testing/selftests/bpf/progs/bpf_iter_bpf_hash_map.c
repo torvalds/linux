@@ -112,3 +112,12 @@ int dump_bpf_hash_map(struct bpf_iter__bpf_map_elem *ctx)
 
 	return 0;
 }
+
+SEC("iter.s/bpf_map_elem")
+int sleepable_dummy_dump(struct bpf_iter__bpf_map_elem *ctx)
+{
+	if (ctx->meta->seq_num == 0)
+		BPF_SEQ_PRINTF(ctx->meta->seq, "map dump starts\n");
+
+	return 0;
+}

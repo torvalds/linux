@@ -161,6 +161,13 @@ static void kunit_resource_test_alloc_resource(struct kunit *test)
 	kunit_put_resource(res);
 }
 
+static inline bool kunit_resource_instance_match(struct kunit *test,
+						 struct kunit_resource *res,
+						 void *match_data)
+{
+	return res->data == match_data;
+}
+
 /*
  * Note: tests below use kunit_alloc_and_get_resource(), so as a consequence
  * they have a reference to the associated resource that they must release
@@ -188,6 +195,40 @@ static void kunit_resource_test_destroy_resource(struct kunit *test)
 
 	KUNIT_EXPECT_FALSE(test, ctx->is_resource_initialized);
 	KUNIT_EXPECT_TRUE(test, list_empty(&ctx->test.resources));
+}
+
+static void kunit_resource_test_remove_resource(struct kunit *test)
+{
+	struct kunit_test_resource_context *ctx = test->priv;
+	struct kunit_resource *res = kunit_alloc_and_get_resource(
+			&ctx->test,
+			fake_resource_init,
+			fake_resource_free,
+			GFP_KERNEL,
+			ctx);
+
+	/* The resource is in the list */
+	KUNIT_EXPECT_FALSE(test, list_empty(&ctx->test.resources));
+
+	/* Remove the resource. The pointer is still valid, but it can't be
+	 * found.
+	 */
+	kunit_remove_resource(test, res);
+	KUNIT_EXPECT_TRUE(test, list_empty(&ctx->test.resources));
+	/* We haven't been freed yet. */
+	KUNIT_EXPECT_TRUE(test, ctx->is_resource_initialized);
+
+	/* Removing the resource multiple times is valid. */
+	kunit_remove_resource(test, res);
+	KUNIT_EXPECT_TRUE(test, list_empty(&ctx->test.resources));
+	/* Despite having been removed twice (from only one reference), the
+	 * resource still has not been freed.
+	 */
+	KUNIT_EXPECT_TRUE(test, ctx->is_resource_initialized);
+
+	/* Free the resource. */
+	kunit_put_resource(res);
+	KUNIT_EXPECT_FALSE(test, ctx->is_resource_initialized);
 }
 
 static void kunit_resource_test_cleanup_resources(struct kunit *test)
@@ -387,6 +428,7 @@ static struct kunit_case kunit_resource_test_cases[] = {
 	KUNIT_CASE(kunit_resource_test_init_resources),
 	KUNIT_CASE(kunit_resource_test_alloc_resource),
 	KUNIT_CASE(kunit_resource_test_destroy_resource),
+	KUNIT_CASE(kunit_resource_test_remove_resource),
 	KUNIT_CASE(kunit_resource_test_cleanup_resources),
 	KUNIT_CASE(kunit_resource_test_proper_free_ordering),
 	KUNIT_CASE(kunit_resource_test_static),
@@ -435,7 +477,7 @@ static void kunit_log_test(struct kunit *test)
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
 				     strstr(suite.log, "along with this."));
 #else
-	KUNIT_EXPECT_PTR_EQ(test, test->log, (char *)NULL);
+	KUNIT_EXPECT_NULL(test, test->log);
 #endif
 }
 

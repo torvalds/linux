@@ -14,8 +14,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define VCPU_ID 0
-
 #ifdef __x86_64__
 
 struct test_case {
@@ -28,19 +26,17 @@ static struct test_case test_cases[] = {
 	{ -180 * NSEC_PER_SEC },
 };
 
-static void check_preconditions(struct kvm_vm *vm)
+static void check_preconditions(struct kvm_vcpu *vcpu)
 {
-	if (!_vcpu_has_device_attr(vm, VCPU_ID, KVM_VCPU_TSC_CTRL, KVM_VCPU_TSC_OFFSET))
-		return;
-
-	print_skip("KVM_VCPU_TSC_OFFSET not supported; skipping test");
-	exit(KSFT_SKIP);
+	__TEST_REQUIRE(!__vcpu_has_device_attr(vcpu, KVM_VCPU_TSC_CTRL,
+					       KVM_VCPU_TSC_OFFSET),
+		       "KVM_VCPU_TSC_OFFSET not supported; skipping test");
 }
 
-static void setup_system_counter(struct kvm_vm *vm, struct test_case *test)
+static void setup_system_counter(struct kvm_vcpu *vcpu, struct test_case *test)
 {
-	vcpu_access_device_attr(vm, VCPU_ID, KVM_VCPU_TSC_CTRL,
-				KVM_VCPU_TSC_OFFSET, &test->tsc_offset, true);
+	vcpu_device_attr_set(vcpu, KVM_VCPU_TSC_CTRL, KVM_VCPU_TSC_OFFSET,
+			     &test->tsc_offset);
 }
 
 static uint64_t guest_read_system_counter(struct test_case *test)
@@ -87,11 +83,10 @@ static void handle_sync(struct ucall *uc, uint64_t start, uint64_t end)
 
 static void handle_abort(struct ucall *uc)
 {
-	TEST_FAIL("%s at %s:%ld", (const char *)uc->args[0],
-		  __FILE__, uc->args[1]);
+	REPORT_GUEST_ASSERT(*uc);
 }
 
-static void enter_guest(struct kvm_vm *vm)
+static void enter_guest(struct kvm_vcpu *vcpu)
 {
 	uint64_t start, end;
 	struct ucall uc;
@@ -100,12 +95,12 @@ static void enter_guest(struct kvm_vm *vm)
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		struct test_case *test = &test_cases[i];
 
-		setup_system_counter(vm, test);
+		setup_system_counter(vcpu, test);
 		start = host_read_guest_system_counter(test);
-		vcpu_run(vm, VCPU_ID);
+		vcpu_run(vcpu);
 		end = host_read_guest_system_counter(test);
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
 			handle_sync(&uc, start, end);
 			break;
@@ -114,19 +109,20 @@ static void enter_guest(struct kvm_vm *vm)
 			return;
 		default:
 			TEST_ASSERT(0, "unhandled ucall %ld\n",
-				    get_ucall(vm, VCPU_ID, &uc));
+				    get_ucall(vcpu, &uc));
 		}
 	}
 }
 
 int main(void)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	vm = vm_create_default(VCPU_ID, 0, guest_main);
-	check_preconditions(vm);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
+	check_preconditions(vcpu);
 	ucall_init(vm, NULL);
 
-	enter_guest(vm);
+	enter_guest(vcpu);
 	kvm_vm_free(vm);
 }

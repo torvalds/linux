@@ -282,7 +282,7 @@ err_alloc_drvdata:
 	return ret;
 }
 
-static int max8907_i2c_remove(struct i2c_client *i2c)
+static void max8907_i2c_remove(struct i2c_client *i2c)
 {
 	struct max8907 *max8907 = i2c_get_clientdata(i2c);
 
@@ -293,8 +293,6 @@ static int max8907_i2c_remove(struct i2c_client *i2c)
 	regmap_del_irq_chip(max8907->i2c_gen->irq, max8907->irqc_chg);
 
 	i2c_unregister_device(max8907->i2c_rtc);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF

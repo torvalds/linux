@@ -39,9 +39,9 @@
 #include "en.h"
 #include "en/txrx.h"
 
-/* Bit31: IPsec marker, Bit30-24: IPsec syndrome, Bit23-0: IPsec obj id */
+/* Bit31: IPsec marker, Bit30: reserved, Bit29-24: IPsec syndrome, Bit23-0: IPsec obj id */
 #define MLX5_IPSEC_METADATA_MARKER(metadata)  (((metadata) >> 31) & 0x1)
-#define MLX5_IPSEC_METADATA_SYNDROM(metadata) (((metadata) >> 24) & GENMASK(6, 0))
+#define MLX5_IPSEC_METADATA_SYNDROM(metadata) (((metadata) >> 24) & GENMASK(5, 0))
 #define MLX5_IPSEC_METADATA_HANDLE(metadata)  ((metadata) & GENMASK(23, 0))
 
 struct mlx5e_accel_tx_ipsec_state {
@@ -52,9 +52,6 @@ struct mlx5e_accel_tx_ipsec_state {
 };
 
 #ifdef CONFIG_MLX5_EN_IPSEC
-
-struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
-					  struct sk_buff *skb, u32 *cqe_bcnt);
 
 void mlx5e_ipsec_inverse_table_init(void);
 void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
@@ -78,11 +75,6 @@ static inline unsigned int mlx5e_ipsec_tx_ids_len(struct mlx5e_accel_tx_ipsec_st
 static inline bool mlx5_ipsec_is_rx_flow(struct mlx5_cqe64 *cqe)
 {
 	return MLX5_IPSEC_METADATA_MARKER(be32_to_cpu(cqe->ft_metadata));
-}
-
-static inline bool mlx5e_ipsec_is_tx_flow(struct mlx5e_accel_tx_ipsec_state *ipsec_st)
-{
-	return ipsec_st->x;
 }
 
 static inline bool mlx5e_ipsec_eseg_meta(struct mlx5_wqe_eth_seg *eseg)

@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/dma-direct.h>
 #include <video/vga.h>
 
 #include <asm/page.h>
@@ -197,9 +198,6 @@ void __init footbridge_init_irq(void)
 
 	__fb_init_irq();
 
-	if (!footbridge_cfn_mode())
-		return;
-
 	if (machine_is_ebsa285())
 		/* The following is dependent on which slot
 		 * you plug the Southbridge card into.  We
@@ -220,21 +218,13 @@ void __init footbridge_init_irq(void)
  * commented out since there is a "No Fix" problem with it.  Not mapping
  * it means that we have extra bullet protection on our feet.
  */
-static struct map_desc fb_common_io_desc[] __initdata = {
+static struct map_desc ebsa285_host_io_desc[] __initdata = {
 	{
 		.virtual	= ARMCSR_BASE,
 		.pfn		= __phys_to_pfn(DC21285_ARMCSR_BASE),
 		.length		= ARMCSR_SIZE,
 		.type		= MT_DEVICE,
-	}
-};
-
-/*
- * The mapping when the footbridge is in host mode.  We don't map any of
- * this when we are in add-in mode.
- */
-static struct map_desc ebsa285_host_io_desc[] __initdata = {
-#if defined(CONFIG_ARCH_FOOTBRIDGE) && defined(CONFIG_FOOTBRIDGE_HOST)
+	},
 	{
 		.virtual	= PCIMEM_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_MEM),
@@ -256,26 +246,12 @@ static struct map_desc ebsa285_host_io_desc[] __initdata = {
 		.length		= PCIIACK_SIZE,
 		.type		= MT_DEVICE,
 	},
-#endif
 };
 
 void __init footbridge_map_io(void)
 {
-	/*
-	 * Set up the common mapping first; we need this to
-	 * determine whether we're in host mode or not.
-	 */
-	iotable_init(fb_common_io_desc, ARRAY_SIZE(fb_common_io_desc));
-
-	/*
-	 * Now, work out what we've got to map in addition on this
-	 * platform.
-	 */
-	if (footbridge_cfn_mode()) {
-		iotable_init(ebsa285_host_io_desc, ARRAY_SIZE(ebsa285_host_io_desc));
-		pci_map_io_early(__phys_to_pfn(DC21285_PCI_IO));
-	}
-
+	iotable_init(ebsa285_host_io_desc, ARRAY_SIZE(ebsa285_host_io_desc));
+	pci_map_io_early(__phys_to_pfn(DC21285_PCI_IO));
 	vga_base = PCIMEM_BASE;
 }
 
@@ -305,47 +281,3 @@ void footbridge_restart(enum reboot_mode mode, const char *cmd)
 		*CSR_SA110_CNTL |= (1 << 13);
 	}
 }
-
-#ifdef CONFIG_FOOTBRIDGE_ADDIN
-
-static inline unsigned long fb_bus_sdram_offset(void)
-{
-	return *CSR_PCISDRAMBASE & 0xfffffff0;
-}
-
-/*
- * These two functions convert virtual addresses to PCI addresses and PCI
- * addresses to virtual addresses.  Note that it is only legal to use these
- * on memory obtained via get_zeroed_page or kmalloc.
- */
-unsigned long __virt_to_bus(unsigned long res)
-{
-	WARN_ON(res < PAGE_OFFSET || res >= (unsigned long)high_memory);
-
-	return res + (fb_bus_sdram_offset() - PAGE_OFFSET);
-}
-EXPORT_SYMBOL(__virt_to_bus);
-
-unsigned long __bus_to_virt(unsigned long res)
-{
-	res = res - (fb_bus_sdram_offset() - PAGE_OFFSET);
-
-	WARN_ON(res < PAGE_OFFSET || res >= (unsigned long)high_memory);
-
-	return res;
-}
-EXPORT_SYMBOL(__bus_to_virt);
-
-unsigned long __pfn_to_bus(unsigned long pfn)
-{
-	return __pfn_to_phys(pfn) + (fb_bus_sdram_offset() - PHYS_OFFSET);
-}
-EXPORT_SYMBOL(__pfn_to_bus);
-
-unsigned long __bus_to_pfn(unsigned long bus)
-{
-	return __phys_to_pfn(bus - (fb_bus_sdram_offset() - PHYS_OFFSET));
-}
-EXPORT_SYMBOL(__bus_to_pfn);
-
-#endif

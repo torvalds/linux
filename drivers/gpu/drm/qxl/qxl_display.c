@@ -30,10 +30,13 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -829,6 +832,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 	struct qxl_device *qdev = to_qxl(plane->dev);
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
+	int ret;
 
 	if (!new_state->fb)
 		return 0;
@@ -852,7 +856,11 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		qxl_free_cursor(old_cursor_bo);
 	}
 
-	return qxl_bo_pin(user_bo);
+	ret = qxl_bo_pin(user_bo);
+	if (ret)
+		return ret;
+
+	return drm_gem_plane_helper_prepare_fb(plane, new_state);
 }
 
 static void qxl_plane_cleanup_fb(struct drm_plane *plane,
@@ -894,7 +902,7 @@ static const struct drm_plane_helper_funcs qxl_cursor_helper_funcs = {
 static const struct drm_plane_funcs qxl_cursor_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -916,7 +924,7 @@ static const struct drm_plane_helper_funcs primary_helper_funcs = {
 static const struct drm_plane_funcs qxl_primary_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,

@@ -95,8 +95,6 @@ struct hclge_comm_rss_tc_mode_cmd {
 };
 
 u32 hclge_comm_get_rss_key_size(struct hnae3_handle *handle);
-void hclge_comm_get_rss_type(struct hnae3_handle *nic,
-			     struct hclge_comm_rss_tuple_cfg *rss_tuple_sets);
 void hclge_comm_rss_indir_init_cfg(struct hnae3_ae_dev *ae_dev,
 				   struct hclge_comm_rss_cfg *rss_cfg);
 int hclge_comm_get_rss_tuple(struct hclge_comm_rss_cfg *rss_cfg, int flow_type,
@@ -106,7 +104,7 @@ int hclge_comm_parse_rss_hfunc(struct hclge_comm_rss_cfg *rss_cfg,
 void hclge_comm_get_rss_hash_info(struct hclge_comm_rss_cfg *rss_cfg, u8 *key,
 				  u8 *hfunc);
 void hclge_comm_get_rss_indir_tbl(struct hclge_comm_rss_cfg *rss_cfg,
-				  u32 *indir, __le16 rss_ind_tbl_size);
+				  u32 *indir, u16 rss_ind_tbl_size);
 int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
 				const u8 *key);
 int hclge_comm_init_rss_tuple_cmd(struct hclge_comm_rss_cfg *rss_cfg,

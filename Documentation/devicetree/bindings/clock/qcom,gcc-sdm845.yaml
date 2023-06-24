@@ -19,48 +19,67 @@ description: |
 
 properties:
   compatible:
-    const: qcom,gcc-sdm845
+    enum:
+      - qcom,gcc-sdm670
+      - qcom,gcc-sdm845
 
   clocks:
-    items:
-      - description: Board XO source
-      - description: Board active XO source
-      - description: Sleep clock source
-      - description: PCIE 0 Pipe clock source
-      - description: PCIE 1 Pipe clock source
+    minItems: 3
+    maxItems: 5
 
   clock-names:
-    items:
-      - const: bi_tcxo
-      - const: bi_tcxo_ao
-      - const: sleep_clk
-      - const: pcie_0_pipe_clk
-      - const: pcie_1_pipe_clk
+    minItems: 3
+    maxItems: 5
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
-  reg:
+  power-domains:
     maxItems: 1
-
-  protected-clocks:
-    description:
-      Protected clock specifier list as per common clock binding.
 
 required:
   - compatible
-  - reg
-  - '#clock-cells'
-  - '#reset-cells'
-  - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,gcc-sdm670
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Board XO source
+            - description: Board active XO source
+            - description: Sleep clock source
+        clock-names:
+          items:
+            - const: bi_tcxo
+            - const: bi_tcxo_ao
+            - const: sleep_clk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,gcc-sdm845
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Board XO source
+            - description: Board active XO source
+            - description: Sleep clock source
+            - description: PCIE 0 Pipe clock source
+            - description: PCIE 1 Pipe clock source
+        clock-names:
+          items:
+            - const: bi_tcxo
+            - const: bi_tcxo_ao
+            - const: sleep_clk
+            - const: pcie_0_pipe_clk
+            - const: pcie_1_pipe_clk
+
+unevaluatedProperties: false
 
 examples:
   # Example for GCC for SDM845:

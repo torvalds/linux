@@ -32,6 +32,7 @@ static const struct branch_mode branch_modes[] = {
 	BRANCH_OPT("call", PERF_SAMPLE_BRANCH_CALL),
 	BRANCH_OPT("save_type", PERF_SAMPLE_BRANCH_TYPE_SAVE),
 	BRANCH_OPT("stack", PERF_SAMPLE_BRANCH_CALL_STACK),
+	BRANCH_OPT("priv", PERF_SAMPLE_BRANCH_PRIV_SAVE),
 	BRANCH_END
 };
 
@@ -101,8 +102,10 @@ parse_branch_stack(const struct option *opt, const char *str, int unset)
 	/*
 	 * cannot set it twice, -b + --branch-filter for instance
 	 */
-	if (*mode)
+	if (*mode) {
+		pr_err("Error: Can't use --branch-any (-b) with --branch-filter (-j).\n");
 		return -1;
+	}
 
 	return parse_branch_str(str, mode);
 }

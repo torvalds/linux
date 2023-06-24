@@ -959,7 +959,7 @@ err_out:
 #define CTS_AT_AUART()	!mctrl_gpio_to_gpiod(s->gpios, UART_GPIO_CTS)
 static void mxs_auart_settermios(struct uart_port *u,
 				 struct ktermios *termios,
-				 struct ktermios *old)
+				 const struct ktermios *old)
 {
 	struct mxs_auart_port *s = to_auart_port(u);
 	u32 ctrl, ctrl2, div;

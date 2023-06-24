@@ -15,7 +15,7 @@
 
 #include "cpu.h"
 #include "pm.h"
-#include <mach/map-base.h>
+#include "map-base.h"
 #include "map-s3c.h"
 
 #include "regs-irq.h"

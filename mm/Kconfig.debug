@@ -45,6 +45,39 @@ config DEBUG_PAGEALLOC_ENABLE_DEFAULT
 	  Enable debug page memory allocations by default? This value
 	  can be overridden by debug_pagealloc=off|on.
 
+config DEBUG_SLAB
+	bool "Debug slab memory allocations"
+	depends on DEBUG_KERNEL && SLAB
+	help
+	  Say Y here to have the kernel do limited verification on memory
+	  allocation as well as poisoning memory on free to catch use of freed
+	  memory. This can make kmalloc/kfree-intensive workloads much slower.
+
+config SLUB_DEBUG
+	default y
+	bool "Enable SLUB debugging support" if EXPERT
+	depends on SLUB && SYSFS
+	select STACKDEPOT if STACKTRACE_SUPPORT
+	help
+	  SLUB has extensive debug support features. Disabling these can
+	  result in significant savings in code size. This also disables
+	  SLUB sysfs support. /sys/slab will not exist and there will be
+	  no support for cache validation etc.
+
+config SLUB_DEBUG_ON
+	bool "SLUB debugging on by default"
+	depends on SLUB && SLUB_DEBUG
+	select STACKDEPOT_ALWAYS_INIT if STACKTRACE_SUPPORT
+	default n
+	help
+	  Boot with debugging on by default. SLUB boots by default with
+	  the runtime debug capabilities switched off. Enabling this is
+	  equivalent to specifying the "slub_debug" parameter on boot.
+	  There is no support for more fine grained debug control like
+	  possible with slub_debug=xxx. SLUB debugging may be switched
+	  off in a kernel built with CONFIG_SLUB_DEBUG_ON by specifying
+	  "slub_debug=-".
+
 config PAGE_OWNER
 	bool "Track page owner"
 	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT

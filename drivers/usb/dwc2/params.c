@@ -1,36 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright (C) 2004-2016 Synopsys, Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <linux/kernel.h>
@@ -71,6 +41,47 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 		GAHBCFG_HBSTLEN_SHIFT;
 	p->change_speed_quirk = true;
 	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+}
+
+static void dwc2_set_jz4775_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->phy_utmi_width = 16;
+	p->activate_ingenic_overcurrent_detection =
+		!device_property_read_bool(hsotg->dev, "disable-over-current");
+}
+
+static void dwc2_set_x1600_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->host_channels = 16;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->phy_utmi_width = 16;
+	p->activate_ingenic_overcurrent_detection =
+		!device_property_read_bool(hsotg->dev, "disable-over-current");
+}
+
+static void dwc2_set_x2000_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->host_rx_fifo_size = 1024;
+	p->host_nperio_tx_fifo_size = 1024;
+	p->host_perio_tx_fifo_size = 1024;
+	p->host_channels = 16;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->phy_utmi_width = 16;
+	p->activate_ingenic_overcurrent_detection =
+		!device_property_read_bool(hsotg->dev, "disable-over-current");
 }
 
 static void dwc2_set_s3c6400_params(struct dwc2_hsotg *hsotg)
@@ -221,7 +232,14 @@ static void dwc2_set_stm32mp15_hsotg_params(struct dwc2_hsotg *hsotg)
 
 const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = dwc2_set_bcm_params },
-	{ .compatible = "hisilicon,hi6220-usb", .data = dwc2_set_his_params  },
+	{ .compatible = "hisilicon,hi6220-usb", .data = dwc2_set_his_params },
+	{ .compatible = "ingenic,jz4775-otg", .data = dwc2_set_jz4775_params },
+	{ .compatible = "ingenic,jz4780-otg", .data = dwc2_set_jz4775_params },
+	{ .compatible = "ingenic,x1000-otg", .data = dwc2_set_jz4775_params },
+	{ .compatible = "ingenic,x1600-otg", .data = dwc2_set_x1600_params },
+	{ .compatible = "ingenic,x1700-otg", .data = dwc2_set_x1600_params },
+	{ .compatible = "ingenic,x1830-otg", .data = dwc2_set_x1600_params },
+	{ .compatible = "ingenic,x2000-otg", .data = dwc2_set_x2000_params },
 	{ .compatible = "rockchip,rk3066-usb", .data = dwc2_set_rk_params },
 	{ .compatible = "lantiq,arx100-usb", .data = dwc2_set_ltq_params },
 	{ .compatible = "lantiq,xrx200-usb", .data = dwc2_set_ltq_params },

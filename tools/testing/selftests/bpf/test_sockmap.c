@@ -18,7 +18,6 @@
 #include <sched.h>
 
 #include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 
@@ -37,7 +36,6 @@
 #include <bpf/libbpf.h>
 
 #include "bpf_util.h"
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 int running;
@@ -54,8 +52,8 @@ static void running_handler(int a);
 #define S1_PORT 10000
 #define S2_PORT 10001
 
-#define BPF_SOCKMAP_FILENAME  "test_sockmap_kern.o"
-#define BPF_SOCKHASH_FILENAME "test_sockhash_kern.o"
+#define BPF_SOCKMAP_FILENAME  "test_sockmap_kern.bpf.o"
+#define BPF_SOCKHASH_FILENAME "test_sockhash_kern.bpf.o"
 #define CG_PATH "/sockmap"
 
 /* global sockets */
@@ -140,6 +138,7 @@ struct sockmap_options {
 	bool data_test;
 	bool drop_expected;
 	bool check_recved_len;
+	bool tx_wait_mem;
 	int iov_count;
 	int iov_length;
 	int rate;
@@ -580,6 +579,10 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			sent = sendmsg(fd, &msg, flags);
 
 			if (!drop && sent < 0) {
+				if (opt->tx_wait_mem && errno == EACCES) {
+					errno = 0;
+					goto out_errno;
+				}
 				perror("sendmsg loop error");
 				goto out_errno;
 			} else if (drop && sent >= 0) {
@@ -643,6 +646,15 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 					fprintf(stderr, "unexpected timeout: recved %zu/%f pop_total %f\n", s->bytes_recvd, total_bytes, txmsg_pop_total);
 				errno = -EIO;
 				clock_gettime(CLOCK_MONOTONIC, &s->end);
+				goto out_errno;
+			}
+
+			if (opt->tx_wait_mem) {
+				FD_ZERO(&w);
+				FD_SET(fd, &w);
+				slct = select(max_fd + 1, NULL, NULL, &w, &timeout);
+				errno = 0;
+				close(fd);
 				goto out_errno;
 			}
 
@@ -754,6 +766,22 @@ static int sendmsg_test(struct sockmap_options *opt)
 			return err;
 	}
 
+	if (opt->tx_wait_mem) {
+		struct timeval timeout;
+		int rxtx_buf_len = 1024;
+
+		timeout.tv_sec = 3;
+		timeout.tv_usec = 0;
+
+		err = setsockopt(c2, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(struct timeval));
+		err |= setsockopt(c2, SOL_SOCKET, SO_SNDBUFFORCE, &rxtx_buf_len, sizeof(int));
+		err |= setsockopt(p2, SOL_SOCKET, SO_RCVBUFFORCE, &rxtx_buf_len, sizeof(int));
+		if (err) {
+			perror("setsockopt failed()");
+			return errno;
+		}
+	}
+
 	rxpid = fork();
 	if (rxpid == 0) {
 		if (txmsg_pop || txmsg_start_pop)
@@ -789,6 +817,9 @@ static int sendmsg_test(struct sockmap_options *opt)
 		perror("msg_loop_rx");
 		return errno;
 	}
+
+	if (opt->tx_wait_mem)
+		close(c2);
 
 	txpid = fork();
 	if (txpid == 0) {
@@ -1454,6 +1485,14 @@ static void test_txmsg_redir(int cgrp, struct sockmap_options *opt)
 	test_send(opt, cgrp);
 }
 
+static void test_txmsg_redir_wait_sndmem(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_redir = 1;
+	opt->tx_wait_mem = true;
+	test_send_large(opt, cgrp);
+	opt->tx_wait_mem = false;
+}
+
 static void test_txmsg_drop(int cgrp, struct sockmap_options *opt)
 {
 	txmsg_drop = 1;
@@ -1802,6 +1841,7 @@ static int populate_progs(char *bpf_file)
 struct _test test[] = {
 	{"txmsg test passthrough", test_txmsg_pass},
 	{"txmsg test redirect", test_txmsg_redir},
+	{"txmsg test redirect wait send mem", test_txmsg_redir_wait_sndmem},
 	{"txmsg test drop", test_txmsg_drop},
 	{"txmsg test ingress redirect", test_txmsg_ingress_redir},
 	{"txmsg test skb", test_txmsg_skb},
@@ -2016,6 +2056,9 @@ int main(int argc, char **argv)
 			return cg_fd;
 		cg_created = 1;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (test == SELFTESTS) {
 		err = test_selftest(cg_fd, &options);

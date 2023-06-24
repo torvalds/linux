@@ -41,7 +41,7 @@ Default is to monitor all CPUS.
 	(use 'perf list' to list all events) or a raw PMU event in the form
 	of rN where N is a hexadecimal value that represents the raw register
 	encoding with the layout of the event control registers as described
-	by entries in /sys/bus/event_sources/devices/cpu/format/*.
+	by entries in /sys/bus/event_source/devices/cpu/format/*.
 
 -E <entries>::
 --entries=<entries>::

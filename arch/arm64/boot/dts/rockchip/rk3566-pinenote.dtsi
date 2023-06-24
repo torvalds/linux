@@ -23,7 +23,7 @@
 		io-channel-names = "buttons";
 		keyup-threshold-microvolt = <1750000>;
 
-		recovery {
+		button-recovery {
 			label = "recovery";
 			linux,code = <KEY_VENDOR>;
 			press-threshold-microvolt = <0>;
@@ -49,7 +49,7 @@
 		pinctrl-0 = <&hall_int_l>;
 		pinctrl-names = "default";
 
-		cover {
+		switch-cover {
 			label = "cover";
 			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -466,6 +466,55 @@
 			default-brightness = <0>;
 		};
 	};
+
+	wusb3801: tcpc@60 {
+		compatible = "willsemi,wusb3801";
+		reg = <0x60>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&tcpc_int_l>;
+		pinctrl-names = "default";
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			vbus-supply = <&otg_switch>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			typec-power-opmode = "default";
+			pd-disable;
+
+			ports {
+				#address-cells = <0x1>;
+				#size-cells = <0x0>;
+
+				port@0 {
+					reg = <0x0>;
+
+					typec_hs_usb2phy0: endpoint {
+						remote-endpoint = <&usb2phy0_typec_hs>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+
+	accelerometer@18 {
+		compatible = "silan,sc7a20";
+		reg = <0x18>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&accelerometer_int_l>;
+		pinctrl-names = "default";
+		st,drdy-int-pin = <1>;
+		vdd-supply = <&vcc_3v3>;
+		vddio-supply = <&vcc_3v3>;
+	};
 };
 
 &i2s1_8ch {
@@ -482,6 +531,12 @@
 };
 
 &pinctrl {
+	accelerometer {
+		accelerometer_int_l: accelerometer-int-l {
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	audio-amplifier {
 		spk_amp_enable_h: spk-amp-enable-h {
 			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -547,6 +602,12 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	tcpc {
+		tcpc_int_l: tcpc-int-l {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -636,4 +697,23 @@
 
 &uart2 {
 	status = "okay";
+};
+
+&usb_host0_xhci {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usb2phy0_otg {
+	status = "okay";
+
+	port {
+		usb2phy0_typec_hs: endpoint {
+			remote-endpoint = <&typec_hs_usb2phy0>;
+		};
+	};
 };

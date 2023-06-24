@@ -128,8 +128,8 @@ static int veth_get_link_ksettings(struct net_device *dev,
 
 static void veth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -1070,7 +1070,7 @@ static int veth_enable_xdp_range(struct net_device *dev, int start, int end,
 		struct veth_rq *rq = &priv->rq[i];
 
 		if (!napi_already_on)
-			netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+			netif_napi_add(dev, &rq->xdp_napi, veth_poll);
 		err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i, rq->xdp_napi.napi_id);
 		if (err < 0)
 			goto err_rxq_reg;
@@ -1184,7 +1184,7 @@ static int veth_napi_enable_range(struct net_device *dev, int start, int end)
 	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
-		netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(dev, &rq->xdp_napi, veth_poll);
 	}
 
 	err = __veth_napi_enable_range(dev, start, end);
@@ -1375,7 +1375,7 @@ static int veth_alloc_queues(struct net_device *dev)
 	struct veth_priv *priv = netdev_priv(dev);
 	int i;
 
-	priv->rq = kcalloc(dev->num_rx_queues, sizeof(*priv->rq), GFP_KERNEL);
+	priv->rq = kcalloc(dev->num_rx_queues, sizeof(*priv->rq), GFP_KERNEL_ACCOUNT);
 	if (!priv->rq)
 		return -ENOMEM;
 
@@ -1647,6 +1647,7 @@ static void veth_setup(struct net_device *dev)
 	dev->hw_features = VETH_FEATURES;
 	dev->hw_enc_features = VETH_FEATURES;
 	dev->mpls_features = NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE;
+	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
 }
 
 /*
@@ -1758,8 +1759,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (ifmp && (dev->ifindex != 0))
 		peer->ifindex = ifmp->ifi_index;
 
-	netif_set_gso_max_size(peer, dev->gso_max_size);
-	netif_set_gso_max_segs(peer, dev->gso_max_segs);
+	netif_inherit_tso_max(peer, dev);
 
 	err = register_netdevice(peer);
 	put_net(net);

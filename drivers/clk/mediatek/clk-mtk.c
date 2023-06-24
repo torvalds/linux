@@ -18,46 +18,58 @@
 #include "clk-mtk.h"
 #include "clk-gate.h"
 
-struct clk_onecell_data *mtk_alloc_clk_data(unsigned int clk_num)
+static void mtk_init_clk_data(struct clk_hw_onecell_data *clk_data,
+			      unsigned int clk_num)
 {
 	int i;
-	struct clk_onecell_data *clk_data;
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data->num = clk_num;
+
+	for (i = 0; i < clk_num; i++)
+		clk_data->hws[i] = ERR_PTR(-ENOENT);
+}
+
+struct clk_hw_onecell_data *mtk_devm_alloc_clk_data(struct device *dev,
+						    unsigned int clk_num)
+{
+	struct clk_hw_onecell_data *clk_data;
+
+	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, clk_num),
+				GFP_KERNEL);
 	if (!clk_data)
 		return NULL;
 
-	clk_data->clks = kcalloc(clk_num, sizeof(*clk_data->clks), GFP_KERNEL);
-	if (!clk_data->clks)
-		goto err_out;
-
-	clk_data->clk_num = clk_num;
-
-	for (i = 0; i < clk_num; i++)
-		clk_data->clks[i] = ERR_PTR(-ENOENT);
+	mtk_init_clk_data(clk_data, clk_num);
 
 	return clk_data;
-err_out:
-	kfree(clk_data);
+}
+EXPORT_SYMBOL_GPL(mtk_devm_alloc_clk_data);
 
-	return NULL;
+struct clk_hw_onecell_data *mtk_alloc_clk_data(unsigned int clk_num)
+{
+	struct clk_hw_onecell_data *clk_data;
+
+	clk_data = kzalloc(struct_size(clk_data, hws, clk_num), GFP_KERNEL);
+	if (!clk_data)
+		return NULL;
+
+	mtk_init_clk_data(clk_data, clk_num);
+
+	return clk_data;
 }
 EXPORT_SYMBOL_GPL(mtk_alloc_clk_data);
 
-void mtk_free_clk_data(struct clk_onecell_data *clk_data)
+void mtk_free_clk_data(struct clk_hw_onecell_data *clk_data)
 {
-	if (!clk_data)
-		return;
-
-	kfree(clk_data->clks);
 	kfree(clk_data);
 }
+EXPORT_SYMBOL_GPL(mtk_free_clk_data);
 
 int mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks, int num,
-				struct clk_onecell_data *clk_data)
+				struct clk_hw_onecell_data *clk_data)
 {
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	if (!clk_data)
 		return -ENOMEM;
@@ -65,20 +77,21 @@ int mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks, int num,
 	for (i = 0; i < num; i++) {
 		const struct mtk_fixed_clk *rc = &clks[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[rc->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[rc->id])) {
 			pr_warn("Trying to register duplicate clock ID: %d\n", rc->id);
 			continue;
 		}
 
-		clk = clk_register_fixed_rate(NULL, rc->name, rc->parent, 0,
+		hw = clk_hw_register_fixed_rate(NULL, rc->name, rc->parent, 0,
 					      rc->rate);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", rc->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", rc->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->clks[rc->id] = clk;
+		clk_data->hws[rc->id] = hw;
 	}
 
 	return 0;
@@ -87,19 +100,19 @@ err:
 	while (--i >= 0) {
 		const struct mtk_fixed_clk *rc = &clks[i];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[rc->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[rc->id]))
 			continue;
 
-		clk_unregister_fixed_rate(clk_data->clks[rc->id]);
-		clk_data->clks[rc->id] = ERR_PTR(-ENOENT);
+		clk_hw_unregister_fixed_rate(clk_data->hws[rc->id]);
+		clk_data->hws[rc->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_fixed_clks);
 
 void mtk_clk_unregister_fixed_clks(const struct mtk_fixed_clk *clks, int num,
-				   struct clk_onecell_data *clk_data)
+				   struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 
@@ -109,20 +122,20 @@ void mtk_clk_unregister_fixed_clks(const struct mtk_fixed_clk *clks, int num,
 	for (i = num; i > 0; i--) {
 		const struct mtk_fixed_clk *rc = &clks[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[rc->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[rc->id]))
 			continue;
 
-		clk_unregister_fixed_rate(clk_data->clks[rc->id]);
-		clk_data->clks[rc->id] = ERR_PTR(-ENOENT);
+		clk_hw_unregister_fixed_rate(clk_data->hws[rc->id]);
+		clk_data->hws[rc->id] = ERR_PTR(-ENOENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_fixed_clks);
 
 int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
-			     struct clk_onecell_data *clk_data)
+			     struct clk_hw_onecell_data *clk_data)
 {
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	if (!clk_data)
 		return -ENOMEM;
@@ -130,20 +143,21 @@ int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
 	for (i = 0; i < num; i++) {
 		const struct mtk_fixed_factor *ff = &clks[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[ff->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[ff->id])) {
 			pr_warn("Trying to register duplicate clock ID: %d\n", ff->id);
 			continue;
 		}
 
-		clk = clk_register_fixed_factor(NULL, ff->name, ff->parent_name,
+		hw = clk_hw_register_fixed_factor(NULL, ff->name, ff->parent_name,
 				CLK_SET_RATE_PARENT, ff->mult, ff->div);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", ff->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", ff->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->clks[ff->id] = clk;
+		clk_data->hws[ff->id] = hw;
 	}
 
 	return 0;
@@ -152,19 +166,19 @@ err:
 	while (--i >= 0) {
 		const struct mtk_fixed_factor *ff = &clks[i];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[ff->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[ff->id]))
 			continue;
 
-		clk_unregister_fixed_factor(clk_data->clks[ff->id]);
-		clk_data->clks[ff->id] = ERR_PTR(-ENOENT);
+		clk_hw_unregister_fixed_factor(clk_data->hws[ff->id]);
+		clk_data->hws[ff->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_factors);
 
 void mtk_clk_unregister_factors(const struct mtk_fixed_factor *clks, int num,
-				struct clk_onecell_data *clk_data)
+				struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 
@@ -174,19 +188,19 @@ void mtk_clk_unregister_factors(const struct mtk_fixed_factor *clks, int num,
 	for (i = num; i > 0; i--) {
 		const struct mtk_fixed_factor *ff = &clks[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[ff->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[ff->id]))
 			continue;
 
-		clk_unregister_fixed_factor(clk_data->clks[ff->id]);
-		clk_data->clks[ff->id] = ERR_PTR(-ENOENT);
+		clk_hw_unregister_fixed_factor(clk_data->hws[ff->id]);
+		clk_data->hws[ff->id] = ERR_PTR(-ENOENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_factors);
 
-struct clk *mtk_clk_register_composite(const struct mtk_composite *mc,
+static struct clk_hw *mtk_clk_register_composite(const struct mtk_composite *mc,
 		void __iomem *base, spinlock_t *lock)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct clk_mux *mux = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_divider *div = NULL;
@@ -250,18 +264,18 @@ struct clk *mtk_clk_register_composite(const struct mtk_composite *mc,
 		div_ops = &clk_divider_ops;
 	}
 
-	clk = clk_register_composite(NULL, mc->name, parent_names, num_parents,
+	hw = clk_hw_register_composite(NULL, mc->name, parent_names, num_parents,
 		mux_hw, mux_ops,
 		div_hw, div_ops,
 		gate_hw, gate_ops,
 		mc->flags);
 
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
+	if (IS_ERR(hw)) {
+		ret = PTR_ERR(hw);
 		goto err_out;
 	}
 
-	return clk;
+	return hw;
 err_out:
 	kfree(div);
 	kfree(gate);
@@ -270,15 +284,13 @@ err_out:
 	return ERR_PTR(ret);
 }
 
-static void mtk_clk_unregister_composite(struct clk *clk)
+static void mtk_clk_unregister_composite(struct clk_hw *hw)
 {
-	struct clk_hw *hw;
 	struct clk_composite *composite;
 	struct clk_mux *mux = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_divider *div = NULL;
 
-	hw = __clk_get_hw(clk);
 	if (!hw)
 		return;
 
@@ -290,7 +302,7 @@ static void mtk_clk_unregister_composite(struct clk *clk)
 	if (composite->rate_hw)
 		div = to_clk_divider(composite->rate_hw);
 
-	clk_unregister_composite(clk);
+	clk_hw_unregister_composite(hw);
 	kfree(div);
 	kfree(gate);
 	kfree(mux);
@@ -298,9 +310,9 @@ static void mtk_clk_unregister_composite(struct clk *clk)
 
 int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
 				void __iomem *base, spinlock_t *lock,
-				struct clk_onecell_data *clk_data)
+				struct clk_hw_onecell_data *clk_data)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	int i;
 
 	if (!clk_data)
@@ -309,20 +321,21 @@ int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
 	for (i = 0; i < num; i++) {
 		const struct mtk_composite *mc = &mcs[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[mc->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[mc->id])) {
 			pr_warn("Trying to register duplicate clock ID: %d\n",
 				mc->id);
 			continue;
 		}
 
-		clk = mtk_clk_register_composite(mc, base, lock);
+		hw = mtk_clk_register_composite(mc, base, lock);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", mc->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", mc->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->clks[mc->id] = clk;
+		clk_data->hws[mc->id] = hw;
 	}
 
 	return 0;
@@ -331,19 +344,19 @@ err:
 	while (--i >= 0) {
 		const struct mtk_composite *mc = &mcs[i];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[mcs->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[mcs->id]))
 			continue;
 
-		mtk_clk_unregister_composite(clk_data->clks[mc->id]);
-		clk_data->clks[mc->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_composite(clk_data->hws[mc->id]);
+		clk_data->hws[mc->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_composites);
 
 void mtk_clk_unregister_composites(const struct mtk_composite *mcs, int num,
-				   struct clk_onecell_data *clk_data)
+				   struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 
@@ -353,20 +366,20 @@ void mtk_clk_unregister_composites(const struct mtk_composite *mcs, int num,
 	for (i = num; i > 0; i--) {
 		const struct mtk_composite *mc = &mcs[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[mc->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[mc->id]))
 			continue;
 
-		mtk_clk_unregister_composite(clk_data->clks[mc->id]);
-		clk_data->clks[mc->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_composite(clk_data->hws[mc->id]);
+		clk_data->hws[mc->id] = ERR_PTR(-ENOENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_composites);
 
 int mtk_clk_register_dividers(const struct mtk_clk_divider *mcds, int num,
 			      void __iomem *base, spinlock_t *lock,
-			      struct clk_onecell_data *clk_data)
+			      struct clk_hw_onecell_data *clk_data)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	int i;
 
 	if (!clk_data)
@@ -375,22 +388,23 @@ int mtk_clk_register_dividers(const struct mtk_clk_divider *mcds, int num,
 	for (i = 0; i <  num; i++) {
 		const struct mtk_clk_divider *mcd = &mcds[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[mcd->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[mcd->id])) {
 			pr_warn("Trying to register duplicate clock ID: %d\n",
 				mcd->id);
 			continue;
 		}
 
-		clk = clk_register_divider(NULL, mcd->name, mcd->parent_name,
+		hw = clk_hw_register_divider(NULL, mcd->name, mcd->parent_name,
 			mcd->flags, base +  mcd->div_reg, mcd->div_shift,
 			mcd->div_width, mcd->clk_divider_flags, lock);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", mcd->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", mcd->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->clks[mcd->id] = clk;
+		clk_data->hws[mcd->id] = hw;
 	}
 
 	return 0;
@@ -399,18 +413,19 @@ err:
 	while (--i >= 0) {
 		const struct mtk_clk_divider *mcd = &mcds[i];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[mcd->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[mcd->id]))
 			continue;
 
-		mtk_clk_unregister_composite(clk_data->clks[mcd->id]);
-		clk_data->clks[mcd->id] = ERR_PTR(-ENOENT);
+		clk_hw_unregister_divider(clk_data->hws[mcd->id]);
+		clk_data->hws[mcd->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
+EXPORT_SYMBOL_GPL(mtk_clk_register_dividers);
 
 void mtk_clk_unregister_dividers(const struct mtk_clk_divider *mcds, int num,
-				 struct clk_onecell_data *clk_data)
+				 struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 
@@ -420,18 +435,19 @@ void mtk_clk_unregister_dividers(const struct mtk_clk_divider *mcds, int num,
 	for (i = num; i > 0; i--) {
 		const struct mtk_clk_divider *mcd = &mcds[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[mcd->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[mcd->id]))
 			continue;
 
-		clk_unregister_divider(clk_data->clks[mcd->id]);
-		clk_data->clks[mcd->id] = ERR_PTR(-ENOENT);
+		clk_hw_unregister_divider(clk_data->hws[mcd->id]);
+		clk_data->hws[mcd->id] = ERR_PTR(-ENOENT);
 	}
 }
+EXPORT_SYMBOL_GPL(mtk_clk_unregister_dividers);
 
 int mtk_clk_simple_probe(struct platform_device *pdev)
 {
 	const struct mtk_clk_desc *mcd;
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct device_node *node = pdev->dev.of_node;
 	int r;
 
@@ -443,15 +459,23 @@ int mtk_clk_simple_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates(node, mcd->clks, mcd->num_clks, clk_data);
+	r = mtk_clk_register_gates_with_dev(node, mcd->clks, mcd->num_clks,
+					    clk_data, &pdev->dev);
 	if (r)
 		goto free_data;
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_clks;
 
 	platform_set_drvdata(pdev, clk_data);
+
+	if (mcd->rst_desc) {
+		r = mtk_register_reset_controller_with_dev(&pdev->dev,
+							   mcd->rst_desc);
+		if (r)
+			goto unregister_clks;
+	}
 
 	return r;
 
@@ -461,11 +485,12 @@ free_data:
 	mtk_free_clk_data(clk_data);
 	return r;
 }
+EXPORT_SYMBOL_GPL(mtk_clk_simple_probe);
 
 int mtk_clk_simple_remove(struct platform_device *pdev)
 {
 	const struct mtk_clk_desc *mcd = of_device_get_match_data(&pdev->dev);
-	struct clk_onecell_data *clk_data = platform_get_drvdata(pdev);
+	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
 
 	of_clk_del_provider(node);
@@ -474,5 +499,6 @@ int mtk_clk_simple_remove(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_clk_simple_remove);
 
 MODULE_LICENSE("GPL");

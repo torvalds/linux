@@ -78,11 +78,7 @@ static unsigned long global_flags;
  * stored into the system memory even if the DMAC interrupt happened.
  * So, this driver then uses one RX DMAC channel only.
  */
-#define SDHI_INTERNAL_DMAC_ONE_RX_ONLY	0
-#define SDHI_INTERNAL_DMAC_RX_IN_USE	1
-
-/* RZ/A2 does not have the ADRR_MODE bit */
-#define SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY 2
+#define SDHI_INTERNAL_DMAC_RX_IN_USE	0
 
 /* Definitions for sampling clocks */
 static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
@@ -108,10 +104,6 @@ static const struct renesas_sdhi_of_data of_data_rza2 = {
 	.max_segs	= 1,
 };
 
-static const struct renesas_sdhi_of_data_with_quirks of_rza2_compatible = {
-	.of_data	= &of_data_rza2,
-};
-
 static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_CLK_ACTUAL |
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
@@ -128,7 +120,7 @@ static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {
 	.sdhi_flags	= SDHI_FLAG_NEED_CLKH_FALLBACK,
 };
 
-static const struct renesas_sdhi_of_data of_data_rcar_gen3_no_fallback = {
+static const struct renesas_sdhi_of_data of_data_rcar_gen3_no_sdh_fallback = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_CLK_ACTUAL |
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
@@ -169,36 +161,52 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
 	.hs400_4taps = true,
 };
 
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400_one_rx = {
+	.hs400_disabled = true,
+	.hs400_4taps = true,
+	.dma_one_rx_only = true,
+};
+
 static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.hs400_4taps = true,
 	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
+	.manual_tap_correction = true,
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
 	.hs400_disabled = true,
 };
 
+static const struct renesas_sdhi_quirks sdhi_quirks_fixed_addr = {
+	.fixed_addr_mode = true,
+};
+
 static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps1357 = {
 	.hs400_bad_taps = BIT(1) | BIT(3) | BIT(5) | BIT(7),
+	.manual_tap_correction = true,
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps2367 = {
 	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
+	.manual_tap_correction = true,
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_r8a7796_es13 = {
 	.hs400_4taps = true,
 	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
 	.hs400_calib_table = r8a7796_es13_calib_table,
+	.manual_tap_correction = true,
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_r8a77965 = {
 	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
 	.hs400_calib_table = r8a77965_calib_table,
+	.manual_tap_correction = true,
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_r8a77990 = {
 	.hs400_calib_table = r8a77990_calib_table,
+	.manual_tap_correction = true,
 };
 
 /*
@@ -208,10 +216,12 @@ static const struct renesas_sdhi_quirks sdhi_quirks_r8a77990 = {
  */
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400_one_rx },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap_nohs400_one_rx },
+	{ .soc_id = "r8a7796", .revision = "ES1.[12]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7796", .revision = "ES1.*", .data = &sdhi_quirks_r8a7796_es13 },
+	{ .soc_id = "r8a77980", .revision = "ES1.*", .data = &sdhi_quirks_nohs400 },
 	{ /* Sentinel. */ }
 };
 
@@ -231,11 +241,7 @@ static const struct renesas_sdhi_of_data_with_quirks of_r8a77965_compatible = {
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77970_compatible = {
-	.of_data = &of_data_rcar_gen3_no_fallback,
-};
-
-static const struct renesas_sdhi_of_data_with_quirks of_r8a77980_compatible = {
-	.of_data = &of_data_rcar_gen3,
+	.of_data = &of_data_rcar_gen3_no_sdh_fallback,
 	.quirks = &sdhi_quirks_nohs400,
 };
 
@@ -248,17 +254,27 @@ static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_compatible = {
 	.of_data = &of_data_rcar_gen3,
 };
 
+static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_nohs400_compatible = {
+	.of_data = &of_data_rcar_gen3,
+	.quirks = &sdhi_quirks_nohs400,
+};
+
+static const struct renesas_sdhi_of_data_with_quirks of_rza2_compatible = {
+	.of_data	= &of_data_rza2,
+	.quirks		= &sdhi_quirks_fixed_addr,
+};
+
 static const struct of_device_id renesas_sdhi_internal_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r7s9210", .data = &of_rza2_compatible, },
 	{ .compatible = "renesas,sdhi-mmc-r8a77470", .data = &of_rcar_gen3_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7795", .data = &of_r8a7795_compatible, },
-	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_gen3_compatible, },
 	{ .compatible = "renesas,sdhi-r8a77961", .data = &of_r8a77961_compatible, },
 	{ .compatible = "renesas,sdhi-r8a77965", .data = &of_r8a77965_compatible, },
 	{ .compatible = "renesas,sdhi-r8a77970", .data = &of_r8a77970_compatible, },
-	{ .compatible = "renesas,sdhi-r8a77980", .data = &of_r8a77980_compatible, },
 	{ .compatible = "renesas,sdhi-r8a77990", .data = &of_r8a77990_compatible, },
+	{ .compatible = "renesas,sdhi-r8a77995", .data = &of_rcar_gen3_nohs400_compatible, },
 	{ .compatible = "renesas,rcar-gen3-sdhi", .data = &of_rcar_gen3_compatible, },
+	{ .compatible = "renesas,rcar-gen4-sdhi", .data = &of_rcar_gen3_compatible, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, renesas_sdhi_internal_dmac_of_match);
@@ -287,7 +303,8 @@ renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 }
 
 static void
-renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
+renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host)
+{
 	u64 val = RST_DTRANRST1 | RST_DTRANRST0;
 
 	renesas_sdhi_internal_dmac_enable_dma(host, false);
@@ -303,14 +320,15 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
 }
 
 static void
-renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host) {
+renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host)
+{
 	struct renesas_sdhi *priv = host_to_priv(host);
 
 	tasklet_schedule(&priv->dma_priv.dma_complete);
 }
 
 /*
- * renesas_sdhi_internal_dmac_map() will be called with two difference
+ * renesas_sdhi_internal_dmac_map() will be called with two different
  * sg pointers in two mmc_data by .pre_req(), but tmio host can have a single
  * sg_ptr only. So, renesas_sdhi_internal_dmac_{un}map() should use a sg
  * pointer in a mmc_data instead of host->sg_ptr.
@@ -344,7 +362,7 @@ renesas_sdhi_internal_dmac_map(struct tmio_mmc_host *host,
 
 	data->host_cookie = cookie;
 
-	/* This DMAC cannot handle if buffer is not 128-bytes alignment */
+	/* This DMAC needs buffers to be 128-byte aligned */
 	if (!IS_ALIGNED(sg_dma_address(data->sg), 128)) {
 		renesas_sdhi_internal_dmac_unmap(host, data, cookie);
 		return false;
@@ -357,10 +375,11 @@ static void
 renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 				     struct mmc_data *data)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
 	struct scatterlist *sg = host->sg_ptr;
 	u32 dtran_mode = DTRAN_MODE_BUS_WIDTH;
 
-	if (!test_bit(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY, &global_flags))
+	if (!(priv->quirks && priv->quirks->fixed_addr_mode))
 		dtran_mode |= DTRAN_MODE_ADDR_MODE;
 
 	if (!renesas_sdhi_internal_dmac_map(host, data, COOKIE_MAPPED))
@@ -368,7 +387,7 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
-		if (test_bit(SDHI_INTERNAL_DMAC_ONE_RX_ONLY, &global_flags) &&
+		if (priv->quirks && priv->quirks->dma_one_rx_only &&
 		    test_and_set_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags))
 			goto force_pio_with_unmap;
 	} else {
@@ -520,20 +539,6 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 	.end = renesas_sdhi_internal_dmac_end_dma,
 };
 
-/*
- * Whitelist of specific R-Car Gen3 SoC ES versions to use this DMAC
- * implementation as others may use a different implementation.
- */
-static const struct soc_device_attribute soc_dma_quirks[] = {
-	{ .soc_id = "r7s9210",
-	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY) },
-	{ .soc_id = "r8a7795", .revision = "ES1.*",
-	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	{ .soc_id = "r8a7796", .revision = "ES1.0",
-	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	{ /* sentinel */ }
-};
-
 static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *attr;
@@ -543,10 +548,6 @@ static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 
 	of_data_quirks = of_device_get_match_data(&pdev->dev);
 	quirks = of_data_quirks->quirks;
-
-	attr = soc_device_match(soc_dma_quirks);
-	if (attr)
-		global_flags |= (unsigned long)attr->data;
 
 	attr = soc_device_match(sdhi_quirks_match);
 	if (attr)

@@ -17,6 +17,7 @@ allOf:
           contains:
             enum:
               - st,stm32f7-i2c
+              - st,stm32mp13-i2c
               - st,stm32mp15-i2c
     then:
       properties:
@@ -45,6 +46,7 @@ properties:
     enum:
       - st,stm32f4-i2c
       - st,stm32f7-i2c
+      - st,stm32mp13-i2c
       - st,stm32mp15-i2c
 
   reg:
@@ -54,6 +56,11 @@ properties:
     items:
       - description: interrupt ID for I2C event
       - description: interrupt ID for I2C error
+
+  interrupt-names:
+    items:
+      - const: event
+      - const: error
 
   resets:
     maxItems: 1
@@ -89,6 +96,8 @@ properties:
           - description: phandle to syscfg
           - description: register offset within syscfg
           - description: register bitmask for FMP bit
+
+  wakeup-source: true
 
 required:
   - compatible

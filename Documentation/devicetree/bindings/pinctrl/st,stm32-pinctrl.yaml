@@ -59,18 +59,22 @@ properties:
 patternProperties:
   '^gpio@[0-9a-f]*$':
     type: object
+    additionalProperties: false
     properties:
       gpio-controller: true
       '#gpio-cells':
+        const: 2
+      interrupt-controller: true
+      '#interrupt-cells':
         const: 2
 
       reg:
         maxItems: 1
       clocks:
         maxItems: 1
-      reset:
-        minItems: 1
+      resets:
         maxItems: 1
+      gpio-line-names: true
       gpio-ranges:
         minItems: 1
         maxItems: 16
@@ -106,6 +110,12 @@ patternProperties:
         minimum: 0
         maximum: 11
 
+    patternProperties:
+      "^(.+-hog(-[0-9]+)?)$":
+        type: object
+        required:
+          - gpio-hog
+
     required:
       - gpio-controller
       - '#gpio-cells'
@@ -115,9 +125,12 @@ patternProperties:
 
   '-[0-9]*$':
     type: object
+    additionalProperties: false
+
     patternProperties:
       '^pins':
         type: object
+        additionalProperties: false
         description: |
           A pinctrl node should contain at least one subnode representing the
           pinctrl group available on the machine. Each subnode will list the

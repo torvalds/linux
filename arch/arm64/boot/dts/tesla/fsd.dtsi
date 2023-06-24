@@ -93,6 +93,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl0_1: cpu@1 {
@@ -102,6 +109,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl0_2: cpu@2 {
@@ -111,6 +125,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl0_3: cpu@3 {
@@ -119,6 +140,13 @@
 				reg = <0x0 0x003>;
 				enable-method = "psci";
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		/* Cluster 1 */
@@ -129,6 +157,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl1_1: cpu@101 {
@@ -138,6 +173,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl1_2: cpu@102 {
@@ -147,6 +189,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl1_3: cpu@103 {
@@ -156,6 +205,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		/* Cluster 2 */
@@ -166,6 +222,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl2_1: cpu@201 {
@@ -175,6 +238,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl2_2: cpu@202 {
@@ -184,6 +254,13 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
 		};
 
 		cpucl2_3: cpu@203 {
@@ -193,6 +270,20 @@
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
 				cpu-idle-states = <&CPU_SLEEP>;
+				i-cache-size = <0xc000>;
+				i-cache-line-size = <64>;
+				i-cache-sets = <256>;
+				d-cache-size = <0x8000>;
+				d-cache-line-size = <64>;
+				d-cache-sets = <256>;
+				next-level-cache = <&cpucl_l2>;
+		};
+
+		cpucl_l2: l2-cache0 {
+			compatible = "cache";
+			cache-size = <0x400000>;
+			cache-line-size = <64>;
+			cache-sets = <4096>;
 		};
 
 		idle-states {
@@ -432,8 +523,6 @@
 			reg = <0x0 0x10100000 0x0 0x1000>;
 			interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&clock_imem IMEM_DMA0_IPCLKPORT_ACLK>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu_imem 0x800 0x0>;
@@ -444,8 +533,6 @@
 			reg = <0x0 0x10110000 0x0 0x1000>;
 			interrupts = <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&clock_imem IMEM_DMA1_IPCLKPORT_ACLK>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu_imem 0x801 0x0>;
@@ -456,8 +543,6 @@
 			reg = <0x0 0x14280000 0x0 0x1000>;
 			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&clock_peric PERIC_DMA0_IPCLKPORT_ACLK>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu_peric 0x2 0x0>;
@@ -468,8 +553,6 @@
 			reg = <0x0 0x14290000 0x0 0x1000>;
 			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&clock_peric PERIC_DMA1_IPCLKPORT_ACLK>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu_peric 0x1 0x0>;
@@ -727,7 +810,7 @@
 		};
 
 		timer@10040000 {
-			compatible = "samsung,exynos4210-mct";
+			compatible = "tesla,fsd-mct", "samsung,exynos4210-mct";
 			reg = <0x0 0x10040000 0x0 0x800>;
 			interrupts = <GIC_SPI 455 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>,
@@ -747,6 +830,35 @@
 				<GIC_SPI 470 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&fin_pll>, <&clock_imem IMEM_MCT_PCLK>;
 			clock-names = "fin_pll", "mct";
+		};
+
+		ufs: ufs@15120000 {
+			compatible = "tesla,fsd-ufs";
+			reg = <0x0 0x15120000 0x0 0x200>,  /* 0: HCI standard */
+			      <0x0 0x15121100 0x0 0x200>,  /* 1: Vendor specified */
+			      <0x0 0x15110000 0x0 0x8000>,  /* 2: UNIPRO */
+			      <0x0 0x15130000 0x0 0x100>;  /* 3: UFS protector */
+			reg-names = "hci", "vs_hci", "unipro", "ufsp";
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock_fsys0 UFS0_TOP0_HCLK_BUS>,
+				 <&clock_fsys0 UFS0_TOP0_CLK_UNIPRO>;
+			clock-names = "core_clk", "sclk_unipro_main";
+			freq-table-hz = <0 0>, <0 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
+			phys = <&ufs_phy>;
+			phy-names = "ufs-phy";
+			status = "disabled";
+		};
+
+		ufs_phy: ufs-phy@15124000 {
+			compatible = "tesla,fsd-ufs-phy";
+			reg = <0x0 0x15124000 0x0 0x800>;
+			reg-names = "phy-pma";
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			#phy-cells = <0>;
+			clocks = <&clock_fsys0 UFS0_MPHY_REFCLK_IXTAL26>;
+			clock-names = "ref_clk";
 		};
 	};
 };

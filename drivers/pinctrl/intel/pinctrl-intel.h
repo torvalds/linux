@@ -24,17 +24,12 @@ struct device;
 
 /**
  * struct intel_pingroup - Description about group of pins
- * @name: Name of the groups
- * @pins: All pins in this group
- * @npins: Number of pins in this groups
- * @mode: Native mode in which the group is muxed out @pins. Used if @modes
- *        is %NULL.
+ * @grp: Generic data of the pin group (name and pins)
+ * @mode: Native mode in which the group is muxed out @pins. Used if @modes is %NULL.
  * @modes: If not %NULL this will hold mode for each pin in @pins
  */
 struct intel_pingroup {
-	const char *name;
-	const unsigned int *pins;
-	size_t npins;
+	struct pingroup grp;
 	unsigned short mode;
 	const unsigned int *modes;
 };
@@ -156,15 +151,11 @@ struct intel_community {
  *     a single integer or an array of integers in which case mode is per
  *     pin.
  */
-#define PIN_GROUP(n, p, m)					\
-	{							\
-		.name = (n),					\
-		.pins = (p),					\
-		.npins = ARRAY_SIZE((p)),			\
-		.mode = __builtin_choose_expr(			\
-			__builtin_constant_p((m)), (m), 0),	\
-		.modes = __builtin_choose_expr(			\
-			__builtin_constant_p((m)), NULL, (m)),	\
+#define PIN_GROUP(n, p, m)								\
+	{										\
+		.grp = PINCTRL_PINGROUP((n), (p), ARRAY_SIZE((p))),			\
+		.mode = __builtin_choose_expr(__builtin_constant_p((m)), (m), 0),	\
+		.modes = __builtin_choose_expr(__builtin_constant_p((m)), NULL, (m)),	\
 	}
 
 #define FUNCTION(n, g)				\
@@ -223,7 +214,6 @@ struct intel_pinctrl_context {
  * @pctldesc: Pin controller description
  * @pctldev: Pointer to the pin controller device
  * @chip: GPIO chip in this pin controller
- * @irqchip: IRQ chip in this pin controller
  * @soc: SoC/PCH specific pin configuration data
  * @communities: All communities in this pin controller
  * @ncommunities: Number of communities in this pin controller
@@ -236,7 +226,6 @@ struct intel_pinctrl {
 	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct gpio_chip chip;
-	struct irq_chip irqchip;
 	const struct intel_pinctrl_soc_data *soc;
 	struct intel_community *communities;
 	size_t ncommunities;

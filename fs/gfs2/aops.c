@@ -82,31 +82,6 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 }
 
 /**
- * gfs2_writepage - Write page for writeback mappings
- * @page: The page
- * @wbc: The writeback control
- */
-static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct iomap_writepage_ctx wpc = { };
-
-	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
-		goto out;
-	if (current->journal_info)
-		goto redirty;
-	return iomap_writepage(page, wbc, &wpc, &gfs2_writeback_ops);
-
-redirty:
-	redirty_page_for_writepage(wbc, page);
-out:
-	unlock_page(page);
-	return 0;
-}
-
-/**
  * gfs2_write_jdata_page - gfs2 jdata-specific version of block_write_full_page
  * @page: The page to write
  * @wbc: The writeback control
@@ -464,39 +439,32 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	return 0;
 }
 
-
-static int __gfs2_readpage(void *file, struct page *page)
+/**
+ * gfs2_read_folio - read a folio from a file
+ * @file: The file to read
+ * @folio: The folio in the file
+ */
+static int gfs2_read_folio(struct file *file, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error;
 
 	if (!gfs2_is_jdata(ip) ||
-	    (i_blocksize(inode) == PAGE_SIZE && !page_has_buffers(page))) {
-		error = iomap_readpage(page, &gfs2_iomap_ops);
+	    (i_blocksize(inode) == PAGE_SIZE && !folio_buffers(folio))) {
+		error = iomap_read_folio(folio, &gfs2_iomap_ops);
 	} else if (gfs2_is_stuffed(ip)) {
-		error = stuffed_readpage(ip, page);
-		unlock_page(page);
+		error = stuffed_readpage(ip, &folio->page);
+		folio_unlock(folio);
 	} else {
-		error = mpage_readpage(page, gfs2_block_map);
+		error = mpage_read_folio(folio, gfs2_block_map);
 	}
 
 	if (unlikely(gfs2_withdrawn(sdp)))
 		return -EIO;
 
 	return error;
-}
-
-/**
- * gfs2_readpage - read a page of a file
- * @file: The file to read
- * @page: The page of the file
- */
-
-static int gfs2_readpage(struct file *file, struct page *page)
-{
-	return __gfs2_readpage(file, page);
 }
 
 /**
@@ -523,7 +491,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 		amt = size - copied;
 		if (offset + size > PAGE_SIZE)
 			amt = PAGE_SIZE - offset;
-		page = read_cache_page(mapping, index, __gfs2_readpage, NULL);
+		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 		p = kmap_atomic(page);
@@ -698,38 +666,40 @@ out:
 }
 
 /**
- * gfs2_releasepage - free the metadata associated with a page
- * @page: the page that's being released
+ * gfs2_release_folio - free the metadata associated with a folio
+ * @folio: the folio that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
  *
- * Calls try_to_free_buffers() to free the buffers and put the page if the
+ * Calls try_to_free_buffers() to free the buffers and put the folio if the
  * buffers can be released.
  *
- * Returns: 1 if the page was put or else 0
+ * Returns: true if the folio was put or else false
  */
 
-int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
+bool gfs2_release_folio(struct folio *folio, gfp_t gfp_mask)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
 	struct buffer_head *bh, *head;
 	struct gfs2_bufdata *bd;
 
-	if (!page_has_buffers(page))
-		return 0;
+	head = folio_buffers(folio);
+	if (!head)
+		return false;
 
 	/*
-	 * From xfs_vm_releasepage: mm accommodates an old ext3 case where
-	 * clean pages might not have had the dirty bit cleared.  Thus, it can
-	 * send actual dirty pages to ->releasepage() via shrink_active_list().
+	 * mm accommodates an old ext3 case where clean folios might
+	 * not have had the dirty bit cleared.	Thus, it can send actual
+	 * dirty folios to ->release_folio() via shrink_active_list().
 	 *
-	 * As a workaround, we skip pages that contain dirty buffers below.
-	 * Once ->releasepage isn't called on dirty pages anymore, we can warn
-	 * on dirty buffers like we used to here again.
+	 * As a workaround, we skip folios that contain dirty buffers
+	 * below.  Once ->release_folio isn't called on dirty folios
+	 * anymore, we can warn on dirty buffers like we used to here
+	 * again.
 	 */
 
 	gfs2_log_lock(sdp);
-	head = bh = page_buffers(page);
+	bh = head;
 	do {
 		if (atomic_read(&bh->b_count))
 			goto cannot_release;
@@ -739,9 +709,9 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		if (buffer_dirty(bh) || WARN_ON(buffer_pinned(bh)))
 			goto cannot_release;
 		bh = bh->b_this_page;
-	} while(bh != head);
+	} while (bh != head);
 
-	head = bh = page_buffers(page);
+	bh = head;
 	do {
 		bd = bh->b_private;
 		if (bd) {
@@ -762,24 +732,23 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	} while (bh != head);
 	gfs2_log_unlock(sdp);
 
-	return try_to_free_buffers(page);
+	return try_to_free_buffers(folio);
 
 cannot_release:
 	gfs2_log_unlock(sdp);
-	return 0;
+	return false;
 }
 
 static const struct address_space_operations gfs2_aops = {
-	.writepage = gfs2_writepage,
 	.writepages = gfs2_writepages,
-	.readpage = gfs2_readpage,
+	.read_folio = gfs2_read_folio,
 	.readahead = gfs2_readahead,
 	.dirty_folio = filemap_dirty_folio,
-	.releasepage = iomap_releasepage,
+	.release_folio = iomap_release_folio,
 	.invalidate_folio = iomap_invalidate_folio,
 	.bmap = gfs2_bmap,
 	.direct_IO = noop_direct_IO,
-	.migratepage = iomap_migrate_page,
+	.migrate_folio = filemap_migrate_folio,
 	.is_partially_uptodate = iomap_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };
@@ -787,12 +756,12 @@ static const struct address_space_operations gfs2_aops = {
 static const struct address_space_operations gfs2_jdata_aops = {
 	.writepage = gfs2_jdata_writepage,
 	.writepages = gfs2_jdata_writepages,
-	.readpage = gfs2_readpage,
+	.read_folio = gfs2_read_folio,
 	.readahead = gfs2_readahead,
 	.dirty_folio = jdata_dirty_folio,
 	.bmap = gfs2_bmap,
 	.invalidate_folio = gfs2_invalidate_folio,
-	.releasepage = gfs2_releasepage,
+	.release_folio = gfs2_release_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };

@@ -2701,7 +2701,7 @@ il3945_post_associate(struct il_priv *il)
 	if (!il->vif || !il->is_open)
 		return;
 
-	D_ASSOC("Associated as %d to: %pM\n", il->vif->bss_conf.aid,
+	D_ASSOC("Associated as %d to: %pM\n", il->vif->cfg.aid,
 		il->active.bssid_addr);
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
@@ -2718,9 +2718,9 @@ il3945_post_associate(struct il_priv *il)
 
 	il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	il->staging.assoc_id = cpu_to_le16(il->vif->bss_conf.aid);
+	il->staging.assoc_id = cpu_to_le16(il->vif->cfg.aid);
 
-	D_ASSOC("assoc id %d beacon interval %d\n", il->vif->bss_conf.aid,
+	D_ASSOC("assoc id %d beacon interval %d\n", il->vif->cfg.aid,
 		il->vif->bss_conf.beacon_int);
 
 	if (il->vif->bss_conf.use_short_preamble)
@@ -3254,7 +3254,7 @@ il3945_store_measurement(struct device *d, struct device_attribute *attr,
 
 	if (count) {
 		char *p = buffer;
-		strlcpy(buffer, buf, sizeof(buffer));
+		strscpy(buffer, buf, sizeof(buffer));
 		channel = simple_strtoul(p, NULL, 0);
 		if (channel)
 			params.channel = channel;

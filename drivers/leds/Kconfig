@@ -447,16 +447,16 @@ config LEDS_LP8860
 
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
-	depends on LEDS_CLASS
+	depends on LEDS_CLASS && BROKEN
 	depends on X86 && SERIO_I8042 && DMI
 	help
 	  This driver makes the mail LED accessible from userspace
-	  programs through the leds subsystem. This LED have three
-	  known mode: off, blink at 0.5Hz and blink at 1Hz.
+	  programs through the LEDs subsystem. This LED has three
+	  known modes: off, blink at 0.5Hz and blink at 1Hz.
 
 	  The driver supports two kinds of interface: using ledtrig-timer
 	  or through /sys/class/leds/clevo::mail/brightness. As this LED
-	  cannot change it's brightness it blinks instead. The brightness
+	  cannot change its brightness it blinks instead. The brightness
 	  value 0 means off, 1..127 means blink at 0.5Hz and 128..255 means
 	  blink at 1Hz.
 
@@ -697,7 +697,7 @@ config LEDS_MENF21BMC
 
 config LEDS_IS31FL319X
 	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
-	depends on LEDS_CLASS && I2C && OF
+	depends on LEDS_CLASS && I2C
 	select REGMAP_I2C
 	help
 	  This option enables support for LEDs connected to ISSI IS31FL319x
@@ -868,6 +868,9 @@ source "drivers/leds/blink/Kconfig"
 
 comment "Flash and Torch LED drivers"
 source "drivers/leds/flash/Kconfig"
+
+comment "RGB LED drivers"
+source "drivers/leds/rgb/Kconfig"
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

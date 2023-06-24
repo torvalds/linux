@@ -1539,7 +1539,7 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (!type_name)
 		return -ENODEV;
 
-	strlcpy(info->type, type_name, I2C_NAME_SIZE);
+	strscpy(info->type, type_name, I2C_NAME_SIZE);
 
 	return 0;
 }

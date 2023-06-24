@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 #ifndef _IPA_H_
 #define _IPA_H_
@@ -44,6 +44,7 @@ struct ipa_interrupt;
  * @uc_loaded:		true after microcontroller has reported it's ready
  * @reg_addr:		DMA address used for IPA register access
  * @reg_virt:		Virtual address used for IPA register access
+ * @regs:		IPA register definitions
  * @mem_addr:		DMA address of IPA-local memory space
  * @mem_virt:		Virtual address of IPA-local memory space
  * @mem_offset:		Offset from @mem_virt used for access to IPA memory
@@ -62,6 +63,7 @@ struct ipa_interrupt;
  * @initialized:	Bit mask indicating endpoints initialized
  * @set_up:		Bit mask indicating endpoints set up
  * @enabled:		Bit mask indicating endpoints enabled
+ * @modem_tx_count:	Number of defined modem TX endoints
  * @endpoint:		Array of endpoint information
  * @channel_map:	Mapping of GSI channel to IPA endpoint
  * @name_map:		Mapping of IPA endpoint name to IPA endpoint
@@ -89,6 +91,7 @@ struct ipa {
 
 	dma_addr_t reg_addr;
 	void __iomem *reg_virt;
+	const struct ipa_regs *regs;
 
 	dma_addr_t mem_addr;
 	void *mem_virt;
@@ -114,6 +117,7 @@ struct ipa {
 	u32 set_up;
 	u32 enabled;
 
+	u32 modem_tx_count;
 	struct ipa_endpoint endpoint[IPA_ENDPOINT_MAX];
 	struct ipa_endpoint *channel_map[GSI_CHANNEL_COUNT_MAX];
 	struct ipa_endpoint *name_map[IPA_ENDPOINT_COUNT];

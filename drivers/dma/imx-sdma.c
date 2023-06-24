@@ -14,6 +14,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -35,7 +36,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/irq.h>
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
@@ -73,6 +74,7 @@
 #define SDMA_CHNENBL0_IMX35	0x200
 #define SDMA_CHNENBL0_IMX31	0x080
 #define SDMA_CHNPRI_0		0x100
+#define SDMA_DONE0_CONFIG	0x1000
 
 /*
  * Buffer descriptor status values.
@@ -180,7 +182,15 @@
 				 BIT(DMA_MEM_TO_DEV) | \
 				 BIT(DMA_DEV_TO_DEV))
 
-/**
+#define SDMA_WATERMARK_LEVEL_N_FIFOS	GENMASK(15, 12)
+#define SDMA_WATERMARK_LEVEL_OFF_FIFOS  GENMASK(19, 16)
+#define SDMA_WATERMARK_LEVEL_WORDS_PER_FIFO   GENMASK(31, 28)
+#define SDMA_WATERMARK_LEVEL_SW_DONE	BIT(23)
+
+#define SDMA_DONE0_CONFIG_DONE_SEL	BIT(7)
+#define SDMA_DONE0_CONFIG_DONE_DIS	BIT(6)
+
+/*
  * struct sdma_script_start_addrs - SDMA script start pointers
  *
  * start addresses of the different functions in the physical
@@ -416,6 +426,14 @@ struct sdma_desc {
  * @data:		specific sdma interface structure
  * @bd_pool:		dma_pool for bd
  * @terminate_worker:	used to call back into terminate work function
+ * @terminated:		terminated list
+ * @is_ram_script:	flag for script in ram
+ * @n_fifos_src:	number of source device fifos
+ * @n_fifos_dst:	number of destination device fifos
+ * @sw_done:		software done flag
+ * @stride_fifos_src:	stride for source device FIFOs
+ * @stride_fifos_dst:	stride for destination device FIFOs
+ * @words_per_fifo:	copy number of words one time for one FIFO
  */
 struct sdma_channel {
 	struct virt_dma_chan		vc;
@@ -441,6 +459,12 @@ struct sdma_channel {
 	struct work_struct		terminate_worker;
 	struct list_head                terminated;
 	bool				is_ram_script;
+	unsigned int			n_fifos_src;
+	unsigned int			n_fifos_dst;
+	unsigned int			stride_fifos_src;
+	unsigned int			stride_fifos_dst;
+	unsigned int			words_per_fifo;
+	bool				sw_done;
 };
 
 #define IMX_DMA_SG_LOOP		BIT(0)
@@ -778,6 +802,14 @@ static void sdma_event_enable(struct sdma_channel *sdmac, unsigned int event)
 	val = readl_relaxed(sdma->regs + chnenbl);
 	__set_bit(channel, &val);
 	writel_relaxed(val, sdma->regs + chnenbl);
+
+	/* Set SDMA_DONEx_CONFIG is sw_done enabled */
+	if (sdmac->sw_done) {
+		val = readl_relaxed(sdma->regs + SDMA_DONE0_CONFIG);
+		val |= SDMA_DONE0_CONFIG_DONE_SEL;
+		val &= ~SDMA_DONE0_CONFIG_DONE_DIS;
+		writel_relaxed(val, sdma->regs + SDMA_DONE0_CONFIG);
+	}
 }
 
 static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
@@ -872,7 +904,7 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 	 * SDMA stops cyclic channel when DMA request triggers a channel and no SDMA
 	 * owned buffer is available (i.e. BD_DONE was set too late).
 	 */
-	if (!is_sdma_channel_enabled(sdmac->sdma, sdmac->channel)) {
+	if (sdmac->desc && !is_sdma_channel_enabled(sdmac->sdma, sdmac->channel)) {
 		dev_warn(sdmac->sdma->dev, "restart cyclic channel %d\n", sdmac->channel);
 		sdma_enable_channel(sdmac->sdma, sdmac->channel);
 	}
@@ -940,7 +972,7 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 /*
  * sets the pc of SDMA script according to the peripheral type
  */
-static void sdma_get_pc(struct sdma_channel *sdmac,
+static int sdma_get_pc(struct sdma_channel *sdmac,
 		enum sdma_peripheral_type peripheral_type)
 {
 	struct sdma_engine *sdma = sdmac->sdma;
@@ -1038,14 +1070,22 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	case IMX_DMATYPE_IPU_MEMORY:
 		emi_2_per = sdma->script_addrs->ext_mem_2_ipu_addr;
 		break;
-	default:
+	case IMX_DMATYPE_MULTI_SAI:
+		per_2_emi = sdma->script_addrs->sai_2_mcu_addr;
+		emi_2_per = sdma->script_addrs->mcu_2_sai_addr;
 		break;
+	default:
+		dev_err(sdma->dev, "Unsupported transfer type %d\n",
+			peripheral_type);
+		return -EINVAL;
 	}
 
 	sdmac->pc_from_device = per_2_emi;
 	sdmac->pc_to_device = emi_2_per;
 	sdmac->device_to_device = per_2_per;
 	sdmac->pc_to_pc = emi_2_emi;
+
+	return 0;
 }
 
 static int sdma_load_context(struct sdma_channel *sdmac)
@@ -1210,9 +1250,38 @@ static void sdma_set_watermarklevel_for_p2p(struct sdma_channel *sdmac)
 	sdmac->watermark_level |= SDMA_WATERMARK_LEVEL_CONT;
 }
 
+static void sdma_set_watermarklevel_for_sais(struct sdma_channel *sdmac)
+{
+	unsigned int n_fifos;
+	unsigned int stride_fifos;
+	unsigned int words_per_fifo;
+
+	if (sdmac->sw_done)
+		sdmac->watermark_level |= SDMA_WATERMARK_LEVEL_SW_DONE;
+
+	if (sdmac->direction == DMA_DEV_TO_MEM) {
+		n_fifos = sdmac->n_fifos_src;
+		stride_fifos = sdmac->stride_fifos_src;
+	} else {
+		n_fifos = sdmac->n_fifos_dst;
+		stride_fifos = sdmac->stride_fifos_dst;
+	}
+
+	words_per_fifo = sdmac->words_per_fifo;
+
+	sdmac->watermark_level |=
+			FIELD_PREP(SDMA_WATERMARK_LEVEL_N_FIFOS, n_fifos);
+	sdmac->watermark_level |=
+			FIELD_PREP(SDMA_WATERMARK_LEVEL_OFF_FIFOS, stride_fifos);
+	if (words_per_fifo)
+		sdmac->watermark_level |=
+			FIELD_PREP(SDMA_WATERMARK_LEVEL_WORDS_PER_FIFO, (words_per_fifo - 1));
+}
+
 static int sdma_config_channel(struct dma_chan *chan)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	int ret;
 
 	sdma_disable_channel(chan);
 
@@ -1233,7 +1302,9 @@ static int sdma_config_channel(struct dma_chan *chan)
 		break;
 	}
 
-	sdma_get_pc(sdmac, sdmac->peripheral_type);
+	ret = sdma_get_pc(sdmac, sdmac->peripheral_type);
+	if (ret)
+		return ret;
 
 	if ((sdmac->peripheral_type != IMX_DMATYPE_MEMORY) &&
 			(sdmac->peripheral_type != IMX_DMATYPE_DSP)) {
@@ -1243,6 +1314,10 @@ static int sdma_config_channel(struct dma_chan *chan)
 			    sdmac->peripheral_type == IMX_DMATYPE_ASRC)
 				sdma_set_watermarklevel_for_p2p(sdmac);
 		} else {
+			if (sdmac->peripheral_type ==
+					IMX_DMATYPE_MULTI_SAI)
+				sdma_set_watermarklevel_for_sais(sdmac);
+
 			__set_bit(sdmac->event_id0, sdmac->event_mask);
 		}
 
@@ -1349,7 +1424,9 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 		mem_data.dma_request2 = 0;
 		data = &mem_data;
 
-		sdma_get_pc(sdmac, IMX_DMATYPE_MEMORY);
+		ret = sdma_get_pc(sdmac, IMX_DMATYPE_MEMORY);
+		if (ret)
+			return ret;
 	}
 
 	switch (data->priority) {
@@ -1698,8 +1775,25 @@ static int sdma_config(struct dma_chan *chan,
 		       struct dma_slave_config *dmaengine_cfg)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	struct sdma_engine *sdma = sdmac->sdma;
 
 	memcpy(&sdmac->slave_config, dmaengine_cfg, sizeof(*dmaengine_cfg));
+
+	if (dmaengine_cfg->peripheral_config) {
+		struct sdma_peripheral_config *sdmacfg = dmaengine_cfg->peripheral_config;
+		if (dmaengine_cfg->peripheral_size != sizeof(struct sdma_peripheral_config)) {
+			dev_err(sdma->dev, "Invalid peripheral size %zu, expected %zu\n",
+				dmaengine_cfg->peripheral_size,
+				sizeof(struct sdma_peripheral_config));
+			return -EINVAL;
+		}
+		sdmac->n_fifos_src = sdmacfg->n_fifos_src;
+		sdmac->n_fifos_dst = sdmacfg->n_fifos_dst;
+		sdmac->stride_fifos_src = sdmacfg->stride_fifos_src;
+		sdmac->stride_fifos_dst = sdmacfg->stride_fifos_dst;
+		sdmac->words_per_fifo = sdmacfg->words_per_fifo;
+		sdmac->sw_done = sdmacfg->sw_done;
+	}
 
 	/* Set ENBLn earlier to make sure dma request triggered after that */
 	if (sdmac->event_id0 >= sdmac->sdma->drvdata->num_events)
@@ -2117,8 +2211,8 @@ static int sdma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	ret = devm_request_irq(&pdev->dev, irq, sdma_int_handler, 0, "sdma",
-			       sdma);
+	ret = devm_request_irq(&pdev->dev, irq, sdma_int_handler, 0,
+				dev_name(&pdev->dev), sdma);
 	if (ret)
 		goto err_irq;
 
@@ -2280,7 +2374,7 @@ MODULE_DESCRIPTION("i.MX SDMA driver");
 #if IS_ENABLED(CONFIG_SOC_IMX6Q)
 MODULE_FIRMWARE("imx/sdma/sdma-imx6q.bin");
 #endif
-#if IS_ENABLED(CONFIG_SOC_IMX7D)
+#if IS_ENABLED(CONFIG_SOC_IMX7D) || IS_ENABLED(CONFIG_SOC_IMX8M)
 MODULE_FIRMWARE("imx/sdma/sdma-imx7d.bin");
 #endif
 MODULE_LICENSE("GPL");

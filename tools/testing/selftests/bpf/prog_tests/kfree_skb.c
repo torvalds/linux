@@ -69,7 +69,7 @@ void serial_test_kfree_skb(void)
 	const int zero = 0;
 	bool test_ok[2];
 
-	err = bpf_prog_test_load("./test_pkt_access.o", BPF_PROG_TYPE_SCHED_CLS,
+	err = bpf_prog_test_load("./test_pkt_access.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
 				 &obj, &prog_fd);
 	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
 		return;

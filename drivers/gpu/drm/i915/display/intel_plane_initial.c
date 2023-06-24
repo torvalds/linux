@@ -3,6 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "gem/i915_gem_region.h"
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
 #include "intel_display.h"
@@ -46,16 +47,55 @@ static struct i915_vma *
 initial_plane_vma(struct drm_i915_private *i915,
 		  struct intel_initial_plane_config *plane_config)
 {
-	struct intel_memory_region *mem = i915->mm.stolen_region;
+	struct intel_memory_region *mem;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	resource_size_t phys_base;
 	u32 base, size;
+	u64 pinctl;
 
-	if (!mem || plane_config->size == 0)
+	if (plane_config->size == 0)
 		return NULL;
 
-	base = round_down(plane_config->base,
-			  I915_GTT_MIN_ALIGNMENT);
+	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
+	if (IS_DGFX(i915)) {
+		gen8_pte_t __iomem *gte = to_gt(i915)->ggtt->gsm;
+		gen8_pte_t pte;
+
+		gte += base / I915_GTT_PAGE_SIZE;
+
+		pte = ioread64(gte);
+		if (!(pte & GEN12_GGTT_PTE_LM)) {
+			drm_err(&i915->drm,
+				"Initial plane programming missing PTE_LM bit\n");
+			return NULL;
+		}
+
+		phys_base = pte & I915_GTT_PAGE_MASK;
+		mem = i915->mm.regions[INTEL_REGION_LMEM_0];
+
+		/*
+		 * We don't currently expect this to ever be placed in the
+		 * stolen portion.
+		 */
+		if (phys_base >= resource_size(&mem->region)) {
+			drm_err(&i915->drm,
+				"Initial plane programming using invalid range, phys_base=%pa\n",
+				&phys_base);
+			return NULL;
+		}
+
+		drm_dbg(&i915->drm,
+			"Using phys_base=%pa, based on initial plane programming\n",
+			&phys_base);
+	} else {
+		phys_base = base;
+		mem = i915->mm.stolen_region;
+	}
+
+	if (!mem)
+		return NULL;
+
 	size = round_up(plane_config->base + plane_config->size,
 			mem->min_page_size);
 	size -= base;
@@ -66,10 +106,11 @@ initial_plane_vma(struct drm_i915_private *i915,
 	 * features.
 	 */
 	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
+	    mem == i915->mm.stolen_region &&
 	    size * 2 > i915->stolen_usable_size)
 		return NULL;
 
-	obj = i915_gem_object_create_stolen_for_preallocated(i915, base, size);
+	obj = i915_gem_object_create_region_at(mem, phys_base, size, 0);
 	if (IS_ERR(obj))
 		return NULL;
 
@@ -99,7 +140,10 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (IS_ERR(vma))
 		goto err_obj;
 
-	if (i915_ggtt_pin(vma, NULL, 0, PIN_MAPPABLE | PIN_OFFSET_FIXED | base))
+	pinctl = PIN_GLOBAL | PIN_OFFSET_FIXED | base;
+	if (HAS_GMCH(i915))
+		pinctl |= PIN_MAPPABLE;
+	if (i915_vma_pin(vma, 0, 0, pinctl))
 		goto err_obj;
 
 	if (i915_gem_object_is_tiled(obj) &&
@@ -127,6 +171,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_4_TILED:
 		break;
 	default:
 		drm_dbg(&dev_priv->drm,
@@ -266,7 +311,7 @@ void intel_crtc_initial_plane_config(struct intel_crtc *crtc)
 	 * can even allow for smooth boot transitions if the BIOS
 	 * fb is large enough for the active pipe configuration.
 	 */
-	dev_priv->display->get_initial_plane_config(crtc, &plane_config);
+	dev_priv->display.funcs.display->get_initial_plane_config(crtc, &plane_config);
 
 	/*
 	 * If the fb is shared between multiple heads, we'll

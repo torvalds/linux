@@ -218,8 +218,8 @@ static void ipmi_ipmb_send_response(struct ipmi_ipmb_dev *iidev,
 {
 	if ((msg->data[0] >> 2) & 1) {
 		/*
-		 * It's a response being sent, we needto return a
-		 * response response.  Fake a send msg command
+		 * It's a response being sent, we need to return a
+		 * response to the response.  Fake a send msg command
 		 * response with channel 0.  This will always be ipmb
 		 * direct.
 		 */
@@ -424,10 +424,8 @@ static void ipmi_ipmb_request_events(void *send_info)
 	/* We don't fetch events here. */
 }
 
-static int ipmi_ipmb_remove(struct i2c_client *client)
+static void ipmi_ipmb_cleanup(struct ipmi_ipmb_dev *iidev)
 {
-	struct ipmi_ipmb_dev *iidev = i2c_get_clientdata(client);
-
 	if (iidev->slave) {
 		i2c_slave_unregister(iidev->slave);
 		if (iidev->slave != iidev->client)
@@ -436,14 +434,17 @@ static int ipmi_ipmb_remove(struct i2c_client *client)
 	iidev->slave = NULL;
 	iidev->client = NULL;
 	ipmi_ipmb_stop_thread(iidev);
-
-	ipmi_unregister_smi(iidev->intf);
-
-	return 0;
 }
 
-static int ipmi_ipmb_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static void ipmi_ipmb_remove(struct i2c_client *client)
+{
+	struct ipmi_ipmb_dev *iidev = i2c_get_clientdata(client);
+
+	ipmi_ipmb_cleanup(iidev);
+	ipmi_unregister_smi(iidev->intf);
+}
+
+static int ipmi_ipmb_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ipmi_ipmb_dev *iidev;
@@ -476,6 +477,7 @@ static int ipmi_ipmb_probe(struct i2c_client *client,
 	slave_np = of_parse_phandle(dev->of_node, "slave-dev", 0);
 	if (slave_np) {
 		slave_adap = of_get_i2c_adapter_by_node(slave_np);
+		of_node_put(slave_np);
 		if (!slave_adap) {
 			dev_notice(&client->dev,
 				   "Could not find slave adapter\n");
@@ -544,7 +546,7 @@ static int ipmi_ipmb_probe(struct i2c_client *client,
 out_err:
 	if (slave && slave != client)
 		i2c_unregister_device(slave);
-	ipmi_ipmb_remove(client);
+	ipmi_ipmb_cleanup(iidev);
 	return rv;
 }
 
@@ -570,7 +572,7 @@ static struct i2c_driver ipmi_ipmb_driver = {
 		.name = DEVICE_NAME,
 		.of_match_table = of_ipmi_ipmb_match,
 	},
-	.probe		= ipmi_ipmb_probe,
+	.probe_new	= ipmi_ipmb_probe,
 	.remove		= ipmi_ipmb_remove,
 	.id_table	= ipmi_ipmb_id,
 };

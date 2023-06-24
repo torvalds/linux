@@ -618,7 +618,7 @@ static int qedi_cm_alloc_mem(struct qedi_ctx *qedi)
 				sizeof(struct qedi_endpoint *)), GFP_KERNEL);
 	if (!qedi->ep_tbl)
 		return -ENOMEM;
-	port_id = prandom_u32() % QEDI_LOCAL_PORT_RANGE;
+	port_id = prandom_u32_max(QEDI_LOCAL_PORT_RANGE);
 	if (qedi_init_id_tbl(&qedi->lcl_port_tbl, QEDI_LOCAL_PORT_RANGE,
 			     QEDI_LOCAL_PORT_MIN, port_id)) {
 		qedi_cm_free_mem(qedi);
@@ -2414,9 +2414,12 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	int rval;
 	u16 retry = 10;
 
-	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
-		iscsi_host_remove(qedi->shost);
+	if (mode == QEDI_MODE_NORMAL)
+		iscsi_host_remove(qedi->shost, false);
+	else if (mode == QEDI_MODE_SHUTDOWN)
+		iscsi_host_remove(qedi->shost, true);
 
+	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
 		if (qedi->tmf_thread) {
 			destroy_workqueue(qedi->tmf_thread);
 			qedi->tmf_thread = NULL;
@@ -2491,7 +2494,7 @@ static void qedi_board_disable_work(struct work_struct *work)
 	if (test_and_set_bit(QEDI_IN_SHUTDOWN, &qedi->flags))
 		return;
 
-	__qedi_remove(qedi->pdev, QEDI_MODE_SHUTDOWN);
+	__qedi_remove(qedi->pdev, QEDI_MODE_NORMAL);
 }
 
 static void qedi_shutdown(struct pci_dev *pdev)
@@ -2791,7 +2794,7 @@ remove_host:
 #ifdef CONFIG_DEBUG_FS
 	qedi_dbg_host_exit(&qedi->dbg_ctx);
 #endif
-	iscsi_host_remove(qedi->shost);
+	iscsi_host_remove(qedi->shost, false);
 stop_iscsi_func:
 	qedi_ops->stop(qedi->cdev);
 stop_slowpath:

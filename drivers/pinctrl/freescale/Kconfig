@@ -119,28 +119,32 @@ config PINCTRL_IMX7ULP
 
 config PINCTRL_IMX8MM
 	tristate "IMX8MM pinctrl driver"
-	depends on ARCH_MXC
+	depends on OF
+	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mm pinctrl driver
 
 config PINCTRL_IMX8MN
 	tristate "IMX8MN pinctrl driver"
-	depends on ARCH_MXC
+	depends on OF
+	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mn pinctrl driver
 
 config PINCTRL_IMX8MP
 	tristate "IMX8MP pinctrl driver"
-	depends on ARCH_MXC
+	depends on OF
+	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mp pinctrl driver
 
 config PINCTRL_IMX8MQ
 	tristate "IMX8MQ pinctrl driver"
-	depends on ARCH_MXC
+	depends on OF
+	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mq pinctrl driver
@@ -206,3 +210,10 @@ config PINCTRL_IMX23
 config PINCTRL_IMX28
 	bool
 	select PINCTRL_MXS
+
+config PINCTRL_IMXRT1170
+	bool "IMXRT1170 pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imxrt1170 pinctrl driver

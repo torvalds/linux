@@ -170,7 +170,9 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",discard");
 	if (opts->keep_last_dots)
 		seq_puts(m, ",keep_last_dots");
-	if (opts->time_offset)
+	if (opts->sys_tz)
+		seq_puts(m, ",sys_tz");
+	else if (opts->time_offset)
 		seq_printf(m, ",time_offset=%d", opts->time_offset);
 	return 0;
 }
@@ -214,6 +216,7 @@ enum {
 	Opt_errors,
 	Opt_discard,
 	Opt_keep_last_dots,
+	Opt_sys_tz,
 	Opt_time_offset,
 
 	/* Deprecated options */
@@ -241,6 +244,7 @@ static const struct fs_parameter_spec exfat_parameters[] = {
 	fsparam_enum("errors",			Opt_errors, exfat_param_enums),
 	fsparam_flag("discard",			Opt_discard),
 	fsparam_flag("keep_last_dots",		Opt_keep_last_dots),
+	fsparam_flag("sys_tz",			Opt_sys_tz),
 	fsparam_s32("time_offset",		Opt_time_offset),
 	__fsparam(NULL, "utf8",			Opt_utf8, fs_param_deprecated,
 		  NULL),
@@ -297,6 +301,9 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_keep_last_dots:
 		opts->keep_last_dots = 1;
+		break;
+	case Opt_sys_tz:
+		opts->sys_tz = 1;
 		break;
 	case Opt_time_offset:
 		/*
@@ -457,7 +464,7 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	 */
 	if (p_boot->sect_size_bits < EXFAT_MIN_SECT_SIZE_BITS ||
 	    p_boot->sect_size_bits > EXFAT_MAX_SECT_SIZE_BITS) {
-		exfat_err(sb, "bogus sector size bits : %u\n",
+		exfat_err(sb, "bogus sector size bits : %u",
 				p_boot->sect_size_bits);
 		return -EINVAL;
 	}
@@ -466,7 +473,7 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	 * sect_per_clus_bits could be at least 0 and at most 25 - sect_size_bits.
 	 */
 	if (p_boot->sect_per_clus_bits > EXFAT_MAX_SECT_PER_CLUS_BITS(p_boot)) {
-		exfat_err(sb, "bogus sectors bits per cluster : %u\n",
+		exfat_err(sb, "bogus sectors bits per cluster : %u",
 				p_boot->sect_per_clus_bits);
 		return -EINVAL;
 	}
@@ -627,13 +634,9 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (opts->allow_utime == (unsigned short)-1)
 		opts->allow_utime = ~opts->fs_dmask & 0022;
 
-	if (opts->discard) {
-		struct request_queue *q = bdev_get_queue(sb->s_bdev);
-
-		if (!blk_queue_discard(q)) {
-			exfat_warn(sb, "mounting with \"discard\" option, but the device does not support discard");
-			opts->discard = 0;
-		}
+	if (opts->discard && !bdev_max_discard_sectors(sb->s_bdev)) {
+		exfat_warn(sb, "mounting with \"discard\" option, but the device does not support discard");
+		opts->discard = 0;
 	}
 
 	sb->s_flags |= SB_NODIRATIME;

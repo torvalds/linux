@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "dm_helpers.h"
 #include "gpio_service_interface.h"
@@ -37,6 +35,8 @@
 #include "dc_link_ddc.h"
 #include "dce/dce_aux.h"
 #include "dmub/inc/dmub_cmd.h"
+#include "link_dpcd.h"
+#include "include/dal_asic_id.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -95,16 +95,13 @@ union hdmi_scdc_update_read_data {
 };
 
 union hdmi_scdc_status_flags_data {
-	uint8_t byte[2];
+	uint8_t byte;
 	struct {
 		uint8_t CLOCK_DETECTED:1;
 		uint8_t CH0_LOCKED:1;
 		uint8_t CH1_LOCKED:1;
 		uint8_t CH2_LOCKED:1;
 		uint8_t RESERVED:4;
-		uint8_t RESERVED2:8;
-		uint8_t RESERVED3:8;
-
 	} fields;
 };
 
@@ -543,15 +540,9 @@ bool dal_ddc_service_query_ddc_data(
 
 	uint32_t payloads_num = write_payloads + read_payloads;
 
-
-	if (write_size > EDID_SEGMENT_SIZE || read_size > EDID_SEGMENT_SIZE)
-		return false;
-
 	if (!payloads_num)
 		return false;
 
-	/*TODO: len of payload data for i2c and aux is uint8!!!!,
-	 *  but we want to read 256 over i2c!!!!*/
 	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
 		struct aux_payload payload;
 
@@ -694,6 +685,21 @@ bool dc_link_aux_try_to_configure_timeout(struct ddc_service *ddc,
 	bool result = false;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 
+	if ((ddc->link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			!ddc->link->dc->debug.disable_fixed_vs_aux_timeout_wa &&
+			ASICREV_IS_YELLOW_CARP(ddc->ctx->asic_id.hw_internal_rev)) {
+		/* Fixed VS workaround for AUX timeout */
+		const uint32_t fixed_vs_address = 0xF004F;
+		const uint8_t fixed_vs_data[4] = {0x1, 0x22, 0x63, 0xc};
+
+		core_link_write_dpcd(ddc->link,
+				fixed_vs_address,
+				fixed_vs_data,
+				sizeof(fixed_vs_data));
+
+		timeout = 3072;
+	}
+
 	/* Do not try to access nonexistent DDC pin. */
 	if (ddc->link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return true;
@@ -702,6 +708,7 @@ bool dc_link_aux_try_to_configure_timeout(struct ddc_service *ddc,
 		ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);
 		result = true;
 	}
+
 	return result;
 }
 
@@ -778,7 +785,7 @@ void dal_ddc_service_read_scdc_data(struct ddc_service *ddc_service)
 				sizeof(scramble_status));
 		offset = HDMI_SCDC_STATUS_FLAGS;
 		dal_ddc_service_query_ddc_data(ddc_service, slave_address,
-				&offset, sizeof(offset), status_data.byte,
+				&offset, sizeof(offset), &status_data.byte,
 				sizeof(status_data.byte));
 	}
 }

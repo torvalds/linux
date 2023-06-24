@@ -113,7 +113,7 @@
 &qspi {
 	status = "okay";
 
-	flash0: n25q512a@0 {
+	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "micron,n25q512a", "jedec,spi-nor";

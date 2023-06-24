@@ -36,7 +36,7 @@ struct scmi_msg_resp_base_attributes {
 
 struct scmi_msg_resp_base_discover_agent {
 	__le32 agent_id;
-	u8 name[SCMI_MAX_STR_SIZE];
+	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 
@@ -119,7 +119,7 @@ scmi_base_vendor_id_get(const struct scmi_protocol_handle *ph, bool sub_vendor)
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret)
-		memcpy(vendor_id, t->rx.buf, size);
+		strscpy(vendor_id, t->rx.buf, size);
 
 	ph->xops->xfer_put(ph, t);
 
@@ -178,6 +178,7 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 	__le32 *num_skip, *num_ret;
 	u32 tot_num_ret = 0, loop_num_ret;
 	struct device *dev = ph->dev;
+	struct scmi_revision_info *rev = ph->get_priv(ph);
 
 	ret = ph->xops->xfer_get_init(ph, BASE_DISCOVER_LIST_PROTOCOLS,
 				      sizeof(*num_skip), 0, &t);
@@ -189,6 +190,9 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 	list = t->rx.buf + sizeof(*num_ret);
 
 	do {
+		size_t real_list_sz;
+		u32 calc_list_sz;
+
 		/* Set the number of protocols to be skipped/already read */
 		*num_skip = cpu_to_le32(tot_num_ret);
 
@@ -197,9 +201,37 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 			break;
 
 		loop_num_ret = le32_to_cpu(*num_ret);
-		if (tot_num_ret + loop_num_ret > MAX_PROTOCOLS_IMP) {
-			dev_err(dev, "No. of Protocol > MAX_PROTOCOLS_IMP");
+		if (!loop_num_ret)
 			break;
+
+		if (loop_num_ret > rev->num_protocols - tot_num_ret) {
+			dev_err(dev,
+				"No. Returned protocols > Total protocols.\n");
+			break;
+		}
+
+		if (t->rx.len < (sizeof(u32) * 2)) {
+			dev_err(dev, "Truncated reply - rx.len:%zd\n",
+				t->rx.len);
+			ret = -EPROTO;
+			break;
+		}
+
+		real_list_sz = t->rx.len - sizeof(u32);
+		calc_list_sz = (1 + (loop_num_ret - 1) / sizeof(u32)) *
+				sizeof(u32);
+		if (calc_list_sz != real_list_sz) {
+			dev_warn(dev,
+				 "Malformed reply - real_sz:%zd  calc_sz:%u  (loop_num_ret:%d)\n",
+				 real_list_sz, calc_list_sz, loop_num_ret);
+			/*
+			 * Bail out if the expected list size is bigger than the
+			 * total payload size of the received reply.
+			 */
+			if (calc_list_sz > real_list_sz) {
+				ret = -EPROTO;
+				break;
+			}
 		}
 
 		for (loop = 0; loop < loop_num_ret; loop++)
@@ -208,7 +240,7 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 		tot_num_ret += loop_num_ret;
 
 		ph->xops->reset_rx_to_maxsz(ph, t);
-	} while (loop_num_ret);
+	} while (tot_num_ret < rev->num_protocols);
 
 	ph->xops->xfer_put(ph, t);
 
@@ -244,7 +276,7 @@ static int scmi_base_discover_agent_get(const struct scmi_protocol_handle *ph,
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		agent_info = t->rx.buf;
-		strlcpy(name, agent_info->name, SCMI_MAX_STR_SIZE);
+		strscpy(name, agent_info->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
@@ -343,7 +375,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	int id, ret;
 	u8 *prot_imp;
 	u32 version;
-	char name[SCMI_MAX_STR_SIZE];
+	char name[SCMI_SHORT_NAME_MAX_SIZE];
 	struct device *dev = ph->dev;
 	struct scmi_revision_info *rev = scmi_revision_area_get(ph);
 
@@ -351,15 +383,19 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	prot_imp = devm_kcalloc(dev, MAX_PROTOCOLS_IMP, sizeof(u8), GFP_KERNEL);
-	if (!prot_imp)
-		return -ENOMEM;
-
 	rev->major_ver = PROTOCOL_REV_MAJOR(version),
 	rev->minor_ver = PROTOCOL_REV_MINOR(version);
 	ph->set_priv(ph, rev);
 
-	scmi_base_attributes_get(ph);
+	ret = scmi_base_attributes_get(ph);
+	if (ret)
+		return ret;
+
+	prot_imp = devm_kcalloc(dev, rev->num_protocols, sizeof(u8),
+				GFP_KERNEL);
+	if (!prot_imp)
+		return -ENOMEM;
+
 	scmi_base_vendor_id_get(ph, false);
 	scmi_base_vendor_id_get(ph, true);
 	scmi_base_implementation_version_get(ph);

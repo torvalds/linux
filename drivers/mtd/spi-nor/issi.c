@@ -14,19 +14,34 @@ is25lp256_post_bfpt_fixups(struct spi_nor *nor,
 			   const struct sfdp_bfpt *bfpt)
 {
 	/*
-	 * IS25LP256 supports 4B opcodes, but the BFPT advertises a
-	 * BFPT_DWORD1_ADDRESS_BYTES_3_ONLY address width.
-	 * Overwrite the address width advertised by the BFPT.
+	 * IS25LP256 supports 4B opcodes, but the BFPT advertises
+	 * BFPT_DWORD1_ADDRESS_BYTES_3_ONLY.
+	 * Overwrite the number of address bytes advertised by the BFPT.
 	 */
 	if ((bfpt->dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) ==
 		BFPT_DWORD1_ADDRESS_BYTES_3_ONLY)
-		nor->addr_width = 4;
+		nor->params->addr_nbytes = 4;
 
 	return 0;
 }
 
 static const struct spi_nor_fixups is25lp256_fixups = {
 	.post_bfpt = is25lp256_post_bfpt_fixups,
+};
+
+static void pm25lv_nor_late_init(struct spi_nor *nor)
+{
+	struct spi_nor_erase_map *map = &nor->params->erase_map;
+	int i;
+
+	/* The PM25LV series has a different 4k sector erase opcode */
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
+		if (map->erase_type[i].size == 4096)
+			map->erase_type[i].opcode = SPINOR_OP_BE_4K_PMC;
+}
+
+static const struct spi_nor_fixups pm25lv_nor_fixups = {
+	.late_init = pm25lv_nor_late_init,
 };
 
 static const struct flash_info issi_nor_parts[] = {
@@ -62,9 +77,13 @@ static const struct flash_info issi_nor_parts[] = {
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2)
-		NO_SFDP_FLAGS(SECT_4K_PMC) },
+		NO_SFDP_FLAGS(SECT_4K)
+		.fixups = &pm25lv_nor_fixups
+	},
 	{ "pm25lv010",   INFO(0,        0, 32 * 1024,    4)
-		NO_SFDP_FLAGS(SECT_4K_PMC) },
+		NO_SFDP_FLAGS(SECT_4K)
+		.fixups = &pm25lv_nor_fixups
+	},
 	{ "pm25lq032",   INFO(0x7f9d46, 0, 64 * 1024,   64)
 		NO_SFDP_FLAGS(SECT_4K) },
 };

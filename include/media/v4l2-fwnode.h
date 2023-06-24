@@ -45,10 +45,6 @@ struct v4l2_async_subdev;
  */
 struct v4l2_fwnode_endpoint {
 	struct fwnode_endpoint base;
-	/*
-	 * Fields below this line will be zeroed by
-	 * v4l2_fwnode_endpoint_parse()
-	 */
 	enum v4l2_mbus_type bus_type;
 	struct {
 		struct v4l2_mbus_config_parallel parallel;
@@ -173,6 +169,7 @@ struct v4l2_fwnode_connector {
  * @V4L2_FWNODE_BUS_TYPE_CSI2_DPHY: MIPI CSI-2 bus, D-PHY physical layer
  * @V4L2_FWNODE_BUS_TYPE_PARALLEL: Camera Parallel Interface bus
  * @V4L2_FWNODE_BUS_TYPE_BT656: BT.656 video format bus-type
+ * @V4L2_FWNODE_BUS_TYPE_DPI: Video Parallel Interface bus
  * @NR_OF_V4L2_FWNODE_BUS_TYPE: Number of bus-types
  */
 enum v4l2_fwnode_bus_type {
@@ -183,6 +180,7 @@ enum v4l2_fwnode_bus_type {
 	V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
 	V4L2_FWNODE_BUS_TYPE_PARALLEL,
 	V4L2_FWNODE_BUS_TYPE_BT656,
+	V4L2_FWNODE_BUS_TYPE_DPI,
 	NR_OF_V4L2_FWNODE_BUS_TYPE
 };
 

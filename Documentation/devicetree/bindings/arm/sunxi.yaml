@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/sunxi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner platforms device tree bindings
+title: Allwinner platforms
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -390,6 +390,11 @@ properties:
         items:
           - const: libretech,all-h5-cc-h5
           - const: allwinner,sun50i-h5
+
+      - description: Lichee Pi Nano
+        items:
+          - const: licheepi,licheepi-nano
+          - const: allwinner,suniv-f1c100s
 
       - description: Lichee Pi One
         items:
@@ -858,6 +863,11 @@ properties:
           - const: yones-toptech,bs1078-v2
           - const: allwinner,sun6i-a31s
 
+      - description: X96 Mate TV box
+        items:
+          - const: hechuang,x96-mate
+          - const: allwinner,sun50i-h616
+
       - description: Xunlong OrangePi
         items:
           - const: xunlong,orangepi
@@ -957,5 +967,10 @@ properties:
         items:
           - const: xunlong,orangepi-zero-plus2-h3
           - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi Zero 2
+        items:
+          - const: xunlong,orangepi-zero2
+          - const: allwinner,sun50i-h616
 
 additionalProperties: true

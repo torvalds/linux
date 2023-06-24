@@ -20,8 +20,8 @@ static void test_tailcall_1(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall1.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall1.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -156,8 +156,8 @@ static void test_tailcall_2(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall2.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall2.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -299,7 +299,7 @@ out:
  */
 static void test_tailcall_3(void)
 {
-	test_tailcall_count("tailcall3.o");
+	test_tailcall_count("tailcall3.bpf.o");
 }
 
 /* test_tailcall_6 checks that the count value of the tail call limit
@@ -307,7 +307,7 @@ static void test_tailcall_3(void)
  */
 static void test_tailcall_6(void)
 {
-	test_tailcall_count("tailcall6.o");
+	test_tailcall_count("tailcall6.bpf.o");
 }
 
 /* test_tailcall_4 checks that the kernel properly selects indirect jump
@@ -329,8 +329,8 @@ static void test_tailcall_4(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall4.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall4.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -419,8 +419,8 @@ static void test_tailcall_5(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall5.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &prog_fd);
+	err = bpf_prog_test_load("tailcall5.bpf.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+				 &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -507,8 +507,8 @@ static void test_tailcall_bpf2bpf_1(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf1.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf1.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -591,8 +591,8 @@ static void test_tailcall_bpf2bpf_2(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf2.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf2.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -671,8 +671,8 @@ static void test_tailcall_bpf2bpf_3(void)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf3.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf3.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -766,8 +766,8 @@ static void test_tailcall_bpf2bpf_4(bool noise)
 		.repeat = 1,
 	);
 
-	err = bpf_prog_test_load("tailcall_bpf2bpf4.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &prog_fd);
+	err = bpf_prog_test_load("tailcall_bpf2bpf4.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -831,6 +831,59 @@ out:
 	bpf_object__close(obj);
 }
 
+#include "tailcall_bpf2bpf6.skel.h"
+
+/* Tail call counting works even when there is data on stack which is
+ * not aligned to 8 bytes.
+ */
+static void test_tailcall_bpf2bpf_6(void)
+{
+	struct tailcall_bpf2bpf6 *obj;
+	int err, map_fd, prog_fd, main_fd, data_fd, i, val;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
+
+	obj = tailcall_bpf2bpf6__open_and_load();
+	if (!ASSERT_OK_PTR(obj, "open and load"))
+		return;
+
+	main_fd = bpf_program__fd(obj->progs.entry);
+	if (!ASSERT_GE(main_fd, 0, "entry prog fd"))
+		goto out;
+
+	map_fd = bpf_map__fd(obj->maps.jmp_table);
+	if (!ASSERT_GE(map_fd, 0, "jmp_table map fd"))
+		goto out;
+
+	prog_fd = bpf_program__fd(obj->progs.classifier_0);
+	if (!ASSERT_GE(prog_fd, 0, "classifier_0 prog fd"))
+		goto out;
+
+	i = 0;
+	err = bpf_map_update_elem(map_fd, &i, &prog_fd, BPF_ANY);
+	if (!ASSERT_OK(err, "jmp_table map update"))
+		goto out;
+
+	err = bpf_prog_test_run_opts(main_fd, &topts);
+	ASSERT_OK(err, "entry prog test run");
+	ASSERT_EQ(topts.retval, 0, "tailcall retval");
+
+	data_fd = bpf_map__fd(obj->maps.bss);
+	if (!ASSERT_GE(map_fd, 0, "bss map fd"))
+		goto out;
+
+	i = 0;
+	err = bpf_map_lookup_elem(data_fd, &i, &val);
+	ASSERT_OK(err, "bss map lookup");
+	ASSERT_EQ(val, 1, "done flag is set");
+
+out:
+	tailcall_bpf2bpf6__destroy(obj);
+}
+
 void test_tailcalls(void)
 {
 	if (test__start_subtest("tailcall_1"))
@@ -855,4 +908,6 @@ void test_tailcalls(void)
 		test_tailcall_bpf2bpf_4(false);
 	if (test__start_subtest("tailcall_bpf2bpf_5"))
 		test_tailcall_bpf2bpf_4(true);
+	if (test__start_subtest("tailcall_bpf2bpf_6"))
+		test_tailcall_bpf2bpf_6();
 }

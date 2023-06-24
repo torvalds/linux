@@ -121,12 +121,14 @@ static int pca9570_probe(struct i2c_client *client)
 
 static const struct i2c_device_id pca9570_id_table[] = {
 	{ "pca9570", 4 },
+	{ "pca9571", 8 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, pca9570_id_table);
 
 static const struct of_device_id pca9570_of_match_table[] = {
 	{ .compatible = "nxp,pca9570", .data = (void *)4 },
+	{ .compatible = "nxp,pca9571", .data = (void *)8 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pca9570_of_match_table);

@@ -719,6 +719,11 @@ static int x25_wait_for_connection_establishment(struct sock *sk)
 			sk->sk_socket->state = SS_UNCONNECTED;
 			break;
 		}
+		rc = -ENOTCONN;
+		if (sk->sk_state == TCP_CLOSE) {
+			sk->sk_socket->state = SS_UNCONNECTED;
+			break;
+		}
 		rc = 0;
 		if (sk->sk_state != TCP_ESTABLISHED) {
 			release_sock(sk);
@@ -1315,8 +1320,7 @@ static int x25_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	} else {
 		/* Now we can treat all alike */
 		release_sock(sk);
-		skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
-					flags & MSG_DONTWAIT, &rc);
+		skb = skb_recv_datagram(sk, flags, &rc);
 		lock_sock(sk);
 		if (!skb)
 			goto out;

@@ -59,6 +59,23 @@ static struct workqueue_struct *blkcg_punt_bio_wq;
 
 #define BLKG_DESTROY_BATCH_SIZE  64
 
+/**
+ * blkcg_css - find the current css
+ *
+ * Find the css associated with either the kthread or the current task.
+ * This may return a dying css, so it is up to the caller to use tryget logic
+ * to confirm it is alive and well.
+ */
+static struct cgroup_subsys_state *blkcg_css(void)
+{
+	struct cgroup_subsys_state *css;
+
+	css = kthread_blkcg();
+	if (css)
+		return css;
+	return task_css(current, io_cgrp_id);
+}
+
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
 {
@@ -156,21 +173,48 @@ static void blkg_async_bio_workfn(struct work_struct *work)
 }
 
 /**
+ * bio_blkcg_css - return the blkcg CSS associated with a bio
+ * @bio: target bio
+ *
+ * This returns the CSS for the blkcg associated with a bio, or %NULL if not
+ * associated. Callers are expected to either handle %NULL or know association
+ * has been done prior to calling this.
+ */
+struct cgroup_subsys_state *bio_blkcg_css(struct bio *bio)
+{
+	if (!bio || !bio->bi_blkg)
+		return NULL;
+	return &bio->bi_blkg->blkcg->css;
+}
+EXPORT_SYMBOL_GPL(bio_blkcg_css);
+
+/**
+ * blkcg_parent - get the parent of a blkcg
+ * @blkcg: blkcg of interest
+ *
+ * Return the parent blkcg of @blkcg.  Can be called anytime.
+ */
+static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
+{
+	return css_to_blkcg(blkcg->css.parent);
+}
+
+/**
  * blkg_alloc - allocate a blkg
  * @blkcg: block cgroup the new blkg is associated with
- * @q: request_queue the new blkg is associated with
+ * @disk: gendisk the new blkg is associated with
  * @gfp_mask: allocation mask to use
  *
  * Allocate a new blkg assocating @blkcg and @q.
  */
-static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
+static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct gendisk *disk,
 				   gfp_t gfp_mask)
 {
 	struct blkcg_gq *blkg;
 	int i, cpu;
 
 	/* alloc and init base part */
-	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, q->node);
+	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, disk->queue->node);
 	if (!blkg)
 		return NULL;
 
@@ -181,10 +225,10 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	if (!blkg->iostat_cpu)
 		goto err_free;
 
-	if (!blk_get_queue(q))
+	if (!blk_get_queue(disk->queue))
 		goto err_free;
 
-	blkg->q = q;
+	blkg->q = disk->queue;
 	INIT_LIST_HEAD(&blkg->q_node);
 	spin_lock_init(&blkg->async_bio_lock);
 	bio_list_init(&blkg->async_bios);
@@ -199,11 +243,11 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 		struct blkcg_policy *pol = blkcg_policy[i];
 		struct blkg_policy_data *pd;
 
-		if (!blkcg_policy_enabled(q, pol))
+		if (!blkcg_policy_enabled(disk->queue, pol))
 			continue;
 
 		/* alloc per-policy data and attach it to blkg */
-		pd = pol->pd_alloc_fn(gfp_mask, q, blkcg);
+		pd = pol->pd_alloc_fn(gfp_mask, disk->queue, blkcg);
 		if (!pd)
 			goto err_free;
 
@@ -219,46 +263,20 @@ err_free:
 	return NULL;
 }
 
-struct blkcg_gq *blkg_lookup_slowpath(struct blkcg *blkcg,
-				      struct request_queue *q, bool update_hint)
-{
-	struct blkcg_gq *blkg;
-
-	/*
-	 * Hint didn't match.  Look up from the radix tree.  Note that the
-	 * hint can only be updated under queue_lock as otherwise @blkg
-	 * could have already been removed from blkg_tree.  The caller is
-	 * responsible for grabbing queue_lock if @update_hint.
-	 */
-	blkg = radix_tree_lookup(&blkcg->blkg_tree, q->id);
-	if (blkg && blkg->q == q) {
-		if (update_hint) {
-			lockdep_assert_held(&q->queue_lock);
-			rcu_assign_pointer(blkcg->blkg_hint, blkg);
-		}
-		return blkg;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(blkg_lookup_slowpath);
-
 /*
  * If @new_blkg is %NULL, this function tries to allocate a new one as
  * necessary using %GFP_NOWAIT.  @new_blkg is always consumed on return.
  */
-static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
-				    struct request_queue *q,
+static struct blkcg_gq *blkg_create(struct blkcg *blkcg, struct gendisk *disk,
 				    struct blkcg_gq *new_blkg)
 {
 	struct blkcg_gq *blkg;
 	int i, ret;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(&q->queue_lock);
+	lockdep_assert_held(&disk->queue->queue_lock);
 
 	/* request_queue is dying, do not create/recreate a blkg */
-	if (blk_queue_dying(q)) {
+	if (blk_queue_dying(disk->queue)) {
 		ret = -ENODEV;
 		goto err_free_blkg;
 	}
@@ -271,7 +289,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* allocate */
 	if (!new_blkg) {
-		new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT | __GFP_NOWARN);
+		new_blkg = blkg_alloc(blkcg, disk, GFP_NOWAIT | __GFP_NOWARN);
 		if (unlikely(!new_blkg)) {
 			ret = -ENOMEM;
 			goto err_put_css;
@@ -281,7 +299,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* link parent */
 	if (blkcg_parent(blkcg)) {
-		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
+		blkg->parent = blkg_lookup(blkcg_parent(blkcg), disk->queue);
 		if (WARN_ON_ONCE(!blkg->parent)) {
 			ret = -ENODEV;
 			goto err_put_css;
@@ -299,10 +317,10 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* insert */
 	spin_lock(&blkcg->lock);
-	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
+	ret = radix_tree_insert(&blkcg->blkg_tree, disk->queue->id, blkg);
 	if (likely(!ret)) {
 		hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
-		list_add(&blkg->q_node, &q->blkg_list);
+		list_add(&blkg->q_node, &disk->queue->blkg_list);
 
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
@@ -331,19 +349,20 @@ err_free_blkg:
 /**
  * blkg_lookup_create - lookup blkg, try to create one if not there
  * @blkcg: blkcg of interest
- * @q: request_queue of interest
+ * @disk: gendisk of interest
  *
- * Lookup blkg for the @blkcg - @q pair.  If it doesn't exist, try to
+ * Lookup blkg for the @blkcg - @disk pair.  If it doesn't exist, try to
  * create one.  blkg creation is performed recursively from blkcg_root such
  * that all non-root blkg's have access to the parent blkg.  This function
- * should be called under RCU read lock and takes @q->queue_lock.
+ * should be called under RCU read lock and takes @disk->queue->queue_lock.
  *
  * Returns the blkg or the closest blkg if blkg_create() fails as it walks
  * down from root.
  */
 static struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
-		struct request_queue *q)
+		struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct blkcg_gq *blkg;
 	unsigned long flags;
 
@@ -354,9 +373,13 @@ static struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 		return blkg;
 
 	spin_lock_irqsave(&q->queue_lock, flags);
-	blkg = __blkg_lookup(blkcg, q, true);
-	if (blkg)
+	blkg = blkg_lookup(blkcg, q);
+	if (blkg) {
+		if (blkcg != &blkcg_root &&
+		    blkg != rcu_dereference(blkcg->blkg_hint))
+			rcu_assign_pointer(blkcg->blkg_hint, blkg);
 		goto found;
+	}
 
 	/*
 	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
@@ -369,7 +392,7 @@ static struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 		struct blkcg_gq *ret_blkg = q->root_blkg;
 
 		while (parent) {
-			blkg = __blkg_lookup(parent, q, false);
+			blkg = blkg_lookup(parent, q);
 			if (blkg) {
 				/* remember closest blkg */
 				ret_blkg = blkg;
@@ -379,7 +402,7 @@ static struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 			parent = blkcg_parent(parent);
 		}
 
-		blkg = blkg_create(pos, q, NULL);
+		blkg = blkg_create(pos, disk, NULL);
 		if (IS_ERR(blkg)) {
 			blkg = ret_blkg;
 			break;
@@ -433,14 +456,9 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	percpu_ref_kill(&blkg->refcnt);
 }
 
-/**
- * blkg_destroy_all - destroy all blkgs associated with a request_queue
- * @q: request_queue of interest
- *
- * Destroy all blkgs associated with @q.
- */
-static void blkg_destroy_all(struct request_queue *q)
+static void blkg_destroy_all(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct blkcg_gq *blkg, *n;
 	int count = BLKG_DESTROY_BATCH_SIZE;
 
@@ -573,19 +591,6 @@ u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v)
 }
 EXPORT_SYMBOL_GPL(__blkg_prfill_u64);
 
-/* Performs queue bypass and policy enabled checks then looks up blkg. */
-static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
-					  const struct blkcg_policy *pol,
-					  struct request_queue *q)
-{
-	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(&q->queue_lock);
-
-	if (!blkcg_policy_enabled(q, pol))
-		return ERR_PTR(-EOPNOTSUPP);
-	return __blkg_lookup(blkcg, q, true /* update_hint */);
-}
-
 /**
  * blkcg_conf_open_bdev - parse and open bdev for per-blkg config update
  * @inputp: input string pointer
@@ -641,6 +646,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	__acquires(rcu) __acquires(&bdev->bd_queue->queue_lock)
 {
 	struct block_device *bdev;
+	struct gendisk *disk;
 	struct request_queue *q;
 	struct blkcg_gq *blkg;
 	int ret;
@@ -648,8 +654,8 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	bdev = blkcg_conf_open_bdev(&input);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
-
-	q = bdev_get_queue(bdev);
+	disk = bdev->bd_disk;
+	q = disk->queue;
 
 	/*
 	 * blkcg_deactivate_policy() requires queue to be frozen, we can grab
@@ -662,12 +668,12 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	rcu_read_lock();
 	spin_lock_irq(&q->queue_lock);
 
-	blkg = blkg_lookup_check(blkcg, pol, q);
-	if (IS_ERR(blkg)) {
-		ret = PTR_ERR(blkg);
+	if (!blkcg_policy_enabled(q, pol)) {
+		ret = -EOPNOTSUPP;
 		goto fail_unlock;
 	}
 
+	blkg = blkg_lookup(blkcg, q);
 	if (blkg)
 		goto success;
 
@@ -681,7 +687,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		struct blkcg_gq *new_blkg;
 
 		parent = blkcg_parent(blkcg);
-		while (parent && !__blkg_lookup(parent, q, false)) {
+		while (parent && !blkg_lookup(parent, q)) {
 			pos = parent;
 			parent = blkcg_parent(parent);
 		}
@@ -690,7 +696,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		spin_unlock_irq(&q->queue_lock);
 		rcu_read_unlock();
 
-		new_blkg = blkg_alloc(pos, q, GFP_KERNEL);
+		new_blkg = blkg_alloc(pos, disk, GFP_KERNEL);
 		if (unlikely(!new_blkg)) {
 			ret = -ENOMEM;
 			goto fail_exit_queue;
@@ -705,17 +711,17 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		rcu_read_lock();
 		spin_lock_irq(&q->queue_lock);
 
-		blkg = blkg_lookup_check(pos, pol, q);
-		if (IS_ERR(blkg)) {
-			ret = PTR_ERR(blkg);
+		if (!blkcg_policy_enabled(q, pol)) {
 			blkg_free(new_blkg);
+			ret = -EOPNOTSUPP;
 			goto fail_preloaded;
 		}
 
+		blkg = blkg_lookup(pos, q);
 		if (blkg) {
 			blkg_free(new_blkg);
 		} else {
-			blkg = blkg_create(pos, q, new_blkg);
+			blkg = blkg_create(pos, disk, new_blkg);
 			if (IS_ERR(blkg)) {
 				ret = PTR_ERR(blkg);
 				goto fail_preloaded;
@@ -803,6 +809,21 @@ static void blkg_iostat_sub(struct blkg_iostat *dst, struct blkg_iostat *src)
 	}
 }
 
+static void blkcg_iostat_update(struct blkcg_gq *blkg, struct blkg_iostat *cur,
+				struct blkg_iostat *last)
+{
+	struct blkg_iostat delta;
+	unsigned long flags;
+
+	/* propagate percpu delta to global */
+	flags = u64_stats_update_begin_irqsave(&blkg->iostat.sync);
+	blkg_iostat_set(&delta, cur);
+	blkg_iostat_sub(&delta, last);
+	blkg_iostat_add(&blkg->iostat.cur, &delta);
+	blkg_iostat_add(last, &delta);
+	u64_stats_update_end_irqrestore(&blkg->iostat.sync, flags);
+}
+
 static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
@@ -817,8 +838,7 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		struct blkcg_gq *parent = blkg->parent;
 		struct blkg_iostat_set *bisc = per_cpu_ptr(blkg->iostat_cpu, cpu);
-		struct blkg_iostat cur, delta;
-		unsigned long flags;
+		struct blkg_iostat cur;
 		unsigned int seq;
 
 		/* fetch the current per-cpu values */
@@ -827,23 +847,12 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 			blkg_iostat_set(&cur, &bisc->cur);
 		} while (u64_stats_fetch_retry(&bisc->sync, seq));
 
-		/* propagate percpu delta to global */
-		flags = u64_stats_update_begin_irqsave(&blkg->iostat.sync);
-		blkg_iostat_set(&delta, &cur);
-		blkg_iostat_sub(&delta, &bisc->last);
-		blkg_iostat_add(&blkg->iostat.cur, &delta);
-		blkg_iostat_add(&bisc->last, &delta);
-		u64_stats_update_end_irqrestore(&blkg->iostat.sync, flags);
+		blkcg_iostat_update(blkg, &cur, &bisc->last);
 
 		/* propagate global delta to parent (unless that's root) */
-		if (parent && parent->parent) {
-			flags = u64_stats_update_begin_irqsave(&parent->iostat.sync);
-			blkg_iostat_set(&delta, &blkg->iostat.cur);
-			blkg_iostat_sub(&delta, &blkg->iostat.last);
-			blkg_iostat_add(&parent->iostat.cur, &delta);
-			blkg_iostat_add(&blkg->iostat.last, &delta);
-			u64_stats_update_end_irqrestore(&parent->iostat.sync, flags);
-		}
+		if (parent && parent->parent)
+			blkcg_iostat_update(parent, &blkg->iostat.cur,
+					    &blkg->iostat.last);
 	}
 
 	rcu_read_unlock();
@@ -869,8 +878,7 @@ static void blkcg_fill_root_iostats(void)
 	class_dev_iter_init(&iter, &block_class, NULL, &disk_type);
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct block_device *bdev = dev_to_bdev(dev);
-		struct blkcg_gq *blkg =
-			blk_queue_root_blkg(bdev_get_queue(bdev));
+		struct blkcg_gq *blkg = bdev->bd_disk->queue->root_blkg;
 		struct blkg_iostat tmp;
 		int cpu;
 		unsigned long flags;
@@ -905,7 +913,6 @@ static void blkcg_print_one_stat(struct blkcg_gq *blkg, struct seq_file *s)
 {
 	struct blkg_iostat_set *bis = &blkg->iostat;
 	u64 rbytes, wbytes, rios, wios, dbytes, dios;
-	bool has_stats = false;
 	const char *dname;
 	unsigned seq;
 	int i;
@@ -931,14 +938,12 @@ static void blkcg_print_one_stat(struct blkcg_gq *blkg, struct seq_file *s)
 	} while (u64_stats_fetch_retry(&bis->sync, seq));
 
 	if (rbytes || wbytes || rios || wios) {
-		has_stats = true;
 		seq_printf(s, "rbytes=%llu wbytes=%llu rios=%llu wios=%llu dbytes=%llu dios=%llu",
 			rbytes, wbytes, rios, wios,
 			dbytes, dios);
 	}
 
 	if (blkcg_debug_stats && atomic_read(&blkg->use_delay)) {
-		has_stats = true;
 		seq_printf(s, " use_delay=%d delay_nsec=%llu",
 			atomic_read(&blkg->use_delay),
 			atomic64_read(&blkg->delay_nsec));
@@ -950,12 +955,10 @@ static void blkcg_print_one_stat(struct blkcg_gq *blkg, struct seq_file *s)
 		if (!blkg->pd[i] || !pol->pd_stat_fn)
 			continue;
 
-		if (pol->pd_stat_fn(blkg->pd[i], s))
-			has_stats = true;
+		pol->pd_stat_fn(blkg->pd[i], s);
 	}
 
-	if (has_stats)
-		seq_printf(s, "\n");
+	seq_puts(s, "\n");
 }
 
 static int blkcg_print_stat(struct seq_file *sf, void *v)
@@ -994,6 +997,13 @@ static struct cftype blkcg_legacy_files[] = {
 	{ }	/* terminate */
 };
 
+#ifdef CONFIG_CGROUP_WRITEBACK
+struct list_head *blkcg_get_cgwb_list(struct cgroup_subsys_state *css)
+{
+	return &css_to_blkcg(css)->cgwb_list;
+}
+#endif
+
 /*
  * blkcg destruction is a three-stage process.
  *
@@ -1016,25 +1026,6 @@ static struct cftype blkcg_legacy_files[] = {
  */
 
 /**
- * blkcg_css_offline - cgroup css_offline callback
- * @css: css of interest
- *
- * This function is called when @css is about to go away.  Here the cgwbs are
- * offlined first and only once writeback associated with the blkcg has
- * finished do we start step 2 (see above).
- */
-static void blkcg_css_offline(struct cgroup_subsys_state *css)
-{
-	struct blkcg *blkcg = css_to_blkcg(css);
-
-	/* this prevents anyone from attaching or migrating to this blkcg */
-	wb_blkcg_offline(blkcg);
-
-	/* put the base online pin allowing step 2 to be triggered */
-	blkcg_unpin_online(blkcg);
-}
-
-/**
  * blkcg_destroy_blkgs - responsible for shooting down blkgs
  * @blkcg: blkcg of interest
  *
@@ -1045,7 +1036,7 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
  *
  * This is the blkcg counterpart of ioc_release_fn().
  */
-void blkcg_destroy_blkgs(struct blkcg *blkcg)
+static void blkcg_destroy_blkgs(struct blkcg *blkcg)
 {
 	might_sleep();
 
@@ -1073,6 +1064,57 @@ void blkcg_destroy_blkgs(struct blkcg *blkcg)
 	}
 
 	spin_unlock_irq(&blkcg->lock);
+}
+
+/**
+ * blkcg_pin_online - pin online state
+ * @blkcg_css: blkcg of interest
+ *
+ * While pinned, a blkcg is kept online.  This is primarily used to
+ * impedance-match blkg and cgwb lifetimes so that blkg doesn't go offline
+ * while an associated cgwb is still active.
+ */
+void blkcg_pin_online(struct cgroup_subsys_state *blkcg_css)
+{
+	refcount_inc(&css_to_blkcg(blkcg_css)->online_pin);
+}
+
+/**
+ * blkcg_unpin_online - unpin online state
+ * @blkcg_css: blkcg of interest
+ *
+ * This is primarily used to impedance-match blkg and cgwb lifetimes so
+ * that blkg doesn't go offline while an associated cgwb is still active.
+ * When this count goes to zero, all active cgwbs have finished so the
+ * blkcg can continue destruction by calling blkcg_destroy_blkgs().
+ */
+void blkcg_unpin_online(struct cgroup_subsys_state *blkcg_css)
+{
+	struct blkcg *blkcg = css_to_blkcg(blkcg_css);
+
+	do {
+		if (!refcount_dec_and_test(&blkcg->online_pin))
+			break;
+		blkcg_destroy_blkgs(blkcg);
+		blkcg = blkcg_parent(blkcg);
+	} while (blkcg);
+}
+
+/**
+ * blkcg_css_offline - cgroup css_offline callback
+ * @css: css of interest
+ *
+ * This function is called when @css is about to go away.  Here the cgwbs are
+ * offlined first and only once writeback associated with the blkcg has
+ * finished do we start step 2 (see above).
+ */
+static void blkcg_css_offline(struct cgroup_subsys_state *css)
+{
+	/* this prevents anyone from attaching or migrating to this blkcg */
+	wb_blkcg_offline(css);
+
+	/* put the base online pin allowing step 2 to be triggered */
+	blkcg_unpin_online(css);
 }
 
 static void blkcg_css_free(struct cgroup_subsys_state *css)
@@ -1163,8 +1205,7 @@ unlock:
 
 static int blkcg_css_online(struct cgroup_subsys_state *css)
 {
-	struct blkcg *blkcg = css_to_blkcg(css);
-	struct blkcg *parent = blkcg_parent(blkcg);
+	struct blkcg *parent = blkcg_parent(css_to_blkcg(css));
 
 	/*
 	 * blkcg_pin_online() is used to delay blkcg offline so that blkgs
@@ -1172,84 +1213,69 @@ static int blkcg_css_online(struct cgroup_subsys_state *css)
 	 * parent so that offline always happens towards the root.
 	 */
 	if (parent)
-		blkcg_pin_online(parent);
+		blkcg_pin_online(&parent->css);
 	return 0;
 }
 
-/**
- * blkcg_init_queue - initialize blkcg part of request queue
- * @q: request_queue to initialize
- *
- * Called from blk_alloc_queue(). Responsible for initializing blkcg
- * part of new request_queue @q.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int blkcg_init_queue(struct request_queue *q)
+int blkcg_init_disk(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct blkcg_gq *new_blkg, *blkg;
 	bool preloaded;
 	int ret;
 
 	INIT_LIST_HEAD(&q->blkg_list);
 
-	new_blkg = blkg_alloc(&blkcg_root, q, GFP_KERNEL);
+	new_blkg = blkg_alloc(&blkcg_root, disk, GFP_KERNEL);
 	if (!new_blkg)
 		return -ENOMEM;
 
 	preloaded = !radix_tree_preload(GFP_KERNEL);
 
 	/* Make sure the root blkg exists. */
-	rcu_read_lock();
+	/* spin_lock_irq can serve as RCU read-side critical section. */
 	spin_lock_irq(&q->queue_lock);
-	blkg = blkg_create(&blkcg_root, q, new_blkg);
+	blkg = blkg_create(&blkcg_root, disk, new_blkg);
 	if (IS_ERR(blkg))
 		goto err_unlock;
 	q->root_blkg = blkg;
 	spin_unlock_irq(&q->queue_lock);
-	rcu_read_unlock();
 
 	if (preloaded)
 		radix_tree_preload_end();
 
-	ret = blk_ioprio_init(q);
+	ret = blk_ioprio_init(disk);
 	if (ret)
 		goto err_destroy_all;
 
-	ret = blk_throtl_init(q);
+	ret = blk_throtl_init(disk);
 	if (ret)
-		goto err_destroy_all;
+		goto err_ioprio_exit;
 
-	ret = blk_iolatency_init(q);
-	if (ret) {
-		blk_throtl_exit(q);
-		goto err_destroy_all;
-	}
+	ret = blk_iolatency_init(disk);
+	if (ret)
+		goto err_throtl_exit;
 
 	return 0;
 
+err_throtl_exit:
+	blk_throtl_exit(disk);
+err_ioprio_exit:
+	blk_ioprio_exit(disk);
 err_destroy_all:
-	blkg_destroy_all(q);
+	blkg_destroy_all(disk);
 	return ret;
 err_unlock:
 	spin_unlock_irq(&q->queue_lock);
-	rcu_read_unlock();
 	if (preloaded)
 		radix_tree_preload_end();
 	return PTR_ERR(blkg);
 }
 
-/**
- * blkcg_exit_queue - exit and release blkcg part of request_queue
- * @q: request_queue being released
- *
- * Called from blk_exit_queue().  Responsible for exiting blkcg part.
- */
-void blkcg_exit_queue(struct request_queue *q)
+void blkcg_exit_disk(struct gendisk *disk)
 {
-	blkg_destroy_all(q);
-	blk_throtl_exit(q);
+	blkg_destroy_all(disk);
+	blk_throtl_exit(disk);
 }
 
 static void blkcg_bind(struct cgroup_subsys_state *root_css)
@@ -1455,6 +1481,18 @@ void blkcg_deactivate_policy(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
 
+static void blkcg_free_all_cpd(struct blkcg_policy *pol)
+{
+	struct blkcg *blkcg;
+
+	list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+		if (blkcg->cpd[pol->plid]) {
+			pol->cpd_free_fn(blkcg->cpd[pol->plid]);
+			blkcg->cpd[pol->plid] = NULL;
+		}
+	}
+}
+
 /**
  * blkcg_policy_register - register a blkcg policy
  * @pol: blkcg policy to register
@@ -1519,14 +1557,9 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	return 0;
 
 err_free_cpds:
-	if (pol->cpd_free_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
-			if (blkcg->cpd[pol->plid]) {
-				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
-				blkcg->cpd[pol->plid] = NULL;
-			}
-		}
-	}
+	if (pol->cpd_free_fn)
+		blkcg_free_all_cpd(pol);
+
 	blkcg_policy[pol->plid] = NULL;
 err_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
@@ -1543,8 +1576,6 @@ EXPORT_SYMBOL_GPL(blkcg_policy_register);
  */
 void blkcg_policy_unregister(struct blkcg_policy *pol)
 {
-	struct blkcg *blkcg;
-
 	mutex_lock(&blkcg_pol_register_mutex);
 
 	if (WARN_ON(blkcg_policy[pol->plid] != pol))
@@ -1559,14 +1590,9 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 	/* remove cpds and unregister */
 	mutex_lock(&blkcg_pol_mutex);
 
-	if (pol->cpd_free_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
-			if (blkcg->cpd[pol->plid]) {
-				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
-				blkcg->cpd[pol->plid] = NULL;
-			}
-		}
-	}
+	if (pol->cpd_free_fn)
+		blkcg_free_all_cpd(pol);
+
 	blkcg_policy[pol->plid] = NULL;
 
 	mutex_unlock(&blkcg_pol_mutex);
@@ -1622,7 +1648,7 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
 	 * everybody is happy with their IO latencies.
 	 */
 	if (time_before64(old + NSEC_PER_SEC, now) &&
-	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
+	    atomic64_try_cmpxchg(&blkg->delay_start, &old, now)) {
 		u64 cur = atomic64_read(&blkg->delay_nsec);
 		u64 sub = min_t(u64, blkg->last_delay, now - old);
 		int cur_use = atomic_read(&blkg->use_delay);
@@ -1726,7 +1752,6 @@ static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 void blkcg_maybe_throttle_current(void)
 {
 	struct request_queue *q = current->throttle_queue;
-	struct cgroup_subsys_state *css;
 	struct blkcg *blkcg;
 	struct blkcg_gq *blkg;
 	bool use_memdelay = current->use_memdelay;
@@ -1738,12 +1763,7 @@ void blkcg_maybe_throttle_current(void)
 	current->use_memdelay = false;
 
 	rcu_read_lock();
-	css = kthread_blkcg();
-	if (css)
-		blkcg = css_to_blkcg(css);
-	else
-		blkcg = css_to_blkcg(task_css(current, io_cgrp_id));
-
+	blkcg = css_to_blkcg(blkcg_css());
 	if (!blkcg)
 		goto out;
 	blkg = blkg_lookup(blkcg, q);
@@ -1764,13 +1784,13 @@ out:
 
 /**
  * blkcg_schedule_throttle - this task needs to check for throttling
- * @q: the request queue IO was submitted on
+ * @gendisk: disk to throttle
  * @use_memdelay: do we charge this to memory delay for PSI
  *
  * This is called by the IO controller when we know there's delay accumulated
  * for the blkg for this task.  We do not pass the blkg because there are places
  * we call this that may not have that information, the swapping code for
- * instance will only have a request_queue at that point.  This set's the
+ * instance will only have a block_device at that point.  This set's the
  * notify_resume for the task to check and see if it requires throttling before
  * returning to user space.
  *
@@ -1779,8 +1799,10 @@ out:
  * throttle once.  If the task needs to be throttled again it'll need to be
  * re-set at the next time we see the task.
  */
-void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
+void blkcg_schedule_throttle(struct gendisk *disk, bool use_memdelay)
 {
+	struct request_queue *q = disk->queue;
+
 	if (unlikely(current->flags & PF_KTHREAD))
 		return;
 
@@ -1830,8 +1852,7 @@ static inline struct blkcg_gq *blkg_tryget_closest(struct bio *bio,
 	struct blkcg_gq *blkg, *ret_blkg = NULL;
 
 	rcu_read_lock();
-	blkg = blkg_lookup_create(css_to_blkcg(css),
-				  bdev_get_queue(bio->bi_bdev));
+	blkg = blkg_lookup_create(css_to_blkcg(css), bio->bi_bdev->bd_disk);
 	while (blkg) {
 		if (blkg_tryget(blkg)) {
 			ret_blkg = blkg;
@@ -1889,7 +1910,7 @@ void bio_associate_blkg(struct bio *bio)
 	rcu_read_lock();
 
 	if (bio->bi_blkg)
-		css = &bio_blkcg(bio)->css;
+		css = bio_blkcg_css(bio);
 	else
 		css = blkcg_css();
 
@@ -1906,12 +1927,8 @@ EXPORT_SYMBOL_GPL(bio_associate_blkg);
  */
 void bio_clone_blkg_association(struct bio *dst, struct bio *src)
 {
-	if (src->bi_blkg) {
-		if (dst->bi_blkg)
-			blkg_put(dst->bi_blkg);
-		blkg_get(src->bi_blkg);
-		dst->bi_blkg = src->bi_blkg;
-	}
+	if (src->bi_blkg)
+		bio_associate_blkg_from_css(dst, bio_blkcg_css(src));
 }
 EXPORT_SYMBOL_GPL(bio_clone_blkg_association);
 
@@ -1948,6 +1965,22 @@ void blk_cgroup_bio_start(struct bio *bio)
 	if (cgroup_subsys_on_dfl(io_cgrp_subsys))
 		cgroup_rstat_updated(bio->bi_blkg->blkcg->css.cgroup, cpu);
 	put_cpu();
+}
+
+bool blk_cgroup_congested(void)
+{
+	struct cgroup_subsys_state *css;
+	bool ret = false;
+
+	rcu_read_lock();
+	for (css = blkcg_css(); css; css = css->parent) {
+		if (atomic_read(&css->cgroup->congestion_count)) {
+			ret = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return ret;
 }
 
 static int __init blkcg_init(void)

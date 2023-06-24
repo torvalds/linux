@@ -10,7 +10,7 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/signal.h>
@@ -46,6 +46,10 @@
 
 #define MCBA_VER_REQ_USB 1
 #define MCBA_VER_REQ_CAN 2
+
+/* Drive the CAN_RES signal LOW "0" to activate R24 and R25 */
+#define MCBA_VER_TERMINATION_ON 0
+#define MCBA_VER_TERMINATION_OFF 1
 
 #define MCBA_SIDL_EXID_MASK 0x8
 #define MCBA_DLC_MASK 0xf
@@ -232,8 +236,6 @@ static void mcba_usb_write_bulk_callback(struct urb *urb)
 		netdev->stats.tx_packets++;
 		netdev->stats.tx_bytes += can_get_echo_skb(netdev, ctx->ndx,
 							   NULL);
-
-		can_led_event(netdev, CAN_LED_EVENT_TX);
 	}
 
 	if (urb->status)
@@ -313,7 +315,7 @@ static netdev_tx_t mcba_usb_start_xmit(struct sk_buff *skb,
 		.cmd_id = MBCA_CMD_TRANSMIT_MESSAGE_EV
 	};
 
-	if (can_dropped_invalid_skb(netdev, skb))
+	if (can_dev_dropped_skb(netdev, skb))
 		return NETDEV_TX_OK;
 
 	ctx = mcba_usb_get_free_ctx(priv, cf);
@@ -452,7 +454,6 @@ static void mcba_usb_process_can(struct mcba_priv *priv,
 	}
 	stats->rx_packets++;
 
-	can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	netif_rx(skb);
 }
 
@@ -466,7 +467,7 @@ static void mcba_usb_process_ka_usb(struct mcba_priv *priv,
 		priv->usb_ka_first_pass = false;
 	}
 
-	if (msg->termination_state)
+	if (msg->termination_state == MCBA_VER_TERMINATION_ON)
 		priv->can.termination = MCBA_TERMINATION_ENABLED;
 	else
 		priv->can.termination = MCBA_TERMINATION_DISABLED;
@@ -700,7 +701,6 @@ static int mcba_usb_open(struct net_device *netdev)
 	priv->can_speed_check = true;
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	can_led_event(netdev, CAN_LED_EVENT_OPEN);
 	netif_start_queue(netdev);
 
 	return 0;
@@ -732,7 +732,6 @@ static int mcba_usb_close(struct net_device *netdev)
 	mcba_urb_unlink(priv);
 
 	close_candev(netdev);
-	can_led_event(netdev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -764,6 +763,10 @@ static const struct net_device_ops mcba_netdev_ops = {
 	.ndo_start_xmit = mcba_usb_start_xmit,
 };
 
+static const struct ethtool_ops mcba_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 /* Microchip CANBUS has hardcoded bittiming values by default.
  * This function sends request via USB to change the speed and align bittiming
  * values for presentation purposes only
@@ -786,9 +789,9 @@ static int mcba_set_termination(struct net_device *netdev, u16 term)
 	};
 
 	if (term == MCBA_TERMINATION_ENABLED)
-		usb_msg.termination = 1;
+		usb_msg.termination = MCBA_VER_TERMINATION_ON;
 	else
-		usb_msg.termination = 0;
+		usb_msg.termination = MCBA_VER_TERMINATION_OFF;
 
 	mcba_usb_xmit_cmd(priv, (struct mcba_usb_msg *)&usb_msg);
 
@@ -842,6 +845,7 @@ static int mcba_usb_probe(struct usb_interface *intf,
 	priv->can.do_set_bittiming = mcba_net_set_bittiming;
 
 	netdev->netdev_ops = &mcba_netdev_ops;
+	netdev->ethtool_ops = &mcba_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support local echo */
 
@@ -856,8 +860,6 @@ static int mcba_usb_probe(struct usb_interface *intf,
 
 	priv->rx_pipe = usb_rcvbulkpipe(priv->udev, in->bEndpointAddress);
 	priv->tx_pipe = usb_sndbulkpipe(priv->udev, out->bEndpointAddress);
-
-	devm_can_led_init(netdev);
 
 	/* Start USB dev only if we have successfully registered CAN device */
 	err = mcba_usb_start(priv);

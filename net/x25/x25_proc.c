@@ -79,7 +79,6 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 {
 	struct sock *s;
 	struct x25_sock *x25;
-	struct net_device *dev;
 	const char *devname;
 
 	if (v == SEQ_START_TOKEN) {
@@ -91,7 +90,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 	s = sk_entry(v);
 	x25 = x25_sk(s);
 
-	if (!x25->neighbour || (dev = x25->neighbour->dev) == NULL)
+	if (!x25->neighbour || !x25->neighbour->dev)
 		devname = "???";
 	else
 		devname = x25->neighbour->dev->name;

@@ -11,6 +11,8 @@
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/export.h>
+#include <linux/property.h>
+
 #include <linux/bcma/bcma.h>
 
 #include "bcma_private.h"
@@ -113,7 +115,7 @@ static irqreturn_t bcma_gpio_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	for_each_set_bit(gpio, &irqs, gc->ngpio)
-		generic_handle_irq(irq_find_mapping(gc->irq.domain, gpio));
+		generic_handle_domain_irq_safe(gc->irq.domain, gpio);
 	bcma_chipco_gpio_polarity(cc, irqs, val & irqs);
 
 	return IRQ_HANDLED;
@@ -182,9 +184,8 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->parent		= bus->dev;
-#if IS_BUILTIN(CONFIG_OF)
-	chip->of_node		= cc->core->dev.of_node;
-#endif
+	chip->fwnode		= dev_fwnode(&cc->core->dev);
+
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:
 	case BCMA_CHIP_ID_BCM5357:

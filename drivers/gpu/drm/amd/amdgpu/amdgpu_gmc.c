@@ -25,6 +25,9 @@
  */
 
 #include <linux/io-64-nonatomic-lo-hi.h>
+#ifdef CONFIG_X86
+#include <asm/hypervisor.h>
+#endif
 
 #include "amdgpu.h"
 #include "amdgpu_gmc.h"
@@ -476,6 +479,12 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	unsigned i;
 	unsigned vmhub, inv_eng;
 
+	if (adev->enable_mes) {
+		/* reserve engine 5 for firmware */
+		for (vmhub = 0; vmhub < AMDGPU_MAX_VMHUBS; vmhub++)
+			vm_inv_engs[vmhub] &= ~(1 << 5);
+	}
+
 	for (i = 0; i < adev->num_rings; ++i) {
 		ring = adev->rings[i];
 		vmhub = ring->funcs->vmhub;
@@ -509,9 +518,14 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
  */
 void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	/* RAVEN */
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 1, 0):
+	/* RENOIR looks like RAVEN */
+	case IP_VERSION(9, 3, 0):
+	/* GC 10.3.7 */
+	case IP_VERSION(10, 3, 7):
 		if (amdgpu_tmz == 0) {
 			adev->gmc.tmz_enabled = false;
 			dev_info(adev->dev,
@@ -522,12 +536,18 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 				 "Trusted Memory Zone (TMZ) feature enabled\n");
 		}
 		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
-	case CHIP_VANGOGH:
-	case CHIP_YELLOW_CARP:
-	case CHIP_IP_DISCOVERY:
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+	/* VANGOGH */
+	case IP_VERSION(10, 3, 1):
+	/* YELLOW_CARP*/
+	case IP_VERSION(10, 3, 3):
 		/* Don't enable it by default yet.
 		 */
 		if (amdgpu_tmz < 1) {
@@ -558,45 +578,15 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	bool noretry_default = (gc_ver == IP_VERSION(9, 0, 1) ||
+				gc_ver == IP_VERSION(9, 3, 0) ||
+				gc_ver == IP_VERSION(9, 4, 0) ||
+				gc_ver == IP_VERSION(9, 4, 1) ||
+				gc_ver == IP_VERSION(9, 4, 2) ||
+				gc_ver >= IP_VERSION(10, 3, 0));
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
-	case IP_VERSION(9, 0, 1):
-	case IP_VERSION(9, 3, 0):
-	case IP_VERSION(9, 4, 0):
-	case IP_VERSION(9, 4, 1):
-	case IP_VERSION(9, 4, 2):
-	case IP_VERSION(10, 3, 3):
-	case IP_VERSION(10, 3, 4):
-	case IP_VERSION(10, 3, 5):
-	case IP_VERSION(10, 3, 6):
-	case IP_VERSION(10, 3, 7):
-		/*
-		 * noretry = 0 will cause kfd page fault tests fail
-		 * for some ASICs, so set default to 1 for these ASICs.
-		 */
-		if (amdgpu_noretry == -1)
-			gmc->noretry = 1;
-		else
-			gmc->noretry = amdgpu_noretry;
-		break;
-	default:
-		/* Raven currently has issues with noretry
-		 * regardless of what we decide for other
-		 * asics, we should leave raven with
-		 * noretry = 0 until we root cause the
-		 * issues.
-		 *
-		 * default this to 0 for now, but we may want
-		 * to change this in the future for certain
-		 * GPUs as it can increase performance in
-		 * certain cases.
-		 */
-		if (amdgpu_noretry == -1)
-			gmc->noretry = 0;
-		else
-			gmc->noretry = amdgpu_noretry;
-		break;
-	}
+	gmc->noretry = (amdgpu_noretry == -1) ? noretry_default : amdgpu_noretry;
 }
 
 void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
@@ -647,12 +637,14 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		adev->mman.keep_stolen_vga_memory = true;
 		/*
-		 * VEGA10 SRIOV VF needs some firmware reserved area.
+		 * VEGA10 SRIOV VF with MS_HYPERV host needs some firmware reserved area.
 		 */
-		if (amdgpu_sriov_vf(adev)) {
-			adev->mman.stolen_reserved_offset = 0x100000;
-			adev->mman.stolen_reserved_size = 0x600000;
+#ifdef CONFIG_X86
+		if (amdgpu_sriov_vf(adev) && hypervisor_is_type(X86_HYPER_MS_HYPERV)) {
+			adev->mman.stolen_reserved_offset = 0x500000;
+			adev->mman.stolen_reserved_size = 0x200000;
 		}
+#endif
 		break;
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
@@ -670,7 +662,7 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_sriov_vf(adev) ||
-	    !amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_DCE)) {
+	    !amdgpu_device_has_display_hardware(adev)) {
 		size = 0;
 	} else {
 		size = amdgpu_gmc_get_vbios_fb_size(adev);

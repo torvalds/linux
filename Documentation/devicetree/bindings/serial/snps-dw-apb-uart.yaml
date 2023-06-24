@@ -26,6 +26,7 @@ properties:
               - rockchip,rk1808-uart
               - rockchip,rk3036-uart
               - rockchip,rk3066-uart
+              - rockchip,rk3128-uart
               - rockchip,rk3188-uart
               - rockchip,rk3288-uart
               - rockchip,rk3308-uart
@@ -33,7 +34,9 @@ properties:
               - rockchip,rk3368-uart
               - rockchip,rk3399-uart
               - rockchip,rk3568-uart
+              - rockchip,rk3588-uart
               - rockchip,rv1108-uart
+              - rockchip,rv1126-uart
           - const: snps,dw-apb-uart
       - items:
           - enum:

@@ -53,9 +53,7 @@ static struct line_driver driver = {
 	.minor_start 		= 0,
 	.type 		 	= TTY_DRIVER_TYPE_CONSOLE,
 	.subtype 	 	= SYSTEM_TYPE_CONSOLE,
-	.read_irq 		= CONSOLE_IRQ,
 	.read_irq_name 		= "console",
-	.write_irq 		= CONSOLE_WRITE_IRQ,
 	.write_irq_name 	= "console-write",
 	.mc  = {
 		.list		= LIST_HEAD_INIT(driver.mc.list),
@@ -90,7 +88,7 @@ static int con_remove(int n, char **error_out)
 }
 
 /* Set in an initcall, checked in an exitcall */
-static int con_init_done = 0;
+static int con_init_done;
 
 static int con_install(struct tty_driver *driver, struct tty_struct *tty)
 {

@@ -46,6 +46,7 @@ enum nfp_port_flags {
  * @tc_offload_cnt:	number of active TC offloads, how offloads are counted
  *			is not defined, use as a boolean
  * @app:	backpointer to the app structure
+ * @link_cb:	callback when link status changed
  * @dl_port:	devlink port structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
  * @eth_forced:	for %NFP_PORT_PHYS_PORT port is forced UP or DOWN, don't change
@@ -66,6 +67,7 @@ struct nfp_port {
 	unsigned long tc_offload_cnt;
 
 	struct nfp_app *app;
+	void (*link_cb)(struct nfp_port *port);
 
 	struct devlink_port dl_port;
 

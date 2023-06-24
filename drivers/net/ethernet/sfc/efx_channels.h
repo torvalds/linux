@@ -32,12 +32,10 @@ void efx_fini_eventq(struct efx_channel *channel);
 void efx_remove_eventq(struct efx_channel *channel);
 
 int efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);
-void efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len);
 void efx_set_channel_names(struct efx_nic *efx);
 int efx_init_channels(struct efx_nic *efx);
 int efx_probe_channels(struct efx_nic *efx);
 int efx_set_channels(struct efx_nic *efx);
-bool efx_default_channel_want_txqs(struct efx_channel *channel);
 void efx_remove_channel(struct efx_channel *channel);
 void efx_remove_channels(struct efx_nic *efx);
 void efx_fini_channels(struct efx_nic *efx);
@@ -50,7 +48,6 @@ void efx_init_napi(struct efx_nic *efx);
 void efx_fini_napi_channel(struct efx_channel *channel);
 void efx_fini_napi(struct efx_nic *efx);
 
-int efx_channel_dummy_op_int(struct efx_channel *channel);
 void efx_channel_dummy_op_void(struct efx_channel *channel);
 
 #endif

@@ -1,16 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config VIRTIO_ANCHOR
+	bool
+
 config VIRTIO
 	tristate
+	select VIRTIO_ANCHOR
 	help
 	  This option is selected by any driver which implements the virtio
 	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_RPMSG
 	  or CONFIG_S390_GUEST.
-
-config ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
-	bool
-	help
-	  This option is selected if the architecture may need to enforce
-	  VIRTIO_F_ACCESS_PLATFORM
 
 config VIRTIO_PCI_LIB
 	tristate
@@ -34,6 +32,20 @@ menuconfig VIRTIO_MENU
 	default y
 
 if VIRTIO_MENU
+
+config VIRTIO_HARDEN_NOTIFICATION
+        bool "Harden virtio notification"
+        depends on BROKEN
+        help
+          Enable this to harden the device notifications and suppress
+          those that happen at a time where notifications are illegal.
+
+          Experimental: Note that several drivers still have issues that
+          may cause crashes or hangs when correct handling of
+          notifications is enforced; depending on the subset of
+          drivers and devices you use, this may or may not work.
+
+          If unsure, say N.
 
 config VIRTIO_PCI
 	tristate "PCI driver for virtio devices"
@@ -115,9 +127,11 @@ config VIRTIO_MEM
 	 This driver provides access to virtio-mem paravirtualized memory
 	 devices, allowing to hotplug and hotunplug memory.
 
-	 This driver was only tested under x86-64 and arm64, but should
-	 theoretically work on all architectures that support memory hotplug
-	 and hotremove.
+	 This driver currently only supports x86-64 and arm64. Although it
+	 should compile on other architectures that implement memory
+	 hot(un)plug, architecture-specific and/or common
+	 code changes may be required for virtio-mem, kdump and kexec to work as
+	 expected.
 
 	 If unsure, say M.
 

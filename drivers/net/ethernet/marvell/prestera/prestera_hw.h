@@ -107,6 +107,11 @@ enum {
 	PRESTERA_STP_FORWARD,
 };
 
+enum {
+	PRESTERA_POLICER_TYPE_INGRESS,
+	PRESTERA_POLICER_TYPE_EGRESS
+};
+
 enum prestera_hw_cpu_code_cnt_t {
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_DROP = 0,
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
@@ -118,9 +123,10 @@ enum prestera_hw_vtcam_direction_t {
 };
 
 enum {
-	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0 = 0,
-	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1 = 1,
-	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2 = 2,
+	PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_0 = 0,
+	PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_1 = 1,
+	PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_2 = 2,
+	PRESTERA_HW_COUNTER_CLIENT_EGRESS_LOOKUP = 3,
 };
 
 struct prestera_switch;
@@ -138,6 +144,9 @@ struct prestera_acl_hw_action_info;
 struct prestera_acl_iface;
 struct prestera_counter_stats;
 struct prestera_iface;
+struct prestera_flood_domain;
+struct prestera_mdb_entry;
+struct prestera_neigh_info;
 
 /* Switch API */
 int prestera_hw_switch_init(struct prestera_switch *sw);
@@ -173,8 +182,10 @@ int prestera_hw_port_stats_get(const struct prestera_port *port,
 			       struct prestera_port_stats *stats);
 int prestera_hw_port_speed_get(const struct prestera_port *port, u32 *speed);
 int prestera_hw_port_learning_set(struct prestera_port *port, bool enable);
-int prestera_hw_port_flood_set(struct prestera_port *port, unsigned long mask,
-			       unsigned long val);
+int prestera_hw_port_uc_flood_set(const struct prestera_port *port, bool flood);
+int prestera_hw_port_mc_flood_set(const struct prestera_port *port, bool flood);
+int prestera_hw_port_br_locked_set(const struct prestera_port *port,
+				   bool br_locked);
 int prestera_hw_port_accept_frm_type(struct prestera_port *port,
 				     enum prestera_accept_frm_type type);
 /* Vlan API */
@@ -235,8 +246,9 @@ int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
 
 /* SPAN API */
 int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
-int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
-int prestera_hw_span_unbind(const struct prestera_port *port);
+int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id,
+			  bool ingress);
+int prestera_hw_span_unbind(const struct prestera_port *port, bool ingress);
 int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
 
 /* Router API */
@@ -254,6 +266,16 @@ int prestera_hw_lpm_add(struct prestera_switch *sw, u16 vr_id,
 			__be32 dst, u32 dst_len, u32 grp_id);
 int prestera_hw_lpm_del(struct prestera_switch *sw, u16 vr_id,
 			__be32 dst, u32 dst_len);
+
+/* NH API */
+int prestera_hw_nh_entries_set(struct prestera_switch *sw, int count,
+			       struct prestera_neigh_info *nhs, u32 grp_id);
+int prestera_hw_nhgrp_blk_get(struct prestera_switch *sw,
+			      u8 *hw_state, u32 buf_size /* Buffer in bytes */);
+int prestera_hw_nh_group_create(struct prestera_switch *sw, u16 nh_count,
+				u32 *grp_id);
+int prestera_hw_nh_group_delete(struct prestera_switch *sw, u16 nh_count,
+				u32 grp_id);
 
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
@@ -287,5 +309,22 @@ int
 prestera_hw_cpu_code_counters_get(struct prestera_switch *sw, u8 code,
 				  enum prestera_hw_cpu_code_cnt_t counter_type,
 				  u64 *packet_count);
+
+/* Policer API */
+int prestera_hw_policer_create(struct prestera_switch *sw, u8 type,
+			       u32 *policer_id);
+int prestera_hw_policer_release(struct prestera_switch *sw,
+				u32 policer_id);
+int prestera_hw_policer_sr_tcm_set(struct prestera_switch *sw,
+				   u32 policer_id, u64 cir, u32 cbs);
+
+/* Flood domain / MDB API */
+int prestera_hw_flood_domain_create(struct prestera_flood_domain *domain);
+int prestera_hw_flood_domain_destroy(struct prestera_flood_domain *domain);
+int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain);
+int prestera_hw_flood_domain_ports_reset(struct prestera_flood_domain *domain);
+
+int prestera_hw_mdb_create(struct prestera_mdb_entry *mdb);
+int prestera_hw_mdb_destroy(struct prestera_mdb_entry *mdb);
 
 #endif /* _PRESTERA_HW_H_ */

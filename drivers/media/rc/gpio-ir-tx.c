@@ -62,8 +62,13 @@ static void delay_until(ktime_t until)
 			return;
 
 		/* udelay more than 1ms may not work */
-		delta = min(delta, 1000);
+		if (delta >= 1000) {
+			mdelay(delta / 1000);
+			continue;
+		}
+
 		udelay(delta);
+		break;
 	}
 }
 

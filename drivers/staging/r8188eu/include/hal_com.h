@@ -131,9 +131,6 @@
 #define REG_NOA_DESC_START			0x05E8
 #define REG_NOA_DESC_COUNT			0x05EC
 
-#include "HalVerDef.h"
-void dump_chip_info(struct HAL_VERSION	ChipVersion);
-
 /* return the final channel plan decision */
 u8 hal_com_get_channel_plan(struct adapter *padapter,
 			    u8 hw_channel_plan,
@@ -145,9 +142,5 @@ u8 hal_com_get_channel_plan(struct adapter *padapter,
 u8 MRateToHwRate(u8 rate);
 
 void HalSetBrateCfg(struct adapter *Adapter, u8 *mBratesOS, u16 *pBrateCfg);
-
-bool Hal_MappingOutPipe(struct adapter *pAdapter, u8 NumOutPipe);
-
-s32 c2h_evt_read(struct adapter *adapter, u8 *buf);
 
 #endif /* __HAL_COMMON_H__ */

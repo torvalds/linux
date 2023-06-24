@@ -19,6 +19,8 @@
 #include <linux/pmbus.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/of.h>
+#include <linux/thermal.h>
 #include "pmbus.h"
 
 /*
@@ -102,6 +104,9 @@ struct pmbus_data {
 
 	s16 currpage;	/* current page, -1 for unknown/unset */
 	s16 currphase;	/* current phase, 0xff for all, -1 for unknown/unset */
+
+	int vout_low[PMBUS_PAGES];	/* voltage low margin */
+	int vout_high[PMBUS_PAGES];	/* voltage high margin */
 };
 
 struct pmbus_debugfs_entry {
@@ -276,6 +281,42 @@ static int _pmbus_write_word_data(struct i2c_client *client, int page, int reg,
 	return pmbus_write_word_data(client, page, reg, word);
 }
 
+/*
+ * _pmbus_write_byte_data() is similar to pmbus_write_byte_data(), but checks if
+ * a device specific mapping function exists and calls it if necessary.
+ */
+static int _pmbus_write_byte_data(struct i2c_client *client, int page, int reg, u8 value)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->write_byte_data) {
+		status = info->write_byte_data(client, page, reg, value);
+		if (status != -ENODATA)
+			return status;
+	}
+	return pmbus_write_byte_data(client, page, reg, value);
+}
+
+/*
+ * _pmbus_read_byte_data() is similar to pmbus_read_byte_data(), but checks if
+ * a device specific mapping function exists and calls it if necessary.
+ */
+static int _pmbus_read_byte_data(struct i2c_client *client, int page, int reg)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->read_byte_data) {
+		status = info->read_byte_data(client, page, reg);
+		if (status != -ENODATA)
+			return status;
+	}
+	return pmbus_read_byte_data(client, page, reg);
+}
+
 int pmbus_update_fan(struct i2c_client *client, int page, int id,
 		     u8 config, u8 mask, u16 command)
 {
@@ -283,14 +324,14 @@ int pmbus_update_fan(struct i2c_client *client, int page, int id,
 	int rv;
 	u8 to;
 
-	from = pmbus_read_byte_data(client, page,
+	from = _pmbus_read_byte_data(client, page,
 				    pmbus_fan_config_registers[id]);
 	if (from < 0)
 		return from;
 
 	to = (from & ~mask) | (config & mask);
 	if (to != from) {
-		rv = pmbus_write_byte_data(client, page,
+		rv = _pmbus_write_byte_data(client, page,
 					   pmbus_fan_config_registers[id], to);
 		if (rv < 0)
 			return rv;
@@ -390,35 +431,29 @@ int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
 	unsigned int tmp;
 	int rv;
 
-	rv = pmbus_read_byte_data(client, page, reg);
+	rv = _pmbus_read_byte_data(client, page, reg);
 	if (rv < 0)
 		return rv;
 
 	tmp = (rv & ~mask) | (value & mask);
 
 	if (tmp != rv)
-		rv = pmbus_write_byte_data(client, page, reg, tmp);
+		rv = _pmbus_write_byte_data(client, page, reg, tmp);
 
 	return rv;
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_update_byte_data, PMBUS);
 
-/*
- * _pmbus_read_byte_data() is similar to pmbus_read_byte_data(), but checks if
- * a device specific mapping function exists and calls it if necessary.
- */
-static int _pmbus_read_byte_data(struct i2c_client *client, int page, int reg)
+static int pmbus_read_block_data(struct i2c_client *client, int page, u8 reg,
+				 char *data_buf)
 {
-	struct pmbus_data *data = i2c_get_clientdata(client);
-	const struct pmbus_driver_info *info = data->info;
-	int status;
+	int rv;
 
-	if (info->read_byte_data) {
-		status = info->read_byte_data(client, page, reg);
-		if (status != -ENODATA)
-			return status;
-	}
-	return pmbus_read_byte_data(client, page, reg);
+	rv = pmbus_set_page(client, page, 0xff);
+	if (rv < 0)
+		return rv;
+
+	return i2c_smbus_read_block_data(client, reg, data_buf);
 }
 
 static struct pmbus_sensor *pmbus_find_sensor(struct pmbus_data *data, int page,
@@ -455,7 +490,7 @@ static int pmbus_get_fan_rate(struct i2c_client *client, int page, int id,
 		return s->data;
 	}
 
-	config = pmbus_read_byte_data(client, page,
+	config = _pmbus_read_byte_data(client, page,
 				      pmbus_fan_config_registers[id]);
 	if (config < 0)
 		return config;
@@ -558,6 +593,22 @@ bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_check_word_register, PMBUS);
 
+static bool __maybe_unused pmbus_check_block_register(struct i2c_client *client,
+						      int page, int reg)
+{
+	int rv;
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	char data_buf[I2C_SMBUS_BLOCK_MAX + 2];
+
+	rv = pmbus_read_block_data(client, page, reg, data_buf);
+	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
+		rv = pmbus_check_status_cml(client);
+	if (rv < 0 && (data->flags & PMBUS_READ_STATUS_AFTER_FAILED_CHECK))
+		data->read_status(client, -1);
+	pmbus_clear_fault_page(client, -1);
+	return rv >= 0;
+}
+
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client *client)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
@@ -589,6 +640,66 @@ static void pmbus_update_sensor_data(struct i2c_client *client, struct pmbus_sen
 	if (sensor->data < 0 || sensor->update)
 		sensor->data = _pmbus_read_word_data(client, sensor->page,
 						     sensor->phase, sensor->reg);
+}
+
+/*
+ * Convert ieee754 sensor values to milli- or micro-units
+ * depending on sensor type.
+ *
+ * ieee754 data format:
+ *	bit 15:		sign
+ *	bit 10..14:	exponent
+ *	bit 0..9:	mantissa
+ * exponent=0:
+ *	v=(−1)^signbit * 2^(−14) * 0.significantbits
+ * exponent=1..30:
+ *	v=(−1)^signbit * 2^(exponent - 15) * 1.significantbits
+ * exponent=31:
+ *	v=NaN
+ *
+ * Add the number mantissa bits into the calculations for simplicity.
+ * To do that, add '10' to the exponent. By doing that, we can just add
+ * 0x400 to normal values and get the expected result.
+ */
+static long pmbus_reg2data_ieee754(struct pmbus_data *data,
+				   struct pmbus_sensor *sensor)
+{
+	int exponent;
+	bool sign;
+	long val;
+
+	/* only support half precision for now */
+	sign = sensor->data & 0x8000;
+	exponent = (sensor->data >> 10) & 0x1f;
+	val = sensor->data & 0x3ff;
+
+	if (exponent == 0) {			/* subnormal */
+		exponent = -(14 + 10);
+	} else if (exponent ==  0x1f) {		/* NaN, convert to min/max */
+		exponent = 0;
+		val = 65504;
+	} else {
+		exponent -= (15 + 10);		/* normal */
+		val |= 0x400;
+	}
+
+	/* scale result to milli-units for all sensors except fans */
+	if (sensor->class != PSC_FAN)
+		val = val * 1000L;
+
+	/* scale result to micro-units for power sensors */
+	if (sensor->class == PSC_POWER)
+		val = val * 1000L;
+
+	if (exponent >= 0)
+		val <<= exponent;
+	else
+		val >>= -exponent;
+
+	if (sign)
+		val = -val;
+
+	return val;
 }
 
 /*
@@ -721,6 +832,9 @@ static s64 pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 	case vid:
 		val = pmbus_reg2data_vid(data, sensor);
 		break;
+	case ieee754:
+		val = pmbus_reg2data_ieee754(data, sensor);
+		break;
 	case linear:
 	default:
 		val = pmbus_reg2data_linear(data, sensor);
@@ -729,8 +843,72 @@ static s64 pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 	return val;
 }
 
-#define MAX_MANTISSA	(1023 * 1000)
-#define MIN_MANTISSA	(511 * 1000)
+#define MAX_IEEE_MANTISSA	(0x7ff * 1000)
+#define MIN_IEEE_MANTISSA	(0x400 * 1000)
+
+static u16 pmbus_data2reg_ieee754(struct pmbus_data *data,
+				  struct pmbus_sensor *sensor, long val)
+{
+	u16 exponent = (15 + 10);
+	long mantissa;
+	u16 sign = 0;
+
+	/* simple case */
+	if (val == 0)
+		return 0;
+
+	if (val < 0) {
+		sign = 0x8000;
+		val = -val;
+	}
+
+	/* Power is in uW. Convert to mW before converting. */
+	if (sensor->class == PSC_POWER)
+		val = DIV_ROUND_CLOSEST(val, 1000L);
+
+	/*
+	 * For simplicity, convert fan data to milli-units
+	 * before calculating the exponent.
+	 */
+	if (sensor->class == PSC_FAN)
+		val = val * 1000;
+
+	/* Reduce large mantissa until it fits into 10 bit */
+	while (val > MAX_IEEE_MANTISSA && exponent < 30) {
+		exponent++;
+		val >>= 1;
+	}
+	/*
+	 * Increase small mantissa to generate valid 'normal'
+	 * number
+	 */
+	while (val < MIN_IEEE_MANTISSA && exponent > 1) {
+		exponent--;
+		val <<= 1;
+	}
+
+	/* Convert mantissa from milli-units to units */
+	mantissa = DIV_ROUND_CLOSEST(val, 1000);
+
+	/*
+	 * Ensure that the resulting number is within range.
+	 * Valid range is 0x400..0x7ff, where bit 10 reflects
+	 * the implied high bit in normalized ieee754 numbers.
+	 * Set the range to 0x400..0x7ff to reflect this.
+	 * The upper bit is then removed by the mask against
+	 * 0x3ff in the final assignment.
+	 */
+	if (mantissa > 0x7ff)
+		mantissa = 0x7ff;
+	else if (mantissa < 0x400)
+		mantissa = 0x400;
+
+	/* Convert to sign, 5 bit exponent, 10 bit mantissa */
+	return sign | (mantissa & 0x3ff) | ((exponent << 10) & 0x7c00);
+}
+
+#define MAX_LIN_MANTISSA	(1023 * 1000)
+#define MIN_LIN_MANTISSA	(511 * 1000)
 
 static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 				 struct pmbus_sensor *sensor, s64 val)
@@ -776,12 +954,12 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 		val = val * 1000LL;
 
 	/* Reduce large mantissa until it fits into 10 bit */
-	while (val >= MAX_MANTISSA && exponent < 15) {
+	while (val >= MAX_LIN_MANTISSA && exponent < 15) {
 		exponent++;
 		val >>= 1;
 	}
 	/* Increase small mantissa to improve precision */
-	while (val < MIN_MANTISSA && exponent > -15) {
+	while (val < MIN_LIN_MANTISSA && exponent > -15) {
 		exponent--;
 		val <<= 1;
 	}
@@ -855,6 +1033,9 @@ static u16 pmbus_data2reg(struct pmbus_data *data,
 	case vid:
 		regval = pmbus_data2reg_vid(data, sensor, val);
 		break;
+	case ieee754:
+		regval = pmbus_data2reg_ieee754(data, sensor, val);
+		break;
 	case linear:
 	default:
 		regval = pmbus_data2reg_linear(data, sensor, val);
@@ -912,7 +1093,7 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 
 	regval = status & mask;
 	if (regval) {
-		ret = pmbus_write_byte_data(client, page, reg, regval);
+		ret = _pmbus_write_byte_data(client, page, reg, regval);
 		if (ret)
 			goto unlock;
 	}
@@ -1083,6 +1264,68 @@ static int pmbus_add_boolean(struct pmbus_data *data,
 	return pmbus_add_attribute(data, &a->dev_attr.attr);
 }
 
+/* of thermal for pmbus temperature sensors */
+struct pmbus_thermal_data {
+	struct pmbus_data *pmbus_data;
+	struct pmbus_sensor *sensor;
+};
+
+static int pmbus_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
+{
+	struct pmbus_thermal_data *tdata = tz->devdata;
+	struct pmbus_sensor *sensor = tdata->sensor;
+	struct pmbus_data *pmbus_data = tdata->pmbus_data;
+	struct i2c_client *client = to_i2c_client(pmbus_data->dev);
+	struct device *dev = pmbus_data->hwmon_dev;
+	int ret = 0;
+
+	if (!dev) {
+		/* May not even get to hwmon yet */
+		*temp = 0;
+		return 0;
+	}
+
+	mutex_lock(&pmbus_data->update_lock);
+	pmbus_update_sensor_data(client, sensor);
+	if (sensor->data < 0)
+		ret = sensor->data;
+	else
+		*temp = (int)pmbus_reg2data(pmbus_data, sensor);
+	mutex_unlock(&pmbus_data->update_lock);
+
+	return ret;
+}
+
+static const struct thermal_zone_device_ops pmbus_thermal_ops = {
+	.get_temp = pmbus_thermal_get_temp,
+};
+
+static int pmbus_thermal_add_sensor(struct pmbus_data *pmbus_data,
+				    struct pmbus_sensor *sensor, int index)
+{
+	struct device *dev = pmbus_data->dev;
+	struct pmbus_thermal_data *tdata;
+	struct thermal_zone_device *tzd;
+
+	tdata = devm_kzalloc(dev, sizeof(*tdata), GFP_KERNEL);
+	if (!tdata)
+		return -ENOMEM;
+
+	tdata->sensor = sensor;
+	tdata->pmbus_data = pmbus_data;
+
+	tzd = devm_thermal_of_zone_register(dev, index, tdata,
+					    &pmbus_thermal_ops);
+	/*
+	 * If CONFIG_THERMAL_OF is disabled, this returns -ENODEV,
+	 * so ignore that error but forward any other error.
+	 */
+	if (IS_ERR(tzd) && (PTR_ERR(tzd) != -ENODEV))
+		return PTR_ERR(tzd);
+
+	return 0;
+}
+
 static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 					     const char *name, const char *type,
 					     int seq, int page, int phase,
@@ -1125,6 +1368,10 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 
 	sensor->next = data->sensors;
 	data->sensors = sensor;
+
+	/* temperature sensors with _input values are registered with thermal */
+	if (class == PSC_TEMPERATURE && strcmp(type, "input") == 0)
+		pmbus_thermal_add_sensor(data, sensor, seq);
 
 	return sensor;
 }
@@ -2283,6 +2530,10 @@ static int pmbus_identify_common(struct i2c_client *client,
 			if (data->info->format[PSC_VOLTAGE_OUT] != direct)
 				return -ENODEV;
 			break;
+		case 3:	/* ieee 754 half precision */
+			if (data->info->format[PSC_VOLTAGE_OUT] != ieee754)
+				return -ENODEV;
+			break;
 		default:
 			return -ENODEV;
 		}
@@ -2302,11 +2553,62 @@ static int pmbus_read_status_word(struct i2c_client *client, int page)
 	return _pmbus_read_word_data(client, page, 0xff, PMBUS_STATUS_WORD);
 }
 
+/* PEC attribute support */
+
+static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
+			char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	return sysfs_emit(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
+}
+
+static ssize_t pec_store(struct device *dev, struct device_attribute *dummy,
+			 const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	bool enable;
+	int err;
+
+	err = kstrtobool(buf, &enable);
+	if (err < 0)
+		return err;
+
+	if (enable)
+		client->flags |= I2C_CLIENT_PEC;
+	else
+		client->flags &= ~I2C_CLIENT_PEC;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(pec);
+
+static void pmbus_remove_pec(void *dev)
+{
+	device_remove_file(dev, &dev_attr_pec);
+}
+
 static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			     struct pmbus_driver_info *info)
 {
 	struct device *dev = &client->dev;
 	int page, ret;
+
+	/*
+	 * Figure out if PEC is enabled before accessing any other register.
+	 * Make sure PEC is disabled, will be enabled later if needed.
+	 */
+	client->flags &= ~I2C_CLIENT_PEC;
+
+	/* Enable PEC if the controller and bus supports it */
+	if (!(data->flags & PMBUS_NO_CAPABILITY)) {
+		ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
+		if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK)) {
+			if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_PEC))
+				client->flags |= I2C_CLIENT_PEC;
+		}
+	}
 
 	/*
 	 * Some PMBus chips don't support PMBUS_STATUS_WORD, so try
@@ -2324,19 +2626,6 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 		}
 	} else {
 		data->has_status_word = true;
-	}
-
-	/* Make sure PEC is disabled, will be enabled later if needed */
-	client->flags &= ~I2C_CLIENT_PEC;
-
-	/* Enable PEC if the controller and bus supports it */
-	if (!(data->flags & PMBUS_NO_CAPABILITY)) {
-		ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
-		if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK)) {
-			if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_PEC)) {
-				client->flags |= I2C_CLIENT_PEC;
-			}
-		}
 	}
 
 	/*
@@ -2386,6 +2675,20 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			return ret;
 	}
 
+	if (client->flags & I2C_CLIENT_PEC) {
+		/*
+		 * If I2C_CLIENT_PEC is set here, both the I2C adapter and the
+		 * chip support PEC. Add 'pec' attribute to client device to let
+		 * the user control it.
+		 */
+		ret = device_create_file(dev, &dev_attr_pec);
+		if (ret)
+			return ret;
+		ret = devm_add_action_or_reset(dev, pmbus_remove_pec, dev);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -2399,7 +2702,7 @@ static int pmbus_regulator_is_enabled(struct regulator_dev *rdev)
 	int ret;
 
 	mutex_lock(&data->update_lock);
-	ret = pmbus_read_byte_data(client, page, PMBUS_OPERATION);
+	ret = _pmbus_read_byte_data(client, page, PMBUS_OPERATION);
 	mutex_unlock(&data->update_lock);
 
 	if (ret < 0)
@@ -2498,7 +2801,7 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 		if (!(func & cat->func))
 			continue;
 
-		status = pmbus_read_byte_data(client, page, cat->reg);
+		status = _pmbus_read_byte_data(client, page, cat->reg);
 		if (status < 0) {
 			mutex_unlock(&data->update_lock);
 			return status;
@@ -2548,11 +2851,149 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 	return 0;
 }
 
+static int pmbus_regulator_get_low_margin(struct i2c_client *client, int page)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	struct pmbus_sensor s = {
+		.page = page,
+		.class = PSC_VOLTAGE_OUT,
+		.convert = true,
+		.data = -1,
+	};
+
+	if (data->vout_low[page] < 0) {
+		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MIN))
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_MFR_VOUT_MIN);
+		if (s.data < 0) {
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_VOUT_MARGIN_LOW);
+			if (s.data < 0)
+				return s.data;
+		}
+		data->vout_low[page] = pmbus_reg2data(data, &s);
+	}
+
+	return data->vout_low[page];
+}
+
+static int pmbus_regulator_get_high_margin(struct i2c_client *client, int page)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	struct pmbus_sensor s = {
+		.page = page,
+		.class = PSC_VOLTAGE_OUT,
+		.convert = true,
+		.data = -1,
+	};
+
+	if (data->vout_high[page] < 0) {
+		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MAX))
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_MFR_VOUT_MAX);
+		if (s.data < 0) {
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_VOUT_MARGIN_HIGH);
+			if (s.data < 0)
+				return s.data;
+		}
+		data->vout_high[page] = pmbus_reg2data(data, &s);
+	}
+
+	return data->vout_high[page];
+}
+
+static int pmbus_regulator_get_voltage(struct regulator_dev *rdev)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	struct pmbus_sensor s = {
+		.page = rdev_get_id(rdev),
+		.class = PSC_VOLTAGE_OUT,
+		.convert = true,
+	};
+
+	s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_READ_VOUT);
+	if (s.data < 0)
+		return s.data;
+
+	return (int)pmbus_reg2data(data, &s) * 1000; /* unit is uV */
+}
+
+static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
+				       int max_uv, unsigned int *selector)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	struct pmbus_sensor s = {
+		.page = rdev_get_id(rdev),
+		.class = PSC_VOLTAGE_OUT,
+		.convert = true,
+		.data = -1,
+	};
+	int val = DIV_ROUND_CLOSEST(min_uv, 1000); /* convert to mV */
+	int low, high;
+
+	*selector = 0;
+
+	low = pmbus_regulator_get_low_margin(client, s.page);
+	if (low < 0)
+		return low;
+
+	high = pmbus_regulator_get_high_margin(client, s.page);
+	if (high < 0)
+		return high;
+
+	/* Make sure we are within margins */
+	if (low > val)
+		val = low;
+	if (high < val)
+		val = high;
+
+	val = pmbus_data2reg(data, &s, val);
+
+	return _pmbus_write_word_data(client, s.page, PMBUS_VOUT_COMMAND, (u16)val);
+}
+
+static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
+					 unsigned int selector)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	int val, low, high;
+
+	if (selector >= rdev->desc->n_voltages ||
+	    selector < rdev->desc->linear_min_sel)
+		return -EINVAL;
+
+	selector -= rdev->desc->linear_min_sel;
+	val = DIV_ROUND_CLOSEST(rdev->desc->min_uV +
+				(rdev->desc->uV_step * selector), 1000); /* convert to mV */
+
+	low = pmbus_regulator_get_low_margin(client, rdev_get_id(rdev));
+	if (low < 0)
+		return low;
+
+	high = pmbus_regulator_get_high_margin(client, rdev_get_id(rdev));
+	if (high < 0)
+		return high;
+
+	if (val >= low && val <= high)
+		return val * 1000; /* unit is uV */
+
+	return 0;
+}
+
 const struct regulator_ops pmbus_regulator_ops = {
 	.enable = pmbus_regulator_enable,
 	.disable = pmbus_regulator_disable,
 	.is_enabled = pmbus_regulator_is_enabled,
 	.get_error_flags = pmbus_regulator_get_error_flags,
+	.get_voltage = pmbus_regulator_get_voltage,
+	.set_voltage = pmbus_regulator_set_voltage,
+	.list_voltage = pmbus_regulator_list_voltage,
 };
 EXPORT_SYMBOL_NS_GPL(pmbus_regulator_ops, PMBUS);
 
@@ -2575,11 +3016,10 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 
 		rdev = devm_regulator_register(dev, &info->reg_desc[i],
 					       &config);
-		if (IS_ERR(rdev)) {
-			dev_err(dev, "Failed to register %s regulator\n",
-				info->reg_desc[i].name);
-			return PTR_ERR(rdev);
-		}
+		if (IS_ERR(rdev))
+			return dev_err_probe(dev, PTR_ERR(rdev),
+					     "Failed to register %s regulator\n",
+					     info->reg_desc[i].name);
 	}
 
 	return 0;
@@ -2627,41 +3067,33 @@ static int pmbus_debugfs_get_status(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_status, pmbus_debugfs_get_status,
 			 NULL, "0x%04llx\n");
 
-static int pmbus_debugfs_get_pec(void *data, u64 *val)
-{
-	struct i2c_client *client = data;
-
-	*val = !!(client->flags & I2C_CLIENT_PEC);
-
-	return 0;
-}
-
-static int pmbus_debugfs_set_pec(void *data, u64 val)
+static ssize_t pmbus_debugfs_mfr_read(struct file *file, char __user *buf,
+				       size_t count, loff_t *ppos)
 {
 	int rc;
-	struct i2c_client *client = data;
+	struct pmbus_debugfs_entry *entry = file->private_data;
+	char data[I2C_SMBUS_BLOCK_MAX + 2] = { 0 };
 
-	if (!val) {
-		client->flags &= ~I2C_CLIENT_PEC;
-		return 0;
-	}
-
-	if (val != 1)
-		return -EINVAL;
-
-	rc = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
+	rc = pmbus_read_block_data(entry->client, entry->page, entry->reg,
+				   data);
 	if (rc < 0)
 		return rc;
 
-	if (!(rc & PB_CAPABILITY_ERROR_CHECK))
-		return -EOPNOTSUPP;
+	/* Add newline at the end of a read data */
+	data[rc] = '\n';
 
-	client->flags |= I2C_CLIENT_PEC;
+	/* Include newline into the length */
+	rc += 1;
 
-	return 0;
+	return simple_read_from_buffer(buf, count, ppos, data, rc);
 }
-DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_pec, pmbus_debugfs_get_pec,
-			 pmbus_debugfs_set_pec, "%llu\n");
+
+static const struct file_operations pmbus_debugfs_ops_mfr = {
+	.llseek = noop_llseek,
+	.read = pmbus_debugfs_mfr_read,
+	.write = NULL,
+	.open = simple_open,
+};
 
 static void pmbus_remove_debugfs(void *data)
 {
@@ -2691,16 +3123,80 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	/* Allocate the max possible entries we need. */
+	/*
+	 * Allocate the max possible entries we need.
+	 * 6 entries device-specific
+	 * 10 entries page-specific
+	 */
 	entries = devm_kcalloc(data->dev,
-			       data->info->pages * 10, sizeof(*entries),
+			       6 + data->info->pages * 10, sizeof(*entries),
 			       GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
 
-	debugfs_create_file("pec", 0664, data->debugfs, client,
-			    &pmbus_debugfs_ops_pec);
+	/*
+	 * Add device-specific entries.
+	 * Please note that the PMBUS standard allows all registers to be
+	 * page-specific.
+	 * To reduce the number of debugfs entries for devices with many pages
+	 * assume that values of the following registers are the same for all
+	 * pages and report values only for page 0.
+	 */
+	if (pmbus_check_block_register(client, 0, PMBUS_MFR_ID)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_MFR_ID;
+		debugfs_create_file("mfr_id", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops_mfr);
+	}
 
+	if (pmbus_check_block_register(client, 0, PMBUS_MFR_MODEL)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_MFR_MODEL;
+		debugfs_create_file("mfr_model", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops_mfr);
+	}
+
+	if (pmbus_check_block_register(client, 0, PMBUS_MFR_REVISION)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_MFR_REVISION;
+		debugfs_create_file("mfr_revision", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops_mfr);
+	}
+
+	if (pmbus_check_block_register(client, 0, PMBUS_MFR_LOCATION)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_MFR_LOCATION;
+		debugfs_create_file("mfr_location", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops_mfr);
+	}
+
+	if (pmbus_check_block_register(client, 0, PMBUS_MFR_DATE)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_MFR_DATE;
+		debugfs_create_file("mfr_date", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops_mfr);
+	}
+
+	if (pmbus_check_block_register(client, 0, PMBUS_MFR_SERIAL)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_MFR_SERIAL;
+		debugfs_create_file("mfr_serial", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops_mfr);
+	}
+
+	/* Add page specific entries */
 	for (i = 0; i < data->info->pages; ++i) {
 		/* Check accessibility of status register if it's not page 0 */
 		if (!i || pmbus_check_status_register(client, i)) {
@@ -2823,6 +3319,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	struct pmbus_data *data;
 	size_t groups_num = 0;
 	int ret;
+	int i;
 	char *name;
 
 	if (!info)
@@ -2855,6 +3352,11 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	data->info = info;
 	data->currpage = -1;
 	data->currphase = -1;
+
+	for (i = 0; i < ARRAY_SIZE(data->vout_low); i++) {
+		data->vout_low[i] = -1;
+		data->vout_high[i] = -1;
+	}
 
 	ret = pmbus_init_common(client, data, info);
 	if (ret < 0)

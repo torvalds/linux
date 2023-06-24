@@ -1110,7 +1110,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 								 bit_len);
 
 					/* Some bits represent more than a
-					 * a single interrupt. Correctly print
+					 * single interrupt. Correctly print
 					 * their name.
 					 */
 					if (ATTENTION_LENGTH(flags) > 2 ||
@@ -1119,7 +1119,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 						snprintf(bit_name, 30,
 							 p_aeu->bit_name, num);
 					else
-						strlcpy(bit_name,
+						strscpy(bit_name,
 							p_aeu->bit_name, 30);
 
 					/* We now need to pass bitmask in its

@@ -218,7 +218,7 @@ static __noinline bool get_packet_dst(struct real_definition **real,
 
 	if (hash != 0x358459b7 /* jhash of ipv4 packet */  &&
 	    hash != 0x2f4bc6bb /* jhash of ipv6 packet */)
-		return 0;
+		return false;
 
 	real_pos = bpf_map_lookup_elem(&ch_rings, &key);
 	if (!real_pos)

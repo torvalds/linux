@@ -18,7 +18,24 @@ static u64 mana_gd_r64(struct gdma_context *g, u64 offset)
 	return readq(g->bar0_va + offset);
 }
 
-static void mana_gd_init_registers(struct pci_dev *pdev)
+static void mana_gd_init_pf_regs(struct pci_dev *pdev)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+	void __iomem *sriov_base_va;
+	u64 sriov_base_off;
+
+	gc->db_page_size = mana_gd_r32(gc, GDMA_PF_REG_DB_PAGE_SIZE) & 0xFFFF;
+	gc->db_page_base = gc->bar0_va +
+				mana_gd_r64(gc, GDMA_PF_REG_DB_PAGE_OFF);
+
+	sriov_base_off = mana_gd_r64(gc, GDMA_SRIOV_REG_CFG_BASE_OFF);
+
+	sriov_base_va = gc->bar0_va + sriov_base_off;
+	gc->shm_base = sriov_base_va +
+			mana_gd_r64(gc, sriov_base_off + GDMA_PF_REG_SHM_OFF);
+}
+
+static void mana_gd_init_vf_regs(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 
@@ -28,6 +45,16 @@ static void mana_gd_init_registers(struct pci_dev *pdev)
 				mana_gd_r64(gc, GDMA_REG_DB_PAGE_OFFSET);
 
 	gc->shm_base = gc->bar0_va + mana_gd_r64(gc, GDMA_REG_SHM_OFFSET);
+}
+
+static void mana_gd_init_registers(struct pci_dev *pdev)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+
+	if (gc->is_pf)
+		mana_gd_init_pf_regs(pdev);
+	else
+		mana_gd_init_vf_regs(pdev);
 }
 
 static int mana_gd_query_max_resources(struct pci_dev *pdev)
@@ -369,6 +396,11 @@ static void mana_gd_process_eq_events(void *arg)
 			dev_err(gc->dev, "EQ %d: overflow detected\n", eq->id);
 			break;
 		}
+
+		/* Per GDMA spec, rmb is necessary after checking owner_bits, before
+		 * reading eqe.
+		 */
+		rmb();
 
 		mana_gd_process_eqe(eq);
 
@@ -1107,6 +1139,11 @@ static int mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 	if (WARN_ON_ONCE(owner_bits != new_bits))
 		return -1;
 
+	/* Per GDMA spec, rmb is necessary after checking owner_bits, before
+	 * reading completion info
+	 */
+	rmb();
+
 	comp->wq_num = cqe->cqe_info.wq_num;
 	comp->is_sq = cqe->cqe_info.is_sq;
 	memcpy(comp->cqe_data, cqe->cqe_data, GDMA_COMP_DATA_SIZE);
@@ -1304,6 +1341,11 @@ static void mana_gd_cleanup(struct pci_dev *pdev)
 	mana_gd_remove_irqs(pdev);
 }
 
+static bool mana_is_pf(unsigned short dev_id)
+{
+	return dev_id == MANA_PF_DEVICE_ID;
+}
+
 static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct gdma_context *gc;
@@ -1340,9 +1382,9 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!bar0_va)
 		goto free_gc;
 
+	gc->is_pf = mana_is_pf(pdev->device);
 	gc->bar0_va = bar0_va;
 	gc->dev = &pdev->dev;
-
 
 	err = mana_gd_setup(pdev);
 	if (err)
@@ -1433,12 +1475,9 @@ static void mana_gd_shutdown(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifndef PCI_VENDOR_ID_MICROSOFT
-#define PCI_VENDOR_ID_MICROSOFT 0x1414
-#endif
-
 static const struct pci_device_id mana_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MICROSOFT, 0x00BA) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICROSOFT, MANA_PF_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICROSOFT, MANA_VF_DEVICE_ID) },
 	{ }
 };
 

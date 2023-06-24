@@ -282,7 +282,7 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 
 static int ohci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return usb_hcd_pci_probe(dev, id, &ohci_pci_hc_driver);
+	return usb_hcd_pci_probe(dev, &ohci_pci_hc_driver);
 }
 
 /* pci driver glue; this is a "new style" PCI driver module */
@@ -305,8 +305,6 @@ static int __init ohci_pci_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ohci_init_driver(&ohci_pci_hc_driver, &pci_overrides);
 

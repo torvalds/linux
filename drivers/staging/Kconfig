@@ -42,8 +42,6 @@ source "drivers/staging/rts5208/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
-source "drivers/staging/octeon-usb/Kconfig"
-
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
@@ -61,12 +59,6 @@ source "drivers/staging/media/Kconfig"
 source "drivers/staging/board/Kconfig"
 
 source "drivers/staging/gdm724x/Kconfig"
-
-source "drivers/staging/fwserial/Kconfig"
-
-source "drivers/staging/unisys/Kconfig"
-
-source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
 
@@ -86,6 +78,6 @@ source "drivers/staging/fieldbus/Kconfig"
 
 source "drivers/staging/qlge/Kconfig"
 
-source "drivers/staging/wfx/Kconfig"
+source "drivers/staging/vme_user/Kconfig"
 
 endif # STAGING

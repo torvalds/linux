@@ -1,6 +1,0 @@
-* Support for VP8, VP9 and H264 is planned for this driver.
-
-  Given the V4L controls for those CODECs will be part of
-  the uABI, it will be required to have the driver in staging.
-
-  For this reason, we are keeping this driver in staging for now.

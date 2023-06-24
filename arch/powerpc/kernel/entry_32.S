@@ -49,7 +49,7 @@
  */
 	.align	12
 
-#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_E500)
 	.globl	prepare_transfer_to_handler
 prepare_transfer_to_handler:
 	/* if from kernel, check interrupted DOZE/NAP mode */
@@ -68,10 +68,10 @@ prepare_transfer_to_handler:
 	lwz	r9,_MSR(r11)		/* if sleeping, clear MSR.EE */
 	rlwinm	r9,r9,0,~MSR_EE
 	lwz	r12,_LINK(r11)		/* and return to address in LR */
-	lwz	r2, GPR2(r11)
+	REST_GPR(2, r11)
 	b	fast_exception_return
 _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
-#endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_E500 */
+#endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_PPC_E500 */
 
 #if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
 	.globl	__kuep_lock
@@ -101,6 +101,7 @@ __kuep_unlock:
 
 	.globl	transfer_to_syscall
 transfer_to_syscall:
+	stw	r3, ORIG_GPR3(r1)
 	stw	r11, GPR1(r1)
 	stw	r11, 0(r1)
 	mflr	r12
@@ -121,9 +122,9 @@ transfer_to_syscall:
 	SAVE_NVGPRS(r1)
 	kuep_lock
 
-	/* Calling convention has r9 = orig r0, r10 = regs */
-	addi	r10,r1,STACK_FRAME_OVERHEAD
-	mr	r9,r0
+	/* Calling convention has r3 = regs, r4 = orig r0 */
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r0
 	bl	system_call_exception
 
 ret_from_syscall:
@@ -143,7 +144,7 @@ ret_from_syscall:
 	lwz	r7,_NIP(r1)
 	lwz	r8,_MSR(r1)
 	cmpwi	r3,0
-	lwz	r3,GPR3(r1)
+	REST_GPR(3, r1)
 syscall_exit_finish:
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
@@ -151,8 +152,8 @@ syscall_exit_finish:
 	bne	3f
 	mtcr	r5
 
-1:	lwz	r2,GPR2(r1)
-	lwz	r1,GPR1(r1)
+1:	REST_GPR(2, r1)
+	REST_GPR(1, r1)
 	rfi
 #ifdef CONFIG_40x
 	b .	/* Prevent prefetch past rfi */
@@ -164,10 +165,8 @@ syscall_exit_finish:
 	REST_NVGPRS(r1)
 	mtctr	r4
 	mtxer	r5
-	lwz	r0,GPR0(r1)
-	lwz	r3,GPR3(r1)
-	REST_GPRS(4, 11, r1)
-	lwz	r12,GPR12(r1)
+	REST_GPR(0, r1)
+	REST_GPRS(3, 12, r1)
 	b	1b
 
 #ifdef CONFIG_44x
@@ -259,13 +258,12 @@ fast_exception_return:
 	beq	3f			/* if not, we've got problems */
 #endif
 
-2:	REST_GPRS(3, 6, r11)
-	lwz	r10,_CCR(r11)
-	REST_GPRS(1, 2, r11)
+2:	lwz	r10,_CCR(r11)
+	REST_GPRS(1, 6, r11)
 	mtcr	r10
 	lwz	r10,_LINK(r11)
 	mtlr	r10
-	/* Clear the exception_marker on the stack to avoid confusing stacktrace */
+	/* Clear the exception marker on the stack to avoid confusing stacktrace */
 	li	r10, 0
 	stw	r10, 8(r11)
 	REST_GPR(10, r11)
@@ -276,7 +274,7 @@ fast_exception_return:
 	mtspr	SPRN_SRR0,r12
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
-	lwz	r11,GPR11(r11)
+	REST_GPR(11, r11)
 	rfi
 #ifdef CONFIG_40x
 	b .	/* Prevent prefetch past rfi */
@@ -322,7 +320,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	li	r0,0
 
 	/*
-	 * Leaving a stale exception_marker on the stack can confuse
+	 * Leaving a stale exception marker on the stack can confuse
 	 * the reliable stack unwinder later on. Clear it.
 	 */
 	stw	r0,8(r1)
@@ -374,7 +372,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	mtspr	SPRN_XER,r5
 
 	/*
-	 * Leaving a stale exception_marker on the stack can confuse
+	 * Leaving a stale exception marker on the stack can confuse
 	 * the reliable stack unwinder later on. Clear it.
 	 */
 	stw	r0,8(r1)
@@ -453,9 +451,8 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	lwz	r3,_MSR(r1);						\
 	andi.	r3,r3,MSR_PR;						\
 	bne	interrupt_return;					\
-	lwz	r0,GPR0(r1);						\
-	lwz	r2,GPR2(r1);						\
-	REST_GPRS(3, 8, r1);						\
+	REST_GPR(0, r1);						\
+	REST_GPRS(2, 8, r1);						\
 	lwz	r10,_XER(r1);						\
 	lwz	r11,_CTR(r1);						\
 	mtspr	SPRN_XER,r10;						\
@@ -474,11 +471,8 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	lwz	r12,_MSR(r1);						\
 	mtspr	exc_lvl_srr0,r11;					\
 	mtspr	exc_lvl_srr1,r12;					\
-	lwz	r9,GPR9(r1);						\
-	lwz	r12,GPR12(r1);						\
-	lwz	r10,GPR10(r1);						\
-	lwz	r11,GPR11(r1);						\
-	lwz	r1,GPR1(r1);						\
+	REST_GPRS(9, 12, r1);						\
+	REST_GPR(1, r1);						\
 	exc_lvl_rfi;							\
 	b	.;		/* prevent prefetch past exc_lvl_rfi */
 
@@ -488,7 +482,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	mtspr	SPRN_##exc_lvl_srr0,r9;					\
 	mtspr	SPRN_##exc_lvl_srr1,r10;
 
-#if defined(CONFIG_PPC_BOOK3E_MMU)
+#if defined(CONFIG_PPC_E500)
 #ifdef CONFIG_PHYS_64BIT
 #define	RESTORE_MAS7							\
 	lwz	r11,MAS7(r1);						\
@@ -555,52 +549,3 @@ ret_from_mcheck_exc:
 _ASM_NOKPROBE_SYMBOL(ret_from_mcheck_exc)
 #endif /* CONFIG_BOOKE */
 #endif /* !(CONFIG_4xx || CONFIG_BOOKE) */
-
-/*
- * PROM code for specific machines follows.  Put it
- * here so it's easy to add arch-specific sections later.
- * -- Cort
- */
-#ifdef CONFIG_PPC_RTAS
-/*
- * On CHRP, the Run-Time Abstraction Services (RTAS) have to be
- * called with the MMU off.
- */
-_GLOBAL(enter_rtas)
-	stwu	r1,-INT_FRAME_SIZE(r1)
-	mflr	r0
-	stw	r0,INT_FRAME_SIZE+4(r1)
-	LOAD_REG_ADDR(r4, rtas)
-	lis	r6,1f@ha	/* physical return address for rtas */
-	addi	r6,r6,1f@l
-	tophys(r6,r6)
-	lwz	r8,RTASENTRY(r4)
-	lwz	r4,RTASBASE(r4)
-	mfmsr	r9
-	stw	r9,8(r1)
-	LOAD_REG_IMMEDIATE(r0,MSR_KERNEL)
-	mtmsr	r0	/* disable interrupts so SRR0/1 don't get trashed */
-	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
-	mtlr	r6
-	stw	r1, THREAD + RTAS_SP(r2)
-	mtspr	SPRN_SRR0,r8
-	mtspr	SPRN_SRR1,r9
-	rfi
-1:
-	lis	r8, 1f@h
-	ori	r8, r8, 1f@l
-	LOAD_REG_IMMEDIATE(r9,MSR_KERNEL)
-	mtspr	SPRN_SRR0,r8
-	mtspr	SPRN_SRR1,r9
-	rfi			/* Reactivate MMU translation */
-1:
-	lwz	r8,INT_FRAME_SIZE+4(r1)	/* get return address */
-	lwz	r9,8(r1)	/* original msr value */
-	addi	r1,r1,INT_FRAME_SIZE
-	li	r0,0
-	stw	r0, THREAD + RTAS_SP(r2)
-	mtlr	r8
-	mtmsr	r9
-	blr			/* return to caller */
-_ASM_NOKPROBE_SYMBOL(enter_rtas)
-#endif /* CONFIG_PPC_RTAS */

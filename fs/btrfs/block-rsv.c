@@ -118,7 +118,7 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 	if (block_rsv->reserved >= block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		block_rsv->reserved = block_rsv->size;
-		block_rsv->full = 1;
+		block_rsv->full = true;
 	} else {
 		num_bytes = 0;
 	}
@@ -142,7 +142,7 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 				bytes_to_add = min(num_bytes, bytes_to_add);
 				dest->reserved += bytes_to_add;
 				if (dest->reserved >= dest->size)
-					dest->full = 1;
+					dest->full = true;
 				num_bytes -= bytes_to_add;
 			}
 			spin_unlock(&dest->lock);
@@ -171,7 +171,7 @@ int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src,
 	return 0;
 }
 
-void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type)
+void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, enum btrfs_rsv_type type)
 {
 	memset(rsv, 0, sizeof(*rsv));
 	spin_lock_init(&rsv->lock);
@@ -180,7 +180,7 @@ void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type)
 
 void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,
 				   struct btrfs_block_rsv *rsv,
-				   unsigned short type)
+				   enum btrfs_rsv_type type)
 {
 	btrfs_init_block_rsv(rsv, type);
 	rsv->space_info = btrfs_find_space_info(fs_info,
@@ -188,7 +188,7 @@ void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,
 }
 
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
-					      unsigned short type)
+					      enum btrfs_rsv_type type)
 {
 	struct btrfs_block_rsv *block_rsv;
 
@@ -286,7 +286,7 @@ u64 btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 	 */
 	if (block_rsv == delayed_rsv)
 		target = global_rsv;
-	else if (block_rsv != global_rsv && !delayed_rsv->full)
+	else if (block_rsv != global_rsv && !btrfs_block_rsv_full(delayed_rsv))
 		target = delayed_rsv;
 
 	if (target && block_rsv->space_info != target->space_info)
@@ -304,7 +304,7 @@ int btrfs_block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv, u64 num_bytes)
 	if (block_rsv->reserved >= num_bytes) {
 		block_rsv->reserved -= num_bytes;
 		if (block_rsv->reserved < block_rsv->size)
-			block_rsv->full = 0;
+			block_rsv->full = false;
 		ret = 0;
 	}
 	spin_unlock(&block_rsv->lock);
@@ -319,7 +319,7 @@ void btrfs_block_rsv_add_bytes(struct btrfs_block_rsv *block_rsv,
 	if (update_size)
 		block_rsv->size += num_bytes;
 	else if (block_rsv->reserved >= block_rsv->size)
-		block_rsv->full = 1;
+		block_rsv->full = true;
 	spin_unlock(&block_rsv->lock);
 }
 
@@ -341,7 +341,7 @@ int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
 	}
 	global_rsv->reserved -= num_bytes;
 	if (global_rsv->reserved < global_rsv->size)
-		global_rsv->full = 0;
+		global_rsv->full = false;
 	spin_unlock(&global_rsv->lock);
 
 	btrfs_block_rsv_add_bytes(dest, num_bytes, true);
@@ -408,10 +408,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 		btrfs_try_granting_tickets(fs_info, sinfo);
 	}
 
-	if (block_rsv->reserved == block_rsv->size)
-		block_rsv->full = 1;
-	else
-		block_rsv->full = 0;
+	block_rsv->full = (block_rsv->reserved == block_rsv->size);
 
 	if (block_rsv->size >= sinfo->total_bytes)
 		sinfo->force_alloc = CHUNK_ALLOC_FORCE;
@@ -427,6 +424,7 @@ void btrfs_init_root_block_rsv(struct btrfs_root *root)
 	case BTRFS_CSUM_TREE_OBJECTID:
 	case BTRFS_EXTENT_TREE_OBJECTID:
 	case BTRFS_FREE_SPACE_TREE_OBJECTID:
+	case BTRFS_BLOCK_GROUP_TREE_OBJECTID:
 		root->block_rsv = &fs_info->delayed_refs_rsv;
 		break;
 	case BTRFS_ROOT_TREE_OBJECTID:

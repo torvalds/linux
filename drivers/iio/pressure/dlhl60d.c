@@ -47,7 +47,7 @@ struct dlh_state {
 	struct dlh_info info;
 	bool use_interrupt;
 	struct completion completion;
-	u8 rx_buf[DLH_NUM_READ_BYTES] ____cacheline_aligned;
+	u8 rx_buf[DLH_NUM_READ_BYTES];
 };
 
 static struct dlh_info dlh_info_tbl[] = {
@@ -129,9 +129,8 @@ static int dlh_read_direct(struct dlh_state *st,
 	if (ret)
 		return ret;
 
-	*pressure = get_unaligned_be32(&st->rx_buf[1]) >> 8;
-	*temperature = get_unaligned_be32(&st->rx_buf[3]) &
-		GENMASK(DLH_NUM_TEMP_BITS - 1, 0);
+	*pressure = get_unaligned_be24(&st->rx_buf[1]);
+	*temperature = get_unaligned_be24(&st->rx_buf[4]);
 
 	return 0;
 }

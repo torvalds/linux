@@ -55,6 +55,10 @@
 #define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)
 #define SPRN_PVR	0x11F
 
+#define PVR_CFG(pvr)    (((pvr) >>  8) & 0xF)   /* Configuration field */
+#define PVR_MAJ(pvr)    (((pvr) >>  4) & 0xF)   /* Major revision field */
+#define PVR_MIN(pvr)    (((pvr) >>  0) & 0xF)   /* Minor revision field */
+
 #define SPRN_DSCR_PRIV 0x11	/* Privilege State DSCR */
 #define SPRN_DSCR      0x03	/* Data Stream Control Register */
 #define SPRN_PPR       896	/* Program Priority Register */
@@ -123,45 +127,44 @@
 		"li 30, %[" #_asm_symbol_name_immed "];" \
 		"li 31, %[" #_asm_symbol_name_immed "];"
 
-#define ASM_LOAD_FPR_SINGLE_PRECISION(_asm_symbol_name_addr) \
-		"lfs 0, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 1, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 2, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 3, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 4, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 5, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 6, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 7, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 8, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 9, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 10, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 11, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 12, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 13, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 14, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 15, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 16, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 17, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 18, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 19, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 20, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 21, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 22, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 23, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 24, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 25, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 26, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 27, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 28, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 29, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 30, 0(%[" #_asm_symbol_name_addr "]);" \
-		"lfs 31, 0(%[" #_asm_symbol_name_addr "]);"
+#define ASM_LOAD_FPR(_asm_symbol_name_addr) \
+		"lfd 0, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 1, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 2, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 3, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 4, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 5, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 6, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 7, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 8, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 9, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 10, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 11, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 12, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 13, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 14, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 15, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 16, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 17, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 18, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 19, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 20, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 21, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 22, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 23, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 24, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 25, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 26, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 27, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 28, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 29, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 30, 0(%[" #_asm_symbol_name_addr "]);" \
+		"lfd 31, 0(%[" #_asm_symbol_name_addr "]);"
 
 #ifndef __ASSEMBLER__
 void store_gpr(unsigned long *addr);
 void load_gpr(unsigned long *addr);
-void load_fpr_single_precision(float *addr);
-void store_fpr_single_precision(float *addr);
+void store_fpr(double *addr);
 #endif /* end of __ASSEMBLER__ */
 
 #endif /* _SELFTESTS_POWERPC_REG_H */

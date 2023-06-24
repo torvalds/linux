@@ -43,7 +43,7 @@
 #include <asm/tm.h>
 #include <asm/asm-prototypes.h>
 #ifdef CONFIG_PPC64
-#include "ppc32.h"
+#include <asm/syscalls_32.h>
 #include <asm/unistd.h>
 #else
 #include <asm/ucontext.h>
@@ -232,6 +232,12 @@ struct rt_sigframe {
 	 */
 	int			abigap[56];
 };
+
+unsigned long get_min_sigframe_size_32(void)
+{
+	return max(sizeof(struct rt_sigframe) + __SIGNAL_FRAMESIZE + 16,
+		   sizeof(struct sigframe) + __SIGNAL_FRAMESIZE);
+}
 
 /*
  * Save the current user registers on the user stack.

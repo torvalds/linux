@@ -406,7 +406,7 @@ static void update_affinity_collection(struct kvm *kvm, struct vgic_its *its,
 	struct its_ite *ite;
 
 	for_each_lpi_its(device, ite, its) {
-		if (!ite->collection || coll != ite->collection)
+		if (ite->collection != coll)
 			continue;
 
 		update_affinity_ite(kvm, ite);
@@ -683,7 +683,7 @@ int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
 	if (!vcpu)
 		return E_ITS_INT_UNMAPPED_INTERRUPT;
 
-	if (!vcpu->arch.vgic_cpu.lpis_enabled)
+	if (!vgic_lpis_enabled(vcpu))
 		return -EBUSY;
 
 	vgic_its_cache_translation(kvm, its, devid, eventid, ite->irq);
@@ -894,6 +894,18 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 	return update_affinity(ite->irq, vcpu);
 }
 
+static bool __is_visible_gfn_locked(struct vgic_its *its, gpa_t gpa)
+{
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int idx;
+	bool ret;
+
+	idx = srcu_read_lock(&its->dev->kvm->srcu);
+	ret = kvm_is_visible_gfn(its->dev->kvm, gfn);
+	srcu_read_unlock(&its->dev->kvm->srcu, idx);
+	return ret;
+}
+
 /*
  * Check whether an ID can be stored into the corresponding guest table.
  * For a direct table this is pretty easy, but gets a bit nasty for
@@ -908,9 +920,7 @@ static bool vgic_its_check_id(struct vgic_its *its, u64 baser, u32 id,
 	u64 indirect_ptr, type = GITS_BASER_TYPE(baser);
 	phys_addr_t base = GITS_BASER_ADDR_48_to_52(baser);
 	int esz = GITS_BASER_ENTRY_SIZE(baser);
-	int index, idx;
-	gfn_t gfn;
-	bool ret;
+	int index;
 
 	switch (type) {
 	case GITS_BASER_TYPE_DEVICE:
@@ -933,12 +943,11 @@ static bool vgic_its_check_id(struct vgic_its *its, u64 baser, u32 id,
 			return false;
 
 		addr = base + id * esz;
-		gfn = addr >> PAGE_SHIFT;
 
 		if (eaddr)
 			*eaddr = addr;
 
-		goto out;
+		return __is_visible_gfn_locked(its, addr);
 	}
 
 	/* calculate and check the index into the 1st level */
@@ -964,26 +973,41 @@ static bool vgic_its_check_id(struct vgic_its *its, u64 baser, u32 id,
 	/* Find the address of the actual entry */
 	index = id % (SZ_64K / esz);
 	indirect_ptr += index * esz;
-	gfn = indirect_ptr >> PAGE_SHIFT;
 
 	if (eaddr)
 		*eaddr = indirect_ptr;
 
-out:
-	idx = srcu_read_lock(&its->dev->kvm->srcu);
-	ret = kvm_is_visible_gfn(its->dev->kvm, gfn);
-	srcu_read_unlock(&its->dev->kvm->srcu, idx);
-	return ret;
+	return __is_visible_gfn_locked(its, indirect_ptr);
 }
 
+/*
+ * Check whether an event ID can be stored in the corresponding Interrupt
+ * Translation Table, which starts at device->itt_addr.
+ */
+static bool vgic_its_check_event_id(struct vgic_its *its, struct its_device *device,
+		u32 event_id)
+{
+	const struct vgic_its_abi *abi = vgic_its_get_abi(its);
+	int ite_esz = abi->ite_esz;
+	gpa_t gpa;
+
+	/* max table size is: BIT_ULL(device->num_eventid_bits) * ite_esz */
+	if (event_id >= BIT_ULL(device->num_eventid_bits))
+		return false;
+
+	gpa = device->itt_addr + event_id * ite_esz;
+	return __is_visible_gfn_locked(its, gpa);
+}
+
+/*
+ * Add a new collection into the ITS collection table.
+ * Returns 0 on success, and a negative error value for generic errors.
+ */
 static int vgic_its_alloc_collection(struct vgic_its *its,
 				     struct its_collection **colp,
 				     u32 coll_id)
 {
 	struct its_collection *collection;
-
-	if (!vgic_its_check_id(its, its->baser_coll_table, coll_id, NULL))
-		return E_ITS_MAPC_COLLECTION_OOR;
 
 	collection = kzalloc(sizeof(*collection), GFP_KERNEL_ACCOUNT);
 	if (!collection)
@@ -1061,7 +1085,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	if (!device)
 		return E_ITS_MAPTI_UNMAPPED_DEVICE;
 
-	if (event_id >= BIT_ULL(device->num_eventid_bits))
+	if (!vgic_its_check_event_id(its, device, event_id))
 		return E_ITS_MAPTI_ID_OOR;
 
 	if (its_cmd_get_command(its_cmd) == GITS_CMD_MAPTI)
@@ -1078,7 +1102,12 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 
 	collection = find_collection(its, coll_id);
 	if (!collection) {
-		int ret = vgic_its_alloc_collection(its, &collection, coll_id);
+		int ret;
+
+		if (!vgic_its_check_id(its, its->baser_coll_table, coll_id, NULL))
+			return E_ITS_MAPC_COLLECTION_OOR;
+
+		ret = vgic_its_alloc_collection(its, &collection, coll_id);
 		if (ret)
 			return ret;
 		new_coll = collection;
@@ -1233,6 +1262,10 @@ static int vgic_its_cmd_handle_mapc(struct kvm *kvm, struct vgic_its *its,
 		if (!collection) {
 			int ret;
 
+			if (!vgic_its_check_id(its, its->baser_coll_table,
+						coll_id, NULL))
+				return E_ITS_MAPC_COLLECTION_OOR;
+
 			ret = vgic_its_alloc_collection(its, &collection,
 							coll_id);
 			if (ret)
@@ -1272,6 +1305,11 @@ static int vgic_its_cmd_handle_clear(struct kvm *kvm, struct vgic_its *its,
 	return 0;
 }
 
+int vgic_its_inv_lpi(struct kvm *kvm, struct vgic_irq *irq)
+{
+	return update_lpi_config(kvm, irq, NULL, true);
+}
+
 /*
  * The INV command syncs the configuration bits from the memory table.
  * Must be called with the its_lock mutex held.
@@ -1288,7 +1326,41 @@ static int vgic_its_cmd_handle_inv(struct kvm *kvm, struct vgic_its *its,
 	if (!ite)
 		return E_ITS_INV_UNMAPPED_INTERRUPT;
 
-	return update_lpi_config(kvm, ite->irq, NULL, true);
+	return vgic_its_inv_lpi(kvm, ite->irq);
+}
+
+/**
+ * vgic_its_invall - invalidate all LPIs targetting a given vcpu
+ * @vcpu: the vcpu for which the RD is targetted by an invalidation
+ *
+ * Contrary to the INVALL command, this targets a RD instead of a
+ * collection, and we don't need to hold the its_lock, since no ITS is
+ * involved here.
+ */
+int vgic_its_invall(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	int irq_count, i = 0;
+	u32 *intids;
+
+	irq_count = vgic_copy_lpi_list(kvm, vcpu, &intids);
+	if (irq_count < 0)
+		return irq_count;
+
+	for (i = 0; i < irq_count; i++) {
+		struct vgic_irq *irq = vgic_get_irq(kvm, NULL, intids[i]);
+		if (!irq)
+			continue;
+		update_lpi_config(kvm, irq, vcpu, false);
+		vgic_put_irq(kvm, irq);
+	}
+
+	kfree(intids);
+
+	if (vcpu->arch.vgic_cpu.vgic_v3.its_vpe.its_vm)
+		its_invall_vpe(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe);
+
+	return 0;
 }
 
 /*
@@ -1305,32 +1377,13 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 	u32 coll_id = its_cmd_get_collection(its_cmd);
 	struct its_collection *collection;
 	struct kvm_vcpu *vcpu;
-	struct vgic_irq *irq;
-	u32 *intids;
-	int irq_count, i;
 
 	collection = find_collection(its, coll_id);
 	if (!its_is_collection_mapped(collection))
 		return E_ITS_INVALL_UNMAPPED_COLLECTION;
 
 	vcpu = kvm_get_vcpu(kvm, collection->target_addr);
-
-	irq_count = vgic_copy_lpi_list(kvm, vcpu, &intids);
-	if (irq_count < 0)
-		return irq_count;
-
-	for (i = 0; i < irq_count; i++) {
-		irq = vgic_get_irq(kvm, NULL, intids[i]);
-		if (!irq)
-			continue;
-		update_lpi_config(kvm, irq, vcpu, false);
-		vgic_put_irq(kvm, irq);
-	}
-
-	kfree(intids);
-
-	if (vcpu->arch.vgic_cpu.vgic_v3.its_vpe.its_vm)
-		its_invall_vpe(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe);
+	vgic_its_invall(vcpu);
 
 	return 0;
 }
@@ -2096,7 +2149,7 @@ static int scan_its_table(struct vgic_its *its, gpa_t base, int size, u32 esz,
 
 	memset(entry, 0, esz);
 
-	while (len > 0) {
+	while (true) {
 		int next_offset;
 		size_t byte_offset;
 
@@ -2109,6 +2162,9 @@ static int scan_its_table(struct vgic_its *its, gpa_t base, int size, u32 esz,
 			return next_offset;
 
 		byte_offset = next_offset * esz;
+		if (byte_offset >= len)
+			break;
+
 		id += next_offset;
 		gpa += byte_offset;
 		len -= byte_offset;
@@ -2175,6 +2231,9 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 	if (!collection)
 		return -EINVAL;
 
+	if (!vgic_its_check_event_id(its, dev, event_id))
+		return -EINVAL;
+
 	ite = vgic_its_alloc_ite(dev, collection, event_id);
 	if (IS_ERR(ite))
 		return PTR_ERR(ite);
@@ -2183,8 +2242,10 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 		vcpu = kvm_get_vcpu(kvm, collection->target_addr);
 
 	irq = vgic_add_lpi(kvm, lpi_id, vcpu);
-	if (IS_ERR(irq))
+	if (IS_ERR(irq)) {
+		its_free_ite(kvm, ite);
 		return PTR_ERR(irq);
+	}
 	ite->irq = irq;
 
 	return offset;
@@ -2296,6 +2357,7 @@ static int vgic_its_restore_dte(struct vgic_its *its, u32 id,
 				void *ptr, void *opaque)
 {
 	struct its_device *dev;
+	u64 baser = its->baser_device_table;
 	gpa_t itt_addr;
 	u8 num_eventid_bits;
 	u64 entry = *(u64 *)ptr;
@@ -2315,6 +2377,9 @@ static int vgic_its_restore_dte(struct vgic_its *its, u32 id,
 
 	/* dte entry is valid */
 	offset = (entry & KVM_ITS_DTE_NEXT_MASK) >> KVM_ITS_DTE_NEXT_SHIFT;
+
+	if (!vgic_its_check_id(its, baser, id, NULL))
+		return -EINVAL;
 
 	dev = vgic_its_alloc_device(its, id, itt_addr, num_eventid_bits);
 	if (IS_ERR(dev))
@@ -2445,6 +2510,9 @@ static int vgic_its_restore_device_tables(struct vgic_its *its)
 	if (ret > 0)
 		ret = 0;
 
+	if (ret < 0)
+		vgic_its_free_device_list(its->dev->kvm, its);
+
 	return ret;
 }
 
@@ -2461,6 +2529,11 @@ static int vgic_its_save_cte(struct vgic_its *its,
 	return kvm_write_guest_lock(its->dev->kvm, gpa, &val, esz);
 }
 
+/*
+ * Restore a collection entry into the ITS collection table.
+ * Return +1 on success, 0 if the entry was invalid (which should be
+ * interpreted as end-of-table), and a negative error value for generic errors.
+ */
 static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 {
 	struct its_collection *collection;
@@ -2487,6 +2560,10 @@ static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 	collection = find_collection(its, coll_id);
 	if (collection)
 		return -EEXIST;
+
+	if (!vgic_its_check_id(its, its->baser_coll_table, coll_id, NULL))
+		return -EINVAL;
+
 	ret = vgic_its_alloc_collection(its, &collection, coll_id);
 	if (ret)
 		return ret;
@@ -2566,6 +2643,9 @@ static int vgic_its_restore_collection_table(struct vgic_its *its)
 	if (ret > 0)
 		return 0;
 
+	if (ret < 0)
+		vgic_its_free_collection_list(its->dev->kvm, its);
+
 	return ret;
 }
 
@@ -2597,7 +2677,10 @@ static int vgic_its_restore_tables_v0(struct vgic_its *its)
 	if (ret)
 		return ret;
 
-	return vgic_its_restore_device_tables(its);
+	ret = vgic_its_restore_device_tables(its);
+	if (ret)
+		vgic_its_free_collection_list(its->dev->kvm, its);
+	return ret;
 }
 
 static int vgic_its_commit_v0(struct vgic_its *its)

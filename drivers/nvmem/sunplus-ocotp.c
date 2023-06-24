@@ -71,7 +71,7 @@ struct sp_ocotp_data {
 	int size;
 };
 
-const struct sp_ocotp_data  sp_otp_v0 = {
+static const struct sp_ocotp_data sp_otp_v0 = {
 	.size = QAC628_OTP_SIZE,
 };
 
@@ -201,8 +201,6 @@ static int sp_ocotp_probe(struct platform_device *pdev)
 	dev_dbg(dev, "banks:%d x wpb:%d x wsize:%d = %d",
 		(int)QAC628_OTP_NUM_BANKS, (int)OTP_WORDS_PER_BANK,
 		(int)OTP_WORD_SIZE, (int)QAC628_OTP_SIZE);
-
-	dev_info(dev, "by Sunplus (C) 2020");
 
 	return 0;
 }

@@ -5,6 +5,7 @@
 
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
+#include <linux/string_helpers.h>
 
 #include "display/intel_display.h"
 #include "display/intel_overlay.h"
@@ -137,7 +138,7 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
 	bool banned = false;
 
-	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
+	RQ_TRACE(rq, "guilty? %s\n", str_yes_no(guilty));
 	GEM_BUG_ON(__i915_request_is_complete(rq));
 
 	rcu_read_lock(); /* protect the GEM context */
@@ -299,9 +300,9 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 	return err;
 }
 
-static int gen6_reset_engines(struct intel_gt *gt,
-			      intel_engine_mask_t engine_mask,
-			      unsigned int retry)
+static int __gen6_reset_engines(struct intel_gt *gt,
+				intel_engine_mask_t engine_mask,
+				unsigned int retry)
 {
 	struct intel_engine_cs *engine;
 	u32 hw_mask;
@@ -318,6 +319,20 @@ static int gen6_reset_engines(struct intel_gt *gt,
 	}
 
 	return gen6_hw_domain_reset(gt, hw_mask);
+}
+
+static int gen6_reset_engines(struct intel_gt *gt,
+			      intel_engine_mask_t engine_mask,
+			      unsigned int retry)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&gt->uncore->lock, flags);
+	ret = __gen6_reset_engines(gt, engine_mask, retry);
+	spin_unlock_irqrestore(&gt->uncore->lock, flags);
+
+	return ret;
 }
 
 static struct intel_engine_cs *find_sfc_paired_vecs_engine(struct intel_engine_cs *engine)
@@ -486,9 +501,9 @@ static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 	rmw_clear_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit);
 }
 
-static int gen11_reset_engines(struct intel_gt *gt,
-			       intel_engine_mask_t engine_mask,
-			       unsigned int retry)
+static int __gen11_reset_engines(struct intel_gt *gt,
+				 intel_engine_mask_t engine_mask,
+				 unsigned int retry)
 {
 	struct intel_engine_cs *engine;
 	intel_engine_mask_t tmp;
@@ -582,7 +597,10 @@ static int gen8_reset_engines(struct intel_gt *gt,
 	struct intel_engine_cs *engine;
 	const bool reset_non_ready = retry >= 1;
 	intel_engine_mask_t tmp;
+	unsigned long flags;
 	int ret;
+
+	spin_lock_irqsave(&gt->uncore->lock, flags);
 
 	for_each_engine_masked(engine, gt, engine_mask, tmp) {
 		ret = gen8_engine_reset_prepare(engine);
@@ -611,16 +629,18 @@ static int gen8_reset_engines(struct intel_gt *gt,
 	 * This is best effort, so ignore any error from the initial reset.
 	 */
 	if (IS_DG2(gt->i915) && engine_mask == ALL_ENGINES)
-		gen11_reset_engines(gt, gt->info.engine_mask, 0);
+		__gen11_reset_engines(gt, gt->info.engine_mask, 0);
 
 	if (GRAPHICS_VER(gt->i915) >= 11)
-		ret = gen11_reset_engines(gt, engine_mask, retry);
+		ret = __gen11_reset_engines(gt, engine_mask, retry);
 	else
-		ret = gen6_reset_engines(gt, engine_mask, retry);
+		ret = __gen6_reset_engines(gt, engine_mask, retry);
 
 skip_reset:
 	for_each_engine_masked(engine, gt, engine_mask, tmp)
 		gen8_engine_reset_cancel(engine);
+
+	spin_unlock_irqrestore(&gt->uncore->lock, flags);
 
 	return ret;
 }
@@ -756,7 +776,7 @@ static void revoke_mmaps(struct intel_gt *gt)
 			continue;
 
 		node = &vma->mmo->vma_node;
-		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
+		vma_offset = vma->gtt_view.partial.offset << PAGE_SHIFT;
 
 		unmap_mapping_range(gt->i915->drm.anon_inode->i_mapping,
 				    drm_vma_node_offset_addr(node) + vma_offset,
@@ -771,13 +791,14 @@ static intel_engine_mask_t reset_prepare(struct intel_gt *gt)
 	intel_engine_mask_t awake = 0;
 	enum intel_engine_id id;
 
+	/* For GuC mode, ensure submission is disabled before stopping ring */
+	intel_uc_reset_prepare(&gt->uc);
+
 	for_each_engine(engine, gt, id) {
 		if (intel_engine_pm_get_if_awake(engine))
 			awake |= engine->mask;
 		reset_prepare_engine(engine);
 	}
-
-	intel_uc_reset_prepare(&gt->uc);
 
 	return awake;
 }
@@ -1260,9 +1281,6 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 	intel_wedge_on_timeout(&w, gt, 5 * HZ) {
 		intel_display_prepare_reset(gt->i915);
 
-		/* Flush everyone using a resource about to be clobbered */
-		synchronize_srcu_expedited(&gt->reset.backoff_srcu);
-
 		intel_gt_reset(gt, engine_mask, reason);
 
 		intel_display_finish_reset(gt->i915);
@@ -1318,7 +1336,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	engine_mask &= gt->info.engine_mask;
 
 	if (flags & I915_ERROR_CAPTURE) {
-		i915_capture_error_state(gt, engine_mask);
+		i915_capture_error_state(gt, engine_mask, CORE_DUMP_FLAG_NONE);
 		intel_gt_clear_error_registers(gt, engine_mask);
 	}
 
@@ -1370,6 +1388,9 @@ void intel_gt_handle_error(struct intel_gt *gt,
 					    TASK_UNINTERRUPTIBLE);
 		}
 	}
+
+	/* Flush everyone using a resource about to be clobbered */
+	synchronize_srcu_expedited(&gt->reset.backoff_srcu);
 
 	intel_gt_reset_global(gt, engine_mask, msg);
 

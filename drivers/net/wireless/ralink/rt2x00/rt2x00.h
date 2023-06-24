@@ -232,7 +232,7 @@ struct link_qual {
 	 * VGC levels
 	 * Hardware driver will tune the VGC level during each call
 	 * to the link_tuner() callback function. This vgc_level is
-	 * is determined based on the link quality statistics like
+	 * determined based on the link quality statistics like
 	 * average RSSI and the false CCA count.
 	 *
 	 * In some cases the drivers need to differentiate between
@@ -1309,8 +1309,11 @@ void rt2x00queue_unmap_skb(struct queue_entry *entry);
  */
 static inline struct data_queue *
 rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
-			 const enum data_queue_qid queue)
+			 enum data_queue_qid queue)
 {
+	if (queue >= rt2x00dev->ops->tx_queues && queue < IEEE80211_NUM_ACS)
+		queue = rt2x00dev->ops->tx_queues - 1;
+
 	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
 		return &rt2x00dev->tx[queue];
 
@@ -1479,9 +1482,10 @@ int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,
-				u32 changes);
+				u64 changes);
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
-		      struct ieee80211_vif *vif, u16 queue,
+		      struct ieee80211_vif *vif,
+		      unsigned int link_id, u16 queue,
 		      const struct ieee80211_tx_queue_params *params);
 void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw);
 void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

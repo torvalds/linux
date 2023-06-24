@@ -74,6 +74,22 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 		state = PSR_STATE5b;
 	else if (raw_state == 0x53)
 		state = PSR_STATE5c;
+	else if (raw_state == 0x4A)
+		state = PSR_STATE4_FULL_FRAME;
+	else if (raw_state == 0x4B)
+		state = PSR_STATE4a_FULL_FRAME;
+	else if (raw_state == 0x4C)
+		state = PSR_STATE4b_FULL_FRAME;
+	else if (raw_state == 0x4D)
+		state = PSR_STATE4c_FULL_FRAME;
+	else if (raw_state == 0x4E)
+		state = PSR_STATE4_FULL_FRAME_POWERUP;
+	else if (raw_state == 0x60)
+		state = PSR_STATE_HWLOCK_MGR;
+	else if (raw_state == 0x61)
+		state = PSR_STATE_POLLVUPDATE;
+	else
+		state = PSR_STATE_INVALID;
 
 	return state;
 }
@@ -132,6 +148,9 @@ static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 	switch (stream->link->psr_settings.psr_version) {
 	case DC_PSR_VERSION_1:
 		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_1;
+		break;
+	case DC_PSR_VERSION_SU_1:
+		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_SU_1;
 		break;
 	case DC_PSR_VERSION_UNSUPPORTED:
 	default:
@@ -232,6 +251,27 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level, uint8_
 }
 
 /**
+ * Set PSR vtotal requirement for FreeSync PSR.
+ */
+static void dmub_psr_set_sink_vtotal_in_psr_active(struct dmub_psr *dmub,
+		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = dmub->ctx;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.psr_set_vtotal.header.type = DMUB_CMD__PSR;
+	cmd.psr_set_vtotal.header.sub_type = DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE;
+	cmd.psr_set_vtotal.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_vtotal_data);
+	cmd.psr_set_vtotal.psr_set_vtotal_data.psr_vtotal_idle = psr_vtotal_idle;
+	cmd.psr_set_vtotal.psr_set_vtotal_data.psr_vtotal_su = psr_vtotal_su;
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+}
+
+/*
  * Set PSR power optimization flags.
  */
 static void dmub_psr_set_power_opt(struct dmub_psr *dmub, unsigned int power_opt, uint8_t panel_inst)
@@ -330,17 +370,41 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->debug.u32All = 0;
 	copy_settings_data->debug.bitfields.visual_confirm	= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR;
 	copy_settings_data->debug.bitfields.use_hw_lock_mgr		= 1;
+	copy_settings_data->debug.bitfields.force_full_frame_update	= 0;
+
+	if (psr_context->su_granularity_required == 0)
+		copy_settings_data->su_y_granularity = 0;
+	else
+		copy_settings_data->su_y_granularity = psr_context->su_y_granularity;
+
+	copy_settings_data->line_capture_indication = 0;
+	copy_settings_data->line_time_in_us = psr_context->line_time_in_us;
+	copy_settings_data->rate_control_caps = psr_context->rate_control_caps;
 	copy_settings_data->fec_enable_status = (link->fec_state == dc_link_fec_enabled);
 	copy_settings_data->fec_enable_delay_in100us = link->dc->debug.fec_enable_delay_in100us;
 	copy_settings_data->cmd_version =  DMUB_CMD_PSR_CONTROL_VERSION_1;
 	copy_settings_data->panel_inst = panel_inst;
 	copy_settings_data->dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
 
+	/**
+	 * WA for PSRSU+DSC on specific TCON, if DSC is enabled, force PSRSU as ffu mode(full frame update)
+	 * Note that PSRSU+DSC is still under development.
+	 */
+	if (copy_settings_data->dsc_enable_status &&
+		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
+		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
+			sizeof(DP_SINK_DEVICE_STR_ID_1)))
+		link->psr_settings.force_ffu_mode = 1;
+	else
+		link->psr_settings.force_ffu_mode = 0;
+	copy_settings_data->force_ffu_mode = link->psr_settings.force_ffu_mode;
+
 	if (link->fec_state == dc_link_fec_enabled &&
+		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
 		(!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
-			sizeof(link->dpcd_caps.sink_dev_id_str)) ||
+			sizeof(DP_SINK_DEVICE_STR_ID_1)) ||
 		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_2,
-			sizeof(link->dpcd_caps.sink_dev_id_str))))
+			sizeof(DP_SINK_DEVICE_STR_ID_2))))
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 1;
 	else
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 0;
@@ -394,6 +458,7 @@ static const struct dmub_psr_funcs psr_funcs = {
 	.psr_set_level			= dmub_psr_set_level,
 	.psr_force_static		= dmub_psr_force_static,
 	.psr_get_residency		= dmub_psr_get_residency,
+	.psr_set_sink_vtotal_in_psr_active	= dmub_psr_set_sink_vtotal_in_psr_active,
 	.psr_set_power_opt		= dmub_psr_set_power_opt,
 };
 

@@ -509,7 +509,7 @@
 		};
 
 		codec {
-			sound-dai =  <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
+			sound-dai = <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
 		};
 	};
 
@@ -539,7 +539,7 @@
 		};
 
 		codec {
-			sound-dai =  <&wcd9340 2>;
+			sound-dai = <&wcd9340 2>;
 		};
 	};
 };
@@ -704,7 +704,7 @@
 	pinctrl-names = "default";
 	clock-names = "extclk";
 	clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
-	reset-gpios = <&tlmm 64 0>;
+	reset-gpios = <&tlmm 64 GPIO_ACTIVE_HIGH>;
 	vdd-buck-supply = <&vreg_s4a_1p8>;
 	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
 	vdd-tx-supply = <&vreg_s4a_1p8>;

@@ -11,7 +11,7 @@
 /* Cookie definitions for private VCAP filters installed by the driver.
  * Must be unique per VCAP block.
  */
-#define OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port, upstream) ((upstream) << 16 | (port))
 #define OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port)		(port)
 #define OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port)		(port)
 #define OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, port)		((ocelot)->num_phys_ports + (port))

@@ -27,9 +27,11 @@
 
 #include <asm/page.h>
 #include <asm/unistd.h>
+#include <asm/xilinx_mb_manager.h>
 
 #include <linux/errno.h>
 #include <asm/signal.h>
+#include <asm/mmu.h>
 
 #undef DEBUG
 
@@ -287,6 +289,44 @@ syscall_debug_table:
 
 .text
 
+.extern cpuinfo
+
+C_ENTRY(mb_flush_dcache):
+	addik	r1, r1, -PT_SIZE
+	SAVE_REGS
+
+	addik	r3, r0, cpuinfo
+	lwi	r7, r3, CI_DCS
+	lwi	r8, r3, CI_DCL
+	sub	r9, r7, r8
+1:
+	wdc.flush r9, r0
+	bgtid	r9, 1b
+	addk	r9, r9, r8
+
+	RESTORE_REGS
+	addik	r1, r1, PT_SIZE
+	rtsd	r15, 8
+	nop
+
+C_ENTRY(mb_invalidate_icache):
+	addik	r1, r1, -PT_SIZE
+	SAVE_REGS
+
+	addik	r3, r0, cpuinfo
+	lwi	r7, r3, CI_ICS
+	lwi	r8, r3, CI_ICL
+	sub	r9, r7, r8
+1:
+	wic 	r9, r0
+	bgtid	r9, 1b
+	addk	r9, r9, r8
+
+	RESTORE_REGS
+	addik	r1, r1, PT_SIZE
+	rtsd	r15, 8
+	nop
+
 /*
  * User trap.
  *
@@ -456,7 +496,7 @@ TRAP_return:		/* Make global symbol for debugging */
 
 
 /* This the initial entry point for a new child thread, with an appropriate
-   stack in place that makes it look the the child is in the middle of an
+   stack in place that makes it look like the child is in the middle of a
    syscall.  This function is actually `returned to' from switch_thread
    (copy_thread makes ret_from_fork the return address in each new thread's
    saved context).  */
@@ -753,6 +793,160 @@ IRQ_return: /* MS: Make global symbol for debugging */
 	rtid	r14, 0
 	nop
 
+#ifdef CONFIG_MB_MANAGER
+
+#define	PT_PID		PT_SIZE
+#define	PT_TLBI		PT_SIZE + 4
+#define	PT_ZPR		PT_SIZE	+ 8
+#define	PT_TLBL0	PT_SIZE + 12
+#define	PT_TLBH0	PT_SIZE + 16
+
+C_ENTRY(_xtmr_manager_reset):
+	lwi	r1, r0, xmb_manager_stackpointer
+
+	/* Restore MSR */
+	lwi	r2, r1, PT_MSR
+	mts	rmsr, r2
+	bri	4
+
+	/* restore Special purpose registers */
+	lwi	r2, r1, PT_PID
+	mts	rpid, r2
+
+	lwi	r2, r1, PT_TLBI
+	mts	rtlbx, r2
+
+	lwi	r2, r1, PT_ZPR
+	mts	rzpr, r2
+
+#if CONFIG_XILINX_MICROBLAZE0_USE_FPU
+	lwi	r2, r1, PT_FSR
+	mts	rfsr, r2
+#endif
+
+	/* restore all the tlb's */
+	addik	r3, r0, TOPHYS(tlb_skip)
+	addik	r6, r0, PT_TLBL0
+	addik	r7, r0, PT_TLBH0
+restore_tlb:
+	add	r6, r6, r1
+	add	r7, r7, r1
+	lwi	r2, r6, 0
+	mts 	rtlblo, r2
+	lwi	r2, r7, 0
+	mts	rtlbhi, r2
+	addik	r6, r6, 4
+	addik	r7, r7, 4
+	bgtid	r3, restore_tlb
+	addik	r3, r3, -1
+
+	lwi  	r5, r0, TOPHYS(xmb_manager_dev)
+	lwi	r8, r0, TOPHYS(xmb_manager_reset_callback)
+	set_vms
+	/* return from reset need -8 to adjust for rtsd r15, 8 */
+	addik   r15, r0, ret_from_reset - 8
+	rtbd	r8, 0
+	nop
+
+ret_from_reset:
+	set_bip /* Ints masked for state restore */
+	VM_OFF
+	/* MS: Restore all regs */
+	RESTORE_REGS
+	lwi	r14, r1, PT_R14
+	lwi	r16, r1, PT_PC
+	addik	r1, r1, PT_SIZE + 36
+	rtbd	r16, 0
+	nop
+
+/*
+ * Break handler for MB Manager. Enter to _xmb_manager_break by
+ * injecting fault in one of the TMR Microblaze core.
+ * FIXME: This break handler supports getting
+ * called from kernel space only.
+ */
+C_ENTRY(_xmb_manager_break):
+	/*
+	 * Reserve memory in the stack for context store/restore
+	 * (which includes memory for storing tlbs (max two tlbs))
+	 */
+	addik	r1, r1, -PT_SIZE - 36
+	swi	r1, r0, xmb_manager_stackpointer
+	SAVE_REGS
+	swi	r14, r1, PT_R14	/* rewrite saved R14 value */
+	swi	r16, r1, PT_PC; /* PC and r16 are the same */
+
+	lwi	r6, r0, TOPHYS(xmb_manager_baseaddr)
+	lwi	r7, r0, TOPHYS(xmb_manager_crval)
+	/*
+	 * When the break vector gets asserted because of error injection,
+	 * the break signal must be blocked before exiting from the
+	 * break handler, below code configures the tmr manager
+	 * control register to block break signal.
+	 */
+	swi	r7, r6, 0
+
+	/* Save the special purpose registers  */
+	mfs	r2, rpid
+	swi	r2, r1, PT_PID
+
+	mfs	r2, rtlbx
+	swi	r2, r1, PT_TLBI
+
+	mfs	r2, rzpr
+	swi	r2, r1, PT_ZPR
+
+#if CONFIG_XILINX_MICROBLAZE0_USE_FPU
+	mfs	r2, rfsr
+	swi	r2, r1, PT_FSR
+#endif
+	mfs	r2, rmsr
+	swi	r2, r1, PT_MSR
+
+	/* Save all the tlb's */
+	addik	r3, r0, TOPHYS(tlb_skip)
+	addik	r6, r0, PT_TLBL0
+	addik	r7, r0, PT_TLBH0
+save_tlb:
+	add	r6, r6, r1
+	add	r7, r7, r1
+	mfs	r2, rtlblo
+	swi	r2, r6, 0
+	mfs	r2, rtlbhi
+	swi	r2, r7, 0
+	addik	r6, r6, 4
+	addik	r7, r7, 4
+	bgtid	r3, save_tlb
+	addik	r3, r3, -1
+
+	lwi  	r5, r0, TOPHYS(xmb_manager_dev)
+	lwi	r8, r0, TOPHYS(xmb_manager_callback)
+	/* return from break need -8 to adjust for rtsd r15, 8 */
+	addik   r15, r0, ret_from_break - 8
+	rtbd	r8, 0
+	nop
+
+ret_from_break:
+	/* flush the d-cache */
+	bralid	r15, mb_flush_dcache
+	nop
+
+	/*
+	 * To make sure microblaze i-cache is in a proper state
+	 * invalidate the i-cache.
+	 */
+	bralid	r15, mb_invalidate_icache
+	nop
+
+	set_bip; /* Ints masked for state restore */
+	VM_OFF;
+	mbar	1
+	mbar	2
+	bri	4
+	suspend
+	nop
+#endif
+
 /*
  * Debug trap for KGDB. Enter to _debug_exception by brki r16, 0x18
  * and call handling function with saved pt_regs
@@ -957,6 +1151,88 @@ ENTRY(_switch_to)
 	rtsd	r15, 8
 	nop
 
+#ifdef CONFIG_MB_MANAGER
+.global xmb_inject_err
+.section .text
+.align 2
+.ent xmb_inject_err
+.type xmb_inject_err, @function
+xmb_inject_err:
+	addik	r1, r1, -PT_SIZE
+	SAVE_REGS
+
+	/* Switch to real mode */
+	VM_OFF;
+	set_bip;
+	mbar	1
+	mbar	2
+	bralid	r15, XMB_INJECT_ERR_OFFSET
+	nop;
+
+	/* enable virtual mode */
+	set_vms;
+	/* barrier for instructions and data accesses */
+	mbar	1
+	mbar	2
+	/*
+	 * Enable Interrupts, Virtual Protected Mode, equalize
+	 * initial state for all possible entries.
+	 */
+	rtbd    r0, 1f
+	nop;
+1:
+	RESTORE_REGS
+	addik	r1, r1, PT_SIZE
+	rtsd	r15, 8;
+	nop;
+.end xmb_inject_err
+
+.section .data
+.global xmb_manager_dev
+.global xmb_manager_baseaddr
+.global xmb_manager_crval
+.global xmb_manager_callback
+.global xmb_manager_reset_callback
+.global xmb_manager_stackpointer
+.align 4
+xmb_manager_dev:
+	.long 0
+xmb_manager_baseaddr:
+	.long 0
+xmb_manager_crval:
+	.long 0
+xmb_manager_callback:
+	.long 0
+xmb_manager_reset_callback:
+	.long 0
+xmb_manager_stackpointer:
+	.long 0
+
+/*
+ * When the break vector gets asserted because of error injection,
+ * the break signal must be blocked before exiting from the
+ * break handler, Below api updates the manager address and
+ * control register and error count callback arguments,
+ * which will be used by the break handler to block the
+ * break and call the callback function.
+ */
+.global xmb_manager_register
+.section .text
+.align 2
+.ent xmb_manager_register
+.type xmb_manager_register, @function
+xmb_manager_register:
+	swi	r5, r0, xmb_manager_baseaddr
+	swi	r6, r0, xmb_manager_crval
+	swi	r7, r0, xmb_manager_callback
+	swi	r8, r0, xmb_manager_dev
+	swi	r9, r0, xmb_manager_reset_callback
+
+	rtsd	r15, 8;
+	nop;
+.end xmb_manager_register
+#endif
+
 ENTRY(_reset)
 	VM_OFF
 	brai	0; /* Jump to reset vector */
@@ -964,18 +1240,42 @@ ENTRY(_reset)
 	/* These are compiled and loaded into high memory, then
 	 * copied into place in mach_early_setup */
 	.section	.init.ivt, "ax"
-#if CONFIG_MANUAL_RESET_VECTOR
+#if CONFIG_MANUAL_RESET_VECTOR && !defined(CONFIG_MB_MANAGER)
 	.org	0x0
 	brai	CONFIG_MANUAL_RESET_VECTOR
+#elif defined(CONFIG_MB_MANAGER)
+	.org	0x0
+	brai	TOPHYS(_xtmr_manager_reset);
 #endif
 	.org	0x8
 	brai	TOPHYS(_user_exception); /* syscall handler */
 	.org	0x10
 	brai	TOPHYS(_interrupt);	/* Interrupt handler */
+#ifdef CONFIG_MB_MANAGER
+	.org	0x18
+	brai	TOPHYS(_xmb_manager_break);	/* microblaze manager break handler */
+#else
 	.org	0x18
 	brai	TOPHYS(_debug_exception);	/* debug trap handler */
+#endif
 	.org	0x20
 	brai	TOPHYS(_hw_exception_handler);	/* HW exception handler */
+
+#ifdef CONFIG_MB_MANAGER
+	/*
+	 * For TMR Inject API which injects the error should
+	 * be executed from LMB.
+	 * TMR Inject is programmed with address of 0x200 so that
+	 * when program counter matches with this address error will
+	 * be injected. 0x200 is expected to be next available bram
+	 * offset, hence used for this api.
+	 */
+	.org	XMB_INJECT_ERR_OFFSET
+xmb_inject_error:
+	nop
+	rtsd	r15, 8
+	nop
+#endif
 
 .section .rodata,"a"
 #include "syscall_table.S"

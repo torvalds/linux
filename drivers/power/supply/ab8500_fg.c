@@ -412,7 +412,7 @@ static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
  * ab8500_fg_clear_cap_samples() - Clear average filter
  * @di:		pointer to the ab8500_fg structure
  *
- * The capacity filter is is reset to zero.
+ * The capacity filter is reset to zero.
  */
 static void ab8500_fg_clear_cap_samples(struct ab8500_fg *di)
 {
@@ -3037,13 +3037,6 @@ static int ab8500_fg_bind(struct device *dev, struct device *master,
 {
 	struct ab8500_fg *di = dev_get_drvdata(dev);
 
-	/* Create a work queue for running the FG algorithm */
-	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
-	if (di->fg_wq == NULL) {
-		dev_err(dev, "failed to create work queue\n");
-		return -ENOMEM;
-	}
-
 	di->bat_cap.max_mah_design = di->bm->bi->charge_full_design_uah;
 	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
 	di->vbat_nom_uv = di->bm->bi->voltage_max_design_uv;
@@ -3067,8 +3060,7 @@ static void ab8500_fg_unbind(struct device *dev, struct device *master,
 	if (ret)
 		dev_err(dev, "failed to disable coulomb counter\n");
 
-	destroy_workqueue(di->fg_wq);
-	flush_scheduled_work();
+	flush_workqueue(di->fg_wq);
 }
 
 static const struct component_ops ab8500_fg_component_ops = {
@@ -3117,6 +3109,13 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ab8500_fg_charge_state_to(di, AB8500_FG_CHARGE_INIT);
 	ab8500_fg_discharge_state_to(di, AB8500_FG_DISCHARGE_INIT);
 
+	/* Create a work queue for running the FG algorithm */
+	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
+	if (di->fg_wq == NULL) {
+		dev_err(dev, "failed to create work queue\n");
+		return -ENOMEM;
+	}
+
 	/* Init work for running the fg algorithm instantly */
 	INIT_WORK(&di->fg_work, ab8500_fg_instant_work);
 
@@ -3149,6 +3148,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ret = ab8500_fg_init_hw_registers(di);
 	if (ret) {
 		dev_err(dev, "failed to initialize registers\n");
+		destroy_workqueue(di->fg_wq);
 		return ret;
 	}
 
@@ -3160,6 +3160,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_psy = devm_power_supply_register(dev, &ab8500_fg_desc, &psy_cfg);
 	if (IS_ERR(di->fg_psy)) {
 		dev_err(dev, "failed to register FG psy\n");
+		destroy_workqueue(di->fg_wq);
 		return PTR_ERR(di->fg_psy);
 	}
 
@@ -3175,8 +3176,10 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Register primary interrupt handlers */
 	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
-		if (irq < 0)
+		if (irq < 0) {
+			destroy_workqueue(di->fg_wq);
 			return irq;
+		}
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 				  ab8500_fg_irq[i].isr,
@@ -3186,6 +3189,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(dev, "failed to request %s IRQ %d: %d\n",
 				ab8500_fg_irq[i].name, irq, ret);
+			destroy_workqueue(di->fg_wq);
 			return ret;
 		}
 		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
@@ -3201,6 +3205,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ret = ab8500_fg_sysfs_init(di);
 	if (ret) {
 		dev_err(dev, "failed to create sysfs entry\n");
+		destroy_workqueue(di->fg_wq);
 		return ret;
 	}
 
@@ -3208,6 +3213,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "failed to create FG psy\n");
 		ab8500_fg_sysfs_exit(di);
+		destroy_workqueue(di->fg_wq);
 		return ret;
 	}
 
@@ -3227,6 +3233,7 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 {
 	struct ab8500_fg *di = platform_get_drvdata(pdev);
 
+	destroy_workqueue(di->fg_wq);
 	component_del(&pdev->dev, &ab8500_fg_component_ops);
 	list_del(&di->node);
 	ab8500_fg_sysfs_exit(di);

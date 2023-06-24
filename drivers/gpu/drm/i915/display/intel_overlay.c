@@ -211,9 +211,9 @@ static void i830_overlay_clock_gating(struct drm_i915_private *dev_priv,
 
 	/* WA_OVERLAY_CLKGATE:alm */
 	if (enable)
-		intel_de_write(dev_priv, DSPCLK_GATE_D, 0);
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), 0);
 	else
-		intel_de_write(dev_priv, DSPCLK_GATE_D,
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv),
 			       OVRUNIT_CLOCK_GATE_DISABLE);
 
 	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */
@@ -487,7 +487,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 
 void intel_overlay_reset(struct drm_i915_private *dev_priv)
 {
-	struct intel_overlay *overlay = dev_priv->overlay;
+	struct intel_overlay *overlay = dev_priv->display.overlay;
 
 	if (!overlay)
 		return;
@@ -958,19 +958,21 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 static int check_overlay_dst(struct intel_overlay *overlay,
 			     struct drm_intel_overlay_put_image *rec)
 {
-	const struct intel_crtc_state *pipe_config =
+	const struct intel_crtc_state *crtc_state =
 		overlay->crtc->config;
+	struct drm_rect req, clipped;
 
-	if (rec->dst_height == 0 || rec->dst_width == 0)
+	drm_rect_init(&req, rec->dst_x, rec->dst_y,
+		      rec->dst_width, rec->dst_height);
+
+	clipped = req;
+	drm_rect_intersect(&clipped, &crtc_state->pipe_src);
+
+	if (!drm_rect_visible(&clipped) ||
+	    !drm_rect_equals(&clipped, &req))
 		return -EINVAL;
 
-	if (rec->dst_x < pipe_config->pipe_src_w &&
-	    rec->dst_x + rec->dst_width <= pipe_config->pipe_src_w &&
-	    rec->dst_y < pipe_config->pipe_src_h &&
-	    rec->dst_y + rec->dst_height <= pipe_config->pipe_src_h)
-		return 0;
-	else
-		return -EINVAL;
+	return 0;
 }
 
 static int check_overlay_scaling(struct drm_intel_overlay_put_image *rec)
@@ -1111,7 +1113,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *new_bo;
 	int ret;
 
-	overlay = dev_priv->overlay;
+	overlay = dev_priv->display.overlay;
 	if (!overlay) {
 		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
 		return -ENODEV;
@@ -1160,7 +1162,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		crtc->overlay = overlay;
 
 		/* line too wide, i.e. one-line-mode */
-		if (crtc->config->pipe_src_w > 1024 &&
+		if (drm_rect_width(&crtc->config->pipe_src) > 1024 &&
 		    crtc->config->gmch_pfit.control & PFIT_ENABLE) {
 			overlay->pfit_active = true;
 			update_pfit_vscale_ratio(overlay);
@@ -1271,7 +1273,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 	struct intel_overlay *overlay;
 	int ret;
 
-	overlay = dev_priv->overlay;
+	overlay = dev_priv->display.overlay;
 	if (!overlay) {
 		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
 		return -ENODEV;
@@ -1397,8 +1399,6 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 
 	overlay->i915 = dev_priv;
 	overlay->context = engine->kernel_context;
-	GEM_BUG_ON(!overlay->context);
-
 	overlay->color_key = 0x0101fe;
 	overlay->color_key_enabled = true;
 	overlay->brightness = -19;
@@ -1416,7 +1416,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	update_polyphase_filter(overlay->regs);
 	update_reg_attrs(overlay, overlay->regs);
 
-	dev_priv->overlay = overlay;
+	dev_priv->display.overlay = overlay;
 	drm_info(&dev_priv->drm, "Initialized overlay support.\n");
 	return;
 
@@ -1428,7 +1428,7 @@ void intel_overlay_cleanup(struct drm_i915_private *dev_priv)
 {
 	struct intel_overlay *overlay;
 
-	overlay = fetch_and_zero(&dev_priv->overlay);
+	overlay = fetch_and_zero(&dev_priv->display.overlay);
 	if (!overlay)
 		return;
 
@@ -1457,7 +1457,7 @@ struct intel_overlay_error_state {
 struct intel_overlay_error_state *
 intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 {
-	struct intel_overlay *overlay = dev_priv->overlay;
+	struct intel_overlay *overlay = dev_priv->display.overlay;
 	struct intel_overlay_error_state *error;
 
 	if (!overlay || !overlay->active)

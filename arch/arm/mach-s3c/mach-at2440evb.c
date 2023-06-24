@@ -225,6 +225,7 @@ static void __init at2440evb_init(void)
 
 MACHINE_START(AT2440EVB, "AT2440EVB")
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2440,
 	.map_io		= at2440evb_map_io,
 	.init_machine	= at2440evb_init,
 	.init_irq	= s3c2440_init_irq,

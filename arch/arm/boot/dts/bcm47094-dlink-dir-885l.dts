@@ -86,20 +86,20 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wps {
+		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
 		};
 
 		/* Switch: router / extender */
-		extender {
+		button-extender {
 			label = "Extender";
 			linux,code = <BTN_0>;
 			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
 		};
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;

@@ -20,29 +20,29 @@
 #include "coda_psdev.h"
 #include "coda_linux.h"
 
-static int coda_symlink_filler(struct file *file, struct page *page)
+static int coda_symlink_filler(struct file *file, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	int error;
 	struct coda_inode_info *cii;
 	unsigned int len = PAGE_SIZE;
-	char *p = page_address(page);
+	char *p = folio_address(folio);
 
 	cii = ITOC(inode);
 
 	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
 	if (error)
 		goto fail;
-	SetPageUptodate(page);
-	unlock_page(page);
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return 0;
 
 fail:
-	SetPageError(page);
-	unlock_page(page);
+	folio_set_error(folio);
+	folio_unlock(folio);
 	return error;
 }
 
 const struct address_space_operations coda_symlink_aops = {
-	.readpage	= coda_symlink_filler,
+	.read_folio	= coda_symlink_filler,
 };

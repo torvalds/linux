@@ -31,13 +31,13 @@
 
 		label = "GPIO Buttons";
 
-		volume-up {
+		button-volume-up {
 			label = "Volume Up";
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		home {
+		button-home {
 			label = "Home";
 			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
@@ -52,7 +52,7 @@
 
 		label = "GPIO Hall Effect Sensor";
 
-		hall-sensor {
+		event-hall-sensor {
 			label = "Hall Effect Sensor";
 			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -61,9 +61,9 @@
 		};
 	};
 
-	reg_vdd_tsp: regulator-vdd-tsp {
+	reg_vdd_tsp_a: regulator-vdd-tsp-a {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd_tsp";
+		regulator-name = "vdd_tsp_a";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
@@ -460,10 +460,18 @@
 		drive-strength = <2>;
 		bias-disable;
 	};
+
+	ts_int_default: ts-int-default {
+		pins = "gpio13";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
 };
 
 &pm8916_gpios {
-	nfc_clk_req: nfc-clk-req {
+	nfc_clk_req: nfc-clk-req-state {
 		pins = "gpio2";
 		function = "func1";
 

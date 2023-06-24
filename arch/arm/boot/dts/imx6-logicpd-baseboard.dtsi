@@ -6,7 +6,7 @@
 	keyboard {
 		compatible = "gpio-keys";
 
-		btn0 {
+		button-0 {
 			gpios = <&pcf8575 0 GPIO_ACTIVE_LOW>;
 			label = "btn0";
 			linux,code = <KEY_WAKEUP>;
@@ -14,7 +14,7 @@
 			wakeup-source;
 		};
 
-		btn1 {
+		button-1 {
 			gpios = <&pcf8575 1 GPIO_ACTIVE_LOW>;
 			label = "btn1";
 			linux,code = <KEY_WAKEUP>;
@@ -22,7 +22,7 @@
 			wakeup-source;
 		};
 
-		btn2 {
+		button-2 {
 			gpios = <&pcf8575 2 GPIO_ACTIVE_LOW>;
 			label = "btn2";
 			linux,code = <KEY_WAKEUP>;
@@ -30,7 +30,7 @@
 			wakeup-source;
 		};
 
-		btn3 {
+		button-3 {
 			gpios = <&pcf8575 3 GPIO_ACTIVE_LOW>;
 			label = "btn3";
 			linux,code = <KEY_WAKEUP>;

@@ -1038,7 +1038,7 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 
 		policing[bcast].sharindx = port;
 		/* Only SJA1110 has multicast policers */
-		if (mcast <= table->ops->max_entry_count)
+		if (mcast < table->ops->max_entry_count)
 			policing[mcast].sharindx = port;
 	}
 
@@ -2252,14 +2252,13 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	 * change it through the dynamic interface later.
 	 */
 	for (i = 0; i < ds->num_ports; i++) {
-		u32 reg_addr = mdiobus_c45_addr(MDIO_MMD_VEND2, MDIO_CTRL1);
-
 		speed_mbps[i] = sja1105_port_speed_to_ethtool(priv,
 							      mac[i].speed);
 		mac[i].speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
 
 		if (priv->xpcs[i])
-			bmcr[i] = mdiobus_read(priv->mdio_pcs, i, reg_addr);
+			bmcr[i] = mdiobus_c45_read(priv->mdio_pcs, i,
+						   MDIO_MMD_VEND2, MDIO_CTRL1);
 	}
 
 	/* No PTP operations can run right now */
@@ -2331,7 +2330,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 		else
 			mode = MLO_AN_PHY;
 
-		rc = xpcs_do_config(xpcs, priv->phy_mode[i], mode);
+		rc = xpcs_do_config(xpcs, priv->phy_mode[i], mode, NULL);
 		if (rc < 0)
 			goto out;
 
@@ -3352,8 +3351,6 @@ static void sja1105_remove(struct spi_device *spi)
 		return;
 
 	dsa_unregister_switch(priv->ds);
-
-	spi_set_drvdata(spi, NULL);
 }
 
 static void sja1105_shutdown(struct spi_device *spi)
@@ -3383,12 +3380,28 @@ static const struct of_device_id sja1105_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sja1105_dt_ids);
 
+static const struct spi_device_id sja1105_spi_ids[] = {
+	{ "sja1105e" },
+	{ "sja1105t" },
+	{ "sja1105p" },
+	{ "sja1105q" },
+	{ "sja1105r" },
+	{ "sja1105s" },
+	{ "sja1110a" },
+	{ "sja1110b" },
+	{ "sja1110c" },
+	{ "sja1110d" },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, sja1105_spi_ids);
+
 static struct spi_driver sja1105_driver = {
 	.driver = {
 		.name  = "sja1105",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(sja1105_dt_ids),
 	},
+	.id_table = sja1105_spi_ids,
 	.probe  = sja1105_probe,
 	.remove = sja1105_remove,
 	.shutdown = sja1105_shutdown,

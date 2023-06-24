@@ -73,11 +73,11 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	struct rt6_info *rt = (struct rt6_info *)xdst->route;
 
 	xdst->u.dst.dev = dev;
-	dev_hold_track(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
+	netdev_hold(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
 
 	xdst->u.rt6.rt6i_idev = in6_dev_get(dev);
 	if (!xdst->u.rt6.rt6i_idev) {
-		dev_put_track(dev, &xdst->u.dst.dev_tracker);
+		netdev_put(dev, &xdst->u.dst.dev_tracker);
 		return -ENODEV;
 	}
 
@@ -287,9 +287,13 @@ int __init xfrm6_init(void)
 	if (ret)
 		goto out_state;
 
-	register_pernet_subsys(&xfrm6_net_ops);
+	ret = register_pernet_subsys(&xfrm6_net_ops);
+	if (ret)
+		goto out_protocol;
 out:
 	return ret;
+out_protocol:
+	xfrm6_protocol_fini();
 out_state:
 	xfrm6_state_fini();
 out_policy:

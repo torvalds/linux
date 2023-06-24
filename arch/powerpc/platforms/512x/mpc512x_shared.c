@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/fsl-diu-fb.h>
 #include <linux/memblock.h>
@@ -20,7 +21,6 @@
 #include <asm/cacheflush.h>
 #include <asm/machdep.h>
 #include <asm/ipic.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc5121.h>
 #include <asm/mpc52xx_psc.h>
@@ -289,7 +289,7 @@ static void __init mpc512x_setup_diu(void)
 
 	/*
 	 * We do not allocate and configure new area for bitmap buffer
-	 * because it would requere copying bitmap data (splash image)
+	 * because it would require copying bitmap data (splash image)
 	 * and so negatively affect boot time. Instead we reserve the
 	 * already configured frame buffer area so that it won't be
 	 * destroyed. The starting address of the area to reserve and

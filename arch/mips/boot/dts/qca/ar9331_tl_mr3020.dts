@@ -49,22 +49,20 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		button-0 {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		button@1 {
+		button-1 {
 			label = "sw1";
 			linux,code = <BTN_0>;
 			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 		};
 
-		button@2 {
+		button-2 {
 			label = "sw2";
 			linux,code = <BTN_1>;
 			gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;

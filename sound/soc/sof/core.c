@@ -15,6 +15,9 @@
 #include "sof-priv.h"
 #include "ops.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sof.h>
+
 /* see SOF_DBG_ flags */
 static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);
@@ -189,7 +192,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	ret = snd_sof_probe(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
-		return ret;
+		goto probe_err;
 	}
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
@@ -250,14 +253,13 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	}
 
 	if (sof_debug_check_flag(SOF_DBG_ENABLE_TRACE)) {
-		sdev->dtrace_is_supported = true;
+		sdev->fw_trace_is_supported = true;
 
-		/* init DMA trace */
-		ret = snd_sof_init_trace(sdev);
+		/* init firmware tracing */
+		ret = sof_fw_trace_init(sdev);
 		if (ret < 0) {
 			/* non fatal */
-			dev_warn(sdev->dev,
-				 "warning: failed to initialize trace %d\n",
+			dev_warn(sdev->dev, "failed to initialize firmware tracing %d\n",
 				 ret);
 		}
 	} else {
@@ -308,7 +310,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 sof_machine_err:
 	snd_sof_machine_unregister(sdev, plat_data);
 fw_trace_err:
-	snd_sof_free_trace(sdev);
+	sof_fw_trace_free(sdev);
 fw_run_err:
 	snd_sof_fw_unload(sdev);
 fw_load_err:
@@ -318,6 +320,8 @@ dbg_err:
 	snd_sof_free_debug(sdev);
 dsp_err:
 	snd_sof_remove(sdev);
+probe_err:
+	sof_ops_free(sdev);
 
 	/* all resources freed, update state to match */
 	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
@@ -342,6 +346,7 @@ static void sof_probe_work(struct work_struct *work)
 int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 {
 	struct snd_sof_dev *sdev;
+	int ret;
 
 	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
@@ -357,11 +362,24 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev->first_boot = true;
 	dev_set_drvdata(dev, sdev);
 
+	/* check IPC support */
+	if (!(BIT(plat_data->ipc_type) & plat_data->desc->ipc_supported_mask)) {
+		dev_err(dev, "ipc_type %d is not supported on this platform, mask is %#x\n",
+			plat_data->ipc_type, plat_data->desc->ipc_supported_mask);
+		return -EINVAL;
+	}
+
+	/* init ops, if necessary */
+	ret = sof_ops_init(sdev);
+	if (ret < 0)
+		return ret;
+
 	/* check all mandatory ops */
 	if (!sof_ops(sdev) || !sof_ops(sdev)->probe || !sof_ops(sdev)->run ||
 	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
 	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
-	    !sof_ops(sdev)->ipc_msg_data || !sof_ops(sdev)->fw_ready) {
+	    !sof_ops(sdev)->ipc_msg_data) {
+		sof_ops_free(sdev);
 		dev_err(dev, "error: missing mandatory ops\n");
 		return -EINVAL;
 	}
@@ -434,7 +452,7 @@ int snd_sof_device_remove(struct device *dev)
 	snd_sof_machine_unregister(sdev, pdata);
 
 	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
-		snd_sof_free_trace(sdev);
+		sof_fw_trace_free(sdev);
 		ret = snd_sof_dsp_power_down_notify(sdev);
 		if (ret < 0)
 			dev_warn(dev, "error: %d failed to prepare DSP for device removal",
@@ -444,6 +462,8 @@ int snd_sof_device_remove(struct device *dev)
 		snd_sof_free_debug(sdev);
 		snd_sof_remove(sdev);
 	}
+
+	sof_ops_free(sdev);
 
 	/* release firmware */
 	snd_sof_fw_unload(sdev);

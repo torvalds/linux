@@ -34,7 +34,7 @@
 
 #include "pxa27x.h"
 #include "mfp-pxa27x.h"
-#include <mach/z2.h>
+#include "z2.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/keypad-pxa27x.h>
@@ -623,7 +623,7 @@ static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 };
 
 static struct gpiod_lookup_table pxa_ssp1_gpio_table = {
-	.dev_id = "pxa2xx-spi.1",
+	.dev_id = "spi1",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", GPIO24_ZIPITZ2_WIFI_CS, "cs", 0, GPIO_ACTIVE_LOW),
 		{ },
@@ -631,7 +631,7 @@ static struct gpiod_lookup_table pxa_ssp1_gpio_table = {
 };
 
 static struct gpiod_lookup_table pxa_ssp2_gpio_table = {
-	.dev_id = "pxa2xx-spi.2",
+	.dev_id = "spi2",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", GPIO88_ZIPITZ2_LCD_CS, "cs", 0, GPIO_ACTIVE_LOW),
 		{ },
@@ -650,6 +650,15 @@ static void __init z2_spi_init(void)
 #else
 static inline void z2_spi_init(void) {}
 #endif
+
+static struct gpiod_lookup_table z2_audio_gpio_table = {
+	.dev_id = "soc-audio",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO37_ZIPITZ2_HEADSET_DETECT,
+			    "hsdet-gpio", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /******************************************************************************
  * Core power regulator
@@ -754,6 +763,8 @@ static void __init z2_init(void)
 	z2_leds_init();
 	z2_keys_init();
 	z2_pmic_init();
+
+	gpiod_add_lookup_table(&z2_audio_gpio_table);
 
 	pm_power_off = z2_power_off;
 }

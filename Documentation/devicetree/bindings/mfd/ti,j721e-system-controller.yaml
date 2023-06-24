@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/mfd/ti,j721e-system-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: TI J721e System Controller Registers R/W Device Tree Bindings
+title: TI J721e System Controller Registers R/W
 
 description: |
   This represents the Control Module registers (CTRL_MMR0) on the SoC.
@@ -48,6 +48,18 @@ patternProperties:
     description:
       This is the SERDES lane control mux.
 
+  "^clock-controller@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/clock/ti,am654-ehrpwm-tbclk.yaml#
+    description:
+      Clock provider for TI EHRPWM nodes.
+
+  "phy@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/phy/ti,phy-gmii-sel.yaml#
+    description:
+      The phy node corresponding to the ethernet MAC.
+
 required:
   - compatible
   - reg
@@ -78,6 +90,12 @@ examples:
                 <0x40b0 0x3>, <0x40b4 0x3>, /* SERDES3 lane0/1 select */
                 <0x40c0 0x3>, <0x40c4 0x3>, <0x40c8 0x3>, <0x40cc 0x3>;
                 /* SERDES4 lane0/1/2/3 select */
+        };
+
+        clock-controller@4140 {
+            compatible = "ti,am654-ehrpwm-tbclk", "syscon";
+            reg = <0x4140 0x18>;
+            #clock-cells = <1>;
         };
     };
 ...

@@ -53,6 +53,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/kthread.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
@@ -257,12 +258,14 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
 	struct device *dev = &adapter->vdev->dev;
+	u64 prev = 0;
 	int rc;
 
 	if (!reuse_ltb(ltb, size)) {
 		dev_dbg(dev,
 			"LTB size changed from 0x%llx to 0x%x, reallocating\n",
 			 ltb->size, size);
+		prev = ltb->size;
 		free_long_term_buff(adapter, ltb);
 	}
 
@@ -283,8 +286,8 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 		bitmap_set(adapter->map_ids, ltb->map_id, 1);
 
 		dev_dbg(dev,
-			"Allocated new LTB [map %d, size 0x%llx]\n",
-			 ltb->map_id, ltb->size);
+			"Allocated new LTB [map %d, size 0x%llx was 0x%llx]\n",
+			 ltb->map_id, ltb->size, prev);
 	}
 
 	/* Ensure ltb is zeroed - specially when reusing it. */
@@ -345,6 +348,208 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	ltb->map_id = 0;
 }
 
+/**
+ * free_ltb_set - free the given set of long term buffers (LTBS)
+ * @adapter: The ibmvnic adapter containing this ltb set
+ * @ltb_set: The ltb_set to be freed
+ *
+ * Free the set of LTBs in the given set.
+ */
+
+static void free_ltb_set(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_ltb_set *ltb_set)
+{
+	int i;
+
+	for (i = 0; i < ltb_set->num_ltbs; i++)
+		free_long_term_buff(adapter, &ltb_set->ltbs[i]);
+
+	kfree(ltb_set->ltbs);
+	ltb_set->ltbs = NULL;
+	ltb_set->num_ltbs = 0;
+}
+
+/**
+ * alloc_ltb_set() - Allocate a set of long term buffers (LTBs)
+ *
+ * @adapter: ibmvnic adapter associated to the LTB
+ * @ltb_set: container object for the set of LTBs
+ * @num_buffs: Number of buffers in the LTB
+ * @buff_size: Size of each buffer in the LTB
+ *
+ * Allocate a set of LTBs to accommodate @num_buffs buffers of @buff_size
+ * each. We currently cap size each LTB to IBMVNIC_ONE_LTB_SIZE. If the
+ * new set of LTBs have fewer LTBs than the old set, free the excess LTBs.
+ * If new set needs more than in old set, allocate the remaining ones.
+ * Try and reuse as many LTBs as possible and avoid reallocation.
+ *
+ * Any changes to this allocation strategy must be reflected in
+ * map_rxpool_buff_to_ltb() and map_txpool_buff_to_ltb().
+ */
+static int alloc_ltb_set(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_ltb_set *ltb_set, int num_buffs,
+			 int buff_size)
+{
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_ltb_set old_set;
+	struct ibmvnic_ltb_set new_set;
+	int rem_size;
+	int tot_size;		/* size of all ltbs */
+	int ltb_size;		/* size of one ltb */
+	int nltbs;
+	int rc;
+	int n;
+	int i;
+
+	dev_dbg(dev, "%s() num_buffs %d, buff_size %d\n", __func__, num_buffs,
+		buff_size);
+
+	ltb_size = rounddown(IBMVNIC_ONE_LTB_SIZE, buff_size);
+	tot_size = num_buffs * buff_size;
+
+	if (ltb_size > tot_size)
+		ltb_size = tot_size;
+
+	nltbs = tot_size / ltb_size;
+	if (tot_size % ltb_size)
+		nltbs++;
+
+	old_set = *ltb_set;
+
+	if (old_set.num_ltbs == nltbs) {
+		new_set = old_set;
+	} else {
+		int tmp = nltbs * sizeof(struct ibmvnic_long_term_buff);
+
+		new_set.ltbs = kzalloc(tmp, GFP_KERNEL);
+		if (!new_set.ltbs)
+			return -ENOMEM;
+
+		new_set.num_ltbs = nltbs;
+
+		/* Free any excess ltbs in old set */
+		for (i = new_set.num_ltbs; i < old_set.num_ltbs; i++)
+			free_long_term_buff(adapter, &old_set.ltbs[i]);
+
+		/* Copy remaining ltbs to new set. All LTBs except the
+		 * last one are of the same size. alloc_long_term_buff()
+		 * will realloc if the size changes.
+		 */
+		n = min(old_set.num_ltbs, new_set.num_ltbs);
+		for (i = 0; i < n; i++)
+			new_set.ltbs[i] = old_set.ltbs[i];
+
+		/* Any additional ltbs in new set will have NULL ltbs for
+		 * now and will be allocated in alloc_long_term_buff().
+		 */
+
+		/* We no longer need the old_set so free it. Note that we
+		 * may have reused some ltbs from old set and freed excess
+		 * ltbs above. So we only need to free the container now
+		 * not the LTBs themselves. (i.e. dont free_ltb_set()!)
+		 */
+		kfree(old_set.ltbs);
+		old_set.ltbs = NULL;
+		old_set.num_ltbs = 0;
+
+		/* Install the new set. If allocations fail below, we will
+		 * retry later and know what size LTBs we need.
+		 */
+		*ltb_set = new_set;
+	}
+
+	i = 0;
+	rem_size = tot_size;
+	while (rem_size) {
+		if (ltb_size > rem_size)
+			ltb_size = rem_size;
+
+		rem_size -= ltb_size;
+
+		rc = alloc_long_term_buff(adapter, &new_set.ltbs[i], ltb_size);
+		if (rc)
+			goto out;
+		i++;
+	}
+
+	WARN_ON(i != new_set.num_ltbs);
+
+	return 0;
+out:
+	/* We may have allocated one/more LTBs before failing and we
+	 * want to try and reuse on next reset. So don't free ltb set.
+	 */
+	return rc;
+}
+
+/**
+ * map_rxpool_buf_to_ltb - Map given rxpool buffer to offset in an LTB.
+ * @rxpool: The receive buffer pool containing buffer
+ * @bufidx: Index of buffer in rxpool
+ * @ltbp: (Output) pointer to the long term buffer containing the buffer
+ * @offset: (Output) offset of buffer in the LTB from @ltbp
+ *
+ * Map the given buffer identified by [rxpool, bufidx] to an LTB in the
+ * pool and its corresponding offset. Assume for now that each LTB is of
+ * different size but could possibly be optimized based on the allocation
+ * strategy in alloc_ltb_set().
+ */
+static void map_rxpool_buf_to_ltb(struct ibmvnic_rx_pool *rxpool,
+				  unsigned int bufidx,
+				  struct ibmvnic_long_term_buff **ltbp,
+				  unsigned int *offset)
+{
+	struct ibmvnic_long_term_buff *ltb;
+	int nbufs;	/* # of buffers in one ltb */
+	int i;
+
+	WARN_ON(bufidx >= rxpool->size);
+
+	for (i = 0; i < rxpool->ltb_set.num_ltbs; i++) {
+		ltb = &rxpool->ltb_set.ltbs[i];
+		nbufs = ltb->size / rxpool->buff_size;
+		if (bufidx < nbufs)
+			break;
+		bufidx -= nbufs;
+	}
+
+	*ltbp = ltb;
+	*offset = bufidx * rxpool->buff_size;
+}
+
+/**
+ * map_txpool_buf_to_ltb - Map given txpool buffer to offset in an LTB.
+ * @txpool: The transmit buffer pool containing buffer
+ * @bufidx: Index of buffer in txpool
+ * @ltbp: (Output) pointer to the long term buffer (LTB) containing the buffer
+ * @offset: (Output) offset of buffer in the LTB from @ltbp
+ *
+ * Map the given buffer identified by [txpool, bufidx] to an LTB in the
+ * pool and its corresponding offset.
+ */
+static void map_txpool_buf_to_ltb(struct ibmvnic_tx_pool *txpool,
+				  unsigned int bufidx,
+				  struct ibmvnic_long_term_buff **ltbp,
+				  unsigned int *offset)
+{
+	struct ibmvnic_long_term_buff *ltb;
+	int nbufs;	/* # of buffers in one ltb */
+	int i;
+
+	WARN_ON_ONCE(bufidx >= txpool->num_buffers);
+
+	for (i = 0; i < txpool->ltb_set.num_ltbs; i++) {
+		ltb = &txpool->ltb_set.ltbs[i];
+		nbufs = ltb->size / txpool->buf_size;
+		if (bufidx < nbufs)
+			break;
+		bufidx -= nbufs;
+	}
+
+	*ltbp = ltb;
+	*offset = bufidx * txpool->buf_size;
+}
+
 static void deactivate_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	int i;
@@ -361,6 +566,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_ind_xmit_queue *ind_bufp;
 	struct ibmvnic_sub_crq_queue *rx_scrq;
+	struct ibmvnic_long_term_buff *ltb;
 	union sub_crq *sub_crq;
 	int buffers_added = 0;
 	unsigned long lpar_rc;
@@ -369,7 +575,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	dma_addr_t dma_addr;
 	unsigned char *dst;
 	int shift = 0;
-	int index;
+	int bufidx;
 	int i;
 
 	if (!pool->active)
@@ -385,14 +591,14 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	 * be 0.
 	 */
 	for (i = ind_bufp->index; i < count; ++i) {
-		index = pool->free_map[pool->next_free];
+		bufidx = pool->free_map[pool->next_free];
 
 		/* We maybe reusing the skb from earlier resets. Allocate
 		 * only if necessary. But since the LTB may have changed
 		 * during reset (see init_rx_pools()), update LTB below
 		 * even if reusing skb.
 		 */
-		skb = pool->rx_buff[index].skb;
+		skb = pool->rx_buff[bufidx].skb;
 		if (!skb) {
 			skb = netdev_alloc_skb(adapter->netdev,
 					       pool->buff_size);
@@ -407,26 +613,26 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		pool->next_free = (pool->next_free + 1) % pool->size;
 
 		/* Copy the skb to the long term mapped DMA buffer */
-		offset = index * pool->buff_size;
-		dst = pool->long_term_buff.buff + offset;
+		map_rxpool_buf_to_ltb(pool, bufidx, &ltb, &offset);
+		dst = ltb->buff + offset;
 		memset(dst, 0, pool->buff_size);
-		dma_addr = pool->long_term_buff.addr + offset;
+		dma_addr = ltb->addr + offset;
 
 		/* add the skb to an rx_buff in the pool */
-		pool->rx_buff[index].data = dst;
-		pool->rx_buff[index].dma = dma_addr;
-		pool->rx_buff[index].skb = skb;
-		pool->rx_buff[index].pool_index = pool->index;
-		pool->rx_buff[index].size = pool->buff_size;
+		pool->rx_buff[bufidx].data = dst;
+		pool->rx_buff[bufidx].dma = dma_addr;
+		pool->rx_buff[bufidx].skb = skb;
+		pool->rx_buff[bufidx].pool_index = pool->index;
+		pool->rx_buff[bufidx].size = pool->buff_size;
 
 		/* queue the rx_buff for the next send_subcrq_indirect */
 		sub_crq = &ind_bufp->indir_arr[ind_bufp->index++];
 		memset(sub_crq, 0, sizeof(*sub_crq));
 		sub_crq->rx_add.first = IBMVNIC_CRQ_CMD;
 		sub_crq->rx_add.correlator =
-		    cpu_to_be64((u64)&pool->rx_buff[index]);
+		    cpu_to_be64((u64)&pool->rx_buff[bufidx]);
 		sub_crq->rx_add.ioba = cpu_to_be32(dma_addr);
-		sub_crq->rx_add.map_id = pool->long_term_buff.map_id;
+		sub_crq->rx_add.map_id = ltb->map_id;
 
 		/* The length field of the sCRQ is defined to be 24 bits so the
 		 * buffer size needs to be left shifted by a byte before it is
@@ -466,10 +672,10 @@ failure:
 		sub_crq = &ind_bufp->indir_arr[i];
 		rx_buff = (struct ibmvnic_rx_buff *)
 				be64_to_cpu(sub_crq->rx_add.correlator);
-		index = (int)(rx_buff - pool->rx_buff);
-		pool->free_map[pool->next_free] = index;
-		dev_kfree_skb_any(pool->rx_buff[index].skb);
-		pool->rx_buff[index].skb = NULL;
+		bufidx = (int)(rx_buff - pool->rx_buff);
+		pool->free_map[pool->next_free] = bufidx;
+		dev_kfree_skb_any(pool->rx_buff[bufidx].skb);
+		pool->rx_buff[bufidx].skb = NULL;
 	}
 	adapter->replenish_add_buff_failure += ind_bufp->index;
 	atomic_add(buffers_added, &pool->available);
@@ -579,7 +785,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 		kfree(rx_pool->free_map);
 
-		free_long_term_buff(adapter, &rx_pool->long_term_buff);
+		free_ltb_set(adapter, &rx_pool->ltb_set);
 
 		if (!rx_pool->rx_buff)
 			continue;
@@ -724,8 +930,8 @@ update_ltb:
 		dev_dbg(dev, "Updating LTB for rx pool %d [%d, %d]\n",
 			i, rx_pool->size, rx_pool->buff_size);
 
-		rc = alloc_long_term_buff(adapter, &rx_pool->long_term_buff,
-					  rx_pool->size * rx_pool->buff_size);
+		rc = alloc_ltb_set(adapter, &rx_pool->ltb_set,
+				   rx_pool->size, rx_pool->buff_size);
 		if (rc)
 			goto out;
 
@@ -782,7 +988,7 @@ static void release_one_tx_pool(struct ibmvnic_adapter *adapter,
 {
 	kfree(tx_pool->tx_buff);
 	kfree(tx_pool->free_map);
-	free_long_term_buff(adapter, &tx_pool->long_term_buff);
+	free_ltb_set(adapter, &tx_pool->ltb_set);
 }
 
 /**
@@ -972,17 +1178,16 @@ update_ltb:
 	for (i = 0; i < num_pools; i++) {
 		struct ibmvnic_tx_pool *tso_pool;
 		struct ibmvnic_tx_pool *tx_pool;
-		u32 ltb_size;
 
 		tx_pool = &adapter->tx_pool[i];
-		ltb_size = tx_pool->num_buffers * tx_pool->buf_size;
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 ltb_size))
-			goto out;
 
-		dev_dbg(dev, "Updated LTB for tx pool %d [%p, %d, %d]\n",
-			i, tx_pool->long_term_buff.buff,
-			tx_pool->num_buffers, tx_pool->buf_size);
+		dev_dbg(dev, "Updating LTB for tx pool %d [%d, %d]\n",
+			i, tx_pool->num_buffers, tx_pool->buf_size);
+
+		rc = alloc_ltb_set(adapter, &tx_pool->ltb_set,
+				   tx_pool->num_buffers, tx_pool->buf_size);
+		if (rc)
+			goto out;
 
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
@@ -991,14 +1196,14 @@ update_ltb:
 			tx_pool->free_map[j] = j;
 
 		tso_pool = &adapter->tso_pool[i];
-		ltb_size = tso_pool->num_buffers * tso_pool->buf_size;
-		if (alloc_long_term_buff(adapter, &tso_pool->long_term_buff,
-					 ltb_size))
-			goto out;
 
-		dev_dbg(dev, "Updated LTB for tso pool %d [%p, %d, %d]\n",
-			i, tso_pool->long_term_buff.buff,
-			tso_pool->num_buffers, tso_pool->buf_size);
+		dev_dbg(dev, "Updating LTB for tso pool %d [%d, %d]\n",
+			i, tso_pool->num_buffers, tso_pool->buf_size);
+
+		rc = alloc_ltb_set(adapter, &tso_pool->ltb_set,
+				   tso_pool->num_buffers, tso_pool->buf_size);
+		if (rc)
+			goto out;
 
 		tso_pool->consumer_index = 0;
 		tso_pool->producer_index = 0;
@@ -1057,7 +1262,7 @@ static int init_napi(struct ibmvnic_adapter *adapter)
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		netdev_dbg(adapter->netdev, "Adding napi[%d]\n", i);
 		netif_napi_add(adapter->netdev, &adapter->napi[i],
-			       ibmvnic_poll, NAPI_POLL_WEIGHT);
+			       ibmvnic_poll);
 	}
 
 	adapter->num_active_rx_napi = adapter->req_rx_queues;
@@ -1911,6 +2116,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct ibmvnic_ind_xmit_queue *ind_bufp;
 	struct ibmvnic_tx_buff *tx_buff = NULL;
 	struct ibmvnic_sub_crq_queue *tx_scrq;
+	struct ibmvnic_long_term_buff *ltb;
 	struct ibmvnic_tx_pool *tx_pool;
 	unsigned int tx_send_failed = 0;
 	netdev_tx_t ret = NETDEV_TX_OK;
@@ -1926,7 +2132,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int offset;
 	int num_entries = 1;
 	unsigned char *dst;
-	int index = 0;
+	int bufidx = 0;
 	u8 proto = 0;
 
 	/* If a reset is in progress, drop the packet since
@@ -1960,9 +2166,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	else
 		tx_pool = &adapter->tx_pool[queue_num];
 
-	index = tx_pool->free_map[tx_pool->consumer_index];
+	bufidx = tx_pool->free_map[tx_pool->consumer_index];
 
-	if (index == IBMVNIC_INVALID_MAP) {
+	if (bufidx == IBMVNIC_INVALID_MAP) {
 		dev_kfree_skb_any(skb);
 		tx_send_failed++;
 		tx_dropped++;
@@ -1973,10 +2179,11 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_pool->free_map[tx_pool->consumer_index] = IBMVNIC_INVALID_MAP;
 
-	offset = index * tx_pool->buf_size;
-	dst = tx_pool->long_term_buff.buff + offset;
+	map_txpool_buf_to_ltb(tx_pool, bufidx, &ltb, &offset);
+
+	dst = ltb->buff + offset;
 	memset(dst, 0, tx_pool->buf_size);
-	data_dma_addr = tx_pool->long_term_buff.addr + offset;
+	data_dma_addr = ltb->addr + offset;
 
 	if (skb_shinfo(skb)->nr_frags) {
 		int cur, i;
@@ -2003,9 +2210,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_pool->consumer_index =
 	    (tx_pool->consumer_index + 1) % tx_pool->num_buffers;
 
-	tx_buff = &tx_pool->tx_buff[index];
+	tx_buff = &tx_pool->tx_buff[bufidx];
 	tx_buff->skb = skb;
-	tx_buff->index = index;
+	tx_buff->index = bufidx;
 	tx_buff->pool_index = queue_num;
 
 	memset(&tx_crq, 0, sizeof(tx_crq));
@@ -2017,10 +2224,10 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (skb_is_gso(skb))
 		tx_crq.v1.correlator =
-			cpu_to_be32(index | IBMVNIC_TSO_POOL_MASK);
+			cpu_to_be32(bufidx | IBMVNIC_TSO_POOL_MASK);
 	else
-		tx_crq.v1.correlator = cpu_to_be32(index);
-	tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
+		tx_crq.v1.correlator = cpu_to_be32(bufidx);
+	tx_crq.v1.dma_reg = cpu_to_be16(ltb->map_id);
 	tx_crq.v1.sge_len = cpu_to_be32(skb->len);
 	tx_crq.v1.ioba = cpu_to_be64(data_dma_addr);
 
@@ -2800,19 +3007,19 @@ static void __ibmvnic_reset(struct work_struct *work)
 		rwi = get_next_rwi(adapter);
 
 		/*
-		 * If there is another reset queued, free the previous rwi
-		 * and process the new reset even if previous reset failed
-		 * (the previous reset could have failed because of a fail
-		 * over for instance, so process the fail over).
-		 *
 		 * If there are no resets queued and the previous reset failed,
 		 * the adapter would be in an undefined state. So retry the
 		 * previous reset as a hard reset.
+		 *
+		 * Else, free the previous rwi and, if there is another reset
+		 * queued, process the new reset even if previous reset failed
+		 * (the previous reset could have failed because of a fail
+		 * over for instance, so process the fail over).
 		 */
-		if (rwi)
-			kfree(tmprwi);
-		else if (rc)
+		if (!rwi && rc)
 			rwi = tmprwi;
+		else
+			kfree(tmprwi);
 
 		if (rwi && (rwi->reset_reason == VNIC_RESET_FAILOVER ||
 			    rwi->reset_reason == VNIC_RESET_MOBILITY || rc))
@@ -3972,16 +4179,16 @@ static void send_request_cap(struct ibmvnic_adapter *adapter, int retry)
 			adapter->desired.rx_entries =
 					adapter->max_rx_add_entries_per_subcrq;
 
-		max_entries = IBMVNIC_MAX_LTB_SIZE /
+		max_entries = IBMVNIC_LTB_SET_SIZE /
 			      (adapter->req_mtu + IBMVNIC_BUFFER_HLEN);
 
 		if ((adapter->req_mtu + IBMVNIC_BUFFER_HLEN) *
-			adapter->desired.tx_entries > IBMVNIC_MAX_LTB_SIZE) {
+			adapter->desired.tx_entries > IBMVNIC_LTB_SET_SIZE) {
 			adapter->desired.tx_entries = max_entries;
 		}
 
 		if ((adapter->req_mtu + IBMVNIC_BUFFER_HLEN) *
-			adapter->desired.rx_entries > IBMVNIC_MAX_LTB_SIZE) {
+			adapter->desired.rx_entries > IBMVNIC_LTB_SET_SIZE) {
 			adapter->desired.rx_entries = max_entries;
 		}
 
@@ -5774,6 +5981,15 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter, bool reset)
 			release_sub_crqs(adapter, 0);
 			rc = init_sub_crqs(adapter);
 		} else {
+			/* no need to reinitialize completely, but we do
+			 * need to clean up transmits that were in flight
+			 * when we processed the reset.  Failure to do so
+			 * will confound the upper layer, usually TCP, by
+			 * creating the illusion of transmits that are
+			 * awaiting completion.
+			 */
+			clean_tx_pools(adapter);
+
 			rc = reset_sub_crq_queues(adapter);
 		}
 	} else {

@@ -3,7 +3,7 @@
  * mac80211_hwsim - software simulator of 802.11 radio(s) for mac80211
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020, 2022 Intel Corporation
  */
 
 #ifndef __MAC80211_HWSIM_H
@@ -140,6 +140,8 @@ enum {
  * @HWSIM_ATTR_PERM_ADDR: permanent mac address of new radio
  * @HWSIM_ATTR_IFTYPE_SUPPORT: u32 attribute of supported interface types bits
  * @HWSIM_ATTR_CIPHER_SUPPORT: u32 array of supported cipher types
+ * @HWSIM_ATTR_MLO_SUPPORT: claim MLO support (exact parameters TBD) for
+ *	the new radio
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -170,6 +172,7 @@ enum {
 	HWSIM_ATTR_PERM_ADDR,
 	HWSIM_ATTR_IFTYPE_SUPPORT,
 	HWSIM_ATTR_CIPHER_SUPPORT,
+	HWSIM_ATTR_MLO_SUPPORT,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)

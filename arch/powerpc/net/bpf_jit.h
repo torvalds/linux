@@ -13,7 +13,7 @@
 #include <asm/types.h>
 #include <asm/ppc-opcode.h>
 
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 #define FUNCTION_DESCR_SIZE	24
 #else
 #define FUNCTION_DESCR_SIZE	0
@@ -35,7 +35,7 @@
 	} while (0)
 
 /* bl (unconditional 'branch' with link) */
-#define PPC_BL(dest)	EMIT(PPC_INST_BL | (((dest) - (unsigned long)(image + ctx->idx)) & 0x03fffffc))
+#define PPC_BL(dest)	EMIT(PPC_RAW_BL((dest) - (unsigned long)(image + ctx->idx)))
 
 /* "cond" here covers BO:BI fields. */
 #define PPC_BCC_SHORT(cond, dest)					      \

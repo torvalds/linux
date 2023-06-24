@@ -192,7 +192,6 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bcm7038_wdt_suspend(struct device *dev)
 {
 	struct bcm7038_watchdog *wdt = dev_get_drvdata(dev);
@@ -212,12 +211,12 @@ static int bcm7038_wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(bcm7038_wdt_pm_ops, bcm7038_wdt_suspend,
-			 bcm7038_wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(bcm7038_wdt_pm_ops,
+				bcm7038_wdt_suspend, bcm7038_wdt_resume);
 
 static const struct of_device_id bcm7038_wdt_match[] = {
+	{ .compatible = "brcm,bcm6345-wdt" },
 	{ .compatible = "brcm,bcm7038-wdt" },
 	{},
 };
@@ -235,7 +234,7 @@ static struct platform_driver bcm7038_wdt_driver = {
 	.driver		= {
 		.name		= "bcm7038-wdt",
 		.of_match_table	= bcm7038_wdt_match,
-		.pm		= &bcm7038_wdt_pm_ops,
+		.pm		= pm_sleep_ptr(&bcm7038_wdt_pm_ops),
 	}
 };
 module_platform_driver(bcm7038_wdt_driver);

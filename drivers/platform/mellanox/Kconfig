@@ -78,4 +78,21 @@ config MLXBF_PMC
 	  to performance monitoring counters within various blocks in the
 	  Mellanox BlueField SoC via a sysfs interface.
 
+config NVSW_SN2201
+	tristate "Nvidia SN2201 platform driver support"
+	depends on REGMAP
+	depends on HWMON
+	depends on I2C
+	depends on REGMAP_I2C
+	help
+	  This driver provides support for the Nvidia SN2201 platform.
+	  The SN2201 is a highly integrated for one rack unit system with
+	  L3 management switches. It has 48 x 1Gbps RJ45 + 4 x 100G QSFP28
+	  ports in a compact 1RU form factor. The system also including a
+	  serial port (RS-232 interface), an OOB port (1G/100M MDI interface)
+	  and USB ports for management functions.
+	  The processor used on SN2201 is Intel Atom®Processor C Series,
+	  C3338R which is one of the Denverton product families.
+	  System equipped with Nvidia®Spectrum-1 32x100GbE Ethernet switch.
+
 endif # MELLANOX_PLATFORM

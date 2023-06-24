@@ -26,6 +26,7 @@ enum iter_type {
 	ITER_PIPE,
 	ITER_XARRAY,
 	ITER_DISCARD,
+	ITER_UBUF,
 };
 
 struct iov_iter_state {
@@ -38,7 +39,11 @@ struct iov_iter {
 	u8 iter_type;
 	bool nofault;
 	bool data_source;
-	size_t iov_offset;
+	bool user_backed;
+	union {
+		size_t iov_offset;
+		int last_offset;
+	};
 	size_t count;
 	union {
 		const struct iovec *iov;
@@ -46,6 +51,7 @@ struct iov_iter {
 		const struct bio_vec *bvec;
 		struct xarray *xarray;
 		struct pipe_inode_info *pipe;
+		void __user *ubuf;
 	};
 	union {
 		unsigned long nr_segs;
@@ -68,6 +74,11 @@ static inline void iov_iter_save_state(struct iov_iter *iter,
 	state->iov_offset = iter->iov_offset;
 	state->count = iter->count;
 	state->nr_segs = iter->nr_segs;
+}
+
+static inline bool iter_is_ubuf(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_UBUF;
 }
 
 static inline bool iter_is_iovec(const struct iov_iter *i)
@@ -103,6 +114,11 @@ static inline bool iov_iter_is_xarray(const struct iov_iter *i)
 static inline unsigned char iov_iter_rw(const struct iov_iter *i)
 {
 	return i->data_source ? WRITE : READ;
+}
+
+static inline bool user_backed_iter(const struct iov_iter *i)
+{
+	return i->user_backed;
 }
 
 /*
@@ -156,19 +172,17 @@ static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, true)))
-		return 0;
-	else
+	if (check_copy_size(addr, bytes, true))
 		return _copy_to_iter(addr, bytes, i);
+	return 0;
 }
 
 static __always_inline __must_check
 size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return 0;
-	else
+	if (check_copy_size(addr, bytes, false))
 		return _copy_from_iter(addr, bytes, i);
+	return 0;
 }
 
 static __always_inline __must_check
@@ -184,10 +198,9 @@ bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 static __always_inline __must_check
 size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return 0;
-	else
+	if (check_copy_size(addr, bytes, false))
 		return _copy_from_iter_nocache(addr, bytes, i);
+	return 0;
 }
 
 static __always_inline __must_check
@@ -219,6 +232,8 @@ size_t _copy_mc_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 #endif
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
+bool iov_iter_is_aligned(const struct iov_iter *i, unsigned addr_mask,
+			unsigned len_mask);
 unsigned long iov_iter_alignment(const struct iov_iter *i);
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i);
 void iov_iter_init(struct iov_iter *i, unsigned int direction, const struct iovec *iov,
@@ -232,9 +247,9 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction, struct pipe_inode
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count);
 void iov_iter_xarray(struct iov_iter *i, unsigned int direction, struct xarray *xarray,
 		     loff_t start, size_t count);
-ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
+ssize_t iov_iter_get_pages2(struct iov_iter *i, struct page **pages,
 			size_t maxsize, unsigned maxpages, size_t *start);
-ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,
+ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i, struct page ***pages,
 			size_t maxsize, size_t *start);
 int iov_iter_npages(const struct iov_iter *i, int maxpages);
 void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state);
@@ -283,7 +298,7 @@ iov_iter_npages_cap(struct iov_iter *i, int maxpages, size_t max_bytes)
 		shorted = iov_iter_count(i) - max_bytes;
 		iov_iter_truncate(i, max_bytes);
 	}
-	npages = iov_iter_npages(i, INT_MAX);
+	npages = iov_iter_npages(i, maxpages);
 	if (shorted)
 		iov_iter_reexpand(i, iov_iter_count(i) + shorted);
 
@@ -322,5 +337,18 @@ ssize_t __import_iovec(int type, const struct iovec __user *uvec,
 		 struct iov_iter *i, bool compat);
 int import_single_range(int type, void __user *buf, size_t len,
 		 struct iovec *iov, struct iov_iter *i);
+
+static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
+			void __user *buf, size_t count)
+{
+	WARN_ON(direction & ~(READ | WRITE));
+	*i = (struct iov_iter) {
+		.iter_type = ITER_UBUF,
+		.user_backed = true,
+		.data_source = direction,
+		.ubuf = buf,
+		.count = count
+	};
+}
 
 #endif

@@ -780,7 +780,7 @@ static inline bool should_fault_in_pages(struct iov_iter *i,
 
 	if (!count)
 		return false;
-	if (!iter_is_iovec(i))
+	if (!user_backed_iter(i))
 		return false;
 
 	size = PAGE_SIZE;
@@ -835,11 +835,12 @@ retry:
 	pagefault_disable();
 	to->nofault = true;
 	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL,
-			   IOMAP_DIO_PARTIAL, read);
+			   IOMAP_DIO_PARTIAL, NULL, read);
 	to->nofault = false;
 	pagefault_enable();
 	if (ret <= 0 && ret != -EFAULT)
 		goto out_unlock;
+	/* No increment (+=) because iomap_dio_rw returns a cumulative value. */
 	if (ret > 0)
 		read = ret;
 
@@ -854,6 +855,7 @@ out_unlock:
 		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
+	/* User space doesn't expect partial success. */
 	if (ret < 0)
 		return ret;
 	return read;
@@ -898,7 +900,7 @@ retry:
 
 	from->nofault = true;
 	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL,
-			   IOMAP_DIO_PARTIAL, written);
+			   IOMAP_DIO_PARTIAL, NULL, written);
 	from->nofault = false;
 	if (ret <= 0) {
 		if (ret == -ENOTBLK)
@@ -906,6 +908,7 @@ retry:
 		if (ret != -EFAULT)
 			goto out_unlock;
 	}
+	/* No increment (+=) because iomap_dio_rw returns a cumulative value. */
 	if (ret > 0)
 		written = ret;
 
@@ -920,6 +923,7 @@ out_unlock:
 		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
+	/* User space doesn't expect partial success. */
 	if (ret < 0)
 		return ret;
 	return written;
@@ -1062,8 +1066,7 @@ out_unlock:
 		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
-	if (statfs_gh)
-		kfree(statfs_gh);
+	kfree(statfs_gh);
 	from->count = orig_count - written;
 	return written ? written : ret;
 }
@@ -1440,6 +1443,22 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 		return dlm_posix_lock(ls->ls_dlm, ip->i_no_addr, file, cmd, fl);
 }
 
+static void __flock_holder_uninit(struct file *file, struct gfs2_holder *fl_gh)
+{
+	struct gfs2_glock *gl = fl_gh->gh_gl;
+
+	/*
+	 * Make sure gfs2_glock_put() won't sleep under the file->f_lock
+	 * spinlock.
+	 */
+
+	gfs2_glock_hold(gl);
+	spin_lock(&file->f_lock);
+	gfs2_holder_uninit(fl_gh);
+	spin_unlock(&file->f_lock);
+	gfs2_glock_put(gl);
+}
+
 static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_file *fp = file->private_data;
@@ -1452,7 +1471,9 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	int sleeptime;
 
 	state = (fl->fl_type == F_WRLCK) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY_1CB) | GL_EXACT;
+	flags = GL_EXACT | GL_NOPID;
+	if (!IS_SETLKW(cmd))
+		flags |= LM_FLAG_TRY_1CB;
 
 	mutex_lock(&fp->f_fl_mutex);
 
@@ -1471,18 +1492,21 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 				       &gfs2_flock_glops, CREATE, &gl);
 		if (error)
 			goto out;
+		spin_lock(&file->f_lock);
 		gfs2_holder_init(gl, state, flags, fl_gh);
+		spin_unlock(&file->f_lock);
 		gfs2_glock_put(gl);
 	}
 	for (sleeptime = 1; sleeptime <= 4; sleeptime <<= 1) {
 		error = gfs2_glock_nq(fl_gh);
 		if (error != GLR_TRYFAILED)
 			break;
-		fl_gh->gh_flags = LM_FLAG_TRY | GL_EXACT;
+		fl_gh->gh_flags &= ~LM_FLAG_TRY_1CB;
+		fl_gh->gh_flags |= LM_FLAG_TRY;
 		msleep(sleeptime);
 	}
 	if (error) {
-		gfs2_holder_uninit(fl_gh);
+		__flock_holder_uninit(file, fl_gh);
 		if (error == GLR_TRYFAILED)
 			error = -EAGAIN;
 	} else {
@@ -1504,7 +1528,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 	locks_lock_file_wait(file, fl);
 	if (gfs2_holder_initialized(fl_gh)) {
 		gfs2_glock_dq(fl_gh);
-		gfs2_holder_uninit(fl_gh);
+		__flock_holder_uninit(file, fl_gh);
 	}
 	mutex_unlock(&fp->f_fl_mutex);
 }

@@ -1596,7 +1596,7 @@
 		compatible = "gpio-keys";
 		status = "okay";
 
-		power {
+		key-power {
 			debounce-interval = <30>;
 			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
 			label = "Power";

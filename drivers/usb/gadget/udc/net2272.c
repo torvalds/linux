@@ -71,7 +71,7 @@ static ushort dma_ep = 1;
 module_param(dma_ep, ushort, 0644);
 
 /*
- * dma_mode: net2272 dma mode setting (see LOCCTL1 definiton):
+ * dma_mode: net2272 dma mode setting (see LOCCTL1 definition):
  *	mode 0 == Slow DREQ mode
  *	mode 1 == Fast DREQ mode
  *	mode 2 == Burst mode
@@ -91,16 +91,16 @@ module_param(dma_mode, ushort, 0644);
  *      mode 2 == ep-a 1k, ep-b 1k, ep-c 512db
  *      mode 3 == ep-a 1k, ep-b disabled, ep-c 512db
  */
-static ushort fifo_mode = 0;
+static ushort fifo_mode;
 module_param(fifo_mode, ushort, 0644);
 
 /*
  * enable_suspend: When enabled, the driver will respond to
  * USB suspend requests by powering down the NET2272.  Otherwise,
- * USB suspend requests will be ignored.  This is acceptible for
+ * USB suspend requests will be ignored.  This is acceptable for
  * self-powered devices.  For bus powered devices set this to 1.
  */
-static ushort enable_suspend = 0;
+static ushort enable_suspend;
 module_param(enable_suspend, ushort, 0644);
 
 static void assert_out_naking(struct net2272_ep *ep, const char *where)
@@ -288,7 +288,7 @@ static void net2272_ep_reset(struct net2272_ep *ep)
 			  | (1 << LOCAL_OUT_ZLP)
 			  | (1 << BUFFER_FLUSH));
 
-	/* fifo size is handled seperately */
+	/* fifo size is handled separately */
 }
 
 static int net2272_disable(struct usb_ep *_ep)

@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
-#include <acpi/video.h>
 #include <asm/io.h>
 
 /**
@@ -291,10 +290,7 @@ static int gmux_get_brightness(struct backlight_device *bd)
 static int gmux_update_status(struct backlight_device *bd)
 {
 	struct apple_gmux_data *gmux_data = bl_get_data(bd);
-	u32 brightness = bd->props.brightness;
-
-	if (bd->props.state & BL_CORE_SUSPENDED)
-		return 0;
+	u32 brightness = backlight_get_brightness(bd);
 
 	gmux_write32(gmux_data, GMUX_PORT_BRIGHTNESS, brightness);
 
@@ -697,7 +693,6 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	 * backlight control and supports more levels than other options.
 	 * Disable the other backlight choices.
 	 */
-	acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
 	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
@@ -807,7 +802,6 @@ static void gmux_remove(struct pnp_dev *pnp)
 	apple_gmux_data = NULL;
 	kfree(gmux_data);
 
-	acpi_video_register();
 	apple_bl_register();
 }
 

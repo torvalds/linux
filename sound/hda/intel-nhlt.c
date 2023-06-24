@@ -55,20 +55,26 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 
 		/* find max number of channels based on format_configuration */
 		if (fmt_configs->fmt_count) {
-			dev_dbg(dev, "%s: found %d format definitions\n",
-				__func__, fmt_configs->fmt_count);
+			struct nhlt_fmt_cfg *fmt_cfg = fmt_configs->fmt_config;
+
+			dev_dbg(dev, "found %d format definitions\n",
+				fmt_configs->fmt_count);
 
 			for (i = 0; i < fmt_configs->fmt_count; i++) {
 				struct wav_fmt_ext *fmt_ext;
 
-				fmt_ext = &fmt_configs->fmt_config[i].fmt_ext;
+				fmt_ext = &fmt_cfg->fmt_ext;
 
 				if (fmt_ext->fmt.channels > max_ch)
 					max_ch = fmt_ext->fmt.channels;
+
+				/* Move to the next nhlt_fmt_cfg */
+				fmt_cfg = (struct nhlt_fmt_cfg *)(fmt_cfg->config.caps +
+								  fmt_cfg->config.size);
 			}
-			dev_dbg(dev, "%s: max channels found %d\n", __func__, max_ch);
+			dev_dbg(dev, "max channels found %d\n", max_ch);
 		} else {
-			dev_dbg(dev, "%s: No format information found\n", __func__);
+			dev_dbg(dev, "No format information found\n");
 		}
 
 		if (cfg->device_config.config_type != NHLT_CONFIG_TYPE_MIC_ARRAY) {
@@ -95,17 +101,16 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 			}
 
 			if (dmic_geo > 0) {
-				dev_dbg(dev, "%s: Array with %d dmics\n", __func__, dmic_geo);
+				dev_dbg(dev, "Array with %d dmics\n", dmic_geo);
 			}
 			if (max_ch > dmic_geo) {
-				dev_dbg(dev, "%s: max channels %d exceed dmic number %d\n",
-					__func__, max_ch, dmic_geo);
+				dev_dbg(dev, "max channels %d exceed dmic number %d\n",
+					max_ch, dmic_geo);
 			}
 		}
 	}
 
-	dev_dbg(dev, "%s: dmic number %d max_ch %d\n",
-		__func__, dmic_geo, max_ch);
+	dev_dbg(dev, "dmic number %d max_ch %d\n", dmic_geo, max_ch);
 
 	return dmic_geo;
 }
@@ -151,6 +156,85 @@ int intel_nhlt_ssp_endpoint_mask(struct nhlt_acpi_table *nhlt, u8 device_type)
 	return ssp_mask;
 }
 EXPORT_SYMBOL(intel_nhlt_ssp_endpoint_mask);
+
+#define SSP_BLOB_V1_0_SIZE		84
+#define SSP_BLOB_V1_0_MDIVC_OFFSET	19 /* offset in u32 */
+
+#define SSP_BLOB_V1_5_SIZE		96
+#define SSP_BLOB_V1_5_MDIVC_OFFSET	21 /* offset in u32 */
+#define SSP_BLOB_VER_1_5		0xEE000105
+
+#define SSP_BLOB_V2_0_SIZE		88
+#define SSP_BLOB_V2_0_MDIVC_OFFSET	20 /* offset in u32 */
+#define SSP_BLOB_VER_2_0		0xEE000200
+
+int intel_nhlt_ssp_mclk_mask(struct nhlt_acpi_table *nhlt, int ssp_num)
+{
+	struct nhlt_endpoint *epnt;
+	struct nhlt_fmt *fmt;
+	struct nhlt_fmt_cfg *cfg;
+	int mclk_mask = 0;
+	int i, j;
+
+	if (!nhlt)
+		return 0;
+
+	epnt = (struct nhlt_endpoint *)nhlt->desc;
+	for (i = 0; i < nhlt->endpoint_count; i++) {
+
+		/* we only care about endpoints connected to an audio codec over SSP */
+		if (epnt->linktype == NHLT_LINK_SSP &&
+		    epnt->device_type == NHLT_DEVICE_I2S &&
+		    epnt->virtual_bus_id == ssp_num) {
+
+			fmt = (struct nhlt_fmt *)(epnt->config.caps + epnt->config.size);
+			cfg = fmt->fmt_config;
+
+			/*
+			 * In theory all formats should use the same MCLK but it doesn't hurt to
+			 * double-check that the configuration is consistent
+			 */
+			for (j = 0; j < fmt->fmt_count; j++) {
+				u32 *blob;
+				int mdivc_offset;
+				int size;
+
+				/* first check we have enough data to read the blob type */
+				if (cfg->config.size < 8)
+					return -EINVAL;
+
+				blob = (u32 *)cfg->config.caps;
+
+				if (blob[1] == SSP_BLOB_VER_2_0) {
+					mdivc_offset = SSP_BLOB_V2_0_MDIVC_OFFSET;
+					size = SSP_BLOB_V2_0_SIZE;
+				} else if (blob[1] == SSP_BLOB_VER_1_5) {
+					mdivc_offset = SSP_BLOB_V1_5_MDIVC_OFFSET;
+					size = SSP_BLOB_V1_5_SIZE;
+				} else {
+					mdivc_offset = SSP_BLOB_V1_0_MDIVC_OFFSET;
+					size = SSP_BLOB_V1_0_SIZE;
+				}
+
+				/* make sure we have enough data for the fixed part of the blob */
+				if (cfg->config.size < size)
+					return -EINVAL;
+
+				mclk_mask |=  blob[mdivc_offset] & GENMASK(1, 0);
+
+				cfg = (struct nhlt_fmt_cfg *)(cfg->config.caps + cfg->config.size);
+			}
+		}
+		epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length);
+	}
+
+	/* make sure only one MCLK is used */
+	if (hweight_long(mclk_mask) != 1)
+		return -EINVAL;
+
+	return mclk_mask;
+}
+EXPORT_SYMBOL(intel_nhlt_ssp_mclk_mask);
 
 static struct nhlt_specific_cfg *
 nhlt_get_specific_cfg(struct device *dev, struct nhlt_fmt *fmt, u8 num_ch,

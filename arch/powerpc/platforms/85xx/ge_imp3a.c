@@ -17,13 +17,13 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -89,8 +89,10 @@ static void __init ge_imp3a_pci_assign_primary(void)
 		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
 		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
 			of_address_to_resource(np, 0, &rsrc);
-			if ((rsrc.start & 0xfffff) == 0x9000)
-				fsl_pci_primary = np;
+			if ((rsrc.start & 0xfffff) == 0x9000) {
+				of_node_put(fsl_pci_primary);
+				fsl_pci_primary = of_node_get(np);
+			}
 		}
 	}
 #endif

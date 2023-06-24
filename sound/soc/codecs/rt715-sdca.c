@@ -758,13 +758,26 @@ static const struct snd_soc_dapm_route rt715_sdca_audio_map[] = {
 	{"ADC 25 Mux", "DMIC4", "DMIC4"},
 };
 
+static int rt715_sdca_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_rt715_sdca = {
+	.probe = rt715_sdca_probe,
 	.controls = rt715_sdca_snd_controls,
 	.num_controls = ARRAY_SIZE(rt715_sdca_snd_controls),
 	.dapm_widgets = rt715_sdca_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rt715_sdca_dapm_widgets),
 	.dapm_routes = rt715_sdca_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt715_sdca_audio_map),
+	.endianness = 1,
 };
 
 static int rt715_sdca_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,

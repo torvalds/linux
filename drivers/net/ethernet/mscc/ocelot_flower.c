@@ -279,6 +279,22 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			filter->action.pol_ix = OCELOT_POLICER_DISCARD;
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
+		case FLOW_ACTION_ACCEPT:
+			if (filter->block_id != VCAP_ES0 &&
+			    filter->block_id != VCAP_IS1 &&
+			    filter->block_id != VCAP_IS2) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Accept action can only be offloaded to VCAP chains");
+				return -EOPNOTSUPP;
+			}
+			if (filter->block_id != VCAP_ES0 &&
+			    filter->goto_target != -1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Last action must be GOTO");
+				return -EOPNOTSUPP;
+			}
+			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			break;
 		case FLOW_ACTION_TRAP:
 			if (filter->block_id != VCAP_IS2 ||
 			    filter->lookup != 0) {

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/ux500.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ux500 platforms device tree bindings
+title: Ux500 platforms
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
@@ -38,6 +38,11 @@ properties:
       - description: Samsung Galaxy Ace 2 (GT-I8160)
         items:
           - const: samsung,codina
+          - const: st-ericsson,u8500
+
+      - description: Samsung Galaxy Exhibit (SGH-T599)
+        items:
+          - const: samsung,codina-tmo
           - const: st-ericsson,u8500
 
       - description: Samsung Galaxy Beam (GT-I8530)

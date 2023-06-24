@@ -99,7 +99,7 @@ static void __init nomadik_src_init(void)
 	if (!src_base) {
 		pr_err("%s: must have src parent node with REGS (%pOFn)\n",
 		       __func__, np);
-		return;
+		goto out_put;
 	}
 
 	/* Set all timers to use the 2.4 MHz TIMCLK */
@@ -132,6 +132,9 @@ static void __init nomadik_src_init(void)
 	}
 	writel(val, src_base + SRC_XTALCR);
 	register_reboot_notifier(&nomadik_clk_reboot_notifier);
+
+out_put:
+	of_node_put(np);
 }
 
 /**

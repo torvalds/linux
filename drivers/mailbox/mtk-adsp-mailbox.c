@@ -149,6 +149,13 @@ static int mtk_adsp_mbox_probe(struct platform_device *pdev)
 	return devm_mbox_controller_register(dev, &priv->mbox);
 }
 
+static const struct mtk_adsp_mbox_cfg mt8186_adsp_mbox_cfg = {
+	.set_in		= 0x00,
+	.set_out	= 0x04,
+	.clr_in		= 0x08,
+	.clr_out	= 0x0C,
+};
+
 static const struct mtk_adsp_mbox_cfg mt8195_adsp_mbox_cfg = {
 	.set_in		= 0x00,
 	.set_out	= 0x1c,
@@ -157,6 +164,7 @@ static const struct mtk_adsp_mbox_cfg mt8195_adsp_mbox_cfg = {
 };
 
 static const struct of_device_id mtk_adsp_mbox_of_match[] = {
+	{ .compatible = "mediatek,mt8186-adsp-mbox", .data = &mt8186_adsp_mbox_cfg },
 	{ .compatible = "mediatek,mt8195-adsp-mbox", .data = &mt8195_adsp_mbox_cfg },
 	{},
 };

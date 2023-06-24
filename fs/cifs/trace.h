@@ -121,6 +121,44 @@ DEFINE_SMB3_RW_DONE_EVENT(query_dir_done);
 DEFINE_SMB3_RW_DONE_EVENT(zero_done);
 DEFINE_SMB3_RW_DONE_EVENT(falloc_done);
 
+/* For logging successful set EOF (truncate) */
+DECLARE_EVENT_CLASS(smb3_eof_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	offset),
+	TP_ARGS(xid, fid, tid, sesid, offset),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, offset)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->offset = offset;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->offset)
+)
+
+#define DEFINE_SMB3_EOF_EVENT(name)         \
+DEFINE_EVENT(smb3_eof_class, smb3_##name,   \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	offset),		\
+	TP_ARGS(xid, fid, tid, sesid, offset))
+
+DEFINE_SMB3_EOF_EVENT(set_eof);
+
 /*
  * For handle based calls other than read and write, and get/set info
  */
@@ -158,6 +196,7 @@ DEFINE_SMB3_FD_EVENT(flush_enter);
 DEFINE_SMB3_FD_EVENT(flush_done);
 DEFINE_SMB3_FD_EVENT(close_enter);
 DEFINE_SMB3_FD_EVENT(close_done);
+DEFINE_SMB3_FD_EVENT(oplock_not_found);
 
 DECLARE_EVENT_CLASS(smb3_fd_err_class,
 	TP_PROTO(unsigned int xid,
@@ -333,6 +372,7 @@ DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_eof_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_info_compound_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(delete_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(mkdir_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(tdis_enter);
 
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_done_class,
@@ -370,6 +410,7 @@ DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_eof_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_info_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(delete_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(mkdir_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(tdis_done);
 
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_err_class,
@@ -412,6 +453,7 @@ DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_eof_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_info_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(mkdir_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(delete_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(tdis_err);
 
 /*
  * For logging SMB3 Status code and Command for responses which return errors
@@ -814,6 +856,7 @@ DEFINE_EVENT(smb3_lease_done_class, smb3_##name,  \
 	TP_ARGS(lease_state, tid, sesid, lease_key_low, lease_key_high))
 
 DEFINE_SMB3_LEASE_DONE_EVENT(lease_done);
+DEFINE_SMB3_LEASE_DONE_EVENT(lease_not_found);
 
 DECLARE_EVENT_CLASS(smb3_lease_err_class,
 	TP_PROTO(__u32	lease_state,

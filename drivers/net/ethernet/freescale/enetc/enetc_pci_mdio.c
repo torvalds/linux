@@ -69,7 +69,7 @@ static int enetc_pci_mdio_probe(struct pci_dev *pdev,
 	return 0;
 
 err_mdiobus_reg:
-	pci_release_mem_regions(pdev);
+	pci_release_region(pdev, 0);
 err_pci_mem_reg:
 	pci_disable_device(pdev);
 err_pci_enable:
@@ -88,7 +88,7 @@ static void enetc_pci_mdio_remove(struct pci_dev *pdev)
 	mdiobus_unregister(bus);
 	mdio_priv = bus->priv;
 	iounmap(mdio_priv->hw->port);
-	pci_release_mem_regions(pdev);
+	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
 }
 

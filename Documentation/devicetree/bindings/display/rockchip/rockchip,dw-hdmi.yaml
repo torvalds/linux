@@ -23,9 +23,21 @@ properties:
       - rockchip,rk3288-dw-hdmi
       - rockchip,rk3328-dw-hdmi
       - rockchip,rk3399-dw-hdmi
+      - rockchip,rk3568-dw-hdmi
 
   reg-io-width:
     const: 4
+
+  avdd-0v9-supply:
+    description:
+      A 0.9V supply that powers up the SoC internal circuitry. The actual pin name
+      varies between the different SoCs and is usually HDMI_TX_AVDD_0V9 or sometimes
+      HDMI_AVDD_1V0.
+
+  avdd-1v8-supply:
+    description:
+      A 1.8V supply that powers up the SoC internal circuitry. The pin name on the
+      SoC usually is HDMI_TX_AVDD_1V8.
 
   clocks:
     minItems: 2
@@ -36,7 +48,8 @@ properties:
       # order when present.
       - description: The HDMI CEC controller main clock
       - description: Power for GRF IO
-      - description: External clock for some HDMI PHY
+      - description: External clock for some HDMI PHY (old clock name, deprecated)
+      - description: External clock for some HDMI PHY (new name)
 
   clock-names:
     minItems: 2
@@ -47,10 +60,14 @@ properties:
           - cec
           - grf
           - vpll
+          - ref
       - enum:
           - grf
           - vpll
-      - const: vpll
+          - ref
+      - enum:
+          - vpll
+          - ref
 
   ddc-i2c-bus:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -72,6 +89,7 @@ properties:
       The unwedge pinctrl entry shall drive the DDC SDA line low. This is
       intended to work around a hardware errata that can cause the DDC I2C
       bus to be wedged.
+    minItems: 1
     items:
       - const: default
       - const: unwedge
@@ -79,27 +97,21 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
-    properties:
-      port:
-        $ref: /schemas/graph.yaml#/$defs/port-base
-        unevaluatedProperties: false
+    patternProperties:
+      "^port(@0)?$":
+        $ref: /schemas/graph.yaml#/properties/port
         description: Input of the DWC HDMI TX
-
         properties:
+          endpoint:
+            description: Connection to the VOP
           endpoint@0:
-            $ref: /schemas/graph.yaml#/properties/endpoint
             description: Connection to the VOPB
-
           endpoint@1:
-            $ref: /schemas/graph.yaml#/properties/endpoint
             description: Connection to the VOPL
-
-        required:
-          - endpoint@0
-          - endpoint@1
-
-    required:
-      - port
+    properties:
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Output of the DWC HDMI TX
 
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle

@@ -49,6 +49,7 @@
 #define SIO_F81768D_ID		0x1210	/* Chipset ID */
 #define SIO_F81865_ID		0x0704	/* Chipset ID */
 #define SIO_F81866_ID		0x1010	/* Chipset ID */
+#define SIO_F71858AD_ID		0x0903	/* Chipset ID */
 #define SIO_F81966_ID		0x1502	/* Chipset ID */
 
 #define REGION_LENGTH		8
@@ -236,13 +237,6 @@ static const char f71882fg_nr_temps[] = {
 
 static struct platform_device *f71882fg_pdev;
 
-/* Super-I/O Function prototypes */
-static inline int superio_inb(int base, int reg);
-static inline int superio_inw(int base, int reg);
-static inline int superio_enter(int base);
-static inline void superio_select(int base, int ld);
-static inline void superio_exit(int base);
-
 struct f71882fg_sio_data {
 	enum chips type;
 };
@@ -291,108 +285,422 @@ struct f71882fg_data {
 	s8	pwm_auto_point_temp[4][4];
 };
 
-/* Sysfs in */
-static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
-	char *buf);
-static ssize_t show_in_max(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_in_max(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_in_beep(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_in_beep(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_in_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-/* Sysfs Fan */
-static ssize_t show_fan(struct device *dev, struct device_attribute *devattr,
-	char *buf);
-static ssize_t show_fan_full_speed(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_fan_full_speed(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-static ssize_t show_fan_beep(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_fan_beep(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-/* Sysfs Temp */
-static ssize_t show_temp(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t show_temp_max(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_temp_max(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_temp_max_hyst(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_temp_crit(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_temp_crit(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_temp_crit_hyst(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t show_temp_type(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t show_temp_beep(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t store_temp_beep(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count);
-static ssize_t show_temp_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-static ssize_t show_temp_fault(struct device *dev, struct device_attribute
-	*devattr, char *buf);
-/* PWM and Auto point control */
-static ssize_t show_pwm(struct device *dev, struct device_attribute *devattr,
-	char *buf);
-static ssize_t store_pwm(struct device *dev, struct device_attribute *devattr,
-	const char *buf, size_t count);
-static ssize_t show_simple_pwm(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_simple_pwm(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-static ssize_t show_pwm_enable(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_pwm_enable(struct device *dev,
-	struct device_attribute	*devattr, const char *buf, size_t count);
-static ssize_t show_pwm_interpolate(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_pwm_interpolate(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-static ssize_t show_pwm_auto_point_channel(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_pwm_auto_point_channel(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-static ssize_t show_pwm_auto_point_temp_hyst(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_pwm_auto_point_temp_hyst(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-static ssize_t show_pwm_auto_point_pwm(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_pwm_auto_point_pwm(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-static ssize_t show_pwm_auto_point_temp(struct device *dev,
-	struct device_attribute *devattr, char *buf);
-static ssize_t store_pwm_auto_point_temp(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count);
-/* Sysfs misc */
+static u8 f71882fg_read8(struct f71882fg_data *data, u8 reg)
+{
+	u8 val;
+
+	outb(reg, data->addr + ADDR_REG_OFFSET);
+	val = inb(data->addr + DATA_REG_OFFSET);
+
+	return val;
+}
+
+static u16 f71882fg_read16(struct f71882fg_data *data, u8 reg)
+{
+	u16 val;
+
+	val  = f71882fg_read8(data, reg) << 8;
+	val |= f71882fg_read8(data, reg + 1);
+
+	return val;
+}
+
+static inline int fan_from_reg(u16 reg)
+{
+	return reg ? (1500000 / reg) : 0;
+}
+
+static inline u16 fan_to_reg(int fan)
+{
+	return fan ? (1500000 / fan) : 0;
+}
+
+static void f71882fg_write8(struct f71882fg_data *data, u8 reg, u8 val)
+{
+	outb(reg, data->addr + ADDR_REG_OFFSET);
+	outb(val, data->addr + DATA_REG_OFFSET);
+}
+
+static void f71882fg_write16(struct f71882fg_data *data, u8 reg, u16 val)
+{
+	f71882fg_write8(data, reg,     val >> 8);
+	f71882fg_write8(data, reg + 1, val & 0xff);
+}
+
+static u16 f71882fg_read_temp(struct f71882fg_data *data, int nr)
+{
+	if (data->type == f71858fg)
+		return f71882fg_read16(data, F71882FG_REG_TEMP(nr));
+	else
+		return f71882fg_read8(data, F71882FG_REG_TEMP(nr));
+}
+
+static struct f71882fg_data *f71882fg_update_device(struct device *dev)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int nr_fans = f71882fg_nr_fans[data->type];
+	int nr_temps = f71882fg_nr_temps[data->type];
+	int nr, reg, point;
+
+	mutex_lock(&data->update_lock);
+
+	/* Update once every 60 seconds */
+	if (time_after(jiffies, data->last_limits + 60 * HZ) ||
+			!data->valid) {
+		if (f71882fg_has_in1_alarm[data->type]) {
+			if (data->type == f81866a) {
+				data->in1_max =
+					f71882fg_read8(data,
+						       F81866_REG_IN1_HIGH);
+				data->in_beep =
+					f71882fg_read8(data,
+						       F81866_REG_IN_BEEP);
+			} else {
+				data->in1_max =
+					f71882fg_read8(data,
+						       F71882FG_REG_IN1_HIGH);
+				data->in_beep =
+					f71882fg_read8(data,
+						       F71882FG_REG_IN_BEEP);
+			}
+		}
+
+		/* Get High & boundary temps*/
+		for (nr = data->temp_start; nr < nr_temps + data->temp_start;
+									nr++) {
+			data->temp_ovt[nr] = f71882fg_read8(data,
+						F71882FG_REG_TEMP_OVT(nr));
+			data->temp_high[nr] = f71882fg_read8(data,
+						F71882FG_REG_TEMP_HIGH(nr));
+		}
+
+		if (data->type != f8000) {
+			data->temp_hyst[0] = f71882fg_read8(data,
+						F71882FG_REG_TEMP_HYST(0));
+			data->temp_hyst[1] = f71882fg_read8(data,
+						F71882FG_REG_TEMP_HYST(1));
+		}
+		/* All but the f71858fg / f8000 have this register */
+		if ((data->type != f71858fg) && (data->type != f8000)) {
+			reg  = f71882fg_read8(data, F71882FG_REG_TEMP_TYPE);
+			data->temp_type[1] = (reg & 0x02) ? 2 : 4;
+			data->temp_type[2] = (reg & 0x04) ? 2 : 4;
+			data->temp_type[3] = (reg & 0x08) ? 2 : 4;
+		}
+
+		if (f71882fg_fan_has_beep[data->type])
+			data->fan_beep = f71882fg_read8(data,
+						F71882FG_REG_FAN_BEEP);
+
+		if (f71882fg_temp_has_beep[data->type])
+			data->temp_beep = f71882fg_read8(data,
+						F71882FG_REG_TEMP_BEEP);
+
+		data->pwm_enable = f71882fg_read8(data,
+						  F71882FG_REG_PWM_ENABLE);
+		data->pwm_auto_point_hyst[0] =
+			f71882fg_read8(data, F71882FG_REG_FAN_HYST(0));
+		data->pwm_auto_point_hyst[1] =
+			f71882fg_read8(data, F71882FG_REG_FAN_HYST(1));
+
+		for (nr = 0; nr < nr_fans; nr++) {
+			data->pwm_auto_point_mapping[nr] =
+			    f71882fg_read8(data,
+					   F71882FG_REG_POINT_MAPPING(nr));
+
+			switch (data->type) {
+			default:
+				for (point = 0; point < 5; point++) {
+					data->pwm_auto_point_pwm[nr][point] =
+						f71882fg_read8(data,
+							F71882FG_REG_POINT_PWM
+							(nr, point));
+				}
+				for (point = 0; point < 4; point++) {
+					data->pwm_auto_point_temp[nr][point] =
+						f71882fg_read8(data,
+							F71882FG_REG_POINT_TEMP
+							(nr, point));
+				}
+				break;
+			case f71808e:
+			case f71869:
+				data->pwm_auto_point_pwm[nr][0] =
+					f71882fg_read8(data,
+						F71882FG_REG_POINT_PWM(nr, 0));
+				fallthrough;
+			case f71862fg:
+				data->pwm_auto_point_pwm[nr][1] =
+					f71882fg_read8(data,
+						F71882FG_REG_POINT_PWM
+						(nr, 1));
+				data->pwm_auto_point_pwm[nr][4] =
+					f71882fg_read8(data,
+						F71882FG_REG_POINT_PWM
+						(nr, 4));
+				data->pwm_auto_point_temp[nr][0] =
+					f71882fg_read8(data,
+						F71882FG_REG_POINT_TEMP
+						(nr, 0));
+				data->pwm_auto_point_temp[nr][3] =
+					f71882fg_read8(data,
+						F71882FG_REG_POINT_TEMP
+						(nr, 3));
+				break;
+			}
+		}
+		data->last_limits = jiffies;
+	}
+
+	/* Update every second */
+	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
+		data->temp_status = f71882fg_read8(data,
+						F71882FG_REG_TEMP_STATUS);
+		data->temp_diode_open = f71882fg_read8(data,
+						F71882FG_REG_TEMP_DIODE_OPEN);
+		for (nr = data->temp_start; nr < nr_temps + data->temp_start;
+									nr++)
+			data->temp[nr] = f71882fg_read_temp(data, nr);
+
+		data->fan_status = f71882fg_read8(data,
+						F71882FG_REG_FAN_STATUS);
+		for (nr = 0; nr < nr_fans; nr++) {
+			data->fan[nr] = f71882fg_read16(data,
+						F71882FG_REG_FAN(nr));
+			data->fan_target[nr] =
+			    f71882fg_read16(data, F71882FG_REG_FAN_TARGET(nr));
+			data->fan_full_speed[nr] =
+			    f71882fg_read16(data,
+					    F71882FG_REG_FAN_FULL_SPEED(nr));
+			data->pwm[nr] =
+			    f71882fg_read8(data, F71882FG_REG_PWM(nr));
+		}
+		/* Some models have 1 more fan with limited capabilities */
+		if (data->type == f71808a) {
+			data->fan[2] = f71882fg_read16(data,
+						F71882FG_REG_FAN(2));
+			data->pwm[2] = f71882fg_read8(data,
+							F71882FG_REG_PWM(2));
+		}
+		if (data->type == f8000)
+			data->fan[3] = f71882fg_read16(data,
+						F71882FG_REG_FAN(3));
+
+		if (f71882fg_has_in1_alarm[data->type]) {
+			if (data->type == f81866a)
+				data->in_status = f71882fg_read8(data,
+						F81866_REG_IN_STATUS);
+
+			else
+				data->in_status = f71882fg_read8(data,
+						F71882FG_REG_IN_STATUS);
+		}
+
+		for (nr = 0; nr < F71882FG_MAX_INS; nr++)
+			if (f71882fg_has_in[data->type][nr])
+				data->in[nr] = f71882fg_read8(data,
+							F71882FG_REG_IN(nr));
+
+		data->last_updated = jiffies;
+		data->valid = true;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
+
 static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
-	char *buf);
-
-static int f71882fg_probe(struct platform_device *pdev);
-static int f71882fg_remove(struct platform_device *pdev);
-
-static struct platform_driver f71882fg_driver = {
-	.driver = {
-		.name	= DRVNAME,
-	},
-	.probe		= f71882fg_probe,
-	.remove		= f71882fg_remove,
-};
+	char *buf)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", f71882fg_names[data->type]);
+}
 
 static DEVICE_ATTR_RO(name);
+
+static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+	char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int sign, temp;
+
+	if (data->type == f71858fg) {
+		/* TEMP_TABLE_SEL 1 or 3 ? */
+		if (data->temp_config & 1) {
+			sign = data->temp[nr] & 0x0001;
+			temp = (data->temp[nr] >> 5) & 0x7ff;
+		} else {
+			sign = data->temp[nr] & 0x8000;
+			temp = (data->temp[nr] >> 5) & 0x3ff;
+		}
+		temp *= 125;
+		if (sign)
+			temp -= 128000;
+	} else {
+		temp = ((s8)data->temp[nr]) * 1000;
+	}
+
+	return sprintf(buf, "%d\n", temp);
+}
+
+static ssize_t show_temp_max(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	return sprintf(buf, "%d\n", data->temp_high[nr] * 1000);
+}
+
+static ssize_t store_temp_max(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	f71882fg_write8(data, F71882FG_REG_TEMP_HIGH(nr), val);
+	data->temp_high[nr] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_temp_max_hyst(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int temp_max_hyst;
+
+	mutex_lock(&data->update_lock);
+	if (nr & 1)
+		temp_max_hyst = data->temp_hyst[nr / 2] >> 4;
+	else
+		temp_max_hyst = data->temp_hyst[nr / 2] & 0x0f;
+	temp_max_hyst = (data->temp_high[nr] - temp_max_hyst) * 1000;
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", temp_max_hyst);
+}
+
+static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	ssize_t ret = count;
+	u8 reg;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
+
+	mutex_lock(&data->update_lock);
+
+	/* convert abs to relative and check */
+	data->temp_high[nr] = f71882fg_read8(data, F71882FG_REG_TEMP_HIGH(nr));
+	val = clamp_val(val, data->temp_high[nr] - 15, data->temp_high[nr]);
+	val = data->temp_high[nr] - val;
+
+	/* convert value to register contents */
+	reg = f71882fg_read8(data, F71882FG_REG_TEMP_HYST(nr / 2));
+	if (nr & 1)
+		reg = (reg & 0x0f) | (val << 4);
+	else
+		reg = (reg & 0xf0) | val;
+	f71882fg_write8(data, F71882FG_REG_TEMP_HYST(nr / 2), reg);
+	data->temp_hyst[nr / 2] = reg;
+
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+
+static ssize_t show_temp_alarm(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->temp_status & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+
+static ssize_t show_temp_crit(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	return sprintf(buf, "%d\n", data->temp_ovt[nr] * 1000);
+}
+
+static ssize_t store_temp_crit(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	f71882fg_write8(data, F71882FG_REG_TEMP_OVT(nr), val);
+	data->temp_ovt[nr] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_temp_crit_hyst(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int temp_crit_hyst;
+
+	mutex_lock(&data->update_lock);
+	if (nr & 1)
+		temp_crit_hyst = data->temp_hyst[nr / 2] >> 4;
+	else
+		temp_crit_hyst = data->temp_hyst[nr / 2] & 0x0f;
+	temp_crit_hyst = (data->temp_ovt[nr] - temp_crit_hyst) * 1000;
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", temp_crit_hyst);
+}
+
+static ssize_t show_temp_fault(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->temp_diode_open & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
 
 /*
  * Temp attr for the f71858fg, the f71858fg is special as it has its
@@ -436,6 +744,15 @@ static struct sensor_device_attribute_2 f71858fg_temp_attr[] = {
 	SENSOR_ATTR_2(temp3_crit_alarm, S_IRUGO, show_temp_alarm, NULL, 0, 6),
 	SENSOR_ATTR_2(temp3_fault, S_IRUGO, show_temp_fault, NULL, 0, 2),
 };
+
+static ssize_t show_temp_type(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	return sprintf(buf, "%d\n", data->temp_type[nr]);
+}
 
 /* Temp attr for the standard models */
 static struct sensor_device_attribute_2 fxxxx_temp_attr[3][9] = { {
@@ -488,6 +805,42 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[3][9] = { {
 	SENSOR_ATTR_2(temp3_type, S_IRUGO, show_temp_type, NULL, 0, 3),
 	SENSOR_ATTR_2(temp3_fault, S_IRUGO, show_temp_fault, NULL, 0, 3),
 } };
+
+static ssize_t show_temp_beep(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->temp_beep & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+
+static ssize_t store_temp_beep(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+	data->temp_beep = f71882fg_read8(data, F71882FG_REG_TEMP_BEEP);
+	if (val)
+		data->temp_beep |= 1 << nr;
+	else
+		data->temp_beep &= ~(1 << nr);
+
+	f71882fg_write8(data, F71882FG_REG_TEMP_BEEP, data->temp_beep);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
 
 /* Temp attr for models which can beep on temp alarm */
 static struct sensor_device_attribute_2 fxxxx_temp_beep_attr[3][2] = { {
@@ -554,6 +907,15 @@ static struct sensor_device_attribute_2 f8000_temp_attr[] = {
 	SENSOR_ATTR_2(temp3_fault, S_IRUGO, show_temp_fault, NULL, 0, 2),
 };
 
+static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
+	char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	return sprintf(buf, "%d\n", data->in[nr] * 8);
+}
+
 /* in attr for all models */
 static struct sensor_device_attribute_2 fxxxx_in_attr[] = {
 	SENSOR_ATTR_2(in0_input, S_IRUGO, show_in, NULL, 0, 0),
@@ -569,6 +931,94 @@ static struct sensor_device_attribute_2 fxxxx_in_attr[] = {
 	SENSOR_ATTR_2(in10_input, S_IRUGO, show_in, NULL, 0, 10),
 };
 
+static ssize_t show_in_max(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+
+	return sprintf(buf, "%d\n", data->in1_max * 8);
+}
+
+static ssize_t store_in_max(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 8;
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	if (data->type == f81866a)
+		f71882fg_write8(data, F81866_REG_IN1_HIGH, val);
+	else
+		f71882fg_write8(data, F71882FG_REG_IN1_HIGH, val);
+	data->in1_max = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_in_beep(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->in_beep & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+
+static ssize_t store_in_beep(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+	if (data->type == f81866a)
+		data->in_beep = f71882fg_read8(data, F81866_REG_IN_BEEP);
+	else
+		data->in_beep = f71882fg_read8(data, F71882FG_REG_IN_BEEP);
+
+	if (val)
+		data->in_beep |= 1 << nr;
+	else
+		data->in_beep &= ~(1 << nr);
+
+	if (data->type == f81866a)
+		f71882fg_write8(data, F81866_REG_IN_BEEP, data->in_beep);
+	else
+		f71882fg_write8(data, F71882FG_REG_IN_BEEP, data->in_beep);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_in_alarm(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->in_status & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+
 /* For models with in1 alarm capability */
 static struct sensor_device_attribute_2 fxxxx_in1_alarm_attr[] = {
 	SENSOR_ATTR_2(in1_max, S_IRUGO|S_IWUSR, show_in_max, store_in_max,
@@ -577,6 +1027,242 @@ static struct sensor_device_attribute_2 fxxxx_in1_alarm_attr[] = {
 		0, 1),
 	SENSOR_ATTR_2(in1_alarm, S_IRUGO, show_in_alarm, NULL, 0, 1),
 };
+
+static ssize_t show_fan(struct device *dev, struct device_attribute *devattr,
+	char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int speed = fan_from_reg(data->fan[nr]);
+
+	if (speed == FAN_MIN_DETECT)
+		speed = 0;
+
+	return sprintf(buf, "%d\n", speed);
+}
+
+static ssize_t show_fan_full_speed(struct device *dev,
+				   struct device_attribute *devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int speed = fan_from_reg(data->fan_full_speed[nr]);
+	return sprintf(buf, "%d\n", speed);
+}
+
+static ssize_t store_fan_full_speed(struct device *dev,
+				    struct device_attribute *devattr,
+				    const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val = clamp_val(val, 23, 1500000);
+	val = fan_to_reg(val);
+
+	mutex_lock(&data->update_lock);
+	f71882fg_write16(data, F71882FG_REG_FAN_FULL_SPEED(nr), val);
+	data->fan_full_speed[nr] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->fan_status & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+
+static ssize_t show_pwm(struct device *dev,
+			struct device_attribute *devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int val, nr = to_sensor_dev_attr_2(devattr)->index;
+	mutex_lock(&data->update_lock);
+	if (data->pwm_enable & (1 << (2 * nr)))
+		/* PWM mode */
+		val = data->pwm[nr];
+	else {
+		/* RPM mode */
+		val = 255 * fan_from_reg(data->fan_target[nr])
+			/ fan_from_reg(data->fan_full_speed[nr]);
+	}
+	mutex_unlock(&data->update_lock);
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t store_pwm(struct device *dev,
+			 struct device_attribute *devattr, const char *buf,
+			 size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
+	if ((data->type == f8000 && ((data->pwm_enable >> 2 * nr) & 3) != 2) ||
+	    (data->type != f8000 && !((data->pwm_enable >> 2 * nr) & 2))) {
+		count = -EROFS;
+		goto leave;
+	}
+	if (data->pwm_enable & (1 << (2 * nr))) {
+		/* PWM mode */
+		f71882fg_write8(data, F71882FG_REG_PWM(nr), val);
+		data->pwm[nr] = val;
+	} else {
+		/* RPM mode */
+		int target, full_speed;
+		full_speed = f71882fg_read16(data,
+					     F71882FG_REG_FAN_FULL_SPEED(nr));
+		target = fan_to_reg(val * fan_from_reg(full_speed) / 255);
+		f71882fg_write16(data, F71882FG_REG_FAN_TARGET(nr), target);
+		data->fan_target[nr] = target;
+		data->fan_full_speed[nr] = full_speed;
+	}
+leave:
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm_enable(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
+{
+	int result = 0;
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	switch ((data->pwm_enable >> 2 * nr) & 3) {
+	case 0:
+	case 1:
+		result = 2; /* Normal auto mode */
+		break;
+	case 2:
+		result = 1; /* Manual mode */
+		break;
+	case 3:
+		if (data->type == f8000)
+			result = 3; /* Thermostat mode */
+		else
+			result = 1; /* Manual mode */
+		break;
+	}
+
+	return sprintf(buf, "%d\n", result);
+}
+
+static ssize_t store_pwm_enable(struct device *dev, struct device_attribute
+				*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	/* Special case for F8000 pwm channel 3 which only does auto mode */
+	if (data->type == f8000 && nr == 2 && val != 2)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
+	/* Special case for F8000 auto PWM mode / Thermostat mode */
+	if (data->type == f8000 && ((data->pwm_enable >> 2 * nr) & 1)) {
+		switch (val) {
+		case 2:
+			data->pwm_enable &= ~(2 << (2 * nr));
+			break;		/* Normal auto mode */
+		case 3:
+			data->pwm_enable |= 2 << (2 * nr);
+			break;		/* Thermostat mode */
+		default:
+			count = -EINVAL;
+			goto leave;
+		}
+	} else {
+		switch (val) {
+		case 1:
+			/* The f71858fg does not support manual RPM mode */
+			if (data->type == f71858fg &&
+			    ((data->pwm_enable >> (2 * nr)) & 1)) {
+				count = -EINVAL;
+				goto leave;
+			}
+			data->pwm_enable |= 2 << (2 * nr);
+			break;		/* Manual */
+		case 2:
+			data->pwm_enable &= ~(2 << (2 * nr));
+			break;		/* Normal auto mode */
+		default:
+			count = -EINVAL;
+			goto leave;
+		}
+	}
+	f71882fg_write8(data, F71882FG_REG_PWM_ENABLE, data->pwm_enable);
+leave:
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm_interpolate(struct device *dev,
+				    struct device_attribute *devattr, char *buf)
+{
+	int result;
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	result = (data->pwm_auto_point_mapping[nr] >> 4) & 1;
+
+	return sprintf(buf, "%d\n", result);
+}
+
+static ssize_t store_pwm_interpolate(struct device *dev,
+				     struct device_attribute *devattr,
+				     const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+	data->pwm_auto_point_mapping[nr] =
+		f71882fg_read8(data, F71882FG_REG_POINT_MAPPING(nr));
+	if (val)
+		val = data->pwm_auto_point_mapping[nr] | (1 << 4);
+	else
+		val = data->pwm_auto_point_mapping[nr] & (~(1 << 4));
+	f71882fg_write8(data, F71882FG_REG_POINT_MAPPING(nr), val);
+	data->pwm_auto_point_mapping[nr] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
 
 /* Fan / PWM attr common to all models */
 static struct sensor_device_attribute_2 fxxxx_fan_attr[4][6] = { {
@@ -625,6 +1311,38 @@ static struct sensor_device_attribute_2 fxxxx_fan_attr[4][6] = { {
 		      show_pwm_interpolate, store_pwm_interpolate, 0, 3),
 } };
 
+static ssize_t show_simple_pwm(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int val, nr = to_sensor_dev_attr_2(devattr)->index;
+
+	val = data->pwm[nr];
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t store_simple_pwm(struct device *dev,
+				struct device_attribute *devattr,
+				const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	f71882fg_write8(data, F71882FG_REG_PWM(nr), val);
+	data->pwm[nr] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
 /* Attr for the third fan of the f71808a, which only has manual pwm */
 static struct sensor_device_attribute_2 f71808a_fan3_attr[] = {
 	SENSOR_ATTR_2(fan3_input, S_IRUGO, show_fan, NULL, 0, 2),
@@ -632,6 +1350,42 @@ static struct sensor_device_attribute_2 f71808a_fan3_attr[] = {
 	SENSOR_ATTR_2(pwm3, S_IRUGO|S_IWUSR,
 		      show_simple_pwm, store_simple_pwm, 0, 2),
 };
+
+static ssize_t show_fan_beep(struct device *dev, struct device_attribute
+	*devattr, char *buf)
+{
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	if (data->fan_beep & (1 << nr))
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+
+static ssize_t store_fan_beep(struct device *dev, struct device_attribute
+	*devattr, const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+	data->fan_beep = f71882fg_read8(data, F71882FG_REG_FAN_BEEP);
+	if (val)
+		data->fan_beep |= 1 << nr;
+	else
+		data->fan_beep &= ~(1 << nr);
+
+	f71882fg_write8(data, F71882FG_REG_FAN_BEEP, data->fan_beep);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
 
 /* Attr for models which can beep on Fan alarm */
 static struct sensor_device_attribute_2 fxxxx_fan_beep_attr[] = {
@@ -644,6 +1398,209 @@ static struct sensor_device_attribute_2 fxxxx_fan_beep_attr[] = {
 	SENSOR_ATTR_2(fan4_beep, S_IRUGO|S_IWUSR, show_fan_beep,
 		store_fan_beep, 0, 3),
 };
+
+static ssize_t show_pwm_auto_point_channel(struct device *dev,
+					   struct device_attribute *devattr,
+					   char *buf)
+{
+	int result;
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+
+	result = 1 << ((data->pwm_auto_point_mapping[nr] & 3) -
+		       data->temp_start);
+
+	return sprintf(buf, "%d\n", result);
+}
+
+static ssize_t store_pwm_auto_point_channel(struct device *dev,
+					    struct device_attribute *devattr,
+					    const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	switch (val) {
+	case 1:
+		val = 0;
+		break;
+	case 2:
+		val = 1;
+		break;
+	case 4:
+		val = 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+	val += data->temp_start;
+	mutex_lock(&data->update_lock);
+	data->pwm_auto_point_mapping[nr] =
+		f71882fg_read8(data, F71882FG_REG_POINT_MAPPING(nr));
+	val = (data->pwm_auto_point_mapping[nr] & 0xfc) | val;
+	f71882fg_write8(data, F71882FG_REG_POINT_MAPPING(nr), val);
+	data->pwm_auto_point_mapping[nr] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm_auto_point_pwm(struct device *dev,
+				       struct device_attribute *devattr,
+				       char *buf)
+{
+	int result;
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int pwm = to_sensor_dev_attr_2(devattr)->index;
+	int point = to_sensor_dev_attr_2(devattr)->nr;
+
+	mutex_lock(&data->update_lock);
+	if (data->pwm_enable & (1 << (2 * pwm))) {
+		/* PWM mode */
+		result = data->pwm_auto_point_pwm[pwm][point];
+	} else {
+		/* RPM mode */
+		result = 32 * 255 / (32 + data->pwm_auto_point_pwm[pwm][point]);
+	}
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", result);
+}
+
+static ssize_t store_pwm_auto_point_pwm(struct device *dev,
+					struct device_attribute *devattr,
+					const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, pwm = to_sensor_dev_attr_2(devattr)->index;
+	int point = to_sensor_dev_attr_2(devattr)->nr;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
+	if (data->pwm_enable & (1 << (2 * pwm))) {
+		/* PWM mode */
+	} else {
+		/* RPM mode */
+		if (val < 29)	/* Prevent negative numbers */
+			val = 255;
+		else
+			val = (255 - val) * 32 / val;
+	}
+	f71882fg_write8(data, F71882FG_REG_POINT_PWM(pwm, point), val);
+	data->pwm_auto_point_pwm[pwm][point] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm_auto_point_temp(struct device *dev,
+					struct device_attribute *devattr,
+					char *buf)
+{
+	int result;
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int pwm = to_sensor_dev_attr_2(devattr)->index;
+	int point = to_sensor_dev_attr_2(devattr)->nr;
+
+	result = data->pwm_auto_point_temp[pwm][point];
+	return sprintf(buf, "%d\n", 1000 * result);
+}
+
+static ssize_t store_pwm_auto_point_temp(struct device *dev,
+					 struct device_attribute *devattr,
+					 const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, pwm = to_sensor_dev_attr_2(devattr)->index;
+	int point = to_sensor_dev_attr_2(devattr)->nr;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
+
+	if (data->auto_point_temp_signed)
+		val = clamp_val(val, -128, 127);
+	else
+		val = clamp_val(val, 0, 127);
+
+	mutex_lock(&data->update_lock);
+	f71882fg_write8(data, F71882FG_REG_POINT_TEMP(pwm, point), val);
+	data->pwm_auto_point_temp[pwm][point] = val;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm_auto_point_temp_hyst(struct device *dev,
+					     struct device_attribute *devattr,
+					     char *buf)
+{
+	int result = 0;
+	struct f71882fg_data *data = f71882fg_update_device(dev);
+	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int point = to_sensor_dev_attr_2(devattr)->nr;
+
+	mutex_lock(&data->update_lock);
+	if (nr & 1)
+		result = data->pwm_auto_point_hyst[nr / 2] >> 4;
+	else
+		result = data->pwm_auto_point_hyst[nr / 2] & 0x0f;
+	result = 1000 * (data->pwm_auto_point_temp[nr][point] - result);
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", result);
+}
+
+static ssize_t store_pwm_auto_point_temp_hyst(struct device *dev,
+					      struct device_attribute *devattr,
+					      const char *buf, size_t count)
+{
+	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	int point = to_sensor_dev_attr_2(devattr)->nr;
+	u8 reg;
+	long val;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
+
+	mutex_lock(&data->update_lock);
+	data->pwm_auto_point_temp[nr][point] =
+		f71882fg_read8(data, F71882FG_REG_POINT_TEMP(nr, point));
+	val = clamp_val(val, data->pwm_auto_point_temp[nr][point] - 15,
+			data->pwm_auto_point_temp[nr][point]);
+	val = data->pwm_auto_point_temp[nr][point] - val;
+
+	reg = f71882fg_read8(data, F71882FG_REG_FAN_HYST(nr / 2));
+	if (nr & 1)
+		reg = (reg & 0x0f) | (val << 4);
+	else
+		reg = (reg & 0xf0) | val;
+
+	f71882fg_write8(data, F71882FG_REG_FAN_HYST(nr / 2), reg);
+	data->pwm_auto_point_hyst[nr / 2] = reg;
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
 
 /*
  * PWM attr for the f71862fg, fewer pwms and fewer zones per pwm than the
@@ -1143,1071 +2100,6 @@ static inline void superio_exit(int base)
 	release_region(base, 2);
 }
 
-static inline int fan_from_reg(u16 reg)
-{
-	return reg ? (1500000 / reg) : 0;
-}
-
-static inline u16 fan_to_reg(int fan)
-{
-	return fan ? (1500000 / fan) : 0;
-}
-
-static u8 f71882fg_read8(struct f71882fg_data *data, u8 reg)
-{
-	u8 val;
-
-	outb(reg, data->addr + ADDR_REG_OFFSET);
-	val = inb(data->addr + DATA_REG_OFFSET);
-
-	return val;
-}
-
-static u16 f71882fg_read16(struct f71882fg_data *data, u8 reg)
-{
-	u16 val;
-
-	val  = f71882fg_read8(data, reg) << 8;
-	val |= f71882fg_read8(data, reg + 1);
-
-	return val;
-}
-
-static void f71882fg_write8(struct f71882fg_data *data, u8 reg, u8 val)
-{
-	outb(reg, data->addr + ADDR_REG_OFFSET);
-	outb(val, data->addr + DATA_REG_OFFSET);
-}
-
-static void f71882fg_write16(struct f71882fg_data *data, u8 reg, u16 val)
-{
-	f71882fg_write8(data, reg,     val >> 8);
-	f71882fg_write8(data, reg + 1, val & 0xff);
-}
-
-static u16 f71882fg_read_temp(struct f71882fg_data *data, int nr)
-{
-	if (data->type == f71858fg)
-		return f71882fg_read16(data, F71882FG_REG_TEMP(nr));
-	else
-		return f71882fg_read8(data, F71882FG_REG_TEMP(nr));
-}
-
-static struct f71882fg_data *f71882fg_update_device(struct device *dev)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr_fans = f71882fg_nr_fans[data->type];
-	int nr_temps = f71882fg_nr_temps[data->type];
-	int nr, reg, point;
-
-	mutex_lock(&data->update_lock);
-
-	/* Update once every 60 seconds */
-	if (time_after(jiffies, data->last_limits + 60 * HZ) ||
-			!data->valid) {
-		if (f71882fg_has_in1_alarm[data->type]) {
-			if (data->type == f81866a) {
-				data->in1_max =
-					f71882fg_read8(data,
-						       F81866_REG_IN1_HIGH);
-				data->in_beep =
-					f71882fg_read8(data,
-						       F81866_REG_IN_BEEP);
-			} else {
-				data->in1_max =
-					f71882fg_read8(data,
-						       F71882FG_REG_IN1_HIGH);
-				data->in_beep =
-					f71882fg_read8(data,
-						       F71882FG_REG_IN_BEEP);
-			}
-		}
-
-		/* Get High & boundary temps*/
-		for (nr = data->temp_start; nr < nr_temps + data->temp_start;
-									nr++) {
-			data->temp_ovt[nr] = f71882fg_read8(data,
-						F71882FG_REG_TEMP_OVT(nr));
-			data->temp_high[nr] = f71882fg_read8(data,
-						F71882FG_REG_TEMP_HIGH(nr));
-		}
-
-		if (data->type != f8000) {
-			data->temp_hyst[0] = f71882fg_read8(data,
-						F71882FG_REG_TEMP_HYST(0));
-			data->temp_hyst[1] = f71882fg_read8(data,
-						F71882FG_REG_TEMP_HYST(1));
-		}
-		/* All but the f71858fg / f8000 have this register */
-		if ((data->type != f71858fg) && (data->type != f8000)) {
-			reg  = f71882fg_read8(data, F71882FG_REG_TEMP_TYPE);
-			data->temp_type[1] = (reg & 0x02) ? 2 : 4;
-			data->temp_type[2] = (reg & 0x04) ? 2 : 4;
-			data->temp_type[3] = (reg & 0x08) ? 2 : 4;
-		}
-
-		if (f71882fg_fan_has_beep[data->type])
-			data->fan_beep = f71882fg_read8(data,
-						F71882FG_REG_FAN_BEEP);
-
-		if (f71882fg_temp_has_beep[data->type])
-			data->temp_beep = f71882fg_read8(data,
-						F71882FG_REG_TEMP_BEEP);
-
-		data->pwm_enable = f71882fg_read8(data,
-						  F71882FG_REG_PWM_ENABLE);
-		data->pwm_auto_point_hyst[0] =
-			f71882fg_read8(data, F71882FG_REG_FAN_HYST(0));
-		data->pwm_auto_point_hyst[1] =
-			f71882fg_read8(data, F71882FG_REG_FAN_HYST(1));
-
-		for (nr = 0; nr < nr_fans; nr++) {
-			data->pwm_auto_point_mapping[nr] =
-			    f71882fg_read8(data,
-					   F71882FG_REG_POINT_MAPPING(nr));
-
-			switch (data->type) {
-			default:
-				for (point = 0; point < 5; point++) {
-					data->pwm_auto_point_pwm[nr][point] =
-						f71882fg_read8(data,
-							F71882FG_REG_POINT_PWM
-							(nr, point));
-				}
-				for (point = 0; point < 4; point++) {
-					data->pwm_auto_point_temp[nr][point] =
-						f71882fg_read8(data,
-							F71882FG_REG_POINT_TEMP
-							(nr, point));
-				}
-				break;
-			case f71808e:
-			case f71869:
-				data->pwm_auto_point_pwm[nr][0] =
-					f71882fg_read8(data,
-						F71882FG_REG_POINT_PWM(nr, 0));
-				fallthrough;
-			case f71862fg:
-				data->pwm_auto_point_pwm[nr][1] =
-					f71882fg_read8(data,
-						F71882FG_REG_POINT_PWM
-						(nr, 1));
-				data->pwm_auto_point_pwm[nr][4] =
-					f71882fg_read8(data,
-						F71882FG_REG_POINT_PWM
-						(nr, 4));
-				data->pwm_auto_point_temp[nr][0] =
-					f71882fg_read8(data,
-						F71882FG_REG_POINT_TEMP
-						(nr, 0));
-				data->pwm_auto_point_temp[nr][3] =
-					f71882fg_read8(data,
-						F71882FG_REG_POINT_TEMP
-						(nr, 3));
-				break;
-			}
-		}
-		data->last_limits = jiffies;
-	}
-
-	/* Update every second */
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		data->temp_status = f71882fg_read8(data,
-						F71882FG_REG_TEMP_STATUS);
-		data->temp_diode_open = f71882fg_read8(data,
-						F71882FG_REG_TEMP_DIODE_OPEN);
-		for (nr = data->temp_start; nr < nr_temps + data->temp_start;
-									nr++)
-			data->temp[nr] = f71882fg_read_temp(data, nr);
-
-		data->fan_status = f71882fg_read8(data,
-						F71882FG_REG_FAN_STATUS);
-		for (nr = 0; nr < nr_fans; nr++) {
-			data->fan[nr] = f71882fg_read16(data,
-						F71882FG_REG_FAN(nr));
-			data->fan_target[nr] =
-			    f71882fg_read16(data, F71882FG_REG_FAN_TARGET(nr));
-			data->fan_full_speed[nr] =
-			    f71882fg_read16(data,
-					    F71882FG_REG_FAN_FULL_SPEED(nr));
-			data->pwm[nr] =
-			    f71882fg_read8(data, F71882FG_REG_PWM(nr));
-		}
-		/* Some models have 1 more fan with limited capabilities */
-		if (data->type == f71808a) {
-			data->fan[2] = f71882fg_read16(data,
-						F71882FG_REG_FAN(2));
-			data->pwm[2] = f71882fg_read8(data,
-							F71882FG_REG_PWM(2));
-		}
-		if (data->type == f8000)
-			data->fan[3] = f71882fg_read16(data,
-						F71882FG_REG_FAN(3));
-
-		if (f71882fg_has_in1_alarm[data->type]) {
-			if (data->type == f81866a)
-				data->in_status = f71882fg_read8(data,
-						F81866_REG_IN_STATUS);
-
-			else
-				data->in_status = f71882fg_read8(data,
-						F71882FG_REG_IN_STATUS);
-		}
-
-		for (nr = 0; nr < F71882FG_MAX_INS; nr++)
-			if (f71882fg_has_in[data->type][nr])
-				data->in[nr] = f71882fg_read8(data,
-							F71882FG_REG_IN(nr));
-
-		data->last_updated = jiffies;
-		data->valid = true;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
-
-/* Sysfs Interface */
-static ssize_t show_fan(struct device *dev, struct device_attribute *devattr,
-	char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	int speed = fan_from_reg(data->fan[nr]);
-
-	if (speed == FAN_MIN_DETECT)
-		speed = 0;
-
-	return sprintf(buf, "%d\n", speed);
-}
-
-static ssize_t show_fan_full_speed(struct device *dev,
-				   struct device_attribute *devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	int speed = fan_from_reg(data->fan_full_speed[nr]);
-	return sprintf(buf, "%d\n", speed);
-}
-
-static ssize_t store_fan_full_speed(struct device *dev,
-				    struct device_attribute *devattr,
-				    const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val = clamp_val(val, 23, 1500000);
-	val = fan_to_reg(val);
-
-	mutex_lock(&data->update_lock);
-	f71882fg_write16(data, F71882FG_REG_FAN_FULL_SPEED(nr), val);
-	data->fan_full_speed[nr] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_fan_beep(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->fan_beep & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t store_fan_beep(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val;
-
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
-
-	mutex_lock(&data->update_lock);
-	data->fan_beep = f71882fg_read8(data, F71882FG_REG_FAN_BEEP);
-	if (val)
-		data->fan_beep |= 1 << nr;
-	else
-		data->fan_beep &= ~(1 << nr);
-
-	f71882fg_write8(data, F71882FG_REG_FAN_BEEP, data->fan_beep);
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->fan_status & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
-	char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	return sprintf(buf, "%d\n", data->in[nr] * 8);
-}
-
-static ssize_t show_in_max(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-
-	return sprintf(buf, "%d\n", data->in1_max * 8);
-}
-
-static ssize_t store_in_max(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val /= 8;
-	val = clamp_val(val, 0, 255);
-
-	mutex_lock(&data->update_lock);
-	if (data->type == f81866a)
-		f71882fg_write8(data, F81866_REG_IN1_HIGH, val);
-	else
-		f71882fg_write8(data, F71882FG_REG_IN1_HIGH, val);
-	data->in1_max = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_in_beep(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->in_beep & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t store_in_beep(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val;
-
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
-
-	mutex_lock(&data->update_lock);
-	if (data->type == f81866a)
-		data->in_beep = f71882fg_read8(data, F81866_REG_IN_BEEP);
-	else
-		data->in_beep = f71882fg_read8(data, F71882FG_REG_IN_BEEP);
-
-	if (val)
-		data->in_beep |= 1 << nr;
-	else
-		data->in_beep &= ~(1 << nr);
-
-	if (data->type == f81866a)
-		f71882fg_write8(data, F81866_REG_IN_BEEP, data->in_beep);
-	else
-		f71882fg_write8(data, F71882FG_REG_IN_BEEP, data->in_beep);
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_in_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->in_status & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
-	char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	int sign, temp;
-
-	if (data->type == f71858fg) {
-		/* TEMP_TABLE_SEL 1 or 3 ? */
-		if (data->temp_config & 1) {
-			sign = data->temp[nr] & 0x0001;
-			temp = (data->temp[nr] >> 5) & 0x7ff;
-		} else {
-			sign = data->temp[nr] & 0x8000;
-			temp = (data->temp[nr] >> 5) & 0x3ff;
-		}
-		temp *= 125;
-		if (sign)
-			temp -= 128000;
-	} else {
-		temp = ((s8)data->temp[nr]) * 1000;
-	}
-
-	return sprintf(buf, "%d\n", temp);
-}
-
-static ssize_t show_temp_max(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	return sprintf(buf, "%d\n", data->temp_high[nr] * 1000);
-}
-
-static ssize_t store_temp_max(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val /= 1000;
-	val = clamp_val(val, 0, 255);
-
-	mutex_lock(&data->update_lock);
-	f71882fg_write8(data, F71882FG_REG_TEMP_HIGH(nr), val);
-	data->temp_high[nr] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_temp_max_hyst(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	int temp_max_hyst;
-
-	mutex_lock(&data->update_lock);
-	if (nr & 1)
-		temp_max_hyst = data->temp_hyst[nr / 2] >> 4;
-	else
-		temp_max_hyst = data->temp_hyst[nr / 2] & 0x0f;
-	temp_max_hyst = (data->temp_high[nr] - temp_max_hyst) * 1000;
-	mutex_unlock(&data->update_lock);
-
-	return sprintf(buf, "%d\n", temp_max_hyst);
-}
-
-static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	ssize_t ret = count;
-	u8 reg;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val /= 1000;
-
-	mutex_lock(&data->update_lock);
-
-	/* convert abs to relative and check */
-	data->temp_high[nr] = f71882fg_read8(data, F71882FG_REG_TEMP_HIGH(nr));
-	val = clamp_val(val, data->temp_high[nr] - 15, data->temp_high[nr]);
-	val = data->temp_high[nr] - val;
-
-	/* convert value to register contents */
-	reg = f71882fg_read8(data, F71882FG_REG_TEMP_HYST(nr / 2));
-	if (nr & 1)
-		reg = (reg & 0x0f) | (val << 4);
-	else
-		reg = (reg & 0xf0) | val;
-	f71882fg_write8(data, F71882FG_REG_TEMP_HYST(nr / 2), reg);
-	data->temp_hyst[nr / 2] = reg;
-
-	mutex_unlock(&data->update_lock);
-	return ret;
-}
-
-static ssize_t show_temp_crit(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	return sprintf(buf, "%d\n", data->temp_ovt[nr] * 1000);
-}
-
-static ssize_t store_temp_crit(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val /= 1000;
-	val = clamp_val(val, 0, 255);
-
-	mutex_lock(&data->update_lock);
-	f71882fg_write8(data, F71882FG_REG_TEMP_OVT(nr), val);
-	data->temp_ovt[nr] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_temp_crit_hyst(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	int temp_crit_hyst;
-
-	mutex_lock(&data->update_lock);
-	if (nr & 1)
-		temp_crit_hyst = data->temp_hyst[nr / 2] >> 4;
-	else
-		temp_crit_hyst = data->temp_hyst[nr / 2] & 0x0f;
-	temp_crit_hyst = (data->temp_ovt[nr] - temp_crit_hyst) * 1000;
-	mutex_unlock(&data->update_lock);
-
-	return sprintf(buf, "%d\n", temp_crit_hyst);
-}
-
-static ssize_t show_temp_type(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	return sprintf(buf, "%d\n", data->temp_type[nr]);
-}
-
-static ssize_t show_temp_beep(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->temp_beep & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t store_temp_beep(struct device *dev, struct device_attribute
-	*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val;
-
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
-
-	mutex_lock(&data->update_lock);
-	data->temp_beep = f71882fg_read8(data, F71882FG_REG_TEMP_BEEP);
-	if (val)
-		data->temp_beep |= 1 << nr;
-	else
-		data->temp_beep &= ~(1 << nr);
-
-	f71882fg_write8(data, F71882FG_REG_TEMP_BEEP, data->temp_beep);
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_temp_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->temp_status & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t show_temp_fault(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	if (data->temp_diode_open & (1 << nr))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t show_pwm(struct device *dev,
-			struct device_attribute *devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int val, nr = to_sensor_dev_attr_2(devattr)->index;
-	mutex_lock(&data->update_lock);
-	if (data->pwm_enable & (1 << (2 * nr)))
-		/* PWM mode */
-		val = data->pwm[nr];
-	else {
-		/* RPM mode */
-		val = 255 * fan_from_reg(data->fan_target[nr])
-			/ fan_from_reg(data->fan_full_speed[nr]);
-	}
-	mutex_unlock(&data->update_lock);
-	return sprintf(buf, "%d\n", val);
-}
-
-static ssize_t store_pwm(struct device *dev,
-			 struct device_attribute *devattr, const char *buf,
-			 size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val = clamp_val(val, 0, 255);
-
-	mutex_lock(&data->update_lock);
-	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
-	if ((data->type == f8000 && ((data->pwm_enable >> 2 * nr) & 3) != 2) ||
-	    (data->type != f8000 && !((data->pwm_enable >> 2 * nr) & 2))) {
-		count = -EROFS;
-		goto leave;
-	}
-	if (data->pwm_enable & (1 << (2 * nr))) {
-		/* PWM mode */
-		f71882fg_write8(data, F71882FG_REG_PWM(nr), val);
-		data->pwm[nr] = val;
-	} else {
-		/* RPM mode */
-		int target, full_speed;
-		full_speed = f71882fg_read16(data,
-					     F71882FG_REG_FAN_FULL_SPEED(nr));
-		target = fan_to_reg(val * fan_from_reg(full_speed) / 255);
-		f71882fg_write16(data, F71882FG_REG_FAN_TARGET(nr), target);
-		data->fan_target[nr] = target;
-		data->fan_full_speed[nr] = full_speed;
-	}
-leave:
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_simple_pwm(struct device *dev,
-			       struct device_attribute *devattr, char *buf)
-{
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int val, nr = to_sensor_dev_attr_2(devattr)->index;
-
-	val = data->pwm[nr];
-	return sprintf(buf, "%d\n", val);
-}
-
-static ssize_t store_simple_pwm(struct device *dev,
-				struct device_attribute *devattr,
-				const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val = clamp_val(val, 0, 255);
-
-	mutex_lock(&data->update_lock);
-	f71882fg_write8(data, F71882FG_REG_PWM(nr), val);
-	data->pwm[nr] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_pwm_enable(struct device *dev,
-			       struct device_attribute *devattr, char *buf)
-{
-	int result = 0;
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	switch ((data->pwm_enable >> 2 * nr) & 3) {
-	case 0:
-	case 1:
-		result = 2; /* Normal auto mode */
-		break;
-	case 2:
-		result = 1; /* Manual mode */
-		break;
-	case 3:
-		if (data->type == f8000)
-			result = 3; /* Thermostat mode */
-		else
-			result = 1; /* Manual mode */
-		break;
-	}
-
-	return sprintf(buf, "%d\n", result);
-}
-
-static ssize_t store_pwm_enable(struct device *dev, struct device_attribute
-				*devattr, const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	/* Special case for F8000 pwm channel 3 which only does auto mode */
-	if (data->type == f8000 && nr == 2 && val != 2)
-		return -EINVAL;
-
-	mutex_lock(&data->update_lock);
-	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
-	/* Special case for F8000 auto PWM mode / Thermostat mode */
-	if (data->type == f8000 && ((data->pwm_enable >> 2 * nr) & 1)) {
-		switch (val) {
-		case 2:
-			data->pwm_enable &= ~(2 << (2 * nr));
-			break;		/* Normal auto mode */
-		case 3:
-			data->pwm_enable |= 2 << (2 * nr);
-			break;		/* Thermostat mode */
-		default:
-			count = -EINVAL;
-			goto leave;
-		}
-	} else {
-		switch (val) {
-		case 1:
-			/* The f71858fg does not support manual RPM mode */
-			if (data->type == f71858fg &&
-			    ((data->pwm_enable >> (2 * nr)) & 1)) {
-				count = -EINVAL;
-				goto leave;
-			}
-			data->pwm_enable |= 2 << (2 * nr);
-			break;		/* Manual */
-		case 2:
-			data->pwm_enable &= ~(2 << (2 * nr));
-			break;		/* Normal auto mode */
-		default:
-			count = -EINVAL;
-			goto leave;
-		}
-	}
-	f71882fg_write8(data, F71882FG_REG_PWM_ENABLE, data->pwm_enable);
-leave:
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_pwm_auto_point_pwm(struct device *dev,
-				       struct device_attribute *devattr,
-				       char *buf)
-{
-	int result;
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int pwm = to_sensor_dev_attr_2(devattr)->index;
-	int point = to_sensor_dev_attr_2(devattr)->nr;
-
-	mutex_lock(&data->update_lock);
-	if (data->pwm_enable & (1 << (2 * pwm))) {
-		/* PWM mode */
-		result = data->pwm_auto_point_pwm[pwm][point];
-	} else {
-		/* RPM mode */
-		result = 32 * 255 / (32 + data->pwm_auto_point_pwm[pwm][point]);
-	}
-	mutex_unlock(&data->update_lock);
-
-	return sprintf(buf, "%d\n", result);
-}
-
-static ssize_t store_pwm_auto_point_pwm(struct device *dev,
-					struct device_attribute *devattr,
-					const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, pwm = to_sensor_dev_attr_2(devattr)->index;
-	int point = to_sensor_dev_attr_2(devattr)->nr;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val = clamp_val(val, 0, 255);
-
-	mutex_lock(&data->update_lock);
-	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
-	if (data->pwm_enable & (1 << (2 * pwm))) {
-		/* PWM mode */
-	} else {
-		/* RPM mode */
-		if (val < 29)	/* Prevent negative numbers */
-			val = 255;
-		else
-			val = (255 - val) * 32 / val;
-	}
-	f71882fg_write8(data, F71882FG_REG_POINT_PWM(pwm, point), val);
-	data->pwm_auto_point_pwm[pwm][point] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_pwm_auto_point_temp_hyst(struct device *dev,
-					     struct device_attribute *devattr,
-					     char *buf)
-{
-	int result = 0;
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	int point = to_sensor_dev_attr_2(devattr)->nr;
-
-	mutex_lock(&data->update_lock);
-	if (nr & 1)
-		result = data->pwm_auto_point_hyst[nr / 2] >> 4;
-	else
-		result = data->pwm_auto_point_hyst[nr / 2] & 0x0f;
-	result = 1000 * (data->pwm_auto_point_temp[nr][point] - result);
-	mutex_unlock(&data->update_lock);
-
-	return sprintf(buf, "%d\n", result);
-}
-
-static ssize_t store_pwm_auto_point_temp_hyst(struct device *dev,
-					      struct device_attribute *devattr,
-					      const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	int point = to_sensor_dev_attr_2(devattr)->nr;
-	u8 reg;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val /= 1000;
-
-	mutex_lock(&data->update_lock);
-	data->pwm_auto_point_temp[nr][point] =
-		f71882fg_read8(data, F71882FG_REG_POINT_TEMP(nr, point));
-	val = clamp_val(val, data->pwm_auto_point_temp[nr][point] - 15,
-			data->pwm_auto_point_temp[nr][point]);
-	val = data->pwm_auto_point_temp[nr][point] - val;
-
-	reg = f71882fg_read8(data, F71882FG_REG_FAN_HYST(nr / 2));
-	if (nr & 1)
-		reg = (reg & 0x0f) | (val << 4);
-	else
-		reg = (reg & 0xf0) | val;
-
-	f71882fg_write8(data, F71882FG_REG_FAN_HYST(nr / 2), reg);
-	data->pwm_auto_point_hyst[nr / 2] = reg;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_pwm_interpolate(struct device *dev,
-				    struct device_attribute *devattr, char *buf)
-{
-	int result;
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	result = (data->pwm_auto_point_mapping[nr] >> 4) & 1;
-
-	return sprintf(buf, "%d\n", result);
-}
-
-static ssize_t store_pwm_interpolate(struct device *dev,
-				     struct device_attribute *devattr,
-				     const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val;
-
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
-
-	mutex_lock(&data->update_lock);
-	data->pwm_auto_point_mapping[nr] =
-		f71882fg_read8(data, F71882FG_REG_POINT_MAPPING(nr));
-	if (val)
-		val = data->pwm_auto_point_mapping[nr] | (1 << 4);
-	else
-		val = data->pwm_auto_point_mapping[nr] & (~(1 << 4));
-	f71882fg_write8(data, F71882FG_REG_POINT_MAPPING(nr), val);
-	data->pwm_auto_point_mapping[nr] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_pwm_auto_point_channel(struct device *dev,
-					   struct device_attribute *devattr,
-					   char *buf)
-{
-	int result;
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-
-	result = 1 << ((data->pwm_auto_point_mapping[nr] & 3) -
-		       data->temp_start);
-
-	return sprintf(buf, "%d\n", result);
-}
-
-static ssize_t store_pwm_auto_point_channel(struct device *dev,
-					    struct device_attribute *devattr,
-					    const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, nr = to_sensor_dev_attr_2(devattr)->index;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	switch (val) {
-	case 1:
-		val = 0;
-		break;
-	case 2:
-		val = 1;
-		break;
-	case 4:
-		val = 2;
-		break;
-	default:
-		return -EINVAL;
-	}
-	val += data->temp_start;
-	mutex_lock(&data->update_lock);
-	data->pwm_auto_point_mapping[nr] =
-		f71882fg_read8(data, F71882FG_REG_POINT_MAPPING(nr));
-	val = (data->pwm_auto_point_mapping[nr] & 0xfc) | val;
-	f71882fg_write8(data, F71882FG_REG_POINT_MAPPING(nr), val);
-	data->pwm_auto_point_mapping[nr] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t show_pwm_auto_point_temp(struct device *dev,
-					struct device_attribute *devattr,
-					char *buf)
-{
-	int result;
-	struct f71882fg_data *data = f71882fg_update_device(dev);
-	int pwm = to_sensor_dev_attr_2(devattr)->index;
-	int point = to_sensor_dev_attr_2(devattr)->nr;
-
-	result = data->pwm_auto_point_temp[pwm][point];
-	return sprintf(buf, "%d\n", 1000 * result);
-}
-
-static ssize_t store_pwm_auto_point_temp(struct device *dev,
-					 struct device_attribute *devattr,
-					 const char *buf, size_t count)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int err, pwm = to_sensor_dev_attr_2(devattr)->index;
-	int point = to_sensor_dev_attr_2(devattr)->nr;
-	long val;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	val /= 1000;
-
-	if (data->auto_point_temp_signed)
-		val = clamp_val(val, -128, 127);
-	else
-		val = clamp_val(val, 0, 127);
-
-	mutex_lock(&data->update_lock);
-	f71882fg_write8(data, F71882FG_REG_POINT_TEMP(pwm, point), val);
-	data->pwm_auto_point_temp[pwm][point] = val;
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
-static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
-	char *buf)
-{
-	struct f71882fg_data *data = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", f71882fg_names[data->type]);
-}
-
 static int f71882fg_create_sysfs_files(struct platform_device *pdev,
 	struct sensor_device_attribute_2 *attr, int count)
 {
@@ -2326,6 +2218,119 @@ static int f71882fg_create_fan_sysfs_files(
 	}
 
 	return err;
+}
+
+static int f71882fg_remove(struct platform_device *pdev)
+{
+	struct f71882fg_data *data = platform_get_drvdata(pdev);
+	int nr_fans = f71882fg_nr_fans[data->type];
+	int nr_temps = f71882fg_nr_temps[data->type];
+	int i;
+	u8 start_reg = f71882fg_read8(data, F71882FG_REG_START);
+
+	if (data->hwmon_dev)
+		hwmon_device_unregister(data->hwmon_dev);
+
+	device_remove_file(&pdev->dev, &dev_attr_name);
+
+	if (start_reg & 0x01) {
+		switch (data->type) {
+		case f71858fg:
+			if (data->temp_config & 0x10)
+				f71882fg_remove_sysfs_files(pdev,
+					f8000_temp_attr,
+					ARRAY_SIZE(f8000_temp_attr));
+			else
+				f71882fg_remove_sysfs_files(pdev,
+					f71858fg_temp_attr,
+					ARRAY_SIZE(f71858fg_temp_attr));
+			break;
+		case f8000:
+			f71882fg_remove_sysfs_files(pdev,
+					f8000_temp_attr,
+					ARRAY_SIZE(f8000_temp_attr));
+			break;
+		case f81866a:
+			f71882fg_remove_sysfs_files(pdev,
+					f71858fg_temp_attr,
+					ARRAY_SIZE(f71858fg_temp_attr));
+			break;
+		default:
+			f71882fg_remove_sysfs_files(pdev,
+				&fxxxx_temp_attr[0][0],
+				ARRAY_SIZE(fxxxx_temp_attr[0]) * nr_temps);
+		}
+		if (f71882fg_temp_has_beep[data->type]) {
+			if (data->type == f81866a)
+				f71882fg_remove_sysfs_files(pdev,
+					&f81866_temp_beep_attr[0][0],
+					ARRAY_SIZE(f81866_temp_beep_attr[0])
+						* nr_temps);
+			else
+				f71882fg_remove_sysfs_files(pdev,
+					&fxxxx_temp_beep_attr[0][0],
+					ARRAY_SIZE(fxxxx_temp_beep_attr[0])
+						* nr_temps);
+		}
+
+		for (i = 0; i < F71882FG_MAX_INS; i++) {
+			if (f71882fg_has_in[data->type][i]) {
+				device_remove_file(&pdev->dev,
+						&fxxxx_in_attr[i].dev_attr);
+			}
+		}
+		if (f71882fg_has_in1_alarm[data->type]) {
+			f71882fg_remove_sysfs_files(pdev,
+					fxxxx_in1_alarm_attr,
+					ARRAY_SIZE(fxxxx_in1_alarm_attr));
+		}
+	}
+
+	if (start_reg & 0x02) {
+		f71882fg_remove_sysfs_files(pdev, &fxxxx_fan_attr[0][0],
+				ARRAY_SIZE(fxxxx_fan_attr[0]) * nr_fans);
+
+		if (f71882fg_fan_has_beep[data->type]) {
+			f71882fg_remove_sysfs_files(pdev,
+					fxxxx_fan_beep_attr, nr_fans);
+		}
+
+		switch (data->type) {
+		case f71808a:
+			f71882fg_remove_sysfs_files(pdev,
+				&fxxxx_auto_pwm_attr[0][0],
+				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
+			f71882fg_remove_sysfs_files(pdev,
+					f71808a_fan3_attr,
+					ARRAY_SIZE(f71808a_fan3_attr));
+			break;
+		case f71862fg:
+			f71882fg_remove_sysfs_files(pdev,
+				&f71862fg_auto_pwm_attr[0][0],
+				ARRAY_SIZE(f71862fg_auto_pwm_attr[0]) *
+					nr_fans);
+			break;
+		case f71808e:
+		case f71869:
+			f71882fg_remove_sysfs_files(pdev,
+				&f71869_auto_pwm_attr[0][0],
+				ARRAY_SIZE(f71869_auto_pwm_attr[0]) * nr_fans);
+			break;
+		case f8000:
+			f71882fg_remove_sysfs_files(pdev,
+					f8000_fan_attr,
+					ARRAY_SIZE(f8000_fan_attr));
+			f71882fg_remove_sysfs_files(pdev,
+				&f8000_auto_pwm_attr[0][0],
+				ARRAY_SIZE(f8000_auto_pwm_attr[0]) * nr_fans);
+			break;
+		default:
+			f71882fg_remove_sysfs_files(pdev,
+				&fxxxx_auto_pwm_attr[0][0],
+				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
+		}
+	}
+	return 0;
 }
 
 static int f71882fg_probe(struct platform_device *pdev)
@@ -2501,119 +2506,6 @@ exit_unregister_sysfs:
 	return err; /* f71882fg_remove() also frees our data */
 }
 
-static int f71882fg_remove(struct platform_device *pdev)
-{
-	struct f71882fg_data *data = platform_get_drvdata(pdev);
-	int nr_fans = f71882fg_nr_fans[data->type];
-	int nr_temps = f71882fg_nr_temps[data->type];
-	int i;
-	u8 start_reg = f71882fg_read8(data, F71882FG_REG_START);
-
-	if (data->hwmon_dev)
-		hwmon_device_unregister(data->hwmon_dev);
-
-	device_remove_file(&pdev->dev, &dev_attr_name);
-
-	if (start_reg & 0x01) {
-		switch (data->type) {
-		case f71858fg:
-			if (data->temp_config & 0x10)
-				f71882fg_remove_sysfs_files(pdev,
-					f8000_temp_attr,
-					ARRAY_SIZE(f8000_temp_attr));
-			else
-				f71882fg_remove_sysfs_files(pdev,
-					f71858fg_temp_attr,
-					ARRAY_SIZE(f71858fg_temp_attr));
-			break;
-		case f8000:
-			f71882fg_remove_sysfs_files(pdev,
-					f8000_temp_attr,
-					ARRAY_SIZE(f8000_temp_attr));
-			break;
-		case f81866a:
-			f71882fg_remove_sysfs_files(pdev,
-					f71858fg_temp_attr,
-					ARRAY_SIZE(f71858fg_temp_attr));
-			break;
-		default:
-			f71882fg_remove_sysfs_files(pdev,
-				&fxxxx_temp_attr[0][0],
-				ARRAY_SIZE(fxxxx_temp_attr[0]) * nr_temps);
-		}
-		if (f71882fg_temp_has_beep[data->type]) {
-			if (data->type == f81866a)
-				f71882fg_remove_sysfs_files(pdev,
-					&f81866_temp_beep_attr[0][0],
-					ARRAY_SIZE(f81866_temp_beep_attr[0])
-						* nr_temps);
-			else
-				f71882fg_remove_sysfs_files(pdev,
-					&fxxxx_temp_beep_attr[0][0],
-					ARRAY_SIZE(fxxxx_temp_beep_attr[0])
-						* nr_temps);
-		}
-
-		for (i = 0; i < F71882FG_MAX_INS; i++) {
-			if (f71882fg_has_in[data->type][i]) {
-				device_remove_file(&pdev->dev,
-						&fxxxx_in_attr[i].dev_attr);
-			}
-		}
-		if (f71882fg_has_in1_alarm[data->type]) {
-			f71882fg_remove_sysfs_files(pdev,
-					fxxxx_in1_alarm_attr,
-					ARRAY_SIZE(fxxxx_in1_alarm_attr));
-		}
-	}
-
-	if (start_reg & 0x02) {
-		f71882fg_remove_sysfs_files(pdev, &fxxxx_fan_attr[0][0],
-				ARRAY_SIZE(fxxxx_fan_attr[0]) * nr_fans);
-
-		if (f71882fg_fan_has_beep[data->type]) {
-			f71882fg_remove_sysfs_files(pdev,
-					fxxxx_fan_beep_attr, nr_fans);
-		}
-
-		switch (data->type) {
-		case f71808a:
-			f71882fg_remove_sysfs_files(pdev,
-				&fxxxx_auto_pwm_attr[0][0],
-				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
-			f71882fg_remove_sysfs_files(pdev,
-					f71808a_fan3_attr,
-					ARRAY_SIZE(f71808a_fan3_attr));
-			break;
-		case f71862fg:
-			f71882fg_remove_sysfs_files(pdev,
-				&f71862fg_auto_pwm_attr[0][0],
-				ARRAY_SIZE(f71862fg_auto_pwm_attr[0]) *
-					nr_fans);
-			break;
-		case f71808e:
-		case f71869:
-			f71882fg_remove_sysfs_files(pdev,
-				&f71869_auto_pwm_attr[0][0],
-				ARRAY_SIZE(f71869_auto_pwm_attr[0]) * nr_fans);
-			break;
-		case f8000:
-			f71882fg_remove_sysfs_files(pdev,
-					f8000_fan_attr,
-					ARRAY_SIZE(f8000_fan_attr));
-			f71882fg_remove_sysfs_files(pdev,
-				&f8000_auto_pwm_attr[0][0],
-				ARRAY_SIZE(f8000_auto_pwm_attr[0]) * nr_fans);
-			break;
-		default:
-			f71882fg_remove_sysfs_files(pdev,
-				&fxxxx_auto_pwm_attr[0][0],
-				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
-		}
-	}
-	return 0;
-}
-
 static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 {
 	u16 devid;
@@ -2638,6 +2530,7 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 		sio_data->type = f71808a;
 		break;
 	case SIO_F71858_ID:
+	case SIO_F71858AD_ID:
 		sio_data->type = f71858fg;
 		break;
 	case SIO_F71862_ID:
@@ -2757,6 +2650,14 @@ exit_device_put:
 
 	return err;
 }
+
+static struct platform_driver f71882fg_driver = {
+	.driver = {
+		.name	= DRVNAME,
+	},
+	.probe		= f71882fg_probe,
+	.remove		= f71882fg_remove,
+};
 
 static int __init f71882fg_init(void)
 {

@@ -10,18 +10,19 @@
 #include <linux/iosys-map.h>
 #include <linux/xarray.h>
 
-#include "intel_uncore.h"
+#include "intel_guc_ct.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_fwif.h"
-#include "intel_guc_ct.h"
 #include "intel_guc_log.h"
 #include "intel_guc_reg.h"
 #include "intel_guc_slpc_types.h"
 #include "intel_uc_fw.h"
+#include "intel_uncore.h"
 #include "i915_utils.h"
 #include "i915_vma.h"
 
 struct __guc_ads_blob;
+struct intel_guc_state_capture;
 
 /**
  * struct intel_guc - Top level structure of GuC.
@@ -38,6 +39,8 @@ struct intel_guc {
 	struct intel_guc_ct ct;
 	/** @slpc: sub-structure containing SLPC related data and objects */
 	struct intel_guc_slpc slpc;
+	/** @capture: the error-state-capture module's data and objects */
+	struct intel_guc_state_capture *capture;
 
 	/** @sched_engine: Global engine used to submit requests to GuC */
 	struct i915_sched_engine *sched_engine;
@@ -138,6 +141,8 @@ struct intel_guc {
 	bool submission_supported;
 	/** @submission_selected: tracks whether the user enabled GuC submission */
 	bool submission_selected;
+	/** @submission_initialized: tracks whether GuC submission has been initialised */
+	bool submission_initialized;
 	/**
 	 * @rc_supported: tracks whether we support GuC rc on the current platform
 	 */
@@ -160,13 +165,15 @@ struct intel_guc {
 	struct guc_mmio_reg *ads_regset;
 	/** @ads_golden_ctxt_size: size of the golden contexts in the ADS */
 	u32 ads_golden_ctxt_size;
+	/** @ads_capture_size: size of register lists in the ADS used for error capture */
+	u32 ads_capture_size;
 	/** @ads_engine_usage_size: size of engine usage in the ADS */
 	u32 ads_engine_usage_size;
 
-	/** @lrc_desc_pool: object allocated to hold the GuC LRC descriptor pool */
-	struct i915_vma *lrc_desc_pool;
-	/** @lrc_desc_pool_vaddr: contents of the GuC LRC descriptor pool */
-	void *lrc_desc_pool_vaddr;
+	/** @lrc_desc_pool_v69: object allocated to hold the GuC LRC descriptor pool */
+	struct i915_vma *lrc_desc_pool_v69;
+	/** @lrc_desc_pool_vaddr_v69: contents of the GuC LRC descriptor pool */
+	void *lrc_desc_pool_vaddr_v69;
 
 	/**
 	 * @context_lookup: used to resolve intel_context from guc_id, if a
@@ -228,6 +235,14 @@ struct intel_guc {
 		 * @shift: Right shift value for the gpm timestamp
 		 */
 		u32 shift;
+
+		/**
+		 * @last_stat_jiffies: jiffies at last actual stats collection time
+		 * We use this timestamp to ensure we don't oversample the
+		 * stats because runtime power management events can trigger
+		 * stats collection at much higher rates than required.
+		 */
+		unsigned long last_stat_jiffies;
 	} timestamp;
 
 #ifdef CONFIG_DRM_I915_SELFTEST
@@ -431,6 +446,9 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 int intel_guc_error_capture_process_msg(struct intel_guc *guc,
 					const u32 *msg, u32 len);
 
+struct intel_engine_cs *
+intel_guc_lookup_engine(struct intel_guc *guc, u8 guc_class, u8 instance);
+
 void intel_guc_find_hung_context(struct intel_engine_cs *engine);
 
 int intel_guc_global_policies_update(struct intel_guc *guc);
@@ -445,5 +463,7 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc);
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 
 void intel_guc_write_barrier(struct intel_guc *guc);
+
+void intel_guc_dump_time_info(struct intel_guc *guc, struct drm_printer *p);
 
 #endif

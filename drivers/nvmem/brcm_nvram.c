@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -72,6 +73,7 @@ static int brcm_nvram_add_cells(struct brcm_nvram *priv, uint8_t *data,
 			return -ENOMEM;
 		priv->cells[idx].offset = value - (char *)data;
 		priv->cells[idx].bytes = strlen(value);
+		priv->cells[idx].np = of_get_child_by_name(dev->of_node, priv->cells[idx].name);
 	}
 
 	return 0;
@@ -94,7 +96,7 @@ static int brcm_nvram_parse(struct brcm_nvram *priv)
 
 	len = le32_to_cpu(header.len);
 
-	data = kcalloc(1, len, GFP_KERNEL);
+	data = kzalloc(len, GFP_KERNEL);
 	memcpy_fromio(data, priv->base, len);
 	data[len - 1] = '\0';
 

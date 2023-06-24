@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/capability.h>
+#include <linux/btf_ids.h>
 #include "percpu_freelist.h"
 
 #define QUEUE_STACK_CREATE_FLAG_MASK \
@@ -76,8 +77,6 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 	qs = bpf_map_area_alloc(queue_size, numa_node);
 	if (!qs)
 		return ERR_PTR(-ENOMEM);
-
-	memset(qs, 0, sizeof(*qs));
 
 	bpf_map_init_from_attr(&qs->map, attr);
 
@@ -247,7 +246,7 @@ static int queue_stack_map_get_next_key(struct bpf_map *map, void *key,
 	return -EINVAL;
 }
 
-static int queue_map_btf_id;
+BTF_ID_LIST_SINGLE(queue_map_btf_ids, struct, bpf_queue_stack)
 const struct bpf_map_ops queue_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = queue_stack_map_alloc_check,
@@ -260,11 +259,9 @@ const struct bpf_map_ops queue_map_ops = {
 	.map_pop_elem = queue_map_pop_elem,
 	.map_peek_elem = queue_map_peek_elem,
 	.map_get_next_key = queue_stack_map_get_next_key,
-	.map_btf_name = "bpf_queue_stack",
-	.map_btf_id = &queue_map_btf_id,
+	.map_btf_id = &queue_map_btf_ids[0],
 };
 
-static int stack_map_btf_id;
 const struct bpf_map_ops stack_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = queue_stack_map_alloc_check,
@@ -277,6 +274,5 @@ const struct bpf_map_ops stack_map_ops = {
 	.map_pop_elem = stack_map_pop_elem,
 	.map_peek_elem = stack_map_peek_elem,
 	.map_get_next_key = queue_stack_map_get_next_key,
-	.map_btf_name = "bpf_queue_stack",
-	.map_btf_id = &stack_map_btf_id,
+	.map_btf_id = &queue_map_btf_ids[0],
 };

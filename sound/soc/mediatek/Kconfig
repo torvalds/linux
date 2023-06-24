@@ -152,6 +152,51 @@ config SND_SOC_MT8183_DA7219_MAX98357A
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8186
+	tristate "ASoC support for Mediatek MT8186 chip"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on COMMON_CLK
+	select SND_SOC_MEDIATEK
+	select SND_SOC_MT6358
+	select MFD_SYSCON if SND_SOC_MT6358
+	help
+	  This adds ASoC driver for Mediatek MT8186 boards
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8186_MT6366_DA7219_MAX98357
+	tristate "ASoC Audio driver for MT8186 with DA7219 MAX98357A codec"
+	depends on I2C && GPIOLIB
+	depends on SND_SOC_MT8186 && MTK_PMIC_WRAP
+	select SND_SOC_MT6358
+	select SND_SOC_MAX98357A
+	select SND_SOC_DA7219
+	select SND_SOC_BT_SCO
+	select SND_SOC_DMIC
+	select SND_SOC_HDMI_CODEC
+	help
+	  This adds ASoC driver for Mediatek MT8186 boards
+	  with the MT6366(MT6358) DA7219 MAX98357A codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8186_MT6366_RT1019_RT5682S
+	tristate "ASoC Audio driver for MT8186 with RT1019 RT5682S codec"
+	depends on I2C && GPIOLIB
+	depends on SND_SOC_MT8186 && MTK_PMIC_WRAP
+	select SND_SOC_MT6358
+	select SND_SOC_RT1015P
+	select SND_SOC_RT5682S
+	select SND_SOC_BT_SCO
+	select SND_SOC_DMIC
+	select SND_SOC_HDMI_CODEC
+	help
+	  This adds ASoC driver for Mediatek MT8186 boards
+	  with the MT6366(MT6358) RT1019 RT5682S codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MTK_BTCVSD
 	tristate "ALSA BT SCO CVSD/MSBC Driver"
 	help
@@ -179,6 +224,7 @@ config SND_SOC_MT8192_MT6359_RT1015_RT5682
 	select SND_SOC_RT1015
 	select SND_SOC_RT1015P
 	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
 	select SND_SOC_DMIC
 	help
 	  This adds ASoC driver for Mediatek MT8192 boards
@@ -198,34 +244,20 @@ config SND_SOC_MT8195
 	  Select Y if you have such device.
 	  If unsure select "N".
 
-config SND_SOC_MT8195_MT6359_RT1019_RT5682
-	tristate "ASoC Audio driver for MT8195 with MT6359 RT1019 RT5682 codec"
-	depends on I2C && GPIOLIB
-	depends on SND_SOC_MT8195 && MTK_PMIC_WRAP
-	select SND_SOC_MT6359
-	select SND_SOC_RT1015P
-	select SND_SOC_RT5682_I2C
-	select SND_SOC_RT5682S
-	select SND_SOC_DMIC
-	select SND_SOC_HDMI_CODEC
-	help
-	  This adds ASoC driver for Mediatek MT8195 boards
-	  with the MT6359 RT1019 RT5682 audio codec.
-	  Select Y if you have such device.
-	  If unsure select "N".
-
-config SND_SOC_MT8195_MT6359_RT1011_RT5682
-	tristate "ASoC Audio driver for MT8195 with MT6359 RT1011 RT5682 codec"
+config SND_SOC_MT8195_MT6359
+	tristate "ASoC Audio driver for MT8195 with MT6359 and I2S codecs"
 	depends on I2C && GPIOLIB
 	depends on SND_SOC_MT8195 && MTK_PMIC_WRAP
 	select SND_SOC_MT6359
 	select SND_SOC_RT1011
+	select SND_SOC_RT1015P
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_RT5682S
+	select SND_SOC_MAX98390
 	select SND_SOC_DMIC
 	select SND_SOC_HDMI_CODEC
 	help
-	  This adds ASoC driver for Mediatek MT8195 boards
-	  with the MT6359 RT1011 RT5682 audio codec.
+	  This adds support for ASoC machine driver for Mediatek MT8195
+	  boards with the MT6359 and other I2S audio codecs.
 	  Select Y if you have such device.
 	  If unsure select "N".

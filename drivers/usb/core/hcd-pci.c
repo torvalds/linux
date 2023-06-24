@@ -15,7 +15,6 @@
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/prom.h>
 #endif
 
 #include "usb.h"
@@ -158,7 +157,6 @@ static void ehci_wait_for_companions(struct pci_dev *pdev, struct usb_hcd *hcd,
 /**
  * usb_hcd_pci_probe - initialize PCI-based HCDs
  * @dev: USB Host Controller being probed
- * @id: pci hotplug id connecting controller to HCD framework
  * @driver: USB HC driver handle
  *
  * Context: task context, might sleep
@@ -171,8 +169,7 @@ static void ehci_wait_for_companions(struct pci_dev *pdev, struct usb_hcd *hcd,
  *
  * Return: 0 if successful.
  */
-int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
-		      const struct hc_driver *driver)
+int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 {
 	struct usb_hcd		*hcd;
 	int			retval;
@@ -180,9 +177,6 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
 
 	if (usb_disabled())
 		return -ENODEV;
-
-	if (!id)
-		return -EINVAL;
 
 	if (!driver)
 		return -EINVAL;
@@ -616,10 +610,10 @@ const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 	.suspend_noirq	= hcd_pci_suspend_noirq,
 	.resume_noirq	= hcd_pci_resume_noirq,
 	.resume		= hcd_pci_resume,
-	.freeze		= check_root_hub_suspended,
+	.freeze		= hcd_pci_suspend,
 	.freeze_noirq	= check_root_hub_suspended,
 	.thaw_noirq	= NULL,
-	.thaw		= NULL,
+	.thaw		= hcd_pci_resume,
 	.poweroff	= hcd_pci_suspend,
 	.poweroff_noirq	= hcd_pci_suspend_noirq,
 	.restore_noirq	= hcd_pci_resume_noirq,

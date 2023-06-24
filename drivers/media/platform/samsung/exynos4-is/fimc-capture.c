@@ -524,7 +524,7 @@ static int fimc_capture_release(struct file *file)
 	mutex_lock(&fimc->lock);
 
 	if (close && vc->streaming) {
-		media_pipeline_stop(&vc->ve.vdev.entity);
+		video_device_pipeline_stop(&vc->ve.vdev);
 		vc->streaming = false;
 	}
 
@@ -737,7 +737,7 @@ static struct media_entity *fimc_pipeline_get_head(struct media_entity *me)
 	struct media_pad *pad = &me->pads[0];
 
 	while (!(pad->flags & MEDIA_PAD_FL_SOURCE)) {
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad)
 			break;
 		me = pad->entity;
@@ -810,7 +810,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 					return ret;
 			}
 
-			pad = media_entity_remote_pad(&me->pads[sfmt.pad]);
+			pad = media_pad_remote_pad_first(&me->pads[sfmt.pad]);
 			if (!pad)
 				return -EINVAL;
 			me = pad->entity;
@@ -1115,7 +1115,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 
 			if (p->flags & MEDIA_PAD_FL_SINK) {
 				sink_pad = p;
-				src_pad = media_entity_remote_pad(sink_pad);
+				src_pad = media_pad_remote_pad_first(sink_pad);
 				if (src_pad)
 					break;
 			}
@@ -1176,7 +1176,6 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
-	struct media_entity *entity = &vc->ve.vdev.entity;
 	struct fimc_source_info *si = NULL;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -1184,7 +1183,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	ret = media_pipeline_start(entity, &vc->ve.pipe->mp);
+	ret = video_device_pipeline_start(&vc->ve.vdev, &vc->ve.pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -1218,7 +1217,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	}
 
 err_p_stop:
-	media_pipeline_stop(entity);
+	video_device_pipeline_stop(&vc->ve.vdev);
 	return ret;
 }
 
@@ -1234,7 +1233,7 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 		return ret;
 
 	if (vc->streaming) {
-		media_pipeline_stop(&vc->ve.vdev.entity);
+		video_device_pipeline_stop(&vc->ve.vdev);
 		vc->streaming = false;
 	}
 

@@ -239,7 +239,7 @@
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			spdif-in-pk6 {
-				nvidia,pins =	"spdif_in_pk6";
+				nvidia,pins = "spdif_in_pk6";
 				nvidia,function = "hda";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -364,7 +364,7 @@
 			};
 			/* Multiplexed and therefore disabled */
 			cam-mclk-pcc0 {
-				nvidia,pins =	"cam_mclk_pcc0";
+				nvidia,pins = "cam_mclk_pcc0";
 				nvidia,function = "vi_alt3";
 				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -511,7 +511,7 @@
 
 			/* Colibri USBC_DET */
 			spdif-out-pk5 {
-				nvidia,pins =	"spdif_out_pk5";
+				nvidia,pins = "spdif_out_pk5";
 				nvidia,function = "rsvd2";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -849,7 +849,7 @@
 		touchscreen@41 {
 			compatible = "st,stmpe811";
 			reg = <0x41>;
-			irq-gpio = <&gpio TEGRA_GPIO(V, 0) IRQ_TYPE_LEVEL_LOW>;
+			irq-gpio = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			interrupt-controller;
 			id = <0>;
 			blocks = <0x5>;

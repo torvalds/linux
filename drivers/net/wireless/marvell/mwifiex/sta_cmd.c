@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NXP Wireless LAN device driver: station command handling
  *
  * Copyright 2011-2020 NXP
- *
- * This software file (the "File") is distributed by NXP
- * under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
  */
 
 #include "decl.h"
@@ -1447,7 +1435,7 @@ mwifiex_cmd_mef_cfg(struct mwifiex_private *priv,
 		mef_entry = (struct mwifiex_fw_mef_entry *)pos;
 		mef_entry->mode = mef->mef_entry[i].mode;
 		mef_entry->action = mef->mef_entry[i].action;
-		pos += sizeof(*mef_cfg->mef_entry);
+		pos += sizeof(*mef_entry);
 
 		if (mwifiex_cmd_append_rpn_expression(priv,
 						      &mef->mef_entry[i], &pos))
@@ -1643,7 +1631,7 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 
 	coalesce_cfg->action = cpu_to_le16(cmd_action);
 	coalesce_cfg->num_of_rules = cpu_to_le16(cfg->num_of_rules);
-	rule = coalesce_cfg->rule;
+	rule = (void *)coalesce_cfg->rule_data;
 
 	for (cnt = 0; cnt < cfg->num_of_rules; cnt++) {
 		rule->header.type = cpu_to_le16(TLV_TYPE_COALESCE_RULE);
@@ -1790,29 +1778,31 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		wmm_qos_info->qos_info = 0;
 		config_len += sizeof(struct mwifiex_ie_types_qos_info);
 
-		if (params->ht_capa) {
+		if (params->link_sta_params.ht_capa) {
 			ht_capab = (struct mwifiex_ie_types_htcap *)(pos +
 								    config_len);
 			ht_capab->header.type =
 					    cpu_to_le16(WLAN_EID_HT_CAPABILITY);
 			ht_capab->header.len =
 				   cpu_to_le16(sizeof(struct ieee80211_ht_cap));
-			memcpy(&ht_capab->ht_cap, params->ht_capa,
+			memcpy(&ht_capab->ht_cap, params->link_sta_params.ht_capa,
 			       sizeof(struct ieee80211_ht_cap));
 			config_len += sizeof(struct mwifiex_ie_types_htcap);
 		}
 
-		if (params->supported_rates && params->supported_rates_len) {
+		if (params->link_sta_params.supported_rates &&
+		    params->link_sta_params.supported_rates_len) {
 			tlv_rates = (struct host_cmd_tlv_rates *)(pos +
 								  config_len);
 			tlv_rates->header.type =
 					       cpu_to_le16(WLAN_EID_SUPP_RATES);
 			tlv_rates->header.len =
-				       cpu_to_le16(params->supported_rates_len);
-			memcpy(tlv_rates->rates, params->supported_rates,
-			       params->supported_rates_len);
+				       cpu_to_le16(params->link_sta_params.supported_rates_len);
+			memcpy(tlv_rates->rates,
+			       params->link_sta_params.supported_rates,
+			       params->link_sta_params.supported_rates_len);
 			config_len += sizeof(struct host_cmd_tlv_rates) +
-				      params->supported_rates_len;
+				      params->link_sta_params.supported_rates_len;
 		}
 
 		if (params->ext_capab && params->ext_capab_len) {
@@ -1826,14 +1816,14 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 			config_len += sizeof(struct mwifiex_ie_types_extcap) +
 				      params->ext_capab_len;
 		}
-		if (params->vht_capa) {
+		if (params->link_sta_params.vht_capa) {
 			vht_capab = (struct mwifiex_ie_types_vhtcap *)(pos +
 								    config_len);
 			vht_capab->header.type =
 					   cpu_to_le16(WLAN_EID_VHT_CAPABILITY);
 			vht_capab->header.len =
 				  cpu_to_le16(sizeof(struct ieee80211_vht_cap));
-			memcpy(&vht_capab->vht_cap, params->vht_capa,
+			memcpy(&vht_capab->vht_cap, params->link_sta_params.vht_capa,
 			       sizeof(struct ieee80211_vht_cap));
 			config_len += sizeof(struct mwifiex_ie_types_vhtcap);
 		}

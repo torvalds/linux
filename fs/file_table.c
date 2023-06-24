@@ -45,7 +45,7 @@ static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
 static void file_free_rcu(struct rcu_head *head)
 {
-	struct file *f = container_of(head, struct file, f_u.fu_rcuhead);
+	struct file *f = container_of(head, struct file, f_rcuhead);
 
 	put_cred(f->f_cred);
 	kmem_cache_free(filp_cachep, f);
@@ -56,7 +56,7 @@ static inline void file_free(struct file *f)
 	security_file_free(f);
 	if (!(f->f_mode & FMODE_NOACCOUNT))
 		percpu_counter_dec(&nr_files);
-	call_rcu(&f->f_u.fu_rcuhead, file_free_rcu);
+	call_rcu(&f->f_rcuhead, file_free_rcu);
 }
 
 /*
@@ -142,7 +142,7 @@ static struct file *__alloc_file(int flags, const struct cred *cred)
 	f->f_cred = get_cred(cred);
 	error = security_file_alloc(f);
 	if (unlikely(error)) {
-		file_free_rcu(&f->f_u.fu_rcuhead);
+		file_free_rcu(&f->f_rcuhead);
 		return ERR_PTR(error);
 	}
 
@@ -235,12 +235,15 @@ static struct file *alloc_file(const struct path *path, int flags,
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_wb_err = filemap_sample_wb_err(file->f_mapping);
 	file->f_sb_err = file_sample_sb_err(file);
+	if (fop->llseek)
+		file->f_mode |= FMODE_LSEEK;
 	if ((file->f_mode & FMODE_READ) &&
 	     likely(fop->read || fop->read_iter))
 		file->f_mode |= FMODE_CAN_READ;
 	if ((file->f_mode & FMODE_WRITE) &&
 	     likely(fop->write || fop->write_iter))
 		file->f_mode |= FMODE_CAN_WRITE;
+	file->f_iocb_flags = iocb_flags(file);
 	file->f_mode |= FMODE_OPENED;
 	file->f_op = fop;
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
@@ -321,12 +324,7 @@ static void __fput(struct file *file)
 	}
 	fops_put(file->f_op);
 	put_pid(file->f_owner.pid);
-	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		i_readcount_dec(inode);
-	if (mode & FMODE_WRITER) {
-		put_write_access(inode);
-		__mnt_drop_write(mnt);
-	}
+	put_file_access(file);
 	dput(dentry);
 	if (unlikely(mode & FMODE_NEED_UNMOUNT))
 		dissolve_on_fput(mnt);
@@ -341,13 +339,13 @@ static void delayed_fput(struct work_struct *unused)
 	struct llist_node *node = llist_del_all(&delayed_fput_list);
 	struct file *f, *t;
 
-	llist_for_each_entry_safe(f, t, node, f_u.fu_llist)
+	llist_for_each_entry_safe(f, t, node, f_llist)
 		__fput(f);
 }
 
 static void ____fput(struct callback_head *work)
 {
-	__fput(container_of(work, struct file, f_u.fu_rcuhead));
+	__fput(container_of(work, struct file, f_rcuhead));
 }
 
 /*
@@ -368,14 +366,14 @@ EXPORT_SYMBOL_GPL(flush_delayed_fput);
 
 static DECLARE_DELAYED_WORK(delayed_fput_work, delayed_fput);
 
-void fput_many(struct file *file, unsigned int refs)
+void fput(struct file *file)
 {
-	if (atomic_long_sub_and_test(refs, &file->f_count)) {
+	if (atomic_long_dec_and_test(&file->f_count)) {
 		struct task_struct *task = current;
 
 		if (likely(!in_interrupt() && !(task->flags & PF_KTHREAD))) {
-			init_task_work(&file->f_u.fu_rcuhead, ____fput);
-			if (!task_work_add(task, &file->f_u.fu_rcuhead, TWA_RESUME))
+			init_task_work(&file->f_rcuhead, ____fput);
+			if (!task_work_add(task, &file->f_rcuhead, TWA_RESUME))
 				return;
 			/*
 			 * After this task has run exit_task_work(),
@@ -384,14 +382,9 @@ void fput_many(struct file *file, unsigned int refs)
 			 */
 		}
 
-		if (llist_add(&file->f_u.fu_llist, &delayed_fput_list))
+		if (llist_add(&file->f_llist, &delayed_fput_list))
 			schedule_delayed_work(&delayed_fput_work, 1);
 	}
-}
-
-void fput(struct file *file)
-{
-	fput_many(file, 1);
 }
 
 /*

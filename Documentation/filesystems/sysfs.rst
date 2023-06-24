@@ -263,7 +263,7 @@ A very simple (and naive) implementation of a device attribute is::
     static ssize_t show_name(struct device *dev, struct device_attribute *attr,
 			    char *buf)
     {
-	    return scnprintf(buf, PAGE_SIZE, "%s\n", dev->name);
+	    return sysfs_emit(buf, "%s\n", dev->name);
     }
 
     static ssize_t store_name(struct device *dev, struct device_attribute *attr,

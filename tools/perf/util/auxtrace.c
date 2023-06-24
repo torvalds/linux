@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/zalloc.h>
 
+#include "config.h"
 #include "evlist.h"
 #include "dso.h"
 #include "map.h"
@@ -51,6 +52,7 @@
 #include "intel-pt.h"
 #include "intel-bts.h"
 #include "arm-spe.h"
+#include "hisi-ptt.h"
 #include "s390-cpumsf.h"
 #include "util/mmap.h"
 
@@ -125,7 +127,7 @@ int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 	mm->tid = mp->tid;
 	mm->cpu = mp->cpu.cpu;
 
-	if (!mp->len) {
+	if (!mp->len || !mp->mmap_needed) {
 		mm->base = NULL;
 		return 0;
 	}
@@ -168,13 +170,20 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 }
 
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist, int idx,
-				   bool per_cpu)
+				   struct evlist *evlist,
+				   struct evsel *evsel, int idx)
 {
+	bool per_cpu = !perf_cpu_map__empty(evlist->core.user_requested_cpus);
+
+	mp->mmap_needed = evsel->needs_auxtrace_mmap;
+
+	if (!mp->mmap_needed)
+		return;
+
 	mp->idx = idx;
 
 	if (per_cpu) {
-		mp->cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, idx);
+		mp->cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
 		if (evlist->core.threads)
 			mp->tid = perf_thread_map__pid(evlist->core.threads, 0);
 		else
@@ -634,6 +643,22 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 
 	pr_err("No AUX area tracing to snapshot\n");
 	return -EINVAL;
+}
+
+static int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx)
+{
+	bool per_cpu_mmaps = !perf_cpu_map__empty(evlist->core.user_requested_cpus);
+
+	if (per_cpu_mmaps) {
+		struct perf_cpu evlist_cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
+		int cpu_map_idx = perf_cpu_map__idx(evsel->core.cpus, evlist_cpu);
+
+		if (cpu_map_idx == -1)
+			return -EINVAL;
+		return perf_evsel__enable_cpu(&evsel->core, cpu_map_idx);
+	}
+
+	return perf_evsel__enable_thread(&evsel->core, idx);
 }
 
 int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx)
@@ -1166,9 +1191,10 @@ void auxtrace_buffer__free(struct auxtrace_buffer *buffer)
 	free(buffer);
 }
 
-void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
-			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
-			  const char *msg, u64 timestamp)
+void auxtrace_synth_guest_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
+				int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+				const char *msg, u64 timestamp,
+				pid_t machine_pid, int vcpu)
 {
 	size_t size;
 
@@ -1184,10 +1210,24 @@ void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int
 	auxtrace_error->ip = ip;
 	auxtrace_error->time = timestamp;
 	strlcpy(auxtrace_error->msg, msg, MAX_AUXTRACE_ERROR_MSG);
-
-	size = (void *)auxtrace_error->msg - (void *)auxtrace_error +
-	       strlen(auxtrace_error->msg) + 1;
+	if (machine_pid) {
+		auxtrace_error->fmt = 2;
+		auxtrace_error->machine_pid = machine_pid;
+		auxtrace_error->vcpu = vcpu;
+		size = sizeof(*auxtrace_error);
+	} else {
+		size = (void *)auxtrace_error->msg - (void *)auxtrace_error +
+		       strlen(auxtrace_error->msg) + 1;
+	}
 	auxtrace_error->header.size = PERF_ALIGN(size, sizeof(u64));
+}
+
+void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
+			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+			  const char *msg, u64 timestamp)
+{
+	auxtrace_synth_guest_error(auxtrace_error, type, code, cpu, pid, tid,
+				   ip, msg, timestamp, 0, -1);
 }
 
 int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
@@ -1280,6 +1320,9 @@ int perf_event__process_auxtrace_info(struct perf_session *session,
 		break;
 	case PERF_AUXTRACE_S390_CPUMSF:
 		err = s390_cpumsf_process_auxtrace_info(event, session);
+		break;
+	case PERF_AUXTRACE_HISI_PTT:
+		err = hisi_ptt_process_auxtrace_info(event, session);
 		break;
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
@@ -1396,6 +1439,16 @@ static int get_flags(const char **ptr, unsigned int *plus_flags, unsigned int *m
 	}
 }
 
+#define ITRACE_DFLT_LOG_ON_ERROR_SZ 16384
+
+static unsigned int itrace_log_on_error_size(void)
+{
+	unsigned int sz = 0;
+
+	perf_config_scan("itrace.debug-log-buffer-size", "%u", &sz);
+	return sz ?: ITRACE_DFLT_LOG_ON_ERROR_SZ;
+}
+
 /*
  * Please check tools/perf/Documentation/perf-script.txt for information
  * about the options parsed here, which is introduced after this cset,
@@ -1494,6 +1547,8 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 			if (get_flags(&p, &synth_opts->log_plus_flags,
 				      &synth_opts->log_minus_flags))
 				goto out_err;
+			if (synth_opts->log_plus_flags & AUXTRACE_LOG_FLG_ON_ERROR)
+				synth_opts->log_on_error_size = itrace_log_on_error_size();
 			break;
 		case 'c':
 			synth_opts->branches = true;
@@ -1638,6 +1693,9 @@ size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
 
 	if (!e->fmt)
 		msg = (const char *)&e->time;
+
+	if (e->fmt >= 2 && e->machine_pid)
+		ret += fprintf(fp, " machine_pid %d vcpu %d", e->machine_pid, e->vcpu);
 
 	ret += fprintf(fp, " cpu %d pid %d tid %d ip %#"PRI_lx64" code %u: %s\n",
 		       e->cpu, e->pid, e->tid, e->ip, e->code, msg);
@@ -2267,11 +2325,19 @@ struct sym_args {
 	bool		near;
 };
 
+static bool kern_sym_name_match(const char *kname, const char *name)
+{
+	size_t n = strlen(name);
+
+	return !strcmp(kname, name) ||
+	       (!strncmp(kname, name, n) && kname[n] == '\t');
+}
+
 static bool kern_sym_match(struct sym_args *args, const char *name, char type)
 {
 	/* A function with the same name, and global or the n'th found or any */
 	return kallsyms__is_function(type) &&
-	       !strcmp(name, args->name) &&
+	       kern_sym_name_match(name, args->name) &&
 	       ((args->global && isupper(type)) ||
 		(args->selected && ++(args->cnt) == args->idx) ||
 		(!args->global && !args->selected));

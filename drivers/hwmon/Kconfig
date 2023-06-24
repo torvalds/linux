@@ -100,6 +100,7 @@ config SENSORS_AD7418
 config SENSORS_ADM1021
 	tristate "Analog Devices ADM1021 and compatibles"
 	depends on I2C
+	depends on SENSORS_LM90=n
 	help
 	  If you say yes here you get support for Analog Devices ADM1021
 	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
@@ -256,11 +257,14 @@ config SENSORS_AHT10
 	  will be called aht10.
 
 config SENSORS_AQUACOMPUTER_D5NEXT
-	tristate "Aquacomputer D5 Next watercooling pump"
+	tristate "Aquacomputer D5 Next, Octo, Quadro, Farbwerk, Farbwerk 360, High Flow Next"
 	depends on USB_HID
+	select CRC16
 	help
-	  If you say yes here you get support for the Aquacomputer D5 Next
-	  watercooling pump sensors.
+	  If you say yes here you get support for sensors and fans of
+	  the Aquacomputer D5 Next watercooling pump, Octo and Quadro fan
+	  controllers, Farbwerk and Farbwerk 360 RGB controllers, High Flow
+	  Next sensor, where available.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called aquacomputer_d5next.
@@ -378,7 +382,7 @@ config SENSORS_ARM_SCPI
 
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
-	depends on X86 && I2C
+	depends on (X86 || COMPILE_TEST) && I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the ASB100 Bach sensor
@@ -389,6 +393,7 @@ config SENSORS_ASB100
 
 config SENSORS_ASPEED
 	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
+	depends on ARCH_ASPEED || COMPILE_TEST
 	depends on THERMAL || THERMAL=n
 	select REGMAP
 	help
@@ -415,6 +420,7 @@ config SENSORS_ATXP1
 config SENSORS_BT1_PVT
 	tristate "Baikal-T1 Process, Voltage, Temperature sensor driver"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select POLYNOMIAL
 	help
 	  If you say yes here you get support for Baikal-T1 PVT sensor
 	  embedded into the SoC.
@@ -498,6 +504,7 @@ config SENSORS_DS1621
 config SENSORS_DELL_SMM
 	tristate "Dell laptop SMM BIOS hwmon driver"
 	depends on X86
+	imply THERMAL
 	help
 	  This hwmon driver adds support for reporting temperature of different
 	  sensors and controls the fans on Dell laptops via System Management
@@ -621,7 +628,7 @@ config SENSORS_MC13783_ADC
 
 config SENSORS_FSCHMD
 	tristate "Fujitsu Siemens Computers sensor chips"
-	depends on X86 && I2C
+	depends on (X86 || COMPILE_TEST) && I2C
 	help
 	  If you say yes here you get support for the following Fujitsu
 	  Siemens Computers (FSC) sensor chips: Poseidon, Scylla, Hermes,
@@ -813,6 +820,18 @@ config SENSORS_POWR1220
 
 	  This driver can also be built as a module. If so, the module
 	  will be called powr1220.
+
+config SENSORS_LAN966X
+	tristate "Microchip LAN966x Hardware Monitoring"
+	depends on SOC_LAN966 || COMPILE_TEST
+	select REGMAP
+	select POLYNOMIAL
+	help
+	  If you say yes here you get support for temperature monitoring
+	  on the Microchip LAN966x SoC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lan966x-hwmon.
 
 config SENSORS_LINEAGE
 	tristate "Lineage Compact Power Line Power Entry Module"
@@ -1048,6 +1067,18 @@ config SENSORS_MAX31730
 	  This driver can also be built as a module. If so, the module
 	  will be called max31730.
 
+config SENSORS_MAX31760
+	tristate "MAX31760 fan speed controller"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support for the Analog Devices MAX31760 Precision Fan-Speed
+	  Controller. MAX31760 integrates temperature sensing along with
+	  precision PWM fan control.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31760.
+
 config SENSORS_MAX6620
 	tristate "Maxim MAX6620 fan controller"
 	depends on I2C
@@ -1085,6 +1116,7 @@ config SENSORS_MAX6639
 config SENSORS_MAX6642
 	tristate "Maxim MAX6642 sensor chip"
 	depends on I2C
+	depends on SENSORS_LM90=n
 	help
 	  If you say yes here you get support for MAX6642 sensor chip.
 	  MAX6642 is a SMBus-Compatible Remote/Local Temperature Sensor
@@ -1248,6 +1280,7 @@ config SENSORS_LM75
 	  temperature sensor chip, with models including:
 
 		- Analog Devices ADT75
+		- Atmel (now Microchip) AT30TS74
 		- Dallas Semiconductor DS75, DS1775 and DS7505
 		- Global Mixed-mode Technology (GMT) G751
 		- Maxim MAX6625 and MAX6626
@@ -1339,12 +1372,15 @@ config SENSORS_LM90
 	tristate "National Semiconductor LM90 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
-	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6654, MAX6657, MAX6658,
-	  MAX6659, MAX6680, MAX6681, MAX6692, MAX6695, MAX6696,
-	  ON Semiconductor NCT1008, Winbond/Nuvoton W83L771W/G/AWG/ASG,
-	  Philips SA56004, GMT G781, Texas Instruments TMP451 and TMP461
+	  If you say yes here you get support for National Semiconductor LM84,
+	  LM90, LM86, LM89 and LM99, Analog Devices ADM1020, ADM2021, ADM1021A,
+	  ADM1023, ADM1032, ADT7461, ADT7461A, ADT7481, ADT7482, and ADT7483A,
+	  Maxim MAX1617, MAX6642, MAX6646, MAX6647, MAX6648, MAX6649, MAX6654,
+	  MAX6657, MAX6658, MAX6659, MAX6680, MAX6681, MAX6692, MAX6695,
+	  MAX6696,
+	  ON Semiconductor NCT1008, NCT210, NCT72, NCT214, NCT218,
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG,
+	  Philips NE1618, SA56004, GMT G781, Texas Instruments TMP451 and TMP461
 	  sensor chips.
 
 	  This driver can also be built as a module. If so, the module
@@ -1457,11 +1493,23 @@ config SENSORS_NCT6683
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6683.
 
+config SENSORS_NCT6775_CORE
+	tristate
+	select REGMAP
+	help
+	  This module contains common code shared by the platform and
+	  i2c versions of the nct6775 driver; it is not useful on its
+	  own.
+
+	  If built as a module, the module will be called
+	  nct6775-core.
+
 config SENSORS_NCT6775
-	tristate "Nuvoton NCT6775F and compatibles"
+	tristate "Platform driver for Nuvoton NCT6775F and compatibles"
 	depends on !PPC
 	depends on ACPI_WMI || ACPI_WMI=n
 	select HWMON_VID
+	select SENSORS_NCT6775_CORE
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
@@ -1471,6 +1519,23 @@ config SENSORS_NCT6775
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6775.
+
+config SENSORS_NCT6775_I2C
+	tristate "I2C driver for Nuvoton NCT6775F and compatibles"
+	depends on I2C
+	select REGMAP_I2C
+	select SENSORS_NCT6775_CORE
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
+	  NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D, and compatible
+	  Super-I/O chips via their I2C interface.
+
+	  If you're not building a kernel for a BMC, this is probably
+	  not the driver you want (see CONFIG_SENSORS_NCT6775).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct6775-i2c.
 
 config SENSORS_NCT7802
 	tristate "Nuvoton NCT7802Y"
@@ -1693,6 +1758,7 @@ config SENSORS_SIS5595
 
 config SENSORS_SY7636A
 	tristate "Silergy SY7636A"
+	depends on MFD_SY7636A
 	help
 	  If you say yes here you get support for the thermistor readout of
 	  the Silergy SY7636A PMIC.
@@ -1732,6 +1798,19 @@ config SENSORS_EMC2103
 
 	  This driver can also be built as a module. If so, the module
 	  will be called emc2103.
+
+config SENSORS_EMC2305
+	tristate "Microchip EMC2305 and compatible EMC2301/2/3"
+	depends on I2C
+	imply THERMAL
+	help
+	  If you say yes here you get support for the Microchip EMC2305
+	  fan controller chips.
+	  The Microchip EMC2305 is a fan controller for up to 5 fans.
+	  Fan rotation speeds are reported in RPM.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called emc2305.
 
 config SENSORS_EMC6W201
 	tristate "SMSC EMC6W201"
@@ -2288,21 +2367,6 @@ config SENSORS_ASUS_WMI
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_wmi_sensors.
-
-config SENSORS_ASUS_WMI_EC
-	tristate "ASUS WMI B550/X570"
-	depends on ACPI_WMI && SENSORS_ASUS_EC=n
-	help
-	  If you say yes here you get support for the ACPI embedded controller
-	  hardware monitoring interface found in B550/X570 ASUS motherboards.
-	  This driver will provide readings of fans, voltages and temperatures
-	  through the system firmware.
-
-	  This driver is deprecated in favor of the ASUS EC Sensors driver
-	  which provides fully compatible output.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called asus_wmi_sensors_ec.
 
 config SENSORS_ASUS_EC
 	tristate "ASUS EC Sensors"

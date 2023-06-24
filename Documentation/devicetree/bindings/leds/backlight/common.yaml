@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Common backlight properties
 
 maintainers:
-  - Lee Jones <lee.jones@linaro.org>
+  - Lee Jones <lee@kernel.org>
   - Daniel Thompson <daniel.thompson@linaro.org>
   - Jingoo Han <jingoohan1@gmail.com>
 

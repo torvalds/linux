@@ -7,8 +7,8 @@ Multiple mount protection (MMP) is a feature that protects the
 filesystem against multiple hosts trying to use the filesystem
 simultaneously. When a filesystem is opened (for mounting, or fsck,
 etc.), the MMP code running on the node (call it node A) checks a
-sequence number. If the sequence number is EXT4\_MMP\_SEQ\_CLEAN, the
-open continues. If the sequence number is EXT4\_MMP\_SEQ\_FSCK, then
+sequence number. If the sequence number is EXT4_MMP_SEQ_CLEAN, the
+open continues. If the sequence number is EXT4_MMP_SEQ_FSCK, then
 fsck is (hopefully) running, and open fails immediately. Otherwise, the
 open code will wait for twice the specified MMP check interval and check
 the sequence number again. If the sequence number has changed, then the
@@ -40,38 +40,38 @@ The MMP structure (``struct mmp_struct``) is as follows:
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - mmp\_magic
+     - __le32
+     - mmp_magic
      - Magic number for MMP, 0x004D4D50 (“MMP”).
    * - 0x4
-     - \_\_le32
-     - mmp\_seq
+     - __le32
+     - mmp_seq
      - Sequence number, updated periodically.
    * - 0x8
-     - \_\_le64
-     - mmp\_time
+     - __le64
+     - mmp_time
      - Time that the MMP block was last updated.
    * - 0x10
      - char[64]
-     - mmp\_nodename
+     - mmp_nodename
      - Hostname of the node that opened the filesystem.
    * - 0x50
      - char[32]
-     - mmp\_bdevname
+     - mmp_bdevname
      - Block device name of the filesystem.
    * - 0x70
-     - \_\_le16
-     - mmp\_check\_interval
+     - __le16
+     - mmp_check_interval
      - The MMP re-check interval, in seconds.
    * - 0x72
-     - \_\_le16
-     - mmp\_pad1
+     - __le16
+     - mmp_pad1
      - Zero.
    * - 0x74
-     - \_\_le32[226]
-     - mmp\_pad2
+     - __le32[226]
+     - mmp_pad2
      - Zero.
    * - 0x3FC
-     - \_\_le32
-     - mmp\_checksum
+     - __le32
+     - mmp_checksum
      - Checksum of the MMP block.

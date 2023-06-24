@@ -6,6 +6,7 @@
  *           (C) 2017 Anju T Sudhakar, IBM Corporation.
  *           (C) 2017 Hemant K Shaw, IBM Corporation.
  */
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <asm/opal.h>
@@ -239,8 +240,10 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	ct = of_get_child_count(pmu_events);
 
 	/* Get the event prefix */
-	if (of_property_read_string(node, "events-prefix", &prefix))
+	if (of_property_read_string(node, "events-prefix", &prefix)) {
+		of_node_put(pmu_events);
 		return 0;
+	}
 
 	/* Get a global unit and scale data if available */
 	if (of_property_read_string(node, "scale", &g_scale))
@@ -254,8 +257,10 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 
 	/* Allocate memory for the events */
 	pmu->events = kcalloc(ct, sizeof(struct imc_events), GFP_KERNEL);
-	if (!pmu->events)
+	if (!pmu->events) {
+		of_node_put(pmu_events);
 		return -ENOMEM;
+	}
 
 	ct = 0;
 	/* Parse the events and update the struct */
@@ -264,6 +269,8 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 		if (!ret)
 			ct++;
 	}
+
+	of_node_put(pmu_events);
 
 	/* Allocate memory for attribute group */
 	attr_group = kzalloc(sizeof(*attr_group), GFP_KERNEL);
@@ -521,7 +528,7 @@ static int nest_imc_event_init(struct perf_event *event)
 
 	/*
 	 * Nest HW counter memory resides in a per-chip reserve-memory (HOMER).
-	 * Get the base memory addresss for this cpu.
+	 * Get the base memory address for this cpu.
 	 */
 	chip_id = cpu_to_chip_id(event->cpu);
 
@@ -674,7 +681,7 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 	/*
 	 * Check whether core_imc is registered. We could end up here
 	 * if the cpuhotplug callback registration fails. i.e, callback
-	 * invokes the offline path for all sucessfully registered cpus.
+	 * invokes the offline path for all successfully registered cpus.
 	 * At this stage, core_imc pmu will not be registered and we
 	 * should return here.
 	 *

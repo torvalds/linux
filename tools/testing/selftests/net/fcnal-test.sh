@@ -70,6 +70,10 @@ NSB_LO_IP6=2001:db8:2::2
 NL_IP=172.17.1.1
 NL_IP6=2001:db8:4::1
 
+# multicast and broadcast addresses
+MCAST_IP=224.0.0.1
+BCAST_IP=255.255.255.255
+
 MD5_PW=abc123
 MD5_WRONG_PW=abc1234
 
@@ -307,6 +311,9 @@ addr2str()
 	case "$1" in
 	127.0.0.1) echo "loopback";;
 	::1) echo "IPv6 loopback";;
+
+	${BCAST_IP}) echo "broadcast";;
+	${MCAST_IP}) echo "multicast";;
 
 	${NSA_IP})	echo "ns-A IP";;
 	${NSA_IP6})	echo "ns-A IPv6";;
@@ -1460,6 +1467,13 @@ ipv4_udp_novrf()
 		log_test_addr ${a} $? 0 "Client, device bind via IP_UNICAST_IF"
 
 		log_start
+		run_cmd_nsb nettest -D -s &
+		sleep 1
+		run_cmd nettest -D -r ${a} -d ${NSA_DEV} -S -0 ${NSA_IP} -U
+		log_test_addr ${a} $? 0 "Client, device bind via IP_UNICAST_IF, with connect()"
+
+
+		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -D -r ${a}
 		log_test_addr ${a} $? 1 "No server, unbound client"
@@ -1518,6 +1532,13 @@ ipv4_udp_novrf()
 	run_cmd nettest -D -d ${NSA_DEV} -S -r ${a}
 	log_test_addr ${a} $? 0 "Global server, device client via IP_UNICAST_IF, local connection"
 
+	log_start
+	run_cmd nettest -s -D &
+	sleep 1
+	run_cmd nettest -D -d ${NSA_DEV} -S -r ${a} -U
+	log_test_addr ${a} $? 0 "Global server, device client via IP_UNICAST_IF, local connection, with connect()"
+
+
 	# IPv4 with device bind has really weird behavior - it overrides the
 	# fib lookup, generates an rtable and tries to send the packet. This
 	# causes failures for local traffic at different places
@@ -1543,6 +1564,15 @@ ipv4_udp_novrf()
 		sleep 1
 		run_cmd nettest -D -r ${a} -d ${NSA_DEV} -S
 		log_test_addr ${a} $? 1 "Global server, device client via IP_UNICAST_IF, local connection"
+
+		log_start
+		show_hint "Should fail since addresses on loopback are out of device scope"
+		run_cmd nettest -D -s &
+		sleep 1
+		run_cmd nettest -D -r ${a} -d ${NSA_DEV} -S -U
+		log_test_addr ${a} $? 1 "Global server, device client via IP_UNICAST_IF, local connection, with connect()"
+
+
 	done
 
 	a=${NSA_IP}
@@ -1793,12 +1823,33 @@ ipv4_addr_bind_novrf()
 	done
 
 	#
-	# raw socket with nonlocal bind
+	# tests for nonlocal bind
 	#
 	a=${NL_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${NSA_DEV} -b
-	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after device bind"
+	run_cmd nettest -s -R -f -l ${a} -b
+	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address"
+
+	log_start
+	run_cmd nettest -s -f -l ${a} -b
+	log_test_addr ${a} $? 0 "TCP socket bind to nonlocal address"
+
+	log_start
+	run_cmd nettest -s -D -P icmp -f -l ${a} -b
+	log_test_addr ${a} $? 0 "ICMP socket bind to nonlocal address"
+
+	#
+	# check that ICMP sockets cannot bind to broadcast and multicast addresses
+	#
+	a=${BCAST_IP}
+	log_start
+	run_cmd nettest -s -D -P icmp -l ${a} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address"
+
+	a=${MCAST_IP}
+	log_start
+	run_cmd nettest -s -D -P icmp -l ${a} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address"
 
 	#
 	# tcp sockets
@@ -1850,12 +1901,33 @@ ipv4_addr_bind_vrf()
 	log_test_addr ${a} $? 1 "Raw socket bind to out of scope address after VRF bind"
 
 	#
-	# raw socket with nonlocal bind
+	# tests for nonlocal bind
 	#
 	a=${NL_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${VRF} -b
+	run_cmd nettest -s -R -f -l ${a} -I ${VRF} -b
 	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after VRF bind"
+
+	log_start
+	run_cmd nettest -s -f -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 0 "TCP socket bind to nonlocal address after VRF bind"
+
+	log_start
+	run_cmd nettest -s -D -P icmp -f -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 0 "ICMP socket bind to nonlocal address after VRF bind"
+
+	#
+	# check that ICMP sockets cannot bind to broadcast and multicast addresses
+	#
+	a=${BCAST_IP}
+	log_start
+	run_cmd nettest -s -D -P icmp -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address after VRF bind"
+
+	a=${MCAST_IP}
+	log_start
+	run_cmd nettest -s -D -P icmp -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address after VRF bind"
 
 	#
 	# tcp sockets
@@ -1889,10 +1961,12 @@ ipv4_addr_bind()
 
 	log_subsection "No VRF"
 	setup
+	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv4_addr_bind_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
+	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv4_addr_bind_vrf
 }
 
@@ -3106,6 +3180,13 @@ ipv6_udp_novrf()
 		sleep 1
 		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV} -S
 		log_test_addr ${a} $? 1 "Global server, device client via IP_UNICAST_IF, local connection"
+
+		log_start
+		show_hint "Should fail 'No route to host' since addresses on loopback are out of device scope"
+		run_cmd nettest -6 -D -s &
+		sleep 1
+		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV} -S -U
+		log_test_addr ${a} $? 1 "Global server, device client via IP_UNICAST_IF, local connection, with connect()"
 	done
 
 	a=${NSA_IP6}
@@ -4115,10 +4196,13 @@ elif [ "$TESTS" = "ipv6" ]; then
 	TESTS="$TESTS_IPV6"
 fi
 
-which nettest >/dev/null
-if [ $? -ne 0 ]; then
-	echo "'nettest' command not found; skipping tests"
-	exit $ksft_skip
+# nettest can be run from PATH or from same directory as this selftest
+if ! which nettest >/dev/null; then
+	PATH=$PWD:$PATH
+	if ! which nettest >/dev/null; then
+		echo "'nettest' command not found; skipping tests"
+		exit $ksft_skip
+	fi
 fi
 
 declare -i nfail=0

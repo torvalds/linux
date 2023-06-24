@@ -158,7 +158,7 @@ static int lkl_test_readdir(void)
 
 LKL_TEST_CALL(closedir, lkl_closedir, 0, dir);
 LKL_TEST_CALL(chdir_mnt_point, lkl_sys_chdir, 0, mnt_point);
-LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, "mem=16M loglevel=8");
+LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, "mem=32M loglevel=8");
 LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
 
 struct lkl_test tests[] = {

@@ -58,7 +58,7 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 
 	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
-		if (is_server_using_iface(ses->chans[i].server, iface)) {
+		if (ses->chans[i].iface == iface) {
 			spin_unlock(&ses->chan_lock);
 			return true;
 		}
@@ -81,8 +81,38 @@ cifs_ses_get_chan_index(struct cifs_ses *ses,
 	}
 
 	/* If we didn't find the channel, it is likely a bug */
+	if (server)
+		cifs_dbg(VFS, "unable to get chan index for server: 0x%llx",
+			 server->conn_id);
 	WARN_ON(1);
 	return 0;
+}
+
+void
+cifs_chan_set_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	ses->chans[chan_index].in_reconnect = true;
+}
+
+void
+cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	ses->chans[chan_index].in_reconnect = false;
+}
+
+bool
+cifs_chan_in_reconnect(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
 }
 
 void
@@ -116,16 +146,24 @@ cifs_chan_needs_reconnect(struct cifs_ses *ses,
 	return CIFS_CHAN_NEEDS_RECONNECT(ses, chan_index);
 }
 
+bool
+cifs_chan_is_iface_active(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	return ses->chans[chan_index].iface &&
+		ses->chans[chan_index].iface->is_active;
+}
+
 /* returns number of channels added */
 int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 {
 	int old_chan_count, new_chan_count;
 	int left;
-	int i = 0;
 	int rc = 0;
 	int tries = 0;
-	struct cifs_server_iface *ifaces = NULL;
-	size_t iface_count;
+	struct cifs_server_iface *iface = NULL, *niface = NULL;
 
 	spin_lock(&ses->chan_lock);
 
@@ -155,32 +193,16 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	spin_unlock(&ses->chan_lock);
 
 	/*
-	 * Make a copy of the iface list at the time and use that
-	 * instead so as to not hold the iface spinlock for opening
-	 * channels
-	 */
-	spin_lock(&ses->iface_lock);
-	iface_count = ses->iface_count;
-	if (iface_count <= 0) {
-		spin_unlock(&ses->iface_lock);
-		cifs_dbg(VFS, "no iface list available to open channels\n");
-		return 0;
-	}
-	ifaces = kmemdup(ses->iface_list, iface_count*sizeof(*ifaces),
-			 GFP_ATOMIC);
-	if (!ifaces) {
-		spin_unlock(&ses->iface_lock);
-		return 0;
-	}
-	spin_unlock(&ses->iface_lock);
-
-	/*
 	 * Keep connecting to same, fastest, iface for all channels as
 	 * long as its RSS. Try next fastest one if not RSS or channel
 	 * creation fails.
 	 */
+	spin_lock(&ses->iface_lock);
+	iface = list_first_entry(&ses->iface_list, struct cifs_server_iface,
+				 iface_head);
+	spin_unlock(&ses->iface_lock);
+
 	while (left > 0) {
-		struct cifs_server_iface *iface;
 
 		tries++;
 		if (tries > 3*ses->chan_max) {
@@ -189,28 +211,125 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 			break;
 		}
 
-		iface = &ifaces[i];
-		if (is_ses_using_iface(ses, iface) && !iface->rss_capable) {
-			i = (i+1) % iface_count;
-			continue;
+		spin_lock(&ses->iface_lock);
+		if (!ses->iface_count) {
+			spin_unlock(&ses->iface_lock);
+			break;
 		}
 
-		rc = cifs_ses_add_channel(cifs_sb, ses, iface);
-		if (rc) {
-			cifs_dbg(FYI, "failed to open extra channel on iface#%d rc=%d\n",
-				 i, rc);
-			i = (i+1) % iface_count;
-			continue;
-		}
+		list_for_each_entry_safe_from(iface, niface, &ses->iface_list,
+				    iface_head) {
+			/* skip ifaces that are unusable */
+			if (!iface->is_active ||
+			    (is_ses_using_iface(ses, iface) &&
+			     !iface->rss_capable)) {
+				continue;
+			}
 
-		cifs_dbg(FYI, "successfully opened new channel on iface#%d\n",
-			 i);
+			/* take ref before unlock */
+			kref_get(&iface->refcount);
+
+			spin_unlock(&ses->iface_lock);
+			rc = cifs_ses_add_channel(cifs_sb, ses, iface);
+			spin_lock(&ses->iface_lock);
+
+			if (rc) {
+				cifs_dbg(VFS, "failed to open extra channel on iface:%pIS rc=%d\n",
+					 &iface->sockaddr,
+					 rc);
+				kref_put(&iface->refcount, release_iface);
+				continue;
+			}
+
+			cifs_dbg(FYI, "successfully opened new channel on iface:%pIS\n",
+				 &iface->sockaddr);
+			break;
+		}
+		spin_unlock(&ses->iface_lock);
+
 		left--;
 		new_chan_count++;
 	}
 
-	kfree(ifaces);
 	return new_chan_count - old_chan_count;
+}
+
+/*
+ * update the iface for the channel if necessary.
+ * will return 0 when iface is updated, 1 if removed, 2 otherwise
+ * Must be called with chan_lock held.
+ */
+int
+cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
+{
+	unsigned int chan_index;
+	struct cifs_server_iface *iface = NULL;
+	struct cifs_server_iface *old_iface = NULL;
+	int rc = 0;
+
+	spin_lock(&ses->chan_lock);
+	chan_index = cifs_ses_get_chan_index(ses, server);
+	if (!chan_index) {
+		spin_unlock(&ses->chan_lock);
+		return 0;
+	}
+
+	if (ses->chans[chan_index].iface) {
+		old_iface = ses->chans[chan_index].iface;
+		if (old_iface->is_active) {
+			spin_unlock(&ses->chan_lock);
+			return 1;
+		}
+	}
+	spin_unlock(&ses->chan_lock);
+
+	spin_lock(&ses->iface_lock);
+	/* then look for a new one */
+	list_for_each_entry(iface, &ses->iface_list, iface_head) {
+		if (!iface->is_active ||
+		    (is_ses_using_iface(ses, iface) &&
+		     !iface->rss_capable)) {
+			continue;
+		}
+		kref_get(&iface->refcount);
+	}
+
+	if (!list_entry_is_head(iface, &ses->iface_list, iface_head)) {
+		rc = 1;
+		iface = NULL;
+		cifs_dbg(FYI, "unable to find a suitable iface\n");
+	}
+
+	/* now drop the ref to the current iface */
+	if (old_iface && iface) {
+		cifs_dbg(FYI, "replacing iface: %pIS with %pIS\n",
+			 &old_iface->sockaddr,
+			 &iface->sockaddr);
+		kref_put(&old_iface->refcount, release_iface);
+	} else if (old_iface) {
+		cifs_dbg(FYI, "releasing ref to iface: %pIS\n",
+			 &old_iface->sockaddr);
+		kref_put(&old_iface->refcount, release_iface);
+	} else {
+		WARN_ON(!iface);
+		cifs_dbg(FYI, "adding new iface: %pIS\n", &iface->sockaddr);
+	}
+	spin_unlock(&ses->iface_lock);
+
+	spin_lock(&ses->chan_lock);
+	chan_index = cifs_ses_get_chan_index(ses, server);
+	ses->chans[chan_index].iface = iface;
+
+	/* No iface is found. if secondary chan, drop connection */
+	if (!iface && CIFS_SERVER_IS_CHAN(server))
+		ses->chans[chan_index].server = NULL;
+
+	spin_unlock(&ses->chan_lock);
+
+	if (!iface && CIFS_SERVER_IS_CHAN(server))
+		cifs_put_tcp_session(server, false);
+
+	return rc;
 }
 
 /*
@@ -274,7 +393,10 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	/* Auth */
 	ctx.domainauto = ses->domainAuto;
 	ctx.domainname = ses->domainName;
-	ctx.server_hostname = ses->server->hostname;
+
+	/* no hostname for extra channels */
+	ctx.server_hostname = "";
+
 	ctx.username = ses->user_name;
 	ctx.password = ses->password;
 	ctx.sectype = ses->sectype;
@@ -322,6 +444,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 		spin_unlock(&ses->chan_lock);
 		goto out;
 	}
+	chan->iface = iface;
 	ses->chan_count++;
 	atomic_set(&ses->chan_seq, 0);
 
@@ -351,6 +474,14 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 
 out:
 	if (rc && chan->server) {
+		/*
+		 * we should avoid race with these delayed works before we
+		 * remove this channel
+		 */
+		cancel_delayed_work_sync(&chan->server->echo);
+		cancel_delayed_work_sync(&chan->server->resolve);
+		cancel_delayed_work_sync(&chan->server->reconnect);
+
 		spin_lock(&ses->chan_lock);
 		/* we rely on all bits beyond chan_count to be clear */
 		cifs_chan_clear_need_reconnect(ses, chan->server);
@@ -361,14 +492,15 @@ out:
 		 */
 		WARN_ON(ses->chan_count < 1);
 		spin_unlock(&ses->chan_lock);
+
+		cifs_put_tcp_session(chan->server, 0);
 	}
 
-	if (rc && chan->server)
-		cifs_put_tcp_session(chan->server, 0);
-
+	free_xid(xid);
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server,
 			     SESSION_SETUP_ANDX *pSMB)
@@ -461,7 +593,6 @@ static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses,
 	*pbcc_area = bcc_ptr;
 }
 
-
 static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 				   const struct nls_table *nls_cp)
 {
@@ -471,11 +602,6 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	/* BB FIXME add check that strings total less
 	than 335 or will need to send them as arrays */
 
-	/* unicode strings, must be word aligned before the call */
-/*	if ((long) bcc_ptr % 2)	{
-		*bcc_ptr = 0;
-		bcc_ptr++;
-	} */
 	/* copy user */
 	if (ses->user_name == NULL) {
 		/* null user mount */
@@ -623,6 +749,7 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	   for it later, but it is not very important */
 	cifs_dbg(FYI, "ascii: bytes left %d\n", bleft);
 }
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
 int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 				    struct cifs_ses *ses)
@@ -714,9 +841,9 @@ static int size_of_ntlmssp_blob(struct cifs_ses *ses, int base_size)
 	else
 		sz += sizeof(__le16);
 
-	if (ses->workstation_name)
+	if (ses->workstation_name[0])
 		sz += sizeof(__le16) * strnlen(ses->workstation_name,
-			CIFS_MAX_WORKSTATION_LEN);
+					       ntlmssp_workstation_name_size(ses));
 	else
 		sz += sizeof(__le16);
 
@@ -960,7 +1087,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 
 	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
 				      ses->workstation_name,
-				      CIFS_MAX_WORKSTATION_LEN,
+				      ntlmssp_workstation_name_size(ses),
 				      *pbuffer, &tmp,
 				      nls_cp);
 
@@ -1040,6 +1167,7 @@ struct sess_data {
 	struct kvec iov[3];
 };
 
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 static int
 sess_alloc_buffer(struct sess_data *sess_data, int wct)
 {
@@ -1081,10 +1209,18 @@ out_free_smb_buf:
 static void
 sess_free_buffer(struct sess_data *sess_data)
 {
+	struct kvec *iov = sess_data->iov;
 
-	free_rsp_buf(sess_data->buf0_type, sess_data->iov[0].iov_base);
+	/*
+	 * Zero the session data before freeing, as it might contain sensitive info (keys, etc).
+	 * Note that iov[1] is already freed by caller.
+	 */
+	if (sess_data->buf0_type != CIFS_NO_BUFFER && iov[0].iov_base)
+		memzero_explicit(iov[0].iov_base, iov[0].iov_len);
+
+	free_rsp_buf(sess_data->buf0_type, iov[0].iov_base);
 	sess_data->buf0_type = CIFS_NO_BUFFER;
-	kfree(sess_data->iov[2].iov_base);
+	kfree_sensitive(iov[2].iov_base);
 }
 
 static int
@@ -1093,14 +1229,14 @@ sess_establish_session(struct sess_data *sess_data)
 	struct cifs_ses *ses = sess_data->ses;
 	struct TCP_Server_Info *server = sess_data->server;
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 	if (!server->session_estab) {
 		if (server->sign) {
 			server->session_key.response =
 				kmemdup(ses->auth_key.response,
 				ses->auth_key.len, GFP_KERNEL);
 			if (!server->session_key.response) {
-				mutex_unlock(&server->srv_mutex);
+				cifs_server_unlock(server);
 				return -ENOMEM;
 			}
 			server->session_key.len =
@@ -1109,7 +1245,7 @@ sess_establish_session(struct sess_data *sess_data)
 		server->sequence_number = 0x2;
 		server->session_estab = true;
 	}
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	cifs_dbg(FYI, "CIFS session established successfully\n");
 	return 0;
@@ -1186,7 +1322,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 	}
 
 	if (ses->capabilities & CAP_UNICODE) {
-		if (sess_data->iov[0].iov_len % 2) {
+		if (!IS_ALIGNED(sess_data->iov[0].iov_len, 2)) {
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
@@ -1226,7 +1362,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 		/* no string area to decode, do nothing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
 			++bcc_ptr;
 			--bytes_remaining;
 		}
@@ -1242,7 +1378,7 @@ out:
 	sess_data->result = rc;
 	sess_data->func = NULL;
 	sess_free_buffer(sess_data);
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
 }
 
@@ -1310,8 +1446,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 
 	if (ses->capabilities & CAP_UNICODE) {
 		/* unicode strings must be word aligned */
-		if ((sess_data->iov[0].iov_len
-			+ sess_data->iov[1].iov_len) % 2) {
+		if (!IS_ALIGNED(sess_data->iov[0].iov_len + sess_data->iov[1].iov_len, 2)) {
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
@@ -1362,7 +1497,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		/* no string area to decode, do nothing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
 			++bcc_ptr;
 			--bytes_remaining;
 		}
@@ -1381,7 +1516,7 @@ out:
 	sess_data->result = rc;
 	sess_data->func = NULL;
 	sess_free_buffer(sess_data);
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
 }
 
@@ -1414,7 +1549,7 @@ _sess_auth_rawntlmssp_assemble_req(struct sess_data *sess_data)
 
 	bcc_ptr = sess_data->iov[2].iov_base;
 	/* unicode strings must be word aligned */
-	if ((sess_data->iov[0].iov_len + sess_data->iov[1].iov_len) % 2) {
+	if (!IS_ALIGNED(sess_data->iov[0].iov_len + sess_data->iov[1].iov_len, 2)) {
 		*bcc_ptr = 0;
 		bcc_ptr++;
 	}
@@ -1516,7 +1651,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	rc = decode_ntlmssp_challenge(bcc_ptr, blob_len, ses);
 
 out_free_ntlmsspblob:
-	kfree(ntlmsspblob);
+	kfree_sensitive(ntlmsspblob);
 out:
 	sess_free_buffer(sess_data);
 
@@ -1526,9 +1661,9 @@ out:
 	}
 
 	/* Else error. Cleanup */
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
-	kfree(ses->ntlmssp);
+	kfree_sensitive(ses->ntlmssp);
 	ses->ntlmssp = NULL;
 
 	sess_data->func = NULL;
@@ -1615,7 +1750,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 		/* no string area to decode, do nothing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
 			++bcc_ptr;
 			--bytes_remaining;
 		}
@@ -1627,7 +1762,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 	}
 
 out_free_ntlmsspblob:
-	kfree(ntlmsspblob);
+	kfree_sensitive(ntlmsspblob);
 out:
 	sess_free_buffer(sess_data);
 
@@ -1635,9 +1770,9 @@ out:
 		rc = sess_establish_session(sess_data);
 
 	/* Cleanup */
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
-	kfree(ses->ntlmssp);
+	kfree_sensitive(ses->ntlmssp);
 	ses->ntlmssp = NULL;
 
 	sess_data->func = NULL;
@@ -1713,6 +1848,7 @@ int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	rc = sess_data->result;
 
 out:
-	kfree(sess_data);
+	kfree_sensitive(sess_data);
 	return rc;
 }
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */

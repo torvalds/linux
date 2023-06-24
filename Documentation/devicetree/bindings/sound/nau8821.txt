@@ -34,7 +34,7 @@ Optional properties:
   - nuvoton,jack-eject-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
 
   - nuvoton,dmic-clk-threshold: the ADC threshold of DMIC clock.
-
+  - nuvoton,key_enable: Headset button detection switch.
 
 Example:
 

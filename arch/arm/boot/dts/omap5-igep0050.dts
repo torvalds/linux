@@ -128,7 +128,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethernet: usbether@3 {
+		ethernet: ethernet@3 {
 			compatible = "usb424,7500";
 			reg = <3>;
 		};

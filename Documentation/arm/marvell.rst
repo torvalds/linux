@@ -374,8 +374,6 @@ PXA 2xx/3xx/93x/95x family
 
    Linux kernel mach directory:
 	arch/arm/mach-pxa
-   Linux kernel plat directory:
-	arch/arm/plat-pxa
 
 MMP/MMP2/MMP3 family (communication processor)
 ----------------------------------------------
@@ -429,8 +427,6 @@ MMP/MMP2/MMP3 family (communication processor)
 
    Linux kernel mach directory:
 	arch/arm/mach-mmp
-   Linux kernel plat directory:
-	arch/arm/plat-pxa
 
 Berlin family (Multimedia Solutions)
 -------------------------------------
@@ -517,9 +513,6 @@ Long-term plans
    mach-mvebu/ to support all SoCs from the Marvell EBU (Engineering
    Business Unit) in a single mach-<foo> directory. The plat-orion/
    would therefore disappear.
-
- * Unify the mach-mmp/ and mach-pxa/ into the same mach-pxa
-   directory. The plat-pxa/ would therefore disappear.
 
 Credits
 -------

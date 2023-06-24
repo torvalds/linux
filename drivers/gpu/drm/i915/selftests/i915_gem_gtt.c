@@ -742,7 +742,7 @@ static int pot_hole(struct i915_address_space *vm,
 		u64 addr;
 
 		for (addr = round_up(hole_start + min_alignment, step) - min_alignment;
-		     addr <= round_down(hole_end - (2 * min_alignment), step) - min_alignment;
+		     hole_end > addr && hole_end - addr >= 2 * min_alignment;
 		     addr += step) {
 			err = i915_vma_pin(vma, 0, 0, addr | flags);
 			if (err) {
@@ -1080,7 +1080,7 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	bool is_stolen = mr->type == INTEL_MEMORY_STOLEN_SYSTEM ||
 			 mr->type == INTEL_MEMORY_STOLEN_LOCAL;
 
-	obj = i915_gem_object_create_region(mr, size, 0, 0);
+	obj = i915_gem_object_create_region(mr, size, 0, I915_BO_ALLOC_GPU_ONLY);
 	if (IS_ERR(obj)) {
 		/* if iGVT-g or DMAR is active, stolen mem will be uninitialized */
 		if (PTR_ERR(obj) == -ENODEV && is_stolen)
@@ -1112,10 +1112,16 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	expected_vma_size = round_up(size, 1 << (ffs(vma->resource->page_sizes_gtt) - 1));
 	expected_node_size = expected_vma_size;
 
-	if (NEEDS_COMPACT_PT(vm->i915) && i915_gem_object_is_lmem(obj)) {
-		/* compact-pt should expand lmem node to 2MB */
+	if (HAS_64K_PAGES(vm->i915) && i915_gem_object_is_lmem(obj)) {
+		/*
+		 * The compact-pt should expand lmem node to 2MB for the ppGTT,
+		 * for all other cases we should only expect 64K.
+		 */
 		expected_vma_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
-		expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_2M);
+		if (NEEDS_COMPACT_PT(vm->i915) && !i915_is_ggtt(vm))
+			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_2M);
+		else
+			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
 	}
 
 	if (vma->size != expected_vma_size || vma->node.size != expected_node_size) {
@@ -1150,7 +1156,7 @@ static int misaligned_pin(struct i915_address_space *vm,
 		flags |= PIN_GLOBAL;
 
 	for_each_memory_region(mr, vm->i915, id) {
-		u64 min_alignment = i915_vm_min_alignment(vm, (enum intel_memory_type)id);
+		u64 min_alignment = i915_vm_min_alignment(vm, mr->type);
 		u64 size = min_alignment;
 		u64 addr = round_down(hole_start + (hole_size / 2), min_alignment);
 
@@ -1205,7 +1211,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 		goto out_free;
 	}
 	GEM_BUG_ON(offset_in_page(ppgtt->vm.total));
-	GEM_BUG_ON(!atomic_read(&ppgtt->vm.open));
+	assert_vm_alive(&ppgtt->vm);
 
 	err = func(&ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
@@ -1438,7 +1444,7 @@ static void track_vma_bind(struct i915_vma *vma)
 	vma->resource->bi.pages = vma->pages;
 
 	mutex_lock(&vma->vm->mutex);
-	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
+	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	mutex_unlock(&vma->vm->mutex);
 }
 
@@ -2318,5 +2324,5 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(offset_in_page(to_gt(i915)->ggtt->vm.total));
 
-	return i915_subtests(tests, i915);
+	return i915_live_subtests(tests, i915);
 }

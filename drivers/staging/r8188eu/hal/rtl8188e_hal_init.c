@@ -13,10 +13,14 @@
 static void iol_mode_enable(struct adapter *padapter, u8 enable)
 {
 	u8 reg_0xf0 = 0;
+	int res;
 
 	if (enable) {
 		/* Enable initial offload */
-		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
+		res = rtw_read8(padapter, REG_SYS_CFG, &reg_0xf0);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_SYS_CFG, reg_0xf0 | SW_OFFLOAD_EN);
 
 		if (!padapter->bFWReady)
@@ -24,7 +28,10 @@ static void iol_mode_enable(struct adapter *padapter, u8 enable)
 
 	} else {
 		/* disable initial offload */
-		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
+		res = rtw_read8(padapter, REG_SYS_CFG, &reg_0xf0);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_SYS_CFG, reg_0xf0 & ~SW_OFFLOAD_EN);
 	}
 }
@@ -33,19 +40,32 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 {
 	s32 status = _FAIL;
 	u8 reg_0x88 = 0;
-	u32 start = 0, passing_time = 0;
+	unsigned long timeout;
+	int res;
 
 	control = control & 0x0f;
-	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
+	res = rtw_read8(padapter, REG_HMEBOX_E0, &reg_0x88);
+	if (res)
+		return _FAIL;
+
 	rtw_write8(padapter, REG_HMEBOX_E0,  reg_0x88 | control);
 
-	start = jiffies;
-	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
-	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
-		;
-	}
+	timeout = jiffies + msecs_to_jiffies(1000);
 
-	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
+	do {
+		res = rtw_read8(padapter, REG_HMEBOX_E0, &reg_0x88);
+		if (res)
+			continue;
+
+		if (!(reg_0x88 & control))
+			break;
+
+	} while (time_before(jiffies, timeout));
+
+	res = rtw_read8(padapter, REG_HMEBOX_E0, &reg_0x88);
+	if (res)
+		return _FAIL;
+
 	status = (reg_0x88 & control) ? _FAIL : _SUCCESS;
 	if (reg_0x88 & control << 4)
 		status = _FAIL;
@@ -63,7 +83,7 @@ static s32 iol_InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 }
 
 static void
-efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
+efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 {
 	u8 *efuseTbl = NULL;
 	u8 rtemp8;
@@ -71,7 +91,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	u8 offset, wren;
 	u16	i, j;
 	u16	**eFuseWord = NULL;
-	u16	efuse_utilized = 0;
 	u8 u1temp = 0;
 
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
@@ -93,7 +112,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	/*  */
 	rtemp8 = *(phymap + eFuse_Addr);
 	if (rtemp8 != 0xFF) {
-		efuse_utilized++;
 		eFuse_Addr++;
 	} else {
 		goto exit;
@@ -131,13 +149,11 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 				if (!(wren & 0x01)) {
 					rtemp8 = *(phymap + eFuse_Addr);
 					eFuse_Addr++;
-					efuse_utilized++;
 					eFuseWord[offset][i] = (rtemp8 & 0xff);
 					if (eFuse_Addr >= EFUSE_REAL_CONTENT_LEN_88E)
 						break;
 					rtemp8 = *(phymap + eFuse_Addr);
 					eFuse_Addr++;
-					efuse_utilized++;
 					eFuseWord[offset][i] |= (((u16)rtemp8 << 8) & 0xff00);
 
 					if (eFuse_Addr >= EFUSE_REAL_CONTENT_LEN_88E)
@@ -150,7 +166,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 		rtemp8 = *(phymap + eFuse_Addr);
 
 		if (rtemp8 != 0xFF && (eFuse_Addr < EFUSE_REAL_CONTENT_LEN_88E)) {
-			efuse_utilized++;
 			eFuse_Addr++;
 		}
 	}
@@ -168,60 +183,70 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	/*  */
 	/*  4. Copy from Efuse map to output pointer memory!!! */
 	/*  */
-	for (i = 0; i < _size_byte; i++)
-		pbuf[i] = efuseTbl[_offset + i];
-
-	/*  */
-	/*  5. Calculate Efuse utilization. */
-	/*  */
+	memcpy(pbuf, efuseTbl, _size_byte);
 
 exit:
 	kfree(efuseTbl);
 	kfree(eFuseWord);
 }
 
-static void efuse_read_phymap_from_txpktbuf(
+/* FIXME: add error handling in callers */
+static int efuse_read_phymap_from_txpktbuf(
 	struct adapter  *adapter,
-	int bcnhead,	/* beacon head, where FW store len(2-byte) and efuse physical map. */
 	u8 *content,	/* buffer to store efuse physical map */
 	u16 *size	/* for efuse content: the max byte to read. will update to byte read */
 	)
 {
-	u16 dbg_addr = 0;
-	u32 start  = 0, passing_time = 0;
+	unsigned long timeout;
 	__le32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
-	int i = 0;
+	int i = 0, res;
 	u16 limit = *size;
-
+	u8 reg;
 	u8 *pos = content;
-
-	if (bcnhead < 0) /* if not valid */
-		bcnhead = rtw_read8(adapter, REG_TDECTRL + 1);
+	u32 reg32;
 
 	rtw_write8(adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
 
-	dbg_addr = bcnhead * 128 / 8; /* 8-bytes addressing */
-
 	while (1) {
-		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr + i);
+		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
-		start = jiffies;
-		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) &&
-		       (passing_time = rtw_get_passing_time_ms(start)) < 1000)
-			rtw_usleep_os(100);
+		timeout = jiffies + msecs_to_jiffies(1000);
+		do {
+			res = rtw_read8(adapter, REG_TXPKTBUF_DBG, &reg);
+			if (res)
+				continue;
+
+			if (reg)
+				break;
+
+			msleep(1);
+		} while (time_before(jiffies, timeout));
 
 		/* data from EEPROM needs to be in LE */
-		lo32 = cpu_to_le32(rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L));
-		hi32 = cpu_to_le32(rtw_read32(adapter, REG_PKTBUF_DBG_DATA_H));
+		res = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L, &reg32);
+		if (res)
+			return res;
+
+		lo32 = cpu_to_le32(reg32);
+
+		res = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_H, &reg32);
+		if (res)
+			return res;
+
+		hi32 = cpu_to_le32(reg32);
 
 		if (i == 0) {
+			u16 reg;
+
 			/* Although lenc is only used in a debug statement,
 			 * do not remove it as the rtw_read16() call consumes
 			 * 2 bytes from the EEPROM source.
 			 */
-			rtw_read16(adapter, REG_PKTBUF_DBG_DATA_L);
+			res = rtw_read16(adapter, REG_PKTBUF_DBG_DATA_L, &reg);
+			if (res)
+				return res;
 
 			len = le32_to_cpu(lo32) & 0x0000ffff;
 
@@ -248,21 +273,23 @@ static void efuse_read_phymap_from_txpktbuf(
 	}
 	rtw_write8(adapter, REG_PKT_BUFF_ACCESS_CTRL, DISABLE_TRXPKT_BUF_ACCESS);
 	*size = count;
+
+	return 0;
 }
 
-static s32 iol_read_efuse(struct adapter *padapter, u8 txpktbuf_bndy, u16 offset, u16 size_byte, u8 *logical_map)
+static s32 iol_read_efuse(struct adapter *padapter, u16 size_byte, u8 *logical_map)
 {
 	s32 status = _FAIL;
 	u8 physical_map[512];
 	u16 size = 512;
 
-	rtw_write8(padapter, REG_TDECTRL + 1, txpktbuf_bndy);
+	rtw_write8(padapter, REG_TDECTRL + 1, 0);
 	memset(physical_map, 0xFF, 512);
 	rtw_write8(padapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
 	status = iol_execute(padapter, CMD_READ_EFUSE_MAP);
 	if (status == _SUCCESS)
-		efuse_read_phymap_from_txpktbuf(padapter, txpktbuf_bndy, physical_map, &size);
-	efuse_phymap_to_logical(physical_map, offset, size_byte, logical_map);
+		efuse_read_phymap_from_txpktbuf(padapter, physical_map, &size);
+	efuse_phymap_to_logical(physical_map, size_byte, logical_map);
 	return status;
 }
 
@@ -323,25 +350,35 @@ exit:
 void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState)
 {
 	u16	tmpV16;
+	int res;
 
 	if (PwrState) {
 		rtw_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
 		/*  1.2V Power: From VDDON with Power Cut(0x0000h[15]), defualt valid */
-		tmpV16 = rtw_read16(pAdapter, REG_SYS_ISO_CTRL);
+		res = rtw_read16(pAdapter, REG_SYS_ISO_CTRL, &tmpV16);
+		if (res)
+			return;
+
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;
 			rtw_write16(pAdapter, REG_SYS_ISO_CTRL, tmpV16);
 		}
 		/*  Reset: 0x0000h[28], default valid */
-		tmpV16 =  rtw_read16(pAdapter, REG_SYS_FUNC_EN);
+		res = rtw_read16(pAdapter, REG_SYS_FUNC_EN, &tmpV16);
+		if (res)
+			return;
+
 		if (!(tmpV16 & FEN_ELDR)) {
 			tmpV16 |= FEN_ELDR;
 			rtw_write16(pAdapter, REG_SYS_FUNC_EN, tmpV16);
 		}
 
 		/*  Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock from ANA, default valid */
-		tmpV16 = rtw_read16(pAdapter, REG_SYS_CLKR);
+		res = rtw_read16(pAdapter, REG_SYS_CLKR, &tmpV16);
+		if (res)
+			return;
+
 		if ((!(tmpV16 & LOADER_CLK_EN))  || (!(tmpV16 & ANA8M))) {
 			tmpV16 |= (LOADER_CLK_EN | ANA8M);
 			rtw_write16(pAdapter, REG_SYS_CLKR, tmpV16);
@@ -472,26 +509,55 @@ exit:
 	kfree(eFuseWord);
 }
 
-static void ReadEFuseByIC(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf)
 {
 	int ret = _FAIL;
 	if (rtw_IOL_applied(Adapter)) {
 		rtl8188eu_InitPowerOn(Adapter);
 
 		iol_mode_enable(Adapter, 1);
-		ret = iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
+		ret = iol_read_efuse(Adapter, _size_byte, pbuf);
 		iol_mode_enable(Adapter, 0);
 
 		if (_SUCCESS == ret)
 			return;
 	}
 
-	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf);
+	Hal_EfuseReadEFuse88E(Adapter, 0, _size_byte, pbuf);
 }
 
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
+static void dump_chip_info(struct adapter *adapter, struct HAL_VERSION chip_vers)
 {
-	ReadEFuseByIC(Adapter, _offset, _size_byte, pbuf);
+	struct net_device *netdev = adapter->pnetdev;
+	char *cut = NULL;
+	char buf[25];
+
+	switch (chip_vers.CUTVersion) {
+	case A_CUT_VERSION:
+		cut = "A_CUT";
+		break;
+	case B_CUT_VERSION:
+		cut = "B_CUT";
+		break;
+	case C_CUT_VERSION:
+		cut = "C_CUT";
+		break;
+	case D_CUT_VERSION:
+		cut = "D_CUT";
+		break;
+	case E_CUT_VERSION:
+		cut = "E_CUT";
+		break;
+	default:
+		snprintf(buf, sizeof(buf), "UNKNOWN_CUT(%d)", chip_vers.CUTVersion);
+		cut = buf;
+		break;
+	}
+
+	netdev_dbg(netdev, "Chip Version Info: CHIP_8188E_%s_%s_%s_1T1R_RomVer(%d)\n",
+		   IS_NORMAL_CHIP(chip_vers) ? "Normal_Chip" : "Test_Chip",
+		   IS_CHIP_VENDOR_TSMC(chip_vers) ? "TSMC" : "UMC",
+		   cut, 0);
 }
 
 void rtl8188e_read_chip_version(struct adapter *padapter)
@@ -499,15 +565,18 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 	u32				value32;
 	struct HAL_VERSION		ChipVersion;
 	struct hal_data_8188e *pHalData = &padapter->haldata;
+	int res;
 
-	value32 = rtw_read32(padapter, REG_SYS_CFG);
+	res = rtw_read32(padapter, REG_SYS_CFG, &value32);
+	if (res)
+		return;
+
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
 
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK) >> CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
-	ChipVersion.ROMVer = 0;	/*  ROM code version. */
 
-	dump_chip_info(ChipVersion);
+	dump_chip_info(padapter, ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
 }
@@ -528,10 +597,17 @@ void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet)
 
 void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 {
+	int res;
+	u8 reg;
+
+	res = rtw_read8(adapter, rOFDM0_RxDSP + 1, &reg);
+	if (res)
+		return;
+
 	if (enable)
-		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) | BIT(1));
+		rtw_write8(adapter, rOFDM0_RxDSP + 1, reg | BIT(1));
 	else
-		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
+		rtw_write8(adapter, rOFDM0_RxDSP + 1, reg & ~BIT(1));
 }
 
 /*  */
@@ -541,26 +617,24 @@ void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 /*  */
 static s32 _LLTWrite(struct adapter *padapter, u32 address, u32 data)
 {
-	s32	status = _SUCCESS;
-	s32	count = 0;
+	s32	count;
 	u32	value = _LLT_INIT_ADDR(address) | _LLT_INIT_DATA(data) | _LLT_OP(_LLT_WRITE_ACCESS);
 	u16	LLTReg = REG_LLT_INIT;
+	int res;
 
 	rtw_write32(padapter, LLTReg, value);
 
 	/* polling */
-	do {
-		value = rtw_read32(padapter, LLTReg);
+	for (count = 0; count <= POLLING_LLT_THRESHOLD; count++) {
+		res = rtw_read32(padapter, LLTReg, &value);
+		if (res)
+			continue;
+
 		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
 			break;
+	}
 
-		if (count > POLLING_LLT_THRESHOLD) {
-			status = _FAIL;
-			break;
-		}
-	} while (count++);
-
-	return status;
+	return count > POLLING_LLT_THRESHOLD ? _FAIL : _SUCCESS;
 }
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
@@ -609,6 +683,7 @@ Hal_EfuseParseIDCode88E(
 	)
 {
 	struct eeprom_priv *pEEPROM = &padapter->eeprompriv;
+	struct net_device *netdev = padapter->pnetdev;
 	u16			EEPROMId;
 
 	/*  Check 0x8129 again for making sure autoload status!! */
@@ -620,7 +695,7 @@ Hal_EfuseParseIDCode88E(
 		pEEPROM->bautoload_fail_flag = false;
 	}
 
-	pr_info("EEPROM ID = 0x%04x\n", EEPROMId);
+	netdev_dbg(netdev, "EEPROM ID = 0x%04x\n", EEPROMId);
 }
 
 static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, u8 *PROMContent, bool AutoLoadFail)

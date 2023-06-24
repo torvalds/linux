@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HAL_H
@@ -31,12 +32,12 @@ struct ath11k_base;
 #define HAL_DSCP_TID_TBL_SIZE			24
 
 /* calculate the register address from bar0 of shadow register x */
-#define HAL_SHADOW_BASE_ADDR			0x000008fc
+#define HAL_SHADOW_BASE_ADDR(ab)		ab->hw_params.regs->hal_shadow_base_addr
 #define HAL_SHADOW_NUM_REGS			36
 #define HAL_HP_OFFSET_IN_REG_START		1
 #define HAL_OFFSET_FROM_HP_TO_TP		4
 
-#define HAL_SHADOW_REG(x) (HAL_SHADOW_BASE_ADDR + (4 * (x)))
+#define HAL_SHADOW_REG(ab, x) (HAL_SHADOW_BASE_ADDR(ab) + (4 * (x)))
 
 /* WCSS Relative address */
 #define HAL_SEQ_WCSS_UMAC_OFFSET		0x00a00000
@@ -120,7 +121,7 @@ struct ath11k_base;
 #define HAL_REO1_DEST_RING_CTRL_IX_1		0x00000008
 #define HAL_REO1_DEST_RING_CTRL_IX_2		0x0000000c
 #define HAL_REO1_DEST_RING_CTRL_IX_3		0x00000010
-#define HAL_REO1_MISC_CTL			0x00000630
+#define HAL_REO1_MISC_CTL(ab)			ab->hw_params.regs->hal_reo1_misc_ctl
 #define HAL_REO1_RING_BASE_LSB(ab)		ab->hw_params.regs->hal_reo1_ring_base_lsb
 #define HAL_REO1_RING_BASE_MSB(ab)		ab->hw_params.regs->hal_reo1_ring_base_msb
 #define HAL_REO1_RING_ID(ab)			ab->hw_params.regs->hal_reo1_ring_id
@@ -180,16 +181,18 @@ struct ath11k_base;
 #define HAL_REO_TCL_RING_HP(ab)			ab->hw_params.regs->hal_reo_tcl_ring_hp
 
 /* REO CMD R0 address */
-#define HAL_REO_CMD_RING_BASE_LSB		0x00000194
+#define HAL_REO_CMD_RING_BASE_LSB(ab) \
+	ab->hw_params.regs->hal_reo_cmd_ring_base_lsb
 
 /* REO CMD R2 address */
-#define HAL_REO_CMD_HP				0x00003020
+#define HAL_REO_CMD_HP(ab)			ab->hw_params.regs->hal_reo_cmd_ring_hp
 
 /* SW2REO R0 address */
-#define HAL_SW2REO_RING_BASE_LSB		0x000001ec
+#define HAL_SW2REO_RING_BASE_LSB(ab) \
+	ab->hw_params.regs->hal_sw2reo_ring_base_lsb
 
 /* SW2REO R2 address */
-#define HAL_SW2REO_RING_HP			0x00003028
+#define HAL_SW2REO_RING_HP(ab)			ab->hw_params.regs->hal_sw2reo_ring_hp
 
 /* CE ring R0 address */
 #define HAL_CE_DST_RING_BASE_LSB		0x00000000
@@ -240,7 +243,7 @@ struct ath11k_base;
 #define HAL_WBM0_RELEASE_RING_HP		0x000030c0
 #define HAL_WBM1_RELEASE_RING_HP		0x000030c8
 
-/* TCL ring feild mask and offset */
+/* TCL ring field mask and offset */
 #define HAL_TCL1_RING_BASE_MSB_RING_SIZE		GENMASK(27, 8)
 #define HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB	GENMASK(7, 0)
 #define HAL_TCL1_RING_ID_ENTRY_SIZE			GENMASK(7, 0)
@@ -265,7 +268,7 @@ struct ath11k_base;
 #define HAL_TCL1_RING_FIELD_DSCP_TID_MAP6		GENMASK(20, 18)
 #define HAL_TCL1_RING_FIELD_DSCP_TID_MAP7		GENMASK(23, 21)
 
-/* REO ring feild mask and offset */
+/* REO ring field mask and offset */
 #define HAL_REO1_RING_BASE_MSB_RING_SIZE		GENMASK(27, 8)
 #define HAL_REO1_RING_BASE_MSB_RING_BASE_ADDR_MSB	GENMASK(7, 0)
 #define HAL_REO1_RING_ID_RING_ID			GENMASK(15, 8)
@@ -386,6 +389,7 @@ enum hal_srng_ring_id {
 	HAL_SRNG_RING_ID_WBM2SW1_RELEASE,
 	HAL_SRNG_RING_ID_WBM2SW2_RELEASE,
 	HAL_SRNG_RING_ID_WBM2SW3_RELEASE,
+	HAL_SRNG_RING_ID_WBM2SW4_RELEASE,
 
 	HAL_SRNG_RING_ID_UMAC_ID_END = 127,
 	HAL_SRNG_RING_ID_LMAC1_ID_START,
@@ -447,13 +451,13 @@ enum hal_ring_type {
 
 /**
  * enum hal_reo_cmd_type: Enum for REO command type
- * @CMD_GET_QUEUE_STATS: Get REO queue status/stats
- * @CMD_FLUSH_QUEUE: Flush all frames in REO queue
- * @CMD_FLUSH_CACHE: Flush descriptor entries in the cache
- * @CMD_UNBLOCK_CACHE: Unblock a descriptor's address that was blocked
+ * @HAL_REO_CMD_GET_QUEUE_STATS: Get REO queue status/stats
+ * @HAL_REO_CMD_FLUSH_QUEUE: Flush all frames in REO queue
+ * @HAL_REO_CMD_FLUSH_CACHE: Flush descriptor entries in the cache
+ * @HAL_REO_CMD_UNBLOCK_CACHE: Unblock a descriptor's address that was blocked
  *      earlier with a 'REO_FLUSH_CACHE' command
- * @CMD_FLUSH_TIMEOUT_LIST: Flush buffers/descriptors from timeout list
- * @CMD_UPDATE_RX_REO_QUEUE: Update REO queue settings
+ * @HAL_REO_CMD_FLUSH_TIMEOUT_LIST: Flush buffers/descriptors from timeout list
+ * @HAL_REO_CMD_UPDATE_RX_QUEUE: Update REO queue settings
  */
 enum hal_reo_cmd_type {
 	HAL_REO_CMD_GET_QUEUE_STATS     = 0,
@@ -632,7 +636,7 @@ struct hal_srng {
 	} u;
 };
 
-/* Interrupt mitigation - Batch threshold in terms of numer of frames */
+/* Interrupt mitigation - Batch threshold in terms of number of frames */
 #define HAL_SRNG_INT_BATCH_THRESHOLD_TX 256
 #define HAL_SRNG_INT_BATCH_THRESHOLD_RX 128
 #define HAL_SRNG_INT_BATCH_THRESHOLD_OTHER 1
@@ -675,6 +679,7 @@ enum hal_rx_buf_return_buf_manager {
 	HAL_RX_BUF_RBM_SW1_BM,
 	HAL_RX_BUF_RBM_SW2_BM,
 	HAL_RX_BUF_RBM_SW3_BM,
+	HAL_RX_BUF_RBM_SW4_BM,
 };
 
 #define HAL_SRNG_DESC_LOOP_CNT		0xf0000000
@@ -870,8 +875,7 @@ struct hal_reo_status {
 	} u;
 };
 
-/**
- * HAL context to be used to access SRNG APIs (currently used by data path
+/* HAL context to be used to access SRNG APIs (currently used by data path
  * and transport (CE) modules)
  */
 struct ath11k_hal {

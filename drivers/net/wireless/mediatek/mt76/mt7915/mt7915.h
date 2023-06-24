@@ -10,7 +10,6 @@
 #include "regs.h"
 
 #define MT7915_MAX_INTERFACES		19
-#define MT7915_MAX_WMM_SETS		4
 #define MT7915_WTBL_SIZE		288
 #define MT7916_WTBL_SIZE		544
 #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
@@ -66,7 +65,8 @@
 
 #define MT7915_MAX_TWT_AGRT		16
 #define MT7915_MAX_STA_TWT_AGRT		8
-#define MT7915_MAX_QUEUE		(__MT_RXQ_MAX + __MT_MCUQ_MAX + 2)
+#define MT7915_MIN_TWT_DUR 64
+#define MT7915_MAX_QUEUE		(MT_RXQ_BAND2 + __MT_MCUQ_MAX + 2)
 
 struct mt7915_vif;
 struct mt7915_sta;
@@ -126,8 +126,6 @@ struct mt7915_sta {
 	unsigned long changed;
 	unsigned long jiffies;
 	unsigned long ampdu_state;
-
-	struct mt76_sta_stats stats;
 
 	struct mt76_connac_sta_key_conf bip;
 
@@ -199,8 +197,15 @@ struct mib_stats {
 	/* rx stats */
 	u32 rx_fifo_full_cnt;
 	u32 channel_idle_cnt;
+	u32 primary_cca_busy_time;
+	u32 secondary_cca_busy_time;
+	u32 primary_energy_detect_time;
+	u32 cck_mdrdy_time;
+	u32 ofdm_mdrdy_time;
+	u32 green_mdrdy_time;
 	u32 rx_vector_mismatch_cnt;
 	u32 rx_delimiter_fail_cnt;
+	u32 rx_mrdy_cnt;
 	u32 rx_len_mismatch_cnt;
 	u32 rx_mpdu_cnt;
 	u32 rx_ampdu_cnt;
@@ -246,6 +251,8 @@ struct mt7915_phy {
 	u8 slottime;
 
 	u8 rdd_state;
+
+	u32 trb_ts;
 
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
@@ -309,9 +316,6 @@ struct mt7915_dev {
 	bool flash_mode;
 	bool muru_debug;
 	bool ibf;
-	u8 fw_debug_wm;
-	u8 fw_debug_wa;
-	u8 fw_debug_bin;
 
 	struct dentry *debugfs_dir;
 	struct rchan *relay_fwlog;
@@ -319,7 +323,13 @@ struct mt7915_dev {
 	void *cal;
 
 	struct {
-		u8 table_mask;
+		u8 debug_wm;
+		u8 debug_wa;
+		u8 debug_bin;
+	} fw;
+
+	struct {
+		u16 table_mask;
 		u8 n_agrt;
 	} twt;
 
@@ -333,20 +343,6 @@ enum {
 	WFDMA1,
 	WFDMA_EXT,
 	__MT_WFDMA_MAX,
-};
-
-enum {
-	MT_CTX0,
-	MT_HIF0 = 0x0,
-
-	MT_LMAC_AC00 = 0x0,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0,
-	MT_LMAC_BCN0,
-	MT_LMAC_PSMP0,
 };
 
 enum {
@@ -390,7 +386,7 @@ mt7915_hw_dev(struct ieee80211_hw *hw)
 static inline struct mt7915_phy *
 mt7915_ext_phy(struct mt7915_dev *dev)
 {
-	struct mt76_phy *phy = dev->mt76.phy2;
+	struct mt76_phy *phy = dev->mt76.phys[MT_BAND1];
 
 	if (!phy)
 		return NULL;
@@ -429,8 +425,11 @@ static inline void mt7986_wmac_disable(struct mt7915_dev *dev)
 #endif
 struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 				     void __iomem *mem_base, u32 device_id);
+void mt7915_wfsys_reset(struct mt7915_dev *dev);
 irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
 u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
+u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+
 int mt7915_register_device(struct mt7915_dev *dev);
 void mt7915_unregister_device(struct mt7915_dev *dev);
 int mt7915_eeprom_init(struct mt7915_dev *dev);
@@ -440,7 +439,7 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 				   struct ieee80211_channel *chan,
 				   u8 chain_idx);
 s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band);
-int mt7915_dma_init(struct mt7915_dev *dev);
+int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2);
 void mt7915_dma_prefetch(struct mt7915_dev *dev);
 void mt7915_dma_cleanup(struct mt7915_dev *dev);
 int mt7915_mcu_init(struct mt7915_dev *dev);
@@ -463,7 +462,7 @@ int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,
 int mt7915_mcu_update_bss_color(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 				struct cfg80211_he_bss_color *he_bss_color);
 int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  int enable);
+			  int enable, u32 changed);
 int mt7915_mcu_add_obss_spr(struct mt7915_dev *dev, struct ieee80211_vif *vif,
                             bool enable);
 int mt7915_mcu_add_rate_ctrl(struct mt7915_dev *dev, struct ieee80211_vif *vif,
@@ -485,7 +484,6 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
 		       bool hdr_trans);
 int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
 			      u8 en);
-int mt7915_mcu_set_scs(struct mt7915_dev *dev, u8 band, bool enable);
 int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
 int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable);
 int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);
@@ -506,6 +504,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
 				     struct cfg80211_chan_def *chandef);
+int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set);
 int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
 int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
 int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
@@ -548,9 +547,10 @@ bool mt7915_mac_wtbl_update(struct mt7915_dev *dev, int idx, u32 mask);
 void mt7915_mac_reset_counters(struct mt7915_phy *phy);
 void mt7915_mac_cca_stats_reset(struct mt7915_phy *phy);
 void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool ext_phy);
-void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
+void mt7915_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
-			   struct ieee80211_key_conf *key, bool beacon);
+			   struct ieee80211_key_conf *key,
+			   enum mt76_txq_id qid, u32 changed);
 void mt7915_mac_set_timing(struct mt7915_phy *phy);
 int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
@@ -570,9 +570,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info);
-void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 void mt7915_tx_token_put(struct mt7915_dev *dev);
-int mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len);

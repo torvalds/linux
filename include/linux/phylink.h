@@ -21,6 +21,35 @@ enum {
 	MLO_AN_FIXED,	/* Fixed-link mode */
 	MLO_AN_INBAND,	/* In-band protocol */
 
+	/* MAC_SYM_PAUSE and MAC_ASYM_PAUSE are used when configuring our
+	 * autonegotiation advertisement. They correspond to the PAUSE and
+	 * ASM_DIR bits defined by 802.3, respectively.
+	 *
+	 * The following table lists the values of tx_pause and rx_pause which
+	 * might be requested in mac_link_up. The exact values depend on either
+	 * the results of autonegotation (if MLO_PAUSE_AN is set) or user
+	 * configuration (if MLO_PAUSE_AN is not set).
+	 *
+	 * MAC_SYM_PAUSE MAC_ASYM_PAUSE MLO_PAUSE_AN tx_pause/rx_pause
+	 * ============= ============== ============ ==================
+	 *             0              0            0 0/0
+	 *             0              0            1 0/0
+	 *             0              1            0 0/0, 0/1, 1/0, 1/1
+	 *             0              1            1 0/0,      1/0
+	 *             1              0            0 0/0,           1/1
+	 *             1              0            1 0/0,           1/1
+	 *             1              1            0 0/0, 0/1, 1/0, 1/1
+	 *             1              1            1 0/0, 0/1,      1/1
+	 *
+	 * If you set MAC_ASYM_PAUSE, the user may request any combination of
+	 * tx_pause and rx_pause. You do not have to support these
+	 * combinations.
+	 *
+	 * However, you should support combinations of tx_pause and rx_pause
+	 * which might be the result of autonegotation. For example, don't set
+	 * MAC_SYM_PAUSE unless your device can support tx_pause and rx_pause
+	 * at the same time.
+	 */
 	MAC_SYM_PAUSE	= BIT(0),
 	MAC_ASYM_PAUSE	= BIT(1),
 	MAC_10HD	= BIT(2),
@@ -59,6 +88,10 @@ static inline bool phylink_autoneg_inband(unsigned int mode)
  * @speed: link speed, one of the SPEED_* constants.
  * @duplex: link duplex mode, one of DUPLEX_* constants.
  * @pause: link pause state, described by MLO_PAUSE_* constants.
+ * @rate_matching: rate matching being performed, one of the RATE_MATCH_*
+ *   constants. If rate matching is taking place, then the speed/duplex of
+ *   the medium link mode (@speed and @duplex) and the speed/duplex of the phy
+ *   interface mode (@interface) are different.
  * @link: true if the link is up.
  * @an_enabled: true if autonegotiation is enabled/desired.
  * @an_complete: true if autonegotiation has completed.
@@ -70,6 +103,7 @@ struct phylink_link_state {
 	int speed;
 	int duplex;
 	int pause;
+	int rate_matching;
 	unsigned int link:1;
 	unsigned int an_enabled:1;
 	unsigned int an_complete:1;
@@ -88,6 +122,7 @@ enum phylink_op_type {
  *	(See commit 7cceb599d15d ("net: phylink: avoid mac_config calls")
  * @poll_fixed_state: if true, starts link_poll,
  *		      if MAC link is at %MLO_AN_FIXED mode.
+ * @mac_managed_pm: if true, indicate the MAC driver is responsible for PHY PM.
  * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
  * @get_fixed_state: callback to execute to determine the fixed link state,
  *		     if MAC link is at %MLO_AN_FIXED mode.
@@ -100,6 +135,7 @@ struct phylink_config {
 	enum phylink_op_type type;
 	bool legacy_pre_march2020;
 	bool poll_fixed_state;
+	bool mac_managed_pm;
 	bool ovr_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
 				struct phylink_link_state *state);
@@ -159,11 +195,6 @@ struct phylink_mac_ops {
  * because the MAC is unable to BaseX mode. This is more about
  * clearing unsupported speeds and duplex settings. The port modes
  * should not be cleared; phylink_set_port_modes() will help with this.
- *
- * If the @state->interface mode is %PHY_INTERFACE_MODE_1000BASEX
- * or %PHY_INTERFACE_MODE_2500BASEX, select the appropriate mode
- * based on @state->advertising and/or @state->speed and update
- * @state->interface accordingly. See phylink_helper_basex_speed().
  *
  * When @config->supported_interfaces has been set, phylink will iterate
  * over the supported interfaces to determine the full capability of the
@@ -523,8 +554,10 @@ void pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 		 phy_interface_t interface, int speed, int duplex);
 #endif
 
-void phylink_get_linkmodes(unsigned long *linkmodes, phy_interface_t interface,
-			   unsigned long mac_capabilities);
+void phylink_caps_to_linkmodes(unsigned long *linkmodes, unsigned long caps);
+unsigned long phylink_get_capabilities(phy_interface_t interface,
+				       unsigned long mac_capabilities,
+				       int rate_matching);
 void phylink_generic_validate(struct phylink_config *config,
 			      unsigned long *supported,
 			      struct phylink_link_state *state);
@@ -579,7 +612,6 @@ int phylink_speed_up(struct phylink *pl);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
-void phylink_helper_basex_speed(struct phylink_link_state *state);
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 				      u16 bmsr, u16 lpa);

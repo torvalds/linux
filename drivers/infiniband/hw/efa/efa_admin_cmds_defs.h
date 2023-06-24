@@ -444,7 +444,10 @@ struct efa_admin_create_cq_cmd {
 	/*
 	 * 4:0 : cq_entry_size_words - size of CQ entry in
 	 *    32-bit words, valid values: 4, 8.
-	 * 7:5 : reserved7 - MBZ
+	 * 5 : set_src_addr - If set, source address will be
+	 *    filled on RX completions from unknown senders.
+	 *    Requires 8 words CQ entry size.
+	 * 7:6 : reserved7 - MBZ
 	 */
 	u8 cq_caps_2;
 
@@ -980,6 +983,7 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_MASK BIT(5)
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
+#define EFA_ADMIN_CREATE_CQ_CMD_SET_SRC_ADDR_MASK           BIT(5)
 
 /* create_cq_resp */
 #define EFA_ADMIN_CREATE_CQ_RESP_DB_VALID_MASK              BIT(0)

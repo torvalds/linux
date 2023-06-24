@@ -114,7 +114,7 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	bool powerdown;
 	int ret;
 
-	ret = strtobool(buf, &powerdown);
+	ret = kstrtobool(buf, &powerdown);
 	if (ret)
 		return ret;
 
@@ -575,11 +575,9 @@ static int ad5446_i2c_probe(struct i2c_client *i2c,
 		&ad5446_i2c_chip_info[id->driver_data]);
 }
 
-static int ad5446_i2c_remove(struct i2c_client *i2c)
+static void ad5446_i2c_remove(struct i2c_client *i2c)
 {
 	ad5446_remove(&i2c->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id ad5446_i2c_ids[] = {

@@ -4,15 +4,117 @@
  */
 
 #include "i915_drv.h"
+#include "i915_pci.h"
 #include "i915_reg.h"
 #include "intel_memory_region.h"
+#include "intel_pci_config.h"
 #include "intel_region_lmem.h"
 #include "intel_region_ttm.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
+
+#ifdef CONFIG_64BIT
+static void _release_bars(struct pci_dev *pdev)
+{
+	int resno;
+
+	for (resno = PCI_STD_RESOURCES; resno < PCI_STD_RESOURCE_END; resno++) {
+		if (pci_resource_len(pdev, resno))
+			pci_release_resource(pdev, resno);
+	}
+}
+
+static void
+_resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	int bar_size = pci_rebar_bytes_to_size(size);
+	int ret;
+
+	_release_bars(pdev);
+
+	ret = pci_resize_resource(pdev, resno, bar_size);
+	if (ret) {
+		drm_info(&i915->drm, "Failed to resize BAR%d to %dM (%pe)\n",
+			 resno, 1 << bar_size, ERR_PTR(ret));
+		return;
+	}
+
+	drm_info(&i915->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
+}
+
+static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_bus *root = pdev->bus;
+	struct resource *root_res;
+	resource_size_t rebar_size;
+	resource_size_t current_size;
+	u32 pci_cmd;
+	int i;
+
+	current_size = roundup_pow_of_two(pci_resource_len(pdev, GEN12_LMEM_BAR));
+
+	if (i915->params.lmem_bar_size) {
+		u32 bar_sizes;
+
+		rebar_size = i915->params.lmem_bar_size *
+			(resource_size_t)SZ_1M;
+		bar_sizes = pci_rebar_get_possible_sizes(pdev, GEN12_LMEM_BAR);
+
+		if (rebar_size == current_size)
+			return;
+
+		if (!(bar_sizes & BIT(pci_rebar_bytes_to_size(rebar_size))) ||
+		    rebar_size >= roundup_pow_of_two(lmem_size)) {
+			rebar_size = lmem_size;
+
+			drm_info(&i915->drm,
+				 "Given bar size is not within supported size, setting it to default: %llu\n",
+				 (u64)lmem_size >> 20);
+		}
+	} else {
+		rebar_size = current_size;
+
+		if (rebar_size != roundup_pow_of_two(lmem_size))
+			rebar_size = lmem_size;
+		else
+			return;
+	}
+
+	/* Find out if root bus contains 64bit memory addressing */
+	while (root->parent)
+		root = root->parent;
+
+	pci_bus_for_each_resource(root, root_res, i) {
+		if (root_res && root_res->flags & (IORESOURCE_MEM | IORESOURCE_MEM_64) &&
+		    root_res->start > 0x100000000ull)
+			break;
+	}
+
+	/* pci_resize_resource will fail anyways */
+	if (!root_res) {
+		drm_info(&i915->drm, "Can't resize LMEM BAR - platform support is missing\n");
+		return;
+	}
+
+	/* First disable PCI memory decoding references */
+	pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
+	pci_write_config_dword(pdev, PCI_COMMAND,
+			       pci_cmd & ~PCI_COMMAND_MEMORY);
+
+	_resize_bar(i915, GEN12_LMEM_BAR, rebar_size);
+
+	pci_assign_unassigned_bus_resources(pdev->bus);
+	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
+}
+#else
+static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size) {}
+#endif
 
 static int
 region_lmem_release(struct intel_memory_region *mem)
@@ -93,21 +195,29 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	struct intel_memory_region *mem;
 	resource_size_t min_page_size;
 	resource_size_t io_start;
+	resource_size_t io_size;
 	resource_size_t lmem_size;
 	int err;
 
 	if (!IS_DGFX(i915))
 		return ERR_PTR(-ENODEV);
 
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
+
 	if (HAS_FLAT_CCS(i915)) {
+		resource_size_t lmem_range;
 		u64 tile_stolen, flat_ccs_base;
 
-		lmem_size = pci_resource_len(pdev, 2);
-		flat_ccs_base = intel_gt_read_register(gt, XEHPSDV_FLAT_CCS_BASE_ADDR);
-		flat_ccs_base = (flat_ccs_base >> XEHPSDV_CCS_BASE_SHIFT) * SZ_64K;
+		lmem_range = intel_gt_mcr_read_any(&i915->gt0, XEHP_TILE0_ADDR_RANGE) & 0xFFFF;
+		lmem_size = lmem_range >> XEHP_TILE_LMEM_RANGE_SHIFT;
+		lmem_size *= SZ_1G;
+
+		flat_ccs_base = intel_gt_mcr_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
+		flat_ccs_base = (flat_ccs_base >> XEHP_CCS_BASE_SHIFT) * SZ_64K;
 
 		if (GEM_WARN_ON(lmem_size < flat_ccs_base))
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EIO);
 
 		tile_stolen = lmem_size - flat_ccs_base;
 
@@ -122,10 +232,17 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		lmem_size = intel_uncore_read64(&i915->uncore, GEN12_GSMBASE);
 	}
 
+	i915_resize_lmem_bar(i915, lmem_size);
 
-	io_start = pci_resource_start(pdev, 2);
-	if (GEM_WARN_ON(lmem_size > pci_resource_len(pdev, 2)))
-		return ERR_PTR(-ENODEV);
+	if (i915->params.lmem_size > 0) {
+		lmem_size = min_t(resource_size_t, lmem_size,
+				  mul_u32_u32(i915->params.lmem_size, SZ_1M));
+	}
+
+	io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
+	io_size = min(pci_resource_len(pdev, GEN12_LMEM_BAR), lmem_size);
+	if (!io_size)
+		return ERR_PTR(-EIO);
 
 	min_page_size = HAS_64K_PAGES(i915) ? I915_GTT_PAGE_SIZE_64K :
 						I915_GTT_PAGE_SIZE_4K;
@@ -134,7 +251,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 					 lmem_size,
 					 min_page_size,
 					 io_start,
-					 lmem_size,
+					 io_size,
 					 INTEL_MEMORY_LOCAL,
 					 0,
 					 &intel_region_lmem_ops);
@@ -152,6 +269,10 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		 &mem->io_size);
 	drm_info(&i915->drm, "Local memory available: %pa\n",
 		 &lmem_size);
+
+	if (io_size < lmem_size)
+		drm_info(&i915->drm, "Using a reduced BAR size of %lluMiB. Consider enabling 'Resizable BAR' or similar, if available in the BIOS.\n",
+			 (u64)io_size >> 20);
 
 	return mem;
 

@@ -63,12 +63,12 @@ spider_net_ethtool_get_drvinfo(struct net_device *netdev,
 	card = netdev_priv(netdev);
 
 	/* clear and fill out info */
-	strlcpy(drvinfo->driver, spider_net_driver_name,
+	strscpy(drvinfo->driver, spider_net_driver_name,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "no information",
+	strscpy(drvinfo->version, VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->fw_version, "no information",
 		sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, pci_name(card->pdev),
+	strscpy(drvinfo->bus_info, pci_name(card->pdev),
 		sizeof(drvinfo->bus_info));
 }
 

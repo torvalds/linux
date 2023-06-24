@@ -535,7 +535,7 @@ static void copy_play_buf(struct loopback_pcm *play,
 
 	/* check if playback is draining, trim the capture copy size
 	 * when our pointer is at the end of playback ring buffer */
-	if (runtime->status->state == SNDRV_PCM_STATE_DRAINING &&
+	if (runtime->state == SNDRV_PCM_STATE_DRAINING &&
 	    snd_pcm_playback_hw_avail(runtime) < runtime->buffer_size) { 
 	    	snd_pcm_uframes_t appl_ptr, appl_ptr1, diff;
 		appl_ptr = appl_ptr1 = runtime->control->appl_ptr;
@@ -605,17 +605,18 @@ static unsigned int loopback_jiffies_timer_pos_update
 			cable->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	struct loopback_pcm *dpcm_capt =
 			cable->streams[SNDRV_PCM_STREAM_CAPTURE];
-	unsigned long delta_play = 0, delta_capt = 0;
+	unsigned long delta_play = 0, delta_capt = 0, cur_jiffies;
 	unsigned int running, count1, count2;
 
+	cur_jiffies = jiffies;
 	running = cable->running ^ cable->pause;
 	if (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) {
-		delta_play = jiffies - dpcm_play->last_jiffies;
+		delta_play = cur_jiffies - dpcm_play->last_jiffies;
 		dpcm_play->last_jiffies += delta_play;
 	}
 
 	if (running & (1 << SNDRV_PCM_STREAM_CAPTURE)) {
-		delta_capt = jiffies - dpcm_capt->last_jiffies;
+		delta_capt = cur_jiffies - dpcm_capt->last_jiffies;
 		dpcm_capt->last_jiffies += delta_capt;
 	}
 
@@ -729,7 +730,7 @@ static void loopback_snd_timer_period_elapsed(struct loopback_cable *cable,
 
 	if (event == SNDRV_TIMER_EVENT_MSTOP) {
 		if (!dpcm_play ||
-		    dpcm_play->substream->runtime->status->state !=
+		    dpcm_play->substream->runtime->state !=
 				SNDRV_PCM_STATE_DRAINING) {
 			spin_unlock_irqrestore(&cable->lock, flags);
 			return;

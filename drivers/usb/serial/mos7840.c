@@ -1188,7 +1188,8 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
  *****************************************************************************/
 
 static void mos7840_change_port_settings(struct tty_struct *tty,
-	struct moschip_port *mos7840_port, struct ktermios *old_termios)
+					 struct moschip_port *mos7840_port,
+					 const struct ktermios *old_termios)
 {
 	struct usb_serial_port *port = mos7840_port->port;
 	int baud;
@@ -1330,7 +1331,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 
 static void mos7840_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				const struct ktermios *old_termios)
 {
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;

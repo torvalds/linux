@@ -236,7 +236,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l32 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /* Current and threshold powerup sequence Pg37 in datasheet */
@@ -346,8 +345,7 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs35l32_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs35l32_private *cs35l32;
 	struct cs35l32_platform_data *pdata =
@@ -499,14 +497,12 @@ err_supplies:
 	return ret;
 }
 
-static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
+static void cs35l32_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs35l32_private *cs35l32 = i2c_get_clientdata(i2c_client);
 
 	/* Hold down reset */
 	gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -576,7 +572,7 @@ static struct i2c_driver cs35l32_i2c_driver = {
 		   .of_match_table = cs35l32_of_match,
 		   },
 	.id_table = cs35l32_id,
-	.probe = cs35l32_i2c_probe,
+	.probe_new = cs35l32_i2c_probe,
 	.remove = cs35l32_i2c_remove,
 };
 

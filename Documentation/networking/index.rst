@@ -1,5 +1,5 @@
-Linux Networking Documentation
-==============================
+Networking
+==========
 
 Refer to :ref:`netdev-FAQ` for a guide on netdev development process specifics.
 
@@ -47,7 +47,6 @@ Contents:
    cdc_mbim
    dccp
    dctcp
-   decnet
    dns_resolver
    driver
    eql
@@ -93,10 +92,12 @@ Contents:
    radiotap-headers
    rds
    regulatory
+   representors
    rxrpc
    sctp
    secid
    seg6-sysctl
+   skbuff
    smc-sysctl
    statistics
    strparser

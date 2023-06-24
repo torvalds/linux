@@ -383,7 +383,7 @@ static void dcon_set_source(struct dcon_priv *dcon, int arg)
 static void dcon_set_source_sync(struct dcon_priv *dcon, int arg)
 {
 	dcon_set_source(dcon, arg);
-	flush_scheduled_work();
+	flush_work(&dcon->switch_source);
 }
 
 static ssize_t dcon_mode_show(struct device *dev,
@@ -517,10 +517,7 @@ static struct device_attribute dcon_device_files[] = {
 static int dcon_bl_update(struct backlight_device *dev)
 {
 	struct dcon_priv *dcon = bl_get_data(dev);
-	u8 level = dev->props.brightness & 0x0F;
-
-	if (dev->props.power != FB_BLANK_UNBLANK)
-		level = 0;
+	u8 level = backlight_get_brightness(dev) & 0x0F;
 
 	if (level != dcon->bl_val)
 		dcon_set_backlight(dcon, level);
@@ -671,7 +668,7 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return rc;
 }
 
-static int dcon_remove(struct i2c_client *client)
+static void dcon_remove(struct i2c_client *client)
 {
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
@@ -687,8 +684,6 @@ static int dcon_remove(struct i2c_client *client)
 	cancel_work_sync(&dcon->switch_source);
 
 	kfree(dcon);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -147,7 +147,7 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey);
 	t->stats    = &priv->trap_stats.ch;
 
-	netif_napi_add(netdev, &t->napi, mlx5e_trap_napi_poll, 64);
+	netif_napi_add(netdev, &t->napi, mlx5e_trap_napi_poll);
 
 	err = mlx5e_open_trap_rq(priv, t);
 	if (unlikely(err))
@@ -179,6 +179,7 @@ static void mlx5e_activate_trap(struct mlx5e_trap *trap)
 {
 	napi_enable(&trap->napi);
 	mlx5e_activate_rq(&trap->rq);
+	mlx5e_trigger_napi_sched(&trap->napi);
 }
 
 void mlx5e_deactivate_trap(struct mlx5e_priv *priv)
@@ -229,12 +230,12 @@ static int mlx5e_handle_action_trap(struct mlx5e_priv *priv, int trap_id)
 
 	switch (trap_id) {
 	case DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER:
-		err = mlx5e_add_vlan_trap(priv, trap_id, mlx5e_trap_get_tirn(priv->en_trap));
+		err = mlx5e_add_vlan_trap(priv->fs, trap_id, mlx5e_trap_get_tirn(priv->en_trap));
 		if (err)
 			goto err_out;
 		break;
 	case DEVLINK_TRAP_GENERIC_ID_DMAC_FILTER:
-		err = mlx5e_add_mac_trap(priv, trap_id, mlx5e_trap_get_tirn(priv->en_trap));
+		err = mlx5e_add_mac_trap(priv->fs, trap_id, mlx5e_trap_get_tirn(priv->en_trap));
 		if (err)
 			goto err_out;
 		break;
@@ -255,10 +256,10 @@ static int mlx5e_handle_action_drop(struct mlx5e_priv *priv, int trap_id)
 {
 	switch (trap_id) {
 	case DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER:
-		mlx5e_remove_vlan_trap(priv);
+		mlx5e_remove_vlan_trap(priv->fs);
 		break;
 	case DEVLINK_TRAP_GENERIC_ID_DMAC_FILTER:
-		mlx5e_remove_mac_trap(priv);
+		mlx5e_remove_mac_trap(priv->fs);
 		break;
 	default:
 		netdev_warn(priv->netdev, "%s: Unknown trap id %d\n", __func__, trap_id);

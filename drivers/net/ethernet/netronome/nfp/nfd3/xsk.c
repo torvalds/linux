@@ -40,7 +40,7 @@ nfp_nfd3_xsk_tx_xdp(const struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	txd = &tx_ring->txds[wr_idx];
 	txd->offset_eop = NFD3_DESC_TX_EOP;
 	txd->dma_len = cpu_to_le16(pkt_len);
-	nfp_desc_set_dma_addr(txd, xrxbuf->dma_addr + pkt_off);
+	nfp_desc_set_dma_addr_40b(txd, xrxbuf->dma_addr + pkt_off);
 	txd->data_len = cpu_to_le16(pkt_len);
 
 	txd->flags = 0;
@@ -84,7 +84,7 @@ static void nfp_nfd3_xsk_rx_skb(struct nfp_net_rx_ring *rx_ring,
 		nfp_net_xsk_rx_drop(r_vec, xrxbuf);
 		return;
 	}
-	memcpy(skb_put(skb, pkt_len), xrxbuf->xdp->data, pkt_len);
+	skb_put_data(skb, xrxbuf->xdp->data, pkt_len);
 
 	skb->mark = meta->mark;
 	skb_set_hash(skb, meta->hash, meta->hash_type);
@@ -94,9 +94,12 @@ static void nfp_nfd3_xsk_rx_skb(struct nfp_net_rx_ring *rx_ring,
 
 	nfp_nfd3_rx_csum(dp, r_vec, rxd, meta, skb);
 
-	if (rxd->rxd.flags & PCIE_DESC_RX_VLAN)
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-				       le16_to_cpu(rxd->rxd.vlan));
+	if (unlikely(!nfp_net_vlan_strip(skb, rxd, meta))) {
+		dev_kfree_skb_any(skb);
+		nfp_net_xsk_rx_drop(r_vec, xrxbuf);
+		return;
+	}
+
 	if (meta_xdp)
 		skb_metadata_set(skb,
 				 xrxbuf->xdp->data - xrxbuf->xdp->data_meta);
@@ -361,10 +364,8 @@ static void nfp_nfd3_xsk_tx(struct nfp_net_tx_ring *tx_ring)
 
 			/* Build TX descriptor. */
 			txd = &tx_ring->txds[wr_idx];
-			nfp_desc_set_dma_addr(txd,
-					      xsk_buff_raw_get_dma(xsk_pool,
-								   desc[i].addr
-								   ));
+			nfp_desc_set_dma_addr_40b(txd,
+						  xsk_buff_raw_get_dma(xsk_pool, desc[i].addr));
 			txd->offset_eop = NFD3_DESC_TX_EOP;
 			txd->dma_len = cpu_to_le16(desc[i].len);
 			txd->data_len = cpu_to_le16(desc[i].len);

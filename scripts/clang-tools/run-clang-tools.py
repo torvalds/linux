@@ -12,7 +12,6 @@ compile_commands.json.
 import argparse
 import json
 import multiprocessing
-import os
 import subprocess
 import sys
 
@@ -46,12 +45,14 @@ def init(l, a):
 
 def run_analysis(entry):
     # Disable all checks, then re-enable the ones we want
-    checks = "-checks=-*,"
+    checks = []
+    checks.append("-checks=-*")
     if args.type == "clang-tidy":
-        checks += "linuxkernel-*"
+        checks.append("linuxkernel-*")
     else:
-        checks += "clang-analyzer-*"
-    p = subprocess.run(["clang-tidy", "-p", args.path, checks, entry["file"]],
+        checks.append("clang-analyzer-*")
+        checks.append("-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling")
+    p = subprocess.run(["clang-tidy", "-p", args.path, ",".join(checks), entry["file"]],
                        stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT,
                        cwd=entry["directory"])

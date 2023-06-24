@@ -40,6 +40,9 @@
 #define AVIC_GATAG_TO_VMID(x)		((x >> AVIC_VCPU_ID_BITS) & AVIC_VM_ID_MASK)
 #define AVIC_GATAG_TO_VCPUID(x)		(x & AVIC_VCPU_ID_MASK)
 
+static bool force_avic;
+module_param_unsafe(force_avic, bool, 0444);
+
 /* Note:
  * This hash table is used to map VM_ID to a struct kvm_svm,
  * when handling AMD IOMMU GALOG notification to schedule in
@@ -50,6 +53,7 @@ static DEFINE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
 static u32 next_vm_id = 0;
 static bool next_vm_id_wrapped = 0;
 static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
+enum avic_modes avic_mode;
 
 /*
  * This is a wrapper of struct amd_iommu_ir_data.
@@ -59,6 +63,54 @@ struct amd_svm_iommu_ir {
 	void *data;		/* Storing pointer to struct amd_ir_data */
 };
 
+static void avic_activate_vmcb(struct vcpu_svm *svm)
+{
+	struct vmcb *vmcb = svm->vmcb01.ptr;
+
+	vmcb->control.int_ctl &= ~(AVIC_ENABLE_MASK | X2APIC_MODE_MASK);
+	vmcb->control.avic_physical_id &= ~AVIC_PHYSICAL_MAX_INDEX_MASK;
+
+	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+
+	/* Note:
+	 * KVM can support hybrid-AVIC mode, where KVM emulates x2APIC
+	 * MSR accesses, while interrupt injection to a running vCPU
+	 * can be achieved using AVIC doorbell. The AVIC hardware still
+	 * accelerate MMIO accesses, but this does not cause any harm
+	 * as the guest is not supposed to access xAPIC mmio when uses x2APIC.
+	 */
+	if (apic_x2apic_mode(svm->vcpu.arch.apic) &&
+	    avic_mode == AVIC_MODE_X2) {
+		vmcb->control.int_ctl |= X2APIC_MODE_MASK;
+		vmcb->control.avic_physical_id |= X2AVIC_MAX_PHYSICAL_ID;
+		/* Disabling MSR intercept for x2APIC registers */
+		svm_set_x2apic_msr_interception(svm, false);
+	} else {
+		/* For xAVIC and hybrid-xAVIC modes */
+		vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID;
+		/* Enabling MSR intercept for x2APIC registers */
+		svm_set_x2apic_msr_interception(svm, true);
+	}
+}
+
+static void avic_deactivate_vmcb(struct vcpu_svm *svm)
+{
+	struct vmcb *vmcb = svm->vmcb01.ptr;
+
+	vmcb->control.int_ctl &= ~(AVIC_ENABLE_MASK | X2APIC_MODE_MASK);
+	vmcb->control.avic_physical_id &= ~AVIC_PHYSICAL_MAX_INDEX_MASK;
+
+	/*
+	 * If running nested and the guest uses its own MSR bitmap, there
+	 * is no need to update L0's msr bitmap
+	 */
+	if (is_guest_mode(&svm->vcpu) &&
+	    vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_MSR_PROT))
+		return;
+
+	/* Enabling MSR intercept for x2APIC registers */
+	svm_set_x2apic_msr_interception(svm, true);
+}
 
 /* Note:
  * This function is called from IOMMU driver to notify
@@ -165,9 +217,8 @@ free_avic:
 	return err;
 }
 
-void avic_init_vmcb(struct vcpu_svm *svm)
+void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
 {
-	struct vmcb *vmcb = svm->vmcb;
 	struct kvm_svm *kvm_svm = to_kvm_svm(svm->vcpu.kvm);
 	phys_addr_t bpa = __sme_set(page_to_phys(svm->avic_backing_page));
 	phys_addr_t lpa = __sme_set(page_to_phys(kvm_svm->avic_logical_id_table_page));
@@ -176,13 +227,12 @@ void avic_init_vmcb(struct vcpu_svm *svm)
 	vmcb->control.avic_backing_page = bpa & AVIC_HPA_MASK;
 	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id = ppa & AVIC_HPA_MASK;
-	vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID_COUNT;
 	vmcb->control.avic_vapic_bar = APIC_DEFAULT_PHYS_BASE & VMCB_AVIC_APIC_BAR_MASK;
 
 	if (kvm_apicv_activated(svm->vcpu.kvm))
-		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+		avic_activate_vmcb(svm);
 	else
-		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
+		avic_deactivate_vmcb(svm);
 }
 
 static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
@@ -191,7 +241,8 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
 	u64 *avic_physical_id_table;
 	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
 
-	if (index >= AVIC_MAX_PHYSICAL_ID_COUNT)
+	if ((avic_mode == AVIC_MODE_X1 && index > AVIC_MAX_PHYSICAL_ID) ||
+	    (avic_mode == AVIC_MODE_X2 && index > X2AVIC_MAX_PHYSICAL_ID))
 		return NULL;
 
 	avic_physical_id_table = page_address(kvm_svm->avic_physical_id_table_page);
@@ -238,7 +289,8 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	int id = vcpu->vcpu_id;
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (id >= AVIC_MAX_PHYSICAL_ID_COUNT)
+	if ((avic_mode == AVIC_MODE_X1 && id > AVIC_MAX_PHYSICAL_ID) ||
+	    (avic_mode == AVIC_MODE_X2 && id > X2AVIC_MAX_PHYSICAL_ID))
 		return -EINVAL;
 
 	if (!vcpu->arch.apic->regs)
@@ -280,16 +332,132 @@ void avic_ring_doorbell(struct kvm_vcpu *vcpu)
 	 */
 	int cpu = READ_ONCE(vcpu->cpu);
 
-	if (cpu != get_cpu())
+	if (cpu != get_cpu()) {
 		wrmsrl(MSR_AMD64_SVM_AVIC_DOORBELL, kvm_cpu_get_apicid(cpu));
+		trace_kvm_avic_doorbell(vcpu->vcpu_id, kvm_cpu_get_apicid(cpu));
+	}
 	put_cpu();
 }
 
-static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
-				   u32 icrl, u32 icrh)
+/*
+ * A fast-path version of avic_kick_target_vcpus(), which attempts to match
+ * destination APIC ID to vCPU without looping through all vCPUs.
+ */
+static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source,
+				       u32 icrl, u32 icrh, u32 index)
 {
-	struct kvm_vcpu *vcpu;
+	u32 l1_physical_id, dest;
+	struct kvm_vcpu *target_vcpu;
+	int dest_mode = icrl & APIC_DEST_MASK;
+	int shorthand = icrl & APIC_SHORT_MASK;
+	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
+
+	if (shorthand != APIC_DEST_NOSHORT)
+		return -EINVAL;
+
+	if (apic_x2apic_mode(source))
+		dest = icrh;
+	else
+		dest = GET_XAPIC_DEST_FIELD(icrh);
+
+	if (dest_mode == APIC_DEST_PHYSICAL) {
+		/* broadcast destination, use slow path */
+		if (apic_x2apic_mode(source) && dest == X2APIC_BROADCAST)
+			return -EINVAL;
+		if (!apic_x2apic_mode(source) && dest == APIC_BROADCAST)
+			return -EINVAL;
+
+		l1_physical_id = dest;
+
+		if (WARN_ON_ONCE(l1_physical_id != index))
+			return -EINVAL;
+
+	} else {
+		u32 bitmap, cluster;
+		int logid_index;
+
+		if (apic_x2apic_mode(source)) {
+			/* 16 bit dest mask, 16 bit cluster id */
+			bitmap = dest & 0xFFFF0000;
+			cluster = (dest >> 16) << 4;
+		} else if (kvm_lapic_get_reg(source, APIC_DFR) == APIC_DFR_FLAT) {
+			/* 8 bit dest mask*/
+			bitmap = dest;
+			cluster = 0;
+		} else {
+			/* 4 bit desk mask, 4 bit cluster id */
+			bitmap = dest & 0xF;
+			cluster = (dest >> 4) << 2;
+		}
+
+		if (unlikely(!bitmap))
+			/* guest bug: nobody to send the logical interrupt to */
+			return 0;
+
+		if (!is_power_of_2(bitmap))
+			/* multiple logical destinations, use slow path */
+			return -EINVAL;
+
+		logid_index = cluster + __ffs(bitmap);
+
+		if (!apic_x2apic_mode(source)) {
+			u32 *avic_logical_id_table =
+				page_address(kvm_svm->avic_logical_id_table_page);
+
+			u32 logid_entry = avic_logical_id_table[logid_index];
+
+			if (WARN_ON_ONCE(index != logid_index))
+				return -EINVAL;
+
+			/* guest bug: non existing/reserved logical destination */
+			if (unlikely(!(logid_entry & AVIC_LOGICAL_ID_ENTRY_VALID_MASK)))
+				return 0;
+
+			l1_physical_id = logid_entry &
+					 AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK;
+		} else {
+			/*
+			 * For x2APIC logical mode, cannot leverage the index.
+			 * Instead, calculate physical ID from logical ID in ICRH.
+			 */
+			int cluster = (icrh & 0xffff0000) >> 16;
+			int apic = ffs(icrh & 0xffff) - 1;
+
+			/*
+			 * If the x2APIC logical ID sub-field (i.e. icrh[15:0])
+			 * contains anything but a single bit, we cannot use the
+			 * fast path, because it is limited to a single vCPU.
+			 */
+			if (apic < 0 || icrh != (1 << apic))
+				return -EINVAL;
+
+			l1_physical_id = (cluster << 4) + apic;
+		}
+	}
+
+	target_vcpu = kvm_get_vcpu_by_id(kvm, l1_physical_id);
+	if (unlikely(!target_vcpu))
+		/* guest bug: non existing vCPU is a target of this IPI*/
+		return 0;
+
+	target_vcpu->arch.apic->irr_pending = true;
+	svm_complete_interrupt_delivery(target_vcpu,
+					icrl & APIC_MODE_MASK,
+					icrl & APIC_INT_LEVELTRIG,
+					icrl & APIC_VECTOR_MASK);
+	return 0;
+}
+
+static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
+				   u32 icrl, u32 icrh, u32 index)
+{
 	unsigned long i;
+	struct kvm_vcpu *vcpu;
+
+	if (!avic_kick_target_vcpus_fast(kvm, source, icrl, icrh, index))
+		return;
+
+	trace_kvm_avic_kick_vcpu_slowpath(icrh, icrl, index);
 
 	/*
 	 * Wake any target vCPUs that are blocking, i.e. waiting for a wake
@@ -298,9 +466,15 @@ static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
 	 * since entered the guest will have processed pending IRQs at VMRUN.
 	 */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
+		u32 dest;
+
+		if (apic_x2apic_mode(vcpu->arch.apic))
+			dest = icrh;
+		else
+			dest = GET_XAPIC_DEST_FIELD(icrh);
+
 		if (kvm_apic_match_dest(vcpu, source, icrl & APIC_SHORT_MASK,
-					GET_APIC_DEST_FIELD(icrh),
-					icrl & APIC_DEST_MASK)) {
+					dest, icrl & APIC_DEST_MASK)) {
 			vcpu->arch.apic->irr_pending = true;
 			svm_complete_interrupt_delivery(vcpu,
 							icrl & APIC_MODE_MASK,
@@ -316,7 +490,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
 	u32 icrl = svm->vmcb->control.exit_info_1;
 	u32 id = svm->vmcb->control.exit_info_2 >> 32;
-	u32 index = svm->vmcb->control.exit_info_2 & 0xFF;
+	u32 index = svm->vmcb->control.exit_info_2 & 0x1FF;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	trace_kvm_avic_incomplete_ipi(vcpu->vcpu_id, icrh, icrl, id, index);
@@ -343,7 +517,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 		 * set the appropriate IRR bits on the valid target
 		 * vcpus. So, we just need to kick the appropriate vcpu.
 		 */
-		avic_kick_target_vcpus(vcpu->kvm, apic, icrl, icrh);
+		avic_kick_target_vcpus(vcpu->kvm, apic, icrl, icrh, index);
 		break;
 	case AVIC_IPI_FAILURE_INVALID_TARGET:
 		break;
@@ -355,6 +529,13 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	}
 
 	return 1;
+}
+
+unsigned long avic_vcpu_get_apicv_inhibit_reasons(struct kvm_vcpu *vcpu)
+{
+	if (is_guest_mode(vcpu))
+		return APICV_INHIBIT_REASON_NESTED;
+	return 0;
 }
 
 static u32 *avic_get_logical_id_entry(struct kvm_vcpu *vcpu, u32 ldr, bool flat)
@@ -409,8 +590,13 @@ static void avic_invalidate_logical_id_entry(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	bool flat = svm->dfr_reg == APIC_DFR_FLAT;
-	u32 *entry = avic_get_logical_id_entry(vcpu, svm->ldr_reg, flat);
+	u32 *entry;
 
+	/* Note: x2AVIC does not use logical APIC ID table */
+	if (apic_x2apic_mode(vcpu->arch.apic))
+		return;
+
+	entry = avic_get_logical_id_entry(vcpu, svm->ldr_reg, flat);
 	if (entry)
 		clear_bit(AVIC_LOGICAL_ID_ENTRY_VALID_BIT, (unsigned long *)entry);
 }
@@ -421,6 +607,10 @@ static int avic_handle_ldr_update(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 ldr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_LDR);
 	u32 id = kvm_xapic_id(vcpu->arch.apic);
+
+	/* AVIC does not support LDR update for x2APIC */
+	if (apic_x2apic_mode(vcpu->arch.apic))
+		return 0;
 
 	if (ldr == svm->ldr_reg)
 		return 0;
@@ -434,35 +624,6 @@ static int avic_handle_ldr_update(struct kvm_vcpu *vcpu)
 		svm->ldr_reg = ldr;
 
 	return ret;
-}
-
-static int avic_handle_apic_id_update(struct kvm_vcpu *vcpu)
-{
-	u64 *old, *new;
-	struct vcpu_svm *svm = to_svm(vcpu);
-	u32 id = kvm_xapic_id(vcpu->arch.apic);
-
-	if (vcpu->vcpu_id == id)
-		return 0;
-
-	old = avic_get_physical_id_entry(vcpu, vcpu->vcpu_id);
-	new = avic_get_physical_id_entry(vcpu, id);
-	if (!new || !old)
-		return 1;
-
-	/* We need to move physical_id_entry to new offset */
-	*new = *old;
-	*old = 0ULL;
-	to_svm(vcpu)->avic_physical_id_cache = new;
-
-	/*
-	 * Also update the guest physical APIC ID in the logical
-	 * APIC ID table entry if already setup the LDR.
-	 */
-	if (svm->ldr_reg)
-		avic_handle_ldr_update(vcpu);
-
-	return 0;
 }
 
 static void avic_handle_dfr_update(struct kvm_vcpu *vcpu)
@@ -483,10 +644,6 @@ static int avic_unaccel_trap_write(struct kvm_vcpu *vcpu)
 				AVIC_UNACCEL_ACCESS_OFFSET_MASK;
 
 	switch (offset) {
-	case APIC_ID:
-		if (avic_handle_apic_id_update(vcpu))
-			return 0;
-		break;
 	case APIC_LDR:
 		if (avic_handle_ldr_update(vcpu))
 			return 0;
@@ -578,10 +735,20 @@ int avic_init_vcpu(struct vcpu_svm *svm)
 
 void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu)
 {
-	if (avic_handle_apic_id_update(vcpu) != 0)
-		return;
 	avic_handle_dfr_update(vcpu);
 	avic_handle_ldr_update(vcpu);
+}
+
+void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
+{
+	if (!lapic_in_kernel(vcpu) || avic_mode == AVIC_MODE_NONE)
+		return;
+
+	if (kvm_get_apic_mode(vcpu) == LAPIC_MODE_INVALID) {
+		WARN_ONCE(true, "Invalid local APIC state (vcpu_id=%d)", vcpu->vcpu_id);
+		return;
+	}
+	avic_refresh_apicv_exec_ctrl(vcpu);
 }
 
 static int avic_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
@@ -836,9 +1003,10 @@ bool avic_check_apicv_inhibit_reasons(enum kvm_apicv_inhibit reason)
 			  BIT(APICV_INHIBIT_REASON_NESTED) |
 			  BIT(APICV_INHIBIT_REASON_IRQWIN) |
 			  BIT(APICV_INHIBIT_REASON_PIT_REINJ) |
-			  BIT(APICV_INHIBIT_REASON_X2APIC) |
 			  BIT(APICV_INHIBIT_REASON_BLOCKIRQ) |
-			  BIT(APICV_INHIBIT_REASON_SEV);
+			  BIT(APICV_INHIBIT_REASON_SEV)      |
+			  BIT(APICV_INHIBIT_REASON_APIC_ID_MODIFIED) |
+			  BIT(APICV_INHIBIT_REASON_APIC_BASE_MODIFIED);
 
 	return supported & BIT(reason);
 }
@@ -874,7 +1042,7 @@ out:
 	return ret;
 }
 
-void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	u64 entry;
 	int h_physical_id = kvm_cpu_get_apicid(cpu);
@@ -896,7 +1064,6 @@ void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		return;
 
 	entry = READ_ONCE(*(svm->avic_physical_id_cache));
-	WARN_ON(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK);
 
 	entry &= ~AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK;
 	entry |= (h_physical_id & AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK);
@@ -906,7 +1073,7 @@ void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	avic_update_iommu_vcpu_affinity(vcpu, h_physical_id, true);
 }
 
-void __avic_vcpu_put(struct kvm_vcpu *vcpu)
+void avic_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	u64 entry;
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -925,25 +1092,6 @@ void __avic_vcpu_put(struct kvm_vcpu *vcpu)
 	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
 }
 
-static void avic_vcpu_load(struct kvm_vcpu *vcpu)
-{
-	int cpu = get_cpu();
-
-	WARN_ON(cpu != vcpu->cpu);
-
-	__avic_vcpu_load(vcpu, cpu);
-
-	put_cpu();
-}
-
-static void avic_vcpu_put(struct kvm_vcpu *vcpu)
-{
-	preempt_disable();
-
-	__avic_vcpu_put(vcpu);
-
-	preempt_enable();
-}
 
 void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
@@ -963,14 +1111,14 @@ void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 		 * accordingly before re-activating.
 		 */
 		avic_apicv_post_state_restore(vcpu);
-		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+		avic_activate_vmcb(svm);
 	} else {
-		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
+		avic_deactivate_vmcb(svm);
 	}
 	vmcb_mark_dirty(vmcb, VMCB_AVIC);
 
 	if (activated)
-		avic_vcpu_load(vcpu);
+		avic_vcpu_load(vcpu, vcpu->cpu);
 	else
 		avic_vcpu_put(vcpu);
 
@@ -1003,5 +1151,46 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
 	if (!kvm_vcpu_apicv_active(vcpu))
 		return;
 
-	avic_vcpu_load(vcpu);
+	avic_vcpu_load(vcpu, vcpu->cpu);
+}
+
+/*
+ * Note:
+ * - The module param avic enable both xAPIC and x2APIC mode.
+ * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
+ * - The mode can be switched at run-time.
+ */
+bool avic_hardware_setup(struct kvm_x86_ops *x86_ops)
+{
+	if (!npt_enabled)
+		return false;
+
+	if (boot_cpu_has(X86_FEATURE_AVIC)) {
+		avic_mode = AVIC_MODE_X1;
+		pr_info("AVIC enabled\n");
+	} else if (force_avic) {
+		/*
+		 * Some older systems does not advertise AVIC support.
+		 * See Revision Guide for specific AMD processor for more detail.
+		 */
+		avic_mode = AVIC_MODE_X1;
+		pr_warn("AVIC is not supported in CPUID but force enabled");
+		pr_warn("Your system might crash and burn");
+	}
+
+	/* AVIC is a prerequisite for x2AVIC. */
+	if (boot_cpu_has(X86_FEATURE_X2AVIC)) {
+		if (avic_mode == AVIC_MODE_X1) {
+			avic_mode = AVIC_MODE_X2;
+			pr_info("x2AVIC enabled\n");
+		} else {
+			pr_warn(FW_BUG "Cannot support x2AVIC due to AVIC is disabled");
+			pr_warn(FW_BUG "Try enable AVIC using force_avic option");
+		}
+	}
+
+	if (avic_mode != AVIC_MODE_NONE)
+		amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
+
+	return !!avic_mode;
 }

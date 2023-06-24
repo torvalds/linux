@@ -6,6 +6,7 @@
 #ifndef __IOSYS_MAP_H__
 #define __IOSYS_MAP_H__
 
+#include <linux/compiler_types.h>
 #include <linux/io.h>
 #include <linux/string.h>
 
@@ -23,7 +24,7 @@
  *	memcpy(vaddr, src, len);
  *
  *	void *vaddr_iomem = ...; // pointer to I/O memory
- *	memcpy_toio(vaddr, _iomem, src, len);
+ *	memcpy_toio(vaddr_iomem, src, len);
  *
  * The user of such pointer may not have information about the mapping of that
  * region or may want to have a single code path to handle operations on that
@@ -45,9 +46,12 @@
  *
  *	iosys_map_set_vaddr(&map, 0xdeadbeaf);
  *
- * To set an address in I/O memory, use iosys_map_set_vaddr_iomem().
+ * To set an address in I/O memory, use IOSYS_MAP_INIT_VADDR_IOMEM() or
+ * iosys_map_set_vaddr_iomem().
  *
  * .. code-block:: c
+ *
+ *	struct iosys_map map = IOSYS_MAP_INIT_VADDR_IOMEM(0xdeadbeaf);
  *
  *	iosys_map_set_vaddr_iomem(&map, 0xdeadbeaf);
  *
@@ -118,6 +122,16 @@ struct iosys_map {
 	{				\
 		.vaddr = (vaddr_),	\
 		.is_iomem = false,	\
+	}
+
+/**
+ * IOSYS_MAP_INIT_VADDR_IOMEM - Initializes struct iosys_map to an address in I/O memory
+ * @vaddr_iomem_:	An I/O-memory address
+ */
+#define IOSYS_MAP_INIT_VADDR_IOMEM(vaddr_iomem_)	\
+	{						\
+		.vaddr_iomem = (vaddr_iomem_),		\
+		.is_iomem = true,			\
 	}
 
 /**
@@ -333,6 +347,36 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
 		memset(dst->vaddr + offset, value, len);
 }
 
+#ifdef CONFIG_64BIT
+#define __iosys_map_rd_io_u64_case(val_, vaddr_iomem_)				\
+	u64: val_ = readq(vaddr_iomem_)
+#define __iosys_map_wr_io_u64_case(val_, vaddr_iomem_)				\
+	u64: writeq(val_, vaddr_iomem_)
+#else
+#define __iosys_map_rd_io_u64_case(val_, vaddr_iomem_)				\
+	u64: memcpy_fromio(&(val_), vaddr_iomem_, sizeof(u64))
+#define __iosys_map_wr_io_u64_case(val_, vaddr_iomem_)				\
+	u64: memcpy_toio(vaddr_iomem_, &(val_), sizeof(u64))
+#endif
+
+#define __iosys_map_rd_io(val__, vaddr_iomem__, type__) _Generic(val__,		\
+	u8: val__ = readb(vaddr_iomem__),					\
+	u16: val__ = readw(vaddr_iomem__),					\
+	u32: val__ = readl(vaddr_iomem__),					\
+	__iosys_map_rd_io_u64_case(val__, vaddr_iomem__))
+
+#define __iosys_map_rd_sys(val__, vaddr__, type__)				\
+	val__ = READ_ONCE(*(type__ *)(vaddr__))
+
+#define __iosys_map_wr_io(val__, vaddr_iomem__, type__) _Generic(val__,		\
+	u8: writeb(val__, vaddr_iomem__),					\
+	u16: writew(val__, vaddr_iomem__),					\
+	u32: writel(val__, vaddr_iomem__),					\
+	__iosys_map_wr_io_u64_case(val__, vaddr_iomem__))
+
+#define __iosys_map_wr_sys(val__, vaddr__, type__)				\
+	WRITE_ONCE(*(type__ *)(vaddr__), val__)
+
 /**
  * iosys_map_rd - Read a C-type value from the iosys_map
  *
@@ -340,16 +384,21 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  * @offset__:	The offset from which to read
  * @type__:	Type of the value being read
  *
- * Read a C type value from iosys_map, handling possible un-aligned accesses to
- * the mapping.
+ * Read a C type value (u8, u16, u32 and u64) from iosys_map. For other types or
+ * if pointer may be unaligned (and problematic for the architecture supported),
+ * use iosys_map_memcpy_from().
  *
  * Returns:
  * The value read from the mapping.
  */
-#define iosys_map_rd(map__, offset__, type__) ({			\
-	type__ val;							\
-	iosys_map_memcpy_from(&val, map__, offset__, sizeof(val));	\
-	val;								\
+#define iosys_map_rd(map__, offset__, type__) ({				\
+	type__ val;								\
+	if ((map__)->is_iomem) {						\
+		__iosys_map_rd_io(val, (map__)->vaddr_iomem + (offset__), type__);\
+	} else {								\
+		__iosys_map_rd_sys(val, (map__)->vaddr + (offset__), type__);	\
+	}									\
+	val;									\
 })
 
 /**
@@ -360,12 +409,17 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  * @type__:	Type of the value being written
  * @val__:	Value to write
  *
- * Write a C-type value to the iosys_map, handling possible un-aligned accesses
- * to the mapping.
+ * Write a C type value (u8, u16, u32 and u64) to the iosys_map. For other types
+ * or if pointer may be unaligned (and problematic for the architecture
+ * supported), use iosys_map_memcpy_to()
  */
-#define iosys_map_wr(map__, offset__, type__, val__) ({			\
-	type__ val = (val__);						\
-	iosys_map_memcpy_to(map__, offset__, &val, sizeof(val));	\
+#define iosys_map_wr(map__, offset__, type__, val__) ({				\
+	type__ val = (val__);							\
+	if ((map__)->is_iomem) {						\
+		__iosys_map_wr_io(val, (map__)->vaddr_iomem + (offset__), type__);\
+	} else {								\
+		__iosys_map_wr_sys(val, (map__)->vaddr + (offset__), type__);	\
+	}									\
 })
 
 /**
@@ -379,9 +433,10 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  *
  * Read a value from iosys_map considering its layout is described by a C struct
  * starting at @struct_offset__. The field offset and size is calculated and its
- * value read handling possible un-aligned memory accesses. For example: suppose
- * there is a @struct foo defined as below and the value ``foo.field2.inner2``
- * needs to be read from the iosys_map:
+ * value read. If the field access would incur in un-aligned access, then either
+ * iosys_map_memcpy_from() needs to be used or the architecture must support it.
+ * For example: suppose there is a @struct foo defined as below and the value
+ * ``foo.field2.inner2`` needs to be read from the iosys_map:
  *
  * .. code-block:: c
  *
@@ -445,10 +500,12 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  * @field__:		Member of the struct to read
  * @val__:		Value to write
  *
- * Write a value to the iosys_map considering its layout is described by a C struct
- * starting at @struct_offset__. The field offset and size is calculated and the
- * @val__ is written handling possible un-aligned memory accesses. Refer to
- * iosys_map_rd_field() for expected usage and memory layout.
+ * Write a value to the iosys_map considering its layout is described by a C
+ * struct starting at @struct_offset__. The field offset and size is calculated
+ * and the @val__ is written. If the field access would incur in un-aligned
+ * access, then either iosys_map_memcpy_to() needs to be used or the
+ * architecture must support it. Refer to iosys_map_rd_field() for expected
+ * usage and memory layout.
  */
 #define iosys_map_wr_field(map__, struct_offset__, struct_type__, field__, val__) ({	\
 	struct_type__ *s;								\

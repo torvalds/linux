@@ -33,7 +33,7 @@ OPTIONS
         - a raw PMU event in the form of rN where N is a hexadecimal value
           that represents the raw register encoding with the layout of the
           event control registers as described by entries in
-          /sys/bus/event_sources/devices/cpu/format/*.
+          /sys/bus/event_source/devices/cpu/format/*.
 
         - a symbolic or raw PMU event followed by an optional colon
 	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
@@ -275,6 +275,11 @@ OPTIONS
 	User can change the size by passing the size after comma like
 	"--call-graph dwarf,4096".
 
+	When "fp" recording is used, perf tries to save stack enties
+	up to the number specified in sysctl.kernel.perf_event_max_stack
+	by default.  User can change the number by passing it after comma
+	like "--call-graph fp,32".
+
 -q::
 --quiet::
 	Don't print any message, useful for scripting.
@@ -312,6 +317,11 @@ OPTIONS
 
 --sample-cpu::
 	Record the sample cpu.
+
+--sample-identifier::
+	Record the sample identifier i.e. PERF_SAMPLE_IDENTIFIER bit set in
+	the sample_type member of the struct perf_event_attr argument to the
+	perf_event_open system call.
 
 -n::
 --no-samples::
@@ -387,6 +397,10 @@ following filters are defined:
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
 	- save_type: save branch type during sampling in case binary is not available later
+		     For the platforms with Intel Arch LBR support (12th-Gen+ client or
+		     4th-Gen Xeon+ server), the save branch type is unconditionally enabled
+		     when the taken branch stack sampling is enabled.
+	- priv: save privilege state during sampling in case binary is not available later
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
@@ -397,6 +411,7 @@ is enabled for all the sampling events. The sampled branch type is the same for 
 The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 Note that this feature may not be available on all processors.
 
+-W::
 --weight::
 Enable weightened sampling. An additional weight is recorded per sample and can be
 displayed with the weight and local_weight sort keys.  This currently works for TSX
@@ -420,8 +435,10 @@ if combined with -a or -C options.
 -D::
 --delay=::
 After starting the program, wait msecs before measuring (-1: start with events
-disabled). This is useful to filter out the startup phase of the program, which
-is often very different.
+disabled), or enable events only for specified ranges of msecs (e.g.
+-D 10-20,30-40 means wait 10 msecs, enable for 10 msecs, wait 10 msecs, enable
+for 10 msecs, then stop). Note, delaying enabling of events is useful to filter
+out the startup phase of the program, which is often very different.
 
 -I::
 --intr-regs::
@@ -747,8 +764,6 @@ events in data directory files. Option specified with no or empty value
 defaults to CPU layout. Masks defined or provided by the option value are
 filtered through the mask provided by -C option.
 
-include::intel-hybrid.txt[]
-
 --debuginfod[=URLs]::
 	Specify debuginfod URL to be used when cacheing perf.data binaries,
 	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
@@ -757,6 +772,18 @@ include::intel-hybrid.txt[]
 
 	If the URLs is not specified, the value of DEBUGINFOD_URLS
 	system environment variable is used.
+
+--off-cpu::
+	Enable off-cpu profiling with BPF.  The BPF program will collect
+	task scheduling information with (user) stacktrace and save them
+	as sample data of a software event named "offcpu-time".  The
+	sample period will have the time the task slept in nanoseconds.
+
+	Note that BPF can collect stack traces using frame pointer ("fp")
+	only, as of now.  So the applications built without the frame
+	pointer might see bogus addresses.
+
+include::intel-hybrid.txt[]
 
 SEE ALSO
 --------

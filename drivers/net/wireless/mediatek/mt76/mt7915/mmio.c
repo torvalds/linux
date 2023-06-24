@@ -22,6 +22,8 @@ static const u32 mt7915_reg[] = {
 	[WFDMA_EXT_CSR_ADDR]	= 0xd7000,
 	[CBTOP1_PHY_END]	= 0x77ffffff,
 	[INFRA_MCU_ADDR_END]	= 0x7c3fffff,
+	[FW_EXCEPTION_ADDR]	= 0x219848,
+	[SWDEF_BASE_ADDR]	= 0x41f200,
 };
 
 static const u32 mt7916_reg[] = {
@@ -36,6 +38,8 @@ static const u32 mt7916_reg[] = {
 	[WFDMA_EXT_CSR_ADDR]	= 0xd7000,
 	[CBTOP1_PHY_END]	= 0x7fffffff,
 	[INFRA_MCU_ADDR_END]	= 0x7c085fff,
+	[FW_EXCEPTION_ADDR]	= 0x022050bc,
+	[SWDEF_BASE_ADDR]	= 0x411400,
 };
 
 static const u32 mt7986_reg[] = {
@@ -50,6 +54,8 @@ static const u32 mt7986_reg[] = {
 	[WFDMA_EXT_CSR_ADDR]	= 0x27000,
 	[CBTOP1_PHY_END]	= 0x7fffffff,
 	[INFRA_MCU_ADDR_END]	= 0x7c085fff,
+	[FW_EXCEPTION_ADDR]	= 0x02204ffc,
+	[SWDEF_BASE_ADDR]	= 0x411400,
 };
 
 static const u32 mt7915_offs[] = {
@@ -69,6 +75,7 @@ static const u32 mt7915_offs[] = {
 	[AGG_AWSCR0]		= 0x05c,
 	[AGG_PCR0]		= 0x06c,
 	[AGG_ACR0]		= 0x084,
+	[AGG_ACR4]		= 0x08c,
 	[AGG_MRCR]		= 0x098,
 	[AGG_ATCR1]		= 0x0f0,
 	[AGG_ATCR3]		= 0x0f4,
@@ -142,6 +149,7 @@ static const u32 mt7916_offs[] = {
 	[AGG_AWSCR0]		= 0x030,
 	[AGG_PCR0]		= 0x040,
 	[AGG_ACR0]		= 0x054,
+	[AGG_ACR4]		= 0x05c,
 	[AGG_MRCR]		= 0x068,
 	[AGG_ATCR1]		= 0x1a8,
 	[AGG_ATCR3]		= 0x080,
@@ -198,147 +206,147 @@ static const u32 mt7916_offs[] = {
 	[ETBF_PAR_RPT0]		= 0x100,
 };
 
-static const struct __map mt7915_reg_map[] = {
+static const struct mt76_connac_reg_map mt7915_reg_map[] = {
 	{ 0x00400000, 0x80000, 0x10000 }, /* WF_MCU_SYSRAM */
 	{ 0x00410000, 0x90000, 0x10000 }, /* WF_MCU_SYSRAM (configure regs) */
 	{ 0x40000000, 0x70000, 0x10000 }, /* WF_UMAC_SYSRAM */
-	{ 0x54000000, 0x02000, 0x1000 }, /* WFDMA PCIE0 MCU DMA0 */
-	{ 0x55000000, 0x03000, 0x1000 }, /* WFDMA PCIE0 MCU DMA1 */
-	{ 0x58000000, 0x06000, 0x1000 }, /* WFDMA PCIE1 MCU DMA0 (MEM_DMA) */
-	{ 0x59000000, 0x07000, 0x1000 }, /* WFDMA PCIE1 MCU DMA1 */
+	{ 0x54000000, 0x02000, 0x01000 }, /* WFDMA PCIE0 MCU DMA0 */
+	{ 0x55000000, 0x03000, 0x01000 }, /* WFDMA PCIE0 MCU DMA1 */
+	{ 0x58000000, 0x06000, 0x01000 }, /* WFDMA PCIE1 MCU DMA0 (MEM_DMA) */
+	{ 0x59000000, 0x07000, 0x01000 }, /* WFDMA PCIE1 MCU DMA1 */
 	{ 0x7c000000, 0xf0000, 0x10000 }, /* CONN_INFRA */
 	{ 0x7c020000, 0xd0000, 0x10000 }, /* CONN_INFRA, WFDMA */
 	{ 0x80020000, 0xb0000, 0x10000 }, /* WF_TOP_MISC_OFF */
 	{ 0x81020000, 0xc0000, 0x10000 }, /* WF_TOP_MISC_ON */
-	{ 0x820c0000, 0x08000, 0x4000 }, /* WF_UMAC_TOP (PLE) */
-	{ 0x820c8000, 0x0c000, 0x2000 }, /* WF_UMAC_TOP (PSE) */
-	{ 0x820cc000, 0x0e000, 0x2000 }, /* WF_UMAC_TOP (PP) */
-	{ 0x820ce000, 0x21c00, 0x0200 }, /* WF_LMAC_TOP (WF_SEC) */
-	{ 0x820cf000, 0x22000, 0x1000 }, /* WF_LMAC_TOP (WF_PF) */
+	{ 0x820c0000, 0x08000, 0x04000 }, /* WF_UMAC_TOP (PLE) */
+	{ 0x820c8000, 0x0c000, 0x02000 }, /* WF_UMAC_TOP (PSE) */
+	{ 0x820cc000, 0x0e000, 0x02000 }, /* WF_UMAC_TOP (PP) */
+	{ 0x820ce000, 0x21c00, 0x00200 }, /* WF_LMAC_TOP (WF_SEC) */
+	{ 0x820cf000, 0x22000, 0x01000 }, /* WF_LMAC_TOP (WF_PF) */
 	{ 0x820d0000, 0x30000, 0x10000 }, /* WF_LMAC_TOP (WF_WTBLON) */
-	{ 0x820e0000, 0x20000, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_CFG) */
-	{ 0x820e1000, 0x20400, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_TRB) */
-	{ 0x820e2000, 0x20800, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_AGG) */
-	{ 0x820e3000, 0x20c00, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_ARB) */
-	{ 0x820e4000, 0x21000, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_TMAC) */
-	{ 0x820e5000, 0x21400, 0x0800 }, /* WF_LMAC_TOP BN0 (WF_RMAC) */
-	{ 0x820e7000, 0x21e00, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_DMA) */
-	{ 0x820e9000, 0x23400, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_WTBLOFF) */
-	{ 0x820ea000, 0x24000, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_ETBF) */
-	{ 0x820eb000, 0x24200, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_LPON) */
-	{ 0x820ec000, 0x24600, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_INT) */
-	{ 0x820ed000, 0x24800, 0x0800 }, /* WF_LMAC_TOP BN0 (WF_MIB) */
-	{ 0x820f0000, 0xa0000, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_CFG) */
-	{ 0x820f1000, 0xa0600, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_TRB) */
-	{ 0x820f2000, 0xa0800, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_AGG) */
-	{ 0x820f3000, 0xa0c00, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_ARB) */
-	{ 0x820f4000, 0xa1000, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_TMAC) */
-	{ 0x820f5000, 0xa1400, 0x0800 }, /* WF_LMAC_TOP BN1 (WF_RMAC) */
-	{ 0x820f7000, 0xa1e00, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_DMA) */
-	{ 0x820f9000, 0xa3400, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_WTBLOFF) */
-	{ 0x820fa000, 0xa4000, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_ETBF) */
-	{ 0x820fb000, 0xa4200, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_LPON) */
-	{ 0x820fc000, 0xa4600, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_INT) */
-	{ 0x820fd000, 0xa4800, 0x0800 }, /* WF_LMAC_TOP BN1 (WF_MIB) */
+	{ 0x820e0000, 0x20000, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_CFG) */
+	{ 0x820e1000, 0x20400, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_TRB) */
+	{ 0x820e2000, 0x20800, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_AGG) */
+	{ 0x820e3000, 0x20c00, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_ARB) */
+	{ 0x820e4000, 0x21000, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_TMAC) */
+	{ 0x820e5000, 0x21400, 0x00800 }, /* WF_LMAC_TOP BN0 (WF_RMAC) */
+	{ 0x820e7000, 0x21e00, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_DMA) */
+	{ 0x820e9000, 0x23400, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_WTBLOFF) */
+	{ 0x820ea000, 0x24000, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_ETBF) */
+	{ 0x820eb000, 0x24200, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_LPON) */
+	{ 0x820ec000, 0x24600, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_INT) */
+	{ 0x820ed000, 0x24800, 0x00800 }, /* WF_LMAC_TOP BN0 (WF_MIB) */
+	{ 0x820f0000, 0xa0000, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_CFG) */
+	{ 0x820f1000, 0xa0600, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_TRB) */
+	{ 0x820f2000, 0xa0800, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_AGG) */
+	{ 0x820f3000, 0xa0c00, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_ARB) */
+	{ 0x820f4000, 0xa1000, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_TMAC) */
+	{ 0x820f5000, 0xa1400, 0x00800 }, /* WF_LMAC_TOP BN1 (WF_RMAC) */
+	{ 0x820f7000, 0xa1e00, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_DMA) */
+	{ 0x820f9000, 0xa3400, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_WTBLOFF) */
+	{ 0x820fa000, 0xa4000, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_ETBF) */
+	{ 0x820fb000, 0xa4200, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_LPON) */
+	{ 0x820fc000, 0xa4600, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_INT) */
+	{ 0x820fd000, 0xa4800, 0x00800 }, /* WF_LMAC_TOP BN1 (WF_MIB) */
 	{ 0x0, 0x0, 0x0 }, /* imply end of search */
 };
 
-static const struct __map mt7916_reg_map[] = {
-	{ 0x54000000, 0x02000, 0x1000 }, /* WFDMA_0 (PCIE0 MCU DMA0) */
-	{ 0x55000000, 0x03000, 0x1000 }, /* WFDMA_1 (PCIE0 MCU DMA1) */
-	{ 0x56000000, 0x04000, 0x1000 }, /* WFDMA_2 (Reserved) */
-	{ 0x57000000, 0x05000, 0x1000 }, /* WFDMA_3 (MCU wrap CR) */
-	{ 0x58000000, 0x06000, 0x1000 }, /* WFDMA_4 (PCIE1 MCU DMA0) */
-	{ 0x59000000, 0x07000, 0x1000 }, /* WFDMA_5 (PCIE1 MCU DMA1) */
-	{ 0x820c0000, 0x08000, 0x4000 }, /* WF_UMAC_TOP (PLE) */
-	{ 0x820c8000, 0x0c000, 0x2000 }, /* WF_UMAC_TOP (PSE) */
-	{ 0x820cc000, 0x0e000, 0x2000 }, /* WF_UMAC_TOP (PP) */
-	{ 0x820e0000, 0x20000, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_CFG) */
-	{ 0x820e1000, 0x20400, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_TRB) */
-	{ 0x820e2000, 0x20800, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_AGG) */
-	{ 0x820e3000, 0x20c00, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_ARB) */
-	{ 0x820e4000, 0x21000, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_TMAC) */
-	{ 0x820e5000, 0x21400, 0x0800 }, /* WF_LMAC_TOP BN0 (WF_RMAC) */
-	{ 0x820ce000, 0x21c00, 0x0200 }, /* WF_LMAC_TOP (WF_SEC) */
-	{ 0x820e7000, 0x21e00, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_DMA) */
-	{ 0x820cf000, 0x22000, 0x1000 }, /* WF_LMAC_TOP (WF_PF) */
-	{ 0x820e9000, 0x23400, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_WTBLOFF) */
-	{ 0x820ea000, 0x24000, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_ETBF) */
-	{ 0x820eb000, 0x24200, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_LPON) */
-	{ 0x820ec000, 0x24600, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_INT) */
-	{ 0x820ed000, 0x24800, 0x0800 }, /* WF_LMAC_TOP BN0 (WF_MIB) */
-	{ 0x820ca000, 0x26000, 0x2000 }, /* WF_LMAC_TOP BN0 (WF_MUCOP) */
-	{ 0x820d0000, 0x30000, 0x10000}, /* WF_LMAC_TOP (WF_WTBLON) */
-	{ 0x00400000, 0x80000, 0x10000}, /* WF_MCU_SYSRAM */
-	{ 0x00410000, 0x90000, 0x10000}, /* WF_MCU_SYSRAM (configure cr) */
-	{ 0x820f0000, 0xa0000, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_CFG) */
-	{ 0x820f1000, 0xa0600, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_TRB) */
-	{ 0x820f2000, 0xa0800, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_AGG) */
-	{ 0x820f3000, 0xa0c00, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_ARB) */
-	{ 0x820f4000, 0xa1000, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_TMAC) */
-	{ 0x820f5000, 0xa1400, 0x0800 }, /* WF_LMAC_TOP BN1 (WF_RMAC) */
-	{ 0x820f7000, 0xa1e00, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_DMA) */
-	{ 0x820f9000, 0xa3400, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_WTBLOFF) */
-	{ 0x820fa000, 0xa4000, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_ETBF) */
-	{ 0x820fb000, 0xa4200, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_LPON) */
-	{ 0x820fc000, 0xa4600, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_INT) */
-	{ 0x820fd000, 0xa4800, 0x0800 }, /* WF_LMAC_TOP BN1 (WF_MIB) */
-	{ 0x820c4000, 0xa8000, 0x1000 }, /* WF_LMAC_TOP (WF_UWTBL ) */
-	{ 0x820b0000, 0xae000, 0x1000 }, /* [APB2] WFSYS_ON */
-	{ 0x80020000, 0xb0000, 0x10000}, /* WF_TOP_MISC_OFF */
-	{ 0x81020000, 0xc0000, 0x10000}, /* WF_TOP_MISC_ON */
+static const struct mt76_connac_reg_map mt7916_reg_map[] = {
+	{ 0x54000000, 0x02000, 0x01000 }, /* WFDMA_0 (PCIE0 MCU DMA0) */
+	{ 0x55000000, 0x03000, 0x01000 }, /* WFDMA_1 (PCIE0 MCU DMA1) */
+	{ 0x56000000, 0x04000, 0x01000 }, /* WFDMA_2 (Reserved) */
+	{ 0x57000000, 0x05000, 0x01000 }, /* WFDMA_3 (MCU wrap CR) */
+	{ 0x58000000, 0x06000, 0x01000 }, /* WFDMA_4 (PCIE1 MCU DMA0) */
+	{ 0x59000000, 0x07000, 0x01000 }, /* WFDMA_5 (PCIE1 MCU DMA1) */
+	{ 0x820c0000, 0x08000, 0x04000 }, /* WF_UMAC_TOP (PLE) */
+	{ 0x820c8000, 0x0c000, 0x02000 }, /* WF_UMAC_TOP (PSE) */
+	{ 0x820cc000, 0x0e000, 0x02000 }, /* WF_UMAC_TOP (PP) */
+	{ 0x820e0000, 0x20000, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_CFG) */
+	{ 0x820e1000, 0x20400, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_TRB) */
+	{ 0x820e2000, 0x20800, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_AGG) */
+	{ 0x820e3000, 0x20c00, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_ARB) */
+	{ 0x820e4000, 0x21000, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_TMAC) */
+	{ 0x820e5000, 0x21400, 0x00800 }, /* WF_LMAC_TOP BN0 (WF_RMAC) */
+	{ 0x820ce000, 0x21c00, 0x00200 }, /* WF_LMAC_TOP (WF_SEC) */
+	{ 0x820e7000, 0x21e00, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_DMA) */
+	{ 0x820cf000, 0x22000, 0x01000 }, /* WF_LMAC_TOP (WF_PF) */
+	{ 0x820e9000, 0x23400, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_WTBLOFF) */
+	{ 0x820ea000, 0x24000, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_ETBF) */
+	{ 0x820eb000, 0x24200, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_LPON) */
+	{ 0x820ec000, 0x24600, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_INT) */
+	{ 0x820ed000, 0x24800, 0x00800 }, /* WF_LMAC_TOP BN0 (WF_MIB) */
+	{ 0x820ca000, 0x26000, 0x02000 }, /* WF_LMAC_TOP BN0 (WF_MUCOP) */
+	{ 0x820d0000, 0x30000, 0x10000 }, /* WF_LMAC_TOP (WF_WTBLON) */
+	{ 0x00400000, 0x80000, 0x10000 }, /* WF_MCU_SYSRAM */
+	{ 0x00410000, 0x90000, 0x10000 }, /* WF_MCU_SYSRAM (configure cr) */
+	{ 0x820f0000, 0xa0000, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_CFG) */
+	{ 0x820f1000, 0xa0600, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_TRB) */
+	{ 0x820f2000, 0xa0800, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_AGG) */
+	{ 0x820f3000, 0xa0c00, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_ARB) */
+	{ 0x820f4000, 0xa1000, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_TMAC) */
+	{ 0x820f5000, 0xa1400, 0x00800 }, /* WF_LMAC_TOP BN1 (WF_RMAC) */
+	{ 0x820f7000, 0xa1e00, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_DMA) */
+	{ 0x820f9000, 0xa3400, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_WTBLOFF) */
+	{ 0x820fa000, 0xa4000, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_ETBF) */
+	{ 0x820fb000, 0xa4200, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_LPON) */
+	{ 0x820fc000, 0xa4600, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_INT) */
+	{ 0x820fd000, 0xa4800, 0x00800 }, /* WF_LMAC_TOP BN1 (WF_MIB) */
+	{ 0x820c4000, 0xa8000, 0x01000 }, /* WF_LMAC_TOP (WF_UWTBL ) */
+	{ 0x820b0000, 0xae000, 0x01000 }, /* [APB2] WFSYS_ON */
+	{ 0x80020000, 0xb0000, 0x10000 }, /* WF_TOP_MISC_OFF */
+	{ 0x81020000, 0xc0000, 0x10000 }, /* WF_TOP_MISC_ON */
 	{ 0x0, 0x0, 0x0 }, /* imply end of search */
 };
 
-static const struct __map mt7986_reg_map[] = {
-	{ 0x54000000, 0x402000, 0x1000 }, /* WFDMA_0 (PCIE0 MCU DMA0) */
-	{ 0x55000000, 0x403000, 0x1000 }, /* WFDMA_1 (PCIE0 MCU DMA1) */
-	{ 0x56000000, 0x404000, 0x1000 }, /* WFDMA_2 (Reserved) */
-	{ 0x57000000, 0x405000, 0x1000 }, /* WFDMA_3 (MCU wrap CR) */
-	{ 0x58000000, 0x406000, 0x1000 }, /* WFDMA_4 (PCIE1 MCU DMA0) */
-	{ 0x59000000, 0x407000, 0x1000 }, /* WFDMA_5 (PCIE1 MCU DMA1) */
-	{ 0x820c0000, 0x408000, 0x4000 }, /* WF_UMAC_TOP (PLE) */
-	{ 0x820c8000, 0x40c000, 0x2000 }, /* WF_UMAC_TOP (PSE) */
-	{ 0x820cc000, 0x40e000, 0x2000 }, /* WF_UMAC_TOP (PP) */
-	{ 0x820e0000, 0x420000, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_CFG) */
-	{ 0x820e1000, 0x420400, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_TRB) */
-	{ 0x820e2000, 0x420800, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_AGG) */
-	{ 0x820e3000, 0x420c00, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_ARB) */
-	{ 0x820e4000, 0x421000, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_TMAC) */
-	{ 0x820e5000, 0x421400, 0x0800 }, /* WF_LMAC_TOP BN0 (WF_RMAC) */
-	{ 0x820ce000, 0x421c00, 0x0200 }, /* WF_LMAC_TOP (WF_SEC) */
-	{ 0x820e7000, 0x421e00, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_DMA) */
-	{ 0x820cf000, 0x422000, 0x1000 }, /* WF_LMAC_TOP (WF_PF) */
-	{ 0x820e9000, 0x423400, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_WTBLOFF) */
-	{ 0x820ea000, 0x424000, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_ETBF) */
-	{ 0x820eb000, 0x424200, 0x0400 }, /* WF_LMAC_TOP BN0 (WF_LPON) */
-	{ 0x820ec000, 0x424600, 0x0200 }, /* WF_LMAC_TOP BN0 (WF_INT) */
-	{ 0x820ed000, 0x424800, 0x0800 }, /* WF_LMAC_TOP BN0 (WF_MIB) */
-	{ 0x820ca000, 0x426000, 0x2000 }, /* WF_LMAC_TOP BN0 (WF_MUCOP) */
-	{ 0x820d0000, 0x430000, 0x10000}, /* WF_LMAC_TOP (WF_WTBLON) */
-	{ 0x00400000, 0x480000, 0x10000}, /* WF_MCU_SYSRAM */
-	{ 0x00410000, 0x490000, 0x10000}, /* WF_MCU_SYSRAM */
-	{ 0x820f0000, 0x4a0000, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_CFG) */
-	{ 0x820f1000, 0x4a0600, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_TRB) */
-	{ 0x820f2000, 0x4a0800, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_AGG) */
-	{ 0x820f3000, 0x4a0c00, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_ARB) */
-	{ 0x820f4000, 0x4a1000, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_TMAC) */
-	{ 0x820f5000, 0x4a1400, 0x0800 }, /* WF_LMAC_TOP BN1 (WF_RMAC) */
-	{ 0x820f7000, 0x4a1e00, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_DMA) */
-	{ 0x820f9000, 0x4a3400, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_WTBLOFF) */
-	{ 0x820fa000, 0x4a4000, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_ETBF) */
-	{ 0x820fb000, 0x4a4200, 0x0400 }, /* WF_LMAC_TOP BN1 (WF_LPON) */
-	{ 0x820fc000, 0x4a4600, 0x0200 }, /* WF_LMAC_TOP BN1 (WF_INT) */
-	{ 0x820fd000, 0x4a4800, 0x0800 }, /* WF_LMAC_TOP BN1 (WF_MIB) */
-	{ 0x820c4000, 0x4a8000, 0x1000 }, /* WF_LMAC_TOP (WF_UWTBL ) */
-	{ 0x820b0000, 0x4ae000, 0x1000 }, /* [APB2] WFSYS_ON */
-	{ 0x80020000, 0x4b0000, 0x10000}, /* WF_TOP_MISC_OFF */
-	{ 0x81020000, 0x4c0000, 0x10000}, /* WF_TOP_MISC_ON */
-	{ 0x89000000, 0x4d0000, 0x1000 }, /* WF_MCU_CFG_ON */
-	{ 0x89010000, 0x4d1000, 0x1000 }, /* WF_MCU_CIRQ */
-	{ 0x89020000, 0x4d2000, 0x1000 }, /* WF_MCU_GPT */
-	{ 0x89030000, 0x4d3000, 0x1000 }, /* WF_MCU_WDT */
-	{ 0x80010000, 0x4d4000, 0x1000 }, /* WF_AXIDMA */
+static const struct mt76_connac_reg_map mt7986_reg_map[] = {
+	{ 0x54000000, 0x402000, 0x01000 }, /* WFDMA_0 (PCIE0 MCU DMA0) */
+	{ 0x55000000, 0x403000, 0x01000 }, /* WFDMA_1 (PCIE0 MCU DMA1) */
+	{ 0x56000000, 0x404000, 0x01000 }, /* WFDMA_2 (Reserved) */
+	{ 0x57000000, 0x405000, 0x01000 }, /* WFDMA_3 (MCU wrap CR) */
+	{ 0x58000000, 0x406000, 0x01000 }, /* WFDMA_4 (PCIE1 MCU DMA0) */
+	{ 0x59000000, 0x407000, 0x01000 }, /* WFDMA_5 (PCIE1 MCU DMA1) */
+	{ 0x820c0000, 0x408000, 0x04000 }, /* WF_UMAC_TOP (PLE) */
+	{ 0x820c8000, 0x40c000, 0x02000 }, /* WF_UMAC_TOP (PSE) */
+	{ 0x820cc000, 0x40e000, 0x02000 }, /* WF_UMAC_TOP (PP) */
+	{ 0x820e0000, 0x420000, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_CFG) */
+	{ 0x820e1000, 0x420400, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_TRB) */
+	{ 0x820e2000, 0x420800, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_AGG) */
+	{ 0x820e3000, 0x420c00, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_ARB) */
+	{ 0x820e4000, 0x421000, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_TMAC) */
+	{ 0x820e5000, 0x421400, 0x00800 }, /* WF_LMAC_TOP BN0 (WF_RMAC) */
+	{ 0x820ce000, 0x421c00, 0x00200 }, /* WF_LMAC_TOP (WF_SEC) */
+	{ 0x820e7000, 0x421e00, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_DMA) */
+	{ 0x820cf000, 0x422000, 0x01000 }, /* WF_LMAC_TOP (WF_PF) */
+	{ 0x820e9000, 0x423400, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_WTBLOFF) */
+	{ 0x820ea000, 0x424000, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_ETBF) */
+	{ 0x820eb000, 0x424200, 0x00400 }, /* WF_LMAC_TOP BN0 (WF_LPON) */
+	{ 0x820ec000, 0x424600, 0x00200 }, /* WF_LMAC_TOP BN0 (WF_INT) */
+	{ 0x820ed000, 0x424800, 0x00800 }, /* WF_LMAC_TOP BN0 (WF_MIB) */
+	{ 0x820ca000, 0x426000, 0x02000 }, /* WF_LMAC_TOP BN0 (WF_MUCOP) */
+	{ 0x820d0000, 0x430000, 0x10000 }, /* WF_LMAC_TOP (WF_WTBLON) */
+	{ 0x00400000, 0x480000, 0x10000 }, /* WF_MCU_SYSRAM */
+	{ 0x00410000, 0x490000, 0x10000 }, /* WF_MCU_SYSRAM */
+	{ 0x820f0000, 0x4a0000, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_CFG) */
+	{ 0x820f1000, 0x4a0600, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_TRB) */
+	{ 0x820f2000, 0x4a0800, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_AGG) */
+	{ 0x820f3000, 0x4a0c00, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_ARB) */
+	{ 0x820f4000, 0x4a1000, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_TMAC) */
+	{ 0x820f5000, 0x4a1400, 0x00800 }, /* WF_LMAC_TOP BN1 (WF_RMAC) */
+	{ 0x820f7000, 0x4a1e00, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_DMA) */
+	{ 0x820f9000, 0x4a3400, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_WTBLOFF) */
+	{ 0x820fa000, 0x4a4000, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_ETBF) */
+	{ 0x820fb000, 0x4a4200, 0x00400 }, /* WF_LMAC_TOP BN1 (WF_LPON) */
+	{ 0x820fc000, 0x4a4600, 0x00200 }, /* WF_LMAC_TOP BN1 (WF_INT) */
+	{ 0x820fd000, 0x4a4800, 0x00800 }, /* WF_LMAC_TOP BN1 (WF_MIB) */
+	{ 0x820c4000, 0x4a8000, 0x01000 }, /* WF_LMAC_TOP (WF_UWTBL ) */
+	{ 0x820b0000, 0x4ae000, 0x01000 }, /* [APB2] WFSYS_ON */
+	{ 0x80020000, 0x4b0000, 0x10000 }, /* WF_TOP_MISC_OFF */
+	{ 0x81020000, 0x4c0000, 0x10000 }, /* WF_TOP_MISC_ON */
+	{ 0x89000000, 0x4d0000, 0x01000 }, /* WF_MCU_CFG_ON */
+	{ 0x89010000, 0x4d1000, 0x01000 }, /* WF_MCU_CIRQ */
+	{ 0x89020000, 0x4d2000, 0x01000 }, /* WF_MCU_GPT */
+	{ 0x89030000, 0x4d3000, 0x01000 }, /* WF_MCU_WDT */
+	{ 0x80010000, 0x4d4000, 0x01000 }, /* WF_AXIDMA */
 	{ 0x0, 0x0, 0x0 }, /* imply end of search */
 };
 
@@ -547,15 +555,21 @@ static void mt7915_rx_poll_complete(struct mt76_dev *mdev,
 static void mt7915_irq_tasklet(struct tasklet_struct *t)
 {
 	struct mt7915_dev *dev = from_tasklet(dev, t, irq_tasklet);
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 	u32 intr, intr1, mask;
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-	if (dev->hif2)
-		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+	if (mtk_wed_device_active(wed)) {
+		mtk_wed_device_irq_set_mask(wed, 0);
+		intr = mtk_wed_device_irq_get(wed, dev->mt76.mmio.irqmask);
+	} else {
+		mt76_wr(dev, MT_INT_MASK_CSR, 0);
+		if (dev->hif2)
+			mt76_wr(dev, MT_INT1_MASK_CSR, 0);
 
-	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
-	intr &= dev->mt76.mmio.irqmask;
-	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+		intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+		intr &= dev->mt76.mmio.irqmask;
+		mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+	}
 
 	if (dev->hif2) {
 		intr1 = mt76_rr(dev, MT_INT1_SOURCE_CSR);
@@ -579,8 +593,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	if (intr & MT_INT_RX(MT_RXQ_MAIN))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
 
-	if (intr & MT_INT_RX(MT_RXQ_EXT))
-		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT]);
+	if (intr & MT_INT_RX(MT_RXQ_BAND1))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_BAND1]);
 
 	if (intr & MT_INT_RX(MT_RXQ_MCU))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU]);
@@ -592,8 +606,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	    (intr & MT_INT_RX(MT_RXQ_MAIN_WA)))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN_WA]);
 
-	if (intr & MT_INT_RX(MT_RXQ_EXT_WA))
-		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT_WA]);
+	if (intr & MT_INT_RX(MT_RXQ_BAND1_WA))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_BAND1_WA]);
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
@@ -601,7 +615,7 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 		mt76_wr(dev, MT_MCU_CMD, val);
 		if (val & MT_MCU_CMD_ERROR_MASK) {
 			dev->reset_state = val;
-			ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
+			queue_work(dev->mt76.wq, &dev->reset_work);
 			wake_up(&dev->reset_wait);
 		}
 	}
@@ -610,10 +624,15 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 {
 	struct mt7915_dev *dev = dev_instance;
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-	if (dev->hif2)
-		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+	if (mtk_wed_device_active(wed)) {
+		mtk_wed_device_irq_set_mask(wed, 0);
+	} else {
+		mt76_wr(dev, MT_INT_MASK_CSR, 0);
+		if (dev->hif2)
+			mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+	}
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
@@ -628,14 +647,14 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
-		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7915_txp),
+		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_fw_txp),
 		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
 		.token_size = MT7915_TOKEN_SIZE,
 		.tx_prepare_skb = mt7915_tx_prepare_skb,
-		.tx_complete_skb = mt7915_tx_complete_skb,
+		.tx_complete_skb = mt76_connac_tx_complete_skb,
 		.rx_skb = mt7915_queue_rx_skb,
 		.rx_check = mt7915_rx_check,
 		.rx_poll_complete = mt7915_rx_poll_complete,
@@ -644,16 +663,11 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 		.sta_remove = mt7915_mac_sta_remove,
 		.update_survey = mt7915_update_channel,
 	};
-	struct ieee80211_ops *ops;
 	struct mt7915_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
 
-	ops = devm_kmemdup(pdev, &mt7915_ops, sizeof(mt7915_ops), GFP_KERNEL);
-	if (!ops)
-		return ERR_PTR(-ENOMEM);
-
-	mdev = mt76_alloc_device(pdev, sizeof(*dev), ops, &drv_ops);
+	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt7915_ops, &drv_ops);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -664,8 +678,6 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 		goto error;
 
 	tasklet_setup(&dev->irq_tasklet, mt7915_irq_tasklet);
-
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	return dev;
 

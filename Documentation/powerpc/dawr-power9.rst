@@ -2,15 +2,23 @@
 DAWR issues on POWER9
 =====================
 
-On POWER9 the Data Address Watchpoint Register (DAWR) can cause a checkstop
-if it points to cache inhibited (CI) memory. Currently Linux has no way to
-distinguish CI memory when configuring the DAWR, so (for now) the DAWR is
-disabled by this commit::
+On older POWER9 processors, the Data Address Watchpoint Register (DAWR) can
+cause a checkstop if it points to cache inhibited (CI) memory. Currently Linux
+has no way to distinguish CI memory when configuring the DAWR, so on affected
+systems, the DAWR is disabled.
 
-    commit 9654153158d3e0684a1bdb76dbababdb7111d5a0
-    Author: Michael Neuling <mikey@neuling.org>
-    Date:   Tue Mar 27 15:37:24 2018 +1100
-    powerpc: Disable DAWR in the base POWER9 CPU features
+Affected processor revisions
+============================
+
+This issue is only present on processors prior to v2.3. The revision can be
+found in /proc/cpuinfo::
+
+    processor       : 0
+    cpu             : POWER9, altivec supported
+    clock           : 3800.000000MHz
+    revision        : 2.3 (pvr 004e 1203)
+
+On a system with the issue, the DAWR is disabled as detailed below.
 
 Technical Details:
 ==================

@@ -22,6 +22,7 @@
 #ifndef SMU_11_0_PPTABLE_H
 #define SMU_11_0_PPTABLE_H
 
+#pragma pack(push, 1)
 
 #define SMU_11_0_TABLE_FORMAT_REVISION                  12
 
@@ -109,7 +110,7 @@ struct smu_11_0_overdrive_table
     uint8_t  cap[SMU_11_0_MAX_ODFEATURE];                     //OD feature support flags
     uint32_t max[SMU_11_0_MAX_ODSETTING];                     //default maximum settings
     uint32_t min[SMU_11_0_MAX_ODSETTING];                     //default minimum settings
-} __attribute__((packed));
+};
 
 enum SMU_11_0_PPCLOCK_ID {
     SMU_11_0_PPCLOCK_GFXCLK = 0,
@@ -133,7 +134,7 @@ struct smu_11_0_power_saving_clock_table
     uint32_t count;                                           //power_saving_clock_count = SMU_11_0_PPCLOCK_COUNT
     uint32_t max[SMU_11_0_MAX_PPCLOCK];                       //PowerSavingClock Mode Clock Maximum array In MHz
     uint32_t min[SMU_11_0_MAX_PPCLOCK];                       //PowerSavingClock Mode Clock Minimum array In MHz
-} __attribute__((packed));
+};
 
 struct smu_11_0_powerplay_table
 {
@@ -162,6 +163,8 @@ struct smu_11_0_powerplay_table
 #ifndef SMU_11_0_PARTIAL_PPTABLE
       PPTable_t smc_pptable;                        //PPTable_t in smu11_driver_if.h
 #endif
-} __attribute__((packed));
+};
+
+#pragma pack(pop)
 
 #endif

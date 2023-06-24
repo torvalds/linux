@@ -216,7 +216,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (flags & ~(MSG_DONTWAIT | MSG_TRUNC | MSG_PEEK))
 		return -EOPNOTSUPP;
 
-	skb = skb_recv_datagram(sk, flags, flags & MSG_DONTWAIT, &rc);
+	skb = skb_recv_datagram(sk, flags, &rc);
 	if (!skb)
 		return rc;
 
@@ -238,7 +238,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (rc < 0)
 		goto out_free;
 
-	sock_recv_ts_and_drops(msg, sk, skb);
+	sock_recv_cmsgs(msg, sk, skb);
 
 	if (addr) {
 		struct mctp_skb_cb *cb = mctp_cb(skb);
@@ -295,11 +295,12 @@ __must_hold(&net->mctp.keys_lock)
 	mctp_dev_release_key(key->dev, key);
 	spin_unlock_irqrestore(&key->lock, flags);
 
-	hlist_del(&key->hlist);
-	hlist_del(&key->sklist);
-
-	/* unref for the lists */
-	mctp_key_unref(key);
+	if (!hlist_unhashed(&key->hlist)) {
+		hlist_del_init(&key->hlist);
+		hlist_del_init(&key->sklist);
+		/* unref for the lists */
+		mctp_key_unref(key);
+	}
 
 	kfree_skb(skb);
 }
@@ -373,9 +374,17 @@ static int mctp_ioctl_alloctag(struct mctp_sock *msk, unsigned long arg)
 
 	ctl.tag = tag | MCTP_TAG_OWNER | MCTP_TAG_PREALLOC;
 	if (copy_to_user((void __user *)arg, &ctl, sizeof(ctl))) {
-		spin_lock_irqsave(&key->lock, flags);
-		__mctp_key_remove(key, net, flags, MCTP_TRACE_KEY_DROPPED);
+		unsigned long fl2;
+		/* Unwind our key allocation: the keys list lock needs to be
+		 * taken before the individual key locks, and we need a valid
+		 * flags value (fl2) to pass to __mctp_key_remove, hence the
+		 * second spin_lock_irqsave() rather than a plain spin_lock().
+		 */
+		spin_lock_irqsave(&net->mctp.keys_lock, flags);
+		spin_lock_irqsave(&key->lock, fl2);
+		__mctp_key_remove(key, net, fl2, MCTP_TRACE_KEY_DROPPED);
 		mctp_key_unref(key);
+		spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
 		return -EFAULT;
 	}
 
@@ -656,12 +665,14 @@ static __init int mctp_init(void)
 
 	rc = mctp_neigh_init();
 	if (rc)
-		goto err_unreg_proto;
+		goto err_unreg_routes;
 
 	mctp_device_init();
 
 	return 0;
 
+err_unreg_routes:
+	mctp_routes_exit();
 err_unreg_proto:
 	proto_unregister(&mctp_proto);
 err_unreg_sock:

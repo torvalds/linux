@@ -1482,7 +1482,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
  * @msg: Power Management message describing this state transition
  *
  * This is the central routine for resuming USB devices.  It calls the
- * the resume method for @udev and then calls the resume methods for all
+ * resume method for @udev and then calls the resume methods for all
  * the interface drivers in @udev.
  *
  * Autoresume requests originating from a child device or an interface
@@ -1533,22 +1533,23 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 {
 	int	w;
 
-	/* Remote wakeup is needed only when we actually go to sleep.
-	 * For things like FREEZE and QUIESCE, if the device is already
-	 * autosuspended then its current wakeup setting is okay.
+	/*
+	 * For FREEZE/QUIESCE, disable remote wakeups so no interrupts get
+	 * generated.
 	 */
 	if (msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_QUIESCE) {
-		if (udev->state != USB_STATE_SUSPENDED)
-			udev->do_remote_wakeup = 0;
-		return;
+		w = 0;
+
+	} else {
+		/*
+		 * Enable remote wakeup if it is allowed, even if no interface
+		 * drivers actually want it.
+		 */
+		w = device_may_wakeup(&udev->dev);
 	}
 
-	/* Enable remote wakeup if it is allowed, even if no interface drivers
-	 * actually want it.
-	 */
-	w = device_may_wakeup(&udev->dev);
-
-	/* If the device is autosuspended with the wrong wakeup setting,
+	/*
+	 * If the device is autosuspended with the wrong wakeup setting,
 	 * autoresume now so the setting can be changed.
 	 */
 	if (udev->state == USB_STATE_SUSPENDED && w != udev->do_remote_wakeup)

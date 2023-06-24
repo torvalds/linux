@@ -62,6 +62,12 @@ struct i915_page_sizes {
  * deferred to a work item awaiting unsignaled fences. This is a hack.
  * (dma_fence_work uses a fence flag for this, but this seems slightly
  * cleaner).
+ * @needs_wakeref: Whether a wakeref is needed during unbind. Since we can't
+ * take a wakeref in the dma-fence signalling critical path, it needs to be
+ * taken when the unbind is scheduled.
+ * @skip_pte_rewrite: During ggtt suspend and vm takedown pte rewriting
+ * needs to be skipped for unbind.
+ * @tlb: pointer for obj->mm.tlb, if async unbind. Otherwise, NULL
  *
  * The lifetime of a struct i915_vma_resource is from a binding request to
  * the actual possible asynchronous unbind has completed.
@@ -113,6 +119,9 @@ struct i915_vma_resource {
 	bool allocated:1;
 	bool immediate_unbind:1;
 	bool needs_wakeref:1;
+	bool skip_pte_rewrite:1;
+
+	u32 *tlb;
 };
 
 bool i915_vma_resource_hold(struct i915_vma_resource *vma_res,
@@ -125,7 +134,8 @@ struct i915_vma_resource *i915_vma_resource_alloc(void);
 
 void i915_vma_resource_free(struct i915_vma_resource *vma_res);
 
-struct dma_fence *i915_vma_resource_unbind(struct i915_vma_resource *vma_res);
+struct dma_fence *i915_vma_resource_unbind(struct i915_vma_resource *vma_res,
+					   u32 *tlb);
 
 void __i915_vma_resource_init(struct i915_vma_resource *vma_res);
 

@@ -1095,6 +1095,78 @@ void video_unregister_device(struct video_device *vdev)
 }
 EXPORT_SYMBOL(video_unregister_device);
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+
+__must_check int video_device_pipeline_start(struct video_device *vdev,
+					     struct media_pipeline *pipe)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (entity->num_pads != 1)
+		return -ENODEV;
+
+	return media_pipeline_start(&entity->pads[0], pipe);
+}
+EXPORT_SYMBOL_GPL(video_device_pipeline_start);
+
+__must_check int __video_device_pipeline_start(struct video_device *vdev,
+					       struct media_pipeline *pipe)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (entity->num_pads != 1)
+		return -ENODEV;
+
+	return __media_pipeline_start(&entity->pads[0], pipe);
+}
+EXPORT_SYMBOL_GPL(__video_device_pipeline_start);
+
+void video_device_pipeline_stop(struct video_device *vdev)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (WARN_ON(entity->num_pads != 1))
+		return;
+
+	return media_pipeline_stop(&entity->pads[0]);
+}
+EXPORT_SYMBOL_GPL(video_device_pipeline_stop);
+
+void __video_device_pipeline_stop(struct video_device *vdev)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (WARN_ON(entity->num_pads != 1))
+		return;
+
+	return __media_pipeline_stop(&entity->pads[0]);
+}
+EXPORT_SYMBOL_GPL(__video_device_pipeline_stop);
+
+__must_check int video_device_pipeline_alloc_start(struct video_device *vdev)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (entity->num_pads != 1)
+		return -ENODEV;
+
+	return media_pipeline_alloc_start(&entity->pads[0]);
+}
+EXPORT_SYMBOL_GPL(video_device_pipeline_alloc_start);
+
+struct media_pipeline *video_device_pipeline(struct video_device *vdev)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (WARN_ON(entity->num_pads != 1))
+		return NULL;
+
+	return media_pad_pipeline(&entity->pads[0]);
+}
+EXPORT_SYMBOL_GPL(video_device_pipeline);
+
+#endif /* CONFIG_MEDIA_CONTROLLER */
+
 /*
  *	Initialise video for linux
  */

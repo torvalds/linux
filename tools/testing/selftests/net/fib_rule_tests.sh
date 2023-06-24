@@ -20,6 +20,7 @@ SRC_IP6=2001:db8:1::3
 DEV_ADDR=192.51.100.1
 DEV_ADDR6=2001:db8:1::1
 DEV=dummy0
+TESTS="fib_rule6 fib_rule4"
 
 log_test()
 {
@@ -302,6 +303,29 @@ run_fibrule_tests()
 	log_section "IPv6 fib rule"
 	fib_rule6_test
 }
+################################################################################
+# usage
+
+usage()
+{
+	cat <<EOF
+usage: ${0##*/} OPTS
+
+        -t <test>   Test(s) to run (default: all)
+                    (options: $TESTS)
+EOF
+}
+
+################################################################################
+# main
+
+while getopts ":t:h" opt; do
+	case $opt in
+		t) TESTS=$OPTARG;;
+		h) usage; exit 0;;
+		*) usage; exit 1;;
+	esac
+done
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -316,7 +340,16 @@ fi
 # start clean
 cleanup &> /dev/null
 setup
-run_fibrule_tests
+for t in $TESTS
+do
+	case $t in
+	fib_rule6_test|fib_rule6)		fib_rule6_test;;
+	fib_rule4_test|fib_rule4)		fib_rule4_test;;
+
+	help) echo "Test names: $TESTS"; exit 0;;
+
+	esac
+done
 cleanup
 
 if [ "$TESTS" != "none" ]; then

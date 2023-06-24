@@ -14,7 +14,7 @@
 #include <linux/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
-#include <mach/spear.h>
+#include "spear.h"
 #include "generic.h"
 
 /* XXX spear_pen_release is cargo culted code - DO NOT COPY XXX */

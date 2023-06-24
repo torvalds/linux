@@ -63,6 +63,8 @@ struct extent_map_tree {
 	rwlock_t lock;
 };
 
+struct btrfs_inode;
+
 static inline int extent_map_in_tree(const struct extent_map *em)
 {
 	return !RB_EMPTY_NODE(&em->rb_node);
@@ -104,5 +106,11 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 			     struct extent_map_tree *em_tree,
 			     struct extent_map **em_in, u64 start, u64 len);
+void btrfs_drop_extent_map_range(struct btrfs_inode *inode,
+				 u64 start, u64 end,
+				 bool skip_pinned);
+int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
+				   struct extent_map *new_em,
+				   bool modified);
 
 #endif

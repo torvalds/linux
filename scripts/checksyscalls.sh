@@ -268,4 +268,4 @@ syscall_list() {
 }
 
 (ignore_list && syscall_list $(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl) | \
-$* -Wno-error -E -x c - > /dev/null
+$* -Wno-error -Wno-unused-macros -E -x c - > /dev/null

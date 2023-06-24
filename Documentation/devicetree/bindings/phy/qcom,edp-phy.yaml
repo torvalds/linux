@@ -19,6 +19,8 @@ properties:
     enum:
       - qcom,sc7280-edp-phy
       - qcom,sc8180x-edp-phy
+      - qcom,sc8280xp-dp-phy
+      - qcom,sc8280xp-edp-phy
 
   reg:
     items:
@@ -40,6 +42,9 @@ properties:
 
   "#phy-cells":
     const: 0
+
+  vdda-phy-supply: true
+  vdda-pll-supply: true
 
 required:
   - compatible
@@ -65,5 +70,8 @@ examples:
 
       #clock-cells = <1>;
       #phy-cells = <0>;
+
+      vdda-phy-supply = <&vdd_a_edp_0_1p2>;
+      vdda-pll-supply = <&vdd_a_edp_0_0p9>;
     };
 ...

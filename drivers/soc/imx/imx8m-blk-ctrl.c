@@ -5,6 +5,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/interconnect.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -15,11 +16,12 @@
 
 #include <dt-bindings/power/imx8mm-power.h>
 #include <dt-bindings/power/imx8mn-power.h>
+#include <dt-bindings/power/imx8mp-power.h>
 #include <dt-bindings/power/imx8mq-power.h>
 
 #define BLK_SFT_RSTN	0x0
 #define BLK_CLK_EN	0x4
-#define BLK_MIPI_RESET_DIV	0x8 /* Mini/Nano DISPLAY_BLK_CTRL only */
+#define BLK_MIPI_RESET_DIV	0x8 /* Mini/Nano/Plus DISPLAY_BLK_CTRL only */
 
 struct imx8m_blk_ctrl_domain;
 
@@ -36,12 +38,14 @@ struct imx8m_blk_ctrl_domain_data {
 	const char *name;
 	const char * const *clk_names;
 	int num_clks;
+	const char * const *path_names;
+	int num_paths;
 	const char *gpc_name;
 	u32 rst_mask;
 	u32 clk_mask;
 
 	/*
-	 * i.MX8M Mini and Nano have a third DISPLAY_BLK_CTRL register
+	 * i.MX8M Mini, Nano and Plus have a third DISPLAY_BLK_CTRL register
 	 * which is used to control the reset for the MIPI Phy.
 	 * Since it's only present in certain circumstances,
 	 * an if-statement should be used before setting and clearing this
@@ -51,13 +55,16 @@ struct imx8m_blk_ctrl_domain_data {
 };
 
 #define DOMAIN_MAX_CLKS 4
+#define DOMAIN_MAX_PATHS 4
 
 struct imx8m_blk_ctrl_domain {
 	struct generic_pm_domain genpd;
 	const struct imx8m_blk_ctrl_domain_data *data;
 	struct clk_bulk_data clks[DOMAIN_MAX_CLKS];
+	struct icc_bulk_data paths[DOMAIN_MAX_PATHS];
 	struct device *power_dev;
 	struct imx8m_blk_ctrl *bc;
+	int num_paths;
 };
 
 struct imx8m_blk_ctrl_data {
@@ -116,6 +123,10 @@ static int imx8m_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 	if (data->mipi_phy_rst_mask)
 		regmap_set_bits(bc->regmap, BLK_MIPI_RESET_DIV, data->mipi_phy_rst_mask);
 
+	ret = icc_bulk_set_bw(domain->num_paths, domain->paths);
+	if (ret)
+		dev_err(bc->dev, "failed to set icc bw\n");
+
 	/* disable upstream clocks */
 	clk_bulk_disable_unprepare(data->num_clks, domain->clks);
 
@@ -149,19 +160,6 @@ static int imx8m_blk_ctrl_power_off(struct generic_pm_domain *genpd)
 	pm_runtime_put(bc->bus_power_dev);
 
 	return 0;
-}
-
-static struct generic_pm_domain *
-imx8m_blk_ctrl_xlate(struct of_phandle_args *args, void *data)
-{
-	struct genpd_onecell_data *onecell_data = data;
-	unsigned int index = args->args[0];
-
-	if (args->args_count != 1 ||
-	    index >= onecell_data->num_domains)
-		return ERR_PTR(-EINVAL);
-
-	return onecell_data->domains[index];
 }
 
 static struct lock_class_key blk_ctrl_genpd_lock_class;
@@ -205,7 +203,6 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	bc->onecell_data.num_domains = bc_data->num_domains;
-	bc->onecell_data.xlate = imx8m_blk_ctrl_xlate;
 	bc->onecell_data.domains =
 		devm_kcalloc(dev, bc_data->num_domains,
 			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
@@ -215,7 +212,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 	bc->bus_power_dev = genpd_dev_pm_attach_by_name(dev, "bus");
 	if (IS_ERR(bc->bus_power_dev))
 		return dev_err_probe(dev, PTR_ERR(bc->bus_power_dev),
-				     "failed to attach power domain\n");
+				     "failed to attach power domain \"bus\"\n");
 
 	for (i = 0; i < bc_data->num_domains; i++) {
 		const struct imx8m_blk_ctrl_domain_data *data = &bc_data->domains[i];
@@ -223,9 +220,28 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		int j;
 
 		domain->data = data;
+		domain->num_paths = data->num_paths;
 
 		for (j = 0; j < data->num_clks; j++)
 			domain->clks[j].id = data->clk_names[j];
+
+		for (j = 0; j < data->num_paths; j++) {
+			domain->paths[j].name = data->path_names[j];
+			/* Fake value for now, just let ICC could configure NoC mode/priority */
+			domain->paths[j].avg_bw = 1;
+			domain->paths[j].peak_bw = 1;
+		}
+
+		ret = devm_of_icc_bulk_get(dev, data->num_paths, domain->paths);
+		if (ret) {
+			if (ret != -EPROBE_DEFER) {
+				dev_warn_once(dev, "Could not get interconnect paths, NoC will stay unconfigured!\n");
+				domain->num_paths = 0;
+			} else {
+				dev_err_probe(dev, ret, "failed to get noc entries\n");
+				goto cleanup_pds;
+			}
+		}
 
 		ret = devm_clk_bulk_get(dev, data->num_clks, domain->clks);
 		if (ret) {
@@ -237,7 +253,8 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 			dev_pm_domain_attach_by_name(dev, data->gpc_name);
 		if (IS_ERR(domain->power_dev)) {
 			dev_err_probe(dev, PTR_ERR(domain->power_dev),
-				      "failed to attach power domain\n");
+				      "failed to attach power domain \"%s\"\n",
+				      data->gpc_name);
 			ret = PTR_ERR(domain->power_dev);
 			goto cleanup_pds;
 		}
@@ -249,7 +266,9 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 
 		ret = pm_genpd_init(&domain->genpd, NULL, true);
 		if (ret) {
-			dev_err_probe(dev, ret, "failed to init power domain\n");
+			dev_err_probe(dev, ret,
+				      "failed to init power domain \"%s\"\n",
+				      data->gpc_name);
 			dev_pm_domain_detach(domain->power_dev, true);
 			goto cleanup_pds;
 		}
@@ -450,6 +469,46 @@ static const struct imx8m_blk_ctrl_data imx8mm_vpu_blk_ctl_dev_data = {
 	.num_domains = ARRAY_SIZE(imx8mm_vpu_blk_ctl_domain_data),
 };
 
+static const struct imx8m_blk_ctrl_domain_data imx8mp_vpu_blk_ctl_domain_data[] = {
+	[IMX8MP_VPUBLK_PD_G1] = {
+		.name = "vpublk-g1",
+		.clk_names = (const char *[]){ "g1", },
+		.num_clks = 1,
+		.gpc_name = "g1",
+		.rst_mask = BIT(1),
+		.clk_mask = BIT(1),
+		.path_names = (const char *[]){"g1"},
+		.num_paths = 1,
+	},
+	[IMX8MP_VPUBLK_PD_G2] = {
+		.name = "vpublk-g2",
+		.clk_names = (const char *[]){ "g2", },
+		.num_clks = 1,
+		.gpc_name = "g2",
+		.rst_mask = BIT(0),
+		.clk_mask = BIT(0),
+		.path_names = (const char *[]){"g2"},
+		.num_paths = 1,
+	},
+	[IMX8MP_VPUBLK_PD_VC8000E] = {
+		.name = "vpublk-vc8000e",
+		.clk_names = (const char *[]){ "vc8000e", },
+		.num_clks = 1,
+		.gpc_name = "vc8000e",
+		.rst_mask = BIT(2),
+		.clk_mask = BIT(2),
+		.path_names = (const char *[]){"vc8000e"},
+		.num_paths = 1,
+	},
+};
+
+static const struct imx8m_blk_ctrl_data imx8mp_vpu_blk_ctl_dev_data = {
+	.max_reg = 0x18,
+	.power_notifier_fn = imx8mm_vpu_power_notifier,
+	.domains = imx8mp_vpu_blk_ctl_domain_data,
+	.num_domains = ARRAY_SIZE(imx8mp_vpu_blk_ctl_domain_data),
+};
+
 static int imx8mm_disp_power_notifier(struct notifier_block *nb,
 				      unsigned long action, void *data)
 {
@@ -590,6 +649,131 @@ static const struct imx8m_blk_ctrl_data imx8mn_disp_blk_ctl_dev_data = {
 	.num_domains = ARRAY_SIZE(imx8mn_disp_blk_ctl_domain_data),
 };
 
+static int imx8mp_media_power_notifier(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct imx8m_blk_ctrl *bc = container_of(nb, struct imx8m_blk_ctrl,
+						 power_nb);
+
+	if (action != GENPD_NOTIFY_ON && action != GENPD_NOTIFY_PRE_OFF)
+		return NOTIFY_OK;
+
+	/* Enable bus clock and deassert bus reset */
+	regmap_set_bits(bc->regmap, BLK_CLK_EN, BIT(8));
+	regmap_set_bits(bc->regmap, BLK_SFT_RSTN, BIT(8));
+
+	/*
+	 * On power up we have no software backchannel to the GPC to
+	 * wait for the ADB handshake to happen, so we just delay for a
+	 * bit. On power down the GPC driver waits for the handshake.
+	 */
+	if (action == GENPD_NOTIFY_ON)
+		udelay(5);
+
+	return NOTIFY_OK;
+}
+
+/*
+ * From i.MX 8M Plus Applications Processor Reference Manual, Rev. 1,
+ * section 13.2.2, 13.2.3
+ * isp-ahb and dwe are not in Figure 13-5. Media BLK_CTRL Clocks
+ */
+static const struct imx8m_blk_ctrl_domain_data imx8mp_media_blk_ctl_domain_data[] = {
+	[IMX8MP_MEDIABLK_PD_MIPI_DSI_1] = {
+		.name = "mediablk-mipi-dsi-1",
+		.clk_names = (const char *[]){ "apb", "phy", },
+		.num_clks = 2,
+		.gpc_name = "mipi-dsi1",
+		.rst_mask = BIT(0) | BIT(1),
+		.clk_mask = BIT(0) | BIT(1),
+		.mipi_phy_rst_mask = BIT(17),
+	},
+	[IMX8MP_MEDIABLK_PD_MIPI_CSI2_1] = {
+		.name = "mediablk-mipi-csi2-1",
+		.clk_names = (const char *[]){ "apb", "cam1" },
+		.num_clks = 2,
+		.gpc_name = "mipi-csi1",
+		.rst_mask = BIT(2) | BIT(3),
+		.clk_mask = BIT(2) | BIT(3),
+		.mipi_phy_rst_mask = BIT(16),
+	},
+	[IMX8MP_MEDIABLK_PD_LCDIF_1] = {
+		.name = "mediablk-lcdif-1",
+		.clk_names = (const char *[]){ "disp1", "apb", "axi", },
+		.num_clks = 3,
+		.gpc_name = "lcdif1",
+		.rst_mask = BIT(4) | BIT(5) | BIT(23),
+		.clk_mask = BIT(4) | BIT(5) | BIT(23),
+		.path_names = (const char *[]){"lcdif-rd", "lcdif-wr"},
+		.num_paths = 2,
+	},
+	[IMX8MP_MEDIABLK_PD_ISI] = {
+		.name = "mediablk-isi",
+		.clk_names = (const char *[]){ "axi", "apb" },
+		.num_clks = 2,
+		.gpc_name = "isi",
+		.rst_mask = BIT(6) | BIT(7),
+		.clk_mask = BIT(6) | BIT(7),
+		.path_names = (const char *[]){"isi0", "isi1", "isi2"},
+		.num_paths = 3,
+	},
+	[IMX8MP_MEDIABLK_PD_MIPI_CSI2_2] = {
+		.name = "mediablk-mipi-csi2-2",
+		.clk_names = (const char *[]){ "apb", "cam2" },
+		.num_clks = 2,
+		.gpc_name = "mipi-csi2",
+		.rst_mask = BIT(9) | BIT(10),
+		.clk_mask = BIT(9) | BIT(10),
+		.mipi_phy_rst_mask = BIT(30),
+	},
+	[IMX8MP_MEDIABLK_PD_LCDIF_2] = {
+		.name = "mediablk-lcdif-2",
+		.clk_names = (const char *[]){ "disp2", "apb", "axi", },
+		.num_clks = 3,
+		.gpc_name = "lcdif2",
+		.rst_mask = BIT(11) | BIT(12) | BIT(24),
+		.clk_mask = BIT(11) | BIT(12) | BIT(24),
+		.path_names = (const char *[]){"lcdif-rd", "lcdif-wr"},
+		.num_paths = 2,
+	},
+	[IMX8MP_MEDIABLK_PD_ISP] = {
+		.name = "mediablk-isp",
+		.clk_names = (const char *[]){ "isp", "axi", "apb" },
+		.num_clks = 3,
+		.gpc_name = "isp",
+		.rst_mask = BIT(16) | BIT(17) | BIT(18),
+		.clk_mask = BIT(16) | BIT(17) | BIT(18),
+		.path_names = (const char *[]){"isp0", "isp1"},
+		.num_paths = 2,
+	},
+	[IMX8MP_MEDIABLK_PD_DWE] = {
+		.name = "mediablk-dwe",
+		.clk_names = (const char *[]){ "axi", "apb" },
+		.num_clks = 2,
+		.gpc_name = "dwe",
+		.rst_mask = BIT(19) | BIT(20) | BIT(21),
+		.clk_mask = BIT(19) | BIT(20) | BIT(21),
+		.path_names = (const char *[]){"dwe"},
+		.num_paths = 1,
+	},
+	[IMX8MP_MEDIABLK_PD_MIPI_DSI_2] = {
+		.name = "mediablk-mipi-dsi-2",
+		.clk_names = (const char *[]){ "phy", },
+		.num_clks = 1,
+		.gpc_name = "mipi-dsi2",
+		.rst_mask = BIT(22),
+		.clk_mask = BIT(22),
+		.mipi_phy_rst_mask = BIT(29),
+	},
+};
+
+static const struct imx8m_blk_ctrl_data imx8mp_media_blk_ctl_dev_data = {
+	.max_reg = 0x138,
+	.power_notifier_fn = imx8mp_media_power_notifier,
+	.domains = imx8mp_media_blk_ctl_domain_data,
+	.num_domains = ARRAY_SIZE(imx8mp_media_blk_ctl_domain_data),
+};
+
 static int imx8mq_vpu_power_notifier(struct notifier_block *nb,
 				     unsigned long action, void *data)
 {
@@ -663,8 +847,14 @@ static const struct of_device_id imx8m_blk_ctrl_of_match[] = {
 		.compatible = "fsl,imx8mn-disp-blk-ctrl",
 		.data = &imx8mn_disp_blk_ctl_dev_data
 	}, {
+		.compatible = "fsl,imx8mp-media-blk-ctrl",
+		.data = &imx8mp_media_blk_ctl_dev_data
+	}, {
 		.compatible = "fsl,imx8mq-vpu-blk-ctrl",
 		.data = &imx8mq_vpu_blk_ctl_dev_data
+	}, {
+		.compatible = "fsl,imx8mp-vpu-blk-ctrl",
+		.data = &imx8mp_vpu_blk_ctl_dev_data
 	}, {
 		/* Sentinel */
 	}

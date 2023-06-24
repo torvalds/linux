@@ -603,7 +603,7 @@ static const char *byt_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *vg = pinctrl_dev_get_drvdata(pctldev);
 
-	return vg->soc->groups[selector].name;
+	return vg->soc->groups[selector].grp.name;
 }
 
 static int byt_get_group_pins(struct pinctrl_dev *pctldev,
@@ -613,8 +613,8 @@ static int byt_get_group_pins(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *vg = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins		= vg->soc->groups[selector].pins;
-	*num_pins	= vg->soc->groups[selector].npins;
+	*pins		= vg->soc->groups[selector].grp.pins;
+	*num_pins	= vg->soc->groups[selector].grp.npins;
 
 	return 0;
 }
@@ -662,15 +662,15 @@ static void byt_set_group_simple_mux(struct intel_pinctrl *vg,
 
 	raw_spin_lock_irqsave(&byt_lock, flags);
 
-	for (i = 0; i < group.npins; i++) {
+	for (i = 0; i < group.grp.npins; i++) {
 		void __iomem *padcfg0;
 		u32 value;
 
-		padcfg0 = byt_gpio_reg(vg, group.pins[i], BYT_CONF0_REG);
+		padcfg0 = byt_gpio_reg(vg, group.grp.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
 			dev_warn(vg->dev,
 				 "Group %s, pin %i not muxed (no padcfg0)\n",
-				 group.name, i);
+				 group.grp.name, i);
 			continue;
 		}
 
@@ -692,15 +692,15 @@ static void byt_set_group_mixed_mux(struct intel_pinctrl *vg,
 
 	raw_spin_lock_irqsave(&byt_lock, flags);
 
-	for (i = 0; i < group.npins; i++) {
+	for (i = 0; i < group.grp.npins; i++) {
 		void __iomem *padcfg0;
 		u32 value;
 
-		padcfg0 = byt_gpio_reg(vg, group.pins[i], BYT_CONF0_REG);
+		padcfg0 = byt_gpio_reg(vg, group.grp.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
 			dev_warn(vg->dev,
 				 "Group %s, pin %i not muxed (no padcfg0)\n",
-				 group.name, i);
+				 group.grp.name, i);
 			continue;
 		}
 
@@ -1350,15 +1350,15 @@ static void byt_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *vg = gpiochip_get_data(gc);
-	unsigned int offset = irqd_to_hwirq(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	void __iomem *reg;
 
-	reg = byt_gpio_reg(vg, offset, BYT_INT_STAT_REG);
+	reg = byt_gpio_reg(vg, hwirq, BYT_INT_STAT_REG);
 	if (!reg)
 		return;
 
 	raw_spin_lock(&byt_lock);
-	writel(BIT(offset % 32), reg);
+	writel(BIT(hwirq % 32), reg);
 	raw_spin_unlock(&byt_lock);
 }
 
@@ -1366,20 +1366,24 @@ static void byt_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *vg = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	byt_gpio_clear_triggering(vg, irqd_to_hwirq(d));
+	byt_gpio_clear_triggering(vg, hwirq);
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void byt_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *vg = gpiochip_get_data(gc);
-	unsigned int offset = irqd_to_hwirq(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	unsigned long flags;
 	void __iomem *reg;
 	u32 value;
 
-	reg = byt_gpio_reg(vg, offset, BYT_CONF0_REG);
+	gpiochip_enable_irq(gc, hwirq);
+
+	reg = byt_gpio_reg(vg, hwirq, BYT_CONF0_REG);
 	if (!reg)
 		return;
 
@@ -1412,12 +1416,13 @@ static void byt_irq_unmask(struct irq_data *d)
 static int byt_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct intel_pinctrl *vg = gpiochip_get_data(irq_data_get_irq_chip_data(d));
-	u32 offset = irqd_to_hwirq(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	u32 value;
 	unsigned long flags;
-	void __iomem *reg = byt_gpio_reg(vg, offset, BYT_CONF0_REG);
+	void __iomem *reg;
 
-	if (!reg || offset >= vg->chip.ngpio)
+	reg = byt_gpio_reg(vg, hwirq, BYT_CONF0_REG);
+	if (!reg)
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&byt_lock, flags);
@@ -1446,6 +1451,16 @@ static int byt_irq_type(struct irq_data *d, unsigned int type)
 
 	return 0;
 }
+
+static const struct irq_chip byt_gpio_irq_chip = {
+	.name		= "BYT-GPIO",
+	.irq_ack	= byt_irq_ack,
+	.irq_mask	= byt_irq_mask,
+	.irq_unmask	= byt_irq_unmask,
+	.irq_set_type	= byt_irq_type,
+	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_SET_TYPE_MASKED | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
 
 static void byt_gpio_irq_handler(struct irq_desc *desc)
 {
@@ -1633,15 +1648,8 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 	if (irq > 0) {
 		struct gpio_irq_chip *girq;
 
-		vg->irqchip.name = "BYT-GPIO",
-		vg->irqchip.irq_ack = byt_irq_ack,
-		vg->irqchip.irq_mask = byt_irq_mask,
-		vg->irqchip.irq_unmask = byt_irq_unmask,
-		vg->irqchip.irq_set_type = byt_irq_type,
-		vg->irqchip.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_SET_TYPE_MASKED,
-
 		girq = &gc->irq;
-		girq->chip = &vg->irqchip;
+		gpio_irq_chip_set_chip(girq, &byt_gpio_irq_chip);
 		girq->init_hw = byt_gpio_irq_init_hw;
 		girq->init_valid_mask = byt_init_irq_valid_mask;
 		girq->parent_handler = byt_gpio_irq_handler;

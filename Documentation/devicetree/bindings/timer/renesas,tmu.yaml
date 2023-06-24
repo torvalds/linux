@@ -37,6 +37,7 @@ properties:
           - renesas,tmu-r8a77990 # R-Car E3
           - renesas,tmu-r8a77995 # R-Car D3
           - renesas,tmu-r8a779a0 # R-Car V3U
+          - renesas,tmu-r8a779f0 # R-Car S4-8
       - const: renesas,tmu
 
   reg:

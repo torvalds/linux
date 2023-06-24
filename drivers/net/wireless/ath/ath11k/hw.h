@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HW_H
@@ -121,8 +122,15 @@ struct ath11k_hw_ring_mask {
 	u8 host2rxdma[ATH11K_EXT_IRQ_GRP_NUM_MAX];
 };
 
+struct ath11k_hw_tcl2wbm_rbm_map {
+	u8 tcl_ring_num;
+	u8 wbm_ring_num;
+	u8 rbm_id;
+};
+
 struct ath11k_hw_hal_params {
 	enum hal_rx_buf_return_buf_manager rx_buf_rbm;
+	const struct ath11k_hw_tcl2wbm_rbm_map *tcl2wbm_rbm_map;
 };
 
 struct ath11k_hw_params {
@@ -152,9 +160,6 @@ struct ath11k_hw_params {
 	u32 svc_to_ce_map_len;
 
 	bool single_pdev_only;
-	u32 rfkill_pin;
-	u32 rfkill_cfg;
-	u32 rfkill_on_level;
 
 	bool rxdma1_enable;
 	int num_rxmda_per_pdev;
@@ -168,6 +173,7 @@ struct ath11k_hw_params {
 		u8 summary_pad_sz;
 		u8 fft_hdr_len;
 		u16 max_fft_bins;
+		bool fragment_160mhz;
 	} spectral;
 
 	u16 interface_modes;
@@ -177,6 +183,7 @@ struct ath11k_hw_params {
 	bool idle_ps;
 	bool supports_sta_ps;
 	bool cold_boot_calib;
+	bool cbcal_restart_fw;
 	int fw_mem_mode;
 	u32 num_vdevs;
 	u32 num_peers;
@@ -189,11 +196,29 @@ struct ath11k_hw_params {
 	const struct ath11k_hw_hal_params *hal_params;
 	bool supports_dynamic_smps_6ghz;
 	bool alloc_cacheable_memory;
-	bool wakeup_mhi;
 	bool supports_rssi_stats;
 	bool fw_wmi_diag_event;
 	bool current_cc_support;
 	bool dbr_debug_support;
+	bool global_reset;
+	const struct cfg80211_sar_capa *bios_sar_capa;
+	bool m3_fw_support;
+	bool fixed_bdf_addr;
+	bool fixed_mem_region;
+	bool static_window_map;
+	bool hybrid_bus_type;
+	bool fixed_fw_mem;
+	bool support_off_channel_tx;
+	bool supports_multi_bssid;
+
+	struct {
+		u32 start;
+		u32 end;
+	} sram_dump;
+
+	bool tcl_ring_retry;
+	u32 tx_ring_size;
+	bool smp2p_wow_exit;
 };
 
 struct ath11k_hw_ops {
@@ -236,6 +261,7 @@ struct ath11k_hw_ops {
 	u16 (*mpdu_info_get_peerid)(u8 *tlv_data);
 	bool (*rx_desc_mac_addr2_valid)(struct hal_rx_desc *desc);
 	u8* (*rx_desc_mpdu_start_addr2)(struct hal_rx_desc *desc);
+	u32 (*get_ring_selector)(struct sk_buff *skb);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
@@ -243,13 +269,16 @@ extern const struct ath11k_hw_ops ipq6018_ops;
 extern const struct ath11k_hw_ops qca6390_ops;
 extern const struct ath11k_hw_ops qcn9074_ops;
 extern const struct ath11k_hw_ops wcn6855_ops;
+extern const struct ath11k_hw_ops wcn6750_ops;
 
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qcn9074;
+extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_wcn6750;
 
 extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_ipq8074;
 extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_qca6390;
+extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_wcn6750;
 
 static inline
 int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,
@@ -290,10 +319,16 @@ enum ath11k_bd_ie_board_type {
 	ATH11K_BD_IE_BOARD_DATA = 1,
 };
 
+enum ath11k_bd_ie_regdb_type {
+	ATH11K_BD_IE_REGDB_NAME = 0,
+	ATH11K_BD_IE_REGDB_DATA = 1,
+};
+
 enum ath11k_bd_ie_type {
 	/* contains sub IEs of enum ath11k_bd_ie_board_type */
 	ATH11K_BD_IE_BOARD = 0,
-	ATH11K_BD_IE_BOARD_EXT = 1,
+	/* contains sub IEs of enum ath11k_bd_ie_regdb_type */
+	ATH11K_BD_IE_REGDB = 1,
 };
 
 struct ath11k_hw_regs {
@@ -339,6 +374,12 @@ struct ath11k_hw_regs {
 	u32 hal_reo_status_ring_base_lsb;
 	u32 hal_reo_status_hp;
 
+	u32 hal_reo_cmd_ring_base_lsb;
+	u32 hal_reo_cmd_ring_hp;
+
+	u32 hal_sw2reo_ring_base_lsb;
+	u32 hal_sw2reo_ring_hp;
+
 	u32 hal_seq_wcss_umac_ce0_src_reg;
 	u32 hal_seq_wcss_umac_ce0_dst_reg;
 	u32 hal_seq_wcss_umac_ce1_src_reg;
@@ -354,11 +395,29 @@ struct ath11k_hw_regs {
 
 	u32 pcie_qserdes_sysclk_en_sel;
 	u32 pcie_pcs_osc_dtct_config_base;
+
+	u32 hal_shadow_base_addr;
+	u32 hal_reo1_misc_ctl;
 };
 
 extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
 extern const struct ath11k_hw_regs wcn6855_regs;
+extern const struct ath11k_hw_regs wcn6750_regs;
+
+static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
+{
+	switch (type) {
+	case ATH11K_BD_IE_BOARD:
+		return "board data";
+	case ATH11K_BD_IE_REGDB:
+		return "regdb data";
+	}
+
+	return "unknown";
+}
+
+extern const struct cfg80211_sar_capa ath11k_hw_sar_capa_wcn6855;
 
 #endif

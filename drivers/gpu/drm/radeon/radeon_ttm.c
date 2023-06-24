@@ -781,17 +781,6 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 
 #if defined(CONFIG_DEBUG_FS)
 
-static int radeon_mm_vram_dump_table_show(struct seq_file *m, void *unused)
-{
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&rdev->mman.bdev,
-							    TTM_PL_VRAM);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
 static int radeon_ttm_page_pool_show(struct seq_file *m, void *data)
 {
 	struct radeon_device *rdev = (struct radeon_device *)m->private;
@@ -799,19 +788,6 @@ static int radeon_ttm_page_pool_show(struct seq_file *m, void *data)
 	return ttm_pool_debugfs(&rdev->mman.bdev.pool, m);
 }
 
-static int radeon_mm_gtt_dump_table_show(struct seq_file *m, void *unused)
-{
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&rdev->mman.bdev,
-							    TTM_PL_TT);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(radeon_mm_vram_dump_table);
-DEFINE_SHOW_ATTRIBUTE(radeon_mm_gtt_dump_table);
 DEFINE_SHOW_ATTRIBUTE(radeon_ttm_page_pool);
 
 static int radeon_ttm_vram_open(struct inode *inode, struct file *filep)
@@ -930,15 +906,15 @@ static void radeon_ttm_debugfs_init(struct radeon_device *rdev)
 
 	debugfs_create_file("radeon_vram", 0444, root, rdev,
 			    &radeon_ttm_vram_fops);
-
 	debugfs_create_file("radeon_gtt", 0444, root, rdev,
 			    &radeon_ttm_gtt_fops);
-
-	debugfs_create_file("radeon_vram_mm", 0444, root, rdev,
-			    &radeon_mm_vram_dump_table_fops);
-	debugfs_create_file("radeon_gtt_mm", 0444, root, rdev,
-			    &radeon_mm_gtt_dump_table_fops);
 	debugfs_create_file("ttm_page_pool", 0444, root, rdev,
 			    &radeon_ttm_page_pool_fops);
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&rdev->mman.bdev,
+							     TTM_PL_VRAM),
+					    root, "radeon_vram_mm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&rdev->mman.bdev,
+							     TTM_PL_TT),
+					    root, "radeon_gtt_mm");
 #endif
 }

@@ -3,6 +3,7 @@
  *Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  */
 #include <linux/kernel.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -188,8 +189,6 @@ enum {
 #define PCH_UART_HAL_OUT		(PCH_UART_MCR_OUT)
 #define PCH_UART_HAL_LOOP		(PCH_UART_MCR_LOOP)
 #define PCH_UART_HAL_AFE		(PCH_UART_MCR_AFE)
-
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
 #define DEFAULT_UARTCLK   1843200 /*   1.8432 MHz */
 #define CMITC_UARTCLK   192000000 /* 192.0000 MHz */
@@ -550,18 +549,6 @@ static u8 pch_uart_hal_get_modem(struct eg20t_port *priv)
 	return (u8)msr;
 }
 
-static void pch_uart_hal_write(struct eg20t_port *priv,
-			      const unsigned char *buf, int tx_size)
-{
-	int i;
-	unsigned int thr;
-
-	for (i = 0; i < tx_size;) {
-		thr = buf[i++];
-		iowrite8(thr, priv->membase + PCH_UART_THR);
-	}
-}
-
 static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 			     int rx_size)
 {
@@ -622,22 +609,6 @@ static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
 	tty_flip_buffer_push(tport);
 
 	return 0;
-}
-
-static int pop_tx_x(struct eg20t_port *priv, unsigned char *buf)
-{
-	int ret = 0;
-	struct uart_port *port = &priv->port;
-
-	if (port->x_char) {
-		dev_dbg(priv->port.dev, "%s:X character send %02x (%lu)\n",
-			__func__, port->x_char, jiffies);
-		buf[0] = port->x_char;
-		port->x_char = 0;
-		ret = 1;
-	}
-
-	return ret;
 }
 
 static int dma_push_rx(struct eg20t_port *priv, int size)
@@ -785,31 +756,6 @@ static void pch_dma_tx_complete(void *arg)
 	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
 }
 
-static int pop_tx(struct eg20t_port *priv, int size)
-{
-	int count = 0;
-	struct uart_port *port = &priv->port;
-	struct circ_buf *xmit = &port->state->xmit;
-
-	if (uart_tx_stopped(port) || uart_circ_empty(xmit) || count >= size)
-		goto pop_tx_end;
-
-	do {
-		int cnt_to_end =
-		    CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-		int sz = min(size - count, cnt_to_end);
-		pch_uart_hal_write(priv, &xmit->buf[xmit->tail], sz);
-		xmit->tail = (xmit->tail + sz) & (UART_XMIT_SIZE - 1);
-		count += sz;
-	} while (!uart_circ_empty(xmit) && count < size);
-
-pop_tx_end:
-	dev_dbg(priv->port.dev, "%d characters. Remained %d characters.(%lu)\n",
-		 count, size - count, jiffies);
-
-	return count;
-}
-
 static int handle_rx_to(struct eg20t_port *priv)
 {
 	struct pch_uart_buffer *buf;
@@ -875,8 +821,6 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 	struct uart_port *port = &priv->port;
 	struct circ_buf *xmit = &port->state->xmit;
 	int fifo_size;
-	int tx_size;
-	int size;
 	int tx_empty;
 
 	if (!priv->start_tx) {
@@ -889,19 +833,19 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 
 	fifo_size = max(priv->fifo_size, 1);
 	tx_empty = 1;
-	if (pop_tx_x(priv, xmit->buf)) {
-		pch_uart_hal_write(priv, xmit->buf, 1);
+	if (port->x_char) {
+		iowrite8(port->x_char, priv->membase + PCH_UART_THR);
 		port->icount.tx++;
+		port->x_char = 0;
 		tx_empty = 0;
 		fifo_size--;
 	}
-	size = min(xmit->head - xmit->tail, fifo_size);
-	if (size < 0)
-		size = fifo_size;
 
-	tx_size = pop_tx(priv, size);
-	if (tx_size > 0) {
-		port->icount.tx += tx_size;
+	while (!uart_tx_stopped(port) && !uart_circ_empty(xmit) && fifo_size) {
+		iowrite8(xmit->buf[xmit->tail], priv->membase + PCH_UART_THR);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		port->icount.tx++;
+		fifo_size--;
 		tx_empty = 0;
 	}
 
@@ -946,15 +890,15 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	}
 
 	fifo_size = max(priv->fifo_size, 1);
-	if (pop_tx_x(priv, xmit->buf)) {
-		pch_uart_hal_write(priv, xmit->buf, 1);
+
+	if (port->x_char) {
+		iowrite8(port->x_char, priv->membase + PCH_UART_THR);
 		port->icount.tx++;
+		port->x_char = 0;
 		fifo_size--;
 	}
 
-	bytes = min((int)CIRC_CNT(xmit->head, xmit->tail,
-			     UART_XMIT_SIZE), CIRC_CNT_TO_END(xmit->head,
-			     xmit->tail, UART_XMIT_SIZE));
+	bytes = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (!bytes) {
 		dev_dbg(priv->port.dev, "%s 0 bytes return\n", __func__);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
@@ -1355,7 +1299,8 @@ static void pch_uart_shutdown(struct uart_port *port)
  *bits.  Update read_status_mask and ignore_status_mask to indicate
  *the types of events we are interested in receiving.  */
 static void pch_uart_set_termios(struct uart_port *port,
-				 struct ktermios *termios, struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	int rtn;
 	unsigned int baud, parity, bits, stb;
@@ -1569,7 +1514,7 @@ static void pch_uart_put_poll_char(struct uart_port *port,
 	 * Finally, wait for transmitter to become empty
 	 * and restore the IER
 	 */
-	wait_for_xmitr(priv, BOTH_EMPTY);
+	wait_for_xmitr(priv, UART_LSR_BOTH_EMPTY);
 	iowrite8(ier, priv->membase + UART_IER);
 }
 #endif /* CONFIG_CONSOLE_POLL */
@@ -1655,7 +1600,7 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(priv, BOTH_EMPTY);
+	wait_for_xmitr(priv, UART_LSR_BOTH_EMPTY);
 	iowrite8(ier, priv->membase + UART_IER);
 
 	if (port_locked)

@@ -630,7 +630,7 @@ static irqreturn_t emif_threaded_isr(int irq, void *dev_id)
 		dev_emerg(emif->dev, "SDRAM temperature exceeds operating limit.. Needs shut down!!!\n");
 
 		/* If we have Power OFF ability, use it, else try restarting */
-		if (pm_power_off) {
+		if (kernel_can_power_off()) {
 			kernel_power_off();
 		} else {
 			WARN(1, "FIXME: NO pm_power_off!!! trying restart\n");
@@ -1025,10 +1025,8 @@ static struct emif_data *__init_or_module get_device_details(
 	temp	= devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 	dev_info = devm_kzalloc(dev, sizeof(*dev_info), GFP_KERNEL);
 
-	if (!emif || !temp || !dev_info) {
-		dev_err(dev, "%s:%d: allocation error\n", __func__, __LINE__);
+	if (!emif || !temp || !dev_info)
 		goto error;
-	}
 
 	memcpy(temp, pd, sizeof(*pd));
 	pd = temp;
@@ -1067,9 +1065,6 @@ static struct emif_data *__init_or_module get_device_details(
 		temp = devm_kzalloc(dev, sizeof(*cust_cfgs), GFP_KERNEL);
 		if (temp)
 			memcpy(temp, cust_cfgs, sizeof(*cust_cfgs));
-		else
-			dev_warn(dev, "%s:%d: allocation error\n", __func__,
-				__LINE__);
 		pd->custom_configs = temp;
 	}
 
@@ -1084,8 +1079,6 @@ static struct emif_data *__init_or_module get_device_details(
 			memcpy(temp, pd->timings, size);
 			pd->timings = temp;
 		} else {
-			dev_warn(dev, "%s:%d: allocation error\n", __func__,
-				__LINE__);
 			get_default_timings(emif);
 		}
 	} else {
@@ -1098,8 +1091,6 @@ static struct emif_data *__init_or_module get_device_details(
 			memcpy(temp, pd->min_tck, sizeof(*pd->min_tck));
 			pd->min_tck = temp;
 		} else {
-			dev_warn(dev, "%s:%d: allocation error\n", __func__,
-				__LINE__);
 			pd->min_tck = &lpddr2_jedec_min_tck;
 		}
 	} else {
@@ -1116,7 +1107,6 @@ error:
 static int __init_or_module emif_probe(struct platform_device *pdev)
 {
 	struct emif_data	*emif;
-	struct resource		*res;
 	int			irq, ret;
 
 	if (pdev->dev.of_node)
@@ -1135,8 +1125,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	emif->dev = &pdev->dev;
 	platform_set_drvdata(pdev, emif);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	emif->base = devm_ioremap_resource(emif->dev, res);
+	emif->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(emif->base))
 		goto error;
 

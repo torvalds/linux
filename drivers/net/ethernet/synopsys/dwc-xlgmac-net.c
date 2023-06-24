@@ -81,7 +81,7 @@ static int xlgmac_prep_tso(struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	pkt_info->header_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	pkt_info->header_len = skb_tcp_all_headers(skb);
 	pkt_info->tcp_header_len = tcp_hdrlen(skb);
 	pkt_info->tcp_payload_len = skb->len - pkt_info->header_len;
 	pkt_info->mss = skb_shinfo(skb)->gso_size;
@@ -419,15 +419,14 @@ static void xlgmac_napi_enable(struct xlgmac_pdata *pdata, unsigned int add)
 		for (i = 0; i < pdata->channel_count; i++, channel++) {
 			if (add)
 				netif_napi_add(pdata->netdev, &channel->napi,
-					       xlgmac_one_poll,
-					       NAPI_POLL_WEIGHT);
+					       xlgmac_one_poll);
 
 			napi_enable(&channel->napi);
 		}
 	} else {
 		if (add)
 			netif_napi_add(pdata->netdev, &pdata->napi,
-				       xlgmac_all_poll, NAPI_POLL_WEIGHT);
+				       xlgmac_all_poll);
 
 		napi_enable(&pdata->napi);
 	}

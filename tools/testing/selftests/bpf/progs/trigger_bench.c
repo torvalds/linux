@@ -54,7 +54,7 @@ int bench_trigger_fmodret(void *ctx)
 	return -22;
 }
 
-SEC("uprobe/self/uprobe_target")
+SEC("uprobe")
 int bench_trigger_uprobe(void *ctx)
 {
 	__sync_add_and_fetch(&hits, 1);

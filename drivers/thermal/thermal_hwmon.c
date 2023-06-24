@@ -147,10 +147,10 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&hwmon->tz_list);
-	strlcpy(hwmon->type, tz->type, THERMAL_NAME_LENGTH);
+	strscpy(hwmon->type, tz->type, THERMAL_NAME_LENGTH);
 	strreplace(hwmon->type, '-', '_');
-	hwmon->device = hwmon_device_register_with_info(&tz->device, hwmon->type,
-							hwmon, NULL, NULL);
+	hwmon->device = hwmon_device_register_for_thermal(&tz->device,
+							  hwmon->type, hwmon);
 	if (IS_ERR(hwmon->device)) {
 		result = PTR_ERR(hwmon->device);
 		goto free_mem;
@@ -277,3 +277,5 @@ int devm_thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_thermal_add_hwmon_sysfs);
+
+MODULE_IMPORT_NS(HWMON_THERMAL);

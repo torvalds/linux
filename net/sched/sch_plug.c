@@ -161,9 +161,6 @@ static int plug_change(struct Qdisc *sch, struct nlattr *opt,
 	struct plug_sched_data *q = qdisc_priv(sch);
 	struct tc_plug_qopt *msg;
 
-	if (opt == NULL)
-		return -EINVAL;
-
 	msg = nla_data(opt);
 	if (nla_len(opt) < sizeof(*msg))
 		return -EINVAL;

@@ -202,9 +202,9 @@ int radeon_bo_create(struct radeon_device *rdev,
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);
-	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, page_align, !kernel, sg, resv,
-			&radeon_ttm_bo_destroy);
+	r = ttm_bo_init_validate(&rdev->mman.bdev, &bo->tbo, type,
+				 &bo->placement, page_align, !kernel, sg, resv,
+				 &radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		return r;
@@ -219,7 +219,12 @@ int radeon_bo_create(struct radeon_device *rdev,
 int radeon_bo_kmap(struct radeon_bo *bo, void **ptr)
 {
 	bool is_iomem;
-	int r;
+	long r;
+
+	r = dma_resv_wait_timeout(bo->tbo.base.resv, DMA_RESV_USAGE_KERNEL,
+				  false, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
+		return r;
 
 	if (bo->kptr) {
 		if (ptr) {
@@ -782,9 +787,15 @@ void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
 		     bool shared)
 {
 	struct dma_resv *resv = bo->tbo.base.resv;
+	int r;
 
-	if (shared)
-		dma_resv_add_shared_fence(resv, &fence->base);
-	else
-		dma_resv_add_excl_fence(resv, &fence->base);
+	r = dma_resv_reserve_fences(resv, 1);
+	if (r) {
+		/* As last resort on OOM we block for the fence */
+		dma_fence_wait(&fence->base, false);
+		return;
+	}
+
+	dma_resv_add_fence(resv, &fence->base, shared ?
+			   DMA_RESV_USAGE_READ : DMA_RESV_USAGE_WRITE);
 }

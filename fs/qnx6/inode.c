@@ -94,9 +94,9 @@ static int qnx6_check_blockptr(__fs32 ptr)
 	return 1;
 }
 
-static int qnx6_readpage(struct file *file, struct page *page)
+static int qnx6_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, qnx6_get_block);
+	return mpage_read_folio(folio, qnx6_get_block);
 }
 
 static void qnx6_readahead(struct readahead_control *rac)
@@ -470,10 +470,8 @@ out2:
 out1:
 	iput(sbi->inodes);
 out:
-	if (bh1)
-		brelse(bh1);
-	if (bh2)
-		brelse(bh2);
+	brelse(bh1);
+	brelse(bh2);
 outnobh:
 	kfree(qs);
 	s->s_fs_info = NULL;
@@ -496,7 +494,7 @@ static sector_t qnx6_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, qnx6_get_block);
 }
 static const struct address_space_operations qnx6_aops = {
-	.readpage	= qnx6_readpage,
+	.read_folio	= qnx6_read_folio,
 	.readahead	= qnx6_readahead,
 	.bmap		= qnx6_bmap
 };

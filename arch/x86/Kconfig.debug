@@ -1,8 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-config TRACE_IRQFLAGS_NMI_SUPPORT
-	def_bool y
-
 config EARLY_PRINTK_USB
 	bool
 
@@ -73,20 +70,19 @@ config DEBUG_TLBFLUSH
 	bool "Set upper limit of TLB entries to flush one-by-one"
 	depends on DEBUG_KERNEL
 	help
+	  X86-only for now.
 
-	X86-only for now.
+	  This option allows the user to tune the amount of TLB entries the
+	  kernel flushes one-by-one instead of doing a full TLB flush. In
+	  certain situations, the former is cheaper. This is controlled by the
+	  tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
+	  to -1, the code flushes the whole TLB unconditionally. Otherwise,
+	  for positive values of it, the kernel will use single TLB entry
+	  invalidating instructions according to the following formula:
 
-	This option allows the user to tune the amount of TLB entries the
-	kernel flushes one-by-one instead of doing a full TLB flush. In
-	certain situations, the former is cheaper. This is controlled by the
-	tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
-	to -1, the code flushes the whole TLB unconditionally. Otherwise,
-	for positive values of it, the kernel will use single TLB entry
-	invalidating instructions according to the following formula:
+	  flush_entries <= active_tlb_entries / 2^tlb_flushall_shift
 
-	flush_entries <= active_tlb_entries / 2^tlb_flushall_shift
-
-	If in doubt, say "N".
+	  If in doubt, say "N".
 
 config IOMMU_DEBUG
 	bool "Enable IOMMU debugging"
@@ -119,10 +115,10 @@ config X86_DECODER_SELFTEST
 	depends on DEBUG_KERNEL && INSTRUCTION_DECODER
 	depends on !COMPILE_TEST
 	help
-	 Perform x86 instruction decoder selftests at build time.
-	 This option is useful for checking the sanity of x86 instruction
-	 decoder code.
-	 If unsure, say "N".
+	  Perform x86 instruction decoder selftests at build time.
+	  This option is useful for checking the sanity of x86 instruction
+	  decoder code.
+	  If unsure, say "N".
 
 choice
 	prompt "IO delay type"
@@ -237,7 +233,7 @@ choice
 config UNWINDER_ORC
 	bool "ORC unwinder"
 	depends on X86_64
-	select STACK_VALIDATION
+	select OBJTOOL
 	help
 	  This option enables the ORC (Oops Rewind Capability) unwinder for
 	  unwinding kernel stack traces.  It uses a custom data format which is

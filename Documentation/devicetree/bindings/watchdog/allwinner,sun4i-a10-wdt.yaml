@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/watchdog/allwinner,sun4i-a10-wdt.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Watchdog Device Tree Bindings
+title: Allwinner A10 Watchdog
 
 allOf:
   - $ref: "watchdog.yaml#"
@@ -26,10 +26,8 @@ properties:
               - allwinner,sun50i-h616-wdt
               - allwinner,sun50i-r329-wdt
               - allwinner,sun50i-r329-wdt-reset
+              - allwinner,suniv-f1c100s-wdt
           - const: allwinner,sun6i-a31-wdt
-      - items:
-          - const: allwinner,suniv-f1c100s-wdt
-          - const: allwinner,sun4i-a10-wdt
       - const: allwinner,sun20i-d1-wdt
       - items:
           - const: allwinner,sun20i-d1-wdt-reset
@@ -41,14 +39,8 @@ properties:
   clocks:
     minItems: 1
     items:
-      - description: High-frequency oscillator input, divided internally
-      - description: Low-frequency oscillator input, only found on some variants
-
-  clock-names:
-    minItems: 1
-    items:
-      - const: hosc
-      - const: losc
+      - description: 32 KHz input clock
+      - description: secondary clock source
 
   interrupts:
     maxItems: 1
@@ -72,10 +64,14 @@ if:
 then:
   properties:
     clocks:
-      minItems: 2
+      items:
+        - description: High-frequency oscillator input, divided internally
+        - description: Low-frequency oscillator input
 
     clock-names:
-      minItems: 2
+      items:
+        - const: hosc
+        - const: losc
 
   required:
     - clock-names
@@ -83,9 +79,6 @@ then:
 else:
   properties:
     clocks:
-      maxItems: 1
-
-    clock-names:
       maxItems: 1
 
 unevaluatedProperties: false

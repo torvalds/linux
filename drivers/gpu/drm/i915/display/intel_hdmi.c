@@ -30,12 +30,14 @@
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
+#include <drm/display/drm_hdcp_helper.h>
+#include <drm/display/drm_hdmi_helper.h>
+#include <drm/display/drm_scdc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_hdcp.h>
-#include <drm/drm_scdc_helper.h>
 #include <drm/intel_lpe_audio.h>
 
 #include "i915_debugfs.h"
@@ -48,6 +50,7 @@
 #include "intel_dp.h"
 #include "intel_gmbus.h"
 #include "intel_hdcp.h"
+#include "intel_hdcp_regs.h"
 #include "intel_hdmi.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
@@ -1889,7 +1892,7 @@ int intel_hdmi_tmds_clock(int clock, int bpc, bool ycbcr420_output)
 	 *  1.5x for 12bpc
 	 *  1.25x for 10bpc
 	 */
-	return clock * bpc / 8;
+	return DIV_ROUND_CLOSEST(clock * bpc, 8);
 }
 
 static bool intel_hdmi_source_bpc_possible(struct drm_i915_private *i915, int bpc)
@@ -1998,6 +2001,15 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 			return MODE_CLOCK_LOW;
 		clock *= 2;
 	}
+
+	/*
+	 * HDMI2.1 requires higher resolution modes like 8k60, 4K120 to be
+	 * enumerated only if FRL is supported. Current platforms do not support
+	 * FRL so prune the higher resolution modes that require doctclock more
+	 * than 600MHz.
+	 */
+	if (clock > 600000)
+		return MODE_CLOCK_HIGH;
 
 	ycbcr_420_only = drm_mode_is_420_only(&connector->display_info, mode);
 
@@ -2637,7 +2649,7 @@ bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CONNECTOR:%d:%s] scrambling=%s, TMDS bit clock ratio=1/%d\n",
 		    connector->base.id, connector->name,
-		    yesno(scrambling), high_tmds_clock_ratio ? 40 : 10);
+		    str_yes_no(scrambling), high_tmds_clock_ratio ? 40 : 10);
 
 	/* Set TMDS bit clock ratio to 1/40 or 1/10, and enable/disable scrambling */
 	return drm_scdc_set_high_tmds_clock_ratio(adapter,
@@ -2850,7 +2862,7 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		ddc_pin = rkl_port_to_ddc_pin(dev_priv, port);
 	else if (DISPLAY_VER(dev_priv) == 9 && HAS_PCH_TGP(dev_priv))
 		ddc_pin = gen9bc_tgp_port_to_ddc_pin(dev_priv, port);
-	else if (HAS_PCH_MCC(dev_priv))
+	else if (IS_JSL_EHL(dev_priv) && HAS_PCH_TGP(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);

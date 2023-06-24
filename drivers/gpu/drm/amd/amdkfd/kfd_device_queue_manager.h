@@ -35,6 +35,9 @@
 
 #define VMID_NUM 16
 
+#define KFD_MES_PROCESS_QUANTUM		100000
+#define KFD_MES_GANG_QUANTUM		10000
+
 struct device_process_node {
 	struct qcm_process_device *qpd;
 	struct list_head list;
@@ -266,6 +269,8 @@ void device_queue_manager_init_vi_tonga(
 void device_queue_manager_init_v9(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_v10_navi10(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_v11(
 		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);

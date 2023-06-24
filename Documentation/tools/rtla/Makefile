@@ -17,9 +17,21 @@ DOC_MAN1	= $(addprefix $(OUTPUT),$(_DOC_MAN1))
 RST2MAN_DEP	:= $(shell command -v rst2man 2>/dev/null)
 RST2MAN_OPTS	+= --verbose
 
+TEST_RST2MAN = $(shell sh -c "rst2man --version > /dev/null 2>&1 || echo n")
+
 $(OUTPUT)%.1: %.rst
 ifndef RST2MAN_DEP
-	$(error "rst2man not found, but required to generate man pages")
+	$(info ********************************************)
+	$(info ** NOTICE: rst2man not found)
+	$(info **)
+	$(info ** Consider installing the latest rst2man from your)
+	$(info ** distribution, e.g., 'dnf install python3-docutils' on Fedora,)
+	$(info ** or from source:)
+	$(info **)
+	$(info **  https://docutils.sourceforge.io/docs/dev/repository.html )
+	$(info **)
+	$(info ********************************************)
+	$(error NOTICE: rst2man required to generate man pages)
 endif
 	rst2man $(RST2MAN_OPTS) $< > $@
 

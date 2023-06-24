@@ -36,6 +36,7 @@ Todolist:
    :maxdepth: 1
 
    reporting-issues
+   reporting-regressions
    security-bugs
    bug-hunting
    bug-bisect
@@ -44,7 +45,6 @@ Todolist:
 
 Todolist:
 
-*   reporting-bugs
 *   ramoops
 *   dynamic-debug-howto
 *   kdump/index
@@ -63,6 +63,7 @@ Todolist:
 .. toctree::
    :maxdepth: 1
 
+   bootconfig
    clearing-warn-once
    cpu-load
    cputopology
@@ -80,7 +81,6 @@ Todolist:
 *   binderfs
 *   binfmt-misc
 *   blockdev/index
-*   bootconfig
 *   braille-console
 *   btmrvl
 *   cgroup-v1/index

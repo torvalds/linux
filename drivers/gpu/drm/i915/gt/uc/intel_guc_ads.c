@@ -7,10 +7,12 @@
 
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "gt/shmem_utils.h"
 #include "intel_guc_ads.h"
+#include "intel_guc_capture.h"
 #include "intel_guc_fwif.h"
 #include "intel_uc.h"
 #include "i915_drv.h"
@@ -86,8 +88,7 @@ static u32 guc_ads_golden_ctxt_size(struct intel_guc *guc)
 
 static u32 guc_ads_capture_size(struct intel_guc *guc)
 {
-	/* FIXME: Allocate a proper capture list */
-	return PAGE_ALIGN(PAGE_SIZE);
+	return PAGE_ALIGN(guc->ads_capture_size);
 }
 
 static u32 guc_ads_private_data_size(struct intel_guc *guc)
@@ -276,15 +277,24 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	return slot;
 }
 
-static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
-					  u32 offset, u32 flags)
+#define GUC_REGSET_STEERING(group, instance) ( \
+	FIELD_PREP(GUC_REGSET_STEERING_GROUP, (group)) | \
+	FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, (instance)) | \
+	GUC_REGSET_NEEDS_STEERING \
+)
+
+static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
+					  struct temp_regset *regset,
+					  i915_reg_t reg, u32 flags)
 {
 	u32 count = regset->storage_used - (regset->registers - regset->storage);
-	struct guc_mmio_reg reg = {
+	u32 offset = i915_mmio_reg_offset(reg);
+	struct guc_mmio_reg entry = {
 		.offset = offset,
 		.flags = flags,
 	};
 	struct guc_mmio_reg *slot;
+	u8 group, inst;
 
 	/*
 	 * The mmio list is built using separate lists within the driver.
@@ -292,11 +302,22 @@ static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
 	 * register more than once. Do not consider this an error; silently
 	 * move on if the register is already in the list.
 	 */
-	if (bsearch(&reg, regset->registers, count,
-		    sizeof(reg), guc_mmio_reg_cmp))
+	if (bsearch(&entry, regset->registers, count,
+		    sizeof(entry), guc_mmio_reg_cmp))
 		return 0;
 
-	slot = __mmio_reg_add(regset, &reg);
+	/*
+	 * The GuC doesn't have a default steering, so we need to explicitly
+	 * steer all registers that need steering. However, we do not keep track
+	 * of all the steering ranges, only of those that have a chance of using
+	 * a non-default steering from the i915 pov. Instead of adding such
+	 * tracking, it is easier to just program the default steering for all
+	 * regs that don't need a non-default one.
+	 */
+	intel_gt_mcr_get_nonterminated_steering(gt, reg, &group, &inst);
+	entry.flags |= GUC_REGSET_STEERING(group, inst);
+
+	slot = __mmio_reg_add(regset, &entry);
 	if (IS_ERR(slot))
 		return PTR_ERR(slot);
 
@@ -311,14 +332,16 @@ static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
 	return 0;
 }
 
-#define GUC_MMIO_REG_ADD(regset, reg, masked) \
-	guc_mmio_reg_add(regset, \
-			 i915_mmio_reg_offset((reg)), \
+#define GUC_MMIO_REG_ADD(gt, regset, reg, masked) \
+	guc_mmio_reg_add(gt, \
+			 regset, \
+			 (reg), \
 			 (masked) ? GUC_REGSET_MASKED : 0)
 
 static int guc_mmio_regset_init(struct temp_regset *regset,
 				struct intel_engine_cs *engine)
 {
+	struct intel_gt *gt = engine->gt;
 	const u32 base = engine->mmio_base;
 	struct i915_wa_list *wal = &engine->wa_list;
 	struct i915_wa *wa;
@@ -331,26 +354,26 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 	 */
 	regset->registers = regset->storage + regset->storage_used;
 
-	ret |= GUC_MMIO_REG_ADD(regset, RING_MODE_GEN7(base), true);
-	ret |= GUC_MMIO_REG_ADD(regset, RING_HWS_PGA(base), false);
-	ret |= GUC_MMIO_REG_ADD(regset, RING_IMR(base), false);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_MODE_GEN7(base), true);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_HWS_PGA(base), false);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_IMR(base), false);
 
-	if (engine->class == RENDER_CLASS &&
+	if ((engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) &&
 	    CCS_MASK(engine->gt))
-		ret |= GUC_MMIO_REG_ADD(regset, GEN12_RCU_MODE, true);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN12_RCU_MODE, true);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		ret |= GUC_MMIO_REG_ADD(regset, wa->reg, wa->masked_reg);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, wa->reg, wa->masked_reg);
 
 	/* Be extra paranoid and include all whitelist registers. */
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
-		ret |= GUC_MMIO_REG_ADD(regset,
+		ret |= GUC_MMIO_REG_ADD(gt, regset,
 					RING_FORCE_TO_NONPRIV(base, i),
 					false);
 
 	/* add in local MOCS registers */
 	for (i = 0; i < GEN9_LNCFCMOCS_REG_COUNT; i++)
-		ret |= GUC_MMIO_REG_ADD(regset, GEN9_LNCFCMOCS(i), false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN9_LNCFCMOCS(i), false);
 
 	return ret ? -1 : 0;
 }
@@ -433,15 +456,19 @@ static void guc_mmio_reg_state_init(struct intel_guc *guc)
 static void fill_engine_enable_masks(struct intel_gt *gt,
 				     struct iosys_map *info_map)
 {
-	info_map_write(info_map, engine_enabled_masks[GUC_RENDER_CLASS], 1);
+	info_map_write(info_map, engine_enabled_masks[GUC_RENDER_CLASS], RCS_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_COMPUTE_CLASS], CCS_MASK(gt));
-	info_map_write(info_map, engine_enabled_masks[GUC_BLITTER_CLASS], 1);
+	info_map_write(info_map, engine_enabled_masks[GUC_BLITTER_CLASS], BCS_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEO_CLASS], VDBOX_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS], VEBOX_MASK(gt));
 }
 
 #define LR_HW_CONTEXT_SIZE (80 * sizeof(u32))
-#define LRC_SKIP_SIZE (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE)
+#define XEHP_LR_HW_CONTEXT_SIZE (96 * sizeof(u32))
+#define LR_HW_CONTEXT_SZ(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50) ? \
+				    XEHP_LR_HW_CONTEXT_SIZE : \
+				    LR_HW_CONTEXT_SIZE)
+#define LRC_SKIP_SIZE(i915) (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SZ(i915))
 static int guc_prep_golden_context(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
@@ -502,7 +529,7 @@ static int guc_prep_golden_context(struct intel_guc *guc)
 		 * on all engines).
 		 */
 		ads_blob_write(guc, ads.eng_state_size[guc_class],
-			       real_size - LRC_SKIP_SIZE);
+			       real_size - LRC_SKIP_SIZE(gt->i915));
 		ads_blob_write(guc, ads.golden_context_lrca[guc_class],
 			       addr_ggtt);
 
@@ -576,7 +603,7 @@ static void guc_init_golden_context(struct intel_guc *guc)
 		}
 
 		GEM_BUG_ON(ads_blob_read(guc, ads.eng_state_size[guc_class]) !=
-			   real_size - LRC_SKIP_SIZE);
+			   real_size - LRC_SKIP_SIZE(gt->i915));
 		GEM_BUG_ON(ads_blob_read(guc, ads.golden_context_lrca[guc_class]) != addr_ggtt);
 
 		addr_ggtt += alloc_size;
@@ -589,24 +616,119 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	GEM_BUG_ON(guc->ads_golden_ctxt_size != total_size);
 }
 
-static void guc_capture_list_init(struct intel_guc *guc)
+static int
+guc_capture_prep_lists(struct intel_guc *guc)
 {
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	u32 ads_ggtt, capture_offset, null_ggtt, total_size = 0;
+	struct guc_gt_system_info local_info;
+	struct iosys_map info_map;
+	bool ads_is_mapped;
+	size_t size = 0;
+	void *ptr;
 	int i, j;
-	u32 addr_ggtt, offset;
 
-	offset = guc_ads_capture_offset(guc);
-	addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
+	ads_is_mapped = !iosys_map_is_null(&guc->ads_map);
+	if (ads_is_mapped) {
+		capture_offset = guc_ads_capture_offset(guc);
+		ads_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma);
+		info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
+						 offsetof(struct __guc_ads_blob, system_info));
+	} else {
+		memset(&local_info, 0, sizeof(local_info));
+		iosys_map_set_vaddr(&info_map, &local_info);
+		fill_engine_enable_masks(gt, &info_map);
+	}
 
-	/* FIXME: Populate a proper capture list */
+	/* first, set aside the first page for a capture_list with zero descriptors */
+	total_size = PAGE_SIZE;
+	if (ads_is_mapped) {
+		if (!intel_guc_capture_getnullheader(guc, &ptr, &size))
+			iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+		null_ggtt = ads_ggtt + capture_offset;
+		capture_offset += PAGE_SIZE;
+	}
 
 	for (i = 0; i < GUC_CAPTURE_LIST_INDEX_MAX; i++) {
 		for (j = 0; j < GUC_MAX_ENGINE_CLASSES; j++) {
-			ads_blob_write(guc, ads.capture_instance[i][j], addr_ggtt);
-			ads_blob_write(guc, ads.capture_class[i][j], addr_ggtt);
-		}
 
-		ads_blob_write(guc, ads.capture_global[i], addr_ggtt);
+			/* null list if we dont have said engine or list */
+			if (!info_map_read(&info_map, engine_enabled_masks[j])) {
+				if (ads_is_mapped) {
+					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
+					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);
+				}
+				continue;
+			}
+			if (intel_guc_capture_getlistsize(guc, i,
+							  GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+							  j, &size)) {
+				if (ads_is_mapped)
+					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
+				goto engine_instance_list;
+			}
+			total_size += size;
+			if (ads_is_mapped) {
+				if (total_size > guc->ads_capture_size ||
+				    intel_guc_capture_getlist(guc, i,
+							      GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+							      j, &ptr)) {
+					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
+					continue;
+				}
+				ads_blob_write(guc, ads.capture_class[i][j], ads_ggtt +
+					       capture_offset);
+				iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+				capture_offset += size;
+			}
+engine_instance_list:
+			if (intel_guc_capture_getlistsize(guc, i,
+							  GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE,
+							  j, &size)) {
+				if (ads_is_mapped)
+					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);
+				continue;
+			}
+			total_size += size;
+			if (ads_is_mapped) {
+				if (total_size > guc->ads_capture_size ||
+				    intel_guc_capture_getlist(guc, i,
+							      GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE,
+							      j, &ptr)) {
+					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);
+					continue;
+				}
+				ads_blob_write(guc, ads.capture_instance[i][j], ads_ggtt +
+					       capture_offset);
+				iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+				capture_offset += size;
+			}
+		}
+		if (intel_guc_capture_getlistsize(guc, i, GUC_CAPTURE_LIST_TYPE_GLOBAL, 0, &size)) {
+			if (ads_is_mapped)
+				ads_blob_write(guc, ads.capture_global[i], null_ggtt);
+			continue;
+		}
+		total_size += size;
+		if (ads_is_mapped) {
+			if (total_size > guc->ads_capture_size ||
+			    intel_guc_capture_getlist(guc, i, GUC_CAPTURE_LIST_TYPE_GLOBAL, 0,
+						      &ptr)) {
+				ads_blob_write(guc, ads.capture_global[i], null_ggtt);
+				continue;
+			}
+			ads_blob_write(guc, ads.capture_global[i], ads_ggtt + capture_offset);
+			iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+			capture_offset += size;
+		}
 	}
+
+	if (guc->ads_capture_size && guc->ads_capture_size != PAGE_ALIGN(total_size))
+		drm_warn(&i915->drm, "GuC->ADS->Capture alloc size changed from %d to %d\n",
+			 guc->ads_capture_size, PAGE_ALIGN(total_size));
+
+	return PAGE_ALIGN(total_size);
 }
 
 static void __guc_ads_init(struct intel_guc *guc)
@@ -644,8 +766,8 @@ static void __guc_ads_init(struct intel_guc *guc)
 
 	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
 
-	/* Capture list for hang debug */
-	guc_capture_list_init(guc);
+	/* Lists for error capture debug */
+	guc_capture_prep_lists(guc);
 
 	/* ADS */
 	ads_blob_write(guc, ads.scheduler_policies, base +
@@ -692,6 +814,12 @@ int intel_guc_ads_create(struct intel_guc *guc)
 	if (ret < 0)
 		return ret;
 	guc->ads_golden_ctxt_size = ret;
+
+	/* Likewise the capture lists: */
+	ret = guc_capture_prep_lists(guc);
+	if (ret < 0)
+		return ret;
+	guc->ads_capture_size = ret;
 
 	/* Now the total size can be determined: */
 	size = guc_ads_blob_size(guc);

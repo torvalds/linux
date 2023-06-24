@@ -494,8 +494,7 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
 	trace_xprtrdma_op_connect(r_xprt, delay);
-	queue_delayed_work(xprtiod_workqueue, &r_xprt->rx_connect_worker,
-			   delay);
+	queue_delayed_work(system_long_wq, &r_xprt->rx_connect_worker, delay);
 }
 
 /**
@@ -571,11 +570,7 @@ xprt_rdma_allocate(struct rpc_task *task)
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-	gfp_t flags;
-
-	flags = RPCRDMA_DEF_GFP;
-	if (RPC_IS_ASYNC(task))
-		flags = GFP_NOWAIT | __GFP_NOWARN;
+	gfp_t flags = rpc_task_gfp_mask();
 
 	if (!rpcrdma_check_regbuf(r_xprt, req->rl_sendbuf, rqst->rq_callsize,
 				  flags))

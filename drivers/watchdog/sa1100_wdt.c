@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
@@ -30,17 +31,42 @@
 #include <linux/uaccess.h>
 #include <linux/timex.h>
 
-#ifdef CONFIG_ARCH_PXA
-#include <mach/regs-ost.h>
-#endif
+#define REG_OSMR0  	0x0000  /* OS timer Match Reg. 0 */
+#define REG_OSMR1  	0x0004  /* OS timer Match Reg. 1 */
+#define REG_OSMR2  	0x0008  /* OS timer Match Reg. 2 */
+#define REG_OSMR3  	0x000c  /* OS timer Match Reg. 3 */
+#define REG_OSCR   	0x0010  /* OS timer Counter Reg. */
+#define REG_OSSR   	0x0014  /* OS timer Status Reg. */
+#define REG_OWER   	0x0018  /* OS timer Watch-dog Enable Reg. */
+#define REG_OIER  	0x001C  /* OS timer Interrupt Enable Reg. */
 
-#include <mach/reset.h>
-#include <mach/hardware.h>
+#define OSSR_M3		(1 << 3)	/* Match status channel 3 */
+#define OSSR_M2		(1 << 2)	/* Match status channel 2 */
+#define OSSR_M1		(1 << 1)	/* Match status channel 1 */
+#define OSSR_M0		(1 << 0)	/* Match status channel 0 */
+
+#define OWER_WME	(1 << 0)	/* Watchdog Match Enable */
+
+#define OIER_E3		(1 << 3)	/* Interrupt enable channel 3 */
+#define OIER_E2		(1 << 2)	/* Interrupt enable channel 2 */
+#define OIER_E1		(1 << 1)	/* Interrupt enable channel 1 */
+#define OIER_E0		(1 << 0)	/* Interrupt enable channel 0 */
 
 static unsigned long oscr_freq;
 static unsigned long sa1100wdt_users;
 static unsigned int pre_margin;
 static int boot_status;
+static void __iomem *reg_base;
+
+static inline void sa1100_wr(u32 val, u32 offset)
+{
+	writel_relaxed(val, reg_base + offset);
+}
+
+static inline u32 sa1100_rd(u32 offset)
+{
+	return readl_relaxed(reg_base + offset);
+}
 
 /*
  *	Allow only one person to hold it open
@@ -51,10 +77,10 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	/* Activate SA1100 Watchdog timer */
-	writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
-	writel_relaxed(OSSR_M3, OSSR);
-	writel_relaxed(OWER_WME, OWER);
-	writel_relaxed(readl_relaxed(OIER) | OIER_E3, OIER);
+	sa1100_wr(sa1100_rd(REG_OSCR) + pre_margin, REG_OSMR3);
+	sa1100_wr(OSSR_M3, REG_OSSR);
+	sa1100_wr(OWER_WME, REG_OWER);
+	sa1100_wr(sa1100_rd(REG_OIER) | OIER_E3, REG_OIER);
 	return stream_open(inode, file);
 }
 
@@ -62,7 +88,7 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
  * The watchdog cannot be disabled.
  *
  * Previous comments suggested that turning off the interrupt by
- * clearing OIER[E3] would prevent the watchdog timing out but this
+ * clearing REG_OIER[E3] would prevent the watchdog timing out but this
  * does not appear to be true (at least on the PXA255).
  */
 static int sa1100dog_release(struct inode *inode, struct file *file)
@@ -77,7 +103,7 @@ static ssize_t sa1100dog_write(struct file *file, const char __user *data,
 {
 	if (len)
 		/* Refresh OSMR3 timer. */
-		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
+		sa1100_wr(sa1100_rd(REG_OSCR) + pre_margin, REG_OSMR3);
 	return len;
 }
 
@@ -111,7 +137,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case WDIOC_KEEPALIVE:
-		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
+		sa1100_wr(sa1100_rd(REG_OSCR) + pre_margin, REG_OSMR3);
 		ret = 0;
 		break;
 
@@ -126,7 +152,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		pre_margin = oscr_freq * time;
-		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
+		sa1100_wr(sa1100_rd(REG_OSCR) + pre_margin, REG_OSMR3);
 		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
@@ -152,12 +178,22 @@ static struct miscdevice sa1100dog_miscdev = {
 	.fops		= &sa1100dog_fops,
 };
 
-static int margin __initdata = 60;		/* (secs) Default is 1 minute */
+static int margin = 60;		/* (secs) Default is 1 minute */
 static struct clk *clk;
 
-static int __init sa1100dog_init(void)
+static int sa1100dog_probe(struct platform_device *pdev)
 {
 	int ret;
+	int *platform_data;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENXIO;
+	reg_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	ret = PTR_ERR_OR_ZERO(reg_base);
+	if (ret)
+		return ret;
 
 	clk = clk_get(NULL, "OSTIMER0");
 	if (IS_ERR(clk)) {
@@ -175,13 +211,9 @@ static int __init sa1100dog_init(void)
 
 	oscr_freq = clk_get_rate(clk);
 
-	/*
-	 * Read the reset status, and save it for later.  If
-	 * we suspend, RCSR will be cleared, and the watchdog
-	 * reset reason will be lost.
-	 */
-	boot_status = (reset_status & RESET_STATUS_WATCHDOG) ?
-				WDIOF_CARDRESET : 0;
+	platform_data = pdev->dev.platform_data;
+	if (platform_data && *platform_data)
+		boot_status = WDIOF_CARDRESET;
 	pre_margin = oscr_freq * margin;
 
 	ret = misc_register(&sa1100dog_miscdev);
@@ -197,15 +229,21 @@ err:
 	return ret;
 }
 
-static void __exit sa1100dog_exit(void)
+static int sa1100dog_remove(struct platform_device *pdev)
 {
 	misc_deregister(&sa1100dog_miscdev);
 	clk_disable_unprepare(clk);
 	clk_put(clk);
+
+	return 0;
 }
 
-module_init(sa1100dog_init);
-module_exit(sa1100dog_exit);
+static struct platform_driver sa1100dog_driver = {
+	.driver.name = "sa1100_wdt",
+	.probe	  = sa1100dog_probe,
+	.remove	  = sa1100dog_remove,
+};
+module_platform_driver(sa1100dog_driver);
 
 MODULE_AUTHOR("Oleg Drokin <green@crimea.edu>");
 MODULE_DESCRIPTION("SA1100/PXA2xx Watchdog");

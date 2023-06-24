@@ -324,11 +324,6 @@ static int fsa9480_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int fsa9480_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int fsa9480_suspend(struct device *dev)
 {
@@ -376,7 +371,6 @@ static struct i2c_driver fsa9480_i2c_driver = {
 		.of_match_table = fsa9480_of_match,
 	},
 	.probe			= fsa9480_probe,
-	.remove			= fsa9480_remove,
 	.id_table		= fsa9480_id,
 };
 

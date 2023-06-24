@@ -28,6 +28,48 @@
 		bluetooth0 = &bluetooth;
 		serial0 = &uart5;
 		serial1 = &uart7;
+		wifi0 = &wifi;
+	};
+
+	wcd9385: audio-codec-1 {
+		compatible = "qcom,wcd9385-codec";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&wcd_reset_n>, <&us_euro_hs_sel>;
+		pinctrl-1 = <&wcd_reset_n_sleep>, <&us_euro_hs_sel>;
+
+		reset-gpios = <&tlmm 83 GPIO_ACTIVE_HIGH>;
+		us-euro-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
+
+		qcom,rx-device = <&wcd_rx>;
+		qcom,tx-device = <&wcd_tx>;
+
+		vdd-rxtx-supply = <&vreg_l18b_1p8>;
+		vdd-io-supply = <&vreg_l18b_1p8>;
+		vdd-buck-supply = <&vreg_l17b_1p8>;
+		vdd-mic-bias-supply = <&vreg_bob>;
+
+		qcom,micbias1-microvolt = <1800000>;
+		qcom,micbias2-microvolt = <1800000>;
+		qcom,micbias3-microvolt = <1800000>;
+		qcom,micbias4-microvolt = <1800000>;
+
+		qcom,mbhc-buttons-vthreshold-microvolt = <75000 150000 237000 500000 500000
+							  500000 500000 500000>;
+		qcom,mbhc-headset-vthreshold-microvolt = <1700000>;
+		qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
+		#sound-dai-cells = <1>;
+
+		status = "disabled";
+	};
+
+	pm8350c_pwm_backlight: backlight {
+		compatible = "pwm-backlight";
+		status = "disabled";
+
+		enable-gpios = <&pm8350c_gpios 7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_edp_bl_en>;
+		pwms = <&pm8350c_pwm 3 65535>;
 	};
 };
 
@@ -110,6 +152,12 @@
 		vreg_l7b_2p5: ldo7 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l17b_1p8: ldo17 {
+			regulator-min-microvolt = <1700000>;
+			regulator-max-microvolt = <1900000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -293,9 +341,49 @@
 	modem-init;
 };
 
+&lpass_va_macro {
+	vdd-micb-supply = <&vreg_bob>;
+};
+
+/* NOTE: Not all Qcards have eDP connector stuffed */
+&mdss_edp {
+	aux-bus {
+		edp_panel: panel {
+			compatible = "edp-panel";
+
+			backlight = <&pm8350c_pwm_backlight>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					edp_panel_in: endpoint {
+						remote-endpoint = <&mdss_edp_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&mdss_edp_out {
+	remote-endpoint = <&edp_panel_in>;
+};
+
+&mdss_edp_phy {
+	vdda-pll-supply = <&vdd_a_edp_0_0p9>;
+	vdda-phy-supply = <&vdd_a_edp_0_1p2>;
+};
+
 &pcie1_phy {
 	vdda-phy-supply = <&vreg_l10c_0p88>;
 	vdda-pll-supply = <&vreg_l6b_1p2>;
+};
+
+&pm8350c_pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_edp_bl_pwm>;
 };
 
 &pmk8350_vadc {
@@ -324,6 +412,24 @@
 	non-removable;
 	no-sd;
 	no-sdio;
+};
+
+&swr0 {
+	wcd_rx: codec@0,4 {
+		compatible = "sdw20217010d00";
+		reg = <0 4>;
+		#sound-dai-cells = <1>;
+		qcom,rx-port-mapping = <1 2 3 4 5>;
+	};
+};
+
+&swr1 {
+	wcd_tx: codec@0,3 {
+		compatible = "sdw20217010d00";
+		reg = <0 3>;
+		#sound-dai-cells = <1>;
+		qcom,tx-port-mapping = <1 2 3 4>;
+	};
 };
 
 uart_dbg: &uart5 {
@@ -383,6 +489,11 @@ mos_bt_uart: &uart7 {
  * baseboard or board device tree, not here.
  */
 
+/* No external pull for eDP HPD, so set the internal one. */
+&edp_hot_plug_det {
+	bias-pull-down;
+};
+
 /*
  * For ts_i2c
  *
@@ -398,8 +509,14 @@ mos_bt_uart: &uart7 {
 
 /* For mos_bt_uart */
 &qup_uart7_cts {
-	/* Configure a pull-down on CTS to match the pull of the Bluetooth module. */
-	bias-pull-down;
+	/*
+	 * Configure a bias-bus-hold on CTS to lower power
+	 * usage when Bluetooth is turned off. Bus hold will
+	 * maintain a low power state regardless of whether
+	 * the Bluetooth module drives the pin in either
+	 * direction or leaves the pin fully unpowered.
+	 */
+	bias-bus-hold;
 };
 
 /* For mos_bt_uart */
@@ -457,7 +574,7 @@ mos_bt_uart: &uart7 {
  */
 
 &pm8350c_gpios {
-	pmic_edp_bl_en: pmic-edp-bl-en {
+	pmic_edp_bl_en: pmic-edp-bl-en-state {
 		pins = "gpio7";
 		function = "normal";
 		bias-disable;
@@ -467,7 +584,7 @@ mos_bt_uart: &uart7 {
 		output-low;
 	};
 
-	pmic_edp_bl_pwm: pmic-edp-bl-pwm {
+	pmic_edp_bl_pwm: pmic-edp-bl-pwm-state {
 		pins = "gpio8";
 		function = "func1";
 		bias-disable;
@@ -478,7 +595,7 @@ mos_bt_uart: &uart7 {
 };
 
 &tlmm {
-	mos_bt_en: mos-bt-en {
+	mos_bt_en: mos-bt-en-pins {
 		pins = "gpio85";
 		function = "gpio";
 		drive-strength = <2>;
@@ -486,18 +603,21 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_cts: qup-uart7-sleep-cts {
+	qup_uart7_sleep_cts: qup-uart7-sleep-cts-pins {
 		pins = "gpio28";
 		function = "gpio";
 		/*
-		 * Configure a pull-down on CTS to match the pull of
-		 * the Bluetooth module.
+		 * Configure a bias-bus-hold on CTS to lower power
+		 * usage when Bluetooth is turned off. Bus hold will
+		 * maintain a low power state regardless of whether
+		 * the Bluetooth module drives the pin in either
+		 * direction or leaves the pin fully unpowered.
 		 */
-		bias-pull-down;
+		bias-bus-hold;
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_rts: qup-uart7-sleep-rts {
+	qup_uart7_sleep_rts: qup-uart7-sleep-rts-pins {
 		pins = "gpio29";
 		function = "gpio";
 		/*
@@ -510,7 +630,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_rx: qup-uart7-sleep-rx {
+	qup_uart7_sleep_rx: qup-uart7-sleep-rx-pins {
 		pins = "gpio31";
 		function = "gpio";
 		/*
@@ -522,7 +642,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_tx: qup-uart7-sleep-tx {
+	qup_uart7_sleep_tx: qup-uart7-sleep-tx-pins {
 		pins = "gpio30";
 		function = "gpio";
 		/*
@@ -532,16 +652,35 @@ mos_bt_uart: &uart7 {
 		bias-pull-up;
 	};
 
-	ts_int_conn: ts-int-conn {
+	ts_int_conn: ts-int-conn-pins {
 		pins = "gpio55";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	ts_rst_conn: ts-rst-conn {
+	ts_rst_conn: ts-rst-conn-pins {
 		pins = "gpio54";
 		function = "gpio";
-		bias-pull-up;
 		drive-strength = <2>;
+	};
+
+	us_euro_hs_sel: us-euro-hs-sel {
+		pins = "gpio81";
+		function = "gpio";
+		bias-pull-down;
+		drive-strength = <2>;
+	};
+
+	wcd_reset_n: wcd-reset-n {
+		pins = "gpio83";
+		function = "gpio";
+		drive-strength = <8>;
+	};
+
+	wcd_reset_n_sleep: wcd-reset-n-sleep {
+		pins = "gpio83";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
 	};
 };

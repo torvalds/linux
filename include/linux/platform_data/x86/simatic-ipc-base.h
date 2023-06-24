@@ -19,11 +19,10 @@
 #define SIMATIC_IPC_DEVICE_427E 2
 #define SIMATIC_IPC_DEVICE_127E 3
 #define SIMATIC_IPC_DEVICE_227E 4
+#define SIMATIC_IPC_DEVICE_227G 5
 
 struct simatic_ipc_platform {
 	u8	devmode;
 };
-
-u32 simatic_ipc_get_membase0(unsigned int p2sb);
 
 #endif /* __PLATFORM_DATA_X86_SIMATIC_IPC_BASE_H */

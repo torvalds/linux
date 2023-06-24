@@ -316,7 +316,7 @@
 			status = "disabled";
 		};
 
-		sdhci_0: sdhci@12510000 {
+		sdhci_0: mmc@12510000 {
 			compatible = "samsung,exynos4210-sdhci";
 			reg = <0x12510000 0x100>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
@@ -325,7 +325,7 @@
 			status = "disabled";
 		};
 
-		sdhci_1: sdhci@12520000 {
+		sdhci_1: mmc@12520000 {
 			compatible = "samsung,exynos4210-sdhci";
 			reg = <0x12520000 0x100>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
@@ -334,7 +334,7 @@
 			status = "disabled";
 		};
 
-		sdhci_2: sdhci@12530000 {
+		sdhci_2: mmc@12530000 {
 			compatible = "samsung,exynos4210-sdhci";
 			reg = <0x12530000 0x100>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
@@ -343,7 +343,7 @@
 			status = "disabled";
 		};
 
-		sdhci_3: sdhci@12540000 {
+		sdhci_3: mmc@12540000 {
 			compatible = "samsung,exynos4210-sdhci";
 			reg = <0x12540000 0x100>;
 			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
@@ -373,7 +373,7 @@
 			status = "disabled";
 		};
 
-		ehci: ehci@12580000 {
+		ehci: usb@12580000 {
 			compatible = "samsung,exynos4210-ehci";
 			reg = <0x12580000 0x100>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
@@ -384,7 +384,7 @@
 			phy-names = "host", "hsic0", "hsic1";
 		};
 
-		ohci: ohci@12590000 {
+		ohci: usb@12590000 {
 			compatible = "samsung,exynos4210-ohci";
 			reg = <0x12590000 0x100>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
@@ -676,8 +676,6 @@
 			clocks = <&clock CLK_PDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		pdma1: dma-controller@12690000 {
@@ -687,8 +685,6 @@
 			clocks = <&clock CLK_PDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		mdma1: dma-controller@12850000 {
@@ -698,8 +694,6 @@
 			clocks = <&clock CLK_MDMA>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <1>;
 		};
 
 		fimd: fimd@11c00000 {

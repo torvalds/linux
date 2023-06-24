@@ -56,12 +56,13 @@
 #define CFO_TRK_STOP_TH (2 << 2)
 #define CFO_SW_COMP_FINE_TUNE (2 << 2)
 #define CFO_PERIOD_CNT 15
-#define CFO_BOUND 32
+#define CFO_BOUND 64
 #define CFO_TP_UPPER 100
 #define CFO_TP_LOWER 50
 #define CFO_COMP_PERIOD 250
 #define CFO_COMP_WEIGHT 8
 #define MAX_CFO_TOLERANCE 30
+#define CFO_TF_CNT_TH 300
 
 #define CCX_MAX_PERIOD 2097
 #define CCX_MAX_PERIOD_UNIT 32
@@ -221,6 +222,35 @@ enum rtw89_dig_gain_tia_idx {
 	RTW89_DIG_GAIN_TIA_IDX1 = 1
 };
 
+enum rtw89_tssi_bandedge_cfg {
+	RTW89_TSSI_BANDEDGE_FLAT,
+	RTW89_TSSI_BANDEDGE_LOW,
+	RTW89_TSSI_BANDEDGE_MID,
+	RTW89_TSSI_BANDEDGE_HIGH,
+
+	RTW89_TSSI_CFG_NUM,
+};
+
+enum rtw89_tssi_sbw_idx {
+	RTW89_TSSI_SBW20,
+	RTW89_TSSI_SBW40_0,
+	RTW89_TSSI_SBW40_1,
+	RTW89_TSSI_SBW80_0,
+	RTW89_TSSI_SBW80_1,
+	RTW89_TSSI_SBW80_2,
+	RTW89_TSSI_SBW80_3,
+	RTW89_TSSI_SBW160_0,
+	RTW89_TSSI_SBW160_1,
+	RTW89_TSSI_SBW160_2,
+	RTW89_TSSI_SBW160_3,
+	RTW89_TSSI_SBW160_4,
+	RTW89_TSSI_SBW160_5,
+	RTW89_TSSI_SBW160_6,
+	RTW89_TSSI_SBW160_7,
+
+	RTW89_TSSI_SBW_NUM,
+};
+
 struct rtw89_txpwr_byrate_cfg {
 	enum rtw89_band band;
 	enum rtw89_nss nss;
@@ -233,18 +263,22 @@ struct rtw89_txpwr_byrate_cfg {
 #define DELTA_SWINGIDX_SIZE 30
 
 struct rtw89_txpwr_track_cfg {
-	const u8 (*delta_swingidx_5gb_n)[DELTA_SWINGIDX_SIZE];
-	const u8 (*delta_swingidx_5gb_p)[DELTA_SWINGIDX_SIZE];
-	const u8 (*delta_swingidx_5ga_n)[DELTA_SWINGIDX_SIZE];
-	const u8 (*delta_swingidx_5ga_p)[DELTA_SWINGIDX_SIZE];
-	const u8 *delta_swingidx_2gb_n;
-	const u8 *delta_swingidx_2gb_p;
-	const u8 *delta_swingidx_2ga_n;
-	const u8 *delta_swingidx_2ga_p;
-	const u8 *delta_swingidx_2g_cck_b_n;
-	const u8 *delta_swingidx_2g_cck_b_p;
-	const u8 *delta_swingidx_2g_cck_a_n;
-	const u8 *delta_swingidx_2g_cck_a_p;
+	const s8 (*delta_swingidx_6gb_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_6gb_p)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_6ga_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_6ga_p)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5gb_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5gb_p)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5ga_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5ga_p)[DELTA_SWINGIDX_SIZE];
+	const s8 *delta_swingidx_2gb_n;
+	const s8 *delta_swingidx_2gb_p;
+	const s8 *delta_swingidx_2ga_n;
+	const s8 *delta_swingidx_2ga_p;
+	const s8 *delta_swingidx_2g_cck_b_n;
+	const s8 *delta_swingidx_2g_cck_b_p;
+	const s8 *delta_swingidx_2g_cck_a_n;
+	const s8 *delta_swingidx_2g_cck_a_p;
 };
 
 struct rtw89_phy_dig_gain_cfg {
@@ -259,6 +293,10 @@ struct rtw89_phy_dig_gain_table {
 	const struct rtw89_phy_dig_gain_cfg *cfg_tia_a;
 };
 
+struct rtw89_phy_tssi_dbw_table {
+	u32 data[RTW89_TSSI_CFG_NUM][RTW89_TSSI_SBW_NUM];
+};
+
 struct rtw89_phy_reg3_tbl {
 	const struct rtw89_reg3_def *reg3;
 	int size;
@@ -269,6 +307,15 @@ const struct rtw89_phy_reg3_tbl _name ## _tbl = {	\
 	.reg3 = _name,					\
 	.size = ARRAY_SIZE(_name),			\
 }
+
+struct rtw89_nbi_reg_def {
+	struct rtw89_reg_def notch1_idx;
+	struct rtw89_reg_def notch1_frac_idx;
+	struct rtw89_reg_def notch1_en;
+	struct rtw89_reg_def notch2_idx;
+	struct rtw89_reg_def notch2_frac_idx;
+	struct rtw89_reg_def notch2_en;
+};
 
 extern const u8 rtw89_rs_idx_max[RTW89_RS_MAX];
 extern const u8 rtw89_rs_nss_max[RTW89_RS_MAX];
@@ -392,7 +439,7 @@ rtw89_rfk_parser(struct rtw89_dev *rtwdev, const struct rtw89_rfk_tbl *tbl);
 void rtw89_phy_write_reg3_tbl(struct rtw89_dev *rtwdev,
 			      const struct rtw89_phy_reg3_tbl *tbl);
 u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
-		      struct rtw89_channel_params *param,
+		      const struct rtw89_chan *chan,
 		      enum rtw89_bandwidth dbw);
 u32 rtw89_phy_read_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 		      u32 addr, u32 mask);
@@ -413,19 +460,22 @@ void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			   u32 data, enum rtw89_phy_idx phy_idx);
 void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl);
-s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev,
+s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band,
 			       const struct rtw89_rate_desc *rate_desc);
 void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan,
 				struct rtw89_txpwr_limit *lmt,
 				u8 ntx);
 void rtw89_phy_fill_txpwr_limit_ru(struct rtw89_dev *rtwdev,
+				   const struct rtw89_chan *chan,
 				   struct rtw89_txpwr_limit_ru *lmt_ru,
 				   u8 ntx);
-s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev,
+s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch);
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta);
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev);
-void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta);
+void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
+			     u32 changed);
 void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
@@ -441,6 +491,10 @@ void rtw89_phy_set_phy_regs(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			    u32 val);
 void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev);
 void rtw89_phy_dig(struct rtw89_dev *rtwdev);
+void rtw89_phy_tx_path_div_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
+void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
+					  enum rtw89_mac_idx mac_idx,
+					  enum rtw89_tssi_bandedge_cfg bandedge_cfg);
 
 #endif

@@ -219,14 +219,13 @@ static void asus_report_tool_width(struct asus_drvdata *drvdat)
 {
 	struct input_mt *mt = drvdat->input->mt;
 	struct input_mt_slot *oldest;
-	int oldid, count, i;
+	int oldid, i;
 
 	if (drvdat->tp->contact_size < 5)
 		return;
 
 	oldest = NULL;
 	oldid = mt->trkid;
-	count = 0;
 
 	for (i = 0; i < mt->num_slots; ++i) {
 		struct input_mt_slot *ps = &mt->slots[i];
@@ -238,7 +237,6 @@ static void asus_report_tool_width(struct asus_drvdata *drvdat)
 			oldest = ps;
 			oldid = id;
 		}
-		count++;
 	}
 
 	if (oldest) {
@@ -1210,6 +1208,13 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 		*rsize = new_size;
 		rdesc = new_rdesc;
+	}
+
+	if (drvdata->quirks & QUIRK_ROG_NKEY_KEYBOARD &&
+			*rsize == 331 && rdesc[190] == 0x85 && rdesc[191] == 0x5a &&
+			rdesc[204] == 0x95 && rdesc[205] == 0x05) {
+		hid_info(hdev, "Fixing up Asus N-KEY keyb report descriptor\n");
+		rdesc[205] = 0x01;
 	}
 
 	return rdesc;

@@ -2182,7 +2182,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 	case (SCU_TASK_DONE_UNEXP_FIS << SCU_COMPLETION_TL_STATUS_SHIFT): {
 		u16 len = sci_req_tx_bytes(ireq);
 
-		/* likely non-error data underrrun, workaround missing
+		/* likely non-error data underrun, workaround missing
 		 * d2h frame from the controller
 		 */
 		if (d2h->fis_type != FIS_REGD2H) {

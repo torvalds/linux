@@ -316,7 +316,7 @@ static int iostat_event_group(struct evlist *evl,
 		sprintf(iostat_cmd, iostat_cmd_template,
 			list->rps[idx]->pmu_idx, list->rps[idx]->pmu_idx,
 			list->rps[idx]->pmu_idx, list->rps[idx]->pmu_idx);
-		ret = parse_events(evl, iostat_cmd, NULL);
+		ret = parse_event(evl, iostat_cmd);
 		if (ret)
 			goto err;
 	}

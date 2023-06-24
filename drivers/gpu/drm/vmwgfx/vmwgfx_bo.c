@@ -393,6 +393,12 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
 	kfree(vmw_bo);
 }
 
+/* default destructor */
+static void vmw_bo_default_destroy(struct ttm_buffer_object *bo)
+{
+	kfree(bo);
+}
+
 /**
  * vmw_bo_create_kernel - Create a pinned BO for internal kernel use.
  *
@@ -423,9 +429,9 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 
 	drm_gem_private_object_init(vdev, &bo->base, size);
 
-	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, size,
-				   ttm_bo_type_kernel, placement, 0,
-				   &ctx, NULL, NULL, NULL);
+	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, ttm_bo_type_kernel,
+				   placement, 0, &ctx, NULL, NULL,
+				   vmw_bo_default_destroy);
 	if (unlikely(ret))
 		goto error_free;
 
@@ -447,6 +453,8 @@ int vmw_bo_create(struct vmw_private *vmw,
 		  struct vmw_buffer_object **p_bo)
 {
 	int ret;
+
+	BUG_ON(!bo_free);
 
 	*p_bo = kmalloc(sizeof(**p_bo), GFP_KERNEL);
 	if (unlikely(!*p_bo)) {
@@ -504,10 +512,8 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	size = ALIGN(size, PAGE_SIZE);
 	drm_gem_private_object_init(vdev, &vmw_bo->base.base, size);
 
-	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, size,
-				   ttm_bo_type_device,
-				   placement,
-				   0, &ctx, NULL, NULL, bo_free);
+	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, ttm_bo_type_device,
+				   placement, 0, &ctx, NULL, NULL, bo_free);
 	if (unlikely(ret)) {
 		return ret;
 	}
@@ -543,8 +549,8 @@ static int vmw_user_bo_synccpu_grab(struct vmw_buffer_object *vmw_bo,
 	if (flags & drm_vmw_synccpu_allow_cs) {
 		long lret;
 
-		lret = dma_resv_wait_timeout(bo->base.resv, true, true,
-					     nonblock ? 0 :
+		lret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_READ,
+					     true, nonblock ? 0 :
 					     MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
@@ -721,7 +727,7 @@ int vmw_user_bo_lookup(struct drm_file *filp,
  * Any persistent usage of the object requires a refcount to be taken using
  * ttm_bo_reference_unless_doomed(). Iff this function returns successfully it
  * needs to be paired with vmw_user_bo_noref_release() and no sleeping-
- * or scheduling functions may be called inbetween these function calls.
+ * or scheduling functions may be called in between these function calls.
  *
  * Return: A struct vmw_buffer_object pointer if successful or negative
  * error pointer on failure.
@@ -763,16 +769,23 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence)
 {
 	struct ttm_device *bdev = bo->bdev;
-
 	struct vmw_private *dev_priv =
 		container_of(bdev, struct vmw_private, bdev);
+	int ret;
 
-	if (fence == NULL) {
+	if (fence == NULL)
 		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
-		dma_fence_put(&fence->base);
-	} else
-		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
+	else
+		dma_fence_get(&fence->base);
+
+	ret = dma_resv_reserve_fences(bo->base.resv, 1);
+	if (!ret)
+		dma_resv_add_fence(bo->base.resv, &fence->base,
+				   DMA_RESV_USAGE_KERNEL);
+	else
+		/* Last resort fallback when we are OOM */
+		dma_fence_wait(&fence->base, false);
+	dma_fence_put(&fence->base);
 }
 
 

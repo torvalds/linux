@@ -8,7 +8,6 @@
  */
 
 #include <linux/vfio.h>
-#include <linux/mdev.h>
 
 #include "vfio_ccw_private.h"
 

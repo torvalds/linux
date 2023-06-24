@@ -64,6 +64,13 @@ config XTERM_CHAN
 	  its own xterm.
 	  It is safe to say 'Y' here.
 
+config XTERM_CHAN_DEFAULT_EMULATOR
+	string "xterm channel default terminal emulator"
+	depends on XTERM_CHAN
+	default "xterm"
+	help
+	  This option allows changing the default terminal emulator.
+
 config NOCONFIG_CHAN
 	bool
 	default !(XTERM_CHAN && TTY_CHAN && PTY_CHAN && PORT_CHAN && NULL_CHAN)
@@ -231,42 +238,50 @@ config UML_NET_DAEMON
 
 	  If unsure, say N.
 
+config UML_NET_DAEMON_DEFAULT_SOCK
+	string "Default socket for daemon transport"
+	default "/tmp/uml.ctl"
+	depends on UML_NET_DAEMON
+	help
+	  This option allows setting the default socket for the daemon
+	  transport, normally it defaults to /tmp/uml.ctl.
+
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
 	depends on UML_NET
 	select MAY_HAVE_RUNTIME_DEPS
 	help
-	This User-Mode Linux network driver uses multi-message send
-	and receive functions. The host running the UML guest must have
-	a linux kernel version above 3.0 and a libc version > 2.13.
-	This driver provides tap, raw, gre and l2tpv3 network transports
-	with up to 4 times higher network throughput than the UML network
-	drivers.
+	  This User-Mode Linux network driver uses multi-message send
+	  and receive functions. The host running the UML guest must have
+	  a linux kernel version above 3.0 and a libc version > 2.13.
+	  This driver provides tap, raw, gre and l2tpv3 network transports
+	  with up to 4 times higher network throughput than the UML network
+	  drivers.
 
 config UML_NET_VDE
 	bool "VDE transport (obsolete)"
 	depends on UML_NET
 	select MAY_HAVE_RUNTIME_DEPS
 	help
-	This User-Mode Linux network transport allows one or more running
-	UMLs on a single host to communicate with each other and also
-	with the rest of the world using Virtual Distributed Ethernet,
-	an improved fork of uml_switch.
+	  This User-Mode Linux network transport allows one or more running
+	  UMLs on a single host to communicate with each other and also
+	  with the rest of the world using Virtual Distributed Ethernet,
+	  an improved fork of uml_switch.
 
-	You must have libvdeplug installed in order to build the vde
-	transport into UML.
+	  You must have libvdeplug installed in order to build the vde
+	  transport into UML.
 
-	To use this form of networking, you will need to run vde_switch
-	on the host.
+	  To use this form of networking, you will need to run vde_switch
+	  on the host.
 
-	For more information, see <http://wiki.virtualsquare.org/>
-	That site has a good overview of what VDE is and also examples
-	of the UML command line to use to enable VDE networking.
+	  For more information, see <http://wiki.virtualsquare.org/>
+	  That site has a good overview of what VDE is and also examples
+	  of the UML command line to use to enable VDE networking.
 
-	NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
-	migrate to UML_NET_VECTOR.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
 
-	If unsure, say N.
+	  If unsure, say N.
 
 config UML_NET_MCAST
 	bool "Multicast transport (obsolete)"
@@ -296,19 +311,19 @@ config UML_NET_PCAP
 	depends on UML_NET
 	select MAY_HAVE_RUNTIME_DEPS
 	help
-	The pcap transport makes a pcap packet stream on the host look
-	like an ethernet device inside UML.  This is useful for making
-	UML act as a network monitor for the host.  You must have libcap
-	installed in order to build the pcap transport into UML.
+	  The pcap transport makes a pcap packet stream on the host look
+	  like an ethernet device inside UML.  This is useful for making
+	  UML act as a network monitor for the host.  You must have libcap
+	  installed in order to build the pcap transport into UML.
 
 	  For more information, see
 	  <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
 	  has examples of the UML command line to use to enable this option.
 
-	NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
-	migrate to UML_NET_VECTOR.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
 
-	If unsure, say N.
+	  If unsure, say N.
 
 config UML_NET_SLIRP
 	bool "SLiRP transport (obsolete)"

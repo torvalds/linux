@@ -175,8 +175,6 @@ static int cmdq_allocate_page(struct hinic_cmdq_pages *cmdq_pages)
 /**
  * cmdq_free_page - free page from cmdq
  * @cmdq_pages: the pages of the cmdq queue struct that hold the page
- *
- * Return 0 - Success, negative - Failure
  **/
 static void cmdq_free_page(struct hinic_cmdq_pages *cmdq_pages)
 {
@@ -386,7 +384,7 @@ static int alloc_wqes_shadow(struct hinic_wq *wq)
 		return -ENOMEM;
 
 	wq->shadow_idx = devm_kcalloc(&pdev->dev, wq->num_q_pages,
-				      sizeof(wq->prod_idx), GFP_KERNEL);
+				      sizeof(*wq->shadow_idx), GFP_KERNEL);
 	if (!wq->shadow_idx)
 		goto err_shadow_idx;
 

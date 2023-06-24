@@ -15,6 +15,8 @@
  * snd_pcm_substream_to_dma_direction - Get dma_transfer_direction for a PCM
  *   substream
  * @substream: PCM substream
+ *
+ * Return: DMA transfer direction
  */
 static inline enum dma_transfer_direction
 snd_pcm_substream_to_dma_direction(const struct snd_pcm_substream *substream)

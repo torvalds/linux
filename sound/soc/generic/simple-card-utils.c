@@ -9,11 +9,37 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
+
+static void asoc_simple_fixup_sample_fmt(struct asoc_simple_data *data,
+					 struct snd_pcm_hw_params *params)
+{
+	int i;
+	struct snd_mask *mask = hw_param_mask(params,
+					      SNDRV_PCM_HW_PARAM_FORMAT);
+	struct {
+		char *fmt;
+		u32 val;
+	} of_sample_fmt_table[] = {
+		{ "s8",		SNDRV_PCM_FORMAT_S8},
+		{ "s16_le",	SNDRV_PCM_FORMAT_S16_LE},
+		{ "s24_le",	SNDRV_PCM_FORMAT_S24_LE},
+		{ "s24_3le",	SNDRV_PCM_FORMAT_S24_3LE},
+		{ "s32_le",	SNDRV_PCM_FORMAT_S32_LE},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(of_sample_fmt_table); i++) {
+		if (!strcmp(data->convert_sample_format,
+			    of_sample_fmt_table[i].fmt)) {
+			snd_mask_none(mask);
+			snd_mask_set(mask, of_sample_fmt_table[i].val);
+			break;
+		}
+	}
+}
 
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 			       struct snd_pcm_hw_params *params)
@@ -30,6 +56,9 @@ void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 	if (data->convert_channels)
 		channels->min =
 		channels->max = data->convert_channels;
+
+	if (data->convert_sample_format)
+		asoc_simple_fixup_sample_fmt(data, params);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
 
@@ -49,8 +78,27 @@ void asoc_simple_parse_convert(struct device_node *np,
 	/* channels transfer */
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-channels");
 	of_property_read_u32(np, prop, &data->convert_channels);
+
+	/* convert sample format */
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-sample-format");
+	of_property_read_string(np, prop, &data->convert_sample_format);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_parse_convert);
+
+/**
+ * asoc_simple_is_convert_required() - Query if HW param conversion was requested
+ * @data: Link data.
+ *
+ * Returns true if any HW param conversion was requested for this DAI link with
+ * any "convert-xxx" properties.
+ */
+bool asoc_simple_is_convert_required(const struct asoc_simple_data *data)
+{
+	return data->convert_rate ||
+	       data->convert_channels ||
+	       data->convert_sample_format;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_is_convert_required);
 
 int asoc_simple_parse_daifmt(struct device *dev,
 			     struct device_node *node,
@@ -513,7 +561,12 @@ static int asoc_simple_init_dai(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
+static inline int asoc_simple_component_is_codec(struct snd_soc_component *component)
+{
+	return component->driver->endianness;
+}
+
+static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 					    struct simple_dai_props *dai_props)
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
@@ -522,9 +575,17 @@ static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_hardware hw;
 	int i, ret, stream;
 
+	/* Do nothing if it already has Codec2Codec settings */
+	if (dai_link->params)
+		return 0;
+
+	/* Do nothing if it was DPCM :: BE */
+	if (dai_link->no_pcm)
+		return 0;
+
 	/* Only Codecs */
 	for_each_rtd_components(rtd, i, component) {
-		if (!snd_soc_component_is_codec(component))
+		if (!asoc_simple_component_is_codec(component))
 			return 0;
 	}
 
@@ -575,7 +636,7 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 	}
 
-	ret = asoc_simple_init_dai_link_params(rtd, props);
+	ret = asoc_simple_init_for_codec2codec(rtd, props);
 	if (ret < 0)
 		return ret;
 
@@ -609,7 +670,7 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 
-int asoc_simple_clean_reference(struct snd_soc_card *card)
+void asoc_simple_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_dai_link_component *cpu;
@@ -622,7 +683,6 @@ int asoc_simple_clean_reference(struct snd_soc_card *card)
 		for_each_link_codecs(dai_link, j, codec)
 			of_node_put(codec->of_node);
 	}
-	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_clean_reference);
 
@@ -683,12 +743,12 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 			  char *pin)
 {
 	struct device *dev = card->dev;
-	enum of_gpio_flags flags;
+	struct gpio_desc *desc;
 	char prop[128];
 	char *pin_name;
 	char *gpio_name;
 	int mask;
-	int det;
+	int error;
 
 	if (!prefix)
 		prefix = "";
@@ -696,37 +756,39 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 	sjack->gpio.gpio = -ENOENT;
 
 	if (is_hp) {
-		snprintf(prop, sizeof(prop), "%shp-det-gpio", prefix);
+		snprintf(prop, sizeof(prop), "%shp-det", prefix);
 		pin_name	= pin ? pin : "Headphones";
 		gpio_name	= "Headphone detection";
 		mask		= SND_JACK_HEADPHONE;
 	} else {
-		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
+		snprintf(prop, sizeof(prop), "%smic-det", prefix);
 		pin_name	= pin ? pin : "Mic Jack";
 		gpio_name	= "Mic detection";
 		mask		= SND_JACK_MICROPHONE;
 	}
 
-	det = of_get_named_gpio_flags(dev->of_node, prop, 0, &flags);
-	if (det == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	desc = gpiod_get_optional(dev, prop, GPIOD_IN);
+	error = PTR_ERR_OR_ZERO(desc);
+	if (error)
+		return error;
 
-	if (gpio_is_valid(det)) {
+	if (desc) {
+		error = gpiod_set_consumer_name(desc, gpio_name);
+		if (error)
+			return error;
+
 		sjack->pin.pin		= pin_name;
 		sjack->pin.mask		= mask;
 
 		sjack->gpio.name	= gpio_name;
 		sjack->gpio.report	= mask;
-		sjack->gpio.gpio	= det;
-		sjack->gpio.invert	= !!(flags & OF_GPIO_ACTIVE_LOW);
+		sjack->gpio.desc	= desc;
 		sjack->gpio.debounce_time = 150;
 
-		snd_soc_card_jack_new(card, pin_name, mask,
-				      &sjack->jack,
-				      &sjack->pin, 1);
+		snd_soc_card_jack_new_pins(card, pin_name, mask, &sjack->jack,
+					   &sjack->pin, 1);
 
-		snd_soc_jack_add_gpios(&sjack->jack, 1,
-				       &sjack->gpio);
+		snd_soc_jack_add_gpios(&sjack->jack, 1, &sjack->gpio);
 	}
 
 	return 0;
@@ -743,8 +805,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
-	struct snd_soc_pcm_stream *c2c_conf = NULL;
-	int i, dai_num = 0, dlc_num = 0, cnf_num = 0, c2c_num = 0;
+	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
@@ -763,8 +824,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 		if (!li->num[i].cpus)
 			cnf_num += li->num[i].codecs;
-
-		c2c_num += li->num[i].c2c;
 	}
 
 	dais = devm_kcalloc(dev, dai_num, sizeof(*dais), GFP_KERNEL);
@@ -775,12 +834,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	if (cnf_num) {
 		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
-			return -ENOMEM;
-	}
-
-	if (c2c_num) {
-		c2c_conf = devm_kcalloc(dev, c2c_num, sizeof(*c2c_conf), GFP_KERNEL);
-		if (!c2c_conf)
 			return -ENOMEM;
 	}
 
@@ -797,7 +850,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	priv->dais		= dais;
 	priv->dlcs		= dlcs;
 	priv->codec_conf	= cconf;
-	priv->c2c_conf		= c2c_conf;
 
 	card->dai_link		= priv->dai_link;
 	card->num_links		= li->link;
@@ -815,12 +867,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 			dlcs += li->num[i].cpus;
 			dais += li->num[i].cpus;
-
-			if (li->num[i].c2c) {
-				/* Codec2Codec */
-				dai_props[i].c2c_conf = c2c_conf;
-				c2c_conf += li->num[i].c2c;
-			}
 		} else {
 			/* DPCM Be's CPU = dummy */
 			dai_props[i].cpus	=
@@ -878,7 +924,9 @@ int asoc_simple_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	return asoc_simple_clean_reference(card);
+	asoc_simple_clean_reference(card);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_remove);
 

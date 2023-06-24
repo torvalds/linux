@@ -470,7 +470,7 @@ ltq_etop_stop(struct net_device *dev)
 	return 0;
 }
 
-static int
+static netdev_tx_t
 ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	int queue = skb_get_queue_mapping(skb);
@@ -485,7 +485,6 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 	len = skb->len < ETH_ZLEN ? ETH_ZLEN : skb->len;
 
 	if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) || ch->skb[ch->dma.desc]) {
-		dev_kfree_skb_any(skb);
 		netdev_err(dev, "tx ring full\n");
 		netif_tx_stop_queue(txq);
 		return NETDEV_TX_BUSY;
@@ -701,11 +700,11 @@ ltq_etop_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))
-			netif_napi_add(dev, &priv->ch[i].napi,
-				       ltq_etop_poll_tx, 8);
+			netif_napi_add_weight(dev, &priv->ch[i].napi,
+					      ltq_etop_poll_tx, 8);
 		else if (IS_RX(i))
-			netif_napi_add(dev, &priv->ch[i].napi,
-				       ltq_etop_poll_rx, 32);
+			netif_napi_add_weight(dev, &priv->ch[i].napi,
+					      ltq_etop_poll_rx, 32);
 		priv->ch[i].netdev = dev;
 	}
 

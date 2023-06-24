@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/nvram.h>
 #include <linux/initrd.h>
+#include <linux/random.h>
 
 #include <asm/bootinfo.h>
 #include <asm/byteorder.h>
@@ -87,18 +88,8 @@ void (*mach_sched_init) (void) __initdata = NULL;
 void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);
 void (*mach_get_hardware_list) (struct seq_file *m);
-/* machine dependent timer functions */
-int (*mach_hwclk) (int, struct rtc_time*);
-EXPORT_SYMBOL(mach_hwclk);
-unsigned int (*mach_get_ss)(void);
-int (*mach_get_rtc_pll)(struct rtc_pll_info *);
-int (*mach_set_rtc_pll)(struct rtc_pll_info *);
-EXPORT_SYMBOL(mach_get_ss);
-EXPORT_SYMBOL(mach_get_rtc_pll);
-EXPORT_SYMBOL(mach_set_rtc_pll);
 void (*mach_reset)( void );
 void (*mach_halt)( void );
-void (*mach_power_off)( void );
 #ifdef CONFIG_HEARTBEAT
 void (*mach_heartbeat) (int);
 EXPORT_SYMBOL(mach_heartbeat);
@@ -119,9 +110,8 @@ extern void paging_init(void);
 
 static void __init m68k_parse_bootinfo(const struct bi_record *record)
 {
+	const struct bi_record *first_record = record;
 	uint16_t tag;
-
-	save_bootinfo(record);
 
 	while ((tag = be16_to_cpu(record->tag)) != BI_LAST) {
 		int unknown = 0;
@@ -158,9 +148,20 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 			break;
 
 		case BI_COMMAND_LINE:
-			strlcpy(m68k_command_line, data,
+			strscpy(m68k_command_line, data,
 				sizeof(m68k_command_line));
 			break;
+
+		case BI_RNG_SEED: {
+			u16 len = be16_to_cpup(data);
+			add_bootloader_randomness(data + 2, len);
+			/*
+			 * Zero the data to preserve forward secrecy, and zero the
+			 * length to prevent kexec from using it.
+			 */
+			memzero_explicit((void *)data, len + 2);
+			break;
+		}
 
 		default:
 			if (MACH_IS_AMIGA)
@@ -181,6 +182,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 				unknown = hp300_parse_bootinfo(record);
 			else if (MACH_IS_APOLLO)
 				unknown = apollo_parse_bootinfo(record);
+			else if (MACH_IS_VIRT)
+				unknown = virt_parse_bootinfo(record);
 			else
 				unknown = 1;
 		}
@@ -189,6 +192,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 				tag);
 		record = (struct bi_record *)((unsigned long)record + size);
 	}
+
+	save_bootinfo(first_record);
 
 	m68k_realnum_memory = m68k_num_memory;
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
@@ -310,6 +315,11 @@ void __init setup_arch(char **cmdline_p)
 		cf_bootmem_alloc();
 		cf_mmu_context_init();
 		config_BSP(NULL, 0);
+		break;
+#endif
+#ifdef CONFIG_VIRT
+	case MACH_VIRT:
+		config_virt();
 		break;
 #endif
 	default:

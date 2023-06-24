@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -560,7 +560,7 @@ static int wf_fcu_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int wf_fcu_remove(struct i2c_client *client)
+static void wf_fcu_remove(struct i2c_client *client)
 {
 	struct wf_fcu_priv *pv = dev_get_drvdata(&client->dev);
 	struct wf_fcu_fan *fan;
@@ -571,7 +571,6 @@ static int wf_fcu_remove(struct i2c_client *client)
 		wf_unregister_control(&fan->ctrl);
 	}
 	kref_put(&pv->ref, wf_fcu_release);
-	return 0;
 }
 
 static const struct i2c_device_id wf_fcu_id[] = {

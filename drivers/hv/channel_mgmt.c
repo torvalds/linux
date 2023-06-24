@@ -21,6 +21,7 @@
 #include <linux/cpu.h>
 #include <linux/hyperv.h>
 #include <asm/mshyperv.h>
+#include <linux/sched/isolation.h>
 
 #include "hyperv_vmbus.h"
 
@@ -152,6 +153,7 @@ static const struct {
 	{ HV_AVMA1_GUID },
 	{ HV_AVMA2_GUID },
 	{ HV_RDV_GUID	},
+	{ HV_IMC_GUID	},
 };
 
 /*
@@ -442,7 +444,7 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 	/*
 	 * Upon suspend, an in-use hv_sock channel is removed from the array of
 	 * channels and the relid is invalidated.  After hibernation, when the
-	 * user-space appplication destroys the channel, it's unnecessary and
+	 * user-space application destroys the channel, it's unnecessary and
 	 * unsafe to remove the channel from the array of channels.  See also
 	 * the inline comments before the call of vmbus_release_relid() below.
 	 */
@@ -531,13 +533,17 @@ static void vmbus_add_channel_work(struct work_struct *work)
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
+	 *
+	 * If vmbus_device_register() fails, the 'device_obj' is freed in
+	 * vmbus_device_release() as called by device_unregister() in the
+	 * error path of vmbus_device_register(). In the outside error
+	 * path, there's no need to free it.
 	 */
 	ret = vmbus_device_register(newchannel->device_obj);
 
 	if (ret != 0) {
 		pr_err("unable to add child device object (relid %d)\n",
 			newchannel->offermsg.child_relid);
-		kfree(newchannel->device_obj);
 		goto err_deq_chan;
 	}
 
@@ -637,6 +643,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		 */
 		if (newchannel->offermsg.offer.sub_channel_index == 0) {
 			mutex_unlock(&vmbus_connection.channel_mutex);
+			cpus_read_unlock();
 			/*
 			 * Don't call free_channel(), because newchannel->kobj
 			 * is not initialized yet.
@@ -713,15 +720,13 @@ static bool hv_cpuself_used(u32 cpu, struct vmbus_channel *chn)
 static int next_numa_node_id;
 
 /*
- * Starting with Win8, we can statically distribute the incoming
- * channel interrupt load by binding a channel to VCPU.
+ * We can statically distribute the incoming channel interrupt load
+ * by binding a channel to VCPU.
  *
- * For pre-win8 hosts or non-performance critical channels we assign the
- * VMBUS_CONNECT_CPU.
- *
- * Starting with win8, performance critical channels will be distributed
- * evenly among all the available NUMA nodes.  Once the node is assigned,
- * we will assign the CPU based on a simple round robin scheme.
+ * For non-performance critical channels we assign the VMBUS_CONNECT_CPU.
+ * Performance critical channels will be distributed evenly among all
+ * the available NUMA nodes.  Once the node is assigned, we will assign
+ * the CPU based on a simple round robin scheme.
  */
 static void init_vp_index(struct vmbus_channel *channel)
 {
@@ -729,18 +734,19 @@ static void init_vp_index(struct vmbus_channel *channel)
 	u32 i, ncpu = num_online_cpus();
 	cpumask_var_t available_mask;
 	struct cpumask *allocated_mask;
+	const struct cpumask *hk_mask = housekeeping_cpumask(HK_TYPE_MANAGED_IRQ);
 	u32 target_cpu;
 	int numa_node;
 
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn) ||
-	    !alloc_cpumask_var(&available_mask, GFP_KERNEL)) {
+	if (!perf_chn ||
+	    !alloc_cpumask_var(&available_mask, GFP_KERNEL) ||
+	    cpumask_empty(hk_mask)) {
 		/*
-		 * Prior to win8, all channel interrupts are
-		 * delivered on VMBUS_CONNECT_CPU.
-		 * Also if the channel is not a performance critical
+		 * If the channel is not a performance critical
 		 * channel, bind it to VMBUS_CONNECT_CPU.
 		 * In case alloc_cpumask_var() fails, bind it to
+		 * VMBUS_CONNECT_CPU.
+		 * If all the cpus are isolated, bind it to
 		 * VMBUS_CONNECT_CPU.
 		 */
 		channel->target_cpu = VMBUS_CONNECT_CPU;
@@ -762,16 +768,18 @@ static void init_vp_index(struct vmbus_channel *channel)
 		}
 		allocated_mask = &hv_context.hv_numa_map[numa_node];
 
-		if (cpumask_equal(allocated_mask, cpumask_of_node(numa_node))) {
+retry:
+		cpumask_xor(available_mask, allocated_mask, cpumask_of_node(numa_node));
+		cpumask_and(available_mask, available_mask, hk_mask);
+
+		if (cpumask_empty(available_mask)) {
 			/*
 			 * We have cycled through all the CPUs in the node;
 			 * reset the allocated map.
 			 */
 			cpumask_clear(allocated_mask);
+			goto retry;
 		}
-
-		cpumask_xor(available_mask, allocated_mask,
-			    cpumask_of_node(numa_node));
 
 		target_cpu = cpumask_first(available_mask);
 		cpumask_set_cpu(target_cpu, allocated_mask);
@@ -931,11 +939,9 @@ static void vmbus_setup_channel_state(struct vmbus_channel *channel,
 	 */
 	channel->sig_event = VMBUS_EVENT_CONNECTION_ID;
 
-	if (vmbus_proto_version != VERSION_WS2008) {
-		channel->is_dedicated_interrupt =
-				(offer->is_dedicated_interrupt != 0);
-		channel->sig_event = offer->connection_id;
-	}
+	channel->is_dedicated_interrupt =
+			(offer->is_dedicated_interrupt != 0);
+	channel->sig_event = offer->connection_id;
 
 	memcpy(&channel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
@@ -975,11 +981,15 @@ find_primary_channel_by_offer(const struct vmbus_channel_offer_channel *offer)
 	return channel;
 }
 
-static bool vmbus_is_valid_device(const guid_t *guid)
+static bool vmbus_is_valid_offer(const struct vmbus_channel_offer_channel *offer)
 {
+	const guid_t *guid = &offer->offer.if_type;
 	u16 i;
 
 	if (!hv_is_isolation_supported())
+		return true;
+
+	if (is_hvsock_offer(offer))
 		return true;
 
 	for (i = 0; i < ARRAY_SIZE(vmbus_devs); i++) {
@@ -1003,7 +1013,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 
 	trace_vmbus_onoffer(offer);
 
-	if (!vmbus_is_valid_device(&offer->offer.if_type)) {
+	if (!vmbus_is_valid_offer(offer)) {
 		pr_err_ratelimited("Invalid offer %d from the host supporting isolation\n",
 				   offer->child_relid);
 		atomic_dec(&vmbus_connection.offer_in_progress);

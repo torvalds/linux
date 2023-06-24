@@ -135,9 +135,9 @@ void mark_initmem_nx(void)
 	unsigned long numpages = PFN_UP((unsigned long)_einittext) -
 				 PFN_DOWN((unsigned long)_sinittext);
 
-	if (v_block_mapped((unsigned long)_sinittext)) {
-		mmu_mark_initmem_nx();
-	} else {
+	mmu_mark_initmem_nx();
+
+	if (!v_block_mapped((unsigned long)_sinittext)) {
 		set_memory_nx((unsigned long)_sinittext, numpages);
 		set_memory_rw((unsigned long)_sinittext, numpages);
 	}
@@ -158,10 +158,11 @@ void mark_rodata_ro(void)
 	}
 
 	/*
-	 * mark .text and .rodata as read only. Use __init_begin rather than
-	 * __end_rodata to cover NOTES and EXCEPTION_TABLE.
+	 * mark text and rodata as read only. __end_rodata is set by
+	 * powerpc's linker script and includes tables and data
+	 * requiring relocation which are not put in RO_DATA.
 	 */
-	numpages = PFN_UP((unsigned long)__init_begin) -
+	numpages = PFN_UP((unsigned long)__end_rodata) -
 		   PFN_DOWN((unsigned long)_stext);
 
 	set_memory_ro((unsigned long)_stext, numpages);

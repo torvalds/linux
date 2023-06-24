@@ -86,7 +86,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		}
 	}
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_320:
 	case IEEE80211_STA_RX_BW_160:
 		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_160MHZ);
@@ -98,13 +98,13 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_40MHZ);
 		fallthrough;
 	case IEEE80211_STA_RX_BW_20:
-		if (sta->ht_cap.ht_supported)
+		if (sta->deflink.ht_cap.ht_supported)
 			add_sta_cmd.station_flags |=
 				cpu_to_le32(STA_FLG_FAT_EN_20MHZ);
 		break;
 	}
 
-	switch (sta->rx_nss) {
+	switch (sta->deflink.rx_nss) {
 	case 1:
 		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_SISO);
 		break;
@@ -116,7 +116,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		break;
 	}
 
-	switch (sta->smps_mode) {
+	switch (sta->deflink.smps_mode) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
@@ -134,12 +134,12 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		break;
 	}
 
-	if (sta->ht_cap.ht_supported) {
+	if (sta->deflink.ht_cap.ht_supported) {
 		add_sta_cmd.station_flags_msk |=
 			cpu_to_le32(STA_FLG_MAX_AGG_SIZE_MSK |
 				    STA_FLG_AGG_MPDU_DENS_MSK);
 
-		mpdu_dens = sta->ht_cap.ampdu_density;
+		mpdu_dens = sta->deflink.ht_cap.ampdu_density;
 	}
 
 	if (mvm_sta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ) {
@@ -147,18 +147,17 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			cpu_to_le32(STA_FLG_MAX_AGG_SIZE_MSK |
 				    STA_FLG_AGG_MPDU_DENS_MSK);
 
-		mpdu_dens = le16_get_bits(sta->he_6ghz_capa.capa,
+		mpdu_dens = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
 					  IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
-		agg_size = le16_get_bits(sta->he_6ghz_capa.capa,
-				IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
-	} else
-	if (sta->vht_cap.vht_supported) {
-		agg_size = sta->vht_cap.cap &
+		agg_size = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
+					 IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
+	} else if (sta->deflink.vht_cap.vht_supported) {
+		agg_size = sta->deflink.vht_cap.cap &
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
 		agg_size >>=
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
-	} else if (sta->ht_cap.ht_supported) {
-		agg_size = sta->ht_cap.ampdu_factor;
+	} else if (sta->deflink.ht_cap.ht_supported) {
+		agg_size = sta->deflink.ht_cap.ampdu_factor;
 	}
 
 	/* D6.0 10.12.2 A-MPDU length limit rules
@@ -169,8 +168,8 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 * Maximum AMPDU Length Exponent Extension field in its HE
 	 * Capabilities element
 	 */
-	if (sta->he_cap.has_he)
-		agg_size += u8_get_bits(sta->he_cap.he_cap_elem.mac_cap_info[3],
+	if (sta->deflink.he_cap.has_he)
+		agg_size += u8_get_bits(sta->deflink.he_cap.he_cap_elem.mac_cap_info[3],
 					IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK);
 
 	/* Limit to max A-MPDU supported by FW */
@@ -385,6 +384,7 @@ static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			iwl_mvm_txq_from_tid(sta, tid);
 
 		mvmtxq->txq_id = IWL_MVM_INVALID_QUEUE;
+		list_del_init(&mvmtxq->list);
 	}
 
 	/* Regardless if this is a reserved TXQ for a STA - mark it as false */
@@ -479,6 +479,7 @@ static int iwl_mvm_remove_sta_queue_marking(struct iwl_mvm *mvm, int queue)
 		mvmsta->tid_data[tid].txq_id = IWL_MVM_INVALID_QUEUE;
 
 		mvmtxq->txq_id = IWL_MVM_INVALID_QUEUE;
+		list_del_init(&mvmtxq->list);
 	}
 
 	mvmsta->tfd_queue_msk &= ~BIT(queue); /* Don't use this queue anymore */
@@ -782,7 +783,7 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 		/* this queue isn't used for traffic (cab_queue) */
 		if (IS_ERR_OR_NULL(sta)) {
 			size = IWL_MGMT_QUEUE_SIZE;
-		} else if (sta->he_cap.has_he) {
+		} else if (sta->deflink.he_cap.has_he) {
 			/* support for 256 ba size */
 			size = IWL_DEFAULT_QUEUE_SIZE_HE;
 		} else {
@@ -1059,7 +1060,7 @@ static bool iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 					 unsigned long *unshare_queues,
 					 unsigned long *changetid_queues)
 {
-	int tid;
+	unsigned int tid;
 
 	lockdep_assert_held(&mvmsta->lock);
 	lockdep_assert_held(&mvm->mutex);
@@ -1862,6 +1863,7 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 			iwl_mvm_txq_from_mac80211(sta->txq[i]);
 
 		mvmtxq->txq_id = IWL_MVM_INVALID_QUEUE;
+		list_del_init(&mvmtxq->list);
 	}
 }
 
@@ -1949,7 +1951,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == sta_id) {
 		/* if associated - we can't remove the AP STA now */
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			return ret;
 
 		/* unassoc - go ahead - remove the AP STA now */

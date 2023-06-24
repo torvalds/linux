@@ -430,7 +430,7 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free_list);
 
-	if (device->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (device->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		mr_type = IB_MR_TYPE_SG_GAPS;
 	else
 		mr_type = IB_MR_TYPE_MEM_REG;
@@ -699,7 +699,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 
 static void srp_path_rec_completion(int status,
 				    struct sa_path_rec *pathrec,
-				    void *ch_ptr)
+				    int num_paths, void *ch_ptr)
 {
 	struct srp_rdma_ch *ch = ch_ptr;
 	struct srp_target_port *target = ch->target;
@@ -1282,8 +1282,7 @@ struct srp_terminate_context {
 	int scsi_result;
 };
 
-static bool srp_terminate_cmd(struct scsi_cmnd *scmnd, void *context_ptr,
-			      bool reserved)
+static bool srp_terminate_cmd(struct scsi_cmnd *scmnd, void *context_ptr)
 {
 	struct srp_terminate_context *context = context_ptr;
 	struct srp_target_port *target = context->srp_target;
@@ -1962,7 +1961,8 @@ static void srp_process_rsp(struct srp_rdma_ch *ch, struct srp_rsp *rsp)
 		if (scmnd) {
 			req = scsi_cmd_priv(scmnd);
 			scmnd = srp_claim_req(ch, req, NULL, scmnd);
-		} else {
+		}
+		if (!scmnd) {
 			shost_printk(KERN_ERR, target->scsi_host,
 				     "Null scmnd for RSP w/tag %#016llx received on ch %td / QP %#x\n",
 				     rsp->tag, ch - target->ch, ch->qp->qp_num);
@@ -2789,7 +2789,7 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag, u64 lun,
 static int srp_abort(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
-	struct srp_request *req = (struct srp_request *) scmnd->host_scribble;
+	struct srp_request *req = scsi_cmd_priv(scmnd);
 	u32 tag;
 	u16 ch_idx;
 	struct srp_rdma_ch *ch;
@@ -2797,8 +2797,6 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
-	if (!req)
-		return SUCCESS;
 	tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmnd));
 	ch_idx = blk_mq_unique_tag_to_hwq(tag);
 	if (WARN_ON_ONCE(ch_idx >= target->ch_count))
@@ -2991,7 +2989,7 @@ static ssize_t local_ib_port_show(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sysfs_emit(buf, "%d\n", target->srp_host->port);
+	return sysfs_emit(buf, "%u\n", target->srp_host->port);
 }
 
 static DEVICE_ATTR_RO(local_ib_port);
@@ -3179,11 +3177,16 @@ static void srp_release_dev(struct device *dev)
 	struct srp_host *host =
 		container_of(dev, struct srp_host, dev);
 
-	complete(&host->released);
+	kfree(host);
 }
+
+static struct attribute *srp_class_attrs[];
+
+ATTRIBUTE_GROUPS(srp_class);
 
 static struct class srp_class = {
 	.name    = "infiniband_srp",
+	.dev_groups = srp_class_groups,
 	.dev_release = srp_release_dev
 };
 
@@ -3650,7 +3653,7 @@ static ssize_t add_target_store(struct device *dev,
 	target_host->max_cmd_len = sizeof ((struct srp_cmd *) (void *) 0L)->cdb;
 	target_host->max_segment_size = ib_dma_max_seg_size(ibdev);
 
-	if (!(ibdev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+	if (!(ibdev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG))
 		target_host->virt_boundary_mask = ~srp_dev->mr_page_mask;
 
 	target = host_to_target(target_host);
@@ -3706,8 +3709,8 @@ static ssize_t add_target_store(struct device *dev,
 	}
 
 	if (srp_dev->use_fast_reg) {
-		bool gaps_reg = (ibdev->attrs.device_cap_flags &
-				 IB_DEVICE_SG_GAPS_REG);
+		bool gaps_reg = ibdev->attrs.kernel_cap_flags &
+				 IBK_SG_GAPS_REG;
 
 		max_sectors_per_mr = srp_dev->max_pages_per_mr <<
 				  (ilog2(srp_dev->mr_page_size) - 9);
@@ -3884,12 +3887,19 @@ static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_host *host = container_of(dev, struct srp_host, dev);
 
-	return sysfs_emit(buf, "%d\n", host->port);
+	return sysfs_emit(buf, "%u\n", host->port);
 }
 
 static DEVICE_ATTR_RO(port);
 
-static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
+static struct attribute *srp_class_attrs[] = {
+	&dev_attr_add_target.attr,
+	&dev_attr_ibdev.attr,
+	&dev_attr_port.attr,
+	NULL
+};
+
+static struct srp_host *srp_add_port(struct srp_device *device, u32 port)
 {
 	struct srp_host *host;
 
@@ -3899,33 +3909,24 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 
 	INIT_LIST_HEAD(&host->target_list);
 	spin_lock_init(&host->target_lock);
-	init_completion(&host->released);
 	mutex_init(&host->add_target_mutex);
 	host->srp_dev = device;
 	host->port = port;
 
+	device_initialize(&host->dev);
 	host->dev.class = &srp_class;
 	host->dev.parent = device->dev->dev.parent;
-	dev_set_name(&host->dev, "srp-%s-%d", dev_name(&device->dev->dev),
-		     port);
-
-	if (device_register(&host->dev))
-		goto free_host;
-	if (device_create_file(&host->dev, &dev_attr_add_target))
-		goto err_class;
-	if (device_create_file(&host->dev, &dev_attr_ibdev))
-		goto err_class;
-	if (device_create_file(&host->dev, &dev_attr_port))
-		goto err_class;
+	if (dev_set_name(&host->dev, "srp-%s-%u", dev_name(&device->dev->dev),
+			 port))
+		goto put_host;
+	if (device_add(&host->dev))
+		goto put_host;
 
 	return host;
 
-err_class:
-	device_unregister(&host->dev);
-
-free_host:
-	kfree(host);
-
+put_host:
+	device_del(&host->dev);
+	put_device(&host->dev);
 	return NULL;
 }
 
@@ -3937,7 +3938,7 @@ static void srp_rename_dev(struct ib_device *device, void *client_data)
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		char name[IB_DEVICE_NAME_MAX + 8];
 
-		snprintf(name, sizeof(name), "srp-%s-%d",
+		snprintf(name, sizeof(name), "srp-%s-%u",
 			 dev_name(&device->dev), host->port);
 		device_rename(&host->dev, name);
 	}
@@ -3949,7 +3950,7 @@ static int srp_add_one(struct ib_device *device)
 	struct ib_device_attr *attr = &device->attrs;
 	struct srp_host *host;
 	int mr_page_shift;
-	unsigned int p;
+	u32 p;
 	u64 max_pages_per_mr;
 	unsigned int flags = 0;
 
@@ -4031,12 +4032,11 @@ static void srp_remove_one(struct ib_device *device, void *client_data)
 	srp_dev = client_data;
 
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
-		device_unregister(&host->dev);
 		/*
-		 * Wait for the sysfs entry to go away, so that no new
-		 * target ports can be created.
+		 * Remove the add_target sysfs entry so that no new target ports
+		 * can be created.
 		 */
-		wait_for_completion(&host->released);
+		device_del(&host->dev);
 
 		/*
 		 * Remove all target ports.
@@ -4054,7 +4054,7 @@ static void srp_remove_one(struct ib_device *device, void *client_data)
 		 */
 		flush_workqueue(srp_remove_wq);
 
-		kfree(host);
+		put_device(&host->dev);
 	}
 
 	ib_dealloc_pd(srp_dev->pd);

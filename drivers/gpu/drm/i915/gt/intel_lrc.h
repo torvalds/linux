@@ -11,9 +11,10 @@
 #include <linux/bitfield.h>
 #include <linux/types.h>
 
+#include "intel_context.h"
+
 struct drm_i915_gem_object;
 struct i915_gem_ww_ctx;
-struct intel_context;
 struct intel_engine_cs;
 struct intel_ring;
 struct kref;
@@ -110,14 +111,33 @@ enum {
 #define XEHP_SW_COUNTER_SHIFT			58
 #define XEHP_SW_COUNTER_WIDTH			6
 
-static inline u32 lrc_desc_priority(int prio)
+static inline void lrc_runtime_start(struct intel_context *ce)
 {
-	if (prio > I915_PRIORITY_NORMAL)
-		return GEN12_CTX_PRIORITY_HIGH;
-	else if (prio < I915_PRIORITY_NORMAL)
-		return GEN12_CTX_PRIORITY_LOW;
-	else
-		return GEN12_CTX_PRIORITY_NORMAL;
+	struct intel_context_stats *stats = &ce->stats;
+
+	if (intel_context_is_barrier(ce))
+		return;
+
+	if (stats->active)
+		return;
+
+	WRITE_ONCE(stats->active, intel_context_clock());
 }
+
+static inline void lrc_runtime_stop(struct intel_context *ce)
+{
+	struct intel_context_stats *stats = &ce->stats;
+
+	if (!stats->active)
+		return;
+
+	lrc_update_runtime(ce);
+	WRITE_ONCE(stats->active, 0);
+}
+
+#define DG2_PREDICATE_RESULT_WA (PAGE_SIZE - sizeof(u64))
+#define DG2_PREDICATE_RESULT_BB (2048)
+
+u32 lrc_indirect_bb(const struct intel_context *ce);
 
 #endif /* __INTEL_LRC_H__ */

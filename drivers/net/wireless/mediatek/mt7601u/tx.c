@@ -163,7 +163,7 @@ mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
 
-		ba_size <<= sta->ht_cap.ampdu_factor;
+		ba_size <<= sta->deflink.ht_cap.ampdu_factor;
 		ba_size = min_t(int, 63, ba_size);
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 			ba_size = 0;
@@ -172,7 +172,7 @@ mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
 		txwi->flags =
 			cpu_to_le16(MT_TXWI_FLAGS_AMPDU |
 				    FIELD_PREP(MT_TXWI_FLAGS_MPDU_DENSITY,
-					       sta->ht_cap.ampdu_density));
+					       sta->deflink.ht_cap.ampdu_density));
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 			txwi->flags = 0;
 	}
@@ -258,7 +258,8 @@ void mt7601u_tx_stat(struct work_struct *work)
 }
 
 int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params)
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7601u_dev *dev = hw->priv;
 	u8 cw_min = 5, cw_max = 10, hw_q = q2hwq(queue);

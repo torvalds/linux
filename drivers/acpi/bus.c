@@ -279,12 +279,26 @@ bool osc_pc_lpi_support_confirmed;
 EXPORT_SYMBOL_GPL(osc_pc_lpi_support_confirmed);
 
 /*
+ * ACPI 6.2 Section 6.2.11.2 'Platform-Wide OSPM Capabilities':
+ *   Starting with ACPI Specification 6.2, all _CPC registers can be in
+ *   PCC, System Memory, System IO, or Functional Fixed Hardware address
+ *   spaces. OSPM support for this more flexible register space scheme is
+ *   indicated by the “Flexible Address Space for CPPC Registers” _OSC bit.
+ *
+ * Otherwise (cf ACPI 6.1, s8.4.7.1.1.X), _CPC registers must be in:
+ * - PCC or Functional Fixed Hardware address space if defined
+ * - SystemMemory address space (NULL register) if not defined
+ */
+bool osc_cpc_flexible_adr_space_confirmed;
+EXPORT_SYMBOL_GPL(osc_cpc_flexible_adr_space_confirmed);
+
+/*
  * ACPI 6.4 Operating System Capabilities for USB.
  */
 bool osc_sb_native_usb4_support_confirmed;
 EXPORT_SYMBOL_GPL(osc_sb_native_usb4_support_confirmed);
 
-bool osc_sb_cppc_not_supported;
+bool osc_sb_cppc2_support_acked;
 
 static u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
 static void acpi_bus_osc_negotiate_platform_control(void)
@@ -315,11 +329,14 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 #endif
 #ifdef CONFIG_X86
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
-	if (boot_cpu_has(X86_FEATURE_HWP)) {
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_SUPPORT;
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
-	}
 #endif
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
+#endif
+
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
 
 	if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
@@ -341,12 +358,6 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 		return;
 	}
 
-#ifdef CONFIG_X86
-	if (boot_cpu_has(X86_FEATURE_HWP))
-		osc_sb_cppc_not_supported = !(capbuf_ret[OSC_SUPPORT_DWORD] &
-				(OSC_SB_CPC_SUPPORT | OSC_SB_CPCV2_SUPPORT));
-#endif
-
 	/*
 	 * Now run _OSC again with query flag clear and with the caps
 	 * supported by both the OS and the platform.
@@ -360,12 +371,18 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 
 	capbuf_ret = context.ret.pointer;
 	if (context.ret.length > OSC_SUPPORT_DWORD) {
+#ifdef CONFIG_ACPI_CPPC_LIB
+		osc_sb_cppc2_support_acked = capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_CPCV2_SUPPORT;
+#endif
+
 		osc_sb_apei_support_acked =
 			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_APEI_SUPPORT;
 		osc_pc_lpi_support_confirmed =
 			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_PCLPI_SUPPORT;
 		osc_sb_native_usb4_support_confirmed =
 			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_NATIVE_USB4_SUPPORT;
+		osc_cpc_flexible_adr_space_confirmed =
+			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
 	}
 
 	kfree(context.ret.pointer);
@@ -425,7 +442,7 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	}
 
 	osc_sb_native_usb4_control =
-		control & ((u32 *)context.ret.pointer)[OSC_CONTROL_DWORD];
+		control &  acpi_osc_ctx_get_pci_control(&context);
 
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS supports", control);
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls",
@@ -439,7 +456,7 @@ out_free:
                              Notification Handling
    -------------------------------------------------------------------------- */
 
-/**
+/*
  * acpi_bus_notify
  * ---------------
  * Callback for all 'system-level' device notifications (values 0x00-0x7F).
@@ -447,7 +464,6 @@ out_free:
 static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 {
 	struct acpi_device *adev;
-	struct acpi_driver *driver;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	bool hotplug_event = false;
 
@@ -495,24 +511,27 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	adev = acpi_bus_get_acpi_device(handle);
+	adev = acpi_get_acpi_dev(handle);
 	if (!adev)
 		goto err;
 
-	driver = adev->driver;
-	if (driver && driver->ops.notify &&
-	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
-		driver->ops.notify(adev, type);
+	if (adev->dev.driver) {
+		struct acpi_driver *driver = to_acpi_driver(adev->dev.driver);
+
+		if (driver && driver->ops.notify &&
+		    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
+			driver->ops.notify(adev, type);
+	}
 
 	if (!hotplug_event) {
-		acpi_bus_put_acpi_device(adev);
+		acpi_put_acpi_dev(adev);
 		return;
 	}
 
 	if (ACPI_SUCCESS(acpi_hotplug_schedule(adev, type)))
 		return;
 
-	acpi_bus_put_acpi_device(adev);
+	acpi_put_acpi_dev(adev);
 
  err:
 	acpi_evaluate_ost(handle, type, ost_code, NULL);
@@ -521,8 +540,9 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 static void acpi_notify_device(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
+	struct acpi_driver *acpi_drv = to_acpi_driver(device->dev.driver);
 
-	device->driver->ops.notify(device, event);
+	acpi_drv->ops.notify(device, event);
 }
 
 static void acpi_notify_device_fixed(void *data)
@@ -782,7 +802,7 @@ static bool acpi_of_modalias(struct acpi_device *adev,
 
 	str = obj->string.pointer;
 	chr = strchr(str, ',');
-	strlcpy(modalias, chr ? chr + 1 : str, len);
+	strscpy(modalias, chr ? chr + 1 : str, len);
 
 	return true;
 }
@@ -802,7 +822,7 @@ void acpi_set_modalias(struct acpi_device *adev, const char *default_id,
 		       char *modalias, size_t len)
 {
 	if (!acpi_of_modalias(adev, modalias, len))
-		strlcpy(modalias, default_id, len);
+		strscpy(modalias, default_id, len);
 }
 EXPORT_SYMBOL_GPL(acpi_set_modalias);
 
@@ -905,12 +925,13 @@ static const void *acpi_of_device_get_match_data(const struct device *dev)
 
 const void *acpi_device_get_match_data(const struct device *dev)
 {
+	const struct acpi_device_id *acpi_ids = dev->driver->acpi_match_table;
 	const struct acpi_device_id *match;
 
-	if (!dev->driver->acpi_match_table)
+	if (!acpi_ids)
 		return acpi_of_device_get_match_data(dev);
 
-	match = acpi_match_device(dev->driver->acpi_match_table, dev);
+	match = acpi_match_device(acpi_ids, dev);
 	if (!match)
 		return NULL;
 
@@ -928,14 +949,13 @@ EXPORT_SYMBOL(acpi_match_device_ids);
 bool acpi_driver_match_device(struct device *dev,
 			      const struct device_driver *drv)
 {
-	if (!drv->acpi_match_table)
-		return acpi_of_match_device(ACPI_COMPANION(dev),
-					    drv->of_match_table,
-					    NULL);
+	const struct acpi_device_id *acpi_ids = drv->acpi_match_table;
+	const struct of_device_id *of_ids = drv->of_match_table;
 
-	return __acpi_match_device(acpi_companion_match(dev),
-				   drv->acpi_match_table, drv->of_match_table,
-				   NULL, NULL);
+	if (!acpi_ids)
+		return acpi_of_match_device(ACPI_COMPANION(dev), of_ids, NULL);
+
+	return __acpi_match_device(acpi_companion_match(dev), acpi_ids, of_ids, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(acpi_driver_match_device);
 
@@ -953,16 +973,13 @@ EXPORT_SYMBOL_GPL(acpi_driver_match_device);
  */
 int acpi_bus_register_driver(struct acpi_driver *driver)
 {
-	int ret;
-
 	if (acpi_disabled)
 		return -ENODEV;
 	driver->drv.name = driver->name;
 	driver->drv.bus = &acpi_bus_type;
 	driver->drv.owner = driver->owner;
 
-	ret = driver_register(&driver->drv);
-	return ret;
+	return driver_register(&driver->drv);
 }
 
 EXPORT_SYMBOL(acpi_bus_register_driver);
@@ -1015,8 +1032,6 @@ static int acpi_device_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	acpi_dev->driver = acpi_drv;
-
 	pr_debug("Driver [%s] successfully bound to device [%s]\n",
 		 acpi_drv->name, acpi_dev->pnp.bus_id);
 
@@ -1026,7 +1041,6 @@ static int acpi_device_probe(struct device *dev)
 			if (acpi_drv->ops.remove)
 				acpi_drv->ops.remove(acpi_dev);
 
-			acpi_dev->driver = NULL;
 			acpi_dev->driver_data = NULL;
 			return ret;
 		}
@@ -1042,15 +1056,14 @@ static int acpi_device_probe(struct device *dev)
 static void acpi_device_remove(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
+	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
 
-	if (acpi_drv) {
-		if (acpi_drv->ops.notify)
-			acpi_device_remove_notify_handler(acpi_dev);
-		if (acpi_drv->ops.remove)
-			acpi_drv->ops.remove(acpi_dev);
-	}
-	acpi_dev->driver = NULL;
+	if (acpi_drv->ops.notify)
+		acpi_device_remove_notify_handler(acpi_dev);
+
+	if (acpi_drv->ops.remove)
+		acpi_drv->ops.remove(acpi_dev);
+
 	acpi_dev->driver_data = NULL;
 
 	put_device(dev);
@@ -1069,6 +1082,45 @@ int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data)
 	return bus_for_each_dev(&acpi_bus_type, NULL, data, fn);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_for_each_dev);
+
+struct acpi_dev_walk_context {
+	int (*fn)(struct acpi_device *, void *);
+	void *data;
+};
+
+static int acpi_dev_for_one_check(struct device *dev, void *context)
+{
+	struct acpi_dev_walk_context *adwc = context;
+
+	if (dev->bus != &acpi_bus_type)
+		return 0;
+
+	return adwc->fn(to_acpi_device(dev), adwc->data);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_for_each_child);
+
+int acpi_dev_for_each_child(struct acpi_device *adev,
+			    int (*fn)(struct acpi_device *, void *), void *data)
+{
+	struct acpi_dev_walk_context adwc = {
+		.fn = fn,
+		.data = data,
+	};
+
+	return device_for_each_child(&adev->dev, &adwc, acpi_dev_for_one_check);
+}
+
+int acpi_dev_for_each_child_reverse(struct acpi_device *adev,
+				    int (*fn)(struct acpi_device *, void *),
+				    void *data)
+{
+	struct acpi_dev_walk_context adwc = {
+		.fn = fn,
+		.data = data,
+	};
+
+	return device_for_each_child_reverse(&adev->dev, &adwc, acpi_dev_for_one_check);
+}
 
 /* --------------------------------------------------------------------------
                              Initialization/Cleanup
@@ -1100,6 +1152,9 @@ static int __init acpi_bus_init_irq(void)
 		break;
 	case ACPI_IRQ_MODEL_PLATFORM:
 		message = "platform specific model";
+		break;
+	case ACPI_IRQ_MODEL_LPIC:
+		message = "LPIC";
 		break;
 	default:
 		pr_info("Unknown interrupt routing model\n");
@@ -1356,6 +1411,7 @@ static int __init acpi_init(void)
 
 	pci_mmcfg_late_init();
 	acpi_iort_init();
+	acpi_viot_early_init();
 	acpi_hest_init();
 	acpi_ghes_init();
 	acpi_scan_init();

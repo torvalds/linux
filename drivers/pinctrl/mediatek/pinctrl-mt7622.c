@@ -846,6 +846,7 @@ static const struct mtk_eint_hw mt7622_eint_hw = {
 	.ports     = 7,
 	.ap_num    = ARRAY_SIZE(mt7622_pins),
 	.db_cnt    = 20,
+	.db_time   = debounce_time_mt6765,
 };
 
 static const struct mtk_pin_soc mt7622_data = {

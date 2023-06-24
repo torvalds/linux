@@ -811,7 +811,7 @@ static int camif_pipeline_validate(struct camif_dev *camif)
 	int ret;
 
 	/* Retrieve format at the sensor subdev source pad */
-	pad = media_entity_remote_pad(&camif->pads[0]);
+	pad = media_pad_remote_pad_first(&camif->pads[0]);
 	if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 		return -EPIPE;
 
@@ -848,13 +848,13 @@ static int s3c_camif_streamon(struct file *file, void *priv,
 	if (s3c_vp_active(vp))
 		return 0;
 
-	ret = media_pipeline_start(sensor, camif->m_pipeline);
+	ret = media_pipeline_start(sensor->pads, camif->m_pipeline);
 	if (ret < 0)
 		return ret;
 
 	ret = camif_pipeline_validate(camif);
 	if (ret < 0) {
-		media_pipeline_stop(sensor);
+		media_pipeline_stop(sensor->pads);
 		return ret;
 	}
 
@@ -878,7 +878,7 @@ static int s3c_camif_streamoff(struct file *file, void *priv,
 
 	ret = vb2_streamoff(&vp->vb_queue, type);
 	if (ret == 0)
-		media_pipeline_stop(&camif->sensor.sd->entity);
+		media_pipeline_stop(camif->sensor.sd->entity.pads);
 	return ret;
 }
 

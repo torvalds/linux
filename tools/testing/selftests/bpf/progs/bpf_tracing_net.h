@@ -6,12 +6,41 @@
 #define AF_INET6		10
 
 #define SOL_SOCKET		1
+#define SO_REUSEADDR		2
 #define SO_SNDBUF		7
+#define SO_RCVBUF		8
+#define SO_KEEPALIVE		9
+#define SO_PRIORITY		12
+#define SO_REUSEPORT		15
+#define SO_RCVLOWAT		18
+#define SO_BINDTODEVICE		25
+#define SO_MARK			36
+#define SO_MAX_PACING_RATE	47
+#define SO_BINDTOIFINDEX	62
+#define SO_TXREHASH		74
 #define __SO_ACCEPTCON		(1 << 16)
 
+#define IP_TOS			1
+
+#define IPV6_TCLASS		67
+#define IPV6_AUTOFLOWLABEL	70
+
 #define SOL_TCP			6
+#define TCP_NODELAY		1
+#define TCP_MAXSEG		2
+#define TCP_KEEPIDLE		4
+#define TCP_KEEPINTVL		5
+#define TCP_KEEPCNT		6
+#define TCP_SYNCNT		7
+#define TCP_WINDOW_CLAMP	10
 #define TCP_CONGESTION		13
+#define TCP_THIN_LINEAR_TIMEOUTS	16
+#define TCP_USER_TIMEOUT	18
+#define TCP_NOTSENT_LOWAT	25
+#define TCP_SAVE_SYN		27
+#define TCP_SAVED_SYN		28
 #define TCP_CA_NAME_MAX		16
+#define TCP_NAGLE_OFF		1
 
 #define ICSK_TIME_RETRANS	1
 #define ICSK_TIME_PROBE0	3
@@ -48,6 +77,8 @@
 #define sk_state		__sk_common.skc_state
 #define sk_v6_daddr		__sk_common.skc_v6_daddr
 #define sk_v6_rcv_saddr		__sk_common.skc_v6_rcv_saddr
+#define sk_flags		__sk_common.skc_flags
+#define sk_reuse		__sk_common.skc_reuse
 
 #define s6_addr32		in6_u.u6_addr32
 

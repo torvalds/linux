@@ -187,6 +187,7 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @device_name: Name of the device (or %NULL if not known)
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the link (1 or 2)
+ * @link_usb4: Downstream link is USB4
  * @is_unplugged: The XDomain is unplugged
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
  *		queried first
@@ -198,15 +199,15 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @local_property_block_len: Length of the @local_property_block in dwords
  * @remote_properties: Properties exported by the remote domain
  * @remote_property_block_gen: Generation of @remote_properties
- * @get_uuid_work: Work used to retrieve @remote_uuid
- * @uuid_retries: Number of times left @remote_uuid is requested before
- *		  giving up
- * @get_properties_work: Work used to get remote domain properties
- * @properties_retries: Number of times left to read properties
+ * @state: Next XDomain discovery state to run
+ * @state_work: Work used to run the next state
+ * @state_retries: Number of retries remain for the state
  * @properties_changed_work: Work used to notify the remote domain that
  *			     our properties have changed
  * @properties_changed_retries: Number of times left to send properties
  *				changed notification
+ * @bonding_possible: True if lane bonding is possible on local side
+ * @target_link_width: Target link width from the remote host
  * @link: Root switch link the remote domain is connected (ICM only)
  * @depth: Depth in the chain the remote domain is connected (ICM only)
  *
@@ -234,6 +235,7 @@ struct tb_xdomain {
 	const char *device_name;
 	unsigned int link_speed;
 	unsigned int link_width;
+	bool link_usb4;
 	bool is_unplugged;
 	bool needs_uuid;
 	struct ida service_ids;
@@ -244,12 +246,13 @@ struct tb_xdomain {
 	u32 local_property_block_len;
 	struct tb_property_dir *remote_properties;
 	u32 remote_property_block_gen;
-	struct delayed_work get_uuid_work;
-	int uuid_retries;
-	struct delayed_work get_properties_work;
-	int properties_retries;
+	int state;
+	struct delayed_work state_work;
+	int state_retries;
 	struct delayed_work properties_changed_work;
 	int properties_changed_retries;
+	bool bonding_possible;
+	u8 target_link_width;
 	u8 link;
 	u8 depth;
 };
@@ -465,6 +468,7 @@ static inline struct tb_xdomain *tb_service_parent(struct tb_service *svc)
  * @msix_ida: Used to allocate MSI-X vectors for rings
  * @going_away: The host controller device is about to disappear so when
  *		this flag is set, avoid touching the hardware anymore.
+ * @iommu_dma_protection: An IOMMU will isolate external-facing ports.
  * @interrupt_work: Work scheduled to handle ring interrupt when no
  *		    MSI-X is used.
  * @hop_count: Number of rings (end point hops) supported by NHI.
@@ -479,6 +483,7 @@ struct tb_nhi {
 	struct tb_ring **rx_rings;
 	struct ida msix_ida;
 	bool going_away;
+	bool iommu_dma_protection;
 	struct work_struct interrupt_work;
 	u32 hop_count;
 	unsigned long quirks;

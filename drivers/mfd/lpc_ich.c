@@ -8,7 +8,8 @@
  *  Configuration Registers.
  *
  *  This driver is derived from lpc_sch.
-
+ *
+ *  Copyright (c) 2017, 2021-2022 Intel Corporation
  *  Copyright (c) 2011 Extreme Engineering Solution, Inc.
  *  Author: Aaron Sierra <asierra@xes-inc.com>
  *
@@ -42,9 +43,11 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/lpc_ich.h>
 #include <linux/platform_data/itco_wdt.h>
+#include <linux/platform_data/x86/p2sb.h>
 
 #define ACPIBASE		0x40
 #define ACPIBASE_GPE_OFF	0x28
@@ -70,8 +73,6 @@
 #define SPIBASE_LPT_SZ		512
 #define BCR			0xdc
 #define BCR_WPD			BIT(0)
-
-#define SPIBASE_APL_SZ		4096
 
 #define GPIOBASE_ICH0		0x58
 #define GPIOCTRL_ICH0		0x5C
@@ -143,6 +144,73 @@ static struct mfd_cell lpc_ich_gpio_cell = {
 	.ignore_resource_conflicts = true,
 };
 
+#define APL_GPIO_NORTH		0
+#define APL_GPIO_NORTHWEST	1
+#define APL_GPIO_WEST		2
+#define APL_GPIO_SOUTHWEST	3
+#define APL_GPIO_NR_DEVICES	4
+
+/* Offset data for Apollo Lake GPIO controllers */
+static resource_size_t apl_gpio_offsets[APL_GPIO_NR_DEVICES] = {
+	[APL_GPIO_NORTH]	= 0xc50000,
+	[APL_GPIO_NORTHWEST]	= 0xc40000,
+	[APL_GPIO_WEST]		= 0xc70000,
+	[APL_GPIO_SOUTHWEST]	= 0xc00000,
+};
+
+#define APL_GPIO_RESOURCE_SIZE		0x1000
+
+#define APL_GPIO_IRQ			14
+
+static struct resource apl_gpio_resources[APL_GPIO_NR_DEVICES][2] = {
+	[APL_GPIO_NORTH] = {
+		DEFINE_RES_MEM(0, 0),
+		DEFINE_RES_IRQ(APL_GPIO_IRQ),
+	},
+	[APL_GPIO_NORTHWEST] = {
+		DEFINE_RES_MEM(0, 0),
+		DEFINE_RES_IRQ(APL_GPIO_IRQ),
+	},
+	[APL_GPIO_WEST] = {
+		DEFINE_RES_MEM(0, 0),
+		DEFINE_RES_IRQ(APL_GPIO_IRQ),
+	},
+	[APL_GPIO_SOUTHWEST] = {
+		DEFINE_RES_MEM(0, 0),
+		DEFINE_RES_IRQ(APL_GPIO_IRQ),
+	},
+};
+
+static const struct mfd_cell apl_gpio_devices[APL_GPIO_NR_DEVICES] = {
+	[APL_GPIO_NORTH] = {
+		.name = "apollolake-pinctrl",
+		.id = APL_GPIO_NORTH,
+		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_NORTH]),
+		.resources = apl_gpio_resources[APL_GPIO_NORTH],
+		.ignore_resource_conflicts = true,
+	},
+	[APL_GPIO_NORTHWEST] = {
+		.name = "apollolake-pinctrl",
+		.id = APL_GPIO_NORTHWEST,
+		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_NORTHWEST]),
+		.resources = apl_gpio_resources[APL_GPIO_NORTHWEST],
+		.ignore_resource_conflicts = true,
+	},
+	[APL_GPIO_WEST] = {
+		.name = "apollolake-pinctrl",
+		.id = APL_GPIO_WEST,
+		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_WEST]),
+		.resources = apl_gpio_resources[APL_GPIO_WEST],
+		.ignore_resource_conflicts = true,
+	},
+	[APL_GPIO_SOUTHWEST] = {
+		.name = "apollolake-pinctrl",
+		.id = APL_GPIO_SOUTHWEST,
+		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_SOUTHWEST]),
+		.resources = apl_gpio_resources[APL_GPIO_SOUTHWEST],
+		.ignore_resource_conflicts = true,
+	},
+};
 
 static struct mfd_cell lpc_ich_spi_cell = {
 	.name = "intel-spi",
@@ -891,7 +959,7 @@ static int lpc_ich_finalize_wdt_cell(struct pci_dev *dev)
 	info = &lpc_chipset_info[priv->chipset];
 
 	pdata->version = info->iTCO_version;
-	strlcpy(pdata->name, info->name, sizeof(pdata->name));
+	strscpy(pdata->name, info->name, sizeof(pdata->name));
 
 	cell->platform_data = pdata;
 	cell->pdata_size = sizeof(*pdata);
@@ -1086,6 +1154,34 @@ wdt_done:
 	return ret;
 }
 
+static int lpc_ich_init_pinctrl(struct pci_dev *dev)
+{
+	struct resource base;
+	unsigned int i;
+	int ret;
+
+	/* Check, if GPIO has been exported as an ACPI device */
+	if (acpi_dev_present("INT3452", NULL, -1))
+		return -EEXIST;
+
+	ret = p2sb_bar(dev->bus, 0, &base);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(apl_gpio_devices); i++) {
+		struct resource *mem = &apl_gpio_resources[i][0];
+		resource_size_t offset = apl_gpio_offsets[i];
+
+		/* Fill MEM resource */
+		mem->start = base.start + offset;
+		mem->end = base.start + offset + APL_GPIO_RESOURCE_SIZE - 1;
+		mem->flags = base.flags;
+	}
+
+	return mfd_add_devices(&dev->dev, 0, apl_gpio_devices,
+			       ARRAY_SIZE(apl_gpio_devices), NULL, 0, NULL);
+}
+
 static bool lpc_ich_byt_set_writeable(void __iomem *base, void *data)
 {
 	u32 val;
@@ -1100,35 +1196,32 @@ static bool lpc_ich_byt_set_writeable(void __iomem *base, void *data)
 	return val & BYT_BCR_WPD;
 }
 
-static bool lpc_ich_lpt_set_writeable(void __iomem *base, void *data)
+static bool lpc_ich_set_writeable(struct pci_bus *bus, unsigned int devfn)
 {
-	struct pci_dev *pdev = data;
 	u32 bcr;
 
-	pci_read_config_dword(pdev, BCR, &bcr);
+	pci_bus_read_config_dword(bus, devfn, BCR, &bcr);
 	if (!(bcr & BCR_WPD)) {
 		bcr |= BCR_WPD;
-		pci_write_config_dword(pdev, BCR, bcr);
-		pci_read_config_dword(pdev, BCR, &bcr);
+		pci_bus_write_config_dword(bus, devfn, BCR, bcr);
+		pci_bus_read_config_dword(bus, devfn, BCR, &bcr);
 	}
 
 	return bcr & BCR_WPD;
 }
 
+static bool lpc_ich_lpt_set_writeable(void __iomem *base, void *data)
+{
+	struct pci_dev *pdev = data;
+
+	return lpc_ich_set_writeable(pdev->bus, pdev->devfn);
+}
+
 static bool lpc_ich_bxt_set_writeable(void __iomem *base, void *data)
 {
-	unsigned int spi = PCI_DEVFN(13, 2);
-	struct pci_bus *bus = data;
-	u32 bcr;
+	struct pci_dev *pdev = data;
 
-	pci_bus_read_config_dword(bus, spi, BCR, &bcr);
-	if (!(bcr & BCR_WPD)) {
-		bcr |= BCR_WPD;
-		pci_bus_write_config_dword(bus, spi, BCR, bcr);
-		pci_bus_read_config_dword(bus, spi, BCR, &bcr);
-	}
-
-	return bcr & BCR_WPD;
+	return lpc_ich_set_writeable(pdev->bus, PCI_DEVFN(13, 2));
 }
 
 static int lpc_ich_init_spi(struct pci_dev *dev)
@@ -1137,6 +1230,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 	struct resource *res = &intel_spi_res[0];
 	struct intel_spi_boardinfo *info;
 	u32 spi_base, rcba;
+	int ret;
 
 	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1167,30 +1261,19 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 		}
 		break;
 
-	case INTEL_SPI_BXT: {
-		unsigned int p2sb = PCI_DEVFN(13, 0);
-		unsigned int spi = PCI_DEVFN(13, 2);
-		struct pci_bus *bus = dev->bus;
-
+	case INTEL_SPI_BXT:
 		/*
 		 * The P2SB is hidden by BIOS and we need to unhide it in
 		 * order to read BAR of the SPI flash device. Once that is
 		 * done we hide it again.
 		 */
-		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x0);
-		pci_bus_read_config_dword(bus, spi, PCI_BASE_ADDRESS_0,
-					  &spi_base);
-		if (spi_base != ~0) {
-			res->start = spi_base & 0xfffffff0;
-			res->end = res->start + SPIBASE_APL_SZ - 1;
+		ret = p2sb_bar(dev->bus, PCI_DEVFN(13, 2), res);
+		if (ret)
+			return ret;
 
-			info->set_writeable = lpc_ich_bxt_set_writeable;
-			info->data = bus;
-		}
-
-		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x1);
+		info->set_writeable = lpc_ich_bxt_set_writeable;
+		info->data = dev;
 		break;
-	}
 
 	default:
 		return -EINVAL;
@@ -1245,6 +1328,12 @@ static int lpc_ich_probe(struct pci_dev *dev,
 
 	if (lpc_chipset_info[priv->chipset].gpio_version) {
 		ret = lpc_ich_init_gpio(dev);
+		if (!ret)
+			cell_added = true;
+	}
+
+	if (priv->chipset == LPC_APL) {
+		ret = lpc_ich_init_pinctrl(dev);
 		if (!ret)
 			cell_added = true;
 	}

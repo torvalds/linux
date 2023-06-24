@@ -13,7 +13,7 @@
 #include "vimc-common.h"
 #include "vimc-streamer.h"
 
-struct vimc_cap_device {
+struct vimc_capture_device {
 	struct vimc_ent_device ved;
 	struct video_device vdev;
 	struct v4l2_pix_format format;
@@ -41,7 +41,7 @@ static const struct v4l2_pix_format fmt_default = {
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
-struct vimc_cap_buffer {
+struct vimc_capture_buffer {
 	/*
 	 * struct vb2_v4l2_buffer must be the first element
 	 * the videobuf2 framework will allocate this struct based on
@@ -52,7 +52,7 @@ struct vimc_cap_buffer {
 	struct list_head list;
 };
 
-static int vimc_cap_querycap(struct file *file, void *priv,
+static int vimc_capture_querycap(struct file *file, void *priv,
 			     struct v4l2_capability *cap)
 {
 	strscpy(cap->driver, VIMC_PDEV_NAME, sizeof(cap->driver));
@@ -63,26 +63,26 @@ static int vimc_cap_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static void vimc_cap_get_format(struct vimc_ent_device *ved,
+static void vimc_capture_get_format(struct vimc_ent_device *ved,
 				struct v4l2_pix_format *fmt)
 {
-	struct vimc_cap_device *vcap = container_of(ved, struct vimc_cap_device,
+	struct vimc_capture_device *vcapture = container_of(ved, struct vimc_capture_device,
 						    ved);
 
-	*fmt = vcap->format;
+	*fmt = vcapture->format;
 }
 
-static int vimc_cap_g_fmt_vid_cap(struct file *file, void *priv,
+static int vimc_capture_g_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
-	struct vimc_cap_device *vcap = video_drvdata(file);
+	struct vimc_capture_device *vcapture = video_drvdata(file);
 
-	f->fmt.pix = vcap->format;
+	f->fmt.pix = vcapture->format;
 
 	return 0;
 }
 
-static int vimc_cap_try_fmt_vid_cap(struct file *file, void *priv,
+static int vimc_capture_try_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
 	struct v4l2_pix_format *format = &f->fmt.pix;
@@ -114,40 +114,40 @@ static int vimc_cap_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vimc_cap_s_fmt_vid_cap(struct file *file, void *priv,
+static int vimc_capture_s_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
-	struct vimc_cap_device *vcap = video_drvdata(file);
+	struct vimc_capture_device *vcapture = video_drvdata(file);
 	int ret;
 
 	/* Do not change the format while stream is on */
-	if (vb2_is_busy(&vcap->queue))
+	if (vb2_is_busy(&vcapture->queue))
 		return -EBUSY;
 
-	ret = vimc_cap_try_fmt_vid_cap(file, priv, f);
+	ret = vimc_capture_try_fmt_vid_cap(file, priv, f);
 	if (ret)
 		return ret;
 
-	dev_dbg(vcap->ved.dev, "%s: format update: "
+	dev_dbg(vcapture->ved.dev, "%s: format update: "
 		"old:%dx%d (0x%x, %d, %d, %d, %d) "
-		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vcap->vdev.name,
+		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vcapture->vdev.name,
 		/* old */
-		vcap->format.width, vcap->format.height,
-		vcap->format.pixelformat, vcap->format.colorspace,
-		vcap->format.quantization, vcap->format.xfer_func,
-		vcap->format.ycbcr_enc,
+		vcapture->format.width, vcapture->format.height,
+		vcapture->format.pixelformat, vcapture->format.colorspace,
+		vcapture->format.quantization, vcapture->format.xfer_func,
+		vcapture->format.ycbcr_enc,
 		/* new */
 		f->fmt.pix.width, f->fmt.pix.height,
 		f->fmt.pix.pixelformat,	f->fmt.pix.colorspace,
 		f->fmt.pix.quantization, f->fmt.pix.xfer_func,
 		f->fmt.pix.ycbcr_enc);
 
-	vcap->format = f->fmt.pix;
+	vcapture->format = f->fmt.pix;
 
 	return 0;
 }
 
-static int vimc_cap_enum_fmt_vid_cap(struct file *file, void *priv,
+static int vimc_capture_enum_fmt_vid_cap(struct file *file, void *priv,
 				     struct v4l2_fmtdesc *f)
 {
 	const struct vimc_pix_map *vpix;
@@ -169,7 +169,7 @@ static int vimc_cap_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vimc_cap_enum_framesizes(struct file *file, void *fh,
+static int vimc_capture_enum_framesizes(struct file *file, void *fh,
 				    struct v4l2_frmsizeenum *fsize)
 {
 	const struct vimc_pix_map *vpix;
@@ -193,7 +193,7 @@ static int vimc_cap_enum_framesizes(struct file *file, void *fh,
 	return 0;
 }
 
-static const struct v4l2_file_operations vimc_cap_fops = {
+static const struct v4l2_file_operations vimc_capture_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2_fh_open,
 	.release	= vb2_fop_release,
@@ -203,14 +203,14 @@ static const struct v4l2_file_operations vimc_cap_fops = {
 	.mmap           = vb2_fop_mmap,
 };
 
-static const struct v4l2_ioctl_ops vimc_cap_ioctl_ops = {
-	.vidioc_querycap = vimc_cap_querycap,
+static const struct v4l2_ioctl_ops vimc_capture_ioctl_ops = {
+	.vidioc_querycap = vimc_capture_querycap,
 
-	.vidioc_g_fmt_vid_cap = vimc_cap_g_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap = vimc_cap_s_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap = vimc_cap_try_fmt_vid_cap,
-	.vidioc_enum_fmt_vid_cap = vimc_cap_enum_fmt_vid_cap,
-	.vidioc_enum_framesizes = vimc_cap_enum_framesizes,
+	.vidioc_g_fmt_vid_cap = vimc_capture_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap = vimc_capture_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap = vimc_capture_try_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap = vimc_capture_enum_fmt_vid_cap,
+	.vidioc_enum_framesizes = vimc_capture_enum_framesizes,
 
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_create_bufs = vb2_ioctl_create_bufs,
@@ -223,40 +223,39 @@ static const struct v4l2_ioctl_ops vimc_cap_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 };
 
-static void vimc_cap_return_all_buffers(struct vimc_cap_device *vcap,
+static void vimc_capture_return_all_buffers(struct vimc_capture_device *vcapture,
 					enum vb2_buffer_state state)
 {
-	struct vimc_cap_buffer *vbuf, *node;
+	struct vimc_capture_buffer *vbuf, *node;
 
-	spin_lock(&vcap->qlock);
+	spin_lock(&vcapture->qlock);
 
-	list_for_each_entry_safe(vbuf, node, &vcap->buf_list, list) {
+	list_for_each_entry_safe(vbuf, node, &vcapture->buf_list, list) {
 		list_del(&vbuf->list);
 		vb2_buffer_done(&vbuf->vb2.vb2_buf, state);
 	}
 
-	spin_unlock(&vcap->qlock);
+	spin_unlock(&vcapture->qlock);
 }
 
-static int vimc_cap_start_streaming(struct vb2_queue *vq, unsigned int count)
+static int vimc_capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
-	struct vimc_cap_device *vcap = vb2_get_drv_priv(vq);
-	struct media_entity *entity = &vcap->vdev.entity;
+	struct vimc_capture_device *vcapture = vb2_get_drv_priv(vq);
 	int ret;
 
-	vcap->sequence = 0;
+	vcapture->sequence = 0;
 
 	/* Start the media pipeline */
-	ret = media_pipeline_start(entity, &vcap->stream.pipe);
+	ret = video_device_pipeline_start(&vcapture->vdev, &vcapture->stream.pipe);
 	if (ret) {
-		vimc_cap_return_all_buffers(vcap, VB2_BUF_STATE_QUEUED);
+		vimc_capture_return_all_buffers(vcapture, VB2_BUF_STATE_QUEUED);
 		return ret;
 	}
 
-	ret = vimc_streamer_s_stream(&vcap->stream, &vcap->ved, 1);
+	ret = vimc_streamer_s_stream(&vcapture->stream, &vcapture->ved, 1);
 	if (ret) {
-		media_pipeline_stop(entity);
-		vimc_cap_return_all_buffers(vcap, VB2_BUF_STATE_QUEUED);
+		video_device_pipeline_stop(&vcapture->vdev);
+		vimc_capture_return_all_buffers(vcapture, VB2_BUF_STATE_QUEUED);
 		return ret;
 	}
 
@@ -267,65 +266,65 @@ static int vimc_cap_start_streaming(struct vb2_queue *vq, unsigned int count)
  * Stop the stream engine. Any remaining buffers in the stream queue are
  * dequeued and passed on to the vb2 framework marked as STATE_ERROR.
  */
-static void vimc_cap_stop_streaming(struct vb2_queue *vq)
+static void vimc_capture_stop_streaming(struct vb2_queue *vq)
 {
-	struct vimc_cap_device *vcap = vb2_get_drv_priv(vq);
+	struct vimc_capture_device *vcapture = vb2_get_drv_priv(vq);
 
-	vimc_streamer_s_stream(&vcap->stream, &vcap->ved, 0);
+	vimc_streamer_s_stream(&vcapture->stream, &vcapture->ved, 0);
 
 	/* Stop the media pipeline */
-	media_pipeline_stop(&vcap->vdev.entity);
+	video_device_pipeline_stop(&vcapture->vdev);
 
 	/* Release all active buffers */
-	vimc_cap_return_all_buffers(vcap, VB2_BUF_STATE_ERROR);
+	vimc_capture_return_all_buffers(vcapture, VB2_BUF_STATE_ERROR);
 }
 
-static void vimc_cap_buf_queue(struct vb2_buffer *vb2_buf)
+static void vimc_capture_buf_queue(struct vb2_buffer *vb2_buf)
 {
-	struct vimc_cap_device *vcap = vb2_get_drv_priv(vb2_buf->vb2_queue);
-	struct vimc_cap_buffer *buf = container_of(vb2_buf,
-						   struct vimc_cap_buffer,
+	struct vimc_capture_device *vcapture = vb2_get_drv_priv(vb2_buf->vb2_queue);
+	struct vimc_capture_buffer *buf = container_of(vb2_buf,
+						   struct vimc_capture_buffer,
 						   vb2.vb2_buf);
 
-	spin_lock(&vcap->qlock);
-	list_add_tail(&buf->list, &vcap->buf_list);
-	spin_unlock(&vcap->qlock);
+	spin_lock(&vcapture->qlock);
+	list_add_tail(&buf->list, &vcapture->buf_list);
+	spin_unlock(&vcapture->qlock);
 }
 
-static int vimc_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
+static int vimc_capture_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				unsigned int *nplanes, unsigned int sizes[],
 				struct device *alloc_devs[])
 {
-	struct vimc_cap_device *vcap = vb2_get_drv_priv(vq);
+	struct vimc_capture_device *vcapture = vb2_get_drv_priv(vq);
 
 	if (*nplanes)
-		return sizes[0] < vcap->format.sizeimage ? -EINVAL : 0;
+		return sizes[0] < vcapture->format.sizeimage ? -EINVAL : 0;
 	/* We don't support multiplanes for now */
 	*nplanes = 1;
-	sizes[0] = vcap->format.sizeimage;
+	sizes[0] = vcapture->format.sizeimage;
 
 	return 0;
 }
 
-static int vimc_cap_buffer_prepare(struct vb2_buffer *vb)
+static int vimc_capture_buffer_prepare(struct vb2_buffer *vb)
 {
-	struct vimc_cap_device *vcap = vb2_get_drv_priv(vb->vb2_queue);
-	unsigned long size = vcap->format.sizeimage;
+	struct vimc_capture_device *vcapture = vb2_get_drv_priv(vb->vb2_queue);
+	unsigned long size = vcapture->format.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(vcap->ved.dev, "%s: buffer too small (%lu < %lu)\n",
-			vcap->vdev.name, vb2_plane_size(vb, 0), size);
+		dev_err(vcapture->ved.dev, "%s: buffer too small (%lu < %lu)\n",
+			vcapture->vdev.name, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
 	return 0;
 }
 
-static const struct vb2_ops vimc_cap_qops = {
-	.start_streaming	= vimc_cap_start_streaming,
-	.stop_streaming		= vimc_cap_stop_streaming,
-	.buf_queue		= vimc_cap_buf_queue,
-	.queue_setup		= vimc_cap_queue_setup,
-	.buf_prepare		= vimc_cap_buffer_prepare,
+static const struct vb2_ops vimc_capture_qops = {
+	.start_streaming	= vimc_capture_start_streaming,
+	.stop_streaming		= vimc_capture_stop_streaming,
+	.buf_queue		= vimc_capture_buf_queue,
+	.queue_setup		= vimc_capture_queue_setup,
+	.buf_prepare		= vimc_capture_buffer_prepare,
 	/*
 	 * Since q->lock is set we can use the standard
 	 * vb2_ops_wait_prepare/finish helper functions.
@@ -334,107 +333,107 @@ static const struct vb2_ops vimc_cap_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 };
 
-static const struct media_entity_operations vimc_cap_mops = {
+static const struct media_entity_operations vimc_capture_mops = {
 	.link_validate		= vimc_vdev_link_validate,
 };
 
-static void vimc_cap_release(struct vimc_ent_device *ved)
+static void vimc_capture_release(struct vimc_ent_device *ved)
 {
-	struct vimc_cap_device *vcap =
-		container_of(ved, struct vimc_cap_device, ved);
+	struct vimc_capture_device *vcapture =
+		container_of(ved, struct vimc_capture_device, ved);
 
-	media_entity_cleanup(vcap->ved.ent);
-	kfree(vcap);
+	media_entity_cleanup(vcapture->ved.ent);
+	kfree(vcapture);
 }
 
-static void vimc_cap_unregister(struct vimc_ent_device *ved)
+static void vimc_capture_unregister(struct vimc_ent_device *ved)
 {
-	struct vimc_cap_device *vcap =
-		container_of(ved, struct vimc_cap_device, ved);
+	struct vimc_capture_device *vcapture =
+		container_of(ved, struct vimc_capture_device, ved);
 
-	vb2_video_unregister_device(&vcap->vdev);
+	vb2_video_unregister_device(&vcapture->vdev);
 }
 
-static void *vimc_cap_process_frame(struct vimc_ent_device *ved,
+static void *vimc_capture_process_frame(struct vimc_ent_device *ved,
 				    const void *frame)
 {
-	struct vimc_cap_device *vcap = container_of(ved, struct vimc_cap_device,
+	struct vimc_capture_device *vcapture = container_of(ved, struct vimc_capture_device,
 						    ved);
-	struct vimc_cap_buffer *vimc_buf;
+	struct vimc_capture_buffer *vimc_buf;
 	void *vbuf;
 
-	spin_lock(&vcap->qlock);
+	spin_lock(&vcapture->qlock);
 
 	/* Get the first entry of the list */
-	vimc_buf = list_first_entry_or_null(&vcap->buf_list,
+	vimc_buf = list_first_entry_or_null(&vcapture->buf_list,
 					    typeof(*vimc_buf), list);
 	if (!vimc_buf) {
-		spin_unlock(&vcap->qlock);
+		spin_unlock(&vcapture->qlock);
 		return ERR_PTR(-EAGAIN);
 	}
 
 	/* Remove this entry from the list */
 	list_del(&vimc_buf->list);
 
-	spin_unlock(&vcap->qlock);
+	spin_unlock(&vcapture->qlock);
 
 	/* Fill the buffer */
 	vimc_buf->vb2.vb2_buf.timestamp = ktime_get_ns();
-	vimc_buf->vb2.sequence = vcap->sequence++;
-	vimc_buf->vb2.field = vcap->format.field;
+	vimc_buf->vb2.sequence = vcapture->sequence++;
+	vimc_buf->vb2.field = vcapture->format.field;
 
 	vbuf = vb2_plane_vaddr(&vimc_buf->vb2.vb2_buf, 0);
 
-	memcpy(vbuf, frame, vcap->format.sizeimage);
+	memcpy(vbuf, frame, vcapture->format.sizeimage);
 
 	/* Set it as ready */
 	vb2_set_plane_payload(&vimc_buf->vb2.vb2_buf, 0,
-			      vcap->format.sizeimage);
+			      vcapture->format.sizeimage);
 	vb2_buffer_done(&vimc_buf->vb2.vb2_buf, VB2_BUF_STATE_DONE);
 	return NULL;
 }
 
-static struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
+static struct vimc_ent_device *vimc_capture_add(struct vimc_device *vimc,
 					    const char *vcfg_name)
 {
 	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	const struct vimc_pix_map *vpix;
-	struct vimc_cap_device *vcap;
+	struct vimc_capture_device *vcapture;
 	struct video_device *vdev;
 	struct vb2_queue *q;
 	int ret;
 
-	/* Allocate the vimc_cap_device struct */
-	vcap = kzalloc(sizeof(*vcap), GFP_KERNEL);
-	if (!vcap)
+	/* Allocate the vimc_capture_device struct */
+	vcapture = kzalloc(sizeof(*vcapture), GFP_KERNEL);
+	if (!vcapture)
 		return ERR_PTR(-ENOMEM);
 
 	/* Initialize the media entity */
-	vcap->vdev.entity.name = vcfg_name;
-	vcap->vdev.entity.function = MEDIA_ENT_F_IO_V4L;
-	vcap->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_pads_init(&vcap->vdev.entity,
-				     1, &vcap->pad);
+	vcapture->vdev.entity.name = vcfg_name;
+	vcapture->vdev.entity.function = MEDIA_ENT_F_IO_V4L;
+	vcapture->pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&vcapture->vdev.entity,
+				     1, &vcapture->pad);
 	if (ret)
-		goto err_free_vcap;
+		goto err_free_vcapture;
 
 	/* Initialize the lock */
-	mutex_init(&vcap->lock);
+	mutex_init(&vcapture->lock);
 
 	/* Initialize the vb2 queue */
-	q = &vcap->queue;
+	q = &vcapture->queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	if (vimc_allocator == VIMC_ALLOCATOR_VMALLOC)
 		q->io_modes |= VB2_USERPTR;
-	q->drv_priv = vcap;
-	q->buf_struct_size = sizeof(struct vimc_cap_buffer);
-	q->ops = &vimc_cap_qops;
+	q->drv_priv = vcapture;
+	q->buf_struct_size = sizeof(struct vimc_capture_buffer);
+	q->ops = &vimc_capture_qops;
 	q->mem_ops = vimc_allocator == VIMC_ALLOCATOR_DMA_CONTIG
 		   ? &vb2_dma_contig_memops : &vb2_vmalloc_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->min_buffers_needed = 2;
-	q->lock = &vcap->lock;
+	q->lock = &vcapture->lock;
 	q->dev = v4l2_dev->dev;
 
 	ret = vb2_queue_init(q);
@@ -445,57 +444,57 @@ static struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	}
 
 	/* Initialize buffer list and its lock */
-	INIT_LIST_HEAD(&vcap->buf_list);
-	spin_lock_init(&vcap->qlock);
+	INIT_LIST_HEAD(&vcapture->buf_list);
+	spin_lock_init(&vcapture->qlock);
 
 	/* Set default frame format */
-	vcap->format = fmt_default;
-	vpix = vimc_pix_map_by_pixelformat(vcap->format.pixelformat);
-	vcap->format.bytesperline = vcap->format.width * vpix->bpp;
-	vcap->format.sizeimage = vcap->format.bytesperline *
-				 vcap->format.height;
+	vcapture->format = fmt_default;
+	vpix = vimc_pix_map_by_pixelformat(vcapture->format.pixelformat);
+	vcapture->format.bytesperline = vcapture->format.width * vpix->bpp;
+	vcapture->format.sizeimage = vcapture->format.bytesperline *
+				 vcapture->format.height;
 
 	/* Fill the vimc_ent_device struct */
-	vcap->ved.ent = &vcap->vdev.entity;
-	vcap->ved.process_frame = vimc_cap_process_frame;
-	vcap->ved.vdev_get_format = vimc_cap_get_format;
-	vcap->ved.dev = vimc->mdev.dev;
+	vcapture->ved.ent = &vcapture->vdev.entity;
+	vcapture->ved.process_frame = vimc_capture_process_frame;
+	vcapture->ved.vdev_get_format = vimc_capture_get_format;
+	vcapture->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the video_device struct */
-	vdev = &vcap->vdev;
+	vdev = &vcapture->vdev;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
 			  | V4L2_CAP_IO_MC;
-	vdev->entity.ops = &vimc_cap_mops;
+	vdev->entity.ops = &vimc_capture_mops;
 	vdev->release = video_device_release_empty;
-	vdev->fops = &vimc_cap_fops;
-	vdev->ioctl_ops = &vimc_cap_ioctl_ops;
-	vdev->lock = &vcap->lock;
+	vdev->fops = &vimc_capture_fops;
+	vdev->ioctl_ops = &vimc_capture_ioctl_ops;
+	vdev->lock = &vcapture->lock;
 	vdev->queue = q;
 	vdev->v4l2_dev = v4l2_dev;
 	vdev->vfl_dir = VFL_DIR_RX;
 	strscpy(vdev->name, vcfg_name, sizeof(vdev->name));
-	video_set_drvdata(vdev, &vcap->ved);
+	video_set_drvdata(vdev, &vcapture->ved);
 
 	/* Register the video_device with the v4l2 and the media framework */
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(vimc->mdev.dev, "%s: video register failed (err=%d)\n",
-			vcap->vdev.name, ret);
+			vcapture->vdev.name, ret);
 		goto err_clean_m_ent;
 	}
 
-	return &vcap->ved;
+	return &vcapture->ved;
 
 err_clean_m_ent:
-	media_entity_cleanup(&vcap->vdev.entity);
-err_free_vcap:
-	kfree(vcap);
+	media_entity_cleanup(&vcapture->vdev.entity);
+err_free_vcapture:
+	kfree(vcapture);
 
 	return ERR_PTR(ret);
 }
 
-struct vimc_ent_type vimc_cap_type = {
-	.add = vimc_cap_add,
-	.unregister = vimc_cap_unregister,
-	.release = vimc_cap_release
+struct vimc_ent_type vimc_capture_type = {
+	.add = vimc_capture_add,
+	.unregister = vimc_capture_unregister,
+	.release = vimc_capture_release
 };

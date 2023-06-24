@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI DA850/OMAP-L138 EVM board
  *
@@ -6,10 +7,7 @@
  * Derived from: arch/arm/mach-davinci/board-da830-evm.c
  * Original Copyrights follow:
  *
- * 2007, 2009 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2007, 2009 (c) MontaVista Software, Inc.
  */
 #include <linux/console.h>
 #include <linux/delay.h>
@@ -43,10 +41,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
-#include <mach/mux.h>
-
+#include "common.h"
+#include "da8xx.h"
+#include "mux.h"
 #include "irqs.h"
 #include "sram.h"
 
@@ -519,8 +516,8 @@ exp_setup_sela_fail:
 	return ret;
 }
 
-static int da850_evm_ui_expander_teardown(struct i2c_client *client,
-					unsigned gpio, unsigned ngpio, void *c)
+static void da850_evm_ui_expander_teardown(struct i2c_client *client,
+					   unsigned gpio, unsigned ngpio, void *c)
 {
 	platform_device_unregister(&da850_evm_ui_keys_device);
 
@@ -532,8 +529,6 @@ static int da850_evm_ui_expander_teardown(struct i2c_client *client,
 	gpio_free(gpio + DA850_EVM_UI_EXP_SEL_C);
 	gpio_free(gpio + DA850_EVM_UI_EXP_SEL_B);
 	gpio_free(gpio + DA850_EVM_UI_EXP_SEL_A);
-
-	return 0;
 }
 
 /* assign the baseboard expander's GPIOs after the UI board's */
@@ -700,13 +695,11 @@ io_exp_setup_sw_fail:
 	return ret;
 }
 
-static int da850_evm_bb_expander_teardown(struct i2c_client *client,
-					unsigned gpio, unsigned ngpio, void *c)
+static void da850_evm_bb_expander_teardown(struct i2c_client *client,
+					   unsigned gpio, unsigned ngpio, void *c)
 {
 	platform_device_unregister(&da850_evm_bb_leds_device);
 	platform_device_unregister(&da850_evm_bb_keys_device);
-
-	return 0;
 }
 
 static struct pca953x_platform_data da850_evm_ui_expander_info = {

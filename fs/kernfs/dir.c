@@ -18,15 +18,28 @@
 #include "kernfs-internal.h"
 
 static DEFINE_SPINLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
-static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by rename_lock */
+/*
+ * Don't use rename_lock to piggy back on pr_cont_buf. We don't want to
+ * call pr_cont() while holding rename_lock. Because sometimes pr_cont()
+ * will perform wakeups when releasing console_sem. Holding rename_lock
+ * will introduce deadlock if the scheduler reads the kernfs_name in the
+ * wakeup path.
+ */
+static DEFINE_SPINLOCK(kernfs_pr_cont_lock);
+static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by pr_cont_lock */
 static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
+static bool __kernfs_active(struct kernfs_node *kn)
+{
+	return atomic_read(&kn->active) >= 0;
+}
+
 static bool kernfs_active(struct kernfs_node *kn)
 {
 	lockdep_assert_held(&kernfs_root(kn)->kernfs_rwsem);
-	return atomic_read(&kn->active) >= 0;
+	return __kernfs_active(kn);
 }
 
 static bool kernfs_lockdep(struct kernfs_node *kn)
@@ -229,12 +242,12 @@ void pr_cont_kernfs_name(struct kernfs_node *kn)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&kernfs_rename_lock, flags);
+	spin_lock_irqsave(&kernfs_pr_cont_lock, flags);
 
-	kernfs_name_locked(kn, kernfs_pr_cont_buf, sizeof(kernfs_pr_cont_buf));
+	kernfs_name(kn, kernfs_pr_cont_buf, sizeof(kernfs_pr_cont_buf));
 	pr_cont("%s", kernfs_pr_cont_buf);
 
-	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+	spin_unlock_irqrestore(&kernfs_pr_cont_lock, flags);
 }
 
 /**
@@ -248,10 +261,10 @@ void pr_cont_kernfs_path(struct kernfs_node *kn)
 	unsigned long flags;
 	int sz;
 
-	spin_lock_irqsave(&kernfs_rename_lock, flags);
+	spin_lock_irqsave(&kernfs_pr_cont_lock, flags);
 
-	sz = kernfs_path_from_node_locked(kn, NULL, kernfs_pr_cont_buf,
-					  sizeof(kernfs_pr_cont_buf));
+	sz = kernfs_path_from_node(kn, NULL, kernfs_pr_cont_buf,
+				   sizeof(kernfs_pr_cont_buf));
 	if (sz < 0) {
 		pr_cont("(error)");
 		goto out;
@@ -265,7 +278,7 @@ void pr_cont_kernfs_path(struct kernfs_node *kn)
 	pr_cont("%s", kernfs_pr_cont_buf);
 
 out:
-	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+	spin_unlock_irqrestore(&kernfs_pr_cont_lock, flags);
 }
 
 /**
@@ -464,6 +477,16 @@ static void kernfs_drain(struct kernfs_node *kn)
 	lockdep_assert_held_write(&root->kernfs_rwsem);
 	WARN_ON_ONCE(kernfs_active(kn));
 
+	/*
+	 * Skip draining if already fully drained. This avoids draining and its
+	 * lockdep annotations for nodes which have never been activated
+	 * allowing embedding kernfs_remove() in create error paths without
+	 * worrying about draining.
+	 */
+	if (atomic_read(&kn->active) == KN_DEACTIVATED_BIAS &&
+	    !kernfs_should_drain_open_files(kn))
+		return;
+
 	up_write(&root->kernfs_rwsem);
 
 	if (kernfs_lockdep(kn)) {
@@ -472,7 +495,6 @@ static void kernfs_drain(struct kernfs_node *kn)
 			lock_contended(&kn->dep_map, _RET_IP_);
 	}
 
-	/* but everyone should wait for draining */
 	wait_event(root->deactivate_waitq,
 		   atomic_read(&kn->active) == KN_DEACTIVATED_BIAS);
 
@@ -481,7 +503,8 @@ static void kernfs_drain(struct kernfs_node *kn)
 		rwsem_release(&kn->dep_map, _RET_IP_);
 	}
 
-	kernfs_drain_open_files(kn);
+	if (kernfs_should_drain_open_files(kn))
+		kernfs_drain_open_files(kn);
 
 	down_write(&root->kernfs_rwsem);
 }
@@ -688,12 +711,11 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 	}
 
 	/*
-	 * ACTIVATED is protected with kernfs_mutex but it was clear when
-	 * @kn was added to idr and we just wanna see it set.  No need to
-	 * grab kernfs_mutex.
+	 * We should fail if @kn has never been activated and guarantee success
+	 * if the caller knows that @kn is active. Both can be achieved by
+	 * __kernfs_active() which tests @kn->active without kernfs_rwsem.
 	 */
-	if (unlikely(!(kn->flags & KERNFS_ACTIVATED) ||
-		     !atomic_inc_not_zero(&kn->count)))
+	if (unlikely(!__kernfs_active(kn) || !atomic_inc_not_zero(&kn->count)))
 		goto err_unlock;
 
 	spin_unlock(&kernfs_idr_lock);
@@ -735,10 +757,7 @@ int kernfs_add_one(struct kernfs_node *kn)
 		goto out_unlock;
 
 	ret = -ENOENT;
-	if (parent->flags & KERNFS_EMPTY_DIR)
-		goto out_unlock;
-
-	if ((parent->flags & KERNFS_ACTIVATED) && !kernfs_active(parent))
+	if (parent->flags & (KERNFS_REMOVING | KERNFS_EMPTY_DIR))
 		goto out_unlock;
 
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
@@ -823,13 +842,12 @@ static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
 
 	lockdep_assert_held_read(&kernfs_root(parent)->kernfs_rwsem);
 
-	/* grab kernfs_rename_lock to piggy back on kernfs_pr_cont_buf */
-	spin_lock_irq(&kernfs_rename_lock);
+	spin_lock_irq(&kernfs_pr_cont_lock);
 
 	len = strlcpy(kernfs_pr_cont_buf, path, sizeof(kernfs_pr_cont_buf));
 
 	if (len >= sizeof(kernfs_pr_cont_buf)) {
-		spin_unlock_irq(&kernfs_rename_lock);
+		spin_unlock_irq(&kernfs_pr_cont_lock);
 		return NULL;
 	}
 
@@ -841,7 +859,7 @@ static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
 		parent = kernfs_find_ns(parent, name, ns);
 	}
 
-	spin_unlock_irq(&kernfs_rename_lock);
+	spin_unlock_irq(&kernfs_pr_cont_lock);
 
 	return parent;
 }
@@ -1297,6 +1315,21 @@ static struct kernfs_node *kernfs_next_descendant_post(struct kernfs_node *pos,
 	return pos->parent;
 }
 
+static void kernfs_activate_one(struct kernfs_node *kn)
+{
+	lockdep_assert_held_write(&kernfs_root(kn)->kernfs_rwsem);
+
+	kn->flags |= KERNFS_ACTIVATED;
+
+	if (kernfs_active(kn) || (kn->flags & (KERNFS_HIDDEN | KERNFS_REMOVING)))
+		return;
+
+	WARN_ON_ONCE(kn->parent && RB_EMPTY_NODE(&kn->rb));
+	WARN_ON_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS);
+
+	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
+}
+
 /**
  * kernfs_activate - activate a node which started deactivated
  * @kn: kernfs_node whose subtree is to be activated
@@ -1318,15 +1351,42 @@ void kernfs_activate(struct kernfs_node *kn)
 	down_write(&root->kernfs_rwsem);
 
 	pos = NULL;
-	while ((pos = kernfs_next_descendant_post(pos, kn))) {
-		if (pos->flags & KERNFS_ACTIVATED)
-			continue;
+	while ((pos = kernfs_next_descendant_post(pos, kn)))
+		kernfs_activate_one(pos);
 
-		WARN_ON_ONCE(pos->parent && RB_EMPTY_NODE(&pos->rb));
-		WARN_ON_ONCE(atomic_read(&pos->active) != KN_DEACTIVATED_BIAS);
+	up_write(&root->kernfs_rwsem);
+}
 
-		atomic_sub(KN_DEACTIVATED_BIAS, &pos->active);
-		pos->flags |= KERNFS_ACTIVATED;
+/**
+ * kernfs_show - show or hide a node
+ * @kn: kernfs_node to show or hide
+ * @show: whether to show or hide
+ *
+ * If @show is %false, @kn is marked hidden and deactivated. A hidden node is
+ * ignored in future activaitons. If %true, the mark is removed and activation
+ * state is restored. This function won't implicitly activate a new node in a
+ * %KERNFS_ROOT_CREATE_DEACTIVATED root which hasn't been activated yet.
+ *
+ * To avoid recursion complexities, directories aren't supported for now.
+ */
+void kernfs_show(struct kernfs_node *kn, bool show)
+{
+	struct kernfs_root *root = kernfs_root(kn);
+
+	if (WARN_ON_ONCE(kernfs_type(kn) == KERNFS_DIR))
+		return;
+
+	down_write(&root->kernfs_rwsem);
+
+	if (show) {
+		kn->flags &= ~KERNFS_HIDDEN;
+		if (kn->flags & KERNFS_ACTIVATED)
+			kernfs_activate_one(kn);
+	} else {
+		kn->flags |= KERNFS_HIDDEN;
+		if (kernfs_active(kn))
+			atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
+		kernfs_drain(kn);
 	}
 
 	up_write(&root->kernfs_rwsem);
@@ -1336,46 +1396,42 @@ static void __kernfs_remove(struct kernfs_node *kn)
 {
 	struct kernfs_node *pos;
 
+	/* Short-circuit if non-root @kn has already finished removal. */
+	if (!kn)
+		return;
+
 	lockdep_assert_held_write(&kernfs_root(kn)->kernfs_rwsem);
 
 	/*
-	 * Short-circuit if non-root @kn has already finished removal.
 	 * This is for kernfs_remove_self() which plays with active ref
 	 * after removal.
 	 */
-	if (!kn || (kn->parent && RB_EMPTY_NODE(&kn->rb)))
+	if (kn->parent && RB_EMPTY_NODE(&kn->rb))
 		return;
 
 	pr_debug("kernfs %s: removing\n", kn->name);
 
-	/* prevent any new usage under @kn by deactivating all nodes */
+	/* prevent new usage by marking all nodes removing and deactivating */
 	pos = NULL;
-	while ((pos = kernfs_next_descendant_post(pos, kn)))
+	while ((pos = kernfs_next_descendant_post(pos, kn))) {
+		pos->flags |= KERNFS_REMOVING;
 		if (kernfs_active(pos))
 			atomic_add(KN_DEACTIVATED_BIAS, &pos->active);
+	}
 
 	/* deactivate and unlink the subtree node-by-node */
 	do {
 		pos = kernfs_leftmost_descendant(kn);
 
 		/*
-		 * kernfs_drain() drops kernfs_rwsem temporarily and @pos's
+		 * kernfs_drain() may drop kernfs_rwsem temporarily and @pos's
 		 * base ref could have been put by someone else by the time
 		 * the function returns.  Make sure it doesn't go away
 		 * underneath us.
 		 */
 		kernfs_get(pos);
 
-		/*
-		 * Drain iff @kn was activated.  This avoids draining and
-		 * its lockdep annotations for nodes which have never been
-		 * activated and allows embedding kernfs_remove() in create
-		 * error paths without worrying about draining.
-		 */
-		if (kn->flags & KERNFS_ACTIVATED)
-			kernfs_drain(pos);
-		else
-			WARN_ON_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS);
+		kernfs_drain(pos);
 
 		/*
 		 * kernfs_unlink_sibling() succeeds once per node.  Use it
@@ -1575,8 +1631,11 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 	down_write(&root->kernfs_rwsem);
 
 	kn = kernfs_find_ns(parent, name, ns);
-	if (kn)
+	if (kn) {
+		kernfs_get(kn);
 		__kernfs_remove(kn);
+		kernfs_put(kn);
+	}
 
 	up_write(&root->kernfs_rwsem);
 

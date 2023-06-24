@@ -768,7 +768,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		if (data->cfg->dedicated_clocks)
 			snprintf(name, sizeof(name), "usb%d_phy", i);
 		else
-			strlcpy(name, "usb_phy", sizeof(name));
+			strscpy(name, "usb_phy", sizeof(name));
 
 		phy->clk = devm_clk_get(dev, name);
 		if (IS_ERR(phy->clk)) {

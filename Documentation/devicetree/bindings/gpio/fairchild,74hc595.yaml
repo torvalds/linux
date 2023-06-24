@@ -26,13 +26,12 @@ properties:
     const: 2
 
   registers-number:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of daisy-chained shift registers
 
   enable-gpios:
     description: GPIO connected to the OE (Output Enable) pin.
     maxItems: 1
-
-  spi-max-frequency: true
 
 patternProperties:
   "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
@@ -58,7 +57,10 @@ required:
   - '#gpio-cells'
   - registers-number
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

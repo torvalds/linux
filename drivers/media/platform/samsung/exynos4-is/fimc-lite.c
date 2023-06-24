@@ -516,7 +516,7 @@ static int fimc_lite_release(struct file *file)
 	if (v4l2_fh_is_singular_file(file) &&
 	    atomic_read(&fimc->out_path) == FIMC_IO_DMA) {
 		if (fimc->streaming) {
-			media_pipeline_stop(entity);
+			video_device_pipeline_stop(&fimc->ve.vdev);
 			fimc->streaming = false;
 		}
 		fimc_lite_stop_capture(fimc, false);
@@ -646,12 +646,8 @@ static void fimc_lite_try_compose(struct fimc_lite *fimc, struct v4l2_rect *r)
 static int fimc_lite_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
 {
-	struct fimc_lite *fimc = video_drvdata(file);
-
 	strscpy(cap->driver, FIMC_LITE_DRV_NAME, sizeof(cap->driver));
 	strscpy(cap->card, FIMC_LITE_DRV_NAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-					dev_name(&fimc->pdev->dev));
 	return 0;
 }
 
@@ -793,7 +789,7 @@ static int fimc_pipeline_validate(struct fimc_lite *fimc)
 				return -EPIPE;
 		}
 		/* Retrieve format at the source pad */
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -816,13 +812,12 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 			      enum v4l2_buf_type type)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	struct media_entity *entity = &fimc->ve.vdev.entity;
 	int ret;
 
 	if (fimc_lite_active(fimc))
 		return -EBUSY;
 
-	ret = media_pipeline_start(entity, &fimc->ve.pipe->mp);
+	ret = video_device_pipeline_start(&fimc->ve.vdev, &fimc->ve.pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -839,7 +834,7 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 	}
 
 err_p_stop:
-	media_pipeline_stop(entity);
+	video_device_pipeline_stop(&fimc->ve.vdev);
 	return 0;
 }
 
@@ -853,7 +848,7 @@ static int fimc_lite_streamoff(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	media_pipeline_stop(&fimc->ve.vdev.entity);
+	video_device_pipeline_stop(&fimc->ve.vdev);
 	fimc->streaming = false;
 	return 0;
 }

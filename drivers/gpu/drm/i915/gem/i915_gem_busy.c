@@ -138,21 +138,21 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * Alternatively, we can trade that extra information on read/write
 	 * activity with
 	 *	args->busy =
-	 *		!dma_resv_test_signaled(obj->resv, true);
+	 *		!dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ);
 	 * to report the overall busyness. This is what the wait-ioctl does.
 	 *
 	 */
 	args->busy = 0;
-	dma_resv_iter_begin(&cursor, obj->base.resv, true);
+	dma_resv_iter_begin(&cursor, obj->base.resv, DMA_RESV_USAGE_READ);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 		if (dma_resv_iter_is_restarted(&cursor))
 			args->busy = 0;
 
-		if (dma_resv_iter_is_exclusive(&cursor))
-			/* Translate the exclusive fence to the READ *and* WRITE engine */
+		if (dma_resv_iter_usage(&cursor) <= DMA_RESV_USAGE_WRITE)
+			/* Translate the write fences to the READ *and* WRITE engine */
 			args->busy |= busy_check_writer(fence);
 		else
-			/* Translate shared fences to READ set of engines */
+			/* Translate read fences to READ set of engines */
 			args->busy |= busy_check_reader(fence);
 	}
 	dma_resv_iter_end(&cursor);

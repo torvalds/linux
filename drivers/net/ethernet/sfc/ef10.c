@@ -1932,7 +1932,10 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 
 	efx_update_sw_stats(efx, stats);
 out:
+	/* releasing a DMA coherent buffer with BH disabled can panic */
+	spin_unlock_bh(&efx->stats_lock);
 	efx_nic_free_buffer(efx, &stats_buf);
+	spin_lock_bh(&efx->stats_lock);
 	return rc;
 }
 
@@ -2256,7 +2259,7 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 	 * guaranteed to satisfy the second as we only attempt TSO if
 	 * inner_network_header <= 208.
 	 */
-	ip_tot_len = -EFX_TSO2_MAX_HDRLEN;
+	ip_tot_len = 0x10000 - EFX_TSO2_MAX_HDRLEN;
 	EFX_WARN_ON_ONCE_PARANOID(mss + EFX_TSO2_MAX_HDRLEN +
 				  (tcp->doff << 2u) > ip_tot_len);
 
@@ -2535,21 +2538,31 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 
 	if (rc)
 		return rc;
+	down_write(&efx->filter_sem);
 	rc = efx_mcdi_filter_table_probe(efx, nic_data->workaround_26807);
 
 	if (rc)
-		return rc;
+		goto out_unlock;
 
 	list_for_each_entry(vlan, &nic_data->vlan_list, list) {
 		rc = efx_mcdi_filter_add_vlan(efx, vlan->vid);
 		if (rc)
 			goto fail_add_vlan;
 	}
-	return 0;
+	goto out_unlock;
 
 fail_add_vlan:
 	efx_mcdi_filter_table_remove(efx);
+out_unlock:
+	up_write(&efx->filter_sem);
 	return rc;
+}
+
+static void efx_ef10_filter_table_remove(struct efx_nic *efx)
+{
+	down_write(&efx->filter_sem);
+	efx_mcdi_filter_table_remove(efx);
+	up_write(&efx->filter_sem);
 }
 
 /* This creates an entry in the RX descriptor queue */
@@ -3208,9 +3221,7 @@ static int efx_ef10_vport_set_mac_address(struct efx_nic *efx)
 
 	efx_device_detach_sync(efx);
 	efx_net_stop(efx->net_dev);
-	down_write(&efx->filter_sem);
-	efx_mcdi_filter_table_remove(efx);
-	up_write(&efx->filter_sem);
+	efx_ef10_filter_table_remove(efx);
 
 	rc = efx_ef10_vadaptor_free(efx, efx->vport_id);
 	if (rc)
@@ -3240,9 +3251,7 @@ restore_vadaptor:
 	if (rc2)
 		goto reset_nic;
 restore_filters:
-	down_write(&efx->filter_sem);
 	rc2 = efx_ef10_filter_table_probe(efx);
-	up_write(&efx->filter_sem);
 	if (rc2)
 		goto reset_nic;
 
@@ -3268,12 +3277,35 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 	bool was_enabled = efx->port_enabled;
 	int rc;
 
+#ifdef CONFIG_SFC_SRIOV
+	/* If this function is a VF and we have access to the parent PF,
+	 * then use the PF control path to attempt to change the VF MAC address.
+	 */
+	if (efx->pci_dev->is_virtfn && efx->pci_dev->physfn) {
+		struct efx_nic *efx_pf = pci_get_drvdata(efx->pci_dev->physfn);
+		struct efx_ef10_nic_data *nic_data = efx->nic_data;
+		u8 mac[ETH_ALEN];
+
+		/* net_dev->dev_addr can be zeroed by efx_net_stop in
+		 * efx_ef10_sriov_set_vf_mac, so pass in a copy.
+		 */
+		ether_addr_copy(mac, efx->net_dev->dev_addr);
+
+		rc = efx_ef10_sriov_set_vf_mac(efx_pf, nic_data->vf_index, mac);
+		if (!rc)
+			return 0;
+
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Updating VF mac via PF failed (%d), setting directly\n",
+			  rc);
+	}
+#endif
+
 	efx_device_detach_sync(efx);
 	efx_net_stop(efx->net_dev);
 
 	mutex_lock(&efx->mac_lock);
-	down_write(&efx->filter_sem);
-	efx_mcdi_filter_table_remove(efx);
+	efx_ef10_filter_table_remove(efx);
 
 	ether_addr_copy(MCDI_PTR(inbuf, VADAPTOR_SET_MAC_IN_MACADDR),
 			efx->net_dev->dev_addr);
@@ -3283,47 +3315,12 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 				sizeof(inbuf), NULL, 0, NULL);
 
 	efx_ef10_filter_table_probe(efx);
-	up_write(&efx->filter_sem);
 	mutex_unlock(&efx->mac_lock);
 
 	if (was_enabled)
 		efx_net_open(efx->net_dev);
 	efx_device_attach_if_not_resetting(efx);
 
-#ifdef CONFIG_SFC_SRIOV
-	if (efx->pci_dev->is_virtfn && efx->pci_dev->physfn) {
-		struct efx_ef10_nic_data *nic_data = efx->nic_data;
-		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
-
-		if (rc == -EPERM) {
-			struct efx_nic *efx_pf;
-
-			/* Switch to PF and change MAC address on vport */
-			efx_pf = pci_get_drvdata(pci_dev_pf);
-
-			rc = efx_ef10_sriov_set_vf_mac(efx_pf,
-						       nic_data->vf_index,
-						       efx->net_dev->dev_addr);
-		} else if (!rc) {
-			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
-			struct efx_ef10_nic_data *nic_data = efx_pf->nic_data;
-			unsigned int i;
-
-			/* MAC address successfully changed by VF (with MAC
-			 * spoofing) so update the parent PF if possible.
-			 */
-			for (i = 0; i < efx_pf->vf_count; ++i) {
-				struct ef10_vf *vf = nic_data->vf + i;
-
-				if (vf->efx == efx) {
-					ether_addr_copy(vf->mac,
-							efx->net_dev->dev_addr);
-					return 0;
-				}
-			}
-		}
-	} else
-#endif
 	if (rc == -EPERM) {
 		netif_err(efx, drv, efx->net_dev,
 			  "Cannot change MAC address; use sfboot to enable"
@@ -3874,7 +3871,7 @@ static int efx_ef10_udp_tnl_set_port(struct net_device *dev,
 				     unsigned int table, unsigned int entry,
 				     struct udp_tunnel_info *ti)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 	struct efx_ef10_nic_data *nic_data;
 	int efx_tunnel_type, rc;
 
@@ -3934,7 +3931,7 @@ static int efx_ef10_udp_tnl_unset_port(struct net_device *dev,
 				       unsigned int table, unsigned int entry,
 				       struct udp_tunnel_info *ti)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 	struct efx_ef10_nic_data *nic_data;
 	int rc;
 
@@ -4089,7 +4086,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.ev_test_generate = efx_ef10_ev_test_generate,
 	.filter_table_probe = efx_ef10_filter_table_probe,
 	.filter_table_restore = efx_mcdi_filter_table_restore,
-	.filter_table_remove = efx_mcdi_filter_table_remove,
+	.filter_table_remove = efx_ef10_filter_table_remove,
 	.filter_update_rx_scatter = efx_mcdi_update_rx_scatter,
 	.filter_insert = efx_mcdi_filter_insert,
 	.filter_remove_safe = efx_mcdi_filter_remove_safe,
@@ -4206,7 +4203,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.ev_test_generate = efx_ef10_ev_test_generate,
 	.filter_table_probe = efx_ef10_filter_table_probe,
 	.filter_table_restore = efx_mcdi_filter_table_restore,
-	.filter_table_remove = efx_mcdi_filter_table_remove,
+	.filter_table_remove = efx_ef10_filter_table_remove,
 	.filter_update_rx_scatter = efx_mcdi_update_rx_scatter,
 	.filter_insert = efx_mcdi_filter_insert,
 	.filter_remove_safe = efx_mcdi_filter_remove_safe,

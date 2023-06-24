@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/allwinner,sun4i-a10-mmc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 MMC Controller Device Tree Bindings
+title: Allwinner A10 MMC Controller
 
 allOf:
   - $ref: "mmc-controller.yaml"

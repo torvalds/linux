@@ -521,7 +521,7 @@ static bool has_new_snaps(struct ceph_snap_context *o,
 static void ceph_queue_cap_snap(struct ceph_inode_info *ci,
 				struct ceph_cap_snap **pcapsnap)
 {
-	struct inode *inode = &ci->vfs_inode;
+	struct inode *inode = &ci->netfs.inode;
 	struct ceph_snap_context *old_snapc, *new_snapc;
 	struct ceph_cap_snap *capsnap = *pcapsnap;
 	struct ceph_buffer *old_blob = NULL;
@@ -652,7 +652,7 @@ update_snapc:
 int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 			    struct ceph_cap_snap *capsnap)
 {
-	struct inode *inode = &ci->vfs_inode;
+	struct inode *inode = &ci->netfs.inode;
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 
 	BUG_ON(capsnap->writing);
@@ -712,7 +712,7 @@ static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 
 	spin_lock(&realm->inodes_with_caps_lock);
 	list_for_each_entry(ci, &realm->inodes_with_caps, i_snap_realm_item) {
-		struct inode *inode = igrab(&ci->vfs_inode);
+		struct inode *inode = igrab(&ci->netfs.inode);
 		if (!inode)
 			continue;
 		spin_unlock(&realm->inodes_with_caps_lock);
@@ -763,7 +763,7 @@ int ceph_update_snap_trace(struct ceph_mds_client *mdsc,
 	struct ceph_mds_snap_realm *ri;    /* encoded */
 	__le64 *snaps;                     /* encoded */
 	__le64 *prior_parent_snaps;        /* encoded */
-	struct ceph_snap_realm *realm = NULL;
+	struct ceph_snap_realm *realm;
 	struct ceph_snap_realm *first_realm = NULL;
 	struct ceph_snap_realm *realm_to_rebuild = NULL;
 	int rebuild_snapcs;
@@ -774,6 +774,7 @@ int ceph_update_snap_trace(struct ceph_mds_client *mdsc,
 
 	dout("%s deletion=%d\n", __func__, deletion);
 more:
+	realm = NULL;
 	rebuild_snapcs = 0;
 	ceph_decode_need(&p, e, sizeof(*ri), bad);
 	ri = p;
@@ -904,7 +905,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 	while (!list_empty(&mdsc->snap_flush_list)) {
 		ci = list_first_entry(&mdsc->snap_flush_list,
 				struct ceph_inode_info, i_snap_flush_item);
-		inode = &ci->vfs_inode;
+		inode = &ci->netfs.inode;
 		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
 		ceph_flush_snaps(ci, &session);

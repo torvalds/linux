@@ -742,7 +742,7 @@ static int sparx5_port_pcs_low_set(struct sparx5 *sparx5,
 		if (err)
 			return -EINVAL;
 	} else {
-		sgmii = true; /* Phy is connnected to the MAC */
+		sgmii = true; /* Phy is connected to the MAC */
 	}
 
 	/* Choose SGMII or 1000BaseX/2500BaseX PCS mode */

@@ -41,8 +41,10 @@ const char *pci_power_names[] = {
 };
 EXPORT_SYMBOL_GPL(pci_power_names);
 
+#ifdef CONFIG_X86_32
 int isa_dma_bridge_buggy;
 EXPORT_SYMBOL(isa_dma_bridge_buggy);
+#endif
 
 int pci_pci_problems;
 EXPORT_SYMBOL(pci_pci_problems);
@@ -64,13 +66,15 @@ struct pci_pme_device {
 
 static void pci_dev_d3_sleep(struct pci_dev *dev)
 {
-	unsigned int delay = dev->d3hot_delay;
+	unsigned int delay_ms = max(dev->d3hot_delay, pci_pm_d3hot_delay);
+	unsigned int upper;
 
-	if (delay < pci_pm_d3hot_delay)
-		delay = pci_pm_d3hot_delay;
-
-	if (delay)
-		msleep(delay);
+	if (delay_ms) {
+		/* Use a 20% upper bound, 1ms minimum */
+		upper = max(DIV_ROUND_CLOSEST(delay_ms, 5), 1U);
+		usleep_range(delay_ms * USEC_PER_MSEC,
+			     (delay_ms + upper) * USEC_PER_MSEC);
+	}
 }
 
 bool pci_reset_supported(struct pci_dev *dev)
@@ -1068,126 +1072,6 @@ static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
 }
 
 /**
- * pci_raw_set_power_state - Use PCI PM registers to set the power state of
- *			     given PCI device
- * @dev: PCI device to handle.
- * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
- *
- * RETURN VALUE:
- * -EINVAL if the requested state is invalid.
- * -EIO if device does not support PCI PM or its PM capabilities register has a
- * wrong version, or device doesn't support the requested state.
- * 0 if device already is in the requested state.
- * 0 if device's power state has been successfully changed.
- */
-static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
-{
-	u16 pmcsr;
-	bool need_restore = false;
-
-	/* Check if we're already there */
-	if (dev->current_state == state)
-		return 0;
-
-	if (!dev->pm_cap)
-		return -EIO;
-
-	if (state < PCI_D0 || state > PCI_D3hot)
-		return -EINVAL;
-
-	/*
-	 * Validate transition: We can enter D0 from any state, but if
-	 * we're already in a low-power state, we can only go deeper.  E.g.,
-	 * we can go from D1 to D3, but we can't go directly from D3 to D1;
-	 * we'd have to go from D3 to D0, then to D1.
-	 */
-	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
-	    && dev->current_state > state) {
-		pci_err(dev, "invalid power transition (from %s to %s)\n",
-			pci_power_name(dev->current_state),
-			pci_power_name(state));
-		return -EINVAL;
-	}
-
-	/* Check if this device supports the desired state */
-	if ((state == PCI_D1 && !dev->d1_support)
-	   || (state == PCI_D2 && !dev->d2_support))
-		return -EIO;
-
-	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
-	if (PCI_POSSIBLE_ERROR(pmcsr)) {
-		pci_err(dev, "can't change power state from %s to %s (config space inaccessible)\n",
-			pci_power_name(dev->current_state),
-			pci_power_name(state));
-		return -EIO;
-	}
-
-	/*
-	 * If we're (effectively) in D3, force entire word to 0.
-	 * This doesn't affect PME_Status, disables PME_En, and
-	 * sets PowerState to 0.
-	 */
-	switch (dev->current_state) {
-	case PCI_D0:
-	case PCI_D1:
-	case PCI_D2:
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-		pmcsr |= state;
-		break;
-	case PCI_D3hot:
-	case PCI_D3cold:
-	case PCI_UNKNOWN: /* Boot-up */
-		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
-		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
-			need_restore = true;
-		fallthrough;	/* force to D0 */
-	default:
-		pmcsr = 0;
-		break;
-	}
-
-	/* Enter specified state */
-	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
-
-	/*
-	 * Mandatory power management transition delays; see PCI PM 1.1
-	 * 5.6.1 table 18
-	 */
-	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
-		pci_dev_d3_sleep(dev);
-	else if (state == PCI_D2 || dev->current_state == PCI_D2)
-		udelay(PCI_PM_D2_DELAY);
-
-	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
-	dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
-	if (dev->current_state != state)
-		pci_info_ratelimited(dev, "refused to change power state from %s to %s\n",
-			 pci_power_name(dev->current_state),
-			 pci_power_name(state));
-
-	/*
-	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
-	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
-	 * from D3hot to D0 _may_ perform an internal reset, thereby
-	 * going to "D0 Uninitialized" rather than "D0 Initialized".
-	 * For example, at least some versions of the 3c905B and the
-	 * 3c556B exhibit this behaviour.
-	 *
-	 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
-	 * devices in a D3hot state at boot.  Consequently, we need to
-	 * restore at least the BARs so that the device will be
-	 * accessible to its driver.
-	 */
-	if (need_restore)
-		pci_restore_bars(dev);
-
-	if (dev->bus->self)
-		pcie_aspm_pm_state_change(dev->bus->self);
-
-	return 0;
-}
-
-/**
  * pci_update_current_state - Read power state of given device and cache it
  * @dev: PCI device to handle.
  * @state: State to cache in case the device doesn't have the PM capability
@@ -1201,14 +1085,17 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
  */
 void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 {
-	if (platform_pci_get_power_state(dev) == PCI_D3cold ||
-	    !pci_device_is_present(dev)) {
+	if (platform_pci_get_power_state(dev) == PCI_D3cold) {
 		dev->current_state = PCI_D3cold;
 	} else if (dev->pm_cap) {
 		u16 pmcsr;
 
 		pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
-		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+		if (PCI_POSSIBLE_ERROR(pmcsr)) {
+			dev->current_state = PCI_D3cold;
+			return;
+		}
+		dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
 	} else {
 		dev->current_state = state;
 	}
@@ -1306,26 +1193,111 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 /**
  * pci_power_up - Put the given device into D0
  * @dev: PCI device to power up
+ *
+ * On success, return 0 or 1, depending on whether or not it is necessary to
+ * restore the device's BARs subsequently (1 is returned in that case).
  */
 int pci_power_up(struct pci_dev *dev)
 {
-	pci_platform_power_transition(dev, PCI_D0);
+	bool need_restore;
+	pci_power_t state;
+	u16 pmcsr;
 
-	/*
-	 * Mandatory power management transition delays are handled in
-	 * pci_pm_resume_noirq() and pci_pm_runtime_resume() of the
-	 * corresponding bridge.
-	 */
-	if (dev->runtime_d3cold) {
-		/*
-		 * When powering on a bridge from D3cold, the whole hierarchy
-		 * may be powered on into D0uninitialized state, resume them to
-		 * give them a chance to suspend again
-		 */
-		pci_resume_bus(dev->subordinate);
+	platform_pci_set_power_state(dev, PCI_D0);
+
+	if (!dev->pm_cap) {
+		state = platform_pci_get_power_state(dev);
+		if (state == PCI_UNKNOWN)
+			dev->current_state = PCI_D0;
+		else
+			dev->current_state = state;
+
+		if (state == PCI_D0)
+			return 0;
+
+		return -EIO;
 	}
 
-	return pci_raw_set_power_state(dev, PCI_D0);
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (PCI_POSSIBLE_ERROR(pmcsr)) {
+		pci_err(dev, "Unable to change power state from %s to D0, device inaccessible\n",
+			pci_power_name(dev->current_state));
+		dev->current_state = PCI_D3cold;
+		return -EIO;
+	}
+
+	state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+
+	need_restore = (state == PCI_D3hot || dev->current_state >= PCI_D3hot) &&
+			!(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET);
+
+	if (state == PCI_D0)
+		goto end;
+
+	/*
+	 * Force the entire word to 0. This doesn't affect PME_Status, disables
+	 * PME_En, and sets PowerState to 0.
+	 */
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, 0);
+
+	/* Mandatory transition delays; see PCI PM 1.2. */
+	if (state == PCI_D3hot)
+		pci_dev_d3_sleep(dev);
+	else if (state == PCI_D2)
+		udelay(PCI_PM_D2_DELAY);
+
+end:
+	dev->current_state = PCI_D0;
+	if (need_restore)
+		return 1;
+
+	return 0;
+}
+
+/**
+ * pci_set_full_power_state - Put a PCI device into D0 and update its state
+ * @dev: PCI device to power up
+ *
+ * Call pci_power_up() to put @dev into D0, read from its PCI_PM_CTRL register
+ * to confirm the state change, restore its BARs if they might be lost and
+ * reconfigure ASPM in acordance with the new power state.
+ *
+ * If pci_restore_state() is going to be called right after a power state change
+ * to D0, it is more efficient to use pci_power_up() directly instead of this
+ * function.
+ */
+static int pci_set_full_power_state(struct pci_dev *dev)
+{
+	u16 pmcsr;
+	int ret;
+
+	ret = pci_power_up(dev);
+	if (ret < 0)
+		return ret;
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+	if (dev->current_state != PCI_D0) {
+		pci_info_ratelimited(dev, "Refused to change power state from %s to D0\n",
+				     pci_power_name(dev->current_state));
+	} else if (ret > 0) {
+		/*
+		 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
+		 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
+		 * from D3hot to D0 _may_ perform an internal reset, thereby
+		 * going to "D0 Uninitialized" rather than "D0 Initialized".
+		 * For example, at least some versions of the 3c905B and the
+		 * 3c556B exhibit this behaviour.
+		 *
+		 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
+		 * devices in a D3hot state at boot.  Consequently, we need to
+		 * restore at least the BARs so that the device will be
+		 * accessible to its driver.
+		 */
+		pci_restore_bars(dev);
+	}
+
+	return 0;
 }
 
 /**
@@ -1350,6 +1322,76 @@ void pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
 {
 	if (bus)
 		pci_walk_bus(bus, __pci_dev_set_current_state, &state);
+}
+
+/**
+ * pci_set_low_power_state - Put a PCI device into a low-power state.
+ * @dev: PCI device to handle.
+ * @state: PCI power state (D1, D2, D3hot) to put the device into.
+ *
+ * Use the device's PCI_PM_CTRL register to put it into a low-power state.
+ *
+ * RETURN VALUE:
+ * -EINVAL if the requested state is invalid.
+ * -EIO if device does not support PCI PM or its PM capabilities register has a
+ * wrong version, or device doesn't support the requested state.
+ * 0 if device already is in the requested state.
+ * 0 if device's power state has been successfully changed.
+ */
+static int pci_set_low_power_state(struct pci_dev *dev, pci_power_t state)
+{
+	u16 pmcsr;
+
+	if (!dev->pm_cap)
+		return -EIO;
+
+	/*
+	 * Validate transition: We can enter D0 from any state, but if
+	 * we're already in a low-power state, we can only go deeper.  E.g.,
+	 * we can go from D1 to D3, but we can't go directly from D3 to D1;
+	 * we'd have to go from D3 to D0, then to D1.
+	 */
+	if (dev->current_state <= PCI_D3cold && dev->current_state > state) {
+		pci_dbg(dev, "Invalid power transition (from %s to %s)\n",
+			pci_power_name(dev->current_state),
+			pci_power_name(state));
+		return -EINVAL;
+	}
+
+	/* Check if this device supports the desired state */
+	if ((state == PCI_D1 && !dev->d1_support)
+	   || (state == PCI_D2 && !dev->d2_support))
+		return -EIO;
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (PCI_POSSIBLE_ERROR(pmcsr)) {
+		pci_err(dev, "Unable to change power state from %s to %s, device inaccessible\n",
+			pci_power_name(dev->current_state),
+			pci_power_name(state));
+		dev->current_state = PCI_D3cold;
+		return -EIO;
+	}
+
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pmcsr |= state;
+
+	/* Enter specified state */
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
+
+	/* Mandatory power management transition delays; see PCI PM 1.2. */
+	if (state == PCI_D3hot)
+		pci_dev_d3_sleep(dev);
+	else if (state == PCI_D2)
+		udelay(PCI_PM_D2_DELAY);
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+	if (dev->current_state != state)
+		pci_info_ratelimited(dev, "Refused to change power state from %s to %s\n",
+				     pci_power_name(dev->current_state),
+				     pci_power_name(state));
+
+	return 0;
 }
 
 /**
@@ -1393,7 +1435,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return 0;
 
 	if (state == PCI_D0)
-		return pci_power_up(dev);
+		return pci_set_full_power_state(dev);
 
 	/*
 	 * This device is quirked not to be put into D3, so don't put it in
@@ -1402,19 +1444,25 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (state >= PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
 		return 0;
 
-	/*
-	 * To put device in D3cold, we put device into D3hot in native
-	 * way, then put device into D3cold with platform ops
-	 */
-	error = pci_raw_set_power_state(dev, state > PCI_D3hot ?
-					PCI_D3hot : state);
+	if (state == PCI_D3cold) {
+		/*
+		 * To put the device in D3cold, put it into D3hot in the native
+		 * way, then put it into D3cold using platform ops.
+		 */
+		error = pci_set_low_power_state(dev, PCI_D3hot);
 
-	if (pci_platform_power_transition(dev, state))
-		return error;
+		if (pci_platform_power_transition(dev, PCI_D3cold))
+			return error;
 
-	/* Powering off a bridge may power off the whole hierarchy */
-	if (state == PCI_D3cold)
-		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
+		/* Powering off a bridge may power off the whole hierarchy */
+		if (dev->current_state == PCI_D3cold)
+			pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
+	} else {
+		error = pci_set_low_power_state(dev, state);
+
+		if (pci_platform_power_transition(dev, state))
+			return error;
+	}
 
 	return 0;
 }
@@ -1617,6 +1665,7 @@ int pci_save_state(struct pci_dev *dev)
 		return i;
 
 	pci_save_ltr_state(dev);
+	pci_save_aspm_l1ss_state(dev);
 	pci_save_dpc_state(dev);
 	pci_save_aer_state(dev);
 	pci_save_ptm_state(dev);
@@ -1723,6 +1772,7 @@ void pci_restore_state(struct pci_dev *dev)
 	 * LTR itself (in the PCIe capability).
 	 */
 	pci_restore_ltr_state(dev);
+	pci_restore_aspm_l1ss_state(dev);
 
 	pci_restore_pcie_state(dev);
 	pci_restore_pasid_state(dev);
@@ -2660,24 +2710,12 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
 
-	/*
-	 * There are systems (for example, Intel mobile chips since Coffee
-	 * Lake) where the power drawn while suspended can be significantly
-	 * reduced by disabling PTM on PCIe root ports as this allows the
-	 * port to enter a lower-power PM state and the SoC to reach a
-	 * lower-power idle state as a whole.
-	 */
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-		pci_disable_ptm(dev);
-
 	pci_enable_wake(dev, target_state, wakeup);
 
 	error = pci_set_power_state(dev, target_state);
 
-	if (error) {
+	if (error)
 		pci_enable_wake(dev, target_state, false);
-		pci_restore_ptm_state(dev);
-	}
 
 	return error;
 }
@@ -2718,27 +2756,12 @@ int pci_finish_runtime_suspend(struct pci_dev *dev)
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
 
-	dev->runtime_d3cold = target_state == PCI_D3cold;
-
-	/*
-	 * There are systems (for example, Intel mobile chips since Coffee
-	 * Lake) where the power drawn while suspended can be significantly
-	 * reduced by disabling PTM on PCIe root ports as this allows the
-	 * port to enter a lower-power PM state and the SoC to reach a
-	 * lower-power idle state as a whole.
-	 */
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-		pci_disable_ptm(dev);
-
 	__pci_enable_wake(dev, target_state, pci_dev_run_wake(dev));
 
 	error = pci_set_power_state(dev, target_state);
 
-	if (error) {
+	if (error)
 		pci_enable_wake(dev, target_state, false);
-		pci_restore_ptm_state(dev);
-		dev->runtime_d3cold = false;
-	}
 
 	return error;
 }
@@ -2920,6 +2943,8 @@ static const struct dmi_system_id bridge_d3_blacklist[] = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
 			DMI_MATCH(DMI_BOARD_NAME, "X299 DESIGNARE EX-CF"),
 		},
+	},
+	{
 		/*
 		 * Downstream device is not accessible after putting a root port
 		 * into D3cold and back into D0 on Elo i2.
@@ -3439,6 +3464,11 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 					    2 * sizeof(u16));
 	if (error)
 		pci_err(dev, "unable to allocate suspend buffer for LTR\n");
+
+	error = pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_L1SS,
+					    2 * sizeof(u32));
+	if (error)
+		pci_err(dev, "unable to allocate suspend buffer for ASPM-L1SS\n");
 
 	pci_allocate_vc_save_buffers(dev);
 }
@@ -5113,19 +5143,19 @@ static int pci_reset_bus_function(struct pci_dev *dev, bool probe)
 
 void pci_dev_lock(struct pci_dev *dev)
 {
-	pci_cfg_access_lock(dev);
 	/* block PM suspend, driver probe, etc. */
 	device_lock(&dev->dev);
+	pci_cfg_access_lock(dev);
 }
 EXPORT_SYMBOL_GPL(pci_dev_lock);
 
 /* Return 1 on successful lock, 0 on contention */
 int pci_dev_trylock(struct pci_dev *dev)
 {
-	if (pci_cfg_access_trylock(dev)) {
-		if (device_trylock(&dev->dev))
+	if (device_trylock(&dev->dev)) {
+		if (pci_cfg_access_trylock(dev))
 			return 1;
-		pci_cfg_access_unlock(dev);
+		device_unlock(&dev->dev);
 	}
 
 	return 0;
@@ -5134,8 +5164,8 @@ EXPORT_SYMBOL_GPL(pci_dev_trylock);
 
 void pci_dev_unlock(struct pci_dev *dev)
 {
-	device_unlock(&dev->dev);
 	pci_cfg_access_unlock(dev);
+	device_unlock(&dev->dev);
 }
 EXPORT_SYMBOL_GPL(pci_dev_unlock);
 

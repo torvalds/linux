@@ -1521,7 +1521,7 @@ error_mutex_destroy:
 	return ret;
 }
 
-static int ov772x_remove(struct i2c_client *client)
+static void ov772x_remove(struct i2c_client *client)
 {
 	struct ov772x_priv *priv = to_ov772x(i2c_get_clientdata(client));
 
@@ -1532,8 +1532,6 @@ static int ov772x_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
 	mutex_destroy(&priv->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov772x_id[] = {

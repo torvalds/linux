@@ -23,22 +23,6 @@
 #define I2S_SP_INSTANCE		1
 #define PDM_DMIC_INSTANCE	2
 
-#define I2S_MODE		0x04
-
-static int renoir_dai_probe(struct snd_soc_dai *dai)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
-	unsigned int val;
-
-	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_I2S_PIN_CONFIG);
-	if (val != I2S_MODE) {
-		dev_err(sdev->dev, "I2S Mode is not supported (I2S_PIN_CONFIG: %#x)\n", val);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static struct snd_soc_dai_driver renoir_sof_dai[] = {
 	[I2S_BT_INSTANCE] = {
 		.id = I2S_BT_INSTANCE,
@@ -62,7 +46,7 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &renoir_dai_probe,
+		.probe = &acp_dai_probe,
 	},
 
 	[I2S_SP_INSTANCE] = {
@@ -87,7 +71,7 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &renoir_dai_probe,
+		.probe = &acp_dai_probe,
 	},
 
 	[PDM_DMIC_INSTANCE] = {
@@ -104,81 +88,20 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 	},
 };
 
-static struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev)
+/* Renoir ops */
+struct snd_sof_dsp_ops sof_renoir_ops;
+EXPORT_SYMBOL_NS(sof_renoir_ops, SND_SOC_SOF_AMD_COMMON);
+
+int sof_renoir_ops_init(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *sof_pdata = sdev->pdata;
-	const struct sof_dev_desc *desc = sof_pdata->desc;
-	struct snd_soc_acpi_mach *mach;
+	/* common defaults */
+	memcpy(&sof_renoir_ops, &sof_acp_common_ops, sizeof(struct snd_sof_dsp_ops));
 
-	mach = snd_soc_acpi_find_machine(desc->machines);
-	if (!mach) {
-		dev_warn(sdev->dev, "No matching ASoC machine driver found\n");
-		return NULL;
-	}
+	sof_renoir_ops.drv = renoir_sof_dai;
+	sof_renoir_ops.num_drv = ARRAY_SIZE(renoir_sof_dai);
 
-	sof_pdata->tplg_filename = mach->sof_tplg_filename;
-	sof_pdata->fw_filename = mach->fw_filename;
-
-	return mach;
+	return 0;
 }
-
-/* AMD Renoir DSP ops */
-const struct snd_sof_dsp_ops sof_renoir_ops = {
-	/* probe and remove */
-	.probe			= amd_sof_acp_probe,
-	.remove			= amd_sof_acp_remove,
-
-	/* Register IO */
-	.write			= sof_io_write,
-	.read			= sof_io_read,
-
-	/* Block IO */
-	.block_read		= acp_dsp_block_read,
-	.block_write		= acp_dsp_block_write,
-
-	/* Module loading */
-	.load_module		= snd_sof_parse_module_memcpy,
-
-	/*Firmware loading */
-	.load_firmware		= snd_sof_load_firmware_memcpy,
-	.pre_fw_run		= acp_dsp_pre_fw_run,
-	.get_bar_index		= acp_get_bar_index,
-
-	/* DSP core boot */
-	.run			= acp_sof_dsp_run,
-
-	/*IPC */
-	.send_msg		= acp_sof_ipc_send_msg,
-	.ipc_msg_data		= acp_sof_ipc_msg_data,
-	.get_mailbox_offset	= acp_sof_ipc_get_mailbox_offset,
-	.irq_thread		= acp_sof_ipc_irq_thread,
-	.fw_ready		= sof_fw_ready,
-
-	/* DAI drivers */
-	.drv			= renoir_sof_dai,
-	.num_drv		= ARRAY_SIZE(renoir_sof_dai),
-
-	/* stream callbacks */
-	.pcm_open		= acp_pcm_open,
-	.pcm_close		= acp_pcm_close,
-	.pcm_hw_params		= acp_pcm_hw_params,
-
-	.hw_info		= SNDRV_PCM_INFO_MMAP |
-				  SNDRV_PCM_INFO_MMAP_VALID |
-				  SNDRV_PCM_INFO_INTERLEAVED |
-				  SNDRV_PCM_INFO_PAUSE |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
-
-	/* Machine driver callbacks */
-	.machine_select		= amd_sof_machine_select,
-	.machine_register	= sof_machine_register,
-	.machine_unregister	= sof_machine_unregister,
-
-	/* Trace Logger */
-	.trace_init		= acp_sof_trace_init,
-	.trace_release		= acp_sof_trace_release,
-};
-EXPORT_SYMBOL(sof_renoir_ops);
 
 MODULE_IMPORT_NS(SND_SOC_SOF_AMD_COMMON);
 MODULE_DESCRIPTION("RENOIR SOF Driver");

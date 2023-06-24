@@ -68,30 +68,4 @@
 #define	check_null_return_void(ptr, fmt, arg ...)	\
 		var_equal_return_void(ptr, NULL, fmt, ## arg)
 
-/* hmm_mem_stat is used to trace the hmm mem used by ISP pipe. The unit is page
- * number.
- *
- * res_size:  reserved mem pool size, being allocated from system at system boot time.
- *		res_size >= res_cnt.
- * sys_size:  system mem pool size, being allocated from system at camera running time.
- *		dyc_size:  dynamic mem pool size.
- *		dyc_thr:   dynamic mem pool high watermark.
- *		dyc_size <= dyc_thr.
- * usr_size:  user ptr mem size.
- *
- * res_cnt:   track the mem allocated from reserved pool at camera running time.
- * tol_cnt:   track the total mem used by ISP pipe at camera running time.
- */
-struct _hmm_mem_stat {
-	int res_size;
-	int sys_size;
-	int dyc_size;
-	int dyc_thr;
-	int usr_size;
-	int res_cnt;
-	int tol_cnt;
-};
-
-extern struct _hmm_mem_stat hmm_mem_stat;
-
 #endif

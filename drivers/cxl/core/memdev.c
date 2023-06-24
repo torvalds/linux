@@ -68,7 +68,7 @@ static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = range_len(&cxlds->ram_range);
+	unsigned long long len = resource_size(&cxlds->ram_res);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -81,7 +81,7 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = range_len(&cxlds->pmem_range);
+	unsigned long long len = resource_size(&cxlds->pmem_res);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -228,6 +228,8 @@ static void detach_memdev(struct work_struct *work)
 	put_device(&cxlmd->dev);
 }
 
+static struct lock_class_key cxl_memdev_key;
+
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 					   const struct file_operations *fops)
 {
@@ -247,6 +249,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &cxl_memdev_key);
 	dev->parent = cxlds->dev;
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);

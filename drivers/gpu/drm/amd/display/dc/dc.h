@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.177"
+#define DC_VER "3.2.207"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -118,7 +118,26 @@ struct dc_plane_cap {
 	uint32_t min_height;
 };
 
-// Color management caps (DPP and MPC)
+/**
+ * DOC: color-management-caps
+ *
+ * **Color management caps (DPP and MPC)**
+ *
+ * Modules/color calculates various color operations which are translated to
+ * abstracted HW. DCE 5-12 had almost no important changes, but starting with
+ * DCN1, every new generation comes with fairly major differences in color
+ * pipeline. Therefore, we abstract color pipe capabilities so modules/DM can
+ * decide mapping to HW block based on logical capabilities.
+ */
+
+/**
+ * struct rom_curve_caps - predefined transfer function caps for degamma and regamma
+ * @srgb: RGB color space transfer func
+ * @bt2020: BT.2020 transfer func
+ * @gamma2_2: standard gamma
+ * @pq: perceptual quantizer transfer function
+ * @hlg: hybrid log–gamma transfer function
+ */
 struct rom_curve_caps {
 	uint16_t srgb : 1;
 	uint16_t bt2020 : 1;
@@ -127,39 +146,76 @@ struct rom_curve_caps {
 	uint16_t hlg : 1;
 };
 
+/**
+ * struct dpp_color_caps - color pipeline capabilities for display pipe and
+ * plane blocks
+ *
+ * @dcn_arch: all DCE generations treated the same
+ * @input_lut_shared: shared with DGAM. Input LUT is different than most LUTs,
+ * just plain 256-entry lookup
+ * @icsc: input color space conversion
+ * @dgam_ram: programmable degamma LUT
+ * @post_csc: post color space conversion, before gamut remap
+ * @gamma_corr: degamma correction
+ * @hw_3d_lut: 3D LUT support. It implies a shaper LUT before. It may be shared
+ * with MPC by setting mpc:shared_3d_lut flag
+ * @ogam_ram: programmable out/blend gamma LUT
+ * @ocsc: output color space conversion
+ * @dgam_rom_for_yuv: pre-defined degamma LUT for YUV planes
+ * @dgam_rom_caps: pre-definied curve caps for degamma 1D LUT
+ * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ *
+ * Note: hdr_mult and gamut remap (CTM) are always available in DPP (in that order)
+ */
 struct dpp_color_caps {
-	uint16_t dcn_arch : 1; // all DCE generations treated the same
-	// input lut is different than most LUTs, just plain 256-entry lookup
-	uint16_t input_lut_shared : 1; // shared with DGAM
+	uint16_t dcn_arch : 1;
+	uint16_t input_lut_shared : 1;
 	uint16_t icsc : 1;
 	uint16_t dgam_ram : 1;
-	uint16_t post_csc : 1; // before gamut remap
+	uint16_t post_csc : 1;
 	uint16_t gamma_corr : 1;
-
-	// hdr_mult and gamut remap always available in DPP (in that order)
-	// 3d lut implies shaper LUT,
-	// it may be shared with MPC - check MPC:shared_3d_lut flag
 	uint16_t hw_3d_lut : 1;
-	uint16_t ogam_ram : 1; // blnd gam
+	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t dgam_rom_for_yuv : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/**
+ * struct mpc_color_caps - color pipeline capabilities for multiple pipe and
+ * plane combined blocks
+ *
+ * @gamut_remap: color transformation matrix
+ * @ogam_ram: programmable out gamma LUT
+ * @ocsc: output color space conversion matrix
+ * @num_3dluts: MPC 3D LUT; always assumes a preceding shaper LUT
+ * @shared_3d_lut: shared 3D LUT flag. Can be either DPP or MPC, but single
+ * instance
+ * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ */
 struct mpc_color_caps {
 	uint16_t gamut_remap : 1;
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
-	uint16_t num_3dluts : 3; //3d lut always assumes a preceding shaper LUT
-	uint16_t shared_3d_lut:1; //can be in either DPP or MPC, but single instance
-
+	uint16_t num_3dluts : 3;
+	uint16_t shared_3d_lut:1;
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/**
+ * struct dc_color_caps - color pipes capabilities for DPP and MPC hw blocks
+ * @dpp: color pipes caps for DPP
+ * @mpc: color pipes caps for MPC
+ */
 struct dc_color_caps {
 	struct dpp_color_caps dpp;
 	struct mpc_color_caps mpc;
+};
+
+struct dc_dmub_caps {
+	bool psr;
+	bool mclk_sw;
 };
 
 struct dc_caps {
@@ -196,12 +252,22 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
+	struct dc_dmub_caps dmub_caps;
 	bool dp_hpo;
-	bool hdmi_frl_pcon_support;
+	bool dp_hdmi21_pcon_support;
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 	uint32_t max_otg_num;
+	uint32_t max_cab_allocation_bytes;
+	uint32_t cache_line_size;
+	uint32_t cache_num_ways;
+	uint16_t subvp_fw_processing_delay_us;
+	uint16_t subvp_prefetch_end_to_mall_start_us;
+	uint8_t subvp_swath_height_margin_lines; // subvp start line must be aligned to 2 x swath height
+	uint16_t subvp_pstate_allow_width_us;
+	uint16_t subvp_vertical_int_margin_us;
+	bool seamless_odm;
 };
 
 struct dc_bug_wa {
@@ -222,7 +288,6 @@ struct dc_dcc_setting {
 	unsigned int max_compressed_blk_size;
 	unsigned int max_uncompressed_blk_size;
 	bool independent_64b_blks;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	//These bitfields to be used starting with DCN
 	struct {
 		uint32_t dcc_256_64_64 : 1;//available in ASICs before DCN (the worst compression case)
@@ -230,7 +295,6 @@ struct dc_dcc_setting {
 		uint32_t dcc_256_128_128 : 1;		//available starting with DCN
 		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN (the best compression case)
 	} dcc_controls;
-#endif
 };
 
 struct dc_surface_dcc_cap {
@@ -331,16 +395,20 @@ struct dc_config {
 	bool disable_dmcu;
 	bool enable_4to1MPC;
 	bool enable_windowed_mpo_odm;
-	bool allow_edp_hotplug_detection;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+	uint32_t allow_edp_hotplug_detection;
 	bool clamp_min_dcfclk;
-#endif
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
 	bool is_asymmetric_memory;
 	bool is_single_rank_dimm;
+	bool is_vmin_only_asic;
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
+	bool enable_mipi_converter_optimization;
+	bool use_default_clock_table;
+	bool force_bios_enable_lttpr;
+	uint8_t force_bios_fixed_vs;
+
 };
 
 enum visual_confirm {
@@ -349,7 +417,10 @@ enum visual_confirm {
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
 	VISUAL_CONFIRM_PSR = 5,
+	VISUAL_CONFIRM_SWAPCHAIN = 6,
+	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_SUBVP = 14,
 };
 
 enum dc_psr_power_opts {
@@ -359,15 +430,43 @@ enum dc_psr_power_opts {
 	psr_power_opt_ds_disable_allow = 0x100,
 };
 
+enum dml_hostvm_override_opts {
+	DML_HOSTVM_NO_OVERRIDE = 0x0,
+	DML_HOSTVM_OVERRIDE_FALSE = 0x1,
+	DML_HOSTVM_OVERRIDE_TRUE = 0x2,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
 	DCC_HALF_REQ_DISALBE = 2,
 };
 
+/**
+ * enum pipe_split_policy - Pipe split strategy supported by DCN
+ *
+ * This enum is used to define the pipe split policy supported by DCN. By
+ * default, DC favors MPC_SPLIT_DYNAMIC.
+ */
 enum pipe_split_policy {
+	/**
+	 * @MPC_SPLIT_DYNAMIC: DC will automatically decide how to split the
+	 * pipe in order to bring the best trade-off between performance and
+	 * power consumption. This is the recommended option.
+	 */
 	MPC_SPLIT_DYNAMIC = 0,
+
+	/**
+	 * @MPC_SPLIT_DYNAMIC: Avoid pipe split, which means that DC will not
+	 * try any sort of split optimization.
+	 */
 	MPC_SPLIT_AVOID = 1,
+
+	/**
+	 * @MPC_SPLIT_DYNAMIC: With this option, DC will only try to optimize
+	 * the pipe utilization when using a single display; if the user
+	 * connects to a second display, DC will avoid pipe split.
+	 */
 	MPC_SPLIT_AVOID_MULT_DISP = 2,
 };
 
@@ -389,14 +488,12 @@ enum dcn_pwr_state {
 	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_UNKNOWN,
 	DCN_ZSTATE_SUPPORT_ALLOW,
 	DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
-#endif
 /*
  * For any clocks that may differ per pipe
  * only the max is stored in this structure
@@ -414,16 +511,21 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
-#endif
+	int ref_dtbclk_khz;
+	bool fclk_p_state_change_support;
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
+	bool fclk_prev_p_state_change_support;
+	int num_ways;
+	bool fw_based_mclk_switching;
+	bool fw_based_mclk_switching_shut_down;
+	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
 	int max_supported_dispclk_khz;
@@ -520,9 +622,8 @@ union dpia_debug_options {
 		uint32_t force_non_lttpr:1; /* bit 1 */
 		uint32_t extend_aux_rd_interval:1; /* bit 2 */
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
-		uint32_t hpd_delay_in_ms:12; /* bits 4-15 */
-		uint32_t disable_force_tbt3_work_around:1; /* bit 16 */
-		uint32_t reserved:15;
+		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
+		uint32_t reserved:27;
 	} bits;
 	uint32_t raw;
 };
@@ -588,6 +689,7 @@ struct dc_bounding_box_overrides {
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
 	int dummy_clock_change_latency_ns;
+	int fclk_clock_change_latency_ns;
 	/* This forces a hard min on the DCFCLK we use
 	 * for DML.  Unlike the debug option for forcing
 	 * DCFCLK, this override affects watermark calculations
@@ -599,6 +701,14 @@ struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
 
+/**
+ * struct dc_debug_options - DC debug struct
+ *
+ * This struct provides a simple mechanism for developers to change some
+ * configurations, enable/disable features, and activate extra debug options.
+ * This can be very handy to narrow down whether some specific feature is
+ * causing an issue or not.
+ */
 struct dc_debug_options {
 	bool native422_support;
 	bool disable_dsc;
@@ -618,6 +728,11 @@ struct dc_debug_options {
 	bool disable_stutter;
 	bool use_max_lb;
 	enum dcc_option disable_dcc;
+
+	/**
+	 * @pipe_split_policy: Define which pipe split policy is used by the
+	 * display core.
+	 */
 	enum pipe_split_policy pipe_split_policy;
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
@@ -647,9 +762,7 @@ struct dc_debug_options {
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_mem_low_power;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool pstate_enabled;
-#endif
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
@@ -664,22 +777,18 @@ struct dc_debug_options {
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
 	uint32_t edid_read_retry_times;
-	bool remove_disconnect_edp;
 	unsigned int force_odm_combine; //bit vector based on otg inst
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+	unsigned int seamless_boot_odm_combine;
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
 	bool disable_z9_mpc;
-#endif
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_idle_power_optimizations;
 	unsigned int mall_size_override;
 	unsigned int mall_additional_timer_percent;
 	bool mall_error_as_fatal;
-#endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
@@ -688,9 +797,7 @@ struct dc_debug_options {
 	 * watermarks are not affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	int dwb_fi_phase;
-#endif
 	bool disable_timing_sync;
 	bool cm_in_bypass;
 	int force_clock_mode;/*every mode change.*/
@@ -699,8 +806,6 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
-	bool disable_dsc_edp;
-	unsigned int  force_dsc_edp_policy;
 	bool enable_dram_clock_change_one_display_vactive;
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
@@ -715,22 +820,40 @@ struct dc_debug_options {
 
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
-	bool optimize_edp_link_rate; /* eDP ILR */
+	bool disable_fams;
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
 	enum det_size crb_alloc_policy;
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool enable_z9_disable_interface;
-	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
-#endif
-	bool apply_vendor_specific_lttpr_wa;
+	bool disable_fixed_vs_aux_timeout_wa;
+	bool force_disable_subvp;
+	bool force_subvp_mclk_switch;
+	bool allow_sw_cursor_fallback;
+	unsigned int force_subvp_num_ways;
+	unsigned int force_mall_ss_num_ways;
+	bool alloc_extra_way_for_cursor;
+	bool force_usr_allow;
+	/* uses value at boot and disables switch */
+	bool disable_dtb_ref_clk_switch;
+	uint32_t fixed_vs_aux_delay_config_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
+	uint32_t mst_start_top_delay;
 	uint8_t psr_power_use_phy_fsm;
+	enum dml_hostvm_override_opts dml_hostvm_override;
+	bool dml_disallow_alternate_prefetch_modes;
+	bool use_legacy_soc_bb_mechanism;
+	bool exit_idle_opt_for_cursor_updates;
+	bool enable_single_display_2to1_odm_policy;
+	bool enable_double_buffered_dsc_pg_support;
+	bool enable_dp_dig_pixel_rate_div_policy;
+	enum lttpr_mode lttpr_mode_override;
+	unsigned int dsc_delay_factor_wa_x1000;
+	unsigned int min_prefetch_in_strobe_ns;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -759,11 +882,9 @@ struct dc {
 	/* Inputs into BW and WM calculations. */
 	struct bw_calcs_dceip *bw_dceip;
 	struct bw_calcs_vbios *bw_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 	struct display_mode_lib dml;
-#endif
 
 	/* HW functions */
 	struct hw_sequencer_funcs hwss;
@@ -772,12 +893,8 @@ struct dc {
 	/* Require to optimize clocks and bandwidth for added/removed planes */
 	bool optimized_required;
 	bool wm_optimized_required;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool idle_optimizations_allowed;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool enable_c20_dtm_b0;
-#endif
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
 
@@ -789,6 +906,20 @@ struct dc {
 
 	const char *build_id;
 	struct vm_helper *vm_helper;
+
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
+
+	/* Scratch memory */
+	struct {
+		struct {
+			/*
+			 * For matching clock_limits table in driver with table
+			 * from PMFW.
+			 */
+			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+		} update_bw_bounding_box;
+	} scratch;
 };
 
 enum frame_buffer_mode {
@@ -827,9 +958,16 @@ struct dc_init_data {
 	uint64_t log_mask;
 
 	struct dpcd_vendor_signature vendor_signature;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool force_smu_not_present;
-#endif
+	/*
+	 * IP offset for run time initializaion of register addresses
+	 *
+	 * DCN3.5+ will fail dc_create() if these fields are null for them. They are
+	 * applicable starting with DCN32/321 and are not used for ASICs upstreamed
+	 * before them.
+	 */
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 struct dc_callback_init {
@@ -985,6 +1123,7 @@ union surface_update_flags {
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
 		uint32_t lut_3d:1;
+		uint32_t tmz_changed:1;
 		uint32_t full_update:1;
 	} bits;
 
@@ -1022,15 +1161,14 @@ struct dc_plane_state {
 	struct dc_transfer_func *in_shaper_func;
 	struct dc_transfer_func *blend_tf;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dc_transfer_func *gamcor_tf;
-#endif
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
 
 	bool is_tiling_rotated;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool global_alpha;
 	int  global_alpha_value;
 	bool visible;
@@ -1049,9 +1187,14 @@ struct dc_plane_state {
 	/* HACK: Workaround for forcing full reprogramming under some conditions */
 	bool force_full_update;
 
+	bool is_phantom; // TODO: Change mall_stream_config into mall_plane_config instead
+
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
 	struct kref refcount;
+	struct tg_color visual_confirm_color;
+
+	bool is_statically_allocated;
 };
 
 struct dc_plane_info {
@@ -1065,6 +1208,7 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool global_alpha;
 	int  global_alpha_value;
 	bool input_csc_enabled;
@@ -1121,18 +1265,6 @@ struct dc_transfer_func *dc_create_transfer_func(void);
 struct dc_3dlut *dc_create_3dlut_func(void);
 void dc_3dlut_func_release(struct dc_3dlut *lut);
 void dc_3dlut_func_retain(struct dc_3dlut *lut);
-/*
- * This structure holds a surface address.  There could be multiple addresses
- * in cases such as Stereo 3D, Planar YUV, etc.  Other per-flip attributes such
- * as frame durations and DCC format can also be set.
- */
-struct dc_flip_addrs {
-	struct dc_plane_address address;
-	unsigned int flip_timestamp_in_us;
-	bool flip_immediate;
-	/* TODO: add flip duration for FreeSync */
-	bool triplebuffer_flips;
-};
 
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
@@ -1173,13 +1305,11 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,
 		struct dc_stream_state *stream,
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
-#endif
 
 void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
@@ -1249,6 +1379,7 @@ struct dpcd_caps {
 	bool panel_mode_edp;
 	bool dpcd_display_control_capable;
 	bool ext_receiver_cap_field_present;
+	bool set_power_state_capable_edp;
 	bool dynamic_backlight_capable_edp;
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
@@ -1310,10 +1441,8 @@ struct hdcp_caps {
 
 #include "dc_link.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
-#endif
 /*******************************************************************************
  * Sink Interfaces - A sink corresponds to a display output device
  ******************************************************************************/
@@ -1437,23 +1566,16 @@ bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 
 bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
 				struct dc_cursor_attributes *cursor_attr);
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow);
 
-/*
- * blank all streams, and set min and max memory clock to
- * lowest and highest DPM level, respectively
- */
+/* set min and max memory clock to lowest and highest DPM level, respectively */
 void dc_unlock_memory_clock_frequency(struct dc *dc);
 
-/*
- * set min memory clock to the min required for current mode,
- * max to maxDPM, and unblank streams
- */
+/* set min memory clock to the min required for current mode, max to maxDPM */
 void dc_lock_memory_clock_frequency(struct dc *dc);
 
 /* set soft max for memclk, to be used for AC/DC switching clock limitations */
@@ -1462,13 +1584,12 @@ void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable);
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc);
 
-#endif
+/* disables fw based mclk switch */
+void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
-#endif
 
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
@@ -1492,6 +1613,9 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
+
+void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
+				uint32_t hpd_int_enable);
 
 /*******************************************************************************
  * DSC Interfaces

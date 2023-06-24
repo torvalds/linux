@@ -30,10 +30,6 @@
 #include <linux/usb/ezusb.h>
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
 
-#ifndef CMSPAR
-#define CMSPAR 0
-#endif
-
 /*
  * Version Information
  */
@@ -86,7 +82,8 @@ static void whiteheat_close(struct usb_serial_port *port);
 static void whiteheat_get_serial(struct tty_struct *tty,
 			struct serial_struct *ss);
 static void whiteheat_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old);
+				  struct usb_serial_port *port,
+				  const struct ktermios *old_termios);
 static int  whiteheat_tiocmget(struct tty_struct *tty);
 static int  whiteheat_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
@@ -446,7 +443,8 @@ static void whiteheat_get_serial(struct tty_struct *tty, struct serial_struct *s
 
 
 static void whiteheat_set_termios(struct tty_struct *tty,
-	struct usb_serial_port *port, struct ktermios *old_termios)
+				  struct usb_serial_port *port,
+				  const struct ktermios *old_termios)
 {
 	firm_setup_port(tty);
 }

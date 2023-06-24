@@ -201,7 +201,7 @@ void __show_regs(struct pt_regs *regs)
 void show_regs(struct pt_regs * regs)
 {
 	__show_regs(regs);
-	dump_stack();
+	dump_backtrace(regs, NULL, KERN_DEFAULT);
 }
 
 ATOMIC_NOTIFIER_HEAD(thread_notify_head);
@@ -232,15 +232,13 @@ void flush_thread(void)
 	thread_notify(THREAD_NOTIFY_FLUSH, thread);
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-}
-
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
-int copy_thread(unsigned long clone_flags, unsigned long stack_start,
-		unsigned long stk_sz, struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long stack_start = args->stack;
+	unsigned long tls = args->tls;
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -256,15 +254,15 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	thread->cpu_domain = get_domain();
 #endif
 
-	if (likely(!(p->flags & (PF_KTHREAD | PF_IO_WORKER)))) {
+	if (likely(!args->fn)) {
 		*childregs = *current_pt_regs();
 		childregs->ARM_r0 = 0;
 		if (stack_start)
 			childregs->ARM_sp = stack_start;
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
-		thread->cpu_context.r4 = stk_sz;
-		thread->cpu_context.r5 = stack_start;
+		thread->cpu_context.r4 = (unsigned long)args->fn_arg;
+		thread->cpu_context.r5 = (unsigned long)args->fn;
 		childregs->ARM_cpsr = SVC_MODE;
 	}
 	thread->cpu_context.pc = (unsigned long)ret_from_fork;
@@ -373,7 +371,7 @@ static unsigned long sigpage_addr(const struct mm_struct *mm,
 
 	slots = ((last - first) >> PAGE_SHIFT) + 1;
 
-	offset = get_random_int() % slots;
+	offset = prandom_u32_max(slots);
 
 	addr = first + (offset << PAGE_SHIFT);
 

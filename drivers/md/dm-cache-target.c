@@ -2775,7 +2775,7 @@ static int load_mapping(void *context, dm_oblock_t oblock, dm_cblock_t cblock,
 
 /*
  * The discard block size in the on disk metadata is not
- * neccessarily the same as we're currently using.  So we have to
+ * necessarily the same as we're currently using.  So we have to
  * be careful to only set the discarded attribute if we know it
  * covers a complete block of the new size.
  */
@@ -3329,13 +3329,6 @@ static int cache_iterate_devices(struct dm_target *ti,
 	return r;
 }
 
-static bool origin_dev_supports_discard(struct block_device *origin_bdev)
-{
-	struct request_queue *q = bdev_get_queue(origin_bdev);
-
-	return blk_queue_discard(q);
-}
-
 /*
  * If discard_passdown was enabled verify that the origin device
  * supports discards.  Disable discard_passdown if not.
@@ -3349,7 +3342,7 @@ static void disable_passdown_if_not_supported(struct cache *cache)
 	if (!cache->features.discard_passdown)
 		return;
 
-	if (!origin_dev_supports_discard(origin_bdev))
+	if (!bdev_max_discard_sectors(origin_bdev))
 		reason = "discard unsupported";
 
 	else if (origin_limits->max_discard_sectors < cache->sectors_per_block)

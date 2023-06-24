@@ -20,8 +20,7 @@
 
 #include <linux/omap-dma.h>
 
-#include <mach/hardware.h>
-
+#include <linux/soc/ti/omap1-soc.h>
 #include "omapfb.h"
 #include "lcdc.h"
 
@@ -669,7 +668,7 @@ static int omapfb_set_par(struct fb_info *fbi)
 	return r;
 }
 
-int omapfb_update_window_async(struct fb_info *fbi,
+static int omapfb_update_window_async(struct fb_info *fbi,
 				struct omapfb_update_window *win,
 				void (*callback)(void *),
 				void *callback_data)
@@ -715,7 +714,6 @@ int omapfb_update_window_async(struct fb_info *fbi,
 
 	return fbdev->ctrl->update_window(fbi, win, callback, callback_data);
 }
-EXPORT_SYMBOL(omapfb_update_window_async);
 
 static int omapfb_update_win(struct fb_info *fbi,
 				struct omapfb_update_window *win)
@@ -1624,7 +1622,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	init_state = 0;
 
-	if (pdev->num_resources != 0) {
+	if (pdev->num_resources != 2) {
 		dev_err(&pdev->dev, "probed for an unknown device\n");
 		r = -ENODEV;
 		goto cleanup;
@@ -1643,6 +1641,18 @@ static int omapfb_do_probe(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
+	fbdev->int_irq = platform_get_irq(pdev, 0);
+	if (fbdev->int_irq < 0) {
+		r = ENXIO;
+		goto cleanup;
+	}
+
+	fbdev->ext_irq = platform_get_irq(pdev, 1);
+	if (fbdev->ext_irq < 0) {
+		r = ENXIO;
+		goto cleanup;
+	}
+
 	init_state++;
 
 	fbdev->dev = &pdev->dev;

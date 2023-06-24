@@ -384,7 +384,7 @@ struct el_apecs_procdata
 		}						\
 	} while (0)
 
-__EXTERN_INLINE unsigned int apecs_ioread8(const void __iomem *xaddr)
+__EXTERN_INLINE u8 apecs_ioread8(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	unsigned long result, base_and_type;
@@ -420,7 +420,7 @@ __EXTERN_INLINE void apecs_iowrite8(u8 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + base_and_type) = w;
 }
 
-__EXTERN_INLINE unsigned int apecs_ioread16(const void __iomem *xaddr)
+__EXTERN_INLINE u16 apecs_ioread16(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	unsigned long result, base_and_type;
@@ -456,7 +456,7 @@ __EXTERN_INLINE void apecs_iowrite16(u16 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + base_and_type) = w;
 }
 
-__EXTERN_INLINE unsigned int apecs_ioread32(const void __iomem *xaddr)
+__EXTERN_INLINE u32 apecs_ioread32(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	if (addr < APECS_DENSE_MEM)
@@ -470,6 +470,22 @@ __EXTERN_INLINE void apecs_iowrite32(u32 b, void __iomem *xaddr)
 	if (addr < APECS_DENSE_MEM)
 		addr = ((addr - APECS_IO) << 5) + APECS_IO + 0x18;
 	*(vuip)addr = b;
+}
+
+__EXTERN_INLINE u64 apecs_ioread64(const void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long) xaddr;
+	if (addr < APECS_DENSE_MEM)
+		addr = ((addr - APECS_IO) << 5) + APECS_IO + 0x18;
+	return *(vulp)addr;
+}
+
+__EXTERN_INLINE void apecs_iowrite64(u64 b, void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long) xaddr;
+	if (addr < APECS_DENSE_MEM)
+		addr = ((addr - APECS_IO) << 5) + APECS_IO + 0x18;
+	*(vulp)addr = b;
 }
 
 __EXTERN_INLINE void __iomem *apecs_ioportmap(unsigned long addr)

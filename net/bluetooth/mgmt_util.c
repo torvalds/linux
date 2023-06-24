@@ -297,7 +297,7 @@ struct mgmt_pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 	if (!cmd)
 		return NULL;
 
-	list_add(&cmd->list, &hdev->mgmt_pending);
+	list_add_tail(&cmd->list, &hdev->mgmt_pending);
 
 	return cmd;
 }
@@ -313,4 +313,78 @@ void mgmt_pending_remove(struct mgmt_pending_cmd *cmd)
 {
 	list_del(&cmd->list);
 	mgmt_pending_free(cmd);
+}
+
+void mgmt_mesh_foreach(struct hci_dev *hdev,
+		       void (*cb)(struct mgmt_mesh_tx *mesh_tx, void *data),
+		       void *data, struct sock *sk)
+{
+	struct mgmt_mesh_tx *mesh_tx, *tmp;
+
+	list_for_each_entry_safe(mesh_tx, tmp, &hdev->mgmt_pending, list) {
+		if (!sk || mesh_tx->sk == sk)
+			cb(mesh_tx, data);
+	}
+}
+
+struct mgmt_mesh_tx *mgmt_mesh_next(struct hci_dev *hdev, struct sock *sk)
+{
+	struct mgmt_mesh_tx *mesh_tx;
+
+	if (list_empty(&hdev->mesh_pending))
+		return NULL;
+
+	list_for_each_entry(mesh_tx, &hdev->mesh_pending, list) {
+		if (!sk || mesh_tx->sk == sk)
+			return mesh_tx;
+	}
+
+	return NULL;
+}
+
+struct mgmt_mesh_tx *mgmt_mesh_find(struct hci_dev *hdev, u8 handle)
+{
+	struct mgmt_mesh_tx *mesh_tx;
+
+	if (list_empty(&hdev->mesh_pending))
+		return NULL;
+
+	list_for_each_entry(mesh_tx, &hdev->mesh_pending, list) {
+		if (mesh_tx->handle == handle)
+			return mesh_tx;
+	}
+
+	return NULL;
+}
+
+struct mgmt_mesh_tx *mgmt_mesh_add(struct sock *sk, struct hci_dev *hdev,
+				   void *data, u16 len)
+{
+	struct mgmt_mesh_tx *mesh_tx;
+
+	mesh_tx = kzalloc(sizeof(*mesh_tx), GFP_KERNEL);
+	if (!mesh_tx)
+		return NULL;
+
+	hdev->mesh_send_ref++;
+	if (!hdev->mesh_send_ref)
+		hdev->mesh_send_ref++;
+
+	mesh_tx->handle = hdev->mesh_send_ref;
+	mesh_tx->index = hdev->id;
+	memcpy(mesh_tx->param, data, len);
+	mesh_tx->param_len = len;
+	mesh_tx->sk = sk;
+	sock_hold(sk);
+
+	list_add_tail(&mesh_tx->list, &hdev->mesh_pending);
+
+	return mesh_tx;
+}
+
+void mgmt_mesh_remove(struct mgmt_mesh_tx *mesh_tx)
+{
+	list_del(&mesh_tx->list);
+	sock_put(mesh_tx->sk);
+	kfree(mesh_tx);
 }

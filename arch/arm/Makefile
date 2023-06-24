@@ -22,6 +22,9 @@ GZFLAGS		:=-9
 # Never generate .eh_frame
 KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
 
+# Disable FDPIC ABI
+KBUILD_CFLAGS	+= $(call cc-option,-mno-fdpic)
+
 # This should work on most of the modern platforms
 KBUILD_DEFCONFIG := multi_v7_defconfig
 
@@ -134,9 +137,6 @@ KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) $(arch-y) $(tune-y) -include asm/uni
 
 CHECKFLAGS	+= -D__arm__
 
-#Default value
-head-y		:= arch/arm/kernel/head$(MMUEXT).o
-
 # Text offset. This list is sorted numerically by address in order to
 # provide a means to avoid/resolve conflicts in multi-arch kernels.
 # Note: the 32kB below this value is reserved for use by the kernel
@@ -179,7 +179,7 @@ machine-$(CONFIG_ARCH_FOOTBRIDGE)	+= footbridge
 machine-$(CONFIG_ARCH_GEMINI)		+= gemini
 machine-$(CONFIG_ARCH_HIGHBANK)		+= highbank
 machine-$(CONFIG_ARCH_HISI)		+= hisi
-machine-$(CONFIG_ARCH_INTEGRATOR)	+= integrator
+machine-$(CONFIG_ARCH_HPE)		+= hpe
 machine-$(CONFIG_ARCH_IOP32X)		+= iop32x
 machine-$(CONFIG_ARCH_IXP4XX)		+= ixp4xx
 machine-$(CONFIG_ARCH_KEYSTONE)		+= keystone
@@ -187,7 +187,6 @@ machine-$(CONFIG_ARCH_LPC18XX)		+= lpc18xx
 machine-$(CONFIG_ARCH_LPC32XX)		+= lpc32xx
 machine-$(CONFIG_ARCH_MESON)		+= meson
 machine-$(CONFIG_ARCH_MMP)		+= mmp
-machine-$(CONFIG_ARCH_MPS2)		+= vexpress
 machine-$(CONFIG_ARCH_MOXART)		+= moxart
 machine-$(CONFIG_ARCH_MV78XX0)		+= mv78xx0
 machine-$(CONFIG_ARCH_MVEBU)		+= mvebu
@@ -207,7 +206,6 @@ machine-$(CONFIG_ARCH_PXA)		+= pxa
 machine-$(CONFIG_ARCH_QCOM)		+= qcom
 machine-$(CONFIG_ARCH_RDA)		+= rda
 machine-$(CONFIG_ARCH_REALTEK)		+= realtek
-machine-$(CONFIG_ARCH_REALVIEW)		+= realview
 machine-$(CONFIG_ARCH_ROCKCHIP)		+= rockchip
 machine-$(CONFIG_ARCH_RPC)		+= rpc
 machine-$(CONFIG_PLAT_SAMSUNG)		+= s3c
@@ -217,52 +215,33 @@ machine-$(CONFIG_ARCH_RENESAS)	 	+= shmobile
 machine-$(CONFIG_ARCH_INTEL_SOCFPGA)	+= socfpga
 machine-$(CONFIG_ARCH_STI)		+= sti
 machine-$(CONFIG_ARCH_STM32)		+= stm32
+machine-$(CONFIG_ARCH_SUNPLUS)		+= sunplus
 machine-$(CONFIG_ARCH_SUNXI)		+= sunxi
 machine-$(CONFIG_ARCH_TEGRA)		+= tegra
 machine-$(CONFIG_ARCH_U8500)		+= ux500
-machine-$(CONFIG_ARCH_VERSATILE)	+= versatile
-machine-$(CONFIG_ARCH_VEXPRESS)		+= vexpress
 machine-$(CONFIG_ARCH_VT8500)		+= vt8500
 machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
+machine-$(CONFIG_PLAT_VERSATILE)	+= versatile
 machine-$(CONFIG_PLAT_SPEAR)		+= spear
 
-# Platform directory name.  This list is sorted alphanumerically
-# by CONFIG_* macro name.
-plat-$(CONFIG_ARCH_OMAP)	+= omap
-plat-$(CONFIG_PLAT_ORION)	+= orion
-plat-$(CONFIG_PLAT_PXA)		+= pxa
-plat-$(CONFIG_PLAT_VERSATILE)	+= versatile
+# legacy platforms provide their own mach/*.h headers globally,
+# these three are mutually exclusive
+machdirs-$(CONFIG_ARCH_FOOTBRIDGE)	+= arch/arm/mach-footbridge
+machdirs-$(CONFIG_ARCH_RPC)		+= arch/arm/mach-rpc
+machdirs-$(CONFIG_ARCH_SA1100)		+= arch/arm/mach-sa1100
+KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%/include,$(machdirs-y))
 
 # The byte offset of the kernel image in RAM from the start of RAM.
 TEXT_OFFSET := $(textofs-y)
 
-# The first directory contains additional information for the boot setup code
-ifneq ($(machine-y),)
-MACHINE  := arch/arm/mach-$(word 1,$(machine-y))/
-else
-MACHINE  :=
-endif
-ifeq ($(CONFIG_ARCH_MULTIPLATFORM),y)
-MACHINE  :=
-endif
-
-machdirs := $(patsubst %,arch/arm/mach-%/,$(machine-y))
-platdirs := $(patsubst %,arch/arm/plat-%/,$(sort $(plat-y)))
-
-ifneq ($(CONFIG_ARCH_MULTIPLATFORM),y)
-ifneq ($(CONFIG_ARM_SINGLE_ARMV7M),y)
-KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
-endif
-endif
-
 export	TEXT_OFFSET GZFLAGS MMUEXT
 
 # If we have a machine-specific directory, then include it in the build.
-core-y				+= $(machdirs) $(platdirs)
-
+core-y				+= $(patsubst %,arch/arm/mach-%/,$(machine-y))
 # For cleaning
-core-				+= $(patsubst %,arch/arm/mach-%/, $(machine-))
-core-				+= $(patsubst %,arch/arm/plat-%/, $(plat-))
+core-				+= $(patsubst %,arch/arm/mach-%/,$(machine-))
+
+core-$(CONFIG_PLAT_ORION)	+= arch/arm/plat-orion/
 
 libs-y				:= arch/arm/lib/ $(libs-y)
 
@@ -315,12 +294,12 @@ bootpImage uImage: zImage
 zImage: Image
 
 $(BOOT_TARGETS): vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 	@$(kecho) '  Kernel: $(boot)/$@ is ready'
 
+$(INSTALL_TARGETS): KBUILD_IMAGE = $(boot)/$(patsubst %install,%Image,$@)
 $(INSTALL_TARGETS):
-	$(CONFIG_SHELL) $(srctree)/$(boot)/install.sh "$(KERNELRELEASE)" \
-	$(boot)/$(patsubst %install,%Image,$@) System.map "$(INSTALL_PATH)"
+	$(call cmd,install)
 
 PHONY += vdso_install
 vdso_install:
@@ -329,7 +308,7 @@ ifeq ($(CONFIG_VDSO),y)
 endif
 
 # My testing targets (bypasses dependencies)
-bp:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/bootpImage
+bp:;	$(Q)$(MAKE) $(build)=$(boot) $(boot)/bootpImage
 
 
 define archhelp

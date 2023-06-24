@@ -12,9 +12,11 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <asm/unaligned.h>
 
@@ -53,7 +55,7 @@ struct max31865_data {
 	struct mutex lock;
 	bool filter_50hz;
 	bool three_wire;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int max31865_read(struct max31865_data *data, u8 reg,
@@ -305,7 +307,7 @@ static int max31865_probe(struct spi_device *spi)
 	indio_dev->channels = max31865_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max31865_channels);
 
-	if (of_property_read_bool(spi->dev.of_node, "maxim,3-wire")) {
+	if (device_property_read_bool(&spi->dev, "maxim,3-wire")) {
 		/* select 3 wire */
 		data->three_wire = 1;
 	} else {

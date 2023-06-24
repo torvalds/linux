@@ -41,8 +41,8 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	/* if setting by freq convert to channel */
 	if (fwrq->e == 1) {
-		if ((fwrq->m >= (int) 2.412e8 &&
-		     fwrq->m <= (int) 2.487e8)) {
+		if ((fwrq->m >= (int)2.412e8 &&
+		     fwrq->m <= (int)2.487e8)) {
 			int f = fwrq->m / 100000;
 			int c = 0;
 
@@ -364,8 +364,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 		b40M = 1;
 		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
 		bandwidth = (enum ht_channel_width)ieee->pHTInfo->bCurBW40MHz;
-		RT_TRACE(COMP_DBG, "Scan in 40M, force to 20M first:%d, %d\n",
-			 chan_offset, bandwidth);
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20,
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}
@@ -373,7 +371,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 	rtllib_start_scan_syncro(ieee, 0);
 
 	if (b40M) {
-		RT_TRACE(COMP_DBG, "Scan in 20M, back to 40M\n");
 		if (chan_offset == HT_EXTCHNL_OFFSET_UPPER)
 			ieee->set_chan(ieee->dev, chan + 2);
 		else if (chan_offset == HT_EXTCHNL_OFFSET_LOWER)
@@ -442,7 +439,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 			union iwreq_data *wrqu, char *extra)
 {
 
-	int ret = 0, len, i;
+	int ret = 0, len;
 	short proto_started;
 	unsigned long flags;
 
@@ -456,13 +453,6 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ret = -1;
 		goto out;
-	}
-
-	for (i = 0; i < len; i++) {
-		if (extra[i] < 0) {
-			ret = -1;
-			goto out;
-		}
 	}
 
 	if (proto_started)
@@ -571,14 +561,11 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 	mutex_lock(&ieee->wx_mutex);
 
 	if (wrqu->power.disabled) {
-		RT_TRACE(COMP_DBG, "===>%s(): power disable\n", __func__);
 		ieee->ps = RTLLIB_PS_DISABLED;
 		goto exit;
 	}
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
 		ieee->ps_timeout = wrqu->power.value / 1000;
-		RT_TRACE(COMP_DBG, "===>%s():ps_timeout is %d\n", __func__,
-			 ieee->ps_timeout);
 	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD)

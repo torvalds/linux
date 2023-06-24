@@ -69,7 +69,8 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	if (ret < 0)
 		goto error_2;
 
-	ret = is_hash_blacklisted(sig->digest, sig->digest_size, "tbs");
+	ret = is_hash_blacklisted(sig->digest, sig->digest_size,
+				  BLACKLIST_HASH_X509_TBS);
 	if (ret == -EKEYREJECTED) {
 		pr_err("Cert %*phN is blacklisted\n",
 		       sig->digest_size, sig->digest);
@@ -243,9 +244,15 @@ static struct asymmetric_key_parser x509_key_parser = {
 /*
  * Module stuff
  */
+extern int __init certs_selftest(void);
 static int __init x509_key_init(void)
 {
-	return register_asymmetric_key_parser(&x509_key_parser);
+	int ret;
+
+	ret = register_asymmetric_key_parser(&x509_key_parser);
+	if (ret < 0)
+		return ret;
+	return fips_signature_selftest();
 }
 
 static void __exit x509_key_exit(void)

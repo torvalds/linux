@@ -64,6 +64,7 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 		device_path[sizeof(P_tmpdir "/binderfs_XXXXXX/") + BINDERFS_MAX_NAME];
 	static const char * const binder_features[] = {
 		"oneway_spam_detection",
+		"extended_error",
 	};
 
 	change_mountns(_metadata);
@@ -412,7 +413,8 @@ TEST(binderfs_stress)
 
 		ret = mount(NULL, binderfs_mntpt, "binder", 0, 0);
 		ASSERT_EQ(ret, 0) {
-			TH_LOG("%s - Failed to mount binderfs", strerror(errno));
+			TH_LOG("%s - Failed to mount binderfs, check if CONFIG_ANDROID_BINDERFS is enabled in the running kernel",
+				strerror(errno));
 		}
 
 		for (int i = 0; i < ARRAY_SIZE(fds); i++) {

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/test-component.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Test Component Device Tree Bindings
+title: Test Component
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>

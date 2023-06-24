@@ -51,9 +51,9 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -429,7 +429,7 @@ static netdev_tx_t sun4ican_start_xmit(struct sk_buff *skb, struct net_device *d
 	canid_t id;
 	int i;
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	netif_stop_queue(dev);
@@ -516,8 +516,6 @@ static void sun4i_can_rx(struct net_device *dev)
 	sun4i_can_write_cmdreg(priv, SUN4I_CMD_RELEASE_RBUF);
 
 	netif_rx(skb);
-
-	can_led_event(dev, CAN_LED_EVENT_RX);
 }
 
 static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
@@ -537,11 +535,6 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 	errc = readl(priv->base + SUN4I_REG_ERRC_ADDR);
 	rxerr = (errc >> 16) & 0xFF;
 	txerr = errc & 0xFF;
-
-	if (skb) {
-		cf->data[6] = txerr;
-		cf->data[7] = rxerr;
-	}
 
 	if (isrc & SUN4I_INT_DATA_OR) {
 		/* data overrun interrupt */
@@ -572,6 +565,11 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 			state = CAN_STATE_ERROR_WARNING;
 		else
 			state = CAN_STATE_ERROR_ACTIVE;
+	}
+	if (skb && state != CAN_STATE_BUS_OFF) {
+		cf->can_id |= CAN_ERR_CNT;
+		cf->data[6] = txerr;
+		cf->data[7] = rxerr;
 	}
 	if (isrc & SUN4I_INT_BUS_ERR) {
 		/* bus error interrupt */
@@ -664,7 +662,6 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 			stats->tx_bytes += can_get_echo_skb(dev, 0, NULL);
 			stats->tx_packets++;
 			netif_wake_queue(dev);
-			can_led_event(dev, CAN_LED_EVENT_TX);
 		}
 		if ((isrc & SUN4I_INT_RBUF_VLD) &&
 		    !(isrc & SUN4I_INT_DATA_OR)) {
@@ -729,7 +726,6 @@ static int sun4ican_open(struct net_device *dev)
 		goto exit_can_start;
 	}
 
-	can_led_event(dev, CAN_LED_EVENT_OPEN);
 	netif_start_queue(dev);
 
 	return 0;
@@ -756,7 +752,6 @@ static int sun4ican_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 	close_candev(dev);
-	can_led_event(dev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -765,6 +760,10 @@ static const struct net_device_ops sun4ican_netdev_ops = {
 	.ndo_open = sun4ican_open,
 	.ndo_stop = sun4ican_close,
 	.ndo_start_xmit = sun4ican_start_xmit,
+};
+
+static const struct ethtool_ops sun4ican_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static const struct sun4ican_quirks sun4ican_quirks_a10 = {
@@ -857,6 +856,7 @@ static int sun4ican_probe(struct platform_device *pdev)
 	}
 
 	dev->netdev_ops = &sun4ican_netdev_ops;
+	dev->ethtool_ops = &sun4ican_ethtool_ops;
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
 
@@ -883,7 +883,6 @@ static int sun4ican_probe(struct platform_device *pdev)
 			DRV_NAME, err);
 		goto exit_free;
 	}
-	devm_can_led_init(dev);
 
 	dev_info(&pdev->dev, "device registered (base=%p, irq=%d)\n",
 		 priv->base, dev->irq);

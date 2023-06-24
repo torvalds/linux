@@ -14,6 +14,7 @@
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/sound/microchip,pdmc.h>
 
 / {
 	model = "Microchip SAMA7G5-EK";
@@ -44,13 +45,13 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
 
-		bp1 {
+		button {
 			label = "PB_USER";
 			gpios = <&pioA PIN_PA12 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;
@@ -243,8 +244,8 @@
 			regulators {
 				vdd_3v3: VDD_IO {
 					regulator-name = "VDD_IO";
-					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <3700000>;
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
 					regulator-initial-mode = <2>;
 					regulator-allowed-modes = <2>, <4>;
 					regulator-always-on;
@@ -263,8 +264,8 @@
 
 				vddioddr: VDD_DDR {
 					regulator-name = "VDD_DDR";
-					regulator-min-microvolt = <1300000>;
-					regulator-max-microvolt = <1450000>;
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
 					regulator-initial-mode = <2>;
 					regulator-allowed-modes = <2>, <4>;
 					regulator-always-on;
@@ -284,8 +285,8 @@
 
 				vddcore: VDD_CORE {
 					regulator-name = "VDD_CORE";
-					regulator-min-microvolt = <1100000>;
-					regulator-max-microvolt = <1850000>;
+					regulator-min-microvolt = <1150000>;
+					regulator-max-microvolt = <1150000>;
 					regulator-initial-mode = <2>;
 					regulator-allowed-modes = <2>, <4>;
 					regulator-always-on;
@@ -305,7 +306,7 @@
 				vddcpu: VDD_OTHER {
 					regulator-name = "VDD_OTHER";
 					regulator-min-microvolt = <1050000>;
-					regulator-max-microvolt = <1850000>;
+					regulator-max-microvolt = <1250000>;
 					regulator-initial-mode = <2>;
 					regulator-allowed-modes = <2>, <4>;
 					regulator-ramp-delay = <3125>;
@@ -325,8 +326,8 @@
 
 				vldo1: LDO1 {
 					regulator-name = "LDO1";
-					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <3700000>;
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
 
 					regulator-state-standby {
@@ -456,7 +457,7 @@
 		     &pinctrl_gmac1_mdio_default
 		     &pinctrl_gmac1_phy_irq>;
 	phy-mode = "rmii";
-	status = "okay";
+	status = "okay"; /* Conflict with pdmc0. */
 
 	ethernet-phy@0 {
 		reg = <0x0>;
@@ -468,6 +469,17 @@
 &i2s0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2s0_default>;
+};
+
+&pdmc0 {
+	#sound-dai-cells = <0>;
+	microchip,mic-pos = <MCHP_PDMC_DS0 MCHP_PDMC_CLK_NEGATIVE>, /* MIC 1 */
+			    <MCHP_PDMC_DS1 MCHP_PDMC_CLK_NEGATIVE>, /* MIC 2 */
+			    <MCHP_PDMC_DS0 MCHP_PDMC_CLK_POSITIVE>, /* MIC 3 */
+			    <MCHP_PDMC_DS1 MCHP_PDMC_CLK_POSITIVE>; /* MIC 4 */
+	status = "disabled"; /* Conflict with gmac1. */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pdmc0_default>;
 };
 
 &pioA {
@@ -637,6 +649,13 @@
 			 <PIN_PB4__FLEXCOM11_IO1>,
 			 <PIN_PB5__FLEXCOM11_IO2>;
 		bias-disable;
+	};
+
+	pinctrl_pdmc0_default: pdmc0_default {
+		pinmux = <PIN_PD23__PDMC0_DS0>,
+			 <PIN_PD24__PDMC0_DS1>,
+			 <PIN_PD22__PDMC0_CLK>;
+		bias_disable;
 	};
 
 	pinctrl_qspi: qspi {

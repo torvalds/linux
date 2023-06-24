@@ -1057,7 +1057,7 @@ static int ath10k_sdio_mbox_proc_pending_irqs(struct ath10k *ar,
 
 out:
 	/* An optimization to bypass reading the IRQ status registers
-	 * unecessarily which can re-wake the target, if upper layers
+	 * unnecessarily which can re-wake the target, if upper layers
 	 * determine that we are in a low-throughput mode, we can rely on
 	 * taking another interrupt rather than re-checking the status
 	 * registers which can re-wake the target.
@@ -2531,8 +2531,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		return -ENOMEM;
 	}
 
-	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_sdio_napi_poll,
-		       ATH10K_NAPI_BUDGET);
+	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_sdio_napi_poll);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "sdio new func %d vendor 0x%x device 0x%x block 0x%x/0x%x\n",

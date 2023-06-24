@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra210-i2s.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra210 I2S Controller Device Tree Bindings
+title: Tegra210 I2S Controller
 
 description: |
   The Inter-IC Sound (I2S) controller implements full-duplex,

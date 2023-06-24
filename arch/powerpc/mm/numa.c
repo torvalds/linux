@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <asm/cputhreads.h>
 #include <asm/sparsemem.h>
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/topology.h>
 #include <asm/firmware.h>
@@ -1161,6 +1160,9 @@ void __init mem_topology_setup(void)
 {
 	int cpu;
 
+	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
+	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
+
 	/*
 	 * Linux/mm assumes node 0 to be online at boot. However this is not
 	 * true on PowerPC, where node 0 is similar to any other node, it
@@ -1204,9 +1206,6 @@ void __init mem_topology_setup(void)
 void __init initmem_init(void)
 {
 	int nid;
-
-	max_low_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
-	max_pfn = max_low_pfn;
 
 	memblock_dump_all();
 
@@ -1423,43 +1422,26 @@ out:
 	return rc;
 }
 
-int find_and_online_cpu_nid(int cpu)
+void find_and_update_cpu_nid(int cpu)
 {
 	__be32 associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	int new_nid;
 
 	/* Use associativity from first thread for all siblings */
 	if (vphn_get_associativity(cpu, associativity))
-		return cpu_to_node(cpu);
+		return;
 
+	/* Do not have previous associativity, so find it now. */
 	new_nid = associativity_to_nid(associativity);
+
 	if (new_nid < 0 || !node_possible(new_nid))
 		new_nid = first_online_node;
+	else
+		// Associate node <-> cpu, so cpu_up() calls
+		// try_online_node() on the right node.
+		set_cpu_numa_node(cpu, new_nid);
 
-	if (!node_online(new_nid)) {
-#ifdef CONFIG_MEMORY_HOTPLUG
-		/*
-		 * Need to ensure that NODE_DATA is initialized for a node from
-		 * available memory (see memblock_alloc_try_nid). If unable to
-		 * init the node, then default to nearest node that has memory
-		 * installed. Skip onlining a node if the subsystems are not
-		 * yet initialized.
-		 */
-		if (!topology_inited || try_online_node(new_nid))
-			new_nid = first_online_node;
-#else
-		/*
-		 * Default to using the nearest node that has memory installed.
-		 * Otherwise, it would be necessary to patch the kernel MM code
-		 * to deal with more memoryless-node error conditions.
-		 */
-		new_nid = first_online_node;
-#endif
-	}
-
-	pr_debug("%s:%d cpu %d nid %d\n", __FUNCTION__, __LINE__,
-		cpu, new_nid);
-	return new_nid;
+	pr_debug("%s:%d cpu %d nid %d\n", __func__, __LINE__, cpu, new_nid);
 }
 
 int cpu_to_coregroup_id(int cpu)

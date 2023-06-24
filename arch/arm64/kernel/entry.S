@@ -114,7 +114,7 @@
 	 * them if required.
 	 */
 	.macro	apply_ssbd, state, tmp1, tmp2
-alternative_cb	spectre_v4_patch_fw_mitigation_enable
+alternative_cb	ARM64_ALWAYS_SYSTEM, spectre_v4_patch_fw_mitigation_enable
 	b	.L__asm_ssbd_skip\@		// Patched to NOP
 alternative_cb_end
 	ldr_this_cpu	\tmp2, arm64_ssbd_callback_required, \tmp1
@@ -123,7 +123,7 @@ alternative_cb_end
 	tbnz	\tmp2, #TIF_SSBD, .L__asm_ssbd_skip\@
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
 	mov	w1, #\state
-alternative_cb	smccc_patch_fw_mitigation_conduit
+alternative_cb	ARM64_ALWAYS_SYSTEM, smccc_patch_fw_mitigation_conduit
 	nop					// Patched to SMC/HVC #0
 alternative_cb_end
 .L__asm_ssbd_skip\@:
@@ -175,7 +175,7 @@ alternative_else_nop_endif
 
 	.macro mte_set_kernel_gcr, tmp, tmp2
 #ifdef CONFIG_KASAN_HW_TAGS
-alternative_cb	kasan_hw_tags_enable
+alternative_cb	ARM64_ALWAYS_SYSTEM, kasan_hw_tags_enable
 	b	1f
 alternative_cb_end
 	mov	\tmp, KERNEL_GCR_EL1
@@ -186,7 +186,7 @@ alternative_cb_end
 
 	.macro mte_set_user_gcr, tsk, tmp, tmp2
 #ifdef CONFIG_KASAN_HW_TAGS
-alternative_cb	kasan_hw_tags_enable
+alternative_cb	ARM64_ALWAYS_SYSTEM, kasan_hw_tags_enable
 	b	1f
 alternative_cb_end
 	ldr	\tmp, [\tsk, #THREAD_MTE_CTRL]
@@ -502,7 +502,7 @@ tsk	.req	x28		// current thread_info
 SYM_CODE_START(vectors)
 	kernel_ventry	1, t, 64, sync		// Synchronous EL1t
 	kernel_ventry	1, t, 64, irq		// IRQ EL1t
-	kernel_ventry	1, t, 64, fiq		// FIQ EL1h
+	kernel_ventry	1, t, 64, fiq		// FIQ EL1t
 	kernel_ventry	1, t, 64, error		// Error EL1t
 
 	kernel_ventry	1, h, 64, sync		// Synchronous EL1h
@@ -596,7 +596,7 @@ SYM_CODE_START_LOCAL(ret_to_user)
 	ldr	x19, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
 	enable_step_tsk x19, x2
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
-	bl	stackleak_erase
+	bl	stackleak_erase_on_task_stack
 #endif
 	kernel_exit 0
 SYM_CODE_END(ret_to_user)
@@ -636,18 +636,28 @@ alternative_else_nop_endif
 	 */
 	.endm
 
-	.macro tramp_data_page	dst
-	adr_l	\dst, .entry.tramp.text
-	sub	\dst, \dst, PAGE_SIZE
-	.endm
-
-	.macro tramp_data_read_var	dst, var
-#ifdef CONFIG_RANDOMIZE_BASE
-	tramp_data_page		\dst
-	add	\dst, \dst, #:lo12:__entry_tramp_data_\var
-	ldr	\dst, [\dst]
+	.macro		tramp_data_read_var	dst, var
+#ifdef CONFIG_RELOCATABLE
+	ldr		\dst, .L__tramp_data_\var
+	.ifndef		.L__tramp_data_\var
+	.pushsection	".entry.tramp.rodata", "a", %progbits
+	.align		3
+.L__tramp_data_\var:
+	.quad		\var
+	.popsection
+	.endif
 #else
-	ldr	\dst, =\var
+	/*
+	 * As !RELOCATABLE implies !RANDOMIZE_BASE the address is always a
+	 * compile time constant (and hence not secret and not worth hiding).
+	 *
+	 * As statically allocated kernel code and data always live in the top
+	 * 47 bits of the address space we can sign-extend bit 47 and avoid an
+	 * instruction to load the upper 16 bits (which must be 0xFFFF).
+	 */
+	movz		\dst, :abs_g2_s:\var
+	movk		\dst, :abs_g1_nc:\var
+	movk		\dst, :abs_g0_nc:\var
 #endif
 	.endm
 
@@ -695,7 +705,7 @@ alternative_else_nop_endif
 	msr	vbar_el1, x30
 	isb
 	.else
-	ldr	x30, =vectors
+	adr_l	x30, vectors
 	.endif // \kpti == 1
 
 	.if	\bhb == BHB_MITIGATION_FW
@@ -764,24 +774,7 @@ SYM_CODE_END(tramp_exit_native)
 SYM_CODE_START(tramp_exit_compat)
 	tramp_exit	32
 SYM_CODE_END(tramp_exit_compat)
-
-	.ltorg
 	.popsection				// .entry.tramp.text
-#ifdef CONFIG_RANDOMIZE_BASE
-	.pushsection ".rodata", "a"
-	.align PAGE_SHIFT
-SYM_DATA_START(__entry_tramp_data_start)
-__entry_tramp_data_vectors:
-	.quad	vectors
-#ifdef CONFIG_ARM_SDE_INTERFACE
-__entry_tramp_data___sdei_asm_handler:
-	.quad	__sdei_asm_handler
-#endif /* CONFIG_ARM_SDE_INTERFACE */
-__entry_tramp_data_this_cpu_vector:
-	.quad	this_cpu_vector
-SYM_DATA_END(__entry_tramp_data_start)
-	.popsection				// .rodata
-#endif /* CONFIG_RANDOMIZE_BASE */
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
 /*
@@ -932,7 +925,6 @@ NOKPROBE(call_on_irq_stack)
  * This clobbers x4, __sdei_handler() will restore this from firmware's
  * copy.
  */
-.ltorg
 .pushsection ".entry.tramp.text", "ax"
 SYM_CODE_START(__sdei_asm_entry_trampoline)
 	mrs	x4, ttbr1_el1
@@ -967,7 +959,6 @@ SYM_CODE_START(__sdei_asm_exit_trampoline)
 1:	sdei_handler_exit exit_mode=x2
 SYM_CODE_END(__sdei_asm_exit_trampoline)
 NOKPROBE(__sdei_asm_exit_trampoline)
-	.ltorg
 .popsection		// .entry.tramp.text
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 

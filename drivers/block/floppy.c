@@ -2859,7 +2859,7 @@ static blk_status_t floppy_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (WARN(atomic_read(&usage_count) == 0,
 		 "warning: usage count=0, current_req=%p sect=%ld flags=%llx\n",
 		 current_req, (long)blk_rq_pos(current_req),
-		 (unsigned long long) current_req->cmd_flags))
+		 (__force unsigned long long) current_req->cmd_flags))
 		return BLK_STS_IOERR;
 
 	if (test_and_set_bit(0, &fdc_busy)) {
@@ -4557,7 +4557,7 @@ out:
 	return;
 
 cleanup_disk:
-	blk_cleanup_disk(disks[drive][type]);
+	put_disk(disks[drive][type]);
 	disks[drive][type] = NULL;
 	mutex_unlock(&floppy_probe_lock);
 }
@@ -4753,7 +4753,7 @@ out_put_disk:
 		if (!disks[drive][0])
 			break;
 		del_timer_sync(&motor_off_timer[drive]);
-		blk_cleanup_disk(disks[drive][0]);
+		put_disk(disks[drive][0]);
 		blk_mq_free_tag_set(&tag_sets[drive]);
 	}
 	return err;
@@ -4985,7 +4985,7 @@ static void __exit floppy_module_exit(void)
 		}
 		for (i = 0; i < ARRAY_SIZE(floppy_type); i++) {
 			if (disks[drive][i])
-				blk_cleanup_disk(disks[drive][i]);
+				put_disk(disks[drive][i]);
 		}
 		blk_mq_free_tag_set(&tag_sets[drive]);
 	}
