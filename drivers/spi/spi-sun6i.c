@@ -761,6 +761,7 @@ static const struct sun6i_spi_cfg sun8i_h3_spi_cfg = {
 
 static const struct sun6i_spi_cfg sun50i_r329_spi_cfg = {
 	.fifo_depth	= SUN8I_FIFO_DEPTH,
+	.mode_bits	= SPI_RX_DUAL | SPI_TX_DUAL | SPI_RX_QUAD | SPI_TX_QUAD,
 };
 
 static const struct of_device_id sun6i_spi_match[] = {
