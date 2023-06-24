@@ -487,12 +487,6 @@
 			status = "disabled";
 		};
 
-		usbphy0: usbphy@0 {
-			#phy-cells = <0>;
-			compatible = "usb-nop-xceiv";
-			status = "okay";
-		};
-
 		usb0: usb@ffb00000 {
 			compatible = "snps,dwc2";
 			reg = <0xffb00000 0x40000>;
@@ -638,5 +632,10 @@
 				};
 			};
 		};
+	};
+
+	usbphy0: usbphy0 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 	};
 };
