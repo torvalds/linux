@@ -1441,20 +1441,20 @@ static inline int bch2_trans_mark_pointer(struct btree_trans *trans,
 
 	ret = __mark_pointer(trans, k, &p.ptr, sectors, bp.data_type,
 			     a->v.gen, &a->v.data_type,
-			     &a->v.dirty_sectors, &a->v.cached_sectors);
+			     &a->v.dirty_sectors, &a->v.cached_sectors) ?:
+		bch2_trans_update(trans, &iter, &a->k_i, 0);
+	bch2_trans_iter_exit(trans, &iter);
+
 	if (ret)
-		goto err;
+		return ret;
 
 	if (!p.ptr.cached) {
 		ret = bch2_bucket_backpointer_mod(trans, bucket, bp, k, insert);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
-	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
-err:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
+	return 0;
 }
 
 static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
