@@ -164,7 +164,7 @@ static bool modifier_has_dcc(uint64_t modifier)
 	return IS_AMD_FMT_MOD(modifier) && AMD_FMT_MOD_GET(DCC, modifier);
 }
 
-static unsigned modifier_gfx9_swizzle_mode(uint64_t modifier)
+static unsigned int modifier_gfx9_swizzle_mode(uint64_t modifier)
 {
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return 0;
@@ -581,7 +581,7 @@ static void add_gfx11_modifiers(struct amdgpu_device *adev,
 	int pkrs = 0;
 	u32 gb_addr_config;
 	u8 i = 0;
-	unsigned swizzle_r_x;
+	unsigned int swizzle_r_x;
 	uint64_t modifier_r_x;
 	uint64_t modifier_dcc_best;
 	uint64_t modifier_dcc_4k;
