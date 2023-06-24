@@ -209,7 +209,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 	 */
 	if (write && pos < vma->vm_start) {
 		mmap_write_lock(mm);
-		ret = expand_downwards(vma, pos, true);
+		ret = expand_downwards(vma, pos);
 		if (unlikely(ret < 0)) {
 			mmap_write_unlock(mm);
 			return NULL;
@@ -860,7 +860,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		stack_base = vma->vm_start - stack_expand;
 #endif
 	current->mm->start_stack = bprm->p;
-	ret = expand_stack_locked(vma, stack_base, true);
+	ret = expand_stack_locked(vma, stack_base);
 	if (ret)
 		ret = -EFAULT;
 
