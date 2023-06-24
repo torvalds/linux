@@ -852,8 +852,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 		cpu_to_le16(ieee->current_network.capability &
 		WLAN_CAPABILITY_SHORT_PREAMBLE);
 
-	if (ieee->short_slot && (ieee->current_network.capability &
-	    WLAN_CAPABILITY_SHORT_SLOT_TIME))
+	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 		beacon_buf->capability |=
 			cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
@@ -939,9 +938,7 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 	assoc->capability = cpu_to_le16(ieee->iw_mode == IW_MODE_MASTER ?
 		WLAN_CAPABILITY_ESS : WLAN_CAPABILITY_IBSS);
 
-	if (ieee->short_slot)
-		assoc->capability |=
-				 cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
+	assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 
@@ -1190,8 +1187,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	if (beacon->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 
-	if (ieee->short_slot &&
-	   (beacon->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME))
+	if (beacon->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
 	hdr->listen_interval = cpu_to_le16(beacon->listen_interval);

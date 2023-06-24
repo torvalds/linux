@@ -774,7 +774,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->retry_data = DEFAULT_RETRY_DATA;
 	priv->rtllib->rts = DEFAULT_RTS_THRESHOLD;
 	priv->rtllib->rate = 110;
-	priv->rtllib->short_slot = 1;
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 	priv->bcck_in_ch14 = false;
 	priv->cck_present_attn = 0;

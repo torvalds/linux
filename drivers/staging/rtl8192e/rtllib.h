@@ -1486,7 +1486,6 @@ struct rtllib_device {
 
 	enum rtl_link_state link_state;
 
-	int short_slot;
 	int mode;       /* A, B, G */
 
 	/* used for forcing the ibss workqueue to terminate
