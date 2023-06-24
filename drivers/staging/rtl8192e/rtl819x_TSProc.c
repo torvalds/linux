@@ -173,11 +173,6 @@ void TSInitialize(struct rtllib_device *ieee)
 	}
 }
 
-static void AdmitTS(struct rtllib_device *ieee,
-		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
-{
-}
-
 static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 						  u8 *Addr, u8 TID,
 						  enum tr_select TxRxSelect)
@@ -352,7 +347,6 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		pTSInfo->field.ucSchedule = 0;
 
 		MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
-		AdmitTS(ieee, *ppTS, 0);
 		list_add_tail(&((*ppTS)->List), pAddmitList);
 
 		return true;
