@@ -191,17 +191,18 @@ static int __write_inode(struct btree_trans *trans,
 			 struct bch_inode_unpacked *inode,
 			 u32 snapshot)
 {
-	struct btree_iter iter;
-	int ret;
+	struct bkey_inode_buf *inode_p =
+		bch2_trans_kmalloc(trans, sizeof(*inode_p));
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
-			    SPOS(0, inode->bi_inum, snapshot),
-			    BTREE_ITER_INTENT);
+	if (IS_ERR(inode_p))
+		return PTR_ERR(inode_p);
 
-	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_inode_write(trans, &iter, inode);
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
+	bch2_inode_pack(inode_p, inode);
+	inode_p->inode.k.p.snapshot = snapshot;
+
+	return bch2_btree_insert_nonextent(trans, BTREE_ID_inodes,
+				&inode_p->inode.k_i,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 }
 
 static int write_inode(struct btree_trans *trans,
@@ -1201,7 +1202,8 @@ static int check_overlapping_extents(struct btree_trans *trans,
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
 			bkey_reassemble(update, k);
-			ret = bch2_trans_update_extent(trans, iter, update, 0);
+			ret = bch2_trans_update_extent(trans, iter, update,
+					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 			if (ret)
 				goto err;
 		}
