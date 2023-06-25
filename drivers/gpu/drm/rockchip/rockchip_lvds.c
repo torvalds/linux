@@ -83,8 +83,8 @@
 enum lvds_format {
 	LVDS_8BIT_MODE_FORMAT_1,
 	LVDS_8BIT_MODE_FORMAT_2,
-	LVDS_8BIT_MODE_FORMAT_3,
-	LVDS_6BIT_MODE,
+	LVDS_6BIT_MODE_FORMAT_1,
+	LVDS_6BIT_MODE_FORMAT_2,
 	LVDS_10BIT_MODE_FORMAT_1,
 	LVDS_10BIT_MODE_FORMAT_2,
 };
@@ -190,8 +190,8 @@ rockchip_lvds_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	case MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA: /* jeida-30 */
 		lvds->format = LVDS_10BIT_MODE_FORMAT_2;
 		break;
-	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:	/* vesa-18 */
-		lvds->format = LVDS_8BIT_MODE_FORMAT_3;
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:	/* jeida-18, compatible with the [JEIDA], [LDI] and [VESA] specifications */
+		lvds->format = LVDS_6BIT_MODE_FORMAT_1;
 		break;
 	case MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG: /* vesa-30 */
 		lvds->format = LVDS_10BIT_MODE_FORMAT_1;
