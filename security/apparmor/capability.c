@@ -38,8 +38,8 @@ static DEFINE_PER_CPU(struct audit_cache, audit_cache);
 
 /**
  * audit_cb - call back for capability components of audit struct
- * @ab - audit buffer   (NOT NULL)
- * @va - audit struct to audit data from  (NOT NULL)
+ * @ab: audit buffer   (NOT NULL)
+ * @va: audit struct to audit data from  (NOT NULL)
  */
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
