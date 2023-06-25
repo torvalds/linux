@@ -83,6 +83,7 @@ static inline bool is_cxl_endpoint(struct cxl_port *port)
 }
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);
+int cxl_memdev_setup_fw_upload(struct cxl_dev_state *cxlds);
 int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 			 resource_size_t base, resource_size_t len,
 			 resource_size_t skipped);
@@ -260,6 +261,84 @@ struct cxl_poison_state {
 	struct mutex lock;  /* Protect reads of poison list */
 };
 
+/*
+ * Get FW Info
+ * CXL rev 3.0 section 8.2.9.3.1; Table 8-56
+ */
+struct cxl_mbox_get_fw_info {
+	u8 num_slots;
+	u8 slot_info;
+	u8 activation_cap;
+	u8 reserved[13];
+	char slot_1_revision[16];
+	char slot_2_revision[16];
+	char slot_3_revision[16];
+	char slot_4_revision[16];
+} __packed;
+
+#define CXL_FW_INFO_SLOT_INFO_CUR_MASK			GENMASK(2, 0)
+#define CXL_FW_INFO_SLOT_INFO_NEXT_MASK			GENMASK(5, 3)
+#define CXL_FW_INFO_SLOT_INFO_NEXT_SHIFT		3
+#define CXL_FW_INFO_ACTIVATION_CAP_HAS_LIVE_ACTIVATE	BIT(0)
+
+/*
+ * Transfer FW Input Payload
+ * CXL rev 3.0 section 8.2.9.3.2; Table 8-57
+ */
+struct cxl_mbox_transfer_fw {
+	u8 action;
+	u8 slot;
+	u8 reserved[2];
+	__le32 offset;
+	u8 reserved2[0x78];
+	u8 data[];
+} __packed;
+
+#define CXL_FW_TRANSFER_ACTION_FULL	0x0
+#define CXL_FW_TRANSFER_ACTION_INITIATE	0x1
+#define CXL_FW_TRANSFER_ACTION_CONTINUE	0x2
+#define CXL_FW_TRANSFER_ACTION_END	0x3
+#define CXL_FW_TRANSFER_ACTION_ABORT	0x4
+
+/*
+ * CXL rev 3.0 section 8.2.9.3.2 mandates 128-byte alignment for FW packages
+ * and for each part transferred in a Transfer FW command.
+ */
+#define CXL_FW_TRANSFER_ALIGNMENT	128
+
+/*
+ * Activate FW Input Payload
+ * CXL rev 3.0 section 8.2.9.3.3; Table 8-58
+ */
+struct cxl_mbox_activate_fw {
+	u8 action;
+	u8 slot;
+} __packed;
+
+#define CXL_FW_ACTIVATE_ONLINE		0x0
+#define CXL_FW_ACTIVATE_OFFLINE		0x1
+
+/* FW state bits */
+#define CXL_FW_STATE_BITS		32
+#define CXL_FW_CANCEL		BIT(0)
+
+/**
+ * struct cxl_fw_state - Firmware upload / activation state
+ *
+ * @state: fw_uploader state bitmask
+ * @oneshot: whether the fw upload fits in a single transfer
+ * @num_slots: Number of FW slots available
+ * @cur_slot: Slot number currently active
+ * @next_slot: Slot number for the new firmware
+ */
+struct cxl_fw_state {
+	DECLARE_BITMAP(state, CXL_FW_STATE_BITS);
+	bool oneshot;
+	int num_slots;
+	int cur_slot;
+	int next_slot;
+};
+
 /**
  * struct cxl_security_state - Device security state
  *
@@ -314,6 +393,7 @@ struct cxl_security_state {
  * @serial: PCIe Device Serial Number
  * @event: event log driver state
  * @poison: poison driver state info
+ * @fw: firmware upload / activation state
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  *
  * See section 8.2.9.5.2 Capacity Configuration and Label Storage for
@@ -354,6 +434,7 @@ struct cxl_dev_state {
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
 	struct cxl_security_state security;
+	struct cxl_fw_state fw;
 
 	struct rcuwait mbox_wait;
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
@@ -367,6 +448,7 @@ enum cxl_opcode {
 	CXL_MBOX_OP_GET_EVT_INT_POLICY	= 0x0102,
 	CXL_MBOX_OP_SET_EVT_INT_POLICY	= 0x0103,
 	CXL_MBOX_OP_GET_FW_INFO		= 0x0200,
+	CXL_MBOX_OP_TRANSFER_FW		= 0x0201,
 	CXL_MBOX_OP_ACTIVATE_FW		= 0x0202,
 	CXL_MBOX_OP_SET_TIMESTAMP	= 0x0301,
 	CXL_MBOX_OP_GET_SUPPORTED_LOGS	= 0x0400,

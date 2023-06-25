@@ -82,6 +82,7 @@ config CXL_PMEM
 config CXL_MEM
 	tristate "CXL: Memory Expansion"
 	depends on CXL_PCI
+	select FW_UPLOAD
 	default CXL_BUS
 	help
 	  The CXL.mem protocol allows a device to act as a provider of "System

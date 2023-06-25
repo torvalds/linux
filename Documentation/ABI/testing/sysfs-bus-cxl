@@ -95,6 +95,17 @@ Description:
 		all user data areas of the device.
 
 
+What:		/sys/bus/cxl/devices/memX/firmware/
+Date:		April, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Firmware uploader mechanism. The different files under
+		this directory can be used to upload and activate new
+		firmware for CXL devices. The interfaces under this are
+		documented in sysfs-class-firmware.
+
+
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
 KernelVersion:	v5.14
