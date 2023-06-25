@@ -2710,9 +2710,10 @@ static u32 *dw_hdmi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		/* Default 8bit fallback */
 		output_fmts[i++] = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
 
-		*num_output_fmts = i;
-
-		return output_fmts;
+		if (drm_mode_is_420_only(info, mode)) {
+			*num_output_fmts = i;
+			return output_fmts;
+		}
 	}
 
 	/*
