@@ -136,7 +136,7 @@ fail:
 
 /**
  * verify_table_headers - verify that the tables headers are as expected
- * @tables - array of dfa tables to check (NOT NULL)
+ * @tables: array of dfa tables to check (NOT NULL)
  * @flags: flags controlling what type of accept table are acceptable
  *
  * Assumes dfa has gone through the first pass verification done by unpacking
@@ -283,7 +283,7 @@ static void dfa_free(struct aa_dfa *dfa)
 
 /**
  * aa_dfa_free_kref - free aa_dfa by kref (called by aa_put_dfa)
- * @kr: kref callback for freeing of a dfa  (NOT NULL)
+ * @kref: kref callback for freeing of a dfa  (NOT NULL)
  */
 void aa_dfa_free_kref(struct kref *kref)
 {
