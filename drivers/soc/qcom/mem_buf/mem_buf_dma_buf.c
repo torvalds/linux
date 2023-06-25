@@ -177,7 +177,8 @@ struct mem_buf_vmperm *mem_buf_vmperm_alloc(struct sg_table *sgt)
 }
 EXPORT_SYMBOL(mem_buf_vmperm_alloc);
 
-static int __mem_buf_vmperm_reclaim(struct mem_buf_vmperm *vmperm)
+static int __mem_buf_vmperm_reclaim(struct mem_buf_vmperm *vmperm,
+				    bool leak_memory_on_reclaim_fail)
 {
 	int ret;
 	int new_vmids[] = {current_vmid};
@@ -188,7 +189,8 @@ static int __mem_buf_vmperm_reclaim(struct mem_buf_vmperm *vmperm)
 				   vmperm->memparcel_hdl);
 	if (ret) {
 		pr_err_ratelimited("Reclaim failed\n");
-		mem_buf_vmperm_set_err(vmperm);
+		if (leak_memory_on_reclaim_fail)
+			mem_buf_vmperm_set_err(vmperm);
 		return ret;
 	}
 
@@ -228,7 +230,7 @@ int mem_buf_vmperm_release(struct mem_buf_vmperm *vmperm)
 
 	mutex_lock(&vmperm->lock);
 	if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_LENDSHARE)
-		ret = __mem_buf_vmperm_reclaim(vmperm);
+		ret = __mem_buf_vmperm_reclaim(vmperm, true);
 	else if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_ACCEPT)
 		ret = mem_buf_vmperm_relinquish(vmperm);
 
@@ -618,7 +620,7 @@ int mem_buf_reclaim(struct dma_buf *dmabuf)
 		return -EINVAL;
 	}
 
-	ret = __mem_buf_vmperm_reclaim(vmperm);
+	ret = __mem_buf_vmperm_reclaim(vmperm, false);
 	mutex_unlock(&vmperm->lock);
 	return ret;
 }
