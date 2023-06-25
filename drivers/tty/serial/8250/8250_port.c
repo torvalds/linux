@@ -307,6 +307,14 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 32, 64, 112},
 		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP,
 	},
+	[PORT_16550A_AFE] = {
+		.name		= "16550A_AFE",
+		.fifo_size	= 16,
+		.tx_loadsz	= 16,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.rxtrig_bytes	= {1, 4, 8, 14},
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
 };
 
 /* Uart divisor latch read */
@@ -1189,6 +1197,11 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 */
 	if (up->port.type == PORT_16550A && size_fifo(up) == 64) {
 		up->port.type = PORT_U6_16550A;
+		up->capabilities |= UART_CAP_AFE;
+	}
+
+	if ((up->port.type == PORT_16550A) && (up->probe & UART_PROBE_AFE)) {
+		up->port.type = PORT_16550A_AFE;
 		up->capabilities |= UART_CAP_AFE;
 	}
 }
@@ -2778,7 +2791,6 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (termios->c_cflag & CRTSCTS)
 			up->mcr |= UART_MCR_AFE;
 	}
-
 	/*
 	 * Update the per-port timeout.
 	 */

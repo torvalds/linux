@@ -1073,6 +1073,8 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 			uart->dl_read = up->dl_read;
 		if (up->dl_write)
 			uart->dl_write = up->dl_write;
+		if (up->probe)
+			uart->probe = up->probe;
 
 		if (uart->port.type != PORT_8250_CIR) {
 			if (serial8250_isa_config != NULL)
