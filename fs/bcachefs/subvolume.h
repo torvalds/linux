@@ -37,9 +37,34 @@ static inline struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)
 	return genradix_ptr(&c->snapshots, U32_MAX - id);
 }
 
-static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
+static inline u32 bch2_snapshot_parent_early(struct bch_fs *c, u32 id)
 {
 	return snapshot_t(c, id)->parent;
+}
+
+static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
+{
+#ifdef CONFIG_BCACHEFS_DEBUG
+	u32 parent = snapshot_t(c, id)->parent;
+
+	if (parent &&
+	    snapshot_t(c, id)->depth != snapshot_t(c, parent)->depth + 1)
+		panic("id %u depth=%u parent %u depth=%u\n",
+		      id, snapshot_t(c, id)->depth,
+		      parent, snapshot_t(c, parent)->depth);
+
+	return parent;
+#else
+	return snapshot_t(c, id)->parent;
+#endif
+}
+
+static inline u32 bch2_snapshot_nth_parent(struct bch_fs *c, u32 id, u32 n)
+{
+	while (n--)
+		id = bch2_snapshot_parent(c, id);
+
+	return id;
 }
 
 static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
@@ -84,13 +109,7 @@ static inline u32 bch2_snapshot_sibling(struct bch_fs *c, u32 id)
 	return 0;
 }
 
-static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
-{
-	while (id && id < ancestor)
-		id = bch2_snapshot_parent(c, id);
-
-	return id == ancestor;
-}
+bool bch2_snapshot_is_ancestor(struct bch_fs *, u32, u32);
 
 static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
 {

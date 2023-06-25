@@ -795,6 +795,14 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_commit_flags)))
 
+#define for_each_btree_key_reverse_commit(_trans, _iter, _btree_id,	\
+				  _start, _iter_flags, _k,		\
+				  _disk_res, _journal_seq, _commit_flags,\
+				  _do)					\
+	for_each_btree_key_reverse(_trans, _iter, _btree_id, _start, _iter_flags, _k,\
+			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
+					(_journal_seq), (_commit_flags)))
+
 #define for_each_btree_key_upto_commit(_trans, _iter, _btree_id,	\
 				  _start, _end, _iter_flags, _k,	\
 				  _disk_res, _journal_seq, _commit_flags,\

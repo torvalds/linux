@@ -1148,6 +1148,8 @@ struct bch_snapshot {
 	__le32			children[2];
 	__le32			subvol;
 	__le32			tree;
+	__le32			depth;
+	__le32			skip[3];
 };
 
 LE32_BITMASK(BCH_SNAPSHOT_DELETED,	struct bch_snapshot, flags,  0,  1)
@@ -1625,7 +1627,9 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(snapshot_trees,		BCH_VERSION(0, 29),		\
 	  RECOVERY_PASS_ALL_FSCK)					\
 	x(major_minor,			BCH_VERSION(1,  0),		\
-	  0)
+	  0)								\
+	x(snapshot_skiplists,		BCH_VERSION(1,  1),		\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,

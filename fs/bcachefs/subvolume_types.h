@@ -8,6 +8,8 @@ typedef DARRAY(u32) snapshot_id_list;
 
 struct snapshot_t {
 	u32			parent;
+	u32			skip[3];
+	u32			depth;
 	u32			children[2];
 	u32			subvol; /* Nonzero only if a subvolume points to this node: */
 	u32			tree;
