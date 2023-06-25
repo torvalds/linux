@@ -77,7 +77,7 @@ kzalloc() can be replaced with kcalloc().
 If no 2-factor form is available, the saturate-on-overflow helpers should
 be used::
 
-	bar = vmalloc(array_size(count, size));
+	bar = dma_alloc_coherent(dev, array_size(count, size), &dma, GFP_KERNEL);
 
 Another common case to avoid is calculating the size of a structure with
 a trailing array of others structures, as in::
