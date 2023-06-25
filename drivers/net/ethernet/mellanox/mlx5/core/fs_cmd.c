@@ -245,12 +245,20 @@ static int mlx5_cmd_update_root_ft(struct mlx5_flow_root_namespace *ns,
 	    mlx5_lag_is_shared_fdb(dev) &&
 	    mlx5_lag_is_master(dev)) {
 		struct mlx5_core_dev *peer_dev;
-		int i;
+		int i, j;
 
 		mlx5_lag_for_each_peer_mdev(dev, peer_dev, i) {
 			err = mlx5_cmd_set_slave_root_fdb(dev, peer_dev, !disconnect,
 							  (!disconnect) ? ft->id : 0);
 			if (err && !disconnect) {
+				mlx5_lag_for_each_peer_mdev(dev, peer_dev, j) {
+					if (j < i)
+						mlx5_cmd_set_slave_root_fdb(dev, peer_dev, 1,
+									    ns->root_ft->id);
+					else
+						break;
+				}
+
 				MLX5_SET(set_flow_table_root_in, in, op_mod, 0);
 				MLX5_SET(set_flow_table_root_in, in, table_id,
 					 ns->root_ft->id);
