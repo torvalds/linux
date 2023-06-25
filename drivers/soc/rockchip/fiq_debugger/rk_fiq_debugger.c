@@ -334,7 +334,7 @@ static int console_thread(void *data)
 		unsigned int dropped;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_is_empty(&fifo) && kfifo_is_empty(&tty_fifo)) {
+		if (console_thread_stop || (kfifo_is_empty(&fifo) && kfifo_is_empty(&tty_fifo))) {
 			smp_store_mb(console_thread_running, false);
 			schedule();
 			smp_store_mb(console_thread_running, true);
@@ -344,13 +344,13 @@ static int console_thread(void *data)
 		set_current_state(TASK_RUNNING);
 
 		while (!console_thread_stop && (!kfifo_is_empty(&fifo) || !kfifo_is_empty(&tty_fifo))) {
-			while (kfifo_get(&fifo, &c)) {
+			while (!console_thread_stop && kfifo_get(&fifo, &c)) {
 				console_put(pdev, &c, 1);
 				if (c == '\n')
 					break;
 			}
 
-			while (kfifo_get(&tty_fifo, &c)) {
+			while (!console_thread_stop && kfifo_get(&tty_fifo, &c)) {
 				console_putc(pdev, c);
 				len_tty++;
 				if (c == '\n')
@@ -418,6 +418,8 @@ static int tty_write(struct platform_device *pdev, const char *s, int count)
 	unsigned int ret = 0;
 	struct rk_fiq_debugger *t;
 
+	if (console_thread_stop)
+		return count;
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
 	if (count > 0) {
