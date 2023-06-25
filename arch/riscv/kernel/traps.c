@@ -150,12 +150,18 @@ DO_ERROR_INFO(do_trap_insn_fault,
 
 asmlinkage __visible __trap_section void do_trap_insn_illegal(struct pt_regs *regs)
 {
+	bool handled;
+
 	if (user_mode(regs)) {
 		irqentry_enter_from_user_mode(regs);
 
 		local_irq_enable();
 
-		if (!riscv_v_first_use_handler(regs))
+		handled = riscv_v_first_use_handler(regs);
+
+		local_irq_disable();
+
+		if (!handled)
 			do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->epc,
 				      "Oops - illegal instruction");
 
