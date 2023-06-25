@@ -2261,7 +2261,7 @@ struct hl_notifier_event {
 /**
  * struct hl_fpriv - process information stored in FD private data.
  * @hdev: habanalabs device structure.
- * @filp: pointer to the DRM file private data structure.
+ * @file_priv: pointer to the DRM file private data structure.
  * @taskpid: current process ID.
  * @ctx: current executing context. TODO: remove for multiple ctx per process
  * @ctx_mgr: context manager to handle multiple context for this FD.

@@ -639,7 +639,7 @@ static void device_release_func(struct device *dev)
  * @hdev: pointer to habanalabs device structure
  * @class: pointer to the class object of the device
  * @minor: minor number of the specific device
- * @fpos: file operations to install for this device
+ * @fops: file operations to install for this device
  * @name: name of the device as it will appear in the filesystem
  * @cdev: pointer to the char device object that will be initialized
  * @dev: pointer to the device object that will be initialized
