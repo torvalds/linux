@@ -5,6 +5,7 @@
 #include <uapi/linux/cxl_mem.h>
 #include <linux/cdev.h>
 #include <linux/uuid.h>
+#include <linux/rcuwait.h>
 #include "cxl.h"
 
 /* CXL 2.0 8.2.8.5.1.1 Memory Device Status Register */
@@ -108,6 +109,9 @@ static inline struct cxl_ep *cxl_ep_load(struct cxl_port *port,
  *            variable sized output commands, it tells the exact number of bytes
  *            written.
  * @min_out: (input) internal command output payload size validation
+ * @poll_count: (input) Number of timeouts to attempt.
+ * @poll_interval_ms: (input) Time between mailbox background command polling
+ *                    interval timeouts.
  * @return_code: (output) Error code returned from hardware.
  *
  * This is the primary mechanism used to send commands to the hardware.
@@ -123,6 +127,8 @@ struct cxl_mbox_cmd {
 	size_t size_in;
 	size_t size_out;
 	size_t min_out;
+	int poll_count;
+	int poll_interval_ms;
 	u16 return_code;
 };
 
@@ -255,6 +261,23 @@ struct cxl_poison_state {
 };
 
 /**
+ * struct cxl_security_state - Device security state
+ *
+ * @state: state of last security operation
+ * @poll: polling for sanitization is enabled, device has no mbox irq support
+ * @poll_tmo_secs: polling timeout
+ * @poll_dwork: polling work item
+ * @sanitize_node: sanitation sysfs file to notify
+ */
+struct cxl_security_state {
+	unsigned long state;
+	bool poll;
+	int poll_tmo_secs;
+	struct delayed_work poll_dwork;
+	struct kernfs_node *sanitize_node;
+};
+
+/**
  * struct cxl_dev_state - The driver device state
  *
  * cxl_dev_state represents the CXL driver/device state.  It provides an
@@ -330,7 +353,9 @@ struct cxl_dev_state {
 
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
+	struct cxl_security_state security;
 
+	struct rcuwait mbox_wait;
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
 };
 
@@ -362,6 +387,8 @@ enum cxl_opcode {
 	CXL_MBOX_OP_GET_SCAN_MEDIA_CAPS	= 0x4303,
 	CXL_MBOX_OP_SCAN_MEDIA		= 0x4304,
 	CXL_MBOX_OP_GET_SCAN_MEDIA	= 0x4305,
+	CXL_MBOX_OP_SANITIZE		= 0x4400,
+	CXL_MBOX_OP_SECURE_ERASE	= 0x4401,
 	CXL_MBOX_OP_GET_SECURITY_STATE	= 0x4500,
 	CXL_MBOX_OP_SET_PASSPHRASE	= 0x4501,
 	CXL_MBOX_OP_DISABLE_PASSPHRASE	= 0x4502,
@@ -721,6 +748,8 @@ static inline void cxl_mem_active_dec(void)
 {
 }
 #endif
+
+int cxl_mem_sanitize(struct cxl_dev_state *cxlds, u16 cmd);
 
 struct cxl_hdm {
 	struct cxl_component_regs regs;

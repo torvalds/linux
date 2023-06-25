@@ -84,6 +84,89 @@ static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 			    status & CXLMDEV_DEV_FATAL ? " fatal" : "",        \
 			    status & CXLMDEV_FW_HALT ? " firmware-halt" : "")
 
+struct cxl_dev_id {
+	struct cxl_dev_state *cxlds;
+};
+
+static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
+			   irq_handler_t handler, irq_handler_t thread_fn)
+{
+	struct device *dev = cxlds->dev;
+	struct cxl_dev_id *dev_id;
+
+	/* dev_id must be globally unique and must contain the cxlds */
+	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
+	if (!dev_id)
+		return -ENOMEM;
+	dev_id->cxlds = cxlds;
+
+	return devm_request_threaded_irq(dev, irq, handler, thread_fn,
+					 IRQF_SHARED | IRQF_ONESHOT,
+					 NULL, dev_id);
+}
+
+static bool cxl_mbox_background_complete(struct cxl_dev_state *cxlds)
+{
+	u64 reg;
+
+	reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
+	return FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_PCT_MASK, reg) == 100;
+}
+
+static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
+{
+	u64 reg;
+	u16 opcode;
+	struct cxl_dev_id *dev_id = id;
+	struct cxl_dev_state *cxlds = dev_id->cxlds;
+
+	if (!cxl_mbox_background_complete(cxlds))
+		return IRQ_NONE;
+
+	reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
+	opcode = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
+	if (opcode == CXL_MBOX_OP_SANITIZE) {
+		if (cxlds->security.sanitize_node)
+			sysfs_notify_dirent(cxlds->security.sanitize_node);
+
+		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
+	} else {
+		/* short-circuit the wait in __cxl_pci_mbox_send_cmd() */
+		rcuwait_wake_up(&cxlds->mbox_wait);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * Sanitization operation polling mode.
+ */
+static void cxl_mbox_sanitize_work(struct work_struct *work)
+{
+	struct cxl_dev_state *cxlds;
+
+	cxlds = container_of(work,
+			     struct cxl_dev_state, security.poll_dwork.work);
+
+	mutex_lock(&cxlds->mbox_mutex);
+	if (cxl_mbox_background_complete(cxlds)) {
+		cxlds->security.poll_tmo_secs = 0;
+		put_device(cxlds->dev);
+
+		if (cxlds->security.sanitize_node)
+			sysfs_notify_dirent(cxlds->security.sanitize_node);
+
+		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
+	} else {
+		int timeout = cxlds->security.poll_tmo_secs + 10;
+
+		cxlds->security.poll_tmo_secs = min(15 * 60, timeout);
+		queue_delayed_work(system_wq, &cxlds->security.poll_dwork,
+				   timeout * HZ);
+	}
+	mutex_unlock(&cxlds->mbox_mutex);
+}
+
 /**
  * __cxl_pci_mbox_send_cmd() - Execute a mailbox command
  * @cxlds: The device state to communicate with.
@@ -144,6 +227,16 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 		return -EBUSY;
 	}
 
+	/*
+	 * With sanitize polling, hardware might be done and the poller still
+	 * not be in sync. Ensure no new command comes in until so. Keep the
+	 * hardware semantics and only allow device health status.
+	 */
+	if (cxlds->security.poll_tmo_secs > 0) {
+		if (mbox_cmd->opcode != CXL_MBOX_OP_GET_HEALTH_INFO)
+			return -EBUSY;
+	}
+
 	cmd_reg = FIELD_PREP(CXLDEV_MBOX_CMD_COMMAND_OPCODE_MASK,
 			     mbox_cmd->opcode);
 	if (mbox_cmd->size_in) {
@@ -177,12 +270,80 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 	mbox_cmd->return_code =
 		FIELD_GET(CXLDEV_MBOX_STATUS_RET_CODE_MASK, status_reg);
 
+	/*
+	 * Handle the background command in a synchronous manner.
+	 *
+	 * All other mailbox commands will serialize/queue on the mbox_mutex,
+	 * which we currently hold. Furthermore this also guarantees that
+	 * cxl_mbox_background_complete() checks are safe amongst each other,
+	 * in that no new bg operation can occur in between.
+	 *
+	 * Background operations are timesliced in accordance with the nature
+	 * of the command. In the event of timeout, the mailbox state is
+	 * indeterminate until the next successful command submission and the
+	 * driver can get back in sync with the hardware state.
+	 */
+	if (mbox_cmd->return_code == CXL_MBOX_CMD_RC_BACKGROUND) {
+		u64 bg_status_reg;
+		int i, timeout;
+
+		/*
+		 * Sanitization is a special case which monopolizes the device
+		 * and cannot be timesliced. Handle asynchronously instead,
+		 * and allow userspace to poll(2) for completion.
+		 */
+		if (mbox_cmd->opcode == CXL_MBOX_OP_SANITIZE) {
+			if (cxlds->security.poll_tmo_secs != -1) {
+				/* hold the device throughout */
+				get_device(cxlds->dev);
+
+				/* give first timeout a second */
+				timeout = 1;
+				cxlds->security.poll_tmo_secs = timeout;
+				queue_delayed_work(system_wq,
+						   &cxlds->security.poll_dwork,
+						   timeout * HZ);
+			}
+
+			dev_dbg(dev, "Sanitization operation started\n");
+			goto success;
+		}
+
+		dev_dbg(dev, "Mailbox background operation (0x%04x) started\n",
+			mbox_cmd->opcode);
+
+		timeout = mbox_cmd->poll_interval_ms;
+		for (i = 0; i < mbox_cmd->poll_count; i++) {
+			if (rcuwait_wait_event_timeout(&cxlds->mbox_wait,
+				       cxl_mbox_background_complete(cxlds),
+				       TASK_UNINTERRUPTIBLE,
+				       msecs_to_jiffies(timeout)) > 0)
+				break;
+		}
+
+		if (!cxl_mbox_background_complete(cxlds)) {
+			dev_err(dev, "timeout waiting for background (%d ms)\n",
+				timeout * mbox_cmd->poll_count);
+			return -ETIMEDOUT;
+		}
+
+		bg_status_reg = readq(cxlds->regs.mbox +
+				      CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
+		mbox_cmd->return_code =
+			FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_RC_MASK,
+				  bg_status_reg);
+		dev_dbg(dev,
+			"Mailbox background operation (0x%04x) completed\n",
+			mbox_cmd->opcode);
+	}
+
 	if (mbox_cmd->return_code != CXL_MBOX_CMD_RC_SUCCESS) {
 		dev_dbg(dev, "Mailbox operation had an error: %s\n",
 			cxl_mbox_cmd_rc2str(mbox_cmd));
 		return 0; /* completed but caller must check return_code */
 	}
 
+success:
 	/* #7 */
 	cmd_reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
 	out_len = FIELD_GET(CXLDEV_MBOX_CMD_PAYLOAD_LENGTH_MASK, cmd_reg);
@@ -271,6 +432,34 @@ static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 	dev_dbg(cxlds->dev, "Mailbox payload sized %zu",
 		cxlds->payload_size);
 
+	rcuwait_init(&cxlds->mbox_wait);
+
+	if (cap & CXLDEV_MBOX_CAP_BG_CMD_IRQ) {
+		u32 ctrl;
+		int irq, msgnum;
+		struct pci_dev *pdev = to_pci_dev(cxlds->dev);
+
+		msgnum = FIELD_GET(CXLDEV_MBOX_CAP_IRQ_MSGNUM_MASK, cap);
+		irq = pci_irq_vector(pdev, msgnum);
+		if (irq < 0)
+			goto mbox_poll;
+
+		if (cxl_request_irq(cxlds, irq, cxl_pci_mbox_irq, NULL))
+			goto mbox_poll;
+
+		/* enable background command mbox irq support */
+		ctrl = readl(cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
+		ctrl |= CXLDEV_MBOX_CTRL_BG_CMD_IRQ;
+		writel(ctrl, cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
+
+		return 0;
+	}
+
+mbox_poll:
+	cxlds->security.poll = true;
+	INIT_DELAYED_WORK(&cxlds->security.poll_dwork, cxl_mbox_sanitize_work);
+
+	dev_dbg(cxlds->dev, "Mailbox interrupts are unsupported");
 	return 0;
 }
 
@@ -469,10 +658,6 @@ static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
 	return 0;
 }
 
-struct cxl_dev_id {
-	struct cxl_dev_state *cxlds;
-};
-
 static irqreturn_t cxl_event_thread(int irq, void *id)
 {
 	struct cxl_dev_id *dev_id = id;
@@ -498,28 +683,18 @@ static irqreturn_t cxl_event_thread(int irq, void *id)
 
 static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 {
-	struct device *dev = cxlds->dev;
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct cxl_dev_id *dev_id;
+	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	int irq;
 
 	if (FIELD_GET(CXLDEV_EVENT_INT_MODE_MASK, setting) != CXL_INT_MSI_MSIX)
 		return -ENXIO;
-
-	/* dev_id must be globally unique and must contain the cxlds */
-	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
-	if (!dev_id)
-		return -ENOMEM;
-	dev_id->cxlds = cxlds;
 
 	irq =  pci_irq_vector(pdev,
 			      FIELD_GET(CXLDEV_EVENT_INT_MSGNUM_MASK, setting));
 	if (irq < 0)
 		return irq;
 
-	return devm_request_threaded_irq(dev, irq, NULL, cxl_event_thread,
-					 IRQF_SHARED | IRQF_ONESHOT, NULL,
-					 dev_id);
+	return cxl_request_irq(cxlds, irq, NULL, cxl_event_thread);
 }
 
 static int cxl_event_get_int_policy(struct cxl_dev_state *cxlds,
@@ -714,6 +889,10 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		dev_warn(&pdev->dev, "Media not active (%d)\n", rc);
 
+	rc = cxl_alloc_irq_vectors(pdev);
+	if (rc)
+		return rc;
+
 	rc = cxl_pci_setup_mailbox(cxlds);
 	if (rc)
 		return rc;
@@ -735,10 +914,6 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 
 	rc = cxl_mem_create_range_info(cxlds);
-	if (rc)
-		return rc;
-
-	rc = cxl_alloc_irq_vectors(pdev);
 	if (rc)
 		return rc;
 

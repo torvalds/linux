@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
@@ -106,6 +107,88 @@ static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", dev_to_node(dev));
 }
 static DEVICE_ATTR_RO(numa_node);
+
+static ssize_t security_state_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	unsigned long state = cxlds->security.state;
+	u64 reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
+	u32 pct = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_PCT_MASK, reg);
+	u16 cmd = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
+
+	if (cmd == CXL_MBOX_OP_SANITIZE && pct != 100)
+		return sysfs_emit(buf, "sanitize\n");
+
+	if (!(state & CXL_PMEM_SEC_STATE_USER_PASS_SET))
+		return sysfs_emit(buf, "disabled\n");
+	if (state & CXL_PMEM_SEC_STATE_FROZEN ||
+	    state & CXL_PMEM_SEC_STATE_MASTER_PLIMIT ||
+	    state & CXL_PMEM_SEC_STATE_USER_PLIMIT)
+		return sysfs_emit(buf, "frozen\n");
+	if (state & CXL_PMEM_SEC_STATE_LOCKED)
+		return sysfs_emit(buf, "locked\n");
+	else
+		return sysfs_emit(buf, "unlocked\n");
+}
+static struct device_attribute dev_attr_security_state =
+	__ATTR(state, 0444, security_state_show, NULL);
+
+static ssize_t security_sanitize_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_port *port = dev_get_drvdata(&cxlmd->dev);
+	ssize_t rc;
+	bool sanitize;
+
+	if (kstrtobool(buf, &sanitize) || !sanitize)
+		return -EINVAL;
+
+	if (!port || !is_cxl_endpoint(port))
+		return -EINVAL;
+
+	/* ensure no regions are mapped to this memdev */
+	if (port->commit_end != -1)
+		return -EBUSY;
+
+	rc = cxl_mem_sanitize(cxlds, CXL_MBOX_OP_SANITIZE);
+
+	return rc ? rc : len;
+}
+static struct device_attribute dev_attr_security_sanitize =
+	__ATTR(sanitize, 0200, NULL, security_sanitize_store);
+
+static ssize_t security_erase_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t len)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_port *port = dev_get_drvdata(&cxlmd->dev);
+	ssize_t rc;
+	bool erase;
+
+	if (kstrtobool(buf, &erase) || !erase)
+		return -EINVAL;
+
+	if (!port || !is_cxl_endpoint(port))
+		return -EINVAL;
+
+	/* ensure no regions are mapped to this memdev */
+	if (port->commit_end != -1)
+		return -EBUSY;
+
+	rc = cxl_mem_sanitize(cxlds, CXL_MBOX_OP_SECURE_ERASE);
+
+	return rc ? rc : len;
+}
+static struct device_attribute dev_attr_security_erase =
+	__ATTR(erase, 0200, NULL, security_erase_store);
 
 static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 {
@@ -352,6 +435,13 @@ static struct attribute *cxl_memdev_ram_attributes[] = {
 	NULL,
 };
 
+static struct attribute *cxl_memdev_security_attributes[] = {
+	&dev_attr_security_state.attr,
+	&dev_attr_security_sanitize.attr,
+	&dev_attr_security_erase.attr,
+	NULL,
+};
+
 static umode_t cxl_memdev_visible(struct kobject *kobj, struct attribute *a,
 				  int n)
 {
@@ -375,10 +465,16 @@ static struct attribute_group cxl_memdev_pmem_attribute_group = {
 	.attrs = cxl_memdev_pmem_attributes,
 };
 
+static struct attribute_group cxl_memdev_security_attribute_group = {
+	.name = "security",
+	.attrs = cxl_memdev_security_attributes,
+};
+
 static const struct attribute_group *cxl_memdev_attribute_groups[] = {
 	&cxl_memdev_attribute_group,
 	&cxl_memdev_ram_attribute_group,
 	&cxl_memdev_pmem_attribute_group,
+	&cxl_memdev_security_attribute_group,
 	NULL,
 };
 
@@ -427,11 +523,21 @@ void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cm
 }
 EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, CXL);
 
+static void cxl_memdev_security_shutdown(struct device *dev)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	if (cxlds->security.poll)
+		cancel_delayed_work_sync(&cxlds->security.poll_dwork);
+}
+
 static void cxl_memdev_shutdown(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
 	down_write(&cxl_memdev_rwsem);
+	cxl_memdev_security_shutdown(dev);
 	cxlmd->cxlds = NULL;
 	up_write(&cxl_memdev_rwsem);
 }
@@ -551,6 +657,34 @@ static const struct file_operations cxl_memdev_fops = {
 	.llseek = noop_llseek,
 };
 
+static void put_sanitize(void *data)
+{
+	struct cxl_dev_state *cxlds = data;
+
+	sysfs_put(cxlds->security.sanitize_node);
+}
+
+static int cxl_memdev_security_init(struct cxl_memdev *cxlmd)
+{
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct device *dev = &cxlmd->dev;
+	struct kernfs_node *sec;
+
+	sec = sysfs_get_dirent(dev->kobj.sd, "security");
+	if (!sec) {
+		dev_err(dev, "sysfs_get_dirent 'security' failed\n");
+		return -ENODEV;
+	}
+	cxlds->security.sanitize_node = sysfs_get_dirent(sec, "state");
+	sysfs_put(sec);
+	if (!cxlds->security.sanitize_node) {
+		dev_err(dev, "sysfs_get_dirent 'state' failed\n");
+		return -ENODEV;
+	}
+
+	return devm_add_action_or_reset(cxlds->dev, put_sanitize, cxlds);
+ }
+
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds)
 {
 	struct cxl_memdev *cxlmd;
@@ -576,6 +710,10 @@ struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds)
 
 	cdev = &cxlmd->cdev;
 	rc = cdev_device_add(cdev, dev);
+	if (rc)
+		goto err;
+
+	rc = cxl_memdev_security_init(cxlmd);
 	if (rc)
 		goto err;
 
