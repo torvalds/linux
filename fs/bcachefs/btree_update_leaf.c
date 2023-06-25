@@ -1218,7 +1218,6 @@ static inline int check_pos_snapshot_overwritten(struct btree_trans *trans,
 					  struct bpos pos)
 {
 	if (!btree_type_has_snapshots(id) ||
-	    pos.snapshot == U32_MAX ||
 	    !snapshot_t(trans->c, pos.snapshot)->children[0])
 		return 0;
 
