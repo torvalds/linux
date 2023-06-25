@@ -372,21 +372,21 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	return 0;
 }
 
+/* Note, @dev is used by mock_acpi_table_parse_cedt() */
 struct cxl_chbs_context {
 	struct device *dev;
 	unsigned long long uid;
-	resource_size_t rcrb;
-	resource_size_t chbcr;
+	resource_size_t base;
 	u32 cxl_version;
 };
 
-static int cxl_get_chbcr(union acpi_subtable_headers *header, void *arg,
+static int cxl_get_chbs(union acpi_subtable_headers *header, void *arg,
 			 const unsigned long end)
 {
 	struct cxl_chbs_context *ctx = arg;
 	struct acpi_cedt_chbs *chbs;
 
-	if (ctx->chbcr)
+	if (ctx->base)
 		return 0;
 
 	chbs = (struct acpi_cedt_chbs *) header;
@@ -395,23 +395,16 @@ static int cxl_get_chbcr(union acpi_subtable_headers *header, void *arg,
 		return 0;
 
 	ctx->cxl_version = chbs->cxl_version;
-	ctx->rcrb = CXL_RESOURCE_NONE;
-	ctx->chbcr = CXL_RESOURCE_NONE;
+	ctx->base = CXL_RESOURCE_NONE;
 
 	if (!chbs->base)
 		return 0;
 
-	if (chbs->cxl_version != ACPI_CEDT_CHBS_VERSION_CXL11) {
-		ctx->chbcr = chbs->base;
-		return 0;
-	}
-
-	if (chbs->length != CXL_RCRB_SIZE)
+	if (chbs->cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11 &&
+	    chbs->length != CXL_RCRB_SIZE)
 		return 0;
 
-	ctx->rcrb = chbs->base;
-	ctx->chbcr = cxl_rcrb_to_component(ctx->dev, chbs->base,
-					   CXL_RCRB_DOWNSTREAM);
+	ctx->base = chbs->base;
 
 	return 0;
 }
@@ -443,33 +436,31 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 		.dev = match,
 		.uid = uid,
 	};
-	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbcr, &ctx);
+	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbs, &ctx);
 
-	if (!ctx.chbcr) {
+	if (!ctx.base) {
 		dev_warn(match, "No CHBS found for Host Bridge (UID %lld)\n",
 			 uid);
 		return 0;
 	}
 
-	if (ctx.rcrb != CXL_RESOURCE_NONE)
-		dev_dbg(match, "RCRB found for UID %lld: %pa\n", uid, &ctx.rcrb);
-
-	if (ctx.chbcr == CXL_RESOURCE_NONE) {
-		dev_warn(match, "CHBCR invalid for Host Bridge (UID %lld)\n",
+	if (ctx.base == CXL_RESOURCE_NONE) {
+		dev_warn(match, "CHBS invalid for Host Bridge (UID %lld)\n",
 			 uid);
 		return 0;
 	}
 
-	dev_dbg(match, "CHBCR found: %pa\n", &ctx.chbcr);
-
 	pci_root = acpi_pci_find_root(hb->handle);
 	bridge = pci_root->bus->bridge;
-	if (ctx.cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11)
-		dport = devm_cxl_add_rch_dport(root_port, bridge, uid,
-					       ctx.chbcr, ctx.rcrb);
-	else
-		dport = devm_cxl_add_dport(root_port, bridge, uid,
-					   ctx.chbcr);
+
+	if (ctx.cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11) {
+		dev_dbg(match, "RCRB found for UID %lld: %pa\n", uid, &ctx.base);
+		dport = devm_cxl_add_rch_dport(root_port, bridge, uid, ctx.base);
+	} else {
+		dev_dbg(match, "CHBCR found for UID %lld: %pa\n", uid, &ctx.base);
+		dport = devm_cxl_add_dport(root_port, bridge, uid, ctx.base);
+	}
+
 	if (IS_ERR(dport))
 		return PTR_ERR(dport);
 

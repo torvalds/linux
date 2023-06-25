@@ -12,7 +12,8 @@ ldflags-y += --wrap=devm_cxl_enumerate_decoders
 ldflags-y += --wrap=cxl_await_media_ready
 ldflags-y += --wrap=cxl_hdm_decode_init
 ldflags-y += --wrap=cxl_dvsec_rr_decode
-ldflags-y += --wrap=cxl_rcrb_to_component
+ldflags-y += --wrap=devm_cxl_add_rch_dport
+ldflags-y += --wrap=cxl_rcd_component_reg_phys
 
 DRIVERS := ../../../drivers
 CXL_SRC := $(DRIVERS)/cxl
