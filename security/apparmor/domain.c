@@ -304,28 +304,31 @@ static int change_profile_perms(struct aa_profile *profile,
 
 /**
  * aa_xattrs_match - check whether a file matches the xattrs defined in profile
- * @bprm: binprm struct for the process to validate
+ * @path: path for file being matched (NOT NULL)
  * @profile: profile to match against (NOT NULL)
  * @state: state to start match in
  *
  * Returns: number of extended attributes that matched, or < 0 on error
  */
-static int aa_xattrs_match(const struct linux_binprm *bprm,
+static int aa_xattrs_match(const struct path *path,
 			   struct aa_profile *profile, aa_state_t state)
 {
+	AA_BUG(!path);
+	AA_BUG(!profile);
+
 	int i;
 	struct dentry *d;
 	char *value = NULL;
 	struct aa_attachment *attach = &profile->attach;
 	int size, value_size = 0, ret = attach->xattr_count;
 
-	if (!bprm || !attach->xattr_count)
+	if (!attach->xattr_count)
 		return 0;
 	might_sleep();
 
 	/* transition from exec match to xattr set */
 	state = aa_dfa_outofband_transition(attach->xmatch->dfa, state);
-	d = bprm->file->f_path.dentry;
+	d = path->dentry;
 
 	for (i = 0; i < attach->xattr_count; i++) {
 		size = vfs_getxattr_alloc(&nop_mnt_idmap, d, attach->xattrs[i],
@@ -373,7 +376,7 @@ out:
 
 /**
  * find_attach - do attachment search for unconfined processes
- * @bprm: binprm structure of transitioning task
+ * @path: path of file in question (NOT NULL)
  * @ns: the current namespace  (NOT NULL)
  * @head: profile list to walk  (NOT NULL)
  * @name: to match against  (NOT NULL)
@@ -388,7 +391,7 @@ out:
  *
  * Returns: label or NULL if no match found
  */
-static struct aa_label *find_attach(const struct linux_binprm *bprm,
+static struct aa_label *find_attach(const struct path *path,
 				    struct aa_ns *ns, struct list_head *head,
 				    const char *name, const char **info)
 {
@@ -396,6 +399,7 @@ static struct aa_label *find_attach(const struct linux_binprm *bprm,
 	bool conflict = false;
 	struct aa_profile *profile, *candidate = NULL;
 
+	AA_BUG(!path);
 	AA_BUG(!name);
 	AA_BUG(!head);
 
@@ -435,13 +439,13 @@ restart:
 				if (count < candidate_len)
 					continue;
 
-				if (bprm && attach->xattr_count) {
+				if (attach->xattr_count) {
 					long rev = READ_ONCE(ns->revision);
 
 					if (!aa_get_profile_not0(profile))
 						goto restart;
 					rcu_read_unlock();
-					ret = aa_xattrs_match(bprm, profile,
+					ret = aa_xattrs_match(path, profile,
 							      state);
 					rcu_read_lock();
 					aa_put_profile(profile);
@@ -557,7 +561,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 /**
  * x_to_label - get target label for a given xindex
  * @profile: current profile  (NOT NULL)
- * @bprm: binprm structure of transitioning task
+ * @path: path of file in question
  * @name: name to lookup (NOT NULL)
  * @xindex: index into x transition table
  * @lookupname: returns: name used in lookup if one was specified (NOT NULL)
@@ -568,7 +572,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
  * Returns: refcounted label or NULL if not found available
  */
 static struct aa_label *x_to_label(struct aa_profile *profile,
-				   const struct linux_binprm *bprm,
+				   const struct path *path,
 				   const char *name, u32 xindex,
 				   const char **lookupname,
 				   const char **info)
@@ -599,11 +603,11 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 	case AA_X_NAME:
 		if (xindex & AA_X_CHILD)
 			/* released by caller */
-			new = find_attach(bprm, ns, &profile->base.profiles,
+			new = find_attach(path, ns, &profile->base.profiles,
 					  name, info);
 		else
 			/* released by caller */
-			new = find_attach(bprm, ns, &ns->base.profiles,
+			new = find_attach(path, ns, &ns->base.profiles,
 					  name, info);
 		*lookupname = name;
 		break;
@@ -691,7 +695,7 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	}
 
 	if (profile_unconfined(profile)) {
-		new = find_attach(bprm, profile->ns,
+		new = find_attach(&bprm->file->f_path, profile->ns,
 				  &profile->ns->base.profiles, name, &info);
 		/* info set -> something unusual that we should report
 		 * Currently this is only conflicting attachments, but other
@@ -721,8 +725,8 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	state = aa_str_perms(rules->file, state, name, cond, &perms);
 	if (perms.allow & MAY_EXEC) {
 		/* exec permission determine how to transition */
-		new = x_to_label(profile, bprm, name, perms.xindex, &target,
-				 &info);
+		new = x_to_label(profile, &bprm->file->f_path, name,
+				 perms.xindex, &target, &info);
 		if (new && new->proxy == profile->label.proxy && info) {
 			/* Force audit on conflicting attachment fallback
 			 * Because perms is never used again after this audit
