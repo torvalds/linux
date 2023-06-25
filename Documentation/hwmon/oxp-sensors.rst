@@ -30,6 +30,7 @@ Supported devices
 Currently the driver supports the following handhelds:
 
  - AOK ZOE A1
+ - AOK ZOE A1 PRO
  - Aya Neo 2
  - Aya Neo AIR
  - Aya Neo AIR Pro
@@ -40,6 +41,7 @@ Currently the driver supports the following handhelds:
 
 "Turbo/Silent" button behaviour toggle is only supported on:
  - AOK ZOE A1
+ - AOK ZOE A1 PRO
  - OneXPlayer mini AMD (only with updated alpha BIOS)
  - OneXPlayer mini AMD PRO
 
