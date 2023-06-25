@@ -1143,6 +1143,25 @@ struct extent_end {
 
 typedef DARRAY(struct extent_end) extent_ends;
 
+static int get_print_extent(struct btree_trans *trans, struct bpos pos, struct printbuf *out)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_extents, pos,
+			       BTREE_ITER_SLOTS|
+			       BTREE_ITER_ALL_SNAPSHOTS|
+			       BTREE_ITER_NOT_EXTENTS);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	bch2_bkey_val_to_text(out, trans->c, k);
+	bch2_trans_iter_exit(trans, &iter);
+	return 0;
+}
+
 static int check_overlapping_extents(struct btree_trans *trans,
 			      struct snapshots_seen *seen,
 			      extent_ends *extent_ends,
@@ -1165,12 +1184,19 @@ static int check_overlapping_extents(struct btree_trans *trans,
 				  i->snapshot, &i->seen))
 			continue;
 
-		if (fsck_err_on(i->offset > bkey_start_offset(k.k), c,
-				"overlapping extents: extent in snapshot %u ends at %llu overlaps with\n%s",
-				i->snapshot,
-				i->offset,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+		if (i->offset <= bkey_start_offset(k.k))
+			continue;
+
+		printbuf_reset(&buf);
+		prt_str(&buf, "overlapping extents:\n  ");
+		bch2_bkey_val_to_text(&buf, c, k);
+		prt_str(&buf, "\n  ");
+
+		ret = get_print_extent(trans, SPOS(k.k->p.inode, i->offset, i->snapshot), &buf);
+		if (ret)
+			break;
+
+		if (fsck_err(c, buf.buf)) {
 			struct bkey_i *update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
