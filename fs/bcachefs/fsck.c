@@ -639,26 +639,23 @@ static int add_inode(struct bch_fs *c, struct inode_walker *w,
 	}));
 }
 
-static int __walk_inode(struct btree_trans *trans,
-			struct inode_walker *w, struct bpos pos)
+static int get_inodes_all_snapshots(struct btree_trans *trans,
+				    struct inode_walker *w, u64 inum)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	u32 restart_count = trans->restart_count;
-	unsigned i;
 	int ret;
 
-	pos.snapshot = bch2_snapshot_equiv(c, pos.snapshot);
-
-	if (pos.inode == w->cur_inum)
-		goto lookup_snapshot;
+	if (w->cur_inum == inum)
+		return 0;
 
 	w->inodes.nr = 0;
 
-	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, pos.inode),
+	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, inum),
 			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		if (k.k->p.offset != pos.inode)
+		if (k.k->p.offset != inum)
 			break;
 
 		if (bkey_is_inode(k.k))
@@ -669,38 +666,60 @@ static int __walk_inode(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	w->cur_inum		= pos.inode;
+	w->cur_inum		= inum;
 	w->first_this_inode	= true;
 
 	if (trans_was_restarted(trans, restart_count))
 		return -BCH_ERR_transaction_restart_nested;
 
-lookup_snapshot:
-	for (i = 0; i < w->inodes.nr; i++)
-		if (bch2_snapshot_is_ancestor(c, pos.snapshot, w->inodes.data[i].snapshot))
+	return 0;
+}
+
+static struct inode_walker_entry *
+lookup_inode_for_snapshot(struct bch_fs *c,
+			  struct inode_walker *w, u32 snapshot)
+{
+	struct inode_walker_entry *i;
+
+	snapshot = bch2_snapshot_equiv(c, snapshot);
+
+	darray_for_each(w->inodes, i)
+		if (bch2_snapshot_is_ancestor(c, snapshot, i->snapshot))
 			goto found;
-	return INT_MAX;
+
+	return NULL;
 found:
-	BUG_ON(pos.snapshot > w->inodes.data[i].snapshot);
+	BUG_ON(snapshot > i->snapshot);
 
-	if (pos.snapshot != w->inodes.data[i].snapshot) {
-		struct inode_walker_entry e = w->inodes.data[i];
+	if (snapshot != i->snapshot) {
+		struct inode_walker_entry new = *i;
+		int ret;
 
-		e.snapshot = pos.snapshot;
-		e.count = 0;
+		new.snapshot = snapshot;
+		new.count = 0;
 
 		bch_info(c, "have key for inode %llu:%u but have inode in ancestor snapshot %u",
-			 pos.inode, pos.snapshot, w->inodes.data[i].snapshot);
+			 w->cur_inum, snapshot, i->snapshot);
 
-		while (i && w->inodes.data[i - 1].snapshot > pos.snapshot)
+		while (i > w->inodes.data && i[-1].snapshot > snapshot)
 			--i;
 
-		ret = darray_insert_item(&w->inodes, i, e);
+		ret = darray_insert_item(&w->inodes, i - w->inodes.data, new);
 		if (ret)
-			return ret;
+			return ERR_PTR(ret);
 	}
 
 	return i;
+}
+
+static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
+					     struct inode_walker *w, struct bpos pos)
+{
+	int ret = get_inodes_all_snapshots(trans, w, pos.inode);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return lookup_inode_for_snapshot(trans->c, w, pos.snapshot);
 }
 
 static int __get_visible_inodes(struct btree_trans *trans,
@@ -1300,11 +1319,12 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		goto err;
 
-	ret = __walk_inode(trans, inode, equiv);
-	if (ret < 0)
+	i = walk_inode(trans, inode, equiv);
+	ret = PTR_ERR_OR_ZERO(i);
+	if (ret)
 		goto err;
 
-	if (fsck_err_on(ret == INT_MAX, c,
+	if (fsck_err_on(!i, c,
 			"extent in missing inode:\n  %s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
@@ -1313,13 +1333,8 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 	}
 
-	if (ret == INT_MAX) {
-		ret = 0;
+	if (!i)
 		goto out;
-	}
-
-	i = inode->inodes.data + ret;
-	ret = 0;
 
 	if (fsck_err_on(!S_ISREG(i->inode.bi_mode) &&
 			!S_ISLNK(i->inode.bi_mode), c,
@@ -1625,7 +1640,8 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 
 	BUG_ON(!iter->path->should_be_locked);
 
-	ret = __walk_inode(trans, dir, equiv);
+	i = walk_inode(trans, dir, equiv);
+	ret = PTR_ERR_OR_ZERO(i);
 	if (ret < 0)
 		goto err;
 
@@ -1633,7 +1649,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &dir->inodes.data[0].inode);
 	dir->first_this_inode = false;
 
-	if (fsck_err_on(ret == INT_MAX, c,
+	if (fsck_err_on(!i, c,
 			"dirent in nonexisting directory:\n%s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
@@ -1642,13 +1658,8 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 	}
 
-	if (ret == INT_MAX) {
-		ret = 0;
+	if (!i)
 		goto out;
-	}
-
-	i = dir->inodes.data + ret;
-	ret = 0;
 
 	if (fsck_err_on(!S_ISDIR(i->inode.bi_mode), c,
 			"dirent in non directory inode type %s:\n%s",
@@ -1802,29 +1813,29 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 		       struct inode_walker *inode)
 {
 	struct bch_fs *c = trans->c;
+	struct inode_walker_entry *i;
 	int ret;
 
 	ret = check_key_has_snapshot(trans, iter, k);
 	if (ret)
 		return ret;
 
-	ret = __walk_inode(trans, inode, k.k->p);
-	if (ret < 0)
+	i = walk_inode(trans, inode, k.k->p);
+	ret = PTR_ERR_OR_ZERO(i);
+	if (ret)
 		return ret;
 
 	if (inode->first_this_inode)
 		*hash_info = bch2_hash_info_init(c, &inode->inodes.data[0].inode);
 	inode->first_this_inode = false;
 
-	if (fsck_err_on(ret == INT_MAX, c,
+	if (fsck_err_on(!i, c,
 			"xattr for missing inode %llu",
 			k.k->p.inode))
 		return bch2_btree_delete_at(trans, iter, 0);
 
-	if (ret == INT_MAX)
+	if (!i)
 		return 0;
-
-	ret = 0;
 
 	ret = hash_check_key(trans, bch2_xattr_hash_desc, hash_info, iter, k);
 fsck_err:
