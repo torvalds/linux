@@ -1681,8 +1681,7 @@ static inline void alloc_node_mem_map(struct pglist_data *pgdat) { }
  *
  * It returns the start and end page frame of a node based on information
  * provided by memblock_set_node(). If called for a node
- * with no available memory, a warning is printed and the start and end
- * PFNs will be 0.
+ * with no available memory, the start and end PFNs will be 0.
  */
 void __init get_pfn_range_for_nid(unsigned int nid,
 			unsigned long *start_pfn, unsigned long *end_pfn)
