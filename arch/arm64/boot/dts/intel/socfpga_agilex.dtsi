@@ -376,9 +376,9 @@
 		};
 
 		rst: rstmgr@ffd11000 {
-			#reset-cells = <1>;
-			compatible = "altr,stratix10-rst-mgr";
+			compatible = "altr,stratix10-rst-mgr", "altr,rst-mgr";
 			reg = <0xffd11000 0x100>;
+			#reset-cells = <1>;
 		};
 
 		smmu: iommu@fa000000 {
