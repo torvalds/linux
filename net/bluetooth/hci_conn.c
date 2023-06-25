@@ -1862,11 +1862,9 @@ static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
 	if (qos->ucast.cis == BT_ISO_QOS_CIS_UNSET || !data.pdu.cp.num_cis)
 		return false;
 
-	pdu = kzalloc(sizeof(*pdu), GFP_KERNEL);
+	pdu = kmemdup(&data.pdu, sizeof(*pdu), GFP_KERNEL);
 	if (!pdu)
 		return false;
-
-	memcpy(pdu, &data.pdu, sizeof(*pdu));
 
 	if (hci_cmd_sync_queue(hdev, set_cig_params_sync, pdu,
 			       set_cig_params_complete) < 0) {
