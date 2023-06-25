@@ -285,6 +285,7 @@ void aa_free_profile(struct aa_profile *profile)
 /**
  * aa_alloc_profile - allocate, initialize and return a new profile
  * @hname: name of the profile  (NOT NULL)
+ * @proxy: proxy to use OR null if to allocate a new one
  * @gfp: allocation type
  *
  * Returns: refcount profile or NULL on failure
@@ -774,8 +775,9 @@ static int policy_ns_capable(struct aa_label *label,
 
 /**
  * aa_policy_view_capable - check if viewing policy in at @ns is allowed
- * label: label that is trying to view policy in ns
- * ns: namespace being viewed by @label (may be NULL if @label's ns)
+ * @label: label that is trying to view policy in ns
+ * @ns: namespace being viewed by @label (may be NULL if @label's ns)
+ *
  * Returns: true if viewing policy is allowed
  *
  * If @ns is NULL then the namespace being viewed is assumed to be the
@@ -839,6 +841,7 @@ bool aa_current_policy_admin_capable(struct aa_ns *ns)
 /**
  * aa_may_manage_policy - can the current task manage policy
  * @label: label to check if it can manage policy
+ * @ns: namespace being managed by @label (may be NULL if @label's ns)
  * @mask: contains the policy manipulation operation being done
  *
  * Returns: 0 if the task is allowed to manipulate policy else error
@@ -950,11 +953,11 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 
 /**
  * __lookup_replace - lookup replacement information for a profile
- * @ns - namespace the lookup occurs in
- * @hname - name of profile to lookup
- * @noreplace - true if not replacing an existing profile
- * @p - Returns: profile to be replaced
- * @info - Returns: info string on why lookup failed
+ * @ns: namespace the lookup occurs in
+ * @hname: name of profile to lookup
+ * @noreplace: true if not replacing an existing profile
+ * @p: Returns - profile to be replaced
+ * @info: Returns - info string on why lookup failed
  *
  * Returns: profile to replace (no ref) on success else ptr error
  */
