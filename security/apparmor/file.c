@@ -164,7 +164,7 @@ static int path_name(const char *op, struct aa_label *label,
 struct aa_perms default_perms = {};
 /**
  * aa_lookup_fperms - convert dfa compressed perms to internal perms
- * @dfa: dfa to lookup perms for   (NOT NULL)
+ * @file_rules: the aa_policydb to lookup perms for  (NOT NULL)
  * @state: state in dfa
  * @cond:  conditions to consider  (NOT NULL)
  *
@@ -188,8 +188,8 @@ struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
 
 /**
  * aa_str_perms - find permission that match @name
- * @dfa: to match against  (MAYBE NULL)
- * @state: state to start matching in
+ * @file_rules: the aa_policydb to match against  (NOT NULL)
+ * @start: state to start matching in
  * @name: string to match against dfa  (NOT NULL)
  * @cond: conditions to consider for permission set computation  (NOT NULL)
  * @perms: Returns - the permissions found when matching @name
