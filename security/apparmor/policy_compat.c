@@ -143,6 +143,7 @@ static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
  * compute_fperms - convert dfa compressed perms to internal perms and store
  *		    them so they can be retrieved later.
  * @dfa: a dfa using fperms to remap to internal permissions
+ * @size: the permission table size
  *
  * Returns: remapped perm table
  */
