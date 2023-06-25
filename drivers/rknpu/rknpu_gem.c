@@ -13,7 +13,6 @@
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
-#include <linux/dma-iommu.h>
 #include <linux/pfn_t.h>
 #include <linux/version.h>
 #include <asm/cacheflush.h>
@@ -253,10 +252,15 @@ static int rknpu_gem_alloc_buf(struct rknpu_gem_object *rknpu_obj)
 			  i, &s->dma_address, s->length);
 	}
 
-	if (drm_prime_sg_to_page_addr_arrays(sgt, rknpu_obj->pages, NULL,
-					     nr_pages)) {
-		LOG_DEV_ERROR(drm->dev, "invalid sgtable.\n");
-		ret = -EINVAL;
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+	ret = drm_prime_sg_to_page_addr_arrays(sgt, rknpu_obj->pages, NULL,
+					       nr_pages);
+#else
+	ret = drm_prime_sg_to_page_array(sgt, rknpu_obj->pages, nr_pages);
+#endif
+
+	if (ret < 0) {
+		LOG_DEV_ERROR(drm->dev, "invalid sgtable, ret: %d\n", ret);
 		goto err_free_sg_table;
 	}
 
@@ -335,6 +339,24 @@ static int rknpu_gem_handle_destroy(struct drm_file *file_priv,
 	return drm_gem_handle_delete(file_priv, handle);
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static const struct vm_operations_struct vm_ops = {
+	.fault = rknpu_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs rknpu_gem_object_funcs = {
+	.free = rknpu_gem_free_object,
+	.export = drm_gem_prime_export,
+	.get_sg_table = rknpu_gem_prime_get_sg_table,
+	.vmap = rknpu_gem_prime_vmap,
+	.vunmap = rknpu_gem_prime_vunmap,
+	.mmap = rknpu_gem_mmap_obj,
+	.vm_ops = &vm_ops,
+};
+#endif
+
 static struct rknpu_gem_object *rknpu_gem_init(struct drm_device *drm,
 					       unsigned long size)
 {
@@ -348,6 +370,9 @@ static struct rknpu_gem_object *rknpu_gem_init(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	obj = &rknpu_obj->base;
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	obj->funcs = &rknpu_gem_object_funcs;
+#endif
 
 	ret = drm_gem_object_init(drm, obj, size);
 	if (ret < 0) {
@@ -422,7 +447,7 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 		return -EINVAL;
 	}
 
-	cookie = domain->iova_cookie;
+	cookie = (void *)domain->iova_cookie;
 	iovad = &cookie->iovad;
 	rknpu_obj->iova_size = iova_align(iovad, cache_size + rknpu_obj->size);
 	rknpu_obj->iova_start = rknpu_iommu_dma_alloc_iova(
@@ -534,8 +559,8 @@ cache_unmap:
 	iommu_unmap(domain, rknpu_obj->iova_start, cache_size);
 
 free_iova:
-	rknpu_iommu_dma_free_iova(domain->iova_cookie, rknpu_obj->iova_start,
-				  rknpu_obj->iova_size);
+	rknpu_iommu_dma_free_iova((void *)domain->iova_cookie,
+				  rknpu_obj->iova_start, rknpu_obj->iova_size);
 
 	return ret;
 }
@@ -566,7 +591,7 @@ static void rknpu_gem_free_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 		if (rknpu_obj->size > 0)
 			iommu_unmap(domain, rknpu_obj->iova_start + cache_size,
 				    rknpu_obj->size);
-		rknpu_iommu_dma_free_iova(domain->iova_cookie,
+		rknpu_iommu_dma_free_iova((void *)domain->iova_cookie,
 					  rknpu_obj->iova_start,
 					  rknpu_obj->iova_size);
 	}
@@ -1148,8 +1173,7 @@ out:
 }
 #endif
 
-static int rknpu_gem_mmap_obj(struct drm_gem_object *obj,
-			      struct vm_area_struct *vma)
+int rknpu_gem_mmap_obj(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	struct rknpu_gem_object *rknpu_obj = to_rknpu_obj(obj);
 	int ret = -EINVAL;
@@ -1246,8 +1270,12 @@ rknpu_gem_prime_import_sg_table(struct drm_device *dev,
 		goto err;
 	}
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	ret = drm_prime_sg_to_page_addr_arrays(sgt, rknpu_obj->pages, NULL,
 					       npages);
+#else
+	ret = drm_prime_sg_to_page_array(sgt, rknpu_obj->pages, npages);
+#endif
 	if (ret < 0)
 		goto err_free_large;
 
@@ -1275,6 +1303,7 @@ err:
 	return ERR_PTR(ret);
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 void *rknpu_gem_prime_vmap(struct drm_gem_object *obj)
 {
 	struct rknpu_gem_object *rknpu_obj = to_rknpu_obj(obj);
@@ -1290,6 +1319,25 @@ void rknpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
 	vunmap(vaddr);
 }
+#else
+int rknpu_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
+{
+	struct rknpu_gem_object *rknpu_obj = to_rknpu_obj(obj);
+
+	if (!rknpu_obj->pages)
+		return -EINVAL;
+
+	map->vaddr = vmap(rknpu_obj->pages, rknpu_obj->num_pages, VM_MAP,
+			  PAGE_KERNEL);
+
+	return 0;
+}
+
+void rknpu_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
+{
+	vunmap(map->vaddr);
+}
+#endif
 
 int rknpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
@@ -1306,6 +1354,7 @@ static int rknpu_cache_sync(struct rknpu_gem_object *rknpu_obj,
 			    unsigned long *length, unsigned long *offset,
 			    enum rknpu_cache_type cache_type)
 {
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	struct drm_gem_object *obj = &rknpu_obj->base;
 	struct rknpu_device *rknpu_dev = obj->dev->dev_private;
 	void __iomem *cache_base_io = NULL;
@@ -1348,6 +1397,8 @@ static int rknpu_cache_sync(struct rknpu_gem_object *rknpu_obj,
 		*length -= cache_length;
 		*offset = 0;
 	}
+#endif
+
 	return 0;
 }
 

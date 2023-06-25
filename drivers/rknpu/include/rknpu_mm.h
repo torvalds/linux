@@ -10,7 +10,6 @@
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/iommu.h>
-#include <linux/dma-iommu.h>
 #include <linux/iova.h>
 
 #include "rknpu_drv.h"

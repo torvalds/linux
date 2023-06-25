@@ -30,10 +30,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20230428"
+#define DRIVER_DATE "20230625"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 8
-#define DRIVER_PATCHLEVEL 8
+#define DRIVER_PATCHLEVEL 9
 
 #define LOG_TAG "RKNPU"
 

@@ -10,8 +10,12 @@
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/iommu.h>
-#include <linux/dma-iommu.h>
 #include <linux/iova.h>
+#include <linux/version.h>
+
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+#include <linux/dma-iommu.h>
+#endif
 
 #include "rknpu_drv.h"
 
