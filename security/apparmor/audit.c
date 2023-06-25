@@ -142,6 +142,7 @@ static void audit_pre(struct audit_buffer *ab, void *ca)
 
 /**
  * aa_audit_msg - Log a message to the audit subsystem
+ * @type: audit type for the message
  * @sa: audit event structure (NOT NULL)
  * @cb: optional callback fn for type specific fields (MAYBE NULL)
  */
