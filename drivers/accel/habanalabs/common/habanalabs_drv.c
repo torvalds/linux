@@ -296,7 +296,6 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 
-	mutex_init(&hpriv->notifier_event.lock);
 	nonseekable_open(inode, filp);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);

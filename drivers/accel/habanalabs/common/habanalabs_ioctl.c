@@ -1104,6 +1104,17 @@ int hl_info_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_pri
 
 static int hl_info_ioctl_control(struct hl_fpriv *hpriv, void *data)
 {
+	struct hl_info_args *args = data;
+
+	switch (args->op) {
+	case HL_INFO_GET_EVENTS:
+	case HL_INFO_UNREGISTER_EVENTFD:
+	case HL_INFO_REGISTER_EVENTFD:
+		return -EOPNOTSUPP;
+	default:
+		break;
+	}
+
 	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev_ctrl);
 }
 

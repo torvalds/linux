@@ -572,11 +572,6 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 out:
-	/* release the eventfd */
-	if (hpriv->notifier_event.eventfd)
-		eventfd_ctx_put(hpriv->notifier_event.eventfd);
-
-	mutex_destroy(&hpriv->notifier_event.lock);
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
@@ -1995,14 +1990,6 @@ void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask)
 		hl_notifier_event_send(&hpriv->notifier_event, event_mask);
 
 	mutex_unlock(&hdev->fpriv_list_lock);
-
-	/* control device */
-	mutex_lock(&hdev->fpriv_ctrl_list_lock);
-
-	list_for_each_entry(hpriv, &hdev->fpriv_ctrl_list, dev_node)
-		hl_notifier_event_send(&hpriv->notifier_event, event_mask);
-
-	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
 /*
