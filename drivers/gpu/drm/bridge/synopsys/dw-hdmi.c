@@ -3346,6 +3346,12 @@ static int dw_hdmi_parse_dt(struct dw_hdmi *hdmi)
 	return 0;
 }
 
+bool dw_hdmi_bus_fmt_is_420(struct dw_hdmi *hdmi)
+{
+	return hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_bus_fmt_is_420);
+
 struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 			      const struct dw_hdmi_plat_data *plat_data)
 {

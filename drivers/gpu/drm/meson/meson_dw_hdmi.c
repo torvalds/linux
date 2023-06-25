@@ -379,8 +379,8 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 			 mode->clock > 340000 ? 40 : 10);
 
 	if (drm_mode_is_420_only(display, mode) ||
-	    (!is_hdmi2_sink &&
-	     drm_mode_is_420_also(display, mode)))
+	    (!is_hdmi2_sink && drm_mode_is_420_also(display, mode)) ||
+	    dw_hdmi_bus_fmt_is_420(hdmi))
 		mode_is_420 = true;
 
 	/* Enable clocks */
