@@ -265,6 +265,7 @@ static int label_match(struct aa_profile *profile, struct aa_label *label,
  * @stack: whether this is a stacking request
  * @request: requested perms
  * @start: state to start matching in
+ * @perms: Returns computed perms (NOT NULL)
  *
  *
  * Returns: permission set
@@ -359,11 +360,11 @@ out:
 
 /**
  * find_attach - do attachment search for unconfined processes
- * @bprm - binprm structure of transitioning task
+ * @bprm: binprm structure of transitioning task
  * @ns: the current namespace  (NOT NULL)
- * @head - profile list to walk  (NOT NULL)
- * @name - to match against  (NOT NULL)
- * @info - info message if there was an error (NOT NULL)
+ * @head: profile list to walk  (NOT NULL)
+ * @name: to match against  (NOT NULL)
+ * @info: info message if there was an error (NOT NULL)
  *
  * Do a linear search on the profiles in the list.  There is a matching
  * preference where an exact match is preferred over a name which uses
@@ -545,6 +546,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
  * @name: name to lookup (NOT NULL)
  * @xindex: index into x transition table
  * @lookupname: returns: name used in lookup if one was specified (NOT NULL)
+ * @info: info message if there was an error (NOT NULL)
  *
  * find label for a transition index
  *
