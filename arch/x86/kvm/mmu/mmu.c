@@ -6862,7 +6862,7 @@ static void mmu_destroy_caches(void)
 static int get_nx_huge_pages(char *buffer, const struct kernel_param *kp)
 {
 	if (nx_hugepage_mitigation_hard_disabled)
-		return sprintf(buffer, "never\n");
+		return sysfs_emit(buffer, "never\n");
 
 	return param_get_bool(buffer, kp);
 }
