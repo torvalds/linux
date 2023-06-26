@@ -105,11 +105,13 @@ static inline bool phylink_autoneg_inband(unsigned int mode)
  *
  * Determines the negotiation mode to be used by the PCS, and returns
  * one of:
- * %PHYLINK_PCS_NEG_NONE: interface mode does not support inband
- * %PHYLINK_PCS_NEG_OUTBAND: an out of band mode (e.g. reading the PHY)
+ *
+ * - %PHYLINK_PCS_NEG_NONE: interface mode does not support inband
+ * - %PHYLINK_PCS_NEG_OUTBAND: an out of band mode (e.g. reading the PHY)
  *   will be used.
- * %PHYLINK_PCS_NEG_INBAND_DISABLED: inband mode selected but autoneg disabled
- * %PHYLINK_PCS_NEG_INBAND_ENABLED: inband mode selected and autoneg enabled
+ * - %PHYLINK_PCS_NEG_INBAND_DISABLED: inband mode selected but autoneg
+ *   disabled
+ * - %PHYLINK_PCS_NEG_INBAND_ENABLED: inband mode selected and autoneg enabled
  *
  * Note: this is for cases where the PCS itself is involved in negotiation
  * (e.g. Clause 37, SGMII and similar) not Clause 73.
