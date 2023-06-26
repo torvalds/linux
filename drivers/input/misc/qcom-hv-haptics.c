@@ -1047,6 +1047,7 @@ static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
 	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 813850 : 833333)
 #define SLEEP_CLK_CAL_DIVIDER			\
 	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 600 : 586)
+#define CL_TLRA_ERROR_RANGE_PCT			20
 static int haptics_get_closeloop_lra_period(
 		struct haptics_chip *chip, bool in_boot)
 {
@@ -1188,6 +1189,14 @@ static int haptics_get_closeloop_lra_period(
 		dev_err(chip->dev, "Can't get close-loop LRA period in rc_clk_cal mode %u\n",
 				rc_clk_cal);
 		return -EINVAL;
+	}
+
+	if ((abs(config->t_lra_us - config->cl_t_lra_us) * 100 / config->t_lra_us) >
+			CL_TLRA_ERROR_RANGE_PCT) {
+		dev_warn(chip->dev, "The calibrated period (%d us) has large variation, use open-loop LRA period (%d us) instead\n",
+				config->cl_t_lra_us, config->t_lra_us);
+		config->cl_t_lra_us = config->t_lra_us;
+		chip->config.rc_clk_cal_count = 0;
 	}
 
 	dev_dbg(chip->dev, "OL_TLRA %u us, CL_TLRA %u us, RC_CLK_CAL_COUNT %#x\n",
