@@ -255,12 +255,6 @@ static bool vhost_worker_queue(struct vhost_worker *worker,
 	return true;
 }
 
-bool vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
-{
-	return vhost_worker_queue(dev->worker, work);
-}
-EXPORT_SYMBOL_GPL(vhost_work_queue);
-
 bool vhost_vq_work_queue(struct vhost_virtqueue *vq, struct vhost_work *work)
 {
 	return vhost_worker_queue(vq->worker, work);
