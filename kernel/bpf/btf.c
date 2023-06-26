@@ -6135,6 +6135,8 @@ static int btf_struct_walk(struct bpf_verifier_log *log, const struct btf *btf,
 
 	*flag = 0;
 again:
+	if (btf_type_is_modifier(t))
+		t = btf_type_skip_modifiers(btf, t->type, NULL);
 	tname = __btf_name_by_offset(btf, t->name_off);
 	if (!btf_type_is_struct(t)) {
 		bpf_log(log, "Type '%s' is not a struct\n", tname);
