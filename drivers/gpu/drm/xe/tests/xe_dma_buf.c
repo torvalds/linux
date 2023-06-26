@@ -72,7 +72,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 	}
 
 	/* Verify that also importer has been evicted to SYSTEM */
-	if (!xe_bo_is_mem_type(imported, XE_PL_SYSTEM)) {
+	if (exported != imported && !xe_bo_is_mem_type(imported, XE_PL_SYSTEM)) {
 		KUNIT_FAIL(test, "Importer wasn't properly evicted.\n");
 		return;
 	}
@@ -91,8 +91,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 	 * possible, saving a migration step as the transfer is just
 	 * likely as fast from system memory.
 	 */
-	if (params->force_different_devices &&
-	    params->mem_mask & XE_BO_CREATE_SYSTEM_BIT)
+	if (params->mem_mask & XE_BO_CREATE_SYSTEM_BIT)
 		KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(exported, XE_PL_TT));
 	else
 		KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(exported, mem_type));

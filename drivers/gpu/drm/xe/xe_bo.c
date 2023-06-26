@@ -40,6 +40,20 @@ static struct ttm_placement sys_placement = {
 	.busy_placement = &sys_placement_flags,
 };
 
+static const struct ttm_place tt_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.mem_type = XE_PL_TT,
+	.flags = 0,
+};
+
+static struct ttm_placement tt_placement = {
+	.num_placement = 1,
+	.placement = &tt_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags,
+};
+
 bool mem_type_is_vram(u32 mem_type)
 {
 	return mem_type >= XE_PL_VRAM0 && mem_type != XE_PL_STOLEN;
@@ -225,9 +239,10 @@ static void xe_evict_flags(struct ttm_buffer_object *tbo,
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1:
 	case XE_PL_STOLEN:
+		*placement = tt_placement;
+		break;
 	case XE_PL_TT:
 	default:
-		/* for now kick out to system */
 		*placement = sys_placement;
 		break;
 	}
