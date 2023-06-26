@@ -543,7 +543,7 @@ static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 	}
 
 	if (dev)
-		dev_dbg(pdev->dev, "SMU idlemask s0i3: 0x%x\n", val);
+		pm_pr_dbg("SMU idlemask s0i3: 0x%x\n", val);
 
 	if (s)
 		seq_printf(s, "SMU idlemask : 0x%x\n", val);
@@ -769,7 +769,7 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 
 	*arg |= (duration << 16);
 	rc = rtc_alarm_irq_enable(rtc_device, 0);
-	dev_dbg(pdev->dev, "wakeup timer programmed for %lld seconds\n", duration);
+	pm_pr_dbg("wakeup timer programmed for %lld seconds\n", duration);
 
 	return rc;
 }
