@@ -306,18 +306,6 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 
 		if (ret)
 			return ret;
-
-		/*
-		 * FIXME: verify that the hardware actually needs these
-		 * modifications rather than them being simple typos.
-		 */
-		if (compressed_bpp == 6 &&
-		    vdsc_cfg->bits_per_component == 8)
-			vdsc_cfg->rc_quant_incr_limit1 = 23;
-
-		if (compressed_bpp == 8 &&
-		    vdsc_cfg->bits_per_component == 14)
-			vdsc_cfg->rc_range_params[0].range_bpg_offset = 0;
 	}
 
 	/*
