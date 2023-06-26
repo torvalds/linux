@@ -2807,7 +2807,7 @@ unlock:
 	} while (size);
 
 	mutex_unlock(&u->iolock);
-	if (state->msg && check_creds)
+	if (state->msg)
 		scm_recv(sock, state->msg, &scm, flags);
 	else
 		scm_destroy(&scm);
