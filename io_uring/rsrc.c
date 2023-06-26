@@ -354,7 +354,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	__s32 __user *fds = u64_to_user_ptr(up->data);
 	struct io_rsrc_data *data = ctx->file_data;
 	struct io_fixed_file *file_slot;
-	struct file *file;
 	int fd, i, err = 0;
 	unsigned int done;
 
@@ -382,15 +381,16 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		file_slot = io_fixed_file_slot(&ctx->file_table, i);
 
 		if (file_slot->file_ptr) {
-			file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-			err = io_queue_rsrc_removal(data, i, file);
+			err = io_queue_rsrc_removal(data, i,
+						    io_slot_file(file_slot));
 			if (err)
 				break;
 			file_slot->file_ptr = 0;
 			io_file_bitmap_clear(&ctx->file_table, i);
 		}
 		if (fd != -1) {
-			file = fget(fd);
+			struct file *file = fget(fd);
+
 			if (!file) {
 				err = -EBADF;
 				break;
