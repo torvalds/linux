@@ -1412,9 +1412,13 @@ static int __init zonefs_init(void)
 
 	BUILD_BUG_ON(sizeof(struct zonefs_super) != ZONEFS_SUPER_SIZE);
 
-	ret = zonefs_init_inodecache();
+	ret = zonefs_file_bioset_init();
 	if (ret)
 		return ret;
+
+	ret = zonefs_init_inodecache();
+	if (ret)
+		goto destroy_bioset;
 
 	ret = zonefs_sysfs_init();
 	if (ret)
@@ -1430,6 +1434,8 @@ sysfs_exit:
 	zonefs_sysfs_exit();
 destroy_inodecache:
 	zonefs_destroy_inodecache();
+destroy_bioset:
+	zonefs_file_bioset_exit();
 
 	return ret;
 }
@@ -1439,6 +1445,7 @@ static void __exit zonefs_exit(void)
 	unregister_filesystem(&zonefs_type);
 	zonefs_sysfs_exit();
 	zonefs_destroy_inodecache();
+	zonefs_file_bioset_exit();
 }
 
 MODULE_AUTHOR("Damien Le Moal");
