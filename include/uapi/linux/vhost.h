@@ -90,9 +90,7 @@
 #define VHOST_SET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x13, struct vhost_vring_state)
 #define VHOST_GET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x14, struct vhost_vring_state)
 /* Attach a vhost_worker created with VHOST_NEW_WORKER to one of the device's
- * virtqueues. This must be done before VHOST_SET_VRING_KICK and the driver
- * specific ioctl to activate the virtqueue (VHOST_SCSI_SET_ENDPOINT,
- * VHOST_NET_SET_BACKEND, VHOST_VSOCK_SET_RUNNING) has been run.
+ * virtqueues.
  *
  * This will replace the virtqueue's existing worker. If the replaced worker
  * is no longer attached to any virtqueues, it can be freed with
