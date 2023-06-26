@@ -318,12 +318,13 @@ static u64 acp63_sdw_get_byte_count(struct acp_sdw_dma_stream *stream, void __io
 		pos_high_reg = sdw1_dma_ring_buf_reg[stream->stream_id].pos_high_reg;
 		break;
 	default:
-		return -EINVAL;
+		goto POINTER_RETURN_BYTES;
 	}
 	if (pos_low_reg) {
 		byte_count.bcount.high = readl(acp_base + pos_high_reg);
 		byte_count.bcount.low = readl(acp_base + pos_low_reg);
 	}
+POINTER_RETURN_BYTES:
 	return byte_count.bytescount;
 }
 
