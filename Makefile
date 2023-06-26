@@ -38,6 +38,10 @@ __all:
 # descending is started. They are now explicitly listed as the
 # prepare rule.
 
+this-makefile := $(lastword $(MAKEFILE_LIST))
+export abs_srctree := $(realpath $(dir $(this-makefile)))
+export abs_objtree := $(CURDIR)
+
 ifneq ($(sub_make_done),1)
 
 # Do not use make's built-in rules and variables
@@ -185,8 +189,6 @@ $(if $(abs_objtree),, \
 
 # $(realpath ...) resolves symlinks
 abs_objtree := $(realpath $(abs_objtree))
-else
-abs_objtree := $(CURDIR)
 endif # ifneq ($(KBUILD_OUTPUT),)
 
 ifeq ($(abs_objtree),$(CURDIR))
@@ -195,9 +197,6 @@ MAKEFLAGS += --no-print-directory
 else
 need-sub-make := 1
 endif
-
-this-makefile := $(lastword $(MAKEFILE_LIST))
-abs_srctree := $(realpath $(dir $(this-makefile)))
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
 $(error source directory cannot contain spaces or colons)
@@ -211,7 +210,6 @@ need-sub-make := 1
 $(this-makefile): ;
 endif
 
-export abs_srctree abs_objtree
 export sub_make_done := 1
 
 ifeq ($(need-sub-make),1)
