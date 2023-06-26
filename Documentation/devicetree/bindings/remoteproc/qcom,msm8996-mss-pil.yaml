@@ -216,13 +216,12 @@ allOf:
             - description: GCC MSS IFACE clock
             - description: GCC MSS BUS clock
             - description: GCC MSS MEM clock
-            - description: RPMH XO clock
+            - description: RPM XO clock
             - description: GCC MSS GPLL0 clock
             - description: GCC MSS SNOC_AXI clock
             - description: GCC MSS MNOC_AXI clock
-            - description: RPMH PNOC clock
-            - description: GCC MSS PRNG clock
-            - description: RPMH QDSS clock
+            - description: RPM PNOC clock
+            - description: RPM QDSS clock
         clock-names:
           items:
             - const: iface
