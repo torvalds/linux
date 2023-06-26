@@ -314,9 +314,17 @@ struct dsa_port {
 	struct list_head	fdbs;
 	struct list_head	mdbs;
 
-	/* List of VLANs that CPU and DSA ports are members of. */
 	struct mutex		vlans_lock;
-	struct list_head	vlans;
+	union {
+		/* List of VLANs that CPU and DSA ports are members of.
+		 * Access to this is serialized by the sleepable @vlans_lock.
+		 */
+		struct list_head	vlans;
+		/* List of VLANs that user ports are members of.
+		 * Access to this is serialized by netif_addr_lock_bh().
+		 */
+		struct list_head	user_vlans;
+	};
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
