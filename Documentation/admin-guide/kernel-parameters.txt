@@ -5264,6 +5264,13 @@
 			number avoids disturbing real-time workloads,
 			but lengthens grace periods.
 
+	rcupdate.rcu_task_lazy_lim= [KNL]
+			Number of callbacks on a given CPU that will
+			cancel laziness on that CPU.  Use -1 to disable
+			cancellation of laziness, but be advised that
+			doing so increases the danger of OOM due to
+			callback flooding.
+
 	rcupdate.rcu_task_stall_info= [KNL]
 			Set initial timeout in jiffies for RCU task stall
 			informational messages, which give some indication

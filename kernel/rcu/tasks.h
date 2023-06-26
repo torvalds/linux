@@ -176,6 +176,8 @@ static int rcu_task_contend_lim __read_mostly = 100;
 module_param(rcu_task_contend_lim, int, 0444);
 static int rcu_task_collapse_lim __read_mostly = 10;
 module_param(rcu_task_collapse_lim, int, 0444);
+static int rcu_task_lazy_lim __read_mostly = 32;
+module_param(rcu_task_lazy_lim, int, 0444);
 
 /* RCU tasks grace-period state for debugging. */
 #define RTGS_INIT		 0
@@ -354,8 +356,9 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 		cblist_init_generic(rtp);
 		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
 	}
-	needwake = func == wakeme_after_rcu;
-	if (havekthread && !timer_pending(&rtpcp->lazy_timer)) {
+	needwake = (func == wakeme_after_rcu) ||
+		   (rcu_segcblist_n_cbs(&rtpcp->cblist) == rcu_task_lazy_lim);
+	if (havekthread && !needwake && !timer_pending(&rtpcp->lazy_timer)) {
 		if (rtp->lazy_jiffies)
 			mod_timer(&rtpcp->lazy_timer, rcu_tasks_lazy_time(rtp));
 		else
