@@ -734,7 +734,7 @@ int bnxt_qplib_alloc_dpi(struct bnxt_qplib_res *res,
 
 	switch (type) {
 	case BNXT_QPLIB_DPI_TYPE_KERNEL:
-		/* priviledged dbr was already mapped just initialize it. */
+		/* privileged dbr was already mapped just initialize it. */
 		dpi->umdbr = dpit->ucreg.bar_base +
 			     dpit->ucreg.offset + bit_num * PAGE_SIZE;
 		dpi->dbr = dpit->priv_db;
@@ -940,7 +940,7 @@ int bnxt_qplib_map_db_bar(struct bnxt_qplib_res *res)
 	}
 	ucreg->bar_reg = ioremap(ucreg->bar_base, ucreg->len);
 	if (!ucreg->bar_reg) {
-		dev_err(&res->pdev->dev, "priviledged dpi map failed!");
+		dev_err(&res->pdev->dev, "privileged dpi map failed!");
 		return -ENOMEM;
 	}
 
