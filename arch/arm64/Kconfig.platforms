@@ -260,6 +260,14 @@ config ARCH_PINEAPPLE
 	  chipset. If you do not wish to build a kernel that runs on this
 	  chipset or if you are unsure, say 'N' here.
 
+config ARCH_NIOBE
+        bool "Enable support for Qualcomm Technologies, Inc. Niobe"
+        depends on ARCH_QCOM
+        help
+          This enables support for Qualcomm Technologies, Inc. Niobe
+          chipset. If you do not wish to build a kernel that runs on this
+          chipset or if you are unsure, say 'N' here.
+
 config ARCH_MONACO_AUTO
         bool "Enable Support for Qualcomm Technologies, Inc. MONACO_AUTO"
         depends on ARCH_QCOM
