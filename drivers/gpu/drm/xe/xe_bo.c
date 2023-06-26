@@ -568,6 +568,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	struct xe_tile *tile = NULL;
 	struct dma_fence *fence;
 	bool move_lacks_source;
+	bool tt_has_data;
 	bool needs_clear;
 	int ret = 0;
 
@@ -590,8 +591,10 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		goto out;
 	}
 
-	move_lacks_source = !resource_is_vram(old_mem) &&
-		(!ttm || !ttm_tt_is_populated(ttm));
+	tt_has_data = ttm && (ttm_tt_is_populated(ttm) ||
+			      (ttm->page_flags & TTM_TT_FLAG_SWAPPED));
+
+	move_lacks_source = !resource_is_vram(old_mem) && !tt_has_data;
 
 	needs_clear = (ttm && ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) ||
 		(!ttm && ttm_bo->type == ttm_bo_type_device);
