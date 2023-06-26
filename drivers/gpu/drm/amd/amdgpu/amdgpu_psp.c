@@ -3706,7 +3706,6 @@ static DEVICE_ATTR(psp_vbflash_status, 0440, amdgpu_psp_vbflash_status, NULL);
 int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
-	struct psp_context *psp = &adev->psp;
 
 	if (amdgpu_sriov_vf(adev))
 		return -EINVAL;
@@ -3715,10 +3714,6 @@ int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 10):
-		if (!psp->adev) {
-			psp->adev = adev;
-			psp_v13_0_set_psp_funcs(psp);
-		}
 		ret = sysfs_create_bin_file(&adev->dev->kobj, &psp_vbflash_bin_attr);
 		if (ret)
 			dev_err(adev->dev, "Failed to create device file psp_vbflash");
