@@ -320,6 +320,7 @@ void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
 		start_knode = &start->p->knode_class;
 	klist_iter_init_node(&sp->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
+	iter->sp = sp;
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_init);
 
@@ -361,6 +362,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_next);
 void class_dev_iter_exit(struct class_dev_iter *iter)
 {
 	klist_iter_exit(&iter->ki);
+	subsys_put(iter->sp);
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_exit);
 

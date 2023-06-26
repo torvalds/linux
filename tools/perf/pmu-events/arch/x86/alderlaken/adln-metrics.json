@@ -98,6 +98,7 @@
         "MetricGroup": "TopdownL1;tma_L1_group",
         "MetricName": "tma_backend_bound",
         "MetricThreshold": "tma_backend_bound > 0.1",
+        "MetricgroupNoGroup": "TopdownL1",
         "PublicDescription": "Counts the total number of issue slots  that were not consumed by the backend due to backend stalls.  Note that uops must be available for consumption in order for this event to count.  If a uop is not available (IQ is empty), this event will not count.   The rest of these subevents count backend stalls, in cycles, due to an outstanding request which is memory bound vs core bound.   The subevents are not slot based events and therefore can not be precisely added or subtracted from the Backend_Bound_Aux subevents which are slot based.",
         "ScaleUnit": "100%"
     },
@@ -107,6 +108,7 @@
         "MetricGroup": "TopdownL1;tma_L1_group",
         "MetricName": "tma_backend_bound_aux",
         "MetricThreshold": "tma_backend_bound_aux > 0.2",
+        "MetricgroupNoGroup": "TopdownL1",
         "PublicDescription": "Counts the total number of issue slots  that were not consumed by the backend due to backend stalls.  Note that UOPS must be available for consumption in order for this event to count.  If a uop is not available (IQ is empty), this event will not count.  All of these subevents count backend stalls, in slots, due to a resource limitation.   These are not cycle based events and therefore can not be precisely added or subtracted from the Backend_Bound subevents which are cycle based.  These subevents are supplementary to Backend_Bound and can be used to analyze results from a resource perspective at allocation.",
         "ScaleUnit": "100%"
     },
@@ -116,6 +118,7 @@
         "MetricGroup": "TopdownL1;tma_L1_group",
         "MetricName": "tma_bad_speculation",
         "MetricThreshold": "tma_bad_speculation > 0.15",
+        "MetricgroupNoGroup": "TopdownL1",
         "PublicDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear. Only issue slots wasted due to fast nukes such as memory ordering nukes are counted. Other nukes are not accounted for. Counts all issue slots blocked during this recovery window including relevant microcode flows and while uops are not yet available in the instruction queue (IQ). Also includes the issue slots that were consumed by the backend but were thrown away because they were younger than the mispredict or machine clear.",
         "ScaleUnit": "100%"
     },
@@ -125,6 +128,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_retiring_group",
         "MetricName": "tma_base",
         "MetricThreshold": "tma_base > 0.6",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -142,6 +146,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_bad_speculation_group",
         "MetricName": "tma_branch_mispredicts",
         "MetricThreshold": "tma_branch_mispredicts > 0.05",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -166,6 +171,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_backend_bound_group",
         "MetricName": "tma_core_bound",
         "MetricThreshold": "tma_core_bound > 0.1",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -207,6 +213,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_frontend_bound_group",
         "MetricName": "tma_fetch_bandwidth",
         "MetricThreshold": "tma_fetch_bandwidth > 0.1",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -215,6 +222,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_frontend_bound_group",
         "MetricName": "tma_fetch_latency",
         "MetricThreshold": "tma_fetch_latency > 0.15",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -239,6 +247,7 @@
         "MetricGroup": "TopdownL1;tma_L1_group",
         "MetricName": "tma_frontend_bound",
         "MetricThreshold": "tma_frontend_bound > 0.2",
+        "MetricgroupNoGroup": "TopdownL1",
         "ScaleUnit": "100%"
     },
     {
@@ -499,6 +508,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_bad_speculation_group",
         "MetricName": "tma_machine_clears",
         "MetricThreshold": "tma_machine_clears > 0.05",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -515,6 +525,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_backend_bound_group",
         "MetricName": "tma_memory_bound",
         "MetricThreshold": "tma_memory_bound > 0.2",
+        "MetricgroupNoGroup": "TopdownL2",
         "ScaleUnit": "100%"
     },
     {
@@ -531,6 +542,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_retiring_group",
         "MetricName": "tma_ms_uops",
         "MetricThreshold": "tma_ms_uops > 0.05",
+        "MetricgroupNoGroup": "TopdownL2",
         "PublicDescription": "Counts the number of uops that are from the complex flows issued by the micro-sequencer (MS).  This includes uops from flows due to complex instructions, faults, assists, and inserted flows.",
         "ScaleUnit": "100%"
     },
@@ -620,6 +632,7 @@
         "MetricGroup": "TopdownL2;tma_L2_group;tma_backend_bound_aux_group",
         "MetricName": "tma_resource_bound",
         "MetricThreshold": "tma_resource_bound > 0.2",
+        "MetricgroupNoGroup": "TopdownL2",
         "PublicDescription": "Counts the total number of issue slots  that were not consumed by the backend due to backend stalls.  Note that uops must be available for consumption in order for this event to count.  If a uop is not available (IQ is empty), this event will not count.",
         "ScaleUnit": "100%"
     },
@@ -629,6 +642,7 @@
         "MetricGroup": "TopdownL1;tma_L1_group",
         "MetricName": "tma_retiring",
         "MetricThreshold": "tma_retiring > 0.75",
+        "MetricgroupNoGroup": "TopdownL1",
         "ScaleUnit": "100%"
     },
     {

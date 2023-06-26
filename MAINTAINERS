@@ -1677,10 +1677,7 @@ F:	drivers/power/reset/arm-versatile-reboot.c
 F:	drivers/soc/versatile/
 
 ARM KOMEDA DRM-KMS DRIVER
-M:	James (Qian) Wang <james.qian.wang@arm.com>
 M:	Liviu Dudau <liviu.dudau@arm.com>
-M:	Mihail Atanassov <mihail.atanassov@arm.com>
-L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/arm,komeda.yaml
@@ -1701,8 +1698,6 @@ F:	include/uapi/drm/panfrost_drm.h
 
 ARM MALI-DP DRM DRIVER
 M:	Liviu Dudau <liviu.dudau@arm.com>
-M:	Brian Starkey <brian.starkey@arm.com>
-L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/arm,malidp.yaml
@@ -6011,7 +6006,7 @@ W:	http://www.dialog-semiconductor.com/products
 F:	Documentation/devicetree/bindings/input/da90??-onkey.txt
 F:	Documentation/devicetree/bindings/input/dlg,da72??.txt
 F:	Documentation/devicetree/bindings/mfd/da90*.txt
-F:	Documentation/devicetree/bindings/mfd/da90*.yaml
+F:	Documentation/devicetree/bindings/mfd/dlg,da90*.yaml
 F:	Documentation/devicetree/bindings/regulator/da92*.txt
 F:	Documentation/devicetree/bindings/regulator/dlg,da9*.yaml
 F:	Documentation/devicetree/bindings/regulator/slg51000.txt
@@ -6210,6 +6205,7 @@ X:	Documentation/devicetree/
 X:	Documentation/driver-api/media/
 X:	Documentation/firmware-guide/acpi/
 X:	Documentation/i2c/
+X:	Documentation/netlink/
 X:	Documentation/power/
 X:	Documentation/spi/
 X:	Documentation/userspace-api/media/
@@ -14565,6 +14561,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 F:	Documentation/devicetree/bindings/net/
 F:	drivers/connector/
 F:	drivers/net/
+X:	drivers/net/wireless/
 F:	include/dt-bindings/net/
 F:	include/linux/etherdevice.h
 F:	include/linux/fcdevice.h
@@ -14614,6 +14611,7 @@ B:	mailto:netdev@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 F:	Documentation/core-api/netlink.rst
+F:	Documentation/netlink/
 F:	Documentation/networking/
 F:	Documentation/process/maintainer-netdev.rst
 F:	Documentation/userspace-api/netlink/
@@ -14628,6 +14626,7 @@ F:	include/uapi/linux/netdevice.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
+X:	net/bluetooth/
 F:	tools/net/
 F:	tools/testing/selftests/net/
 
@@ -17164,6 +17163,7 @@ F:	sound/soc/codecs/wcd9335.*
 F:	sound/soc/codecs/wcd934x.c
 F:	sound/soc/codecs/wsa881x.c
 F:	sound/soc/codecs/wsa883x.c
+F:	sound/soc/codecs/wsa884x.c
 F:	sound/soc/qcom/
 
 QCOM EMBEDDED USB DEBUGGER (EUD)
@@ -18840,12 +18840,11 @@ F:	drivers/target/
 F:	include/target/
 
 SCTP PROTOCOL
-M:	Neil Horman <nhorman@tuxdriver.com>
 M:	Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
 M:	Xin Long <lucien.xin@gmail.com>
 L:	linux-sctp@vger.kernel.org
 S:	Maintained
-W:	http://lksctp.sourceforge.net
+W:	https://github.com/sctp/lksctp-tools/wiki
 F:	Documentation/networking/sctp.rst
 F:	include/linux/sctp.h
 F:	include/net/sctp/
@@ -20128,6 +20127,12 @@ S:	Supported
 F:	Documentation/devicetree/bindings/power/starfive*
 F:	drivers/soc/starfive/jh71xx_pmu.c
 F:	include/dt-bindings/power/starfive,jh7110-pmu.h
+
+STARFIVE JH7110 TDM DRIVER
+M:	Walker Chen <walker.chen@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/starfive,jh7110-tdm.yaml
+F:	sound/soc/starfive/jh7110_tdm.c
 
 STARFIVE SOC DRIVERS
 M:	Conor Dooley <conor@kernel.org>

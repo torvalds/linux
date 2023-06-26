@@ -29,6 +29,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of the mediatek topckgen controller
 
+  mediatek,infracfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle of the mediatek infracfg controller
+
   power-domains:
     maxItems: 1
 
@@ -52,6 +56,11 @@ properties:
       - description: mux for i2si1_mck
       - description: mux for i2si2_mck
       - description: audio 26m clock
+      - description: audio pll1 divide 4
+      - description: audio pll2 divide 4
+      - description: clock divider for iec
+      - description: mux for a2sys clock
+      - description: mux for aud_iec
 
   clock-names:
     items:
@@ -63,16 +72,21 @@ properties:
       - const: apll12_div2
       - const: apll12_div3
       - const: apll12_div9
-      - const: a1sys_hp_sel
-      - const: aud_intbus_sel
-      - const: audio_h_sel
-      - const: audio_local_bus_sel
-      - const: dptx_m_sel
-      - const: i2so1_m_sel
-      - const: i2so2_m_sel
-      - const: i2si1_m_sel
-      - const: i2si2_m_sel
+      - const: top_a1sys_hp
+      - const: top_aud_intbus
+      - const: top_audio_h
+      - const: top_audio_local_bus
+      - const: top_dptx
+      - const: top_i2so1
+      - const: top_i2so2
+      - const: top_i2si1
+      - const: top_i2si2
       - const: adsp_audio_26m
+      - const: apll1_d4
+      - const: apll2_d4
+      - const: apll12_div4
+      - const: top_a2sys
+      - const: top_aud_iec
 
   mediatek,etdm-in1-cowork-source:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -144,6 +158,7 @@ required:
   - resets
   - reset-names
   - mediatek,topckgen
+  - mediatek,infracfg
   - power-domains
   - clocks
   - clock-names
@@ -162,6 +177,7 @@ examples:
         resets = <&watchdog 14>;
         reset-names = "audiosys";
         mediatek,topckgen = <&topckgen>;
+        mediatek,infracfg = <&infracfg_ao>;
         power-domains = <&spm 13>; //MT8188_POWER_DOMAIN_AUDIO
         mediatek,etdm-in2-cowork-source = <2>;
         mediatek,etdm-out2-cowork-source = <0>;
@@ -184,7 +200,12 @@ examples:
                  <&topckgen 78>, //CLK_TOP_I2SO2
                  <&topckgen 79>, //CLK_TOP_I2SI1
                  <&topckgen 80>, //CLK_TOP_I2SI2
-                 <&adsp_audio26m 0>; //CLK_AUDIODSP_AUDIO26M
+                 <&adsp_audio26m 0>, //CLK_AUDIODSP_AUDIO26M
+                 <&topckgen 132>, //CLK_TOP_APLL1_D4
+                 <&topckgen 133>, //CLK_TOP_APLL2_D4
+                 <&topckgen 183>, //CLK_TOP_APLL12_CK_DIV4
+                 <&topckgen 84>, //CLK_TOP_A2SYS
+                 <&topckgen 82>; //CLK_TOP_AUD_IEC>;
         clock-names = "clk26m",
                       "apll1",
                       "apll2",
@@ -193,16 +214,21 @@ examples:
                       "apll12_div2",
                       "apll12_div3",
                       "apll12_div9",
-                      "a1sys_hp_sel",
-                      "aud_intbus_sel",
-                      "audio_h_sel",
-                      "audio_local_bus_sel",
-                      "dptx_m_sel",
-                      "i2so1_m_sel",
-                      "i2so2_m_sel",
-                      "i2si1_m_sel",
-                      "i2si2_m_sel",
-                      "adsp_audio_26m";
+                      "top_a1sys_hp",
+                      "top_aud_intbus",
+                      "top_audio_h",
+                      "top_audio_local_bus",
+                      "top_dptx",
+                      "top_i2so1",
+                      "top_i2so2",
+                      "top_i2si1",
+                      "top_i2si2",
+                      "adsp_audio_26m",
+                      "apll1_d4",
+                      "apll2_d4",
+                      "apll12_div4",
+                      "top_a2sys",
+                      "top_aud_iec";
     };
 
 ...

@@ -403,12 +403,25 @@ static int prepare_metric(struct evsel **metric_events,
 			if (!aggr)
 				break;
 
-			/*
-			 * If an event was scaled during stat gathering, reverse
-			 * the scale before computing the metric.
-			 */
-			val = aggr->counts.val * (1.0 / metric_events[i]->scale);
-			source_count = evsel__source_count(metric_events[i]);
+                        if (!metric_events[i]->supported) {
+				/*
+				 * Not supported events will have a count of 0,
+				 * which can be confusing in a
+				 * metric. Explicitly set the value to NAN. Not
+				 * counted events (enable time of 0) are read as
+				 * 0.
+				 */
+				val = NAN;
+				source_count = 0;
+			} else {
+				/*
+				 * If an event was scaled during stat gathering,
+				 * reverse the scale before computing the
+				 * metric.
+				 */
+				val = aggr->counts.val * (1.0 / metric_events[i]->scale);
+				source_count = evsel__source_count(metric_events[i]);
+			}
 		}
 		n = strdup(evsel__metric_id(metric_events[i]));
 		if (!n)

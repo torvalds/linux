@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <sound/designware_i2s.h>
@@ -149,18 +150,50 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
+static void i2s_enable_dma(struct dw_i2s_dev *dev, u32 stream)
+{
+	u32 dma_reg = i2s_read_reg(dev->i2s_base, I2S_DMACR);
+
+	/* Enable DMA handshake for stream */
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dma_reg |= I2S_DMAEN_TXBLOCK;
+	else
+		dma_reg |= I2S_DMAEN_RXBLOCK;
+
+	i2s_write_reg(dev->i2s_base, I2S_DMACR, dma_reg);
+}
+
+static void i2s_disable_dma(struct dw_i2s_dev *dev, u32 stream)
+{
+	u32 dma_reg = i2s_read_reg(dev->i2s_base, I2S_DMACR);
+
+	/* Disable DMA handshake for stream */
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		dma_reg &= ~I2S_DMAEN_TXBLOCK;
+		i2s_write_reg(dev->i2s_base, I2S_RTXDMA, 1);
+	} else {
+		dma_reg &= ~I2S_DMAEN_RXBLOCK;
+		i2s_write_reg(dev->i2s_base, I2S_RRXDMA, 1);
+	}
+	i2s_write_reg(dev->i2s_base, I2S_DMACR, dma_reg);
+}
+
 static void i2s_start(struct dw_i2s_dev *dev,
 		      struct snd_pcm_substream *substream)
 {
 	struct i2s_clk_config_data *config = &dev->config;
 
 	i2s_write_reg(dev->i2s_base, IER, 1);
-	i2s_enable_irqs(dev, substream->stream, config->chan_nr);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		i2s_write_reg(dev->i2s_base, ITER, 1);
 	else
 		i2s_write_reg(dev->i2s_base, IRER, 1);
+
+	if (dev->use_pio)
+		i2s_enable_irqs(dev, substream->stream, config->chan_nr);
+	else
+		i2s_enable_dma(dev, substream->stream);
 
 	i2s_write_reg(dev->i2s_base, CER, 1);
 }
@@ -175,7 +208,10 @@ static void i2s_stop(struct dw_i2s_dev *dev,
 	else
 		i2s_write_reg(dev->i2s_base, IRER, 0);
 
-	i2s_disable_irqs(dev, substream->stream, 8);
+	if (dev->use_pio)
+		i2s_disable_irqs(dev, substream->stream, 8);
+	else
+		i2s_disable_dma(dev, substream->stream);
 
 	if (!dev->active) {
 		i2s_write_reg(dev->i2s_base, CER, 0);
@@ -448,9 +484,9 @@ static const u32 bus_widths[COMP_MAX_DATA_WIDTH] = {
 static const u32 formats[COMP_MAX_WORDSIZE] = {
 	SNDRV_PCM_FMTBIT_S16_LE,
 	SNDRV_PCM_FMTBIT_S16_LE,
-	SNDRV_PCM_FMTBIT_S24_LE,
-	SNDRV_PCM_FMTBIT_S24_LE,
-	SNDRV_PCM_FMTBIT_S32_LE,
+	SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	0,
 	0,
 	0
@@ -557,12 +593,8 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 	u32 comp1 = i2s_read_reg(dev->i2s_base, I2S_COMP_PARAM_1);
 	u32 comp2 = i2s_read_reg(dev->i2s_base, I2S_COMP_PARAM_2);
 	u32 fifo_depth = 1 << (1 + COMP1_FIFO_DEPTH_GLOBAL(comp1));
-	u32 idx = COMP1_APB_DATA_WIDTH(comp1);
 	u32 idx2;
 	int ret;
-
-	if (WARN_ON(idx >= ARRAY_SIZE(bus_widths)))
-		return -EINVAL;
 
 	ret = dw_configure_dai(dev, dw_i2s_dai, SNDRV_PCM_RATE_8000_192000);
 	if (ret < 0)
@@ -573,7 +605,6 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 
 		dev->capability |= DWC_I2S_PLAY;
 		dev->play_dma_data.dt.addr = res->start + I2S_TXDMA;
-		dev->play_dma_data.dt.addr_width = bus_widths[idx];
 		dev->play_dma_data.dt.fifo_size = fifo_depth *
 			(fifo_width[idx2]) >> 8;
 		dev->play_dma_data.dt.maxburst = 16;
@@ -583,7 +614,6 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 
 		dev->capability |= DWC_I2S_RECORD;
 		dev->capture_dma_data.dt.addr = res->start + I2S_RXDMA;
-		dev->capture_dma_data.dt.addr_width = bus_widths[idx];
 		dev->capture_dma_data.dt.fifo_size = fifo_depth *
 			(fifo_width[idx2] >> 8);
 		dev->capture_dma_data.dt.maxburst = 16;
@@ -625,6 +655,14 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->i2s_base))
 		return PTR_ERR(dev->i2s_base);
 
+	dev->reset = devm_reset_control_array_get_optional_shared(&pdev->dev);
+	if (IS_ERR(dev->reset))
+		return PTR_ERR(dev->reset);
+
+	ret = reset_control_deassert(dev->reset);
+	if (ret)
+		return ret;
+
 	dev->dev = &pdev->dev;
 
 	irq = platform_get_irq_optional(pdev, 0);
@@ -633,7 +671,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 				pdev->name, dev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to request irq\n");
-			return ret;
+			goto err_assert_reset;
 		}
 	}
 
@@ -653,24 +691,27 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		ret = dw_configure_dai_by_dt(dev, dw_i2s_dai, res);
 	}
 	if (ret < 0)
-		return ret;
+		goto err_assert_reset;
 
 	if (dev->capability & DW_I2S_MASTER) {
 		if (pdata) {
 			dev->i2s_clk_cfg = pdata->i2s_clk_cfg;
 			if (!dev->i2s_clk_cfg) {
 				dev_err(&pdev->dev, "no clock configure method\n");
-				return -ENODEV;
+				ret = -ENODEV;
+				goto err_assert_reset;
 			}
 		}
 		dev->clk = devm_clk_get(&pdev->dev, clk_id);
 
-		if (IS_ERR(dev->clk))
-			return PTR_ERR(dev->clk);
+		if (IS_ERR(dev->clk)) {
+			ret = PTR_ERR(dev->clk);
+			goto err_assert_reset;
+		}
 
 		ret = clk_prepare_enable(dev->clk);
 		if (ret < 0)
-			return ret;
+			goto err_assert_reset;
 	}
 
 	dev_set_drvdata(&pdev->dev, dev);
@@ -704,6 +745,8 @@ static int dw_i2s_probe(struct platform_device *pdev)
 err_clk_disable:
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable_unprepare(dev->clk);
+err_assert_reset:
+	reset_control_assert(dev->reset);
 	return ret;
 }
 
@@ -714,6 +757,7 @@ static void dw_i2s_remove(struct platform_device *pdev)
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable_unprepare(dev->clk);
 
+	reset_control_assert(dev->reset);
 	pm_runtime_disable(&pdev->dev);
 }
 

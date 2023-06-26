@@ -1451,7 +1451,7 @@ static struct i2c_driver adc3xxx_i2c_driver = {
 		   .name = "tlv320adc3xxx-codec",
 		   .of_match_table = tlv320adc3xxx_of_match,
 		  },
-	.probe_new = adc3xxx_i2c_probe,
+	.probe = adc3xxx_i2c_probe,
 	.remove = __exit_p(adc3xxx_i2c_remove),
 	.id_table = adc3xxx_i2c_id,
 };

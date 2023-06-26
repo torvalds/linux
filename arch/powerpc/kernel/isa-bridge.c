@@ -93,11 +93,12 @@ static int process_ISA_OF_ranges(struct device_node *isa_node,
 	}
 
 inval_range:
-	if (!phb_io_base_phys) {
+	if (phb_io_base_phys) {
 		pr_err("no ISA IO ranges or unexpected isa range, mapping 64k\n");
 		remap_isa_base(phb_io_base_phys, 0x10000);
+		return 0;
 	}
-	return 0;
+	return -EINVAL;
 }
 
 

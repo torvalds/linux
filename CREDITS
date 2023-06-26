@@ -1706,6 +1706,10 @@ S: Panoramastrasse 18
 S: D-69126 Heidelberg
 S: Germany
 
+N: Neil Horman
+M: nhorman@tuxdriver.com
+D: SCTP protocol maintainer.
+
 N: Simon Horman
 M: horms@verge.net.au
 D: Renesas ARM/ARM64 SoC maintainer

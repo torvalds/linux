@@ -329,7 +329,7 @@ static struct i2c_driver max9850_i2c_driver = {
 	.driver = {
 		.name = "max9850",
 	},
-	.probe_new = max9850_i2c_probe,
+	.probe = max9850_i2c_probe,
 	.id_table = max9850_i2c_id,
 };
 
