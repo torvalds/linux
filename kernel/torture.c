@@ -93,7 +93,7 @@ int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_s
 
 	if (trsp)
 		hto += (torture_random(trsp) >> 3) % fuzzt_ns;
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	set_current_state(TASK_IDLE);
 	return schedule_hrtimeout(&hto, HRTIMER_MODE_REL);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_ns);
