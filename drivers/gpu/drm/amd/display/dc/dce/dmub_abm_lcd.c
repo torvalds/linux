@@ -208,6 +208,52 @@ bool dmub_abm_set_pause(struct abm *abm, bool pause, unsigned int panel_inst, un
 	return true;
 }
 
+
+/*****************************************************************************
+ *  dmub_abm_save_restore() - dmub interface for abm save+pause and restore+
+ *                           un-pause
+ *  @dc: dc context
+ *  @panel_inst: panel instance index
+ *  @pData: contains command to pause/un-pause abm and exchange abm parameters
+ *
+ *  When called Pause will get abm data and store in pData, and un-pause will
+ *  set/apply abm data stored in pData.
+ *
+ *****************************************************************************/
+bool dmub_abm_save_restore(
+		struct dc_context *dc,
+		unsigned int panel_inst,
+		struct abm_save_restore *pData)
+{
+	union dmub_rb_cmd cmd;
+	uint8_t panel_mask = 0x01 << panel_inst;
+	unsigned int bytes = sizeof(struct abm_save_restore);
+
+	// TODO: Optimize by only reading back final 4 bytes
+	dmub_flush_buffer_mem(&dc->dmub_srv->dmub->scratch_mem_fb);
+
+	// Copy iramtable into cw7
+	memcpy(dc->dmub_srv->dmub->scratch_mem_fb.cpu_addr, (void *)pData, bytes);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.abm_save_restore.header.type = DMUB_CMD__ABM;
+	cmd.abm_save_restore.header.sub_type = DMUB_CMD__ABM_SAVE_RESTORE;
+
+	cmd.abm_save_restore.abm_init_config_data.src.quad_part = dc->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
+	cmd.abm_save_restore.abm_init_config_data.bytes = bytes;
+	cmd.abm_save_restore.abm_init_config_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
+	cmd.abm_save_restore.abm_init_config_data.panel_mask = panel_mask;
+
+	cmd.abm_save_restore.header.payload_bytes = sizeof(struct dmub_rb_cmd_abm_save_restore);
+
+	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	// Copy iramtable data into local structure
+	memcpy((void *)pData, dc->dmub_srv->dmub->scratch_mem_fb.cpu_addr, bytes);
+
+	return true;
+}
+
 bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst, uint32_t option, uint32_t panel_inst)
 {
 	union dmub_rb_cmd cmd;

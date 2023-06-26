@@ -27,6 +27,7 @@
 #include "dmub_abm_lcd.h"
 #include "dc.h"
 #include "core_types.h"
+#include "dmub_cmd.h"
 
 #define TO_DMUB_ABM(abm)\
 	container_of(abm, struct dce_abm, base)
@@ -118,6 +119,32 @@ static bool dmub_abm_set_pause_ex(struct abm *abm, bool pause, unsigned int pane
 	return ret;
 }
 
+/*****************************************************************************
+ *  dmub_abm_save_restore_ex() - calls dmub_abm_save_restore for preserving DMUB's
+ *                              Varibright states for LCD only. OLED is TBD
+ *  @abm: used to check get dc context
+ *  @panel_inst: panel instance index
+ *  @pData: contains command to pause/un-pause abm and abm parameters
+ *
+ *
+ ***************************************************************************/
+static bool dmub_abm_save_restore_ex(
+		struct abm *abm,
+		unsigned int panel_inst,
+		struct abm_save_restore *pData)
+{
+	bool ret = false;
+	unsigned int feature_support;
+	struct dc_context *dc = abm->ctx;
+
+	feature_support = abm_feature_support(abm, panel_inst);
+
+	if (feature_support == ABM_LCD_SUPPORT)
+		ret = dmub_abm_save_restore(dc, panel_inst, pData);
+
+	return ret;
+}
+
 static bool dmub_abm_set_pipe_ex(struct abm *abm, uint32_t otg_inst, uint32_t option, uint32_t panel_inst)
 {
 	bool ret = false;
@@ -155,6 +182,7 @@ static const struct abm_funcs abm_funcs = {
 	.get_target_backlight = dmub_abm_get_target_backlight_ex,
 	.init_abm_config = dmub_abm_init_config_ex,
 	.set_abm_pause = dmub_abm_set_pause_ex,
+	.save_restore = dmub_abm_save_restore_ex,
 	.set_pipe_ex = dmub_abm_set_pipe_ex,
 	.set_backlight_level_pwm = dmub_abm_set_backlight_level_pwm_ex,
 };

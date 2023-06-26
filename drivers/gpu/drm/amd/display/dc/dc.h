@@ -40,6 +40,8 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
+struct abm_save_restore;
+
 /* forward declaration */
 struct aux_payload;
 struct set_config_cmd_payload;
@@ -2243,6 +2245,11 @@ void dc_z10_save_init(struct dc *dc);
 
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
+
+bool dc_abm_save_restore(
+		struct dc *dc,
+		struct dc_stream_state *stream,
+		struct abm_save_restore *pData);
 
 void dc_enable_dmub_outbox(struct dc *dc);
 

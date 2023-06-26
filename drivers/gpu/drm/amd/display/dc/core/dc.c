@@ -5276,3 +5276,56 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
 		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
 }
+
+/*****************************************************************************
+ *  dc_abm_save_restore() - Interface to DC for save+pause and restore+un-pause
+ *                          ABM
+ *  @dc: dc structure
+ *	@stream: stream where vsync int state changed
+ *  @pData: abm hw states
+ *
+ ****************************************************************************/
+bool dc_abm_save_restore(
+		struct dc *dc,
+		struct dc_stream_state *stream,
+		struct abm_save_restore *pData)
+{
+	int i;
+	int edp_num;
+	struct pipe_ctx *pipe = NULL;
+	struct dc_link *link = stream->sink->link;
+	struct dc_link *edp_links[MAX_NUM_EDP];
+
+
+	/*find primary pipe associated with stream*/
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg)
+			break;
+	}
+
+	if (i == MAX_PIPES) {
+		ASSERT(0);
+		return false;
+	}
+
+	dc_get_edp_links(dc, edp_links, &edp_num);
+
+	/* Determine panel inst */
+	for (i = 0; i < edp_num; i++)
+		if (edp_links[i] == link)
+			break;
+
+	if (i == edp_num)
+		return false;
+
+	if (pipe->stream_res.abm &&
+		pipe->stream_res.abm->funcs->save_restore)
+		return pipe->stream_res.abm->funcs->save_restore(
+				pipe->stream_res.abm,
+				i,
+				pData);
+	return false;
+}
+
