@@ -207,6 +207,7 @@ int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 		return -ENOMEM;
 
 	data->req = req;
+	akcipher_request_set_tfm(req, data->tfm);
 
 	buf = (u8 *)(req + 1) + reqsize;
 	data->buf = buf;
