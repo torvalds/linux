@@ -451,10 +451,10 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0) {
-		file = vfs_tmpfile_open(&nop_mnt_idmap, &parentpath,
-					S_IFREG | 0600,
-					O_RDWR | O_LARGEFILE | O_DIRECT,
-					cache->cache_cred);
+		file = kernel_tmpfile_open(&nop_mnt_idmap, &parentpath,
+					   S_IFREG | 0600,
+					   O_RDWR | O_LARGEFILE | O_DIRECT,
+					   cache->cache_cred);
 		ret = PTR_ERR_OR_ZERO(file);
 	}
 	if (ret) {
@@ -561,8 +561,8 @@ static bool cachefiles_open_file(struct cachefiles_object *object,
 	 */
 	path.mnt = cache->mnt;
 	path.dentry = dentry;
-	file = open_with_fake_path(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
-				   d_backing_inode(dentry), cache->cache_cred);
+	file = kernel_file_open(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
+				d_backing_inode(dentry), cache->cache_cred);
 	if (IS_ERR(file)) {
 		trace_cachefiles_vfs_error(object, d_backing_inode(dentry),
 					   PTR_ERR(file),

@@ -171,6 +171,9 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* File supports non-exclusive O_DIRECT writes from multiple threads */
 #define FMODE_DIO_PARALLEL_WRITE	((__force fmode_t)0x1000000)
 
+/* File is embedded in backing_file object */
+#define FMODE_BACKING		((__force fmode_t)0x2000000)
+
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
 
@@ -1678,9 +1681,12 @@ static inline int vfs_whiteout(struct mnt_idmap *idmap,
 			 WHITEOUT_DEV);
 }
 
-struct file *vfs_tmpfile_open(struct mnt_idmap *idmap,
-			const struct path *parentpath,
-			umode_t mode, int open_flag, const struct cred *cred);
+struct file *kernel_tmpfile_open(struct mnt_idmap *idmap,
+				 const struct path *parentpath,
+				 umode_t mode, int open_flag,
+				 const struct cred *cred);
+struct file *kernel_file_open(const struct path *path, int flags,
+			      struct inode *inode, const struct cred *cred);
 
 int vfs_mkobj(struct dentry *, umode_t,
 		int (*f)(struct dentry *, umode_t, void *),
@@ -2355,11 +2361,31 @@ static inline struct file *file_open_root_mnt(struct vfsmount *mnt,
 	return file_open_root(&(struct path){.mnt = mnt, .dentry = mnt->mnt_root},
 			      name, flags, mode);
 }
-extern struct file * dentry_open(const struct path *, int, const struct cred *);
-extern struct file *dentry_create(const struct path *path, int flags,
-				  umode_t mode, const struct cred *cred);
-extern struct file * open_with_fake_path(const struct path *, int,
-					 struct inode*, const struct cred *);
+struct file *dentry_open(const struct path *path, int flags,
+			 const struct cred *creds);
+struct file *dentry_create(const struct path *path, int flags, umode_t mode,
+			   const struct cred *cred);
+struct file *backing_file_open(const struct path *path, int flags,
+			       const struct path *real_path,
+			       const struct cred *cred);
+struct path *backing_file_real_path(struct file *f);
+
+/*
+ * file_real_path - get the path corresponding to f_inode
+ *
+ * When opening a backing file for a stackable filesystem (e.g.,
+ * overlayfs) f_path may be on the stackable filesystem and f_inode on
+ * the underlying filesystem.  When the path associated with f_inode is
+ * needed, this helper should be used instead of accessing f_path
+ * directly.
+*/
+static inline const struct path *file_real_path(struct file *f)
+{
+	if (unlikely(f->f_mode & FMODE_BACKING))
+		return backing_file_real_path(f);
+	return &f->f_path;
+}
+
 static inline struct file *file_clone_open(struct file *file)
 {
 	return dentry_open(&file->f_path, file->f_flags, file->f_cred);

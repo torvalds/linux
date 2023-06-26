@@ -329,8 +329,9 @@ static inline struct file *ovl_do_tmpfile(struct ovl_fs *ofs,
 					  struct dentry *dentry, umode_t mode)
 {
 	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = dentry };
-	struct file *file = vfs_tmpfile_open(ovl_upper_mnt_idmap(ofs), &path, mode,
-					O_LARGEFILE | O_WRONLY, current_cred());
+	struct file *file = kernel_tmpfile_open(ovl_upper_mnt_idmap(ofs), &path,
+						mode, O_LARGEFILE | O_WRONLY,
+						current_cred());
 	int err = PTR_ERR_OR_ZERO(file);
 
 	pr_debug("tmpfile(%pd2, 0%o) = %i\n", dentry, mode, err);

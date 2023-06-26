@@ -3703,7 +3703,7 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
 }
 
 /**
- * vfs_tmpfile_open - open a tmpfile for kernel internal use
+ * kernel_tmpfile_open - open a tmpfile for kernel internal use
  * @idmap:	idmap of the mount the inode was found from
  * @parentpath:	path of the base directory
  * @mode:	mode of the new tmpfile
@@ -3714,24 +3714,26 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
  * hence this is only for kernel internal use, and must not be installed into
  * file tables or such.
  */
-struct file *vfs_tmpfile_open(struct mnt_idmap *idmap,
-			  const struct path *parentpath,
-			  umode_t mode, int open_flag, const struct cred *cred)
+struct file *kernel_tmpfile_open(struct mnt_idmap *idmap,
+				 const struct path *parentpath,
+				 umode_t mode, int open_flag,
+				 const struct cred *cred)
 {
 	struct file *file;
 	int error;
 
 	file = alloc_empty_file_noaccount(open_flag, cred);
-	if (!IS_ERR(file)) {
-		error = vfs_tmpfile(idmap, parentpath, file, mode);
-		if (error) {
-			fput(file);
-			file = ERR_PTR(error);
-		}
+	if (IS_ERR(file))
+		return file;
+
+	error = vfs_tmpfile(idmap, parentpath, file, mode);
+	if (error) {
+		fput(file);
+		file = ERR_PTR(error);
 	}
 	return file;
 }
-EXPORT_SYMBOL(vfs_tmpfile_open);
+EXPORT_SYMBOL(kernel_tmpfile_open);
 
 static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		const struct open_flags *op,
