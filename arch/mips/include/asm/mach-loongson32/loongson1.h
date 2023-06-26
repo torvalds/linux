@@ -47,7 +47,6 @@
 
 #include <regs-clk.h>
 #include <regs-mux.h>
-#include <regs-pwm.h>
 #include <regs-rtc.h>
 #include <regs-wdt.h>
 
