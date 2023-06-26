@@ -66,7 +66,6 @@
 #include <rdma/bnxt_re-abi.h>
 #include "bnxt.h"
 #include "hw_counters.h"
-#include "ib_verbs.h"
 
 static char version[] =
 		BNXT_RE_DESC "\n";
