@@ -106,6 +106,9 @@ struct dyn_arch_ftrace {
 
 #ifndef __ASSEMBLY__
 
+void prepare_ftrace_return(unsigned long ip, unsigned long *parent,
+			   unsigned long frame_pointer);
+
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
 extern void set_ftrace_ops_ro(void);
 #else

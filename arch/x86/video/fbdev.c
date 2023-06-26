@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/vgaarb.h>
+#include <asm/fb.h>
 
 int fb_is_primary_device(struct fb_info *info)
 {

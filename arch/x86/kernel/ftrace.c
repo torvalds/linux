@@ -525,9 +525,6 @@ static void *addr_from_call(void *ptr)
 	return ptr + CALL_INSN_SIZE + call.disp;
 }
 
-void prepare_ftrace_return(unsigned long ip, unsigned long *parent,
-			   unsigned long frame_pointer);
-
 /*
  * If the ops->trampoline was not allocated, then it probably
  * has a static trampoline func, or is the ftrace caller itself.

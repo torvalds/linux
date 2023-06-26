@@ -232,7 +232,7 @@ within_inclusive(unsigned long addr, unsigned long start, unsigned long end)
  * points to #2, but almost all physical-to-virtual translations point to #1.
  *
  * This is so that we can have both a directmap of all physical memory *and*
- * take full advantage of the the limited (s32) immediate addressing range (2G)
+ * take full advantage of the limited (s32) immediate addressing range (2G)
  * of x86_64.
  *
  * See Documentation/arch/x86/x86_64/mm.rst for more detail.
