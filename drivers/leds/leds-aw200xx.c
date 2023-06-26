@@ -583,7 +583,7 @@ static struct i2c_driver aw200xx_driver = {
 		.name = "aw200xx",
 		.of_match_table = aw200xx_match_table,
 	},
-	.probe_new = aw200xx_probe,
+	.probe = aw200xx_probe,
 	.remove = aw200xx_remove,
 	.id_table = aw200xx_id,
 };
