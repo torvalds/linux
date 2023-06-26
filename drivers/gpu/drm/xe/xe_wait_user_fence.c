@@ -121,6 +121,9 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 			 addr & 0x7))
 		return -EINVAL;
 
+	if (XE_IOCTL_ERR(xe, args->num_engines > XE_HW_ENGINE_MAX_INSTANCE))
+		return -EINVAL;
+
 	if (!no_engines) {
 		err = copy_from_user(eci, user_eci,
 				     sizeof(struct drm_xe_engine_class_instance) *
