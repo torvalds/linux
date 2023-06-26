@@ -17,20 +17,11 @@ description:
 properties:
   clocks:
     minItems: 3
-    items:
-      - description: PCIe bridge clock.
-      - description: PCIe bus clock.
-      - description: PCIe PHY clock.
-      - description: Additional required clock entry for imx6sx-pcie,
-           imx6sx-pcie-ep, imx8mq-pcie, imx8mq-pcie-ep.
+    maxItems: 4
 
   clock-names:
     minItems: 3
-    items:
-      - const: pcie
-      - const: pcie_bus
-      - enum: [ pcie_phy, pcie_aux ]
-      - enum: [ pcie_inbound_axi, pcie_aux ]
+    maxItems: 4
 
   num-lanes:
     const: 1

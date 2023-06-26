@@ -571,6 +571,7 @@ void read_cdat_data(struct cxl_port *port)
 		/* Don't leave table data allocated on error */
 		devm_kfree(dev, cdat_table);
 		dev_err(dev, "CDAT data read error\n");
+		return;
 	}
 
 	port->cdat.table = cdat_table + sizeof(__le32);

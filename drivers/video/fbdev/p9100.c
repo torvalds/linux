@@ -65,7 +65,7 @@ static const struct fb_ops p9100_ops = {
 #define P9100_FB_OFF 0x0UL
 
 /* 3 bits: 2=8bpp 3=16bpp 5=32bpp 7=24bpp */
-#define SYS_CONFIG_PIXELSIZE_SHIFT 26 
+#define SYS_CONFIG_PIXELSIZE_SHIFT 26
 
 #define SCREENPAINT_TIMECTL1_ENABLE_VIDEO 0x20 /* 0 = off, 1 = on */
 
@@ -110,7 +110,7 @@ struct p9100_regs {
 	u32 vram_xxx[25];
 
 	/* Registers for IBM RGB528 Palette */
-	u32 ramdac_cmap_wridx; 
+	u32 ramdac_cmap_wridx;
 	u32 ramdac_palette_data;
 	u32 ramdac_pixel_mask;
 	u32 ramdac_palette_rdaddr;
