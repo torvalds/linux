@@ -39,6 +39,11 @@ static struct sdw_dma_ring_buf_reg sdw0_dma_ring_buf_reg[ACP63_SDW0_DMA_MAX_STRE
 	 ACP_AUDIO2_RX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO2_RX_LINEARPOSITIONCNTR_HIGH}
 };
 
+/*
+ * SDW1 instance supports one TX stream and one RX stream.
+ * For TX/RX streams DMA registers programming for SDW1 instance, it uses ACP_P1_AUDIO1 register
+ * set as per hardware register documentation
+ */
 static struct sdw_dma_ring_buf_reg sdw1_dma_ring_buf_reg[ACP63_SDW1_DMA_MAX_STREAMS] =  {
 	{ACP_P1_AUDIO1_TX_DMA_SIZE, ACP_P1_AUDIO1_TX_FIFOADDR, ACP_P1_AUDIO1_TX_FIFOSIZE,
 	 ACP_P1_AUDIO1_TX_RINGBUFSIZE, ACP_P1_AUDIO1_TX_RINGBUFADDR,
@@ -59,6 +64,12 @@ static u32 sdw0_dma_enable_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
 	ACP_SW0_AUDIO2_RX_EN,
 };
 
+/*
+ * SDW1 instance supports one TX stream and one RX stream.
+ * For TX/RX streams DMA enable register programming for SDW1 instance,
+ * it uses ACP_SW1_AUDIO1_TX_EN and ACP_SW1_AUDIO1_RX_EN registers
+ * as per hardware register documentation.
+ */
 static u32 sdw1_dma_enable_reg[ACP63_SDW1_DMA_MAX_STREAMS] = {
 	ACP_SW1_AUDIO1_TX_EN,
 	ACP_SW1_AUDIO1_RX_EN,
