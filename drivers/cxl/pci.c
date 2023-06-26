@@ -13,6 +13,7 @@
 #include "cxlmem.h"
 #include "cxlpci.h"
 #include "cxl.h"
+#include "pmu.h"
 
 /**
  * DOC: cxl pci
@@ -825,7 +826,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct cxl_dev_state *cxlds;
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
-	int rc;
+	int i, rc, pmu_count;
 
 	/*
 	 * Double check the anonymous union trickery in struct cxl_regs
@@ -918,6 +919,29 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = cxl_memdev_setup_fw_upload(mds);
 	if (rc)
 		return rc;
+
+	pmu_count = cxl_count_regblock(pdev, CXL_REGLOC_RBI_PMU);
+	for (i = 0; i < pmu_count; i++) {
+		struct cxl_pmu_regs pmu_regs;
+
+		rc = cxl_find_regblock_instance(pdev, CXL_REGLOC_RBI_PMU, &map, i);
+		if (rc) {
+			dev_dbg(&pdev->dev, "Could not find PMU regblock\n");
+			break;
+		}
+
+		rc = cxl_map_pmu_regs(pdev, &pmu_regs, &map);
+		if (rc) {
+			dev_dbg(&pdev->dev, "Could not map PMU regs\n");
+			break;
+		}
+
+		rc = devm_cxl_pmu_add(cxlds->dev, &pmu_regs, cxlmd->id, i, CXL_PMU_MEMDEV);
+		if (rc) {
+			dev_dbg(&pdev->dev, "Could not add PMU instance\n");
+			break;
+		}
+	}
 
 	rc = cxl_event_config(host_bridge, mds);
 	if (rc)

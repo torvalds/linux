@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <cxlmem.h>
 #include <cxlpci.h>
+#include <pmu.h>
 
 #include "core.h"
 
@@ -286,20 +287,23 @@ static bool cxl_decode_regblock(struct pci_dev *pdev, u32 reg_lo, u32 reg_hi,
 }
 
 /**
- * cxl_find_regblock() - Locate register blocks by type
+ * cxl_find_regblock_instance() - Locate a register block by type / index
  * @pdev: The CXL PCI device to enumerate.
  * @type: Register Block Indicator id
  * @map: Enumeration output, clobbered on error
+ * @index: Index into which particular instance of a regblock wanted in the
+ *	   order found in register locator DVSEC.
  *
  * Return: 0 if register block enumerated, negative error code otherwise
  *
  * A CXL DVSEC may point to one or more register blocks, search for them
- * by @type.
+ * by @type and @index.
  */
-int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
-		      struct cxl_register_map *map)
+int cxl_find_regblock_instance(struct pci_dev *pdev, enum cxl_regloc_type type,
+			       struct cxl_register_map *map, int index)
 {
 	u32 regloc_size, regblocks;
+	int instance = 0;
 	int regloc, i;
 
 	map->resource = CXL_RESOURCE_NONE;
@@ -323,14 +327,73 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 		if (!cxl_decode_regblock(pdev, reg_lo, reg_hi, map))
 			continue;
 
-		if (map->reg_type == type)
-			return 0;
+		if (map->reg_type == type) {
+			if (index == instance)
+				return 0;
+			instance++;
+		}
 	}
 
 	map->resource = CXL_RESOURCE_NONE;
 	return -ENODEV;
 }
+EXPORT_SYMBOL_NS_GPL(cxl_find_regblock_instance, CXL);
+
+/**
+ * cxl_find_regblock() - Locate register blocks by type
+ * @pdev: The CXL PCI device to enumerate.
+ * @type: Register Block Indicator id
+ * @map: Enumeration output, clobbered on error
+ *
+ * Return: 0 if register block enumerated, negative error code otherwise
+ *
+ * A CXL DVSEC may point to one or more register blocks, search for them
+ * by @type.
+ */
+int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
+		      struct cxl_register_map *map)
+{
+	return cxl_find_regblock_instance(pdev, type, map, 0);
+}
 EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, CXL);
+
+/**
+ * cxl_count_regblock() - Count instances of a given regblock type.
+ * @pdev: The CXL PCI device to enumerate.
+ * @type: Register Block Indicator id
+ *
+ * Some regblocks may be repeated. Count how many instances.
+ *
+ * Return: count of matching regblocks.
+ */
+int cxl_count_regblock(struct pci_dev *pdev, enum cxl_regloc_type type)
+{
+	struct cxl_register_map map;
+	int rc, count = 0;
+
+	while (1) {
+		rc = cxl_find_regblock_instance(pdev, type, &map, count);
+		if (rc)
+			return count;
+		count++;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(cxl_count_regblock, CXL);
+
+int cxl_map_pmu_regs(struct pci_dev *pdev, struct cxl_pmu_regs *regs,
+		     struct cxl_register_map *map)
+{
+	struct device *dev = &pdev->dev;
+	resource_size_t phys_addr;
+
+	phys_addr = map->resource;
+	regs->pmu = devm_cxl_iomap_block(dev, phys_addr, CXL_PMU_REGMAP_SIZE);
+	if (!regs->pmu)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_map_pmu_regs, CXL);
 
 resource_size_t cxl_rcrb_to_component(struct device *dev,
 				      resource_size_t rcrb,
