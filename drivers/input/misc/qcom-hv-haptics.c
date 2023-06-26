@@ -1757,7 +1757,7 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 static int haptics_set_brake(struct haptics_chip *chip, struct brake_cfg *brake)
 {
 	int rc = 0;
-	u8 zero_samples[BRAKE_SAMPLE_COUNT] = {0}, val;
+	u8 val;
 
 	if (brake->disabled)
 		return 0;
@@ -1773,8 +1773,7 @@ static int haptics_set_brake(struct haptics_chip *chip, struct brake_cfg *brake)
 	}
 
 	rc = haptics_write(chip, chip->ptn_addr_base, HAP_PTN_BRAKE_AMP_REG,
-			(brake->mode == OL_BRAKE || brake->mode == CL_BRAKE) ?
-			brake->samples : zero_samples, BRAKE_SAMPLE_COUNT);
+			brake->samples, BRAKE_SAMPLE_COUNT);
 	if (rc < 0) {
 		dev_err(chip->dev, "set brake pattern failed, rc=%d\n", rc);
 		return rc;
