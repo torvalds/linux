@@ -265,15 +265,26 @@ bool vhost_vq_work_queue(struct vhost_virtqueue *vq, struct vhost_work *work)
 }
 EXPORT_SYMBOL_GPL(vhost_vq_work_queue);
 
-void vhost_dev_flush(struct vhost_dev *dev)
+static void vhost_worker_flush(struct vhost_worker *worker)
 {
 	struct vhost_flush_struct flush;
 
 	init_completion(&flush.wait_event);
 	vhost_work_init(&flush.work, vhost_flush_work);
 
-	if (vhost_work_queue(dev, &flush.work))
+	if (vhost_worker_queue(worker, &flush.work))
 		wait_for_completion(&flush.wait_event);
+}
+
+void vhost_vq_flush(struct vhost_virtqueue *vq)
+{
+	vhost_worker_flush(vq->worker);
+}
+EXPORT_SYMBOL_GPL(vhost_vq_flush);
+
+void vhost_dev_flush(struct vhost_dev *dev)
+{
+	vhost_worker_flush(dev->worker);
 }
 EXPORT_SYMBOL_GPL(vhost_dev_flush);
 
