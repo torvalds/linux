@@ -20,6 +20,7 @@
 #include <sound/soc-dai.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include "amd.h"
 
@@ -236,7 +237,11 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	acp6x_master_clock_generate(dev);
 	acp_enable_interrupts(adata);
 	acp_platform_register(dev);
-
+	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 }
 
@@ -247,13 +252,48 @@ static void rembrandt_audio_remove(struct platform_device *pdev)
 
 	acp_disable_interrupts(adata);
 	acp_platform_unregister(dev);
+	pm_runtime_disable(&pdev->dev);
 }
+
+static int __maybe_unused rmb_pcm_resume(struct device *dev)
+{
+	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_stream *stream;
+	struct snd_pcm_substream *substream;
+	snd_pcm_uframes_t buf_in_frames;
+	u64 buf_size;
+
+	acp6x_master_clock_generate(dev);
+	spin_lock(&adata->acp_lock);
+	list_for_each_entry(stream, &adata->stream_list, list) {
+		if (stream) {
+			substream = stream->substream;
+			if (substream && substream->runtime) {
+				buf_in_frames = (substream->runtime->buffer_size);
+				buf_size = frames_to_bytes(substream->runtime, buf_in_frames);
+				config_pte_for_stream(adata, stream);
+				config_acp_dma(adata, stream, buf_size);
+				if (stream->dai_id)
+					restore_acp_i2s_params(substream, adata, stream);
+				else
+					restore_acp_pdm_params(substream, adata);
+			}
+		}
+	}
+		spin_unlock(&adata->acp_lock);
+		return 0;
+}
+
+static const struct dev_pm_ops rmb_dma_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, rmb_pcm_resume)
+};
 
 static struct platform_driver rembrandt_driver = {
 	.probe = rembrandt_audio_probe,
 	.remove_new = rembrandt_audio_remove,
 	.driver = {
 		.name = "acp_asoc_rembrandt",
+		.pm = &rmb_dma_pm_ops,
 	},
 };
 

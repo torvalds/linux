@@ -110,6 +110,7 @@
 
 #define ACP_TIMEOUT		500
 #define DELAY_US		5
+#define ACP_SUSPEND_DELAY_MS   2000
 
 #define PDM_DMA_STAT            0x10
 #define PDM_DMA_INTR_MASK       0x10000
@@ -212,6 +213,14 @@ void acp_enable_interrupts(struct acp_dev_data *adata);
 void acp_disable_interrupts(struct acp_dev_data *adata);
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);
+
+void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream);
+void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int size);
+void restore_acp_pdm_params(struct snd_pcm_substream *substream,
+			    struct acp_dev_data *adata);
+
+int restore_acp_i2s_params(struct snd_pcm_substream *substream,
+			   struct acp_dev_data *adata, struct acp_stream *stream);
 
 static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int direction)
 {
