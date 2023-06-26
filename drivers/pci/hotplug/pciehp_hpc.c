@@ -722,11 +722,8 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	}
 
 	/* Check Attention Button Pressed */
-	if (events & PCI_EXP_SLTSTA_ABP) {
-		ctrl_info(ctrl, "Slot(%s): Attention button pressed\n",
-			  slot_name(ctrl));
+	if (events & PCI_EXP_SLTSTA_ABP)
 		pciehp_handle_button_press(ctrl);
-	}
 
 	/* Check Power Fault Detected */
 	if (events & PCI_EXP_SLTSTA_PFD) {
