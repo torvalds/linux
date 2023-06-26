@@ -88,9 +88,9 @@ struct list_head *lzo_alloc_workspace(unsigned int level)
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
-	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
-	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL);
-	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL);
+	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_NOWARN);
+	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
+	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
 	if (!workspace->mem || !workspace->buf || !workspace->cbuf)
 		goto fail;
 

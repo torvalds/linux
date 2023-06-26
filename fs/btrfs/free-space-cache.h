@@ -101,8 +101,6 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 				  struct inode *inode,
 				  struct btrfs_block_group *block_group);
 
-int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
-				       struct btrfs_block_rsv *rsv);
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group,
 				    struct inode *inode);

@@ -280,8 +280,19 @@ enum btrfs_read_policy {
 
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
+
+	/*
+	 * UUID written into the btree blocks:
+	 *
+	 * - If metadata_uuid != fsid then super block must have
+	 *   BTRFS_FEATURE_INCOMPAT_METADATA_UUID flag set.
+	 *
+	 * - Following shall be true at all times:
+	 *   - metadata_uuid == btrfs_header::fsid
+	 *   - metadata_uuid == btrfs_dev_item::fsid
+	 */
 	u8 metadata_uuid[BTRFS_FSID_SIZE];
-	bool fsid_change;
+
 	struct list_head fs_list;
 
 	/*
@@ -319,34 +330,32 @@ struct btrfs_fs_devices {
 	 */
 	struct btrfs_device *latest_dev;
 
-	/* all of the devices in the FS, protected by a mutex
-	 * so we can safely walk it to write out the supers without
-	 * worrying about add/remove by the multi-device code.
-	 * Scrubbing super can kick off supers writing by holding
-	 * this mutex lock.
+	/*
+	 * All of the devices in the filesystem, protected by a mutex so we can
+	 * safely walk it to write out the super blocks without worrying about
+	 * adding/removing by the multi-device code. Scrubbing super block can
+	 * kick off supers writing by holding this mutex lock.
 	 */
 	struct mutex device_list_mutex;
 
 	/* List of all devices, protected by device_list_mutex */
 	struct list_head devices;
 
-	/*
-	 * Devices which can satisfy space allocation. Protected by
-	 * chunk_mutex
-	 */
+	/* Devices which can satisfy space allocation. Protected by * chunk_mutex. */
 	struct list_head alloc_list;
 
 	struct list_head seed_list;
-	bool seeding;
 
+	/* Count fs-devices opened. */
 	int opened;
 
-	/* set when we find or add a device that doesn't have the
-	 * nonrot flag set
-	 */
+	/* Set when we find or add a device that doesn't have the nonrot flag set. */
 	bool rotating;
-	/* Devices support TRIM/discard commands */
+	/* Devices support TRIM/discard commands. */
 	bool discardable;
+	bool fsid_change;
+	/* The filesystem is a seed filesystem. */
+	bool seeding;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
@@ -357,7 +366,7 @@ struct btrfs_fs_devices {
 
 	enum btrfs_chunk_allocation_policy chunk_alloc_policy;
 
-	/* Policy used to read the mirrored stripes */
+	/* Policy used to read the mirrored stripes. */
 	enum btrfs_read_policy read_policy;
 };
 
@@ -547,15 +556,12 @@ struct btrfs_dev_lookup_args {
 enum btrfs_map_op {
 	BTRFS_MAP_READ,
 	BTRFS_MAP_WRITE,
-	BTRFS_MAP_DISCARD,
 	BTRFS_MAP_GET_READ_MIRRORS,
 };
 
 static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 {
 	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-		return BTRFS_MAP_DISCARD;
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_APPEND:
 		return BTRFS_MAP_WRITE;
@@ -589,15 +595,9 @@ void btrfs_get_bioc(struct btrfs_io_context *bioc);
 void btrfs_put_bioc(struct btrfs_io_context *bioc);
 int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    u64 logical, u64 *length,
-		    struct btrfs_io_context **bioc_ret, int mirror_num);
-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
-		     u64 logical, u64 *length,
-		     struct btrfs_io_context **bioc_ret);
-int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
-		      u64 logical, u64 *length,
-		      struct btrfs_io_context **bioc_ret,
-		      struct btrfs_io_stripe *smap, int *mirror_num_ret,
-		      int need_raid_map);
+		    struct btrfs_io_context **bioc_ret,
+		    struct btrfs_io_stripe *smap, int *mirror_num_ret,
+		    int need_raid_map);
 int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
 			   struct btrfs_io_stripe *smap, u64 logical,
 			   u32 length, int mirror_num);
@@ -628,7 +628,6 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid, const u8 *uuid,
 					const char *path);
 void btrfs_put_dev_args_from_path(struct btrfs_dev_lookup_args *args);
-void btrfs_free_device(struct btrfs_device *device);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
 		    struct block_device **bdev, fmode_t *mode);

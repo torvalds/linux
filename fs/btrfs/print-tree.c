@@ -49,7 +49,7 @@ const char *btrfs_root_name(const struct btrfs_key *key, char *buf)
 	return buf;
 }
 
-static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
+static void print_chunk(const struct extent_buffer *eb, struct btrfs_chunk *chunk)
 {
 	int num_stripes = btrfs_chunk_num_stripes(eb, chunk);
 	int i;
@@ -62,7 +62,7 @@ static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 		      btrfs_stripe_offset_nr(eb, chunk, i));
 	}
 }
-static void print_dev_item(struct extent_buffer *eb,
+static void print_dev_item(const struct extent_buffer *eb,
 			   struct btrfs_dev_item *dev_item)
 {
 	pr_info("\t\tdev item devid %llu total_bytes %llu bytes used %llu\n",
@@ -70,7 +70,7 @@ static void print_dev_item(struct extent_buffer *eb,
 	       btrfs_device_total_bytes(eb, dev_item),
 	       btrfs_device_bytes_used(eb, dev_item));
 }
-static void print_extent_data_ref(struct extent_buffer *eb,
+static void print_extent_data_ref(const struct extent_buffer *eb,
 				  struct btrfs_extent_data_ref *ref)
 {
 	pr_cont("extent data backref root %llu objectid %llu offset %llu count %u\n",
@@ -80,7 +80,7 @@ static void print_extent_data_ref(struct extent_buffer *eb,
 	       btrfs_extent_data_ref_count(eb, ref));
 }
 
-static void print_extent_item(struct extent_buffer *eb, int slot, int type)
+static void print_extent_item(const struct extent_buffer *eb, int slot, int type)
 {
 	struct btrfs_extent_item *ei;
 	struct btrfs_extent_inline_ref *iref;
@@ -169,7 +169,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	WARN_ON(ptr > end);
 }
 
-static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
+static void print_uuid_item(const struct extent_buffer *l, unsigned long offset,
 			    u32 item_size)
 {
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
@@ -191,7 +191,7 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
  * Helper to output refs and locking status of extent buffer.  Useful to debug
  * race condition related problems.
  */
-static void print_eb_refs_lock(struct extent_buffer *eb)
+static void print_eb_refs_lock(const struct extent_buffer *eb)
 {
 #ifdef CONFIG_BTRFS_DEBUG
 	btrfs_info(eb->fs_info, "refs %u lock_owner %u current %u",
@@ -199,7 +199,7 @@ static void print_eb_refs_lock(struct extent_buffer *eb)
 #endif
 }
 
-void btrfs_print_leaf(struct extent_buffer *l)
+void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
 	int i;
@@ -355,7 +355,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	}
 }
 
-void btrfs_print_tree(struct extent_buffer *c, bool follow)
+void btrfs_print_tree(const struct extent_buffer *c, bool follow)
 {
 	struct btrfs_fs_info *fs_info;
 	int i; u32 nr;

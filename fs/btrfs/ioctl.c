@@ -649,6 +649,8 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 	}
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
+	/* Tree log can't currently deal with an inode which is a new root. */
+	btrfs_set_log_full_commit(trans);
 
 	ret = btrfs_qgroup_inherit(trans, 0, objectid, inherit);
 	if (ret)
@@ -757,10 +759,7 @@ out:
 	trans->bytes_reserved = 0;
 	btrfs_subvolume_release_metadata(root, &block_rsv);
 
-	if (ret)
-		btrfs_end_transaction(trans);
-	else
-		ret = btrfs_commit_transaction(trans);
+	btrfs_end_transaction(trans);
 out_new_inode_args:
 	btrfs_new_inode_args_destroy(&new_inode_args);
 out_inode:
@@ -3113,6 +3112,13 @@ static noinline long btrfs_ioctl_start_sync(struct btrfs_root *root,
 	struct btrfs_trans_handle *trans;
 	u64 transid;
 
+	/*
+	 * Start orphan cleanup here for the given root in case it hasn't been
+	 * started already by other means. Errors are handled in the other
+	 * functions during transaction commit.
+	 */
+	btrfs_orphan_cleanup(root);
+
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
 		if (PTR_ERR(trans) != -ENOENT)
@@ -3134,14 +3140,13 @@ out:
 static noinline long btrfs_ioctl_wait_sync(struct btrfs_fs_info *fs_info,
 					   void __user *argp)
 {
-	u64 transid;
+	/* By default wait for the current transaction. */
+	u64 transid = 0;
 
-	if (argp) {
+	if (argp)
 		if (copy_from_user(&transid, argp, sizeof(transid)))
 			return -EFAULT;
-	} else {
-		transid = 0;  /* current trans */
-	}
+
 	return btrfs_wait_for_commit(fs_info, transid);
 }
 
