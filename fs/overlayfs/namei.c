@@ -171,8 +171,9 @@ struct dentry *ovl_decode_real_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
 	 * layer where file handle will be decoded.
 	 * In case of uuid=off option just make sure that stored uuid is null.
 	 */
-	if (ofs->config.uuid ? !uuid_equal(&fh->fb.uuid, &mnt->mnt_sb->s_uuid) :
-			      !uuid_is_null(&fh->fb.uuid))
+	if (ovl_origin_uuid(ofs) ?
+	    !uuid_equal(&fh->fb.uuid, &mnt->mnt_sb->s_uuid) :
+	    !uuid_is_null(&fh->fb.uuid))
 		return NULL;
 
 	bytes = (fh->fb.len - offsetof(struct ovl_fb, fid));

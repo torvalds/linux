@@ -68,6 +68,12 @@ enum {
 };
 
 enum {
+	OVL_UUID_OFF,
+	OVL_UUID_NULL,
+	OVL_UUID_ON,
+};
+
+enum {
 	OVL_XINO_OFF,
 	OVL_XINO_AUTO,
 	OVL_XINO_ON,
@@ -532,6 +538,16 @@ static inline bool ovl_redirect_follow(struct ovl_fs *ofs)
 static inline bool ovl_redirect_dir(struct ovl_fs *ofs)
 {
 	return ofs->config.redirect_mode == OVL_REDIRECT_ON;
+}
+
+static inline bool ovl_origin_uuid(struct ovl_fs *ofs)
+{
+	return ofs->config.uuid != OVL_UUID_OFF;
+}
+
+static inline bool ovl_has_fsid(struct ovl_fs *ofs)
+{
+	return ofs->config.uuid == OVL_UUID_ON;
 }
 
 /*

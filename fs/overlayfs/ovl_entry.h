@@ -12,7 +12,7 @@ struct ovl_config {
 	int redirect_mode;
 	int verity_mode;
 	bool index;
-	bool uuid;
+	int uuid;
 	bool nfs_export;
 	int xino;
 	bool metacopy;

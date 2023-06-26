@@ -65,6 +65,23 @@ static const struct constant_table ovl_parameter_bool[] = {
 	{}
 };
 
+static const struct constant_table ovl_parameter_uuid[] = {
+	{ "off",	OVL_UUID_OFF  },
+	{ "null",	OVL_UUID_NULL },
+	{ "on",		OVL_UUID_ON   },
+	{}
+};
+
+static const char *ovl_uuid_mode(struct ovl_config *config)
+{
+	return ovl_parameter_uuid[config->uuid].name;
+}
+
+static int ovl_uuid_def(void)
+{
+	return OVL_UUID_NULL;
+}
+
 static const struct constant_table ovl_parameter_xino[] = {
 	{ "off",	OVL_XINO_OFF  },
 	{ "auto",	OVL_XINO_AUTO },
@@ -129,7 +146,7 @@ const struct fs_parameter_spec ovl_parameter_spec[] = {
 	fsparam_flag("default_permissions", Opt_default_permissions),
 	fsparam_enum("redirect_dir",        Opt_redirect_dir, ovl_parameter_redirect_dir),
 	fsparam_enum("index",               Opt_index, ovl_parameter_bool),
-	fsparam_enum("uuid",                Opt_uuid, ovl_parameter_bool),
+	fsparam_enum("uuid",                Opt_uuid, ovl_parameter_uuid),
 	fsparam_enum("nfs_export",          Opt_nfs_export, ovl_parameter_bool),
 	fsparam_flag("userxattr",           Opt_userxattr),
 	fsparam_enum("xino",                Opt_xino, ovl_parameter_xino),
@@ -701,7 +718,7 @@ int ovl_init_fs_context(struct fs_context *fc)
 
 	ofs->config.redirect_mode	= ovl_redirect_mode_def();
 	ofs->config.index		= ovl_index_def;
-	ofs->config.uuid		= true;
+	ofs->config.uuid		= ovl_uuid_def();
 	ofs->config.nfs_export		= ovl_nfs_export_def;
 	ofs->config.xino		= ovl_xino_def();
 	ofs->config.metacopy		= ovl_metacopy_def;
@@ -947,8 +964,8 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 			   ovl_redirect_mode(&ofs->config));
 	if (ofs->config.index != ovl_index_def)
 		seq_printf(m, ",index=%s", ofs->config.index ? "on" : "off");
-	if (!ofs->config.uuid)
-		seq_puts(m, ",uuid=off");
+	if (ofs->config.uuid != ovl_uuid_def())
+		seq_printf(m, ",uuid=%s", ovl_uuid_mode(&ofs->config));
 	if (ofs->config.nfs_export != ovl_nfs_export_def)
 		seq_printf(m, ",nfs_export=%s", ofs->config.nfs_export ?
 						"on" : "off");
