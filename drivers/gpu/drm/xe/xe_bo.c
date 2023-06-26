@@ -479,7 +479,6 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
  * to unconditionally call unmap_attachment() when moving out to system.
  */
 static int xe_bo_move_dmabuf(struct ttm_buffer_object *ttm_bo,
-			     struct ttm_resource *old_res,
 			     struct ttm_resource *new_res)
 {
 	struct dma_buf_attachment *attach = ttm_bo->base.import_attach;
@@ -564,6 +563,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
 	struct ttm_resource *old_mem = ttm_bo->resource;
+	u32 old_mem_type = old_mem ? old_mem->mem_type : XE_PL_SYSTEM;
 	struct ttm_tt *ttm = ttm_bo->ttm;
 	struct xe_tile *tile = NULL;
 	struct dma_fence *fence;
@@ -572,35 +572,29 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	bool needs_clear;
 	int ret = 0;
 
-	if (!old_mem) {
-		if (new_mem->mem_type != TTM_PL_SYSTEM) {
-			hop->mem_type = TTM_PL_SYSTEM;
-			hop->flags = TTM_PL_FLAG_TEMPORARY;
-			ret = -EMULTIHOP;
-			goto out;
-		}
-
+	/* Bo creation path, moving to system or TT. No clearing required. */
+	if (!old_mem && ttm) {
 		ttm_bo_move_null(ttm_bo, new_mem);
-		goto out;
+		return 0;
 	}
 
 	if (ttm_bo->type == ttm_bo_type_sg) {
 		ret = xe_bo_move_notify(bo, ctx);
 		if (!ret)
-			ret = xe_bo_move_dmabuf(ttm_bo, old_mem, new_mem);
+			ret = xe_bo_move_dmabuf(ttm_bo, new_mem);
 		goto out;
 	}
 
 	tt_has_data = ttm && (ttm_tt_is_populated(ttm) ||
 			      (ttm->page_flags & TTM_TT_FLAG_SWAPPED));
 
-	move_lacks_source = !resource_is_vram(old_mem) && !tt_has_data;
+	move_lacks_source = !mem_type_is_vram(old_mem_type) && !tt_has_data;
 
 	needs_clear = (ttm && ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) ||
 		(!ttm && ttm_bo->type == ttm_bo_type_device);
 
 	if ((move_lacks_source && !needs_clear) ||
-	    (old_mem->mem_type == XE_PL_SYSTEM &&
+	    (old_mem_type == XE_PL_SYSTEM &&
 	     new_mem->mem_type == XE_PL_TT)) {
 		ttm_bo_move_null(ttm_bo, new_mem);
 		goto out;
@@ -610,7 +604,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	 * Failed multi-hop where the old_mem is still marked as
 	 * TTM_PL_FLAG_TEMPORARY, should just be a dummy move.
 	 */
-	if (old_mem->mem_type == XE_PL_TT &&
+	if (old_mem_type == XE_PL_TT &&
 	    new_mem->mem_type == XE_PL_TT) {
 		ttm_bo_move_null(ttm_bo, new_mem);
 		goto out;
@@ -622,7 +616,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 			goto out;
 	}
 
-	if (old_mem->mem_type == XE_PL_TT &&
+	if (old_mem_type == XE_PL_TT &&
 	    new_mem->mem_type == XE_PL_SYSTEM) {
 		long timeout = dma_resv_wait_timeout(ttm_bo->base.resv,
 						     DMA_RESV_USAGE_BOOKKEEP,
@@ -637,8 +631,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	}
 
 	if (!move_lacks_source &&
-	    ((old_mem->mem_type == XE_PL_SYSTEM && resource_is_vram(new_mem)) ||
-	     (resource_is_vram(old_mem) &&
+	    ((old_mem_type == XE_PL_SYSTEM && resource_is_vram(new_mem)) ||
+	     (mem_type_is_vram(old_mem_type) &&
 	      new_mem->mem_type == XE_PL_SYSTEM))) {
 		hop->fpfn = 0;
 		hop->lpfn = 0;
@@ -652,8 +646,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		tile = bo->tile;
 	else if (resource_is_vram(new_mem))
 		tile = mem_type_to_tile(xe, new_mem->mem_type);
-	else if (resource_is_vram(old_mem))
-		tile = mem_type_to_tile(xe, old_mem->mem_type);
+	else if (mem_type_is_vram(old_mem_type))
+		tile = mem_type_to_tile(xe, old_mem_type);
 
 	XE_BUG_ON(!tile);
 	XE_BUG_ON(!tile->migrate);
@@ -703,8 +697,20 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 			xe_device_mem_access_put(xe);
 			goto out;
 		}
-		ret = ttm_bo_move_accel_cleanup(ttm_bo, fence, evict, true,
-						new_mem);
+		if (!move_lacks_source) {
+			ret = ttm_bo_move_accel_cleanup(ttm_bo, fence, evict,
+							true, new_mem);
+		} else {
+			/*
+			 * ttm_bo_move_accel_cleanup() may blow up if
+			 * bo->resource == NULL, so just attach the
+			 * fence and set the new resource.
+			 */
+			dma_resv_add_fence(ttm_bo->base.resv, fence,
+					   DMA_RESV_USAGE_KERNEL);
+			ttm_bo_move_null(ttm_bo, new_mem);
+		}
+
 		dma_fence_put(fence);
 	}
 
