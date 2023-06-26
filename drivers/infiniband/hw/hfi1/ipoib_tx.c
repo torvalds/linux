@@ -15,6 +15,7 @@
 #include "verbs.h"
 #include "trace_ibhdrs.h"
 #include "ipoib.h"
+#include "trace_tx.h"
 
 /* Add a convenience helper */
 #define CIRC_ADD(val, add, size) (((val) + (add)) & ((size) - 1))
@@ -63,12 +64,14 @@ static u64 hfi1_ipoib_used(struct hfi1_ipoib_txq *txq)
 
 static void hfi1_ipoib_stop_txq(struct hfi1_ipoib_txq *txq)
 {
+	trace_hfi1_txq_stop(txq);
 	if (atomic_inc_return(&txq->stops) == 1)
 		netif_stop_subqueue(txq->priv->netdev, txq->q_idx);
 }
 
 static void hfi1_ipoib_wake_txq(struct hfi1_ipoib_txq *txq)
 {
+	trace_hfi1_txq_wake(txq);
 	if (atomic_dec_and_test(&txq->stops))
 		netif_wake_subqueue(txq->priv->netdev, txq->q_idx);
 }
@@ -89,8 +92,10 @@ static void hfi1_ipoib_check_queue_depth(struct hfi1_ipoib_txq *txq)
 {
 	++txq->sent_txreqs;
 	if (hfi1_ipoib_used(txq) >= hfi1_ipoib_ring_hwat(txq) &&
-	    !atomic_xchg(&txq->ring_full, 1))
+	    !atomic_xchg(&txq->ring_full, 1)) {
+		trace_hfi1_txq_full(txq);
 		hfi1_ipoib_stop_txq(txq);
+	}
 }
 
 static void hfi1_ipoib_check_queue_stopped(struct hfi1_ipoib_txq *txq)
@@ -112,8 +117,10 @@ static void hfi1_ipoib_check_queue_stopped(struct hfi1_ipoib_txq *txq)
 	 * to protect against ring overflow.
 	 */
 	if (hfi1_ipoib_used(txq) < hfi1_ipoib_ring_lwat(txq) &&
-	    atomic_xchg(&txq->ring_full, 0))
+	    atomic_xchg(&txq->ring_full, 0)) {
+		trace_hfi1_txq_xmit_unstopped(txq);
 		hfi1_ipoib_wake_txq(txq);
+	}
 }
 
 static void hfi1_ipoib_free_tx(struct ipoib_txreq *tx, int budget)
@@ -244,6 +251,7 @@ static int hfi1_ipoib_build_ulp_payload(struct ipoib_txreq *tx,
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		ret = sdma_txadd_page(dd,
+				      NULL,
 				      txreq,
 				      skb_frag_page(frag),
 				      frag->bv_offset,
@@ -405,6 +413,7 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 				sdma_select_engine_sc(priv->dd,
 						      txp->flow.tx_queue,
 						      txp->flow.sc5);
+			trace_hfi1_flow_switch(txp->txq);
 		}
 
 		return tx;
@@ -525,6 +534,7 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 	if (txq->flow.as_int != txp->flow.as_int) {
 		int ret;
 
+		trace_hfi1_flow_flush(txq);
 		ret = hfi1_ipoib_flush_tx_list(dev, txq);
 		if (unlikely(ret)) {
 			if (ret == -EBUSY)
@@ -635,8 +645,10 @@ static int hfi1_ipoib_sdma_sleep(struct sdma_engine *sde,
 			/* came from non-list submit */
 			list_add_tail(&txreq->list, &txq->tx_list);
 		if (list_empty(&txq->wait.list)) {
-			if (!atomic_xchg(&txq->no_desc, 1))
+			if (!atomic_xchg(&txq->no_desc, 1)) {
+				trace_hfi1_txq_queued(txq);
 				hfi1_ipoib_stop_txq(txq);
+			}
 			iowait_queue(pkts_sent, wait->iow, &sde->dmawait);
 		}
 
@@ -659,6 +671,7 @@ static void hfi1_ipoib_sdma_wakeup(struct iowait *wait, int reason)
 	struct hfi1_ipoib_txq *txq =
 		container_of(wait, struct hfi1_ipoib_txq, wait);
 
+	trace_hfi1_txq_wakeup(txq);
 	if (likely(txq->priv->netdev->reg_state == NETREG_REGISTERED))
 		iowait_schedule(wait, system_highpri_wq, WORK_CPU_UNBOUND);
 }
