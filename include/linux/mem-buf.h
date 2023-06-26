@@ -24,6 +24,12 @@ struct mem_buf_vmperm *to_mem_buf_vmperm(struct dma_buf *dmabuf);
 bool mem_buf_dma_buf_exclusive_owner(struct dma_buf *dmabuf);
 
 /*
+ * Returns the Virtual Machine vmids & permissions of the dmabuf. Can't be
+ * modified.
+ */
+int mem_buf_dma_buf_get_vmperm(struct dma_buf *dmabuf, const int **vmids,
+		const int **perms, int *nr_acl_entries);
+/*
  * Returns a copy of the Virtual Machine vmids & permissions of the dmabuf.
  * The caller must kfree() when finished.
  */

@@ -640,6 +640,26 @@ bool mem_buf_dma_buf_exclusive_owner(struct dma_buf *dmabuf)
 }
 EXPORT_SYMBOL(mem_buf_dma_buf_exclusive_owner);
 
+int mem_buf_dma_buf_get_vmperm(struct dma_buf *dmabuf, const int **vmids,
+		const int **perms, int *nr_acl_entries)
+{
+	struct mem_buf_vmperm *vmperm;
+
+	vmperm = to_mem_buf_vmperm(dmabuf);
+	if (IS_ERR(vmperm))
+		return PTR_ERR(vmperm);
+
+	mutex_lock(&vmperm->lock);
+
+	*vmids = vmperm->vmids;
+	*perms = vmperm->perms;
+	*nr_acl_entries = vmperm->nr_acl_entries;
+
+	mutex_unlock(&vmperm->lock);
+	return 0;
+}
+EXPORT_SYMBOL(mem_buf_dma_buf_get_vmperm);
+
 int mem_buf_dma_buf_copy_vmperm(struct dma_buf *dmabuf, int **vmids,
 		int **perms, int *nr_acl_entries)
 {
