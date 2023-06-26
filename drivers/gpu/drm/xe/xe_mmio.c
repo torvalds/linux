@@ -335,6 +335,12 @@ static void xe_mmio_probe_tiles(struct xe_device *xe)
 	adj_tile_count = xe->info.tile_count =
 		REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 
+	/*
+	 * FIXME: Needs some work for standalone media, but should be impossible
+	 * with multi-tile for now.
+	 */
+	xe->info.gt_count = xe->info.tile_count;
+
 	drm_info(&xe->drm, "tile_count: %d, adj_tile_count %d\n",
 		 xe->info.tile_count, adj_tile_count);
 
