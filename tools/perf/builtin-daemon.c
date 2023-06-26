@@ -1524,7 +1524,7 @@ int cmd_daemon(int argc, const char **argv)
 	if (argc) {
 		if (!strcmp(argv[0], "start"))
 			ret = __cmd_start(&__daemon, daemon_options, argc, argv);
-		if (!strcmp(argv[0], "signal"))
+		else if (!strcmp(argv[0], "signal"))
 			ret = __cmd_signal(&__daemon, daemon_options, argc, argv);
 		else if (!strcmp(argv[0], "stop"))
 			ret = __cmd_stop(&__daemon, daemon_options, argc, argv);
