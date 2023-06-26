@@ -30,6 +30,7 @@ struct vhost_worker {
 	struct vhost_task	*vtsk;
 	struct llist_head	work_list;
 	u64			kcov_handle;
+	u32			id;
 };
 
 /* Poll a file (eventfd or socket) */
@@ -159,7 +160,6 @@ struct vhost_dev {
 	struct vhost_virtqueue **vqs;
 	int nvqs;
 	struct eventfd_ctx *log_ctx;
-	struct vhost_worker *worker;
 	struct vhost_iotlb *umem;
 	struct vhost_iotlb *iotlb;
 	spinlock_t iotlb_lock;
@@ -169,6 +169,7 @@ struct vhost_dev {
 	int iov_limit;
 	int weight;
 	int byte_weight;
+	struct xarray worker_xa;
 	bool use_worker;
 	int (*msg_handler)(struct vhost_dev *dev, u32 asid,
 			   struct vhost_iotlb_msg *msg);
