@@ -572,20 +572,27 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
 
 	vhost_attach_mm(dev);
 
+	err = vhost_dev_alloc_iovecs(dev);
+	if (err)
+		goto err_iovecs;
+
 	if (dev->use_worker) {
+		/*
+		 * This should be done last, because vsock can queue work
+		 * before VHOST_SET_OWNER so it simplifies the failure path
+		 * below since we don't have to worry about vsock queueing
+		 * while we free the worker.
+		 */
 		err = vhost_worker_create(dev);
 		if (err)
 			goto err_worker;
 	}
 
-	err = vhost_dev_alloc_iovecs(dev);
-	if (err)
-		goto err_iovecs;
-
 	return 0;
-err_iovecs:
-	vhost_worker_free(dev);
+
 err_worker:
+	vhost_dev_free_iovecs(dev);
+err_iovecs:
 	vhost_detach_mm(dev);
 err_mm:
 	return err;
