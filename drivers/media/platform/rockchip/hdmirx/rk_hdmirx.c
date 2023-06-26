@@ -269,6 +269,7 @@ static int hdmirx_set_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev);
 static void hdmirx_cancel_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev);
 static void hdmirx_plugout(struct rk_hdmirx_dev *hdmirx_dev);
 static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev);
+static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en);
 
 static u8 edid_init_data_340M[] = {
 	0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
@@ -615,8 +616,10 @@ static void hdmirx_get_colordepth(struct rk_hdmirx_dev *hdmirx_dev)
 static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	u32 val;
+	int timeout = 10;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
+try_loop:
 	val = hdmirx_readl(hdmirx_dev, DMA_STATUS11);
 	hdmirx_dev->pix_fmt = val & HDMIRX_FORMAT_MASK;
 
@@ -635,11 +638,16 @@ static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 		break;
 
 	default:
+		if (timeout-- > 0) {
+			usleep_range(200 * 1000, 200 * 1010);
+			v4l2_err(v4l2_dev, "%s: get format failed, read again!\n", __func__);
+			goto try_loop;
+		}
+		hdmirx_dev->pix_fmt = HDMIRX_RGB888;
+		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_BGR24;
 		v4l2_err(v4l2_dev,
 			"%s: err pix_fmt: %d, set RGB888 as default\n",
 			__func__, hdmirx_dev->pix_fmt);
-		hdmirx_dev->pix_fmt = HDMIRX_RGB888;
-		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_BGR24;
 		break;
 	}
 
@@ -880,9 +888,12 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	u32 last_w, last_h;
 	struct v4l2_bt_timings *bt = &timings->bt;
+	enum hdmirx_pix_fmt last_fmt;
 
 	last_w = 0;
 	last_h = 0;
+	last_fmt = HDMIRX_RGB888;
+
 	for (i = 0; i < try_cnt; i++) {
 		ret = hdmirx_get_detected_timings(hdmirx_dev, timings, from_dma);
 
@@ -891,7 +902,8 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 			last_h = bt->height;
 		}
 
-		if (ret || (last_w != bt->width) || (last_h != bt->height))
+		if (ret || (last_w != bt->width) || (last_h != bt->height)
+			|| (last_fmt != hdmirx_dev->pix_fmt))
 			cnt = 0;
 		else
 			cnt++;
@@ -901,6 +913,7 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 
 		last_w = bt->width;
 		last_h = bt->height;
+		last_fmt = hdmirx_dev->pix_fmt;
 		usleep_range(10*1000, 10*1100);
 	}
 
@@ -2349,6 +2362,7 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 			FIFO_UNDERFLOW_INT_EN |
 			HDMIRX_AXI_ERROR_INT_EN, 0);
 	hdmirx_reset_dma(hdmirx_dev);
+	hdmirx_interrupts_setup(hdmirx_dev, false);
 	v4l2_event_queue(&stream->vdev, &evt_signal_lost);
 	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_stop)
 		hdmirx_dev->hdcp->hdcp_stop(hdmirx_dev->hdcp);
@@ -3243,7 +3257,6 @@ static void hdmirx_delayed_work_res_change(struct work_struct *work)
 	plugin = tx_5v_power_present(hdmirx_dev);
 	v4l2_dbg(1, debug, v4l2_dev, "%s: plugin:%d\n", __func__, plugin);
 	if (plugin) {
-		hdmirx_interrupts_setup(hdmirx_dev, false);
 		hdmirx_submodule_init(hdmirx_dev);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED,
 					POWERPROVIDED);
