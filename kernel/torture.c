@@ -557,9 +557,11 @@ static void torture_shuffle_tasks(void)
  */
 static int torture_shuffle(void *arg)
 {
+	DEFINE_TORTURE_RANDOM(rand);
+
 	VERBOSE_TOROUT_STRING("torture_shuffle task started");
 	do {
-		schedule_timeout_interruptible(shuffle_interval);
+		torture_hrtimeout_jiffies(shuffle_interval, &rand);
 		torture_shuffle_tasks();
 		torture_shutdown_absorb("torture_shuffle");
 	} while (!torture_must_stop());
