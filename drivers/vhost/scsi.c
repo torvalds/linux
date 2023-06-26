@@ -1927,6 +1927,14 @@ vhost_scsi_ioctl(struct file *f,
 		if (copy_from_user(&features, featurep, sizeof features))
 			return -EFAULT;
 		return vhost_scsi_set_features(vs, features);
+	case VHOST_NEW_WORKER:
+	case VHOST_FREE_WORKER:
+	case VHOST_ATTACH_VRING_WORKER:
+	case VHOST_GET_VRING_WORKER:
+		mutex_lock(&vs->dev.mutex);
+		r = vhost_worker_ioctl(&vs->dev, ioctl, argp);
+		mutex_unlock(&vs->dev.mutex);
+		return r;
 	default:
 		mutex_lock(&vs->dev.mutex);
 		r = vhost_dev_ioctl(&vs->dev, ioctl, argp);
