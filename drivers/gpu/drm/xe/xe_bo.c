@@ -700,6 +700,11 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		if (!move_lacks_source) {
 			ret = ttm_bo_move_accel_cleanup(ttm_bo, fence, evict,
 							true, new_mem);
+			if (ret) {
+				dma_fence_wait(fence, false);
+				ttm_bo_move_null(ttm_bo, new_mem);
+				ret = 0;
+			}
 		} else {
 			/*
 			 * ttm_bo_move_accel_cleanup() may blow up if
