@@ -555,6 +555,10 @@ __bpf_kfunc u32 bpf_fentry_test9(u32 *a)
 	return *a;
 }
 
+void noinline bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
+{
+}
+
 __bpf_kfunc int bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
