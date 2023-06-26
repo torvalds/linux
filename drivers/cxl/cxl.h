@@ -471,17 +471,19 @@ struct cxl_region_params {
 };
 
 /*
- * Flag whether this region needs to have its HPA span synchronized with
- * CPU cache state at region activation time.
- */
-#define CXL_REGION_F_INCOHERENT 0
-
-/*
  * Indicate whether this region has been assembled by autodetection or
  * userspace assembly. Prevent endpoint decoders outside of automatic
  * detection from being added to the region.
  */
-#define CXL_REGION_F_AUTO 1
+#define CXL_REGION_F_AUTO 0
+
+/*
+ * Require that a committed region successfully complete a teardown once
+ * any of its associated decoders have been torn down. This maintains
+ * the commit state for the region since there are committed decoders,
+ * but blocks cxl_region_probe().
+ */
+#define CXL_REGION_F_NEEDS_RESET 1
 
 /**
  * struct cxl_region - CXL region
