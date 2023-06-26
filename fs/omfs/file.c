@@ -334,7 +334,7 @@ const struct file_operations omfs_file_operations = {
 	.write_iter = generic_file_write_iter,
 	.mmap = generic_file_mmap,
 	.fsync = generic_file_fsync,
-	.splice_read = generic_file_splice_read,
+	.splice_read = filemap_splice_read,
 };
 
 static int omfs_setattr(struct mnt_idmap *idmap,

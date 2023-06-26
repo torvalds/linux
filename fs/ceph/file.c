@@ -1746,6 +1746,69 @@ again:
 }
 
 /*
+ * Wrap filemap_splice_read with checks for cap bits on the inode.
+ * Atomically grab references, so that those bits are not released
+ * back to the MDS mid-read.
+ */
+static ssize_t ceph_splice_read(struct file *in, loff_t *ppos,
+				struct pipe_inode_info *pipe,
+				size_t len, unsigned int flags)
+{
+	struct ceph_file_info *fi = in->private_data;
+	struct inode *inode = file_inode(in);
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	ssize_t ret;
+	int want = 0, got = 0;
+	CEPH_DEFINE_RW_CONTEXT(rw_ctx, 0);
+
+	dout("splice_read %p %llx.%llx %llu~%zu trying to get caps on %p\n",
+	     inode, ceph_vinop(inode), *ppos, len, inode);
+
+	if (ceph_inode_is_shutdown(inode))
+		return -ESTALE;
+
+	if (ceph_has_inline_data(ci) ||
+	    (fi->flags & CEPH_F_SYNC))
+		return copy_splice_read(in, ppos, pipe, len, flags);
+
+	ceph_start_io_read(inode);
+
+	want = CEPH_CAP_FILE_CACHE;
+	if (fi->fmode & CEPH_FILE_MODE_LAZY)
+		want |= CEPH_CAP_FILE_LAZYIO;
+
+	ret = ceph_get_caps(in, CEPH_CAP_FILE_RD, want, -1, &got);
+	if (ret < 0)
+		goto out_end;
+
+	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) == 0) {
+		dout("splice_read/sync %p %llx.%llx %llu~%zu got cap refs on %s\n",
+		     inode, ceph_vinop(inode), *ppos, len,
+		     ceph_cap_string(got));
+
+		ceph_put_cap_refs(ci, got);
+		ceph_end_io_read(inode);
+		return copy_splice_read(in, ppos, pipe, len, flags);
+	}
+
+	dout("splice_read %p %llx.%llx %llu~%zu got cap refs on %s\n",
+	     inode, ceph_vinop(inode), *ppos, len, ceph_cap_string(got));
+
+	rw_ctx.caps = got;
+	ceph_add_rw_context(fi, &rw_ctx);
+	ret = filemap_splice_read(in, ppos, pipe, len, flags);
+	ceph_del_rw_context(fi, &rw_ctx);
+
+	dout("splice_read %p %llx.%llx dropping cap refs on %s = %zd\n",
+	     inode, ceph_vinop(inode), ceph_cap_string(got), ret);
+
+	ceph_put_cap_refs(ci, got);
+out_end:
+	ceph_end_io_read(inode);
+	return ret;
+}
+
+/*
  * Take cap references to avoid releasing caps to MDS mid-write.
  *
  * If we are synchronous, and write with an old snap context, the OSD
@@ -2593,7 +2656,7 @@ const struct file_operations ceph_file_fops = {
 	.lock = ceph_lock,
 	.setlease = simple_nosetlease,
 	.flock = ceph_flock,
-	.splice_read = generic_file_splice_read,
+	.splice_read = ceph_splice_read,
 	.splice_write = iter_file_splice_write,
 	.unlocked_ioctl = ceph_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,

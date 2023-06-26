@@ -178,6 +178,27 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 }
 EXPORT_SYMBOL_GPL(nfs_file_read);
 
+ssize_t
+nfs_file_splice_read(struct file *in, loff_t *ppos, struct pipe_inode_info *pipe,
+		     size_t len, unsigned int flags)
+{
+	struct inode *inode = file_inode(in);
+	ssize_t result;
+
+	dprintk("NFS: splice_read(%pD2, %zu@%llu)\n", in, len, *ppos);
+
+	nfs_start_io_read(inode);
+	result = nfs_revalidate_mapping(inode, in->f_mapping);
+	if (!result) {
+		result = filemap_splice_read(in, ppos, pipe, len, flags);
+		if (result > 0)
+			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, result);
+	}
+	nfs_end_io_read(inode);
+	return result;
+}
+EXPORT_SYMBOL_GPL(nfs_file_splice_read);
+
 int
 nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
@@ -879,7 +900,7 @@ const struct file_operations nfs_file_operations = {
 	.fsync		= nfs_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,

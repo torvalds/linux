@@ -2693,8 +2693,7 @@ ssize_t filemap_read(struct kiocb *iocb, struct iov_iter *iter,
 		if (unlikely(iocb->ki_pos >= i_size_read(inode)))
 			break;
 
-		error = filemap_get_pages(iocb, iter->count, &fbatch,
-					  iov_iter_is_pipe(iter));
+		error = filemap_get_pages(iocb, iter->count, &fbatch, false);
 		if (error < 0)
 			break;
 
@@ -2878,9 +2877,24 @@ size_t splice_folio_into_pipe(struct pipe_inode_info *pipe,
 	return spliced;
 }
 
-/*
- * Splice folios from the pagecache of a buffered (ie. non-O_DIRECT) file into
- * a pipe.
+/**
+ * filemap_splice_read -  Splice data from a file's pagecache into a pipe
+ * @in: The file to read from
+ * @ppos: Pointer to the file position to read from
+ * @pipe: The pipe to splice into
+ * @len: The amount to splice
+ * @flags: The SPLICE_F_* flags
+ *
+ * This function gets folios from a file's pagecache and splices them into the
+ * pipe.  Readahead will be called as necessary to fill more folios.  This may
+ * be used for blockdevs also.
+ *
+ * Return: On success, the number of bytes read will be returned and *@ppos
+ * will be updated if appropriate; 0 will be returned if there is no more data
+ * to be read; -EAGAIN will be returned if the pipe had no space, and some
+ * other negative error code will be returned on error.  A short read may occur
+ * if the pipe has insufficient space, we reach the end of the data or we hit a
+ * hole.
  */
 ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 			    struct pipe_inode_info *pipe,
@@ -2892,6 +2906,9 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 	loff_t isize, end_offset;
 	bool writably_mapped;
 	int i, error = 0;
+
+	if (unlikely(*ppos >= in->f_mapping->host->i_sb->s_maxbytes))
+		return 0;
 
 	init_sync_kiocb(&iocb, in);
 	iocb.ki_pos = *ppos;
@@ -2906,7 +2923,7 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 	do {
 		cond_resched();
 
-		if (*ppos >= i_size_read(file_inode(in)))
+		if (*ppos >= i_size_read(in->f_mapping->host))
 			break;
 
 		iocb.ki_pos = *ppos;
@@ -2922,7 +2939,7 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 		 * part of the page is not copied back to userspace (unless
 		 * another truncate extends the file - this is desired though).
 		 */
-		isize = i_size_read(file_inode(in));
+		isize = i_size_read(in->f_mapping->host);
 		if (unlikely(*ppos >= isize))
 			break;
 		end_offset = min_t(loff_t, isize, *ppos + len);

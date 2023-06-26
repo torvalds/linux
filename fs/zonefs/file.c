@@ -753,6 +753,44 @@ inode_unlock:
 	return ret;
 }
 
+static ssize_t zonefs_file_splice_read(struct file *in, loff_t *ppos,
+				       struct pipe_inode_info *pipe,
+				       size_t len, unsigned int flags)
+{
+	struct inode *inode = file_inode(in);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	loff_t isize;
+	ssize_t ret = 0;
+
+	/* Offline zones cannot be read */
+	if (unlikely(IS_IMMUTABLE(inode) && !(inode->i_mode & 0777)))
+		return -EPERM;
+
+	if (*ppos >= z->z_capacity)
+		return 0;
+
+	inode_lock_shared(inode);
+
+	/* Limit read operations to written data */
+	mutex_lock(&zi->i_truncate_mutex);
+	isize = i_size_read(inode);
+	if (*ppos >= isize)
+		len = 0;
+	else
+		len = min_t(loff_t, len, isize - *ppos);
+	mutex_unlock(&zi->i_truncate_mutex);
+
+	if (len > 0) {
+		ret = filemap_splice_read(in, ppos, pipe, len, flags);
+		if (ret == -EIO)
+			zonefs_io_error(inode, false);
+	}
+
+	inode_unlock_shared(inode);
+	return ret;
+}
+
 /*
  * Write open accounting is done only for sequential files.
  */
@@ -898,7 +936,7 @@ const struct file_operations zonefs_file_operations = {
 	.llseek		= zonefs_file_llseek,
 	.read_iter	= zonefs_file_read_iter,
 	.write_iter	= zonefs_file_write_iter,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= zonefs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.iopoll		= iocb_bio_iopoll,
 };
