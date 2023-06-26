@@ -289,6 +289,8 @@ struct acpi_dep_data {
 	acpi_handle supplier;
 	acpi_handle consumer;
 	bool honor_dep;
+	bool met;
+	bool free_when_met;
 };
 
 /* Performance Management */

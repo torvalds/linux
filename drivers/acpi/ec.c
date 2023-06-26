@@ -662,21 +662,6 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
 
-	/*
-	 * Clear GPE_STS upfront to allow subsequent hardware GPE_STS 0->1
-	 * changes to always trigger a GPE interrupt.
-	 *
-	 * GPE STS is a W1C register, which means:
-	 *
-	 * 1. Software can clear it without worrying about clearing the other
-	 *    GPEs' STS bits when the hardware sets them in parallel.
-	 *
-	 * 2. As long as software can ensure only clearing it when it is set,
-	 *    hardware won't set it in parallel.
-	 */
-	if (ec->gpe >= 0 && acpi_ec_gpe_status_set(ec))
-		acpi_clear_gpe(NULL, ec->gpe);
-
 	status = acpi_ec_read_status(ec);
 
 	/*
@@ -1287,6 +1272,22 @@ static void acpi_ec_handle_interrupt(struct acpi_ec *ec)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ec->lock, flags);
+
+	/*
+	 * Clear GPE_STS upfront to allow subsequent hardware GPE_STS 0->1
+	 * changes to always trigger a GPE interrupt.
+	 *
+	 * GPE STS is a W1C register, which means:
+	 *
+	 * 1. Software can clear it without worrying about clearing the other
+	 *    GPEs' STS bits when the hardware sets them in parallel.
+	 *
+	 * 2. As long as software can ensure only clearing it when it is set,
+	 *    hardware won't set it in parallel.
+	 */
+	if (ec->gpe >= 0 && acpi_ec_gpe_status_set(ec))
+		acpi_clear_gpe(NULL, ec->gpe);
+
 	advance_transaction(ec, true);
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
