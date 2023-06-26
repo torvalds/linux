@@ -16,9 +16,9 @@
 #include <net/xfrm.h>
 
 static const struct nla_policy nft_xfrm_policy[NFTA_XFRM_MAX + 1] = {
-	[NFTA_XFRM_KEY]		= { .type = NLA_U32 },
+	[NFTA_XFRM_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_XFRM_DIR]		= { .type = NLA_U8 },
-	[NFTA_XFRM_SPNUM]	= { .type = NLA_U32 },
+	[NFTA_XFRM_SPNUM]	= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_XFRM_DREG]	= { .type = NLA_U32 },
 };
 
