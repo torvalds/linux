@@ -70,14 +70,6 @@ enum {
 	OVL_XINO_ON,
 };
 
-/* The set of options that user requested explicitly via mount options */
-struct ovl_opt_set {
-	bool metacopy;
-	bool redirect;
-	bool nfs_export;
-	bool index;
-};
-
 /*
  * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
  * where:
@@ -367,30 +359,6 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 
 	return ((OPEN_FMODE(flags) & FMODE_WRITE) || (flags & O_TRUNC));
 }
-
-
-/* params.c */
-#define OVL_MAX_STACK 500
-
-struct ovl_fs_context_layer {
-	char *name;
-	struct path path;
-};
-
-struct ovl_fs_context {
-	struct path upper;
-	struct path work;
-	size_t capacity;
-	size_t nr; /* includes nr_data */
-	size_t nr_data;
-	struct ovl_opt_set set;
-	struct ovl_fs_context_layer *lower;
-};
-
-int ovl_parse_param_upperdir(const char *name, struct fs_context *fc,
-			     bool workdir);
-int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc);
-void ovl_parse_param_drop_lowerdir(struct ovl_fs_context *ctx);
 
 /* util.c */
 int ovl_want_write(struct dentry *dentry);
@@ -791,3 +759,12 @@ int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
 
 /* export.c */
 extern const struct export_operations ovl_export_operations;
+
+/* super.c */
+int ovl_fill_super(struct super_block *sb, struct fs_context *fc);
+
+/* Will this overlay be forced to mount/remount ro? */
+static inline bool ovl_force_readonly(struct ovl_fs *ofs)
+{
+	return (!ovl_upper_mnt(ofs) || !ofs->workdir);
+}
