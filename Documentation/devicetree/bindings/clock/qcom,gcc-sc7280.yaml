@@ -43,6 +43,10 @@ properties:
       - const: ufs_phy_tx_symbol_0_clk
       - const: usb3_phy_wrapper_gcc_usb30_pipe_clk
 
+  power-domains:
+    items:
+      - description: CX domain
+
 required:
   - compatible
   - clocks
@@ -56,6 +60,8 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
+
     clock-controller@100000 {
       compatible = "qcom,gcc-sc7280";
       reg = <0x00100000 0x1f0000>;
@@ -71,6 +77,7 @@ examples:
                      "pcie_1_pipe_clk", "ufs_phy_rx_symbol_0_clk",
                      "ufs_phy_rx_symbol_1_clk", "ufs_phy_tx_symbol_0_clk",
                      "usb3_phy_wrapper_gcc_usb30_pipe_clk";
+      power-domains = <&rpmhpd SC7280_CX>;
       #clock-cells = <1>;
       #reset-cells = <1>;
       #power-domain-cells = <1>;
