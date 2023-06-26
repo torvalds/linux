@@ -87,6 +87,15 @@ required:
   - qcom,ee
   - reg
 
+anyOf:
+  - required:
+      - qcom,powered-remotely
+  - required:
+      - qcom,controlled-remotely
+  - required:
+      - clocks
+      - clock-names
+
 additionalProperties: false
 
 examples:
