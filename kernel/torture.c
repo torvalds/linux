@@ -354,12 +354,12 @@ torture_onoff(void *arg)
 
 	if (onoff_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("torture_onoff begin holdoff");
-		schedule_timeout_interruptible(onoff_holdoff);
+		torture_hrtimeout_jiffies(onoff_holdoff, &rand);
 		VERBOSE_TOROUT_STRING("torture_onoff end holdoff");
 	}
 	while (!torture_must_stop()) {
 		if (disable_onoff_at_boot && !rcu_inkernel_boot_has_ended()) {
-			schedule_timeout_interruptible(HZ / 10);
+			torture_hrtimeout_jiffies(HZ / 10, &rand);
 			continue;
 		}
 		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
@@ -369,7 +369,7 @@ torture_onoff(void *arg)
 			torture_online(cpu,
 				       &n_online_attempts, &n_online_successes,
 				       &sum_online, &min_online, &max_online);
-		schedule_timeout_interruptible(onoff_interval);
+		torture_hrtimeout_jiffies(onoff_interval, &rand);
 	}
 
 stop:
