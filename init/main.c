@@ -95,7 +95,6 @@
 #include <linux/cache.h>
 #include <linux/rodata_test.h>
 #include <linux/jump_label.h>
-#include <linux/mem_encrypt.h>
 #include <linux/kcsan.h>
 #include <linux/init_syscalls.h>
 #include <linux/stackdepot.h>
@@ -103,7 +102,6 @@
 #include <net/net_namespace.h>
 
 #include <asm/io.h>
-#include <asm/bugs.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -787,8 +785,6 @@ void __init __weak thread_stack_cache_init(void)
 }
 #endif
 
-void __init __weak mem_encrypt_init(void) { }
-
 void __init __weak poking_init(void) { }
 
 void __init __weak pgtable_cache_init(void) { }
@@ -1042,15 +1038,7 @@ asmlinkage __visible void __init __no_sanitize_address __noreturn start_kernel(v
 	sched_clock_init();
 	calibrate_delay();
 
-	/*
-	 * This needs to be called before any devices perform DMA
-	 * operations that might use the SWIOTLB bounce buffers. It will
-	 * mark the bounce buffers as decrypted so that their usage will
-	 * not cause "plain-text" data to be decrypted when accessed. It
-	 * must be called after late_time_init() so that Hyper-V x86/x64
-	 * hypercalls work when the SWIOTLB bounce buffers are decrypted.
-	 */
-	mem_encrypt_init();
+	arch_cpu_finalize_init();
 
 	pid_idr_init();
 	anon_vma_init();
@@ -1077,8 +1065,6 @@ asmlinkage __visible void __init __no_sanitize_address __noreturn start_kernel(v
 	cgroup_init();
 	taskstats_init_early();
 	delayacct_init();
-
-	check_bugs();
 
 	acpi_subsystem_init();
 	arch_post_acpi_subsys_init();
