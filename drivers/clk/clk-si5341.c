@@ -1834,7 +1834,7 @@ static struct i2c_driver si5341_driver = {
 		.name = "si5341",
 		.of_match_table = clk_si5341_of_match,
 	},
-	.probe_new	= si5341_probe,
+	.probe		= si5341_probe,
 	.remove		= si5341_remove,
 	.id_table	= si5341_id,
 };

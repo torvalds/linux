@@ -1656,7 +1656,7 @@ static struct i2c_driver si5351_driver = {
 		.name = "si5351",
 		.of_match_table = of_match_ptr(si5351_dt_ids),
 	},
-	.probe_new = si5351_i2c_probe,
+	.probe = si5351_i2c_probe,
 	.id_table = si5351_i2c_ids,
 };
 module_i2c_driver(si5351_driver);

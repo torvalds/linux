@@ -684,7 +684,7 @@ static struct i2c_driver cdce706_i2c_driver = {
 		.name	= "cdce706",
 		.of_match_table = of_match_ptr(cdce706_dt_match),
 	},
-	.probe_new	= cdce706_probe,
+	.probe		= cdce706_probe,
 	.id_table	= cdce706_id,
 };
 module_i2c_driver(cdce706_i2c_driver);

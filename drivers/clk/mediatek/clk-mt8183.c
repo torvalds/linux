@@ -451,7 +451,8 @@ static const char * const aud_2_parents[] = {
 static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MUX_AXI, "axi_sel",
-		axi_parents, 0x40, 0x44, 0x48, 0, 2, 7, 0x004, 0, CLK_IS_CRITICAL),
+		axi_parents, 0x40, 0x44, 0x48, 0, 2, 7, 0x004, 0,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_MM, "mm_sel",
 		mm_parents, 0x40, 0x44, 0x48, 8, 3, 15, 0x004, 1),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_IMG, "img_sel",
@@ -486,14 +487,14 @@ static const struct mtk_mux top_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_SPI, "spi_sel",
 		spi_parents, 0x70, 0x74, 0x78, 24, 2, 31, 0x004, 15),
 	/* CLK_CFG_4 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_MSDC50_0_HCLK, "msdc50_hclk_sel",
-		msdc50_hclk_parents, 0x80, 0x84, 0x88, 0, 2, 7, 0x004, 16),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_MSDC50_0, "msdc50_0_sel",
-		msdc50_0_parents, 0x80, 0x84, 0x88, 8, 3, 15, 0x004, 17),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_MSDC30_1, "msdc30_1_sel",
-		msdc30_1_parents, 0x80, 0x84, 0x88, 16, 3, 23, 0x004, 18),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_MSDC30_2, "msdc30_2_sel",
-		msdc30_2_parents, 0x80, 0x84, 0x88, 24, 3, 31, 0x004, 19),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MUX_MSDC50_0_HCLK, "msdc50_hclk_sel",
+		msdc50_hclk_parents, 0x80, 0x84, 0x88, 0, 2, 7, 0x004, 16, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MUX_MSDC50_0, "msdc50_0_sel",
+		msdc50_0_parents, 0x80, 0x84, 0x88, 8, 3, 15, 0x004, 17, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MUX_MSDC30_1, "msdc30_1_sel",
+		msdc30_1_parents, 0x80, 0x84, 0x88, 16, 3, 23, 0x004, 18, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MUX_MSDC30_2, "msdc30_2_sel",
+		msdc30_2_parents, 0x80, 0x84, 0x88, 24, 3, 31, 0x004, 19, 0),
 	/* CLK_CFG_5 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_AUDIO, "audio_sel",
 		audio_parents, 0x90, 0x94, 0x98, 0, 2, 7, 0x004, 20),
@@ -518,7 +519,8 @@ static const struct mtk_mux top_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_SSUSB_TOP_XHCI, "ssusb_top_xhci_sel",
 		ssusb_top_xhci_parents, 0xb0, 0xb4, 0xb8, 16, 2, 23, 0x004, 30),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MUX_SPM, "spm_sel",
-		spm_parents, 0xb0, 0xb4, 0xb8, 24, 1, 31, 0x008, 0, CLK_IS_CRITICAL),
+		spm_parents, 0xb0, 0xb4, 0xb8, 24, 1, 31, 0x008, 0,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_8 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MUX_I2C, "i2c_sel",
 		i2c_parents, 0xc0, 0xc4, 0xc8, 0, 2, 7, 0x008, 1),
