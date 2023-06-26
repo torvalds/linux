@@ -129,7 +129,7 @@
  * 5 (SDW0_AUDIO2_RX)	23
  */
 #define SDW0_DMA_TX_IRQ_MASK(i)	(ACP_AUDIO0_TX_THRESHOLD - (2 * (i)))
-#define SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * (i)))
+#define SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * ((i) - 3)))
 
 /*
  * Below entries describes SDW1 instance DMA stream id and DMA irq bit mapping
