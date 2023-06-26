@@ -975,6 +975,74 @@ static int sys_addr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr)
 	return csrow;
 }
 
+/*
+ * See AMD PPR DF::LclNodeTypeMap
+ *
+ * This register gives information for nodes of the same type within a system.
+ *
+ * Reading this register from a GPU node will tell how many GPU nodes are in the
+ * system and what the lowest AMD Node ID value is for the GPU nodes. Use this
+ * info to fixup the Linux logical "Node ID" value set in the AMD NB code and EDAC.
+ */
+static struct local_node_map {
+	u16 node_count;
+	u16 base_node_id;
+} gpu_node_map;
+
+#define PCI_DEVICE_ID_AMD_MI200_DF_F1		0x14d1
+#define REG_LOCAL_NODE_TYPE_MAP			0x144
+
+/* Local Node Type Map (LNTM) fields */
+#define LNTM_NODE_COUNT				GENMASK(27, 16)
+#define LNTM_BASE_NODE_ID			GENMASK(11, 0)
+
+static int gpu_get_node_map(void)
+{
+	struct pci_dev *pdev;
+	int ret;
+	u32 tmp;
+
+	/*
+	 * Node ID 0 is reserved for CPUs.
+	 * Therefore, a non-zero Node ID means we've already cached the values.
+	 */
+	if (gpu_node_map.base_node_id)
+		return 0;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_MI200_DF_F1, NULL);
+	if (!pdev) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	ret = pci_read_config_dword(pdev, REG_LOCAL_NODE_TYPE_MAP, &tmp);
+	if (ret)
+		goto out;
+
+	gpu_node_map.node_count = FIELD_GET(LNTM_NODE_COUNT, tmp);
+	gpu_node_map.base_node_id = FIELD_GET(LNTM_BASE_NODE_ID, tmp);
+
+out:
+	pci_dev_put(pdev);
+	return ret;
+}
+
+static int fixup_node_id(int node_id, struct mce *m)
+{
+	/* MCA_IPID[InstanceIdHi] give the AMD Node ID for the bank. */
+	u8 nid = (m->ipid >> 44) & 0xF;
+
+	if (smca_get_bank_type(m->extcpu, m->bank) != SMCA_UMC_V2)
+		return node_id;
+
+	/* Nodes below the GPU base node are CPU nodes and don't need a fixup. */
+	if (nid < gpu_node_map.base_node_id)
+		return node_id;
+
+	/* Convert the hardware-provided AMD Node ID to a Linux logical one. */
+	return nid - gpu_node_map.base_node_id + 1;
+}
+
 /* Protect the PCI config register pairs used for DF indirect access. */
 static DEFINE_MUTEX(df_indirect_mutex);
 
@@ -1426,12 +1494,47 @@ static int umc_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 	return cs_mode;
 }
 
+static int __addr_mask_to_cs_size(u32 addr_mask_orig, unsigned int cs_mode,
+				  int csrow_nr, int dimm)
+{
+	u32 msb, weight, num_zero_bits;
+	u32 addr_mask_deinterleaved;
+	int size = 0;
+
+	/*
+	 * The number of zero bits in the mask is equal to the number of bits
+	 * in a full mask minus the number of bits in the current mask.
+	 *
+	 * The MSB is the number of bits in the full mask because BIT[0] is
+	 * always 0.
+	 *
+	 * In the special 3 Rank interleaving case, a single bit is flipped
+	 * without swapping with the most significant bit. This can be handled
+	 * by keeping the MSB where it is and ignoring the single zero bit.
+	 */
+	msb = fls(addr_mask_orig) - 1;
+	weight = hweight_long(addr_mask_orig);
+	num_zero_bits = msb - weight - !!(cs_mode & CS_3R_INTERLEAVE);
+
+	/* Take the number of zero bits off from the top of the mask. */
+	addr_mask_deinterleaved = GENMASK_ULL(msb - num_zero_bits, 1);
+
+	edac_dbg(1, "CS%d DIMM%d AddrMasks:\n", csrow_nr, dimm);
+	edac_dbg(1, "  Original AddrMask: 0x%x\n", addr_mask_orig);
+	edac_dbg(1, "  Deinterleaved AddrMask: 0x%x\n", addr_mask_deinterleaved);
+
+	/* Register [31:1] = Address [39:9]. Size is in kBs here. */
+	size = (addr_mask_deinterleaved >> 2) + 1;
+
+	/* Return size in MBs. */
+	return size >> 10;
+}
+
 static int umc_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 				    unsigned int cs_mode, int csrow_nr)
 {
-	u32 addr_mask_orig, addr_mask_deinterleaved;
-	u32 msb, weight, num_zero_bits;
 	int cs_mask_nr = csrow_nr;
+	u32 addr_mask_orig;
 	int dimm, size = 0;
 
 	/* No Chip Selects are enabled. */
@@ -1475,33 +1578,7 @@ static int umc_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 	else
 		addr_mask_orig = pvt->csels[umc].csmasks[cs_mask_nr];
 
-	/*
-	 * The number of zero bits in the mask is equal to the number of bits
-	 * in a full mask minus the number of bits in the current mask.
-	 *
-	 * The MSB is the number of bits in the full mask because BIT[0] is
-	 * always 0.
-	 *
-	 * In the special 3 Rank interleaving case, a single bit is flipped
-	 * without swapping with the most significant bit. This can be handled
-	 * by keeping the MSB where it is and ignoring the single zero bit.
-	 */
-	msb = fls(addr_mask_orig) - 1;
-	weight = hweight_long(addr_mask_orig);
-	num_zero_bits = msb - weight - !!(cs_mode & CS_3R_INTERLEAVE);
-
-	/* Take the number of zero bits off from the top of the mask. */
-	addr_mask_deinterleaved = GENMASK_ULL(msb - num_zero_bits, 1);
-
-	edac_dbg(1, "CS%d DIMM%d AddrMasks:\n", csrow_nr, dimm);
-	edac_dbg(1, "  Original AddrMask: 0x%x\n", addr_mask_orig);
-	edac_dbg(1, "  Deinterleaved AddrMask: 0x%x\n", addr_mask_deinterleaved);
-
-	/* Register [31:1] = Address [39:9]. Size is in kBs here. */
-	size = (addr_mask_deinterleaved >> 2) + 1;
-
-	/* Return size in MBs. */
-	return size >> 10;
+	return __addr_mask_to_cs_size(addr_mask_orig, cs_mode, csrow_nr, dimm);
 }
 
 static void umc_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
@@ -2992,6 +3069,8 @@ static void decode_umc_error(int node_id, struct mce *m)
 	struct err_info err;
 	u64 sys_addr;
 
+	node_id = fixup_node_id(node_id, m);
+
 	mci = edac_mc_find(node_id);
 	if (!mci)
 		return;
@@ -3675,6 +3754,227 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 	return 0;
 }
 
+/*
+ * The CPUs have one channel per UMC, so UMC number is equivalent to a
+ * channel number. The GPUs have 8 channels per UMC, so the UMC number no
+ * longer works as a channel number.
+ *
+ * The channel number within a GPU UMC is given in MCA_IPID[15:12].
+ * However, the IDs are split such that two UMC values go to one UMC, and
+ * the channel numbers are split in two groups of four.
+ *
+ * Refer to comment on gpu_get_umc_base().
+ *
+ * For example,
+ * UMC0 CH[3:0] = 0x0005[3:0]000
+ * UMC0 CH[7:4] = 0x0015[3:0]000
+ * UMC1 CH[3:0] = 0x0025[3:0]000
+ * UMC1 CH[7:4] = 0x0035[3:0]000
+ */
+static void gpu_get_err_info(struct mce *m, struct err_info *err)
+{
+	u8 ch = (m->ipid & GENMASK(31, 0)) >> 20;
+	u8 phy = ((m->ipid >> 12) & 0xf);
+
+	err->channel = ch % 2 ? phy + 4 : phy;
+	err->csrow = phy;
+}
+
+static int gpu_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
+				    unsigned int cs_mode, int csrow_nr)
+{
+	u32 addr_mask_orig = pvt->csels[umc].csmasks[csrow_nr];
+
+	return __addr_mask_to_cs_size(addr_mask_orig, cs_mode, csrow_nr, csrow_nr >> 1);
+}
+
+static void gpu_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
+{
+	int size, cs_mode, cs = 0;
+
+	edac_printk(KERN_DEBUG, EDAC_MC, "UMC%d chip selects:\n", ctrl);
+
+	cs_mode = CS_EVEN_PRIMARY | CS_ODD_PRIMARY;
+
+	for_each_chip_select(cs, ctrl, pvt) {
+		size = gpu_addr_mask_to_cs_size(pvt, ctrl, cs_mode, cs);
+		amd64_info(EDAC_MC ": %d: %5dMB\n", cs, size);
+	}
+}
+
+static void gpu_dump_misc_regs(struct amd64_pvt *pvt)
+{
+	struct amd64_umc *umc;
+	u32 i;
+
+	for_each_umc(i) {
+		umc = &pvt->umc[i];
+
+		edac_dbg(1, "UMC%d UMC cfg: 0x%x\n", i, umc->umc_cfg);
+		edac_dbg(1, "UMC%d SDP ctrl: 0x%x\n", i, umc->sdp_ctrl);
+		edac_dbg(1, "UMC%d ECC ctrl: 0x%x\n", i, umc->ecc_ctrl);
+		edac_dbg(1, "UMC%d All HBMs support ECC: yes\n", i);
+
+		gpu_debug_display_dimm_sizes(pvt, i);
+	}
+}
+
+static u32 gpu_get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
+{
+	u32 nr_pages;
+	int cs_mode = CS_EVEN_PRIMARY | CS_ODD_PRIMARY;
+
+	nr_pages   = gpu_addr_mask_to_cs_size(pvt, dct, cs_mode, csrow_nr);
+	nr_pages <<= 20 - PAGE_SHIFT;
+
+	edac_dbg(0, "csrow: %d, channel: %d\n", csrow_nr, dct);
+	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
+
+	return nr_pages;
+}
+
+static void gpu_init_csrows(struct mem_ctl_info *mci)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+	struct dimm_info *dimm;
+	u8 umc, cs;
+
+	for_each_umc(umc) {
+		for_each_chip_select(cs, umc, pvt) {
+			if (!csrow_enabled(cs, umc, pvt))
+				continue;
+
+			dimm = mci->csrows[umc]->channels[cs]->dimm;
+
+			edac_dbg(1, "MC node: %d, csrow: %d\n",
+				 pvt->mc_node_id, cs);
+
+			dimm->nr_pages = gpu_get_csrow_nr_pages(pvt, umc, cs);
+			dimm->edac_mode = EDAC_SECDED;
+			dimm->mtype = MEM_HBM2;
+			dimm->dtype = DEV_X16;
+			dimm->grain = 64;
+		}
+	}
+}
+
+static void gpu_setup_mci_misc_attrs(struct mem_ctl_info *mci)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+
+	mci->mtype_cap		= MEM_FLAG_HBM2;
+	mci->edac_ctl_cap	= EDAC_FLAG_SECDED;
+
+	mci->edac_cap		= EDAC_FLAG_EC;
+	mci->mod_name		= EDAC_MOD_STR;
+	mci->ctl_name		= pvt->ctl_name;
+	mci->dev_name		= pci_name(pvt->F3);
+	mci->ctl_page_to_phys	= NULL;
+
+	gpu_init_csrows(mci);
+}
+
+/* ECC is enabled by default on GPU nodes */
+static bool gpu_ecc_enabled(struct amd64_pvt *pvt)
+{
+	return true;
+}
+
+static inline u32 gpu_get_umc_base(u8 umc, u8 channel)
+{
+	/*
+	 * On CPUs, there is one channel per UMC, so UMC numbering equals
+	 * channel numbering. On GPUs, there are eight channels per UMC,
+	 * so the channel numbering is different from UMC numbering.
+	 *
+	 * On CPU nodes channels are selected in 6th nibble
+	 * UMC chY[3:0]= [(chY*2 + 1) : (chY*2)]50000;
+	 *
+	 * On GPU nodes channels are selected in 3rd nibble
+	 * HBM chX[3:0]= [Y  ]5X[3:0]000;
+	 * HBM chX[7:4]= [Y+1]5X[3:0]000
+	 */
+	umc *= 2;
+
+	if (channel >= 4)
+		umc++;
+
+	return 0x50000 + (umc << 20) + ((channel % 4) << 12);
+}
+
+static void gpu_read_mc_regs(struct amd64_pvt *pvt)
+{
+	u8 nid = pvt->mc_node_id;
+	struct amd64_umc *umc;
+	u32 i, umc_base;
+
+	/* Read registers from each UMC */
+	for_each_umc(i) {
+		umc_base = gpu_get_umc_base(i, 0);
+		umc = &pvt->umc[i];
+
+		amd_smn_read(nid, umc_base + UMCCH_UMC_CFG, &umc->umc_cfg);
+		amd_smn_read(nid, umc_base + UMCCH_SDP_CTRL, &umc->sdp_ctrl);
+		amd_smn_read(nid, umc_base + UMCCH_ECC_CTRL, &umc->ecc_ctrl);
+	}
+}
+
+static void gpu_read_base_mask(struct amd64_pvt *pvt)
+{
+	u32 base_reg, mask_reg;
+	u32 *base, *mask;
+	int umc, cs;
+
+	for_each_umc(umc) {
+		for_each_chip_select(cs, umc, pvt) {
+			base_reg = gpu_get_umc_base(umc, cs) + UMCCH_BASE_ADDR;
+			base = &pvt->csels[umc].csbases[cs];
+
+			if (!amd_smn_read(pvt->mc_node_id, base_reg, base)) {
+				edac_dbg(0, "  DCSB%d[%d]=0x%08x reg: 0x%x\n",
+					 umc, cs, *base, base_reg);
+			}
+
+			mask_reg = gpu_get_umc_base(umc, cs) + UMCCH_ADDR_MASK;
+			mask = &pvt->csels[umc].csmasks[cs];
+
+			if (!amd_smn_read(pvt->mc_node_id, mask_reg, mask)) {
+				edac_dbg(0, "  DCSM%d[%d]=0x%08x reg: 0x%x\n",
+					 umc, cs, *mask, mask_reg);
+			}
+		}
+	}
+}
+
+static void gpu_prep_chip_selects(struct amd64_pvt *pvt)
+{
+	int umc;
+
+	for_each_umc(umc) {
+		pvt->csels[umc].b_cnt = 8;
+		pvt->csels[umc].m_cnt = 8;
+	}
+}
+
+static int gpu_hw_info_get(struct amd64_pvt *pvt)
+{
+	int ret;
+
+	ret = gpu_get_node_map();
+	if (ret)
+		return ret;
+
+	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
+	if (!pvt->umc)
+		return -ENOMEM;
+
+	gpu_prep_chip_selects(pvt);
+	gpu_read_base_mask(pvt);
+	gpu_read_mc_regs(pvt);
+
+	return 0;
+}
+
 static void hw_info_put(struct amd64_pvt *pvt)
 {
 	pci_dev_put(pvt->F1);
@@ -3688,6 +3988,14 @@ static struct low_ops umc_ops = {
 	.setup_mci_misc_attrs		= umc_setup_mci_misc_attrs,
 	.dump_misc_regs			= umc_dump_misc_regs,
 	.get_err_info			= umc_get_err_info,
+};
+
+static struct low_ops gpu_ops = {
+	.hw_info_get			= gpu_hw_info_get,
+	.ecc_enabled			= gpu_ecc_enabled,
+	.setup_mci_misc_attrs		= gpu_setup_mci_misc_attrs,
+	.dump_misc_regs			= gpu_dump_misc_regs,
+	.get_err_info			= gpu_get_err_info,
 };
 
 /* Use Family 16h versions for defaults and adjust as needed below. */
@@ -3813,6 +4121,16 @@ static int per_family_init(struct amd64_pvt *pvt)
 		case 0x20 ... 0x2f:
 			pvt->ctl_name			= "F19h_M20h";
 			break;
+		case 0x30 ... 0x3f:
+			if (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) {
+				pvt->ctl_name		= "MI200";
+				pvt->max_mcs		= 4;
+				pvt->ops		= &gpu_ops;
+			} else {
+				pvt->ctl_name		= "F19h_M30h";
+				pvt->max_mcs		= 8;
+			}
+			break;
 		case 0x50 ... 0x5f:
 			pvt->ctl_name			= "F19h_M50h";
 			break;
@@ -3854,11 +4172,17 @@ static int init_one_instance(struct amd64_pvt *pvt)
 	struct edac_mc_layer layers[2];
 	int ret = -ENOMEM;
 
+	/*
+	 * For Heterogeneous family EDAC CHIP_SELECT and CHANNEL layers should
+	 * be swapped to fit into the layers.
+	 */
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
-	layers[0].size = pvt->csels[0].b_cnt;
+	layers[0].size = (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) ?
+			 pvt->max_mcs : pvt->csels[0].b_cnt;
 	layers[0].is_virt_csrow = true;
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
-	layers[1].size = pvt->max_mcs;
+	layers[1].size = (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) ?
+			 pvt->csels[0].b_cnt : pvt->max_mcs;
 	layers[1].is_virt_csrow = false;
 
 	mci = edac_mc_alloc(pvt->mc_node_id, ARRAY_SIZE(layers), layers, 0);
