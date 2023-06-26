@@ -231,21 +231,10 @@ void vhost_poll_stop(struct vhost_poll *poll)
 }
 EXPORT_SYMBOL_GPL(vhost_poll_stop);
 
-void vhost_dev_flush(struct vhost_dev *dev)
+static bool vhost_worker_queue(struct vhost_worker *worker,
+			       struct vhost_work *work)
 {
-	struct vhost_flush_struct flush;
-
-	init_completion(&flush.wait_event);
-	vhost_work_init(&flush.work, vhost_flush_work);
-
-	if (vhost_work_queue(dev, &flush.work))
-		wait_for_completion(&flush.wait_event);
-}
-EXPORT_SYMBOL_GPL(vhost_dev_flush);
-
-bool vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
-{
-	if (!dev->worker)
+	if (!worker)
 		return false;
 	/*
 	 * vsock can queue while we do a VHOST_SET_OWNER, so we have a smp_wmb
@@ -257,13 +246,36 @@ bool vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
 		 * sure it was not in the list.
 		 * test_and_set_bit() implies a memory barrier.
 		 */
-		llist_add(&work->node, &dev->worker->work_list);
-		vhost_task_wake(dev->worker->vtsk);
+		llist_add(&work->node, &worker->work_list);
+		vhost_task_wake(worker->vtsk);
 	}
 
 	return true;
 }
+
+bool vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
+{
+	return vhost_worker_queue(dev->worker, work);
+}
 EXPORT_SYMBOL_GPL(vhost_work_queue);
+
+bool vhost_vq_work_queue(struct vhost_virtqueue *vq, struct vhost_work *work)
+{
+	return vhost_worker_queue(vq->worker, work);
+}
+EXPORT_SYMBOL_GPL(vhost_vq_work_queue);
+
+void vhost_dev_flush(struct vhost_dev *dev)
+{
+	struct vhost_flush_struct flush;
+
+	init_completion(&flush.wait_event);
+	vhost_work_init(&flush.work, vhost_flush_work);
+
+	if (vhost_work_queue(dev, &flush.work))
+		wait_for_completion(&flush.wait_event);
+}
+EXPORT_SYMBOL_GPL(vhost_dev_flush);
 
 /* A lockless hint for busy polling code to exit the loop */
 bool vhost_vq_has_work(struct vhost_virtqueue *vq)
