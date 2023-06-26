@@ -1484,9 +1484,14 @@ static void rockchip_adjust_opp_by_otp(struct device *dev,
 		if (opp->rate > opp_info.max_freq * 1000000)
 			continue;
 
-		opp->supplies->u_volt += opp_info.volt * 1000;
-		if (opp->supplies->u_volt > opp->supplies->u_volt_max)
-			opp->supplies->u_volt = opp->supplies->u_volt_max;
+		opp->supplies[0].u_volt += opp_info.volt * 1000;
+		if (opp->supplies[0].u_volt > opp->supplies[0].u_volt_max)
+			opp->supplies[0].u_volt = opp->supplies[0].u_volt_max;
+		if (opp_table->regulator_count > 1) {
+			opp->supplies[1].u_volt += opp_info.volt * 1000;
+			if (opp->supplies[1].u_volt > opp->supplies[1].u_volt_max)
+				opp->supplies[1].u_volt = opp->supplies[1].u_volt_max;
+		}
 	}
 	mutex_unlock(&opp_table->lock);
 
