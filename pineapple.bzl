@@ -262,6 +262,7 @@ def define_pineapple():
 
     _pineapple_consolidate_in_tree_modules = _pineapple_in_tree_modules + [
         # keep sorted
+        "drivers/cpuidle/governors/qcom_simple_lpm.ko",
         "drivers/hwtracing/coresight/coresight-etm4x.ko",
         "drivers/misc/lkdtm/lkdtm.ko",
         "drivers/misc/qseecom_proxy.ko",
