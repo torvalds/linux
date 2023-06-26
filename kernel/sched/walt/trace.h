@@ -1534,13 +1534,13 @@ TRACE_EVENT(update_cpu_capacity,
 
 TRACE_EVENT(sched_qos_freq_request,
 
-	TP_PROTO(struct cpumask cpus, s32 max_freq, enum qos_clients client, int ret,
+	TP_PROTO(int cpu, s32 max_freq, enum qos_clients client, int ret,
 		enum qos_request_type type),
 
-	TP_ARGS(cpus, max_freq, client, ret, type),
+	TP_ARGS(cpu, max_freq, client, ret, type),
 
 	TP_STRUCT__entry(
-		__field(int, cpus)
+		__field(int, cpu)
 		__field(s32, max_freq)
 		__field(int, client)
 		__field(int, ret)
@@ -1548,15 +1548,15 @@ TRACE_EVENT(sched_qos_freq_request,
 	),
 
 	TP_fast_assign(
-		__entry->cpus = cpumask_bits(&cpus)[0];
+		__entry->cpu = cpu;
 		__entry->max_freq = max_freq;
 		__entry->client = client;
 		__entry->ret = ret;
 		__entry->type = type;
 	),
 
-	TP_printk("cpus=0x%x max_freq=%d client=%d ret=%d type=%d",
-			__entry->cpus, __entry->max_freq,
+	TP_printk("cpu=%d max_freq=%d client=%d ret=%d type=%d",
+			__entry->cpu, __entry->max_freq,
 			__entry->client, __entry->ret,
 			__entry->type)
 );

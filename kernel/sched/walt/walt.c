@@ -4993,23 +4993,102 @@ struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
 	return req;
 }
 
-void add_freq_qos_request(struct cpumask cpus, s32 freq,
-		enum qos_clients client, enum qos_request_type type)
+
+/* protect qos request data as it is passed from atomic context to kthread */
+static DEFINE_RAW_SPINLOCK(qos_req_lock);
+
+struct qos_req {
+	bool update_requested;
+	s32 freq;
+	enum qos_request_type type;
+};
+
+struct qos_req qos_req_data[MAX_QOS_CLIENT][MAX_CLUSTERS];
+
+struct task_struct *qos_req_thread;
+
+static int __ref __add_freq_qos_request(void *data)
 {
 	struct cpufreq_policy policy;
 	struct freq_qos_request *req;
 	int cpu;
 	int ret;
+	int client;
+	unsigned long flags;
+
+	while (!kthread_should_stop()) {
+		/*
+		 * across all clients, check if a request has been made
+		 * and service the latest instance of that request
+		 */
+		raw_spin_lock_irqsave(&qos_req_lock, flags);
+		for (client = 0; client < MAX_QOS_CLIENT; client++) {
+			for (int i = 0; i < num_sched_clusters; i++) {
+				if (qos_req_data[client][i].update_requested) {
+					cpu = cpumask_first(&sched_cluster[i]->cpus);
+					if (cpufreq_get_policy(&policy, cpu))
+						continue;
+					if (cpu_online(cpu)) {
+						req = get_req_from_client(cpu, client);
+
+						ret = freq_qos_update_request(req,
+							qos_req_data[client][i].freq);
+
+						trace_sched_qos_freq_request(
+							cpu,
+							qos_req_data[client][i].freq,
+							client, ret, qos_req_data[client][i].type);
+					}
+				}
+				qos_req_data[client][i].update_requested = false;
+			}
+		}
+		raw_spin_unlock_irqrestore(&qos_req_lock, flags);
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		set_current_state(TASK_RUNNING);
+	}
+
+	return 0;
+}
+
+void init_qos_req_kthread(void)
+{
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
+
+	qos_req_thread = kthread_run(__add_freq_qos_request, NULL, "add_freq_qos_request");
+
+	if (IS_ERR(qos_req_thread)) {
+		pr_err("Error creating qos request thread\n");
+		return;
+	}
+
+	sched_setscheduler_nocheck(qos_req_thread, SCHED_FIFO, &param);
+}
+
+void add_freq_qos_request(struct cpumask cpus, s32 freq,
+		enum qos_clients client, enum qos_request_type type)
+{
+	unsigned long flags;
+	int cpu;
+
+	raw_spin_lock_irqsave(&qos_req_lock, flags);
 
 	for_each_cpu(cpu, &cpus) {
-		if (cpufreq_get_policy(&policy, cpu))
-			continue;
-		if (cpu_online(cpu)) {
-			req = get_req_from_client(cpu, client);
-			ret = freq_qos_update_request(req, freq);
-			trace_sched_qos_freq_request(cpus, freq, client, ret, type);
+		for (int i = 0; i < num_sched_clusters; i++) {
+			if (cpumask_test_cpu(cpu, &sched_cluster[i]->cpus)) {
+				qos_req_data[client][i].freq = freq;
+				qos_req_data[client][i].type = type;
+				qos_req_data[client][i].update_requested = true;
+				break;
+			}
 		}
 	}
+
+	wake_up_process(qos_req_thread);
+
+	raw_spin_unlock_irqrestore(&qos_req_lock, flags);
 }
 
 void init_freq_qos_request(enum qos_clients client, enum qos_request_type type)
@@ -5169,6 +5248,8 @@ static void walt_init(struct work_struct *work)
 	walt_rt_init();
 	walt_cfs_init();
 	walt_halt_init();
+
+	init_qos_req_kthread();
 	init_freq_qos_request(QOS_PARTIAL_HALT, MAX_REQUEST);
 	init_freq_qos_request(QOS_FMAX_CAP, MAX_REQUEST);
 	init_freq_qos_request(QOS_HIGH_PERF_CAP, MAX_REQUEST);

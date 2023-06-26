@@ -57,6 +57,9 @@ enum qos_clients {
 	QOS_PARTIAL_HALT,
 	QOS_FMAX_CAP,
 	QOS_HIGH_PERF_CAP,
+
+	/* add new clients above this line */
+	MAX_QOS_CLIENT
 };
 
 enum qos_request_type {
