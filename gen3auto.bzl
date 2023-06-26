@@ -108,7 +108,6 @@ def define_gen3auto():
         "drivers/rpmsg/qcom_smd.ko",
         "drivers/rtc/rtc-pm8xxx.ko",
         "drivers/scsi/sg.ko",
-        "drivers/soc/qcom/aop-set-ddr.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/cdsprm.ko",
         "drivers/soc/qcom/cmd-db.ko",
