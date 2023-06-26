@@ -96,6 +96,7 @@ def define_blair():
         "drivers/regulator/debug-regulator.ko",
         "drivers/regulator/proxy-consumer.ko",
         "drivers/regulator/qpnp-amoled-regulator.ko",
+        "drivers/regulator/qpnp-lcdb-regulator.ko",
         "drivers/regulator/qti-fixed-regulator.ko",
         "drivers/regulator/refgen.ko",
         "drivers/regulator/rpm-smd-regulator.ko",
