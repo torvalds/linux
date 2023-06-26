@@ -621,7 +621,11 @@ CREATE_FAIL:
 #ifdef CONFIG_ROCKCHIP_RGA_PROC_FS
 static int rga_procfs_open(struct inode *inode, struct file *file)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+	struct rga_debugger_node *node = pde_data(inode);
+#else
 	struct rga_debugger_node *node = PDE_DATA(inode);
+#endif
 
 	return single_open(file, node->info_ent->show, node);
 }
@@ -836,6 +840,10 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 	struct file *file;
 	size_t size = 0;
 	loff_t pos = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+	int ret;
+	struct iosys_map map;
+#endif
 	void *kvaddr = NULL;
 	void *kvaddr_origin = NULL;
 
@@ -848,7 +856,12 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 			return -EINVAL;
 		}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+		ret = dma_buf_vmap(dump_buffer->dma_buffer->dma_buf, &map);
+		kvaddr = ret ? NULL : map.vaddr;
+#else
 		kvaddr = dma_buf_vmap(dump_buffer->dma_buffer->dma_buf);
+#endif
 		if (!kvaddr) {
 			pr_err("can't vmap the dma buffer!\n");
 			return -EINVAL;
@@ -918,7 +931,11 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 	switch (dump_buffer->type) {
 	case RGA_DMA_BUFFER:
 	case RGA_DMA_BUFFER_PTR:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+		dma_buf_vunmap(dump_buffer->dma_buffer->dma_buf, &map);
+#else
 		dma_buf_vunmap(dump_buffer->dma_buffer->dma_buf, kvaddr_origin);
+#endif
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		vunmap(kvaddr_origin);

@@ -537,7 +537,11 @@ static int rga_request_add_acquire_fence_callback(int acquire_fence_fd,
 		return -EINVAL;
 	}
 	/* close acquire fence fd */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+	close_fd(acquire_fence_fd);
+#else
 	ksys_close(acquire_fence_fd);
+#endif
 
 	ret = rga_dma_fence_get_status(acquire_fence);
 	if (ret < 0) {
