@@ -215,12 +215,14 @@ again.
    reduce the compile time enormously, especially if you are running an
    universal kernel from a commodity Linux distribution.
 
-   There is a catch: the make target 'localmodconfig' will disable kernel
-   features you have not directly or indirectly through some program utilized
-   since you booted the system. You can reduce or nearly eliminate that risk by
-   using tricks outlined in the reference section; for quick testing purposes
-   that risk is often negligible, but it is an aspect you want to keep in mind
-   in case your kernel behaves oddly.
+   There is a catch: 'localmodconfig' is likely to disable kernel features you
+   did not use since you booted your Linux -- like drivers for currently
+   disconnected peripherals or a virtualization software not haven't used yet.
+   You can reduce or nearly eliminate that risk with tricks the reference
+   section outlines; but when building a kernel just for quick testing purposes
+   it is often negligible if such features are missing. But you should keep that
+   aspect in mind when using a kernel built with this make target, as it might
+   be the reason why something you only use occasionally stopped working.
 
    [:ref:`details<configuration>`]
 
@@ -271,6 +273,9 @@ again.
    does nothing at all; in that case you have to manually install your kernel,
    as outlined in the reference section.
 
+   If you are running a immutable Linux distribution, check its documentation
+   and the web to find out how to install your own kernel there.
+
    [:ref:`details<install>`]
 
 .. _another_sbs:
@@ -291,29 +296,29 @@ again.
    version you care about, as git otherwise might retrieve the entire commit
    history::
 
-     git fetch --shallow-exclude=v6.1 origin
+     git fetch --shallow-exclude=v6.0 origin
 
-   If you modified the sources (for example by applying a patch), you now need
-   to discard those modifications; that's because git otherwise will not be able
-   to switch to the sources of another version due to potential conflicting
-   changes::
+   Now switch to the version you are interested in -- but be aware the command
+   used here will discard any modifications you performed, as they would
+   conflict with the sources you want to checkout::
 
-     git reset --hard
-
-   Now checkout the version you are interested in, as explained above::
-
-     git checkout --detach origin/master
+     git checkout --force --detach origin/master
 
    At this point you might want to patch the sources again or set/modify a build
-   tag, as explained earlier; afterwards adjust the build configuration to the
-   new codebase and build your next kernel::
+   tag, as explained earlier. Afterwards adjust the build configuration to the
+   new codebase using olddefconfig, which will now adjust the configuration file
+   you prepared earlier using localmodconfig  (~/linux/.config) for your next
+   kernel::
 
      # reminder: if you want to apply patches, do it at this point
      # reminder: you might want to update your build tag at this point
      make olddefconfig
+
+   Now build your kernel::
+
      make -j $(nproc --all)
 
-   Install the kernel as outlined above::
+   Afterwards install the kernel as outlined above::
 
      command -v installkernel && sudo make modules_install install
 
@@ -584,11 +589,11 @@ versions and individual commits at hand at any time::
     curl -L \
       https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/clone.bundle \
       -o linux-stable.git.bundle
-    git clone clone.bundle ~/linux/
+    git clone linux-stable.git.bundle ~/linux/
     rm linux-stable.git.bundle
     cd ~/linux/
-    git remote set-url origin
-    https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+    git remote set-url origin \
+      https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
     git fetch origin
     git checkout --detach origin/master
 

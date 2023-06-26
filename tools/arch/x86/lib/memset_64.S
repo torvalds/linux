@@ -18,27 +18,22 @@
  * rdx   count (bytes)
  *
  * rax   original destination
+ *
+ * The FSRS alternative should be done inline (avoiding the call and
+ * the disgusting return handling), but that would require some help
+ * from the compiler for better calling conventions.
+ *
+ * The 'rep stosb' itself is small enough to replace the call, but all
+ * the register moves blow up the code. And two of them are "needed"
+ * only for the return value that is the same as the source input,
+ * which the compiler could/should do much better anyway.
  */
 SYM_FUNC_START(__memset)
-	/*
-	 * Some CPUs support enhanced REP MOVSB/STOSB feature. It is recommended
-	 * to use it when possible. If not available, use fast string instructions.
-	 *
-	 * Otherwise, use original memset function.
-	 */
-	ALTERNATIVE_2 "jmp memset_orig", "", X86_FEATURE_REP_GOOD, \
-		      "jmp memset_erms", X86_FEATURE_ERMS
+	ALTERNATIVE "jmp memset_orig", "", X86_FEATURE_FSRS
 
 	movq %rdi,%r9
+	movb %sil,%al
 	movq %rdx,%rcx
-	andl $7,%edx
-	shrq $3,%rcx
-	/* expand byte value  */
-	movzbl %sil,%esi
-	movabs $0x0101010101010101,%rax
-	imulq %rsi,%rax
-	rep stosq
-	movl %edx,%ecx
 	rep stosb
 	movq %r9,%rax
 	RET
@@ -47,26 +42,6 @@ EXPORT_SYMBOL(__memset)
 
 SYM_FUNC_ALIAS(memset, __memset)
 EXPORT_SYMBOL(memset)
-
-/*
- * ISO C memset - set a memory block to a byte value. This function uses
- * enhanced rep stosb to override the fast string function.
- * The code is simpler and shorter than the fast string function as well.
- *
- * rdi   destination
- * rsi   value (char)
- * rdx   count (bytes)
- *
- * rax   original destination
- */
-SYM_FUNC_START_LOCAL(memset_erms)
-	movq %rdi,%r9
-	movb %sil,%al
-	movq %rdx,%rcx
-	rep stosb
-	movq %r9,%rax
-	RET
-SYM_FUNC_END(memset_erms)
 
 SYM_FUNC_START_LOCAL(memset_orig)
 	movq %rdi,%r10

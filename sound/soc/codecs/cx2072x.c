@@ -1706,7 +1706,7 @@ static struct i2c_driver cx2072x_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(cx2072x_acpi_match),
 		.pm = &cx2072x_runtime_pm,
 	},
-	.probe_new = cx2072x_i2c_probe,
+	.probe = cx2072x_i2c_probe,
 	.remove = cx2072x_i2c_remove,
 	.id_table = cx2072x_i2c_id,
 };

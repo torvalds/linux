@@ -38,7 +38,7 @@ static struct i2c_driver ad193x_i2c_driver = {
 	.driver = {
 		.name = "ad193x",
 	},
-	.probe_new = ad193x_i2c_probe,
+	.probe = ad193x_i2c_probe,
 	.id_table = ad193x_id,
 };
 module_i2c_driver(ad193x_i2c_driver);

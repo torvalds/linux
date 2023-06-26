@@ -723,7 +723,7 @@ static struct i2c_driver wm8974_i2c_driver = {
 		.name = "wm8974",
 		.of_match_table = wm8974_of_match,
 	},
-	.probe_new = wm8974_i2c_probe,
+	.probe = wm8974_i2c_probe,
 	.id_table = wm8974_i2c_id,
 };
 

@@ -1144,12 +1144,12 @@ static int metricgroup__add_metric_callback(const struct pmu_metric *pm,
 	struct metricgroup__add_metric_data *data = vdata;
 	int ret = 0;
 
-	if (pm->metric_expr &&
-		(match_metric(pm->metric_group, data->metric_name) ||
-		 match_metric(pm->metric_name, data->metric_name))) {
+	if (pm->metric_expr && match_pm_metric(pm, data->metric_name)) {
+		bool metric_no_group = data->metric_no_group ||
+			match_metric(data->metric_name, pm->metricgroup_no_group);
 
 		data->has_match = true;
-		ret = add_metric(data->list, pm, data->modifier, data->metric_no_group,
+		ret = add_metric(data->list, pm, data->modifier, metric_no_group,
 				 data->metric_no_threshold, data->user_requested_cpu_list,
 				 data->system_wide, /*root_metric=*/NULL,
 				 /*visited_metrics=*/NULL, table);
@@ -1672,7 +1672,7 @@ static int metricgroup__topdown_max_level_callback(const struct pmu_metric *pm,
 {
 	unsigned int *max_level = data;
 	unsigned int level;
-	const char *p = strstr(pm->metric_group, "TopdownL");
+	const char *p = strstr(pm->metric_group ?: "", "TopdownL");
 
 	if (!p || p[8] == '\0')
 		return 0;

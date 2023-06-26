@@ -40,7 +40,7 @@ static struct i2c_driver es8328_i2c_driver = {
 		.name		= "es8328",
 		.of_match_table = es8328_of_match,
 	},
-	.probe_new = es8328_i2c_probe,
+	.probe = es8328_i2c_probe,
 	.id_table = es8328_id,
 };
 

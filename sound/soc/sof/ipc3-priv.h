@@ -28,6 +28,8 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev);
 /* dtrace position update */
 int ipc3_dtrace_posn_update(struct snd_sof_dev *sdev,
 			    struct sof_ipc_dma_trace_posn *posn);
+/* RX handler backend */
+void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, void *msg_buf);
 
 /* dtrace platform callback wrappers */
 static inline int sof_dtrace_host_init(struct snd_sof_dev *sdev,
