@@ -779,5 +779,5 @@
 
 &crypto {
 	/* FIXME: qce_start triggers an SError */
-	status = "disable";
+	status = "disabled";
 };
