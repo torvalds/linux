@@ -251,8 +251,6 @@ struct dm_integrity_c {
 
 	struct workqueue_struct *recalc_wq;
 	struct work_struct recalc_work;
-	u8 *recalc_buffer;
-	u8 *recalc_tags;
 
 	struct bio_list flush_bio_list;
 
@@ -2646,6 +2644,9 @@ static void recalc_write_super(struct dm_integrity_c *ic)
 static void integrity_recalc(struct work_struct *w)
 {
 	struct dm_integrity_c *ic = container_of(w, struct dm_integrity_c, recalc_work);
+	size_t recalc_tags_size;
+	u8 *recalc_buffer = NULL;
+	u8 *recalc_tags = NULL;
 	struct dm_integrity_range range;
 	struct dm_io_request io_req;
 	struct dm_io_region io_loc;
@@ -2657,6 +2658,20 @@ static void integrity_recalc(struct work_struct *w)
 	unsigned int i;
 	int r;
 	unsigned int super_counter = 0;
+
+	recalc_buffer = __vmalloc(RECALC_SECTORS << SECTOR_SHIFT, GFP_NOIO);
+	if (!recalc_buffer) {
+		DMCRIT("out of memory for recalculate buffer - recalculation disabled");
+		goto free_ret;
+	}
+	recalc_tags_size = (RECALC_SECTORS >> ic->sb->log2_sectors_per_block) * ic->tag_size;
+	if (crypto_shash_digestsize(ic->internal_hash) > ic->tag_size)
+		recalc_tags_size += crypto_shash_digestsize(ic->internal_hash) - ic->tag_size;
+	recalc_tags = kvmalloc(recalc_tags_size, GFP_NOIO);
+	if (!recalc_tags) {
+		DMCRIT("out of memory for recalculate buffer - recalculation disabled");
+		goto free_ret;
+	}
 
 	DEBUG_print("start recalculation... (position %llx)\n", le64_to_cpu(ic->sb->recalc_sector));
 
@@ -2720,7 +2735,7 @@ next_chunk:
 
 	io_req.bi_opf = REQ_OP_READ;
 	io_req.mem.type = DM_IO_VMA;
-	io_req.mem.ptr.addr = ic->recalc_buffer;
+	io_req.mem.ptr.addr = recalc_buffer;
 	io_req.notify.fn = NULL;
 	io_req.client = ic->io;
 	io_loc.bdev = ic->dev->bdev;
@@ -2733,15 +2748,15 @@ next_chunk:
 		goto err;
 	}
 
-	t = ic->recalc_tags;
+	t = recalc_tags;
 	for (i = 0; i < n_sectors; i += ic->sectors_per_block) {
-		integrity_sector_checksum(ic, logical_sector + i, ic->recalc_buffer + (i << SECTOR_SHIFT), t);
+		integrity_sector_checksum(ic, logical_sector + i, recalc_buffer + (i << SECTOR_SHIFT), t);
 		t += ic->tag_size;
 	}
 
 	metadata_block = get_metadata_sector_and_offset(ic, area, offset, &metadata_offset);
 
-	r = dm_integrity_rw_tag(ic, ic->recalc_tags, &metadata_block, &metadata_offset, t - ic->recalc_tags, TAG_WRITE);
+	r = dm_integrity_rw_tag(ic, recalc_tags, &metadata_block, &metadata_offset, t - recalc_tags, TAG_WRITE);
 	if (unlikely(r)) {
 		dm_integrity_io_error(ic, "writing tags", r);
 		goto err;
@@ -2769,12 +2784,16 @@ advance_and_next:
 
 err:
 	remove_range(ic, &range);
-	return;
+	goto free_ret;
 
 unlock_ret:
 	spin_unlock_irq(&ic->endio_wait.lock);
 
 	recalc_write_super(ic);
+
+free_ret:
+	vfree(recalc_buffer);
+	kvfree(recalc_tags);
 }
 
 static void bitmap_block_work(struct work_struct *w)
@@ -4439,8 +4458,6 @@ try_smaller_buffer:
 	}
 
 	if (ic->internal_hash) {
-		size_t recalc_tags_size;
-
 		ic->recalc_wq = alloc_workqueue("dm-integrity-recalc", WQ_MEM_RECLAIM, 1);
 		if (!ic->recalc_wq) {
 			ti->error = "Cannot allocate workqueue";
@@ -4448,21 +4465,6 @@ try_smaller_buffer:
 			goto bad;
 		}
 		INIT_WORK(&ic->recalc_work, integrity_recalc);
-		ic->recalc_buffer = vmalloc(RECALC_SECTORS << SECTOR_SHIFT);
-		if (!ic->recalc_buffer) {
-			ti->error = "Cannot allocate buffer for recalculating";
-			r = -ENOMEM;
-			goto bad;
-		}
-		recalc_tags_size = (RECALC_SECTORS >> ic->sb->log2_sectors_per_block) * ic->tag_size;
-		if (crypto_shash_digestsize(ic->internal_hash) > ic->tag_size)
-			recalc_tags_size += crypto_shash_digestsize(ic->internal_hash) - ic->tag_size;
-		ic->recalc_tags = kvmalloc(recalc_tags_size, GFP_KERNEL);
-		if (!ic->recalc_tags) {
-			ti->error = "Cannot allocate tags for recalculating";
-			r = -ENOMEM;
-			goto bad;
-		}
 	} else {
 		if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) {
 			ti->error = "Recalculate can only be specified with internal_hash";
@@ -4606,8 +4608,6 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		destroy_workqueue(ic->writer_wq);
 	if (ic->recalc_wq)
 		destroy_workqueue(ic->recalc_wq);
-	vfree(ic->recalc_buffer);
-	kvfree(ic->recalc_tags);
 	kvfree(ic->bbs);
 	if (ic->bufio)
 		dm_bufio_client_destroy(ic->bufio);
