@@ -415,7 +415,7 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
  * @flags: framework-specific flags
  * @fixed_rate: non-adjustable clock rate
  */
-#define clk_hw_register_fixed_rate_parent_data(dev, name, parent_hw, flags,   \
+#define clk_hw_register_fixed_rate_parent_data(dev, name, parent_data, flags, \
 					     fixed_rate)		      \
 	__clk_hw_register_fixed_rate((dev), NULL, (name), NULL, NULL,	      \
 				     (parent_data), (flags), (fixed_rate), 0, \
