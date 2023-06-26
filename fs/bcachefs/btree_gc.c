@@ -1585,7 +1585,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 			"  should be %u",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf),
 			r->refcount)) {
-		struct bkey_i *new = bch2_bkey_make_mut(trans, iter, k, 0);
+		struct bkey_i *new = bch2_bkey_make_mut(trans, iter, &k, 0);
 
 		ret = PTR_ERR_OR_ZERO(new);
 		if (ret)
@@ -1913,7 +1913,7 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 	percpu_up_read(&c->mark_lock);
 	return 0;
 update:
-	u = bch2_bkey_make_mut(trans, iter, k, 0);
+	u = bch2_bkey_make_mut(trans, iter, &k, 0);
 	ret = PTR_ERR_OR_ZERO(u);
 	if (ret)
 		return ret;
