@@ -587,6 +587,8 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 	    state->polarity == pwm->state.polarity &&
 #ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
 	    state->oneshot_count == pwm->state.oneshot_count &&
+	    state->oneshot_repeat == pwm->state.oneshot_repeat &&
+	    state->duty_offset == pwm->state.duty_offset &&
 #endif
 	    state->enabled == pwm->state.enabled)
 		return 0;
