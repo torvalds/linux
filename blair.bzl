@@ -161,6 +161,8 @@ def define_blair():
         "drivers/usb/gadget/function/usb_f_gsi.ko",
         "drivers/usb/gadget/function/usb_f_qdss.ko",
         "drivers/usb/misc/ehset.ko",
+        "drivers/usb/pd/qpnp-pdphy.ko",
+        "drivers/usb/pd/usbpd.ko",
         "drivers/usb/phy/phy-generic.ko",
         "drivers/usb/phy/phy-msm-snps-hs.ko",
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
