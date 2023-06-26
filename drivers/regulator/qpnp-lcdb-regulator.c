@@ -18,7 +18,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
-#include <linux/qpnp/qpnp-revid.h>
 
 #define QPNP_LCDB_REGULATOR_DRIVER_NAME		"qcom,qpnp-lcdb-regulator"
 #define QPNP_LCDB_REGULATOR_DRIVER_660		"qcom,lcdb-pm660"
