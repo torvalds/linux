@@ -325,8 +325,25 @@
 
 /* haptics SDAM registers offset definition */
 #define HAP_STATUS_DATA_MSB_SDAM_OFFSET		0x46
+#define HAP_AUTO_BRAKE_CAL_VMAX_OFFSET		0x4B
+#define HAP_AUTO_BRAKE_CAL_PTRN1_CFG0_OFFSET	0x4C
+#define HAP_AUTO_BRAKE_CAL_PTRN1_LSB0_OFFSET	0x52
+#define HAP_LRA_PTRN1_TLRA_LSB_OFFSET		0x64
+#define HAP_LRA_PTRN1_TLRA_MSB_OFFSET		0x65
 #define HAP_LRA_NOMINAL_OHM_SDAM_OFFSET		0x75
 #define HAP_LRA_DETECTED_OHM_SDAM_OFFSET	0x76
+#define HAP_AUTO_BRAKE_CAL_DONE_OFFSET		0x7E
+
+#define AUTO_BRAKE_CAL_DONE			0x80
+
+#define PBS_ARG_REG				0x42
+#define HAP_VREG_ON_VAL				0x1
+#define HAP_VREG_OFF_VAL			0x2
+#define HAP_AUTO_BRAKE_CAL_VAL			0x3
+#define PBS_TRIG_SET_REG			0xE5
+#define PBS_TRIG_CLR_REG			0xE6
+#define PBS_TRIG_SET_VAL			0x1
+#define PBS_TRIG_CLR_VAL			0x1
 
 /* constant parameters */
 #define SAMPLES_PER_PATTERN			8
@@ -434,7 +451,7 @@ enum custom_effect_param {
 enum haptics_hw_type {
 	HAP520 = 0x2,  /* PM8350B */
 	HAP520_MV = 0x3,  /* PM5100 */
-	HAP525_HV = 0x4,  /* PMIC for kalama */
+	HAP525_HV = 0x4,  /* PM8550B */
 };
 
 enum wa_flags {
@@ -1396,11 +1413,6 @@ static bool is_boost_vreg_enabled_in_open_loop(struct haptics_chip *chip)
 	return false;
 }
 
-#define PBS_ARG_REG				0x42
-#define HAP_VREG_ON_VAL				0x1
-#define HAP_VREG_OFF_VAL			0x2
-#define PBS_TRIG_SET_REG			0xE5
-#define PBS_TRIG_SET_VAL			0x1
 static int haptics_boost_vreg_enable(struct haptics_chip *chip, bool en)
 {
 	int rc;
@@ -5328,6 +5340,153 @@ restore:
 	return rc;
 }
 
+#define AUTO_BRAKE_CAL_POLLING_COUNT	10
+#define AUTO_BRAKE_CAL_POLLING_STEP_US	20000
+#define AUTO_BRAKE_CAL_WAIT_MS		800
+#define AUTO_BRAKE_CAL_DRIVE_CYCLES	6
+static int haptics_start_auto_brake_calibration(struct haptics_chip *chip)
+{
+	struct haptics_reg_info lra_config[4] = {
+		{ HAP_CFG_DRV_DUTY_CFG_REG, 0x55 },
+		{ HAP_CFG_BRAKE_MODE_CFG_REG, 0xC1 },
+		{ HAP_CFG_CL_BRAKE_CFG_REG, 0xE1 },
+		{ HAP_CFG_ADT_DRV_DUTY_CFG_REG, 0x3B },
+	};
+	struct haptics_reg_info backup[4];
+	u32 retry_count = AUTO_BRAKE_CAL_POLLING_COUNT;
+	u32 t_lra_us, tmp;
+	u8 val[AUTO_BRAKE_CAL_DRIVE_CYCLES] = {};
+	int rc, i;
+
+	/* Ignore calibration if nvmem is not assigned */
+	if (!chip->hap_cfg_nvmem || chip->hw_type != HAP525_HV)
+		return -EOPNOTSUPP;
+
+	t_lra_us = chip->config.t_lra_us;
+	/* Update T_LRA into SDAM */
+	if (chip->config.cl_t_lra_us != 0)
+		t_lra_us = chip->config.cl_t_lra_us;
+
+	tmp = t_lra_us / TLRA_STEP_US;
+	val[0] = tmp & TLRA_OL_LSB_MASK;
+	val[1] = (tmp >> 8) & TLRA_OL_MSB_MASK;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_LRA_PTRN1_TLRA_LSB_OFFSET, 2, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "set T_LRA for auto brake cal failed,rc=%d\n", rc);
+		return rc;
+	}
+
+	/* Set Vmax to 4.5V with 50mV per step */
+	val[0] = 0x5A;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_AUTO_BRAKE_CAL_VMAX_OFFSET, 1, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "set Vmax for auto brake cal failed,rc=%d\n", rc);
+		return rc;
+	}
+
+	/* Set PTRN1_CFGx for each cycle in the 6-cycle drive calibration */
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_AUTO_BRAKE_CAL_PTRN1_CFG0_OFFSET,
+			AUTO_BRAKE_CAL_DRIVE_CYCLES, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "set PTRN1_CFGx for auto brake cal failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	/*
+	 * Set amplitude for 6-cycle drive calibration
+	 *   1 cycle over-drive with 4.5V VMAX + 0.5V VMAX_HDRM
+	 *   2 cycles intermediate drive with VMAX close to 3.5V
+	 *   3 cycles steady drive with VMAX close to Vrms
+	 */
+	val[0] = 0xFF;
+	val[1] = val[2] = 0xC9;
+	val[3] = val[4] = val[5] = chip->config.vmax_mv * 0xFF / 4500;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_AUTO_BRAKE_CAL_PTRN1_LSB0_OFFSET,
+			AUTO_BRAKE_CAL_DRIVE_CYCLES, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "set PTRN1_LSBx for auto brake cal failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	/* cache several registers setting before configure them for auto brake calibration */
+	memcpy(backup, lra_config, sizeof(backup));
+	for (i = 0; i < 4; i++) {
+		rc = haptics_read(chip, chip->cfg_addr_base,
+				backup[i].addr, &backup[i].val, 1);
+		if (rc < 0)
+			return rc;
+	}
+
+	/* Set 62.5% BRK_DUTY, enable AUTO brake, etc */
+	for (i = 0; i < 4; i++) {
+		rc = haptics_write(chip, chip->cfg_addr_base,
+				lra_config[i].addr, &lra_config[i].val, 1);
+		if (rc < 0)
+			goto restore;
+	}
+
+	/* Clear calibration done flag 1st */
+	val[0] = 0;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_AUTO_BRAKE_CAL_DONE_OFFSET, 1, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "clear auto brake cal done flag failed, rc=%d\n", rc);
+		goto restore;
+	}
+
+	rc = haptics_clear_fault(chip);
+	if (rc < 0)
+		goto restore;
+
+	/* Trigger PBS to start calibration */
+	val[0] = HAP_AUTO_BRAKE_CAL_VAL;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, PBS_ARG_REG, 1, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "set PBS_ARG for auto brake cal failed, rc=%d\n", rc);
+		goto restore;
+	}
+
+	val[0] = PBS_TRIG_CLR_VAL;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, PBS_TRIG_CLR_REG, 1, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "clear PBS_TRIG for auto brake cal failed, rc=%d\n", rc);
+		goto restore;
+	}
+
+	val[0] = PBS_TRIG_SET_VAL;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem, PBS_TRIG_SET_REG, 1, val);
+	if (rc < 0) {
+		dev_err(chip->dev, "set PBS_TRIG for auto brake cal failed, rc=%d\n", rc);
+		goto restore;
+	}
+
+	/* wait for ~800ms and then poll auto brake cal done flag with ~200ms timeout */
+	msleep(AUTO_BRAKE_CAL_WAIT_MS);
+
+	while (retry_count--) {
+		rc = nvmem_device_read(chip->hap_cfg_nvmem,
+				HAP_AUTO_BRAKE_CAL_DONE_OFFSET, 1, val);
+		if (rc < 0) {
+			dev_err(chip->dev, "read auto brake cal done flag failed, rc=%d\n", rc);
+			goto restore;
+		}
+
+		if (val[0] & AUTO_BRAKE_CAL_DONE) {
+			dev_info(chip->dev, "auto brake calibration is done\n");
+			break;
+		}
+
+		usleep_range(AUTO_BRAKE_CAL_POLLING_STEP_US, AUTO_BRAKE_CAL_POLLING_STEP_US + 1);
+	}
+
+restore:
+	/* restore haptics settings after auto brake calibration */
+	for (i = 0; i < 4; i++)
+		haptics_write(chip, chip->cfg_addr_base,
+				backup[i].addr, &backup[i].val, 1);
+
+	return rc;
+}
+
 static int haptics_start_lra_calibrate(struct haptics_chip *chip)
 {
 	int rc;
@@ -5366,6 +5525,12 @@ static int haptics_start_lra_calibrate(struct haptics_chip *chip)
 		rc = haptics_detect_lra_impedance(chip);
 	if (rc < 0) {
 		dev_err(chip->dev, "Detect LRA impedance failed, rc=%d\n", rc);
+		goto unlock;
+	}
+
+	rc = haptics_start_auto_brake_calibration(chip);
+	if (rc < 0) {
+		dev_err(chip->dev, "Run auto brake calibration failed, rc=%d\n", rc);
 		goto unlock;
 	}
 
