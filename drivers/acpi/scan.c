@@ -24,8 +24,6 @@
 
 #include "internal.h"
 
-extern struct acpi_device *acpi_root;
-
 #define ACPI_BUS_CLASS			"system_bus"
 #define ACPI_BUS_HID			"LNXSYBUS"
 #define ACPI_BUS_DEVICE_NAME		"System Bus"

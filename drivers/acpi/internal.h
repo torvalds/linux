@@ -11,6 +11,8 @@
 
 #include <linux/idr.h>
 
+extern struct acpi_device *acpi_root;
+
 int early_acpi_osi_init(void);
 int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
