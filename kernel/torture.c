@@ -742,7 +742,7 @@ bool stutter_wait(const char *title)
 			ret = true;
 		}
 		if (spt == 1) {
-			schedule_timeout_interruptible(1);
+			torture_hrtimeout_jiffies(1, NULL);
 		} else if (spt == 2) {
 			while (READ_ONCE(stutter_pause_test)) {
 				if (!(i++ & 0xffff))
@@ -750,7 +750,7 @@ bool stutter_wait(const char *title)
 				cond_resched();
 			}
 		} else {
-			schedule_timeout_interruptible(round_jiffies_relative(HZ));
+			torture_hrtimeout_jiffies(round_jiffies_relative(HZ), NULL);
 		}
 		torture_shutdown_absorb(title);
 	}
