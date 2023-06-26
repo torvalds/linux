@@ -87,7 +87,7 @@
 	bt_sco: bt-sco {
 		status = "disabled";
 		compatible = "delta,dfbmcs320";
-		#sound-dai-cells = <0>;
+		#sound-dai-cells = <1>;
 	};
 
 	bt_sound: bt-sound {
@@ -101,7 +101,7 @@
 			sound-dai = <&i2s2_2ch>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&bt_sco>;
+			sound-dai = <&bt_sco 1>;
 		};
 	};
 
