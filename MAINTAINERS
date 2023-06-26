@@ -5344,6 +5344,18 @@ F:	include/linux/sched/cpufreq.h
 F:	kernel/sched/cpufreq*.c
 F:	tools/testing/selftests/cpufreq/
 
+CPU HOTPLUG
+M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Peter Zijlstra <peterz@infradead.org>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/core
+F:	kernel/cpu.c
+F:	kernel/smpboot.*
+F:	include/linux/cpu.h
+F:	include/linux/cpuhotplug.h
+F:	include/linux/smpboot.h
+
 CPU IDLE TIME MANAGEMENT FRAMEWORK
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>

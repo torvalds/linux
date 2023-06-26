@@ -34,6 +34,29 @@ config ARCH_HAS_SUBPAGE_FAULTS
 config HOTPLUG_SMT
 	bool
 
+# Selected by HOTPLUG_CORE_SYNC_DEAD or HOTPLUG_CORE_SYNC_FULL
+config HOTPLUG_CORE_SYNC
+	bool
+
+# Basic CPU dead synchronization selected by architecture
+config HOTPLUG_CORE_SYNC_DEAD
+	bool
+	select HOTPLUG_CORE_SYNC
+
+# Full CPU synchronization with alive state selected by architecture
+config HOTPLUG_CORE_SYNC_FULL
+	bool
+	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
+	select HOTPLUG_CORE_SYNC
+
+config HOTPLUG_SPLIT_STARTUP
+	bool
+	select HOTPLUG_CORE_SYNC_FULL
+
+config HOTPLUG_PARALLEL
+	bool
+	select HOTPLUG_SPLIT_STARTUP
+
 config GENERIC_ENTRY
 	bool
 
