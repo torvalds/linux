@@ -62,6 +62,8 @@ ${NM} -n ${1} | sed >${2} -e "
 
 # CFI type identifiers
 / __kcfi_typeid_/d
+/ __kvm_nvhe___kcfi_typeid_/d
+/ __pi___kcfi_typeid_/d
 
 # CRC from modversions
 / __crc_/d
