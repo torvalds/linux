@@ -427,10 +427,11 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct gfs2_log_header_host lh;
-	void *kaddr = kmap_atomic(page);
+	void *kaddr;
 	unsigned int offset;
 	bool ret = false;
 
+	kaddr = kmap_local_page(page);
 	for (offset = 0; offset < PAGE_SIZE; offset += sdp->sd_sb.sb_bsize) {
 		if (!__get_log_header(sdp, kaddr + offset, 0, &lh)) {
 			if (lh.lh_sequence >= head->lh_sequence)
@@ -441,7 +442,7 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
 			}
 		}
 	}
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 	return ret;
 }
 
@@ -626,11 +627,11 @@ static void gfs2_check_magic(struct buffer_head *bh)
 	__be32 *ptr;
 
 	clear_buffer_escaped(bh);
-	kaddr = kmap_atomic(bh->b_page);
+	kaddr = kmap_local_page(bh->b_page);
 	ptr = kaddr + bh_offset(bh);
 	if (*ptr == cpu_to_be32(GFS2_MAGIC))
 		set_buffer_escaped(bh);
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 }
 
 static int blocknr_cmp(void *priv, const struct list_head *a,
@@ -699,10 +700,10 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 				void *kaddr;
 				page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
 				ptr = page_address(page);
-				kaddr = kmap_atomic(bd2->bd_bh->b_page);
+				kaddr = kmap_local_page(bd2->bd_bh->b_page);
 				memcpy(ptr, kaddr + bh_offset(bd2->bd_bh),
 				       bd2->bd_bh->b_size);
-				kunmap_atomic(kaddr);
+				kunmap_local(kaddr);
 				*(__be32 *)ptr = 0;
 				clear_buffer_escaped(bd2->bd_bh);
 				unlock_buffer(bd2->bd_bh);
