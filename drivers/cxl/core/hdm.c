@@ -570,8 +570,9 @@ static void cxld_set_interleave(struct cxl_decoder *cxld, u32 *ctrl)
 
 static void cxld_set_type(struct cxl_decoder *cxld, u32 *ctrl)
 {
-	u32p_replace_bits(ctrl, !!(cxld->target_type == 3),
-			  CXL_HDM_DECODER0_CTRL_TYPE);
+	u32p_replace_bits(ctrl,
+			  !!(cxld->target_type == CXL_DECODER_HOSTONLYMEM),
+			  CXL_HDM_DECODER0_CTRL_HOSTONLY);
 }
 
 static int cxlsd_set_targets(struct cxl_switch_decoder *cxlsd, u64 *tgt)
@@ -764,7 +765,7 @@ static int cxl_setup_hdm_decoder_from_dvsec(
 	if (!len)
 		return -ENOENT;
 
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->commit = NULL;
 	cxld->reset = NULL;
 	cxld->hpa_range = info->dvsec_range[which];
@@ -793,8 +794,8 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			    int *target_map, void __iomem *hdm, int which,
 			    u64 *dpa_base, struct cxl_endpoint_dvsec_info *info)
 {
+	struct cxl_endpoint_decoder *cxled = NULL;
 	u64 size, base, skip, dpa_size, lo, hi;
-	struct cxl_endpoint_decoder *cxled;
 	bool committed;
 	u32 remainder;
 	int i, rc;
@@ -827,6 +828,8 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		return -ENXIO;
 	}
 
+	if (info)
+		cxled = to_cxl_endpoint_decoder(&cxld->dev);
 	cxld->hpa_range = (struct range) {
 		.start = base,
 		.end = base + size - 1,
@@ -837,10 +840,10 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		cxld->flags |= CXL_DECODER_F_ENABLE;
 		if (ctrl & CXL_HDM_DECODER0_CTRL_LOCK)
 			cxld->flags |= CXL_DECODER_F_LOCK;
-		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl))
-			cxld->target_type = CXL_DECODER_EXPANDER;
+		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_HOSTONLY, ctrl))
+			cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 		else
-			cxld->target_type = CXL_DECODER_ACCELERATOR;
+			cxld->target_type = CXL_DECODER_DEVMEM;
 		if (cxld->id != port->commit_end + 1) {
 			dev_warn(&port->dev,
 				 "decoder%d.%d: Committed out of order\n",
@@ -856,12 +859,28 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		}
 		port->commit_end = cxld->id;
 	} else {
-		/* unless / until type-2 drivers arrive, assume type-3 */
-		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl) == 0) {
-			ctrl |= CXL_HDM_DECODER0_CTRL_TYPE;
+		if (cxled) {
+			struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+			struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+			/*
+			 * Default by devtype until a device arrives that needs
+			 * more precision.
+			 */
+			if (cxlds->type == CXL_DEVTYPE_CLASSMEM)
+				cxld->target_type = CXL_DECODER_HOSTONLYMEM;
+			else
+				cxld->target_type = CXL_DECODER_DEVMEM;
+		} else {
+			/* To be overridden by region type at commit time */
+			cxld->target_type = CXL_DECODER_HOSTONLYMEM;
+		}
+
+		if (!FIELD_GET(CXL_HDM_DECODER0_CTRL_HOSTONLY, ctrl) &&
+		    cxld->target_type == CXL_DECODER_HOSTONLYMEM) {
+			ctrl |= CXL_HDM_DECODER0_CTRL_HOSTONLY;
 			writel(ctrl, hdm + CXL_HDM_DECODER0_CTRL_OFFSET(which));
 		}
-		cxld->target_type = CXL_DECODER_EXPANDER;
 	}
 	rc = eiw_to_ways(FIELD_GET(CXL_HDM_DECODER0_CTRL_IW_MASK, ctrl),
 			  &cxld->interleave_ways);
@@ -880,7 +899,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		port->id, cxld->id, cxld->hpa_range.start, cxld->hpa_range.end,
 		cxld->interleave_ways, cxld->interleave_granularity);
 
-	if (!info) {
+	if (!cxled) {
 		lo = readl(hdm + CXL_HDM_DECODER0_TL_LOW(which));
 		hi = readl(hdm + CXL_HDM_DECODER0_TL_HIGH(which));
 		target_list.value = (hi << 32) + lo;
@@ -903,7 +922,6 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	lo = readl(hdm + CXL_HDM_DECODER0_SKIP_LOW(which));
 	hi = readl(hdm + CXL_HDM_DECODER0_SKIP_HIGH(which));
 	skip = (hi << 32) + lo;
-	cxled = to_cxl_endpoint_decoder(&cxld->dev);
 	rc = devm_cxl_dpa_reserve(cxled, *dpa_base + skip, dpa_size, skip);
 	if (rc) {
 		dev_err(&port->dev,

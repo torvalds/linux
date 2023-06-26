@@ -39,6 +39,7 @@
  * @detach_work: active memdev lost a port in its ancestry
  * @cxl_nvb: coordinate removal of @cxl_nvd if present
  * @cxl_nvd: optional bridge to an nvdimm if the device supports pmem
+ * @endpoint: connection to the CXL port topology for this memory device
  * @id: id number of this memdev instance.
  * @depth: endpoint port depth
  */
@@ -49,6 +50,7 @@ struct cxl_memdev {
 	struct work_struct detach_work;
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_nvdimm *cxl_nvd;
+	struct cxl_port *endpoint;
 	int id;
 	int depth;
 };
@@ -83,7 +85,8 @@ static inline bool is_cxl_endpoint(struct cxl_port *port)
 }
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);
-int cxl_memdev_setup_fw_upload(struct cxl_dev_state *cxlds);
+struct cxl_memdev_state;
+int cxl_memdev_setup_fw_upload(struct cxl_memdev_state *mds);
 int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 			 resource_size_t base, resource_size_t len,
 			 resource_size_t skipped);
@@ -202,7 +205,7 @@ static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
  */
 #define CXL_CAPACITY_MULTIPLIER SZ_256M
 
-/**
+/*
  * Event Interrupt Policy
  *
  * CXL rev 3.0 section 8.2.9.2.4; Table 8-52
@@ -222,8 +225,8 @@ struct cxl_event_interrupt_policy {
 /**
  * struct cxl_event_state - Event log driver state
  *
- * @event_buf: Buffer to receive event data
- * @event_log_lock: Serialize event_buf and log use
+ * @buf: Buffer to receive event data
+ * @log_lock: Serialize event_buf and log use
  */
 struct cxl_event_state {
 	struct cxl_get_event_payload *buf;
@@ -356,6 +359,20 @@ struct cxl_security_state {
 	struct kernfs_node *sanitize_node;
 };
 
+/*
+ * enum cxl_devtype - delineate type-2 from a generic type-3 device
+ * @CXL_DEVTYPE_DEVMEM - Vendor specific CXL Type-2 device implementing HDM-D or
+ *			 HDM-DB, no requirement that this device implements a
+ *			 mailbox, or other memory-device-standard manageability
+ *			 flows.
+ * @CXL_DEVTYPE_CLASSMEM - Common class definition of a CXL Type-3 device with
+ *			   HDM-H and class-mandatory memory device registers
+ */
+enum cxl_devtype {
+	CXL_DEVTYPE_DEVMEM,
+	CXL_DEVTYPE_CLASSMEM,
+};
+
 /**
  * struct cxl_dev_state - The driver device state
  *
@@ -369,6 +386,36 @@ struct cxl_security_state {
  * @cxl_dvsec: Offset to the PCIe device DVSEC
  * @rcd: operating in RCD mode (CXL 3.0 9.11.8 CXL Devices Attached to an RCH)
  * @media_ready: Indicate whether the device media is usable
+ * @dpa_res: Overall DPA resource tree for the device
+ * @pmem_res: Active Persistent memory capacity configuration
+ * @ram_res: Active Volatile memory capacity configuration
+ * @component_reg_phys: register base of component registers
+ * @serial: PCIe Device Serial Number
+ * @type: Generic Memory Class device or Vendor Specific Memory device
+ */
+struct cxl_dev_state {
+	struct device *dev;
+	struct cxl_memdev *cxlmd;
+	struct cxl_regs regs;
+	int cxl_dvsec;
+	bool rcd;
+	bool media_ready;
+	struct resource dpa_res;
+	struct resource pmem_res;
+	struct resource ram_res;
+	resource_size_t component_reg_phys;
+	u64 serial;
+	enum cxl_devtype type;
+};
+
+/**
+ * struct cxl_memdev_state - Generic Type-3 Memory Device Class driver data
+ *
+ * CXL 8.1.12.1 PCI Header - Class Code Register Memory Device defines
+ * common memory device functionality like the presence of a mailbox and
+ * the functionality related to that like Identify Memory Device and Get
+ * Partition Info
+ * @cxlds: Core driver state common across Type-2 and Type-3 devices
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
  * @lsa_size: Size of Label Storage Area
@@ -377,9 +424,6 @@ struct cxl_security_state {
  * @firmware_version: Firmware version for the memory device.
  * @enabled_cmds: Hardware commands found enabled in CEL.
  * @exclusive_cmds: Commands that are kernel-internal only
- * @dpa_res: Overall DPA resource tree for the device
- * @pmem_res: Active Persistent memory capacity configuration
- * @ram_res: Active Volatile memory capacity configuration
  * @total_bytes: sum of all possible capacities
  * @volatile_only_bytes: hard volatile capacity
  * @persistent_only_bytes: hard persistent capacity
@@ -388,57 +432,47 @@ struct cxl_security_state {
  * @active_persistent_bytes: sum of hard + soft persistent
  * @next_volatile_bytes: volatile capacity change pending device reset
  * @next_persistent_bytes: persistent capacity change pending device reset
- * @component_reg_phys: register base of component registers
- * @info: Cached DVSEC information about the device.
- * @serial: PCIe Device Serial Number
  * @event: event log driver state
  * @poison: poison driver state info
  * @fw: firmware upload / activation state
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  *
- * See section 8.2.9.5.2 Capacity Configuration and Label Storage for
+ * See CXL 3.0 8.2.9.8.2 Capacity Configuration and Label Storage for
  * details on capacity parameters.
  */
-struct cxl_dev_state {
-	struct device *dev;
-	struct cxl_memdev *cxlmd;
-
-	struct cxl_regs regs;
-	int cxl_dvsec;
-
-	bool rcd;
-	bool media_ready;
+struct cxl_memdev_state {
+	struct cxl_dev_state cxlds;
 	size_t payload_size;
 	size_t lsa_size;
 	struct mutex mbox_mutex; /* Protects device mailbox and firmware */
 	char firmware_version[0x10];
 	DECLARE_BITMAP(enabled_cmds, CXL_MEM_COMMAND_ID_MAX);
 	DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
-
-	struct resource dpa_res;
-	struct resource pmem_res;
-	struct resource ram_res;
 	u64 total_bytes;
 	u64 volatile_only_bytes;
 	u64 persistent_only_bytes;
 	u64 partition_align_bytes;
-
 	u64 active_volatile_bytes;
 	u64 active_persistent_bytes;
 	u64 next_volatile_bytes;
 	u64 next_persistent_bytes;
-
-	resource_size_t component_reg_phys;
-	u64 serial;
-
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
 	struct cxl_security_state security;
 	struct cxl_fw_state fw;
 
 	struct rcuwait mbox_wait;
-	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
+	int (*mbox_send)(struct cxl_memdev_state *mds,
+			 struct cxl_mbox_cmd *cmd);
 };
+
+static inline struct cxl_memdev_state *
+to_cxl_memdev_state(struct cxl_dev_state *cxlds)
+{
+	if (cxlds->type != CXL_DEVTYPE_CLASSMEM)
+		return NULL;
+	return container_of(cxlds, struct cxl_memdev_state, cxlds);
+}
 
 enum cxl_opcode {
 	CXL_MBOX_OP_INVALID		= 0x0000,
@@ -801,18 +835,20 @@ enum {
 	CXL_PMEM_SEC_PASS_USER,
 };
 
-int cxl_internal_send_cmd(struct cxl_dev_state *cxlds,
+int cxl_internal_send_cmd(struct cxl_memdev_state *mds,
 			  struct cxl_mbox_cmd *cmd);
-int cxl_dev_state_identify(struct cxl_dev_state *cxlds);
+int cxl_dev_state_identify(struct cxl_memdev_state *mds);
 int cxl_await_media_ready(struct cxl_dev_state *cxlds);
-int cxl_enumerate_cmds(struct cxl_dev_state *cxlds);
-int cxl_mem_create_range_info(struct cxl_dev_state *cxlds);
-struct cxl_dev_state *cxl_dev_state_create(struct device *dev);
-void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
-void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
-void cxl_mem_get_event_records(struct cxl_dev_state *cxlds, u32 status);
-int cxl_set_timestamp(struct cxl_dev_state *cxlds);
-int cxl_poison_state_init(struct cxl_dev_state *cxlds);
+int cxl_enumerate_cmds(struct cxl_memdev_state *mds);
+int cxl_mem_create_range_info(struct cxl_memdev_state *mds);
+struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev);
+void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
+				unsigned long *cmds);
+void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
+				  unsigned long *cmds);
+void cxl_mem_get_event_records(struct cxl_memdev_state *mds, u32 status);
+int cxl_set_timestamp(struct cxl_memdev_state *mds);
+int cxl_poison_state_init(struct cxl_memdev_state *mds);
 int cxl_mem_get_poison(struct cxl_memdev *cxlmd, u64 offset, u64 len,
 		       struct cxl_region *cxlr);
 int cxl_trigger_poison_list(struct cxl_memdev *cxlmd);
@@ -831,7 +867,7 @@ static inline void cxl_mem_active_dec(void)
 }
 #endif
 
-int cxl_mem_sanitize(struct cxl_dev_state *cxlds, u16 cmd);
+int cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd);
 
 struct cxl_hdm {
 	struct cxl_component_regs regs;

@@ -117,9 +117,9 @@ static ssize_t target_type_show(struct device *dev,
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
 
 	switch (cxld->target_type) {
-	case CXL_DECODER_ACCELERATOR:
+	case CXL_DECODER_DEVMEM:
 		return sysfs_emit(buf, "accelerator\n");
-	case CXL_DECODER_EXPANDER:
+	case CXL_DECODER_HOSTONLYMEM:
 		return sysfs_emit(buf, "expander\n");
 	}
 	return -ENXIO;
@@ -1161,7 +1161,7 @@ static struct device *grandparent(struct device *dev)
 static void delete_endpoint(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
-	struct cxl_port *endpoint = dev_get_drvdata(&cxlmd->dev);
+	struct cxl_port *endpoint = cxlmd->endpoint;
 	struct cxl_port *parent_port;
 	struct device *parent;
 
@@ -1176,6 +1176,7 @@ static void delete_endpoint(void *data)
 		devm_release_action(parent, cxl_unlink_uport, endpoint);
 		devm_release_action(parent, unregister_port, endpoint);
 	}
+	cxlmd->endpoint = NULL;
 	device_unlock(parent);
 	put_device(parent);
 out:
@@ -1187,7 +1188,7 @@ int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 	struct device *dev = &cxlmd->dev;
 
 	get_device(&endpoint->dev);
-	dev_set_drvdata(dev, endpoint);
+	cxlmd->endpoint = endpoint;
 	cxlmd->depth = endpoint->depth;
 	return devm_add_action_or_reset(dev, delete_endpoint, cxlmd);
 }
@@ -1550,7 +1551,7 @@ static int cxl_decoder_init(struct cxl_port *port, struct cxl_decoder *cxld)
 	/* Pre initialize an "empty" decoder */
 	cxld->interleave_ways = 1;
 	cxld->interleave_granularity = PAGE_SIZE;
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->hpa_range = (struct range) {
 		.start = 0,
 		.end = -1,

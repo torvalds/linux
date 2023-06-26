@@ -713,7 +713,7 @@ static void default_mock_decoder(struct cxl_decoder *cxld)
 
 	cxld->interleave_ways = 1;
 	cxld->interleave_granularity = 256;
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->commit = mock_decoder_commit;
 	cxld->reset = mock_decoder_reset;
 }
@@ -787,7 +787,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 
 	cxld->interleave_ways = 2;
 	eig_to_granularity(window->granularity, &cxld->interleave_granularity);
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->flags = CXL_DECODER_F_ENABLE;
 	cxled->state = CXL_DECODER_STATE_AUTO;
 	port->commit_end = cxld->id;
@@ -820,7 +820,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		} else
 			cxlsd->target[0] = dport;
 		cxld = &cxlsd->cxld;
-		cxld->target_type = CXL_DECODER_EXPANDER;
+		cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 		cxld->flags = CXL_DECODER_F_ENABLE;
 		iter->commit_end = 0;
 		/*
