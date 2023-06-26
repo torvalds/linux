@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
+#include "thermal_hwmon.h"
+
 struct gadc_thermal_info {
 	struct device *dev;
 	struct thermal_zone_device *tz_dev;
@@ -152,6 +154,8 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 				ret);
 		return ret;
 	}
+
+	devm_thermal_add_hwmon_sysfs(&pdev->dev, gti->tz_dev);
 
 	return 0;
 }
