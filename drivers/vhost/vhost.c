@@ -626,6 +626,76 @@ free_worker:
 	return NULL;
 }
 
+/* Caller must have device mutex */
+static void __vhost_vq_attach_worker(struct vhost_virtqueue *vq,
+				     struct vhost_worker *worker)
+{
+	if (vq->worker)
+		vq->worker->attachment_cnt--;
+	worker->attachment_cnt++;
+	vq->worker = worker;
+}
+
+ /* Caller must have device and virtqueue mutex */
+static int vhost_vq_attach_worker(struct vhost_virtqueue *vq,
+				  struct vhost_vring_worker *info)
+{
+	unsigned long index = info->worker_id;
+	struct vhost_dev *dev = vq->dev;
+	struct vhost_worker *worker;
+
+	if (!dev->use_worker)
+		return -EINVAL;
+
+	/*
+	 * We only allow userspace to set a virtqueue's worker if it's not
+	 * active and polling is not enabled. We also assume drivers
+	 * supporting this will not be internally queueing works directly or
+	 * via calls like vhost_dev_flush at this time.
+	 */
+	if (vhost_vq_get_backend(vq) || vq->kick)
+		return -EBUSY;
+
+	worker = xa_find(&dev->worker_xa, &index, UINT_MAX, XA_PRESENT);
+	if (!worker || worker->id != info->worker_id)
+		return -ENODEV;
+
+	__vhost_vq_attach_worker(vq, worker);
+	return 0;
+}
+
+/* Caller must have device mutex */
+static int vhost_new_worker(struct vhost_dev *dev,
+			    struct vhost_worker_state *info)
+{
+	struct vhost_worker *worker;
+
+	worker = vhost_worker_create(dev);
+	if (!worker)
+		return -ENOMEM;
+
+	info->worker_id = worker->id;
+	return 0;
+}
+
+/* Caller must have device mutex */
+static int vhost_free_worker(struct vhost_dev *dev,
+			     struct vhost_worker_state *info)
+{
+	unsigned long index = info->worker_id;
+	struct vhost_worker *worker;
+
+	worker = xa_find(&dev->worker_xa, &index, UINT_MAX, XA_PRESENT);
+	if (!worker || worker->id != info->worker_id)
+		return -ENODEV;
+
+	if (worker->attachment_cnt)
+		return -EBUSY;
+
+	vhost_worker_destroy(dev, worker);
+	return 0;
+}
+
 static int vhost_get_vq_from_user(struct vhost_dev *dev, void __user *argp,
 				  struct vhost_virtqueue **vq, u32 *id)
 {
@@ -646,6 +716,76 @@ static int vhost_get_vq_from_user(struct vhost_dev *dev, void __user *argp,
 	*id = idx;
 	return 0;
 }
+
+/* Caller must have device mutex */
+long vhost_worker_ioctl(struct vhost_dev *dev, unsigned int ioctl,
+			void __user *argp)
+{
+	struct vhost_vring_worker ring_worker;
+	struct vhost_worker_state state;
+	struct vhost_virtqueue *vq;
+	long ret;
+	u32 idx;
+
+	if (!dev->use_worker)
+		return -EINVAL;
+
+	if (!vhost_dev_has_owner(dev))
+		return -EINVAL;
+
+	ret = vhost_dev_check_owner(dev);
+	if (ret)
+		return ret;
+
+	switch (ioctl) {
+	/* dev worker ioctls */
+	case VHOST_NEW_WORKER:
+		ret = vhost_new_worker(dev, &state);
+		if (!ret && copy_to_user(argp, &state, sizeof(state)))
+			ret = -EFAULT;
+		return ret;
+	case VHOST_FREE_WORKER:
+		if (copy_from_user(&state, argp, sizeof(state)))
+			return -EFAULT;
+		return vhost_free_worker(dev, &state);
+	/* vring worker ioctls */
+	case VHOST_ATTACH_VRING_WORKER:
+	case VHOST_GET_VRING_WORKER:
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	ret = vhost_get_vq_from_user(dev, argp, &vq, &idx);
+	if (ret)
+		return ret;
+
+	mutex_lock(&vq->mutex);
+	switch (ioctl) {
+	case VHOST_ATTACH_VRING_WORKER:
+		if (copy_from_user(&ring_worker, argp, sizeof(ring_worker))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = vhost_vq_attach_worker(vq, &ring_worker);
+		break;
+	case VHOST_GET_VRING_WORKER:
+		ring_worker.index = idx;
+		ring_worker.worker_id = vq->worker->id;
+
+		if (copy_to_user(argp, &ring_worker, sizeof(ring_worker)))
+			ret = -EFAULT;
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	mutex_unlock(&vq->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vhost_worker_ioctl);
 
 /* Caller should have device mutex */
 long vhost_dev_set_owner(struct vhost_dev *dev)
@@ -684,7 +824,7 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
 		smp_wmb();
 
 		for (i = 0; i < dev->nvqs; i++)
-			dev->vqs[i]->worker = worker;
+			__vhost_vq_attach_worker(dev->vqs[i], worker);
 	}
 
 	return 0;
