@@ -5,7 +5,7 @@
 use core::alloc::LayoutError;
 use core::cmp;
 use core::intrinsics;
-use core::mem::{self, ManuallyDrop, MaybeUninit};
+use core::mem::{self, ManuallyDrop, MaybeUninit, SizedTypeProperties};
 use core::ops::Drop;
 use core::ptr::{self, NonNull, Unique};
 use core::slice;
@@ -177,7 +177,7 @@ impl<T, A: Allocator> RawVec<T, A> {
     #[cfg(not(no_global_oom_handling))]
     fn allocate_in(capacity: usize, init: AllocInit, alloc: A) -> Self {
         // Don't allocate here because `Drop` will not deallocate when `capacity` is 0.
-        if mem::size_of::<T>() == 0 || capacity == 0 {
+        if T::IS_ZST || capacity == 0 {
             Self::new_in(alloc)
         } else {
             // We avoid `unwrap_or_else` here because it bloats the amount of
@@ -212,7 +212,7 @@ impl<T, A: Allocator> RawVec<T, A> {
 
     fn try_allocate_in(capacity: usize, init: AllocInit, alloc: A) -> Result<Self, TryReserveError> {
         // Don't allocate here because `Drop` will not deallocate when `capacity` is 0.
-        if mem::size_of::<T>() == 0 || capacity == 0 {
+        if T::IS_ZST || capacity == 0 {
             return Ok(Self::new_in(alloc));
         }
 
@@ -262,7 +262,7 @@ impl<T, A: Allocator> RawVec<T, A> {
     /// This will always be `usize::MAX` if `T` is zero-sized.
     #[inline(always)]
     pub fn capacity(&self) -> usize {
-        if mem::size_of::<T>() == 0 { usize::MAX } else { self.cap }
+        if T::IS_ZST { usize::MAX } else { self.cap }
     }
 
     /// Returns a shared reference to the allocator backing this `RawVec`.
@@ -271,7 +271,7 @@ impl<T, A: Allocator> RawVec<T, A> {
     }
 
     fn current_memory(&self) -> Option<(NonNull<u8>, Layout)> {
-        if mem::size_of::<T>() == 0 || self.cap == 0 {
+        if T::IS_ZST || self.cap == 0 {
             None
         } else {
             // We have an allocated chunk of memory, so we can bypass runtime
@@ -419,7 +419,7 @@ impl<T, A: Allocator> RawVec<T, A> {
         // This is ensured by the calling contexts.
         debug_assert!(additional > 0);
 
-        if mem::size_of::<T>() == 0 {
+        if T::IS_ZST {
             // Since we return a capacity of `usize::MAX` when `elem_size` is
             // 0, getting to here necessarily means the `RawVec` is overfull.
             return Err(CapacityOverflow.into());
@@ -445,7 +445,7 @@ impl<T, A: Allocator> RawVec<T, A> {
     // `grow_amortized`, but this method is usually instantiated less often so
     // it's less critical.
     fn grow_exact(&mut self, len: usize, additional: usize) -> Result<(), TryReserveError> {
-        if mem::size_of::<T>() == 0 {
+        if T::IS_ZST {
             // Since we return a capacity of `usize::MAX` when the type size is
             // 0, getting to here necessarily means the `RawVec` is overfull.
             return Err(CapacityOverflow.into());
@@ -460,7 +460,7 @@ impl<T, A: Allocator> RawVec<T, A> {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    #[cfg(not(no_global_oom_handling))]
     fn shrink(&mut self, cap: usize) -> Result<(), TryReserveError> {
         assert!(cap <= self.capacity(), "Tried to shrink to a larger capacity");
 
