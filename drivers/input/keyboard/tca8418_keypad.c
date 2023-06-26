@@ -370,7 +370,7 @@ static struct i2c_driver tca8418_keypad_driver = {
 		.name	= "tca8418_keypad",
 		.of_match_table = tca8418_dt_ids,
 	},
-	.probe_new	= tca8418_keypad_probe,
+	.probe		= tca8418_keypad_probe,
 	.id_table	= tca8418_id,
 };
 
