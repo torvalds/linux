@@ -235,7 +235,7 @@ static struct i2c_driver tps6594_i2c_driver = {
 		.name = "tps6594",
 		.of_match_table = tps6594_i2c_of_match_table,
 	},
-	.probe_new = tps6594_i2c_probe,
+	.probe = tps6594_i2c_probe,
 };
 module_i2c_driver(tps6594_i2c_driver);
 

@@ -214,7 +214,7 @@ static struct i2c_driver max77541_driver = {
 		.name = "max77541",
 		.of_match_table = max77541_of_id,
 	},
-	.probe_new = max77541_probe,
+	.probe = max77541_probe,
 	.id_table = max77541_id,
 };
 module_i2c_driver(max77541_driver);
