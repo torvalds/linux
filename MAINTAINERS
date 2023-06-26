@@ -11275,6 +11275,10 @@ W:	http://kernelnewbies.org/KernelJanitors
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 M:	Chuck Lever <chuck.lever@oracle.com>
 M:	Jeff Layton <jlayton@kernel.org>
+R:	Neil Brown <neilb@suse.de>
+R:	Olga Kornievskaia <kolga@netapp.com>
+R:	Dai Ngo <Dai.Ngo@oracle.com>
+R:	Tom Talpey <tom@talpey.com>
 L:	linux-nfs@vger.kernel.org
 S:	Supported
 W:	http://nfs.sourceforge.net/
