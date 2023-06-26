@@ -45,9 +45,6 @@
 
 #define AMD_VBIOS_FILE_MAX_SIZE_B      (1024*1024*3)
 
-static int psp_sysfs_init(struct amdgpu_device *adev);
-static void psp_sysfs_fini(struct amdgpu_device *adev);
-
 static int psp_load_smu_fw(struct psp_context *psp);
 static int psp_rap_terminate(struct psp_context *psp);
 static int psp_securedisplay_terminate(struct psp_context *psp);
@@ -462,13 +459,6 @@ static int psp_sw_init(void *handle)
 		}
 	}
 
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 0) ||
-	    adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 7)) {
-		ret = psp_sysfs_init(adev);
-		if (ret)
-			return ret;
-	}
-
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
 				      amdgpu_sriov_vf(adev) ?
 				      AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
@@ -519,10 +509,6 @@ static int psp_sw_fini(void *handle)
 	amdgpu_ucode_release(&psp->ta_fw);
 	amdgpu_ucode_release(&psp->cap_fw);
 	amdgpu_ucode_release(&psp->toc_fw);
-
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 0) ||
-	    adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 7))
-		psp_sysfs_fini(adev);
 
 	kfree(cmd);
 	cmd = NULL;
@@ -3705,6 +3691,7 @@ static DEVICE_ATTR(psp_vbflash_status, 0440, amdgpu_psp_vbflash_status, NULL);
 static struct attribute *flash_attrs[] = {
 	&dev_attr_psp_vbflash_status.attr,
 	&psp_vbflash_bin_attr.attr,
+	&dev_attr_usbc_pd_fw.attr,
 	NULL
 };
 
@@ -3718,9 +3705,16 @@ static umode_t amdgpu_flash_attr_is_visible(struct kobject *kobj, struct attribu
 		return 0;
 
 	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 7):
+		if (attr == &dev_attr_usbc_pd_fw.attr)
+			return 0660;
+		return 0;
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
-		if (attr == &psp_vbflash_bin_attr.attr)
+		if (attr == &dev_attr_usbc_pd_fw.attr)
+			return 0;
+		else if (attr == &psp_vbflash_bin_attr.attr)
 			return 0660;
 		return 0440;
 	default:
@@ -3750,21 +3744,6 @@ const struct amd_ip_funcs psp_ip_funcs = {
 	.set_clockgating_state = psp_set_clockgating_state,
 	.set_powergating_state = psp_set_powergating_state,
 };
-
-static int psp_sysfs_init(struct amdgpu_device *adev)
-{
-	int ret = device_create_file(adev->dev, &dev_attr_usbc_pd_fw);
-
-	if (ret)
-		DRM_ERROR("Failed to create USBC PD FW control file!");
-
-	return ret;
-}
-
-static void psp_sysfs_fini(struct amdgpu_device *adev)
-{
-	device_remove_file(adev->dev, &dev_attr_usbc_pd_fw);
-}
 
 const struct amdgpu_ip_block_version psp_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
