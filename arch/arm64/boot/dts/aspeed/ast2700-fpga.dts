@@ -32,8 +32,8 @@
 		ranges;
 
 		bmc_dev_memory: bmc_dev_memory {
-			size = <0x00100000>;
-			alignment = <0x00100000>;
+			size = <0x0 0x00100000>;
+			alignment = <0x0 0x00100000>;
 			compatible = "shared-dma-pool";
 			no-map;
 		};
