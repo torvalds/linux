@@ -700,10 +700,7 @@ SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 	return do_fchmodat(AT_FDCWD, filename, mode);
 }
 
-/**
- * setattr_vfsuid - check and set ia_fsuid attribute
- * @kuid: new inode owner
- *
+/*
  * Check whether @kuid is valid and if so generate and set vfsuid_t in
  * ia_vfsuid.
  *
@@ -718,10 +715,7 @@ static inline bool setattr_vfsuid(struct iattr *attr, kuid_t kuid)
 	return true;
 }
 
-/**
- * setattr_vfsgid - check and set ia_fsgid attribute
- * @kgid: new inode owner
- *
+/*
  * Check whether @kgid is valid and if so generate and set vfsgid_t in
  * ia_vfsgid.
  *
@@ -989,7 +983,6 @@ cleanup_file:
  * @file: file pointer
  * @dentry: pointer to dentry
  * @open: open callback
- * @opened: state of open
  *
  * This can be used to finish opening a file passed to i_op->atomic_open().
  *
@@ -1043,7 +1036,6 @@ EXPORT_SYMBOL(file_path);
  * vfs_open - open the file at the given path
  * @path: path to open
  * @file: newly allocated file with f_flag initialized
- * @cred: credentials to use
  */
 int vfs_open(const struct path *path, struct file *file)
 {
@@ -1156,7 +1148,7 @@ inline struct open_how build_open_how(int flags, umode_t mode)
 inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 {
 	u64 flags = how->flags;
-	u64 strip = FMODE_NONOTIFY | O_CLOEXEC;
+	u64 strip = __FMODE_NONOTIFY | O_CLOEXEC;
 	int lookup_flags = 0;
 	int acc_mode = ACC_MODE(flags);
 

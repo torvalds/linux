@@ -309,9 +309,16 @@ static unsigned int mnt_get_writers(struct mount *mnt)
 
 static int mnt_is_readonly(struct vfsmount *mnt)
 {
-	if (mnt->mnt_sb->s_readonly_remount)
+	if (READ_ONCE(mnt->mnt_sb->s_readonly_remount))
 		return 1;
-	/* Order wrt setting s_flags/s_readonly_remount in do_remount() */
+	/*
+	 * The barrier pairs with the barrier in sb_start_ro_state_change()
+	 * making sure if we don't see s_readonly_remount set yet, we also will
+	 * not see any superblock / mount flag changes done by remount.
+	 * It also pairs with the barrier in sb_end_ro_state_change()
+	 * assuring that if we see s_readonly_remount already cleared, we will
+	 * see the values of superblock / mount flags updated by remount.
+	 */
 	smp_rmb();
 	return __mnt_is_readonly(mnt);
 }
@@ -364,9 +371,11 @@ int __mnt_want_write(struct vfsmount *m)
 		}
 	}
 	/*
-	 * After the slowpath clears MNT_WRITE_HOLD, mnt_is_readonly will
-	 * be set to match its requirements. So we must not load that until
-	 * MNT_WRITE_HOLD is cleared.
+	 * The barrier pairs with the barrier sb_start_ro_state_change() making
+	 * sure that if we see MNT_WRITE_HOLD cleared, we will also see
+	 * s_readonly_remount set (or even SB_RDONLY / MNT_READONLY flags) in
+	 * mnt_is_readonly() and bail in case we are racing with remount
+	 * read-only.
 	 */
 	smp_rmb();
 	if (mnt_is_readonly(m)) {
@@ -588,10 +597,8 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 	if (!err && atomic_long_read(&sb->s_remove_count))
 		err = -EBUSY;
 
-	if (!err) {
-		sb->s_readonly_remount = 1;
-		smp_wmb();
-	}
+	if (!err)
+		sb_start_ro_state_change(sb);
 	list_for_each_entry(mnt, &sb->s_mounts, mnt_instance) {
 		if (mnt->mnt.mnt_flags & MNT_WRITE_HOLD)
 			mnt->mnt.mnt_flags &= ~MNT_WRITE_HOLD;

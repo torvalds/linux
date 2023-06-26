@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 #include <linux/debugfs.h>
 #include <linux/pfn.h>
 #include <linux/percpu.h>
