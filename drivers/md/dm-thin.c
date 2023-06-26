@@ -3300,7 +3300,7 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned long block_size;
 	dm_block_t low_water_blocks;
 	struct dm_dev *metadata_dev;
-	fmode_t metadata_mode;
+	blk_mode_t metadata_mode;
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -3333,7 +3333,8 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto out_unlock;
 
-	metadata_mode = FMODE_READ | ((pf.mode == PM_READ_ONLY) ? 0 : FMODE_WRITE);
+	metadata_mode = BLK_OPEN_READ |
+		((pf.mode == PM_READ_ONLY) ? 0 : BLK_OPEN_WRITE);
 	r = dm_get_device(ti, argv[0], metadata_mode, &metadata_dev);
 	if (r) {
 		ti->error = "Error opening metadata block device";
@@ -3341,7 +3342,7 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	warn_if_metadata_device_too_big(metadata_dev->bdev);
 
-	r = dm_get_device(ti, argv[1], FMODE_READ | FMODE_WRITE, &data_dev);
+	r = dm_get_device(ti, argv[1], BLK_OPEN_READ | BLK_OPEN_WRITE, &data_dev);
 	if (r) {
 		ti->error = "Error getting data device";
 		goto out_metadata;
@@ -4222,7 +4223,7 @@ static int thin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad_origin_dev;
 		}
 
-		r = dm_get_device(ti, argv[2], FMODE_READ, &origin_dev);
+		r = dm_get_device(ti, argv[2], BLK_OPEN_READ, &origin_dev);
 		if (r) {
 			ti->error = "Error opening origin device";
 			goto bad_origin_dev;

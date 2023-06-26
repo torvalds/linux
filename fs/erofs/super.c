@@ -19,6 +19,7 @@
 #include <trace/events/erofs.h>
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
+struct file_system_type erofs_fs_type;
 
 void _erofs_err(struct super_block *sb, const char *function,
 		const char *fmt, ...)
@@ -253,8 +254,8 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 			return PTR_ERR(fscache);
 		dif->fscache = fscache;
 	} else if (!sbi->devs->flatdev) {
-		bdev = blkdev_get_by_path(dif->path, FMODE_READ | FMODE_EXCL,
-					  sb->s_type);
+		bdev = blkdev_get_by_path(dif->path, BLK_OPEN_READ, sb->s_type,
+					  NULL);
 		if (IS_ERR(bdev))
 			return PTR_ERR(bdev);
 		dif->bdev = bdev;
@@ -815,7 +816,7 @@ static int erofs_release_device_info(int id, void *ptr, void *data)
 
 	fs_put_dax(dif->dax_dev, NULL);
 	if (dif->bdev)
-		blkdev_put(dif->bdev, FMODE_READ | FMODE_EXCL);
+		blkdev_put(dif->bdev, &erofs_fs_type);
 	erofs_fscache_unregister_cookie(dif->fscache);
 	dif->fscache = NULL;
 	kfree(dif->path);

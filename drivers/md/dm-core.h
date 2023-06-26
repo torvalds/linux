@@ -207,11 +207,10 @@ struct dm_table {
 	unsigned integrity_added:1;
 
 	/*
-	 * Indicates the rw permissions for the new logical
-	 * device.  This should be a combination of FMODE_READ
-	 * and FMODE_WRITE.
+	 * Indicates the rw permissions for the new logical device.  This
+	 * should be a combination of BLK_OPEN_READ and BLK_OPEN_WRITE.
 	 */
-	fmode_t mode;
+	blk_mode_t mode;
 
 	/* a list of devices used by this table */
 	struct list_head devices;

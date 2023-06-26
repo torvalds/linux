@@ -94,8 +94,8 @@ struct btrfs_device {
 
 	struct btrfs_zoned_device_info *zone_info;
 
-	/* the mode sent to blkdev_get */
-	fmode_t mode;
+	/* block device holder for blkdev_get/put */
+	void *holder;
 
 	/*
 	 * Device's major-minor number. Must be set even if the device is not
@@ -610,9 +610,8 @@ struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,
 					    u64 type);
 void btrfs_mapping_tree_free(struct extent_map_tree *tree);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
-		       fmode_t flags, void *holder);
-struct btrfs_device *btrfs_scan_one_device(const char *path,
-					   fmode_t flags, void *holder);
+		       blk_mode_t flags, void *holder);
+struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags);
 int btrfs_forget_devices(dev_t devt);
 void btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 void btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices);
@@ -630,7 +629,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 void btrfs_put_dev_args_from_path(struct btrfs_dev_lookup_args *args);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
-		    struct block_device **bdev, fmode_t *mode);
+		    struct block_device **bdev, void **holder);
 void __exit btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,

@@ -39,7 +39,7 @@ static inline struct bsg_device *to_bsg_device(struct inode *inode)
 #define BSG_MAX_DEVS		32768
 
 static DEFINE_IDA(bsg_minor_ida);
-static struct class *bsg_class;
+static const struct class bsg_class;
 static int bsg_major;
 
 static unsigned int bsg_timeout(struct bsg_device *bd, struct sg_io_v4 *hdr)
@@ -54,7 +54,8 @@ static unsigned int bsg_timeout(struct bsg_device *bd, struct sg_io_v4 *hdr)
 	return max_t(unsigned int, timeout, BLK_MIN_SG_TIMEOUT);
 }
 
-static int bsg_sg_io(struct bsg_device *bd, fmode_t mode, void __user *uarg)
+static int bsg_sg_io(struct bsg_device *bd, bool open_for_write,
+		     void __user *uarg)
 {
 	struct sg_io_v4 hdr;
 	int ret;
@@ -63,7 +64,8 @@ static int bsg_sg_io(struct bsg_device *bd, fmode_t mode, void __user *uarg)
 		return -EFAULT;
 	if (hdr.guard != 'Q')
 		return -EINVAL;
-	ret = bd->sg_io_fn(bd->queue, &hdr, mode, bsg_timeout(bd, &hdr));
+	ret = bd->sg_io_fn(bd->queue, &hdr, open_for_write,
+			   bsg_timeout(bd, &hdr));
 	if (!ret && copy_to_user(uarg, &hdr, sizeof(hdr)))
 		return -EFAULT;
 	return ret;
@@ -146,7 +148,7 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case SG_EMULATED_HOST:
 		return put_user(1, intp);
 	case SG_IO:
-		return bsg_sg_io(bd, file->f_mode, uarg);
+		return bsg_sg_io(bd, file->f_mode & FMODE_WRITE, uarg);
 	case SCSI_IOCTL_SEND_COMMAND:
 		pr_warn_ratelimited("%s: calling unsupported SCSI_IOCTL_SEND_COMMAND\n",
 				current->comm);
@@ -206,7 +208,7 @@ struct bsg_device *bsg_register_queue(struct request_queue *q,
 		return ERR_PTR(ret);
 	}
 	bd->device.devt = MKDEV(bsg_major, ret);
-	bd->device.class = bsg_class;
+	bd->device.class = &bsg_class;
 	bd->device.parent = parent;
 	bd->device.release = bsg_device_release;
 	dev_set_name(&bd->device, "%s", name);
@@ -240,15 +242,19 @@ static char *bsg_devnode(const struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
 }
 
+static const struct class bsg_class = {
+	.name		= "bsg",
+	.devnode	= bsg_devnode,
+};
+
 static int __init bsg_init(void)
 {
 	dev_t devid;
 	int ret;
 
-	bsg_class = class_create("bsg");
-	if (IS_ERR(bsg_class))
-		return PTR_ERR(bsg_class);
-	bsg_class->devnode = bsg_devnode;
+	ret = class_register(&bsg_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
 	if (ret)
@@ -260,7 +266,7 @@ static int __init bsg_init(void)
 	return 0;
 
 destroy_bsg_class:
-	class_destroy(bsg_class);
+	class_unregister(&bsg_class);
 	return ret;
 }
 

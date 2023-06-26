@@ -42,8 +42,8 @@
 #include "internal.h"
 
 /*
- * How many user pages to map in one call to get_user_pages().  This determines
- * the size of a structure in the slab cache
+ * How many user pages to map in one call to iov_iter_extract_pages().  This
+ * determines the size of a structure in the slab cache
  */
 #define DIO_PAGES	64
 
@@ -121,12 +121,13 @@ struct dio {
 	struct inode *inode;
 	loff_t i_size;			/* i_size when submitted */
 	dio_iodone_t *end_io;		/* IO completion function */
+	bool is_pinned;			/* T if we have pins on the pages */
 
 	void *private;			/* copy from map_bh.b_private */
 
 	/* BIO completion state */
 	spinlock_t bio_lock;		/* protects BIO fields below */
-	int page_errors;		/* errno from get_user_pages() */
+	int page_errors;		/* err from iov_iter_extract_pages() */
 	int is_async;			/* is IO async ? */
 	bool defer_completion;		/* defer AIO completion to workqueue? */
 	bool should_dirty;		/* if pages should be dirtied */
@@ -165,14 +166,14 @@ static inline unsigned dio_pages_present(struct dio_submit *sdio)
  */
 static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 {
+	struct page **pages = dio->pages;
 	const enum req_op dio_op = dio->opf & REQ_OP_MASK;
 	ssize_t ret;
 
-	ret = iov_iter_get_pages2(sdio->iter, dio->pages, LONG_MAX, DIO_PAGES,
-				&sdio->from);
+	ret = iov_iter_extract_pages(sdio->iter, &pages, LONG_MAX,
+				     DIO_PAGES, 0, &sdio->from);
 
 	if (ret < 0 && sdio->blocks_available && dio_op == REQ_OP_WRITE) {
-		struct page *page = ZERO_PAGE(0);
 		/*
 		 * A memory fault, but the filesystem has some outstanding
 		 * mapped blocks.  We need to use those blocks up to avoid
@@ -180,8 +181,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 		 */
 		if (dio->page_errors == 0)
 			dio->page_errors = ret;
-		get_page(page);
-		dio->pages[0] = page;
+		dio->pages[0] = ZERO_PAGE(0);
 		sdio->head = 0;
 		sdio->tail = 1;
 		sdio->from = 0;
@@ -201,9 +201,9 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 
 /*
  * Get another userspace page.  Returns an ERR_PTR on error.  Pages are
- * buffered inside the dio so that we can call get_user_pages() against a
- * decent number of pages, less frequently.  To provide nicer use of the
- * L1 cache.
+ * buffered inside the dio so that we can call iov_iter_extract_pages()
+ * against a decent number of pages, less frequently.  To provide nicer use of
+ * the L1 cache.
  */
 static inline struct page *dio_get_page(struct dio *dio,
 					struct dio_submit *sdio)
@@ -217,6 +217,18 @@ static inline struct page *dio_get_page(struct dio *dio,
 		BUG_ON(dio_pages_present(sdio) == 0);
 	}
 	return dio->pages[sdio->head];
+}
+
+static void dio_pin_page(struct dio *dio, struct page *page)
+{
+	if (dio->is_pinned)
+		folio_add_pin(page_folio(page));
+}
+
+static void dio_unpin_page(struct dio *dio, struct page *page)
+{
+	if (dio->is_pinned)
+		unpin_user_page(page);
 }
 
 /*
@@ -402,6 +414,8 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
 		bio->bi_end_io = dio_bio_end_aio;
 	else
 		bio->bi_end_io = dio_bio_end_io;
+	if (dio->is_pinned)
+		bio_set_flag(bio, BIO_PAGE_PINNED);
 	sdio->bio = bio;
 	sdio->logical_offset_in_bio = sdio->cur_page_fs_offset;
 }
@@ -442,8 +456,10 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
  */
 static inline void dio_cleanup(struct dio *dio, struct dio_submit *sdio)
 {
-	while (sdio->head < sdio->tail)
-		put_page(dio->pages[sdio->head++]);
+	if (dio->is_pinned)
+		unpin_user_pages(dio->pages + sdio->head,
+				 sdio->tail - sdio->head);
+	sdio->head = sdio->tail;
 }
 
 /*
@@ -674,7 +690,7 @@ out:
  *
  * Return zero on success.  Non-zero means the caller needs to start a new BIO.
  */
-static inline int dio_bio_add_page(struct dio_submit *sdio)
+static inline int dio_bio_add_page(struct dio *dio, struct dio_submit *sdio)
 {
 	int ret;
 
@@ -686,7 +702,7 @@ static inline int dio_bio_add_page(struct dio_submit *sdio)
 		 */
 		if ((sdio->cur_page_len + sdio->cur_page_offset) == PAGE_SIZE)
 			sdio->pages_in_io--;
-		get_page(sdio->cur_page);
+		dio_pin_page(dio, sdio->cur_page);
 		sdio->final_block_in_bio = sdio->cur_page_block +
 			(sdio->cur_page_len >> sdio->blkbits);
 		ret = 0;
@@ -741,11 +757,11 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
 			goto out;
 	}
 
-	if (dio_bio_add_page(sdio) != 0) {
+	if (dio_bio_add_page(dio, sdio) != 0) {
 		dio_bio_submit(dio, sdio);
 		ret = dio_new_bio(dio, sdio, sdio->cur_page_block, map_bh);
 		if (ret == 0) {
-			ret = dio_bio_add_page(sdio);
+			ret = dio_bio_add_page(dio, sdio);
 			BUG_ON(ret != 0);
 		}
 	}
@@ -802,13 +818,13 @@ submit_page_section(struct dio *dio, struct dio_submit *sdio, struct page *page,
 	 */
 	if (sdio->cur_page) {
 		ret = dio_send_cur_page(dio, sdio, map_bh);
-		put_page(sdio->cur_page);
+		dio_unpin_page(dio, sdio->cur_page);
 		sdio->cur_page = NULL;
 		if (ret)
 			return ret;
 	}
 
-	get_page(page);		/* It is in dio */
+	dio_pin_page(dio, page);		/* It is in dio */
 	sdio->cur_page = page;
 	sdio->cur_page_offset = offset;
 	sdio->cur_page_len = len;
@@ -823,7 +839,7 @@ out:
 		ret = dio_send_cur_page(dio, sdio, map_bh);
 		if (sdio->bio)
 			dio_bio_submit(dio, sdio);
-		put_page(sdio->cur_page);
+		dio_unpin_page(dio, sdio->cur_page);
 		sdio->cur_page = NULL;
 	}
 	return ret;
@@ -924,7 +940,7 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 
 				ret = get_more_blocks(dio, sdio, map_bh);
 				if (ret) {
-					put_page(page);
+					dio_unpin_page(dio, page);
 					goto out;
 				}
 				if (!buffer_mapped(map_bh))
@@ -969,7 +985,7 @@ do_holes:
 
 				/* AKPM: eargh, -ENOTBLK is a hack */
 				if (dio_op == REQ_OP_WRITE) {
-					put_page(page);
+					dio_unpin_page(dio, page);
 					return -ENOTBLK;
 				}
 
@@ -982,7 +998,7 @@ do_holes:
 				if (sdio->block_in_file >=
 						i_size_aligned >> blkbits) {
 					/* We hit eof */
-					put_page(page);
+					dio_unpin_page(dio, page);
 					goto out;
 				}
 				zero_user(page, from, 1 << blkbits);
@@ -1022,7 +1038,7 @@ do_holes:
 						  sdio->next_block_for_io,
 						  map_bh);
 			if (ret) {
-				put_page(page);
+				dio_unpin_page(dio, page);
 				goto out;
 			}
 			sdio->next_block_for_io += this_chunk_blocks;
@@ -1037,8 +1053,8 @@ next_block:
 				break;
 		}
 
-		/* Drop the ref which was taken in get_user_pages() */
-		put_page(page);
+		/* Drop the pin which was taken in get_user_pages() */
+		dio_unpin_page(dio, page);
 	}
 out:
 	return ret;
@@ -1133,6 +1149,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		/* will be released by direct_io_worker */
 		inode_lock(inode);
 	}
+	dio->is_pinned = iov_iter_extract_will_pin(iter);
 
 	/* Once we sampled i_size check for reads beyond EOF */
 	dio->i_size = i_size_read(inode);
@@ -1257,7 +1274,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		ret2 = dio_send_cur_page(dio, &sdio, &map_bh);
 		if (retval == 0)
 			retval = ret2;
-		put_page(sdio.cur_page);
+		dio_unpin_page(dio, sdio.cur_page);
 		sdio.cur_page = NULL;
 	}
 	if (sdio.bio)

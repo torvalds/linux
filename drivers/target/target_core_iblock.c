@@ -90,7 +90,7 @@ static int iblock_configure_device(struct se_device *dev)
 	struct request_queue *q;
 	struct block_device *bd = NULL;
 	struct blk_integrity *bi;
-	fmode_t mode;
+	blk_mode_t mode = BLK_OPEN_READ;
 	unsigned int max_write_zeroes_sectors;
 	int ret;
 
@@ -108,13 +108,12 @@ static int iblock_configure_device(struct se_device *dev)
 	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
 			ib_dev->ibd_udev_path);
 
-	mode = FMODE_READ|FMODE_EXCL;
 	if (!ib_dev->ibd_readonly)
-		mode |= FMODE_WRITE;
+		mode |= BLK_OPEN_WRITE;
 	else
 		dev->dev_flags |= DF_READ_ONLY;
 
-	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
+	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev, NULL);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
 		goto out_free_bioset;
@@ -175,7 +174,7 @@ static int iblock_configure_device(struct se_device *dev)
 	return 0;
 
 out_blkdev_put:
-	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
+	blkdev_put(ib_dev->ibd_bd, ib_dev);
 out_free_bioset:
 	bioset_exit(&ib_dev->ibd_bio_set);
 out:
@@ -201,7 +200,7 @@ static void iblock_destroy_device(struct se_device *dev)
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
 	if (ib_dev->ibd_bd != NULL)
-		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
+		blkdev_put(ib_dev->ibd_bd, ib_dev);
 	bioset_exit(&ib_dev->ibd_bio_set);
 }
 

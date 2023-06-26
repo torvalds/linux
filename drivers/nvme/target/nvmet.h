@@ -109,8 +109,8 @@ struct nvmet_sq {
 	u32			sqhd;
 	bool			sqhd_disabled;
 #ifdef CONFIG_NVME_TARGET_AUTH
-	struct delayed_work	auth_expired_work;
 	bool			authenticated;
+	struct delayed_work	auth_expired_work;
 	u16			dhchap_tid;
 	u16			dhchap_status;
 	int			dhchap_step;

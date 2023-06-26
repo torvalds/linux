@@ -510,13 +510,13 @@ static struct btrfs_fs_devices *find_fsid_with_metadata_uuid(
 
 
 static int
-btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
+btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 		      int flush, struct block_device **bdev,
 		      struct btrfs_super_block **disk_super)
 {
 	int ret;
 
-	*bdev = blkdev_get_by_path(device_path, flags, holder);
+	*bdev = blkdev_get_by_path(device_path, flags, holder, NULL);
 
 	if (IS_ERR(*bdev)) {
 		ret = PTR_ERR(*bdev);
@@ -527,14 +527,14 @@ btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
 		sync_blockdev(*bdev);
 	ret = set_blocksize(*bdev, BTRFS_BDEV_BLOCKSIZE);
 	if (ret) {
-		blkdev_put(*bdev, flags);
+		blkdev_put(*bdev, holder);
 		goto error;
 	}
 	invalidate_bdev(*bdev);
 	*disk_super = btrfs_read_dev_super(*bdev);
 	if (IS_ERR(*disk_super)) {
 		ret = PTR_ERR(*disk_super);
-		blkdev_put(*bdev, flags);
+		blkdev_put(*bdev, holder);
 		goto error;
 	}
 
@@ -610,7 +610,7 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
  * fs_devices->device_list_mutex here.
  */
 static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
-			struct btrfs_device *device, fmode_t flags,
+			struct btrfs_device *device, blk_mode_t flags,
 			void *holder)
 {
 	struct block_device *bdev;
@@ -662,7 +662,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 
 	device->bdev = bdev;
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
-	device->mode = flags;
+	device->holder = holder;
 
 	fs_devices->open_devices++;
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
@@ -676,7 +676,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 
 error_free_page:
 	btrfs_release_disk_super(disk_super);
-	blkdev_put(bdev, flags);
+	blkdev_put(bdev, holder);
 
 	return -EINVAL;
 }
@@ -1067,7 +1067,7 @@ static void __btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices,
 			continue;
 
 		if (device->bdev) {
-			blkdev_put(device->bdev, device->mode);
+			blkdev_put(device->bdev, device->holder);
 			device->bdev = NULL;
 			fs_devices->open_devices--;
 		}
@@ -1113,7 +1113,7 @@ static void btrfs_close_bdev(struct btrfs_device *device)
 		invalidate_bdev(device->bdev);
 	}
 
-	blkdev_put(device->bdev, device->mode);
+	blkdev_put(device->bdev, device->holder);
 }
 
 static void btrfs_close_one_device(struct btrfs_device *device)
@@ -1217,13 +1217,11 @@ void btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 }
 
 static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
-				fmode_t flags, void *holder)
+				blk_mode_t flags, void *holder)
 {
 	struct btrfs_device *device;
 	struct btrfs_device *latest_dev = NULL;
 	struct btrfs_device *tmp_device;
-
-	flags |= FMODE_EXCL;
 
 	list_for_each_entry_safe(device, tmp_device, &fs_devices->devices,
 				 dev_list) {
@@ -1267,7 +1265,7 @@ static int devid_cmp(void *priv, const struct list_head *a,
 }
 
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
-		       fmode_t flags, void *holder)
+		       blk_mode_t flags, void *holder)
 {
 	int ret;
 
@@ -1358,8 +1356,7 @@ int btrfs_forget_devices(dev_t devt)
  * and we are not allowed to call set_blocksize during the scan. The superblock
  * is read via pagecache
  */
-struct btrfs_device *btrfs_scan_one_device(const char *path, fmode_t flags,
-					   void *holder)
+struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags)
 {
 	struct btrfs_super_block *disk_super;
 	bool new_device_added = false;
@@ -1378,16 +1375,16 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, fmode_t flags,
 	 */
 
 	/*
-	 * Avoid using flag |= FMODE_EXCL here, as the systemd-udev may
-	 * initiate the device scan which may race with the user's mount
-	 * or mkfs command, resulting in failure.
-	 * Since the device scan is solely for reading purposes, there is
-	 * no need for FMODE_EXCL. Additionally, the devices are read again
+	 * Avoid an exclusive open here, as the systemd-udev may initiate the
+	 * device scan which may race with the user's mount or mkfs command,
+	 * resulting in failure.
+	 * Since the device scan is solely for reading purposes, there is no
+	 * need for an exclusive open. Additionally, the devices are read again
 	 * during the mount process. It is ok to get some inconsistent
 	 * values temporarily, as the device paths of the fsid are the only
 	 * required information for assembling the volume.
 	 */
-	bdev = blkdev_get_by_path(path, flags, holder);
+	bdev = blkdev_get_by_path(path, flags, NULL, NULL);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 
@@ -1411,7 +1408,7 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, fmode_t flags,
 	btrfs_release_disk_super(disk_super);
 
 error_bdev_put:
-	blkdev_put(bdev, flags);
+	blkdev_put(bdev, NULL);
 
 	return device;
 }
@@ -2098,7 +2095,7 @@ void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
 
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
-		    struct block_device **bdev, fmode_t *mode)
+		    struct block_device **bdev, void **holder)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
@@ -2237,7 +2234,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	}
 
 	*bdev = device->bdev;
-	*mode = device->mode;
+	*holder = device->holder;
 	synchronize_rcu();
 	btrfs_free_device(device);
 
@@ -2391,7 +2388,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 	}
 
-	ret = btrfs_get_bdev_and_sb(path, FMODE_READ, fs_info->bdev_holder, 0,
+	ret = btrfs_get_bdev_and_sb(path, BLK_OPEN_READ, NULL, 0,
 				    &bdev, &disk_super);
 	if (ret) {
 		btrfs_put_dev_args_from_path(args);
@@ -2405,7 +2402,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 	else
 		memcpy(args->fsid, disk_super->fsid, BTRFS_FSID_SIZE);
 	btrfs_release_disk_super(disk_super);
-	blkdev_put(bdev, FMODE_READ);
+	blkdev_put(bdev, NULL);
 	return 0;
 }
 
@@ -2638,8 +2635,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (sb_rdonly(sb) && !fs_devices->seeding)
 		return -EROFS;
 
-	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
-				  fs_info->bdev_holder);
+	bdev = blkdev_get_by_path(device_path, BLK_OPEN_WRITE,
+				  fs_info->bdev_holder, NULL);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
@@ -2701,7 +2698,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	device->commit_total_bytes = device->total_bytes;
 	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	clear_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state);
-	device->mode = FMODE_EXCL;
+	device->holder = fs_info->bdev_holder;
 	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 
@@ -2859,7 +2856,7 @@ error_free_zone:
 error_free_device:
 	btrfs_free_device(device);
 error:
-	blkdev_put(bdev, FMODE_EXCL);
+	blkdev_put(bdev, fs_info->bdev_holder);
 	if (locked) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);
@@ -6898,7 +6895,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(fs_devices))
 		return fs_devices;
 
-	ret = open_fs_devices(fs_devices, FMODE_READ, fs_info->bdev_holder);
+	ret = open_fs_devices(fs_devices, BLK_OPEN_READ, fs_info->bdev_holder);
 	if (ret) {
 		free_fs_devices(fs_devices);
 		return ERR_PTR(ret);
