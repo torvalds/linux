@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/device.h>
 #include <linux/err.h>
@@ -102,6 +102,43 @@ struct usb_repeater *devm_usb_get_repeater_by_phandle(struct device *dev,
 	return r;
 }
 EXPORT_SYMBOL(devm_usb_get_repeater_by_phandle);
+
+struct usb_repeater *usb_get_repeater_by_node(struct device_node *node)
+{
+	struct usb_repeater *r = ERR_PTR(-ENODEV);
+	unsigned long flags;
+
+	spin_lock_irqsave(&repeater_lock, flags);
+	r = of_usb_find_repeater(node);
+	spin_unlock_irqrestore(&repeater_lock, flags);
+
+	return r;
+}
+EXPORT_SYMBOL(usb_get_repeater_by_node);
+
+struct usb_repeater *usb_get_repeater_by_phandle(struct device *dev,
+	const char *phandle, u8 index)
+{
+	struct device_node *node;
+	struct usb_repeater *r;
+
+	if (!dev->of_node) {
+		dev_dbg(dev, "device does not have a device node entry\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	node = of_parse_phandle(dev->of_node, phandle, index);
+	if (!node) {
+		dev_dbg(dev, "failed to get %s phandle in %pOF node\n", phandle,
+			dev->of_node);
+		return ERR_PTR(-ENODEV);
+	}
+
+	r = usb_get_repeater_by_node(node);
+	of_node_put(node);
+	return r;
+}
+EXPORT_SYMBOL(usb_get_repeater_by_phandle);
 
 /**
  * usb_add_repeater_dev - Add repeater device
