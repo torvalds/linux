@@ -242,11 +242,13 @@ struct drm_xe_query_gts {
 	/** @pad: MBZ */
 	__u32 pad;
 
-	/*
+	/**
+	 * @gts: The GTs returned for this device
+	 *
+	 * TODO: convert drm_xe_query_gt to proper kernel-doc.
 	 * TODO: Perhaps info about every mem region relative to this GT? e.g.
 	 * bandwidth between this GT and remote region?
 	 */
-
 	struct drm_xe_query_gt {
 #define XE_QUERY_GT_TYPE_MAIN		0
 #define XE_QUERY_GT_TYPE_REMOTE		1
@@ -852,8 +854,9 @@ struct drm_xe_mmio {
  * struct drm_xe_wait_user_fence - wait user fence
  *
  * Wait on user fence, XE will wakeup on every HW engine interrupt in the
- * instances list and check if user fence is complete:
- * (*addr & MASK) OP (VALUE & MASK)
+ * instances list and check if user fence is complete::
+ *
+ *	(*addr & MASK) OP (VALUE & MASK)
  *
  * Returns to user on user fence completion or timeout.
  */
