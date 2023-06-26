@@ -298,7 +298,7 @@ static int __init bsr_init(void)
 		goto out_err;
 
 	ret = class_register(&bsr_class);
-	if (err)
+	if (ret)
 		goto out_err_1;
 
 	ret = alloc_chrdev_region(&bsr_dev, 0, BSR_MAX_DEVS, "bsr");
