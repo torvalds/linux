@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "RK628 misc driver"
+config RK628_MISC
+	tristate "rk628 misc driver"
+	default n
+	help
+	  Say y here to enable Rockchip rk628 misc driver.
+          This option is used to support rgb/hdmi/bt1120 input and dsi/lvds/gvi/hdmi output.
+
+config RK628_MISC_HDMITX
+	bool "rk628 misc hdmitx driver"
+	default n
+	depends on RK628_MISC
+	depends on DRM
+	help
+	  Say y here to enable Rockchip rk628 misc hdmitx driver.
+	  This option is used to support hdmi output.
+
+config ROCKCHIP_THUNDER_BOOT_RK628
+	bool "Rockchip RK628 Thunder Boot support"
+	default n
+	depends on RK628_MISC
+	help
+	  Say y here to enable Rockchip rk628 thunder boot support.
+	  This option make the kernel boot faster.
+
+endmenu
