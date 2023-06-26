@@ -669,6 +669,7 @@ EXPORT_SYMBOL_GPL(serial8250_em485_supported);
 /**
  * serial8250_em485_config() - generic ->rs485_config() callback
  * @port: uart port
+ * @termios: termios structure
  * @rs485: rs485 settings
  *
  * Generic callback usable by 8250 uart drivers to activate rs485 settings

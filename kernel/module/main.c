@@ -3057,11 +3057,53 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	return load_module(&info, uargs, 0);
 }
 
-SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+static int file_init_module(struct file *file, const char __user * uargs, int flags)
 {
 	struct load_info info = { };
 	void *buf = NULL;
 	int len;
+
+	len = kernel_read_file(file, 0, &buf, INT_MAX, NULL,
+				       READING_MODULE);
+	if (len < 0) {
+		mod_stat_inc(&failed_kreads);
+		mod_stat_add_long(len, &invalid_kread_bytes);
+		return len;
+	}
+
+	if (flags & MODULE_INIT_COMPRESSED_FILE) {
+		int err = module_decompress(&info, buf, len);
+		vfree(buf); /* compressed data is no longer needed */
+		if (err) {
+			mod_stat_inc(&failed_decompress);
+			mod_stat_add_long(len, &invalid_decompress_bytes);
+			return err;
+		}
+	} else {
+		info.hdr = buf;
+		info.len = len;
+	}
+
+	return load_module(&info, uargs, flags);
+}
+
+/*
+ * kernel_read_file() will already deny write access, but module
+ * loading wants _exclusive_ access to the file, so we do that
+ * here, along with basic sanity checks.
+ */
+static int prepare_file_for_module_load(struct file *file)
+{
+	if (!file || !(file->f_mode & FMODE_READ))
+		return -EBADF;
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return -EINVAL;
+	return exclusive_deny_write_access(file);
+}
+
+SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+{
+	struct fd f;
 	int err;
 
 	err = may_init_module();
@@ -3075,28 +3117,14 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 		      |MODULE_INIT_COMPRESSED_FILE))
 		return -EINVAL;
 
-	len = kernel_read_file_from_fd(fd, 0, &buf, INT_MAX, NULL,
-				       READING_MODULE);
-	if (len < 0) {
-		mod_stat_inc(&failed_kreads);
-		mod_stat_add_long(len, &invalid_kread_bytes);
-		return len;
+	f = fdget(fd);
+	err = prepare_file_for_module_load(f.file);
+	if (!err) {
+		err = file_init_module(f.file, uargs, flags);
+		allow_write_access(f.file);
 	}
-
-	if (flags & MODULE_INIT_COMPRESSED_FILE) {
-		err = module_decompress(&info, buf, len);
-		vfree(buf); /* compressed data is no longer needed */
-		if (err) {
-			mod_stat_inc(&failed_decompress);
-			mod_stat_add_long(len, &invalid_decompress_bytes);
-			return err;
-		}
-	} else {
-		info.hdr = buf;
-		info.len = len;
-	}
-
-	return load_module(&info, uargs, flags);
+	fdput(f);
+	return err;
 }
 
 /* Keep in sync with MODULE_FLAGS_BUF_SIZE !!! */

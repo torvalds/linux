@@ -209,6 +209,8 @@ static int gpiochip_find_base(int ngpio)
 			break;
 		/* nope, check the space right after the chip */
 		base = gdev->base + gdev->ngpio;
+		if (base < GPIO_DYNAMIC_BASE)
+			base = GPIO_DYNAMIC_BASE;
 	}
 
 	if (gpio_is_valid(base)) {

@@ -402,6 +402,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		trace_id = coresight_trace_id_get_cpu_id(cpu);
 		if (!IS_VALID_CS_TRACE_ID(trace_id)) {
 			cpumask_clear_cpu(cpu, mask);
+			coresight_release_path(path);
 			continue;
 		}
 

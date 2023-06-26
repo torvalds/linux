@@ -1425,6 +1425,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_size4 = {RTW89_WDE_PG_64, 0, 4096,},
 	/* PCIE 64 */
 	.wde_size6 = {RTW89_WDE_PG_64, 512, 0,},
+	/* 8852B PCIE SCC */
+	.wde_size7 = {RTW89_WDE_PG_64, 510, 2,},
 	/* DLFW */
 	.wde_size9 = {RTW89_WDE_PG_64, 0, 1024,},
 	/* 8852C DLFW */
@@ -1449,6 +1451,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_qt4 = {0, 0, 0, 0,},
 	/* PCIE 64 */
 	.wde_qt6 = {448, 48, 0, 16,},
+	/* 8852B PCIE SCC */
+	.wde_qt7 = {446, 48, 0, 16,},
 	/* 8852C DLFW */
 	.wde_qt17 = {0, 0, 0,  0,},
 	/* 8852C PCIE SCC */

@@ -47,7 +47,7 @@ static void flush_context(void)
 	int cpu;
 	u64 vmid;
 
-	bitmap_clear(vmid_map, 0, NUM_USER_VMIDS);
+	bitmap_zero(vmid_map, NUM_USER_VMIDS);
 
 	for_each_possible_cpu(cpu) {
 		vmid = atomic64_xchg_relaxed(&per_cpu(active_vmids, cpu), 0);
@@ -182,8 +182,7 @@ int __init kvm_arm_vmid_alloc_init(void)
 	 */
 	WARN_ON(NUM_USER_VMIDS - 1 <= num_possible_cpus());
 	atomic64_set(&vmid_generation, VMID_FIRST_VERSION);
-	vmid_map = kcalloc(BITS_TO_LONGS(NUM_USER_VMIDS),
-			   sizeof(*vmid_map), GFP_KERNEL);
+	vmid_map = bitmap_zalloc(NUM_USER_VMIDS, GFP_KERNEL);
 	if (!vmid_map)
 		return -ENOMEM;
 
@@ -192,5 +191,5 @@ int __init kvm_arm_vmid_alloc_init(void)
 
 void __init kvm_arm_vmid_alloc_free(void)
 {
-	kfree(vmid_map);
+	bitmap_free(vmid_map);
 }

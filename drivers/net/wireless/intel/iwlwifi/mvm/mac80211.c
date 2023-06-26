@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -3607,7 +3607,8 @@ static bool iwl_mvm_vif_conf_from_sta(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta)
 {
-	unsigned int i;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
 	/* Beacon interval check - firmware will crash if the beacon
 	 * interval is less than 16. We can't avoid connecting at all,
@@ -3616,14 +3617,11 @@ static bool iwl_mvm_vif_conf_from_sta(struct iwl_mvm *mvm,
 	 * wpa_s will blocklist the AP...
 	 */
 
-	for_each_set_bit(i, (unsigned long *)&sta->valid_links,
-			 IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_link_sta *link_sta =
-			link_sta_dereference_protected(sta, i);
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct ieee80211_bss_conf *link_conf =
-			link_conf_dereference_protected(vif, i);
+			link_conf_dereference_protected(vif, link_id);
 
-		if (!link_conf || !link_sta)
+		if (!link_conf)
 			continue;
 
 		if (link_conf->beacon_int < IWL_MVM_MIN_BEACON_INTERVAL_TU) {
@@ -3645,24 +3643,23 @@ static void iwl_mvm_vif_set_he_support(struct ieee80211_hw *hw,
 				       bool is_sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	unsigned int i;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
-	for_each_set_bit(i, (unsigned long *)&sta->valid_links,
-			 IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_link_sta *link_sta =
-			link_sta_dereference_protected(sta, i);
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct ieee80211_bss_conf *link_conf =
-			link_conf_dereference_protected(vif, i);
+			link_conf_dereference_protected(vif, link_id);
 
-		if (!link_conf || !link_sta || !mvmvif->link[i])
+		if (!link_conf || !mvmvif->link[link_id])
 			continue;
 
 		link_conf->he_support = link_sta->he_cap.has_he;
 
 		if (is_sta) {
-			mvmvif->link[i]->he_ru_2mhz_block = false;
+			mvmvif->link[link_id]->he_ru_2mhz_block = false;
 			if (link_sta->he_cap.has_he)
-				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif, i,
+				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif,
+								   link_id,
 								   link_conf);
 		}
 	}
@@ -3675,6 +3672,7 @@ iwl_mvm_sta_state_notexist_to_none(struct iwl_mvm *mvm,
 				   struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct ieee80211_link_sta *link_sta;
 	unsigned int i;
 	int ret;
 
@@ -3699,15 +3697,9 @@ iwl_mvm_sta_state_notexist_to_none(struct iwl_mvm *mvm,
 					   NL80211_TDLS_SETUP);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sta->link); i++) {
-		struct ieee80211_link_sta *link_sta;
-
-		link_sta = link_sta_dereference_protected(sta, i);
-		if (!link_sta)
-			continue;
-
+	for_each_sta_active_link(vif, sta, link_sta, i)
 		link_sta->agg.max_rc_amsdu_len = 1;
-	}
+
 	ieee80211_sta_recalc_aggregates(sta);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
@@ -3725,7 +3717,8 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	unsigned int i;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -3751,14 +3744,13 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 		if (!mvm->mld_api_is_used)
 			goto out;
 
-		for_each_set_bit(i, (unsigned long *)&sta->valid_links,
-				 IEEE80211_MLD_MAX_NUM_LINKS) {
+		for_each_sta_active_link(vif, sta, link_sta, link_id) {
 			struct ieee80211_bss_conf *link_conf =
-				link_conf_dereference_protected(vif, i);
+				link_conf_dereference_protected(vif, link_id);
 
 			if (WARN_ON(!link_conf))
 				return -EINVAL;
-			if (!mvmvif->link[i])
+			if (!mvmvif->link[link_id])
 				continue;
 
 			iwl_mvm_link_changed(mvm, vif, link_conf,
@@ -3889,6 +3881,9 @@ int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 		 * from the AP now.
 		 */
 		iwl_mvm_reset_cca_40mhz_workaround(mvm, vif);
+
+		/* Also free dup data just in case any assertions below fail */
+		kfree(mvm_sta->dup_data);
 	}
 
 	mutex_lock(&mvm->mutex);
