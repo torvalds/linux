@@ -128,9 +128,7 @@ int crypto_sig_verify(struct crypto_sig *tfm,
 	if (err)
 		return err;
 
-	sg_init_table(data.sg, 2);
-	sg_set_buf(&data.sg[0], src, slen);
-	sg_set_buf(&data.sg[1], digest, dlen);
+	memcpy(data.buf + slen, digest, dlen);
 
 	return crypto_akcipher_sync_post(&data,
 					 crypto_akcipher_verify(data.req));

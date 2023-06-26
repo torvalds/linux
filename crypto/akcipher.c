@@ -192,11 +192,16 @@ EXPORT_SYMBOL_GPL(akcipher_register_instance);
 int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 {
 	unsigned int reqsize = crypto_akcipher_reqsize(data->tfm);
-	unsigned int mlen = max(data->slen, data->dlen);
 	struct akcipher_request *req;
 	struct scatterlist *sg;
+	unsigned int mlen;
 	unsigned int len;
 	u8 *buf;
+
+	if (data->dst)
+		mlen = max(data->slen, data->dlen);
+	else
+		mlen = data->slen + data->dlen;
 
 	len = sizeof(*req) + reqsize + mlen;
 	if (len < mlen)
@@ -213,9 +218,10 @@ int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 	data->buf = buf;
 	memcpy(buf, data->src, data->slen);
 
-	sg = data->sg;
+	sg = &data->sg;
 	sg_init_one(sg, buf, mlen);
-	akcipher_request_set_crypt(req, sg, sg, data->slen, data->dlen);
+	akcipher_request_set_crypt(req, sg, data->dst ? sg : NULL,
+				   data->slen, data->dlen);
 
 	crypto_init_wait(&data->cwait);
 	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP,

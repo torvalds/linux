@@ -44,7 +44,7 @@ struct crypto_akcipher_sync_data {
 
 	struct akcipher_request *req;
 	struct crypto_wait cwait;
-	struct scatterlist sg[2];
+	struct scatterlist sg;
 	u8 *buf;
 };
 
