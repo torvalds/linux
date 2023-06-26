@@ -223,32 +223,35 @@ struct irq_data {
  *				  irq_chip::irq_set_affinity() when deactivated.
  * IRQD_IRQ_ENABLED_ON_SUSPEND	- Interrupt is enabled on suspend by irq pm if
  *				  irqchip have flag IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND set.
+ * IRQD_RESEND_WHEN_IN_PROGRESS	- Interrupt may fire when already in progress in which
+ *				  case it must be resent at the next available opportunity.
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
-	IRQD_SETAFFINITY_PENDING	= (1 <<  8),
-	IRQD_ACTIVATED			= (1 <<  9),
-	IRQD_NO_BALANCING		= (1 << 10),
-	IRQD_PER_CPU			= (1 << 11),
-	IRQD_AFFINITY_SET		= (1 << 12),
-	IRQD_LEVEL			= (1 << 13),
-	IRQD_WAKEUP_STATE		= (1 << 14),
-	IRQD_MOVE_PCNTXT		= (1 << 15),
-	IRQD_IRQ_DISABLED		= (1 << 16),
-	IRQD_IRQ_MASKED			= (1 << 17),
-	IRQD_IRQ_INPROGRESS		= (1 << 18),
-	IRQD_WAKEUP_ARMED		= (1 << 19),
-	IRQD_FORWARDED_TO_VCPU		= (1 << 20),
-	IRQD_AFFINITY_MANAGED		= (1 << 21),
-	IRQD_IRQ_STARTED		= (1 << 22),
-	IRQD_MANAGED_SHUTDOWN		= (1 << 23),
-	IRQD_SINGLE_TARGET		= (1 << 24),
-	IRQD_DEFAULT_TRIGGER_SET	= (1 << 25),
-	IRQD_CAN_RESERVE		= (1 << 26),
-	IRQD_MSI_NOMASK_QUIRK		= (1 << 27),
-	IRQD_HANDLE_ENFORCE_IRQCTX	= (1 << 28),
-	IRQD_AFFINITY_ON_ACTIVATE	= (1 << 29),
-	IRQD_IRQ_ENABLED_ON_SUSPEND	= (1 << 30),
+	IRQD_SETAFFINITY_PENDING	= BIT(8),
+	IRQD_ACTIVATED			= BIT(9),
+	IRQD_NO_BALANCING		= BIT(10),
+	IRQD_PER_CPU			= BIT(11),
+	IRQD_AFFINITY_SET		= BIT(12),
+	IRQD_LEVEL			= BIT(13),
+	IRQD_WAKEUP_STATE		= BIT(14),
+	IRQD_MOVE_PCNTXT		= BIT(15),
+	IRQD_IRQ_DISABLED		= BIT(16),
+	IRQD_IRQ_MASKED			= BIT(17),
+	IRQD_IRQ_INPROGRESS		= BIT(18),
+	IRQD_WAKEUP_ARMED		= BIT(19),
+	IRQD_FORWARDED_TO_VCPU		= BIT(20),
+	IRQD_AFFINITY_MANAGED		= BIT(21),
+	IRQD_IRQ_STARTED		= BIT(22),
+	IRQD_MANAGED_SHUTDOWN		= BIT(23),
+	IRQD_SINGLE_TARGET		= BIT(24),
+	IRQD_DEFAULT_TRIGGER_SET	= BIT(25),
+	IRQD_CAN_RESERVE		= BIT(26),
+	IRQD_MSI_NOMASK_QUIRK		= BIT(27),
+	IRQD_HANDLE_ENFORCE_IRQCTX	= BIT(28),
+	IRQD_AFFINITY_ON_ACTIVATE	= BIT(29),
+	IRQD_IRQ_ENABLED_ON_SUSPEND	= BIT(30),
+	IRQD_RESEND_WHEN_IN_PROGRESS    = BIT(31),
 };
 
 #define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
@@ -446,6 +449,16 @@ static inline void irqd_set_affinity_on_activate(struct irq_data *d)
 static inline bool irqd_affinity_on_activate(struct irq_data *d)
 {
 	return __irqd_to_state(d) & IRQD_AFFINITY_ON_ACTIVATE;
+}
+
+static inline void irqd_set_resend_when_in_progress(struct irq_data *d)
+{
+	__irqd_to_state(d) |= IRQD_RESEND_WHEN_IN_PROGRESS;
+}
+
+static inline bool irqd_needs_resend_when_in_progress(struct irq_data *d)
+{
+	return __irqd_to_state(d) & IRQD_RESEND_WHEN_IN_PROGRESS;
 }
 
 #undef __irqd_to_state

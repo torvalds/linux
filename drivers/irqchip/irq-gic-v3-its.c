@@ -3585,6 +3585,7 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		irqd = irq_get_irq_data(virq + i);
 		irqd_set_single_target(irqd);
 		irqd_set_affinity_on_activate(irqd);
+		irqd_set_resend_when_in_progress(irqd);
 		pr_debug("ID:%d pID:%d vID:%d\n",
 			 (int)(hwirq + i - its_dev->event_map.lpi_base),
 			 (int)(hwirq + i), virq + i);
@@ -4523,6 +4524,7 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 		irq_domain_set_hwirq_and_chip(domain, virq + i, i,
 					      irqchip, vm->vpes[i]);
 		set_bit(i, bitmap);
+		irqd_set_resend_when_in_progress(irq_get_irq_data(virq + i));
 	}
 
 	if (err) {
