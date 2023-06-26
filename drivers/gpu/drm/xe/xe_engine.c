@@ -522,7 +522,7 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 	struct xe_engine *e = NULL;
 	u32 logical_mask;
 	u32 id;
-	int len;
+	u32 len;
 	int err;
 
 	if (XE_IOCTL_ERR(xe, args->flags) ||
