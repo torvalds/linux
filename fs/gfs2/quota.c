@@ -213,12 +213,7 @@ static u64 qd2index(struct gfs2_quota_data *qd)
 
 static u64 qd2offset(struct gfs2_quota_data *qd)
 {
-	u64 offset;
-
-	offset = qd2index(qd);
-	offset *= sizeof(struct gfs2_quota);
-
-	return offset;
+	return qd2index(qd) * sizeof(struct gfs2_quota);
 }
 
 static struct gfs2_quota_data *qd_alloc(unsigned hash, struct gfs2_sbd *sdp, struct kqid qid)
