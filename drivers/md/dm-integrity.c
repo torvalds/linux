@@ -2658,19 +2658,25 @@ static void integrity_recalc(struct work_struct *w)
 	unsigned int i;
 	int r;
 	unsigned int super_counter = 0;
+	unsigned recalc_sectors = RECALC_SECTORS;
 
-	recalc_buffer = __vmalloc(RECALC_SECTORS << SECTOR_SHIFT, GFP_NOIO);
+retry:
+	recalc_buffer = __vmalloc(recalc_sectors << SECTOR_SHIFT, GFP_NOIO);
 	if (!recalc_buffer) {
+oom:
+		recalc_sectors >>= 1;
+		if (recalc_sectors >= 1U << ic->sb->log2_sectors_per_block)
+			goto retry;
 		DMCRIT("out of memory for recalculate buffer - recalculation disabled");
 		goto free_ret;
 	}
-	recalc_tags_size = (RECALC_SECTORS >> ic->sb->log2_sectors_per_block) * ic->tag_size;
+	recalc_tags_size = (recalc_sectors >> ic->sb->log2_sectors_per_block) * ic->tag_size;
 	if (crypto_shash_digestsize(ic->internal_hash) > ic->tag_size)
 		recalc_tags_size += crypto_shash_digestsize(ic->internal_hash) - ic->tag_size;
 	recalc_tags = kvmalloc(recalc_tags_size, GFP_NOIO);
 	if (!recalc_tags) {
-		DMCRIT("out of memory for recalculate buffer - recalculation disabled");
-		goto free_ret;
+		vfree(recalc_buffer);
+		goto oom;
 	}
 
 	DEBUG_print("start recalculation... (position %llx)\n", le64_to_cpu(ic->sb->recalc_sector));
@@ -2693,7 +2699,7 @@ next_chunk:
 	}
 
 	get_area_and_offset(ic, range.logical_sector, &area, &offset);
-	range.n_sectors = min((sector_t)RECALC_SECTORS, ic->provided_data_sectors - range.logical_sector);
+	range.n_sectors = min((sector_t)recalc_sectors, ic->provided_data_sectors - range.logical_sector);
 	if (!ic->meta_dev)
 		range.n_sectors = min(range.n_sectors, ((sector_t)1U << ic->sb->log2_interleave_sectors) - (unsigned int)offset);
 
