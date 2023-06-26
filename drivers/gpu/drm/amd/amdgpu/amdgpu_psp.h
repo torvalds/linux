@@ -525,6 +525,4 @@ int psp_spatial_partition(struct psp_context *psp, int mode);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
 
-int amdgpu_psp_sysfs_init(struct amdgpu_device *adev);
-void amdgpu_psp_sysfs_fini(struct amdgpu_device *adev);
 #endif
