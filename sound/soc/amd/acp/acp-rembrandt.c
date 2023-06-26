@@ -24,26 +24,6 @@
 
 #define DRV_NAME "acp_asoc_rembrandt"
 
-#define ACP6X_PGFSM_CONTROL			0x1024
-#define ACP6X_PGFSM_STATUS			0x1028
-
-#define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
-
-#define ACP_PGFSM_CNTL_POWER_ON_MASK		0x01
-#define ACP_PGFSM_CNTL_POWER_OFF_MASK		0x00
-#define ACP_PGFSM_STATUS_MASK			0x03
-#define ACP_POWERED_ON				0x00
-#define ACP_POWER_ON_IN_PROGRESS		0x01
-#define ACP_POWERED_OFF				0x02
-#define ACP_POWER_OFF_IN_PROGRESS		0x03
-
-#define ACP_ERROR_MASK				0x20000000
-#define ACP_EXT_INTR_STAT_CLEAR_MASK		0xFFFFFFFF
-
-
-static int rmb_acp_init(void __iomem *base);
-static int rmb_acp_deinit(void __iomem *base);
-
 static struct acp_resource rsrc = {
 	.offset = 0,
 	.no_of_ctrls = 2,
@@ -180,54 +160,6 @@ static struct snd_soc_dai_driver acp_rmb_dai[] = {
 },
 };
 
-static int acp6x_power_on(void __iomem *base)
-{
-	u32 val;
-	int timeout;
-
-	val = readl(base + ACP6X_PGFSM_STATUS);
-
-	if (val == ACP_POWERED_ON)
-		return 0;
-
-	if ((val & ACP_PGFSM_STATUS_MASK) !=
-				ACP_POWER_ON_IN_PROGRESS)
-		writel(ACP_PGFSM_CNTL_POWER_ON_MASK,
-		       base + ACP6X_PGFSM_CONTROL);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP6X_PGFSM_STATUS);
-		if (!val)
-			return 0;
-		udelay(1);
-	}
-	return -ETIMEDOUT;
-}
-
-static int acp6x_reset(void __iomem *base)
-{
-	u32 val;
-	int timeout;
-
-	writel(1, base + ACP_SOFT_RESET);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP_SOFT_RESET);
-		if (val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK)
-			break;
-		cpu_relax();
-	}
-	writel(0, base + ACP_SOFT_RESET);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP_SOFT_RESET);
-		if (!val)
-			return 0;
-		cpu_relax();
-	}
-	return -ETIMEDOUT;
-}
-
 static void acp6x_enable_interrupts(struct acp_dev_data *adata)
 {
 	struct acp_resource *rsrc = adata->rsrc;
@@ -248,43 +180,6 @@ static void acp6x_disable_interrupts(struct acp_dev_data *adata)
 	writel(0x00, ACP_EXTERNAL_INTR_ENB(adata));
 }
 
-static int rmb_acp_init(void __iomem *base)
-{
-	int ret;
-
-	/* power on */
-	ret = acp6x_power_on(base);
-	if (ret) {
-		pr_err("ACP power on failed\n");
-		return ret;
-	}
-	writel(0x01, base + ACP_CONTROL);
-
-	/* Reset */
-	ret = acp6x_reset(base);
-	if (ret) {
-		pr_err("ACP reset failed\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int rmb_acp_deinit(void __iomem *base)
-{
-	int ret = 0;
-
-	/* Reset */
-	ret = acp6x_reset(base);
-	if (ret) {
-		pr_err("ACP reset failed\n");
-		return ret;
-	}
-
-	writel(0x00, base + ACP_CONTROL);
-	return 0;
-}
-
 static int rembrandt_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -302,8 +197,6 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
-
-	rmb_acp_init(chip->base);
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
@@ -345,9 +238,6 @@ static void rembrandt_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_chip_info *chip = dev_get_platdata(dev);
-
-	rmb_acp_deinit(chip->base);
 
 	acp6x_disable_interrupts(adata);
 	acp_platform_unregister(dev);

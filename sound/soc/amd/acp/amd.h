@@ -92,6 +92,25 @@
 #define SLOT_WIDTH_24	0x18
 #define SLOT_WIDTH_32	0x20
 
+#define ACP6X_PGFSM_CONTROL                     0x1024
+#define ACP6X_PGFSM_STATUS                      0x1028
+
+#define ACP_SOFT_RST_DONE_MASK	0x00010001
+
+#define ACP_PGFSM_CNTL_POWER_ON_MASK            0x01
+#define ACP_PGFSM_CNTL_POWER_OFF_MASK           0x00
+#define ACP_PGFSM_STATUS_MASK                   0x03
+#define ACP_POWERED_ON                          0x00
+#define ACP_POWER_ON_IN_PROGRESS                0x01
+#define ACP_POWERED_OFF                         0x02
+#define ACP_POWER_OFF_IN_PROGRESS               0x03
+
+#define ACP_ERROR_MASK                          0x20000000
+#define ACP_EXT_INTR_STAT_CLEAR_MASK            0xffffffff
+
+#define ACP_TIMEOUT		500
+#define DELAY_US		5
+
 struct acp_chip_info {
 	char *name;		/* Platform name */
 	unsigned int acp_rev;	/* ACP Revision id */
@@ -168,6 +187,8 @@ int acp_platform_unregister(struct device *dev);
 
 int acp_machine_select(struct acp_dev_data *adata);
 
+int acp_init(struct acp_chip_info *chip);
+int acp_deinit(void __iomem *base);
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);
 

@@ -18,6 +18,9 @@ if SND_SOC_AMD_ACP_COMMON
 config SND_SOC_AMD_ACP_PDM
 	tristate
 
+config SND_SOC_AMD_ACP_LEGACY_COMMON
+	tristate
+
 config SND_SOC_AMD_ACP_I2S
 	tristate
 
@@ -28,6 +31,7 @@ config SND_SOC_AMD_ACP_PCM
 config SND_SOC_AMD_ACP_PCI
 	tristate "AMD ACP PCI Driver Support"
 	depends on X86 && PCI
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	help
 	  This options enables generic PCI driver for ACP device.
 
