@@ -182,7 +182,7 @@ static struct i2c_driver raa215300_i2c_driver = {
 		.name = "raa215300",
 		.of_match_table = raa215300_dt_match,
 	},
-	.probe_new = raa215300_i2c_probe,
+	.probe = raa215300_i2c_probe,
 };
 module_i2c_driver(raa215300_i2c_driver);
 
