@@ -290,7 +290,7 @@ PCI_IRQ_MSI or PCI_IRQ_MSIX flags.
 List of device drivers MSI(-X) APIs
 ===================================
 
-The PCI/MSI subystem has a dedicated C file for its exported device driver
+The PCI/MSI subsystem has a dedicated C file for its exported device driver
 APIs — `drivers/pci/msi/api.c`. The following functions are exported:
 
 .. kernel-doc:: drivers/pci/msi/api.c
