@@ -4414,6 +4414,8 @@ smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
+	trace_smb3_ses_not_found(ses_id);
+
 	return -EAGAIN;
 }
 /*

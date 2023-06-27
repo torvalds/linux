@@ -92,6 +92,7 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 		if (ses->Suid == ses_id)
 			goto found;
 	}
+	trace_smb3_ses_not_found(ses_id);
 	cifs_server_dbg(FYI, "%s: Could not find session 0x%llx\n",
 			__func__, ses_id);
 	rc = -ENOENT;
