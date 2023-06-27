@@ -843,6 +843,18 @@ void ufs_qcom_phy_ctrl_rx_linecfg(struct phy *generic_phy, bool ctrl)
 }
 EXPORT_SYMBOL(ufs_qcom_phy_ctrl_rx_linecfg);
 
+int ufs_qcom_phy_get_tx_hs_equalizer(struct phy *generic_phy, u32 gear, u32 *val)
+{
+	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
+
+	if (!ufs_qcom_phy->phy_spec_ops->get_tx_hs_equalizer)
+		return -EOPNOTSUPP;
+
+	*val = ufs_qcom_phy->phy_spec_ops->get_tx_hs_equalizer(ufs_qcom_phy, gear);
+	return 0;
+}
+EXPORT_SYMBOL(ufs_qcom_phy_get_tx_hs_equalizer);
+
 int ufs_qcom_phy_dump_regs(struct ufs_qcom_phy *phy, int offset,
 		int len, char *prefix)
 {

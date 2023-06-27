@@ -178,6 +178,19 @@ void ufs_qcom_phy_qmp_v4_power_control(struct ufs_qcom_phy *phy,
 	}
 }
 
+/* Refer to MPHY Spec Table-40 */
+#define  DEEMPHASIS_3_5_dB	0x04
+#define  NO_DEEMPHASIS		0x0
+
+static inline
+u32 ufs_qcom_phy_qmp_v4_get_tx_hs_equalizer(struct ufs_qcom_phy *phy, u32 gear)
+{
+	if (gear == 5)
+		return DEEMPHASIS_3_5_dB;
+	/* Gear 1-4 setting */
+	return NO_DEEMPHASIS;
+}
+
 static inline
 void ufs_qcom_phy_qmp_v4_set_tx_lane_enable(struct ufs_qcom_phy *phy, u32 val)
 {
@@ -286,6 +299,7 @@ static struct ufs_qcom_phy_specific_ops phy_v4_ops = {
 	.set_tx_lane_enable	= ufs_qcom_phy_qmp_v4_set_tx_lane_enable,
 	.ctrl_rx_linecfg	= ufs_qcom_phy_qmp_v4_ctrl_rx_linecfg,
 	.power_control		= ufs_qcom_phy_qmp_v4_power_control,
+	.get_tx_hs_equalizer    = ufs_qcom_phy_qmp_v4_get_tx_hs_equalizer,
 	.dbg_register_dump	= ufs_qcom_phy_qmp_v4_dbg_register_dump,
 	.dbg_register_save	= ufs_qcom_phy_qmp_v4_dbg_register_save,
 };
