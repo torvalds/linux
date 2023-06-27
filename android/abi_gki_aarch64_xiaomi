@@ -272,3 +272,8 @@
 #required by debug_ext.ko
   of_find_all_nodes
 
+# required by mi_mem_center.ko
+  __traceiter_android_vh_rmqueue_smallest_bypass
+  __tracepoint_android_vh_rmqueue_smallest_bypass
+  __traceiter_android_vh_free_one_page_bypass
+  __tracepoint_android_vh_free_one_page_bypass
