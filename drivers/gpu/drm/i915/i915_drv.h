@@ -203,7 +203,7 @@ struct drm_i915_private {
 	/* i915 device parameters */
 	struct i915_params params;
 
-	const struct intel_device_info __info; /* Use INTEL_INFO() to access. */
+	const struct intel_device_info *__info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
 
@@ -415,7 +415,7 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 	     (engine__) && (engine__)->uabi_class == (class__); \
 	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
-#define INTEL_INFO(i915)	(&(i915)->__info)
+#define INTEL_INFO(i915)	((i915)->__info)
 #define RUNTIME_INFO(i915)	(&(i915)->__runtime)
 #define DISPLAY_INFO(i915)	((i915)->display.info.__device_info)
 #define DISPLAY_RUNTIME_INFO(i915)	(&(i915)->display.info.__runtime_info)

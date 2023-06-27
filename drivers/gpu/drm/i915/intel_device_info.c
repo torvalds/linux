@@ -364,13 +364,6 @@ void intel_device_info_runtime_init_early(struct drm_i915_private *i915)
 	intel_device_info_subplatform_init(i915);
 }
 
-/* FIXME: Remove this, and make device info a const pointer to rodata. */
-static struct intel_device_info *
-mkwrite_device_info(struct drm_i915_private *i915)
-{
-	return (struct intel_device_info *)INTEL_INFO(i915);
-}
-
 static const struct intel_display_device_info no_display = {};
 
 /**
@@ -430,26 +423,24 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 				     u16 device_id,
 				     const struct intel_device_info *match_info)
 {
-	struct intel_device_info *info;
 	struct intel_runtime_info *runtime;
 	u16 ver, rel, step;
 
-	/* Setup the write-once "constant" device info */
-	info = mkwrite_device_info(i915);
-	memcpy(info, match_info, sizeof(*info));
+	/* Setup INTEL_INFO() */
+	i915->__info = match_info;
 
 	/* Initialize initial runtime info from static const data and pdev. */
 	runtime = RUNTIME_INFO(i915);
 	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
 
 	/* Probe display support */
-	i915->display.info.__device_info = intel_display_device_probe(i915, info->has_gmd_id,
+	i915->display.info.__device_info = intel_display_device_probe(i915, HAS_GMD_ID(i915),
 								      &ver, &rel, &step);
 	memcpy(DISPLAY_RUNTIME_INFO(i915),
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
 
-	if (info->has_gmd_id) {
+	if (HAS_GMD_ID(i915)) {
 		DISPLAY_RUNTIME_INFO(i915)->ip.ver = ver;
 		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
 		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
