@@ -138,4 +138,7 @@ int xen_test_irq_shared(int irq);
 
 /* initialize Xen IRQ subsystem */
 void xen_init_IRQ(void);
+
+irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
+
 #endif	/* _XEN_EVENTS_H */
