@@ -376,6 +376,11 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   atomic_read(&dev->stream[1].buf_cnt),
 			   atomic_read(&dev->stream[2].buf_cnt),
 			   atomic_read(&dev->stream[3].buf_cnt));
+		seq_printf(f, "total buf_cnt: %d %d %d %d\n",
+			   dev->stream[0].total_buf_num,
+			   dev->stream[1].total_buf_num,
+			   dev->stream[2].total_buf_num,
+			   dev->stream[3].total_buf_num);
 	}
 }
 

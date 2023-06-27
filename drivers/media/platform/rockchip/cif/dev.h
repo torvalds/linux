@@ -193,6 +193,7 @@ struct rkcif_buffer {
 
 struct rkcif_tools_buffer {
 	struct vb2_v4l2_buffer *vb;
+	struct rkisp_rx_buf *dbufs;
 	struct list_head list;
 	u32 frame_idx;
 	u64 timestamp;
@@ -526,7 +527,7 @@ struct rkcif_stream {
 	unsigned int			cur_stream_mode;
 	struct rkcif_rx_buffer		rx_buf[RKISP_VICAP_BUF_CNT_MAX];
 	struct list_head		rx_buf_head;
-	int				buf_num_toisp;
+	int				total_buf_num;
 	u64				line_int_cnt;
 	int				lack_buf_cnt;
 	unsigned int			buf_wake_up_cnt;

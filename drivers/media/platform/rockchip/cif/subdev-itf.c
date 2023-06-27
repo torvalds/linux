@@ -781,8 +781,8 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	rx_buf = to_cif_rx_buf(dbufs);
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
-	stream->buf_num_toisp++;
 	stream->last_rx_buf_idx = dbufs->sequence + 1;
+	atomic_inc(&stream->buf_cnt);
 
 	if (!list_empty(&stream->rx_buf_head) &&
 	    cif_dev->is_thunderboot &&
@@ -791,6 +791,8 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		spin_lock_irqsave(&cif_dev->buffree_lock, buffree_flags);
 		list_add_tail(&rx_buf->list_free, &priv->buf_free_list);
 		spin_unlock_irqrestore(&cif_dev->buffree_lock, buffree_flags);
+		atomic_dec(&stream->buf_cnt);
+		stream->total_buf_num--;
 		schedule_work(&priv->buffree_work.work);
 		is_free = true;
 	}
