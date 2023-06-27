@@ -23,12 +23,49 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/types.h>
 
-#include <media/ov_16bit_addr_reg_helpers.h>
 #include <media/v4l2-device.h>
 
 #include "ov2680.h"
+
+#define OV2680_CHIP_ID				0x2680
+
+#define OV2680_REG_STREAM_CTRL			CCI_REG8(0x0100)
+#define OV2680_REG_SOFT_RESET			CCI_REG8(0x0103)
+
+#define OV2680_REG_CHIP_ID			CCI_REG16(0x300a)
+#define OV2680_REG_SC_CMMN_SUB_ID		CCI_REG8(0x302a)
+
+#define OV2680_REG_EXPOSURE_PK			CCI_REG24(0x3500)
+#define OV2680_REG_R_MANUAL			CCI_REG8(0x3503)
+#define OV2680_REG_GAIN_PK			CCI_REG16(0x350a)
+
+#define OV2680_REG_SENSOR_CTRL_0A		CCI_REG8(0x370a)
+
+#define OV2680_REG_HORIZONTAL_START		CCI_REG16(0x3800)
+#define OV2680_REG_VERTICAL_START		CCI_REG16(0x3802)
+#define OV2680_REG_HORIZONTAL_END		CCI_REG16(0x3804)
+#define OV2680_REG_VERTICAL_END			CCI_REG16(0x3806)
+#define OV2680_REG_HORIZONTAL_OUTPUT_SIZE	CCI_REG16(0x3808)
+#define OV2680_REG_VERTICAL_OUTPUT_SIZE		CCI_REG16(0x380a)
+#define OV2680_REG_TIMING_HTS			CCI_REG16(0x380c)
+#define OV2680_REG_TIMING_VTS			CCI_REG16(0x380e)
+#define OV2680_REG_ISP_X_WIN			CCI_REG16(0x3810)
+#define OV2680_REG_ISP_Y_WIN			CCI_REG16(0x3812)
+#define OV2680_REG_X_INC			CCI_REG8(0x3814)
+#define OV2680_REG_Y_INC			CCI_REG8(0x3815)
+#define OV2680_REG_FORMAT1			CCI_REG8(0x3820)
+#define OV2680_REG_FORMAT2			CCI_REG8(0x3821)
+
+#define OV2680_REG_ISP_CTRL00			CCI_REG8(0x5080)
+
+#define OV2680_REG_X_WIN			CCI_REG16(0x5704)
+#define OV2680_REG_Y_WIN			CCI_REG16(0x5706)
+
+#define OV2680_FRAME_RATE			30
+#define OV2680_INTEGRATION_TIME_MARGIN		8
 
 static const struct v4l2_rect ov2680_default_crop = {
 	.left = OV2680_ACTIVE_START_LEFT,
@@ -36,21 +73,6 @@ static const struct v4l2_rect ov2680_default_crop = {
 	.width = OV2680_ACTIVE_WIDTH,
 	.height = OV2680_ACTIVE_HEIGHT,
 };
-
-static int ov2680_write_reg_array(struct i2c_client *client,
-				  const struct ov2680_reg *reglist)
-{
-	const struct ov2680_reg *next = reglist;
-	int ret;
-
-	for (; next->reg != 0; next++) {
-		ret = ov_write_reg8(client, next->reg, next->val);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
 
 static void ov2680_set_bayer_order(struct ov2680_dev *sensor, struct v4l2_mbus_framefmt *fmt)
 {
@@ -78,7 +100,8 @@ static int ov2680_set_vflip(struct ov2680_dev *sensor, s32 val)
 	if (sensor->is_streaming)
 		return -EBUSY;
 
-	ret = ov_update_reg(sensor->client, OV2680_REG_FORMAT1, BIT(2), val ? BIT(2) : 0);
+	ret = cci_update_bits(sensor->regmap, OV2680_REG_FORMAT1, BIT(2),
+			      val ? BIT(2) : 0, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -93,7 +116,8 @@ static int ov2680_set_hflip(struct ov2680_dev *sensor, s32 val)
 	if (sensor->is_streaming)
 		return -EBUSY;
 
-	ret = ov_update_reg(sensor->client, OV2680_REG_FORMAT2, BIT(2), val ? BIT(2) : 0);
+	ret = cci_update_bits(sensor->regmap, OV2680_REG_FORMAT2, BIT(2),
+			      val ? BIT(2) : 0, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -103,30 +127,29 @@ static int ov2680_set_hflip(struct ov2680_dev *sensor, s32 val)
 
 static int ov2680_exposure_set(struct ov2680_dev *sensor, u32 exp)
 {
-	return ov_write_reg24(sensor->client, OV2680_REG_EXPOSURE_PK_HIGH, exp << 4);
+	return cci_write(sensor->regmap, OV2680_REG_EXPOSURE_PK, exp << 4,
+			 NULL);
 }
 
 static int ov2680_gain_set(struct ov2680_dev *sensor, u32 gain)
 {
-	return ov_write_reg16(sensor->client, OV2680_REG_GAIN_PK, gain);
+	return cci_write(sensor->regmap, OV2680_REG_GAIN_PK, gain, NULL);
 }
 
 static int ov2680_test_pattern_set(struct ov2680_dev *sensor, int value)
 {
-	int ret;
+	int ret = 0;
 
 	if (!value)
-		return ov_update_reg(sensor->client, OV2680_REG_ISP_CTRL00, BIT(7), 0);
+		return cci_update_bits(sensor->regmap, OV2680_REG_ISP_CTRL00,
+				       BIT(7), 0, NULL);
 
-	ret = ov_update_reg(sensor->client, OV2680_REG_ISP_CTRL00, 0x03, value - 1);
-	if (ret < 0)
-		return ret;
+	cci_update_bits(sensor->regmap, OV2680_REG_ISP_CTRL00, 0x03, value - 1,
+			&ret);
+	cci_update_bits(sensor->regmap, OV2680_REG_ISP_CTRL00, BIT(7), BIT(7),
+			&ret);
 
-	ret = ov_update_reg(sensor->client, OV2680_REG_ISP_CTRL00, BIT(7), BIT(7));
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -171,17 +194,18 @@ static const struct v4l2_ctrl_ops ov2680_ctrl_ops = {
 
 static int ov2680_init_registers(struct v4l2_subdev *sd)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	int ret;
 
-	ret = ov_write_reg8(client, OV2680_SW_RESET, 0x01);
+	ret = cci_write(sensor->regmap, OV2680_REG_SOFT_RESET, 0x01, NULL);
+	if (ret < 0)
+		return ret;
 
 	/* Wait for sensor reset */
 	usleep_range(1000, 2000);
 
-	ret |= ov2680_write_reg_array(client, ov2680_global_setting);
-
-	return ret;
+	return regmap_multi_reg_write(sensor->regmap, ov2680_global_setting,
+				      ARRAY_SIZE(ov2680_global_setting));
 }
 
 static struct v4l2_mbus_framefmt *
@@ -247,9 +271,8 @@ static void ov2680_calc_mode(struct ov2680_dev *sensor)
 
 static int ov2680_set_mode(struct ov2680_dev *sensor)
 {
-	struct i2c_client *client = sensor->client;
 	u8 sensor_ctrl_0a, inc, fmt1, fmt2;
-	int ret;
+	int ret = 0;
 
 	if (sensor->mode.binning) {
 		sensor_ctrl_0a = 0x23;
@@ -263,77 +286,36 @@ static int ov2680_set_mode(struct ov2680_dev *sensor)
 		fmt2 = 0x00;
 	}
 
-	ret = ov_write_reg8(client, OV2680_REG_SENSOR_CTRL_0A, sensor_ctrl_0a);
-	if (ret)
-		return ret;
+	cci_write(sensor->regmap, OV2680_REG_SENSOR_CTRL_0A,
+		  sensor_ctrl_0a, &ret);
+	cci_write(sensor->regmap, OV2680_REG_HORIZONTAL_START,
+		  sensor->mode.h_start, &ret);
+	cci_write(sensor->regmap, OV2680_REG_VERTICAL_START,
+		  sensor->mode.v_start, &ret);
+	cci_write(sensor->regmap, OV2680_REG_HORIZONTAL_END,
+		  sensor->mode.h_end, &ret);
+	cci_write(sensor->regmap, OV2680_REG_VERTICAL_END,
+		  sensor->mode.v_end, &ret);
+	cci_write(sensor->regmap, OV2680_REG_HORIZONTAL_OUTPUT_SIZE,
+		  sensor->mode.h_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_VERTICAL_OUTPUT_SIZE,
+		  sensor->mode.v_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_TIMING_HTS,
+		  sensor->mode.hts, &ret);
+	cci_write(sensor->regmap, OV2680_REG_TIMING_VTS,
+		  sensor->mode.vts, &ret);
+	cci_write(sensor->regmap, OV2680_REG_ISP_X_WIN, 0, &ret);
+	cci_write(sensor->regmap, OV2680_REG_ISP_Y_WIN, 0, &ret);
+	cci_write(sensor->regmap, OV2680_REG_X_INC, inc, &ret);
+	cci_write(sensor->regmap, OV2680_REG_Y_INC, inc, &ret);
+	cci_write(sensor->regmap, OV2680_REG_X_WIN,
+		  sensor->mode.h_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_Y_WIN,
+		  sensor->mode.v_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_FORMAT1, fmt1, &ret);
+	cci_write(sensor->regmap, OV2680_REG_FORMAT2, fmt2, &ret);
 
-	ret = ov_write_reg16(client, OV2680_HORIZONTAL_START_H, sensor->mode.h_start);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_VERTICAL_START_H, sensor->mode.v_start);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_HORIZONTAL_END_H, sensor->mode.h_end);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_VERTICAL_END_H, sensor->mode.v_end);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_HORIZONTAL_OUTPUT_SIZE_H,
-				 sensor->mode.h_output_size);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_VERTICAL_OUTPUT_SIZE_H,
-				 sensor->mode.v_output_size);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_HTS, sensor->mode.hts);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_VTS, sensor->mode.vts);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_ISP_X_WIN, 0);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_ISP_Y_WIN, 0);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg8(client, OV2680_X_INC, inc);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg8(client, OV2680_Y_INC, inc);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_X_WIN, sensor->mode.h_output_size);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg16(client, OV2680_Y_WIN, sensor->mode.v_output_size);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg8(client, OV2680_REG_FORMAT1, fmt1);
-	if (ret)
-		return ret;
-
-	ret = ov_write_reg8(client, OV2680_REG_FORMAT2, fmt2);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
@@ -478,35 +460,26 @@ static int ov2680_init_cfg(struct v4l2_subdev *sd,
 	return ov2680_set_fmt(sd, sd_state, &fmt);
 }
 
-static int ov2680_detect(struct i2c_client *client)
+static int ov2680_detect(struct ov2680_dev *sensor)
 {
-	struct i2c_adapter *adapter = client->adapter;
-	u32 high = 0, low = 0;
-	int ret;
-	u16 id;
-	u8 revision;
+	u64 chip_id, rev;
+	int ret = 0;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
-	ret = ov_read_reg8(client, OV2680_SC_CMMN_CHIP_ID_H, &high);
-	if (ret) {
-		dev_err(&client->dev, "sensor_id_high read failed (%d)\n", ret);
-		return -ENODEV;
-	}
-	ret = ov_read_reg8(client, OV2680_SC_CMMN_CHIP_ID_L, &low);
-	id = ((((u16)high) << 8) | (u16)low);
-
-	if (id != OV2680_ID) {
-		dev_err(&client->dev, "sensor ID error 0x%x\n", id);
+	cci_read(sensor->regmap, OV2680_REG_CHIP_ID, &chip_id, &ret);
+	cci_read(sensor->regmap, OV2680_REG_SC_CMMN_SUB_ID, &rev, &ret);
+	if (ret < 0) {
+		dev_err(sensor->dev, "failed to read chip id\n");
 		return -ENODEV;
 	}
 
-	ret = ov_read_reg8(client, OV2680_SC_CMMN_SUB_ID, &high);
-	revision = (u8)high & 0x0f;
+	if (chip_id != OV2680_CHIP_ID) {
+		dev_err(sensor->dev, "chip id: 0x%04llx does not match expected 0x%04x\n",
+			chip_id, OV2680_CHIP_ID);
+		return -ENODEV;
+	}
 
-	dev_info(&client->dev, "sensor_revision id = 0x%x, rev= %d\n",
-		 id, revision);
+	dev_info(sensor->dev, "sensor_revision id = 0x%llx, rev= %lld\n",
+		 chip_id, rev & 0x0f);
 
 	return 0;
 }
@@ -538,11 +511,12 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 		if (ret)
 			goto error_power_down;
 
-		ret = ov_write_reg8(client, OV2680_SW_STREAM, OV2680_START_STREAMING);
+		ret = cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 1,
+				NULL);
 		if (ret)
 			goto error_power_down;
 	} else {
-		ov_write_reg8(client, OV2680_SW_STREAM, OV2680_STOP_STREAMING);
+		cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 0, NULL);
 		pm_runtime_put(sensor->sd.dev);
 	}
 
@@ -563,6 +537,7 @@ error_unlock:
 
 static int ov2680_s_config(struct v4l2_subdev *sd)
 {
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
@@ -573,7 +548,7 @@ static int ov2680_s_config(struct v4l2_subdev *sd)
 	}
 
 	/* config & detect sensor */
-	ret = ov2680_detect(client);
+	ret = ov2680_detect(sensor);
 	if (ret)
 		dev_err(&client->dev, "ov2680_detect err s_config.\n");
 
@@ -586,7 +561,7 @@ static int ov2680_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
 {
 	interval->interval.numerator = 1;
-	interval->interval.denominator = OV2680_FPS;
+	interval->interval.denominator = OV2680_FRAME_RATE;
 	return 0;
 }
 
@@ -638,7 +613,7 @@ static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = OV2680_FPS;
+	fie->interval.denominator = OV2680_FRAME_RATE;
 	return 0;
 }
 
@@ -738,9 +713,13 @@ static int ov2680_probe(struct i2c_client *client)
 	if (!sensor)
 		return -ENOMEM;
 
+	sensor->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(sensor->regmap))
+		return PTR_ERR(sensor->regmap);
+
 	mutex_init(&sensor->lock);
 
-	sensor->client = client;
+	sensor->dev = &client->dev;
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_ops);
 
 	/*

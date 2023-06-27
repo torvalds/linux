@@ -61,6 +61,7 @@ config VIDEO_ATOMISP_OV2680
 	tristate "Omnivision OV2680 sensor support"
 	depends on ACPI
 	depends on I2C && VIDEO_DEV
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor-level driver for the Omnivision
 	  OV2680 raw camera.
