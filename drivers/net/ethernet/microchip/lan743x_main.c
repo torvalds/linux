@@ -152,7 +152,7 @@ static int lan743x_csr_wait_for_bit(struct lan743x_adapter *adapter,
 	u32 data;
 
 	return readx_poll_timeout(LAN743X_CSR_READ_OP, offset, data,
-				  target_value == ((data & bit_mask) ? 1 : 0),
+				  target_value == !!(data & bit_mask),
 				  usleep_max, usleep_min * count);
 }
 
