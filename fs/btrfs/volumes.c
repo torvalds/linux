@@ -6219,6 +6219,45 @@ static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *
 			stripe_offset + btrfs_stripe_nr_to_offset(stripe_nr);
 }
 
+/*
+ * Map one logical range to one or more physical ranges.
+ *
+ * @length:		(Mandatory) mapped length of this run.
+ *			One logical range can be split into different segments
+ *			due to factors like zones and RAID0/5/6/10 stripe
+ *			boundaries.
+ *
+ * @bioc_ret:		(Mandatory) returned btrfs_io_context structure.
+ *			which has one or more physical ranges (btrfs_io_stripe)
+ *			recorded inside.
+ *			Caller should call btrfs_put_bioc() to free it after use.
+ *
+ * @smap:		(Optional) single physical range optimization.
+ *			If the map request can be fulfilled by one single
+ *			physical range, and this is parameter is not NULL,
+ *			then @bioc_ret would be NULL, and @smap would be
+ *			updated.
+ *
+ * @mirror_num_ret:	(Mandatory) returned mirror number if the original
+ *			value is 0.
+ *
+ *			Mirror number 0 means to choose any live mirrors.
+ *
+ *			For non-RAID56 profiles, non-zero mirror_num means
+ *			the Nth mirror. (e.g. mirror_num 1 means the first
+ *			copy).
+ *
+ *			For RAID56 profile, mirror 1 means rebuild from P and
+ *			the remaining data stripes.
+ *
+ *			For RAID6 profile, mirror > 2 means mark another
+ *			data/P stripe error and rebuild from the remaining
+ *			stripes..
+ *
+ * @need_raid_map:	(Used only for integrity checker) whether the map wants
+ *                      a full stripe map (including all data and P/Q stripes)
+ *                      for RAID56. Should always be 1 except integrity checker.
+ */
 int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    u64 logical, u64 *length,
 		    struct btrfs_io_context **bioc_ret,
