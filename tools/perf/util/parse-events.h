@@ -202,7 +202,7 @@ int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
-			 bool auto_merge_stats);
+			bool auto_merge_stats, void *loc);
 
 struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
 				      const char *name, const char *metric_id,
@@ -211,7 +211,7 @@ struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str,
 			       struct list_head *head_config,
-			       struct list_head **listp);
+			       struct list_head **listp, void *loc);
 
 int parse_events_copy_term_list(struct list_head *old,
 				 struct list_head **new);

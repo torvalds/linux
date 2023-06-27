@@ -1575,13 +1575,14 @@ static bool config_term_percore(struct list_head *config_terms)
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
-			 bool auto_merge_stats)
+			 bool auto_merge_stats, void *loc_)
 {
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct evsel *evsel;
 	struct parse_events_error *err = parse_state->error;
+	YYLTYPE *loc = loc_;
 	LIST_HEAD(config_terms);
 
 	pmu = parse_state->fake_pmu ?: perf_pmus__find(name);
@@ -1605,7 +1606,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		if (asprintf(&err_str,
 				"Cannot find PMU `%s'. Missing kernel support?",
 				name) >= 0)
-			parse_events_error__handle(err, 0, err_str, NULL);
+			parse_events_error__handle(err, loc->first_column, err_str, NULL);
 		return -EINVAL;
 	}
 	if (head_config)
@@ -1691,12 +1692,13 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str, struct list_head *head,
-			       struct list_head **listp)
+			       struct list_head **listp, void *loc_)
 {
 	struct parse_events_term *term;
 	struct list_head *list = NULL;
 	struct list_head *orig_head = NULL;
 	struct perf_pmu *pmu = NULL;
+	YYLTYPE *loc = loc_;
 	int ok = 0;
 	char *config;
 
@@ -1743,7 +1745,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				parse_events_copy_term_list(head, &orig_head);
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, orig_head,
-							  auto_merge_stats)) {
+							  auto_merge_stats, loc)) {
 					pr_debug("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					parse_state->wild_card_pmus = true;
@@ -1756,7 +1758,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_state->fake_pmu) {
 		if (!parse_events_add_pmu(parse_state, list, str, head,
-					  /*auto_merge_stats=*/true)) {
+					  /*auto_merge_stats=*/true, loc)) {
 			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", str);
 			ok++;
 		}

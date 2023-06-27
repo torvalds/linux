@@ -313,7 +313,7 @@ PE_NAME opt_pmu_config
 		YYNOMEM;
 	}
 	/* Attempt to add to list assuming $1 is a PMU name. */
-	if (parse_events_add_pmu(parse_state, list, $1, $2, /*auto_merge_stats=*/false)) {
+	if (parse_events_add_pmu(parse_state, list, $1, $2, /*auto_merge_stats=*/false, &@1)) {
 		struct perf_pmu *pmu = NULL;
 		int ok = 0;
 
@@ -341,7 +341,7 @@ PE_NAME opt_pmu_config
 					YYNOMEM;
 				}
 				if (!parse_events_add_pmu(parse_state, list, pmu->name, terms,
-							  auto_merge_stats)) {
+							  auto_merge_stats, &@1)) {
 					ok++;
 					parse_state->wild_card_pmus = true;
 				}
@@ -352,7 +352,7 @@ PE_NAME opt_pmu_config
 		if (!ok) {
 			/* Failure to add, assume $1 is an event name. */
 			zfree(&list);
-			ok = !parse_events_multi_pmu_add(parse_state, $1, $2, &list);
+			ok = !parse_events_multi_pmu_add(parse_state, $1, $2, &list, &@1);
 			$2 = NULL;
 		}
 		if (!ok) {
@@ -379,7 +379,7 @@ PE_NAME sep_dc
 	struct list_head *list;
 	int err;
 
-	err = parse_events_multi_pmu_add(_parse_state, $1, NULL, &list);
+	err = parse_events_multi_pmu_add(_parse_state, $1, NULL, &list, &@1);
 	if (err < 0) {
 		struct parse_events_state *parse_state = _parse_state;
 		struct parse_events_error *error = parse_state->error;
