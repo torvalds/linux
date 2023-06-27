@@ -96,6 +96,12 @@ Command-line Parsing
 .. kernel-doc:: lib/cmdline.c
    :export:
 
+Error Pointers
+--------------
+
+.. kernel-doc:: include/linux/err.h
+   :internal:
+
 Sorting
 -------
 

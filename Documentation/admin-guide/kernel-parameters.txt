@@ -2112,6 +2112,16 @@
 			disable
 			  Do not enable intel_pstate as the default
 			  scaling driver for the supported processors
+                        active
+                          Use intel_pstate driver to bypass the scaling
+                          governors layer of cpufreq and provides it own
+                          algorithms for p-state selection. There are two
+                          P-state selection algorithms provided by
+                          intel_pstate in the active mode: powersave and
+                          performance.  The way they both operate depends
+                          on whether or not the hardware managed P-states
+                          (HWP) feature has been enabled in the processor
+                          and possibly on the processor model.
 			passive
 			  Use intel_pstate as a scaling driver, but configure it
 			  to work with generic cpufreq governors (instead of
@@ -2546,12 +2556,13 @@
 			If the value is 0 (the default), KVM will pick a period based
 			on the ratio, such that a page is zapped after 1 hour on average.
 
-	kvm-amd.nested=	[KVM,AMD] Allow nested virtualization in KVM/SVM.
-			Default is 1 (enabled)
+	kvm-amd.nested=	[KVM,AMD] Control nested virtualization feature in
+			KVM/SVM. Default is 1 (enabled).
 
-	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
-			for all guests.
-			Default is 1 (enabled) if in 64-bit or 32-bit PAE mode.
+	kvm-amd.npt=	[KVM,AMD] Control KVM's use of Nested Page Tables,
+			a.k.a. Two-Dimensional Page Tables. Default is 1
+			(enabled). Disable by KVM if hardware lacks support
+			for NPT.
 
 	kvm-arm.mode=
 			[KVM,ARM] Select one of KVM/arm64's modes of operation.
@@ -2597,30 +2608,33 @@
 			Format: <integer>
 			Default: 5
 
-	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
-			(virtualized MMU) support on capable Intel chips.
-			Default is 1 (enabled)
+	kvm-intel.ept=	[KVM,Intel] Control KVM's use of Extended Page Tables,
+			a.k.a. Two-Dimensional Page Tables.  Default is 1
+			(enabled). Disable by KVM if hardware lacks support
+			for EPT.
 
 	kvm-intel.emulate_invalid_guest_state=
-			[KVM,Intel] Disable emulation of invalid guest state.
-			Ignored if kvm-intel.enable_unrestricted_guest=1, as
-			guest state is never invalid for unrestricted guests.
-			This param doesn't apply to nested guests (L2), as KVM
-			never emulates invalid L2 guest state.
-			Default is 1 (enabled)
+			[KVM,Intel] Control whether to emulate invalid guest
+			state. Ignored if kvm-intel.enable_unrestricted_guest=1,
+			as guest state is never invalid for unrestricted
+			guests. This param doesn't apply to nested guests (L2),
+			as KVM never emulates invalid L2 guest state.
+			Default is 1 (enabled).
 
 	kvm-intel.flexpriority=
-			[KVM,Intel] Disable FlexPriority feature (TPR shadow).
-			Default is 1 (enabled)
+			[KVM,Intel] Control KVM's use of FlexPriority feature
+			(TPR shadow). Default is 1 (enabled). Disalbe by KVM if
+			hardware lacks support for it.
 
 	kvm-intel.nested=
-			[KVM,Intel] Enable VMX nesting (nVMX).
-			Default is 0 (disabled)
+			[KVM,Intel] Control nested virtualization feature in
+			KVM/VMX. Default is 1 (enabled).
 
 	kvm-intel.unrestricted_guest=
-			[KVM,Intel] Disable unrestricted guest feature
-			(virtualized real and unpaged mode) on capable
-			Intel chips. Default is 1 (enabled)
+			[KVM,Intel] Control KVM's use of unrestricted guest
+			feature (virtualized real and unpaged mode). Default
+			is 1 (enabled). Disable by KVM if EPT is disabled or
+			hardware lacks support for it.
 
 	kvm-intel.vmentry_l1d_flush=[KVM,Intel] Mitigation for L1 Terminal Fault
 			CVE-2018-3620.
@@ -2634,9 +2648,10 @@
 
 			Default is cond (do L1 cache flush in specific instances)
 
-	kvm-intel.vpid=	[KVM,Intel] Disable Virtual Processor Identification
-			feature (tagged TLBs) on capable Intel chips.
-			Default is 1 (enabled)
+	kvm-intel.vpid=	[KVM,Intel] Control KVM's use of Virtual Processor
+			Identification feature (tagged TLBs). Default is 1
+			(enabled). Disable by KVM if hardware lacks support
+			for it.
 
 	l1d_flush=	[X86,INTEL]
 			Control mitigation for L1D based snooping vulnerability.

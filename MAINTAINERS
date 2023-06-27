@@ -6239,6 +6239,12 @@ X:	Documentation/power/
 X:	Documentation/spi/
 X:	Documentation/userspace-api/media/
 
+DOCUMENTATION PROCESS
+M:	Jonathan Corbet <corbet@lwn.net>
+S:	Maintained
+F:	Documentation/process/
+L:	workflows@vger.kernel.org
+
 DOCUMENTATION REPORTING ISSUES
 M:	Thorsten Leemhuis <linux@leemhuis.info>
 L:	linux-doc@vger.kernel.org
