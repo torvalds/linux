@@ -335,17 +335,19 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
 	txclk_tapnum = drv_data->hs200_tx_tap;
-	if ((drv_data->flags & RK_DLL_CMD_OUT) &&
-	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
 		txclk_tapnum = drv_data->hs400_tx_tap;
-		extra = DLL_CMDOUT_SRC_CLK_NEG |
-			DLL_CMDOUT_BOTH_CLK_EDGE |
-			DWCMSHC_EMMC_DLL_DLYENA |
-			drv_data->hs400_cmd_tap |
-			DLL_CMDOUT_TAPNUM_FROM_SW;
-		if (drv_data->flags & RK_TAP_VALUE_SEL)
-			extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
-		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+
+		if (drv_data->flags & RK_DLL_CMD_OUT) {
+			extra = DLL_CMDOUT_SRC_CLK_NEG |
+				DLL_CMDOUT_BOTH_CLK_EDGE |
+				DWCMSHC_EMMC_DLL_DLYENA |
+				drv_data->hs400_cmd_tap |
+				DLL_CMDOUT_TAPNUM_FROM_SW;
+			if (drv_data->flags & RK_TAP_VALUE_SEL)
+				extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
+			sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+		}
 	}
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_TXCLK_TAPNUM_FROM_SW |
