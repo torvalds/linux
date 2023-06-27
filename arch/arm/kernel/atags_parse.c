@@ -127,7 +127,7 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 #elif defined(CONFIG_CMDLINE_FORCE)
 	pr_warn("Ignoring tag cmdline (using the default kernel command line)\n");
 #else
-	strlcpy(default_command_line, tag->u.cmdline.cmdline,
+	strscpy(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
 #endif
 	return 0;
@@ -224,7 +224,7 @@ setup_machine_tags(void *atags_vaddr, unsigned int machine_nr)
 	}
 
 	/* parse_early_param needs a boot_command_line */
-	strlcpy(boot_command_line, from, COMMAND_LINE_SIZE);
+	strscpy(boot_command_line, from, COMMAND_LINE_SIZE);
 
 	return mdesc;
 }

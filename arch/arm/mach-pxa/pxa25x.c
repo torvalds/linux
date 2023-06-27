@@ -143,6 +143,7 @@ set_pwer:
 void __init pxa25x_init_irq(void)
 {
 	pxa_init_irq(32, pxa25x_set_wake);
+	set_handle_irq(pxa25x_handle_irq);
 }
 
 static int __init __init

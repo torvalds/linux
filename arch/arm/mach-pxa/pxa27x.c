@@ -228,6 +228,7 @@ static int pxa27x_set_wake(struct irq_data *d, unsigned int on)
 void __init pxa27x_init_irq(void)
 {
 	pxa_init_irq(34, pxa27x_set_wake);
+	set_handle_irq(pxa27x_handle_irq);
 }
 
 static int __init

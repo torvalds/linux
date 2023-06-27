@@ -291,7 +291,6 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.map_io		= omap1_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
-	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_nokia770_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,
