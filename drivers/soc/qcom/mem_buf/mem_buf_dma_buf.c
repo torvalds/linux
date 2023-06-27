@@ -140,17 +140,14 @@ err_resize_state:
 
 /* Must be freed via mem_buf_vmperm_release. */
 struct mem_buf_vmperm *mem_buf_vmperm_alloc_accept(struct sg_table *sgt,
-	gh_memparcel_handle_t memparcel_hdl)
+	gh_memparcel_handle_t memparcel_hdl, int *vmids, int *perms,
+	unsigned int nr_acl_entries)
 {
-	int vmids[1];
-	int perms[1];
 	struct mem_buf_vmperm *vmperm;
 
-	vmids[0] = current_vmid;
-	perms[0] = PERM_READ | PERM_WRITE | PERM_EXEC;
 	vmperm = mem_buf_vmperm_alloc_flags(sgt,
 		MEM_BUF_WRAPPER_FLAG_ACCEPT,
-		vmids, perms, 1);
+		vmids, perms, nr_acl_entries);
 	if (IS_ERR(vmperm))
 		return vmperm;
 
@@ -180,7 +177,8 @@ struct mem_buf_vmperm *mem_buf_vmperm_alloc(struct sg_table *sgt)
 }
 EXPORT_SYMBOL(mem_buf_vmperm_alloc);
 
-static int __mem_buf_vmperm_reclaim(struct mem_buf_vmperm *vmperm)
+static int __mem_buf_vmperm_reclaim(struct mem_buf_vmperm *vmperm,
+				    bool leak_memory_on_reclaim_fail)
 {
 	int ret;
 	int new_vmids[] = {current_vmid};
@@ -191,7 +189,8 @@ static int __mem_buf_vmperm_reclaim(struct mem_buf_vmperm *vmperm)
 				   vmperm->memparcel_hdl);
 	if (ret) {
 		pr_err_ratelimited("Reclaim failed\n");
-		mem_buf_vmperm_set_err(vmperm);
+		if (leak_memory_on_reclaim_fail)
+			mem_buf_vmperm_set_err(vmperm);
 		return ret;
 	}
 
@@ -231,7 +230,7 @@ int mem_buf_vmperm_release(struct mem_buf_vmperm *vmperm)
 
 	mutex_lock(&vmperm->lock);
 	if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_LENDSHARE)
-		ret = __mem_buf_vmperm_reclaim(vmperm);
+		ret = __mem_buf_vmperm_reclaim(vmperm, true);
 	else if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_ACCEPT)
 		ret = mem_buf_vmperm_relinquish(vmperm);
 
@@ -621,7 +620,7 @@ int mem_buf_reclaim(struct dma_buf *dmabuf)
 		return -EINVAL;
 	}
 
-	ret = __mem_buf_vmperm_reclaim(vmperm);
+	ret = __mem_buf_vmperm_reclaim(vmperm, false);
 	mutex_unlock(&vmperm->lock);
 	return ret;
 }
@@ -642,6 +641,26 @@ bool mem_buf_dma_buf_exclusive_owner(struct dma_buf *dmabuf)
 	return ret;
 }
 EXPORT_SYMBOL(mem_buf_dma_buf_exclusive_owner);
+
+int mem_buf_dma_buf_get_vmperm(struct dma_buf *dmabuf, const int **vmids,
+		const int **perms, int *nr_acl_entries)
+{
+	struct mem_buf_vmperm *vmperm;
+
+	vmperm = to_mem_buf_vmperm(dmabuf);
+	if (IS_ERR(vmperm))
+		return PTR_ERR(vmperm);
+
+	mutex_lock(&vmperm->lock);
+
+	*vmids = vmperm->vmids;
+	*perms = vmperm->perms;
+	*nr_acl_entries = vmperm->nr_acl_entries;
+
+	mutex_unlock(&vmperm->lock);
+	return 0;
+}
+EXPORT_SYMBOL(mem_buf_dma_buf_get_vmperm);
 
 int mem_buf_dma_buf_copy_vmperm(struct dma_buf *dmabuf, int **vmids,
 		int **perms, int *nr_acl_entries)
