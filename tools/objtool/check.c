@@ -198,6 +198,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 	 */
 	static const char * const global_noreturns[] = {
 		"__invalid_creds",
+		"__kunit_abort",
 		"__module_put_and_kthread_exit",
 		"__reiserfs_panic",
 		"__stack_chk_fail",
