@@ -567,6 +567,7 @@ kernel_build(
     # Hack to actually check the build.
     # Otherwise, Bazel thinks that there are no output files, and skip building.
     outs = [".config"],
+    arch = "x86_64",
     build_config = "build.config.allmodconfig.x86_64",
     visibility = ["//visibility:private"],
 )
@@ -577,6 +578,7 @@ kernel_build(
     # Hack to actually check the build.
     # Otherwise, Bazel thinks that there are no output files, and skip building.
     outs = [".config"],
+    arch = "arm",
     build_config = "build.config.allmodconfig.arm",
     visibility = ["//visibility:private"],
 )
