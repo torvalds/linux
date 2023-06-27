@@ -165,7 +165,7 @@ BPF_OR    0x40   dst \|= src
 BPF_AND   0x50   dst &= src
 BPF_LSH   0x60   dst <<= (src & mask)
 BPF_RSH   0x70   dst >>= (src & mask)
-BPF_NEG   0x80   dst = ~src
+BPF_NEG   0x80   dst = -src
 BPF_MOD   0x90   dst = (src != 0) ? (dst % src) : dst
 BPF_XOR   0xa0   dst ^= src
 BPF_MOV   0xb0   dst = src
