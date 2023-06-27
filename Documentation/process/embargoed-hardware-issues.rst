@@ -244,7 +244,6 @@ disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
-  AMD		Tom Lendacky <thomas.lendacky@amd.com>
   Ampere	Darren Hart <darren@os.amperecomputing.com>
   ARM		Catalin Marinas <catalin.marinas@arm.com>
   IBM Power	Anton Blanchard <anton@linux.ibm.com>
@@ -254,7 +253,6 @@ an involved disclosed party. The current ambassadors list:
   Samsung	Javier González <javier.gonz@samsung.com>
 
   Microsoft	James Morris <jamorris@linux.microsoft.com>
-  VMware
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
   Canonical	John Johansen <john.johansen@canonical.com>
@@ -263,10 +261,8 @@ an involved disclosed party. The current ambassadors list:
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
   SUSE		Jiri Kosina <jkosina@suse.cz>
 
-  Amazon
   Google	Kees Cook <keescook@chromium.org>
 
-  GCC
   LLVM		Nick Desaulniers <ndesaulniers@google.com>
   ============= ========================================================
 
