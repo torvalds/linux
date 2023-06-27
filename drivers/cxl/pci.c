@@ -295,7 +295,7 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 		 * and allow userspace to poll(2) for completion.
 		 */
 		if (mbox_cmd->opcode == CXL_MBOX_OP_SANITIZE) {
-			if (mds->security.poll_tmo_secs != -1) {
+			if (mds->security.poll) {
 				/* hold the device throughout */
 				get_device(cxlds->dev);
 
