@@ -2446,9 +2446,9 @@ EXPORT_SYMBOL(qcom_scm_lmh_dcvsh);
 int qcom_scm_prefetch_tgt_ctrl(bool en)
 {
 	struct qcom_scm_desc desc = {
-		.svc = QCOM_SCM_SVC_APP_MGR,
-		.cmd = QCOM_SCM_PREFETCH_TGT_CTRL,
-		.owner = ARM_SMCCC_OWNER_TRUSTED_OS,
+		.svc = QCOM_SCM_SVC_CPUCFG,
+		.cmd = QCOM_SCM_CPUCFG_PREFETCH_TGT_CMD,
+		.owner = ARM_SMCCC_OWNER_SIP,
 		.args[0] = en,
 		.arginfo = QCOM_SCM_ARGS(1),
 	};
