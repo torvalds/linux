@@ -26,3 +26,4 @@ ENTRY(__ashrdi3)
 	abi_ret_default
 
 ENDPROC(__ashrdi3)
+EXPORT_SYMBOL(__ashrdi3)

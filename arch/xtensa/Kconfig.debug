@@ -38,3 +38,11 @@ config PRINT_STACK_DEPTH
 	help
 	  This option allows you to set the stack depth that the kernel
 	  prints in stack traces.
+
+config PRINT_USER_CODE_ON_UNHANDLED_EXCEPTION
+	bool "Dump user code around unhandled exception address"
+	help
+	  Enable this option to display user code around PC of the unhandled
+	  exception (starting at address aligned on 16 byte boundary).
+	  This may simplify finding faulting code in the absence of other
+	  debug facilities.
