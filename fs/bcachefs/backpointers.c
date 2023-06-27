@@ -811,8 +811,10 @@ static int check_one_backpointer(struct btree_trans *trans,
 
 	if (fsck_err_on(!k.k, c,
 			"backpointer for missing extent\n  %s",
-			(bch2_bkey_val_to_text(&buf, c, bp.s_c), buf.buf)))
-		return bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, bp.k->p);
+			(bch2_bkey_val_to_text(&buf, c, bp.s_c), buf.buf))) {
+		ret = bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, bp.k->p);
+		goto out;
+	}
 out:
 fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
