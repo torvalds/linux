@@ -955,8 +955,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	int cpu;
 #endif
 
-	if (bc->shrink.list.next)
-		unregister_shrinker(&bc->shrink);
+	unregister_shrinker(&bc->shrink);
 
 	mutex_lock(&bc->lock);
 

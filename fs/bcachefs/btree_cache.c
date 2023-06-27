@@ -398,8 +398,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	struct btree *b;
 	unsigned i, flags;
 
-	if (bc->shrink.list.next)
-		unregister_shrinker(&bc->shrink);
+	unregister_shrinker(&bc->shrink);
 
 	/* vfree() can allocate memory: */
 	flags = memalloc_nofs_save();
