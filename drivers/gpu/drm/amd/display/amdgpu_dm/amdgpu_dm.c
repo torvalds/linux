@@ -7927,7 +7927,6 @@ static inline uint32_t get_mem_type(struct drm_framebuffer *fb)
 }
 
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
-				    struct dc_state *dc_state,
 				    struct drm_device *dev,
 				    struct amdgpu_display_manager *dm,
 				    struct drm_crtc *pcrtc,
@@ -8407,52 +8406,17 @@ static void amdgpu_dm_crtc_copy_transient_flags(struct drm_crtc_state *crtc_stat
 	stream_state->mode_changed = drm_atomic_crtc_needs_modeset(crtc_state);
 }
 
-/**
- * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
- * @state: The atomic state to commit
- *
- * This will tell DC to commit the constructed DC state from atomic_check,
- * programming the hardware. Any failures here implies a hardware failure, since
- * atomic check should have filtered anything non-kosher.
- */
-static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
+					struct dc_state *dc_state)
 {
 	struct drm_device *dev = state->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_display_manager *dm = &adev->dm;
-	struct dm_atomic_state *dm_state;
-	struct dc_state *dc_state = NULL, *dc_state_temp = NULL;
-	u32 i, j;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	unsigned long flags;
-	bool wait_for_vblank = true;
-	struct drm_connector *connector;
-	struct drm_connector_state *old_con_state, *new_con_state;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
-	int crtc_disable_count = 0;
 	bool mode_set_reset_required = false;
-	int r;
-
-	trace_amdgpu_dm_atomic_commit_tail_begin(state);
-
-	r = drm_atomic_helper_wait_for_fences(dev, state, false);
-	if (unlikely(r))
-		DRM_ERROR("Waiting for fences timed out!");
-
-	drm_atomic_helper_update_legacy_modeset_state(dev, state);
-	drm_dp_mst_atomic_wait_for_dependencies(state);
-
-	dm_state = dm_atomic_get_new_state(state);
-	if (dm_state && dm_state->context) {
-		dc_state = dm_state->context;
-	} else {
-		/* No state changes, retain current state. */
-		dc_state_temp = dc_create_state(dm->dc);
-		ASSERT(dc_state_temp);
-		dc_state = dc_state_temp;
-		dc_resource_state_copy_construct_current(dm->dc, dc_state);
-	}
+	u32 i;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
 				      new_crtc_state, i) {
@@ -8551,24 +8515,22 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	} /* for_each_crtc_in_state() */
 
-	if (dc_state) {
-		/* if there mode set or reset, disable eDP PSR */
-		if (mode_set_reset_required) {
-			if (dm->vblank_control_workqueue)
-				flush_workqueue(dm->vblank_control_workqueue);
+	/* if there mode set or reset, disable eDP PSR */
+	if (mode_set_reset_required) {
+		if (dm->vblank_control_workqueue)
+			flush_workqueue(dm->vblank_control_workqueue);
 
-			amdgpu_dm_psr_disable_all(dm);
-		}
-
-		dm_enable_per_frame_crtc_master_sync(dc_state);
-		mutex_lock(&dm->dc_lock);
-		WARN_ON(!dc_commit_streams(dm->dc, dc_state->streams, dc_state->stream_count));
-
-		/* Allow idle optimization when vblank count is 0 for display off */
-		if (dm->active_vblank_irq_count == 0)
-			dc_allow_idle_optimizations(dm->dc, true);
-		mutex_unlock(&dm->dc_lock);
+		amdgpu_dm_psr_disable_all(dm);
 	}
+
+	dm_enable_per_frame_crtc_master_sync(dc_state);
+	mutex_lock(&dm->dc_lock);
+	WARN_ON(!dc_commit_streams(dm->dc, dc_state->streams, dc_state->stream_count));
+
+	/* Allow idle optimization when vblank count is 0 for display off */
+	if (dm->active_vblank_irq_count == 0)
+		dc_allow_idle_optimizations(dm->dc, true);
+	mutex_unlock(&dm->dc_lock);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
@@ -8588,6 +8550,44 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				acrtc->otg_inst = status->primary_otg_inst;
 		}
 	}
+}
+
+/**
+ * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
+ * @state: The atomic state to commit
+ *
+ * This will tell DC to commit the constructed DC state from atomic_check,
+ * programming the hardware. Any failures here implies a hardware failure, since
+ * atomic check should have filtered anything non-kosher.
+ */
+static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_display_manager *dm = &adev->dm;
+	struct dm_atomic_state *dm_state;
+	struct dc_state *dc_state = NULL;
+	u32 i, j;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	unsigned long flags;
+	bool wait_for_vblank = true;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_con_state, *new_con_state;
+	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
+	int crtc_disable_count = 0;
+
+	trace_amdgpu_dm_atomic_commit_tail_begin(state);
+
+	drm_atomic_helper_update_legacy_modeset_state(dev, state);
+	drm_dp_mst_atomic_wait_for_dependencies(state);
+
+	dm_state = dm_atomic_get_new_state(state);
+	if (dm_state && dm_state->context) {
+		dc_state = dm_state->context;
+		amdgpu_dm_commit_streams(state, dc_state);
+	}
+
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
@@ -8865,8 +8865,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
 		if (dm_new_crtc_state->stream)
-			amdgpu_dm_commit_planes(state, dc_state, dev,
-						dm, crtc, wait_for_vblank);
+			amdgpu_dm_commit_planes(state, dev, dm, crtc, wait_for_vblank);
 	}
 
 	/* Update audio instances for each connector. */
@@ -8921,9 +8920,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	for (i = 0; i < crtc_disable_count; i++)
 		pm_runtime_put_autosuspend(dev->dev);
 	pm_runtime_mark_last_busy(dev->dev);
-
-	if (dc_state_temp)
-		dc_release_state(dc_state_temp);
 }
 
 static int dm_force_atomic_commit(struct drm_connector *connector)
