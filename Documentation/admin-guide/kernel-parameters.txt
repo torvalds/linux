@@ -3433,6 +3433,10 @@
 			[HW] Make the MicroTouch USB driver use raw coordinates
 			('y', default) or cooked coordinates ('n')
 
+	mtrr=debug	[X86]
+			Enable printing debug information related to MTRR
+			registers at boot time.
+
 	mtrr_chunk_size=nn[KMG] [X86]
 			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
