@@ -563,9 +563,9 @@ static int vsc85xx_update_rgmii_cntl(struct phy_device *phydev, u32 rgmii_cntl,
 	if (tx_delay < 0) {
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
 		    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
-			rx_delay = RGMII_CLK_DELAY_2_0_NS;
+			tx_delay = RGMII_CLK_DELAY_2_0_NS;
 		else
-			rx_delay = RGMII_CLK_DELAY_0_2_NS;
+			tx_delay = RGMII_CLK_DELAY_0_2_NS;
 	}
 
 	reg_val |= rx_delay << rgmii_rx_delay_pos;
