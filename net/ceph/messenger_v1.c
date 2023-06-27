@@ -74,6 +74,39 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 	return r;
 }
 
+/*
+ * @more: MSG_MORE or 0.
+ */
+static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
+			     int offset, size_t size, int more)
+{
+	struct msghdr msg = {
+		.msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL | more,
+	};
+	struct bio_vec bvec;
+	int ret;
+
+	/*
+	 * MSG_SPLICE_PAGES cannot properly handle pages with page_count == 0,
+	 * we need to fall back to sendmsg if that's the case.
+	 *
+	 * Same goes for slab pages: skb_can_coalesce() allows
+	 * coalescing neighboring slab objects into a single frag which
+	 * triggers one of hardened usercopy checks.
+	 */
+	if (sendpage_ok(page))
+		msg.msg_flags |= MSG_SPLICE_PAGES;
+
+	bvec_set_page(&bvec, page, size, offset);
+	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
+
+	ret = sock_sendmsg(sock, &msg);
+	if (ret == -EAGAIN)
+		ret = 0;
+
+	return ret;
+}
+
 static void con_out_kvec_reset(struct ceph_connection *con)
 {
 	BUG_ON(con->v1.out_skip);
@@ -450,10 +483,6 @@ static int write_partial_message_data(struct ceph_connection *con)
 	 */
 	crc = do_datacrc ? le32_to_cpu(msg->footer.data_crc) : 0;
 	while (cursor->total_resid) {
-		struct bio_vec bvec;
-		struct msghdr msghdr = {
-			.msg_flags = MSG_SPLICE_PAGES,
-		};
 		struct page *page;
 		size_t page_offset;
 		size_t length;
@@ -465,13 +494,8 @@ static int write_partial_message_data(struct ceph_connection *con)
 		}
 
 		page = ceph_msg_data_next(cursor, &page_offset, &length);
-		if (length != cursor->total_resid)
-			msghdr.msg_flags |= MSG_MORE;
-
-		bvec_set_page(&bvec, page, length, page_offset);
-		iov_iter_bvec(&msghdr.msg_iter, ITER_SOURCE, &bvec, 1, length);
-
-		ret = sock_sendmsg(con->sock, &msghdr);
+		ret = ceph_tcp_sendpage(con->sock, page, page_offset, length,
+					MSG_MORE);
 		if (ret <= 0) {
 			if (do_datacrc)
 				msg->footer.data_crc = cpu_to_le32(crc);
@@ -501,22 +525,14 @@ static int write_partial_message_data(struct ceph_connection *con)
  */
 static int write_partial_skip(struct ceph_connection *con)
 {
-	struct bio_vec bvec;
-	struct msghdr msghdr = {
-		.msg_flags = MSG_SPLICE_PAGES | MSG_MORE,
-	};
 	int ret;
 
 	dout("%s %p %d left\n", __func__, con, con->v1.out_skip);
 	while (con->v1.out_skip > 0) {
 		size_t size = min(con->v1.out_skip, (int)PAGE_SIZE);
 
-		if (size == con->v1.out_skip)
-			msghdr.msg_flags &= ~MSG_MORE;
-		bvec_set_page(&bvec, ZERO_PAGE(0), size, 0);
-		iov_iter_bvec(&msghdr.msg_iter, ITER_SOURCE, &bvec, 1, size);
-
-		ret = sock_sendmsg(con->sock, &msghdr);
+		ret = ceph_tcp_sendpage(con->sock, ceph_zero_page, 0, size,
+					MSG_MORE);
 		if (ret <= 0)
 			goto out;
 		con->v1.out_skip -= ret;

@@ -117,38 +117,90 @@ static int ceph_tcp_recv(struct ceph_connection *con)
 	return ret;
 }
 
+static int do_sendmsg(struct socket *sock, struct iov_iter *it)
+{
+	struct msghdr msg = { .msg_flags = CEPH_MSG_FLAGS };
+	int ret;
+
+	msg.msg_iter = *it;
+	while (iov_iter_count(it)) {
+		ret = sock_sendmsg(sock, &msg);
+		if (ret <= 0) {
+			if (ret == -EAGAIN)
+				ret = 0;
+			return ret;
+		}
+
+		iov_iter_advance(it, ret);
+	}
+
+	WARN_ON(msg_data_left(&msg));
+	return 1;
+}
+
+static int do_try_sendpage(struct socket *sock, struct iov_iter *it)
+{
+	struct msghdr msg = { .msg_flags = CEPH_MSG_FLAGS };
+	struct bio_vec bv;
+	int ret;
+
+	if (WARN_ON(!iov_iter_is_bvec(it)))
+		return -EINVAL;
+
+	while (iov_iter_count(it)) {
+		/* iov_iter_iovec() for ITER_BVEC */
+		bvec_set_page(&bv, it->bvec->bv_page,
+			      min(iov_iter_count(it),
+				  it->bvec->bv_len - it->iov_offset),
+			      it->bvec->bv_offset + it->iov_offset);
+
+		/*
+		 * MSG_SPLICE_PAGES cannot properly handle pages with
+		 * page_count == 0, we need to fall back to sendmsg if
+		 * that's the case.
+		 *
+		 * Same goes for slab pages: skb_can_coalesce() allows
+		 * coalescing neighboring slab objects into a single frag
+		 * which triggers one of hardened usercopy checks.
+		 */
+		if (sendpage_ok(bv.bv_page))
+			msg.msg_flags |= MSG_SPLICE_PAGES;
+		else
+			msg.msg_flags &= ~MSG_SPLICE_PAGES;
+
+		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bv, 1, bv.bv_len);
+		ret = sock_sendmsg(sock, &msg);
+		if (ret <= 0) {
+			if (ret == -EAGAIN)
+				ret = 0;
+			return ret;
+		}
+
+		iov_iter_advance(it, ret);
+	}
+
+	return 1;
+}
+
 /*
  * Write as much as possible.  The socket is expected to be corked,
  * so we don't bother with MSG_MORE here.
  *
  * Return:
- *  >0 - done, nothing (else) to write
+ *   1 - done, nothing (else) to write
  *   0 - socket is full, need to wait
  *  <0 - error
  */
 static int ceph_tcp_send(struct ceph_connection *con)
 {
-	struct msghdr msg = {
-		.msg_iter	= con->v2.out_iter,
-		.msg_flags	= CEPH_MSG_FLAGS,
-	};
 	int ret;
-
-	if (WARN_ON(!iov_iter_is_bvec(&con->v2.out_iter)))
-		return -EINVAL;
-
-	if (con->v2.out_iter_sendpage)
-		msg.msg_flags |= MSG_SPLICE_PAGES;
 
 	dout("%s con %p have %zu try_sendpage %d\n", __func__, con,
 	     iov_iter_count(&con->v2.out_iter), con->v2.out_iter_sendpage);
-
-	ret = sock_sendmsg(con->sock, &msg);
-	if (ret > 0)
-		iov_iter_advance(&con->v2.out_iter, ret);
-	else if (ret == -EAGAIN)
-		ret = 0;
-
+	if (con->v2.out_iter_sendpage)
+		ret = do_try_sendpage(con->sock, &con->v2.out_iter);
+	else
+		ret = do_sendmsg(con->sock, &con->v2.out_iter);
 	dout("%s con %p ret %d left %zu\n", __func__, con, ret,
 	     iov_iter_count(&con->v2.out_iter));
 	return ret;
