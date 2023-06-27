@@ -135,7 +135,9 @@ static __inline__ void scm_pidfd_recv(struct msghdr *msg, struct scm_cookie *scm
 		return;
 	}
 
-	WARN_ON_ONCE(!scm->pid);
+	if (!scm->pid)
+		return;
+
 	pidfd = pidfd_prepare(scm->pid, 0, &pidfd_file);
 
 	if (put_cmsg(msg, SOL_SOCKET, SCM_PIDFD, sizeof(int), &pidfd)) {
