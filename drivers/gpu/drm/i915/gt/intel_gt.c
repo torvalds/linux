@@ -904,7 +904,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	 */
 	gt->i915 = i915;
 	gt->name = "Primary GT";
-	gt->info.engine_mask = RUNTIME_INFO(i915)->platform_engine_mask;
+	gt->info.engine_mask = INTEL_INFO(i915)->platform_engine_mask;
 
 	gt_dbg(gt, "Setting up %s\n", gt->name);
 	ret = intel_gt_tile_setup(gt, phys_addr);

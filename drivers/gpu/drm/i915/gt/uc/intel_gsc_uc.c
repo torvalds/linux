@@ -98,7 +98,7 @@ static bool gsc_engine_supported(struct intel_gt *gt)
 	GEM_BUG_ON(!gt_is_root(gt) && !gt->info.engine_mask);
 
 	if (gt_is_root(gt))
-		mask = RUNTIME_INFO(gt->i915)->platform_engine_mask;
+		mask = INTEL_INFO(gt->i915)->platform_engine_mask;
 	else
 		mask = gt->info.engine_mask;
 

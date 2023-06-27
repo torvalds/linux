@@ -126,7 +126,7 @@ void intel_device_info_print(const struct intel_device_info *info,
 	drm_printf(p, "base die stepping: %s\n", intel_step_name(runtime->step.basedie_step));
 
 	drm_printf(p, "gt: %d\n", info->gt);
-	drm_printf(p, "memory-regions: 0x%x\n", runtime->memory_regions);
+	drm_printf(p, "memory-regions: 0x%x\n", info->memory_regions);
 	drm_printf(p, "page-sizes: 0x%x\n", runtime->page_sizes);
 	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
 	drm_printf(p, "ppgtt-size: %d\n", runtime->ppgtt_size);
