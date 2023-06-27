@@ -135,7 +135,9 @@ static __inline__ void scm_pidfd_recv(struct msghdr *msg, struct scm_cookie *scm
 		return;
 	}
 
-	WARN_ON_ONCE(!scm->pid);
+	if (!scm->pid)
+		return;
+
 	pidfd = pidfd_prepare(scm->pid, 0, &pidfd_file);
 
 	if (put_cmsg(msg, SOL_SOCKET, SCM_PIDFD, sizeof(int), &pidfd)) {
@@ -151,8 +153,8 @@ static __inline__ void scm_pidfd_recv(struct msghdr *msg, struct scm_cookie *scm
 		fd_install(pidfd, pidfd_file);
 }
 
-static __inline__ void scm_recv(struct socket *sock, struct msghdr *msg,
-				struct scm_cookie *scm, int flags)
+static inline bool __scm_recv_common(struct socket *sock, struct msghdr *msg,
+				     struct scm_cookie *scm, int flags)
 {
 	if (!msg->msg_control) {
 		if (test_bit(SOCK_PASSCRED, &sock->flags) ||
@@ -160,7 +162,7 @@ static __inline__ void scm_recv(struct socket *sock, struct msghdr *msg,
 		    scm->fp || scm_has_secdata(sock))
 			msg->msg_flags |= MSG_CTRUNC;
 		scm_destroy(scm);
-		return;
+		return false;
 	}
 
 	if (test_bit(SOCK_PASSCRED, &sock->flags)) {
@@ -173,19 +175,34 @@ static __inline__ void scm_recv(struct socket *sock, struct msghdr *msg,
 		put_cmsg(msg, SOL_SOCKET, SCM_CREDENTIALS, sizeof(ucreds), &ucreds);
 	}
 
+	scm_passec(sock, msg, scm);
+
+	if (scm->fp)
+		scm_detach_fds(msg, scm);
+
+	return true;
+}
+
+static inline void scm_recv(struct socket *sock, struct msghdr *msg,
+			    struct scm_cookie *scm, int flags)
+{
+	if (!__scm_recv_common(sock, msg, scm, flags))
+		return;
+
+	scm_destroy_cred(scm);
+}
+
+static inline void scm_recv_unix(struct socket *sock, struct msghdr *msg,
+				 struct scm_cookie *scm, int flags)
+{
+	if (!__scm_recv_common(sock, msg, scm, flags))
+		return;
+
 	if (test_bit(SOCK_PASSPIDFD, &sock->flags))
 		scm_pidfd_recv(msg, scm);
 
 	scm_destroy_cred(scm);
-
-	scm_passec(sock, msg, scm);
-
-	if (!scm->fp)
-		return;
-	
-	scm_detach_fds(msg, scm);
 }
-
 
 #endif /* __LINUX_NET_SCM_H */
 
