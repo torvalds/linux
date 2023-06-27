@@ -232,7 +232,7 @@ slowpath:
 				commit_flags|
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_JOURNAL_RECLAIM|
-				JOURNAL_WATERMARK_reserved,
+				BCH_WATERMARK_reclaim,
 				__bch2_btree_insert(trans, i->btree, &i->k, 0));
 		if (bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret)))
 			break;

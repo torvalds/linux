@@ -294,9 +294,14 @@ static inline void bch2_journal_res_put(struct journal *j,
 int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
 				  unsigned);
 
-/* First two bits for JOURNAL_WATERMARK: */
-#define JOURNAL_RES_GET_NONBLOCK	(1 << 2)
-#define JOURNAL_RES_GET_CHECK		(1 << 3)
+/* First bits for BCH_WATERMARK: */
+enum journal_res_flags {
+	__JOURNAL_RES_GET_NONBLOCK	= BCH_WATERMARK_BITS,
+	__JOURNAL_RES_GET_CHECK,
+};
+
+#define JOURNAL_RES_GET_NONBLOCK	(1 << __JOURNAL_RES_GET_NONBLOCK)
+#define JOURNAL_RES_GET_CHECK		(1 << __JOURNAL_RES_GET_CHECK)
 
 static inline int journal_res_get_fast(struct journal *j,
 				       struct journal_res *res,
@@ -317,7 +322,7 @@ static inline int journal_res_get_fast(struct journal *j,
 
 		EBUG_ON(!journal_state_count(new, new.idx));
 
-		if ((flags & JOURNAL_WATERMARK_MASK) < j->watermark)
+		if ((flags & BCH_WATERMARK_MASK) < j->watermark)
 			return 0;
 
 		new.cur_entry_offset += res->u64s;
@@ -373,17 +378,17 @@ out:
 static inline void journal_set_watermark(struct journal *j)
 {
 	union journal_preres_state s = READ_ONCE(j->prereserved);
-	unsigned watermark = JOURNAL_WATERMARK_any;
+	unsigned watermark = BCH_WATERMARK_stripe;
 
 	if (fifo_free(&j->pin) < j->pin.size / 4)
-		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_copygc);
+		watermark = max_t(unsigned, watermark, BCH_WATERMARK_copygc);
 	if (fifo_free(&j->pin) < j->pin.size / 8)
-		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_reserved);
+		watermark = max_t(unsigned, watermark, BCH_WATERMARK_reclaim);
 
 	if (s.reserved > s.remaining)
-		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_copygc);
+		watermark = max_t(unsigned, watermark, BCH_WATERMARK_copygc);
 	if (!s.remaining)
-		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_reserved);
+		watermark = max_t(unsigned, watermark, BCH_WATERMARK_reclaim);
 
 	if (watermark == j->watermark)
 		return;
@@ -426,13 +431,14 @@ static inline int bch2_journal_preres_get_fast(struct journal *j,
 	int d = new_u64s - res->u64s;
 	union journal_preres_state old, new;
 	u64 v = atomic64_read(&j->prereserved.counter);
+	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
 	int ret;
 
 	do {
 		old.v = new.v = v;
 		ret = 0;
 
-		if ((flags & JOURNAL_WATERMARK_reserved) ||
+		if (watermark == BCH_WATERMARK_reclaim ||
 		    new.reserved + d < new.remaining) {
 			new.reserved += d;
 			ret = 1;

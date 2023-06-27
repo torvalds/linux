@@ -23,8 +23,8 @@ void bch2_btree_insert_key_leaf(struct btree_trans *, struct btree_path *,
 				struct bkey_i *, u64);
 
 enum btree_insert_flags {
-	/* First two bits for journal watermark: */
-	__BTREE_INSERT_NOFAIL = 2,
+	/* First bits for bch_watermark: */
+	__BTREE_INSERT_NOFAIL = BCH_WATERMARK_BITS,
 	__BTREE_INSERT_NOCHECK_RW,
 	__BTREE_INSERT_LAZY_RW,
 	__BTREE_INSERT_USE_RESERVE,

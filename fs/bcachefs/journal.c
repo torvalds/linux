@@ -19,17 +19,12 @@
 #include "journal_seq_blacklist.h"
 #include "trace.h"
 
-#define x(n)	#n,
-static const char * const bch2_journal_watermarks[] = {
-	JOURNAL_WATERMARKS()
-	NULL
-};
-
 static const char * const bch2_journal_errors[] = {
+#define x(n)	#n,
 	JOURNAL_ERRORS()
+#undef x
 	NULL
 };
-#undef x
 
 static inline bool journal_seq_unwritten(struct journal *j, u64 seq)
 {
@@ -96,7 +91,7 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 	if (!(error == JOURNAL_ERR_journal_full ||
 	      error == JOURNAL_ERR_journal_pin_full) ||
 	    nr_unwritten_journal_entries(j) ||
-	    (flags & JOURNAL_WATERMARK_MASK) != JOURNAL_WATERMARK_reserved)
+	    (flags & BCH_WATERMARK_MASK) != BCH_WATERMARK_reclaim)
 		return stuck;
 
 	spin_lock(&j->lock);
@@ -440,7 +435,7 @@ retry:
 		return 0;
 	}
 
-	if ((flags & JOURNAL_WATERMARK_MASK) < j->watermark) {
+	if ((flags & BCH_WATERMARK_MASK) < j->watermark) {
 		/*
 		 * Don't want to close current journal entry, just need to
 		 * invoke reclaim:
@@ -1292,7 +1287,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	prt_printf(out, "last_seq_ondisk:\t%llu\n",		j->last_seq_ondisk);
 	prt_printf(out, "flushed_seq_ondisk:\t%llu\n",	j->flushed_seq_ondisk);
 	prt_printf(out, "prereserved:\t\t%u/%u\n",		j->prereserved.reserved, j->prereserved.remaining);
-	prt_printf(out, "watermark:\t\t%s\n",		bch2_journal_watermarks[j->watermark]);
+	prt_printf(out, "watermark:\t\t%s\n",		bch2_watermarks[j->watermark]);
 	prt_printf(out, "each entry reserved:\t%u\n",	j->entry_u64s_reserved);
 	prt_printf(out, "nr flush writes:\t%llu\n",		j->nr_flush_writes);
 	prt_printf(out, "nr noflush writes:\t%llu\n",	j->nr_noflush_writes);

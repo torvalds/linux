@@ -664,7 +664,7 @@ static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 				    BTREE_INSERT_LAZY_RW|
 				    BTREE_INSERT_NOFAIL|
 				    (!k->allocated
-				     ? BTREE_INSERT_JOURNAL_REPLAY|JOURNAL_WATERMARK_reserved
+				     ? BTREE_INSERT_JOURNAL_REPLAY|BCH_WATERMARK_reclaim
 				     : 0),
 			     bch2_journal_replay_key(&trans, k));
 		if (ret) {

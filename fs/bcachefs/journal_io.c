@@ -1505,7 +1505,7 @@ static void journal_write_done(struct closure *cl)
 	 * Must come before signaling write completion, for
 	 * bch2_fs_journal_stop():
 	 */
-	if (j->watermark)
+	if (j->watermark != BCH_WATERMARK_stripe)
 		journal_reclaim_kick(&c->journal);
 
 	/* also must come before signalling write completion: */

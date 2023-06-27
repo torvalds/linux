@@ -202,7 +202,7 @@ static int bch2_copygc(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct data_update_opts data_opts = {
-		.btree_insert_flags = BTREE_INSERT_USE_RESERVE|JOURNAL_WATERMARK_copygc,
+		.btree_insert_flags = BTREE_INSERT_USE_RESERVE|BCH_WATERMARK_copygc,
 	};
 	move_buckets buckets = { 0 };
 	struct move_bucket_in_flight *f;

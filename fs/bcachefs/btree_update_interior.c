@@ -651,7 +651,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 			BTREE_INSERT_NOCHECK_RW|
 			BTREE_INSERT_USE_RESERVE|
 			BTREE_INSERT_JOURNAL_RECLAIM|
-			JOURNAL_WATERMARK_reserved,
+			BCH_WATERMARK_reclaim,
 			btree_update_nodes_written_trans(&trans, as));
 	bch2_trans_unlock(&trans);
 
@@ -1049,7 +1049,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		? BCH_DISK_RESERVATION_NOFAIL : 0;
 	unsigned nr_nodes[2] = { 0, 0 };
 	unsigned update_level = level;
-	int journal_flags = flags & JOURNAL_WATERMARK_MASK;
+	int journal_flags = flags & BCH_WATERMARK_MASK;
 	int ret = 0;
 	u32 restart_count = trans->restart_count;
 
@@ -2192,7 +2192,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_USE_RESERVE|
 				BTREE_INSERT_JOURNAL_RECLAIM|
-				JOURNAL_WATERMARK_reserved);
+				BCH_WATERMARK_reclaim);
 	if (ret)
 		goto err;
 

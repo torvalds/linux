@@ -154,19 +154,6 @@ enum journal_flags {
 	JOURNAL_NEED_FLUSH_WRITE,
 };
 
-#define JOURNAL_WATERMARKS()		\
-	x(any)				\
-	x(copygc)			\
-	x(reserved)
-
-enum journal_watermark {
-#define x(n)	JOURNAL_WATERMARK_##n,
-	JOURNAL_WATERMARKS()
-#undef x
-};
-
-#define JOURNAL_WATERMARK_MASK	3
-
 /* Reasons we may fail to get a journal reservation: */
 #define JOURNAL_ERRORS()		\
 	x(ok)				\
@@ -191,7 +178,7 @@ struct journal {
 	struct {
 
 	union journal_res_state reservations;
-	enum journal_watermark	watermark;
+	enum bch_watermark	watermark;
 
 	union journal_preres_state prereserved;
 

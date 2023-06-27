@@ -17,12 +17,12 @@ struct bucket_alloc_state {
 };
 
 #define BCH_WATERMARKS()		\
-	x(reclaim)			\
-	x(btree_copygc)			\
-	x(btree)			\
-	x(copygc)			\
+	x(stripe)			\
 	x(normal)			\
-	x(stripe)
+	x(copygc)			\
+	x(btree)			\
+	x(btree_copygc)			\
+	x(reclaim)
 
 enum bch_watermark {
 #define x(name)	BCH_WATERMARK_##name,
@@ -30,6 +30,9 @@ enum bch_watermark {
 #undef x
 	BCH_WATERMARK_NR,
 };
+
+#define BCH_WATERMARK_BITS	3
+#define BCH_WATERMARK_MASK	~(~0 << BCH_WATERMARK_BITS)
 
 #define OPEN_BUCKETS_COUNT	1024
 

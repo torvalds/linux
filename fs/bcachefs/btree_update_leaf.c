@@ -320,7 +320,7 @@ bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned flags,
 		bch2_journal_preres_get(&trans->c->journal,
 			&trans->journal_preres,
 			trans->journal_preres_u64s,
-			(flags & JOURNAL_WATERMARK_MASK)));
+			(flags & BCH_WATERMARK_MASK)));
 }
 
 static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
@@ -636,7 +636,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	 */
 	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY))) {
 		ret = bch2_trans_journal_res_get(trans,
-				(flags & JOURNAL_WATERMARK_MASK)|
+				(flags & BCH_WATERMARK_MASK)|
 				JOURNAL_RES_GET_NONBLOCK);
 		if (ret)
 			return ret;
@@ -885,7 +885,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 
 	ret = bch2_journal_preres_get(&c->journal,
 			&trans->journal_preres, trans->journal_preres_u64s,
-			(flags & JOURNAL_WATERMARK_MASK)|JOURNAL_RES_GET_NONBLOCK);
+			(flags & BCH_WATERMARK_MASK)|JOURNAL_RES_GET_NONBLOCK);
 	if (unlikely(ret == -BCH_ERR_journal_preres_get_blocked))
 		ret = bch2_trans_journal_preres_get_cold(trans, flags, trace_ip);
 	if (unlikely(ret))
@@ -952,14 +952,14 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		break;
 	case -BCH_ERR_journal_res_get_blocked:
 		if ((flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
-		    !(flags & JOURNAL_WATERMARK_reserved)) {
+		    (flags & BCH_WATERMARK_MASK) != BCH_WATERMARK_reclaim) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			break;
 		}
 
 		ret = drop_locks_do(trans,
 			bch2_trans_journal_res_get(trans,
-					(flags & JOURNAL_WATERMARK_MASK)|
+					(flags & BCH_WATERMARK_MASK)|
 					JOURNAL_RES_GET_CHECK));
 		break;
 	case -BCH_ERR_btree_insert_need_journal_reclaim:
@@ -2048,7 +2048,7 @@ int bch2_journal_log_msg(struct bch_fs *c, const char *fmt, ...)
 	int ret;
 
 	va_start(args, fmt);
-	ret = __bch2_fs_log_msg(c, JOURNAL_WATERMARK_reserved, fmt, args);
+	ret = __bch2_fs_log_msg(c, BCH_WATERMARK_reclaim, fmt, args);
 	va_end(args);
 	return ret;
 }
