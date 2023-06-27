@@ -4090,9 +4090,9 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
 	struct dc_state *transition_context = dc_create_state(dc);
-	enum pipe_split_policy tmp_mpc_policy;
-	bool temp_dynamic_odm_policy;
-	bool temp_subvp_policy;
+	enum pipe_split_policy tmp_mpc_policy = 0;
+	bool temp_dynamic_odm_policy = 0;
+	bool temp_subvp_policy = 0;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 	unsigned int pipe_in_use = 0;
@@ -4372,8 +4372,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	 * cause underflow. Apply stream configuration with minimal pipe
 	 * split first to avoid unsupported transitions for active pipes.
 	 */
-	bool force_minimal_pipe_splitting;
-	bool is_plane_addition;
+	bool force_minimal_pipe_splitting = 0;
+	bool is_plane_addition = 0;
 
 	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(

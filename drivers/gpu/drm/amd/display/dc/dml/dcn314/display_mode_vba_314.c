@@ -3613,7 +3613,7 @@ static void CalculateFlipSchedule(
 	unsigned int HostVMDynamicLevelsTrips;
 	double TimeForFetchingMetaPTEImmediateFlip;
 	double TimeForFetchingRowInVBlankImmediateFlip;
-	double ImmediateFlipBW;
+	double ImmediateFlipBW = 1.0;
 	double LineTime = v->HTotal[k] / v->PixelClock[k];
 
 	if (v->GPUVMEnable == true && v->HostVMEnable == true) {

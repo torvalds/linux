@@ -297,7 +297,7 @@ void dcn32_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 
 	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.dppclk_khz;
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-		int dpp_inst, dppclk_khz, prev_dppclk_khz;
+		int dpp_inst = 0, dppclk_khz, prev_dppclk_khz;
 
 		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
 
