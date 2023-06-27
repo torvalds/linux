@@ -2075,7 +2075,7 @@ unsigned find_lock_entries(struct address_space *mapping, pgoff_t *start,
 		if (!xa_is_value(folio)) {
 			if (folio->index < *start)
 				goto put;
-			if (folio->index + folio_nr_pages(folio) - 1 > end)
+			if (folio_next_index(folio) - 1 > end)
 				goto put;
 			if (!folio_trylock(folio))
 				goto put;
@@ -2174,7 +2174,7 @@ bool folio_more_pages(struct folio *folio, pgoff_t index, pgoff_t max)
 		return false;
 	if (index >= max)
 		return false;
-	return index < folio->index + folio_nr_pages(folio) - 1;
+	return index < folio_next_index(folio) - 1;
 }
 
 /**
@@ -2242,7 +2242,7 @@ update_start:
 		if (folio_test_hugetlb(folio))
 			*start = folio->index + 1;
 		else
-			*start = folio->index + folio_nr_pages(folio);
+			*start = folio_next_index(folio);
 	}
 out:
 	rcu_read_unlock();
@@ -2359,7 +2359,7 @@ static void filemap_get_read_batch(struct address_space *mapping,
 			break;
 		if (folio_test_readahead(folio))
 			break;
-		xas_advance(&xas, folio->index + folio_nr_pages(folio) - 1);
+		xas_advance(&xas, folio_next_index(folio) - 1);
 		continue;
 put_folio:
 		folio_put(folio);
