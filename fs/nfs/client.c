@@ -1021,8 +1021,10 @@ void nfs_free_server(struct nfs_server *server)
 
 	nfs_put_client(server->nfs_client);
 
-	nfs_sysfs_remove_server(server);
-	kobject_put(&server->kobj);
+	if (server->kobj.state_initialized) {
+		nfs_sysfs_remove_server(server);
+		kobject_put(&server->kobj);
+	}
 	ida_free(&s_sysfs_ids, server->s_sysfs_id);
 
 	ida_destroy(&server->lockowner_id);
