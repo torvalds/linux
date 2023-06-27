@@ -2195,12 +2195,24 @@ struct btree_node {
 	};
 } __packed __aligned(8);
 
-LE64_BITMASK(BTREE_NODE_ID,	struct btree_node, flags,  0,  4);
+LE64_BITMASK(BTREE_NODE_ID_LO,	struct btree_node, flags,  0,  4);
 LE64_BITMASK(BTREE_NODE_LEVEL,	struct btree_node, flags,  4,  8);
 LE64_BITMASK(BTREE_NODE_NEW_EXTENT_OVERWRITE,
 				struct btree_node, flags,  8,  9);
-/* 9-32 unused */
+LE64_BITMASK(BTREE_NODE_ID_HI,	struct btree_node, flags,  9, 25);
+/* 25-32 unused */
 LE64_BITMASK(BTREE_NODE_SEQ,	struct btree_node, flags, 32, 64);
+
+static inline __u64 BTREE_NODE_ID(struct btree_node *n)
+{
+	return BTREE_NODE_ID_LO(n) | (BTREE_NODE_ID_HI(n) << 4);
+}
+
+static inline void SET_BTREE_NODE_ID(struct btree_node *n, u64 v)
+{
+	SET_BTREE_NODE_ID_LO(n, v);
+	SET_BTREE_NODE_ID_HI(n, v >> 4);
+}
 
 struct btree_node_entry {
 	struct bch_csum		csum;
@@ -2211,7 +2223,6 @@ struct btree_node_entry {
 		__u8		pad[22];
 		__le16		u64s;
 		__u64		_data[0];
-
 	};
 	};
 } __packed __aligned(8);
