@@ -697,14 +697,12 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 			lock_buffer(bd2->bd_bh);
 
 			if (buffer_escaped(bd2->bd_bh)) {
-				void *kaddr;
+				void *p;
+
 				page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
-				ptr = page_address(page);
-				kaddr = kmap_local_page(bd2->bd_bh->b_page);
-				memcpy(ptr, kaddr + bh_offset(bd2->bd_bh),
-				       bd2->bd_bh->b_size);
-				kunmap_local(kaddr);
-				*(__be32 *)ptr = 0;
+				p = page_address(page);
+				memcpy_from_page(p, page, bh_offset(bd2->bd_bh), bd2->bd_bh->b_size);
+				*(__be32 *)p = 0;
 				clear_buffer_escaped(bd2->bd_bh);
 				unlock_buffer(bd2->bd_bh);
 				brelse(bd2->bd_bh);

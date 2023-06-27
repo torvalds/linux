@@ -488,7 +488,6 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 	unsigned copied = 0;
 	unsigned amt;
 	struct page *page;
-	void *p;
 
 	do {
 		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
@@ -497,12 +496,10 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 				continue;
 			return PTR_ERR(page);
 		}
-		p = kmap_local_page(page);
 		amt = size - copied;
 		if (offset + size > PAGE_SIZE)
 			amt = PAGE_SIZE - offset;
-		memcpy(buf + copied, p + offset, amt);
-		kunmap_local(p);
+		memcpy_from_page(buf + copied, page, offset, amt);
 		put_page(page);
 		copied += amt;
 		index++;
