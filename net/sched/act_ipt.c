@@ -230,6 +230,26 @@ static int tcf_xt_init(struct net *net, struct nlattr *nla,
 			      a, &act_xt_ops, tp, flags);
 }
 
+static bool tcf_ipt_act_check(struct sk_buff *skb)
+{
+	const struct iphdr *iph;
+	unsigned int nhoff, len;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		return false;
+
+	nhoff = skb_network_offset(skb);
+	iph = ip_hdr(skb);
+	if (iph->ihl < 5 || iph->version != 4)
+		return false;
+
+	len = skb_ip_totlen(skb);
+	if (skb->len < nhoff + len || len < (iph->ihl * 4u))
+		return false;
+
+	return pskb_may_pull(skb, iph->ihl * 4u);
+}
+
 TC_INDIRECT_SCOPE int tcf_ipt_act(struct sk_buff *skb,
 				  const struct tc_action *a,
 				  struct tcf_result *res)
@@ -244,8 +264,21 @@ TC_INDIRECT_SCOPE int tcf_ipt_act(struct sk_buff *skb,
 		.pf	= NFPROTO_IPV4,
 	};
 
+	if (skb_protocol(skb, false) != htons(ETH_P_IP))
+		return TC_ACT_UNSPEC;
+
 	if (skb_unclone(skb, GFP_ATOMIC))
 		return TC_ACT_UNSPEC;
+
+	if (!tcf_ipt_act_check(skb))
+		return TC_ACT_UNSPEC;
+
+	if (state.hook == NF_INET_POST_ROUTING) {
+		if (!skb_dst(skb))
+			return TC_ACT_UNSPEC;
+
+		state.out = skb->dev;
+	}
 
 	spin_lock(&ipt->tcf_lock);
 
