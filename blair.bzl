@@ -64,6 +64,7 @@ def define_blair():
         "drivers/irqchip/irq-qcom-mpm.ko",
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-mpm.ko",
+        "drivers/leds/leds-aw2016.ko",
         "drivers/leds/leds-qpnp-flash-v2.ko",
         "drivers/leds/leds-qpnp-vibrator-ldo.ko",
         "drivers/leds/leds-qti-tri-led.ko",
