@@ -3197,8 +3197,8 @@
 				reg = <0 0x0ae94400 0 0x200>,
 				      <0 0x0ae94600 0 0x280>,
 				      <0 0x0ae94a00 0 0x1e0>;
-				reg-names = "dsi0_phy",
-					    "dsi0_phy_lane",
+				reg-names = "dsi_phy",
+					    "dsi_phy_lane",
 					    "dsi_pll";
 
 				#clock-cells = <1>;
