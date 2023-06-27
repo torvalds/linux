@@ -5670,6 +5670,9 @@ void scheduler_tick(void)
 
 	perf_event_task_tick();
 
+	if (curr->flags & PF_WQ_WORKER)
+		wq_worker_tick(curr);
+
 #ifdef CONFIG_SMP
 	rq->idle_balance = idle_cpu(cpu);
 	trigger_load_balance(rq);
