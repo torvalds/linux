@@ -581,15 +581,14 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 	maps__zput(al->maps);
 	map__zput(al->map);
 	thread__zput(al->thread);
+	al->thread = thread__get(thread);
 
 	al->addr = addr;
 	al->cpumode = cpumode;
 	al->filtered = 0;
 
-	if (machine == NULL) {
-		al->map = NULL;
+	if (machine == NULL)
 		return NULL;
-	}
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
@@ -605,7 +604,6 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 		al->level = 'u';
 	} else {
 		al->level = 'H';
-		al->map = NULL;
 
 		if ((cpumode == PERF_RECORD_MISC_GUEST_USER ||
 			cpumode == PERF_RECORD_MISC_GUEST_KERNEL) &&
@@ -619,7 +617,6 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 		return NULL;
 	}
 	al->maps = maps__get(maps);
-	al->thread = thread__get(thread);
 	al->map = map__get(maps__find(maps, al->addr));
 	if (al->map != NULL) {
 		/*
