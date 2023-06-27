@@ -141,7 +141,7 @@ retry:
 				break;
 			}
 
-			ret = bch2_btree_node_update_key(&trans, &iter, b, k.k, false);
+			ret = bch2_btree_node_update_key(&trans, &iter, b, k.k, 0, false);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 				ret = 0;
 				continue;

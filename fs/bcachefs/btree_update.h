@@ -27,7 +27,6 @@ enum btree_insert_flags {
 	__BTREE_INSERT_NOFAIL = BCH_WATERMARK_BITS,
 	__BTREE_INSERT_NOCHECK_RW,
 	__BTREE_INSERT_LAZY_RW,
-	__BTREE_INSERT_USE_RESERVE,
 	__BTREE_INSERT_JOURNAL_REPLAY,
 	__BTREE_INSERT_JOURNAL_RECLAIM,
 	__BTREE_INSERT_NOWAIT,
@@ -37,26 +36,23 @@ enum btree_insert_flags {
 };
 
 /* Don't check for -ENOSPC: */
-#define BTREE_INSERT_NOFAIL		(1 << __BTREE_INSERT_NOFAIL)
+#define BTREE_INSERT_NOFAIL		BIT(__BTREE_INSERT_NOFAIL)
 
-#define BTREE_INSERT_NOCHECK_RW		(1 << __BTREE_INSERT_NOCHECK_RW)
-#define BTREE_INSERT_LAZY_RW		(1 << __BTREE_INSERT_LAZY_RW)
-
-/* for copygc, or when merging btree nodes */
-#define BTREE_INSERT_USE_RESERVE	(1 << __BTREE_INSERT_USE_RESERVE)
+#define BTREE_INSERT_NOCHECK_RW		BIT(__BTREE_INSERT_NOCHECK_RW)
+#define BTREE_INSERT_LAZY_RW		BIT(__BTREE_INSERT_LAZY_RW)
 
 /* Insert is for journal replay - don't get journal reservations: */
-#define BTREE_INSERT_JOURNAL_REPLAY	(1 << __BTREE_INSERT_JOURNAL_REPLAY)
+#define BTREE_INSERT_JOURNAL_REPLAY	BIT(__BTREE_INSERT_JOURNAL_REPLAY)
 
 /* Insert is being called from journal reclaim path: */
-#define BTREE_INSERT_JOURNAL_RECLAIM (1 << __BTREE_INSERT_JOURNAL_RECLAIM)
+#define BTREE_INSERT_JOURNAL_RECLAIM	BIT(__BTREE_INSERT_JOURNAL_RECLAIM)
 
 /* Don't block on allocation failure (for new btree nodes: */
-#define BTREE_INSERT_NOWAIT		(1 << __BTREE_INSERT_NOWAIT)
-#define BTREE_INSERT_GC_LOCK_HELD	(1 << __BTREE_INSERT_GC_LOCK_HELD)
+#define BTREE_INSERT_NOWAIT		BIT(__BTREE_INSERT_NOWAIT)
+#define BTREE_INSERT_GC_LOCK_HELD	BIT(__BTREE_INSERT_GC_LOCK_HELD)
 
-#define BCH_HASH_SET_MUST_CREATE	(1 << __BCH_HASH_SET_MUST_CREATE)
-#define BCH_HASH_SET_MUST_REPLACE	(1 << __BCH_HASH_SET_MUST_REPLACE)
+#define BCH_HASH_SET_MUST_CREATE	BIT(__BCH_HASH_SET_MUST_CREATE)
+#define BCH_HASH_SET_MUST_REPLACE	BIT(__BCH_HASH_SET_MUST_REPLACE)
 
 int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 				unsigned, unsigned);
@@ -80,9 +76,10 @@ int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
 			    struct btree *, unsigned);
 void bch2_btree_node_rewrite_async(struct bch_fs *, struct btree *);
 int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
-			       struct btree *, struct bkey_i *, bool);
-int bch2_btree_node_update_key_get_iter(struct btree_trans *,
-				struct btree *, struct bkey_i *, bool);
+			       struct btree *, struct bkey_i *,
+			       unsigned, bool);
+int bch2_btree_node_update_key_get_iter(struct btree_trans *, struct btree *,
+					struct bkey_i *, unsigned, bool);
 
 int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,
 				     struct bpos, struct bpos);

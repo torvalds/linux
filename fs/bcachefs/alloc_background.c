@@ -1719,7 +1719,8 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 write:
 	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_USE_RESERVE|BTREE_INSERT_NOFAIL);
+				  BCH_WATERMARK_btree|
+				  BTREE_INSERT_NOFAIL);
 	if (ret)
 		goto out;
 
@@ -1827,7 +1828,8 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	ret =   bch2_trans_update(trans, &alloc_iter, &a->k_i,
 				BTREE_TRIGGER_BUCKET_INVALIDATE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_USE_RESERVE|BTREE_INSERT_NOFAIL);
+				  BCH_WATERMARK_btree|
+				  BTREE_INSERT_NOFAIL);
 	if (ret)
 		goto out;
 

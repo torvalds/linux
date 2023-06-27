@@ -213,6 +213,9 @@ slowpath:
 	     btree_write_buffered_journal_cmp,
 	     NULL);
 
+	commit_flags &= ~BCH_WATERMARK_MASK;
+	commit_flags |= BCH_WATERMARK_reclaim;
+
 	for (i = keys; i < keys + nr; i++) {
 		if (!i->journal_seq)
 			continue;
@@ -231,8 +234,7 @@ slowpath:
 		ret = commit_do(trans, NULL, NULL,
 				commit_flags|
 				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_JOURNAL_RECLAIM|
-				BCH_WATERMARK_reclaim,
+				BTREE_INSERT_JOURNAL_RECLAIM,
 				__bch2_btree_insert(trans, i->btree, &i->k, 0));
 		if (bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret)))
 			break;
