@@ -8,7 +8,7 @@ title: Qualcomm Multimedia Clock & Reset Controller
 
 maintainers:
   - Jeffrey Hugo <quic_jhugo@quicinc.com>
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Qualcomm multimedia clock control module provides the clocks, resets and
