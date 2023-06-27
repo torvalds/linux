@@ -1656,6 +1656,9 @@
   dev_pm_opp_add
   update_devfreq
 
+# required by sprd_thermal_ctl.ko
+  devfreq_cooling_em_register
+
 # required by sprd_hwspinlock.ko
   devm_hwspin_lock_register
 
