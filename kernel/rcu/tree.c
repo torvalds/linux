@@ -632,7 +632,7 @@ void __rcu_irq_enter_check_tick(void)
 	// prevents self-deadlock.  So we can safely recheck under the lock.
 	// Note that the nohz_full state currently cannot change.
 	raw_spin_lock_rcu_node(rdp->mynode);
-	if (rdp->rcu_urgent_qs && !rdp->rcu_forced_tick) {
+	if (READ_ONCE(rdp->rcu_urgent_qs) && !rdp->rcu_forced_tick) {
 		// A nohz_full CPU is in the kernel and RCU needs a
 		// quiescent state.  Turn on the tick!
 		WRITE_ONCE(rdp->rcu_forced_tick, true);
